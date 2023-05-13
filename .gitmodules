@@ -1,0 +1,6 @@
+[submodule "vendor/sdl"]
+	path = vendor/sdl
+	url = git@github.com:libsdl-org/SDL.git
+[submodule "vendor/stormlib"]
+	path = vendor/stormlib
+	url = git@github.com:ladislav-zezula/StormLib.git
