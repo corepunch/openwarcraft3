@@ -11,4 +11,8 @@ Or mac
 
     tools/bin/darwin/premake5 xcode4
 
+or
+
+    tools/bin/darwin/premake5 --cc=clang gmake
+
 The project files will be created in the build folder.
