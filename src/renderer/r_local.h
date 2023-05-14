@@ -1,19 +1,8 @@
 #ifndef r_local_h
 #define r_local_h
 
-#include <SDL2/SDL.h>
-#include <SDL2/SDL_opengl.h>
-
-#if __APPLE__
-#include <TargetConditionals.h>
-#if !TARGET_OS_IPHONE && !TARGET_IPHONE_SIMULATOR
-#include <OpenGL/gl3.h>
-#else
-#include <OpenGLES/ES3/gl.h>
-#endif
-#elif __linux__
-#include <GLES3/gl3.h>
-#endif
+#include <SDL.h>
+#include <SDL_opengl.h>
 
 #define GetError()\
 {\

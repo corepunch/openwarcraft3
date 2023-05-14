@@ -1,7 +1,7 @@
 #include "client.h"
 #include "renderer.h"
 
-#include <SDL2/SDL.h>
+#include <SDL.h>
 
 struct Renderer *renderer = NULL;
 struct client_state cl = {

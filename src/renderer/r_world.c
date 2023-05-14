@@ -1,5 +1,7 @@
 #include "r_local.h"
 
+#include <math.h>                                                               
+
 struct tTexture {
     GLuint texid;
     int width;
