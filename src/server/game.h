@@ -3,14 +3,6 @@
 
 #include "../common/common.h"
 
-struct entity_state {
-    struct vector3 position;
-    float angle;
-    struct vector3 scale;
-    int model;
-    int image;
-};
-
 struct game_import {
     void *(*MemAlloc)(long size);
     void (*MemFree)(void *);
@@ -23,6 +15,7 @@ struct game_export {
     void (*Init)(void);
     void (*Shutdown)(void);
     void (*SpawnEntities)(struct Doodad const *doodads, int numDoodads);
+    void (*RunFrame)(int msec);
     
     struct edict *edicts;
     int num_edicts;
@@ -30,6 +23,6 @@ struct game_export {
     int edict_size;
 };
 
-struct game_export *GetGameAPI(struct game_import *gi);
+struct game_export *GetGameAPI(struct game_import *game_import);
 
 #endif

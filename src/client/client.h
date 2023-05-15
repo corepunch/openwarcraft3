@@ -9,11 +9,9 @@
 #define MAX_CLIENT_ENTITIES 5000
 
 struct client_entity {
-    struct vector3 postion;
-    float angle;
-    struct vector3 scale;
-    int model;
-    int skin;
+    struct entity_state baseline;
+//    struct entity_state previous;
+    struct entity_state current;
 };
 
 struct client_state {
@@ -28,5 +26,9 @@ struct client_state {
 
 void V_RenderView(void);
 void CL_PrepRefresh(void);
+void CL_ParseServerMessage(struct sizebuf *msg);
+int CL_ParseEntityBits(struct sizebuf *msg, uint32_t *bits);
+
+extern struct client_state cl;
 
 #endif

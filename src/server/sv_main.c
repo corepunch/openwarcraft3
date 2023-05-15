@@ -15,18 +15,57 @@ static void SV_WriteConfigStrings(struct client *cl) {
     Netchan_Transmit(&cl->netchan);
 }
 
-static void SV_WritePacketEntities(struct client *cl) {
-    MSG_WriteByte(&cl->netchan.message, svc_packetentities);
-    MSG_WriteShort(&cl->netchan.message, ge->num_edicts);
+#define SET_BIT_IF(flag, value) \
+if (from->value != to->value) \
+    bits |= (1 << kEntityChangeFlag_##flag);
+
+#define WRITE_IF(flag, value, type) \
+if (bits & (1 << kEntityChangeFlag_##flag)) \
+    MSG_Write##type(msg, to->value);
+
+void
+MSG_WriteDeltaEntity(struct sizebuf *msg,
+                     struct entity_state const *from,
+                     struct entity_state const *to)
+{
+    int bits = 0;
+
+    SET_BIT_IF(originX, origin.x);
+    SET_BIT_IF(originY, origin.y);
+    SET_BIT_IF(originZ, origin.z);
+    SET_BIT_IF(angle, angle);
+    SET_BIT_IF(scale, scale);
+    SET_BIT_IF(frame, frame);
+    SET_BIT_IF(model, model);
+    SET_BIT_IF(image, image);
+    
+    MSG_WriteShort(msg, bits);
+    MSG_WriteShort(msg, to->number);
+
+    WRITE_IF(originX, origin.x, Short);
+    WRITE_IF(originY, origin.y, Short);
+    WRITE_IF(originZ, origin.z, Short);
+    WRITE_IF(angle, angle, Short);
+    WRITE_IF(scale, scale, Short);
+    WRITE_IF(frame, frame, Short);
+    WRITE_IF(model, model, Short);
+    WRITE_IF(image, image, Short);
+}
+
+static void SV_Baseline(struct client *cl) {
+    struct entity_state nullstate;
+    memset(&nullstate, 0, sizeof(struct entity_state));
     FOR_LOOP(index, ge->num_edicts) {
         struct edict *e = EDICT_NUM(index);
-        MSG_Write(&cl->netchan.message, &e->s.position, 12);
-        MSG_Write(&cl->netchan.message, &e->s.angle, 4);
-        MSG_Write(&cl->netchan.message, &e->s.scale, 12);
-        MSG_Write(&cl->netchan.message, &e->s.model, 4);
-        MSG_Write(&cl->netchan.message, &e->s.image, 4);
+        MSG_WriteByte(&cl->netchan.message, svc_spawnbaseline);
+        MSG_WriteDeltaEntity(&cl->netchan.message, &nullstate, &e->s);
     }
     Netchan_Transmit(&cl->netchan);
+}
+
+void SV_SendClientDatagram(struct client *client) {
+    SV_BuildClientFrame(client);
+    SV_WriteFrameToClient(client);
 }
 
 void SV_SendClientMessages(void) {
@@ -34,9 +73,10 @@ void SV_SendClientMessages(void) {
         struct client *client = &svs.clients[i];
         if (!client->initialized) {
             SV_WriteConfigStrings(client);
-            SV_WritePacketEntities(client);
+            SV_Baseline(client);
             client->initialized = true;
         }
+//        SV_SendClientDatagram(client);
     }
 }
 
@@ -73,31 +113,13 @@ int SV_ImageIndex(LPCSTR name) {
     return SV_FindIndex(name, CS_IMAGES, MAX_IMAGES, true);
 }
 
-void __netchan_init(struct netchan *netchan){
-    memset(netchan, 0, sizeof(struct netchan));
-    netchan->message.data = netchan->message_buf;
-    netchan->message.maxsize = sizeof(netchan->message_buf);
-}
-
-void SV_Init(void) {
-    ge = GetGameAPI(&(struct game_import) {
-        .MemAlloc = MemAlloc,
-        .MemFree = MemFree,
-        .ModelIndex = SV_ModelIndex,
-        .ImageIndex = SV_ImageIndex,
-        .SoundIndex = SV_SoundIndex,
-    });
-    ge->Init();
-    memset(&svs, 0, sizeof(struct server_static));
-    memset(&sv, 0, sizeof(struct server));
-    __netchan_init(&svs.clients[0].netchan);
-    svs.num_clients = 1;
+void SV_RunGameFrame(int msec) {
+    sv.framenum++;
+    sv.time += msec;
+    ge->RunFrame(msec);
 }
 
 void SV_Frame(int msec) {
+    SV_RunGameFrame(msec);
     SV_SendClientMessages();
-}
-
-void SV_Shutdown(void) {
-    ge->Shutdown();
 }

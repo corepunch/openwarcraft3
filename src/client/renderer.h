@@ -14,9 +14,10 @@ struct RendererImport {
 struct render_entity {
     struct vector3 postion;
     float angle;
-    struct vector3 scale;
+    float scale;
     struct tModel *model;
     struct tTexture *skin;
+    int frame;
 };
 
 struct refdef {
@@ -35,6 +36,7 @@ struct Renderer {
     void (*RenderFrame)(struct refdef const *lpRefDef);
     struct tTexture *(*LoadTexture)(LPCSTR szTextureFileName);
     struct tModel *(*LoadModel)(LPCSTR szModelFilename);
+    void (*ReleaseModel)(struct tModel *lpModel);
     void (*BeginFrame)(void);
     void (*EndFrame)(void);
     void (*DrawPic)(struct tTexture const *lpTexture);

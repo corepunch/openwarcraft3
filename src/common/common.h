@@ -4,6 +4,7 @@
 #include <StormLib.h>
 
 #include "net.h"
+#include "../math/math.h"
 
 #define TMP_MAP "/tmp/map.w3m"
 #define MAP_VERTEX_SIZE 7
@@ -17,14 +18,17 @@
 #define DOODAD_SIZE 42
 #define MAKEFOURCC(ch0, ch1, ch2, ch3) ((int)(char)(ch0) | ((int)(char)(ch1) << 8) | ((int)(char)(ch2) << 16) | ((int)(char)(ch3) << 24 ))
 
-#define MAX_CLIENTS 256        // absolute limit
-#define MAX_EDICTS 1024    // must change protocol to increase more
+#define UPDATE_BACKUP 16
+#define UPDATE_MASK (UPDATE_BACKUP-1)
+
+#define MAX_PACKET_ENTITIES 64
+#define MAX_CLIENTS 16
 #define MAX_LIGHTSTYLES 256
-#define MAX_MODELS 256        // these are sent over the net as bytes
-#define MAX_SOUNDS 256        // so they cannot be blindly increased
+#define MAX_MODELS 256
+#define MAX_SOUNDS 256
 #define MAX_IMAGES 256
 #define MAX_ITEMS 256
-#define MAX_GENERAL (MAX_CLIENTS*2)    // general config strings
+#define MAX_GENERAL (MAX_CLIENTS*2)
 
 #define CS_NAME 0
 #define CS_CDTRACK 1
@@ -44,6 +48,8 @@
 #define CS_GENERAL (CS_PLAYERSKINS+MAX_CLIENTS)
 #define MAX_CONFIGSTRINGS (CS_GENERAL+MAX_GENERAL)
 
+#define SAFE_DELETE(x, func) if (x) { func(x); (x) = NULL; }
+
 #define SFileReadArray(hFile, object, variable, elemsize) \
 SFileReadFile(hFile, &object->num##variable, 4, NULL, NULL); \
 if (object->num##variable > 0) {object->lp##variable = MemAlloc(object->num##variable * elemsize); \
@@ -60,6 +66,18 @@ property = next, next = next ? next->lpNext : NULL)
 
 #define FOR_EACH(type, property, array, num) \
 for (type *property = array; property - array < num; property++)
+
+enum {
+    kEntityChangeFlag_originX,
+    kEntityChangeFlag_originY,
+    kEntityChangeFlag_originZ,
+    kEntityChangeFlag_angle,
+    kEntityChangeFlag_scale,
+    kEntityChangeFlag_remove,
+    kEntityChangeFlag_frame,
+    kEntityChangeFlag_model,
+    kEntityChangeFlag_image,
+};
 
 enum {
     kTerrainInfo_tileID = 1,
@@ -216,13 +234,13 @@ enum svc_ops {
 //    svc_stufftext,                // [string] stuffed into client's console buffer, should be \n terminated
 //    svc_serverdata,                // [long] protocol ...
     svc_configstring,            // [short] [string]
-//    svc_spawnbaseline,
+    svc_spawnbaseline,
 //    svc_centerprint,            // [string] to put in center of the screen
 //    svc_download,                // [short] size [size bytes]
 //    svc_playerinfo,                // variable
     svc_packetentities,            // [...]
 //    svc_deltapacketentities,    // [...]
-//    svc_frame
+    svc_frame
 };
 
 // client to server
@@ -244,11 +262,6 @@ typedef enum t_attrib_id {
 
 typedef char path_t[MAX_PATHLEN];
 
-struct vector2 { float x, y; };
-struct vector3 { float x, y, z; };
-struct vector4 { float x, y, z, w; };
-struct quaternion { float x, y, z, w; };
-struct matrix4 { union { float v[16]; struct vector4 column[4]; }; };
 struct color { float r, g, b, a; };
 struct color32 { uint8_t r, g, b, a; };
 struct bounds { float min, max; };
@@ -256,6 +269,18 @@ struct rect { float x, y, width, height; };
 struct edges { float left, top, right, bottom; };
 struct transform2 { struct vector2 translation, scale; float rotation; };
 struct transform3 { struct vector3 translation, rotation, scale; };
+
+struct entity_state {
+    int number; // edict index
+    struct vector3 origin;
+    float angle;
+    float scale;
+    int model;
+    int image;
+    int sound;
+    int frame;
+    int event;
+};
 
 struct TerrainInfo {
     int dwTileID;
@@ -368,15 +393,6 @@ struct SheetCell {
 struct tModel;
 struct tTexture;
 
-enum rotation_order {
-    ROTATE_XYZ,
-    ROTATE_XZY,
-    ROTATE_YZX,
-    ROTATE_YXZ,
-    ROTATE_ZXY,
-    ROTATE_ZYX
-};
-
 struct TerrainVertex const *GetTerrainVertex(struct Terrain const *heightmap, int x, int y);
 struct Terrain *FileReadTerrain(HANDLE hArchive);
 struct TerrainInfo *MakeTerrainInfo(struct SheetCell *sheet);
@@ -390,43 +406,6 @@ struct TerrainInfo *FindTerrainInfo(int tileID);
 struct CliffInfo *FindCliffInfo(int cliffID);
 struct DoodadInfo *FindDoodadInfo(int doodID);
 struct DestructableInfo *FindDestructableInfo(int DestructableID);
-
-float vector3_dot(struct vector3 const *a, struct vector3 const *b);
-float vector3_lengthsq(struct vector3 const *vec);
-float vector3_len(struct vector3 const *vec);
-bool vector3_eq(struct vector3 const *a, struct vector3 const *b);
-struct vector3 vector3_lerp(struct vector3 const *a, struct vector3 const *b, float t);
-struct vector3 vector3_cross(struct vector3 const *a, struct vector3 const *b);
-struct vector3 vector3_sub(struct vector3 const *a, struct vector3 const *b);
-struct vector3 vector3_add(struct vector3 const *a, struct vector3 const *b);
-struct vector3 vector3_mad(struct vector3 const *v, float s, struct vector3 const *b);
-struct vector3 vector3_mul(struct vector3 const *a, struct vector3 const *b);
-struct vector3 vector3_scale(struct vector3 const *v, float s);
-void vector3_normalize(struct vector3* v);
-void vector3_set(struct vector3* v, float x, float y, float z);
-void vector3_clear(struct vector3* v);
-struct vector3 vector3_unm(struct vector3 const* v);
-void vector2_set(struct vector2* v, float x, float y);
-struct vector2 vector2_scale(struct vector2 const *v, float s);
-float vector2_dot(struct vector2 const *a, struct vector2 const *b);
-float vector2_lengthsq(struct vector2 const *vec);
-float vector2_len(struct vector2 const *vec);
-void vector4_set(struct vector4* v, float x, float y, float z, float w);
-struct vector4 vector4_scale(struct vector4 const *v, float s);
-struct vector4 vector4_add(struct vector4 const *a, struct vector4 const *b);
-struct vector4 vector4_unm(struct vector4 const* v);
-void matrix4_identity(struct matrix4 *m);
-void matrix4_translate(struct matrix4 *m, struct vector3 const *v);
-void matrix4_rotate(struct matrix4 *m, struct vector3 const *v, enum rotation_order order);
-void matrix4_scale(struct matrix4 *m, struct vector3 const *v);
-void matrix4_multiply(struct matrix4 const *m1, struct matrix4 const *m2, struct matrix4 *out);
-void matrix4_multiply_vector3(struct matrix4 const *m1, struct vector3 const *v, struct vector3 *out);
-void matrix4_ortho(struct matrix4 *m, float left, float right, float bottom, float top, float znear, float zfar);
-void matrix4_perspective(struct matrix4 *m, float angle, float aspect, float znear, float zfar);
-void matrix4_lookat(struct matrix4 *m, struct vector3 const *eye, struct vector3 const *direction, struct vector3 const *up);
-void matrix4_inverse(struct matrix4 const *m, struct matrix4 *out);
-void matrix4_transpose(struct matrix4 const *m, struct matrix4 *out);
-void matrix4_rotate4(struct matrix4 *m, struct vector4 const *quat);
 
 int GetTile(struct TerrainVertex const *mv, int ground);
 float GetTerrainVertexHeight(struct TerrainVertex const *vert);

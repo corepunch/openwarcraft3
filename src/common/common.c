@@ -16,7 +16,7 @@ static void ExtractStarCraft2(void) {
 //    SFileOpenArchive("/Users/igor/Documents/StarCraft2/Campaigns/Liberty.SC2Campaign/Base.SC2Maps", 0, 0, &hArchive);
 //    SFileOpenArchive("/Users/igor/Documents/StarCraft2/Mods/Liberty.SC2Mod/base.SC2Assets", 0, 0, &hArchive);
     SFileOpenArchive(MPQ_PATH, 0, 0, &hArchive);
-    SFileExtractFile(hArchive, "Doodads\\Terrain\\LordaeronTree\\LordaeronTree7.mdx", "/Users/igor/Desktop/LordaeronTree7.mdx", 0);
+    SFileExtractFile(hArchive, "Units\\Orc\\Peon\\Peon.mdx", "/Users/igor/Desktop/Peon.mdx", 0);
 
     SFILE_FIND_DATA findData;
     HANDLE handle = SFileFindFirstFile(hArchive, "*", &findData, 0);

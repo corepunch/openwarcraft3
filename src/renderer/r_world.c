@@ -1,13 +1,8 @@
 #include "r_local.h"
 
-#include <math.h>                                                               
+#define LAYER_SIZE 500000
 
-struct tTexture {
-    GLuint texid;
-    int width;
-    int height;
-    struct tTexture *lpNext;
-};
+struct tVertex maplayer[LAYER_SIZE] = {};
 
 struct tCliff {
     int cliffid;
@@ -18,7 +13,6 @@ struct tCliff {
 extern GLuint program;
 
 struct tCliff *g_cliffs = NULL;
-struct tTexture *g_texturs = NULL;
 
 float GetWaterOpacity(float waterlevel, float height) {
     float const opacity = MIN(0.5, (waterlevel - height) / 50.0f);
@@ -32,25 +26,6 @@ float GetTileDepth(float waterlevel, float height) {
 
 float lerp(float a, float b, float t) {
     return a * (1 - t) + b * t;
-}
-
-int R_RegisterTextureFile(char const *szTextureFileName) {
-    struct tTexture *tex = R_LoadTexture(szTextureFileName);
-    if (tex) {
-        tex->lpNext = g_texturs;
-        g_texturs = tex;
-        return tex->texid;
-    } else {
-        return -1;
-    }
-}
-
-struct tTexture const* FindTextureByID(int texid) {
-    for (struct tTexture const *tex = g_texturs; tex; tex = tex->lpNext) {
-        if (tex->texid == texid)
-            return tex;
-    }
-    return NULL;
 }
 
 static struct tModel const *R_LoadCliffModel(struct CliffInfo const *cinfo, char const *ccfg, int ramp) {
@@ -70,39 +45,6 @@ static struct tModel const *R_LoadCliffModel(struct CliffInfo const *cinfo, char
 //    printf("%s\n", buffer);
     return cliff->model;
 }
-
-void R_BindTexture(struct tTexture const *texture, int unit) {
-    glActiveTexture(GL_TEXTURE0 + unit);
-    glBindTexture(GL_TEXTURE_2D, texture->texid);
-}
-
-struct tTexture *R_AllocateTexture(uint32_t dwWidth, uint32_t dwHeight) {
-    struct tTexture *texture = MemAlloc(sizeof(struct tTexture));
-    texture->width = dwWidth;
-    texture->height = dwHeight;
-    glGenTextures(1, &texture->texid);
-    glBindTexture(GL_TEXTURE_2D, texture->texid);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    return texture;
-}
-
-void R_LoadTextureMipLevel(struct tTexture *pTexture, int dwLevel, struct color32* pPixels, uint32_t dwWidth, uint32_t dwHeight) {
-    if (dwWidth == 0 || dwHeight == 0)
-        return;
-    glBindTexture(GL_TEXTURE_2D, pTexture->texid);
-    glTexImage2D(GL_TEXTURE_2D, dwLevel, GL_RGBA, dwWidth, dwHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, pPixels);
-    if (dwLevel > 0) {
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, dwLevel);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-    }
-}
-
-#define LAYER_SIZE 500000
-
-struct tVertex maplayer[LAYER_SIZE] = {};
 
 void SetTileUV(int tile, struct tVertex* vertices, struct TerrainInfo *terrain, struct Terrain const *heightmap) {
     const float u = 1.f/(terrain->lpTexture->width / 64);
@@ -362,8 +304,8 @@ void R_RenderMapLayer(struct Terrain const *heightmap, int ground) {
     
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glBindVertexArray( tr.renbuf.vao );
-    glBindBuffer( GL_ARRAY_BUFFER, tr.renbuf.vbo );
+    glBindVertexArray( tr.renbuf->vao );
+    glBindBuffer( GL_ARRAY_BUFFER, tr.renbuf->vbo );
     glBufferData( GL_ARRAY_BUFFER, sizeof(maplayer), maplayer, GL_STATIC_DRAW );
     glDrawArrays( GL_TRIANGLES, 0, index );
 }
@@ -437,67 +379,10 @@ void RenderWater(struct Terrain const *heightmap) {
     glUniformMatrix4fv( glGetUniformLocation( program, "u_model_matrix" ), 1, GL_FALSE, model_matrix.v );
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glBindVertexArray( tr.renbuf.vao );
-    glBindBuffer( GL_ARRAY_BUFFER, tr.renbuf.vbo );
+    glBindVertexArray( tr.renbuf->vao );
+    glBindBuffer( GL_ARRAY_BUFFER, tr.renbuf->vbo );
     glBufferData( GL_ARRAY_BUFFER, sizeof(maplayer), maplayer, GL_STATIC_DRAW );
     glDrawArrays( GL_TRIANGLES, 0, index );
-}
-
-void RenderGeoset(struct tModelGeoset *lpGeoset,
-                  struct tModelMaterialLayer *lpLayer,
-                  struct render_entity const *lpEntity)
-{
-    struct matrix4 model_matrix;
-    matrix4_identity(&model_matrix);
-    matrix4_translate(&model_matrix, &lpEntity->postion);
-    matrix4_rotate(&model_matrix, &(struct vector3){0, 0, lpEntity->angle * 180 / 3.14f}, ROTATE_XYZ);
-    matrix4_scale(&model_matrix, &lpEntity->scale);
-
-    switch (lpLayer->blendMode) {
-        case TEXOP_LOAD:
-            glBlendFunc(GL_ONE, GL_ZERO);
-            break;
-        case TEXOP_TRANSPARENT:
-            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-            break;
-        case TEXOP_BLEND:
-            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-            break;
-        case TEXOP_ADD:
-            glBlendFunc(GL_ONE, GL_ONE);
-            break;
-        case TEXOP_ADD_ALPHA:
-            glBlendFunc(GL_SRC_ALPHA, GL_ONE);
-            break;
-        default:
-            glBlendFunc(GL_ONE, GL_ZERO);
-            break;
-    }
-    
-    R_RenderGeoset(lpEntity->model, lpGeoset, &model_matrix);
-}
-
-void RenderModel(struct render_entity const *ent) {
-    struct tModelMaterial *lpMaterial = ent->model->lpMaterials;
-    struct tModelGeoset *lpGeoset = ent->model->lpGeosets;
-    if (ent->skin) {
-        R_BindTexture(ent->skin, 0);
-    }
-    for (DWORD dwGeosetID = 0; lpMaterial && lpGeoset; lpGeoset = lpGeoset->lpNext, dwGeosetID++) {
-        if (dwGeosetID < ent->model->numTextures) {
-            struct tModelTexture const *mtex = &ent->model->lpTextures[dwGeosetID];
-            struct tTexture const *tex = FindTextureByID(mtex->texid);
-            if (tex) {
-                R_BindTexture(tex, 0);
-            }
-        }
-        FOR_LOOP(dwLayerID, lpMaterial->num_layers) {
-            RenderGeoset(lpGeoset, &lpMaterial->layers[dwLayerID], ent);
-        }
-        if (lpMaterial->lpNext) {
-            lpMaterial = lpMaterial->lpNext;
-        }
-    }
 }
 
 void R_RenderMapCliffs(struct Terrain const *heightmap, int cliffindex) {
@@ -521,8 +406,8 @@ void R_RenderMapCliffs(struct Terrain const *heightmap, int cliffindex) {
     glUniformMatrix4fv( glGetUniformLocation( program, "u_model_matrix" ), 1, GL_FALSE, model_matrix.v );
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glBindVertexArray( tr.renbuf.vao );
-    glBindBuffer( GL_ARRAY_BUFFER, tr.renbuf.vbo );
+    glBindVertexArray( tr.renbuf->vao );
+    glBindBuffer( GL_ARRAY_BUFFER, tr.renbuf->vbo );
     glBufferData( GL_ARRAY_BUFFER, sizeof(maplayer), maplayer, GL_STATIC_DRAW );
     glDrawArrays( GL_TRIANGLES, 0, index );
 }
@@ -550,35 +435,6 @@ void R_DrawEntities() {
         struct render_entity const *ent = &tr.refdef.entities[i];
         RenderModel(ent);
     }
-}
-
-struct tRenBuf R_MakeVertexArrayObject(struct tVertex const *data, int size) {
-    struct tRenBuf buf;
-    
-    glGenVertexArrays( 1, &buf.vao );
-    glGenBuffers( 1, &buf.vbo );
-    glBindVertexArray( buf.vao );
-    glBindBuffer( GL_ARRAY_BUFFER, buf.vbo );
-
-    glEnableVertexAttribArray( attrib_position );
-    glEnableVertexAttribArray( attrib_color );
-    glEnableVertexAttribArray( attrib_texcoord );
-    glEnableVertexAttribArray( attrib_texcoord2 );
-    glEnableVertexAttribArray( attrib_skin );
-    
-    #define FOFS(type, x) (void *)&(((struct type *)NULL)->x)
-
-    glVertexAttribPointer( attrib_color, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(struct tVertex), FOFS(tVertex, color));
-    glVertexAttribPointer( attrib_position, 3, GL_FLOAT, GL_FALSE, sizeof(struct tVertex), FOFS(tVertex, position));
-    glVertexAttribPointer( attrib_texcoord, 2, GL_FLOAT, GL_FALSE, sizeof(struct tVertex), FOFS(tVertex, texcoord));
-    glVertexAttribPointer( attrib_texcoord2, 2, GL_FLOAT, GL_FALSE, sizeof(struct tVertex), FOFS(tVertex, texcoord2));
-    glVertexAttribPointer( attrib_skin, 4, GL_UNSIGNED_BYTE, GL_FALSE, sizeof(struct tVertex), FOFS(tVertex, skin));
-
-    if (data) {
-        glBufferData( GL_ARRAY_BUFFER, size * sizeof(struct tVertex), data, GL_STATIC_DRAW );
-    }
-
-    return buf;
 }
 
 

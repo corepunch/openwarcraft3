@@ -29,13 +29,13 @@ void MSG_WriteString(struct sizebuf *buf, const char *value) {
     MSG_Write(buf, value, len + 1);
 }
 
-void MSG_Read(struct sizebuf *buf, void *value, int size) {
-    if (buf->readcount + size > buf->maxsize) {
-        fprintf(stderr, "Write buffer overflow\n");
-        return;
+int MSG_Read(struct sizebuf *buf, void *value, int size) {
+    if (buf->readcount + size > buf->cursize) {
+        return 0;
     }
     memcpy(value, buf->data + buf->readcount, size);
     buf->readcount += size;
+    return size;
 }
 
 int MSG_ReadByte(struct sizebuf *buf) {

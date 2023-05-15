@@ -11,11 +11,11 @@ static struct {
 
 static void V_AddClientEntity(struct client_entity const *ent) {
     struct render_entity *re = &view_state.entities[view_state.num_entities++];
-    re->postion = ent->postion;
-    re->angle = ent->angle;
-    re->scale = ent->scale;
-    re->model = cl.models[ent->model];
-    re->skin = cl.pics[ent->skin];
+    re->postion = ent->current.origin;
+    re->angle = ent->current.angle;
+    re->scale = ent->current.scale;
+    re->model = cl.models[ent->current.model];
+    re->skin = cl.pics[ent->current.image];
 }
 
 static void V_ClearScene(void) {
@@ -26,7 +26,7 @@ static void V_ClearScene(void) {
 static void CL_AddEntities(void) {
     FOR_LOOP(index, cl.num_entities) {
         struct client_entity const *ce = &cl.ents[index];
-        if (!ce->model)
+        if (!ce->current.model)
             continue;
         V_AddClientEntity(ce);
     }

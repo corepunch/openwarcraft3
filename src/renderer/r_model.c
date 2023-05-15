@@ -42,9 +42,11 @@ while (!FileIsAtEndOfBlock(FILE, &BLOCK)) { \
 }
 
 #define MODEL_READ_ARRAY(FILE, BLOCK, TYPE, TYPES) \
-lpModel->lp##TYPES = MemAlloc(BLOCK.dwSize); \
+lpModel->lp##TYPES = ri.MemAlloc(BLOCK.dwSize); \
 lpModel->num##TYPES = BLOCK.dwSize / sizeof(struct tModel##TYPE); \
 SFileReadFile(FILE, lpModel->lp##TYPES, BLOCK.dwSize, NULL, NULL);
+
+static struct matrix4 node_matrices[MAX_BONE_MATRICES];
 
 struct tFileBlock {
     DWORD dwHeader;
@@ -77,7 +79,7 @@ void FileMoveToEndOfBlock(HANDLE hFile, struct tFileBlock const *lpBlock) {
 }
 
 static struct tModelGeoset *ReadGeoset(HANDLE hFile, struct tFileBlock const block) {
-    struct tModelGeoset *lpGeoset = MemAlloc(sizeof(struct tModelGeoset));
+    struct tModelGeoset *lpGeoset = ri.MemAlloc(sizeof(struct tModelGeoset));
     while (!FileIsAtEndOfBlock(hFile, &block)) {
         int tag = FileReadInt32(hFile);
         switch (tag) {
@@ -120,7 +122,7 @@ void ReadMaterialLayer(HANDLE hFile,
 }
 
 struct tModelMaterial *ReadMaterial(HANDLE hFile, struct tFileBlock const block) {
-    struct tModelMaterial *lpMaterial = MemAlloc(sizeof(struct tModelMaterial));
+    struct tModelMaterial *lpMaterial = ri.MemAlloc(sizeof(struct tModelMaterial));
     lpMaterial->priority = FileReadInt32(hFile);
     lpMaterial->flags = FileReadInt32(hFile);
     while (!FileIsAtEndOfBlock(hFile, &block)) {
@@ -129,7 +131,7 @@ struct tModelMaterial *ReadMaterial(HANDLE hFile, struct tFileBlock const block)
             case ID_LAYS:
                 SFileReadFile(hFile, &lpMaterial->num_layers, 4, NULL, NULL);
                 if (lpMaterial->num_layers > 0) {
-                    lpMaterial->layers = MemAlloc(sizeof(struct tModelMaterialLayer) * lpMaterial->num_layers);
+                    lpMaterial->layers = ri.MemAlloc(sizeof(struct tModelMaterialLayer) * lpMaterial->num_layers);
                     FOR_LOOP(dwLayerID, lpMaterial->num_layers) {
                         ReadMaterialLayer(hFile, &lpMaterial->layers[dwLayerID], FileReadBlock(hFile));
                     }
@@ -144,13 +146,43 @@ struct tModelMaterial *ReadMaterial(HANDLE hFile, struct tFileBlock const block)
     return lpMaterial;
 }
 
-void *ReadModelKeyTrack(HANDLE hFile, int dwElemSize) {
-    DWORD const dwCount = FileReadInt32(hFile);
-    DWORD const dwSize = 12 + dwElemSize * dwCount;
-    SFileSetFilePointer(hFile, -4, NULL, FILE_CURRENT);
-    void *lpTrack = MemAlloc(dwSize);
-    SFileReadFile(hFile, lpTrack, dwSize, NULL, NULL);
-    return lpTrack;
+DWORD GetModelKeyTrackDataTypeSize(enum tModelKeyTrackDataType dwDataType) {
+    switch (dwDataType) {
+        case kModelKeyTrackDataTypeFloat: return 4;
+        case kModelKeyTrackDataTypeVector3: return 12;
+        case kModelKeyTrackDataTypeQuaternion: return 16;
+        default: return 0;
+    }
+}
+
+DWORD GetModelKeyTrackTypeSize(enum tModelKeyTrackType dwKeyTrackType) {
+    switch (dwKeyTrackType) {
+        case TRACK_NO_INTERP: return 1;
+        case TRACK_LINEAR: return 1;
+        case TRACK_HERMITE: return 3;
+        case TRACK_BEZIER: return 3;
+        default: return 0;
+    }
+}
+
+DWORD GetModelKeyFrameSize(enum tModelKeyTrackDataType dwDataType,
+                           enum tModelKeyTrackType dwKeyTrackType)
+{
+    return 4 + GetModelKeyTrackDataTypeSize(dwDataType) * GetModelKeyTrackTypeSize(dwKeyTrackType);
+}
+
+void *ReadModelKeyTrack(HANDLE hFile, enum tModelKeyTrackDataType dwDataType) {
+    DWORD dwKeyframeCount = FileReadInt32(hFile);
+    enum tModelKeyTrackType dwKeyTrackType = FileReadInt32(hFile);
+    DWORD dwGlobalSeqId = FileReadInt32(hFile);
+    DWORD const dwDataSize = GetModelKeyFrameSize(dwDataType, dwKeyTrackType) * dwKeyframeCount;
+    struct tModelKeyTrack *lpKeytrack = ri.MemAlloc(MODELTRACKINFOSIZE + dwDataSize);
+    lpKeytrack->dwKeyframeCount = dwKeyframeCount;
+    lpKeytrack->datatype = dwDataType;
+    lpKeytrack->type = dwKeyTrackType;
+    lpKeytrack->globalSeqId = dwGlobalSeqId;
+    SFileReadFile(hFile, lpKeytrack->values, dwDataSize, NULL, NULL);
+    return lpKeytrack;
 }
 
 void ReadNode(HANDLE hFile, struct tFileBlock const block, struct tModelNode *lpNode) {
@@ -162,20 +194,20 @@ void ReadNode(HANDLE hFile, struct tFileBlock const block, struct tModelNode *lp
         DWORD const dwBlockHeader = FileReadInt32(hFile);
         switch (dwBlockHeader) {
             case ID_KGTR:
-                lpNode->lpTranslation = ReadModelKeyTrack(hFile, sizeof(struct tModelKeyframeVector3));
+                lpNode->lpTranslation = ReadModelKeyTrack(hFile, kModelKeyTrackDataTypeVector3);
                 break;
             case ID_KGRT:
-                lpNode->lpRotation = ReadModelKeyTrack(hFile, sizeof(struct tModelKeyframeVector4));
+                lpNode->lpRotation = ReadModelKeyTrack(hFile, kModelKeyTrackDataTypeQuaternion);
                 break;
             case ID_KGSC:
-                lpNode->lpScale = ReadModelKeyTrack(hFile, sizeof(struct tModelKeyframeVector3));
+                lpNode->lpScale = ReadModelKeyTrack(hFile, kModelKeyTrackDataTypeVector3);
                 break;
         }
     }
 }
 
 struct tModelBone *ReadBone(HANDLE hFile, struct tFileBlock const block) {
-    struct tModelBone *lpBone = MemAlloc(sizeof(struct tModelBone));
+    struct tModelBone *lpBone = ri.MemAlloc(sizeof(struct tModelBone));
     ReadNode(hFile, block, &lpBone->node);
     lpBone->geoset_id = FileReadInt32(hFile);
     lpBone->geoset_animation_id = FileReadInt32(hFile);
@@ -183,19 +215,19 @@ struct tModelBone *ReadBone(HANDLE hFile, struct tFileBlock const block) {
 }
 
 struct tModelHelper *ReadHelper(HANDLE hFile, struct tFileBlock const block) {
-    struct tModelHelper *lpHelper = MemAlloc(sizeof(struct tModelHelper));
+    struct tModelHelper *lpHelper = ri.MemAlloc(sizeof(struct tModelHelper));
     ReadNode(hFile, block, &lpHelper->node);
     return lpHelper;
 }
 
 struct tModelGeosetAnim *ReadGeosetAnim(HANDLE hFile, struct tFileBlock const block) {
-    struct tModelGeosetAnim *lpGeosetAnim = MemAlloc(sizeof(struct tModelGeosetAnim));
+    struct tModelGeosetAnim *lpGeosetAnim = ri.MemAlloc(sizeof(struct tModelGeosetAnim));
     SFileReadFile(hFile, lpGeosetAnim, 24, NULL, NULL);
     while (!FileIsAtEndOfBlock(hFile, &block)) {
         DWORD const dwBlockHeader = FileReadInt32(hFile);
         switch (dwBlockHeader) {
             case ID_KGAO:
-                lpGeosetAnim->lpAlphas = ReadModelKeyTrack(hFile, sizeof(struct tModelKeyframeFloat));
+                lpGeosetAnim->lpAlphas = ReadModelKeyTrack(hFile, kModelKeyTrackDataTypeFloat);
                 break;
             default:
 //                PrintTag(dwBlockHeader);
@@ -214,12 +246,7 @@ static DWORD R_ModelFindBiggestGroup(struct tModelGeoset const *lpGeoset) {
     return dwBiggest;
 }
 
-void R_SetupGeoset(struct tModelGeoset *lpGeoset) {
-    if (lpGeoset->buf.vao != 0) {
-        // already calculated
-        return;
-    }
-
+void R_SetupGeoset(struct tModel *lpModel, struct tModelGeoset *lpGeoset) {
     DWORD dwBiggestGeoset = R_ModelFindBiggestGroup(lpGeoset);
     if (dwBiggestGeoset > 4) {
         fprintf(stderr, "Geosets with more that 4 bones skinning are not supported\n");
@@ -227,8 +254,8 @@ void R_SetupGeoset(struct tModelGeoset *lpGeoset) {
     }
     
     typedef uint8_t matrixGroup_t[4];
-    struct tVertex *lpVertices = MemAlloc(sizeof(struct tVertex) * lpGeoset->numTriangles);
-    matrixGroup_t *lpMatrixGroups = MemAlloc(sizeof(matrixGroup_t) * lpGeoset->numMatrixGroups);
+    struct tVertex *lpVertices = ri.MemAlloc(sizeof(struct tVertex) * lpGeoset->numTriangles);
+    matrixGroup_t *lpMatrixGroups = ri.MemAlloc(sizeof(matrixGroup_t) * lpGeoset->numMatrixGroups);
     DWORD dwIndexOffset = 0;
     
     FOR_LOOP(dwMatrixGroupIndex, lpGeoset->numMatrixGroups) {
@@ -239,51 +266,68 @@ void R_SetupGeoset(struct tModelGeoset *lpGeoset) {
 
     FOR_LOOP(dwTriangle, lpGeoset->numTriangles) {
         int dwVertex = lpGeoset->lpTriangles[dwTriangle];
-        int dwMatrixGroup = lpGeoset->lpMatrixGroups[lpGeoset->lpVertexGroups[dwVertex]];
+        uint8_t *dwMatrixGroup = lpMatrixGroups[lpGeoset->lpVertexGroups[dwVertex]];
         lpVertices[dwTriangle].color = (struct color32) { 255, 255, 255, 255 };
         lpVertices[dwTriangle].position = lpGeoset->lpVertices[dwVertex];
         lpVertices[dwTriangle].texcoord = lpGeoset->lpTexcoord[dwVertex];
-        memcpy(lpVertices[dwTriangle].skin, lpMatrixGroups[dwMatrixGroup], sizeof(matrixGroup_t));
+        memcpy(lpVertices[dwTriangle].skin, dwMatrixGroup, sizeof(matrixGroup_t));
     }
 
-    lpGeoset->buf = R_MakeVertexArrayObject(lpVertices, lpGeoset->numTriangles * sizeof(struct tVertex));
+    lpGeoset->lpBuffer = R_MakeVertexArrayObject(lpVertices, lpGeoset->numTriangles * sizeof(struct tVertex));
     
-    MemFree(lpVertices);
-    MemFree(lpMatrixGroups);
+    ri.MemFree(lpVertices);
+    ri.MemFree(lpMatrixGroups);
 }
 
-static struct vector3
-R_GetKeytrackVector3(struct tModel const *lpModel,
-                     struct tModelKeyTrackVector3 const *lpKeytrack,
-                     DWORD dwSeqID,
-                     DWORD dwFrameNumber,
-                     DWORD dwCounter)
+//DWORD R_GetModelFrameNumber(struct tModel const *lpModel) {
+//    struct tModelSequence const *lpSequence = lpModel->lpCurrentAnimation;
+//    DWORD const dwLocalTime = ((DWORD)lpModel->dwAnimationFrame) % (lpSequence->interval[1] - lpSequence->interval[0]);
+//    return lpSequence->interval[0] + dwLocalTime;
+//}
+
+static void
+R_GetKeyframeValue(struct tModelKeyFrame const *lpKeyframe1,
+                   struct tModelKeyFrame const *lpKeyframe2,
+                   DWORD const dwTime,
+                   enum tModelKeyTrackDataType dwDataType,
+                   void *out)
 {
-//    FOR_LOOP(index, lpKeytrack->count) {
-//        printf("%f %f %f\n", lpKeytrack->values[index].value.x, lpKeytrack->values[index].value.y, lpKeytrack->values[index].value.z);
-//    }
-    return lpKeytrack->values[1].value;
-//    if (lpModel->numGlobalSequences > 0 &&
-//        lpKeytrack->globalSeqId != -1)
-//    {
-//        return (struct vector3) {};
-//    } else {
-//        struct tModelSequence const *lpSequence = &lpModel->lpSequences[dwSeqID];
-//        return lpKeytrack->values[0].value;
-//    }
+    float const t = (float)(dwTime - lpKeyframe1->time) / (float)(lpKeyframe2->time - lpKeyframe1->time);
+    switch (dwDataType) {
+        case kModelKeyTrackDataTypeFloat:
+            *((float *)out) = (*(float *)lpKeyframe1->data) * (1 - t) + (*(float *)lpKeyframe2->data) * t;
+            return;
+        case kModelKeyTrackDataTypeVector3:
+            *((struct vector3 *)out) = vector3_lerp((struct vector3 *)lpKeyframe1->data, (struct vector3 *)lpKeyframe2->data, t);
+            return;
+        case kModelKeyTrackDataTypeQuaternion:
+            *((struct vector4 *)out) = quaternion_lerp((struct vector4 *)lpKeyframe1->data, (struct vector4 *)lpKeyframe2->data, t);
+            return;
+    }
 }
 
-static struct vector4
-R_GetKeytrackVector4(struct tModel const *lpModel,
-                     struct tModelKeyTrackVector4 const *lpKeytrack,
-                     DWORD dwSeqID,
-                     DWORD dwFrameNumber,
-                     DWORD dwCounter)
+static void
+R_GetKeytrackValue(struct tModel const *lpModel,
+                   struct tModelKeyTrack const *lpKeytrack,
+                   DWORD dwFrameNumber,
+                   void *out)
 {
-//    FOR_LOOP(index, lpKeytrack->count) {
-//        printf("%f %f %f %f\n", lpKeytrack->values[index].value.x, lpKeytrack->values[index].value.y, lpKeytrack->values[index].value.z, lpKeytrack->values[index].value.w);
-//    }
-    return lpKeytrack->values[1].value;
+    DWORD const dwKeyframeSize = GetModelKeyFrameSize(lpKeytrack->datatype, lpKeytrack->type);
+    char const *lpKeyFrames = (char *)lpKeytrack->values;
+    struct tModelKeyFrame *lpPrevKeyFrame = NULL;
+    FOR_LOOP(dwKeyframeIndex, lpKeytrack->dwKeyframeCount) {
+        struct tModelKeyFrame *lpKeyFrame = (void *)(lpKeyFrames + dwKeyframeSize * dwKeyframeIndex);
+        if (lpKeyFrame->time == dwFrameNumber || (lpKeyFrame->time > dwFrameNumber && !lpPrevKeyFrame)) {
+            memcpy(out, lpKeyFrame->data, GetModelKeyTrackDataTypeSize(lpKeytrack->datatype));
+            return;
+        }
+        if (lpKeyFrame->time > dwFrameNumber) {
+            R_GetKeyframeValue(lpPrevKeyFrame, lpKeyFrame, dwFrameNumber, lpKeytrack->datatype, out);
+            return;
+        }
+        lpPrevKeyFrame = lpKeyFrame;
+    }
+//    return lpKeytrack->values[0].value;
 }
 
 static struct tModelNode *R_GetModelNodeWithObjectID(struct tModel *lpModel, DWORD dwObjectID) {
@@ -306,29 +350,31 @@ static struct tModelNode *R_GetModelNodeWithObjectID(struct tModel *lpModel, DWO
 
 static void R_CalculateNodeMatrix(struct tModel const *lpModel,
                                   struct tModelNode const *lpNode,
+                                  DWORD dwFrameNumber,
                                   struct matrix4 *lpMatrix)
 {
     struct vector3 vTranslation = { 0, 0, 0 };
     struct vector4 vRotation = { 0, 0, 0, 1 };
     struct vector3 vScale = { 1, 1, 1 };
+    struct vector3 const *lpPivot = (struct vector3 const *)lpNode->lpPivot;
     if (lpNode->lpTranslation) {
-        vTranslation = R_GetKeytrackVector3(lpModel, lpNode->lpTranslation, 0, 0, 0);
-        if (lpNode->lpParent) {
-            vTranslation.x += lpNode->lpParent->lpPivot->x;
-            vTranslation.y += lpNode->lpParent->lpPivot->y;
-            vTranslation.z += lpNode->lpParent->lpPivot->z;
-        }
+        R_GetKeytrackValue(lpModel, lpNode->lpTranslation, dwFrameNumber, &vTranslation);
     }
     if (lpNode->lpRotation) {
-        vRotation = R_GetKeytrackVector4(lpModel, lpNode->lpRotation, 0, 0, 0);
+        R_GetKeytrackValue(lpModel, lpNode->lpRotation, dwFrameNumber, &vRotation);
     }
     if (lpNode->lpScale) {
-        vScale = R_GetKeytrackVector3(lpModel, lpNode->lpScale, 0, 0, 0);
+        R_GetKeytrackValue(lpModel, lpNode->lpScale, dwFrameNumber, &vScale);
     }
-    matrix4_identity(lpMatrix);
-    matrix4_translate(lpMatrix, &vTranslation);
-    matrix4_rotate4(lpMatrix, &vRotation);
-    matrix4_scale(lpMatrix, &vScale);
+    if (!lpNode->lpTranslation && !lpNode->lpRotation && !lpNode->lpScale) {
+        matrix4_identity(lpMatrix);
+    } else if (lpNode->lpTranslation && !lpNode->lpRotation && !lpNode->lpScale) {
+        matrix4_from_translation(lpMatrix, &vTranslation);
+    } else if (!lpNode->lpTranslation && lpNode->lpRotation && !lpNode->lpScale) {
+        matrix4_from_rotation_origin(lpMatrix,  &vRotation, lpPivot);
+    } else {
+        matrix4_from_rotation_translation_scale_origin(lpMatrix, &vRotation, &vTranslation, &vScale, lpPivot);
+    }
 }
 
 struct matrix4 const *R_GetNodeGlobalMatrix(struct tModelNode *lpNode) {
@@ -345,66 +391,40 @@ struct matrix4 const *R_GetNodeGlobalMatrix(struct tModelNode *lpNode) {
 }
 
 static void R_CalculateBoneMatrices(struct tModel const *lpModel,
-                                    struct matrix4 *lpModelMatrices)
+                                    struct matrix4 *lpModelMatrices,
+                                    DWORD dwFrameNumber)
 {
     DWORD dwBoneIndex = 1;
     
     FOR_EACH_LIST(struct tModelBone, lpBone, lpModel->lpBones) {
         memset(&lpBone->node.globalMatrix, 0, sizeof(struct matrix4));
-        R_CalculateNodeMatrix(lpModel, &lpBone->node, &lpBone->node.localMatrix);
+        R_CalculateNodeMatrix(lpModel, &lpBone->node, dwFrameNumber, &lpBone->node.localMatrix);
     }
     FOR_EACH_LIST(struct tModelHelper, lpHelper, lpModel->lpHelpers) {
         memset(&lpHelper->node.globalMatrix, 0, sizeof(struct matrix4));
-        R_CalculateNodeMatrix(lpModel, &lpHelper->node, &lpHelper->node.localMatrix);
+        R_CalculateNodeMatrix(lpModel, &lpHelper->node, dwFrameNumber, &lpHelper->node.localMatrix);
     }
     FOR_EACH_LIST(struct tModelBone, lpBone, lpModel->lpBones) {
         lpModelMatrices[dwBoneIndex++] = *R_GetNodeGlobalMatrix(&lpBone->node);
     }
 }
 
-#define LAYER_SIZE 500000
-
-extern struct tVertex maplayer[LAYER_SIZE];
-
-void R_RenderGeoset(struct tModel const *lpModel,
-                    struct tModelGeoset *lpGeoset,
-                    struct matrix4 const *lpModelMatrix)
+static void R_RenderGeoset(struct tModel const *lpModel,
+                           struct tModelGeoset *lpGeoset,
+                           struct matrix4 const *lpModelMatrix)
 {
-    struct matrix4 aBoneMatrices[MAX_BONE_MATRICES];
     extern GLuint program;
 
-    R_SetupGeoset(lpGeoset);
-    R_CalculateBoneMatrices(lpModel, aBoneMatrices);
-    
     glUniformMatrix4fv( glGetUniformLocation( program, "u_model_matrix" ), 1, GL_FALSE, lpModelMatrix->v );
-    glBindVertexArray( lpGeoset->buf.vao );
-    glBindBuffer( GL_ARRAY_BUFFER, lpGeoset->buf.vbo );
+    glBindVertexArray( lpGeoset->lpBuffer->vao );
+    glBindBuffer( GL_ARRAY_BUFFER, lpGeoset->lpBuffer->vbo );
     glDrawArrays( GL_TRIANGLES, 0, lpGeoset->numTriangles );
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    
-//    int counter = 0;
-//    FOR_EACH_LIST(struct tModelBone, bone, lpModel->lpBones) {
-//        if (bone->node.lpParent) {
-//            struct tVertex *v = &maplayer[counter++];
-//            v->position.x = bone->node.globalMatrix.v[12];
-//            v->position.y = bone->node.globalMatrix.v[13];
-//            v->position.z = bone->node.globalMatrix.v[14];
-//            v = &maplayer[counter++];
-//            v->position.x = bone->node.lpParent->globalMatrix.v[12];
-//            v->position.y = bone->node.lpParent->globalMatrix.v[13];
-//            v->position.z = bone->node.lpParent->globalMatrix.v[14];
-//        }
-//    }
-//    
-//    glBindVertexArray( tr.renbuf.vao );
-//    glBindBuffer( GL_ARRAY_BUFFER, tr.renbuf.vbo );
-//    glBufferData( GL_ARRAY_BUFFER, sizeof(maplayer), maplayer, GL_STATIC_DRAW );
-//    glDrawArrays( GL_LINES, 0, counter );
 }
 
 struct tModel *R_LoadModelMDX(HANDLE hFile) {
     DWORD dwBlockHeader, dwFileVersion = 0;
-    struct tModel *lpModel = MemAlloc(sizeof(struct tModel));
+    struct tModel *lpModel = ri.MemAlloc(sizeof(struct tModel));
     struct tModelGeoset *lpLastGeoset = lpModel->lpGeosets;
     struct tModelMaterial *lpLastMaterial = lpModel->lpMaterials;
     struct tModelBone *lpLastBone = lpModel->lpBones;
@@ -439,7 +459,7 @@ struct tModel *R_LoadModelMDX(HANDLE hFile) {
         }
     }
     FOR_EACH_LIST(struct tModelGeoset, lpGeoset, lpModel->lpGeosets) {
-        R_SetupGeoset(lpGeoset);
+        R_SetupGeoset(lpModel, lpGeoset);
     }
     FOR_EACH_LIST(struct tModelBone, lpBone, lpModel->lpBones) {
         lpBone->node.lpParent = R_GetModelNodeWithObjectID(lpModel, lpBone->node.parentId);
@@ -452,7 +472,20 @@ struct tModel *R_LoadModelMDX(HANDLE hFile) {
     FOR_LOOP(texid, lpModel->numTextures) {
         lpModel->lpTextures[texid].texid = R_RegisterTextureFile(lpModel->lpTextures[texid].path);
     }
+    FOR_EACH_LIST(struct tModelGeosetAnim, lpGeosetAnim, lpModel->lpGeosetAnims) {
+        struct tModelGeoset *lpGeoset = lpModel->lpGeosets;
+        for (DWORD dwGeosetID = lpGeosetAnim->geosetId;
+             lpGeoset && dwGeosetID > 0;
+             dwGeosetID--)
+        {
+            lpGeoset = lpGeoset->lpNext;
+        }
+        if (lpGeoset) {
+            lpGeoset->lpGeosetAnim = lpGeosetAnim;
+        }
+    }
     ri.FileClose(hFile);
+    lpModel->lpCurrentAnimation = &lpModel->lpSequences[1];
     return lpModel;}
 
 struct tModel *R_LoadModel(LPCSTR szModelFilename) {
@@ -478,5 +511,150 @@ struct tModel *R_LoadModel(LPCSTR szModelFilename) {
         default:
             fprintf(stderr, "Unknown model format %.5s in file %s\n", (char *)&dwFileHeader, szModelFilename);
             return NULL;
+    }
+}
+
+static void R_ReleaseModelNode(struct tModelNode *lpNode) {
+    SAFE_DELETE(lpNode->lpTranslation, ri.MemFree);
+    SAFE_DELETE(lpNode->lpRotation, ri.MemFree);
+    SAFE_DELETE(lpNode->lpScale, ri.MemFree);
+}
+static void R_ReleaseModelGeoset(struct tModelGeoset *lpGeoset) {
+    SAFE_DELETE(lpGeoset->lpNext, R_ReleaseModelGeoset);
+    SAFE_DELETE(lpGeoset->lpBuffer, R_ReleaseVertexArrayObject);
+    SAFE_DELETE(lpGeoset->lpVertices, ri.MemFree);
+    SAFE_DELETE(lpGeoset->lpNormals, ri.MemFree);
+    SAFE_DELETE(lpGeoset->lpTexcoord, ri.MemFree);
+    SAFE_DELETE(lpGeoset->lpMatrices, ri.MemFree);
+    SAFE_DELETE(lpGeoset->lpPrimitiveTypes, ri.MemFree);
+    SAFE_DELETE(lpGeoset->lpPrimitiveCounts, ri.MemFree);
+    SAFE_DELETE(lpGeoset->lpTriangles, ri.MemFree);
+    SAFE_DELETE(lpGeoset->lpVertexGroups, ri.MemFree);
+    SAFE_DELETE(lpGeoset->lpMatrixGroups, ri.MemFree);
+    SAFE_DELETE(lpGeoset->lpBounds, ri.MemFree);
+    SAFE_DELETE(lpGeoset, ri.MemFree);
+}
+static void R_ReleaseModelMaterial(struct tModelMaterial *lpMaterial) {
+    SAFE_DELETE(lpMaterial->lpNext, R_ReleaseModelMaterial);
+    SAFE_DELETE(lpMaterial, ri.MemFree);
+}
+static void R_ReleaseModelBone(struct tModelBone *lpBone) {
+    R_ReleaseModelNode(&lpBone->node);
+    SAFE_DELETE(lpBone->lpNext, R_ReleaseModelBone);
+    SAFE_DELETE(lpBone, ri.MemFree);
+}
+static void R_ReleaseModelGeosetAnim(struct tModelGeosetAnim *lpGeosetAnim) {
+    SAFE_DELETE(lpGeosetAnim->lpNext, R_ReleaseModelGeosetAnim);
+    SAFE_DELETE(lpGeosetAnim->lpAlphas, ri.MemFree);
+    SAFE_DELETE(lpGeosetAnim, ri.MemFree);
+}
+static void R_ReleaseModelHelper(struct tModelHelper *lpHelper) {
+    R_ReleaseModelNode(&lpHelper->node);
+    SAFE_DELETE(lpHelper->lpNext, R_ReleaseModelHelper);
+    SAFE_DELETE(lpHelper, ri.MemFree);
+}
+void R_ReleaseModel(struct tModel *lpModel) {
+    SAFE_DELETE(lpModel->lpGeosets, R_ReleaseModelGeoset);
+    SAFE_DELETE(lpModel->lpMaterials, R_ReleaseModelMaterial);
+    SAFE_DELETE(lpModel->lpBones, R_ReleaseModelBone);
+    SAFE_DELETE(lpModel->lpGeosetAnims, R_ReleaseModelGeosetAnim);
+    SAFE_DELETE(lpModel->lpHelpers, R_ReleaseModelHelper);
+    SAFE_DELETE(lpModel->lpTextures, ri.MemFree);
+    SAFE_DELETE(lpModel->lpSequences, ri.MemFree);
+    SAFE_DELETE(lpModel->lpGlobalSequences, ri.MemFree);
+    SAFE_DELETE(lpModel->lpPivots, ri.MemFree);
+}
+
+static void RenderGeoset(struct tModel *lpModel,
+                         struct tModelGeoset *lpGeoset,
+                         struct tModelMaterialLayer *lpLayer,
+                         struct render_entity const *lpEntity)
+{
+    if (lpGeoset->lpGeosetAnim && lpGeoset->lpGeosetAnim->lpAlphas) {
+        float fAlpha = 1.f;
+        R_GetKeytrackValue(lpModel, lpGeoset->lpGeosetAnim->lpAlphas, lpEntity->frame, &fAlpha);
+        if (fAlpha < 1e-6) {
+            return;
+        }
+    }
+    
+    struct matrix4 model_matrix;
+    matrix4_identity(&model_matrix);
+    matrix4_translate(&model_matrix, &lpEntity->postion);
+    matrix4_rotate(&model_matrix, &(struct vector3){0, 0, lpEntity->angle * 180 / 3.14f}, ROTATE_XYZ);
+    matrix4_scale(&model_matrix, &(struct vector3){lpEntity->scale, lpEntity->scale, lpEntity->scale});
+
+    switch (lpLayer->blendMode) {
+        case TEXOP_LOAD:
+            glBlendFunc(GL_ONE, GL_ZERO);
+            break;
+        case TEXOP_TRANSPARENT:
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+            break;
+        case TEXOP_BLEND:
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+            break;
+        case TEXOP_ADD:
+            glBlendFunc(GL_ONE, GL_ONE);
+            break;
+        case TEXOP_ADD_ALPHA:
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+            break;
+        default:
+            glBlendFunc(GL_ONE, GL_ZERO);
+            break;
+    }
+    
+    R_RenderGeoset(lpModel, lpGeoset, &model_matrix);
+}
+
+static void R_BindBoneMatrices(struct tModel *lpModel, DWORD dwFrameNumber)
+{
+    extern GLuint program;
+    struct matrix4 aBoneMatrices[MAX_BONE_MATRICES];
+
+    R_CalculateBoneMatrices(lpModel, aBoneMatrices, dwFrameNumber);
+    
+    matrix4_identity(node_matrices);
+
+    FOR_EACH_LIST(struct tModelHelper, bone, lpModel->lpHelpers) {
+        node_matrices[bone->node.objectId + 1] = bone->node.globalMatrix;
+    }
+
+    FOR_EACH_LIST(struct tModelBone, bone, lpModel->lpBones) {
+        node_matrices[bone->node.objectId + 1] = bone->node.globalMatrix;
+    }
+
+    glUniformMatrix4fv( glGetUniformLocation( program, "u_nodes_matrices" ), 64, GL_FALSE, node_matrices->v );
+}
+
+void RenderModel(struct render_entity const *ent) {
+    struct tModelMaterial *lpMaterial = ent->model->lpMaterials;
+    struct tModelGeoset *lpGeoset = ent->model->lpGeosets;
+    struct tModel *lpModel = ent->model;
+
+    if (ent->skin) {
+        R_BindTexture(ent->skin, 0);
+    }
+    
+    R_BindBoneMatrices(lpModel, ent->frame);
+    
+    for (DWORD dwGeosetID = 0;
+         lpMaterial && lpGeoset;
+         lpGeoset = lpGeoset->lpNext, dwGeosetID++)
+    {
+        if (dwGeosetID < ent->model->numTextures) {
+            struct tModelTexture const *mtex = &ent->model->lpTextures[dwGeosetID];
+            struct tTexture const *tex = R_FindTextureByID(mtex->texid);
+            if (tex) {
+                R_BindTexture(tex, 0);
+            }
+        }
+        FOR_LOOP(dwLayerID, lpMaterial->num_layers) {
+            RenderGeoset(lpModel, lpGeoset, &lpMaterial->layers[dwLayerID], ent);
+        }
+        if (lpMaterial->lpNext) {
+            lpMaterial = lpMaterial->lpNext;
+        }
     }
 }

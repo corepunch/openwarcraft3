@@ -69,36 +69,6 @@ void R_Init(DWORD dwWidth, DWORD dwHeight) {
 //    }
 }
 
-
-typedef float t_mat4x4[16];
-
-static inline void mat4x4_ortho( t_mat4x4 out, float left, float right, float bottom, float top, float znear, float zfar )
-{
-    #define T(a, b) (a * 4 + b)
-
-    out[T(0,0)] = 2.0f / (right - left);
-    out[T(0,1)] = 0.0f;
-    out[T(0,2)] = 0.0f;
-    out[T(0,3)] = 0.0f;
-
-    out[T(1,1)] = 2.0f / (top - bottom);
-    out[T(1,0)] = 0.0f;
-    out[T(1,2)] = 0.0f;
-    out[T(1,3)] = 0.0f;
-
-    out[T(2,2)] = -2.0f / (zfar - znear);
-    out[T(2,0)] = 0.0f;
-    out[T(2,1)] = 0.0f;
-    out[T(2,3)] = 0.0f;
-
-    out[T(3,0)] = -(right + left) / (right - left);
-    out[T(3,1)] = -(top + bottom) / (top - bottom);
-    out[T(3,2)] = -(zfar + znear) / (zfar - znear);
-    out[T(3,3)] = 1.0f;
-
-    #undef T
-}
-
 void R_DrawPic(struct tTexture const *lpTexture) {
 //    const struct tVertex g_vertex_buffer_data[] = {
 //    /*  R, G, B, A, X, Y, Z U, V  */
@@ -115,9 +85,43 @@ void R_DrawPic(struct tTexture const *lpTexture) {
 //        R_BindTexture(map.heightmap->shadowmap);
 //        glEnable(GL_BLEND);
 //        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-//        glBindVertexArray( tr.renbuf.vao );
-//        glBindBuffer(GL_ARRAY_BUFFER, tr.renbuf.vbo );
+//        glBindVertexArray( tr.renbuf->vao );
+//        glBindBuffer(GL_ARRAY_BUFFER, tr.renbuf->vbo );
 //        glDrawArrays( GL_TRIANGLES, 0, 6 );
+}
+
+struct tRenBuf *R_MakeVertexArrayObject(struct tVertex const *data, int size) {
+    struct tRenBuf *buf = ri.MemAlloc(sizeof(struct tRenBuf));
+    
+    glGenVertexArrays( 1, &buf->vao );
+    glGenBuffers( 1, &buf->vbo );
+    glBindVertexArray( buf->vao );
+    glBindBuffer( GL_ARRAY_BUFFER, buf->vbo );
+
+    glEnableVertexAttribArray( attrib_position );
+    glEnableVertexAttribArray( attrib_color );
+    glEnableVertexAttribArray( attrib_texcoord );
+    glEnableVertexAttribArray( attrib_texcoord2 );
+    glEnableVertexAttribArray( attrib_skin );
+    
+    #define FOFS(type, x) (void *)&(((struct type *)NULL)->x)
+
+    glVertexAttribPointer( attrib_color, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(struct tVertex), FOFS(tVertex, color));
+    glVertexAttribPointer( attrib_position, 3, GL_FLOAT, GL_FALSE, sizeof(struct tVertex), FOFS(tVertex, position));
+    glVertexAttribPointer( attrib_texcoord, 2, GL_FLOAT, GL_FALSE, sizeof(struct tVertex), FOFS(tVertex, texcoord));
+    glVertexAttribPointer( attrib_texcoord2, 2, GL_FLOAT, GL_FALSE, sizeof(struct tVertex), FOFS(tVertex, texcoord2));
+    glVertexAttribPointer( attrib_skin, 4, GL_UNSIGNED_BYTE, GL_FALSE, sizeof(struct tVertex), FOFS(tVertex, skin));
+
+    if (data) {
+        glBufferData( GL_ARRAY_BUFFER, size * sizeof(struct tVertex), data, GL_STATIC_DRAW );
+    }
+
+    return buf;
+}
+
+void R_ReleaseVertexArrayObject(struct tRenBuf *lpBuffer) {
+    glDeleteBuffers(1, &lpBuffer->vbo);
+    glDeleteVertexArrays(1, &lpBuffer->vao);
 }
 
 void R_BeginFrame(void) {
@@ -146,8 +150,10 @@ struct Renderer *Renderer_Init(struct RendererImport *lpImport) {
     lpRenderer->RegisterMap = R_RegisterMap;
     lpRenderer->LoadTexture = R_LoadTexture;
     lpRenderer->LoadModel = R_LoadModel;
+    lpRenderer->ReleaseModel = R_ReleaseModel;
     lpRenderer->RenderFrame = R_RenderFrame;
     lpRenderer->Init = R_Init;
+    lpRenderer->Shutdown = R_Shutdown;
     lpRenderer->BeginFrame = R_BeginFrame;
     lpRenderer->EndFrame = R_EndFrame;
     lpRenderer->DrawPic = R_DrawPic;

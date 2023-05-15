@@ -18,6 +18,7 @@ struct netchan {
 
 void NET_Write(int sock, void const *data, int size);
 int NET_Read(int sock, void *data, int size);
+int NET_GetPacket(int sock, struct sizebuf *msg);
 
 void Netchan_Transmit(struct netchan *netchan);
 
@@ -27,7 +28,7 @@ void MSG_WriteShort(struct sizebuf *buf, int value);
 void MSG_WriteLong(struct sizebuf *buf, int value);
 void MSG_WriteString(struct sizebuf *buf, const char *value);
 
-void MSG_Read(struct sizebuf *buf, void *value, int size);
+int MSG_Read(struct sizebuf *buf, void *value, int size);
 int MSG_ReadByte(struct sizebuf *buf);
 int MSG_ReadShort(struct sizebuf *buf);
 int MSG_ReadLong(struct sizebuf *buf);

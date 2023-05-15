@@ -3,6 +3,14 @@
 static struct size2 sv_pathmapSize;
 static struct PathMapNode *sv_pathmap;
 
+void SV_CreateBaseline(void) {
+    FOR_LOOP(entnum, ge->num_edicts) {
+        struct edict *svent = EDICT_NUM(entnum);
+        sv.baselines[entnum] = svent->s;
+        svent->s.number = entnum;
+    }
+}
+
 struct PathMapNode const *SV_PathMapNode(struct Terrain const *heightmap, int x, int y) {
     int const index = x + y * sv_pathmapSize.width;
     return &sv_pathmap[index];
@@ -42,6 +50,8 @@ static void SV_ReadPathMap(HANDLE hArchive) {
 }
 
 void SV_Map(LPCSTR szMapFilename) {
+    SV_InitGame();
+    
     HANDLE hMapArchive;
     memset(&sv, 0, sizeof(struct server));
     strcpy(sv.configstrings[CS_MODELS+1], szMapFilename);
@@ -49,5 +59,43 @@ void SV_Map(LPCSTR szMapFilename) {
     SFileOpenArchive(TMP_MAP, 0, 0, &hMapArchive);
     SV_ReadPathMap(hMapArchive);
     SV_ReadDoodads(hMapArchive);
+    SV_CreateBaseline();
     SFileCloseArchive(hMapArchive);
 }
+
+void SV_InitGame(void) {
+    if (svs.initialized) {
+        SV_Shutdown();
+    }
+    svs.initialized = true;
+    svs.num_client_entities = UPDATE_BACKUP * MAX_CLIENTS * MAX_PACKET_ENTITIES;
+    svs.client_entities = MemAlloc(sizeof(struct entity_state) * svs.num_client_entities);
+}
+
+void SV_Shutdown(void) {
+    SAFE_DELETE(svs.client_entities, MemFree);
+    ge->Shutdown();
+}
+
+void __netchan_init(struct netchan *netchan){
+    memset(netchan, 0, sizeof(struct netchan));
+    netchan->message.data = netchan->message_buf;
+    netchan->message.maxsize = sizeof(netchan->message_buf);
+}
+
+void SV_Init(void) {
+    ge = GetGameAPI(&(struct game_import) {
+        .MemAlloc = MemAlloc,
+        .MemFree = MemFree,
+        .ModelIndex = SV_ModelIndex,
+        .ImageIndex = SV_ImageIndex,
+        .SoundIndex = SV_SoundIndex,
+    });
+    ge->Init();
+    memset(&svs, 0, sizeof(struct server_static));
+    memset(&sv, 0, sizeof(struct server));
+    __netchan_init(&svs.clients[0].netchan);
+    svs.num_clients = 1;
+    sv.baselines = MemAlloc(sizeof(struct entity_state) * ge->max_edicts);
+}
+
