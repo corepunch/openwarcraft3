@@ -68,9 +68,7 @@ void SV_EmitPacketEntities(struct client_frame const *from,
             continue;
         }
         if (newnum < oldnum) { // this is a new entity, send it from the baseline
-            struct entity_state baseline;
-            memset(&baseline, 0, sizeof(struct entity_state));
-            MSG_WriteDeltaEntity(msg, &baseline/*&sv.baselines[newnum]*/, newent);
+            MSG_WriteDeltaEntity(msg, &sv.baselines[newnum], newent);
             newindex++;
             continue;
         }
@@ -81,6 +79,7 @@ void SV_EmitPacketEntities(struct client_frame const *from,
             continue;
         }
     }
+    MSG_WriteLong(msg, 0);    // end of packetentities
 }
 
 void SV_WriteFrameToClient(struct client *client) {
@@ -94,4 +93,6 @@ void SV_WriteFrameToClient(struct client *client) {
     SV_EmitPacketEntities(oldframe, frame, &client->netchan.message);
     
     client->lastframe = sv.framenum;
+    
+    Netchan_Transmit(&client->netchan);
 }

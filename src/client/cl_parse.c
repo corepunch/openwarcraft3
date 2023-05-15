@@ -22,14 +22,15 @@ CL_ParseDeltaEntity(struct sizebuf *msg,
 }
 
 static void CL_ReadPacketEntities(struct sizebuf *msg) {
-    int const num_ents = MSG_ReadShort(msg);
-    FOR_LOOP(i, num_ents) {
-        struct client_entity *ent = &cl.ents[i];
+    while (true) {
         uint32_t bits = 0;
-        uint32_t nument = CL_ParseEntityBits(msg, &bits);
+        int nument = CL_ParseEntityBits(msg, &bits);
+        if (nument == 0 && bits == 0)
+            break;
+        struct client_entity *ent = &cl.ents[nument];
         CL_ParseDeltaEntity(msg, &ent->current, nument, bits);
     }
-    cl.num_entities = num_ents;
+    cl.num_entities = MAX_CLIENT_ENTITIES;
 }
 
 static void CL_ParseConfigString(struct sizebuf *msg) {
@@ -46,6 +47,11 @@ static void CL_ParseBaseline(struct sizebuf *msg) {
     memcpy(&cent->current, &cent->baseline, sizeof(struct entity_state));
 }
 
+void CL_ParseFrame(struct sizebuf *msg) {
+    cl.frame.serverframe = MSG_ReadLong(msg);
+    cl.frame.oldclientframe = MSG_ReadLong(msg);
+}
+
 void CL_ParseServerMessage(struct sizebuf *msg) {
     uint8_t pack_id = 0;
     while (MSG_Read(msg, &pack_id, 1)) {
@@ -58,6 +64,9 @@ void CL_ParseServerMessage(struct sizebuf *msg) {
                 break;
             case svc_configstring:
                 CL_ParseConfigString(msg);
+                break;
+            case svc_frame:
+                CL_ParseFrame(msg);
                 break;
             default:
                 fprintf(stderr, "Unknown message %d\n", pack_id);

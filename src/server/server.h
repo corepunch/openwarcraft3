@@ -49,7 +49,9 @@ void SV_Map(LPCSTR pFilename);
 void SV_InitGame(void);
 void SV_BuildClientFrame(struct client *client);
 void SV_WriteFrameToClient(struct client *client);
-void MSG_WriteDeltaEntity(struct sizebuf *msg, struct entity_state const *from, struct entity_state const *to);
+void MSG_WriteDeltaEntity(struct sizebuf *msg,
+                          struct entity_state const *from,
+                          struct entity_state const *to);
 int SV_ModelIndex(LPCSTR name);
 int SV_SoundIndex(LPCSTR name);
 int SV_ImageIndex(LPCSTR name);

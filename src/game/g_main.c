@@ -34,7 +34,6 @@ static void G_RunEntity(struct edict *ent, int msec) {
     if (ent->think) {
         ent->think(ent, msec);
     }
-    ent->s.frame++;
 }
 
 void G_RunFrame(int msec) {

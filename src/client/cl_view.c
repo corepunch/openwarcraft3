@@ -14,6 +14,7 @@ static void V_AddClientEntity(struct client_entity const *ent) {
     re->postion = ent->current.origin;
     re->angle = ent->current.angle;
     re->scale = ent->current.scale;
+    re->frame = ent->current.frame;
     re->model = cl.models[ent->current.model];
     re->skin = cl.pics[ent->current.image];
 }
@@ -24,7 +25,7 @@ static void V_ClearScene(void) {
 }
 
 static void CL_AddEntities(void) {
-    FOR_LOOP(index, cl.num_entities) {
+    FOR_LOOP(index, MAX_CLIENT_ENTITIES) {
         struct client_entity const *ce = &cl.ents[index];
         if (!ce->current.model)
             continue;

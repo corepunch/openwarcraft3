@@ -14,11 +14,18 @@ struct client_entity {
     struct entity_state current;
 };
 
+struct frame {
+    int serverframe;
+    int servertime;
+    int oldclientframe;
+};
+
 struct client_state {
     struct refdef refdef;
     struct client_entity ents[MAX_CLIENT_ENTITIES];
     struct tModel *models[MAX_MODELS];
     struct tTexture *pics[MAX_IMAGES];
+    struct frame frame;
     path_t configstrings[MAX_CONFIGSTRINGS];
     int num_entities;
     int sock;

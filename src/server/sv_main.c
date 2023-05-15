@@ -39,6 +39,9 @@ MSG_WriteDeltaEntity(struct sizebuf *msg,
     SET_BIT_IF(model, model);
     SET_BIT_IF(image, image);
     
+    if (bits == 0)
+        return;
+    
     MSG_WriteShort(msg, bits);
     MSG_WriteShort(msg, to->number);
 
@@ -74,9 +77,12 @@ void SV_SendClientMessages(void) {
         if (!client->initialized) {
             SV_WriteConfigStrings(client);
             SV_Baseline(client);
+            client->camera_position.x = 700;
+            client->camera_position.y = -1200;
             client->initialized = true;
+        } else {
+            SV_SendClientDatagram(client);
         }
-//        SV_SendClientDatagram(client);
     }
 }
 

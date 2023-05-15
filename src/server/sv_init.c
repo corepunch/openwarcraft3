@@ -4,6 +4,7 @@ static struct size2 sv_pathmapSize;
 static struct PathMapNode *sv_pathmap;
 
 void SV_CreateBaseline(void) {
+    sv.baselines = MemAlloc(sizeof(struct entity_state) * ge->max_edicts);
     FOR_LOOP(entnum, ge->num_edicts) {
         struct edict *svent = EDICT_NUM(entnum);
         sv.baselines[entnum] = svent->s;
@@ -73,6 +74,7 @@ void SV_InitGame(void) {
 }
 
 void SV_Shutdown(void) {
+    SAFE_DELETE(sv.baselines, MemFree);
     SAFE_DELETE(svs.client_entities, MemFree);
     ge->Shutdown();
 }
