@@ -3,7 +3,7 @@
 
 #define LAYER_SIZE 500000
 
-struct tVertex maplayer[LAYER_SIZE] = {};
+struct vertex maplayer[LAYER_SIZE] = {};
 
 struct tCliff {
     int cliffid;
@@ -15,17 +15,22 @@ extern GLuint program;
 
 struct tCliff *g_cliffs = NULL;
 
-float GetWaterOpacity(float waterlevel, float height) {
+static struct color32 GetWaterOpacity(float waterlevel, float height) {
     float const opacity = MIN(0.5, (waterlevel - height) / 50.0f);
-    return MAX(0, opacity);
+    return (struct color32) {
+        .r = 255,
+        .g = 255,
+        .b = 255,
+        .a = MAX(0, opacity) * 255
+    };
 }
 
-float GetTileDepth(float waterlevel, float height) {
+static float GetTileDepth(float waterlevel, float height) {
     float const opacity = MIN(0.95, (waterlevel - height) / 250.0f);
     return 1 - MAX(0, opacity);
 }
 
-float lerp(float a, float b, float t) {
+static float lerp(float a, float b, float t) {
     return a * (1 - t) + b * t;
 }
 
@@ -47,7 +52,7 @@ static struct tModel const *R_LoadCliffModel(struct CliffInfo const *cinfo, char
     return cliff->model;
 }
 
-void SetTileUV(int tile, struct tVertex* vertices, struct TerrainInfo *terrain, struct Terrain const *heightmap) {
+static void SetTileUV(int tile, struct vertex* vertices, struct TerrainInfo *terrain) {
     const float u = 1.f/(terrain->lpTexture->width / 64);
     const float v = 1.f/(terrain->lpTexture->height / 64);
 
@@ -70,9 +75,9 @@ void SetTileUV(int tile, struct tVertex* vertices, struct TerrainInfo *terrain, 
     }
 }
 
-struct vector2 map_position(struct Terrain const *heightmap, float x, float y) {
-    float _x = (x - heightmap->center.x) / ((heightmap->size.width-1) * TILESIZE);
-    float _y = (y - heightmap->center.y) / ((heightmap->size.height-1) * TILESIZE);
+struct vector2 map_position(float x, float y) {
+    float _x = (x - tr.world->center.x) / ((tr.world->size.width-1) * TILESIZE);
+    float _y = (y - tr.world->center.y) / ((tr.world->size.height-1) * TILESIZE);
     return (struct vector2) { _x, _y };
 }
 
@@ -85,14 +90,13 @@ struct color32 MakeColor(float r, float g, float b, float a) {
     };
 }
 
-void MakeTile(int x, int y, int ground,
-              struct tVertex* vertices,
-              struct TerrainInfo *terrain,
-              struct Terrain const *heightmap,
-              int *index)
+static void MakeTile(int x, int y, int ground,
+                     struct vertex* vertices,
+                     struct TerrainInfo *terrain,
+                     int *index)
 {
     struct TerrainVertex tile[4];
-    GetTileVertices(x, y, heightmap, tile);
+    GetTileVertices(x, y, tr.world, tile);
     int _tile = GetTile(tile, ground);
     
     if (_tile == 0)
@@ -103,10 +107,10 @@ void MakeTile(int x, int y, int ground,
     }
     
     struct vector2 p[] = {
-        { heightmap->center.x + x * TILESIZE, heightmap->center.y + y * TILESIZE },
-        { heightmap->center.x + (x + 1) * TILESIZE, heightmap->center.y + y * TILESIZE },
-        { heightmap->center.x + (x + 1) * TILESIZE, heightmap->center.y + (y + 1) * TILESIZE },
-        { heightmap->center.x + x * TILESIZE, heightmap->center.y + (y + 1) * TILESIZE },
+        { tr.world->center.x + x * TILESIZE, tr.world->center.y + y * TILESIZE },
+        { tr.world->center.x + (x + 1) * TILESIZE, tr.world->center.y + y * TILESIZE },
+        { tr.world->center.x + (x + 1) * TILESIZE, tr.world->center.y + (y + 1) * TILESIZE },
+        { tr.world->center.x + x * TILESIZE, tr.world->center.y + (y + 1) * TILESIZE },
     };
     
     float const waterlevel[] = {
@@ -133,22 +137,22 @@ void MakeTile(int x, int y, int ground,
 #define WATER(INDEX) \
 MakeColor(color[INDEX], lerp(color[INDEX], 1, 0.25f), lerp(color[INDEX], 1, 0.5f), 1)
 
-    struct tVertex geom[] = {
-        { {p[0].x,p[0].y,h[0]}, {0, 0}, map_position(heightmap, p[0].x, p[0].y), WATER(0) },
-        { {p[1].x,p[1].y,h[1]}, {1, 0}, map_position(heightmap, p[1].x, p[1].y), WATER(1) },
-        { {p[2].x,p[2].y,h[2]}, {1, 1}, map_position(heightmap, p[2].x, p[2].y), WATER(2) },
-        { {p[0].x,p[0].y,h[0]}, {0, 0}, map_position(heightmap, p[0].x, p[0].y), WATER(0) },
-        { {p[2].x,p[2].y,h[2]}, {1, 1}, map_position(heightmap, p[2].x, p[2].y), WATER(2) },
-        { {p[3].x,p[3].y,h[3]}, {0, 1}, map_position(heightmap, p[3].x, p[3].y), WATER(3) },
+    struct vertex geom[] = {
+        { {p[0].x,p[0].y,h[0]}, {0, 0}, map_position(p[0].x, p[0].y), WATER(0) },
+        { {p[1].x,p[1].y,h[1]}, {1, 0}, map_position(p[1].x, p[1].y), WATER(1) },
+        { {p[2].x,p[2].y,h[2]}, {1, 1}, map_position(p[2].x, p[2].y), WATER(2) },
+        { {p[0].x,p[0].y,h[0]}, {0, 0}, map_position(p[0].x, p[0].y), WATER(0) },
+        { {p[2].x,p[2].y,h[2]}, {1, 1}, map_position(p[2].x, p[2].y), WATER(2) },
+        { {p[3].x,p[3].y,h[3]}, {0, 1}, map_position(p[3].x, p[3].y), WATER(3) },
     };
 
-    SetTileUV(_tile, geom, terrain, heightmap);
+    SetTileUV(_tile, geom, terrain);
     
     memcpy(&vertices[*index], geom, sizeof(geom));
     *index += 6;
 }
 
-int TileBaseLevel(struct TerrainVertex const *tile) {
+static int TileBaseLevel(struct TerrainVertex const *tile) {
     int minlevel = tile->level;
     FOR_LOOP(index, 4) {
         minlevel = MIN(minlevel, tile[index].level);
@@ -156,43 +160,42 @@ int TileBaseLevel(struct TerrainVertex const *tile) {
     return minlevel;
 }
 
-float GetAccurateHeightAtPoint(struct Terrain const *heightmap, float sx, float sy) {
+static float GetAccurateHeightAtPoint(float sx, float sy) {
     float x = sx / TILESIZE;
     float y = sy / TILESIZE;
     float fx = floorf(x);
     float fy = floorf(y);
-    float a = GetTerrainVertex(heightmap, fx, fy)->accurate_height;
-    float b = GetTerrainVertex(heightmap, fx + 1, fy)->accurate_height;
-    float c = GetTerrainVertex(heightmap, fx, fy + 1)->accurate_height;
-    float d = GetTerrainVertex(heightmap, fx + 1, fy + 1)->accurate_height;
+    float a = GetTerrainVertex(tr.world, fx, fy)->accurate_height;
+    float b = GetTerrainVertex(tr.world, fx + 1, fy)->accurate_height;
+    float c = GetTerrainVertex(tr.world, fx, fy + 1)->accurate_height;
+    float d = GetTerrainVertex(tr.world, fx + 1, fy + 1)->accurate_height;
     float ab = lerp(a, b, x - fx);
     float cd = lerp(c, d, x - fx);
     return DECODE_HEIGHT(lerp(ab, cd, y - fy));
 }
 
-float GetAccurateWaterLevelAtPoint(struct Terrain const *heightmap, float sx, float sy) {
+static float GetAccurateWaterLevelAtPoint(float sx, float sy) {
     float x = sx / TILESIZE;
     float y = sy / TILESIZE;
     float fx = floorf(x);
     float fy = floorf(y);
-    float a = GetTerrainVertex(heightmap, fx, fy)->waterlevel;
-    float b = GetTerrainVertex(heightmap, fx + 1, fy)->waterlevel;
-    float c = GetTerrainVertex(heightmap, fx, fy + 1)->waterlevel;
-    float d = GetTerrainVertex(heightmap, fx + 1, fy + 1)->waterlevel;
+    float a = GetTerrainVertex(tr.world, fx, fy)->waterlevel;
+    float b = GetTerrainVertex(tr.world, fx + 1, fy)->waterlevel;
+    float c = GetTerrainVertex(tr.world, fx, fy + 1)->waterlevel;
+    float d = GetTerrainVertex(tr.world, fx + 1, fy + 1)->waterlevel;
     float ab = lerp(a, b, x - fx);
     float cd = lerp(c, d, x - fx);
     return DECODE_HEIGHT(lerp(ab, cd, y - fy));
 }
 
 
-void MakeCliff(int x, int y, int cliffindex,
-              struct tVertex* vertices,
-              struct CliffInfo *cliff,
-              struct Terrain const *heightmap,
-              int *index)
+static void MakeCliff(int x, int y, int cliffindex,
+                      struct vertex* vertices,
+                      struct CliffInfo *cliff,
+                      int *index)
 {
     struct TerrainVertex tile[4];
-    GetTileVertices(x, y, heightmap, tile);
+    GetTileVertices(x, y, tr.world, tile);
     int remap[4] = { 3, 1, 0, 2 };
     
     if (GetTileRamps(tile) || !IsTileCliff(tile) || tile[remap[0]].cliff != cliffindex)
@@ -214,12 +217,12 @@ void MakeCliff(int x, int y, int cliffindex,
         }
     }
     
-    FOR_LOOP(gindx, heightmap->numGrounds) {
-        if (heightmap->lpGrounds[gindx] == cliff->groundTile) {
-            ((struct TerrainVertex *)GetTerrainVertex(heightmap, x+1, y+1))->ground = gindx;
-            ((struct TerrainVertex *)GetTerrainVertex(heightmap, x, y+1))->ground = gindx;
-            ((struct TerrainVertex *)GetTerrainVertex(heightmap, x+1, y))->ground = gindx;
-            ((struct TerrainVertex *)GetTerrainVertex(heightmap, x, y))->ground = gindx;
+    FOR_LOOP(gindx, tr.world->numGrounds) {
+        if (tr.world->lpGrounds[gindx] == cliff->groundTile) {
+            ((struct TerrainVertex *)GetTerrainVertex(tr.world, x+1, y+1))->ground = gindx;
+            ((struct TerrainVertex *)GetTerrainVertex(tr.world, x, y+1))->ground = gindx;
+            ((struct TerrainVertex *)GetTerrainVertex(tr.world, x+1, y))->ground = gindx;
+            ((struct TerrainVertex *)GetTerrainVertex(tr.world, x, y))->ground = gindx;
             break;
         }
     }
@@ -234,30 +237,30 @@ void MakeCliff(int x, int y, int cliffindex,
         const int i = pGeoset->lpTriangles[t];
         const float fx = pGeoset->lpVertices[i].x + (x+1) * TILESIZE;
         const float fy = pGeoset->lpVertices[i].y + y * TILESIZE;
-        const float fh = GetAccurateHeightAtPoint(heightmap, fx, fy);
-        const float fw = GetAccurateWaterLevelAtPoint(heightmap, fx, fy);
+        const float fh = GetAccurateHeightAtPoint(fx, fy);
+        const float fw = GetAccurateWaterLevelAtPoint(fx, fy);
         const float fz = pGeoset->lpVertices[i].z + baselevel * TILESIZE + fh - HEIGHT_COR;
         const float dp = GetTileDepth(fw, fz);
         maplayer[*index + t].color = MakeColor(dp, lerp(dp, 1, 0.25), lerp(dp, 1, 0.5), 1);
-        maplayer[*index + t].position.x = heightmap->center.x + fx;
-        maplayer[*index + t].position.y = heightmap->center.y + fy;
+        maplayer[*index + t].position.x = tr.world->center.x + fx;
+        maplayer[*index + t].position.y = tr.world->center.y + fy;
         maplayer[*index + t].position.z = fz;
         maplayer[*index + t].texcoord.x = pGeoset->lpTexcoord[i].x;
         maplayer[*index + t].texcoord.y = pGeoset->lpTexcoord[i].y;
-        maplayer[*index + t].texcoord2 = map_position(heightmap, heightmap->center.x + fx, heightmap->center.y + fy);
+        maplayer[*index + t].texcoord2 = map_position(tr.world->center.x + fx, tr.world->center.y + fy);
     }
     
     *index += pGeoset->numTriangles;
 }
 
 
-int IsTileVisible(int x, int y) {
+static int IsTileVisible(int x, int y) {
     return true;
 }
 
-struct CliffInfo *BindCliffTexture(struct Terrain const *heightmap, int cliffindex) {
+static struct CliffInfo *BindCliffTexture(int cliffindex) {
     char buffer[256];
-    int const cliffID = heightmap->lpCliffs[cliffindex];
+    int const cliffID = tr.world->lpCliffs[cliffindex];
     struct CliffInfo *cliff = FindCliffInfo(cliffID);
     if (!cliff)
         return NULL;
@@ -269,9 +272,9 @@ struct CliffInfo *BindCliffTexture(struct Terrain const *heightmap, int cliffind
     return cliff;
 }
 
-struct TerrainInfo *BindGroundTexture(struct Terrain const *heightmap, int ground) {
+static struct TerrainInfo *BindGroundTexture(int ground) {
     char buffer[256];
-    int const tileID = heightmap->lpGrounds[ground];
+    int const tileID = tr.world->lpGrounds[ground];
     struct TerrainInfo *terrain = FindTerrainInfo(tileID);
     if (!terrain)
         return NULL;
@@ -283,18 +286,18 @@ struct TerrainInfo *BindGroundTexture(struct Terrain const *heightmap, int groun
     return terrain;
 }
 
-void R_RenderMapLayer(struct Terrain const *heightmap, int ground) {
+static void R_RenderMapLayer(int ground) {
     int index = 0;
-    struct TerrainInfo *terrain = BindGroundTexture(heightmap, ground);
+    struct TerrainInfo *terrain = BindGroundTexture(ground);
     
     if (!terrain)
         return;
     
-    FOR_LOOP(x, heightmap->size.width - 1) {
-        FOR_LOOP(y, heightmap->size.height - 1) {
+    FOR_LOOP(x, tr.world->size.width - 1) {
+        FOR_LOOP(y, tr.world->size.height - 1) {
             if (!IsTileVisible(x, y))
                 continue;
-            MakeTile(x, y, ground, maplayer, terrain, heightmap, &index);
+            MakeTile(x, y, ground, maplayer, terrain, &index);
         }
     }
 
@@ -311,22 +314,21 @@ void R_RenderMapLayer(struct Terrain const *heightmap, int ground) {
     glDrawArrays( GL_TRIANGLES, 0, index );
 }
 
-void MakeWaterTile(int x, int y,
-                   struct tVertex* vertices,
-                   struct Terrain const *heightmap,
-                   int *index)
+static void MakeWaterTile(int x, int y,
+                          struct vertex* vertices,
+                          int *index)
 {
     struct TerrainVertex tile[4];
-    GetTileVertices(x, y, heightmap, tile);
+    GetTileVertices(x, y, tr.world, tile);
         
     if (!IsTileWater(tile))
         return;
     
     struct vector2 const pos[] = {
-        { heightmap->center.x + x * TILESIZE, heightmap->center.y + y * TILESIZE },
-        { heightmap->center.x + (x + 1) * TILESIZE, heightmap->center.y + y * TILESIZE },
-        { heightmap->center.x + (x + 1) * TILESIZE, heightmap->center.y + (y + 1) * TILESIZE },
-        { heightmap->center.x + x * TILESIZE, heightmap->center.y + (y + 1) * TILESIZE },
+        { tr.world->center.x + x * TILESIZE, tr.world->center.y + y * TILESIZE },
+        { tr.world->center.x + (x + 1) * TILESIZE, tr.world->center.y + y * TILESIZE },
+        { tr.world->center.x + (x + 1) * TILESIZE, tr.world->center.y + (y + 1) * TILESIZE },
+        { tr.world->center.x + x * TILESIZE, tr.world->center.y + (y + 1) * TILESIZE },
     };
     
     float const waterlevel[] = {
@@ -343,33 +345,33 @@ void MakeWaterTile(int x, int y,
         GetTerrainVertexHeight(&tile[1]),
     };
     
-    float const opac[] = {
+    struct color32 const color[] = {
         GetWaterOpacity(waterlevel[0], height[0]),
         GetWaterOpacity(waterlevel[1], height[1]),
         GetWaterOpacity(waterlevel[2], height[2]),
         GetWaterOpacity(waterlevel[3], height[3]),
     };
 
-    struct tVertex geom[] = {
-        { 1, 1, 1, opac[0], pos[0].x, pos[0].y, waterlevel[0], 0, 0 },
-        { 1, 1, 1, opac[1], pos[1].x, pos[1].y, waterlevel[1], 1, 0 },
-        { 1, 1, 1, opac[2], pos[2].x, pos[2].y, waterlevel[2], 1, 1 },
-        { 1, 1, 1, opac[0], pos[0].x, pos[0].y, waterlevel[0], 0, 0 },
-        { 1, 1, 1, opac[2], pos[2].x, pos[2].y, waterlevel[2], 1, 1 },
-        { 1, 1, 1, opac[3], pos[3].x, pos[3].y, waterlevel[3], 0, 1 },
+    struct vertex geom[] = {
+        { { pos[0].x, pos[0].y, waterlevel[0] }, {0, 0}, {0, 0}, color[0] },
+        { { pos[1].x, pos[1].y, waterlevel[1] }, {1, 0}, {0, 0}, color[1] },
+        { { pos[2].x, pos[2].y, waterlevel[2] }, {1, 1}, {0, 0}, color[2] },
+        { { pos[0].x, pos[0].y, waterlevel[0] }, {0, 0}, {0, 0}, color[0] },
+        { { pos[2].x, pos[2].y, waterlevel[2] }, {1, 1}, {0, 0}, color[2] },
+        { { pos[3].x, pos[3].y, waterlevel[3] }, {0, 1}, {0, 0}, color[3] },
     };
 
     memcpy(&vertices[*index], geom, sizeof(geom));
     *index += 6;
 }
 
-void RenderWater(struct Terrain const *heightmap) {
+static void RenderWater() {
     int index = 0;
-    FOR_LOOP(x, heightmap->size.width - 1) {
-        FOR_LOOP(y, heightmap->size.height - 1) {
+    FOR_LOOP(x, tr.world->size.width - 1) {
+        FOR_LOOP(y, tr.world->size.height - 1) {
             if (!IsTileVisible(x, y))
                 continue;
-            MakeWaterTile(x, y, maplayer, heightmap, &index);
+            MakeWaterTile(x, y, maplayer, &index);
         }
     }
     struct matrix4 model_matrix;
@@ -386,18 +388,18 @@ void RenderWater(struct Terrain const *heightmap) {
     glDrawArrays( GL_TRIANGLES, 0, index );
 }
 
-void R_RenderMapCliffs(struct Terrain const *heightmap, int cliffindex) {
+static void R_RenderMapCliffs(int cliffindex) {
     int index = 0;
-    struct CliffInfo *cliff = BindCliffTexture(heightmap, cliffindex);
+    struct CliffInfo *cliff = BindCliffTexture(cliffindex);
 
     if (!cliff)
         return;
 
-    FOR_LOOP(x, heightmap->size.width - 1) {
-        FOR_LOOP(y, heightmap->size.height - 1) {
+    FOR_LOOP(x, tr.world->size.width - 1) {
+        FOR_LOOP(y, tr.world->size.height - 1) {
             if (!IsTileVisible(x, y))
                 continue;
-            MakeCliff(x, y, cliffindex, maplayer, cliff, heightmap, &index);
+            MakeCliff(x, y, cliffindex, maplayer, cliff, &index);
         }
     }
 
@@ -420,15 +422,15 @@ void R_DrawWorld(void) {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     
     FOR_LOOP(ground, tr.world->numGrounds) {
-        R_RenderMapLayer(tr.world, ground);
+        R_RenderMapLayer(ground);
     }
     FOR_LOOP(cliff, tr.world->numCliffs) {
-        R_RenderMapCliffs(tr.world, cliff);
+        R_RenderMapCliffs(cliff);
     }
 }
 
 void R_DrawAlphaSurfaces() {
-    RenderWater(tr.world);
+    RenderWater();
 }
 
 void R_DrawEntities() {

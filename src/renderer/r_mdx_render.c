@@ -208,7 +208,7 @@ void RenderModel(struct render_entity const *ent) {
     {
         if (dwGeosetID < ent->model->numTextures) {
             struct tModelTexture const *mtex = &ent->model->lpTextures[dwGeosetID];
-            struct tTexture const *tex = R_FindTextureByID(mtex->texid);
+            struct texture const *tex = R_FindTextureByID(mtex->texid);
             if (tex) {
                 R_BindTexture(tex, 0);
             }

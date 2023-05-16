@@ -3,9 +3,8 @@
 #include <SDL.h>
 #include <SDL_opengl.h>
 
-struct RendererImport ri;
-
-trGlobals_t tr;
+struct renderer_import ri;
+struct render_globals tr;
 
 SDL_Window *window;
 SDL_GLContext context;
@@ -69,7 +68,7 @@ void R_Init(DWORD dwWidth, DWORD dwHeight) {
 //    }
 }
 
-void R_DrawPic(struct tTexture const *lpTexture) {
+void R_DrawPic(struct texture const *lpTexture) {
 //    const struct tVertex g_vertex_buffer_data[] = {
 //    /*  R, G, B, A, X, Y, Z U, V  */
 //        { 1, 1, 1, 1, 0, 0, 0, 0, 0 },
@@ -90,8 +89,8 @@ void R_DrawPic(struct tTexture const *lpTexture) {
 //        glDrawArrays( GL_TRIANGLES, 0, 6 );
 }
 
-struct tRenBuf *R_MakeVertexArrayObject(struct tVertex const *data, int size) {
-    struct tRenBuf *buf = ri.MemAlloc(sizeof(struct tRenBuf));
+struct render_buffer *R_MakeVertexArrayObject(struct vertex const *data, int size) {
+    struct render_buffer *buf = ri.MemAlloc(sizeof(struct render_buffer));
     
     glGenVertexArrays( 1, &buf->vao );
     glGenBuffers( 1, &buf->vbo );
@@ -106,20 +105,20 @@ struct tRenBuf *R_MakeVertexArrayObject(struct tVertex const *data, int size) {
     
     #define FOFS(type, x) (void *)&(((struct type *)NULL)->x)
 
-    glVertexAttribPointer( attrib_color, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(struct tVertex), FOFS(tVertex, color));
-    glVertexAttribPointer( attrib_position, 3, GL_FLOAT, GL_FALSE, sizeof(struct tVertex), FOFS(tVertex, position));
-    glVertexAttribPointer( attrib_texcoord, 2, GL_FLOAT, GL_FALSE, sizeof(struct tVertex), FOFS(tVertex, texcoord));
-    glVertexAttribPointer( attrib_texcoord2, 2, GL_FLOAT, GL_FALSE, sizeof(struct tVertex), FOFS(tVertex, texcoord2));
-    glVertexAttribPointer( attrib_skin, 4, GL_UNSIGNED_BYTE, GL_FALSE, sizeof(struct tVertex), FOFS(tVertex, skin));
+    glVertexAttribPointer( attrib_color, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(struct vertex), FOFS(vertex, color));
+    glVertexAttribPointer( attrib_position, 3, GL_FLOAT, GL_FALSE, sizeof(struct vertex), FOFS(vertex, position));
+    glVertexAttribPointer( attrib_texcoord, 2, GL_FLOAT, GL_FALSE, sizeof(struct vertex), FOFS(vertex, texcoord));
+    glVertexAttribPointer( attrib_texcoord2, 2, GL_FLOAT, GL_FALSE, sizeof(struct vertex), FOFS(vertex, texcoord2));
+    glVertexAttribPointer( attrib_skin, 4, GL_UNSIGNED_BYTE, GL_FALSE, sizeof(struct vertex), FOFS(vertex, skin));
 
     if (data) {
-        glBufferData( GL_ARRAY_BUFFER, size * sizeof(struct tVertex), data, GL_STATIC_DRAW );
+        glBufferData( GL_ARRAY_BUFFER, size * sizeof(struct vertex), data, GL_STATIC_DRAW );
     }
 
     return buf;
 }
 
-void R_ReleaseVertexArrayObject(struct tRenBuf *lpBuffer) {
+void R_ReleaseVertexArrayObject(struct render_buffer *lpBuffer) {
     glDeleteBuffers(1, &lpBuffer->vbo);
     glDeleteVertexArrays(1, &lpBuffer->vao);
 }
@@ -144,7 +143,7 @@ void R_Shutdown(void) {
     SDL_Quit();
 }
 
-struct Renderer *Renderer_Init(struct RendererImport *lpImport) {
+struct Renderer *Renderer_Init(struct renderer_import *lpImport) {
     struct Renderer *lpRenderer = lpImport->MemAlloc(sizeof(struct Renderer));
     lpRenderer->Init = R_Init;
     lpRenderer->RegisterMap = R_RegisterMap;

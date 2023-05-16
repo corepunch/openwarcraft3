@@ -286,7 +286,7 @@ struct TerrainInfo {
     int dwTileID;
     char sDirectory[64];
     char sFilename[64];
-    struct tTexture *lpTexture;
+    struct texture *lpTexture;
     struct TerrainInfo *lpNext;
 };
 
@@ -311,7 +311,7 @@ struct CliffInfo {
     int groundTile;
     int upperTile;
     struct CliffInfo *lpNext;
-    struct tTexture *texture;
+    struct texture *texture;
 };
 
 struct DoodadInfo {
@@ -336,7 +336,7 @@ struct DestructableInfo {
     char texFile[64];
     struct DestructableInfo *lpNext;
     struct tModel const *lpModel;
-    struct tTexture *lpTexture;
+    struct texture *lpTexture;
 };
 
 struct Doodad {
@@ -369,7 +369,7 @@ struct size2 {
     int height;
 };
 
-struct Terrain {
+struct terrain {
     int header;
     int version;
     char tileset;
@@ -391,17 +391,17 @@ struct SheetCell {
 };
 
 struct tModel;
-struct tTexture;
+struct texture;
 
-struct TerrainVertex const *GetTerrainVertex(struct Terrain const *heightmap, int x, int y);
-struct Terrain *FileReadTerrain(HANDLE hArchive);
+struct TerrainVertex const *GetTerrainVertex(struct terrain const *heightmap, int x, int y);
+struct terrain *FileReadTerrain(HANDLE hArchive);
 struct TerrainInfo *MakeTerrainInfo(struct SheetCell *sheet);
 struct CliffInfo *MakeCliffInfo(struct SheetCell *sheet);
 struct DoodadInfo *MakeDoodadInfo(struct SheetCell *sheet);
 struct DestructableInfo *MakeDestructableInfo(struct SheetCell *sheet);
 void LoadMap(LPCSTR pFilename);
 
-struct TerrainVertex const *GetTerrainVertex(struct Terrain const *heightmap, int x, int y);
+struct TerrainVertex const *GetTerrainVertex(struct terrain const *heightmap, int x, int y);
 struct TerrainInfo *FindTerrainInfo(int tileID);
 struct CliffInfo *FindCliffInfo(int cliffID);
 struct DoodadInfo *FindDoodadInfo(int doodID);
@@ -410,7 +410,7 @@ struct DestructableInfo *FindDestructableInfo(int DestructableID);
 int GetTile(struct TerrainVertex const *mv, int ground);
 float GetTerrainVertexHeight(struct TerrainVertex const *vert);
 float GetTerrainVertexWaterLevel(struct TerrainVertex const *vert);
-void GetTileVertices(int x, int y, struct Terrain const *heightmap, struct TerrainVertex *vertices);
+void GetTileVertices(int x, int y, struct terrain const *heightmap, struct TerrainVertex *vertices);
 int GetTileRamps(struct TerrainVertex const *vertices);
 int IsTileCliff(struct TerrainVertex const *vertices);
 int IsTileWater(struct TerrainVertex const *vertices);

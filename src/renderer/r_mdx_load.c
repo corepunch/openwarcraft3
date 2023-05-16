@@ -253,7 +253,7 @@ static void R_SetupGeoset(struct tModel *lpModel, struct tModelGeoset *lpGeoset)
     }
     
     typedef uint8_t matrixGroup_t[4];
-    struct tVertex *lpVertices = ri.MemAlloc(sizeof(struct tVertex) * lpGeoset->numTriangles);
+    struct vertex *lpVertices = ri.MemAlloc(sizeof(struct vertex) * lpGeoset->numTriangles);
     matrixGroup_t *lpMatrixGroups = ri.MemAlloc(sizeof(matrixGroup_t) * lpGeoset->numMatrixGroups);
     DWORD dwIndexOffset = 0;
     
@@ -272,7 +272,7 @@ static void R_SetupGeoset(struct tModel *lpModel, struct tModelGeoset *lpGeoset)
         memcpy(lpVertices[dwTriangle].skin, dwMatrixGroup, sizeof(matrixGroup_t));
     }
 
-    lpGeoset->lpBuffer = R_MakeVertexArrayObject(lpVertices, lpGeoset->numTriangles * sizeof(struct tVertex));
+    lpGeoset->lpBuffer = R_MakeVertexArrayObject(lpVertices, lpGeoset->numTriangles * sizeof(struct vertex));
     
     ri.MemFree(lpVertices);
     ri.MemFree(lpMatrixGroups);

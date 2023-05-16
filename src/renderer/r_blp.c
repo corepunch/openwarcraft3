@@ -371,7 +371,7 @@ struct color32* blp_convert(HANDLE* hFile, struct tInternalBLPInfos* pBLPInfos, 
     return pDst;
 }
 
-struct tTexture *R_LoadTexture(LPCSTR szTextureFilename) {
+struct texture *R_LoadTexture(LPCSTR szTextureFilename) {
     HANDLE hFile = ri.FileOpen(szTextureFilename);
 //    DWORD dwFileSize = SFileGetFileSize(hFile, NULL);
 //    void *lpBuffer = MemAlloc(dwFileSize);
@@ -381,7 +381,7 @@ struct tTexture *R_LoadTexture(LPCSTR szTextureFilename) {
     if (!pBLPInfos)
         return NULL;
 
-    struct tTexture *pTexture = R_AllocateTexture(blp_width(pBLPInfos, 0), blp_height(pBLPInfos, 0));
+    struct texture *pTexture = R_AllocateTexture(blp_width(pBLPInfos, 0), blp_height(pBLPInfos, 0));
     
     FOR_LOOP(dwLevel, blp_nbMipLevels(pBLPInfos)) {
         struct color32* pPixels = blp_convert(hFile, pBLPInfos, dwLevel);

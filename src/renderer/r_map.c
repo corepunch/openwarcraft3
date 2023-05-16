@@ -1,13 +1,13 @@
 #include "r_local.h"
 
-static void R_FileReadShadowMap(HANDLE hMpq, struct Terrain *pWorld) {
+static void R_FileReadShadowMap(HANDLE hMpq, struct terrain *pWorld) {
     HANDLE hFile;
     SFileOpenFileEx(hMpq, "war3map.shd", SFILE_OPEN_FROM_MPQ, &hFile);
     int const w = (pWorld->size.width - 1) * 4;
     int const h = (pWorld->size.height - 1) * 4;
     char *lpShadows = MemAlloc(w * h);
     SFileReadFile(hFile, lpShadows, w * h, NULL, NULL);
-    struct tTexture *pShadowmap = R_AllocateTexture(w, h);
+    struct texture *pShadowmap = R_AllocateTexture(w, h);
     struct color32 *lpPixels = MemAlloc(w * h * sizeof(struct color32));
     FOR_LOOP(i, w * h) {
         lpPixels[i].r = 255-lpShadows[i];
@@ -26,7 +26,7 @@ void R_RegisterMap(char const *szMapFilename) {
     FS_ExtractFile(szMapFilename, TMP_MAP);
     SFileOpenArchive(TMP_MAP, 0, 0, &hMpq);
     
-    struct Terrain *pWorld = FileReadTerrain(hMpq);
+    struct terrain *pWorld = FileReadTerrain(hMpq);
 
     R_FileReadShadowMap(hMpq, pWorld);
     

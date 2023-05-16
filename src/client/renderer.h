@@ -3,7 +3,7 @@
 
 #include "../common/common.h"
 
-struct RendererImport {
+struct renderer_import {
     HANDLE (*FileOpen)(LPCSTR szFileName);
     bool (*FileExtract)(LPCSTR szToExtract, LPCSTR szExtracted);
     bool (*FileClose)(HANDLE hFile);
@@ -16,7 +16,7 @@ struct render_entity {
     float angle;
     float scale;
     struct tModel *model;
-    struct tTexture *skin;
+    struct texture *skin;
     int frame;
 };
 
@@ -34,14 +34,14 @@ struct Renderer {
     void (*Shutdown)(void);
     void (*RegisterMap)(char const *szMapFileName);
     void (*RenderFrame)(struct refdef const *lpRefDef);
-    struct tTexture *(*LoadTexture)(LPCSTR szTextureFileName);
+    struct texture *(*LoadTexture)(LPCSTR szTextureFileName);
     struct tModel *(*LoadModel)(LPCSTR szModelFilename);
     void (*ReleaseModel)(struct tModel *lpModel);
     void (*BeginFrame)(void);
     void (*EndFrame)(void);
-    void (*DrawPic)(struct tTexture const *lpTexture);
+    void (*DrawPic)(struct texture const *lpTexture);
 };
 
-struct Renderer *Renderer_Init(struct RendererImport *pImport);
+struct Renderer *Renderer_Init(struct renderer_import *pImport);
 
 #endif

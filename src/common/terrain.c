@@ -3,14 +3,14 @@
 
 #include "../common/common.h"
 
-struct TerrainVertex const *GetTerrainVertex(struct Terrain const *heightmap, int x, int y) {
+struct TerrainVertex const *GetTerrainVertex(struct terrain const *heightmap, int x, int y) {
     int const index = x + y * heightmap->size.width;
     char const *ptr = ((char const *)heightmap->vertices) + index * MAP_VERTEX_SIZE;
     return (struct TerrainVertex const *)ptr;
 }
 
-struct Terrain *FileReadTerrain(HANDLE hArchive) {
-    struct Terrain *lpTerrain = MemAlloc(sizeof(struct Terrain));
+struct terrain *FileReadTerrain(HANDLE hArchive) {
+    struct terrain *lpTerrain = MemAlloc(sizeof(struct terrain));
     HANDLE hFile;
     SFileOpenFileEx(hArchive, "war3map.w3e", SFILE_OPEN_FROM_MPQ, &hFile);
     SFileReadFile(hFile, &lpTerrain->header, 4, NULL, NULL);
@@ -54,7 +54,7 @@ float GetTerrainVertexWaterLevel(struct TerrainVertex const *vert) {
     return DECODE_HEIGHT(vert->waterlevel);
 }
 
-void GetTileVertices(int x, int y, struct Terrain const *heightmap, struct TerrainVertex *vertices) {
+void GetTileVertices(int x, int y, struct terrain const *heightmap, struct TerrainVertex *vertices) {
     vertices[0] = *GetTerrainVertex(heightmap, x+1, y+1);
     vertices[1] = *GetTerrainVertex(heightmap, x, y+1);
     vertices[2] = *GetTerrainVertex(heightmap, x+1, y);

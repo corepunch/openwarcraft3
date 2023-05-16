@@ -12,7 +12,7 @@ void SV_CreateBaseline(void) {
     }
 }
 
-struct PathMapNode const *SV_PathMapNode(struct Terrain const *heightmap, int x, int y) {
+struct PathMapNode const *SV_PathMapNode(struct terrain const *heightmap, int x, int y) {
     int const index = x + y * sv_pathmapSize.width;
     return &sv_pathmap[index];
 }

@@ -2,7 +2,7 @@
 #include "../server/server.h"
 
 
-extern struct tTexture *Texture;
+extern struct texture *Texture;
 
 void Sys_Quit(void) {
     exit(0);

@@ -38,26 +38,9 @@
 #include "../common/common.h"
 #include "../client/renderer.h"
 
-extern struct RendererImport ri;
+extern struct renderer_import ri;
 
-typedef char tModelObjectName[80];
-typedef char tModelFileName[260];
-
-enum tModelKeyTrackType {
-  TRACK_NO_INTERP = 0x0,
-  TRACK_LINEAR = 0x1,
-  TRACK_HERMITE = 0x2,
-  TRACK_BEZIER = 0x3,
-  NUM_TRACK_TYPES = 0x4,
-};
-
-enum tModelKeyTrackDataType {
-    kModelKeyTrackDataTypeFloat,
-    kModelKeyTrackDataTypeVector3,
-    kModelKeyTrackDataTypeQuaternion,
-};
-
-struct tVertex {
+struct vertex {
     struct vector3 position;
     struct vector2 texcoord;
     struct vector2 texcoord2;
@@ -65,44 +48,44 @@ struct tVertex {
     uint8_t skin[4];
 };
 
-struct tTexture {
+struct texture {
     GLuint texid;
     int width;
     int height;
-    struct tTexture *lpNext;
+    struct texture *lpNext;
 };
 
-struct tRenBuf {
+struct render_buffer {
     unsigned int vao, vbo;
 };
 
-typedef struct {
+struct render_globals {
     struct refdef refdef;
-    struct Terrain const *world;
-    struct tTexture const *shadowmap;
-    struct tTexture const *waterTexture;
-    struct tRenBuf *renbuf;
-} trGlobals_t;
+    struct terrain const *world;
+    struct texture const *shadowmap;
+    struct texture const *waterTexture;
+    struct render_buffer *renbuf;
+};
 
 unsigned int R_InitShader(void);
 void R_RegisterMap(LPCSTR szMapFileName);
 int R_RegisterTextureFile(LPCSTR szTextureFileName);
-struct tTexture *R_LoadTexture(LPCSTR szTextureFileName);
+struct texture *R_LoadTexture(LPCSTR szTextureFileName);
 void R_DrawEntities(void);
 void R_DrawWorld(void);
 void R_DrawAlphaSurfaces(void);
-struct tTexture *R_AllocateTexture(uint32_t dwWidth, uint32_t dwHeight);
-void R_LoadTextureMipLevel(struct tTexture *pTexture, int dwLevel, struct color32* pPixels, uint32_t dwWidth, uint32_t dwHeight);
-void R_BindTexture(struct tTexture const *texture, int unit);
+struct texture *R_AllocateTexture(uint32_t dwWidth, uint32_t dwHeight);
+void R_LoadTextureMipLevel(struct texture *pTexture, int dwLevel, struct color32* pPixels, uint32_t dwWidth, uint32_t dwHeight);
+void R_BindTexture(struct texture const *texture, int unit);
 void RenderModel(struct render_entity const *ent);
-struct tRenBuf *R_MakeVertexArrayObject(struct tVertex const *data, int size);
-void R_ReleaseVertexArrayObject(struct tRenBuf *lpBuffer);
-struct tTexture const* R_FindTextureByID(int texid);
+struct render_buffer *R_MakeVertexArrayObject(struct vertex const *data, int size);
+void R_ReleaseVertexArrayObject(struct render_buffer *lpBuffer);
+struct texture const* R_FindTextureByID(int texid);
 
 // Models
 struct tModel *R_LoadModel(LPCSTR szModelFilename);
 void R_ReleaseModel(struct tModel *lpModel);
 
-extern trGlobals_t tr;
+extern struct render_globals tr;
 
 #endif

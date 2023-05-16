@@ -17,7 +17,7 @@ static struct sizebuf net_message = {
 };
 
 void CL_Init(void) {
-    renderer = Renderer_Init(&(struct RendererImport) {
+    renderer = Renderer_Init(&(struct renderer_import) {
         .MemAlloc = MemAlloc,
         .MemFree = MemFree,
         .FileOpen = FS_OpenFile,
