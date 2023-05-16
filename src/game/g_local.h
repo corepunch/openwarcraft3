@@ -14,8 +14,8 @@ struct monsterinfo {
 
 struct edict {
     struct entity_state s;
-
-    LPCSTR classname;
+    uint32_t class_id;
+    int variation;
     
     void (*think)(struct edict *, int msec);
 
@@ -27,7 +27,7 @@ struct game_state {
 };
 
 struct UnitData {
-    DWORD unitID;
+    int unitID;
     sheetString_t sort;
     sheetString_t comment;
     sheetString_t race;
@@ -65,7 +65,7 @@ struct UnitData {
 };
 
 struct UnitUI {
-    DWORD unitUIID;
+    int unitUIID;
     sheetString_t file;
     sheetString_t unitSound;
     sheetString_t tilesets;
@@ -148,7 +148,6 @@ struct game_locals {
 };
 
 struct edict *G_Spawn(void);
-int G_LoadModelDirFile(LPCSTR szDirectory, LPCSTR szFileName, int dwVariation);
 void SP_CallSpawn(struct edict *ent);
 void G_SpawnEntities(struct Doodad const *doodads, int numDoodads);
 void G_InitUnits(void);
@@ -156,6 +155,7 @@ void G_InitDestructables(void);
 void G_InitDoodads(void);
 struct DoodadInfo *G_FindDoodadInfo(int doodID);
 struct DestructableData *G_FindDestructableData(int DestructableID);
+struct UnitUI *G_FindUnitUI(int unitUIID);
 
 extern struct game_locals game;
 extern struct game_state game_state;

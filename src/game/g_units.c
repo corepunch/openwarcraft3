@@ -92,4 +92,17 @@ struct SheetLayout unit_ui_info[] = {
 void G_InitUnits(void) {
     game.UnitData = FS_ParseSheet("Units\\UnitData.slk", unit_info, sizeof(struct UnitData), FOFS(UnitData, lpNext));
     game.UnitUI = FS_ParseSheet("Units\\unitUI.slk", unit_info, sizeof(struct UnitUI), FOFS(UnitUI, lpNext));
+
+//    FOR_EACH_LIST(struct UnitUI, ud, game.UnitUI) {
+//        printf("%.4s %s\n", (char*)&ud->unitUIID, ud->file);
+//    }
 }
+
+struct UnitUI *G_FindUnitUI(int unitUIID) {
+    FOR_EACH_LIST(struct UnitUI, info, game.UnitUI) {
+        if (info->unitUIID == unitUIID)
+            return info;
+    }
+    return NULL;
+}
+

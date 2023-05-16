@@ -22,19 +22,6 @@ void G_Shutdown(void) {
     gi.MemFree(game_state.edicts);
 }
 
-int G_LoadModelDirFile(LPCSTR szDirectory, LPCSTR szFileName, int dwVariation) {
-    path_t buffer;
-    sprintf(buffer, "%s\\%s\\%s%d.mdx", szDirectory, szFileName, szFileName, dwVariation);
-    return gi.ModelIndex(buffer);
-//    struct tModel *model = R_LoadModel(buffer);
-//    if (model) {
-//        return model;
-//    } else {
-//        sprintf(buffer, "%s\\%s\\%s.mdx", szDirectory, szFileName, szFileName);
-//        return R_LoadModel(buffer);
-//    }
-}
-
 static void G_RunEntity(struct edict *ent, int msec) {
     if (ent->think) {
         ent->think(ent, msec);
