@@ -127,7 +127,13 @@ void FS_Init(void) {
 //        "UI\\SoundInfo\\UnitAckSounds.slk",
 //        NULL
 //    };
-    
+
+//    for (const char** s = sheets; *s; s++) {
+//        printf("%s\n", *s);
+//        FS_ReadSheet(*s);
+//    }
+//    FS_ReadSheet("Units\\unitUI.slk");
+
     stats.lpTerrainInfo = FS_ParseSheet("TerrainArt\\Terrain.slk", terrain_info, sizeof(struct TerrainInfo), FOFS(TerrainInfo, lpNext));
     stats.lpCliffInfo = FS_ParseSheet("TerrainArt\\CliffTypes.slk", cliff_info, sizeof(struct CliffInfo), FOFS(CliffInfo, lpNext));
     FixCliffInfo(stats.lpCliffInfo);

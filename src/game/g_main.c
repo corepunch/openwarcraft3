@@ -14,6 +14,8 @@ void G_Init(void) {
     globals.max_edicts = MAX_ENTITIES;
 
     G_InitUnits();
+    G_InitDestructables();
+    G_InitDoodads();
 }
 
 void G_Shutdown(void) {

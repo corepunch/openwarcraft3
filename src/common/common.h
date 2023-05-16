@@ -177,6 +177,7 @@ typedef enum t_attrib_id {
 } t_attrib_id;
 
 typedef char path_t[MAX_PATHLEN];
+typedef char sheetString_t[64];
 
 struct color { float r, g, b, a; };
 struct color32 { uint8_t r, g, b, a; };
@@ -215,8 +216,6 @@ struct animation_info {
     int from;
     int to;
 };
-
-typedef char sheetString_t[64];
 
 struct TerrainInfo {
     DWORD dwTileID;

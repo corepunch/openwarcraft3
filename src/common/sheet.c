@@ -34,7 +34,7 @@ static struct SheetCell *SheetCellNew(int x, int y, char *text, struct SheetCell
         cell->text = strdup(text);
     }
 //    if (y == 1) {
-//        printf("%d %s\n", x, cell->text);
+//        printf("  %d %s\n", x, cell->text);
 //    }
     return cell;
 }

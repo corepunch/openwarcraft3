@@ -64,6 +64,57 @@ struct UnitData {
     struct UnitData *lpNext;
 };
 
+struct UnitUI {
+    DWORD unitUIID;
+    sheetString_t file;
+    sheetString_t unitSound;
+    sheetString_t tilesets;
+    int tilesetSpecific;
+    sheetString_t name;
+    sheetString_t unitClass;
+    int special;
+    int inEditor;
+    int hiddenInEditor;
+    int hostilePal;
+    int dropItems;
+    int nbrandom;
+    int nbmmIcon;
+    int useClickHelper;
+    float blend;
+    float scale;
+    int scaleBull;
+    sheetString_t preventPlace;
+    int requirePlace;
+    int isbldg;
+    int maxPitch;
+    int maxRoll;
+    int elevPts;
+    int elevRad;
+    int fogRad;
+    int walk;
+    int run;
+    int selZ;
+    int weap1;
+    int weap2;
+    int teamColor;
+    int customTeamColor;
+    sheetString_t armor;
+    int modelScale;
+    int red;
+    int green;
+    int blue;
+    sheetString_t uberSplat;
+    sheetString_t unitShadow;
+    sheetString_t buildingShadow;
+    int shadowW;
+    int shadowH;
+    int shadowX;
+    int shadowY;
+    int occH;
+    int InBeta;
+    struct UnitUI *lpNext;
+};
+
 struct DoodadInfo {
     int doodID;
     char dir[64];
@@ -90,6 +141,7 @@ struct DestructableData {
 };
 
 struct game_locals {
+    struct UnitUI *UnitUI;
     struct UnitData *UnitData;
     struct DoodadInfo *Doodads;
     struct DestructableData *DestructableData;
