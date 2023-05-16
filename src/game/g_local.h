@@ -3,13 +3,8 @@
 
 #include "../server/game.h"
 
-struct monstermove {
-    int firstframe;
-    int lastframe;
-};
-
 struct monsterinfo {
-    struct monstermove currentmove;
+    struct animation_info animation;
 };
 
 struct edict {

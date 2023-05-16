@@ -107,8 +107,52 @@ static int SV_FindIndex(LPCSTR name, int start, int max, bool create) {
     return i;
 }
 
+enum {
+    ID_MDLX = MAKEFOURCC('M','D','L','X'),
+    ID_SEQS = MAKEFOURCC('S','E','Q','S'),
+};
+
+static struct cmodel *SV_LoadModelMDX(HANDLE file) {
+    struct cmodel *model = MemAlloc(sizeof(struct cmodel));
+    DWORD header, size;
+    while (SFileReadFile(file, &header, 4, NULL, NULL)) {
+        SFileReadFile(file, &size, 4, NULL, NULL);
+        if (header == ID_SEQS) {
+            model->animations = MemAlloc(size);
+            model->num_animations = size / sizeof(struct mdx_sequence);
+            SFileReadFile(file, model->animations, size, NULL, NULL);
+        } else {
+            SFileSetFilePointer(file, size, NULL, FILE_CURRENT);
+        }
+    }
+    return model;
+}
+
+static struct cmodel *SV_LoadModel(LPCSTR filename) {
+    DWORD fileheader;
+    HANDLE file = FS_OpenFile(filename);
+    if (!file)
+        return NULL;
+    struct cmodel *model = NULL;
+    SFileReadFile(file, &fileheader, 4, NULL, NULL);
+    switch (fileheader) {
+        case ID_MDLX:
+            model = SV_LoadModelMDX(file);
+            break;
+        default:
+            fprintf(stderr, "Unknown model format %.5s in file %s\n", (char *)&fileheader, filename);
+            break;
+    }
+    SFileCloseFile(file);
+    return model;
+}
+
 int SV_ModelIndex(LPCSTR name) {
-    return SV_FindIndex(name, CS_MODELS, MAX_MODELS, true);
+    int modelindex = SV_FindIndex(name, CS_MODELS, MAX_MODELS, true);
+    if (!sv.models[modelindex]) {
+        sv.models[modelindex] = SV_LoadModel(sv.configstrings[CS_MODELS + modelindex]);
+    }
+    return modelindex;
 }
 
 int SV_SoundIndex(LPCSTR name) {

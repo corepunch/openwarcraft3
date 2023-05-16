@@ -12,6 +12,16 @@ static struct spawn spawns[] = {
     { NULL, NULL }
 };
 
+void unit_think(struct edict *ent, int msec) {
+    struct animation_info const *anim = &ent->monsterinfo.animation;
+    if (anim->start_frame == anim->end_frame)
+        return;
+    ent->s.frame += msec;
+    while (ent->s.frame >= anim->end_frame) {
+        ent->s.frame -= MAX(1, anim->end_frame - anim->start_frame);
+    }
+}
+
 struct Doodad *DoodadAtIndex(struct Doodad const *doodads, int index) {
     char *doo = (char *)doodads;
     return (struct Doodad *)(doo + index * DOODAD_SIZE);
@@ -25,8 +35,8 @@ struct edict *G_Spawn(void) {
 }
 
 static void
-SpawnDoodad(struct edict *ent,
-            struct DoodadInfo const *doo)
+SP_SpawnDoodad(struct edict *ent,
+               struct DoodadInfo const *doo)
 {
     path_t buffer;
     sprintf(buffer, "%s\\%s\\%s%d.mdx", doo->dir, doo->file, doo->file, ent->variation);
@@ -34,8 +44,8 @@ SpawnDoodad(struct edict *ent,
 }
 
 static void
-SpawnDestructable(struct edict *ent,
-                  struct DestructableData const *destr)
+SP_SpawnDestructable(struct edict *ent,
+                     struct DestructableData const *destr)
 {
     path_t buffer;
     sprintf(buffer, "%s.blp", destr->texFile);
@@ -45,12 +55,15 @@ SpawnDestructable(struct edict *ent,
 }
 
 static void
-SpawnUnit(struct edict *ent,
-          struct UnitUI const *unit)
+SP_SpawnUnit(struct edict *ent,
+             struct UnitUI const *unit)
 {
     path_t buffer;
     sprintf(buffer, "%s.mdx", unit->file);
     ent->s.model = gi.ModelIndex(buffer);
+    ent->monsterinfo.animation = gi.GetAnimation(ent->s.model, "Stand");
+    ent->s.frame = ent->monsterinfo.animation.start_frame;
+    ent->think = unit_think;
 }
 
 void SP_CallSpawn(struct edict *ent) {
@@ -60,15 +73,15 @@ void SP_CallSpawn(struct edict *ent) {
     struct DestructableData const *destructableData = NULL;
     struct UnitUI const *unitUI = NULL;
     if ((doodadInfo = G_FindDoodadInfo(ent->class_id))) {
-        SpawnDoodad(ent, doodadInfo);
+        SP_SpawnDoodad(ent, doodadInfo);
         return;
     }
     if ((destructableData = G_FindDestructableData(ent->class_id))) {
-        SpawnDestructable(ent, destructableData);
+        SP_SpawnDestructable(ent, destructableData);
         return;
     }
     if ((unitUI = G_FindUnitUI(ent->class_id))) {
-        SpawnUnit(ent, unitUI);
+        SP_SpawnUnit(ent, unitUI);
         return;
     }
     for (struct spawn *s = spawns; s->func; s++) {

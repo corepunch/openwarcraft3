@@ -33,9 +33,27 @@ struct server_static {
     int next_client_entities;
 };
 
+struct mdx_sequence {
+    char name[80];
+    uint32_t interval[2];
+    float movespeed;     // movement speed of the entity while playing this animation
+    uint32_t flags;      // &1: non looping
+    float rarity;
+    int syncpoint;
+    float radius;
+    struct vector3 min;
+    struct vector3 max;
+};
+
+struct cmodel {
+    struct mdx_sequence *animations;
+    int num_animations;
+};
+
 struct server {
     path_t name;
     path_t configstrings[MAX_CONFIGSTRINGS];
+    struct cmodel *models[MAX_MODELS];
     int framenum;
     int time;
     struct entity_state *baselines;

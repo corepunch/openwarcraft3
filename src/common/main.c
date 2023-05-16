@@ -1,6 +1,7 @@
 #include "../client/client.h"
 #include "../server/server.h"
 
+#include "SDL.h"
 
 extern struct texture *Texture;
 
@@ -14,9 +15,15 @@ int main( int argc, char * argv[] ) {
     CL_Init();
     SV_Map("Maps\\Campaign\\Human01.w3m");
     
+    
+    uint32_t startTime = SDL_GetTicks();
+    
     while (true) {
-        SV_Frame(0);
-        CL_Frame(0);
+        uint32_t currentTime = SDL_GetTicks();
+        uint32_t msec = currentTime - startTime;
+        SV_Frame(msec);
+        CL_Frame(msec);
+        startTime = currentTime;
     }
 
     return 0;

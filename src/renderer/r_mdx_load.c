@@ -364,6 +364,7 @@ struct tModel *R_LoadModelMDX(HANDLE hFile) {
 struct tModel *R_LoadModel(LPCSTR szModelFilename) {
     DWORD dwFileHeader;
     HANDLE hFile = ri.FileOpen(szModelFilename);
+    struct tModel *model = NULL;
 //    printf("%s\n", szModelFilename);
     if (hFile == NULL) {
         // try to load without *0.mdx
@@ -377,14 +378,16 @@ struct tModel *R_LoadModel(LPCSTR szModelFilename) {
         }
     }
     SFileReadFile(hFile, &dwFileHeader, 4, NULL, NULL);
-    
     switch (dwFileHeader) {
         case ID_MDLX:
-            return R_LoadModelMDX(hFile);
+            model = R_LoadModelMDX(hFile);
+            break;
         default:
             fprintf(stderr, "Unknown model format %.5s in file %s\n", (char *)&dwFileHeader, szModelFilename);
-            return NULL;
+            break;
     }
+    ri.FileClose(hFile);
+    return model;
 }
 
 static void R_ReleaseModelNode(struct tModelNode *lpNode) {

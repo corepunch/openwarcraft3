@@ -213,8 +213,9 @@ struct entity_state {
 };
 
 struct animation_info {
-    int from;
-    int to;
+    int start_frame;
+    int end_frame;
+    int framerate;
 };
 
 struct TerrainInfo {

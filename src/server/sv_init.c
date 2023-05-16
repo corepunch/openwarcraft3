@@ -85,6 +85,24 @@ void __netchan_init(struct netchan *netchan){
     netchan->message.maxsize = sizeof(netchan->message_buf);
 }
 
+static struct animation_info SV_GetAnimation(int modelindex, LPCSTR animname) {
+    struct cmodel *model = sv.models[modelindex];
+    if (!model) {
+        return (struct animation_info) { 0 };
+    }
+    FOR_LOOP(i, model->num_animations){
+        struct mdx_sequence *anim = &model->animations[i];
+        if (!strstr(anim->name, animname)) {
+            return (struct animation_info) {
+                .start_frame = anim->interval[0],
+                .end_frame = anim->interval[1],
+//                .framerate = anim->,
+            };
+        }
+    }
+    return (struct animation_info) {};
+}
+
 void SV_Init(void) {
     ge = GetGameAPI(&(struct game_import) {
         .MemAlloc = MemAlloc,
@@ -93,6 +111,7 @@ void SV_Init(void) {
         .ImageIndex = SV_ImageIndex,
         .SoundIndex = SV_SoundIndex,
         .ParseSheet = FS_ParseSheet,
+        .GetAnimation = SV_GetAnimation,
     });
     ge->Init();
     memset(&svs, 0, sizeof(struct server_static));
