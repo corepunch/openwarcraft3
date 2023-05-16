@@ -691,3 +691,156 @@ vector4_unm(struct vector4 const* v)
         .w = -v->w
     };
 }
+
+struct vector4 quaternion_lerp(struct vector4 const *p, struct vector4 const *q, float t) {
+    struct vector4 r;
+    float p1[4];
+    double omega, cosom, sinom, scale0, scale1;
+    cosom = p->x * q->x + p->y * q->y + p->z * q->z + p->w * q->w;
+
+    if (cosom < 0.0) {
+        cosom = -cosom;
+        p1[0] = - p->x;  p1[1] = - p->y;
+        p1[2] = - p->z;  p1[3] = - p->w;
+    } else {
+        p1[0] = p->x;    p1[1] = p->y;
+        p1[2] = p->z;    p1[3] = p->w;
+    }
+
+    if ( (1.0 - cosom) > 0.0001 ) {
+        omega = acos(cosom);
+        sinom = sin(omega);
+        scale0 = sin(t * omega) / sinom;
+        scale1 = sin((1.0 - t) * omega) / sinom;
+    } else {
+        scale0 = t;
+        scale1 = 1.0 - t;
+    }
+
+    r.x = (float)( scale0 * q->x + scale1 * p1[0]);
+    r.y = (float)( scale0 * q->y + scale1 * p1[1]);
+    r.z = (float)( scale0 * q->z + scale1 * p1[2]);
+    r.w = (float)( scale0 * q->w + scale1 * p1[3]);
+
+    return r;
+}
+
+void matrix4_from_rotation_origin(struct matrix4 *out,
+                                  struct vector4 const *rotation,
+                                  struct vector3 const *origin)
+{
+    const float x = rotation->x;
+    const float y = rotation->y;
+    const float z = rotation->z;
+    const float w = rotation->w;
+    const float x2 = x + x;
+    const float y2 = y + y;
+    const float z2 = z + z;
+    const float xx = x * x2;
+    const float xy = x * y2;
+    const float xz = x * z2;
+    const float yy = y * y2;
+    const float yz = y * z2;
+    const float zz = z * z2;
+    const float wx = w * x2;
+    const float wy = w * y2;
+    const float wz = w * z2;
+    const float ox = origin->x;
+    const float oy = origin->y;
+    const float oz = origin->z;
+
+    out->v[0] = (1 - (yy + zz));
+    out->v[1] = (xy + wz);
+    out->v[2] = (xz - wy);
+    out->v[3] = 0;
+    out->v[4] = (xy - wz);
+    out->v[5] = (1 - (xx + zz));
+    out->v[6] = (yz + wx);
+    out->v[7] = 0;
+    out->v[8] = (xz + wy);
+    out->v[9] = (yz - wx);
+    out->v[10] = (1 - (xx + yy));
+    out->v[11] = 0;
+    out->v[12] = ox - (out->v[0] * ox + out->v[4] * oy + out->v[8] * oz);
+    out->v[13] = oy - (out->v[1] * ox + out->v[5] * oy + out->v[9] * oz);
+    out->v[14] = oz - (out->v[2] * ox + out->v[6] * oy + out->v[10] * oz);
+    out->v[15] = 1;
+}
+
+
+void matrix4_from_rotation_translation_scale_origin(struct matrix4 *out,
+                                                    struct vector4 const *q,
+                                                    struct vector3 const *v,
+                                                    struct vector3 const *s,
+                                                    struct vector3 const *o)
+{
+    const float x = q->x;
+    const float y = q->y;
+    const float z = q->z;
+    const float w = q->w;
+    const float x2 = x + x;
+    const float y2 = y + y;
+    const float z2 = z + z;
+    const float xx = x * x2;
+    const float xy = x * y2;
+    const float xz = x * z2;
+    const float yy = y * y2;
+    const float yz = y * z2;
+    const float zz = z * z2;
+    const float wx = w * x2;
+    const float wy = w * y2;
+    const float wz = w * z2;
+    const float sx = s->x;
+    const float sy = s->y;
+    const float sz = s->z;
+    const float ox = o->x;
+    const float oy = o->y;
+    const float oz = o->z;
+    const float out0 = (1 - (yy + zz)) * sx;
+    const float out1 = (xy + wz) * sx;
+    const float out2 = (xz - wy) * sx;
+    const float out4 = (xy - wz) * sy;
+    const float out5 = (1 - (xx + zz)) * sy;
+    const float out6 = (yz + wx) * sy;
+    const float out8 = (xz + wy) * sz;
+    const float out9 = (yz - wx) * sz;
+    const float out10 = (1 - (xx + yy)) * sz;
+
+    out->v[0] = out0;
+    out->v[1] = out1;
+    out->v[2] = out2;
+    out->v[3] = 0;
+    out->v[4] = out4;
+    out->v[5] = out5;
+    out->v[6] = out6;
+    out->v[7] = 0;
+    out->v[8] = out8;
+    out->v[9] = out9;
+    out->v[10] = out10;
+    out->v[11] = 0;
+    out->v[12] = v->x + ox - (out0 * ox + out4 * oy + out8 * oz);
+    out->v[13] = v->y + oy - (out1 * ox + out5 * oy + out9 * oz);
+    out->v[14] = v->z + oz - (out2 * ox + out6 * oy + out10 * oz);
+    out->v[15] = 1;
+}
+
+void matrix4_from_translation(struct matrix4 *out,
+                              struct vector3 const *v)
+{
+  out->v[0] = 1;
+  out->v[1] = 0;
+  out->v[2] = 0;
+  out->v[3] = 0;
+  out->v[4] = 0;
+  out->v[5] = 1;
+  out->v[6] = 0;
+  out->v[7] = 0;
+  out->v[8] = 0;
+  out->v[9] = 0;
+  out->v[10] = 1;
+  out->v[11] = 0;
+  out->v[12] = v->x;
+  out->v[13] = v->y;
+  out->v[14] = v->z;
+  out->v[15] = 1;
+}
