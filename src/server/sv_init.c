@@ -92,7 +92,11 @@ static struct animation_info SV_GetAnimation(int modelindex, LPCSTR animname) {
     }
     FOR_LOOP(i, model->num_animations){
         struct mdx_sequence *anim = &model->animations[i];
-        if (!strstr(anim->name, animname)) {
+        printf("%s\n", anim->name);
+    }
+    FOR_LOOP(i, model->num_animations){
+        struct mdx_sequence *anim = &model->animations[i];
+        if (!strcmp(anim->name, animname)) {
             return (struct animation_info) {
                 .start_frame = anim->interval[0],
                 .end_frame = anim->interval[1],
