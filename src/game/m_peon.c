@@ -6,5 +6,6 @@ static void peon_think(struct edict *ent, int msec) {
 
 void SP_monster_peon(struct edict *ent) {
     ent->s.model = G_LoadModelDirFile("Units\\Orc", "Peon", 0);
+//    ent->monsterinfo.currentmove = gi.GetAnimation(
     ent->think = peon_think;
 }

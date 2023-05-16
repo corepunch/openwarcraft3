@@ -5,12 +5,15 @@
 struct game_export globals;
 struct game_import gi;
 struct game_state game_state;
+struct game_locals game;
 
 void G_Init(void) {
     game_state.edicts = gi.MemAlloc(sizeof(struct edict) * MAX_ENTITIES);
     globals.edicts = game_state.edicts;
     globals.num_edicts = 0;
     globals.max_edicts = MAX_ENTITIES;
+
+    G_InitUnits();
 }
 
 void G_Shutdown(void) {

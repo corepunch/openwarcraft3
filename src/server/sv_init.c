@@ -92,6 +92,7 @@ void SV_Init(void) {
         .ModelIndex = SV_ModelIndex,
         .ImageIndex = SV_ImageIndex,
         .SoundIndex = SV_SoundIndex,
+        .ParseSheet = FS_ParseSheet,
     });
     ge->Init();
     memset(&svs, 0, sizeof(struct server_static));

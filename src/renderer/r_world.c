@@ -1,7 +1,7 @@
 #include "r_local.h"
 #include "r_mdx.h"
 
-#define LAYER_SIZE 500000
+#define LAYER_SIZE 10000
 
 struct vertex maplayer[LAYER_SIZE] = {};
 

@@ -9,6 +9,8 @@ struct game_import {
     int (*ModelIndex)(LPCSTR szModelName);
     int (*SoundIndex)(LPCSTR szSoundName);
     int (*ImageIndex)(LPCSTR szImageName);
+    struct animation_info (*GetAnimation)(LPCSTR modelname, LPCSTR animation);
+    void *(*ParseSheet)(LPCSTR szSheetFilename, struct SheetLayout const *lpLayout, int dwElementSize, void *lpNextFieldOffset);
 };
 
 struct game_export {

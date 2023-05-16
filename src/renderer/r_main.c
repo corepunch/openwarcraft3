@@ -103,13 +103,11 @@ struct render_buffer *R_MakeVertexArrayObject(struct vertex const *data, int siz
     glEnableVertexAttribArray( attrib_texcoord2 );
     glEnableVertexAttribArray( attrib_skin );
     
-    #define FOFS(type, x) (void *)&(((struct type *)NULL)->x)
-
-    glVertexAttribPointer( attrib_color, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(struct vertex), FOFS(vertex, color));
-    glVertexAttribPointer( attrib_position, 3, GL_FLOAT, GL_FALSE, sizeof(struct vertex), FOFS(vertex, position));
-    glVertexAttribPointer( attrib_texcoord, 2, GL_FLOAT, GL_FALSE, sizeof(struct vertex), FOFS(vertex, texcoord));
-    glVertexAttribPointer( attrib_texcoord2, 2, GL_FLOAT, GL_FALSE, sizeof(struct vertex), FOFS(vertex, texcoord2));
-    glVertexAttribPointer( attrib_skin, 4, GL_UNSIGNED_BYTE, GL_FALSE, sizeof(struct vertex), FOFS(vertex, skin));
+    glVertexAttribPointer( attrib_color, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(struct vertex), (void *)FOFS(vertex, color));
+    glVertexAttribPointer( attrib_position, 3, GL_FLOAT, GL_FALSE, sizeof(struct vertex), (void *)FOFS(vertex, position));
+    glVertexAttribPointer( attrib_texcoord, 2, GL_FLOAT, GL_FALSE, sizeof(struct vertex), (void *)FOFS(vertex, texcoord));
+    glVertexAttribPointer( attrib_texcoord2, 2, GL_FLOAT, GL_FALSE, sizeof(struct vertex), (void *)FOFS(vertex, texcoord2));
+    glVertexAttribPointer( attrib_skin, 4, GL_UNSIGNED_BYTE, GL_FALSE, sizeof(struct vertex), (void *)FOFS(vertex, skin));
 
     if (data) {
         glBufferData( GL_ARRAY_BUFFER, size * sizeof(struct vertex), data, GL_STATIC_DRAW );

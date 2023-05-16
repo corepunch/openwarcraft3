@@ -17,6 +17,7 @@
 #define DECODE_HEIGHT(x) (((x) - 0x2000) / 4)
 #define DOODAD_SIZE 42
 #define MAKEFOURCC(ch0, ch1, ch2, ch3) ((int)(char)(ch0) | ((int)(char)(ch1) << 8) | ((int)(char)(ch2) << 16) | ((int)(char)(ch3) << 24 ))
+#define FOFS(type, x) (void *)&(((struct type *)NULL)->x)
 
 #define UPDATE_BACKUP 16
 #define UPDATE_MASK (UPDATE_BACKUP-1)
@@ -107,91 +108,6 @@ enum {
     kCliffInfo_oldID,
 };
 
-enum {
-    kDoodadInfo_doodID = 1,
-    kDoodadInfo_category,
-    kDoodadInfo_tilesets,
-    kDoodadInfo_tilesetSpecific,
-    kDoodadInfo_dir,
-    kDoodadInfo_file,
-    kDoodadInfo_comment,
-    kDoodadInfo_name,
-    kDoodadInfo_doodClass,
-    kDoodadInfo_soundLoop,
-    kDoodadInfo_selSize,
-    kDoodadInfo_defScale,
-    kDoodadInfo_minScale,
-    kDoodadInfo_maxScale,
-    kDoodadInfo_canPlaceRandScale,
-    kDoodadInfo_useClickHelper,
-    kDoodadInfo_maxPitch,
-    kDoodadInfo_maxRoll,
-    kDoodadInfo_visRadius,
-    kDoodadInfo_walkable,
-    kDoodadInfo_numVar,
-    kDoodadInfo_onCliffs,
-    kDoodadInfo_onWater,
-    kDoodadInfo_floats,
-    kDoodadInfo_shadow,
-    kDoodadInfo_showInFog,
-    kDoodadInfo_animInFog,
-    kDoodadInfo_fixedRot,
-    kDoodadInfo_pathTex,
-    kDoodadInfo_showInMM,
-    kDoodadInfo_useMMColor,
-    kDoodadInfo_MMRed,
-    kDoodadInfo_MMGreen,
-    kDoodadInfo_MMBlue,
-};
-
-enum {
-    kDestructableInfo_DestructableID = 1,
-    kDestructableInfo_category,
-    kDestructableInfo_tilesets,
-    kDestructableInfo_tilesetSpecific,
-    kDestructableInfo_dir,
-    kDestructableInfo_file,
-    kDestructableInfo_lightweight,
-    kDestructableInfo_fatLOS,
-    kDestructableInfo_texID,
-    kDestructableInfo_texFile,
-    kDestructableInfo_comment,
-    kDestructableInfo_name,
-    kDestructableInfo_doodClass,
-    kDestructableInfo_useClickHelper,
-    kDestructableInfo_onCliffs,
-    kDestructableInfo_onWater,
-    kDestructableInfo_canPlaceDead,
-    kDestructableInfo_walkable,
-    kDestructableInfo_cliffHeight,
-    kDestructableInfo_targType,
-    kDestructableInfo_armor,
-    kDestructableInfo_numVar,
-    kDestructableInfo_HP,
-    kDestructableInfo_occH,
-    kDestructableInfo_flyH,
-    kDestructableInfo_fixedRot,
-    kDestructableInfo_selSize,
-    kDestructableInfo_minScale,
-    kDestructableInfo_maxScale,
-    kDestructableInfo_canPlaceRandScale,
-    kDestructableInfo_maxPitch,
-    kDestructableInfo_maxRoll,
-    kDestructableInfo_radius,
-    kDestructableInfo_fogRadius,
-    kDestructableInfo_fogVis,
-    kDestructableInfo_pathTex,
-    kDestructableInfo_pathTexDeath,
-    kDestructableInfo_deathSnd,
-    kDestructableInfo_shadow,
-    kDestructableInfo_showInMM,
-    kDestructableInfo_useMMColor,
-    kDestructableInfo_MMRed,
-    kDestructableInfo_MMGreen,
-    kDestructableInfo_MMBlue,
-    kDestructableInfo_InBeta,
-};
-
 enum MDLTEXOP {
   TEXOP_LOAD = 0x0,
   TEXOP_TRANSPARENT = 0x1,
@@ -270,6 +186,19 @@ struct edges { float left, top, right, bottom; };
 struct transform2 { struct vector2 translation, scale; float rotation; };
 struct transform3 { struct vector3 translation, rotation, scale; };
 
+enum SheetType {
+    ST_ID,
+    ST_INT,
+    ST_FLOAT,
+    ST_STRING,
+};
+
+struct SheetLayout {
+    int column;
+    enum SheetType type;
+    void *fofs;
+};
+
 struct entity_state {
     int number; // edict index
     struct vector3 origin;
@@ -282,10 +211,17 @@ struct entity_state {
     int event;
 };
 
+struct animation_info {
+    int from;
+    int to;
+};
+
+typedef char sheetString_t[64];
+
 struct TerrainInfo {
-    int dwTileID;
-    char sDirectory[64];
-    char sFilename[64];
+    DWORD dwTileID;
+    sheetString_t sDirectory;
+    sheetString_t sFilename;
     struct texture *lpTexture;
     struct TerrainInfo *lpNext;
 };
@@ -312,31 +248,6 @@ struct CliffInfo {
     int upperTile;
     struct CliffInfo *lpNext;
     struct texture *texture;
-};
-
-struct DoodadInfo {
-    int doodID;
-    char dir[64];
-    char file[64];
-    char pathTex[64];
-    struct DoodadInfo *lpNext;
-    struct tModel const *lpModel;
-};
-
-struct DestructableInfo {
-    int DestructableID;
-    char category[64];
-    char tilesets[64];
-    char tilesetSpecific[64];
-    char dir[64];
-    char file[64];
-    int lightweight;
-    int fatLOS;
-    int texID;
-    char texFile[64];
-    struct DestructableInfo *lpNext;
-    struct tModel const *lpModel;
-    struct texture *lpTexture;
 };
 
 struct Doodad {
@@ -384,8 +295,8 @@ struct terrain {
 };
 
 struct SheetCell {
-    int x;
-    int y;
+    int column;
+    int row;
     char *text;
     struct SheetCell *lpNext;
 };
@@ -395,17 +306,14 @@ struct texture;
 
 struct TerrainVertex const *GetTerrainVertex(struct terrain const *heightmap, int x, int y);
 struct terrain *FileReadTerrain(HANDLE hArchive);
-struct TerrainInfo *MakeTerrainInfo(struct SheetCell *sheet);
-struct CliffInfo *MakeCliffInfo(struct SheetCell *sheet);
-struct DoodadInfo *MakeDoodadInfo(struct SheetCell *sheet);
-struct DestructableInfo *MakeDestructableInfo(struct SheetCell *sheet);
+
+void *FS_ParseSheet(LPCSTR szFileName, struct SheetLayout const *lpLayout, int dwElementSize, void *lpNextFieldOffset);
+
 void LoadMap(LPCSTR pFilename);
 
 struct TerrainVertex const *GetTerrainVertex(struct terrain const *heightmap, int x, int y);
 struct TerrainInfo *FindTerrainInfo(int tileID);
 struct CliffInfo *FindCliffInfo(int cliffID);
-struct DoodadInfo *FindDoodadInfo(int doodID);
-struct DestructableInfo *FindDestructableInfo(int DestructableID);
 
 int GetTile(struct TerrainVertex const *mv, int ground);
 float GetTerrainVertexHeight(struct TerrainVertex const *vert);

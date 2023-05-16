@@ -51,8 +51,8 @@ void G_SpawnEntities(struct Doodad const *doodads, int numDoodads) {
     SP_CallSpawn(e);
     FOR_LOOP(index, numDoodads) {
         struct Doodad const *doodad = DoodadAtIndex(doodads, index);
-        struct DoodadInfo const *doodadInfo = FindDoodadInfo(doodad->doodID);
-        struct DestructableInfo const *destructableInfo = FindDestructableInfo(doodad->doodID);
+        struct DoodadInfo const *doodadInfo = G_FindDoodadInfo(doodad->doodID);
+        struct DestructableData const *DestructableData = G_FindDestructableData(doodad->doodID);
         struct edict *e = G_Spawn();
         struct entity_state *s = &e->s;
         s->origin = doodad->position;
@@ -61,10 +61,10 @@ void G_SpawnEntities(struct Doodad const *doodads, int numDoodads) {
 
         if (doodadInfo) {
             s->model = G_LoadModelDirFile(doodadInfo->dir, doodadInfo->file, doodad->variation);
-        } else if (destructableInfo) {
+        } else if (DestructableData) {
             path_t buffer;
-            sprintf(buffer, "%s.blp", destructableInfo->texFile);
-            s->model = G_LoadModelDirFile(destructableInfo->dir, destructableInfo->file, doodad->variation);
+            sprintf(buffer, "%s.blp", DestructableData->texFile);
+            s->model = G_LoadModelDirFile(DestructableData->dir, DestructableData->file, doodad->variation);
             s->image = gi.ImageIndex(buffer);
         }
     }
