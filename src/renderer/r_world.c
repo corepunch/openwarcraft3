@@ -294,7 +294,7 @@ static struct TerrainInfo *BindGroundTexture(int ground) {
     if (!terrain)
         return NULL;
     if (!terrain->lpTexture) {
-        sprintf(buffer, "%s\\%s.blp", terrain->sDirectory, terrain->sFilename);
+        sprintf(buffer, "%s\\%s.blp", terrain->dir, terrain->file);
         terrain->lpTexture = R_LoadTexture(buffer);
     }
     R_BindTexture(terrain->lpTexture, 0);

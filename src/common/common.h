@@ -195,7 +195,7 @@ enum SheetType {
 };
 
 struct SheetLayout {
-    int column;
+    const char *column;
     enum SheetType type;
     void *fofs;
 };
@@ -218,9 +218,9 @@ struct animation_info {
 };
 
 struct TerrainInfo {
-    DWORD dwTileID;
-    sheetString_t sDirectory;
-    sheetString_t sFilename;
+    DWORD tileID;
+    sheetString_t dir;
+    sheetString_t file;
     struct texture *lpTexture;
     struct TerrainInfo *lpNext;
 };
@@ -238,11 +238,11 @@ struct PathMapNode {
 
 struct CliffInfo {
     int cliffID;
-    char cliffModelDir[64];
-    char rampModelDir[64];
-    char texDir[64];
-    char texFile[64];
-    char name[64];
+    sheetString_t cliffModelDir;
+    sheetString_t rampModelDir;
+    sheetString_t texDir;
+    sheetString_t texFile;
+    sheetString_t name;
     int groundTile;
     int upperTile;
     struct CliffInfo *lpNext;

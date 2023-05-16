@@ -3,6 +3,8 @@
 
 #include "../common/common.h"
 
+#define MAX_SHEET_COLUMNS 256
+
 static DWORD SheetParseTokens(TCHAR *buffer) {
     DWORD numtokens = 1;
     for (TCHAR *it = buffer; *it != '\0'; it++) {
@@ -77,43 +79,6 @@ struct SheetCell *FS_ReadSheet(LPCSTR szFileName) {
     return cells;
 }
 
-void *CM_ParseSheet(struct SheetCell const *sheet,
-                    struct SheetLayout const *layout,
-                    int elementsize,
-                    void *nextofs)
-{
-    void *list = NULL;
-    for (int row = 2;; row++) {
-        char *current = MemAlloc(elementsize);
-        int filled = 0;
-        FOR_EACH_LIST(struct SheetCell const, cell, sheet) {
-            if (cell->row != row)
-                continue;
-            filled = 1;
-            for (struct SheetLayout const *sl = layout; sl->column; sl++) {
-                if (cell->column == sl->column) {
-                    void *field = current + (uint64_t)sl->fofs;
-                    switch (sl->type) {
-                        case ST_ID: *(int *)field = *(int*)cell->text; break;
-                        case ST_INT: *(int *)field = atoi(cell->text); break;
-                        case ST_FLOAT: *(float *)field = atof(cell->text); break;
-                        case ST_STRING: strcpy(field, cell->text); break;
-                    }
-                }
-            }
-        }
-        if (filled) {
-            void **pnext = (void **)(current + (uint64_t)nextofs);
-            *pnext = list;
-            list = current;
-        } else {
-            MemFree(current);
-            break;
-        }
-    }
-    return list;
-}
-
 void Sheet_Release(struct SheetCell *lpSheet) {
     MemFree(lpSheet->text);
     SAFE_DELETE(lpSheet->lpNext, Sheet_Release);
@@ -127,7 +92,15 @@ void *FS_ParseSheet(LPCSTR szFileName,
     struct SheetCell *lpSheet = FS_ReadSheet(szFileName);
     if (!lpSheet)
         return NULL;
+    LPCSTR columns[MAX_SHEET_COLUMNS] = { 0 };
     void *lpList = NULL;
+    
+    FOR_EACH_LIST(struct SheetCell const, lpCell, lpSheet) {
+        if (lpCell->row != 1 || lpCell->column >= MAX_SHEET_COLUMNS)
+            continue;
+        columns[lpCell->column] = lpCell->text;
+    }
+
     for (int row = 2;; row++) {
         char *lpCurrent = MemAlloc(dwElementSize);
         int filled = 0;
@@ -136,7 +109,7 @@ void *FS_ParseSheet(LPCSTR szFileName,
                 continue;
             filled = 1;
             for (struct SheetLayout const *sl = lpLayout; sl->column; sl++) {
-                if (lpCell->column == sl->column) {
+                if (!strcmp(sl->column, columns[lpCell->column])) {
                     void *field = lpCurrent + (uint64_t)sl->fofs;
                     switch (sl->type) {
                         case ST_ID: *(int *)field = *(int*)lpCell->text; break;

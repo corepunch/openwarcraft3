@@ -45,22 +45,22 @@ bool FS_ExtractFile(LPCSTR szToExtract, LPCSTR szExtracted) {
 }
 
 struct SheetLayout cliff_info[] = {
-    { kCliffInfo_cliffID, ST_ID, FOFS(CliffInfo, cliffID) },
-    { kCliffInfo_cliffModelDir, ST_STRING, FOFS(CliffInfo, cliffModelDir) },
-    { kCliffInfo_rampModelDir, ST_STRING, FOFS(CliffInfo, rampModelDir) },
-    { kCliffInfo_texDir, ST_STRING, FOFS(CliffInfo, texDir) },
-    { kCliffInfo_texFile, ST_STRING, FOFS(CliffInfo, texFile) },
-    { kCliffInfo_name, ST_STRING, FOFS(CliffInfo, name) },
-    { kCliffInfo_groundTile, ST_INT, FOFS(CliffInfo, groundTile) },
-    { kCliffInfo_upperTile, ST_INT, FOFS(CliffInfo, upperTile) },
-    { 0 }
+    { "cliffID", ST_ID, FOFS(CliffInfo, cliffID) },
+    { "cliffModelDir", ST_STRING, FOFS(CliffInfo, cliffModelDir) },
+    { "rampModelDir", ST_STRING, FOFS(CliffInfo, rampModelDir) },
+    { "texDir", ST_STRING, FOFS(CliffInfo, texDir) },
+    { "texFile", ST_STRING, FOFS(CliffInfo, texFile) },
+    { "name", ST_STRING, FOFS(CliffInfo, name) },
+    { "groundTile", ST_INT, FOFS(CliffInfo, groundTile) },
+    { "upperTile", ST_INT, FOFS(CliffInfo, upperTile) },
+    { NULL }
 };
 
 struct SheetLayout terrain_info[] = {
-    { kTerrainInfo_tileID, ST_ID, FOFS(TerrainInfo, dwTileID) },
-    { kTerrainInfo_dir, ST_STRING, FOFS(TerrainInfo, sDirectory) },
-    { kTerrainInfo_file, ST_STRING, FOFS(TerrainInfo, sFilename) },
-    { 0 }
+    { "tileID", ST_ID, FOFS(TerrainInfo, tileID) },
+    { "dir", ST_STRING, FOFS(TerrainInfo, dir) },
+    { "file", ST_STRING, FOFS(TerrainInfo, file) },
+    { NULL }
 };
 
 void FixCliffInfo(struct CliffInfo *cliffInfo) {
@@ -157,7 +157,7 @@ void MemFree(void *mem) {
 
 struct TerrainInfo *FindTerrainInfo(int tileID) {
     FOR_EACH_LIST(struct TerrainInfo, info, stats.lpTerrainInfo) {
-        if (info->dwTileID == tileID)
+        if (info->tileID == tileID)
             return info;
     }
     return NULL;
