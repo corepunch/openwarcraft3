@@ -1,8 +1,8 @@
 #include "client.h"
 
-#define READ_IF(flag, value, type) \
+#define READ_IF(flag, value, type, scale) \
 if (bits & (1 << kEntityChangeFlag_##flag)) \
-    ent->value = MSG_Read##type(msg);
+    ent->value = MSG_Read##type(msg) * scale;
 
 void
 CL_ParseDeltaEntity(struct sizebuf *msg,
@@ -11,14 +11,14 @@ CL_ParseDeltaEntity(struct sizebuf *msg,
                     int bits)
 {
     ent->number = number;
-    READ_IF(originX, origin.x, Short);
-    READ_IF(originY, origin.y, Short);
-    READ_IF(originZ, origin.z, Short);
-    READ_IF(angle, angle, Short);
-    READ_IF(scale, scale, Short);
-    READ_IF(frame, frame, Short);
-    READ_IF(model, model, Short);
-    READ_IF(image, image, Short);
+    READ_IF(originX, origin.x, Short, 1);
+    READ_IF(originY, origin.y, Short, 1);
+    READ_IF(originZ, origin.z, Short, 1);
+    READ_IF(angle, angle, Short, 0.01f);
+    READ_IF(scale, scale, Short, 0.01f);
+    READ_IF(frame, frame, Short, 1);
+    READ_IF(model, model, Short, 1);
+    READ_IF(image, image, Short, 1);
 }
 
 static void CL_ReadPacketEntities(struct sizebuf *msg) {

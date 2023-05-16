@@ -253,9 +253,24 @@ static void MakeCliff(int x, int y, int cliffindex,
     *index += pGeoset->numTriangles;
 }
 
-
-static int IsTileVisible(int x, int y) {
+static inline bool IsPointVisible(struct vector3 const *point) {
+    struct vector3 screen;
+    matrix4_multiply_vector3(&tr.refdef.projection_matrix, point, &screen);
+    if (screen.x < -1.25) return false;
+    if (screen.y < -1.25) return false;
+    if (screen.x > 1.25) return false;
+    if (screen.y > 1.25) return false;
     return true;
+}
+
+static inline int IsTileVisible(int x, int y) {
+    float const fx = (x + 0.5) * TILESIZE;
+    float const fy = (y + 0.5) * TILESIZE;
+    return IsPointVisible(&(struct vector3) {
+        .x = fx + tr.world->center.x,
+        .y = fy + tr.world->center.y,
+        .z = GetAccurateHeightAtPoint(fx, fy),
+    });
 }
 
 static struct CliffInfo *BindCliffTexture(int cliffindex) {
@@ -365,7 +380,7 @@ static void MakeWaterTile(int x, int y,
     *index += 6;
 }
 
-static void RenderWater() {
+static void RenderWater(void) {
     int index = 0;
     FOR_LOOP(x, tr.world->size.width - 1) {
         FOR_LOOP(y, tr.world->size.height - 1) {
@@ -429,13 +444,15 @@ void R_DrawWorld(void) {
     }
 }
 
-void R_DrawAlphaSurfaces() {
+void R_DrawAlphaSurfaces(void) {
     RenderWater();
 }
 
-void R_DrawEntities() {
+void R_DrawEntities(void) {
     FOR_LOOP(i, tr.refdef.num_entities) {
         struct render_entity const *ent = &tr.refdef.entities[i];
+        if (!IsPointVisible(&ent->origin))
+            continue;
         RenderModel(ent);
     }
 }

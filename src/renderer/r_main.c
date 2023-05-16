@@ -11,19 +11,19 @@ SDL_GLContext context;
 
 GLuint program;
 
-static void R_SetupGL() {
-    struct matrix4 projection_matrix, model_matrix;
+static void R_SetupGL(void) {
+    struct matrix4 model_matrix;
     int width, height;
 
     SDL_GetWindowSize(window, &width, &height);
 
     matrix4_identity(&model_matrix);
+    
+    matrix4_perspective(&tr.refdef.projection_matrix, tr.refdef.fov, width / height, 100.0, 100000.0);
+    matrix4_rotate(&tr.refdef.projection_matrix, &tr.refdef.viewangles, ROTATE_XYZ);
+    matrix4_translate(&tr.refdef.projection_matrix, &tr.refdef.vieworg);
 
-    matrix4_perspective(&projection_matrix, tr.refdef.fov, width / height, 100.0, 100000.0);
-    matrix4_rotate(&projection_matrix, &tr.refdef.viewangles, ROTATE_XYZ);
-    matrix4_translate(&projection_matrix, &tr.refdef.vieworg);
-
-    glUniformMatrix4fv( glGetUniformLocation( program, "u_projection_matrix" ), 1, GL_FALSE, projection_matrix.v );
+    glUniformMatrix4fv( glGetUniformLocation( program, "u_projection_matrix" ), 1, GL_FALSE, tr.refdef.projection_matrix.v );
     glUniformMatrix4fv( glGetUniformLocation( program, "u_model_matrix" ), 1, GL_FALSE, model_matrix.v );
 }
 

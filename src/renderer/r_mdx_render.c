@@ -163,7 +163,7 @@ static void RenderGeoset(struct tModel *lpModel,
     
     struct matrix4 model_matrix;
     matrix4_identity(&model_matrix);
-    matrix4_translate(&model_matrix, &lpEntity->postion);
+    matrix4_translate(&model_matrix, &lpEntity->origin);
     matrix4_rotate(&model_matrix, &(struct vector3){0, 0, lpEntity->angle * 180 / 3.14f}, ROTATE_XYZ);
     matrix4_scale(&model_matrix, &(struct vector3){lpEntity->scale, lpEntity->scale, lpEntity->scale});
 

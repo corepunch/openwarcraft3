@@ -12,7 +12,7 @@ struct renderer_import {
 };
 
 struct render_entity {
-    struct vector3 postion;
+    struct vector3 origin;
     float angle;
     float scale;
     struct tModel *model;
@@ -27,6 +27,7 @@ struct refdef {
     int time;
     int num_entities;
     struct render_entity *entities;
+    struct matrix4 projection_matrix;
 };
 
 struct Renderer {

@@ -48,8 +48,8 @@ MSG_WriteDeltaEntity(struct sizebuf *msg,
     WRITE_IF(originX, origin.x, Short);
     WRITE_IF(originY, origin.y, Short);
     WRITE_IF(originZ, origin.z, Short);
-    WRITE_IF(angle, angle, Short);
-    WRITE_IF(scale, scale, Short);
+    WRITE_IF(angle, angle * 100, Short);
+    WRITE_IF(scale, scale * 100, Short);
     WRITE_IF(frame, frame, Short);
     WRITE_IF(model, model, Short);
     WRITE_IF(image, image, Short);

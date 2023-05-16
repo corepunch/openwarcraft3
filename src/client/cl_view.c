@@ -11,7 +11,7 @@ static struct {
 
 static void V_AddClientEntity(struct client_entity const *ent) {
     struct render_entity *re = &view_state.entities[view_state.num_entities++];
-    re->postion = ent->current.origin;
+    re->origin = ent->current.origin;
     re->angle = ent->current.angle;
     re->scale = ent->current.scale;
     re->frame = ent->current.frame;
