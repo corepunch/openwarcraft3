@@ -15,6 +15,59 @@ extern GLuint program;
 
 struct tCliff *g_cliffs = NULL;
 
+static float lerp(float a, float b, float t) {
+    return a * (1 - t) + b * t;
+}
+
+static float GetAccurateHeightAtPoint(float sx, float sy) {
+    float x = sx / TILESIZE;
+    float y = sy / TILESIZE;
+    float fx = floorf(x);
+    float fy = floorf(y);
+    float a = GetTerrainVertex(tr.world, fx, fy)->accurate_height;
+    float b = GetTerrainVertex(tr.world, fx + 1, fy)->accurate_height;
+    float c = GetTerrainVertex(tr.world, fx, fy + 1)->accurate_height;
+    float d = GetTerrainVertex(tr.world, fx + 1, fy + 1)->accurate_height;
+    float ab = lerp(a, b, x - fx);
+    float cd = lerp(c, d, x - fx);
+    return DECODE_HEIGHT(lerp(ab, cd, y - fy));
+}
+
+static float GetAccurateWaterLevelAtPoint(float sx, float sy) {
+    float x = sx / TILESIZE;
+    float y = sy / TILESIZE;
+    float fx = floorf(x);
+    float fy = floorf(y);
+    float a = GetTerrainVertex(tr.world, fx, fy)->waterlevel;
+    float b = GetTerrainVertex(tr.world, fx + 1, fy)->waterlevel;
+    float c = GetTerrainVertex(tr.world, fx, fy + 1)->waterlevel;
+    float d = GetTerrainVertex(tr.world, fx + 1, fy + 1)->waterlevel;
+    float ab = lerp(a, b, x - fx);
+    float cd = lerp(c, d, x - fx);
+    return DECODE_HEIGHT(lerp(ab, cd, y - fy));
+}
+
+static inline bool IsPointVisible(struct vector3 const *point) {
+    struct vector3 screen;
+    matrix4_multiply_vector3(&tr.refdef.projection_matrix, point, &screen);
+    if (screen.x < -1.25) return false;
+    if (screen.y < -1.25) return false;
+    if (screen.x > 1.25) return false;
+    if (screen.y > 1.25) return false;
+    return true;
+}
+
+static inline int IsTileVisible(int x, int y) {
+    float const fx = (x + 0.5) * TILESIZE;
+    float const fy = (y + 0.5) * TILESIZE;
+    float const fh = GetTerrainVertex(tr.world, x, y)->level * TILESIZE;
+    return IsPointVisible(&(struct vector3) {
+        .x = fx + tr.world->center.x,
+        .y = fy + tr.world->center.y,
+        .z = GetAccurateHeightAtPoint(fx, fy) + fh - HEIGHT_COR,
+    });
+}
+
 static struct color32 GetWaterOpacity(float waterlevel, float height) {
     float const opacity = MIN(0.5, (waterlevel - height) / 50.0f);
     return (struct color32) {
@@ -28,10 +81,6 @@ static struct color32 GetWaterOpacity(float waterlevel, float height) {
 static float GetTileDepth(float waterlevel, float height) {
     float const opacity = MIN(0.95, (waterlevel - height) / 250.0f);
     return 1 - MAX(0, opacity);
-}
-
-static float lerp(float a, float b, float t) {
-    return a * (1 - t) + b * t;
 }
 
 static struct tModel const *R_LoadCliffModel(struct CliffInfo const *cinfo, char const *ccfg, int ramp) {
@@ -160,35 +209,6 @@ static int TileBaseLevel(struct TerrainVertex const *tile) {
     return minlevel;
 }
 
-static float GetAccurateHeightAtPoint(float sx, float sy) {
-    float x = sx / TILESIZE;
-    float y = sy / TILESIZE;
-    float fx = floorf(x);
-    float fy = floorf(y);
-    float a = GetTerrainVertex(tr.world, fx, fy)->accurate_height;
-    float b = GetTerrainVertex(tr.world, fx + 1, fy)->accurate_height;
-    float c = GetTerrainVertex(tr.world, fx, fy + 1)->accurate_height;
-    float d = GetTerrainVertex(tr.world, fx + 1, fy + 1)->accurate_height;
-    float ab = lerp(a, b, x - fx);
-    float cd = lerp(c, d, x - fx);
-    return DECODE_HEIGHT(lerp(ab, cd, y - fy));
-}
-
-static float GetAccurateWaterLevelAtPoint(float sx, float sy) {
-    float x = sx / TILESIZE;
-    float y = sy / TILESIZE;
-    float fx = floorf(x);
-    float fy = floorf(y);
-    float a = GetTerrainVertex(tr.world, fx, fy)->waterlevel;
-    float b = GetTerrainVertex(tr.world, fx + 1, fy)->waterlevel;
-    float c = GetTerrainVertex(tr.world, fx, fy + 1)->waterlevel;
-    float d = GetTerrainVertex(tr.world, fx + 1, fy + 1)->waterlevel;
-    float ab = lerp(a, b, x - fx);
-    float cd = lerp(c, d, x - fx);
-    return DECODE_HEIGHT(lerp(ab, cd, y - fy));
-}
-
-
 static void MakeCliff(int x, int y, int cliffindex,
                       struct vertex* vertices,
                       struct CliffInfo *cliff,
@@ -251,26 +271,6 @@ static void MakeCliff(int x, int y, int cliffindex,
     }
     
     *index += pGeoset->numTriangles;
-}
-
-static inline bool IsPointVisible(struct vector3 const *point) {
-    struct vector3 screen;
-    matrix4_multiply_vector3(&tr.refdef.projection_matrix, point, &screen);
-    if (screen.x < -1.25) return false;
-    if (screen.y < -1.25) return false;
-    if (screen.x > 1.25) return false;
-    if (screen.y > 1.25) return false;
-    return true;
-}
-
-static inline int IsTileVisible(int x, int y) {
-    float const fx = (x + 0.5) * TILESIZE;
-    float const fy = (y + 0.5) * TILESIZE;
-    return IsPointVisible(&(struct vector3) {
-        .x = fx + tr.world->center.x,
-        .y = fy + tr.world->center.y,
-        .z = GetAccurateHeightAtPoint(fx, fy),
-    });
 }
 
 static struct CliffInfo *BindCliffTexture(int cliffindex) {
