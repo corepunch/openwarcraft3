@@ -1,4 +1,9 @@
 #include "g_local.h"
+#include "../common/war3map.h"
+
+#include <math.h>
+
+extern LPWAR3MAP lpMap;
 
 struct spawn {
     LPCSTR name;
@@ -17,6 +22,11 @@ void unit_think(LPEDICT lpEdict, DWORD msec) {
     if (anim->start_frame == anim->end_frame)
         return;
     lpEdict->s.frame += msec;
+    lpEdict->s.angle += msec * 0.0012;
+    lpEdict->s.origin.x += cos(lpEdict->s.angle) * 2.2;
+    lpEdict->s.origin.y += sin(lpEdict->s.angle) * 2.2;
+    lpEdict->s.origin.z = gi.GetHeightAtPoint(lpEdict->s.origin.x, lpEdict->s.origin.y);
+    
     while (lpEdict->s.frame >= anim->end_frame) {
         lpEdict->s.frame -= MAX(1, anim->end_frame - anim->start_frame);
     }
@@ -52,7 +62,7 @@ static void SP_SpawnUnit(LPEDICT lpEdict, LPCUNITUI lpUnit) {
     PATHSTR buffer;
     sprintf(buffer, "%s.mdx", lpUnit->file);
     lpEdict->s.model = gi.ModelIndex(buffer);
-    lpEdict->monsterinfo.animation = gi.GetAnimation(lpEdict->s.model, "Stand");
+    lpEdict->monsterinfo.animation = gi.GetAnimation(lpEdict->s.model, "Walk");
     lpEdict->s.frame = lpEdict->monsterinfo.animation.start_frame;
     lpEdict->think = unit_think;
 }
@@ -87,7 +97,7 @@ void G_SpawnEntities(LPCDOODAD doodads, DWORD numDoodads) {
     globals.num_edicts = 0;
     LPEDICT e = G_Spawn();
     e->class_id = MAKEFOURCC('o', 'p', 'e', 'o');
-    e->s.origin = (VECTOR3) { 716, -1360, 100 };
+    e->s.origin = (VECTOR3) { 700, -2000, 100 };
     e->s.angle = -20;
     e->s.scale = 2;
     SP_CallSpawn(e);

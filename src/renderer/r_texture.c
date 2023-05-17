@@ -13,20 +13,20 @@ int R_RegisterTextureFile(char const *szTextureFileName) {
     }
 }
 
-struct texture const* R_FindTextureByID(int texid) {
+struct texture const* R_FindTextureByID(DWORD dwTextureID) {
     for (LPCTEXTURE tex = g_textures; tex; tex = tex->lpNext) {
-        if (tex->texid == texid)
+        if (tex->texid == dwTextureID)
             return tex;
     }
     return NULL;
 }
 
-void R_BindTexture(LPCTEXTURE texture, int unit) {
-    glActiveTexture(GL_TEXTURE0 + unit);
-    glBindTexture(GL_TEXTURE_2D, texture->texid);
+void R_BindTexture(LPCTEXTURE lpTexture, DWORD dwUnit) {
+    glActiveTexture(GL_TEXTURE0 + dwUnit);
+    glBindTexture(GL_TEXTURE_2D, lpTexture->texid);
 }
 
-LPTEXTURE R_AllocateTexture(uint32_t dwWidth, uint32_t dwHeight) {
+LPTEXTURE R_AllocateTexture(DWORD dwWidth, DWORD dwHeight) {
     LPTEXTURE texture = MemAlloc(sizeof(struct texture));
     texture->width = dwWidth;
     texture->height = dwHeight;
@@ -39,7 +39,7 @@ LPTEXTURE R_AllocateTexture(uint32_t dwWidth, uint32_t dwHeight) {
     return texture;
 }
 
-void R_LoadTextureMipLevel(LPTEXTURE pTexture, DWORD dwLevel, struct color32* pPixels, uint32_t dwWidth, uint32_t dwHeight) {
+void R_LoadTextureMipLevel(LPTEXTURE pTexture, DWORD dwLevel, LPCCOLOR32 pPixels, DWORD dwWidth, DWORD dwHeight) {
     if (dwWidth == 0 || dwHeight == 0)
         return;
     glBindTexture(GL_TEXTURE_2D, pTexture->texid);

@@ -43,7 +43,7 @@ void Matrix4_transpose(LPCMATRIX4 m, LPMATRIX4 out) {
 }
 
 void Matrix4_rotate4(LPMATRIX4 m, LPCVECTOR4 quat) {
-    struct matrix4 r, tmp;
+    MATRIX4 r, tmp;
 
     float fTx  = 2.0f*quat->x;
     float fTy  = 2.0f*quat->y;
@@ -72,7 +72,7 @@ void Matrix4_rotate4(LPMATRIX4 m, LPCVECTOR4 quat) {
     
     Matrix4_multiply(m, &r, &tmp);
     *m = tmp;
-//    memcpy(m, &tmp, sizeof(struct matrix4));
+//    memcpy(m, &tmp, sizeof(MATRIX4));
 }
 
 void Matrix4_perspective(LPMATRIX4 m, float angle, float aspect, float znear, float zfar) {
@@ -122,7 +122,7 @@ void Matrix4_ortho(LPMATRIX4 m, float left, float right, float bottom, float top
     m->v[15] = 1.0f;
 }
 
-void Matrix4_lookat(LPMATRIX4 m, LPCVECTOR3 eye, LPCVECTOR3 direction, LPCVECTOR3 up) {
+void Matrix4_lookAt(LPMATRIX4 m, LPCVECTOR3 eye, LPCVECTOR3 direction, LPCVECTOR3 up) {
     VECTOR3 zaxis = Vector3_unm(direction);
     VECTOR3 xyz = Vector3_unm(eye);
     VECTOR3 xaxis = Vector3_cross(up, &zaxis);
@@ -199,7 +199,7 @@ void Matrix4_inverse(LPCMATRIX4 m, LPMATRIX4 out) {
     
     det = (- det3_201_123 * m->v[12] + det3_201_023 * m->v[13] - det3_201_013 * m->v[14] + det3_201_012 * m->v[15]);
     
-    if (fabs(det) < 1e-14) {
+    if (fabs(det) < EPSILON) {
         return;
     }
     
@@ -264,7 +264,7 @@ void Matrix4_multiply_vector3(LPCMATRIX4 m, LPCVECTOR3 v, LPVECTOR3 out) {
 void Matrix4_rotate(LPMATRIX4 m, LPCVECTOR3 euler, enum rotation_order order) {
     float const DEG2RAD = 3.14159f / 180.f;
     
-    struct matrix4 rx, ry, rz, tmp, tmp2;
+    MATRIX4 rx, ry, rz, tmp, tmp2;
 
     Matrix4_identity(&rx);
     Matrix4_identity(&ry);
@@ -420,6 +420,36 @@ bool Vector3_eq(LPCVECTOR3 a, LPCVECTOR3 b) {
         fabs(a->z - b->z) < EPSILON;
 }
 
+VECTOR3 Vector3_bezier(LPCVECTOR3 a, LPCVECTOR3 b, LPCVECTOR3 c, LPCVECTOR3 d, float t) {
+    float const inverseFactor = 1 - t;
+    float const inverseFactorTimesTwo = inverseFactor * inverseFactor;
+    float const factorTimes2 = t * t;
+    float const factor1 = inverseFactorTimesTwo * inverseFactor;
+    float const factor2 = 3 * t * inverseFactorTimesTwo;
+    float const factor3 = 3 * factorTimes2 * inverseFactor;
+    float const factor4 = factorTimes2 * t;
+
+    return (VECTOR3) {
+        a->x * factor1 + b->x * factor2 + c->x * factor3 + d->x * factor4,
+        a->y * factor1 + b->y * factor2 + c->y * factor3 + d->y * factor4,
+        a->z * factor1 + b->z * factor2 + c->z * factor3 + d->z * factor4,
+    };
+}
+
+VECTOR3 Vector3_hermite(LPCVECTOR3 a, LPCVECTOR3 b, LPCVECTOR3 c, LPCVECTOR3 d, float t) {
+    float const factorTimes2 = t * t;
+    float const factor1 = factorTimes2 * (2 * t - 3) + 1;
+    float const factor2 = factorTimes2 * (t - 2) + t;
+    float const factor3 = factorTimes2 * (t - 1);
+    float const factor4 = factorTimes2 * (3 - 2 * t);
+
+    return (VECTOR3) {
+        a->x * factor1 + b->x * factor2 + c->x * factor3 + d->x * factor4,
+        a->y * factor1 + b->y * factor2 + c->y * factor3 + d->y * factor4,
+        a->z * factor1 + b->z * factor2 + c->z * factor3 + d->z * factor4,
+    };
+}
+
 VECTOR3 Vector3_lerp(LPCVECTOR3 a, LPCVECTOR3 b, float t) {
     return (VECTOR3) {
         .x = a->x * (1 - t) + b->x * t,
@@ -555,38 +585,39 @@ VECTOR4 Vector4_unm(LPCVECTOR4 v) {
         .w = -v->w
     };
 }
-
-VECTOR4 quaternion_lerp(LPCVECTOR4 p, LPCVECTOR4 q, float t) {
-    VECTOR4 r;
-    float p1[4];
-    double omega, cosom, sinom, scale0, scale1;
-    cosom = p->x * q->x + p->y * q->y + p->z * q->z + p->w * q->w;
-
-    if (cosom < 0.0) {
+QUATERNION Quaternion_slerp(LPCQUATERNION a, LPCQUATERNION b, float t) {
+    float ax = a->x, ay = a->y, az = a->z, aw = a->w;
+    float bx = b->x, by = b->y, bz = b->z, bw = b->w;
+    float omega, cosom, sinom, scale0, scale1;
+    cosom = ax * bx + ay * by + az * bz + aw * bw;
+    if (cosom < 0.0f) {
         cosom = -cosom;
-        p1[0] = - p->x;  p1[1] = - p->y;
-        p1[2] = - p->z;  p1[3] = - p->w;
-    } else {
-        p1[0] = p->x;    p1[1] = p->y;
-        p1[2] = p->z;    p1[3] = p->w;
+        bx = -bx;
+        by = -by;
+        bz = -bz;
+        bw = -bw;
     }
-
-    if ((1.0 - cosom) > 0.0001) {
-        omega = acos(cosom);
-        sinom = sin(omega);
-        scale0 = sin(t * omega) / sinom;
-        scale1 = sin((1.0 - t) * omega) / sinom;
+    if (1.0f - cosom > EPSILON) {
+        omega = acosf(cosom);
+        sinom = sinf(omega);
+        scale0 = sinf((1.0f - t) * omega) / sinom;
+        scale1 = sinf(t * omega) / sinom;
     } else {
-        scale0 = t;
-        scale1 = 1.0 - t;
+        scale0 = 1.0f - t;
+        scale1 = t;
     }
+    return (QUATERNION) {
+        .x = scale0 * ax + scale1 * bx,
+        .y = scale0 * ay + scale1 * by,
+        .z = scale0 * az + scale1 * bz,
+        .w = scale0 * aw + scale1 * bw,
+    };
+}
 
-    r.x = (float)(scale0 * q->x + scale1 * p1[0]);
-    r.y = (float)(scale0 * q->y + scale1 * p1[1]);
-    r.z = (float)(scale0 * q->z + scale1 * p1[2]);
-    r.w = (float)(scale0 * q->w + scale1 * p1[3]);
-
-    return r;
+QUATERNION Quaternion_sqlerp(LPCQUATERNION a, LPCQUATERNION b, LPCQUATERNION c, LPCQUATERNION d, float t) {
+    QUATERNION temp1 = Quaternion_slerp(a, d, t);
+    QUATERNION temp2 = Quaternion_slerp(b, c, t);
+    return Quaternion_slerp(&temp1, &temp2, 2 * t * (1 - t));
 }
 
 void Matrix4_from_rotation_origin(LPMATRIX4 out, LPCVECTOR4 rotation, LPCVECTOR3 origin) {
@@ -697,4 +728,15 @@ void Matrix4_from_translation(LPMATRIX4 out, LPCVECTOR3 v) {
   out->v[13] = v->y;
   out->v[14] = v->z;
   out->v[15] = 1;
+}
+
+void Matrix3_normal(LPMATRIX3 out, LPCMATRIX4 modelview) {
+    struct matrix4 inverse;
+    Matrix4_inverse(modelview, &inverse);
+    float const m33[9] = {
+        inverse.v[0], inverse.v[1], inverse.v[2],
+        inverse.v[4], inverse.v[5], inverse.v[6],
+        inverse.v[8], inverse.v[9], inverse.v[10]
+    };
+    memcpy(out, m33, sizeof(m33));
 }

@@ -1,7 +1,13 @@
 #include "server.h"
 
+#include <math.h>
+
 static struct size2 sv_pathmapSize;
 static struct PathMapNode *sv_pathmap;
+
+LPWAR3MAP lpMap;
+
+LPWAR3MAP FileReadWar3Map(HANDLE hArchive);
 
 void SV_CreateBaseline(void) {
     sv.baselines = MemAlloc(sizeof(ENTITYSTATE) * ge->max_edicts);
@@ -12,7 +18,7 @@ void SV_CreateBaseline(void) {
     }
 }
 
-struct PathMapNode const *SV_PathMapNode(LPCTERRAIN lpTerrain, DWORD x, DWORD y) {
+struct PathMapNode const *SV_PathMapNode(LPCWAR3MAP lpTerrain, DWORD x, DWORD y) {
     int const index = x + y * sv_pathmapSize.width;
     return &sv_pathmap[index];
 }
@@ -60,6 +66,7 @@ void SV_Map(LPCSTR szMapFilename) {
     SFileOpenArchive(TMP_MAP, 0, 0, &hMapArchive);
     SV_ReadPathMap(hMapArchive);
     SV_ReadDoodads(hMapArchive);
+    lpMap = FileReadWar3Map(hMapArchive);
     SV_CreateBaseline();
     SFileCloseArchive(hMapArchive);
 }
@@ -90,10 +97,10 @@ static struct AnimationInfo SV_GetAnimation(int modelindex, LPCSTR animname) {
     if (!model) {
         return (struct AnimationInfo) { 0 };
     }
-    FOR_LOOP(i, model->num_animations){
-        struct mdx_sequence *anim = &model->animations[i];
-        printf("%s\n", anim->name);
-    }
+//    FOR_LOOP(i, model->num_animations){
+//        struct mdx_sequence *anim = &model->animations[i];
+//        printf("%s %d %d\n", anim->name, anim->interval[0], anim->interval[1]);
+//    }
     FOR_LOOP(i, model->num_animations){
         struct mdx_sequence *anim = &model->animations[i];
         if (!strcmp(anim->name, animname)) {
@@ -107,6 +114,25 @@ static struct AnimationInfo SV_GetAnimation(int modelindex, LPCSTR animname) {
     return (struct AnimationInfo) {};
 }
 
+static float LerpNumber(float a, float b, float t) {
+    return a * (1 - t) + b * t;
+}
+
+static float SV_GetHeightAtPoint(float sx, float sy) {
+    extern LPWAR3MAP lpMap;
+    float x = (sx - lpMap->center.x) / TILESIZE;
+    float y = (sy - lpMap->center.y) / TILESIZE;
+    float fx = floorf(x);
+    float fy = floorf(y);
+    float a = GetWar3MapVertexHeight(GetWar3MapVertex(lpMap, fx, fy));
+    float b = GetWar3MapVertexHeight(GetWar3MapVertex(lpMap, fx + 1, fy));
+    float c = GetWar3MapVertexHeight(GetWar3MapVertex(lpMap, fx, fy + 1));
+    float d = GetWar3MapVertexHeight(GetWar3MapVertex(lpMap, fx + 1, fy + 1));
+    float ab = LerpNumber(a, b, x - fx);
+    float cd = LerpNumber(c, d, x - fx);
+    return LerpNumber(ab, cd, y - fy);
+}
+
 void SV_Init(void) {
     ge = GetGameAPI(&(struct game_import) {
         .MemAlloc = MemAlloc,
@@ -116,6 +142,7 @@ void SV_Init(void) {
         .SoundIndex = SV_SoundIndex,
         .ParseSheet = FS_ParseSheet,
         .GetAnimation = SV_GetAnimation,
+        .GetHeightAtPoint = SV_GetHeightAtPoint,
     });
     ge->Init();
     memset(&svs, 0, sizeof(struct server_static));

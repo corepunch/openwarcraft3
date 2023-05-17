@@ -78,7 +78,7 @@ void SV_SendClientMessages(void) {
             SV_WriteConfigStrings(client);
             SV_Baseline(client);
             client->camera_position.x = 700;
-            client->camera_position.y = -1200;
+            client->camera_position.y = -1800;
             client->initialized = true;
         } else {
             SV_SendClientDatagram(client);

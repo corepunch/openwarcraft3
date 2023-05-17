@@ -29,12 +29,9 @@ void CL_Init(void) {
     
     memset(&cl, 0, sizeof(struct client_state));
     
-    cl.viewDef.fov = 90;
-    cl.viewDef.vieworg = (VECTOR3) { -600, 1500, -1000 };
-    cl.viewDef.viewangles = (VECTOR3) { -20, 0, 0 };
-//    cl.viewDef.fov = 70;
-//    cl.viewDef.vieworg = (VECTOR3) { -700, 2500, -400 };
-//    cl.viewDef.viewangles = (VECTOR3) { -90, 0, 0 };
+    cl.viewDef.fov = 45;
+    cl.viewDef.vieworg = (VECTOR3) { -600, 2500, -2000 };
+    cl.viewDef.viewangles = (VECTOR3) { -30, 0, 0 };
 }
 
 void CL_Input(void) {

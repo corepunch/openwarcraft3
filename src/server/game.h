@@ -11,6 +11,7 @@ struct game_import {
     int (*ImageIndex)(LPCSTR szImageName);
     struct AnimationInfo (*GetAnimation)(int modelindex, LPCSTR animation);
     HANDLE (*ParseSheet)(LPCSTR szSheetFilename, LPCSHEETLAYOUT lpLayout, DWORD dwElementSize, HANDLE lpNextFieldOffset);
+    float (*GetHeightAtPoint)(float x, float y);
 };
 
 struct game_export {

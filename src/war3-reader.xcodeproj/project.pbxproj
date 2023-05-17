@@ -8,7 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		7897B7D42A0BECF3008007CD /* r_main.c in Sources */ = {isa = PBXBuildFile; fileRef = 7897B7D32A0BECF3008007CD /* r_main.c */; };
-		7897B7D72A0BF288008007CD /* r_map.c in Sources */ = {isa = PBXBuildFile; fileRef = 7897B7D62A0BF288008007CD /* r_map.c */; };
+		7897B7D72A0BF288008007CD /* r_war3map.c in Sources */ = {isa = PBXBuildFile; fileRef = 7897B7D62A0BF288008007CD /* r_war3map.c */; };
 		7897B7DA2A0BF40F008007CD /* cl_main.c in Sources */ = {isa = PBXBuildFile; fileRef = 7897B7D92A0BF40F008007CD /* cl_main.c */; };
 		7897B7DD2A0BF4FD008007CD /* sv_main.c in Sources */ = {isa = PBXBuildFile; fileRef = 7897B7DC2A0BF4FD008007CD /* sv_main.c */; };
 		7897B7DF2A0BF615008007CD /* common.c in Sources */ = {isa = PBXBuildFile; fileRef = 7897B7DE2A0BF615008007CD /* common.c */; };
@@ -28,13 +28,16 @@
 		7897B8062A1361DE008007CD /* g_units.c in Sources */ = {isa = PBXBuildFile; fileRef = 7897B8052A1361DE008007CD /* g_units.c */; };
 		7897B8082A13DDC2008007CD /* g_destructables.c in Sources */ = {isa = PBXBuildFile; fileRef = 7897B8072A13DDC2008007CD /* g_destructables.c */; };
 		7897B80A2A13DDCD008007CD /* g_doodads.c in Sources */ = {isa = PBXBuildFile; fileRef = 7897B8092A13DDCD008007CD /* g_doodads.c */; };
+		7897B80C2A14BB15008007CD /* r_mdx_interpolation.c in Sources */ = {isa = PBXBuildFile; fileRef = 7897B80B2A14BB15008007CD /* r_mdx_interpolation.c */; };
+		78988A302A151DA50090DEAA /* war3map.c in Sources */ = {isa = PBXBuildFile; fileRef = 78988A2F2A151DA40090DEAA /* war3map.c */; };
+		78988A322A152AF80090DEAA /* r_war3map_ground.c in Sources */ = {isa = PBXBuildFile; fileRef = 78988A312A152AF80090DEAA /* r_war3map_ground.c */; };
+		78988A352A152C820090DEAA /* r_war3map_cliffs.c in Sources */ = {isa = PBXBuildFile; fileRef = 78988A342A152C820090DEAA /* r_war3map_cliffs.c */; };
+		78988A372A152FEE0090DEAA /* r_war3map_water.c in Sources */ = {isa = PBXBuildFile; fileRef = 78988A362A152FEE0090DEAA /* r_war3map_water.c */; };
 		78F58A302A0641A30027494A /* main.c in Sources */ = {isa = PBXBuildFile; fileRef = 78F58A2F2A0641A30027494A /* main.c */; };
 		78F58A822A06D1560027494A /* sheet.c in Sources */ = {isa = PBXBuildFile; fileRef = 78F58A812A06D1560027494A /* sheet.c */; };
-		78F58A842A06D1D00027494A /* terrain.c in Sources */ = {isa = PBXBuildFile; fileRef = 78F58A832A06D1D00027494A /* terrain.c */; };
 		78F58A862A06D2160027494A /* config.c in Sources */ = {isa = PBXBuildFile; fileRef = 78F58A852A06D2160027494A /* config.c */; };
 		78F58A882A06D3030027494A /* sv_init.c in Sources */ = {isa = PBXBuildFile; fileRef = 78F58A872A06D3030027494A /* sv_init.c */; };
 		78F58A8A2A0786510027494A /* r_blp.c in Sources */ = {isa = PBXBuildFile; fileRef = 78F58A892A0786510027494A /* r_blp.c */; };
-		78F58A8D2A0799FB0027494A /* r_world.c in Sources */ = {isa = PBXBuildFile; fileRef = 78F58A8C2A0799FB0027494A /* r_world.c */; };
 		78F58A8F2A08EAB20027494A /* math.c in Sources */ = {isa = PBXBuildFile; fileRef = 78F58A8E2A08EAB20027494A /* math.c */; };
 		78F58A912A0919120027494A /* r_mdx_load.c in Sources */ = {isa = PBXBuildFile; fileRef = 78F58A902A0919120027494A /* r_mdx_load.c */; };
 /* End PBXBuildFile section */
@@ -56,7 +59,7 @@
 		7897B7D22A0BEB76008007CD /* common.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = common.h; sourceTree = "<group>"; };
 		7897B7D32A0BECF3008007CD /* r_main.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = r_main.c; sourceTree = "<group>"; };
 		7897B7D52A0BF129008007CD /* r_local.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = r_local.h; sourceTree = "<group>"; };
-		7897B7D62A0BF288008007CD /* r_map.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = r_map.c; sourceTree = "<group>"; };
+		7897B7D62A0BF288008007CD /* r_war3map.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = r_war3map.c; sourceTree = "<group>"; };
 		7897B7D82A0BF40F008007CD /* client.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = client.h; sourceTree = "<group>"; };
 		7897B7D92A0BF40F008007CD /* cl_main.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = cl_main.c; sourceTree = "<group>"; };
 		7897B7DB2A0BF4FD008007CD /* server.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = server.h; sourceTree = "<group>"; };
@@ -83,14 +86,19 @@
 		7897B8052A1361DE008007CD /* g_units.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = g_units.c; sourceTree = "<group>"; };
 		7897B8072A13DDC2008007CD /* g_destructables.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = g_destructables.c; sourceTree = "<group>"; };
 		7897B8092A13DDCD008007CD /* g_doodads.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = g_doodads.c; sourceTree = "<group>"; };
+		7897B80B2A14BB15008007CD /* r_mdx_interpolation.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = r_mdx_interpolation.c; sourceTree = "<group>"; };
+		78988A2E2A151C700090DEAA /* war3map.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = war3map.h; sourceTree = "<group>"; };
+		78988A2F2A151DA40090DEAA /* war3map.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = war3map.c; sourceTree = "<group>"; };
+		78988A312A152AF80090DEAA /* r_war3map_ground.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = r_war3map_ground.c; sourceTree = "<group>"; };
+		78988A332A152B330090DEAA /* r_war3map.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = r_war3map.h; sourceTree = "<group>"; };
+		78988A342A152C820090DEAA /* r_war3map_cliffs.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = r_war3map_cliffs.c; sourceTree = "<group>"; };
+		78988A362A152FEE0090DEAA /* r_war3map_water.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = r_war3map_water.c; sourceTree = "<group>"; };
 		78F58A2C2A0641A30027494A /* war3-reader */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "war3-reader"; sourceTree = BUILT_PRODUCTS_DIR; };
 		78F58A2F2A0641A30027494A /* main.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = main.c; sourceTree = "<group>"; };
 		78F58A812A06D1560027494A /* sheet.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = sheet.c; sourceTree = "<group>"; };
-		78F58A832A06D1D00027494A /* terrain.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = terrain.c; sourceTree = "<group>"; };
 		78F58A852A06D2160027494A /* config.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = config.c; sourceTree = "<group>"; };
 		78F58A872A06D3030027494A /* sv_init.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = sv_init.c; sourceTree = "<group>"; };
 		78F58A892A0786510027494A /* r_blp.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = r_blp.c; sourceTree = "<group>"; };
-		78F58A8C2A0799FB0027494A /* r_world.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = r_world.c; sourceTree = "<group>"; };
 		78F58A8E2A08EAB20027494A /* math.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = math.c; sourceTree = "<group>"; };
 		78F58A902A0919120027494A /* r_mdx_load.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = r_mdx_load.c; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -117,7 +125,8 @@
 				7897B7E22A0C209A008007CD /* net.c */,
 				7897B7EF2A0CC6CF008007CD /* net.h */,
 				78F58A812A06D1560027494A /* sheet.c */,
-				78F58A832A06D1D00027494A /* terrain.c */,
+				78988A2F2A151DA40090DEAA /* war3map.c */,
+				78988A2E2A151C700090DEAA /* war3map.h */,
 			);
 			path = common;
 			sourceTree = "<group>";
@@ -154,13 +163,17 @@
 				7897B7E62A0CAD45008007CD /* r_entities.c */,
 				7897B7D52A0BF129008007CD /* r_local.h */,
 				7897B7D32A0BECF3008007CD /* r_main.c */,
-				7897B7D62A0BF288008007CD /* r_map.c */,
+				7897B80B2A14BB15008007CD /* r_mdx_interpolation.c */,
 				78F58A902A0919120027494A /* r_mdx_load.c */,
 				7897B8002A134898008007CD /* r_mdx_render.c */,
+				7897B8022A1348D3008007CD /* r_mdx.h */,
 				7897B7E02A0C12BA008007CD /* r_shader.c */,
 				7897B7F42A1221AB008007CD /* r_texture.c */,
-				78F58A8C2A0799FB0027494A /* r_world.c */,
-				7897B8022A1348D3008007CD /* r_mdx.h */,
+				78988A342A152C820090DEAA /* r_war3map_cliffs.c */,
+				78988A312A152AF80090DEAA /* r_war3map_ground.c */,
+				78988A362A152FEE0090DEAA /* r_war3map_water.c */,
+				7897B7D62A0BF288008007CD /* r_war3map.c */,
+				78988A332A152B330090DEAA /* r_war3map.h */,
 			);
 			path = renderer;
 			sourceTree = "<group>";
@@ -267,6 +280,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				7897B80A2A13DDCD008007CD /* g_doodads.c in Sources */,
+				7897B80C2A14BB15008007CD /* r_mdx_interpolation.c in Sources */,
 				78F58A302A0641A30027494A /* main.c in Sources */,
 				7897B7F72A127545008007CD /* m_peon.c in Sources */,
 				7897B7EE2A0CC4EE008007CD /* msg.c in Sources */,
@@ -274,18 +288,17 @@
 				7897B7F92A1276C3008007CD /* g_spawn.c in Sources */,
 				7897B8012A134898008007CD /* r_mdx_render.c in Sources */,
 				7897B7E12A0C12BA008007CD /* r_shader.c in Sources */,
-				78F58A842A06D1D00027494A /* terrain.c in Sources */,
 				7897B7F52A1221AB008007CD /* r_texture.c in Sources */,
+				78988A302A151DA50090DEAA /* war3map.c in Sources */,
 				78F58A882A06D3030027494A /* sv_init.c in Sources */,
 				7897B7FD2A128F47008007CD /* sv_ents.c in Sources */,
-				78F58A8D2A0799FB0027494A /* r_world.c in Sources */,
 				7897B7D42A0BECF3008007CD /* r_main.c in Sources */,
 				78F58A822A06D1560027494A /* sheet.c in Sources */,
 				78F58A912A0919120027494A /* r_mdx_load.c in Sources */,
 				7897B8062A1361DE008007CD /* g_units.c in Sources */,
 				7897B7DF2A0BF615008007CD /* common.c in Sources */,
 				7897B7DA2A0BF40F008007CD /* cl_main.c in Sources */,
-				7897B7D72A0BF288008007CD /* r_map.c in Sources */,
+				7897B7D72A0BF288008007CD /* r_war3map.c in Sources */,
 				78F58A862A06D2160027494A /* config.c in Sources */,
 				7897B7FF2A12AF06008007CD /* cl_ents.c in Sources */,
 				7897B7E32A0C209A008007CD /* net.c in Sources */,
@@ -293,7 +306,10 @@
 				78F58A8A2A0786510027494A /* r_blp.c in Sources */,
 				7897B7FB2A12872C008007CD /* cl_parse.c in Sources */,
 				7897B8082A13DDC2008007CD /* g_destructables.c in Sources */,
+				78988A372A152FEE0090DEAA /* r_war3map_water.c in Sources */,
+				78988A352A152C820090DEAA /* r_war3map_cliffs.c in Sources */,
 				7897B7E52A0CA81B008007CD /* cl_view.c in Sources */,
+				78988A322A152AF80090DEAA /* r_war3map_ground.c in Sources */,
 				7897B7EC2A0CB560008007CD /* g_main.c in Sources */,
 				7897B7E72A0CAD45008007CD /* r_entities.c in Sources */,
 			);

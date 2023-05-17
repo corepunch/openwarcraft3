@@ -53,7 +53,7 @@ struct tFileBlock {
     DWORD dwStart;
 };
 
-DWORD GetModelKeyTrackDataTypeSize(enum tModelKeyTrackDataType dwDataType) {
+DWORD GetModelKeyTrackDataTypeSize(MODELKEYTRACKDATATYPE dwDataType) {
     switch (dwDataType) {
         case kModelKeyTrackDataTypeFloat: return 4;
         case kModelKeyTrackDataTypeVector3: return 12;
@@ -62,7 +62,7 @@ DWORD GetModelKeyTrackDataTypeSize(enum tModelKeyTrackDataType dwDataType) {
     }
 }
 
-DWORD GetModelKeyTrackTypeSize(enum tModelKeyTrackType dwKeyTrackType) {
+DWORD GetModelKeyTrackTypeSize(MODELKEYTRACKTYPE dwKeyTrackType) {
     switch (dwKeyTrackType) {
         case TRACK_NO_INTERP: return 1;
         case TRACK_LINEAR: return 1;
@@ -72,8 +72,8 @@ DWORD GetModelKeyTrackTypeSize(enum tModelKeyTrackType dwKeyTrackType) {
     }
 }
 
-DWORD GetModelKeyFrameSize(enum tModelKeyTrackDataType dwDataType,
-                           enum tModelKeyTrackType dwKeyTrackType)
+DWORD GetModelKeyFrameSize(MODELKEYTRACKDATATYPE dwDataType,
+                           MODELKEYTRACKTYPE dwKeyTrackType)
 {
     return 4 + GetModelKeyTrackDataTypeSize(dwDataType) * GetModelKeyTrackTypeSize(dwKeyTrackType);
 }
@@ -102,8 +102,8 @@ static void FileMoveToEndOfBlock(HANDLE hFile, struct tFileBlock const *lpBlock)
     SFileSetFilePointer(hFile, lpBlock->dwStart + lpBlock->dwSize, NULL, FILE_BEGIN);
 }
 
-static struct tModelGeoset *ReadGeoset(HANDLE hFile, struct tFileBlock const block) {
-    struct tModelGeoset *lpGeoset = ri.MemAlloc(sizeof(struct tModelGeoset));
+static LPMODELGEOSET ReadGeoset(HANDLE hFile, struct tFileBlock const block) {
+    LPMODELGEOSET lpGeoset = ri.MemAlloc(sizeof(struct tModelGeoset));
     while (!FileIsAtEndOfBlock(hFile, &block)) {
         int tag = FileReadInt32(hFile);
         switch (tag) {
@@ -133,7 +133,7 @@ static struct tModelGeoset *ReadGeoset(HANDLE hFile, struct tFileBlock const blo
 }
 
 static void ReadMaterialLayer(HANDLE hFile,
-                              struct tModelMaterialLayer *lpLayer,
+                              LPMODELLAYER lpLayer,
                               struct tFileBlock const block)
 {
     lpLayer->blendMode = FileReadInt32(hFile);
@@ -170,12 +170,12 @@ static struct tModelMaterial *ReadMaterial(HANDLE hFile, struct tFileBlock const
     return lpMaterial;
 }
 
-static HANDLE ReadModelKeyTrack(HANDLE hFile, enum tModelKeyTrackDataType dwDataType) {
+static HANDLE ReadModelKeyTrack(HANDLE hFile, MODELKEYTRACKDATATYPE dwDataType) {
     DWORD dwKeyframeCount = FileReadInt32(hFile);
-    enum tModelKeyTrackType dwKeyTrackType = FileReadInt32(hFile);
+    MODELKEYTRACKTYPE dwKeyTrackType = FileReadInt32(hFile);
     DWORD dwGlobalSeqId = FileReadInt32(hFile);
     DWORD const dwDataSize = GetModelKeyFrameSize(dwDataType, dwKeyTrackType) * dwKeyframeCount;
-    struct tModelKeyTrack *lpKeytrack = ri.MemAlloc(MODELTRACKINFOSIZE + dwDataSize);
+    LPMODELKEYTRACK lpKeytrack = ri.MemAlloc(MODELTRACKINFOSIZE + dwDataSize);
     lpKeytrack->dwKeyframeCount = dwKeyframeCount;
     lpKeytrack->datatype = dwDataType;
     lpKeytrack->type = dwKeyTrackType;
@@ -184,7 +184,7 @@ static HANDLE ReadModelKeyTrack(HANDLE hFile, enum tModelKeyTrackDataType dwData
     return lpKeytrack;
 }
 
-static void ReadNode(HANDLE hFile, struct tFileBlock const block, struct tModelNode *lpNode) {
+static void ReadNode(HANDLE hFile, struct tFileBlock const block, LPMODELNODE lpNode) {
     SFileReadFile(hFile, &lpNode->name, sizeof(tModelObjectName), NULL, NULL);
     lpNode->objectId = FileReadInt32(hFile);
     lpNode->parentId = FileReadInt32(hFile);
@@ -237,7 +237,7 @@ static struct tModelGeosetAnim *ReadGeosetAnim(HANDLE hFile, struct tFileBlock c
     return lpGeosetAnim;
 }
 
-static DWORD R_ModelFindBiggestGroup(struct tModelGeoset const *lpGeoset) {
+static DWORD R_ModelFindBiggestGroup(LPCMODELGEOSET lpGeoset) {
     DWORD dwBiggest = 0;
     FOR_LOOP(i, lpGeoset->numMatrixGroupSizes) {
         dwBiggest = MAX(lpGeoset->lpMatrixGroupSizes[i], dwBiggest);
@@ -245,7 +245,7 @@ static DWORD R_ModelFindBiggestGroup(struct tModelGeoset const *lpGeoset) {
     return dwBiggest;
 }
 
-static void R_SetupGeoset(LPMODEL lpModel, struct tModelGeoset *lpGeoset) {
+static void R_SetupGeoset(LPMODEL lpModel, LPMODELGEOSET lpGeoset) {
     DWORD dwBiggestGeoset = R_ModelFindBiggestGroup(lpGeoset);
     if (dwBiggestGeoset > 4) {
         fprintf(stderr, "Geosets with more that 4 bones skinning are not supported\n");
@@ -272,6 +272,7 @@ static void R_SetupGeoset(LPMODEL lpModel, struct tModelGeoset *lpGeoset) {
         lpVertex->color = (struct color32) { 255, 255, 255, 255 };
         lpVertex->position = lpGeoset->lpVertices[dwVertex];
         lpVertex->texcoord = lpGeoset->lpTexcoord[dwVertex];
+        lpVertex->normal = lpGeoset->lpNormals[dwVertex];
         memcpy(lpVertex->skin, dwMatrixGroup, sizeof(matrixGroup_t));
         memset(lpVertex->boneWeight, 0, sizeof(matrixGroup_t));
         FOR_LOOP(dwMatrixIndex, dwMatrixGroupSize) {
@@ -285,7 +286,7 @@ static void R_SetupGeoset(LPMODEL lpModel, struct tModelGeoset *lpGeoset) {
     ri.MemFree(lpMatrixGroups);
 }
 
-static struct tModelNode *R_GetModelNodeWithObjectID(LPMODEL lpModel, DWORD dwObjectID) {
+static LPMODELNODE R_GetModelNodeWithObjectID(LPMODEL lpModel, DWORD dwObjectID) {
     if (dwObjectID == -1) {
         return NULL;
     }
@@ -305,7 +306,7 @@ static struct tModelNode *R_GetModelNodeWithObjectID(LPMODEL lpModel, DWORD dwOb
 LPMODEL R_LoadModelMDX(HANDLE hFile) {
     DWORD dwBlockHeader, dwFileVersion = 0;
     LPMODEL lpModel = ri.MemAlloc(sizeof(struct tModel));
-    struct tModelGeoset *lpLastGeoset = lpModel->lpGeosets;
+    LPMODELGEOSET lpLastGeoset = lpModel->lpGeosets;
     struct tModelMaterial *lpLastMaterial = lpModel->lpMaterials;
     struct tModelBone *lpLastBone = lpModel->lpBones;
     struct tModelHelper *lpLastHelper = lpModel->lpHelpers;
@@ -353,7 +354,7 @@ LPMODEL R_LoadModelMDX(HANDLE hFile) {
         lpModel->lpTextures[texid].texid = R_RegisterTextureFile(lpModel->lpTextures[texid].path);
     }
     FOR_EACH_LIST(struct tModelGeosetAnim, lpGeosetAnim, lpModel->lpGeosetAnims) {
-        struct tModelGeoset *lpGeoset = lpModel->lpGeosets;
+        LPMODELGEOSET lpGeoset = lpModel->lpGeosets;
         for (DWORD dwGeosetID = lpGeosetAnim->geosetId;
              lpGeoset && dwGeosetID > 0;
              dwGeosetID--)
@@ -397,12 +398,12 @@ LPMODEL R_LoadModel(LPCSTR szModelFilename) {
     return model;
 }
 
-static void R_ReleaseModelNode(struct tModelNode *lpNode) {
+static void R_ReleaseModelNode(LPMODELNODE lpNode) {
     SAFE_DELETE(lpNode->lpTranslation, ri.MemFree);
     SAFE_DELETE(lpNode->lpRotation, ri.MemFree);
     SAFE_DELETE(lpNode->lpScale, ri.MemFree);
 }
-static void R_ReleaseModelGeoset(struct tModelGeoset *lpGeoset) {
+static void R_ReleaseModelGeoset(LPMODELGEOSET lpGeoset) {
     SAFE_DELETE(lpGeoset->lpNext, R_ReleaseModelGeoset);
     SAFE_DELETE(lpGeoset->lpBuffer, R_ReleaseVertexArrayObject);
     SAFE_DELETE(lpGeoset->lpVertices, ri.MemFree);

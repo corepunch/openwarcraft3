@@ -9,36 +9,93 @@ struct render_globals tr;
 SDL_Window *window;
 SDL_GLContext context;
 
-static void R_SetupGL(void) {
-    struct matrix4 model_matrix;
+void R_GetLigthMatrix(LPMATRIX4 lightSpaceMatrix) {
+    VECTOR3 sunorg = tr.viewDef.vieworg;
+    VECTOR3 sunangles = { -35, 0, 45 };
+    sunorg.y -= 800;
+    sunorg.x += 800;
+    Matrix4_ortho(lightSpaceMatrix, -1500.0f, 1500.0f, -1500.0f, 1500.0f, 100.0, 3500.0);
+    Matrix4_rotate(lightSpaceMatrix, &sunangles, ROTATE_ZYX);
+    Matrix4_translate(lightSpaceMatrix, &sunorg);
+}
+
+static void R_SetupGL(bool drawLight) {
+    MATRIX4 model_matrix;
+    MATRIX3 normal_matrix;
     int width, height;
     
     SDL_GetWindowSize(window, &width, &height);
     
     Matrix4_identity(&model_matrix);
     
+    R_GetLigthMatrix(&tr.viewDef.light_matrix);
+
     Matrix4_perspective(&tr.viewDef.projection_matrix, tr.viewDef.fov, width / height, 100.0, 100000.0);
     Matrix4_rotate(&tr.viewDef.projection_matrix, &tr.viewDef.viewangles, ROTATE_XYZ);
     Matrix4_translate(&tr.viewDef.projection_matrix, &tr.viewDef.vieworg);
     
+    if (drawLight) {
+        tr.viewDef.projection_matrix = tr.viewDef.light_matrix;
+    }
+    Matrix3_normal(&normal_matrix, &model_matrix);
+
+    glEnable(GL_CULL_FACE);
+    glCullFace(GL_BACK);
+
     glUseProgram(tr.shaderSkin->progid);
     
-    glUniformMatrix4fv(tr.shaderSkin->u_projection_matrix, 1, GL_FALSE, tr.viewDef.projection_matrix.v);
-    glUniformMatrix4fv(tr.shaderSkin->u_model_matrix, 1, GL_FALSE, model_matrix.v);
-    
+    glUniformMatrix4fv(tr.shaderSkin->uProjectionMatrix, 1, GL_FALSE, tr.viewDef.projection_matrix.v);
+    glUniformMatrix4fv(tr.shaderSkin->uModelMatrix, 1, GL_FALSE, model_matrix.v);
+    glUniformMatrix4fv(tr.shaderSkin->uLightMatrix, 1, GL_FALSE, tr.viewDef.light_matrix.v);
+    glUniformMatrix3fv(tr.shaderSkin->uNormalMatrix, 1, GL_TRUE, normal_matrix.v);
     glUseProgram(tr.shaderStatic->progid);
     
-    glUniformMatrix4fv(tr.shaderStatic->u_projection_matrix, 1, GL_FALSE, tr.viewDef.projection_matrix.v);
-    glUniformMatrix4fv(tr.shaderStatic->u_model_matrix, 1, GL_FALSE, model_matrix.v);
+    glUniformMatrix4fv(tr.shaderStatic->uProjectionMatrix, 1, GL_FALSE, tr.viewDef.projection_matrix.v);
+    glUniformMatrix4fv(tr.shaderStatic->uModelMatrix, 1, GL_FALSE, model_matrix.v);
+    glUniformMatrix4fv(tr.shaderStatic->uLightMatrix, 1, GL_FALSE, tr.viewDef.light_matrix.v);
+    glUniformMatrix3fv(tr.shaderStatic->uNormalMatrix, 1, GL_TRUE, normal_matrix.v);
 }
 
 void R_RenderFrame(LPCVIEWDEF viewDef) {
     tr.viewDef = *viewDef;
     
-    R_SetupGL();
+    // 1. first render to depth map
+    glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
+    glBindFramebuffer(GL_FRAMEBUFFER, tr.depthMapFBO);
+    glClear(GL_DEPTH_BUFFER_BIT);
+    R_SetupGL(true);
+    R_BindTexture(tr.shadowmap, 1);
+    R_DrawWorld();
+    R_DrawEntities();
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    
+    int width, height;
+    SDL_GetWindowSize(window, &width, &height);
+    // 2. then render scene as normal with shadow mapping (using depth map)
+    glViewport(0, 0, width, height);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    R_SetupGL(false);
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, tr.depthMap);
     R_DrawWorld();
     R_DrawEntities();
     R_DrawAlphaSurfaces();
+}
+
+void R_InitShadowMap(void) {
+    glGenFramebuffers(1, &tr.depthMapFBO);
+    glGenTextures(1, &tr.depthMap);
+    glBindTexture(GL_TEXTURE_2D, tr.depthMap);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, SHADOW_WIDTH, SHADOW_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glBindFramebuffer(GL_FRAMEBUFFER, tr.depthMapFBO);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, tr.depthMap, 0);
+    glDrawBuffer(GL_NONE);
+    glReadBuffer(GL_NONE);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
 void R_Init(DWORD dwWidth, DWORD dwHeight) {
@@ -49,7 +106,6 @@ void R_Init(DWORD dwWidth, DWORD dwHeight) {
     SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, 8);
     SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, 8);
     SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 8);
-
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
@@ -60,6 +116,7 @@ void R_Init(DWORD dwWidth, DWORD dwHeight) {
     extern LPCSTR vertex_shader_skin;
     extern LPCSTR vertex_shader;
     extern LPCSTR fragment_shader;
+    extern LPCSTR fragment_shader_alphatest;
     
     tr.shaderStatic = R_InitShader(vertex_shader, fragment_shader);
     tr.shaderSkin = R_InitShader(vertex_shader_skin, fragment_shader);
@@ -76,6 +133,7 @@ void R_Init(DWORD dwWidth, DWORD dwHeight) {
 //    FOR_LOOP(i, Model->num_textures) {
 //        printf("%s\n", Model->textures[i].path);
 //    }
+    R_InitShadowMap();
 }
 
 void R_DrawPic(LPCTEXTURE lpTexture) {
@@ -99,8 +157,24 @@ void R_DrawPic(LPCTEXTURE lpTexture) {
 //        glDrawArrays(GL_TRIANGLES, 0, 6);
 }
 
-LPBUFFER R_MakeVertexArrayObject(struct vertex const *data, DWORD size) {
-    LPBUFFER buf = ri.MemAlloc(sizeof(struct render_buffer));
+bool R_IsPointVisible(LPCVECTOR3 point, float fThreshold) {
+    VECTOR3 screen;
+    Matrix4_multiply_vector3(&tr.viewDef.projection_matrix, point, &screen);
+    if (screen.x < -fThreshold) return false;
+    if (screen.y < -fThreshold) return false;
+    if (screen.x > fThreshold) return false;
+    if (screen.y > fThreshold) return false;
+    return true;
+}
+
+void R_DrawBuffer(LPCBUFFER lpBuffer, DWORD numVertices) {
+    glBindVertexArray(lpBuffer->vao);
+    glBindBuffer(GL_ARRAY_BUFFER, lpBuffer->vbo);
+    glDrawArrays(GL_TRIANGLES, 0, numVertices);
+}
+
+LPCBUFFER R_MakeVertexArrayObject(LPCVERTEX lpVertices, DWORD dwSize) {
+    LPBUFFER buf = ri.MemAlloc(sizeof(BUFFER));
     
     glGenVertexArrays(1, &buf->vao);
     glGenBuffers(1, &buf->vbo);
@@ -113,16 +187,18 @@ LPBUFFER R_MakeVertexArrayObject(struct vertex const *data, DWORD size) {
     glEnableVertexAttribArray(attrib_texcoord2);
     glEnableVertexAttribArray(attrib_skin);
     glEnableVertexAttribArray(attrib_boneWeight);
-    
+    glEnableVertexAttribArray(attrib_normal);
+
     glVertexAttribPointer(attrib_color, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(struct vertex), FOFS(vertex, color));
     glVertexAttribPointer(attrib_position, 3, GL_FLOAT, GL_FALSE, sizeof(struct vertex), FOFS(vertex, position));
     glVertexAttribPointer(attrib_texcoord, 2, GL_FLOAT, GL_FALSE, sizeof(struct vertex), FOFS(vertex, texcoord));
     glVertexAttribPointer(attrib_texcoord2, 2, GL_FLOAT, GL_FALSE, sizeof(struct vertex), FOFS(vertex, texcoord2));
     glVertexAttribPointer(attrib_skin, 4, GL_UNSIGNED_BYTE, GL_FALSE, sizeof(struct vertex), FOFS(vertex, skin));
     glVertexAttribPointer(attrib_boneWeight, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(struct vertex), FOFS(vertex, boneWeight));
+    glVertexAttribPointer(attrib_normal, 3, GL_FLOAT, GL_FALSE, sizeof(struct vertex), FOFS(vertex, normal));
 
-    if (data) {
-        glBufferData(GL_ARRAY_BUFFER, size * sizeof(struct vertex), data, GL_STATIC_DRAW);
+    if (lpVertices) {
+        glBufferData(GL_ARRAY_BUFFER, dwSize * sizeof(VERTEX), lpVertices, GL_STATIC_DRAW);
     }
 
     return buf;

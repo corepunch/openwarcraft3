@@ -4,6 +4,7 @@
 #include "../common/common.h"
 
 ADD_TYPEDEFS(viewDef, VIEWDEF);
+ADD_TYPEDEFS(render_entity, RENDERENTITY);
 
 struct renderer_import {
     HANDLE (*FileOpen)(LPCSTR szFileName);
@@ -28,14 +29,15 @@ struct viewDef {
     VECTOR3 viewangles;
     int time;
     int num_entities;
-    struct render_entity *entities;
-    struct matrix4 projection_matrix;
+    LPRENDERENTITY entities;
+    MATRIX4 projection_matrix;
+    MATRIX4 light_matrix;
 };
 
 struct Renderer {
     void (*Init)(DWORD dwWidth, DWORD dwHeight);
     void (*Shutdown)(void);
-    void (*RegisterMap)(char const *szMapFileName);
+    void (*RegisterMap)(LPCSTR szMapFileName);
     void (*RenderFrame)(LPCVIEWDEF lpRefDef);
     LPTEXTURE (*LoadTexture)(LPCSTR szTextureFileName);
     LPMODEL (*LoadModel)(LPCSTR szModelFilename);

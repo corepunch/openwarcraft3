@@ -79,57 +79,6 @@ enum {
     kEntityChangeFlag_image,
 };
 
-enum {
-    kTerrainInfo_tileID = 1,
-    kTerrainInfo_dir,
-    kTerrainInfo_file,
-    kTerrainInfo_comment,
-    kTerrainInfo_name,
-    kTerrainInfo_buildable,
-    kTerrainInfo_footprints,
-    kTerrainInfo_walkable,
-    kTerrainInfo_flyable,
-    kTerrainInfo_blightPri,
-    kTerrainInfo_convertTo,
-    kTerrainInfo_InBeta,
-};
-
-enum {
-    kCliffInfo_cliffID = 1,
-    kCliffInfo_cliffModelDir,
-    kCliffInfo_rampModelDir,
-    kCliffInfo_texDir,
-    kCliffInfo_texFile,
-    kCliffInfo_name,
-    kCliffInfo_groundTile,
-    kCliffInfo_upperTile,
-    kCliffInfo_cliffClass,
-    kCliffInfo_oldID,
-};
-
-enum MDLTEXOP {
-  TEXOP_LOAD = 0x0,
-  TEXOP_TRANSPARENT = 0x1,
-  TEXOP_BLEND = 0x2,
-  TEXOP_ADD = 0x3,
-  TEXOP_ADD_ALPHA = 0x4,
-  TEXOP_MODULATE = 0x5,
-  TEXOP_MODULATE2X = 0x6,
-  NUMTEXOPS = 0x7,
-};
-
-enum MDLGEO {
-  MODEL_GEO_UNSHADED = 0x1,
-  MODEL_GEO_SPHERE_ENV_MAP = 0x2,  // unused until v1500
-  MODEL_GEO_WRAPWIDTH = 0x4,       // unused until v1500
-  MODEL_GEO_WRAPHEIGHT = 0x8,      // unused until v1500
-  MODEL_GEO_TWOSIDED = 0x10,
-  MODEL_GEO_UNFOGGED = 0x20,
-  MODEL_GEO_NO_DEPTH_TEST = 0x40,
-  MODEL_GEO_NO_DEPTH_SET = 0x80,
-  MODEL_GEO_NO_FALLBACK = 0x100,   // added in v1500. seen in ElwynnTallWaterfall01.mdx, FelwoodTallWaterfall01.mdx and LavaFallsBlackRock*.mdx
-};
-
 // server to client
 enum svc_ops {
     svc_bad,
@@ -172,6 +121,7 @@ typedef enum t_attrib_id {
     attrib_color,
     attrib_texcoord,
     attrib_texcoord2,
+    attrib_normal,
     attrib_skin,
     attrib_boneWeight,
 } t_attrib_id;
@@ -181,15 +131,16 @@ struct texture;
 
 ADD_TYPEDEFS(tModel, MODEL);
 ADD_TYPEDEFS(texture, TEXTURE);
-ADD_TYPEDEFS(TerrainVertex, TERRAINVERTEX);
+ADD_TYPEDEFS(War3MapVertex, WAR3MAPVERTEX);
 ADD_TYPEDEFS(SheetLayout, SHEETLAYOUT);
 ADD_TYPEDEFS(TerrainInfo, TERRAININFO);
 ADD_TYPEDEFS(CliffInfo, CLIFFINFO);
-ADD_TYPEDEFS(terrain, TERRAIN);
+ADD_TYPEDEFS(war3map, WAR3MAP);
 ADD_TYPEDEFS(Doodad, DOODAD);
 ADD_TYPEDEFS(edict, EDICT);
 ADD_TYPEDEFS(EntityState, ENTITYSTATE);
 ADD_TYPEDEFS(vector3, VECTOR3);
+ADD_TYPEDEFS(color32, COLOR32);
 
 typedef char PATHSTR[MAX_PATHLEN];
 typedef char SHEETSTR[64];
@@ -202,19 +153,6 @@ struct rect { float x, y, width, height; };
 struct edges { float left, top, right, bottom; };
 struct transform2 { VECTOR2 translation, scale; float rotation; };
 struct transform3 { VECTOR3 translation, rotation, scale; };
-
-enum SheetType {
-    ST_ID,
-    ST_INT,
-    ST_FLOAT,
-    ST_STRING,
-};
-
-struct SheetLayout {
-    const LPSTR column;
-    enum SheetType type;
-    HANDLE fofs;
-};
 
 struct EntityState {
     int number; // edict index
@@ -234,80 +172,19 @@ struct AnimationInfo {
     DWORD framerate;
 };
 
-struct TerrainInfo {
-    DWORD tileID;
-    SHEETSTR dir;
-    SHEETSTR file;
-    LPTEXTURE lpTexture;
-    LPTERRAININFO lpNext;
+#include "war3map.h"
+
+enum SheetType {
+    ST_ID,
+    ST_INT,
+    ST_FLOAT,
+    ST_STRING,
 };
 
-struct PathMapNode {
-    char unused:1;
-    char nowalk:1;
-    char nofly:1;
-    char nobuild:1;
-    char unused2:1;
-    char blight:1;
-    char nowater:1;
-    char unknown:1;
-};
-
-struct CliffInfo {
-    DWORD cliffID;
-    SHEETSTR cliffModelDir;
-    SHEETSTR rampModelDir;
-    SHEETSTR texDir;
-    SHEETSTR texFile;
-    SHEETSTR name;
-    DWORD groundTile;
-    DWORD upperTile;
-    LPCLIFFINFO lpNext;
-    LPTEXTURE texture;
-};
-
-struct Doodad {
-    DWORD doodID;
-    DWORD variation;
-    VECTOR3 position;
-    float angle;
-    VECTOR3 scale;
-    char nFlags;
-    char lifetime;
-    DWORD id_num;
-};
-
-struct TerrainVertex {
-    short accurate_height;
-    short waterlevel;
-    BYTE ground:4;
-    BYTE ramp:1;
-    BYTE blight:1;
-    BYTE water:1;
-    BYTE boundary:1;
-    BYTE details:4;
-    BYTE unknown:4;
-    BYTE level:4;
-    BYTE cliff:4;
-};
-
-struct size2 {
-    DWORD width;
-    DWORD height;
-};
-
-struct terrain {
-    DWORD header;
-    DWORD version;
-    char tileset;
-    DWORD custom;
-    LPDWORD lpGrounds;
-    LPDWORD lpCliffs;
-    VECTOR2 center;
-    struct size2 size;
-    LPTERRAINVERTEX vertices;
-    DWORD numGrounds;
-    DWORD numCliffs;
+struct SheetLayout {
+    const LPSTR column;
+    enum SheetType type;
+    HANDLE fofs;
 };
 
 struct SheetCell {
@@ -317,20 +194,20 @@ struct SheetCell {
     struct SheetCell *lpNext;
 };
 
-LPCTERRAINVERTEX GetTerrainVertex(LPCTERRAIN lpTerrain, DWORD x, DWORD y);
-LPTERRAIN  FileReadTerrain(HANDLE hArchive);
+LPCWAR3MAPVERTEX GetWar3MapVertex(LPCWAR3MAP lpTerrain, DWORD x, DWORD y);
+LPWAR3MAP  FileReadWar3Map(HANDLE hArchive);
 HANDLE FS_ParseSheet(LPCSTR szFileName, LPCSHEETLAYOUT lpLayout, DWORD dwElementSize, HANDLE lpNextFieldOffset);
 void LoadMap(LPCSTR pFilename);
-LPCTERRAINVERTEX GetTerrainVertex(LPCTERRAIN lpTerrain, DWORD x, DWORD y);
+LPCWAR3MAPVERTEX GetWar3MapVertex(LPCWAR3MAP lpTerrain, DWORD x, DWORD y);
 LPTERRAININFO FindTerrainInfo(DWORD tileID);
 LPCLIFFINFO FindCliffInfo(DWORD cliffID);
-DWORD GetTile(LPCTERRAINVERTEX mv, DWORD ground);
-float GetTerrainVertexHeight(LPCTERRAINVERTEX vert);
-float GetTerrainVertexWaterLevel(LPCTERRAINVERTEX vert);
-void GetTileVertices(DWORD x, DWORD y, LPCTERRAIN lpTerrain, LPTERRAINVERTEX vertices);
-DWORD GetTileRamps(LPCTERRAINVERTEX vertices);
-DWORD IsTileCliff(LPCTERRAINVERTEX vertices);
-DWORD IsTileWater(LPCTERRAINVERTEX vertices);
+DWORD GetTile(LPCWAR3MAPVERTEX mv, DWORD ground);
+float GetWar3MapVertexHeight(LPCWAR3MAPVERTEX vert);
+float GetWar3MapVertexWaterLevel(LPCWAR3MAPVERTEX vert);
+void GetTileVertices(DWORD x, DWORD y, LPCWAR3MAP lpTerrain, LPWAR3MAPVERTEX vertices);
+DWORD GetTileRamps(LPCWAR3MAPVERTEX vertices);
+DWORD IsTileCliff(LPCWAR3MAPVERTEX vertices);
+DWORD IsTileWater(LPCWAR3MAPVERTEX vertices);
 
 void FS_Init(void);
 void FS_Shutdown(void);

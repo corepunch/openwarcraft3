@@ -5,22 +5,29 @@
 
 #define MODELTRACKINFOSIZE 16
 
+ADD_TYPEDEFS(tModelGeoset, MODELGEOSET);
+ADD_TYPEDEFS(tModelKeyTrack, MODELKEYTRACK);
+ADD_TYPEDEFS(tModelKeyFrame, MODELKEYFRAME);
+ADD_TYPEDEFS(tModelNode, MODELNODE);
+ADD_TYPEDEFS(tModelMaterialLayer, MODELLAYER);
+ADD_TYPEDEFS(tModelSequence, MODELSEQUENCE);
+
 typedef char tModelObjectName[80];
 typedef char tModelFileName[260];
 
-enum tModelKeyTrackType {
+typedef enum {
   TRACK_NO_INTERP = 0x0,
   TRACK_LINEAR = 0x1,
   TRACK_HERMITE = 0x2,
   TRACK_BEZIER = 0x3,
   NUM_TRACK_TYPES = 0x4,
-};
+} MODELKEYTRACKTYPE;
 
-enum tModelKeyTrackDataType {
+typedef enum {
     kModelKeyTrackDataTypeFloat,
     kModelKeyTrackDataTypeVector3,
     kModelKeyTrackDataTypeQuaternion,
-};
+} MODELKEYTRACKDATATYPE;
 
 struct tModelBounds {
     float radius;
@@ -34,8 +41,8 @@ struct tModelGeoset {
     LPVECTOR2 lpTexcoord;
     struct tModelBounds *lpBounds;
     struct tModelBounds default_bounds;
-    struct tModelGeoset *lpNext;
-    LPBUFFER lpBuffer;
+    LPMODELGEOSET lpNext;
+    LPCBUFFER lpBuffer;
     struct tModelGeosetAnim *lpGeosetAnim;
     int *lpMatrices;
     int *lpPrimitiveTypes;
@@ -79,7 +86,7 @@ struct tModelMaterial {
     int priority;
     int flags;
     int num_layers;
-    struct tModelMaterialLayer *layers;
+    LPMODELLAYER layers;
     struct tModelMaterial *lpNext;
 };
 
@@ -115,8 +122,8 @@ struct tModelKeyFrame {
 
 struct tModelKeyTrack {
     uint32_t dwKeyframeCount;
-    enum tModelKeyTrackDataType datatype;
-    enum tModelKeyTrackType type;
+    MODELKEYTRACKDATATYPE datatype;
+    MODELKEYTRACKTYPE type;
     uint32_t globalSeqId;        // GLBS index or 0xFFFFFFFF if none
     struct tModelKeyFrame values[];
 };
@@ -127,7 +134,7 @@ struct tModelGeosetAnim {
     struct tModelColor staticColor;
     uint32_t geosetId;        // GEOS index or 0xFFFFFFFF if none
     struct tModelGeosetAnim *lpNext;
-    struct tModelKeyTrack *lpAlphas; // float
+    LPMODELKEYTRACK lpAlphas; // float
 };
 
 struct tModelNode {
@@ -135,13 +142,13 @@ struct tModelNode {
     uint32_t objectId; // globally unique id, used as the index in the hierarchy. index into PIVT
     uint32_t parentId; // parent MDLGENOBJECT's objectId or 0xFFFFFFFF if none
     uint32_t flags;
-    struct tModelKeyTrack *lpTranslation; // vec3
-    struct tModelKeyTrack *lpRotation; // vec4
-    struct tModelKeyTrack *lpScale; // vec3
-    struct tModelNode *lpParent;
+    LPMODELKEYTRACK lpTranslation; // vec3
+    LPMODELKEYTRACK lpRotation; // vec4
+    LPMODELKEYTRACK lpScale; // vec3
+    LPMODELNODE lpParent;
     struct tModelPivot *lpPivot;
-    struct matrix4 localMatrix;
-    struct matrix4 globalMatrix;
+    MATRIX4 localMatrix;
+    MATRIX4 globalMatrix;
 };
 
 struct tModelBone {
@@ -162,16 +169,16 @@ struct tModelGlobalSequence {
 
 struct tModel {
     struct tModelInfo info;
-    struct tModelGeoset *lpGeosets;
+    LPMODELGEOSET lpGeosets;
     struct tModelTexture *lpTextures;
-    struct tModelSequence *lpSequences;
+    LPMODELSEQUENCE lpSequences;
     struct tModelPivot *lpPivots;
     struct tModelMaterial *lpMaterials;
     struct tModelBone *lpBones;
     struct tModelGeosetAnim *lpGeosetAnims;
     struct tModelHelper *lpHelpers;
     struct tModelGlobalSequence *lpGlobalSequences;
-    struct tModelSequence *lpCurrentAnimation;
+    LPCMODELSEQUENCE lpCurrentAnimation;
     int numTextures;
     int numSequences;
     int numGlobalSequences;

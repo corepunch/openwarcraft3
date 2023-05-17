@@ -1,51 +1,49 @@
 #include "r_local.h"
 #include "r_mdx.h"
 
-static struct matrix4 node_matrices[MAX_BONE_MATRICES];
+static MATRIX4 node_matrices[MAX_BONE_MATRICES];
 
-DWORD GetModelKeyTrackDataTypeSize(enum tModelKeyTrackDataType dwDataType);
-DWORD GetModelKeyTrackTypeSize(enum tModelKeyTrackType dwKeyTrackType);
-DWORD GetModelKeyFrameSize(enum tModelKeyTrackDataType dwDataType,
-                           enum tModelKeyTrackType dwKeyTrackType);
+DWORD GetModelKeyTrackDataTypeSize(MODELKEYTRACKDATATYPE dwDataType);
+DWORD GetModelKeyTrackTypeSize(MODELKEYTRACKTYPE dwKeyTrackType);
+DWORD GetModelKeyFrameSize(MODELKEYTRACKDATATYPE dwDataType, MODELKEYTRACKTYPE dwKeyTrackType);
+void R_GetKeyframeValue(LPCMODELKEYFRAME lpLeft, LPCMODELKEYFRAME lpRight, DWORD dwTime, LPCMODELKEYTRACK lpKeytrack, HANDLE out);
 
-static void
-R_GetKeyframeValue(struct tModelKeyFrame const *lpKeyframe1,
-                   struct tModelKeyFrame const *lpKeyframe2,
-                   DWORD const dwTime,
-                   enum tModelKeyTrackDataType dwDataType,
-                   HANDLE out)
-{
-    float const t = (float)(dwTime - lpKeyframe1->time) / (float)(lpKeyframe2->time - lpKeyframe1->time);
-    switch (dwDataType) {
-        case kModelKeyTrackDataTypeFloat:
-            *((float *)out) = (*(float *)lpKeyframe1->data) * (1 - t) + (*(float *)lpKeyframe2->data) * t;
-            return;
-        case kModelKeyTrackDataTypeVector3:
-            *((VECTOR3 *)out) = Vector3_lerp((VECTOR3 *)lpKeyframe1->data, (VECTOR3 *)lpKeyframe2->data, t);
-            return;
-        case kModelKeyTrackDataTypeQuaternion:
-            *((VECTOR4 *)out) = quaternion_lerp((VECTOR4 *)lpKeyframe1->data, (VECTOR4 *)lpKeyframe2->data, t);
-            return;
+static LPCMODELSEQUENCE R_FindSequenceAtTime(LPCMODEL lpModel, DWORD dwTime) {
+    FOR_LOOP(dwSeqIndex, lpModel->numSequences) {
+        LPCMODELSEQUENCE lpSeq = &lpModel->lpSequences[dwSeqIndex];
+        if (lpSeq->interval[0] <= dwTime && lpSeq->interval[1] > dwTime) {
+            return lpSeq;
+        }
     }
+    return NULL;
 }
 
-static void
-R_GetKeytrackValue(LPCMODEL lpModel,
-                   struct tModelKeyTrack const *lpKeytrack,
-                   DWORD dwFrameNumber,
-                   HANDLE out)
-{
+//static void R_FindKeyframes(LPCMODEL lpModel, LPCMODELKEYTRACK lpKeytrack, DWORD dwTime, LPCMODELKEYFRAME *lpLeft, LPCMODELKEYFRAME *lpRight) {
+//}
+//
+static void R_GetModelKeytrackValue(LPCMODEL lpModel, LPCMODELKEYTRACK lpKeytrack, DWORD dwTime, HANDLE lpOutput) {
     DWORD const dwKeyframeSize = GetModelKeyFrameSize(lpKeytrack->datatype, lpKeytrack->type);
-    char const *lpKeyFrames = (LPSTR)lpKeytrack->values;
-    struct tModelKeyFrame *lpPrevKeyFrame = NULL;
+    LPCSTR lpKeyFrames = (LPCSTR)lpKeytrack->values;
+    LPMODELKEYFRAME lpPrevKeyFrame = NULL;
+    LPCMODELSEQUENCE lpSeq = R_FindSequenceAtTime(lpModel, dwTime);
+    if (!lpSeq)
+        return;
     FOR_LOOP(dwKeyframeIndex, lpKeytrack->dwKeyframeCount) {
-        struct tModelKeyFrame *lpKeyFrame = (HANDLE)(lpKeyFrames + dwKeyframeSize * dwKeyframeIndex);
-        if (lpKeyFrame->time == dwFrameNumber || (lpKeyFrame->time > dwFrameNumber && !lpPrevKeyFrame)) {
-            memcpy(out, lpKeyFrame->data, GetModelKeyTrackDataTypeSize(lpKeytrack->datatype));
+        LPMODELKEYFRAME lpKeyFrame = (HANDLE)(lpKeyFrames + dwKeyframeSize * dwKeyframeIndex);
+        if (lpKeyFrame->time < lpSeq->interval[0])
+            continue;
+        if (lpKeyFrame->time > lpSeq->interval[1]) {
+            if (lpPrevKeyFrame) {
+                memcpy(lpOutput, lpPrevKeyFrame->data, GetModelKeyTrackDataTypeSize(lpKeytrack->datatype));
+            }
             return;
         }
-        if (lpKeyFrame->time > dwFrameNumber) {
-            R_GetKeyframeValue(lpPrevKeyFrame, lpKeyFrame, dwFrameNumber, lpKeytrack->datatype, out);
+        if (lpKeyFrame->time == dwTime || (lpKeyFrame->time > dwTime && !lpPrevKeyFrame)) {
+            memcpy(lpOutput, lpKeyFrame->data, GetModelKeyTrackDataTypeSize(lpKeytrack->datatype));
+            return;
+        }
+        if (lpKeyFrame->time > dwTime) {
+            R_GetKeyframeValue(lpPrevKeyFrame, lpKeyFrame, dwTime, lpKeytrack, lpOutput);
             return;
         }
         lpPrevKeyFrame = lpKeyFrame;
@@ -53,23 +51,19 @@ R_GetKeytrackValue(LPCMODEL lpModel,
 //    return lpKeytrack->values[0].value;
 }
 
-static void R_CalculateNodeMatrix(LPCMODEL lpModel,
-                                  struct tModelNode const *lpNode,
-                                  DWORD dwFrameNumber,
-                                  LPMATRIX4 lpMatrix)
-{
+static void R_CalculateNodeMatrix(LPCMODEL lpModel, LPMODELNODE lpNode, DWORD dwFrameNumber, LPMATRIX4 lpMatrix) {
     VECTOR3 vTranslation = { 0, 0, 0 };
     VECTOR4 vRotation = { 0, 0, 0, 1 };
     VECTOR3 vScale = { 1, 1, 1 };
     LPCVECTOR3 lpPivot = (VECTOR3 const *)lpNode->lpPivot;
     if (lpNode->lpTranslation) {
-        R_GetKeytrackValue(lpModel, lpNode->lpTranslation, dwFrameNumber, &vTranslation);
+        R_GetModelKeytrackValue(lpModel, lpNode->lpTranslation, dwFrameNumber, &vTranslation);
     }
     if (lpNode->lpRotation) {
-        R_GetKeytrackValue(lpModel, lpNode->lpRotation, dwFrameNumber, &vRotation);
+        R_GetModelKeytrackValue(lpModel, lpNode->lpRotation, dwFrameNumber, &vRotation);
     }
     if (lpNode->lpScale) {
-        R_GetKeytrackValue(lpModel, lpNode->lpScale, dwFrameNumber, &vScale);
+        R_GetModelKeytrackValue(lpModel, lpNode->lpScale, dwFrameNumber, &vScale);
     }
     if (!lpNode->lpTranslation && !lpNode->lpRotation && !lpNode->lpScale) {
         Matrix4_identity(lpMatrix);
@@ -82,7 +76,7 @@ static void R_CalculateNodeMatrix(LPCMODEL lpModel,
     }
 }
 
-LPCMATRIX4 R_GetNodeGlobalMatrix(struct tModelNode *lpNode) {
+LPCMATRIX4 R_GetNodeGlobalMatrix(LPMODELNODE lpNode) {
     if (lpNode->globalMatrix.v[15] == 0) {
         if (lpNode->lpParent) {
             Matrix4_multiply(R_GetNodeGlobalMatrix(lpNode->lpParent),
@@ -95,18 +89,15 @@ LPCMATRIX4 R_GetNodeGlobalMatrix(struct tModelNode *lpNode) {
     return &lpNode->globalMatrix;
 }
 
-static void R_CalculateBoneMatrices(LPCMODEL lpModel,
-                                    LPMATRIX4 lpModelMatrices,
-                                    DWORD dwFrameNumber)
-{
+static void R_CalculateBoneMatrices(LPCMODEL lpModel, LPMATRIX4 lpModelMatrices, DWORD dwFrameNumber) {
     DWORD dwBoneIndex = 1;
     
     FOR_EACH_LIST(struct tModelBone, lpBone, lpModel->lpBones) {
-        memset(&lpBone->node.globalMatrix, 0, sizeof(struct matrix4));
+        memset(&lpBone->node.globalMatrix, 0, sizeof(MATRIX4));
         R_CalculateNodeMatrix(lpModel, &lpBone->node, dwFrameNumber, &lpBone->node.localMatrix);
     }
     FOR_EACH_LIST(struct tModelHelper, lpHelper, lpModel->lpHelpers) {
-        memset(&lpHelper->node.globalMatrix, 0, sizeof(struct matrix4));
+        memset(&lpHelper->node.globalMatrix, 0, sizeof(MATRIX4));
         R_CalculateNodeMatrix(lpModel, &lpHelper->node, dwFrameNumber, &lpHelper->node.localMatrix);
     }
     FOR_EACH_LIST(struct tModelBone, lpBone, lpModel->lpBones) {
@@ -114,12 +105,13 @@ static void R_CalculateBoneMatrices(LPCMODEL lpModel,
     }
 }
 
-static void R_RenderGeoset(LPCMODEL lpModel,
-                           struct tModelGeoset *lpGeoset,
-                           LPCMATRIX4 lpModelMatrix)
-{
+static void R_RenderGeoset(LPCMODEL lpModel, LPMODELGEOSET lpGeoset, LPCMATRIX4 lpModelMatrix) {
+    MATRIX3 mNormalMatrix;
+    Matrix3_normal(&mNormalMatrix, lpModelMatrix);
     glUseProgram(tr.shaderSkin->progid);
-    glUniformMatrix4fv(tr.shaderSkin->u_model_matrix, 1, GL_FALSE, lpModelMatrix->v);
+    glUniformMatrix4fv(tr.shaderSkin->uModelMatrix, 1, GL_FALSE, lpModelMatrix->v);
+    glUniformMatrix3fv(tr.shaderSkin->uNormalMatrix, 1, GL_TRUE, mNormalMatrix.v);
+
     glBindVertexArray(lpGeoset->lpBuffer->vao);
     glBindBuffer(GL_ARRAY_BUFFER, lpGeoset->lpBuffer->vbo);
     glDrawArrays(GL_TRIANGLES, 0, lpGeoset->numTriangles);
@@ -127,9 +119,8 @@ static void R_RenderGeoset(LPCMODEL lpModel,
 }
 
 
-static void R_BindBoneMatrices(LPMODEL lpModel, DWORD dwFrameNumber)
-{
-    struct matrix4 aBoneMatrices[MAX_BONE_MATRICES];
+static void R_BindBoneMatrices(LPMODEL lpModel, DWORD dwFrameNumber) {
+    MATRIX4 aBoneMatrices[MAX_BONE_MATRICES];
 
     R_CalculateBoneMatrices(lpModel, aBoneMatrices, dwFrameNumber);
     
@@ -144,34 +135,38 @@ static void R_BindBoneMatrices(LPMODEL lpModel, DWORD dwFrameNumber)
     }
 
     glUseProgram(tr.shaderSkin->progid);
-    glUniformMatrix4fv(tr.shaderSkin->u_bones, 64, GL_FALSE, node_matrices->v);
+    glUniformMatrix4fv(tr.shaderSkin->uBones, 64, GL_FALSE, node_matrices->v);
 }
 
-static void RenderGeoset(LPMODEL lpModel,
-                         struct tModelGeoset *lpGeoset,
-                         struct tModelMaterialLayer *lpLayer,
-                         struct render_entity const *lpEntity)
+static void RenderGeoset(LPCMODEL lpModel,
+                         LPMODELGEOSET lpGeoset,
+                         LPCMODELLAYER lpLayer,
+                         LPCRENDERENTITY lpEntity)
 {
     if (lpGeoset->lpGeosetAnim && lpGeoset->lpGeosetAnim->lpAlphas) {
         float fAlpha = 1.f;
-        R_GetKeytrackValue(lpModel, lpGeoset->lpGeosetAnim->lpAlphas, lpEntity->frame, &fAlpha);
-        if (fAlpha < 1e-6) {
+        R_GetModelKeytrackValue(lpModel, lpGeoset->lpGeosetAnim->lpAlphas, lpEntity->frame, &fAlpha);
+        if (fAlpha < EPSILON) {
             return;
         }
     }
     
-    struct matrix4 model_matrix;
-    Matrix4_identity(&model_matrix);
-    Matrix4_translate(&model_matrix, &lpEntity->origin);
-    Matrix4_rotate(&model_matrix, &(VECTOR3){0, 0, lpEntity->angle * 180 / 3.14f}, ROTATE_XYZ);
-    Matrix4_scale(&model_matrix, &(VECTOR3){lpEntity->scale, lpEntity->scale, lpEntity->scale});
+    MATRIX4 mModelMatrix;
+    Matrix4_identity(&mModelMatrix);
+    Matrix4_translate(&mModelMatrix, &lpEntity->origin);
+    Matrix4_rotate(&mModelMatrix, &(VECTOR3){0, 0, lpEntity->angle * 180 / 3.14f}, ROTATE_XYZ);
+    Matrix4_scale(&mModelMatrix, &(VECTOR3){lpEntity->scale, lpEntity->scale, lpEntity->scale});
+    
+    glUniform1i(tr.shaderSkin->uUseDiscard, 0);
 
     switch (lpLayer->blendMode) {
         case TEXOP_LOAD:
             glBlendFunc(GL_ONE, GL_ZERO);
             break;
         case TEXOP_TRANSPARENT:
-            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+            glUniform1i(tr.shaderSkin->uUseDiscard, 1);
+            glBlendFunc(GL_ONE, GL_ZERO);
+//            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
             break;
         case TEXOP_BLEND:
             glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -187,19 +182,19 @@ static void RenderGeoset(LPMODEL lpModel,
             break;
     }
     
-    R_RenderGeoset(lpModel, lpGeoset, &model_matrix);
+    R_RenderGeoset(lpModel, lpGeoset, &mModelMatrix);
 }
 
-void RenderModel(struct render_entity const *lpEdict) {
+void RenderModel(LPCRENDERENTITY lpEdict) {
     struct tModelMaterial *lpMaterial = lpEdict->model->lpMaterials;
-    struct tModelGeoset *lpGeoset = lpEdict->model->lpGeosets;
-    LPMODEL lpModel = lpEdict->model;
+    LPMODELGEOSET lpGeoset = lpEdict->model->lpGeosets;
+    LPCMODEL lpModel = lpEdict->model;
 
     if (lpEdict->skin) {
         R_BindTexture(lpEdict->skin, 0);
     }
     
-    R_BindBoneMatrices(lpModel, lpEdict->frame);
+    R_BindBoneMatrices((LPMODEL)lpModel, lpEdict->frame);
     
     for (DWORD dwGeosetID = 0;
          lpMaterial && lpGeoset;

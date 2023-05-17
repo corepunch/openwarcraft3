@@ -10,7 +10,7 @@ static struct {
 } view_state;
 
 static void V_AddClientEntity(struct client_entity const *lpEdict) {
-    struct render_entity *re = &view_state.entities[view_state.num_entities++];
+    LPRENDERENTITY re = &view_state.entities[view_state.num_entities++];
     re->origin = lpEdict->current.origin;
     re->angle = lpEdict->current.angle;
     re->scale = lpEdict->current.scale;
