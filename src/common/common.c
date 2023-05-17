@@ -79,15 +79,15 @@ void FS_Init(void) {
     // SFileExtractFile(hArchive, "Units\\DestructableData.slk", "/Users/igor/Desktop/DestructableData.slk", 0);
     // SFileExtractFile(hArchive, "Doodads\\Terrain\\WoodBridgeLarge45\\WoodBridgeLarge45.mdx", "/Users/igor/Desktop/WoodBridgeLarge450.mdx", 0);
     
-//     SFILE_FIND_DATA findData;
-//     HANDLE handle = SFileFindFirstFile(hArchive, "*", &findData, 0);
-//     if (handle) {
-//         do {
-//             printf("%s\n", findData.cFileName);
-//         } while (SFileFindNextFile(handle, &findData));
-//         SFileFindClose(handle);
-//     }
-//
+     SFILE_FIND_DATA findData;
+     HANDLE handle = SFileFindFirstFile(hArchive, "*", &findData, 0);
+     if (handle) {
+         do {
+             printf("%s\n", findData.cFileName);
+         } while (SFileFindNextFile(handle, &findData));
+         SFileFindClose(handle);
+     }
+
 //    const LPSTR sheets[] = {
 //        "Units\\unitUI.slk",
 //        "Splats\\LightningData.slk",
@@ -125,11 +125,10 @@ void FS_Init(void) {
 //        NULL
 //    };
 
-//    for (const char** s = sheets; *s; s++) {
+//    for (LPCSTR* s = sheets; *s; s++) {
 //        printf("%s\n", *s);
 //        FS_ReadSheet(*s);
 //    }
-//    FS_ReadSheet("Units\\unitUI.slk");
 
     stats.lpTerrainInfo = FS_ParseSheet("TerrainArt\\Terrain.slk", terrain_info, sizeof(struct TerrainInfo), FOFS(TerrainInfo, lpNext));
     stats.lpCliffInfo = FS_ParseSheet("TerrainArt\\CliffTypes.slk", cliff_info, sizeof(struct CliffInfo), FOFS(CliffInfo, lpNext));

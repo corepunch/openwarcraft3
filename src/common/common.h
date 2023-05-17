@@ -55,7 +55,7 @@ SFileReadFile(hFile, &object->num##variable, 4, NULL, NULL); \
 if (object->num##variable > 0) {object->lp##variable = MemAlloc(object->num##variable * elemsize); \
 SFileReadFile(hFile, object->lp##variable, object->num##variable * elemsize, NULL, NULL); }
 
-#define FOR_LOOP(property, max) for (uint32_t property = 0, end = max; property < end; ++property)
+#define FOR_LOOP(property, max) for (DWORD property = 0, end = max; property < end; ++property)
 #define EPSILON 0.001f
 #define PrintTag(tag)do { LPSTR ch = (char*)&tag; printf("%c%c%c%c\n", ch[0], ch[1], ch[2], ch[3]); } while(false);
 

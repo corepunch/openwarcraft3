@@ -270,9 +270,9 @@ static void R_SetupGeoset(LPMODEL lpModel, LPMODELGEOSET lpGeoset) {
         struct vertex *lpVertex = &lpVertices[dwTriangle];
         uint8_t *dwMatrixGroup = lpMatrixGroups[dwMatrixGroupIndex];
         lpVertex->color = (struct color32) { 255, 255, 255, 255 };
-        lpVertex->position = lpGeoset->lpVertices[dwVertex];
-        lpVertex->texcoord = lpGeoset->lpTexcoord[dwVertex];
-        lpVertex->normal = lpGeoset->lpNormals[dwVertex];
+        if (lpGeoset->lpVertices) lpVertex->position = lpGeoset->lpVertices[dwVertex];
+        if (lpGeoset->lpTexcoord) lpVertex->texcoord = lpGeoset->lpTexcoord[dwVertex];
+        if (lpGeoset->lpNormals) lpVertex->normal = lpGeoset->lpNormals[dwVertex];
         memcpy(lpVertex->skin, dwMatrixGroup, sizeof(matrixGroup_t));
         memset(lpVertex->boneWeight, 0, sizeof(matrixGroup_t));
         FOR_LOOP(dwMatrixIndex, dwMatrixGroupSize) {

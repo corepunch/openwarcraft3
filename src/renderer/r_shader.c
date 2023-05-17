@@ -87,7 +87,7 @@ LPCSTR fragment_shader =
 "    shade *= max(0.0, dot(v_normal, v_lightDir));\n"
 "    col.rgb *= mix(vec3(0.3), vec3(1.0), vec3(shade));\n"
 "    o_color = col * v_color;\n"
-"    if (o_color.a < 0.1 && uUseDiscard) discard;\n"
+"    if (o_color.a < 0.5 && uUseDiscard) discard;\n"
 "}\n";
 
 LPCSHADER R_InitShader(LPCSTR vertex_shader, LPCSTR fragment_shader){

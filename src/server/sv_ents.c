@@ -1,7 +1,7 @@
 #include "server.h"
 #include <math.h>
 
-#define VISUAL_DISTANCE 500
+#define VISUAL_DISTANCE 1000
 #define HIGH_NUMBER 9999
 
 static bool SV_CanClientSeeEntity(struct client const *client,
