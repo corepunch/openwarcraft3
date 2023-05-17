@@ -330,9 +330,6 @@ LPCOLOR32 blp_convert(HANDLE* hFile, struct tInternalBLPInfos* pBLPInfos, DWORD 
 //                int a = 0;
 //            }
             break;
-        default:
-            assert(0);
-            break;
             
         case BLP_FORMAT_PALETTED_NO_ALPHA:
             if (pBLPInfos->version == 2)
@@ -368,6 +365,9 @@ LPCOLOR32 blp_convert(HANDLE* hFile, struct tInternalBLPInfos* pBLPInfos, DWORD 
 //        case BLP_FORMAT_DXT3_ALPHA_4:
 //        case BLP_FORMAT_DXT3_ALPHA_8:      pDst = blp2_convert_dxt(pSrc, &pBLPInfos->blp2, width, height, squish::kDxt3); break;
 //        case BLP_FORMAT_DXT5_ALPHA_8:      pDst = blp2_convert_dxt(pSrc, &pBLPInfos->blp2, width, height, squish::kDxt5); break;
+        default:
+            assert(0);
+            break;
     }
 
     MemFree(pSrc);

@@ -158,6 +158,7 @@ static void RenderGeoset(LPCMODEL lpModel,
     Matrix4_scale(&mModelMatrix, &(VECTOR3){lpEntity->scale, lpEntity->scale, lpEntity->scale});
     
     glUniform1i(tr.shaderSkin->uUseDiscard, 0);
+    extern bool is_rendering_lights;
 
     switch (lpLayer->blendMode) {
         case TEXOP_LOAD:
@@ -169,6 +170,8 @@ static void RenderGeoset(LPCMODEL lpModel,
 //            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
             break;
         case TEXOP_BLEND:
+            if (is_rendering_lights)
+                return;
             glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
             break;
         case TEXOP_ADD:

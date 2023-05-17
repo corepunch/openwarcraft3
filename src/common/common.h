@@ -77,6 +77,7 @@ enum {
     kEntityChangeFlag_frame,
     kEntityChangeFlag_model,
     kEntityChangeFlag_image,
+    kEntityChangeFlag_model2,
 };
 
 // server to client
@@ -160,6 +161,7 @@ struct EntityState {
     float angle;
     float scale;
     int model;
+    int model2;
     int image;
     int sound;
     int frame;

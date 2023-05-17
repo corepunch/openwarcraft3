@@ -19,6 +19,7 @@ CL_ParseDeltaEntity(LPSIZEBUF msg,
     READ_IF(frame, frame, Short, 1);
     READ_IF(model, model, Short, 1);
     READ_IF(image, image, Short, 1);
+    READ_IF(model2, model2, Short, 1);
 }
 
 static void CL_ReadPacketEntities(LPSIZEBUF msg) {

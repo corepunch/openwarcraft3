@@ -38,7 +38,8 @@ MSG_WriteDeltaEntity(LPSIZEBUF msg,
     SET_BIT_IF(frame, frame);
     SET_BIT_IF(model, model);
     SET_BIT_IF(image, image);
-    
+    SET_BIT_IF(model2, model2);
+
     if (bits == 0)
         return;
     
@@ -53,6 +54,7 @@ MSG_WriteDeltaEntity(LPSIZEBUF msg,
     WRITE_IF(frame, frame, Short);
     WRITE_IF(model, model, Short);
     WRITE_IF(image, image, Short);
+    WRITE_IF(model2, model2, Short);
 }
 
 static void SV_Baseline(struct client *cl) {

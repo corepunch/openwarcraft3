@@ -100,8 +100,8 @@ void G_SpawnEntities(LPCDOODAD doodads, DWORD numDoodads) {
     e->s.origin = (VECTOR3) { 700, -2000, 100 };
     e->s.angle = -20;
     e->s.scale = 2;
-//    SP_CallSpawn(e);
-    e->s.model = gi.ModelIndex("UI\\Feedback\\SelectionCircleUnit\\selectioncircleUnit.mdx");
+    SP_CallSpawn(e);
+    e->s.model2 = gi.ModelIndex("UI\\Feedback\\SelectionCircleUnit\\selectioncircleUnit.mdx");
     FOR_LOOP(index, numDoodads) {
         LPCDOODAD doodad = DoodadAtIndex(doodads, index);
         LPEDICT e = G_Spawn();

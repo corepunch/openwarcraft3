@@ -9,6 +9,8 @@ struct render_globals tr;
 SDL_Window *window;
 SDL_GLContext context;
 
+bool is_rendering_lights = false;
+
 void R_GetLigthMatrix(LPMATRIX4 lightSpaceMatrix) {
     VECTOR3 sunorg = tr.viewDef.vieworg;
     VECTOR3 sunangles = { -35, 0, 45 };
@@ -63,6 +65,7 @@ void R_RenderFrame(LPCVIEWDEF viewDef) {
     glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
     glBindFramebuffer(GL_FRAMEBUFFER, tr.depthMapFBO);
     glClear(GL_DEPTH_BUFFER_BIT);
+    is_rendering_lights = true;
     R_SetupGL(true);
     R_BindTexture(tr.shadowmap, 1);
     R_DrawWorld();
@@ -70,6 +73,7 @@ void R_RenderFrame(LPCVIEWDEF viewDef) {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     
     int width, height;
+    is_rendering_lights = false;
     SDL_GetWindowSize(window, &width, &height);
     // 2. then render scene as normal with shadow mapping (using depth map)
     glViewport(0, 0, width, height);

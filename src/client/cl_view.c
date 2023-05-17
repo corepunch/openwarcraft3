@@ -10,13 +10,20 @@ static struct {
 } view_state;
 
 static void V_AddClientEntity(struct client_entity const *lpEdict) {
-    LPRENDERENTITY re = &view_state.entities[view_state.num_entities++];
-    re->origin = lpEdict->current.origin;
-    re->angle = lpEdict->current.angle;
-    re->scale = lpEdict->current.scale;
-    re->frame = lpEdict->current.frame;
-    re->model = cl.models[lpEdict->current.model];
-    re->skin = cl.pics[lpEdict->current.image];
+    RENDERENTITY re = { 0 };
+    re.origin = lpEdict->current.origin;
+    re.angle = lpEdict->current.angle;
+    re.scale = lpEdict->current.scale;
+    re.frame = lpEdict->current.frame;
+    re.model = cl.models[lpEdict->current.model];
+    re.skin = cl.pics[lpEdict->current.image];
+    
+    view_state.entities[view_state.num_entities++] = re;
+    
+    if (lpEdict->current.model2 != 0) {
+        re.model = cl.models[lpEdict->current.model2];
+        view_state.entities[view_state.num_entities++] = re;
+    }
 }
 
 static void V_ClearScene(void) {
