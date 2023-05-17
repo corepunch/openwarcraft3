@@ -174,6 +174,7 @@ typedef enum t_attrib_id {
     attrib_texcoord,
     attrib_texcoord2,
     attrib_skin,
+    attrib_boneWeight,
 } t_attrib_id;
 
 typedef char path_t[MAX_PATHLEN];

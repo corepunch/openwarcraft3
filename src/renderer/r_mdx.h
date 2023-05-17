@@ -42,7 +42,7 @@ struct tModelGeoset {
     int *lpPrimitiveCounts;
     short *lpTriangles;
     char *lpVertexGroups;
-    int *lpMatrixGroups;
+    int *lpMatrixGroupSizes;
     int material;
     int group;
     int selectable;// (0:none;4:Unselectable)
@@ -54,7 +54,7 @@ struct tModelGeoset {
     int numPrimitiveCounts;
     int numTriangles;
     int numVertexGroups;
-    int numMatrixGroups;
+    int numMatrixGroupSizes;
     int numBounds;
     int numTexcoordChannels;
 };

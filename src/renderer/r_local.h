@@ -46,6 +46,7 @@ struct vertex {
     struct vector2 texcoord2;
     struct color32 color;
     uint8_t skin[4];
+    uint8_t boneWeight[4];
 };
 
 struct texture {

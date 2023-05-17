@@ -114,7 +114,7 @@ static struct tModelGeoset *ReadGeoset(HANDLE hFile, struct tFileBlock const blo
             case ID_PCNT: SFileReadArray(hFile, lpGeoset, PrimitiveCounts, sizeof(int)); break;
             case ID_PVTX: SFileReadArray(hFile, lpGeoset, Triangles, sizeof(short)); break;
             case ID_GNDX: SFileReadArray(hFile, lpGeoset, VertexGroups, sizeof(char)); break;
-            case ID_MTGC: SFileReadArray(hFile, lpGeoset, MatrixGroups, sizeof(int));break;
+            case ID_MTGC: SFileReadArray(hFile, lpGeoset, MatrixGroupSizes, sizeof(int)); break;
             case ID_UVAS: SFileReadFile(hFile, &lpGeoset->numTexcoordChannels, sizeof(int), NULL, NULL); break;
             case ID_MATS:
                 SFileReadArray(hFile, lpGeoset, Matrices, sizeof(int));
@@ -239,8 +239,8 @@ static struct tModelGeosetAnim *ReadGeosetAnim(HANDLE hFile, struct tFileBlock c
 
 static DWORD R_ModelFindBiggestGroup(struct tModelGeoset const *lpGeoset) {
     DWORD dwBiggest = 0;
-    FOR_LOOP(i, lpGeoset->numMatrixGroups) {
-        dwBiggest = MAX(lpGeoset->lpMatrixGroups[i], dwBiggest);
+    FOR_LOOP(i, lpGeoset->numMatrixGroupSizes) {
+        dwBiggest = MAX(lpGeoset->lpMatrixGroupSizes[i], dwBiggest);
     }
     return dwBiggest;
 }
@@ -254,22 +254,28 @@ static void R_SetupGeoset(struct tModel *lpModel, struct tModelGeoset *lpGeoset)
     
     typedef uint8_t matrixGroup_t[4];
     struct vertex *lpVertices = ri.MemAlloc(sizeof(struct vertex) * lpGeoset->numTriangles);
-    matrixGroup_t *lpMatrixGroups = ri.MemAlloc(sizeof(matrixGroup_t) * lpGeoset->numMatrixGroups);
+    matrixGroup_t *lpMatrixGroups = ri.MemAlloc(sizeof(matrixGroup_t) * lpGeoset->numMatrixGroupSizes);
     DWORD dwIndexOffset = 0;
     
-    FOR_LOOP(dwMatrixGroupIndex, lpGeoset->numMatrixGroups) {
-        FOR_LOOP(dwMatrixIndex, lpGeoset->lpMatrixGroups[dwMatrixGroupIndex]) {
+    FOR_LOOP(dwMatrixGroupIndex, lpGeoset->numMatrixGroupSizes) {
+        FOR_LOOP(dwMatrixIndex, lpGeoset->lpMatrixGroupSizes[dwMatrixGroupIndex]) {
             lpMatrixGroups[dwMatrixGroupIndex][dwMatrixIndex] = lpGeoset->lpMatrices[dwIndexOffset++] + 1;
         }
     }
 
     FOR_LOOP(dwTriangle, lpGeoset->numTriangles) {
         int dwVertex = lpGeoset->lpTriangles[dwTriangle];
-        uint8_t *dwMatrixGroup = lpMatrixGroups[lpGeoset->lpVertexGroups[dwVertex]];
+        int dwMatrixGroupIndex = lpGeoset->lpVertexGroups[dwVertex];
+        int dwMatrixGroupSize = MAX(1, lpGeoset->lpMatrixGroupSizes[dwMatrixGroupIndex]);
+        uint8_t *dwMatrixGroup = lpMatrixGroups[dwMatrixGroupIndex];
         lpVertices[dwTriangle].color = (struct color32) { 255, 255, 255, 255 };
         lpVertices[dwTriangle].position = lpGeoset->lpVertices[dwVertex];
         lpVertices[dwTriangle].texcoord = lpGeoset->lpTexcoord[dwVertex];
         memcpy(lpVertices[dwTriangle].skin, dwMatrixGroup, sizeof(matrixGroup_t));
+        memset(lpVertices[dwTriangle].boneWeight, 0, sizeof(matrixGroup_t));
+        FOR_LOOP(i, dwMatrixGroupSize) {
+            lpVertices[dwTriangle].boneWeight[i] = (1.f / dwMatrixGroupSize) * 255;
+        }
     }
 
     lpGeoset->lpBuffer = R_MakeVertexArrayObject(lpVertices, lpGeoset->numTriangles * sizeof(struct vertex));
@@ -406,7 +412,7 @@ static void R_ReleaseModelGeoset(struct tModelGeoset *lpGeoset) {
     SAFE_DELETE(lpGeoset->lpPrimitiveCounts, ri.MemFree);
     SAFE_DELETE(lpGeoset->lpTriangles, ri.MemFree);
     SAFE_DELETE(lpGeoset->lpVertexGroups, ri.MemFree);
-    SAFE_DELETE(lpGeoset->lpMatrixGroups, ri.MemFree);
+    SAFE_DELETE(lpGeoset->lpMatrixGroupSizes, ri.MemFree);
     SAFE_DELETE(lpGeoset->lpBounds, ri.MemFree);
     SAFE_DELETE(lpGeoset, ri.MemFree);
 }
