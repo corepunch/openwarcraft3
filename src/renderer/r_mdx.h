@@ -24,14 +24,14 @@ enum tModelKeyTrackDataType {
 
 struct tModelBounds {
     float radius;
-    struct vector3 min;
-    struct vector3 max;
+    VECTOR3 min;
+    VECTOR3 max;
 };
 
 struct tModelGeoset {
-    struct vector3 *lpVertices;
-    struct vector3 *lpNormals;
-    struct vector2 *lpTexcoord;
+    LPVECTOR3 lpVertices;
+    LPVECTOR3 lpNormals;
+    LPVECTOR2 lpTexcoord;
     struct tModelBounds *lpBounds;
     struct tModelBounds default_bounds;
     struct tModelGeoset *lpNext;
@@ -41,7 +41,7 @@ struct tModelGeoset {
     int *lpPrimitiveTypes;
     int *lpPrimitiveCounts;
     short *lpTriangles;
-    char *lpVertexGroups;
+    LPSTR lpVertexGroups;
     int *lpMatrixGroupSizes;
     int material;
     int group;

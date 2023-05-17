@@ -66,7 +66,7 @@ void G_InitDestructables(void) {
     game.DestructableData = FS_ParseSheet("Units\\DestructableData.slk", destructable_data, sizeof(struct DestructableData), FOFS(DestructableData, lpNext));
 }
 
-struct DestructableData *G_FindDestructableData(int DestructableID) {
+LPDESTRUCTABLEDATA G_FindDestructableData(int DestructableID) {
     FOR_EACH_LIST(struct DestructableData, info, game.DestructableData) {
         if (info->DestructableID == DestructableID)
             return info;

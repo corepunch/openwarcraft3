@@ -1,6 +1,11 @@
 #ifndef math_h
 #define math_h
 
+#define ADD_TYPEDEFS(STRUCT, TYPE) \
+typedef struct STRUCT TYPE; \
+typedef struct STRUCT *LP##TYPE; \
+typedef struct STRUCT const *LPC##TYPE;
+
 enum rotation_order {
     ROTATE_XYZ,
     ROTATE_XZY,
@@ -10,52 +15,58 @@ enum rotation_order {
     ROTATE_ZYX
 };
 
+ADD_TYPEDEFS(vector2, VECTOR2);
+ADD_TYPEDEFS(vector3, VECTOR3);
+ADD_TYPEDEFS(vector4, VECTOR4);
+ADD_TYPEDEFS(quaternion, QUATERNION);
+ADD_TYPEDEFS(matrix4, MATRIX4);
+
 struct vector2 { float x, y; };
 struct vector3 { float x, y, z; };
 struct vector4 { float x, y, z, w; };
 struct quaternion { float x, y, z, w; };
-struct matrix4 { union { float v[16]; struct vector4 column[4]; }; };
+struct matrix4 { union { float v[16]; VECTOR4 column[4]; }; };
 
-float vector3_dot(struct vector3 const *a, struct vector3 const *b);
-float vector3_lengthsq(struct vector3 const *vec);
-float vector3_len(struct vector3 const *vec);
-bool vector3_eq(struct vector3 const *a, struct vector3 const *b);
-struct vector3 vector3_lerp(struct vector3 const *a, struct vector3 const *b, float t);
-struct vector3 vector3_cross(struct vector3 const *a, struct vector3 const *b);
-struct vector3 vector3_sub(struct vector3 const *a, struct vector3 const *b);
-struct vector3 vector3_add(struct vector3 const *a, struct vector3 const *b);
-struct vector3 vector3_mad(struct vector3 const *v, float s, struct vector3 const *b);
-struct vector3 vector3_mul(struct vector3 const *a, struct vector3 const *b);
-struct vector3 vector3_scale(struct vector3 const *v, float s);
-void vector3_normalize(struct vector3* v);
-void vector3_set(struct vector3* v, float x, float y, float z);
-void vector3_clear(struct vector3* v);
-struct vector3 vector3_unm(struct vector3 const* v);
-void vector2_set(struct vector2* v, float x, float y);
-struct vector2 vector2_scale(struct vector2 const *v, float s);
-float vector2_dot(struct vector2 const *a, struct vector2 const *b);
-float vector2_lengthsq(struct vector2 const *vec);
-float vector2_len(struct vector2 const *vec);
-void vector4_set(struct vector4* v, float x, float y, float z, float w);
-struct vector4 vector4_scale(struct vector4 const *v, float s);
-struct vector4 vector4_add(struct vector4 const *a, struct vector4 const *b);
-struct vector4 vector4_unm(struct vector4 const* v);
-void matrix4_identity(struct matrix4 *m);
-void matrix4_translate(struct matrix4 *m, struct vector3 const *v);
-void matrix4_rotate(struct matrix4 *m, struct vector3 const *v, enum rotation_order order);
-void matrix4_scale(struct matrix4 *m, struct vector3 const *v);
-void matrix4_multiply(struct matrix4 const *m1, struct matrix4 const *m2, struct matrix4 *out);
-void matrix4_multiply_vector3(struct matrix4 const *m1, struct vector3 const *v, struct vector3 *out);
-void matrix4_ortho(struct matrix4 *m, float left, float right, float bottom, float top, float znear, float zfar);
-void matrix4_perspective(struct matrix4 *m, float angle, float aspect, float znear, float zfar);
-void matrix4_lookat(struct matrix4 *m, struct vector3 const *eye, struct vector3 const *direction, struct vector3 const *up);
-void matrix4_inverse(struct matrix4 const *m, struct matrix4 *out);
-void matrix4_transpose(struct matrix4 const *m, struct matrix4 *out);
-void matrix4_rotate4(struct matrix4 *m, struct vector4 const *quat);
-void matrix4_from_rotation_origin(struct matrix4 *out, struct vector4 const *rotation, struct vector3 const *origin);
-void matrix4_from_rotation_translation_scale_origin(struct matrix4 *out, struct vector4 const *q, struct vector3 const *v, struct vector3 const *s, struct vector3 const *o);
-void matrix4_from_translation(struct matrix4 *out, struct vector3 const *v);
+float Vector3_dot(LPCVECTOR3 a, LPCVECTOR3 b);
+float Vector3_lengthsq(LPCVECTOR3 vec);
+float Vector3_len(LPCVECTOR3 vec);
+bool Vector3_eq(LPCVECTOR3 a, LPCVECTOR3 b);
+VECTOR3 Vector3_lerp(LPCVECTOR3 a, LPCVECTOR3 b, float t);
+VECTOR3 Vector3_cross(LPCVECTOR3 a, LPCVECTOR3 b);
+VECTOR3 Vector3_sub(LPCVECTOR3 a, LPCVECTOR3 b);
+VECTOR3 Vector3_add(LPCVECTOR3 a, LPCVECTOR3 b);
+VECTOR3 Vector3_mad(LPCVECTOR3 v, float s, LPCVECTOR3 b);
+VECTOR3 Vector3_mul(LPCVECTOR3 a, LPCVECTOR3 b);
+VECTOR3 Vector3_scale(LPCVECTOR3 v, float s);
+void Vector3_normalize(LPVECTOR3 v);
+void Vector3_set(LPVECTOR3 v, float x, float y, float z);
+void Vector3_clear(LPVECTOR3 v);
+VECTOR3 Vector3_unm(VECTOR3 const* v);
+void Vector2_set(LPVECTOR2 v, float x, float y);
+VECTOR2 Vector2_scale(LPCVECTOR2 v, float s);
+float Vector2_dot(LPCVECTOR2 a, LPCVECTOR2 b);
+float Vector2_lengthsq(LPCVECTOR2 vec);
+float Vector2_len(LPCVECTOR2 vec);
+void Vector4_set(VECTOR4* v, float x, float y, float z, float w);
+VECTOR4 Vector4_scale(LPCVECTOR4 v, float s);
+VECTOR4 Vector4_add(LPCVECTOR4 a, LPCVECTOR4 b);
+VECTOR4 Vector4_unm(LPCVECTOR4 v);
+void Matrix4_identity(LPMATRIX4 m);
+void Matrix4_translate(LPMATRIX4 m, LPCVECTOR3 v);
+void Matrix4_rotate(LPMATRIX4 m, LPCVECTOR3 v, enum rotation_order order);
+void Matrix4_scale(LPMATRIX4 m, LPCVECTOR3 v);
+void Matrix4_multiply(LPCMATRIX4 m1, LPCMATRIX4 m2, LPMATRIX4 out);
+void Matrix4_multiply_vector3(LPCMATRIX4 m1, LPCVECTOR3 v, LPVECTOR3 out);
+void Matrix4_ortho(LPMATRIX4 m, float left, float right, float bottom, float top, float znear, float zfar);
+void Matrix4_perspective(LPMATRIX4 m, float angle, float aspect, float znear, float zfar);
+void Matrix4_lookat(LPMATRIX4 m, LPCVECTOR3 eye, LPCVECTOR3 direction, LPCVECTOR3 up);
+void Matrix4_inverse(LPCMATRIX4 m, LPMATRIX4 out);
+void Matrix4_transpose(LPCMATRIX4 m, LPMATRIX4 out);
+void Matrix4_rotate4(LPMATRIX4 m, LPCVECTOR4 quat);
+void Matrix4_from_rotation_origin(LPMATRIX4 out, LPCVECTOR4 rotation, LPCVECTOR3 origin);
+void Matrix4_from_rotation_translation_scale_origin(LPMATRIX4 out, LPCVECTOR4 q, LPCVECTOR3 v, LPCVECTOR3 s, LPCVECTOR3 o);
+void Matrix4_from_translation(LPMATRIX4 out, LPCVECTOR3 v);
 
-struct vector4 quaternion_lerp(struct vector4 const *p, struct vector4 const *q, float t);
+VECTOR4 quaternion_lerp(LPCVECTOR4 p, LPCVECTOR4 q, float t);
 
 #endif

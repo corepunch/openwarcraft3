@@ -24,7 +24,7 @@ static TCHAR *GetToken(TCHAR *buffer, DWORD index) {
     return buffer;
 }
 
-static struct SheetCell *SheetCellNew(int x, int y, char *text, struct SheetCell *sheet) {
+static struct SheetCell *SheetCellNew(DWORD x, DWORD y, LPSTR text, struct SheetCell *sheet) {
     struct SheetCell *cell = MemAlloc(sizeof(struct SheetCell));
     cell->column = x;
     cell->row = y;
@@ -84,16 +84,16 @@ void Sheet_Release(struct SheetCell *lpSheet) {
     SAFE_DELETE(lpSheet->lpNext, Sheet_Release);
 }
 
-void *FS_ParseSheet(LPCSTR szFileName,
+HANDLE FS_ParseSheet(LPCSTR szFileName,
                     LPCSHEETLAYOUT lpLayout,
-                    int dwElementSize,
-                    void *lpNextFieldOffset)
+                    DWORD dwElementSize,
+                    HANDLE lpNextFieldOffset)
 {
     struct SheetCell *lpSheet = FS_ReadSheet(szFileName);
     if (!lpSheet)
         return NULL;
     LPCSTR columns[MAX_SHEET_COLUMNS] = { 0 };
-    void *lpList = NULL;
+    HANDLE lpList = NULL;
     
     FOR_EACH_LIST(struct SheetCell const, lpCell, lpSheet) {
         if (lpCell->row != 1 || lpCell->column >= MAX_SHEET_COLUMNS)
@@ -102,7 +102,7 @@ void *FS_ParseSheet(LPCSTR szFileName,
     }
 
     for (int row = 2;; row++) {
-        char *lpCurrent = MemAlloc(dwElementSize);
+        LPSTR lpCurrent = MemAlloc(dwElementSize);
         int filled = 0;
         FOR_EACH_LIST(struct SheetCell const, lpCell, lpSheet) {
             if (lpCell->row != row)
@@ -110,7 +110,7 @@ void *FS_ParseSheet(LPCSTR szFileName,
             filled = 1;
             for (LPCSHEETLAYOUT sl = lpLayout; sl->column; sl++) {
                 if (!strcmp(sl->column, columns[lpCell->column])) {
-                    void *field = lpCurrent + (uint64_t)sl->fofs;
+                    HANDLE field = lpCurrent + (uint64_t)sl->fofs;
                     switch (sl->type) {
                         case ST_ID: *(int *)field = *(int*)lpCell->text; break;
                         case ST_INT: *(int *)field = atoi(lpCell->text); break;
@@ -121,7 +121,7 @@ void *FS_ParseSheet(LPCSTR szFileName,
             }
         }
         if (filled) {
-            void **pnext = (void **)(lpCurrent + (uint64_t)lpNextFieldOffset);
+            HANDLE *pnext = (HANDLE *)(lpCurrent + (uint64_t)lpNextFieldOffset);
             *pnext = lpList;
             lpList = lpCurrent;
         } else {

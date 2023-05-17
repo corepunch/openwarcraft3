@@ -3,154 +3,160 @@
 
 #include "../server/game.h"
 
+ADD_TYPEDEFS(UnitData, UNITDATA);
+ADD_TYPEDEFS(UnitUI, UNITUI);
+ADD_TYPEDEFS(DoodadInfo, DOODADINFO);
+ADD_TYPEDEFS(DestructableData, DESTRUCTABLEDATA);
+
 struct monsterinfo {
-    struct animation_info animation;
+    struct AnimationInfo animation;
 };
 
 struct edict {
-    struct entity_state s;
+    ENTITYSTATE s;
     uint32_t class_id;
     int variation;
     
-    void (*think)(struct edict *, int msec);
+    void (*think)(LPEDICT lpEntity, DWORD msec);
 
     struct monsterinfo monsterinfo;
 };
 
 struct game_state {
-    struct edict *edicts;
+    LPEDICT edicts;
 };
 
 struct UnitData {
-    int unitID;
+    DWORD unitID;
     SHEETSTR sort;
     SHEETSTR comment;
     SHEETSTR race;
-    int prio;
-    int threat;
-    int type;
-    int valid;
-    int deathType;
+    DWORD prio;
+    DWORD threat;
+    DWORD type;
+    DWORD valid;
+    DWORD deathType;
     float death;
-    int canSleep;
-    int cargoSize;
+    DWORD canSleep;
+    DWORD cargoSize;
     SHEETSTR movetp;
-    int moveHeight;
-    int moveFloor;
-    int launchX;
-    int launchY;
-    int launchZ;
-    int impactZ;
+    DWORD moveHeight;
+    DWORD moveFloor;
+    DWORD launchX;
+    DWORD launchY;
+    DWORD launchZ;
+    DWORD impactZ;
     float turnRate;
-    int propWin;
-    int orientInterp;
-    int formation;
+    DWORD propWin;
+    DWORD orientInterp;
+    DWORD formation;
     float castpt;
     float castbsw;
     SHEETSTR targType;
     SHEETSTR pathTex;
-    int fatLOS;
-    int collision;
-    int points;
-    int buffType;
-    int buffRadius;
-    int nameCount;
-    int InBeta;
+    DWORD fatLOS;
+    DWORD collision;
+    DWORD points;
+    DWORD buffType;
+    DWORD buffRadius;
+    DWORD nameCount;
+    DWORD InBeta;
     struct UnitData *lpNext;
 };
 
 struct UnitUI {
-    int unitUIID;
+    DWORD unitUIID;
     SHEETSTR file;
     SHEETSTR unitSound;
     SHEETSTR tilesets;
-    int tilesetSpecific;
+    DWORD tilesetSpecific;
     SHEETSTR name;
     SHEETSTR unitClass;
-    int special;
-    int inEditor;
-    int hiddenInEditor;
-    int hostilePal;
-    int dropItems;
-    int nbrandom;
-    int nbmmIcon;
-    int useClickHelper;
+    DWORD special;
+    DWORD inEditor;
+    DWORD hiddenInEditor;
+    DWORD hostilePal;
+    DWORD dropItems;
+    DWORD nbrandom;
+    DWORD nbmmIcon;
+    DWORD useClickHelper;
     float blend;
     float scale;
-    int scaleBull;
+    DWORD scaleBull;
     SHEETSTR preventPlace;
-    int requirePlace;
-    int isbldg;
-    int maxPitch;
-    int maxRoll;
-    int elevPts;
-    int elevRad;
-    int fogRad;
-    int walk;
-    int run;
-    int selZ;
-    int weap1;
-    int weap2;
-    int teamColor;
-    int customTeamColor;
+    DWORD requirePlace;
+    DWORD isbldg;
+    DWORD maxPitch;
+    DWORD maxRoll;
+    DWORD elevPts;
+    DWORD elevRad;
+    DWORD fogRad;
+    DWORD walk;
+    DWORD run;
+    DWORD selZ;
+    DWORD weap1;
+    DWORD weap2;
+    DWORD teamColor;
+    DWORD customTeamColor;
     SHEETSTR armor;
-    int modelScale;
-    int red;
-    int green;
-    int blue;
+    DWORD modelScale;
+    DWORD red;
+    DWORD green;
+    DWORD blue;
     SHEETSTR uberSplat;
     SHEETSTR unitShadow;
     SHEETSTR buildingShadow;
-    int shadowW;
-    int shadowH;
-    int shadowX;
-    int shadowY;
-    int occH;
-    int InBeta;
-    struct UnitUI *lpNext;
+    DWORD shadowW;
+    DWORD shadowH;
+    DWORD shadowX;
+    DWORD shadowY;
+    DWORD occH;
+    DWORD InBeta;
+    LPUNITUI lpNext;
 };
 
 struct DoodadInfo {
-    int doodID;
+    DWORD doodID;
     char dir[64];
     char file[64];
     char pathTex[64];
-    struct DoodadInfo *lpNext;
+    LPDOODADINFO lpNext;
     LPCMODEL lpModel;
 };
 
 struct DestructableData {
-    int DestructableID;
+    DWORD DestructableID;
     char category[64];
     char tilesets[64];
     char tilesetSpecific[64];
     char dir[64];
     char file[64];
-    int lightweight;
-    int fatLOS;
-    int texID;
+    DWORD lightweight;
+    DWORD fatLOS;
+    DWORD texID;
     char texFile[64];
-    struct DestructableData *lpNext;
+    LPDESTRUCTABLEDATA lpNext;
     LPCMODEL lpModel;
     LPTEXTURE lpTexture;
 };
 
 struct game_locals {
-    struct UnitUI *UnitUI;
+    LPUNITUI UnitUI;
     struct UnitData *UnitData;
-    struct DoodadInfo *Doodads;
-    struct DestructableData *DestructableData;
+    LPDOODADINFO Doodads;
+    LPDESTRUCTABLEDATA DestructableData;
 };
 
-struct edict *G_Spawn(void);
-void SP_CallSpawn(struct edict *ent);
-void G_SpawnEntities(struct Doodad const *doodads, int numDoodads);
+
+LPEDICT G_Spawn(void);
+LPDOODADINFO G_FindDoodadInfo(int doodID);
+LPDESTRUCTABLEDATA G_FindDestructableData(int DestructableID);
+LPUNITUI G_FindUnitUI(int unitUIID);
+void SP_CallSpawn(LPEDICT lpEdict);
+void G_SpawnEntities(LPCDOODAD doodads, DWORD numDoodads);
 void G_InitUnits(void);
 void G_InitDestructables(void);
 void G_InitDoodads(void);
-struct DoodadInfo *G_FindDoodadInfo(int doodID);
-struct DestructableData *G_FindDestructableData(int DestructableID);
-struct UnitUI *G_FindUnitUI(int unitUIID);
 
 extern struct game_locals game;
 extern struct game_state game_state;

@@ -24,9 +24,9 @@ if (bits & (1 << kEntityChangeFlag_##flag)) \
     MSG_Write##type(msg, to->value);
 
 void
-MSG_WriteDeltaEntity(struct sizebuf *msg,
-                     struct entity_state const *from,
-                     struct entity_state const *to)
+MSG_WriteDeltaEntity(LPSIZEBUF msg,
+                     LPCENTITYSTATE from,
+                     LPCENTITYSTATE to)
 {
     int bits = 0;
 
@@ -56,10 +56,10 @@ MSG_WriteDeltaEntity(struct sizebuf *msg,
 }
 
 static void SV_Baseline(struct client *cl) {
-    struct entity_state nullstate;
-    memset(&nullstate, 0, sizeof(struct entity_state));
+    ENTITYSTATE nullstate;
+    memset(&nullstate, 0, sizeof(ENTITYSTATE));
     FOR_LOOP(index, ge->num_edicts) {
-        struct edict *e = EDICT_NUM(index);
+        LPEDICT e = EDICT_NUM(index);
         MSG_WriteByte(&cl->netchan.message, svc_spawnbaseline);
         MSG_WriteDeltaEntity(&cl->netchan.message, &nullstate, &e->s);
     }
@@ -140,7 +140,7 @@ static struct cmodel *SV_LoadModel(LPCSTR filename) {
             model = SV_LoadModelMDX(file);
             break;
         default:
-            fprintf(stderr, "Unknown model format %.5s in file %s\n", (char *)&fileheader, filename);
+            fprintf(stderr, "Unknown model format %.5s in file %s\n", (LPSTR)&fileheader, filename);
             break;
     }
     SFileCloseFile(file);
@@ -163,13 +163,13 @@ int SV_ImageIndex(LPCSTR name) {
     return SV_FindIndex(name, CS_IMAGES, MAX_IMAGES, true);
 }
 
-void SV_RunGameFrame(int msec) {
+void SV_RunGameFrame(DWORD msec) {
     sv.framenum++;
     sv.time += msec;
     ge->RunFrame(msec);
 }
 
-void SV_Frame(int msec) {
+void SV_Frame(DWORD msec) {
     SV_RunGameFrame(msec);
     SV_SendClientMessages();
 }

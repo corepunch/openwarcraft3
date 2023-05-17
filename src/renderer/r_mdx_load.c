@@ -107,9 +107,9 @@ static struct tModelGeoset *ReadGeoset(HANDLE hFile, struct tFileBlock const blo
     while (!FileIsAtEndOfBlock(hFile, &block)) {
         int tag = FileReadInt32(hFile);
         switch (tag) {
-            case ID_VRTX: SFileReadArray(hFile, lpGeoset, Vertices, sizeof(struct vector3)); break;
-            case ID_NRMS: SFileReadArray(hFile, lpGeoset, Normals, sizeof(struct vector3)); break;
-            case ID_UVBS: SFileReadArray(hFile, lpGeoset, Texcoord, sizeof(struct vector2)); break;
+            case ID_VRTX: SFileReadArray(hFile, lpGeoset, Vertices, sizeof(VECTOR3)); break;
+            case ID_NRMS: SFileReadArray(hFile, lpGeoset, Normals, sizeof(VECTOR3)); break;
+            case ID_UVBS: SFileReadArray(hFile, lpGeoset, Texcoord, sizeof(VECTOR2)); break;
             case ID_PTYP: SFileReadArray(hFile, lpGeoset, PrimitiveTypes, sizeof(int)); break;
             case ID_PCNT: SFileReadArray(hFile, lpGeoset, PrimitiveCounts, sizeof(int)); break;
             case ID_PVTX: SFileReadArray(hFile, lpGeoset, Triangles, sizeof(short)); break;
@@ -170,7 +170,7 @@ static struct tModelMaterial *ReadMaterial(HANDLE hFile, struct tFileBlock const
     return lpMaterial;
 }
 
-static void *ReadModelKeyTrack(HANDLE hFile, enum tModelKeyTrackDataType dwDataType) {
+static HANDLE ReadModelKeyTrack(HANDLE hFile, enum tModelKeyTrackDataType dwDataType) {
     DWORD dwKeyframeCount = FileReadInt32(hFile);
     enum tModelKeyTrackType dwKeyTrackType = FileReadInt32(hFile);
     DWORD dwGlobalSeqId = FileReadInt32(hFile);
@@ -264,9 +264,9 @@ static void R_SetupGeoset(LPMODEL lpModel, struct tModelGeoset *lpGeoset) {
     }
 
     FOR_LOOP(dwTriangle, lpGeoset->numTriangles) {
-        int dwVertex = lpGeoset->lpTriangles[dwTriangle];
-        int dwMatrixGroupIndex = lpGeoset->lpVertexGroups[dwVertex];
-        int dwMatrixGroupSize = MAX(1, lpGeoset->lpMatrixGroupSizes[dwMatrixGroupIndex]);
+        DWORD dwVertex = lpGeoset->lpTriangles[dwTriangle];
+        DWORD dwMatrixGroupIndex = lpGeoset->lpVertexGroups[dwVertex];
+        DWORD dwMatrixGroupSize = MAX(1, lpGeoset->lpMatrixGroupSizes[dwMatrixGroupIndex]);
         struct vertex *lpVertex = &lpVertices[dwTriangle];
         uint8_t *dwMatrixGroup = lpMatrixGroups[dwMatrixGroupIndex];
         lpVertex->color = (struct color32) { 255, 255, 255, 255 };
@@ -390,7 +390,7 @@ LPMODEL R_LoadModel(LPCSTR szModelFilename) {
             model = R_LoadModelMDX(hFile);
             break;
         default:
-            fprintf(stderr, "Unknown model format %.5s in file %s\n", (char *)&dwFileHeader, szModelFilename);
+            fprintf(stderr, "Unknown model format %.5s in file %s\n", (LPSTR)&dwFileHeader, szModelFilename);
             break;
     }
     ri.FileClose(hFile);

@@ -49,7 +49,7 @@ void G_InitDoodads(void) {
     game.Doodads = FS_ParseSheet("Doodads\\Doodads.slk", doodad_info, sizeof(struct DoodadInfo), FOFS(DoodadInfo, lpNext));
 }
 
-struct DoodadInfo *G_FindDoodadInfo(int doodID) {
+LPDOODADINFO G_FindDoodadInfo(int doodID) {
     FOR_EACH_LIST(struct DoodadInfo, info, game.Doodads) {
         if (info->doodID == doodID)
             return info;

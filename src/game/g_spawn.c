@@ -2,108 +2,99 @@
 
 struct spawn {
     LPCSTR name;
-    void (*func)(struct edict *ent);
+    void (*func)(LPEDICT lpEdict);
 };
 
-void SP_monster_peon(struct edict *ent);
+void SP_monster_peon(LPEDICT lpEdict);
 
 static struct spawn spawns[] = {
     { "opeo", SP_monster_peon },
     { NULL, NULL }
 };
 
-void unit_think(struct edict *ent, int msec) {
-    struct animation_info const *anim = &ent->monsterinfo.animation;
+void unit_think(LPEDICT lpEdict, DWORD msec) {
+    struct AnimationInfo const *anim = &lpEdict->monsterinfo.animation;
     if (anim->start_frame == anim->end_frame)
         return;
-    ent->s.frame += msec;
-    while (ent->s.frame >= anim->end_frame) {
-        ent->s.frame -= MAX(1, anim->end_frame - anim->start_frame);
+    lpEdict->s.frame += msec;
+    while (lpEdict->s.frame >= anim->end_frame) {
+        lpEdict->s.frame -= MAX(1, anim->end_frame - anim->start_frame);
     }
 }
 
-struct Doodad *DoodadAtIndex(struct Doodad const *doodads, int index) {
-    char *doo = (char *)doodads;
-    return (struct Doodad *)(doo + index * DOODAD_SIZE);
+LPDOODAD DoodadAtIndex(LPCDOODAD doodads, int index) {
+    LPBYTE doo = (LPBYTE)doodads;
+    return (LPDOODAD)(doo + index * DOODAD_SIZE);
 }
 
-struct edict *G_Spawn(void) {
-    struct edict *ent = &game_state.edicts[globals.num_edicts];
-    ent->s.number = globals.num_edicts;
+LPEDICT G_Spawn(void) {
+    LPEDICT lpEdict = &game_state.edicts[globals.num_edicts];
+    lpEdict->s.number = globals.num_edicts;
     globals.num_edicts++;
-    return ent;
+    return lpEdict;
 }
 
-static void
-SP_SpawnDoodad(struct edict *ent,
-               struct DoodadInfo const *doo)
-{
+static void SP_SpawnDoodad(LPEDICT lpEdict, LPCDOODADINFO lpDoo) {
     PATHSTR buffer;
-    sprintf(buffer, "%s\\%s\\%s%d.mdx", doo->dir, doo->file, doo->file, ent->variation);
-    ent->s.model = gi.ModelIndex(buffer);
+    sprintf(buffer, "%s\\%s\\%s%d.mdx", lpDoo->dir, lpDoo->file, lpDoo->file, lpEdict->variation);
+    lpEdict->s.model = gi.ModelIndex(buffer);
 }
 
-static void
-SP_SpawnDestructable(struct edict *ent,
-                     struct DestructableData const *destr)
-{
+static void SP_SpawnDestructable(LPEDICT lpEdict, LPCDESTRUCTABLEDATA lpDestr) {
     PATHSTR buffer;
-    sprintf(buffer, "%s.blp", destr->texFile);
-    ent->s.image = gi.ImageIndex(buffer);
-    sprintf(buffer, "%s\\%s\\%s%d.mdx", destr->dir, destr->file, destr->file, ent->variation);
-    ent->s.model = gi.ModelIndex(buffer);
+    sprintf(buffer, "%s.blp", lpDestr->texFile);
+    lpEdict->s.image = gi.ImageIndex(buffer);
+    sprintf(buffer, "%s\\%s\\%s%d.mdx", lpDestr->dir, lpDestr->file, lpDestr->file, lpEdict->variation);
+    lpEdict->s.model = gi.ModelIndex(buffer);
 }
 
-static void
-SP_SpawnUnit(struct edict *ent,
-             struct UnitUI const *unit)
-{
+static void SP_SpawnUnit(LPEDICT lpEdict, LPCUNITUI lpUnit) {
     PATHSTR buffer;
-    sprintf(buffer, "%s.mdx", unit->file);
-    ent->s.model = gi.ModelIndex(buffer);
-    ent->monsterinfo.animation = gi.GetAnimation(ent->s.model, "Stand");
-    ent->s.frame = ent->monsterinfo.animation.start_frame;
-    ent->think = unit_think;
+    sprintf(buffer, "%s.mdx", lpUnit->file);
+    lpEdict->s.model = gi.ModelIndex(buffer);
+    lpEdict->monsterinfo.animation = gi.GetAnimation(lpEdict->s.model, "Stand");
+    lpEdict->s.frame = lpEdict->monsterinfo.animation.start_frame;
+    lpEdict->think = unit_think;
 }
 
-void SP_CallSpawn(struct edict *ent) {
-    if (!ent->class_id)
+void SP_CallSpawn(LPEDICT lpEdict) {
+    if (!lpEdict->class_id)
         return;
-    struct DoodadInfo const *doodadInfo = NULL;
-    struct DestructableData const *destructableData = NULL;
-    struct UnitUI const *unitUI = NULL;
-    if ((doodadInfo = G_FindDoodadInfo(ent->class_id))) {
-        SP_SpawnDoodad(ent, doodadInfo);
+    LPCDOODADINFO doodadInfo = NULL;
+    LPCDESTRUCTABLEDATA destructableData = NULL;
+    LPCUNITUI unitUI = NULL;
+    if ((doodadInfo = G_FindDoodadInfo(lpEdict->class_id))) {
+        SP_SpawnDoodad(lpEdict, doodadInfo);
         return;
     }
-    if ((destructableData = G_FindDestructableData(ent->class_id))) {
-        SP_SpawnDestructable(ent, destructableData);
+    if ((destructableData = G_FindDestructableData(lpEdict->class_id))) {
+        SP_SpawnDestructable(lpEdict, destructableData);
         return;
     }
-    if ((unitUI = G_FindUnitUI(ent->class_id))) {
-        SP_SpawnUnit(ent, unitUI);
+    if ((unitUI = G_FindUnitUI(lpEdict->class_id))) {
+        SP_SpawnUnit(lpEdict, unitUI);
         return;
     }
     for (struct spawn *s = spawns; s->func; s++) {
-        if (*((int const *)spawns->name) == ent->class_id) {
-            s->func(ent);
+        if (*((int const *)spawns->name) == lpEdict->class_id) {
+            s->func(lpEdict);
             return;
         }
     }
 }
 
-void G_SpawnEntities(struct Doodad const *doodads, int numDoodads) {
+void G_SpawnEntities(LPCDOODAD doodads, DWORD numDoodads) {
     globals.num_edicts = 0;
-    struct edict *e = G_Spawn();
+    LPEDICT e = G_Spawn();
     e->class_id = MAKEFOURCC('o', 'p', 'e', 'o');
-    e->s.origin = (struct vector3) { 716, -1360, 100 };
+    e->s.origin = (VECTOR3) { 716, -1360, 100 };
     e->s.angle = -20;
     e->s.scale = 2;
     SP_CallSpawn(e);
     FOR_LOOP(index, numDoodads) {
-        struct Doodad const *doodad = DoodadAtIndex(doodads, index);
-        struct edict *e = G_Spawn();
-        struct entity_state *s = &e->s;
+        LPCDOODAD doodad = DoodadAtIndex(doodads, index);
+        LPEDICT e = G_Spawn();
+        LPENTITYSTATE s = &e->s;
         s->origin = doodad->position;
         s->angle = doodad->angle;
         s->scale = doodad->scale.x;

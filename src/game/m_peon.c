@@ -1,10 +1,10 @@
 #include "g_local.h"
 
-static void peon_think(struct edict *ent, int msec) {
-    ent->s.frame++;
+static void peon_think(LPEDICT lpEdict, DWORD msec) {
+    lpEdict->s.frame++;
 }
 
-void SP_monster_peon(struct edict *ent) {
-//    ent->monsterinfo.currentmove = gi.GetAnimation(
-    ent->think = peon_think;
+void SP_monster_peon(LPEDICT lpEdict) {
+//    lpEdict->monsterinfo.currentmove = gi.GetAnimation(
+    lpEdict->think = peon_think;
 }

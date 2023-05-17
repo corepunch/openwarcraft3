@@ -2,15 +2,15 @@
 
 #define READ_IF(flag, value, type, scale) \
 if (bits & (1 << kEntityChangeFlag_##flag)) \
-    ent->value = MSG_Read##type(msg) * scale;
+    lpEdict->value = MSG_Read##type(msg) * scale;
 
 void
-CL_ParseDeltaEntity(struct sizebuf *msg,
-                    struct entity_state *ent,
+CL_ParseDeltaEntity(LPSIZEBUF msg,
+                    LPENTITYSTATE lpEdict,
                     int number,
                     int bits)
 {
-    ent->number = number;
+    lpEdict->number = number;
     READ_IF(originX, origin.x, Short, 1);
     READ_IF(originY, origin.y, Short, 1);
     READ_IF(originZ, origin.z, Short, 1);
@@ -21,38 +21,38 @@ CL_ParseDeltaEntity(struct sizebuf *msg,
     READ_IF(image, image, Short, 1);
 }
 
-static void CL_ReadPacketEntities(struct sizebuf *msg) {
+static void CL_ReadPacketEntities(LPSIZEBUF msg) {
     while (true) {
         uint32_t bits = 0;
         int nument = CL_ParseEntityBits(msg, &bits);
         if (nument == 0 && bits == 0)
             break;
-        struct client_entity *ent = &cl.ents[nument];
-        CL_ParseDeltaEntity(msg, &ent->current, nument, bits);
+        struct client_entity *lpEdict = &cl.ents[nument];
+        CL_ParseDeltaEntity(msg, &lpEdict->current, nument, bits);
     }
     cl.num_entities = MAX_CLIENT_ENTITIES;
 }
 
-static void CL_ParseConfigString(struct sizebuf *msg) {
+static void CL_ParseConfigString(LPSIZEBUF msg) {
     int const index = MSG_ReadShort(msg);
     MSG_ReadString(msg, cl.configstrings[index]);
 }
 
-static void CL_ParseBaseline(struct sizebuf *msg) {
+static void CL_ParseBaseline(LPSIZEBUF msg) {
     uint32_t bits = 0;
     uint32_t index = CL_ParseEntityBits(msg, &bits);
     struct client_entity *cent = &cl.ents[index];
-    memset(&cent->baseline, 0, sizeof(struct entity_state));
+    memset(&cent->baseline, 0, sizeof(ENTITYSTATE));
     CL_ParseDeltaEntity(msg, &cent->baseline, index, bits);
-    memcpy(&cent->current, &cent->baseline, sizeof(struct entity_state));
+    memcpy(&cent->current, &cent->baseline, sizeof(ENTITYSTATE));
 }
 
-void CL_ParseFrame(struct sizebuf *msg) {
+void CL_ParseFrame(LPSIZEBUF msg) {
     cl.frame.serverframe = MSG_ReadLong(msg);
     cl.frame.oldclientframe = MSG_ReadLong(msg);
 }
 
-void CL_ParseServerMessage(struct sizebuf *msg) {
+void CL_ParseServerMessage(LPSIZEBUF msg) {
     uint8_t pack_id = 0;
     while (MSG_Read(msg, &pack_id, 1)) {
         switch (pack_id) {

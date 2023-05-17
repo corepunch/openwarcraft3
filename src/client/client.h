@@ -9,9 +9,9 @@
 #define MAX_CLIENT_ENTITIES 5000
 
 struct client_entity {
-    struct entity_state baseline;
-//    struct entity_state previous;
-    struct entity_state current;
+    ENTITYSTATE baseline;
+//    ENTITYSTATE previous;
+    ENTITYSTATE current;
 };
 
 struct frame {
@@ -21,20 +21,20 @@ struct frame {
 };
 
 struct client_state {
-    struct refdef refdef;
+    struct viewDef viewDef;
     struct client_entity ents[MAX_CLIENT_ENTITIES];
     LPMODEL models[MAX_MODELS];
     LPTEXTURE pics[MAX_IMAGES];
     struct frame frame;
     PATHSTR configstrings[MAX_CONFIGSTRINGS];
     int num_entities;
-    int sock;
+    DWORD sock;
 };
 
 void V_RenderView(void);
 void CL_PrepRefresh(void);
-void CL_ParseServerMessage(struct sizebuf *msg);
-int CL_ParseEntityBits(struct sizebuf *msg, uint32_t *bits);
+void CL_ParseServerMessage(LPSIZEBUF msg);
+int CL_ParseEntityBits(LPSIZEBUF msg, uint32_t *bits);
 
 extern struct client_state cl;
 

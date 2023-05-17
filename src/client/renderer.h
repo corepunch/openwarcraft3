@@ -3,16 +3,18 @@
 
 #include "../common/common.h"
 
+ADD_TYPEDEFS(viewDef, VIEWDEF);
+
 struct renderer_import {
     HANDLE (*FileOpen)(LPCSTR szFileName);
     bool (*FileExtract)(LPCSTR szToExtract, LPCSTR szExtracted);
     bool (*FileClose)(HANDLE hFile);
-    void *(*MemAlloc)(long size);
-    void (*MemFree)(void *);
+    HANDLE (*MemAlloc)(long size);
+    void (*MemFree)(HANDLE);
 };
 
 struct render_entity {
-    struct vector3 origin;
+    VECTOR3 origin;
     float angle;
     float scale;
     LPCMODEL model;
@@ -20,10 +22,10 @@ struct render_entity {
     int frame;
 };
 
-struct refdef {
+struct viewDef {
     float fov;
-    struct vector3 vieworg;
-    struct vector3 viewangles;
+    VECTOR3 vieworg;
+    VECTOR3 viewangles;
     int time;
     int num_entities;
     struct render_entity *entities;
@@ -34,7 +36,7 @@ struct Renderer {
     void (*Init)(DWORD dwWidth, DWORD dwHeight);
     void (*Shutdown)(void);
     void (*RegisterMap)(char const *szMapFileName);
-    void (*RenderFrame)(struct refdef const *lpRefDef);
+    void (*RenderFrame)(LPCVIEWDEF lpRefDef);
     LPTEXTURE (*LoadTexture)(LPCSTR szTextureFileName);
     LPMODEL (*LoadModel)(LPCSTR szModelFilename);
     void (*ReleaseModel)(LPMODEL lpModel);

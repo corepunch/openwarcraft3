@@ -3,38 +3,27 @@
 #include <string.h>
 #include <math.h>
 
-void
-matrix4_identity(struct matrix4 *m)
-{
+void Matrix4_identity(LPMATRIX4 m) {
     m->v[0] = 1; m->v[1] = 0; m->v[2] = 0; m->v[3] = 0;
     m->v[4] = 0; m->v[5] = 1; m->v[6] = 0; m->v[7] = 0;
     m->v[8] = 0; m->v[9] = 0; m->v[10] = 1;m->v[11] = 0;
     m->v[12] = 0;m->v[13] = 0;m->v[14] = 0;m->v[15] = 1;
 }
 
-void
-matrix4_translate(struct matrix4 *m,
-                  struct vector3 const *v)
-{
+void Matrix4_translate(LPMATRIX4 m, LPCVECTOR3 v) {
     m->v[12] += m->v[0] * v->x + m->v[4] * v->y + m->v[8] * v->z;
     m->v[13] += m->v[1] * v->x + m->v[5] * v->y + m->v[9] * v->z;
     m->v[14] += m->v[2] * v->x + m->v[6] * v->y + m->v[10] * v->z;
     m->v[15] += m->v[3] * v->x + m->v[7] * v->y + m->v[11] * v->z;
 }
 
-void
-matrix4_scale(struct matrix4 *m,
-              struct vector3 const *v)
-{
+void Matrix4_scale(LPMATRIX4 m, LPCVECTOR3 v) {
     m->v[0] *= v->x; m->v[1] *= v->x; m->v[2] *= v->x;
     m->v[4] *= v->y; m->v[5] *= v->y; m->v[6] *= v->y;
     m->v[8] *= v->z; m->v[9] *= v->z; m->v[10]*= v->z;
 }
 
-void
-matrix4_transpose(struct matrix4 const *m,
-                  struct matrix4 *out)
-{
+void Matrix4_transpose(LPCMATRIX4 m, LPMATRIX4 out) {
     out->v[0] = m->v[0];
     out->v[4] = m->v[1];
     out->v[8] = m->v[2];
@@ -53,7 +42,7 @@ matrix4_transpose(struct matrix4 const *m,
     out->v[15] = m->v[15];
 }
 
-void matrix4_rotate4(struct matrix4 *m, struct vector4 const *quat) {
+void Matrix4_rotate4(LPMATRIX4 m, LPCVECTOR4 quat) {
     struct matrix4 r, tmp;
 
     float fTx  = 2.0f*quat->x;
@@ -69,7 +58,7 @@ void matrix4_rotate4(struct matrix4 *m, struct vector4 const *quat) {
     float fTyz = fTz*quat->y;
     float fTzz = fTz*quat->z;
     
-    matrix4_identity(&r);
+    Matrix4_identity(&r);
 
     r.column[0].x = 1.0f-(fTyy+fTzz);
     r.column[1].x = fTxy-fTwz;
@@ -81,18 +70,12 @@ void matrix4_rotate4(struct matrix4 *m, struct vector4 const *quat) {
     r.column[1].z = fTyz+fTwx;
     r.column[2].z = 1.0f-(fTxx+fTyy);
     
-    matrix4_multiply(m, &r, &tmp);
+    Matrix4_multiply(m, &r, &tmp);
     *m = tmp;
 //    memcpy(m, &tmp, sizeof(struct matrix4));
 }
 
-void
-matrix4_perspective(struct matrix4 *m,
-                    float angle,
-                    float aspect,
-                    float znear,
-                    float zfar)
-{
+void Matrix4_perspective(LPMATRIX4 m, float angle, float aspect, float znear, float zfar) {
     float const radians = angle * 3.14159f / 360.0f;
     float const sine = sin(radians);
     float const cotan = cos(radians) / sine;
@@ -116,15 +99,7 @@ matrix4_perspective(struct matrix4 *m,
     m->v[15] = 0.0f;
 }
 
-void
-matrix4_ortho(struct matrix4 *m,
-              float left,
-              float right,
-              float bottom,
-              float top,
-              float znear,
-              float zfar)
-{
+void Matrix4_ortho(LPMATRIX4 m, float left, float right, float bottom, float top, float znear, float zfar) {
     float const width = right - left;
     float const invheight = top - bottom;
     float const clip = zfar - znear;
@@ -147,20 +122,15 @@ matrix4_ortho(struct matrix4 *m,
     m->v[15] = 1.0f;
 }
 
-void
-matrix4_lookat(struct matrix4 *m,
-               struct vector3 const *eye,
-               struct vector3 const *direction,
-               struct vector3 const *up)
-{
-    struct vector3 zaxis = vector3_unm(direction);
-    struct vector3 xyz = vector3_unm(eye);
-    struct vector3 xaxis = vector3_cross(up, &zaxis);
-    struct vector3 yaxis = vector3_cross(&zaxis, &xaxis);
+void Matrix4_lookat(LPMATRIX4 m, LPCVECTOR3 eye, LPCVECTOR3 direction, LPCVECTOR3 up) {
+    VECTOR3 zaxis = Vector3_unm(direction);
+    VECTOR3 xyz = Vector3_unm(eye);
+    VECTOR3 xaxis = Vector3_cross(up, &zaxis);
+    VECTOR3 yaxis = Vector3_cross(&zaxis, &xaxis);
 
-    vector3_normalize(&xaxis);
-    vector3_normalize(&yaxis);
-    vector3_normalize(&zaxis);
+    Vector3_normalize(&xaxis);
+    Vector3_normalize(&yaxis);
+    Vector3_normalize(&zaxis);
 
     m->v[0] = xaxis.x;
     m->v[1] = yaxis.x;
@@ -179,14 +149,10 @@ matrix4_lookat(struct matrix4 *m,
     m->v[14] = 0.0f;
     m->v[15] = 1.0f;
     
-    matrix4_translate(m, &xyz);
+    Matrix4_translate(m, &xyz);
 }
 
-void
-matrix4_multiply(struct matrix4 const *m1,
-                 struct matrix4 const *m2,
-                 struct matrix4 *out)
-{
+void Matrix4_multiply(LPCMATRIX4 m1, LPCMATRIX4 m2, LPMATRIX4 out) {
 //    for (int i = 0 ; i < 4 ; i++) {
 //        for (int j = 0 ; j < 4 ; j++) {
 //            out->v[ i * 4 + j ] =
@@ -214,10 +180,7 @@ matrix4_multiply(struct matrix4 const *m1,
     out->v[15] = m1->v[3] * m2->v[12] + m1->v[7] * m2->v[13] + m1->v[11] * m2->v[14] + m1->v[15] * m2->v[15];
 }
 
-void
-matrix4_inverse(struct matrix4 const *m,
-                struct matrix4 *out)
-{
+void Matrix4_inverse(LPCMATRIX4 m, LPMATRIX4 out) {
     float det, invDet;
     
     // 2x2 sub-determinants required to calculate 4x4 determinant
@@ -291,29 +254,21 @@ matrix4_inverse(struct matrix4 const *m,
     out->v[15] = + det3_201_012 * invDet;
 }
 
-void
-matrix4_multiply_vector3(struct matrix4 const *m,
-                         struct vector3 const *v,
-                         struct vector3 *out)
-{
+void Matrix4_multiply_vector3(LPCMATRIX4 m, LPCVECTOR3 v, LPVECTOR3 out) {
     float fInvW = 1.0f / (m->v[3] * v->x + m->v[7] * v->y + m->v[11] * v->z + m->v[15]);
     out->x = (m->v[0] * v->x + m->v[4] * v->y + m->v[8]  * v->z + m->v[12]) * fInvW;
     out->y = (m->v[1] * v->x + m->v[5] * v->y + m->v[9]  * v->z + m->v[13]) * fInvW;
     out->z = (m->v[2] * v->x + m->v[6] * v->y + m->v[10] * v->z + m->v[14]) * fInvW;
 }
 
-void
-matrix4_rotate(struct matrix4 *m,
-               struct vector3 const *euler,
-               enum rotation_order order)
-{
+void Matrix4_rotate(LPMATRIX4 m, LPCVECTOR3 euler, enum rotation_order order) {
     float const DEG2RAD = 3.14159f / 180.f;
     
     struct matrix4 rx, ry, rz, tmp, tmp2;
 
-    matrix4_identity(&rx);
-    matrix4_identity(&ry);
-    matrix4_identity(&rz);
+    Matrix4_identity(&rx);
+    Matrix4_identity(&ry);
+    Matrix4_identity(&rz);
     
     rx.v[5] = rx.v[10] = cos(euler->x * DEG2RAD);
     rx.v[9] = rx.v[6] = sin(euler->x * DEG2RAD);
@@ -329,59 +284,51 @@ matrix4_rotate(struct matrix4 *m,
     
     switch (order) {
         case ROTATE_XYZ:
-            matrix4_multiply(&rz, &ry, &tmp);
-            matrix4_multiply(&tmp, &rx, &tmp2);
+            Matrix4_multiply(&rz, &ry, &tmp);
+            Matrix4_multiply(&tmp, &rx, &tmp2);
             break;
         case ROTATE_XZY:
-            matrix4_multiply(&ry, &rz, &tmp);
-            matrix4_multiply(&tmp, &rx, &tmp2);
+            Matrix4_multiply(&ry, &rz, &tmp);
+            Matrix4_multiply(&tmp, &rx, &tmp2);
             break;
         case ROTATE_YXZ:
-            matrix4_multiply(&rz, &rx, &tmp);
-            matrix4_multiply(&tmp, &ry, &tmp2);
+            Matrix4_multiply(&rz, &rx, &tmp);
+            Matrix4_multiply(&tmp, &ry, &tmp2);
             break;
         case ROTATE_YZX:
-            matrix4_multiply(&rx, &rz, &tmp);
-            matrix4_multiply(&tmp, &ry, &tmp2);
+            Matrix4_multiply(&rx, &rz, &tmp);
+            Matrix4_multiply(&tmp, &ry, &tmp2);
             break;
         case ROTATE_ZXY:
-            matrix4_multiply(&ry, &rx, &tmp);
-            matrix4_multiply(&tmp, &rz, &tmp2);
+            Matrix4_multiply(&ry, &rx, &tmp);
+            Matrix4_multiply(&tmp, &rz, &tmp2);
             break;
         case ROTATE_ZYX:
-            matrix4_multiply(&rx, &ry, &tmp);
-            matrix4_multiply(&tmp, &rz, &tmp2);
+            Matrix4_multiply(&rx, &ry, &tmp);
+            Matrix4_multiply(&tmp, &rz, &tmp2);
             break;
         default:
-            matrix4_identity(&tmp2);
+            Matrix4_identity(&tmp2);
             break;
     }
     
     tmp = *m;
-    matrix4_multiply(&tmp, &tmp2, m);
+    Matrix4_multiply(&tmp, &tmp2, m);
 }
 
-struct rect
-rect_new(float x, float y, float width, float height)
-{
+struct rect rect_new(float x, float y, float width, float height) {
     return (struct rect) { x, y, width, height };
 }
 
-struct edges
-edges_new(float left, float top, float right, float bottom)
-{
+struct edges edges_new(float left, float top, float right, float bottom) {
     return (struct edges) { left, top, right, bottom };
 }
 
-struct color
-color_new(float r, float g, float b, float a)
-{
+struct color color_new(float r, float g, float b, float a) {
     return (struct color) { r, g, b, a };
 }
 
-bool
-rect_contains_point(struct rect const *rect,
-                    struct vector2 const *point) {
+bool rect_contains_point(struct rect const *rect, LPCVECTOR2 point) {
     if (rect->x > point->x) return false;
     if (rect->y > point->y) return false;
     if ((rect->x + rect->width) <= point->x) return false;
@@ -389,9 +336,7 @@ rect_contains_point(struct rect const *rect,
     return true;
 }
 
-void
-transform3_identity(struct transform3 *transform)
-{
+void transform3_identity(struct transform3 *transform) {
     memcpy(transform, &(struct transform3) {
         .translation = { 0, 0, 0 },
         .rotation = { 0, 0, 0 },
@@ -399,23 +344,18 @@ transform3_identity(struct transform3 *transform)
     }, sizeof(struct transform3));
 }
 
-void
-transform3_to_matrix4(struct transform3 const *transform,
-                      struct matrix4 *matrix)
-{
-//    struct vector3 neg_pivot = { 0, 0, 0 };
+void transform3_to_matrix4(struct transform3 const *transform, LPMATRIX4 matrix) {
+//    VECTOR3 neg_pivot = { 0, 0, 0 };
 //    Vector3Negate(transform->pivot, neg_pivot);
-    matrix4_identity(matrix);
-    matrix4_translate(matrix, &transform->translation);
-//    matrix4_translate(matrix, &transform->pivot);
-    matrix4_rotate(matrix, &transform->rotation, ROTATE_XYZ);
-    matrix4_scale(matrix, &transform->scale);
-//    matrix4_translate(matrix, &neg_pivot);
+    Matrix4_identity(matrix);
+    Matrix4_translate(matrix, &transform->translation);
+//    Matrix4_translate(matrix, &transform->pivot);
+    Matrix4_rotate(matrix, &transform->rotation, ROTATE_XYZ);
+    Matrix4_scale(matrix, &transform->scale);
+//    Matrix4_translate(matrix, &neg_pivot);
 }
 
-void
-transform2_identity(struct transform2 *transform)
-{
+void transform2_identity(struct transform2 *transform) {
     memcpy(transform, &(struct transform2) {
         .translation = { 0, 0},
         .rotation = 0,
@@ -423,41 +363,37 @@ transform2_identity(struct transform2 *transform)
     }, sizeof(struct transform2));
 }
 
-void
-transform2_to_matrix4(struct transform2 const *transform,
-                      struct vector2 const *pivot,
-                      struct matrix4 *matrix)
-{
-    matrix4_identity(matrix);
+void transform2_to_matrix4(struct transform2 const *transform, LPCVECTOR2 pivot, LPMATRIX4 matrix) {
+    Matrix4_identity(matrix);
 
-    matrix4_translate(matrix, &(struct vector3 const) {
+    Matrix4_translate(matrix, &(VECTOR3 const) {
         .x = transform->translation.x,
         .y = transform->translation.y,
         .z = 0
     });
 
     if (pivot) {
-        matrix4_translate(matrix, &(struct vector3 const) {
+        Matrix4_translate(matrix, &(VECTOR3 const) {
             .x = pivot->x,
             .y = pivot->y,
             .z = 0
         });
     }
 
-    matrix4_rotate(matrix, &(struct vector3 const) {
+    Matrix4_rotate(matrix, &(VECTOR3 const) {
         .x = 0,
         .y = 0,
         .z = transform->rotation
     }, ROTATE_XYZ);
 
-    matrix4_scale(matrix, &(struct vector3 const) {
+    Matrix4_scale(matrix, &(VECTOR3 const) {
         .x = transform->scale.x,
         .y = transform->scale.y,
         .z = 1
     });
 
     if (pivot) {
-        matrix4_translate(matrix, &(struct vector3 const) {
+        Matrix4_translate(matrix, &(VECTOR3 const) {
             .x = -pivot->x,
             .y = -pivot->y,
             .z = 0
@@ -465,203 +401,136 @@ transform2_to_matrix4(struct transform2 const *transform,
     }
 }
 
-float
-vector3_dot(struct vector3 const *a,
-            struct vector3 const *b)
-{
+float Vector3_dot(LPCVECTOR3 a,LPCVECTOR3 b) {
     return a->x * b->x + a->y * b->y + a->z * b->z;
 }
 
-float
-vector3_lengthsq(struct vector3 const *vec)
-{
-    return vector3_dot(vec, vec);
+float Vector3_lengthsq(LPCVECTOR3 vec) {
+    return Vector3_dot(vec, vec);
 }
 
-float
-vector3_len(struct vector3 const *vec)
-{
-    return sqrtf(vector3_lengthsq(vec));
+float Vector3_len(LPCVECTOR3 vec) {
+    return sqrtf(Vector3_lengthsq(vec));
 }
 
-bool
-vector3_eq(struct vector3 const *a,
-           struct vector3 const *b)
-{
+bool Vector3_eq(LPCVECTOR3 a, LPCVECTOR3 b) {
     return
         fabs(a->x - b->x) < EPSILON &&
         fabs(a->y - b->y) < EPSILON &&
         fabs(a->z - b->z) < EPSILON;
 }
 
-struct vector3
-vector3_lerp(struct vector3 const *a,
-             struct vector3 const *b,
-             float t)
-{
-    return (struct vector3) {
+VECTOR3 Vector3_lerp(LPCVECTOR3 a, LPCVECTOR3 b, float t) {
+    return (VECTOR3) {
         .x = a->x * (1 - t) + b->x * t,
         .y = a->y * (1 - t) + b->y * t,
         .z = a->z * (1 - t) + b->z * t
     };
 }
 
-struct vector3
-vector3_cross(struct vector3 const *a,
-              struct vector3 const *b)
-{
-    return (struct vector3) {
+VECTOR3 Vector3_cross(LPCVECTOR3 a, LPCVECTOR3 b) {
+    return (VECTOR3) {
         .x = a->y * b->z - a->z * b->y,
         .y = a->z * b->x - a->x * b->z,
         .z = a->x * b->y - a->y * b->x
     };
 }
 
-struct vector3
-vector3_sub(struct vector3 const *a,
-            struct vector3 const *b)
-{
-    return (struct vector3) {
+VECTOR3 Vector3_sub(LPCVECTOR3 a, LPCVECTOR3 b) {
+    return (VECTOR3) {
         .x = a->x - b->x,
         .y = a->y - b->y,
         .z = a->z - b->z
     };
 }
 
-struct vector3
-vector3_add(struct vector3 const *a,
-            struct vector3 const *b)
-{
-    return (struct vector3) {
+VECTOR3 Vector3_add(LPCVECTOR3 a, LPCVECTOR3 b) {
+    return (VECTOR3) {
         .x = a->x + b->x,
         .y = a->y + b->y,
         .z = a->z + b->z
     };
 }
 
-struct vector3
-vector3_mad(struct vector3 const *v,
-            float s,
-            struct vector3 const *b)
-{
-    return (struct vector3) {
+VECTOR3 Vector3_mad(LPCVECTOR3 v, float s, LPCVECTOR3 b) {
+    return (VECTOR3) {
         .x = v->x + b->x * s,
         .y = v->y + b->y * s,
         .z = v->z + b->z * s
     };
 }
 
-struct vector3
-vector3_mul(struct vector3 const *a,
-            struct vector3 const *b)
-{
-    return (struct vector3) {
+VECTOR3 Vector3_mul(LPCVECTOR3 a, LPCVECTOR3 b) {
+    return (VECTOR3) {
         .x = a->x * b->x,
         .y = a->y * b->y,
         .z = a->z * b->z
     };
 }
 
-struct vector3
-vector3_scale(struct vector3 const *v,
-              float s)
-{
-    return (struct vector3) {
+VECTOR3 Vector3_scale(LPCVECTOR3 v, float s) {
+    return (VECTOR3) {
         .x = v->x * s,
         .y = v->y * s,
         .z = v->z * s
     };
 }
 
-void
-vector3_normalize(struct vector3* v)
-{
-    *v = vector3_scale(v, 1 / vector3_len(v));
+void Vector3_normalize(LPVECTOR3 v) {
+    *v = Vector3_scale(v, 1 / Vector3_len(v));
 }
 
-void
-vector3_set(struct vector3* v,
-            float x,
-            float y,
-            float z)
-{
+void Vector3_set(LPVECTOR3 v, float x, float y, float z) {
     v->x = x;
     v->y = y;
     v->z = z;
 }
 
-void
-vector3_clear(struct vector3* v)
-{
-    vector3_set(v, 0, 0, 0);
+void Vector3_clear(LPVECTOR3 v) {
+    Vector3_set(v, 0, 0, 0);
 }
 
-struct vector3
-vector3_unm(struct vector3 const* v)
-{
-    return (struct vector3) {
+VECTOR3 Vector3_unm(VECTOR3 const* v) {
+    return (VECTOR3) {
         .x = -v->x,
         .y = -v->y,
         .z = -v->z
     };
 }
 
-void
-vector2_set(struct vector2* v,
-            float x,
-            float y)
-{
+void Vector2_set(LPVECTOR2 v, float x, float y) {
     v->x = x;
     v->y = y;
 }
 
-struct vector2
-vector2_scale(struct vector2 const *v,
-              float s)
-{
-    return (struct vector2) {
+VECTOR2 Vector2_scale(LPCVECTOR2 v, float s) {
+    return (VECTOR2) {
         .x = v->x * s,
         .y = v->y * s
     };
 }
 
-float
-vector2_dot(struct vector2 const *a,
-            struct vector2 const *b)
-{
+float Vector2_dot(LPCVECTOR2 a, LPCVECTOR2 b) {
     return a->x * b->x + a->y * b->y;
 }
 
-float
-vector2_lengthsq(struct vector2 const *vec)
-{
-    return vector2_dot(vec, vec);
+float Vector2_lengthsq(LPCVECTOR2 vec) {
+    return Vector2_dot(vec, vec);
 }
 
-float
-vector2_len(struct vector2 const *vec)
-{
-    return sqrtf(vector2_lengthsq(vec));
+float Vector2_len(LPCVECTOR2 vec) {
+    return sqrtf(Vector2_lengthsq(vec));
 }
 
-void
-vector4_set(struct vector4* v,
-            float x,
-            float y,
-            float z,
-            float w)
-{
+void Vector4_set(VECTOR4* v, float x, float y, float z, float w) {
     v->x = x;
     v->y = y;
     v->z = z;
     v->w = w;
 }
 
-struct vector4
-vector4_scale(struct vector4 const *v,
-              float s)
-{
-    return (struct vector4) {
+VECTOR4 Vector4_scale(LPCVECTOR4 v, float s) {
+    return (VECTOR4) {
         .x = v->x * s,
         .y = v->y * s,
         .z = v->z * s,
@@ -669,11 +538,8 @@ vector4_scale(struct vector4 const *v,
     };
 }
 
-struct vector4
-vector4_add(struct vector4 const *a,
-            struct vector4 const *b)
-{
-    return (struct vector4) {
+VECTOR4 Vector4_add(LPCVECTOR4 a, LPCVECTOR4 b) {
+    return (VECTOR4) {
         .x = a->x + b->x,
         .y = a->y + b->y,
         .z = a->z + b->z,
@@ -681,10 +547,8 @@ vector4_add(struct vector4 const *a,
     };
 }
 
-struct vector4
-vector4_unm(struct vector4 const* v)
-{
-    return (struct vector4) {
+VECTOR4 Vector4_unm(LPCVECTOR4 v) {
+    return (VECTOR4) {
         .x = -v->x,
         .y = -v->y,
         .z = -v->z,
@@ -692,8 +556,8 @@ vector4_unm(struct vector4 const* v)
     };
 }
 
-struct vector4 quaternion_lerp(struct vector4 const *p, struct vector4 const *q, float t) {
-    struct vector4 r;
+VECTOR4 quaternion_lerp(LPCVECTOR4 p, LPCVECTOR4 q, float t) {
+    VECTOR4 r;
     float p1[4];
     double omega, cosom, sinom, scale0, scale1;
     cosom = p->x * q->x + p->y * q->y + p->z * q->z + p->w * q->w;
@@ -725,10 +589,7 @@ struct vector4 quaternion_lerp(struct vector4 const *p, struct vector4 const *q,
     return r;
 }
 
-void matrix4_from_rotation_origin(struct matrix4 *out,
-                                  struct vector4 const *rotation,
-                                  struct vector3 const *origin)
-{
+void Matrix4_from_rotation_origin(LPMATRIX4 out, LPCVECTOR4 rotation, LPCVECTOR3 origin) {
     const float x = rotation->x;
     const float y = rotation->y;
     const float z = rotation->z;
@@ -768,12 +629,7 @@ void matrix4_from_rotation_origin(struct matrix4 *out,
 }
 
 
-void matrix4_from_rotation_translation_scale_origin(struct matrix4 *out,
-                                                    struct vector4 const *q,
-                                                    struct vector3 const *v,
-                                                    struct vector3 const *s,
-                                                    struct vector3 const *o)
-{
+void Matrix4_from_rotation_translation_scale_origin(LPMATRIX4 out, LPCVECTOR4 q, LPCVECTOR3 v, LPCVECTOR3 s, LPCVECTOR3 o) {
     const float x = q->x;
     const float y = q->y;
     const float z = q->z;
@@ -824,9 +680,7 @@ void matrix4_from_rotation_translation_scale_origin(struct matrix4 *out,
     out->v[15] = 1;
 }
 
-void matrix4_from_translation(struct matrix4 *out,
-                              struct vector3 const *v)
-{
+void Matrix4_from_translation(LPMATRIX4 out, LPCVECTOR3 v) {
   out->v[0] = 1;
   out->v[1] = 0;
   out->v[2] = 0;

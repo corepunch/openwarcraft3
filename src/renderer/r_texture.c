@@ -39,7 +39,7 @@ LPTEXTURE R_AllocateTexture(uint32_t dwWidth, uint32_t dwHeight) {
     return texture;
 }
 
-void R_LoadTextureMipLevel(LPTEXTURE pTexture, int dwLevel, struct color32* pPixels, uint32_t dwWidth, uint32_t dwHeight) {
+void R_LoadTextureMipLevel(LPTEXTURE pTexture, DWORD dwLevel, struct color32* pPixels, uint32_t dwWidth, uint32_t dwHeight) {
     if (dwWidth == 0 || dwHeight == 0)
         return;
     glBindTexture(GL_TEXTURE_2D, pTexture->texid);

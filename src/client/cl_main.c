@@ -8,7 +8,7 @@ struct client_state cl = {
     .sock = 0
 };
 
-static unsigned char net_message_buffer[MAX_MSGLEN];
+static BYTE net_message_buffer[MAX_MSGLEN];
 static struct sizebuf net_message = {
     .data = net_message_buffer,
     .maxsize = MAX_MSGLEN,
@@ -29,18 +29,18 @@ void CL_Init(void) {
     
     memset(&cl, 0, sizeof(struct client_state));
     
-    cl.refdef.fov = 90;
-    cl.refdef.vieworg = (struct vector3) { -600, 1500, -1000 };
-    cl.refdef.viewangles = (struct vector3) { -20, 0, 0 };
-//    cl.refdef.fov = 70;
-//    cl.refdef.vieworg = (struct vector3) { -700, 2500, -400 };
-//    cl.refdef.viewangles = (struct vector3) { -90, 0, 0 };
+    cl.viewDef.fov = 90;
+    cl.viewDef.vieworg = (VECTOR3) { -600, 1500, -1000 };
+    cl.viewDef.viewangles = (VECTOR3) { -20, 0, 0 };
+//    cl.viewDef.fov = 70;
+//    cl.viewDef.vieworg = (VECTOR3) { -700, 2500, -400 };
+//    cl.viewDef.viewangles = (VECTOR3) { -90, 0, 0 };
 }
 
 void CL_Input(void) {
     static int button;
     SDL_Event event;
-    while(SDL_PollEvent(&event ))
+    while(SDL_PollEvent(&event))
     {
         switch(event.type)
         {
@@ -56,8 +56,8 @@ void CL_Input(void) {
                 break;
             case SDL_MOUSEMOTION:
                 if (button == 1) {
-                    cl.refdef.vieworg.x += event.motion.xrel * 5;
-                    cl.refdef.vieworg.y -= event.motion.yrel * 5;
+                    cl.viewDef.vieworg.x += event.motion.xrel * 5;
+                    cl.viewDef.vieworg.y -= event.motion.yrel * 5;
                 }
                 break;
             case SDL_WINDOWEVENT:
@@ -88,7 +88,7 @@ void CL_Shutdown(void) {
     renderer->Shutdown();
 }
 
-void CL_Frame(int msec) {
+void CL_Frame(DWORD msec) {
     CL_ReadPackets();
     CL_Input();
     CL_PrepRefresh();

@@ -5,39 +5,39 @@
 #define HIGH_NUMBER 9999
 
 static bool SV_CanClientSeeEntity(struct client const *client,
-                                  struct entity_state const *ent)
+                                  LPCENTITYSTATE lpEdict)
 {
-    if (fabs(ent->origin.x - client->camera_position.x) > VISUAL_DISTANCE)
+    if (fabs(lpEdict->origin.x - client->camera_position.x) > VISUAL_DISTANCE)
         return false;
-    if (fabs(ent->origin.y - client->camera_position.y) > VISUAL_DISTANCE)
+    if (fabs(lpEdict->origin.y - client->camera_position.y) > VISUAL_DISTANCE)
         return false;
     return true;
 }
 
-struct entity_state *SV_NextClientEntity(void) {
+LPENTITYSTATE SV_NextClientEntity(void) {
     int index = svs.next_client_entities++ % svs.num_client_entities;
     return &svs.client_entities[index];
 }
 
 void SV_BuildClientFrame(struct client *client) {
-    struct client_frame *frame = &client->frames[sv.framenum & UPDATE_MASK];
+    LPCLIENTFRAME frame = &client->frames[sv.framenum & UPDATE_MASK];
     frame->num_entities = 0;
     frame->first_entity = svs.next_client_entities;
     FOR_LOOP(index, ge->num_edicts) {
-        struct edict *ent = EDICT_NUM(index);
-        if (!ent->s.model && !ent->s.sound && !ent->s.event)
+        LPEDICT lpEdict = EDICT_NUM(index);
+        if (!lpEdict->s.model && !lpEdict->s.sound && !lpEdict->s.event)
             continue;
-        if (!SV_CanClientSeeEntity(client, &ent->s))
+        if (!SV_CanClientSeeEntity(client, &lpEdict->s))
             continue;
-        struct entity_state *state = SV_NextClientEntity();
-        *state = ent->s;
+        LPENTITYSTATE state = SV_NextClientEntity();
+        *state = lpEdict->s;
         frame->num_entities++;
     }
 }
 
-void SV_EmitPacketEntities(struct client_frame const *from,
-                           struct client_frame const *to,
-                           struct sizebuf *msg)
+void SV_EmitPacketEntities(LPCCLIENTFRAME from,
+                           LPCCLIENTFRAME to,
+                           LPSIZEBUF msg)
 {
     int const from_num_entities = from ? from->num_entities : 0;
 
@@ -47,7 +47,7 @@ void SV_EmitPacketEntities(struct client_frame const *from,
          newindex < to->num_entities ||
          oldindex < from_num_entities;)
     {
-        struct entity_state *newent = NULL, *oldent = NULL;
+        LPENTITYSTATE newent = NULL, oldent = NULL;
         int newnum = 0, oldnum = 0;
         if (newindex >= to->num_entities) {
             newnum = HIGH_NUMBER;
@@ -83,8 +83,8 @@ void SV_EmitPacketEntities(struct client_frame const *from,
 }
 
 void SV_WriteFrameToClient(struct client *client) {
-    struct client_frame *frame = &client->frames[sv.framenum & UPDATE_MASK];
-    struct client_frame *oldframe = &client->frames[client->lastframe & UPDATE_MASK];
+    LPCLIENTFRAME frame = &client->frames[sv.framenum & UPDATE_MASK];
+    LPCLIENTFRAME oldframe = &client->frames[client->lastframe & UPDATE_MASK];
     
     MSG_WriteByte(&client->netchan.message, svc_frame);
     MSG_WriteLong(&client->netchan.message, sv.framenum);

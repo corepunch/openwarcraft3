@@ -3,10 +3,10 @@
 
 #include "../common/common.h"
 
-LPCTERRAINVERTEX GetTerrainVertex(LPCTERRAIN heightmap, int x, int y) {
-    int const index = x + y * heightmap->size.width;
-    char const *ptr = ((char const *)heightmap->vertices) + index * MAP_VERTEX_SIZE;
-    return (LPCTERRAINVERTEX )ptr;
+LPCTERRAINVERTEX GetTerrainVertex(LPCTERRAIN lpTerrain, DWORD x, DWORD y) {
+    int const index = x + y * lpTerrain->size.width;
+    char const *ptr = ((char const *)lpTerrain->vertices) + index * MAP_VERTEX_SIZE;
+    return (LPCTERRAINVERTEX)ptr;
 }
 
 LPTERRAIN FileReadTerrain(HANDLE hArchive) {
@@ -26,8 +26,8 @@ LPTERRAIN FileReadTerrain(HANDLE hArchive) {
     SFileReadFile(hFile, lpTerrain->vertices, vertexblocksize, 0, 0);
     SFileCloseFile(hFile);
 
-//    for (int x = 0; x < lpTerrain->size.width; x++) {
-//        for (int y = 0; y < lpTerrain->size.height; y++) {
+//    for (DWORD x = 0; x < lpTerrain->size.width; x++) {
+//        for (DWORD y = 0; y < lpTerrain->size.height; y++) {
 //            printf("%x", GetTerrainVertex(lpTerrain, x, y)->accurate_height);
 //        }
 //        printf("\n");
@@ -36,7 +36,7 @@ LPTERRAIN FileReadTerrain(HANDLE hArchive) {
 }
 
 
-int GetTile(LPCTERRAINVERTEX mv, int ground) {
+DWORD GetTile(LPCTERRAINVERTEX mv, DWORD ground) {
     if (ground == 0)
         return 15;
     return
@@ -54,18 +54,18 @@ float GetTerrainVertexWaterLevel(LPCTERRAINVERTEX vert) {
     return DECODE_HEIGHT(vert->waterlevel);
 }
 
-void GetTileVertices(int x, int y, LPCTERRAIN heightmap, LPTERRAINVERTEX vertices) {
-    vertices[0] = *GetTerrainVertex(heightmap, x+1, y+1);
-    vertices[1] = *GetTerrainVertex(heightmap, x, y+1);
-    vertices[2] = *GetTerrainVertex(heightmap, x+1, y);
-    vertices[3] = *GetTerrainVertex(heightmap, x, y);
+void GetTileVertices(DWORD x, DWORD y, LPCTERRAIN lpTerrain, LPTERRAINVERTEX vertices) {
+    vertices[0] = *GetTerrainVertex(lpTerrain, x+1, y+1);
+    vertices[1] = *GetTerrainVertex(lpTerrain, x, y+1);
+    vertices[2] = *GetTerrainVertex(lpTerrain, x+1, y);
+    vertices[3] = *GetTerrainVertex(lpTerrain, x, y);
 }
 
-int GetTileRamps(LPCTERRAINVERTEX vertices) {
+DWORD GetTileRamps(LPCTERRAINVERTEX vertices) {
     return vertices[0].ramp + vertices[1].ramp + vertices[2].ramp + vertices[3].ramp;
 }
 
-int IsTileCliff(LPCTERRAINVERTEX vertices) {
+DWORD IsTileCliff(LPCTERRAINVERTEX vertices) {
     int bIsCliff = 0;
     FOR_LOOP(index, 4) {
         bIsCliff |= vertices[index].level != vertices[0].level;
@@ -73,7 +73,7 @@ int IsTileCliff(LPCTERRAINVERTEX vertices) {
     return bIsCliff;
 }
 
-int IsTileWater(LPCTERRAINVERTEX vertices) {
+DWORD IsTileWater(LPCTERRAINVERTEX vertices) {
     int bIsWater = 0;
     FOR_LOOP(index, 4) {
         bIsWater |= vertices[index].water;

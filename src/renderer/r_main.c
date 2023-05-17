@@ -15,25 +15,25 @@ static void R_SetupGL(void) {
     
     SDL_GetWindowSize(window, &width, &height);
     
-    matrix4_identity(&model_matrix);
+    Matrix4_identity(&model_matrix);
     
-    matrix4_perspective(&tr.refdef.projection_matrix, tr.refdef.fov, width / height, 100.0, 100000.0);
-    matrix4_rotate(&tr.refdef.projection_matrix, &tr.refdef.viewangles, ROTATE_XYZ);
-    matrix4_translate(&tr.refdef.projection_matrix, &tr.refdef.vieworg);
+    Matrix4_perspective(&tr.viewDef.projection_matrix, tr.viewDef.fov, width / height, 100.0, 100000.0);
+    Matrix4_rotate(&tr.viewDef.projection_matrix, &tr.viewDef.viewangles, ROTATE_XYZ);
+    Matrix4_translate(&tr.viewDef.projection_matrix, &tr.viewDef.vieworg);
     
     glUseProgram(tr.shaderSkin->progid);
     
-    glUniformMatrix4fv(tr.shaderSkin->u_projection_matrix, 1, GL_FALSE, tr.refdef.projection_matrix.v);
+    glUniformMatrix4fv(tr.shaderSkin->u_projection_matrix, 1, GL_FALSE, tr.viewDef.projection_matrix.v);
     glUniformMatrix4fv(tr.shaderSkin->u_model_matrix, 1, GL_FALSE, model_matrix.v);
     
     glUseProgram(tr.shaderStatic->progid);
     
-    glUniformMatrix4fv(tr.shaderStatic->u_projection_matrix, 1, GL_FALSE, tr.refdef.projection_matrix.v);
+    glUniformMatrix4fv(tr.shaderStatic->u_projection_matrix, 1, GL_FALSE, tr.viewDef.projection_matrix.v);
     glUniformMatrix4fv(tr.shaderStatic->u_model_matrix, 1, GL_FALSE, model_matrix.v);
 }
 
-void R_RenderFrame(struct refdef const *refdef) {
-    tr.refdef = *refdef;
+void R_RenderFrame(LPCVIEWDEF viewDef) {
+    tr.viewDef = *viewDef;
     
     R_SetupGL();
     R_DrawWorld();
@@ -91,7 +91,7 @@ void R_DrawPic(LPCTEXTURE lpTexture) {
 //    t_mat4x4 projection_matrix;
 //    mat4x4_ortho(projection_matrix, 0.0f, (float)width, (float)height, 0.0f, 0.0f, 100.0f);
 //    tr.renbuf = MakeVertexArrayObject(g_vertex_buffer_data, 6);
-//        R_BindTexture(map.heightmap->shadowmap);
+//        R_BindTexture(map.lpTerrain->shadowmap);
 //        glEnable(GL_BLEND);
 //        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 //        glBindVertexArray(tr.renbuf->vao);
@@ -99,7 +99,7 @@ void R_DrawPic(LPCTEXTURE lpTexture) {
 //        glDrawArrays(GL_TRIANGLES, 0, 6);
 }
 
-LPBUFFER R_MakeVertexArrayObject(struct vertex const *data, int size) {
+LPBUFFER R_MakeVertexArrayObject(struct vertex const *data, DWORD size) {
     LPBUFFER buf = ri.MemAlloc(sizeof(struct render_buffer));
     
     glGenVertexArrays(1, &buf->vao);

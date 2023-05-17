@@ -374,7 +374,7 @@ struct color32* blp_convert(HANDLE* hFile, struct tInternalBLPInfos* pBLPInfos, 
 LPTEXTURE R_LoadTexture(LPCSTR szTextureFilename) {
     HANDLE hFile = ri.FileOpen(szTextureFilename);
 //    DWORD dwFileSize = SFileGetFileSize(hFile, NULL);
-//    void *lpBuffer = MemAlloc(dwFileSize);
+//    HANDLE lpBuffer = MemAlloc(dwFileSize);
 //    SFileReadFile(hFile, lpBuffer, dwFileSize, NULL, NULL);
 
     struct tInternalBLPInfos *pBLPInfos = blp_processFile(hFile);
@@ -400,13 +400,13 @@ struct jpeg_imageinfo {
     int width;
     int height;
     int channels;
-    int size;
+    DWORD size;
     int num_components;
     uint8_t *data;
 };
 
 static struct jpeg_imageinfo
-jpeg_readimage(void *buf, int size) {
+jpeg_readimage(HANDLE buf, DWORD size) {
     struct jpeg_decompress_struct cinfo;
     struct jpeg_error_mgr jerr;
     cinfo.err = jpeg_std_error(&jerr);
@@ -465,9 +465,9 @@ struct color32* blp1_convert_paletted_separated_alpha(uint8_t* pSrc, struct tBLP
     uint8_t* pIndices = pSrc;
     uint8_t* pAlpha = pSrc + width * height;
 
-    for (unsigned int y = 0; y < height; ++y)
+    for (DWORD y = 0; y < height; ++y)
     {
-        for (unsigned int x = 0; x < width; ++x)
+        for (DWORD x = 0; x < width; ++x)
         {
             *pDst = pInfos->palette[*pIndices];
             pDst->a = *pAlpha;

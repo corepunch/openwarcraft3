@@ -17,7 +17,7 @@
 #define DECODE_HEIGHT(x) (((x) - 0x2000) / 4)
 #define DOODAD_SIZE 42
 #define MAKEFOURCC(ch0, ch1, ch2, ch3) ((int)(char)(ch0) | ((int)(char)(ch1) << 8) | ((int)(char)(ch2) << 16) | ((int)(char)(ch3) << 24))
-#define FOFS(type, x) (void *)&(((struct type *)NULL)->x)
+#define FOFS(type, x) (HANDLE)&(((struct type *)NULL)->x)
 
 #define UPDATE_BACKUP 16
 #define UPDATE_MASK (UPDATE_BACKUP-1)
@@ -48,7 +48,6 @@
 #define CS_PLAYERSKINS (CS_ITEMS+MAX_ITEMS)
 #define CS_GENERAL (CS_PLAYERSKINS+MAX_CLIENTS)
 #define MAX_CONFIGSTRINGS (CS_GENERAL+MAX_GENERAL)
-
 #define SAFE_DELETE(x, func) if (x) { func(x); (x) = NULL; }
 
 #define SFileReadArray(hFile, object, variable, elemsize) \
@@ -58,7 +57,7 @@ SFileReadFile(hFile, object->lp##variable, object->num##variable * elemsize, NUL
 
 #define FOR_LOOP(property, max) for (uint32_t property = 0, end = max; property < end; ++property)
 #define EPSILON 0.001f
-#define PrintTag(tag)do { char *ch = (char*)&tag; printf("%c%c%c%c\n", ch[0], ch[1], ch[2], ch[3]); } while(false);
+#define PrintTag(tag)do { LPSTR ch = (char*)&tag; printf("%c%c%c%c\n", ch[0], ch[1], ch[2], ch[3]); } while(false);
 
 #define FOR_EACH_LIST(type, property, list) \
 for (type *property = list, *next = list ? (list)->lpNext : NULL; \
@@ -180,28 +179,29 @@ typedef enum t_attrib_id {
 struct tModel;
 struct texture;
 
-typedef struct tModel *LPMODEL;
-typedef struct tModel const *LPCMODEL;
-typedef struct texture *LPTEXTURE;
-typedef struct texture const *LPCTEXTURE;
-typedef struct TerrainVertex const *LPCTERRAINVERTEX;
-typedef struct TerrainVertex *LPTERRAINVERTEX;
-typedef struct SheetLayout const *LPCSHEETLAYOUT;
-typedef struct TerrainInfo *LPTERRAININFO;
-typedef struct CliffInfo *LPCLIFFINFO;
-typedef struct terrain *LPTERRAIN;
-typedef struct terrain const *LPCTERRAIN;
+ADD_TYPEDEFS(tModel, MODEL);
+ADD_TYPEDEFS(texture, TEXTURE);
+ADD_TYPEDEFS(TerrainVertex, TERRAINVERTEX);
+ADD_TYPEDEFS(SheetLayout, SHEETLAYOUT);
+ADD_TYPEDEFS(TerrainInfo, TERRAININFO);
+ADD_TYPEDEFS(CliffInfo, CLIFFINFO);
+ADD_TYPEDEFS(terrain, TERRAIN);
+ADD_TYPEDEFS(Doodad, DOODAD);
+ADD_TYPEDEFS(edict, EDICT);
+ADD_TYPEDEFS(EntityState, ENTITYSTATE);
+ADD_TYPEDEFS(vector3, VECTOR3);
 
 typedef char PATHSTR[MAX_PATHLEN];
 typedef char SHEETSTR[64];
+typedef void const *LPCVOID;
 
 struct color { float r, g, b, a; };
 struct color32 { uint8_t r, g, b, a; };
 struct bounds { float min, max; };
 struct rect { float x, y, width, height; };
 struct edges { float left, top, right, bottom; };
-struct transform2 { struct vector2 translation, scale; float rotation; };
-struct transform3 { struct vector3 translation, rotation, scale; };
+struct transform2 { VECTOR2 translation, scale; float rotation; };
+struct transform3 { VECTOR3 translation, rotation, scale; };
 
 enum SheetType {
     ST_ID,
@@ -211,14 +211,14 @@ enum SheetType {
 };
 
 struct SheetLayout {
-    const char *column;
+    const LPSTR column;
     enum SheetType type;
-    void *fofs;
+    HANDLE fofs;
 };
 
-struct entity_state {
+struct EntityState {
     int number; // edict index
-    struct vector3 origin;
+    VECTOR3 origin;
     float angle;
     float scale;
     int model;
@@ -228,7 +228,7 @@ struct entity_state {
     int event;
 };
 
-struct animation_info {
+struct AnimationInfo {
     DWORD start_frame;
     DWORD end_frame;
     DWORD framerate;
@@ -269,9 +269,9 @@ struct CliffInfo {
 struct Doodad {
     DWORD doodID;
     DWORD variation;
-    struct vector3 position;
+    VECTOR3 position;
     float angle;
-    struct vector3 scale;
+    VECTOR3 scale;
     char nFlags;
     char lifetime;
     DWORD id_num;
@@ -280,15 +280,15 @@ struct Doodad {
 struct TerrainVertex {
     short accurate_height;
     short waterlevel;
-    unsigned char ground:4;
-    unsigned char ramp:1;
-    unsigned char blight:1;
-    unsigned char water:1;
-    unsigned char boundary:1;
-    unsigned char details:4;
-    unsigned char unknown:4;
-    unsigned char level:4;
-    unsigned char cliff:4;
+    BYTE ground:4;
+    BYTE ramp:1;
+    BYTE blight:1;
+    BYTE water:1;
+    BYTE boundary:1;
+    BYTE details:4;
+    BYTE unknown:4;
+    BYTE level:4;
+    BYTE cliff:4;
 };
 
 struct size2 {
@@ -301,9 +301,9 @@ struct terrain {
     DWORD version;
     char tileset;
     DWORD custom;
-    DWORD *lpGrounds;
-    DWORD *lpCliffs;
-    struct vector2 center;
+    LPDWORD lpGrounds;
+    LPDWORD lpCliffs;
+    VECTOR2 center;
     struct size2 size;
     LPTERRAINVERTEX vertices;
     DWORD numGrounds;
@@ -313,28 +313,24 @@ struct terrain {
 struct SheetCell {
     DWORD column;
     DWORD row;
-    char *text;
+    LPSTR text;
     struct SheetCell *lpNext;
 };
 
-LPCTERRAINVERTEX GetTerrainVertex(LPCTERRAIN heightmap, int x, int y);
+LPCTERRAINVERTEX GetTerrainVertex(LPCTERRAIN lpTerrain, DWORD x, DWORD y);
 LPTERRAIN  FileReadTerrain(HANDLE hArchive);
-
-void *FS_ParseSheet(LPCSTR szFileName, LPCSHEETLAYOUT lpLayout, int dwElementSize, void *lpNextFieldOffset);
-
+HANDLE FS_ParseSheet(LPCSTR szFileName, LPCSHEETLAYOUT lpLayout, DWORD dwElementSize, HANDLE lpNextFieldOffset);
 void LoadMap(LPCSTR pFilename);
-
-LPCTERRAINVERTEX GetTerrainVertex(LPCTERRAIN heightmap, int x, int y);
-LPTERRAININFO FindTerrainInfo(int tileID);
-LPCLIFFINFO FindCliffInfo(int cliffID);
-
-int GetTile(LPCTERRAINVERTEX mv, int ground);
+LPCTERRAINVERTEX GetTerrainVertex(LPCTERRAIN lpTerrain, DWORD x, DWORD y);
+LPTERRAININFO FindTerrainInfo(DWORD tileID);
+LPCLIFFINFO FindCliffInfo(DWORD cliffID);
+DWORD GetTile(LPCTERRAINVERTEX mv, DWORD ground);
 float GetTerrainVertexHeight(LPCTERRAINVERTEX vert);
 float GetTerrainVertexWaterLevel(LPCTERRAINVERTEX vert);
-void GetTileVertices(int x, int y, LPCTERRAIN heightmap, LPTERRAINVERTEX vertices);
-int GetTileRamps(LPCTERRAINVERTEX vertices);
-int IsTileCliff(LPCTERRAINVERTEX vertices);
-int IsTileWater(LPCTERRAINVERTEX vertices);
+void GetTileVertices(DWORD x, DWORD y, LPCTERRAIN lpTerrain, LPTERRAINVERTEX vertices);
+DWORD GetTileRamps(LPCTERRAINVERTEX vertices);
+DWORD IsTileCliff(LPCTERRAINVERTEX vertices);
+DWORD IsTileWater(LPCTERRAINVERTEX vertices);
 
 void FS_Init(void);
 void FS_Shutdown(void);
@@ -347,14 +343,14 @@ bool FS_ExtractFile(LPCSTR szToExtract, LPCSTR szExtracted);
 struct SheetCell *FS_ReadSheet(LPCSTR szFileName);
 
 void CL_Init(void);
-void CL_Frame(int msec);
+void CL_Frame(DWORD msec);
 void CL_Shutdown(void);
 
 void SV_Init(void);
-void SV_Frame(int msec);
+void SV_Frame(DWORD msec);
 void SV_Shutdown(void);
 
-void *MemAlloc(long size);
-void MemFree(void *mem);
+HANDLE MemAlloc(long size);
+void MemFree(HANDLE mem);
 
 #endif

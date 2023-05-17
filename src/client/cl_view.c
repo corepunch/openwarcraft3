@@ -9,19 +9,19 @@ static struct {
     int num_entities;
 } view_state;
 
-static void V_AddClientEntity(struct client_entity const *ent) {
+static void V_AddClientEntity(struct client_entity const *lpEdict) {
     struct render_entity *re = &view_state.entities[view_state.num_entities++];
-    re->origin = ent->current.origin;
-    re->angle = ent->current.angle;
-    re->scale = ent->current.scale;
-    re->frame = ent->current.frame;
-    re->model = cl.models[ent->current.model];
-    re->skin = cl.pics[ent->current.image];
+    re->origin = lpEdict->current.origin;
+    re->angle = lpEdict->current.angle;
+    re->scale = lpEdict->current.scale;
+    re->frame = lpEdict->current.frame;
+    re->model = cl.models[lpEdict->current.model];
+    re->skin = cl.pics[lpEdict->current.image];
 }
 
 static void V_ClearScene(void) {
     view_state.num_entities = 0;
-    cl.refdef.num_entities = 0;
+    cl.viewDef.num_entities = 0;
 }
 
 static void CL_AddEntities(void) {
@@ -31,8 +31,8 @@ static void CL_AddEntities(void) {
             continue;
         V_AddClientEntity(ce);
     }
-    cl.refdef.num_entities = view_state.num_entities;
-    cl.refdef.entities = view_state.entities;
+    cl.viewDef.num_entities = view_state.num_entities;
+    cl.viewDef.entities = view_state.entities;
 }
 
 void CL_PrepRefresh(void) {
@@ -64,7 +64,7 @@ void V_RenderView(void) {
     CL_AddEntities();
     
     renderer->BeginFrame();
-    renderer->RenderFrame(&cl.refdef);
+    renderer->RenderFrame(&cl.viewDef);
     renderer->EndFrame();
 }
 

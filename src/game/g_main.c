@@ -22,13 +22,13 @@ void G_Shutdown(void) {
     gi.MemFree(game_state.edicts);
 }
 
-static void G_RunEntity(struct edict *ent, int msec) {
-    if (ent->think) {
-        ent->think(ent, msec);
+static void G_RunEntity(LPEDICT lpEdict, DWORD msec) {
+    if (lpEdict->think) {
+        lpEdict->think(lpEdict, msec);
     }
 }
 
-void G_RunFrame(int msec) {
+void G_RunFrame(DWORD msec) {
     FOR_LOOP(i, globals.num_edicts) {
         G_RunEntity(&globals.edicts[i], msec);
     }

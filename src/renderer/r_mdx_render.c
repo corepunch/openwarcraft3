@@ -13,7 +13,7 @@ R_GetKeyframeValue(struct tModelKeyFrame const *lpKeyframe1,
                    struct tModelKeyFrame const *lpKeyframe2,
                    DWORD const dwTime,
                    enum tModelKeyTrackDataType dwDataType,
-                   void *out)
+                   HANDLE out)
 {
     float const t = (float)(dwTime - lpKeyframe1->time) / (float)(lpKeyframe2->time - lpKeyframe1->time);
     switch (dwDataType) {
@@ -21,10 +21,10 @@ R_GetKeyframeValue(struct tModelKeyFrame const *lpKeyframe1,
             *((float *)out) = (*(float *)lpKeyframe1->data) * (1 - t) + (*(float *)lpKeyframe2->data) * t;
             return;
         case kModelKeyTrackDataTypeVector3:
-            *((struct vector3 *)out) = vector3_lerp((struct vector3 *)lpKeyframe1->data, (struct vector3 *)lpKeyframe2->data, t);
+            *((VECTOR3 *)out) = Vector3_lerp((VECTOR3 *)lpKeyframe1->data, (VECTOR3 *)lpKeyframe2->data, t);
             return;
         case kModelKeyTrackDataTypeQuaternion:
-            *((struct vector4 *)out) = quaternion_lerp((struct vector4 *)lpKeyframe1->data, (struct vector4 *)lpKeyframe2->data, t);
+            *((VECTOR4 *)out) = quaternion_lerp((VECTOR4 *)lpKeyframe1->data, (VECTOR4 *)lpKeyframe2->data, t);
             return;
     }
 }
@@ -33,13 +33,13 @@ static void
 R_GetKeytrackValue(LPCMODEL lpModel,
                    struct tModelKeyTrack const *lpKeytrack,
                    DWORD dwFrameNumber,
-                   void *out)
+                   HANDLE out)
 {
     DWORD const dwKeyframeSize = GetModelKeyFrameSize(lpKeytrack->datatype, lpKeytrack->type);
-    char const *lpKeyFrames = (char *)lpKeytrack->values;
+    char const *lpKeyFrames = (LPSTR)lpKeytrack->values;
     struct tModelKeyFrame *lpPrevKeyFrame = NULL;
     FOR_LOOP(dwKeyframeIndex, lpKeytrack->dwKeyframeCount) {
-        struct tModelKeyFrame *lpKeyFrame = (void *)(lpKeyFrames + dwKeyframeSize * dwKeyframeIndex);
+        struct tModelKeyFrame *lpKeyFrame = (HANDLE)(lpKeyFrames + dwKeyframeSize * dwKeyframeIndex);
         if (lpKeyFrame->time == dwFrameNumber || (lpKeyFrame->time > dwFrameNumber && !lpPrevKeyFrame)) {
             memcpy(out, lpKeyFrame->data, GetModelKeyTrackDataTypeSize(lpKeytrack->datatype));
             return;
@@ -56,12 +56,12 @@ R_GetKeytrackValue(LPCMODEL lpModel,
 static void R_CalculateNodeMatrix(LPCMODEL lpModel,
                                   struct tModelNode const *lpNode,
                                   DWORD dwFrameNumber,
-                                  struct matrix4 *lpMatrix)
+                                  LPMATRIX4 lpMatrix)
 {
-    struct vector3 vTranslation = { 0, 0, 0 };
-    struct vector4 vRotation = { 0, 0, 0, 1 };
-    struct vector3 vScale = { 1, 1, 1 };
-    struct vector3 const *lpPivot = (struct vector3 const *)lpNode->lpPivot;
+    VECTOR3 vTranslation = { 0, 0, 0 };
+    VECTOR4 vRotation = { 0, 0, 0, 1 };
+    VECTOR3 vScale = { 1, 1, 1 };
+    LPCVECTOR3 lpPivot = (VECTOR3 const *)lpNode->lpPivot;
     if (lpNode->lpTranslation) {
         R_GetKeytrackValue(lpModel, lpNode->lpTranslation, dwFrameNumber, &vTranslation);
     }
@@ -72,20 +72,20 @@ static void R_CalculateNodeMatrix(LPCMODEL lpModel,
         R_GetKeytrackValue(lpModel, lpNode->lpScale, dwFrameNumber, &vScale);
     }
     if (!lpNode->lpTranslation && !lpNode->lpRotation && !lpNode->lpScale) {
-        matrix4_identity(lpMatrix);
+        Matrix4_identity(lpMatrix);
     } else if (lpNode->lpTranslation && !lpNode->lpRotation && !lpNode->lpScale) {
-        matrix4_from_translation(lpMatrix, &vTranslation);
+        Matrix4_from_translation(lpMatrix, &vTranslation);
     } else if (!lpNode->lpTranslation && lpNode->lpRotation && !lpNode->lpScale) {
-        matrix4_from_rotation_origin(lpMatrix,  &vRotation, lpPivot);
+        Matrix4_from_rotation_origin(lpMatrix,  &vRotation, lpPivot);
     } else {
-        matrix4_from_rotation_translation_scale_origin(lpMatrix, &vRotation, &vTranslation, &vScale, lpPivot);
+        Matrix4_from_rotation_translation_scale_origin(lpMatrix, &vRotation, &vTranslation, &vScale, lpPivot);
     }
 }
 
-struct matrix4 const *R_GetNodeGlobalMatrix(struct tModelNode *lpNode) {
+LPCMATRIX4 R_GetNodeGlobalMatrix(struct tModelNode *lpNode) {
     if (lpNode->globalMatrix.v[15] == 0) {
         if (lpNode->lpParent) {
-            matrix4_multiply(R_GetNodeGlobalMatrix(lpNode->lpParent),
+            Matrix4_multiply(R_GetNodeGlobalMatrix(lpNode->lpParent),
                              &lpNode->localMatrix,
                              &lpNode->globalMatrix);
         } else {
@@ -96,7 +96,7 @@ struct matrix4 const *R_GetNodeGlobalMatrix(struct tModelNode *lpNode) {
 }
 
 static void R_CalculateBoneMatrices(LPCMODEL lpModel,
-                                    struct matrix4 *lpModelMatrices,
+                                    LPMATRIX4 lpModelMatrices,
                                     DWORD dwFrameNumber)
 {
     DWORD dwBoneIndex = 1;
@@ -116,7 +116,7 @@ static void R_CalculateBoneMatrices(LPCMODEL lpModel,
 
 static void R_RenderGeoset(LPCMODEL lpModel,
                            struct tModelGeoset *lpGeoset,
-                           struct matrix4 const *lpModelMatrix)
+                           LPCMATRIX4 lpModelMatrix)
 {
     glUseProgram(tr.shaderSkin->progid);
     glUniformMatrix4fv(tr.shaderSkin->u_model_matrix, 1, GL_FALSE, lpModelMatrix->v);
@@ -133,7 +133,7 @@ static void R_BindBoneMatrices(LPMODEL lpModel, DWORD dwFrameNumber)
 
     R_CalculateBoneMatrices(lpModel, aBoneMatrices, dwFrameNumber);
     
-    matrix4_identity(node_matrices);
+    Matrix4_identity(node_matrices);
 
     FOR_EACH_LIST(struct tModelHelper, bone, lpModel->lpHelpers) {
         node_matrices[bone->node.objectId + 1] = bone->node.globalMatrix;
@@ -161,10 +161,10 @@ static void RenderGeoset(LPMODEL lpModel,
     }
     
     struct matrix4 model_matrix;
-    matrix4_identity(&model_matrix);
-    matrix4_translate(&model_matrix, &lpEntity->origin);
-    matrix4_rotate(&model_matrix, &(struct vector3){0, 0, lpEntity->angle * 180 / 3.14f}, ROTATE_XYZ);
-    matrix4_scale(&model_matrix, &(struct vector3){lpEntity->scale, lpEntity->scale, lpEntity->scale});
+    Matrix4_identity(&model_matrix);
+    Matrix4_translate(&model_matrix, &lpEntity->origin);
+    Matrix4_rotate(&model_matrix, &(VECTOR3){0, 0, lpEntity->angle * 180 / 3.14f}, ROTATE_XYZ);
+    Matrix4_scale(&model_matrix, &(VECTOR3){lpEntity->scale, lpEntity->scale, lpEntity->scale});
 
     switch (lpLayer->blendMode) {
         case TEXOP_LOAD:
@@ -190,30 +190,30 @@ static void RenderGeoset(LPMODEL lpModel,
     R_RenderGeoset(lpModel, lpGeoset, &model_matrix);
 }
 
-void RenderModel(struct render_entity const *ent) {
-    struct tModelMaterial *lpMaterial = ent->model->lpMaterials;
-    struct tModelGeoset *lpGeoset = ent->model->lpGeosets;
-    LPMODEL lpModel = ent->model;
+void RenderModel(struct render_entity const *lpEdict) {
+    struct tModelMaterial *lpMaterial = lpEdict->model->lpMaterials;
+    struct tModelGeoset *lpGeoset = lpEdict->model->lpGeosets;
+    LPMODEL lpModel = lpEdict->model;
 
-    if (ent->skin) {
-        R_BindTexture(ent->skin, 0);
+    if (lpEdict->skin) {
+        R_BindTexture(lpEdict->skin, 0);
     }
     
-    R_BindBoneMatrices(lpModel, ent->frame);
+    R_BindBoneMatrices(lpModel, lpEdict->frame);
     
     for (DWORD dwGeosetID = 0;
          lpMaterial && lpGeoset;
          lpGeoset = lpGeoset->lpNext, dwGeosetID++)
     {
-        if (dwGeosetID < ent->model->numTextures) {
-            struct tModelTexture const *mtex = &ent->model->lpTextures[dwGeosetID];
+        if (dwGeosetID < lpEdict->model->numTextures) {
+            struct tModelTexture const *mtex = &lpEdict->model->lpTextures[dwGeosetID];
             LPCTEXTURE tex = R_FindTextureByID(mtex->texid);
             if (tex) {
                 R_BindTexture(tex, 0);
             }
         }
         FOR_LOOP(dwLayerID, lpMaterial->num_layers) {
-            RenderGeoset(lpModel, lpGeoset, &lpMaterial->layers[dwLayerID], ent);
+            RenderGeoset(lpModel, lpGeoset, &lpMaterial->layers[dwLayerID], lpEdict);
         }
         if (lpMaterial->lpNext) {
             lpMaterial = lpMaterial->lpNext;

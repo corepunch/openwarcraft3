@@ -10,25 +10,25 @@ struct loopback {
 
 struct loopback bufs[2] = { 0 };
 
-void NET_Write(int sock, void const *data, int size) {
+void NET_Write(DWORD sock, LPCVOID data, DWORD size) {
     struct loopback *buf = &bufs[sock];
     FOR_LOOP(i, size) {
-        buf->buffer[(buf->write++) % BUFFER_SIZE] = ((char *)data)[i];
+        buf->buffer[(buf->write++) % BUFFER_SIZE] = ((LPSTR)data)[i];
     }
 }
 
-int NET_Read(int sock, void *data, int size) {
+int NET_Read(DWORD sock, HANDLE data, DWORD size) {
     struct loopback *buf = &bufs[sock];
     FOR_LOOP(i, size) {
         if (buf->read == buf->write)
             return i;
-        ((char *)data)[i] = buf->buffer[(buf->read++) % BUFFER_SIZE];
+        ((LPSTR)data)[i] = buf->buffer[(buf->read++) % BUFFER_SIZE];
     }
     return size;
 }
 
-int NET_GetPacket(int sock, struct sizebuf *msg) {
-    int size = 0;
+int NET_GetPacket(DWORD sock, LPSIZEBUF msg) {
+    DWORD size = 0;
     if (NET_Read(sock, &size, 4)) {
         assert(size < MAX_MSGLEN);
         NET_Read(sock, msg->data, size);
@@ -40,7 +40,7 @@ int NET_GetPacket(int sock, struct sizebuf *msg) {
     return 0;
 }
 
-//int NET_SendPacket(int sock, struct sizebuf const *msg) {
+//int NET_SendPacket(DWORD sock, LPSIZEBUF msg) {
 //    NET_Write(sock, &msg->cursize, 4);
 //    NET_Write(sock, msg->data, msg->cursize);
 //    return 0;

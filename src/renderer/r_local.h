@@ -23,10 +23,10 @@
     {\
         switch (Error)\
         {\
-            case GL_INVALID_ENUM:      printf("\n%s\n\n", "GL_INVALID_ENUM"     ); assert(0); break;\
-            case GL_INVALID_VALUE:     printf("\n%s\n\n", "GL_INVALID_VALUE"    ); assert(0); break;\
+            case GL_INVALID_ENUM:      printf("\n%s\n\n", "GL_INVALID_ENUM"    ); assert(0); break;\
+            case GL_INVALID_VALUE:     printf("\n%s\n\n", "GL_INVALID_VALUE"   ); assert(0); break;\
             case GL_INVALID_OPERATION: printf("\n%s\n\n", "GL_INVALID_OPERATION"); assert(0); break;\
-            case GL_OUT_OF_MEMORY:     printf("\n%s\n\n", "GL_OUT_OF_MEMORY"    ); assert(0); break;\
+            case GL_OUT_OF_MEMORY:     printf("\n%s\n\n", "GL_OUT_OF_MEMORY"   ); assert(0); break;\
             default:                                                                              break;\
         }\
     }\
@@ -45,9 +45,9 @@ typedef struct shader_program const *LPCSHADER;
 typedef struct render_buffer *LPBUFFER;
 
 struct vertex {
-    struct vector3 position;
-    struct vector2 texcoord;
-    struct vector2 texcoord2;
+    VECTOR3 position;
+    VECTOR2 texcoord;
+    VECTOR2 texcoord2;
     struct color32 color;
     uint8_t skin[4];
     uint8_t boneWeight[4];
@@ -74,7 +74,7 @@ struct shader_program {
 };
 
 struct render_globals {
-    struct refdef refdef;
+    struct viewDef viewDef;
     LPCTERRAIN world;
     LPCTEXTURE shadowmap;
     LPCTEXTURE waterTexture;
@@ -91,10 +91,10 @@ void R_DrawEntities(void);
 void R_DrawWorld(void);
 void R_DrawAlphaSurfaces(void);
 LPTEXTURE R_AllocateTexture(uint32_t dwWidth, uint32_t dwHeight);
-void R_LoadTextureMipLevel(LPTEXTURE pTexture, int dwLevel, struct color32* pPixels, uint32_t dwWidth, uint32_t dwHeight);
+void R_LoadTextureMipLevel(LPTEXTURE pTexture, DWORD dwLevel, struct color32* pPixels, uint32_t dwWidth, uint32_t dwHeight);
 void R_BindTexture(LPCTEXTURE texture, int unit);
-void RenderModel(struct render_entity const *ent);
-LPBUFFER R_MakeVertexArrayObject(struct vertex const *data, int size);
+void RenderModel(struct render_entity const *lpEdict);
+LPBUFFER R_MakeVertexArrayObject(struct vertex const *data, DWORD size);
 void R_ReleaseVertexArrayObject(LPBUFFER lpBuffer);
 LPCTEXTURE R_FindTextureByID(int texid);
 

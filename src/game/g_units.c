@@ -98,7 +98,7 @@ void G_InitUnits(void) {
 //    }
 }
 
-struct UnitUI *G_FindUnitUI(int unitUIID) {
+LPUNITUI G_FindUnitUI(int unitUIID) {
     FOR_EACH_LIST(struct UnitUI, info, game.UnitUI) {
         if (info->unitUIID == unitUIID)
             return info;

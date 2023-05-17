@@ -4,11 +4,13 @@
 #include "../common/common.h"
 #include "game.h"
 
-#define EDICT_NUM(n) ((struct edict *)((char *)ge->edicts + ge->edict_size*(n)))
-#define NUM_FOR_EDICT(e) (((char *)(e)-(char *)ge->edicts) / ge->edict_size)
+#define EDICT_NUM(n) ((LPEDICT)((LPSTR)ge->edicts + ge->edict_size*(n)))
+#define NUM_FOR_EDICT(e) (((LPSTR)(e)-(LPSTR)ge->edicts) / ge->edict_size)
+
+ADD_TYPEDEFS(client_frame, CLIENTFRAME);
 
 struct edict {
-    struct entity_state s;
+    ENTITYSTATE s;
 };
 
 struct client_frame {
@@ -20,17 +22,17 @@ struct client {
     bool initialized;
     struct client_frame frames[UPDATE_BACKUP];
     struct netchan netchan;
-    struct vector3 camera_position;
-    int lastframe;
+    VECTOR3 camera_position;
+    DWORD lastframe;
 };
 
 struct server_static {
     struct client clients[MAX_CLIENTS];
-    struct entity_state *client_entities;
+    LPENTITYSTATE client_entities;
     bool initialized;
-    int num_clients;
-    int num_client_entities;
-    int next_client_entities;
+    DWORD num_clients;
+    DWORD num_client_entities;
+    DWORD next_client_entities;
 };
 
 struct mdx_sequence {
@@ -41,8 +43,8 @@ struct mdx_sequence {
     float rarity;
     int syncpoint;
     float radius;
-    struct vector3 min;
-    struct vector3 max;
+    VECTOR3 min;
+    VECTOR3 max;
 };
 
 struct cmodel {
@@ -56,7 +58,7 @@ struct server {
     struct cmodel *models[MAX_MODELS];
     int framenum;
     int time;
-    struct entity_state *baselines;
+    LPENTITYSTATE baselines;
 };
 
 extern struct game_export *ge;
@@ -67,9 +69,9 @@ void SV_Map(LPCSTR pFilename);
 void SV_InitGame(void);
 void SV_BuildClientFrame(struct client *client);
 void SV_WriteFrameToClient(struct client *client);
-void MSG_WriteDeltaEntity(struct sizebuf *msg,
-                          struct entity_state const *from,
-                          struct entity_state const *to);
+void MSG_WriteDeltaEntity(LPSIZEBUF msg,
+                          LPCENTITYSTATE from,
+                          LPCENTITYSTATE to);
 int SV_ModelIndex(LPCSTR name);
 int SV_SoundIndex(LPCSTR name);
 int SV_ImageIndex(LPCSTR name);

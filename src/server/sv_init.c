@@ -4,15 +4,15 @@ static struct size2 sv_pathmapSize;
 static struct PathMapNode *sv_pathmap;
 
 void SV_CreateBaseline(void) {
-    sv.baselines = MemAlloc(sizeof(struct entity_state) * ge->max_edicts);
+    sv.baselines = MemAlloc(sizeof(ENTITYSTATE) * ge->max_edicts);
     FOR_LOOP(entnum, ge->num_edicts) {
-        struct edict *svent = EDICT_NUM(entnum);
+        LPEDICT svent = EDICT_NUM(entnum);
         sv.baselines[entnum] = svent->s;
         svent->s.number = entnum;
     }
 }
 
-struct PathMapNode const *SV_PathMapNode(LPCTERRAIN heightmap, int x, int y) {
+struct PathMapNode const *SV_PathMapNode(LPCTERRAIN lpTerrain, DWORD x, DWORD y) {
     int const index = x + y * sv_pathmapSize.width;
     return &sv_pathmap[index];
 }
@@ -27,7 +27,7 @@ static void SV_ReadDoodads(HANDLE hArchive) {
     SFileReadFile(hFile, &dwUnknown, 4, NULL, NULL);
     SFileReadFile(hFile, &dwNumDoodads, 4, NULL, NULL);
     
-    struct Doodad *lpDoodads = MemAlloc(dwNumDoodads * DOODAD_SIZE);
+    LPDOODAD lpDoodads = MemAlloc(dwNumDoodads * DOODAD_SIZE);
     
     SFileReadFile(hFile, lpDoodads, dwNumDoodads * DOODAD_SIZE, NULL, NULL);
     SFileCloseFile(hFile);
@@ -70,7 +70,7 @@ void SV_InitGame(void) {
     }
     svs.initialized = true;
     svs.num_client_entities = UPDATE_BACKUP * MAX_CLIENTS * MAX_PACKET_ENTITIES;
-    svs.client_entities = MemAlloc(sizeof(struct entity_state) * svs.num_client_entities);
+    svs.client_entities = MemAlloc(sizeof(ENTITYSTATE) * svs.num_client_entities);
 }
 
 void SV_Shutdown(void) {
@@ -85,10 +85,10 @@ void __netchan_init(struct netchan *netchan){
     netchan->message.maxsize = sizeof(netchan->message_buf);
 }
 
-static struct animation_info SV_GetAnimation(int modelindex, LPCSTR animname) {
+static struct AnimationInfo SV_GetAnimation(int modelindex, LPCSTR animname) {
     struct cmodel *model = sv.models[modelindex];
     if (!model) {
-        return (struct animation_info) { 0 };
+        return (struct AnimationInfo) { 0 };
     }
     FOR_LOOP(i, model->num_animations){
         struct mdx_sequence *anim = &model->animations[i];
@@ -97,14 +97,14 @@ static struct animation_info SV_GetAnimation(int modelindex, LPCSTR animname) {
     FOR_LOOP(i, model->num_animations){
         struct mdx_sequence *anim = &model->animations[i];
         if (!strcmp(anim->name, animname)) {
-            return (struct animation_info) {
+            return (struct AnimationInfo) {
                 .start_frame = anim->interval[0],
                 .end_frame = anim->interval[1],
 //                .framerate = anim->,
             };
         }
     }
-    return (struct animation_info) {};
+    return (struct AnimationInfo) {};
 }
 
 void SV_Init(void) {
@@ -122,6 +122,6 @@ void SV_Init(void) {
     memset(&sv, 0, sizeof(struct server));
     __netchan_init(&svs.clients[0].netchan);
     svs.num_clients = 1;
-    sv.baselines = MemAlloc(sizeof(struct entity_state) * ge->max_edicts);
+    sv.baselines = MemAlloc(sizeof(ENTITYSTATE) * ge->max_edicts);
 }
 

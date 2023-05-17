@@ -4,22 +4,22 @@
 #include "../common/common.h"
 
 struct game_import {
-    void *(*MemAlloc)(long size);
-    void (*MemFree)(void *);
+    HANDLE (*MemAlloc)(long size);
+    void (*MemFree)(HANDLE);
     int (*ModelIndex)(LPCSTR szModelName);
     int (*SoundIndex)(LPCSTR szSoundName);
     int (*ImageIndex)(LPCSTR szImageName);
-    struct animation_info (*GetAnimation)(int modelindex, LPCSTR animation);
-    void *(*ParseSheet)(LPCSTR szSheetFilename, LPCSHEETLAYOUT lpLayout, int dwElementSize, void *lpNextFieldOffset);
+    struct AnimationInfo (*GetAnimation)(int modelindex, LPCSTR animation);
+    HANDLE (*ParseSheet)(LPCSTR szSheetFilename, LPCSHEETLAYOUT lpLayout, DWORD dwElementSize, HANDLE lpNextFieldOffset);
 };
 
 struct game_export {
     void (*Init)(void);
     void (*Shutdown)(void);
-    void (*SpawnEntities)(struct Doodad const *doodads, int numDoodads);
-    void (*RunFrame)(int msec);
+    void (*SpawnEntities)(LPCDOODAD doodads, DWORD numDoodads);
+    void (*RunFrame)(DWORD msec);
     
-    struct edict *edicts;
+    LPEDICT edicts;
     int num_edicts;
     int max_edicts;
     int edict_size;

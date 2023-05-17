@@ -3,11 +3,8 @@
 #define MPQ_PATH "/Users/igor/Documents/Warcraft3/war3.mpq"
 
 static struct {
-    struct UnitData *lpUnitData;
     LPTERRAININFO lpTerrainInfo;
     LPCLIFFINFO lpCliffInfo;
-    struct DoodadInfo *lpDoodadInfo;
-    struct DestructableData *lpDestructableData;
 } stats = { NULL };
 
 static HANDLE hArchive;
@@ -91,7 +88,7 @@ void FS_Init(void) {
 //         SFileFindClose(handle);
 //     }
 //
-//    const char *sheets[] = {
+//    const LPSTR sheets[] = {
 //        "Units\\unitUI.slk",
 //        "Splats\\LightningData.slk",
 //        "Units\\AbilityData.slk",
@@ -143,19 +140,19 @@ void FS_Shutdown(void) {
     SFileCloseArchive(hArchive);
 }
 
-void *MemAlloc(long size) {
-    void *mem = malloc(size);
+HANDLE MemAlloc(long size) {
+    HANDLE mem = malloc(size);
 //    printf("Alloc (%d) %llx\n", size, mem);
     memset(mem, 0, size);
     return mem;
 }
 
-void MemFree(void *mem) {
+void MemFree(HANDLE mem) {
 //    printf("Free %llx\n", mem);
     free(mem);
 }
 
-LPTERRAININFO FindTerrainInfo(int tileID) {
+LPTERRAININFO FindTerrainInfo(DWORD tileID) {
     FOR_EACH_LIST(struct TerrainInfo, info, stats.lpTerrainInfo) {
         if (info->tileID == tileID)
             return info;
@@ -163,7 +160,7 @@ LPTERRAININFO FindTerrainInfo(int tileID) {
     return NULL;
 }
 
-LPCLIFFINFO FindCliffInfo(int cliffID) {
+LPCLIFFINFO FindCliffInfo(DWORD cliffID) {
     FOR_EACH_LIST(struct CliffInfo, info, stats.lpCliffInfo) {
         if (info->cliffID == cliffID)
             return info;

@@ -45,9 +45,9 @@ static float GetAccurateWaterLevelAtPoint(float sx, float sy) {
     return DECODE_HEIGHT(lerp(ab, cd, y - fy));
 }
 
-static inline bool IsPointVisible(struct vector3 const *point) {
-    struct vector3 screen;
-    matrix4_multiply_vector3(&tr.refdef.projection_matrix, point, &screen);
+static inline bool IsPointVisible(LPCVECTOR3 point) {
+    VECTOR3 screen;
+    Matrix4_multiply_vector3(&tr.viewDef.projection_matrix, point, &screen);
     if (screen.x < -1.25) return false;
     if (screen.y < -1.25) return false;
     if (screen.x > 1.25) return false;
@@ -55,11 +55,11 @@ static inline bool IsPointVisible(struct vector3 const *point) {
     return true;
 }
 
-static inline int IsTileVisible(int x, int y) {
+static inline int IsTileVisible(DWORD x, DWORD y) {
     float const fx = (x + 0.5) * TILESIZE;
     float const fy = (y + 0.5) * TILESIZE;
     float const fh = GetTerrainVertex(tr.world, x, y)->level * TILESIZE;
-    return IsPointVisible(&(struct vector3) {
+    return IsPointVisible(&(VECTOR3) {
         .x = fx + tr.world->center.x,
         .y = fy + tr.world->center.y,
         .z = GetAccurateHeightAtPoint(fx, fy) + fh - HEIGHT_COR,
@@ -122,10 +122,10 @@ static void SetTileUV(int tile, struct vertex* vertices, LPTERRAININFO terrain) 
     }
 }
 
-struct vector2 map_position(float x, float y) {
+VECTOR2 map_position(float x, float y) {
     float _x = (x - tr.world->center.x) / ((tr.world->size.width-1) * TILESIZE);
     float _y = (y - tr.world->center.y) / ((tr.world->size.height-1) * TILESIZE);
-    return (struct vector2) { _x, _y };
+    return (VECTOR2) { _x, _y };
 }
 
 struct color32 MakeColor(float r, float g, float b, float a) {
@@ -137,7 +137,7 @@ struct color32 MakeColor(float r, float g, float b, float a) {
     };
 }
 
-static void MakeTile(int x, int y, int ground,
+static void MakeTile(DWORD x, DWORD y, DWORD ground,
                      struct vertex* vertices,
                      LPTERRAININFO terrain,
                      int *index)
@@ -153,7 +153,7 @@ static void MakeTile(int x, int y, int ground,
         return;
     }
     
-    struct vector2 p[] = {
+    VECTOR2 p[] = {
         { tr.world->center.x + x * TILESIZE, tr.world->center.y + y * TILESIZE },
         { tr.world->center.x + (x + 1) * TILESIZE, tr.world->center.y + y * TILESIZE },
         { tr.world->center.x + (x + 1) * TILESIZE, tr.world->center.y + (y + 1) * TILESIZE },
@@ -207,7 +207,7 @@ static int TileBaseLevel(LPCTERRAINVERTEX tile) {
     return minlevel;
 }
 
-static void MakeCliff(int x, int y, int cliffindex,
+static void MakeCliff(DWORD x, DWORD y, int cliffindex,
                       struct vertex* vertices,
                       LPCLIFFINFO cliff,
                       int *index)
@@ -237,10 +237,10 @@ static void MakeCliff(int x, int y, int cliffindex,
     
     FOR_LOOP(gindx, tr.world->numGrounds) {
         if (tr.world->lpGrounds[gindx] == cliff->groundTile) {
-            ((LPTERRAINVERTEX )GetTerrainVertex(tr.world, x+1, y+1))->ground = gindx;
-            ((LPTERRAINVERTEX )GetTerrainVertex(tr.world, x, y+1))->ground = gindx;
-            ((LPTERRAINVERTEX )GetTerrainVertex(tr.world, x+1, y))->ground = gindx;
-            ((LPTERRAINVERTEX )GetTerrainVertex(tr.world, x, y))->ground = gindx;
+            ((LPTERRAINVERTEX)GetTerrainVertex(tr.world, x+1, y+1))->ground = gindx;
+            ((LPTERRAINVERTEX)GetTerrainVertex(tr.world, x, y+1))->ground = gindx;
+            ((LPTERRAINVERTEX)GetTerrainVertex(tr.world, x+1, y))->ground = gindx;
+            ((LPTERRAINVERTEX)GetTerrainVertex(tr.world, x, y))->ground = gindx;
             break;
         }
     }
@@ -285,7 +285,7 @@ static LPCLIFFINFO BindCliffTexture(int cliffindex) {
     return cliff;
 }
 
-static LPTERRAININFO BindGroundTexture(int ground) {
+static LPTERRAININFO BindGroundTexture(DWORD ground) {
     char buffer[256];
     int const tileID = tr.world->lpGrounds[ground];
     LPTERRAININFO terrain = FindTerrainInfo(tileID);
@@ -299,7 +299,7 @@ static LPTERRAININFO BindGroundTexture(int ground) {
     return terrain;
 }
 
-static void R_RenderMapLayer(int ground) {
+static void R_RenderMapLayer(DWORD ground) {
     int index = 0;
     LPTERRAININFO terrain = BindGroundTexture(ground);
     
@@ -315,7 +315,7 @@ static void R_RenderMapLayer(int ground) {
     }
 
     struct matrix4 model_matrix;
-    matrix4_identity(&model_matrix);
+    Matrix4_identity(&model_matrix);
     
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -325,7 +325,7 @@ static void R_RenderMapLayer(int ground) {
     glDrawArrays(GL_TRIANGLES, 0, index);
 }
 
-static void MakeWaterTile(int x, int y,
+static void MakeWaterTile(DWORD x, DWORD y,
                           struct vertex* vertices,
                           int *index)
 {
@@ -335,7 +335,7 @@ static void MakeWaterTile(int x, int y,
     if (!IsTileWater(tile))
         return;
     
-    struct vector2 const pos[] = {
+    VECTOR2 const pos[] = {
         { tr.world->center.x + x * TILESIZE, tr.world->center.y + y * TILESIZE },
         { tr.world->center.x + (x + 1) * TILESIZE, tr.world->center.y + y * TILESIZE },
         { tr.world->center.x + (x + 1) * TILESIZE, tr.world->center.y + (y + 1) * TILESIZE },
@@ -386,7 +386,7 @@ static void RenderWater(void) {
         }
     }
     struct matrix4 model_matrix;
-    matrix4_identity(&model_matrix);
+    Matrix4_identity(&model_matrix);
 
     glUseProgram(tr.shaderStatic->progid);
 
@@ -416,7 +416,7 @@ static void R_RenderMapCliffs(int cliffindex) {
     }
 
     struct matrix4 model_matrix;
-    matrix4_identity(&model_matrix);
+    Matrix4_identity(&model_matrix);
     
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -446,11 +446,11 @@ void R_DrawAlphaSurfaces(void) {
 }
 
 void R_DrawEntities(void) {
-    FOR_LOOP(i, tr.refdef.num_entities) {
-        struct render_entity const *ent = &tr.refdef.entities[i];
-        if (!IsPointVisible(&ent->origin))
+    FOR_LOOP(i, tr.viewDef.num_entities) {
+        struct render_entity const *lpEdict = &tr.viewDef.entities[i];
+        if (!IsPointVisible(&lpEdict->origin))
             continue;
-        RenderModel(ent);
+        RenderModel(lpEdict);
     }
 }
 
