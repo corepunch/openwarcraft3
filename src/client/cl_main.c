@@ -40,12 +40,12 @@ void CL_Init(void) {
 void CL_Input(void) {
     static int button;
     SDL_Event event;
-    while( SDL_PollEvent( &event ) )
+    while(SDL_PollEvent(&event ))
     {
-        switch( event.type )
+        switch(event.type)
         {
             case SDL_KEYUP:
-                if( event.key.keysym.sym == SDLK_ESCAPE )
+                if(event.key.keysym.sym == SDLK_ESCAPE)
                     return Com_Quit();
                 break;
             case SDL_MOUSEBUTTONDOWN:

@@ -1,6 +1,6 @@
 #include "r_local.h"
 
-static void R_FileReadShadowMap(HANDLE hMpq, struct terrain *pWorld) {
+static void R_FileReadShadowMap(HANDLE hMpq, LPTERRAIN  pWorld) {
     HANDLE hFile;
     SFileOpenFileEx(hMpq, "war3map.shd", SFILE_OPEN_FROM_MPQ, &hFile);
     int const w = (pWorld->size.width - 1) * 4;
@@ -26,7 +26,7 @@ void R_RegisterMap(char const *szMapFilename) {
     FS_ExtractFile(szMapFilename, TMP_MAP);
     SFileOpenArchive(TMP_MAP, 0, 0, &hMpq);
     
-    struct terrain *pWorld = FileReadTerrain(hMpq);
+    LPTERRAIN  pWorld = FileReadTerrain(hMpq);
 
     R_FileReadShadowMap(hMpq, pWorld);
     

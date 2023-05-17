@@ -11,8 +11,6 @@ struct tCliff {
     struct tCliff *lpNext;
 };
 
-extern GLuint program;
-
 struct tCliff *g_cliffs = NULL;
 
 static float lerp(float a, float b, float t) {
@@ -319,14 +317,12 @@ static void R_RenderMapLayer(int ground) {
     struct matrix4 model_matrix;
     matrix4_identity(&model_matrix);
     
-    glUniformMatrix4fv( glGetUniformLocation( program, "u_model_matrix" ), 1, GL_FALSE, model_matrix.v );
-    
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glBindVertexArray( tr.renbuf->vao );
-    glBindBuffer( GL_ARRAY_BUFFER, tr.renbuf->vbo );
-    glBufferData( GL_ARRAY_BUFFER, sizeof(maplayer), maplayer, GL_STATIC_DRAW );
-    glDrawArrays( GL_TRIANGLES, 0, index );
+    glBindVertexArray(tr.renbuf->vao);
+    glBindBuffer(GL_ARRAY_BUFFER, tr.renbuf->vbo);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(maplayer), maplayer, GL_STATIC_DRAW);
+    glDrawArrays(GL_TRIANGLES, 0, index);
 }
 
 static void MakeWaterTile(int x, int y,
@@ -391,16 +387,17 @@ static void RenderWater(void) {
     }
     struct matrix4 model_matrix;
     matrix4_identity(&model_matrix);
-    
+
+    glUseProgram(tr.shaderStatic->progid);
+
     R_BindTexture(tr.waterTexture, 0);
     
-    glUniformMatrix4fv( glGetUniformLocation( program, "u_model_matrix" ), 1, GL_FALSE, model_matrix.v );
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glBindVertexArray( tr.renbuf->vao );
-    glBindBuffer( GL_ARRAY_BUFFER, tr.renbuf->vbo );
-    glBufferData( GL_ARRAY_BUFFER, sizeof(maplayer), maplayer, GL_STATIC_DRAW );
-    glDrawArrays( GL_TRIANGLES, 0, index );
+    glBindVertexArray(tr.renbuf->vao);
+    glBindBuffer(GL_ARRAY_BUFFER, tr.renbuf->vbo);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(maplayer), maplayer, GL_STATIC_DRAW);
+    glDrawArrays(GL_TRIANGLES, 0, index);
 }
 
 static void R_RenderMapCliffs(int cliffindex) {
@@ -421,18 +418,18 @@ static void R_RenderMapCliffs(int cliffindex) {
     struct matrix4 model_matrix;
     matrix4_identity(&model_matrix);
     
-    glUniformMatrix4fv( glGetUniformLocation( program, "u_model_matrix" ), 1, GL_FALSE, model_matrix.v );
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glBindVertexArray( tr.renbuf->vao );
-    glBindBuffer( GL_ARRAY_BUFFER, tr.renbuf->vbo );
-    glBufferData( GL_ARRAY_BUFFER, sizeof(maplayer), maplayer, GL_STATIC_DRAW );
-    glDrawArrays( GL_TRIANGLES, 0, index );
+    glBindVertexArray(tr.renbuf->vao);
+    glBindBuffer(GL_ARRAY_BUFFER, tr.renbuf->vbo);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(maplayer), maplayer, GL_STATIC_DRAW);
+    glDrawArrays(GL_TRIANGLES, 0, index);
 }
 
 void R_DrawWorld(void) {
     R_BindTexture(tr.shadowmap, 1);
     
+    glUseProgram(tr.shaderStatic->progid);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     

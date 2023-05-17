@@ -118,19 +118,17 @@ static void R_RenderGeoset(struct tModel const *lpModel,
                            struct tModelGeoset *lpGeoset,
                            struct matrix4 const *lpModelMatrix)
 {
-    extern GLuint program;
-
-    glUniformMatrix4fv( glGetUniformLocation( program, "u_model_matrix" ), 1, GL_FALSE, lpModelMatrix->v );
-    glBindVertexArray( lpGeoset->lpBuffer->vao );
-    glBindBuffer( GL_ARRAY_BUFFER, lpGeoset->lpBuffer->vbo );
-    glDrawArrays( GL_TRIANGLES, 0, lpGeoset->numTriangles );
+    glUseProgram(tr.shaderSkin->progid);
+    glUniformMatrix4fv(tr.shaderSkin->u_model_matrix, 1, GL_FALSE, lpModelMatrix->v);
+    glBindVertexArray(lpGeoset->lpBuffer->vao);
+    glBindBuffer(GL_ARRAY_BUFFER, lpGeoset->lpBuffer->vbo);
+    glDrawArrays(GL_TRIANGLES, 0, lpGeoset->numTriangles);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 }
 
 
 static void R_BindBoneMatrices(struct tModel *lpModel, DWORD dwFrameNumber)
 {
-    extern GLuint program;
     struct matrix4 aBoneMatrices[MAX_BONE_MATRICES];
 
     R_CalculateBoneMatrices(lpModel, aBoneMatrices, dwFrameNumber);
@@ -145,7 +143,8 @@ static void R_BindBoneMatrices(struct tModel *lpModel, DWORD dwFrameNumber)
         node_matrices[bone->node.objectId + 1] = bone->node.globalMatrix;
     }
 
-    glUniformMatrix4fv( glGetUniformLocation( program, "u_nodes_matrices" ), 64, GL_FALSE, node_matrices->v );
+    glUseProgram(tr.shaderSkin->progid);
+    glUniformMatrix4fv(tr.shaderSkin->u_nodes_matrices, 64, GL_FALSE, node_matrices->v);
 }
 
 static void RenderGeoset(struct tModel *lpModel,

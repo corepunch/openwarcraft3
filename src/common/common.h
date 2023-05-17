@@ -16,7 +16,7 @@
 #define MAX(x, y) (((x)>(y))?(x):(y))
 #define DECODE_HEIGHT(x) (((x) - 0x2000) / 4)
 #define DOODAD_SIZE 42
-#define MAKEFOURCC(ch0, ch1, ch2, ch3) ((int)(char)(ch0) | ((int)(char)(ch1) << 8) | ((int)(char)(ch2) << 16) | ((int)(char)(ch3) << 24 ))
+#define MAKEFOURCC(ch0, ch1, ch2, ch3) ((int)(char)(ch0) | ((int)(char)(ch1) << 8) | ((int)(char)(ch2) << 16) | ((int)(char)(ch3) << 24))
 #define FOFS(type, x) (void *)&(((struct type *)NULL)->x)
 
 #define UPDATE_BACKUP 16
@@ -180,6 +180,9 @@ typedef enum t_attrib_id {
 typedef char path_t[MAX_PATHLEN];
 typedef char sheetString_t[64];
 
+typedef struct terrain *LPTERRAIN;
+typedef struct terrain const *LPCTERRAIN;
+
 struct color { float r, g, b, a; };
 struct color32 { uint8_t r, g, b, a; };
 struct bounds { float min, max; };
@@ -305,21 +308,21 @@ struct SheetCell {
 struct tModel;
 struct texture;
 
-struct TerrainVertex const *GetTerrainVertex(struct terrain const *heightmap, int x, int y);
-struct terrain *FileReadTerrain(HANDLE hArchive);
+struct TerrainVertex const *GetTerrainVertex(LPCTERRAIN heightmap, int x, int y);
+LPTERRAIN  FileReadTerrain(HANDLE hArchive);
 
 void *FS_ParseSheet(LPCSTR szFileName, struct SheetLayout const *lpLayout, int dwElementSize, void *lpNextFieldOffset);
 
 void LoadMap(LPCSTR pFilename);
 
-struct TerrainVertex const *GetTerrainVertex(struct terrain const *heightmap, int x, int y);
+struct TerrainVertex const *GetTerrainVertex(LPCTERRAIN heightmap, int x, int y);
 struct TerrainInfo *FindTerrainInfo(int tileID);
 struct CliffInfo *FindCliffInfo(int cliffID);
 
 int GetTile(struct TerrainVertex const *mv, int ground);
 float GetTerrainVertexHeight(struct TerrainVertex const *vert);
 float GetTerrainVertexWaterLevel(struct TerrainVertex const *vert);
-void GetTileVertices(int x, int y, struct terrain const *heightmap, struct TerrainVertex *vertices);
+void GetTileVertices(int x, int y, LPCTERRAIN heightmap, struct TerrainVertex *vertices);
 int GetTileRamps(struct TerrainVertex const *vertices);
 int IsTileCliff(struct TerrainVertex const *vertices);
 int IsTileWater(struct TerrainVertex const *vertices);

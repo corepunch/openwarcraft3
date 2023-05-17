@@ -1,6 +1,6 @@
 #include "r_local.h"
 
-static LPCSTR  vertex_shader2 =
+LPCSTR vertex_shader =
     "#version 140\n"
     "in vec3 i_position;\n"
     "in vec4 i_color;\n"
@@ -17,10 +17,10 @@ static LPCSTR  vertex_shader2 =
     "    v_position = i_position;\n"
     "    v_texcoord = i_texcoord;\n"
     "    v_texcoord2 = i_texcoord2;\n"
-    "    gl_Position = u_projection_matrix * u_model_matrix * vec4( i_position, 1.0 );\n"
+    "    gl_Position = u_projection_matrix * u_model_matrix * vec4(i_position, 1.0);\n"
     "}\n";
 
-static LPCSTR  vertex_shader =
+LPCSTR vertex_shader_skin =
     "#version 140\n"
     "in vec3 i_position;\n"
     "in vec4 i_color;\n"
@@ -58,7 +58,7 @@ static LPCSTR  vertex_shader =
     "    gl_Position = u_projection_matrix * u_model_matrix * sum;\n"
     "}\n";
 
-static LPCSTR  fragment_shader =
+LPCSTR fragment_shader =
     "#version 140\n"
     "in vec4 v_color;\n"
     "in vec3 v_position;\n"
@@ -73,47 +73,55 @@ static LPCSTR  fragment_shader =
     "    /*if (o_color.a < 0.05) discard;*/\n"
     "}\n";
 
-unsigned int R_InitShader(void) {
-    GLuint vs = glCreateShader( GL_VERTEX_SHADER );
-    GLuint fs = glCreateShader( GL_FRAGMENT_SHADER );
+LPCSHADER R_InitShader(LPCSTR vertex_shader, LPCSTR fragment_shader){
+    GLuint vs = glCreateShader(GL_VERTEX_SHADER);
+    GLuint fs = glCreateShader(GL_FRAGMENT_SHADER);
 
-    int length = strlen( vertex_shader );
-    glShaderSource( vs, 1, ( const GLchar ** )&vertex_shader, &length );
-    glCompileShader( vs );
+    int length = (int)strlen(vertex_shader);
+    glShaderSource(vs, 1, (const GLchar **)&vertex_shader, &length);
+    glCompileShader(vs);
 
     GLint status;
-    glGetShaderiv( vs, GL_COMPILE_STATUS, &status );
-    if( status == GL_FALSE )
+    glGetShaderiv(vs, GL_COMPILE_STATUS, &status);
+    if(status == GL_FALSE)
     {
-        fprintf( stderr, "vertex shader compilation failed\n" );
-        return 1;
+        fprintf(stderr, "vertex shader compilation failed\n");
+        return NULL;
     }
 
-    length = strlen( fragment_shader );
-    glShaderSource( fs, 1, ( const GLchar ** )&fragment_shader, &length );
-    glCompileShader( fs );
+    length = (int)strlen(fragment_shader);
+    glShaderSource(fs, 1, (const GLchar **)&fragment_shader, &length);
+    glCompileShader(fs);
 
-    glGetShaderiv( fs, GL_COMPILE_STATUS, &status );
-    if( status == GL_FALSE )
+    glGetShaderiv(fs, GL_COMPILE_STATUS, &status);
+    if(status == GL_FALSE)
     {
-        fprintf( stderr, "fragment shader compilation failed\n" );
-        return 1;
+        fprintf(stderr, "fragment shader compilation failed\n");
+        return NULL;
     }
-
-    GLuint program = glCreateProgram();
-    glAttachShader( program, vs );
-    glAttachShader( program, fs );
-
-    glBindAttribLocation( program, attrib_position, "i_position" );
-    glBindAttribLocation( program, attrib_color, "i_color" );
-    glBindAttribLocation( program, attrib_texcoord, "i_texcoord" );
-    glBindAttribLocation( program, attrib_texcoord2, "i_texcoord2" );
-    glBindAttribLocation( program, attrib_skin, "i_skin" );
-    glLinkProgram( program );
-    glUseProgram( program );
     
-    glUniform1i(glGetUniformLocation(program, "u_texture"), 0);
-    glUniform1i(glGetUniformLocation(program, "u_shadowmap"), 1);
+    LPSHADER program = ri.MemAlloc(sizeof(struct shader_program));
+
+    program->progid = glCreateProgram();
+    glAttachShader(program->progid, vs);
+    glAttachShader(program->progid, fs);
+
+    glBindAttribLocation(program->progid, attrib_position, "i_position");
+    glBindAttribLocation(program->progid, attrib_color, "i_color");
+    glBindAttribLocation(program->progid, attrib_texcoord, "i_texcoord");
+    glBindAttribLocation(program->progid, attrib_texcoord2, "i_texcoord2");
+    glBindAttribLocation(program->progid, attrib_skin, "i_skin");
+    glLinkProgram(program->progid);
+    glUseProgram(program->progid);
+    
+    program->u_projection_matrix = glGetUniformLocation(program->progid, "u_projection_matrix");
+    program->u_model_matrix = glGetUniformLocation(program->progid, "u_model_matrix");
+    program->u_texture = glGetUniformLocation(program->progid, "u_texture");
+    program->u_shadowmap = glGetUniformLocation(program->progid, "u_shadowmap");
+    program->u_nodes_matrices = glGetUniformLocation(program->progid, "u_nodes_matrices");
+    
+    glUniform1i(program->u_texture, 0);
+    glUniform1i(program->u_shadowmap, 1);
 
     return program;
 }

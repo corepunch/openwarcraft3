@@ -9,22 +9,27 @@ struct render_globals tr;
 SDL_Window *window;
 SDL_GLContext context;
 
-GLuint program;
-
 static void R_SetupGL(void) {
     struct matrix4 model_matrix;
     int width, height;
-
+    
     SDL_GetWindowSize(window, &width, &height);
-
+    
     matrix4_identity(&model_matrix);
     
     matrix4_perspective(&tr.refdef.projection_matrix, tr.refdef.fov, width / height, 100.0, 100000.0);
     matrix4_rotate(&tr.refdef.projection_matrix, &tr.refdef.viewangles, ROTATE_XYZ);
     matrix4_translate(&tr.refdef.projection_matrix, &tr.refdef.vieworg);
-
-    glUniformMatrix4fv( glGetUniformLocation( program, "u_projection_matrix" ), 1, GL_FALSE, tr.refdef.projection_matrix.v );
-    glUniformMatrix4fv( glGetUniformLocation( program, "u_model_matrix" ), 1, GL_FALSE, model_matrix.v );
+    
+    glUseProgram(tr.shaderSkin->progid);
+    
+    glUniformMatrix4fv(tr.shaderSkin->u_projection_matrix, 1, GL_FALSE, tr.refdef.projection_matrix.v);
+    glUniformMatrix4fv(tr.shaderSkin->u_model_matrix, 1, GL_FALSE, model_matrix.v);
+    
+    glUseProgram(tr.shaderStatic->progid);
+    
+    glUniformMatrix4fv(tr.shaderStatic->u_projection_matrix, 1, GL_FALSE, tr.refdef.projection_matrix.v);
+    glUniformMatrix4fv(tr.shaderStatic->u_model_matrix, 1, GL_FALSE, model_matrix.v);
 }
 
 void R_RenderFrame(struct refdef const *refdef) {
@@ -37,27 +42,32 @@ void R_RenderFrame(struct refdef const *refdef) {
 }
 
 void R_Init(DWORD dwWidth, DWORD dwHeight) {
-    SDL_Init( SDL_INIT_VIDEO );
-    SDL_GL_SetAttribute( SDL_GL_DOUBLEBUFFER, 1 );
-    SDL_GL_SetAttribute( SDL_GL_ACCELERATED_VISUAL, 1 );
-    SDL_GL_SetAttribute( SDL_GL_RED_SIZE, 8 );
-    SDL_GL_SetAttribute( SDL_GL_GREEN_SIZE, 8 );
-    SDL_GL_SetAttribute( SDL_GL_BLUE_SIZE, 8 );
-    SDL_GL_SetAttribute( SDL_GL_ALPHA_SIZE, 8 );
+    SDL_Init(SDL_INIT_VIDEO);
+    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+    SDL_GL_SetAttribute(SDL_GL_ACCELERATED_VISUAL, 1);
+    SDL_GL_SetAttribute(SDL_GL_RED_SIZE, 8);
+    SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, 8);
+    SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, 8);
+    SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 8);
 
-    SDL_GL_SetAttribute( SDL_GL_CONTEXT_MAJOR_VERSION, 3 );
-    SDL_GL_SetAttribute( SDL_GL_CONTEXT_MINOR_VERSION, 2 );
-    SDL_GL_SetAttribute( SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE );
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
 
-    window = SDL_CreateWindow( "", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, dwWidth, dwHeight, SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN );
-    context = SDL_GL_CreateContext( window );
-    program = R_InitShader();
+    window = SDL_CreateWindow("", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, dwWidth, dwHeight, SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN);
+    context = SDL_GL_CreateContext(window);
+
+    extern LPCSTR vertex_shader_skin;
+    extern LPCSTR vertex_shader;
+    extern LPCSTR fragment_shader;
     
+    tr.shaderStatic = R_InitShader(vertex_shader, fragment_shader);
+    tr.shaderSkin = R_InitShader(vertex_shader_skin, fragment_shader);
     tr.renbuf = R_MakeVertexArrayObject(NULL, 0);
 
-    glDisable( GL_DEPTH_TEST );
-    glClearColor( 0.0, 0.0, 0.0, 0.0 );
-    glViewport( 0, 0, dwWidth, dwHeight );
+    glDisable(GL_DEPTH_TEST);
+    glClearColor(0.0, 0.0, 0.0, 0.0);
+    glViewport(0, 0, dwWidth, dwHeight);
     
 //    Texture = R_LoadTexture("TerrainArt\\LordaeronSummer\\Lords_Dirt.blp");
     tr.waterTexture = R_LoadTexture("ReplaceableTextures\\Water\\Water12.blp");
@@ -79,18 +89,18 @@ void R_DrawPic(struct texture const *lpTexture) {
 //        { 1, 1, 1, 1, 0, height, 0, 0, 1 },
 //    };
 //    t_mat4x4 projection_matrix;
-//    mat4x4_ortho( projection_matrix, 0.0f, (float)width, (float)height, 0.0f, 0.0f, 100.0f );
+//    mat4x4_ortho(projection_matrix, 0.0f, (float)width, (float)height, 0.0f, 0.0f, 100.0f);
 //    tr.renbuf = MakeVertexArrayObject(g_vertex_buffer_data, 6);
 //        R_BindTexture(map.heightmap->shadowmap);
 //        glEnable(GL_BLEND);
 //        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-//        glBindVertexArray( tr.renbuf->vao );
-//        glBindBuffer(GL_ARRAY_BUFFER, tr.renbuf->vbo );
-//        glDrawArrays( GL_TRIANGLES, 0, 6 );
+//        glBindVertexArray(tr.renbuf->vao);
+//        glBindBuffer(GL_ARRAY_BUFFER, tr.renbuf->vbo);
+//        glDrawArrays(GL_TRIANGLES, 0, 6);
 }
 
-struct render_buffer *R_MakeVertexArrayObject(struct vertex const *data, int size) {
-    struct render_buffer *buf = ri.MemAlloc(sizeof(struct render_buffer));
+LPBUFFER R_MakeVertexArrayObject(struct vertex const *data, int size) {
+    LPBUFFER buf = ri.MemAlloc(sizeof(struct render_buffer));
     
     glGenVertexArrays(1, &buf->vao);
     glGenBuffers(1, &buf->vbo);
@@ -118,7 +128,7 @@ struct render_buffer *R_MakeVertexArrayObject(struct vertex const *data, int siz
     return buf;
 }
 
-void R_ReleaseVertexArrayObject(struct render_buffer *lpBuffer) {
+void R_ReleaseVertexArrayObject(LPBUFFER lpBuffer) {
     glDeleteBuffers(1, &lpBuffer->vbo);
     glDeleteVertexArrays(1, &lpBuffer->vao);
 }
@@ -129,17 +139,17 @@ void R_BeginFrame(void) {
     glDepthFunc(GL_LEQUAL);
     glEnable(GL_CULL_FACE);
     glCullFace(GL_BACK);
-    glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 
 void R_EndFrame(void) {
-    SDL_GL_SwapWindow( window );
-    SDL_Delay( 1 );
+    SDL_GL_SwapWindow(window);
+    SDL_Delay(1);
 }
 
 void R_Shutdown(void) {
-    SDL_GL_DeleteContext( context );
-    SDL_DestroyWindow( window );
+    SDL_GL_DeleteContext(context);
+    SDL_DestroyWindow(window);
     SDL_Quit();
 }
 

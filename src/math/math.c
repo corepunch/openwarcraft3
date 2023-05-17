@@ -187,8 +187,8 @@ matrix4_multiply(struct matrix4 const *m1,
                  struct matrix4 const *m2,
                  struct matrix4 *out)
 {
-//    for (int i = 0 ; i < 4 ; i++ ) {
-//        for (int j = 0 ; j < 4 ; j++ ) {
+//    for (int i = 0 ; i < 4 ; i++) {
+//        for (int j = 0 ; j < 4 ; j++) {
 //            out->v[ i * 4 + j ] =
 //                  a [ i * 4 + 0 ] * b [ 0 * 4 + j ]
 //                + a [ i * 4 + 1 ] * b [ 1 * 4 + j ]
@@ -234,9 +234,9 @@ matrix4_inverse(struct matrix4 const *m,
     float det3_201_023 = m->v[8] * det2_01_23 - m->v[10] * det2_01_03 + m->v[11] * det2_01_02;
     float det3_201_123 = m->v[9] * det2_01_23 - m->v[10] * det2_01_13 + m->v[11] * det2_01_12;
     
-    det = ( - det3_201_123 * m->v[12] + det3_201_023 * m->v[13] - det3_201_013 * m->v[14] + det3_201_012 * m->v[15] );
+    det = (- det3_201_123 * m->v[12] + det3_201_023 * m->v[13] - det3_201_013 * m->v[14] + det3_201_012 * m->v[15]);
     
-    if ( fabs( det ) < 1e-14 ) {
+    if (fabs(det) < 1e-14) {
         return;
     }
     
@@ -296,10 +296,10 @@ matrix4_multiply_vector3(struct matrix4 const *m,
                          struct vector3 const *v,
                          struct vector3 *out)
 {
-    float fInvW = 1.0f / ( m->v[3] * v->x + m->v[7] * v->y + m->v[11] * v->z + m->v[15] );
-    out->x = ( m->v[0] * v->x + m->v[4] * v->y + m->v[8]  * v->z + m->v[12] ) * fInvW;
-    out->y = ( m->v[1] * v->x + m->v[5] * v->y + m->v[9]  * v->z + m->v[13] ) * fInvW;
-    out->z = ( m->v[2] * v->x + m->v[6] * v->y + m->v[10] * v->z + m->v[14] ) * fInvW;
+    float fInvW = 1.0f / (m->v[3] * v->x + m->v[7] * v->y + m->v[11] * v->z + m->v[15]);
+    out->x = (m->v[0] * v->x + m->v[4] * v->y + m->v[8]  * v->z + m->v[12]) * fInvW;
+    out->y = (m->v[1] * v->x + m->v[5] * v->y + m->v[9]  * v->z + m->v[13]) * fInvW;
+    out->z = (m->v[2] * v->x + m->v[6] * v->y + m->v[10] * v->z + m->v[14]) * fInvW;
 }
 
 void
@@ -707,7 +707,7 @@ struct vector4 quaternion_lerp(struct vector4 const *p, struct vector4 const *q,
         p1[2] = p->z;    p1[3] = p->w;
     }
 
-    if ( (1.0 - cosom) > 0.0001 ) {
+    if ((1.0 - cosom) > 0.0001) {
         omega = acos(cosom);
         sinom = sin(omega);
         scale0 = sin(t * omega) / sinom;
@@ -717,10 +717,10 @@ struct vector4 quaternion_lerp(struct vector4 const *p, struct vector4 const *q,
         scale1 = 1.0 - t;
     }
 
-    r.x = (float)( scale0 * q->x + scale1 * p1[0]);
-    r.y = (float)( scale0 * q->y + scale1 * p1[1]);
-    r.z = (float)( scale0 * q->z + scale1 * p1[2]);
-    r.w = (float)( scale0 * q->w + scale1 * p1[3]);
+    r.x = (float)(scale0 * q->x + scale1 * p1[0]);
+    r.y = (float)(scale0 * q->y + scale1 * p1[1]);
+    r.z = (float)(scale0 * q->z + scale1 * p1[2]);
+    r.w = (float)(scale0 * q->w + scale1 * p1[3]);
 
     return r;
 }

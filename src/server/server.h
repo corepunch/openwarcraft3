@@ -5,7 +5,7 @@
 #include "game.h"
 
 #define EDICT_NUM(n) ((struct edict *)((char *)ge->edicts + ge->edict_size*(n)))
-#define NUM_FOR_EDICT(e) ( ((char *)(e)-(char *)ge->edicts ) / ge->edict_size)
+#define NUM_FOR_EDICT(e) (((char *)(e)-(char *)ge->edicts) / ge->edict_size)
 
 struct edict {
     struct entity_state s;

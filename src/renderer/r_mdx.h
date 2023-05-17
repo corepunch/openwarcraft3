@@ -35,7 +35,7 @@ struct tModelGeoset {
     struct tModelBounds *lpBounds;
     struct tModelBounds default_bounds;
     struct tModelGeoset *lpNext;
-    struct render_buffer *lpBuffer;
+    LPBUFFER lpBuffer;
     struct tModelGeosetAnim *lpGeosetAnim;
     int *lpMatrices;
     int *lpPrimitiveTypes;

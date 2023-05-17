@@ -9,7 +9,7 @@ void Sys_Quit(void) {
     exit(0);
 }
 
-int main( int argc, char * argv[] ) {
+int main(int argc, char * argv[]) {
     FS_Init();
     SV_Init();
     CL_Init();
