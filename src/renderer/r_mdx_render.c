@@ -30,7 +30,7 @@ R_GetKeyframeValue(struct tModelKeyFrame const *lpKeyframe1,
 }
 
 static void
-R_GetKeytrackValue(struct tModel const *lpModel,
+R_GetKeytrackValue(LPCMODEL lpModel,
                    struct tModelKeyTrack const *lpKeytrack,
                    DWORD dwFrameNumber,
                    void *out)
@@ -53,7 +53,7 @@ R_GetKeytrackValue(struct tModel const *lpModel,
 //    return lpKeytrack->values[0].value;
 }
 
-static void R_CalculateNodeMatrix(struct tModel const *lpModel,
+static void R_CalculateNodeMatrix(LPCMODEL lpModel,
                                   struct tModelNode const *lpNode,
                                   DWORD dwFrameNumber,
                                   struct matrix4 *lpMatrix)
@@ -95,7 +95,7 @@ struct matrix4 const *R_GetNodeGlobalMatrix(struct tModelNode *lpNode) {
     return &lpNode->globalMatrix;
 }
 
-static void R_CalculateBoneMatrices(struct tModel const *lpModel,
+static void R_CalculateBoneMatrices(LPCMODEL lpModel,
                                     struct matrix4 *lpModelMatrices,
                                     DWORD dwFrameNumber)
 {
@@ -114,7 +114,7 @@ static void R_CalculateBoneMatrices(struct tModel const *lpModel,
     }
 }
 
-static void R_RenderGeoset(struct tModel const *lpModel,
+static void R_RenderGeoset(LPCMODEL lpModel,
                            struct tModelGeoset *lpGeoset,
                            struct matrix4 const *lpModelMatrix)
 {
@@ -127,7 +127,7 @@ static void R_RenderGeoset(struct tModel const *lpModel,
 }
 
 
-static void R_BindBoneMatrices(struct tModel *lpModel, DWORD dwFrameNumber)
+static void R_BindBoneMatrices(LPMODEL lpModel, DWORD dwFrameNumber)
 {
     struct matrix4 aBoneMatrices[MAX_BONE_MATRICES];
 
@@ -144,10 +144,10 @@ static void R_BindBoneMatrices(struct tModel *lpModel, DWORD dwFrameNumber)
     }
 
     glUseProgram(tr.shaderSkin->progid);
-    glUniformMatrix4fv(tr.shaderSkin->u_nodes_matrices, 64, GL_FALSE, node_matrices->v);
+    glUniformMatrix4fv(tr.shaderSkin->u_bones, 64, GL_FALSE, node_matrices->v);
 }
 
-static void RenderGeoset(struct tModel *lpModel,
+static void RenderGeoset(LPMODEL lpModel,
                          struct tModelGeoset *lpGeoset,
                          struct tModelMaterialLayer *lpLayer,
                          struct render_entity const *lpEntity)
@@ -193,7 +193,7 @@ static void RenderGeoset(struct tModel *lpModel,
 void RenderModel(struct render_entity const *ent) {
     struct tModelMaterial *lpMaterial = ent->model->lpMaterials;
     struct tModelGeoset *lpGeoset = ent->model->lpGeosets;
-    struct tModel *lpModel = ent->model;
+    LPMODEL lpModel = ent->model;
 
     if (ent->skin) {
         R_BindTexture(ent->skin, 0);
@@ -207,7 +207,7 @@ void RenderModel(struct render_entity const *ent) {
     {
         if (dwGeosetID < ent->model->numTextures) {
             struct tModelTexture const *mtex = &ent->model->lpTextures[dwGeosetID];
-            struct texture const *tex = R_FindTextureByID(mtex->texid);
+            LPCTEXTURE tex = R_FindTextureByID(mtex->texid);
             if (tex) {
                 R_BindTexture(tex, 0);
             }

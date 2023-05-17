@@ -7,7 +7,7 @@ static void R_FileReadShadowMap(HANDLE hMpq, LPTERRAIN  pWorld) {
     int const h = (pWorld->size.height - 1) * 4;
     char *lpShadows = MemAlloc(w * h);
     SFileReadFile(hFile, lpShadows, w * h, NULL, NULL);
-    struct texture *pShadowmap = R_AllocateTexture(w, h);
+    LPTEXTURE pShadowmap = R_AllocateTexture(w, h);
     struct color32 *lpPixels = MemAlloc(w * h * sizeof(struct color32));
     FOR_LOOP(i, w * h) {
         lpPixels[i].r = 255-lpShadows[i];

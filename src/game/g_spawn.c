@@ -38,7 +38,7 @@ static void
 SP_SpawnDoodad(struct edict *ent,
                struct DoodadInfo const *doo)
 {
-    path_t buffer;
+    PATHSTR buffer;
     sprintf(buffer, "%s\\%s\\%s%d.mdx", doo->dir, doo->file, doo->file, ent->variation);
     ent->s.model = gi.ModelIndex(buffer);
 }
@@ -47,7 +47,7 @@ static void
 SP_SpawnDestructable(struct edict *ent,
                      struct DestructableData const *destr)
 {
-    path_t buffer;
+    PATHSTR buffer;
     sprintf(buffer, "%s.blp", destr->texFile);
     ent->s.image = gi.ImageIndex(buffer);
     sprintf(buffer, "%s\\%s\\%s%d.mdx", destr->dir, destr->file, destr->file, ent->variation);
@@ -58,7 +58,7 @@ static void
 SP_SpawnUnit(struct edict *ent,
              struct UnitUI const *unit)
 {
-    path_t buffer;
+    PATHSTR buffer;
     sprintf(buffer, "%s.mdx", unit->file);
     ent->s.model = gi.ModelIndex(buffer);
     ent->monsterinfo.animation = gi.GetAnimation(ent->s.model, "Stand");

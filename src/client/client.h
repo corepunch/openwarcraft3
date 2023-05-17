@@ -23,10 +23,10 @@ struct frame {
 struct client_state {
     struct refdef refdef;
     struct client_entity ents[MAX_CLIENT_ENTITIES];
-    struct tModel *models[MAX_MODELS];
-    struct texture *pics[MAX_IMAGES];
+    LPMODEL models[MAX_MODELS];
+    LPTEXTURE pics[MAX_IMAGES];
     struct frame frame;
-    path_t configstrings[MAX_CONFIGSTRINGS];
+    PATHSTR configstrings[MAX_CONFIGSTRINGS];
     int num_entities;
     int sock;
 };

@@ -15,8 +15,8 @@ struct render_entity {
     struct vector3 origin;
     float angle;
     float scale;
-    struct tModel *model;
-    struct texture *skin;
+    LPCMODEL model;
+    LPTEXTURE skin;
     int frame;
 };
 
@@ -35,12 +35,12 @@ struct Renderer {
     void (*Shutdown)(void);
     void (*RegisterMap)(char const *szMapFileName);
     void (*RenderFrame)(struct refdef const *lpRefDef);
-    struct texture *(*LoadTexture)(LPCSTR szTextureFileName);
-    struct tModel *(*LoadModel)(LPCSTR szModelFilename);
-    void (*ReleaseModel)(struct tModel *lpModel);
+    LPTEXTURE (*LoadTexture)(LPCSTR szTextureFileName);
+    LPMODEL (*LoadModel)(LPCSTR szModelFilename);
+    void (*ReleaseModel)(LPMODEL lpModel);
     void (*BeginFrame)(void);
     void (*EndFrame)(void);
-    void (*DrawPic)(struct texture const *lpTexture);
+    void (*DrawPic)(LPCTEXTURE lpTexture);
 };
 
 struct Renderer *Renderer_Init(struct renderer_import *pImport);

@@ -27,29 +27,19 @@ LPCSTR vertex_shader_skin =
     "in vec2 i_texcoord;\n"
     "in vec2 i_texcoord2;\n"
     "in vec4 i_skin;\n"
+    "in vec4 i_boneWeight;\n"
     "out vec4 v_color;\n"
     "out vec3 v_position;\n"
     "out vec2 v_texcoord;\n"
     "out vec2 v_texcoord2;\n"
-    "uniform mat4 u_nodes_matrices[64];\n"
+    "uniform mat4 u_bones[64];\n"
     "uniform mat4 u_projection_matrix;\n"
     "uniform mat4 u_model_matrix;\n"
     "void main() {\n"
-    "    int count = 1;\n"
-    "    vec4 sum = u_nodes_matrices[int(i_skin[0])] * vec4(i_position, 1.0);\n"
-    "    if (i_skin[1] > 0.0) {\n"
-    "        sum += u_nodes_matrices[int(i_skin[1])] * vec4(i_position, 1.0);\n"
-    "        count += 1;\n"
-    "    }\n"
-    "    if (i_skin[2] > 0.0) {\n"
-    "        sum += u_nodes_matrices[int(i_skin[2])] * vec4(i_position, 1.0);\n"
-    "        count += 1;\n"
-    "    }\n"
-    "    if (i_skin[3] > 0.0) {\n"
-    "        sum += u_nodes_matrices[int(i_skin[3])] * vec4(i_position, 1.0);\n"
-    "        count += 1;\n"
-    "    }\n"
-    "    sum.xyz /= float(count);\n"
+    "    vec4 sum = u_bones[int(i_skin[0])] * vec4(i_position, 1.0) * i_boneWeight[0];\n"
+    "    sum += u_bones[int(i_skin[1])] * vec4(i_position, 1.0) * i_boneWeight[1];\n"
+    "    sum += u_bones[int(i_skin[2])] * vec4(i_position, 1.0) * i_boneWeight[2];\n"
+    "    sum += u_bones[int(i_skin[3])] * vec4(i_position, 1.0) * i_boneWeight[3];\n"
     "    sum.w = 1.0;\n"
     "    v_color = i_color;\n"
     "    v_position = sum.xyz;\n"
@@ -101,8 +91,8 @@ LPCSHADER R_InitShader(LPCSTR vertex_shader, LPCSTR fragment_shader){
     }
     
     LPSHADER program = ri.MemAlloc(sizeof(struct shader_program));
-
     program->progid = glCreateProgram();
+
     glAttachShader(program->progid, vs);
     glAttachShader(program->progid, fs);
 
@@ -111,6 +101,8 @@ LPCSHADER R_InitShader(LPCSTR vertex_shader, LPCSTR fragment_shader){
     glBindAttribLocation(program->progid, attrib_texcoord, "i_texcoord");
     glBindAttribLocation(program->progid, attrib_texcoord2, "i_texcoord2");
     glBindAttribLocation(program->progid, attrib_skin, "i_skin");
+    glBindAttribLocation(program->progid, attrib_boneWeight, "i_boneWeight");
+
     glLinkProgram(program->progid);
     glUseProgram(program->progid);
     
@@ -118,7 +110,7 @@ LPCSHADER R_InitShader(LPCSTR vertex_shader, LPCSTR fragment_shader){
     program->u_model_matrix = glGetUniformLocation(program->progid, "u_model_matrix");
     program->u_texture = glGetUniformLocation(program->progid, "u_texture");
     program->u_shadowmap = glGetUniformLocation(program->progid, "u_shadowmap");
-    program->u_nodes_matrices = glGetUniformLocation(program->progid, "u_nodes_matrices");
+    program->u_bones = glGetUniformLocation(program->progid, "u_bones");
     
     glUniform1i(program->u_texture, 0);
     glUniform1i(program->u_shadowmap, 1);

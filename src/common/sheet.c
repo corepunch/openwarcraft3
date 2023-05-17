@@ -85,7 +85,7 @@ void Sheet_Release(struct SheetCell *lpSheet) {
 }
 
 void *FS_ParseSheet(LPCSTR szFileName,
-                    struct SheetLayout const *lpLayout,
+                    LPCSHEETLAYOUT lpLayout,
                     int dwElementSize,
                     void *lpNextFieldOffset)
 {
@@ -108,7 +108,7 @@ void *FS_ParseSheet(LPCSTR szFileName,
             if (lpCell->row != row)
                 continue;
             filled = 1;
-            for (struct SheetLayout const *sl = lpLayout; sl->column; sl++) {
+            for (LPCSHEETLAYOUT sl = lpLayout; sl->column; sl++) {
                 if (!strcmp(sl->column, columns[lpCell->column])) {
                     void *field = lpCurrent + (uint64_t)sl->fofs;
                     switch (sl->type) {

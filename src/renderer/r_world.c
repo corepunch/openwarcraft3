@@ -7,7 +7,7 @@ struct vertex maplayer[LAYER_SIZE] = {};
 
 struct tCliff {
     int cliffid;
-    struct tModel const *model;
+    LPCMODEL model;
     struct tCliff *lpNext;
 };
 
@@ -81,7 +81,7 @@ static float GetTileDepth(float waterlevel, float height) {
     return 1 - MAX(0, opacity);
 }
 
-static struct tModel const *R_LoadCliffModel(struct CliffInfo const *cinfo, char const *ccfg, int ramp) {
+static LPCMODEL R_LoadCliffModel(struct CliffInfo const *cinfo, char const *ccfg, int ramp) {
     char buffer[256];
     const int cliffid = *(int *)ccfg;
     LPCSTR dir = ramp ? cinfo->rampModelDir : cinfo->cliffModelDir;
@@ -99,7 +99,7 @@ static struct tModel const *R_LoadCliffModel(struct CliffInfo const *cinfo, char
     return cliff->model;
 }
 
-static void SetTileUV(int tile, struct vertex* vertices, struct TerrainInfo *terrain) {
+static void SetTileUV(int tile, struct vertex* vertices, LPTERRAININFO terrain) {
     const float u = 1.f/(terrain->lpTexture->width / 64);
     const float v = 1.f/(terrain->lpTexture->height / 64);
 
@@ -139,7 +139,7 @@ struct color32 MakeColor(float r, float g, float b, float a) {
 
 static void MakeTile(int x, int y, int ground,
                      struct vertex* vertices,
-                     struct TerrainInfo *terrain,
+                     LPTERRAININFO terrain,
                      int *index)
 {
     struct TerrainVertex tile[4];
@@ -199,7 +199,7 @@ MakeColor(color[INDEX], lerp(color[INDEX], 1, 0.25f), lerp(color[INDEX], 1, 0.5f
     *index += 6;
 }
 
-static int TileBaseLevel(struct TerrainVertex const *tile) {
+static int TileBaseLevel(LPCTERRAINVERTEX tile) {
     int minlevel = tile->level;
     FOR_LOOP(index, 4) {
         minlevel = MIN(minlevel, tile[index].level);
@@ -209,7 +209,7 @@ static int TileBaseLevel(struct TerrainVertex const *tile) {
 
 static void MakeCliff(int x, int y, int cliffindex,
                       struct vertex* vertices,
-                      struct CliffInfo *cliff,
+                      LPCLIFFINFO cliff,
                       int *index)
 {
     struct TerrainVertex tile[4];
@@ -224,7 +224,7 @@ static void MakeCliff(int x, int y, int cliffindex,
     int const baselevel = TileBaseLevel(tile);
     
     FOR_LOOP(index, 4) {
-        struct TerrainVertex const *vert = &tile[remap[index]];
+        LPCTERRAINVERTEX vert = &tile[remap[index]];
         int const diff = vert->level - baselevel;
         if (diff == 0) {
             cliffcfg[index] = (tileramps > 1 && vert->ramp) ? 'L' : 'A';
@@ -237,15 +237,15 @@ static void MakeCliff(int x, int y, int cliffindex,
     
     FOR_LOOP(gindx, tr.world->numGrounds) {
         if (tr.world->lpGrounds[gindx] == cliff->groundTile) {
-            ((struct TerrainVertex *)GetTerrainVertex(tr.world, x+1, y+1))->ground = gindx;
-            ((struct TerrainVertex *)GetTerrainVertex(tr.world, x, y+1))->ground = gindx;
-            ((struct TerrainVertex *)GetTerrainVertex(tr.world, x+1, y))->ground = gindx;
-            ((struct TerrainVertex *)GetTerrainVertex(tr.world, x, y))->ground = gindx;
+            ((LPTERRAINVERTEX )GetTerrainVertex(tr.world, x+1, y+1))->ground = gindx;
+            ((LPTERRAINVERTEX )GetTerrainVertex(tr.world, x, y+1))->ground = gindx;
+            ((LPTERRAINVERTEX )GetTerrainVertex(tr.world, x+1, y))->ground = gindx;
+            ((LPTERRAINVERTEX )GetTerrainVertex(tr.world, x, y))->ground = gindx;
             break;
         }
     }
     
-    struct tModel const *pModel = R_LoadCliffModel(cliff, cliffcfg, tileramps > 1);
+    LPCMODEL pModel = R_LoadCliffModel(cliff, cliffcfg, tileramps > 1);
 
     assert(pModel && pModel->lpGeosets);
 
@@ -271,10 +271,10 @@ static void MakeCliff(int x, int y, int cliffindex,
     *index += pGeoset->numTriangles;
 }
 
-static struct CliffInfo *BindCliffTexture(int cliffindex) {
+static LPCLIFFINFO BindCliffTexture(int cliffindex) {
     char buffer[256];
     int const cliffID = tr.world->lpCliffs[cliffindex];
-    struct CliffInfo *cliff = FindCliffInfo(cliffID);
+    LPCLIFFINFO cliff = FindCliffInfo(cliffID);
     if (!cliff)
         return NULL;
     if (!cliff->texture) {
@@ -285,10 +285,10 @@ static struct CliffInfo *BindCliffTexture(int cliffindex) {
     return cliff;
 }
 
-static struct TerrainInfo *BindGroundTexture(int ground) {
+static LPTERRAININFO BindGroundTexture(int ground) {
     char buffer[256];
     int const tileID = tr.world->lpGrounds[ground];
-    struct TerrainInfo *terrain = FindTerrainInfo(tileID);
+    LPTERRAININFO terrain = FindTerrainInfo(tileID);
     if (!terrain)
         return NULL;
     if (!terrain->lpTexture) {
@@ -301,7 +301,7 @@ static struct TerrainInfo *BindGroundTexture(int ground) {
 
 static void R_RenderMapLayer(int ground) {
     int index = 0;
-    struct TerrainInfo *terrain = BindGroundTexture(ground);
+    LPTERRAININFO terrain = BindGroundTexture(ground);
     
     if (!terrain)
         return;
@@ -402,7 +402,7 @@ static void RenderWater(void) {
 
 static void R_RenderMapCliffs(int cliffindex) {
     int index = 0;
-    struct CliffInfo *cliff = BindCliffTexture(cliffindex);
+    LPCLIFFINFO cliff = BindCliffTexture(cliffindex);
 
     if (!cliff)
         return;

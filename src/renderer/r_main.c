@@ -78,7 +78,7 @@ void R_Init(DWORD dwWidth, DWORD dwHeight) {
 //    }
 }
 
-void R_DrawPic(struct texture const *lpTexture) {
+void R_DrawPic(LPCTEXTURE lpTexture) {
 //    const struct tVertex g_vertex_buffer_data[] = {
 //    /*  R, G, B, A, X, Y, Z U, V  */
 //        { 1, 1, 1, 1, 0, 0, 0, 0, 0 },

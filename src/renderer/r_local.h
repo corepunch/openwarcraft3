@@ -42,8 +42,6 @@ extern struct renderer_import ri;
 
 typedef struct shader_program *LPSHADER;
 typedef struct shader_program const *LPCSHADER;
-typedef struct texture *LPTEXTURE;
-typedef struct texture const *LPCTEXTURE;
 typedef struct render_buffer *LPBUFFER;
 
 struct vertex {
@@ -72,7 +70,7 @@ struct shader_program {
     int u_model_matrix;
     int u_texture;
     int u_shadowmap;
-    int u_nodes_matrices;
+    int u_bones;
 };
 
 struct render_globals {
@@ -101,8 +99,8 @@ void R_ReleaseVertexArrayObject(LPBUFFER lpBuffer);
 LPCTEXTURE R_FindTextureByID(int texid);
 
 // Models
-struct tModel *R_LoadModel(LPCSTR szModelFilename);
-void R_ReleaseModel(struct tModel *lpModel);
+LPMODEL R_LoadModel(LPCSTR szModelFilename);
+void R_ReleaseModel(LPMODEL lpModel);
 
 extern struct render_globals tr;
 

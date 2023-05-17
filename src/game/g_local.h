@@ -23,9 +23,9 @@ struct game_state {
 
 struct UnitData {
     int unitID;
-    sheetString_t sort;
-    sheetString_t comment;
-    sheetString_t race;
+    SHEETSTR sort;
+    SHEETSTR comment;
+    SHEETSTR race;
     int prio;
     int threat;
     int type;
@@ -34,7 +34,7 @@ struct UnitData {
     float death;
     int canSleep;
     int cargoSize;
-    sheetString_t movetp;
+    SHEETSTR movetp;
     int moveHeight;
     int moveFloor;
     int launchX;
@@ -47,8 +47,8 @@ struct UnitData {
     int formation;
     float castpt;
     float castbsw;
-    sheetString_t targType;
-    sheetString_t pathTex;
+    SHEETSTR targType;
+    SHEETSTR pathTex;
     int fatLOS;
     int collision;
     int points;
@@ -61,12 +61,12 @@ struct UnitData {
 
 struct UnitUI {
     int unitUIID;
-    sheetString_t file;
-    sheetString_t unitSound;
-    sheetString_t tilesets;
+    SHEETSTR file;
+    SHEETSTR unitSound;
+    SHEETSTR tilesets;
     int tilesetSpecific;
-    sheetString_t name;
-    sheetString_t unitClass;
+    SHEETSTR name;
+    SHEETSTR unitClass;
     int special;
     int inEditor;
     int hiddenInEditor;
@@ -78,7 +78,7 @@ struct UnitUI {
     float blend;
     float scale;
     int scaleBull;
-    sheetString_t preventPlace;
+    SHEETSTR preventPlace;
     int requirePlace;
     int isbldg;
     int maxPitch;
@@ -93,14 +93,14 @@ struct UnitUI {
     int weap2;
     int teamColor;
     int customTeamColor;
-    sheetString_t armor;
+    SHEETSTR armor;
     int modelScale;
     int red;
     int green;
     int blue;
-    sheetString_t uberSplat;
-    sheetString_t unitShadow;
-    sheetString_t buildingShadow;
+    SHEETSTR uberSplat;
+    SHEETSTR unitShadow;
+    SHEETSTR buildingShadow;
     int shadowW;
     int shadowH;
     int shadowX;
@@ -116,7 +116,7 @@ struct DoodadInfo {
     char file[64];
     char pathTex[64];
     struct DoodadInfo *lpNext;
-    struct tModel const *lpModel;
+    LPCMODEL lpModel;
 };
 
 struct DestructableData {
@@ -131,8 +131,8 @@ struct DestructableData {
     int texID;
     char texFile[64];
     struct DestructableData *lpNext;
-    struct tModel const *lpModel;
-    struct texture *lpTexture;
+    LPCMODEL lpModel;
+    LPTEXTURE lpTexture;
 };
 
 struct game_locals {

@@ -3,10 +3,10 @@
 
 #include "../common/common.h"
 
-struct TerrainVertex const *GetTerrainVertex(LPCTERRAIN heightmap, int x, int y) {
+LPCTERRAINVERTEX GetTerrainVertex(LPCTERRAIN heightmap, int x, int y) {
     int const index = x + y * heightmap->size.width;
     char const *ptr = ((char const *)heightmap->vertices) + index * MAP_VERTEX_SIZE;
-    return (struct TerrainVertex const *)ptr;
+    return (LPCTERRAINVERTEX )ptr;
 }
 
 LPTERRAIN FileReadTerrain(HANDLE hArchive) {
@@ -36,7 +36,7 @@ LPTERRAIN FileReadTerrain(HANDLE hArchive) {
 }
 
 
-int GetTile(struct TerrainVertex const *mv, int ground) {
+int GetTile(LPCTERRAINVERTEX mv, int ground) {
     if (ground == 0)
         return 15;
     return
@@ -46,26 +46,26 @@ int GetTile(struct TerrainVertex const *mv, int ground) {
         (mv[3].ground == ground ? 2 : 0);
 }
 
-float GetTerrainVertexHeight(struct TerrainVertex const *vert) {
+float GetTerrainVertexHeight(LPCTERRAINVERTEX vert) {
     return DECODE_HEIGHT(vert->accurate_height) + vert->level * TILESIZE - HEIGHT_COR;
 }
 
-float GetTerrainVertexWaterLevel(struct TerrainVertex const *vert) {
+float GetTerrainVertexWaterLevel(LPCTERRAINVERTEX vert) {
     return DECODE_HEIGHT(vert->waterlevel);
 }
 
-void GetTileVertices(int x, int y, LPCTERRAIN heightmap, struct TerrainVertex *vertices) {
+void GetTileVertices(int x, int y, LPCTERRAIN heightmap, LPTERRAINVERTEX vertices) {
     vertices[0] = *GetTerrainVertex(heightmap, x+1, y+1);
     vertices[1] = *GetTerrainVertex(heightmap, x, y+1);
     vertices[2] = *GetTerrainVertex(heightmap, x+1, y);
     vertices[3] = *GetTerrainVertex(heightmap, x, y);
 }
 
-int GetTileRamps(struct TerrainVertex const *vertices) {
+int GetTileRamps(LPCTERRAINVERTEX vertices) {
     return vertices[0].ramp + vertices[1].ramp + vertices[2].ramp + vertices[3].ramp;
 }
 
-int IsTileCliff(struct TerrainVertex const *vertices) {
+int IsTileCliff(LPCTERRAINVERTEX vertices) {
     int bIsCliff = 0;
     FOR_LOOP(index, 4) {
         bIsCliff |= vertices[index].level != vertices[0].level;
@@ -73,7 +73,7 @@ int IsTileCliff(struct TerrainVertex const *vertices) {
     return bIsCliff;
 }
 
-int IsTileWater(struct TerrainVertex const *vertices) {
+int IsTileWater(LPCTERRAINVERTEX vertices) {
     int bIsWater = 0;
     FOR_LOOP(index, 4) {
         bIsWater |= vertices[index].water;

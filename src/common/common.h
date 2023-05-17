@@ -177,11 +177,23 @@ typedef enum t_attrib_id {
     attrib_boneWeight,
 } t_attrib_id;
 
-typedef char path_t[MAX_PATHLEN];
-typedef char sheetString_t[64];
+struct tModel;
+struct texture;
 
+typedef struct tModel *LPMODEL;
+typedef struct tModel const *LPCMODEL;
+typedef struct texture *LPTEXTURE;
+typedef struct texture const *LPCTEXTURE;
+typedef struct TerrainVertex const *LPCTERRAINVERTEX;
+typedef struct TerrainVertex *LPTERRAINVERTEX;
+typedef struct SheetLayout const *LPCSHEETLAYOUT;
+typedef struct TerrainInfo *LPTERRAININFO;
+typedef struct CliffInfo *LPCLIFFINFO;
 typedef struct terrain *LPTERRAIN;
 typedef struct terrain const *LPCTERRAIN;
+
+typedef char PATHSTR[MAX_PATHLEN];
+typedef char SHEETSTR[64];
 
 struct color { float r, g, b, a; };
 struct color32 { uint8_t r, g, b, a; };
@@ -217,17 +229,17 @@ struct entity_state {
 };
 
 struct animation_info {
-    int start_frame;
-    int end_frame;
-    int framerate;
+    DWORD start_frame;
+    DWORD end_frame;
+    DWORD framerate;
 };
 
 struct TerrainInfo {
     DWORD tileID;
-    sheetString_t dir;
-    sheetString_t file;
-    struct texture *lpTexture;
-    struct TerrainInfo *lpNext;
+    SHEETSTR dir;
+    SHEETSTR file;
+    LPTEXTURE lpTexture;
+    LPTERRAININFO lpNext;
 };
 
 struct PathMapNode {
@@ -242,27 +254,27 @@ struct PathMapNode {
 };
 
 struct CliffInfo {
-    int cliffID;
-    sheetString_t cliffModelDir;
-    sheetString_t rampModelDir;
-    sheetString_t texDir;
-    sheetString_t texFile;
-    sheetString_t name;
-    int groundTile;
-    int upperTile;
-    struct CliffInfo *lpNext;
-    struct texture *texture;
+    DWORD cliffID;
+    SHEETSTR cliffModelDir;
+    SHEETSTR rampModelDir;
+    SHEETSTR texDir;
+    SHEETSTR texFile;
+    SHEETSTR name;
+    DWORD groundTile;
+    DWORD upperTile;
+    LPCLIFFINFO lpNext;
+    LPTEXTURE texture;
 };
 
 struct Doodad {
-    int doodID;
-    int variation;
+    DWORD doodID;
+    DWORD variation;
     struct vector3 position;
     float angle;
     struct vector3 scale;
     char nFlags;
     char lifetime;
-    int id_num;
+    DWORD id_num;
 };
 
 struct TerrainVertex {
@@ -280,52 +292,49 @@ struct TerrainVertex {
 };
 
 struct size2 {
-    int width;
-    int height;
+    DWORD width;
+    DWORD height;
 };
 
 struct terrain {
-    int header;
-    int version;
+    DWORD header;
+    DWORD version;
     char tileset;
-    int custom;
-    int *lpGrounds;
-    int *lpCliffs;
+    DWORD custom;
+    DWORD *lpGrounds;
+    DWORD *lpCliffs;
     struct vector2 center;
     struct size2 size;
-    struct TerrainVertex *vertices;
-    int numGrounds;
-    int numCliffs;
+    LPTERRAINVERTEX vertices;
+    DWORD numGrounds;
+    DWORD numCliffs;
 };
 
 struct SheetCell {
-    int column;
-    int row;
+    DWORD column;
+    DWORD row;
     char *text;
     struct SheetCell *lpNext;
 };
 
-struct tModel;
-struct texture;
-
-struct TerrainVertex const *GetTerrainVertex(LPCTERRAIN heightmap, int x, int y);
+LPCTERRAINVERTEX GetTerrainVertex(LPCTERRAIN heightmap, int x, int y);
 LPTERRAIN  FileReadTerrain(HANDLE hArchive);
 
-void *FS_ParseSheet(LPCSTR szFileName, struct SheetLayout const *lpLayout, int dwElementSize, void *lpNextFieldOffset);
+void *FS_ParseSheet(LPCSTR szFileName, LPCSHEETLAYOUT lpLayout, int dwElementSize, void *lpNextFieldOffset);
 
 void LoadMap(LPCSTR pFilename);
 
-struct TerrainVertex const *GetTerrainVertex(LPCTERRAIN heightmap, int x, int y);
-struct TerrainInfo *FindTerrainInfo(int tileID);
-struct CliffInfo *FindCliffInfo(int cliffID);
+LPCTERRAINVERTEX GetTerrainVertex(LPCTERRAIN heightmap, int x, int y);
+LPTERRAININFO FindTerrainInfo(int tileID);
+LPCLIFFINFO FindCliffInfo(int cliffID);
 
-int GetTile(struct TerrainVertex const *mv, int ground);
-float GetTerrainVertexHeight(struct TerrainVertex const *vert);
-float GetTerrainVertexWaterLevel(struct TerrainVertex const *vert);
-void GetTileVertices(int x, int y, LPCTERRAIN heightmap, struct TerrainVertex *vertices);
-int GetTileRamps(struct TerrainVertex const *vertices);
-int IsTileCliff(struct TerrainVertex const *vertices);
-int IsTileWater(struct TerrainVertex const *vertices);
+int GetTile(LPCTERRAINVERTEX mv, int ground);
+float GetTerrainVertexHeight(LPCTERRAINVERTEX vert);
+float GetTerrainVertexWaterLevel(LPCTERRAINVERTEX vert);
+void GetTileVertices(int x, int y, LPCTERRAIN heightmap, LPTERRAINVERTEX vertices);
+int GetTileRamps(LPCTERRAINVERTEX vertices);
+int IsTileCliff(LPCTERRAINVERTEX vertices);
+int IsTileWater(LPCTERRAINVERTEX vertices);
 
 void FS_Init(void);
 void FS_Shutdown(void);

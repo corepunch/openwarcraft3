@@ -10,7 +10,7 @@ struct game_import {
     int (*SoundIndex)(LPCSTR szSoundName);
     int (*ImageIndex)(LPCSTR szImageName);
     struct animation_info (*GetAnimation)(int modelindex, LPCSTR animation);
-    void *(*ParseSheet)(LPCSTR szSheetFilename, struct SheetLayout const *lpLayout, int dwElementSize, void *lpNextFieldOffset);
+    void *(*ParseSheet)(LPCSTR szSheetFilename, LPCSHEETLAYOUT lpLayout, int dwElementSize, void *lpNextFieldOffset);
 };
 
 struct game_export {

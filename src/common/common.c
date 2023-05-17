@@ -4,8 +4,8 @@
 
 static struct {
     struct UnitData *lpUnitData;
-    struct TerrainInfo *lpTerrainInfo;
-    struct CliffInfo *lpCliffInfo;
+    LPTERRAININFO lpTerrainInfo;
+    LPCLIFFINFO lpCliffInfo;
     struct DoodadInfo *lpDoodadInfo;
     struct DestructableData *lpDestructableData;
 } stats = { NULL };
@@ -63,7 +63,7 @@ struct SheetLayout terrain_info[] = {
     { NULL }
 };
 
-void FixCliffInfo(struct CliffInfo *cliffInfo) {
+void FixCliffInfo(LPCLIFFINFO cliffInfo) {
     int const SAME_TILE = 852063;
     if (cliffInfo->upperTile == SAME_TILE) {
         cliffInfo->upperTile = cliffInfo->groundTile;
@@ -155,7 +155,7 @@ void MemFree(void *mem) {
     free(mem);
 }
 
-struct TerrainInfo *FindTerrainInfo(int tileID) {
+LPTERRAININFO FindTerrainInfo(int tileID) {
     FOR_EACH_LIST(struct TerrainInfo, info, stats.lpTerrainInfo) {
         if (info->tileID == tileID)
             return info;
@@ -163,7 +163,7 @@ struct TerrainInfo *FindTerrainInfo(int tileID) {
     return NULL;
 }
 
-struct CliffInfo *FindCliffInfo(int cliffID) {
+LPCLIFFINFO FindCliffInfo(int cliffID) {
     FOR_EACH_LIST(struct CliffInfo, info, stats.lpCliffInfo) {
         if (info->cliffID == cliffID)
             return info;

@@ -3,7 +3,7 @@
 
 #include "SDL.h"
 
-extern struct texture *Texture;
+extern LPTEXTURE Texture;
 
 void Sys_Quit(void) {
     exit(0);

@@ -51,8 +51,8 @@ struct cmodel {
 };
 
 struct server {
-    path_t name;
-    path_t configstrings[MAX_CONFIGSTRINGS];
+    PATHSTR name;
+    PATHSTR configstrings[MAX_CONFIGSTRINGS];
     struct cmodel *models[MAX_MODELS];
     int framenum;
     int time;

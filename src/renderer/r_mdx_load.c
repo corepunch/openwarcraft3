@@ -245,7 +245,7 @@ static DWORD R_ModelFindBiggestGroup(struct tModelGeoset const *lpGeoset) {
     return dwBiggest;
 }
 
-static void R_SetupGeoset(struct tModel *lpModel, struct tModelGeoset *lpGeoset) {
+static void R_SetupGeoset(LPMODEL lpModel, struct tModelGeoset *lpGeoset) {
     DWORD dwBiggestGeoset = R_ModelFindBiggestGroup(lpGeoset);
     if (dwBiggestGeoset > 4) {
         fprintf(stderr, "Geosets with more that 4 bones skinning are not supported\n");
@@ -267,14 +267,15 @@ static void R_SetupGeoset(struct tModel *lpModel, struct tModelGeoset *lpGeoset)
         int dwVertex = lpGeoset->lpTriangles[dwTriangle];
         int dwMatrixGroupIndex = lpGeoset->lpVertexGroups[dwVertex];
         int dwMatrixGroupSize = MAX(1, lpGeoset->lpMatrixGroupSizes[dwMatrixGroupIndex]);
+        struct vertex *lpVertex = &lpVertices[dwTriangle];
         uint8_t *dwMatrixGroup = lpMatrixGroups[dwMatrixGroupIndex];
-        lpVertices[dwTriangle].color = (struct color32) { 255, 255, 255, 255 };
-        lpVertices[dwTriangle].position = lpGeoset->lpVertices[dwVertex];
-        lpVertices[dwTriangle].texcoord = lpGeoset->lpTexcoord[dwVertex];
-        memcpy(lpVertices[dwTriangle].skin, dwMatrixGroup, sizeof(matrixGroup_t));
-        memset(lpVertices[dwTriangle].boneWeight, 0, sizeof(matrixGroup_t));
-        FOR_LOOP(i, dwMatrixGroupSize) {
-            lpVertices[dwTriangle].boneWeight[i] = (1.f / dwMatrixGroupSize) * 255;
+        lpVertex->color = (struct color32) { 255, 255, 255, 255 };
+        lpVertex->position = lpGeoset->lpVertices[dwVertex];
+        lpVertex->texcoord = lpGeoset->lpTexcoord[dwVertex];
+        memcpy(lpVertex->skin, dwMatrixGroup, sizeof(matrixGroup_t));
+        memset(lpVertex->boneWeight, 0, sizeof(matrixGroup_t));
+        FOR_LOOP(dwMatrixIndex, dwMatrixGroupSize) {
+            lpVertex->boneWeight[dwMatrixIndex] = (1.f / dwMatrixGroupSize) * 255;
         }
     }
 
@@ -284,7 +285,7 @@ static void R_SetupGeoset(struct tModel *lpModel, struct tModelGeoset *lpGeoset)
     ri.MemFree(lpMatrixGroups);
 }
 
-static struct tModelNode *R_GetModelNodeWithObjectID(struct tModel *lpModel, DWORD dwObjectID) {
+static struct tModelNode *R_GetModelNodeWithObjectID(LPMODEL lpModel, DWORD dwObjectID) {
     if (dwObjectID == -1) {
         return NULL;
     }
@@ -301,9 +302,9 @@ static struct tModelNode *R_GetModelNodeWithObjectID(struct tModel *lpModel, DWO
     return NULL;
 }
 
-struct tModel *R_LoadModelMDX(HANDLE hFile) {
+LPMODEL R_LoadModelMDX(HANDLE hFile) {
     DWORD dwBlockHeader, dwFileVersion = 0;
-    struct tModel *lpModel = ri.MemAlloc(sizeof(struct tModel));
+    LPMODEL lpModel = ri.MemAlloc(sizeof(struct tModel));
     struct tModelGeoset *lpLastGeoset = lpModel->lpGeosets;
     struct tModelMaterial *lpLastMaterial = lpModel->lpMaterials;
     struct tModelBone *lpLastBone = lpModel->lpBones;
@@ -367,14 +368,14 @@ struct tModel *R_LoadModelMDX(HANDLE hFile) {
     lpModel->lpCurrentAnimation = &lpModel->lpSequences[1];
     return lpModel;}
 
-struct tModel *R_LoadModel(LPCSTR szModelFilename) {
+LPMODEL R_LoadModel(LPCSTR szModelFilename) {
     DWORD dwFileHeader;
     HANDLE hFile = ri.FileOpen(szModelFilename);
-    struct tModel *model = NULL;
+    LPMODEL model = NULL;
 //    printf("%s\n", szModelFilename);
     if (hFile == NULL) {
         // try to load without *0.mdx
-        path_t szTempFileName;
+        PATHSTR szTempFileName;
         strncpy(szTempFileName, szModelFilename, strlen(szModelFilename) - 5);
         strcpy(szTempFileName + strlen(szModelFilename) - 5, ".mdx");
         hFile = ri.FileOpen(szTempFileName);
@@ -435,7 +436,7 @@ static void R_ReleaseModelHelper(struct tModelHelper *lpHelper) {
     SAFE_DELETE(lpHelper->lpNext, R_ReleaseModelHelper);
     SAFE_DELETE(lpHelper, ri.MemFree);
 }
-void R_ReleaseModel(struct tModel *lpModel) {
+void R_ReleaseModel(LPMODEL lpModel) {
     SAFE_DELETE(lpModel->lpGeosets, R_ReleaseModelGeoset);
     SAFE_DELETE(lpModel->lpMaterials, R_ReleaseModelMaterial);
     SAFE_DELETE(lpModel->lpBones, R_ReleaseModelBone);
