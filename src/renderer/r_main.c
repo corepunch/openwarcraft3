@@ -21,20 +21,22 @@ void R_GetLigthMatrix(LPMATRIX4 lightSpaceMatrix) {
     Matrix4_translate(lightSpaceMatrix, &sunorg);
 }
 
+void R_GetProjectionMatrix(LPMATRIX4 lpProjectionMatrix, LPCVIEWDEF viewDef) {
+    int dwWindowWidth, dwWindowHeight;
+    SDL_GetWindowSize(window, &dwWindowWidth, &dwWindowHeight);
+    Matrix4_perspective(lpProjectionMatrix, tr.viewDef.fov, (float)dwWindowWidth / (float)dwWindowHeight, 100.0, 100000.0);
+    Matrix4_rotate(lpProjectionMatrix, &tr.viewDef.viewangles, ROTATE_XYZ);
+    Matrix4_translate(lpProjectionMatrix, &tr.viewDef.vieworg);
+}
+
 static void R_SetupGL(bool drawLight) {
     MATRIX4 model_matrix;
     MATRIX3 normal_matrix;
-    int width, height;
-    
-    SDL_GetWindowSize(window, &width, &height);
     
     Matrix4_identity(&model_matrix);
     
     R_GetLigthMatrix(&tr.viewDef.light_matrix);
-
-    Matrix4_perspective(&tr.viewDef.projection_matrix, tr.viewDef.fov, width / height, 100.0, 100000.0);
-    Matrix4_rotate(&tr.viewDef.projection_matrix, &tr.viewDef.viewangles, ROTATE_XYZ);
-    Matrix4_translate(&tr.viewDef.projection_matrix, &tr.viewDef.vieworg);
+    R_GetProjectionMatrix(&tr.viewDef.projection_matrix, &tr.viewDef);
     
     if (drawLight) {
         tr.viewDef.projection_matrix = tr.viewDef.light_matrix;
@@ -50,6 +52,7 @@ static void R_SetupGL(bool drawLight) {
     glUniformMatrix4fv(tr.shaderSkin->uModelMatrix, 1, GL_FALSE, model_matrix.v);
     glUniformMatrix4fv(tr.shaderSkin->uLightMatrix, 1, GL_FALSE, tr.viewDef.light_matrix.v);
     glUniformMatrix3fv(tr.shaderSkin->uNormalMatrix, 1, GL_TRUE, normal_matrix.v);
+    
     glUseProgram(tr.shaderStatic->progid);
     
     glUniformMatrix4fv(tr.shaderStatic->uProjectionMatrix, 1, GL_FALSE, tr.viewDef.projection_matrix.v);

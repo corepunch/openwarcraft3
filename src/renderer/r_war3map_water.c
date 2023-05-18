@@ -53,12 +53,48 @@ static void R_MakeWaterTile(LPCWAR3MAP lpMap, DWORD x, DWORD y) {
     };
 
     struct vertex geom[] = {
-        { { pos[0].x, pos[0].y, waterlevel[0] }, {0, 0}, {0, 0}, {0,0,1}, color[0] },
-        { { pos[1].x, pos[1].y, waterlevel[1] }, {1, 0}, {0, 0}, {0,0,1}, color[1] },
-        { { pos[2].x, pos[2].y, waterlevel[2] }, {1, 1}, {0, 0}, {0,0,1}, color[2] },
-        { { pos[0].x, pos[0].y, waterlevel[0] }, {0, 0}, {0, 0}, {0,0,1}, color[0] },
-        { { pos[2].x, pos[2].y, waterlevel[2] }, {1, 1}, {0, 0}, {0,0,1}, color[2] },
-        { { pos[3].x, pos[3].y, waterlevel[3] }, {0, 1}, {0, 0}, {0,0,1}, color[3] },
+        {
+            .position = { pos[0].x, pos[0].y, waterlevel[0] },
+            .texcoord = { 0, 0 },
+            .texcoord2 = {0, 0},
+            .normal = { 0, 0, 1 },
+            .color = color[0],
+        },
+        {
+            .position = { pos[1].x, pos[1].y, waterlevel[1] },
+            .texcoord = { 1, 0 },
+            .texcoord2 = {0, 0},
+            .normal = { 0, 0, 1 },
+            .color = color[1],
+        },
+        {
+            .position = { pos[2].x, pos[2].y, waterlevel[2] },
+            .texcoord = { 1, 1 },
+            .texcoord2 = {0, 0},
+            .normal = { 0, 0, 1 },
+            .color = color[2],
+        },
+        {
+            .position = { pos[0].x, pos[0].y, waterlevel[0] },
+            .texcoord = { 0, 0 },
+            .texcoord2 = {0, 0},
+            .normal = { 0, 0, 1 },
+            .color = color[0],
+        },
+        {
+            .position = { pos[2].x, pos[2].y, waterlevel[2] },
+            .texcoord = { 1, 1 },
+            .texcoord2 = {0, 0},
+            .normal = { 0, 0, 1 },
+            .color = color[2],
+        },
+        {
+            .position = { pos[3].x, pos[3].y, waterlevel[3] },
+            .texcoord = { 0, 1 },
+            .texcoord2 = {0, 0},
+            .normal = { 0, 0, 1 },
+            .color = color[3],
+        },
     };
 
     memcpy(lpCurrentVertex, geom, sizeof(geom));

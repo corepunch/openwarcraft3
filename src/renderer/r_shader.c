@@ -25,7 +25,7 @@ LPCSTR vertex_shader =
 "    v_texcoord2 = i_texcoord2;\n"
 "    v_normal = normalize(uNormalMatrix * i_normal);\n"
 "    v_shadow = uLightMatrix * uModelMatrix * vec4(i_position, 1.0);\n"
-"    v_lightDir = -normalize(vec3(uLightMatrix[2][0], uLightMatrix[2][1], uLightMatrix[2][2]));\n"
+"    v_lightDir = -normalize(vec3(uLightMatrix[2][0], uLightMatrix[2][1], uLightMatrix[2][2]))*1.2;\n"
 "    gl_Position = uProjectionMatrix * uModelMatrix * vec4(i_position, 1.0);\n"
 "}\n";
 
@@ -62,7 +62,7 @@ LPCSTR vertex_shader_skin =
 "    v_texcoord2 = i_texcoord2;\n"
 "    v_normal = normalize(uNormalMatrix * i_normal);\n"
 "    v_shadow = uLightMatrix * uModelMatrix * sum;\n"
-"    v_lightDir = -normalize(vec3(uLightMatrix[2][0], uLightMatrix[2][1], uLightMatrix[2][2]));\n"
+"    v_lightDir = -normalize(vec3(uLightMatrix[2][0], uLightMatrix[2][1], uLightMatrix[2][2]))*1.2;\n"
 "    gl_Position = uProjectionMatrix * uModelMatrix * sum;\n"
 "}\n";
 
@@ -84,8 +84,8 @@ LPCSTR fragment_shader =
 "    float depth = texture(uShadowmap, vec2(v_shadow.x + 1.0, v_shadow.y + 1.0) * 0.5).r;\n"
 "    float shade = depth < (v_shadow.z + 0.99) * 0.5 ? 0.0 : 1.0;\n"
 "    vec4 col = texture(uTexture, v_texcoord);\n"
-"    shade *= max(0.0, dot(v_normal, v_lightDir));\n"
-"    col.rgb *= mix(vec3(0.3), vec3(1.0), vec3(shade));\n"
+"    shade *= dot(v_normal, v_lightDir);\n"
+"    col.rgb *= mix(0.5, 1.0, shade);\n"
 "    o_color = col * v_color;\n"
 "    if (o_color.a < 0.5 && uUseDiscard) discard;\n"
 "}\n";

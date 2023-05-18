@@ -53,12 +53,48 @@ static void R_MakeTile(LPCWAR3MAP lpMap, DWORD x, DWORD y, DWORD ground, LPCTEXT
 MakeColor(color[INDEX], LerpNumber(color[INDEX], 1, 0.25f), LerpNumber(color[INDEX], 1, 0.5f), 1)
 
     struct vertex geom[] = {
-        { {p[0].x,p[0].y,h[0]}, {0, 0}, GetWar3MapPosition(lpMap, p[0].x, p[0].y), {0,0,1}, WATER(0) },
-        { {p[1].x,p[1].y,h[1]}, {1, 0}, GetWar3MapPosition(lpMap, p[1].x, p[1].y), {0,0,1}, WATER(1) },
-        { {p[2].x,p[2].y,h[2]}, {1, 1}, GetWar3MapPosition(lpMap, p[2].x, p[2].y), {0,0,1}, WATER(2) },
-        { {p[0].x,p[0].y,h[0]}, {0, 0}, GetWar3MapPosition(lpMap, p[0].x, p[0].y), {0,0,1}, WATER(0) },
-        { {p[2].x,p[2].y,h[2]}, {1, 1}, GetWar3MapPosition(lpMap, p[2].x, p[2].y), {0,0,1}, WATER(2) },
-        { {p[3].x,p[3].y,h[3]}, {0, 1}, GetWar3MapPosition(lpMap, p[3].x, p[3].y), {0,0,1}, WATER(3) },
+        {
+            .position = { p[0].x, p[0].y, h[0] },
+            .texcoord = {0, 0},
+            .texcoord2 = GetWar3MapPosition(lpMap, p[0].x, p[0].y),
+            .normal = {0,0,1},
+            .color = WATER(0),
+        },
+        {
+            .position = { p[1].x, p[1].y, h[1] },
+            .texcoord = {1, 0},
+            .texcoord2 = GetWar3MapPosition(lpMap, p[1].x, p[1].y),
+            .normal = {0,0,1},
+            .color = WATER(1),
+        },
+        {
+            .position = { p[2].x, p[2].y, h[2] },
+            .texcoord = {1, 1},
+            .texcoord2 = GetWar3MapPosition(lpMap, p[2].x, p[2].y),
+            .normal = {0,0,1},
+            .color = WATER(2),
+        },
+        {
+            .position = { p[0].x, p[0].y, h[0] },
+            .texcoord = {0, 0},
+            .texcoord2 = GetWar3MapPosition(lpMap, p[0].x, p[0].y),
+            .normal = {0,0,1},
+            .color = WATER(0),
+        },
+        {
+            .position = { p[2].x, p[2].y, h[2] },
+            .texcoord = {1, 1},
+            .texcoord2 = GetWar3MapPosition(lpMap, p[2].x, p[2].y),
+            .normal = {0,0,1},
+            .color = WATER(2),
+        },
+        {
+            .position = { p[3].x, p[3].y, h[3] },
+            .texcoord = {0, 1},
+            .texcoord2 = GetWar3MapPosition(lpMap, p[3].x, p[3].y),
+            .normal = {0,0,1},
+            .color = WATER(3),
+        },
     };
 
     SetTileUV(_tile, geom, lpTexture);
