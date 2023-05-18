@@ -34,7 +34,7 @@ struct client_state {
 void V_RenderView(void);
 void CL_PrepRefresh(void);
 void CL_ParseServerMessage(LPSIZEBUF msg);
-int CL_ParseEntityBits(LPSIZEBUF msg, uint32_t *bits);
+int CL_ParseEntityBits(LPSIZEBUF msg, DWORD *bits);
 
 extern struct client_state cl;
 

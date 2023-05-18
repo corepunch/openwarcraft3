@@ -35,10 +35,10 @@ static struct SheetCell *SheetCellNew(DWORD x, DWORD y, LPSTR text, struct Sheet
     } else {
         cell->text = strdup(text);
     }
-    if (y == 1) {
+//    if (y == 1) {
 //    if (strstr(cell->text, "circle")) {
-        printf("  %d %s\n", x, cell->text);
-    }
+//        printf("  %d %s\n", x, cell->text);
+//    }
     return cell;
 }
 

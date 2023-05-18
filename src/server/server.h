@@ -4,6 +4,8 @@
 #include "../common/common.h"
 #include "game.h"
 
+#include <StormLib.h>
+
 #define EDICT_NUM(n) ((LPEDICT)((LPSTR)ge->edicts + ge->edict_size*(n)))
 #define NUM_FOR_EDICT(e) (((LPSTR)(e)-(LPSTR)ge->edicts) / ge->edict_size)
 
@@ -37,9 +39,9 @@ struct server_static {
 
 struct mdx_sequence {
     char name[80];
-    uint32_t interval[2];
+    DWORD interval[2];
     float movespeed;     // movement speed of the entity while playing this animation
-    uint32_t flags;      // &1: non looping
+    DWORD flags;      // &1: non looping
     float rarity;
     int syncpoint;
     float radius;

@@ -34,7 +34,6 @@ struct matrix3 { union { float v[9]; VECTOR3 column[3]; }; };
 float Vector3_dot(LPCVECTOR3 a, LPCVECTOR3 b);
 float Vector3_lengthsq(LPCVECTOR3 vec);
 float Vector3_len(LPCVECTOR3 vec);
-bool Vector3_eq(LPCVECTOR3 a, LPCVECTOR3 b);
 VECTOR3 Vector3_bezier(LPCVECTOR3 a, LPCVECTOR3 b, LPCVECTOR3 c, LPCVECTOR3 d, float t);
 VECTOR3 Vector3_hermite(LPCVECTOR3 a, LPCVECTOR3 b, LPCVECTOR3 c, LPCVECTOR3 d, float t);
 VECTOR3 Vector3_lerp(LPCVECTOR3 a, LPCVECTOR3 b, float t);

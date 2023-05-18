@@ -46,7 +46,7 @@ struct SheetLayout doodad_info[] = {
 };
 
 void G_InitDoodads(void) {
-    game.Doodads = FS_ParseSheet("Doodads\\Doodads.slk", doodad_info, sizeof(struct DoodadInfo), FOFS(DoodadInfo, lpNext));
+    game.Doodads = gi.ParseSheet("Doodads\\Doodads.slk", doodad_info, sizeof(struct DoodadInfo), FOFS(DoodadInfo, lpNext));
 }
 
 LPDOODADINFO G_FindDoodadInfo(int doodID) {

@@ -14,7 +14,7 @@ struct monsterinfo {
 
 struct edict {
     ENTITYSTATE s;
-    uint32_t class_id;
+    DWORD class_id;
     int variation;
     
     void (*think)(LPEDICT lpEntity, DWORD msec);

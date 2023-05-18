@@ -16,11 +16,11 @@ int main(int argc, LPSTR  argv[]) {
     SV_Map("Maps\\Campaign\\Human01.w3m");
     
     
-    uint32_t startTime = SDL_GetTicks();
+    DWORD startTime = SDL_GetTicks();
     
     while (true) {
-        uint32_t currentTime = SDL_GetTicks();
-        uint32_t msec = currentTime - startTime;
+        DWORD currentTime = SDL_GetTicks();
+        DWORD msec = currentTime - startTime;
         SV_Frame(msec);
         CL_Frame(msec);
         startTime = currentTime;

@@ -3,6 +3,7 @@
 
 #include <SDL.h>
 #include <SDL_opengl.h>
+#include <StormLib.h>
 
 // TODO: M1 doesn't link without these includes
 
@@ -52,8 +53,8 @@ struct vertex {
     VECTOR2 texcoord2;
     VECTOR3 normal;
     struct color32 color;
-    uint8_t skin[4];
-    uint8_t boneWeight[4];
+    BYTE skin[4];
+    BYTE boneWeight[4];
 };
 
 struct texture {

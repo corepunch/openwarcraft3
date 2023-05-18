@@ -1,8 +1,7 @@
 #ifndef __common_h__
 #define __common_h__
 
-#include <StormLib.h>
-
+#include "shared.h"
 #include "net.h"
 #include "../math/math.h"
 
@@ -50,13 +49,12 @@
 #define MAX_CONFIGSTRINGS (CS_GENERAL+MAX_GENERAL)
 #define SAFE_DELETE(x, func) if (x) { func(x); (x) = NULL; }
 
-#define SFileReadArray(hFile, object, variable, elemsize) \
+#define SFileReadArray(hFile, object, variable, elemsize, alloc) \
 SFileReadFile(hFile, &object->num##variable, 4, NULL, NULL); \
-if (object->num##variable > 0) {object->lp##variable = MemAlloc(object->num##variable * elemsize); \
+if (object->num##variable > 0) {object->lp##variable = alloc(object->num##variable * elemsize); \
 SFileReadFile(hFile, object->lp##variable, object->num##variable * elemsize, NULL, NULL); }
 
 #define FOR_LOOP(property, max) for (DWORD property = 0, end = max; property < end; ++property)
-#define EPSILON 0.001f
 #define PrintTag(tag)do { LPSTR ch = (char*)&tag; printf("%c%c%c%c\n", ch[0], ch[1], ch[2], ch[3]); } while(false);
 
 #define FOR_EACH_LIST(type, property, list) \
@@ -68,16 +66,16 @@ property = next, next = next ? next->lpNext : NULL)
 for (type *property = array; property - array < num; property++)
 
 enum {
-    kEntityChangeFlag_originX,
-    kEntityChangeFlag_originY,
-    kEntityChangeFlag_originZ,
-    kEntityChangeFlag_angle,
-    kEntityChangeFlag_scale,
-    kEntityChangeFlag_remove,
-    kEntityChangeFlag_frame,
-    kEntityChangeFlag_model,
-    kEntityChangeFlag_image,
-    kEntityChangeFlag_model2,
+    U_ORIGIN1,
+    U_ORIGIN2,
+    U_ORIGIN3,
+    U_ANGLE,
+    U_SCALE,
+    U_REMOVE,
+    U_FRAME,
+    U_MODEL,
+    U_IMAGE,
+    U_MODEL2,
 };
 
 // server to client
@@ -148,7 +146,7 @@ typedef char SHEETSTR[64];
 typedef void const *LPCVOID;
 
 struct color { float r, g, b, a; };
-struct color32 { uint8_t r, g, b, a; };
+struct color32 { BYTE r, g, b, a; };
 struct bounds { float min, max; };
 struct rect { float x, y, width, height; };
 struct edges { float left, top, right, bottom; };
@@ -196,20 +194,10 @@ struct SheetCell {
     struct SheetCell *lpNext;
 };
 
-LPCWAR3MAPVERTEX GetWar3MapVertex(LPCWAR3MAP lpTerrain, DWORD x, DWORD y);
-LPWAR3MAP  FileReadWar3Map(HANDLE hArchive);
 HANDLE FS_ParseSheet(LPCSTR szFileName, LPCSHEETLAYOUT lpLayout, DWORD dwElementSize, HANDLE lpNextFieldOffset);
 void LoadMap(LPCSTR pFilename);
-LPCWAR3MAPVERTEX GetWar3MapVertex(LPCWAR3MAP lpTerrain, DWORD x, DWORD y);
 LPTERRAININFO FindTerrainInfo(DWORD tileID);
 LPCLIFFINFO FindCliffInfo(DWORD cliffID);
-DWORD GetTile(LPCWAR3MAPVERTEX mv, DWORD ground);
-float GetWar3MapVertexHeight(LPCWAR3MAPVERTEX vert);
-float GetWar3MapVertexWaterLevel(LPCWAR3MAPVERTEX vert);
-void GetTileVertices(DWORD x, DWORD y, LPCWAR3MAP lpTerrain, LPWAR3MAPVERTEX vertices);
-DWORD GetTileRamps(LPCWAR3MAPVERTEX vertices);
-DWORD IsTileCliff(LPCWAR3MAPVERTEX vertices);
-DWORD IsTileWater(LPCWAR3MAPVERTEX vertices);
 
 void FS_Init(void);
 void FS_Shutdown(void);

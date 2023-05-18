@@ -15,13 +15,13 @@ static void SV_WriteConfigStrings(struct client *cl) {
     Netchan_Transmit(&cl->netchan);
 }
 
-#define SET_BIT_IF(flag, value) \
-if (from->value != to->value) \
-    bits |= (1 << kEntityChangeFlag_##flag);
+#define SET_BIT_IF(FLAG, VALUE) \
+if (from->VALUE != to->VALUE) \
+    bits |= (1 << FLAG);
 
-#define WRITE_IF(flag, value, type) \
-if (bits & (1 << kEntityChangeFlag_##flag)) \
-    MSG_Write##type(msg, to->value);
+#define WRITE_IF(FLAG, VALUE, TYPE) \
+if (bits & (1 << FLAG)) \
+    MSG_Write##TYPE(msg, to->VALUE);
 
 void
 MSG_WriteDeltaEntity(LPSIZEBUF msg,
@@ -30,15 +30,15 @@ MSG_WriteDeltaEntity(LPSIZEBUF msg,
 {
     int bits = 0;
 
-    SET_BIT_IF(originX, origin.x);
-    SET_BIT_IF(originY, origin.y);
-    SET_BIT_IF(originZ, origin.z);
-    SET_BIT_IF(angle, angle);
-    SET_BIT_IF(scale, scale);
-    SET_BIT_IF(frame, frame);
-    SET_BIT_IF(model, model);
-    SET_BIT_IF(image, image);
-    SET_BIT_IF(model2, model2);
+    SET_BIT_IF(U_ORIGIN1, origin.x);
+    SET_BIT_IF(U_ORIGIN2, origin.y);
+    SET_BIT_IF(U_ORIGIN3, origin.z);
+    SET_BIT_IF(U_ANGLE, angle);
+    SET_BIT_IF(U_SCALE, scale);
+    SET_BIT_IF(U_FRAME, frame);
+    SET_BIT_IF(U_MODEL, model);
+    SET_BIT_IF(U_IMAGE, image);
+    SET_BIT_IF(U_MODEL2, model2);
 
     if (bits == 0)
         return;
@@ -46,15 +46,15 @@ MSG_WriteDeltaEntity(LPSIZEBUF msg,
     MSG_WriteShort(msg, bits);
     MSG_WriteShort(msg, to->number);
 
-    WRITE_IF(originX, origin.x, Short);
-    WRITE_IF(originY, origin.y, Short);
-    WRITE_IF(originZ, origin.z, Short);
-    WRITE_IF(angle, angle * 100, Short);
-    WRITE_IF(scale, scale * 100, Short);
-    WRITE_IF(frame, frame, Short);
-    WRITE_IF(model, model, Short);
-    WRITE_IF(image, image, Short);
-    WRITE_IF(model2, model2, Short);
+    WRITE_IF(U_ORIGIN1, origin.x, Short);
+    WRITE_IF(U_ORIGIN2, origin.y, Short);
+    WRITE_IF(U_ORIGIN3, origin.z, Short);
+    WRITE_IF(U_ANGLE, angle * 100, Short);
+    WRITE_IF(U_SCALE, scale * 100, Short);
+    WRITE_IF(U_FRAME, frame, Short);
+    WRITE_IF(U_MODEL, model, Short);
+    WRITE_IF(U_IMAGE, image, Short);
+    WRITE_IF(U_MODEL2, model2, Short);
 }
 
 static void SV_Baseline(struct client *cl) {

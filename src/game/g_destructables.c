@@ -63,7 +63,7 @@ static struct SheetLayout destructable_data[] = {
 };
 
 void G_InitDestructables(void) {
-    game.DestructableData = FS_ParseSheet("Units\\DestructableData.slk", destructable_data, sizeof(struct DestructableData), FOFS(DestructableData, lpNext));
+    game.DestructableData = gi.ParseSheet("Units\\DestructableData.slk", destructable_data, sizeof(struct DestructableData), FOFS(DestructableData, lpNext));
 }
 
 LPDESTRUCTABLEDATA G_FindDestructableData(int DestructableID) {

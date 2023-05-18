@@ -118,6 +118,16 @@ static float LerpNumber(float a, float b, float t) {
     return a * (1 - t) + b * t;
 }
 
+LPCWAR3MAPVERTEX GetWar3MapVertex(LPCWAR3MAP lpWar3Map, DWORD x, DWORD y) {
+    int const index = x + y * lpWar3Map->width;
+    char const *ptr = ((char const *)lpWar3Map->vertices) + index * MAP_VERTEX_SIZE;
+    return (LPCWAR3MAPVERTEX)ptr;
+}
+
+float GetWar3MapVertexHeight(LPCWAR3MAPVERTEX vert) {
+    return DECODE_HEIGHT(vert->accurate_height) + vert->level * TILESIZE - HEIGHT_COR;
+}
+
 static float SV_GetHeightAtPoint(float sx, float sy) {
     extern LPWAR3MAP lpMap;
     float x = (sx - lpMap->center.x) / TILESIZE;

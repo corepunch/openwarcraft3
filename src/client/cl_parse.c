@@ -1,8 +1,8 @@
 #include "client.h"
 
-#define READ_IF(flag, value, type, scale) \
-if (bits & (1 << kEntityChangeFlag_##flag)) \
-    lpEdict->value = MSG_Read##type(msg) * scale;
+#define READ_IF(FLAG, VALUE, TYPE, SCALE) \
+if (bits & (1 << FLAG)) \
+    lpEdict->VALUE = MSG_Read##TYPE(msg) * SCALE;
 
 void
 CL_ParseDeltaEntity(LPSIZEBUF msg,
@@ -11,20 +11,20 @@ CL_ParseDeltaEntity(LPSIZEBUF msg,
                     int bits)
 {
     lpEdict->number = number;
-    READ_IF(originX, origin.x, Short, 1);
-    READ_IF(originY, origin.y, Short, 1);
-    READ_IF(originZ, origin.z, Short, 1);
-    READ_IF(angle, angle, Short, 0.01f);
-    READ_IF(scale, scale, Short, 0.01f);
-    READ_IF(frame, frame, Short, 1);
-    READ_IF(model, model, Short, 1);
-    READ_IF(image, image, Short, 1);
-    READ_IF(model2, model2, Short, 1);
+    READ_IF(U_ORIGIN1, origin.x, Short, 1);
+    READ_IF(U_ORIGIN2, origin.y, Short, 1);
+    READ_IF(U_ORIGIN3, origin.z, Short, 1);
+    READ_IF(U_ANGLE, angle, Short, 0.01f);
+    READ_IF(U_SCALE, scale, Short, 0.01f);
+    READ_IF(U_FRAME, frame, Short, 1);
+    READ_IF(U_MODEL, model, Short, 1);
+    READ_IF(U_IMAGE, image, Short, 1);
+    READ_IF(U_MODEL2, model2, Short, 1);
 }
 
 static void CL_ReadPacketEntities(LPSIZEBUF msg) {
     while (true) {
-        uint32_t bits = 0;
+        DWORD bits = 0;
         int nument = CL_ParseEntityBits(msg, &bits);
         if (nument == 0 && bits == 0)
             break;
@@ -40,8 +40,8 @@ static void CL_ParseConfigString(LPSIZEBUF msg) {
 }
 
 static void CL_ParseBaseline(LPSIZEBUF msg) {
-    uint32_t bits = 0;
-    uint32_t index = CL_ParseEntityBits(msg, &bits);
+    DWORD bits = 0;
+    DWORD index = CL_ParseEntityBits(msg, &bits);
     struct client_entity *cent = &cl.ents[index];
     memset(&cent->baseline, 0, sizeof(ENTITYSTATE));
     CL_ParseDeltaEntity(msg, &cent->baseline, index, bits);
@@ -54,7 +54,7 @@ void CL_ParseFrame(LPSIZEBUF msg) {
 }
 
 void CL_ParseServerMessage(LPSIZEBUF msg) {
-    uint8_t pack_id = 0;
+    BYTE pack_id = 0;
     while (MSG_Read(msg, &pack_id, 1)) {
         switch (pack_id) {
             case svc_spawnbaseline:

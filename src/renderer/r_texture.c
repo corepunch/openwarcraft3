@@ -27,7 +27,7 @@ void R_BindTexture(LPCTEXTURE lpTexture, DWORD dwUnit) {
 }
 
 LPTEXTURE R_AllocateTexture(DWORD dwWidth, DWORD dwHeight) {
-    LPTEXTURE texture = MemAlloc(sizeof(struct texture));
+    LPTEXTURE texture = ri.MemAlloc(sizeof(struct texture));
     texture->width = dwWidth;
     texture->height = dwHeight;
     glGenTextures(1, &texture->texid);

@@ -7,10 +7,10 @@ static void R_FileReadShadowMap(HANDLE hMpq, LPWAR3MAP  pWorld) {
     SFileOpenFileEx(hMpq, "war3map.shd", SFILE_OPEN_FROM_MPQ, &hFile);
     int const w = (pWorld->width - 1) * 4;
     int const h = (pWorld->height - 1) * 4;
-    LPSTR lpShadows = MemAlloc(w * h);
+    LPSTR lpShadows = ri.MemAlloc(w * h);
     SFileReadFile(hFile, lpShadows, w * h, NULL, NULL);
     LPTEXTURE pShadowmap = R_AllocateTexture(w, h);
-    LPCOLOR32 lpPixels = MemAlloc(w * h * sizeof(struct color32));
+    LPCOLOR32 lpPixels = ri.MemAlloc(w * h * sizeof(struct color32));
     FOR_LOOP(i, w * h) {
         lpPixels[i].r = 255-lpShadows[i];
         lpPixels[i].g = 255-lpShadows[i];
@@ -73,10 +73,30 @@ static void R_LoadMapSegments(LPCWAR3MAP lpMap) {
     }
 }
 
+LPWAR3MAP FileReadWar3Map(HANDLE hArchive) {
+    LPWAR3MAP lpWar3Map = ri.MemAlloc(sizeof(WAR3MAP));
+    HANDLE hFile;
+    SFileOpenFileEx(hArchive, "war3map.w3e", SFILE_OPEN_FROM_MPQ, &hFile);
+    SFileReadFile(hFile, &lpWar3Map->header, 4, NULL, NULL);
+    SFileReadFile(hFile, &lpWar3Map->version, 4, NULL, NULL);
+    SFileReadFile(hFile, &lpWar3Map->tileset, 1, NULL, NULL);
+    SFileReadFile(hFile, &lpWar3Map->custom, 4, NULL, NULL);
+    SFileReadArray(hFile, lpWar3Map, Grounds, 4, ri.MemAlloc);
+    SFileReadArray(hFile, lpWar3Map, Cliffs, 4, ri.MemAlloc);
+    SFileReadFile(hFile, &lpWar3Map->width, 4, NULL, NULL);
+    SFileReadFile(hFile, &lpWar3Map->height, 4, NULL, NULL);
+    SFileReadFile(hFile, &lpWar3Map->center, 8, NULL, NULL);
+    int const vertexblocksize = MAP_VERTEX_SIZE * lpWar3Map->width * lpWar3Map->height;
+    lpWar3Map->vertices = ri.MemAlloc(vertexblocksize);
+    SFileReadFile(hFile, lpWar3Map->vertices, vertexblocksize, 0, 0);
+    SFileCloseFile(hFile);
+    return lpWar3Map;
+}
+
 void R_RegisterMap(char const *szMapFilename) {
     HANDLE hMpq;
     LPWAR3MAP lpMap;
-    FS_ExtractFile(szMapFilename, TMP_MAP);
+    ri.FileExtract(szMapFilename, TMP_MAP);
     SFileOpenArchive(TMP_MAP, 0, 0, &hMpq);
     lpMap = FileReadWar3Map(hMpq);
     R_FileReadShadowMap(hMpq, lpMap);

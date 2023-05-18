@@ -413,13 +413,6 @@ float Vector3_len(LPCVECTOR3 vec) {
     return sqrtf(Vector3_lengthsq(vec));
 }
 
-bool Vector3_eq(LPCVECTOR3 a, LPCVECTOR3 b) {
-    return
-        fabs(a->x - b->x) < EPSILON &&
-        fabs(a->y - b->y) < EPSILON &&
-        fabs(a->z - b->z) < EPSILON;
-}
-
 VECTOR3 Vector3_bezier(LPCVECTOR3 a, LPCVECTOR3 b, LPCVECTOR3 c, LPCVECTOR3 d, float t) {
     float const inverseFactor = 1 - t;
     float const inverseFactorTimesTwo = inverseFactor * inverseFactor;

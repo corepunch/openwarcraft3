@@ -60,7 +60,7 @@ static LPCMODEL R_LoadCliffModel(LPCCLIFFINFO lpCliffInfo, char const *ccfg, boo
         if (it->cliffid == cliffid)
             return it->model;
     }
-    struct tCliff *cliff = MemAlloc(sizeof(struct tCliff));
+    struct tCliff *cliff = ri.MemAlloc(sizeof(struct tCliff));
     cliff->cliffid = cliffid;
     sprintf(zBuffer, "Doodads\\Terrain\\%s\\%s%s0.mdx", dir, dir, ccfg);
     cliff->model = R_LoadModel(zBuffer);
@@ -130,7 +130,7 @@ static void R_MakeCliff(LPCWAR3MAP lpMap, DWORD x, DWORD y, DWORD dwCliff, LPCCL
 LPMAPLAYER R_BuildMapSegmentCliffs(LPCWAR3MAP lpMap, DWORD sx, DWORD sy, DWORD dwCliff) {
     LPMAPLAYER lpMapLayer = ri.MemAlloc(sizeof(MAPLAYER));
     PATHSTR zBuffer;
-    LPCLIFFINFO lpCliffInfo = FindCliffInfo(lpMap->lpCliffs[dwCliff]);
+    LPCLIFFINFO lpCliffInfo = ri.FindCliffInfo(lpMap->lpCliffs[dwCliff]);
     if (!lpCliffInfo)
         return NULL;
     sprintf(zBuffer, "%s\\%s.blp", lpCliffInfo->texDir, lpCliffInfo->texFile);

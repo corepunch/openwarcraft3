@@ -73,7 +73,7 @@ void SV_EmitPacketEntities(LPCCLIENTFRAME from,
             continue;
         }
         if (newnum > oldnum) { // the old entity isn't present in the new message
-            MSG_WriteShort(msg, 1 << kEntityChangeFlag_remove);
+            MSG_WriteShort(msg, 1 << U_REMOVE);
             MSG_WriteShort(msg, oldnum);
             oldindex++;
             continue;

@@ -107,22 +107,22 @@ static LPMODELGEOSET ReadGeoset(HANDLE hFile, struct tFileBlock const block) {
     while (!FileIsAtEndOfBlock(hFile, &block)) {
         int tag = FileReadInt32(hFile);
         switch (tag) {
-            case ID_VRTX: SFileReadArray(hFile, lpGeoset, Vertices, sizeof(VECTOR3)); break;
-            case ID_NRMS: SFileReadArray(hFile, lpGeoset, Normals, sizeof(VECTOR3)); break;
-            case ID_UVBS: SFileReadArray(hFile, lpGeoset, Texcoord, sizeof(VECTOR2)); break;
-            case ID_PTYP: SFileReadArray(hFile, lpGeoset, PrimitiveTypes, sizeof(int)); break;
-            case ID_PCNT: SFileReadArray(hFile, lpGeoset, PrimitiveCounts, sizeof(int)); break;
-            case ID_PVTX: SFileReadArray(hFile, lpGeoset, Triangles, sizeof(short)); break;
-            case ID_GNDX: SFileReadArray(hFile, lpGeoset, VertexGroups, sizeof(char)); break;
-            case ID_MTGC: SFileReadArray(hFile, lpGeoset, MatrixGroupSizes, sizeof(int)); break;
+            case ID_VRTX: SFileReadArray(hFile, lpGeoset, Vertices, sizeof(VECTOR3), ri.MemAlloc); break;
+            case ID_NRMS: SFileReadArray(hFile, lpGeoset, Normals, sizeof(VECTOR3), ri.MemAlloc); break;
+            case ID_UVBS: SFileReadArray(hFile, lpGeoset, Texcoord, sizeof(VECTOR2), ri.MemAlloc); break;
+            case ID_PTYP: SFileReadArray(hFile, lpGeoset, PrimitiveTypes, sizeof(int), ri.MemAlloc); break;
+            case ID_PCNT: SFileReadArray(hFile, lpGeoset, PrimitiveCounts, sizeof(int), ri.MemAlloc); break;
+            case ID_PVTX: SFileReadArray(hFile, lpGeoset, Triangles, sizeof(short), ri.MemAlloc); break;
+            case ID_GNDX: SFileReadArray(hFile, lpGeoset, VertexGroups, sizeof(char), ri.MemAlloc); break;
+            case ID_MTGC: SFileReadArray(hFile, lpGeoset, MatrixGroupSizes, sizeof(int), ri.MemAlloc); break;
             case ID_UVAS: SFileReadFile(hFile, &lpGeoset->numTexcoordChannels, sizeof(int), NULL, NULL); break;
             case ID_MATS:
-                SFileReadArray(hFile, lpGeoset, Matrices, sizeof(int));
+                SFileReadArray(hFile, lpGeoset, Matrices, sizeof(int), ri.MemAlloc);
                 SFileReadFile(hFile, &lpGeoset->material, sizeof(int), NULL, NULL);
                 SFileReadFile(hFile, &lpGeoset->group, sizeof(int), NULL, NULL);
                 SFileReadFile(hFile, &lpGeoset->selectable, sizeof(int), NULL, NULL);
                 SFileReadFile(hFile, &lpGeoset->default_bounds, sizeof(struct tModelBounds), NULL, NULL);
-                SFileReadArray(hFile, lpGeoset, Bounds, sizeof(struct tModelBounds));
+                SFileReadArray(hFile, lpGeoset, Bounds, sizeof(struct tModelBounds), ri.MemAlloc);
                 break;
             default:
                 
@@ -252,7 +252,7 @@ static void R_SetupGeoset(LPMODEL lpModel, LPMODELGEOSET lpGeoset) {
         return;
     }
     
-    typedef uint8_t matrixGroup_t[4];
+    typedef BYTE matrixGroup_t[4];
     struct vertex *lpVertices = ri.MemAlloc(sizeof(struct vertex) * lpGeoset->numTriangles);
     matrixGroup_t *lpMatrixGroups = ri.MemAlloc(sizeof(matrixGroup_t) * lpGeoset->numMatrixGroupSizes);
     DWORD dwIndexOffset = 0;
@@ -268,7 +268,7 @@ static void R_SetupGeoset(LPMODEL lpModel, LPMODELGEOSET lpGeoset) {
         DWORD dwMatrixGroupIndex = lpGeoset->lpVertexGroups[dwVertex];
         DWORD dwMatrixGroupSize = MAX(1, lpGeoset->lpMatrixGroupSizes[dwMatrixGroupIndex]);
         struct vertex *lpVertex = &lpVertices[dwTriangle];
-        uint8_t *dwMatrixGroup = lpMatrixGroups[dwMatrixGroupIndex];
+        BYTE *dwMatrixGroup = lpMatrixGroups[dwMatrixGroupIndex];
         lpVertex->color = (struct color32) { 255, 255, 255, 255 };
         if (lpGeoset->lpVertices) lpVertex->position = lpGeoset->lpVertices[dwVertex];
         if (lpGeoset->lpTexcoord) lpVertex->texcoord = lpGeoset->lpTexcoord[dwVertex];

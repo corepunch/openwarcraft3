@@ -1,5 +1,7 @@
 #include "common.h"
 
+#include <StormLib.h>
+
 #define MPQ_PATH "/Users/igor/Documents/Warcraft3/war3.mpq"
 
 static struct {
@@ -79,14 +81,14 @@ void FS_Init(void) {
     // SFileExtractFile(hArchive, "Units\\DestructableData.slk", "/Users/igor/Desktop/DestructableData.slk", 0);
     // SFileExtractFile(hArchive, "Doodads\\Terrain\\WoodBridgeLarge45\\WoodBridgeLarge45.mdx", "/Users/igor/Desktop/WoodBridgeLarge450.mdx", 0);
     
-     SFILE_FIND_DATA findData;
-     HANDLE handle = SFileFindFirstFile(hArchive, "*", &findData, 0);
-     if (handle) {
-         do {
-             printf("%s\n", findData.cFileName);
-         } while (SFileFindNextFile(handle, &findData));
-         SFileFindClose(handle);
-     }
+//     SFILE_FIND_DATA findData;
+//     HANDLE handle = SFileFindFirstFile(hArchive, "*", &findData, 0);
+//     if (handle) {
+//         do {
+//             printf("%s\n", findData.cFileName);
+//         } while (SFileFindNextFile(handle, &findData));
+//         SFileFindClose(handle);
+//     }
 
 //    const LPSTR sheets[] = {
 //        "Units\\unitUI.slk",

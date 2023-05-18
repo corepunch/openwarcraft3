@@ -44,5 +44,14 @@ float LerpNumber(float a, float b, float t);
 VECTOR2 GetWar3MapPosition(LPCWAR3MAP lpWar3Map, float x, float y);
 float GetTileDepth(float waterlevel, float height);
 struct color32 MakeColor(float r, float g, float b, float a);
+LPCWAR3MAPVERTEX GetWar3MapVertex(LPCWAR3MAP lpTerrain, DWORD x, DWORD y);
+DWORD GetTile(LPCWAR3MAPVERTEX mv, DWORD ground);
+float GetWar3MapVertexHeight(LPCWAR3MAPVERTEX vert);
+float GetWar3MapVertexWaterLevel(LPCWAR3MAPVERTEX vert);
+void GetTileVertices(DWORD x, DWORD y, LPCWAR3MAP lpTerrain, LPWAR3MAPVERTEX vertices);
+void SetTileUV(DWORD dwTile, LPVERTEX lpVertices, LPCTEXTURE lpTexture);
+DWORD GetTileRamps(LPCWAR3MAPVERTEX vertices);
+DWORD IsTileCliff(LPCWAR3MAPVERTEX vertices);
+DWORD IsTileWater(LPCWAR3MAPVERTEX vertices);
 
 #endif

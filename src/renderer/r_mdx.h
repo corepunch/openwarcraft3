@@ -42,7 +42,7 @@ struct tModelGeoset {
     struct tModelBounds *lpBounds;
     struct tModelBounds default_bounds;
     LPMODELGEOSET lpNext;
-    LPCBUFFER lpBuffer;
+    LPBUFFER lpBuffer;
     struct tModelGeosetAnim *lpGeosetAnim;
     int *lpMatrices;
     int *lpPrimitiveTypes;
@@ -76,9 +76,9 @@ struct tModelTexture {
 struct tModelMaterialLayer {
     enum MDLTEXOP blendMode;
     enum MDLGEO flags;
-    uint32_t textureId;        // TEXS index or 0xFFFFFFFF for none
-    uint32_t transformId;      // TXAN index or 0xFFFFFFFF for none
-    int32_t coordId;           // UAVS index or -1 for none, defines vertex buffer format coordId == -1 ? GxVBF_PN : GxVBF_PNT0
+    DWORD textureId;        // TEXS index or 0xFFFFFFFF for none
+    DWORD transformId;      // TXAN index or 0xFFFFFFFF for none
+    int coordId;           // UAVS index or -1 for none, defines vertex buffer format coordId == -1 ? GxVBF_PN : GxVBF_PNT0
     float staticAlpha;
 };
 
@@ -92,9 +92,9 @@ struct tModelMaterial {
 
 struct tModelSequence {
     tModelObjectName name;
-    uint32_t interval[2];
+    DWORD interval[2];
     float movespeed;     // movement speed of the entity while playing this animation
-    uint32_t flags;      // &1: non looping
+    DWORD flags;      // &1: non looping
     float rarity;
     int syncpoint;
     struct tModelBounds bounds;
@@ -104,7 +104,7 @@ struct tModelInfo {
     tModelObjectName name;
     tModelFileName animationFile;
     struct tModelBounds bounds;
-    uint32_t blendTime;
+    DWORD blendTime;
 };
 
 struct tModelPivot {
@@ -121,27 +121,27 @@ struct tModelKeyFrame {
 };
 
 struct tModelKeyTrack {
-    uint32_t dwKeyframeCount;
+    DWORD dwKeyframeCount;
     MODELKEYTRACKDATATYPE datatype;
     MODELKEYTRACKTYPE type;
-    uint32_t globalSeqId;        // GLBS index or 0xFFFFFFFF if none
+    DWORD globalSeqId;        // GLBS index or 0xFFFFFFFF if none
     struct tModelKeyFrame values[];
 };
 
 struct tModelGeosetAnim {
     float staticAlpha;        // 0 is transparent, 1 is opaque
-    uint32_t flags;           // &1: color
+    DWORD flags;           // &1: color
     struct tModelColor staticColor;
-    uint32_t geosetId;        // GEOS index or 0xFFFFFFFF if none
+    DWORD geosetId;        // GEOS index or 0xFFFFFFFF if none
     struct tModelGeosetAnim *lpNext;
     LPMODELKEYTRACK lpAlphas; // float
 };
 
 struct tModelNode {
     tModelObjectName name;
-    uint32_t objectId; // globally unique id, used as the index in the hierarchy. index into PIVT
-    uint32_t parentId; // parent MDLGENOBJECT's objectId or 0xFFFFFFFF if none
-    uint32_t flags;
+    DWORD objectId; // globally unique id, used as the index in the hierarchy. index into PIVT
+    DWORD parentId; // parent MDLGENOBJECT's objectId or 0xFFFFFFFF if none
+    DWORD flags;
     LPMODELKEYTRACK lpTranslation; // vec3
     LPMODELKEYTRACK lpRotation; // vec4
     LPMODELKEYTRACK lpScale; // vec3
@@ -154,8 +154,8 @@ struct tModelNode {
 struct tModelBone {
     struct tModelNode node;
     struct tModelBone *lpNext;
-    uint32_t geoset_id;
-    uint32_t geoset_animation_id;
+    DWORD geoset_id;
+    DWORD geoset_animation_id;
 };
 
 struct tModelHelper {
@@ -164,7 +164,7 @@ struct tModelHelper {
 };
 
 struct tModelGlobalSequence {
-    uint32_t value;
+    DWORD value;
 };
 
 struct tModel {

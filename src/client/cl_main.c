@@ -2,6 +2,7 @@
 #include "renderer.h"
 
 #include <SDL.h>
+#include <StormLib.h>
 
 struct Renderer *renderer = NULL;
 struct client_state cl = {
@@ -23,6 +24,8 @@ void CL_Init(void) {
         .FileOpen = FS_OpenFile,
         .FileClose = SFileCloseFile,
         .FileExtract = FS_ExtractFile,
+        .FindTerrainInfo = FindTerrainInfo,
+        .FindCliffInfo = FindCliffInfo,
     });
     
     renderer->Init(WINDOW_WIDTH, WINDOW_HEIGHT);

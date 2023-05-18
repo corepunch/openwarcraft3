@@ -7,55 +7,6 @@ LPCTEXTURE g_groundTextures[MAX_MAP_LAYERS] = { NULL };
 static VERTEX aVertexBuffer[(SEGMENT_SIZE+1)*(SEGMENT_SIZE+1)*6];
 static LPVERTEX lpCurrentVertex = NULL;
 
-// HELPERS
-
-float LerpNumber(float a, float b, float t) {
-    return a * (1 - t) + b * t;
-}
-
-VECTOR2 GetWar3MapPosition(LPCWAR3MAP lpWar3Map, float x, float y) {
-    float _x = (x - lpWar3Map->center.x) / ((lpWar3Map->width-1) * TILESIZE);
-    float _y = (y - lpWar3Map->center.y) / ((lpWar3Map->height-1) * TILESIZE);
-    return (VECTOR2) { _x, _y };
-}
-
-float GetTileDepth(float waterlevel, float height) {
-    float const opacity = MIN(0.95, (waterlevel - height) / 250.0f);
-    return 1 - MAX(0, opacity);
-}
-
-struct color32 MakeColor(float r, float g, float b, float a) {
-    return (struct color32) {
-        .r = r * 255,
-        .g = g * 255,
-        .b = b * 255,
-        .a = a * 255,
-    };
-}
-
-static void SetTileUV(DWORD dwTile, LPVERTEX lpVertices, LPCTEXTURE lpTexture) {
-    const float u = 1.f/(lpTexture->width / 64);
-    const float v = 1.f/(lpTexture->height / 64);
-
-    lpVertices[0].texcoord.x = u * ((dwTile%4)+0);
-    lpVertices[0].texcoord.y = v * ((dwTile/4)+1);
-    lpVertices[1].texcoord.x = u * ((dwTile%4)+1);
-    lpVertices[1].texcoord.y = v * ((dwTile/4)+1);
-    lpVertices[2].texcoord.x = u * ((dwTile%4)+1);
-    lpVertices[2].texcoord.y = v * ((dwTile/4)+0);
-    lpVertices[3].texcoord.x = u * ((dwTile%4)+0);
-    lpVertices[3].texcoord.y = v * ((dwTile/4)+1);
-    lpVertices[4].texcoord.x = u * ((dwTile%4)+1);
-    lpVertices[4].texcoord.y = v * ((dwTile/4)+0);
-    lpVertices[5].texcoord.x = u * ((dwTile%4)+0);
-    lpVertices[5].texcoord.y = v * ((dwTile/4)+0);
-    
-    FOR_LOOP(i, 6) {
-        lpVertices[i].texcoord.x = LerpNumber(lpVertices[i].texcoord.x, u * ((dwTile%4)+0.5), 0.05);
-        lpVertices[i].texcoord.y = LerpNumber(lpVertices[i].texcoord.y, v * ((dwTile/4)+0.5), 0.05);
-    }
-}
-
 // FUNCTIONS
 
 static void R_MakeTile(LPCWAR3MAP lpMap, DWORD x, DWORD y, DWORD ground, LPCTEXTURE lpTexture) {
@@ -120,7 +71,7 @@ LPMAPLAYER R_BuildMapSegmentLayer(LPCWAR3MAP lpMap, DWORD sx, DWORD sy, DWORD dw
     LPMAPLAYER lpMapLayer = ri.MemAlloc(sizeof(MAPLAYER));
     PATHSTR zBuffer;
     if (g_groundTextures[dwLayer] == NULL) {
-        LPTERRAININFO lpTerrainInfo = FindTerrainInfo(lpMap->lpGrounds[dwLayer]);
+        LPTERRAININFO lpTerrainInfo = ri.FindTerrainInfo(lpMap->lpGrounds[dwLayer]);
         if (!lpTerrainInfo)
             return NULL;
         sprintf(zBuffer, "%s\\%s.blp", lpTerrainInfo->dir, lpTerrainInfo->file);
