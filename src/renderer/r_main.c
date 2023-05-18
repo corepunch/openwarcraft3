@@ -11,12 +11,15 @@ SDL_GLContext context;
 
 bool is_rendering_lights = false;
 
+#define SHADOWMAP_SIZE 1500
+
 void R_GetLigthMatrix(LPMATRIX4 lightSpaceMatrix) {
     VECTOR3 sunorg = tr.viewDef.vieworg;
     VECTOR3 sunangles = { -35, 0, 45 };
-    sunorg.y -= 800;
-    sunorg.x += 800;
-    Matrix4_ortho(lightSpaceMatrix, -1750.0f, 1750.0f, -1500.0f, 1500.0f, 100.0, 3500.0);
+    sunorg.y -= 500;
+    sunorg.x += 1000;
+    Matrix4_ortho(lightSpaceMatrix, -SHADOWMAP_SIZE, SHADOWMAP_SIZE, -SHADOWMAP_SIZE, SHADOWMAP_SIZE, 100.0, 3500.0);
+    Matrix4_rotate(lightSpaceMatrix, &(VECTOR3){0,0,45}, ROTATE_ZYX);
     Matrix4_rotate(lightSpaceMatrix, &sunangles, ROTATE_ZYX);
     Matrix4_translate(lightSpaceMatrix, &sunorg);
 }
