@@ -1,0 +1,342 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		78A896CD2A16014C00BC5B56 /* cmath3.h in Headers */ = {isa = PBXBuildFile; fileRef = 78A896CB2A16014C00BC5B56 /* cmath3.h */; };
+		78A896D02A16015D00BC5B56 /* vector2.h in Headers */ = {isa = PBXBuildFile; fileRef = 78A896CE2A16015D00BC5B56 /* vector2.h */; };
+		78A896D12A16015D00BC5B56 /* vector2.c in Sources */ = {isa = PBXBuildFile; fileRef = 78A896CF2A16015D00BC5B56 /* vector2.c */; };
+		78A896D42A1601FB00BC5B56 /* vector3.h in Headers */ = {isa = PBXBuildFile; fileRef = 78A896D22A1601FB00BC5B56 /* vector3.h */; };
+		78A896D52A1601FB00BC5B56 /* vector3.c in Sources */ = {isa = PBXBuildFile; fileRef = 78A896D32A1601FB00BC5B56 /* vector3.c */; };
+		78A896D82A16025C00BC5B56 /* vector4.h in Headers */ = {isa = PBXBuildFile; fileRef = 78A896D62A16025C00BC5B56 /* vector4.h */; };
+		78A896D92A16025C00BC5B56 /* vector4.c in Sources */ = {isa = PBXBuildFile; fileRef = 78A896D72A16025C00BC5B56 /* vector4.c */; };
+		78A896DC2A1602B500BC5B56 /* quaternion.h in Headers */ = {isa = PBXBuildFile; fileRef = 78A896DA2A1602B500BC5B56 /* quaternion.h */; };
+		78A896DD2A1602B500BC5B56 /* quaternion.c in Sources */ = {isa = PBXBuildFile; fileRef = 78A896DB2A1602B500BC5B56 /* quaternion.c */; };
+		78A896E02A16032500BC5B56 /* matrix4.h in Headers */ = {isa = PBXBuildFile; fileRef = 78A896DE2A16032500BC5B56 /* matrix4.h */; };
+		78A896E12A16032500BC5B56 /* matrix4.c in Sources */ = {isa = PBXBuildFile; fileRef = 78A896DF2A16032500BC5B56 /* matrix4.c */; };
+		78A896E42A1603B800BC5B56 /* matrix3.h in Headers */ = {isa = PBXBuildFile; fileRef = 78A896E22A1603B800BC5B56 /* matrix3.h */; };
+		78A896E52A1603B800BC5B56 /* matrix3.c in Sources */ = {isa = PBXBuildFile; fileRef = 78A896E32A1603B800BC5B56 /* matrix3.c */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		78A896BD2A16012C00BC5B56 /* libcmath3.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; includeInIndex = 0; path = libcmath3.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
+		78A896CB2A16014C00BC5B56 /* cmath3.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = cmath3.h; sourceTree = "<group>"; };
+		78A896CE2A16015D00BC5B56 /* vector2.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = vector2.h; sourceTree = "<group>"; };
+		78A896CF2A16015D00BC5B56 /* vector2.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = vector2.c; sourceTree = "<group>"; };
+		78A896D22A1601FB00BC5B56 /* vector3.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = vector3.h; sourceTree = "<group>"; };
+		78A896D32A1601FB00BC5B56 /* vector3.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = vector3.c; sourceTree = "<group>"; };
+		78A896D62A16025C00BC5B56 /* vector4.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = vector4.h; sourceTree = "<group>"; };
+		78A896D72A16025C00BC5B56 /* vector4.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = vector4.c; sourceTree = "<group>"; };
+		78A896DA2A1602B500BC5B56 /* quaternion.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = quaternion.h; sourceTree = "<group>"; };
+		78A896DB2A1602B500BC5B56 /* quaternion.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = quaternion.c; sourceTree = "<group>"; };
+		78A896DE2A16032500BC5B56 /* matrix4.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = matrix4.h; sourceTree = "<group>"; };
+		78A896DF2A16032500BC5B56 /* matrix4.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = matrix4.c; sourceTree = "<group>"; };
+		78A896E22A1603B800BC5B56 /* matrix3.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = matrix3.h; sourceTree = "<group>"; };
+		78A896E32A1603B800BC5B56 /* matrix3.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = matrix3.c; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		78A896BB2A16012C00BC5B56 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		78A896B42A16012C00BC5B56 = {
+			isa = PBXGroup;
+			children = (
+				78A896E72A16044100BC5B56 /* types */,
+				78A896E62A16042700BC5B56 /* source */,
+				78A896CB2A16014C00BC5B56 /* cmath3.h */,
+				78A896BE2A16012C00BC5B56 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		78A896BE2A16012C00BC5B56 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				78A896BD2A16012C00BC5B56 /* libcmath3.dylib */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		78A896E62A16042700BC5B56 /* source */ = {
+			isa = PBXGroup;
+			children = (
+				78A896E32A1603B800BC5B56 /* matrix3.c */,
+				78A896DF2A16032500BC5B56 /* matrix4.c */,
+				78A896DB2A1602B500BC5B56 /* quaternion.c */,
+				78A896D72A16025C00BC5B56 /* vector4.c */,
+				78A896D32A1601FB00BC5B56 /* vector3.c */,
+				78A896CF2A16015D00BC5B56 /* vector2.c */,
+			);
+			path = source;
+			sourceTree = "<group>";
+		};
+		78A896E72A16044100BC5B56 /* types */ = {
+			isa = PBXGroup;
+			children = (
+				78A896E22A1603B800BC5B56 /* matrix3.h */,
+				78A896DE2A16032500BC5B56 /* matrix4.h */,
+				78A896DA2A1602B500BC5B56 /* quaternion.h */,
+				78A896D62A16025C00BC5B56 /* vector4.h */,
+				78A896D22A1601FB00BC5B56 /* vector3.h */,
+				78A896CE2A16015D00BC5B56 /* vector2.h */,
+			);
+			path = types;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXHeadersBuildPhase section */
+		78A896B92A16012C00BC5B56 /* Headers */ = {
+			isa = PBXHeadersBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				78A896E02A16032500BC5B56 /* matrix4.h in Headers */,
+				78A896D02A16015D00BC5B56 /* vector2.h in Headers */,
+				78A896D42A1601FB00BC5B56 /* vector3.h in Headers */,
+				78A896E42A1603B800BC5B56 /* matrix3.h in Headers */,
+				78A896D82A16025C00BC5B56 /* vector4.h in Headers */,
+				78A896CD2A16014C00BC5B56 /* cmath3.h in Headers */,
+				78A896DC2A1602B500BC5B56 /* quaternion.h in Headers */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXHeadersBuildPhase section */
+
+/* Begin PBXNativeTarget section */
+		78A896BC2A16012C00BC5B56 /* cmath3 */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 78A896C12A16012C00BC5B56 /* Build configuration list for PBXNativeTarget "cmath3" */;
+			buildPhases = (
+				78A896B92A16012C00BC5B56 /* Headers */,
+				78A896BA2A16012C00BC5B56 /* Sources */,
+				78A896BB2A16012C00BC5B56 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = cmath3;
+			productName = cmath3;
+			productReference = 78A896BD2A16012C00BC5B56 /* libcmath3.dylib */;
+			productType = "com.apple.product-type.library.dynamic";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		78A896B52A16012C00BC5B56 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastUpgradeCheck = 1420;
+				TargetAttributes = {
+					78A896BC2A16012C00BC5B56 = {
+						CreatedOnToolsVersion = 14.2;
+					};
+				};
+			};
+			buildConfigurationList = 78A896B82A16012C00BC5B56 /* Build configuration list for PBXProject "cmath3" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 78A896B42A16012C00BC5B56;
+			productRefGroup = 78A896BE2A16012C00BC5B56 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				78A896BC2A16012C00BC5B56 /* cmath3 */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		78A896BA2A16012C00BC5B56 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				78A896E52A1603B800BC5B56 /* matrix3.c in Sources */,
+				78A896D92A16025C00BC5B56 /* vector4.c in Sources */,
+				78A896D52A1601FB00BC5B56 /* vector3.c in Sources */,
+				78A896E12A16032500BC5B56 /* matrix4.c in Sources */,
+				78A896D12A16015D00BC5B56 /* vector2.c in Sources */,
+				78A896DD2A1602B500BC5B56 /* quaternion.c in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		78A896BF2A16012C00BC5B56 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		78A896C02A16012C00BC5B56 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		78A896C22A16012C00BC5B56 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = BM2R8F5YHC;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				EXECUTABLE_PREFIX = lib;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+			};
+			name = Debug;
+		};
+		78A896C32A16012C00BC5B56 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = BM2R8F5YHC;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				EXECUTABLE_PREFIX = lib;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		78A896B82A16012C00BC5B56 /* Build configuration list for PBXProject "cmath3" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				78A896BF2A16012C00BC5B56 /* Debug */,
+				78A896C02A16012C00BC5B56 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		78A896C12A16012C00BC5B56 /* Build configuration list for PBXNativeTarget "cmath3" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				78A896C22A16012C00BC5B56 /* Debug */,
+				78A896C32A16012C00BC5B56 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 78A896B52A16012C00BC5B56 /* Project object */;
+}

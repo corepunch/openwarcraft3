@@ -23,7 +23,7 @@
 		78A896AB2A15F84800BC5B56 /* r_entities.c in Sources */ = {isa = PBXBuildFile; fileRef = 78A8969C2A15F84800BC5B56 /* r_entities.c */; };
 		78A896AC2A15F84800BC5B56 /* r_blp.c in Sources */ = {isa = PBXBuildFile; fileRef = 78A8969D2A15F84800BC5B56 /* r_blp.c */; };
 		78A896B12A15FA0900BC5B56 /* r_war3map_utils.c in Sources */ = {isa = PBXBuildFile; fileRef = 78A896B02A15FA0900BC5B56 /* r_war3map_utils.c */; };
-		78A896B32A15FC5600BC5B56 /* math.c in Sources */ = {isa = PBXBuildFile; fileRef = 78A896B22A15FC5600BC5B56 /* math.c */; };
+		78A896EA2A16054B00BC5B56 /* libcmath3.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 78A896E92A16054B00BC5B56 /* libcmath3.dylib */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -44,7 +44,7 @@
 		78A8969C2A15F84800BC5B56 /* r_entities.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = r_entities.c; sourceTree = "<group>"; };
 		78A8969D2A15F84800BC5B56 /* r_blp.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = r_blp.c; sourceTree = "<group>"; };
 		78A896B02A15FA0900BC5B56 /* r_war3map_utils.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = r_war3map_utils.c; sourceTree = "<group>"; };
-		78A896B22A15FC5600BC5B56 /* math.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = math.c; path = ../math/math.c; sourceTree = "<group>"; };
+		78A896E92A16054B00BC5B56 /* libcmath3.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; path = libcmath3.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -52,6 +52,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				78A896EA2A16054B00BC5B56 /* libcmath3.dylib in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -61,7 +62,6 @@
 		78A896792A15F82600BC5B56 = {
 			isa = PBXGroup;
 			children = (
-				78A896B22A15FC5600BC5B56 /* math.c */,
 				78A896832A15F82600BC5B56 /* Products */,
 				78A8969D2A15F84800BC5B56 /* r_blp.c */,
 				78A8969C2A15F84800BC5B56 /* r_entities.c */,
@@ -79,6 +79,7 @@
 				78A896922A15F84800BC5B56 /* r_war3map_water.c */,
 				78A896912A15F84800BC5B56 /* r_war3map.c */,
 				78A896962A15F84800BC5B56 /* r_war3map.h */,
+				78A896E82A16054B00BC5B56 /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
@@ -88,6 +89,14 @@
 				78A896822A15F82600BC5B56 /* librenderer.dylib */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		78A896E82A16054B00BC5B56 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				78A896E92A16054B00BC5B56 /* libcmath3.dylib */,
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -173,7 +182,6 @@
 				78A896A92A15F84800BC5B56 /* r_mdx_load.c in Sources */,
 				78A896AB2A15F84800BC5B56 /* r_entities.c in Sources */,
 				78A8969E2A15F84800BC5B56 /* r_shader.c in Sources */,
-				78A896B32A15FC5600BC5B56 /* math.c in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -23,7 +23,6 @@
 		78F58A822A06D1560027494A /* sheet.c in Sources */ = {isa = PBXBuildFile; fileRef = 78F58A812A06D1560027494A /* sheet.c */; };
 		78F58A862A06D2160027494A /* config.c in Sources */ = {isa = PBXBuildFile; fileRef = 78F58A852A06D2160027494A /* config.c */; };
 		78F58A882A06D3030027494A /* sv_init.c in Sources */ = {isa = PBXBuildFile; fileRef = 78F58A872A06D3030027494A /* sv_init.c */; };
-		78F58A8F2A08EAB20027494A /* math.c in Sources */ = {isa = PBXBuildFile; fileRef = 78F58A8E2A08EAB20027494A /* math.c */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -55,6 +54,13 @@
 			remoteGlobalIDString = 78A896812A15F82600BC5B56;
 			remoteInfo = renderer;
 		};
+		78A896C82A16012D00BC5B56 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 78A896C42A16012C00BC5B56 /* cmath3.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = 78A896BD2A16012C00BC5B56;
+			remoteInfo = cmath3;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -82,7 +88,6 @@
 		7897B7E92A0CB3C1008007CD /* game.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = game.h; sourceTree = "<group>"; };
 		7897B7ED2A0CC4EE008007CD /* msg.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = msg.c; sourceTree = "<group>"; };
 		7897B7EF2A0CC6CF008007CD /* net.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = net.h; sourceTree = "<group>"; };
-		7897B7F32A1162A0008007CD /* math.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = math.h; sourceTree = "<group>"; };
 		7897B7FA2A12872C008007CD /* cl_parse.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = cl_parse.c; sourceTree = "<group>"; };
 		7897B7FC2A128F47008007CD /* sv_ents.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = sv_ents.c; sourceTree = "<group>"; };
 		7897B7FE2A12AF06008007CD /* cl_ents.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = cl_ents.c; sourceTree = "<group>"; };
@@ -91,12 +96,12 @@
 		78A8963F2A15F18F00BC5B56 /* shared.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = shared.h; sourceTree = "<group>"; };
 		78A896542A15F7A500BC5B56 /* game.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = game.xcodeproj; path = game/game.xcodeproj; sourceTree = "<group>"; };
 		78A896892A15F82600BC5B56 /* renderer.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = renderer.xcodeproj; path = renderer/renderer.xcodeproj; sourceTree = "<group>"; };
+		78A896C42A16012C00BC5B56 /* cmath3.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = cmath3.xcodeproj; path = cmath3/cmath3.xcodeproj; sourceTree = "<group>"; };
 		78F58A2C2A0641A30027494A /* war3-reader */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "war3-reader"; sourceTree = BUILT_PRODUCTS_DIR; };
 		78F58A2F2A0641A30027494A /* main.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = main.c; sourceTree = "<group>"; };
 		78F58A812A06D1560027494A /* sheet.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = sheet.c; sourceTree = "<group>"; };
 		78F58A852A06D2160027494A /* config.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = config.c; sourceTree = "<group>"; };
 		78F58A872A06D3030027494A /* sv_init.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = sv_init.c; sourceTree = "<group>"; };
-		78F58A8E2A08EAB20027494A /* math.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = math.c; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -155,15 +160,6 @@
 			path = server;
 			sourceTree = "<group>";
 		};
-		7897B7F22A116285008007CD /* math */ = {
-			isa = PBXGroup;
-			children = (
-				78F58A8E2A08EAB20027494A /* math.c */,
-				7897B7F32A1162A0008007CD /* math.h */,
-			);
-			path = math;
-			sourceTree = "<group>";
-		};
 		78A896422A15F6AB00BC5B56 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
@@ -187,12 +183,20 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
+		78A896C52A16012C00BC5B56 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				78A896C92A16012D00BC5B56 /* libcmath3.dylib */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
 		78F58A232A0641A30027494A = {
 			isa = PBXGroup;
 			children = (
+				78A896C42A16012C00BC5B56 /* cmath3.xcodeproj */,
 				78A896892A15F82600BC5B56 /* renderer.xcodeproj */,
 				78A896542A15F7A500BC5B56 /* game.xcodeproj */,
-				7897B7F22A116285008007CD /* math */,
 				7897B7CD2A0BEAED008007CD /* client */,
 				7897B7CC2A0BE8AA008007CD /* common */,
 				78F58A2D2A0641A30027494A /* Products */,
@@ -258,6 +262,10 @@
 			projectDirPath = "";
 			projectReferences = (
 				{
+					ProductGroup = 78A896C52A16012C00BC5B56 /* Products */;
+					ProjectRef = 78A896C42A16012C00BC5B56 /* cmath3.xcodeproj */;
+				},
+				{
 					ProductGroup = 78A896552A15F7A500BC5B56 /* Products */;
 					ProjectRef = 78A896542A15F7A500BC5B56 /* game.xcodeproj */;
 				},
@@ -288,6 +296,13 @@
 			remoteRef = 78A8968D2A15F82700BC5B56 /* PBXContainerItemProxy */;
 			sourceTree = BUILT_PRODUCTS_DIR;
 		};
+		78A896C92A16012D00BC5B56 /* libcmath3.dylib */ = {
+			isa = PBXReferenceProxy;
+			fileType = "compiled.mach-o.dylib";
+			path = libcmath3.dylib;
+			remoteRef = 78A896C82A16012D00BC5B56 /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
 /* End PBXReferenceProxy section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -297,7 +312,6 @@
 			files = (
 				78F58A302A0641A30027494A /* main.c in Sources */,
 				7897B7EE2A0CC4EE008007CD /* msg.c in Sources */,
-				78F58A8F2A08EAB20027494A /* math.c in Sources */,
 				78988A302A151DA50090DEAA /* war3map.c in Sources */,
 				78F58A882A06D3030027494A /* sv_init.c in Sources */,
 				7897B7FD2A128F47008007CD /* sv_ents.c in Sources */,

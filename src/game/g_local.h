@@ -3,10 +3,10 @@
 
 #include "../server/game.h"
 
-ADD_TYPEDEFS(UnitData, UNITDATA);
-ADD_TYPEDEFS(UnitUI, UNITUI);
-ADD_TYPEDEFS(DoodadInfo, DOODADINFO);
-ADD_TYPEDEFS(DestructableData, DESTRUCTABLEDATA);
+KNOWN_AS(UnitData, UNITDATA);
+KNOWN_AS(UnitUI, UNITUI);
+KNOWN_AS(DoodadInfo, DOODADINFO);
+KNOWN_AS(DestructableData, DESTRUCTABLEDATA);
 
 struct monsterinfo {
     struct AnimationInfo animation;

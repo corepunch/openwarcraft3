@@ -3,8 +3,8 @@
 
 #include "../common/common.h"
 
-ADD_TYPEDEFS(viewDef, VIEWDEF);
-ADD_TYPEDEFS(render_entity, RENDERENTITY);
+KNOWN_AS(viewDef, VIEWDEF);
+KNOWN_AS(render_entity, RENDERENTITY);
 
 struct renderer_import {
     HANDLE (*FileOpen)(LPCSTR szFileName);

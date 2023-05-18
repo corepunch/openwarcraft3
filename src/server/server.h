@@ -9,7 +9,7 @@
 #define EDICT_NUM(n) ((LPEDICT)((LPSTR)ge->edicts + ge->edict_size*(n)))
 #define NUM_FOR_EDICT(e) (((LPSTR)(e)-(LPSTR)ge->edicts) / ge->edict_size)
 
-ADD_TYPEDEFS(client_frame, CLIENTFRAME);
+KNOWN_AS(client_frame, CLIENTFRAME);
 
 struct edict {
     ENTITYSTATE s;

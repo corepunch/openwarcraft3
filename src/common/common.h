@@ -3,7 +3,7 @@
 
 #include "shared.h"
 #include "net.h"
-#include "../math/math.h"
+#include "../cmath3/cmath3.h"
 
 #define TMP_MAP "/tmp/map.w3m"
 #define MAP_VERTEX_SIZE 7
@@ -64,6 +64,11 @@ property = next, next = next ? next->lpNext : NULL)
 
 #define FOR_EACH(type, property, array, num) \
 for (type *property = array; property - array < num; property++)
+
+#define KNOWN_AS(STRUCT, TYPE) \
+typedef struct STRUCT TYPE; \
+typedef struct STRUCT *LP##TYPE; \
+typedef struct STRUCT const *LPC##TYPE;
 
 enum {
     U_ORIGIN1,
@@ -128,18 +133,18 @@ typedef enum t_attrib_id {
 struct tModel;
 struct texture;
 
-ADD_TYPEDEFS(tModel, MODEL);
-ADD_TYPEDEFS(texture, TEXTURE);
-ADD_TYPEDEFS(War3MapVertex, WAR3MAPVERTEX);
-ADD_TYPEDEFS(SheetLayout, SHEETLAYOUT);
-ADD_TYPEDEFS(TerrainInfo, TERRAININFO);
-ADD_TYPEDEFS(CliffInfo, CLIFFINFO);
-ADD_TYPEDEFS(war3map, WAR3MAP);
-ADD_TYPEDEFS(Doodad, DOODAD);
-ADD_TYPEDEFS(edict, EDICT);
-ADD_TYPEDEFS(EntityState, ENTITYSTATE);
-ADD_TYPEDEFS(vector3, VECTOR3);
-ADD_TYPEDEFS(color32, COLOR32);
+KNOWN_AS(tModel, MODEL);
+KNOWN_AS(texture, TEXTURE);
+KNOWN_AS(War3MapVertex, WAR3MAPVERTEX);
+KNOWN_AS(SheetLayout, SHEETLAYOUT);
+KNOWN_AS(TerrainInfo, TERRAININFO);
+KNOWN_AS(CliffInfo, CLIFFINFO);
+KNOWN_AS(war3map, WAR3MAP);
+KNOWN_AS(Doodad, DOODAD);
+KNOWN_AS(edict, EDICT);
+KNOWN_AS(EntityState, ENTITYSTATE);
+KNOWN_AS(vector3, VECTOR3);
+KNOWN_AS(color32, COLOR32);
 
 typedef char PATHSTR[MAX_PATHLEN];
 typedef char SHEETSTR[64];

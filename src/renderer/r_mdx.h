@@ -5,12 +5,12 @@
 
 #define MODELTRACKINFOSIZE 16
 
-ADD_TYPEDEFS(tModelGeoset, MODELGEOSET);
-ADD_TYPEDEFS(tModelKeyTrack, MODELKEYTRACK);
-ADD_TYPEDEFS(tModelKeyFrame, MODELKEYFRAME);
-ADD_TYPEDEFS(tModelNode, MODELNODE);
-ADD_TYPEDEFS(tModelMaterialLayer, MODELLAYER);
-ADD_TYPEDEFS(tModelSequence, MODELSEQUENCE);
+KNOWN_AS(tModelGeoset, MODELGEOSET);
+KNOWN_AS(tModelKeyTrack, MODELKEYTRACK);
+KNOWN_AS(tModelKeyFrame, MODELKEYFRAME);
+KNOWN_AS(tModelNode, MODELNODE);
+KNOWN_AS(tModelMaterialLayer, MODELLAYER);
+KNOWN_AS(tModelSequence, MODELSEQUENCE);
 
 typedef char tModelObjectName[80];
 typedef char tModelFileName[260];

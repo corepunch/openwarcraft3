@@ -43,9 +43,9 @@
 
 extern struct renderer_import ri;
 
-ADD_TYPEDEFS(shader_program, SHADER);
-ADD_TYPEDEFS(render_buffer, BUFFER);
-ADD_TYPEDEFS(vertex, VERTEX);
+KNOWN_AS(shader_program, SHADER);
+KNOWN_AS(render_buffer, BUFFER);
+KNOWN_AS(vertex, VERTEX);
 
 struct vertex {
     VECTOR3 position;
