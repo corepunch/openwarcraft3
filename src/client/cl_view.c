@@ -15,11 +15,11 @@ static void V_AddClientEntity(struct client_entity const *lpEdict) {
     re.model = cl.models[lpEdict->current.model];
     re.skin = cl.pics[lpEdict->current.image];
     
-    extern int selected_entity;
+    extern int selectedEntity;
     
     view_state.entities[view_state.num_entities++] = re;
     
-    if (lpEdict->current.number == selected_entity) {
+    if (lpEdict->current.number == selectedEntity) {
         int model = 3;
         re.model = cl.models[model];
         view_state.entities[view_state.num_entities++] = re;

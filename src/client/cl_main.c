@@ -5,16 +5,9 @@
 #include <StormLib.h>
 
 struct Renderer *renderer = NULL;
+struct client_static cls;
 struct client_state cl = {
     .sock = 0
-};
-
-static BYTE net_message_buffer[MAX_MSGLEN];
-static struct sizebuf net_message = {
-    .data = net_message_buffer,
-    .maxsize = MAX_MSGLEN,
-    .cursize = 0,
-    .readcount = 0,
 };
 
 void CL_Init(void) {
@@ -35,6 +28,9 @@ void CL_Init(void) {
     cl.viewDef.fov = 45;
     cl.viewDef.vieworg = (VECTOR3) { -600, 2500, -2000 };
     cl.viewDef.viewangles = (VECTOR3) { -30, 0, 0 };
+    
+    void __netchan_init(struct netchan *netchan);
+    __netchan_init(&cls.netchan);
 }
 
 void CL_Input(void) {
@@ -74,8 +70,27 @@ void CL_Input(void) {
 }
 
 void CL_ReadPackets(void) {
-    while (NET_GetPacket(cl.sock, &net_message)) {
+    static BYTE net_message_buffer[MAX_MSGLEN];
+    static struct sizebuf net_message = {
+        .data = net_message_buffer,
+        .maxsize = MAX_MSGLEN,
+        .cursize = 0,
+        .readcount = 0,
+    };
+    while (NET_GetPacket(NS_CLIENT, cl.sock, &net_message)) {
         CL_ParseServerMessage(&net_message);
+    }
+}
+
+void CL_SendCommands(void) {
+    extern struct client_message msg;
+    if (msg.cmd != CMD_NO_COMMAND){
+        MSG_WriteByte(&cls.netchan.message, clc_move);
+        MSG_WriteShort(&cls.netchan.message, msg.entity);
+        MSG_WriteShort(&cls.netchan.message, msg.location.x);
+        MSG_WriteShort(&cls.netchan.message, msg.location.y);
+        Netchan_Transmit(NS_CLIENT, &cls.netchan);
+        msg.cmd = CMD_NO_COMMAND;
     }
 }
 
@@ -91,6 +106,7 @@ void CL_Shutdown(void) {
 
 void CL_Frame(DWORD msec) {
     CL_ReadPackets();
+    CL_SendCommands();
     CL_Input();
     CL_PrepRefresh();
     V_RenderView();

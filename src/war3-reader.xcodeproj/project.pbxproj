@@ -20,6 +20,7 @@
 		78A896782A15F7E500BC5B56 /* libgame.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 78A896592A15F7A600BC5B56 /* libgame.dylib */; };
 		78A896AF2A15F85A00BC5B56 /* librenderer.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 78A8968E2A15F82700BC5B56 /* librenderer.dylib */; };
 		78A896EB2A16155900BC5B56 /* libcmath3.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 78A896C92A16012D00BC5B56 /* libcmath3.dylib */; };
+		78A896F22A168AB700BC5B56 /* sv_parse.c in Sources */ = {isa = PBXBuildFile; fileRef = 78A896F12A168AB700BC5B56 /* sv_parse.c */; };
 		78F58A302A0641A30027494A /* main.c in Sources */ = {isa = PBXBuildFile; fileRef = 78F58A2F2A0641A30027494A /* main.c */; };
 		78F58A822A06D1560027494A /* sheet.c in Sources */ = {isa = PBXBuildFile; fileRef = 78F58A812A06D1560027494A /* sheet.c */; };
 		78F58A862A06D2160027494A /* config.c in Sources */ = {isa = PBXBuildFile; fileRef = 78F58A852A06D2160027494A /* config.c */; };
@@ -98,6 +99,7 @@
 		78A896542A15F7A500BC5B56 /* game.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = game.xcodeproj; path = game/game.xcodeproj; sourceTree = "<group>"; };
 		78A896892A15F82600BC5B56 /* renderer.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = renderer.xcodeproj; path = renderer/renderer.xcodeproj; sourceTree = "<group>"; };
 		78A896C42A16012C00BC5B56 /* cmath3.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = cmath3.xcodeproj; path = cmath3/cmath3.xcodeproj; sourceTree = "<group>"; };
+		78A896F12A168AB700BC5B56 /* sv_parse.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = sv_parse.c; sourceTree = "<group>"; };
 		78F58A2C2A0641A30027494A /* war3-reader */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "war3-reader"; sourceTree = BUILT_PRODUCTS_DIR; };
 		78F58A2F2A0641A30027494A /* main.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = main.c; sourceTree = "<group>"; };
 		78F58A812A06D1560027494A /* sheet.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = sheet.c; sourceTree = "<group>"; };
@@ -158,6 +160,7 @@
 				78F58A872A06D3030027494A /* sv_init.c */,
 				7897B7DC2A0BF4FD008007CD /* sv_main.c */,
 				7897B7FC2A128F47008007CD /* sv_ents.c */,
+				78A896F12A168AB700BC5B56 /* sv_parse.c */,
 			);
 			path = server;
 			sourceTree = "<group>";
@@ -319,6 +322,7 @@
 				7897B7FD2A128F47008007CD /* sv_ents.c in Sources */,
 				78F58A822A06D1560027494A /* sheet.c in Sources */,
 				7897B7DF2A0BF615008007CD /* common.c in Sources */,
+				78A896F22A168AB700BC5B56 /* sv_parse.c in Sources */,
 				7897B7DA2A0BF40F008007CD /* cl_main.c in Sources */,
 				78F58A862A06D2160027494A /* config.c in Sources */,
 				7897B7FF2A12AF06008007CD /* cl_ents.c in Sources */,

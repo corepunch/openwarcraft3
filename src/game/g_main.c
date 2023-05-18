@@ -7,7 +7,7 @@ struct game_import gi;
 struct game_state game_state;
 struct game_locals game;
 
-void G_Init(void) {
+static void G_Init(void) {
     game_state.edicts = gi.MemAlloc(sizeof(struct edict) * MAX_ENTITIES);
     globals.edicts = game_state.edicts;
     globals.num_edicts = 0;
@@ -18,8 +18,14 @@ void G_Init(void) {
     G_InitDoodads();
 }
 
-void G_Shutdown(void) {
+static void G_Shutdown(void) {
     gi.MemFree(game_state.edicts);
+}
+
+static void G_ClientCommand(LPCCLIENTMESSAGE lpClientMessage) {
+    LPEDICT lpEdict = &game_state.edicts[lpClientMessage->entity];
+    lpEdict->objective.x = lpClientMessage->location.x;
+    lpEdict->objective.y = lpClientMessage->location.y;
 }
 
 static void G_RunEntity(LPEDICT lpEdict, DWORD msec) {
@@ -28,7 +34,7 @@ static void G_RunEntity(LPEDICT lpEdict, DWORD msec) {
     }
 }
 
-void G_RunFrame(DWORD msec) {
+static void G_RunFrame(DWORD msec) {
     FOR_LOOP(i, globals.num_edicts) {
         G_RunEntity(&globals.edicts[i], msec);
     }
@@ -41,6 +47,7 @@ struct game_export *GetGameAPI(struct game_import *import) {
     globals.Shutdown = G_Shutdown;
     globals.SpawnEntities = G_SpawnEntities;
     globals.RunFrame = G_RunFrame;
+    globals.ClientCommand = G_ClientCommand;
     globals.edict_size = sizeof(struct edict);
     return &globals;
 }

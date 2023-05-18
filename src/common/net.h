@@ -7,6 +7,10 @@ typedef void const *LPCVOID;
 
 typedef struct sizebuf *LPSIZEBUF;
 
+typedef enum {
+    NS_CLIENT, NS_SERVER
+} NETSOURCE;
+
 struct sizebuf {
     LPBYTE data;
     DWORD maxsize;
@@ -20,11 +24,11 @@ struct netchan {
     BYTE message_buf[MAX_MSGLEN];
 };
 
-void NET_Write(DWORD sock, LPCVOID data, DWORD size);
-int NET_Read(DWORD sock, HANDLE data, DWORD size);
-int NET_GetPacket(DWORD sock, LPSIZEBUF msg);
+void NET_Write(NETSOURCE netsrc, DWORD sock, LPCVOID data, DWORD size);
+int NET_Read(NETSOURCE netsrc, DWORD sock, HANDLE data, DWORD size);
+int NET_GetPacket(NETSOURCE netsrc, DWORD sock, LPSIZEBUF msg);
 
-void Netchan_Transmit(struct netchan *netchan);
+void Netchan_Transmit(NETSOURCE netsrc, struct netchan *netchan);
 
 void MSG_Write(LPSIZEBUF buf, LPCVOID value, DWORD size);
 void MSG_WriteByte(LPSIZEBUF buf, int value);

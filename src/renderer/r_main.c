@@ -259,6 +259,7 @@ struct Renderer *Renderer_Init(struct renderer_import *lpImport) {
     lpRenderer->EndFrame = R_EndFrame;
     lpRenderer->DrawPic = R_DrawPic;
     lpRenderer->GetWindowSize = R_GetWindowSize;
+    
     ri = *lpImport;
 
     return lpRenderer;

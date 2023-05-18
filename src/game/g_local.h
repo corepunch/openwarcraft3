@@ -12,9 +12,16 @@ struct monsterinfo {
     struct AnimationInfo animation;
 };
 
+typedef enum {
+    MS_STAND,
+    MS_MOVE,
+} MONSTERSTATE;
+
 struct edict {
     ENTITYSTATE s;
     DWORD class_id;
+    VECTOR2 objective;
+    MONSTERSTATE state;
     int variation;
     
     void (*think)(LPEDICT lpEntity, DWORD msec);
@@ -152,6 +159,7 @@ LPEDICT G_Spawn(void);
 LPDOODADINFO G_FindDoodadInfo(int doodID);
 LPDESTRUCTABLEDATA G_FindDestructableData(int DestructableID);
 LPUNITUI G_FindUnitUI(int unitUIID);
+void SP_SpawnUnit(LPEDICT lpEdict, LPCUNITUI lpUnit);
 void SP_CallSpawn(LPEDICT lpEdict);
 void G_SpawnEntities(LPCDOODAD doodads, DWORD numDoodads);
 void G_InitUnits(void);

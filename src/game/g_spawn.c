@@ -15,21 +15,6 @@ static struct spawn spawns[] = {
     { NULL, NULL }
 };
 
-void unit_think(LPEDICT lpEdict, DWORD msec) {
-    struct AnimationInfo const *anim = &lpEdict->monsterinfo.animation;
-    if (anim->start_frame == anim->end_frame)
-        return;
-    lpEdict->s.frame += msec;
-    lpEdict->s.angle += msec * 0.0012;
-    lpEdict->s.origin.x += cos(lpEdict->s.angle) * 2.2;
-    lpEdict->s.origin.y += sin(lpEdict->s.angle) * 2.2;
-    lpEdict->s.origin.z = gi.GetHeightAtPoint(lpEdict->s.origin.x, lpEdict->s.origin.y);
-    
-    while (lpEdict->s.frame >= anim->end_frame) {
-        lpEdict->s.frame -= MAX(1, anim->end_frame - anim->start_frame);
-    }
-}
-
 LPDOODAD DoodadAtIndex(LPCDOODAD doodads, int index) {
     LPBYTE doo = (LPBYTE)doodads;
     return (LPDOODAD)(doo + index * DOODAD_SIZE);
@@ -54,15 +39,6 @@ static void SP_SpawnDestructable(LPEDICT lpEdict, LPCDESTRUCTABLEDATA lpDestr) {
     lpEdict->s.image = gi.ImageIndex(buffer);
     sprintf(buffer, "%s\\%s\\%s%d.mdx", lpDestr->dir, lpDestr->file, lpDestr->file, lpEdict->variation);
     lpEdict->s.model = gi.ModelIndex(buffer);
-}
-
-static void SP_SpawnUnit(LPEDICT lpEdict, LPCUNITUI lpUnit) {
-    PATHSTR buffer;
-    sprintf(buffer, "%s.mdx", lpUnit->file);
-    lpEdict->s.model = gi.ModelIndex(buffer);
-    lpEdict->monsterinfo.animation = gi.GetAnimation(lpEdict->s.model, "Walk");
-    lpEdict->s.frame = lpEdict->monsterinfo.animation.start_frame;
-    lpEdict->think = unit_think;
 }
 
 void SP_CallSpawn(LPEDICT lpEdict) {

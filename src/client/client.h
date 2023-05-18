@@ -21,14 +21,18 @@ struct frame {
 };
 
 struct client_state {
-    struct viewDef viewDef;
-    struct client_entity ents[MAX_CLIENT_ENTITIES];
     LPMODEL models[MAX_MODELS];
     LPTEXTURE pics[MAX_IMAGES];
-    struct frame frame;
     PATHSTR configstrings[MAX_CONFIGSTRINGS];
+    struct client_entity ents[MAX_CLIENT_ENTITIES];
+    struct viewDef viewDef;
+    struct frame frame;
     int num_entities;
     DWORD sock;
+};
+
+struct client_static {
+    struct netchan netchan;
 };
 
 void V_RenderView(void);
@@ -39,6 +43,5 @@ void CL_SelectEntityAtScreenPoint(DWORD dwPixelX, DWORD dwPixelY);
 
 extern struct client_state cl;
 extern struct Renderer *renderer;
-extern struct client_state cl;
 
 #endif

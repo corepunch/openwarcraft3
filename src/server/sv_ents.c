@@ -3,9 +3,7 @@
 #define VISUAL_DISTANCE 1000
 #define HIGH_NUMBER 9999
 
-static bool SV_CanClientSeeEntity(struct client const *client,
-                                  LPCENTITYSTATE lpEdict)
-{
+static bool SV_CanClientSeeEntity(LPCCLIENT client, LPCENTITYSTATE lpEdict) {
     if (fabs(lpEdict->origin.x - client->camera_position.x) > VISUAL_DISTANCE)
         return false;
     if (fabs(lpEdict->origin.y - client->camera_position.y) > VISUAL_DISTANCE)
@@ -18,7 +16,7 @@ LPENTITYSTATE SV_NextClientEntity(void) {
     return &svs.client_entities[index];
 }
 
-void SV_BuildClientFrame(struct client *client) {
+void SV_BuildClientFrame(LPCLIENT client) {
     LPCLIENTFRAME frame = &client->frames[sv.framenum & UPDATE_MASK];
     frame->num_entities = 0;
     frame->first_entity = svs.next_client_entities;
@@ -81,7 +79,7 @@ void SV_EmitPacketEntities(LPCCLIENTFRAME from,
     MSG_WriteLong(msg, 0);    // end of packetentities
 }
 
-void SV_WriteFrameToClient(struct client *client) {
+void SV_WriteFrameToClient(LPCLIENT client) {
     LPCLIENTFRAME frame = &client->frames[sv.framenum & UPDATE_MASK];
     LPCLIENTFRAME oldframe = &client->frames[client->lastframe & UPDATE_MASK];
     
@@ -93,5 +91,5 @@ void SV_WriteFrameToClient(struct client *client) {
     
     client->lastframe = sv.framenum;
     
-    Netchan_Transmit(&client->netchan);
+    Netchan_Transmit(NS_SERVER, &client->netchan);
 }

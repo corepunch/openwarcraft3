@@ -19,6 +19,7 @@ struct game_export {
     void (*Shutdown)(void);
     void (*SpawnEntities)(LPCDOODAD doodads, DWORD numDoodads);
     void (*RunFrame)(DWORD msec);
+    void (*ClientCommand)(LPCCLIENTMESSAGE lpMessage);
     
     LPEDICT edicts;
     int num_edicts;

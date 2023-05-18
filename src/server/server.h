@@ -10,6 +10,7 @@
 #define NUM_FOR_EDICT(e) (((LPSTR)(e)-(LPSTR)ge->edicts) / ge->edict_size)
 
 KNOWN_AS(client_frame, CLIENTFRAME);
+KNOWN_AS(client, CLIENT);
 
 struct edict {
     ENTITYSTATE s;
@@ -69,11 +70,10 @@ extern struct server_static svs;
 
 void SV_Map(LPCSTR pFilename);
 void SV_InitGame(void);
-void SV_BuildClientFrame(struct client *client);
-void SV_WriteFrameToClient(struct client *client);
-void MSG_WriteDeltaEntity(LPSIZEBUF msg,
-                          LPCENTITYSTATE from,
-                          LPCENTITYSTATE to);
+void SV_BuildClientFrame(LPCLIENT lpClient);
+void SV_WriteFrameToClient(LPCLIENT lpClient);
+void SV_ParseClientMessage(LPSIZEBUF msg, LPCLIENT lpClient);
+void MSG_WriteDeltaEntity(LPSIZEBUF msg, LPCENTITYSTATE from, LPCENTITYSTATE to);
 int SV_ModelIndex(LPCSTR name);
 int SV_SoundIndex(LPCSTR name);
 int SV_ImageIndex(LPCSTR name);

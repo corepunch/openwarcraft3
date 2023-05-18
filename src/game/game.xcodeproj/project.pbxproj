@@ -14,6 +14,8 @@
 		78A896732A15F7D600BC5B56 /* g_destructables.c in Sources */ = {isa = PBXBuildFile; fileRef = 78A8966C2A15F7D600BC5B56 /* g_destructables.c */; };
 		78A896742A15F7D600BC5B56 /* g_units.c in Sources */ = {isa = PBXBuildFile; fileRef = 78A8966D2A15F7D600BC5B56 /* g_units.c */; };
 		78A896752A15F7D600BC5B56 /* m_peon.c in Sources */ = {isa = PBXBuildFile; fileRef = 78A8966E2A15F7D600BC5B56 /* m_peon.c */; };
+		78E91BFB2A169439003D9F3A /* m_unit.c in Sources */ = {isa = PBXBuildFile; fileRef = 78E91BFA2A169439003D9F3A /* m_unit.c */; };
+		78E91BFE2A169771003D9F3A /* libcmath3.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 78E91BFD2A169771003D9F3A /* libcmath3.dylib */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -25,6 +27,8 @@
 		78A8966C2A15F7D600BC5B56 /* g_destructables.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = g_destructables.c; sourceTree = "<group>"; };
 		78A8966D2A15F7D600BC5B56 /* g_units.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = g_units.c; sourceTree = "<group>"; };
 		78A8966E2A15F7D600BC5B56 /* m_peon.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = m_peon.c; sourceTree = "<group>"; };
+		78E91BFA2A169439003D9F3A /* m_unit.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = m_unit.c; sourceTree = "<group>"; };
+		78E91BFD2A169771003D9F3A /* libcmath3.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; path = libcmath3.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -32,6 +36,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				78E91BFE2A169771003D9F3A /* libcmath3.dylib in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -48,7 +53,9 @@
 				78A896692A15F7D600BC5B56 /* g_spawn.c */,
 				78A8966D2A15F7D600BC5B56 /* g_units.c */,
 				78A8966E2A15F7D600BC5B56 /* m_peon.c */,
+				78E91BFA2A169439003D9F3A /* m_unit.c */,
 				78A8964E2A15F7A500BC5B56 /* Products */,
+				78E91BFC2A169771003D9F3A /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
@@ -58,6 +65,14 @@
 				78A8964D2A15F7A500BC5B56 /* libgame.dylib */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		78E91BFC2A169771003D9F3A /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				78E91BFD2A169771003D9F3A /* libcmath3.dylib */,
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -133,6 +148,7 @@
 				78A896712A15F7D600BC5B56 /* g_doodads.c in Sources */,
 				78A896752A15F7D600BC5B56 /* m_peon.c in Sources */,
 				78A896742A15F7D600BC5B56 /* g_units.c in Sources */,
+				78E91BFB2A169439003D9F3A /* m_unit.c in Sources */,
 				78A896702A15F7D600BC5B56 /* g_spawn.c in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

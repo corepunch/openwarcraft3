@@ -4,7 +4,7 @@ struct game_export *ge;
 struct server sv;
 struct server_static svs;
 
-static void SV_WriteConfigStrings(struct client *cl) {
+static void SV_WriteConfigStrings(LPCLIENT cl) {
     FOR_LOOP(i, MAX_CONFIGSTRINGS) {
         if (!*sv.configstrings[i])
             continue;
@@ -12,7 +12,7 @@ static void SV_WriteConfigStrings(struct client *cl) {
         MSG_WriteShort(&cl->netchan.message, i);
         MSG_WriteString(&cl->netchan.message, sv.configstrings[i]);
     }
-    Netchan_Transmit(&cl->netchan);
+    Netchan_Transmit(NS_SERVER, &cl->netchan);
 }
 
 #define SET_BIT_IF(FLAG, VALUE) \
@@ -57,7 +57,7 @@ MSG_WriteDeltaEntity(LPSIZEBUF msg,
     WRITE_IF(U_MODEL2, model2, Short);
 }
 
-static void SV_Baseline(struct client *cl) {
+static void SV_Baseline(LPCLIENT cl) {
     ENTITYSTATE nullstate;
     memset(&nullstate, 0, sizeof(ENTITYSTATE));
     FOR_LOOP(index, ge->num_edicts) {
@@ -65,17 +65,17 @@ static void SV_Baseline(struct client *cl) {
         MSG_WriteByte(&cl->netchan.message, svc_spawnbaseline);
         MSG_WriteDeltaEntity(&cl->netchan.message, &nullstate, &e->s);
     }
-    Netchan_Transmit(&cl->netchan);
+    Netchan_Transmit(NS_SERVER, &cl->netchan);
 }
 
-void SV_SendClientDatagram(struct client *client) {
+static void SV_SendClientDatagram(LPCLIENT client) {
     SV_BuildClientFrame(client);
     SV_WriteFrameToClient(client);
 }
 
-void SV_SendClientMessages(void) {
+static void SV_SendClientMessages(void) {
     FOR_LOOP(i, svs.num_clients) {
-        struct client *client = &svs.clients[i];
+        LPCLIENT client = &svs.clients[i];
         if (!client->initialized) {
             SV_WriteConfigStrings(client);
             SV_Baseline(client);
@@ -84,6 +84,22 @@ void SV_SendClientMessages(void) {
             client->initialized = true;
         } else {
             SV_SendClientDatagram(client);
+        }
+    }
+}
+
+static void SV_ReadPackets(void) {
+    static BYTE net_message_buffer[MAX_MSGLEN];
+    static struct sizebuf net_message = {
+        .data = net_message_buffer,
+        .maxsize = MAX_MSGLEN,
+        .cursize = 0,
+        .readcount = 0,
+    };
+    FOR_LOOP(i, svs.num_clients) {
+        LPCLIENT client = &svs.clients[i];
+        while (NET_GetPacket(NS_SERVER, client->netchan.sock, &net_message)) {
+            SV_ParseClientMessage(&net_message, client);
         }
     }
 }
@@ -172,6 +188,7 @@ void SV_RunGameFrame(DWORD msec) {
 }
 
 void SV_Frame(DWORD msec) {
+    SV_ReadPackets();
     SV_RunGameFrame(msec);
     SV_SendClientMessages();
 }

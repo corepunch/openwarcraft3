@@ -4,7 +4,6 @@ static struct size2 sv_pathmapSize;
 static struct PathMapNode *sv_pathmap;
 
 LPWAR3MAP lpMap;
-
 LPWAR3MAP FileReadWar3Map(HANDLE hArchive);
 
 void SV_CreateBaseline(void) {
@@ -84,7 +83,7 @@ void SV_Shutdown(void) {
     ge->Shutdown();
 }
 
-void __netchan_init(struct netchan *netchan){
+void __netchan_init(struct netchan *netchan) {
     memset(netchan, 0, sizeof(struct netchan));
     netchan->message.data = netchan->message_buf;
     netchan->message.maxsize = sizeof(netchan->message_buf);
@@ -124,6 +123,10 @@ LPCWAR3MAPVERTEX GetWar3MapVertex(LPCWAR3MAP lpWar3Map, DWORD x, DWORD y) {
 
 float GetWar3MapVertexHeight(LPCWAR3MAPVERTEX vert) {
     return DECODE_HEIGHT(vert->accurate_height) + vert->level * TILESIZE - HEIGHT_COR;
+}
+
+short GetHeightMapValue(int x, int y) {
+    return GetWar3MapVertexHeight(GetWar3MapVertex(lpMap, x, y));
 }
 
 static float SV_GetHeightAtPoint(float sx, float sy) {

@@ -41,6 +41,7 @@
 		78A896EC2A1615B600BC5B56 /* line3.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = line3.h; sourceTree = "<group>"; };
 		78A896ED2A1615CD00BC5B56 /* line3.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = line3.c; sourceTree = "<group>"; };
 		78A896EF2A16166200BC5B56 /* sphere3.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = sphere3.h; sourceTree = "<group>"; };
+		78A896F02A162C0C00BC5B56 /* plane3.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = plane3.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -97,6 +98,7 @@
 				78A896CE2A16015D00BC5B56 /* vector2.h */,
 				78A896D22A1601FB00BC5B56 /* vector3.h */,
 				78A896D62A16025C00BC5B56 /* vector4.h */,
+				78A896F02A162C0C00BC5B56 /* plane3.h */,
 			);
 			path = types;
 			sourceTree = "<group>";

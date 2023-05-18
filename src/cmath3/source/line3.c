@@ -1,6 +1,6 @@
 #include "../cmath3.h"
 
-int Line_intersect_sphere(LPCLINE3 lpLine, LPCSPHERE3 lpSphere, LPVECTOR3 lpOutput) {
+int Line3_intersect_sphere3(LPCLINE3 lpLine, LPCSPHERE3 lpSphere, LPVECTOR3 lpOutput) {
     // http://www.codeproject.com/Articles/19799/Simple-Ray-Tracing-in-C-Part-II-Triangles-Intersec
 
     float cx = lpSphere->center.x;
@@ -54,5 +54,42 @@ int Line_intersect_sphere(LPCLINE3 lpLine, LPCSPHERE3 lpSphere, LPVECTOR3 lpOutp
     }
 
     *lpOutput = solution2;
+    return 1;
+}
+
+int Line3_intersect_plane3(LPCLINE3 lpLine, LPCPLANE3 lpPlane, LPVECTOR3 lpOutput) {
+    VECTOR3 lineDirection = Vector3_sub(&lpLine->b, &lpLine->a);
+    if (Vector3_dot(&lpPlane->normal, &lineDirection) == 0)
+        return 0;
+    Vector3_normalize(&lineDirection);
+    float const p1 = Vector3_dot(&lpPlane->normal, &lpPlane->point);
+    float const p2 = Vector3_dot(&lpPlane->normal, &lpLine->a);
+    float const t = (p1 - p2) / Vector3_dot(&lpPlane->normal, &lineDirection);
+    VECTOR3 const scaledLineDirection = Vector3_scale(&lineDirection, t);
+    *lpOutput = Vector3_add(&lpLine->a, &scaledLineDirection);
+    return 1;
+}
+
+int Line3_intersect_tristrip(LPCLINE3 lpLine, LPCVECTOR3 lpVertices, int numVertices, LPVECTOR3 lpOutput) {
+    VECTOR3 const side1 = Vector3_sub(&lpVertices[0], &lpVertices[1]);
+    VECTOR3 const side2 = Vector3_sub(&lpVertices[1], &lpVertices[2]);
+    VECTOR3 const normal = Vector3_cross(&side1, &side2);
+    VECTOR3 const diff1 = Vector3_sub(&lpLine->a, lpVertices);
+    VECTOR3 const diff2 = Vector3_sub(&lpLine->b, lpVertices);
+    float const r1 = Vector3_dot(&normal, &diff1);
+    float const r2 = Vector3_dot(&normal, &diff2);
+    if ((r1 > 0) == (r2 > 0))
+        return 0;
+    VECTOR3 const distance = Vector3_sub(&lpLine->a, &lpLine->b);
+    VECTOR3 const pc = Vector3_mad(&lpLine->a, r1 / (r2 - r1), &distance);
+    for (int i = 1; i <= numVertices; i++) {
+        VECTOR3 const tside1 = Vector3_sub(&lpVertices[i], &lpVertices[i-1]);
+        VECTOR3 const tside2 = Vector3_sub(&pc, &lpVertices[i-1]);
+        VECTOR3 const rcross = Vector3_cross(&tside1, &tside2);
+        if (Vector3_dot(&normal, &rcross) < 0)
+            return 0;
+    }
+    if (lpOutput)
+        *lpOutput = pc;
     return 1;
 }

@@ -115,9 +115,20 @@ enum svc_ops {
 enum clc_ops {
     clc_bad,
 //    clc_nop,
-//    clc_move,                // [[usercmd_t]
+    clc_move,
 //    clc_userinfo,            // [[userinfo string]
-    clc_stringcmd            // [string] message
+//    clc_stringcmd            // [string] message
+};
+
+enum clientcommand {
+    CMD_NO_COMMAND,
+    CMD_MOVE,
+};
+
+struct client_message {
+    enum clientcommand cmd;
+    DWORD entity;
+    VECTOR2 location;
 };
 
 typedef enum t_attrib_id {
@@ -146,7 +157,7 @@ KNOWN_AS(EntityState, ENTITYSTATE);
 KNOWN_AS(vector3, VECTOR3);
 KNOWN_AS(color32, COLOR32);
 KNOWN_AS(size2, SIZE2);
-KNOWN_AS(line3, LINE3);
+KNOWN_AS(client_message, CLIENTMESSAGE);
 
 typedef char PATHSTR[MAX_PATHLEN];
 typedef char SHEETSTR[64];
