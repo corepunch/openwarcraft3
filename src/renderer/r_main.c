@@ -16,7 +16,7 @@ void R_GetLigthMatrix(LPMATRIX4 lightSpaceMatrix) {
     VECTOR3 sunangles = { -35, 0, 45 };
     sunorg.y -= 800;
     sunorg.x += 800;
-    Matrix4_ortho(lightSpaceMatrix, -1500.0f, 1500.0f, -1500.0f, 1500.0f, 100.0, 3500.0);
+    Matrix4_ortho(lightSpaceMatrix, -1750.0f, 1750.0f, -1500.0f, 1500.0f, 100.0, 3500.0);
     Matrix4_rotate(lightSpaceMatrix, &sunangles, ROTATE_ZYX);
     Matrix4_translate(lightSpaceMatrix, &sunorg);
 }
