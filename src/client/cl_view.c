@@ -1,9 +1,6 @@
 #include "client.h"
 #include "renderer.h"
 
-extern struct Renderer *renderer;
-extern struct client_state cl;
-
 static struct {
     struct render_entity entities[MAX_CLIENT_ENTITIES];
     int num_entities;
@@ -18,11 +15,19 @@ static void V_AddClientEntity(struct client_entity const *lpEdict) {
     re.model = cl.models[lpEdict->current.model];
     re.skin = cl.pics[lpEdict->current.image];
     
+    extern int selected_entity;
+    
     view_state.entities[view_state.num_entities++] = re;
     
+    if (lpEdict->current.number == selected_entity) {
+        int model = 3;
+        re.model = cl.models[model];
+        view_state.entities[view_state.num_entities++] = re;
+    }
+
     if (lpEdict->current.model2 != 0) {
         re.model = cl.models[lpEdict->current.model2];
-        view_state.entities[view_state.num_entities++] = re;
+//        view_state.entities[view_state.num_entities++] = re;
     }
 }
 

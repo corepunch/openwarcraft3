@@ -145,6 +145,8 @@ KNOWN_AS(edict, EDICT);
 KNOWN_AS(EntityState, ENTITYSTATE);
 KNOWN_AS(vector3, VECTOR3);
 KNOWN_AS(color32, COLOR32);
+KNOWN_AS(size2, SIZE2);
+KNOWN_AS(line3, LINE3);
 
 typedef char PATHSTR[MAX_PATHLEN];
 typedef char SHEETSTR[64];
@@ -175,6 +177,11 @@ struct AnimationInfo {
     DWORD start_frame;
     DWORD end_frame;
     DWORD framerate;
+};
+
+struct size2 {
+    DWORD width;
+    DWORD height;
 };
 
 #include "war3map.h"

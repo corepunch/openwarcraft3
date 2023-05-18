@@ -50,6 +50,7 @@ void CL_Input(void) {
                 break;
             case SDL_MOUSEBUTTONDOWN:
                 button = event.button.button;
+                CL_SelectEntityAtScreenPoint(event.button.x, event.button.y);
                 break;
             case SDL_MOUSEBUTTONUP:
                 button = 0;

@@ -82,11 +82,6 @@ struct War3MapVertex {
     BYTE cliff:4;
 };
 
-struct size2 {
-    DWORD width;
-    DWORD height;
-};
-
 struct war3map {
     DWORD header;
     DWORD version;

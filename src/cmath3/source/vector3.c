@@ -1,4 +1,3 @@
-#include <math.h>
 #include "../cmath3.h"
 
 float Vector3_dot(LPCVECTOR3 a,LPCVECTOR3 b) {

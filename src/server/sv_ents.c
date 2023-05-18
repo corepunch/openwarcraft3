@@ -1,5 +1,4 @@
 #include "server.h"
-#include <math.h>
 
 #define VISUAL_DISTANCE 1000
 #define HIGH_NUMBER 9999

@@ -1,8 +1,6 @@
 #include "g_local.h"
 #include "../common/war3map.h"
 
-#include <math.h>
-
 extern LPWAR3MAP lpMap;
 
 struct spawn {

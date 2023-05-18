@@ -116,6 +116,8 @@ void R_DrawBuffer(LPCBUFFER lpBuffer, DWORD numVertices);
 LPMODEL R_LoadModel(LPCSTR szModelFilename);
 void R_ReleaseModel(LPMODEL lpModel);
 
+struct size2 R_GetWindowSize(void);
+
 extern struct render_globals tr;
 
 #endif

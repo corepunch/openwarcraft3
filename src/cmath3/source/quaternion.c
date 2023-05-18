@@ -1,4 +1,3 @@
-#include <math.h>
 #include "../cmath3.h"
 
 QUATERNION Quaternion_slerp(LPCQUATERNION a, LPCQUATERNION b, float t) {

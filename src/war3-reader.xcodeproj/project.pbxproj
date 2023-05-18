@@ -19,6 +19,7 @@
 		78988A302A151DA50090DEAA /* war3map.c in Sources */ = {isa = PBXBuildFile; fileRef = 78988A2F2A151DA40090DEAA /* war3map.c */; };
 		78A896782A15F7E500BC5B56 /* libgame.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 78A896592A15F7A600BC5B56 /* libgame.dylib */; };
 		78A896AF2A15F85A00BC5B56 /* librenderer.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 78A8968E2A15F82700BC5B56 /* librenderer.dylib */; };
+		78A896EB2A16155900BC5B56 /* libcmath3.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 78A896C92A16012D00BC5B56 /* libcmath3.dylib */; };
 		78F58A302A0641A30027494A /* main.c in Sources */ = {isa = PBXBuildFile; fileRef = 78F58A2F2A0641A30027494A /* main.c */; };
 		78F58A822A06D1560027494A /* sheet.c in Sources */ = {isa = PBXBuildFile; fileRef = 78F58A812A06D1560027494A /* sheet.c */; };
 		78F58A862A06D2160027494A /* config.c in Sources */ = {isa = PBXBuildFile; fileRef = 78F58A852A06D2160027494A /* config.c */; };
@@ -109,6 +110,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				78A896EB2A16155900BC5B56 /* libcmath3.dylib in Frameworks */,
 				78A896AF2A15F85A00BC5B56 /* librenderer.dylib in Frameworks */,
 				78A896782A15F7E500BC5B56 /* libgame.dylib in Frameworks */,
 			);

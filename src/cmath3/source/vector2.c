@@ -1,4 +1,3 @@
-#include <math.h>
 #include "../cmath3.h"
 
 void Vector2_set(LPVECTOR2 v, float x, float y) {

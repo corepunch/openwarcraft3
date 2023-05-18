@@ -22,9 +22,9 @@ void R_GetLigthMatrix(LPMATRIX4 lightSpaceMatrix) {
 }
 
 void R_GetProjectionMatrix(LPMATRIX4 lpProjectionMatrix, LPCVIEWDEF viewDef) {
-    int dwWindowWidth, dwWindowHeight;
-    SDL_GetWindowSize(window, &dwWindowWidth, &dwWindowHeight);
-    Matrix4_perspective(lpProjectionMatrix, tr.viewDef.fov, (float)dwWindowWidth / (float)dwWindowHeight, 100.0, 100000.0);
+    SIZE2 const windowSize = R_GetWindowSize();
+    float const aspect = (float)windowSize.width / (float)windowSize.height;
+    Matrix4_perspective(lpProjectionMatrix, tr.viewDef.fov, aspect, 100.0, 100000.0);
     Matrix4_rotate(lpProjectionMatrix, &tr.viewDef.viewangles, ROTATE_XYZ);
     Matrix4_translate(lpProjectionMatrix, &tr.viewDef.vieworg);
 }
@@ -62,6 +62,8 @@ static void R_SetupGL(bool drawLight) {
 }
 
 void R_RenderFrame(LPCVIEWDEF viewDef) {
+    SIZE2 const windowSize = R_GetWindowSize();
+    
     tr.viewDef = *viewDef;
     
     // 1. first render to depth map
@@ -75,11 +77,9 @@ void R_RenderFrame(LPCVIEWDEF viewDef) {
     R_DrawEntities();
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     
-    int width, height;
     is_rendering_lights = false;
-    SDL_GetWindowSize(window, &width, &height);
     // 2. then render scene as normal with shadow mapping (using depth map)
-    glViewport(0, 0, width, height);
+    glViewport(0, 0, windowSize.width, windowSize.height);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     R_SetupGL(false);
     glActiveTexture(GL_TEXTURE1);
@@ -236,6 +236,15 @@ void R_Shutdown(void) {
     SDL_Quit();
 }
 
+struct size2 R_GetWindowSize(void) {
+    int width, height;
+    SDL_GetWindowSize(window, &width, &height);
+    return (struct size2) {
+        .width = width,
+        .height = height,
+    };
+}
+
 struct Renderer *Renderer_Init(struct renderer_import *lpImport) {
     struct Renderer *lpRenderer = lpImport->MemAlloc(sizeof(struct Renderer));
     lpRenderer->Init = R_Init;
@@ -249,6 +258,7 @@ struct Renderer *Renderer_Init(struct renderer_import *lpImport) {
     lpRenderer->BeginFrame = R_BeginFrame;
     lpRenderer->EndFrame = R_EndFrame;
     lpRenderer->DrawPic = R_DrawPic;
+    lpRenderer->GetWindowSize = R_GetWindowSize;
     ri = *lpImport;
 
     return lpRenderer;

@@ -35,7 +35,10 @@ void V_RenderView(void);
 void CL_PrepRefresh(void);
 void CL_ParseServerMessage(LPSIZEBUF msg);
 int CL_ParseEntityBits(LPSIZEBUF msg, DWORD *bits);
+void CL_SelectEntityAtScreenPoint(DWORD dwPixelX, DWORD dwPixelY);
 
+extern struct client_state cl;
+extern struct Renderer *renderer;
 extern struct client_state cl;
 
 #endif

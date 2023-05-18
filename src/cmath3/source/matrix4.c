@@ -1,4 +1,3 @@
-#include <math.h>
 #include "../cmath3.h"
 
 void Matrix4_identity(LPMATRIX4 m) {

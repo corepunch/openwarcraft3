@@ -1,7 +1,5 @@
 #include "server.h"
 
-#include <math.h>
-
 static struct size2 sv_pathmapSize;
 static struct PathMapNode *sv_pathmap;
 

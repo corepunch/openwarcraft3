@@ -20,6 +20,7 @@
 		78A896E12A16032500BC5B56 /* matrix4.c in Sources */ = {isa = PBXBuildFile; fileRef = 78A896DF2A16032500BC5B56 /* matrix4.c */; };
 		78A896E42A1603B800BC5B56 /* matrix3.h in Headers */ = {isa = PBXBuildFile; fileRef = 78A896E22A1603B800BC5B56 /* matrix3.h */; };
 		78A896E52A1603B800BC5B56 /* matrix3.c in Sources */ = {isa = PBXBuildFile; fileRef = 78A896E32A1603B800BC5B56 /* matrix3.c */; };
+		78A896EE2A1615CD00BC5B56 /* line3.c in Sources */ = {isa = PBXBuildFile; fileRef = 78A896ED2A1615CD00BC5B56 /* line3.c */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -37,6 +38,9 @@
 		78A896DF2A16032500BC5B56 /* matrix4.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = matrix4.c; sourceTree = "<group>"; };
 		78A896E22A1603B800BC5B56 /* matrix3.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = matrix3.h; sourceTree = "<group>"; };
 		78A896E32A1603B800BC5B56 /* matrix3.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = matrix3.c; sourceTree = "<group>"; };
+		78A896EC2A1615B600BC5B56 /* line3.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = line3.h; sourceTree = "<group>"; };
+		78A896ED2A1615CD00BC5B56 /* line3.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = line3.c; sourceTree = "<group>"; };
+		78A896EF2A16166200BC5B56 /* sphere3.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = sphere3.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -77,6 +81,7 @@
 				78A896D72A16025C00BC5B56 /* vector4.c */,
 				78A896D32A1601FB00BC5B56 /* vector3.c */,
 				78A896CF2A16015D00BC5B56 /* vector2.c */,
+				78A896ED2A1615CD00BC5B56 /* line3.c */,
 			);
 			path = source;
 			sourceTree = "<group>";
@@ -84,12 +89,14 @@
 		78A896E72A16044100BC5B56 /* types */ = {
 			isa = PBXGroup;
 			children = (
+				78A896EC2A1615B600BC5B56 /* line3.h */,
 				78A896E22A1603B800BC5B56 /* matrix3.h */,
 				78A896DE2A16032500BC5B56 /* matrix4.h */,
 				78A896DA2A1602B500BC5B56 /* quaternion.h */,
-				78A896D62A16025C00BC5B56 /* vector4.h */,
-				78A896D22A1601FB00BC5B56 /* vector3.h */,
+				78A896EF2A16166200BC5B56 /* sphere3.h */,
 				78A896CE2A16015D00BC5B56 /* vector2.h */,
+				78A896D22A1601FB00BC5B56 /* vector3.h */,
+				78A896D62A16025C00BC5B56 /* vector4.h */,
 			);
 			path = types;
 			sourceTree = "<group>";
@@ -173,6 +180,7 @@
 				78A896D52A1601FB00BC5B56 /* vector3.c in Sources */,
 				78A896E12A16032500BC5B56 /* matrix4.c in Sources */,
 				78A896D12A16015D00BC5B56 /* vector2.c in Sources */,
+				78A896EE2A1615CD00BC5B56 /* line3.c in Sources */,
 				78A896DD2A1602B500BC5B56 /* quaternion.c in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

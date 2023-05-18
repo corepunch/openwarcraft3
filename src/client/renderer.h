@@ -44,6 +44,7 @@ struct Renderer {
     void (*RenderFrame)(LPCVIEWDEF lpRefDef);
     LPTEXTURE (*LoadTexture)(LPCSTR szTextureFileName);
     LPMODEL (*LoadModel)(LPCSTR szModelFilename);
+    struct size2 (*GetWindowSize)(void);
     void (*ReleaseModel)(LPMODEL lpModel);
     void (*BeginFrame)(void);
     void (*EndFrame)(void);
