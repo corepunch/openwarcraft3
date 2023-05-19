@@ -1,11 +1,5 @@
 #include "server.h"
 
-static struct size2 sv_pathmapSize;
-static struct PathMapNode *sv_pathmap;
-
-LPWAR3MAP lpMap;
-LPWAR3MAP FileReadWar3Map(HANDLE hArchive);
-
 void SV_CreateBaseline(void) {
     sv.baselines = MemAlloc(sizeof(ENTITYSTATE) * ge->max_edicts);
     FOR_LOOP(entnum, ge->num_edicts) {
@@ -15,57 +9,15 @@ void SV_CreateBaseline(void) {
     }
 }
 
-struct PathMapNode const *SV_PathMapNode(LPCWAR3MAP lpTerrain, DWORD x, DWORD y) {
-    int const index = x + y * sv_pathmapSize.width;
-    return &sv_pathmap[index];
-}
-
-static void SV_ReadDoodads(HANDLE hArchive) {
-    HANDLE hFile;
-    DWORD dwFileHeader, dwVersion, dwUnknown, dwNumDoodads;
-
-    SFileOpenFileEx(hArchive, "war3map.doo", SFILE_OPEN_FROM_MPQ, &hFile);
-    SFileReadFile(hFile, &dwFileHeader, 4, NULL, NULL);
-    SFileReadFile(hFile, &dwVersion, 4, NULL, NULL);
-    SFileReadFile(hFile, &dwUnknown, 4, NULL, NULL);
-    SFileReadFile(hFile, &dwNumDoodads, 4, NULL, NULL);
-    
-    LPDOODAD lpDoodads = MemAlloc(dwNumDoodads * DOODAD_SIZE);
-    
-    SFileReadFile(hFile, lpDoodads, dwNumDoodads * DOODAD_SIZE, NULL, NULL);
-    SFileCloseFile(hFile);
-    
-    ge->SpawnEntities(lpDoodads, dwNumDoodads);
-    
-    MemFree(lpDoodads);
-}
-
-static void SV_ReadPathMap(HANDLE hArchive) {
-    HANDLE hFile;
-    DWORD header, version;
-    SFileOpenFileEx(hArchive, "war3map.wpm", SFILE_OPEN_FROM_MPQ, &hFile);
-    SFileReadFile(hFile, &header, 4, NULL, NULL);
-    SFileReadFile(hFile, &version, 4, NULL, NULL);
-    SFileReadFile(hFile, &sv_pathmapSize, 8, NULL, NULL);
-    int const pathmapblocksize = sv_pathmapSize.width * sv_pathmapSize.height;
-    sv_pathmap = MemAlloc(pathmapblocksize);
-    SFileReadFile(hFile, sv_pathmap, pathmapblocksize, 0, 0);
-    SFileCloseFile(hFile);
-}
-
 void SV_Map(LPCSTR szMapFilename) {
     SV_InitGame();
-    
-    HANDLE hMapArchive;
     memset(&sv, 0, sizeof(struct server));
     strcpy(sv.configstrings[CS_MODELS+1], szMapFilename);
-    FS_ExtractFile(szMapFilename, TMP_MAP);
-    SFileOpenArchive(TMP_MAP, 0, 0, &hMapArchive);
-    SV_ReadPathMap(hMapArchive);
-    SV_ReadDoodads(hMapArchive);
-    lpMap = FileReadWar3Map(hMapArchive);
+    CM_LoadMap(szMapFilename);
     SV_CreateBaseline();
-    SFileCloseArchive(hMapArchive);
+    LPCDOODAD doodads;
+    DWORD num_doodads = CM_GetDoodadsArray(&doodads);
+    ge->SpawnEntities(doodads, num_doodads);
 }
 
 void SV_InitGame(void) {
@@ -111,39 +63,6 @@ static struct AnimationInfo SV_GetAnimation(int modelindex, LPCSTR animname) {
     return (struct AnimationInfo) {};
 }
 
-static float LerpNumber(float a, float b, float t) {
-    return a * (1 - t) + b * t;
-}
-
-LPCWAR3MAPVERTEX GetWar3MapVertex(LPCWAR3MAP lpWar3Map, DWORD x, DWORD y) {
-    int const index = x + y * lpWar3Map->width;
-    char const *ptr = ((char const *)lpWar3Map->vertices) + index * MAP_VERTEX_SIZE;
-    return (LPCWAR3MAPVERTEX)ptr;
-}
-
-float GetWar3MapVertexHeight(LPCWAR3MAPVERTEX vert) {
-    return DECODE_HEIGHT(vert->accurate_height) + vert->level * TILESIZE - HEIGHT_COR;
-}
-
-short GetHeightMapValue(int x, int y) {
-    return GetWar3MapVertexHeight(GetWar3MapVertex(lpMap, x, y));
-}
-
-static float SV_GetHeightAtPoint(float sx, float sy) {
-    extern LPWAR3MAP lpMap;
-    float x = (sx - lpMap->center.x) / TILESIZE;
-    float y = (sy - lpMap->center.y) / TILESIZE;
-    float fx = floorf(x);
-    float fy = floorf(y);
-    float a = GetWar3MapVertexHeight(GetWar3MapVertex(lpMap, fx, fy));
-    float b = GetWar3MapVertexHeight(GetWar3MapVertex(lpMap, fx + 1, fy));
-    float c = GetWar3MapVertexHeight(GetWar3MapVertex(lpMap, fx, fy + 1));
-    float d = GetWar3MapVertexHeight(GetWar3MapVertex(lpMap, fx + 1, fy + 1));
-    float ab = LerpNumber(a, b, x - fx);
-    float cd = LerpNumber(c, d, x - fx);
-    return LerpNumber(ab, cd, y - fy);
-}
-
 void SV_Init(void) {
     ge = GetGameAPI(&(struct game_import) {
         .MemAlloc = MemAlloc,
@@ -153,7 +72,7 @@ void SV_Init(void) {
         .SoundIndex = SV_SoundIndex,
         .ParseSheet = FS_ParseSheet,
         .GetAnimation = SV_GetAnimation,
-        .GetHeightAtPoint = SV_GetHeightAtPoint,
+        .GetHeightAtPoint = CM_GetHeightAtPoint,
     });
     ge->Init();
     memset(&svs, 0, sizeof(struct server_static));

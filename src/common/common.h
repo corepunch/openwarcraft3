@@ -196,7 +196,7 @@ struct size2 {
     DWORD height;
 };
 
-#include "war3map.h"
+#include "cmodel.h"
 
 enum SheetType {
     ST_ID,

@@ -31,53 +31,6 @@ struct client_message msg = { CMD_NO_COMMAND };
 
 short GetHeightMapValue(int x, int y);
 
-VECTOR3 PointIntoHeightmap(LPWAR3MAP lpMap, LPCVECTOR3 lpPoint) {
-    return (VECTOR3) {
-        .x = (lpPoint->x - lpMap->center.x) / TILESIZE,
-        .y = (lpPoint->y - lpMap->center.y) / TILESIZE,
-        .z = lpPoint->z
-    };
-}
-
-VECTOR3 PointFromHeightmap(LPWAR3MAP lpMap, LPCVECTOR3 lpPoint) {
-    return (VECTOR3) {
-        .x = lpPoint->x * TILESIZE + lpMap->center.x,
-        .y = lpPoint->y * TILESIZE + lpMap->center.y,
-        .z = lpPoint->z
-    };
-}
-
-bool CL_GetClickPoint(LPCLINE3 lpLine, LPVECTOR3 lpOutput) {
-    extern LPWAR3MAP lpMap;
-    LINE3 line = {
-        .a = PointIntoHeightmap(lpMap, &lpLine->a),
-        .b = PointIntoHeightmap(lpMap, &lpLine->b),
-    };
-    FOR_LOOP(x, lpMap->width) {
-        FOR_LOOP(y, lpMap->height) {
-            TRIANGLE3 const tri1 = {
-                { x, y, GetHeightMapValue(x, y) },
-                { x+1, y, GetHeightMapValue(x+1, y) },
-                { x+1, y+1, GetHeightMapValue(x, y+1) },
-            };
-            TRIANGLE3 const tri2 = {
-                { x+1, y+1, GetHeightMapValue(x, y+1) },
-                { x, y+1, GetHeightMapValue(x, y+1) },
-                { x, y, GetHeightMapValue(x, y) },
-            };
-            if (Line3_intersect_triangle(&line, &tri1, lpOutput)) {
-                *lpOutput = PointFromHeightmap(lpMap, lpOutput);
-                return true;
-            }
-            if (Line3_intersect_triangle(&line, &tri2, lpOutput)) {
-                *lpOutput = PointFromHeightmap(lpMap, lpOutput);
-                return true;
-            }
-        }
-    }
-    return false;
-}
-
 void CL_SelectEntityAtScreenPoint(DWORD dwPixelX, DWORD dwPixelY) {
     LINE3 const line = CL_GetMouseLine(dwPixelX, dwPixelY);
     int clickedEntity = -1;
@@ -98,7 +51,7 @@ void CL_SelectEntityAtScreenPoint(DWORD dwPixelX, DWORD dwPixelY) {
 //            .point = { 0, 0, 0 },
 //            .normal = { 0, 0, 1 },
 //        }, &targetorg);
-        if (CL_GetClickPoint(&line, &targetorg)) {
+        if (CM_IntersectLineWithHeightmap(&line, &targetorg)) {
             msg.location.x = targetorg.x;
             msg.location.y = targetorg.y;
             msg.entity = selectedEntity;

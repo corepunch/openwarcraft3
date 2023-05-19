@@ -97,4 +97,11 @@ struct war3map {
     DWORD numCliffs;
 };
 
+void CM_LoadMap(LPCSTR szMapFilename);
+VECTOR3 CM_PointIntoHeightmap(LPCVECTOR3 lpPoint);
+VECTOR3 CM_PointFromHeightmap(LPCVECTOR3 lpPoint);
+bool CM_IntersectLineWithHeightmap(LPCLINE3 lpLine, LPVECTOR3 lpOutput);
+float CM_GetHeightAtPoint(float sx, float sy);
+DWORD CM_GetDoodadsArray(LPCDOODAD *lppDoodads);
+
 #endif

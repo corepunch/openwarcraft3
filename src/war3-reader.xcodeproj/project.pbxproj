@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		7866305D2A17D92E00266A62 /* cmodel.c in Sources */ = {isa = PBXBuildFile; fileRef = 7866305B2A17D17900266A62 /* cmodel.c */; };
 		7897B7DA2A0BF40F008007CD /* cl_main.c in Sources */ = {isa = PBXBuildFile; fileRef = 7897B7D92A0BF40F008007CD /* cl_main.c */; };
 		7897B7DD2A0BF4FD008007CD /* sv_main.c in Sources */ = {isa = PBXBuildFile; fileRef = 7897B7DC2A0BF4FD008007CD /* sv_main.c */; };
 		7897B7DF2A0BF615008007CD /* common.c in Sources */ = {isa = PBXBuildFile; fileRef = 7897B7DE2A0BF615008007CD /* common.c */; };
@@ -16,7 +17,6 @@
 		7897B7FB2A12872C008007CD /* cl_parse.c in Sources */ = {isa = PBXBuildFile; fileRef = 7897B7FA2A12872C008007CD /* cl_parse.c */; };
 		7897B7FD2A128F47008007CD /* sv_ents.c in Sources */ = {isa = PBXBuildFile; fileRef = 7897B7FC2A128F47008007CD /* sv_ents.c */; };
 		7897B7FF2A12AF06008007CD /* cl_ents.c in Sources */ = {isa = PBXBuildFile; fileRef = 7897B7FE2A12AF06008007CD /* cl_ents.c */; };
-		78988A302A151DA50090DEAA /* war3map.c in Sources */ = {isa = PBXBuildFile; fileRef = 78988A2F2A151DA40090DEAA /* war3map.c */; };
 		78A896782A15F7E500BC5B56 /* libgame.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 78A896592A15F7A600BC5B56 /* libgame.dylib */; };
 		78A896AF2A15F85A00BC5B56 /* librenderer.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 78A8968E2A15F82700BC5B56 /* librenderer.dylib */; };
 		78A896EB2A16155900BC5B56 /* libcmath3.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 78A896C92A16012D00BC5B56 /* libcmath3.dylib */; };
@@ -78,6 +78,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		7866305B2A17D17900266A62 /* cmodel.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = cmodel.c; sourceTree = "<group>"; };
 		7897B7D12A0BEB6A008007CD /* renderer.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = renderer.h; sourceTree = "<group>"; };
 		7897B7D22A0BEB76008007CD /* common.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = common.h; sourceTree = "<group>"; };
 		7897B7D82A0BF40F008007CD /* client.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = client.h; sourceTree = "<group>"; };
@@ -93,8 +94,7 @@
 		7897B7FA2A12872C008007CD /* cl_parse.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = cl_parse.c; sourceTree = "<group>"; };
 		7897B7FC2A128F47008007CD /* sv_ents.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = sv_ents.c; sourceTree = "<group>"; };
 		7897B7FE2A12AF06008007CD /* cl_ents.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = cl_ents.c; sourceTree = "<group>"; };
-		78988A2E2A151C700090DEAA /* war3map.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = war3map.h; sourceTree = "<group>"; };
-		78988A2F2A151DA40090DEAA /* war3map.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = war3map.c; sourceTree = "<group>"; };
+		78988A2E2A151C700090DEAA /* cmodel.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = cmodel.h; sourceTree = "<group>"; };
 		78A8963F2A15F18F00BC5B56 /* shared.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = shared.h; sourceTree = "<group>"; };
 		78A896542A15F7A500BC5B56 /* game.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = game.xcodeproj; path = game/game.xcodeproj; sourceTree = "<group>"; };
 		78A896892A15F82600BC5B56 /* renderer.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = renderer.xcodeproj; path = renderer/renderer.xcodeproj; sourceTree = "<group>"; };
@@ -124,6 +124,8 @@
 		7897B7CC2A0BE8AA008007CD /* common */ = {
 			isa = PBXGroup;
 			children = (
+				7866305B2A17D17900266A62 /* cmodel.c */,
+				78988A2E2A151C700090DEAA /* cmodel.h */,
 				7897B7DE2A0BF615008007CD /* common.c */,
 				7897B7D22A0BEB76008007CD /* common.h */,
 				78F58A852A06D2160027494A /* config.c */,
@@ -131,10 +133,8 @@
 				7897B7ED2A0CC4EE008007CD /* msg.c */,
 				7897B7E22A0C209A008007CD /* net.c */,
 				7897B7EF2A0CC6CF008007CD /* net.h */,
-				78F58A812A06D1560027494A /* sheet.c */,
-				78988A2F2A151DA40090DEAA /* war3map.c */,
-				78988A2E2A151C700090DEAA /* war3map.h */,
 				78A8963F2A15F18F00BC5B56 /* shared.h */,
+				78F58A812A06D1560027494A /* sheet.c */,
 			);
 			path = common;
 			sourceTree = "<group>";
@@ -315,9 +315,9 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				7866305D2A17D92E00266A62 /* cmodel.c in Sources */,
 				78F58A302A0641A30027494A /* main.c in Sources */,
 				7897B7EE2A0CC4EE008007CD /* msg.c in Sources */,
-				78988A302A151DA50090DEAA /* war3map.c in Sources */,
 				78F58A882A06D3030027494A /* sv_init.c in Sources */,
 				7897B7FD2A128F47008007CD /* sv_ents.c in Sources */,
 				78F58A822A06D1560027494A /* sheet.c in Sources */,
