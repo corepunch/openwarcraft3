@@ -1,6 +1,8 @@
 #include "common.h"
 #include <StormLib.h>
 
+#define DOODAD_FILE_SIZE 42
+
 static struct {
     LPWAR3MAP map;
     struct size2 pathmapSize;
@@ -24,9 +26,12 @@ static void CM_ReadDoodads(HANDLE hArchive) {
     SFileReadFile(hFile, &dwUnknown, 4, NULL, NULL);
     SFileReadFile(hFile, &cmodel.numDoodads, 4, NULL, NULL);
     
-    cmodel.doodads = MemAlloc(cmodel.numDoodads * DOODAD_SIZE);
-    
-    SFileReadFile(hFile, cmodel.doodads, cmodel.numDoodads * DOODAD_SIZE, NULL, NULL);
+    cmodel.doodads = MemAlloc(cmodel.numDoodads * sizeof(struct Doodad));
+
+    FOR_LOOP(index, cmodel.numDoodads) {
+        SFileReadFile(hFile, &cmodel.doodads[index], DOODAD_FILE_SIZE, NULL, NULL);
+    }
+
     SFileCloseFile(hFile);
 }
 

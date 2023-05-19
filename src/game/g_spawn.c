@@ -12,11 +12,6 @@ static struct spawn spawns[] = {
     { NULL, NULL }
 };
 
-LPDOODAD DoodadAtIndex(LPCDOODAD doodads, int index) {
-    LPBYTE doo = (LPBYTE)doodads;
-    return (LPDOODAD)(doo + index * DOODAD_SIZE);
-}
-
 LPEDICT G_Spawn(void) {
     LPEDICT lpEdict = &game_state.edicts[globals.num_edicts];
     lpEdict->s.number = globals.num_edicts;
@@ -75,7 +70,7 @@ void G_SpawnEntities(LPCDOODAD doodads, DWORD numDoodads) {
     SP_CallSpawn(e);
     gi.ModelIndex("UI\\Feedback\\SelectionCircleUnit\\selectioncircleUnit.mdx");
     FOR_LOOP(index, numDoodads) {
-        LPCDOODAD doodad = DoodadAtIndex(doodads, index);
+        LPCDOODAD doodad = &doodads[index];
         LPEDICT e = G_Spawn();
         LPENTITYSTATE s = &e->s;
         s->origin = doodad->position;
