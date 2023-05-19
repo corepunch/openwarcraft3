@@ -64,7 +64,7 @@ int Line3_intersect_plane3(LPCLINE3 lpLine, LPCPLANE3 lpPlane, LPVECTOR3 lpOutpu
     return 1;
 }
 
-static inline int DotNormal(LPCVECTOR3 normal, LPCVECTOR3 a, LPCVECTOR3 b, LPCVECTOR3 c) {
+static inline float DotNormal(LPCVECTOR3 normal, LPCVECTOR3 a, LPCVECTOR3 b, LPCVECTOR3 c) {
     VECTOR3 const rcross = Triangle_normal(&(const TRIANGLE3) { *a, *b, *c });
     return Vector3_dot(normal, &rcross);
 }
@@ -89,6 +89,23 @@ int Line3_intersect_triangle(LPCLINE3 lpLine, LPCTRIANGLE3 lpTriangle, LPVECTOR3
         *lpOutput = pc;
     return 1;
 }
+//
+//bool intersect_triangle(
+//    in Ray R, in vec3 A, in vec3 B, in vec3 C, out float t,
+//    out float u, out float v, out vec3 N
+//) {
+//   vec3 E1 = B-A;
+//   vec3 E2 = C-A;
+//         N = cross(E1,E2);
+//   float det = -dot(R.Dir, N);
+//   float invdet = 1.0/det;
+//   vec3 AO  = R.Origin - A;
+//   vec3 DAO = cross(AO, R.Dir);
+//   u =  dot(E2,DAO) * invdet;
+//   v = -dot(E1,DAO) * invdet;
+//   t =  dot(AO,N)  * invdet;
+//   return (det >= 1e-6 && t >= 0.0 && u >= 0.0 && v >= 0.0 && (u+v) <= 1.0);
+//}
 
 int Line3_intersect_box3(LPCLINE3 lpLine, LPCBOX3 lpBox, LPVECTOR3 lpOutput) {
     float st, et, fst = 0, fet = 1;

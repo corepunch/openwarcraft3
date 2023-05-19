@@ -98,10 +98,11 @@ void CL_SelectEntityAtScreenPoint(DWORD dwPixelX, DWORD dwPixelY) {
 //            .point = { 0, 0, 0 },
 //            .normal = { 0, 0, 1 },
 //        }, &targetorg);
-        CL_GetClickPoint(&line, &targetorg);
-        msg.location.x = targetorg.x;
-        msg.location.y = targetorg.y;
-        msg.entity = selectedEntity;
-        msg.cmd = CMD_MOVE;
+        if (CL_GetClickPoint(&line, &targetorg)) {
+            msg.location.x = targetorg.x;
+            msg.location.y = targetorg.y;
+            msg.entity = selectedEntity;
+            msg.cmd = CMD_MOVE;
+        }
     }
 }
