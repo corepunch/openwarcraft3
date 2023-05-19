@@ -8,25 +8,30 @@ KNOWN_AS(UnitUI, UNITUI);
 KNOWN_AS(DoodadInfo, DOODADINFO);
 KNOWN_AS(DestructableData, DESTRUCTABLEDATA);
 
-struct monsterinfo {
-    struct AnimationInfo animation;
-};
+typedef struct {
+    LPCSTR animation;
+    void (*think)(LPEDICT self);
+    void (*endfunc)(LPEDICT self);
+//    int firstframe;
+//    int lastframe;
+} mmove_t;
 
-typedef enum {
-    MS_STAND,
-    MS_MOVE,
-} MONSTERSTATE;
+typedef struct {
+    mmove_t *currentmove;
+//    struct AnimationInfo animation;
+    void (*stand)(LPEDICT self);
+    void (*walk)(LPEDICT self);
+} monsterinfo_t;
 
 struct edict {
     ENTITYSTATE s;
     DWORD class_id;
     VECTOR2 objective;
-    MONSTERSTATE state;
     int variation;
     
-    void (*think)(LPEDICT lpEntity, DWORD msec);
+    void (*think)(LPEDICT self);
 
-    struct monsterinfo monsterinfo;
+    monsterinfo_t monsterinfo;
 };
 
 struct game_state {
@@ -166,9 +171,12 @@ void G_InitUnits(void);
 void G_InitDestructables(void);
 void G_InitDoodads(void);
 
+void monster_start(LPEDICT self);
+
 extern struct game_locals game;
 extern struct game_state game_state;
 extern struct game_export globals;
 extern struct game_import gi;
+extern DWORD frametime;
 
 #endif

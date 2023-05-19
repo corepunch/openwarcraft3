@@ -102,8 +102,8 @@ static struct AnimationInfo SV_GetAnimation(int modelindex, LPCSTR animname) {
         struct mdx_sequence *anim = &model->animations[i];
         if (!strcmp(anim->name, animname)) {
             return (struct AnimationInfo) {
-                .start_frame = anim->interval[0],
-                .end_frame = anim->interval[1],
+                .firstframe = anim->interval[0],
+                .lastframe = anim->interval[1],
 //                .framerate = anim->,
             };
         }

@@ -158,6 +158,7 @@ KNOWN_AS(vector3, VECTOR3);
 KNOWN_AS(color32, COLOR32);
 KNOWN_AS(size2, SIZE2);
 KNOWN_AS(client_message, CLIENTMESSAGE);
+KNOWN_AS(AnimationInfo, ANIMATION);
 
 typedef char PATHSTR[MAX_PATHLEN];
 typedef char SHEETSTR[64];
@@ -185,8 +186,8 @@ struct EntityState {
 };
 
 struct AnimationInfo {
-    DWORD start_frame;
-    DWORD end_frame;
+    DWORD firstframe;
+    DWORD lastframe;
     DWORD framerate;
 };
 

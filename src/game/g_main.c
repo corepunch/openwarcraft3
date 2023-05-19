@@ -7,6 +7,8 @@ struct game_import gi;
 struct game_state game_state;
 struct game_locals game;
 
+DWORD frametime;
+
 static void G_Init(void) {
     game_state.edicts = gi.MemAlloc(sizeof(struct edict) * MAX_ENTITIES);
     globals.edicts = game_state.edicts;
@@ -28,15 +30,16 @@ static void G_ClientCommand(LPCCLIENTMESSAGE lpClientMessage) {
     lpEdict->objective.y = lpClientMessage->location.y;
 }
 
-static void G_RunEntity(LPEDICT lpEdict, DWORD msec) {
+static void G_RunEntity(LPEDICT lpEdict) {
     if (lpEdict->think) {
-        lpEdict->think(lpEdict, msec);
+        lpEdict->think(lpEdict);
     }
 }
 
 static void G_RunFrame(DWORD msec) {
+    frametime = msec;
     FOR_LOOP(i, globals.num_edicts) {
-        G_RunEntity(&globals.edicts[i], msec);
+        G_RunEntity(&globals.edicts[i]);
     }
 }
 

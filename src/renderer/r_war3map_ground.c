@@ -1,13 +1,13 @@
 #include "r_war3map.h"
 
 #define MAX_MAP_LAYERS 16
+#define WATER(INDEX) \
+MakeColor(color[INDEX], LerpNumber(color[INDEX], 1, 0.25f), LerpNumber(color[INDEX], 1, 0.5f), 1)
 
 LPCTEXTURE g_groundTextures[MAX_MAP_LAYERS] = { NULL };
 
 static VERTEX aVertexBuffer[(SEGMENT_SIZE+1)*(SEGMENT_SIZE+1)*6];
 static LPVERTEX lpCurrentVertex = NULL;
-
-// FUNCTIONS
 
 static void R_MakeTile(LPCWAR3MAP lpMap, DWORD x, DWORD y, DWORD ground, LPCTEXTURE lpTexture) {
     struct War3MapVertex tile[4];
@@ -21,7 +21,7 @@ static void R_MakeTile(LPCWAR3MAP lpMap, DWORD x, DWORD y, DWORD ground, LPCTEXT
         return;
     }
     
-    VECTOR2 p[] = {
+    VECTOR2 const p[] = {
         { lpMap->center.x + x * TILESIZE, lpMap->center.y + y * TILESIZE },
         { lpMap->center.x + (x + 1) * TILESIZE, lpMap->center.y + y * TILESIZE },
         { lpMap->center.x + (x + 1) * TILESIZE, lpMap->center.y + (y + 1) * TILESIZE },
@@ -48,9 +48,6 @@ static void R_MakeTile(LPCWAR3MAP lpMap, DWORD x, DWORD y, DWORD ground, LPCTEXT
         GetTileDepth(waterlevel[2], h[2]),
         GetTileDepth(waterlevel[3], h[3]),
     };
-    
-#define WATER(INDEX) \
-MakeColor(color[INDEX], LerpNumber(color[INDEX], 1, 0.25f), LerpNumber(color[INDEX], 1, 0.5f), 1)
 
     struct vertex geom[] = {
         {

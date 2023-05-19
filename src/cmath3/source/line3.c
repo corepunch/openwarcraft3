@@ -1,8 +1,6 @@
 #include "../cmath3.h"
 
 int Line3_intersect_sphere3(LPCLINE3 lpLine, LPCSPHERE3 lpSphere, LPVECTOR3 lpOutput) {
-    // http://www.codeproject.com/Articles/19799/Simple-Ray-Tracing-in-C-Part-II-Triangles-Intersec
-
     float cx = lpSphere->center.x;
     float cy = lpSphere->center.y;
     float cz = lpSphere->center.z;
@@ -16,8 +14,6 @@ int Line3_intersect_sphere3(LPCLINE3 lpLine, LPCSPHERE3 lpSphere, LPVECTOR3 lpOu
     float B = 2.0 * (px * vx + py * vy + pz * vz - vx * cx - vy * cy - vz * cz);
     float C = px * px - 2 * px * cx + cx * cx + py * py - 2 * py * cy + cy * cy +
                pz * pz - 2 * pz * cz + cz * cz - lpSphere->radius * lpSphere->radius;
-
-    // discriminant
     float D = B * B - 4 * A * C;
 
     if ( D < 0 ) {
@@ -46,8 +42,6 @@ int Line3_intersect_sphere3(LPCLINE3 lpLine, LPCSPHERE3 lpSphere, LPVECTOR3 lpOu
         lpLine->a.z * ( 1 - t2 ) + t2 * lpLine->b.z
     };
 
-    // prefer a solution that's on the line segment itself
-
     if ( fabs( t1 - 0.5 ) < fabs( t2 - 0.5 ) ) {
         *lpOutput = solution1;
         return 1;
@@ -70,7 +64,7 @@ int Line3_intersect_plane3(LPCLINE3 lpLine, LPCPLANE3 lpPlane, LPVECTOR3 lpOutpu
     return 1;
 }
 
-int Line3_intersect_tristrip(LPCLINE3 lpLine, LPCVECTOR3 lpVertices, int numVertices, LPVECTOR3 lpOutput) {
+int Line3_intersect_convex(LPCLINE3 lpLine, LPCVECTOR3 lpVertices, int numVertices, LPVECTOR3 lpOutput) {
     VECTOR3 const side1 = Vector3_sub(&lpVertices[0], &lpVertices[1]);
     VECTOR3 const side2 = Vector3_sub(&lpVertices[1], &lpVertices[2]);
     VECTOR3 const normal = Vector3_cross(&side1, &side2);
@@ -83,7 +77,7 @@ int Line3_intersect_tristrip(LPCLINE3 lpLine, LPCVECTOR3 lpVertices, int numVert
     VECTOR3 const distance = Vector3_sub(&lpLine->a, &lpLine->b);
     VECTOR3 const pc = Vector3_mad(&lpLine->a, r1 / (r2 - r1), &distance);
     for (int i = 1; i <= numVertices; i++) {
-        VECTOR3 const tside1 = Vector3_sub(&lpVertices[i], &lpVertices[i-1]);
+        VECTOR3 const tside1 = Vector3_sub(&lpVertices[i%numVertices], &lpVertices[i-1]);
         VECTOR3 const tside2 = Vector3_sub(&pc, &lpVertices[i-1]);
         VECTOR3 const rcross = Vector3_cross(&tside1, &tside2);
         if (Vector3_dot(&normal, &rcross) < 0)
@@ -91,5 +85,41 @@ int Line3_intersect_tristrip(LPCLINE3 lpLine, LPCVECTOR3 lpVertices, int numVert
     }
     if (lpOutput)
         *lpOutput = pc;
+    return 1;
+}
+
+int Line3_intersect_box3(LPCLINE3 lpLine, LPCBOX3 lpBox, LPVECTOR3 lpOutput) {
+    float st, et, fst = 0, fet = 1;
+    float const *bmin = &lpBox->min.x;
+    float const *bmax = &lpBox->max.x;
+    float const *si = &lpLine->a.x;
+    float const *ei = &lpLine->b.x;
+    for (int i = 0; i < 3; i++) {
+        if (*si < *ei) {
+            if (*si > *bmax || *ei < *bmin)
+                return 0;
+            float di = *ei - *si;
+            st = (*si < *bmin)? (*bmin - *si) / di: 0;
+            et = (*ei > *bmax)? (*bmax - *si) / di: 1;
+        }
+        else {
+            if (*ei > *bmax || *si < *bmin)
+                return 0;
+            float di = *ei - *si;
+            st = (*si > *bmax)? (*bmax - *si) / di: 0;
+            et = (*ei < *bmin)? (*bmin - *si) / di: 1;
+        }
+
+        if (st > fst) fst = st;
+        if (et < fet) fet = et;
+        if (fet < fst)
+            return 0;
+        bmin++; bmax++;
+        si++; ei++;
+    }
+
+    if (lpOutput) {
+        *lpOutput = Vector3_lerp(&lpLine->a, &lpLine->b, fst);
+    }
     return 1;
 }

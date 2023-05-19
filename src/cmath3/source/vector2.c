@@ -39,3 +39,10 @@ float Vector2_distance(LPCVECTOR2 a, LPCVECTOR2 b) {
 void Vector2_normalize(LPVECTOR2 v) {
     *v = Vector2_scale(v, 1 / Vector2_len(v));
 }
+
+VECTOR2 Vector2_lerp(LPCVECTOR2 a, LPCVECTOR2 b, float t) {
+    return (VECTOR2) {
+        .x = a->x * (1 - t) + b->x * t,
+        .y = a->y * (1 - t) + b->y * t,
+    };
+}

@@ -41,7 +41,7 @@ bool CL_GetClickPoint(LPCLINE3 lpLine, LPVECTOR3 lpOutput) {
                 { (x+1) * TILESIZE + lpMap->center.x, (y+1) * TILESIZE + lpMap->center.y, GetHeightMapValue(x, y+1) },
                 { x * TILESIZE + lpMap->center.x, (y+1) * TILESIZE + lpMap->center.y, GetHeightMapValue(x, y+1) },
             };
-            if (Line3_intersect_tristrip(lpLine, vecs, 4, lpOutput)) {
+            if (Line3_intersect_convex(lpLine, vecs, 4, lpOutput)) {
                 return true;
             }
         }
