@@ -59,3 +59,5 @@ void CL_SelectEntityAtScreenPoint(DWORD dwPixelX, DWORD dwPixelY) {
         }
     }
 }
+
+

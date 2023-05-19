@@ -93,10 +93,6 @@ VECTOR3 CM_PointFromHeightmap(LPCVECTOR3 lpPoint) {
     };
 }
 
-static float LerpNumber(float a, float b, float t) {
-    return a * (1 - t) + b * t;
-}
-
 static LPCWAR3MAPVERTEX CM_GetWar3MapVertex(DWORD x, DWORD y) {
     int const index = x + y * cmodel.map->width;
     char const *ptr = ((char const *)cmodel.map->vertices) + index * MAP_VERTEX_SIZE;

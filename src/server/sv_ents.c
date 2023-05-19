@@ -85,8 +85,9 @@ void SV_WriteFrameToClient(LPCLIENT client) {
     
     MSG_WriteByte(&client->netchan.message, svc_frame);
     MSG_WriteLong(&client->netchan.message, sv.framenum);
+    MSG_WriteLong(&client->netchan.message, sv.time);
     MSG_WriteLong(&client->netchan.message, client->lastframe);
-    
+
     SV_EmitPacketEntities(oldframe, frame, &client->netchan.message);
     
     client->lastframe = sv.framenum;

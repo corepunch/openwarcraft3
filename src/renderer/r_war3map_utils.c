@@ -6,10 +6,6 @@ LPCWAR3MAPVERTEX GetWar3MapVertex(LPCWAR3MAP lpWar3Map, DWORD x, DWORD y) {
     return (LPCWAR3MAPVERTEX)ptr;
 }
 
-float LerpNumber(float a, float b, float t) {
-    return a * (1 - t) + b * t;
-}
-
 VECTOR2 GetWar3MapPosition(LPCWAR3MAP lpWar3Map, float x, float y) {
     float _x = (x - lpWar3Map->center.x) / ((lpWar3Map->width-1) * TILESIZE);
     float _y = (y - lpWar3Map->center.y) / ((lpWar3Map->height-1) * TILESIZE);

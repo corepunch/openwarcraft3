@@ -10,8 +10,8 @@
 
 struct client_entity {
     ENTITYSTATE baseline;
-//    ENTITYSTATE previous;
     ENTITYSTATE current;
+    ENTITYSTATE prev;
 };
 
 struct frame {
@@ -30,6 +30,7 @@ struct client_state {
     DWORD num_entities;
     DWORD sock;
     DWORD team;
+    DWORD time;
 };
 
 struct client_static {

@@ -6,9 +6,7 @@
 
 struct Renderer *renderer = NULL;
 struct client_static cls;
-struct client_state cl = {
-    .sock = 0
-};
+struct client_state cl;
 
 void CL_Init(void) {
     renderer = Renderer_Init(&(struct renderer_import) {
@@ -111,6 +109,8 @@ void CL_Shutdown(void) {
 }
 
 void CL_Frame(DWORD msec) {
+    cl.time += msec;
+    
     CL_ReadPackets();
     CL_SendCommands();
     CL_Input();

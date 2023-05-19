@@ -29,6 +29,7 @@ static void CL_ReadPacketEntities(LPSIZEBUF msg) {
         if (nument == 0 && bits == 0)
             break;
         struct client_entity *lpEdict = &cl.ents[nument];
+        lpEdict->prev = lpEdict->current;
         CL_ParseDeltaEntity(msg, &lpEdict->current, nument, bits);
     }
     cl.num_entities = MAX_CLIENT_ENTITIES;
@@ -46,11 +47,14 @@ static void CL_ParseBaseline(LPSIZEBUF msg) {
     memset(&cent->baseline, 0, sizeof(ENTITYSTATE));
     CL_ParseDeltaEntity(msg, &cent->baseline, index, bits);
     memcpy(&cent->current, &cent->baseline, sizeof(ENTITYSTATE));
+    memcpy(&cent->prev, &cent->baseline, sizeof(ENTITYSTATE));
 }
 
 void CL_ParseFrame(LPSIZEBUF msg) {
     cl.frame.serverframe = MSG_ReadLong(msg);
+    cl.frame.servertime = MSG_ReadLong(msg);
     cl.frame.oldclientframe = MSG_ReadLong(msg);
+    cl.time = cl.frame.servertime;
 }
 
 void CL_ParseServerMessage(LPSIZEBUF msg) {

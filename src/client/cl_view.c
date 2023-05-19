@@ -6,20 +6,21 @@ static struct {
     int num_entities;
 } view_state;
 
-static void V_AddClientEntity(struct client_entity const *lpEdict) {
+static void V_AddClientEntity(struct client_entity const *ent) {
     RENDERENTITY re = { 0 };
-    re.origin = lpEdict->current.origin;
-    re.angle = lpEdict->current.angle;
-    re.scale = lpEdict->current.scale;
-    re.frame = lpEdict->current.frame;
-    re.model = cl.models[lpEdict->current.model];
-    re.skin = cl.pics[lpEdict->current.image];
+    re.origin = Vector3_lerp(&ent->prev.origin, &ent->current.origin, cl.viewDef.lerpfrac);
+    re.angle = LerpNumber(ent->prev.angle, ent->current.angle, cl.viewDef.lerpfrac);
+    re.scale = LerpNumber(ent->prev.scale, ent->current.scale, cl.viewDef.lerpfrac);
+    re.frame = ent->current.frame;
+    re.oldframe = ent->prev.frame;
+    re.model = cl.models[ent->current.model];
+    re.skin = cl.pics[ent->current.image];
     
     extern int selectedEntity;
     
     view_state.entities[view_state.num_entities++] = re;
     
-    if (lpEdict->current.number == selectedEntity) {
+    if (ent->current.number == selectedEntity) {
         int model = 3;
         re.model = cl.models[model];
         view_state.entities[view_state.num_entities++] = re;
@@ -37,12 +38,15 @@ static void V_ClearScene(void) {
 }
 
 static void CL_AddEntities(void) {
+    cl.viewDef.lerpfrac = (float)(cl.time - cl.frame.servertime) / FRAMETIME;
+    
     FOR_LOOP(index, MAX_CLIENT_ENTITIES) {
         struct client_entity const *ce = &cl.ents[index];
         if (!ce->current.model)
             continue;
         V_AddClientEntity(ce);
     }
+    
     cl.viewDef.num_entities = view_state.num_entities;
     cl.viewDef.entities = view_state.entities;
 }

@@ -51,19 +51,40 @@ static void R_GetModelKeytrackValue(LPCMODEL lpModel, LPCMODELKEYTRACK lpKeytrac
 //    return lpKeytrack->values[0].value;
 }
 
-static void R_CalculateNodeMatrix(LPCMODEL lpModel, LPMODELNODE lpNode, DWORD dwFrameNumber, LPMATRIX4 lpMatrix) {
+static void R_CalculateNodeMatrix(LPCMODEL lpModel, LPMODELNODE lpNode, DWORD dwFrame, DWORD dwOldFrame, LPMATRIX4 lpMatrix) {
     VECTOR3 vTranslation = { 0, 0, 0 };
-    VECTOR4 vRotation = { 0, 0, 0, 1 };
+    QUATERNION vRotation = { 0, 0, 0, 1 };
     VECTOR3 vScale = { 1, 1, 1 };
     LPCVECTOR3 lpPivot = (VECTOR3 const *)lpNode->lpPivot;
-    if (lpNode->lpTranslation) {
-        R_GetModelKeytrackValue(lpModel, lpNode->lpTranslation, dwFrameNumber, &vTranslation);
-    }
-    if (lpNode->lpRotation) {
-        R_GetModelKeytrackValue(lpModel, lpNode->lpRotation, dwFrameNumber, &vRotation);
-    }
-    if (lpNode->lpScale) {
-        R_GetModelKeytrackValue(lpModel, lpNode->lpScale, dwFrameNumber, &vScale);
+    if (dwOldFrame != dwFrame) {
+        if (lpNode->lpTranslation) {
+            VECTOR3 t0, t1;
+            R_GetModelKeytrackValue(lpModel, lpNode->lpTranslation, dwOldFrame, &t0);
+            R_GetModelKeytrackValue(lpModel, lpNode->lpTranslation, dwFrame, &t1);
+            vTranslation = Vector3_lerp(&t0, &t1, tr.viewDef.lerpfrac);
+        }
+        if (lpNode->lpRotation) {
+            QUATERNION r0, r1;
+            R_GetModelKeytrackValue(lpModel, lpNode->lpRotation, dwOldFrame, &r0);
+            R_GetModelKeytrackValue(lpModel, lpNode->lpRotation, dwFrame, &r1);
+            vRotation = Quaternion_slerp(&r0, &r1, tr.viewDef.lerpfrac);
+        }
+        if (lpNode->lpScale) {
+            VECTOR3 s0, s1;
+            R_GetModelKeytrackValue(lpModel, lpNode->lpScale, dwOldFrame, &s0);
+            R_GetModelKeytrackValue(lpModel, lpNode->lpScale, dwFrame, &s1);
+            vScale = Vector3_lerp(&s0, &s1, tr.viewDef.lerpfrac);
+        }
+    } else {
+        if (lpNode->lpTranslation) {
+            R_GetModelKeytrackValue(lpModel, lpNode->lpTranslation, dwFrame, &vTranslation);
+        }
+        if (lpNode->lpRotation) {
+            R_GetModelKeytrackValue(lpModel, lpNode->lpRotation, dwFrame, &vRotation);
+        }
+        if (lpNode->lpScale) {
+            R_GetModelKeytrackValue(lpModel, lpNode->lpScale, dwFrame, &vScale);
+        }
     }
     if (!lpNode->lpTranslation && !lpNode->lpRotation && !lpNode->lpScale) {
         Matrix4_identity(lpMatrix);
@@ -89,16 +110,16 @@ LPCMATRIX4 R_GetNodeGlobalMatrix(LPMODELNODE lpNode) {
     return &lpNode->globalMatrix;
 }
 
-static void R_CalculateBoneMatrices(LPCMODEL lpModel, LPMATRIX4 lpModelMatrices, DWORD dwFrameNumber) {
+static void R_CalculateBoneMatrices(LPCMODEL lpModel, LPMATRIX4 lpModelMatrices, DWORD dwFrame, DWORD dwOldFrame) {
     DWORD dwBoneIndex = 1;
     
     FOR_EACH_LIST(struct tModelBone, lpBone, lpModel->lpBones) {
         memset(&lpBone->node.globalMatrix, 0, sizeof(MATRIX4));
-        R_CalculateNodeMatrix(lpModel, &lpBone->node, dwFrameNumber, &lpBone->node.localMatrix);
+        R_CalculateNodeMatrix(lpModel, &lpBone->node, dwFrame, dwOldFrame, &lpBone->node.localMatrix);
     }
     FOR_EACH_LIST(struct tModelHelper, lpHelper, lpModel->lpHelpers) {
         memset(&lpHelper->node.globalMatrix, 0, sizeof(MATRIX4));
-        R_CalculateNodeMatrix(lpModel, &lpHelper->node, dwFrameNumber, &lpHelper->node.localMatrix);
+        R_CalculateNodeMatrix(lpModel, &lpHelper->node, dwFrame, dwOldFrame, &lpHelper->node.localMatrix);
     }
     FOR_EACH_LIST(struct tModelBone, lpBone, lpModel->lpBones) {
         lpModelMatrices[dwBoneIndex++] = *R_GetNodeGlobalMatrix(&lpBone->node);
@@ -119,10 +140,10 @@ static void R_RenderGeoset(LPCMODEL lpModel, LPMODELGEOSET lpGeoset, LPCMATRIX4 
 }
 
 
-static void R_BindBoneMatrices(LPMODEL lpModel, DWORD dwFrameNumber) {
+static void R_BindBoneMatrices(LPMODEL lpModel, DWORD dwFrame, DWORD dwOldFrame) {
     MATRIX4 aBoneMatrices[MAX_BONE_MATRICES];
 
-    R_CalculateBoneMatrices(lpModel, aBoneMatrices, dwFrameNumber);
+    R_CalculateBoneMatrices(lpModel, aBoneMatrices, dwFrame, dwOldFrame);
     
     Matrix4_identity(node_matrices);
 
@@ -197,7 +218,7 @@ void RenderModel(LPCRENDERENTITY lpEdict) {
         R_BindTexture(lpEdict->skin, 0);
     }
     
-    R_BindBoneMatrices((LPMODEL)lpModel, lpEdict->frame);
+    R_BindBoneMatrices((LPMODEL)lpModel, lpEdict->frame, lpEdict->oldframe);
     
     for (DWORD dwGeosetID = 0;
          lpMaterial && lpGeoset;

@@ -3,6 +3,7 @@
 
 #include "vector3.h"
 #include "vector4.h"
+#include "quaternion.h"
 
 typedef enum {
     ROTATE_XYZ,
@@ -36,8 +37,8 @@ void Matrix4_lookAt(LPMATRIX4 m, LPCVECTOR3 eye, LPCVECTOR3 direction, LPCVECTOR
 void Matrix4_inverse(LPCMATRIX4 m, LPMATRIX4 out);
 void Matrix4_transpose(LPCMATRIX4 m, LPMATRIX4 out);
 void Matrix4_rotate4(LPMATRIX4 m, LPCVECTOR4 quat);
-void Matrix4_from_rotation_origin(LPMATRIX4 out, LPCVECTOR4 rotation, LPCVECTOR3 origin);
-void Matrix4_from_rotation_translation_scale_origin(LPMATRIX4 out, LPCVECTOR4 q, LPCVECTOR3 v, LPCVECTOR3 s, LPCVECTOR3 o);
+void Matrix4_from_rotation_origin(LPMATRIX4 out, LPCQUATERNION rotation, LPCVECTOR3 origin);
+void Matrix4_from_rotation_translation_scale_origin(LPMATRIX4 out, LPCQUATERNION q, LPCVECTOR3 v, LPCVECTOR3 s, LPCVECTOR3 o);
 void Matrix4_from_translation(LPMATRIX4 out, LPCVECTOR3 v);
 
 #endif /* matrix4_h */

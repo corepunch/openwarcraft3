@@ -313,7 +313,7 @@ void Matrix4_rotate(LPMATRIX4 m, LPCVECTOR3 euler, ROTATIONORDER order) {
     Matrix4_multiply(&tmp, &tmp2, m);
 }
 
-void Matrix4_from_rotation_origin(LPMATRIX4 out, LPCVECTOR4 rotation, LPCVECTOR3 origin) {
+void Matrix4_from_rotation_origin(LPMATRIX4 out, LPCQUATERNION rotation, LPCVECTOR3 origin) {
     const float x = rotation->x;
     const float y = rotation->y;
     const float z = rotation->z;
@@ -353,7 +353,7 @@ void Matrix4_from_rotation_origin(LPMATRIX4 out, LPCVECTOR4 rotation, LPCVECTOR3
 }
 
 
-void Matrix4_from_rotation_translation_scale_origin(LPMATRIX4 out, LPCVECTOR4 q, LPCVECTOR3 v, LPCVECTOR3 s, LPCVECTOR3 o) {
+void Matrix4_from_rotation_translation_scale_origin(LPMATRIX4 out, LPCQUATERNION q, LPCVECTOR3 v, LPCVECTOR3 s, LPCVECTOR3 o) {
     const float x = q->x;
     const float y = q->y;
     const float z = q->z;

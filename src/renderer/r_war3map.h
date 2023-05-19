@@ -40,7 +40,6 @@ LPMAPLAYER R_BuildMapSegmentLayer(LPCWAR3MAP lpMap, DWORD sx, DWORD sy, DWORD dw
 LPMAPLAYER R_BuildMapSegmentCliffs(LPCWAR3MAP lpMap, DWORD sx, DWORD sy, DWORD dwCliff);
 LPMAPLAYER R_BuildMapSegmentWater(LPCWAR3MAP lpMap, DWORD sx, DWORD sy);
 
-float LerpNumber(float a, float b, float t);
 VECTOR2 GetWar3MapPosition(LPCWAR3MAP lpWar3Map, float x, float y);
 float GetTileDepth(float waterlevel, float height);
 struct color32 MakeColor(float r, float g, float b, float a);

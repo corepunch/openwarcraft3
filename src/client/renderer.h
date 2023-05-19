@@ -23,15 +23,17 @@ struct render_entity {
     float scale;
     LPCMODEL model;
     LPTEXTURE skin;
-    int frame;
+    DWORD frame;
+    DWORD oldframe;
 };
 
 struct viewDef {
     float fov;
     VECTOR3 vieworg;
     VECTOR3 viewangles;
-    int time;
-    int num_entities;
+    float lerpfrac;
+    DWORD time;
+    DWORD num_entities;
     LPRENDERENTITY entities;
     MATRIX4 projection_matrix;
     MATRIX4 light_matrix;

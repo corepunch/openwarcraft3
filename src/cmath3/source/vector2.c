@@ -46,3 +46,7 @@ VECTOR2 Vector2_lerp(LPCVECTOR2 a, LPCVECTOR2 b, float t) {
         .y = a->y * (1 - t) + b->y * t,
     };
 }
+
+float LerpNumber(float a, float b, float t) {
+    return a * (1 - t) + b * t;
+}
