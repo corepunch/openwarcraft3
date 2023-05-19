@@ -16,7 +16,7 @@ void ai_attack(LPEDICT self) {
 
 void ai_walk(LPEDICT self) {
     const float DISTANCE = 0.5 * FRAMETIME;
-    const float ATTACK_DISTANCE = 250;
+    const float ATTACK_DISTANCE = 200;
     if (self->monsterinfo.aiflags & AI_HAS_TARGET) {
         self->monsterinfo.goal.x = monster_target(self)->s.origin.x;
         self->monsterinfo.goal.y = monster_target(self)->s.origin.y;
