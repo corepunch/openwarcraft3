@@ -29,14 +29,16 @@ static LPMAPSEGMENT R_BuildMapSegment(LPCWAR3MAP lpMap, DWORD sx, DWORD sy) {
     lpMapLayer->lpNext = lpMapSegment->lpLayers;
     lpMapSegment->lpLayers = lpMapLayer;
     FOR_LOOP(dwCliff, lpMap->numCliffs) {
-        lpMapLayer = R_BuildMapSegmentCliffs(lpMap, sx, sy, dwCliff);
-        lpMapLayer->lpNext = lpMapSegment->lpLayers;
-        lpMapSegment->lpLayers = lpMapLayer;
+        if ((lpMapLayer = R_BuildMapSegmentCliffs(lpMap, sx, sy, dwCliff))) {
+            lpMapLayer->lpNext = lpMapSegment->lpLayers;
+            lpMapSegment->lpLayers = lpMapLayer;
+        }
     }
     for (DWORD dwLayer = lpMap->numGrounds; dwLayer > 0; dwLayer--) {
-        lpMapLayer = R_BuildMapSegmentLayer(lpMap, sx, sy, dwLayer - 1);
-        lpMapLayer->lpNext = lpMapSegment->lpLayers;
-        lpMapSegment->lpLayers = lpMapLayer;
+        if ((lpMapLayer = R_BuildMapSegmentLayer(lpMap, sx, sy, dwLayer - 1))) {
+            lpMapLayer->lpNext = lpMapSegment->lpLayers;
+            lpMapSegment->lpLayers = lpMapLayer;
+        }
     }
     return lpMapSegment;
 }

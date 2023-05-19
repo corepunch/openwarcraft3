@@ -4,6 +4,8 @@
 static VERTEX aVertexBuffer[(SEGMENT_SIZE+1)*(SEGMENT_SIZE+1)*64];
 static LPVERTEX lpCurrentVertex = NULL;
 
+#define NO_CLIFF MAKEFOURCC('C','L','n','o')
+
 struct tCliff {
     DWORD cliffid;
     LPCMODEL model;
@@ -130,11 +132,23 @@ static void R_MakeCliff(LPCWAR3MAP lpMap, DWORD x, DWORD y, DWORD dwCliff, LPCCL
 LPMAPLAYER R_BuildMapSegmentCliffs(LPCWAR3MAP lpMap, DWORD sx, DWORD sy, DWORD dwCliff) {
     LPMAPLAYER lpMapLayer = ri.MemAlloc(sizeof(MAPLAYER));
     PATHSTR zBuffer;
-    LPCLIFFINFO lpCliffInfo = ri.FindCliffInfo(lpMap->lpCliffs[dwCliff]);
-    if (!lpCliffInfo)
+    DWORD dwCliffID = lpMap->lpCliffs[dwCliff];
+    if (dwCliffID == NO_CLIFF) {
         return NULL;
-    sprintf(zBuffer, "%s\\%s.blp", lpCliffInfo->texDir, lpCliffInfo->texFile);
+    }
+    LPCLIFFINFO lpCliffInfo = ri.FindCliffInfo(dwCliffID);
+//    FOR_LOOP(idx, lpMap->numCliffs) {
+//        printf("%.4s\n", (char*)&lpMap->lpCliffs[idx]);
+//    }
+    if (!lpCliffInfo) {
+        return NULL;
+    }
+    sprintf(zBuffer, "%s\\%c_%s.blp", lpCliffInfo->texDir, lpMap->tileset, lpCliffInfo->texFile);
     lpMapLayer->lpTexture = R_LoadTexture(zBuffer);
+    if (!lpMapLayer->lpTexture) {
+        sprintf(zBuffer, "%s\\%s.blp", lpCliffInfo->texDir, lpCliffInfo->texFile);
+        lpMapLayer->lpTexture = R_LoadTexture(zBuffer);
+    }
     lpMapLayer->dwType = MAPLAYERTYPE_CLIFF;
     lpCurrentVertex = aVertexBuffer;
     for (DWORD x = sx * SEGMENT_SIZE; x < (sx + 1) * SEGMENT_SIZE; x++) {
