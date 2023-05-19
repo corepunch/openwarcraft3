@@ -7,7 +7,7 @@ static mmove_t peon_move_stand = { "Stand", ai_stand };
 static mmove_t peon_move_walk = { "Walk", ai_walk };
 
 void ai_walk(LPEDICT self) {
-    const float DISTANCE = 0.5 * frametime;
+    const float DISTANCE = 0.5 * FRAMETIME;
     VECTOR2 dir = Vector2_sub((LPCVECTOR2)&self->s.origin, &self->monsterinfo.goal);
     if (Vector2_len(&dir) < DISTANCE) {
         self->monsterinfo.stand(self);

@@ -7,7 +7,7 @@ void M_MoveFrame(LPEDICT self) {
     if (self->s.frame < anim.firstframe || self->s.frame >= anim.lastframe) {
         self->s.frame = anim.firstframe;
     } else {
-        self->s.frame += frametime;
+        self->s.frame += FRAMETIME;
         while (self->s.frame >= anim.lastframe) {
             self->s.frame -= MAX(1, anim.lastframe - anim.firstframe);
         }

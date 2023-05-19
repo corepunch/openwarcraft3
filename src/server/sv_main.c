@@ -181,14 +181,20 @@ int SV_ImageIndex(LPCSTR name) {
     return SV_FindIndex(name, CS_IMAGES, MAX_IMAGES, true);
 }
 
-void SV_RunGameFrame(DWORD msec) {
+void SV_RunGameFrame(void) {
     sv.framenum++;
-    sv.time += msec;
-    ge->RunFrame(msec);
+    sv.time += FRAMETIME;
+    ge->RunFrame();
 }
 
 void SV_Frame(DWORD msec) {
+    svs.realtime += msec;
+    
+    if (svs.realtime < sv.time) {
+        return;
+    }
+
     SV_ReadPackets();
-    SV_RunGameFrame(msec);
+    SV_RunGameFrame();
     SV_SendClientMessages();
 }

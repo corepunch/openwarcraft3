@@ -36,6 +36,7 @@ struct server_static {
     DWORD num_clients;
     DWORD num_client_entities;
     DWORD next_client_entities;
+    DWORD realtime;
 };
 
 struct mdx_sequence {

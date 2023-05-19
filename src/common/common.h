@@ -17,6 +17,7 @@
 #define MAKEFOURCC(ch0, ch1, ch2, ch3) ((int)(char)(ch0) | ((int)(char)(ch1) << 8) | ((int)(char)(ch2) << 16) | ((int)(char)(ch3) << 24))
 #define FOFS(type, x) (HANDLE)&(((struct type *)NULL)->x)
 
+#define FRAMETIME 100
 #define UPDATE_BACKUP 16
 #define UPDATE_MASK (UPDATE_BACKUP-1)
 

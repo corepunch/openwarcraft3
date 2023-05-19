@@ -182,6 +182,5 @@ extern struct game_locals game;
 extern struct game_state game_state;
 extern struct game_export globals;
 extern struct game_import gi;
-extern DWORD frametime;
 
 #endif
