@@ -51,39 +51,39 @@ static void R_GetModelKeytrackValue(LPCMODEL lpModel, LPCMODELKEYTRACK lpKeytrac
 //    return lpKeytrack->values[0].value;
 }
 
-static void R_CalculateNodeMatrix(LPCMODEL lpModel, LPMODELNODE lpNode, DWORD dwFrame, DWORD dwOldFrame, LPMATRIX4 lpMatrix) {
+static void R_CalculateNodeMatrix(LPCMODEL lpModel, LPMODELNODE lpNode, DWORD dwFrame1, DWORD dwFrame0, LPMATRIX4 lpMatrix) {
     VECTOR3 vTranslation = { 0, 0, 0 };
     QUATERNION vRotation = { 0, 0, 0, 1 };
     VECTOR3 vScale = { 1, 1, 1 };
     LPCVECTOR3 lpPivot = (VECTOR3 const *)lpNode->lpPivot;
-    if (dwOldFrame != dwFrame) {
+    if (dwFrame0 != dwFrame1) {
         if (lpNode->lpTranslation) {
             VECTOR3 t0, t1;
-            R_GetModelKeytrackValue(lpModel, lpNode->lpTranslation, dwOldFrame, &t0);
-            R_GetModelKeytrackValue(lpModel, lpNode->lpTranslation, dwFrame, &t1);
+            R_GetModelKeytrackValue(lpModel, lpNode->lpTranslation, dwFrame0, &t0);
+            R_GetModelKeytrackValue(lpModel, lpNode->lpTranslation, dwFrame1, &t1);
             vTranslation = Vector3_lerp(&t0, &t1, tr.viewDef.lerpfrac);
         }
         if (lpNode->lpRotation) {
             QUATERNION r0, r1;
-            R_GetModelKeytrackValue(lpModel, lpNode->lpRotation, dwOldFrame, &r0);
-            R_GetModelKeytrackValue(lpModel, lpNode->lpRotation, dwFrame, &r1);
+            R_GetModelKeytrackValue(lpModel, lpNode->lpRotation, dwFrame0, &r0);
+            R_GetModelKeytrackValue(lpModel, lpNode->lpRotation, dwFrame1, &r1);
             vRotation = Quaternion_slerp(&r0, &r1, tr.viewDef.lerpfrac);
         }
         if (lpNode->lpScale) {
             VECTOR3 s0, s1;
-            R_GetModelKeytrackValue(lpModel, lpNode->lpScale, dwOldFrame, &s0);
-            R_GetModelKeytrackValue(lpModel, lpNode->lpScale, dwFrame, &s1);
+            R_GetModelKeytrackValue(lpModel, lpNode->lpScale, dwFrame0, &s0);
+            R_GetModelKeytrackValue(lpModel, lpNode->lpScale, dwFrame1, &s1);
             vScale = Vector3_lerp(&s0, &s1, tr.viewDef.lerpfrac);
         }
     } else {
         if (lpNode->lpTranslation) {
-            R_GetModelKeytrackValue(lpModel, lpNode->lpTranslation, dwFrame, &vTranslation);
+            R_GetModelKeytrackValue(lpModel, lpNode->lpTranslation, dwFrame1, &vTranslation);
         }
         if (lpNode->lpRotation) {
-            R_GetModelKeytrackValue(lpModel, lpNode->lpRotation, dwFrame, &vRotation);
+            R_GetModelKeytrackValue(lpModel, lpNode->lpRotation, dwFrame1, &vRotation);
         }
         if (lpNode->lpScale) {
-            R_GetModelKeytrackValue(lpModel, lpNode->lpScale, dwFrame, &vScale);
+            R_GetModelKeytrackValue(lpModel, lpNode->lpScale, dwFrame1, &vScale);
         }
     }
     if (!lpNode->lpTranslation && !lpNode->lpRotation && !lpNode->lpScale) {
@@ -110,16 +110,16 @@ LPCMATRIX4 R_GetNodeGlobalMatrix(LPMODELNODE lpNode) {
     return &lpNode->globalMatrix;
 }
 
-static void R_CalculateBoneMatrices(LPCMODEL lpModel, LPMATRIX4 lpModelMatrices, DWORD dwFrame, DWORD dwOldFrame) {
+static void R_CalculateBoneMatrices(LPCMODEL lpModel, LPMATRIX4 lpModelMatrices, DWORD dwFrame1, DWORD dwFrame0) {
     DWORD dwBoneIndex = 1;
     
     FOR_EACH_LIST(struct tModelBone, lpBone, lpModel->lpBones) {
         memset(&lpBone->node.globalMatrix, 0, sizeof(MATRIX4));
-        R_CalculateNodeMatrix(lpModel, &lpBone->node, dwFrame, dwOldFrame, &lpBone->node.localMatrix);
+        R_CalculateNodeMatrix(lpModel, &lpBone->node, dwFrame1, dwFrame0, &lpBone->node.localMatrix);
     }
     FOR_EACH_LIST(struct tModelHelper, lpHelper, lpModel->lpHelpers) {
         memset(&lpHelper->node.globalMatrix, 0, sizeof(MATRIX4));
-        R_CalculateNodeMatrix(lpModel, &lpHelper->node, dwFrame, dwOldFrame, &lpHelper->node.localMatrix);
+        R_CalculateNodeMatrix(lpModel, &lpHelper->node, dwFrame1, dwFrame0, &lpHelper->node.localMatrix);
     }
     FOR_EACH_LIST(struct tModelBone, lpBone, lpModel->lpBones) {
         lpModelMatrices[dwBoneIndex++] = *R_GetNodeGlobalMatrix(&lpBone->node);
@@ -139,11 +139,10 @@ static void R_RenderGeoset(LPCMODEL lpModel, LPMODELGEOSET lpGeoset, LPCMATRIX4 
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 }
 
+static MATRIX4 aBoneMatrices[MAX_BONE_MATRICES];
 
-static void R_BindBoneMatrices(LPMODEL lpModel, DWORD dwFrame, DWORD dwOldFrame) {
-    MATRIX4 aBoneMatrices[MAX_BONE_MATRICES];
-
-    R_CalculateBoneMatrices(lpModel, aBoneMatrices, dwFrame, dwOldFrame);
+static void R_BindBoneMatrices(LPMODEL lpModel, DWORD dwFrame1, DWORD dwFrame0) {
+    R_CalculateBoneMatrices(lpModel, aBoneMatrices, dwFrame1, dwFrame0);
     
     Matrix4_identity(node_matrices);
 

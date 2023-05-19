@@ -6,10 +6,22 @@ static struct {
     int num_entities;
 } view_state;
 
+float LerpRotation(float a, float b, float t) {
+    float apos = a + 2 * M_PI;
+    float aneg = a - 2 * M_PI;
+    if (fabs(a - b) < fabs(apos - b) && fabs(a - b) < fabs(aneg - b)) {
+        return LerpNumber(a, b, t);
+    } else if (fabs(apos - b) < fabs(aneg - b)) {
+        return LerpNumber(apos, b, t);
+    } else {
+        return LerpNumber(aneg, b, t);
+    }
+}
+
 static void V_AddClientEntity(struct client_entity const *ent) {
     RENDERENTITY re = { 0 };
     re.origin = Vector3_lerp(&ent->prev.origin, &ent->current.origin, cl.viewDef.lerpfrac);
-    re.angle = LerpNumber(ent->prev.angle, ent->current.angle, cl.viewDef.lerpfrac);
+    re.angle = LerpRotation(ent->prev.angle, ent->current.angle, cl.viewDef.lerpfrac);
     re.scale = LerpNumber(ent->prev.scale, ent->current.scale, cl.viewDef.lerpfrac);
     re.frame = ent->current.frame;
     re.oldframe = ent->prev.frame;
