@@ -5,6 +5,8 @@
 
 enum {
     AI_HAS_GOAL = 1 << 0,
+    AI_HAS_TARGET = 1 << 1,
+    AI_HOLD_FRAME = 1 << 2,
 };
 
 KNOWN_AS(UnitData, UNITDATA);
@@ -16,17 +18,18 @@ typedef struct {
     LPCSTR animation;
     void (*think)(LPEDICT self);
     void (*endfunc)(LPEDICT self);
-//    int firstframe;
-//    int lastframe;
 } mmove_t;
 
 typedef struct {
     mmove_t *currentmove;
     DWORD aiflags;
+    DWORD target;
     VECTOR2 goal;
-//    struct AnimationInfo animation;
+    int health;
     void (*stand)(LPEDICT self);
     void (*walk)(LPEDICT self);
+    void (*attack)(LPEDICT self);
+    void (*death)(LPEDICT self);
 } monsterinfo_t;
 
 struct edict {

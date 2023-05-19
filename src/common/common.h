@@ -123,11 +123,13 @@ enum clc_ops {
 enum clientcommand {
     CMD_NO_COMMAND,
     CMD_MOVE,
+    CMD_ATTACK,
 };
 
 struct client_message {
     enum clientcommand cmd;
     DWORD entity;
+    DWORD targetentity;
     VECTOR2 location;
 };
 

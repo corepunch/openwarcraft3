@@ -90,7 +90,9 @@ void CL_SendCommands(void) {
     extern struct client_message msg;
     if (msg.cmd != CMD_NO_COMMAND){
         MSG_WriteByte(&cls.netchan.message, clc_move);
+        MSG_WriteByte(&cls.netchan.message, msg.cmd);
         MSG_WriteShort(&cls.netchan.message, msg.entity);
+        MSG_WriteShort(&cls.netchan.message, msg.targetentity);
         MSG_WriteShort(&cls.netchan.message, msg.location.x);
         MSG_WriteShort(&cls.netchan.message, msg.location.y);
         Netchan_Transmit(NS_CLIENT, &cls.netchan);

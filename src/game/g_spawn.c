@@ -60,7 +60,6 @@ void SP_CallSpawn(LPEDICT lpEdict) {
 }
 
 void G_SpawnEntities(LPCDOODAD doodads, DWORD numDoodads) {
-    globals.num_edicts = 0;
     LPEDICT e = G_Spawn();
     e->class_id = MAKEFOURCC('o', 'p', 'e', 'o');
     e->s.origin = (VECTOR3) { 600, -1600, 100 };
@@ -69,6 +68,15 @@ void G_SpawnEntities(LPCDOODAD doodads, DWORD numDoodads) {
     e->s.team = 1;
     SP_CallSpawn(e);
     gi.ModelIndex("UI\\Feedback\\SelectionCircleUnit\\selectioncircleUnit.mdx");
+
+    e = G_Spawn();
+    e->class_id = MAKEFOURCC('o', 'p', 'e', 'o');
+    e->s.origin = (VECTOR3) { -200, -1200, 100 };
+    e->s.angle = -20;
+    e->s.scale = 2;
+    e->s.team = 2;
+    SP_CallSpawn(e);
+
     FOR_LOOP(index, numDoodads) {
         LPCDOODAD doodad = &doodads[index];
         LPEDICT e = G_Spawn();

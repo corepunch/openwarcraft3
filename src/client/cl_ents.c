@@ -43,14 +43,16 @@ void CL_SelectEntityAtScreenPoint(DWORD dwPixelX, DWORD dwPixelY) {
             clickedEntity = e->current.number;
         }
     }
-    if (clickedEntity != -1 && cl.ents[clickedEntity].current.team == cl.team) {
-        selectedEntity = clickedEntity;
+    if (clickedEntity != -1) {
+        if (cl.ents[clickedEntity].current.team == cl.team) {
+            selectedEntity = clickedEntity;
+        } else if (cl.ents[clickedEntity].current.team > 0 && selectedEntity != -1) {
+            msg.targetentity = clickedEntity;
+            msg.entity = selectedEntity;
+            msg.cmd = CMD_ATTACK;
+        }
     } else if (selectedEntity != -1) {
         VECTOR3 targetorg;
-//        Line3_intersect_plane3(&line, &(const PLANE3) {
-//            .point = { 0, 0, 0 },
-//            .normal = { 0, 0, 1 },
-//        }, &targetorg);
         if (CM_IntersectLineWithHeightmap(&line, &targetorg)) {
             msg.location.x = targetorg.x;
             msg.location.y = targetorg.y;

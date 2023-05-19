@@ -2,21 +2,30 @@
 #include <stdlib.h>
 
 void M_MoveFrame(LPEDICT self) {
+    if (self->monsterinfo.aiflags & AI_HOLD_FRAME) {
+        return;
+    }
     mmove_t const *move = self->monsterinfo.currentmove;
     ANIMATION anim = gi.GetAnimation(self->s.model, move->animation);
     if (self->s.frame < anim.firstframe || self->s.frame >= anim.lastframe) {
         self->s.frame = anim.firstframe;
     } else {
-        self->s.frame += FRAMETIME;
-        while (self->s.frame >= anim.lastframe) {
-            self->s.frame -= MAX(1, anim.lastframe - anim.firstframe);
+        if ((self->s.frame + FRAMETIME) >= anim.lastframe) {
+            if (move && move->endfunc){
+                move->endfunc(self);
+            }
+            if (!(self->monsterinfo.aiflags & AI_HOLD_FRAME)) {
+                self->s.frame = anim.firstframe;
+            }
+        } else {
+            self->s.frame += FRAMETIME;
         }
     }
 }
 
 void monster_think(LPEDICT self) {
     M_MoveFrame(self);
-    if (self->monsterinfo.currentmove) {
+    if (self->monsterinfo.currentmove->think) {
         self->monsterinfo.currentmove->think(self);
     }
     self->s.origin.z = gi.GetHeightAtPoint(self->s.origin.x, self->s.origin.y);

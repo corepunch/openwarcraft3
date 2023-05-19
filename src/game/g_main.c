@@ -24,9 +24,19 @@ static void G_Shutdown(void) {
 
 static void G_ClientCommand(LPCCLIENTMESSAGE lpClientMessage) {
     LPEDICT lpEdict = &game_state.edicts[lpClientMessage->entity];
-    lpEdict->monsterinfo.goal.x = lpClientMessage->location.x;
-    lpEdict->monsterinfo.goal.y = lpClientMessage->location.y;
-    lpEdict->monsterinfo.aiflags |= AI_HAS_GOAL;
+    switch (lpClientMessage->cmd) {
+        case CMD_MOVE:
+            lpEdict->monsterinfo.goal.x = lpClientMessage->location.x;
+            lpEdict->monsterinfo.goal.y = lpClientMessage->location.y;
+            lpEdict->monsterinfo.aiflags |= AI_HAS_GOAL;
+            break;
+        case CMD_ATTACK:
+            lpEdict->monsterinfo.target = lpClientMessage->targetentity;
+            lpEdict->monsterinfo.aiflags |= AI_HAS_TARGET;
+            break;
+        default:
+            break;
+    }
 }
 
 static void G_RunEntity(LPEDICT lpEdict) {

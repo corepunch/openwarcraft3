@@ -2,7 +2,9 @@
 
 void SV_ParseMove(LPSIZEBUF msg, LPCLIENT lpClient) {
     CLIENTMESSAGE cmsg = {
+        .cmd = MSG_ReadByte(msg),
         .entity = MSG_ReadShort(msg),
+        .targetentity = MSG_ReadShort(msg),
         .location = {
             .x = MSG_ReadShort(msg),
             .y = MSG_ReadShort(msg),
