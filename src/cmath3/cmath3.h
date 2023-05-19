@@ -13,5 +13,8 @@
 #include "types/quaternion.h"
 #include "types/line3.h"
 #include "types/sphere3.h"
+#include "types/plane3.h"
+#include "types/box3.h"
+#include "types/triangle3.h"
 
 #endif

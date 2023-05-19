@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		78662FED2A176DB400266A62 /* triangle3.c in Sources */ = {isa = PBXBuildFile; fileRef = 78662FEC2A176DB400266A62 /* triangle3.c */; };
 		78A896CD2A16014C00BC5B56 /* cmath3.h in Headers */ = {isa = PBXBuildFile; fileRef = 78A896CB2A16014C00BC5B56 /* cmath3.h */; };
 		78A896D02A16015D00BC5B56 /* vector2.h in Headers */ = {isa = PBXBuildFile; fileRef = 78A896CE2A16015D00BC5B56 /* vector2.h */; };
 		78A896D12A16015D00BC5B56 /* vector2.c in Sources */ = {isa = PBXBuildFile; fileRef = 78A896CF2A16015D00BC5B56 /* vector2.c */; };
@@ -24,6 +25,8 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		78662FEB2A176C2000266A62 /* triangle3.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = triangle3.h; sourceTree = "<group>"; };
+		78662FEC2A176DB400266A62 /* triangle3.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = triangle3.c; sourceTree = "<group>"; };
 		78A896BD2A16012C00BC5B56 /* libcmath3.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; includeInIndex = 0; path = libcmath3.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
 		78A896CB2A16014C00BC5B56 /* cmath3.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = cmath3.h; sourceTree = "<group>"; };
 		78A896CE2A16015D00BC5B56 /* vector2.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = vector2.h; sourceTree = "<group>"; };
@@ -84,6 +87,7 @@
 				78A896D32A1601FB00BC5B56 /* vector3.c */,
 				78A896CF2A16015D00BC5B56 /* vector2.c */,
 				78A896ED2A1615CD00BC5B56 /* line3.c */,
+				78662FEC2A176DB400266A62 /* triangle3.c */,
 			);
 			path = source;
 			sourceTree = "<group>";
@@ -98,6 +102,7 @@
 				78A896F02A162C0C00BC5B56 /* plane3.h */,
 				78A896DA2A1602B500BC5B56 /* quaternion.h */,
 				78A896EF2A16166200BC5B56 /* sphere3.h */,
+				78662FEB2A176C2000266A62 /* triangle3.h */,
 				78A896CE2A16015D00BC5B56 /* vector2.h */,
 				78A896D22A1601FB00BC5B56 /* vector3.h */,
 				78A896D62A16025C00BC5B56 /* vector4.h */,
@@ -184,6 +189,7 @@
 				78A896D52A1601FB00BC5B56 /* vector3.c in Sources */,
 				78A896E12A16032500BC5B56 /* matrix4.c in Sources */,
 				78A896D12A16015D00BC5B56 /* vector2.c in Sources */,
+				78662FED2A176DB400266A62 /* triangle3.c in Sources */,
 				78A896EE2A1615CD00BC5B56 /* line3.c in Sources */,
 				78A896DD2A1602B500BC5B56 /* quaternion.c in Sources */,
 			);

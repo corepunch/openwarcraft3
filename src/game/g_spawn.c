@@ -71,7 +71,7 @@ void G_SpawnEntities(LPCDOODAD doodads, DWORD numDoodads) {
     globals.num_edicts = 0;
     LPEDICT e = G_Spawn();
     e->class_id = MAKEFOURCC('o', 'p', 'e', 'o');
-    e->s.origin = (VECTOR3) { 700, -2000, 100 };
+    e->s.origin = (VECTOR3) { 600, -1600, 100 };
     e->s.angle = -20;
     e->s.scale = 2;
     e->s.team = 1;

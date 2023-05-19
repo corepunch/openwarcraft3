@@ -64,25 +64,27 @@ int Line3_intersect_plane3(LPCLINE3 lpLine, LPCPLANE3 lpPlane, LPVECTOR3 lpOutpu
     return 1;
 }
 
-int Line3_intersect_convex(LPCLINE3 lpLine, LPCVECTOR3 lpVertices, int numVertices, LPVECTOR3 lpOutput) {
-    VECTOR3 const side1 = Vector3_sub(&lpVertices[0], &lpVertices[1]);
-    VECTOR3 const side2 = Vector3_sub(&lpVertices[1], &lpVertices[2]);
-    VECTOR3 const normal = Vector3_cross(&side1, &side2);
-    VECTOR3 const diff1 = Vector3_sub(&lpLine->a, lpVertices);
-    VECTOR3 const diff2 = Vector3_sub(&lpLine->b, lpVertices);
+static inline int DotNormal(LPCVECTOR3 normal, LPCVECTOR3 a, LPCVECTOR3 b, LPCVECTOR3 c) {
+    VECTOR3 const rcross = Triangle_normal(&(const TRIANGLE3) { *a, *b, *c });
+    return Vector3_dot(normal, &rcross);
+}
+
+int Line3_intersect_triangle(LPCLINE3 lpLine, LPCTRIANGLE3 lpTriangle, LPVECTOR3 lpOutput) {
+    VECTOR3 const normal = Triangle_normal(lpTriangle);
+    VECTOR3 const diff1 = Vector3_sub(&lpLine->a, &lpTriangle->a);
+    VECTOR3 const diff2 = Vector3_sub(&lpLine->b, &lpTriangle->a);
     float const r1 = Vector3_dot(&normal, &diff1);
     float const r2 = Vector3_dot(&normal, &diff2);
     if ((r1 > 0) == (r2 > 0))
         return 0;
     VECTOR3 const distance = Vector3_sub(&lpLine->a, &lpLine->b);
     VECTOR3 const pc = Vector3_mad(&lpLine->a, r1 / (r2 - r1), &distance);
-    for (int i = 1; i <= numVertices; i++) {
-        VECTOR3 const tside1 = Vector3_sub(&lpVertices[i%numVertices], &lpVertices[i-1]);
-        VECTOR3 const tside2 = Vector3_sub(&pc, &lpVertices[i-1]);
-        VECTOR3 const rcross = Vector3_cross(&tside1, &tside2);
-        if (Vector3_dot(&normal, &rcross) < 0)
-            return 0;
-    }
+    if (DotNormal(&normal, &lpTriangle->a, &lpTriangle->b, &pc) < 0)
+        return 0;
+    if (DotNormal(&normal, &lpTriangle->b, &lpTriangle->c, &pc) < 0)
+        return 0;
+    if (DotNormal(&normal, &lpTriangle->c, &lpTriangle->a, &pc) < 0)
+        return 0;
     if (lpOutput)
         *lpOutput = pc;
     return 1;
