@@ -8,16 +8,12 @@ static mmove_t peon_move_walk = { "Walk", ai_walk };
 
 void ai_walk(LPEDICT self) {
     const float DISTANCE = 0.5 * frametime;
-    const float TARGET = Vector2_distance((LPVECTOR2)&self->s.origin, &self->objective);
-    if (TARGET < DISTANCE) {
+    VECTOR2 dir = Vector2_sub((LPCVECTOR2)&self->s.origin, &self->monsterinfo.goal);
+    if (Vector2_len(&dir) < DISTANCE) {
         self->monsterinfo.stand(self);
-        self->objective = (VECTOR2) {0,0};
+        self->monsterinfo.aiflags &= ~AI_HAS_GOAL;
         return;
     }
-    VECTOR2 dir = {
-        self->s.origin.x - self->objective.x,
-        self->s.origin.y - self->objective.y,
-    };
     Vector2_normalize(&dir);
     self->s.angle = atan2(-dir.y, -dir.x);
     self->s.origin.x += cos(self->s.angle) * DISTANCE;
@@ -25,7 +21,7 @@ void ai_walk(LPEDICT self) {
 }
 
 void ai_stand(LPEDICT self) {
-    if (self->objective.x != 0) {
+    if (self->monsterinfo.aiflags & AI_HAS_GOAL) {
         self->monsterinfo.walk(self);
     }
 }

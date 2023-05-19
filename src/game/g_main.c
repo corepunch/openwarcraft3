@@ -26,8 +26,9 @@ static void G_Shutdown(void) {
 
 static void G_ClientCommand(LPCCLIENTMESSAGE lpClientMessage) {
     LPEDICT lpEdict = &game_state.edicts[lpClientMessage->entity];
-    lpEdict->objective.x = lpClientMessage->location.x;
-    lpEdict->objective.y = lpClientMessage->location.y;
+    lpEdict->monsterinfo.goal.x = lpClientMessage->location.x;
+    lpEdict->monsterinfo.goal.y = lpClientMessage->location.y;
+    lpEdict->monsterinfo.aiflags |= AI_HAS_GOAL;
 }
 
 static void G_RunEntity(LPEDICT lpEdict) {

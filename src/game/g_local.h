@@ -3,6 +3,10 @@
 
 #include "../server/game.h"
 
+enum {
+    AI_HAS_GOAL = 1 << 0,
+};
+
 KNOWN_AS(UnitData, UNITDATA);
 KNOWN_AS(UnitUI, UNITUI);
 KNOWN_AS(DoodadInfo, DOODADINFO);
@@ -18,6 +22,8 @@ typedef struct {
 
 typedef struct {
     mmove_t *currentmove;
+    DWORD aiflags;
+    VECTOR2 goal;
 //    struct AnimationInfo animation;
     void (*stand)(LPEDICT self);
     void (*walk)(LPEDICT self);
@@ -26,7 +32,6 @@ typedef struct {
 struct edict {
     ENTITYSTATE s;
     DWORD class_id;
-    VECTOR2 objective;
     int variation;
     
     void (*think)(LPEDICT self);

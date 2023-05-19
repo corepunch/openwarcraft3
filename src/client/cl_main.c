@@ -28,6 +28,7 @@ void CL_Init(void) {
     cl.viewDef.fov = 45;
     cl.viewDef.vieworg = (VECTOR3) { -600, 2500, -2000 };
     cl.viewDef.viewangles = (VECTOR3) { -30, 0, 0 };
+    cl.team = 1;
     
     void __netchan_init(struct netchan *netchan);
     __netchan_init(&cls.netchan);

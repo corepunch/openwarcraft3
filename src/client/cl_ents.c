@@ -61,7 +61,7 @@ void CL_SelectEntityAtScreenPoint(DWORD dwPixelX, DWORD dwPixelY) {
             clickedEntity = e->current.number;
         }
     }
-    if (clickedEntity != -1) {
+    if (clickedEntity != -1 && cl.ents[clickedEntity].current.team == cl.team) {
         selectedEntity = clickedEntity;
     } else if (selectedEntity != -1) {
         VECTOR3 targetorg;

@@ -25,10 +25,10 @@ static void V_AddClientEntity(struct client_entity const *lpEdict) {
         view_state.entities[view_state.num_entities++] = re;
     }
 
-    if (lpEdict->current.model2 != 0) {
-        re.model = cl.models[lpEdict->current.model2];
-//        view_state.entities[view_state.num_entities++] = re;
-    }
+//    if (lpEdict->current.model2 != 0) {
+//        re.model = cl.models[lpEdict->current.model2];
+////        view_state.entities[view_state.num_entities++] = re;
+//    }
 }
 
 static void V_ClearScene(void) {

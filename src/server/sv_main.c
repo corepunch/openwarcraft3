@@ -38,7 +38,7 @@ MSG_WriteDeltaEntity(LPSIZEBUF msg,
     SET_BIT_IF(U_FRAME, frame);
     SET_BIT_IF(U_MODEL, model);
     SET_BIT_IF(U_IMAGE, image);
-    SET_BIT_IF(U_MODEL2, model2);
+    SET_BIT_IF(U_TEAM, team);
 
     if (bits == 0)
         return;
@@ -54,7 +54,7 @@ MSG_WriteDeltaEntity(LPSIZEBUF msg,
     WRITE_IF(U_FRAME, frame, Short);
     WRITE_IF(U_MODEL, model, Short);
     WRITE_IF(U_IMAGE, image, Short);
-    WRITE_IF(U_MODEL2, model2, Short);
+    WRITE_IF(U_TEAM, team, Byte);
 }
 
 static void SV_Baseline(LPCLIENT cl) {

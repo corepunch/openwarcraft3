@@ -80,7 +80,7 @@ enum {
     U_FRAME,
     U_MODEL,
     U_IMAGE,
-    U_MODEL2,
+    U_TEAM,
 };
 
 // server to client
@@ -173,16 +173,16 @@ struct transform2 { VECTOR2 translation, scale; float rotation; };
 struct transform3 { VECTOR3 translation, rotation, scale; };
 
 struct EntityState {
-    int number; // edict index
+    DWORD number; // edict index
     VECTOR3 origin;
     float angle;
     float scale;
-    int model;
-    int model2;
-    int image;
-    int sound;
-    int frame;
-    int event;
+    DWORD model;
+    DWORD image;
+    DWORD sound;
+    DWORD frame;
+    DWORD event;
+    DWORD team;
 };
 
 struct AnimationInfo {

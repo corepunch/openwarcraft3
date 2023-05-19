@@ -27,8 +27,9 @@ struct client_state {
     struct client_entity ents[MAX_CLIENT_ENTITIES];
     struct viewDef viewDef;
     struct frame frame;
-    int num_entities;
+    DWORD num_entities;
     DWORD sock;
+    DWORD team;
 };
 
 struct client_static {
