@@ -36,6 +36,7 @@ void CL_Init(void) {
 
 void CL_Input(void) {
     static int button;
+    static int moved = false;
     SDL_Event event;
     while(SDL_PollEvent(&event))
     {
@@ -47,13 +48,17 @@ void CL_Input(void) {
                 break;
             case SDL_MOUSEBUTTONDOWN:
                 button = event.button.button;
-                CL_SelectEntityAtScreenPoint(event.button.x, event.button.y);
+                moved = false;
                 break;
             case SDL_MOUSEBUTTONUP:
                 button = 0;
+                if (moved == false) {
+                    CL_SelectEntityAtScreenPoint(event.button.x, event.button.y);
+                }
                 break;
             case SDL_MOUSEMOTION:
                 if (button == 1) {
+                    moved = true;
                     cl.viewDef.vieworg.x += event.motion.xrel * 5;
                     cl.viewDef.vieworg.y -= event.motion.yrel * 5;
                 }
