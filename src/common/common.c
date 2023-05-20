@@ -90,47 +90,47 @@ void FS_Init(void) {
 //         SFileFindClose(handle);
 //     }
 
-//    const LPSTR sheets[] = {
-//        "Units\\unitUI.slk",
-//        "Splats\\LightningData.slk",
-//        "Units\\AbilityData.slk",
-//        "Units\\UnitWeapons.slk",
-//        "UI\\SoundInfo\\MIDISounds.slk",
-//        "Splats\\T_SpawnData.slk",
-//        "Splats\\SplatData.slk",
-//        "Splats\\T_SplatData.slk",
-//        "Splats\\SpawnData.slk",
-//        "TerrainArt\\Weather.slk",
-//        "Units\\ItemData.slk",
-//        "UI\\SoundInfo\\AnimLookups.slk",
-//        "TerrainArt\\CliffTypes.slk",
-//        "Doodads\\Doodads.slk",
-//        "Units\\UnitMetaData.slk",
-//        "Splats\\UberSplatData.slk",
-//        "UI\\SoundInfo\\EnvironmentSounds.slk",
-//        "UI\\SoundInfo\\PortraitAnims.slk",
-//        "Units\\UnitData.slk",
-//        "UI\\SoundInfo\\AbilitySounds.slk",
-//        "UI\\SoundInfo\\UnitCombatSounds.slk",
-//        "Units\\UnitBalance.slk",
-//        "Units\\UnitAbilities.slk",
-//        "Units\\UpgradeData.slk",
-//        "TerrainArt\\Water.slk",
-//        "TerrainArt\\Terrain.slk",
-//        "UI\\SoundInfo\\EAXDefs.slk",
-//        "UI\\SoundInfo\\DialogSounds.slk",
-//        "Units\\DestructableData.slk",
-//        "UI\\SoundInfo\\AnimSounds.slk",
-//        "UI\\SoundInfo\\AmbienceSounds.slk",
-//        "UI\\SoundInfo\\UISounds.slk",
-//        "UI\\SoundInfo\\UnitAckSounds.slk",
-//        NULL
-//    };
+    const LPSTR sheets[] = {
+        "Units\\unitUI.slk",
+        "Splats\\LightningData.slk",
+        "Units\\AbilityData.slk",
+        "Units\\UnitWeapons.slk",
+        "UI\\SoundInfo\\MIDISounds.slk",
+        "Splats\\T_SpawnData.slk",
+        "Splats\\SplatData.slk",
+        "Splats\\T_SplatData.slk",
+        "Splats\\SpawnData.slk",
+        "TerrainArt\\Weather.slk",
+        "Units\\ItemData.slk",
+        "UI\\SoundInfo\\AnimLookups.slk",
+        "TerrainArt\\CliffTypes.slk",
+        "Doodads\\Doodads.slk",
+        "Units\\UnitMetaData.slk",
+        "Splats\\UberSplatData.slk",
+        "UI\\SoundInfo\\EnvironmentSounds.slk",
+        "UI\\SoundInfo\\PortraitAnims.slk",
+        "Units\\UnitData.slk",
+        "UI\\SoundInfo\\AbilitySounds.slk",
+        "UI\\SoundInfo\\UnitCombatSounds.slk",
+        "Units\\UnitBalance.slk",
+        "Units\\UnitAbilities.slk",
+        "Units\\UpgradeData.slk",
+        "TerrainArt\\Water.slk",
+        "TerrainArt\\Terrain.slk",
+        "UI\\SoundInfo\\EAXDefs.slk",
+        "UI\\SoundInfo\\DialogSounds.slk",
+        "Units\\DestructableData.slk",
+        "UI\\SoundInfo\\AnimSounds.slk",
+        "UI\\SoundInfo\\AmbienceSounds.slk",
+        "UI\\SoundInfo\\UISounds.slk",
+        "UI\\SoundInfo\\UnitAckSounds.slk",
+        NULL
+    };
 
-//    for (LPCSTR* s = sheets; *s; s++) {
-//        printf("%s\n", *s);
-//        FS_ReadSheet(*s);
-//    }
+    for (LPCSTR* s = sheets; *s; s++) {
+        printf("%s\n", *s);
+        FS_ReadSheet(*s);
+    }
 
     stats.lpTerrainInfo = FS_ParseSheet("TerrainArt\\Terrain.slk", terrain_info, sizeof(struct TerrainInfo), FOFS(TerrainInfo, lpNext));
     stats.lpCliffInfo = FS_ParseSheet("TerrainArt\\CliffTypes.slk", cliff_info, sizeof(struct CliffInfo), FOFS(CliffInfo, lpNext));

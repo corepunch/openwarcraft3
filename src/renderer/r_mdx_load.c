@@ -29,6 +29,9 @@ enum {
     ID_KGTR = MAKEFOURCC('K','G','T','R'),
     ID_KGRT = MAKEFOURCC('K','G','R','T'),
     ID_KGSC = MAKEFOURCC('K','G','S','C'),
+    ID_EVTS = MAKEFOURCC('E','V','T','S'),
+//    ID_SNDX = MAKEFOURCC('S','N','D','X'),
+    ID_KEVT = MAKEFOURCC('K','E','V','T'),
 };
 
 #define MODEL_READ_LIST(FILE, BLOCK, TYPE, TYPES) \
@@ -219,6 +222,22 @@ static struct tModelHelper *ReadHelper(HANDLE hFile, struct tFileBlock const blo
     return lpHelper;
 }
 
+
+static struct tModelEvent *ReadEvent(HANDLE hFile, struct tFileBlock const block) {
+    struct tModelEvent *lpEvent = ri.MemAlloc(sizeof(struct tModelEvent));
+    ReadNode(hFile, block, &lpEvent->node);
+    DWORD dwHeader = FileReadInt32(hFile);
+    switch (dwHeader) {
+        case ID_KEVT:
+            lpEvent->numKeys = FileReadInt32(hFile);
+            lpEvent->globalSeqId = FileReadInt32(hFile);
+            lpEvent->keys = ri.MemAlloc(lpEvent->numKeys * sizeof(DWORD));
+            SFileReadFile(hFile, lpEvent->keys, lpEvent->numKeys * sizeof(DWORD), NULL, NULL);
+            break;
+    }
+    return lpEvent;
+}
+
 static struct tModelGeosetAnim *ReadGeosetAnim(HANDLE hFile, struct tFileBlock const block) {
     struct tModelGeosetAnim *lpGeosetAnim = ri.MemAlloc(sizeof(struct tModelGeosetAnim));
     SFileReadFile(hFile, lpGeosetAnim, 24, NULL, NULL);
@@ -311,6 +330,7 @@ LPMODEL R_LoadModelMDX(HANDLE hFile) {
     struct tModelBone *lpLastBone = lpModel->lpBones;
     struct tModelHelper *lpLastHelper = lpModel->lpHelpers;
     struct tModelGeosetAnim *lpLastGeosetAnim = lpModel->lpGeosetAnims;
+    struct tModelEvent *lpLastEvent = lpModel->lpEvents;
     struct tFileBlock block;
     while (SFileReadFile(hFile, &dwBlockHeader, 4, NULL, NULL)) {
         SFileReadFile(hFile, &block.dwSize, 4, NULL, NULL);
@@ -323,6 +343,7 @@ LPMODEL R_LoadModelMDX(HANDLE hFile) {
                     return NULL;
                 }
                 break;
+            case ID_EVTS: MODEL_READ_LIST(hFile, block, Event, Events); break;
             case ID_MODL: SFileReadFile(hFile, &lpModel->info, sizeof(struct tModelInfo), NULL, NULL); break;
             case ID_GEOS: MODEL_READ_LIST(hFile, block, Geoset, Geosets); break;
             case ID_MTLS: MODEL_READ_LIST(hFile, block, Material, Materials); break;

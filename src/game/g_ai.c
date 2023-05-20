@@ -13,11 +13,6 @@ void ai_attack(LPEDICT self) {
     }
 }
 
-void ai_run(LPEDICT self) {
-    M_ChangeAngle(self);
-    M_MoveToGoal(self);
-}
-
 void ai_walk(LPEDICT self) {
     M_ChangeAngle(self);
     M_MoveToGoal(self);

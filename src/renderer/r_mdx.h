@@ -167,11 +167,20 @@ struct tModelGlobalSequence {
     DWORD value;
 };
 
+struct tModelEvent {
+    struct tModelNode node;
+    DWORD numKeys;
+    DWORD globalSeqId;
+    DWORD *keys;
+    struct tModelEvent *lpNext;
+};
+
 struct tModel {
     struct tModelInfo info;
     LPMODELGEOSET lpGeosets;
     struct tModelTexture *lpTextures;
     LPMODELSEQUENCE lpSequences;
+    struct tModelEvent *lpEvents;
     struct tModelPivot *lpPivots;
     struct tModelMaterial *lpMaterials;
     struct tModelBone *lpBones;

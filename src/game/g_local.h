@@ -203,7 +203,6 @@ void monster_start(LPEDICT self);
 
 void ai_attack(LPEDICT self);
 void ai_walk(LPEDICT self);
-void ai_run(LPEDICT self);
 void ai_stand(LPEDICT self);
 
 void M_MoveToGoal(LPEDICT self);

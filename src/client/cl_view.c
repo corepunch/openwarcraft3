@@ -7,6 +7,9 @@ static struct {
 } view_state;
 
 float LerpRotation(float a, float b, float t) {
+    if (b < 0) {
+        b = b + 2 * M_PI;
+    }
     float apos = a + 2 * M_PI;
     float aneg = a - 2 * M_PI;
     if (fabs(a - b) < fabs(apos - b) && fabs(a - b) < fabs(aneg - b)) {
