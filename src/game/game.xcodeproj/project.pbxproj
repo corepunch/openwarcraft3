@@ -7,6 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		786630612A188F4800266A62 /* g_phys.c in Sources */ = {isa = PBXBuildFile; fileRef = 7866305F2A188F4800266A62 /* g_phys.c */; };
+		786630632A1899FD00266A62 /* m_move.c in Sources */ = {isa = PBXBuildFile; fileRef = 786630622A1899FD00266A62 /* m_move.c */; };
+		786630652A18BFAC00266A62 /* g_ai.c in Sources */ = {isa = PBXBuildFile; fileRef = 786630642A18BFAC00266A62 /* g_ai.c */; };
 		78A8966F2A15F7D600BC5B56 /* g_local.h in Headers */ = {isa = PBXBuildFile; fileRef = 78A896682A15F7D600BC5B56 /* g_local.h */; };
 		78A896702A15F7D600BC5B56 /* g_spawn.c in Sources */ = {isa = PBXBuildFile; fileRef = 78A896692A15F7D600BC5B56 /* g_spawn.c */; };
 		78A896712A15F7D600BC5B56 /* g_doodads.c in Sources */ = {isa = PBXBuildFile; fileRef = 78A8966A2A15F7D600BC5B56 /* g_doodads.c */; };
@@ -19,6 +22,9 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		7866305F2A188F4800266A62 /* g_phys.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = g_phys.c; sourceTree = "<group>"; };
+		786630622A1899FD00266A62 /* m_move.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = m_move.c; sourceTree = "<group>"; };
+		786630642A18BFAC00266A62 /* g_ai.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = g_ai.c; sourceTree = "<group>"; };
 		78A8964D2A15F7A500BC5B56 /* libgame.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; includeInIndex = 0; path = libgame.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
 		78A896682A15F7D600BC5B56 /* g_local.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = g_local.h; sourceTree = "<group>"; };
 		78A896692A15F7D600BC5B56 /* g_spawn.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = g_spawn.c; sourceTree = "<group>"; };
@@ -46,15 +52,18 @@
 		78A896442A15F7A500BC5B56 = {
 			isa = PBXGroup;
 			children = (
-				78E91BFC2A169771003D9F3A /* Frameworks */,
+				786630642A18BFAC00266A62 /* g_ai.c */,
 				78A8966C2A15F7D600BC5B56 /* g_destructables.c */,
 				78A8966A2A15F7D600BC5B56 /* g_doodads.c */,
-				78A896682A15F7D600BC5B56 /* g_local.h */,
 				78A8966B2A15F7D600BC5B56 /* g_main.c */,
 				78E91BFA2A169439003D9F3A /* g_monster.c */,
+				7866305F2A188F4800266A62 /* g_phys.c */,
 				78A896692A15F7D600BC5B56 /* g_spawn.c */,
 				78A8966D2A15F7D600BC5B56 /* g_units.c */,
+				786630622A1899FD00266A62 /* m_move.c */,
 				78A8966E2A15F7D600BC5B56 /* m_peon.c */,
+				78A896682A15F7D600BC5B56 /* g_local.h */,
+				78E91BFC2A169771003D9F3A /* Frameworks */,
 				78A8964E2A15F7A500BC5B56 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -146,6 +155,9 @@
 				78A896722A15F7D600BC5B56 /* g_main.c in Sources */,
 				78A896732A15F7D600BC5B56 /* g_destructables.c in Sources */,
 				78A896712A15F7D600BC5B56 /* g_doodads.c in Sources */,
+				786630612A188F4800266A62 /* g_phys.c in Sources */,
+				786630632A1899FD00266A62 /* m_move.c in Sources */,
+				786630652A18BFAC00266A62 /* g_ai.c in Sources */,
 				78A896752A15F7D600BC5B56 /* m_peon.c in Sources */,
 				78A896742A15F7D600BC5B56 /* g_units.c in Sources */,
 				78E91BFB2A169439003D9F3A /* g_monster.c in Sources */,

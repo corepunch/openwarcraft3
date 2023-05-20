@@ -26,22 +26,14 @@ static void G_ClientCommand(LPCCLIENTMESSAGE lpClientMessage) {
     LPEDICT lpEdict = &game_state.edicts[lpClientMessage->entity];
     switch (lpClientMessage->cmd) {
         case CMD_MOVE:
-            lpEdict->monsterinfo.goal.x = lpClientMessage->location.x;
-            lpEdict->monsterinfo.goal.y = lpClientMessage->location.y;
-            lpEdict->monsterinfo.aiflags |= AI_HAS_GOAL;
+            lpEdict->goalentity = Waypoint_add(lpClientMessage->location);
             break;
         case CMD_ATTACK:
-            lpEdict->monsterinfo.target = lpClientMessage->targetentity;
-            lpEdict->monsterinfo.aiflags |= AI_HAS_TARGET;
+            lpEdict->goalentity = &game_state.edicts[lpClientMessage->targetentity];
+            lpEdict->enemy = &game_state.edicts[lpClientMessage->targetentity];
             break;
         default:
             break;
-    }
-}
-
-static void G_RunEntity(LPEDICT lpEdict) {
-    if (lpEdict->think) {
-        lpEdict->think(lpEdict);
     }
 }
 

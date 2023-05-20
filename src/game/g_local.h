@@ -3,11 +3,24 @@
 
 #include "../server/game.h"
 
+#define SAFE_CALL(FUNC, ...) if (FUNC) FUNC(__VA_ARGS__)
+
 enum {
-    AI_HAS_GOAL = 1 << 0,
-    AI_HAS_TARGET = 1 << 1,
-    AI_HOLD_FRAME = 1 << 2,
+    AI_HOLD_FRAME = 1 << 0,
 };
+
+typedef enum {
+    MOVETYPE_NONE,            // never moves
+    MOVETYPE_NOCLIP,          // origin and angles change with no interaction
+    MOVETYPE_PUSH,            // no clip to world, push on box contact
+    MOVETYPE_STOP,            // no clip to world, stops on box contact
+    MOVETYPE_WALK,            // gravity
+    MOVETYPE_STEP,            // gravity, special edge handling
+    MOVETYPE_FLY,
+    MOVETYPE_TOSS,            // gravity
+    MOVETYPE_FLYMISSILE,      // extra size to monsters
+    MOVETYPE_BOUNCE
+} movetype_t;
 
 KNOWN_AS(UnitData, UNITDATA);
 KNOWN_AS(UnitUI, UNITUI);
@@ -23,21 +36,25 @@ typedef struct {
 typedef struct {
     mmove_t *currentmove;
     DWORD aiflags;
-    DWORD target;
-    VECTOR2 goal;
     int health;
     void (*stand)(LPEDICT self);
     void (*walk)(LPEDICT self);
-    void (*attack)(LPEDICT self);
-    void (*death)(LPEDICT self);
+    void (*run)(LPEDICT self);
+    void (*melee)(LPEDICT self);
+    bool (*checkattack)(LPEDICT self);
 } monsterinfo_t;
 
 struct edict {
     ENTITYSTATE s;
     DWORD class_id;
     int variation;
-    
+    movetype_t movetype;
+    LPEDICT goalentity;
+    LPEDICT enemy;
+
+    void (*prethink)(LPEDICT self);
     void (*think)(LPEDICT self);
+    void (*die)(LPEDICT self, LPEDICT attacker);
 
     monsterinfo_t monsterinfo;
 };
@@ -178,8 +195,20 @@ void G_SpawnEntities(LPCDOODAD doodads, DWORD numDoodads);
 void G_InitUnits(void);
 void G_InitDestructables(void);
 void G_InitDoodads(void);
+void G_RunEntity(LPEDICT lpEdict);
 
+LPEDICT Waypoint_add(VECTOR2 spot);
+void M_CheckGround (LPEDICT self);
 void monster_start(LPEDICT self);
+
+void ai_attack(LPEDICT self);
+void ai_walk(LPEDICT self);
+void ai_run(LPEDICT self);
+void ai_stand(LPEDICT self);
+
+void M_MoveToGoal(LPEDICT self);
+void M_ChangeAngle(LPEDICT self);
+bool M_CheckAttack(LPEDICT self);
 
 extern struct game_locals game;
 extern struct game_state game_state;

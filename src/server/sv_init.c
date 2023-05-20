@@ -1,4 +1,5 @@
 #include "server.h"
+#include <stdarg.h>
 
 void SV_CreateBaseline(void) {
     sv.baselines = MemAlloc(sizeof(ENTITYSTATE) * ge->max_edicts);
@@ -63,6 +64,15 @@ static struct AnimationInfo SV_GetAnimation(int modelindex, LPCSTR animname) {
     return (struct AnimationInfo) {};
 }
 
+void PF_error(char *fmt, ...) {
+    char msg[1024];
+    va_list argptr;
+    va_start(argptr,fmt);
+    vsprintf(msg, fmt, argptr);
+    va_end(argptr);
+    fprintf(stderr, "Game Error: %s\n", msg);
+}
+
 void SV_Init(void) {
     ge = GetGameAPI(&(struct game_import) {
         .MemAlloc = MemAlloc,
@@ -73,6 +83,7 @@ void SV_Init(void) {
         .ParseSheet = FS_ParseSheet,
         .GetAnimation = SV_GetAnimation,
         .GetHeightAtPoint = CM_GetHeightAtPoint,
+        .error = PF_error,
     });
     ge->Init();
     memset(&svs, 0, sizeof(struct server_static));

@@ -12,6 +12,7 @@ struct game_import {
     ANIMATION (*GetAnimation)(int modelindex, LPCSTR animation);
     HANDLE (*ParseSheet)(LPCSTR szSheetFilename, LPCSHEETLAYOUT lpLayout, DWORD dwElementSize, HANDLE lpNextFieldOffset);
     float (*GetHeightAtPoint)(float x, float y);
+    void (*error) (char *fmt, ...);
 };
 
 struct game_export {

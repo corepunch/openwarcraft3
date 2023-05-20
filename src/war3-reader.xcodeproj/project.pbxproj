@@ -155,12 +155,12 @@
 		7897B7CF2A0BEAF7008007CD /* server */ = {
 			isa = PBXGroup;
 			children = (
-				7897B7E92A0CB3C1008007CD /* game.h */,
-				7897B7DB2A0BF4FD008007CD /* server.h */,
+				7897B7FC2A128F47008007CD /* sv_ents.c */,
 				78F58A872A06D3030027494A /* sv_init.c */,
 				7897B7DC2A0BF4FD008007CD /* sv_main.c */,
-				7897B7FC2A128F47008007CD /* sv_ents.c */,
 				78A896F12A168AB700BC5B56 /* sv_parse.c */,
+				7897B7E92A0CB3C1008007CD /* game.h */,
+				7897B7DB2A0BF4FD008007CD /* server.h */,
 			);
 			path = server;
 			sourceTree = "<group>";
