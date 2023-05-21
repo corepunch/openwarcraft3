@@ -4,7 +4,7 @@ void ai_checkattack(LPEDICT self) {
     self->monsterinfo.checkattack(self);
 }
 
-void ai_attack(LPEDICT self) {
+void ai_melee(LPEDICT self) {
     self->enemy->monsterinfo.health -= 3;
     if (self->enemy->monsterinfo.health < 0) {
         self->enemy->die(self->enemy, self);

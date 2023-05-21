@@ -4,6 +4,7 @@
 static VERTEX aVertexBuffer[(SEGMENT_SIZE+1)*(SEGMENT_SIZE+1)*64];
 static LPVERTEX lpCurrentVertex = NULL;
 
+#define SAME_TILE 852063
 #define NO_CLIFF MAKEFOURCC('C','L','n','o')
 
 struct tCliff {
@@ -96,6 +97,7 @@ static void R_MakeCliff(LPCWAR3MAP lpMap, DWORD x, DWORD y, DWORD dwCliff, LPCCL
     }
     
     FOR_LOOP(gindx, lpMap->numGrounds) {
+        DWORD const tile = lpCliffInfo->groundTile == SAME_TILE ? lpCliffInfo->upperTile : lpCliffInfo->groundTile;
         if (lpMap->lpGrounds[gindx] == lpCliffInfo->groundTile) {
             ((LPWAR3MAPVERTEX)GetWar3MapVertex(lpMap, x+1, y+1))->ground = gindx;
             ((LPWAR3MAPVERTEX)GetWar3MapVertex(lpMap, x, y+1))->ground = gindx;

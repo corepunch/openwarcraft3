@@ -8,7 +8,7 @@ DWORD GetModelKeyTrackTypeSize(MODELKEYTRACKTYPE dwKeyTrackType);
 DWORD GetModelKeyFrameSize(MODELKEYTRACKDATATYPE dwDataType, MODELKEYTRACKTYPE dwKeyTrackType);
 void R_GetKeyframeValue(LPCMODELKEYFRAME lpLeft, LPCMODELKEYFRAME lpRight, DWORD dwTime, LPCMODELKEYTRACK lpKeytrack, HANDLE out);
 
-static LPCMODELSEQUENCE R_FindSequenceAtTime(LPCMODEL lpModel, DWORD dwTime) {
+LPCMODELSEQUENCE R_FindSequenceAtTime(LPCMODEL lpModel, DWORD dwTime) {
     FOR_LOOP(dwSeqIndex, lpModel->numSequences) {
         LPCMODELSEQUENCE lpSeq = &lpModel->lpSequences[dwSeqIndex];
         if (lpSeq->interval[0] <= dwTime && lpSeq->interval[1] > dwTime) {
@@ -58,19 +58,19 @@ static void R_CalculateNodeMatrix(LPCMODEL lpModel, LPMODELNODE lpNode, DWORD dw
     LPCVECTOR3 lpPivot = (VECTOR3 const *)lpNode->lpPivot;
     if (dwFrame0 != dwFrame1) {
         if (lpNode->lpTranslation) {
-            VECTOR3 t0, t1;
+            VECTOR3 t0 = vTranslation, t1 = vTranslation;
             R_GetModelKeytrackValue(lpModel, lpNode->lpTranslation, dwFrame0, &t0);
             R_GetModelKeytrackValue(lpModel, lpNode->lpTranslation, dwFrame1, &t1);
             vTranslation = Vector3_lerp(&t0, &t1, tr.viewDef.lerpfrac);
         }
         if (lpNode->lpRotation) {
-            QUATERNION r0, r1;
+            QUATERNION r0 = vRotation, r1 = vRotation;
             R_GetModelKeytrackValue(lpModel, lpNode->lpRotation, dwFrame0, &r0);
             R_GetModelKeytrackValue(lpModel, lpNode->lpRotation, dwFrame1, &r1);
             vRotation = Quaternion_slerp(&r0, &r1, tr.viewDef.lerpfrac);
         }
         if (lpNode->lpScale) {
-            VECTOR3 s0, s1;
+            VECTOR3 s0 = vScale, s1 = vScale;
             R_GetModelKeytrackValue(lpModel, lpNode->lpScale, dwFrame0, &s0);
             R_GetModelKeytrackValue(lpModel, lpNode->lpScale, dwFrame1, &s1);
             vScale = Vector3_lerp(&s0, &s1, tr.viewDef.lerpfrac);

@@ -4,6 +4,7 @@
 #include "shared.h"
 #include "net.h"
 #include "../cmath3/cmath3.h"
+#include "tables.h"
 
 #define TMP_MAP "/tmp/map.w3m"
 #define MAP_VERTEX_SIZE 7
@@ -69,6 +70,10 @@ for (type *property = array; property - array < num; property++)
 typedef struct STRUCT TYPE; \
 typedef struct STRUCT *LP##TYPE; \
 typedef struct STRUCT const *LPC##TYPE;
+
+#define FIND_SHEET_ENTRY(SHEET, VAR, ID_FIELD, VALUE) \
+SHEET; for (; VAR->ID_FIELD != VALUE && VAR->ID_FIELD; VAR++); \
+if (VAR->ID_FIELD == 0) VAR = NULL;
 
 enum {
     U_ORIGIN1,
@@ -150,8 +155,7 @@ KNOWN_AS(tModel, MODEL);
 KNOWN_AS(texture, TEXTURE);
 KNOWN_AS(War3MapVertex, WAR3MAPVERTEX);
 KNOWN_AS(SheetLayout, SHEETLAYOUT);
-KNOWN_AS(TerrainInfo, TERRAININFO);
-KNOWN_AS(CliffInfo, CLIFFINFO);
+KNOWN_AS(SheetCell, SHEETCELL);
 KNOWN_AS(war3map, WAR3MAP);
 KNOWN_AS(Doodad, DOODAD);
 KNOWN_AS(edict, EDICT);
@@ -162,8 +166,11 @@ KNOWN_AS(size2, SIZE2);
 KNOWN_AS(client_message, CLIENTMESSAGE);
 KNOWN_AS(AnimationInfo, ANIMATION);
 
+KNOWN_AS(TerrainInfo, TERRAININFO);
+KNOWN_AS(CliffInfo, CLIFFINFO);
+KNOWN_AS(AnimLookup, ANIMLOOKUP);
+
 typedef char PATHSTR[MAX_PATHLEN];
-typedef char SHEETSTR[64];
 typedef void const *LPCVOID;
 
 struct color { float r, g, b, a; };
@@ -217,13 +224,11 @@ struct SheetCell {
     DWORD column;
     DWORD row;
     LPSTR text;
-    struct SheetCell *lpNext;
+    LPSHEETCELL lpNext;
 };
 
-HANDLE FS_ParseSheet(LPCSTR szFileName, LPCSHEETLAYOUT lpLayout, DWORD dwElementSize, HANDLE lpNextFieldOffset);
+HANDLE FS_ParseSheet(LPCSTR szFileName, LPCSHEETLAYOUT lpLayout, DWORD dwElementSize);
 void LoadMap(LPCSTR pFilename);
-LPTERRAININFO FindTerrainInfo(DWORD tileID);
-LPCLIFFINFO FindCliffInfo(DWORD cliffID);
 
 void FS_Init(void);
 void FS_Shutdown(void);
@@ -233,7 +238,7 @@ void Sys_Quit(void);
 
 HANDLE FS_OpenFile(LPCSTR szFileName);
 bool FS_ExtractFile(LPCSTR szToExtract, LPCSTR szExtracted);
-struct SheetCell *FS_ReadSheet(LPCSTR szFileName);
+LPSHEETCELL FS_ReadSheet(LPCSTR szFileName);
 
 void CL_Init(void);
 void CL_Frame(DWORD msec);

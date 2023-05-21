@@ -8,7 +8,7 @@ void peon_decay1(LPEDICT self);
 //static mmove_t peon_move_decay1 = { "Decay Flesh", NULL, peon_decay2 };
 static mmove_t peon_move_stand = { "Stand", ai_stand };
 static mmove_t peon_move_walk = { "Walk", ai_walk };
-static mmove_t peon_move_melee = { "Attack", ai_attack };
+static mmove_t peon_move_melee = { "Attack", ai_melee };
 static mmove_t peon_move_death = { "Death", NULL, peon_decay1 };
 
 //void peon_die(LPEDICT self) {
@@ -31,7 +31,7 @@ void peon_stand(LPEDICT self) {
     self->monsterinfo.currentmove = &peon_move_stand;
 }
 
-void peon_attack(LPEDICT self) {
+void peon_melee(LPEDICT self) {
     self->monsterinfo.currentmove = &peon_move_melee;
 }
 
@@ -46,8 +46,9 @@ void SP_monster_peon(LPEDICT self) {
 
     self->monsterinfo.stand = peon_stand;
     self->monsterinfo.walk = peon_walk;
-    self->monsterinfo.melee = peon_attack;
+    self->monsterinfo.melee = peon_melee;
     self->monsterinfo.currentmove = &peon_move_stand;
+
     self->monsterinfo.health = 100;
     
     monster_start(self);

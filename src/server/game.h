@@ -10,7 +10,7 @@ struct game_import {
     int (*SoundIndex)(LPCSTR szSoundName);
     int (*ImageIndex)(LPCSTR szImageName);
     ANIMATION (*GetAnimation)(int modelindex, LPCSTR animation);
-    HANDLE (*ParseSheet)(LPCSTR szSheetFilename, LPCSHEETLAYOUT lpLayout, DWORD dwElementSize, HANDLE lpNextFieldOffset);
+    HANDLE (*ParseSheet)(LPCSTR szSheetFilename, LPCSHEETLAYOUT lpLayout, DWORD dwElementSize);
     float (*GetHeightAtPoint)(float x, float y);
     void (*error) (char *fmt, ...);
 };

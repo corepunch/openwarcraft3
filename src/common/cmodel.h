@@ -26,35 +26,15 @@ enum MDLGEO {
   MODEL_GEO_NO_FALLBACK = 0x100,   // added in v1500. seen in ElwynnTallWaterfall01.mdx, FelwoodTallWaterfall01.mdx and LavaFallsBlackRock*.mdx
 };
 
-struct TerrainInfo {
-    DWORD tileID;
-    SHEETSTR dir;
-    SHEETSTR file;
-    LPTERRAININFO lpNext;
-};
-
 struct PathMapNode {
-    char unused:1;
-    char nowalk:1;
-    char nofly:1;
-    char nobuild:1;
-    char unused2:1;
-    char blight:1;
-    char nowater:1;
-    char unknown:1;
-};
-
-struct CliffInfo {
-    DWORD cliffID;
-    SHEETSTR cliffModelDir;
-    SHEETSTR rampModelDir;
-    SHEETSTR texDir;
-    SHEETSTR texFile;
-    SHEETSTR name;
-    DWORD groundTile;
-    DWORD upperTile;
-    LPCLIFFINFO lpNext;
-    LPTEXTURE texture;
+    BYTE unused:1;
+    BYTE nowalk:1;
+    BYTE nofly:1;
+    BYTE nobuild:1;
+    BYTE unused2:1;
+    BYTE blight:1;
+    BYTE nowater:1;
+    BYTE unknown:1;
 };
 
 struct Doodad {

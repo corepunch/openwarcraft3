@@ -8,6 +8,9 @@ struct Renderer *renderer = NULL;
 struct client_static cls;
 struct client_state cl;
 
+LPTERRAININFO FindTerrainInfo(DWORD tileID);
+LPCLIFFINFO FindCliffInfo(DWORD cliffID);
+
 void CL_Init(void) {
     renderer = Renderer_Init(&(struct renderer_import) {
         .MemAlloc = MemAlloc,

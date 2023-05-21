@@ -90,19 +90,12 @@ struct SheetLayout unit_ui_info[] = {
 };
 
 void G_InitUnits(void) {
-    game.UnitData = gi.ParseSheet("Units\\UnitData.slk", unit_info, sizeof(struct UnitData), FOFS(UnitData, lpNext));
-    game.UnitUI = gi.ParseSheet("Units\\unitUI.slk", unit_ui_info, sizeof(struct UnitUI), FOFS(UnitUI, lpNext));
+    game.UnitData = gi.ParseSheet("Units\\UnitData.slk", unit_info, sizeof(struct UnitData));
+    game.UnitUI = gi.ParseSheet("Units\\unitUI.slk", unit_ui_info, sizeof(struct UnitUI));
 
 //    FOR_EACH_LIST(struct UnitUI, ud, game.UnitUI) {
 //        printf("%.4s %s\n", (char*)&ud->unitUIID, ud->file);
 //    }
 }
 
-LPUNITUI G_FindUnitUI(int unitUIID) {
-    FOR_EACH_LIST(struct UnitUI, info, game.UnitUI) {
-        if (info->unitUIID == unitUIID)
-            return info;
-    }
-    return NULL;
-}
 

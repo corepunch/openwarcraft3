@@ -386,6 +386,10 @@ LPMODEL R_LoadModelMDX(HANDLE hFile) {
             lpGeoset->lpGeosetAnim = lpGeosetAnim;
         }
     }
+//    LPCMODELSEQUENCE R_FindSequenceAtTime(LPCMODEL lpModel, DWORD dwTime);
+//    FOR_EACH_LIST(struct tModelEvent, event, lpModel->lpEvents) {
+//        printf("%s %d %d %s\n", event->node.name, event->keys[0], event->numKeys, R_FindSequenceAtTime(lpModel, event->keys[0])->name);
+//    }
     ri.FileClose(hFile);
     lpModel->lpCurrentAnimation = &lpModel->lpSequences[1];
     return lpModel;}

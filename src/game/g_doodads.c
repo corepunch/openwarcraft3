@@ -46,14 +46,7 @@ struct SheetLayout doodad_info[] = {
 };
 
 void G_InitDoodads(void) {
-    game.Doodads = gi.ParseSheet("Doodads\\Doodads.slk", doodad_info, sizeof(struct DoodadInfo), FOFS(DoodadInfo, lpNext));
+    game.Doodads = gi.ParseSheet("Doodads\\Doodads.slk", doodad_info, sizeof(struct DoodadInfo));
 }
 
-LPDOODADINFO G_FindDoodadInfo(int doodID) {
-    FOR_EACH_LIST(struct DoodadInfo, info, game.Doodads) {
-        if (info->doodID == doodID)
-            return info;
-    }
-    return NULL;
-}
 

@@ -24,8 +24,16 @@ static TCHAR *GetToken(TCHAR *buffer, DWORD index) {
     return buffer;
 }
 
-static struct SheetCell *SheetCellNew(DWORD x, DWORD y, LPSTR text, struct SheetCell *sheet) {
-    struct SheetCell *cell = MemAlloc(sizeof(struct SheetCell));
+static DWORD Sheet_GetHeight(LPSHEETCELL lpSheet) {
+    DWORD dwHeight = 0;
+    FOR_EACH_LIST(struct SheetCell const, lpCell, lpSheet) {
+        dwHeight = MAX(dwHeight, lpCell->row);
+    }
+    return dwHeight;
+}
+
+static LPSHEETCELL SheetCellNew(DWORD x, DWORD y, LPSTR text, LPSHEETCELL sheet) {
+    LPSHEETCELL cell = MemAlloc(sizeof(struct SheetCell));
     cell->column = x;
     cell->row = y;
     cell->lpNext = sheet;
@@ -35,20 +43,20 @@ static struct SheetCell *SheetCellNew(DWORD x, DWORD y, LPSTR text, struct Sheet
     } else {
         cell->text = strdup(text);
     }
-//    if (y == 1) {
-    if (strstr(cell->text, "DPEO")) {
-        printf("  %d %s\n", x, cell->text);
-    }
+//    if (y == 2) {
+//    if (!strcmp(cell->text, "Peon")) {
+//        printf("  %d %s\n", x, cell->text);
+//    }
     return cell;
 }
 
-struct SheetCell *FS_ReadSheet(LPCSTR szFileName) {
+LPSHEETCELL FS_ReadSheet(LPCSTR szFileName) {
     HANDLE hFile = FS_OpenFile(szFileName);
     DWORD dwFileSize = SFileGetFileSize(hFile, NULL);
     TCHAR czBuffer[MAX_SHEET_LINE];
     TCHAR ch = 0;
     DWORD X = 1, Y = 1;
-    struct SheetCell *cells = NULL;
+    LPSHEETCELL cells = NULL;
     for (DWORD read = 0, cur = 0; read < dwFileSize; read++) {
         SFileReadFile(hFile, &ch, 1, NULL, NULL);
         if (ch == '\n') {
@@ -80,36 +88,38 @@ struct SheetCell *FS_ReadSheet(LPCSTR szFileName) {
     return cells;
 }
 
-void Sheet_Release(struct SheetCell *lpSheet) {
+void Sheet_Release(LPSHEETCELL lpSheet) {
     MemFree(lpSheet->text);
     SAFE_DELETE(lpSheet->lpNext, Sheet_Release);
 }
 
 HANDLE FS_ParseSheet(LPCSTR szFileName,
-                    LPCSHEETLAYOUT lpLayout,
-                    DWORD dwElementSize,
-                    HANDLE lpNextFieldOffset)
+                     LPCSHEETLAYOUT lpLayout,
+                     DWORD dwElementSize)
 {
-    struct SheetCell *lpSheet = FS_ReadSheet(szFileName);
+    LPSHEETCELL lpSheet = FS_ReadSheet(szFileName);
+
     if (!lpSheet)
         return NULL;
+
     LPCSTR columns[MAX_SHEET_COLUMNS] = { 0 };
-    HANDLE lpList = NULL;
-    
+    DWORD dwSheetHeight = Sheet_GetHeight(lpSheet);
+    HANDLE lpDatas = MemAlloc(dwElementSize * (dwSheetHeight + 1));
+
     FOR_EACH_LIST(struct SheetCell const, lpCell, lpSheet) {
         if (lpCell->row != 1 || lpCell->column >= MAX_SHEET_COLUMNS)
             continue;
         columns[lpCell->column] = lpCell->text;
     }
 
-    for (int row = 2;; row++) {
-        LPSTR lpCurrent = MemAlloc(dwElementSize);
-        int filled = 0;
+    for (DWORD dwRow = 2; dwRow <= dwSheetHeight; dwRow++) {
+        LPSTR lpCurrent = &((LPSTR)lpDatas)[dwElementSize * (dwRow - 2)];
         FOR_EACH_LIST(struct SheetCell const, lpCell, lpSheet) {
-            if (lpCell->row != row)
+            if (lpCell->row != dwRow)
                 continue;
-            filled = 1;
             for (LPCSHEETLAYOUT sl = lpLayout; sl->column; sl++) {
+                if (columns[lpCell->column] == NULL)
+                    continue;
                 if (!strcmp(sl->column, columns[lpCell->column])) {
                     HANDLE field = lpCurrent + (uint64_t)sl->fofs;
                     switch (sl->type) {
@@ -121,15 +131,7 @@ HANDLE FS_ParseSheet(LPCSTR szFileName,
                 }
             }
         }
-        if (filled) {
-            HANDLE *pnext = (HANDLE *)(lpCurrent + (uint64_t)lpNextFieldOffset);
-            *pnext = lpList;
-            lpList = lpCurrent;
-        } else {
-            MemFree(lpCurrent);
-            break;
-        }
     }
     Sheet_Release(lpSheet);
-    return lpList;
+    return lpDatas;
 }

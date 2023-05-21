@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		7866305D2A17D92E00266A62 /* cmodel.c in Sources */ = {isa = PBXBuildFile; fileRef = 7866305B2A17D17900266A62 /* cmodel.c */; };
+		786630682A196BB400266A62 /* tables.c in Sources */ = {isa = PBXBuildFile; fileRef = 786630672A1956C000266A62 /* tables.c */; };
 		7897B7DA2A0BF40F008007CD /* cl_main.c in Sources */ = {isa = PBXBuildFile; fileRef = 7897B7D92A0BF40F008007CD /* cl_main.c */; };
 		7897B7DD2A0BF4FD008007CD /* sv_main.c in Sources */ = {isa = PBXBuildFile; fileRef = 7897B7DC2A0BF4FD008007CD /* sv_main.c */; };
 		7897B7DF2A0BF615008007CD /* common.c in Sources */ = {isa = PBXBuildFile; fileRef = 7897B7DE2A0BF615008007CD /* common.c */; };
@@ -79,6 +80,8 @@
 
 /* Begin PBXFileReference section */
 		7866305B2A17D17900266A62 /* cmodel.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = cmodel.c; sourceTree = "<group>"; };
+		786630662A19559200266A62 /* tables.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = tables.h; sourceTree = "<group>"; };
+		786630672A1956C000266A62 /* tables.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = tables.c; sourceTree = "<group>"; };
 		7897B7D12A0BEB6A008007CD /* renderer.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = renderer.h; sourceTree = "<group>"; };
 		7897B7D22A0BEB76008007CD /* common.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = common.h; sourceTree = "<group>"; };
 		7897B7D82A0BF40F008007CD /* client.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = client.h; sourceTree = "<group>"; };
@@ -135,6 +138,8 @@
 				7897B7EF2A0CC6CF008007CD /* net.h */,
 				78A8963F2A15F18F00BC5B56 /* shared.h */,
 				78F58A812A06D1560027494A /* sheet.c */,
+				786630662A19559200266A62 /* tables.h */,
+				786630672A1956C000266A62 /* tables.c */,
 			);
 			path = common;
 			sourceTree = "<group>";
@@ -315,6 +320,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				786630682A196BB400266A62 /* tables.c in Sources */,
 				7866305D2A17D92E00266A62 /* cmodel.c in Sources */,
 				78F58A302A0641A30027494A /* main.c in Sources */,
 				7897B7EE2A0CC4EE008007CD /* msg.c in Sources */,

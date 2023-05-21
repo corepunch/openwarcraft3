@@ -183,7 +183,7 @@ void R_DrawBuffer(LPCBUFFER lpBuffer, DWORD numVertices) {
     glDrawArrays(GL_TRIANGLES, 0, numVertices);
 }
 
-LPCBUFFER R_MakeVertexArrayObject(LPCVERTEX lpVertices, DWORD dwSize) {
+LPBUFFER R_MakeVertexArrayObject(LPCVERTEX lpVertices, DWORD dwSize) {
     LPBUFFER buf = ri.MemAlloc(sizeof(BUFFER));
     
     glGenVertexArrays(1, &buf->vao);

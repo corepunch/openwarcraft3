@@ -109,7 +109,7 @@ LPCTEXTURE R_FindTextureByID(DWORD dwTextureID);
 bool R_IsPointVisible(LPCVECTOR3 point, float fThreshold);
 
 // VertexArrayObject
-LPCBUFFER R_MakeVertexArrayObject(LPCVERTEX lpVertices, DWORD dwSize);
+LPBUFFER R_MakeVertexArrayObject(LPCVERTEX lpVertices, DWORD dwSize);
 void R_DrawBuffer(LPCBUFFER lpBuffer, DWORD numVertices);
 
 // Models

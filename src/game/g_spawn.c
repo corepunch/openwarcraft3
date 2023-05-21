@@ -36,18 +36,18 @@ static void SP_SpawnDestructable(LPEDICT lpEdict, LPCDESTRUCTABLEDATA lpDestr) {
 void SP_CallSpawn(LPEDICT lpEdict) {
     if (!lpEdict->class_id)
         return;
-    LPCDOODADINFO doodadInfo = NULL;
-    LPCDESTRUCTABLEDATA destructableData = NULL;
-    LPCUNITUI unitUI = NULL;
-    if ((doodadInfo = G_FindDoodadInfo(lpEdict->class_id))) {
+    LPCDOODADINFO doodadInfo = FIND_SHEET_ENTRY(game.Doodads, doodadInfo, doodID, lpEdict->class_id);
+    LPCDESTRUCTABLEDATA destructableData = FIND_SHEET_ENTRY(game.DestructableData, destructableData, DestructableID, lpEdict->class_id);;
+    LPCUNITUI unitUI = FIND_SHEET_ENTRY(game.UnitUI, unitUI, unitUIID, lpEdict->class_id);
+    if (doodadInfo) {
         SP_SpawnDoodad(lpEdict, doodadInfo);
         return;
     }
-    if ((destructableData = G_FindDestructableData(lpEdict->class_id))) {
+    if (destructableData) {
         SP_SpawnDestructable(lpEdict, destructableData);
         return;
     }
-    if ((unitUI = G_FindUnitUI(lpEdict->class_id))) {
+    if (unitUI) {
         SP_SpawnUnit(lpEdict, unitUI);
         return;
     }
@@ -64,7 +64,7 @@ void G_SpawnEntities(LPCDOODAD doodads, DWORD numDoodads) {
     e->class_id = MAKEFOURCC('o', 'p', 'e', 'o');
     e->s.origin = (VECTOR3) { -200, -1600, 100 };
     e->s.angle = 0;
-    e->s.scale = 2;
+    e->s.scale = 2.5;
     e->s.team = 1;
     SP_CallSpawn(e);
     gi.ModelIndex("UI\\Feedback\\SelectionCircleUnit\\selectioncircleUnit.mdx");
@@ -73,7 +73,7 @@ void G_SpawnEntities(LPCDOODAD doodads, DWORD numDoodads) {
     e->class_id = MAKEFOURCC('o', 'p', 'e', 'o');
     e->s.origin = (VECTOR3) { 800, -1400, 100 };
     e->s.angle = -1;
-    e->s.scale = 2;
+    e->s.scale = 2.5;
     e->s.team = 2;
     SP_CallSpawn(e);
 
