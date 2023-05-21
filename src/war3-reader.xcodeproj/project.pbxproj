@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		7866305D2A17D92E00266A62 /* cmodel.c in Sources */ = {isa = PBXBuildFile; fileRef = 7866305B2A17D17900266A62 /* cmodel.c */; };
+		7866373D2A1A4C0800266A62 /* macos.c in Sources */ = {isa = PBXBuildFile; fileRef = 7866373C2A1A4C0800266A62 /* macos.c */; };
 		7897B7DA2A0BF40F008007CD /* cl_main.c in Sources */ = {isa = PBXBuildFile; fileRef = 7897B7D92A0BF40F008007CD /* cl_main.c */; };
 		7897B7DD2A0BF4FD008007CD /* sv_main.c in Sources */ = {isa = PBXBuildFile; fileRef = 7897B7DC2A0BF4FD008007CD /* sv_main.c */; };
 		7897B7DF2A0BF615008007CD /* common.c in Sources */ = {isa = PBXBuildFile; fileRef = 7897B7DE2A0BF615008007CD /* common.c */; };
@@ -79,6 +80,7 @@
 
 /* Begin PBXFileReference section */
 		7866305B2A17D17900266A62 /* cmodel.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = cmodel.c; sourceTree = "<group>"; };
+		7866373C2A1A4C0800266A62 /* macos.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = macos.c; sourceTree = "<group>"; };
 		7897B7D12A0BEB6A008007CD /* renderer.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = renderer.h; sourceTree = "<group>"; };
 		7897B7D22A0BEB76008007CD /* common.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = common.h; sourceTree = "<group>"; };
 		7897B7D82A0BF40F008007CD /* client.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = client.h; sourceTree = "<group>"; };
@@ -135,6 +137,7 @@
 				7897B7EF2A0CC6CF008007CD /* net.h */,
 				78A8963F2A15F18F00BC5B56 /* shared.h */,
 				78F58A812A06D1560027494A /* sheet.c */,
+				7866373C2A1A4C0800266A62 /* macos.c */,
 			);
 			path = common;
 			sourceTree = "<group>";
@@ -326,6 +329,7 @@
 				7897B7DA2A0BF40F008007CD /* cl_main.c in Sources */,
 				78F58A862A06D2160027494A /* config.c in Sources */,
 				7897B7FF2A12AF06008007CD /* cl_ents.c in Sources */,
+				7866373D2A1A4C0800266A62 /* macos.c in Sources */,
 				7897B7E32A0C209A008007CD /* net.c in Sources */,
 				7897B7DD2A0BF4FD008007CD /* sv_main.c in Sources */,
 				7897B7FB2A12872C008007CD /* cl_parse.c in Sources */,

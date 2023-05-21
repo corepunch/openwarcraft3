@@ -1,8 +1,8 @@
 #include "g_local.h"
 
-#include "tables/Doodads.h"
-#include "tables/DestructableData.h"
-#include "tables/UnitUI.h"
+#include "Doodads/Doodads.h"
+#include "Units/DestructableData.h"
+#include "Units/UnitUI.h"
 
 struct spawn {
     LPCSTR name;

@@ -1,6 +1,6 @@
 #include "g_local.h"
 
-#include "tables/UnitUI.h"
+#include "Units/UnitUI.h"
 
 #include <stdlib.h>
 

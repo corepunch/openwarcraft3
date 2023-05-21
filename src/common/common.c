@@ -109,8 +109,8 @@ void FS_Init(void) {
 //        FS_ReadSheet(*s);
 //    }
 
-    void FPrintSheetStructs(LPCSTR *szFileNames);
-    FPrintSheetStructs(WarcraftSheets);
+//    void FPrintSheetStructs(LPCSTR *szFileNames);
+//    FPrintSheetStructs(WarcraftSheets);
 }
 
 void FS_Shutdown(void) {

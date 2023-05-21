@@ -250,4 +250,6 @@ void SV_Shutdown(void);
 HANDLE MemAlloc(long size);
 void MemFree(HANDLE mem);
 
+void Sys_MkDir(LPCSTR szDirectory);
+
 #endif
