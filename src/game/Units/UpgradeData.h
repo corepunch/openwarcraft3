@@ -34,7 +34,11 @@ struct UpgradeData {
 	DWORD mod4; /* - - - - - - - - */
 };
 
-struct UpgradeData *FindUpgradeData(DWORD upgradeid);
+typedef struct UpgradeData UPGRADEDATA;
+typedef struct UpgradeData *LPUPGRADEDATA;
+typedef struct UpgradeData const *LPCUPGRADEDATA;
+
+LPCUPGRADEDATA FindUpgradeData(DWORD upgradeid);
 void InitUpgradeData(void);
 void ShutdownUpgradeData(void);
 

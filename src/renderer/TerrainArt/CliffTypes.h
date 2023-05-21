@@ -18,7 +18,11 @@ struct CliffTypes {
 	DWORD oldID; /* 7 6 4 5 3 2 1 0 */
 };
 
-struct CliffTypes *FindCliffTypes(DWORD cliffID);
+typedef struct CliffTypes CLIFFTYPES;
+typedef struct CliffTypes *LPCLIFFTYPES;
+typedef struct CliffTypes const *LPCCLIFFTYPES;
+
+LPCCLIFFTYPES FindCliffTypes(DWORD cliffID);
 void InitCliffTypes(void);
 void ShutdownCliffTypes(void);
 

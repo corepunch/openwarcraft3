@@ -1,7 +1,7 @@
 #include "../g_local.h"
 #include "UnitBalance.h"
 
-static struct UnitBalance *g_UnitBalance = NULL;
+static LPUNITBALANCE g_UnitBalance = NULL;
 
 static struct SheetLayout UnitBalance[] = {
 	{ "unitBalanceID", ST_ID, FOFS(UnitBalance, unitBalanceID) },
@@ -50,7 +50,7 @@ static struct SheetLayout UnitBalance[] = {
 	{ NULL },
 };
 
-struct UnitBalance *FindUnitBalance(DWORD unitBalanceID) {
+LPCUNITBALANCE FindUnitBalance(DWORD unitBalanceID) {
 	struct UnitBalance *lpValue = g_UnitBalance;
 	for (; lpValue->unitBalanceID != unitBalanceID && lpValue->unitBalanceID; lpValue++);
 	if (lpValue->unitBalanceID == 0) lpValue = NULL;

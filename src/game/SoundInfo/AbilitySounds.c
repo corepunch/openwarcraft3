@@ -1,7 +1,7 @@
 #include "../g_local.h"
 #include "AbilitySounds.h"
 
-static struct AbilitySounds *g_AbilitySounds = NULL;
+static LPABILITYSOUNDS g_AbilitySounds = NULL;
 
 static struct SheetLayout AbilitySounds[] = {
 	{ "SoundName", ST_STRING, FOFS(AbilitySounds, SoundName) },
@@ -26,7 +26,7 @@ static struct SheetLayout AbilitySounds[] = {
 	{ NULL },
 };
 
-struct AbilitySounds *FindAbilitySounds(LPCSTR SoundName) {
+LPCABILITYSOUNDS FindAbilitySounds(LPCSTR SoundName) {
 	struct AbilitySounds *lpValue = g_AbilitySounds;
 	for (; *lpValue->SoundName && strcmp(lpValue->SoundName, SoundName); lpValue++);
 	if (*lpValue->SoundName == 0) lpValue = NULL;

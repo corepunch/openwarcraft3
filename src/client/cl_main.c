@@ -23,8 +23,8 @@ void CL_Init(void) {
     memset(&cl, 0, sizeof(struct client_state));
     
     cl.viewDef.fov = 45;
-    cl.viewDef.vieworg = (VECTOR3) { -600, 2500, -2000 };
-    cl.viewDef.viewangles = (VECTOR3) { -30, 0, 0 };
+    cl.viewDef.vieworg = (VECTOR3) { -600, 2500, -1000 };
+    cl.viewDef.viewangles = (VECTOR3) { -40, 0, 0 };
     cl.team = 1;
     
     void __netchan_init(struct netchan *netchan);

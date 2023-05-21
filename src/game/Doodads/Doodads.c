@@ -1,7 +1,7 @@
 #include "../g_local.h"
 #include "Doodads.h"
 
-static struct Doodads *g_Doodads = NULL;
+static LPDOODADS g_Doodads = NULL;
 
 static struct SheetLayout Doodads[] = {
 	{ "doodID", ST_ID, FOFS(Doodads, doodID) },
@@ -72,7 +72,7 @@ static struct SheetLayout Doodads[] = {
 	{ NULL },
 };
 
-struct Doodads *FindDoodads(DWORD doodID) {
+LPCDOODADS FindDoodads(DWORD doodID) {
 	struct Doodads *lpValue = g_Doodads;
 	for (; lpValue->doodID != doodID && lpValue->doodID; lpValue++);
 	if (lpValue->doodID == 0) lpValue = NULL;

@@ -1,7 +1,7 @@
 #include "../g_local.h"
 #include "UnitAbilities.h"
 
-static struct UnitAbilities *g_UnitAbilities = NULL;
+static LPUNITABILITIES g_UnitAbilities = NULL;
 
 static struct SheetLayout UnitAbilities[] = {
 	{ "unitAbilID", ST_ID, FOFS(UnitAbilities, unitAbilID) },
@@ -14,7 +14,7 @@ static struct SheetLayout UnitAbilities[] = {
 	{ NULL },
 };
 
-struct UnitAbilities *FindUnitAbilities(DWORD unitAbilID) {
+LPCUNITABILITIES FindUnitAbilities(DWORD unitAbilID) {
 	struct UnitAbilities *lpValue = g_UnitAbilities;
 	for (; lpValue->unitAbilID != unitAbilID && lpValue->unitAbilID; lpValue++);
 	if (lpValue->unitAbilID == 0) lpValue = NULL;

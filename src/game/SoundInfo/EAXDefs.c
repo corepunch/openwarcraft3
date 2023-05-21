@@ -1,7 +1,7 @@
 #include "../g_local.h"
 #include "EAXDefs.h"
 
-static struct EAXDefs *g_EAXDefs = NULL;
+static LPEAXDEFS g_EAXDefs = NULL;
 
 static struct SheetLayout EAXDefs[] = {
 	{ "EAXLabel", ST_STRING, FOFS(EAXDefs, EAXLabel) },
@@ -28,7 +28,7 @@ static struct SheetLayout EAXDefs[] = {
 	{ NULL },
 };
 
-struct EAXDefs *FindEAXDefs(LPCSTR EAXLabel) {
+LPCEAXDEFS FindEAXDefs(LPCSTR EAXLabel) {
 	struct EAXDefs *lpValue = g_EAXDefs;
 	for (; *lpValue->EAXLabel && strcmp(lpValue->EAXLabel, EAXLabel); lpValue++);
 	if (*lpValue->EAXLabel == 0) lpValue = NULL;

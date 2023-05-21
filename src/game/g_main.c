@@ -62,7 +62,8 @@ struct game_export *GetGameAPI(struct game_import *import) {
     gi = *import;
     globals.Init = G_Init;
     globals.Shutdown = G_Shutdown;
-    globals.SpawnEntities = G_SpawnEntities;
+    globals.SpawnDoodads = G_SpawnDoodads;
+    globals.SpawnUnits = G_SpawnUnits;
     globals.RunFrame = G_RunFrame;
     globals.ClientCommand = G_ClientCommand;
     globals.edict_size = sizeof(struct edict);

@@ -10,9 +10,11 @@ struct spawn {
 };
 
 void SP_monster_peon(LPEDICT lpEdict);
+void SP_monster_grunt(LPEDICT lpEdict);
 
 static struct spawn spawns[] = {
     { "opeo", SP_monster_peon },
+    { "ogru", SP_monster_grunt },
     { NULL, NULL }
 };
 
@@ -40,9 +42,9 @@ static void SP_SpawnDestructable(LPEDICT lpEdict, struct DestructableData const 
 void SP_CallSpawn(LPEDICT lpEdict) {
     if (!lpEdict->class_id)
         return;
-    struct Doodads const *doodadInfo = NULL;
-    struct DestructableData const *destructableData = NULL;
-    struct UnitUI const *unitUI = NULL;
+    LPCDOODADS doodadInfo = NULL;
+    LPCDESTRUCTABLEDATA destructableData = NULL;
+    LPCUNITUI unitUI = NULL;
     if ((doodadInfo = FindDoodads(lpEdict->class_id))) {
         SP_SpawnDoodad(lpEdict, doodadInfo);
     } else if ((destructableData = FindDestructableData(lpEdict->class_id))) {
@@ -51,19 +53,19 @@ void SP_CallSpawn(LPEDICT lpEdict) {
         SP_SpawnUnit(lpEdict, unitUI);
     }
     for (struct spawn *s = spawns; s->func; s++) {
-        if (*((int const *)spawns->name) == lpEdict->class_id) {
+        if (*((int const *)s->name) == lpEdict->class_id) {
             s->func(lpEdict);
             return;
         }
     }
 }
 
-void G_SpawnEntities(LPCDOODAD doodads, DWORD numDoodads) {
+void G_SpawnDoodads(LPCDOODAD doodads, DWORD numDoodads) {
     LPEDICT e = G_Spawn();
-    e->class_id = MAKEFOURCC('o', 'p', 'e', 'o');
+    e->class_id = MAKEFOURCC('o', 'g', 'r', 'u');
     e->s.origin = (VECTOR3) { -200, -1600, 100 };
     e->s.angle = 0;
-    e->s.scale = 2.5;
+    e->s.scale = 1;
     e->s.team = 1;
     SP_CallSpawn(e);
     gi.ModelIndex("UI\\Feedback\\SelectionCircleUnit\\selectioncircleUnit.mdx");
@@ -72,12 +74,26 @@ void G_SpawnEntities(LPCDOODAD doodads, DWORD numDoodads) {
     e->class_id = MAKEFOURCC('o', 'p', 'e', 'o');
     e->s.origin = (VECTOR3) { 800, -1400, 100 };
     e->s.angle = -1;
-    e->s.scale = 2.5;
+    e->s.scale = 1;
     e->s.team = 2;
     SP_CallSpawn(e);
 
     FOR_LOOP(index, numDoodads) {
         LPCDOODAD doodad = &doodads[index];
+        LPEDICT e = G_Spawn();
+        LPENTITYSTATE s = &e->s;
+        s->origin = doodad->position;
+        s->angle = doodad->angle;
+        s->scale = doodad->scale.x;
+        e->class_id = doodad->doodID;
+        e->variation = doodad->variation;
+        SP_CallSpawn(e);
+    }
+}
+
+void G_SpawnUnits(LPCDOODADUNIT units, DWORD numUnits) {
+    FOR_LOOP(index, numUnits) {
+        LPCDOODADUNIT doodad = &units[index];
         LPEDICT e = G_Spawn();
         LPENTITYSTATE s = &e->s;
         s->origin = doodad->position;

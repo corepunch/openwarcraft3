@@ -127,6 +127,8 @@ static void R_CalculateBoneMatrices(LPCMODEL lpModel, LPMATRIX4 lpModelMatrices,
 }
 
 static void R_RenderGeoset(LPCMODEL lpModel, LPMODELGEOSET lpGeoset, LPCMATRIX4 lpModelMatrix) {
+    if (!lpGeoset->lpBuffer)
+        return;
     MATRIX3 mNormalMatrix;
     Matrix3_normal(&mNormalMatrix, lpModelMatrix);
     glUseProgram(tr.shaderSkin->progid);
@@ -160,9 +162,14 @@ static void R_BindBoneMatrices(LPMODEL lpModel, DWORD dwFrame1, DWORD dwFrame0) 
 
 static void RenderGeoset(LPCMODEL lpModel,
                          LPMODELGEOSET lpGeoset,
-                         LPCMODELLAYER lpLayer,
-                         LPCRENDERENTITY lpEntity)
+                         LPCRENDERENTITY lpEntity,
+                         LPCTEXTURE lpTextureOverride)
 {
+    LPMODELMATERIAL lpMaterial = lpModel->lpMaterials;
+    for (DWORD material = lpGeoset->materialID; material > 0; material--) {
+        lpMaterial = lpMaterial->lpNext;
+    }
+
     if (lpGeoset->lpGeosetAnim && lpGeoset->lpGeosetAnim->lpAlphas) {
         float fAlpha = 1.f;
         R_GetModelKeytrackValue(lpModel, lpGeoset->lpGeosetAnim->lpAlphas, lpEntity->frame, &fAlpha);
@@ -178,63 +185,55 @@ static void RenderGeoset(LPCMODEL lpModel,
     Matrix4_scale(&mModelMatrix, &(VECTOR3){lpEntity->scale, lpEntity->scale, lpEntity->scale});
     
     glUniform1i(tr.shaderSkin->uUseDiscard, 0);
-    extern bool is_rendering_lights;
 
-    switch (lpLayer->blendMode) {
-        case TEXOP_LOAD:
-            glBlendFunc(GL_ONE, GL_ZERO);
-            break;
-        case TEXOP_TRANSPARENT:
-            glUniform1i(tr.shaderSkin->uUseDiscard, 1);
-            glBlendFunc(GL_ONE, GL_ZERO);
-//            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-            break;
-        case TEXOP_BLEND:
-            if (is_rendering_lights)
-                return;
-            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-            break;
-        case TEXOP_ADD:
-            glBlendFunc(GL_ONE, GL_ONE);
-            break;
-        case TEXOP_ADD_ALPHA:
-            glBlendFunc(GL_SRC_ALPHA, GL_ONE);
-            break;
-        default:
-            glBlendFunc(GL_ONE, GL_ZERO);
-            break;
-    }
+    extern bool is_rendering_lights;
     
-    R_RenderGeoset(lpModel, lpGeoset, &mModelMatrix);
+    FOR_LOOP(dwLayerID, lpMaterial->num_layers) {
+        LPCMODELLAYER lpLayer = &lpMaterial->layers[dwLayerID];
+        if (lpTextureOverride) {
+            R_BindTexture(lpTextureOverride, 0);
+        } else {
+            struct tModelTexture const *lpModelTexture = &lpModel->lpTextures[lpLayer->textureId];
+            LPCTEXTURE lpTexure = R_FindTextureByID(lpModelTexture->texid);
+            if (lpTexure) {
+                R_BindTexture(lpTexure, 0);
+            } else {
+                // TODO: bind white texture instead
+            }
+        }
+        switch (lpLayer->blendMode) {
+            case TEXOP_LOAD:
+                glBlendFunc(GL_ONE, GL_ZERO);
+                break;
+            case TEXOP_TRANSPARENT:
+                glUniform1i(tr.shaderSkin->uUseDiscard, 1);
+                glBlendFunc(GL_ONE, GL_ZERO);
+                break;
+            case TEXOP_BLEND:
+                if (is_rendering_lights)
+                    return;
+                glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+                break;
+            case TEXOP_ADD:
+                glBlendFunc(GL_ONE, GL_ONE);
+                break;
+            case TEXOP_ADD_ALPHA:
+                glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+                break;
+            default:
+                glBlendFunc(GL_ONE, GL_ZERO);
+                break;
+        }
+        R_RenderGeoset(lpModel, lpGeoset, &mModelMatrix);
+    }
 }
 
 void RenderModel(LPCRENDERENTITY lpEdict) {
-    struct tModelMaterial *lpMaterial = lpEdict->model->lpMaterials;
-    LPMODELGEOSET lpGeoset = lpEdict->model->lpGeosets;
     LPCMODEL lpModel = lpEdict->model;
 
-    if (lpEdict->skin) {
-        R_BindTexture(lpEdict->skin, 0);
-    }
-    
     R_BindBoneMatrices((LPMODEL)lpModel, lpEdict->frame, lpEdict->oldframe);
-    
-    for (DWORD dwGeosetID = 0;
-         lpMaterial && lpGeoset;
-         lpGeoset = lpGeoset->lpNext, dwGeosetID++)
-    {
-        if (dwGeosetID < lpEdict->model->numTextures) {
-            struct tModelTexture const *mtex = &lpEdict->model->lpTextures[dwGeosetID];
-            LPCTEXTURE tex = R_FindTextureByID(mtex->texid);
-            if (tex) {
-                R_BindTexture(tex, 0);
-            }
-        }
-        FOR_LOOP(dwLayerID, lpMaterial->num_layers) {
-            RenderGeoset(lpModel, lpGeoset, &lpMaterial->layers[dwLayerID], lpEdict);
-        }
-        if (lpMaterial->lpNext) {
-            lpMaterial = lpMaterial->lpNext;
-        }
+
+    FOR_EACH_LIST(MODELGEOSET, lpGeoset, lpModel->lpGeosets) {
+        RenderGeoset(lpModel, lpGeoset, lpEdict, lpEdict->skin);
     }
 }

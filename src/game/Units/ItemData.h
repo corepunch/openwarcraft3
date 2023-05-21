@@ -29,7 +29,11 @@ struct ItemData {
 	DWORD InBeta; /* 1 0 1 1 1 1 1 1 */
 };
 
-struct ItemData *FindItemData(DWORD itemID);
+typedef struct ItemData ITEMDATA;
+typedef struct ItemData *LPITEMDATA;
+typedef struct ItemData const *LPCITEMDATA;
+
+LPCITEMDATA FindItemData(DWORD itemID);
 void InitItemData(void);
 void ShutdownItemData(void);
 

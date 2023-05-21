@@ -1,7 +1,7 @@
 #include "../g_local.h"
 #include "UISounds.h"
 
-static struct UISounds *g_UISounds = NULL;
+static LPUISOUNDS g_UISounds = NULL;
 
 static struct SheetLayout UISounds[] = {
 	{ "SoundName", ST_STRING, FOFS(UISounds, SoundName) },
@@ -26,7 +26,7 @@ static struct SheetLayout UISounds[] = {
 	{ NULL },
 };
 
-struct UISounds *FindUISounds(LPCSTR SoundName) {
+LPCUISOUNDS FindUISounds(LPCSTR SoundName) {
 	struct UISounds *lpValue = g_UISounds;
 	for (; *lpValue->SoundName && strcmp(lpValue->SoundName, SoundName); lpValue++);
 	if (*lpValue->SoundName == 0) lpValue = NULL;

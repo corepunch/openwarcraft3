@@ -1,7 +1,7 @@
 #include "../g_local.h"
 #include "AnimLookups.h"
 
-static struct AnimLookups *g_AnimLookups = NULL;
+static LPANIMLOOKUPS g_AnimLookups = NULL;
 
 static struct SheetLayout AnimLookups[] = {
 	{ "AnimSoundEvent", ST_ID, FOFS(AnimLookups, AnimSoundEvent) },
@@ -9,7 +9,7 @@ static struct SheetLayout AnimLookups[] = {
 	{ NULL },
 };
 
-struct AnimLookups *FindAnimLookups(DWORD AnimSoundEvent) {
+LPCANIMLOOKUPS FindAnimLookups(DWORD AnimSoundEvent) {
 	struct AnimLookups *lpValue = g_AnimLookups;
 	for (; lpValue->AnimSoundEvent != AnimSoundEvent && lpValue->AnimSoundEvent; lpValue++);
 	if (lpValue->AnimSoundEvent == 0) lpValue = NULL;

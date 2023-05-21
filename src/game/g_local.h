@@ -36,7 +36,10 @@ typedef struct {
 typedef struct {
     mmove_t *currentmove;
     DWORD aiflags;
-    int health;
+    DWORD health;
+    DWORD movespeed;
+    struct UnitWeapons const *weapon;
+    struct UnitBalance const *balance;
     void (*stand)(LPEDICT self);
     void (*walk)(LPEDICT self);
     void (*run)(LPEDICT self);
@@ -47,7 +50,7 @@ typedef struct {
 struct edict {
     ENTITYSTATE s;
     DWORD class_id;
-    int variation;
+    DWORD variation;
     movetype_t movetype;
     LPEDICT goalentity;
     LPEDICT enemy;
@@ -74,7 +77,8 @@ struct game_locals {
 LPEDICT G_Spawn(void);
 void SP_SpawnUnit(LPEDICT lpEdict, LPCUNITUI lpUnit);
 void SP_CallSpawn(LPEDICT lpEdict);
-void G_SpawnEntities(LPCDOODAD doodads, DWORD numDoodads);
+void G_SpawnDoodads(LPCDOODAD doodads, DWORD numDoodads);
+void G_SpawnUnits(LPCDOODADUNIT units, DWORD numUnits);
 void G_RunEntity(LPEDICT lpEdict);
 
 LPEDICT Waypoint_add(VECTOR2 spot);

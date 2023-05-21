@@ -27,7 +27,11 @@ struct AmbienceSounds {
 	SHEETSTR EAXFlags; /* DefaultEAXON DefaultEAXON DefaultEAXON DefaultEAXON DefaultEAXON DefaultEAXON DefaultEAXON DefaultEAXON */
 };
 
-struct AmbienceSounds *FindAmbienceSounds(LPCSTR SoundName);
+typedef struct AmbienceSounds AMBIENCESOUNDS;
+typedef struct AmbienceSounds *LPAMBIENCESOUNDS;
+typedef struct AmbienceSounds const *LPCAMBIENCESOUNDS;
+
+LPCAMBIENCESOUNDS FindAmbienceSounds(LPCSTR SoundName);
 void InitAmbienceSounds(void);
 void ShutdownAmbienceSounds(void);
 

@@ -9,6 +9,7 @@ KNOWN_AS(tModelGeoset, MODELGEOSET);
 KNOWN_AS(tModelKeyTrack, MODELKEYTRACK);
 KNOWN_AS(tModelKeyFrame, MODELKEYFRAME);
 KNOWN_AS(tModelNode, MODELNODE);
+KNOWN_AS(tModelMaterial, MODELMATERIAL);
 KNOWN_AS(tModelMaterialLayer, MODELLAYER);
 KNOWN_AS(tModelSequence, MODELSEQUENCE);
 
@@ -50,7 +51,7 @@ struct tModelGeoset {
     short *lpTriangles;
     LPSTR lpVertexGroups;
     int *lpMatrixGroupSizes;
-    int material;
+    int materialID;
     int group;
     int selectable;// (0:none;4:Unselectable)
     int numVertices;
@@ -87,7 +88,7 @@ struct tModelMaterial {
     int flags;
     int num_layers;
     LPMODELLAYER layers;
-    struct tModelMaterial *lpNext;
+    LPMODELMATERIAL lpNext;
 };
 
 struct tModelSequence {
@@ -182,7 +183,7 @@ struct tModel {
     LPMODELSEQUENCE lpSequences;
     struct tModelEvent *lpEvents;
     struct tModelPivot *lpPivots;
-    struct tModelMaterial *lpMaterials;
+    LPMODELMATERIAL lpMaterials;
     struct tModelBone *lpBones;
     struct tModelGeosetAnim *lpGeosetAnims;
     struct tModelHelper *lpHelpers;

@@ -27,7 +27,11 @@ struct AnimSounds {
 	SHEETSTR EAXFlags; /* SpellsEAX SpellsEAX SpellsEAX DefaultEAXON DefaultEAXON DefaultEAXON SpellsEAX DefaultEAXON */
 };
 
-struct AnimSounds *FindAnimSounds(LPCSTR SoundName);
+typedef struct AnimSounds ANIMSOUNDS;
+typedef struct AnimSounds *LPANIMSOUNDS;
+typedef struct AnimSounds const *LPCANIMSOUNDS;
+
+LPCANIMSOUNDS FindAnimSounds(LPCSTR SoundName);
 void InitAnimSounds(void);
 void ShutdownAnimSounds(void);
 

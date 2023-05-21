@@ -11,7 +11,11 @@ struct PortraitAnims {
 	float Speech_Duration_; /* _-1,-1,-1,-1 _-1,-1,-1,-1 _-1 _-1,-1,-1,-1,-1 _-1,-1,-1,-1,-1 _-1,-1,-1,-1,-1,-1 _-1,-1,-1,-1 _-1,-1,-1,-1,-1,-1,-1,-1,-1 */
 };
 
-struct PortraitAnims *FindPortraitAnims(LPCSTR Sound_Label);
+typedef struct PortraitAnims PORTRAITANIMS;
+typedef struct PortraitAnims *LPPORTRAITANIMS;
+typedef struct PortraitAnims const *LPCPORTRAITANIMS;
+
+LPCPORTRAITANIMS FindPortraitAnims(LPCSTR Sound_Label);
 void InitPortraitAnims(void);
 void ShutdownPortraitAnims(void);
 

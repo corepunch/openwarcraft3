@@ -1,7 +1,7 @@
 #include "../g_local.h"
 #include "UberSplatData.h"
 
-static struct UberSplatData *g_UberSplatData = NULL;
+static LPUBERSPLATDATA g_UberSplatData = NULL;
 
 static struct SheetLayout UberSplatData[] = {
 	{ "Name", ST_ID, FOFS(UberSplatData, Name) },
@@ -29,7 +29,7 @@ static struct SheetLayout UberSplatData[] = {
 	{ NULL },
 };
 
-struct UberSplatData *FindUberSplatData(DWORD Name) {
+LPCUBERSPLATDATA FindUberSplatData(DWORD Name) {
 	struct UberSplatData *lpValue = g_UberSplatData;
 	for (; lpValue->Name != Name && lpValue->Name; lpValue++);
 	if (lpValue->Name == 0) lpValue = NULL;

@@ -24,7 +24,11 @@ struct EnvironmentSounds {
 	DWORD AirAbsorption; /* 0 0 0 -2 */
 };
 
-struct EnvironmentSounds *FindEnvironmentSounds(LPCSTR EnvironmentType);
+typedef struct EnvironmentSounds ENVIRONMENTSOUNDS;
+typedef struct EnvironmentSounds *LPENVIRONMENTSOUNDS;
+typedef struct EnvironmentSounds const *LPCENVIRONMENTSOUNDS;
+
+LPCENVIRONMENTSOUNDS FindEnvironmentSounds(LPCSTR EnvironmentType);
 void InitEnvironmentSounds(void);
 void ShutdownEnvironmentSounds(void);
 

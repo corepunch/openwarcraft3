@@ -27,7 +27,11 @@ struct UISounds {
 	DWORD EAXFlags; /* 0 0 0 0 0 0 0 0 */
 };
 
-struct UISounds *FindUISounds(LPCSTR SoundName);
+typedef struct UISounds UISOUNDS;
+typedef struct UISounds *LPUISOUNDS;
+typedef struct UISounds const *LPCUISOUNDS;
+
+LPCUISOUNDS FindUISounds(LPCSTR SoundName);
 void InitUISounds(void);
 void ShutdownUISounds(void);
 

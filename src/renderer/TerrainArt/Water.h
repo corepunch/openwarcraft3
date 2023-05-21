@@ -55,7 +55,11 @@ struct Water {
 	DWORD Dmax_B; /* 255 255 255 150 220 192 192 192 */
 };
 
-struct Water *FindWater(DWORD waterID);
+typedef struct Water WATER;
+typedef struct Water *LPWATER;
+typedef struct Water const *LPCWATER;
+
+LPCWATER FindWater(DWORD waterID);
 void InitWater(void);
 void ShutdownWater(void);
 

@@ -53,7 +53,11 @@ struct Weather {
 	SHEETSTR AmbientSound; /* - - - - - - AmbientSoundRain AmbientSoundRain */
 };
 
-struct Weather *FindWeather(DWORD effectID);
+typedef struct Weather WEATHER;
+typedef struct Weather *LPWEATHER;
+typedef struct Weather const *LPCWEATHER;
+
+LPCWEATHER FindWeather(DWORD effectID);
 void InitWeather(void);
 void ShutdownWeather(void);
 

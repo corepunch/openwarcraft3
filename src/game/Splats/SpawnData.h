@@ -10,7 +10,11 @@ struct SpawnData {
 	SHEETSTR Model; /* Objects\Spawnmodels\Orc\OrcDissipate\OrcDissipate.mdl Objects\Spawnmodels\Demon\DemonDissipate\DemonDissipate.mdl Objects\Spawnmodels\NightElf\NightelfDissipate\NightElfDissipate.mdl Objects\Spawnmodels\Undead\UndeadDissipate\UndeadDissipate.mdl Objects\Spawnmodels\Undead\GargoyleCrumble\GargoyleCrumble.mdl Objects\Spawnmodels\Undead\CryptFiendEggsack\CryptFiendEggsack.mdl bugger.mdl INIT */
 };
 
-struct SpawnData *FindSpawnData(LPCSTR Name);
+typedef struct SpawnData SPAWNDATA;
+typedef struct SpawnData *LPSPAWNDATA;
+typedef struct SpawnData const *LPCSPAWNDATA;
+
+LPCSPAWNDATA FindSpawnData(LPCSTR Name);
 void InitSpawnData(void);
 void ShutdownSpawnData(void);
 

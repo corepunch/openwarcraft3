@@ -1,7 +1,7 @@
 #include "../r_local.h"
 #include "CliffTypes.h"
 
-static struct CliffTypes *g_CliffTypes = NULL;
+static LPCLIFFTYPES g_CliffTypes = NULL;
 
 static struct SheetLayout CliffTypes[] = {
 	{ "cliffID", ST_ID, FOFS(CliffTypes, cliffID) },
@@ -17,7 +17,7 @@ static struct SheetLayout CliffTypes[] = {
 	{ NULL },
 };
 
-struct CliffTypes *FindCliffTypes(DWORD cliffID) {
+LPCCLIFFTYPES FindCliffTypes(DWORD cliffID) {
 	struct CliffTypes *lpValue = g_CliffTypes;
 	for (; lpValue->cliffID != cliffID && lpValue->cliffID; lpValue++);
 	if (lpValue->cliffID == 0) lpValue = NULL;

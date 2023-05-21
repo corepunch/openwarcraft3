@@ -1,7 +1,7 @@
 #include "../g_local.h"
 #include "AbilityData.h"
 
-static struct AbilityData *g_AbilityData = NULL;
+static LPABILITYDATA g_AbilityData = NULL;
 
 static struct SheetLayout AbilityData[] = {
 	{ "alias", ST_ID, FOFS(AbilityData, alias) },
@@ -62,7 +62,7 @@ static struct SheetLayout AbilityData[] = {
 	{ NULL },
 };
 
-struct AbilityData *FindAbilityData(DWORD alias) {
+LPCABILITYDATA FindAbilityData(DWORD alias) {
 	struct AbilityData *lpValue = g_AbilityData;
 	for (; lpValue->alias != alias && lpValue->alias; lpValue++);
 	if (lpValue->alias == 0) lpValue = NULL;

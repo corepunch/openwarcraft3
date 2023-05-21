@@ -25,7 +25,11 @@ struct UnitMetaData {
 	DWORD useSpecific; /* */
 };
 
-struct UnitMetaData *FindUnitMetaData(DWORD ID);
+typedef struct UnitMetaData UNITMETADATA;
+typedef struct UnitMetaData *LPUNITMETADATA;
+typedef struct UnitMetaData const *LPCUNITMETADATA;
+
+LPCUNITMETADATA FindUnitMetaData(DWORD ID);
 void InitUnitMetaData(void);
 void ShutdownUnitMetaData(void);
 

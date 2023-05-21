@@ -27,7 +27,11 @@ struct UnitCombatSounds {
 	SHEETSTR EAXFlags; /* CombatSoundsEAX CombatSoundsEAX CombatSoundsEAX CombatSoundsEAX CombatSoundsEAX CombatSoundsEAX CombatSoundsEAX DefaultEAXON */
 };
 
-struct UnitCombatSounds *FindUnitCombatSounds(LPCSTR SoundName);
+typedef struct UnitCombatSounds UNITCOMBATSOUNDS;
+typedef struct UnitCombatSounds *LPUNITCOMBATSOUNDS;
+typedef struct UnitCombatSounds const *LPCUNITCOMBATSOUNDS;
+
+LPCUNITCOMBATSOUNDS FindUnitCombatSounds(LPCSTR SoundName);
 void InitUnitCombatSounds(void);
 void ShutdownUnitCombatSounds(void);
 

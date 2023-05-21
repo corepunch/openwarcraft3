@@ -121,7 +121,7 @@ static LPMODELGEOSET ReadGeoset(HANDLE hFile, struct tFileBlock const block) {
             case ID_UVAS: SFileReadFile(hFile, &lpGeoset->numTexcoordChannels, sizeof(int), NULL, NULL); break;
             case ID_MATS:
                 SFileReadArray(hFile, lpGeoset, Matrices, sizeof(int), ri.MemAlloc);
-                SFileReadFile(hFile, &lpGeoset->material, sizeof(int), NULL, NULL);
+                SFileReadFile(hFile, &lpGeoset->materialID, sizeof(int), NULL, NULL);
                 SFileReadFile(hFile, &lpGeoset->group, sizeof(int), NULL, NULL);
                 SFileReadFile(hFile, &lpGeoset->selectable, sizeof(int), NULL, NULL);
                 SFileReadFile(hFile, &lpGeoset->default_bounds, sizeof(struct tModelBounds), NULL, NULL);
@@ -148,8 +148,8 @@ static void ReadMaterialLayer(HANDLE hFile,
     FileMoveToEndOfBlock(hFile, &block);
 }
 
-static struct tModelMaterial *ReadMaterial(HANDLE hFile, struct tFileBlock const block) {
-    struct tModelMaterial *lpMaterial = ri.MemAlloc(sizeof(struct tModelMaterial));
+static LPMODELMATERIAL ReadMaterial(HANDLE hFile, struct tFileBlock const block) {
+    LPMODELMATERIAL lpMaterial = ri.MemAlloc(sizeof(struct tModelMaterial));
     lpMaterial->priority = FileReadInt32(hFile);
     lpMaterial->flags = FileReadInt32(hFile);
     while (!FileIsAtEndOfBlock(hFile, &block)) {
@@ -326,7 +326,7 @@ LPMODEL R_LoadModelMDX(HANDLE hFile) {
     DWORD dwBlockHeader, dwFileVersion = 0;
     LPMODEL lpModel = ri.MemAlloc(sizeof(struct tModel));
     LPMODELGEOSET lpLastGeoset = lpModel->lpGeosets;
-    struct tModelMaterial *lpLastMaterial = lpModel->lpMaterials;
+    LPMODELMATERIAL lpLastMaterial = lpModel->lpMaterials;
     struct tModelBone *lpLastBone = lpModel->lpBones;
     struct tModelHelper *lpLastHelper = lpModel->lpHelpers;
     struct tModelGeosetAnim *lpLastGeosetAnim = lpModel->lpGeosetAnims;
@@ -443,7 +443,7 @@ static void R_ReleaseModelGeoset(LPMODELGEOSET lpGeoset) {
     SAFE_DELETE(lpGeoset->lpBounds, ri.MemFree);
     SAFE_DELETE(lpGeoset, ri.MemFree);
 }
-static void R_ReleaseModelMaterial(struct tModelMaterial *lpMaterial) {
+static void R_ReleaseModelMaterial(LPMODELMATERIAL lpMaterial) {
     SAFE_DELETE(lpMaterial->lpNext, R_ReleaseModelMaterial);
     SAFE_DELETE(lpMaterial, ri.MemFree);
 }

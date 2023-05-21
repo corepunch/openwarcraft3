@@ -29,7 +29,11 @@ struct EAXDefs {
 	float Fast2DOcclusionScale; /* 0.05 0 0.1 0.05 0.2 0.1 0 */
 };
 
-struct EAXDefs *FindEAXDefs(LPCSTR EAXLabel);
+typedef struct EAXDefs EAXDEFS;
+typedef struct EAXDefs *LPEAXDEFS;
+typedef struct EAXDefs const *LPCEAXDEFS;
+
+LPCEAXDEFS FindEAXDefs(LPCSTR EAXLabel);
 void InitEAXDefs(void);
 void ShutdownEAXDefs(void);
 

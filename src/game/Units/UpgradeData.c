@@ -1,7 +1,7 @@
 #include "../g_local.h"
 #include "UpgradeData.h"
 
-static struct UpgradeData *g_UpgradeData = NULL;
+static LPUPGRADEDATA g_UpgradeData = NULL;
 
 static struct SheetLayout UpgradeData[] = {
 	{ "upgradeid", ST_ID, FOFS(UpgradeData, upgradeid) },
@@ -33,7 +33,7 @@ static struct SheetLayout UpgradeData[] = {
 	{ NULL },
 };
 
-struct UpgradeData *FindUpgradeData(DWORD upgradeid) {
+LPCUPGRADEDATA FindUpgradeData(DWORD upgradeid) {
 	struct UpgradeData *lpValue = g_UpgradeData;
 	for (; lpValue->upgradeid != upgradeid && lpValue->upgradeid; lpValue++);
 	if (lpValue->upgradeid == 0) lpValue = NULL;

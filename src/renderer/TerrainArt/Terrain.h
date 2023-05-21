@@ -20,7 +20,11 @@ struct Terrain {
 	DWORD InBeta; /* 1 1 1 1 1 1 1 1 */
 };
 
-struct Terrain *FindTerrain(DWORD tileID);
+typedef struct Terrain TERRAIN;
+typedef struct Terrain *LPTERRAIN;
+typedef struct Terrain const *LPCTERRAIN;
+
+LPCTERRAIN FindTerrain(DWORD tileID);
 void InitTerrain(void);
 void ShutdownTerrain(void);
 

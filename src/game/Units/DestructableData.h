@@ -53,7 +53,11 @@ struct DestructableData {
 	DWORD InBeta; /* 1 1 1 1 1 1 1 1 */
 };
 
-struct DestructableData *FindDestructableData(DWORD DestructableID);
+typedef struct DestructableData DESTRUCTABLEDATA;
+typedef struct DestructableData *LPDESTRUCTABLEDATA;
+typedef struct DestructableData const *LPCDESTRUCTABLEDATA;
+
+LPCDESTRUCTABLEDATA FindDestructableData(DWORD DestructableID);
 void InitDestructableData(void);
 void ShutdownDestructableData(void);
 

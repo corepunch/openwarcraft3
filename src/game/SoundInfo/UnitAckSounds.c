@@ -1,7 +1,7 @@
 #include "../g_local.h"
 #include "UnitAckSounds.h"
 
-static struct UnitAckSounds *g_UnitAckSounds = NULL;
+static LPUNITACKSOUNDS g_UnitAckSounds = NULL;
 
 static struct SheetLayout UnitAckSounds[] = {
 	{ "SoundName", ST_STRING, FOFS(UnitAckSounds, SoundName) },
@@ -26,7 +26,7 @@ static struct SheetLayout UnitAckSounds[] = {
 	{ NULL },
 };
 
-struct UnitAckSounds *FindUnitAckSounds(LPCSTR SoundName) {
+LPCUNITACKSOUNDS FindUnitAckSounds(LPCSTR SoundName) {
 	struct UnitAckSounds *lpValue = g_UnitAckSounds;
 	for (; *lpValue->SoundName && strcmp(lpValue->SoundName, SoundName); lpValue++);
 	if (*lpValue->SoundName == 0) lpValue = NULL;

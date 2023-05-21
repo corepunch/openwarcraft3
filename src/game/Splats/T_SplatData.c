@@ -1,7 +1,7 @@
 #include "../g_local.h"
 #include "T_SplatData.h"
 
-static struct T_SplatData *g_T_SplatData = NULL;
+static LPT_SPLATDATA g_T_SplatData = NULL;
 
 static struct SheetLayout T_SplatData[] = {
 	{ "Name", ST_ID, FOFS(T_SplatData, Name) },
@@ -37,7 +37,7 @@ static struct SheetLayout T_SplatData[] = {
 	{ NULL },
 };
 
-struct T_SplatData *FindT_SplatData(DWORD Name) {
+LPCT_SPLATDATA FindT_SplatData(DWORD Name) {
 	struct T_SplatData *lpValue = g_T_SplatData;
 	for (; lpValue->Name != Name && lpValue->Name; lpValue++);
 	if (lpValue->Name == 0) lpValue = NULL;

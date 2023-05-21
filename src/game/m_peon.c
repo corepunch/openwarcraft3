@@ -48,8 +48,6 @@ void SP_monster_peon(LPEDICT self) {
     self->monsterinfo.walk = peon_walk;
     self->monsterinfo.melee = peon_melee;
     self->monsterinfo.currentmove = &peon_move_stand;
-
-    self->monsterinfo.health = 100;
     
     monster_start(self);
 }

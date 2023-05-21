@@ -17,8 +17,11 @@ void SV_Map(LPCSTR szMapFilename) {
     CM_LoadMap(szMapFilename);
     SV_CreateBaseline();
     LPCDOODAD doodads;
+    LPCDOODADUNIT units;
     DWORD num_doodads = CM_GetDoodadsArray(&doodads);
-    ge->SpawnEntities(doodads, num_doodads);
+    DWORD num_units = CM_GetUnitsArray(&units);
+    ge->SpawnDoodads(doodads, num_doodads);
+    ge->SpawnUnits(units, num_units);
 }
 
 void SV_InitGame(void) {
@@ -47,17 +50,13 @@ static struct AnimationInfo SV_GetAnimation(int modelindex, LPCSTR animname) {
     if (!model) {
         return (struct AnimationInfo) { 0 };
     }
-//    FOR_LOOP(i, model->num_animations){
-//        struct mdx_sequence *anim = &model->animations[i];
-//        printf("%s %d %d\n", anim->name, anim->interval[0], anim->interval[1]);
-//    }
     FOR_LOOP(i, model->num_animations){
         struct mdx_sequence *anim = &model->animations[i];
         if (!strcmp(anim->name, animname)) {
             return (struct AnimationInfo) {
                 .firstframe = anim->interval[0],
                 .lastframe = anim->interval[1],
-                .movespeed = anim->movespeed / 2.5,
+                .movespeed = anim->movespeed,
 //                .framerate = anim->,
             };
         }

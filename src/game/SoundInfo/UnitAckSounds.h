@@ -27,7 +27,11 @@ struct UnitAckSounds {
 	SHEETSTR EAXFlags; /* HeroAcksEAX HeroAcksEAX HeroAcksEAX HeroAcksEAX HeroAcksEAX HeroAcksEAX HeroAcksEAX HeroAcksEAX */
 };
 
-struct UnitAckSounds *FindUnitAckSounds(LPCSTR SoundName);
+typedef struct UnitAckSounds UNITACKSOUNDS;
+typedef struct UnitAckSounds *LPUNITACKSOUNDS;
+typedef struct UnitAckSounds const *LPCUNITACKSOUNDS;
+
+LPCUNITACKSOUNDS FindUnitAckSounds(LPCSTR SoundName);
 void InitUnitAckSounds(void);
 void ShutdownUnitAckSounds(void);
 

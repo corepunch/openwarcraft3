@@ -1,7 +1,7 @@
 #include "../g_local.h"
 #include "UnitMetaData.h"
 
-static struct UnitMetaData *g_UnitMetaData = NULL;
+static LPUNITMETADATA g_UnitMetaData = NULL;
 
 static struct SheetLayout UnitMetaData[] = {
 	{ "ID", ST_ID, FOFS(UnitMetaData, ID) },
@@ -24,7 +24,7 @@ static struct SheetLayout UnitMetaData[] = {
 	{ NULL },
 };
 
-struct UnitMetaData *FindUnitMetaData(DWORD ID) {
+LPCUNITMETADATA FindUnitMetaData(DWORD ID) {
 	struct UnitMetaData *lpValue = g_UnitMetaData;
 	for (; lpValue->ID != ID && lpValue->ID; lpValue++);
 	if (lpValue->ID == 0) lpValue = NULL;

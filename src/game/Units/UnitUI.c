@@ -1,7 +1,7 @@
 #include "../g_local.h"
 #include "UnitUI.h"
 
-static struct UnitUI *g_UnitUI = NULL;
+static LPUNITUI g_UnitUI = NULL;
 
 static struct SheetLayout UnitUI[] = {
 	{ "unitUIID", ST_ID, FOFS(UnitUI, unitUIID) },
@@ -54,7 +54,7 @@ static struct SheetLayout UnitUI[] = {
 	{ NULL },
 };
 
-struct UnitUI *FindUnitUI(DWORD unitUIID) {
+LPCUNITUI FindUnitUI(DWORD unitUIID) {
 	struct UnitUI *lpValue = g_UnitUI;
 	for (; lpValue->unitUIID != unitUIID && lpValue->unitUIID; lpValue++);
 	if (lpValue->unitUIID == 0) lpValue = NULL;

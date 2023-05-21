@@ -15,7 +15,11 @@ struct UnitAbilities {
 	DWORD InBeta; /* 1 1 1 1 1 1 1 1 */
 };
 
-struct UnitAbilities *FindUnitAbilities(DWORD unitAbilID);
+typedef struct UnitAbilities UNITABILITIES;
+typedef struct UnitAbilities *LPUNITABILITIES;
+typedef struct UnitAbilities const *LPCUNITABILITIES;
+
+LPCUNITABILITIES FindUnitAbilities(DWORD unitAbilID);
 void InitUnitAbilities(void);
 void ShutdownUnitAbilities(void);
 

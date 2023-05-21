@@ -182,6 +182,11 @@ void PrintSheetStruct(LPCSTR szFileName) {
 
     sprintf(buf, "/Users/igor/Developer/openwarcraft3/src/%s/%s/%s.c", szFolder, szTableFolder, szTableName);
     FILE *hSource = fopen(buf, "w");
+
+    PATHSTR upperStr = { 0 };
+    for (int i = 0; i < strlen(szTableName); i++) {
+        upperStr[i] = toupper(szTableName[i]);
+    }
     
     fprintf(hHeader, "#ifndef __%s_h__\n", szTableName);
     fprintf(hHeader, "#define __%s_h__\n\n", szTableName);
@@ -191,7 +196,7 @@ void PrintSheetStruct(LPCSTR szFileName) {
 
     fprintf(hSource, "#include \"../%c_local.h\"\n", szFolder[0]);
     fprintf(hSource, "#include \"%s.h\"\n\n", szTableName);
-    fprintf(hSource, "static struct %s *g_%s = NULL;\n\n", szTableName, szTableName);
+    fprintf(hSource, "static LP%s g_%s = NULL;\n\n", upperStr, szTableName);
     fprintf(hSource, "static struct SheetLayout %s[] = {\n", szTableName);
 
     PATHSTR indexName;
@@ -267,8 +272,12 @@ void PrintSheetStruct(LPCSTR szFileName) {
     fprintf(hSource, "\t{ NULL },\n");
     fprintf(hSource, "};\n\n");
     fprintf(hHeader, "};\n\n");
-    
-    fprintf(hSource, "struct %s *Find%s(%s %s) {\n", szTableName, szTableName, (indexType == ST_INT ? "DWORD" : "LPCSTR"), indexName);
+
+    fprintf(hHeader, "typedef struct %s %s;\n", szTableName, upperStr);
+    fprintf(hHeader, "typedef struct %s *LP%s;\n", szTableName, upperStr);
+    fprintf(hHeader, "typedef struct %s const *LPC%s;\n\n", szTableName, upperStr);
+
+    fprintf(hSource, "LPC%s Find%s(%s %s) {\n", upperStr, szTableName, (indexType == ST_INT ? "DWORD" : "LPCSTR"), indexName);
     fprintf(hSource, "\tstruct %s *lpValue = g_%s;\n", szTableName, szTableName);
     if (indexType == ST_INT) {
         fprintf(hSource, "\tfor (; lpValue->%s != %s && lpValue->%s; lpValue++);\n", indexName, indexName, indexName);
@@ -294,7 +303,7 @@ void PrintSheetStruct(LPCSTR szFileName) {
     fprintf(hSource, "\t%ci.MemFree(g_%s);\n", szFolder[0], szTableName);
     fprintf(hSource, "}\n");
 
-    fprintf(hHeader, "struct %s *Find%s(%s %s);\n", szTableName, szTableName, (indexType == ST_INT ? "DWORD" : "LPCSTR"), indexName);
+    fprintf(hHeader, "LPC%s Find%s(%s %s);\n", upperStr, szTableName, (indexType == ST_INT ? "DWORD" : "LPCSTR"), indexName);
     fprintf(hHeader, "void Init%s(void);\n", szTableName);
     fprintf(hHeader, "void Shutdown%s(void);\n\n", szTableName);
 

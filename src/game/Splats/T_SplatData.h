@@ -38,7 +38,11 @@ struct T_SplatData {
 	DWORD Sound; /* NULL NULL NULL NULL NULL NULL NULL INIT */
 };
 
-struct T_SplatData *FindT_SplatData(DWORD Name);
+typedef struct T_SplatData T_SPLATDATA;
+typedef struct T_SplatData *LPT_SPLATDATA;
+typedef struct T_SplatData const *LPCT_SPLATDATA;
+
+LPCT_SPLATDATA FindT_SplatData(DWORD Name);
 void InitT_SplatData(void);
 void ShutdownT_SplatData(void);
 

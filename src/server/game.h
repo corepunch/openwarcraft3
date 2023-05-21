@@ -18,7 +18,8 @@ struct game_import {
 struct game_export {
     void (*Init)(void);
     void (*Shutdown)(void);
-    void (*SpawnEntities)(LPCDOODAD doodads, DWORD numDoodads);
+    void (*SpawnDoodads)(LPCDOODAD doodads, DWORD numDoodads);
+    void (*SpawnUnits)(LPCDOODADUNIT units, DWORD numUnits);
     void (*RunFrame)(void);
     void (*ClientCommand)(LPCCLIENTMESSAGE lpMessage);
     

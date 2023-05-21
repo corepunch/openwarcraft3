@@ -75,7 +75,11 @@ struct UnitWeapons {
 	DWORD InBeta; /* 1 1 1 1 1 1 1 1 */
 };
 
-struct UnitWeapons *FindUnitWeapons(DWORD unitWeapID);
+typedef struct UnitWeapons UNITWEAPONS;
+typedef struct UnitWeapons *LPUNITWEAPONS;
+typedef struct UnitWeapons const *LPCUNITWEAPONS;
+
+LPCUNITWEAPONS FindUnitWeapons(DWORD unitWeapID);
 void InitUnitWeapons(void);
 void ShutdownUnitWeapons(void);
 

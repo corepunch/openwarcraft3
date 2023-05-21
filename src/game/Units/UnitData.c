@@ -1,7 +1,7 @@
 #include "../g_local.h"
 #include "UnitData.h"
 
-static struct UnitData *g_UnitData = NULL;
+static LPUNITDATA g_UnitData = NULL;
 
 static struct SheetLayout UnitData[] = {
 	{ "unitID", ST_ID, FOFS(UnitData, unitID) },
@@ -41,7 +41,7 @@ static struct SheetLayout UnitData[] = {
 	{ NULL },
 };
 
-struct UnitData *FindUnitData(DWORD unitID) {
+LPCUNITDATA FindUnitData(DWORD unitID) {
 	struct UnitData *lpValue = g_UnitData;
 	for (; lpValue->unitID != unitID && lpValue->unitID; lpValue++);
 	if (lpValue->unitID == 0) lpValue = NULL;

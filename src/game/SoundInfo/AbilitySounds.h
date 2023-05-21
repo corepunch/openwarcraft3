@@ -27,7 +27,11 @@ struct AbilitySounds {
 	SHEETSTR EAXFlags; /* SpellsEAX SpellsEAX SpellsEAX SpellsEAX SpellsEAX SpellsEAX SpellsEAX SpellsEAX */
 };
 
-struct AbilitySounds *FindAbilitySounds(LPCSTR SoundName);
+typedef struct AbilitySounds ABILITYSOUNDS;
+typedef struct AbilitySounds *LPABILITYSOUNDS;
+typedef struct AbilitySounds const *LPCABILITYSOUNDS;
+
+LPCABILITYSOUNDS FindAbilitySounds(LPCSTR SoundName);
 void InitAbilitySounds(void);
 void ShutdownAbilitySounds(void);
 

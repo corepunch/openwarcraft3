@@ -1,7 +1,7 @@
 #include "../g_local.h"
 #include "UnitWeapons.h"
 
-static struct UnitWeapons *g_UnitWeapons = NULL;
+static LPUNITWEAPONS g_UnitWeapons = NULL;
 
 static struct SheetLayout UnitWeapons[] = {
 	{ "unitWeapID", ST_ID, FOFS(UnitWeapons, unitWeapID) },
@@ -74,7 +74,7 @@ static struct SheetLayout UnitWeapons[] = {
 	{ NULL },
 };
 
-struct UnitWeapons *FindUnitWeapons(DWORD unitWeapID) {
+LPCUNITWEAPONS FindUnitWeapons(DWORD unitWeapID) {
 	struct UnitWeapons *lpValue = g_UnitWeapons;
 	for (; lpValue->unitWeapID != unitWeapID && lpValue->unitWeapID; lpValue++);
 	if (lpValue->unitWeapID == 0) lpValue = NULL;

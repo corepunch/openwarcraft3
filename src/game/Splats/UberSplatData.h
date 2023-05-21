@@ -30,7 +30,11 @@ struct UberSplatData {
 	DWORD Sound; /* NULL NULL NULL NULL NULL NULL NULL INIT */
 };
 
-struct UberSplatData *FindUberSplatData(DWORD Name);
+typedef struct UberSplatData UBERSPLATDATA;
+typedef struct UberSplatData *LPUBERSPLATDATA;
+typedef struct UberSplatData const *LPCUBERSPLATDATA;
+
+LPCUBERSPLATDATA FindUberSplatData(DWORD Name);
 void InitUberSplatData(void);
 void ShutdownUberSplatData(void);
 

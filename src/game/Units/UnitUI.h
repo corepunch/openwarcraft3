@@ -55,7 +55,11 @@ struct UnitUI {
 	DWORD InBeta; /* 1 1 1 1 1 1 1 1 */
 };
 
-struct UnitUI *FindUnitUI(DWORD unitUIID);
+typedef struct UnitUI UNITUI;
+typedef struct UnitUI *LPUNITUI;
+typedef struct UnitUI const *LPCUNITUI;
+
+LPCUNITUI FindUnitUI(DWORD unitUIID);
 void InitUnitUI(void);
 void ShutdownUnitUI(void);
 

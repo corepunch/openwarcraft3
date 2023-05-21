@@ -1,0 +1,653 @@
+Sender: reedchild (Irrigation is not good!), Area: WarCraft
+Title: Detailed explanation of slk file in War3.mpq
+Sending Station: BBS Shuimu Tsinghua Station (Fri Aug 22 14:50:03 2003), forward
+
+The slk file is a special file for Excel in Office. There are 33 slk files in War3.mpq, listing almost all of them.
+The use of map files, sound files and effects is a good reference. Among them, there are:
+Splats\UberSplatData.slk
+UI\SoundInfo\AbilitySounds.slk
+UI\SoundInfo\AmbienceSounds.slk
+UI\SoundInfo\AnimSounds.slk
+UI\SoundInfo\UISounds.slk
+UI\SoundInfo\UnitAckSounds.slk
+UI\SoundInfo\UnitCombatSounds.slk
+UI\SoundInfo\AnimLookups.slk
+UI\SoundInfo\DialogSounds.slk
+UI\SoundInfo\PortraitAnims.slk
+UI\SoundInfo\MIDISounds.slk MIDI
+Units\AbilityData.slk
+Units\DestructableData.slk
+Units\ItemData.slk
+Units\UnitAbilities.slk
+Units\UnitBalance.slk
+Units\UnitData.slk
+Units\UnitWeapons.slk
+Units\UpgradeData.slk
+
+Their uses will be explained in detail below (transparency or Alpha in the text refers to the Alpha operation in graphics, a kind of mixing
+Combined method):
+
+Doodads\Doodads.slk defines the properties of ground appendages in WC3.
+The meaning of each column:
+A doodID internal number
+B category, if there is no description, it is determined by the accessory ID.
+C tilesets fragment setting, shape mapping.
+Whether D tilesetSpecific uses special fragments, 0 does not use.
+E dir path
+F file file
+G comment note
+H name Internal name
+I doddClass terrain category
+J soundLoop sound
+K selSize Select the size, the size of the selected circle, and 0 use the default setting.
+L defScale default ratio
+M minScale minimum proportion
+N maxScale maximum proportion
+O canPlaceRandScale can be placed in a random starting circle, this column must be paid with a value of 1.
+Is P useClickHelper helpful in the editor?
+Q maxPitch maximum slope
+R maxRoll maximum roll
+S visRaius vision
+Can T walkable move?
+U numVar number variable, I don't know what's the use.
+Can V onCliffs be on the cliff?
+Can W onWater be in the water?
+X floats are placed on the surface of water.
+Does Y shandow have a shadow?
+Can Z showInFog be seen in the fog?
+Can AA animInFog move in the fog?
+AB fixedRot rot correction
+AC pathTex map path
+Is AD showInMM displayed in the small map?
+Does AE useMMColor cover the default small map color?
+AF MMRed small map red
+AG MMGreen Small Map Green
+AH MMBlue Small Map Blue
+AI vertR01 Red 1
+AJ vertG01 Green 1
+AK vertB01 Blue 1
+AL vertR01 Red 2
+AM vertG01 Green 2
+AN vertB01 Blue 2
+AO vertR01 red 3
+AP vertG01 Green 3
+AQ vertB01 Blue 3
+AR vertR01 Red 4
+AS vertG01 Green 4
+AT vertB01 Blue 4
+AU vertR01 Red 5
+AV vertG01 Green 5
+AW vertB01 Blue 5
+AX vertR01 Red 6
+AY vertG01 Green 6
+AZ vertB01 Blue 6
+BA vertR01 Red 7
+BB vertG01 Green 7
+BC vertB01 Blue 7
+BD vertR01 Red 8
+BE vertG01 Green 8
+BF vertB01 Blue 8
+BG vertR01 Red 9
+BH vertG01 Green 9
+BI vertB01 Blue 9
+BJ vertR01 Green 10
+BK vertG01 Green 10
+BL vertB01 Blue 10
+Is BM inBeta the terrain 0 in the beta version?
+
+Splats\LightningData.slk Lightning Data
+A Name Name
+B comment description
+C Dir path
+D file file
+E AvgSegLen I don't know what it means. It may be the length of lightning.
+F Width Width
+G R red
+H G green
+I B blue
+J A Transparency
+K NoiseScale sound range, estimated to be the time of sound
+L TexCoordScale I don't know what it means.
+M Duration Duration
+
+Splats\SpawnData.slk Derivative data, death, etc.
+A Name Name
+B Model Model, Effect
+
+Splats\T_SpawnData.slk derivative data may be special (I guess), including decay and so on.
+A Name Name
+B Model Model, Effect
+
+Splats\T_SplatData.slk Interval Data
+A Name Name
+B comment description
+C Dir path
+D file file
+E Rows Line
+F Columns
+G BlendModel Mixed Model 0 Blend 1 Add 2 Mod (fusion, overlay, reverse) (instruction is according to my notes)
+I wrote it. I studied advanced graphics in college, but I almost forgot it.)
+H Scale Scale
+I Lifespan Life
+J Decay decay time
+K UVLifespanStart The map of this unit starts from 0 from left to right at the top (this is a literal translation, what does it mean?
+I don't know.)
+L UVLifespanEnd Same as above
+M LifespanRepeat Life Repeat
+N UVDecayStart corresponds to the above Lifespan
+O UVDecayEnd Same as above
+P UVDecayRepeat Same as above
+Q StartR starts in red
+R StartG Start Green
+S StartB Start Blue
+T StartA Start Transparency
+U MiddleR starts in red
+V MiddleG starts green
+W MiddleB starts with blue
+X MiddleA begins transparency
+Y EndR starts in red
+Z EndG starts green
+AA EndB starts blue
+AB EndA begins transparency
+AC Water sample
+AD Sound
+
+Splats\UberSplatData.slk This file defines maps and times for some special effects, such as human beings.
+In the middle of the building, the effect of the scroll back to the city, etc.
+A Name Name
+B comment description
+C Dir path
+D file file
+E BlendMode mixed mode,
+F Scale Proportion
+G BirthTime start time
+H PauseTime pause time
+I Decay decay time
+
+J StartR starts in red
+K StartG starts green
+L StartB Start Blue
+M StartA Start Transparency
+N MiddleR middle red
+O MiddleG middle green
+P MiddleB middle blue
+Q MiddleA Intermediate Transparency
+R EndR End Red
+S EndG End Green
+T EndB End Blue
+U EndA End Transparency
+V Sound
+
+TerrainArt\CliffTypes.slk defines the properties of the cliff.
+A cliffID cliff ID
+B cliffModelDir cliff model path
+C rampModelDir Cliff Ornament Model Path
+D texDir map path
+E texFile sticker file
+F name Name
+G groundTile ground name
+H upperTile upper name (this column is empty)
+I cliffClass cliff category
+J oldID old ID
+
+TerrainArt\Terrain.slk defines the properties of terrain
+A tileID internal encoding
+B dir path
+C file file
+D comment description
+E name (real name)
+F buildable whether it can be built
+Can G footprints leave footprints?
+Can H walkable walk on it?
+Is I flyable?
+When J blightPri is elected, whether the tiles under it are selected.
+K convertTo The priority of change when it changes (that is, what it becomes first)
+Is L InBeta in Beta?
+
+TerrainArt\Water.slk Define the properties of water
+A waterID Water ID
+B height height
+C texFile map file
+D mmAlpha small map Alpha operation (transparency calculus)
+E mmRed small map red
+F mmGreen small map green
+G mmBlue small map blue
+H numTex number of maps
+I texRate map rate
+J texOffset Map Coordinates
+K alphaMode alpha operation mode
+L lighting whether to use light 1 use, 0 not use
+M cells, small pieces, fragments
+N minX minimum X
+O minY minimum Y
+P minZ minimum Z
+Q maxX maximum X
+R maxY maximum Y
+S maxZ maximum Z
+T rateX X direction ratio
+U rateY Y direction ratio
+V rateZ Z direction ratio
+W revX X direction rotation
+X revY Y direction rotation
+Y shoreDir coastline path
+Z shoreSFile Coastline Surface File
+AA shoreSVar coastline surface variable, I don't know what it means.
+AB shoreOCFile Fragment file outside the coastline
+AC shoreOCVar debris variable outside the coastline
+AD shoreCFile Coastline Internal Defragment File
+AE shoreCVar internal debris variables of the coastline
+Minimum transparency of AF Smin_A shadow
+The smallest red of AG Smin_R shadow
+AH Smin_G The smallest green of the shadow
+AI Smin_B Shadow's Small Blue
+AJ Smax_A maximum transparency of shadow
+AK Smax_R Shadow's largest red
+AL Smax_G The largest green of the shadow
+AM Smax_B The biggest blue of the shadow
+AN Dmin_A Minimum Transparency of Depth
+AO Dmin_R The smallest red of depth
+The smallest green of AP Dmin_G depth
+The smallest blue of AQ Dmin_B depth
+Maximum transparency of AR Dmax_A depth
+AS Dmax_R maximum red of depth
+AT Dmax_G Maximum Green Depth
+AU Dmax_B maximum blue of depth
+
+TerrainArt\Weather.slk defines weather properties
+A effectID EffectID
+B name name
+C texDir map path
+D texFile map file
+E alphaMode alpha mode
+Does F useFog allow the use of fog effect?
+G height height
+H angx angle X
+I angy angle Y
+J emrate em rate
+K lifespan life
+L particles Number of particles
+I don't know the meaning of M veloc.
+N accel Same as above
+O var variable?
+P texr map r
+Q texc sticker c
+R head
+S tail tail
+An attribute of the tail of T tailen, I don't know what it means.
+U lati
+V long length
+W midTim midtime?
+X redStart The following X-AR is the definition of map color and attributes.
+...
+AR tUVEnd
+AS AmbientSound sound
+
+A total of 12 files in the UI\SoundInfo directory define the properties of sound.
+UI\SoundInfo\AbilitySounds.slk Define some ability sounds
+A SoundName name
+B FileNames file name
+C DirectoryBase basic path
+D Volume Volume
+E Pitch degree
+Changes in the degree of F PitchVariance
+G Priority
+H Channel
+I Flags logo
+J MinDistance Minimum Distance
+K MaxDistance maximum distance
+L DistanceCutoff Turn off the distance
+M InsideAngle
+N OutsideAngle
+O OutsideVolume External Volume
+P Orientation X X direction
+Q OrientationY Y direction
+R OrientationZ Z direction
+S EAXFlags EAX logo
+
+The structure of the following files is the same as that of AbilitySounds.slk.
+UI\SoundInfo\AmbienceSounds.slk The sound of the environment
+UI\SoundInfo\AnimSounds.slk The sound of action
+UI\SoundInfo\UISounds.slk Game Prompt Sound
+UI\SoundInfo\UnitAckSounds.slk Unit Attack Sound
+UI\SoundInfo\UnitCombatSounds.slk Unit Battle Sound
+
+UI\SoundInfo\AnimLookups.slk defines the association of finding. I often use this method in my work. I don't think about it.
+It can also be used in the blizzard.
+A AnimSoundEvent Event Name
+B SoundLabel sound logo
+
+UI\SoundInfo\DialogSounds.slk dialog box sound
+A SoundName name
+B FileNames file name
+C DirectoryBase basic path
+
+D Volume Volume
+E Flags logo
+
+Definition of UI\SoundInfo\EAXDefs.slk EAX
+A EAXLabel EAX logo
+B DisplayText display name in the editor
+C EffectLevel Effect Level
+D EAX2Direct D-U is related to 2D effects.
+...
+U Fast2DOcclusionScale
+
+UI\SoundInfo\EnvironmentSounds.slk Environmental sounds, such as forests, grasslands and lakes.
+The voice of the UI\SoundInfo\PortraitAnims.slk unit, such as the "OK" said by the orc peasants.
+UI\SoundInfo\MIDISounds.slk MIDI Sound List
+
+There are 10 files in the Units\ directory, defining some of the most important attributes.
+Units\AbilityData.slk Capability Attributes
+A alias allows the use of copies with different effects, most of which are the same as the code, that is, they are not allowed to use.
+B code code
+The name of C uberAlias Lookup
+D comments instructions
+Is E useInEditor used in the editor?
+Is F hero a heroic ability?
+Is G item the ability of an item?
+H sort category
+I checkDep subordinate check, 1 player's ability 0creep's ability
+J levels can be upgraded
+K reqLevel The level required to upgrade to the first level
+L targs target
+M Cast1 Level 1 Fee
+...
+M-AQ defines the attributes of levels 1, 2 and 3.
+...
+AU Data34 Level 3 4th Data
+
+Units\DestructableData.slk Data of ground-based buildings
+Units\ItemData.slk Item Properties
+A itmID ID
+B comment description
+C file file
+D itemClass category
+E level
+F uses can be used several times.
+G idealPrio perfect sorting
+Sorting in the H prio unit group
+Is I usable available? 1 is 0 No
+Is J perishable a disposable item 1 yes 0 no
+K droppable can be thrown away 1 is 0 no
+L drop Will the item fall after the hero is killed? 1 will 0 will not
+M stockMax maximum stock
+Regeneration speed of N stockRegen storage
+O stockStart How long does it take to start storage?
+P goldcost gold cost
+Q lumbercost timber cost
+R HP blood
+S armor defense
+T abilList Competency List
+Does U InBeta appear in the Beta version?
+
+Units\UnitAbilities.slk Unit Capacity
+A unitAbilId Unit ID
+B sortAbil competency category
+C comment(s) description
+D auto automatic casting
+E abilList Competency List
+F heroAbilList Hero Ability List
+Appeared in G InBeta Beta
+
+Units\UnitBalance.slk Unit Definition
+A unitBalanceID Unit ID
+B sort category
+C sort2 Category 2
+D comment(s) Description
+E level
+F Whether to summon a unit or not, the building is also a summoning unit.
+G goldcost gold cost
+H lumbercost timber cost
+I goldRep gold recovery
+J lumberRep wood recycling
+K fmade Production Population
+J fused occupied population
+M bountydice random bonus points
+N bountysides random times
+O bountyplus free extra points
+P stockMax maximum storage
+Q stockRegen storage response time
+R stockStart storage start time
+S HP Start HP
+T realHP real HP
+U regenHP HP response rate
+V regenType reply type
+W manaN Start Mana
+X realM real Mana
+Y mana0 extra Mana
+Z regenM Mana response rate
+AA def basic defense
+AB defUp increases defense per upgrade
+AC realdef real defense
+AD defType defense type
+AE spd speed
+AF bldtm
+AG sight vision
+AH nsight Night Vision
+The power of AI STR
+AJ INT Intelligence
+AK AGI Agile
+AL STRplus increases the power of each upgrade
+AM INTplus increases intelligence every time it is upgraded.
+AN AGIplus increases the agility of each upgrade
+AO abilTest capability test
+AP Primary Main Attributes
+AQ upgrades upgradeable capability
+Does AR InBeta appear in Beta?
+
+Units\UnitData.slk Unit Data
+A unitId number
+B sort category
+C comment(s) description
+D race race
+Sorting in the E prio unit group
+F threat is a threat 1 is 0 is not
+G type unit type, such as giant, immortal, etc.
+Is H valid valid?
+I deathType
+J deadth
+K canSleep, can you sleep?
+L cargoSize can pass the width
+M movetp mobile type
+N moveHeight moving height
+O moveFloor The level of movement
+P launchX start X
+Q launchY start Y
+R launchZ start Z
+S impactZ ImpactZ
+T turnRate turn speed
+The angle of U propWin unit when moving
+
+Direction-oriented supplement of V orientInterp unit
+W formation formation
+X castpt is a parameter similar to dmgpt about the number of damage.
+Another parameter of Y castbsw spell
+Z targType object
+AA pathTex map
+AB fatLOS
+AC collision size, 2x2 small = 16,2x2 large = 31, 3x3 small = 32, 3x3 large
+= 47
+AD points are related to time. I don't know what's the use.
+Type of AE buffType AI placement
+Scope of AF buffRadius AI placement
+AG namecount Total number of names
+AH InBeta appears in Beta
+
+Units\UnitMetaData.slk Unit Material Data
+A ID id
+B field, field
+In which slk is C slk?
+D index index
+E displayName The name displayed in the editor
+F sort category
+G type, string, integer, unit, floating point number, etc.
+H stringExt string concretization
+I caseSens string sensitivity
+Can J canBeEmpty be empty?
+Minimum value of K minVal
+L maxVal maximum, the maximum value of real and non-real numbers, the maximum length of strings and string arrays
+The field of M useHero hero unit? 1 is 0 is not
+N useUnit The field of ordinary units? 1 is 0 is not
+O useBuilding building fields? 1 is 0 is not
+The field of the P useItem item? 1 is 0 is not
+O useSpecific special field? 1 is 0 is not
+
+Units\unitUI.slk Define the appearance of units
+A unitID id
+B file file
+C unitSound sound
+D tilesets fragmentation settings
+Does E tilesetSpecific use special fragments?
+F name Name
+G unitClass unit type
+Is H special special?
+Does I inEditor appear in the editor?
+Can J hiddenInEditor compile in the editor?
+K hostilePal hostile?
+Can L dropItems drop items?
+M nbrandom If this unit is a natural building, can it be occupied?
+N nbmmlcon If this unit is a natural building, can it be displayed in the small map?
+O useClickHelper
+P blend blend mode
+Q scale scale
+Does R scaleBull announce the proportion inherited by this unit?
+Can S preventPlace be placed?
+The premise of T requirePlace can only be one kind of
+Is U isbldg bldg?
+V maxPitch maximum tilt
+W maxRoll maximum roll
+X elevPts Points for calculating altitude
+Y elevRad points for calculating depth
+Z fogRad depth of fog
+AA walk movement speed
+AB run running speed
+AC selZ selects the height of the circle
+AD weap1 Weapon 1
+AE weap2 Weapon 2
+AF teamColor team color - 1 player's color
+Can AG customTeamColor customize the team color?
+AH armor type
+AI modelScale model scale
+AJ red red
+AK green green
+AL blue blue
+AM uberSplat interval
+AN unitShadow
+AO buildingShadow Building Shadow
+AP shadowW shadow width
+AQ shadowH shadow height
+AR shadowX shadow X
+AS shadowY
+AT occH
+Does AU InBeta appear in the beta version?
+
+Units\UnitWeapons.slk Unit Weapon Definition
+A unitWeapID id
+B sortWeap weapon category
+C sort2 Category 2
+D comment(s) Description
+E weapsOn that kind of weapon is available.
+F-AL is the definition of a weapon.
+F weapType1 Weapon Type 1
+G targs1 goal
+H acquire, I don't know what it means.
+I minRange minimum parallel distance
+J rangeN1 unit attack parallel distance
+K RngTst Attack Error Distance
+L RngBuff1 If the target moves, determine whether it can still hit the target.
+M atkType1 attack type
+N weapTp1 Weapon Type 1
+O cool1 freezing time, that is, pause time
+P mincool1 minimum pause time
+Q dice1 number of dice
+R sides1 Number of faces of dice
+S dmgplus1 upgrade to increase damage
+T DmgUpg's damage to non-targets
+U dmod1 is a field set for balance
+V dmgUp1
+W mindmg1 minimum damage
+X avgdmg1 average damage
+Y DPS continuous damage
+Z maxdmg1 maximum damage
+AA dmgpt1 A parameter is calculated as long as the attack
+AB backSw1 active time
+AC Farea1 damage area
+AD Harea1 The area of damage halved
+AE Qarea1 1/4 damage area
+AF Hfact1 1/2 damage time
+AG Qfact1 1/4 damage time
+AH splashTargs1 large-scale damage object
+AI targCount1 Total number of targets
+AJ damageLoss1 Damage error rate
+AK spillDist1 splash distance
+AL spillRadius1 splash range
+AM-BN is the attribute of the second weapon, which is the same as the definition of the first weapon.
+Does BO InBeta appear in Beta?
+
+Units\UpgradeData.slk Upgrade Data
+A upgradeid Id
+B comments instructions
+C class category
+D race race
+The E flag flag must be the power of 2.
+F used is available
+G maxlevel maximum level
+H inheritable
+I goldbase base gold needs
+J goldmod increases the gold per upgrade
+K lumberbase basic wood needs
+L lumbermod The wood added every time you upgrade
+M timebase basic time required
+N timemod The time increased by each upgrade
+O effect1 level 1 effect
+P base1 level 1 basis
+Increment of Q mod1 level 1
+R-Z has the effect of level 2, 3 and 4 respectively, which is the same as level 1.
+
+Units\DestructableData.slk Data that can be destroyed (such as doors)
+A DestructableID id
+B category Classes in the editor
+C tilesets
+Does D tilesetSpecific use special fragmentation effects?
+E dir path
+F file file
+G lightweight light width
+H fatLOS
+I texID Map ID
+J texFile sticker file
+K comment description
+L name The name in the editor
+Types of appendages to M doodClass
+N useClickHelper
+Can O onCliffs be on the cliff?
+Can P onWater be in the water?
+Q canPlaceDead can be placed dead?
+Can R walkable pass?
+S cliffHeight cliff height
+T targType target type, can only be tree, wall, debris
+U armor defense type
+V numVar number of changes
+W HP Snow
+X occH
+Y flyH flight altitude
+Z fixedRot mixed rotten, I don't know what it means.
+AA selSize selection circle, 0 use default
+AB minScale minimum proportion
+AC maxScale maximum proportion
+AD canPlaceRandScale can place random circles
+AE maxPitch maximum slope
+AF maxRoll maximum rotation
+AG radius vision
+AH fogRadius The field of view in the fog, that is, how far can you see it?
+AI fogVis Can you see it forever in the fog?
+AJ pathTex map path
+AK pathTexDeath death map path
+AL deathSnd Post-death map
+AM shadow shadow
+Is AN showInMM displayed in the small map?
+AO useMMColor Do you use small map color?
+
+AP MMRed Small Map Red
+AQ MMGreen Small Map Green
+AR MMBlue Small Map Blue
+Does AS InBeta appear in Beta?

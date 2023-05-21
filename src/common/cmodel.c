@@ -8,7 +8,9 @@ static struct {
     struct size2 pathmapSize;
     struct PathMapNode *pathmap;
     LPDOODAD doodads;
+    struct DoodadUnit *units;
     DWORD numDoodads;
+    DWORD numUnits;
 } cmodel;
 
 struct PathMapNode const *CM_PathMapNode(LPCWAR3MAP lpTerrain, DWORD x, DWORD y) {
@@ -30,6 +32,77 @@ static void CM_ReadDoodads(HANDLE hArchive) {
 
     FOR_LOOP(index, cmodel.numDoodads) {
         SFileReadFile(hFile, &cmodel.doodads[index], DOODAD_FILE_SIZE, NULL, NULL);
+    }
+
+    SFileCloseFile(hFile);
+}
+
+static void CM_ReadUnit(HANDLE hFile, struct DoodadUnit *lpUnit) {
+    SFileReadFile(hFile, &lpUnit->doodID, sizeof(DWORD), NULL, NULL);
+    SFileReadFile(hFile, &lpUnit->variation, sizeof(DWORD), NULL, NULL);
+    SFileReadFile(hFile, &lpUnit->position, sizeof(VECTOR3), NULL, NULL);
+    SFileReadFile(hFile, &lpUnit->angle, sizeof(float), NULL, NULL);
+    SFileReadFile(hFile, &lpUnit->scale, sizeof(VECTOR3), NULL, NULL);
+    SFileReadFile(hFile, &lpUnit->flags, sizeof(BYTE), NULL, NULL);
+    SFileReadFile(hFile, &lpUnit->player, sizeof(DWORD), NULL, NULL);
+    SFileReadFile(hFile, &lpUnit->unknown1, sizeof(BYTE), NULL, NULL);
+    SFileReadFile(hFile, &lpUnit->unknown2, sizeof(BYTE), NULL, NULL);
+    SFileReadFile(hFile, &lpUnit->hitPoints, sizeof(DWORD), NULL, NULL); // (-1 = use default)
+    SFileReadFile(hFile, &lpUnit->manaPoints, sizeof(DWORD), NULL, NULL); // (-1 = use default, 0 = unit doesn't have mana)
+    // in Frozen Throne:
+//    SFileReadFile(hFile, &lpUnit->droppedItemSetPtr, sizeof(DWORD), NULL, NULL);
+    SFileReadFile(hFile, &lpUnit->numDroppedItemSets, sizeof(DWORD), NULL, NULL);
+    lpUnit->droppableItemSets = MemAlloc(lpUnit->numDroppedItemSets * sizeof(struct DroppableItemSet));
+    FOR_LOOP(droppedItemSetIdx, lpUnit->numDroppedItemSets) {
+        struct DroppableItemSet *lpSet = &lpUnit->droppableItemSets[droppedItemSetIdx];
+        SFileReadFile(hFile, &lpSet->numDroppableItems, sizeof(DWORD), NULL, NULL);
+        lpSet->droppableItems = MemAlloc(lpSet->numDroppableItems * sizeof(struct DroppableItem));
+        SFileReadFile(hFile, lpSet->droppableItems, lpSet->numDroppableItems * sizeof(struct DroppableItem), NULL, NULL);
+    }
+    
+    SFileReadFile(hFile, &lpUnit->goldAmount, sizeof(DWORD), NULL, NULL); // (default = 12500)
+    SFileReadFile(hFile, &lpUnit->targetAcquisition, sizeof(float), NULL, NULL); // (-1 = normal, -2 = camp)
+    
+    SFileReadFile(hFile, &lpUnit->hero, sizeof(DWORD), NULL, NULL); // (set to 1 for non hero units and items)
+    // in Frozen Throne:
+//    SFileReadFile(hFile, &lpUnit->hero, sizeof(struct DoodadUnitHero), NULL, NULL); // (set to 1 for non hero units and items)
+
+    SFileReadArray(hFile, lpUnit, InventoryItems, sizeof(struct InventoryItem), MemAlloc);
+    SFileReadArray(hFile, lpUnit, ModifiedAbilities, sizeof(struct ModifiedAbility), MemAlloc);
+
+    SFileReadFile(hFile, &lpUnit->randomUnitFlag, sizeof(DWORD), NULL, NULL); // "r" (for uDNR units and iDNR items)
+    
+    switch (lpUnit->randomUnitFlag) {
+        case 0:
+            SFileReadFile(hFile, &lpUnit->levelOfRandomItem, sizeof(DWORD), NULL, NULL);
+            break;
+        case 1:
+            SFileReadFile(hFile, &lpUnit->randomUnitGroupNumber, sizeof(DWORD), NULL, NULL);
+            SFileReadFile(hFile, &lpUnit->randomUnitPositionNumber, sizeof(DWORD), NULL, NULL);
+            break;
+        case 2:
+            SFileReadArray(hFile, lpUnit, DiffAvailUnits, sizeof(struct DroppableItem), MemAlloc);
+            break;
+    }
+    SFileReadFile(hFile, &lpUnit->color, sizeof(COLOR32), NULL, NULL);
+    SFileReadFile(hFile, &lpUnit->waygate, sizeof(DWORD), NULL, NULL);
+    SFileReadFile(hFile, &lpUnit->unitID, sizeof(DWORD), NULL, NULL);
+}
+
+static void CM_ReadUnits(HANDLE hArchive) {
+    HANDLE hFile;
+    DWORD dwFileHeader, dwVersion, dwUnknown;
+
+    SFileOpenFileEx(hArchive, "war3mapUnits.doo", SFILE_OPEN_FROM_MPQ, &hFile);
+    SFileReadFile(hFile, &dwFileHeader, 4, NULL, NULL);
+    SFileReadFile(hFile, &dwVersion, 4, NULL, NULL);
+    SFileReadFile(hFile, &dwUnknown, 4, NULL, NULL);
+    SFileReadFile(hFile, &cmodel.numUnits, 4, NULL, NULL);
+    
+    cmodel.units = MemAlloc(cmodel.numUnits * sizeof(struct DoodadUnit));
+
+    FOR_LOOP(index, cmodel.numUnits) {
+        CM_ReadUnit(hFile, &cmodel.units[index]);
     }
 
     SFileCloseFile(hFile);
@@ -73,6 +146,7 @@ void CM_LoadMap(LPCSTR szMapFilename) {
     SFileOpenArchive(TMP_MAP, 0, 0, &hMapArchive);
     CM_ReadPathMap(hMapArchive);
     CM_ReadDoodads(hMapArchive);
+    CM_ReadUnits(hMapArchive);
     CM_ReadHeightmap(hMapArchive);
     SFileCloseArchive(hMapArchive);
 }
@@ -154,4 +228,9 @@ bool CM_IntersectLineWithHeightmap(LPCLINE3 lpLine, LPVECTOR3 lpOutput) {
 DWORD CM_GetDoodadsArray(LPCDOODAD *lppDoodads) {
     *lppDoodads = cmodel.doodads;
     return cmodel.numDoodads;
+}
+
+DWORD CM_GetUnitsArray(LPCDOODADUNIT *lppDoodadUnits) {
+    *lppDoodadUnits = cmodel.units;
+    return cmodel.numUnits;
 }

@@ -1,7 +1,7 @@
 #include "../g_local.h"
 #include "ItemData.h"
 
-static struct ItemData *g_ItemData = NULL;
+static LPITEMDATA g_ItemData = NULL;
 
 static struct SheetLayout ItemData[] = {
 	{ "itemID", ST_ID, FOFS(ItemData, itemID) },
@@ -28,7 +28,7 @@ static struct SheetLayout ItemData[] = {
 	{ NULL },
 };
 
-struct ItemData *FindItemData(DWORD itemID) {
+LPCITEMDATA FindItemData(DWORD itemID) {
 	struct ItemData *lpValue = g_ItemData;
 	for (; lpValue->itemID != itemID && lpValue->itemID; lpValue++);
 	if (lpValue->itemID == 0) lpValue = NULL;

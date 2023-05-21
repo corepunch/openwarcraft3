@@ -38,6 +38,8 @@ void M_MoveFrame(LPEDICT self) {
 }
 
 void monster_think(LPEDICT self) {
+    if (!self->monsterinfo.currentmove)
+        return;
     M_MoveFrame(self);
     if (self->monsterinfo.currentmove->think) {
         self->monsterinfo.currentmove->think(self);
@@ -57,17 +59,16 @@ void monster_start(LPEDICT self) {
 void SP_monster_peon(LPEDICT self);
 
 void SP_SpawnUnit(LPEDICT self, struct UnitUI const *lpUnit) {
-    struct UnitBalance const *balance = FindUnitBalance(self->class_id);
-    struct UnitWeapons const *weapons = FindUnitWeapons(self->class_id);
+    self->monsterinfo.balance = FindUnitBalance(self->class_id);
+    self->monsterinfo.weapon = FindUnitWeapons(self->class_id);
     PATHSTR buffer;
     sprintf(buffer, "%s.mdx", lpUnit->file);
     self->s.model = gi.ModelIndex(buffer);
+    self->s.scale = lpUnit->modelScale;
     self->think = monster_think;
-    if (balance) {
-        self->monsterinfo.health = balance->HP;
-    }
-    if (weapons) {
-        
+    if (self->monsterinfo.balance) {
+        self->monsterinfo.health = self->monsterinfo.balance->HP;
+        self->monsterinfo.movespeed = 10 * lpUnit->run / FRAMETIME;
     }
 }
 

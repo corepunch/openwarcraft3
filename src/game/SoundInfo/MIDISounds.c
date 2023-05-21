@@ -1,7 +1,7 @@
 #include "../g_local.h"
 #include "MIDISounds.h"
 
-static struct MIDISounds *g_MIDISounds = NULL;
+static LPMIDISOUNDS g_MIDISounds = NULL;
 
 static struct SheetLayout MIDISounds[] = {
 	{ "SoundLabel", ST_STRING, FOFS(MIDISounds, SoundLabel) },
@@ -17,7 +17,7 @@ static struct SheetLayout MIDISounds[] = {
 	{ NULL },
 };
 
-struct MIDISounds *FindMIDISounds(LPCSTR SoundLabel) {
+LPCMIDISOUNDS FindMIDISounds(LPCSTR SoundLabel) {
 	struct MIDISounds *lpValue = g_MIDISounds;
 	for (; *lpValue->SoundLabel && strcmp(lpValue->SoundLabel, SoundLabel); lpValue++);
 	if (*lpValue->SoundLabel == 0) lpValue = NULL;

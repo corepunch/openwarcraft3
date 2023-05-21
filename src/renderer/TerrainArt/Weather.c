@@ -1,7 +1,7 @@
 #include "../r_local.h"
 #include "Weather.h"
 
-static struct Weather *g_Weather = NULL;
+static LPWEATHER g_Weather = NULL;
 
 static struct SheetLayout Weather[] = {
 	{ "effectID", ST_ID, FOFS(Weather, effectID) },
@@ -52,7 +52,7 @@ static struct SheetLayout Weather[] = {
 	{ NULL },
 };
 
-struct Weather *FindWeather(DWORD effectID) {
+LPCWEATHER FindWeather(DWORD effectID) {
 	struct Weather *lpValue = g_Weather;
 	for (; lpValue->effectID != effectID && lpValue->effectID; lpValue++);
 	if (lpValue->effectID == 0) lpValue = NULL;

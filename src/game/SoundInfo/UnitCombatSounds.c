@@ -1,7 +1,7 @@
 #include "../g_local.h"
 #include "UnitCombatSounds.h"
 
-static struct UnitCombatSounds *g_UnitCombatSounds = NULL;
+static LPUNITCOMBATSOUNDS g_UnitCombatSounds = NULL;
 
 static struct SheetLayout UnitCombatSounds[] = {
 	{ "SoundName", ST_STRING, FOFS(UnitCombatSounds, SoundName) },
@@ -26,7 +26,7 @@ static struct SheetLayout UnitCombatSounds[] = {
 	{ NULL },
 };
 
-struct UnitCombatSounds *FindUnitCombatSounds(LPCSTR SoundName) {
+LPCUNITCOMBATSOUNDS FindUnitCombatSounds(LPCSTR SoundName) {
 	struct UnitCombatSounds *lpValue = g_UnitCombatSounds;
 	for (; *lpValue->SoundName && strcmp(lpValue->SoundName, SoundName); lpValue++);
 	if (*lpValue->SoundName == 0) lpValue = NULL;

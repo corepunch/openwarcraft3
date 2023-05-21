@@ -1,4 +1,6 @@
 #include "g_local.h"
+#include "Units/UnitWeapons.h"
+
 #include <stdlib.h>
 
 #define ATTACK_DISTANCE 200
@@ -13,7 +15,7 @@ void M_ChangeAngle(LPEDICT self) {
 bool SV_CloseEnough(LPEDICT self, LPCEDICT goal, float distance) {
     float between = Vector2_distance((LPVECTOR2)&self->s.origin, (LPVECTOR2)&self->goalentity->s.origin);
     if (self->enemy) {
-        if (between < ATTACK_DISTANCE) {
+        if (between < self->monsterinfo.weapon->rangeN1) {
             self->goalentity = NULL;
             self->monsterinfo.melee(self);
             return true;
@@ -37,8 +39,7 @@ void SV_StepDirection(LPEDICT self, float yaw, float distance) {
 }
 
 void M_MoveToGoal(LPEDICT self) {
-    ANIMATION anim = gi.GetAnimation(self->s.model, self->monsterinfo.currentmove->animation);
-    if (SV_CloseEnough(self, self->goalentity, anim.movespeed))
+    if (SV_CloseEnough(self, self->goalentity, self->monsterinfo.movespeed))
         return;
-    SV_StepDirection(self, self->s.angle, anim.movespeed);
+    SV_StepDirection(self, self->s.angle, self->monsterinfo.movespeed);
 }

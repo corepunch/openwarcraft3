@@ -1,7 +1,7 @@
 #include "../g_local.h"
 #include "SpawnData.h"
 
-static struct SpawnData *g_SpawnData = NULL;
+static LPSPAWNDATA g_SpawnData = NULL;
 
 static struct SheetLayout SpawnData[] = {
 	{ "Name", ST_STRING, FOFS(SpawnData, Name) },
@@ -9,7 +9,7 @@ static struct SheetLayout SpawnData[] = {
 	{ NULL },
 };
 
-struct SpawnData *FindSpawnData(LPCSTR Name) {
+LPCSPAWNDATA FindSpawnData(LPCSTR Name) {
 	struct SpawnData *lpValue = g_SpawnData;
 	for (; *lpValue->Name && strcmp(lpValue->Name, Name); lpValue++);
 	if (*lpValue->Name == 0) lpValue = NULL;

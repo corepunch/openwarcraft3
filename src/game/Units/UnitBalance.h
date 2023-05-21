@@ -51,7 +51,11 @@ struct UnitBalance {
 	DWORD InBeta; /* 1 1 1 1 1 1 1 1 */
 };
 
-struct UnitBalance *FindUnitBalance(DWORD unitBalanceID);
+typedef struct UnitBalance UNITBALANCE;
+typedef struct UnitBalance *LPUNITBALANCE;
+typedef struct UnitBalance const *LPCUNITBALANCE;
+
+LPCUNITBALANCE FindUnitBalance(DWORD unitBalanceID);
 void InitUnitBalance(void);
 void ShutdownUnitBalance(void);
 

@@ -1,7 +1,7 @@
 #include "../r_local.h"
 #include "Terrain.h"
 
-static struct Terrain *g_Terrain = NULL;
+static LPTERRAIN g_Terrain = NULL;
 
 static struct SheetLayout Terrain[] = {
 	{ "tileID", ST_ID, FOFS(Terrain, tileID) },
@@ -19,7 +19,7 @@ static struct SheetLayout Terrain[] = {
 	{ NULL },
 };
 
-struct Terrain *FindTerrain(DWORD tileID) {
+LPCTERRAIN FindTerrain(DWORD tileID) {
 	struct Terrain *lpValue = g_Terrain;
 	for (; lpValue->tileID != tileID && lpValue->tileID; lpValue++);
 	if (lpValue->tileID == 0) lpValue = NULL;

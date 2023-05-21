@@ -1,7 +1,7 @@
 #include "../g_local.h"
 #include "LightningData.h"
 
-static struct LightningData *g_LightningData = NULL;
+static LPLIGHTNINGDATA g_LightningData = NULL;
 
 static struct SheetLayout LightningData[] = {
 	{ "Name", ST_ID, FOFS(LightningData, Name) },
@@ -20,7 +20,7 @@ static struct SheetLayout LightningData[] = {
 	{ NULL },
 };
 
-struct LightningData *FindLightningData(DWORD Name) {
+LPCLIGHTNINGDATA FindLightningData(DWORD Name) {
 	struct LightningData *lpValue = g_LightningData;
 	for (; lpValue->Name != Name && lpValue->Name; lpValue++);
 	if (lpValue->Name == 0) lpValue = NULL;

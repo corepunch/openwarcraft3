@@ -63,7 +63,11 @@ struct AbilityData {
 	DWORD RngCheck; /* - - - - - - - - */
 };
 
-struct AbilityData *FindAbilityData(DWORD alias);
+typedef struct AbilityData ABILITYDATA;
+typedef struct AbilityData *LPABILITYDATA;
+typedef struct AbilityData const *LPCABILITYDATA;
+
+LPCABILITYDATA FindAbilityData(DWORD alias);
 void InitAbilityData(void);
 void ShutdownAbilityData(void);
 

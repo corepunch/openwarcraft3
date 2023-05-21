@@ -1,7 +1,7 @@
 #include "../r_local.h"
 #include "Water.h"
 
-static struct Water *g_Water = NULL;
+static LPWATER g_Water = NULL;
 
 static struct SheetLayout Water[] = {
 	{ "waterID", ST_ID, FOFS(Water, waterID) },
@@ -54,7 +54,7 @@ static struct SheetLayout Water[] = {
 	{ NULL },
 };
 
-struct Water *FindWater(DWORD waterID) {
+LPCWATER FindWater(DWORD waterID) {
 	struct Water *lpValue = g_Water;
 	for (; lpValue->waterID != waterID && lpValue->waterID; lpValue++);
 	if (lpValue->waterID == 0) lpValue = NULL;

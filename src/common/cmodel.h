@@ -43,9 +43,71 @@ struct Doodad {
     VECTOR3 position;
     float angle;
     VECTOR3 scale;
-    BYTE nFlags;
+    BYTE flags;
     BYTE lifetime;
     DWORD id_num;
+};
+
+struct DroppableItem {
+    DWORD itemID;
+    int chanceToDrop;
+};
+
+struct DroppableItemSet {
+    int numDroppableItems;
+    struct DroppableItem *droppableItems;
+};
+
+struct DoodadUnitHero {
+    DWORD level; // (set to 1 for non hero units and items)
+    DWORD str;
+    DWORD agi;
+    DWORD intel;
+};
+
+struct InventoryItem {
+    DWORD slot;
+    DWORD itemID;
+};
+
+struct ModifiedAbility {
+    DWORD abilityID;
+    DWORD active;
+    DWORD level;
+};
+
+struct DoodadUnit {
+    DWORD doodID;
+    DWORD variation;
+    VECTOR3 position;
+    float angle;
+    VECTOR3 scale;
+    BYTE flags;
+    DWORD player;
+    BYTE unknown1;
+    BYTE unknown2;
+    DWORD hitPoints; // (-1 = use default)
+    DWORD manaPoints; // (-1 = use default, 0 = unit doesn't have mana)
+    DWORD droppedItemSetPtr;
+    DWORD numDroppedItemSets;
+    DWORD goldAmount; // (default = 12500)
+    float targetAcquisition; // (-1 = normal, -2 = camp)
+    struct DoodadUnitHero hero;
+    DWORD numInventoryItems;
+    DWORD numModifiedAbilities;
+    struct DroppableItemSet *droppableItemSets;
+    struct InventoryItem *lpInventoryItems;
+    struct ModifiedAbility *lpModifiedAbilities;
+    DWORD randomUnitFlag; // "r" (for uDNR units and iDNR items)
+    DWORD levelOfRandomItem; //    byte[3]: level of the random unit/item,-1 = any (this is actually interpreted as a 24-bit number)
+    //    byte: item class of the random item, 0 = any, 1 = permanent ... (this is 0 for units)
+    DWORD randomUnitGroupNumber; //    int: unit group number (which group from the global table)
+    DWORD randomUnitPositionNumber; //    int: position number (which column of this group)
+    DWORD numDiffAvailUnits;
+    struct DroppableItem *lpDiffAvailUnits;
+    COLOR32 color;
+    DWORD waygate;
+    DWORD unitID;
 };
 
 struct War3MapVertex {
@@ -83,5 +145,6 @@ VECTOR3 CM_PointFromHeightmap(LPCVECTOR3 lpPoint);
 bool CM_IntersectLineWithHeightmap(LPCLINE3 lpLine, LPVECTOR3 lpOutput);
 float CM_GetHeightAtPoint(float sx, float sy);
 DWORD CM_GetDoodadsArray(LPCDOODAD *lppDoodads);
+DWORD CM_GetUnitsArray(LPCDOODADUNIT *lppDoodadUnits);
 
 #endif

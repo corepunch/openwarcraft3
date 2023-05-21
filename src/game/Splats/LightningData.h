@@ -21,7 +21,11 @@ struct LightningData {
 	DWORD Duration; /* 2 2 2 2 2 2 */
 };
 
-struct LightningData *FindLightningData(DWORD Name);
+typedef struct LightningData LIGHTNINGDATA;
+typedef struct LightningData *LPLIGHTNINGDATA;
+typedef struct LightningData const *LPCLIGHTNINGDATA;
+
+LPCLIGHTNINGDATA FindLightningData(DWORD Name);
 void InitLightningData(void);
 void ShutdownLightningData(void);
 

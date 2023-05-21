@@ -1,7 +1,7 @@
 #include "../g_local.h"
 #include "DestructableData.h"
 
-static struct DestructableData *g_DestructableData = NULL;
+static LPDESTRUCTABLEDATA g_DestructableData = NULL;
 
 static struct SheetLayout DestructableData[] = {
 	{ "DestructableID", ST_ID, FOFS(DestructableData, DestructableID) },
@@ -52,7 +52,7 @@ static struct SheetLayout DestructableData[] = {
 	{ NULL },
 };
 
-struct DestructableData *FindDestructableData(DWORD DestructableID) {
+LPCDESTRUCTABLEDATA FindDestructableData(DWORD DestructableID) {
 	struct DestructableData *lpValue = g_DestructableData;
 	for (; lpValue->DestructableID != DestructableID && lpValue->DestructableID; lpValue++);
 	if (lpValue->DestructableID == 0) lpValue = NULL;

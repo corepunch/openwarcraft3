@@ -1,7 +1,7 @@
 #include "../g_local.h"
 #include "EnvironmentSounds.h"
 
-static struct EnvironmentSounds *g_EnvironmentSounds = NULL;
+static LPENVIRONMENTSOUNDS g_EnvironmentSounds = NULL;
 
 static struct SheetLayout EnvironmentSounds[] = {
 	{ "EnvironmentType", ST_STRING, FOFS(EnvironmentSounds, EnvironmentType) },
@@ -23,7 +23,7 @@ static struct SheetLayout EnvironmentSounds[] = {
 	{ NULL },
 };
 
-struct EnvironmentSounds *FindEnvironmentSounds(LPCSTR EnvironmentType) {
+LPCENVIRONMENTSOUNDS FindEnvironmentSounds(LPCSTR EnvironmentType) {
 	struct EnvironmentSounds *lpValue = g_EnvironmentSounds;
 	for (; *lpValue->EnvironmentType && strcmp(lpValue->EnvironmentType, EnvironmentType); lpValue++);
 	if (*lpValue->EnvironmentType == 0) lpValue = NULL;

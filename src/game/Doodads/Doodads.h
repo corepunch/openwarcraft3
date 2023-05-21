@@ -73,7 +73,11 @@ struct Doodads {
 	DWORD InBeta; /* 0 0 0 0 0 0 0 0 */
 };
 
-struct Doodads *FindDoodads(DWORD doodID);
+typedef struct Doodads DOODADS;
+typedef struct Doodads *LPDOODADS;
+typedef struct Doodads const *LPCDOODADS;
+
+LPCDOODADS FindDoodads(DWORD doodID);
 void InitDoodads(void);
 void ShutdownDoodads(void);
 

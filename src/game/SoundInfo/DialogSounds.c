@@ -1,7 +1,7 @@
 #include "../g_local.h"
 #include "DialogSounds.h"
 
-static struct DialogSounds *g_DialogSounds = NULL;
+static LPDIALOGSOUNDS g_DialogSounds = NULL;
 
 static struct SheetLayout DialogSounds[] = {
 	{ "SoundName", ST_STRING, FOFS(DialogSounds, SoundName) },
@@ -12,7 +12,7 @@ static struct SheetLayout DialogSounds[] = {
 	{ NULL },
 };
 
-struct DialogSounds *FindDialogSounds(LPCSTR SoundName) {
+LPCDIALOGSOUNDS FindDialogSounds(LPCSTR SoundName) {
 	struct DialogSounds *lpValue = g_DialogSounds;
 	for (; *lpValue->SoundName && strcmp(lpValue->SoundName, SoundName); lpValue++);
 	if (*lpValue->SoundName == 0) lpValue = NULL;

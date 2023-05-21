@@ -1,7 +1,7 @@
 #include "../g_local.h"
 #include "PortraitAnims.h"
 
-static struct PortraitAnims *g_PortraitAnims = NULL;
+static LPPORTRAITANIMS g_PortraitAnims = NULL;
 
 static struct SheetLayout PortraitAnims[] = {
 	{ "Sound Label", ST_STRING, FOFS(PortraitAnims, Sound_Label) },
@@ -10,7 +10,7 @@ static struct SheetLayout PortraitAnims[] = {
 	{ NULL },
 };
 
-struct PortraitAnims *FindPortraitAnims(LPCSTR Sound_Label) {
+LPCPORTRAITANIMS FindPortraitAnims(LPCSTR Sound_Label) {
 	struct PortraitAnims *lpValue = g_PortraitAnims;
 	for (; *lpValue->Sound_Label && strcmp(lpValue->Sound_Label, Sound_Label); lpValue++);
 	if (*lpValue->Sound_Label == 0) lpValue = NULL;

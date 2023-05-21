@@ -10,7 +10,11 @@ struct AnimLookups {
 	SHEETSTR SoundLabel; /* BattleRoar BerserkerRage BothGlueScreenPopUp BothGlueScreenPopDown Bloodlust AntiMagicshell TestFootstep TestFootstep */
 };
 
-struct AnimLookups *FindAnimLookups(DWORD AnimSoundEvent);
+typedef struct AnimLookups ANIMLOOKUPS;
+typedef struct AnimLookups *LPANIMLOOKUPS;
+typedef struct AnimLookups const *LPCANIMLOOKUPS;
+
+LPCANIMLOOKUPS FindAnimLookups(DWORD AnimSoundEvent);
 void InitAnimLookups(void);
 void ShutdownAnimLookups(void);
 

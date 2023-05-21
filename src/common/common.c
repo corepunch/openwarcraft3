@@ -93,7 +93,7 @@ void FS_Init(void) {
     SFileOpenArchive(MPQ_PATH, 0, 0, &hArchive);
     // SFileExtractFile(hArchive, "Units\\DestructableData.slk", "/Users/igor/Desktop/DestructableData.slk", 0);
     // SFileExtractFile(hArchive, "Doodads\\Terrain\\WoodBridgeLarge45\\WoodBridgeLarge45.mdx", "/Users/igor/Desktop/WoodBridgeLarge450.mdx", 0);
-    SFileExtractFile(hArchive, "Units\\UnitBalance.slk", "/Users/igor/Desktop/UnitBalance.slk", 0);
+//    SFileExtractFile(hArchive, "Units\\unitUI.slk", "/Users/igor/Desktop/unitUI.slk", 0);
 
 //     SFILE_FIND_DATA findData;
 //     HANDLE handle = SFileFindFirstFile(hArchive, "*", &findData, 0);

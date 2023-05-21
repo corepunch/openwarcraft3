@@ -42,7 +42,11 @@ struct UnitData {
 	DWORD InBeta; /* 1 1 1 1 1 1 1 1 */
 };
 
-struct UnitData *FindUnitData(DWORD unitID);
+typedef struct UnitData UNITDATA;
+typedef struct UnitData *LPUNITDATA;
+typedef struct UnitData const *LPCUNITDATA;
+
+LPCUNITDATA FindUnitData(DWORD unitID);
 void InitUnitData(void);
 void ShutdownUnitData(void);
 
