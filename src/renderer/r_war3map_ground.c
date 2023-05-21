@@ -1,4 +1,5 @@
 #include "r_war3map.h"
+#include "TerrainArt/Terrain.h"
 
 #define MAX_MAP_LAYERS 16
 #define WATER(INDEX) \
@@ -114,10 +115,10 @@ LPMAPLAYER R_BuildMapSegmentLayer(LPCWAR3MAP lpMap, DWORD sx, DWORD sy, DWORD dw
     LPMAPLAYER lpMapLayer = ri.MemAlloc(sizeof(MAPLAYER));
     PATHSTR zBuffer;
     if (g_groundTextures[dwLayer] == NULL) {
-        LPTERRAININFO lpTerrainInfo = ri.FindTerrainInfo(lpMap->lpGrounds[dwLayer]);
-        if (!lpTerrainInfo)
+        struct Terrain *lpTerrain = FindTerrain(lpMap->lpGrounds[dwLayer]);
+        if (!lpTerrain)
             return NULL;
-        sprintf(zBuffer, "%s\\%s.blp", lpTerrainInfo->dir, lpTerrainInfo->file);
+        sprintf(zBuffer, "%s\\%s.blp", lpTerrain->dir, lpTerrain->file);
         g_groundTextures[dwLayer] = R_LoadTexture(zBuffer);
     }
     lpMapLayer->lpTexture = g_groundTextures[dwLayer];

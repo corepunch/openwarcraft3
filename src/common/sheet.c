@@ -32,16 +32,23 @@ static DWORD Sheet_GetHeight(LPSHEETCELL lpSheet) {
     return dwHeight;
 }
 
+static DWORD Sheet_GetWidth(LPSHEETCELL lpSheet) {
+    DWORD dwWidth = 0;
+    FOR_EACH_LIST(struct SheetCell const, lpCell, lpSheet) {
+        dwWidth = MAX(dwWidth, lpCell->column);
+    }
+    return dwWidth;
+}
 static LPSHEETCELL SheetCellNew(DWORD x, DWORD y, LPSTR text, LPSHEETCELL sheet) {
     LPSHEETCELL cell = MemAlloc(sizeof(struct SheetCell));
     cell->column = x;
     cell->row = y;
     cell->lpNext = sheet;
-    if (*text == '"') {
-        cell->text = strdup(text+1);
-        cell->text[strlen(cell->text)-2] = 0;
-    } else {
-        cell->text = strdup(text);
+    cell->text = MemAlloc(strlen(text + 1));
+    for (char *instr = text, *outstr = cell->text; *instr; instr++) {
+        if (*instr == '"' || *instr == '\r' || *instr == '\n')
+            continue;
+        *(outstr++) = *instr;
     }
 //    if (y == 2) {
 //    if (!strcmp(cell->text, "Peon")) {
@@ -134,4 +141,155 @@ HANDLE FS_ParseSheet(LPCSTR szFileName,
     }
     Sheet_Release(lpSheet);
     return lpDatas;
+}
+
+void GetSheetName(LPCSTR szFileName, LPSTR szTableName) {
+    DWORD index = 0;
+    for (char *name = strrchr(szFileName, '\\') + 1; *name && *name != '.'; name++) {
+        szTableName[index++] = *name;
+    }
+    szTableName[0] = toupper(szTableName[0]);
+}
+
+void PrintSheetStruct(LPCSTR szFileName) {
+    LPSHEETCELL lpSheet = FS_ReadSheet(szFileName);
+
+    if (!lpSheet)
+        return;
+    
+    PATHSTR szTableName = { 0 };
+    GetSheetName(szFileName, szTableName);
+    
+    PATHSTR buf;
+    sprintf(buf, "/Users/igor/Developer/openwarcraft3/src/game/tables/%s.h", szTableName);
+    FILE *hHeader = fopen(buf, "w");
+
+    sprintf(buf, "/Users/igor/Developer/openwarcraft3/src/game/tables/%s.c", szTableName);
+    FILE *hSource = fopen(buf, "w");
+    
+    fprintf(hHeader, "#ifndef __%s_h__\n", szTableName);
+    fprintf(hHeader, "#define __%s_h__\n\n", szTableName);
+    fprintf(hHeader, "#include \"../../common/common.h\"\n\n");
+    fprintf(hHeader, "typedef char SHEETSTR[80];\n\n");
+    fprintf(hHeader, "struct %s {\n", szTableName);
+
+    fprintf(hSource, "#include \"../g_local.h\"\n");
+    fprintf(hSource, "#include \"%s.h\"\n\n", szTableName);
+    fprintf(hSource, "static struct %s *g_%s = NULL;\n\n", szTableName, szTableName);
+    fprintf(hSource, "static struct SheetLayout %s[] = {\n", szTableName);
+
+    PATHSTR indexName;
+    enum SheetType indexType = ST_INT;
+    
+    for (int dwColumn = 1; dwColumn <= Sheet_GetWidth(lpSheet); dwColumn++) {
+        LPCSTR szColumnName = NULL;
+        typedef struct {
+            bool numbers;
+            bool letters;
+            bool num4;
+            bool comma;
+        } status_t;
+        status_t status = { true, true, true, false };
+        FOR_EACH_LIST(struct SheetCell const, lpCell, lpSheet) {
+            if (lpCell->column != dwColumn)
+                continue;
+            if (lpCell->row == 1) {
+                szColumnName = lpCell->text;
+            } else {
+                for (LPCSTR s = lpCell->text; *s; s++) {
+                    status.numbers &= isdigit(*s) || *s == ',' || *s == '-' || *s == '_' || *s == ' ' || *s == '.';
+                    status.comma |= *s == ',' || *s == '.';
+                }
+                status.num4 &= strlen(lpCell->text) <= 4;
+            }
+        }
+        if (szColumnName == NULL)
+            continue;
+        PATHSTR szVarName = { 0 };
+        for (int i = 0, j = 0; szColumnName[i]; i++) {
+            if (szColumnName[i] == '(')
+                break;
+            if (szColumnName[i] == ' ')
+                szVarName[j++] = '_';
+            else
+                szVarName[j++] = szColumnName[i];
+        }
+        if (!strcmp(szVarName, "auto") || !strcmp(szVarName, "long")) {
+            szVarName[strlen(szVarName)] = '_';
+        }
+        if (status.numbers) {
+            fprintf(hHeader, "  %s %s; /*", status.comma ? "float" : "DWORD", szVarName);
+            fprintf(hSource, "  { \"%s\", ST_%s, FOFS(%s, %s) },\n", szColumnName, status.comma ? "FLOAT" : "INT", szTableName, szVarName);
+            if (dwColumn == 1) {
+                strcpy(indexName, szVarName);
+                indexType = ST_INT;
+            }
+        } else if (status.num4) {
+            fprintf(hHeader, "  DWORD %s; /*", szVarName);
+            fprintf(hSource, "  { \"%s\", ST_ID, FOFS(%s, %s) },\n", szColumnName, szTableName, szVarName);
+            if (dwColumn == 1) {
+                strcpy(indexName, szVarName);
+                indexType = ST_INT;
+            }
+        } else {
+            fprintf(hHeader, "  SHEETSTR %s; /*", szVarName);
+            fprintf(hSource, "  { \"%s\", ST_STRING, FOFS(%s, %s) },\n", szColumnName, szTableName, szVarName);
+            if (dwColumn == 1) {
+                strcpy(indexName, szVarName);
+                indexType = ST_STRING;
+            }
+        }
+        FOR_EACH_LIST(struct SheetCell const, lpCell, lpSheet) {
+            if (lpCell->column != dwColumn)
+                continue;
+            if (lpCell->row > 1 && lpCell->row < 10) {
+                fprintf(hHeader, " %s", lpCell->text);
+            }
+        }
+        fprintf(hHeader, " */\n");
+    }
+    fprintf(hSource, "  { NULL },\n");
+    fprintf(hSource, "};\n\n");
+    fprintf(hHeader, "};\n\n");
+    
+    fprintf(hSource, "struct %s *Find%s(%s %s) {\n", szTableName, szTableName, (indexType == ST_INT ? "DWORD" : "LPCSTR"), indexName);
+    fprintf(hSource, "  struct %s *lpValue = g_%s;\n", szTableName, szTableName);
+    if (indexType == ST_INT) {
+        fprintf(hSource, "  for (; lpValue->%s != %s && lpValue->%s; lpValue++);\n", indexName, indexName, indexName);
+        fprintf(hSource, "  if (lpValue->%s == 0) lpValue = NULL;\n", indexName);
+    } else {
+        fprintf(hSource, "  for (; *lpValue->%s && strcmp(lpValue->%s, %s); lpValue++);\n", indexName, indexName, indexName);
+        fprintf(hSource, "  if (*lpValue->%s == 0) lpValue = NULL;\n", indexName);
+    }
+    fprintf(hSource, "  return lpValue;\n");
+    fprintf(hSource, "}\n\n");
+
+    fprintf(hSource, "void Init%s(void) {\n", szTableName);
+    fprintf(hSource, "  g_%s = gi.ParseSheet(\"", szTableName);
+    for (LPCSTR s = szFileName; *s; s++) {
+        fprintf(hSource, "%c", *s);
+        if (*s == '\\')
+            fprintf(hSource, "%c", *s);
+    }
+    fprintf(hSource, "\", %s, sizeof(struct %s));\n", szTableName, szTableName);
+    fprintf(hSource, "}\n");
+
+    fprintf(hSource, "void Shutdown%s(void) {\n", szTableName);
+    fprintf(hSource, "  gi.MemFree(g_%s);\n", szTableName);
+    fprintf(hSource, "}\n");
+
+    fprintf(hHeader, "struct %s *Find%s(%s %s);\n", szTableName, szTableName, (indexType == ST_INT ? "DWORD" : "LPCSTR"), indexName);
+    fprintf(hHeader, "void Init%s(void);\n", szTableName);
+    fprintf(hHeader, "void Shutdown%s(void);\n\n", szTableName);
+
+    fprintf(hHeader, "#endif\n");
+    
+    fclose(hHeader);
+    fclose(hSource);
+}
+
+void FPrintSheetStructs(LPCSTR *szFileNames) {
+    for (LPCSTR* s = szFileNames; *s; s++) {
+        PrintSheetStruct(*s);
+    }
 }

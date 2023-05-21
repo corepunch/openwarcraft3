@@ -1,5 +1,9 @@
 #include "g_local.h"
 
+#include "tables/Doodads.h"
+#include "tables/DestructableData.h"
+#include "tables/UnitUI.h"
+
 struct spawn {
     LPCSTR name;
     void (*func)(LPEDICT lpEdict);
@@ -19,13 +23,13 @@ LPEDICT G_Spawn(void) {
     return lpEdict;
 }
 
-static void SP_SpawnDoodad(LPEDICT lpEdict, LPCDOODADINFO lpDoo) {
+static void SP_SpawnDoodad(LPEDICT lpEdict, struct Doodads const *lpDoo) {
     PATHSTR buffer;
     sprintf(buffer, "%s\\%s\\%s%d.mdx", lpDoo->dir, lpDoo->file, lpDoo->file, lpEdict->variation);
     lpEdict->s.model = gi.ModelIndex(buffer);
 }
 
-static void SP_SpawnDestructable(LPEDICT lpEdict, LPCDESTRUCTABLEDATA lpDestr) {
+static void SP_SpawnDestructable(LPEDICT lpEdict, struct DestructableData const *lpDestr) {
     PATHSTR buffer;
     sprintf(buffer, "%s.blp", lpDestr->texFile);
     lpEdict->s.image = gi.ImageIndex(buffer);
@@ -36,9 +40,9 @@ static void SP_SpawnDestructable(LPEDICT lpEdict, LPCDESTRUCTABLEDATA lpDestr) {
 void SP_CallSpawn(LPEDICT lpEdict) {
     if (!lpEdict->class_id)
         return;
-    LPCDOODADINFO doodadInfo = FIND_SHEET_ENTRY(game.Doodads, doodadInfo, doodID, lpEdict->class_id);
-    LPCDESTRUCTABLEDATA destructableData = FIND_SHEET_ENTRY(game.DestructableData, destructableData, DestructableID, lpEdict->class_id);;
-    LPCUNITUI unitUI = FIND_SHEET_ENTRY(game.UnitUI, unitUI, unitUIID, lpEdict->class_id);
+    struct Doodads const *doodadInfo = FindDoodads(lpEdict->class_id);
+    struct DestructableData const *destructableData = FindDestructableData(lpEdict->class_id);
+    struct UnitUI const *unitUI = FindUnitUI(lpEdict->class_id);
     if (doodadInfo) {
         SP_SpawnDoodad(lpEdict, doodadInfo);
         return;

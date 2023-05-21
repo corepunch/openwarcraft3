@@ -1,5 +1,6 @@
 #include "r_war3map.h"
 #include "r_mdx.h"
+#include "TerrainArt/CliffTypes.h"
 
 static VERTEX aVertexBuffer[(SEGMENT_SIZE+1)*(SEGMENT_SIZE+1)*64];
 static LPVERTEX lpCurrentVertex = NULL;
@@ -55,10 +56,10 @@ static float GetAccurateWaterLevelAtPoint(float sx, float sy) {
 
 // FUNCTIONS
 
-static LPCMODEL R_LoadCliffModel(LPCCLIFFINFO lpCliffInfo, char const *ccfg, bool ramp) {
+static LPCMODEL R_LoadCliffModel(struct CliffTypes const *lpCliffType, char const *ccfg, bool ramp) {
     PATHSTR zBuffer;
     const int cliffid = *(int *)ccfg;
-    LPCSTR dir = ramp ? lpCliffInfo->rampModelDir : lpCliffInfo->cliffModelDir;
+    LPCSTR dir = ramp ? lpCliffType->rampModelDir : lpCliffType->cliffModelDir;
     for (struct tCliff *it = g_cliffs; it; it = it->lpNext) {
         if (it->cliffid == cliffid)
             return it->model;
@@ -72,7 +73,7 @@ static LPCMODEL R_LoadCliffModel(LPCCLIFFINFO lpCliffInfo, char const *ccfg, boo
     return cliff->model;
 }
 
-static void R_MakeCliff(LPCWAR3MAP lpMap, DWORD x, DWORD y, DWORD dwCliff, LPCCLIFFINFO lpCliffInfo) {
+static void R_MakeCliff(LPCWAR3MAP lpMap, DWORD x, DWORD y, DWORD dwCliff, struct CliffTypes const *lpCliffType) {
     struct War3MapVertex tile[4];
     GetTileVertices(x, y, lpMap, tile);
     int remap[4] = { 3, 1, 0, 2 };
@@ -97,8 +98,8 @@ static void R_MakeCliff(LPCWAR3MAP lpMap, DWORD x, DWORD y, DWORD dwCliff, LPCCL
     }
     
     FOR_LOOP(gindx, lpMap->numGrounds) {
-        DWORD const tile = lpCliffInfo->groundTile == SAME_TILE ? lpCliffInfo->upperTile : lpCliffInfo->groundTile;
-        if (lpMap->lpGrounds[gindx] == lpCliffInfo->groundTile) {
+        DWORD const tile = lpCliffType->groundTile == SAME_TILE ? lpCliffType->upperTile : lpCliffType->groundTile;
+        if (lpMap->lpGrounds[gindx] == lpCliffType->groundTile) {
             ((LPWAR3MAPVERTEX)GetWar3MapVertex(lpMap, x+1, y+1))->ground = gindx;
             ((LPWAR3MAPVERTEX)GetWar3MapVertex(lpMap, x, y+1))->ground = gindx;
             ((LPWAR3MAPVERTEX)GetWar3MapVertex(lpMap, x+1, y))->ground = gindx;
@@ -107,7 +108,7 @@ static void R_MakeCliff(LPCWAR3MAP lpMap, DWORD x, DWORD y, DWORD dwCliff, LPCCL
         }
     }
     
-    LPCMODEL pModel = R_LoadCliffModel(lpCliffInfo, cliffcfg, tileramps > 1);
+    LPCMODEL pModel = R_LoadCliffModel(lpCliffType, cliffcfg, tileramps > 1);
     LPMODELGEOSET pGeoset = pModel->lpGeosets;
     
     FOR_LOOP(t, pGeoset->numTriangles) {
@@ -138,24 +139,24 @@ LPMAPLAYER R_BuildMapSegmentCliffs(LPCWAR3MAP lpMap, DWORD sx, DWORD sy, DWORD d
     if (dwCliffID == NO_CLIFF) {
         return NULL;
     }
-    LPCLIFFINFO lpCliffInfo = ri.FindCliffInfo(dwCliffID);
+    struct CliffTypes *lpCliffType = FindCliffTypes(dwCliffID);
 //    FOR_LOOP(idx, lpMap->numCliffs) {
 //        printf("%.4s\n", (char*)&lpMap->lpCliffs[idx]);
 //    }
-    if (!lpCliffInfo) {
+    if (!lpCliffType) {
         return NULL;
     }
-    sprintf(zBuffer, "%s\\%c_%s.blp", lpCliffInfo->texDir, lpMap->tileset, lpCliffInfo->texFile);
+    sprintf(zBuffer, "%s\\%c_%s.blp", lpCliffType->texDir, lpMap->tileset, lpCliffType->texFile);
     lpMapLayer->lpTexture = R_LoadTexture(zBuffer);
     if (!lpMapLayer->lpTexture) {
-        sprintf(zBuffer, "%s\\%s.blp", lpCliffInfo->texDir, lpCliffInfo->texFile);
+        sprintf(zBuffer, "%s\\%s.blp", lpCliffType->texDir, lpCliffType->texFile);
         lpMapLayer->lpTexture = R_LoadTexture(zBuffer);
     }
     lpMapLayer->dwType = MAPLAYERTYPE_CLIFF;
     lpCurrentVertex = aVertexBuffer;
     for (DWORD x = sx * SEGMENT_SIZE; x < (sx + 1) * SEGMENT_SIZE; x++) {
         for (DWORD y = sy * SEGMENT_SIZE; y < (sy + 1) * SEGMENT_SIZE; y++) {
-            R_MakeCliff(lpMap, x, y, dwCliff, lpCliffInfo);
+            R_MakeCliff(lpMap, x, y, dwCliff, lpCliffType);
         }
     }
     lpMapLayer->numVertices = (DWORD)(lpCurrentVertex - aVertexBuffer);

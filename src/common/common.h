@@ -4,7 +4,6 @@
 #include "shared.h"
 #include "net.h"
 #include "../cmath3/cmath3.h"
-#include "tables.h"
 
 #define TMP_MAP "/tmp/map.w3m"
 #define MAP_VERTEX_SIZE 7

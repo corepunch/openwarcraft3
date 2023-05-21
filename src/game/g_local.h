@@ -75,9 +75,6 @@ LPEDICT G_Spawn(void);
 void SP_SpawnUnit(LPEDICT lpEdict, LPCUNITUI lpUnit);
 void SP_CallSpawn(LPEDICT lpEdict);
 void G_SpawnEntities(LPCDOODAD doodads, DWORD numDoodads);
-void G_InitUnits(void);
-void G_InitDestructables(void);
-void G_InitDoodads(void);
 void G_RunEntity(LPEDICT lpEdict);
 
 LPEDICT Waypoint_add(VECTOR2 spot);

@@ -1,5 +1,9 @@
 #include "g_local.h"
 
+#include "tables/Doodads.h"
+#include "tables/DestructableData.h"
+#include "tables/UnitUI.h"
+
 #define MAX_ENTITIES 4096
 
 struct game_export globals;
@@ -13,9 +17,9 @@ static void G_Init(void) {
     globals.num_edicts = 0;
     globals.max_edicts = MAX_ENTITIES;
 
-    G_InitUnits();
-    G_InitDestructables();
-    G_InitDoodads();
+    InitDoodads();
+    InitDestructableData();
+    InitUnitUI();
 }
 
 static void G_Shutdown(void) {

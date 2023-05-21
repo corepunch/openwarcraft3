@@ -1,4 +1,7 @@
 #include "g_local.h"
+
+#include "tables/UnitUI.h"
+
 #include <stdlib.h>
 
 #define MAX_WAYPOINTS 256
@@ -51,7 +54,7 @@ void monster_start(LPEDICT self) {
 
 void SP_monster_peon(LPEDICT self);
 
-void SP_SpawnUnit(LPEDICT self, LPCUNITUI lpUnit) {
+void SP_SpawnUnit(LPEDICT self, struct UnitUI const *lpUnit) {
     PATHSTR buffer;
     sprintf(buffer, "%s.mdx", lpUnit->file);
     self->s.model = gi.ModelIndex(buffer);

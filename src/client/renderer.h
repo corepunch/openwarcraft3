@@ -12,9 +12,7 @@ struct renderer_import {
     bool (*FileClose)(HANDLE hFile);
     HANDLE (*MemAlloc)(long size);
     void (*MemFree)(HANDLE);
-    // warcraft data related
-    LPTERRAININFO (*FindTerrainInfo)(DWORD tileID);
-    LPCLIFFINFO (*FindCliffInfo)(DWORD cliffID);
+    HANDLE (*ParseSheet)(LPCSTR szSheetFilename, LPCSHEETLAYOUT lpLayout, DWORD dwElementSize);
 };
 
 struct render_entity {

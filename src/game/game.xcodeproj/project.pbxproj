@@ -10,12 +10,67 @@
 		786630612A188F4800266A62 /* g_phys.c in Sources */ = {isa = PBXBuildFile; fileRef = 7866305F2A188F4800266A62 /* g_phys.c */; };
 		786630632A1899FD00266A62 /* m_move.c in Sources */ = {isa = PBXBuildFile; fileRef = 786630622A1899FD00266A62 /* m_move.c */; };
 		786630652A18BFAC00266A62 /* g_ai.c in Sources */ = {isa = PBXBuildFile; fileRef = 786630642A18BFAC00266A62 /* g_ai.c */; };
+		786636E82A1A454600266A62 /* SplatData.h in Headers */ = {isa = PBXBuildFile; fileRef = 786636A62A1A454600266A62 /* SplatData.h */; };
+		786636E92A1A454600266A62 /* UnitUI.h in Headers */ = {isa = PBXBuildFile; fileRef = 786636A72A1A454600266A62 /* UnitUI.h */; };
+		786636EA2A1A454600266A62 /* MIDISounds.h in Headers */ = {isa = PBXBuildFile; fileRef = 786636A82A1A454600266A62 /* MIDISounds.h */; };
+		786636EB2A1A454600266A62 /* AnimLookups.c in Sources */ = {isa = PBXBuildFile; fileRef = 786636A92A1A454600266A62 /* AnimLookups.c */; };
+		786636EC2A1A454600266A62 /* UnitAckSounds.c in Sources */ = {isa = PBXBuildFile; fileRef = 786636AA2A1A454600266A62 /* UnitAckSounds.c */; };
+		786636ED2A1A454600266A62 /* AbilitySounds.h in Headers */ = {isa = PBXBuildFile; fileRef = 786636AB2A1A454600266A62 /* AbilitySounds.h */; };
+		786636EE2A1A454600266A62 /* T_SplatData.h in Headers */ = {isa = PBXBuildFile; fileRef = 786636AC2A1A454600266A62 /* T_SplatData.h */; };
+		786636EF2A1A454600266A62 /* UberSplatData.h in Headers */ = {isa = PBXBuildFile; fileRef = 786636AD2A1A454600266A62 /* UberSplatData.h */; };
+		786636F02A1A454600266A62 /* UnitBalance.h in Headers */ = {isa = PBXBuildFile; fileRef = 786636AE2A1A454600266A62 /* UnitBalance.h */; };
+		786636F12A1A454600266A62 /* AbilityData.h in Headers */ = {isa = PBXBuildFile; fileRef = 786636AF2A1A454600266A62 /* AbilityData.h */; };
+		786636F22A1A454600266A62 /* AmbienceSounds.c in Sources */ = {isa = PBXBuildFile; fileRef = 786636B02A1A454600266A62 /* AmbienceSounds.c */; };
+		786636F32A1A454600266A62 /* UISounds.h in Headers */ = {isa = PBXBuildFile; fileRef = 786636B12A1A454600266A62 /* UISounds.h */; };
+		786636F42A1A454600266A62 /* SpawnData.c in Sources */ = {isa = PBXBuildFile; fileRef = 786636B22A1A454600266A62 /* SpawnData.c */; };
+		786636F52A1A454600266A62 /* DialogSounds.h in Headers */ = {isa = PBXBuildFile; fileRef = 786636B32A1A454600266A62 /* DialogSounds.h */; };
+		786636F72A1A454600266A62 /* T_SpawnData.c in Sources */ = {isa = PBXBuildFile; fileRef = 786636B52A1A454600266A62 /* T_SpawnData.c */; };
+		786636F82A1A454600266A62 /* UpgradeData.c in Sources */ = {isa = PBXBuildFile; fileRef = 786636B62A1A454600266A62 /* UpgradeData.c */; };
+		786636FA2A1A454600266A62 /* UnitAbilities.h in Headers */ = {isa = PBXBuildFile; fileRef = 786636B82A1A454600266A62 /* UnitAbilities.h */; };
+		786636FB2A1A454600266A62 /* UnitData.h in Headers */ = {isa = PBXBuildFile; fileRef = 786636B92A1A454600266A62 /* UnitData.h */; };
+		786636FC2A1A454600266A62 /* DestructableData.c in Sources */ = {isa = PBXBuildFile; fileRef = 786636BA2A1A454600266A62 /* DestructableData.c */; };
+		786636FD2A1A454600266A62 /* UnitCombatSounds.c in Sources */ = {isa = PBXBuildFile; fileRef = 786636BB2A1A454600266A62 /* UnitCombatSounds.c */; };
+		786636FE2A1A454600266A62 /* Doodads.h in Headers */ = {isa = PBXBuildFile; fileRef = 786636BC2A1A454600266A62 /* Doodads.h */; };
+		786636FF2A1A454600266A62 /* PortraitAnims.h in Headers */ = {isa = PBXBuildFile; fileRef = 786636BD2A1A454600266A62 /* PortraitAnims.h */; };
+		786637012A1A454600266A62 /* UnitWeapons.c in Sources */ = {isa = PBXBuildFile; fileRef = 786636BF2A1A454600266A62 /* UnitWeapons.c */; };
+		786637022A1A454600266A62 /* EAXDefs.h in Headers */ = {isa = PBXBuildFile; fileRef = 786636C02A1A454600266A62 /* EAXDefs.h */; };
+		786637032A1A454600266A62 /* LightningData.h in Headers */ = {isa = PBXBuildFile; fileRef = 786636C12A1A454600266A62 /* LightningData.h */; };
+		786637042A1A454600266A62 /* AnimSounds.h in Headers */ = {isa = PBXBuildFile; fileRef = 786636C22A1A454600266A62 /* AnimSounds.h */; };
+		786637052A1A454600266A62 /* EnvironmentSounds.h in Headers */ = {isa = PBXBuildFile; fileRef = 786636C32A1A454600266A62 /* EnvironmentSounds.h */; };
+		786637062A1A454600266A62 /* ItemData.h in Headers */ = {isa = PBXBuildFile; fileRef = 786636C42A1A454600266A62 /* ItemData.h */; };
+		786637072A1A454600266A62 /* UnitMetaData.h in Headers */ = {isa = PBXBuildFile; fileRef = 786636C52A1A454600266A62 /* UnitMetaData.h */; };
+		786637092A1A454600266A62 /* AbilityData.c in Sources */ = {isa = PBXBuildFile; fileRef = 786636C72A1A454600266A62 /* AbilityData.c */; };
+		7866370A2A1A454600266A62 /* UberSplatData.c in Sources */ = {isa = PBXBuildFile; fileRef = 786636C82A1A454600266A62 /* UberSplatData.c */; };
+		7866370B2A1A454600266A62 /* UnitBalance.c in Sources */ = {isa = PBXBuildFile; fileRef = 786636C92A1A454600266A62 /* UnitBalance.c */; };
+		7866370C2A1A454600266A62 /* T_SplatData.c in Sources */ = {isa = PBXBuildFile; fileRef = 786636CA2A1A454600266A62 /* T_SplatData.c */; };
+		7866370D2A1A454600266A62 /* AbilitySounds.c in Sources */ = {isa = PBXBuildFile; fileRef = 786636CB2A1A454600266A62 /* AbilitySounds.c */; };
+		7866370E2A1A454600266A62 /* UnitAckSounds.h in Headers */ = {isa = PBXBuildFile; fileRef = 786636CC2A1A454600266A62 /* UnitAckSounds.h */; };
+		7866370F2A1A454600266A62 /* AnimLookups.h in Headers */ = {isa = PBXBuildFile; fileRef = 786636CD2A1A454600266A62 /* AnimLookups.h */; };
+		786637102A1A454600266A62 /* MIDISounds.c in Sources */ = {isa = PBXBuildFile; fileRef = 786636CE2A1A454600266A62 /* MIDISounds.c */; };
+		786637112A1A454600266A62 /* SplatData.c in Sources */ = {isa = PBXBuildFile; fileRef = 786636CF2A1A454600266A62 /* SplatData.c */; };
+		786637122A1A454600266A62 /* UnitUI.c in Sources */ = {isa = PBXBuildFile; fileRef = 786636D02A1A454600266A62 /* UnitUI.c */; };
+		786637132A1A454600266A62 /* UnitAbilities.c in Sources */ = {isa = PBXBuildFile; fileRef = 786636D12A1A454600266A62 /* UnitAbilities.c */; };
+		786637152A1A454600266A62 /* DialogSounds.c in Sources */ = {isa = PBXBuildFile; fileRef = 786636D32A1A454600266A62 /* DialogSounds.c */; };
+		786637172A1A454600266A62 /* UpgradeData.h in Headers */ = {isa = PBXBuildFile; fileRef = 786636D52A1A454600266A62 /* UpgradeData.h */; };
+		786637182A1A454600266A62 /* T_SpawnData.h in Headers */ = {isa = PBXBuildFile; fileRef = 786636D62A1A454600266A62 /* T_SpawnData.h */; };
+		786637192A1A454600266A62 /* SpawnData.h in Headers */ = {isa = PBXBuildFile; fileRef = 786636D72A1A454600266A62 /* SpawnData.h */; };
+		7866371A2A1A454600266A62 /* AmbienceSounds.h in Headers */ = {isa = PBXBuildFile; fileRef = 786636D82A1A454600266A62 /* AmbienceSounds.h */; };
+		7866371B2A1A454600266A62 /* UISounds.c in Sources */ = {isa = PBXBuildFile; fileRef = 786636D92A1A454600266A62 /* UISounds.c */; };
+		7866371D2A1A454600266A62 /* UnitWeapons.h in Headers */ = {isa = PBXBuildFile; fileRef = 786636DB2A1A454600266A62 /* UnitWeapons.h */; };
+		7866371E2A1A454600266A62 /* EAXDefs.c in Sources */ = {isa = PBXBuildFile; fileRef = 786636DC2A1A454600266A62 /* EAXDefs.c */; };
+		7866371F2A1A454600266A62 /* PortraitAnims.c in Sources */ = {isa = PBXBuildFile; fileRef = 786636DD2A1A454600266A62 /* PortraitAnims.c */; };
+		786637202A1A454600266A62 /* UnitCombatSounds.h in Headers */ = {isa = PBXBuildFile; fileRef = 786636DE2A1A454600266A62 /* UnitCombatSounds.h */; };
+		786637212A1A454600266A62 /* Doodads.c in Sources */ = {isa = PBXBuildFile; fileRef = 786636DF2A1A454600266A62 /* Doodads.c */; };
+		786637222A1A454600266A62 /* DestructableData.h in Headers */ = {isa = PBXBuildFile; fileRef = 786636E02A1A454600266A62 /* DestructableData.h */; };
+		786637232A1A454600266A62 /* UnitData.c in Sources */ = {isa = PBXBuildFile; fileRef = 786636E12A1A454600266A62 /* UnitData.c */; };
+		786637252A1A454600266A62 /* EnvironmentSounds.c in Sources */ = {isa = PBXBuildFile; fileRef = 786636E32A1A454600266A62 /* EnvironmentSounds.c */; };
+		786637262A1A454600266A62 /* AnimSounds.c in Sources */ = {isa = PBXBuildFile; fileRef = 786636E42A1A454600266A62 /* AnimSounds.c */; };
+		786637272A1A454600266A62 /* UnitMetaData.c in Sources */ = {isa = PBXBuildFile; fileRef = 786636E52A1A454600266A62 /* UnitMetaData.c */; };
+		786637282A1A454600266A62 /* ItemData.c in Sources */ = {isa = PBXBuildFile; fileRef = 786636E62A1A454600266A62 /* ItemData.c */; };
+		786637292A1A454600266A62 /* LightningData.c in Sources */ = {isa = PBXBuildFile; fileRef = 786636E72A1A454600266A62 /* LightningData.c */; };
 		78A8966F2A15F7D600BC5B56 /* g_local.h in Headers */ = {isa = PBXBuildFile; fileRef = 78A896682A15F7D600BC5B56 /* g_local.h */; };
 		78A896702A15F7D600BC5B56 /* g_spawn.c in Sources */ = {isa = PBXBuildFile; fileRef = 78A896692A15F7D600BC5B56 /* g_spawn.c */; };
-		78A896712A15F7D600BC5B56 /* g_doodads.c in Sources */ = {isa = PBXBuildFile; fileRef = 78A8966A2A15F7D600BC5B56 /* g_doodads.c */; };
 		78A896722A15F7D600BC5B56 /* g_main.c in Sources */ = {isa = PBXBuildFile; fileRef = 78A8966B2A15F7D600BC5B56 /* g_main.c */; };
-		78A896732A15F7D600BC5B56 /* g_destructables.c in Sources */ = {isa = PBXBuildFile; fileRef = 78A8966C2A15F7D600BC5B56 /* g_destructables.c */; };
-		78A896742A15F7D600BC5B56 /* g_units.c in Sources */ = {isa = PBXBuildFile; fileRef = 78A8966D2A15F7D600BC5B56 /* g_units.c */; };
 		78A896752A15F7D600BC5B56 /* m_peon.c in Sources */ = {isa = PBXBuildFile; fileRef = 78A8966E2A15F7D600BC5B56 /* m_peon.c */; };
 		78E91BFB2A169439003D9F3A /* g_monster.c in Sources */ = {isa = PBXBuildFile; fileRef = 78E91BFA2A169439003D9F3A /* g_monster.c */; };
 		78E91BFE2A169771003D9F3A /* libcmath3.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 78E91BFD2A169771003D9F3A /* libcmath3.dylib */; };
@@ -25,13 +80,68 @@
 		7866305F2A188F4800266A62 /* g_phys.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = g_phys.c; sourceTree = "<group>"; };
 		786630622A1899FD00266A62 /* m_move.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = m_move.c; sourceTree = "<group>"; };
 		786630642A18BFAC00266A62 /* g_ai.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = g_ai.c; sourceTree = "<group>"; };
+		786636A62A1A454600266A62 /* SplatData.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = SplatData.h; sourceTree = "<group>"; };
+		786636A72A1A454600266A62 /* UnitUI.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = UnitUI.h; sourceTree = "<group>"; };
+		786636A82A1A454600266A62 /* MIDISounds.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MIDISounds.h; sourceTree = "<group>"; };
+		786636A92A1A454600266A62 /* AnimLookups.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = AnimLookups.c; sourceTree = "<group>"; };
+		786636AA2A1A454600266A62 /* UnitAckSounds.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = UnitAckSounds.c; sourceTree = "<group>"; };
+		786636AB2A1A454600266A62 /* AbilitySounds.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = AbilitySounds.h; sourceTree = "<group>"; };
+		786636AC2A1A454600266A62 /* T_SplatData.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = T_SplatData.h; sourceTree = "<group>"; };
+		786636AD2A1A454600266A62 /* UberSplatData.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = UberSplatData.h; sourceTree = "<group>"; };
+		786636AE2A1A454600266A62 /* UnitBalance.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = UnitBalance.h; sourceTree = "<group>"; };
+		786636AF2A1A454600266A62 /* AbilityData.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = AbilityData.h; sourceTree = "<group>"; };
+		786636B02A1A454600266A62 /* AmbienceSounds.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = AmbienceSounds.c; sourceTree = "<group>"; };
+		786636B12A1A454600266A62 /* UISounds.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = UISounds.h; sourceTree = "<group>"; };
+		786636B22A1A454600266A62 /* SpawnData.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = SpawnData.c; sourceTree = "<group>"; };
+		786636B32A1A454600266A62 /* DialogSounds.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = DialogSounds.h; sourceTree = "<group>"; };
+		786636B52A1A454600266A62 /* T_SpawnData.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = T_SpawnData.c; sourceTree = "<group>"; };
+		786636B62A1A454600266A62 /* UpgradeData.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = UpgradeData.c; sourceTree = "<group>"; };
+		786636B82A1A454600266A62 /* UnitAbilities.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = UnitAbilities.h; sourceTree = "<group>"; };
+		786636B92A1A454600266A62 /* UnitData.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = UnitData.h; sourceTree = "<group>"; };
+		786636BA2A1A454600266A62 /* DestructableData.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = DestructableData.c; sourceTree = "<group>"; };
+		786636BB2A1A454600266A62 /* UnitCombatSounds.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = UnitCombatSounds.c; sourceTree = "<group>"; };
+		786636BC2A1A454600266A62 /* Doodads.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Doodads.h; sourceTree = "<group>"; };
+		786636BD2A1A454600266A62 /* PortraitAnims.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = PortraitAnims.h; sourceTree = "<group>"; };
+		786636BF2A1A454600266A62 /* UnitWeapons.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = UnitWeapons.c; sourceTree = "<group>"; };
+		786636C02A1A454600266A62 /* EAXDefs.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = EAXDefs.h; sourceTree = "<group>"; };
+		786636C12A1A454600266A62 /* LightningData.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = LightningData.h; sourceTree = "<group>"; };
+		786636C22A1A454600266A62 /* AnimSounds.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = AnimSounds.h; sourceTree = "<group>"; };
+		786636C32A1A454600266A62 /* EnvironmentSounds.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = EnvironmentSounds.h; sourceTree = "<group>"; };
+		786636C42A1A454600266A62 /* ItemData.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ItemData.h; sourceTree = "<group>"; };
+		786636C52A1A454600266A62 /* UnitMetaData.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = UnitMetaData.h; sourceTree = "<group>"; };
+		786636C72A1A454600266A62 /* AbilityData.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = AbilityData.c; sourceTree = "<group>"; };
+		786636C82A1A454600266A62 /* UberSplatData.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = UberSplatData.c; sourceTree = "<group>"; };
+		786636C92A1A454600266A62 /* UnitBalance.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = UnitBalance.c; sourceTree = "<group>"; };
+		786636CA2A1A454600266A62 /* T_SplatData.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = T_SplatData.c; sourceTree = "<group>"; };
+		786636CB2A1A454600266A62 /* AbilitySounds.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = AbilitySounds.c; sourceTree = "<group>"; };
+		786636CC2A1A454600266A62 /* UnitAckSounds.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = UnitAckSounds.h; sourceTree = "<group>"; };
+		786636CD2A1A454600266A62 /* AnimLookups.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = AnimLookups.h; sourceTree = "<group>"; };
+		786636CE2A1A454600266A62 /* MIDISounds.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = MIDISounds.c; sourceTree = "<group>"; };
+		786636CF2A1A454600266A62 /* SplatData.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = SplatData.c; sourceTree = "<group>"; };
+		786636D02A1A454600266A62 /* UnitUI.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = UnitUI.c; sourceTree = "<group>"; };
+		786636D12A1A454600266A62 /* UnitAbilities.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = UnitAbilities.c; sourceTree = "<group>"; };
+		786636D32A1A454600266A62 /* DialogSounds.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = DialogSounds.c; sourceTree = "<group>"; };
+		786636D52A1A454600266A62 /* UpgradeData.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = UpgradeData.h; sourceTree = "<group>"; };
+		786636D62A1A454600266A62 /* T_SpawnData.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = T_SpawnData.h; sourceTree = "<group>"; };
+		786636D72A1A454600266A62 /* SpawnData.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = SpawnData.h; sourceTree = "<group>"; };
+		786636D82A1A454600266A62 /* AmbienceSounds.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = AmbienceSounds.h; sourceTree = "<group>"; };
+		786636D92A1A454600266A62 /* UISounds.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = UISounds.c; sourceTree = "<group>"; };
+		786636DB2A1A454600266A62 /* UnitWeapons.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = UnitWeapons.h; sourceTree = "<group>"; };
+		786636DC2A1A454600266A62 /* EAXDefs.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = EAXDefs.c; sourceTree = "<group>"; };
+		786636DD2A1A454600266A62 /* PortraitAnims.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = PortraitAnims.c; sourceTree = "<group>"; };
+		786636DE2A1A454600266A62 /* UnitCombatSounds.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = UnitCombatSounds.h; sourceTree = "<group>"; };
+		786636DF2A1A454600266A62 /* Doodads.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = Doodads.c; sourceTree = "<group>"; };
+		786636E02A1A454600266A62 /* DestructableData.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = DestructableData.h; sourceTree = "<group>"; };
+		786636E12A1A454600266A62 /* UnitData.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = UnitData.c; sourceTree = "<group>"; };
+		786636E32A1A454600266A62 /* EnvironmentSounds.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = EnvironmentSounds.c; sourceTree = "<group>"; };
+		786636E42A1A454600266A62 /* AnimSounds.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = AnimSounds.c; sourceTree = "<group>"; };
+		786636E52A1A454600266A62 /* UnitMetaData.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = UnitMetaData.c; sourceTree = "<group>"; };
+		786636E62A1A454600266A62 /* ItemData.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = ItemData.c; sourceTree = "<group>"; };
+		786636E72A1A454600266A62 /* LightningData.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = LightningData.c; sourceTree = "<group>"; };
 		78A8964D2A15F7A500BC5B56 /* libgame.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; includeInIndex = 0; path = libgame.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
 		78A896682A15F7D600BC5B56 /* g_local.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = g_local.h; sourceTree = "<group>"; };
 		78A896692A15F7D600BC5B56 /* g_spawn.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = g_spawn.c; sourceTree = "<group>"; };
-		78A8966A2A15F7D600BC5B56 /* g_doodads.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = g_doodads.c; sourceTree = "<group>"; };
 		78A8966B2A15F7D600BC5B56 /* g_main.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = g_main.c; sourceTree = "<group>"; };
-		78A8966C2A15F7D600BC5B56 /* g_destructables.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = g_destructables.c; sourceTree = "<group>"; };
-		78A8966D2A15F7D600BC5B56 /* g_units.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = g_units.c; sourceTree = "<group>"; };
 		78A8966E2A15F7D600BC5B56 /* m_peon.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = m_peon.c; sourceTree = "<group>"; };
 		78E91BFA2A169439003D9F3A /* g_monster.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = g_monster.c; sourceTree = "<group>"; };
 		78E91BFD2A169771003D9F3A /* libcmath3.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; path = libcmath3.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -49,17 +159,80 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		786636A52A1A454600266A62 /* tables */ = {
+			isa = PBXGroup;
+			children = (
+				786636C72A1A454600266A62 /* AbilityData.c */,
+				786636CB2A1A454600266A62 /* AbilitySounds.c */,
+				786636B02A1A454600266A62 /* AmbienceSounds.c */,
+				786636A92A1A454600266A62 /* AnimLookups.c */,
+				786636E42A1A454600266A62 /* AnimSounds.c */,
+				786636BA2A1A454600266A62 /* DestructableData.c */,
+				786636D32A1A454600266A62 /* DialogSounds.c */,
+				786636DF2A1A454600266A62 /* Doodads.c */,
+				786636DC2A1A454600266A62 /* EAXDefs.c */,
+				786636E32A1A454600266A62 /* EnvironmentSounds.c */,
+				786636E62A1A454600266A62 /* ItemData.c */,
+				786636E72A1A454600266A62 /* LightningData.c */,
+				786636CE2A1A454600266A62 /* MIDISounds.c */,
+				786636DD2A1A454600266A62 /* PortraitAnims.c */,
+				786636B22A1A454600266A62 /* SpawnData.c */,
+				786636CF2A1A454600266A62 /* SplatData.c */,
+				786636B52A1A454600266A62 /* T_SpawnData.c */,
+				786636CA2A1A454600266A62 /* T_SplatData.c */,
+				786636C82A1A454600266A62 /* UberSplatData.c */,
+				786636D92A1A454600266A62 /* UISounds.c */,
+				786636D12A1A454600266A62 /* UnitAbilities.c */,
+				786636AA2A1A454600266A62 /* UnitAckSounds.c */,
+				786636C92A1A454600266A62 /* UnitBalance.c */,
+				786636BB2A1A454600266A62 /* UnitCombatSounds.c */,
+				786636E12A1A454600266A62 /* UnitData.c */,
+				786636E52A1A454600266A62 /* UnitMetaData.c */,
+				786636D02A1A454600266A62 /* UnitUI.c */,
+				786636BF2A1A454600266A62 /* UnitWeapons.c */,
+				786636B62A1A454600266A62 /* UpgradeData.c */,
+				786636AF2A1A454600266A62 /* AbilityData.h */,
+				786636AB2A1A454600266A62 /* AbilitySounds.h */,
+				786636D82A1A454600266A62 /* AmbienceSounds.h */,
+				786636CD2A1A454600266A62 /* AnimLookups.h */,
+				786636C22A1A454600266A62 /* AnimSounds.h */,
+				786636E02A1A454600266A62 /* DestructableData.h */,
+				786636B32A1A454600266A62 /* DialogSounds.h */,
+				786636BC2A1A454600266A62 /* Doodads.h */,
+				786636C02A1A454600266A62 /* EAXDefs.h */,
+				786636C32A1A454600266A62 /* EnvironmentSounds.h */,
+				786636C42A1A454600266A62 /* ItemData.h */,
+				786636C12A1A454600266A62 /* LightningData.h */,
+				786636A82A1A454600266A62 /* MIDISounds.h */,
+				786636BD2A1A454600266A62 /* PortraitAnims.h */,
+				786636D72A1A454600266A62 /* SpawnData.h */,
+				786636A62A1A454600266A62 /* SplatData.h */,
+				786636D62A1A454600266A62 /* T_SpawnData.h */,
+				786636AC2A1A454600266A62 /* T_SplatData.h */,
+				786636AD2A1A454600266A62 /* UberSplatData.h */,
+				786636B12A1A454600266A62 /* UISounds.h */,
+				786636B82A1A454600266A62 /* UnitAbilities.h */,
+				786636CC2A1A454600266A62 /* UnitAckSounds.h */,
+				786636AE2A1A454600266A62 /* UnitBalance.h */,
+				786636DE2A1A454600266A62 /* UnitCombatSounds.h */,
+				786636B92A1A454600266A62 /* UnitData.h */,
+				786636C52A1A454600266A62 /* UnitMetaData.h */,
+				786636A72A1A454600266A62 /* UnitUI.h */,
+				786636DB2A1A454600266A62 /* UnitWeapons.h */,
+				786636D52A1A454600266A62 /* UpgradeData.h */,
+			);
+			path = tables;
+			sourceTree = "<group>";
+		};
 		78A896442A15F7A500BC5B56 = {
 			isa = PBXGroup;
 			children = (
+				786636A52A1A454600266A62 /* tables */,
 				786630642A18BFAC00266A62 /* g_ai.c */,
-				78A8966C2A15F7D600BC5B56 /* g_destructables.c */,
-				78A8966A2A15F7D600BC5B56 /* g_doodads.c */,
 				78A8966B2A15F7D600BC5B56 /* g_main.c */,
 				78E91BFA2A169439003D9F3A /* g_monster.c */,
 				7866305F2A188F4800266A62 /* g_phys.c */,
 				78A896692A15F7D600BC5B56 /* g_spawn.c */,
-				78A8966D2A15F7D600BC5B56 /* g_units.c */,
 				786630622A1899FD00266A62 /* m_move.c */,
 				78A8966E2A15F7D600BC5B56 /* m_peon.c */,
 				78A896682A15F7D600BC5B56 /* g_local.h */,
@@ -91,7 +264,36 @@
 			isa = PBXHeadersBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				7866371D2A1A454600266A62 /* UnitWeapons.h in Headers */,
+				786637072A1A454600266A62 /* UnitMetaData.h in Headers */,
+				786637182A1A454600266A62 /* T_SpawnData.h in Headers */,
+				786637052A1A454600266A62 /* EnvironmentSounds.h in Headers */,
+				786637202A1A454600266A62 /* UnitCombatSounds.h in Headers */,
 				78A8966F2A15F7D600BC5B56 /* g_local.h in Headers */,
+				786637042A1A454600266A62 /* AnimSounds.h in Headers */,
+				786636F12A1A454600266A62 /* AbilityData.h in Headers */,
+				7866371A2A1A454600266A62 /* AmbienceSounds.h in Headers */,
+				786636F32A1A454600266A62 /* UISounds.h in Headers */,
+				786637192A1A454600266A62 /* SpawnData.h in Headers */,
+				786637062A1A454600266A62 /* ItemData.h in Headers */,
+				786636F02A1A454600266A62 /* UnitBalance.h in Headers */,
+				786636F52A1A454600266A62 /* DialogSounds.h in Headers */,
+				786637172A1A454600266A62 /* UpgradeData.h in Headers */,
+				786636FF2A1A454600266A62 /* PortraitAnims.h in Headers */,
+				786636FE2A1A454600266A62 /* Doodads.h in Headers */,
+				786636FB2A1A454600266A62 /* UnitData.h in Headers */,
+				7866370F2A1A454600266A62 /* AnimLookups.h in Headers */,
+				786636EF2A1A454600266A62 /* UberSplatData.h in Headers */,
+				786636EA2A1A454600266A62 /* MIDISounds.h in Headers */,
+				786636EE2A1A454600266A62 /* T_SplatData.h in Headers */,
+				7866370E2A1A454600266A62 /* UnitAckSounds.h in Headers */,
+				786636E92A1A454600266A62 /* UnitUI.h in Headers */,
+				786636ED2A1A454600266A62 /* AbilitySounds.h in Headers */,
+				786637032A1A454600266A62 /* LightningData.h in Headers */,
+				786637222A1A454600266A62 /* DestructableData.h in Headers */,
+				786636E82A1A454600266A62 /* SplatData.h in Headers */,
+				786636FA2A1A454600266A62 /* UnitAbilities.h in Headers */,
+				786637022A1A454600266A62 /* EAXDefs.h in Headers */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -152,15 +354,41 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				786637102A1A454600266A62 /* MIDISounds.c in Sources */,
+				786636F22A1A454600266A62 /* AmbienceSounds.c in Sources */,
 				78A896722A15F7D600BC5B56 /* g_main.c in Sources */,
-				78A896732A15F7D600BC5B56 /* g_destructables.c in Sources */,
-				78A896712A15F7D600BC5B56 /* g_doodads.c in Sources */,
+				786637252A1A454600266A62 /* EnvironmentSounds.c in Sources */,
+				7866370D2A1A454600266A62 /* AbilitySounds.c in Sources */,
+				7866371B2A1A454600266A62 /* UISounds.c in Sources */,
+				786637092A1A454600266A62 /* AbilityData.c in Sources */,
+				786636FD2A1A454600266A62 /* UnitCombatSounds.c in Sources */,
+				7866370B2A1A454600266A62 /* UnitBalance.c in Sources */,
+				786637152A1A454600266A62 /* DialogSounds.c in Sources */,
+				786636F72A1A454600266A62 /* T_SpawnData.c in Sources */,
+				786636FC2A1A454600266A62 /* DestructableData.c in Sources */,
+				7866371F2A1A454600266A62 /* PortraitAnims.c in Sources */,
+				7866370C2A1A454600266A62 /* T_SplatData.c in Sources */,
+				786637012A1A454600266A62 /* UnitWeapons.c in Sources */,
+				786637122A1A454600266A62 /* UnitUI.c in Sources */,
+				786636EC2A1A454600266A62 /* UnitAckSounds.c in Sources */,
+				786637232A1A454600266A62 /* UnitData.c in Sources */,
+				786636F82A1A454600266A62 /* UpgradeData.c in Sources */,
 				786630612A188F4800266A62 /* g_phys.c in Sources */,
+				786637292A1A454600266A62 /* LightningData.c in Sources */,
 				786630632A1899FD00266A62 /* m_move.c in Sources */,
 				786630652A18BFAC00266A62 /* g_ai.c in Sources */,
+				786637132A1A454600266A62 /* UnitAbilities.c in Sources */,
 				78A896752A15F7D600BC5B56 /* m_peon.c in Sources */,
-				78A896742A15F7D600BC5B56 /* g_units.c in Sources */,
+				786637262A1A454600266A62 /* AnimSounds.c in Sources */,
+				786637272A1A454600266A62 /* UnitMetaData.c in Sources */,
+				786636F42A1A454600266A62 /* SpawnData.c in Sources */,
+				786637112A1A454600266A62 /* SplatData.c in Sources */,
+				7866370A2A1A454600266A62 /* UberSplatData.c in Sources */,
+				7866371E2A1A454600266A62 /* EAXDefs.c in Sources */,
+				786637212A1A454600266A62 /* Doodads.c in Sources */,
 				78E91BFB2A169439003D9F3A /* g_monster.c in Sources */,
+				786636EB2A1A454600266A62 /* AnimLookups.c in Sources */,
+				786637282A1A454600266A62 /* ItemData.c in Sources */,
 				78A896702A15F7D600BC5B56 /* g_spawn.c in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
