@@ -1,6 +1,8 @@
 #include "g_local.h"
 
 #include "Units/UnitUI.h"
+#include "Units/UnitBalance.h"
+#include "Units/UnitWeapons.h"
 
 #include <stdlib.h>
 
@@ -55,11 +57,18 @@ void monster_start(LPEDICT self) {
 void SP_monster_peon(LPEDICT self);
 
 void SP_SpawnUnit(LPEDICT self, struct UnitUI const *lpUnit) {
+    struct UnitBalance const *balance = FindUnitBalance(self->class_id);
+    struct UnitWeapons const *weapons = FindUnitWeapons(self->class_id);
     PATHSTR buffer;
     sprintf(buffer, "%s.mdx", lpUnit->file);
     self->s.model = gi.ModelIndex(buffer);
     self->think = monster_think;
-    SP_monster_peon(self);
+    if (balance) {
+        self->monsterinfo.health = balance->HP;
+    }
+    if (weapons) {
+        
+    }
 }
 
 void M_CheckGround(LPEDICT self) {

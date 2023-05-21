@@ -1,5 +1,8 @@
 #include "r_local.h"
 
+#include "TerrainArt/Terrain.h"
+#include "TerrainArt/CliffTypes.h"
+
 #include <SDL.h>
 #include <SDL_opengl.h>
 
@@ -144,6 +147,9 @@ void R_Init(DWORD dwWidth, DWORD dwHeight) {
 //        printf("%s\n", Model->textures[i].path);
 //    }
     R_InitShadowMap();
+    
+    InitCliffTypes();
+    InitTerrain();
 }
 
 void R_DrawPic(LPCTEXTURE lpTexture) {
@@ -234,6 +240,9 @@ void R_EndFrame(void) {
 }
 
 void R_Shutdown(void) {
+    ShutdownTerrain();
+    ShutdownCliffTypes();
+    
     SDL_GL_DeleteContext(context);
     SDL_DestroyWindow(window);
     SDL_Quit();

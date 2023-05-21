@@ -1,7 +1,6 @@
 #include "g_local.h"
 #include <stdlib.h>
 
-#define DISTANCE (0.5 * FRAMETIME)
 #define ATTACK_DISTANCE 200
 
 void M_ChangeAngle(LPEDICT self) {
@@ -38,7 +37,8 @@ void SV_StepDirection(LPEDICT self, float yaw, float distance) {
 }
 
 void M_MoveToGoal(LPEDICT self) {
-    if (SV_CloseEnough(self, self->goalentity, DISTANCE))
+    ANIMATION anim = gi.GetAnimation(self->s.model, self->monsterinfo.currentmove->animation);
+    if (SV_CloseEnough(self, self->goalentity, anim.movespeed))
         return;
-    SV_StepDirection(self, self->s.angle, DISTANCE);
+    SV_StepDirection(self, self->s.angle, anim.movespeed);
 }

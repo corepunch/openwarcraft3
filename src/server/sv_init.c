@@ -57,6 +57,7 @@ static struct AnimationInfo SV_GetAnimation(int modelindex, LPCSTR animname) {
             return (struct AnimationInfo) {
                 .firstframe = anim->interval[0],
                 .lastframe = anim->interval[1],
+                .movespeed = anim->movespeed / 2.5,
 //                .framerate = anim->,
             };
         }

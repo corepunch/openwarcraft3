@@ -3,6 +3,8 @@
 #include "Doodads/Doodads.h"
 #include "Units/DestructableData.h"
 #include "Units/UnitUI.h"
+#include "Units/UnitBalance.h"
+#include "Units/UnitWeapons.h"
 
 #define MAX_ENTITIES 4096
 
@@ -20,10 +22,18 @@ static void G_Init(void) {
     InitDoodads();
     InitDestructableData();
     InitUnitUI();
+    InitUnitBalance();
+    InitUnitWeapons();
 }
 
 static void G_Shutdown(void) {
     gi.MemFree(game_state.edicts);
+    
+    ShutdownDoodads();
+    ShutdownDestructableData();
+    ShutdownUnitUI();
+    ShutdownUnitBalance();
+    ShutdownUnitWeapons();
 }
 
 static void G_ClientCommand(LPCCLIENTMESSAGE lpClientMessage) {

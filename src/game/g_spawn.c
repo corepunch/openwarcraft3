@@ -40,20 +40,15 @@ static void SP_SpawnDestructable(LPEDICT lpEdict, struct DestructableData const 
 void SP_CallSpawn(LPEDICT lpEdict) {
     if (!lpEdict->class_id)
         return;
-    struct Doodads const *doodadInfo = FindDoodads(lpEdict->class_id);
-    struct DestructableData const *destructableData = FindDestructableData(lpEdict->class_id);
-    struct UnitUI const *unitUI = FindUnitUI(lpEdict->class_id);
-    if (doodadInfo) {
+    struct Doodads const *doodadInfo = NULL;
+    struct DestructableData const *destructableData = NULL;
+    struct UnitUI const *unitUI = NULL;
+    if ((doodadInfo = FindDoodads(lpEdict->class_id))) {
         SP_SpawnDoodad(lpEdict, doodadInfo);
-        return;
-    }
-    if (destructableData) {
+    } else if ((destructableData = FindDestructableData(lpEdict->class_id))) {
         SP_SpawnDestructable(lpEdict, destructableData);
-        return;
-    }
-    if (unitUI) {
+    } else if ((unitUI = FindUnitUI(lpEdict->class_id))) {
         SP_SpawnUnit(lpEdict, unitUI);
-        return;
     }
     for (struct spawn *s = spawns; s->func; s++) {
         if (*((int const *)spawns->name) == lpEdict->class_id) {

@@ -197,6 +197,7 @@ struct AnimationInfo {
     DWORD firstframe;
     DWORD lastframe;
     DWORD framerate;
+    float movespeed;
 };
 
 struct size2 {
