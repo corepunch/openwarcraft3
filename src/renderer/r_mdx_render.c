@@ -18,9 +18,6 @@ LPCMODELSEQUENCE R_FindSequenceAtTime(LPCMODEL model, DWORD time) {
     return NULL;
 }
 
-//static void R_FindKeyframes(LPCMODEL model, LPCMODELKEYTRACK keytrack, DWORD time, LPCMODELKEYFRAME *left, LPCMODELKEYFRAME *right) {
-//}
-//
 static void R_GetModelKeytrackValue(LPCMODEL model, LPCMODELKEYTRACK keytrack, DWORD time, HANDLE output) {
     DWORD const keyframeSize = GetModelKeyFrameSize(keytrack->datatype, keytrack->type);
     LPCSTR keyFrames = (LPCSTR)keytrack->values;

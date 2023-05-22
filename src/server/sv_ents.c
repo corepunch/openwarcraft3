@@ -37,7 +37,7 @@ void MSG_WriteDeltaEntity(LPSIZEBUF msg,
     WRITE_IF(U_ORIGIN3, origin.z, Short);
     WRITE_IF(U_ANGLE, angle * 100, Short);
     WRITE_IF(U_SCALE, scale * 100, Short);
-    WRITE_IF(U_FRAME, frame, Short);
+    WRITE_IF(U_FRAME, frame, Long);
     WRITE_IF(U_MODEL, model, Short);
     WRITE_IF(U_IMAGE, image, Short);
     WRITE_IF(U_PLAYER, player, Byte);

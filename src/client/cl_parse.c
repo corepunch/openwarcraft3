@@ -16,7 +16,7 @@ CL_ParseDeltaEntity(LPSIZEBUF msg,
     READ_IF(U_ORIGIN3, origin.z, Short, 1);
     READ_IF(U_ANGLE, angle, Short, 0.01f);
     READ_IF(U_SCALE, scale, Short, 0.01f);
-    READ_IF(U_FRAME, frame, Short, 1);
+    READ_IF(U_FRAME, frame, Long, 1);
     READ_IF(U_MODEL, model, Short, 1);
     READ_IF(U_IMAGE, image, Short, 1);
     READ_IF(U_PLAYER, player, Byte, 1);
