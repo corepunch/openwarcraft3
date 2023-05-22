@@ -4,8 +4,8 @@
 #include "../common/common.h"
 #include "renderer.h"
 
-#define WINDOW_WIDTH 1024
-#define WINDOW_HEIGHT 768
+#define WINDOW_WIDTH 1280
+#define WINDOW_HEIGHT 1024
 #define MAX_CLIENT_ENTITIES 5000
 #define MAX_CONSOLE_MESSAGES 256
 #define MAX_CONSOLE_MESSAGE_LEN 1024

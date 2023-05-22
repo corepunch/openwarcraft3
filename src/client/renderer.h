@@ -3,6 +3,10 @@
 
 #include "../common/common.h"
 
+enum {
+   RF_SELECTED = 1,
+};
+
 struct renderer_import {
     HANDLE (*FileOpen)(LPCSTR fileName);
     bool (*FileExtract)(LPCSTR toExtract, LPCSTR extracted);
@@ -22,6 +26,7 @@ typedef struct {
     DWORD team;
     DWORD frame;
     DWORD oldframe;
+    DWORD flags;
 } renderEntity_t;
 
 typedef struct {

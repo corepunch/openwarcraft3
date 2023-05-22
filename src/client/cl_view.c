@@ -22,6 +22,8 @@ float LerpRotation(float a, float b, float t) {
 }
 
 static void V_AddClientEntity(clientEntity_t const *ent) {
+    extern int selectedEntity;
+
     renderEntity_t re = { 0 };
     re.origin = Vector3_lerp(&ent->prev.origin, &ent->current.origin, cl.viewDef.lerpfrac);
     re.angle = LerpRotation(ent->prev.angle, ent->current.angle, cl.viewDef.lerpfrac);
@@ -32,15 +34,12 @@ static void V_AddClientEntity(clientEntity_t const *ent) {
     re.skin = cl.pics[ent->current.image];
     re.team = ent->current.player;
 
-    extern int selectedEntity;
-
+    if (ent->current.number == selectedEntity) {
+        re.flags = RF_SELECTED;
+    }
+    
     view_state.entities[view_state.num_entities++] = re;
 
-    if (ent->current.number == selectedEntity) {
-        int model = 3;
-        re.model = cl.models[model];
-        view_state.entities[view_state.num_entities++] = re;
-    }
 }
 
 static void V_ClearScene(void) {
@@ -53,7 +52,7 @@ static void CL_AddEntities(void) {
 
     FOR_LOOP(index, MAX_CLIENT_ENTITIES) {
         clientEntity_t const *ce = &cl.ents[index];
-        if (!ce->current.model)
+        if (!ce->current.model /*|| ce->current.number != 108*/)
             continue;
         V_AddClientEntity(ce);
     }
@@ -93,6 +92,8 @@ void V_RenderView(void) {
 //    if (!tex1) tex1 = renderer->LoadTexture("UI\\Glues\\Loading\\Backgrounds\\Campaigns\\Barrens-TopLeft.blp");
 //    if (!tex2) tex2 = renderer->LoadTexture("UI\\Glues\\Loading\\Backgrounds\\Campaigns\\Barrens-TopRight.blp");
 
+    cl.viewDef.time = cl.time;
+    
     V_ClearScene();
     CL_AddEntities();
 

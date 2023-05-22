@@ -94,6 +94,7 @@ struct render_globals {
     LPCSHADER shaderSkin;
     LPCSHADER shaderUI;
     LPCBUFFER renbuf;
+    LPCMODEL selectionCircle;
     LPCTEXTURE teamGlow[MAX_TEAMS];
     LPCTEXTURE teamColor[MAX_TEAMS];
     unsigned int depthMapFBO;

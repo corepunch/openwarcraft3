@@ -206,7 +206,11 @@ static void RenderGeoset(LPCMODEL model,
         }
         switch (layer->blendMode) {
             case TEXOP_LOAD:
-                glBlendFunc(GL_ONE, GL_ZERO);
+                if (layerID == 0) {
+                    glBlendFunc(GL_ONE, GL_ZERO);
+                } else {
+                    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+                }
                 glDepthMask(GL_TRUE);
                 break;
             case TEXOP_TRANSPARENT:
@@ -241,13 +245,19 @@ static void RenderGeoset(LPCMODEL model,
     }
 }
 
-void RenderModel(renderEntity_t const *edict) {
-    LPCMODEL model = edict->model;
+void RenderModel(renderEntity_t const *entity) {
+    LPCMODEL model = entity->model;
 
-    R_BindBoneMatrices((LPMODEL)model, edict->frame, edict->oldframe);
+    R_BindBoneMatrices((LPMODEL)model, entity->frame, entity->oldframe);
 
-    int i = 0;
     FOR_EACH_LIST(MODELGEOSET, geoset, model->geosets) {
-        RenderGeoset(model, geoset, edict, edict->skin);
+        RenderGeoset(model, geoset, entity, entity->skin);
+    }
+
+    if (entity->flags & RF_SELECTED) {
+        renderEntity_t re = *entity;
+        re.scale *= 1.5;
+        re.angle = tr.viewDef.time * 0.001;
+        RenderGeoset(tr.selectionCircle, tr.selectionCircle->geosets, &re, NULL);
     }
 }

@@ -91,12 +91,13 @@ bool FS_ExtractFile(LPCSTR toExtract, LPCSTR extracted) {
 void FS_Init(void) {
 //     ExtractStarCraft2();
     SFileOpenArchive(MPQ_PATH, 0, 0, &archive);
-//    SFileExtractFile(archive, "Units\\HumanUnitFunc.txt", "/Users/igor/Desktop/HumanUnitFunc.txt", 0);
-//     SFILE_FIND_DATA findData;
-//     HANDLE handle = SFileFindFirstFile(archive, "*", &findData, 0);
-//     if (handle) {
-//         do {
-//             if (!strstr(findData.cFileName, ".pld") &&
+    SFileExtractFile(archive, "units\\human\\Arthas\\Arthas.mdx", "/Users/igor/Desktop/Arthas.mdx", 0);
+#if 0
+     SFILE_FIND_DATA findData;
+     HANDLE handle = SFileFindFirstFile(archive, "*", &findData, 0);
+     if (handle) {
+         do {
+             if (strstr(findData.cFileName, ".mdx")) {
 //                 !strstr(findData.cFileName, ".w3m") &&
 //                 !strstr(findData.cFileName, ".ai") &&
 //                 !strstr(findData.cFileName, ".fdf") &&
@@ -106,22 +107,22 @@ void FS_Init(void) {
 //                 !strstr(findData.cFileName, ".mp3") &&
 //                 !strstr(findData.cFileName, ".mdx") &&
 //                 !strstr(findData.cFileName, ".blp")){
-//                 printf("%s\n", findData.cFileName);
-//             }
-////             UI\FrameDef\Glue\LoadSavedGameScreen
-//             if (strstr(findData.cFileName, ".txt")){
-//                 HANDLE file;
-//                 SFileOpenFileEx(archive, findData.cFileName, SFILE_OPEN_FROM_MPQ, &file);
-//                 char ch;
-//                 while (SFileReadFile(file, &ch, 1, NULL, NULL)) {
-//                     printf("%c", ch);
-//                 }
-//                 SFileCloseFile(file);
-//             }
-//         } while (SFileFindNextFile(handle, &findData));
-//         SFileFindClose(handle);
-//     }
-
+                 printf("%s\n", findData.cFileName);
+             }
+//             UI\FrameDef\Glue\LoadSavedGameScreen
+             if (strstr(findData.cFileName, ".txt")){
+                 HANDLE file;
+                 SFileOpenFileEx(archive, findData.cFileName, SFILE_OPEN_FROM_MPQ, &file);
+                 char ch;
+                 while (SFileReadFile(file, &ch, 1, NULL, NULL)) {
+                     printf("%c", ch);
+                 }
+                 SFileCloseFile(file);
+             }
+         } while (SFileFindNextFile(handle, &findData));
+         SFileFindClose(handle);
+     }
+#endif
 //    for (LPCSTR* s = WarcraftSheets; *s; s++) {
 //        printf("%s\n", *s);
 //        FS_ReadSheet(*s);

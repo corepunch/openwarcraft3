@@ -143,6 +143,7 @@ void R_Init(DWORD width, DWORD height) {
 
     int white = -1;
     
+    tr.selectionCircle = R_LoadModel("UI\\Feedback\\SelectionCircleHero\\SelectionCircleHero.mdx");
     tr.shaderStatic = R_InitShader(vertex_shader, fragment_shader);
     tr.shaderSkin = R_InitShader(vertex_shader_skin, fragment_shader);
     tr.shaderUI = R_InitShader(vertex_shader, fragment_shader_ui);
