@@ -6,10 +6,10 @@ void peon_decay1(LPEDICT self);
 
 //static mmove_t peon_move_decay2 = { "Decay Bone", NULL, peon_die };
 //static mmove_t peon_move_decay1 = { "Decay Flesh", NULL, peon_decay2 };
-static mmove_t peon_move_stand = { "Stand", ai_stand };
-static mmove_t peon_move_walk = { "Walk", ai_walk };
-static mmove_t peon_move_melee = { "Attack", ai_melee };
-static mmove_t peon_move_death = { "Death", NULL, peon_decay1 };
+static mmove_t peon_move_stand = { ANIM_STAND, ai_stand };
+static mmove_t peon_move_walk = { ANIM_WALK, ai_walk };
+static mmove_t peon_move_melee = { ANIM_ATTACK, ai_melee };
+static mmove_t peon_move_death = { ANIM_DEATH, NULL, peon_decay1 };
 
 //void peon_die(LPEDICT self) {
 //}

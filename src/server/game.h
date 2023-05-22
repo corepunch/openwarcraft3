@@ -3,14 +3,22 @@
 
 #include "../common/common.h"
 
+typedef enum {
+    ANIM_STAND,
+    ANIM_WALK,
+    ANIM_ATTACK,
+    ANIM_DEATH,
+    NUM_ANIM_TYPES
+}  animationType_t;
+
 struct game_import {
     HANDLE (*MemAlloc)(long size);
     void (*MemFree)(HANDLE);
-    int (*ModelIndex)(LPCSTR szModelName);
-    int (*SoundIndex)(LPCSTR szSoundName);
-    int (*ImageIndex)(LPCSTR szImageName);
-    ANIMATION (*GetAnimation)(int modelindex, LPCSTR animation);
-    HANDLE (*ParseSheet)(LPCSTR szSheetFilename, LPCSHEETLAYOUT lpLayout, DWORD dwElementSize);
+    int (*ModelIndex)(LPCSTR modelName);
+    int (*SoundIndex)(LPCSTR soundName);
+    int (*ImageIndex)(LPCSTR imageName);
+    LPCANIMATION (*GetAnimation)(int modelindex, animationType_t animtype);
+    HANDLE (*ParseSheet)(LPCSTR sheetFilename, LPCSHEETLAYOUT layout, DWORD elementSize);
     float (*GetHeightAtPoint)(float x, float y);
     void (*error) (char *fmt, ...);
 };
@@ -18,11 +26,10 @@ struct game_import {
 struct game_export {
     void (*Init)(void);
     void (*Shutdown)(void);
-    void (*SpawnDoodads)(LPCDOODAD doodads, DWORD numDoodads);
-    void (*SpawnUnits)(LPCDOODADUNIT units, DWORD numUnits);
+    void (*SpawnDoodads)(LPCDOODAD doodads);
     void (*RunFrame)(void);
-    void (*ClientCommand)(LPCCLIENTMESSAGE lpMessage);
-    
+    void (*ClientCommand)(LPCCLIENTMESSAGE message);
+
     LPEDICT edicts;
     int num_edicts;
     int max_edicts;

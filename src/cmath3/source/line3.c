@@ -1,66 +1,66 @@
 #include "../cmath3.h"
 
-int Line3_intersect_sphere3(LPCLINE3 lpLine, LPCSPHERE3 lpSphere, LPVECTOR3 lpOutput) {
-    float cx = lpSphere->center.x;
-    float cy = lpSphere->center.y;
-    float cz = lpSphere->center.z;
-    float px = lpLine->a.x;
-    float py = lpLine->a.y;
-    float pz = lpLine->a.z;
-    float vx = lpLine->b.x - px;
-    float vy = lpLine->b.y - py;
-    float vz = lpLine->b.z - pz;
+int Line3_intersect_sphere3(LPCLINE3 line, LPCSPHERE3 sphere, LPVECTOR3 output) {
+    float cx = sphere->center.x;
+    float cy = sphere->center.y;
+    float cz = sphere->center.z;
+    float px = line->a.x;
+    float py = line->a.y;
+    float pz = line->a.z;
+    float vx = line->b.x - px;
+    float vy = line->b.y - py;
+    float vz = line->b.z - pz;
     float A = vx * vx + vy * vy + vz * vz;
     float B = 2.0 * (px * vx + py * vy + pz * vz - vx * cx - vy * cy - vz * cz);
     float C = px * px - 2 * px * cx + cx * cx + py * py - 2 * py * cy + cy * cy +
-               pz * pz - 2 * pz * cz + cz * cz - lpSphere->radius * lpSphere->radius;
+               pz * pz - 2 * pz * cz + cz * cz - sphere->radius * sphere->radius;
     float D = B * B - 4 * A * C;
 
     if ( D < 0 ) {
         return 0;
-    } else if (!lpOutput) {
+    } else if (!output) {
         return 1;
     }
 
     float t1 = ( -B - sqrtf ( D ) ) / ( 2.0 * A );
 
     VECTOR3 solution1 = {
-        lpLine->a.x * ( 1 - t1 ) + t1 * lpLine->b.x,
-        lpLine->a.y * ( 1 - t1 ) + t1 * lpLine->b.y,
-        lpLine->a.z * ( 1 - t1 ) + t1 * lpLine->b.z
+        line->a.x * ( 1 - t1 ) + t1 * line->b.x,
+        line->a.y * ( 1 - t1 ) + t1 * line->b.y,
+        line->a.z * ( 1 - t1 ) + t1 * line->b.z
     };
-    
+
     if ( D == 0 ) {
-        *lpOutput = solution1;
+        *output = solution1;
         return 1;
     }
 
     float t2 = ( -B + sqrtf( D ) ) / ( 2.0 * A );
     VECTOR3 solution2 = {
-        lpLine->a.x * ( 1 - t2 ) + t2 * lpLine->b.x,
-        lpLine->a.y * ( 1 - t2 ) + t2 * lpLine->b.y,
-        lpLine->a.z * ( 1 - t2 ) + t2 * lpLine->b.z
+        line->a.x * ( 1 - t2 ) + t2 * line->b.x,
+        line->a.y * ( 1 - t2 ) + t2 * line->b.y,
+        line->a.z * ( 1 - t2 ) + t2 * line->b.z
     };
 
     if ( fabs( t1 - 0.5 ) < fabs( t2 - 0.5 ) ) {
-        *lpOutput = solution1;
+        *output = solution1;
         return 1;
     }
 
-    *lpOutput = solution2;
+    *output = solution2;
     return 1;
 }
 
-int Line3_intersect_plane3(LPCLINE3 lpLine, LPCPLANE3 lpPlane, LPVECTOR3 lpOutput) {
-    VECTOR3 lineDirection = Vector3_sub(&lpLine->b, &lpLine->a);
-    if (Vector3_dot(&lpPlane->normal, &lineDirection) == 0)
+int Line3_intersect_plane3(LPCLINE3 line, LPCPLANE3 plane, LPVECTOR3 output) {
+    VECTOR3 lineDirection = Vector3_sub(&line->b, &line->a);
+    if (Vector3_dot(&plane->normal, &lineDirection) == 0)
         return 0;
     Vector3_normalize(&lineDirection);
-    float const p1 = Vector3_dot(&lpPlane->normal, &lpPlane->point);
-    float const p2 = Vector3_dot(&lpPlane->normal, &lpLine->a);
-    float const t = (p1 - p2) / Vector3_dot(&lpPlane->normal, &lineDirection);
+    float const p1 = Vector3_dot(&plane->normal, &plane->point);
+    float const p2 = Vector3_dot(&plane->normal, &line->a);
+    float const t = (p1 - p2) / Vector3_dot(&plane->normal, &lineDirection);
     VECTOR3 const scaledLineDirection = Vector3_scale(&lineDirection, t);
-    *lpOutput = Vector3_add(&lpLine->a, &scaledLineDirection);
+    *output = Vector3_add(&line->a, &scaledLineDirection);
     return 1;
 }
 
@@ -69,24 +69,24 @@ static inline float DotNormal(LPCVECTOR3 normal, LPCVECTOR3 a, LPCVECTOR3 b, LPC
     return Vector3_dot(normal, &rcross);
 }
 
-int Line3_intersect_triangle(LPCLINE3 lpLine, LPCTRIANGLE3 lpTriangle, LPVECTOR3 lpOutput) {
-    VECTOR3 const normal = Triangle_normal(lpTriangle);
-    VECTOR3 const diff1 = Vector3_sub(&lpLine->a, &lpTriangle->a);
-    VECTOR3 const diff2 = Vector3_sub(&lpLine->b, &lpTriangle->a);
+int Line3_intersect_triangle(LPCLINE3 line, LPCTRIANGLE3 triangle, LPVECTOR3 output) {
+    VECTOR3 const normal = Triangle_normal(triangle);
+    VECTOR3 const diff1 = Vector3_sub(&line->a, &triangle->a);
+    VECTOR3 const diff2 = Vector3_sub(&line->b, &triangle->a);
     float const r1 = Vector3_dot(&normal, &diff1);
     float const r2 = Vector3_dot(&normal, &diff2);
     if ((r1 > 0) == (r2 > 0))
         return 0;
-    VECTOR3 const distance = Vector3_sub(&lpLine->a, &lpLine->b);
-    VECTOR3 const pc = Vector3_mad(&lpLine->a, r1 / (r2 - r1), &distance);
-    if (DotNormal(&normal, &lpTriangle->a, &lpTriangle->b, &pc) < 0)
+    VECTOR3 const distance = Vector3_sub(&line->a, &line->b);
+    VECTOR3 const pc = Vector3_mad(&line->a, r1 / (r2 - r1), &distance);
+    if (DotNormal(&normal, &triangle->a, &triangle->b, &pc) < 0)
         return 0;
-    if (DotNormal(&normal, &lpTriangle->b, &lpTriangle->c, &pc) < 0)
+    if (DotNormal(&normal, &triangle->b, &triangle->c, &pc) < 0)
         return 0;
-    if (DotNormal(&normal, &lpTriangle->c, &lpTriangle->a, &pc) < 0)
+    if (DotNormal(&normal, &triangle->c, &triangle->a, &pc) < 0)
         return 0;
-    if (lpOutput)
-        *lpOutput = pc;
+    if (output)
+        *output = pc;
     return 1;
 }
 //
@@ -107,12 +107,12 @@ int Line3_intersect_triangle(LPCLINE3 lpLine, LPCTRIANGLE3 lpTriangle, LPVECTOR3
 //   return (det >= 1e-6 && t >= 0.0 && u >= 0.0 && v >= 0.0 && (u+v) <= 1.0);
 //}
 
-int Line3_intersect_box3(LPCLINE3 lpLine, LPCBOX3 lpBox, LPVECTOR3 lpOutput) {
+int Line3_intersect_box3(LPCLINE3 line, LPCBOX3 box, LPVECTOR3 output) {
     float st, et, fst = 0, fet = 1;
-    float const *bmin = &lpBox->min.x;
-    float const *bmax = &lpBox->max.x;
-    float const *si = &lpLine->a.x;
-    float const *ei = &lpLine->b.x;
+    float const *bmin = &box->min.x;
+    float const *bmax = &box->max.x;
+    float const *si = &line->a.x;
+    float const *ei = &line->b.x;
     for (int i = 0; i < 3; i++) {
         if (*si < *ei) {
             if (*si > *bmax || *ei < *bmin)
@@ -137,8 +137,8 @@ int Line3_intersect_box3(LPCLINE3 lpLine, LPCBOX3 lpBox, LPVECTOR3 lpOutput) {
         si++; ei++;
     }
 
-    if (lpOutput) {
-        *lpOutput = Vector3_lerp(&lpLine->a, &lpLine->b, fst);
+    if (output) {
+        *output = Vector3_lerp(&line->a, &line->b, fst);
     }
     return 1;
 }

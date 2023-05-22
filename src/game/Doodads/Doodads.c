@@ -24,7 +24,7 @@ static struct SheetLayout Doodads[] = {
 	{ "maxRoll", ST_INT, FOFS(Doodads, maxRoll) },
 	{ "visRadius", ST_INT, FOFS(Doodads, visRadius) },
 	{ "walkable", ST_INT, FOFS(Doodads, walkable) },
-	{ "numVar", ST_INT, FOFS(Doodads, numVar) },
+	{ "num_var", ST_INT, FOFS(Doodads, num_var) },
 	{ "onCliffs", ST_INT, FOFS(Doodads, onCliffs) },
 	{ "onWater", ST_INT, FOFS(Doodads, onWater) },
 	{ "floats", ST_INT, FOFS(Doodads, floats) },
@@ -73,10 +73,10 @@ static struct SheetLayout Doodads[] = {
 };
 
 LPCDOODADS FindDoodads(DWORD doodID) {
-	struct Doodads *lpValue = g_Doodads;
-	for (; lpValue->doodID != doodID && lpValue->doodID; lpValue++);
-	if (lpValue->doodID == 0) lpValue = NULL;
-	return lpValue;
+	struct Doodads *value = g_Doodads;
+	for (; value->doodID != doodID && value->doodID; value++);
+	if (value->doodID == 0) value = NULL;
+	return value;
 }
 
 void InitDoodads(void) {

@@ -2,7 +2,7 @@
 #include <stdarg.h>
 
 void SV_CreateBaseline(void) {
-    sv.baselines = MemAlloc(sizeof(ENTITYSTATE) * ge->max_edicts);
+    sv.baselines = MemAlloc(sizeof(entityState_t) * ge->max_edicts);
     FOR_LOOP(entnum, ge->num_edicts) {
         LPEDICT svent = EDICT_NUM(entnum);
         sv.baselines[entnum] = svent->s;
@@ -10,18 +10,13 @@ void SV_CreateBaseline(void) {
     }
 }
 
-void SV_Map(LPCSTR szMapFilename) {
+void SV_Map(LPCSTR mapFilename) {
     SV_InitGame();
     memset(&sv, 0, sizeof(struct server));
-    strcpy(sv.configstrings[CS_MODELS+1], szMapFilename);
-    CM_LoadMap(szMapFilename);
+    strcpy(sv.configstrings[CS_MODELS+1], mapFilename);
+    CM_LoadMap(mapFilename);
     SV_CreateBaseline();
-    LPCDOODAD doodads;
-    LPCDOODADUNIT units;
-    DWORD num_doodads = CM_GetDoodadsArray(&doodads);
-    DWORD num_units = CM_GetUnitsArray(&units);
-    ge->SpawnDoodads(doodads, num_doodads);
-    ge->SpawnUnits(units, num_units);
+    ge->SpawnDoodads(CM_GetDoodads());
 }
 
 void SV_InitGame(void) {
@@ -30,7 +25,7 @@ void SV_InitGame(void) {
     }
     svs.initialized = true;
     svs.num_client_entities = UPDATE_BACKUP * MAX_CLIENTS * MAX_PACKET_ENTITIES;
-    svs.client_entities = MemAlloc(sizeof(ENTITYSTATE) * svs.num_client_entities);
+    svs.client_entities = MemAlloc(sizeof(entityState_t) * svs.num_client_entities);
 }
 
 void SV_Shutdown(void) {
@@ -45,23 +40,9 @@ void __netchan_init(struct netchan *netchan) {
     netchan->message.maxsize = sizeof(netchan->message_buf);
 }
 
-static struct AnimationInfo SV_GetAnimation(int modelindex, LPCSTR animname) {
+static LPCANIMATION SV_GetAnimation(int modelindex, animationType_t animname) {
     struct cmodel *model = sv.models[modelindex];
-    if (!model) {
-        return (struct AnimationInfo) { 0 };
-    }
-    FOR_LOOP(i, model->num_animations){
-        struct mdx_sequence *anim = &model->animations[i];
-        if (!strcmp(anim->name, animname)) {
-            return (struct AnimationInfo) {
-                .firstframe = anim->interval[0],
-                .lastframe = anim->interval[1],
-                .movespeed = anim->movespeed,
-//                .framerate = anim->,
-            };
-        }
-    }
-    return (struct AnimationInfo) {};
+    return model ? &model->animtypes[animname] : NULL;
 }
 
 void PF_error(char *fmt, ...) {
@@ -90,6 +71,5 @@ void SV_Init(void) {
     memset(&sv, 0, sizeof(struct server));
     __netchan_init(&svs.clients[0].netchan);
     svs.num_clients = 1;
-    sv.baselines = MemAlloc(sizeof(ENTITYSTATE) * ge->max_edicts);
+    sv.baselines = MemAlloc(sizeof(entityState_t) * ge->max_edicts);
 }
-

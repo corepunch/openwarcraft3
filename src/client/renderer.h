@@ -3,52 +3,52 @@
 
 #include "../common/common.h"
 
-KNOWN_AS(viewDef, VIEWDEF);
-KNOWN_AS(render_entity, RENDERENTITY);
-
 struct renderer_import {
-    HANDLE (*FileOpen)(LPCSTR szFileName);
-    bool (*FileExtract)(LPCSTR szToExtract, LPCSTR szExtracted);
-    bool (*FileClose)(HANDLE hFile);
+    HANDLE (*FileOpen)(LPCSTR fileName);
+    bool (*FileExtract)(LPCSTR toExtract, LPCSTR extracted);
+    bool (*FileClose)(HANDLE file);
     HANDLE (*MemAlloc)(long size);
     void (*MemFree)(HANDLE);
-    HANDLE (*ParseSheet)(LPCSTR szSheetFilename, LPCSHEETLAYOUT lpLayout, DWORD dwElementSize);
+    HANDLE (*ParseSheet)(LPCSTR sheetFilename, LPCSHEETLAYOUT layout, DWORD elementSize);
+    void (*error) (char *fmt, ...);
 };
 
-struct render_entity {
+typedef struct {
     VECTOR3 origin;
     float angle;
     float scale;
     LPCMODEL model;
     LPTEXTURE skin;
+    DWORD team;
     DWORD frame;
     DWORD oldframe;
-};
+} renderEntity_t;
 
-struct viewDef {
+typedef struct {
     float fov;
     VECTOR3 vieworg;
     VECTOR3 viewangles;
     float lerpfrac;
     DWORD time;
     DWORD num_entities;
-    LPRENDERENTITY entities;
+    renderEntity_t *entities;
     MATRIX4 projection_matrix;
     MATRIX4 light_matrix;
-};
+} viewDef_t;
 
 struct Renderer {
-    void (*Init)(DWORD dwWidth, DWORD dwHeight);
+    void (*Init)(DWORD width, DWORD height);
     void (*Shutdown)(void);
-    void (*RegisterMap)(LPCSTR szMapFileName);
-    void (*RenderFrame)(LPCVIEWDEF lpRefDef);
-    LPTEXTURE (*LoadTexture)(LPCSTR szTextureFileName);
-    LPMODEL (*LoadModel)(LPCSTR szModelFilename);
+    void (*RegisterMap)(LPCSTR mapFileName);
+    void (*RenderFrame)(viewDef_t const *refDef);
+    LPTEXTURE (*LoadTexture)(LPCSTR textureFileName);
+    LPMODEL (*LoadModel)(LPCSTR modelFilename);
     struct size2 (*GetWindowSize)(void);
-    void (*ReleaseModel)(LPMODEL lpModel);
+    void (*ReleaseModel)(LPMODEL model);
     void (*BeginFrame)(void);
     void (*EndFrame)(void);
-    void (*DrawPic)(LPCTEXTURE lpTexture);
+    void (*PrintText)(LPCSTR string, DWORD x, DWORD y, COLOR32 color);
+    void (*DrawPic)(LPCTEXTURE texture, DWORD x, DWORD y);
 };
 
 struct Renderer *Renderer_Init(struct renderer_import *pImport);

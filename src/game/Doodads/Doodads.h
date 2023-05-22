@@ -26,7 +26,7 @@ struct Doodads {
 	DWORD maxRoll; /* - - - - - - - - */
 	DWORD visRadius; /* 50 50 50 50 50 50 50 50 */
 	DWORD walkable; /* 0 0 0 0 0 0 0 0 */
-	DWORD numVar; /* 1 1 1 1 1 7 1 4 */
+	DWORD num_var; /* 1 1 1 1 1 7 1 4 */
 	DWORD onCliffs; /* 1 1 1 1 0 1 1 1 */
 	DWORD onWater; /* 1 1 1 1 1 1 1 1 */
 	DWORD floats; /* 0 0 0 0 0 0 0 0 */

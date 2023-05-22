@@ -19,7 +19,7 @@ void ai_walk(LPEDICT self) {
 }
 
 void ai_stand(LPEDICT self) {
-    if (self->goalentity) {
+    if (self->goalentity && self->monsterinfo.walk) {
         self->monsterinfo.walk(self);
     }
 }

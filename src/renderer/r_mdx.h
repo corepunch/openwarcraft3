@@ -17,11 +17,11 @@ typedef char tModelObjectName[80];
 typedef char tModelFileName[260];
 
 typedef enum {
-  TRACK_NO_INTERP = 0x0,
-  TRACK_LINEAR = 0x1,
-  TRACK_HERMITE = 0x2,
-  TRACK_BEZIER = 0x3,
-  NUM_TRACK_TYPES = 0x4,
+    TRACK_NO_INTERP = 0x0,
+    TRACK_LINEAR = 0x1,
+    TRACK_HERMITE = 0x2,
+    TRACK_BEZIER = 0x3,
+    NUM_TRACK_TYPES = 0x4,
 } MODELKEYTRACKTYPE;
 
 typedef enum {
@@ -37,38 +37,45 @@ struct tModelBounds {
 };
 
 struct tModelGeoset {
-    LPVECTOR3 lpVertices;
-    LPVECTOR3 lpNormals;
-    LPVECTOR2 lpTexcoord;
-    struct tModelBounds *lpBounds;
+    LPVECTOR3 vertices;
+    LPVECTOR3 normals;
+    LPVECTOR2 texcoord;
+    struct tModelBounds *bounds;
     struct tModelBounds default_bounds;
-    LPMODELGEOSET lpNext;
-    LPBUFFER lpBuffer;
-    struct tModelGeosetAnim *lpGeosetAnim;
-    int *lpMatrices;
-    int *lpPrimitiveTypes;
-    int *lpPrimitiveCounts;
-    short *lpTriangles;
-    LPSTR lpVertexGroups;
-    int *lpMatrixGroupSizes;
+    LPMODELGEOSET next;
+    LPBUFFER buffer;
+    struct tModelGeosetAnim *geosetAnim;
+    int *matrices;
+    int *primitiveTypes;
+    int *primitiveCounts;
+    short *triangles;
+    LPSTR vertexGroups;
+    int *matrixGroupSizes;
     int materialID;
     int group;
     int selectable;// (0:none;4:Unselectable)
-    int numVertices;
-    int numNormals;
-    int numTexcoord;
-    int numMatrices;
-    int numPrimitiveTypes;
-    int numPrimitiveCounts;
-    int numTriangles;
-    int numVertexGroups;
-    int numMatrixGroupSizes;
-    int numBounds;
-    int numTexcoordChannels;
+    int num_vertices;
+    int num_normals;
+    int num_texcoord;
+    int num_matrices;
+    int num_primitiveTypes;
+    int num_primitiveCounts;
+    int num_triangles;
+    int num_vertexGroups;
+    int num_matrixGroupSizes;
+    int num_bounds;
+    int num_texcoordChannels;
 };
 
+typedef enum {
+    TEXREPL_NONE,
+    TEXREPL_TEAMCOLOR,
+    TEXREPL_TEAMGLOW,
+    TEXREPL_TEXTURE = 31,
+} replaceableID_t;
+
 struct tModelTexture {
-    int ident;
+    replaceableID_t replaceableID;
     char path[256];
     int texid;
     int nWrapping; //(1:WrapWidth; 2:WrapHeight; 3:Both)
@@ -88,7 +95,7 @@ struct tModelMaterial {
     int flags;
     int num_layers;
     LPMODELLAYER layers;
-    LPMODELMATERIAL lpNext;
+    LPMODELMATERIAL next;
 };
 
 struct tModelSequence {
@@ -122,7 +129,7 @@ struct tModelKeyFrame {
 };
 
 struct tModelKeyTrack {
-    DWORD dwKeyframeCount;
+    DWORD keyframeCount;
     MODELKEYTRACKDATATYPE datatype;
     MODELKEYTRACKTYPE type;
     DWORD globalSeqId;        // GLBS index or 0xFFFFFFFF if none
@@ -134,8 +141,8 @@ struct tModelGeosetAnim {
     DWORD flags;           // &1: color
     struct tModelColor staticColor;
     DWORD geosetId;        // GEOS index or 0xFFFFFFFF if none
-    struct tModelGeosetAnim *lpNext;
-    LPMODELKEYTRACK lpAlphas; // float
+    struct tModelGeosetAnim *next;
+    LPMODELKEYTRACK alphas; // float
 };
 
 struct tModelNode {
@@ -143,25 +150,25 @@ struct tModelNode {
     DWORD objectId; // globally unique id, used as the index in the hierarchy. index into PIVT
     DWORD parentId; // parent MDLGENOBJECT's objectId or 0xFFFFFFFF if none
     DWORD flags;
-    LPMODELKEYTRACK lpTranslation; // vec3
-    LPMODELKEYTRACK lpRotation; // vec4
-    LPMODELKEYTRACK lpScale; // vec3
-    LPMODELNODE lpParent;
-    struct tModelPivot *lpPivot;
+    LPMODELKEYTRACK translation; // vec3
+    LPMODELKEYTRACK rotation; // vec4
+    LPMODELKEYTRACK scale; // vec3
+    LPMODELNODE parent;
+    struct tModelPivot *pivot;
     MATRIX4 localMatrix;
     MATRIX4 globalMatrix;
 };
 
 struct tModelBone {
     struct tModelNode node;
-    struct tModelBone *lpNext;
+    struct tModelBone *next;
     DWORD geoset_id;
     DWORD geoset_animation_id;
 };
 
 struct tModelHelper {
     struct tModelNode node;
-    struct tModelHelper *lpNext;
+    struct tModelHelper *next;
 };
 
 struct tModelGlobalSequence {
@@ -170,30 +177,29 @@ struct tModelGlobalSequence {
 
 struct tModelEvent {
     struct tModelNode node;
-    DWORD numKeys;
+    DWORD num_keys;
     DWORD globalSeqId;
     DWORD *keys;
-    struct tModelEvent *lpNext;
+    struct tModelEvent *next;
 };
 
 struct tModel {
     struct tModelInfo info;
-    LPMODELGEOSET lpGeosets;
-    struct tModelTexture *lpTextures;
-    LPMODELSEQUENCE lpSequences;
-    struct tModelEvent *lpEvents;
-    struct tModelPivot *lpPivots;
-    LPMODELMATERIAL lpMaterials;
-    struct tModelBone *lpBones;
-    struct tModelGeosetAnim *lpGeosetAnims;
-    struct tModelHelper *lpHelpers;
-    struct tModelGlobalSequence *lpGlobalSequences;
-    LPCMODELSEQUENCE lpCurrentAnimation;
-    int numTextures;
-    int numSequences;
-    int numGlobalSequences;
-    int numPivots;
+    LPMODELGEOSET geosets;
+    struct tModelTexture *textures;
+    LPMODELSEQUENCE sequences;
+    struct tModelEvent *events;
+    struct tModelPivot *pivots;
+    LPMODELMATERIAL materials;
+    struct tModelBone *bones;
+    struct tModelGeosetAnim *geosetAnims;
+    struct tModelHelper *helpers;
+    struct tModelGlobalSequence *globalSequences;
+    LPCMODELSEQUENCE currentAnimation;
+    int num_textures;
+    int num_sequences;
+    int num_globalSequences;
+    int num_pivots;
 };
 
 #endif
-

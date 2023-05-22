@@ -13,6 +13,6 @@ typedef struct triangle3 TRIANGLE3;
 typedef struct triangle3 *LPTRIANGLE3;
 typedef struct triangle3 const *LPCTRIANGLE3;
 
-VECTOR3 Triangle_normal(LPCTRIANGLE3 lpTriangle);
+VECTOR3 Triangle_normal(LPCTRIANGLE3 triangle);
 
 #endif

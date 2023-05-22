@@ -16,9 +16,9 @@ typedef struct line3 LINE3;
 typedef struct line3 *LPLINE3;
 typedef struct line3 const *LPCLINE3;
 
-int Line3_intersect_sphere3(LPCLINE3 lpLine, LPCSPHERE3 lpSphere, LPVECTOR3 lpOutput);
-int Line3_intersect_plane3(LPCLINE3 lpLine, LPCPLANE3 lpPlane, LPVECTOR3 lpOutput);
-int Line3_intersect_triangle(LPCLINE3 lpLine, LPCTRIANGLE3 lpTriangle, LPVECTOR3 lpOutput);
-int Line3_intersect_box3(LPCLINE3 lpLine, LPCBOX3 lpBox, LPVECTOR3 lpOutput);
+int Line3_intersect_sphere3(LPCLINE3 line, LPCSPHERE3 sphere, LPVECTOR3 output);
+int Line3_intersect_plane3(LPCLINE3 line, LPCPLANE3 plane, LPVECTOR3 output);
+int Line3_intersect_triangle(LPCLINE3 line, LPCTRIANGLE3 triangle, LPVECTOR3 output);
+int Line3_intersect_box3(LPCLINE3 line, LPCBOX3 box, LPVECTOR3 output);
 
 #endif

@@ -9,6 +9,8 @@ struct client_static cls;
 struct client_state cl;
 
 void CL_Init(void) {
+    CON_printf("OpenWarcraft3 v0.1");
+
     renderer = Renderer_Init(&(struct renderer_import) {
         .MemAlloc = MemAlloc,
         .MemFree = MemFree,
@@ -16,17 +18,17 @@ void CL_Init(void) {
         .FileClose = SFileCloseFile,
         .FileExtract = FS_ExtractFile,
         .ParseSheet = FS_ParseSheet,
+        .error = CON_printf,
     });
-    
+
     renderer->Init(WINDOW_WIDTH, WINDOW_HEIGHT);
-    
+
     memset(&cl, 0, sizeof(struct client_state));
-    
+
     cl.viewDef.fov = 45;
-    cl.viewDef.vieworg = (VECTOR3) { -600, 2500, -1000 };
+    cl.viewDef.vieworg = (VECTOR3) { 700, -2500, 1000 };
     cl.viewDef.viewangles = (VECTOR3) { -40, 0, 0 };
-    cl.team = 1;
-    
+
     void __netchan_init(struct netchan *netchan);
     __netchan_init(&cls.netchan);
 }
@@ -56,8 +58,8 @@ void CL_Input(void) {
             case SDL_MOUSEMOTION:
                 if (button == 1) {
                     moved = true;
-                    cl.viewDef.vieworg.x += event.motion.xrel * 5;
-                    cl.viewDef.vieworg.y -= event.motion.yrel * 5;
+                    cl.viewDef.vieworg.x -= event.motion.xrel * 5;
+                    cl.viewDef.vieworg.y += event.motion.yrel * 5;
                 }
                 break;
             case SDL_WINDOWEVENT:
@@ -87,8 +89,16 @@ void CL_ReadPackets(void) {
 
 void CL_SendCommands(void) {
     extern struct client_message msg;
-    if (msg.cmd != CMD_NO_COMMAND){
+    static VECTOR3 camera_location;
+    if (Vector3_distance(&cl.viewDef.vieworg, &camera_location) > EPSILON) {
+        camera_location = cl.viewDef.vieworg;
         MSG_WriteByte(&cls.netchan.message, clc_move);
+        MSG_WriteShort(&cls.netchan.message, camera_location.x);
+        MSG_WriteShort(&cls.netchan.message, camera_location.y + 800);
+        Netchan_Transmit(NS_CLIENT, &cls.netchan);
+    }
+    if (msg.cmd != CMD_NO_COMMAND){
+        MSG_WriteByte(&cls.netchan.message, clc_command);
         MSG_WriteByte(&cls.netchan.message, msg.cmd);
         MSG_WriteShort(&cls.netchan.message, msg.entity);
         MSG_WriteShort(&cls.netchan.message, msg.targetentity);
@@ -100,10 +110,10 @@ void CL_SendCommands(void) {
 }
 
 void CL_Shutdown(void) {
-    FOR_LOOP(dwModelIndex, MAX_MODELS) {
-        if (!cl.models[dwModelIndex])
+    FOR_LOOP(modelIndex, MAX_MODELS) {
+        if (!cl.models[modelIndex])
             continue;
-        renderer->ReleaseModel(cl.models[dwModelIndex]);
+        renderer->ReleaseModel(cl.models[modelIndex]);
     }
 
     renderer->Shutdown();
@@ -111,7 +121,7 @@ void CL_Shutdown(void) {
 
 void CL_Frame(DWORD msec) {
     cl.time += msec;
-    
+
     CL_ReadPackets();
     CL_SendCommands();
     CL_Input();

@@ -2,34 +2,33 @@
 
 static LPTEXTURE g_textures = NULL;
 
-int R_RegisterTextureFile(char const *szTextureFileName) {
-    LPTEXTURE tex = R_LoadTexture(szTextureFileName);
+int R_RegisterTextureFile(char const *textureFileName) {
+    LPTEXTURE tex = R_LoadTexture(textureFileName);
     if (tex) {
-        tex->lpNext = g_textures;
-        g_textures = tex;
+        ADD_TO_LIST(tex, g_textures);
         return tex->texid;
     } else {
         return -1;
     }
 }
 
-struct texture const* R_FindTextureByID(DWORD dwTextureID) {
-    for (LPCTEXTURE tex = g_textures; tex; tex = tex->lpNext) {
-        if (tex->texid == dwTextureID)
+struct texture const* R_FindTextureByID(DWORD textureID) {
+    for (LPCTEXTURE tex = g_textures; tex; tex = tex->next) {
+        if (tex->texid == textureID)
             return tex;
     }
     return NULL;
 }
 
-void R_BindTexture(LPCTEXTURE lpTexture, DWORD dwUnit) {
-    glActiveTexture(GL_TEXTURE0 + dwUnit);
-    glBindTexture(GL_TEXTURE_2D, lpTexture->texid);
+void R_BindTexture(LPCTEXTURE texture, DWORD unit) {
+    glActiveTexture(GL_TEXTURE0 + unit);
+    glBindTexture(GL_TEXTURE_2D, texture ? texture->texid : tr.whiteTexture->texid);
 }
 
-LPTEXTURE R_AllocateTexture(DWORD dwWidth, DWORD dwHeight) {
-    LPTEXTURE texture = ri.MemAlloc(sizeof(struct texture));
-    texture->width = dwWidth;
-    texture->height = dwHeight;
+LPTEXTURE R_AllocateTexture(DWORD width, DWORD height) {
+    LPTEXTURE texture = ri.MemAlloc(sizeof(TEXTURE));
+    texture->width = width;
+    texture->height = height;
     glGenTextures(1, &texture->texid);
     glBindTexture(GL_TEXTURE_2D, texture->texid);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
@@ -39,13 +38,13 @@ LPTEXTURE R_AllocateTexture(DWORD dwWidth, DWORD dwHeight) {
     return texture;
 }
 
-void R_LoadTextureMipLevel(LPTEXTURE pTexture, DWORD dwLevel, LPCCOLOR32 pPixels, DWORD dwWidth, DWORD dwHeight) {
-    if (dwWidth == 0 || dwHeight == 0)
+void R_LoadTextureMipLevel(LPCTEXTURE pTexture, DWORD level, LPCCOLOR32 pPixels, DWORD width, DWORD height) {
+    if (width == 0 || height == 0)
         return;
     glBindTexture(GL_TEXTURE_2D, pTexture->texid);
-    glTexImage2D(GL_TEXTURE_2D, dwLevel, GL_RGBA, dwWidth, dwHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, pPixels);
-    if (dwLevel > 0) {
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, dwLevel);
+    glTexImage2D(GL_TEXTURE_2D, level, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, pPixels);
+    if (level > 0) {
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, level);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
     }
 }

@@ -3,7 +3,7 @@
 #include "TerrainArt/CliffTypes.h"
 
 static VERTEX aVertexBuffer[(SEGMENT_SIZE+1)*(SEGMENT_SIZE+1)*64];
-static LPVERTEX lpCurrentVertex = NULL;
+static LPVERTEX currentVertex = NULL;
 
 #define SAME_TILE 852063
 #define NO_CLIFF MAKEFOURCC('C','L','n','o')
@@ -11,19 +11,19 @@ static LPVERTEX lpCurrentVertex = NULL;
 struct tCliff {
     DWORD cliffid;
     LPCMODEL model;
-    struct tCliff *lpNext;
+    struct tCliff *next;
 };
 
 static struct tCliff *g_cliffs = NULL;
 
 // HELPERS
 
-static int TileBaseLevel(LPCWAR3MAPVERTEX lpTile) {
-    DWORD dwMinLevel = lpTile->level;
-    FOR_LOOP(dwTileIndex, 4) {
-        dwMinLevel = MIN(dwMinLevel, lpTile[dwTileIndex].level);
+static int TileBaseLevel(LPCWAR3MAPVERTEX tile) {
+    DWORD minLevel = tile->level;
+    FOR_LOOP(tileIndex, 4) {
+        minLevel = MIN(minLevel, tile[tileIndex].level);
     }
-    return dwMinLevel;
+    return minLevel;
 }
 
 static float GetAccurateHeightAtPoint(float sx, float sy) {
@@ -56,11 +56,11 @@ static float GetAccurateWaterLevelAtPoint(float sx, float sy) {
 
 // FUNCTIONS
 
-static LPCMODEL R_LoadCliffModel(struct CliffTypes const *lpCliffType, char const *ccfg, bool ramp) {
+static LPCMODEL R_LoadCliffModel(struct CliffTypes const *cliffType, char const *ccfg, bool ramp) {
     PATHSTR zBuffer;
     const int cliffid = *(int *)ccfg;
-    LPCSTR dir = ramp ? lpCliffType->rampModelDir : lpCliffType->cliffModelDir;
-    for (struct tCliff *it = g_cliffs; it; it = it->lpNext) {
+    LPCSTR dir = ramp ? cliffType->rampModelDir : cliffType->cliffModelDir;
+    for (struct tCliff *it = g_cliffs; it; it = it->next) {
         if (it->cliffid == cliffid)
             return it->model;
     }
@@ -68,23 +68,22 @@ static LPCMODEL R_LoadCliffModel(struct CliffTypes const *lpCliffType, char cons
     cliff->cliffid = cliffid;
     sprintf(zBuffer, "Doodads\\Terrain\\%s\\%s%s0.mdx", dir, dir, ccfg);
     cliff->model = R_LoadModel(zBuffer);
-    cliff->lpNext = g_cliffs;
-    g_cliffs = cliff;
+    ADD_TO_LIST(cliff, g_cliffs);
     return cliff->model;
 }
 
-static void R_MakeCliff(LPCWAR3MAP lpMap, DWORD x, DWORD y, DWORD dwCliff, struct CliffTypes const *lpCliffType) {
+static void R_MakeCliff(LPCWAR3MAP map, DWORD x, DWORD y, DWORD cliff, struct CliffTypes const *cliffType) {
     struct War3MapVertex tile[4];
-    GetTileVertices(x, y, lpMap, tile);
+    GetTileVertices(x, y, map, tile);
     int remap[4] = { 3, 1, 0, 2 };
-    
-    if (GetTileRamps(tile) || !IsTileCliff(tile) || tile[remap[0]].cliff != dwCliff)
+
+    if (GetTileRamps(tile) || !IsTileCliff(tile) || tile[remap[0]].cliff != cliff)
         return;
-    
+
     char cliffcfg[5] = { 0 };
     int const tileramps = GetTileRamps(tile);
     int const baselevel = TileBaseLevel(tile);
-    
+
     FOR_LOOP(index, 4) {
         LPCWAR3MAPVERTEX vert = &tile[remap[index]];
         int const diff = vert->level - baselevel;
@@ -96,70 +95,70 @@ static void R_MakeCliff(LPCWAR3MAP lpMap, DWORD x, DWORD y, DWORD dwCliff, struc
             cliffcfg[index] = (tileramps > 1 && vert->ramp) ? 'X' : 'C';
         }
     }
-    
-    FOR_LOOP(gindx, lpMap->numGrounds) {
-        DWORD const tile = lpCliffType->groundTile == SAME_TILE ? lpCliffType->upperTile : lpCliffType->groundTile;
-        if (lpMap->lpGrounds[gindx] == lpCliffType->groundTile) {
-            ((LPWAR3MAPVERTEX)GetWar3MapVertex(lpMap, x+1, y+1))->ground = gindx;
-            ((LPWAR3MAPVERTEX)GetWar3MapVertex(lpMap, x, y+1))->ground = gindx;
-            ((LPWAR3MAPVERTEX)GetWar3MapVertex(lpMap, x+1, y))->ground = gindx;
-            ((LPWAR3MAPVERTEX)GetWar3MapVertex(lpMap, x, y))->ground = gindx;
+
+    FOR_LOOP(gindx, map->num_grounds) {
+        DWORD const tile = cliffType->groundTile == SAME_TILE ? cliffType->upperTile : cliffType->groundTile;
+        if (map->grounds[gindx] == cliffType->groundTile) {
+            ((LPWAR3MAPVERTEX)GetWar3MapVertex(map, x+1, y+1))->ground = gindx;
+            ((LPWAR3MAPVERTEX)GetWar3MapVertex(map, x, y+1))->ground = gindx;
+            ((LPWAR3MAPVERTEX)GetWar3MapVertex(map, x+1, y))->ground = gindx;
+            ((LPWAR3MAPVERTEX)GetWar3MapVertex(map, x, y))->ground = gindx;
             break;
         }
     }
-    
-    LPCMODEL pModel = R_LoadCliffModel(lpCliffType, cliffcfg, tileramps > 1);
-    LPMODELGEOSET pGeoset = pModel->lpGeosets;
-    
-    FOR_LOOP(t, pGeoset->numTriangles) {
-        const int i = pGeoset->lpTriangles[t];
-        const float fx = pGeoset->lpVertices[i].x + (x+1) * TILESIZE;
-        const float fy = pGeoset->lpVertices[i].y + y * TILESIZE;
+
+    LPCMODEL pModel = R_LoadCliffModel(cliffType, cliffcfg, tileramps > 1);
+    LPMODELGEOSET pGeoset = pModel->geosets;
+
+    FOR_LOOP(t, pGeoset->num_triangles) {
+        const int i = pGeoset->triangles[t];
+        const float fx = pGeoset->vertices[i].x + (x+1) * TILESIZE;
+        const float fy = pGeoset->vertices[i].y + y * TILESIZE;
         const float fh = GetAccurateHeightAtPoint(fx, fy);
         const float fw = GetAccurateWaterLevelAtPoint(fx, fy);
-        const float fz = pGeoset->lpVertices[i].z + baselevel * TILESIZE + fh - HEIGHT_COR;
+        const float fz = pGeoset->vertices[i].z + baselevel * TILESIZE + fh - HEIGHT_COR;
         const float dp = GetTileDepth(fw, fz);
-        struct vertex *v = lpCurrentVertex + t;
+        struct vertex *v = currentVertex + t;
         v->color = MakeColor(dp, LerpNumber(dp, 1, 0.25), LerpNumber(dp, 1, 0.5), 1);
-        v->position.x = lpMap->center.x + fx;
-        v->position.y = lpMap->center.y + fy;
+        v->position.x = map->center.x + fx;
+        v->position.y = map->center.y + fy;
         v->position.z = fz;
-        v->texcoord = pGeoset->lpTexcoord[i];
-        v->texcoord2 = GetWar3MapPosition(lpMap, lpMap->center.x + fx, lpMap->center.y + fy);
-        v->normal = pGeoset->lpNormals[i];
+        v->texcoord = pGeoset->texcoord[i];
+        v->texcoord2 = GetWar3MapPosition(map, map->center.x + fx, map->center.y + fy);
+        v->normal = pGeoset->normals[i];
     }
-    
-    lpCurrentVertex += pGeoset->numTriangles;
+
+    currentVertex += pGeoset->num_triangles;
 }
 
-LPMAPLAYER R_BuildMapSegmentCliffs(LPCWAR3MAP lpMap, DWORD sx, DWORD sy, DWORD dwCliff) {
-    LPMAPLAYER lpMapLayer = ri.MemAlloc(sizeof(MAPLAYER));
+LPMAPLAYER R_BuildMapSegmentCliffs(LPCWAR3MAP map, DWORD sx, DWORD sy, DWORD cliff) {
+    LPMAPLAYER mapLayer = ri.MemAlloc(sizeof(MAPLAYER));
     PATHSTR zBuffer;
-    DWORD dwCliffID = lpMap->lpCliffs[dwCliff];
-    if (dwCliffID == NO_CLIFF) {
+    DWORD cliffID = map->cliffs[cliff];
+    if (cliffID == NO_CLIFF) {
         return NULL;
     }
-    struct CliffTypes *lpCliffType = FindCliffTypes(dwCliffID);
-//    FOR_LOOP(idx, lpMap->numCliffs) {
-//        printf("%.4s\n", (char*)&lpMap->lpCliffs[idx]);
+    struct CliffTypes *cliffType = FindCliffTypes(cliffID);
+//    FOR_LOOP(idx, map->num_cliffs) {
+//        printf("%.4s\n", (char*)&map->cliffs[idx]);
 //    }
-    if (!lpCliffType) {
+    if (!cliffType) {
         return NULL;
     }
-    sprintf(zBuffer, "%s\\%c_%s.blp", lpCliffType->texDir, lpMap->tileset, lpCliffType->texFile);
-    lpMapLayer->lpTexture = R_LoadTexture(zBuffer);
-    if (!lpMapLayer->lpTexture) {
-        sprintf(zBuffer, "%s\\%s.blp", lpCliffType->texDir, lpCliffType->texFile);
-        lpMapLayer->lpTexture = R_LoadTexture(zBuffer);
+    sprintf(zBuffer, "%s\\%c_%s.blp", cliffType->texDir, map->tileset, cliffType->texFile);
+    mapLayer->texture = R_LoadTexture(zBuffer);
+    if (!mapLayer->texture) {
+        sprintf(zBuffer, "%s\\%s.blp", cliffType->texDir, cliffType->texFile);
+        mapLayer->texture = R_LoadTexture(zBuffer);
     }
-    lpMapLayer->dwType = MAPLAYERTYPE_CLIFF;
-    lpCurrentVertex = aVertexBuffer;
+    mapLayer->type = MAPLAYERTYPE_CLIFF;
+    currentVertex = aVertexBuffer;
     for (DWORD x = sx * SEGMENT_SIZE; x < (sx + 1) * SEGMENT_SIZE; x++) {
         for (DWORD y = sy * SEGMENT_SIZE; y < (sy + 1) * SEGMENT_SIZE; y++) {
-            R_MakeCliff(lpMap, x, y, dwCliff, lpCliffType);
+            R_MakeCliff(map, x, y, cliff, cliffType);
         }
     }
-    lpMapLayer->numVertices = (DWORD)(lpCurrentVertex - aVertexBuffer);
-    lpMapLayer->lpBuffer = R_MakeVertexArrayObject(aVertexBuffer, lpMapLayer->numVertices);
-    return lpMapLayer;
+    mapLayer->num_vertices = (DWORD)(currentVertex - aVertexBuffer);
+    mapLayer->buffer = R_MakeVertexArrayObject(aVertexBuffer, mapLayer->num_vertices);
+    return mapLayer;
 }

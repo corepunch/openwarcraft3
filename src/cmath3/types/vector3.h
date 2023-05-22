@@ -10,6 +10,7 @@ typedef struct vector3 const *LPCVECTOR3;
 float Vector3_dot(LPCVECTOR3 a, LPCVECTOR3 b);
 float Vector3_lengthsq(LPCVECTOR3 vec);
 float Vector3_len(LPCVECTOR3 vec);
+float Vector3_distance(LPCVECTOR3 a, LPCVECTOR3 b);
 VECTOR3 Vector3_bezier(LPCVECTOR3 a, LPCVECTOR3 b, LPCVECTOR3 c, LPCVECTOR3 d, float t);
 VECTOR3 Vector3_hermite(LPCVECTOR3 a, LPCVECTOR3 b, LPCVECTOR3 c, LPCVECTOR3 d, float t);
 VECTOR3 Vector3_lerp(LPCVECTOR3 a, LPCVECTOR3 b, float t);

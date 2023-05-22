@@ -1,7 +1,7 @@
 #include "r_war3map.h"
 
 static VERTEX aVertexBuffer[(SEGMENT_SIZE+1)*(SEGMENT_SIZE+1)*6];
-static LPVERTEX lpCurrentVertex = NULL;
+static LPVERTEX currentVertex = NULL;
 
 // HELPERS
 
@@ -17,34 +17,34 @@ static struct color32 GetWaterOpacity(float waterlevel, float height) {
 
 // FUNCTIONS
 
-static void R_MakeWaterTile(LPCWAR3MAP lpMap, DWORD x, DWORD y) {
+static void R_MakeWaterTile(LPCWAR3MAP map, DWORD x, DWORD y) {
     struct War3MapVertex tile[4];
     GetTileVertices(x, y, tr.world, tile);
-        
+
     if (!IsTileWater(tile))
         return;
-    
+
     VECTOR2 const pos[] = {
         { tr.world->center.x + x * TILESIZE, tr.world->center.y + y * TILESIZE },
         { tr.world->center.x + (x + 1) * TILESIZE, tr.world->center.y + y * TILESIZE },
         { tr.world->center.x + (x + 1) * TILESIZE, tr.world->center.y + (y + 1) * TILESIZE },
         { tr.world->center.x + x * TILESIZE, tr.world->center.y + (y + 1) * TILESIZE },
     };
-    
+
     float const waterlevel[] = {
         GetWar3MapVertexWaterLevel(&tile[3]),
         GetWar3MapVertexWaterLevel(&tile[2]),
         GetWar3MapVertexWaterLevel(&tile[0]),
         GetWar3MapVertexWaterLevel(&tile[1]),
     };
-    
+
     float const height[] = {
         GetWar3MapVertexHeight(&tile[3]),
         GetWar3MapVertexHeight(&tile[2]),
         GetWar3MapVertexHeight(&tile[0]),
         GetWar3MapVertexHeight(&tile[1]),
     };
-    
+
     struct color32 const color[] = {
         GetWaterOpacity(waterlevel[0], height[0]),
         GetWaterOpacity(waterlevel[1], height[1]),
@@ -97,21 +97,21 @@ static void R_MakeWaterTile(LPCWAR3MAP lpMap, DWORD x, DWORD y) {
         },
     };
 
-    memcpy(lpCurrentVertex, geom, sizeof(geom));
-    lpCurrentVertex += sizeof(geom) / sizeof(VERTEX);
+    memcpy(currentVertex, geom, sizeof(geom));
+    currentVertex += sizeof(geom) / sizeof(VERTEX);
 }
 
-LPMAPLAYER R_BuildMapSegmentWater(LPCWAR3MAP lpMap, DWORD sx, DWORD sy) {
-    LPMAPLAYER lpMapLayer = ri.MemAlloc(sizeof(MAPLAYER));
-    lpMapLayer->dwType = MAPLAYERTYPE_WATER;
-    lpMapLayer->lpTexture = tr.waterTexture;
-    lpCurrentVertex = aVertexBuffer;
+LPMAPLAYER R_BuildMapSegmentWater(LPCWAR3MAP map, DWORD sx, DWORD sy) {
+    LPMAPLAYER mapLayer = ri.MemAlloc(sizeof(MAPLAYER));
+    mapLayer->type = MAPLAYERTYPE_WATER;
+    mapLayer->texture = tr.waterTexture;
+    currentVertex = aVertexBuffer;
     for (DWORD x = sx * SEGMENT_SIZE; x < (sx + 1) * SEGMENT_SIZE; x++) {
         for (DWORD y = sy * SEGMENT_SIZE; y < (sy + 1) * SEGMENT_SIZE; y++) {
-            R_MakeWaterTile(lpMap, x, y);
+            R_MakeWaterTile(map, x, y);
         }
     }
-    lpMapLayer->numVertices = (DWORD)(lpCurrentVertex - aVertexBuffer);
-    lpMapLayer->lpBuffer = R_MakeVertexArrayObject(aVertexBuffer, lpMapLayer->numVertices);
-    return lpMapLayer;
+    mapLayer->num_vertices = (DWORD)(currentVertex - aVertexBuffer);
+    mapLayer->buffer = R_MakeVertexArrayObject(aVertexBuffer, mapLayer->num_vertices);
+    return mapLayer;
 }

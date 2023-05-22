@@ -1,169 +1,316 @@
 #include "common.h"
 #include <StormLib.h>
 
-#define DOODAD_FILE_SIZE 42
-
 static struct {
     LPWAR3MAP map;
+    mapInfo_t info;
     struct size2 pathmapSize;
     struct PathMapNode *pathmap;
-    LPDOODAD doodads;
-    struct DoodadUnit *units;
-    DWORD numDoodads;
-    DWORD numUnits;
+    struct Doodad *doodads;
 } cmodel;
 
-struct PathMapNode const *CM_PathMapNode(LPCWAR3MAP lpTerrain, DWORD x, DWORD y) {
+struct PathMapNode const *CM_PathMapNode(LPCWAR3MAP terrain, DWORD x, DWORD y) {
     int const index = x + y * cmodel.pathmapSize.width;
     return &cmodel.pathmap[index];
 }
 
-static void CM_ReadDoodads(HANDLE hArchive) {
-    HANDLE hFile;
-    DWORD dwFileHeader, dwVersion, dwUnknown;
-
-    SFileOpenFileEx(hArchive, "war3map.doo", SFILE_OPEN_FROM_MPQ, &hFile);
-    SFileReadFile(hFile, &dwFileHeader, 4, NULL, NULL);
-    SFileReadFile(hFile, &dwVersion, 4, NULL, NULL);
-    SFileReadFile(hFile, &dwUnknown, 4, NULL, NULL);
-    SFileReadFile(hFile, &cmodel.numDoodads, 4, NULL, NULL);
-    
-    cmodel.doodads = MemAlloc(cmodel.numDoodads * sizeof(struct Doodad));
-
-    FOR_LOOP(index, cmodel.numDoodads) {
-        SFileReadFile(hFile, &cmodel.doodads[index], DOODAD_FILE_SIZE, NULL, NULL);
+void SFileReadString(HANDLE file, LPSTR *lppString) {
+    DWORD filePosition = SFileSetFilePointer(file, 0, 0, FILE_CURRENT);
+    DWORD stringLength = 1;
+    while (true) {
+        BYTE ch = 0;
+        SFileReadFile(file, &ch, 1, NULL, NULL);
+        if (ch == 0) {
+            break;
+        } else {
+            stringLength++;
+        }
     }
-
-    SFileCloseFile(hFile);
+    *lppString = MemAlloc(stringLength);
+    SFileSetFilePointer(file, filePosition, 0, FILE_BEGIN);
+    SFileReadFile(file, *lppString, stringLength, NULL, NULL);
 }
 
-static void CM_ReadUnit(HANDLE hFile, struct DoodadUnit *lpUnit) {
-    SFileReadFile(hFile, &lpUnit->doodID, sizeof(DWORD), NULL, NULL);
-    SFileReadFile(hFile, &lpUnit->variation, sizeof(DWORD), NULL, NULL);
-    SFileReadFile(hFile, &lpUnit->position, sizeof(VECTOR3), NULL, NULL);
-    SFileReadFile(hFile, &lpUnit->angle, sizeof(float), NULL, NULL);
-    SFileReadFile(hFile, &lpUnit->scale, sizeof(VECTOR3), NULL, NULL);
-    SFileReadFile(hFile, &lpUnit->flags, sizeof(BYTE), NULL, NULL);
-    SFileReadFile(hFile, &lpUnit->player, sizeof(DWORD), NULL, NULL);
-    SFileReadFile(hFile, &lpUnit->unknown1, sizeof(BYTE), NULL, NULL);
-    SFileReadFile(hFile, &lpUnit->unknown2, sizeof(BYTE), NULL, NULL);
-    SFileReadFile(hFile, &lpUnit->hitPoints, sizeof(DWORD), NULL, NULL); // (-1 = use default)
-    SFileReadFile(hFile, &lpUnit->manaPoints, sizeof(DWORD), NULL, NULL); // (-1 = use default, 0 = unit doesn't have mana)
-    // in Frozen Throne:
-//    SFileReadFile(hFile, &lpUnit->droppedItemSetPtr, sizeof(DWORD), NULL, NULL);
-    SFileReadFile(hFile, &lpUnit->numDroppedItemSets, sizeof(DWORD), NULL, NULL);
-    lpUnit->droppableItemSets = MemAlloc(lpUnit->numDroppedItemSets * sizeof(struct DroppableItemSet));
-    FOR_LOOP(droppedItemSetIdx, lpUnit->numDroppedItemSets) {
-        struct DroppableItemSet *lpSet = &lpUnit->droppableItemSets[droppedItemSetIdx];
-        SFileReadFile(hFile, &lpSet->numDroppableItems, sizeof(DWORD), NULL, NULL);
-        lpSet->droppableItems = MemAlloc(lpSet->numDroppableItems * sizeof(struct DroppableItem));
-        SFileReadFile(hFile, lpSet->droppableItems, lpSet->numDroppableItems * sizeof(struct DroppableItem), NULL, NULL);
+static void CM_ReadInfo(HANDLE archive) {
+    mapInfo_t *info = &cmodel.info;
+    HANDLE file;
+    SFileOpenFileEx(archive, "war3map.w3i", SFILE_OPEN_FROM_MPQ, &file);
+    SFileReadFile(file, &info->fileFormat, 4, NULL, NULL);
+    SFileReadFile(file, &info->numberOfSaves, sizeof(DWORD), NULL, NULL);
+    SFileReadFile(file, &info->editorVersion, sizeof(DWORD), NULL, NULL);
+    SFileReadString(file, &info->mapName);
+    SFileReadString(file, &info->mapAuthor);
+    SFileReadString(file, &info->mapDescription);
+    SFileReadString(file, &info->playersRecommended);
+    SFileReadFile(file, &info->cameraBounds, sizeof(mapCameraBounds_t), NULL, NULL);
+    SFileReadFile(file, &info->playableArea, sizeof(SIZE2), NULL, NULL);
+    SFileReadFile(file, &info->flags, sizeof(DWORD), NULL, NULL);
+    SFileReadFile(file, &info->mainGroundType, sizeof(char), NULL, NULL);
+    SFileReadFile(file, &info->campaignBackgroundNumber, sizeof(DWORD), NULL, NULL);
+    SFileReadString(file, &info->loadingScreenText);
+    SFileReadString(file, &info->loadingScreenTitle);
+    SFileReadString(file, &info->loadingScreenSubtitle);
+    SFileReadFile(file, &info->loadingScreenNumber, sizeof(DWORD), NULL, NULL);
+    SFileReadString(file, &info->prologueScreenText);
+    SFileReadString(file, &info->prologueScreenTitle);
+    SFileReadString(file, &info->prologueScreenSubtitle);
+
+    SFileReadFile(file, &info->num_players, sizeof(DWORD), NULL, NULL);
+    info->players = MemAlloc(sizeof(mapPlayer_t) * info->num_players);
+    FOR_LOOP(i, info->num_players) {
+        mapPlayer_t *player = &info->players[i];
+        SFileReadFile(file, &player->internalPlayerNumber, sizeof(DWORD), NULL, NULL);
+        SFileReadFile(file, &player->playerType, sizeof(playerType_t), NULL, NULL);
+        SFileReadFile(file, &player->playerRace, sizeof(playerRace_t), NULL, NULL);
+        SFileReadFile(file, &player->flags, sizeof(DWORD), NULL, NULL);
+        SFileReadString(file, &player->playerName);
+        SFileReadFile(file, &player->startingPosition, sizeof(VECTOR2), NULL, NULL);
+        SFileReadFile(file, &player->allyLowPrioritiesFlags, sizeof(DWORD), NULL, NULL);
+        SFileReadFile(file, &player->allyHighPrioritiesFlags, sizeof(DWORD), NULL, NULL);
     }
-    
-    SFileReadFile(hFile, &lpUnit->goldAmount, sizeof(DWORD), NULL, NULL); // (default = 12500)
-    SFileReadFile(hFile, &lpUnit->targetAcquisition, sizeof(float), NULL, NULL); // (-1 = normal, -2 = camp)
-    
-    SFileReadFile(hFile, &lpUnit->hero, sizeof(DWORD), NULL, NULL); // (set to 1 for non hero units and items)
+
+    SFileReadFile(file, &info->num_forces, sizeof(DWORD), NULL, NULL);
+    info->forces = MemAlloc(sizeof(mapForce_t) * info->num_forces);
+    FOR_LOOP(i, info->num_forces) {
+        mapForce_t *force = &info->forces[i];
+        SFileReadFile(file, &force->focesFlags, sizeof(DWORD), NULL, NULL);
+        SFileReadFile(file, &force->playerMasks, sizeof(DWORD), NULL, NULL);
+        SFileReadString(file, &force->forceName);
+    }
+
+    SFileReadFile(file, &info->num_upgradeAvailabilities, sizeof(DWORD), NULL, NULL);
+    info->upgradeAvailabilities = MemAlloc(sizeof(mapUpgradeAvailability_t) * info->num_upgradeAvailabilities);
+    FOR_LOOP(i, info->num_upgradeAvailabilities) {
+        mapUpgradeAvailability_t *upgrade = &info->upgradeAvailabilities[i];
+        SFileReadFile(file, &upgrade->playerFlags, sizeof(DWORD), NULL, NULL);
+        SFileReadFile(file, &upgrade->upgradeID, sizeof(DWORD), NULL, NULL);
+        SFileReadFile(file, &upgrade->levelOfTheUpgrade, sizeof(DWORD), NULL, NULL);
+        SFileReadFile(file, &upgrade->availability, sizeof(upgradeAvailability_t), NULL, NULL);
+    }
+
+    SFileReadFile(file, &info->num_techAvailabilities, sizeof(DWORD), NULL, NULL);
+    info->techAvailabilities = MemAlloc(sizeof(mapTechAvailability_t) * info->num_techAvailabilities);
+    FOR_LOOP(i, info->num_techAvailabilities) {
+        mapTechAvailability_t *tech = &info->techAvailabilities[i];
+        SFileReadFile(file, &tech->playerFlags, sizeof(DWORD), NULL, NULL);
+        SFileReadFile(file, &tech->techID, sizeof(DWORD), NULL, NULL);
+    }
+
+    SFileReadFile(file, &info->num_randomUnits, sizeof(DWORD), NULL, NULL);
+    info->randomUnits = MemAlloc(sizeof(mapRandomUnitTable_t) * info->num_randomUnits);
+    FOR_LOOP(i, info->num_randomUnits) {
+        mapRandomUnitTable_t *table = &info->randomUnits[i];
+        SFileReadFile(file, &table->num_randomGroups, sizeof(DWORD), NULL, NULL);
+        table->randomGroups = MemAlloc(sizeof(MapRandomGroup) * table->num_randomGroups);
+        FOR_LOOP(j, table->num_randomGroups) {
+            MapRandomGroup *group = &table->randomGroups[j];
+            SFileReadFile(file, &group->groupNumber, sizeof(DWORD), NULL, NULL);
+            SFileReadString(file, &group->groupName);
+            SFileReadFile(file, &group->num_positions, sizeof(DWORD), NULL, NULL);
+            group->positions = MemAlloc(sizeof(mapRandomGroupPosition_t) * group->num_positions);
+            FOR_LOOP(k, group->num_positions) {
+                mapRandomGroupPosition_t *position = &group->positions[k];
+                SFileReadFile(file, &position->type, sizeof(mapRandomGroupPositionType_t), NULL, NULL);
+                SFileReadFile(file, &position->num_items, sizeof(DWORD), NULL, NULL);
+                position->items = MemAlloc(sizeof(mapRandomGroupPositionItem_t) * position->num_items);
+                SFileReadFile(file, position->items, sizeof(mapRandomGroupPositionItem_t) * position->num_items, NULL, NULL);
+            }
+        }
+    }
+
+    SFileCloseFile(file);
+}
+
+static void MapInfo_Release(mapInfo_t *mapInfo) {
+    FOR_LOOP(i, mapInfo->num_players) {
+        SAFE_DELETE(mapInfo->players[i].playerName, MemFree);
+    }
+    FOR_LOOP(i, mapInfo->num_forces) {
+        SAFE_DELETE(mapInfo->forces[i].forceName, MemFree);
+    }
+    FOR_LOOP(i, mapInfo->num_randomUnits) {
+        FOR_LOOP(j, mapInfo->randomUnits[i].num_randomGroups) {
+            FOR_LOOP(k, mapInfo->randomUnits[i].randomGroups[j].num_positions) {
+                SAFE_DELETE(mapInfo->randomUnits[i].randomGroups[j].positions[k].items, MemFree);
+            }
+            SAFE_DELETE(mapInfo->randomUnits[i].randomGroups[j].positions, MemFree);
+            SAFE_DELETE(mapInfo->randomUnits[i].randomGroups[j].groupName, MemFree);
+        }
+        SAFE_DELETE(mapInfo->randomUnits[i].randomGroups, MemFree);
+    }
+    SAFE_DELETE(mapInfo->mapName, MemFree);
+    SAFE_DELETE(mapInfo->mapAuthor, MemFree);
+    SAFE_DELETE(mapInfo->mapDescription, MemFree);
+    SAFE_DELETE(mapInfo->playersRecommended, MemFree);
+    SAFE_DELETE(mapInfo->loadingScreenText, MemFree);
+    SAFE_DELETE(mapInfo->loadingScreenTitle, MemFree);
+    SAFE_DELETE(mapInfo->loadingScreenSubtitle, MemFree);
+    SAFE_DELETE(mapInfo->prologueScreenText, MemFree);
+    SAFE_DELETE(mapInfo->prologueScreenTitle, MemFree);
+    SAFE_DELETE(mapInfo->prologueScreenSubtitle, MemFree);
+    SAFE_DELETE(mapInfo->players, MemFree);
+    SAFE_DELETE(mapInfo->forces, MemFree);
+    SAFE_DELETE(mapInfo->upgradeAvailabilities, MemFree);
+    SAFE_DELETE(mapInfo->techAvailabilities, MemFree);
+    SAFE_DELETE(mapInfo->randomUnits, MemFree);
+}
+
+static void CM_ReadDoodads(HANDLE archive) {
+    HANDLE file;
+    DWORD fileHeader, version, unknown, numDoodads;
+
+    SFileOpenFileEx(archive, "war3map.doo", SFILE_OPEN_FROM_MPQ, &file);
+    SFileReadFile(file, &fileHeader, 4, NULL, NULL);
+    SFileReadFile(file, &version, 4, NULL, NULL);
+    SFileReadFile(file, &unknown, 4, NULL, NULL);
+    SFileReadFile(file, &numDoodads, 4, NULL, NULL);
+
+    FOR_LOOP(index, numDoodads) {
+        LPDOODAD doodad = MemAlloc(sizeof(DOODAD));
+        SFileReadFile(file, &doodad->doodID, sizeof(DWORD), NULL, NULL);
+        SFileReadFile(file, &doodad->variation, sizeof(DWORD), NULL, NULL);
+        SFileReadFile(file, &doodad->position, sizeof(VECTOR3), NULL, NULL);
+        SFileReadFile(file, &doodad->angle, sizeof(float), NULL, NULL);
+        SFileReadFile(file, &doodad->scale, sizeof(VECTOR3), NULL, NULL);
+        SFileReadFile(file, &doodad->flags, sizeof(BYTE), NULL, NULL);
+        SFileReadFile(file, &doodad->treeLife, sizeof(BYTE), NULL, NULL);
+        SFileReadFile(file, &doodad->unitID, sizeof(DWORD), NULL, NULL);
+        
+        ADD_TO_LIST(doodad, cmodel.doodads);
+    }
+
+    SFileCloseFile(file);
+}
+
+static void CM_ReadUnit(HANDLE file, struct Doodad *unit) {
+    SFileReadFile(file, &unit->doodID, sizeof(DWORD), NULL, NULL);
+    SFileReadFile(file, &unit->variation, sizeof(DWORD), NULL, NULL);
+    SFileReadFile(file, &unit->position, sizeof(VECTOR3), NULL, NULL);
+    SFileReadFile(file, &unit->angle, sizeof(float), NULL, NULL);
+    SFileReadFile(file, &unit->scale, sizeof(VECTOR3), NULL, NULL);
+    SFileReadFile(file, &unit->flags, sizeof(BYTE), NULL, NULL);
+    SFileReadFile(file, &unit->player, sizeof(DWORD), NULL, NULL);
+    SFileReadFile(file, &unit->unknown1, sizeof(BYTE), NULL, NULL);
+    SFileReadFile(file, &unit->unknown2, sizeof(BYTE), NULL, NULL);
+    SFileReadFile(file, &unit->hitPoints, sizeof(DWORD), NULL, NULL); // (-1 = use default)
+    SFileReadFile(file, &unit->manaPoints, sizeof(DWORD), NULL, NULL); // (-1 = use default, 0 = unit doesn't have mana)
     // in Frozen Throne:
-//    SFileReadFile(hFile, &lpUnit->hero, sizeof(struct DoodadUnitHero), NULL, NULL); // (set to 1 for non hero units and items)
+//    SFileReadFile(file, &unit->droppedItemSetPtr, sizeof(DWORD), NULL, NULL);
+    SFileReadFile(file, &unit->num_droppedItemSets, sizeof(DWORD), NULL, NULL);
+    unit->droppableItemSets = MemAlloc(unit->num_droppedItemSets * sizeof(droppableItemSet_t));
+    FOR_LOOP(droppedItemSetIdx, unit->num_droppedItemSets) {
+        droppableItemSet_t *set = &unit->droppableItemSets[droppedItemSetIdx];
+        SFileReadFile(file, &set->num_droppableItems, sizeof(DWORD), NULL, NULL);
+        set->droppableItems = MemAlloc(set->num_droppableItems * sizeof(droppableItem_t));
+        SFileReadFile(file, set->droppableItems, set->num_droppableItems * sizeof(droppableItem_t), NULL, NULL);
+    }
 
-    SFileReadArray(hFile, lpUnit, InventoryItems, sizeof(struct InventoryItem), MemAlloc);
-    SFileReadArray(hFile, lpUnit, ModifiedAbilities, sizeof(struct ModifiedAbility), MemAlloc);
+    SFileReadFile(file, &unit->goldAmount, sizeof(DWORD), NULL, NULL); // (default = 12500)
+    SFileReadFile(file, &unit->targetAcquisition, sizeof(float), NULL, NULL); // (-1 = normal, -2 = camp)
 
-    SFileReadFile(hFile, &lpUnit->randomUnitFlag, sizeof(DWORD), NULL, NULL); // "r" (for uDNR units and iDNR items)
-    
-    switch (lpUnit->randomUnitFlag) {
+    SFileReadFile(file, &unit->hero, sizeof(DWORD), NULL, NULL); // (set to 1 for non hero units and items)
+    // in Frozen Throne:
+//    SFileReadFile(file, &unit->hero, sizeof(struct DoodadHero), NULL, NULL); // (set to 1 for non hero units and items)
+
+    SFileReadArray(file, unit, inventoryItems, sizeof(inventoryItem_t), MemAlloc);
+    SFileReadArray(file, unit, modifiedAbilities, sizeof(modifiedAbility_t), MemAlloc);
+
+    SFileReadFile(file, &unit->randomUnitFlag, sizeof(DWORD), NULL, NULL); // "r" (for uDNR units and iDNR items)
+
+    switch (unit->randomUnitFlag) {
         case 0:
-            SFileReadFile(hFile, &lpUnit->levelOfRandomItem, sizeof(DWORD), NULL, NULL);
+            SFileReadFile(file, &unit->levelOfRandomItem, sizeof(DWORD), NULL, NULL);
             break;
         case 1:
-            SFileReadFile(hFile, &lpUnit->randomUnitGroupNumber, sizeof(DWORD), NULL, NULL);
-            SFileReadFile(hFile, &lpUnit->randomUnitPositionNumber, sizeof(DWORD), NULL, NULL);
+            SFileReadFile(file, &unit->randomUnitGroupNumber, sizeof(DWORD), NULL, NULL);
+            SFileReadFile(file, &unit->randomUnitPositionNumber, sizeof(DWORD), NULL, NULL);
             break;
         case 2:
-            SFileReadArray(hFile, lpUnit, DiffAvailUnits, sizeof(struct DroppableItem), MemAlloc);
+            SFileReadArray(file, unit, diffAvailUnits, sizeof(droppableItem_t), MemAlloc);
             break;
     }
-    SFileReadFile(hFile, &lpUnit->color, sizeof(COLOR32), NULL, NULL);
-    SFileReadFile(hFile, &lpUnit->waygate, sizeof(DWORD), NULL, NULL);
-    SFileReadFile(hFile, &lpUnit->unitID, sizeof(DWORD), NULL, NULL);
+    SFileReadFile(file, &unit->color, sizeof(COLOR32), NULL, NULL);
+    SFileReadFile(file, &unit->waygate, sizeof(DWORD), NULL, NULL);
+    SFileReadFile(file, &unit->unitID, sizeof(DWORD), NULL, NULL);
 }
 
-static void CM_ReadUnits(HANDLE hArchive) {
-    HANDLE hFile;
-    DWORD dwFileHeader, dwVersion, dwUnknown;
+static void CM_ReadUnits(HANDLE archive) {
+    HANDLE file;
+    DWORD fileHeader, version, subversion, numUnits;
 
-    SFileOpenFileEx(hArchive, "war3mapUnits.doo", SFILE_OPEN_FROM_MPQ, &hFile);
-    SFileReadFile(hFile, &dwFileHeader, 4, NULL, NULL);
-    SFileReadFile(hFile, &dwVersion, 4, NULL, NULL);
-    SFileReadFile(hFile, &dwUnknown, 4, NULL, NULL);
-    SFileReadFile(hFile, &cmodel.numUnits, 4, NULL, NULL);
-    
-    cmodel.units = MemAlloc(cmodel.numUnits * sizeof(struct DoodadUnit));
+    SFileOpenFileEx(archive, "war3mapUnits.doo", SFILE_OPEN_FROM_MPQ, &file);
+    SFileReadFile(file, &fileHeader, 4, NULL, NULL);
+    SFileReadFile(file, &version, 4, NULL, NULL);
+    SFileReadFile(file, &subversion, 4, NULL, NULL);
+    SFileReadFile(file, &numUnits, 4, NULL, NULL);
 
-    FOR_LOOP(index, cmodel.numUnits) {
-        CM_ReadUnit(hFile, &cmodel.units[index]);
+    FOR_LOOP(index, numUnits) {
+        LPDOODAD doodad = MemAlloc(sizeof(DOODAD));
+        CM_ReadUnit(file, doodad);        
+        ADD_TO_LIST(doodad, cmodel.doodads);
     }
 
-    SFileCloseFile(hFile);
+    SFileCloseFile(file);
 }
 
-static void CM_ReadPathMap(HANDLE hArchive) {
-    HANDLE hFile;
+static void CM_ReadPathMap(HANDLE archive) {
+    HANDLE file;
     DWORD header, version;
-    SFileOpenFileEx(hArchive, "war3map.wpm", SFILE_OPEN_FROM_MPQ, &hFile);
-    SFileReadFile(hFile, &header, 4, NULL, NULL);
-    SFileReadFile(hFile, &version, 4, NULL, NULL);
-    SFileReadFile(hFile, &cmodel.pathmapSize, 8, NULL, NULL);
+    SFileOpenFileEx(archive, "war3map.wpm", SFILE_OPEN_FROM_MPQ, &file);
+    SFileReadFile(file, &header, 4, NULL, NULL);
+    SFileReadFile(file, &version, 4, NULL, NULL);
+    SFileReadFile(file, &cmodel.pathmapSize, 8, NULL, NULL);
     int const pathmapblocksize = cmodel.pathmapSize.width * cmodel.pathmapSize.height;
     cmodel.pathmap = MemAlloc(pathmapblocksize);
-    SFileReadFile(hFile, cmodel.pathmap, pathmapblocksize, 0, 0);
-    SFileCloseFile(hFile);
+    SFileReadFile(file, cmodel.pathmap, pathmapblocksize, 0, 0);
+    SFileCloseFile(file);
 }
 
-static void CM_ReadHeightmap(HANDLE hArchive) {
+static void CM_ReadHeightmap(HANDLE archive) {
     cmodel.map = MemAlloc(sizeof(WAR3MAP));
-    HANDLE hFile;
-    SFileOpenFileEx(hArchive, "war3map.w3e", SFILE_OPEN_FROM_MPQ, &hFile);
-    SFileReadFile(hFile, &cmodel.map->header, 4, NULL, NULL);
-    SFileReadFile(hFile, &cmodel.map->version, 4, NULL, NULL);
-    SFileReadFile(hFile, &cmodel.map->tileset, 1, NULL, NULL);
-    SFileReadFile(hFile, &cmodel.map->custom, 4, NULL, NULL);
-    SFileReadArray(hFile, cmodel.map, Grounds, 4, MemAlloc);
-    SFileReadArray(hFile, cmodel.map, Cliffs, 4, MemAlloc);
-    SFileReadFile(hFile, &cmodel.map->width, 4, NULL, NULL);
-    SFileReadFile(hFile, &cmodel.map->height, 4, NULL, NULL);
-    SFileReadFile(hFile, &cmodel.map->center, 8, NULL, NULL);
+    HANDLE file;
+    SFileOpenFileEx(archive, "war3map.w3e", SFILE_OPEN_FROM_MPQ, &file);
+    SFileReadFile(file, &cmodel.map->header, 4, NULL, NULL);
+    SFileReadFile(file, &cmodel.map->version, 4, NULL, NULL);
+    SFileReadFile(file, &cmodel.map->tileset, 1, NULL, NULL);
+    SFileReadFile(file, &cmodel.map->custom, 4, NULL, NULL);
+    SFileReadArray(file, cmodel.map, grounds, 4, MemAlloc);
+    SFileReadArray(file, cmodel.map, cliffs, 4, MemAlloc);
+    SFileReadFile(file, &cmodel.map->width, 4, NULL, NULL);
+    SFileReadFile(file, &cmodel.map->height, 4, NULL, NULL);
+    SFileReadFile(file, &cmodel.map->center, 8, NULL, NULL);
     int const vertexblocksize = MAP_VERTEX_SIZE * cmodel.map->width * cmodel.map->height;
     cmodel.map->vertices = MemAlloc(vertexblocksize);
-    SFileReadFile(hFile, cmodel.map->vertices, vertexblocksize, 0, 0);
-    SFileCloseFile(hFile);
+    SFileReadFile(file, cmodel.map->vertices, vertexblocksize, 0, 0);
+    SFileCloseFile(file);
 }
 
-void CM_LoadMap(LPCSTR szMapFilename) {
-    HANDLE hMapArchive;
-    FS_ExtractFile(szMapFilename, TMP_MAP);
-    SFileOpenArchive(TMP_MAP, 0, 0, &hMapArchive);
-    CM_ReadPathMap(hMapArchive);
-    CM_ReadDoodads(hMapArchive);
-    CM_ReadUnits(hMapArchive);
-    CM_ReadHeightmap(hMapArchive);
-    SFileCloseArchive(hMapArchive);
+void CM_LoadMap(LPCSTR mapFilename) {
+    HANDLE mapArchive;
+    memset(&cmodel, 0, sizeof(cmodel));
+    FS_ExtractFile(mapFilename, TMP_MAP);
+    SFileOpenArchive(TMP_MAP, 0, 0, &mapArchive);
+    CM_ReadPathMap(mapArchive);
+    CM_ReadDoodads(mapArchive);
+    CM_ReadUnits(mapArchive);
+    CM_ReadHeightmap(mapArchive);
+    CM_ReadInfo(mapArchive);
+    SFileCloseArchive(mapArchive);
 }
 
-VECTOR3 CM_PointIntoHeightmap(LPCVECTOR3 lpPoint) {
+VECTOR3 CM_PointIntoHeightmap(LPCVECTOR3 point) {
     return (VECTOR3) {
-        .x = (lpPoint->x - cmodel.map->center.x) / TILESIZE,
-        .y = (lpPoint->y - cmodel.map->center.y) / TILESIZE,
-        .z = lpPoint->z
+        .x = (point->x - cmodel.map->center.x) / TILESIZE,
+        .y = (point->y - cmodel.map->center.y) / TILESIZE,
+        .z = point->z
     };
 }
 
-VECTOR3 CM_PointFromHeightmap(LPCVECTOR3 lpPoint) {
+VECTOR3 CM_PointFromHeightmap(LPCVECTOR3 point) {
     return (VECTOR3) {
-        .x = lpPoint->x * TILESIZE + cmodel.map->center.x,
-        .y = lpPoint->y * TILESIZE + cmodel.map->center.y,
-        .z = lpPoint->z
+        .x = point->x * TILESIZE + cmodel.map->center.x,
+        .y = point->y * TILESIZE + cmodel.map->center.y,
+        .z = point->z
     };
 }
 
@@ -195,10 +342,10 @@ float CM_GetHeightAtPoint(float sx, float sy) {
     return LerpNumber(ab, cd, y - fy);
 }
 
-bool CM_IntersectLineWithHeightmap(LPCLINE3 lpLine, LPVECTOR3 lpOutput) {
+bool CM_IntersectLineWithHeightmap(LPCLINE3 _line, LPVECTOR3 output) {
     LINE3 line = {
-        .a = CM_PointIntoHeightmap(&lpLine->a),
-        .b = CM_PointIntoHeightmap(&lpLine->b),
+        .a = CM_PointIntoHeightmap(&_line->a),
+        .b = CM_PointIntoHeightmap(&_line->b),
     };
     FOR_LOOP(x, cmodel.map->width) {
         FOR_LOOP(y, cmodel.map->height) {
@@ -212,12 +359,12 @@ bool CM_IntersectLineWithHeightmap(LPCLINE3 lpLine, LPVECTOR3 lpOutput) {
                 { x, y+1, CM_GetHeightMapValue(x, y+1) },
                 { x, y, CM_GetHeightMapValue(x, y) },
             };
-            if (Line3_intersect_triangle(&line, &tri1, lpOutput)) {
-                *lpOutput = CM_PointFromHeightmap(lpOutput);
+            if (Line3_intersect_triangle(&line, &tri1, output)) {
+                *output = CM_PointFromHeightmap(output);
                 return true;
             }
-            if (Line3_intersect_triangle(&line, &tri2, lpOutput)) {
-                *lpOutput = CM_PointFromHeightmap(lpOutput);
+            if (Line3_intersect_triangle(&line, &tri2, output)) {
+                *output = CM_PointFromHeightmap(output);
                 return true;
             }
         }
@@ -225,12 +372,14 @@ bool CM_IntersectLineWithHeightmap(LPCLINE3 lpLine, LPVECTOR3 lpOutput) {
     return false;
 }
 
-DWORD CM_GetDoodadsArray(LPCDOODAD *lppDoodads) {
-    *lppDoodads = cmodel.doodads;
-    return cmodel.numDoodads;
+LPDOODAD CM_GetDoodads(void) {
+    return cmodel.doodads;
 }
 
-DWORD CM_GetUnitsArray(LPCDOODADUNIT *lppDoodadUnits) {
-    *lppDoodadUnits = cmodel.units;
-    return cmodel.numUnits;
+mapPlayer_t const *CM_GetPlayer(DWORD index) {
+    if (index < cmodel.info.num_players) {
+        return &cmodel.info.players[index];
+    } else {
+        return NULL;
+    }
 }

@@ -15,7 +15,6 @@ int main(int argc, LPSTR  argv[]) {
     CL_Init();
     SV_Map("Maps\\Campaign\\Human01.w3m");
     
-    
     DWORD startTime = SDL_GetTicks();
     
     while (true) {

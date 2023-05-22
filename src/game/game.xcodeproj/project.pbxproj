@@ -8,7 +8,6 @@
 
 /* Begin PBXBuildFile section */
 		786630612A188F4800266A62 /* g_phys.c in Sources */ = {isa = PBXBuildFile; fileRef = 7866305F2A188F4800266A62 /* g_phys.c */; };
-		786630632A1899FD00266A62 /* m_move.c in Sources */ = {isa = PBXBuildFile; fileRef = 786630622A1899FD00266A62 /* m_move.c */; };
 		786630652A18BFAC00266A62 /* g_ai.c in Sources */ = {isa = PBXBuildFile; fileRef = 786630642A18BFAC00266A62 /* g_ai.c */; };
 		7866377C2A1A4D0200266A62 /* Doodads.h in Headers */ = {isa = PBXBuildFile; fileRef = 7866373F2A1A4D0200266A62 /* Doodads.h */; };
 		7866377D2A1A4D0200266A62 /* Doodads.c in Sources */ = {isa = PBXBuildFile; fileRef = 786637402A1A4D0200266A62 /* Doodads.c */; };
@@ -68,7 +67,7 @@
 		786637B32A1A4D0200266A62 /* UnitData.c in Sources */ = {isa = PBXBuildFile; fileRef = 786637792A1A4D0200266A62 /* UnitData.c */; };
 		786637B42A1A4D0200266A62 /* UnitMetaData.c in Sources */ = {isa = PBXBuildFile; fileRef = 7866377A2A1A4D0200266A62 /* UnitMetaData.c */; };
 		786637B52A1A4D0200266A62 /* ItemData.c in Sources */ = {isa = PBXBuildFile; fileRef = 7866377B2A1A4D0200266A62 /* ItemData.c */; };
-		786637B82A1A62FC00266A62 /* m_grunt.c in Sources */ = {isa = PBXBuildFile; fileRef = 786637B72A1A62FC00266A62 /* m_grunt.c */; };
+		786637C12A1BE9A800266A62 /* m_move.c in Sources */ = {isa = PBXBuildFile; fileRef = 786637C02A1BE9A800266A62 /* m_move.c */; };
 		78A8966F2A15F7D600BC5B56 /* g_local.h in Headers */ = {isa = PBXBuildFile; fileRef = 78A896682A15F7D600BC5B56 /* g_local.h */; };
 		78A896702A15F7D600BC5B56 /* g_spawn.c in Sources */ = {isa = PBXBuildFile; fileRef = 78A896692A15F7D600BC5B56 /* g_spawn.c */; };
 		78A896722A15F7D600BC5B56 /* g_main.c in Sources */ = {isa = PBXBuildFile; fileRef = 78A8966B2A15F7D600BC5B56 /* g_main.c */; };
@@ -79,7 +78,6 @@
 
 /* Begin PBXFileReference section */
 		7866305F2A188F4800266A62 /* g_phys.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = g_phys.c; sourceTree = "<group>"; };
-		786630622A1899FD00266A62 /* m_move.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = m_move.c; sourceTree = "<group>"; };
 		786630642A18BFAC00266A62 /* g_ai.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = g_ai.c; sourceTree = "<group>"; };
 		7866373F2A1A4D0200266A62 /* Doodads.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Doodads.h; sourceTree = "<group>"; };
 		786637402A1A4D0200266A62 /* Doodads.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = Doodads.c; sourceTree = "<group>"; };
@@ -140,7 +138,7 @@
 		7866377A2A1A4D0200266A62 /* UnitMetaData.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = UnitMetaData.c; sourceTree = "<group>"; };
 		7866377B2A1A4D0200266A62 /* ItemData.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = ItemData.c; sourceTree = "<group>"; };
 		786637B62A1A5B6200266A62 /* warcraftdoc.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = warcraftdoc.txt; sourceTree = "<group>"; };
-		786637B72A1A62FC00266A62 /* m_grunt.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = m_grunt.c; sourceTree = "<group>"; };
+		786637C02A1BE9A800266A62 /* m_move.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = m_move.c; sourceTree = "<group>"; };
 		78A8964D2A15F7A500BC5B56 /* libgame.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; includeInIndex = 0; path = libgame.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
 		78A896682A15F7D600BC5B56 /* g_local.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = g_local.h; sourceTree = "<group>"; };
 		78A896692A15F7D600BC5B56 /* g_spawn.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = g_spawn.c; sourceTree = "<group>"; };
@@ -256,8 +254,7 @@
 				78E91BFA2A169439003D9F3A /* g_monster.c */,
 				7866305F2A188F4800266A62 /* g_phys.c */,
 				78A896692A15F7D600BC5B56 /* g_spawn.c */,
-				786637B72A1A62FC00266A62 /* m_grunt.c */,
-				786630622A1899FD00266A62 /* m_move.c */,
+				786637C02A1BE9A800266A62 /* m_move.c */,
 				78A8966E2A15F7D600BC5B56 /* m_peon.c */,
 				78A896682A15F7D600BC5B56 /* g_local.h */,
 				786637B62A1A5B6200266A62 /* warcraftdoc.txt */,
@@ -387,6 +384,7 @@
 				786637AD2A1A4D0200266A62 /* UnitBalance.c in Sources */,
 				7866377D2A1A4D0200266A62 /* Doodads.c in Sources */,
 				78A896722A15F7D600BC5B56 /* g_main.c in Sources */,
+				786637C12A1BE9A800266A62 /* m_move.c in Sources */,
 				786630612A188F4800266A62 /* g_phys.c in Sources */,
 				786637942A1A4D0200266A62 /* EnvironmentSounds.c in Sources */,
 				786637A52A1A4D0200266A62 /* UpgradeData.c in Sources */,
@@ -401,8 +399,6 @@
 				7866378A2A1A4D0200266A62 /* AbilitySounds.c in Sources */,
 				786637952A1A4D0200266A62 /* AnimSounds.c in Sources */,
 				786637B42A1A4D0200266A62 /* UnitMetaData.c in Sources */,
-				786637B82A1A62FC00266A62 /* m_grunt.c in Sources */,
-				786630632A1899FD00266A62 /* m_move.c in Sources */,
 				7866377F2A1A4D0200266A62 /* AnimLookups.c in Sources */,
 				786637922A1A4D0200266A62 /* PortraitAnims.c in Sources */,
 				786630652A18BFAC00266A62 /* g_ai.c in Sources */,

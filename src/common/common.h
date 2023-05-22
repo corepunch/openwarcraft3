@@ -17,6 +17,8 @@
 #define MAKEFOURCC(ch0, ch1, ch2, ch3) ((int)(char)(ch0) | ((int)(char)(ch1) << 8) | ((int)(char)(ch2) << 16) | ((int)(char)(ch3) << 24))
 #define FOFS(type, x) (HANDLE)&(((struct type *)NULL)->x)
 
+#define PLAYER_START_ID MAKEFOURCC('P','l','s','t')
+
 #define FRAMETIME 100
 #define UPDATE_BACKUP 16
 #define UPDATE_MASK (UPDATE_BACKUP-1)
@@ -49,18 +51,20 @@
 #define MAX_CONFIGSTRINGS (CS_GENERAL+MAX_GENERAL)
 #define SAFE_DELETE(x, func) if (x) { func(x); (x) = NULL; }
 
-#define SFileReadArray(hFile, object, variable, elemsize, alloc) \
-SFileReadFile(hFile, &object->num##variable, 4, NULL, NULL); \
-if (object->num##variable > 0) {object->lp##variable = alloc(object->num##variable * elemsize); \
-SFileReadFile(hFile, object->lp##variable, object->num##variable * elemsize, NULL, NULL); }
+#define SFileReadArray(file, object, variable, elemsize, alloc) \
+SFileReadFile(file, &object->num_##variable, 4, NULL, NULL); \
+if (object->num_##variable > 0) {object->variable = alloc(object->num_##variable * elemsize); \
+SFileReadFile(file, object->variable, object->num_##variable * elemsize, NULL, NULL); }
 
 #define FOR_LOOP(property, max) for (DWORD property = 0, end = max; property < end; ++property)
 #define PrintTag(tag)do { LPSTR ch = (char*)&tag; printf("%c%c%c%c\n", ch[0], ch[1], ch[2], ch[3]); } while(false);
 
 #define FOR_EACH_LIST(type, property, list) \
-for (type *property = list, *next = list ? (list)->lpNext : NULL; \
+for (type *property = list, *next = list ? (list)->next : NULL; \
 property; \
-property = next, next = next ? next->lpNext : NULL)
+property = next, next = next ? next->next : NULL)
+
+#define ADD_TO_LIST(VAR, LIST) VAR->next = LIST; LIST = VAR;
 
 #define FOR_EACH(type, property, array, num) \
 for (type *property = array; property - array < num; property++)
@@ -84,7 +88,7 @@ enum {
     U_FRAME,
     U_MODEL,
     U_IMAGE,
-    U_TEAM,
+    U_PLAYER,
 };
 
 // server to client
@@ -95,7 +99,7 @@ enum svc_ops {
 //    svc_muzzleflash2,
 //    svc_temp_entity,
 //    svc_layout,
-//    svc_inventory,
+    svc_playerinfo,
 //
 //    // the rest are private to the client and server
 //    svc_nop,
@@ -120,6 +124,7 @@ enum clc_ops {
     clc_bad,
 //    clc_nop,
     clc_move,
+    clc_command,
 //    clc_userinfo,            // [[userinfo string]
 //    clc_stringcmd            // [string] message
 };
@@ -157,9 +162,7 @@ KNOWN_AS(SheetLayout, SHEETLAYOUT);
 KNOWN_AS(SheetCell, SHEETCELL);
 KNOWN_AS(war3map, WAR3MAP);
 KNOWN_AS(Doodad, DOODAD);
-KNOWN_AS(DoodadUnit, DOODADUNIT);
 KNOWN_AS(edict, EDICT);
-KNOWN_AS(EntityState, ENTITYSTATE);
 KNOWN_AS(vector3, VECTOR3);
 KNOWN_AS(color32, COLOR32);
 KNOWN_AS(size2, SIZE2);
@@ -181,7 +184,7 @@ struct edges { float left, top, right, bottom; };
 struct transform2 { VECTOR2 translation, scale; float rotation; };
 struct transform3 { VECTOR3 translation, rotation, scale; };
 
-struct EntityState {
+typedef struct {
     DWORD number; // edict index
     VECTOR3 origin;
     float angle;
@@ -191,8 +194,8 @@ struct EntityState {
     DWORD sound;
     DWORD frame;
     DWORD event;
-    DWORD team;
-};
+    DWORD player;
+} entityState_t;
 
 struct AnimationInfo {
     DWORD firstframe;
@@ -225,10 +228,10 @@ struct SheetCell {
     DWORD column;
     DWORD row;
     LPSTR text;
-    LPSHEETCELL lpNext;
+    LPSHEETCELL next;
 };
 
-HANDLE FS_ParseSheet(LPCSTR szFileName, LPCSHEETLAYOUT lpLayout, DWORD dwElementSize);
+HANDLE FS_ParseSheet(LPCSTR fileName, LPCSHEETLAYOUT layout, DWORD elementSize);
 void LoadMap(LPCSTR pFilename);
 
 void FS_Init(void);
@@ -237,9 +240,9 @@ void FS_Shutdown(void);
 void Com_Quit(void);
 void Sys_Quit(void);
 
-HANDLE FS_OpenFile(LPCSTR szFileName);
-bool FS_ExtractFile(LPCSTR szToExtract, LPCSTR szExtracted);
-LPSHEETCELL FS_ReadSheet(LPCSTR szFileName);
+HANDLE FS_OpenFile(LPCSTR fileName);
+bool FS_ExtractFile(LPCSTR toExtract, LPCSTR extracted);
+LPSHEETCELL FS_ReadSheet(LPCSTR fileName);
 
 void CL_Init(void);
 void CL_Frame(DWORD msec);
@@ -252,6 +255,6 @@ void SV_Shutdown(void);
 HANDLE MemAlloc(long size);
 void MemFree(HANDLE mem);
 
-void Sys_MkDir(LPCSTR szDirectory);
+void Sys_MkDir(LPCSTR directory);
 
 #endif

@@ -31,72 +31,72 @@ static float hermite(float left, float outTan, float inTan, float right, float t
     return left * factor1 + outTan * factor2 + inTan * factor3 + right * factor4;
 }
 
-static float interpNum(LPCMODELKEYFRAME lpLeft, LPCMODELKEYFRAME lpRight, DWORD dwTime, MODELKEYTRACKTYPE dwLineType) {
-    float const *lpLeftVector = (float const *)lpLeft->data;
-    float const *lpRightVector = (float const *)lpRight->data;
-    float const t = (float)(dwTime - lpLeft->time) / (float)(lpRight->time - lpLeft->time);
-    if (lpLeft->time == lpRight->time) {
-        return lpLeftVector[KEY_VALUE];
+static float interpNum(LPCMODELKEYFRAME left, LPCMODELKEYFRAME right, DWORD time, MODELKEYTRACKTYPE lineType) {
+    float const *leftVector = (float const *)left->data;
+    float const *rightVector = (float const *)right->data;
+    float const t = (float)(time - left->time) / (float)(right->time - left->time);
+    if (left->time == right->time) {
+        return leftVector[KEY_VALUE];
     }
-    switch (dwLineType) {
+    switch (lineType) {
         case TRACK_NO_INTERP:
-            return lpLeftVector[KEY_VALUE];
+            return leftVector[KEY_VALUE];
         case TRACK_BEZIER:
-            return bezier(lpLeftVector[KEY_VALUE], lpLeftVector[KEY_OUTTAN], lpRightVector[KEY_INTAN], lpRightVector[KEY_VALUE], t);
+            return bezier(leftVector[KEY_VALUE], leftVector[KEY_OUTTAN], rightVector[KEY_INTAN], rightVector[KEY_VALUE], t);
         case TRACK_HERMITE:
-            return hermite(lpLeftVector[KEY_VALUE], lpLeftVector[KEY_OUTTAN], lpRightVector[KEY_INTAN], lpRightVector[KEY_VALUE], t);
+            return hermite(leftVector[KEY_VALUE], leftVector[KEY_OUTTAN], rightVector[KEY_INTAN], rightVector[KEY_VALUE], t);
         default:
-            return lerp(lpLeftVector[KEY_VALUE], lpRightVector[KEY_VALUE], t);
+            return lerp(leftVector[KEY_VALUE], rightVector[KEY_VALUE], t);
     }
 }
 
-static VECTOR3 interpVec3(LPCMODELKEYFRAME lpLeft, LPCMODELKEYFRAME lpRight, DWORD dwTime, MODELKEYTRACKTYPE dwLineType) {
-    LPCVECTOR3 lpLeftVector = (LPCVECTOR3)lpLeft->data;
-    LPCVECTOR3 lpRightVector = (LPCVECTOR3)lpRight->data;
-    float const t = (float)(dwTime - lpLeft->time) / (float)(lpRight->time - lpLeft->time);
-    if (lpLeft->time == lpRight->time) {
-        return lpLeftVector[KEY_VALUE];
+static VECTOR3 interpVec3(LPCMODELKEYFRAME left, LPCMODELKEYFRAME right, DWORD time, MODELKEYTRACKTYPE lineType) {
+    LPCVECTOR3 leftVector = (LPCVECTOR3)left->data;
+    LPCVECTOR3 rightVector = (LPCVECTOR3)right->data;
+    float const t = (float)(time - left->time) / (float)(right->time - left->time);
+    if (left->time == right->time) {
+        return leftVector[KEY_VALUE];
     }
-    switch (dwLineType) {
+    switch (lineType) {
         case TRACK_NO_INTERP:
-            return lpLeftVector[KEY_VALUE];
+            return leftVector[KEY_VALUE];
         case TRACK_BEZIER:
-            return Vector3_bezier(&lpLeftVector[KEY_VALUE], &lpLeftVector[KEY_OUTTAN], &lpRightVector[KEY_INTAN], &lpRightVector[KEY_VALUE], t);
+            return Vector3_bezier(&leftVector[KEY_VALUE], &leftVector[KEY_OUTTAN], &rightVector[KEY_INTAN], &rightVector[KEY_VALUE], t);
         case TRACK_HERMITE:
-            return Vector3_hermite(&lpLeftVector[KEY_VALUE], &lpLeftVector[KEY_OUTTAN], &lpRightVector[KEY_INTAN], &lpRightVector[KEY_VALUE], t);
+            return Vector3_hermite(&leftVector[KEY_VALUE], &leftVector[KEY_OUTTAN], &rightVector[KEY_INTAN], &rightVector[KEY_VALUE], t);
         default:
-            return Vector3_lerp(&lpLeftVector[KEY_VALUE], &lpRightVector[KEY_VALUE], t);
+            return Vector3_lerp(&leftVector[KEY_VALUE], &rightVector[KEY_VALUE], t);
     }
 }
 
-static QUATERNION interpQuat(LPCMODELKEYFRAME lpLeft, LPCMODELKEYFRAME lpRight, DWORD dwTime, MODELKEYTRACKTYPE dwLineType) {
-    LPCQUATERNION lpLeftVector = (LPCQUATERNION)lpLeft->data;
-    LPCQUATERNION lpRightVector = (LPCQUATERNION)lpRight->data;
-    float const t = (float)(dwTime - lpLeft->time) / (float)(lpRight->time - lpLeft->time);
-    if (lpLeft->time == lpRight->time) {
-        return lpLeftVector[KEY_VALUE];
+static QUATERNION interpQuat(LPCMODELKEYFRAME left, LPCMODELKEYFRAME right, DWORD time, MODELKEYTRACKTYPE lineType) {
+    LPCQUATERNION leftVector = (LPCQUATERNION)left->data;
+    LPCQUATERNION rightVector = (LPCQUATERNION)right->data;
+    float const t = (float)(time - left->time) / (float)(right->time - left->time);
+    if (left->time == right->time) {
+        return leftVector[KEY_VALUE];
     }
-    switch (dwLineType) {
+    switch (lineType) {
         case TRACK_NO_INTERP:
-            return lpLeftVector[KEY_VALUE];
+            return leftVector[KEY_VALUE];
         case TRACK_BEZIER:
         case TRACK_HERMITE:
-            return Quaternion_sqlerp(&lpLeftVector[KEY_VALUE], &lpLeftVector[KEY_OUTTAN], &lpRightVector[KEY_INTAN], &lpRightVector[KEY_VALUE], t);
+            return Quaternion_sqlerp(&leftVector[KEY_VALUE], &leftVector[KEY_OUTTAN], &rightVector[KEY_INTAN], &rightVector[KEY_VALUE], t);
         default:
-            return Quaternion_slerp(&lpLeftVector[KEY_VALUE], &lpRightVector[KEY_VALUE], t);
+            return Quaternion_slerp(&leftVector[KEY_VALUE], &rightVector[KEY_VALUE], t);
     }
 }
 
-void R_GetKeyframeValue(LPCMODELKEYFRAME lpLeft, LPCMODELKEYFRAME lpRight, DWORD dwTime, LPCMODELKEYTRACK lpKeytrack, HANDLE out) {
-    switch (lpKeytrack->datatype) {
+void R_GetKeyframeValue(LPCMODELKEYFRAME left, LPCMODELKEYFRAME right, DWORD time, LPCMODELKEYTRACK keytrack, HANDLE out) {
+    switch (keytrack->datatype) {
         case kModelKeyTrackDataTypeFloat:
-            *((float *)out) = interpNum(lpLeft, lpRight, dwTime, lpKeytrack->type);
+            *((float *)out) = interpNum(left, right, time, keytrack->type);
             return;
         case kModelKeyTrackDataTypeVector3:
-            *((VECTOR3 *)out) = interpVec3(lpLeft, lpRight, dwTime, lpKeytrack->type);
+            *((VECTOR3 *)out) = interpVec3(left, right, time, keytrack->type);
             return;
         case kModelKeyTrackDataTypeQuaternion:
-            *((QUATERNION *)out) = interpQuat(lpLeft, lpRight, dwTime, lpKeytrack->type);
+            *((QUATERNION *)out) = interpQuat(left, right, time, keytrack->type);
             return;
     }
 }

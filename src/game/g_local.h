@@ -28,7 +28,7 @@ KNOWN_AS(DoodadInfo, DOODADINFO);
 KNOWN_AS(DestructableData, DESTRUCTABLEDATA);
 
 typedef struct {
-    LPCSTR animation;
+    animationType_t animation;
     void (*think)(LPEDICT self);
     void (*endfunc)(LPEDICT self);
 } mmove_t;
@@ -48,7 +48,7 @@ typedef struct {
 } monsterinfo_t;
 
 struct edict {
-    ENTITYSTATE s;
+    entityState_t s;
     DWORD class_id;
     DWORD variation;
     movetype_t movetype;
@@ -75,11 +75,11 @@ struct game_locals {
 
 
 LPEDICT G_Spawn(void);
-void SP_SpawnUnit(LPEDICT lpEdict, LPCUNITUI lpUnit);
-void SP_CallSpawn(LPEDICT lpEdict);
-void G_SpawnDoodads(LPCDOODAD doodads, DWORD numDoodads);
-void G_SpawnUnits(LPCDOODADUNIT units, DWORD numUnits);
-void G_RunEntity(LPEDICT lpEdict);
+void SP_SpawnUnit(LPEDICT edict, LPCUNITUI unit);
+void SP_CallSpawn(LPEDICT edict);
+void G_SpawnDoodads(LPCDOODAD doodads);
+void G_SpawnUnits(LPCDOODAD units, DWORD num_units);
+void G_RunEntity(LPEDICT edict);
 
 LPEDICT Waypoint_add(VECTOR2 spot);
 void M_CheckGround (LPEDICT self);

@@ -13,7 +13,7 @@ KNOWN_AS(client_frame, CLIENTFRAME);
 KNOWN_AS(client, CLIENT);
 
 struct edict {
-    ENTITYSTATE s;
+    entityState_t s;
 };
 
 struct client_frame {
@@ -25,13 +25,13 @@ struct client {
     bool initialized;
     struct client_frame frames[UPDATE_BACKUP];
     struct netchan netchan;
-    VECTOR3 camera_position;
+    VECTOR2 camera_position;
     DWORD lastframe;
 };
 
 struct server_static {
     struct client clients[MAX_CLIENTS];
-    LPENTITYSTATE client_entities;
+    entityState_t *client_entities;
     bool initialized;
     DWORD num_clients;
     DWORD num_client_entities;
@@ -53,6 +53,7 @@ struct mdx_sequence {
 
 struct cmodel {
     struct mdx_sequence *animations;
+    struct AnimationInfo animtypes[NUM_ANIM_TYPES];
     int num_animations;
 };
 
@@ -62,7 +63,7 @@ struct server {
     struct cmodel *models[MAX_MODELS];
     int framenum;
     int time;
-    LPENTITYSTATE baselines;
+    entityState_t *baselines;
 };
 
 extern struct game_export *ge;
@@ -71,10 +72,10 @@ extern struct server_static svs;
 
 void SV_Map(LPCSTR pFilename);
 void SV_InitGame(void);
-void SV_BuildClientFrame(LPCLIENT lpClient);
-void SV_WriteFrameToClient(LPCLIENT lpClient);
-void SV_ParseClientMessage(LPSIZEBUF msg, LPCLIENT lpClient);
-void MSG_WriteDeltaEntity(LPSIZEBUF msg, LPCENTITYSTATE from, LPCENTITYSTATE to);
+void SV_BuildClientFrame(LPCLIENT client);
+void SV_WriteFrameToClient(LPCLIENT client);
+void SV_ParseClientMessage(LPSIZEBUF msg, LPCLIENT client);
+void MSG_WriteDeltaEntity(LPSIZEBUF msg, entityState_t const *from, entityState_t const *to);
 int SV_ModelIndex(LPCSTR name);
 int SV_SoundIndex(LPCSTR name);
 int SV_ImageIndex(LPCSTR name);

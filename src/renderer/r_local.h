@@ -37,6 +37,8 @@
 #define MAX_BONE_MATRICES 64
 #define SHADOW_WIDTH 1024
 #define SHADOW_HEIGHT 1024
+#define MAX_TEAMS 16
+#define TEAM_MASK (MAX_TEAMS - 1)
 
 #include "../common/common.h"
 #include "../client/renderer.h"
@@ -61,7 +63,7 @@ struct texture {
     DWORD texid;
     DWORD width;
     DWORD height;
-    LPTEXTURE lpNext;
+    LPTEXTURE next;
 };
 
 struct render_buffer {
@@ -82,39 +84,45 @@ struct shader_program {
 };
 
 struct render_globals {
-    struct viewDef viewDef;
+    viewDef_t viewDef;
     LPCWAR3MAP world;
     LPCTEXTURE shadowmap;
     LPCTEXTURE waterTexture;
+    LPCTEXTURE sysFont;
+    LPCTEXTURE whiteTexture;
     LPCSHADER shaderStatic;
     LPCSHADER shaderSkin;
+    LPCSHADER shaderUI;
     LPCBUFFER renbuf;
+    LPCTEXTURE teamGlow[MAX_TEAMS];
+    LPCTEXTURE teamColor[MAX_TEAMS];
     unsigned int depthMapFBO;
     unsigned int depthMap;
 };
 
 LPCSHADER R_InitShader(LPCSTR vertex_shader, LPCSTR fragment_shader);
-void R_RegisterMap(LPCSTR szMapFileName);
-int R_RegisterTextureFile(LPCSTR szTextureFileName);
-LPTEXTURE R_LoadTexture(LPCSTR szTextureFileName);
+void R_RegisterMap(LPCSTR mapFileName);
+int R_RegisterTextureFile(LPCSTR textureFileName);
+LPTEXTURE R_LoadTexture(LPCSTR textureFileName);
 void R_DrawEntities(void);
 void R_DrawWorld(void);
 void R_DrawAlphaSurfaces(void);
-LPTEXTURE R_AllocateTexture(DWORD dwWidth, DWORD dwHeight);
-void R_LoadTextureMipLevel(LPTEXTURE pTexture, DWORD dwLevel, LPCCOLOR32 pPixels, DWORD dwWidth, DWORD dwHeight);
-void R_BindTexture(LPCTEXTURE lpTexture, DWORD dwUnit);
-void RenderModel(LPCRENDERENTITY lpEdict);
-void R_ReleaseVertexArrayObject(LPBUFFER lpBuffer);
-LPCTEXTURE R_FindTextureByID(DWORD dwTextureID);
+LPTEXTURE R_AllocateTexture(DWORD width, DWORD height);
+LPTEXTURE R_MakeSysFontTexture(void);
+void R_LoadTextureMipLevel(LPCTEXTURE pTexture, DWORD level, LPCCOLOR32 pPixels, DWORD width, DWORD height);
+void R_BindTexture(LPCTEXTURE texture, DWORD unit);
+void RenderModel(renderEntity_t const *edict);
+void R_ReleaseVertexArrayObject(LPBUFFER buffer);
+LPCTEXTURE R_FindTextureByID(DWORD textureID);
 bool R_IsPointVisible(LPCVECTOR3 point, float fThreshold);
 
 // VertexArrayObject
-LPBUFFER R_MakeVertexArrayObject(LPCVERTEX lpVertices, DWORD dwSize);
-void R_DrawBuffer(LPCBUFFER lpBuffer, DWORD numVertices);
+LPBUFFER R_MakeVertexArrayObject(LPCVERTEX vertices, DWORD size);
+void R_DrawBuffer(LPCBUFFER buffer, DWORD num_vertices);
 
 // Models
-LPMODEL R_LoadModel(LPCSTR szModelFilename);
-void R_ReleaseModel(LPMODEL lpModel);
+LPMODEL R_LoadModel(LPCSTR modelFilename);
+void R_ReleaseModel(LPMODEL model);
 
 struct size2 R_GetWindowSize(void);
 

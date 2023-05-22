@@ -119,3 +119,8 @@ VECTOR3 Vector3_unm(VECTOR3 const* v) {
         .z = -v->z
     };
 }
+
+float Vector3_distance(LPCVECTOR3 a, LPCVECTOR3 b) {
+    VECTOR3 const dist = Vector3_sub(a, b);
+    return Vector3_len(&dist);
+}

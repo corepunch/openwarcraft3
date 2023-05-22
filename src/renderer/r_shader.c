@@ -94,6 +94,17 @@ LPCSTR fragment_shader =
 "    if (o_color.a < 0.5 && uUseDiscard) discard;\n"
 "}\n";
 
+LPCSTR fragment_shader_ui =
+"#version 140\n"
+"in vec4 v_color;\n"
+"in vec3 v_position;\n"
+"in vec2 v_texcoord;\n"
+"out vec4 o_color;\n"
+"uniform sampler2D uTexture;\n"
+"void main() {\n"
+"    o_color = texture(uTexture, v_texcoord) * v_color;\n"
+"}\n";
+
 LPCSHADER R_InitShader(LPCSTR vertex_shader, LPCSTR fragment_shader){
     GLuint vs = glCreateShader(GL_VERTEX_SHADER);
     GLuint fs = glCreateShader(GL_FRAGMENT_SHADER);

@@ -15,51 +15,19 @@ static void SV_WriteConfigStrings(LPCLIENT cl) {
     Netchan_Transmit(NS_SERVER, &cl->netchan);
 }
 
-#define SET_BIT_IF(FLAG, VALUE) \
-if (from->VALUE != to->VALUE) \
-    bits |= (1 << FLAG);
-
-#define WRITE_IF(FLAG, VALUE, TYPE) \
-if (bits & (1 << FLAG)) \
-    MSG_Write##TYPE(msg, to->VALUE);
-
-void
-MSG_WriteDeltaEntity(LPSIZEBUF msg,
-                     LPCENTITYSTATE from,
-                     LPCENTITYSTATE to)
-{
-    int bits = 0;
-
-    SET_BIT_IF(U_ORIGIN1, origin.x);
-    SET_BIT_IF(U_ORIGIN2, origin.y);
-    SET_BIT_IF(U_ORIGIN3, origin.z);
-    SET_BIT_IF(U_ANGLE, angle);
-    SET_BIT_IF(U_SCALE, scale);
-    SET_BIT_IF(U_FRAME, frame);
-    SET_BIT_IF(U_MODEL, model);
-    SET_BIT_IF(U_IMAGE, image);
-    SET_BIT_IF(U_TEAM, team);
-
-    if (bits == 0)
-        return;
-    
-    MSG_WriteShort(msg, bits);
-    MSG_WriteShort(msg, to->number);
-
-    WRITE_IF(U_ORIGIN1, origin.x, Short);
-    WRITE_IF(U_ORIGIN2, origin.y, Short);
-    WRITE_IF(U_ORIGIN3, origin.z, Short);
-    WRITE_IF(U_ANGLE, angle * 100, Short);
-    WRITE_IF(U_SCALE, scale * 100, Short);
-    WRITE_IF(U_FRAME, frame, Short);
-    WRITE_IF(U_MODEL, model, Short);
-    WRITE_IF(U_IMAGE, image, Short);
-    WRITE_IF(U_TEAM, team, Byte);
+static void SV_WritePlayerInfo(LPCLIENT cl) {
+    mapPlayer_t const *player = CM_GetPlayer(1);
+    if (player) {
+        MSG_WriteByte(&cl->netchan.message, svc_playerinfo);
+        MSG_Write(&cl->netchan.message, &player->internalPlayerNumber, sizeof(DWORD));
+        MSG_Write(&cl->netchan.message, &player->startingPosition, sizeof(VECTOR2));
+        Netchan_Transmit(NS_SERVER, &cl->netchan);
+    }
 }
 
 static void SV_Baseline(LPCLIENT cl) {
-    ENTITYSTATE nullstate;
-    memset(&nullstate, 0, sizeof(ENTITYSTATE));
+    entityState_t nullstate;
+    memset(&nullstate, 0, sizeof(entityState_t));
     FOR_LOOP(index, ge->num_edicts) {
         LPEDICT e = EDICT_NUM(index);
         MSG_WriteByte(&cl->netchan.message, svc_spawnbaseline);
@@ -77,10 +45,9 @@ static void SV_SendClientMessages(void) {
     FOR_LOOP(i, svs.num_clients) {
         LPCLIENT client = &svs.clients[i];
         if (!client->initialized) {
+            SV_WritePlayerInfo(client);
             SV_WriteConfigStrings(client);
             SV_Baseline(client);
-            client->camera_position.x = 700;
-            client->camera_position.y = -1800;
             client->initialized = true;
         } else {
             SV_SendClientDatagram(client);
@@ -130,6 +97,19 @@ enum {
     ID_SEQS = MAKEFOURCC('S','E','Q','S'),
 };
 
+typedef struct {
+    LPCSTR name;
+    animationType_t type;
+} animmap_t;
+
+animmap_t animation_map[] = {
+    { "stand", ANIM_STAND },
+    { "walk", ANIM_WALK },
+    { "attack", ANIM_ATTACK },
+    { "death", ANIM_DEATH },
+    { NULL }
+};
+
 static struct cmodel *SV_LoadModelMDX(HANDLE file) {
     struct cmodel *model = MemAlloc(sizeof(struct cmodel));
     DWORD header, size;
@@ -141,6 +121,20 @@ static struct cmodel *SV_LoadModelMDX(HANDLE file) {
             SFileReadFile(file, model->animations, size, NULL, NULL);
         } else {
             SFileSetFilePointer(file, size, NULL, FILE_CURRENT);
+        }
+    }
+    FOR_LOOP(i, model->num_animations){
+        struct mdx_sequence *anim = &model->animations[i];
+        for (animmap_t const *map = animation_map; map->name; map++) {
+            if (model->animtypes[map->type].lastframe > 0)
+                continue;
+            if (!_strnicmp(anim->name, map->name, strlen(map->name))) {
+                model->animtypes[map->type] = (struct AnimationInfo) {
+                    .firstframe = anim->interval[0],
+                    .lastframe = anim->interval[1],
+                    .movespeed = anim->movespeed,
+                };
+            }
         }
     }
     return model;
@@ -169,6 +163,13 @@ int SV_ModelIndex(LPCSTR name) {
     int modelindex = SV_FindIndex(name, CS_MODELS, MAX_MODELS, true);
     if (!sv.models[modelindex]) {
         sv.models[modelindex] = SV_LoadModel(sv.configstrings[CS_MODELS + modelindex]);
+    }
+    if (!strstr(name, "Doodads\\")) {
+        printf("%s\n", name);
+        FOR_LOOP(i, sv.models[modelindex]->num_animations){
+            struct mdx_sequence *anim = &sv.models[modelindex]->animations[i];
+            printf("    %s\n", anim->name);
+        }
     }
     return modelindex;
 }

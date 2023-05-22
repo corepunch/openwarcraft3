@@ -36,19 +36,19 @@ enum {
 
 #define MODEL_READ_LIST(FILE, BLOCK, TYPE, TYPES) \
 while (!FileIsAtEndOfBlock(FILE, &BLOCK)) { \
-    struct tModel##TYPE *p_##TYPE = Read##TYPE(FILE, FileReadBlock(FILE)); \
+    struct tModel##TYPE *lp##TYPE = Read##TYPE(FILE, FileReadBlock(FILE)); \
     if (last##TYPE) { \
-        last##TYPE->next = p_##TYPE; \
+        last##TYPE->next = lp##TYPE; \
     } else { \
-        model->TYPES = p_##TYPE; \
+        model->lp##TYPES = lp##TYPE; \
     } \
-    last##TYPE = p_##TYPE; \
+    last##TYPE = lp##TYPE; \
 }
 
 #define MODEL_READ_ARRAY(FILE, BLOCK, TYPE, TYPES) \
-model->TYPES = ri.MemAlloc(BLOCK.size); \
-model->num_##TYPES = BLOCK.size / sizeof(struct tModel##TYPE); \
-SFileReadFile(FILE, model->TYPES, BLOCK.size, NULL, NULL);
+model->lp##TYPES = ri.MemAlloc(BLOCK.size); \
+model->num##TYPES = BLOCK.size / sizeof(struct tModel##TYPE); \
+SFileReadFile(FILE, model->lp##TYPES, BLOCK.size, NULL, NULL);
 
 struct tFileBlock {
     DWORD header;
@@ -110,22 +110,22 @@ static LPMODELGEOSET ReadGeoset(HANDLE file, struct tFileBlock const block) {
     while (!FileIsAtEndOfBlock(file, &block)) {
         int tag = FileReadInt32(file);
         switch (tag) {
-            case ID_VRTX: SFileReadArray(file, geoset, vertices, sizeof(VECTOR3), ri.MemAlloc); break;
-            case ID_NRMS: SFileReadArray(file, geoset, normals, sizeof(VECTOR3), ri.MemAlloc); break;
-            case ID_UVBS: SFileReadArray(file, geoset, texcoord, sizeof(VECTOR2), ri.MemAlloc); break;
-            case ID_PTYP: SFileReadArray(file, geoset, primitiveTypes, sizeof(int), ri.MemAlloc); break;
-            case ID_PCNT: SFileReadArray(file, geoset, primitiveCounts, sizeof(int), ri.MemAlloc); break;
-            case ID_PVTX: SFileReadArray(file, geoset, triangles, sizeof(short), ri.MemAlloc); break;
-            case ID_GNDX: SFileReadArray(file, geoset, vertexGroups, sizeof(char), ri.MemAlloc); break;
-            case ID_MTGC: SFileReadArray(file, geoset, matrixGroupSizes, sizeof(int), ri.MemAlloc); break;
+            case ID_VRTX: num_\L$1(file, geoset, vertices, sizeof(VECTOR3), ri.MemAlloc); break;
+            case ID_NRMS: num_\L$1(file, geoset, normals, sizeof(VECTOR3), ri.MemAlloc); break;
+            case ID_UVBS: num_\L$1(file, geoset, texcoord, sizeof(VECTOR2), ri.MemAlloc); break;
+            case ID_PTYP: num_\L$1(file, geoset, primitiveTypes, sizeof(int), ri.MemAlloc); break;
+            case ID_PCNT: num_\L$1(file, geoset, primitiveCounts, sizeof(int), ri.MemAlloc); break;
+            case ID_PVTX: num_\L$1(file, geoset, triangles, sizeof(short), ri.MemAlloc); break;
+            case ID_GNDX: num_\L$1(file, geoset, vertexGroups, sizeof(char), ri.MemAlloc); break;
+            case ID_MTGC: num_\L$1(file, geoset, matrixGroupSizes, sizeof(int), ri.MemAlloc); break;
             case ID_UVAS: SFileReadFile(file, &geoset->num_texcoordChannels, sizeof(int), NULL, NULL); break;
             case ID_MATS:
-                SFileReadArray(file, geoset, matrices, sizeof(int), ri.MemAlloc);
+                num_\L$1(file, geoset, matrices, sizeof(int), ri.MemAlloc);
                 SFileReadFile(file, &geoset->materialID, sizeof(int), NULL, NULL);
                 SFileReadFile(file, &geoset->group, sizeof(int), NULL, NULL);
                 SFileReadFile(file, &geoset->selectable, sizeof(int), NULL, NULL);
                 SFileReadFile(file, &geoset->default_bounds, sizeof(struct tModelBounds), NULL, NULL);
-                SFileReadArray(file, geoset, bounds, sizeof(struct tModelBounds), ri.MemAlloc);
+                num_\L$1(file, geoset, bounds, sizeof(struct tModelBounds), ri.MemAlloc);
                 break;
             default:
 
@@ -286,16 +286,16 @@ static void R_SetupGeoset(LPMODEL model, LPMODELGEOSET geoset, LPCSTR modelFilen
         DWORD vertex = geoset->triangles[triangle];
         DWORD matrixGroupIndex = geoset->vertexGroups[vertex];
         DWORD matrixGroupSize = MAX(1, geoset->matrixGroupSizes[matrixGroupIndex]);
-        struct vertex *vrtx = &vertices[triangle];
+        struct vertex *vertex = &vertices[triangle];
         BYTE *matrixGroup = matrixGroups[matrixGroupIndex];
-        vrtx->color = (struct color32) { 255, 255, 255, 255 };
-        if (geoset->vertices) vrtx->position = geoset->vertices[vertex];
-        if (geoset->texcoord) vrtx->texcoord = geoset->texcoord[vertex];
-        if (geoset->normals) vrtx->normal = geoset->normals[vertex];
-        memcpy(vrtx->skin, matrixGroup, sizeof(matrixGroup_t));
-        memset(vrtx->boneWeight, 0, sizeof(matrixGroup_t));
+        vertex->color = (struct color32) { 255, 255, 255, 255 };
+        if (geoset->vertices) vertex->position = geoset->vertices[vertex];
+        if (geoset->texcoord) vertex->texcoord = geoset->texcoord[vertex];
+        if (geoset->normals) vertex->normal = geoset->normals[vertex];
+        memcpy(vertex->skin, matrixGroup, sizeof(matrixGroup_t));
+        memset(vertex->boneWeight, 0, sizeof(matrixGroup_t));
         FOR_LOOP(matrixIndex, matrixGroupSize) {
-            vrtx->boneWeight[matrixIndex] = (1.f / matrixGroupSize) * 255;
+            vertex->boneWeight[matrixIndex] = (1.f / matrixGroupSize) * 255;
         }
     }
 
@@ -343,17 +343,17 @@ LPMODEL R_LoadModelMDX(HANDLE file, LPCSTR modelFilename) {
                     return NULL;
                 }
                 break;
-            case ID_EVTS: MODEL_READ_LIST(file, block, Event, events); break;
+            case ID_EVTS: MODEL_READ_LIST(file, block, Event, Events); break;
             case ID_MODL: SFileReadFile(file, &model->info, sizeof(struct tModelInfo), NULL, NULL); break;
-            case ID_GEOS: MODEL_READ_LIST(file, block, Geoset, geosets); break;
-            case ID_MTLS: MODEL_READ_LIST(file, block, Material, materials); break;
-            case ID_BONE: MODEL_READ_LIST(file, block, Bone, bones); break;
-            case ID_GEOA: MODEL_READ_LIST(file, block, GeosetAnim, geosetAnims); break;
-            case ID_HELP: MODEL_READ_LIST(file, block, Helper, helpers); break;
-            case ID_SEQS: MODEL_READ_ARRAY(file, block, Sequence, sequences); break;
-            case ID_GLBS: MODEL_READ_ARRAY(file, block, GlobalSequence, globalSequences); break;
-            case ID_PIVT: MODEL_READ_ARRAY(file, block, Pivot, pivots); break;
-            case ID_TEXS: MODEL_READ_ARRAY(file, block, Texture, textures); break;
+            case ID_GEOS: MODEL_READ_LIST(file, block, Geoset, Geosets); break;
+            case ID_MTLS: MODEL_READ_LIST(file, block, Material, Materials); break;
+            case ID_BONE: MODEL_READ_LIST(file, block, Bone, Bones); break;
+            case ID_GEOA: MODEL_READ_LIST(file, block, GeosetAnim, GeosetAnims); break;
+            case ID_HELP: MODEL_READ_LIST(file, block, Helper, Helpers); break;
+            case ID_SEQS: MODEL_READ_ARRAY(file, block, Sequence, Sequences); break;
+            case ID_GLBS: MODEL_READ_ARRAY(file, block, GlobalSequence, GlobalSequences); break;
+            case ID_PIVT: MODEL_READ_ARRAY(file, block, Pivot, Pivots); break;
+            case ID_TEXS: MODEL_READ_ARRAY(file, block, Texture, Textures); break;
             default:
 //                PrintTag(blockHeader);
                 SFileSetFilePointer(file, block.size, NULL, FILE_CURRENT);

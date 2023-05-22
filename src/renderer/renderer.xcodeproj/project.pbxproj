@@ -15,6 +15,7 @@
 		786637392A1A488800266A62 /* Weather.h in Headers */ = {isa = PBXBuildFile; fileRef = 786637312A1A488700266A62 /* Weather.h */; };
 		7866373A2A1A488800266A62 /* CliffTypes.c in Sources */ = {isa = PBXBuildFile; fileRef = 786637322A1A488700266A62 /* CliffTypes.c */; };
 		7866373B2A1A488800266A62 /* Water.h in Headers */ = {isa = PBXBuildFile; fileRef = 786637332A1A488800266A62 /* Water.h */; };
+		786637BA2A1B5A2B00266A62 /* r_sysfont.c in Sources */ = {isa = PBXBuildFile; fileRef = 786637B92A1B5A2B00266A62 /* r_sysfont.c */; };
 		78A8969E2A15F84800BC5B56 /* r_shader.c in Sources */ = {isa = PBXBuildFile; fileRef = 78A8968F2A15F84800BC5B56 /* r_shader.c */; };
 		78A8969F2A15F84800BC5B56 /* r_mdx.h in Headers */ = {isa = PBXBuildFile; fileRef = 78A896902A15F84800BC5B56 /* r_mdx.h */; };
 		78A896A02A15F84800BC5B56 /* r_war3map.c in Sources */ = {isa = PBXBuildFile; fileRef = 78A896912A15F84800BC5B56 /* r_war3map.c */; };
@@ -43,6 +44,7 @@
 		786637312A1A488700266A62 /* Weather.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Weather.h; sourceTree = "<group>"; };
 		786637322A1A488700266A62 /* CliffTypes.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = CliffTypes.c; sourceTree = "<group>"; };
 		786637332A1A488800266A62 /* Water.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Water.h; sourceTree = "<group>"; };
+		786637B92A1B5A2B00266A62 /* r_sysfont.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = r_sysfont.c; sourceTree = "<group>"; };
 		78A896822A15F82600BC5B56 /* librenderer.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; includeInIndex = 0; path = librenderer.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
 		78A8968F2A15F84800BC5B56 /* r_shader.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = r_shader.c; sourceTree = "<group>"; };
 		78A896902A15F84800BC5B56 /* r_mdx.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = r_mdx.h; sourceTree = "<group>"; };
@@ -93,25 +95,26 @@
 		78A896792A15F82600BC5B56 = {
 			isa = PBXGroup;
 			children = (
-				7866372B2A1A482900266A62 /* TerrainArt */,
-				78A896832A15F82600BC5B56 /* Products */,
 				78A8969D2A15F84800BC5B56 /* r_blp.c */,
 				78A8969C2A15F84800BC5B56 /* r_entities.c */,
-				78A8969B2A15F84800BC5B56 /* r_local.h */,
 				78A896992A15F84800BC5B56 /* r_main.c */,
 				78A896952A15F84800BC5B56 /* r_mdx_interpolation.c */,
 				78A8969A2A15F84800BC5B56 /* r_mdx_load.c */,
 				78A896942A15F84800BC5B56 /* r_mdx_render.c */,
-				78A896902A15F84800BC5B56 /* r_mdx.h */,
 				78A8968F2A15F84800BC5B56 /* r_shader.c */,
+				786637B92A1B5A2B00266A62 /* r_sysfont.c */,
 				78A896972A15F84800BC5B56 /* r_texture.c */,
 				78A896932A15F84800BC5B56 /* r_war3map_cliffs.c */,
 				78A896982A15F84800BC5B56 /* r_war3map_ground.c */,
 				78A896B02A15FA0900BC5B56 /* r_war3map_utils.c */,
 				78A896922A15F84800BC5B56 /* r_war3map_water.c */,
 				78A896912A15F84800BC5B56 /* r_war3map.c */,
+				78A8969B2A15F84800BC5B56 /* r_local.h */,
+				78A896902A15F84800BC5B56 /* r_mdx.h */,
 				78A896962A15F84800BC5B56 /* r_war3map.h */,
 				78A896E82A16054B00BC5B56 /* Frameworks */,
+				78A896832A15F82600BC5B56 /* Products */,
+				7866372B2A1A482900266A62 /* TerrainArt */,
 			);
 			sourceTree = "<group>";
 		};
@@ -220,6 +223,7 @@
 				7866373A2A1A488800266A62 /* CliffTypes.c in Sources */,
 				78A896A92A15F84800BC5B56 /* r_mdx_load.c in Sources */,
 				786637362A1A488800266A62 /* Water.c in Sources */,
+				786637BA2A1B5A2B00266A62 /* r_sysfont.c in Sources */,
 				78A896AB2A15F84800BC5B56 /* r_entities.c in Sources */,
 				78A8969E2A15F84800BC5B56 /* r_shader.c in Sources */,
 			);

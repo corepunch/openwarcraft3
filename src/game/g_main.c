@@ -28,7 +28,7 @@ static void G_Init(void) {
 
 static void G_Shutdown(void) {
     gi.MemFree(game_state.edicts);
-    
+
     ShutdownDoodads();
     ShutdownDestructableData();
     ShutdownUnitUI();
@@ -36,15 +36,15 @@ static void G_Shutdown(void) {
     ShutdownUnitWeapons();
 }
 
-static void G_ClientCommand(LPCCLIENTMESSAGE lpClientMessage) {
-    LPEDICT lpEdict = &game_state.edicts[lpClientMessage->entity];
-    switch (lpClientMessage->cmd) {
+static void G_ClientCommand(LPCCLIENTMESSAGE clientMessage) {
+    LPEDICT edict = &game_state.edicts[clientMessage->entity];
+    switch (clientMessage->cmd) {
         case CMD_MOVE:
-            lpEdict->goalentity = Waypoint_add(lpClientMessage->location);
+            edict->goalentity = Waypoint_add(clientMessage->location);
             break;
         case CMD_ATTACK:
-            lpEdict->goalentity = &game_state.edicts[lpClientMessage->targetentity];
-            lpEdict->enemy = &game_state.edicts[lpClientMessage->targetentity];
+            edict->goalentity = &game_state.edicts[clientMessage->targetentity];
+            edict->enemy = &game_state.edicts[clientMessage->targetentity];
             break;
         default:
             break;
@@ -63,7 +63,6 @@ struct game_export *GetGameAPI(struct game_import *import) {
     globals.Init = G_Init;
     globals.Shutdown = G_Shutdown;
     globals.SpawnDoodads = G_SpawnDoodads;
-    globals.SpawnUnits = G_SpawnUnits;
     globals.RunFrame = G_RunFrame;
     globals.ClientCommand = G_ClientCommand;
     globals.edict_size = sizeof(struct edict);
