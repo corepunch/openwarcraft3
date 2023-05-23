@@ -45,7 +45,9 @@ static void R_GetModelKeytrackValue(LPCMODEL model, LPCMODELKEYTRACK keytrack, D
         }
         prevKeyFrame = keyFrame;
     }
-//    return keytrack->values[0].value;
+    if (prevKeyFrame) {
+        memcpy(output, prevKeyFrame->data, GetModelKeyTrackDataTypeSize(keytrack->datatype));
+    }
 }
 
 static void R_CalculateNodeMatrix(LPCMODEL model, LPMODELNODE node, DWORD frame1, DWORD frame0, LPMATRIX4 matrix) {
@@ -109,7 +111,7 @@ LPCMATRIX4 R_GetNodeGlobalMatrix(LPMODELNODE node) {
 
 static void R_CalculateBoneMatrices(LPCMODEL model, LPMATRIX4 modelMatrices, DWORD frame1, DWORD frame0) {
     DWORD boneIndex = 1;
-
+    
     FOR_EACH_LIST(struct tModelBone, bone, model->bones) {
         memset(&bone->node.globalMatrix, 0, sizeof(MATRIX4));
         R_CalculateNodeMatrix(model, &bone->node, frame1, frame0, &bone->node.localMatrix);
@@ -121,6 +123,7 @@ static void R_CalculateBoneMatrices(LPCMODEL model, LPMATRIX4 modelMatrices, DWO
     FOR_EACH_LIST(struct tModelBone, bone, model->bones) {
         modelMatrices[boneIndex++] = *R_GetNodeGlobalMatrix(&bone->node);
     }
+
 }
 
 static void R_RenderGeoset(LPCMODEL model, LPMODELGEOSET geoset, LPCMATRIX4 modelMatrix) {

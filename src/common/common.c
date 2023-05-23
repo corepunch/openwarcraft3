@@ -91,7 +91,7 @@ bool FS_ExtractFile(LPCSTR toExtract, LPCSTR extracted) {
 void FS_Init(void) {
 //     ExtractStarCraft2();
     SFileOpenArchive(MPQ_PATH, 0, 0, &archive);
-    SFileExtractFile(archive, "units\\human\\Arthas\\Arthas.mdx", "/Users/igor/Desktop/Arthas.mdx", 0);
+//    SFileExtractFile(archive, "textures\\Arthas.blp", "/Users/igor/Desktop/Arthas.blp", 0);
 #if 0
      SFILE_FIND_DATA findData;
      HANDLE handle = SFileFindFirstFile(archive, "*", &findData, 0);
