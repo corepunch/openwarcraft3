@@ -32,15 +32,13 @@ void M_MoveFrame(LPEDICT self) {
         return;
     if (self->s.frame < anim->firstframe || self->s.frame >= anim->lastframe) {
         self->s.frame = anim->firstframe;
-    } else {
-        if ((self->s.frame + FRAMETIME) >= anim->lastframe) {
-            SAFE_CALL(move->endfunc, self);
-            if (!(self->monsterinfo.aiflags & AI_HOLD_FRAME)) {
-                self->s.frame = anim->firstframe;
-            }
-        } else {
-            self->s.frame += FRAMETIME;
+    } else if ((self->s.frame + FRAMETIME) >= anim->lastframe) {
+        SAFE_CALL(move->endfunc, self);
+        if (!(self->monsterinfo.aiflags & AI_HOLD_FRAME)) {
+            self->s.frame = anim->firstframe;
         }
+    } else {
+        self->s.frame += FRAMETIME;
     }
 }
 

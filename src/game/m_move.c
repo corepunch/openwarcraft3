@@ -27,6 +27,8 @@ bool SV_CloseEnough(LPEDICT self, LPCEDICT goal, float distance) {
         if (between < distance) {
             if (self->path->next) {
                 self->path = self->path->next;
+                static int i =0;
+                printf("Step %d\n", i++);
                 return false;
             } else {
                 self->path = NULL;

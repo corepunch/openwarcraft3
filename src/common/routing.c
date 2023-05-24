@@ -4,7 +4,7 @@
 
 typedef struct {
     point2_t parent;
-    int f, g, h;
+    int f, g, h, s;
 } pathNode_t;
 
 struct {
@@ -17,6 +17,7 @@ struct {
 
 static int const dx[] = {-1, 1, 0, 0, -1, -1, 1, 1};
 static int const dy[] = {0, 0, -1, 1, -1, 1, -1, 1};
+static int const gv[] = {10, 10, 10, 10, 14, 14, 14, 14};
 
 #ifdef DEBUG_PATHFINDING
 LPCOLOR32 pathDebug = NULL;
@@ -60,6 +61,7 @@ static int calculate_h(int x, int y, int target_x, int target_y) {
 }
 
 static point2_t* reconstruct_path(point2_t start, point2_t target) {
+    printf("path: %d\n", node(target.x, target.y)->g + 1);
     int path_length = node(target.x, target.y)->g + 1;
     point2_t* path = MemAlloc(path_length * sizeof(point2_t));
     point2_t current = target;
@@ -127,8 +129,9 @@ static point2_t* find_path(point2_t start, point2_t target) {
                 continue;
             
             int g = node(current.x, current.y)->g + 1;
+            int s = node(current.x, current.y)->s + gv[i];
             int h = calculate_h(new_x, new_y, target.x, target.y);
-            int f = g + h;
+            int f = s + h;
             
             min.x = MIN(min.x, new_x);
             min.y = MIN(min.y, new_y);
@@ -139,6 +142,7 @@ static point2_t* find_path(point2_t start, point2_t target) {
                 node(new_x, new_y)->f = f;
                 node(new_x, new_y)->g = g;
                 node(new_x, new_y)->h = h;
+                node(new_x, new_y)->s = s;
                 node(new_x, new_y)->parent = current;
             }
         }
@@ -157,13 +161,13 @@ pathPoint_t* CM_FindPath(LPCVECTOR2 start, LPCVECTOR2 target) {
     pathPoint_t **next = &path;
     if (p_path) {
         for (point2_t const *it = p_path;; it++) {
-            if (it->x == p_target.x && it->y == p_target.y)
-                break;
             *next = MemAlloc(sizeof(struct pathPoint_s));
-            float x = it->x / (float)pathmap.width;
-            float y = it->y / (float)pathmap.height;
+            float x = (it->x + 0.5f) / (float)pathmap.width;
+            float y = (it->y + 0.5f) / (float)pathmap.height;
             (*next)->point = CM_GetDenormalizedMapPosition(x, y);
             next = &((*next)->next);
+            if (it->x == p_target.x && it->y == p_target.y)
+                break;
         }
         return path;
     } else {
