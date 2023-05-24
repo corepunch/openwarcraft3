@@ -22,8 +22,6 @@ float LerpRotation(float a, float b, float t) {
 }
 
 static void V_AddClientEntity(clientEntity_t const *ent) {
-    extern int selectedEntity;
-
     renderEntity_t re = { 0 };
     re.origin = Vector3_lerp(&ent->prev.origin, &ent->current.origin, cl.viewDef.lerpfrac);
     re.angle = LerpRotation(ent->prev.angle, ent->current.angle, cl.viewDef.lerpfrac);
@@ -34,7 +32,7 @@ static void V_AddClientEntity(clientEntity_t const *ent) {
     re.skin = cl.pics[ent->current.image];
     re.team = ent->current.player;
 
-    if (ent->current.number == selectedEntity) {
+    if (ent->selected) {
         re.flags = RF_SELECTED;
     }
     
@@ -107,6 +105,10 @@ void V_RenderView(void) {
     
 //    renderer->DrawPic(tex1, 0, 0);
 //    renderer->DrawPic(tex2, 512, 0);
+    
+    if (cl.selection.inProgress) {
+        renderer->DrawSelectionRect(&cl.selection.rect, (COLOR32){0,255,0,255});
+    }
 
     CON_DrawConsole();
     renderer->EndFrame();

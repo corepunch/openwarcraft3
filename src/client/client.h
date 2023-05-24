@@ -15,6 +15,7 @@ typedef struct {
     entityState_t baseline;
     entityState_t current;
     entityState_t prev;
+    bool selected;
 } clientEntity_t;
 
 struct frame {
@@ -35,6 +36,10 @@ struct client_state {
     DWORD sock;
     DWORD playerNumber;
     DWORD time;
+    struct {
+        struct rect rect;
+        bool inProgress;
+    } selection;
 };
 
 struct client_static {
@@ -46,6 +51,7 @@ void CL_PrepRefresh(void);
 void CL_ParseServerMessage(LPSIZEBUF msg);
 int CL_ParseEntityBits(LPSIZEBUF msg, DWORD *bits);
 void CL_SelectEntityAtScreenPoint(DWORD pixelX, DWORD pixelY);
+void CL_SelectEntitiesAtScreenRect(struct rect const *rect);
 void CON_DrawConsole(void);
 void CON_printf(char *fmt, ...);
 

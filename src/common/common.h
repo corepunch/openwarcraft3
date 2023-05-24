@@ -12,6 +12,7 @@
 #define MAX_SHEET_LINE 1024
 #define MAX_PATHLEN 256
 #define TILESIZE 128
+#define MAX_COMMAND_ENTITIES 64
 #define HEIGHT_COR (TILESIZE * 2 + 5)
 #define MIN(x, y) (((x)<(y))?(x):(y))
 #define MAX(x, y) (((x)>(y))?(x):(y))
@@ -139,9 +140,10 @@ enum clientcommand {
 
 struct client_message {
     enum clientcommand cmd;
-    DWORD entity;
     DWORD targetentity;
     VECTOR2 location;
+    DWORD num_entities;
+    DWORD entities[MAX_COMMAND_ENTITIES];
 };
 
 typedef enum t_attrib_id {
@@ -180,6 +182,7 @@ KNOWN_AS(TerrainInfo, TERRAININFO);
 KNOWN_AS(CliffInfo, CLIFFINFO);
 KNOWN_AS(AnimLookup, ANIMLOOKUP);
 
+typedef unsigned int handle_t;
 typedef char PATHSTR[MAX_PATHLEN];
 typedef void const *LPCVOID;
 
@@ -264,6 +267,6 @@ void MemFree(HANDLE mem);
 
 void Sys_MkDir(LPCSTR directory);
 
-struct pathPoint_s* CM_FindPath(LPCVECTOR2 start, LPCVECTOR2 target);
+handle_t CM_BuildHeatmap(LPCVECTOR2 target);
 
 #endif

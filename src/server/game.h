@@ -15,11 +15,6 @@ typedef enum {
     NUM_ANIM_TYPES
 }  animationType_t;
 
-typedef struct pathPoint_s {
-    VECTOR2 point;
-    struct pathPoint_s *next;
-} pathPoint_t;
-
 struct game_import {
     HANDLE (*MemAlloc)(long size);
     void (*MemFree)(HANDLE);
@@ -28,8 +23,8 @@ struct game_import {
     int (*ImageIndex)(LPCSTR imageName);
     LPCANIMATION (*GetAnimation)(int modelindex, animationType_t animtype);
     HANDLE (*ParseSheet)(LPCSTR sheetFilename, LPCSHEETLAYOUT layout, DWORD elementSize);
-    pathPoint_t* (*FindPath)(LPCVECTOR2 start, LPCVECTOR2 target);
-    VECTOR2 (*GetFlowDirection)(float fx, float fy);
+    handle_t (*BuildHeatmap)(LPCVECTOR2 target);
+    VECTOR2 (*GetFlowDirection)(DWORD heatmapindex, float fx, float fy);
     float (*GetHeightAtPoint)(float x, float y);
     void (*error) (char *fmt, ...);
 };

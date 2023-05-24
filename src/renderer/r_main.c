@@ -182,6 +182,33 @@ VERTEX *R_AddQuad(VERTEX *buffer, struct rect const *screen, struct rect const *
     return buffer + 6;
 }
 
+VERTEX *R_AddStrip(VERTEX *buffer, struct rect const *screen, COLOR32 color) {
+    VERTEX const data[] = {
+        {
+            .position = { screen->x, screen->y, 0 },
+            .color = color,
+        },
+        {
+            .position = { screen->x+screen->width, screen->y, 0 },
+            .color = color,
+        },
+        {
+            .position = { screen->x+screen->width, screen->y+screen->height, 0 },
+            .color = color,
+        },
+        {
+            .position = { screen->x, screen->y+screen->height, 0 },
+            .color = color,
+        },
+        {
+            .position = { screen->x, screen->y, 0 },
+            .color = color,
+        },
+    };
+    memcpy(buffer, data, sizeof(data));
+    return buffer + 5;
+}
+
 void R_PrintText(LPCSTR string, DWORD x, DWORD y, COLOR32 color) {
     static VERTEX simp[256 * 6];
     LPVERTEX it = simp;
@@ -229,6 +256,24 @@ void R_DrawPic(LPCTEXTURE texture, DWORD x, DWORD y) {
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glDrawArrays(GL_TRIANGLES, 0, 6);
 }
+
+void R_DrawSelectionRect(struct rect const *rect, COLOR32 color) {
+    static VERTEX simp[5];
+    R_AddStrip(simp, rect, color);
+
+    glUseProgram(tr.shaderUI->progid);
+    glBindVertexArray(tr.renbuf->vao);
+    glBindBuffer(GL_ARRAY_BUFFER, tr.renbuf->vbo);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(VERTEX) * 5, simp, GL_STATIC_DRAW);
+
+    R_BindTexture(tr.whiteTexture, 0);
+
+    glDisable(GL_CULL_FACE);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glDrawArrays(GL_LINE_STRIP, 0, 5);
+}
+
 bool R_IsPointVisible(LPCVECTOR3 point, float fThreshold) {
     VECTOR3 screen;
     Matrix4_multiply_vector3(&tr.viewDef.projection_matrix, point, &screen);
@@ -354,6 +399,7 @@ struct Renderer *Renderer_Init(struct renderer_import *import) {
     renderer->BeginFrame = R_BeginFrame;
     renderer->EndFrame = R_EndFrame;
     renderer->DrawPic = R_DrawPic;
+    renderer->DrawSelectionRect = R_DrawSelectionRect;
     renderer->PrintText = R_PrintText;
     renderer->GetWindowSize = R_GetWindowSize;
 #ifdef DEBUG_PATHFINDING

@@ -53,6 +53,7 @@ struct Renderer {
     void (*BeginFrame)(void);
     void (*EndFrame)(void);
     void (*PrintText)(LPCSTR string, DWORD x, DWORD y, COLOR32 color);
+    void (*DrawSelectionRect)(struct rect const *rect, COLOR32 color);
     void (*DrawPic)(LPCTEXTURE texture, DWORD x, DWORD y);
 
 #ifdef DEBUG_PATHFINDING

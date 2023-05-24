@@ -113,7 +113,7 @@ VECTOR2 compute_directiom(DWORD x, DWORD y) {
     return direction;
 }
 
-VECTOR2 get_flow_direction(float fnx, float fny) {
+VECTOR2 get_flow_direction(DWORD heatmapindex, float fnx, float fny) {
     VECTOR2 n = CM_GetNormalizedMapPosition(fnx, fny);
     n.x *= pathmap.width;
     n.y *= pathmap.height;
@@ -127,12 +127,10 @@ VECTOR2 get_flow_direction(float fnx, float fny) {
     return Vector2_lerp(&ab, &cd, n.y - dy);
 }
 
-static point2_t* find_path(point2_t start, point2_t target) {
+handle_t build_heatmap(point2_t target) {
 #ifdef DEBUG_PATHFINDING
     CM_FillDebugObstacles();
 #endif
-    
-    int start_time = SDL_GetTicks();
     
     FOR_LOOP(i, pathmap.width * pathmap.height) {
         pathmap.heatmap[i].next = NULL;
@@ -160,8 +158,6 @@ static point2_t* find_path(point2_t start, point2_t target) {
             neighbor->price = open->price + gv[i];
         }
     }
-    
-    printf("Computed in %d ticks\n", SDL_GetTicks() - start_time);
 
 #ifdef DEBUG_PATHFINDING
     FOR_LOOP(i, pathmap.width * pathmap.height) {
@@ -169,109 +165,13 @@ static point2_t* find_path(point2_t start, point2_t target) {
         pathDebug[i].g = pathmap.heatmap[i].step > 0 ? pathmap.heatmap[i].price * 2 : 255;
     }
 #endif
-
-        return NULL;
+    return 0;
 }
 
-static point2_t* find_path2(point2_t start, point2_t target) {
-    memset(pathmap.closed_set, 0, pathmap.width * pathmap.height);
-    memset(pathmap.nodes, 0, pathmap.width * pathmap.height * sizeof(pathNode_t));
-    
-#ifdef DEBUG_PATHFINDING
-    CM_FillDebugObstacles();
-#endif
-    int start_time = SDL_GetTicks();
-
-    for (int i = 0; i < pathmap.width; i++) {
-        for (int j = 0; j < pathmap.height; j++) {
-            node(i, j)->f = INT_MAX;
-        }
-    }
-    
-    node(start.x, start.y)->f = 0;
-    node(start.x, start.y)->g = 0;
-    node(start.x, start.y)->h = 0;
-    node(start.x, start.y)->parent = start;
-    
-    point2_t min = { start.x, start.y };
-    point2_t max = { start.x, start.y };
-    
-    DWORD iteration = 0;
-    
-    for (;; iteration++) {
-        DWORD min_f = INT_MAX;
-        point2_t current = { 0, 0 };
-        
-        for (int i = min.x; i <= max.x; i++) {
-            for (int j = min.y; j <= max.y; j++) {
-                if (!*closed_set(i, j) && node(i, j)->f < min_f) {
-                    min_f = node(i, j)->f;
-                    current.x = i;
-                    current.y = j;
-                }
-            }
-        }
-
-        if (current.x == target.x && current.y == target.y)
-            break;
-        
-        *closed_set(current.x, current.y) = true;
-        
-        FOR_LOOP(i, 8) {
-            int new_x = current.x + dx[i];
-            int new_y = current.y + dy[i];
-            if (!is_valid_point(new_x, new_y) ||
-                is_obstacle(new_x, new_y) ||
-                *closed_set(new_x, new_y))
-                continue;
-            
-            int g = node(current.x, current.y)->g + 1;
-            int s = node(current.x, current.y)->s + gv[i];
-            int h = calculate_h(new_x, new_y, target.x, target.y);
-            int f = s + h;
-            
-            min.x = MIN(min.x, new_x);
-            min.y = MIN(min.y, new_y);
-            max.x = MAX(max.x, new_x);
-            max.y = MAX(max.y, new_y);
-            
-            if (node(new_x, new_y)->f > f) {
-                node(new_x, new_y)->f = f;
-                node(new_x, new_y)->g = g;
-                node(new_x, new_y)->h = h;
-                node(new_x, new_y)->s = s;
-                node(new_x, new_y)->parent = current;
-            }
-        }
-    }
-    printf("Computed in %d ticks\n", SDL_GetTicks() - start_time);
-
-//    printf("Found path in %d iterations\n", iteration);
-    return reconstruct_path(start, target);
-}
-
-pathPoint_t* CM_FindPath(LPCVECTOR2 start, LPCVECTOR2 target) {
-    VECTOR2 n_start = CM_GetNormalizedMapPosition(start->x, start->y);
+handle_t CM_BuildHeatmap(LPCVECTOR2 target) {
     VECTOR2 n_target = CM_GetNormalizedMapPosition(target->x, target->y);
-    point2_t p_start = { n_start.x * pathmap.width, n_start.y * pathmap.height };
     point2_t p_target = { n_target.x * pathmap.width, n_target.y * pathmap.height };
-    point2_t *p_path = find_path(p_start, p_target);
-    pathPoint_t *path = NULL;
-    pathPoint_t **next = &path;
-    if (p_path) {
-        for (point2_t const *it = p_path;; it++) {
-            *next = MemAlloc(sizeof(struct pathPoint_s));
-            float x = (it->x + 0.5f) / (float)pathmap.width;
-            float y = (it->y + 0.5f) / (float)pathmap.height;
-            (*next)->point = CM_GetDenormalizedMapPosition(x, y);
-            next = &((*next)->next);
-            if (it->x == p_target.x && it->y == p_target.y)
-                break;
-        }
-        return path;
-    } else {
-        return NULL;
-    }
+    return build_heatmap(p_target);
 }
 
 void CM_ReadPathMap(HANDLE archive) {

@@ -53,7 +53,7 @@ void PF_error(char *fmt, ...) {
     va_end(argptr);
     fprintf(stderr, "Game Error: %s\n", msg);
 }
-VECTOR2 get_flow_direction(float fx, float fy);
+VECTOR2 get_flow_direction(handle_t heatmapindex, float fx, float fy);
 
 void SV_Init(void) {
     ge = GetGameAPI(&(struct game_import) {
@@ -65,7 +65,7 @@ void SV_Init(void) {
         .ParseSheet = FS_ParseSheet,
         .GetAnimation = SV_GetAnimation,
         .GetHeightAtPoint = CM_GetHeightAtPoint,
-        .FindPath = CM_FindPath,
+        .BuildHeatmap = CM_BuildHeatmap,
         .GetFlowDirection = get_flow_direction,
         .error = PF_error,
     });

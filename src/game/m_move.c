@@ -9,7 +9,7 @@ void M_ChangeAngle(LPEDICT self) {
     VECTOR2 dir = Vector2_sub((LPVECTOR2)&self->goalentity->s.origin,
                                     (LPVECTOR2)&self->s.origin);
     if (Vector2_len(&dir) > NAVI_THRESHOLD) {
-        dir = gi.GetFlowDirection(self->s.origin.x, self->s.origin.y);
+        dir = gi.GetFlowDirection(self->heatmap, self->s.origin.x, self->s.origin.y);
     }
     self->s.angle = atan2(dir.y, dir.x);
 }

@@ -36,22 +36,6 @@ static void G_Shutdown(void) {
     ShutdownUnitWeapons();
 }
 
-static void G_ClientCommand(LPCCLIENTMESSAGE clientMessage) {
-    LPEDICT edict = &game_state.edicts[clientMessage->entity];
-    switch (clientMessage->cmd) {
-        case CMD_MOVE:
-            /*edict->path = */gi.FindPath((LPCVECTOR2)&edict->s.origin, &clientMessage->location);
-            edict->goalentity = Waypoint_add(clientMessage->location);
-            break;
-        case CMD_ATTACK:
-            edict->goalentity = &game_state.edicts[clientMessage->targetentity];
-            edict->enemy = &game_state.edicts[clientMessage->targetentity];
-            break;
-        default:
-            break;
-    }
-}
-
 static void G_RunFrame() {
     FOR_LOOP(i, globals.num_edicts) {
         G_RunEntity(&globals.edicts[i]);

@@ -1,18 +1,16 @@
 #include "server.h"
 
 void SV_ParseCommand(LPSIZEBUF msg, LPCLIENT client) {
-    CLIENTMESSAGE cmsg = {
-        .cmd = MSG_ReadByte(msg),
-        .entity = MSG_ReadShort(msg),
-        .targetentity = MSG_ReadShort(msg),
-        .location = {
-            .x = MSG_ReadShort(msg),
-            .y = MSG_ReadShort(msg),
-        }
-    };
-    if (cmsg.entity < ge->num_edicts) {
-        ge->ClientCommand(&cmsg);
+    CLIENTMESSAGE cmsg;
+    cmsg.cmd = MSG_ReadByte(msg);
+    cmsg.num_entities = MSG_ReadShort(msg);
+    FOR_LOOP(i, cmsg.num_entities) {
+        cmsg.entities[i] = MSG_ReadShort(msg);
     }
+    cmsg.targetentity = MSG_ReadShort(msg);
+    cmsg.location.x = MSG_ReadShort(msg);
+    cmsg.location.y = MSG_ReadShort(msg);
+    ge->ClientCommand(&cmsg);
 }
 
 void SV_ParseMove(LPSIZEBUF msg, LPCLIENT client) {

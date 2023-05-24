@@ -56,10 +56,9 @@ struct edict {
     DWORD class_id;
     DWORD variation;
     movetype_t movetype;
+    handle_t heatmap;
     LPEDICT goalentity;
     LPEDICT enemy;
-
-    pathPoint_t *path;
     
     void (*prethink)(LPEDICT self);
     void (*think)(LPEDICT self);
@@ -86,7 +85,8 @@ void SP_CallSpawn(LPEDICT edict);
 void G_SpawnDoodads(LPCDOODAD doodads);
 void G_SpawnUnits(LPCDOODAD units, DWORD num_units);
 void G_RunEntity(LPEDICT edict);
-void G_FindPath(LPEDICT edict, LPCVECTOR2 location);
+void G_BuildHeatmap(LPEDICT edict, LPCVECTOR2 location);
+void G_ClientCommand(LPCCLIENTMESSAGE clientMessage);
 
 LPEDICT Waypoint_add(VECTOR2 spot);
 void M_CheckGround (LPEDICT self);

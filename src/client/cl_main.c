@@ -48,19 +48,31 @@ void CL_Input(void) {
             case SDL_MOUSEBUTTONDOWN:
                 button = event.button.button;
                 moved = false;
+                cl.selection.rect.x = event.button.x;
+                cl.selection.rect.y = event.button.y;
                 break;
             case SDL_MOUSEBUTTONUP:
                 button = 0;
                 if (moved == false) {
                     CL_SelectEntityAtScreenPoint(event.button.x, event.button.y);
+                } else if (cl.selection.inProgress) {
+                    CL_SelectEntitiesAtScreenRect(&cl.selection.rect);
                 }
+                cl.selection.inProgress = false;
                 break;
             case SDL_MOUSEMOTION:
-                if (button > 0) moved = true;
-                if (button == 3) {
-                    moved = true;
-                    cl.viewDef.vieworg.x -= event.motion.xrel * 5;
-                    cl.viewDef.vieworg.y += event.motion.yrel * 5;
+                switch (button) {
+                    case 1:
+                        cl.selection.inProgress = true;
+                        cl.selection.rect.width = event.button.x - cl.selection.rect.x;
+                        cl.selection.rect.height = event.button.y - cl.selection.rect.y;
+                        moved = true;
+                        break;
+                    case 3:
+                        moved = true;
+                        cl.viewDef.vieworg.x -= event.motion.xrel * 5;
+                        cl.viewDef.vieworg.y += event.motion.yrel * 5;
+                        break;
                 }
                 break;
             case SDL_WINDOWEVENT:
@@ -98,16 +110,19 @@ void CL_SendCommands(void) {
         MSG_WriteShort(&cls.netchan.message, camera_location.y + 800);
         Netchan_Transmit(NS_CLIENT, &cls.netchan);
     }
-    if (msg.cmd != CMD_NO_COMMAND){
+    if (msg.cmd != CMD_NO_COMMAND && msg.num_entities > 0){
         MSG_WriteByte(&cls.netchan.message, clc_command);
         MSG_WriteByte(&cls.netchan.message, msg.cmd);
-        MSG_WriteShort(&cls.netchan.message, msg.entity);
+        MSG_WriteShort(&cls.netchan.message, msg.num_entities);
+        FOR_LOOP(i, msg.num_entities) {
+            MSG_WriteShort(&cls.netchan.message, msg.entities[i]);
+        }
         MSG_WriteShort(&cls.netchan.message, msg.targetentity);
         MSG_WriteShort(&cls.netchan.message, msg.location.x);
         MSG_WriteShort(&cls.netchan.message, msg.location.y);
         Netchan_Transmit(NS_CLIENT, &cls.netchan);
-        msg.cmd = CMD_NO_COMMAND;
     }
+    msg.cmd = CMD_NO_COMMAND;
 }
 
 void CL_Shutdown(void) {
