@@ -227,6 +227,10 @@ static void RenderGeoset(LPCMODEL model,
                 glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
                 glDepthMask(GL_FALSE);
                 break;
+#ifdef DEBUG_PATHFINDING
+            default:
+                return;
+#else
             case TEXOP_ADD:
                 if (is_rendering_lights)
                     return;
@@ -243,6 +247,7 @@ static void RenderGeoset(LPCMODEL model,
                 glBlendFunc(GL_ONE, GL_ZERO);
                 glDepthMask(GL_TRUE);
                 break;
+#endif
         }
         R_RenderGeoset(model, geoset, &mModelMatrix);
     }

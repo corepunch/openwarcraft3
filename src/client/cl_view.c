@@ -92,6 +92,11 @@ void V_RenderView(void) {
 //    if (!tex1) tex1 = renderer->LoadTexture("UI\\Glues\\Loading\\Backgrounds\\Campaigns\\Barrens-TopLeft.blp");
 //    if (!tex2) tex2 = renderer->LoadTexture("UI\\Glues\\Loading\\Backgrounds\\Campaigns\\Barrens-TopRight.blp");
 
+#ifdef DEBUG_PATHFINDING
+    extern LPCOLOR32 pathDebug;
+    renderer->SetPathTexture(pathDebug);
+#endif
+                             
     cl.viewDef.time = cl.time;
     
     V_ClearScene();

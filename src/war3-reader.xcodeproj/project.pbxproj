@@ -131,18 +131,18 @@
 			isa = PBXGroup;
 			children = (
 				7866305B2A17D17900266A62 /* cmodel.c */,
-				78988A2E2A151C700090DEAA /* cmodel.h */,
 				7897B7DE2A0BF615008007CD /* common.c */,
-				7897B7D22A0BEB76008007CD /* common.h */,
 				78F58A852A06D2160027494A /* config.c */,
 				7866373C2A1A4C0800266A62 /* macos.c */,
 				78F58A2F2A0641A30027494A /* main.c */,
 				7897B7ED2A0CC4EE008007CD /* msg.c */,
 				7897B7E22A0C209A008007CD /* net.c */,
-				7897B7EF2A0CC6CF008007CD /* net.h */,
 				78C453882A1D386200C93B16 /* routing.c */,
-				78A8963F2A15F18F00BC5B56 /* shared.h */,
 				78F58A812A06D1560027494A /* sheet.c */,
+				78988A2E2A151C700090DEAA /* cmodel.h */,
+				7897B7D22A0BEB76008007CD /* common.h */,
+				7897B7EF2A0CC6CF008007CD /* net.h */,
+				78A8963F2A15F18F00BC5B56 /* shared.h */,
 			);
 			path = common;
 			sourceTree = "<group>";

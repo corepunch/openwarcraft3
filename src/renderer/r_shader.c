@@ -84,7 +84,13 @@ LPCSTR fragment_shader =
 "uniform sampler2D uShadowmap;\n"
 "uniform bool uUseDiscard;\n"
 "void main() {\n"
-"    //o_color = texture(uShadowmap, v_texcoord2);\n"
+#ifdef DEBUG_PATHFINDING
+"    vec4 debug = texture(uShadowmap, v_texcoord2);\n"
+"    vec4 color = texture(uTexture, v_texcoord);\n"
+"    debug.a = color.a;\n"
+"    o_color = mix(debug, color, 0.5);\n"
+"    return;\n"
+#endif
 "    float depth = texture(uShadowmap, vec2(v_shadow.x + 1.0, v_shadow.y + 1.0) * 0.5).r;\n"
 "    float shade = depth < (v_shadow.z + 0.99) * 0.5 ? 0.0 : 1.0;\n"
 "    vec4 col = texture(uTexture, v_texcoord);\n"

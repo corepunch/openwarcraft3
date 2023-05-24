@@ -54,6 +54,10 @@ struct Renderer {
     void (*EndFrame)(void);
     void (*PrintText)(LPCSTR string, DWORD x, DWORD y, COLOR32 color);
     void (*DrawPic)(LPCTEXTURE texture, DWORD x, DWORD y);
+
+#ifdef DEBUG_PATHFINDING
+    void (*SetPathTexture)(LPCCOLOR32 debugTexture);
+#endif
 };
 
 struct Renderer *Renderer_Init(struct renderer_import *pImport);

@@ -356,6 +356,10 @@ struct Renderer *Renderer_Init(struct renderer_import *import) {
     renderer->DrawPic = R_DrawPic;
     renderer->PrintText = R_PrintText;
     renderer->GetWindowSize = R_GetWindowSize;
+#ifdef DEBUG_PATHFINDING
+    void R_SetPathTexture(LPCCOLOR32 debugTexture);
+    renderer->SetPathTexture = R_SetPathTexture;
+#endif
 
     ri = *import;
 

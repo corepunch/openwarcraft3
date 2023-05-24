@@ -18,6 +18,19 @@ struct {
 static int const dx[] = {-1, 1, 0, 0, -1, -1, 1, 1};
 static int const dy[] = {0, 0, -1, 1, -1, 1, -1, 1};
 
+#ifdef DEBUG_PATHFINDING
+LPCOLOR32 pathDebug = NULL;
+static void CM_FillDebugObstacles(void) {
+    memset(pathDebug, 0x0, sizeof(pathmap.width * pathmap.height * sizeof(COLOR32)));
+    FOR_LOOP(i, pathmap.width * pathmap.height) {
+        pathDebug[i].r = pathmap.data[i].nowalk ? 255 : 0;
+        pathDebug[i].g = 0;
+        pathDebug[i].b = 0;
+        pathDebug[i].a = 255;
+    }
+}
+#endif
+
 static pathMapCell_t const *path_node(DWORD x, DWORD y) {
     int const index = x + y * pathmap.width;
     return &pathmap.data[index];
@@ -51,6 +64,9 @@ static point2_t* reconstruct_path(point2_t start, point2_t target) {
     point2_t* path = MemAlloc(path_length * sizeof(point2_t));
     point2_t current = target;
     for (int i = path_length - 1; i >= 0; i--) {
+#ifdef DEBUG_PATHFINDING
+        pathDebug[current.x + current.y * pathmap.width].g = 255;
+#endif
         path[i] = current;
         current = node(current.x, current.y)->parent;
     }
@@ -61,6 +77,10 @@ static point2_t* find_path(point2_t start, point2_t target) {
     memset(pathmap.closed_set, 0, pathmap.width * pathmap.height);
     memset(pathmap.nodes, 0, pathmap.width * pathmap.height * sizeof(pathNode_t));
     
+#ifdef DEBUG_PATHFINDING
+    CM_FillDebugObstacles();
+#endif
+
     for (int i = 0; i < pathmap.width; i++) {
         for (int j = 0; j < pathmap.height; j++) {
             node(i, j)->f = INT_MAX;
@@ -164,5 +184,10 @@ void CM_ReadPathMap(HANDLE archive) {
     pathmap.nodes = MemAlloc(pathmap.width * pathmap.height * sizeof(pathNode_t));
     SFileReadFile(file, pathmap.data, pathmap.width * pathmap.height, 0, 0);
     SFileCloseFile(file);
+    
+#ifdef DEBUG_PATHFINDING
+    pathDebug = MemAlloc(pathmap.width * pathmap.height * sizeof(COLOR32));
+    CM_FillDebugObstacles();
+#endif
 }
 

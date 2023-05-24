@@ -5,6 +5,8 @@
 #include "net.h"
 #include "../cmath3/cmath3.h"
 
+//#define DEBUG_PATHFINDING
+
 #define TMP_MAP "/tmp/map.w3m"
 #define MAP_VERTEX_SIZE 7
 #define MAX_SHEET_LINE 1024

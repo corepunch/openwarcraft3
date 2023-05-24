@@ -2,6 +2,13 @@
 
 LPMAPSEGMENT g_mapSegments = NULL;
 
+#ifdef DEBUG_PATHFINDING
+LPCTEXTURE pathTexture = NULL;
+void R_SetPathTexture(LPCCOLOR32 debugTexture) {
+    R_LoadTextureMipLevel(pathTexture, 0, debugTexture, pathTexture->width, pathTexture->height);
+}
+#endif
+
 static void R_FileReadShadowMap(HANDLE hMpq, LPWAR3MAP  pWorld) {
     HANDLE file;
     SFileOpenFileEx(hMpq, "war3map.shd", SFILE_OPEN_FROM_MPQ, &file);
@@ -88,6 +95,11 @@ LPWAR3MAP FileReadWar3Map(HANDLE archive) {
     war3Map->vertices = ri.MemAlloc(vertexblocksize);
     SFileReadFile(file, war3Map->vertices, vertexblocksize, 0, 0);
     SFileCloseFile(file);
+#ifdef DEBUG_PATHFINDING
+    pathTexture = R_AllocateTexture((war3Map->width - 1) * 4, (war3Map->height - 1) * 4);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+#endif
     return war3Map;
 }
 
@@ -141,6 +153,10 @@ static void R_DrawSegment(LPCMAPSEGMENT segment, DWORD mask) {
 
 void R_DrawWorld(void) {
     glUseProgram(tr.shaderStatic->progid);
+    
+#ifdef DEBUG_PATHFINDING
+    R_BindTexture(pathTexture, 1);
+#endif
 
     FOR_EACH_LIST(MAPSEGMENT, segment, g_mapSegments) {
         R_DrawSegment(segment, (1 << MAPLAYERTYPE_GROUND) | (1 << MAPLAYERTYPE_CLIFF));
