@@ -40,6 +40,7 @@ static void G_RunFrame() {
     FOR_LOOP(i, globals.num_edicts) {
         G_RunEntity(&globals.edicts[i]);
     }
+    G_SolveCollisions();
 }
 
 struct game_export *GetGameAPI(struct game_import *import) {

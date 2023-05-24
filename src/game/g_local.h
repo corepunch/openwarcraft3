@@ -9,6 +9,10 @@ enum {
     AI_HOLD_FRAME = 1 << 0,
 };
 
+enum {
+    IS_UNIT = 1 << 0,
+};
+
 typedef enum {
     MOVETYPE_NONE,            // never moves
     MOVETYPE_NOCLIP,          // origin and angles change with no interaction
@@ -59,6 +63,7 @@ struct edict {
     handle_t heatmap;
     LPEDICT goalentity;
     LPEDICT enemy;
+    DWORD flags;
     
     void (*prethink)(LPEDICT self);
     void (*think)(LPEDICT self);
@@ -84,7 +89,6 @@ void SP_SpawnUnit(LPEDICT edict, LPCUNITUI unit);
 void SP_CallSpawn(LPEDICT edict);
 void G_SpawnDoodads(LPCDOODAD doodads);
 void G_SpawnUnits(LPCDOODAD units, DWORD num_units);
-void G_RunEntity(LPEDICT edict);
 void G_BuildHeatmap(LPEDICT edict, LPCVECTOR2 location);
 void G_ClientCommand(LPCCLIENTMESSAGE clientMessage);
 
@@ -92,13 +96,19 @@ LPEDICT Waypoint_add(VECTOR2 spot);
 void M_CheckGround (LPEDICT self);
 void monster_start(LPEDICT self);
 
+// g_ai.c
 void ai_melee(LPEDICT self);
 void ai_walk(LPEDICT self);
 void ai_stand(LPEDICT self);
 
+// g_monster.c
 void M_MoveToGoal(LPEDICT self);
 void M_ChangeAngle(LPEDICT self);
 bool M_CheckAttack(LPEDICT self);
+
+// g_phys.c
+void G_RunEntity(LPEDICT edict);
+void G_SolveCollisions(void);
 
 extern struct game_locals game;
 extern struct game_state game_state;

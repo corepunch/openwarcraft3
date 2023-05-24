@@ -12,6 +12,13 @@ VECTOR2 Vector2_scale(LPCVECTOR2 v, float s) {
     };
 }
 
+VECTOR2 Vector2_add(LPCVECTOR2 a, LPCVECTOR2 b) {
+    return (VECTOR2) {
+        .x = a->x + b->x,
+        .y = a->y + b->y,
+    };
+}
+
 VECTOR2 Vector2_sub(LPCVECTOR2 a, LPCVECTOR2 b) {
     return (VECTOR2) {
         .x = a->x - b->x,
@@ -47,6 +54,14 @@ VECTOR2 Vector2_lerp(LPCVECTOR2 a, LPCVECTOR2 b, float t) {
     };
 }
 
+VECTOR2 Vector2_mad(LPCVECTOR2 v, float s, LPCVECTOR2 b) {
+    return (VECTOR2) {
+        .x = v->x + b->x * s,
+        .y = v->y + b->y * s,
+    };
+}
+
 float LerpNumber(float a, float b, float t) {
     return a * (1 - t) + b * t;
 }
+

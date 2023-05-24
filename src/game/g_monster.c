@@ -66,6 +66,7 @@ void SP_SpawnUnit(LPEDICT self, struct UnitUI const *unit) {
     self->s.model = gi.ModelIndex(buffer);
     self->s.scale = unit->modelScale;
     self->think = monster_think;
+    self->flags |= unit->isbldg ? 0 : IS_UNIT;
     if (self->monsterinfo.balance) {
         self->monsterinfo.health = self->monsterinfo.balance->HP;
         self->monsterinfo.movespeed = 10 * unit->run / FRAMETIME;

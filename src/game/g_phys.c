@@ -17,3 +17,32 @@ void G_RunEntity(LPEDICT edict) {
     }
     SAFE_CALL(edict->think, edict);
 }
+
+void G_SolveCollisions(void) {
+    float allowed_dist = 100;
+    float allowed_dist_sq = allowed_dist * allowed_dist;
+    for (DWORD a = 0; a < globals.num_edicts; a++) {
+        LPEDICT ea = &globals.edicts[a];
+        LPVECTOR2 apos = (LPVECTOR2)&ea->s.origin;
+        for (DWORD b = a + 1; b < globals.num_edicts; b++) {
+            LPEDICT eb = &globals.edicts[b];
+            LPVECTOR2 bpos = (LPVECTOR2)&eb->s.origin;
+            VECTOR2 d = Vector2_sub(apos, bpos);
+            if (!(ea->flags & IS_UNIT) && !(eb->flags & IS_UNIT))
+                continue;
+            float dist_sq = Vector2_dot(&d, &d);
+            if (dist_sq < allowed_dist_sq) {
+                Vector2_normalize(&d);
+                float diff = sqrtf(dist_sq) - allowed_dist;
+                if ((ea->flags & IS_UNIT) && (eb->flags & IS_UNIT)) {
+                    *apos = Vector2_mad(apos, -diff * 0.5f, &d);
+                    *bpos = Vector2_mad(bpos, diff * 0.5f, &d);
+                } else if (ea->flags & IS_UNIT) {
+                    *apos = Vector2_mad(apos, -diff, &d);
+                } else {
+                    *bpos = Vector2_mad(bpos, diff, &d);
+                }
+            }
+        }
+    }
+}
