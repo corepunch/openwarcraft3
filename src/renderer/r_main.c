@@ -76,34 +76,6 @@ static void R_SetupGL(bool drawLight) {
     glUniformMatrix4fv(tr.shaderUI->uModelMatrix, 1, GL_FALSE, model_matrix.v);
 }
 
-void R_RenderFrame(viewDef_t const *viewDef) {
-    SIZE2 const windowSize = R_GetWindowSize();
-
-    tr.viewDef = *viewDef;
-
-    // 1. first render to depth map
-    glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
-    glBindFramebuffer(GL_FRAMEBUFFER, tr.depthMapFBO);
-    glClear(GL_DEPTH_BUFFER_BIT);
-    is_rendering_lights = true;
-    R_SetupGL(true);
-    R_BindTexture(tr.shadowmap, 1);
-    R_DrawWorld();
-    R_DrawEntities();
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-    is_rendering_lights = false;
-    // 2. then render scene as normal with shadow mapping (using depth map)
-    glViewport(0, 0, windowSize.width, windowSize.height);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    R_SetupGL(false);
-    glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D, tr.depthMap);
-    R_DrawWorld();
-    R_DrawEntities();
-    R_DrawAlphaSurfaces();
-}
-
 void R_InitShadowMap(void) {
     glGenFramebuffers(1, &tr.depthMapFBO);
     glGenTextures(1, &tr.depthMap);
@@ -143,7 +115,8 @@ void R_Init(DWORD width, DWORD height) {
 
     int white = -1;
     
-    tr.selectionCircle = R_LoadModel("UI\\Feedback\\SelectionCircleHero\\SelectionCircleHero.mdx");
+//    tr.selectionCircle = R_LoadModel("UI\\Feedback\\Confirmation\\Confirmation.mdx");
+    tr.selectionCircle = R_LoadModel("UI\\Feedback\\SelectionCircle\\SelectionCircle.mdx");
     tr.shaderStatic = R_InitShader(vertex_shader, fragment_shader);
     tr.shaderSkin = R_InitShader(vertex_shader_skin, fragment_shader);
     tr.shaderUI = R_InitShader(vertex_shader, fragment_shader_ui);
@@ -241,7 +214,7 @@ void R_PrintText(LPCSTR string, DWORD x, DWORD y, COLOR32 color) {
 void R_DrawPic(LPCTEXTURE texture, DWORD x, DWORD y) {
     static VERTEX simp[6];
     R_AddQuad(simp, &(struct rect) {
-        x, y, texture->width, texture->height
+        x, y, texture->width * 2, texture->height * 2
     }, &(struct rect) { 0,0,1,1 }, (COLOR32){255,255,255,255});
 
     glUseProgram(tr.shaderUI->progid);
@@ -264,6 +237,34 @@ bool R_IsPointVisible(LPCVECTOR3 point, float fThreshold) {
     if (screen.x > fThreshold) return false;
     if (screen.y > fThreshold) return false;
     return true;
+}
+
+void R_RenderFrame(viewDef_t const *viewDef) {
+    SIZE2 const windowSize = R_GetWindowSize();
+
+    tr.viewDef = *viewDef;
+
+    // 1. first render to depth map
+    glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
+    glBindFramebuffer(GL_FRAMEBUFFER, tr.depthMapFBO);
+    glClear(GL_DEPTH_BUFFER_BIT);
+    is_rendering_lights = true;
+    R_SetupGL(true);
+    R_BindTexture(tr.shadowmap, 1);
+    R_DrawWorld();
+    R_DrawEntities();
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    is_rendering_lights = false;
+    // 2. then render scene as normal with shadow mapping (using depth map)
+    glViewport(0, 0, windowSize.width, windowSize.height);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    R_SetupGL(false);
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, tr.depthMap);
+    R_DrawWorld();
+    R_DrawEntities();
+    R_DrawAlphaSurfaces();
 }
 
 void R_DrawBuffer(LPCBUFFER buffer, DWORD num_vertices) {

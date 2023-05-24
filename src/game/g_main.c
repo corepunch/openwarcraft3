@@ -40,7 +40,8 @@ static void G_ClientCommand(LPCCLIENTMESSAGE clientMessage) {
     LPEDICT edict = &game_state.edicts[clientMessage->entity];
     switch (clientMessage->cmd) {
         case CMD_MOVE:
-            edict->goalentity = Waypoint_add(clientMessage->location);
+            edict->path = gi.FindPath((LPCVECTOR2)&edict->s.origin, &clientMessage->location);
+//            edict->goalentity = Waypoint_add(clientMessage->location);
             break;
         case CMD_ATTACK:
             edict->goalentity = &game_state.edicts[clientMessage->targetentity];

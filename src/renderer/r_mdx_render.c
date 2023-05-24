@@ -258,8 +258,13 @@ void RenderModel(renderEntity_t const *entity) {
     }
 
     if (entity->flags & RF_SELECTED) {
+        FOR_LOOP(boneIndex, MAX_BONE_MATRICES) {
+            Matrix4_identity(&node_matrices[boneIndex]);
+        }
+        glUseProgram(tr.shaderSkin->progid);
+        glUniformMatrix4fv(tr.shaderSkin->uBones, 64, GL_FALSE, node_matrices->v);
         renderEntity_t re = *entity;
-        re.scale *= 1.5;
+        re.scale *= 1.5f;
         re.angle = tr.viewDef.time * 0.001;
         RenderGeoset(tr.selectionCircle, tr.selectionCircle->geosets, &re, NULL);
     }

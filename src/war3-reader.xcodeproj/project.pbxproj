@@ -23,6 +23,7 @@
 		78A896AF2A15F85A00BC5B56 /* librenderer.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 78A8968E2A15F82700BC5B56 /* librenderer.dylib */; };
 		78A896EB2A16155900BC5B56 /* libcmath3.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 78A896C92A16012D00BC5B56 /* libcmath3.dylib */; };
 		78A896F22A168AB700BC5B56 /* sv_parse.c in Sources */ = {isa = PBXBuildFile; fileRef = 78A896F12A168AB700BC5B56 /* sv_parse.c */; };
+		78C453892A1D386200C93B16 /* routing.c in Sources */ = {isa = PBXBuildFile; fileRef = 78C453882A1D386200C93B16 /* routing.c */; };
 		78F58A302A0641A30027494A /* main.c in Sources */ = {isa = PBXBuildFile; fileRef = 78F58A2F2A0641A30027494A /* main.c */; };
 		78F58A822A06D1560027494A /* sheet.c in Sources */ = {isa = PBXBuildFile; fileRef = 78F58A812A06D1560027494A /* sheet.c */; };
 		78F58A862A06D2160027494A /* config.c in Sources */ = {isa = PBXBuildFile; fileRef = 78F58A852A06D2160027494A /* config.c */; };
@@ -104,6 +105,7 @@
 		78A896892A15F82600BC5B56 /* renderer.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = renderer.xcodeproj; path = renderer/renderer.xcodeproj; sourceTree = "<group>"; };
 		78A896C42A16012C00BC5B56 /* cmath3.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = cmath3.xcodeproj; path = cmath3/cmath3.xcodeproj; sourceTree = "<group>"; };
 		78A896F12A168AB700BC5B56 /* sv_parse.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = sv_parse.c; sourceTree = "<group>"; };
+		78C453882A1D386200C93B16 /* routing.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = routing.c; sourceTree = "<group>"; };
 		78F58A2C2A0641A30027494A /* war3-reader */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "war3-reader"; sourceTree = BUILT_PRODUCTS_DIR; };
 		78F58A2F2A0641A30027494A /* main.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = main.c; sourceTree = "<group>"; };
 		78F58A812A06D1560027494A /* sheet.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = sheet.c; sourceTree = "<group>"; };
@@ -133,13 +135,14 @@
 				7897B7DE2A0BF615008007CD /* common.c */,
 				7897B7D22A0BEB76008007CD /* common.h */,
 				78F58A852A06D2160027494A /* config.c */,
+				7866373C2A1A4C0800266A62 /* macos.c */,
 				78F58A2F2A0641A30027494A /* main.c */,
 				7897B7ED2A0CC4EE008007CD /* msg.c */,
 				7897B7E22A0C209A008007CD /* net.c */,
 				7897B7EF2A0CC6CF008007CD /* net.h */,
+				78C453882A1D386200C93B16 /* routing.c */,
 				78A8963F2A15F18F00BC5B56 /* shared.h */,
 				78F58A812A06D1560027494A /* sheet.c */,
-				7866373C2A1A4C0800266A62 /* macos.c */,
 			);
 			path = common;
 			sourceTree = "<group>";
@@ -322,6 +325,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				7866305D2A17D92E00266A62 /* cmodel.c in Sources */,
+				78C453892A1D386200C93B16 /* routing.c in Sources */,
 				78F58A302A0641A30027494A /* main.c in Sources */,
 				7897B7EE2A0CC4EE008007CD /* msg.c in Sources */,
 				78F58A882A06D3030027494A /* sv_init.c in Sources */,

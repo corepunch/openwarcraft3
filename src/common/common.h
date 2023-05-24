@@ -152,6 +152,11 @@ typedef enum t_attrib_id {
     attrib_boneWeight,
 } t_attrib_id;
 
+typedef struct {
+    int x;
+    int y;
+} point2_t;
+
 struct tModel;
 struct texture;
 
@@ -256,5 +261,7 @@ HANDLE MemAlloc(long size);
 void MemFree(HANDLE mem);
 
 void Sys_MkDir(LPCSTR directory);
+
+struct pathPoint_s* CM_FindPath(LPCVECTOR2 start, LPCVECTOR2 target);
 
 #endif

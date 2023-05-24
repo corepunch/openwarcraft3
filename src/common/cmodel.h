@@ -26,7 +26,7 @@ enum MDLGEO {
   MODEL_GEO_NO_FALLBACK = 0x100,   // added in v1500. seen in ElwynnTallWaterfall01.mdx, FelwoodTallWaterfall01.mdx and LavaFallsBlackRock*.mdx
 };
 
-struct PathMapNode {
+typedef struct {
     BYTE unused:1;
     BYTE nowalk:1;
     BYTE nofly:1;
@@ -35,7 +35,7 @@ struct PathMapNode {
     BYTE blight:1;
     BYTE nowater:1;
     BYTE unknown:1;
-};
+} pathMapCell_t;
 
 typedef struct {
     DWORD itemID;
@@ -290,5 +290,7 @@ bool CM_IntersectLineWithHeightmap(LPCLINE3 line, LPVECTOR3 output);
 float CM_GetHeightAtPoint(float sx, float sy);
 LPDOODAD CM_GetDoodads(void);
 mapPlayer_t const *CM_GetPlayer(DWORD index);
+VECTOR2 CM_GetNormalizedMapPosition(float x, float y);
+VECTOR2 CM_GetDenormalizedMapPosition(float x, float y);
 
 #endif

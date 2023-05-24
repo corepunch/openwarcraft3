@@ -64,6 +64,7 @@ void SV_Init(void) {
         .ParseSheet = FS_ParseSheet,
         .GetAnimation = SV_GetAnimation,
         .GetHeightAtPoint = CM_GetHeightAtPoint,
+        .FindPath = CM_FindPath,
         .error = PF_error,
     });
     ge->Init();

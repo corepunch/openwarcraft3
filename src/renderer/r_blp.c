@@ -386,11 +386,13 @@ LPTEXTURE R_LoadTexture(LPCSTR textureFilename) {
     LPTEXTURE pTexture = R_AllocateTexture(blp_width(pBLPInfos, 0), blp_height(pBLPInfos, 0));
 
     FOR_LOOP(level, blp_nbMipLevels(pBLPInfos)) {
+        DWORD const width = blp_width(pBLPInfos, level);
+        DWORD const height = blp_height(pBLPInfos, level);
         LPCOLOR32 pPixels = blp_convert(file, pBLPInfos, level);
-        DWORD width = blp_width(pBLPInfos, level);
-        DWORD height = blp_height(pBLPInfos, level);
-        R_LoadTextureMipLevel(pTexture, level, pPixels, width, height);
-        ri.MemFree(pPixels);
+        if (pPixels) {
+            R_LoadTextureMipLevel(pTexture, level, pPixels, width, height);
+            ri.MemFree(pPixels);
+        }
     }
 
     ri.FileClose(file);
@@ -477,7 +479,7 @@ LPCOLOR32 blp1_convert_paletted_separated_alpha(BYTE* pSrc, struct tBLP1Infos* p
 }
 
 LPCOLOR32 blp1_convert_paletted_alpha(BYTE* pSrc, struct tBLP1Infos* pInfos, DWORD width, DWORD height) {
-    LPCOLOR32 pBuffer = ri.MemAlloc(width * height);
+    LPCOLOR32 pBuffer = ri.MemAlloc(sizeof(COLOR32) * width * height);
     LPCOLOR32 pDst = pBuffer;
     BYTE* pIndices = pSrc;
     FOR_LOOP(y, height) {
@@ -492,7 +494,7 @@ LPCOLOR32 blp1_convert_paletted_alpha(BYTE* pSrc, struct tBLP1Infos* pInfos, DWO
 }
 
 LPCOLOR32 blp2_convert_paletted_alpha8(BYTE* pSrc, struct tBLP2Header* pHeader, DWORD width, DWORD height) {
-    LPCOLOR32 pBuffer = ri.MemAlloc(width * height);
+    LPCOLOR32 pBuffer = ri.MemAlloc(sizeof(COLOR32) * width * height);
     LPCOLOR32 pDst = pBuffer;
     BYTE* pIndices = pSrc;
     BYTE* pAlpha = pSrc + width * height;
@@ -509,7 +511,7 @@ LPCOLOR32 blp2_convert_paletted_alpha8(BYTE* pSrc, struct tBLP2Header* pHeader, 
 }
 
 LPCOLOR32 blp2_convert_paletted_no_alpha(BYTE* pSrc, struct tBLP2Header* pHeader, DWORD width, DWORD height) {
-    LPCOLOR32 pBuffer = ri.MemAlloc(width * height);
+    LPCOLOR32 pBuffer = ri.MemAlloc(sizeof(COLOR32) * width * height);
     LPCOLOR32 pDst = pBuffer;
     FOR_LOOP(y, height) {
         FOR_LOOP(x, width) {
@@ -523,7 +525,7 @@ LPCOLOR32 blp2_convert_paletted_no_alpha(BYTE* pSrc, struct tBLP2Header* pHeader
 }
 
 LPCOLOR32 blp2_convert_paletted_alpha1(BYTE* pSrc, struct tBLP2Header* pHeader, DWORD width, DWORD height) {
-    LPCOLOR32 pBuffer = ri.MemAlloc(width * height);
+    LPCOLOR32 pBuffer = ri.MemAlloc(sizeof(COLOR32) * width * height);
     LPCOLOR32 pDst = pBuffer;
     BYTE* pIndices = pSrc;
     BYTE* pAlpha = pSrc + width * height;
@@ -546,7 +548,7 @@ LPCOLOR32 blp2_convert_paletted_alpha1(BYTE* pSrc, struct tBLP2Header* pHeader, 
 }
 
 LPCOLOR32 blp2_convert_paletted_alpha4(BYTE* pSrc, struct tBLP2Header* pHeader, DWORD width, DWORD height) {
-    LPCOLOR32 pBuffer = ri.MemAlloc(width * height);
+    LPCOLOR32 pBuffer = ri.MemAlloc(sizeof(COLOR32) * width * height);
     LPCOLOR32 pDst = pBuffer;
     BYTE* pIndices = pSrc;
     BYTE* pAlpha = pSrc + width * height;
@@ -571,7 +573,7 @@ LPCOLOR32 blp2_convert_paletted_alpha4(BYTE* pSrc, struct tBLP2Header* pHeader, 
 }
 
 LPCOLOR32 blp1_convert_paletted_no_alpha(BYTE* pSrc, struct tBLP1Infos* pInfos, DWORD width, DWORD height) {
-    LPCOLOR32 pBuffer = ri.MemAlloc(width * height);
+    LPCOLOR32 pBuffer = ri.MemAlloc(sizeof(COLOR32) * width * height);
     LPCOLOR32 pDst = pBuffer;
     BYTE* pIndices = pSrc;
     FOR_LOOP(y, height) {

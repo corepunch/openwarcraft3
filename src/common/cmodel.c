@@ -4,15 +4,10 @@
 static struct {
     LPWAR3MAP map;
     mapInfo_t info;
-    struct size2 pathmapSize;
-    struct PathMapNode *pathmap;
     struct Doodad *doodads;
 } cmodel;
 
-struct PathMapNode const *CM_PathMapNode(LPCWAR3MAP terrain, DWORD x, DWORD y) {
-    int const index = x + y * cmodel.pathmapSize.width;
-    return &cmodel.pathmap[index];
-}
+void CM_ReadPathMap(HANDLE archive);
 
 void SFileReadString(HANDLE file, LPSTR *lppString) {
     DWORD filePosition = SFileSetFilePointer(file, 0, 0, FILE_CURRENT);
@@ -253,19 +248,6 @@ static void CM_ReadUnits(HANDLE archive) {
     SFileCloseFile(file);
 }
 
-static void CM_ReadPathMap(HANDLE archive) {
-    HANDLE file;
-    DWORD header, version;
-    SFileOpenFileEx(archive, "war3map.wpm", SFILE_OPEN_FROM_MPQ, &file);
-    SFileReadFile(file, &header, 4, NULL, NULL);
-    SFileReadFile(file, &version, 4, NULL, NULL);
-    SFileReadFile(file, &cmodel.pathmapSize, 8, NULL, NULL);
-    int const pathmapblocksize = cmodel.pathmapSize.width * cmodel.pathmapSize.height;
-    cmodel.pathmap = MemAlloc(pathmapblocksize);
-    SFileReadFile(file, cmodel.pathmap, pathmapblocksize, 0, 0);
-    SFileCloseFile(file);
-}
-
 static void CM_ReadHeightmap(HANDLE archive) {
     cmodel.map = MemAlloc(sizeof(WAR3MAP));
     HANDLE file;
@@ -382,4 +364,16 @@ mapPlayer_t const *CM_GetPlayer(DWORD index) {
     } else {
         return NULL;
     }
+}
+
+VECTOR2 CM_GetNormalizedMapPosition(float x, float y) {
+    float _x = (x - cmodel.map->center.x) / ((cmodel.map->width-1) * TILESIZE);
+    float _y = (y - cmodel.map->center.y) / ((cmodel.map->height-1) * TILESIZE);
+    return (VECTOR2) { _x, _y };
+}
+
+VECTOR2 CM_GetDenormalizedMapPosition(float x, float y) {
+    float _x = x * (cmodel.map->width-1) * TILESIZE + cmodel.map->center.x;
+    float _y = y * (cmodel.map->height-1) * TILESIZE + cmodel.map->center.y;
+    return (VECTOR2) { _x, _y };
 }

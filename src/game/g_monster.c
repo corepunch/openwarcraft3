@@ -18,6 +18,11 @@ LPEDICT Waypoint_add(VECTOR2 spot) {
     return waypoint;
 }
 
+//void G_FindPath(LPEDICT edict, LPCVECTOR2 location) {
+//    pathPoint_t *path = gi.FindPath((LPCVECTOR2)&edict->s.origin, location);
+//    int a =0;
+//}
+
 void M_MoveFrame(LPEDICT self) {
     if (self->monsterinfo.aiflags & AI_HOLD_FRAME)
         return;
