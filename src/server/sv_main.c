@@ -30,6 +30,8 @@ static void SV_Baseline(LPCLIENT cl) {
     memset(&nullstate, 0, sizeof(entityState_t));
     FOR_LOOP(index, ge->num_edicts) {
         LPEDICT e = EDICT_NUM(index);
+        if (e->svflags & SVF_NOCLIENT)
+            continue;
         MSG_WriteByte(&cl->netchan.message, svc_spawnbaseline);
         MSG_WriteDeltaEntity(&cl->netchan.message, &nullstate, &e->s);
     }

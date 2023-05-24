@@ -49,6 +49,10 @@ typedef struct {
 
 struct edict {
     entityState_t s;
+    DWORD svflags;
+
+    // keep above in sync with server.h
+
     DWORD class_id;
     DWORD variation;
     movetype_t movetype;

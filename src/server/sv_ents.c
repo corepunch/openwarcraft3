@@ -62,6 +62,8 @@ void SV_BuildClientFrame(LPCLIENT client) {
     frame->first_entity = svs.next_client_entities;
     FOR_LOOP(index, ge->num_edicts) {
         LPEDICT edict = EDICT_NUM(index);
+        if (edict->svflags & SVF_NOCLIENT)
+            continue;
         if (!edict->s.model && !edict->s.sound && !edict->s.event)
             continue;
         if (!SV_CanClientSeeEntity(client, &edict->s))

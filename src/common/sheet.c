@@ -51,7 +51,7 @@ static LPSHEETCELL SheetCellNew(DWORD x, DWORD y, LPSTR text, LPSHEETCELL sheet)
         *(outstr++) = *instr;
     }
 //    if (y == 2) {
-//    if (!strcmp(cell->text, "Peon")) {
+//    if (!strcmp(cell->text, "sloc")) {
 //        printf("\t%d %s\n", x, cell->text);
 //    }
     return cell;

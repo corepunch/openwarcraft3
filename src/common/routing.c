@@ -1,18 +1,28 @@
 #include "server.h"
 
 #include <limits.h>
+#include <SDL.h>
 
 typedef struct {
     point2_t parent;
     int f, g, h, s;
 } pathNode_t;
 
+typedef struct routeNode_s {
+    struct routeNode_s *next;
+    int x;
+    int y;
+    int step;
+    bool closed;
+} routeNode_t;
+
 struct {
     DWORD width;
     DWORD height;
     pathMapCell_t *data;
-    uint8_t *closed_set;
     pathNode_t *nodes;
+    uint8_t *closed_set;
+    routeNode_t *heatmap;
 } pathmap = { 0 };
 
 static int const dx[] = {-1, 1, 0, 0, -1, -1, 1, 1};
@@ -32,31 +42,36 @@ static void CM_FillDebugObstacles(void) {
 }
 #endif
 
-static pathMapCell_t const *path_node(DWORD x, DWORD y) {
+inline static pathMapCell_t const *path_node(DWORD x, DWORD y) {
     int const index = x + y * pathmap.width;
     return &pathmap.data[index];
 }
 
-static pathNode_t *node(DWORD x, DWORD y) {
+inline static routeNode_t *heatmap(DWORD x, DWORD y) {
+    int const index = x + y * pathmap.width;
+    return &pathmap.heatmap[index];
+}
+
+inline static pathNode_t *node(DWORD x, DWORD y) {
     int const index = x + y * pathmap.width;
     return &pathmap.nodes[index];
 }
 
-static uint8_t *closed_set(DWORD x, DWORD y) {
+inline static uint8_t *closed_set(DWORD x, DWORD y) {
     int const index = x + y * pathmap.width;
     return &pathmap.closed_set[index];
 }
 
-static bool is_valid_point(DWORD x, DWORD y) {
+inline static bool is_valid_point(DWORD x, DWORD y) {
     return x < pathmap.width && y < pathmap.height;
 }
 
-static bool is_obstacle(DWORD x, DWORD y) {
+inline static bool is_obstacle(DWORD x, DWORD y) {
     pathMapCell_t const *node = path_node(x, y);
     return !node || node->nowalk;
 }
 
-static int calculate_h(int x, int y, int target_x, int target_y) {
+inline static int calculate_h(int x, int y, int target_x, int target_y) {
     return abs(target_x - x) + abs(target_y - y);
 }
 
@@ -75,6 +90,53 @@ static point2_t* reconstruct_path(point2_t start, point2_t target) {
     return path;
 }
 
+static point2_t* find_path2(point2_t start, point2_t target) {
+//    memset(pathmap.closed_set, 0, pathmap.width * pathmap.height);
+//    memset(pathmap.nodes, 0, pathmap.width * pathmap.height * sizeof(pathNode_t));
+    
+#ifdef DEBUG_PATHFINDING
+    CM_FillDebugObstacles();
+#endif
+    
+    int start_time = SDL_GetTicks();
+    
+    FOR_LOOP(i, pathmap.width * pathmap.height) {
+        pathmap.heatmap[i].next = NULL;
+        pathmap.heatmap[i].closed = false;
+        pathmap.heatmap[i].step = 0;
+    }
+    
+    routeNode_t *open = heatmap(target.x, target.y);
+    routeNode_t **next = &open->next;
+    open->closed = true;
+    
+    for (int iter = 0; open && iter < 20000; iter++, open = open->next) {
+        for (int i = 0; i < 8; i++) {
+            int new_x = open->x + dx[i];
+            int new_y = open->y + dy[i];
+            if (!is_valid_point(new_x, new_y) ||
+                is_obstacle(new_x, new_y) ||
+                heatmap(new_x, new_y)->closed)
+                continue;
+            routeNode_t *neighbor = heatmap(new_x, new_y);
+            *next = neighbor;
+            next = &neighbor->next;
+            neighbor->closed = true;
+            neighbor->step = open->step + 1;
+        }
+    }
+    
+    printf("Computed in %d ticks\n", SDL_GetTicks() - start_time);
+
+#ifdef DEBUG_PATHFINDING
+    FOR_LOOP(i, pathmap.width * pathmap.height) {
+        pathDebug[i].g = pathmap.heatmap[i].step > 0 ? pathmap.heatmap[i].step : 255;
+    }
+#endif
+
+    return NULL;
+}
+
 static point2_t* find_path(point2_t start, point2_t target) {
     memset(pathmap.closed_set, 0, pathmap.width * pathmap.height);
     memset(pathmap.nodes, 0, pathmap.width * pathmap.height * sizeof(pathNode_t));
@@ -82,6 +144,7 @@ static point2_t* find_path(point2_t start, point2_t target) {
 #ifdef DEBUG_PATHFINDING
     CM_FillDebugObstacles();
 #endif
+    int start_time = SDL_GetTicks();
 
     for (int i = 0; i < pathmap.width; i++) {
         for (int j = 0; j < pathmap.height; j++) {
@@ -147,6 +210,8 @@ static point2_t* find_path(point2_t start, point2_t target) {
             }
         }
     }
+    printf("Computed in %d ticks\n", SDL_GetTicks() - start_time);
+
     printf("Found path in %d iterations\n", iteration);
     return reconstruct_path(start, target);
 }
@@ -186,9 +251,15 @@ void CM_ReadPathMap(HANDLE archive) {
     pathmap.data = MemAlloc(pathmap.width * pathmap.height);
     pathmap.closed_set = MemAlloc(pathmap.width * pathmap.height);
     pathmap.nodes = MemAlloc(pathmap.width * pathmap.height * sizeof(pathNode_t));
+    pathmap.heatmap = MemAlloc(pathmap.width * pathmap.height * sizeof(routeNode_t));
     SFileReadFile(file, pathmap.data, pathmap.width * pathmap.height, 0, 0);
     SFileCloseFile(file);
-    
+
+    FOR_LOOP(i, pathmap.width * pathmap.height) {
+        pathmap.heatmap[i].x = i % pathmap.width;
+        pathmap.heatmap[i].y = i / pathmap.width;
+    }
+
 #ifdef DEBUG_PATHFINDING
     pathDebug = MemAlloc(pathmap.width * pathmap.height * sizeof(COLOR32));
     CM_FillDebugObstacles();

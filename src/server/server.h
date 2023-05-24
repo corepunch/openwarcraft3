@@ -14,11 +14,12 @@ KNOWN_AS(client, CLIENT);
 
 struct edict {
     entityState_t s;
+    DWORD svflags;
 };
 
 struct client_frame {
-    int num_entities;
-    int first_entity;        // into the circular sv_packet_entities[]
+    DWORD num_entities;
+    DWORD first_entity;        // into the circular sv_packet_entities[]
 };
 
 struct client {

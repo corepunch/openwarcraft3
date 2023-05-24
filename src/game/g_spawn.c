@@ -50,6 +50,9 @@ void SP_CallSpawn(LPEDICT edict) {
     } else if ((unitUI = FindUnitUI(edict->class_id))) {
         SP_SpawnUnit(edict, unitUI);
         SP_monster_peon(edict);
+    } else {
+        edict->svflags |= SVF_NOCLIENT;
+        fprintf(stderr, "Unknown id %.4s\n", (const char *)&edict->class_id);
     }
 //    for (struct spawn *s = spawns; s->func; s++) {
 //        if (*((int const *)s->name) == edict->class_id) {
