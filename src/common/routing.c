@@ -13,6 +13,7 @@ typedef struct routeNode_s {
     int x;
     int y;
     int step;
+    int price;
     bool closed;
 } routeNode_t;
 
@@ -76,7 +77,7 @@ inline static int calculate_h(int x, int y, int target_x, int target_y) {
 }
 
 static point2_t* reconstruct_path(point2_t start, point2_t target) {
-    printf("path: %d\n", node(target.x, target.y)->g + 1);
+//    printf("path: %d\n", node(target.x, target.y)->g + 1);
     int path_length = node(target.x, target.y)->g + 1;
     point2_t* path = MemAlloc(path_length * sizeof(point2_t));
     point2_t current = target;
@@ -90,10 +91,43 @@ static point2_t* reconstruct_path(point2_t start, point2_t target) {
     return path;
 }
 
-static point2_t* find_path2(point2_t start, point2_t target) {
-//    memset(pathmap.closed_set, 0, pathmap.width * pathmap.height);
-//    memset(pathmap.nodes, 0, pathmap.width * pathmap.height * sizeof(pathNode_t));
-    
+VECTOR2 compute_directiom(DWORD x, DWORD y) {
+    DWORD prices[8] = { INT_MAX };
+    DWORD min_price = INT_MAX;
+    FOR_LOOP(dir, 8) {
+        int new_x = x + dx[dir];
+        int new_y = y + dy[dir];
+        if (!is_valid_point(new_x, new_y) ||
+            is_obstacle(new_x, new_y) ||
+            !heatmap(new_x, new_y)->closed)
+            continue;
+        prices[dir] = heatmap(new_x, new_y)->price;
+        min_price = MIN(prices[dir], min_price);
+    }
+    VECTOR2 direction = { 0, 0 };
+    FOR_LOOP(dir, 8) {
+        float k = 10.f / (10 + (prices[dir] - min_price));
+        direction.x += dx[dir] * k;
+        direction.y += dy[dir] * k;
+    }
+    return direction;
+}
+
+VECTOR2 get_flow_direction(float fnx, float fny) {
+    VECTOR2 n = CM_GetNormalizedMapPosition(fnx, fny);
+    n.x *= pathmap.width;
+    n.y *= pathmap.height;
+    DWORD dx = floorf(n.x), dy = floorf(n.y);
+    VECTOR2 a = compute_directiom(dx, dy);
+    VECTOR2 b = compute_directiom(dx+1, dy);
+    VECTOR2 c = compute_directiom(dx+1, dy+1);
+    VECTOR2 d = compute_directiom(dx, dy+1);
+    VECTOR2 ab = Vector2_lerp(&a, &b, n.x - dx);
+    VECTOR2 cd = Vector2_lerp(&c, &d, n.x - dx);
+    return Vector2_lerp(&ab, &cd, n.y - dy);
+}
+
+static point2_t* find_path(point2_t start, point2_t target) {
 #ifdef DEBUG_PATHFINDING
     CM_FillDebugObstacles();
 #endif
@@ -111,7 +145,7 @@ static point2_t* find_path2(point2_t start, point2_t target) {
     open->closed = true;
     
     for (int iter = 0; open && iter < 20000; iter++, open = open->next) {
-        for (int i = 0; i < 8; i++) {
+        FOR_LOOP(i, 8) {
             int new_x = open->x + dx[i];
             int new_y = open->y + dy[i];
             if (!is_valid_point(new_x, new_y) ||
@@ -123,6 +157,7 @@ static point2_t* find_path2(point2_t start, point2_t target) {
             next = &neighbor->next;
             neighbor->closed = true;
             neighbor->step = open->step + 1;
+            neighbor->price = open->price + gv[i];
         }
     }
     
@@ -130,14 +165,15 @@ static point2_t* find_path2(point2_t start, point2_t target) {
 
 #ifdef DEBUG_PATHFINDING
     FOR_LOOP(i, pathmap.width * pathmap.height) {
-        pathDebug[i].g = pathmap.heatmap[i].step > 0 ? pathmap.heatmap[i].step : 255;
+        
+        pathDebug[i].g = pathmap.heatmap[i].step > 0 ? pathmap.heatmap[i].price * 2 : 255;
     }
 #endif
 
-    return NULL;
+        return NULL;
 }
 
-static point2_t* find_path(point2_t start, point2_t target) {
+static point2_t* find_path2(point2_t start, point2_t target) {
     memset(pathmap.closed_set, 0, pathmap.width * pathmap.height);
     memset(pathmap.nodes, 0, pathmap.width * pathmap.height * sizeof(pathNode_t));
     
@@ -176,14 +212,12 @@ static point2_t* find_path(point2_t start, point2_t target) {
             }
         }
 
-        // Goal reached
         if (current.x == target.x && current.y == target.y)
             break;
         
         *closed_set(current.x, current.y) = true;
         
-        // Explore neighbors
-        for (int i = 0; i < 8; i++) {
+        FOR_LOOP(i, 8) {
             int new_x = current.x + dx[i];
             int new_y = current.y + dy[i];
             if (!is_valid_point(new_x, new_y) ||
@@ -212,7 +246,7 @@ static point2_t* find_path(point2_t start, point2_t target) {
     }
     printf("Computed in %d ticks\n", SDL_GetTicks() - start_time);
 
-    printf("Found path in %d iterations\n", iteration);
+//    printf("Found path in %d iterations\n", iteration);
     return reconstruct_path(start, target);
 }
 

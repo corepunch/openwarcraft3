@@ -56,7 +56,8 @@ void CL_Input(void) {
                 }
                 break;
             case SDL_MOUSEMOTION:
-                if (button == 1) {
+                if (button > 0) moved = true;
+                if (button == 3) {
                     moved = true;
                     cl.viewDef.vieworg.x -= event.motion.xrel * 5;
                     cl.viewDef.vieworg.y += event.motion.yrel * 5;

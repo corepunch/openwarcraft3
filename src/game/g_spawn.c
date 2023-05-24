@@ -52,7 +52,7 @@ void SP_CallSpawn(LPEDICT edict) {
         SP_monster_peon(edict);
     } else {
         edict->svflags |= SVF_NOCLIENT;
-        fprintf(stderr, "Unknown id %.4s\n", (const char *)&edict->class_id);
+//        fprintf(stderr, "Unknown id %.4s\n", (const char *)&edict->class_id);
     }
 //    for (struct spawn *s = spawns; s->func; s++) {
 //        if (*((int const *)s->name) == edict->class_id) {

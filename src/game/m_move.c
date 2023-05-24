@@ -3,12 +3,15 @@
 
 #include <stdlib.h>
 
-#define ATTACK_DISTANCE 200
+#define NAVI_THRESHOLD 50
 
 void M_ChangeAngle(LPEDICT self) {
-    VECTOR2 const dir = Vector2_sub((LPVECTOR2)&self->s.origin,
-                                    (LPVECTOR2)&self->path->point);
-    self->s.angle = atan2(-dir.y, -dir.x);
+    VECTOR2 dir = Vector2_sub((LPVECTOR2)&self->goalentity->s.origin,
+                                    (LPVECTOR2)&self->s.origin);
+    if (Vector2_len(&dir) > NAVI_THRESHOLD) {
+        dir = gi.GetFlowDirection(self->s.origin.x, self->s.origin.y);
+    }
+    self->s.angle = atan2(dir.y, dir.x);
 }
 
 
@@ -23,16 +26,17 @@ bool SV_CloseEnough(LPEDICT self, LPCEDICT goal, float distance) {
             return false;
         }
     } else {
-        float between = Vector2_distance((LPVECTOR2)&self->s.origin, (LPVECTOR2)&self->path->point);
+        float between = Vector2_distance((LPVECTOR2)&self->s.origin, (LPVECTOR2)&self->goalentity->s.origin);
         if (between < distance) {
-            if (self->path->next) {
-                self->path = self->path->next;
-                return false;
-            } else {
-                self->path = NULL;
-                self->monsterinfo.stand(self);
-                return true;
-            }
+//            if (self->path->next) {
+//                self->path = self->path->next;
+//                return false;
+//            } else {
+//            self->path = NULL;
+            self->goalentity = NULL;
+            self->monsterinfo.stand(self);
+            return true;
+//            }
         } else {
             return false;
         }

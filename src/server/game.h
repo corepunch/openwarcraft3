@@ -29,6 +29,7 @@ struct game_import {
     LPCANIMATION (*GetAnimation)(int modelindex, animationType_t animtype);
     HANDLE (*ParseSheet)(LPCSTR sheetFilename, LPCSHEETLAYOUT layout, DWORD elementSize);
     pathPoint_t* (*FindPath)(LPCVECTOR2 start, LPCVECTOR2 target);
+    VECTOR2 (*GetFlowDirection)(float fx, float fy);
     float (*GetHeightAtPoint)(float x, float y);
     void (*error) (char *fmt, ...);
 };

@@ -53,6 +53,7 @@ void PF_error(char *fmt, ...) {
     va_end(argptr);
     fprintf(stderr, "Game Error: %s\n", msg);
 }
+VECTOR2 get_flow_direction(float fx, float fy);
 
 void SV_Init(void) {
     ge = GetGameAPI(&(struct game_import) {
@@ -65,6 +66,7 @@ void SV_Init(void) {
         .GetAnimation = SV_GetAnimation,
         .GetHeightAtPoint = CM_GetHeightAtPoint,
         .FindPath = CM_FindPath,
+        .GetFlowDirection = get_flow_direction,
         .error = PF_error,
     });
     ge->Init();
