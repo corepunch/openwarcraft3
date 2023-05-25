@@ -35,6 +35,8 @@ void G_SolveCollisions(void) {
                 Vector2_normalize(&d);
                 float diff = sqrtf(dist_sq) - allowed_dist;
                 if ((ea->flags & IS_UNIT) && (eb->flags & IS_UNIT)) {
+//                    float adist = Vector2_distance(
+                    
                     *apos = Vector2_mad(apos, -diff * 0.5f, &d);
                     *bpos = Vector2_mad(bpos, diff * 0.5f, &d);
                 } else if (ea->flags & IS_UNIT) {

@@ -112,15 +112,15 @@ LPCSTR fragment_shader_ui =
 "}\n";
 
 LPCSHADER R_InitShader(LPCSTR vertex_shader, LPCSTR fragment_shader){
-    GLuint vs = glCreateShader(GL_VERTEX_SHADER);
-    GLuint fs = glCreateShader(GL_FRAGMENT_SHADER);
+    GLuint vs = R_Call(glCreateShader, GL_VERTEX_SHADER);
+    GLuint fs = R_Call(glCreateShader, GL_FRAGMENT_SHADER);
 
     int length = (int)strlen(vertex_shader);
-    glShaderSource(vs, 1, (const GLchar **)&vertex_shader, &length);
-    glCompileShader(vs);
+    R_Call(glShaderSource, vs, 1, (const GLchar **)&vertex_shader, &length);
+    R_Call(glCompileShader, vs);
 
     GLint status;
-    glGetShaderiv(vs, GL_COMPILE_STATUS, &status);
+    R_Call(glGetShaderiv, vs, GL_COMPILE_STATUS, &status);
     if(status == GL_FALSE)
     {
         fprintf(stderr, "vertex shader compilation failed\n");
@@ -128,10 +128,10 @@ LPCSHADER R_InitShader(LPCSTR vertex_shader, LPCSTR fragment_shader){
     }
 
     length = (int)strlen(fragment_shader);
-    glShaderSource(fs, 1, (const GLchar **)&fragment_shader, &length);
-    glCompileShader(fs);
+    R_Call(glShaderSource, fs, 1, (const GLchar **)&fragment_shader, &length);
+    R_Call(glCompileShader, fs);
 
-    glGetShaderiv(fs, GL_COMPILE_STATUS, &status);
+    R_Call(glGetShaderiv, fs, GL_COMPILE_STATUS, &status);
     if(status == GL_FALSE)
     {
         fprintf(stderr, "fragment shader compilation failed\n");
@@ -139,33 +139,33 @@ LPCSHADER R_InitShader(LPCSTR vertex_shader, LPCSTR fragment_shader){
     }
     
     LPSHADER program = ri.MemAlloc(sizeof(struct shader_program));
-    program->progid = glCreateProgram();
+    program->progid = R_Call(glCreateProgram, );
 
-    glAttachShader(program->progid, vs);
-    glAttachShader(program->progid, fs);
+    R_Call(glAttachShader, program->progid, vs);
+    R_Call(glAttachShader, program->progid, fs);
 
-    glBindAttribLocation(program->progid, attrib_position, "i_position");
-    glBindAttribLocation(program->progid, attrib_color, "i_color");
-    glBindAttribLocation(program->progid, attrib_texcoord, "i_texcoord");
-    glBindAttribLocation(program->progid, attrib_texcoord2, "i_texcoord2");
-    glBindAttribLocation(program->progid, attrib_normal, "i_normal");
-    glBindAttribLocation(program->progid, attrib_skin, "i_skin");
-    glBindAttribLocation(program->progid, attrib_boneWeight, "i_boneWeight");
+    R_Call(glBindAttribLocation, program->progid, attrib_position, "i_position");
+    R_Call(glBindAttribLocation, program->progid, attrib_color, "i_color");
+    R_Call(glBindAttribLocation, program->progid, attrib_texcoord, "i_texcoord");
+    R_Call(glBindAttribLocation, program->progid, attrib_texcoord2, "i_texcoord2");
+    R_Call(glBindAttribLocation, program->progid, attrib_normal, "i_normal");
+    R_Call(glBindAttribLocation, program->progid, attrib_skin, "i_skin");
+    R_Call(glBindAttribLocation, program->progid, attrib_boneWeight, "i_boneWeight");
 
-    glLinkProgram(program->progid);
-    glUseProgram(program->progid);
+    R_Call(glLinkProgram, program->progid);
+    R_Call(glUseProgram, program->progid);
     
-    program->uProjectionMatrix = glGetUniformLocation(program->progid, "uProjectionMatrix");
-    program->uModelMatrix = glGetUniformLocation(program->progid, "uModelMatrix");
-    program->uLightMatrix = glGetUniformLocation(program->progid, "uLightMatrix");
-    program->uNormalMatrix = glGetUniformLocation(program->progid, "uNormalMatrix");
-    program->uTexture = glGetUniformLocation(program->progid, "uTexture");
-    program->uShadowmap = glGetUniformLocation(program->progid, "uShadowmap");
-    program->uBones = glGetUniformLocation(program->progid, "uBones");
-    program->uUseDiscard = glGetUniformLocation(program->progid, "uUseDiscard");
+    program->uProjectionMatrix = R_Call(glGetUniformLocation, program->progid, "uProjectionMatrix");
+    program->uModelMatrix = R_Call(glGetUniformLocation, program->progid, "uModelMatrix");
+    program->uLightMatrix = R_Call(glGetUniformLocation, program->progid, "uLightMatrix");
+    program->uNormalMatrix = R_Call(glGetUniformLocation, program->progid, "uNormalMatrix");
+    program->uTexture = R_Call(glGetUniformLocation, program->progid, "uTexture");
+    program->uShadowmap = R_Call(glGetUniformLocation, program->progid, "uShadowmap");
+    program->uBones = R_Call(glGetUniformLocation, program->progid, "uBones");
+    program->uUseDiscard = R_Call(glGetUniformLocation, program->progid, "uUseDiscard");
     
-    glUniform1i(program->uTexture, 0);
-    glUniform1i(program->uShadowmap, 1);
+    R_Call(glUniform1i, program->uTexture, 0);
+    R_Call(glUniform1i, program->uShadowmap, 1);
 
     return program;
 }

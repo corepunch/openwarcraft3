@@ -53,44 +53,46 @@ static void R_SetupGL(bool drawLight) {
     }
     Matrix3_normal(&normal_matrix, &model_matrix);
 
-    glEnable(GL_CULL_FACE);
-    glCullFace(GL_BACK);
+    R_Call(glEnable, GL_CULL_FACE);
+    R_Call(glCullFace, GL_BACK);
 
-    glUseProgram(tr.shaderSkin->progid);
+    R_Call(glUseProgram, tr.shaderSkin->progid);
 
-    glUniformMatrix4fv(tr.shaderSkin->uProjectionMatrix, 1, GL_FALSE, tr.viewDef.projection_matrix.v);
-    glUniformMatrix4fv(tr.shaderSkin->uModelMatrix, 1, GL_FALSE, model_matrix.v);
-    glUniformMatrix4fv(tr.shaderSkin->uLightMatrix, 1, GL_FALSE, tr.viewDef.light_matrix.v);
-    glUniformMatrix3fv(tr.shaderSkin->uNormalMatrix, 1, GL_TRUE, normal_matrix.v);
+    R_Call(glUniformMatrix4fv, tr.shaderSkin->uProjectionMatrix, 1, GL_FALSE, tr.viewDef.projection_matrix.v);
+    R_Call(glUniformMatrix4fv, tr.shaderSkin->uModelMatrix, 1, GL_FALSE, model_matrix.v);
+    R_Call(glUniformMatrix4fv, tr.shaderSkin->uLightMatrix, 1, GL_FALSE, tr.viewDef.light_matrix.v);
+    R_Call(glUniformMatrix3fv, tr.shaderSkin->uNormalMatrix, 1, GL_TRUE, normal_matrix.v);
 
-    glUseProgram(tr.shaderStatic->progid);
+    R_Call(glUseProgram, tr.shaderStatic->progid);
 
-    glUniformMatrix4fv(tr.shaderStatic->uProjectionMatrix, 1, GL_FALSE, tr.viewDef.projection_matrix.v);
-    glUniformMatrix4fv(tr.shaderStatic->uModelMatrix, 1, GL_FALSE, model_matrix.v);
-    glUniformMatrix4fv(tr.shaderStatic->uLightMatrix, 1, GL_FALSE, tr.viewDef.light_matrix.v);
-    glUniformMatrix3fv(tr.shaderStatic->uNormalMatrix, 1, GL_TRUE, normal_matrix.v);
+    R_Call(glUniformMatrix4fv, tr.shaderStatic->uProjectionMatrix, 1, GL_FALSE, tr.viewDef.projection_matrix.v);
+    R_Call(glUniformMatrix4fv, tr.shaderStatic->uModelMatrix, 1, GL_FALSE, model_matrix.v);
+    R_Call(glUniformMatrix4fv, tr.shaderStatic->uLightMatrix, 1, GL_FALSE, tr.viewDef.light_matrix.v);
+    R_Call(glUniformMatrix3fv, tr.shaderStatic->uNormalMatrix, 1, GL_TRUE, normal_matrix.v);
 
-    glUseProgram(tr.shaderUI->progid);
+    R_Call(glUseProgram, tr.shaderUI->progid);
 
-    glUniformMatrix4fv(tr.shaderUI->uProjectionMatrix, 1, GL_FALSE, ui_matrix.v);
-    glUniformMatrix4fv(tr.shaderUI->uModelMatrix, 1, GL_FALSE, model_matrix.v);
+    R_Call(glUniformMatrix4fv, tr.shaderUI->uProjectionMatrix, 1, GL_FALSE, ui_matrix.v);
+    R_Call(glUniformMatrix4fv, tr.shaderUI->uModelMatrix, 1, GL_FALSE, model_matrix.v);
 }
 
 void R_InitShadowMap(void) {
-    glGenFramebuffers(1, &tr.depthMapFBO);
-    glGenTextures(1, &tr.depthMap);
-    glBindTexture(GL_TEXTURE_2D, tr.depthMap);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, SHADOW_WIDTH, SHADOW_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glBindFramebuffer(GL_FRAMEBUFFER, tr.depthMapFBO);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, tr.depthMap, 0);
-    glDrawBuffer(GL_NONE);
-    glReadBuffer(GL_NONE);
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    R_Call(glGenFramebuffers, 1, &tr.depthMapFBO);
+    R_Call(glGenTextures, 1, &tr.depthMap);
+    R_Call(glBindTexture, GL_TEXTURE_2D, tr.depthMap);
+    R_Call(glTexImage2D, GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, SHADOW_WIDTH, SHADOW_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    R_Call(glBindFramebuffer, GL_FRAMEBUFFER, tr.depthMapFBO);
+    R_Call(glFramebufferTexture2D, GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, tr.depthMap, 0);
+    R_Call(glDrawBuffer, GL_NONE);
+    R_Call(glReadBuffer, GL_NONE);
+    R_Call(glBindFramebuffer, GL_FRAMEBUFFER, 0);
 }
+
+LPCTEXTURE tex1, tex2, tex3, tex4;
 
 void R_Init(DWORD width, DWORD height) {
     SDL_Init(SDL_INIT_VIDEO);
@@ -115,6 +117,18 @@ void R_Init(DWORD width, DWORD height) {
 
     int white = -1;
     
+    tex1 = R_LoadTexture("UI\\Console\\Human\\HumanUITile01.blp");
+//    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+//    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    tex2 = R_LoadTexture("UI\\Console\\Human\\HumanUITile02.blp");
+//    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+//    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    tex3 = R_LoadTexture("UI\\Console\\Human\\HumanUITile03.blp");
+//    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+//    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    tex4 = R_LoadTexture("UI\\Console\\Human\\HumanUITile04.blp");
+//    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+//    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 //    tr.selectionCircle = R_LoadModel("UI\\Feedback\\Confirmation\\Confirmation.mdx");
     tr.selectionCircle = R_LoadModel("UI\\Feedback\\SelectionCircle\\SelectionCircle.mdx");
     tr.shaderStatic = R_InitShader(vertex_shader, fragment_shader);
@@ -124,9 +138,9 @@ void R_Init(DWORD width, DWORD height) {
     tr.whiteTexture = R_AllocateTexture(1, 1);
     R_LoadTextureMipLevel(tr.whiteTexture, 0, (LPCCOLOR32)&white, 1, 1);
 
-    glDisable(GL_DEPTH_TEST);
-    glClearColor(0.0, 0.0, 0.0, 0.0);
-    glViewport(0, 0, width, height);
+    R_Call(glDisable, GL_DEPTH_TEST);
+    R_Call(glClearColor, 0.0, 0.0, 0.0, 0.0);
+    R_Call(glViewport, 0, 0, width, height);
     
     FOR_LOOP(team, MAX_TEAMS) {
         PATHSTR glowFilename, colorFilename;
@@ -225,53 +239,77 @@ void R_PrintText(LPCSTR string, DWORD x, DWORD y, COLOR32 color) {
 
     DWORD num_vertices = (DWORD)(it - simp);
 
-    glUseProgram(tr.shaderUI->progid);
-    glBindVertexArray(tr.renbuf->vao);
-    glBindBuffer(GL_ARRAY_BUFFER, tr.renbuf->vbo);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(VERTEX) * num_vertices, simp, GL_STATIC_DRAW);
+    R_Call(glUseProgram, tr.shaderUI->progid);
+    R_Call(glBindVertexArray, tr.renbuf->vao);
+    R_Call(glBindBuffer, GL_ARRAY_BUFFER, tr.renbuf->vbo);
+    R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(VERTEX) * num_vertices, simp, GL_STATIC_DRAW);
 
     R_BindTexture(tr.sysFont, 0);
 
-    glDisable(GL_CULL_FACE);
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glDrawArrays(GL_TRIANGLES, 0, num_vertices);
+    R_Call(glDisable, GL_CULL_FACE);
+    R_Call(glEnable, GL_BLEND);
+    R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    R_Call(glDrawArrays, GL_TRIANGLES, 0, num_vertices);
 }
 
 void R_DrawPic(LPCTEXTURE texture, DWORD x, DWORD y) {
     static VERTEX simp[6];
     R_AddQuad(simp, &(struct rect) {
-        x, y, texture->width * 2, texture->height * 2
+        x, y, texture->width, texture->height
     }, &(struct rect) { 0,0,1,1 }, (COLOR32){255,255,255,255});
 
-    glUseProgram(tr.shaderUI->progid);
-    glBindVertexArray(tr.renbuf->vao);
-    glBindBuffer(GL_ARRAY_BUFFER, tr.renbuf->vbo);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(VERTEX) * 6, simp, GL_STATIC_DRAW);
+    R_Call(glUseProgram, tr.shaderUI->progid);
+    R_Call(glBindVertexArray, tr.renbuf->vao);
+    R_Call(glBindBuffer, GL_ARRAY_BUFFER, tr.renbuf->vbo);
+    R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(VERTEX) * 6, simp, GL_STATIC_DRAW);
 
     R_BindTexture(texture, 0);
 
-    glDisable(GL_CULL_FACE);
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glDrawArrays(GL_TRIANGLES, 0, 6);
+    R_Call(glDisable, GL_CULL_FACE);
+    R_Call(glEnable, GL_BLEND);
+    R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    R_Call(glDrawArrays, GL_TRIANGLES, 0, 6);
+}
+
+void R_DrawPicEx(LPCTEXTURE texture, DWORD x, DWORD y, struct rect const *uv) {
+    static VERTEX simp[6];
+    R_AddQuad(simp, &(struct rect) {
+        x + uv->x * texture->width,
+        y + uv->y * texture->height,
+        texture->width * uv->width,
+        texture->height * uv->height
+    }, uv, (COLOR32){255,255,255,255});
+
+    R_Call(glUseProgram, tr.shaderUI->progid);
+    R_Call(glBindVertexArray, tr.renbuf->vao);
+    R_Call(glBindBuffer, GL_ARRAY_BUFFER, tr.renbuf->vbo);
+    R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(VERTEX) * 6, simp, GL_STATIC_DRAW);
+
+    R_BindTexture(texture, 0);
+    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+    R_Call(glDisable, GL_CULL_FACE);
+    R_Call(glEnable, GL_BLEND);
+    R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    R_Call(glDrawArrays, GL_TRIANGLES, 0, 6);
 }
 
 void R_DrawSelectionRect(struct rect const *rect, COLOR32 color) {
     static VERTEX simp[5];
     R_AddStrip(simp, rect, color);
 
-    glUseProgram(tr.shaderUI->progid);
-    glBindVertexArray(tr.renbuf->vao);
-    glBindBuffer(GL_ARRAY_BUFFER, tr.renbuf->vbo);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(VERTEX) * 5, simp, GL_STATIC_DRAW);
+    R_Call(glUseProgram, tr.shaderUI->progid);
+    R_Call(glBindVertexArray, tr.renbuf->vao);
+    R_Call(glBindBuffer, GL_ARRAY_BUFFER, tr.renbuf->vbo);
+    R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(VERTEX) * 5, simp, GL_STATIC_DRAW);
 
     R_BindTexture(tr.whiteTexture, 0);
 
-    glDisable(GL_CULL_FACE);
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glDrawArrays(GL_LINE_STRIP, 0, 5);
+    R_Call(glDisable, GL_CULL_FACE);
+    R_Call(glEnable, GL_BLEND);
+    R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    R_Call(glDrawArrays, GL_LINE_STRIP, 0, 5);
 }
 
 bool R_IsPointVisible(LPCVECTOR3 point, float fThreshold) {
@@ -290,80 +328,96 @@ void R_RenderFrame(viewDef_t const *viewDef) {
     tr.viewDef = *viewDef;
 
     // 1. first render to depth map
-    glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
-    glBindFramebuffer(GL_FRAMEBUFFER, tr.depthMapFBO);
-    glClear(GL_DEPTH_BUFFER_BIT);
+    R_Call(glViewport, 0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
+    R_Call(glBindFramebuffer, GL_FRAMEBUFFER, tr.depthMapFBO);
+    R_Call(glClear, GL_DEPTH_BUFFER_BIT);
     is_rendering_lights = true;
     R_SetupGL(true);
     R_BindTexture(tr.shadowmap, 1);
     R_DrawWorld();
     R_DrawEntities();
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    R_Call(glBindFramebuffer, GL_FRAMEBUFFER, 0);
 
     is_rendering_lights = false;
     // 2. then render scene as normal with shadow mapping (using depth map)
-    glViewport(0, 0, windowSize.width, windowSize.height);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    R_Call(glViewport, 0, 0, windowSize.width, windowSize.height);
+    R_Call(glClear, GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     R_SetupGL(false);
-    glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D, tr.depthMap);
+    R_Call(glActiveTexture, GL_TEXTURE1);
+    R_Call(glBindTexture, GL_TEXTURE_2D, tr.depthMap);
     R_DrawWorld();
     R_DrawEntities();
     R_DrawAlphaSurfaces();
 }
 
 void R_DrawBuffer(LPCBUFFER buffer, DWORD num_vertices) {
-    glBindVertexArray(buffer->vao);
-    glBindBuffer(GL_ARRAY_BUFFER, buffer->vbo);
-    glDrawArrays(GL_TRIANGLES, 0, num_vertices);
+    R_Call(glBindVertexArray, buffer->vao);
+    R_Call(glBindBuffer, GL_ARRAY_BUFFER, buffer->vbo);
+    R_Call(glDrawArrays, GL_TRIANGLES, 0, num_vertices);
 }
 
 LPBUFFER R_MakeVertexArrayObject(LPCVERTEX vertices, DWORD size) {
     LPBUFFER buf = ri.MemAlloc(sizeof(BUFFER));
 
-    glGenVertexArrays(1, &buf->vao);
-    glGenBuffers(1, &buf->vbo);
-    glBindVertexArray(buf->vao);
-    glBindBuffer(GL_ARRAY_BUFFER, buf->vbo);
+    R_Call(glGenVertexArrays, 1, &buf->vao);
+    R_Call(glGenBuffers, 1, &buf->vbo);
+    R_Call(glBindVertexArray, buf->vao);
+    R_Call(glBindBuffer, GL_ARRAY_BUFFER, buf->vbo);
 
-    glEnableVertexAttribArray(attrib_position);
-    glEnableVertexAttribArray(attrib_color);
-    glEnableVertexAttribArray(attrib_texcoord);
-    glEnableVertexAttribArray(attrib_texcoord2);
-    glEnableVertexAttribArray(attrib_skin);
-    glEnableVertexAttribArray(attrib_boneWeight);
-    glEnableVertexAttribArray(attrib_normal);
+    R_Call(glEnableVertexAttribArray, attrib_position);
+    R_Call(glEnableVertexAttribArray, attrib_color);
+    R_Call(glEnableVertexAttribArray, attrib_texcoord);
+    R_Call(glEnableVertexAttribArray, attrib_texcoord2);
+    R_Call(glEnableVertexAttribArray, attrib_skin);
+    R_Call(glEnableVertexAttribArray, attrib_boneWeight);
+    R_Call(glEnableVertexAttribArray, attrib_normal);
 
-    glVertexAttribPointer(attrib_color, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(struct vertex), FOFS(vertex, color));
-    glVertexAttribPointer(attrib_position, 3, GL_FLOAT, GL_FALSE, sizeof(struct vertex), FOFS(vertex, position));
-    glVertexAttribPointer(attrib_texcoord, 2, GL_FLOAT, GL_FALSE, sizeof(struct vertex), FOFS(vertex, texcoord));
-    glVertexAttribPointer(attrib_texcoord2, 2, GL_FLOAT, GL_FALSE, sizeof(struct vertex), FOFS(vertex, texcoord2));
-    glVertexAttribPointer(attrib_skin, 4, GL_UNSIGNED_BYTE, GL_FALSE, sizeof(struct vertex), FOFS(vertex, skin));
-    glVertexAttribPointer(attrib_boneWeight, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(struct vertex), FOFS(vertex, boneWeight));
-    glVertexAttribPointer(attrib_normal, 3, GL_FLOAT, GL_FALSE, sizeof(struct vertex), FOFS(vertex, normal));
+    R_Call(glVertexAttribPointer, attrib_color, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(struct vertex), FOFS(vertex, color));
+    R_Call(glVertexAttribPointer, attrib_position, 3, GL_FLOAT, GL_FALSE, sizeof(struct vertex), FOFS(vertex, position));
+    R_Call(glVertexAttribPointer, attrib_texcoord, 2, GL_FLOAT, GL_FALSE, sizeof(struct vertex), FOFS(vertex, texcoord));
+    R_Call(glVertexAttribPointer, attrib_texcoord2, 2, GL_FLOAT, GL_FALSE, sizeof(struct vertex), FOFS(vertex, texcoord2));
+    R_Call(glVertexAttribPointer, attrib_skin, 4, GL_UNSIGNED_BYTE, GL_FALSE, sizeof(struct vertex), FOFS(vertex, skin));
+    R_Call(glVertexAttribPointer, attrib_boneWeight, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(struct vertex), FOFS(vertex, boneWeight));
+    R_Call(glVertexAttribPointer, attrib_normal, 3, GL_FLOAT, GL_FALSE, sizeof(struct vertex), FOFS(vertex, normal));
 
     if (vertices) {
-        glBufferData(GL_ARRAY_BUFFER, size * sizeof(VERTEX), vertices, GL_STATIC_DRAW);
+        R_Call(glBufferData, GL_ARRAY_BUFFER, size * sizeof(VERTEX), vertices, GL_STATIC_DRAW);
     }
 
     return buf;
 }
 
 void R_ReleaseVertexArrayObject(LPBUFFER buffer) {
-    glDeleteBuffers(1, &buffer->vbo);
-    glDeleteVertexArrays(1, &buffer->vao);
+    R_Call(glDeleteBuffers, 1, &buffer->vbo);
+    R_Call(glDeleteVertexArrays, 1, &buffer->vao);
 }
 
 void R_BeginFrame(void) {
-    glEnable(GL_DEPTH_TEST);
-    glDepthMask(GL_TRUE);
-    glDepthFunc(GL_LEQUAL);
-    glEnable(GL_CULL_FACE);
-    glCullFace(GL_BACK);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    R_Call(glEnable, GL_DEPTH_TEST);
+    R_Call(glDepthMask, GL_TRUE);
+    R_Call(glDepthFunc, GL_LEQUAL);
+    R_Call(glEnable, GL_CULL_FACE);
+    R_Call(glCullFace, GL_BACK);
+    R_Call(glClear, GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 
 void R_EndFrame(void) {
+    MATRIX4 ui_matrix;
+    Matrix4_ortho(&ui_matrix, 0.0f, 1600, 1200/* window.height*/, 0.0f, 0.0f, 100.0f);
+    R_Call(glUseProgram, tr.shaderUI->progid);
+    R_Call(glUniformMatrix4fv, tr.shaderUI->uProjectionMatrix, 1, GL_FALSE, ui_matrix.v);
+
+    R_DrawPicEx(tex1, 0, 0, &(struct rect){0,0,1,0.25});
+    R_DrawPicEx(tex2, 512, 0, &(struct rect){0,0,1,0.25});
+    R_DrawPicEx(tex3, 1024, 0, &(struct rect){0,0,1,0.25});
+    R_DrawPicEx(tex4, 1024+512, 0, &(struct rect){0,0,1,0.25});
+    
+    R_DrawPicEx(tex1, 0, 1200-512, &(struct rect){0,0.25,1,0.75});
+    R_DrawPicEx(tex2, 512, 1200-512, &(struct rect){0,0.25,2,0.75});
+    R_DrawPicEx(tex3, 1024, 1200-512, &(struct rect){0,0.25,1,0.75});
+    R_DrawPicEx(tex4, 1024+512, 1200-512, &(struct rect){0,0.25,1,0.75});
+
+    
     SDL_GL_SwapWindow(window);
     SDL_Delay(1);
 }

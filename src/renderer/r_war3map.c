@@ -97,8 +97,8 @@ LPWAR3MAP FileReadWar3Map(HANDLE archive) {
     SFileCloseFile(file);
 #ifdef DEBUG_PATHFINDING
     pathTexture = R_AllocateTexture((war3Map->width - 1) * 4, (war3Map->height - 1) * 4);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 #endif
     return war3Map;
 }
@@ -141,10 +141,10 @@ static void R_DrawSegment(LPCMAPSEGMENT segment, DWORD mask) {
         if (((1 << layer->type) & mask) == 0)
             continue;
         if (layer == segment->layers) {
-            glDisable(GL_BLEND);
+            R_Call(glDisable, GL_BLEND);
         } else {
-            glEnable(GL_BLEND);
-            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+            R_Call(glEnable, GL_BLEND);
+            R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         }
         R_BindTexture(layer->texture, 0);
         R_DrawBuffer(layer->buffer, layer->num_vertices);
@@ -152,7 +152,7 @@ static void R_DrawSegment(LPCMAPSEGMENT segment, DWORD mask) {
 }
 
 void R_DrawWorld(void) {
-    glUseProgram(tr.shaderStatic->progid);
+    R_Call(glUseProgram, tr.shaderStatic->progid);
     
 #ifdef DEBUG_PATHFINDING
     R_BindTexture(pathTexture, 1);
@@ -164,10 +164,10 @@ void R_DrawWorld(void) {
 }
 
 void R_DrawAlphaSurfaces(void) {
-    glUseProgram(tr.shaderStatic->progid);
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glDepthMask(GL_FALSE);
+    R_Call(glUseProgram, tr.shaderStatic->progid);
+    R_Call(glEnable, GL_BLEND);
+    R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    R_Call(glDepthMask, GL_FALSE);
 
     FOR_EACH_LIST(MAPSEGMENT, segment, g_mapSegments) {
         R_DrawSegment(segment, (1 << MAPLAYERTYPE_WATER));

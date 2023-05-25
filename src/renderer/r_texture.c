@@ -21,30 +21,31 @@ struct texture const* R_FindTextureByID(DWORD textureID) {
 }
 
 void R_BindTexture(LPCTEXTURE texture, DWORD unit) {
-    glActiveTexture(GL_TEXTURE0 + unit);
-    glBindTexture(GL_TEXTURE_2D, texture ? texture->texid : tr.whiteTexture->texid);
+    R_Call(glActiveTexture, GL_TEXTURE0 + unit);
+    R_Call(glBindTexture, GL_TEXTURE_2D, texture ? texture->texid : tr.whiteTexture->texid);
 }
 
 LPTEXTURE R_AllocateTexture(DWORD width, DWORD height) {
     LPTEXTURE texture = ri.MemAlloc(sizeof(TEXTURE));
+    R_Call(glGenTextures, 1, &texture->texid);
+    R_Call(glBindTexture, GL_TEXTURE_2D, texture->texid);
     texture->width = width;
     texture->height = height;
-    glGenTextures(1, &texture->texid);
-    glBindTexture(GL_TEXTURE_2D, texture->texid);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     return texture;
 }
 
 void R_LoadTextureMipLevel(LPCTEXTURE pTexture, DWORD level, LPCCOLOR32 pPixels, DWORD width, DWORD height) {
     if (width == 0 || height == 0)
         return;
-    glBindTexture(GL_TEXTURE_2D, pTexture->texid);
-    glTexImage2D(GL_TEXTURE_2D, level, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, pPixels);
+    R_Call(glBindTexture, GL_TEXTURE_2D, pTexture->texid);
+    R_Call(glTexImage2D, GL_TEXTURE_2D, level, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, pPixels);
     if (level > 0) {
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, level);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+        R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, level);
+        R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    } else {
+        R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     }
 }

@@ -143,12 +143,12 @@ LPTEXTURE R_MakeSysFontTexture(void) {
         BYTE value = font_map[i / 8];
         color[i] = (COLOR32) { 255, 255, 255, 255 * ((value >> (7 - (i % 8))) & 1) };
     }
-    glGenTextures(1, &texture->texid);
-    glBindTexture(GL_TEXTURE_2D, texture->texid);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, FONT_WIDTH, FONT_HEIGHT, 0, GL_RGBA, GL_UNSIGNED_BYTE, color);
+    R_Call(glGenTextures, 1, &texture->texid);
+    R_Call(glBindTexture, GL_TEXTURE_2D, texture->texid);
+    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    R_Call(glTexImage2D, GL_TEXTURE_2D, 0, GL_RGBA, FONT_WIDTH, FONT_HEIGHT, 0, GL_RGBA, GL_UNSIGNED_BYTE, color);
     return texture;
 }

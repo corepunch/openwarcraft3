@@ -131,14 +131,14 @@ static void R_RenderGeoset(LPCMODEL model, LPMODELGEOSET geoset, LPCMATRIX4 mode
         return;
     MATRIX3 mNormalMatrix;
     Matrix3_normal(&mNormalMatrix, modelMatrix);
-    glUseProgram(tr.shaderSkin->progid);
-    glUniformMatrix4fv(tr.shaderSkin->uModelMatrix, 1, GL_FALSE, modelMatrix->v);
-    glUniformMatrix3fv(tr.shaderSkin->uNormalMatrix, 1, GL_TRUE, mNormalMatrix.v);
+    R_Call(glUseProgram, tr.shaderSkin->progid);
+    R_Call(glUniformMatrix4fv, tr.shaderSkin->uModelMatrix, 1, GL_FALSE, modelMatrix->v);
+    R_Call(glUniformMatrix3fv, tr.shaderSkin->uNormalMatrix, 1, GL_TRUE, mNormalMatrix.v);
 
-    glBindVertexArray(geoset->buffer->vao);
-    glBindBuffer(GL_ARRAY_BUFFER, geoset->buffer->vbo);
-    glDrawArrays(GL_TRIANGLES, 0, geoset->num_triangles);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    R_Call(glBindVertexArray, geoset->buffer->vao);
+    R_Call(glBindBuffer, GL_ARRAY_BUFFER, geoset->buffer->vbo);
+    R_Call(glDrawArrays, GL_TRIANGLES, 0, geoset->num_triangles);
+    R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 }
 
 static MATRIX4 aBoneMatrices[MAX_BONE_MATRICES];
@@ -156,8 +156,8 @@ static void R_BindBoneMatrices(LPMODEL model, DWORD frame1, DWORD frame0) {
         node_matrices[bone->node.objectId + 1] = bone->node.globalMatrix;
     }
 
-    glUseProgram(tr.shaderSkin->progid);
-    glUniformMatrix4fv(tr.shaderSkin->uBones, 64, GL_FALSE, node_matrices->v);
+    R_Call(glUseProgram, tr.shaderSkin->progid);
+    R_Call(glUniformMatrix4fv, tr.shaderSkin->uBones, 64, GL_FALSE, node_matrices->v);
 }
 
 static void RenderGeoset(LPCMODEL model,
@@ -183,7 +183,7 @@ static void RenderGeoset(LPCMODEL model,
     Matrix4_rotate(&mModelMatrix, &(VECTOR3){0, 0, entity->angle * 180 / 3.14f}, ROTATE_XYZ);
     Matrix4_scale(&mModelMatrix, &(VECTOR3){entity->scale, entity->scale, entity->scale});
 
-    glUniform1i(tr.shaderSkin->uUseDiscard, 0);
+    R_Call(glUniform1i, tr.shaderSkin->uUseDiscard, 0);
 
     extern bool is_rendering_lights;
 
@@ -210,22 +210,22 @@ static void RenderGeoset(LPCMODEL model,
         switch (layer->blendMode) {
             case TEXOP_LOAD:
                 if (layerID == 0) {
-                    glBlendFunc(GL_ONE, GL_ZERO);
+                    R_Call(glBlendFunc, GL_ONE, GL_ZERO);
                 } else {
-                    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+                    R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
                 }
-                glDepthMask(GL_TRUE);
+                R_Call(glDepthMask, GL_TRUE);
                 break;
             case TEXOP_TRANSPARENT:
-                glUniform1i(tr.shaderSkin->uUseDiscard, 1);
-                glBlendFunc(GL_ONE, GL_ZERO);
-                glDepthMask(GL_TRUE);
+                R_Call(glUniform1i, tr.shaderSkin->uUseDiscard, 1);
+                R_Call(glBlendFunc, GL_ONE, GL_ZERO);
+                R_Call(glDepthMask, GL_TRUE);
                 break;
             case TEXOP_BLEND:
                 if (is_rendering_lights)
                     return;
-                glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-                glDepthMask(GL_FALSE);
+                R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+                R_Call(glDepthMask, GL_FALSE);
                 break;
 #ifdef DEBUG_PATHFINDING
             default:
@@ -234,18 +234,18 @@ static void RenderGeoset(LPCMODEL model,
             case TEXOP_ADD:
                 if (is_rendering_lights)
                     return;
-                glBlendFunc(GL_ONE, GL_ONE);
-                glDepthMask(GL_FALSE);
+                R_Call(glBlendFunc, GL_ONE, GL_ONE);
+                R_Call(glDepthMask, GL_FALSE);
                 break;
             case TEXOP_ADD_ALPHA:
                 if (is_rendering_lights)
                     return;
-                glBlendFunc(GL_SRC_ALPHA, GL_ONE);
-                glDepthMask(GL_FALSE);
+                R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE);
+                R_Call(glDepthMask, GL_FALSE);
                 break;
             default:
-                glBlendFunc(GL_ONE, GL_ZERO);
-                glDepthMask(GL_TRUE);
+                R_Call(glBlendFunc, GL_ONE, GL_ZERO);
+                R_Call(glDepthMask, GL_TRUE);
                 break;
 #endif
         }
@@ -266,8 +266,8 @@ void RenderModel(renderEntity_t const *entity) {
         FOR_LOOP(boneIndex, MAX_BONE_MATRICES) {
             Matrix4_identity(&node_matrices[boneIndex]);
         }
-        glUseProgram(tr.shaderSkin->progid);
-        glUniformMatrix4fv(tr.shaderSkin->uBones, 64, GL_FALSE, node_matrices->v);
+        R_Call(glUseProgram, tr.shaderSkin->progid);
+        R_Call(glUniformMatrix4fv, tr.shaderSkin->uBones, 64, GL_FALSE, node_matrices->v);
         renderEntity_t re = *entity;
         re.scale *= 1.5f;
         re.angle = tr.viewDef.time * 0.001;

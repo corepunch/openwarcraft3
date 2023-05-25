@@ -91,7 +91,7 @@ bool FS_ExtractFile(LPCSTR toExtract, LPCSTR extracted) {
 void FS_Init(void) {
 //     ExtractStarCraft2();
     SFileOpenArchive(MPQ_PATH, 0, 0, &archive);
-    SFileExtractFile(archive, "PathTextures\\10x10Simple.tga", "/Users/igor/Desktop/10x10Simple.tga", 0);
+//    SFileExtractFile(archive, "PathTextures\\10x10Simple.tga", "/Users/igor/Desktop/10x10Simple.tga", 0);
 #if 0
      SFILE_FIND_DATA findData;
      HANDLE handle = SFileFindFirstFile(archive, "*", &findData, 0);
@@ -106,9 +106,9 @@ void FS_Init(void) {
 //                 !strstr(findData.cFileName, ".wav") &&
 //                 !strstr(findData.cFileName, ".mp3") &&
 //                 !strstr(findData.cFileName, ".mdx") &&
-//                 !strstr(findData.cFileName, ".blp")){
+                 if (strstr(findData.cFileName, ".blp")){
                  printf("%s\n", findData.cFileName);
-//             }
+             }
 //             UI\FrameDef\Glue\LoadSavedGameScreen
 #if 0
              if (strstr(findData.cFileName, ".txt")){
