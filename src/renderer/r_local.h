@@ -89,6 +89,7 @@ struct render_globals {
     LPCTEXTURE shadowmap;
     LPCTEXTURE waterTexture;
     LPCTEXTURE sysFont;
+    LPCTEXTURE blackTexture;
     LPCTEXTURE whiteTexture;
     LPCSHADER shaderStatic;
     LPCSHADER shaderSkin;

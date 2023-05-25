@@ -35,10 +35,15 @@ void G_SolveCollisions(void) {
                 Vector2_normalize(&d);
                 float diff = sqrtf(dist_sq) - allowed_dist;
                 if ((ea->flags & IS_UNIT) && (eb->flags & IS_UNIT)) {
-//                    float adist = Vector2_distance(
-                    
-                    *apos = Vector2_mad(apos, -diff * 0.5f, &d);
-                    *bpos = Vector2_mad(bpos, diff * 0.5f, &d);
+                    if (ea->goalentity && eb->goalentity) {
+                        float ad = Vector2_distance(apos, (LPCVECTOR2)&ea->goalentity->s.origin);
+                        float bd = Vector2_distance(bpos, (LPCVECTOR2)&eb->goalentity->s.origin);
+                        *apos = Vector2_mad(apos, -diff * ad / (ad + bd), &d);
+                        *bpos = Vector2_mad(bpos, diff * bd / (ad + bd), &d);
+                    } else {
+                        *apos = Vector2_mad(apos, -diff * 0.5f, &d);
+                        *bpos = Vector2_mad(bpos, diff * 0.5f, &d);
+                    }
                 } else if (ea->flags & IS_UNIT) {
                     *apos = Vector2_mad(apos, -diff, &d);
                 } else {

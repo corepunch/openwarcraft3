@@ -1,5 +1,5 @@
 build/
-*/xcuserdata/*
+*xcuserdata*
 *.user
 *.xcuserstate
 .DS_Store
