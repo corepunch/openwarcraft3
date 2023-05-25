@@ -1,7 +1,9 @@
 # openwarcraft3
 Open source implementation of Warcraft 3
 
-<img width="1019" alt="Screenshot 2023-05-13 at 19 46 03" src="https://github.com/corepunch/openwarcraft3/assets/83646194/4afda8da-27b1-4147-a561-6f837d035847">
+<img width="1025" alt="Screenshot 2023-05-25 at 09 57 57" src="https://github.com/corepunch/openwarcraft3/assets/83646194/643c7aa7-2b91-469c-857e-0f6910c939af">
+
+<img width="1026" alt="Screenshot 2023-05-25 at 09 58 15" src="https://github.com/corepunch/openwarcraft3/assets/83646194/a79e447d-e42c-4468-b4ca-3d212efe346a">
 
 ## Cloning
 
