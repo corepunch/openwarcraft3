@@ -1,5 +1,5 @@
 # openwarcraft3
-Open source implementation of Warcraft 3
+Open source re-implementation of Warcraft III
 
 <img width="1025" alt="Screenshot 2023-05-25 at 09 57 57" src="https://github.com/corepunch/openwarcraft3/assets/83646194/643c7aa7-2b91-469c-857e-0f6910c939af">
 
