@@ -119,17 +119,9 @@ void R_Init(DWORD width, DWORD height) {
     int black = 0x000000ff;
     
     tex1 = R_LoadTexture("UI\\Console\\Human\\HumanUITile01.blp");
-//    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-//    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     tex2 = R_LoadTexture("UI\\Console\\Human\\HumanUITile02.blp");
-//    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-//    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     tex3 = R_LoadTexture("UI\\Console\\Human\\HumanUITile03.blp");
-//    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-//    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     tex4 = R_LoadTexture("UI\\Console\\Human\\HumanUITile04.blp");
-//    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-//    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 //    tr.selectionCircle = R_LoadModel("UI\\Feedback\\Confirmation\\Confirmation.mdx");
     tr.selectionCircle = R_LoadModel("UI\\Feedback\\SelectionCircle\\SelectionCircle.mdx");
     tr.shaderStatic = R_InitShader(vertex_shader, fragment_shader);
@@ -139,7 +131,7 @@ void R_Init(DWORD width, DWORD height) {
     tr.whiteTexture = R_AllocateTexture(1, 1);
     R_LoadTextureMipLevel(tr.whiteTexture, 0, (LPCCOLOR32)&white, 1, 1);
     tr.blackTexture = R_AllocateTexture(1, 1);
-    R_LoadTextureMipLevel(tr.whiteTexture, 0, (LPCCOLOR32)&black, 1, 1);
+    R_LoadTextureMipLevel(tr.blackTexture, 0, (LPCCOLOR32)&black, 1, 1);
 
     R_Call(glDisable, GL_DEPTH_TEST);
     R_Call(glClearColor, 0.0, 0.0, 0.0, 0.0);
@@ -405,22 +397,22 @@ void R_BeginFrame(void) {
 }
 
 void R_EndFrame(void) {
-    MATRIX4 ui_matrix;
-    Matrix4_ortho(&ui_matrix, 0.0f, 1600, 1200/* window.height*/, 0.0f, 0.0f, 100.0f);
-    R_Call(glUseProgram, tr.shaderUI->progid);
-    R_Call(glUniformMatrix4fv, tr.shaderUI->uProjectionMatrix, 1, GL_FALSE, ui_matrix.v);
-
-    R_DrawPicEx(tr.blackTexture, 0, 950, &(struct rect){0,0,1600,250});
-    
-    R_DrawPicEx(tex1, 0, 0, &(struct rect){0,0,1,0.25});
-    R_DrawPicEx(tex2, 512, 0, &(struct rect){0,0,1,0.25});
-    R_DrawPicEx(tex3, 1024, 0, &(struct rect){0,0,1,0.25});
-    R_DrawPicEx(tex4, 1024+512, 0, &(struct rect){0,0,1,0.25});
-    
-    R_DrawPicEx(tex1, 0, 1200-512, &(struct rect){0,0.25,1,0.75});
-    R_DrawPicEx(tex2, 512, 1200-512, &(struct rect){0,0.25,2,0.75});
-    R_DrawPicEx(tex3, 1024, 1200-512, &(struct rect){0,0.25,1,0.75});
-    R_DrawPicEx(tex4, 1024+512, 1200-512, &(struct rect){0,0.25,1,0.75});
+//    MATRIX4 ui_matrix;
+//    Matrix4_ortho(&ui_matrix, 0.0f, 1600, 1200/* window.height*/, 0.0f, 0.0f, 100.0f);
+//    R_Call(glUseProgram, tr.shaderUI->progid);
+//    R_Call(glUniformMatrix4fv, tr.shaderUI->uProjectionMatrix, 1, GL_FALSE, ui_matrix.v);
+//
+//    R_DrawPicEx(tr.blackTexture, 0, 950, &(struct rect){0,0,1600,250});
+//
+//    R_DrawPicEx(tex1, 0, 0, &(struct rect){0,0,1,0.25});
+//    R_DrawPicEx(tex2, 512, 0, &(struct rect){0,0,1,0.25});
+//    R_DrawPicEx(tex3, 1024, 0, &(struct rect){0,0,1,0.25});
+//    R_DrawPicEx(tex4, 1024+512, 0, &(struct rect){0,0,1,0.25});
+//
+//    R_DrawPicEx(tex1, 0, 1200-512, &(struct rect){0,0.25,1,0.75});
+//    R_DrawPicEx(tex2, 512, 1200-512, &(struct rect){0,0.25,2,0.75});
+//    R_DrawPicEx(tex3, 1024, 1200-512, &(struct rect){0,0.25,1,0.75});
+//    R_DrawPicEx(tex4, 1024+512, 1200-512, &(struct rect){0,0.25,1,0.75});
 
     SDL_GL_SwapWindow(window);
     SDL_Delay(1);
