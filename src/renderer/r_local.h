@@ -34,11 +34,12 @@
 }
 
 #define R_Call(func, ...) func(__VA_ARGS__); GetError();
-#define MAX_BONE_MATRICES 64
-#define SHADOW_WIDTH 1024
-#define SHADOW_HEIGHT 1024
+#define SHADOW_TEXSIZE 1024
+#define SHADOW_SCALE 1500
 #define MAX_TEAMS 16
 #define TEAM_MASK (MAX_TEAMS - 1)
+#define PORTRAIT_SHADOW_SIZE 50
+#define MAX_SKIN_BONES 8
 
 #include "../common/common.h"
 #include "../client/renderer.h"
@@ -49,15 +50,15 @@ KNOWN_AS(shader_program, SHADER);
 KNOWN_AS(render_buffer, BUFFER);
 KNOWN_AS(vertex, VERTEX);
 
-struct vertex {
+typedef struct vertex {
     VECTOR3 position;
     VECTOR2 texcoord;
     VECTOR2 texcoord2;
     VECTOR3 normal;
-    struct color32 color;
-    BYTE skin[4];
-    BYTE boneWeight[4];
-};
+    COLOR32 color;
+    BYTE skin[MAX_SKIN_BONES];
+    BYTE boneWeight[MAX_SKIN_BONES];
+} vertex_t;
 
 struct texture {
     DWORD texid;
@@ -95,11 +96,11 @@ struct render_globals {
     LPCSHADER shaderSkin;
     LPCSHADER shaderUI;
     LPCBUFFER renbuf;
-    LPCMODEL selectionCircle;
     LPCTEXTURE teamGlow[MAX_TEAMS];
     LPCTEXTURE teamColor[MAX_TEAMS];
-    unsigned int depthMapFBO;
-    unsigned int depthMap;
+    model_t const *selectionCircle;
+    DWORD depthMapFBO;
+    DWORD depthMap;
 };
 
 LPCSHADER R_InitShader(LPCSTR vertex_shader, LPCSTR fragment_shader);
@@ -109,6 +110,7 @@ LPTEXTURE R_LoadTexture(LPCSTR textureFileName);
 void R_DrawEntities(void);
 void R_DrawWorld(void);
 void R_DrawAlphaSurfaces(void);
+void R_RenderFrame(viewDef_t const *viewDef);
 LPTEXTURE R_AllocateTexture(DWORD width, DWORD height);
 LPTEXTURE R_MakeSysFontTexture(void);
 void R_LoadTextureMipLevel(LPCTEXTURE pTexture, DWORD level, LPCCOLOR32 pPixels, DWORD width, DWORD height);
@@ -117,16 +119,25 @@ void RenderModel(renderEntity_t const *edict);
 void R_ReleaseVertexArrayObject(LPBUFFER buffer);
 LPCTEXTURE R_FindTextureByID(DWORD textureID);
 bool R_IsPointVisible(LPCVECTOR3 point, float fThreshold);
+void R_DrawPortrait(model_t const *model, LPCRECT viewport);
 
-// VertexArrayObject
+// r_mdx.c
+model_t *R_LoadModel(LPCSTR modelFilename);
+void R_ReleaseModel(model_t *model);
+
+struct size2 R_GetWindowSize(void);
+
+// r_buffer.c
+VERTEX *R_AddQuad(VERTEX *buffer, LPCRECT screen, LPCRECT uv, COLOR32 color);
+VERTEX *R_AddStrip(VERTEX *buffer, LPCRECT screen, COLOR32 color);
 LPBUFFER R_MakeVertexArrayObject(LPCVERTEX vertices, DWORD size);
 void R_DrawBuffer(LPCBUFFER buffer, DWORD num_vertices);
 
-// Models
-LPMODEL R_LoadModel(LPCSTR modelFilename);
-void R_ReleaseModel(LPMODEL model);
-
-struct size2 R_GetWindowSize(void);
+// r_draw.c
+void R_PrintText(LPCSTR string, DWORD x, DWORD y, COLOR32 color);
+void R_DrawImage(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv);
+void R_DrawPic(LPCTEXTURE texture, DWORD x, DWORD y, LPCRECT uv);
+void R_DrawSelectionRect(LPCRECT rect, COLOR32 color);
 
 extern struct render_globals tr;
 

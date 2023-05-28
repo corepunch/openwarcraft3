@@ -52,18 +52,23 @@ struct mdx_sequence {
     VECTOR3 max;
 };
 
+typedef struct {
+    animationInfo_t animations[MAX_ANIMS_IN_TYPE];
+    DWORD num_animations;
+} animationTypeVariants_t;
+
 struct cmodel {
     struct mdx_sequence *animations;
-    struct AnimationInfo animtypes[NUM_ANIM_TYPES];
-    int num_animations;
+    animationTypeVariants_t animtypes[NUM_ANIM_TYPES];
+    DWORD num_animations;
 };
 
 struct server {
     PATHSTR name;
     PATHSTR configstrings[MAX_CONFIGSTRINGS];
     struct cmodel *models[MAX_MODELS];
-    int framenum;
-    int time;
+    DWORD framenum;
+    DWORD time;
     entityState_t *baselines;
 };
 

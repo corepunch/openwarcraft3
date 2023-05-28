@@ -4,17 +4,17 @@
 #include "Units/DestructableData.h"
 #include "Units/UnitUI.h"
 
-struct spawn {
-    LPCSTR name;
-    void (*func)(LPEDICT edict);
-};
+//struct spawn {
+//    LPCSTR name;
+//    void (*func)(LPEDICT edict);
+//};
 
-void SP_monster_peon(LPEDICT edict);
+void SP_monster_unit(LPEDICT edict);
 
-static struct spawn spawns[] = {
-    { "opeo", SP_monster_peon },
-    { NULL, NULL }
-};
+//static struct spawn spawns[] = {
+//    { "opeo", SP_monster_unit },
+//    { NULL, NULL }
+//};
 
 LPEDICT G_Spawn(void) {
     LPEDICT edict = &game_state.edicts[globals.num_edicts];
@@ -49,7 +49,7 @@ void SP_CallSpawn(LPEDICT edict) {
         SP_SpawnDestructable(edict, destructableData);
     } else if ((unitUI = FindUnitUI(edict->class_id))) {
         SP_SpawnUnit(edict, unitUI);
-        SP_monster_peon(edict);
+        SP_monster_unit(edict);
     } else {
         edict->svflags |= SVF_NOCLIENT;
 //        fprintf(stderr, "Unknown id %.4s\n", (const char *)&edict->class_id);

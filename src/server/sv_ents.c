@@ -2,46 +2,6 @@
 
 #define VISUAL_DISTANCE 1000
 #define HIGH_NUMBER 9999
-#define SET_BIT_IF(FLAG, VALUE) \
-if (from->VALUE != to->VALUE) \
-    bits |= (1 << FLAG);
-
-#define WRITE_IF(FLAG, VALUE, TYPE) \
-if (bits & (1 << FLAG)) \
-    MSG_Write##TYPE(msg, to->VALUE);
-
-void MSG_WriteDeltaEntity(LPSIZEBUF msg,
-                          entityState_t const *from,
-                          entityState_t const *to)
-{
-    int bits = 0;
-
-    SET_BIT_IF(U_ORIGIN1, origin.x);
-    SET_BIT_IF(U_ORIGIN2, origin.y);
-    SET_BIT_IF(U_ORIGIN3, origin.z);
-    SET_BIT_IF(U_ANGLE, angle);
-    SET_BIT_IF(U_SCALE, scale);
-    SET_BIT_IF(U_FRAME, frame);
-    SET_BIT_IF(U_MODEL, model);
-    SET_BIT_IF(U_IMAGE, image);
-    SET_BIT_IF(U_PLAYER, player);
-
-    if (bits == 0)
-        return;
-    
-    MSG_WriteShort(msg, bits);
-    MSG_WriteShort(msg, to->number);
-    
-    WRITE_IF(U_ORIGIN1, origin.x, Short);
-    WRITE_IF(U_ORIGIN2, origin.y, Short);
-    WRITE_IF(U_ORIGIN3, origin.z, Short);
-    WRITE_IF(U_ANGLE, angle * 100, Short);
-    WRITE_IF(U_SCALE, scale * 100, Short);
-    WRITE_IF(U_FRAME, frame, Long);
-    WRITE_IF(U_MODEL, model, Short);
-    WRITE_IF(U_IMAGE, image, Short);
-    WRITE_IF(U_PLAYER, player, Byte);
-}
 
 static bool SV_CanClientSeeEntity(LPCCLIENT client, entityState_t const *edict) {
     if (fabs(edict->origin.x - client->camera_position.x) > VISUAL_DISTANCE)

@@ -7,6 +7,11 @@ enum {
    RF_SELECTED = 1,
 };
 
+enum {
+    RDF_NOWORLDMODEL = 1,
+    RDF_NOFRUSTUMCULL = 2,
+};
+
 struct renderer_import {
     HANDLE (*FileOpen)(LPCSTR fileName);
     bool (*FileExtract)(LPCSTR toExtract, LPCSTR extracted);
@@ -18,27 +23,43 @@ struct renderer_import {
 };
 
 typedef struct {
+    VECTOR3 target;
+    VECTOR3 angles;
+} viewLight_t;
+
+typedef struct {
+    VECTOR3 target;
+    VECTOR3 eye;
+    VECTOR3 angles;
+    float distance;
+    float fov;
+    float znear;
+    float zfar;
+} viewCamera_t;
+
+typedef struct {
     VECTOR3 origin;
-    float angle;
-    float scale;
-    LPCMODEL model;
+    model_t const *model;
     LPTEXTURE skin;
     DWORD team;
     DWORD frame;
     DWORD oldframe;
     DWORD flags;
+    float angle;
+    float scale;
 } renderEntity_t;
 
 typedef struct {
-    float fov;
-    VECTOR3 vieworg;
-    VECTOR3 viewangles;
-    float lerpfrac;
+    viewCamera_t camera;
+    RECT viewport;
+    RECT scissor;
     DWORD time;
+    float lerpfrac;
     DWORD num_entities;
     renderEntity_t *entities;
-    MATRIX4 projection_matrix;
-    MATRIX4 light_matrix;
+    MATRIX4 projectionMatrix;
+    MATRIX4 lightMatrix;
+    DWORD rdflags;
 } viewDef_t;
 
 struct Renderer {
@@ -47,14 +68,16 @@ struct Renderer {
     void (*RegisterMap)(LPCSTR mapFileName);
     void (*RenderFrame)(viewDef_t const *refDef);
     LPTEXTURE (*LoadTexture)(LPCSTR textureFileName);
-    LPMODEL (*LoadModel)(LPCSTR modelFilename);
+    model_t *(*LoadModel)(LPCSTR modelFilename);
     struct size2 (*GetWindowSize)(void);
-    void (*ReleaseModel)(LPMODEL model);
+    void (*ReleaseModel)(model_t *model);
     void (*BeginFrame)(void);
     void (*EndFrame)(void);
     void (*PrintText)(LPCSTR string, DWORD x, DWORD y, COLOR32 color);
-    void (*DrawSelectionRect)(struct rect const *rect, COLOR32 color);
-    void (*DrawPic)(LPCTEXTURE texture, DWORD x, DWORD y);
+    void (*DrawSelectionRect)(LPCRECT rect, COLOR32 color);
+    void (*DrawPic)(LPCTEXTURE texture, DWORD x, DWORD y, LPCRECT uv);
+    void (*DrawImage)(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv);
+    void (*DrawPortrait)(model_t const *model, LPCRECT viewport);
 
 #ifdef DEBUG_PATHFINDING
     void (*SetPathTexture)(LPCCOLOR32 debugTexture);

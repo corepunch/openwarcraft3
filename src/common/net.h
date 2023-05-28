@@ -4,8 +4,8 @@
 #define MAX_MSGLEN 256 * 1024
 
 typedef void const *LPCVOID;
-
 typedef struct sizebuf *LPSIZEBUF;
+typedef struct entityState_s entityState_t;
 
 typedef enum {
     NS_CLIENT, NS_SERVER
@@ -35,11 +35,14 @@ void MSG_WriteByte(LPSIZEBUF buf, int value);
 void MSG_WriteShort(LPSIZEBUF buf, int value);
 void MSG_WriteLong(LPSIZEBUF buf, int value);
 void MSG_WriteString(LPSIZEBUF buf, const LPSTR value);
+void MSG_WriteDeltaEntity(LPSIZEBUF buf, entityState_t const *from, entityState_t const *to);
 
 int MSG_Read(LPSIZEBUF buf, HANDLE value, DWORD size);
 int MSG_ReadByte(LPSIZEBUF buf);
 int MSG_ReadShort(LPSIZEBUF buf);
 int MSG_ReadLong(LPSIZEBUF buf);
 void MSG_ReadString(LPSIZEBUF buf, LPSTR value);
+void MSG_ReadDeltaEntity(LPSIZEBUF buf, entityState_t *edict, int number, int bits);
+
 
 #endif

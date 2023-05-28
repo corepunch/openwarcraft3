@@ -24,10 +24,14 @@ void G_SolveCollisions(void) {
     for (DWORD a = 0; a < globals.num_edicts; a++) {
         LPEDICT ea = &globals.edicts[a];
         LPVECTOR2 apos = (LPVECTOR2)&ea->s.origin;
+        if (!ea->s.model)
+            continue;
         for (DWORD b = a + 1; b < globals.num_edicts; b++) {
             LPEDICT eb = &globals.edicts[b];
             LPVECTOR2 bpos = (LPVECTOR2)&eb->s.origin;
             VECTOR2 d = Vector2_sub(apos, bpos);
+            if (!eb->s.model)
+                continue;
             if (!(ea->flags & IS_UNIT) && !(eb->flags & IS_UNIT))
                 continue;
             float dist_sq = Vector2_dot(&d, &d);

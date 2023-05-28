@@ -35,21 +35,22 @@ typedef struct {
     animationType_t animation;
     void (*think)(LPEDICT self);
     void (*endfunc)(LPEDICT self);
-} mmove_t;
+} umove_t;
 
 typedef struct {
-    mmove_t *currentmove;
+    umove_t *currentmove;
     DWORD aiflags;
     DWORD health;
-    DWORD movespeed;
+    DWORD timer;
     struct UnitWeapons const *weapon;
     struct UnitBalance const *balance;
+    struct UnitUI const *ui;
     void (*stand)(LPEDICT self);
     void (*walk)(LPEDICT self);
     void (*run)(LPEDICT self);
     void (*melee)(LPEDICT self);
     bool (*checkattack)(LPEDICT self);
-} monsterinfo_t;
+} unitinfo_t;
 
 struct edict {
     entityState_t s;
@@ -64,12 +65,13 @@ struct edict {
     LPEDICT goalentity;
     LPEDICT enemy;
     DWORD flags;
+    animationInfo_t const *animation;
     
     void (*prethink)(LPEDICT self);
     void (*think)(LPEDICT self);
     void (*die)(LPEDICT self, LPEDICT attacker);
 
-    monsterinfo_t monsterinfo;
+    unitinfo_t unitinfo;
 };
 
 struct game_state {
@@ -90,7 +92,7 @@ void SP_CallSpawn(LPEDICT edict);
 void G_SpawnDoodads(LPCDOODAD doodads);
 void G_SpawnUnits(LPCDOODAD units, DWORD num_units);
 void G_BuildHeatmap(LPEDICT edict, LPCVECTOR2 location);
-void G_ClientCommand(LPCCLIENTMESSAGE clientMessage);
+void G_ClientCommand(clientMessage_t const *clientMessage);
 
 LPEDICT Waypoint_add(VECTOR2 spot);
 void M_CheckGround (LPEDICT self);
@@ -100,6 +102,7 @@ void monster_start(LPEDICT self);
 void ai_melee(LPEDICT self);
 void ai_walk(LPEDICT self);
 void ai_stand(LPEDICT self);
+void ai_cooldown(LPEDICT self);
 
 // g_monster.c
 void M_MoveToGoal(LPEDICT self);

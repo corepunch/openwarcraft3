@@ -40,9 +40,18 @@ void __netchan_init(struct netchan *netchan) {
     netchan->message.maxsize = sizeof(netchan->message_buf);
 }
 
-static LPCANIMATION SV_GetAnimation(int modelindex, animationType_t animname) {
+animationInfo_t const *SV_GetAnimation(int modelindex, animationType_t animname) {
     struct cmodel *model = sv.models[modelindex];
-    return model ? &model->animtypes[animname] : NULL;
+    if (!model)
+        return NULL;
+    animationTypeVariants_t const *av = &model->animtypes[animname];
+    if (av->num_animations == 0)
+        return NULL;
+    if (animname == ANIM_STAND && (rand() % 8) > 0) {
+        return &av->animations[0];
+    } else {
+        return &av->animations[rand() % av->num_animations];
+    }
 }
 
 void PF_error(char *fmt, ...) {

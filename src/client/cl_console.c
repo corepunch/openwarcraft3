@@ -24,7 +24,7 @@ void CON_DrawConsole(void) {
     FOR_LOOP(i, MAX_CONSOLE_MESSAGES) {
         if (!*messages[i].msg || cl.time > messages[i].time + CONSOLE_MESSAGE_TIME)
             continue;
-        renderer->PrintText(messages[i].msg, x, y, color);
+        re.PrintText(messages[i].msg, x, y, color);
         y += 16;
     }
 }

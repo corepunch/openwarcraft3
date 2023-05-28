@@ -10,6 +10,8 @@
 #define MAX_CONSOLE_MESSAGES 256
 #define MAX_CONSOLE_MESSAGE_LEN 1024
 #define CONSOLE_MESSAGE_TIME 5000
+#define VIEW_SHADOW_SIZE 1500
+#define MAX_CONFIRMATION_OBJECTS 16
 
 typedef struct {
     entityState_t baseline;
@@ -24,20 +26,28 @@ struct frame {
     int oldclientframe;
 };
 
+typedef struct  {
+    VECTOR3 origin;
+    DWORD timespamp;
+} moveConfirmation_t;
+
 struct client_state {
-    LPMODEL models[MAX_MODELS];
+    model_t *models[MAX_MODELS];
     LPTEXTURE pics[MAX_IMAGES];
     PATHSTR configstrings[MAX_CONFIGSTRINGS];
     clientEntity_t ents[MAX_CLIENT_ENTITIES];
+    moveConfirmation_t confs[MAX_CONFIRMATION_OBJECTS];
     viewDef_t viewDef;
     struct frame frame;
     VECTOR2 startingPosition;
+    model_t const *cursor;
     DWORD num_entities;
+    DWORD confirmationCounter;
     DWORD sock;
     DWORD playerNumber;
     DWORD time;
     struct {
-        struct rect rect;
+        RECT  rect;
         bool inProgress;
     } selection;
 };
@@ -51,11 +61,16 @@ void CL_PrepRefresh(void);
 void CL_ParseServerMessage(LPSIZEBUF msg);
 int CL_ParseEntityBits(LPSIZEBUF msg, DWORD *bits);
 void CL_SelectEntityAtScreenPoint(DWORD pixelX, DWORD pixelY);
-void CL_SelectEntitiesAtScreenRect(struct rect const *rect);
+void CL_SelectEntitiesAtScreenRect(LPCRECT rect);
 void CON_DrawConsole(void);
 void CON_printf(char *fmt, ...);
 
+// cl_view.c
+void Matrix4_fromViewAngles(LPCVECTOR3 target, LPCVECTOR3 angles, float distance, LPMATRIX4 output);
+void Matrix4_getLightMatrix(LPCVECTOR3 sunangles, LPCVECTOR3 target, float scale, LPMATRIX4 output);
+void Matrix4_getCameraMatrix(viewCamera_t const *camera, LPMATRIX4 output);
+
 extern struct client_state cl;
-extern struct Renderer *renderer;
+extern struct Renderer re;
 
 #endif

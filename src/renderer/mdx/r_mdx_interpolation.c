@@ -31,7 +31,26 @@ static float hermite(float left, float outTan, float inTan, float right, float t
     return left * factor1 + outTan * factor2 + inTan * factor3 + right * factor4;
 }
 
-static float interpNum(LPCMODELKEYFRAME left, LPCMODELKEYFRAME right, DWORD time, MODELKEYTRACKTYPE lineType) {
+static int interpInt(mdxKeyFrame_t const *left, mdxKeyFrame_t const *right, DWORD time, MODELKEYTRACKTYPE lineType) {
+    int const *leftVector = (int const *)left->data;
+    int const *rightVector = (int const *)right->data;
+    float const t = (float)(time - left->time) / (float)(right->time - left->time);
+    if (left->time == right->time) {
+        return leftVector[KEY_VALUE];
+    }
+    switch (lineType) {
+        case TRACK_NO_INTERP:
+            return leftVector[KEY_VALUE];
+        case TRACK_BEZIER:
+            return bezier(leftVector[KEY_VALUE], leftVector[KEY_OUTTAN], rightVector[KEY_INTAN], rightVector[KEY_VALUE], t);
+        case TRACK_HERMITE:
+            return hermite(leftVector[KEY_VALUE], leftVector[KEY_OUTTAN], rightVector[KEY_INTAN], rightVector[KEY_VALUE], t);
+        default:
+            return lerp(leftVector[KEY_VALUE], rightVector[KEY_VALUE], t);
+    }
+}
+
+static float interpFloat(mdxKeyFrame_t const *left, mdxKeyFrame_t const *right, DWORD time, MODELKEYTRACKTYPE lineType) {
     float const *leftVector = (float const *)left->data;
     float const *rightVector = (float const *)right->data;
     float const t = (float)(time - left->time) / (float)(right->time - left->time);
@@ -50,7 +69,7 @@ static float interpNum(LPCMODELKEYFRAME left, LPCMODELKEYFRAME right, DWORD time
     }
 }
 
-static VECTOR3 interpVec3(LPCMODELKEYFRAME left, LPCMODELKEYFRAME right, DWORD time, MODELKEYTRACKTYPE lineType) {
+static VECTOR3 interpVec3(mdxKeyFrame_t const *left, mdxKeyFrame_t const *right, DWORD time, MODELKEYTRACKTYPE lineType) {
     LPCVECTOR3 leftVector = (LPCVECTOR3)left->data;
     LPCVECTOR3 rightVector = (LPCVECTOR3)right->data;
     float const t = (float)(time - left->time) / (float)(right->time - left->time);
@@ -69,7 +88,7 @@ static VECTOR3 interpVec3(LPCMODELKEYFRAME left, LPCMODELKEYFRAME right, DWORD t
     }
 }
 
-static QUATERNION interpQuat(LPCMODELKEYFRAME left, LPCMODELKEYFRAME right, DWORD time, MODELKEYTRACKTYPE lineType) {
+static QUATERNION interpQuat(mdxKeyFrame_t const *left, mdxKeyFrame_t const *right, DWORD time, MODELKEYTRACKTYPE lineType) {
     LPCQUATERNION leftVector = (LPCQUATERNION)left->data;
     LPCQUATERNION rightVector = (LPCQUATERNION)right->data;
     float const t = (float)(time - left->time) / (float)(right->time - left->time);
@@ -87,15 +106,18 @@ static QUATERNION interpQuat(LPCMODELKEYFRAME left, LPCMODELKEYFRAME right, DWOR
     }
 }
 
-void R_GetKeyframeValue(LPCMODELKEYFRAME left, LPCMODELKEYFRAME right, DWORD time, LPCMODELKEYTRACK keytrack, HANDLE out) {
+void R_GetKeyframeValue(mdxKeyFrame_t const *left, mdxKeyFrame_t const *right, DWORD time, mdxKeyTrack_t const *keytrack, HANDLE out) {
     switch (keytrack->datatype) {
-        case kModelKeyTrackDataTypeFloat:
-            *((float *)out) = interpNum(left, right, time, keytrack->type);
+        case TDATA_INT:
+            *((int *)out) = interpInt(left, right, time, keytrack->type);
             return;
-        case kModelKeyTrackDataTypeVector3:
+        case TDATA_FLOAT:
+            *((float *)out) = interpFloat(left, right, time, keytrack->type);
+            return;
+        case TDATA_VECTOR3:
             *((VECTOR3 *)out) = interpVec3(left, right, time, keytrack->type);
             return;
-        case kModelKeyTrackDataTypeQuaternion:
+        case TDATA_QUATERNION:
             *((QUATERNION *)out) = interpQuat(left, right, time, keytrack->type);
             return;
     }

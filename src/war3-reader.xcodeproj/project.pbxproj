@@ -7,7 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		7866305D2A17D92E00266A62 /* cmodel.c in Sources */ = {isa = PBXBuildFile; fileRef = 7866305B2A17D17900266A62 /* cmodel.c */; };
+		7810F3EF2A1F8A49003AADBC /* ui.c in Sources */ = {isa = PBXBuildFile; fileRef = 7810F3EE2A1F8A49003AADBC /* ui.c */; };
+		7810F3F12A1FC5CC003AADBC /* ui_parser.c in Sources */ = {isa = PBXBuildFile; fileRef = 7810F3F02A1FC5CC003AADBC /* ui_parser.c */; };
+		7866305D2A17D92E00266A62 /* world.c in Sources */ = {isa = PBXBuildFile; fileRef = 7866305B2A17D17900266A62 /* world.c */; };
 		7866373D2A1A4C0800266A62 /* macos.c in Sources */ = {isa = PBXBuildFile; fileRef = 7866373C2A1A4C0800266A62 /* macos.c */; };
 		786637BC2A1B737500266A62 /* cl_console.c in Sources */ = {isa = PBXBuildFile; fileRef = 786637BB2A1B737500266A62 /* cl_console.c */; };
 		7897B7DA2A0BF40F008007CD /* cl_main.c in Sources */ = {isa = PBXBuildFile; fileRef = 7897B7D92A0BF40F008007CD /* cl_main.c */; };
@@ -81,7 +83,10 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		7866305B2A17D17900266A62 /* cmodel.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = cmodel.c; sourceTree = "<group>"; };
+		7810F3ED2A1F8A49003AADBC /* ui.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ui.h; sourceTree = "<group>"; };
+		7810F3EE2A1F8A49003AADBC /* ui.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = ui.c; sourceTree = "<group>"; };
+		7810F3F02A1FC5CC003AADBC /* ui_parser.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = ui_parser.c; sourceTree = "<group>"; };
+		7866305B2A17D17900266A62 /* world.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = world.c; sourceTree = "<group>"; };
 		7866373C2A1A4C0800266A62 /* macos.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = macos.c; sourceTree = "<group>"; };
 		786637BB2A1B737500266A62 /* cl_console.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = cl_console.c; sourceTree = "<group>"; };
 		7897B7D12A0BEB6A008007CD /* renderer.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = renderer.h; sourceTree = "<group>"; };
@@ -127,22 +132,32 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		7810F3EB2A1F8A38003AADBC /* ui */ = {
+			isa = PBXGroup;
+			children = (
+				7810F3F02A1FC5CC003AADBC /* ui_parser.c */,
+				7810F3EE2A1F8A49003AADBC /* ui.c */,
+				7810F3ED2A1F8A49003AADBC /* ui.h */,
+			);
+			path = ui;
+			sourceTree = "<group>";
+		};
 		7897B7CC2A0BE8AA008007CD /* common */ = {
 			isa = PBXGroup;
 			children = (
-				7866305B2A17D17900266A62 /* cmodel.c */,
+				78988A2E2A151C700090DEAA /* cmodel.h */,
 				7897B7DE2A0BF615008007CD /* common.c */,
+				7897B7D22A0BEB76008007CD /* common.h */,
 				78F58A852A06D2160027494A /* config.c */,
 				7866373C2A1A4C0800266A62 /* macos.c */,
 				78F58A2F2A0641A30027494A /* main.c */,
 				7897B7ED2A0CC4EE008007CD /* msg.c */,
 				7897B7E22A0C209A008007CD /* net.c */,
-				78C453882A1D386200C93B16 /* routing.c */,
-				78F58A812A06D1560027494A /* sheet.c */,
-				78988A2E2A151C700090DEAA /* cmodel.h */,
-				7897B7D22A0BEB76008007CD /* common.h */,
 				7897B7EF2A0CC6CF008007CD /* net.h */,
+				78C453882A1D386200C93B16 /* routing.c */,
 				78A8963F2A15F18F00BC5B56 /* shared.h */,
+				78F58A812A06D1560027494A /* sheet.c */,
+				7866305B2A17D17900266A62 /* world.c */,
 			);
 			path = common;
 			sourceTree = "<group>";
@@ -209,13 +224,14 @@
 			isa = PBXGroup;
 			children = (
 				78A896C42A16012C00BC5B56 /* cmath3.xcodeproj */,
-				78A896892A15F82600BC5B56 /* renderer.xcodeproj */,
 				78A896542A15F7A500BC5B56 /* game.xcodeproj */,
+				78A896892A15F82600BC5B56 /* renderer.xcodeproj */,
 				7897B7CD2A0BEAED008007CD /* client */,
 				7897B7CC2A0BE8AA008007CD /* common */,
+				78A896422A15F6AB00BC5B56 /* Frameworks */,
 				78F58A2D2A0641A30027494A /* Products */,
 				7897B7CF2A0BEAF7008007CD /* server */,
-				78A896422A15F6AB00BC5B56 /* Frameworks */,
+				7810F3EB2A1F8A38003AADBC /* ui */,
 			);
 			sourceTree = "<group>";
 		};
@@ -324,8 +340,9 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				7866305D2A17D92E00266A62 /* cmodel.c in Sources */,
+				7866305D2A17D92E00266A62 /* world.c in Sources */,
 				78C453892A1D386200C93B16 /* routing.c in Sources */,
+				7810F3EF2A1F8A49003AADBC /* ui.c in Sources */,
 				78F58A302A0641A30027494A /* main.c in Sources */,
 				7897B7EE2A0CC4EE008007CD /* msg.c in Sources */,
 				78F58A882A06D3030027494A /* sv_init.c in Sources */,
@@ -342,6 +359,7 @@
 				7897B7DD2A0BF4FD008007CD /* sv_main.c in Sources */,
 				7897B7FB2A12872C008007CD /* cl_parse.c in Sources */,
 				7897B7E52A0CA81B008007CD /* cl_view.c in Sources */,
+				7810F3F12A1FC5CC003AADBC /* ui_parser.c in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

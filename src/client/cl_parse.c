@@ -1,27 +1,5 @@
 #include "client.h"
 
-#define READ_IF(FLAG, VALUE, TYPE, SCALE) \
-if (bits & (1 << FLAG)) \
-    edict->VALUE = MSG_Read##TYPE(msg) * SCALE;
-
-void
-CL_ParseDeltaEntity(LPSIZEBUF msg,
-                    entityState_t *edict,
-                    int number,
-                    int bits)
-{
-    edict->number = number;
-    READ_IF(U_ORIGIN1, origin.x, Short, 1);
-    READ_IF(U_ORIGIN2, origin.y, Short, 1);
-    READ_IF(U_ORIGIN3, origin.z, Short, 1);
-    READ_IF(U_ANGLE, angle, Short, 0.01f);
-    READ_IF(U_SCALE, scale, Short, 0.01f);
-    READ_IF(U_FRAME, frame, Long, 1);
-    READ_IF(U_MODEL, model, Short, 1);
-    READ_IF(U_IMAGE, image, Short, 1);
-    READ_IF(U_PLAYER, player, Byte, 1);
-}
-
 static void CL_ReadPacketEntities(LPSIZEBUF msg) {
     while (true) {
         DWORD bits = 0;
@@ -30,7 +8,7 @@ static void CL_ReadPacketEntities(LPSIZEBUF msg) {
             break;
         clientEntity_t *edict = &cl.ents[nument];
         edict->prev = edict->current;
-        CL_ParseDeltaEntity(msg, &edict->current, nument, bits);
+        MSG_ReadDeltaEntity(msg, &edict->current, nument, bits);
     }
     cl.num_entities = MAX_CLIENT_ENTITIES;
 }
@@ -45,7 +23,7 @@ static void CL_ParseBaseline(LPSIZEBUF msg) {
     DWORD index = CL_ParseEntityBits(msg, &bits);
     clientEntity_t *cent = &cl.ents[index];
     memset(&cent->baseline, 0, sizeof(entityState_t));
-    CL_ParseDeltaEntity(msg, &cent->baseline, index, bits);
+    MSG_ReadDeltaEntity(msg, &cent->baseline, index, bits);
     memcpy(&cent->current, &cent->baseline, sizeof(entityState_t));
     memcpy(&cent->prev, &cent->baseline, sizeof(entityState_t));
 }
@@ -59,11 +37,8 @@ void CL_ParseFrame(LPSIZEBUF msg) {
 
 void CL_ParsePlayerInfo(LPSIZEBUF msg) {
     MSG_Read(msg, &cl.playerNumber, sizeof(DWORD));
-    MSG_Read(msg, &cl.startingPosition, sizeof(VECTOR2));
-        
-    cl.viewDef.vieworg.x = cl.startingPosition.x;
-    cl.viewDef.vieworg.y = cl.startingPosition.y - 800;
-    cl.viewDef.vieworg.z = 1200;
+    MSG_Read(msg, &cl.viewDef.camera.target, sizeof(VECTOR2));
+    cl.viewDef.camera.target.z = 0;
 }
 
 void CL_ParseServerMessage(LPSIZEBUF msg) {

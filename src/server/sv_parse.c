@@ -1,7 +1,7 @@
 #include "server.h"
 
 void SV_ParseCommand(LPSIZEBUF msg, LPCLIENT client) {
-    CLIENTMESSAGE cmsg;
+    clientMessage_t cmsg;
     cmsg.cmd = MSG_ReadByte(msg);
     cmsg.num_entities = MSG_ReadShort(msg);
     FOR_LOOP(i, cmsg.num_entities) {

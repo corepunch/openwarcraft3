@@ -46,17 +46,9 @@ const LPCSTR WarcraftSheets[] = {
     NULL
 };
 
-static struct {
-    LPTERRAININFO terrainInfo;
-    LPCLIFFINFO cliffInfo;
-    struct AnimLookup *animLookups;
-    struct SplatData *splatDatas;
-    struct SpawnData *spawnDatas;
-    struct UnitBalance *unitBalances;
-} stats = { NULL };
-
 static HANDLE archive;
 
+#if 0
 static void ExtractStarCraft2(void) {
 //    SFileOpenArchive("/Users/igor/Documents/SC2Install/Installer Tome 1.MPQ", 0, 0, &archive);
 //    SFileOpenArchive("/Users/igor/Documents/StarCraft2/Campaigns/Liberty.SC2Campaign/Base.SC2Maps", 0, 0, &archive);
@@ -77,6 +69,7 @@ static void ExtractStarCraft2(void) {
 
     exit(0);
 }
+#endif
 
 HANDLE FS_OpenFile(LPCSTR fileName) {
     HANDLE file = NULL;
@@ -91,26 +84,26 @@ bool FS_ExtractFile(LPCSTR toExtract, LPCSTR extracted) {
 void FS_Init(void) {
 //     ExtractStarCraft2();
     SFileOpenArchive(MPQ_PATH, 0, 0, &archive);
-//    SFileExtractFile(archive, "UI\\FrameDef\\UI\\ResourceBar.fdf", "/Users/igor/Desktop/ResourceBar.txt", 0);
+    SFileExtractFile(archive, "Textures\\Arthas.blp", "/Users/igor/Desktop/Arthas.blp", 0);
 #if 0
     SFILE_FIND_DATA findData;
-     HANDLE handle = SFileFindFirstFile(archive, "*", &findData, 0);
-     if (handle) {
+    HANDLE handle = SFileFindFirstFile(archive, "*", &findData, 0);
+    if (handle) {
          do {
-             if (/*!strstr(findData.cFileName, ".mdx") &&
-                 !strstr(findData.cFileName, ".w3m") &&
-                 !strstr(findData.cFileName, ".ai") &&
-                 !*/strstr(findData.cFileName, ".fdf")/* &&
-                 !strstr(findData.cFileName, ".tga") &&
-                 !strstr(findData.cFileName, ".MDX") &&
-                 !strstr(findData.cFileName, ".wav") &&
-                 !strstr(findData.cFileName, ".mp3") &&
-                 !strstr(findData.cFileName, ".mdx") &&
-                 !strstr(findData.cFileName, ".blp")*/) {
+//             if (!strstr(findData.cFileName, ".mdx") &&
+//                 !strstr(findData.cFileName, ".w3m") &&
+//                 !strstr(findData.cFileName, ".ai") &&
+//                 !strstr(findData.cFileName, ".fdf") &&
+//                 !strstr(findData.cFileName, ".tga") &&
+//                 !strstr(findData.cFileName, ".MDX") &&
+//                 !strstr(findData.cFileName, ".wav") &&
+//                 !strstr(findData.cFileName, ".mp3") &&
+//                 !strstr(findData.cFileName, ".mdx") &&
+//                 !strstr(findData.cFileName, ".blp")) {
                  printf("%s\n", findData.cFileName);
-             }
+//             }
 #if 1
-             if (strstr(findData.cFileName, ".fdf")){
+             if (strstr(findData.cFileName, ".j")){
                  HANDLE file;
                  SFileOpenFileEx(archive, findData.cFileName, SFILE_OPEN_FROM_MPQ, &file);
                  char ch;

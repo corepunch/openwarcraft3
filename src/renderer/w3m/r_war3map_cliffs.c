@@ -1,6 +1,6 @@
 #include "r_war3map.h"
-#include "r_mdx.h"
-#include "TerrainArt/CliffTypes.h"
+#include "../mdx/r_mdx.h"
+#include "../TerrainArt/CliffTypes.h"
 
 static VERTEX aVertexBuffer[(SEGMENT_SIZE+1)*(SEGMENT_SIZE+1)*64];
 static LPVERTEX currentVertex = NULL;
@@ -10,7 +10,7 @@ static LPVERTEX currentVertex = NULL;
 
 struct tCliff {
     DWORD cliffid;
-    LPCMODEL model;
+    model_t const *model;
     struct tCliff *next;
 };
 
@@ -56,7 +56,7 @@ static float GetAccurateWaterLevelAtPoint(float sx, float sy) {
 
 // FUNCTIONS
 
-static LPCMODEL R_LoadCliffModel(struct CliffTypes const *cliffType, char const *ccfg, bool ramp) {
+static model_t const *R_LoadCliffModel(struct CliffTypes const *cliffType, char const *ccfg, bool ramp) {
     PATHSTR zBuffer;
     const int cliffid = *(int *)ccfg;
     LPCSTR dir = ramp ? cliffType->rampModelDir : cliffType->cliffModelDir;
@@ -97,7 +97,7 @@ static void R_MakeCliff(LPCWAR3MAP map, DWORD x, DWORD y, DWORD cliff, struct Cl
     }
 
     FOR_LOOP(gindx, map->num_grounds) {
-        DWORD const tile = cliffType->groundTile == SAME_TILE ? cliffType->upperTile : cliffType->groundTile;
+//        DWORD const tile = cliffType->groundTile == SAME_TILE ? cliffType->upperTile : cliffType->groundTile;
         if (map->grounds[gindx] == cliffType->groundTile) {
             ((LPWAR3MAPVERTEX)GetWar3MapVertex(map, x+1, y+1))->ground = gindx;
             ((LPWAR3MAPVERTEX)GetWar3MapVertex(map, x, y+1))->ground = gindx;
@@ -107,25 +107,28 @@ static void R_MakeCliff(LPCWAR3MAP map, DWORD x, DWORD y, DWORD cliff, struct Cl
         }
     }
 
-    LPCMODEL pModel = R_LoadCliffModel(cliffType, cliffcfg, tileramps > 1);
-    LPMODELGEOSET pGeoset = pModel->geosets;
+    model_t const *pModel = R_LoadCliffModel(cliffType, cliffcfg, tileramps > 1);
+    mdxGeoset_t *pGeoset = pModel->mdx->geosets;
 
     FOR_LOOP(t, pGeoset->num_triangles) {
         const int i = pGeoset->triangles[t];
-        const float fx = pGeoset->vertices[i].x + (x+1) * TILESIZE;
-        const float fy = pGeoset->vertices[i].y + y * TILESIZE;
+        const float fx = pGeoset->vertices[i][0] + (x+1) * TILESIZE;
+        const float fy = pGeoset->vertices[i][1] + y * TILESIZE;
         const float fh = GetAccurateHeightAtPoint(fx, fy);
         const float fw = GetAccurateWaterLevelAtPoint(fx, fy);
-        const float fz = pGeoset->vertices[i].z + baselevel * TILESIZE + fh - HEIGHT_COR;
+        const float fz = pGeoset->vertices[i][2] + baselevel * TILESIZE + fh - HEIGHT_COR;
         const float dp = GetTileDepth(fw, fz);
         struct vertex *v = currentVertex + t;
         v->color = MakeColor(dp, LerpNumber(dp, 1, 0.25), LerpNumber(dp, 1, 0.5), 1);
         v->position.x = map->center.x + fx;
         v->position.y = map->center.y + fy;
         v->position.z = fz;
-        v->texcoord = pGeoset->texcoord[i];
+        v->texcoord.x = pGeoset->texcoord[i][0];
+        v->texcoord.y = pGeoset->texcoord[i][1];
         v->texcoord2 = GetWar3MapPosition(map, map->center.x + fx, map->center.y + fy);
-        v->normal = pGeoset->normals[i];
+        v->normal.x = pGeoset->normals[i][0];
+        v->normal.y = pGeoset->normals[i][1];
+        v->normal.z = pGeoset->normals[i][2];
     }
 
     currentVertex += pGeoset->num_triangles;
@@ -138,7 +141,7 @@ LPMAPLAYER R_BuildMapSegmentCliffs(LPCWAR3MAP map, DWORD sx, DWORD sy, DWORD cli
     if (cliffID == NO_CLIFF) {
         return NULL;
     }
-    struct CliffTypes *cliffType = FindCliffTypes(cliffID);
+    struct CliffTypes const *cliffType = FindCliffTypes(cliffID);
 //    FOR_LOOP(idx, map->num_cliffs) {
 //        printf("%.4s\n", (char*)&map->cliffs[idx]);
 //    }

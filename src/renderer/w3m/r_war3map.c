@@ -6,6 +6,8 @@ LPMAPSEGMENT g_mapSegments = NULL;
 LPCTEXTURE pathTexture = NULL;
 void R_SetPathTexture(LPCCOLOR32 debugTexture) {
     R_LoadTextureMipLevel(pathTexture, 0, debugTexture, pathTexture->width, pathTexture->height);
+    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 }
 #endif
 
@@ -118,7 +120,12 @@ void R_RegisterMap(char const *mapFilename) {
 
 VECTOR3 R_GetPointOnScreen(LPCVECTOR3 point) {
     VECTOR3 screen;
-    Matrix4_multiply_vector3(&tr.viewDef.projection_matrix, point, &screen);
+    extern bool is_rendering_lights;
+    if (is_rendering_lights) {
+        Matrix4_multiply_vector3(&tr.viewDef.lightMatrix, point, &screen);
+    } else {
+        Matrix4_multiply_vector3(&tr.viewDef.projectionMatrix, point, &screen);
+    }
     return screen;
 }
 
@@ -152,6 +159,9 @@ static void R_DrawSegment(LPCMAPSEGMENT segment, DWORD mask) {
 }
 
 void R_DrawWorld(void) {
+    if (tr.viewDef.rdflags & RDF_NOWORLDMODEL)
+        return;
+
     R_Call(glUseProgram, tr.shaderStatic->progid);
     
 #ifdef DEBUG_PATHFINDING
@@ -164,6 +174,9 @@ void R_DrawWorld(void) {
 }
 
 void R_DrawAlphaSurfaces(void) {
+    if (tr.viewDef.rdflags & RDF_NOWORLDMODEL)
+        return;
+    
     R_Call(glUseProgram, tr.shaderStatic->progid);
     R_Call(glEnable, GL_BLEND);
     R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);

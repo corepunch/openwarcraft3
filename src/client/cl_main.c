@@ -1,17 +1,18 @@
 #include "client.h"
 #include "renderer.h"
+#include "../ui/ui.h"
 
 #include <SDL.h>
 #include <StormLib.h>
 
-struct Renderer *renderer = NULL;
+struct Renderer re;
 struct client_static cls;
 struct client_state cl;
 
 void CL_Init(void) {
     CON_printf("OpenWarcraft3 v0.1");
 
-    renderer = Renderer_Init(&(struct renderer_import) {
+    re = *Renderer_Init(&(struct renderer_import) {
         .MemAlloc = MemAlloc,
         .MemFree = MemFree,
         .FileOpen = FS_OpenFile,
@@ -21,13 +22,19 @@ void CL_Init(void) {
         .error = CON_printf,
     });
 
-    renderer->Init(WINDOW_WIDTH, WINDOW_HEIGHT);
+    re.Init(WINDOW_WIDTH, WINDOW_HEIGHT);
 
+    UI_Init();
+    
     memset(&cl, 0, sizeof(struct client_state));
 
-    cl.viewDef.fov = 45;
-    cl.viewDef.vieworg = (VECTOR3) { 700, -2500, 1000 };
-    cl.viewDef.viewangles = (VECTOR3) { -40, 0, 0 };
+    cl.cursor = re.LoadModel("UI\\Feedback\\Confirmation\\Confirmation.mdx");
+    
+    cl.viewDef.camera.fov = 45;
+    cl.viewDef.camera.angles = (VECTOR3) { -40, 0, 0 };
+    cl.viewDef.camera.distance = 1500;
+    cl.viewDef.camera.zfar = 5000;
+    cl.viewDef.camera.znear = 100;
 
     void __netchan_init(struct netchan *netchan);
     __netchan_init(&cls.netchan);
@@ -70,8 +77,8 @@ void CL_Input(void) {
                         break;
                     case 3:
                         moved = true;
-                        cl.viewDef.vieworg.x -= event.motion.xrel * 5;
-                        cl.viewDef.vieworg.y += event.motion.yrel * 5;
+                        cl.viewDef.camera.target.x -= event.motion.xrel * 5;
+                        cl.viewDef.camera.target.y += event.motion.yrel * 5;
                         break;
                 }
                 break;
@@ -85,6 +92,7 @@ void CL_Input(void) {
                 break;
         }
     }
+    cl.viewDef.camera.target.z = 0;// CM_GetHeightAtPoint(cl.viewDef.camera.target.x, cl.viewDef.camera.target.y);
 }
 
 void CL_ReadPackets(void) {
@@ -101,13 +109,13 @@ void CL_ReadPackets(void) {
 }
 
 void CL_SendCommands(void) {
-    extern struct client_message msg;
+    extern clientMessage_t msg;
     static VECTOR3 camera_location;
-    if (Vector3_distance(&cl.viewDef.vieworg, &camera_location) > EPSILON) {
-        camera_location = cl.viewDef.vieworg;
+    if (Vector3_distance(&cl.viewDef.camera.target, &camera_location) > EPSILON) {
+        camera_location = cl.viewDef.camera.target;
         MSG_WriteByte(&cls.netchan.message, clc_move);
         MSG_WriteShort(&cls.netchan.message, camera_location.x);
-        MSG_WriteShort(&cls.netchan.message, camera_location.y + 800);
+        MSG_WriteShort(&cls.netchan.message, camera_location.y);
         Netchan_Transmit(NS_CLIENT, &cls.netchan);
     }
     if (msg.cmd != CMD_NO_COMMAND && msg.num_entities > 0){
@@ -129,10 +137,10 @@ void CL_Shutdown(void) {
     FOR_LOOP(modelIndex, MAX_MODELS) {
         if (!cl.models[modelIndex])
             continue;
-        renderer->ReleaseModel(cl.models[modelIndex]);
+        re.ReleaseModel(cl.models[modelIndex]);
     }
 
-    renderer->Shutdown();
+    re.Shutdown();
 }
 
 void CL_Frame(DWORD msec) {

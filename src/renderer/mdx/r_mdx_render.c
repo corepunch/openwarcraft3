@@ -1,16 +1,18 @@
-#include "r_local.h"
 #include "r_mdx.h"
+#include "r_local.h"
 
-static MATRIX4 node_matrices[MAX_BONE_MATRICES];
+static MATRIX4 local_matrices[MAX_NODES];
+  MATRIX4 global_matrices[MAX_NODES];
+static MATRIX4 aBoneMatrices[MAX_BONES];
 
 DWORD GetModelKeyTrackDataTypeSize(MODELKEYTRACKDATATYPE dataType);
 DWORD GetModelKeyTrackTypeSize(MODELKEYTRACKTYPE keyTrackType);
 DWORD GetModelKeyFrameSize(MODELKEYTRACKDATATYPE dataType, MODELKEYTRACKTYPE keyTrackType);
-void R_GetKeyframeValue(LPCMODELKEYFRAME left, LPCMODELKEYFRAME right, DWORD time, LPCMODELKEYTRACK keytrack, HANDLE out);
+void R_GetKeyframeValue(mdxKeyFrame_t const *left, mdxKeyFrame_t const *right, DWORD time, mdxKeyTrack_t const *keytrack, HANDLE out);
 
-LPCMODELSEQUENCE R_FindSequenceAtTime(LPCMODEL model, DWORD time) {
+mdxSequence_t const *R_FindSequenceAtTime(mdxModel_t const *model, DWORD time) {
     FOR_LOOP(seqIndex, model->num_sequences) {
-        LPCMODELSEQUENCE seq = &model->sequences[seqIndex];
+        mdxSequence_t const *seq = &model->sequences[seqIndex];
         if (seq->interval[0] <= time && seq->interval[1] > time) {
             return seq;
         }
@@ -18,18 +20,27 @@ LPCMODELSEQUENCE R_FindSequenceAtTime(LPCMODEL model, DWORD time) {
     return NULL;
 }
 
-static void R_GetModelKeytrackValue(LPCMODEL model, LPCMODELKEYTRACK keytrack, DWORD time, HANDLE output) {
+static void R_GetModelKeytrackValue(mdxModel_t const *model, mdxKeyTrack_t const *keytrack, DWORD time, HANDLE output) {
     DWORD const keyframeSize = GetModelKeyFrameSize(keytrack->datatype, keytrack->type);
     LPCSTR keyFrames = (LPCSTR)keytrack->values;
-    LPMODELKEYFRAME prevKeyFrame = NULL;
-    LPCMODELSEQUENCE seq = R_FindSequenceAtTime(model, time);
-    if (!seq)
-        return;
+    mdxKeyFrame_t *prevKeyFrame = NULL;
+    DWORD interval[2] = { 0, 0 };
+    if (keytrack->globalSeqId != -1) {
+        interval[0] = 0;
+        interval[1] = model->globalSequences[keytrack->globalSeqId].value;
+        time = time % (model->globalSequences[keytrack->globalSeqId].value + 1);
+    } else {
+        mdxSequence_t const *seq = R_FindSequenceAtTime(model, time);
+        if (!seq)
+            return;
+        interval[0] = seq->interval[0];
+        interval[1] = seq->interval[1];
+    }
     FOR_LOOP(keyframeIndex, keytrack->keyframeCount) {
-        LPMODELKEYFRAME keyFrame = (HANDLE)(keyFrames + keyframeSize * keyframeIndex);
-        if (keyFrame->time < seq->interval[0])
+        mdxKeyFrame_t *keyFrame = (HANDLE)(keyFrames + keyframeSize * keyframeIndex);
+        if (keyFrame->time < interval[0])
             continue;
-        if (keyFrame->time > seq->interval[1]) {
+        if (keyFrame->time > interval[1]) {
             if (prevKeyFrame) {
                 memcpy(output, prevKeyFrame->data, GetModelKeyTrackDataTypeSize(keytrack->datatype));
             }
@@ -50,11 +61,11 @@ static void R_GetModelKeytrackValue(LPCMODEL model, LPCMODELKEYTRACK keytrack, D
     }
 }
 
-static void R_CalculateNodeMatrix(LPCMODEL model, LPMODELNODE node, DWORD frame1, DWORD frame0, LPMATRIX4 matrix) {
+static void R_CalculateNodeMatrix(mdxModel_t const *model, mdxNode_t *node, DWORD frame1, DWORD frame0, LPMATRIX4 matrix) {
     VECTOR3 vTranslation = { 0, 0, 0 };
     QUATERNION vRotation = { 0, 0, 0, 1 };
     VECTOR3 vScale = { 1, 1, 1 };
-    LPCVECTOR3 pivot = (VECTOR3 const *)node->pivot;
+    LPCVECTOR3 pivot = (VECTOR3 const *)&model->pivots[node->object_id];
     if (frame0 != frame1) {
         if (node->translation) {
             VECTOR3 t0 = vTranslation, t1 = vTranslation;
@@ -96,76 +107,67 @@ static void R_CalculateNodeMatrix(LPCMODEL model, LPMODELNODE node, DWORD frame1
     }
 }
 
-LPCMATRIX4 R_GetNodeGlobalMatrix(LPMODELNODE node) {
-    if (node->globalMatrix.v[15] == 0) {
-        if (node->parent) {
-            Matrix4_multiply(R_GetNodeGlobalMatrix(node->parent),
-                             &node->localMatrix,
-                             &node->globalMatrix);
+LPCMATRIX4 R_GetNodeGlobalMatrix(mdxModel_t const *model, mdxNode_t *node) {
+    if (global_matrices[node->object_id].v[15] == 0) {
+        if (node->parent_id != -1) {
+            Matrix4_multiply(R_GetNodeGlobalMatrix(model, model->nodes[node->parent_id]),
+                             &local_matrices[node->object_id],
+                             &global_matrices[node->object_id]);
         } else {
-            node->globalMatrix = node->localMatrix;
+            global_matrices[node->object_id] = local_matrices[node->object_id];
         }
     }
-    return &node->globalMatrix;
+    return &global_matrices[node->object_id];
 }
 
-static void R_CalculateBoneMatrices(LPCMODEL model, LPMATRIX4 modelMatrices, DWORD frame1, DWORD frame0) {
+DWORD R_CalculateBoneMatrices(mdxModel_t const *model, LPMATRIX4 modelMatrices, DWORD frame1, DWORD frame0) {
     DWORD boneIndex = 1;
     
-    FOR_EACH_LIST(struct tModelBone, bone, model->bones) {
-        memset(&bone->node.globalMatrix, 0, sizeof(MATRIX4));
-        R_CalculateNodeMatrix(model, &bone->node, frame1, frame0, &bone->node.localMatrix);
+    memset(global_matrices, 0, sizeof(global_matrices));
+    
+    for (mdxNode_t *const *node = model->nodes; *node; node++) {
+        R_CalculateNodeMatrix(model, *node, frame1, frame0, &local_matrices[(*node)->object_id]);
     }
-    FOR_EACH_LIST(struct tModelHelper, helper, model->helpers) {
-        memset(&helper->node.globalMatrix, 0, sizeof(MATRIX4));
-        R_CalculateNodeMatrix(model, &helper->node, frame1, frame0, &helper->node.localMatrix);
+    
+    FOR_EACH_LIST(mdxBone_t, bone, model->bones) {
+        modelMatrices[boneIndex++] = *R_GetNodeGlobalMatrix(model, &bone->node);
     }
-    FOR_EACH_LIST(struct tModelBone, bone, model->bones) {
-        modelMatrices[boneIndex++] = *R_GetNodeGlobalMatrix(&bone->node);
-    }
-
+    
+    return boneIndex;
 }
 
-static void R_RenderGeoset(LPCMODEL model, LPMODELGEOSET geoset, LPCMATRIX4 modelMatrix) {
-    if (!geoset->buffer)
+static void R_RenderGeoset(mdxModel_t const *model,
+                           mdxGeoset_t const *geoset,
+                           LPCMATRIX4 modelMatrix) {
+    if (!geoset->userdata)
         return;
+    
+    struct render_buffer *buf = geoset->userdata;
+    
     MATRIX3 mNormalMatrix;
     Matrix3_normal(&mNormalMatrix, modelMatrix);
     R_Call(glUseProgram, tr.shaderSkin->progid);
     R_Call(glUniformMatrix4fv, tr.shaderSkin->uModelMatrix, 1, GL_FALSE, modelMatrix->v);
     R_Call(glUniformMatrix3fv, tr.shaderSkin->uNormalMatrix, 1, GL_TRUE, mNormalMatrix.v);
-
-    R_Call(glBindVertexArray, geoset->buffer->vao);
-    R_Call(glBindBuffer, GL_ARRAY_BUFFER, geoset->buffer->vbo);
+    R_Call(glBindVertexArray, buf->vao);
+    R_Call(glBindBuffer, GL_ARRAY_BUFFER, buf->vbo);
     R_Call(glDrawArrays, GL_TRIANGLES, 0, geoset->num_triangles);
     R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 }
 
-static MATRIX4 aBoneMatrices[MAX_BONE_MATRICES];
-
-static void R_BindBoneMatrices(LPMODEL model, DWORD frame1, DWORD frame0) {
-    R_CalculateBoneMatrices(model, aBoneMatrices, frame1, frame0);
-
-    Matrix4_identity(node_matrices);
-
-    FOR_EACH_LIST(struct tModelHelper, bone, model->helpers) {
-        node_matrices[bone->node.objectId + 1] = bone->node.globalMatrix;
-    }
-
-    FOR_EACH_LIST(struct tModelBone, bone, model->bones) {
-        node_matrices[bone->node.objectId + 1] = bone->node.globalMatrix;
-    }
-
+static void R_BindBoneMatrices(mdxModel_t const *model, DWORD frame1, DWORD frame0) {
+    DWORD numBones = R_CalculateBoneMatrices(model, aBoneMatrices, frame1, frame0);
+    
     R_Call(glUseProgram, tr.shaderSkin->progid);
-    R_Call(glUniformMatrix4fv, tr.shaderSkin->uBones, 64, GL_FALSE, node_matrices->v);
+    R_Call(glUniformMatrix4fv, tr.shaderSkin->uBones, numBones, GL_FALSE, global_matrices->v);
 }
 
-static void RenderGeoset(LPCMODEL model,
-                         LPMODELGEOSET geoset,
+static void RenderGeoset(mdxModel_t const *model,
+                         mdxGeoset_t const *geoset,
                          renderEntity_t const *entity,
                          LPCTEXTURE overrideTexture)
 {
-    LPMODELMATERIAL material = model->materials;
+    mdxMaterial_t *material = model->materials;
     for (DWORD materialID = geoset->materialID; materialID > 0; materialID--) {
         material = material->next;
     }
@@ -188,8 +190,8 @@ static void RenderGeoset(LPCMODEL model,
     extern bool is_rendering_lights;
 
     FOR_LOOP(layerID, material->num_layers) {
-        LPCMODELLAYER layer = &material->layers[layerID];
-        struct tModelTexture const *modeltex = &model->textures[layer->textureId];
+        mdxMaterialLayer_t const *layer = &material->layers[layerID];
+        mdxTexture_t const *modeltex = &model->textures[layer->textureId];
         switch (modeltex->replaceableID) {
             case TEXREPL_TEAMCOLOR:
                 R_BindTexture(tr.teamColor[entity->team & TEAM_MASK], 0);
@@ -254,23 +256,92 @@ static void RenderGeoset(LPCMODEL model,
 }
 
 void RenderModel(renderEntity_t const *entity) {
-    LPCMODEL model = entity->model;
+    mdxModel_t const *model = entity->model->mdx;
 
-    R_BindBoneMatrices((LPMODEL)model, entity->frame, entity->oldframe);
+    R_BindBoneMatrices(model, entity->frame, entity->oldframe);
 
-    FOR_EACH_LIST(MODELGEOSET, geoset, model->geosets) {
+    FOR_EACH_LIST(mdxGeoset_t, geoset, model->geosets) {
         RenderGeoset(model, geoset, entity, entity->skin);
     }
 
     if (entity->flags & RF_SELECTED) {
-        FOR_LOOP(boneIndex, MAX_BONE_MATRICES) {
-            Matrix4_identity(&node_matrices[boneIndex]);
+        FOR_LOOP(boneIndex, MAX_BONES) {
+            Matrix4_identity(&aBoneMatrices[boneIndex]);
         }
         R_Call(glUseProgram, tr.shaderSkin->progid);
-        R_Call(glUniformMatrix4fv, tr.shaderSkin->uBones, 64, GL_FALSE, node_matrices->v);
+        R_Call(glUniformMatrix4fv, tr.shaderSkin->uBones, MAX_BONES, GL_FALSE, aBoneMatrices->v);
         renderEntity_t re = *entity;
         re.scale *= 1.5f;
         re.angle = tr.viewDef.time * 0.001;
-        RenderGeoset(tr.selectionCircle, tr.selectionCircle->geosets, &re, NULL);
+        re.frame = 0;
+        re.oldframe = 0;
+        RenderGeoset(tr.selectionCircle->mdx, tr.selectionCircle->mdx->geosets, &re, NULL);
     }
+}
+
+void R_Viewport(LPCRECT viewport) {
+    SIZE2 const windowSize = R_GetWindowSize();
+    glViewport(viewport->x * windowSize.width / 800,
+               viewport->y * windowSize.height / 600,
+               viewport->width * windowSize.width / 800,
+               viewport->height * windowSize.height / 600);
+}
+
+bool R_GetModelCameraMatrix(mdxModel_t const *model, LPMATRIX4 output, LPVECTOR3 root) {
+    mdxCamera_t const *camera = model->cameras;
+    if (!camera) {
+        return false;
+    } else {
+        MATRIX4 projection, view;
+        Matrix4_perspective(&projection, 30, 1, 10.0, 1000.0);
+        VECTOR3 dir = Vector3_sub((LPVECTOR3)camera->targetPivot, (LPVECTOR3)camera->pivot);
+        Matrix4_lookAt(&view, (LPVECTOR3)camera->pivot, &dir, &(VECTOR3){0,0,1});
+        Matrix4_multiply(&projection, &view, output);
+        *root = *(LPCVECTOR3)model->pivots;
+        return true;
+    }
+}
+
+void Matrix4_fromViewAngles(LPCVECTOR3 target, LPCVECTOR3 angles, float distance, LPMATRIX4 output) {
+    VECTOR3 const vieworg = Vector3_unm(target);
+    Matrix4_identity(output);
+    Matrix4_translate(output, &(VECTOR3){0, 0, -distance});
+    Matrix4_rotate(output, angles, ROTATE_ZYX);
+    Matrix4_translate(output, &vieworg);
+}
+
+void Matrix4_getLightMatrix(LPCVECTOR3 sunangles, LPCVECTOR3 target, float scale, LPMATRIX4 output) {
+    MATRIX4 proj, view;
+    Matrix4_ortho(&proj, -scale, scale, -scale, scale, 100.0, 3500.0);
+    Matrix4_fromViewAngles(target, sunangles, 1000, &view);
+    Matrix4_multiply(&proj, &view, output);
+}
+
+void R_DrawPortrait(model_t const *model, LPCRECT viewport) {
+    VECTOR3 root;
+    VECTOR3 lightAngles = { 10, 270, 0 };
+    renderEntity_t entity;
+    viewDef_t viewdef;
+    mdxModel_t const *mdx = model->mdx;
+    mdxSequence_t const *seq = &mdx->sequences[2];
+    
+    memset(&entity, 0, sizeof(renderEntity_t));
+    memset(&viewdef, 0, sizeof(viewdef));
+    
+    entity.scale = 1;
+    entity.model = model;
+    entity.frame = seq->interval[0]  + tr.viewDef.time % (seq->interval[1] - seq->interval[0]);
+    entity.oldframe = entity.frame;
+    
+    viewdef.viewport = *viewport;
+    viewdef.scissor = (RECT) { 0, 0, 1, 1 };
+    viewdef.num_entities = 1;
+    viewdef.entities = &entity;
+    viewdef.rdflags |= RDF_NOWORLDMODEL | RDF_NOFRUSTUMCULL;
+    
+    R_GetModelCameraMatrix(mdx, &viewdef.projectionMatrix, &root);
+    
+    Matrix4_getLightMatrix(&lightAngles, &root, PORTRAIT_SHADOW_SIZE, &viewdef.lightMatrix);
+
+    R_RenderFrame(&viewdef);
 }

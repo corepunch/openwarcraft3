@@ -21,8 +21,6 @@ struct {
     DWORD width;
     DWORD height;
     pathMapCell_t *data;
-    pathNode_t *nodes;
-    uint8_t *closed_set;
     routeNode_t *heatmap;
 } pathmap = { 0 };
 
@@ -53,16 +51,6 @@ inline static routeNode_t *heatmap(DWORD x, DWORD y) {
     return &pathmap.heatmap[index];
 }
 
-inline static pathNode_t *node(DWORD x, DWORD y) {
-    int const index = x + y * pathmap.width;
-    return &pathmap.nodes[index];
-}
-
-inline static uint8_t *closed_set(DWORD x, DWORD y) {
-    int const index = x + y * pathmap.width;
-    return &pathmap.closed_set[index];
-}
-
 inline static bool is_valid_point(DWORD x, DWORD y) {
     return x < pathmap.width && y < pathmap.height;
 }
@@ -72,28 +60,10 @@ inline static bool is_obstacle(DWORD x, DWORD y) {
     return !node || node->nowalk;
 }
 
-inline static int calculate_h(int x, int y, int target_x, int target_y) {
-    return abs(target_x - x) + abs(target_y - y);
-}
-
-static point2_t* reconstruct_path(point2_t start, point2_t target) {
-//    printf("path: %d\n", node(target.x, target.y)->g + 1);
-    int path_length = node(target.x, target.y)->g + 1;
-    point2_t* path = MemAlloc(path_length * sizeof(point2_t));
-    point2_t current = target;
-    for (int i = path_length - 1; i >= 0; i--) {
-#ifdef DEBUG_PATHFINDING
-        pathDebug[current.x + current.y * pathmap.width].g = 255;
-#endif
-        path[i] = current;
-        current = node(current.x, current.y)->parent;
-    }
-    return path;
-}
-
 VECTOR2 compute_directiom(DWORD x, DWORD y) {
     DWORD prices[8] = { INT_MAX };
     DWORD min_price = INT_MAX;
+
     FOR_LOOP(dir, 8) {
         int new_x = x + dx[dir];
         int new_y = y + dy[dir];
@@ -104,11 +74,14 @@ VECTOR2 compute_directiom(DWORD x, DWORD y) {
         prices[dir] = heatmap(new_x, new_y)->price;
         min_price = MIN(prices[dir], min_price);
     }
+    
     VECTOR2 direction = { 0, 0 };
     FOR_LOOP(dir, 8) {
         float k = 10.f / (10 + (prices[dir] - min_price));
-        direction.x += dx[dir] * k;
-        direction.y += dy[dir] * k;
+        VECTOR2 dirvec = { dx[dir], dy[dir] };
+        Vector2_normalize(&dirvec);
+        direction.x += dirvec.x * k;
+        direction.y += dirvec.y * k;
     }
     return direction;
 }
@@ -123,7 +96,7 @@ VECTOR2 get_flow_direction(DWORD heatmapindex, float fnx, float fny) {
     VECTOR2 c = compute_directiom(dx+1, dy+1);
     VECTOR2 d = compute_directiom(dx, dy+1);
     VECTOR2 ab = Vector2_lerp(&a, &b, n.x - dx);
-    VECTOR2 cd = Vector2_lerp(&c, &d, n.x - dx);
+    VECTOR2 cd = Vector2_lerp(&d, &c, n.x - dx);
     return Vector2_lerp(&ab, &cd, n.y - dy);
 }
 
@@ -161,8 +134,8 @@ handle_t build_heatmap(point2_t target) {
 
 #ifdef DEBUG_PATHFINDING
     FOR_LOOP(i, pathmap.width * pathmap.height) {
-        
-        pathDebug[i].g = pathmap.heatmap[i].step > 0 ? pathmap.heatmap[i].price * 2 : 255;
+        VECTOR2 dir = compute_directiom(i % pathmap.width, i / pathmap.width);
+        pathDebug[i].g = (atan2(dir.y, dir.x) + M_PI) * 255 / (2 * M_PI);//pathmap.heatmap[i].step > 0 ? pathmap.heatmap[i].price * 2 : 255;
     }
 #endif
     return 0;
@@ -183,8 +156,6 @@ void CM_ReadPathMap(HANDLE archive) {
     SFileReadFile(file, &pathmap.width, 4, NULL, NULL);
     SFileReadFile(file, &pathmap.height, 4, NULL, NULL);
     pathmap.data = MemAlloc(pathmap.width * pathmap.height);
-    pathmap.closed_set = MemAlloc(pathmap.width * pathmap.height);
-    pathmap.nodes = MemAlloc(pathmap.width * pathmap.height * sizeof(pathNode_t));
     pathmap.heatmap = MemAlloc(pathmap.width * pathmap.height * sizeof(routeNode_t));
     SFileReadFile(file, pathmap.data, pathmap.width * pathmap.height, 0, 0);
     SFileCloseFile(file);

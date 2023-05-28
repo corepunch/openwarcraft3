@@ -19,17 +19,19 @@ LPEDICT Waypoint_add(VECTOR2 spot) {
 }
 
 void M_MoveFrame(LPEDICT self) {
-    if (self->monsterinfo.aiflags & AI_HOLD_FRAME)
+    if (self->unitinfo.aiflags & AI_HOLD_FRAME)
         return;
-    mmove_t const *move = self->monsterinfo.currentmove;
-    LPCANIMATION anim = gi.GetAnimation(self->s.model, move->animation);
+    umove_t const *move = self->unitinfo.currentmove;
+    animationInfo_t const *anim = self->animation;
     if (!anim)
         return;
-    if (self->s.frame < anim->firstframe || self->s.frame >= anim->lastframe) {
+    if (self->s.frame < anim->firstframe ||
+        self->s.frame >= anim->lastframe)
+    {
         self->s.frame = anim->firstframe;
     } else if ((self->s.frame + FRAMETIME) >= anim->lastframe) {
         SAFE_CALL(move->endfunc, self);
-        if (!(self->monsterinfo.aiflags & AI_HOLD_FRAME)) {
+        if (!(self->unitinfo.aiflags & AI_HOLD_FRAME)) {
             self->s.frame = anim->firstframe;
         }
     } else {
@@ -38,38 +40,37 @@ void M_MoveFrame(LPEDICT self) {
 }
 
 void monster_think(LPEDICT self) {
-    if (!self->monsterinfo.currentmove)
+    if (!self->unitinfo.currentmove)
         return;
     M_MoveFrame(self);
-    if (self->monsterinfo.currentmove->think) {
-        self->monsterinfo.currentmove->think(self);
+    if (self->unitinfo.currentmove->think) {
+        self->unitinfo.currentmove->think(self);
     }
 }
 
 void monster_start(LPEDICT self) {
-    if (self->monsterinfo.currentmove) {
-        LPCANIMATION anim = gi.GetAnimation(self->s.model, self->monsterinfo.currentmove->animation);
-        if (anim) {
-            self->s.frame = anim->firstframe + (rand() % (anim->lastframe - anim->firstframe + 1));
-        }
+    animationInfo_t const *anim = self->animation;
+    if (anim) {
+        DWORD len = MAX(1, anim->lastframe - anim->firstframe - 1);
+        self->s.frame = (anim->firstframe + (rand() % len));
     }
-    if (!self->monsterinfo.checkattack) {
-        self->monsterinfo.checkattack = M_CheckAttack;
+    if (!self->unitinfo.checkattack) {
+        self->unitinfo.checkattack = M_CheckAttack;
     }
 }
 
 void SP_SpawnUnit(LPEDICT self, struct UnitUI const *unit) {
-    self->monsterinfo.balance = FindUnitBalance(self->class_id);
-    self->monsterinfo.weapon = FindUnitWeapons(self->class_id);
+    self->unitinfo.balance = FindUnitBalance(self->class_id);
+    self->unitinfo.weapon = FindUnitWeapons(self->class_id);
+    self->unitinfo.ui = unit;
     PATHSTR buffer;
     sprintf(buffer, "%s.mdx", unit->file);
     self->s.model = gi.ModelIndex(buffer);
     self->s.scale = unit->modelScale;
     self->think = monster_think;
     self->flags |= unit->isbldg ? 0 : IS_UNIT;
-    if (self->monsterinfo.balance) {
-        self->monsterinfo.health = self->monsterinfo.balance->HP;
-        self->monsterinfo.movespeed = 10 * unit->run / FRAMETIME;
+    if (self->unitinfo.balance) {
+        self->unitinfo.health = self->unitinfo.balance->HP;
     }
 }
 

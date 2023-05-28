@@ -105,6 +105,10 @@ typedef struct {
 } animmap_t;
 
 animmap_t animation_map[] = {
+    { "stand ready", ANIM_STAND_READY },
+    { "stand victory", ANIM_STAND_VICTORY },
+    { "stand channel", ANIM_STAND_CHANNEL },
+    { "stand hit", ANIM_STAND_HIT },
     { "stand", ANIM_STAND },
     { "walk", ANIM_WALK },
     { "attack", ANIM_ATTACK },
@@ -128,14 +132,14 @@ static struct cmodel *SV_LoadModelMDX(HANDLE file) {
     FOR_LOOP(i, model->num_animations){
         struct mdx_sequence *anim = &model->animations[i];
         for (animmap_t const *map = animation_map; map->name; map++) {
-            if (model->animtypes[map->type].lastframe > 0)
-                continue;
             if (!_strnicmp(anim->name, map->name, strlen(map->name))) {
-                model->animtypes[map->type] = (struct AnimationInfo) {
+                animationInfo_t animation = {
                     .firstframe = anim->interval[0],
                     .lastframe = anim->interval[1],
                     .movespeed = anim->movespeed,
                 };
+                animationTypeVariants_t *vars = &model->animtypes[map->type];
+                vars->animations[vars->num_animations++] = animation;
             }
         }
     }

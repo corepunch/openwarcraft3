@@ -3,29 +3,6 @@
 
 #include "common.h"
 
-enum MDLTEXOP {
-  TEXOP_LOAD = 0x0,
-  TEXOP_TRANSPARENT = 0x1,
-  TEXOP_BLEND = 0x2,
-  TEXOP_ADD = 0x3,
-  TEXOP_ADD_ALPHA = 0x4,
-  TEXOP_MODULATE = 0x5,
-  TEXOP_MODULATE2X = 0x6,
-  NUMTEXOPS = 0x7,
-};
-
-enum MDLGEO {
-  MODEL_GEO_UNSHADED = 0x1,
-  MODEL_GEO_SPHERE_ENV_MAP = 0x2,  // unused until v1500
-  MODEL_GEO_WRAPWIDTH = 0x4,       // unused until v1500
-  MODEL_GEO_WRAPHEIGHT = 0x8,      // unused until v1500
-  MODEL_GEO_TWOSIDED = 0x10,
-  MODEL_GEO_UNFOGGED = 0x20,
-  MODEL_GEO_NO_DEPTH_TEST = 0x40,
-  MODEL_GEO_NO_DEPTH_SET = 0x80,
-  MODEL_GEO_NO_FALLBACK = 0x100,   // added in v1500. seen in ElwynnTallWaterfall01.mdx, FelwoodTallWaterfall01.mdx and LavaFallsBlackRock*.mdx
-};
-
 typedef struct {
     BYTE unused:1;
     BYTE nowalk:1;

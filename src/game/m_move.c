@@ -1,5 +1,6 @@
 #include "g_local.h"
 #include "Units/UnitWeapons.h"
+#include "Units/UnitUI.h"
 
 #include <stdlib.h>
 
@@ -18,9 +19,9 @@ void M_ChangeAngle(LPEDICT self) {
 bool SV_CloseEnough(LPEDICT self, LPCEDICT goal, float distance) {
     if (self->enemy) {
         float between = Vector2_distance((LPVECTOR2)&self->s.origin, (LPVECTOR2)&self->goalentity->s.origin);
-        if (between < self->monsterinfo.weapon->rangeN1) {
+        if (between < self->unitinfo.weapon->rangeN1) {
             self->goalentity = NULL;
-            self->monsterinfo.melee(self);
+            self->unitinfo.melee(self);
             return true;
         } else {
             return false;
@@ -34,7 +35,7 @@ bool SV_CloseEnough(LPEDICT self, LPCEDICT goal, float distance) {
 //            } else {
 //            self->path = NULL;
             self->goalentity = NULL;
-            self->monsterinfo.stand(self);
+            self->unitinfo.stand(self);
             return true;
 //            }
         } else {
@@ -49,7 +50,8 @@ void SV_StepDirection(LPEDICT self, float yaw, float distance) {
 }
 
 void M_MoveToGoal(LPEDICT self) {
-    if (SV_CloseEnough(self, self->goalentity, self->monsterinfo.movespeed))
+    float const distance = 10 * self->unitinfo.ui->run / FRAMETIME;
+    if (SV_CloseEnough(self, self->goalentity, distance))
         return;
-    SV_StepDirection(self, self->s.angle, self->monsterinfo.movespeed);
+    SV_StepDirection(self, self->s.angle, distance);
 }

@@ -12,34 +12,25 @@ int CL_ParseEntityBits(LPSIZEBUF buf, DWORD *bits) {
     return MSG_ReadShort(buf);
 }
 
-void CL_GetProjectionMatrix(LPMATRIX4 projectionMatrix) {
-    VECTOR3 const vieworg = Vector3_unm(&cl.viewDef.vieworg);
-    SIZE2 const windowSize = renderer->GetWindowSize();
-    float const aspect = (float)windowSize.width / (float)windowSize.height;
-    Matrix4_perspective(projectionMatrix, cl.viewDef.fov, aspect, 100.0, 100000.0);
-    Matrix4_rotate(projectionMatrix, &cl.viewDef.viewangles, ROTATE_XYZ);
-    Matrix4_translate(projectionMatrix, &vieworg);
-}
-
 LINE3 CL_GetMouseLine(DWORD pixelX, DWORD pixelY) {
     LINE3 line;
-    MATRIX4 projectionMatrix;
-    MATRIX4 inverseProjectionMatrix;
-    SIZE2 const windowSize = renderer->GetWindowSize();
+    MATRIX4 cameramat;
+    MATRIX4 invcammat;
+    SIZE2 const windowSize = re.GetWindowSize();
     float const x = ((float)pixelX / (float)windowSize.width - 0.5) * 2;
     float const y = (0.5 - (float)pixelY / (float)windowSize.height) * 2;
-    CL_GetProjectionMatrix(&projectionMatrix);
-    Matrix4_inverse(&projectionMatrix, &inverseProjectionMatrix);
-    Matrix4_multiply_vector3(&inverseProjectionMatrix, &(VECTOR3) { x, y, 0 }, &line.a);
-    Matrix4_multiply_vector3(&inverseProjectionMatrix, &(VECTOR3) { x, y, 1 }, &line.b);
+    Matrix4_getCameraMatrix(&cl.viewDef.camera, &cameramat);
+    Matrix4_inverse(&cameramat, &invcammat);
+    Matrix4_multiply_vector3(&invcammat, &(VECTOR3) { x, y, 0 }, &line.a);
+    Matrix4_multiply_vector3(&invcammat, &(VECTOR3) { x, y, 1 }, &line.b);
     return line;
 }
 
-struct client_message msg = { CMD_NO_COMMAND };
+clientMessage_t msg = { CMD_NO_COMMAND };
 
 short GetHeightMapValue(int x, int y);
 
-void CL_AddSelectedEntitiesToMessage(struct client_message *msg) {
+void CL_AddSelectedEntitiesToMessage(clientMessage_t *msg) {
     msg->num_entities = 0;
     FOR_LOOP(entindex, cl.num_entities) {
         clientEntity_t *e = &cl.ents[entindex];
@@ -80,12 +71,15 @@ void CL_SelectEntityAtScreenPoint(DWORD pixelX, DWORD pixelY) {
     if (CM_IntersectLineWithHeightmap(&line, &targetorg)) {
         msg.location.x = targetorg.x;
         msg.location.y = targetorg.y;
+        moveConfirmation_t *mc = &cl.confs[cl.confirmationCounter++ & (MAX_CONFIRMATION_OBJECTS - 1)];
+        mc->origin = targetorg;
+        mc->timespamp = cl.time;
         msg.cmd = CMD_MOVE;
         CL_AddSelectedEntitiesToMessage(&msg);
     }
 }
 
-bool rect_contains(struct rect const *rect, LPCVECTOR2 vec) {
+bool rect_contains(LPCRECT rect, LPCVECTOR2 vec) {
     BOX3 box = {
         { MIN(rect->x, rect->x + rect->width), MIN(rect->y, rect->y + rect->height)  },
         { MAX(rect->x, rect->x + rect->width), MAX(rect->y, rect->y + rect->height) },
@@ -97,10 +91,10 @@ bool rect_contains(struct rect const *rect, LPCVECTOR2 vec) {
     return true;
 }
 
-void CL_SelectEntitiesAtScreenRect(struct rect const *rect) {
+void CL_SelectEntitiesAtScreenRect(LPCRECT rect) {
     MATRIX4 m;
-    SIZE2 const windowSize = renderer->GetWindowSize();
-    CL_GetProjectionMatrix(&m);
+    SIZE2 const windowSize = re.GetWindowSize();
+    Matrix4_getCameraMatrix(&cl.viewDef.camera, &m);
     CL_SelectEntity(-1);
     FOR_LOOP(entindex, cl.num_entities) {
         clientEntity_t *e = &cl.ents[entindex];

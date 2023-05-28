@@ -35,6 +35,8 @@
 #define MAX_ITEMS 256
 #define MAX_GENERAL (MAX_CLIENTS*2)
 
+#define U_REMOVE 15
+
 #define CS_NAME 0
 #define CS_CDTRACK 1
 #define CS_SKY 2
@@ -81,19 +83,6 @@ typedef struct STRUCT const *LPC##TYPE;
 SHEET; for (; VAR->ID_FIELD != VALUE && VAR->ID_FIELD; VAR++); \
 if (VAR->ID_FIELD == 0) VAR = NULL;
 
-enum {
-    U_ORIGIN1,
-    U_ORIGIN2,
-    U_ORIGIN3,
-    U_ANGLE,
-    U_SCALE,
-    U_REMOVE,
-    U_FRAME,
-    U_MODEL,
-    U_IMAGE,
-    U_PLAYER,
-};
-
 // server to client
 enum svc_ops {
     svc_bad,
@@ -138,13 +127,13 @@ enum clientcommand {
     CMD_ATTACK,
 };
 
-struct client_message {
+typedef struct {
     enum clientcommand cmd;
     DWORD targetentity;
     VECTOR2 location;
     DWORD num_entities;
     DWORD entities[MAX_COMMAND_ENTITIES];
-};
+} clientMessage_t;
 
 typedef enum t_attrib_id {
     attrib_position,
@@ -152,8 +141,10 @@ typedef enum t_attrib_id {
     attrib_texcoord,
     attrib_texcoord2,
     attrib_normal,
-    attrib_skin,
-    attrib_boneWeight,
+    attrib_skin1,
+    attrib_skin2,
+    attrib_boneWeight1,
+    attrib_boneWeight2,
 } t_attrib_id;
 
 typedef struct {
@@ -161,10 +152,14 @@ typedef struct {
     int y;
 } point2_t;
 
-struct tModel;
 struct texture;
 
-KNOWN_AS(tModel, MODEL);
+typedef struct {
+    unsigned int modeltype;
+    struct mdxModel_s *mdx;
+} model_t;
+
+KNOWN_AS(mdx, MODEL);
 KNOWN_AS(texture, TEXTURE);
 KNOWN_AS(War3MapVertex, WAR3MAPVERTEX);
 KNOWN_AS(SheetLayout, SHEETLAYOUT);
@@ -175,8 +170,7 @@ KNOWN_AS(edict, EDICT);
 KNOWN_AS(vector3, VECTOR3);
 KNOWN_AS(color32, COLOR32);
 KNOWN_AS(size2, SIZE2);
-KNOWN_AS(client_message, CLIENTMESSAGE);
-KNOWN_AS(AnimationInfo, ANIMATION);
+KNOWN_AS(rect, RECT);
 
 KNOWN_AS(TerrainInfo, TERRAININFO);
 KNOWN_AS(CliffInfo, CLIFFINFO);
@@ -186,15 +180,15 @@ typedef unsigned int handle_t;
 typedef char PATHSTR[MAX_PATHLEN];
 typedef void const *LPCVOID;
 
-struct color { float r, g, b, a; };
-struct color32 { BYTE r, g, b, a; };
-struct bounds { float min, max; };
-struct rect { float x, y, width, height; };
-struct edges { float left, top, right, bottom; };
-struct transform2 { VECTOR2 translation, scale; float rotation; };
-struct transform3 { VECTOR3 translation, rotation, scale; };
+typedef struct color { float r, g, b, a; } color_t;
+typedef struct color32 { BYTE r, g, b, a; } color32_t;
+typedef struct bounds { float min, max; } bounds_t;
+typedef struct rect { float x, y, width, height; } rect_t;
+typedef struct edges { float left, top, right, bottom; } edges_t;
+typedef struct transform2 { VECTOR2 translation, scale; float rotation; } transform2_t;
+typedef struct transform3 { VECTOR3 translation, rotation, scale; } transform3_t;
 
-typedef struct {
+typedef struct entityState_s {
     DWORD number; // edict index
     VECTOR3 origin;
     float angle;
@@ -207,12 +201,12 @@ typedef struct {
     DWORD player;
 } entityState_t;
 
-struct AnimationInfo {
+typedef struct {
     DWORD firstframe;
     DWORD lastframe;
     DWORD framerate;
     float movespeed;
-};
+} animationInfo_t;
 
 struct size2 {
     DWORD width;

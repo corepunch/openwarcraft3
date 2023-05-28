@@ -5,7 +5,7 @@ static struct {
     LPWAR3MAP map;
     mapInfo_t info;
     struct Doodad *doodads;
-} cmodel;
+} world;
 
 void CM_ReadPathMap(HANDLE archive);
 
@@ -27,7 +27,7 @@ void SFileReadString(HANDLE file, LPSTR *lppString) {
 }
 
 static void CM_ReadInfo(HANDLE archive) {
-    mapInfo_t *info = &cmodel.info;
+    mapInfo_t *info = &world.info;
     HANDLE file;
     SFileOpenFileEx(archive, "war3map.w3i", SFILE_OPEN_FROM_MPQ, &file);
     SFileReadFile(file, &info->fileFormat, 4, NULL, NULL);
@@ -171,7 +171,7 @@ static void CM_ReadDoodads(HANDLE archive) {
         SFileReadFile(file, &doodad->treeLife, sizeof(BYTE), NULL, NULL);
         SFileReadFile(file, &doodad->unitID, sizeof(DWORD), NULL, NULL);
         
-        ADD_TO_LIST(doodad, cmodel.doodads);
+        ADD_TO_LIST(doodad, world.doodads);
     }
 
     SFileCloseFile(file);
@@ -242,34 +242,34 @@ static void CM_ReadUnits(HANDLE archive) {
     FOR_LOOP(index, numUnits) {
         LPDOODAD doodad = MemAlloc(sizeof(DOODAD));
         CM_ReadUnit(file, doodad);        
-        ADD_TO_LIST(doodad, cmodel.doodads);
+        ADD_TO_LIST(doodad, world.doodads);
     }
 
     SFileCloseFile(file);
 }
 
 static void CM_ReadHeightmap(HANDLE archive) {
-    cmodel.map = MemAlloc(sizeof(WAR3MAP));
+    world.map = MemAlloc(sizeof(WAR3MAP));
     HANDLE file;
     SFileOpenFileEx(archive, "war3map.w3e", SFILE_OPEN_FROM_MPQ, &file);
-    SFileReadFile(file, &cmodel.map->header, 4, NULL, NULL);
-    SFileReadFile(file, &cmodel.map->version, 4, NULL, NULL);
-    SFileReadFile(file, &cmodel.map->tileset, 1, NULL, NULL);
-    SFileReadFile(file, &cmodel.map->custom, 4, NULL, NULL);
-    SFileReadArray(file, cmodel.map, grounds, 4, MemAlloc);
-    SFileReadArray(file, cmodel.map, cliffs, 4, MemAlloc);
-    SFileReadFile(file, &cmodel.map->width, 4, NULL, NULL);
-    SFileReadFile(file, &cmodel.map->height, 4, NULL, NULL);
-    SFileReadFile(file, &cmodel.map->center, 8, NULL, NULL);
-    int const vertexblocksize = MAP_VERTEX_SIZE * cmodel.map->width * cmodel.map->height;
-    cmodel.map->vertices = MemAlloc(vertexblocksize);
-    SFileReadFile(file, cmodel.map->vertices, vertexblocksize, 0, 0);
+    SFileReadFile(file, &world.map->header, 4, NULL, NULL);
+    SFileReadFile(file, &world.map->version, 4, NULL, NULL);
+    SFileReadFile(file, &world.map->tileset, 1, NULL, NULL);
+    SFileReadFile(file, &world.map->custom, 4, NULL, NULL);
+    SFileReadArray(file, world.map, grounds, 4, MemAlloc);
+    SFileReadArray(file, world.map, cliffs, 4, MemAlloc);
+    SFileReadFile(file, &world.map->width, 4, NULL, NULL);
+    SFileReadFile(file, &world.map->height, 4, NULL, NULL);
+    SFileReadFile(file, &world.map->center, 8, NULL, NULL);
+    int const vertexblocksize = MAP_VERTEX_SIZE * world.map->width * world.map->height;
+    world.map->vertices = MemAlloc(vertexblocksize);
+    SFileReadFile(file, world.map->vertices, vertexblocksize, 0, 0);
     SFileCloseFile(file);
 }
 
 void CM_LoadMap(LPCSTR mapFilename) {
     HANDLE mapArchive;
-    memset(&cmodel, 0, sizeof(cmodel));
+    memset(&world, 0, sizeof(world));
     FS_ExtractFile(mapFilename, TMP_MAP);
     SFileOpenArchive(TMP_MAP, 0, 0, &mapArchive);
     CM_ReadPathMap(mapArchive);
@@ -282,23 +282,23 @@ void CM_LoadMap(LPCSTR mapFilename) {
 
 VECTOR3 CM_PointIntoHeightmap(LPCVECTOR3 point) {
     return (VECTOR3) {
-        .x = (point->x - cmodel.map->center.x) / TILESIZE,
-        .y = (point->y - cmodel.map->center.y) / TILESIZE,
+        .x = (point->x - world.map->center.x) / TILESIZE,
+        .y = (point->y - world.map->center.y) / TILESIZE,
         .z = point->z
     };
 }
 
 VECTOR3 CM_PointFromHeightmap(LPCVECTOR3 point) {
     return (VECTOR3) {
-        .x = point->x * TILESIZE + cmodel.map->center.x,
-        .y = point->y * TILESIZE + cmodel.map->center.y,
+        .x = point->x * TILESIZE + world.map->center.x,
+        .y = point->y * TILESIZE + world.map->center.y,
         .z = point->z
     };
 }
 
 static LPCWAR3MAPVERTEX CM_GetWar3MapVertex(DWORD x, DWORD y) {
-    int const index = x + y * cmodel.map->width;
-    char const *ptr = ((char const *)cmodel.map->vertices) + index * MAP_VERTEX_SIZE;
+    int const index = x + y * world.map->width;
+    char const *ptr = ((char const *)world.map->vertices) + index * MAP_VERTEX_SIZE;
     return (LPCWAR3MAPVERTEX)ptr;
 }
 
@@ -311,8 +311,8 @@ static short CM_GetHeightMapValue(int x, int y) {
 }
 
 float CM_GetHeightAtPoint(float sx, float sy) {
-    float x = (sx - cmodel.map->center.x) / TILESIZE;
-    float y = (sy - cmodel.map->center.y) / TILESIZE;
+    float x = (sx - world.map->center.x) / TILESIZE;
+    float y = (sy - world.map->center.y) / TILESIZE;
     float fx = floorf(x);
     float fy = floorf(y);
     float a = CM_GetWar3MapVertexHeight(CM_GetWar3MapVertex(fx, fy));
@@ -329,8 +329,8 @@ bool CM_IntersectLineWithHeightmap(LPCLINE3 _line, LPVECTOR3 output) {
         .a = CM_PointIntoHeightmap(&_line->a),
         .b = CM_PointIntoHeightmap(&_line->b),
     };
-    FOR_LOOP(x, cmodel.map->width) {
-        FOR_LOOP(y, cmodel.map->height) {
+    FOR_LOOP(x, world.map->width) {
+        FOR_LOOP(y, world.map->height) {
             TRIANGLE3 const tri1 = {
                 { x, y, CM_GetHeightMapValue(x, y) },
                 { x+1, y, CM_GetHeightMapValue(x+1, y) },
@@ -355,25 +355,29 @@ bool CM_IntersectLineWithHeightmap(LPCLINE3 _line, LPVECTOR3 output) {
 }
 
 LPDOODAD CM_GetDoodads(void) {
-    return cmodel.doodads;
+    return world.doodads;
 }
 
 mapPlayer_t const *CM_GetPlayer(DWORD index) {
-    if (index < cmodel.info.num_players) {
-        return &cmodel.info.players[index];
+    if (index < world.info.num_players) {
+        return &world.info.players[index];
     } else {
         return NULL;
     }
 }
 
 VECTOR2 CM_GetNormalizedMapPosition(float x, float y) {
-    float _x = (x - cmodel.map->center.x) / ((cmodel.map->width-1) * TILESIZE);
-    float _y = (y - cmodel.map->center.y) / ((cmodel.map->height-1) * TILESIZE);
+    float _x = (x - world.map->center.x) / ((world.map->width-1) * TILESIZE);
+    float _y = (y - world.map->center.y) / ((world.map->height-1) * TILESIZE);
     return (VECTOR2) { _x, _y };
 }
 
 VECTOR2 CM_GetDenormalizedMapPosition(float x, float y) {
-    float _x = x * (cmodel.map->width-1) * TILESIZE + cmodel.map->center.x;
-    float _y = y * (cmodel.map->height-1) * TILESIZE + cmodel.map->center.y;
+    float _x = x * (world.map->width-1) * TILESIZE + world.map->center.x;
+    float _y = y * (world.map->height-1) * TILESIZE + world.map->center.y;
     return (VECTOR2) { _x, _y };
+}
+
+void CM_ReleaseModel(void) {
+    MapInfo_Release(&world.info);
 }

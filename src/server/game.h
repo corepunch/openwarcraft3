@@ -7,8 +7,14 @@
 #define SVF_DEADMONSTER 0x00000002    // treat as CONTENTS_DEADMONSTER for collision
 #define SVF_MONSTER 0x00000004    // treat as CONTENTS_MONSTER for collision
 
+#define MAX_ANIMS_IN_TYPE 16
+
 typedef enum {
     ANIM_STAND,
+    ANIM_STAND_READY,
+    ANIM_STAND_VICTORY,
+    ANIM_STAND_CHANNEL,
+    ANIM_STAND_HIT,
     ANIM_WALK,
     ANIM_ATTACK,
     ANIM_DEATH,
@@ -21,7 +27,7 @@ struct game_import {
     int (*ModelIndex)(LPCSTR modelName);
     int (*SoundIndex)(LPCSTR soundName);
     int (*ImageIndex)(LPCSTR imageName);
-    LPCANIMATION (*GetAnimation)(int modelindex, animationType_t animtype);
+    animationInfo_t const *(*GetAnimation)(int modelindex, animationType_t animtype);
     HANDLE (*ParseSheet)(LPCSTR sheetFilename, LPCSHEETLAYOUT layout, DWORD elementSize);
     handle_t (*BuildHeatmap)(LPCVECTOR2 target);
     VECTOR2 (*GetFlowDirection)(DWORD heatmapindex, float fx, float fy);
@@ -34,7 +40,7 @@ struct game_export {
     void (*Shutdown)(void);
     void (*SpawnDoodads)(LPCDOODAD doodads);
     void (*RunFrame)(void);
-    void (*ClientCommand)(LPCCLIENTMESSAGE message);
+    void (*ClientCommand)(clientMessage_t const *message);
 
     LPEDICT edicts;
     int num_edicts;
