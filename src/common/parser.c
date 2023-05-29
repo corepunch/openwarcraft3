@@ -11,11 +11,23 @@ bool ParserComment(parser_t *p, LPCSTR str) {
 }
 
 bool ParserSpace(parser_t *p, LPCSTR str) {
-    return isspace(*str) || (p->comma_space && *str == ',') || *str == '"';
+    if (!p->reading_string) {
+        if (isspace(*str)) return true;
+        if (p->comma_space && *str == ',') return true;
+        if (*str == '\"') return true;
+    }
+    return false;
+}
+
+void ParserError(parser_t *p) {
+    p->error = true;
 }
 
 LPSTR FS_ReadFileIntoString(LPCSTR fileName) {
     HANDLE fp = FS_OpenFile(fileName);
+    if (!fp) {
+        return NULL;
+    }
     DWORD const fileSize = SFileGetFileSize(fp, NULL);
     LPSTR buffer = MemAlloc(fileSize + 1);
     SFileReadFile(fp, buffer, fileSize, NULL, NULL);
@@ -49,49 +61,60 @@ LPSTR ParserGetToken(parser_t *p) {
     return NULL;
 }
 
-configValue_t *INI_ParseConfig(parser_t *p) {
+#define MAX_INI_LINE 1024
+
+configValue_t *INI_ParseConfig(LPCSTR buffer) {
     configValue_t *config = NULL;
-    PATHSTR currentSection = { 0 };
-    for (LPSTR tok = ParserGetToken(p);
-         !ParserDone(p);
-         tok = ParserGetToken(p))
-    {
-        if (tok[0] != '[' || tok[strlen(tok) - 1] != ']') {
-            if (!*currentSection) {
-                p->error = true;
-                return NULL;
-            } else {
-                LPSTR eq = strstr(tok, "=");
-                if (!eq) {
-                    p->error = true;
-                    return NULL;
-                } else {
-                    *eq = '\0';
-                    configValue_t *value = MemAlloc(sizeof(configValue_t));
-                    strcpy(value->Section, currentSection);
-                    strcpy(value->Name, tok);
-                    value->Value = strdup(eq + 1);
-                    ADD_TO_LIST(value, config);
-                }
+    char currentSec[64] = { 0 };
+    LPCSTR p = buffer;
+    
+    while (true) {
+        while (*p && isspace(*p)) p++;
+        if (!*p)
+            return config;
+        if (p[0] == '/' && p[1] == '/') {
+            for (; *p != '\n' && *p != '\0'; p++);
+        } else if (*p == '[') {
+            p++;
+            memset(currentSec, 0, sizeof(currentSec));
+            for (LPSTR w = currentSec; *p != ']'; w++, p++) {
+                *w = *p;
             }
+            p++;
         } else {
-            tok[strlen(tok) - 1] = '\0';
-            strcpy(currentSection, &tok[1]);
+            char line[MAX_INI_LINE] = { 0 };
+            for (LPSTR w = line; *p != '\n' && *p != '\r' && *p != '\0'; p++, w++) {
+                *w = *p;
+            }
+            LPSTR eq = strstr(line, "=");
+            if (eq) {
+                *eq = '\0';
+                for (LPSTR s = eq; s > line; s--) {
+                    if (*s == ' ') *s = '\0';
+                    else break;
+                }
+                eq++;
+                for (; *eq == ' '; eq++);
+//                printf("%s.%s %s\n", currentSec, line, eq);
+                configValue_t *value = MemAlloc(sizeof(configValue_t));
+                strcpy(value->Section, currentSec);
+                strcpy(value->Name, line);
+                value->Value = strdup(eq);
+                ADD_TO_LIST(value, config);
+            }
         }
     }
     return config;
 }
 
 configValue_t *FS_ParseConfig(LPCSTR fileName) {
+//    printf("    %s\n", fileName);
     LPSTR buffer = FS_ReadFileIntoString(fileName);
-    parser_t parser = {
-        .tok = parser.token,
-        .str = buffer,
-        .error = false,
-        .comma_space = false,
-    };
-    configValue_t *config = INI_ParseConfig(&parser);
-    if (parser.error) {
+    if (!buffer) {
+        return NULL;
+    }
+    configValue_t *config = INI_ParseConfig(buffer);
+    if (!config) {
         fprintf(stderr, "Failed to parse %s\n", fileName);
     }
     MemFree(buffer);

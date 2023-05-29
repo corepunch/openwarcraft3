@@ -72,6 +72,7 @@ void SV_Init(void) {
         .ImageIndex = SV_ImageIndex,
         .SoundIndex = SV_SoundIndex,
         .ParseSheet = FS_ParseSheet,
+        .FindConfigValue = INI_FindValue,
         .ParseConfig = FS_ParseConfig,
         .GetAnimation = SV_GetAnimation,
         .GetHeightAtPoint = CM_GetHeightAtPoint,

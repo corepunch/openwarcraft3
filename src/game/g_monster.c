@@ -67,14 +67,23 @@ void M_ParseBalance(LPEDICT self, struct UnitBalance const* data) {
     self->unitinfo.balance = data;
 }
 
+extern configValue_t *abilityConfigs;
 void M_ParseAbilities(LPEDICT self, struct UnitAbilities const* data) {
     if (!data) return;
     DWORD slot = 0;
+//    printf("%.4s\n", &self->class_id);
     for (LPCSTR abil = data->abilList; abil; abil = strstr(abil+1, ",")) {
         DWORD abil_id = *(DWORD *)(*abil == ',' ? abil + 1 : abil);
         struct AbilityData const *ability = FindAbilityData(abil_id);
         if (ability) {
             self->unitinfo.abil[slot++] = ability;
+            char str[5] = { 0 };
+            memcpy(str, &abil_id, 4);
+            LPCSTR image = gi.FindConfigValue(abilityConfigs, str, "Art");
+            if (image) {
+                int a = gi.ImageIndex(image);
+                printf("  %d %s\n", a, gi.FindConfigValue(abilityConfigs, str, "Art"));
+            }
         }
     }
     self->unitinfo.abilities = data;

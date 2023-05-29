@@ -136,7 +136,7 @@ void R_DrawBuffer(LPCBUFFER buffer, DWORD num_vertices);
 // r_draw.c
 void R_PrintText(LPCSTR string, DWORD x, DWORD y, COLOR32 color);
 void R_DrawImage(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv);
-void R_DrawPic(LPCTEXTURE texture, DWORD x, DWORD y, LPCRECT uv);
+void R_DrawPic(LPCTEXTURE texture, DWORD x, DWORD y);
 void R_DrawSelectionRect(LPCRECT rect, COLOR32 color);
 
 extern struct render_globals tr;

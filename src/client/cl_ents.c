@@ -63,7 +63,7 @@ void CL_SelectEntityAtScreenPoint(DWORD pixelX, DWORD pixelY) {
             continue;
         if (Line3_intersect_sphere3(&line, &(const SPHERE3) {
             .center = e->current.origin,
-            .radius = 100
+            .radius = 50
         }, NULL) && CL_ProcessEntitySelection(e)) {
             return;
         }

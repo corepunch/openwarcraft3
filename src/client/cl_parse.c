@@ -41,6 +41,10 @@ void CL_ParsePlayerInfo(LPSIZEBUF msg) {
     cl.viewDef.camera.target.z = 0;
 }
 
+void CL_ParseLayout(LPSIZEBUF msg) {
+    MSG_ReadString(msg, cl.layout);
+}
+
 void CL_ParseServerMessage(LPSIZEBUF msg) {
     BYTE pack_id = 0;
     while (MSG_Read(msg, &pack_id, 1)) {
@@ -59,6 +63,9 @@ void CL_ParseServerMessage(LPSIZEBUF msg) {
                 break;
             case svc_frame:
                 CL_ParseFrame(msg);
+                break;
+            case svc_layout:
+                CL_ParseLayout(msg);
                 break;
             default:
                 fprintf(stderr, "Unknown message %d\n", pack_id);

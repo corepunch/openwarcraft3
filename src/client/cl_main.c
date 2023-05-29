@@ -150,5 +150,5 @@ void CL_Frame(DWORD msec) {
     CL_SendCommands();
     CL_Input();
     CL_PrepRefresh();
-    V_RenderView();
+    SCR_UpdateScreen();
 }

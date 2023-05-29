@@ -12,15 +12,6 @@ MSG_Read(buffer, &object->num_##variable, 4); \
 if (object->num_##variable > 0) {object->variable = ri.MemAlloc(object->num_##variable * elemsize); \
 MSG_Read(buffer, object->variable, object->num_##variable * elemsize); }
 
-#define PUSH_BACK(TYPE, VAR, LIST) \
-if (LIST) { \
-    TYPE *last##TYPE = LIST; \
-    while (last##TYPE->next) last##TYPE = last##TYPE->next; \
-    last##TYPE->next = VAR; \
-} else { \
-    LIST = VAR; \
-}
-
 #define MODEL_READ_LIST(BLOCK, TYPE, TYPES) \
 while (!FileIsAtEndOfBlock(BLOCK)) { \
     struct sizebuf inner = FileReadBlock(BLOCK); \

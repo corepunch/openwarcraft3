@@ -54,4 +54,9 @@ void UI_Draw(void) {//uiFrameDef_t const *frame) {
             }, &t->TexCoord);
         }
     }
+    
+    for (int x = 1; x < 10; x++) {
+        re.DrawPic(cl.pics[x], 100 + x * 100, 100);
+    }
+
 }

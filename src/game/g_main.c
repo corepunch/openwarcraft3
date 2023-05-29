@@ -40,7 +40,9 @@ configValue_t *abilityConfigs = NULL;
 static void InitAbilityConfigs(void) {
     for (LPCSTR *config = configs; *config; config++) {
         configValue_t *current = gi.ParseConfig(*config);
-        ADD_TO_LIST(current, abilityConfigs);
+        if (current) {
+            PUSH_BACK(configValue_t, current, abilityConfigs);
+        }
     }
 }
 

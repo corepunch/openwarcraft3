@@ -93,17 +93,17 @@ void FS_Init(void) {
 //             if (!strstr(findData.cFileName, ".mdx") &&
 //                 !strstr(findData.cFileName, ".w3m") &&
 //                 !strstr(findData.cFileName, ".ai") &&
-//                 !strstr(findData.cFileName, ".fdf") &&
+             if (strstr(findData.cFileName, ".fdf")) {
 //                 !strstr(findData.cFileName, ".tga") &&
 //                 !strstr(findData.cFileName, ".MDX") &&
 //                 !strstr(findData.cFileName, ".wav") &&
 //                 !strstr(findData.cFileName, ".mp3") &&
 //                 !strstr(findData.cFileName, ".mdx") &&
-                 if(strstr(findData.cFileName, ".txt")) {
+//                 if(strstr(findData.cFileName, ".txt")) {
                  printf("%s\n", findData.cFileName);
              }
 #if 0
-             if (strstr(findData.cFileName, ".txt")){
+             if (strstr(findData.cFileName, ".fdf")){
                  HANDLE file;
                  SFileOpenFileEx(archive, findData.cFileName, SFILE_OPEN_FROM_MPQ, &file);
                  char ch;

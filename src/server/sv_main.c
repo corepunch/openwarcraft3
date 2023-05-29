@@ -15,6 +15,13 @@ static void SV_WriteConfigStrings(LPCLIENT cl) {
     Netchan_Transmit(NS_SERVER, &cl->netchan);
 }
 
+static void SV_WriteLayout(LPCLIENT cl) {
+    MSG_WriteByte(&cl->netchan.message, svc_layout);
+    char buf[256];
+    sprintf(buf, "xr 100 yb 100 pic %d\n", 5);
+    MSG_WriteString(&cl->netchan.message, buf);
+}
+
 static void SV_WritePlayerInfo(LPCLIENT cl) {
     mapPlayer_t const *player = CM_GetPlayer(1);
     if (player) {
@@ -49,6 +56,7 @@ static void SV_SendClientMessages(void) {
         if (!client->initialized) {
             SV_WritePlayerInfo(client);
             SV_WriteConfigStrings(client);
+            SV_WriteLayout(client);
             SV_Baseline(client);
             client->initialized = true;
         } else {

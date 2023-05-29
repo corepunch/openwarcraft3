@@ -1,6 +1,5 @@
 #include "client.h"
 #include "renderer.h"
-#include "../ui/ui.h"
 
 static struct {
     renderEntity_t entities[MAX_CLIENT_ENTITIES];
@@ -124,7 +123,10 @@ void CL_PrepRefresh(void) {
     for (int i = 1; i < MAX_IMAGES && *cl.configstrings[CS_IMAGES + i]; i++) {
         if (cl.pics[i])
             continue;
-        cl.pics[i] = re.LoadTexture(cl.configstrings[CS_IMAGES + i]);
+        extern configValue_t *war3skins;
+        LPCSTR filename = cl.configstrings[CS_IMAGES + i];
+        LPCSTR skin = INI_FindValue(war3skins, "Default", filename);
+        cl.pics[i] = re.LoadTexture(skin ? skin : filename);
     }
 }
 
@@ -145,7 +147,6 @@ void V_RenderView(void) {
     V_ClearScene();
     CL_AddEntities();
 
-    re.BeginFrame();
     re.RenderFrame(&cl.viewDef);
     
 //    re.DrawPic(tex1, 0, 0);
@@ -154,10 +155,4 @@ void V_RenderView(void) {
     if (cl.selection.inProgress) {
         re.DrawSelectionRect(&cl.selection.rect, (COLOR32){0,255,0,255});
     }
-
-    UI_Draw();
-
-    CON_DrawConsole();
-    
-    re.EndFrame();
 }

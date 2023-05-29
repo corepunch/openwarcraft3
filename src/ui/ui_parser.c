@@ -14,6 +14,8 @@ uiFrameDef_t *FDF_ParseFrame(parser_t *p);
 
 void UI_ParseBuffer(parser_t *p);
 
+void ParserError(parser_t *p);
+
 int ParseEnumString(LPCSTR token, LPCSTR const *values) {
     for (int i = 0; *values; i++, values++) {
         if (!strcmp(token, *values)) {
@@ -27,7 +29,7 @@ int ParseEnum(parser_t *p, LPCSTR const *values) {
     LPCSTR token = ParserGetToken(p);
     int value = ParseEnumString(token, values);
     if (value == -1) {
-        p->error = true;
+        ParserError(p);
     }
     return value;
 }
@@ -82,7 +84,7 @@ uiTextureDef_t *FDF_ParseTexture(parser_t *p, uiFrameDef_t const *frameDef) {
         }
     }
 return_error:
-    p->error = true;
+    ParserError(p);
     MemFree(texDef);
     return NULL;
 }
@@ -120,7 +122,7 @@ uiFrameDef_t *FDF_ParseFrame(parser_t *p) {
         }
     }
 return_error:
-    p->error = true;
+    ParserError(p);
     MemFree(frameDef);
     return NULL;
 }
@@ -139,7 +141,7 @@ uiFrameDef_t *FDF_ParseScene(parser_t *p) {
                 // TODO: report error?
             }
         } else {
-            p->error = true;
+            ParserError(p);
             return globals;
         }
     }
@@ -148,12 +150,13 @@ uiFrameDef_t *FDF_ParseScene(parser_t *p) {
 
 uiFrameDef_t *FDF_ParseFile(LPCSTR fileName) {
     LPSTR buffer = FS_ReadFileIntoString(fileName);
-    parser_t parser = {
-        .tok = parser.token,
-        .str = buffer,
-        .error = false,
-        .comma_space = true,
-    };
+    if (!buffer) {
+        return NULL;
+    }
+    parser_t parser = { 0 };
+    parser.tok = parser.token;
+    parser.str = buffer;
+    parser.comma_space = true;
     uiFrameDef_t *scene = FDF_ParseScene(&parser);
     if (parser.error) {
         fprintf(stderr, "Failed to parse %s\n", fileName);

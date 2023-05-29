@@ -55,14 +55,10 @@ void R_DrawImage(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv) {
     R_Call(glDrawArrays, GL_TRIANGLES, 0, 6);
 }
 
-void R_DrawPic(LPCTEXTURE texture, DWORD x, DWORD y, LPCRECT uv) {
-    RECT defaultuv = { 0, 0, 1, 1 };
-    R_DrawImage(texture, &(RECT ) {
-        x + uv->x * texture->width,
-        y + uv->y * texture->height,
-        texture->width * uv->width,
-        texture->height * uv->height
-    }, uv ? uv : &defaultuv);
+void R_DrawPic(LPCTEXTURE texture, DWORD x, DWORD y) {
+    R_DrawImage(texture,
+                &(RECT ) { x, y, texture->width, texture->height },
+                &(RECT const) { 0, 0, 1, 1 });
 }
 
 void R_DrawSelectionRect(LPCRECT rect, COLOR32 color) {

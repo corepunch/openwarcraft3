@@ -75,7 +75,7 @@ struct Renderer {
     void (*EndFrame)(void);
     void (*PrintText)(LPCSTR string, DWORD x, DWORD y, COLOR32 color);
     void (*DrawSelectionRect)(LPCRECT rect, COLOR32 color);
-    void (*DrawPic)(LPCTEXTURE texture, DWORD x, DWORD y, LPCRECT uv);
+    void (*DrawPic)(LPCTEXTURE texture, DWORD x, DWORD y);
     void (*DrawImage)(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv);
     void (*DrawPortrait)(model_t const *model, LPCRECT viewport);
 

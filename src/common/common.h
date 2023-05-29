@@ -20,6 +20,14 @@
 #define MAKEFOURCC(ch0, ch1, ch2, ch3) ((int)(char)(ch0) | ((int)(char)(ch1) << 8) | ((int)(char)(ch2) << 16) | ((int)(char)(ch3) << 24))
 #define FOFS(type, x) (HANDLE)&(((struct type *)NULL)->x)
 
+#define PUSH_BACK(TYPE, VAR, LIST) \
+if (LIST) { \
+    TYPE *last##TYPE = LIST; \
+    while (last##TYPE->next) last##TYPE = last##TYPE->next; \
+    last##TYPE->next = VAR; \
+} else { \
+    LIST = VAR; \
+}
 #define PLAYER_START_ID MAKEFOURCC('P','l','s','t')
 
 #define FRAMETIME 100
@@ -90,7 +98,7 @@ enum svc_ops {
 //    svc_muzzleflash,
 //    svc_muzzleflash2,
 //    svc_temp_entity,
-//    svc_layout,
+    svc_layout,
     svc_playerinfo,
 //
 //    // the rest are private to the client and server
@@ -250,8 +258,10 @@ typedef struct configValue_s {
 typedef struct {
     LPSTR tok;
     LPCSTR str;
+    bool reading_string;
     bool error;
     bool comma_space;
+    bool equals_space;
     char token[TOKEN_LEN];
 } parser_t;
 
@@ -284,6 +294,7 @@ void Sys_MkDir(LPCSTR directory);
 handle_t CM_BuildHeatmap(LPCVECTOR2 target);
 
 // INI
+LPSTR ParserGetTokenEx(parser_t *p, bool sameLine);
 LPSTR ParserGetToken(parser_t *p);
 bool ParserDone(parser_t *p);
 configValue_t *FS_ParseConfig(LPCSTR filename);
