@@ -7,10 +7,13 @@
 #define NAVI_THRESHOLD 50
 
 void M_ChangeAngle(LPEDICT self) {
-    VECTOR2 dir = Vector2_sub((LPVECTOR2)&self->goalentity->s.origin,
-                                    (LPVECTOR2)&self->s.origin);
-    if (Vector2_len(&dir) > NAVI_THRESHOLD) {
+    VECTOR2 dir;
+    if (!self->goalentity) {
+        dir = Vector2_sub(&self->enemy->s.origin2, &self->s.origin2);
+    } else if (Vector2_len(&dir) > NAVI_THRESHOLD) {
         dir = gi.GetFlowDirection(self->heatmap, self->s.origin.x, self->s.origin.y);
+    } else {
+        dir = Vector2_sub(&self->goalentity->s.origin2, &self->s.origin2);
     }
     self->s.angle = atan2(dir.y, dir.x);
 }
@@ -18,7 +21,7 @@ void M_ChangeAngle(LPEDICT self) {
 
 bool SV_CloseEnough(LPEDICT self, LPCEDICT goal, float distance) {
     if (self->enemy) {
-        float between = Vector2_distance((LPVECTOR2)&self->s.origin, (LPVECTOR2)&self->goalentity->s.origin);
+        float between = Vector2_distance(&self->s.origin2, &self->enemy->s.origin2);
         if (between < self->unitinfo.weapon->rangeN1) {
             self->goalentity = NULL;
             self->unitinfo.melee(self);
@@ -27,7 +30,7 @@ bool SV_CloseEnough(LPEDICT self, LPCEDICT goal, float distance) {
             return false;
         }
     } else {
-        float between = Vector2_distance((LPVECTOR2)&self->s.origin, (LPVECTOR2)&self->goalentity->s.origin);
+        float between = Vector2_distance(&self->s.origin2, &self->goalentity->s.origin2);
         if (between < distance) {
 //            if (self->path->next) {
 //                self->path = self->path->next;

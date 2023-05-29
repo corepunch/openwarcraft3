@@ -29,7 +29,7 @@ EDICT->animation = gi.GetAnimation(EDICT->s.model, MOVE.animation);
 
 void unit_cooldown(LPEDICT self) {
     SET_MOVE(self, unit_move_cooldown);
-    self->unitinfo.timer = self->unitinfo.weapon->cool1 * 1000;
+    self->unitinfo.wait = self->unitinfo.weapon->cool1 * 1000;
 }
 
 void unit_decay1(LPEDICT self) {
@@ -47,7 +47,7 @@ void unit_stand(LPEDICT self) {
 
 void unit_melee(LPEDICT self) {
     SET_MOVE(self, unit_move_melee);
-    self->unitinfo.timer = self->unitinfo.weapon->dmgpt1 * 1000;
+    self->unitinfo.wait = self->unitinfo.weapon->dmgpt1 * 1000;
 }
 
 void unit_die(LPEDICT self, LPEDICT attacker) {

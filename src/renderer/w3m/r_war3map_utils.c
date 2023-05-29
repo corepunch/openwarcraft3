@@ -27,24 +27,30 @@ struct color32 MakeColor(float r, float g, float b, float a) {
 }
 
 void SetTileUV(DWORD tile, LPVERTEX vertices, LPCTEXTURE texture) {
-    const float u = 1.f/(texture->width / 64);
-    const float v = 1.f/(texture->height / 64);
+    float u = 1.f/(texture->width / 64);
+    float v = 1.f/(texture->height / 64);
+    float ux = 0.0f;
+    
+    if (tile == 15 && texture->width > texture->height && !(rand() & 3)) {
+        tile = rand() & 15;
+        ux = 0.5f;
+    }
 
-    vertices[0].texcoord.x = u * ((tile%4)+0);
+    vertices[0].texcoord.x = u * ((tile%4)+0)+ux;
     vertices[0].texcoord.y = v * ((tile/4)+1);
-    vertices[1].texcoord.x = u * ((tile%4)+1);
+    vertices[1].texcoord.x = u * ((tile%4)+1)+ux;
     vertices[1].texcoord.y = v * ((tile/4)+1);
-    vertices[2].texcoord.x = u * ((tile%4)+1);
+    vertices[2].texcoord.x = u * ((tile%4)+1)+ux;
     vertices[2].texcoord.y = v * ((tile/4)+0);
-    vertices[3].texcoord.x = u * ((tile%4)+0);
+    vertices[3].texcoord.x = u * ((tile%4)+0)+ux;
     vertices[3].texcoord.y = v * ((tile/4)+1);
-    vertices[4].texcoord.x = u * ((tile%4)+1);
+    vertices[4].texcoord.x = u * ((tile%4)+1)+ux;
     vertices[4].texcoord.y = v * ((tile/4)+0);
-    vertices[5].texcoord.x = u * ((tile%4)+0);
+    vertices[5].texcoord.x = u * ((tile%4)+0)+ux;
     vertices[5].texcoord.y = v * ((tile/4)+0);
-
+    
     FOR_LOOP(i, 6) {
-        vertices[i].texcoord.x = LerpNumber(vertices[i].texcoord.x, u * ((tile%4)+0.5), 0.05);
+        vertices[i].texcoord.x = LerpNumber(vertices[i].texcoord.x, u * ((tile%4)+0.5)+ux, 0.05);
         vertices[i].texcoord.y = LerpNumber(vertices[i].texcoord.y, v * ((tile/4)+0.5), 0.05);
     }
 }
@@ -53,10 +59,10 @@ DWORD GetTile(LPCWAR3MAPVERTEX mv, DWORD ground) {
     if (ground == 0)
         return 15;
     return
-        (mv[0].ground == ground ? 4 : 0) +
-        (mv[1].ground == ground ? 8 : 0) +
-        (mv[2].ground == ground ? 1 : 0) +
-        (mv[3].ground == ground ? 2 : 0);
+        (mv[0].ground >= ground ? 4 : 0) +
+        (mv[1].ground >= ground ? 8 : 0) +
+        (mv[2].ground >= ground ? 1 : 0) +
+        (mv[3].ground >= ground ? 2 : 0);
 }
 
 float GetWar3MapVertexHeight(LPCWAR3MAPVERTEX vert) {

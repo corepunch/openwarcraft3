@@ -190,7 +190,10 @@ typedef struct transform3 { VECTOR3 translation, rotation, scale; } transform3_t
 
 typedef struct entityState_s {
     DWORD number; // edict index
-    VECTOR3 origin;
+    union {
+        VECTOR3 origin;
+        struct { VECTOR2 origin2; float z; };
+    };
     float angle;
     float scale;
     DWORD model;

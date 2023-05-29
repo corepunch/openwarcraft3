@@ -69,13 +69,13 @@ void CL_Input(void) {
                 break;
             case SDL_MOUSEMOTION:
                 switch (button) {
-                    case 1:
+                    case 3:
                         cl.selection.inProgress = true;
                         cl.selection.rect.width = event.button.x - cl.selection.rect.x;
                         cl.selection.rect.height = event.button.y - cl.selection.rect.y;
                         moved = true;
                         break;
-                    case 3:
+                    case 1:
                         moved = true;
                         cl.viewDef.camera.target.x -= event.motion.xrel * 5;
                         cl.viewDef.camera.target.y += event.motion.yrel * 5;
@@ -92,7 +92,7 @@ void CL_Input(void) {
                 break;
         }
     }
-    cl.viewDef.camera.target.z = 0;// CM_GetHeightAtPoint(cl.viewDef.camera.target.x, cl.viewDef.camera.target.y);
+    cl.viewDef.camera.target.z = CM_GetHeightAtPoint(cl.viewDef.camera.target.x, cl.viewDef.camera.target.y);
 }
 
 void CL_ReadPackets(void) {

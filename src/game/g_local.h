@@ -41,7 +41,7 @@ typedef struct {
     umove_t *currentmove;
     DWORD aiflags;
     DWORD health;
-    DWORD timer;
+    DWORD wait;
     struct UnitWeapons const *weapon;
     struct UnitBalance const *balance;
     struct UnitUI const *ui;
@@ -108,6 +108,9 @@ void ai_cooldown(LPEDICT self);
 void M_MoveToGoal(LPEDICT self);
 void M_ChangeAngle(LPEDICT self);
 bool M_CheckAttack(LPEDICT self);
+
+// g_move.c
+bool SV_CloseEnough(LPEDICT self, LPCEDICT goal, float distance);
 
 // g_phys.c
 void G_RunEntity(LPEDICT edict);

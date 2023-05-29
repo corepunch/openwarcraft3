@@ -104,7 +104,7 @@ static void R_MakeTile(LPCWAR3MAP map, DWORD x, DWORD y, DWORD ground, LPCTEXTUR
             .color = WATER(3),
         },
     };
-
+    
     SetTileUV(_tile, geom, texture);
 
     memcpy(currentVertex, geom, sizeof(geom));

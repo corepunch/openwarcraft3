@@ -50,7 +50,7 @@ animationInfo_t const *SV_GetAnimation(int modelindex, animationType_t animname)
     if (animname == ANIM_STAND && (rand() % 8) > 0) {
         return &av->animations[0];
     } else {
-        return &av->animations[rand() % av->num_animations];
+        return &av->animations[0];//rand() % av->num_animations];
     }
 }
 

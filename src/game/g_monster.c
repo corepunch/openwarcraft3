@@ -63,6 +63,9 @@ void SP_SpawnUnit(LPEDICT self, struct UnitUI const *unit) {
     self->unitinfo.balance = FindUnitBalance(self->class_id);
     self->unitinfo.weapon = FindUnitWeapons(self->class_id);
     self->unitinfo.ui = unit;
+//    if (/*self->s.number == 66 || */self->s.number == 107 ) {
+//        printf("%d %.4s\n", self->s.number, &self->class_id);
+//    }
     PATHSTR buffer;
     sprintf(buffer, "%s.mdx", unit->file);
     self->s.model = gi.ModelIndex(buffer);
