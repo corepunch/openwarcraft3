@@ -35,9 +35,12 @@ LPCSTR configs[] = {
     NULL
 };
 
-static void G_LoadConfigs(void) {
+configValue_t *abilityConfigs = NULL;
+
+static void InitAbilityConfigs(void) {
     for (LPCSTR *config = configs; *config; config++) {
-        INI_ParseFile(*config);
+        configValue_t *current = gi.ParseConfig(*config);
+        ADD_TO_LIST(current, abilityConfigs);
     }
 }
 
@@ -47,6 +50,8 @@ static void G_Init(void) {
     globals.num_edicts = 0;
     globals.max_edicts = MAX_ENTITIES;
 
+    InitAbilityConfigs();
+    
     InitDoodads();
     InitDestructableData();
     InitUnitUI();

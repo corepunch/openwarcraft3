@@ -29,6 +29,7 @@ struct game_import {
     int (*ImageIndex)(LPCSTR imageName);
     animationInfo_t const *(*GetAnimation)(int modelindex, animationType_t animtype);
     HANDLE (*ParseSheet)(LPCSTR sheetFilename, LPCSHEETLAYOUT layout, DWORD elementSize);
+    configValue_t *(*ParseConfig)(LPCSTR configFilename);
     handle_t (*BuildHeatmap)(LPCVECTOR2 target);
     VECTOR2 (*GetFlowDirection)(DWORD heatmapindex, float fx, float fy);
     float (*GetHeightAtPoint)(float x, float y);

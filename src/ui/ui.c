@@ -6,7 +6,7 @@ configValue_t *war3skins;
 uiPortrait_t portrait;
 
 void UI_Init(void) {
-    war3skins = INI_ParseFile("UI\\war3skins.txt");
+    war3skins = FS_ParseConfig("UI\\war3skins.txt");
     frame1 = FDF_ParseFile("UI\\FrameDef\\UI\\ConsoleUI.fdf");
     memset(&portrait, 0, sizeof(uiPortrait_t));
 }

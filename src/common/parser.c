@@ -2,13 +2,6 @@
 
 #include "common.h"
 
-struct configValue_s {
-    char Section[64];
-    char Name[64];
-    LPSTR Value;
-    struct configValue_s *next;
-};
-
 bool ParserDone(parser_t *p) {
     return !*p->str || p->error;
 }
@@ -89,7 +82,7 @@ configValue_t *INI_ParseConfig(parser_t *p) {
     return config;
 }
 
-configValue_t *INI_ParseFile(LPCSTR fileName) {
+configValue_t *FS_ParseConfig(LPCSTR fileName) {
     LPSTR buffer = FS_ReadFileIntoString(fileName);
     parser_t parser = {
         .tok = parser.token,
