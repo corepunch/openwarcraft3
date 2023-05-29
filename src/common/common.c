@@ -84,7 +84,7 @@ bool FS_ExtractFile(LPCSTR toExtract, LPCSTR extracted) {
 void FS_Init(void) {
 //     ExtractStarCraft2();
     SFileOpenArchive(MPQ_PATH, 0, 0, &archive);
-    SFileExtractFile(archive, "Textures\\Arthas.blp", "/Users/igor/Desktop/Arthas.blp", 0);
+    SFileExtractFile(archive, "Units\\CommonAbilityStrings.txt", "/Users/igor/Desktop/CommonAbilityStrings.txt", 0);
 #if 0
     SFILE_FIND_DATA findData;
     HANDLE handle = SFileFindFirstFile(archive, "*", &findData, 0);
@@ -99,11 +99,11 @@ void FS_Init(void) {
 //                 !strstr(findData.cFileName, ".wav") &&
 //                 !strstr(findData.cFileName, ".mp3") &&
 //                 !strstr(findData.cFileName, ".mdx") &&
-//                 !strstr(findData.cFileName, ".blp")) {
+                 if(strstr(findData.cFileName, ".txt")) {
                  printf("%s\n", findData.cFileName);
-//             }
-#if 1
-             if (strstr(findData.cFileName, ".j")){
+             }
+#if 0
+             if (strstr(findData.cFileName, ".txt")){
                  HANDLE file;
                  SFileOpenFileEx(archive, findData.cFileName, SFILE_OPEN_FROM_MPQ, &file);
                  char ch;

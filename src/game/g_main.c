@@ -5,6 +5,8 @@
 #include "Units/UnitUI.h"
 #include "Units/UnitBalance.h"
 #include "Units/UnitWeapons.h"
+#include "Units/UnitAbilities.h"
+#include "Units/AbilityData.h"
 
 #define MAX_ENTITIES 4096
 
@@ -12,6 +14,32 @@ struct game_export globals;
 struct game_import gi;
 struct game_state game_state;
 struct game_locals game;
+
+LPCSTR configs[] = {
+    "Units\\CampaignAbilityFunc.txt",
+    "Units\\CampaignAbilityStrings.txt",
+    "Units\\CommonAbilityFunc.txt",
+    "Units\\CommonAbilityStrings.txt",
+    "Units\\HumanAbilityFunc.txt",
+    "Units\\HumanAbilityStrings.txt",
+    "Units\\NeutralAbilityFunc.txt",
+    "Units\\NeutralAbilityStrings.txt",
+    "Units\\NightElfAbilityFunc.txt",
+    "Units\\NightElfAbilityStrings.txt",
+    "Units\\OrcAbilityFunc.txt",
+    "Units\\OrcAbilityStrings.txt",
+    "Units\\UndeadAbilityFunc.txt",
+    "Units\\UndeadAbilityStrings.txt",
+    "Units\\ItemAbilityFunc.txt",
+    "Units\\ItemAbilityStrings.txt",
+    NULL
+};
+
+static void G_LoadConfigs(void) {
+    for (LPCSTR *config = configs; *config; config++) {
+        INI_ParseFile(*config);
+    }
+}
 
 static void G_Init(void) {
     game_state.edicts = gi.MemAlloc(sizeof(struct edict) * MAX_ENTITIES);
@@ -24,6 +52,8 @@ static void G_Init(void) {
     InitUnitUI();
     InitUnitBalance();
     InitUnitWeapons();
+    InitUnitAbilities();
+    InitAbilityData();
 }
 
 static void G_Shutdown(void) {
@@ -34,6 +64,8 @@ static void G_Shutdown(void) {
     ShutdownUnitUI();
     ShutdownUnitBalance();
     ShutdownUnitWeapons();
+    ShutdownUnitAbilities();
+    ShutdownAbilityData();
 }
 
 static void G_RunFrame() {

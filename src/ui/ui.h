@@ -52,25 +52,8 @@ typedef struct frameDef_s {
     uiTextureDef_t *textures;
 } uiFrameDef_t;
 
-typedef struct configValue_s {
-    uiName_t Name;
-    LPSTR Value;
-    struct configValue_s *next;
-} configValue_t;
-
-typedef struct configSection_s {
-    uiName_t Name;
-    struct configValue_s *values;
-    struct configSection_s *next;
-} configSection_t;
-
 // FDF
 uiFrameDef_t *FDF_ParseFile(LPCSTR filename);
-
-// INI
-configSection_t *INI_ParseFile(LPCSTR filename);
-configSection_t *INI_FindSection(configSection_t *ini, LPCSTR sectionName);
-LPCSTR INI_FindValue(configSection_t *ini, LPCSTR valueName);
 
 // UI
 void UI_Init(void);

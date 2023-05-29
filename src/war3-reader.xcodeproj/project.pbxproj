@@ -30,6 +30,7 @@
 		78F58A822A06D1560027494A /* sheet.c in Sources */ = {isa = PBXBuildFile; fileRef = 78F58A812A06D1560027494A /* sheet.c */; };
 		78F58A862A06D2160027494A /* config.c in Sources */ = {isa = PBXBuildFile; fileRef = 78F58A852A06D2160027494A /* config.c */; };
 		78F58A882A06D3030027494A /* sv_init.c in Sources */ = {isa = PBXBuildFile; fileRef = 78F58A872A06D3030027494A /* sv_init.c */; };
+		78FC6C302A24956B00C9F93D /* parser.c in Sources */ = {isa = PBXBuildFile; fileRef = 78FC6C2F2A24956B00C9F93D /* parser.c */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -116,6 +117,7 @@
 		78F58A812A06D1560027494A /* sheet.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = sheet.c; sourceTree = "<group>"; };
 		78F58A852A06D2160027494A /* config.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = config.c; sourceTree = "<group>"; };
 		78F58A872A06D3030027494A /* sv_init.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = sv_init.c; sourceTree = "<group>"; };
+		78FC6C2F2A24956B00C9F93D /* parser.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = parser.c; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -145,19 +147,20 @@
 		7897B7CC2A0BE8AA008007CD /* common */ = {
 			isa = PBXGroup;
 			children = (
-				78988A2E2A151C700090DEAA /* cmodel.h */,
 				7897B7DE2A0BF615008007CD /* common.c */,
-				7897B7D22A0BEB76008007CD /* common.h */,
 				78F58A852A06D2160027494A /* config.c */,
 				7866373C2A1A4C0800266A62 /* macos.c */,
 				78F58A2F2A0641A30027494A /* main.c */,
 				7897B7ED2A0CC4EE008007CD /* msg.c */,
 				7897B7E22A0C209A008007CD /* net.c */,
-				7897B7EF2A0CC6CF008007CD /* net.h */,
+				78FC6C2F2A24956B00C9F93D /* parser.c */,
 				78C453882A1D386200C93B16 /* routing.c */,
-				78A8963F2A15F18F00BC5B56 /* shared.h */,
 				78F58A812A06D1560027494A /* sheet.c */,
 				7866305B2A17D17900266A62 /* world.c */,
+				78988A2E2A151C700090DEAA /* cmodel.h */,
+				7897B7D22A0BEB76008007CD /* common.h */,
+				7897B7EF2A0CC6CF008007CD /* net.h */,
+				78A8963F2A15F18F00BC5B56 /* shared.h */,
 			);
 			path = common;
 			sourceTree = "<group>";
@@ -347,6 +350,7 @@
 				7897B7EE2A0CC4EE008007CD /* msg.c in Sources */,
 				78F58A882A06D3030027494A /* sv_init.c in Sources */,
 				7897B7FD2A128F47008007CD /* sv_ents.c in Sources */,
+				78FC6C302A24956B00C9F93D /* parser.c in Sources */,
 				78F58A822A06D1560027494A /* sheet.c in Sources */,
 				7897B7DF2A0BF615008007CD /* common.c in Sources */,
 				78A896F22A168AB700BC5B56 /* sv_parse.c in Sources */,

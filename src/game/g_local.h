@@ -4,6 +4,7 @@
 #include "../server/game.h"
 
 #define SAFE_CALL(FUNC, ...) if (FUNC) FUNC(__VA_ARGS__)
+#define MAX_ABILITIES 12
 
 enum {
     AI_HOLD_FRAME = 1 << 0,
@@ -42,9 +43,11 @@ typedef struct {
     DWORD aiflags;
     DWORD health;
     DWORD wait;
+    struct AbilityData const *abil[MAX_ABILITIES];
     struct UnitWeapons const *weapon;
     struct UnitBalance const *balance;
     struct UnitUI const *ui;
+    struct UnitAbilities const *abilities;
     void (*stand)(LPEDICT self);
     void (*walk)(LPEDICT self);
     void (*run)(LPEDICT self);

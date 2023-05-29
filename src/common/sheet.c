@@ -51,7 +51,7 @@ static LPSHEETCELL SheetCellNew(DWORD x, DWORD y, LPSTR text, LPSHEETCELL sheet)
         *(outstr++) = *instr;
     }
 //    if (y == 2) {
-//    if (!strcmp(cell->text, "sloc")) {
+//    if (strstr(cell->text, "Ahar")) {
 //        printf("\t%d %s\n", x, cell->text);
 //    }
     return cell;
@@ -113,14 +113,16 @@ HANDLE FS_ParseSheet(LPCSTR fileName,
     DWORD sheetHeight = Sheet_GetHeight(sheet);
     HANDLE datas = MemAlloc(elementSize * (sheetHeight + 1));
 
+    
     FOR_EACH_LIST(struct SheetCell const, cell, sheet) {
         if (cell->row != 1 || cell->column >= MAX_SHEET_COLUMNS)
             continue;
         columns[cell->column] = cell->text;
     }
 
-    for (DWORD row = 2; row <= sheetHeight; row++) {
-        LPSTR current = &((LPSTR)datas)[elementSize * (row - 2)];
+    for (DWORD row = 2, write = 0; row <= sheetHeight; row++) {
+        LPSTR current = &((LPSTR)datas)[elementSize * write];
+        bool hasID = false;
         FOR_EACH_LIST(struct SheetCell const, cell, sheet) {
             if (cell->row != row)
                 continue;
@@ -130,13 +132,16 @@ HANDLE FS_ParseSheet(LPCSTR fileName,
                 if (!strcmp(sl->column, columns[cell->column])) {
                     HANDLE field = current + (uint64_t)sl->fofs;
                     switch (sl->type) {
-                        case ST_ID: *(int *)field = *(int*)cell->text; break;
+                        case ST_ID: *(int *)field = *(int*)cell->text; hasID = true; break;
                         case ST_INT: *(int *)field = atoi(cell->text); break;
                         case ST_FLOAT: *(float *)field = atof(cell->text); break;
                         case ST_STRING: strcpy(field, cell->text); break;
                     }
                 }
             }
+        }
+        if (hasID) {
+            write++;
         }
     }
     Sheet_Release(sheet);

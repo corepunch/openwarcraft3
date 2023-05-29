@@ -13,7 +13,7 @@ int main(int argc, LPSTR  argv[]) {
     FS_Init();
     SV_Init();
     CL_Init();
-    SV_Map("Maps\\Campaign\\Human01.w3m");
+    SV_Map("Maps\\Campaign\\Human02.w3m");
     
     DWORD startTime = SDL_GetTicks();
     

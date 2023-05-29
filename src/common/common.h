@@ -179,6 +179,7 @@ KNOWN_AS(AnimLookup, ANIMLOOKUP);
 typedef unsigned int handle_t;
 typedef char PATHSTR[MAX_PATHLEN];
 typedef void const *LPCVOID;
+typedef struct configValue_s configValue_t;
 
 typedef struct color { float r, g, b, a; } color_t;
 typedef struct color32 { BYTE r, g, b, a; } color32_t;
@@ -238,6 +239,16 @@ struct SheetCell {
     LPSHEETCELL next;
 };
 
+#define TOKEN_LEN 1024
+
+typedef struct {
+    LPSTR tok;
+    LPCSTR str;
+    bool error;
+    bool comma_space;
+    char token[TOKEN_LEN];
+} parser_t;
+
 HANDLE FS_ParseSheet(LPCSTR fileName, LPCSHEETLAYOUT layout, DWORD elementSize);
 void LoadMap(LPCSTR pFilename);
 
@@ -265,5 +276,12 @@ void MemFree(HANDLE mem);
 void Sys_MkDir(LPCSTR directory);
 
 handle_t CM_BuildHeatmap(LPCVECTOR2 target);
+
+// INI
+LPSTR ParserGetToken(parser_t *p);
+bool ParserDone(parser_t *p);
+configValue_t *INI_ParseFile(LPCSTR filename);
+LPCSTR INI_FindValue(configValue_t *config, LPCSTR sectionName, LPCSTR valueName);
+LPSTR FS_ReadFileIntoString(LPCSTR fileName);
 
 #endif

@@ -2,13 +2,11 @@
 #include "../client/client.h"
 
 uiFrameDef_t *frame1;
-configSection_t *war3skins;
-configSection_t *skin;
+configValue_t *war3skins;
 uiPortrait_t portrait;
 
 void UI_Init(void) {
     war3skins = INI_ParseFile("UI\\war3skins.txt");
-    skin = INI_FindSection(war3skins, "Default");
     frame1 = FDF_ParseFile("UI\\FrameDef\\UI\\ConsoleUI.fdf");
     memset(&portrait, 0, sizeof(uiPortrait_t));
 }

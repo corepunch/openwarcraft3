@@ -71,7 +71,7 @@ void G_SpawnDoodads(LPCDOODAD entities) {
         s->scale = doodad->scale.x;
         e->class_id = doodad->doodID;
         e->variation = doodad->variation;
-        s->player = doodad->player;
+        s->player = doodad->player & 7;
         SP_CallSpawn(e);
     }
 }

@@ -1,19 +1,10 @@
+#include <stdlib.h>
+
 #include "ui.h"
+
 #include "../client/client.h"
 
-#include <StormLib.h>
-
-#define TOKEN_LEN 1024
-
-typedef struct {
-    LPSTR tok;
-    LPCSTR str;
-    bool error;
-    bool comma_space;
-    char token[TOKEN_LEN];
-} parser_t;
-
-extern configSection_t *skin;
+extern configValue_t *war3skins;
 
 LPCSTR FrameType[] = { "SIMPLEFRAME", NULL };
 LPCSTR AlphaMode[] = { "ALPHAKEY", NULL };
@@ -22,42 +13,6 @@ LPCSTR Anchor[] = { "TOPLEFT", "TOPRIGHT", "BOTTOMLEFT", "BOTTOMRIGHT", NULL };
 uiFrameDef_t *FDF_ParseFrame(parser_t *p);
 
 void UI_ParseBuffer(parser_t *p);
-
-bool ParserDone(parser_t *p) {
-    return !*p->str || p->error;
-}
-
-bool ParserComment(parser_t *p, LPCSTR str) {
-    return str[0] == '/' && str[1] == '/';
-}
-
-bool ParserSpace(parser_t *p, LPCSTR str) {
-    return isspace(*str) || (p->comma_space && *str == ',') || *str == '"';
-}
-
-LPSTR ParserGetToken(parser_t *p) {
-    for (; !ParserDone(p); p->str++) {
-        bool has_token = p->tok != p->token;
-        if (ParserComment(p, p->str)) {
-            *p->tok = '\0';
-            for (; p->str[1] != '\n' && p->str[1] != '\0'; p->str++)
-            p->tok = p->token;
-            if (has_token) {
-                return p->token;
-            }
-        }
-        if (ParserSpace(p, p->str)) {
-            if (has_token) {
-                *p->tok = '\0';
-                p->tok = p->token;
-                return p->token;
-            }
-        } else {
-            *(p->tok++) = *p->str;
-        }
-    }
-    return NULL;
-}
 
 int ParseEnumString(LPCSTR token, LPCSTR const *values) {
     for (int i = 0; *values; i++, values++) {
@@ -96,7 +51,7 @@ uiTextureDef_t *FDF_ParseTexture(parser_t *p, uiFrameDef_t const *frameDef) {
     {
         if (!strcmp(tok, "File")) {
             LPCSTR File = ParserGetToken(p);
-            if (!frameDef->DecorateFileNames || (File = INI_FindValue(skin, File))) {
+            if (!frameDef->DecorateFileNames || (File = INI_FindValue(war3skins, "Default", File))) {
                 PATHSTR blp;
                 sprintf(blp, "%s.blp", File);
                 texDef->Texture = re.LoadTexture(blp);
@@ -191,18 +146,8 @@ uiFrameDef_t *FDF_ParseScene(parser_t *p) {
     return globals;
 }
 
-LPSTR ReadFileIntoString(LPCSTR fileName) {
-    HANDLE fp = FS_OpenFile(fileName);
-    DWORD const fileSize = SFileGetFileSize(fp, NULL);
-    LPSTR buffer = MemAlloc(fileSize + 1);
-    SFileReadFile(fp, buffer, fileSize, NULL, NULL);
-    SFileCloseFile(fp);
-    buffer[fileSize] = '\0';
-    return buffer;
-}
-
 uiFrameDef_t *FDF_ParseFile(LPCSTR fileName) {
-    LPSTR buffer = ReadFileIntoString(fileName);
+    LPSTR buffer = FS_ReadFileIntoString(fileName);
     parser_t parser = {
         .tok = parser.token,
         .str = buffer,
@@ -215,70 +160,4 @@ uiFrameDef_t *FDF_ParseFile(LPCSTR fileName) {
     }
     MemFree(buffer);
     return scene;
-}
-
-configSection_t *INI_ParseConfig(parser_t *p) {
-    configSection_t *config = NULL;
-    configSection_t *current = NULL;
-    for (LPSTR tok = ParserGetToken(p);
-         !ParserDone(p);
-         tok = ParserGetToken(p))
-    {
-        if (tok[0] != '[' || tok[strlen(tok) - 1] != ']') {
-            if (!current) {
-                p->error = true;
-                return NULL;
-            } else {
-                LPSTR eq = strstr(tok, "=");
-                if (!eq) {
-                    p->error = true;
-                    return NULL;
-                } else {
-                    *eq = '\0';
-                    configValue_t *value = MemAlloc(sizeof(configValue_t));
-                    strcpy(value->Name, tok);
-                    value->Value = strdup(eq + 1);
-                    ADD_TO_LIST(value, current->values);
-                }
-            }
-        } else {
-            current = MemAlloc(sizeof(configSection_t));
-            ADD_TO_LIST(current, config);
-            tok[strlen(tok) - 1] = '\0';
-            strcpy(current->Name, &tok[1]);
-        }
-    }
-    return config;
-}
-
-configSection_t *INI_ParseFile(LPCSTR fileName) {
-    LPSTR buffer = ReadFileIntoString(fileName);
-    parser_t parser = {
-        .tok = parser.token,
-        .str = buffer,
-        .error = false,
-        .comma_space = false,
-    };
-    configSection_t *config = INI_ParseConfig(&parser);
-    if (parser.error) {
-        fprintf(stderr, "Failed to parse %s\n", fileName);
-    }
-    MemFree(buffer);
-    return config;
-}
-
-configSection_t *INI_FindSection(configSection_t *ini, LPCSTR sectionName) {
-    FOR_EACH_LIST(configSection_t, s, ini) {
-        if (!strcmp(s->Name, sectionName))
-            return s;
-    }
-    return NULL;
-}
-
-LPCSTR INI_FindValue(configSection_t *ini, LPCSTR valueName) {
-    FOR_EACH_LIST(configValue_t, v, ini->values) {
-        if (!strcmp(v->Name, valueName))
-            return v->Value;
-    }
-    return NULL;
 }

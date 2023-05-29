@@ -3,6 +3,8 @@
 #include "Units/UnitUI.h"
 #include "Units/UnitBalance.h"
 #include "Units/UnitWeapons.h"
+#include "Units/UnitAbilities.h"
+#include "Units/AbilityData.h"
 
 #include <stdlib.h>
 
@@ -59,22 +61,46 @@ void monster_start(LPEDICT self) {
     }
 }
 
-void SP_SpawnUnit(LPEDICT self, struct UnitUI const *unit) {
-    self->unitinfo.balance = FindUnitBalance(self->class_id);
-    self->unitinfo.weapon = FindUnitWeapons(self->class_id);
-    self->unitinfo.ui = unit;
-//    if (/*self->s.number == 66 || */self->s.number == 107 ) {
-//        printf("%d %.4s\n", self->s.number, &self->class_id);
-//    }
-    PATHSTR buffer;
-    sprintf(buffer, "%s.mdx", unit->file);
-    self->s.model = gi.ModelIndex(buffer);
-    self->s.scale = unit->modelScale;
-    self->think = monster_think;
-    self->flags |= unit->isbldg ? 0 : IS_UNIT;
-    if (self->unitinfo.balance) {
-        self->unitinfo.health = self->unitinfo.balance->HP;
+void M_ParseBalance(LPEDICT self, struct UnitBalance const* data) {
+    if (!data) return;
+    self->unitinfo.health = data->HP;
+    self->unitinfo.balance = data;
+}
+
+void M_ParseAbilities(LPEDICT self, struct UnitAbilities const* data) {
+    if (!data) return;
+    DWORD slot = 0;
+    for (LPCSTR abil = data->abilList; abil; abil = strstr(abil+1, ",")) {
+        DWORD abil_id = *(DWORD *)(*abil == ',' ? abil + 1 : abil);
+        struct AbilityData const *ability = FindAbilityData(abil_id);
+        if (ability) {
+            self->unitinfo.abil[slot++] = ability;
+        }
     }
+    self->unitinfo.abilities = data;
+}
+
+void M_ParseWeapon(LPEDICT self, struct UnitWeapons const* data) {
+    if (!data) return;
+    self->unitinfo.weapon = data;
+}
+
+void M_ParseUnitUI(LPEDICT self, struct UnitUI const *data) {
+    PATHSTR buffer;
+    sprintf(buffer, "%s.mdx", data->file);
+    self->s.model = gi.ModelIndex(buffer);
+    self->s.scale = data->modelScale;
+    self->flags |= data->isbldg ? 0 : IS_UNIT;
+    self->unitinfo.ui = data;
+}
+
+void SP_SpawnUnit(LPEDICT self, struct UnitUI const *unit) {
+    M_ParseUnitUI(self, unit);
+    M_ParseAbilities(self, FindUnitAbilities(self->class_id));
+    M_ParseBalance(self, FindUnitBalance(self->class_id));
+    M_ParseWeapon(self, FindUnitWeapons(self->class_id));
+
+    self->think = monster_think;
 }
 
 void M_CheckGround(LPEDICT self) {
