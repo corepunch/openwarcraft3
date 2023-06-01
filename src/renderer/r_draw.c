@@ -38,7 +38,7 @@ void R_DrawImage(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv) {
     R_AddQuad(simp, screen, uv, (COLOR32){255,255,255,255});
 
     MATRIX4 ui_matrix;
-    Matrix4_ortho(&ui_matrix, 0.0f, 800, 600, 0.0f, 0.0f, 100.0f);
+    Matrix4_ortho(&ui_matrix, 0.0f, 0.8, 0.6, 0.0f, 0.0f, 100.0f);
     
     R_Call(glDisable, GL_CULL_FACE);
     R_Call(glUseProgram, tr.shaderUI->progid);
@@ -57,7 +57,7 @@ void R_DrawImage(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv) {
 
 void R_DrawPic(LPCTEXTURE texture, DWORD x, DWORD y) {
     R_DrawImage(texture,
-                &(RECT ) { x, y, texture->width, texture->height },
+                &(RECT ) { x, y, texture->width * 0.5, texture->height * 0.5},
                 &(RECT const) { 0, 0, 1, 1 });
 }
 

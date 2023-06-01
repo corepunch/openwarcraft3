@@ -7,8 +7,10 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		7810F3EF2A1F8A49003AADBC /* ui.c in Sources */ = {isa = PBXBuildFile; fileRef = 7810F3EE2A1F8A49003AADBC /* ui.c */; };
-		7810F3F12A1FC5CC003AADBC /* ui_parser.c in Sources */ = {isa = PBXBuildFile; fileRef = 7810F3F02A1FC5CC003AADBC /* ui_parser.c */; };
+		78314AE12A2677DE00062C4B /* sv_game.c in Sources */ = {isa = PBXBuildFile; fileRef = 78314AE02A26527500062C4B /* sv_game.c */; };
+		78314AE22A2677DE00062C4B /* sv_send.c in Sources */ = {isa = PBXBuildFile; fileRef = 78314ADF2A26520700062C4B /* sv_send.c */; };
+		78314B072A273D8600062C4B /* libui.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 78314AFE2A273A0500062C4B /* libui.dylib */; };
+		78314B182A28C47F00062C4B /* cl_input.c in Sources */ = {isa = PBXBuildFile; fileRef = 78314B172A28C47F00062C4B /* cl_input.c */; };
 		7866305D2A17D92E00266A62 /* world.c in Sources */ = {isa = PBXBuildFile; fileRef = 7866305B2A17D17900266A62 /* world.c */; };
 		7866373D2A1A4C0800266A62 /* macos.c in Sources */ = {isa = PBXBuildFile; fileRef = 7866373C2A1A4C0800266A62 /* macos.c */; };
 		786637BC2A1B737500266A62 /* cl_console.c in Sources */ = {isa = PBXBuildFile; fileRef = 786637BB2A1B737500266A62 /* cl_console.c */; };
@@ -35,6 +37,13 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		78314AFD2A273A0500062C4B /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 78314AF92A273A0500062C4B /* ui.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = 78314AF22A273A0500062C4B;
+			remoteInfo = ui;
+		};
 		78A896582A15F7A600BC5B56 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 78A896542A15F7A500BC5B56 /* game.xcodeproj */;
@@ -85,9 +94,11 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		7810F3ED2A1F8A49003AADBC /* ui.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ui.h; sourceTree = "<group>"; };
-		7810F3EE2A1F8A49003AADBC /* ui.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = ui.c; sourceTree = "<group>"; };
-		7810F3F02A1FC5CC003AADBC /* ui_parser.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = ui_parser.c; sourceTree = "<group>"; };
+		78314ADF2A26520700062C4B /* sv_send.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = sv_send.c; sourceTree = "<group>"; };
+		78314AE02A26527500062C4B /* sv_game.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = sv_game.c; sourceTree = "<group>"; };
+		78314AE82A27397000062C4B /* ui.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ui.h; sourceTree = "<group>"; };
+		78314AF92A273A0500062C4B /* ui.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = ui.xcodeproj; path = ui/ui.xcodeproj; sourceTree = "<group>"; };
+		78314B172A28C47F00062C4B /* cl_input.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = cl_input.c; sourceTree = "<group>"; };
 		7866305B2A17D17900266A62 /* world.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = world.c; sourceTree = "<group>"; };
 		7866373C2A1A4C0800266A62 /* macos.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = macos.c; sourceTree = "<group>"; };
 		786637BB2A1B737500266A62 /* cl_console.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = cl_console.c; sourceTree = "<group>"; };
@@ -127,6 +138,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				78314B072A273D8600062C4B /* libui.dylib in Frameworks */,
 				78A896EB2A16155900BC5B56 /* libcmath3.dylib in Frameworks */,
 				78A896AF2A15F85A00BC5B56 /* librenderer.dylib in Frameworks */,
 				78A896782A15F7E500BC5B56 /* libgame.dylib in Frameworks */,
@@ -136,14 +148,12 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		7810F3EB2A1F8A38003AADBC /* ui */ = {
+		78314AFA2A273A0500062C4B /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				7810F3F02A1FC5CC003AADBC /* ui_parser.c */,
-				7810F3EE2A1F8A49003AADBC /* ui.c */,
-				7810F3ED2A1F8A49003AADBC /* ui.h */,
+				78314AFE2A273A0500062C4B /* libui.dylib */,
 			);
-			path = ui;
+			name = Products;
 			sourceTree = "<group>";
 		};
 		7897B7CC2A0BE8AA008007CD /* common */ = {
@@ -172,12 +182,14 @@
 			children = (
 				786637BB2A1B737500266A62 /* cl_console.c */,
 				7897B7FE2A12AF06008007CD /* cl_ents.c */,
+				78314B172A28C47F00062C4B /* cl_input.c */,
 				7897B7D92A0BF40F008007CD /* cl_main.c */,
 				7897B7FA2A12872C008007CD /* cl_parse.c */,
 				78FC6C322A252FF300C9F93D /* cl_scrn.c */,
 				7897B7E42A0CA81B008007CD /* cl_view.c */,
 				7897B7D82A0BF40F008007CD /* client.h */,
 				7897B7D12A0BEB6A008007CD /* renderer.h */,
+				78314AE82A27397000062C4B /* ui.h */,
 			);
 			path = client;
 			sourceTree = "<group>";
@@ -186,9 +198,11 @@
 			isa = PBXGroup;
 			children = (
 				7897B7FC2A128F47008007CD /* sv_ents.c */,
+				78314AE02A26527500062C4B /* sv_game.c */,
 				78F58A872A06D3030027494A /* sv_init.c */,
 				7897B7DC2A0BF4FD008007CD /* sv_main.c */,
 				78A896F12A168AB700BC5B56 /* sv_parse.c */,
+				78314ADF2A26520700062C4B /* sv_send.c */,
 				7897B7E92A0CB3C1008007CD /* game.h */,
 				7897B7DB2A0BF4FD008007CD /* server.h */,
 			);
@@ -232,12 +246,12 @@
 				78A896C42A16012C00BC5B56 /* cmath3.xcodeproj */,
 				78A896542A15F7A500BC5B56 /* game.xcodeproj */,
 				78A896892A15F82600BC5B56 /* renderer.xcodeproj */,
+				78314AF92A273A0500062C4B /* ui.xcodeproj */,
 				7897B7CD2A0BEAED008007CD /* client */,
 				7897B7CC2A0BE8AA008007CD /* common */,
 				78A896422A15F6AB00BC5B56 /* Frameworks */,
 				78F58A2D2A0641A30027494A /* Products */,
 				7897B7CF2A0BEAF7008007CD /* server */,
-				7810F3EB2A1F8A38003AADBC /* ui */,
 			);
 			sourceTree = "<group>";
 		};
@@ -309,6 +323,10 @@
 					ProductGroup = 78A8968A2A15F82600BC5B56 /* Products */;
 					ProjectRef = 78A896892A15F82600BC5B56 /* renderer.xcodeproj */;
 				},
+				{
+					ProductGroup = 78314AFA2A273A0500062C4B /* Products */;
+					ProjectRef = 78314AF92A273A0500062C4B /* ui.xcodeproj */;
+				},
 			);
 			projectRoot = "";
 			targets = (
@@ -318,6 +336,13 @@
 /* End PBXProject section */
 
 /* Begin PBXReferenceProxy section */
+		78314AFE2A273A0500062C4B /* libui.dylib */ = {
+			isa = PBXReferenceProxy;
+			fileType = "compiled.mach-o.dylib";
+			path = libui.dylib;
+			remoteRef = 78314AFD2A273A0500062C4B /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
 		78A896592A15F7A600BC5B56 /* libgame.dylib */ = {
 			isa = PBXReferenceProxy;
 			fileType = "compiled.mach-o.dylib";
@@ -346,10 +371,11 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				78314AE12A2677DE00062C4B /* sv_game.c in Sources */,
+				78314AE22A2677DE00062C4B /* sv_send.c in Sources */,
 				7866305D2A17D92E00266A62 /* world.c in Sources */,
 				78C453892A1D386200C93B16 /* routing.c in Sources */,
 				78FC6C332A252FF300C9F93D /* cl_scrn.c in Sources */,
-				7810F3EF2A1F8A49003AADBC /* ui.c in Sources */,
 				78F58A302A0641A30027494A /* main.c in Sources */,
 				7897B7EE2A0CC4EE008007CD /* msg.c in Sources */,
 				78F58A882A06D3030027494A /* sv_init.c in Sources */,
@@ -358,6 +384,7 @@
 				78F58A822A06D1560027494A /* sheet.c in Sources */,
 				7897B7DF2A0BF615008007CD /* common.c in Sources */,
 				78A896F22A168AB700BC5B56 /* sv_parse.c in Sources */,
+				78314B182A28C47F00062C4B /* cl_input.c in Sources */,
 				7897B7DA2A0BF40F008007CD /* cl_main.c in Sources */,
 				78F58A862A06D2160027494A /* config.c in Sources */,
 				786637BC2A1B737500266A62 /* cl_console.c in Sources */,
@@ -367,7 +394,6 @@
 				7897B7DD2A0BF4FD008007CD /* sv_main.c in Sources */,
 				7897B7FB2A12872C008007CD /* cl_parse.c in Sources */,
 				7897B7E52A0CA81B008007CD /* cl_view.c in Sources */,
-				7810F3F12A1FC5CC003AADBC /* ui_parser.c in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

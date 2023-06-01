@@ -20,8 +20,8 @@ void SV_BuildClientFrame(LPCLIENT client) {
     LPCLIENTFRAME frame = &client->frames[sv.framenum & UPDATE_MASK];
     frame->num_entities = 0;
     frame->first_entity = svs.next_client_entities;
-    FOR_LOOP(index, ge->num_edicts) {
-        LPEDICT edict = EDICT_NUM(index);
+    for (int index = 1; index < ge->num_edicts; index++) {
+        edict_t *edict = EDICT_NUM(index);
         if (edict->svflags & SVF_NOCLIENT)
             continue;
         if (!edict->s.model && !edict->s.sound && !edict->s.event)
@@ -62,13 +62,13 @@ void SV_EmitPacketEntities(LPCCLIENTFRAME from,
             oldnum = oldent->number;
         }
         if (newnum == oldnum) {
-            MSG_WriteDeltaEntity(msg, oldent, newent);
+            MSG_WriteDeltaEntity(msg, oldent, newent, false);
             oldindex++;
             newindex++;
             continue;
         }
         if (newnum < oldnum) { // this is a new entity, send it from the baseline
-            MSG_WriteDeltaEntity(msg, &sv.baselines[newnum], newent);
+            MSG_WriteDeltaEntity(msg, &sv.baselines[newnum], newent, false);
             newindex++;
             continue;
         }

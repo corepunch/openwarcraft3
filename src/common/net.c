@@ -47,7 +47,35 @@ int NET_GetPacket(NETSOURCE netsrc, DWORD sock, LPSIZEBUF msg) {
 //}
 
 void Netchan_Transmit(NETSOURCE netsrc, struct netchan *netchan) {
+    if (netchan->message.cursize == 0)
+        return;
     NET_Write(netsrc, netchan->sock, &netchan->message.cursize, 4);
     NET_Write(netsrc, netchan->sock, netchan->message_buf, netchan->message.cursize);
     netchan->message.cursize = 0;
+}
+
+void SZ_Init(LPSIZEBUF buf, BYTE *data, DWORD length) {
+    memset(buf, 0, sizeof(*buf));
+    buf->data = data;
+    buf->maxsize = length;
+}
+
+void SZ_Clear(LPSIZEBUF buf) {
+    buf->cursize = 0;
+}
+
+HANDLE SZ_GetSpace(LPSIZEBUF buf, DWORD length) {
+    if (buf->cursize + length > buf->maxsize) {
+//        if (length > buf->maxsize)
+//            Com_Error (ERR_FATAL, "SZ_GetSpace: %i is > full buffer size", length);
+        fprintf(stderr, "SZ_GetSpace: overflow\n");
+        SZ_Clear(buf);
+    }
+    HANDLE data = buf->data + buf->cursize;
+    buf->cursize += length;
+    return data;
+}
+
+void SZ_Write(LPSIZEBUF buf, HANDLE data, DWORD length) {
+    memcpy(SZ_GetSpace(buf, length), data, length);
 }

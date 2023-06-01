@@ -44,7 +44,7 @@
 #include "../common/common.h"
 #include "../client/renderer.h"
 
-extern struct renderer_import ri;
+extern refImport_t ri;
 
 KNOWN_AS(shader_program, SHADER);
 KNOWN_AS(render_buffer, BUFFER);
@@ -106,7 +106,7 @@ struct render_globals {
 LPCSHADER R_InitShader(LPCSTR vertex_shader, LPCSTR fragment_shader);
 void R_RegisterMap(LPCSTR mapFileName);
 int R_RegisterTextureFile(LPCSTR textureFileName);
-LPTEXTURE R_LoadTexture(LPCSTR textureFileName);
+LPCTEXTURE R_LoadTexture(LPCSTR textureFileName);
 void R_DrawEntities(void);
 void R_DrawWorld(void);
 void R_DrawAlphaSurfaces(void);

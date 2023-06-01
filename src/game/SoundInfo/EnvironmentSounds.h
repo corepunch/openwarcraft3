@@ -1,7 +1,7 @@
 #ifndef __EnvironmentSounds_h__
 #define __EnvironmentSounds_h__
 
-#include "../../common/common.h"
+#include "../../common/shared.h"
 
 typedef char SHEETSTR[80];
 

@@ -42,7 +42,21 @@ void CL_ParsePlayerInfo(LPSIZEBUF msg) {
 }
 
 void CL_ParseLayout(LPSIZEBUF msg) {
-    MSG_ReadString(msg, cl.layout);
+//    MSG_ReadString(msg, cl.layout);
+    typedef char cmdarg_t[CMDARG_LEN];
+    static cmdarg_t args[MAX_CMDARGS];
+    static LPCSTR argv[MAX_CMDARGS];
+    DWORD argc = 0;
+    LPCSTR command = MSG_ReadString2(msg);
+    parser_t p = { 0 };
+    p.tok = p.token;
+    p.str = command;
+    for (LPCSTR tok = ParserGetToken(&p); tok; tok = ParserGetToken(&p)) {
+        strcpy(args[argc], tok);
+        argv[argc] = args[argc];
+        argc++;
+    }
+    ui.ServerCommand(argc, argv);
 }
 
 void CL_ParseServerMessage(LPSIZEBUF msg) {

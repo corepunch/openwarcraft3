@@ -80,7 +80,7 @@ LPCSTR vertex_shader_skin =
 "    v_texcoord2 = i_texcoord2;\n"
 "    v_normal = normalize(uNormalMatrix * normal.xyz);\n"
 "    v_shadow = uLightMatrix * uModelMatrix * position;\n"
-"    v_lightDir = -normalize(vec3(uLightMatrix[2][0], uLightMatrix[2][1], uLightMatrix[2][2]))*1.2;\n"
+"    v_lightDir = -normalize(vec3(uLightMatrix[0][2], uLightMatrix[1][2], uLightMatrix[2][2]))*1.2;\n"
 "    gl_Position = uProjectionMatrix * uModelMatrix * position;\n"
 "}\n";
 

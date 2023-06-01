@@ -6,14 +6,22 @@
 
 #include <StormLib.h>
 
-#define EDICT_NUM(n) ((LPEDICT)((LPSTR)ge->edicts + ge->edict_size*(n)))
-#define NUM_FOR_EDICT(e) (((LPSTR)(e)-(LPSTR)ge->edicts) / ge->edict_size)
+#define EDICT_NUM(n) ((edict_t *)((LPSTR)ge->edicts + ge->edict_size*(n)))
+#define NUM_FOR_EDICT(e) (DWORD)(((LPSTR)(e)-(LPSTR)ge->edicts) / ge->edict_size)
 
 KNOWN_AS(client_frame, CLIENTFRAME);
 KNOWN_AS(client, CLIENT);
 
-struct edict {
+struct gclient_s {
+    playerState_t ps; // communicated by server to clients
+    int ping;
+    // the game dll can add anything it wants after
+    // this point in the structure
+};
+
+struct edict_s {
     entityState_t s;
+    gclient_t *client;
     DWORD svflags;
 };
 
@@ -26,11 +34,12 @@ struct client {
     bool initialized;
     struct client_frame frames[UPDATE_BACKUP];
     struct netchan netchan;
+    edict_t *edict; // EDICT_NUM(clientnum+1)
     VECTOR2 camera_position;
     DWORD lastframe;
 };
 
-struct server_static {
+extern struct server_static {
     struct client clients[MAX_CLIENTS];
     entityState_t *client_entities;
     bool initialized;
@@ -38,7 +47,7 @@ struct server_static {
     DWORD num_client_entities;
     DWORD next_client_entities;
     DWORD realtime;
-};
+} svs;
 
 struct mdx_sequence {
     char name[80];
@@ -63,27 +72,29 @@ struct cmodel {
     DWORD num_animations;
 };
 
-struct server {
+extern struct server {
     PATHSTR name;
     PATHSTR configstrings[MAX_CONFIGSTRINGS];
     struct cmodel *models[MAX_MODELS];
     DWORD framenum;
     DWORD time;
     entityState_t *baselines;
-};
+    struct sizebuf multicast;
+    BYTE multicast_buf[MAX_MSGLEN];
+} sv;
 
 extern struct game_export *ge;
-extern struct server sv;
-extern struct server_static svs;
 
 void SV_Map(LPCSTR pFilename);
 void SV_InitGame(void);
 void SV_BuildClientFrame(LPCLIENT client);
 void SV_WriteFrameToClient(LPCLIENT client);
 void SV_ParseClientMessage(LPSIZEBUF msg, LPCLIENT client);
-void MSG_WriteDeltaEntity(LPSIZEBUF msg, entityState_t const *from, entityState_t const *to);
 int SV_ModelIndex(LPCSTR name);
 int SV_SoundIndex(LPCSTR name);
 int SV_ImageIndex(LPCSTR name);
+
+void SV_Multicast(LPCVECTOR3 origin, multicast_t to);
+void SV_InitGameProgs(void);
 
 #endif

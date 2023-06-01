@@ -2,7 +2,7 @@
 
 #include "Units/UnitWeapons.h"
 
-static void ai_runwait(LPEDICT self, void (*callback)(LPEDICT)) {
+static void ai_runwait(edict_t *self, void (*callback)(edict_t *)) {
     if (self->unitinfo.wait == 0)
         return;
     if (self->unitinfo.wait > FRAMETIME) {
@@ -13,7 +13,7 @@ static void ai_runwait(LPEDICT self, void (*callback)(LPEDICT)) {
     }
 }
 
-static void ai_damagetarget(LPEDICT self) {
+static void ai_damagetarget(edict_t *self) {
     self->enemy->unitinfo.health -= self->unitinfo.weapon->avgdmg1;
     if (self->enemy->unitinfo.health < 0) {
         self->enemy->die(self->enemy, self);
@@ -27,34 +27,34 @@ static void ai_damagetarget(LPEDICT self) {
     }
 }
 
-void ai_checkattack(LPEDICT self) {
+void ai_checkattack(edict_t *self) {
     self->unitinfo.checkattack(self);
 }
 
-void M_CheckWalk(LPEDICT self) {
+void M_CheckWalk(edict_t *self) {
     if (self->goalentity && self->unitinfo.walk) {
         self->enemy = NULL;
         self->unitinfo.walk(self);
     }
 }
 
-void ai_melee(LPEDICT self) {
+void ai_melee(edict_t *self) {
 //    M_ChangeAngle(self);
     ai_runwait(self, ai_damagetarget);
 }
 
-void ai_walk(LPEDICT self) {
+void ai_walk(edict_t *self) {
     M_ChangeAngle(self);
     M_MoveToGoal(self);
 }
 
-void ai_stand(LPEDICT self) {
+void ai_stand(edict_t *self) {
     if (self->goalentity && self->unitinfo.walk) {
         self->unitinfo.walk(self);
     }
 }
 
-void ai_cooldown(LPEDICT self) {
+void ai_cooldown(edict_t *self) {
     M_CheckWalk(self);
     if (!self->enemy)
         return;

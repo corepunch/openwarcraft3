@@ -4,23 +4,24 @@
 #include "Units/UnitBalance.h"
 #include "Units/UnitWeapons.h"
 #include "Units/UnitAbilities.h"
+#include "Units/UnitData.h"
 #include "Units/AbilityData.h"
 
 #include <stdlib.h>
 
 #define MAX_WAYPOINTS 256
-static EDICT waypoints[MAX_WAYPOINTS];
+static edict_t waypoints[MAX_WAYPOINTS];
 DWORD current_waypoint = 0;
 
-LPEDICT Waypoint_add(VECTOR2 spot) {
-    LPEDICT waypoint = &waypoints[current_waypoint++ % MAX_WAYPOINTS];
+edict_t *Waypoint_add(VECTOR2 spot) {
+    edict_t *waypoint = &waypoints[current_waypoint++ % MAX_WAYPOINTS];
     waypoint->s.origin.x = spot.x;
     waypoint->s.origin.y = spot.y;
     M_CheckGround(waypoint);
     return waypoint;
 }
 
-void M_MoveFrame(LPEDICT self) {
+void M_MoveFrame(edict_t *self) {
     if (self->unitinfo.aiflags & AI_HOLD_FRAME)
         return;
     umove_t const *move = self->unitinfo.currentmove;
@@ -41,7 +42,7 @@ void M_MoveFrame(LPEDICT self) {
     }
 }
 
-void monster_think(LPEDICT self) {
+void monster_think(edict_t *self) {
     if (!self->unitinfo.currentmove)
         return;
     M_MoveFrame(self);
@@ -50,7 +51,7 @@ void monster_think(LPEDICT self) {
     }
 }
 
-void monster_start(LPEDICT self) {
+void monster_start(edict_t *self) {
     animationInfo_t const *anim = self->animation;
     if (anim) {
         DWORD len = MAX(1, anim->lastframe - anim->firstframe - 1);
@@ -61,14 +62,81 @@ void monster_start(LPEDICT self) {
     }
 }
 
-void M_ParseBalance(LPEDICT self, struct UnitBalance const* data) {
+void M_AddAbility(edict_t *self, LPCSTR classname) {
+    ability_t *ability = FindAbilityByClassname(classname);
+    if (!ability)
+        return;
+    LPCSTR str = NULL;
+    if ((str = FindConfigValue(classname, "Art"))) {
+        ability->imageindex = gi.ImageIndex(str);
+    }
+    if ((str = FindConfigValue(classname, "buttonpos"))) {
+        sscanf(str, "%d,%d", &ability->buttonPos[0], &ability->buttonPos[1]);
+    }
+    self->abilities[self->num_abilities++] = ability;
+    
+    FOR_LOOP(i, MAX_ABILITIES) {
+        if (self->s.commands[i] != 0)
+            continue;
+        self->s.commands[i] = FindAbilityIndex(classname);
+        break;
+    }
+}
+
+void M_AddDefaultAbilityMove(edict_t *self) {
+    if (self->unitinfo.ui->run > 0) {
+        M_AddAbility(self, CMD_MOVE);
+    }
+}
+
+void M_AddDefaultAbilityBuild(edict_t *self) {
+    LPCSTR builds = FindConfigValue(GetClassName(self->class_id), "builds");
+    if (builds && *builds) {
+        if (!strcmp(self->unitinfo.data->race, RACE_HUMAN)) {
+            M_AddAbility(self, CMD_BUILD_HUMAN);
+        }
+        if (!strcmp(self->unitinfo.data->race, RACE_ORC)) {
+            M_AddAbility(self, CMD_BUILD_ORC);
+        }
+    }
+}
+
+void M_AddDefaultAbilityAttack(edict_t *self) {
+    M_AddAbility(self, CMD_ATTACK);
+}
+
+void M_AddDefaultAbilityPatrol(edict_t *self) {
+    M_AddAbility(self, CMD_PATROL);
+}
+
+void M_AddDefaultAbilityHoldPosition(edict_t *self) {
+    M_AddAbility(self, CMD_HOLDPOS);
+}
+
+void M_AddDefaultAbilityStop(edict_t *self) {
+    M_AddAbility(self, CMD_STOP);
+}
+
+void M_AddDefaultAbilities(edict_t *self) {
+    M_AddDefaultAbilityMove(self);
+    M_AddDefaultAbilityStop(self);
+    M_AddDefaultAbilityBuild(self);
+    M_AddDefaultAbilityAttack(self);
+    M_AddDefaultAbilityPatrol(self);
+    M_AddDefaultAbilityHoldPosition(self);
+}
+
+void M_ParseData(edict_t *self, struct UnitData const* data) {
+    self->unitinfo.data = data;
+}
+
+void M_ParseBalance(edict_t *self, struct UnitBalance const* data) {
     if (!data) return;
     self->unitinfo.health = data->HP;
     self->unitinfo.balance = data;
 }
 
-extern configValue_t *abilityConfigs;
-void M_ParseAbilities(LPEDICT self, struct UnitAbilities const* data) {
+void M_ParseAbilities(edict_t *self, struct UnitAbilities const* data) {
     if (!data) return;
     DWORD slot = 0;
 //    printf("%.4s\n", &self->class_id);
@@ -76,25 +144,19 @@ void M_ParseAbilities(LPEDICT self, struct UnitAbilities const* data) {
         DWORD abil_id = *(DWORD *)(*abil == ',' ? abil + 1 : abil);
         struct AbilityData const *ability = FindAbilityData(abil_id);
         if (ability) {
+            M_AddAbility(self, GetClassName(ability->code));
             self->unitinfo.abil[slot++] = ability;
-            char str[5] = { 0 };
-            memcpy(str, &abil_id, 4);
-            LPCSTR image = gi.FindConfigValue(abilityConfigs, str, "Art");
-            if (image) {
-                int a = gi.ImageIndex(image);
-                printf("  %d %s\n", a, gi.FindConfigValue(abilityConfigs, str, "Art"));
-            }
         }
     }
     self->unitinfo.abilities = data;
 }
 
-void M_ParseWeapon(LPEDICT self, struct UnitWeapons const* data) {
+void M_ParseWeapon(edict_t *self, struct UnitWeapons const* data) {
     if (!data) return;
     self->unitinfo.weapon = data;
 }
 
-void M_ParseUnitUI(LPEDICT self, struct UnitUI const *data) {
+void M_ParseUnitUI(edict_t *self, struct UnitUI const *data) {
     PATHSTR buffer;
     sprintf(buffer, "%s.mdx", data->file);
     self->s.model = gi.ModelIndex(buffer);
@@ -103,19 +165,21 @@ void M_ParseUnitUI(LPEDICT self, struct UnitUI const *data) {
     self->unitinfo.ui = data;
 }
 
-void SP_SpawnUnit(LPEDICT self, struct UnitUI const *unit) {
+void SP_SpawnUnit(edict_t *self, struct UnitUI const *unit) {
     M_ParseUnitUI(self, unit);
     M_ParseAbilities(self, FindUnitAbilities(self->class_id));
     M_ParseBalance(self, FindUnitBalance(self->class_id));
     M_ParseWeapon(self, FindUnitWeapons(self->class_id));
+    M_ParseData(self, FindUnitData(self->class_id));
+    M_AddDefaultAbilities(self);
 
     self->think = monster_think;
 }
 
-void M_CheckGround(LPEDICT self) {
+void M_CheckGround(edict_t *self) {
     self->s.origin.z = gi.GetHeightAtPoint(self->s.origin.x, self->s.origin.y);
 }
 
-bool M_CheckAttack(LPEDICT self) {
+bool M_CheckAttack(edict_t *self) {
     return false;
 }

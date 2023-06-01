@@ -1,7 +1,7 @@
 #ifndef __CliffTypes_h__
 #define __CliffTypes_h__
 
-#include "../../common/common.h"
+#include "../../common/shared.h"
 
 typedef char SHEETSTR[80];
 

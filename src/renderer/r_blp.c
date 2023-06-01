@@ -373,7 +373,7 @@ LPCOLOR32 blp_convert(HANDLE* file, struct tInternalBLPInfos* pBLPInfos, DWORD m
     return pDst;
 }
 
-LPTEXTURE R_LoadTexture(LPCSTR textureFilename) {
+LPCTEXTURE R_LoadTexture(LPCSTR textureFilename) {
     HANDLE file = ri.FileOpen(textureFilename);
 //    DWORD fileSize = SFileGetFileSize(file, NULL);
 //    HANDLE buffer = ri.MemAlloc(fileSize);

@@ -1,29 +1,50 @@
 #include <stdlib.h>
 
 #include "client.h"
-#include "../ui/ui.h"
+#include "ui.h"
+
+typedef struct {
+    int x, y;
+} layoutstate_t;
+
+void layout_xr(parser_t *p, layoutstate_t *state){
+    state->x = 800 - atoi(ParserGetToken(p));
+}
+
+void layout_yb(parser_t *p, layoutstate_t *state){
+    state->y = 600 - atoi(ParserGetToken(p));
+}
+
+void layout_pic(parser_t *p, layoutstate_t *state){
+    int pic = atoi(ParserGetToken(p));
+    re.DrawPic(cl.pics[pic], state->x, state->y);
+}
+
+typedef struct {
+    LPCSTR cmd;
+    void (*func)(parser_t *p, layoutstate_t *state);
+} layoutcmd_t;
+
+layoutcmd_t cmds[] = {
+    { "xr", layout_xr },
+    { "yb", layout_yb },
+    { "pic", layout_pic },
+    { NULL }
+};
 
 void SCR_ExecuteLayoutString(void) {
-    int x = 0, y = 0;
+    LPCSTR tok;
     parser_t parser = { 0 };
     parser.tok = parser.token;
     parser.str = cl.layout;
     parser_t *p = &parser;
-    for (LPCSTR tok = ParserGetToken(p);
-         !ParserDone(p);
-         tok = ParserGetToken(p))
-    {
-        if (!strcmp(tok, "xr")) {
-            x = 800 - atoi(ParserGetToken(p));
-            continue;
-        }
-        if (!strcmp(tok, "yb")) {
-            y = 600 - atoi(ParserGetToken(p));
-            continue;
-        }
-        if (!strcmp(tok, "pic")) {
-            int pic = atoi(ParserGetToken(p));
-            re.DrawPic(cl.pics[pic], x, y);
+    layoutstate_t state = { 0 };
+    while ((tok = ParserGetToken(p))) {
+        for (layoutcmd_t *layout = cmds; layout->cmd; layout++) {
+            if (strcmp(tok, layout->cmd))
+                continue;
+            layout->func(p, &state);
+            break;
         }
     }
 }
@@ -33,9 +54,9 @@ void SCR_UpdateScreen(void) {
     
     V_RenderView();
     
-    SCR_ExecuteLayoutString();
+    ui.Draw();
 
-    UI_Draw();
+    SCR_ExecuteLayoutString();
 
     CON_DrawConsole();
     

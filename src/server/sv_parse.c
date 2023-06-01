@@ -1,21 +1,25 @@
 #include "server.h"
 
-void SV_ParseCommand(LPSIZEBUF msg, LPCLIENT client) {
-    clientMessage_t cmsg;
-    cmsg.cmd = MSG_ReadByte(msg);
-    cmsg.num_entities = MSG_ReadShort(msg);
-    FOR_LOOP(i, cmsg.num_entities) {
-        cmsg.entities[i] = MSG_ReadShort(msg);
-    }
-    cmsg.targetentity = MSG_ReadShort(msg);
-    cmsg.location.x = MSG_ReadShort(msg);
-    cmsg.location.y = MSG_ReadShort(msg);
-    ge->ClientCommand(&cmsg);
-}
-
 void SV_ParseMove(LPSIZEBUF msg, LPCLIENT client) {
     client->camera_position.x = MSG_ReadShort(msg);
     client->camera_position.y = MSG_ReadShort(msg);
+}
+
+void SV_ExecuteUserCommand(LPSIZEBUF msg, LPCLIENT client) {
+    typedef char cmdarg_t[CMDARG_LEN];
+    static cmdarg_t args[MAX_CMDARGS];
+    static LPCSTR argv[MAX_CMDARGS];
+    DWORD argc = 0;
+    LPCSTR command = MSG_ReadString2(msg);
+    parser_t p = { 0 };
+    p.tok = p.token;
+    p.str = command;
+    for (LPCSTR tok = ParserGetToken(&p); tok; tok = ParserGetToken(&p)) {
+        strcpy(args[argc], tok);
+        argv[argc] = args[argc];
+        argc++;
+    }
+    ge->ClientCommand(client->edict, argc, argv);
 }
 
 void SV_ParseClientMessage(LPSIZEBUF msg, LPCLIENT client) {
@@ -25,8 +29,8 @@ void SV_ParseClientMessage(LPSIZEBUF msg, LPCLIENT client) {
             case clc_move:
                 SV_ParseMove(msg, client);
                 break;;
-            case clc_command:
-                SV_ParseCommand(msg, client);
+            case clc_stringcmd:
+                SV_ExecuteUserCommand(msg, client);
                 break;
             default:
                 fprintf(stderr, "Unknown message %d\n", pack_id);

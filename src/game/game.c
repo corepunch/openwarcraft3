@@ -6,6 +6,7 @@
 #include "Units/UnitBalance.h"
 #include "Units/UnitWeapons.h"
 #include "Units/UnitAbilities.h"
+#include "Units/UnitData.h"
 #include "Units/AbilityData.h"
 
 #define MAX_ENTITIES 4096
@@ -15,60 +16,37 @@ struct game_import gi;
 struct game_state game_state;
 struct game_locals game;
 
-LPCSTR configs[] = {
-    "Units\\CampaignAbilityFunc.txt",
-    "Units\\CampaignAbilityStrings.txt",
-    "Units\\CommonAbilityFunc.txt",
-    "Units\\CommonAbilityStrings.txt",
-    "Units\\HumanAbilityFunc.txt",
-    "Units\\HumanAbilityStrings.txt",
-    "Units\\NeutralAbilityFunc.txt",
-    "Units\\NeutralAbilityStrings.txt",
-    "Units\\NightElfAbilityFunc.txt",
-    "Units\\NightElfAbilityStrings.txt",
-    "Units\\OrcAbilityFunc.txt",
-    "Units\\OrcAbilityStrings.txt",
-    "Units\\UndeadAbilityFunc.txt",
-    "Units\\UndeadAbilityStrings.txt",
-    "Units\\ItemAbilityFunc.txt",
-    "Units\\ItemAbilityStrings.txt",
-    NULL
-};
+static void G_InitGame(void) {
+    game_state.edicts = gi.MemAlloc(sizeof(edict_t) * MAX_ENTITIES);
 
-configValue_t *abilityConfigs = NULL;
-
-static void InitAbilityConfigs(void) {
-    for (LPCSTR *config = configs; *config; config++) {
-        configValue_t *current = gi.ParseConfig(*config);
-        if (current) {
-            PUSH_BACK(configValue_t, current, abilityConfigs);
-        }
-    }
-}
-
-static void G_Init(void) {
-    game_state.edicts = gi.MemAlloc(sizeof(struct edict) * MAX_ENTITIES);
     globals.edicts = game_state.edicts;
     globals.num_edicts = 0;
     globals.max_edicts = MAX_ENTITIES;
+    globals.max_clients = 16;
 
-    InitAbilityConfigs();
-    
+    game.max_clients = globals.max_clients;
+    game.clients = gi.MemAlloc(game.max_clients * sizeof(gclient_t));
+
+    InitAbilities();
+    InitConfigFiles();
     InitDoodads();
     InitDestructableData();
     InitUnitUI();
+    InitUnitData();
     InitUnitBalance();
     InitUnitWeapons();
     InitUnitAbilities();
     InitAbilityData();
 }
 
-static void G_Shutdown(void) {
+static void G_ShutdownGame(void) {
     gi.MemFree(game_state.edicts);
 
+    ShutdownConfigFiles();
     ShutdownDoodads();
     ShutdownDestructableData();
     ShutdownUnitUI();
+    ShutdownUnitData();
     ShutdownUnitBalance();
     ShutdownUnitWeapons();
     ShutdownUnitAbilities();
@@ -85,11 +63,11 @@ static void G_RunFrame() {
 struct game_export *GetGameAPI(struct game_import *import) {
     memset(&game_state, 0, sizeof(struct game_state));
     gi = *import;
-    globals.Init = G_Init;
-    globals.Shutdown = G_Shutdown;
-    globals.SpawnDoodads = G_SpawnDoodads;
+    globals.Init = G_InitGame;
+    globals.Shutdown = G_ShutdownGame;
+    globals.SpawnEntities = G_SpawnEntities;
     globals.RunFrame = G_RunFrame;
     globals.ClientCommand = G_ClientCommand;
-    globals.edict_size = sizeof(struct edict);
+    globals.edict_size = sizeof(struct edict_s);
     return &globals;
 }

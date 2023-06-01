@@ -4,7 +4,35 @@
 #include "../server/game.h"
 
 #define SAFE_CALL(FUNC, ...) if (FUNC) FUNC(__VA_ARGS__)
-#define MAX_ABILITIES 12
+#define MAX_ABILITIES 16
+
+#define CMD_MOVE "CmdMove"
+#define CMD_STOP "CmdStop"
+#define CMD_HOLDPOS "CmdHoldPos"
+#define CMD_PATROL "CmdPatrol"
+#define CMD_ATTACK "CmdAttack"
+#define CMD_BUILD_HUMAN "CmdBuildHuman"
+#define CMD_BUILD_ORC "CmdBuildOrc"
+#define CMD_HOLDPOS "CmdHoldPos"
+#define CMD_PATROL "CmdPatrol"
+#define CMD_STOP "CmdStop"
+
+#define RACE_ORC "orc"
+#define RACE_HUMAN "human"
+#define RACE_UNDEAD "undead"
+#define RACE_NIGHTELF "nightelf"
+#define RACE_NAGA "naga"
+#define RACE_CREEPS "creeps"
+#define RACE_CRITTERS "critters"
+#define RACE_DEMON "demon"
+
+#define svc_bad 0
+// these ops are known to the game dll
+//    svc_muzzleflash,
+//    svc_muzzleflash2,
+//    svc_temp_entity,
+#define svc_layout 1
+#define svc_playerinfo 2
 
 enum {
     AI_HOLD_FRAME = 1 << 0,
@@ -32,11 +60,23 @@ KNOWN_AS(UnitUI, UNITUI);
 KNOWN_AS(DoodadInfo, DOODADINFO);
 KNOWN_AS(DestructableData, DESTRUCTABLEDATA);
 
+struct gclient_s {
+    playerState_t ps;
+    DWORD ping;
+};
+
 typedef struct {
     animationType_t animation;
-    void (*think)(LPEDICT self);
-    void (*endfunc)(LPEDICT self);
+    void (*think)(edict_t *self);
+    void (*endfunc)(edict_t *self);
 } umove_t;
+
+typedef struct ability_s {
+    LPCSTR classname;
+    void (*use)(edict_t *ent, struct ability_s const *ability);
+    DWORD imageindex;
+    DWORD buttonPos[2];
+} ability_t;
 
 typedef struct {
     umove_t *currentmove;
@@ -48,15 +88,17 @@ typedef struct {
     struct UnitBalance const *balance;
     struct UnitUI const *ui;
     struct UnitAbilities const *abilities;
-    void (*stand)(LPEDICT self);
-    void (*walk)(LPEDICT self);
-    void (*run)(LPEDICT self);
-    void (*melee)(LPEDICT self);
-    bool (*checkattack)(LPEDICT self);
+    struct UnitData const *data;
+    void (*stand)(edict_t *self);
+    void (*walk)(edict_t *self);
+    void (*run)(edict_t *self);
+    void (*melee)(edict_t *self);
+    bool (*checkattack)(edict_t *self);
 } unitinfo_t;
 
-struct edict {
+struct edict_s {
     entityState_t s;
+    gclient_t *client;
     DWORD svflags;
 
     // keep above in sync with server.h
@@ -65,20 +107,23 @@ struct edict {
     DWORD variation;
     movetype_t movetype;
     handle_t heatmap;
-    LPEDICT goalentity;
-    LPEDICT enemy;
+    edict_t *goalentity;
+    edict_t *enemy;
     DWORD flags;
+    bool inuse;
     animationInfo_t const *animation;
+    ability_t const *abilities[MAX_ABILITIES];
+    DWORD num_abilities;
     
-    void (*prethink)(LPEDICT self);
-    void (*think)(LPEDICT self);
-    void (*die)(LPEDICT self, LPEDICT attacker);
+    void (*prethink)(edict_t *self);
+    void (*think)(edict_t *self);
+    void (*die)(edict_t *self, edict_t *attacker);
 
     unitinfo_t unitinfo;
 };
 
 struct game_state {
-    LPEDICT edicts;
+    edict_t *edicts;
 };
 
 struct game_locals {
@@ -86,38 +131,53 @@ struct game_locals {
     struct UnitData *UnitData;
     LPDOODADINFO Doodads;
     LPDESTRUCTABLEDATA DestructableData;
+    DWORD max_clients;
+    DWORD num_abilities;
+    gclient_t *clients;
 };
 
-
-LPEDICT G_Spawn(void);
-void SP_SpawnUnit(LPEDICT edict, LPCUNITUI unit);
-void SP_CallSpawn(LPEDICT edict);
-void G_SpawnDoodads(LPCDOODAD doodads);
+edict_t *G_Spawn(void);
+void SP_SpawnUnit(edict_t *edict, LPCUNITUI unit);
+void SP_CallSpawn(edict_t *edict);
+void G_SpawnEntities(LPCDOODAD doodads);
 void G_SpawnUnits(LPCDOODAD units, DWORD num_units);
-void G_BuildHeatmap(LPEDICT edict, LPCVECTOR2 location);
-void G_ClientCommand(clientMessage_t const *clientMessage);
+void G_BuildHeatmap(edict_t *edict, LPCVECTOR2 location);
+void G_ClientCommand(edict_t *ent, DWORD argc, LPCSTR argv[]);
 
-LPEDICT Waypoint_add(VECTOR2 spot);
-void M_CheckGround (LPEDICT self);
-void monster_start(LPEDICT self);
+edict_t *Waypoint_add(VECTOR2 spot);
+void M_CheckGround (edict_t *self);
+void monster_start(edict_t *self);
 
 // g_ai.c
-void ai_melee(LPEDICT self);
-void ai_walk(LPEDICT self);
-void ai_stand(LPEDICT self);
-void ai_cooldown(LPEDICT self);
+void ai_melee(edict_t *self);
+void ai_walk(edict_t *self);
+void ai_stand(edict_t *self);
+void ai_cooldown(edict_t *self);
 
 // g_monster.c
-void M_MoveToGoal(LPEDICT self);
-void M_ChangeAngle(LPEDICT self);
-bool M_CheckAttack(LPEDICT self);
+void M_MoveToGoal(edict_t *self);
+void M_ChangeAngle(edict_t *self);
+bool M_CheckAttack(edict_t *self);
 
 // g_move.c
-bool SV_CloseEnough(LPEDICT self, LPCEDICT goal, float distance);
+bool SV_CloseEnough(edict_t *self, edict_t const *goal, float distance);
 
 // g_phys.c
-void G_RunEntity(LPEDICT edict);
+void G_RunEntity(edict_t *edict);
 void G_SolveCollisions(void);
+
+// g_abilities.c
+ability_t *FindAbilityByClassname(LPCSTR classname);
+ability_t *GetAbilityByIndex(DWORD index);
+DWORD FindAbilityIndex(LPCSTR classname);
+void InitAbilities(void);
+void SetAbilityNames(void);
+
+// g_config.c
+void InitConfigFiles(void);
+void ShutdownConfigFiles(void);
+LPCSTR FindConfigValue(LPCSTR category, LPCSTR field);
+LPCSTR GetClassName(DWORD class_id);
 
 extern struct game_locals game;
 extern struct game_state game_state;

@@ -1,7 +1,7 @@
 #ifndef __UnitUI_h__
 #define __UnitUI_h__
 
-#include "../../common/common.h"
+#include "../../common/shared.h"
 
 typedef char SHEETSTR[80];
 

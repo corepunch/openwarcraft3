@@ -1,30 +1,64 @@
 #include "client.h"
 #include "renderer.h"
-#include "../ui/ui.h"
+#include "ui.h"
 
-#include <SDL.h>
-#include <StormLib.h>
+refExport_t re;
+uiExport_t ui;
 
-struct Renderer re;
 struct client_static cls;
 struct client_state cl;
+
+LPCSTR CL_GetConfigString(DWORD index) {
+    return cl.configstrings[index];
+}
+
+entityState_t const *CL_GetSelectedEntity(void) {
+    FOR_LOOP(i, cl.num_entities) {
+        if (cl.ents[i].selected)
+            return &cl.ents[i].current;
+    }
+    return NULL;
+}
+
+LPCTEXTURE CL_GetTextureByIndex(DWORD index) {
+    return cl.pics[index];
+}
 
 void CL_Init(void) {
     CON_printf("OpenWarcraft3 v0.1");
 
-    re = *Renderer_Init(&(struct renderer_import) {
+    re = R_GetAPI((refImport_t) {
         .MemAlloc = MemAlloc,
         .MemFree = MemFree,
         .FileOpen = FS_OpenFile,
-        .FileClose = SFileCloseFile,
+        .FileClose = FS_CloseFile,
         .FileExtract = FS_ExtractFile,
         .ParseSheet = FS_ParseSheet,
         .error = CON_printf,
     });
+    
+    ui = UI_GetAPI((uiImport_t) {
+        .MemAlloc = MemAlloc,
+        .MemFree = MemFree,
+        .FileOpen = FS_OpenFile,
+        .FileClose = FS_CloseFile,
+        .ReadFileIntoString = FS_ReadFileIntoString,
+        .ParserGetToken = ParserGetToken,
+        .ParserError = ParserError,
+        .ParseConfig = FS_ParseConfig,
+        .FindConfigValue = INI_FindValue,
+        .GetConfigString = CL_GetConfigString,
+        .GetSelectedEntity = CL_GetSelectedEntity,
+        .GetTextureByIndex = CL_GetTextureByIndex,
+        .LoadTexture = re.LoadTexture,
+        .LoadModel = re.LoadModel,
+        .DrawPortrait = re.DrawPortrait,
+        .DrawImage = re.DrawImage,
+        .error = CON_printf,
+    });
 
     re.Init(WINDOW_WIDTH, WINDOW_HEIGHT);
-
-    UI_Init();
+    ui.Init();
     
     memset(&cl, 0, sizeof(struct client_state));
 
@@ -36,64 +70,9 @@ void CL_Init(void) {
     cl.viewDef.camera.zfar = 5000;
     cl.viewDef.camera.znear = 100;
 
-    void __netchan_init(struct netchan *netchan);
-    __netchan_init(&cls.netchan);
+    SZ_Init(&cls.netchan.message, cls.netchan.message_buf, MAX_MSGLEN);
 }
 
-void CL_Input(void) {
-    static int button;
-    static int moved = false;
-    SDL_Event event;
-    while(SDL_PollEvent(&event))
-    {
-        switch(event.type)
-        {
-            case SDL_KEYUP:
-                if(event.key.keysym.sym == SDLK_ESCAPE)
-                    return Com_Quit();
-                break;
-            case SDL_MOUSEBUTTONDOWN:
-                button = event.button.button;
-                moved = false;
-                cl.selection.rect.x = event.button.x;
-                cl.selection.rect.y = event.button.y;
-                break;
-            case SDL_MOUSEBUTTONUP:
-                button = 0;
-                if (moved == false) {
-                    CL_SelectEntityAtScreenPoint(event.button.x, event.button.y);
-                } else if (cl.selection.inProgress) {
-                    CL_SelectEntitiesAtScreenRect(&cl.selection.rect);
-                }
-                cl.selection.inProgress = false;
-                break;
-            case SDL_MOUSEMOTION:
-                switch (button) {
-                    case 3:
-                        cl.selection.inProgress = true;
-                        cl.selection.rect.width = event.button.x - cl.selection.rect.x;
-                        cl.selection.rect.height = event.button.y - cl.selection.rect.y;
-                        moved = true;
-                        break;
-                    case 1:
-                        moved = true;
-                        cl.viewDef.camera.target.x -= event.motion.xrel * 5;
-                        cl.viewDef.camera.target.y += event.motion.yrel * 5;
-                        break;
-                }
-                break;
-            case SDL_WINDOWEVENT:
-                switch (event.window.event) {
-                    case SDL_WINDOWEVENT_CLOSE:   // exit game
-                        return Com_Quit();
-                    default:
-                        break;
-                }
-                break;
-        }
-    }
-    cl.viewDef.camera.target.z = CM_GetHeightAtPoint(cl.viewDef.camera.target.x, cl.viewDef.camera.target.y);
-}
 
 void CL_ReadPackets(void) {
     static BYTE net_message_buffer[MAX_MSGLEN];
@@ -108,8 +87,8 @@ void CL_ReadPackets(void) {
     }
 }
 
-void CL_SendCommands(void) {
-    extern clientMessage_t msg;
+void CL_SendCmd(void) {
+//    extern clientMessage_t msg;
     static VECTOR3 camera_location;
     if (Vector3_distance(&cl.viewDef.camera.target, &camera_location) > EPSILON) {
         camera_location = cl.viewDef.camera.target;
@@ -118,19 +97,21 @@ void CL_SendCommands(void) {
         MSG_WriteShort(&cls.netchan.message, camera_location.y);
         Netchan_Transmit(NS_CLIENT, &cls.netchan);
     }
-    if (msg.cmd != CMD_NO_COMMAND && msg.num_entities > 0){
-        MSG_WriteByte(&cls.netchan.message, clc_command);
-        MSG_WriteByte(&cls.netchan.message, msg.cmd);
-        MSG_WriteShort(&cls.netchan.message, msg.num_entities);
-        FOR_LOOP(i, msg.num_entities) {
-            MSG_WriteShort(&cls.netchan.message, msg.entities[i]);
-        }
-        MSG_WriteShort(&cls.netchan.message, msg.targetentity);
-        MSG_WriteShort(&cls.netchan.message, msg.location.x);
-        MSG_WriteShort(&cls.netchan.message, msg.location.y);
-        Netchan_Transmit(NS_CLIENT, &cls.netchan);
-    }
-    msg.cmd = CMD_NO_COMMAND;
+//    if (msg.cmd != CMD_NO_COMMAND && msg.num_entities > 0){
+//        MSG_WriteByte(&cls.netchan.message, clc_command);
+//        MSG_WriteByte(&cls.netchan.message, msg.cmd);
+//        MSG_WriteShort(&cls.netchan.message, msg.num_entities);
+//        FOR_LOOP(i, msg.num_entities) {
+//            MSG_WriteShort(&cls.netchan.message, msg.entities[i]);
+//        }
+//        MSG_WriteShort(&cls.netchan.message, msg.targetentity);
+//        MSG_WriteShort(&cls.netchan.message, msg.location.x);
+//        MSG_WriteShort(&cls.netchan.message, msg.location.y);
+//        Netchan_Transmit(NS_CLIENT, &cls.netchan);
+//    }
+//    msg.cmd = CMD_NO_COMMAND;
+    
+    Netchan_Transmit(NS_CLIENT, &cls.netchan);
 }
 
 void CL_Shutdown(void) {
@@ -140,6 +121,7 @@ void CL_Shutdown(void) {
         re.ReleaseModel(cl.models[modelIndex]);
     }
 
+    ui.Shutdown();
     re.Shutdown();
 }
 
@@ -147,8 +129,8 @@ void CL_Frame(DWORD msec) {
     cl.time += msec;
 
     CL_ReadPackets();
-    CL_SendCommands();
     CL_Input();
+    CL_SendCmd();
     CL_PrepRefresh();
     SCR_UpdateScreen();
 }

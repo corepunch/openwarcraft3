@@ -15,13 +15,6 @@ static void SV_WriteConfigStrings(LPCLIENT cl) {
     Netchan_Transmit(NS_SERVER, &cl->netchan);
 }
 
-static void SV_WriteLayout(LPCLIENT cl) {
-    MSG_WriteByte(&cl->netchan.message, svc_layout);
-    char buf[256];
-    sprintf(buf, "xr 100 yb 100 pic %d\n", 5);
-    MSG_WriteString(&cl->netchan.message, buf);
-}
-
 static void SV_WritePlayerInfo(LPCLIENT cl) {
     mapPlayer_t const *player = CM_GetPlayer(1);
     if (player) {
@@ -36,11 +29,11 @@ static void SV_Baseline(LPCLIENT cl) {
     entityState_t nullstate;
     memset(&nullstate, 0, sizeof(entityState_t));
     FOR_LOOP(index, ge->num_edicts) {
-        LPEDICT e = EDICT_NUM(index);
+        edict_t *e = EDICT_NUM(index);
         if (e->svflags & SVF_NOCLIENT)
             continue;
         MSG_WriteByte(&cl->netchan.message, svc_spawnbaseline);
-        MSG_WriteDeltaEntity(&cl->netchan.message, &nullstate, &e->s);
+        MSG_WriteDeltaEntity(&cl->netchan.message, &nullstate, &e->s, true);
     }
     Netchan_Transmit(NS_SERVER, &cl->netchan);
 }
@@ -56,7 +49,6 @@ static void SV_SendClientMessages(void) {
         if (!client->initialized) {
             SV_WritePlayerInfo(client);
             SV_WriteConfigStrings(client);
-            SV_WriteLayout(client);
             SV_Baseline(client);
             client->initialized = true;
         } else {
@@ -169,7 +161,7 @@ static struct cmodel *SV_LoadModel(LPCSTR filename) {
             fprintf(stderr, "Unknown model format %.5s in file %s\n", (LPSTR)&fileheader, filename);
             break;
     }
-    SFileCloseFile(file);
+    FS_CloseFile(file);
     return model;
 }
 

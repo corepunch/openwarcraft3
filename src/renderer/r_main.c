@@ -6,7 +6,7 @@
 #include <SDL.h>
 #include <SDL_opengl.h>
 
-struct renderer_import ri;
+refImport_t ri;
 struct render_globals tr;
 
 SDL_Window *window;
@@ -232,28 +232,29 @@ struct size2 R_GetWindowSize(void) {
     };
 }
 
-struct Renderer *Renderer_Init(struct renderer_import *import) {
-    struct Renderer *re = import->MemAlloc(sizeof(struct Renderer));
-    re->Init = R_Init;
-    re->RegisterMap = R_RegisterMap;
-    re->LoadTexture = R_LoadTexture;
-    re->LoadModel = R_LoadModel;
-    re->ReleaseModel = R_ReleaseModel;
-    re->RenderFrame = R_RenderFrame;
-    re->Init = R_Init;
-    re->Shutdown = R_Shutdown;
-    re->BeginFrame = R_BeginFrame;
-    re->EndFrame = R_EndFrame;
-    re->DrawPic = R_DrawPic;
-    re->DrawImage = R_DrawImage;
-    re->DrawSelectionRect = R_DrawSelectionRect;
-    re->PrintText = R_PrintText;
-    re->GetWindowSize = R_GetWindowSize;
-    re->DrawPortrait = R_DrawPortrait;
+refExport_t R_GetAPI(refImport_t imp) {
 #ifdef DEBUG_PATHFINDING
     void R_SetPathTexture(LPCCOLOR32 debugTexture);
-    re->SetPathTexture = R_SetPathTexture;
 #endif
-    ri = *import;
-    return re;
+    ri = imp;
+    return (refExport_t) {
+        .Init = R_Init,
+        .RegisterMap = R_RegisterMap,
+        .LoadTexture = R_LoadTexture,
+        .LoadModel = R_LoadModel,
+        .ReleaseModel = R_ReleaseModel,
+        .RenderFrame = R_RenderFrame,
+        .Shutdown = R_Shutdown,
+        .BeginFrame = R_BeginFrame,
+        .EndFrame = R_EndFrame,
+        .DrawPic = R_DrawPic,
+        .DrawImage = R_DrawImage,
+        .DrawSelectionRect = R_DrawSelectionRect,
+        .PrintText = R_PrintText,
+        .GetWindowSize = R_GetWindowSize,
+        .DrawPortrait = R_DrawPortrait,
+#ifdef DEBUG_PATHFINDING
+        .SetPathTexture = R_SetPathTexture,
+#endif
+    };
 }

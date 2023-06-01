@@ -34,15 +34,23 @@ void MSG_Write(LPSIZEBUF buf, LPCVOID value, DWORD size);
 void MSG_WriteByte(LPSIZEBUF buf, int value);
 void MSG_WriteShort(LPSIZEBUF buf, int value);
 void MSG_WriteLong(LPSIZEBUF buf, int value);
+void MSG_WriteFloat(LPSIZEBUF buf, float value);
 void MSG_WriteString(LPSIZEBUF buf, const LPSTR value);
-void MSG_WriteDeltaEntity(LPSIZEBUF buf, entityState_t const *from, entityState_t const *to);
+void MSG_WriteDeltaEntity(LPSIZEBUF buf, entityState_t const *from, entityState_t const *to, bool force);
 
 int MSG_Read(LPSIZEBUF buf, HANDLE value, DWORD size);
 int MSG_ReadByte(LPSIZEBUF buf);
 int MSG_ReadShort(LPSIZEBUF buf);
 int MSG_ReadLong(LPSIZEBUF buf);
+float MSG_ReadFloat(LPSIZEBUF buf);
 void MSG_ReadString(LPSIZEBUF buf, LPSTR value);
+LPCSTR MSG_ReadString2(LPSIZEBUF buf);
 void MSG_ReadDeltaEntity(LPSIZEBUF buf, entityState_t *edict, int number, int bits);
 
+HANDLE SZ_GetSpace(LPSIZEBUF buf, DWORD length);
+void SZ_Write(LPSIZEBUF buf, HANDLE data, DWORD length);
+void SZ_Printf(LPSIZEBUF msg, LPCSTR fmt, ...);
+void SZ_Init(LPSIZEBUF buf, BYTE *data, DWORD length);
+void SZ_Clear(LPSIZEBUF buf);
 
 #endif

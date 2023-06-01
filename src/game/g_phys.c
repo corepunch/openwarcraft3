@@ -1,11 +1,11 @@
 #include "g_local.h"
 
-void SV_Physics_Step(LPEDICT edict) {
+void SV_Physics_Step(edict_t *edict) {
     M_CheckGround(edict);
 
 }
 
-void G_RunEntity(LPEDICT edict) {
+void G_RunEntity(edict_t *edict) {
     SAFE_CALL(edict->prethink, edict);
     switch (edict->movetype) {
         case MOVETYPE_STEP:
@@ -22,12 +22,12 @@ void G_SolveCollisions(void) {
     float allowed_dist = 100;
     float allowed_dist_sq = allowed_dist * allowed_dist;
     for (DWORD a = 0; a < globals.num_edicts; a++) {
-        LPEDICT ea = &globals.edicts[a];
+        edict_t *ea = &globals.edicts[a];
         LPVECTOR2 apos = (LPVECTOR2)&ea->s.origin;
         if (!ea->s.model)
             continue;
         for (DWORD b = a + 1; b < globals.num_edicts; b++) {
-            LPEDICT eb = &globals.edicts[b];
+            edict_t *eb = &globals.edicts[b];
             LPVECTOR2 bpos = (LPVECTOR2)&eb->s.origin;
             VECTOR2 d = Vector2_sub(apos, bpos);
             if (!eb->s.model)

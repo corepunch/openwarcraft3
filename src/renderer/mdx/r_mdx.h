@@ -1,7 +1,7 @@
 #ifndef __r_mdx_h__
 #define __r_mdx_h__
 
-#include "../../common/common.h"
+#include "../../common/shared.h"
 
 #define ID_MDLX ('M'|('D'<<8)|('L'<<16)|('X'<<24))
 

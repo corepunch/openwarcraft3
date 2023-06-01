@@ -1,3 +1,5 @@
+#include <stdarg.h>
+
 #include "common.h"
 
 #define NETF(x) #x,((uint8_t *)&((entityState_t*)0)->x - (uint8_t *)NULL)
@@ -18,6 +20,9 @@ netField_t entityStateFields[] = {
     { NETF(model), 16 },
     { NETF(image), 16 },
     { NETF(player), 8 },
+    { NETF(commands[0]), 32 },
+    { NETF(commands[4]), 32 },
+    { NETF(commands[8]), 32 },
     { NULL }
 };
 
@@ -44,10 +49,12 @@ void MSG_WriteLong(LPSIZEBUF buf, int value) {
     MSG_Write(buf, &value, 4);
 }
 
+void MSG_WriteFloat(LPSIZEBUF buf, float value) {
+    MSG_Write(buf, &value, 4);
+}
+
 void MSG_WriteString(LPSIZEBUF buf, const LPSTR value) {
-    int const len = (int)strlen(value);
-    MSG_WriteLong(buf, len + 1);
-    MSG_Write(buf, value, len + 1);
+    MSG_Write(buf, value, (int)strlen(value) + 1);
 }
 
 int MSG_Read(LPSIZEBUF buf, HANDLE value, DWORD size) {
@@ -70,18 +77,39 @@ int MSG_ReadShort(LPSIZEBUF buf) {
     MSG_Read(buf, &value, 2);
     return value;
 }
+
 int MSG_ReadLong(LPSIZEBUF buf) {
     int value = 0;
     MSG_Read(buf, &value, 4);
     return value;
 }
-void MSG_ReadString(LPSIZEBUF buf, LPSTR value) {
-    MSG_Read(buf, value, MSG_ReadLong(buf));
+
+float MSG_ReadFloat(LPSIZEBUF buf) {
+    float value = 0;
+    MSG_Read(buf, &value, 4);
+    return value;
 }
 
-void MSG_WriteDeltaEntity(LPSIZEBUF msg, entityState_t const *from, entityState_t const *to) {
+void MSG_ReadString(LPSIZEBUF buf, LPSTR value) {
+    for (int c = MSG_ReadByte(buf), i = 0;; c = MSG_ReadByte(buf), i++) {
+        value[i] = c;
+        if (c == 0)
+            break;
+    }
+}
+
+LPCSTR MSG_ReadString2(LPSIZEBUF buf) {
+    static char buffer[2048];
+    MSG_ReadString(buf, buffer);
+    return buffer;
+}
+
+void MSG_WriteDeltaEntity(LPSIZEBUF msg,
+                          entityState_t const *from,
+                          entityState_t const *to,
+                          bool force)
+{
     int bits = 0;
-    
     for (netField_t *field = entityStateFields; field->name; field++) {
         int *fromF = (int *)((uint8_t *)from + field->offset);
         int *toF = (int *)((uint8_t *)to + field->offset);
@@ -90,7 +118,7 @@ void MSG_WriteDeltaEntity(LPSIZEBUF msg, entityState_t const *from, entityState_
         }
     }
 
-    if (bits == 0)
+    if (bits == 0 && !force)
         return;
     
     MSG_WriteShort(msg, bits);
@@ -126,3 +154,9 @@ void MSG_ReadDeltaEntity(LPSIZEBUF msg, entityState_t *edict, int number, int bi
     }
 }
 
+void SZ_Printf(LPSIZEBUF msg, LPCSTR fmt, ...) {
+    va_list argptr;
+    va_start(argptr, fmt);
+    msg->cursize += vsprintf((LPSTR)(msg->data + msg->cursize), fmt, argptr) + 1;
+    va_end(argptr);
+}

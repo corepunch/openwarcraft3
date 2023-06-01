@@ -51,7 +51,7 @@ static LPSHEETCELL SheetCellNew(DWORD x, DWORD y, LPSTR text, LPSHEETCELL sheet)
         *(outstr++) = *instr;
     }
 //    if (y == 2) {
-//    if (strstr(cell->text, "Ahar")) {
+//    if (strstr(cell->text, "hhou")) {
 //        printf("\t%d %s\n", x, cell->text);
 //    }
     return cell;

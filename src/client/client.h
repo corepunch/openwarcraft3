@@ -3,6 +3,7 @@
 
 #include "../common/common.h"
 #include "renderer.h"
+#include "ui.h"
 
 #define WINDOW_WIDTH 1024
 #define WINDOW_HEIGHT 768
@@ -34,7 +35,7 @@ typedef struct  {
 
 struct client_state {
     model_t *models[MAX_MODELS];
-    LPTEXTURE pics[MAX_IMAGES];
+    LPCTEXTURE pics[MAX_IMAGES];
     PATHSTR configstrings[MAX_CONFIGSTRINGS];
     clientEntity_t ents[MAX_CLIENT_ENTITIES];
     moveConfirmation_t confs[MAX_CONFIRMATION_OBJECTS];
@@ -65,7 +66,7 @@ int CL_ParseEntityBits(LPSIZEBUF msg, DWORD *bits);
 void CL_SelectEntityAtScreenPoint(DWORD pixelX, DWORD pixelY);
 void CL_SelectEntitiesAtScreenRect(LPCRECT rect);
 void CON_DrawConsole(void);
-void CON_printf(char *fmt, ...);
+void CON_printf(LPCSTR fmt, ...);
 
 // cl_view.c
 void Matrix4_fromViewAngles(LPCVECTOR3 target, LPCVECTOR3 angles, float distance, LPMATRIX4 output);
@@ -75,7 +76,12 @@ void Matrix4_getCameraMatrix(viewCamera_t const *camera, LPMATRIX4 output);
 // cl_scrn.c
 void SCR_UpdateScreen(void);
 
+// cl_input.c
+void CL_Input(void);
+
 extern struct client_state cl;
-extern struct Renderer re;
+extern struct client_static cls;
+extern refExport_t re;
+extern uiExport_t ui;
 
 #endif

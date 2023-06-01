@@ -271,7 +271,7 @@ void RenderModel(renderEntity_t const *entity) {
         R_Call(glUseProgram, tr.shaderSkin->progid);
         R_Call(glUniformMatrix4fv, tr.shaderSkin->uBones, MAX_BONES, GL_FALSE, aBoneMatrices->v);
         renderEntity_t re = *entity;
-        re.scale *= 1.5f;
+        re.scale *= 1.0f;
         re.angle = tr.viewDef.time * 0.001;
         re.frame = 0;
         re.oldframe = 0;

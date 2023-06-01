@@ -16,6 +16,7 @@
 #include "types/plane3.h"
 #include "types/box3.h"
 #include "types/triangle3.h"
+#include "types/rect.h"
 
 float LerpNumber(float a, float b, float t);
 

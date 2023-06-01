@@ -1,5 +1,6 @@
-#include "client.h"
 #include <stdarg.h>
+
+#include "client.h"
 
 typedef struct  {
     char msg[MAX_CONSOLE_MESSAGE_LEN];
@@ -9,7 +10,7 @@ typedef struct  {
 static consoleMessage_t messages[MAX_CONSOLE_MESSAGES] = { 0 };
 static DWORD current_message = 0;
 
-void CON_printf(char *fmt, ...) {
+void CON_printf(LPCSTR fmt, ...) {
     consoleMessage_t *msg = &messages[current_message++ % MAX_CONSOLE_MESSAGES];
     va_list argptr;
     va_start(argptr,fmt);

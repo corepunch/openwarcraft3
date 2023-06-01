@@ -31,25 +31,23 @@ LPSTR FS_ReadFileIntoString(LPCSTR fileName) {
     DWORD const fileSize = SFileGetFileSize(fp, NULL);
     LPSTR buffer = MemAlloc(fileSize + 1);
     SFileReadFile(fp, buffer, fileSize, NULL, NULL);
-    SFileCloseFile(fp);
+    FS_CloseFile(fp);
     buffer[fileSize] = '\0';
     return buffer;
 }
 
-
 LPSTR ParserGetToken(parser_t *p) {
     for (; !ParserDone(p); p->str++) {
-        bool has_token = p->tok != p->token;
         if (ParserComment(p, p->str)) {
             *p->tok = '\0';
             for (; p->str[1] != '\n' && p->str[1] != '\0'; p->str++)
             p->tok = p->token;
-            if (has_token) {
+            if (p->tok != p->token) {
                 return p->token;
             }
         }
         if (ParserSpace(p, p->str)) {
-            if (has_token) {
+            if (p->tok != p->token) {
                 *p->tok = '\0';
                 p->tok = p->token;
                 return p->token;
@@ -58,7 +56,13 @@ LPSTR ParserGetToken(parser_t *p) {
             *(p->tok++) = *p->str;
         }
     }
-    return NULL;
+    if (p->tok != p->token) {
+        *p->tok = '\0';
+        p->tok = p->token;
+        return p->token;
+    } else {
+        return NULL;
+    }
 }
 
 #define MAX_INI_LINE 1024
@@ -123,7 +127,7 @@ configValue_t *FS_ParseConfig(LPCSTR fileName) {
 
 LPCSTR INI_FindValue(configValue_t *ini, LPCSTR sectionName, LPCSTR valueName) {
     FOR_EACH_LIST(configValue_t, v, ini) {
-        if (!strcmp(v->Section, sectionName) && !strcmp(v->Name, valueName))
+        if (!strcasecmp(v->Section, sectionName) && !strcasecmp(v->Name, valueName))
             return v->Value;
     }
     return NULL;

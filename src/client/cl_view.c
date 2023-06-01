@@ -123,10 +123,7 @@ void CL_PrepRefresh(void) {
     for (int i = 1; i < MAX_IMAGES && *cl.configstrings[CS_IMAGES + i]; i++) {
         if (cl.pics[i])
             continue;
-        extern configValue_t *war3skins;
-        LPCSTR filename = cl.configstrings[CS_IMAGES + i];
-        LPCSTR skin = INI_FindValue(war3skins, "Default", filename);
-        cl.pics[i] = re.LoadTexture(skin ? skin : filename);
+        cl.pics[i] = re.LoadTexture(cl.configstrings[CS_IMAGES + i]);
     }
 }
 

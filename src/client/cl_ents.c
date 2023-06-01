@@ -5,6 +5,14 @@ void CL_SelectEntity(DWORD number) {
         clientEntity_t *e = &cl.ents[entindex];
         e->selected = e->current.number == number;
     }
+//    memset(cls.netchan.message.data, 0, cls.netchan.message.maxsize);
+//    MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
+//    SZ_Printf(&cls.netchan.message, "newlayout %i", number);
+    if (number < cl.num_entities) {
+        ui.HandleEvent(&cl.ents[number].current, UI_REFRESH_CONSOLE);
+    } else {
+        ui.HandleEvent(NULL, UI_REFRESH_CONSOLE);
+    }
 }
 
 int CL_ParseEntityBits(LPSIZEBUF buf, DWORD *bits) {
@@ -26,19 +34,17 @@ LINE3 CL_GetMouseLine(DWORD pixelX, DWORD pixelY) {
     return line;
 }
 
-clientMessage_t msg = { CMD_NO_COMMAND };
-
 short GetHeightMapValue(int x, int y);
 
-void CL_AddSelectedEntitiesToMessage(clientMessage_t *msg) {
-    msg->num_entities = 0;
-    FOR_LOOP(entindex, cl.num_entities) {
-        clientEntity_t *e = &cl.ents[entindex];
-        if (e->selected) {
-            msg->entities[msg->num_entities++] = e->current.number;
-        }
-    }
-}
+//void CL_AddSelectedEntitiesToMessage(clientMessage_t *msg) {
+//    msg->num_entities = 0;
+//    FOR_LOOP(entindex, cl.num_entities) {
+//        clientEntity_t *e = &cl.ents[entindex];
+//        if (e->selected) {
+//            msg->entities[msg->num_entities++] = e->current.number;
+//        }
+//    }
+//}
 
 bool CL_ProcessEntitySelection(clientEntity_t *entity) {
     if (entity->current.player == cl.playerNumber) {
@@ -46,9 +52,9 @@ bool CL_ProcessEntitySelection(clientEntity_t *entity) {
         return true;
     }
     if (entity->current.player > 0) {
-        msg.targetentity = entity->current.number;
-        msg.cmd = CMD_ATTACK;
-        CL_AddSelectedEntitiesToMessage(&msg);
+//        msg.targetentity = entity->current.number;
+//        msg.cmd = CMD_ATTACK;
+//        CL_AddSelectedEntitiesToMessage(&msg);
         return true;
     }
     return false;
@@ -69,13 +75,13 @@ void CL_SelectEntityAtScreenPoint(DWORD pixelX, DWORD pixelY) {
         }
     }
     if (CM_IntersectLineWithHeightmap(&line, &targetorg)) {
-        msg.location.x = targetorg.x;
-        msg.location.y = targetorg.y;
-        moveConfirmation_t *mc = &cl.confs[cl.confirmationCounter++ & (MAX_CONFIRMATION_OBJECTS - 1)];
-        mc->origin = targetorg;
-        mc->timespamp = cl.time;
-        msg.cmd = CMD_MOVE;
-        CL_AddSelectedEntitiesToMessage(&msg);
+//        msg.location.x = targetorg.x;
+//        msg.location.y = targetorg.y;
+//        moveConfirmation_t *mc = &cl.confs[cl.confirmationCounter++ & (MAX_CONFIRMATION_OBJECTS - 1)];
+//        mc->origin = targetorg;
+//        mc->timespamp = cl.time;
+//        msg.cmd = CMD_MOVE;
+//        CL_AddSelectedEntitiesToMessage(&msg);
     }
 }
 

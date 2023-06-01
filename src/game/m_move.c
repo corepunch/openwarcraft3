@@ -6,7 +6,7 @@
 
 #define NAVI_THRESHOLD 50
 
-void M_ChangeAngle(LPEDICT self) {
+void M_ChangeAngle(edict_t *self) {
     VECTOR2 dir;
     if (!self->goalentity) {
         dir = Vector2_sub(&self->enemy->s.origin2, &self->s.origin2);
@@ -19,7 +19,7 @@ void M_ChangeAngle(LPEDICT self) {
 }
 
 
-bool SV_CloseEnough(LPEDICT self, LPCEDICT goal, float distance) {
+bool SV_CloseEnough(edict_t *self, edict_t const *goal, float distance) {
     if (self->enemy) {
         float between = Vector2_distance(&self->s.origin2, &self->enemy->s.origin2);
         if (between < self->unitinfo.weapon->rangeN1) {
@@ -47,12 +47,12 @@ bool SV_CloseEnough(LPEDICT self, LPCEDICT goal, float distance) {
     }
 }
 
-void SV_StepDirection(LPEDICT self, float yaw, float distance) {
+void SV_StepDirection(edict_t *self, float yaw, float distance) {
     self->s.origin.x += cos(yaw) * distance;
     self->s.origin.y += sin(yaw) * distance;
 }
 
-void M_MoveToGoal(LPEDICT self) {
+void M_MoveToGoal(edict_t *self) {
     float const distance = 10 * self->unitinfo.ui->run / FRAMETIME;
     if (SV_CloseEnough(self, self->goalentity, distance))
         return;

@@ -12,15 +12,15 @@ enum {
     RDF_NOFRUSTUMCULL = 2,
 };
 
-struct renderer_import {
+typedef struct {
     HANDLE (*FileOpen)(LPCSTR fileName);
     bool (*FileExtract)(LPCSTR toExtract, LPCSTR extracted);
-    bool (*FileClose)(HANDLE file);
+    void (*FileClose)(HANDLE file);
     HANDLE (*MemAlloc)(long size);
     void (*MemFree)(HANDLE);
     HANDLE (*ParseSheet)(LPCSTR sheetFilename, LPCSHEETLAYOUT layout, DWORD elementSize);
-    void (*error) (char *fmt, ...);
-};
+    void (*error)(LPCSTR fmt, ...);
+} refImport_t;
 
 typedef struct {
     VECTOR3 target;
@@ -62,12 +62,12 @@ typedef struct {
     DWORD rdflags;
 } viewDef_t;
 
-struct Renderer {
+typedef struct {
     void (*Init)(DWORD width, DWORD height);
     void (*Shutdown)(void);
     void (*RegisterMap)(LPCSTR mapFileName);
     void (*RenderFrame)(viewDef_t const *refDef);
-    LPTEXTURE (*LoadTexture)(LPCSTR textureFileName);
+    LPCTEXTURE (*LoadTexture)(LPCSTR textureFileName);
     model_t *(*LoadModel)(LPCSTR modelFilename);
     struct size2 (*GetWindowSize)(void);
     void (*ReleaseModel)(model_t *model);
@@ -82,8 +82,8 @@ struct Renderer {
 #ifdef DEBUG_PATHFINDING
     void (*SetPathTexture)(LPCCOLOR32 debugTexture);
 #endif
-};
+} refExport_t;
 
-struct Renderer *Renderer_Init(struct renderer_import *pImport);
+refExport_t R_GetAPI(refImport_t imp);
 
 #endif
