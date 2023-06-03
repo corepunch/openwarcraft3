@@ -70,13 +70,13 @@ typedef struct {
     DWORD flags;
     LPSTR playerName;
     VECTOR2 startingPosition;
-    DWORD allyLowPrioritiesFlags; // (bit "x"=1 --> set for player "x")
-    DWORD allyHighPrioritiesFlags; // (bit "x"=1 --> set for player "x")
+    DWORD allyLowPrioritiesFlags; // (bit "x"=1 -> set for player "x")
+    DWORD allyHighPrioritiesFlags; // (bit "x"=1 -> set for player "x")
 } mapPlayer_t;
 
 typedef struct {
     DWORD focesFlags;
-    DWORD playerMasks; // (bit "x"=1 --> player "x" is in this force)
+    DWORD playerMasks; // (bit "x"=1 -> player "x" is in this force)
     LPSTR forceName;
 } mapForce_t;
 

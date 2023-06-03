@@ -51,24 +51,24 @@ static void SP_SpawnDestructable(edict_t *edict, struct DestructableData const *
 }
 
 void SP_CallSpawn(edict_t *edict) {
-    if (!edict->class_id)
+    if (!edict->s.class_id)
         return;
     LPCDOODADS doodadInfo = NULL;
     LPCDESTRUCTABLEDATA destructableData = NULL;
     LPCUNITUI unitUI = NULL;
-    if ((doodadInfo = FindDoodads(edict->class_id))) {
+    if ((doodadInfo = FindDoodads(edict->s.class_id))) {
         SP_SpawnDoodad(edict, doodadInfo);
-    } else if ((destructableData = FindDestructableData(edict->class_id))) {
+    } else if ((destructableData = FindDestructableData(edict->s.class_id))) {
         SP_SpawnDestructable(edict, destructableData);
-    } else if ((unitUI = FindUnitUI(edict->class_id))) {
+    } else if ((unitUI = FindUnitUI(edict->s.class_id))) {
         SP_SpawnUnit(edict, unitUI);
         SP_monster_unit(edict);
     } else {
         edict->svflags |= SVF_NOCLIENT;
-//        fprintf(stderr, "Unknown id %.4s\n", (const char *)&edict->class_id);
+//        fprintf(stderr, "Unknown id %.4s\n", (const char *)&edict->s.class_id);
     }
 //    for (struct spawn *s = spawns; s->func; s++) {
-//        if (*((int const *)s->name) == edict->class_id) {
+//        if (*((int const *)s->name) == edict->s.class_id) {
 //            s->func(edict);
 //            return;
 //        }
@@ -88,7 +88,7 @@ void G_SpawnEntities(LPCDOODAD entities) {
         s->origin = doodad->position;
         s->angle = doodad->angle;
         s->scale = doodad->scale.x;
-        e->class_id = doodad->doodID;
+        e->s.class_id = doodad->doodID;
         e->variation = doodad->variation;
         s->player = doodad->player & 7;
         SP_CallSpawn(e);

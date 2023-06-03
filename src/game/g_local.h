@@ -2,9 +2,9 @@
 #define g_local_h
 
 #include "../server/game.h"
+#include "g_shared.h"
 
 #define SAFE_CALL(FUNC, ...) if (FUNC) FUNC(__VA_ARGS__)
-#define MAX_ABILITIES 16
 
 #define CMD_MOVE "CmdMove"
 #define CMD_STOP "CmdStop"
@@ -17,15 +17,6 @@
 #define CMD_PATROL "CmdPatrol"
 #define CMD_STOP "CmdStop"
 
-#define RACE_ORC "orc"
-#define RACE_HUMAN "human"
-#define RACE_UNDEAD "undead"
-#define RACE_NIGHTELF "nightelf"
-#define RACE_NAGA "naga"
-#define RACE_CREEPS "creeps"
-#define RACE_CRITTERS "critters"
-#define RACE_DEMON "demon"
-
 #define svc_bad 0
 // these ops are known to the game dll
 //    svc_muzzleflash,
@@ -33,13 +24,10 @@
 //    svc_temp_entity,
 #define svc_layout 1
 #define svc_playerinfo 2
+#define svc_inventory 3
 
 enum {
     AI_HOLD_FRAME = 1 << 0,
-};
-
-enum {
-    IS_UNIT = 1 << 0,
 };
 
 typedef enum {
@@ -74,8 +62,6 @@ typedef struct {
 typedef struct ability_s {
     LPCSTR classname;
     void (*use)(edict_t *ent, struct ability_s const *ability);
-    DWORD imageindex;
-    DWORD buttonPos[2];
 } ability_t;
 
 typedef struct {
@@ -83,7 +69,6 @@ typedef struct {
     DWORD aiflags;
     DWORD health;
     DWORD wait;
-    struct AbilityData const *abil[MAX_ABILITIES];
     struct UnitWeapons const *weapon;
     struct UnitBalance const *balance;
     struct UnitUI const *ui;
@@ -102,18 +87,13 @@ struct edict_s {
     DWORD svflags;
 
     // keep above in sync with server.h
-
-    DWORD class_id;
     DWORD variation;
     movetype_t movetype;
     handle_t heatmap;
     edict_t *goalentity;
     edict_t *enemy;
-    DWORD flags;
     bool inuse;
     animationInfo_t const *animation;
-    ability_t const *abilities[MAX_ABILITIES];
-    DWORD num_abilities;
     
     void (*prethink)(edict_t *self);
     void (*think)(edict_t *self);

@@ -136,6 +136,7 @@ typedef enum {
 
 typedef struct entityState_s {
     DWORD number; // edict index
+    DWORD class_id;
     union {
         VECTOR3 origin;
         struct { VECTOR2 origin2; float z; };
@@ -148,7 +149,7 @@ typedef struct entityState_s {
     DWORD frame;
     DWORD event;
     DWORD player;
-    BYTE commands[MAX_COMMANDS];
+    DWORD flags;
 } entityState_t;
 
 typedef struct {

@@ -32,6 +32,14 @@ void CommandButton_SelectTarget(uiCommandButton_t const *cmd) {
     CommandBar_SetMode(CBAR_SELECT_TARGET);
 }
 
+void CommandButton_Build(uiCommandButton_t const *cmd) {
+    CommandBar_SetMode(CBAR_SHOW_BUILDS);
+}
+
+void CommandButton_Stop(uiCommandButton_t const *cmd) {
+
+}
+
 uiFrameDef_t *UI_MakeCommandButton(void) {
     uiFrameDef_t *frame = imp.MemAlloc(sizeof(uiFrameDef_t));
     frame->typedata = imp.MemAlloc(sizeof(uiCommandButton_t));
@@ -40,34 +48,3 @@ uiFrameDef_t *UI_MakeCommandButton(void) {
     frame->mouseHandler[UI_LEFT_MOUSE_UP] = CommandButton_LeftMouseUp;
     return frame;
 }
-
-DWORD UI_CommandButtonPosition(BYTE item) {
-    LPCSTR classname = imp.GetConfigString(CS_ITEMS + item);
-    if (!classname) return -1;
-    LPCSTR buttonpos = UI_FindConfigValue(classname, "buttonpos");
-    if (!buttonpos) return -1;
-    DWORD x = 0, y = 0;
-    sscanf(buttonpos, "%d,%d", &x, &y);
-    return x + y * COMMANDBAR_COLUMNS;
-}
-
-LPCTEXTURE UI_LoadItemTexture(BYTE item) {
-    LPCSTR classname = imp.GetConfigString(CS_ITEMS + item);
-    if (!classname) return NULL;
-    LPCSTR art = UI_FindConfigValue(classname, "art");
-    if (!art) return NULL;
-    if (!strstr(art, "\\")) {
-        art = imp.FindConfigValue(ui.theme, "Default", art);
-    }
-    if (!art) return NULL;
-    return imp.LoadTexture(art);
-}
-
-LPCTEXTURE UI_GetItemTexture(BYTE item) {
-    if (ui.item_textures[item]) {
-        return ui.item_textures[item];
-    } else {
-        return (ui.item_textures[item] = UI_LoadItemTexture(item));
-    }
-}
-

@@ -1,7 +1,5 @@
 #include "ui_local.h"
 
-
-
 bool UI_HandleMouseEvent(LPCVECTOR2 mouse, uiMouseEvent_t event, uiFrameDef_t *frame) {
     if (frame->children) {
         FOR_EACH_LIST(uiFrameDef_t, child, frame->children) {

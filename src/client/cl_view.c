@@ -17,9 +17,13 @@ void Matrix4_fromViewAngles(LPCVECTOR3 target, LPCVECTOR3 angles, float distance
 }
 
 void Matrix4_getLightMatrix(LPCVECTOR3 sunangles, LPCVECTOR3 target, float scale, LPMATRIX4 output) {
-    MATRIX4 proj, view;
+    MATRIX4 proj, view, tmp1, tmp2;
     Matrix4_ortho(&proj, -scale, scale, -scale, scale, 100.0, 3500.0);
-    Matrix4_fromViewAngles(target, sunangles, 1000, &view);
+    Matrix4_identity(&tmp1);
+    Matrix4_rotate(&tmp1, &(VECTOR3){0,0,45}, ROTATE_XYZ);
+    Matrix4_fromViewAngles(target, sunangles, 1000, &tmp2);
+    Matrix4_multiply(&tmp1, &tmp2, &view);
+    Matrix4_translate(&view, &(VECTOR3){0,-500,0});
     Matrix4_multiply(&proj, &view, output);
 }
 
@@ -83,6 +87,30 @@ static void CL_AddConfirmationObject(moveConfirmation_t const *mc) {
     view_state.entities[view_state.num_entities++] = re;
 }
 
+int px, py;
+
+LINE3 CL_GetMouseLine(DWORD pixelX, DWORD pixelY);
+
+static void CL_AddBuilding(void) {
+    renderEntity_t re;
+    memset(&re, 0, sizeof(renderEntity_t));
+    re.origin = cl.viewDef.camera.target;
+    re.scale = 1;
+    re.frame = 200000;
+    re.oldframe = 200000;
+    re.model = cl.models[32];
+    
+    LINE3 const line = CL_GetMouseLine(px, py);
+    CM_IntersectLineWithHeightmap(&line, &re.origin);
+    
+    re.origin.x = floor(re.origin.x / 32) * 32;
+    re.origin.y = floor(re.origin.y / 32) * 32;
+    
+    re.origin.z = CM_GetHeightAtPoint(re.origin.x, re.origin.y);
+
+    view_state.entities[view_state.num_entities++] = re;
+}
+
 static void CL_AddEntities(void) {
     cl.viewDef.lerpfrac = (float)(cl.time - cl.frame.servertime) / FRAMETIME;
 
@@ -92,6 +120,8 @@ static void CL_AddEntities(void) {
             continue;
         V_AddClientEntity(ce);
     }
+    
+    CL_AddBuilding();
 
     FOR_LOOP(index, MAX_CONFIRMATION_OBJECTS) {
         if (cl.time - cl.confs[index].timespamp > 1000)

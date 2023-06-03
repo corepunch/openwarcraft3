@@ -91,7 +91,7 @@ void SV_InitGameProgs(void) {
     import.GetFlowDirection = get_flow_direction;
     import.error = PF_error;
     import.configstring = PF_Configstring;
-    
+    import.ParserGetToken = ParserGetToken;
     import.WriteByte = PF_WriteByte;
     import.WriteShort = PF_WriteShort;
     import.WriteLong = PF_WriteLong;

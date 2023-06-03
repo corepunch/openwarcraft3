@@ -2,12 +2,22 @@
 
 #include "ui_local.h"
 
+#define SERVERCOMMAND(NAME) void CMD_##NAME(DWORD argc, LPCSTR argv[])
+
 typedef struct {
     LPCSTR name;
     void (*func)(DWORD argc, LPCSTR argv[]);
 } serverCommand_t;
 
+SERVERCOMMAND(Inventory) {
+    if (argc > 1) {
+        strcpy(ui.selected.abilities, argv[1]);
+    }
+    CommandBar_SetMode(CBAR_SHOW_ABILITIES);
+}
+
 serverCommand_t serverCommands[] = {
+    { "inventory", CMD_Inventory },
     { NULL }
 };
 

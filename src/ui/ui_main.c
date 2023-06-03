@@ -5,12 +5,14 @@ uiImport_t imp;
 uiLocal_t ui;
 
 void UI_Init(void) {
+    memset(&ui, 0, sizeof(uiLocal_t));
+    memset(&portrait, 0, sizeof(uiPortrait_t));
+
     UI_InitConfigFiles();
     
     ui.theme = imp.ParseConfig("UI\\war3skins.txt");
     ui.simpleConsole = FDF_ParseFile("UI\\FrameDef\\UI\\ConsoleUI.fdf");
     UI_FrameAddChild(ui.simpleConsole, UI_MakeCommandBar(ui.simpleConsole));
-    memset(&portrait, 0, sizeof(uiPortrait_t));
     
     ui.btnCancel = imp.LoadTexture(imp.FindConfigValue(ui.theme, "Default", "CommandCancel"));
 }

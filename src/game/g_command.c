@@ -2,6 +2,7 @@
 
 #include "g_local.h"
 
+#include "Units/UnitAbilities.h"
 #include "Units/AbilityData.h"
 //
 //static void G_ClientCommandMove(clientMessage_t const *clientMessage) {
@@ -46,7 +47,10 @@
 
 #define CLIENTCOMMAND(NAME) void CMD_##NAME(edict_t *ent, DWORD argc, LPCSTR argv[])
 
-CLIENTCOMMAND(NewLayout) {
+CLIENTCOMMAND(Move) {
+}
+
+CLIENTCOMMAND(Inventory) {
     if (argc < 2)
         return;
     char string[1024] = { 0 };
@@ -55,12 +59,13 @@ CLIENTCOMMAND(NewLayout) {
         return;
     gi.WriteByte(svc_layout);
     edict_t *e = &game_state.edicts[entity_id];
-    ability_t const *a = NULL;
-    sprintf(string, "commandbar");
-    FOR_LOOP(i, MAX_ABILITIES) {
-        if ((a = e->abilities[i])) {
-            DWORD const pos = a->buttonPos[1] * 4 + a->buttonPos[0];
-            sprintf(string + strlen(string), " %i %i", pos, a->imageindex);
+    sprintf(string, "inventory ");
+    PARSE_LIST(e->unitinfo.abilities->abilList, abil, gi.ParserGetToken) {
+        struct AbilityData const *adata = FindAbilityData(*(DWORD const*)abil);
+        if (adata) {
+            sprintf(string + strlen(string), "%.4s,", (LPCSTR)&adata->code);
+        } else {
+            gi.error("Can't find ability %s", abil);
         }
     }
     gi.WriteString(string);
@@ -73,7 +78,8 @@ typedef struct {
 } clientCommand_t;
 
 clientCommand_t clientCommands[] = {
-    { "newlayout", CMD_NewLayout },
+    { "inventory", CMD_Inventory },
+    { "move", CMD_Move },
     { NULL }
 };
 

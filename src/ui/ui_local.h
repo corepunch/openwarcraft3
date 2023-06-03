@@ -2,6 +2,7 @@
 #define ui_local_h
 
 #include "../client/ui.h"
+#include "../game/g_shared.h"
 
 #define UI_SCALE 1000
 #define MAX_FRAME_POINTS 8
@@ -12,6 +13,7 @@
 #define COMMAND_BUTTON_SIZE 0.039
 #define COMMANDBAR_FRAME_WIDTH 0.1745
 #define COMMANDBAR_FRAME_HEIGHT 0.1290
+#define MAX_INVENTORY 64
 
 typedef char uiName_t[80];
 typedef struct uiFrameDef_s uiFrameDef_t;
@@ -81,6 +83,7 @@ typedef enum {
 
 typedef enum {
     CBAR_SHOW_ABILITIES,
+    CBAR_SHOW_BUILDS,
     CBAR_SELECT_TARGET,
 } uiCommandBarMode_t;
 
@@ -126,13 +129,23 @@ struct uiFrameDef_s {
     uiMouseEventHandler_t mouseHandler[NUM_UI_MOUSE_EVENTS];
 };
 
+typedef char itemName_t[16];
+
+typedef struct {
+    itemName_t name;
+    LPCTEXTURE texture;
+} itemTexture_t;
+
 typedef struct {
     uiFrameDef_t *simpleConsole;
     uiFrameDef_t *commandBar;
     configValue_t *theme;
     entityState_t const *selectedEntities[MAX_SELECTED_ENTITIES];
     uiCommandBarMode_t commandBarMode;
-    LPCTEXTURE item_textures[MAX_ITEMS];
+    itemTexture_t item_textures[MAX_ITEMS];
+    struct {
+        PATHSTR abilities;
+    } selected;
     LPCTEXTURE btnCancel;
 } uiLocal_t;
 
@@ -148,11 +161,14 @@ void CommandBar_SetMode(uiCommandBarMode_t mode);
 // ui_commandbutton.c
 void CommandButton_SelectTarget(uiCommandButton_t const *cmd);
 void CommandButton_Cancel(uiCommandButton_t const *cmd);
+void CommandButton_Build(uiCommandButton_t const *cmd);
+void CommandButton_Stop(uiCommandButton_t const *cmd);
 uiFrameDef_t *UI_MakeCommandButton(void);
-DWORD UI_CommandButtonPosition(BYTE item);
-LPCTEXTURE UI_LoadItemTexture(BYTE item);
-LPCTEXTURE UI_GetItemTexture(BYTE item);
 
+// ui_item.c
+DWORD UI_CommandButtonPosition(LPCSTR classname);
+LPCTEXTURE UI_LoadItemTexture(LPCSTR classname);
+LPCTEXTURE UI_GetItemTexture(LPCSTR classname);
 
 // ui_texture.c
 uiFrameDef_t *UI_MakeTextureFrame(void);
@@ -171,8 +187,6 @@ void SetFramePoint(uiFrameDef_t *frame,
 
 // ui_servercmds.c
 void UI_ServerCommand(DWORD argc, LPCSTR argv[]);
-LPCTEXTURE UI_GetItemTexture(BYTE item);
-DWORD UI_CommandButtonPosition(BYTE item);
 
 // ui_config.c
 void UI_InitConfigFiles(void);

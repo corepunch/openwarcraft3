@@ -48,7 +48,8 @@ struct game_import {
     handle_t (*BuildHeatmap)(LPCVECTOR2 target);
     VECTOR2 (*GetFlowDirection)(DWORD heatmapindex, float fx, float fy);
     float (*GetHeightAtPoint)(float x, float y);
-    
+    LPSTR (*ParserGetToken)(parser_t *p);
+
     void (*multicast)(LPCVECTOR3 origin, multicast_t to);
     void (*unicast)(edict_t *ent);
     void (*WriteByte)(int c);

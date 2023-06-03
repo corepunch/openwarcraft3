@@ -5,9 +5,11 @@ void CL_SelectEntity(DWORD number) {
         clientEntity_t *e = &cl.ents[entindex];
         e->selected = e->current.number == number;
     }
-//    memset(cls.netchan.message.data, 0, cls.netchan.message.maxsize);
-//    MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
-//    SZ_Printf(&cls.netchan.message, "newlayout %i", number);
+    
+    memset(cls.netchan.message.data, 0, cls.netchan.message.maxsize);
+    MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
+    SZ_Printf(&cls.netchan.message, "inventory %i", number);
+    
     if (number < cl.num_entities) {
         ui.HandleEvent(&cl.ents[number].current, UI_REFRESH_CONSOLE);
     } else {

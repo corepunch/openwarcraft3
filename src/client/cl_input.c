@@ -5,6 +5,7 @@
 void CL_Input(void) {
     static int button;
     static int moved = false;
+    extern int px, py;
     SDL_Event event;
     while(SDL_PollEvent(&event))
     {
@@ -43,6 +44,8 @@ void CL_Input(void) {
                 }
                 break;
             case SDL_MOUSEMOTION:
+                px = event.motion.x;
+                py = event.motion.y;
                 switch (button) {
                     case 3:
                         cl.selection.inProgress = true;

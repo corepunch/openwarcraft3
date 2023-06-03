@@ -36,6 +36,7 @@ enum svc_ops {
 //    svc_temp_entity,
     svc_layout,
     svc_playerinfo,
+    svc_inventory,
 
 // the rest are private to the client and server
 //    svc_nop,

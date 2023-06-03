@@ -80,6 +80,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		782D49972A29DEB6007793C7 /* g_shared.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = g_shared.h; sourceTree = "<group>"; };
 		78314AE32A2724A300062C4B /* g_config.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = g_config.c; sourceTree = "<group>"; };
 		7866305F2A188F4800266A62 /* g_phys.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = g_phys.c; sourceTree = "<group>"; };
 		786630642A18BFAC00266A62 /* g_ai.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = g_ai.c; sourceTree = "<group>"; };
@@ -266,6 +267,7 @@
 				786637C02A1BE9A800266A62 /* m_move.c */,
 				78A8966E2A15F7D600BC5B56 /* m_unit.c */,
 				78A896682A15F7D600BC5B56 /* g_local.h */,
+				782D49972A29DEB6007793C7 /* g_shared.h */,
 				786637B62A1A5B6200266A62 /* warcraftdoc.txt */,
 				7866373E2A1A4D0200266A62 /* Doodads */,
 				78E91BFC2A169771003D9F3A /* Frameworks */,

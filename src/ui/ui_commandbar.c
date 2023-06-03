@@ -19,15 +19,43 @@ void CommandBar_Clear(void) {
     }
 }
 
-static void CommandBar_Abilities(entityState_t const *ent) {
-    FOR_LOOP(index, NUM_COMMANDBAR_CELLS) {
-        BYTE item = ent ? ent->commands[index] : 0;
-        BYTE buttonpos = UI_CommandButtonPosition(item);
-        if (buttonpos >= NUM_COMMANDBAR_CELLS)
-            continue;
-        uiCommandButton_t *cmd = UI_GetCommandButton(buttonpos);
-        cmd->Texture = UI_GetItemTexture(item);
-        cmd->click = CommandButton_SelectTarget;
+static void CommandBar_AddButton(LPCSTR class_name, void (*callback)(uiCommandButton_t const *)) {
+    BYTE buttonpos = UI_CommandButtonPosition(class_name);
+    if (buttonpos >= NUM_COMMANDBAR_CELLS) {
+        imp.error("No BUTTONPOS for %s", class_name);
+        return;
+    }
+    uiCommandButton_t *cmd = UI_GetCommandButton(buttonpos);
+    cmd->Texture = UI_GetItemTexture(class_name);
+    cmd->click = callback;
+}
+
+static LPCSTR GetBuildCommand(unitRace_t race) {
+    switch (race) {
+        case RACE_HUMAN: return STR_CmdBuildHuman;
+        case RACE_ORC: return STR_CmdBuildOrc;
+        case RACE_UNDEAD: return STR_CmdBuildUndead;
+        case RACE_NIGHTELF: return STR_CmdBuildNightElf;
+        default: return STR_CmdBuild;
+    }
+}
+
+static void CommandBar_Abilities() {
+    entityState_t const *ent = UI_MainSelectedEntity();
+    if (ent->flags & EF_CAN_MOVE) {
+        CommandBar_AddButton(STR_CmdMove, CommandButton_SelectTarget);
+        CommandBar_AddButton(STR_CmdHoldPos, CommandButton_SelectTarget);
+        CommandBar_AddButton(STR_CmdPatrol, CommandButton_SelectTarget);
+        CommandBar_AddButton(STR_CmdStop, CommandButton_Stop);
+    }
+    if (ent->flags & EF_CAN_ATTACK) {
+        CommandBar_AddButton(STR_CmdAttack, CommandButton_SelectTarget);
+    }
+    if (UI_FindConfigValue(UI_GetClassName(ent->class_id), STR_BUILDS)) {
+        CommandBar_AddButton(GetBuildCommand(UNIT_RACE(ent)), CommandButton_Build);
+    }
+    PARSE_LIST(ui.selected.abilities, ability, imp.ParserGetToken) {
+        CommandBar_AddButton(ability, CommandButton_SelectTarget);
     }
 }
 
@@ -37,17 +65,39 @@ static void CommandBar_Cancel() {
     cmd->click = CommandButton_Cancel;
 }
 
+
+static void CommandBar_Build() {
+    entityState_t const *ent = UI_MainSelectedEntity();
+    LPCSTR builds = UI_FindConfigValue(UI_GetClassName(ent->class_id), STR_BUILDS);
+    PARSE_LIST(builds, item, imp.ParserGetToken) {
+        BYTE buttonpos = UI_CommandButtonPosition(item);
+        if (buttonpos >= NUM_COMMANDBAR_CELLS)
+            continue;
+        uiCommandButton_t *cmd = UI_GetCommandButton(buttonpos);
+        cmd->Texture = UI_GetItemTexture(item);
+        cmd->click = CommandButton_SelectTarget;
+    }
+    CommandBar_Cancel();
+}
+
 void CommandBar_SetMode(uiCommandBarMode_t mode) {
     CommandBar_Clear();
 
     ui.commandBarMode = mode;
 
+    if (UI_MainSelectedEntity() == NULL) {
+        return;
+    }
+    
     switch (mode) {
         case CBAR_SHOW_ABILITIES:
-            CommandBar_Abilities(UI_MainSelectedEntity());
+            CommandBar_Abilities();
             break;
         case CBAR_SELECT_TARGET:
             CommandBar_Cancel();
+            break;
+        case CBAR_SHOW_BUILDS:
+            CommandBar_Build();
             break;
     }
 }

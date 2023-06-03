@@ -20,9 +20,8 @@ netField_t entityStateFields[] = {
     { NETF(model), 16 },
     { NETF(image), 16 },
     { NETF(player), 8 },
-    { NETF(commands[0]), 32 },
-    { NETF(commands[4]), 32 },
-    { NETF(commands[8]), 32 },
+    { NETF(class_id), 32 },
+    { NETF(flags), 32 },
     { NULL }
 };
 

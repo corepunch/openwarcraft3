@@ -62,68 +62,17 @@ void monster_start(edict_t *self) {
     }
 }
 
-void M_AddAbility(edict_t *self, LPCSTR classname) {
-    ability_t *ability = FindAbilityByClassname(classname);
-    if (!ability)
-        return;
-    LPCSTR str = NULL;
-    if ((str = FindConfigValue(classname, "Art"))) {
-        ability->imageindex = gi.ImageIndex(str);
-    }
-    if ((str = FindConfigValue(classname, "buttonpos"))) {
-        sscanf(str, "%d,%d", &ability->buttonPos[0], &ability->buttonPos[1]);
-    }
-    self->abilities[self->num_abilities++] = ability;
-    
-    FOR_LOOP(i, MAX_ABILITIES) {
-        if (self->s.commands[i] != 0)
-            continue;
-        self->s.commands[i] = FindAbilityIndex(classname);
-        break;
-    }
-}
-
-void M_AddDefaultAbilityMove(edict_t *self) {
-    if (self->unitinfo.ui->run > 0) {
-        M_AddAbility(self, CMD_MOVE);
-    }
-}
-
-void M_AddDefaultAbilityBuild(edict_t *self) {
-    LPCSTR builds = FindConfigValue(GetClassName(self->class_id), "builds");
-    if (builds && *builds) {
-        if (!strcmp(self->unitinfo.data->race, RACE_HUMAN)) {
-            M_AddAbility(self, CMD_BUILD_HUMAN);
-        }
-        if (!strcmp(self->unitinfo.data->race, RACE_ORC)) {
-            M_AddAbility(self, CMD_BUILD_ORC);
-        }
-    }
-}
-
-void M_AddDefaultAbilityAttack(edict_t *self) {
-    M_AddAbility(self, CMD_ATTACK);
-}
-
-void M_AddDefaultAbilityPatrol(edict_t *self) {
-    M_AddAbility(self, CMD_PATROL);
-}
-
-void M_AddDefaultAbilityHoldPosition(edict_t *self) {
-    M_AddAbility(self, CMD_HOLDPOS);
-}
-
-void M_AddDefaultAbilityStop(edict_t *self) {
-    M_AddAbility(self, CMD_STOP);
-}
-
-void M_AddDefaultAbilities(edict_t *self) {
-    M_AddDefaultAbilityMove(self);
-    M_AddDefaultAbilityStop(self);
-    M_AddDefaultAbilityBuild(self);
-    M_AddDefaultAbilityAttack(self);
-    M_AddDefaultAbilityPatrol(self);
-    M_AddDefaultAbilityHoldPosition(self);
+unitRace_t M_GetRace(LPCSTR string) {
+    if (!strcmp(string, STR_HUMAN)) return RACE_HUMAN;
+    if (!strcmp(string, STR_ORC)) return RACE_ORC;
+    if (!strcmp(string, STR_UNDEAD)) return RACE_UNDEAD;
+    if (!strcmp(string, STR_NIGHTELF)) return RACE_NIGHTELF;
+    if (!strcmp(string, STR_DEMON)) return RACE_DEMON;
+    if (!strcmp(string, STR_CREEPS)) return RACE_CREEPS;
+    if (!strcmp(string, STR_CRITTERS)) return RACE_CRITTERS;
+    if (!strcmp(string, STR_OTHER)) return RACE_OTHER;
+    if (!strcmp(string, STR_COMMONER)) return RACE_COMMONER;
+    return RACE_UNKNOWN;
 }
 
 void M_ParseData(edict_t *self, struct UnitData const* data) {
@@ -138,16 +87,6 @@ void M_ParseBalance(edict_t *self, struct UnitBalance const* data) {
 
 void M_ParseAbilities(edict_t *self, struct UnitAbilities const* data) {
     if (!data) return;
-    DWORD slot = 0;
-//    printf("%.4s\n", &self->class_id);
-    for (LPCSTR abil = data->abilList; abil; abil = strstr(abil+1, ",")) {
-        DWORD abil_id = *(DWORD *)(*abil == ',' ? abil + 1 : abil);
-        struct AbilityData const *ability = FindAbilityData(abil_id);
-        if (ability) {
-            M_AddAbility(self, GetClassName(ability->code));
-            self->unitinfo.abil[slot++] = ability;
-        }
-    }
     self->unitinfo.abilities = data;
 }
 
@@ -161,17 +100,23 @@ void M_ParseUnitUI(edict_t *self, struct UnitUI const *data) {
     sprintf(buffer, "%s.mdx", data->file);
     self->s.model = gi.ModelIndex(buffer);
     self->s.scale = data->modelScale;
-    self->flags |= data->isbldg ? 0 : IS_UNIT;
+    self->s.flags |= data->isbldg ? 0 : EF_IS_UNIT;
     self->unitinfo.ui = data;
+}
+
+void M_SetFlags(edict_t *self) {
+    if (self->unitinfo.ui->run > 0) self->s.flags |= EF_CAN_MOVE;
+    if (self->unitinfo.weapon) self->s.flags |= EF_CAN_ATTACK;
+    self->s.flags |= M_GetRace(self->unitinfo.data->race) << RACE_BIT;
 }
 
 void SP_SpawnUnit(edict_t *self, struct UnitUI const *unit) {
     M_ParseUnitUI(self, unit);
-    M_ParseAbilities(self, FindUnitAbilities(self->class_id));
-    M_ParseBalance(self, FindUnitBalance(self->class_id));
-    M_ParseWeapon(self, FindUnitWeapons(self->class_id));
-    M_ParseData(self, FindUnitData(self->class_id));
-    M_AddDefaultAbilities(self);
+    M_ParseAbilities(self, FindUnitAbilities(self->s.class_id));
+    M_ParseBalance(self, FindUnitBalance(self->s.class_id));
+    M_ParseWeapon(self, FindUnitWeapons(self->s.class_id));
+    M_ParseData(self, FindUnitData(self->s.class_id));
+    M_SetFlags(self);
 
     self->think = monster_think;
 }

@@ -329,15 +329,16 @@ bool CM_IntersectLineWithHeightmap(LPCLINE3 _line, LPVECTOR3 output) {
         .a = CM_PointIntoHeightmap(&_line->a),
         .b = CM_PointIntoHeightmap(&_line->b),
     };
+    
     FOR_LOOP(x, world.map->width) {
         FOR_LOOP(y, world.map->height) {
             TRIANGLE3 const tri1 = {
                 { x, y, CM_GetHeightMapValue(x, y) },
                 { x+1, y, CM_GetHeightMapValue(x+1, y) },
-                { x+1, y+1, CM_GetHeightMapValue(x, y+1) },
+                { x+1, y+1, CM_GetHeightMapValue(x+1, y+1) },
             };
             TRIANGLE3 const tri2 = {
-                { x+1, y+1, CM_GetHeightMapValue(x, y+1) },
+                { x+1, y+1, CM_GetHeightMapValue(x+1, y+1) },
                 { x, y+1, CM_GetHeightMapValue(x, y+1) },
                 { x, y, CM_GetHeightMapValue(x, y) },
             };

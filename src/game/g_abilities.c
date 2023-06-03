@@ -31,6 +31,7 @@ ABILITY(Stop) {
 
 static ability_t abilitylist[] = {
     { NULL },    // leave index 0 alone
+
     { CMD_MOVE, M_Move, },
     { CMD_ATTACK, M_Attack, },
     { CMD_BUILD_HUMAN, M_Build, },

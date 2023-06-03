@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		782D49962A291D34007793C7 /* ui_item.c in Sources */ = {isa = PBXBuildFile; fileRef = 782D49952A291D34007793C7 /* ui_item.c */; };
 		78314B032A273A2500062C4B /* ui_main.c in Sources */ = {isa = PBXBuildFile; fileRef = 78314AFF2A273A2500062C4B /* ui_main.c */; };
 		78314B042A273A2500062C4B /* ui_local.h in Headers */ = {isa = PBXBuildFile; fileRef = 78314B002A273A2500062C4B /* ui_local.h */; };
 		78314B052A273A2500062C4B /* ui_commandbar.c in Sources */ = {isa = PBXBuildFile; fileRef = 78314B012A273A2500062C4B /* ui_commandbar.c */; };
@@ -21,6 +22,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		782D49952A291D34007793C7 /* ui_item.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = ui_item.c; sourceTree = "<group>"; };
 		78314AF22A273A0500062C4B /* libui.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; includeInIndex = 0; path = libui.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
 		78314AFF2A273A2500062C4B /* ui_main.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = ui_main.c; sourceTree = "<group>"; };
 		78314B002A273A2500062C4B /* ui_local.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ui_local.h; sourceTree = "<group>"; };
@@ -55,6 +57,7 @@
 				78314B132A28B8E600062C4B /* ui_config.c */,
 				78314B0F2A27D73A00062C4B /* ui_frame.c */,
 				78314B152A28C41F00062C4B /* ui_input.c */,
+				782D49952A291D34007793C7 /* ui_item.c */,
 				78314AFF2A273A2500062C4B /* ui_main.c */,
 				78314B022A273A2500062C4B /* ui_parser.c */,
 				78314B112A2888AF00062C4B /* ui_servercmds.c */,
@@ -153,6 +156,7 @@
 				78314B052A273A2500062C4B /* ui_commandbar.c in Sources */,
 				78314B212A29188000062C4B /* ui_commandbutton.c in Sources */,
 				78314B122A2888AF00062C4B /* ui_servercmds.c in Sources */,
+				782D49962A291D34007793C7 /* ui_item.c in Sources */,
 				78314B032A273A2500062C4B /* ui_main.c in Sources */,
 				78314B062A273A2500062C4B /* ui_parser.c in Sources */,
 				78314B0C2A27C28300062C4B /* ui_texture.c in Sources */,

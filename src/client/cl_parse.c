@@ -16,6 +16,7 @@ static void CL_ReadPacketEntities(LPSIZEBUF msg) {
 static void CL_ParseConfigString(LPSIZEBUF msg) {
     int const index = MSG_ReadShort(msg);
     MSG_ReadString(msg, cl.configstrings[index]);
+//    printf("%d %s\n", index, cl.configstrings[index]);
 }
 
 static void CL_ParseBaseline(LPSIZEBUF msg) {
@@ -39,6 +40,13 @@ void CL_ParsePlayerInfo(LPSIZEBUF msg) {
     MSG_Read(msg, &cl.playerNumber, sizeof(DWORD));
     MSG_Read(msg, &cl.viewDef.camera.target, sizeof(VECTOR2));
     cl.viewDef.camera.target.z = 0;
+}
+
+void CL_ParseInventory(LPSIZEBUF msg) {
+    DWORD num_inventory = MSG_ReadShort(msg);
+    FOR_LOOP(i, num_inventory) {
+        DWORD item = MSG_ReadLong(msg);
+    }
 }
 
 void CL_ParseLayout(LPSIZEBUF msg) {
@@ -80,6 +88,9 @@ void CL_ParseServerMessage(LPSIZEBUF msg) {
                 break;
             case svc_layout:
                 CL_ParseLayout(msg);
+                break;
+            case svc_inventory:
+                CL_ParseInventory(msg);
                 break;
             default:
                 fprintf(stderr, "Unknown message %d\n", pack_id);
