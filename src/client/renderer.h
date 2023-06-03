@@ -40,7 +40,7 @@ typedef struct {
 typedef struct {
     VECTOR3 origin;
     model_t const *model;
-    LPTEXTURE skin;
+    LPCTEXTURE skin;
     DWORD team;
     DWORD frame;
     DWORD oldframe;

@@ -50,15 +50,15 @@ static void R_MakeTile(LPCWAR3MAP map, DWORD x, DWORD y, DWORD ground, LPCTEXTUR
         GetTileDepth(waterlevel[3], h[3]),
     };
 
-    VECTOR2 const tilecenter = {
-        map->center.x + (x + 0.5) * TILESIZE,
-        map->center.y + (y + 0.5) * TILESIZE,
-    };
-
-    p[0] = Vector2_lerp(&p[0], &tilecenter, 0.025);
-    p[1] = Vector2_lerp(&p[1], &tilecenter, 0.025);
-    p[2] = Vector2_lerp(&p[2], &tilecenter, 0.025);
-    p[3] = Vector2_lerp(&p[3], &tilecenter, 0.025);
+//    VECTOR2 const tilecenter = {
+//        map->center.x + (x + 0.5) * TILESIZE,
+//        map->center.y + (y + 0.5) * TILESIZE,
+//    };
+//
+//    p[0] = Vector2_lerp(&p[0], &tilecenter, 0.025);
+//    p[1] = Vector2_lerp(&p[1], &tilecenter, 0.025);
+//    p[2] = Vector2_lerp(&p[2], &tilecenter, 0.025);
+//    p[3] = Vector2_lerp(&p[3], &tilecenter, 0.025);
 
     struct vertex geom[] = {
         {

@@ -85,6 +85,7 @@ typedef enum {
     CBAR_SHOW_ABILITIES,
     CBAR_SHOW_BUILDS,
     CBAR_SELECT_TARGET,
+    CBAR_SELECT_BUILD_LOCATION,
 } uiCommandBarMode_t;
 
 typedef struct {
@@ -102,6 +103,7 @@ typedef struct uiTextureDef_s {
 
 typedef struct uiCommandButton_s {
     LPCTEXTURE Texture;
+    uiName_t Command;
     void (*click)(struct uiCommandButton_s const *cmd);
 } uiCommandButton_t;
 
@@ -129,10 +131,8 @@ struct uiFrameDef_s {
     uiMouseEventHandler_t mouseHandler[NUM_UI_MOUSE_EVENTS];
 };
 
-typedef char itemName_t[16];
-
 typedef struct {
-    itemName_t name;
+    uiName_t name;
     LPCTEXTURE texture;
 } itemTexture_t;
 
@@ -159,6 +159,7 @@ uiCommandButton_t *UI_GetCommandButton(DWORD index);
 void CommandBar_SetMode(uiCommandBarMode_t mode);
 
 // ui_commandbutton.c
+void CommandButton_SelectBuildLocation(uiCommandButton_t const *cmd);
 void CommandButton_SelectTarget(uiCommandButton_t const *cmd);
 void CommandButton_Cancel(uiCommandButton_t const *cmd);
 void CommandButton_Build(uiCommandButton_t const *cmd);

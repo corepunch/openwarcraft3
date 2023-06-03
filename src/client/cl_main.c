@@ -24,6 +24,12 @@ LPCTEXTURE CL_GetTextureByIndex(DWORD index) {
     return cl.pics[index];
 }
 
+void CL_ClientCommand(LPCSTR cmd) {
+    memset(cls.netchan.message.data, 0, cls.netchan.message.maxsize);
+    MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
+    SZ_Printf(&cls.netchan.message, "%s", cmd);
+}
+
 void CL_Init(void) {
     CON_printf("OpenWarcraft3 v0.1");
 
@@ -54,6 +60,7 @@ void CL_Init(void) {
         .LoadModel = re.LoadModel,
         .DrawPortrait = re.DrawPortrait,
         .DrawImage = re.DrawImage,
+        .ClienCommand = CL_ClientCommand,
         .error = CON_printf,
     });
 

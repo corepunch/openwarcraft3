@@ -52,7 +52,7 @@ void MSG_WriteFloat(LPSIZEBUF buf, float value) {
     MSG_Write(buf, &value, 4);
 }
 
-void MSG_WriteString(LPSIZEBUF buf, const LPSTR value) {
+void MSG_WriteString(LPSIZEBUF buf, LPCSTR value) {
     MSG_Write(buf, value, (int)strlen(value) + 1);
 }
 

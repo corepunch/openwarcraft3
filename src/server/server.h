@@ -12,6 +12,15 @@
 KNOWN_AS(client_frame, CLIENTFRAME);
 KNOWN_AS(client, CLIENT);
 
+typedef enum {
+    ss_dead, // no map loaded
+    ss_loading, // spawning level edicts
+    ss_game, // actively running
+    ss_cinematic,
+    ss_demo,
+    ss_pic
+} serverState_t;
+
 struct gclient_s {
     playerState_t ps; // communicated by server to clients
     int ping;
@@ -73,6 +82,7 @@ struct cmodel {
 };
 
 extern struct server {
+    serverState_t state;
     PATHSTR name;
     PATHSTR configstrings[MAX_CONFIGSTRINGS];
     struct cmodel *models[MAX_MODELS];

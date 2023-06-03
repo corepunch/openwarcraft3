@@ -26,6 +26,7 @@ static void CommandBar_AddButton(LPCSTR class_name, void (*callback)(uiCommandBu
         return;
     }
     uiCommandButton_t *cmd = UI_GetCommandButton(buttonpos);
+    strcpy(cmd->Command, class_name);
     cmd->Texture = UI_GetItemTexture(class_name);
     cmd->click = callback;
 }
@@ -65,7 +66,6 @@ static void CommandBar_Cancel() {
     cmd->click = CommandButton_Cancel;
 }
 
-
 static void CommandBar_Build() {
     entityState_t const *ent = UI_MainSelectedEntity();
     LPCSTR builds = UI_FindConfigValue(UI_GetClassName(ent->class_id), STR_BUILDS);
@@ -74,8 +74,9 @@ static void CommandBar_Build() {
         if (buttonpos >= NUM_COMMANDBAR_CELLS)
             continue;
         uiCommandButton_t *cmd = UI_GetCommandButton(buttonpos);
+        strcpy(cmd->Command, item);
         cmd->Texture = UI_GetItemTexture(item);
-        cmd->click = CommandButton_SelectTarget;
+        cmd->click = CommandButton_SelectBuildLocation;
     }
     CommandBar_Cancel();
 }
@@ -98,6 +99,9 @@ void CommandBar_SetMode(uiCommandBarMode_t mode) {
             break;
         case CBAR_SHOW_BUILDS:
             CommandBar_Build();
+            break;
+        case CBAR_SELECT_BUILD_LOCATION:
+            CommandBar_Cancel();
             break;
     }
 }

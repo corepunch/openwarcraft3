@@ -12,11 +12,13 @@ void SV_CreateBaseline(void) {
 void SV_Map(LPCSTR mapFilename) {
     SV_InitGame();
     memset(&sv, 0, sizeof(struct server));
+    sv.state = ss_loading;
     strcpy(sv.configstrings[CS_MODELS+1], mapFilename);
     SZ_Init(&sv.multicast, sv.multicast_buf, MAX_MSGLEN);
     CM_LoadMap(mapFilename);
     SV_CreateBaseline();
     ge->SpawnEntities(CM_GetDoodads());
+    sv.state = ss_game;
 }
 
 void SV_InitGame(void) {

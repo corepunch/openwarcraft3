@@ -32,6 +32,13 @@ void CommandButton_SelectTarget(uiCommandButton_t const *cmd) {
     CommandBar_SetMode(CBAR_SELECT_TARGET);
 }
 
+void CommandButton_SelectBuildLocation(uiCommandButton_t const *cmd) {
+    PATHSTR buffer = { 0 };
+    sprintf(buffer, "buildloc %s", cmd->Command);
+    imp.ClienCommand(buffer);
+    CommandBar_SetMode(CBAR_SELECT_BUILD_LOCATION);
+}
+
 void CommandButton_Build(uiCommandButton_t const *cmd) {
     CommandBar_SetMode(CBAR_SHOW_BUILDS);
 }

@@ -35,7 +35,7 @@ void MSG_WriteByte(LPSIZEBUF buf, int value);
 void MSG_WriteShort(LPSIZEBUF buf, int value);
 void MSG_WriteLong(LPSIZEBUF buf, int value);
 void MSG_WriteFloat(LPSIZEBUF buf, float value);
-void MSG_WriteString(LPSIZEBUF buf, const LPSTR value);
+void MSG_WriteString(LPSIZEBUF buf, LPCSTR value);
 void MSG_WriteDeltaEntity(LPSIZEBUF buf, entityState_t const *from, entityState_t const *to, bool force);
 
 int MSG_Read(LPSIZEBUF buf, HANDLE value, DWORD size);

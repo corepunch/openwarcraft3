@@ -50,16 +50,36 @@ static HANDLE archive;
 
 #if 0
 static void ExtractStarCraft2(void) {
-//    SFileOpenArchive("/Users/igor/Documents/SC2Install/Installer Tome 1.MPQ", 0, 0, &archive);
+    SFileOpenArchive("/Users/igor/Documents/SC2Install/Installer Tome 1.MPQ", 0, 0, &archive);
 //    SFileOpenArchive("/Users/igor/Documents/StarCraft2/Campaigns/Liberty.SC2Campaign/Base.SC2Maps", 0, 0, &archive);
 //    SFileOpenArchive("/Users/igor/Documents/StarCraft2/Mods/Liberty.SC2Mod/base.SC2Assets", 0, 0, &archive);
-    SFileOpenArchive("/Users/igor/Downloads/War3-1.27-Installer-enUS-TFT/Installer Tome.mpq", 0, 0, &archive);
+//    SFileOpenArchive("/Users/igor/Downloads/War3-1.27-Installer-enUS-TFT/Installer Tome.mpq", 0, 0, &archive);
 
     SFILE_FIND_DATA findData;
     HANDLE handle = SFileFindFirstFile(archive, "*", &findData, 0);
     if (handle) {
+        LPCSTR skip[] = { ".m3", ".ogg", ".ogv", ".fx", ".bls", ".gfx", ".wav", ".dds", ".tga", "\\Cache\\", NULL };
         do {
-            printf("%s\n", findData.cFileName);
+            for (LPCSTR *s = skip; *s; s++) {
+                if (strstr(findData.cFileName, *s))
+                    goto skip_print;
+            }
+            if (strstr(findData.cFileName, "xml")){
+                printf("%s\n", findData.cFileName);
+            }
+            
+            if (strstr(findData.cFileName, "AbilData.xml")){
+                HANDLE file;
+                SFileOpenFileEx(archive, findData.cFileName, SFILE_OPEN_FROM_MPQ, &file);
+                char ch;
+                while (SFileReadFile(file, &ch, 1, NULL, NULL)) {
+                    printf("%c", ch);
+                }
+                SFileCloseFile(file);
+                printf("\n");
+            }
+
+        skip_print:;
         } while (SFileFindNextFile(handle, &findData));
         SFileFindClose(handle);
     }
@@ -88,11 +108,11 @@ bool FS_ExtractFile(LPCSTR toExtract, LPCSTR extracted) {
 void FS_Init(void) {
 //     ExtractStarCraft2();
     SFileOpenArchive(MPQ_PATH, 0, 0, &archive);
-    SFileExtractFile(archive, "Units\\AbilityData.slk", "/Users/igor/Desktop/AbilityData.slk", 0);
-    SFileExtractFile(archive, "Units\\UnitData.slk", "/Users/igor/Desktop/UnitData.slk", 0);
-    SFileExtractFile(archive, "Units\\UnitUI.slk", "/Users/igor/Desktop/UnitUI.slk", 0);
-    SFileExtractFile(archive, "Units\\UnitMetaData.slk", "/Users/igor/Desktop/UnitMetaData.slk", 0);
-    SFileExtractFile(archive, "Units\\UnitWeapons.slk", "/Users/igor/Desktop/UnitWeapons.slk", 0);
+//    SFileExtractFile(archive, "Units\\AbilityData.slk", "/Users/igor/Desktop/AbilityData.slk", 0);
+//    SFileExtractFile(archive, "Units\\UnitData.slk", "/Users/igor/Desktop/UnitData.slk", 0);
+//    SFileExtractFile(archive, "Units\\UnitUI.slk", "/Users/igor/Desktop/UnitUI.slk", 0);
+//    SFileExtractFile(archive, "Units\\UnitMetaData.slk", "/Users/igor/Desktop/UnitMetaData.slk", 0);
+//    SFileExtractFile(archive, "Units\\UnitWeapons.slk", "/Users/igor/Desktop/UnitWeapons.slk", 0);
 #if 0
     SFILE_FIND_DATA findData;
     HANDLE handle = SFileFindFirstFile(archive, "*", &findData, 0);

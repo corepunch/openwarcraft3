@@ -26,7 +26,7 @@ void SV_BuildClientFrame(LPCLIENT client) {
             continue;
         if (!edict->s.model && !edict->s.sound && !edict->s.event)
             continue;
-        if (!SV_CanClientSeeEntity(client, &edict->s))
+        if (!SV_CanClientSeeEntity(client, &edict->s) && index > ge->max_clients)
             continue;
         entityState_t *state = SV_NextClientEntity();
         *state = edict->s;

@@ -83,14 +83,13 @@ static int SV_FindIndex(LPCSTR name, int start, int max, bool create) {
     if (!create)
         return 0;
     strncpy(sv.configstrings[start+i], name, sizeof(*sv.configstrings));
-//    if (sv.state != ss_loading)
-//    {    // send the update to everyone
-//        SZ_Clear (&sv.multicast);
-//        MSG_WriteChar (&sv.multicast, svc_configstring);
-//        MSG_WriteShort (&sv.multicast, start+i);
-//        MSG_WriteString (&sv.multicast, name);
-//        SV_Multicast (vec3_origin, MULTICAST_ALL_R);
-//    }
+    if (sv.state != ss_loading) {    // send the update to everyone
+        SZ_Clear(&sv.multicast);
+        MSG_WriteByte(&sv.multicast, svc_configstring);
+        MSG_WriteShort(&sv.multicast, start+i);
+        MSG_WriteString(&sv.multicast, name);
+        SV_Multicast(&(VECTOR3){0,0,0}, MULTICAST_ALL_R);
+    }
     return i;
 }
 

@@ -92,27 +92,29 @@ int px, py;
 LINE3 CL_GetMouseLine(DWORD pixelX, DWORD pixelY);
 
 static void CL_AddBuilding(void) {
-    renderEntity_t re;
-    memset(&re, 0, sizeof(renderEntity_t));
-    re.origin = cl.viewDef.camera.target;
-    re.scale = 1;
-    re.frame = 200000;
-    re.oldframe = 200000;
-    re.model = cl.models[32];
+//    renderEntity_t re;
+//    memset(&re, 0, sizeof(renderEntity_t));
+//    re.origin = cl.viewDef.camera.target;
+//    re.scale = 1;
+//    re.frame = 200000;
+//    re.oldframe = 200000;
+//    re.model = cl.models[32];
     
+    entityState_t *building = &cl.ents[1].current;
     LINE3 const line = CL_GetMouseLine(px, py);
-    CM_IntersectLineWithHeightmap(&line, &re.origin);
+    CM_IntersectLineWithHeightmap(&line, &building->origin);
     
-    re.origin.x = floor(re.origin.x / 32) * 32;
-    re.origin.y = floor(re.origin.y / 32) * 32;
+    building->origin.x = floor(building->origin.x / 32) * 32;
+    building->origin.y = floor(building->origin.y / 32) * 32;
+    building->origin.z = CM_GetHeightAtPoint(building->origin.x, building->origin.y);
     
-    re.origin.z = CM_GetHeightAtPoint(re.origin.x, re.origin.y);
-
-    view_state.entities[view_state.num_entities++] = re;
+    cl.ents[1].prev = cl.ents[1].current;
 }
 
 static void CL_AddEntities(void) {
     cl.viewDef.lerpfrac = (float)(cl.time - cl.frame.servertime) / FRAMETIME;
+
+    CL_AddBuilding();
 
     FOR_LOOP(index, MAX_CLIENT_ENTITIES) {
         clientEntity_t const *ce = &cl.ents[index];
@@ -121,8 +123,6 @@ static void CL_AddEntities(void) {
         V_AddClientEntity(ce);
     }
     
-    CL_AddBuilding();
-
     FOR_LOOP(index, MAX_CONFIRMATION_OBJECTS) {
         if (cl.time - cl.confs[index].timespamp > 1000)
             continue;

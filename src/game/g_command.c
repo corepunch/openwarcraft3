@@ -2,6 +2,7 @@
 
 #include "g_local.h"
 
+#include "Units/UnitUI.h"
 #include "Units/UnitAbilities.h"
 #include "Units/AbilityData.h"
 //
@@ -72,6 +73,19 @@ CLIENTCOMMAND(Inventory) {
     gi.unicast(ent);
 }
 
+CLIENTCOMMAND(BuildLocation) {
+    if (argc < 2)
+        return;
+    DWORD building_id = *(DWORD const*)argv[1];
+    struct UnitUI const *data = FindUnitUI(building_id);
+    if (data) {
+        PATHSTR buffer;
+        sprintf(buffer, "%s.mdx", data->file);
+        ent->s.model = gi.ModelIndex(buffer);
+        ent->s.scale = data->modelScale;
+    }
+}
+
 typedef struct {
     LPCSTR name;
     void (*func)(edict_t *ent, DWORD argc, LPCSTR argv[]);
@@ -80,6 +94,7 @@ typedef struct {
 clientCommand_t clientCommands[] = {
     { "inventory", CMD_Inventory },
     { "move", CMD_Move },
+    { "buildloc", CMD_BuildLocation },
     { NULL }
 };
 

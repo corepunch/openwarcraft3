@@ -31,6 +31,7 @@ typedef struct {
     model_t *(*LoadModel)(LPCSTR modelFilename);
     void (*DrawImage)(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv);
     void (*DrawPortrait)(model_t const *model, LPCRECT viewport);
+    void (*ClienCommand)(LPCSTR cmd);
     
     LPSTR (*ParserGetToken)(parser_t *p);
     void (*ParserError)(parser_t *p);
