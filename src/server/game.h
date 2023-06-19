@@ -10,30 +10,7 @@
 #define MAX_ANIMS_IN_TYPE 16
 
 typedef struct edict_s edict_t;
-typedef struct gclient_s gclient_t;
-
-typedef enum {
-    ANIM_STAND,
-    ANIM_STAND_READY,
-    ANIM_STAND_VICTORY,
-    ANIM_STAND_CHANNEL,
-    ANIM_STAND_HIT,
-    ANIM_WALK,
-    ANIM_ATTACK,
-    ANIM_DEATH,
-    NUM_ANIM_TYPES
-}  animationType_t;
-
-typedef struct {
-    VECTOR3 viewangles;        // for fixed views
-    VECTOR3 viewoffset;        // add to pmovestate->origin
-
-    float fov;            // horizontal field of view
-
-    int rdflags;        // refdef flags
-
-//    short stats[MAX_STATS];        // fast status bar updates
-} playerState_t;
+typedef struct client_s gclient_t;
 
 struct game_import {
     HANDLE (*MemAlloc)(long size);
@@ -41,14 +18,18 @@ struct game_import {
     int (*ModelIndex)(LPCSTR modelName);
     int (*SoundIndex)(LPCSTR soundName);
     int (*ImageIndex)(LPCSTR imageName);
-    animationInfo_t const *(*GetAnimation)(int modelindex, animationType_t animtype);
-    HANDLE (*ParseSheet)(LPCSTR sheetFilename, LPCSHEETLAYOUT layout, DWORD elementSize);
-    configValue_t *(*ParseConfig)(LPCSTR configFilename);
-    LPCSTR (*FindConfigValue)(configValue_t *config, LPCSTR sectionName, LPCSTR valueName);
+    int (*FontIndex)(LPCSTR fontName, DWORD fontSize);
+    animation_t const *(*GetAnimation)(int modelindex, LPCSTR name);
     handle_t (*BuildHeatmap)(LPCVECTOR2 target);
     VECTOR2 (*GetFlowDirection)(DWORD heatmapindex, float fx, float fy);
     float (*GetHeightAtPoint)(float x, float y);
+    bool (*IntersectLineWithHeightmap)(LPCLINE3 _line, LPVECTOR3 output);
     LPSTR (*ParserGetToken)(parser_t *p);
+    LPSTR (*ReadFileIntoString)(LPCSTR filename);
+    
+    sheetRow_t *(*ReadSheet)(LPCSTR sheetFilename);
+    sheetRow_t *(*ReadConfig)(LPCSTR configFilename);
+    LPCSTR (*FindSheetCell)(sheetRow_t *sheet, LPCSTR row, LPCSTR column);
 
     void (*multicast)(LPCVECTOR3 origin, multicast_t to);
     void (*unicast)(edict_t *ent);
@@ -56,10 +37,13 @@ struct game_import {
     void (*WriteShort)(int c);
     void (*WriteLong)(int c);
     void (*WriteFloat)(float f);
-    void (*WriteString)(char *s);
-    
+    void (*WriteString)(LPCSTR s);
+    void (*WriteEntity)(entityState_t const *ent);
+    void (*WriteUIFrame)(uiFrame_t const *frame);
+
     void (*configstring)(DWORD index, LPCSTR string);
-    void (*error)(char *fmt, ...);
+    void (*confignstring)(DWORD index, LPCSTR string, DWORD len);
+    void (*error)(LPCSTR fmt, ...);
 };
 
 struct client;
@@ -69,7 +53,10 @@ struct game_export {
     void (*Shutdown)(void);
     void (*SpawnEntities)(LPCDOODAD doodads);
     void (*RunFrame)(void);
+    LPCSTR (*GetThemeValue)(LPCSTR filename);
+
     void (*ClientCommand)(edict_t *ent, DWORD argc, LPCSTR argv[]);
+    void (*ClientBegin)(edict_t *ent);
 
     edict_t *edicts;
     int num_edicts;

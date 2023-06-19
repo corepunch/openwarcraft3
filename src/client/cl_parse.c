@@ -3,26 +3,34 @@
 static void CL_ReadPacketEntities(LPSIZEBUF msg) {
     while (true) {
         DWORD bits = 0;
-        int nument = CL_ParseEntityBits(msg, &bits);
+        int nument = MSG_ReadEntityBits(msg, &bits);
         if (nument == 0 && bits == 0)
             break;
-        clientEntity_t *edict = &cl.ents[nument];
-        edict->prev = edict->current;
-        MSG_ReadDeltaEntity(msg, &edict->current, nument, bits);
+        centity_t *ent = &cl.ents[nument];
+        ent->prev = ent->current;
+        MSG_ReadDeltaEntity(msg, &ent->current, nument, bits);
+        if (ent->serverframe != cl.frame.serverframe - 1) {
+            ent->prev = ent->current;
+        }
+        ent->serverframe = cl.frame.serverframe;
     }
     cl.num_entities = MAX_CLIENT_ENTITIES;
 }
 
 static void CL_ParseConfigString(LPSIZEBUF msg) {
     int const index = MSG_ReadShort(msg);
-    MSG_ReadString(msg, cl.configstrings[index]);
+    if (index == CS_STATUSBAR) {
+        MSG_Read(msg, cl.configstrings[index], sizeof(*cl.configstrings));
+    } else {
+        MSG_ReadString(msg, cl.configstrings[index]);
+    }
 //    printf("%d %s\n", index, cl.configstrings[index]);
 }
 
 static void CL_ParseBaseline(LPSIZEBUF msg) {
     DWORD bits = 0;
-    DWORD index = CL_ParseEntityBits(msg, &bits);
-    clientEntity_t *cent = &cl.ents[index];
+    DWORD index = MSG_ReadEntityBits(msg, &bits);
+    centity_t *cent = &cl.ents[index];
     memset(&cent->baseline, 0, sizeof(entityState_t));
     MSG_ReadDeltaEntity(msg, &cent->baseline, index, bits);
     memcpy(&cent->current, &cent->baseline, sizeof(entityState_t));
@@ -37,34 +45,50 @@ void CL_ParseFrame(LPSIZEBUF msg) {
 }
 
 void CL_ParsePlayerInfo(LPSIZEBUF msg) {
-    MSG_Read(msg, &cl.playerNumber, sizeof(DWORD));
-    MSG_Read(msg, &cl.viewDef.camera.target, sizeof(VECTOR2));
-    cl.viewDef.camera.target.z = 0;
-}
-
-void CL_ParseInventory(LPSIZEBUF msg) {
-    DWORD num_inventory = MSG_ReadShort(msg);
-    FOR_LOOP(i, num_inventory) {
-        DWORD item = MSG_ReadLong(msg);
-    }
+    DWORD bits;
+    DWORD plnum = MSG_ReadEntityBits(msg, &bits);
+    MSG_ReadDeltaPlayerState(msg, &cl.playerstate, plnum, bits);
+    cl.viewDef.camera.origin.x = cl.playerstate.origin.x;
+    cl.viewDef.camera.origin.y = cl.playerstate.origin.y;
+    cl.viewDef.camera.origin.z = 0;
+    cl.viewDef.camera.viewangles = cl.playerstate.viewangles;
+    cl.viewDef.camera.distance = cl.playerstate.distance;
+    cl.viewDef.camera.fov = cl.playerstate.fov;
 }
 
 void CL_ParseLayout(LPSIZEBUF msg) {
-//    MSG_ReadString(msg, cl.layout);
-    typedef char cmdarg_t[CMDARG_LEN];
-    static cmdarg_t args[MAX_CMDARGS];
-    static LPCSTR argv[MAX_CMDARGS];
-    DWORD argc = 0;
-    LPCSTR command = MSG_ReadString2(msg);
-    parser_t p = { 0 };
-    p.tok = p.token;
-    p.str = command;
-    for (LPCSTR tok = ParserGetToken(&p); tok; tok = ParserGetToken(&p)) {
-        strcpy(args[argc], tok);
-        argv[argc] = args[argc];
-        argc++;
+    DWORD layer = MSG_ReadByte(msg);
+    uiFrame_t *frames = cl.layout[layer];
+    uiFrame_t *ent = NULL;
+    memset(frames, 0, sizeof(uiLayoutLayer_t));
+    while (true) {
+        DWORD bits = 0;
+        int nument = MSG_ReadEntityBits(msg, &bits);
+        if (nument == 0 && bits == 0)
+            break;
+        ent = &frames[nument];
+        ent->tex.coord[1] = 0xff;
+        ent->tex.coord[3] = 0xff;
+        MSG_ReadDeltaUIFrame(msg, ent, nument, bits);
     }
-    ui.ServerCommand(argc, argv);
+}
+
+void CL_ParseCursor(LPSIZEBUF msg) {
+    DWORD bits = 0;
+    SAFE_DELETE(cl.cursorEntity, MemFree);
+    cl.cursorEntity = MemAlloc(sizeof(entityState_t));
+    MSG_ReadEntityBits(msg, &bits);
+    MSG_ReadDeltaEntity(msg, cl.cursorEntity, 0, bits);
+    if (cl.cursorEntity->model == 0) {
+        SAFE_DELETE(cl.cursorEntity, MemFree);
+    }
+}
+
+void CL_MirrorMessage(LPSIZEBUF msg) {
+    char buf[256] = { 0 };
+    MSG_ReadString(msg, buf);
+    MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
+    MSG_WriteString(&cls.netchan.message, buf);
 }
 
 void CL_ParseServerMessage(LPSIZEBUF msg) {
@@ -89,8 +113,11 @@ void CL_ParseServerMessage(LPSIZEBUF msg) {
             case svc_layout:
                 CL_ParseLayout(msg);
                 break;
-            case svc_inventory:
-                CL_ParseInventory(msg);
+            case svc_cursor:
+                CL_ParseCursor(msg);
+                break;
+            case svc_mirror:
+                CL_MirrorMessage(msg);
                 break;
             default:
                 fprintf(stderr, "Unknown message %d\n", pack_id);

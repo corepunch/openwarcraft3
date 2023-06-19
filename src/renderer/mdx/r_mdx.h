@@ -37,6 +37,29 @@ typedef enum {
   MODEL_GEO_NO_FALLBACK = 0x100,   // added in v1500. seen in ElwynnTallWaterfall01.mdx, FelwoodTallWaterfall01.mdx and LavaFallsBlackRock*.mdx
 } mdxGeoFlags_t;
 
+#define MDXNODE_Helper 0
+#define MDXNODE_DontInheritTranslation 1
+#define MDXNODE_DontInheritRotation 2
+#define MDXNODE_DontInheritScaling 4
+#define MDXNODE_Billboarded 8
+#define MDXNODE_BillboardedLockX 16
+#define MDXNODE_BillboardedLockY 32
+#define MDXNODE_BillboardedLockZ 64
+#define MDXNODE_CameraAnchored 128
+#define MDXNODE_Bone 256
+#define MDXNODE_Light 512
+#define MDXNODE_EventObject 1024
+#define MDXNODE_Attachment 2048
+#define MDXNODE_ParticleEmitter 4096
+#define MDXNODE_CollisionShape 8192
+#define MDXNODE_RibbonEmitter 16384
+#define MDXNODE_Unshaded_EmitterUsesMdl 32768
+#define MDXNODE_SortPrimitivesFarZ_EmitterUsesTga 65536
+#define MDXNODE_LineEmitter 131072
+#define MDXNODE_Unfogged 262144
+#define MDXNODE_ModelSpace 524288
+#define MDXNODE_XYQuad 1048576
+
 typedef enum {
     TRACK_NO_INTERP = 0x0,
     TRACK_LINEAR = 0x1,
@@ -44,6 +67,13 @@ typedef enum {
     TRACK_BEZIER = 0x3,
     NUM_TRACK_TYPES = 0x4,
 } MODELKEYTRACKTYPE;
+
+typedef enum {
+    SHAPETYPE_BOX,
+    SHAPETYPE_PLANE,
+    SHAPETYPE_SPHERE,
+    SHAPETYPE_CYLINDER,
+} MODELCOLLISIONSHAPETYPE;
 
 typedef enum {
     TDATA_INT,
@@ -126,6 +156,14 @@ typedef struct mdxHelper_s {
     mdxNode_t node;
     struct mdxHelper_s *next;
 } mdxHelper_t;
+
+typedef struct mdxCollisionShape_s {
+    mdxNode_t node;
+    MODELCOLLISIONSHAPETYPE type;
+    mdxVec3_t vertex[2];
+    float radius;
+    struct mdxCollisionShape_s *next;
+} mdxCollisionShape_t;
 
 typedef struct mdxGlobalSequence_s {
     DWORD value;
@@ -223,6 +261,7 @@ typedef struct mdxModel_s {
     mdxMaterial_t *materials;
     mdxBone_t *bones;
     mdxGeosetAnim_t *geosetAnims;
+    mdxCollisionShape_t *collisionShapes;
     mdxHelper_t *helpers;
     mdxCamera_t *cameras;
     mdxGlobalSequence_t *globalSequences;

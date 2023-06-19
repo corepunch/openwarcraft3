@@ -13,6 +13,7 @@ VECTOR2 Vector2_add(LPCVECTOR2 a, LPCVECTOR2 b);
 VECTOR2 Vector2_sub(LPCVECTOR2 a, LPCVECTOR2 b);
 VECTOR2 Vector2_lerp(LPCVECTOR2 a, LPCVECTOR2 b, float t);
 VECTOR2 Vector2_mad(LPCVECTOR2 v, float s, LPCVECTOR2 b);
+VECTOR2 Vector2_unm(LPCVECTOR2 v);
 float Vector2_distance(LPCVECTOR2 a, LPCVECTOR2 b);
 float Vector2_dot(LPCVECTOR2 a, LPCVECTOR2 b);
 float Vector2_lengthsq(LPCVECTOR2 vec);

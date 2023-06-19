@@ -66,21 +66,7 @@ enum {
 #define STR_OTHER "other"
 #define STR_COMMONER "commoner"
 
-#define STR_BUILDS "Builds"
-
-#define EF_IS_UNIT 1
-#define EF_CAN_MOVE 2
-#define EF_CAN_ATTACK 4
-
-#define RACE_BIT 28
-#define UNIT_RACE(ENT) ((ENT)->flags >> RACE_BIT)
-
-#define PARSE_LIST(LIST, ITEM, PARSER) \
-parser_t parser = { 0 }; \
-parser.tok = parser.token; \
-parser.str = LIST; \
-parser.comma_space = true; \
-for (LPCSTR ITEM = PARSER(&parser); ITEM; ITEM = PARSER(&parser))
+#define EF_MOVABLE 1
 
 typedef enum {
     RACE_UNKNOWN,

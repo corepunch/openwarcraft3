@@ -10,9 +10,8 @@ void Sys_Quit(void) {
 }
 
 int main(int argc, LPSTR argv[]) {
-    FS_Init();
-    SV_Init();
-    CL_Init();
+    Com_Init();
+    
     SV_Map("Maps\\Campaign\\Human02.w3m");
     
     DWORD startTime = SDL_GetTicks();

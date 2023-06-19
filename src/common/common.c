@@ -51,22 +51,24 @@ static HANDLE archive;
 #if 0
 static void ExtractStarCraft2(void) {
     SFileOpenArchive("/Users/igor/Documents/SC2Install/Installer Tome 1.MPQ", 0, 0, &archive);
-//    SFileOpenArchive("/Users/igor/Documents/StarCraft2/Campaigns/Liberty.SC2Campaign/Base.SC2Maps", 0, 0, &archive);
+    
+//    SFileOpenArchive("/Users/igor/Desktop/terrain.MPQ", 0, 0, &archive);
+//    SFileOpenArchive("/Users/icherna/Documents/StarCraft2/Campaigns/Liberty.SC2Campaign/base.SC2Assets", 0, 0, &archive);
 //    SFileOpenArchive("/Users/igor/Documents/StarCraft2/Mods/Liberty.SC2Mod/base.SC2Assets", 0, 0, &archive);
 //    SFileOpenArchive("/Users/igor/Downloads/War3-1.27-Installer-enUS-TFT/Installer Tome.mpq", 0, 0, &archive);
 
     SFILE_FIND_DATA findData;
     HANDLE handle = SFileFindFirstFile(archive, "*", &findData, 0);
     if (handle) {
-        LPCSTR skip[] = { ".m3", ".ogg", ".ogv", ".fx", ".bls", ".gfx", ".wav", ".dds", ".tga", "\\Cache\\", NULL };
+        LPCSTR skip[] = { NULL };// ".m3", ".ogg", ".ogv", ".fx", ".bls", ".gfx", ".wav", ".dds", ".tga", "\\Cache\\", NULL };
         do {
             for (LPCSTR *s = skip; *s; s++) {
                 if (strstr(findData.cFileName, *s))
                     goto skip_print;
             }
-            if (strstr(findData.cFileName, "xml")){
+//            if (strstr(findData.cFileName, "Azeroth")){
                 printf("%s\n", findData.cFileName);
-            }
+//            }
             
             if (strstr(findData.cFileName, "AbilData.xml")){
                 HANDLE file;
@@ -106,12 +108,13 @@ bool FS_ExtractFile(LPCSTR toExtract, LPCSTR extracted) {
 }
 
 void FS_Init(void) {
-//     ExtractStarCraft2();
+//    ExtractStarCraft2();
     SFileOpenArchive(MPQ_PATH, 0, 0, &archive);
 //    SFileExtractFile(archive, "Units\\AbilityData.slk", "/Users/igor/Desktop/AbilityData.slk", 0);
 //    SFileExtractFile(archive, "Units\\UnitData.slk", "/Users/igor/Desktop/UnitData.slk", 0);
 //    SFileExtractFile(archive, "Units\\UnitUI.slk", "/Users/igor/Desktop/UnitUI.slk", 0);
 //    SFileExtractFile(archive, "Units\\UnitMetaData.slk", "/Users/igor/Desktop/UnitMetaData.slk", 0);
+//    SFileExtractFile(archive, "Units\\UnitBalance.slk", "/Users/igor/Desktop/UnitBalance.slk", 0);
 //    SFileExtractFile(archive, "Units\\UnitWeapons.slk", "/Users/igor/Desktop/UnitWeapons.slk", 0);
 #if 0
     SFILE_FIND_DATA findData;
@@ -127,9 +130,9 @@ void FS_Init(void) {
 //                 !strstr(findData.cFileName, ".wav") &&
 //                 !strstr(findData.cFileName, ".mp3") &&
 //                 !strstr(findData.cFileName, ".mdx") &&
-                 if(strstr(findData.cFileName, ".txt")) {
+//                 if(strstr(findData.cFileName, ".mdx")) {
                  printf("%s\n", findData.cFileName);
-             }
+//             }
 #if 1
              if (strstr(findData.cFileName, ".txt")){
                  HANDLE file;
@@ -178,3 +181,9 @@ void Com_Quit(void) {
     Sys_Quit();
 }
 
+void Com_Init(void) {
+    Cbuf_Init();
+    FS_Init();
+    SV_Init();
+    CL_Init();
+}

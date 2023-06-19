@@ -26,6 +26,14 @@ VECTOR2 Vector2_sub(LPCVECTOR2 a, LPCVECTOR2 b) {
     };
 }
 
+VECTOR2 Vector2_unm(LPCVECTOR2 v) {
+    return (VECTOR2) {
+        .x = -v->x,
+        .y = -v->y,
+    };
+}
+
+
 float Vector2_dot(LPCVECTOR2 a, LPCVECTOR2 b) {
     return a->x * b->x + a->y * b->y;
 }

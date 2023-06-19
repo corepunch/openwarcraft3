@@ -105,7 +105,9 @@ static void R_MakeTile(LPCWAR3MAP map, DWORD x, DWORD y, DWORD ground, LPCTEXTUR
         },
     };
     
-    SetTileUV(_tile, geom, texture);
+    if (texture) {
+        SetTileUV(_tile, geom, texture);
+    }
 
     memcpy(currentVertex, geom, sizeof(geom));
     currentVertex += sizeof(geom) / sizeof(VERTEX);
@@ -132,4 +134,55 @@ LPMAPLAYER R_BuildMapSegmentLayer(LPCWAR3MAP map, DWORD sx, DWORD sy, DWORD laye
     mapLayer->num_vertices = (DWORD)(currentVertex - aVertexBuffer);
     mapLayer->buffer = R_MakeVertexArrayObject(aVertexBuffer, mapLayer->num_vertices);
     return mapLayer;
+}
+
+void R_RenderSplat(LPCVECTOR2 position, float radius, LPCTEXTURE texture) {
+    MATRIX4 mModelMatrix;
+
+    Matrix4_identity(&mModelMatrix);
+    
+    //    R_Call(glUniform1i, tr.shaderSkin->uUseDiscard, 0);
+    //    R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    //    R_Call(glDepthMask, GL_FALSE);
+        
+//    R_BindTexture(texture, 0);
+//    R_RenderGeoset(geoset, &mModelMatrix);
+    
+    float splatSize = radius * 2;
+    float sx = position->x;
+    float sy = position->y;
+    
+    VECTOR2 tmin = GetWar3MapPosition(tr.world, sx - radius, sy - radius);
+    VECTOR2 tmax = GetWar3MapPosition(tr.world, sx + radius, sy + radius);
+
+    currentVertex = aVertexBuffer;
+
+    for (DWORD x = MAX(0, floor(tmin.x*tr.world->width)-1);
+         x < MIN(tr.world->width, ceil(tmax.x*tr.world->width));
+         x++)
+    {
+        for (DWORD y = MAX(0, floor(tmin.y*tr.world->height)-1);
+             y < MIN(tr.world->height, ceil(tmax.y*tr.world->height));
+             y++)
+        {
+            R_MakeTile(tr.world, x, y, 0, NULL);
+        }
+    }
+    int num_vertices = (DWORD)(currentVertex - aVertexBuffer);
+    
+    FOR_LOOP(i, num_vertices){
+        LPVERTEX v = &aVertexBuffer[i];
+        v->texcoord.x = (v->position.x + radius - sx) / splatSize;
+        v->texcoord.y = (v->position.y + radius - sy) / splatSize;
+        v->color.r = 0;
+        v->color.b = 0;
+    }
+
+    R_BindTexture(texture, 0);
+    R_Call(glUseProgram, tr.shaderUI->progid);
+    R_Call(glUniformMatrix4fv, tr.shaderUI->uProjectionMatrix, 1, GL_FALSE, tr.viewDef.projectionMatrix.v);
+    R_Call(glBindVertexArray, tr.renbuf->vao);
+    R_Call(glBindBuffer, GL_ARRAY_BUFFER, tr.renbuf->vbo);
+    R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(VERTEX) * num_vertices, aVertexBuffer, GL_STATIC_DRAW);
+    R_Call(glDrawArrays, GL_TRIANGLES, 0, num_vertices);
 }

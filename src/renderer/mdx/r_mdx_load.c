@@ -14,7 +14,7 @@ MSG_Read(buffer, object->variable, object->num_##variable * elemsize); }
 
 #define MODEL_READ_LIST(BLOCK, TYPE, TYPES) \
 while (!FileIsAtEndOfBlock(BLOCK)) { \
-    struct sizebuf inner = FileReadBlock(BLOCK); \
+    sizeBuf_t inner = FileReadBlock(BLOCK); \
     mdx##TYPE##_t *p_##TYPE = Read##TYPE(&inner); \
     PUSH_BACK(mdx##TYPE##_t, p_##TYPE, model->TYPES); \
     BLOCK->readcount += inner.readcount; \
@@ -131,7 +131,7 @@ void R_SetupGeoset(mdxModel_t *model, mdxGeoset_t *geoset) {
         }
     }
 
-    geoset->userdata = R_MakeVertexArrayObject(vertices, geoset->num_triangles * sizeof(vertex_t));
+    geoset->userdata = R_MakeVertexArrayObject(vertices, geoset->num_triangles);
 
     ri.MemFree(vertices);
     ri.MemFree(matrixGroups);
@@ -215,8 +215,8 @@ typedef struct {
 blockReadCode_t MSG_ReadBlock(LPSIZEBUF buffer, blockReader_t const *readers, void *data) {
     DWORD blockHeader;
     while (MSG_Read(buffer, &blockHeader, 4)) {
-        struct sizebuf block;
-        memset(&block, 0, sizeof(struct sizebuf));
+        sizeBuf_t block;
+        memset(&block, 0, sizeof(sizeBuf_t));
         MSG_Read(buffer, &block.cursize, 4);
         block.data = buffer->data + buffer->readcount;
         for (blockReader_t const *br = readers; br->read; br++) {
@@ -249,8 +249,14 @@ int MSG_ReadLong(LPSIZEBUF buffer) {
     return value;
 }
 
-struct sizebuf FileReadBlock(LPSIZEBUF buffer) {
-    struct sizebuf buf;
+int MSG_ReadByte(LPSIZEBUF buffer) {
+    DWORD value = 0;
+    MSG_Read(buffer, &value, 1);
+    return value;
+}
+
+sizeBuf_t FileReadBlock(LPSIZEBUF buffer) {
+    sizeBuf_t buf;
     buf.data = buffer->data + buffer->readcount;
     buf.readcount = 0;
     buf.cursize = 4;
@@ -331,7 +337,7 @@ void ReadMaterialLayers(LPSIZEBUF buffer, mdxMaterial_t *material) {
         return;
     material->layers = ri.MemAlloc(sizeof(mdxMaterialLayer_t) * material->num_layers);
     FOR_LOOP(layerID, material->num_layers) {
-        struct sizebuf layer = FileReadBlock(buffer);
+        sizeBuf_t layer = FileReadBlock(buffer);
         ReadMaterialLayer(&layer, &material->layers[layerID]);
         buffer->readcount += layer.readcount;
     }
@@ -373,12 +379,16 @@ void ReadNode(LPSIZEBUF buffer, mdxNode_t *node) {
     }
 }
 
+void MSG_ReadOverflow(LPSIZEBUF buffer, void *dest, DWORD bytes) {
+    buffer->cursize += bytes;
+    MSG_Read(buffer, dest, bytes);
+}
+
 mdxBone_t *ReadBone(LPSIZEBUF buffer) {
     mdxBone_t *bone = ri.MemAlloc(sizeof(mdxBone_t));
     ReadNode(buffer, &bone->node);
-    buffer->cursize += 8;
-    bone->geoset_id = MSG_ReadLong(buffer);
-    bone->geoset_animation_id = MSG_ReadLong(buffer);
+    MSG_ReadOverflow(buffer, &bone->geoset_id, sizeof(DWORD));
+    MSG_ReadOverflow(buffer, &bone->geoset_animation_id, sizeof(DWORD));
     return bone;
 }
 
@@ -386,6 +396,20 @@ mdxHelper_t *ReadHelper(LPSIZEBUF buffer) {
     mdxHelper_t *helper = ri.MemAlloc(sizeof(mdxHelper_t));
     ReadNode(buffer, &helper->node);
     return helper;
+}
+
+mdxCollisionShape_t *ReadCollisionShape(LPSIZEBUF buffer) {
+    mdxCollisionShape_t *cs = ri.MemAlloc(sizeof(mdxCollisionShape_t));
+    ReadNode(buffer, &cs->node);
+    MSG_ReadOverflow(buffer, &cs->type, sizeof(DWORD));
+    MSG_ReadOverflow(buffer, &cs->vertex[0], sizeof(mdxVec3_t));
+    if (cs->type != SHAPETYPE_SPHERE) {
+        MSG_ReadOverflow(buffer, &cs->vertex[1], sizeof(mdxVec3_t));
+    }
+    if ((cs->type == SHAPETYPE_SPHERE) || (cs->type == SHAPETYPE_CYLINDER)) {
+        MSG_ReadOverflow(buffer, &cs->radius, sizeof(float));
+    }
+    return cs;
 }
 
 mdxCamera_t *ReadCamera(LPSIZEBUF buffer) {
@@ -506,6 +530,11 @@ blockReadCode_t MDX_ReadHELP(LPSIZEBUF sb, mdxModel_t *model) {
     return BLOCKREAD_OK;
 }
 
+blockReadCode_t MDX_ReadCLID(LPSIZEBUF sb, mdxModel_t *model) {
+    MODEL_READ_LIST(sb, CollisionShape, collisionShapes);
+    return BLOCKREAD_OK;
+}
+
 blockReadCode_t MDX_ReadCAMS(LPSIZEBUF sb, mdxModel_t *model) {
     MODEL_READ_LIST(sb, Camera, cameras);
     return BLOCKREAD_OK;
@@ -545,12 +574,13 @@ blockReader_t R_MDLX[] = {
     { "GLBS", (blockReaderFunc_t)MDX_ReadGLBS },
     { "PIVT", (blockReaderFunc_t)MDX_ReadPIVT },
     { "TEXS", (blockReaderFunc_t)MDX_ReadTEXS },
+    { "CLID", (blockReaderFunc_t)MDX_ReadCLID },
     { NULL },
 };
 
 mdxModel_t *MDX_LoadBuffer(void *data, DWORD size) {
     mdxModel_t *model = ri.MemAlloc(sizeof(mdxModel_t));
-    struct sizebuf buffer = { .data = data, .cursize = size, .readcount = 4 };
+    sizeBuf_t buffer = { .data = data, .cursize = size, .readcount = 4 };
     if (MSG_ReadBlock(&buffer, R_MDLX, model) != BLOCKREAD_OK) {
         MDX_Release(model);
         return NULL;

@@ -38,7 +38,7 @@ static void CM_ReadInfo(HANDLE archive) {
     SFileReadString(file, &info->mapDescription);
     SFileReadString(file, &info->playersRecommended);
     SFileReadFile(file, &info->cameraBounds, sizeof(mapCameraBounds_t), NULL, NULL);
-    SFileReadFile(file, &info->playableArea, sizeof(SIZE2), NULL, NULL);
+    SFileReadFile(file, &info->playableArea, sizeof(size2_t), NULL, NULL);
     SFileReadFile(file, &info->flags, sizeof(DWORD), NULL, NULL);
     SFileReadFile(file, &info->mainGroundType, sizeof(char), NULL, NULL);
     SFileReadFile(file, &info->campaignBackgroundNumber, sizeof(DWORD), NULL, NULL);
@@ -229,7 +229,7 @@ static void CM_ReadUnit(HANDLE file, struct Doodad *unit) {
     SFileReadFile(file, &unit->unitID, sizeof(DWORD), NULL, NULL);
 }
 
-static void CM_ReadUnits(HANDLE archive) {
+static void CM_ReadUnitDoodads(HANDLE archive) {
     HANDLE file;
     DWORD fileHeader, version, subversion, numUnits;
 
@@ -267,6 +267,17 @@ static void CM_ReadHeightmap(HANDLE archive) {
     SFileCloseFile(file);
 }
 
+void CM_ReadUnits(HANDLE archive) {
+    DWORD version;
+    DWORD num_units;
+    HANDLE file;
+    SFileExtractFile(archive, "war3map.w3u", "/Users/igor/Desktop/war3map.w3u", 0);
+    SFileOpenFileEx(archive, "war3map.w3u", SFILE_OPEN_FROM_MPQ, &file);
+    SFileReadFile(file, &version, 4, NULL, NULL);
+    SFileReadFile(file, &num_units, 4, NULL, NULL);
+    SFileCloseFile(file);
+}
+
 void CM_LoadMap(LPCSTR mapFilename) {
     HANDLE mapArchive;
     memset(&world, 0, sizeof(world));
@@ -274,9 +285,10 @@ void CM_LoadMap(LPCSTR mapFilename) {
     SFileOpenArchive(TMP_MAP, 0, 0, &mapArchive);
     CM_ReadPathMap(mapArchive);
     CM_ReadDoodads(mapArchive);
-    CM_ReadUnits(mapArchive);
+    CM_ReadUnitDoodads(mapArchive);
     CM_ReadHeightmap(mapArchive);
     CM_ReadInfo(mapArchive);
+    CM_ReadUnits(mapArchive);
     SFileCloseArchive(mapArchive);
 }
 

@@ -129,6 +129,7 @@ LPCSTR fragment_shader_ui =
 "uniform sampler2D uTexture;\n"
 "void main() {\n"
 "    o_color = texture(uTexture, v_texcoord) * v_color;\n"
+"    o_color.a *= step(abs(v_texcoord.x-0.5),0.5)*step(abs(v_texcoord.y-0.5),0.5);\n"
 "}\n";
 
 LPCSHADER R_InitShader(LPCSTR vertex_shader, LPCSTR fragment_shader){

@@ -251,11 +251,13 @@ void Matrix4_inverse(LPCMATRIX4 m, LPMATRIX4 out) {
     out->v[15] = + det3_201_012 * invDet;
 }
 
-void Matrix4_multiply_vector3(LPCMATRIX4 m, LPCVECTOR3 v, LPVECTOR3 out) {
+VECTOR3 Matrix4_multiply_vector3(LPCMATRIX4 m, LPCVECTOR3 v) {
     float fInvW = 1.0f / (m->v[3] * v->x + m->v[7] * v->y + m->v[11] * v->z + m->v[15]);
-    out->x = (m->v[0] * v->x + m->v[4] * v->y + m->v[8]  * v->z + m->v[12]) * fInvW;
-    out->y = (m->v[1] * v->x + m->v[5] * v->y + m->v[9]  * v->z + m->v[13]) * fInvW;
-    out->z = (m->v[2] * v->x + m->v[6] * v->y + m->v[10] * v->z + m->v[14]) * fInvW;
+    return (VECTOR3) {
+        .x = (m->v[0] * v->x + m->v[4] * v->y + m->v[8]  * v->z + m->v[12]) * fInvW,
+        .y = (m->v[1] * v->x + m->v[5] * v->y + m->v[9]  * v->z + m->v[13]) * fInvW,
+        .z = (m->v[2] * v->x + m->v[6] * v->y + m->v[10] * v->z + m->v[14]) * fInvW,
+    };
 }
 
 void Matrix4_rotate(LPMATRIX4 m, LPCVECTOR3 euler, ROTATIONORDER order) {

@@ -1,23 +1,30 @@
 #include "client.h"
 #include "renderer.h"
-#include "ui.h"
 
 refExport_t re;
-uiExport_t ui;
 
 struct client_static cls;
 struct client_state cl;
+
+void Cmd_ForwardToServer(LPCSTR text) {
+    if (/*cls.state <= ca_connected || */*text == '-' || *text == '+') {
+        fprintf(stderr, "Unknown command \"%s\"\n", text);
+        return;
+    }
+    MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
+    SZ_Printf(&cls.netchan.message, "%s", text);
+}
 
 LPCSTR CL_GetConfigString(DWORD index) {
     return cl.configstrings[index];
 }
 
-entityState_t const *CL_GetSelectedEntity(void) {
-    FOR_LOOP(i, cl.num_entities) {
-        if (cl.ents[i].selected)
-            return &cl.ents[i].current;
+entityState_t const *CL_GetEntityByIndex(DWORD number) {
+    if (number < cl.num_entities) {
+        return &cl.ents[number].current;
+    } else {
+        return NULL;
     }
-    return NULL;
 }
 
 LPCTEXTURE CL_GetTextureByIndex(DWORD index) {
@@ -43,53 +50,40 @@ void CL_Init(void) {
         .error = CON_printf,
     });
     
-    ui = UI_GetAPI((uiImport_t) {
-        .MemAlloc = MemAlloc,
-        .MemFree = MemFree,
-        .FileOpen = FS_OpenFile,
-        .FileClose = FS_CloseFile,
-        .ReadFileIntoString = FS_ReadFileIntoString,
-        .ParserGetToken = ParserGetToken,
-        .ParserError = ParserError,
-        .ParseConfig = FS_ParseConfig,
-        .FindConfigValue = INI_FindValue,
-        .GetConfigString = CL_GetConfigString,
-        .GetSelectedEntity = CL_GetSelectedEntity,
-        .GetTextureByIndex = CL_GetTextureByIndex,
-        .LoadTexture = re.LoadTexture,
-        .LoadModel = re.LoadModel,
-        .DrawPortrait = re.DrawPortrait,
-        .DrawImage = re.DrawImage,
-        .ClienCommand = CL_ClientCommand,
-        .error = CON_printf,
-    });
-
     re.Init(WINDOW_WIDTH, WINDOW_HEIGHT);
-    ui.Init();
     
     memset(&cl, 0, sizeof(struct client_state));
 
-    cl.cursor = re.LoadModel("UI\\Feedback\\Confirmation\\Confirmation.mdx");
+    cl.moveConfirmation = re.LoadModel("UI\\Feedback\\Confirmation\\Confirmation.mdx");
     
-    cl.viewDef.camera.fov = 45;
-    cl.viewDef.camera.angles = (VECTOR3) { -40, 0, 0 };
-    cl.viewDef.camera.distance = 1500;
     cl.viewDef.camera.zfar = 5000;
     cl.viewDef.camera.znear = 100;
 
     SZ_Init(&cls.netchan.message, cls.netchan.message_buf, MAX_MSGLEN);
+    
+    Key_SetBinding(K_MOUSE1, "+select");
+    
+    CL_InitInput();
 }
 
+void CL_ConnectionlessPacket(void) {
+    MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
+    MSG_WriteString(&cls.netchan.message, "new");
+}
 
 void CL_ReadPackets(void) {
     static BYTE net_message_buffer[MAX_MSGLEN];
-    static struct sizebuf net_message = {
+    static sizeBuf_t net_message = {
         .data = net_message_buffer,
         .maxsize = MAX_MSGLEN,
         .cursize = 0,
         .readcount = 0,
     };
     while (NET_GetPacket(NS_CLIENT, cl.sock, &net_message)) {
+        if (*(int *)net_message.data == -1) {
+            CL_ConnectionlessPacket();
+            continue;
+        }
         CL_ParseServerMessage(&net_message);
     }
 }
@@ -97,8 +91,8 @@ void CL_ReadPackets(void) {
 void CL_SendCmd(void) {
 //    extern clientMessage_t msg;
     static VECTOR3 camera_location;
-    if (Vector3_distance(&cl.viewDef.camera.target, &camera_location) > EPSILON) {
-        camera_location = cl.viewDef.camera.target;
+    if (Vector3_distance(&cl.viewDef.camera.origin, &camera_location) > EPSILON) {
+        camera_location = cl.viewDef.camera.origin;
         MSG_WriteByte(&cls.netchan.message, clc_move);
         MSG_WriteShort(&cls.netchan.message, camera_location.x);
         MSG_WriteShort(&cls.netchan.message, camera_location.y);
@@ -128,16 +122,25 @@ void CL_Shutdown(void) {
         re.ReleaseModel(cl.models[modelIndex]);
     }
 
-    ui.Shutdown();
     re.Shutdown();
+}
+
+void CL_SendCommand(void) {
+    CL_SendCmd();
+
+    Cbuf_Execute();
 }
 
 void CL_Frame(DWORD msec) {
     cl.time += msec;
 
     CL_ReadPackets();
+
     CL_Input();
-    CL_SendCmd();
+
+    CL_SendCommand();
+
     CL_PrepRefresh();
+
     SCR_UpdateScreen();
 }

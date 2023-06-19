@@ -3,24 +3,46 @@
 
 #include "../common/common.h"
 #include "renderer.h"
-#include "ui.h"
+#include "keys.h"
 
-#define WINDOW_WIDTH 1024
-#define WINDOW_HEIGHT 768
-#define MAX_CLIENT_ENTITIES 5000
-#define MAX_CONSOLE_MESSAGES 256
-#define MAX_CONSOLE_MESSAGE_LEN 1024
-#define CONSOLE_MESSAGE_TIME 5000
-#define VIEW_SHADOW_SIZE 1200
-#define MAX_CONFIRMATION_OBJECTS 16
-#define MAX_LAYOUT_LENGTH 1024
+enum {
+    WINDOW_WIDTH = 1024,
+    WINDOW_HEIGHT = 768,
+    MAX_CLIENT_ENTITIES = 5000,
+    MAX_CONSOLE_MESSAGES = 256,
+    MAX_CONSOLE_MESSAGE_LEN = 1024,
+    CONSOLE_MESSAGE_TIME = 5000,
+    VIEW_SHADOW_SIZE = 1200,
+    MAX_CONFIRMATION_OBJECTS = 16,
+    MAX_LAYOUT_LAYERS = 4,
+    MAX_LAYOUT_OBJECTS = 256,
+    MAX_SELECTED_ENTITIES = 64,
+};
 
 typedef struct {
     entityState_t baseline;
     entityState_t current;
     entityState_t prev;
+    DWORD serverframe;
     bool selected;
-} clientEntity_t;
+} centity_t;
+
+typedef enum {
+    UI_EVENT_NONE,
+    UI_LEFT_MOUSE_DOWN,
+    UI_LEFT_MOUSE_UP,
+    UI_LEFT_MOUSE_DRAGGED,
+    UI_RIGHT_MOUSE_DOWN,
+    UI_RIGHT_MOUSE_UP,
+    UI_RIGHT_MOUSE_DRAGGED,
+    NUM_UI_MOUSE_EVENTS
+} mouseEventType_t;
+
+typedef struct {
+    mouseEventType_t event;
+    DWORD button;
+    VECTOR2 origin;
+} mouseEvent_t;
 
 struct frame {
     int serverframe;
@@ -33,25 +55,29 @@ typedef struct  {
     DWORD timespamp;
 } moveConfirmation_t;
 
+typedef uiFrame_t uiLayoutLayer_t[MAX_LAYOUT_OBJECTS];
+
 struct client_state {
     model_t *models[MAX_MODELS];
     LPCTEXTURE pics[MAX_IMAGES];
+    LPCFONT fonts[MAX_FONTSTYLES];
     PATHSTR configstrings[MAX_CONFIGSTRINGS];
-    clientEntity_t ents[MAX_CLIENT_ENTITIES];
+    centity_t ents[MAX_CLIENT_ENTITIES];
     moveConfirmation_t confs[MAX_CONFIRMATION_OBJECTS];
-    char layout[MAX_LAYOUT_LENGTH];        // general 2D overlay
+    uiLayoutLayer_t layout[MAX_LAYOUT_LAYERS];
     viewDef_t viewDef;
     struct frame frame;
     VECTOR2 startingPosition;
-    model_t const *cursor;
+    playerState_t playerstate;
+    entityState_t *cursorEntity;
+    model_t const *moveConfirmation;
     DWORD num_entities;
     DWORD confirmationCounter;
     DWORD sock;
-    DWORD playerNumber;
     DWORD time;
     struct {
         RECT  rect;
-        bool inProgress;
+        bool in_progress;
     } selection;
 };
 
@@ -62,9 +88,6 @@ struct client_static {
 void V_RenderView(void);
 void CL_PrepRefresh(void);
 void CL_ParseServerMessage(LPSIZEBUF msg);
-int CL_ParseEntityBits(LPSIZEBUF msg, DWORD *bits);
-void CL_SelectEntityAtScreenPoint(DWORD pixelX, DWORD pixelY);
-void CL_SelectEntitiesAtScreenRect(LPCRECT rect);
 void CON_DrawConsole(void);
 void CON_printf(LPCSTR fmt, ...);
 
@@ -74,14 +97,17 @@ void Matrix4_getLightMatrix(LPCVECTOR3 sunangles, LPCVECTOR3 target, float scale
 void Matrix4_getCameraMatrix(viewCamera_t const *camera, LPMATRIX4 output);
 
 // cl_scrn.c
+void SCR_Clear(uiFrame_t const *frame);
 void SCR_UpdateScreen(void);
-
+LPCRECT SCR_LayoutRect(uiFrame_t const *frame);
+    
 // cl_input.c
 void CL_Input(void);
+void CL_InitInput(void);
 
 extern struct client_state cl;
 extern struct client_static cls;
 extern refExport_t re;
-extern uiExport_t ui;
+extern mouseEvent_t mouse;
 
 #endif

@@ -21,7 +21,15 @@ typedef enum {
     ss_pic
 } serverState_t;
 
-struct gclient_s {
+typedef enum {
+    cs_free,        // can be reused for a new connection
+    cs_zombie,      // client has been disconnected, but don't reuse
+                    // connection for a couple seconds
+    cs_connected,   // has been assigned to a client_t, but not in game yet
+    cs_spawned      // client is fully in game
+} clientState_t;
+
+struct client_s {
     playerState_t ps; // communicated by server to clients
     int ping;
     // the game dll can add anything it wants after
@@ -32,19 +40,20 @@ struct edict_s {
     entityState_t s;
     gclient_t *client;
     DWORD svflags;
+    DWORD selected;
 };
 
 struct client_frame {
+    playerState_t ps;
     DWORD num_entities;
     DWORD first_entity;        // into the circular sv_packet_entities[]
 };
 
 struct client {
-    bool initialized;
     struct client_frame frames[UPDATE_BACKUP];
     struct netchan netchan;
+    clientState_t state;
     edict_t *edict; // EDICT_NUM(clientnum+1)
-    VECTOR2 camera_position;
     DWORD lastframe;
 };
 
@@ -58,26 +67,15 @@ extern struct server_static {
     DWORD realtime;
 } svs;
 
-struct mdx_sequence {
-    char name[80];
-    DWORD interval[2];
-    float movespeed;     // movement speed of the entity while playing this animation
-    DWORD flags;      // &1: non looping
-    float rarity;
-    int syncpoint;
-    float radius;
-    VECTOR3 min;
-    VECTOR3 max;
-};
-
-typedef struct {
-    animationInfo_t animations[MAX_ANIMS_IN_TYPE];
-    DWORD num_animations;
-} animationTypeVariants_t;
+typedef enum {
+    SHAPETYPE_BOX,
+    SHAPETYPE_PLANE,
+    SHAPETYPE_SPHERE,
+    SHAPETYPE_CYLINDER,
+} MODELCOLLISIONSHAPETYPE;
 
 struct cmodel {
-    struct mdx_sequence *animations;
-    animationTypeVariants_t animtypes[NUM_ANIM_TYPES];
+    animation_t *animations;
     DWORD num_animations;
 };
 
@@ -89,7 +87,7 @@ extern struct server {
     DWORD framenum;
     DWORD time;
     entityState_t *baselines;
-    struct sizebuf multicast;
+    sizeBuf_t multicast;
     BYTE multicast_buf[MAX_MSGLEN];
 } sv;
 
@@ -103,8 +101,15 @@ void SV_ParseClientMessage(LPSIZEBUF msg, LPCLIENT client);
 int SV_ModelIndex(LPCSTR name);
 int SV_SoundIndex(LPCSTR name);
 int SV_ImageIndex(LPCSTR name);
+int SV_FontIndex(LPCSTR name, DWORD fontSize);
 
 void SV_Multicast(LPCVECTOR3 origin, multicast_t to);
 void SV_InitGameProgs(void);
+
+// sv_main.c
+void SV_WriteConfigString(LPSIZEBUF msg, DWORD i);
+
+// sv_user.c
+void SV_ExecuteUserCommand(LPSIZEBUF msg, LPCLIENT client);
 
 #endif

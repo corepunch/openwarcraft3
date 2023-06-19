@@ -136,9 +136,9 @@ DWORD R_CalculateBoneMatrices(mdxModel_t const *model, LPMATRIX4 modelMatrices, 
     return boneIndex;
 }
 
-static void R_RenderGeoset(mdxModel_t const *model,
-                           mdxGeoset_t const *geoset,
-                           LPCMATRIX4 modelMatrix) {
+static void R_RenderGeoset(mdxGeoset_t const *geoset,
+                           LPCMATRIX4 modelMatrix)
+{
     if (!geoset->userdata)
         return;
     
@@ -162,6 +162,8 @@ static void R_BindBoneMatrices(mdxModel_t const *model, DWORD frame1, DWORD fram
     R_Call(glUniformMatrix4fv, tr.shaderSkin->uBones, numBones, GL_FALSE, global_matrices->v);
 }
 
+extern bool is_rendering_lights;
+
 static void RenderGeoset(mdxModel_t const *model,
                          mdxGeoset_t const *geoset,
                          renderEntity_t const *entity,
@@ -180,14 +182,9 @@ static void RenderGeoset(mdxModel_t const *model,
     }
 
     MATRIX4 mModelMatrix;
-    Matrix4_identity(&mModelMatrix);
-    Matrix4_translate(&mModelMatrix, &entity->origin);
-    Matrix4_rotate(&mModelMatrix, &(VECTOR3){0, 0, entity->angle * 180 / 3.14f}, ROTATE_XYZ);
-    Matrix4_scale(&mModelMatrix, &(VECTOR3){entity->scale, entity->scale, entity->scale});
+    R_GetEntityMatrix(entity, &mModelMatrix);
 
     R_Call(glUniform1i, tr.shaderSkin->uUseDiscard, 0);
-
-    extern bool is_rendering_lights;
 
     FOR_LOOP(layerID, material->num_layers) {
         mdxMaterialLayer_t const *layer = &material->layers[layerID];
@@ -251,12 +248,154 @@ static void RenderGeoset(mdxModel_t const *model,
                 break;
 #endif
         }
-        R_RenderGeoset(model, geoset, &mModelMatrix);
+        R_RenderGeoset(geoset, &mModelMatrix);
+    }
+#if 0
+    if (!is_rendering_lights) {
+        BOX3 box;
+//        FOR_EACH_LIST(mdxCollisionShape_t, shape, model->collisionShapes) {
+//            if (shape->type == SHAPETYPE_SPHERE) {
+//                mdxVec3_t o;
+//                memcpy(o, shape->vertex, 12);
+//                shape->vertex[0][0] = o[0] - shape->radius;
+//                shape->vertex[0][1] = o[1] - shape->radius;
+//                shape->vertex[0][2] = o[2] - shape->radius;
+//                shape->vertex[1][0] = o[0] + shape->radius;
+//                shape->vertex[1][1] = o[1] + shape->radius;
+//                shape->vertex[1][2] = o[2] + shape->radius;
+//                shape->type = SHAPETYPE_BOX;
+//            }
+//                memcpy(&box.min, shape->vertex[0], 12);
+//                memcpy(&box.max, shape->vertex[1], 12);
+//                R_DrawBoundingBox(&box, &mModelMatrix,(COLOR32){255,0,0,255});
+//        }
+        mdxBounds_t b = geoset->default_bounds;
+        memcpy(&box.min, b.min, 12);
+        memcpy(&box.max, b.max, 12);
+
+        R_DrawBoundingBox(&box, &mModelMatrix,(COLOR32){255,0,0,255});
+//        FOR_LOOP(i, geoset->num_bounds) {
+//            mdxBounds_t b = geoset->bounds[i];
+//            memcpy(&box.min, b.min, 12);
+//            memcpy(&box.max, b.max, 12);
+//            R_DrawBoundingBox(&box, &mModelMatrix,(COLOR32){255,0,0,255});
+//        }
+    }
+#endif
+}
+
+mdxSequence_t const *R_FindSequence(mdxModel_t const *model, LPCSTR name) {
+    FOR_LOOP(i, model->num_sequences) {
+        if (!strcmp(model->sequences[i].name, name)) {
+            return &model->sequences[i];
+        }
+    }
+    return NULL;
+}
+
+DWORD R_RemapAnimation(mdxModel_t const *model, DWORD frame, LPCSTR str) {
+    mdxSequence_t const *seq = R_FindSequenceAtTime(model, frame);
+    if (!seq) return frame;
+    char buffer[64] = { 0 };
+    sprintf(buffer, "%s %s", seq->name, str);
+    mdxSequence_t const *other = R_FindSequence(model, buffer);
+    if (other) {
+        return frame + other->interval[0] - seq->interval[0];
+    } else {
+        return frame;
     }
 }
 
-void RenderModel(renderEntity_t const *entity) {
+VECTOR3 R_BoundsCenter(mdxBounds_t const *bounds) {
+    return (VECTOR3) {
+        .x = (bounds->min[0] + bounds->max[0]) / 2,
+        .y = (bounds->min[1] + bounds->max[1]) / 2,
+        .z = (bounds->min[2] + bounds->max[2]) / 2,
+    };
+}
+
+bool R_TraceModel(renderEntity_t const *ent, LPCLINE3 line) {
+    MATRIX4 invmodel, matmodel;
+    R_GetEntityMatrix(ent, &matmodel);
+    mdxModel_t const *model = ent->model->mdx;
+    FOR_EACH_LIST(mdxCollisionShape_t, collisionShape, model->collisionShapes) {
+        if (collisionShape->type != SHAPETYPE_SPHERE)
+            continue;;
+        VECTOR3 center;
+        memcpy(&center, &collisionShape->vertex[0], sizeof(VECTOR3));
+        SPHERE3 sphere = {
+            .center = Matrix4_multiply_vector3(&matmodel, &center),
+            .radius = collisionShape->radius * ent->scale,
+        };
+        if (Line3_intersect_sphere3(line, &sphere, NULL))
+            return true;
+    }
+    Matrix4_inverse(&matmodel, &invmodel);
+    LINE3 linelocal = {
+        Matrix4_multiply_vector3(&invmodel, &line->a),
+        Matrix4_multiply_vector3(&invmodel, &line->b),
+    };
+    if (!model->collisionShapes)
+        goto check_geosets;
+    FOR_EACH_LIST(mdxCollisionShape_t, collisionShape, model->collisionShapes) {
+        if (collisionShape->type == SHAPETYPE_BOX) {
+            BOX3 box = {
+                .min = *(LPCVECTOR3)collisionShape->vertex[0],
+                .max = *(LPCVECTOR3)collisionShape->vertex[1],
+            };
+            if (Line3_intersect_box3(&linelocal, &box, NULL))
+                return true;
+        } else if (collisionShape->type == SHAPETYPE_SPHERE) {
+            VECTOR3 center;
+            memcpy(&center, &collisionShape->vertex[0], sizeof(VECTOR3));
+            SPHERE3 sphere = {
+                .center = center,
+                .radius = collisionShape->radius,
+            };
+            if (Line3_intersect_sphere3(&linelocal, &sphere, NULL))
+                return true;
+        }
+    }
+    return false;
+check_geosets:
+    FOR_EACH_LIST(mdxGeoset_t, geoset, model->geosets) {
+        BOX3 box2 = {
+            .min = *(LPCVECTOR3)&geoset->default_bounds.min,
+            .max = *(LPCVECTOR3)&geoset->default_bounds.max,
+        };
+        if (Line3_intersect_box3(&linelocal, &box2, NULL))
+            goto check_geometry;
+    }
+    return false;
+check_geometry:
+    FOR_EACH_LIST(mdxGeoset_t, geoset, model->geosets) {
+        FOR_LOOP(i, geoset->num_triangles / 3) {
+            TRIANGLE3 tri = {
+                .a = *(LPCVECTOR3)geoset->vertices[geoset->triangles[i*3+0]],
+                .b = *(LPCVECTOR3)geoset->vertices[geoset->triangles[i*3+1]],
+                .c = *(LPCVECTOR3)geoset->vertices[geoset->triangles[i*3+2]],
+            };
+            if (Line3_intersect_triangle(&linelocal, &tri, NULL))
+                return true;
+        }
+    }
+    return false;
+}
+
+void R_RenderModel(renderEntity_t const *entity) {
     mdxModel_t const *model = entity->model->mdx;
+    
+    if (entity->flags & RF_HAS_LUMBER) {
+        renderEntity_t ent = *entity;
+        ent.frame = R_RemapAnimation(model, ent.frame, "Lumber");
+        ent.oldframe = R_RemapAnimation(model, ent.oldframe, "Lumber");
+        entity = &ent;
+    } else if (entity->flags & RF_HAS_GOLD) {
+        renderEntity_t ent = *entity;
+        ent.frame = R_RemapAnimation(model, ent.frame, "Gold");
+        ent.oldframe = R_RemapAnimation(model, ent.oldframe, "Gold");
+        entity = &ent;
+    }
 
     R_BindBoneMatrices(model, entity->frame, entity->oldframe);
 
@@ -271,20 +410,21 @@ void RenderModel(renderEntity_t const *entity) {
         R_Call(glUseProgram, tr.shaderSkin->progid);
         R_Call(glUniformMatrix4fv, tr.shaderSkin->uBones, MAX_BONES, GL_FALSE, aBoneMatrices->v);
         renderEntity_t re = *entity;
-        re.scale *= 1.0f;
-        re.angle = tr.viewDef.time * 0.001;
+        re.scale = re.radius;
+        re.angle = 0;//tr.viewDef.time * 0.001;
         re.frame = 0;
         re.oldframe = 0;
-        RenderGeoset(tr.selectionCircle->mdx, tr.selectionCircle->mdx->geosets, &re, NULL);
+        if (is_rendering_lights)
+            return;
+        if ((re.radius*2) < 100) {
+            R_RenderSplat((LPCVECTOR2)&re.origin, re.radius, tr.selectionCircleSmall);
+        } else if ((re.radius*2) < 300) {
+            R_RenderSplat((LPCVECTOR2)&re.origin, re.radius, tr.selectionCircleMed);
+        } else {
+            R_RenderSplat((LPCVECTOR2)&re.origin, re.radius, tr.selectionCircleLarge);
+        }
+//        RenderGeoset(tr.selectionCircle->mdx, tr.selectionCircle->mdx->geosets, &re, NULL);
     }
-}
-
-void R_Viewport(LPCRECT viewport) {
-    SIZE2 const windowSize = R_GetWindowSize();
-    glViewport(viewport->x * windowSize.width / 800,
-               viewport->y * windowSize.height / 600,
-               viewport->width * windowSize.width / 800,
-               viewport->height * windowSize.height / 600);
 }
 
 bool R_GetModelCameraMatrix(mdxModel_t const *model, LPMATRIX4 output, LPVECTOR3 root) {

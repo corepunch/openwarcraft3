@@ -27,6 +27,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		5D2300F92A375DF400F649AE /* box2.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = box2.h; sourceTree = "<group>"; };
 		78314B192A28C6CE00062C4B /* rect.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = rect.h; sourceTree = "<group>"; };
 		78314B1A2A28C6CE00062C4B /* rect.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = rect.c; sourceTree = "<group>"; };
 		78662FEB2A176C2000266A62 /* triangle3.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = triangle3.h; sourceTree = "<group>"; };
@@ -100,6 +101,7 @@
 		78A896E72A16044100BC5B56 /* types */ = {
 			isa = PBXGroup;
 			children = (
+				5D2300F92A375DF400F649AE /* box2.h */,
 				78E91C062A1748D9003D9F3A /* box3.h */,
 				78A896EC2A1615B600BC5B56 /* line3.h */,
 				78A896E22A1603B800BC5B56 /* matrix3.h */,

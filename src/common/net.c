@@ -1,3 +1,5 @@
+#include <stdarg.h>
+
 #include "common.h"
 
 #define BUFFER_SIZE (1024 * 256)
@@ -76,6 +78,31 @@ HANDLE SZ_GetSpace(LPSIZEBUF buf, DWORD length) {
     return data;
 }
 
-void SZ_Write(LPSIZEBUF buf, HANDLE data, DWORD length) {
+void SZ_Write(LPSIZEBUF buf, void const *data, DWORD length) {
     memcpy(SZ_GetSpace(buf, length), data, length);
+}
+
+void Netchan_OutOfBand(NETSOURCE netsrc, netadr_t adr, DWORD length, BYTE *data) {
+    sizeBuf_t send;
+    BYTE send_buf[MAX_MSGLEN];
+
+// write the packet header
+    SZ_Init(&send, send_buf, sizeof(send_buf));
+    
+    MSG_WriteLong(&send, length + 4);
+    MSG_WriteLong(&send, -1);    // -1 sequence means out of band
+    SZ_Write(&send, data, length);
+
+// send the datagram
+//    NET_SendPacket(net_socket, send.cursize, send.data, adr);
+    NET_Write(netsrc, 0, send.data, send.cursize);
+}
+
+void Netchan_OutOfBandPrint(NETSOURCE netsrc, netadr_t adr, LPCSTR format, ...) {
+    va_list argptr;
+    static char string[MAX_MSGLEN - 4];
+    va_start(argptr, format);
+    vsprintf(string, format,argptr);
+    va_end(argptr);
+    Netchan_OutOfBand(netsrc, adr, (DWORD)strlen(string), (BYTE *)string);
 }

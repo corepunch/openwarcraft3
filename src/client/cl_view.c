@@ -1,3 +1,5 @@
+#include <stdlib.h> // atoi()
+
 #include "client.h"
 #include "renderer.h"
 
@@ -29,10 +31,10 @@ void Matrix4_getLightMatrix(LPCVECTOR3 sunangles, LPCVECTOR3 target, float scale
 
 void Matrix4_getCameraMatrix(viewCamera_t const *camera, LPMATRIX4 output) {
     MATRIX4 proj, view;
-    SIZE2 const windowSize = re.GetWindowSize();
+    size2_t const windowSize = re.GetWindowSize();
     float const aspect = (float)windowSize.width / (float)windowSize.height;
     Matrix4_perspective(&proj, camera->fov, aspect, camera->znear, camera->zfar);
-    Matrix4_fromViewAngles(&camera->target, &camera->angles, camera->distance, &view);
+    Matrix4_fromViewAngles(&camera->origin, &camera->viewangles, camera->distance, &view);
     Matrix4_multiply(&proj, &view, output);
 }
 
@@ -51,7 +53,7 @@ float LerpRotation(float a, float b, float t) {
     }
 }
 
-static void V_AddClientEntity(clientEntity_t const *ent) {
+static void V_AddClientEntity(centity_t const *ent) {
     renderEntity_t re = { 0 };
     re.origin = Vector3_lerp(&ent->prev.origin, &ent->current.origin, cl.viewDef.lerpfrac);
     re.angle = LerpRotation(ent->prev.angle, ent->current.angle, cl.viewDef.lerpfrac);
@@ -61,11 +63,10 @@ static void V_AddClientEntity(clientEntity_t const *ent) {
     re.model = cl.models[ent->current.model];
     re.skin = cl.pics[ent->current.image];
     re.team = ent->current.player;
+    re.flags = ent->current.renderfx;
+    re.radius = ent->current.radius;
+    re.number = ent->current.number;
 
-    if (ent->selected) {
-        re.flags = RF_SELECTED;
-    }
-    
     view_state.entities[view_state.num_entities++] = re;
 
 }
@@ -82,43 +83,54 @@ static void CL_AddConfirmationObject(moveConfirmation_t const *mc) {
     re.scale = 1;
     re.frame = cl.time - mc->timespamp;
     re.oldframe = cl.time - mc->timespamp;
-    re.model = cl.cursor;
+    re.model = cl.moveConfirmation;
     
     view_state.entities[view_state.num_entities++] = re;
 }
 
-int px, py;
-
-LINE3 CL_GetMouseLine(DWORD pixelX, DWORD pixelY);
+static LINE3 CL_GetMouseLine(LPCVECTOR2 mouse) {
+    LINE3 line;
+    MATRIX4 cameramat;
+    MATRIX4 invcammat;
+    size2_t const windowSize = re.GetWindowSize();
+    float const x = (mouse->x / (float)windowSize.width - 0.5) * 2;
+    float const y = (0.5 - mouse->y / (float)windowSize.height) * 2;
+    Matrix4_getCameraMatrix(&cl.viewDef.camera, &cameramat);
+    Matrix4_inverse(&cameramat, &invcammat);
+    line.a = Matrix4_multiply_vector3(&invcammat, &(VECTOR3) { x, y, 0 });
+    line.b = Matrix4_multiply_vector3(&invcammat, &(VECTOR3) { x, y, 1 });
+    return line;
+}
 
 static void CL_AddBuilding(void) {
-//    renderEntity_t re;
-//    memset(&re, 0, sizeof(renderEntity_t));
-//    re.origin = cl.viewDef.camera.target;
-//    re.scale = 1;
-//    re.frame = 200000;
-//    re.oldframe = 200000;
-//    re.model = cl.models[32];
+    if (!cl.cursorEntity)
+        return;
+
+    renderEntity_t re;
+    memset(&re, 0, sizeof(renderEntity_t));
     
-    entityState_t *building = &cl.ents[1].current;
-    LINE3 const line = CL_GetMouseLine(px, py);
-    CM_IntersectLineWithHeightmap(&line, &building->origin);
+    LINE3 const line = CL_GetMouseLine(&mouse.origin);
+    CM_IntersectLineWithHeightmap(&line, &re.origin);
+
+    re.origin.x = floor(re.origin.x / 32) * 32;
+    re.origin.y = floor(re.origin.y / 32) * 32;
+    re.origin.z = CM_GetHeightAtPoint(re.origin.x, re.origin.y);
+    re.scale = cl.cursorEntity->scale;
+    re.frame = cl.cursorEntity->frame;
+    re.oldframe = cl.cursorEntity->frame;
+    re.model = cl.models[cl.cursorEntity->model];
     
-    building->origin.x = floor(building->origin.x / 32) * 32;
-    building->origin.y = floor(building->origin.y / 32) * 32;
-    building->origin.z = CM_GetHeightAtPoint(building->origin.x, building->origin.y);
+    cl.cursorEntity->origin = re.origin;
     
-    cl.ents[1].prev = cl.ents[1].current;
+    view_state.entities[view_state.num_entities++] = re;
 }
 
 static void CL_AddEntities(void) {
     cl.viewDef.lerpfrac = (float)(cl.time - cl.frame.servertime) / FRAMETIME;
 
-    CL_AddBuilding();
-
     FOR_LOOP(index, MAX_CLIENT_ENTITIES) {
-        clientEntity_t const *ce = &cl.ents[index];
-        if (!ce->current.model /*|| ce->current.number != 108*/)
+        centity_t const *ce = &cl.ents[index];
+        if (!ce->current.model)
             continue;
         V_AddClientEntity(ce);
     }
@@ -128,6 +140,8 @@ static void CL_AddEntities(void) {
             continue;
         CL_AddConfirmationObject(&cl.confs[index]);
     }
+    
+    CL_AddBuilding();
 
     cl.viewDef.num_entities = view_state.num_entities;
     cl.viewDef.entities = view_state.entities;
@@ -136,24 +150,39 @@ static void CL_AddEntities(void) {
 void CL_PrepRefresh(void) {
     if (!cl.configstrings[CS_MODELS+1][0])
         return; // no map loaded
-
+    
     static bool map_registered = false;
-
+    
     if (!map_registered) {
         re.RegisterMap(cl.configstrings[CS_MODELS+1]);
         map_registered = true;
     }
-
+    
     for (int i = 2; i < MAX_MODELS && *cl.configstrings[CS_MODELS + i]; i++) {
         if (cl.models[i])
             continue;
         cl.models[i] = re.LoadModel(cl.configstrings[CS_MODELS + i]);
     }
-
+    
     for (int i = 1; i < MAX_IMAGES && *cl.configstrings[CS_IMAGES + i]; i++) {
         if (cl.pics[i])
             continue;
         cl.pics[i] = re.LoadTexture(cl.configstrings[CS_IMAGES + i]);
+    }
+    
+    for (int i = 1; i < MAX_FONTSTYLES && *cl.configstrings[CS_FONTS + i]; i++) {
+        if (cl.fonts[i])
+            continue;
+        LPCSTR fontspec = cl.configstrings[CS_FONTS + i];
+        LPCSTR split = strstr(fontspec, ",");
+        if (split) {
+            PATHSTR filename = { 0 };
+            memcpy(filename, fontspec, split - fontspec);
+            DWORD fontsize = atoi(split+1);
+            cl.fonts[i] = re.LoadFont(filename, fontsize);
+        } else {
+            cl.fonts[i] = re.LoadFont(cl.configstrings[CS_FONTS + i], 16);
+        }
     }
 }
 
@@ -169,7 +198,7 @@ void V_RenderView(void) {
     cl.viewDef.time = cl.time;
     
     Matrix4_getCameraMatrix(&cl.viewDef.camera, &cl.viewDef.projectionMatrix);
-    Matrix4_getLightMatrix(&lightAngles, &cl.viewDef.camera.target, VIEW_SHADOW_SIZE, &cl.viewDef.lightMatrix);
+    Matrix4_getLightMatrix(&lightAngles, &cl.viewDef.camera.origin, VIEW_SHADOW_SIZE, &cl.viewDef.lightMatrix);
 
     V_ClearScene();
     CL_AddEntities();
@@ -179,7 +208,7 @@ void V_RenderView(void) {
 //    re.DrawPic(tex1, 0, 0);
 //    re.DrawPic(tex2, 512, 0);
 
-    if (cl.selection.inProgress) {
+    if (cl.selection.in_progress) {
         re.DrawSelectionRect(&cl.selection.rect, (COLOR32){0,255,0,255});
     }
 }

@@ -4,9 +4,10 @@
 #define HIGH_NUMBER 9999
 
 static bool SV_CanClientSeeEntity(LPCCLIENT client, entityState_t const *edict) {
-    if (fabs(edict->origin.x - client->camera_position.x) > VISUAL_DISTANCE)
+    edict_t *clent = client->edict;
+    if (fabs(edict->origin.x - clent->client->ps.origin.x) > VISUAL_DISTANCE)
         return false;
-    if (fabs(edict->origin.y - client->camera_position.y) > VISUAL_DISTANCE)
+    if (fabs(edict->origin.y - clent->client->ps.origin.y) > VISUAL_DISTANCE)
         return false;
     return true;
 }
@@ -17,7 +18,9 @@ entityState_t *SV_NextClientEntity(void) {
 }
 
 void SV_BuildClientFrame(LPCLIENT client) {
+    edict_t *clent = client->edict;
     LPCLIENTFRAME frame = &client->frames[sv.framenum & UPDATE_MASK];
+    frame->ps = clent->client->ps;
     frame->num_entities = 0;
     frame->first_entity = svs.next_client_entities;
     for (int index = 1; index < ge->num_edicts; index++) {
@@ -30,14 +33,14 @@ void SV_BuildClientFrame(LPCLIENT client) {
             continue;
         entityState_t *state = SV_NextClientEntity();
         *state = edict->s;
+        if (edict->selected & (1 << clent->client->ps.number)) {
+            state->renderfx |= RF_SELECTED;
+        }
         frame->num_entities++;
     }
 }
 
-void SV_EmitPacketEntities(LPCCLIENTFRAME from,
-                           LPCCLIENTFRAME to,
-                           LPSIZEBUF msg)
-{
+void SV_EmitPacketEntities(LPCCLIENTFRAME from, LPCCLIENTFRAME to, LPSIZEBUF msg) {
     int const from_num_entities = from ? from->num_entities : 0;
 
     MSG_WriteByte (msg, svc_packetentities);
@@ -82,6 +85,20 @@ void SV_EmitPacketEntities(LPCCLIENTFRAME from,
     MSG_WriteLong(msg, 0);    // end of packetentities
 }
 
+void SV_WritePlayerstateToClient(LPCCLIENTFRAME from, LPCCLIENTFRAME to, LPSIZEBUF msg) {
+    playerState_t const *ps = &to->ps;
+    playerState_t const *ops = NULL;
+    playerState_t dummy;
+    if (!from) {
+        memset(&dummy, 0, sizeof(dummy));
+        ops = &dummy;
+    } else {
+        ops = &from->ps;
+    }
+    MSG_WriteByte(msg, svc_playerinfo);
+    MSG_WriteDeltaPlayerState(msg, ops, ps);
+}
+
 void SV_WriteFrameToClient(LPCLIENT client) {
     LPCLIENTFRAME frame = &client->frames[sv.framenum & UPDATE_MASK];
     LPCLIENTFRAME oldframe = &client->frames[client->lastframe & UPDATE_MASK];
@@ -91,6 +108,7 @@ void SV_WriteFrameToClient(LPCLIENT client) {
     MSG_WriteLong(&client->netchan.message, sv.time);
     MSG_WriteLong(&client->netchan.message, client->lastframe);
 
+    SV_WritePlayerstateToClient(oldframe, frame, &client->netchan.message);
     SV_EmitPacketEntities(oldframe, frame, &client->netchan.message);
 
     client->lastframe = sv.framenum;

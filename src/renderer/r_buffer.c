@@ -8,13 +8,13 @@ VERTEX *R_AddQuad(VERTEX *buffer, LPCRECT screen, LPCRECT uv, COLOR32 color) {
             .color = color,
         },
         {
-            .position = { screen->x+screen->width, screen->y, 0 },
-            .texcoord = { uv->x+uv->width, uv->y },
+            .position = { screen->x+screen->w, screen->y, 0 },
+            .texcoord = { uv->x+uv->w, uv->y },
             .color = color,
         },
         {
-            .position = { screen->x+screen->width, screen->y+screen->height, 0 },
-            .texcoord = { uv->x+uv->width, uv->y+uv->height },
+            .position = { screen->x+screen->w, screen->y+screen->h, 0 },
+            .texcoord = { uv->x+uv->w, uv->y+uv->h },
             .color = color,
         },
         {
@@ -23,13 +23,13 @@ VERTEX *R_AddQuad(VERTEX *buffer, LPCRECT screen, LPCRECT uv, COLOR32 color) {
             .color = color,
         },
         {
-            .position = { screen->x+screen->width, screen->y+screen->height, 0 },
-            .texcoord = { uv->x+uv->width, uv->y+uv->height },
+            .position = { screen->x+screen->w, screen->y+screen->h, 0 },
+            .texcoord = { uv->x+uv->w, uv->y+uv->h },
             .color = color,
         },
         {
-            .position = { screen->x, screen->y+screen->height, 0 },
-            .texcoord = { uv->x, uv->y+uv->height },
+            .position = { screen->x, screen->y+screen->h, 0 },
+            .texcoord = { uv->x, uv->y+uv->h },
             .color = color,
         },
     };
@@ -44,15 +44,15 @@ VERTEX *R_AddStrip(VERTEX *buffer, LPCRECT screen, COLOR32 color) {
             .color = color,
         },
         {
-            .position = { screen->x+screen->width, screen->y, 0 },
+            .position = { screen->x+screen->w, screen->y, 0 },
             .color = color,
         },
         {
-            .position = { screen->x+screen->width, screen->y+screen->height, 0 },
+            .position = { screen->x+screen->w, screen->y+screen->h, 0 },
             .color = color,
         },
         {
-            .position = { screen->x, screen->y+screen->height, 0 },
+            .position = { screen->x, screen->y+screen->h, 0 },
             .color = color,
         },
         {
@@ -61,8 +61,35 @@ VERTEX *R_AddStrip(VERTEX *buffer, LPCRECT screen, COLOR32 color) {
         },
     };
     memcpy(buffer, data, sizeof(data));
-    return buffer + 5;
+    return buffer + sizeof(data) / sizeof(*data);
 }
+
+
+VERTEX *R_AddWireBox(VERTEX *buffer, LPCBOX3 box, COLOR32 color) {
+    VERTEX data[] = {
+        { .position = { box->min.x, box->min.y, box->min.z }, .color = color },
+        { .position = { box->max.x, box->min.y, box->min.z }, .color = color },
+        { .position = { box->max.x, box->min.y, box->max.z }, .color = color },
+        { .position = { box->min.x, box->min.y, box->max.z }, .color = color },
+        { .position = { box->min.x, box->min.y, box->min.z }, .color = color },
+        { .position = { box->min.x, box->max.y, box->min.z }, .color = color },
+        { .position = { box->max.x, box->max.y, box->min.z }, .color = color },
+        { .position = { box->max.x, box->max.y, box->max.z }, .color = color },
+        { .position = { box->min.x, box->max.y, box->max.z }, .color = color },
+        { .position = { box->min.x, box->max.y, box->min.z }, .color = color },
+        { .position = { box->min.x, box->min.y, box->min.z }, .color = color },
+        { .position = { box->min.x, box->max.y, box->min.z }, .color = color },
+        { .position = { box->max.x, box->min.y, box->min.z }, .color = color },
+        { .position = { box->max.x, box->max.y, box->min.z }, .color = color },
+        { .position = { box->max.x, box->min.y, box->max.z }, .color = color },
+        { .position = { box->max.x, box->max.y, box->max.z }, .color = color },
+        { .position = { box->min.x, box->min.y, box->max.z }, .color = color },
+        { .position = { box->min.x, box->max.y, box->max.z }, .color = color },
+    };
+    memcpy(buffer, data, sizeof(data));
+    return buffer + sizeof(data) / sizeof(*data);
+}
+
 
 LPBUFFER R_MakeVertexArrayObject(LPCVERTEX vertices, DWORD size) {
     LPBUFFER buf = ri.MemAlloc(sizeof(BUFFER));

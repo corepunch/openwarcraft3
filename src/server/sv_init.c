@@ -42,6 +42,12 @@ void SV_Shutdown(void) {
     ge->Shutdown();
 }
 
+void SV_ClientConnect(void) {
+    svs.num_clients++;
+    netadr_t adr = { 0 };
+    Netchan_OutOfBandPrint(NS_SERVER, adr, "client_connect");
+}
+
 void SV_Init(void) {
     SV_InitGameProgs();
     
@@ -53,6 +59,7 @@ void SV_Init(void) {
         SZ_Init(&cl->netchan.message, cl->netchan.message_buf, MAX_MSGLEN);
     }
 
-    svs.num_clients = 1;
     sv.baselines = MemAlloc(sizeof(entityState_t) * ge->max_edicts);
+    
+    SV_ClientConnect();
 }

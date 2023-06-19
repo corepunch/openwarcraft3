@@ -4,6 +4,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <assert.h>
+#include <stdarg.h>
 
 #include "../cmath3/cmath3.h"
 
@@ -58,11 +59,30 @@ if (LIST) { \
     LIST = VAR; \
 }
 
+#define PARSE_LIST(LIST, ITEM, PARSER) \
+parser_t parser = { 0 }; \
+parser.tok = parser.token; \
+parser.str = LIST; \
+parser.comma_space = true; \
+for (LPCSTR ITEM = PARSER(&parser); ITEM; ITEM = PARSER(&parser))
+
+enum {
+    RF_SELECTED = 1 << 0,
+    RF_HAS_LUMBER = 1 << 1,
+    RF_HAS_GOLD = 1 << 2,
+};
+
 #define MAX_COMMANDS 12
+
+#define STAT_GOLD 1
+#define STAT_LUMBER 2
+#define STAT_SUPPLY 3
+
+#define MAX_STATS 32
 
 #define MAX_PACKET_ENTITIES 64
 #define MAX_CLIENTS 256
-#define MAX_LIGHTSTYLES 256
+#define MAX_FONTSTYLES 256
 #define MAX_MODELS 256
 #define MAX_SOUNDS 256
 #define MAX_IMAGES 256
@@ -81,8 +101,8 @@ if (LIST) { \
 #define CS_MODELS 32
 #define CS_SOUNDS (CS_MODELS+MAX_MODELS)
 #define CS_IMAGES (CS_SOUNDS+MAX_SOUNDS)
-#define CS_LIGHTS (CS_IMAGES+MAX_IMAGES)
-#define CS_ITEMS (CS_LIGHTS+MAX_LIGHTSTYLES)
+#define CS_FONTS (CS_IMAGES+MAX_IMAGES)
+#define CS_ITEMS (CS_FONTS+MAX_FONTSTYLES)
 #define CS_PLAYERSKINS (CS_ITEMS+MAX_ITEMS)
 #define CS_GENERAL (CS_PLAYERSKINS+MAX_CLIENTS)
 #define MAX_CONFIGSTRINGS (CS_GENERAL+MAX_GENERAL)
@@ -117,13 +137,13 @@ typedef struct bounds { float min, max; } bounds_t;
 typedef struct edges { float left, top, right, bottom; } edges_t;
 typedef struct transform2 { VECTOR2 translation, scale; float rotation; } transform2_t;
 typedef struct transform3 { VECTOR3 translation, rotation, scale; } transform3_t;
+typedef char uiName_t[80];
 
 KNOWN_AS(SheetLayout, SHEETLAYOUT);
-KNOWN_AS(SheetCell, SHEETCELL);
+KNOWN_AS(SheetCell, SHEET);
 KNOWN_AS(Doodad, DOODAD);
 KNOWN_AS(vector3, VECTOR3);
 KNOWN_AS(color32, COLOR32);
-KNOWN_AS(size2, SIZE2);
 
 typedef enum {
     MULTICAST_ALL,
@@ -134,15 +154,25 @@ typedef enum {
     MULTICAST_PVS_R
 } multicast_t;
 
+typedef struct {
+    DWORD number;
+    VECTOR3 viewangles;
+    VECTOR3 origin;
+    float distance;
+    DWORD fov;
+    int rdflags;
+    short stats[MAX_STATS];
+} playerState_t;
+
 typedef struct entityState_s {
     DWORD number; // edict index
-    DWORD class_id;
     union {
         VECTOR3 origin;
         struct { VECTOR2 origin2; float z; };
     };
     float angle;
     float scale;
+    float radius;
     DWORD model;
     DWORD image;
     DWORD sound;
@@ -150,19 +180,131 @@ typedef struct entityState_s {
     DWORD event;
     DWORD player;
     DWORD flags;
+    DWORD renderfx;
 } entityState_t;
 
 typedef struct {
-    DWORD firstframe;
-    DWORD lastframe;
-    DWORD framerate;
-    float movespeed;
-} animationInfo_t;
+    char name[80];
+    DWORD interval[2];
+    float movespeed;     // movement speed of the entity while playing this animation
+    DWORD flags;      // &1: non looping
+    float rarity;
+    int syncpoint;
+    float radius;
+    VECTOR3 min;
+    VECTOR3 max;
+} animation_t;
 
-struct size2 {
+typedef struct {
     DWORD width;
     DWORD height;
-};
+} size2_t;
+
+typedef enum {
+    FT_NONE,
+    FT_BACKDROP,
+    FT_BUTTON,
+    FT_CHATDISPLAY,
+    FT_CHECKBOX,
+    FT_CONTROL,
+    FT_DIALOG,
+    FT_EDITBOX,
+    FT_FRAME,
+    FT_GLUEBUTTON,
+    FT_GLUECHECKBOX,
+    FT_GLUEEDITBOX,
+    FT_GLUEPOPUPMENU,
+    FT_GLUETEXTBUTTON,
+    FT_HIGHLIGHT,
+    FT_LISTBOX,
+    FT_MENU,
+    FT_MODEL,
+    FT_POPUPMENU,
+    FT_SCROLLBAR,
+    FT_SIMPLEBUTTON,
+    FT_SIMPLECHECKBOX,
+    FT_SIMPLEFRAME,
+    FT_SIMPLESTATUSBAR,
+    FT_SLASHCHATBOX,
+    FT_SLIDER,
+    FT_SPRITE,
+    FT_TEXT,
+    FT_TEXTAREA,
+    FT_TEXTBUTTON,
+    FT_TIMERTEXT,
+    FT_TEXTURE,
+    FT_STRING,
+    FT_LAYER,
+    FT_SCREEN,
+    FT_COMMANDBUTTON,
+} uiFrameType_t;
+
+typedef enum {
+    AM_ALPHAKEY,
+} uiAlphaMode_t;
+
+typedef enum {
+    FPP_MIN,
+    FPP_MID,
+    FPP_MAX,
+    FPP_COUNT,
+} uiFramePointPos_t;
+
+typedef enum {
+    FONT_JUSTIFYCENTER,
+    FONT_JUSTIFYLEFT,
+    FONT_JUSTIFYRIGHT,
+} uiFontJustificationH_t;
+
+typedef enum {
+    FONT_JUSTIFYMIDDLE,
+    FONT_JUSTIFYTOP,
+    FONT_JUSTIFYBOTTOM,
+} uiFontJustificationV_t;
+
+typedef struct { // serialized as 4 bytes
+    uiFramePointPos_t targetPos: 7;
+    bool used: 1;
+    uint8_t relativeTo: 8;
+    int16_t offset: 16;
+} uiFramePoint_t;
+
+typedef uiFramePoint_t uiFramePoints_t[FPP_COUNT];
+
+typedef struct {
+    DWORD number;
+    DWORD parent;
+    struct { uiFramePoints_t x, y; } points;
+    struct { uint16_t width, height; } size;
+    
+    // Texture
+    struct {
+        DWORD index;
+        uint8_t coord[4];
+    } tex;
+
+    // String
+    union {
+        struct {
+            uiFrameType_t type: 8;
+            uiAlphaMode_t alphaMode: 2;
+            uiFontJustificationH_t textalignx: 2;
+            uiFontJustificationV_t textaligny: 2;
+        } flags;
+        DWORD flagsvalue;
+    };
+    
+    struct {
+        DWORD index;
+    } font;
+    DWORD textLength;
+    DWORD stat;
+    uiName_t text;
+
+    // Command Button
+    DWORD code;
+} uiFrame_t;
+
 
 enum SheetType {
     ST_ID,
@@ -177,19 +319,23 @@ struct SheetLayout {
     HANDLE fofs;
 };
 
-struct SheetCell {
-    DWORD column;
-    DWORD row;
+typedef struct SheetCell {
     LPSTR text;
-    LPSHEETCELL next;
-};
+    USHORT column;
+    USHORT row;
+    LPSHEET next;
+} sheetCell_t;
 
-typedef struct configValue_s {
-    char Section[64];
-    char Name[64];
-    LPSTR Value;
-    struct configValue_s *next;
-} configValue_t;
+typedef struct sheetField_s {
+    LPCSTR name, value;
+    struct sheetField_s *next;
+} sheetField_t;
+
+typedef struct sheetRow_s {
+    LPCSTR name;
+    struct sheetField_s *fields;
+    struct sheetRow_s *next;
+} sheetRow_t;
 
 typedef struct {
     LPSTR tok;

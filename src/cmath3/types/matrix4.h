@@ -30,7 +30,7 @@ void Matrix4_translate(LPMATRIX4 m, LPCVECTOR3 v);
 void Matrix4_rotate(LPMATRIX4 m, LPCVECTOR3 v, ROTATIONORDER order);
 void Matrix4_scale(LPMATRIX4 m, LPCVECTOR3 v);
 void Matrix4_multiply(LPCMATRIX4 m1, LPCMATRIX4 m2, LPMATRIX4 out);
-void Matrix4_multiply_vector3(LPCMATRIX4 m1, LPCVECTOR3 v, LPVECTOR3 out);
+VECTOR3 Matrix4_multiply_vector3(LPCMATRIX4 m1, LPCVECTOR3 v);
 void Matrix4_ortho(LPMATRIX4 m, float left, float right, float bottom, float top, float znear, float zfar);
 void Matrix4_perspective(LPMATRIX4 m, float angle, float aspect, float znear, float zfar);
 void Matrix4_lookAt(LPMATRIX4 m, LPCVECTOR3 eye, LPCVECTOR3 direction, LPCVECTOR3 up);

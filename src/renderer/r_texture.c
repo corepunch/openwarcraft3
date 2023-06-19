@@ -3,7 +3,7 @@
 static LPTEXTURE g_textures = NULL;
 
 int R_RegisterTextureFile(char const *textureFileName) {
-    LPTEXTURE tex = R_LoadTexture(textureFileName);
+    LPTEXTURE tex = (LPTEXTURE)R_LoadTexture(textureFileName);
     if (tex) {
         ADD_TO_LIST(tex, g_textures);
         return tex->texid;
@@ -34,11 +34,15 @@ LPTEXTURE R_AllocateTexture(DWORD width, DWORD height) {
     return texture;
 }
 
+void R_ReleaseTexture(LPTEXTURE texture) {
+    R_Call(glDeleteTextures, 1, texture->texid);
+}
+
 void R_LoadTextureMipLevel(LPCTEXTURE pTexture, DWORD level, LPCCOLOR32 pPixels, DWORD width, DWORD height) {
     if (width == 0 || height == 0)
         return;
     R_Call(glBindTexture, GL_TEXTURE_2D, pTexture->texid);
-    R_Call(glTexImage2D, GL_TEXTURE_2D, level, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, pPixels);
+    R_Call(glTexImage2D, GL_TEXTURE_2D, level, GL_RGBA, width, height, 0, GL_BGRA, GL_UNSIGNED_BYTE, pPixels);
     if (level > 0) {
         R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, level);
         R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);

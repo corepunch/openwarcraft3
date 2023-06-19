@@ -7,6 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		5D2301012A3848CE00F649AE /* stb_truetype.c in Sources */ = {isa = PBXBuildFile; fileRef = 5D2300FF2A3848CE00F649AE /* stb_truetype.c */; };
+		5D2301022A3848CE00F649AE /* stb_truetype.h in Headers */ = {isa = PBXBuildFile; fileRef = 5D2301002A3848CE00F649AE /* stb_truetype.h */; };
+		5D2301042A386B0000F649AE /* r_font.c in Sources */ = {isa = PBXBuildFile; fileRef = 5D2301032A386B0000F649AE /* r_font.c */; };
 		7810F3F52A20A1B0003AADBC /* r_buffer.c in Sources */ = {isa = PBXBuildFile; fileRef = 7810F3F42A20A1B0003AADBC /* r_buffer.c */; };
 		7810F3F72A20A220003AADBC /* r_draw.c in Sources */ = {isa = PBXBuildFile; fileRef = 7810F3F62A20A220003AADBC /* r_draw.c */; };
 		786637342A1A488800266A62 /* Terrain.h in Headers */ = {isa = PBXBuildFile; fileRef = 7866372C2A1A488700266A62 /* Terrain.h */; };
@@ -31,13 +34,16 @@
 		78A896A82A15F84800BC5B56 /* r_main.c in Sources */ = {isa = PBXBuildFile; fileRef = 78A896992A15F84800BC5B56 /* r_main.c */; };
 		78A896A92A15F84800BC5B56 /* r_mdx_load.c in Sources */ = {isa = PBXBuildFile; fileRef = 78A8969A2A15F84800BC5B56 /* r_mdx_load.c */; };
 		78A896AA2A15F84800BC5B56 /* r_local.h in Headers */ = {isa = PBXBuildFile; fileRef = 78A8969B2A15F84800BC5B56 /* r_local.h */; };
-		78A896AB2A15F84800BC5B56 /* r_entities.c in Sources */ = {isa = PBXBuildFile; fileRef = 78A8969C2A15F84800BC5B56 /* r_entities.c */; };
+		78A896AB2A15F84800BC5B56 /* r_ents.c in Sources */ = {isa = PBXBuildFile; fileRef = 78A8969C2A15F84800BC5B56 /* r_ents.c */; };
 		78A896AC2A15F84800BC5B56 /* r_blp.c in Sources */ = {isa = PBXBuildFile; fileRef = 78A8969D2A15F84800BC5B56 /* r_blp.c */; };
 		78A896B12A15FA0900BC5B56 /* r_war3map_utils.c in Sources */ = {isa = PBXBuildFile; fileRef = 78A896B02A15FA0900BC5B56 /* r_war3map_utils.c */; };
 		78A896EA2A16054B00BC5B56 /* libcmath3.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 78A896E92A16054B00BC5B56 /* libcmath3.dylib */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		5D2300FF2A3848CE00F649AE /* stb_truetype.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = stb_truetype.c; sourceTree = "<group>"; };
+		5D2301002A3848CE00F649AE /* stb_truetype.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = stb_truetype.h; sourceTree = "<group>"; };
+		5D2301032A386B0000F649AE /* r_font.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = r_font.c; sourceTree = "<group>"; };
 		7810F3F42A20A1B0003AADBC /* r_buffer.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = r_buffer.c; sourceTree = "<group>"; };
 		7810F3F62A20A220003AADBC /* r_draw.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = r_draw.c; sourceTree = "<group>"; };
 		7810F4292A233547003AADBC /* libmdx.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; path = libmdx.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -64,7 +70,7 @@
 		78A896992A15F84800BC5B56 /* r_main.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = r_main.c; sourceTree = "<group>"; };
 		78A8969A2A15F84800BC5B56 /* r_mdx_load.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = r_mdx_load.c; sourceTree = "<group>"; };
 		78A8969B2A15F84800BC5B56 /* r_local.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = r_local.h; sourceTree = "<group>"; };
-		78A8969C2A15F84800BC5B56 /* r_entities.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = r_entities.c; sourceTree = "<group>"; };
+		78A8969C2A15F84800BC5B56 /* r_ents.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = r_ents.c; sourceTree = "<group>"; };
 		78A8969D2A15F84800BC5B56 /* r_blp.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = r_blp.c; sourceTree = "<group>"; };
 		78A896B02A15FA0900BC5B56 /* r_war3map_utils.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = r_war3map_utils.c; sourceTree = "<group>"; };
 		78A896E92A16054B00BC5B56 /* libcmath3.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; path = libcmath3.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -82,6 +88,15 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		5D2300FE2A3848CE00F649AE /* stb */ = {
+			isa = PBXGroup;
+			children = (
+				5D2300FF2A3848CE00F649AE /* stb_truetype.c */,
+				5D2301002A3848CE00F649AE /* stb_truetype.h */,
+			);
+			path = stb;
+			sourceTree = "<group>";
+		};
 		7810F3F22A20A12A003AADBC /* mdx */ = {
 			isa = PBXGroup;
 			children = (
@@ -127,7 +142,8 @@
 				78A8969D2A15F84800BC5B56 /* r_blp.c */,
 				7810F3F42A20A1B0003AADBC /* r_buffer.c */,
 				7810F3F62A20A220003AADBC /* r_draw.c */,
-				78A8969C2A15F84800BC5B56 /* r_entities.c */,
+				78A8969C2A15F84800BC5B56 /* r_ents.c */,
+				5D2301032A386B0000F649AE /* r_font.c */,
 				78A896992A15F84800BC5B56 /* r_main.c */,
 				78A8968F2A15F84800BC5B56 /* r_shader.c */,
 				786637B92A1B5A2B00266A62 /* r_sysfont.c */,
@@ -136,6 +152,7 @@
 				78A896E82A16054B00BC5B56 /* Frameworks */,
 				7810F3F22A20A12A003AADBC /* mdx */,
 				78A896832A15F82600BC5B56 /* Products */,
+				5D2300FE2A3848CE00F649AE /* stb */,
 				7866372B2A1A482900266A62 /* TerrainArt */,
 				7810F3F32A20A133003AADBC /* w3m */,
 			);
@@ -171,6 +188,7 @@
 				786637392A1A488800266A62 /* Weather.h in Headers */,
 				786637352A1A488800266A62 /* CliffTypes.h in Headers */,
 				7866373B2A1A488800266A62 /* Water.h in Headers */,
+				5D2301022A3848CE00F649AE /* stb_truetype.h in Headers */,
 				78A896A52A15F84800BC5B56 /* r_war3map.h in Headers */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -235,6 +253,7 @@
 				786637372A1A488800266A62 /* Terrain.c in Sources */,
 				78A896A02A15F84800BC5B56 /* r_war3map.c in Sources */,
 				78A896A42A15F84800BC5B56 /* r_mdx_interpolation.c in Sources */,
+				5D2301042A386B0000F649AE /* r_font.c in Sources */,
 				78A896B12A15FA0900BC5B56 /* r_war3map_utils.c in Sources */,
 				7810F3F72A20A220003AADBC /* r_draw.c in Sources */,
 				7810F3F52A20A1B0003AADBC /* r_buffer.c in Sources */,
@@ -250,8 +269,9 @@
 				78A896A92A15F84800BC5B56 /* r_mdx_load.c in Sources */,
 				786637362A1A488800266A62 /* Water.c in Sources */,
 				786637BA2A1B5A2B00266A62 /* r_sysfont.c in Sources */,
-				78A896AB2A15F84800BC5B56 /* r_entities.c in Sources */,
+				78A896AB2A15F84800BC5B56 /* r_ents.c in Sources */,
 				78A8969E2A15F84800BC5B56 /* r_shader.c in Sources */,
+				5D2301012A3848CE00F649AE /* stb_truetype.c in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

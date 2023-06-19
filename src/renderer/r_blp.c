@@ -448,11 +448,11 @@ LPCOLOR32 blp1_convert_jpeg(BYTE* pSrc, struct tBLP1Infos* pInfos, DWORD dataSiz
     LPCOLOR32 pBuffer = ri.MemAlloc(sizeof (COLOR32) * image.width * image.height);
 
     for (DWORD p = 0; p < image.width * image.height; ++p){
-        BYTE const *c = &image.data[p * image.num_components];
-        pBuffer[p].r = c[2];
-        pBuffer[p].g = c[1];
-        pBuffer[p].b = c[0];
-        pBuffer[p].a = image.num_components == 4 ? c[3] : 0xff;
+        LPCOLOR32 c = &image.data[p * image.num_components];
+        pBuffer[p] = *c;
+        if (image.num_components != 4) {
+            pBuffer[p].a = 0xff;
+        }
     }
 
     ri.MemFree(image.data);

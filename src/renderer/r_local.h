@@ -99,6 +99,9 @@ struct render_globals {
     LPCTEXTURE teamGlow[MAX_TEAMS];
     LPCTEXTURE teamColor[MAX_TEAMS];
     model_t const *selectionCircle;
+    LPCTEXTURE selectionCircleSmall;
+    LPCTEXTURE selectionCircleMed;
+    LPCTEXTURE selectionCircleLarge;
     DWORD depthMapFBO;
     DWORD depthMap;
 };
@@ -107,6 +110,7 @@ LPCSHADER R_InitShader(LPCSTR vertex_shader, LPCSTR fragment_shader);
 void R_RegisterMap(LPCSTR mapFileName);
 int R_RegisterTextureFile(LPCSTR textureFileName);
 LPCTEXTURE R_LoadTexture(LPCSTR textureFileName);
+void R_ReleaseTexture(LPTEXTURE texture);
 void R_DrawEntities(void);
 void R_DrawWorld(void);
 void R_DrawAlphaSurfaces(void);
@@ -115,29 +119,41 @@ LPTEXTURE R_AllocateTexture(DWORD width, DWORD height);
 LPTEXTURE R_MakeSysFontTexture(void);
 void R_LoadTextureMipLevel(LPCTEXTURE pTexture, DWORD level, LPCCOLOR32 pPixels, DWORD width, DWORD height);
 void R_BindTexture(LPCTEXTURE texture, DWORD unit);
-void RenderModel(renderEntity_t const *edict);
+void R_RenderModel(renderEntity_t const *edict);
+bool R_TraceModel(renderEntity_t const *edict, LPCLINE3 line);
 void R_ReleaseVertexArrayObject(LPBUFFER buffer);
 LPCTEXTURE R_FindTextureByID(DWORD textureID);
 bool R_IsPointVisible(LPCVECTOR3 point, float fThreshold);
 void R_DrawPortrait(model_t const *model, LPCRECT viewport);
+void R_RenderSplat(LPCVECTOR2 position, float radius, LPCTEXTURE texture);
+
+// r_ents.c
+renderEntity_t *R_Trace(viewDef_t const *viewdef, float x, float y);
+void R_GetEntityMatrix(renderEntity_t const *entity, LPMATRIX4 matrix);
 
 // r_mdx.c
 model_t *R_LoadModel(LPCSTR modelFilename);
 void R_ReleaseModel(model_t *model);
 
-struct size2 R_GetWindowSize(void);
+size2_t R_GetWindowSize(void);
 
 // r_buffer.c
 VERTEX *R_AddQuad(VERTEX *buffer, LPCRECT screen, LPCRECT uv, COLOR32 color);
 VERTEX *R_AddStrip(VERTEX *buffer, LPCRECT screen, COLOR32 color);
+VERTEX *R_AddWireBox(VERTEX *buffer, LPCBOX3 box, COLOR32 color);
 LPBUFFER R_MakeVertexArrayObject(LPCVERTEX vertices, DWORD size);
 void R_DrawBuffer(LPCBUFFER buffer, DWORD num_vertices);
 
 // r_draw.c
-void R_PrintText(LPCSTR string, DWORD x, DWORD y, COLOR32 color);
+void R_PrintSysText(LPCSTR string, DWORD x, DWORD y, COLOR32 color);
 void R_DrawImage(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv);
-void R_DrawPic(LPCTEXTURE texture, DWORD x, DWORD y);
+void R_DrawPic(LPCTEXTURE texture, float x, float y);
 void R_DrawSelectionRect(LPCRECT rect, COLOR32 color);
+void R_DrawBoundingBox(LPCBOX3 box, LPCMATRIX4 matrix, COLOR32 color);
+
+// r_font.c
+LPFONT R_LoadFont(LPCSTR filename, DWORD size);
+void R_DrawText(drawText_t const *drawText);
 
 extern struct render_globals tr;
 

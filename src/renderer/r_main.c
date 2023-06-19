@@ -14,8 +14,16 @@ SDL_GLContext context;
 
 bool is_rendering_lights = false;
 
+void R_Viewport(LPCRECT viewport) {
+    size2_t const windowSize = R_GetWindowSize();
+    glViewport(viewport->x * windowSize.width / 800,
+               viewport->y * windowSize.height / 600,
+               viewport->w * windowSize.width / 800,
+               viewport->h * windowSize.height / 600);
+}
+
 static void R_SetupGL(bool drawLight) {
-    SIZE2 const window = R_GetWindowSize();
+    size2_t const window = R_GetWindowSize();
 
     MATRIX4 model_matrix;
     MATRIX3 normal_matrix;
@@ -101,6 +109,10 @@ void R_Init(DWORD width, DWORD height) {
     
 //    tr.selectionCircle = R_LoadModel("UI\\Feedback\\Confirmation\\Confirmation.mdx");
     tr.selectionCircle = R_LoadModel("UI\\Feedback\\SelectionCircle\\SelectionCircle.mdx");
+    tr.selectionCircleSmall = R_LoadTexture("ReplaceableTextures\\Selection\\SelectionCircleSmall.blp");
+    tr.selectionCircleMed = R_LoadTexture("ReplaceableTextures\\Selection\\SelectionCircleMed.blp");
+    tr.selectionCircleLarge = R_LoadTexture("ReplaceableTextures\\Selection\\SelectionCircleLarge.blp");
+
     tr.shaderStatic = R_InitShader(vertex_shader, fragment_shader);
     tr.shaderSkin = R_InitShader(vertex_shader_skin, fragment_shader);
     tr.shaderUI = R_InitShader(vertex_shader, fragment_shader_ui);
@@ -132,8 +144,7 @@ void R_Init(DWORD width, DWORD height) {
 }
 
 bool R_IsPointVisible(LPCVECTOR3 point, float fThreshold) {
-    VECTOR3 screen;
-    Matrix4_multiply_vector3(&tr.viewDef.projectionMatrix, point, &screen);
+    VECTOR3 screen = Matrix4_multiply_vector3(&tr.viewDef.projectionMatrix, point);
     if (screen.x < -fThreshold) return false;
     if (screen.y < -fThreshold) return false;
     if (screen.x > fThreshold) return false;
@@ -155,13 +166,13 @@ DWORD R_GetViewHeight(void) {
 
 void R_SetupViewport(LPCRECT r) {
     DWORD w = R_GetViewWidth(), h  = R_GetViewHeight();
-    R_Call(glViewport, r->x * w, r->y * h, r->width * w, r->height * h);
+    R_Call(glViewport, r->x * w, r->y * h, r->w * w, r->h * h);
 }
 
 void R_SetupScissor(LPCRECT r) {
     DWORD w = R_GetViewWidth(), h  = R_GetViewHeight();
     R_Call(glEnable, GL_SCISSOR_TEST);
-    R_Call(glScissor, r->x * w, r->y * h, r->width * w, r->height * h);
+    R_Call(glScissor, r->x * w, r->y * h, r->w * w, r->h * h);
 }
 
 void R_RevertSettings(void) {
@@ -223,13 +234,24 @@ void R_Shutdown(void) {
     SDL_Quit();
 }
 
-struct size2 R_GetWindowSize(void) {
+size2_t R_GetWindowSize(void) {
     int width, height;
     SDL_GetWindowSize(window, &width, &height);
-    return (struct size2) {
+    return (size2_t) {
         .width = width,
         .height = height,
     };
+}
+
+size2_t R_GetTextureSize(LPCTEXTURE texture) {
+    if (!texture) {
+        return (size2_t) { 0, 0 };
+    } else {
+        return (size2_t) {
+            .width = texture->width,
+            .height = texture->height,
+        };
+    }
 }
 
 refExport_t R_GetAPI(refImport_t imp) {
@@ -242,6 +264,7 @@ refExport_t R_GetAPI(refImport_t imp) {
         .RegisterMap = R_RegisterMap,
         .LoadTexture = R_LoadTexture,
         .LoadModel = R_LoadModel,
+        .LoadFont = R_LoadFont,
         .ReleaseModel = R_ReleaseModel,
         .RenderFrame = R_RenderFrame,
         .Shutdown = R_Shutdown,
@@ -250,9 +273,12 @@ refExport_t R_GetAPI(refImport_t imp) {
         .DrawPic = R_DrawPic,
         .DrawImage = R_DrawImage,
         .DrawSelectionRect = R_DrawSelectionRect,
-        .PrintText = R_PrintText,
+        .PrintSysText = R_PrintSysText,
         .GetWindowSize = R_GetWindowSize,
+        .GetTextureSize = R_GetTextureSize,
         .DrawPortrait = R_DrawPortrait,
+        .DrawText = R_DrawText,
+        .Trace = R_Trace,
 #ifdef DEBUG_PATHFINDING
         .SetPathTexture = R_SetPathTexture,
 #endif

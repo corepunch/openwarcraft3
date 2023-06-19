@@ -5,6 +5,17 @@
 
 #define MAX_SHEET_COLUMNS 256
 
+static sheetCell_t cells[256 * 1024] = { 0 };
+static sheetRow_t rows[32 * 1024] = { 0 };
+static sheetField_t fields[256 * 1024] = { 0 };
+static char text_buffer[8 * 1024 * 1024] = { 0 };
+LPSTR current_text = text_buffer;
+LPSHEET current_cell = cells;
+LPSHEET previous_cell = cells;
+
+sheetRow_t *current_row = rows;
+sheetField_t *current_field = fields;
+
 static DWORD SheetParseTokens(TCHAR *buffer) {
     DWORD numtokens = 1;
     for (TCHAR *it = buffer; *it != '\0'; it++) {
@@ -24,7 +35,7 @@ static TCHAR *GetToken(TCHAR *buffer, DWORD index) {
     return buffer;
 }
 
-static DWORD Sheet_GetHeight(LPSHEETCELL sheet) {
+static DWORD Sheet_GetHeight(LPSHEET sheet) {
     DWORD height = 0;
     FOR_EACH_LIST(struct SheetCell const, cell, sheet) {
         height = MAX(height, cell->row);
@@ -32,38 +43,80 @@ static DWORD Sheet_GetHeight(LPSHEETCELL sheet) {
     return height;
 }
 
-static DWORD Sheet_GetWidth(LPSHEETCELL sheet) {
+static DWORD Sheet_GetWidth(LPSHEET sheet) {
     DWORD width = 0;
     FOR_EACH_LIST(struct SheetCell const, cell, sheet) {
         width = MAX(width, cell->column);
     }
     return width;
 }
-static LPSHEETCELL SheetCellNew(DWORD x, DWORD y, LPSTR text, LPSHEETCELL sheet) {
-    LPSHEETCELL cell = MemAlloc(sizeof(struct SheetCell));
-    cell->column = x;
-    cell->row = y;
-    cell->next = sheet;
-    cell->text = MemAlloc(strlen(text + 1));
-    for (char *instr = text, *outstr = cell->text; *instr; instr++) {
+
+int text_size = 0;
+
+static void FS_FillSheetCell(DWORD x, DWORD y, LPSTR text) {
+    current_cell->column = x;
+    current_cell->row = y;
+    current_cell->next = current_cell + 1;
+    current_cell->text = current_text;
+    for (char *instr = text; *instr; instr++) {
         if (*instr == '"' || *instr == '\r' || *instr == '\n')
             continue;
-        *(outstr++) = *instr;
+        *(current_text++) = *instr;
     }
+    *(current_text++) = '\0';
+    previous_cell = current_cell;
+    current_cell++;
 //    if (y == 2) {
 //    if (strstr(cell->text, "hhou")) {
 //        printf("\t%d %s\n", x, cell->text);
 //    }
-    return cell;
 }
 
-LPSHEETCELL FS_ReadSheet(LPCSTR fileName) {
+sheetRow_t *FS_MakeRowsFromSheet(LPSHEET sheet) {
+    LPCSTR columns[256] = { 0 };
+    DWORD num_rows = 0;
+    sheetRow_t *start = current_row;
+    FOR_EACH_LIST(SHEET, cell, sheet) {
+        if (cell->row == 1) {
+            columns[cell->column] = cell->text;
+        }
+        num_rows = MAX(num_rows, cell->row);
+    }
+    sheetRow_t *previous_row = NULL;
+    FOR_LOOP(row, num_rows) {
+        FOR_EACH_LIST(SHEET, cell, sheet) {
+            if (cell->row != row + 1)
+                continue;
+            if (cell->column == 1) {
+                current_row->name = cell->text;
+            } else if (columns[cell->column]) {
+                current_field->name = columns[cell->column];
+                current_field->value = cell->text;
+                ADD_TO_LIST(current_field, current_row->fields);
+                current_field++;
+            }
+        }
+        if (current_row->name) {
+            previous_row = current_row;
+            previous_row->next = ++current_row;
+        }
+    }
+    if (previous_row) {
+        previous_row->next = NULL;
+        return start;
+    } else {
+        return start;
+    }
+}
+
+
+sheetRow_t *FS_ParseSLK(LPCSTR fileName) {
     HANDLE file = FS_OpenFile(fileName);
     DWORD fileSize = SFileGetFileSize(file, NULL);
     TCHAR czBuffer[MAX_SHEET_LINE];
     TCHAR ch = 0;
     DWORD X = 1, Y = 1;
-    LPSHEETCELL cells = NULL;
+    LPSHEET start = current_cell;
     for (DWORD read = 0, cur = 0; read < fileSize; read++) {
         SFileReadFile(file, &ch, 1, NULL, NULL);
         if (ch == '\n') {
@@ -79,7 +132,7 @@ LPSHEETCELL FS_ReadSheet(LPCSTR fileName) {
                             Y = atoi(token+1);
                             break;
                         case 'K':
-                            cells = SheetCellNew(X, Y, token+1, cells);
+                            FS_FillSheetCell(X, Y, token+1);
                             break;
                     }
                 }
@@ -92,19 +145,68 @@ LPSHEETCELL FS_ReadSheet(LPCSTR fileName) {
         }
     }
     SFileCloseFile(file);
-    return cells;
+    if (start != current_cell) { // close the table
+        previous_cell->next = NULL;
+        return FS_MakeRowsFromSheet(start);
+    } else {
+        return NULL;
+    }
 }
 
-void Sheet_Release(LPSHEETCELL sheet) {
-    MemFree(sheet->text);
-    SAFE_DELETE(sheet->next, Sheet_Release);
+
+LPSHEET FS_ReadSheet(LPCSTR fileName) {
+    HANDLE file = FS_OpenFile(fileName);
+    DWORD fileSize = SFileGetFileSize(file, NULL);
+    TCHAR czBuffer[MAX_SHEET_LINE];
+    TCHAR ch = 0;
+    DWORD X = 1, Y = 1;
+    LPSHEET start = current_cell;
+    for (DWORD read = 0, cur = 0; read < fileSize; read++) {
+        SFileReadFile(file, &ch, 1, NULL, NULL);
+        if (ch == '\n') {
+            DWORD const numTokens = SheetParseTokens(czBuffer);
+            if (czBuffer[0] == 'C' || czBuffer[0] == 'F') {
+                for (DWORD i = 1; i < numTokens; i++) {
+                    TCHAR *token = GetToken(czBuffer, i);
+                    switch (*token) {
+                        case 'X':
+                            X = atoi(token+1);
+                            break;
+                        case 'Y':
+                            Y = atoi(token+1);
+                            break;
+                        case 'K':
+                            FS_FillSheetCell(X, Y, token+1);
+                            break;
+                    }
+                }
+            }
+
+            memset(czBuffer, 0, MAX_SHEET_LINE);
+            cur = 0;
+        } else {
+            czBuffer[cur++] = ch;
+        }
+    }
+    SFileCloseFile(file);
+    if (start != current_cell) { // close the table
+        previous_cell->next = NULL;
+        return start;
+    } else {
+        return NULL;
+    }
+}
+
+void Sheet_Release(LPSHEET sheet) {
+//    MemFree(sheet->text);
+//    SAFE_DELETE(sheet->next, Sheet_Release);
 }
 
 HANDLE FS_ParseSheet(LPCSTR fileName,
                      LPCSHEETLAYOUT layout,
                      DWORD elementSize)
 {
-    LPSHEETCELL sheet = FS_ReadSheet(fileName);
+    LPSHEET sheet = FS_ReadSheet(fileName);
 
     if (!sheet)
         return NULL;
@@ -148,178 +250,81 @@ HANDLE FS_ParseSheet(LPCSTR fileName,
     return datas;
 }
 
-void GetSheetName(LPCSTR fileName, LPSTR tableName) {
-    DWORD index = 0;
-    for (char *name = strrchr(fileName, '\\') + 1; *name && *name != '.'; name++) {
-        tableName[index++] = *name;
-    }
-    tableName[0] = toupper(tableName[0]);
-}
-
-void PrintSheetStruct(LPCSTR fileName) {
-    LPSHEETCELL sheet = FS_ReadSheet(fileName);
-
-    if (!sheet)
-        return;
-
-    PATHSTR tableName = { 0 };
-    PATHSTR tableFolder = { 0 };
-    GetSheetName(fileName, tableName);
-    LPCSTR folder = "game";
-
-    memcpy(tableFolder, fileName, strstr(fileName, "\\") - fileName);
-
-    if (strstr(fileName, "UI\\SoundInfo\\")) {
-        strcpy(tableFolder, "SoundInfo");
-    }
-
-    if (strstr(fileName, "TerrainArt\\")) {
-        folder = "renderer";
-    }
-
-    PATHSTR buf;
-
-    sprintf(buf, "/Users/igor/Developer/openwarcraft3/src/%s/%s", folder, tableFolder);
-    Sys_MkDir(buf);
-
-    sprintf(buf, "/Users/igor/Developer/openwarcraft3/src/%s/%s/%s.h", folder, tableFolder, tableName);
-    FILE *hHeader = fopen(buf, "w");
-
-    sprintf(buf, "/Users/igor/Developer/openwarcraft3/src/%s/%s/%s.c", folder, tableFolder, tableName);
-    FILE *hSource = fopen(buf, "w");
-
-    PATHSTR upperStr = { 0 };
-    for (int i = 0; i < strlen(tableName); i++) {
-        upperStr[i] = toupper(tableName[i]);
-    }
-
-    fprintf(hHeader, "#ifndef __%s_h__\n", tableName);
-    fprintf(hHeader, "#define __%s_h__\n\n", tableName);
-    fprintf(hHeader, "#include \"../../common/common.h\"\n\n");
-    fprintf(hHeader, "typedef char SHEETSTR[80];\n\n");
-    fprintf(hHeader, "struct %s {\n", tableName);
-
-    fprintf(hSource, "#include \"../%c_local.h\"\n", folder[0]);
-    fprintf(hSource, "#include \"%s.h\"\n\n", tableName);
-    fprintf(hSource, "static LP%s g_%s = NULL;\n\n", upperStr, tableName);
-    fprintf(hSource, "static struct SheetLayout %s[] = {\n", tableName);
-
-    PATHSTR indexName;
-    enum SheetType indexType = ST_INT;
-
-    for (int column = 1; column <= Sheet_GetWidth(sheet); column++) {
-        LPCSTR columnName = NULL;
-        typedef struct {
-            bool numbers;
-            bool letters;
-            bool num4;
-            bool comma;
-        } status_t;
-        status_t status = { true, true, true, false };
-        FOR_EACH_LIST(struct SheetCell const, cell, sheet) {
-            if (cell->column != column)
-                continue;
-            if (cell->row == 1) {
-                columnName = cell->text;
-            } else {
-                for (LPCSTR s = cell->text; *s; s++) {
-                    status.numbers &= isdigit(*s) || *s == ',' || *s == '-' || *s == '_' || *s == ' ' || *s == '.';
-                    status.comma |= *s == ',' || *s == '.';
-                }
-                status.num4 &= strlen(cell->text) <= 4;
-            }
-        }
-        if (columnName == NULL)
+LPCSTR FS_FindSheetCell(sheetRow_t *sheet, LPCSTR row, LPCSTR column) {
+    FOR_EACH_LIST(sheetRow_t const, srow, sheet) {
+        if (strcmp(srow->name, row))
             continue;
-        PATHSTR varName = { 0 };
-        for (int i = 0, j = 0; columnName[i]; i++) {
-            if (columnName[i] == '(')
-                break;
-            if (columnName[i] == ' ')
-                varName[j++] = '_';
-            else
-                varName[j++] = columnName[i];
-        }
-        if (!strcmp(varName, "auto") || !strcmp(varName, "long")) {
-            varName[strlen(varName)] = '_';
-        }
-        if (status.numbers) {
-            fprintf(hHeader, "\t%s %s; /*", status.comma ? "float" : "DWORD", varName);
-            fprintf(hSource, "\t{ \"%s\", ST_%s, FOFS(%s, %s) },\n", columnName, status.comma ? "FLOAT" : "INT", tableName, varName);
-            if (column == 1) {
-                strcpy(indexName, varName);
-                indexType = ST_INT;
-            }
-        } else if (status.num4) {
-            fprintf(hHeader, "\tDWORD %s; /*", varName);
-            fprintf(hSource, "\t{ \"%s\", ST_ID, FOFS(%s, %s) },\n", columnName, tableName, varName);
-            if (column == 1) {
-                strcpy(indexName, varName);
-                indexType = ST_INT;
-            }
-        } else {
-            fprintf(hHeader, "\tSHEETSTR %s; /*", varName);
-            fprintf(hSource, "\t{ \"%s\", ST_STRING, FOFS(%s, %s) },\n", columnName, tableName, varName);
-            if (column == 1) {
-                strcpy(indexName, varName);
-                indexType = ST_STRING;
-            }
-        }
-        FOR_EACH_LIST(struct SheetCell const, cell, sheet) {
-            if (cell->column != column)
+        FOR_EACH_LIST(sheetField_t const, scolumn, srow->fields) {
+            if (strcasecmp(scolumn->name, column))
                 continue;
-            if (cell->row > 1 && cell->row < 10) {
-                fprintf(hHeader, " %s", cell->text);
-            }
+            return scolumn->value;
         }
-        fprintf(hHeader, " */\n");
     }
-    fprintf(hSource, "\t{ NULL },\n");
-    fprintf(hSource, "};\n\n");
-    fprintf(hHeader, "};\n\n");
-
-    fprintf(hHeader, "typedef struct %s %s;\n", tableName, upperStr);
-    fprintf(hHeader, "typedef struct %s *LP%s;\n", tableName, upperStr);
-    fprintf(hHeader, "typedef struct %s const *LPC%s;\n\n", tableName, upperStr);
-
-    fprintf(hSource, "LPC%s Find%s(%s %s) {\n", upperStr, tableName, (indexType == ST_INT ? "DWORD" : "LPCSTR"), indexName);
-    fprintf(hSource, "\tstruct %s *value = g_%s;\n", tableName, tableName);
-    if (indexType == ST_INT) {
-        fprintf(hSource, "\tfor (; value->%s != %s && value->%s; value++);\n", indexName, indexName, indexName);
-        fprintf(hSource, "\tif (value->%s == 0) value = NULL;\n", indexName);
-    } else {
-        fprintf(hSource, "\tfor (; *value->%s && strcmp(value->%s, %s); value++);\n", indexName, indexName, indexName);
-        fprintf(hSource, "\tif (*value->%s == 0) value = NULL;\n", indexName);
-    }
-    fprintf(hSource, "\treturn value;\n");
-    fprintf(hSource, "}\n\n");
-
-    fprintf(hSource, "void Init%s(void) {\n", tableName);
-    fprintf(hSource, "\tg_%s = %ci.ParseSheet(\"", tableName, folder[0]);
-    for (LPCSTR s = fileName; *s; s++) {
-        fprintf(hSource, "%c", *s);
-        if (*s == '\\')
-            fprintf(hSource, "%c", *s);
-    }
-    fprintf(hSource, "\", %s, sizeof(struct %s));\n", tableName, tableName);
-    fprintf(hSource, "}\n");
-
-    fprintf(hSource, "void Shutdown%s(void) {\n", tableName);
-    fprintf(hSource, "\t%ci.MemFree(g_%s);\n", folder[0], tableName);
-    fprintf(hSource, "}\n");
-
-    fprintf(hHeader, "LPC%s Find%s(%s %s);\n", upperStr, tableName, (indexType == ST_INT ? "DWORD" : "LPCSTR"), indexName);
-    fprintf(hHeader, "void Init%s(void);\n", tableName);
-    fprintf(hHeader, "void Shutdown%s(void);\n\n", tableName);
-
-    fprintf(hHeader, "#endif\n");
-
-    fclose(hHeader);
-    fclose(hSource);
+    return NULL;
 }
 
-void FPrintSheetStructs(LPCSTR *fileNames) {
-    for (LPCSTR* s = fileNames; *s; s++) {
-        PrintSheetStruct(*s);
+#define MAX_INI_LINE 1024
+
+static sheetRow_t *FS_ParseINI_Buffer(LPCSTR buffer) {
+    LPCSTR p = buffer;
+    sheetRow_t *start = current_row;
+    sheetRow_t *section = NULL;
+    while (true) {
+        while (*p && isspace(*p)) p++;
+        if (!*p)
+            break;
+        if (p[0] == '/' && p[1] == '/') {
+            for (; *p != '\n' && *p != '\0'; p++);
+        } else if (*p == '[') {
+            p++;
+            if (section) {
+                section->next = current_row;
+            }
+            section = current_row++;
+            section->name = current_text;
+            for (; *p != ']'; current_text++, p++) {
+                *current_text = *p;
+            }
+            *(current_text++) = '\0';
+            p++;
+        } else {
+            char line[MAX_INI_LINE] = { 0 };
+            for (LPSTR w = line; *p != '\n' && *p != '\r' && *p != '\0'; p++, w++) {
+                *w = *p;
+            }
+            LPSTR eq = strstr(line, "=");
+            if (eq && section) {
+                *eq = '\0';
+                for (LPSTR s = eq; s > line; s--) {
+                    if (*s == ' ') *s = '\0';
+                    else break;
+                }
+                eq++;
+                for (; *eq == ' '; eq++);
+//                printf("%s.%s %s\n", currentSec, line, eq);
+                sheetField_t *field = current_field++;
+                field->name = current_text;
+                strcpy(current_text, line);
+                current_text += strlen(line) + 1;
+                field->value = current_text;
+                strcpy(current_text, eq);
+                current_text += strlen(eq) + 1;
+                ADD_TO_LIST(field, section->fields);
+            }
+        }
     }
+    return current_row != start ? start : NULL;
+}
+
+sheetRow_t *FS_ParseINI(LPCSTR fileName) {
+    LPSTR buffer = FS_ReadFileIntoString(fileName);
+    if (!buffer) {
+        return NULL;
+    }
+    sheetRow_t *config = FS_ParseINI_Buffer(buffer);
+    if (!config) {
+        fprintf(stderr, "Failed to parse %s\n", fileName);
+    }
+    MemFree(buffer);
+    return config;
 }

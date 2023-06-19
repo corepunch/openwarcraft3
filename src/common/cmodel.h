@@ -144,7 +144,7 @@ typedef struct {
     LPSTR mapDescription;
     LPSTR playersRecommended;
     mapCameraBounds_t cameraBounds; // as defined in the JASS file
-    SIZE2 playableArea; // width E, height F, *note 1: map width = A + E + B, map height = C + F + D
+    size2_t playableArea; // width E, height F, *note 1: map width = A + E + B, map height = C + F + D
     DWORD flags;
     char mainGroundType; // Example: 'A'= Ashenvale, 'X' = City Dalaran
     DWORD campaignBackgroundNumber; // (-1 = none)

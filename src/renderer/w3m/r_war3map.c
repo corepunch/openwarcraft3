@@ -122,9 +122,9 @@ VECTOR3 R_GetPointOnScreen(LPCVECTOR3 point) {
     VECTOR3 screen;
     extern bool is_rendering_lights;
     if (is_rendering_lights) {
-        Matrix4_multiply_vector3(&tr.viewDef.lightMatrix, point, &screen);
+        screen = Matrix4_multiply_vector3(&tr.viewDef.lightMatrix, point);
     } else {
-        Matrix4_multiply_vector3(&tr.viewDef.projectionMatrix, point, &screen);
+        screen = Matrix4_multiply_vector3(&tr.viewDef.projectionMatrix, point);
     }
     return screen;
 }
