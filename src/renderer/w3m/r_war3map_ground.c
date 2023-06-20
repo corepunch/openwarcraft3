@@ -140,7 +140,7 @@ LPMAPLAYER R_BuildMapSegmentLayer(LPCWAR3MAP map, DWORD sx, DWORD sy, DWORD laye
     return mapLayer;
 }
 
-void R_RenderSplat(LPCVECTOR2 position, float radius, LPCTEXTURE texture) {
+void R_RenderSplat(LPCVECTOR2 position, float radius, LPCTEXTURE texture, COLOR32 color) {
     MATRIX4 mModelMatrix;
 
     Matrix4_identity(&mModelMatrix);
@@ -177,9 +177,8 @@ void R_RenderSplat(LPCVECTOR2 position, float radius, LPCTEXTURE texture) {
     FOR_LOOP(i, num_vertices){
         LPVERTEX v = &aVertexBuffer[i];
         v->texcoord.x = (v->position.x + radius - sx) / splatSize;
-        v->texcoord.y = (v->position.y + radius - sy) / splatSize;
-        v->color.r = 0;
-        v->color.b = 0;
+        v->texcoord.y = 1 - (v->position.y + radius - sy) / splatSize;
+        v->color = color;
     }
 
     R_BindTexture(texture, 0);

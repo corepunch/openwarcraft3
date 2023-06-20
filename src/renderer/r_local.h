@@ -98,7 +98,7 @@ struct render_globals {
     LPCBUFFER renbuf;
     LPCTEXTURE teamGlow[MAX_TEAMS];
     LPCTEXTURE teamColor[MAX_TEAMS];
-    model_t const *selectionCircle;
+    LPCMODEL selectionCircle;
     LPCTEXTURE selectionCircleSmall;
     LPCTEXTURE selectionCircleMed;
     LPCTEXTURE selectionCircleLarge;
@@ -126,8 +126,8 @@ bool R_TraceModel(renderEntity_t const *edict, LPCLINE3 line);
 void R_ReleaseVertexArrayObject(LPBUFFER buffer);
 LPCTEXTURE R_FindTextureByID(DWORD textureID);
 bool R_IsPointVisible(LPCVECTOR3 point, float fThreshold);
-void R_DrawPortrait(model_t const *model, LPCRECT viewport);
-void R_RenderSplat(LPCVECTOR2 position, float radius, LPCTEXTURE texture);
+void R_DrawPortrait(LPCMODEL model, LPCRECT viewport);
+void R_RenderSplat(LPCVECTOR2 position, float radius, LPCTEXTURE texture, COLOR32 color);
 
 // r_ents.c
 bool R_TraceEntity(viewDef_t const *viewdef, float x, float y, LPDWORD number);
@@ -137,8 +137,8 @@ LINE3 R_LineForScreenPoint(viewDef_t const *viewdef, float x, float y);
 DWORD R_EntitiesInRect(viewDef_t const *viewdef, LPCRECT rect, DWORD max, LPDWORD array);
 
 // r_mdx.c
-model_t *R_LoadModel(LPCSTR modelFilename);
-void R_ReleaseModel(model_t *model);
+LPMODEL R_LoadModel(LPCSTR modelFilename);
+void R_ReleaseModel(LPMODEL model);
 
 size2_t R_GetWindowSize(void);
 

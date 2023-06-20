@@ -8,8 +8,6 @@ struct game_import gi;
 struct game_state game_state;
 struct game_locals game;
 
-sheetRow_t *AbilityData = NULL;
-
 static void G_InitGame(void) {
     game_state.edicts = gi.MemAlloc(sizeof(edict_t) * MAX_ENTITIES);
 
@@ -20,9 +18,10 @@ static void G_InitGame(void) {
 
     game.max_clients = globals.max_clients;
     game.clients = gi.MemAlloc(game.max_clients * sizeof(gclient_t));
-    game.theme = gi.ReadConfig("UI\\war3skins.txt");
-
-    AbilityData = gi.ReadSheet("Units\\AbilityData.slk");
+    game.config.theme = gi.ReadConfig("UI\\war3skins.txt");
+    game.config.splats = gi.ReadSheet("Splats\\SplatData.slk");
+    game.config.uberSplats = gi.ReadSheet("Splats\\UberSplatData.slk");
+    game.config.abilities = gi.ReadSheet("Units\\AbilityData.slk");
     
     InitUnitData();
     InitAbilities();
@@ -44,7 +43,7 @@ static void G_RunFrame(void) {
 static LPCSTR G_GetThemeValue(LPCSTR filename) {
     LPCSTR skinned = NULL;
     if (!strstr(filename, "\\")) {
-        skinned = gi.FindSheetCell(game.theme, "Default", filename);
+        skinned = gi.FindSheetCell(game.config.theme, "Default", filename);
     }
     return skinned ? skinned : filename;
 }

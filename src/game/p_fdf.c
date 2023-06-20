@@ -167,7 +167,7 @@ int ParseEnum(parser_t *p, LPCSTR const *values) {
 
 LPCSTR ApplySkin(uiFrameDef_t *frame, LPCSTR entry, bool force) {
     if (force || (frame->parent && frame->parent->DecorateFileNames)) {
-        LPCSTR filename = gi.FindSheetCell(game.theme, "Default", entry);
+        LPCSTR filename = gi.FindSheetCell(game.config.theme, "Default", entry);
         if (filename) {
             return filename;
         } else {

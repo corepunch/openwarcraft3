@@ -97,10 +97,6 @@ typedef enum {
     MOVETYPE_BOUNCE
 } movetype_t;
 
-KNOWN_AS(UnitData, UNITDATA);
-KNOWN_AS(UnitUI, UNITUI);
-KNOWN_AS(DoodadInfo, DOODADINFO);
-
 typedef struct uiFrameDef_s uiFrameDef_t;
 typedef uint32_t pointNames_t[FPP_COUNT];
 
@@ -221,12 +217,15 @@ struct game_state {
 };
 
 struct game_locals {
-    LPUNITUI UnitUI;
-    LPDOODADINFO Doodads;
     DWORD max_clients;
     DWORD num_abilities;
     gclient_t *clients;
-    sheetRow_t *theme;
+    struct {
+        sheetRow_t *abilities;
+        sheetRow_t *theme;
+        sheetRow_t *splats;
+        sheetRow_t *uberSplats;
+    } config;
 };
 
 typedef struct sheetMetaData_s {
@@ -321,8 +320,6 @@ extern struct game_locals game;
 extern struct game_state game_state;
 extern struct game_export globals;
 extern struct game_import gi;
-
-extern sheetRow_t *AbilityData;
 
 extern sheetMetaData_t UnitsMetaData[];
 extern sheetMetaData_t DestructableMetaData[];

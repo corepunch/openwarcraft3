@@ -66,6 +66,8 @@ static void V_AddClientEntity(centity_t const *ent) {
     re.flags = ent->current.renderfx;
     re.radius = ent->current.radius;
     re.number = ent->current.number;
+    re.splat = cl.pics[ent->current.splat & 0xffff];
+    re.splatsize = ent->current.splat >> 16;
 
     view_state.entities[view_state.num_entities++] = re;
 

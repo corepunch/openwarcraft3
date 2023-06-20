@@ -94,6 +94,7 @@
 #define UNIT_BUILDS(UNIT) UnitStringField(UnitsMetaData, UNIT, "ubui")
 #define UNIT_TRAINS(UNIT) UnitStringField(UnitsMetaData, UNIT, "utra")
 #define UNIT_MODEL(UNIT) UnitStringField(UnitsMetaData, UNIT, "umdl")
+#define UNIT_UBER_SPLAT(UNIT) UnitStringField(UnitsMetaData, UNIT, "uubs")
 
 #define UNIT_ATTACK1_DAMAGE_NUMBER_OF_DICE(UNIT) UnitIntegerField(UnitsMetaData, UNIT, "ua1d")
 #define UNIT_ATTACK1_DAMAGE_BASE(UNIT) UnitIntegerField(UnitsMetaData, UNIT, "ua1b")

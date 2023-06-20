@@ -14,6 +14,8 @@
 #define MIN(x, y) (((x)<(y))?(x):(y))
 #define MAX(x, y) (((x)>(y))?(x):(y))
 
+#define IS_FOURCC(STRING) (STRING && strlen(STRING) == 4)
+
 #ifndef __cplusplus
   #define bool char
   #define true 1
@@ -181,6 +183,7 @@ typedef struct entityState_s {
     DWORD player;
     DWORD flags;
     DWORD renderfx;
+    DWORD splat;
 } entityState_t;
 
 typedef struct {

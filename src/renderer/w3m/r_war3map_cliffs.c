@@ -19,7 +19,7 @@ typedef struct {
 
 struct tCliff {
     DWORD cliffid;
-    model_t const *model;
+    LPCMODEL model;
     struct tCliff *next;
 };
 
@@ -65,7 +65,7 @@ static float GetAccurateWaterLevelAtPoint(float sx, float sy) {
 
 // FUNCTIONS
 
-static model_t const *R_LoadCliffModel(cliffData_t const *data, char const *ccfg, bool ramp) {
+static LPCMODEL R_LoadCliffModel(cliffData_t const *data, char const *ccfg, bool ramp) {
     PATHSTR zBuffer;
     const int cliffid = *(int *)ccfg;
     LPCSTR dir = ramp ? data->rampModelDir : data->cliffModelDir;
@@ -106,7 +106,7 @@ static void R_MakeCliff(LPCWAR3MAP map, DWORD x, DWORD y, cliffData_t const *dat
     }
     
     FOR_LOOP(gindx, map->num_grounds) {
-//        DWORD tile = *(DWORD *)(strlen(data->groundTile) != 4 ? data->upperTile : data->groundTile);
+//        DWORD tile = *(DWORD *)(IS_FOURCC(data->groundTile) ? data->groundTile : data->upperTile);
         if (map->grounds[gindx] == *(DWORD *)data->groundTile) {
             ((LPWAR3MAPVERTEX)GetWar3MapVertex(map, x+1, y+1))->ground = gindx;
             ((LPWAR3MAPVERTEX)GetWar3MapVertex(map, x, y+1))->ground = gindx;
@@ -116,7 +116,7 @@ static void R_MakeCliff(LPCWAR3MAP map, DWORD x, DWORD y, cliffData_t const *dat
         }
     }
 
-    model_t const *pModel = R_LoadCliffModel(data, cliffcfg, tileramps > 1);
+    LPCMODEL pModel = R_LoadCliffModel(data, cliffcfg, tileramps > 1);
     mdxGeoset_t *pGeoset = pModel->mdx->geosets;
 
     FOR_LOOP(t, pGeoset->num_triangles) {

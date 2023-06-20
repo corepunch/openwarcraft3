@@ -126,7 +126,9 @@ void FS_Init(void) {
 //    SFileExtractFile(archive, "Units\\UnitMetaData.slk", "/Users/igor/Desktop/UnitMetaData.slk", 0);
 //    SFileExtractFile(archive, "Units\\UnitBalance.slk", "/Users/igor/Desktop/UnitBalance.slk", 0);
 //    SFileExtractFile(archive, "Units\\UnitWeapons.slk", "/Users/igor/Desktop/UnitWeapons.slk", 0);
-#if 0
+    SFileExtractFile(archive, "Splats\\SplatData.slk", "/Users/igor/Desktop/SplatData.slk", 0);
+    SFileExtractFile(archive, "Splats\\UberSplatData.slk", "/Users/igor/Desktop/UberSplatData.slk", 0);
+#if 1
     SFILE_FIND_DATA findData;
     HANDLE handle = SFileFindFirstFile(archive, "*", &findData, 0);
     if (handle) {
@@ -140,10 +142,10 @@ void FS_Init(void) {
 //                 !strstr(findData.cFileName, ".wav") &&
 //                 !strstr(findData.cFileName, ".mp3") &&
 //                 !strstr(findData.cFileName, ".mdx") &&
-//                 if(strstr(findData.cFileName, ".mdx")) {
+                 if(strstr(findData.cFileName, ".slk")) {
                  printf("%s\n", findData.cFileName);
-//             }
-#if 1
+             }
+#if 0
              if (strstr(findData.cFileName, ".txt")){
                  HANDLE file;
                  SFileOpenFileEx(archive, findData.cFileName, SFILE_OPEN_FROM_MPQ, &file);

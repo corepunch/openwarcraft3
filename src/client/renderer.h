@@ -36,8 +36,9 @@ typedef struct {
 
 typedef struct {
     VECTOR3 origin;
-    model_t const *model;
+    LPCMODEL model;
     LPCTEXTURE skin;
+    LPCTEXTURE splat;
     DWORD number;
     DWORD team;
     DWORD frame;
@@ -46,6 +47,7 @@ typedef struct {
     float angle;
     float scale;
     float radius;
+    float splatsize;
 } renderEntity_t;
 
 typedef struct {
@@ -76,18 +78,18 @@ typedef struct {
     void (*RegisterMap)(LPCSTR mapFileName);
     void (*RenderFrame)(viewDef_t const *viewdef);
     LPCTEXTURE (*LoadTexture)(LPCSTR fileName);
-    model_t *(*LoadModel)(LPCSTR filename);
+    LPMODEL (*LoadModel)(LPCSTR filename);
     LPFONT (*LoadFont)(LPCSTR filename, DWORD size);
     size2_t (*GetWindowSize)(void);
     size2_t (*GetTextureSize)(LPCTEXTURE texture);
-    void (*ReleaseModel)(model_t *model);
+    void (*ReleaseModel)(LPMODEL model);
     void (*BeginFrame)(void);
     void (*EndFrame)(void);
     void (*PrintSysText)(LPCSTR string, DWORD x, DWORD y, COLOR32 color);
     void (*DrawSelectionRect)(LPCRECT rect, COLOR32 color);
     void (*DrawPic)(LPCTEXTURE texture, float x, float y);
     void (*DrawImage)(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv);
-    void (*DrawPortrait)(model_t const *model, LPCRECT viewport);
+    void (*DrawPortrait)(LPCMODEL model, LPCRECT viewport);
     void (*DrawText)(drawText_t const *drawText);
 
     bool (*TraceEntity)(viewDef_t const *viewdef, float x, float y, LPDWORD number);

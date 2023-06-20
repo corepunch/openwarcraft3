@@ -80,6 +80,7 @@ void monster_start(edict_t *self) {
 
 void SP_SpawnUnit(edict_t *self) {
     PATHSTR model_filename;
+    LPCSTR uber_splat = UNIT_UBER_SPLAT(self->class_id);
     sprintf(model_filename, "%s.mdx", UNIT_MODEL(self->class_id));
     self->s.model = gi.ModelIndex(model_filename);
     self->s.scale = UNIT_SCALING_VALUE(self->class_id);
@@ -88,6 +89,14 @@ void SP_SpawnUnit(edict_t *self) {
     self->targtype = G_GetTargetType(UNIT_TARGETED_AS(self->class_id));
     self->health = UNIT_HP(self->class_id);
     self->think = monster_think;
+    if (IS_FOURCC(uber_splat)) {
+        LPCSTR dir = gi.FindSheetCell(game.config.uberSplats, uber_splat, "dir");
+        LPCSTR file = gi.FindSheetCell(game.config.uberSplats, uber_splat, "file");
+        LPCSTR scale = gi.FindSheetCell(game.config.uberSplats, uber_splat, "scale");
+        PATHSTR filename;
+        sprintf(filename, "%s\\%s.blp", dir, file);
+        self->s.splat = gi.ImageIndex(filename) | (atoi(scale) << 16);
+    }
 }
 
 void M_CheckGround(edict_t *self) {

@@ -74,7 +74,7 @@ void Get_Commands_f(edict_t *edict) {
         LPCSTR abilities = UNIT_ABILITIES_NORMAL(ent->class_id);
         if (abilities) {
             PARSE_LIST(abilities, abil, gi.ParserGetToken) {
-                LPCSTR code = gi.FindSheetCell(AbilityData, abil, "code");
+                LPCSTR code = gi.FindSheetCell(game.config.abilities, abil, "code");
                 if (code && FindAbilityByClassname(code)) {
                     UI_AddAbilityButton(layer, code);
                 } else {

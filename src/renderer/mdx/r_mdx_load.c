@@ -150,10 +150,10 @@ mdxModel_t *R_LoadModelMDX(void *buffer, DWORD size) {
     return model;
 }
 
-model_t *R_LoadModel(LPCSTR modelFilename) {
+LPMODEL R_LoadModel(LPCSTR modelFilename) {
     DWORD fileHeader;
     HANDLE file = ri.FileOpen(modelFilename);
-    model_t *model = NULL;
+    LPMODEL model = NULL;
     if (file == NULL) {
         // try to load without *0.mdx
         PATHSTR tempFileName;
@@ -193,7 +193,7 @@ void R_ReleaseModelNode(mdxNode_t *node) {
     SAFE_DELETE(node->scale, ri.MemFree);
 }
 
-void R_ReleaseModel(model_t *model) {
+void R_ReleaseModel(LPMODEL model) {
     if (model->modeltype == ID_MDLX) {
         MDX_Release(model->mdx);
     }

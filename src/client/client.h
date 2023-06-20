@@ -56,8 +56,8 @@ typedef struct  {
 typedef uiFrame_t uiLayoutLayer_t[MAX_LAYOUT_OBJECTS];
 
 struct client_state {
-    model_t *models[MAX_MODELS];
-    model_t *portraits[MAX_MODELS];
+    LPMODEL models[MAX_MODELS];
+    LPMODEL portraits[MAX_MODELS];
     LPCTEXTURE pics[MAX_IMAGES];
     LPCFONT fonts[MAX_FONTSTYLES];
     PATHSTR configstrings[MAX_CONFIGSTRINGS];
@@ -69,7 +69,7 @@ struct client_state {
     VECTOR2 startingPosition;
     playerState_t playerstate;
     entityState_t *cursorEntity;
-    model_t const *moveConfirmation;
+    LPCMODEL moveConfirmation;
     DWORD num_entities;
     DWORD confirmationCounter;
     DWORD sock;

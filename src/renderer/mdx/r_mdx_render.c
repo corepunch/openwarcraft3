@@ -403,27 +403,26 @@ void R_RenderModel(renderEntity_t const *entity) {
         RenderGeoset(model, geoset, entity, entity->skin);
     }
 
+    if (is_rendering_lights)
+        return;
+
+    LPCVECTOR2 origin = (LPCVECTOR2)&entity->origin;
+
     if (entity->flags & RF_SELECTED) {
-        FOR_LOOP(boneIndex, MAX_BONES) {
-            Matrix4_identity(&aBoneMatrices[boneIndex]);
-        }
-        R_Call(glUseProgram, tr.shaderSkin->progid);
-        R_Call(glUniformMatrix4fv, tr.shaderSkin->uBones, MAX_BONES, GL_FALSE, aBoneMatrices->v);
-        renderEntity_t re = *entity;
-        re.scale = re.radius;
-        re.angle = 0;//tr.viewDef.time * 0.001;
-        re.frame = 0;
-        re.oldframe = 0;
-        if (is_rendering_lights)
-            return;
-        if ((re.radius*2) < 100) {
-            R_RenderSplat((LPCVECTOR2)&re.origin, re.radius, tr.selectionCircleSmall);
-        } else if ((re.radius*2) < 300) {
-            R_RenderSplat((LPCVECTOR2)&re.origin, re.radius, tr.selectionCircleMed);
+        COLOR32 color = { 0, 255, 0, 255 };
+        float radius = entity->radius;
+        if ((radius * 2) < 100) {
+            R_RenderSplat(origin, radius, tr.selectionCircleSmall, color);
+        } else if ((radius * 2) < 300) {
+            R_RenderSplat(origin, radius, tr.selectionCircleMed, color);
         } else {
-            R_RenderSplat((LPCVECTOR2)&re.origin, re.radius, tr.selectionCircleLarge);
+            R_RenderSplat(origin, radius, tr.selectionCircleLarge, color);
         }
-//        RenderGeoset(tr.selectionCircle->mdx, tr.selectionCircle->mdx->geosets, &re, NULL);
+    }
+    
+    if (entity->splat) {
+        COLOR32 color = { 255, 255, 255, 255 };
+        R_RenderSplat(origin, entity->splatsize, entity->splat, color);
     }
 }
 
@@ -457,7 +456,7 @@ void Matrix4_getLightMatrix(LPCVECTOR3 sunangles, LPCVECTOR3 target, float scale
     Matrix4_multiply(&proj, &view, output);
 }
 
-void R_DrawPortrait(model_t const *model, LPCRECT viewport) {
+void R_DrawPortrait(LPCMODEL model, LPCRECT viewport) {
     VECTOR3 root;
     VECTOR3 lightAngles = { 10, 270, 0 };
     renderEntity_t entity;

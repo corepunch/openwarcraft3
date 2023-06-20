@@ -78,7 +78,7 @@ static umove_t harvest_move_swing = { "attack", ai_swing, harvest_cooldown };
 static umove_t harvest_move_cooldown = { "stand ready", ai_cooldown };
 
 float AB_Number(ability_t const *ability, LPCSTR field) {
-    LPCSTR str = gi.FindSheetCell(AbilityData, ability->classname, field);
+    LPCSTR str = gi.FindSheetCell(game.config.abilities, ability->classname, field);
     return str ? atof(str) : 0;
 }
 
