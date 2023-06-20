@@ -110,7 +110,7 @@ static struct cmodel *SV_LoadModelMDX(HANDLE file) {
     }
 //    FOR_LOOP(i, model->num_animations){
 //        animation_t *anim = &model->animations[i];
-//        printf("  %s\n",  anim->name);
+//        printf("  %s %d\n",  anim->name, anim->interval[1] - anim->interval[0]);
 //    }
     return model;
 }

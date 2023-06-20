@@ -2,6 +2,7 @@
 #define g_local_h
 
 #include <stdlib.h>
+#include <ctype.h>
 
 #include "../server/game.h"
 #include "g_shared.h"
@@ -12,11 +13,17 @@
 #define UI_SCALE(x) ((x) * 10000)
 #define SEL_SCALE 72
 
+#define FOR_SELECTED_UNITS(CLIENT, ENT) \
+for (edict_t *ENT = globals.edicts; \
+ENT - globals.edicts < globals.num_edicts; \
+ENT++) if (G_IsEntitySelected(CLIENT, ENT))
+
 #define EDICT_FUNC(NAME) void NAME(edict_t *ent)
 
 enum {
-    UI_CONSOLE,
-    UI_COMMANDBAR,
+    LAYER_PORTRAIT,
+    LAYER_CONSOLE,
+    LAYER_COMMANDBAR,
 };
 
 #define MAKE_UI_LAYER(LAYER) \
@@ -34,13 +41,48 @@ gi.WriteByte(LAYER);
 #define svc_cursor 3
 
 typedef struct {
-    void (*mouseup)(edict_t *ent, LPCVECTOR2 mouse);
-    void (*cmdbutton)(edict_t *ent, DWORD code);
+    bool (*on_entity_selected)(edict_t *clent, edict_t *selected);
+    bool (*on_location_selected)(edict_t *clent, LPCVECTOR2 location);
+    void (*cmdbutton)(edict_t *clent, DWORD code);
 } menu_t;
 
 enum {
     AI_HOLD_FRAME = 1 << 0,
 };
+
+typedef enum {
+    TARG_NONE,
+    TARG_AIR,
+    TARG_ALIVE,
+    TARG_ALLIES,
+    TARG_DEAD,
+    TARG_DEBRIS,
+    TARG_ENEMIES,
+    TARG_GROUND,
+    TARG_HERO,
+    TARG_INVULNERABLE,
+    TARG_ITEM,
+    TARG_MECHANICAL,
+    TARG_NEUTRAL,
+    TARG_NONHERO,
+    TARG_NONSAPPER,
+    TARG_NOTSELF,
+    TARG_ORGANIC,
+    TARG_PLAYERUNITS,
+    TARG_SAPPER,
+    TARG_SELF,
+    TARG_STRUCTURE,
+    TARG_TERRAIN,
+    TARG_TREE,
+    TARG_VULNERABLE,
+    TARG_WALL,
+    TARG_WARD,
+    TARG_ANCIENT,
+    TARG_NONANCIENT,
+    TARG_FRIEND,
+    TARG_BRIDGE,
+    TARG_DECORATION,
+} targtype_t;
 
 typedef enum {
     MOVETYPE_NONE,            // never moves
@@ -118,7 +160,6 @@ struct client_s {
     playerState_t ps;
     DWORD ping;
     menu_t menu;
-    DWORD lastcode;
 };
 
 typedef struct {
@@ -130,7 +171,6 @@ typedef struct {
 typedef struct ability_s {
     LPCSTR classname;
     void (*init)(struct ability_s *ability);
-    void (*use)(edict_t *ent, edict_t *target);
     void (*cmd)(edict_t *ent);
     void *data;
 
@@ -155,10 +195,12 @@ struct edict_s {
     // keep above in sync with server.h
     DWORD class_id;
     DWORD variation;
+    DWORD build_project;
     float health;
     DWORD harvested_lumber;
     movetype_t movetype;
-    handle_t heatmap;
+    targtype_t targtype;
+    handle_t heatmap2;
     edict_t *goalentity;
     edict_t *secondarygoal;
     animation_t const *animation;
@@ -194,6 +236,7 @@ typedef struct sheetMetaData_s {
     sheetRow_t *table;
 } sheetMetaData_t;
 
+// g_spawn
 edict_t *G_Spawn(void);
 void SP_SpawnUnit(edict_t *edict);
 void SP_CallSpawn(edict_t *edict);
@@ -201,7 +244,9 @@ void G_SpawnEntities(LPCDOODAD doodads);
 void G_SpawnUnits(LPCDOODAD units, DWORD num_units);
 void G_BuildHeatmap(edict_t *edict, LPCVECTOR2 location);
 void G_ClientCommand(edict_t *ent, DWORD argc, LPCSTR argv[]);
+edict_t *SP_SpawnAtLocation(DWORD class_id, DWORD player, LPCVECTOR2 location);
 playerState_t *G_GetPlayerByNumber(DWORD number);
+targtype_t G_GetTargetType(LPCSTR str);
 
 edict_t *Waypoint_add(LPCVECTOR2 spot);
 void M_CheckGround (edict_t *self);
@@ -221,6 +266,7 @@ void M_SetAnimation(edict_t *self, LPCSTR anim);
 void M_SetMove(edict_t *self, umove_t *move);
 float M_DistanceToGoal(edict_t *ent);
 float M_MoveDistance(edict_t *self);
+handle_t M_RefreshHeatmap(edict_t *self);
 
 // g_move.c
 bool SV_CloseEnough(edict_t *self, edict_t const *goal, float distance);
@@ -241,8 +287,9 @@ LPCSTR FindConfigValue(LPCSTR category, LPCSTR field);
 LPCSTR GetClassName(DWORD class_id);
 
 // p_hud.c
-edict_t *GetMainSelectedEntity(gclient_t *client);
+edict_t *G_GetMainSelectedEntity(gclient_t *client);
 void Get_Commands_f(edict_t *ent);
+void Get_Portrait_f(edict_t *ent);
 void UI_AddAbilityButton(uiFrameDef_t *root, LPCSTR ability);
 void UI_AddCancelButton(edict_t *edict);
 void Add_CommandButtonCoded(uiFrameDef_t *root, DWORD code, LPCSTR art, LPCSTR buttonpos);
@@ -253,7 +300,7 @@ uiFrameDef_t *UI_Spawn(uiFrameType_t type, uiFrameDef_t *parent);
 uiFrameDef_t *FDF_ParseFile(uiFrameDef_t const *root, LPCSTR fileName);
 uiFrameDef_t *UI_FindFrameByName(uiFrameDef_t *frame, LPCSTR name);
 void UI_WriteLayout(edict_t *ent, uiFrameDef_t const *frames, DWORD layer);
-void UI_SetPoint(uiFrameDef_t *frame, uiFramePointType_t framePoint, uiFrameDef_t *other, uiFramePointType_t otherPoint, float x, float y);
+void UI_SetPoint(uiFrameDef_t *frame, uiFramePointType_t framePoint, uiFrameDef_t *other, uiFramePointType_t otherPoint, int16_t x, int16_t y);
 
 // g_metadata.c
 LPCSTR UnitStringField(sheetMetaData_t *meta, DWORD unit_id, LPCSTR name);
@@ -265,10 +312,9 @@ void InitUnitData(void);
 void ShutdownUnitData(void);
 
 // g_command.c
-edict_t *client_getentityatpoint(gclient_t *client, LPCVECTOR2 point);
-void client_selectentity(gclient_t *client, edict_t *ent);
-bool client_isentityselected(gclient_t *client, edict_t *ent);
-VECTOR2 client_getpointlocation(gclient_t *client, LPCVECTOR2 point);
+void G_SelectEntity(gclient_t *client, edict_t *ent);
+void G_DeselectEntity(gclient_t *client, edict_t *ent);
+bool G_IsEntitySelected(gclient_t *client, edict_t *ent);
 
 // globals
 extern struct game_locals game;

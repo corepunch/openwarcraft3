@@ -103,7 +103,6 @@ KNOWN_AS(CliffInfo, CLIFFINFO);
 // common.c
 void Com_Init(void);
 
-HANDLE FS_ParseSheet(LPCSTR fileName, LPCSHEETLAYOUT layout, DWORD elementSize);
 void LoadMap(LPCSTR pFilename);
 
 void FS_Init(void);
@@ -115,7 +114,7 @@ void Sys_Quit(void);
 HANDLE FS_OpenFile(LPCSTR fileName);
 void FS_CloseFile(HANDLE file);
 bool FS_ExtractFile(LPCSTR toExtract, LPCSTR extracted);
-LPSHEET FS_ReadSheet(LPCSTR fileName);
+bool FS_FileExists(LPCSTR fileName);
 
 sheetRow_t *FS_ParseINI(LPCSTR fileName);
 sheetRow_t *FS_ParseSLK(LPCSTR fileName);

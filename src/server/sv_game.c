@@ -108,7 +108,6 @@ void SV_InitGameProgs(void) {
 
     import.GetAnimation = SV_GetAnimation;
     import.GetHeightAtPoint = CM_GetHeightAtPoint;
-    import.IntersectLineWithHeightmap = CM_IntersectLineWithHeightmap;
     import.BuildHeatmap = CM_BuildHeatmap;
     import.GetFlowDirection = get_flow_direction;
     import.ReadFileIntoString = FS_ReadFileIntoString;

@@ -72,9 +72,9 @@ static void G_ClientBegin(edict_t *edict) {
     uiFrameDef_t *supply = UI_FindFrameByName(resourceBar, "ResourceBarSupplyText");
     if (gold) gold->f.stat = STAT_GOLD;
     if (lumber) lumber->f.stat = STAT_LUMBER;
-    if (supply) supply->f.stat = STAT_SUPPLY;
+    if (supply) supply->f.stat = STAT_FOOD;
     SetPoint(NULL, resourceBar);
-    UI_WriteLayout(edict, root, UI_CONSOLE);
+    UI_WriteLayout(edict, root, LAYER_CONSOLE);
 }
 
 struct game_export *GetGameAPI(struct game_import *import) {

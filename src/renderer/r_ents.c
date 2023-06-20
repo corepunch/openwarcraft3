@@ -18,23 +18,55 @@ void R_DrawEntities(void) {
     }
 }
 
-renderEntity_t *R_Trace(viewDef_t const *viewdef, float x, float y) {
-    MATRIX4 invproj;
-    Matrix4_inverse(&tr.viewDef.projectionMatrix, &invproj);
+VECTOR2 R_PointToScreenSpace(float x, float y) {
     size2_t window = R_GetWindowSize();
     VECTOR2 p = {
         .x = (x / window.width - 0.5) * 2,
         .y = (0.5 - y / window.height) * 2,
     };
-    LINE3 line = {
+    return p;
+}
+
+LINE3 R_LineForScreenPoint(viewDef_t const *viewdef, float x, float y) {
+    MATRIX4 invproj;
+    Matrix4_inverse(&viewdef->projectionMatrix, &invproj);
+    VECTOR2 const p = R_PointToScreenSpace(x, y);
+    LINE3 const line = {
         Matrix4_multiply_vector3(&invproj, &(VECTOR3 const) { p.x, p.y, 0 }),
         Matrix4_multiply_vector3(&invproj, &(VECTOR3 const) { p.x, p.y, 1 }),
     };
-    FOR_LOOP(i, tr.viewDef.num_entities) {
-        renderEntity_t *edict = &tr.viewDef.entities[i];
-        if (R_TraceModel(edict, &line)) {
-            return edict;
+    return line;
+}
+
+bool R_TraceEntity(viewDef_t const *viewdef, float x, float y, LPDWORD number) {
+    LINE3 const line = R_LineForScreenPoint(viewdef, x, y);
+    FOR_LOOP(i, viewdef->num_entities) {
+        renderEntity_t *ent = &viewdef->entities[i];
+        if (R_TraceModel(ent, &line)) {
+            *number = ent->number;
+            return true;
         }
     }
-    return NULL;
+    return false;
+}
+
+DWORD R_EntitiesInRect(viewDef_t const *viewdef, LPCRECT rect, DWORD max, LPDWORD array) {
+    tr.viewDef = *viewdef;
+    VECTOR2 const a = R_PointToScreenSpace(rect->x, rect->y);
+    VECTOR2 const b = R_PointToScreenSpace(rect->x+rect->w, rect->y+rect->h);
+    RECT const screen = {
+        .x = MIN(a.x, b.x),
+        .y = MIN(a.y, b.y),
+        .w = MAX(a.x, b.x) - MIN(a.x, b.x),
+        .h = MAX(a.y, b.y) - MIN(a.y, b.y),
+    };
+    DWORD count = 0;
+    FOR_LOOP(i, viewdef->num_entities) {
+        renderEntity_t const *ent = &viewdef->entities[i];
+        VECTOR3 const org = Matrix4_multiply_vector3(&viewdef->projectionMatrix, &ent->origin);
+        if (ent->number != 0 && Rect_contains(&screen, (LPVECTOR2)&org)) {
+            array[count++] = ent->number;
+        }
+    }
+    return count;
 }

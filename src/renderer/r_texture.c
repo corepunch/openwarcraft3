@@ -35,7 +35,7 @@ LPTEXTURE R_AllocateTexture(DWORD width, DWORD height) {
 }
 
 void R_ReleaseTexture(LPTEXTURE texture) {
-    R_Call(glDeleteTextures, 1, texture->texid);
+    R_Call(glDeleteTextures, 1, &texture->texid);
 }
 
 void R_LoadTextureMipLevel(LPCTEXTURE pTexture, DWORD level, LPCCOLOR32 pPixels, DWORD width, DWORD height) {

@@ -46,7 +46,8 @@ void CL_Init(void) {
         .FileOpen = FS_OpenFile,
         .FileClose = FS_CloseFile,
         .FileExtract = FS_ExtractFile,
-        .ParseSheet = FS_ParseSheet,
+        .ReadSheet = FS_ParseSLK,
+        .FindSheetCell = FS_FindSheetCell,
         .error = CON_printf,
     });
     
@@ -117,11 +118,9 @@ void CL_SendCmd(void) {
 
 void CL_Shutdown(void) {
     FOR_LOOP(modelIndex, MAX_MODELS) {
-        if (!cl.models[modelIndex])
-            continue;
-        re.ReleaseModel(cl.models[modelIndex]);
+        SAFE_DELETE(cl.models[modelIndex], re.ReleaseModel);
+        SAFE_DELETE(cl.portraits[modelIndex], re.ReleaseModel);
     }
-
     re.Shutdown();
 }
 

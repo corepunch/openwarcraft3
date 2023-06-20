@@ -99,6 +99,16 @@ HANDLE FS_OpenFile(LPCSTR fileName) {
     return file;
 }
 
+bool FS_FileExists(LPCSTR fileName) {
+    HANDLE file = FS_OpenFile(fileName);
+    if (file) {
+        FS_CloseFile(file);
+        return true;
+    } else {
+        return false;
+    }
+}
+
 void FS_CloseFile(HANDLE file) {
     SFileCloseFile(file);
 }

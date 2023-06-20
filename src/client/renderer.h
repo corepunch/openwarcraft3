@@ -14,7 +14,8 @@ typedef struct {
     void (*FileClose)(HANDLE file);
     HANDLE (*MemAlloc)(long size);
     void (*MemFree)(HANDLE);
-    HANDLE (*ParseSheet)(LPCSTR sheetFilename, LPCSHEETLAYOUT layout, DWORD elementSize);
+    sheetRow_t *(*ReadSheet)(LPCSTR sheetFilename);
+    LPCSTR (*FindSheetCell)(sheetRow_t *sheet, LPCSTR row, LPCSTR column);
     void (*error)(LPCSTR fmt, ...);
 } refImport_t;
 
@@ -88,7 +89,10 @@ typedef struct {
     void (*DrawImage)(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv);
     void (*DrawPortrait)(model_t const *model, LPCRECT viewport);
     void (*DrawText)(drawText_t const *drawText);
-    renderEntity_t *(*Trace)(viewDef_t const *viewdef, float x, float y);
+
+    bool (*TraceEntity)(viewDef_t const *viewdef, float x, float y, LPDWORD number);
+    bool (*TraceLocation)(viewDef_t const *viewdef, float x, float y, LPVECTOR3 point);
+    DWORD (*EntitiesInRect)(viewDef_t const *viewdef, LPCRECT rect, DWORD max, LPDWORD array);
 
 #ifdef DEBUG_PATHFINDING
     void (*SetPathTexture)(LPCCOLOR32 debugTexture);

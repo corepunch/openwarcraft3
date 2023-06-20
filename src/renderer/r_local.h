@@ -102,6 +102,8 @@ struct render_globals {
     LPCTEXTURE selectionCircleSmall;
     LPCTEXTURE selectionCircleMed;
     LPCTEXTURE selectionCircleLarge;
+    sheetRow_t *terrainSheet;
+    sheetRow_t *cliffSheet;
     DWORD depthMapFBO;
     DWORD depthMap;
 };
@@ -128,8 +130,11 @@ void R_DrawPortrait(model_t const *model, LPCRECT viewport);
 void R_RenderSplat(LPCVECTOR2 position, float radius, LPCTEXTURE texture);
 
 // r_ents.c
-renderEntity_t *R_Trace(viewDef_t const *viewdef, float x, float y);
+bool R_TraceEntity(viewDef_t const *viewdef, float x, float y, LPDWORD number);
+bool R_TraceLocation(viewDef_t const *viewdef, float x, float y, LPVECTOR3 point);
 void R_GetEntityMatrix(renderEntity_t const *entity, LPMATRIX4 matrix);
+LINE3 R_LineForScreenPoint(viewDef_t const *viewdef, float x, float y);
+DWORD R_EntitiesInRect(viewDef_t const *viewdef, LPCRECT rect, DWORD max, LPDWORD array);
 
 // r_mdx.c
 model_t *R_LoadModel(LPCSTR modelFilename);

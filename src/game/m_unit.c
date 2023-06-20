@@ -6,6 +6,10 @@ void unit_decay1(edict_t *self);
 void unit_cooldown(edict_t *self);
 void unit_stand(edict_t *self);
 
+void ai_birth2(edict_t *self) {
+    M_RunWait(self, unit_stand);
+}
+
 //static mmove_t unit_move_decay2 = { "Decay Bone", NULL, unit_die };
 //static mmove_t unit_move_decay1 = { "Decay Flesh", NULL, unit_decay2 };
 static umove_t unit_move_birth = { "birth", ai_birth, unit_stand };
@@ -34,6 +38,7 @@ void unit_die(edict_t *self, edict_t *attacker) {
 
 void unit_birth(edict_t *self) {
     M_SetMove(self, &unit_move_birth);
+    self->unitinfo.wait = UNIT_BUILD_TIME(self->class_id);
 }
 
 void SP_monster_unit(edict_t *self) {

@@ -14,6 +14,13 @@ edict_t *Waypoint_add(LPCVECTOR2 spot) {
     return waypoint;
 }
 
+handle_t M_RefreshHeatmap(edict_t *self) {
+    if (!self->heatmap2) {
+        self->heatmap2 = gi.BuildHeatmap(&self->s.origin2);
+    }
+    return self->heatmap2;
+}
+
 void M_MoveFrame(edict_t *self) {
     if (self->unitinfo.aiflags & AI_HOLD_FRAME)
         return;
@@ -21,17 +28,23 @@ void M_MoveFrame(edict_t *self) {
     animation_t const *anim = self->animation;
     if (!anim)
         return;
+    DWORD next_frame = self->s.frame + FRAMETIME;
+    if (!strcmp(anim->name, "birth")) {
+        DWORD anim_len = anim->interval[1] - anim->interval[0];
+        DWORD build_time = UNIT_BUILD_TIME(self->class_id) * 1000;
+        next_frame = self->s.frame + FRAMETIME * anim_len / build_time;
+    }
     if (self->s.frame < anim->interval[0] ||
         self->s.frame >= anim->interval[1])
     {
         self->s.frame = anim->interval[0] ;
-    } else if ((self->s.frame + FRAMETIME) >= anim->interval[1]) {
+    } else if (next_frame >= anim->interval[1]) {
         SAFE_CALL(move->endfunc, self);
         if (!(self->unitinfo.aiflags & AI_HOLD_FRAME)) {
             self->s.frame = anim->interval[0] ;
         }
     } else {
-        self->s.frame += FRAMETIME;
+        self->s.frame = next_frame;
     }
 }
 
@@ -72,6 +85,7 @@ void SP_SpawnUnit(edict_t *self) {
     self->s.scale = UNIT_SCALING_VALUE(self->class_id);
     self->s.radius = UNIT_SELECTION_SCALE(self->class_id) * SEL_SCALE / 2;
     self->s.flags |= UNIT_SPEED(self->class_id) > 0 ? EF_MOVABLE : 0;
+    self->targtype = G_GetTargetType(UNIT_TARGETED_AS(self->class_id));
     self->health = UNIT_HP(self->class_id);
     self->think = monster_think;
 }

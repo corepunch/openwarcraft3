@@ -5,30 +5,6 @@ void SP_ability_move(ability_t *self);
 void SP_ability_attack(ability_t *self);
 void SP_ability_build(ability_t *self);
 
-ABILITY(Move) {
-}
-
-ABILITY(Militia) {
-}
-
-ABILITY(Repair) {
-}
-
-ABILITY(Build) {
-}
-
-ABILITY(Attack) {
-}
-
-ABILITY(HoldPosition) {
-}
-
-ABILITY(Patrol) {
-}
-
-ABILITY(Stop) {
-}
-
 void CMD_CancelCommand(edict_t *ent);
 
 static ability_t abilitylist[] = {
@@ -38,14 +14,14 @@ static ability_t abilitylist[] = {
     { STR_CmdAttack, SP_ability_attack },
     { STR_CmdBuildHuman, SP_ability_build },
     { STR_CmdBuildOrc, SP_ability_build },
-    { STR_CmdHoldPos, NULL, M_HoldPosition, NULL },
-    { STR_CmdPatrol, NULL, M_Patrol, NULL },
-    { STR_CmdStop, NULL, M_Stop, NULL },
-    { STR_CmdCancel, NULL, NULL, CMD_CancelCommand },
+    { STR_CmdHoldPos, NULL },
+    { STR_CmdPatrol, NULL },
+    { STR_CmdStop, NULL },
+    { STR_CmdCancel, NULL },
     
-    { "Ahar", SP_ability_harvest, NULL, NULL },
-    { "Amil", NULL, M_Militia, NULL },
-    { "Arep", NULL, M_Repair, NULL },
+    { "Ahar", SP_ability_harvest },
+    { "Amil", NULL },
+    { "Arep", NULL },
 
     { NULL }
 };

@@ -1,18 +1,24 @@
 #include "g_local.h"
 
 EDICT_FUNC(build_walk);
+EDICT_FUNC(build_build);
 
 static EDICT_FUNC(ai_walk) {
-//    if (M_DistanceToGoal(ent) <= M_MoveDistance(ent)) {
-//        ent->stand(ent);
-//    } else {
-//        M_ChangeAngle(ent);
-//        M_MoveInDirection(ent);
-//    }
+    if (M_DistanceToGoal(ent) <= M_MoveDistance(ent)) {
+        build_build(ent);
+    } else {
+        M_ChangeAngle(ent);
+        M_MoveInDirection(ent);
+    }
+}
+
+static EDICT_FUNC(ai_build) {
+    
 }
 
 static umove_t build_move_walk = { "walk", ai_walk };
 static umove_t build_move_stand = { "stand", ai_stand };
+static umove_t build_move_build = { "stand", ai_build };
 
 static void FillUnitData(entityState_t *ent, DWORD unit_id, LPCSTR anim) {
     PATHSTR buffer = { 0 };
@@ -30,26 +36,38 @@ static void FillUnitData(entityState_t *ent, DWORD unit_id, LPCSTR anim) {
     }
 }
 
-static void BuildAtLocation(gclient_t *client, LPCVECTOR2 mouse) {
-    VECTOR2 location = client_getpointlocation(client, mouse);
-    edict_t *build = G_Spawn();
-    build->class_id = client->lastcode;
-    build->s.origin.x = location.x;
-    build->s.origin.y = location.y;
-    build->s.origin.z = gi.GetHeightAtPoint(build->s.origin.x, build->s.origin.y);
-    build->s.scale = 1;
-    build->s.angle = -M_PI / 2;
-    SP_CallSpawn(build);
-    build->birth(build);
+bool G_PlayerPayForProject(playerState_t *ps, DWORD project) {
+    if (!ps) return false;
+    if (UNIT_GOLD_COST(project) > ps->stats[STAT_GOLD]) return false;
+    if (UNIT_LUMBER_COST(project) > ps->stats[STAT_LUMBER]) return false;
+    ps->stats[STAT_GOLD] -= UNIT_GOLD_COST(project);
+    ps->stats[STAT_LUMBER] -= UNIT_LUMBER_COST(project);
+    return true;
 }
 
-void build_menu_buildnew(edict_t *ent, LPCVECTOR2 mouse) {
+EDICT_FUNC(build_build) {
+    if (G_PlayerPayForProject(G_GetPlayerByNumber(ent->s.player), ent->build_project)) {
+        SP_SpawnAtLocation(ent->build_project, ent->s.player, &ent->s.origin2);
+        M_SetMove(ent, &build_move_build);
+        ent->selected = 0;
+    } else {
+        ent->stand(ent);
+    }
+}
+
+bool build_menu_send_builder(edict_t *clent, LPCVECTOR2 location) {
+    edict_t *waypoint = Waypoint_add(location);
+    FOR_SELECTED_UNITS(clent->client, ent) {
+        ent->goalentity = waypoint;
+        ent->build_project = clent->build_project;
+        M_SetMove(ent, &build_move_walk);
+    }
     entityState_t empty;
-    BuildAtLocation(ent->client, mouse);
     memset(&empty, 0, sizeof(entityState_t));
     gi.WriteByte(svc_cursor);
     gi.WriteEntity(&empty);
-    gi.unicast(ent);
+    gi.unicast(clent);
+    return true;
 }
 
 void build_menu_selectlocation(edict_t *ent, DWORD building_id) {
@@ -59,12 +77,13 @@ void build_menu_selectlocation(edict_t *ent, DWORD building_id) {
     gi.WriteByte(svc_cursor);
     gi.WriteEntity(&cursor);
     gi.unicast(ent);
-    ent->client->menu.mouseup = build_menu_buildnew;
+    ent->client->menu.on_location_selected = build_menu_send_builder;
+    ent->build_project = building_id;
 }
 
 void build_command(edict_t *edict) {
     uiFrameDef_t *layer = UI_Clear();
-    edict_t *ent = GetMainSelectedEntity(edict->client);
+    edict_t *ent = G_GetMainSelectedEntity(edict->client);
     LPCSTR builds = UNIT_BUILDS(ent->class_id);
     if (!builds)
         return;
@@ -77,8 +96,7 @@ void build_command(edict_t *edict) {
         Add_CommandButtonCoded(layer, code, art, buttonpos);
     }
     UI_AddAbilityButton(layer, STR_CmdCancel);
-    UI_WriteLayout(edict, layer, UI_COMMANDBAR);
-    edict->client->menu.mouseup = build_menu_buildnew;
+    UI_WriteLayout(edict, layer, LAYER_COMMANDBAR);
     edict->client->menu.cmdbutton = build_menu_selectlocation;
 }
 
@@ -88,6 +106,5 @@ void build_start(edict_t *self, edict_t *target) {
 }
 
 void SP_ability_build(ability_t *self) {
-    self->use = build_start;
     self->cmd = build_command;
 }

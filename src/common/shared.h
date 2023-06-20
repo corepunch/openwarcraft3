@@ -76,7 +76,7 @@ enum {
 
 #define STAT_GOLD 1
 #define STAT_LUMBER 2
-#define STAT_SUPPLY 3
+#define STAT_FOOD 3
 
 #define MAX_STATS 32
 
@@ -237,6 +237,7 @@ typedef enum {
     FT_LAYER,
     FT_SCREEN,
     FT_COMMANDBUTTON,
+    FT_PORTRAIT,
 } uiFrameType_t;
 
 typedef enum {
@@ -304,27 +305,6 @@ typedef struct {
     // Command Button
     DWORD code;
 } uiFrame_t;
-
-
-enum SheetType {
-    ST_ID,
-    ST_INT,
-    ST_FLOAT,
-    ST_STRING,
-};
-
-struct SheetLayout {
-    const LPSTR column;
-    enum SheetType type;
-    HANDLE fofs;
-};
-
-typedef struct SheetCell {
-    LPSTR text;
-    USHORT column;
-    USHORT row;
-    LPSHEET next;
-} sheetCell_t;
 
 typedef struct sheetField_s {
     LPCSTR name, value;

@@ -106,23 +106,22 @@ static void CL_AddBuilding(void) {
     if (!cl.cursorEntity)
         return;
 
-    renderEntity_t re;
-    memset(&re, 0, sizeof(renderEntity_t));
+    renderEntity_t ent;
+    memset(&ent, 0, sizeof(renderEntity_t));
     
-    LINE3 const line = CL_GetMouseLine(&mouse.origin);
-    CM_IntersectLineWithHeightmap(&line, &re.origin);
+    re.TraceLocation(&cl.viewDef, mouse.origin.x, mouse.origin.y, &ent.origin);
 
-    re.origin.x = floor(re.origin.x / 32) * 32;
-    re.origin.y = floor(re.origin.y / 32) * 32;
-    re.origin.z = CM_GetHeightAtPoint(re.origin.x, re.origin.y);
-    re.scale = cl.cursorEntity->scale;
-    re.frame = cl.cursorEntity->frame;
-    re.oldframe = cl.cursorEntity->frame;
-    re.model = cl.models[cl.cursorEntity->model];
+    ent.origin.x = floor(ent.origin.x / 32) * 32;
+    ent.origin.y = floor(ent.origin.y / 32) * 32;
+    ent.origin.z = CM_GetHeightAtPoint(ent.origin.x, ent.origin.y);
+    ent.scale = cl.cursorEntity->scale;
+    ent.frame = cl.cursorEntity->frame;
+    ent.oldframe = cl.cursorEntity->frame;
+    ent.model = cl.models[cl.cursorEntity->model];
     
-    cl.cursorEntity->origin = re.origin;
+    cl.cursorEntity->origin = ent.origin;
     
-    view_state.entities[view_state.num_entities++] = re;
+    view_state.entities[view_state.num_entities++] = ent;
 }
 
 static void CL_AddEntities(void) {
@@ -161,7 +160,15 @@ void CL_PrepRefresh(void) {
     for (int i = 2; i < MAX_MODELS && *cl.configstrings[CS_MODELS + i]; i++) {
         if (cl.models[i])
             continue;
-        cl.models[i] = re.LoadModel(cl.configstrings[CS_MODELS + i]);
+        LPCSTR filename = cl.configstrings[CS_MODELS + i];
+        PATHSTR portrait = { 0 };
+        LPCSTR ext = strstr(filename, ".m");
+        memcpy(portrait, filename, ext - filename);
+        sprintf(portrait + strlen(portrait), "_Portrait%s", ext);
+        cl.models[i] = re.LoadModel(filename);
+        if (FS_FileExists(portrait)) {
+            cl.portraits[i] = re.LoadModel(portrait);
+        }
     }
     
     for (int i = 1; i < MAX_IMAGES && *cl.configstrings[CS_IMAGES + i]; i++) {

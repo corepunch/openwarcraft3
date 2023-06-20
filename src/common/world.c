@@ -289,23 +289,17 @@ void CM_LoadMap(LPCSTR mapFilename) {
     CM_ReadHeightmap(mapArchive);
     CM_ReadInfo(mapArchive);
     CM_ReadUnits(mapArchive);
+        
+//    HANDLE file;
+//    SFileOpenFileEx(mapArchive, "war3map.j", SFILE_OPEN_FROM_MPQ, &file);
+//    char ch;
+//    while (SFileReadFile(file, &ch, 1, NULL, NULL)) {
+//        printf("%c", ch);
+//    }
+//    SFileCloseFile(file);
+//    printf("\n");
+
     SFileCloseArchive(mapArchive);
-}
-
-VECTOR3 CM_PointIntoHeightmap(LPCVECTOR3 point) {
-    return (VECTOR3) {
-        .x = (point->x - world.map->center.x) / TILESIZE,
-        .y = (point->y - world.map->center.y) / TILESIZE,
-        .z = point->z
-    };
-}
-
-VECTOR3 CM_PointFromHeightmap(LPCVECTOR3 point) {
-    return (VECTOR3) {
-        .x = point->x * TILESIZE + world.map->center.x,
-        .y = point->y * TILESIZE + world.map->center.y,
-        .z = point->z
-    };
 }
 
 static LPCWAR3MAPVERTEX CM_GetWar3MapVertex(DWORD x, DWORD y) {
@@ -316,10 +310,6 @@ static LPCWAR3MAPVERTEX CM_GetWar3MapVertex(DWORD x, DWORD y) {
 
 static float CM_GetWar3MapVertexHeight(LPCWAR3MAPVERTEX vert) {
     return DECODE_HEIGHT(vert->accurate_height) + vert->level * TILESIZE - HEIGHT_COR;
-}
-
-static short CM_GetHeightMapValue(int x, int y) {
-    return CM_GetWar3MapVertexHeight(CM_GetWar3MapVertex(x, y));
 }
 
 float CM_GetHeightAtPoint(float sx, float sy) {
@@ -334,37 +324,6 @@ float CM_GetHeightAtPoint(float sx, float sy) {
     float ab = LerpNumber(a, b, x - fx);
     float cd = LerpNumber(c, d, x - fx);
     return LerpNumber(ab, cd, y - fy);
-}
-
-bool CM_IntersectLineWithHeightmap(LPCLINE3 _line, LPVECTOR3 output) {
-    LINE3 line = {
-        .a = CM_PointIntoHeightmap(&_line->a),
-        .b = CM_PointIntoHeightmap(&_line->b),
-    };
-    
-    FOR_LOOP(x, world.map->width) {
-        FOR_LOOP(y, world.map->height) {
-            TRIANGLE3 const tri1 = {
-                { x, y, CM_GetHeightMapValue(x, y) },
-                { x+1, y, CM_GetHeightMapValue(x+1, y) },
-                { x+1, y+1, CM_GetHeightMapValue(x+1, y+1) },
-            };
-            TRIANGLE3 const tri2 = {
-                { x+1, y+1, CM_GetHeightMapValue(x+1, y+1) },
-                { x, y+1, CM_GetHeightMapValue(x, y+1) },
-                { x, y, CM_GetHeightMapValue(x, y) },
-            };
-            if (Line3_intersect_triangle(&line, &tri1, output)) {
-                *output = CM_PointFromHeightmap(output);
-                return true;
-            }
-            if (Line3_intersect_triangle(&line, &tri2, output)) {
-                *output = CM_PointFromHeightmap(output);
-                return true;
-            }
-        }
-    }
-    return false;
 }
 
 LPDOODAD CM_GetDoodads(void) {

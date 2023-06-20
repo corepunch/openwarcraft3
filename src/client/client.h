@@ -5,19 +5,17 @@
 #include "renderer.h"
 #include "keys.h"
 
-enum {
-    WINDOW_WIDTH = 1024,
-    WINDOW_HEIGHT = 768,
-    MAX_CLIENT_ENTITIES = 5000,
-    MAX_CONSOLE_MESSAGES = 256,
-    MAX_CONSOLE_MESSAGE_LEN = 1024,
-    CONSOLE_MESSAGE_TIME = 5000,
-    VIEW_SHADOW_SIZE = 1200,
-    MAX_CONFIRMATION_OBJECTS = 16,
-    MAX_LAYOUT_LAYERS = 4,
-    MAX_LAYOUT_OBJECTS = 256,
-    MAX_SELECTED_ENTITIES = 64,
-};
+#define WINDOW_WIDTH 1024
+#define WINDOW_HEIGHT 768
+#define MAX_CLIENT_ENTITIES 5000
+#define MAX_CONSOLE_MESSAGES 256
+#define MAX_CONSOLE_MESSAGE_LEN 1024
+#define CONSOLE_MESSAGE_TIME 5000
+#define VIEW_SHADOW_SIZE 1200
+#define MAX_CONFIRMATION_OBJECTS 16
+#define MAX_LAYOUT_LAYERS 4
+#define MAX_LAYOUT_OBJECTS 256
+#define MAX_SELECTED_ENTITIES 64
 
 typedef struct {
     entityState_t baseline;
@@ -59,6 +57,7 @@ typedef uiFrame_t uiLayoutLayer_t[MAX_LAYOUT_OBJECTS];
 
 struct client_state {
     model_t *models[MAX_MODELS];
+    model_t *portraits[MAX_MODELS];
     LPCTEXTURE pics[MAX_IMAGES];
     LPCFONT fonts[MAX_FONTSTYLES];
     PATHSTR configstrings[MAX_CONFIGSTRINGS];

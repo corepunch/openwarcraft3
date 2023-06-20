@@ -1,5 +1,4 @@
 #include "r_war3map.h"
-#include "../TerrainArt/Terrain.h"
 
 #define MAX_MAP_LAYERS 16
 #define WATER(INDEX) \
@@ -117,11 +116,16 @@ LPMAPLAYER R_BuildMapSegmentLayer(LPCWAR3MAP map, DWORD sx, DWORD sy, DWORD laye
     LPMAPLAYER mapLayer = ri.MemAlloc(sizeof(MAPLAYER));
     PATHSTR zBuffer;
     if (g_groundTextures[layer] == NULL) {
-        LPCTERRAIN terrain = FindTerrain(map->grounds[layer]);
-        if (!terrain)
+        char groundID[5] = { 0 };
+        memcpy(groundID, &map->grounds[layer], 4);
+        LPCSTR dir = ri.FindSheetCell(tr.terrainSheet, groundID, "dir");
+        LPCSTR file = ri.FindSheetCell(tr.terrainSheet, groundID, "file");
+        if (file && dir) {
+            sprintf(zBuffer, "%s\\%s.blp", dir, file);
+            g_groundTextures[layer] = R_LoadTexture(zBuffer);
+        } else {
             return NULL;
-        sprintf(zBuffer, "%s\\%s.blp", terrain->dir, terrain->file);
-        g_groundTextures[layer] = R_LoadTexture(zBuffer);
+        }
     }
     mapLayer->texture = g_groundTextures[layer];
     mapLayer->type = MAPLAYERTYPE_GROUND;
@@ -185,4 +189,55 @@ void R_RenderSplat(LPCVECTOR2 position, float radius, LPCTEXTURE texture) {
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, tr.renbuf->vbo);
     R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(VERTEX) * num_vertices, aVertexBuffer, GL_STATIC_DRAW);
     R_Call(glDrawArrays, GL_TRIANGLES, 0, num_vertices);
+}
+
+VECTOR3 CM_PointIntoHeightmap(LPCVECTOR3 point) {
+    return (VECTOR3) {
+        .x = (point->x - tr.world->center.x) / TILESIZE,
+        .y = (point->y - tr.world->center.y) / TILESIZE,
+        .z = point->z
+    };
+}
+
+short R_GetHeightMapValue(int x, int y) {
+    return GetWar3MapVertexHeight(GetWar3MapVertex(tr.world, x, y));
+}
+
+VECTOR3 R_PointFromHeightmap(LPCVECTOR3 point) {
+    return (VECTOR3) {
+        .x = point->x * TILESIZE + tr.world->center.x,
+        .y = point->y * TILESIZE + tr.world->center.y,
+        .z = point->z
+    };
+}
+
+bool R_TraceLocation(viewDef_t const *viewdef, float x, float y, LPVECTOR3 output) {
+    LINE3 const gline = R_LineForScreenPoint(viewdef, x, y);
+    LINE3 line = {
+        .a = CM_PointIntoHeightmap(&gline.a),
+        .b = CM_PointIntoHeightmap(&gline.b),
+    };
+    FOR_LOOP(x, tr.world->width) {
+        FOR_LOOP(y, tr.world->height) {
+            TRIANGLE3 const tri1 = {
+                { x, y, R_GetHeightMapValue(x, y) },
+                { x+1, y, R_GetHeightMapValue(x+1, y) },
+                { x+1, y+1, R_GetHeightMapValue(x+1, y+1) },
+            };
+            TRIANGLE3 const tri2 = {
+                { x+1, y+1, R_GetHeightMapValue(x+1, y+1) },
+                { x, y+1, R_GetHeightMapValue(x, y+1) },
+                { x, y, R_GetHeightMapValue(x, y) },
+            };
+            if (Line3_intersect_triangle(&line, &tri1, output)) {
+                *output = R_PointFromHeightmap(output);
+                return true;
+            }
+            if (Line3_intersect_triangle(&line, &tri2, output)) {
+                *output = R_PointFromHeightmap(output);
+                return true;
+            }
+        }
+    }
+    return false;
 }

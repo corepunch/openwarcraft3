@@ -197,9 +197,6 @@ struct war3map {
 };
 
 void CM_LoadMap(LPCSTR mapFilename);
-VECTOR3 CM_PointIntoHeightmap(LPCVECTOR3 point);
-VECTOR3 CM_PointFromHeightmap(LPCVECTOR3 point);
-bool CM_IntersectLineWithHeightmap(LPCLINE3 line, LPVECTOR3 output);
 float CM_GetHeightAtPoint(float sx, float sy);
 LPDOODAD CM_GetDoodads(void);
 mapPlayer_t const *CM_GetPlayer(DWORD index);

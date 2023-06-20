@@ -73,30 +73,22 @@ void attack_melee(edict_t *self) {
     self->unitinfo.wait = UNIT_ATTACK1_DAMAGE_POINT(self->class_id);
 }
 
-void attack_menu_selecttarget(edict_t *ent, LPCVECTOR2 mouse) {
-    edict_t *target = client_getentityatpoint(ent->client, mouse);
-    ability_t const *ability = GetAbilityByIndex(ent->client->lastcode);
-    if (!target)
-        return;
-    LPCSTR targType = UNIT_TARGETED_AS(target->class_id);
-    if (targType && !strcmp(targType, "ground")) {
-        handle_t heatmap = gi.BuildHeatmap(&target->s.origin2);
-        FOR_LOOP(i, globals.num_edicts) {
-            edict_t *ent = &globals.edicts[i];
-            if (!client_isentityselected(ent->client, ent))
-                continue;
-            ent->heatmap = heatmap;
-            ability->use(ent, target);
+bool attack_menu_selecttarget(edict_t *ent, edict_t *target) {
+    if (target->targtype == TARG_GROUND) {
+        FOR_SELECTED_UNITS(ent->client, e) {
+            attack_start(e, target);
         }
+        return true;
+    } else {
+        return false;
     }
 }
 
 void attack_command(edict_t *ent) {
     UI_AddCancelButton(ent);
-    ent->client->menu.mouseup = attack_menu_selecttarget;
+    ent->client->menu.on_entity_selected = attack_menu_selecttarget;
 }
 
 void SP_ability_attack(ability_t *self) {
-    self->use = attack_start;
     self->cmd = attack_command;
 }

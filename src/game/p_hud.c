@@ -5,15 +5,6 @@
 static float cmd_columns[4] = { 0.2375, 0.2809, 0.3243, 0.3677 };
 static float cmd_rows[3] = { 0.1136, 0.0697, 0.0258 };
 
-edict_t *GetMainSelectedEntity(gclient_t *client) {
-    FOR_LOOP(i, globals.num_edicts) {
-        if (client_isentityselected(client, &globals.edicts[i])) {
-            return &globals.edicts[i];
-        }
-    }
-    return NULL;
-}
-
 static LPCSTR GetBuildCommand(unitRace_t race) {
     switch (race) {
         case RACE_HUMAN: return STR_CmdBuildHuman;
@@ -34,7 +25,7 @@ void Add_CommandButtonCoded(uiFrameDef_t *root, DWORD code, LPCSTR art, LPCSTR b
     button->f.size.width = UI_SCALE(COMMAND_BUTTON_SIZE);
     button->f.size.height = UI_SCALE(COMMAND_BUTTON_SIZE);
     button->f.code = code;
-    UI_SetPoint(button, FRAMEPOINT_CENTER, root, FRAMEPOINT_BOTTOM, cmd_columns[x], cmd_rows[y]);
+    UI_SetPoint(button, FRAMEPOINT_CENTER, root, FRAMEPOINT_BOTTOM, UI_SCALE(cmd_columns[x]), UI_SCALE(cmd_rows[y]));
 }
 
 void UI_AddAbilityButton(uiFrameDef_t *root, LPCSTR ability) {
@@ -50,8 +41,19 @@ void UI_AddAbilityButton(uiFrameDef_t *root, LPCSTR ability) {
     Add_CommandButtonCoded(root, ability_id, art, buttonpos);
 }
 
+void Get_Portrait_f(edict_t *edict) {
+    edict_t *ent = G_GetMainSelectedEntity(edict->client);
+    uiFrameDef_t *layer = UI_Clear();
+    uiFrameDef_t *portrait = UI_Spawn(FT_PORTRAIT, layer);
+    portrait->f.tex.index = ent->s.model;
+    portrait->f.size.width = 800;
+    portrait->f.size.height = 800;
+    UI_SetPoint(portrait, FRAMEPOINT_BOTTOMLEFT, layer, FRAMEPOINT_BOTTOMLEFT, 2150, 300);
+    UI_WriteLayout(edict, layer, LAYER_PORTRAIT);
+}
+
 void Get_Commands_f(edict_t *edict) {
-    edict_t *ent = GetMainSelectedEntity(edict->client);
+    edict_t *ent = G_GetMainSelectedEntity(edict->client);
     uiFrameDef_t *layer = UI_Clear();
     if (ent) {
         if (UNIT_SPEED(ent->class_id) > 0) {
@@ -81,14 +83,13 @@ void Get_Commands_f(edict_t *edict) {
             }
         }
     }
-    UI_WriteLayout(edict, layer, UI_COMMANDBAR);
-    edict->client->menu.mouseup = NULL;
-    edict->client->menu.cmdbutton = NULL;
+    UI_WriteLayout(edict, layer, LAYER_COMMANDBAR);
+    memset(&edict->client->menu, 0, sizeof(menu_t));
 }
 
 void UI_AddCancelButton(edict_t *ent) {
     uiFrameDef_t *layer = UI_Clear();
     UI_AddAbilityButton(layer, STR_CmdCancel);
-    UI_WriteLayout(ent, layer, UI_COMMANDBAR);
-    ent->client->menu.cmdbutton = NULL;
+    UI_WriteLayout(ent, layer, LAYER_COMMANDBAR);
+    memset(&ent->client->menu, 0, sizeof(menu_t));
 }

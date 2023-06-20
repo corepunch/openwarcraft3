@@ -538,14 +538,14 @@ void UI_SetPoint(uiFrameDef_t *frame,
                  uiFramePointType_t framePoint,
                  uiFrameDef_t *other,
                  uiFramePointType_t otherPoint,
-                 float x,
-                 float y)
+                 int16_t x,
+                 int16_t y)
 {
     frame->SetPoint.type = framePoint;
     frame->SetPoint.relativeTo = other->f.number;
     frame->SetPoint.target = otherPoint;
-    frame->SetPoint.x = UI_SCALE(x);
-    frame->SetPoint.y = UI_SCALE(y);
+    frame->SetPoint.x = x;
+    frame->SetPoint.y = y;
     SetPoint(NULL, frame);
 }
 

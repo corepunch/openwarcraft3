@@ -3,7 +3,15 @@
 
 #include "../common/common.h"
 
+#define MAX_INI_LINE 1024
 #define MAX_SHEET_COLUMNS 256
+
+typedef struct SheetCell {
+    LPSTR text;
+    USHORT column;
+    USHORT row;
+    LPSHEET next;
+} sheetCell_t;
 
 static sheetCell_t cells[256 * 1024] = { 0 };
 static sheetRow_t rows[32 * 1024] = { 0 };
@@ -43,15 +51,7 @@ static DWORD Sheet_GetHeight(LPSHEET sheet) {
     return height;
 }
 
-static DWORD Sheet_GetWidth(LPSHEET sheet) {
-    DWORD width = 0;
-    FOR_EACH_LIST(struct SheetCell const, cell, sheet) {
-        width = MAX(width, cell->column);
-    }
-    return width;
-}
-
-int text_size = 0;
+//int text_size = 0;
 
 static void FS_FillSheetCell(DWORD x, DWORD y, LPSTR text) {
     current_cell->column = x;
@@ -153,103 +153,6 @@ sheetRow_t *FS_ParseSLK(LPCSTR fileName) {
     }
 }
 
-
-LPSHEET FS_ReadSheet(LPCSTR fileName) {
-    HANDLE file = FS_OpenFile(fileName);
-    DWORD fileSize = SFileGetFileSize(file, NULL);
-    TCHAR czBuffer[MAX_SHEET_LINE];
-    TCHAR ch = 0;
-    DWORD X = 1, Y = 1;
-    LPSHEET start = current_cell;
-    for (DWORD read = 0, cur = 0; read < fileSize; read++) {
-        SFileReadFile(file, &ch, 1, NULL, NULL);
-        if (ch == '\n') {
-            DWORD const numTokens = SheetParseTokens(czBuffer);
-            if (czBuffer[0] == 'C' || czBuffer[0] == 'F') {
-                for (DWORD i = 1; i < numTokens; i++) {
-                    TCHAR *token = GetToken(czBuffer, i);
-                    switch (*token) {
-                        case 'X':
-                            X = atoi(token+1);
-                            break;
-                        case 'Y':
-                            Y = atoi(token+1);
-                            break;
-                        case 'K':
-                            FS_FillSheetCell(X, Y, token+1);
-                            break;
-                    }
-                }
-            }
-
-            memset(czBuffer, 0, MAX_SHEET_LINE);
-            cur = 0;
-        } else {
-            czBuffer[cur++] = ch;
-        }
-    }
-    SFileCloseFile(file);
-    if (start != current_cell) { // close the table
-        previous_cell->next = NULL;
-        return start;
-    } else {
-        return NULL;
-    }
-}
-
-void Sheet_Release(LPSHEET sheet) {
-//    MemFree(sheet->text);
-//    SAFE_DELETE(sheet->next, Sheet_Release);
-}
-
-HANDLE FS_ParseSheet(LPCSTR fileName,
-                     LPCSHEETLAYOUT layout,
-                     DWORD elementSize)
-{
-    LPSHEET sheet = FS_ReadSheet(fileName);
-
-    if (!sheet)
-        return NULL;
-
-    LPCSTR columns[MAX_SHEET_COLUMNS] = { 0 };
-    DWORD sheetHeight = Sheet_GetHeight(sheet);
-    HANDLE datas = MemAlloc(elementSize * (sheetHeight + 1));
-
-    
-    FOR_EACH_LIST(struct SheetCell const, cell, sheet) {
-        if (cell->row != 1 || cell->column >= MAX_SHEET_COLUMNS)
-            continue;
-        columns[cell->column] = cell->text;
-    }
-
-    for (DWORD row = 2, write = 0; row <= sheetHeight; row++) {
-        LPSTR current = &((LPSTR)datas)[elementSize * write];
-        bool hasID = false;
-        FOR_EACH_LIST(struct SheetCell const, cell, sheet) {
-            if (cell->row != row)
-                continue;
-            for (LPCSHEETLAYOUT sl = layout; sl->column; sl++) {
-                if (columns[cell->column] == NULL)
-                    continue;
-                if (!strcmp(sl->column, columns[cell->column])) {
-                    HANDLE field = current + (uint64_t)sl->fofs;
-                    switch (sl->type) {
-                        case ST_ID: *(int *)field = *(int*)cell->text; hasID = true; break;
-                        case ST_INT: *(int *)field = atoi(cell->text); break;
-                        case ST_FLOAT: *(float *)field = atof(cell->text); break;
-                        case ST_STRING: strcpy(field, cell->text); break;
-                    }
-                }
-            }
-        }
-        if (hasID) {
-            write++;
-        }
-    }
-    Sheet_Release(sheet);
-    return datas;
-}
-
 LPCSTR FS_FindSheetCell(sheetRow_t *sheet, LPCSTR row, LPCSTR column) {
     FOR_EACH_LIST(sheetRow_t const, srow, sheet) {
         if (strcmp(srow->name, row))
@@ -262,8 +165,6 @@ LPCSTR FS_FindSheetCell(sheetRow_t *sheet, LPCSTR row, LPCSTR column) {
     }
     return NULL;
 }
-
-#define MAX_INI_LINE 1024
 
 static sheetRow_t *FS_ParseINI_Buffer(LPCSTR buffer) {
     LPCSTR p = buffer;

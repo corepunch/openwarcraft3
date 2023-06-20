@@ -1,5 +1,51 @@
 #include "g_local.h"
 
+LPCSTR targs[] = {
+    "none", // NONE
+    "air",  // AIR
+    "aliv", // ALIVE
+    "alli", // ALLIES
+    "dead", // DEAD
+    "debr", // DEBRIS
+    "enem", // ENEMIES
+    "grou", // GROUND
+    "hero", // HERO
+    "invu", // INVULNERABLE
+    "item", // ITEM
+    "mech", // MECHANICAL
+    "neut", // NEUTRAL
+    "nonh", // NONHERO
+    "nons", // NONSAPPER
+    "nots", // NOTSELF
+    "orga", // ORGANIC
+    "play", // PLAYERUNITS
+    "sapp", // SAPPER
+    "self", // SELF
+    "stru", // STRUCTURE
+    "terr", // TERRAIN
+    "tree", // TREE
+    "vuln", // VULNERABLE
+    "wall", // WALL
+    "ward", // WARD
+    "anci", // ANCIENT
+    "nona", // NONANCIENT
+    "frie", // FRIEND
+    "brid", // BRIDGE
+    "deco", // DECORATION
+};
+
+targtype_t G_GetTargetType(LPCSTR str) {
+    DWORD const len = (DWORD)strlen(str);
+    if (len < 3) return TARG_NONE;
+    char buf[64] = { 0 };
+    FOR_LOOP(c, len) buf[c] = tolower(str[c]);
+    FOR_LOOP(i, sizeof(targs)/sizeof(*targs)) {
+        if (*(DWORD *)buf == *(DWORD *)targs[i])
+            return i;
+    }
+    return TARG_NONE;
+}
+
 //struct spawn {
 //    LPCSTR name;
 //    void (*func)(edict_t *edict);
@@ -54,6 +100,7 @@ static void SP_SpawnDestructable(edict_t *edict) {
     edict->s.model = gi.ModelIndex(buffer);
     edict->s.radius = 50;//destr->radius;
     edict->health = DESTRUCTABLE_HIT_POINT_MAXIMUM(edict->class_id);
+    edict->targtype = G_GetTargetType(DESTRUCTABLE_TARGETED_AS(edict->class_id));
 }
 
 sheetRow_t *find_row(LPCSTR dood_id) {
@@ -113,3 +160,17 @@ void G_SpawnEntities(LPCDOODAD entities) {
     SP_worldspawn(NULL);
 }
  
+edict_t *SP_SpawnAtLocation(DWORD class_id, DWORD player, LPCVECTOR2 location) {
+    edict_t *ent = G_Spawn();
+    ent->class_id = class_id;
+    ent->s.origin.x = location->x;
+    ent->s.origin.y = location->y;
+    ent->s.origin.z = gi.GetHeightAtPoint(location->x, location->y);
+    ent->s.scale = 1;
+    ent->s.angle = -M_PI / 2;
+    ent->s.player = player;
+    SP_CallSpawn(ent);
+    ent->birth(ent);
+    return ent;
+}
+

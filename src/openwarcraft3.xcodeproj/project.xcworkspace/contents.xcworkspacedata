@@ -2,6 +2,6 @@
 <Workspace
    version = "1.0">
    <FileRef
-      location = "self:/Users/igor/Developer/openwarcraft3/src/openwarcraft3.xcodeproj">
+      location = "self:">
    </FileRef>
 </Workspace>

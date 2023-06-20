@@ -107,6 +107,14 @@ void layout_tex(uiFrame_t const *frame) {
     re.DrawImage(cl.pics[frame->tex.index], &screen, &suv);
 }
 
+void layout_portrait(uiFrame_t const *frame) {
+    RECT const screen = Rect_div(SCR_LayoutRect(frame), 10000);
+    RECT const viewport = {
+        screen.x/0.8, 1 - (screen.y + screen.h)/ 0.6, screen.w/0.8, screen.h/0.6
+    };
+    re.DrawPortrait(cl.portraits[frame->tex.index], &viewport);
+}
+
 void layout_cmd(uiFrame_t const *frame) {
     RECT screen = Rect_div(SCR_LayoutRect(frame), 10000);
     RECT const uv = get_uvrect(frame->tex.coord);
@@ -121,7 +129,7 @@ void layout_cmd(uiFrame_t const *frame) {
         }
         if (mouse.event == UI_LEFT_MOUSE_UP) {
             MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
-            SZ_Printf(&cls.netchan.message, "code %d", frame->code);
+            SZ_Printf(&cls.netchan.message, "button %d", frame->code);
         }
     }
 
@@ -158,6 +166,7 @@ void SCR_DrawOverlay(uiFrame_t const *_frames) {
             case FT_TEXTURE: layout_tex(frame); break;
             case FT_COMMANDBUTTON: layout_cmd(frame); break;
             case FT_STRING: layout_string(frame); break;
+            case FT_PORTRAIT: layout_portrait(frame); break;
             case FT_NONE:
                 return;
             default:
@@ -176,7 +185,7 @@ void SCR_UpdateScreen(void) {
     re.BeginFrame();
     
     V_RenderView();
-    
+
     SCR_DrawOverlays();
 
     CON_DrawConsole();

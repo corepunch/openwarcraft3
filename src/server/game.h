@@ -23,7 +23,6 @@ struct game_import {
     handle_t (*BuildHeatmap)(LPCVECTOR2 target);
     VECTOR2 (*GetFlowDirection)(DWORD heatmapindex, float fx, float fy);
     float (*GetHeightAtPoint)(float x, float y);
-    bool (*IntersectLineWithHeightmap)(LPCLINE3 _line, LPVECTOR3 output);
     LPSTR (*ParserGetToken)(parser_t *p);
     LPSTR (*ReadFileIntoString)(LPCSTR filename);
     

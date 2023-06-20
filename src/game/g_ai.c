@@ -5,7 +5,8 @@
 void M_ChangeAngle(edict_t *self) {
     VECTOR2 dir;
     if (M_DistanceToGoal(self) > NAVI_THRESHOLD) {
-        dir = gi.GetFlowDirection(self->heatmap, self->s.origin.x, self->s.origin.y);
+        handle_t heatmap = M_RefreshHeatmap(self->goalentity);
+        dir = gi.GetFlowDirection(heatmap, self->s.origin.x, self->s.origin.y);
     } else {
         dir = Vector2_sub(&self->goalentity->s.origin2, &self->s.origin2);
     }
@@ -44,15 +45,9 @@ void M_RunWait(edict_t *self, void (*callback)(edict_t *)) {
 }
 
 void ai_stand(edict_t *self) {
-//    if (self->goalentity && self->unitinfo.walk) {
-//        self->unitinfo.walk(self);
-//    }
 }
 
 void ai_birth(edict_t *self) {
-//    if (self->goalentity && self->unitinfo.walk) {
-//        self->unitinfo.walk(self);
-//    }
 }
 
 void ai_pain(edict_t *self) {

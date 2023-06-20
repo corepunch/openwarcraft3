@@ -1,8 +1,5 @@
 #include "r_local.h"
 
-#include "TerrainArt/Terrain.h"
-#include "TerrainArt/CliffTypes.h"
-
 #include <SDL.h>
 #include <SDL_opengl.h>
 
@@ -106,7 +103,10 @@ void R_Init(DWORD width, DWORD height) {
 
     int white = 0xffffffff;
     int black = 0xff000000;
-    
+
+    tr.terrainSheet = ri.ReadSheet("TerrainArt\\Terrain.slk");
+    tr.cliffSheet = ri.ReadSheet("TerrainArt\\CliffTypes.slk");
+
 //    tr.selectionCircle = R_LoadModel("UI\\Feedback\\Confirmation\\Confirmation.mdx");
     tr.selectionCircle = R_LoadModel("UI\\Feedback\\SelectionCircle\\SelectionCircle.mdx");
     tr.selectionCircleSmall = R_LoadTexture("ReplaceableTextures\\Selection\\SelectionCircleSmall.blp");
@@ -138,9 +138,6 @@ void R_Init(DWORD width, DWORD height) {
     tr.sysFont = R_MakeSysFontTexture();
 
     R_InitShadowMap();
-
-    InitCliffTypes();
-    InitTerrain();
 }
 
 bool R_IsPointVisible(LPCVECTOR3 point, float fThreshold) {
@@ -226,9 +223,6 @@ void R_EndFrame(void) {
 }
 
 void R_Shutdown(void) {
-    ShutdownTerrain();
-    ShutdownCliffTypes();
-
     SDL_GL_DeleteContext(context);
     SDL_DestroyWindow(window);
     SDL_Quit();
@@ -278,7 +272,9 @@ refExport_t R_GetAPI(refImport_t imp) {
         .GetTextureSize = R_GetTextureSize,
         .DrawPortrait = R_DrawPortrait,
         .DrawText = R_DrawText,
-        .Trace = R_Trace,
+        .TraceEntity = R_TraceEntity,
+        .TraceLocation = R_TraceLocation,
+        .EntitiesInRect = R_EntitiesInRect,
 #ifdef DEBUG_PATHFINDING
         .SetPathTexture = R_SetPathTexture,
 #endif

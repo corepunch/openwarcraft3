@@ -1,12 +1,21 @@
 #include "r_war3map.h"
 #include "../mdx/r_mdx.h"
-#include "../TerrainArt/CliffTypes.h"
 
 static VERTEX aVertexBuffer[(SEGMENT_SIZE+1)*(SEGMENT_SIZE+1)*64];
 static LPVERTEX currentVertex = NULL;
 
 #define SAME_TILE 852063
 #define NO_CLIFF MAKEFOURCC('C','L','n','o')
+
+typedef struct {
+    DWORD cliff;
+    LPCSTR texDir;
+    LPCSTR texFile;
+    LPCSTR groundTile;
+    LPCSTR upperTile;
+    LPCSTR rampModelDir;
+    LPCSTR cliffModelDir;
+} cliffData_t;
 
 struct tCliff {
     DWORD cliffid;
@@ -56,10 +65,10 @@ static float GetAccurateWaterLevelAtPoint(float sx, float sy) {
 
 // FUNCTIONS
 
-static model_t const *R_LoadCliffModel(struct CliffTypes const *cliffType, char const *ccfg, bool ramp) {
+static model_t const *R_LoadCliffModel(cliffData_t const *data, char const *ccfg, bool ramp) {
     PATHSTR zBuffer;
     const int cliffid = *(int *)ccfg;
-    LPCSTR dir = ramp ? cliffType->rampModelDir : cliffType->cliffModelDir;
+    LPCSTR dir = ramp ? data->rampModelDir : data->cliffModelDir;
     for (struct tCliff *it = g_cliffs; it; it = it->next) {
         if (it->cliffid == cliffid)
             return it->model;
@@ -72,12 +81,12 @@ static model_t const *R_LoadCliffModel(struct CliffTypes const *cliffType, char 
     return cliff->model;
 }
 
-static void R_MakeCliff(LPCWAR3MAP map, DWORD x, DWORD y, DWORD cliff, struct CliffTypes const *cliffType) {
+static void R_MakeCliff(LPCWAR3MAP map, DWORD x, DWORD y, cliffData_t const *data) {
     struct War3MapVertex tile[4];
     GetTileVertices(x, y, map, tile);
     int remap[4] = { 3, 1, 0, 2 };
 
-    if (GetTileRamps(tile) || !IsTileCliff(tile) || tile[remap[0]].cliff != cliff)
+    if (GetTileRamps(tile) || !IsTileCliff(tile) || tile[remap[0]].cliff != data->cliff)
         return;
 
     char cliffcfg[5] = { 0 };
@@ -95,10 +104,10 @@ static void R_MakeCliff(LPCWAR3MAP map, DWORD x, DWORD y, DWORD cliff, struct Cl
             cliffcfg[index] = (tileramps > 1 && vert->ramp) ? 'X' : 'C';
         }
     }
-
+    
     FOR_LOOP(gindx, map->num_grounds) {
-//        DWORD const tile = cliffType->groundTile == SAME_TILE ? cliffType->upperTile : cliffType->groundTile;
-        if (map->grounds[gindx] == cliffType->groundTile) {
+//        DWORD tile = *(DWORD *)(strlen(data->groundTile) != 4 ? data->upperTile : data->groundTile);
+        if (map->grounds[gindx] == *(DWORD *)data->groundTile) {
             ((LPWAR3MAPVERTEX)GetWar3MapVertex(map, x+1, y+1))->ground = gindx;
             ((LPWAR3MAPVERTEX)GetWar3MapVertex(map, x, y+1))->ground = gindx;
             ((LPWAR3MAPVERTEX)GetWar3MapVertex(map, x+1, y))->ground = gindx;
@@ -107,7 +116,7 @@ static void R_MakeCliff(LPCWAR3MAP map, DWORD x, DWORD y, DWORD cliff, struct Cl
         }
     }
 
-    model_t const *pModel = R_LoadCliffModel(cliffType, cliffcfg, tileramps > 1);
+    model_t const *pModel = R_LoadCliffModel(data, cliffcfg, tileramps > 1);
     mdxGeoset_t *pGeoset = pModel->mdx->geosets;
 
     FOR_LOOP(t, pGeoset->num_triangles) {
@@ -138,27 +147,31 @@ LPMAPLAYER R_BuildMapSegmentCliffs(LPCWAR3MAP map, DWORD sx, DWORD sy, DWORD cli
     LPMAPLAYER mapLayer = ri.MemAlloc(sizeof(MAPLAYER));
     PATHSTR zBuffer;
     DWORD cliffID = map->cliffs[cliff];
-    if (cliffID == NO_CLIFF) {
+    if (cliffID == NO_CLIFF)
         return NULL;
-    }
-    struct CliffTypes const *cliffType = FindCliffTypes(cliffID);
-//    FOR_LOOP(idx, map->num_cliffs) {
-//        printf("%.4s\n", (char*)&map->cliffs[idx]);
-//    }
-    if (!cliffType) {
-        return NULL;
-    }
-    sprintf(zBuffer, "%s\\%c_%s.blp", cliffType->texDir, map->tileset, cliffType->texFile);
+    char cliffID_str[5] = { 0 };
+    memcpy(cliffID_str, &cliffID, 4);
+    cliffData_t data = {
+        .cliff = cliff,
+        .texDir = ri.FindSheetCell(tr.cliffSheet, cliffID_str, "texDir"),
+        .texFile = ri.FindSheetCell(tr.cliffSheet, cliffID_str, "texFile"),
+        .groundTile = ri.FindSheetCell(tr.cliffSheet, cliffID_str, "groundTile"),
+        .upperTile = ri.FindSheetCell(tr.cliffSheet, cliffID_str, "upperTile"),
+        .rampModelDir = ri.FindSheetCell(tr.cliffSheet, cliffID_str, "rampModelDir"),
+        .cliffModelDir = ri.FindSheetCell(tr.cliffSheet, cliffID_str, "cliffModelDir"),
+
+    };
+    sprintf(zBuffer, "%s\\%c_%s.blp", data.texDir, map->tileset, data.texFile);
     mapLayer->texture = R_LoadTexture(zBuffer);
     if (!mapLayer->texture) {
-        sprintf(zBuffer, "%s\\%s.blp", cliffType->texDir, cliffType->texFile);
+        sprintf(zBuffer, "%s\\%s.blp", data.texDir, data.texFile);
         mapLayer->texture = R_LoadTexture(zBuffer);
     }
     mapLayer->type = MAPLAYERTYPE_CLIFF;
     currentVertex = aVertexBuffer;
     for (DWORD x = sx * SEGMENT_SIZE; x < (sx + 1) * SEGMENT_SIZE; x++) {
         for (DWORD y = sy * SEGMENT_SIZE; y < (sy + 1) * SEGMENT_SIZE; y++) {
-            R_MakeCliff(map, x, y, cliff, cliffType);
+            R_MakeCliff(map, x, y, &data);
         }
     }
     mapLayer->num_vertices = (DWORD)(currentVertex - aVertexBuffer);

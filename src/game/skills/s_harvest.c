@@ -25,9 +25,7 @@ static EDICT_FUNC(ai_walktree) {
 
 static EDICT_FUNC(ai_walkback) {
     if (M_DistanceToGoal(ent) < (ent->s.radius + ent->goalentity->s.radius + 5)) {
-        handle_t heatmap = gi.BuildHeatmap(&ent->secondarygoal->s.origin2);
         ent->goalentity = ent->secondarygoal;
-        ent->heatmap = heatmap;
         
         playerState_t *player = G_GetPlayerByNumber(ent->s.player);
         if (player) {
@@ -105,9 +103,7 @@ EDICT_FUNC(harvest_swing) {
 EDICT_FUNC(harvest_walkback) {
     edict_t *townhall = find_townhall(ent);
     if (townhall) {
-        handle_t heatmap = gi.BuildHeatmap(&townhall->s.origin2);
         ent->goalentity = townhall;
-        ent->heatmap = heatmap;
         M_SetMove(ent, &harvest_move_walkback);
     } else {
         ent->stand(ent);
@@ -122,28 +118,18 @@ void harvest_start(edict_t *self, edict_t *target) {
     harvest_walk(self);
 }
 
-void harvest_menu_selecttarget(edict_t *clent, LPCVECTOR2 mouse) {
-    gclient_t *client = clent->client;
-    edict_t *target = client_getentityatpoint(client, mouse);
-    ability_t const *ability = GetAbilityByIndex(client->lastcode);
-    if (!target)
-        return;
-    LPCSTR targType = DESTRUCTABLE_TARGETED_AS(target->class_id);
-    if (targType && !strcmp(targType, "tree")) {
-        handle_t heatmap = gi.BuildHeatmap(&target->s.origin2);
-        FOR_LOOP(i, globals.num_edicts) {
-            edict_t *ent = &globals.edicts[i];
-            if (!client_isentityselected(client, ent))
-                continue;
-            ent->heatmap = heatmap;
-            ability->use(ent, target);
+bool harvest_menu_selecttarget(edict_t *clent, edict_t *target) {
+    if (target->targtype == TARG_TREE) {
+        FOR_SELECTED_UNITS(clent->client, ent) {
+            harvest_start(ent, target);
         }
     }
+    return true;
 }
 
 void harvest_command(edict_t *ent) {
     UI_AddCancelButton(ent);
-    ent->client->menu.mouseup = harvest_menu_selecttarget;
+    ent->client->menu.on_entity_selected = harvest_menu_selecttarget;
 }
 
 void SP_ability_harvest(ability_t *self) {
@@ -154,7 +140,6 @@ void SP_ability_harvest(ability_t *self) {
     harvest.COOLDOWN = AB_Number(self, "Dur1");
     harvest.SEARCH_RANGE = AB_Number(self, "Area1");
     
-    self->use = harvest_start;
     self->cmd = harvest_command;
 }
 
