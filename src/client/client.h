@@ -62,7 +62,6 @@ struct client_state {
     LPCFONT fonts[MAX_FONTSTYLES];
     PATHSTR configstrings[MAX_CONFIGSTRINGS];
     centity_t ents[MAX_CLIENT_ENTITIES];
-    moveConfirmation_t confs[MAX_CONFIRMATION_OBJECTS];
     uiLayoutLayer_t layout[MAX_LAYOUT_LAYERS];
     viewDef_t viewDef;
     struct frame frame;
@@ -71,7 +70,6 @@ struct client_state {
     entityState_t *cursorEntity;
     LPCMODEL moveConfirmation;
     DWORD num_entities;
-    DWORD confirmationCounter;
     DWORD sock;
     DWORD time;
     struct {
@@ -94,6 +92,7 @@ void CON_printf(LPCSTR fmt, ...);
 void Matrix4_fromViewAngles(LPCVECTOR3 target, LPCVECTOR3 angles, float distance, LPMATRIX4 output);
 void Matrix4_getLightMatrix(LPCVECTOR3 sunangles, LPCVECTOR3 target, float scale, LPMATRIX4 output);
 void Matrix4_getCameraMatrix(viewCamera_t const *camera, LPMATRIX4 output);
+void V_AddEntity(renderEntity_t *ent);
 
 // cl_scrn.c
 void SCR_Clear(uiFrame_t const *frame);
@@ -106,6 +105,8 @@ void CL_InitInput(void);
 
 // cl_tent.c
 void CL_ParseTEnt(LPSIZEBUF msg);
+void CL_AddTEnts(void);
+void CL_ClearTEnts(void);
 
 extern struct client_state cl;
 extern struct client_static cls;

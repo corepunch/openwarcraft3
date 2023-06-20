@@ -37,6 +37,14 @@ void CL_ClientCommand(LPCSTR cmd) {
     SZ_Printf(&cls.netchan.message, "%s", cmd);
 }
 
+void CL_ClearState(void) {
+    CL_ClearTEnts ();
+
+    memset(&cl, 0, sizeof(struct client_state));
+
+    SZ_Clear (&cls.netchan.message);
+}
+
 void CL_Init(void) {
     CON_printf("OpenWarcraft3 v0.1");
 
@@ -52,16 +60,16 @@ void CL_Init(void) {
     });
     
     re.Init(WINDOW_WIDTH, WINDOW_HEIGHT);
+
+    SZ_Init(&cls.netchan.message, cls.netchan.message_buf, MAX_MSGLEN);
     
-    memset(&cl, 0, sizeof(struct client_state));
+    CL_ClearState();
 
     cl.moveConfirmation = re.LoadModel("UI\\Feedback\\Confirmation\\Confirmation.mdx");
     
     cl.viewDef.camera.zfar = 5000;
     cl.viewDef.camera.znear = 100;
 
-    SZ_Init(&cls.netchan.message, cls.netchan.message_buf, MAX_MSGLEN);
-    
     Key_SetBinding(K_MOUSE1, "+select");
     
     CL_InitInput();

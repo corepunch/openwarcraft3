@@ -78,18 +78,6 @@ static void V_ClearScene(void) {
     cl.viewDef.num_entities = 0;
 }
 
-static void CL_AddConfirmationObject(moveConfirmation_t const *mc) {
-    renderEntity_t re;
-    memset(&re, 0, sizeof(renderEntity_t));
-    re.origin = mc->origin;
-    re.scale = 1;
-    re.frame = cl.time - mc->timespamp;
-    re.oldframe = cl.time - mc->timespamp;
-    re.model = cl.moveConfirmation;
-    
-    view_state.entities[view_state.num_entities++] = re;
-}
-
 static LINE3 CL_GetMouseLine(LPCVECTOR2 mouse) {
     LINE3 line;
     MATRIX4 cameramat;
@@ -136,11 +124,7 @@ static void CL_AddEntities(void) {
         V_AddClientEntity(ce);
     }
     
-    FOR_LOOP(index, MAX_CONFIRMATION_OBJECTS) {
-        if (cl.time - cl.confs[index].timespamp > 1000)
-            continue;
-        CL_AddConfirmationObject(&cl.confs[index]);
-    }
+    CL_AddTEnts();
     
     CL_AddBuilding();
 
@@ -220,4 +204,8 @@ void V_RenderView(void) {
     if (cl.selection.in_progress) {
         re.DrawSelectionRect(&cl.selection.rect, (COLOR32){0,255,0,255});
     }
+}
+
+void V_AddEntity(renderEntity_t *ent) {
+    view_state.entities[view_state.num_entities++] = *ent;
 }
