@@ -7,9 +7,9 @@ void PF_WriteShort(int c) { MSG_WriteShort(&sv.multicast, c); }
 void PF_WriteLong(int c) { MSG_WriteLong(&sv.multicast, c); }
 void PF_WriteFloat(float f) { MSG_WriteFloat(&sv.multicast, f); }
 void PF_WriteString(LPCSTR s) { MSG_WriteString(&sv.multicast, s); }
-//void PF_WritePos (vec3_t pos) {MSG_WritePos(&sv.multicast, pos);}
-//void PF_WriteDir (vec3_t dir) {MSG_WriteDir(&sv.multicast, dir);}
-//void PF_WriteAngle (float f) {MSG_WriteAngle(&sv.multicast, f);}
+void PF_WritePos(LPCVECTOR3 pos) { MSG_WritePos(&sv.multicast, pos); }
+void PF_WriteDir(LPCVECTOR3 dir) { MSG_WriteDir(&sv.multicast, dir); }
+void PF_WriteAngle(float f) { MSG_WriteAngle(&sv.multicast, f); }
 
 void PF_WriteEntity(entityState_t const *ent) {
     entityState_t empty;
@@ -120,9 +120,12 @@ void SV_InitGameProgs(void) {
     import.WriteLong = PF_WriteLong;
     import.WriteFloat = PF_WriteFloat;
     import.WriteString = PF_WriteString;
+    import.WritePosition = PF_WritePos;
+    import.WriteDirection = PF_WriteDir;
+    import.WriteAngle = PF_WriteAngle;
     import.WriteEntity = PF_WriteEntity;
     import.WriteUIFrame = PF_WriteUIFrame;
-
+    
     ge = GetGameAPI(&import);
     ge->Init();
 }

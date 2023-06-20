@@ -119,6 +119,9 @@ void CL_ParseServerMessage(LPSIZEBUF msg) {
             case svc_mirror:
                 CL_MirrorMessage(msg);
                 break;
+            case svc_temp_entity:
+                CL_ParseTEnt(msg);
+                break;
             default:
                 fprintf(stderr, "Unknown message %d\n", pack_id);
                 return;

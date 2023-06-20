@@ -4,7 +4,7 @@
 void R_GetEntityMatrix(renderEntity_t const *entity, LPMATRIX4 matrix) {
     Matrix4_identity(matrix);
     Matrix4_translate(matrix, &entity->origin);
-    Matrix4_rotate(matrix, &(VECTOR3){0, 0, entity->angle * 180 / 3.14f}, ROTATE_XYZ);
+    Matrix4_rotate(matrix, &(VECTOR3){0, 0, entity->angle * 180 / M_PI}, ROTATE_XYZ);
     Matrix4_scale(matrix, &(VECTOR3){entity->scale, entity->scale, entity->scale});
 }
 

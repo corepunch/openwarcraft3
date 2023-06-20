@@ -204,6 +204,12 @@ typedef struct {
 } size2_t;
 
 typedef enum {
+    TE_GUNSHOT,
+    TE_BLOOD,
+    TE_MOVE_CONFIRMATION,
+} tempEvent_t;
+
+typedef enum {
     FT_NONE,
     FT_BACKDROP,
     FT_BUTTON,

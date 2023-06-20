@@ -24,13 +24,19 @@ SFileReadFile(file, &object->num_##variable, 4, NULL, NULL); \
 if (object->num_##variable > 0) {object->variable = alloc(object->num_##variable * elemsize); \
 SFileReadFile(file, object->variable, object->num_##variable * elemsize, NULL, NULL); }
 
+typedef enum {
+    ERR_FATAL,        // exit the entire game with a popup window
+    ERR_DROP,         // print to console and disconnect from game
+    ERR_QUIT,         // not an error, just a normal exit
+} errorCode_t;
+
 // server to client
 enum svc_ops {
     svc_bad,
 // these ops are known to the game dll
 //    svc_muzzleflash,
 //    svc_muzzleflash2,
-//    svc_temp_entity,
+    svc_temp_entity,
     svc_layout,
     svc_playerinfo,
     svc_cursor,
@@ -102,6 +108,7 @@ KNOWN_AS(CliffInfo, CLIFFINFO);
 
 // common.c
 void Com_Init(void);
+void Com_Error(errorCode_t code, LPCSTR fmt, ...);
 
 void LoadMap(LPCSTR pFilename);
 

@@ -37,6 +37,9 @@ struct game_import {
     void (*WriteLong)(int c);
     void (*WriteFloat)(float f);
     void (*WriteString)(LPCSTR s);
+    void (*WritePosition)(LPCVECTOR3 pos);
+    void (*WriteDirection)(LPCVECTOR3 dir);
+    void (*WriteAngle)(float f);
     void (*WriteEntity)(entityState_t const *ent);
     void (*WriteUIFrame)(uiFrame_t const *frame);
 

@@ -104,6 +104,9 @@ LPCRECT SCR_LayoutRect(uiFrame_t const *frame);
 void CL_Input(void);
 void CL_InitInput(void);
 
+// cl_tent.c
+void CL_ParseTEnt(LPSIZEBUF msg);
+
 extern struct client_state cl;
 extern struct client_static cls;
 extern refExport_t re;

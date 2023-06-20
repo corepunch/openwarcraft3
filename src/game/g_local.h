@@ -35,10 +35,10 @@ gi.WriteByte(LAYER);
 // these ops are known to the game dll
 //    svc_muzzleflash,
 //    svc_muzzleflash2,
-//    svc_temp_entity,
-#define svc_layout 1
-#define svc_playerinfo 2
-#define svc_cursor 3
+#define svc_temp_entity 1
+#define svc_layout 2
+#define svc_playerinfo 3
+#define svc_cursor 4
 
 typedef struct {
     bool (*on_entity_selected)(edict_t *clent, edict_t *selected);

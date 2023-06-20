@@ -3,6 +3,7 @@
 #include <StormLib.h>
 
 #define MPQ_PATH "/Users/igor/Documents/Warcraft3/war3.mpq"
+#define MAXPRINTMSG 4096
 
 const LPCSTR WarcraftSheets[] = {
     "Units\\unitUI.slk",
@@ -198,4 +199,34 @@ void Com_Init(void) {
     FS_Init();
     SV_Init();
     CL_Init();
+}
+
+void Com_Error(errorCode_t code, LPCSTR fmt, ...) {
+    va_list argptr;
+    static char msg[MAXPRINTMSG];
+    static bool recursive;
+
+    if (recursive) {
+        fprintf(stderr, "recursive error after: %s", msg);
+    }
+    
+    recursive = true;
+
+    va_start(argptr,fmt);
+    vsprintf(msg,fmt,argptr);
+    va_end(argptr);
+    
+    switch (code) {
+        case ERR_QUIT:
+//            CL_Drop ();
+            recursive = false;
+//            longjmp (abortframe, -1);
+            break;
+        case ERR_DROP:
+            break;
+        default:
+            break;
+    }
+    
+    fprintf(stderr, "%s", msg);
 }

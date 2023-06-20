@@ -23,6 +23,10 @@ bool move_selectlocation(edict_t *clent, LPCVECTOR2 location) {
     FOR_SELECTED_UNITS(clent->client, ent) {
         move_move(ent, waypoint);
     }
+    gi.WriteByte(svc_temp_entity);
+    gi.WriteByte(TE_MOVE_CONFIRMATION);
+    gi.WritePosition(&waypoint->s.origin);
+    gi.unicast(clent);
     return true;
 }
 

@@ -24,6 +24,8 @@
 		7897B7FD2A128F47008007CD /* sv_ents.c in Sources */ = {isa = PBXBuildFile; fileRef = 7897B7FC2A128F47008007CD /* sv_ents.c */; };
 		78A000E22A3B10D800FE16C9 /* keys.c in Sources */ = {isa = PBXBuildFile; fileRef = 78A000E12A3B10D800FE16C9 /* keys.c */; };
 		78A000E62A3B195600FE16C9 /* cmd.c in Sources */ = {isa = PBXBuildFile; fileRef = 78A000E52A3B195600FE16C9 /* cmd.c */; };
+		78A001382A4232B700FE16C9 /* cl_tent.c in Sources */ = {isa = PBXBuildFile; fileRef = 78A001372A4232B700FE16C9 /* cl_tent.c */; };
+		78A0013B2A42357300FE16C9 /* cl_fx.c in Sources */ = {isa = PBXBuildFile; fileRef = 78A0013A2A42357300FE16C9 /* cl_fx.c */; };
 		78A896782A15F7E500BC5B56 /* libgame.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 78A896592A15F7A600BC5B56 /* libgame.dylib */; };
 		78A896AF2A15F85A00BC5B56 /* librenderer.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 78A8968E2A15F82700BC5B56 /* librenderer.dylib */; };
 		78A896EB2A16155900BC5B56 /* libcmath3.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 78A896C92A16012D00BC5B56 /* libcmath3.dylib */; };
@@ -112,6 +114,8 @@
 		78A000E12A3B10D800FE16C9 /* keys.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = keys.c; sourceTree = "<group>"; };
 		78A000E42A3B113E00FE16C9 /* keys.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = keys.h; sourceTree = "<group>"; };
 		78A000E52A3B195600FE16C9 /* cmd.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = cmd.c; sourceTree = "<group>"; };
+		78A001372A4232B700FE16C9 /* cl_tent.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = cl_tent.c; sourceTree = "<group>"; };
+		78A0013A2A42357300FE16C9 /* cl_fx.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = cl_fx.c; sourceTree = "<group>"; };
 		78A8963F2A15F18F00BC5B56 /* shared.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = shared.h; sourceTree = "<group>"; };
 		78A896542A15F7A500BC5B56 /* game.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = game.xcodeproj; path = game/game.xcodeproj; sourceTree = "<group>"; };
 		78A896892A15F82600BC5B56 /* renderer.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = renderer.xcodeproj; path = renderer/renderer.xcodeproj; sourceTree = "<group>"; };
@@ -165,10 +169,12 @@
 			isa = PBXGroup;
 			children = (
 				786637BB2A1B737500266A62 /* cl_console.c */,
+				78A0013A2A42357300FE16C9 /* cl_fx.c */,
 				78314B172A28C47F00062C4B /* cl_input.c */,
 				7897B7D92A0BF40F008007CD /* cl_main.c */,
 				7897B7FA2A12872C008007CD /* cl_parse.c */,
 				78FC6C322A252FF300C9F93D /* cl_scrn.c */,
+				78A001372A4232B700FE16C9 /* cl_tent.c */,
 				7897B7E42A0CA81B008007CD /* cl_view.c */,
 				78A000E12A3B10D800FE16C9 /* keys.c */,
 				7897B7D82A0BF40F008007CD /* client.h */,
@@ -350,9 +356,11 @@
 				7866305D2A17D92E00266A62 /* world.c in Sources */,
 				78A000E62A3B195600FE16C9 /* cmd.c in Sources */,
 				78C453892A1D386200C93B16 /* routing.c in Sources */,
+				78A001382A4232B700FE16C9 /* cl_tent.c in Sources */,
 				78FC6C332A252FF300C9F93D /* cl_scrn.c in Sources */,
 				78F58A302A0641A30027494A /* main.c in Sources */,
 				7897B7EE2A0CC4EE008007CD /* msg.c in Sources */,
+				78A0013B2A42357300FE16C9 /* cl_fx.c in Sources */,
 				78F58A882A06D3030027494A /* sv_init.c in Sources */,
 				7897B7FD2A128F47008007CD /* sv_ents.c in Sources */,
 				78A000E22A3B10D800FE16C9 /* keys.c in Sources */,

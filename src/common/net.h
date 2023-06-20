@@ -58,6 +58,9 @@ void MSG_WriteDeltaEntity(LPSIZEBUF buf, entityState_t const *from, entityState_
 void MSG_WriteDeltaUIFrame(LPSIZEBUF msg, uiFrame_t const *from, uiFrame_t const *to, bool force);
 void MSG_WriteDeltaPlayerState(LPSIZEBUF msg, playerState_t const *from, playerState_t const *to);
 void MSG_WriteEntityBits(LPSIZEBUF buf, DWORD bits, DWORD number);
+void MSG_WritePos(LPSIZEBUF buf, LPCVECTOR3 pos);
+void MSG_WriteDir(LPSIZEBUF buf, LPCVECTOR3 dir);
+void MSG_WriteAngle(LPSIZEBUF buf, float f);
 
 int MSG_Read(LPSIZEBUF buf, HANDLE value, DWORD size);
 int MSG_ReadByte(LPSIZEBUF buf);
@@ -65,6 +68,9 @@ int MSG_ReadShort(LPSIZEBUF buf);
 int MSG_ReadLong(LPSIZEBUF buf);
 float MSG_ReadFloat(LPSIZEBUF buf);
 void MSG_ReadString(LPSIZEBUF buf, LPSTR value);
+void MSG_ReadPos(LPSIZEBUF buf, LPVECTOR3 pos);
+void MSG_ReadDir(LPSIZEBUF buf, LPVECTOR3 dir);
+float MSG_ReadAngle(LPSIZEBUF buf);
 LPCSTR MSG_ReadString2(LPSIZEBUF buf);
 void MSG_ReadDeltaEntity(LPSIZEBUF buf, entityState_t *edict, int number, int bits);
 void MSG_ReadDeltaUIFrame(LPSIZEBUF msg, uiFrame_t *edict, int number, int bits);

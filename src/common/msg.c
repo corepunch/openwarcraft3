@@ -99,6 +99,38 @@ void MSG_WriteString(LPSIZEBUF buf, LPCSTR value) {
     MSG_Write(buf, value, (int)strlen(value) + 1);
 }
 
+void MSG_WritePos(LPSIZEBUF buf, LPCVECTOR3 pos) {
+    MSG_WriteShort(buf, pos->x);
+    MSG_WriteShort(buf, pos->y);
+    MSG_WriteShort(buf, pos->z);
+}
+
+void MSG_ReadPos(LPSIZEBUF buf, LPVECTOR3 pos) {
+    pos->x = MSG_ReadShort(buf);
+    pos->y = MSG_ReadShort(buf);
+    pos->z = MSG_ReadShort(buf);
+}
+
+void MSG_WriteDir(LPSIZEBUF buf, LPCVECTOR3 dir) {
+    MSG_WriteFloat(buf, dir->x);
+    MSG_WriteFloat(buf, dir->y);
+    MSG_WriteFloat(buf, dir->z);
+}
+
+void MSG_ReadDir(LPSIZEBUF buf, LPVECTOR3 dir) {
+    dir->x = MSG_ReadFloat(buf);
+    dir->y = MSG_ReadFloat(buf);
+    dir->z = MSG_ReadFloat(buf);
+}
+
+void MSG_WriteAngle(LPSIZEBUF buf, float f) {
+    MSG_WriteByte(buf, (int)(f*256/(2*M_PI))&0xff);
+}
+
+float MSG_ReadAngle(LPSIZEBUF buf) {
+    return MSG_ReadByte(buf)*(2*M_PI)/256;
+}
+
 int MSG_Read(LPSIZEBUF buf, HANDLE value, DWORD size) {
     if (buf->readcount + size > buf->cursize) {
         return 0;
