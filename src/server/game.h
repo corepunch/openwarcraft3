@@ -56,7 +56,6 @@ struct game_export {
     void (*Init)(void);
     void (*Shutdown)(void);
     void (*SpawnEntities)(LPCSTR mapname, LPCDOODAD doodads);
-    void (*ReadLevel)(LPCSTR filename);
     void (*RunFrame)(void);
     LPCSTR (*GetThemeValue)(LPCSTR filename);
     void (*ClientCommand)(edict_t *ent, DWORD argc, LPCSTR argv[]);

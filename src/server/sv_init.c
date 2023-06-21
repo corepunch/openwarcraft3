@@ -18,7 +18,6 @@ void SV_Map(LPCSTR mapFilename) {
     CM_LoadMap(mapFilename);
     SV_CreateBaseline();
     ge->SpawnEntities(mapFilename, CM_GetDoodads());
-    ge->ReadLevel(mapFilename);
     sv.state = ss_game;
 }
 
