@@ -111,6 +111,8 @@ void SV_InitGameProgs(void) {
     import.BuildHeatmap = CM_BuildHeatmap;
     import.GetFlowDirection = get_flow_direction;
     import.ReadFileIntoString = FS_ReadFileIntoString;
+    import.ReadFile = FS_ReadFile;
+    import.ExtractFile = FS_ExtractFile;
     import.error = PF_error;
     import.configstring = PF_Configstring;
     import.confignstring = PF_Confignstring;

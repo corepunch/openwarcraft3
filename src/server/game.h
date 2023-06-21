@@ -19,12 +19,14 @@ struct game_import {
     int (*SoundIndex)(LPCSTR soundName);
     int (*ImageIndex)(LPCSTR imageName);
     int (*FontIndex)(LPCSTR fontName, DWORD fontSize);
+    bool (*ExtractFile)(LPCSTR toExtract, LPCSTR extracted);
     animation_t const *(*GetAnimation)(int modelindex, LPCSTR name);
     handle_t (*BuildHeatmap)(LPCVECTOR2 target);
     VECTOR2 (*GetFlowDirection)(DWORD heatmapindex, float fx, float fy);
     float (*GetHeightAtPoint)(float x, float y);
     LPSTR (*ParserGetToken)(parser_t *p);
     LPSTR (*ReadFileIntoString)(LPCSTR filename);
+    HANDLE (*ReadFile)(LPCSTR filename, LPDWORD size);
     
     sheetRow_t *(*ReadSheet)(LPCSTR sheetFilename);
     sheetRow_t *(*ReadConfig)(LPCSTR configFilename);
@@ -53,13 +55,12 @@ struct client;
 struct game_export {
     void (*Init)(void);
     void (*Shutdown)(void);
-    void (*SpawnEntities)(LPCDOODAD doodads);
+    void (*SpawnEntities)(LPCSTR mapname, LPCDOODAD doodads);
+    void (*ReadLevel)(LPCSTR filename);
     void (*RunFrame)(void);
     LPCSTR (*GetThemeValue)(LPCSTR filename);
-
     void (*ClientCommand)(edict_t *ent, DWORD argc, LPCSTR argv[]);
     void (*ClientBegin)(edict_t *ent);
-
     edict_t *edicts;
     int num_edicts;
     int max_edicts;

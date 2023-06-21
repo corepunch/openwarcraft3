@@ -12,6 +12,7 @@ typedef struct {
     HANDLE (*FileOpen)(LPCSTR fileName);
     bool (*FileExtract)(LPCSTR toExtract, LPCSTR extracted);
     void (*FileClose)(HANDLE file);
+    
     HANDLE (*MemAlloc)(long size);
     void (*MemFree)(HANDLE);
     sheetRow_t *(*ReadSheet)(LPCSTR sheetFilename);

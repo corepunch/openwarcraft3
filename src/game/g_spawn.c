@@ -138,13 +138,11 @@ void SP_worldspawn(edict_t *ent) {
     SetAbilityNames();
 }
 
-void G_SpawnEntities(LPCDOODAD entities) {
+void G_SpawnEntities(LPCSTR mapname, LPCDOODAD entities) {
     FOR_LOOP(i, game.max_clients) {
         game_state.edicts[i + 1].client = game.clients + i;
     }
-    
     globals.num_edicts = game.max_clients + 1;
-
     FOR_EACH_LIST(DOODAD const, doodad, entities) {
         edict_t *e = G_Spawn();
         entityState_t *s = &e->s;
@@ -156,7 +154,6 @@ void G_SpawnEntities(LPCDOODAD entities) {
         s->player = doodad->player & 7;
         SP_CallSpawn(e);
     }
-
     SP_worldspawn(NULL);
 }
  

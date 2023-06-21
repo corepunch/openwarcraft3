@@ -86,27 +86,47 @@ struct jpeg_imageinfo {
     BYTE *data;
 };
 
+pathTex_t *M_LoadPathTex(LPCSTR filename) {
+    pathTex_t *pathTex = NULL;
+    if (filename && strlen(filename) > 1) {
+        DWORD filesize;
+        HANDLE buffer = gi.ReadFile(filename, &filesize);
+        if (buffer) {
+            pathTex = LoadTGA(buffer, filesize);
+        }
+        gi.MemFree(buffer);
+        return pathTex;
+    }
+    return NULL;
+}
+
+DWORD M_LoadUberSplat(LPCSTR uber_splat) {
+    if (IS_FOURCC(uber_splat)) {
+        LPCSTR dir = gi.FindSheetCell(game.config.uberSplats, uber_splat, "dir");
+        LPCSTR file = gi.FindSheetCell(game.config.uberSplats, uber_splat, "file");
+        LPCSTR scale = gi.FindSheetCell(game.config.uberSplats, uber_splat, "scale");
+        PATHSTR filename;
+        snprintf(filename, sizeof(PATHSTR), "%s\\%s.blp", dir, file);
+        return gi.ImageIndex(filename) | (atoi(scale) << 16);
+    } else {
+        return 0;
+    }
+}
+
 void SP_SpawnUnit(edict_t *self) {
     PATHSTR model_filename;
     LPCSTR uber_splat = UNIT_UBER_SPLAT(self->class_id);
+    LPCSTR path_tex = UNIT_PATH_TEX(self->class_id);
     sprintf(model_filename, "%s.mdx", UNIT_MODEL(self->class_id));
     self->s.model = gi.ModelIndex(model_filename);
+    self->s.splat = M_LoadUberSplat(uber_splat);
     self->s.scale = UNIT_SCALING_VALUE(self->class_id);
     self->s.radius = UNIT_SELECTION_SCALE(self->class_id) * SEL_SCALE / 2;
     self->s.flags |= UNIT_SPEED(self->class_id) > 0 ? EF_MOVABLE : 0;
     self->targtype = G_GetTargetType(UNIT_TARGETED_AS(self->class_id));
     self->health = UNIT_HP(self->class_id);
     self->think = monster_think;
-    
-    printf("%s\n", UNIT_PATH_TEX(self->class_id));
-    if (IS_FOURCC(uber_splat)) {
-        LPCSTR dir = gi.FindSheetCell(game.config.uberSplats, uber_splat, "dir");
-        LPCSTR file = gi.FindSheetCell(game.config.uberSplats, uber_splat, "file");
-        LPCSTR scale = gi.FindSheetCell(game.config.uberSplats, uber_splat, "scale");
-        PATHSTR filename;
-        sprintf(filename, "%s\\%s.blp", dir, file);
-        self->s.splat = gi.ImageIndex(filename) | (atoi(scale) << 16);
-    }
+    self->pathtex = M_LoadPathTex(path_tex);
 }
 
 void M_CheckGround(edict_t *self) {

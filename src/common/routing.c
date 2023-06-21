@@ -1,7 +1,6 @@
 #include "server.h"
 
 #include <limits.h>
-#include <SDL.h>
 
 typedef struct {
     point2_t parent;
@@ -16,6 +15,17 @@ typedef struct routeNode_s {
     int price;
     bool closed;
 } routeNode_t;
+
+typedef struct {
+    BYTE unused:1;
+    BYTE nowalk:1;
+    BYTE nofly:1;
+    BYTE nobuild:1;
+    BYTE unused2:1;
+    BYTE blight:1;
+    BYTE nowater:1;
+    BYTE unknown:1;
+} pathMapCell_t;
 
 struct {
     DWORD width;

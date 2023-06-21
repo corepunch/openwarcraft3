@@ -6,7 +6,6 @@
 
 //#define DEBUG_PATHFINDING
 
-#define TMP_MAP "/tmp/map.w3m"
 #define MAP_VERTEX_SIZE 7
 #define MAX_SHEET_LINE 1024
 #define TILESIZE 128
@@ -81,11 +80,6 @@ typedef enum t_attrib_id {
     attrib_boneWeight2,
 } t_attrib_id;
 
-typedef struct {
-    int x;
-    int y;
-} point2_t;
-
 struct texture;
 struct font;
 
@@ -122,6 +116,7 @@ HANDLE FS_OpenFile(LPCSTR fileName);
 void FS_CloseFile(HANDLE file);
 bool FS_ExtractFile(LPCSTR toExtract, LPCSTR extracted);
 bool FS_FileExists(LPCSTR fileName);
+HANDLE FS_ReadFile(LPCSTR filename, LPDWORD size);
 
 sheetRow_t *FS_ParseINI(LPCSTR fileName);
 sheetRow_t *FS_ParseSLK(LPCSTR fileName);

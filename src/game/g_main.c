@@ -8,6 +8,8 @@ struct game_import gi;
 struct game_state game_state;
 struct game_locals game;
 
+void ReadLevel(LPCSTR filename);
+
 static void G_InitGame(void) {
     game_state.edicts = gi.MemAlloc(sizeof(edict_t) * MAX_ENTITIES);
 
@@ -82,6 +84,7 @@ struct game_export *GetGameAPI(struct game_import *import) {
     globals.Init = G_InitGame;
     globals.Shutdown = G_ShutdownGame;
     globals.SpawnEntities = G_SpawnEntities;
+    globals.ReadLevel = ReadLevel;
     globals.RunFrame = G_RunFrame;
     globals.ClientCommand = G_ClientCommand;
     globals.ClientBegin = G_ClientBegin;

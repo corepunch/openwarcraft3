@@ -4,17 +4,6 @@
 #include "common.h"
 
 typedef struct {
-    BYTE unused:1;
-    BYTE nowalk:1;
-    BYTE nofly:1;
-    BYTE nobuild:1;
-    BYTE unused2:1;
-    BYTE blight:1;
-    BYTE nowater:1;
-    BYTE unknown:1;
-} pathMapCell_t;
-
-typedef struct {
     float bounds[8];
     int complement[4]; // bounds complements* (see note 1) (ints A, B, C and D)
 } mapCameraBounds_t;

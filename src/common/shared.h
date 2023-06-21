@@ -8,6 +8,7 @@
 
 #include "../cmath3/cmath3.h"
 
+#define TMP_MAP "/tmp/map.w3m"
 #define MAX_PATHLEN 256
 #define TOKEN_LEN 1024
 #define FRAMETIME 100
@@ -114,6 +115,7 @@ typedef unsigned char  BYTE;
 typedef unsigned short USHORT;
 typedef int            LONG;
 typedef unsigned int   DWORD;
+typedef unsigned short WORD;
 typedef unsigned long  DWORD_PTR;
 typedef long           LONG_PTR;
 typedef long           INT_PTR;
@@ -345,6 +347,10 @@ typedef struct {
     int num_droppableItems;
     droppableItem_t *droppableItems;
 } droppableItemSet_t;
+
+typedef struct {
+    int x, y;
+} point2_t;
 
 typedef struct {
     DWORD level; // (set to 1 for non hero units and items)

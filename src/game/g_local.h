@@ -3,6 +3,7 @@
 
 #include <stdlib.h>
 #include <ctype.h>
+#include <limits.h>
 
 #include "../server/game.h"
 #include "g_shared.h"
@@ -182,6 +183,12 @@ typedef struct {
     float wait;
 } unitinfo_t;
 
+typedef struct {
+    WORD width;
+    WORD height;
+    COLOR32 map[];
+} pathTex_t;
+
 struct edict_s {
     entityState_t s;
     gclient_t *client;
@@ -200,6 +207,7 @@ struct edict_s {
     edict_t *goalentity;
     edict_t *secondarygoal;
     animation_t const *animation;
+    pathTex_t *pathtex;
     bool inuse;
 
     void (*stand)(edict_t *self);
@@ -228,6 +236,10 @@ struct game_locals {
     } config;
 };
 
+struct level_locals {
+    
+};
+
 typedef struct sheetMetaData_s {
     LPCSTR id;
     LPCSTR field;
@@ -239,7 +251,7 @@ typedef struct sheetMetaData_s {
 edict_t *G_Spawn(void);
 void SP_SpawnUnit(edict_t *edict);
 void SP_CallSpawn(edict_t *edict);
-void G_SpawnEntities(LPCDOODAD doodads);
+void G_SpawnEntities(LPCSTR mapname, LPCDOODAD doodads);
 void G_SpawnUnits(LPCDOODAD units, DWORD num_units);
 void G_BuildHeatmap(edict_t *edict, LPCVECTOR2 location);
 void G_ClientCommand(edict_t *ent, DWORD argc, LPCSTR argv[]);
@@ -266,6 +278,9 @@ void M_SetMove(edict_t *self, umove_t *move);
 float M_DistanceToGoal(edict_t *ent);
 float M_MoveDistance(edict_t *self);
 handle_t M_RefreshHeatmap(edict_t *self);
+
+// g_pathing.c
+pathTex_t *LoadTGA(const BYTE* mem, size_t size);
 
 // g_move.c
 bool SV_CloseEnough(edict_t *self, edict_t const *goal, float distance);
@@ -320,6 +335,7 @@ extern struct game_locals game;
 extern struct game_state game_state;
 extern struct game_export globals;
 extern struct game_import gi;
+extern struct level_locals level;
 
 extern sheetMetaData_t UnitsMetaData[];
 extern sheetMetaData_t DestructableMetaData[];
