@@ -112,7 +112,8 @@ void layout_portrait(uiFrame_t const *frame) {
     RECT const viewport = {
         screen.x/0.8, 1 - (screen.y + screen.h)/ 0.6, screen.w/0.8, screen.h/0.6
     };
-    re.DrawPortrait(cl.portraits[frame->tex.index], &viewport);
+    LPCMODEL port = cl.portraits[frame->tex.index];
+    re.DrawPortrait(port ? port : cl.models[frame->tex.index], &viewport);
 }
 
 void layout_cmd(uiFrame_t const *frame) {

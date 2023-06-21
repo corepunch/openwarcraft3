@@ -1,7 +1,5 @@
 #include "g_local.h"
 
-#include <stdlib.h>
-
 #define MAX_WAYPOINTS 256
 static edict_t waypoints[MAX_WAYPOINTS];
 DWORD current_waypoint = 0;
@@ -78,6 +76,16 @@ void monster_start(edict_t *self) {
 //    return RACE_UNKNOWN;
 //}
 
+
+struct jpeg_imageinfo {
+    int width;
+    int height;
+    int channels;
+    DWORD size;
+    int num_components;
+    BYTE *data;
+};
+
 void SP_SpawnUnit(edict_t *self) {
     PATHSTR model_filename;
     LPCSTR uber_splat = UNIT_UBER_SPLAT(self->class_id);
@@ -89,6 +97,8 @@ void SP_SpawnUnit(edict_t *self) {
     self->targtype = G_GetTargetType(UNIT_TARGETED_AS(self->class_id));
     self->health = UNIT_HP(self->class_id);
     self->think = monster_think;
+    
+    printf("%s\n", UNIT_PATH_TEX(self->class_id));
     if (IS_FOURCC(uber_splat)) {
         LPCSTR dir = gi.FindSheetCell(game.config.uberSplats, uber_splat, "dir");
         LPCSTR file = gi.FindSheetCell(game.config.uberSplats, uber_splat, "file");

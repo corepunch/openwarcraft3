@@ -147,8 +147,8 @@
 		7897B7CC2A0BE8AA008007CD /* common */ = {
 			isa = PBXGroup;
 			children = (
-				7897B7DE2A0BF615008007CD /* common.c */,
 				78A000E52A3B195600FE16C9 /* cmd.c */,
+				7897B7DE2A0BF615008007CD /* common.c */,
 				7866373C2A1A4C0800266A62 /* macos.c */,
 				78F58A2F2A0641A30027494A /* main.c */,
 				7897B7ED2A0CC4EE008007CD /* msg.c */,

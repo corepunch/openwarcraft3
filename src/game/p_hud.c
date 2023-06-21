@@ -78,7 +78,7 @@ void Get_Commands_f(edict_t *edict) {
                 if (code && FindAbilityByClassname(code)) {
                     UI_AddAbilityButton(layer, code);
                 } else {
-                    gi.error("Can't find ability %s", abil);
+                    gi.error("Ability not implemented: %s - %s", abil, gi.FindSheetCell(game.config.abilities, abil, "comments"));
                 }
             }
         }

@@ -127,9 +127,10 @@ void FS_Init(void) {
 //    SFileExtractFile(archive, "Units\\UnitMetaData.slk", "/Users/igor/Desktop/UnitMetaData.slk", 0);
 //    SFileExtractFile(archive, "Units\\UnitBalance.slk", "/Users/igor/Desktop/UnitBalance.slk", 0);
 //    SFileExtractFile(archive, "Units\\UnitWeapons.slk", "/Users/igor/Desktop/UnitWeapons.slk", 0);
-    SFileExtractFile(archive, "Splats\\SplatData.slk", "/Users/igor/Desktop/SplatData.slk", 0);
-    SFileExtractFile(archive, "Splats\\UberSplatData.slk", "/Users/igor/Desktop/UberSplatData.slk", 0);
-#if 1
+//    SFileExtractFile(archive, "Splats\\SplatData.slk", "/Users/igor/Desktop/SplatData.slk", 0);
+//    SFileExtractFile(archive, "Splats\\UberSplatData.slk", "/Users/igor/Desktop/UberSplatData.slk", 0);
+//    SFileExtractFile(archive, "PathTextures\\16x16Simple.tga", "/Users/igor/Desktop/16x16Simple.tga", 0);
+#if 0
     SFILE_FIND_DATA findData;
     HANDLE handle = SFileFindFirstFile(archive, "*", &findData, 0);
     if (handle) {
