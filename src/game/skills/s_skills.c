@@ -4,8 +4,14 @@ void SP_ability_harvest(ability_t *self);
 void SP_ability_move(ability_t *self);
 void SP_ability_attack(ability_t *self);
 void SP_ability_build(ability_t *self);
+void SP_ability_goldmine(ability_t *self);
 
 void CMD_CancelCommand(edict_t *ent);
+
+float AB_Number(ability_t const *ability, LPCSTR field) {
+    LPCSTR str = gi.FindSheetCell(game.config.abilities, ability->classname, field);
+    return str ? atof(str) : 0;
+}
 
 static ability_t abilitylist[] = {
     { NULL },    // leave index 0 alone
@@ -22,6 +28,7 @@ static ability_t abilitylist[] = {
     { "Ahar", SP_ability_harvest },
     { "Amil", NULL },
     { "Arep", NULL },
+    { "Agld", SP_ability_goldmine },
 
     { NULL }
 };
@@ -58,9 +65,10 @@ void SetAbilityNames(void) {
         ability_t *abil = &abilitylist[i];
         LPCSTR art = FindConfigValue(abil->classname, STR_ART);
         LPCSTR buttonpos = FindConfigValue(abil->classname, STR_BUTTONPOS);
-        abil->buttonimage = gi.ImageIndex(art);
-        sscanf(buttonpos, "%d,%d", &abil->buttonpos.x, &abil->buttonpos.y);
-        gi.configstring(CS_ITEMS + i, abil->classname);
+        if (art && buttonpos) {
+            abil->buttonimage = gi.ImageIndex(art);
+            sscanf(buttonpos, "%d,%d", &abil->buttonpos.x, &abil->buttonpos.y);
+        }
     }
 }
 

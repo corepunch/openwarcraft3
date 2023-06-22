@@ -75,6 +75,7 @@ enum {
     RF_SELECTED = 1 << 0,
     RF_HAS_LUMBER = 1 << 1,
     RF_HAS_GOLD = 1 << 2,
+    RF_INVISIBLE = 1 << 3,
 };
 
 #define MAX_COMMANDS 12

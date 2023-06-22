@@ -121,6 +121,7 @@ bool FS_ExtractFile(LPCSTR toExtract, LPCSTR extracted) {
 void FS_Init(void) {
 //    ExtractStarCraft2();
     SFileOpenArchive(MPQ_PATH, 0, 0, &archive);
+//    SFileExtractFile(archive, "Units\\UnitAbilities.slk", "/Users/igor/Desktop/UnitAbilities.slk", 0);
 //    SFileExtractFile(archive, "Units\\AbilityData.slk", "/Users/igor/Desktop/AbilityData.slk", 0);
 //    SFileExtractFile(archive, "Units\\UnitData.slk", "/Users/igor/Desktop/UnitData.slk", 0);
 //    SFileExtractFile(archive, "Units\\UnitUI.slk", "/Users/igor/Desktop/UnitUI.slk", 0);

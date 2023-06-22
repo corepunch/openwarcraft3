@@ -384,6 +384,8 @@ check_geometry:
 
 void R_RenderModel(renderEntity_t const *entity) {
     mdxModel_t const *model = entity->model->mdx;
+    if (entity->flags & RF_INVISIBLE)
+        return;
     
     if (entity->flags & RF_HAS_LUMBER) {
         renderEntity_t ent = *entity;

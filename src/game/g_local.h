@@ -324,6 +324,9 @@ void G_SelectEntity(gclient_t *client, edict_t *ent);
 void G_DeselectEntity(gclient_t *client, edict_t *ent);
 bool G_IsEntitySelected(gclient_t *client, edict_t *ent);
 
+//  s_skills.c
+float AB_Number(ability_t const *ability, LPCSTR field);
+
 // globals
 extern struct game_locals game;
 extern struct game_state game_state;
