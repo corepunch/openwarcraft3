@@ -30,6 +30,7 @@ typedef struct {
 struct {
     DWORD width;
     DWORD height;
+    pathMapCell_t *original;
     pathMapCell_t *data;
     routeNode_t *heatmap;
 } pathmap = { 0 };
@@ -120,27 +121,6 @@ handle_t build_heatmap(point2_t target) {
     CM_FillDebugObstacles();
 #endif
     
-    FOR_LOOP(i, pathmap.width * pathmap.height) {
-        pathmap.heatmap[i].next = NULL;
-        pathmap.heatmap[i].closed = false;
-        pathmap.heatmap[i].step = 0;
-    }
-    
-    FOR_LOOP(i, ge->num_edicts){
-        edict_t *ent = EDICT_NUM(i);
-        point2_t p = LocationToPathMap(&ent->s.origin2);
-        pathTex_t *pt = ent->pathtex;
-        if (!pt)
-            continue;
-        FOR_LOOP(x, pt->width) {
-            FOR_LOOP(y, pt->height) {
-                DWORD px = x + p.x - pt->width / 2;
-                DWORD py = y + p.y - pt->height / 2;
-                path_node(px, py)->nowalk |= pt->map[x + y * pt->width].b;
-            }
-        }
-    }
-    
     routeNode_t *open = heatmap(target.x, target.y);
     routeNode_t **next = &open->next;
     open->closed = true;
@@ -172,9 +152,28 @@ handle_t build_heatmap(point2_t target) {
     return 0;
 }
 
-handle_t CM_BuildHeatmap(LPCVECTOR2 target) {
-    point2_t p_target = LocationToPathMap(target);
-    return build_heatmap(p_target);
+handle_t CM_BuildHeatmap(edict_t *goalentity) {
+    memcpy(pathmap.data, pathmap.original, pathmap.width * pathmap.height);
+    FOR_LOOP(i, pathmap.width * pathmap.height) {
+        pathmap.heatmap[i].next = NULL;
+        pathmap.heatmap[i].closed = false;
+        pathmap.heatmap[i].step = 0;
+    }
+    FOR_LOOP(i, ge->num_edicts){
+        edict_t *ent = EDICT_NUM(i);
+        point2_t p = LocationToPathMap(&ent->s.origin2);
+        pathTex_t *pt = ent->pathtex;
+        if (!pt || ent == goalentity)
+            continue;
+        FOR_LOOP(x, pt->width) {
+            FOR_LOOP(y, pt->height) {
+                DWORD px = x + p.x - pt->width / 2;
+                DWORD py = y + p.y - pt->height / 2;
+                path_node(px, py)->nowalk |= pt->map[x + y * pt->width].b;
+            }
+        }
+    }
+    return build_heatmap(LocationToPathMap(&goalentity->s.origin2));
 }
 
 void CM_ReadPathMap(HANDLE archive) {
@@ -186,8 +185,9 @@ void CM_ReadPathMap(HANDLE archive) {
     SFileReadFile(file, &pathmap.width, 4, NULL, NULL);
     SFileReadFile(file, &pathmap.height, 4, NULL, NULL);
     pathmap.data = MemAlloc(pathmap.width * pathmap.height);
+    pathmap.original = MemAlloc(pathmap.width * pathmap.height);
     pathmap.heatmap = MemAlloc(pathmap.width * pathmap.height * sizeof(routeNode_t));
-    SFileReadFile(file, pathmap.data, pathmap.width * pathmap.height, 0, 0);
+    SFileReadFile(file, pathmap.original, pathmap.width * pathmap.height, 0, 0);
     SFileCloseFile(file);
 
     FOR_LOOP(i, pathmap.width * pathmap.height) {

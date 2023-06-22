@@ -21,7 +21,7 @@ struct game_import {
     int (*FontIndex)(LPCSTR fontName, DWORD fontSize);
     bool (*ExtractFile)(LPCSTR toExtract, LPCSTR extracted);
     animation_t const *(*GetAnimation)(int modelindex, LPCSTR name);
-    handle_t (*BuildHeatmap)(LPCVECTOR2 target);
+    handle_t (*BuildHeatmap)(edict_t *goalentity);
     VECTOR2 (*GetFlowDirection)(DWORD heatmapindex, float fx, float fy);
     float (*GetHeightAtPoint)(float x, float y);
     LPSTR (*ParserGetToken)(parser_t *p);

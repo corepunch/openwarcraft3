@@ -35,7 +35,7 @@ void G_SolveCollisions(void) {
             if (!(ea->s.flags & EF_MOVABLE) && !(eb->s.flags & EF_MOVABLE))
                 continue;
             float const distance = Vector2_len(&d);
-            float const radius = ea->s.radius + eb->s.radius;
+            float const radius = (ea->s.radius + eb->s.radius) * 0.85;
             if (distance < radius) {
                 Vector2_normalize(&d);
                 float const diff = distance - radius;

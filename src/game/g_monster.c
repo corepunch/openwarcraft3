@@ -14,7 +14,7 @@ edict_t *Waypoint_add(LPCVECTOR2 spot) {
 
 handle_t M_RefreshHeatmap(edict_t *self) {
     if (!self->heatmap2) {
-        self->heatmap2 = gi.BuildHeatmap(&self->s.origin2);
+        self->heatmap2 = gi.BuildHeatmap(self);
     }
     return self->heatmap2;
 }
