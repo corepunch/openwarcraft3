@@ -1,6 +1,8 @@
 #ifndef shared_h
 #define shared_h
 
+//#define DEBUG_PATHFINDING
+
 #include <string.h>
 #include <stdio.h>
 #include <assert.h>
@@ -369,6 +371,12 @@ typedef struct {
     DWORD active;
     DWORD level;
 } modifiedAbility_t;
+
+typedef struct {
+    WORD width;
+    WORD height;
+    COLOR32 map[];
+} pathTex_t;
 
 struct Doodad {
     DWORD doodID;

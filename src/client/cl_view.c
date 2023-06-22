@@ -183,6 +183,7 @@ void V_RenderView(void) {
 
 #ifdef DEBUG_PATHFINDING
     extern LPCOLOR32 pathDebug;
+    if (pathDebug)
     re.SetPathTexture(pathDebug);
 #endif
     

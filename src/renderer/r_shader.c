@@ -107,8 +107,8 @@ LPCSTR fragment_shader =
 "    tc = (tc - 0.5) * mat2(cos_factor, sin_factor, -sin_factor, cos_factor);\n"
 "    tc += 0.5;\n"
 "    float stp = step(abs(0.5 - tc.y), tc.x * 0.25);"
-"    debug.a = color.a;\n"
-"    o_color = mix(debug, color, 0.5) + vec4(stp);\n"
+"    /*debug.a = color.a*/;\n"
+"    o_color = debug * 0.7;// mix(debug, color, 0.5) + vec4(stp);\n"
 "    return;\n"
 #endif
 "    float depth = texture(uShadowmap, vec2(v_shadow.x + 1.0, v_shadow.y + 1.0) * 0.5).r;\n"

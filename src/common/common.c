@@ -144,7 +144,7 @@ void FS_Init(void) {
 //                 !strstr(findData.cFileName, ".wav") &&
 //                 !strstr(findData.cFileName, ".mp3") &&
 //                 !strstr(findData.cFileName, ".mdx") &&
-                 if(strstr(findData.cFileName, ".slk")) {
+                 if(strstr(findData.cFileName, ".tga")) {
                  printf("%s\n", findData.cFileName);
              }
 #if 0

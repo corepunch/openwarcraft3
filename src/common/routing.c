@@ -51,7 +51,7 @@ static void CM_FillDebugObstacles(void) {
 }
 #endif
 
-inline static pathMapCell_t const *path_node(DWORD x, DWORD y) {
+inline static pathMapCell_t *path_node(DWORD x, DWORD y) {
     int const index = x + y * pathmap.width;
     return &pathmap.data[index];
 }
@@ -110,6 +110,11 @@ VECTOR2 get_flow_direction(DWORD heatmapindex, float fnx, float fny) {
     return Vector2_lerp(&ab, &cd, n.y - dy);
 }
 
+static point2_t LocationToPathMap(LPCVECTOR2 location) {
+    VECTOR2 n_target = CM_GetNormalizedMapPosition(location->x, location->y);
+    return (point2_t) { n_target.x * pathmap.width, n_target.y * pathmap.height };
+}
+
 handle_t build_heatmap(point2_t target) {
 #ifdef DEBUG_PATHFINDING
     CM_FillDebugObstacles();
@@ -119,6 +124,21 @@ handle_t build_heatmap(point2_t target) {
         pathmap.heatmap[i].next = NULL;
         pathmap.heatmap[i].closed = false;
         pathmap.heatmap[i].step = 0;
+    }
+    
+    FOR_LOOP(i, ge->num_edicts){
+        edict_t *ent = EDICT_NUM(i);
+        point2_t p = LocationToPathMap(&ent->s.origin2);
+        pathTex_t *pt = ent->pathtex;
+        if (!pt)
+            continue;
+        FOR_LOOP(x, pt->width) {
+            FOR_LOOP(y, pt->height) {
+                DWORD px = x + p.x - pt->width / 2;
+                DWORD py = y + p.y - pt->height / 2;
+                path_node(px, py)->nowalk |= pt->map[x + y * pt->width].b;
+            }
+        }
     }
     
     routeNode_t *open = heatmap(target.x, target.y);
@@ -145,15 +165,15 @@ handle_t build_heatmap(point2_t target) {
 #ifdef DEBUG_PATHFINDING
     FOR_LOOP(i, pathmap.width * pathmap.height) {
         VECTOR2 dir = compute_directiom(i % pathmap.width, i / pathmap.width);
-        pathDebug[i].g = (atan2(dir.y, dir.x) + M_PI) * 255 / (2 * M_PI);//pathmap.heatmap[i].step > 0 ? pathmap.heatmap[i].price * 2 : 255;
+        pathDebug[i].r = pathmap.data[i].nowalk ? 255 : 0;
+//        pathDebug[i].g = (atan2(dir.y, dir.x) + M_PI) * 255 / (2 * M_PI);//pathmap.heatmap[i].step > 0 ? pathmap.heatmap[i].price * 2 : 255;
     }
 #endif
     return 0;
 }
 
 handle_t CM_BuildHeatmap(LPCVECTOR2 target) {
-    VECTOR2 n_target = CM_GetNormalizedMapPosition(target->x, target->y);
-    point2_t p_target = { n_target.x * pathmap.width, n_target.y * pathmap.height };
+    point2_t p_target = LocationToPathMap(target);
     return build_heatmap(p_target);
 }
 

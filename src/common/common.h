@@ -4,8 +4,6 @@
 #include "shared.h"
 #include "net.h"
 
-//#define DEBUG_PATHFINDING
-
 #define MAP_VERTEX_SIZE 7
 #define MAX_SHEET_LINE 1024
 #define TILESIZE 128

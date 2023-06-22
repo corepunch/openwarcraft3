@@ -183,18 +183,13 @@ typedef struct {
     float wait;
 } unitinfo_t;
 
-typedef struct {
-    WORD width;
-    WORD height;
-    COLOR32 map[];
-} pathTex_t;
-
 struct edict_s {
     entityState_t s;
     gclient_t *client;
+    pathTex_t *pathtex;
     DWORD svflags;
     DWORD selected;
-    
+
     // keep above in sync with server.h
     DWORD class_id;
     DWORD variation;
@@ -207,7 +202,6 @@ struct edict_s {
     edict_t *goalentity;
     edict_t *secondarygoal;
     animation_t const *animation;
-    pathTex_t *pathtex;
     bool inuse;
 
     void (*stand)(edict_t *self);

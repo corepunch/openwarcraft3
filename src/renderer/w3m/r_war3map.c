@@ -5,9 +5,11 @@ LPMAPSEGMENT g_mapSegments = NULL;
 #ifdef DEBUG_PATHFINDING
 LPCTEXTURE pathTexture = NULL;
 void R_SetPathTexture(LPCCOLOR32 debugTexture) {
-    R_LoadTextureMipLevel(pathTexture, 0, debugTexture, pathTexture->width, pathTexture->height);
-    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    if (pathTexture) {
+        R_LoadTextureMipLevel(pathTexture, 0, debugTexture, pathTexture->width, pathTexture->height);
+        R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    }
 }
 #endif
 

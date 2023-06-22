@@ -1,41 +1,5 @@
 #include "g_local.h"
 
-typedef struct {
-    point2_t parent;
-    int f, g, h, s;
-} pathNode_t;
-
-typedef struct routeNode_s {
-    struct routeNode_s *next;
-    int x;
-    int y;
-    int step;
-    int price;
-    bool closed;
-} routeNode_t;
-
-typedef struct {
-    BYTE unused:1;
-    BYTE nowalk:1;
-    BYTE nofly:1;
-    BYTE nobuild:1;
-    BYTE unused2:1;
-    BYTE blight:1;
-    BYTE nowater:1;
-    BYTE unknown:1;
-} pathMapCell_t;
-
-struct {
-    DWORD width;
-    DWORD height;
-    pathMapCell_t *data;
-    routeNode_t *heatmap;
-} pathmap = { 0 };
-
-static int const dx[] = {-1, 1, 0, 0, -1, -1, 1, 1};
-static int const dy[] = {0, 0, -1, 1, -1, 1, -1, 1};
-//static int const gv[] = {10, 10, 10, 10, 14, 14, 14, 14};
-
 #pragma pack (push, 1)
 typedef struct {
     BYTE id_length, colormap_type, image_type;
@@ -80,7 +44,8 @@ pathTex_t *LoadTGA(const BYTE* mem, size_t size) {
     if (header->image_type==2 || header->image_type==3) {
         for (int row=rows-1; row>=0; row--) {
             for (int column=0; column<columns; column++) {
-                LPBYTE dest = (LPBYTE)&pathTex->map[row * columns];
+                LPCCOLOR32 pcolor = &pathTex->map[column + row * columns];
+                LPBYTE dest = (LPBYTE)pcolor;
                 BYTE value;
                 switch (header->pixel_size) {
                     case 8:
