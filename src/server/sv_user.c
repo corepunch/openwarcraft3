@@ -41,8 +41,8 @@ void SV_PlayerInfo_f(LPCLIENT cl) {
         ps->origin.x = player->startingPosition.x;
         ps->origin.y = player->startingPosition.y;
         ps->viewangles = (VECTOR3) { -34, 0, 0 };
-        ps->fov = 20;
-        ps->distance = 4000;
+        ps->fov = 30;
+        ps->distance = 3000;
         ps->stats[STAT_GOLD] = 300;
         ps->stats[STAT_LUMBER] = 80;
         ps->stats[STAT_FOOD] = 5;
