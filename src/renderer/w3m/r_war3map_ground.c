@@ -157,21 +157,19 @@ LPMAPLAYER R_BuildMapSegmentLayer(LPCWAR3MAP map, DWORD sx, DWORD sy, DWORD laye
     return mapLayer;
 }
 
-void R_RenderSplat(LPCVECTOR2 position, float radius, LPCTEXTURE texture, COLOR32 color) {
+void R_RenderSplat(LPCVECTOR2 position,
+                   float radius,
+                   LPCTEXTURE texture,
+                   LPCSHADER shader,
+                   COLOR32 color)
+{
     MATRIX4 mModelMatrix;
 
     Matrix4_identity(&mModelMatrix);
     
-    //    R_Call(glUniform1i, tr.shaderSkin->uUseDiscard, 0);
-    //    R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    //    R_Call(glDepthMask, GL_FALSE);
-        
-//    R_BindTexture(texture, 0);
-//    R_RenderGeoset(geoset, &mModelMatrix);
-    
-    float splatSize = radius * 2;
-    float sx = position->x;
-    float sy = position->y;
+    float const splatSize = radius * 2;
+    float const sx = position->x;
+    float const sy = position->y;
     
     VECTOR2 tmin = GetWar3MapPosition(tr.world, sx - radius, sy - radius);
     VECTOR2 tmax = GetWar3MapPosition(tr.world, sx + radius, sy + radius);
@@ -199,8 +197,8 @@ void R_RenderSplat(LPCVECTOR2 position, float radius, LPCTEXTURE texture, COLOR3
     }
 
     R_BindTexture(texture, 0);
-    R_Call(glUseProgram, tr.shaderUI->progid);
-    R_Call(glUniformMatrix4fv, tr.shaderUI->uProjectionMatrix, 1, GL_FALSE, tr.viewDef.projectionMatrix.v);
+    R_Call(glUseProgram, shader->progid);
+    R_Call(glUniformMatrix4fv, shader->uProjectionMatrix, 1, GL_FALSE, tr.viewDef.projectionMatrix.v);
     R_Call(glBindVertexArray, tr.renbuf->vao);
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, tr.renbuf->vbo);
     R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(VERTEX) * num_vertices, aVertexBuffer, GL_STATIC_DRAW);

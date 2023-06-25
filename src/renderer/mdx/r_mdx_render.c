@@ -388,7 +388,7 @@ void R_RenderModel(renderEntity_t const *entity) {
     
     if (entity->flags & RF_HIDDEN)
         return;
-    
+
     if (entity->flags & RF_HAS_LUMBER) {
         renderEntity_t ent = *entity;
         ent.frame = R_RemapAnimation(model, ent.frame, "Lumber");
@@ -400,9 +400,9 @@ void R_RenderModel(renderEntity_t const *entity) {
         ent.oldframe = R_RemapAnimation(model, ent.oldframe, "Gold");
         entity = &ent;
     }
-    
+
     R_BindBoneMatrices(model, entity->frame, entity->oldframe);
-    
+
     FOR_EACH_LIST(mdxGeoset_t, geoset, model->geosets) {
         RenderGeoset(model, geoset, entity, entity->skin);
     }
@@ -411,19 +411,19 @@ void R_RenderModel(renderEntity_t const *entity) {
         return;
     
     if (entity->splat && !(entity->flags & RF_NO_UBERSPLAT)) {
-        COLOR32 color = { 255, 255, 255, 055 };
-        R_RenderSplat(origin, entity->splatsize, entity->splat, color);
+        COLOR32 color = { 255, 255, 255, 255 };
+        R_RenderSplat(origin, entity->splatsize, entity->splat, tr.shaderStatic, color);
     }
     
     if (entity->flags & RF_SELECTED) {
         COLOR32 color = { 0, 255, 0, 255 };
         float radius = entity->radius;
         if ((radius * 2) < 100) {
-            R_RenderSplat(origin, radius, tr.selectionCircleSmall, color);
+            R_RenderSplat(origin, radius, tr.selectionCircleSmall, tr.shaderUI, color);
         } else if ((radius * 2) < 300) {
-            R_RenderSplat(origin, radius, tr.selectionCircleMed, color);
+            R_RenderSplat(origin, radius, tr.selectionCircleMed, tr.shaderUI, color);
         } else {
-            R_RenderSplat(origin, radius, tr.selectionCircleLarge, color);
+            R_RenderSplat(origin, radius, tr.selectionCircleLarge, tr.shaderUI, color);
         }
     }
     

@@ -130,7 +130,7 @@ void R_ReleaseVertexArrayObject(LPBUFFER buffer);
 LPCTEXTURE R_FindTextureByID(DWORD textureID);
 bool R_IsPointVisible(LPCVECTOR3 point, float fThreshold);
 void R_DrawPortrait(LPCMODEL model, LPCRECT viewport);
-void R_RenderSplat(LPCVECTOR2 position, float radius, LPCTEXTURE texture, COLOR32 color);
+void R_RenderSplat(LPCVECTOR2 position, float radius, LPCTEXTURE texture, LPCSHADER shader, COLOR32 color);
 
 // r_ents.c
 bool R_TraceEntity(viewDef_t const *viewdef, float x, float y, LPDWORD number);

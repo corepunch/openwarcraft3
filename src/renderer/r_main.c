@@ -145,11 +145,11 @@ void R_Init(DWORD width, DWORD height) {
         FOR_LOOP(y, SIGHT_SIZE) {
             float const d = Vector2_distance(&center, &(VECTOR2){x,y});
             float const f = MAX(0, 1.0 - d / mid);
-            float const k = MIN(1, f * 2.0);
+            float const k = MIN(1, f * 5.0);
             DWORD c = k * 255;
-            col[x+y*SIGHT_SIZE].r = c;
-            col[x+y*SIGHT_SIZE].g = c;
-            col[x+y*SIGHT_SIZE].b = c;
+            col[x+y*SIGHT_SIZE].r = 0xff;
+            col[x+y*SIGHT_SIZE].g = 0xff;
+            col[x+y*SIGHT_SIZE].b = 0xff;
             col[x+y*SIGHT_SIZE].a = c;
         }
     }
@@ -252,7 +252,7 @@ void R_RenderFogOfWar(void) {
     R_Call(glActiveTexture, GL_TEXTURE0);
     R_Call(glBindTexture, GL_TEXTURE_2D, tr.sightTexture->texid);
 
-    float viewsize = 1500;
+    float viewsize = 2000;
     
     FOR_LOOP(p, tr.viewDef.num_entities) {
         renderEntity_t *ent = tr.viewDef.entities+p;

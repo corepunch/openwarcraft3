@@ -10,7 +10,7 @@ static float get_unit_collision(pathTex_t const *pathtex) {
         if (pathtex->map[(pathtex->width + 1) * x].b)
             size++;
     }
-    return size * 16 * 1.5;
+    return size * 16 * 1.3;
 }
 
 edict_t *Waypoint_add(LPCVECTOR2 spot) {
@@ -172,7 +172,7 @@ void SP_SpawnUnit(edict_t *self) {
     self->s.scale = UNIT_SCALING_VALUE(self->class_id);
     self->s.radius = UNIT_SELECTION_SCALE(self->class_id) * SEL_SCALE / 2;
     self->s.flags |= UNIT_SPEED(self->class_id) > 0 ? EF_MOVABLE : 0;
-    self->collision = UNIT_COLLISION(self->class_id);
+    self->collision = self->s.radius;//UNIT_COLLISION(self->class_id);
     self->targtype = G_GetTargetType(UNIT_TARGETED_AS(self->class_id));
     self->health = UNIT_HP(self->class_id);
     self->think = monster_think;
