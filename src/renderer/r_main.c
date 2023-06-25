@@ -145,8 +145,7 @@ void R_Init(DWORD width, DWORD height) {
         FOR_LOOP(y, SIGHT_SIZE) {
             float const d = Vector2_distance(&center, &(VECTOR2){x,y});
             float const f = MAX(0, 1.0 - d / mid);
-            float const k = MIN(1, f * 5.0);
-            DWORD c = k * 255;
+            DWORD c = MIN(1, f * 2.0) * 0xff;
             col[x+y*SIGHT_SIZE].r = 0xff;
             col[x+y*SIGHT_SIZE].g = 0xff;
             col[x+y*SIGHT_SIZE].b = 0xff;

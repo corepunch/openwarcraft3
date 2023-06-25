@@ -152,7 +152,7 @@ void G_SpawnEntities(LPCSTR mapname, LPCDOODAD entities) {
         s->scale = doodad->scale.x;
         e->class_id = doodad->doodID;
         e->variation = doodad->variation;
-        s->player = doodad->player & 7;
+        s->player = doodad->player;// & 7;
         SP_CallSpawn(e);
     }
     SP_worldspawn(NULL);

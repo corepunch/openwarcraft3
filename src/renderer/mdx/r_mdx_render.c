@@ -403,10 +403,22 @@ void R_RenderModel(renderEntity_t const *entity) {
 
     R_BindBoneMatrices(model, entity->frame, entity->oldframe);
 
+    if (entity->flags & RF_NO_FOGOFWAR) {
+        R_Call(glActiveTexture, GL_TEXTURE2);
+        R_Call(glBindTexture, GL_TEXTURE_2D, tr.whiteTexture->texid);
+        R_Call(glActiveTexture, GL_TEXTURE0);
+    }
+    
     FOR_EACH_LIST(mdxGeoset_t, geoset, model->geosets) {
         RenderGeoset(model, geoset, entity, entity->skin);
     }
-    
+
+    if ((entity->flags & RF_NO_FOGOFWAR) && tr.world) {
+        R_Call(glActiveTexture, GL_TEXTURE2);
+        R_Call(glBindTexture, GL_TEXTURE_2D, tr.world->fogOfWarTexture);
+        R_Call(glActiveTexture, GL_TEXTURE0);
+    }
+
     if (is_rendering_lights)
         return;
     

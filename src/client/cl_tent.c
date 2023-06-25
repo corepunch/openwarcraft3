@@ -31,6 +31,7 @@ static void CL_AddConfirmationObject(moveConfirmation_t const *mc) {
     ent.frame = cl.time - mc->timespamp;
     ent.oldframe = cl.time - mc->timespamp;
     ent.model = cl.moveConfirmation;
+    ent.flags |= RF_NO_FOGOFWAR;
     V_AddEntity(&ent);
 }
 
