@@ -8,7 +8,7 @@ static struct {
     int num_entities;
 } view_state;
 
-VECTOR3 lightAngles = {-40,0,45};
+VECTOR3 lightAngles = {-40,0,60};
 
 void Matrix4_fromViewAngles(LPCVECTOR3 target, LPCVECTOR3 angles, float distance, LPMATRIX4 output) {
     VECTOR3 const vieworg = Vector3_unm(target);
