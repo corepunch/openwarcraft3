@@ -99,6 +99,7 @@ static void SP_SpawnDestructable(edict_t *edict) {
     sprintf(buffer, "%s\\%s\\%s%d.mdx", dir, file, file, edict->variation);
     edict->s.model = gi.ModelIndex(buffer);
     edict->s.radius = 50;//destr->radius;
+    edict->collision = 50;
     edict->health = DESTRUCTABLE_HIT_POINT_MAXIMUM(edict->class_id);
     edict->targtype = G_GetTargetType(DESTRUCTABLE_TARGETED_AS(edict->class_id));
 }

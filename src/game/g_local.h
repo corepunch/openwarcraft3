@@ -14,10 +14,13 @@
 #define UI_SCALE(x) ((x) * 10000)
 #define SEL_SCALE 72
 
-#define FOR_SELECTED_UNITS(CLIENT, ENT) \
+#define FILTER_EDICTS(ENT, CONDITION) \
 for (edict_t *ENT = globals.edicts; \
 ENT - globals.edicts < globals.num_edicts; \
-ENT++) if (G_IsEntitySelected(CLIENT, ENT))
+ENT++) if (CONDITION)
+
+#define FOR_SELECTED_UNITS(CLIENT, ENT) \
+FILTER_EDICTS(ENT, G_IsEntitySelected(CLIENT, ENT))
 
 #define EDICT_FUNC(NAME) void NAME(edict_t *ent)
 
@@ -195,7 +198,9 @@ struct edict_s {
     DWORD variation;
     DWORD build_project;
     float health;
+    float collision;
     DWORD harvested_lumber;
+    DWORD harvested_gold;
     movetype_t movetype;
     targtype_t targtype;
     handle_t heatmap2;
@@ -203,6 +208,7 @@ struct edict_s {
     edict_t *secondarygoal;
     animation_t const *animation;
     bool inuse;
+    int peonsinside;
 
     void (*stand)(edict_t *self);
     void (*birth)(edict_t *self);
@@ -227,7 +233,24 @@ struct game_locals {
         sheetRow_t *theme;
         sheetRow_t *splats;
         sheetRow_t *uberSplats;
+        sheetRow_t *misc;
     } config;
+    struct {
+        float attackHalfAngle;
+        float maxCollisionRadius;
+        float decayTime;
+        float boneDecayTime;
+        float dissipateTime;
+        float structureDecayTime;
+        float bulletDeathTime;
+        float closeEnoughRange;
+        float dawnTimeGameHours;
+        float duskTimeGameHours;
+        float gameDayHours;
+        float gameDayLength;
+        float buildingAngle;
+        float rootAngle;
+    } constants;
 };
 
 struct level_locals {
@@ -272,6 +295,9 @@ void M_SetMove(edict_t *self, umove_t *move);
 float M_DistanceToGoal(edict_t *ent);
 float M_MoveDistance(edict_t *self);
 handle_t M_RefreshHeatmap(edict_t *self);
+bool M_IsDead(edict_t *ent);
+void SP_TrainUnit(playerState_t *ps, edict_t *townhall, DWORD class_id);
+bool player_pay(playerState_t *ps, DWORD project);
 
 // g_pathing.c
 pathTex_t *LoadTGA(const BYTE* mem, size_t size);
@@ -282,6 +308,7 @@ bool SV_CloseEnough(edict_t *self, edict_t const *goal, float distance);
 // g_phys.c
 void G_RunEntity(edict_t *edict);
 void G_SolveCollisions(void);
+bool M_CheckCollision(LPCVECTOR2 origin, float radius);
 
 // g_abilities.c
 ability_t *FindAbilityByClassname(LPCSTR classname);

@@ -1,20 +1,46 @@
 #include "g_local.h"
 
-static float LUMBER_CAPACITY;
-static float GOLD_CAPACITY;
-static float TREE_DAMAGE;
-static float RANGE;
-static float COOLDOWN;
-static float SEARCH_RANGE;
+float HARVEST_LUMBER_CAPACITY;
+float HARVEST_GOLD_CAPACITY;
+float HARVEST_TREE_DAMAGE;
+float HARVEST_RANGE;
+float HARVEST_COOLDOWN;
+float HARVEST_SEARCH_RANGE;
 
 EDICT_FUNC(harvest_cooldown);
 EDICT_FUNC(harvest_swing);
 EDICT_FUNC(harvest_walkback);
 EDICT_FUNC(harvest_walk);
 
+void harvest_start(edict_t *self, edict_t *target);
 void harvest_gold_start(edict_t *self, edict_t *target);
 edict_t *find_townhall(edict_t *unit);
     
+static edict_t *find_another_tree(edict_t *ent) {
+    float min_dist = HARVEST_SEARCH_RANGE;
+    edict_t *other = NULL;
+    FOR_LOOP(i, globals.num_edicts) {
+        edict_t *tree = &globals.edicts[i];
+        if (tree->targtype != TARG_TREE || M_IsDead(tree))
+            continue;
+        float dist = Vector2_distance(&ent->s.origin2, &tree->s.origin2);
+        if (dist < min_dist) {
+            other = tree;
+            min_dist = dist;
+        }
+    }
+    return other;
+}
+
+static EDICT_FUNC(look_for_another_tree) {
+    edict_t *other = find_another_tree(ent);
+    if (other) {
+        harvest_start(ent, other);
+    } else {
+        ent->stand(ent);
+    }
+}
+
 bool G_ActorHasSkill(edict_t *ent, LPCSTR id) {
     LPCSTR abilities = UNIT_ABILITIES_NORMAL(ent->class_id);
     if (abilities) {
@@ -27,17 +53,18 @@ bool G_ActorHasSkill(edict_t *ent, LPCSTR id) {
 }
 
 static EDICT_FUNC(ai_walktree) {
-    float range = G_ActorHasSkill(ent->goalentity, "Agld") ? ent->s.radius + ent->goalentity->s.radius : RANGE;
-    if (M_DistanceToGoal(ent) < range) {
-        harvest_swing(ent);
-    } else {
+    if (M_DistanceToGoal(ent) > HARVEST_RANGE) {
         M_ChangeAngle(ent);
         M_MoveInDirection(ent);
+    } else if (M_IsDead(ent->goalentity)) {
+        look_for_another_tree(ent);
+    } else {
+        harvest_swing(ent);
     }
 }
 
 static EDICT_FUNC(ai_walkback) {
-    if (M_DistanceToGoal(ent) < (ent->s.radius + ent->goalentity->s.radius + 5)) {
+    if (M_DistanceToGoal(ent) < (ent->collision + ent->goalentity->collision + 5)) {
         ent->goalentity = ent->secondarygoal;
         playerState_t *player = G_GetPlayerByNumber(ent->s.player);
         if (player) {
@@ -54,18 +81,17 @@ static EDICT_FUNC(ai_walkback) {
 
 static EDICT_FUNC(ai_chop) {
     edict_t *tree = ent->secondarygoal;
-    if (tree->health < TREE_DAMAGE) {
+    if (!M_IsDead(tree)) {
+        ent->harvested_lumber += HARVEST_TREE_DAMAGE;
+        ent->s.renderfx |= RF_HAS_LUMBER;
+    }
+    if (tree->health < HARVEST_TREE_DAMAGE) {
         tree->health = 0;
         tree->die(tree, ent);
-        ent->stand(ent);
-        return;
-    }
-    if (tree->pain) {
+    } else if (tree->pain) {
+        tree->health -= HARVEST_TREE_DAMAGE;
         tree->pain(tree);
     }
-    tree->health -= TREE_DAMAGE;
-    ent->harvested_lumber += TREE_DAMAGE;
-    ent->s.renderfx |= RF_HAS_LUMBER;
 }
 
 static EDICT_FUNC(ai_swing) {
@@ -82,11 +108,13 @@ static umove_t harvest_move_swing = { "attack", ai_swing, harvest_cooldown };
 static umove_t harvest_move_cooldown = { "stand ready", ai_cooldown };
 
 EDICT_FUNC(harvest_cooldown) {
-    if (ent->harvested_lumber >= LUMBER_CAPACITY) {
+    if (ent->harvested_lumber >= HARVEST_LUMBER_CAPACITY) {
         harvest_walkback(ent);
+    } else if (M_IsDead(ent->goalentity)) {
+        look_for_another_tree(ent);
     } else {
         M_SetMove(ent, &harvest_move_cooldown);
-        ent->unitinfo.wait = COOLDOWN;
+        ent->unitinfo.wait = HARVEST_COOLDOWN;
     }
 }
 
@@ -136,12 +164,12 @@ void harvest_command(edict_t *ent) {
 }
 
 void SP_ability_harvest(ability_t *self) {
-    LUMBER_CAPACITY = AB_Number(self, "Data12");
-    GOLD_CAPACITY = AB_Number(self, "Data13");
-    TREE_DAMAGE = AB_Number(self, "Data11");
-    RANGE = AB_Number(self, "Rng1");
-    COOLDOWN = AB_Number(self, "Dur1");
-    SEARCH_RANGE = AB_Number(self, "Area1");
+    HARVEST_LUMBER_CAPACITY = AB_Number(self, "Data12");
+    HARVEST_GOLD_CAPACITY = AB_Number(self, "Data13");
+    HARVEST_TREE_DAMAGE = AB_Number(self, "Data11");
+    HARVEST_RANGE = AB_Number(self, "Rng1");
+    HARVEST_COOLDOWN = AB_Number(self, "Dur1");
+    HARVEST_SEARCH_RANGE = AB_Number(self, "Area1");
     
     self->cmd = harvest_command;
 }

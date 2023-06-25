@@ -85,7 +85,7 @@ void CL_Input(void) {
                 break;
         }
     }
-    cl.viewDef.camera.origin.z = CM_GetHeightAtPoint(cl.viewDef.camera.origin.x, cl.viewDef.camera.origin.y);
+//    cl.viewDef.camera.origin.z = CM_GetHeightAtPoint(cl.viewDef.camera.origin.x, cl.viewDef.camera.origin.y);
 }
 
 void IN_SelectDown(void) {

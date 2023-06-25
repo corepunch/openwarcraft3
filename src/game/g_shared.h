@@ -47,6 +47,8 @@ enum {
 #define STR_CmdUnivInt "CmdUnivInt"
 #define STR_CmdUnivStr "CmdUnivStr"
 
+#define STR_CmdTrains "CmdTrains"
+
 #define STR_ART "Art"
 #define STR_DEFAULT "Default"
 #define STR_BUTTONPOS "Buttonpos"

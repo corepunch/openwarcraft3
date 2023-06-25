@@ -53,7 +53,7 @@ static HANDLE archive;
 static void ExtractStarCraft2(void) {
     SFileOpenArchive("/Users/igor/Documents/SC2Install/Installer Tome 1.MPQ", 0, 0, &archive);
     
-//    SFileOpenArchive("/Users/igor/Desktop/terrain.MPQ", 0, 0, &archive);
+    SFileOpenArchive("/Users/igor/Desktop/terrain.MPQ", 0, 0, &archive);
 //    SFileOpenArchive("/Users/icherna/Documents/StarCraft2/Campaigns/Liberty.SC2Campaign/base.SC2Assets", 0, 0, &archive);
 //    SFileOpenArchive("/Users/igor/Documents/StarCraft2/Mods/Liberty.SC2Mod/base.SC2Assets", 0, 0, &archive);
 //    SFileOpenArchive("/Users/igor/Downloads/War3-1.27-Installer-enUS-TFT/Installer Tome.mpq", 0, 0, &archive);
@@ -67,20 +67,20 @@ static void ExtractStarCraft2(void) {
                 if (strstr(findData.cFileName, *s))
                     goto skip_print;
             }
-//            if (strstr(findData.cFileName, "Azeroth")){
+            if (strstr(findData.cFileName, "Azeroth")) {
                 printf("%s\n", findData.cFileName);
-//            }
-            
-            if (strstr(findData.cFileName, "AbilData.xml")){
-                HANDLE file;
-                SFileOpenFileEx(archive, findData.cFileName, SFILE_OPEN_FROM_MPQ, &file);
-                char ch;
-                while (SFileReadFile(file, &ch, 1, NULL, NULL)) {
-                    printf("%c", ch);
-                }
-                SFileCloseFile(file);
-                printf("\n");
             }
+            
+//            if (strstr(findData.cFileName, "AbilData.xml")){
+//                HANDLE file;
+//                SFileOpenFileEx(archive, findData.cFileName, SFILE_OPEN_FROM_MPQ, &file);
+//                char ch;
+//                while (SFileReadFile(file, &ch, 1, NULL, NULL)) {
+//                    printf("%c", ch);
+//                }
+//                SFileCloseFile(file);
+//                printf("\n");
+//            }
 
         skip_print:;
         } while (SFileFindNextFile(handle, &findData));
@@ -130,7 +130,7 @@ void FS_Init(void) {
 //    SFileExtractFile(archive, "Units\\UnitWeapons.slk", "/Users/igor/Desktop/UnitWeapons.slk", 0);
 //    SFileExtractFile(archive, "Splats\\SplatData.slk", "/Users/igor/Desktop/SplatData.slk", 0);
 //    SFileExtractFile(archive, "Splats\\UberSplatData.slk", "/Users/igor/Desktop/UberSplatData.slk", 0);
-//    SFileExtractFile(archive, "PathTextures\\16x16Simple.tga", "/Users/igor/Desktop/16x16Simple.tga", 0);
+//    SFileExtractFile(archive, "Units\\MiscData.txt", "/Users/igor/Desktop/MiscData.txt", 0);
 #if 0
     SFILE_FIND_DATA findData;
     HANDLE handle = SFileFindFirstFile(archive, "*", &findData, 0);
@@ -145,10 +145,10 @@ void FS_Init(void) {
 //                 !strstr(findData.cFileName, ".wav") &&
 //                 !strstr(findData.cFileName, ".mp3") &&
 //                 !strstr(findData.cFileName, ".mdx") &&
-                 if(strstr(findData.cFileName, ".tga")) {
+                 if(strstr(findData.cFileName, ".txt")) {
                  printf("%s\n", findData.cFileName);
              }
-#if 0
+#if 1
              if (strstr(findData.cFileName, ".txt")){
                  HANDLE file;
                  SFileOpenFileEx(archive, findData.cFileName, SFILE_OPEN_FROM_MPQ, &file);

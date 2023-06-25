@@ -15,7 +15,7 @@ netField_t entityStateFields[] = {
     { NETF(entityState_t, origin.y), 0 },
     { NETF(entityState_t, origin.z), 0 },
     { NETF(entityState_t, angle), -1 },
-    { NETF(entityState_t, scale), 0 },
+    { NETF(entityState_t, scale), -1 },
     { NETF(entityState_t, frame), 32 },
     { NETF(entityState_t, model), 16 },
     { NETF(entityState_t, image), 16 },

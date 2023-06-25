@@ -56,22 +56,20 @@ void Get_Commands_f(edict_t *edict) {
     edict_t *ent = G_GetMainSelectedEntity(edict->client);
     uiFrameDef_t *layer = UI_Clear();
     if (ent) {
+        LPCSTR abilities = UNIT_ABILITIES_NORMAL(ent->class_id);
+        LPCSTR trains = UNIT_TRAINS(ent->class_id);
         if (UNIT_SPEED(ent->class_id) > 0) {
             UI_AddAbilityButton(layer, STR_CmdMove);
             UI_AddAbilityButton(layer, STR_CmdHoldPos);
             UI_AddAbilityButton(layer, STR_CmdPatrol);
             UI_AddAbilityButton(layer, STR_CmdStop);
         }
-        
         if (UNIT_ATTACK1_DAMAGE_NUMBER_OF_DICE(ent->class_id) != 0) {
             UI_AddAbilityButton(layer, STR_CmdAttack);
         }
-        
         if (UNIT_BUILDS(ent->class_id)) {
             UI_AddAbilityButton(layer, GetBuildCommand(RACE_HUMAN));
         }
-        
-        LPCSTR abilities = UNIT_ABILITIES_NORMAL(ent->class_id);
         if (abilities) {
             PARSE_LIST(abilities, abil, gi.ParserGetToken) {
                 LPCSTR code = gi.FindSheetCell(game.config.abilities, abil, "code");
@@ -80,6 +78,15 @@ void Get_Commands_f(edict_t *edict) {
                 } else {
                     gi.error("Ability not implemented: %s - %s", abil, gi.FindSheetCell(game.config.abilities, abil, "comments"));
                 }
+            }
+        }
+        if (trains) {
+            PARSE_LIST(trains, unit, gi.ParserGetToken) {
+                LPCSTR art = FindConfigValue(unit, STR_ART);
+                LPCSTR buttonpos = FindConfigValue(unit, STR_BUTTONPOS);
+                if (!art || !buttonpos)
+                    return;
+                Add_CommandButtonCoded(layer, *((DWORD *)unit), art, buttonpos);
             }
         }
     }

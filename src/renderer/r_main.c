@@ -8,6 +8,7 @@ struct render_globals tr;
 
 SDL_Window *window;
 SDL_GLContext context;
+VECTOR2 GetWar3MapSize(LPCWAR3MAP war3Map);
 
 bool is_rendering_lights = false;
 
@@ -21,13 +22,21 @@ void R_Viewport(LPCRECT viewport) {
 
 static void R_SetupGL(bool drawLight) {
     size2_t const window = R_GetWindowSize();
-
+    
     MATRIX4 model_matrix;
     MATRIX3 normal_matrix;
     MATRIX4 ui_matrix;
+    MATRIX4 texture_matrix;
 
-    Matrix4_ortho(&ui_matrix, 0.0f, window.width, window.height, 0.0f, 0.0f, 100.0f);
     Matrix4_identity(&model_matrix);
+    if (tr.world) {
+        VECTOR2 s = GetWar3MapSize(tr.world);
+        VECTOR2 c = tr.world->center;
+        Matrix4_ortho(&texture_matrix, -s.x+c.x, s.x+c.x, -s.y+c.y, s.y+c.y, 0.0f, 100.0f);
+    } else {
+        Matrix4_identity(&texture_matrix);
+    }
+    Matrix4_ortho(&ui_matrix, 0.0f, window.width, window.height, 0.0f, 0.0f, 100.0f);
 
     Matrix3_normal(&normal_matrix, &model_matrix);
 
@@ -36,12 +45,14 @@ static void R_SetupGL(bool drawLight) {
 
     R_Call(glUseProgram, tr.shaderSkin->progid);
     R_Call(glUniformMatrix4fv, tr.shaderSkin->uProjectionMatrix, 1, GL_FALSE, drawLight ? tr.viewDef.lightMatrix.v : tr.viewDef.projectionMatrix.v);
+    R_Call(glUniformMatrix4fv, tr.shaderSkin->uTextureMatrix, 1, GL_FALSE, texture_matrix.v);
     R_Call(glUniformMatrix4fv, tr.shaderSkin->uModelMatrix, 1, GL_FALSE, model_matrix.v);
     R_Call(glUniformMatrix4fv, tr.shaderSkin->uLightMatrix, 1, GL_FALSE, tr.viewDef.lightMatrix.v);
     R_Call(glUniformMatrix3fv, tr.shaderSkin->uNormalMatrix, 1, GL_TRUE, normal_matrix.v);
-
+    
     R_Call(glUseProgram, tr.shaderStatic->progid);
     R_Call(glUniformMatrix4fv, tr.shaderStatic->uProjectionMatrix, 1, GL_FALSE, drawLight ? tr.viewDef.lightMatrix.v : tr.viewDef.projectionMatrix.v);
+    R_Call(glUniformMatrix4fv, tr.shaderStatic->uTextureMatrix, 1, GL_FALSE, texture_matrix.v);
     R_Call(glUniformMatrix4fv, tr.shaderStatic->uModelMatrix, 1, GL_FALSE, model_matrix.v);
     R_Call(glUniformMatrix4fv, tr.shaderStatic->uLightMatrix, 1, GL_FALSE, tr.viewDef.lightMatrix.v);
     R_Call(glUniformMatrix3fv, tr.shaderStatic->uNormalMatrix, 1, GL_TRUE, normal_matrix.v);
@@ -50,7 +61,9 @@ static void R_SetupGL(bool drawLight) {
 
     R_Call(glUniformMatrix4fv, tr.shaderUI->uProjectionMatrix, 1, GL_FALSE, ui_matrix.v);
     R_Call(glUniformMatrix4fv, tr.shaderUI->uModelMatrix, 1, GL_FALSE, model_matrix.v);
-    
+
+    R_Call(glDepthFunc, GL_LEQUAL);
+
     if (drawLight) {
         R_Call(glViewport, 0, 0, SHADOW_TEXSIZE, SHADOW_TEXSIZE);
         R_Call(glScissor, 0, 0, SHADOW_TEXSIZE, SHADOW_TEXSIZE);
@@ -121,6 +134,26 @@ void R_Init(DWORD width, DWORD height) {
     R_LoadTextureMipLevel(tr.whiteTexture, 0, (LPCCOLOR32)&white, 1, 1);
     tr.blackTexture = R_AllocateTexture(1, 1);
     R_LoadTextureMipLevel(tr.blackTexture, 0, (LPCCOLOR32)&black, 1, 1);
+    
+#define SIGHT_SIZE 64
+    
+    tr.sightTexture = R_AllocateTexture(SIGHT_SIZE, SIGHT_SIZE);
+    COLOR32 col[SIGHT_SIZE * SIGHT_SIZE];
+    DWORD mid = SIGHT_SIZE/2;
+    VECTOR2 center = {mid,mid};
+    FOR_LOOP(x, SIGHT_SIZE) {
+        FOR_LOOP(y, SIGHT_SIZE) {
+            float const d = Vector2_distance(&center, &(VECTOR2){x,y});
+            float const f = MAX(0, 1.0 - d / mid);
+            float const k = MIN(1, f * 2.0);
+            DWORD c = k * 255;
+            col[x+y*SIGHT_SIZE].r = c;
+            col[x+y*SIGHT_SIZE].g = c;
+            col[x+y*SIGHT_SIZE].b = c;
+            col[x+y*SIGHT_SIZE].a = c;
+        }
+    }
+    R_LoadTextureMipLevel(tr.sightTexture, 0, col, SIGHT_SIZE, SIGHT_SIZE);
 
     R_Call(glDisable, GL_DEPTH_TEST);
     R_Call(glClearColor, 0.0, 0.0, 0.0, 0.0);
@@ -196,8 +229,64 @@ void R_RenderView(void) {
     R_RevertSettings();
 }
 
+void R_RenderFogOfWar(void) {
+    if (!tr.world)
+        return;
+    MATRIX4 model_matrix, proj_matrix;
+    VECTOR2 mapsize = GetWar3MapSize(tr.world);
+    DWORD const texwidth = (tr.world->width - 1) * 4;
+    DWORD const texheight = (tr.world->height - 1) * 4;
+    Matrix4_identity(&model_matrix);
+    Matrix4_ortho(&proj_matrix, 0.0f, mapsize.x, 0.0f, mapsize.y, 0.0f, 100.0f);
+
+    R_Call(glUseProgram, tr.shaderUI->progid);
+    R_Call(glUniformMatrix4fv, tr.shaderUI->uProjectionMatrix, 1, GL_FALSE, proj_matrix.v);
+    R_Call(glUniformMatrix4fv, tr.shaderUI->uModelMatrix, 1, GL_FALSE, model_matrix.v);
+    R_Call(glViewport, 0, 0, texwidth, texheight);
+    R_Call(glScissor, 0, 0, texwidth, texheight);
+    R_Call(glBindFramebuffer, GL_FRAMEBUFFER, tr.world->fogOfWarFBO);
+    R_Call(glDepthMask, GL_FALSE);
+    R_Call(glDepthFunc, GL_ALWAYS);
+    R_Call(glClearColor, 0, 0, 0, 0);
+    R_Call(glClear, GL_COLOR_BUFFER_BIT);
+    R_Call(glActiveTexture, GL_TEXTURE0);
+    R_Call(glBindTexture, GL_TEXTURE_2D, tr.sightTexture->texid);
+
+    float viewsize = 1500;
+    
+    FOR_LOOP(p, tr.viewDef.num_entities) {
+        renderEntity_t *ent = tr.viewDef.entities+p;
+        if (ent->team != 1)continue;
+        VERTEX simp[6];
+        RECT screen = {
+            ent->origin.x - tr.world->center.x - viewsize/2,
+            ent->origin.y - tr.world->center.y - viewsize/2,
+            viewsize,
+            viewsize,
+        };
+        R_AddQuad(simp, &screen, &(RECT){0,0,1,1}, (COLOR32){255,255,255,255});
+                
+        R_Call(glDisable, GL_CULL_FACE);
+        R_Call(glBindVertexArray, tr.renbuf->vao);
+        R_Call(glBindBuffer, GL_ARRAY_BUFFER, tr.renbuf->vbo);
+        R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(VERTEX) * 6, simp, GL_STATIC_DRAW);
+        R_Call(glDisable, GL_CULL_FACE);
+        R_Call(glEnable, GL_BLEND);
+        R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        R_Call(glDrawArrays, GL_TRIANGLES, 0, 6);
+    }
+}
+
 void R_RenderFrame(viewDef_t const *viewDef) {
+    R_Call(glActiveTexture, GL_TEXTURE2);
+    if (tr.world) {
+        R_Call(glBindTexture, GL_TEXTURE_2D, tr.world->fogOfWarTexture);
+    } else {
+        R_Call(glBindTexture, GL_TEXTURE_2D, tr.whiteTexture->texid);
+    }
+    R_Call(glActiveTexture, GL_TEXTURE0);
     tr.viewDef = *viewDef;
+    R_RenderFogOfWar();
     R_RenderShadowMap();
     R_RenderView();
 }

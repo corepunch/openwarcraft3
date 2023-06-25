@@ -6,10 +6,21 @@ LPCWAR3MAPVERTEX GetWar3MapVertex(LPCWAR3MAP war3Map, DWORD x, DWORD y) {
     return (LPCWAR3MAPVERTEX)ptr;
 }
 
+VECTOR2 GetWar3MapSize(LPCWAR3MAP war3Map) {
+    VECTOR2 size = {
+        .x = (tr.world->width - 1) * TILESIZE,
+        .y = (tr.world->height - 1) * TILESIZE
+    };
+    return size;
+}
+
 VECTOR2 GetWar3MapPosition(LPCWAR3MAP war3Map, float x, float y) {
-    float _x = (x - war3Map->center.x) / ((war3Map->width-1) * TILESIZE);
-    float _y = (y - war3Map->center.y) / ((war3Map->height-1) * TILESIZE);
-    return (VECTOR2) { _x, _y };
+    VECTOR2 size = GetWar3MapSize(war3Map);
+    VECTOR2 point = {
+        .x = (x - war3Map->center.x) / size.x,
+        .y = (y - war3Map->center.y) / size.y,
+    };
+    return point;
 }
 
 float GetTileDepth(float waterlevel, float height) {

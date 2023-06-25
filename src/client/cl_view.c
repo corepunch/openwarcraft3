@@ -8,7 +8,7 @@ static struct {
     int num_entities;
 } view_state;
 
-VECTOR3 lightAngles = {-35,0,45};
+VECTOR3 lightAngles = {-40,0,45};
 
 void Matrix4_fromViewAngles(LPCVECTOR3 target, LPCVECTOR3 angles, float distance, LPMATRIX4 output) {
     VECTOR3 const vieworg = Vector3_unm(target);
@@ -20,7 +20,7 @@ void Matrix4_fromViewAngles(LPCVECTOR3 target, LPCVECTOR3 angles, float distance
 
 void Matrix4_getLightMatrix(LPCVECTOR3 sunangles, LPCVECTOR3 target, float scale, LPMATRIX4 output) {
     MATRIX4 proj, view, tmp1, tmp2;
-    Matrix4_ortho(&proj, -scale, scale, -scale, scale, 100.0, 3500.0);
+    Matrix4_ortho(&proj, -scale, scale, -scale, scale, -1000.0, 3000.0);
     Matrix4_identity(&tmp1);
     Matrix4_rotate(&tmp1, &(VECTOR3){0,0,45}, ROTATE_XYZ);
     Matrix4_fromViewAngles(target, sunangles, 1000, &tmp2);

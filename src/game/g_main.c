@@ -8,6 +8,44 @@ struct game_import gi;
 struct game_state game_state;
 struct game_locals game;
 
+LPCSTR miscdata_files[] = {
+    "UI\\MiscData.txt",
+    "Units\\MiscData.txt",
+    "Units\\MiscGame.txt",
+    "UI\\MiscUI.txt",
+    "UI\\SoundInfo\\MiscData.txt",
+    "war3mapMisc.txt",
+    NULL
+};
+
+static void InitMiscValue(LPCSTR name, float *dest) {
+    LPCSTR strvalue = gi.FindSheetCell(game.config.misc, "Misc", name);
+    *dest = strvalue ? atof(strvalue) : 0;
+}
+
+static void InitConstants(void) {
+    for (LPCSTR *config = miscdata_files; *config; config++) {
+        sheetRow_t *current = gi.ReadConfig(*config);
+        if (current) {
+            PUSH_BACK(sheetRow_t, current, game.config.misc);
+        }
+    }
+    InitMiscValue("AttackHalfAngle", &game.constants.attackHalfAngle);
+    InitMiscValue("MaxCollisionRadius", &game.constants.maxCollisionRadius);
+    InitMiscValue("DecayTime", &game.constants.decayTime);
+    InitMiscValue("BoneDecayTime", &game.constants.boneDecayTime);
+    InitMiscValue("DissipateTime", &game.constants.dissipateTime);
+    InitMiscValue("StructureDecayTime", &game.constants.structureDecayTime);
+    InitMiscValue("BulletDeathTime", &game.constants.bulletDeathTime);
+    InitMiscValue("CloseEnoughRange", &game.constants.closeEnoughRange);
+    InitMiscValue("Dawn", &game.constants.dawnTimeGameHours);
+    InitMiscValue("Dusk", &game.constants.duskTimeGameHours);
+    InitMiscValue("DayHours", &game.constants.gameDayHours);
+    InitMiscValue("DayLength", &game.constants.gameDayLength);
+    InitMiscValue("BuildingAngle", &game.constants.buildingAngle);
+    InitMiscValue("RootAngle", &game.constants.rootAngle);
+}
+
 static void G_InitGame(void) {
     game_state.edicts = gi.MemAlloc(sizeof(edict_t) * MAX_ENTITIES);
 
@@ -23,6 +61,7 @@ static void G_InitGame(void) {
     game.config.uberSplats = gi.ReadSheet("Splats\\UberSplatData.slk");
     game.config.abilities = gi.ReadSheet("Units\\AbilityData.slk");
     
+    InitConstants();
     InitUnitData();
     InitAbilities();
 }
@@ -74,6 +113,11 @@ static void G_ClientBegin(edict_t *edict) {
     if (supply) supply->f.stat = STAT_FOOD;
     SetPoint(NULL, resourceBar);
     UI_WriteLayout(edict, root, LAYER_CONSOLE);
+
+    FILTER_EDICTS(ent, edict->client->ps.number == ent->s.player) {
+        edict->client->ps.stats[STAT_FOOD_MADE] += UNIT_FOOD_MADE(ent->class_id);
+        edict->client->ps.stats[STAT_FOOD_USED] += UNIT_FOOD_USED(ent->class_id);
+    }
 }
 
 struct game_export *GetGameAPI(struct game_import *import) {

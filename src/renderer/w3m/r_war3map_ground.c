@@ -9,6 +9,29 @@ LPCTEXTURE g_groundTextures[MAX_MAP_LAYERS] = { NULL };
 static VERTEX aVertexBuffer[(SEGMENT_SIZE+1)*(SEGMENT_SIZE+1)*6];
 static LPVERTEX currentVertex = NULL;
 
+VECTOR3 R_GetVertexPosition(LPCWAR3MAP map, DWORD x, DWORD y) {
+    LPCWAR3MAPVERTEX vert = GetWar3MapVertex(map, x, y);
+    float z = DECODE_HEIGHT(vert->accurate_height) + vert->level * TILESIZE - HEIGHT_COR;
+    return (VECTOR3) {
+        .x = map->center.x + x * TILESIZE,
+        .y = map->center.y + y * TILESIZE,
+        .z = z,
+    };
+}
+
+VECTOR3 R_GetVertexNormal(LPCWAR3MAP map, DWORD x, DWORD y) {
+    VECTOR3 const currentPoint = R_GetVertexPosition(map, x, y);
+    VECTOR3 const leftPoint = (x > 0) ? R_GetVertexPosition(map, x - 1, y) : currentPoint;
+    VECTOR3 const rightPoint = (x < map->width - 1) ? R_GetVertexPosition(map, x + 1, y) : currentPoint;
+    VECTOR3 const topPoint = (y > 0) ? R_GetVertexPosition(map, x, y - 1) : currentPoint;
+    VECTOR3 const bottomPoint = (y < map->height - 1) ? R_GetVertexPosition(map, x, y + 1) : currentPoint;
+    VECTOR3 const diffX = Vector3_sub(&rightPoint, &leftPoint);
+    VECTOR3 const diffY = Vector3_sub(&bottomPoint, &topPoint);
+    VECTOR3 normal = Vector3_cross(&diffX, &diffY);
+    Vector3_normalize(&normal);
+    return normal;
+}
+
 static void R_MakeTile(LPCWAR3MAP map, DWORD x, DWORD y, DWORD ground, LPCTEXTURE texture) {
     struct War3MapVertex tile[4];
     GetTileVertices(x, y, map, tile);
@@ -21,11 +44,18 @@ static void R_MakeTile(LPCWAR3MAP map, DWORD x, DWORD y, DWORD ground, LPCTEXTUR
         return;
     }
 
-    VECTOR2 p[] = {
-        { map->center.x + x * TILESIZE, map->center.y + y * TILESIZE },
-        { map->center.x + (x + 1) * TILESIZE, map->center.y + y * TILESIZE },
-        { map->center.x + (x + 1) * TILESIZE, map->center.y + (y + 1) * TILESIZE },
-        { map->center.x + x * TILESIZE, map->center.y + (y + 1) * TILESIZE },
+    VECTOR3 p[] = {
+        R_GetVertexPosition(map, x, y),
+        R_GetVertexPosition(map, x + 1, y),
+        R_GetVertexPosition(map, x + 1, y + 1),
+        R_GetVertexPosition(map, x, y + 1),
+    };
+
+    VECTOR3 n[] = {
+        R_GetVertexNormal(map, x, y),
+        R_GetVertexNormal(map, x + 1, y),
+        R_GetVertexNormal(map, x + 1, y + 1),
+        R_GetVertexNormal(map, x, y + 1),
     };
 
     float const waterlevel[] = {
@@ -35,18 +65,11 @@ static void R_MakeTile(LPCWAR3MAP map, DWORD x, DWORD y, DWORD ground, LPCTEXTUR
         GetWar3MapVertexWaterLevel(&tile[1]),
     };
 
-    float const h[] = {
-        GetWar3MapVertexHeight(&tile[3]),
-        GetWar3MapVertexHeight(&tile[2]),
-        GetWar3MapVertexHeight(&tile[0]),
-        GetWar3MapVertexHeight(&tile[1]),
-    };
-
     float const color[] = {
-        GetTileDepth(waterlevel[0], h[0]),
-        GetTileDepth(waterlevel[1], h[1]),
-        GetTileDepth(waterlevel[2], h[2]),
-        GetTileDepth(waterlevel[3], h[3]),
+        GetTileDepth(waterlevel[0], p[0].z),
+        GetTileDepth(waterlevel[1], p[1].z),
+        GetTileDepth(waterlevel[2], p[2].z),
+        GetTileDepth(waterlevel[3], p[3].z),
     };
 
 //    VECTOR2 const tilecenter = {
@@ -61,45 +84,39 @@ static void R_MakeTile(LPCWAR3MAP map, DWORD x, DWORD y, DWORD ground, LPCTEXTUR
 
     struct vertex geom[] = {
         {
-            .position = { p[0].x, p[0].y, h[0] },
+            .position = p[0],
             .texcoord = {0, 0},
-            .texcoord2 = GetWar3MapPosition(map, p[0].x, p[0].y),
-            .normal = {0,0,1},
+            .normal = n[0],
             .color = WATER(0),
         },
         {
-            .position = { p[1].x, p[1].y, h[1] },
+            .position = p[1],
             .texcoord = {1, 0},
-            .texcoord2 = GetWar3MapPosition(map, p[1].x, p[1].y),
-            .normal = {0,0,1},
+            .normal = n[1],
             .color = WATER(1),
         },
         {
-            .position = { p[2].x, p[2].y, h[2] },
+            .position = p[2],
             .texcoord = {1, 1},
-            .texcoord2 = GetWar3MapPosition(map, p[2].x, p[2].y),
-            .normal = {0,0,1},
+            .normal = n[2],
             .color = WATER(2),
         },
         {
-            .position = { p[0].x, p[0].y, h[0] },
+            .position = p[0],
             .texcoord = {0, 0},
-            .texcoord2 = GetWar3MapPosition(map, p[0].x, p[0].y),
-            .normal = {0,0,1},
+            .normal = n[0],
             .color = WATER(0),
         },
         {
-            .position = { p[2].x, p[2].y, h[2] },
+            .position = p[2],
             .texcoord = {1, 1},
-            .texcoord2 = GetWar3MapPosition(map, p[2].x, p[2].y),
-            .normal = {0,0,1},
+            .normal = n[2],
             .color = WATER(2),
         },
         {
-            .position = { p[3].x, p[3].y, h[3] },
+            .position = p[3],
             .texcoord = {0, 1},
-            .texcoord2 = GetWar3MapPosition(map, p[3].x, p[3].y),
-            .normal = {0,0,1},
+            .normal = n[3],
             .color = WATER(3),
         },
     };

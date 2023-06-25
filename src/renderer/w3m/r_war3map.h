@@ -53,4 +53,6 @@ DWORD GetTileRamps(LPCWAR3MAPVERTEX vertices);
 DWORD IsTileCliff(LPCWAR3MAPVERTEX vertices);
 DWORD IsTileWater(LPCWAR3MAPVERTEX vertices);
 
+VECTOR2 GetWar3MapSize(LPCWAR3MAP war3Map);
+
 #endif

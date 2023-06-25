@@ -157,7 +157,7 @@ sheetMetaData_t UnitsMetaData[] = {
     { "ulbd", "lumberbountydice", "UnitBalance" },
     { "ulba", "lumberbountyplus", "UnitBalance" },
     { "ulbs", "lumberbountysides", "UnitBalance" },
-    { "ucol", "collision", "UnitBalance" },
+    { "ucol", "collision", "UnitData" },
     { "udef", "def", "UnitBalance" },
     { "udty", "defType", "UnitBalance" },
     { "udup", "defUp", "UnitBalance" },

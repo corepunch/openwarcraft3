@@ -134,7 +134,6 @@ static void R_MakeCliff(LPCWAR3MAP map, DWORD x, DWORD y, cliffData_t const *dat
         v->position.z = fz;
         v->texcoord.x = pGeoset->texcoord[i][0];
         v->texcoord.y = pGeoset->texcoord[i][1];
-        v->texcoord2 = GetWar3MapPosition(map, map->center.x + fx, map->center.y + fy);
         v->normal.x = pGeoset->normals[i][0];
         v->normal.y = pGeoset->normals[i][1];
         v->normal.z = pGeoset->normals[i][2];

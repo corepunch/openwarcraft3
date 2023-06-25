@@ -141,7 +141,11 @@ void layout_string(uiFrame_t const *frame) {
     RECT const screen = Rect_div(SCR_LayoutRect(frame), 10000);
     COLOR32 color = { 255, 0, 0, 255 };
     char text[64] = { 0 };
-    if (frame->stat > 0) {
+    if (frame->stat == STAT_FOOD) {
+        DWORD food_used = cl.playerstate.stats[STAT_FOOD_USED];
+        DWORD food_made = cl.playerstate.stats[STAT_FOOD_MADE];
+        sprintf(text, "%d/%d", food_used, food_made);
+    } else if (frame->stat > 0) {
         sprintf(text, "%d", cl.playerstate.stats[frame->stat]);
     }
     re.DrawText(&(drawText_t) {

@@ -82,29 +82,46 @@ static void R_LoadMapSegments(LPCWAR3MAP map) {
     }
 }
 
+void R_AllocateFogOfWar(LPWAR3MAP map) {
+    DWORD const width = (map->width - 1) * 4;
+    DWORD const height = (map->height - 1) * 4;
+    R_Call(glGenFramebuffers, 1, &map->fogOfWarFBO);
+    R_Call(glBindFramebuffer, GL_FRAMEBUFFER, map->fogOfWarFBO);
+    R_Call(glGenTextures, 1, &map->fogOfWarTexture);
+    R_Call(glBindTexture, GL_TEXTURE_2D, map->fogOfWarTexture);
+    R_Call(glTexImage2D, GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    R_Call(glFramebufferTexture2D, GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, map->fogOfWarTexture, 0);
+    R_Call(glBindFramebuffer, GL_FRAMEBUFFER, 0);
+}
+
 LPWAR3MAP FileReadWar3Map(HANDLE archive) {
-    LPWAR3MAP war3Map = ri.MemAlloc(sizeof(WAR3MAP));
+    LPWAR3MAP map = ri.MemAlloc(sizeof(WAR3MAP));
     HANDLE file;
     SFileOpenFileEx(archive, "war3map.w3e", SFILE_OPEN_FROM_MPQ, &file);
-    SFileReadFile(file, &war3Map->header, 4, NULL, NULL);
-    SFileReadFile(file, &war3Map->version, 4, NULL, NULL);
-    SFileReadFile(file, &war3Map->tileset, 1, NULL, NULL);
-    SFileReadFile(file, &war3Map->custom, 4, NULL, NULL);
-    SFileReadArray(file, war3Map, grounds, 4, ri.MemAlloc);
-    SFileReadArray(file, war3Map, cliffs, 4, ri.MemAlloc);
-    SFileReadFile(file, &war3Map->width, 4, NULL, NULL);
-    SFileReadFile(file, &war3Map->height, 4, NULL, NULL);
-    SFileReadFile(file, &war3Map->center, 8, NULL, NULL);
-    int const vertexblocksize = MAP_VERTEX_SIZE * war3Map->width * war3Map->height;
-    war3Map->vertices = ri.MemAlloc(vertexblocksize);
-    SFileReadFile(file, war3Map->vertices, vertexblocksize, 0, 0);
+    SFileReadFile(file, &map->header, 4, NULL, NULL);
+    SFileReadFile(file, &map->version, 4, NULL, NULL);
+    SFileReadFile(file, &map->tileset, 1, NULL, NULL);
+    SFileReadFile(file, &map->custom, 4, NULL, NULL);
+    SFileReadArray(file, map, grounds, 4, ri.MemAlloc);
+    SFileReadArray(file, map, cliffs, 4, ri.MemAlloc);
+    SFileReadFile(file, &map->width, 4, NULL, NULL);
+    SFileReadFile(file, &map->height, 4, NULL, NULL);
+    SFileReadFile(file, &map->center, 8, NULL, NULL);
+    int const vertexblocksize = MAP_VERTEX_SIZE * map->width * map->height;
+    map->vertices = ri.MemAlloc(vertexblocksize);
+    R_AllocateFogOfWar(map);
+    SFileReadFile(file, map->vertices, vertexblocksize, 0, 0);
     SFileCloseFile(file);
 #ifdef DEBUG_PATHFINDING
-    pathTexture = R_AllocateTexture((war3Map->width - 1) * 4, (war3Map->height - 1) * 4);
+    pathTexture = R_AllocateTexture((map->width - 1) * 4, (map->height - 1) * 4);
     R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 #endif
-    return war3Map;
+    return map;
 }
 
 void R_RegisterMap(char const *mapFilename) {
@@ -169,7 +186,7 @@ void R_DrawWorld(void) {
 #ifdef DEBUG_PATHFINDING
     R_BindTexture(pathTexture, 1);
 #endif
-
+    
     FOR_EACH_LIST(MAPSEGMENT, segment, g_mapSegments) {
         R_DrawSegment(segment, (1 << MAPLAYERTYPE_GROUND) | (1 << MAPLAYERTYPE_CLIFF));
     }
@@ -187,4 +204,8 @@ void R_DrawAlphaSurfaces(void) {
     FOR_EACH_LIST(MAPSEGMENT, segment, g_mapSegments) {
         R_DrawSegment(segment, (1 << MAPLAYERTYPE_WATER));
     }
+}
+
+void R_DrawFogOfWar(void) {
+    
 }

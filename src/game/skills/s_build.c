@@ -36,17 +36,8 @@ static void FillUnitData(entityState_t *ent, DWORD unit_id, LPCSTR anim) {
     }
 }
 
-bool G_PlayerPayForProject(playerState_t *ps, DWORD project) {
-    if (!ps) return false;
-    if (UNIT_GOLD_COST(project) > ps->stats[STAT_GOLD]) return false;
-    if (UNIT_LUMBER_COST(project) > ps->stats[STAT_LUMBER]) return false;
-    ps->stats[STAT_GOLD] -= UNIT_GOLD_COST(project);
-    ps->stats[STAT_LUMBER] -= UNIT_LUMBER_COST(project);
-    return true;
-}
-
 EDICT_FUNC(build_build) {
-    if (G_PlayerPayForProject(G_GetPlayerByNumber(ent->s.player), ent->build_project)) {
+    if (player_pay(G_GetPlayerByNumber(ent->s.player), ent->build_project)) {
         SP_SpawnAtLocation(ent->build_project, ent->s.player, &ent->s.origin2);
         M_SetMove(ent, &build_move_build);
         ent->selected = 0;

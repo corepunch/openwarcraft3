@@ -4,12 +4,61 @@
 static edict_t waypoints[MAX_WAYPOINTS];
 DWORD current_waypoint = 0;
 
+static float get_unit_collision(pathTex_t const *pathtex) {
+    int size = 0;
+    for (int x = 0; x < pathtex->width; x++) {
+        if (pathtex->map[(pathtex->width + 1) * x].b)
+            size++;
+    }
+    return size * 16 * 1.5;
+}
+
 edict_t *Waypoint_add(LPCVECTOR2 spot) {
     edict_t *waypoint = &waypoints[current_waypoint++ % MAX_WAYPOINTS];
     waypoint->s.origin.x = spot->x;
     waypoint->s.origin.y = spot->y;
     M_CheckGround(waypoint);
     return waypoint;
+}
+
+#define MAX_SPAWN_ITERATIONS 10
+
+bool player_pay(playerState_t *ps, DWORD project) {
+    if (!ps) return false;
+    if (UNIT_GOLD_COST(project) > ps->stats[STAT_GOLD]) return false;
+    if (UNIT_LUMBER_COST(project) > ps->stats[STAT_LUMBER]) return false;
+    ps->stats[STAT_GOLD] -= UNIT_GOLD_COST(project);
+    ps->stats[STAT_LUMBER] -= UNIT_LUMBER_COST(project);
+    return true;
+}
+
+void SP_TrainUnit(playerState_t *ps, edict_t *townhall, DWORD class_id) {
+    float const colsize = UNIT_SELECTION_SCALE(class_id) * SEL_SCALE / 2;
+    float const start_angle = M_PI * 1.25f;
+    FOR_LOOP(i, MAX_SPAWN_ITERATIONS) {
+        float const radius = townhall->s.radius + colsize * (i * 2 + 1);
+        float const num_points = M_PI * radius / colsize;
+        FOR_LOOP(j, num_points) {
+            float const angle = start_angle + 2 * M_PI * j / num_points;
+            VECTOR2 const org = {
+                townhall->s.origin2.x + cosf(angle) * radius,
+                townhall->s.origin2.y + sinf(angle) * radius,
+            };
+            if (M_CheckCollision(&org, colsize))
+                continue;
+            if (player_pay(ps, class_id)) {
+                edict_t *ent = SP_SpawnAtLocation(class_id, townhall->s.player, &org);
+                ent->s.angle = angle;
+            } else {
+                printf("Not enough resources\n");
+            }
+            return;
+        }
+    }
+}
+
+bool M_IsDead(edict_t *ent) {
+    return ent->health <= 0;
 }
 
 handle_t M_RefreshHeatmap(edict_t *self) {
@@ -123,10 +172,13 @@ void SP_SpawnUnit(edict_t *self) {
     self->s.scale = UNIT_SCALING_VALUE(self->class_id);
     self->s.radius = UNIT_SELECTION_SCALE(self->class_id) * SEL_SCALE / 2;
     self->s.flags |= UNIT_SPEED(self->class_id) > 0 ? EF_MOVABLE : 0;
+    self->collision = UNIT_COLLISION(self->class_id);
     self->targtype = G_GetTargetType(UNIT_TARGETED_AS(self->class_id));
     self->health = UNIT_HP(self->class_id);
     self->think = monster_think;
-    self->pathtex = M_LoadPathTex(path_tex);
+    if ((self->pathtex = M_LoadPathTex(path_tex))) {
+        self->collision = get_unit_collision(self->pathtex);
+    }
 }
 
 void M_CheckGround(edict_t *self) {

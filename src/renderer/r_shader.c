@@ -15,16 +15,18 @@ LPCSTR vertex_shader =
 "out vec3 v_normal;\n"
 "out vec3 v_lightDir;\n"
 "uniform mat4 uProjectionMatrix;\n"
+"uniform mat4 uTextureMatrix;\n"
 "uniform mat4 uModelMatrix;\n"
 "uniform mat4 uLightMatrix;\n"
 "uniform mat3 uNormalMatrix;\n"
 "void main() {\n"
+"    vec4 pos = uModelMatrix * vec4(i_position, 1.0);"
 "    v_color = i_color;\n"
 "    v_position = i_position;\n"
 "    v_texcoord = i_texcoord;\n"
-"    v_texcoord2 = i_texcoord2;\n"
+"    v_texcoord2 = (uTextureMatrix * pos).xy;\n"
 "    v_normal = normalize(uNormalMatrix * i_normal);\n"
-"    v_shadow = uLightMatrix * uModelMatrix * vec4(i_position, 1.0);\n"
+"    v_shadow = uLightMatrix * pos;\n"
 "    v_lightDir = -normalize(vec3(uLightMatrix[2][0], uLightMatrix[2][1], uLightMatrix[2][2]))*1.2;\n"
 "    gl_Position = uProjectionMatrix * uModelMatrix * vec4(i_position, 1.0);\n"
 "}\n";
@@ -49,6 +51,7 @@ LPCSTR vertex_shader_skin =
 "out vec3 v_lightDir;\n"
 "uniform mat4 uBones[64];\n"
 "uniform mat4 uProjectionMatrix;\n"
+"uniform mat4 uTextureMatrix;\n"
 "uniform mat4 uModelMatrix;\n"
 "uniform mat4 uLightMatrix;\n"
 "uniform mat3 uNormalMatrix;\n"
@@ -77,7 +80,7 @@ LPCSTR vertex_shader_skin =
 "    v_color = i_color;\n"
 "    v_position = position.xyz;\n"
 "    v_texcoord = i_texcoord;\n"
-"    v_texcoord2 = i_texcoord2;\n"
+"    v_texcoord2 = (uTextureMatrix * uModelMatrix * position).xy;\n"
 "    v_normal = normalize(uNormalMatrix * normal.xyz);\n"
 "    v_shadow = uLightMatrix * uModelMatrix * position;\n"
 "    v_lightDir = -normalize(vec3(uLightMatrix[0][2], uLightMatrix[1][2], uLightMatrix[2][2]))*1.2;\n"
@@ -96,6 +99,7 @@ LPCSTR fragment_shader =
 "out vec4 o_color;\n"
 "uniform sampler2D uTexture;\n"
 "uniform sampler2D uShadowmap;\n"
+"uniform sampler2D uFogOfWar;\n"
 "uniform bool uUseDiscard;\n"
 "void main() {\n"
 #ifdef DEBUG_PATHFINDING
@@ -111,11 +115,12 @@ LPCSTR fragment_shader =
 "    o_color = debug * 0.7;// mix(debug, color, 0.5) + vec4(stp);\n"
 "    return;\n"
 #endif
+"    vec3 fogofwar = texture(uFogOfWar, v_texcoord2).rgb;\n"
 "    float depth = texture(uShadowmap, vec2(v_shadow.x + 1.0, v_shadow.y + 1.0) * 0.5).r;\n"
 "    float shade = depth < (v_shadow.z + 0.99) * 0.5 ? 0.0 : 1.0;\n"
 "    vec4 col = texture(uTexture, v_texcoord);\n"
 "    shade *= dot(v_normal, v_lightDir);\n"
-"    col.rgb *= mix(0.35, 1.0, shade);\n"
+"    col.rgb *= fogofwar * mix(0.35, 1.0, shade);\n"
 "    o_color = col * v_color;\n"
 "    if (o_color.a < 0.5 && uUseDiscard) discard;\n"
 "}\n";
@@ -182,13 +187,16 @@ LPCSHADER R_InitShader(LPCSTR vertex_shader, LPCSTR fragment_shader){
     program->uModelMatrix = R_Call(glGetUniformLocation, program->progid, "uModelMatrix");
     program->uLightMatrix = R_Call(glGetUniformLocation, program->progid, "uLightMatrix");
     program->uNormalMatrix = R_Call(glGetUniformLocation, program->progid, "uNormalMatrix");
+    program->uTextureMatrix = R_Call(glGetUniformLocation, program->progid, "uTextureMatrix");
     program->uTexture = R_Call(glGetUniformLocation, program->progid, "uTexture");
     program->uShadowmap = R_Call(glGetUniformLocation, program->progid, "uShadowmap");
+    program->uFogOfWar = R_Call(glGetUniformLocation, program->progid, "uFogOfWar");
     program->uBones = R_Call(glGetUniformLocation, program->progid, "uBones");
     program->uUseDiscard = R_Call(glGetUniformLocation, program->progid, "uUseDiscard");
     
     R_Call(glUniform1i, program->uTexture, 0);
     R_Call(glUniform1i, program->uShadowmap, 1);
+    R_Call(glUniform1i, program->uFogOfWar, 2);
 
     return program;
 }

@@ -78,8 +78,10 @@ struct shader_program {
     DWORD uModelMatrix;
     DWORD uLightMatrix;
     DWORD uNormalMatrix;
+    DWORD uTextureMatrix;
     DWORD uTexture;
     DWORD uShadowmap;
+    DWORD uFogOfWar;
     DWORD uBones;
     DWORD uUseDiscard;
 };
@@ -92,6 +94,7 @@ struct render_globals {
     LPCTEXTURE sysFont;
     LPCTEXTURE blackTexture;
     LPCTEXTURE whiteTexture;
+    LPCTEXTURE sightTexture;
     LPCSHADER shaderStatic;
     LPCSHADER shaderSkin;
     LPCSHADER shaderUI;

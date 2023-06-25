@@ -4,7 +4,9 @@ void SP_ability_harvest(ability_t *self);
 void SP_ability_move(ability_t *self);
 void SP_ability_attack(ability_t *self);
 void SP_ability_build(ability_t *self);
+void SP_ability_train(ability_t *self);
 void SP_ability_goldmine(ability_t *self);
+void SP_ability_cancel(ability_t *self);
 
 void CMD_CancelCommand(edict_t *ent);
 
@@ -23,7 +25,7 @@ static ability_t abilitylist[] = {
     { STR_CmdHoldPos, NULL },
     { STR_CmdPatrol, NULL },
     { STR_CmdStop, NULL },
-    { STR_CmdCancel, NULL },
+    { STR_CmdCancel, SP_ability_cancel },
     
     { "Ahar", SP_ability_harvest },
     { "Amil", NULL },

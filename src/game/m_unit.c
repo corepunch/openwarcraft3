@@ -30,6 +30,7 @@ void unit_decay1(edict_t *self) {
 
 void unit_stand(edict_t *self) {
     M_SetMove(self, &unit_move_stand);
+    self->s.renderfx &= ~RF_NO_UBERSPLAT;
 }
 
 void unit_die(edict_t *self, edict_t *attacker) {
@@ -39,6 +40,7 @@ void unit_die(edict_t *self, edict_t *attacker) {
 void unit_birth(edict_t *self) {
     M_SetMove(self, &unit_move_birth);
     self->unitinfo.wait = UNIT_BUILD_TIME(self->class_id);
+    self->s.renderfx |= RF_NO_UBERSPLAT;
 }
 
 void SP_monster_unit(edict_t *self) {

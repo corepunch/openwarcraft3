@@ -75,7 +75,8 @@ enum {
     RF_SELECTED = 1 << 0,
     RF_HAS_LUMBER = 1 << 1,
     RF_HAS_GOLD = 1 << 2,
-    RF_INVISIBLE = 1 << 3,
+    RF_HIDDEN = 1 << 3,
+    RF_NO_UBERSPLAT = 1 << 4,
 };
 
 #define MAX_COMMANDS 12
@@ -83,6 +84,8 @@ enum {
 #define STAT_GOLD 1
 #define STAT_LUMBER 2
 #define STAT_FOOD 3
+#define STAT_FOOD_MADE 4
+#define STAT_FOOD_USED 5
 
 #define MAX_STATS 32
 

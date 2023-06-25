@@ -384,7 +384,9 @@ check_geometry:
 
 void R_RenderModel(renderEntity_t const *entity) {
     mdxModel_t const *model = entity->model->mdx;
-    if (entity->flags & RF_INVISIBLE)
+    LPCVECTOR2 origin = (LPCVECTOR2)&entity->origin;
+    
+    if (entity->flags & RF_HIDDEN)
         return;
     
     if (entity->flags & RF_HAS_LUMBER) {
@@ -398,18 +400,21 @@ void R_RenderModel(renderEntity_t const *entity) {
         ent.oldframe = R_RemapAnimation(model, ent.oldframe, "Gold");
         entity = &ent;
     }
-
+    
     R_BindBoneMatrices(model, entity->frame, entity->oldframe);
-
+    
     FOR_EACH_LIST(mdxGeoset_t, geoset, model->geosets) {
         RenderGeoset(model, geoset, entity, entity->skin);
     }
-
+    
     if (is_rendering_lights)
         return;
-
-    LPCVECTOR2 origin = (LPCVECTOR2)&entity->origin;
-
+    
+    if (entity->splat && !(entity->flags & RF_NO_UBERSPLAT)) {
+        COLOR32 color = { 255, 255, 255, 055 };
+        R_RenderSplat(origin, entity->splatsize, entity->splat, color);
+    }
+    
     if (entity->flags & RF_SELECTED) {
         COLOR32 color = { 0, 255, 0, 255 };
         float radius = entity->radius;
@@ -422,10 +427,6 @@ void R_RenderModel(renderEntity_t const *entity) {
         }
     }
     
-    if (entity->splat) {
-        COLOR32 color = { 255, 255, 255, 255 };
-        R_RenderSplat(origin, entity->splatsize, entity->splat, color);
-    }
 }
 
 bool R_GetModelCameraMatrix(mdxModel_t const *model, LPMATRIX4 output, LPVECTOR3 root) {

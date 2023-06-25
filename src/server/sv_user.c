@@ -40,11 +40,11 @@ void SV_PlayerInfo_f(LPCLIENT cl) {
         ps->number = player->internalPlayerNumber;
         ps->origin.x = player->startingPosition.x;
         ps->origin.y = player->startingPosition.y;
-        ps->viewangles = (VECTOR3) { -40, 0, 0 };
-        ps->fov = 45;
-        ps->distance = 1500;
+        ps->viewangles = (VECTOR3) { -34, 0, 0 };
+        ps->fov = 20;
+        ps->distance = 4000;
         ps->stats[STAT_GOLD] = 300;
-        ps->stats[STAT_LUMBER] = 50;
+        ps->stats[STAT_LUMBER] = 80;
         ps->stats[STAT_FOOD] = 5;
     }
     MSG_WriteByte(&cl->netchan.message, svc_mirror);
