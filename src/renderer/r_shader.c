@@ -120,7 +120,7 @@ LPCSTR fragment_shader =
 "    float shade = depth < (v_shadow.z + 0.99) * 0.5 ? 0.0 : 1.0;\n"
 "    vec4 col = texture(uTexture, v_texcoord);\n"
 "    shade *= dot(v_normal, v_lightDir);\n"
-"    col.rgb *= fogofwar * min(1.0, mix(0.35, 1.0, shade) * 1.2);\n"
+"    col.rgb *= fogofwar * min(1.0, mix(0.35, 1.0, shade) * 1.15);\n"
 "    o_color = col * v_color;\n"
 "    if (o_color.a < 0.5 && uUseDiscard) discard;\n"
 "}\n";
