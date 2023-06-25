@@ -481,9 +481,17 @@ void R_DrawPortrait(LPCMODEL model, LPCRECT viewport) {
     viewdef.entities = &entity;
     viewdef.rdflags |= RDF_NOWORLDMODEL | RDF_NOFRUSTUMCULL;
     
+    R_Call(glActiveTexture, GL_TEXTURE2);
+    R_Call(glBindTexture, GL_TEXTURE_2D, tr.whiteTexture->texid);
+    R_Call(glActiveTexture, GL_TEXTURE0);
+    
     R_GetModelCameraMatrix(mdx, &viewdef.projectionMatrix, &root);
     
     Matrix4_getLightMatrix(&lightAngles, &root, PORTRAIT_SHADOW_SIZE, &viewdef.lightMatrix);
 
-    R_RenderFrame(&viewdef);
+    tr.viewDef = viewdef;
+
+    R_RenderShadowMap();
+    
+    R_RenderView();
 }

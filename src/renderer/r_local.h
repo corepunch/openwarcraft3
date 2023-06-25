@@ -132,6 +132,10 @@ bool R_IsPointVisible(LPCVECTOR3 point, float fThreshold);
 void R_DrawPortrait(LPCMODEL model, LPCRECT viewport);
 void R_RenderSplat(LPCVECTOR2 position, float radius, LPCTEXTURE texture, LPCSHADER shader, COLOR32 color);
 
+// r_main.c
+void R_RenderShadowMap(void);
+void R_RenderView(void);
+
 // r_ents.c
 bool R_TraceEntity(viewDef_t const *viewdef, float x, float y, LPDWORD number);
 bool R_TraceLocation(viewDef_t const *viewdef, float x, float y, LPVECTOR3 point);
