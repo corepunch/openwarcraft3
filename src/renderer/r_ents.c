@@ -70,3 +70,50 @@ DWORD R_EntitiesInRect(viewDef_t const *viewdef, LPCRECT rect, DWORD max, LPDWOR
     }
     return count;
 }
+
+static void DrawEntityOverlay(renderEntity_t const *ent) {
+    VERTEX simp[6];
+    RECT full = {0,0,1,1};
+    COLOR32 black = {0,0,0,255};
+    COLOR32 green = {0,255,0,255};
+    VECTOR3 pos = Vector3_add(&ent->origin, &(VECTOR3){0,0,150});
+    MATRIX4 const *proj = &tr.viewDef.projectionMatrix;
+    VECTOR3 p = Matrix4_multiply_vector3(proj, &pos);
+    RECT screen = {p.x-0.035,p.y,0.07,0.015};
+
+    R_AddQuad(simp, &screen, &full, black, 0);
+    R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(VERTEX) * 6, simp, GL_STATIC_DRAW);
+    R_Call(glDrawArrays, GL_TRIANGLES, 0, 6);
+
+    screen.w *= ent->health;
+
+    R_AddQuad(simp, &screen, &full, green, 0);
+    R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(VERTEX) * 6, simp, GL_STATIC_DRAW);
+    R_Call(glDrawArrays, GL_TRIANGLES, 0, 6);
+}
+
+void R_RenderOverlays(void) {
+    MATRIX4 ui_matrix;
+    Matrix4_identity(&ui_matrix);
+    
+    R_Call(glDisable, GL_CULL_FACE);
+    R_Call(glUseProgram, tr.shader[SHADER_UI]->progid);
+    R_Call(glUniformMatrix4fv, tr.shader[SHADER_UI]->uProjectionMatrix, 1, GL_FALSE, ui_matrix.v);
+    R_Call(glUniformMatrix4fv, tr.shader[SHADER_UI]->uModelMatrix, 1, GL_FALSE, ui_matrix.v);
+    R_Call(glBindVertexArray, tr.buffer[RBUF_TEMP1]->vao);
+    R_Call(glBindBuffer, GL_ARRAY_BUFFER, tr.buffer[RBUF_TEMP1]->vbo);
+    
+    R_BindTexture(tr.texture[TEX_WHITE], 0);
+    
+    R_Call(glDisable, GL_CULL_FACE);
+    R_Call(glEnable, GL_BLEND);
+    R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    
+    FOR_LOOP(i, tr.viewDef.num_entities) {
+        renderEntity_t const *ent = &tr.viewDef.entities[i];
+        if (!(ent->flags & RF_SELECTED))
+            continue;
+        DrawEntityOverlay(ent);
+    }
+}
+

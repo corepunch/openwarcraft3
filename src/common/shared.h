@@ -184,6 +184,7 @@ typedef struct entityState_s {
     float angle;
     float scale;
     float radius;
+    float health;
     DWORD model;
     DWORD image;
     DWORD sound;

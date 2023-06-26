@@ -174,6 +174,7 @@ void SP_SpawnUnit(edict_t *self) {
     self->s.flags |= UNIT_SPEED(self->class_id) > 0 ? EF_MOVABLE : 0;
     self->collision = self->s.radius;//UNIT_COLLISION(self->class_id);
     self->targtype = G_GetTargetType(UNIT_TARGETED_AS(self->class_id));
+    self->max_health = UNIT_HP(self->class_id);
     self->health = UNIT_HP(self->class_id);
     self->think = monster_think;
     if ((self->pathtex = M_LoadPathTex(path_tex))) {

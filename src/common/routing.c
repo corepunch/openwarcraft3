@@ -88,7 +88,7 @@ VECTOR2 compute_directiom(DWORD x, DWORD y) {
     
     VECTOR2 direction = { 0, 0 };
     FOR_LOOP(dir, 8) {
-        float k = 10.f / (10 + (prices[dir] - min_price));
+        float k = 10.f / MAX(1, 10 + (prices[dir] - min_price));
         VECTOR2 dirvec = { dx[dir], dy[dir] };
         Vector2_normalize(&dirvec);
         direction.x += dirvec.x * k;
@@ -103,9 +103,9 @@ VECTOR2 get_flow_direction(DWORD heatmapindex, float fnx, float fny) {
     n.y *= pathmap.height;
     DWORD dx = floorf(n.x), dy = floorf(n.y);
     VECTOR2 a = compute_directiom(dx, dy);
-    VECTOR2 b = compute_directiom(dx+1, dy);
-    VECTOR2 c = compute_directiom(dx+1, dy+1);
-    VECTOR2 d = compute_directiom(dx, dy+1);
+    VECTOR2 b = compute_directiom(dx + 1, dy);
+    VECTOR2 c = compute_directiom(dx + 1, dy + 1);
+    VECTOR2 d = compute_directiom(dx, dy + 1);
     VECTOR2 ab = Vector2_lerp(&a, &b, n.x - dx);
     VECTOR2 cd = Vector2_lerp(&d, &c, n.x - dx);
     return Vector2_lerp(&ab, &cd, n.y - dy);

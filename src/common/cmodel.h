@@ -181,8 +181,6 @@ struct war3map {
     DWORD width;
     DWORD height;
     LPWAR3MAPVERTEX vertices;
-    DWORD fogOfWarTexture;
-    DWORD fogOfWarFBO;
     DWORD num_grounds;
     DWORD num_cliffs;
 };

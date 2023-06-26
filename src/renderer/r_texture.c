@@ -22,7 +22,7 @@ struct texture const* R_FindTextureByID(DWORD textureID) {
 
 void R_BindTexture(LPCTEXTURE texture, DWORD unit) {
     R_Call(glActiveTexture, GL_TEXTURE0 + unit);
-    R_Call(glBindTexture, GL_TEXTURE_2D, texture ? texture->texid : tr.whiteTexture->texid);
+    R_Call(glBindTexture, GL_TEXTURE_2D, texture ? texture->texid : tr.texture[TEX_WHITE]->texid);
 }
 
 LPTEXTURE R_AllocateTexture(DWORD width, DWORD height) {

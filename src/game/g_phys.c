@@ -15,6 +15,8 @@ void G_RunEntity(edict_t *edict) {
             break;
     }
     SAFE_CALL(edict->think, edict);
+    
+    edict->s.health = edict->health / MAX(1, edict->max_health);
 }
 
 bool M_IsHollow(edict_t *ent) {

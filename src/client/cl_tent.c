@@ -5,8 +5,8 @@ DWORD cl_confcounter = 0;
 
 void CL_AllocateConfirmationObject(LPCVECTOR3 origin) {
     DWORD i = cl_confcounter++;
-    cl_confs[i].origin = *origin;
-    cl_confs[i].timespamp = cl.time;
+    cl_confs[i % MAX_CONFIRMATION_OBJECTS].origin = *origin;
+    cl_confs[i % MAX_CONFIRMATION_OBJECTS].timespamp = cl.time;
 }
 
 void CL_ParseTEnt(LPSIZEBUF msg) {

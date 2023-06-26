@@ -49,6 +49,7 @@ typedef struct {
     float scale;
     float radius;
     float splatsize;
+    float health;
 } renderEntity_t;
 
 typedef struct {
@@ -78,7 +79,7 @@ typedef struct {
     void (*Shutdown)(void);
     void (*RegisterMap)(LPCSTR mapFileName);
     void (*RenderFrame)(viewDef_t const *viewdef);
-    LPCTEXTURE (*LoadTexture)(LPCSTR fileName);
+    LPTEXTURE (*LoadTexture)(LPCSTR fileName);
     LPMODEL (*LoadModel)(LPCSTR filename);
     LPFONT (*LoadFont)(LPCSTR filename, DWORD size);
     size2_t (*GetWindowSize)(void);

@@ -70,7 +70,6 @@ typedef enum t_attrib_id {
     attrib_position,
     attrib_color,
     attrib_texcoord,
-    attrib_texcoord2,
     attrib_normal,
     attrib_skin1,
     attrib_skin2,

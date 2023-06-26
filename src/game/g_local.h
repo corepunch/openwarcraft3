@@ -199,6 +199,7 @@ struct edict_s {
     DWORD build_project;
     float health;
     float collision;
+    float max_health;
     DWORD harvested_lumber;
     DWORD harvested_gold;
     movetype_t movetype;

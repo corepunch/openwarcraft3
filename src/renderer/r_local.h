@@ -40,6 +40,8 @@
 #define TEAM_MASK (MAX_TEAMS - 1)
 #define PORTRAIT_SHADOW_SIZE 50
 #define MAX_SKIN_BONES 8
+#define NUM_SELECTION_CIRCLES 3
+#define NUM_RECT_VERTICES 6
 
 #include "../common/common.h"
 #include "../client/renderer.h"
@@ -48,12 +50,12 @@ extern refImport_t ri;
 
 KNOWN_AS(shader_program, SHADER);
 KNOWN_AS(render_buffer, BUFFER);
+KNOWN_AS(render_target, RENDERTARGET);
 KNOWN_AS(vertex, VERTEX);
 
 typedef struct vertex {
     VECTOR3 position;
     VECTOR2 texcoord;
-    VECTOR2 texcoord2;
     VECTOR3 normal;
     COLOR32 color;
     BYTE skin[MAX_SKIN_BONES];
@@ -84,39 +86,69 @@ struct shader_program {
     DWORD uFogOfWar;
     DWORD uBones;
     DWORD uUseDiscard;
+    DWORD uEyePosition;
+};
+
+struct render_target {
+    DWORD buffer;
+    DWORD texture;
+};
+
+enum {
+    TEX_SHADOWMAP,
+    TEX_WATER,
+    TEX_FONT,
+    TEX_WHITE,
+    TEX_BLACK,
+    TEX_TEAM_GLOW,
+    TEX_TEAM_COLOR = TEX_TEAM_GLOW + MAX_TEAMS,
+    TEX_SELECTION_CIRCLE = TEX_TEAM_COLOR + MAX_TEAMS,
+    TEX_COUNT = TEX_SELECTION_CIRCLE + NUM_SELECTION_CIRCLES,
+};
+
+enum {
+    SHADER_DEFAULT,
+    SHADER_SKIN,
+    SHADER_UI,
+    SHADER_COUNT,
+};
+
+enum {
+    RT_DEPTHMAP,
+    RT_COUNT,
+};
+
+enum {
+    RBUF_TEMP1,
+    RBUF_COUNT
+};
+
+enum {
+    MODEL_SELECTION,
+    MODEL_COUNT,
+};
+
+enum {
+    SHEET_TERRAIN,
+    SHEET_CLIFF,
+    SHEET_COUNT,
 };
 
 struct render_globals {
     viewDef_t viewDef;
     LPCWAR3MAP world;
-    LPCTEXTURE shadowmap;
-    LPCTEXTURE waterTexture;
-    LPCTEXTURE sysFont;
-    LPCTEXTURE blackTexture;
-    LPCTEXTURE whiteTexture;
-    LPCTEXTURE sightTexture;
-    LPCSHADER shaderStatic;
-    LPCSHADER shaderSkin;
-    LPCSHADER shaderUI;
-    LPCBUFFER renbuf;
-    LPCTEXTURE teamGlow[MAX_TEAMS];
-    LPCTEXTURE teamColor[MAX_TEAMS];
-    LPCMODEL selectionCircle;
-    LPCTEXTURE selectionCircleSmall;
-    LPCTEXTURE selectionCircleMed;
-    LPCTEXTURE selectionCircleLarge;
-    sheetRow_t *terrainSheet;
-    sheetRow_t *cliffSheet;
-    DWORD depthMapFBO;
-    DWORD depthMap;
+    LPTEXTURE texture[TEX_COUNT];
+    LPSHADER shader[SHADER_COUNT];
+    LPBUFFER buffer[RBUF_COUNT];
+    LPMODEL model[MODEL_COUNT];
+    LPRENDERTARGET rt[RT_COUNT];
+    sheetRow_t *sheet[SHEET_COUNT];
 };
 
-LPCSHADER R_InitShader(LPCSTR vertex_shader, LPCSTR fragment_shader);
 void R_RegisterMap(LPCSTR mapFileName);
 int R_RegisterTextureFile(LPCSTR textureFileName);
-LPCTEXTURE R_LoadTexture(LPCSTR textureFileName);
+LPTEXTURE R_LoadTexture(LPCSTR textureFileName);
 void R_ReleaseTexture(LPTEXTURE texture);
-void R_DrawEntities(void);
 void R_DrawWorld(void);
 void R_DrawAlphaSurfaces(void);
 void R_RenderFrame(viewDef_t const *viewDef);
@@ -132,6 +164,10 @@ bool R_IsPointVisible(LPCVECTOR3 point, float fThreshold);
 void R_DrawPortrait(LPCMODEL model, LPCRECT viewport);
 void R_RenderSplat(LPCVECTOR2 position, float radius, LPCTEXTURE texture, LPCSHADER shader, COLOR32 color);
 
+// r_shader.c
+LPSHADER R_InitShader(LPCSTR vs_default, LPCSTR fs_default);
+void R_ReleaseShader(LPSHADER shader);
+
 // r_main.c
 void R_RenderShadowMap(void);
 void R_RenderView(void);
@@ -142,6 +178,8 @@ bool R_TraceLocation(viewDef_t const *viewdef, float x, float y, LPVECTOR3 point
 void R_GetEntityMatrix(renderEntity_t const *entity, LPMATRIX4 matrix);
 LINE3 R_LineForScreenPoint(viewDef_t const *viewdef, float x, float y);
 DWORD R_EntitiesInRect(viewDef_t const *viewdef, LPCRECT rect, DWORD max, LPDWORD array);
+void R_DrawEntities(void);
+void R_RenderOverlays(void);
 
 // r_mdx.c
 LPMODEL R_LoadModel(LPCSTR modelFilename);
@@ -150,7 +188,7 @@ void R_ReleaseModel(LPMODEL model);
 size2_t R_GetWindowSize(void);
 
 // r_buffer.c
-VERTEX *R_AddQuad(VERTEX *buffer, LPCRECT screen, LPCRECT uv, COLOR32 color);
+VERTEX *R_AddQuad(VERTEX *buffer, LPCRECT screen, LPCRECT uv, COLOR32 color, float z);
 VERTEX *R_AddStrip(VERTEX *buffer, LPCRECT screen, COLOR32 color);
 VERTEX *R_AddWireBox(VERTEX *buffer, LPCBOX3 box, COLOR32 color);
 LPBUFFER R_MakeVertexArrayObject(LPCVERTEX vertices, DWORD size);
@@ -166,6 +204,19 @@ void R_DrawBoundingBox(LPCBOX3 box, LPCMATRIX4 matrix, COLOR32 color);
 // r_font.c
 LPFONT R_LoadFont(LPCSTR filename, DWORD size);
 void R_DrawText(drawText_t const *drawText);
+
+// r_image.c
+LPRENDERTARGET R_AllocateRenderTexture(GLsizei width, GLsizei height, GLenum format, GLenum type, GLenum attachment);
+void R_ReleaseRenderTexture(LPRENDERTARGET rt);
+
+// r_fogofwar.c
+void R_InitFogOfWar(DWORD width, DWORD height);
+void R_ShutdownFogOfWar(void);
+void R_RenderFogOfWar(void);
+DWORD R_GetFogOfWarTexture(void);
+
+// r_war3map.c
+VECTOR2 GetWar3MapSize(LPCWAR3MAP war3Map);
 
 extern struct render_globals tr;
 

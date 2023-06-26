@@ -100,7 +100,8 @@ static void SP_SpawnDestructable(edict_t *edict) {
     edict->s.model = gi.ModelIndex(buffer);
     edict->s.radius = 50;//destr->radius;
     edict->collision = 50;
-    edict->health = DESTRUCTABLE_HIT_POINT_MAXIMUM(edict->class_id);
+    edict->max_health = DESTRUCTABLE_HIT_POINT_MAXIMUM(edict->class_id);
+    edict->health = edict->max_health;
     edict->targtype = G_GetTargetType(DESTRUCTABLE_TARGETED_AS(edict->class_id));
 }
 

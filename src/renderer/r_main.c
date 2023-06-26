@@ -8,7 +8,6 @@ struct render_globals tr;
 
 SDL_Window *window;
 SDL_GLContext context;
-VECTOR2 GetWar3MapSize(LPCWAR3MAP war3Map);
 
 bool is_rendering_lights = false;
 
@@ -18,6 +17,35 @@ void R_Viewport(LPCRECT viewport) {
                viewport->y * windowSize.height / 600,
                viewport->w * windowSize.width / 800,
                viewport->h * windowSize.height / 600);
+}
+
+LPRENDERTARGET
+R_AllocateRenderTexture(GLsizei width,
+                        GLsizei height,
+                        GLenum format,
+                        GLenum type,
+                        GLenum attachment)
+{
+    LPRENDERTARGET rt = ri.MemAlloc(sizeof(RENDERTARGET));
+    R_Call(glGenFramebuffers, 1, &rt->buffer);
+    R_Call(glGenTextures, 1, &rt->texture);
+    R_Call(glBindFramebuffer, GL_FRAMEBUFFER, rt->buffer);
+    R_Call(glBindTexture, GL_TEXTURE_2D, rt->texture);
+    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    R_Call(glTexImage2D, GL_TEXTURE_2D, 0, format, width, height, 0, format, type, NULL);
+    R_Call(glFramebufferTexture2D, GL_FRAMEBUFFER, attachment, GL_TEXTURE_2D, rt->texture, 0);
+    if (attachment == GL_COLOR_ATTACHMENT0) {
+        glClear(GL_COLOR_BUFFER_BIT);
+    }
+    R_Call(glBindFramebuffer, GL_FRAMEBUFFER, 0);
+    return rt;
+}
+
+void R_ReleaseRenderTexture(LPRENDERTARGET rt) {
+    glDeleteFramebuffers(1, &rt->buffer);
+    glDeleteTextures(1, &rt->texture);
+    ri.MemFree(rt);
 }
 
 static void R_SetupGL(bool drawLight) {
@@ -43,54 +71,59 @@ static void R_SetupGL(bool drawLight) {
     R_Call(glEnable, GL_CULL_FACE);
     R_Call(glCullFace, GL_BACK);
 
-    R_Call(glUseProgram, tr.shaderSkin->progid);
-    R_Call(glUniformMatrix4fv, tr.shaderSkin->uProjectionMatrix, 1, GL_FALSE, drawLight ? tr.viewDef.lightMatrix.v : tr.viewDef.projectionMatrix.v);
-    R_Call(glUniformMatrix4fv, tr.shaderSkin->uTextureMatrix, 1, GL_FALSE, texture_matrix.v);
-    R_Call(glUniformMatrix4fv, tr.shaderSkin->uModelMatrix, 1, GL_FALSE, model_matrix.v);
-    R_Call(glUniformMatrix4fv, tr.shaderSkin->uLightMatrix, 1, GL_FALSE, tr.viewDef.lightMatrix.v);
-    R_Call(glUniformMatrix3fv, tr.shaderSkin->uNormalMatrix, 1, GL_TRUE, normal_matrix.v);
+    R_Call(glUseProgram, tr.shader[SHADER_SKIN]->progid);
+    R_Call(glUniformMatrix4fv, tr.shader[SHADER_SKIN]->uProjectionMatrix, 1, GL_FALSE, drawLight ? tr.viewDef.lightMatrix.v : tr.viewDef.projectionMatrix.v);
+    R_Call(glUniformMatrix4fv, tr.shader[SHADER_SKIN]->uTextureMatrix, 1, GL_FALSE, texture_matrix.v);
+    R_Call(glUniformMatrix4fv, tr.shader[SHADER_SKIN]->uModelMatrix, 1, GL_FALSE, model_matrix.v);
+    R_Call(glUniformMatrix4fv, tr.shader[SHADER_SKIN]->uLightMatrix, 1, GL_FALSE, tr.viewDef.lightMatrix.v);
+    R_Call(glUniformMatrix3fv, tr.shader[SHADER_SKIN]->uNormalMatrix, 1, GL_TRUE, normal_matrix.v);
     
-    R_Call(glUseProgram, tr.shaderStatic->progid);
-    R_Call(glUniformMatrix4fv, tr.shaderStatic->uProjectionMatrix, 1, GL_FALSE, drawLight ? tr.viewDef.lightMatrix.v : tr.viewDef.projectionMatrix.v);
-    R_Call(glUniformMatrix4fv, tr.shaderStatic->uTextureMatrix, 1, GL_FALSE, texture_matrix.v);
-    R_Call(glUniformMatrix4fv, tr.shaderStatic->uModelMatrix, 1, GL_FALSE, model_matrix.v);
-    R_Call(glUniformMatrix4fv, tr.shaderStatic->uLightMatrix, 1, GL_FALSE, tr.viewDef.lightMatrix.v);
-    R_Call(glUniformMatrix3fv, tr.shaderStatic->uNormalMatrix, 1, GL_TRUE, normal_matrix.v);
+    R_Call(glUseProgram, tr.shader[SHADER_DEFAULT]->progid);
+    R_Call(glUniformMatrix4fv, tr.shader[SHADER_DEFAULT]->uProjectionMatrix, 1, GL_FALSE, drawLight ? tr.viewDef.lightMatrix.v : tr.viewDef.projectionMatrix.v);
+    R_Call(glUniformMatrix4fv, tr.shader[SHADER_DEFAULT]->uTextureMatrix, 1, GL_FALSE, texture_matrix.v);
+    R_Call(glUniformMatrix4fv, tr.shader[SHADER_DEFAULT]->uModelMatrix, 1, GL_FALSE, model_matrix.v);
+    R_Call(glUniformMatrix4fv, tr.shader[SHADER_DEFAULT]->uLightMatrix, 1, GL_FALSE, tr.viewDef.lightMatrix.v);
+    R_Call(glUniformMatrix3fv, tr.shader[SHADER_DEFAULT]->uNormalMatrix, 1, GL_TRUE, normal_matrix.v);
 
-    R_Call(glUseProgram, tr.shaderUI->progid);
+    R_Call(glUseProgram, tr.shader[SHADER_UI]->progid);
 
-    R_Call(glUniformMatrix4fv, tr.shaderUI->uProjectionMatrix, 1, GL_FALSE, ui_matrix.v);
-    R_Call(glUniformMatrix4fv, tr.shaderUI->uModelMatrix, 1, GL_FALSE, model_matrix.v);
-
+    R_Call(glUniformMatrix4fv, tr.shader[SHADER_UI]->uProjectionMatrix, 1, GL_FALSE, ui_matrix.v);
+    R_Call(glUniformMatrix4fv, tr.shader[SHADER_UI]->uModelMatrix, 1, GL_FALSE, model_matrix.v);
+    
     R_Call(glDepthFunc, GL_LEQUAL);
 
     if (drawLight) {
         R_Call(glViewport, 0, 0, SHADOW_TEXSIZE, SHADOW_TEXSIZE);
         R_Call(glScissor, 0, 0, SHADOW_TEXSIZE, SHADOW_TEXSIZE);
-        R_Call(glBindFramebuffer, GL_FRAMEBUFFER, tr.depthMapFBO);
+        R_Call(glBindFramebuffer, GL_FRAMEBUFFER, tr.rt[RT_DEPTHMAP]->buffer);
         R_Call(glDepthMask, GL_TRUE);
         R_Call(glClear, GL_DEPTH_BUFFER_BIT);
     } else {
         R_Call(glBindFramebuffer, GL_FRAMEBUFFER, 0);
         R_Call(glActiveTexture, GL_TEXTURE1);
-        R_Call(glBindTexture, GL_TEXTURE_2D, tr.depthMap);
+        R_Call(glBindTexture, GL_TEXTURE_2D, tr.rt[RT_DEPTHMAP]->texture);
     }
 }
 
-void R_InitShadowMap(void) {
-    R_Call(glGenFramebuffers, 1, &tr.depthMapFBO);
-    R_Call(glGenTextures, 1, &tr.depthMap);
-    R_Call(glBindTexture, GL_TEXTURE_2D, tr.depthMap);
-    R_Call(glTexImage2D, GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, SHADOW_TEXSIZE, SHADOW_TEXSIZE, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
-    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    R_Call(glBindFramebuffer, GL_FRAMEBUFFER, tr.depthMapFBO);
-    R_Call(glFramebufferTexture2D, GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, tr.depthMap, 0);
-    R_Call(glDrawBuffer, GL_NONE);
-    R_Call(glReadBuffer, GL_NONE);
-    R_Call(glBindFramebuffer, GL_FRAMEBUFFER, 0);
+LPCSTR selCirclesNames[NUM_SELECTION_CIRCLES] = {
+    "ReplaceableTextures\\Selection\\SelectionCircleSmall.blp",
+    "ReplaceableTextures\\Selection\\SelectionCircleMed.blp",
+    "ReplaceableTextures\\Selection\\SelectionCircleLarge.blp",
+};
+
+LPCSTR sheetNames[SHEET_COUNT] = {
+    "TerrainArt\\Terrain.slk",
+    "TerrainArt\\CliffTypes.slk",
+};
+
+LPCSTR modelNames[MODEL_COUNT] = {
+    "UI\\Feedback\\SelectionCircle\\SelectionCircle.mdx"
+};
+
+LPTEXTURE R_AllocateSinglePixelTexture(int color) {
+    LPTEXTURE texture = R_AllocateTexture(1, 1);
+    R_LoadTextureMipLevel(texture, 0, (LPCCOLOR32)&color, 1, 1);
+    return texture;
 }
 
 void R_Init(DWORD width, DWORD height) {
@@ -104,72 +137,50 @@ void R_Init(DWORD width, DWORD height) {
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
-
+    
     window = SDL_CreateWindow("", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width, height, SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN);
     context = SDL_GL_CreateContext(window);
-
-    extern LPCSTR vertex_shader_skin;
-    extern LPCSTR vertex_shader;
-    extern LPCSTR fragment_shader;
-    extern LPCSTR fragment_shader_ui;
-    extern LPCSTR fragment_shader_alphatest;
-
-    int white = 0xffffffff;
-    int black = 0xff000000;
-
-    tr.terrainSheet = ri.ReadSheet("TerrainArt\\Terrain.slk");
-    tr.cliffSheet = ri.ReadSheet("TerrainArt\\CliffTypes.slk");
-
-//    tr.selectionCircle = R_LoadModel("UI\\Feedback\\Confirmation\\Confirmation.mdx");
-    tr.selectionCircle = R_LoadModel("UI\\Feedback\\SelectionCircle\\SelectionCircle.mdx");
-    tr.selectionCircleSmall = R_LoadTexture("ReplaceableTextures\\Selection\\SelectionCircleSmall.blp");
-    tr.selectionCircleMed = R_LoadTexture("ReplaceableTextures\\Selection\\SelectionCircleMed.blp");
-    tr.selectionCircleLarge = R_LoadTexture("ReplaceableTextures\\Selection\\SelectionCircleLarge.blp");
-
-    tr.shaderStatic = R_InitShader(vertex_shader, fragment_shader);
-    tr.shaderSkin = R_InitShader(vertex_shader_skin, fragment_shader);
-    tr.shaderUI = R_InitShader(vertex_shader, fragment_shader_ui);
-    tr.renbuf = R_MakeVertexArrayObject(NULL, 0);
-    tr.whiteTexture = R_AllocateTexture(1, 1);
-    R_LoadTextureMipLevel(tr.whiteTexture, 0, (LPCCOLOR32)&white, 1, 1);
-    tr.blackTexture = R_AllocateTexture(1, 1);
-    R_LoadTextureMipLevel(tr.blackTexture, 0, (LPCCOLOR32)&black, 1, 1);
     
-#define SIGHT_SIZE 64
+    extern LPCSTR vs_skin;
+    extern LPCSTR vs_default;
+    extern LPCSTR fs_default;
+    extern LPCSTR fs_ui;
+    extern LPCSTR fs_alphatest;
     
-    tr.sightTexture = R_AllocateTexture(SIGHT_SIZE, SIGHT_SIZE);
-    COLOR32 col[SIGHT_SIZE * SIGHT_SIZE];
-    DWORD mid = SIGHT_SIZE/2;
-    VECTOR2 center = {mid,mid};
-    FOR_LOOP(x, SIGHT_SIZE) {
-        FOR_LOOP(y, SIGHT_SIZE) {
-            float const d = Vector2_distance(&center, &(VECTOR2){x,y});
-            float const f = MAX(0, 1.0 - d / mid);
-            DWORD c = MIN(1, f * 2.0) * 0xff;
-            col[x+y*SIGHT_SIZE].r = 0xff;
-            col[x+y*SIGHT_SIZE].g = 0xff;
-            col[x+y*SIGHT_SIZE].b = 0xff;
-            col[x+y*SIGHT_SIZE].a = c;
-        }
+    FOR_LOOP(i, MODEL_COUNT) {
+        tr.model[i] = R_LoadModel(modelNames[i]);
     }
-    R_LoadTextureMipLevel(tr.sightTexture, 0, col, SIGHT_SIZE, SIGHT_SIZE);
-
-    R_Call(glDisable, GL_DEPTH_TEST);
-    R_Call(glClearColor, 0.0, 0.0, 0.0, 0.0);
-    R_Call(glViewport, 0, 0, width, height);
     
+    FOR_LOOP(i, SHEET_COUNT) {
+        tr.sheet[i] = ri.ReadSheet(sheetNames[i]);
+    }
+    
+    FOR_LOOP(i, NUM_SELECTION_CIRCLES) {
+        tr.texture[TEX_SELECTION_CIRCLE+i] = R_LoadTexture(selCirclesNames[i]);
+    }
+
     FOR_LOOP(team, MAX_TEAMS) {
         PATHSTR glowFilename, colorFilename;
         sprintf(glowFilename, "ReplaceableTextures\\TeamGlow\\TeamGlow%02d.blp", team);
         sprintf(colorFilename, "ReplaceableTextures\\TeamColor\\TeamColor%02d.blp", team);
-        tr.teamGlow[team] = R_LoadTexture(glowFilename);
-        tr.teamColor[team] = R_LoadTexture(colorFilename);
+        tr.texture[TEX_TEAM_GLOW + team] = R_LoadTexture(glowFilename);
+        tr.texture[TEX_TEAM_COLOR + team] = R_LoadTexture(colorFilename);
     }
 
-    tr.waterTexture = R_LoadTexture("ReplaceableTextures\\Water\\Water12.blp");
-    tr.sysFont = R_MakeSysFontTexture();
-
-    R_InitShadowMap();
+    tr.shader[SHADER_DEFAULT] = R_InitShader(vs_default, fs_default);
+    tr.shader[SHADER_SKIN] = R_InitShader(vs_skin, fs_default);
+    tr.shader[SHADER_UI] = R_InitShader(vs_default, fs_ui);
+    
+    tr.buffer[RBUF_TEMP1] = R_MakeVertexArrayObject(NULL, 0);
+    tr.texture[TEX_WHITE] = R_AllocateSinglePixelTexture(0xffffffff);
+    tr.texture[TEX_BLACK] = R_AllocateSinglePixelTexture(0xff000000);
+    tr.texture[TEX_WATER] = R_LoadTexture("ReplaceableTextures\\Water\\Water12.blp");
+    tr.texture[TEX_FONT] = R_MakeSysFontTexture();
+    tr.rt[RT_DEPTHMAP] = R_AllocateRenderTexture(SHADOW_TEXSIZE, SHADOW_TEXSIZE, GL_DEPTH_COMPONENT, GL_FLOAT, GL_DEPTH_ATTACHMENT);
+    
+    R_Call(glDisable, GL_DEPTH_TEST);
+    R_Call(glClearColor, 0.0, 0.0, 0.0, 0.0);
+    R_Call(glViewport, 0, 0, width, height);
 }
 
 bool R_IsPointVisible(LPCVECTOR3 point, float fThreshold) {
@@ -212,7 +223,7 @@ void R_RevertSettings(void) {
 void R_RenderShadowMap(void) {
     is_rendering_lights = true;
     R_SetupGL(true);
-    R_BindTexture(tr.shadowmap, 1);
+    R_BindTexture(tr.texture[TEX_SHADOWMAP], 1);
     R_DrawWorld();
     R_DrawEntities();
 }
@@ -228,66 +239,15 @@ void R_RenderView(void) {
     R_RevertSettings();
 }
 
-void R_RenderFogOfWar(void) {
-    if (!tr.world)
-        return;
-    MATRIX4 model_matrix, proj_matrix;
-    VECTOR2 mapsize = GetWar3MapSize(tr.world);
-    DWORD const texwidth = (tr.world->width - 1) * 4;
-    DWORD const texheight = (tr.world->height - 1) * 4;
-    Matrix4_identity(&model_matrix);
-    Matrix4_ortho(&proj_matrix, 0.0f, mapsize.x, 0.0f, mapsize.y, 0.0f, 100.0f);
-
-    R_Call(glUseProgram, tr.shaderUI->progid);
-    R_Call(glUniformMatrix4fv, tr.shaderUI->uProjectionMatrix, 1, GL_FALSE, proj_matrix.v);
-    R_Call(glUniformMatrix4fv, tr.shaderUI->uModelMatrix, 1, GL_FALSE, model_matrix.v);
-    R_Call(glViewport, 0, 0, texwidth, texheight);
-    R_Call(glScissor, 0, 0, texwidth, texheight);
-    R_Call(glBindFramebuffer, GL_FRAMEBUFFER, tr.world->fogOfWarFBO);
-    R_Call(glDepthMask, GL_FALSE);
-    R_Call(glDepthFunc, GL_ALWAYS);
-    R_Call(glClearColor, 0, 0, 0, 0);
-    R_Call(glClear, GL_COLOR_BUFFER_BIT);
-    R_Call(glActiveTexture, GL_TEXTURE0);
-    R_Call(glBindTexture, GL_TEXTURE_2D, tr.sightTexture->texid);
-
-    float viewsize = 2000;
-    
-    FOR_LOOP(p, tr.viewDef.num_entities) {
-        renderEntity_t *ent = tr.viewDef.entities+p;
-        if (ent->team != 1)continue;
-        VERTEX simp[6];
-        RECT screen = {
-            ent->origin.x - tr.world->center.x - viewsize/2,
-            ent->origin.y - tr.world->center.y - viewsize/2,
-            viewsize,
-            viewsize,
-        };
-        R_AddQuad(simp, &screen, &(RECT){0,0,1,1}, (COLOR32){255,255,255,255});
-                
-        R_Call(glDisable, GL_CULL_FACE);
-        R_Call(glBindVertexArray, tr.renbuf->vao);
-        R_Call(glBindBuffer, GL_ARRAY_BUFFER, tr.renbuf->vbo);
-        R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(VERTEX) * 6, simp, GL_STATIC_DRAW);
-        R_Call(glDisable, GL_CULL_FACE);
-        R_Call(glEnable, GL_BLEND);
-        R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-        R_Call(glDrawArrays, GL_TRIANGLES, 0, 6);
-    }
-}
-
 void R_RenderFrame(viewDef_t const *viewDef) {
     R_Call(glActiveTexture, GL_TEXTURE2);
-    if (tr.world) {
-        R_Call(glBindTexture, GL_TEXTURE_2D, tr.world->fogOfWarTexture);
-    } else {
-        R_Call(glBindTexture, GL_TEXTURE_2D, tr.whiteTexture->texid);
-    }
+    R_Call(glBindTexture, GL_TEXTURE_2D, R_GetFogOfWarTexture());
     R_Call(glActiveTexture, GL_TEXTURE0);
     tr.viewDef = *viewDef;
     R_RenderFogOfWar();
     R_RenderShadowMap();
     R_RenderView();
+    R_RenderOverlays();
 }
 
 void R_DrawBuffer(LPCBUFFER buffer, DWORD num_vertices) {
@@ -311,6 +271,8 @@ void R_EndFrame(void) {
 }
 
 void R_Shutdown(void) {
+    R_ShutdownFogOfWar();
+    
     SDL_GL_DeleteContext(context);
     SDL_DestroyWindow(window);
     SDL_Quit();

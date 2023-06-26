@@ -24,6 +24,7 @@ netField_t entityStateFields[] = {
     { NETF(entityState_t, renderfx), 8 },
     { NETF(entityState_t, radius), 0 },
     { NETF(entityState_t, splat), 32 },
+    { NETF(entityState_t, health), -1 },
     { NULL }
 };
 

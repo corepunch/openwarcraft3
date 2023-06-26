@@ -135,8 +135,8 @@ LPMAPLAYER R_BuildMapSegmentLayer(LPCWAR3MAP map, DWORD sx, DWORD sy, DWORD laye
     if (g_groundTextures[layer] == NULL) {
         char groundID[5] = { 0 };
         memcpy(groundID, &map->grounds[layer], 4);
-        LPCSTR dir = ri.FindSheetCell(tr.terrainSheet, groundID, "dir");
-        LPCSTR file = ri.FindSheetCell(tr.terrainSheet, groundID, "file");
+        LPCSTR dir = ri.FindSheetCell(tr.sheet[SHEET_TERRAIN], groundID, "dir");
+        LPCSTR file = ri.FindSheetCell(tr.sheet[SHEET_TERRAIN], groundID, "file");
         if (file && dir) {
             sprintf(zBuffer, "%s\\%s.blp", dir, file);
             g_groundTextures[layer] = R_LoadTexture(zBuffer);
@@ -199,8 +199,8 @@ void R_RenderSplat(LPCVECTOR2 position,
     R_BindTexture(texture, 0);
     R_Call(glUseProgram, shader->progid);
     R_Call(glUniformMatrix4fv, shader->uProjectionMatrix, 1, GL_FALSE, tr.viewDef.projectionMatrix.v);
-    R_Call(glBindVertexArray, tr.renbuf->vao);
-    R_Call(glBindBuffer, GL_ARRAY_BUFFER, tr.renbuf->vbo);
+    R_Call(glBindVertexArray, tr.buffer[RBUF_TEMP1]->vao);
+    R_Call(glBindBuffer, GL_ARRAY_BUFFER, tr.buffer[RBUF_TEMP1]->vbo);
     R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(VERTEX) * num_vertices, aVertexBuffer, GL_STATIC_DRAW);
     R_Call(glDrawArrays, GL_TRIANGLES, 0, num_vertices);
 }

@@ -146,9 +146,9 @@ static void R_RenderGeoset(mdxGeoset_t const *geoset,
     
     MATRIX3 mNormalMatrix;
     Matrix3_normal(&mNormalMatrix, modelMatrix);
-    R_Call(glUseProgram, tr.shaderSkin->progid);
-    R_Call(glUniformMatrix4fv, tr.shaderSkin->uModelMatrix, 1, GL_FALSE, modelMatrix->v);
-    R_Call(glUniformMatrix3fv, tr.shaderSkin->uNormalMatrix, 1, GL_TRUE, mNormalMatrix.v);
+    R_Call(glUseProgram, tr.shader[SHADER_SKIN]->progid);
+    R_Call(glUniformMatrix4fv, tr.shader[SHADER_SKIN]->uModelMatrix, 1, GL_FALSE, modelMatrix->v);
+    R_Call(glUniformMatrix3fv, tr.shader[SHADER_SKIN]->uNormalMatrix, 1, GL_TRUE, mNormalMatrix.v);
     R_Call(glBindVertexArray, buf->vao);
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, buf->vbo);
     R_Call(glDrawArrays, GL_TRIANGLES, 0, geoset->num_triangles);
@@ -158,8 +158,8 @@ static void R_RenderGeoset(mdxGeoset_t const *geoset,
 static void R_BindBoneMatrices(mdxModel_t const *model, DWORD frame1, DWORD frame0) {
     DWORD numBones = R_CalculateBoneMatrices(model, aBoneMatrices, frame1, frame0);
     
-    R_Call(glUseProgram, tr.shaderSkin->progid);
-    R_Call(glUniformMatrix4fv, tr.shaderSkin->uBones, numBones, GL_FALSE, global_matrices->v);
+    R_Call(glUseProgram, tr.shader[SHADER_SKIN]->progid);
+    R_Call(glUniformMatrix4fv, tr.shader[SHADER_SKIN]->uBones, numBones, GL_FALSE, global_matrices->v);
 }
 
 extern bool is_rendering_lights;
@@ -184,17 +184,17 @@ static void RenderGeoset(mdxModel_t const *model,
     MATRIX4 mModelMatrix;
     R_GetEntityMatrix(entity, &mModelMatrix);
 
-    R_Call(glUniform1i, tr.shaderSkin->uUseDiscard, 0);
+    R_Call(glUniform1i, tr.shader[SHADER_SKIN]->uUseDiscard, 0);
 
     FOR_LOOP(layerID, material->num_layers) {
         mdxMaterialLayer_t const *layer = &material->layers[layerID];
         mdxTexture_t const *modeltex = &model->textures[layer->textureId];
         switch (modeltex->replaceableID) {
             case TEXREPL_TEAMCOLOR:
-                R_BindTexture(tr.teamColor[entity->team & TEAM_MASK], 0);
+                R_BindTexture(tr.texture[TEX_TEAM_COLOR+(entity->team&TEAM_MASK)], 0);
                 break;
             case TEXREPL_TEAMGLOW:
-                R_BindTexture(tr.teamGlow[entity->team & TEAM_MASK], 0);
+                R_BindTexture(tr.texture[TEX_TEAM_GLOW+(entity->team&TEAM_MASK)], 0);
                 break;
             case TEXREPL_NONE:
                 R_BindTexture(R_FindTextureByID(modeltex->texid), 0);
@@ -216,7 +216,7 @@ static void RenderGeoset(mdxModel_t const *model,
                 R_Call(glDepthMask, GL_TRUE);
                 break;
             case TEXOP_TRANSPARENT:
-                R_Call(glUniform1i, tr.shaderSkin->uUseDiscard, 1);
+                R_Call(glUniform1i, tr.shader[SHADER_SKIN]->uUseDiscard, 1);
                 R_Call(glBlendFunc, GL_ONE, GL_ZERO);
                 R_Call(glDepthMask, GL_TRUE);
                 break;
@@ -382,6 +382,12 @@ check_geometry:
     return false;
 }
 
+DWORD selCircles[NUM_SELECTION_CIRCLES] = {
+    100,
+    300,
+    100000
+};
+
 void R_RenderModel(renderEntity_t const *entity) {
     mdxModel_t const *model = entity->model->mdx;
     LPCVECTOR2 origin = (LPCVECTOR2)&entity->origin;
@@ -405,7 +411,7 @@ void R_RenderModel(renderEntity_t const *entity) {
 
     if (entity->flags & RF_NO_FOGOFWAR) {
         R_Call(glActiveTexture, GL_TEXTURE2);
-        R_Call(glBindTexture, GL_TEXTURE_2D, tr.whiteTexture->texid);
+        R_Call(glBindTexture, GL_TEXTURE_2D, tr.texture[TEX_WHITE]->texid);
         R_Call(glActiveTexture, GL_TEXTURE0);
     }
     
@@ -415,7 +421,7 @@ void R_RenderModel(renderEntity_t const *entity) {
 
     if ((entity->flags & RF_NO_FOGOFWAR) && tr.world) {
         R_Call(glActiveTexture, GL_TEXTURE2);
-        R_Call(glBindTexture, GL_TEXTURE_2D, tr.world->fogOfWarTexture);
+        R_Call(glBindTexture, GL_TEXTURE_2D, R_GetFogOfWarTexture());
         R_Call(glActiveTexture, GL_TEXTURE0);
     }
 
@@ -424,21 +430,19 @@ void R_RenderModel(renderEntity_t const *entity) {
     
     if (entity->splat && !(entity->flags & RF_NO_UBERSPLAT)) {
         COLOR32 color = { 255, 255, 255, 255 };
-        R_RenderSplat(origin, entity->splatsize, entity->splat, tr.shaderStatic, color);
+        R_RenderSplat(origin, entity->splatsize, entity->splat, tr.shader[SHADER_DEFAULT], color);
     }
     
     if (entity->flags & RF_SELECTED) {
         COLOR32 color = { 0, 255, 0, 255 };
         float radius = entity->radius;
-        if ((radius * 2) < 100) {
-            R_RenderSplat(origin, radius, tr.selectionCircleSmall, tr.shaderUI, color);
-        } else if ((radius * 2) < 300) {
-            R_RenderSplat(origin, radius, tr.selectionCircleMed, tr.shaderUI, color);
-        } else {
-            R_RenderSplat(origin, radius, tr.selectionCircleLarge, tr.shaderUI, color);
+        FOR_LOOP(i, NUM_SELECTION_CIRCLES) {
+            if ((radius * 2) > selCircles[i])
+                continue;
+            R_RenderSplat(origin, radius, tr.texture[TEX_SELECTION_CIRCLE+i], tr.shader[SHADER_UI], color);
+            break;
         }
     }
-    
 }
 
 bool R_GetModelCameraMatrix(mdxModel_t const *model, LPMATRIX4 output, LPVECTOR3 root) {
@@ -494,7 +498,7 @@ void R_DrawPortrait(LPCMODEL model, LPCRECT viewport) {
     viewdef.rdflags |= RDF_NOWORLDMODEL | RDF_NOFRUSTUMCULL;
     
     R_Call(glActiveTexture, GL_TEXTURE2);
-    R_Call(glBindTexture, GL_TEXTURE_2D, tr.whiteTexture->texid);
+    R_Call(glBindTexture, GL_TEXTURE_2D, tr.texture[TEX_WHITE]->texid);
     R_Call(glActiveTexture, GL_TEXTURE0);
     
     R_GetModelCameraMatrix(mdx, &viewdef.projectionMatrix, &root);

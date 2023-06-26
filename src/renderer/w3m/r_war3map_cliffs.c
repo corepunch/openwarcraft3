@@ -152,12 +152,12 @@ LPMAPLAYER R_BuildMapSegmentCliffs(LPCWAR3MAP map, DWORD sx, DWORD sy, DWORD cli
     memcpy(cliffID_str, &cliffID, 4);
     cliffData_t data = {
         .cliff = cliff,
-        .texDir = ri.FindSheetCell(tr.cliffSheet, cliffID_str, "texDir"),
-        .texFile = ri.FindSheetCell(tr.cliffSheet, cliffID_str, "texFile"),
-        .groundTile = ri.FindSheetCell(tr.cliffSheet, cliffID_str, "groundTile"),
-        .upperTile = ri.FindSheetCell(tr.cliffSheet, cliffID_str, "upperTile"),
-        .rampModelDir = ri.FindSheetCell(tr.cliffSheet, cliffID_str, "rampModelDir"),
-        .cliffModelDir = ri.FindSheetCell(tr.cliffSheet, cliffID_str, "cliffModelDir"),
+        .texDir = ri.FindSheetCell(tr.sheet[SHEET_CLIFF], cliffID_str, "texDir"),
+        .texFile = ri.FindSheetCell(tr.sheet[SHEET_CLIFF], cliffID_str, "texFile"),
+        .groundTile = ri.FindSheetCell(tr.sheet[SHEET_CLIFF], cliffID_str, "groundTile"),
+        .upperTile = ri.FindSheetCell(tr.sheet[SHEET_CLIFF], cliffID_str, "upperTile"),
+        .rampModelDir = ri.FindSheetCell(tr.sheet[SHEET_CLIFF], cliffID_str, "rampModelDir"),
+        .cliffModelDir = ri.FindSheetCell(tr.sheet[SHEET_CLIFF], cliffID_str, "cliffModelDir"),
 
     };
     sprintf(zBuffer, "%s\\%c_%s.blp", data.texDir, map->tileset, data.texFile);

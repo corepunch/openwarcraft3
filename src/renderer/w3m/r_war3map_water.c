@@ -98,7 +98,7 @@ static void R_MakeWaterTile(LPCWAR3MAP map, DWORD x, DWORD y) {
 LPMAPLAYER R_BuildMapSegmentWater(LPCWAR3MAP map, DWORD sx, DWORD sy) {
     LPMAPLAYER mapLayer = ri.MemAlloc(sizeof(MAPLAYER));
     mapLayer->type = MAPLAYERTYPE_WATER;
-    mapLayer->texture = tr.waterTexture;
+    mapLayer->texture = tr.texture[TEX_WATER];
     currentVertex = aVertexBuffer;
     for (DWORD x = sx * SEGMENT_SIZE; x < (sx + 1) * SEGMENT_SIZE; x++) {
         for (DWORD y = sy * SEGMENT_SIZE; y < (sy + 1) * SEGMENT_SIZE; y++) {

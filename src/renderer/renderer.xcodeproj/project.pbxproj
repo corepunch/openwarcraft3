@@ -30,6 +30,7 @@
 		78A896AC2A15F84800BC5B56 /* r_blp.c in Sources */ = {isa = PBXBuildFile; fileRef = 78A8969D2A15F84800BC5B56 /* r_blp.c */; };
 		78A896B12A15FA0900BC5B56 /* r_war3map_utils.c in Sources */ = {isa = PBXBuildFile; fileRef = 78A896B02A15FA0900BC5B56 /* r_war3map_utils.c */; };
 		78A896EA2A16054B00BC5B56 /* libcmath3.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 78A896E92A16054B00BC5B56 /* libcmath3.dylib */; };
+		78ED1A992A49A5F600C42E21 /* r_fogofwar.c in Sources */ = {isa = PBXBuildFile; fileRef = 78ED1A982A49A5F600C42E21 /* r_fogofwar.c */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -58,6 +59,7 @@
 		78A8969D2A15F84800BC5B56 /* r_blp.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = r_blp.c; sourceTree = "<group>"; };
 		78A896B02A15FA0900BC5B56 /* r_war3map_utils.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = r_war3map_utils.c; sourceTree = "<group>"; };
 		78A896E92A16054B00BC5B56 /* libcmath3.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; path = libcmath3.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
+		78ED1A982A49A5F600C42E21 /* r_fogofwar.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = r_fogofwar.c; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -112,6 +114,7 @@
 				7810F3F42A20A1B0003AADBC /* r_buffer.c */,
 				7810F3F62A20A220003AADBC /* r_draw.c */,
 				78A8969C2A15F84800BC5B56 /* r_ents.c */,
+				78ED1A982A49A5F600C42E21 /* r_fogofwar.c */,
 				5D2301032A386B0000F649AE /* r_font.c */,
 				78A896992A15F84800BC5B56 /* r_main.c */,
 				78A8968F2A15F84800BC5B56 /* r_shader.c */,
@@ -225,6 +228,7 @@
 				78A896A32A15F84800BC5B56 /* r_mdx_render.c in Sources */,
 				78A896A12A15F84800BC5B56 /* r_war3map_water.c in Sources */,
 				78A896A72A15F84800BC5B56 /* r_war3map_ground.c in Sources */,
+				78ED1A992A49A5F600C42E21 /* r_fogofwar.c in Sources */,
 				78A896A82A15F84800BC5B56 /* r_main.c in Sources */,
 				78A896A62A15F84800BC5B56 /* r_texture.c in Sources */,
 				78A896A92A15F84800BC5B56 /* r_mdx_load.c in Sources */,

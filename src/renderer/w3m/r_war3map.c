@@ -31,7 +31,7 @@ static void R_FileReadShadowMap(HANDLE hMpq, LPWAR3MAP  pWorld) {
     R_LoadTextureMipLevel(pShadowmap, 0, pixels, w, h);
     SFileCloseFile(file);
 
-    tr.shadowmap = pShadowmap;
+    tr.texture[TEX_SHADOWMAP] = pShadowmap;
 }
 
 static LPMAPSEGMENT R_BuildMapSegment(LPCWAR3MAP map, DWORD sx, DWORD sy) {
@@ -83,19 +83,7 @@ static void R_LoadMapSegments(LPCWAR3MAP map) {
 }
 
 void R_AllocateFogOfWar(LPWAR3MAP map) {
-    DWORD const width = (map->width - 1) * 4;
-    DWORD const height = (map->height - 1) * 4;
-    R_Call(glGenFramebuffers, 1, &map->fogOfWarFBO);
-    R_Call(glBindFramebuffer, GL_FRAMEBUFFER, map->fogOfWarFBO);
-    R_Call(glGenTextures, 1, &map->fogOfWarTexture);
-    R_Call(glBindTexture, GL_TEXTURE_2D, map->fogOfWarTexture);
-    R_Call(glTexImage2D, GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
-    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    R_Call(glFramebufferTexture2D, GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, map->fogOfWarTexture, 0);
-    R_Call(glBindFramebuffer, GL_FRAMEBUFFER, 0);
+    R_InitFogOfWar((map->width - 1) * 4, (map->height - 1) * 4);
 }
 
 LPWAR3MAP FileReadWar3Map(HANDLE archive) {
@@ -181,7 +169,7 @@ void R_DrawWorld(void) {
     if (tr.viewDef.rdflags & RDF_NOWORLDMODEL)
         return;
 
-    R_Call(glUseProgram, tr.shaderStatic->progid);
+    R_Call(glUseProgram, tr.shader[SHADER_DEFAULT]->progid);
     
 #ifdef DEBUG_PATHFINDING
     R_BindTexture(pathTexture, 1);
@@ -196,7 +184,7 @@ void R_DrawAlphaSurfaces(void) {
     if (tr.viewDef.rdflags & RDF_NOWORLDMODEL)
         return;
     
-    R_Call(glUseProgram, tr.shaderStatic->progid);
+    R_Call(glUseProgram, tr.shader[SHADER_DEFAULT]->progid);
     R_Call(glEnable, GL_BLEND);
     R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     R_Call(glDepthMask, GL_FALSE);
@@ -204,8 +192,4 @@ void R_DrawAlphaSurfaces(void) {
     FOR_EACH_LIST(MAPSEGMENT, segment, g_mapSegments) {
         R_DrawSegment(segment, (1 << MAPLAYERTYPE_WATER));
     }
-}
-
-void R_DrawFogOfWar(void) {
-    
 }
