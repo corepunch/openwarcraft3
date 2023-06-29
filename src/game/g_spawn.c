@@ -158,13 +158,13 @@ void G_SpawnEntities(LPCSTR mapname, LPCDOODAD entities) {
         e->class_id = doodad->doodID;
         e->variation = doodad->variation;
         s->player = doodad->player & 7;
-        if (e->class_id == MAKEFOURCC('h', 'p', 'e', 'a')) {
-//            e->class_id = MAKEFOURCC('h','r','i','f');
-            e->class_id = MAKEFOURCC('H','a','m','g');
-        }
-        if (e->class_id == MAKEFOURCC('H', 'u', 't', 'h')) {
-            s->player = 2;
-        }
+//        if (e->class_id == MAKEFOURCC('h', 'p', 'e', 'a')) {
+////            e->class_id = MAKEFOURCC('h','r','i','f');
+//            e->class_id = MAKEFOURCC('H','a','m','g');
+//        }
+//        if (e->class_id == MAKEFOURCC('H', 'u', 't', 'h')) {
+//            s->player = 2;
+//        }
         SP_CallSpawn(e);
     }
     SP_worldspawn(NULL);
