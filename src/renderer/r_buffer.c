@@ -34,7 +34,7 @@ VERTEX *R_AddQuad(VERTEX *buffer, LPCRECT screen, LPCRECT uv, COLOR32 color, flo
         },
     };
     memcpy(buffer, data, sizeof(data));
-    return buffer + 6;
+    return buffer + NUM_RECT_VERTICES;
 }
 
 VERTEX *R_AddStrip(VERTEX *buffer, LPCRECT screen, COLOR32 color) {

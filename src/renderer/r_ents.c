@@ -1,6 +1,5 @@
 #include "r_local.h"
 
-
 void R_GetEntityMatrix(renderEntity_t const *entity, LPMATRIX4 matrix) {
     Matrix4_identity(matrix);
     Matrix4_translate(matrix, &entity->origin);
@@ -29,7 +28,7 @@ VECTOR2 R_PointToScreenSpace(float x, float y) {
 
 LINE3 R_LineForScreenPoint(viewDef_t const *viewdef, float x, float y) {
     MATRIX4 invproj;
-    Matrix4_inverse(&viewdef->projectionMatrix, &invproj);
+    Matrix4_inverse(&viewdef->viewProjectionMatrix, &invproj);
     VECTOR2 const p = R_PointToScreenSpace(x, y);
     LINE3 const line = {
         Matrix4_multiply_vector3(&invproj, &(VECTOR3 const) { p.x, p.y, 0 }),
@@ -42,7 +41,7 @@ bool R_TraceEntity(viewDef_t const *viewdef, float x, float y, LPDWORD number) {
     LINE3 const line = R_LineForScreenPoint(viewdef, x, y);
     FOR_LOOP(i, viewdef->num_entities) {
         renderEntity_t *ent = &viewdef->entities[i];
-        if (R_TraceModel(ent, &line)) {
+        if (MDX_TraceModel(ent, &line)) {
             *number = ent->number;
             return true;
         }
@@ -63,7 +62,7 @@ DWORD R_EntitiesInRect(viewDef_t const *viewdef, LPCRECT rect, DWORD max, LPDWOR
     DWORD count = 0;
     FOR_LOOP(i, viewdef->num_entities) {
         renderEntity_t const *ent = &viewdef->entities[i];
-        VECTOR3 const org = Matrix4_multiply_vector3(&viewdef->projectionMatrix, &ent->origin);
+        VECTOR3 const org = Matrix4_multiply_vector3(&viewdef->viewProjectionMatrix, &ent->origin);
         if (ent->number != 0 && Rect_contains(&screen, (LPVECTOR2)&org)) {
             array[count++] = ent->number;
         }
@@ -77,7 +76,7 @@ static void DrawEntityOverlay(renderEntity_t const *ent) {
     COLOR32 black = {0,0,0,255};
     COLOR32 green = {0,255,0,255};
     VECTOR3 pos = Vector3_add(&ent->origin, &(VECTOR3){0,0,150});
-    MATRIX4 const *proj = &tr.viewDef.projectionMatrix;
+    MATRIX4 const *proj = &tr.viewDef.viewProjectionMatrix;
     VECTOR3 p = Matrix4_multiply_vector3(proj, &pos);
     RECT screen = {p.x-0.035,p.y,0.07,0.015};
 
@@ -98,7 +97,7 @@ void R_RenderOverlays(void) {
     
     R_Call(glDisable, GL_CULL_FACE);
     R_Call(glUseProgram, tr.shader[SHADER_UI]->progid);
-    R_Call(glUniformMatrix4fv, tr.shader[SHADER_UI]->uProjectionMatrix, 1, GL_FALSE, ui_matrix.v);
+    R_Call(glUniformMatrix4fv, tr.shader[SHADER_UI]->uViewProjectionMatrix, 1, GL_FALSE, ui_matrix.v);
     R_Call(glUniformMatrix4fv, tr.shader[SHADER_UI]->uModelMatrix, 1, GL_FALSE, ui_matrix.v);
     R_Call(glBindVertexArray, tr.buffer[RBUF_TEMP1]->vao);
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, tr.buffer[RBUF_TEMP1]->vbo);

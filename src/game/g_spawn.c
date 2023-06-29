@@ -68,6 +68,10 @@ static void G_InitEdict(edict_t *e) {
     e->s.number = (int)(e - game_state.edicts);
 }
 
+void G_FreeEdict(edict_t *ent) {
+    memset(ent, 0, sizeof(edict_t));
+}
+
 edict_t *G_Spawn(void) {
     for (DWORD i = game.max_clients + 1; i < globals.num_edicts; i++) {
         edict_t *e = &game_state.edicts[i];
@@ -153,7 +157,14 @@ void G_SpawnEntities(LPCSTR mapname, LPCDOODAD entities) {
         s->scale = doodad->scale.x;
         e->class_id = doodad->doodID;
         e->variation = doodad->variation;
-        s->player = doodad->player;// & 7;
+        s->player = doodad->player & 7;
+        if (e->class_id == MAKEFOURCC('h', 'p', 'e', 'a')) {
+//            e->class_id = MAKEFOURCC('h','r','i','f');
+            e->class_id = MAKEFOURCC('H','a','m','g');
+        }
+        if (e->class_id == MAKEFOURCC('H', 'u', 't', 'h')) {
+            s->player = 2;
+        }
         SP_CallSpawn(e);
     }
     SP_worldspawn(NULL);

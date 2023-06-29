@@ -7,6 +7,11 @@ typedef struct quaternion QUATERNION;
 typedef struct quaternion *LPQUATERNION;
 typedef struct quaternion const *LPCQUATERNION;
 
+float Quaternion_dotProduct(LPCQUATERNION left, LPCQUATERNION right);
+float Quaternion_length(LPCQUATERNION param);
+QUATERNION Quaternion_unm(LPCQUATERNION param);
+QUATERNION Quaternion_normalized(LPCQUATERNION param);
+QUATERNION Quaternion_fromMatrix(LPCMATRIX4 mat);
 QUATERNION Quaternion_slerp(LPCQUATERNION p, LPCQUATERNION q, float t);
 QUATERNION Quaternion_sqlerp(LPCQUATERNION a, LPCQUATERNION b, LPCQUATERNION c, LPCQUATERNION d, float t);
 

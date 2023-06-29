@@ -131,7 +131,7 @@ VECTOR3 R_GetPointOnScreen(LPCVECTOR3 point) {
     if (is_rendering_lights) {
         screen = Matrix4_multiply_vector3(&tr.viewDef.lightMatrix, point);
     } else {
-        screen = Matrix4_multiply_vector3(&tr.viewDef.projectionMatrix, point);
+        screen = Matrix4_multiply_vector3(&tr.viewDef.viewProjectionMatrix, point);
     }
     return screen;
 }

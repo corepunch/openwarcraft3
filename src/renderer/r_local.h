@@ -42,6 +42,7 @@
 #define MAX_SKIN_BONES 8
 #define NUM_SELECTION_CIRCLES 3
 #define NUM_RECT_VERTICES 6
+#define MSEC 1000
 
 #include "../common/common.h"
 #include "../client/renderer.h"
@@ -76,7 +77,7 @@ struct render_buffer {
 
 struct shader_program {
     DWORD progid;
-    DWORD uProjectionMatrix;
+    DWORD uViewProjectionMatrix;
     DWORD uModelMatrix;
     DWORD uLightMatrix;
     DWORD uNormalMatrix;
@@ -157,7 +158,7 @@ LPTEXTURE R_MakeSysFontTexture(void);
 void R_LoadTextureMipLevel(LPCTEXTURE pTexture, DWORD level, LPCCOLOR32 pPixels, DWORD width, DWORD height);
 void R_BindTexture(LPCTEXTURE texture, DWORD unit);
 void R_RenderModel(renderEntity_t const *edict);
-bool R_TraceModel(renderEntity_t const *edict, LPCLINE3 line);
+bool MDX_TraceModel(renderEntity_t const *edict, LPCLINE3 line);
 void R_ReleaseVertexArrayObject(LPBUFFER buffer);
 LPCTEXTURE R_FindTextureByID(DWORD textureID);
 bool R_IsPointVisible(LPCVECTOR3 point, float fThreshold);
@@ -214,6 +215,12 @@ void R_InitFogOfWar(DWORD width, DWORD height);
 void R_ShutdownFogOfWar(void);
 void R_RenderFogOfWar(void);
 DWORD R_GetFogOfWarTexture(void);
+
+// r_particles.c
+void R_InitParticles(void);
+void R_ShutdownParticles(void);
+void R_DrawParticles(void);
+cparticle_t *R_SpawnParticle(void);
 
 // r_war3map.c
 VECTOR2 GetWar3MapSize(LPCWAR3MAP war3Map);

@@ -25,7 +25,7 @@ static umove_t unit_move_death = { "death", NULL, unit_decay1 };
 
 void unit_decay1(edict_t *self) {
 //    self->monsterinfo.currentmove = &unit_move_decay1;
-    self->unitinfo.aiflags |= AI_HOLD_FRAME;
+    self->aiflags |= AI_HOLD_FRAME;
 }
 
 void unit_stand(edict_t *self) {
@@ -39,7 +39,7 @@ void unit_die(edict_t *self, edict_t *attacker) {
 
 void unit_birth(edict_t *self) {
     M_SetMove(self, &unit_move_birth);
-    self->unitinfo.wait = UNIT_BUILD_TIME(self->class_id);
+    self->wait = UNIT_BUILD_TIME(self->class_id);
     self->s.renderfx |= RF_NO_UBERSPLAT;
 }
 

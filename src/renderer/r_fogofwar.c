@@ -12,7 +12,7 @@ LPCSTR vs_shadow =
 "in vec2 i_texcoord;\n"
 "out vec4 v_color;\n"
 "out vec2 v_texcoord;\n"
-"uniform mat4 uProjectionMatrix;\n"
+"uniform mat4 uViewProjectionMatrix;\n"
 "uniform mat4 uModelMatrix;\n"
 "uniform vec2 uEyePosition;\n"
 "void main() {\n"
@@ -30,7 +30,7 @@ LPCSTR vs_shadow =
 "    pos.z = 0;\n"
 "    v_color = i_color;\n"
 "    v_texcoord = i_texcoord;\n"
-"    gl_Position = uProjectionMatrix * uModelMatrix * pos;\n"
+"    gl_Position = uViewProjectionMatrix * uModelMatrix * pos;\n"
 "}\n";
 
 LPCSTR fs_shadow =
@@ -56,7 +56,7 @@ enum {
     FOW_SHADER_COUNT,
 };
 
-struct {
+static struct {
     LPSHADER shader[FOW_SHADER_COUNT];
     LPRENDERTARGET rt[FOW_RT_COUNT];
     LPBUFFER casters;
@@ -156,7 +156,7 @@ static void R_BlitTexture(GLuint texid, float alpha) {
     // Set simple projection
     R_Call(glUseProgram, tr.shader[SHADER_UI]->progid);
     R_Call(glUniformMatrix4fv, tr.shader[SHADER_UI]->uModelMatrix, 1, GL_FALSE, model_matrix.v);
-    R_Call(glUniformMatrix4fv, tr.shader[SHADER_UI]->uProjectionMatrix, 1, GL_FALSE, proj_matrix.v);
+    R_Call(glUniformMatrix4fv, tr.shader[SHADER_UI]->uViewProjectionMatrix, 1, GL_FALSE, proj_matrix.v);
 
     R_Call(glBindTexture, GL_TEXTURE_2D, texid);
     R_Call(glDrawArrays, GL_TRIANGLES, 0, R_PushRectToBuffer(RBUF_TEMP1, &uv, alpha));
@@ -181,11 +181,11 @@ void R_RenderFogOfWar(void) {
     R_PushRectToBuffer(RBUF_TEMP1, &(RECT const){0,0,1,1}, 1);
 
     R_Call(glUseProgram, resources.shader[FOW_SHADER_RAYCAST]->progid);
-    R_Call(glUniformMatrix4fv, resources.shader[FOW_SHADER_RAYCAST]->uProjectionMatrix, 1, GL_FALSE, proj_matrix.v);
+    R_Call(glUniformMatrix4fv, resources.shader[FOW_SHADER_RAYCAST]->uViewProjectionMatrix, 1, GL_FALSE, proj_matrix.v);
     R_Call(glUniformMatrix4fv, resources.shader[FOW_SHADER_RAYCAST]->uModelMatrix, 1, GL_FALSE, model_matrix.v);
 
     R_Call(glUseProgram, tr.shader[SHADER_UI]->progid);
-    R_Call(glUniformMatrix4fv, tr.shader[SHADER_UI]->uProjectionMatrix, 1, GL_FALSE, proj_matrix.v);
+    R_Call(glUniformMatrix4fv, tr.shader[SHADER_UI]->uViewProjectionMatrix, 1, GL_FALSE, proj_matrix.v);
 
     R_Call(glViewport, 0, 0, texture_width, texture_height);
     R_Call(glScissor, 0, 0, texture_width, texture_height);
@@ -241,7 +241,7 @@ void R_RenderFogOfWar(void) {
     // Set simple projection
     R_Call(glUseProgram, tr.shader[SHADER_UI]->progid);
     R_Call(glUniformMatrix4fv, tr.shader[SHADER_UI]->uModelMatrix, 1, GL_FALSE, model_matrix.v);
-    R_Call(glUniformMatrix4fv, tr.shader[SHADER_UI]->uProjectionMatrix, 1, GL_FALSE, proj_matrix.v);
+    R_Call(glUniformMatrix4fv, tr.shader[SHADER_UI]->uViewProjectionMatrix, 1, GL_FALSE, proj_matrix.v);
 
     // Add current state to history
     R_Call(glBlendEquation, GL_MAX);

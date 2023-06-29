@@ -15,10 +15,12 @@ MSG_Read(buffer, object->variable, object->num_##variable * elemsize); }
 #define MODEL_READ_LIST(BLOCK, TYPE, TYPES) \
 while (!FileIsAtEndOfBlock(BLOCK)) { \
     sizeBuf_t inner = FileReadBlock(BLOCK); \
-    mdx##TYPE##_t *p_##TYPE = Read##TYPE(&inner); \
+    mdx##TYPE##_t *p_##TYPE = ri.MemAlloc(sizeof(mdx##TYPE##_t)); \
+    Read##TYPE(&inner, p_##TYPE); \
     PUSH_BACK(mdx##TYPE##_t, p_##TYPE, model->TYPES); \
     BLOCK->readcount += inner.readcount; \
 }
+
 #define MODEL_READ_ARRAY(BLOCK, TYPE, TYPES) \
 model->TYPES = ri.MemAlloc(BLOCK->cursize); \
 model->num_##TYPES = BLOCK->cursize / sizeof(mdx##TYPE##_t); \
@@ -48,6 +50,22 @@ enum {
     ID_KMTE = MAKEFOURCC('K','M','T','E'),
     ID_KMTA = MAKEFOURCC('K','M','T','A'),
     ID_KMTF = MAKEFOURCC('K','M','T','F'),
+    ID_KP2V = MAKEFOURCC('K','P','2','V'),
+    ID_KP2E = MAKEFOURCC('K','P','2','E'),
+    ID_KP2W = MAKEFOURCC('K','P','2','W'),
+    ID_KP2N = MAKEFOURCC('K','P','2','N'),
+    ID_KP2S = MAKEFOURCC('K','P','2','S'),
+    ID_KP2L = MAKEFOURCC('K','P','2','L'),
+    ID_KP2G = MAKEFOURCC('K','P','2','G'),
+    ID_KP2R = MAKEFOURCC('K','P','2','R'),
+    ID_KATV = MAKEFOURCC('K','A','T','V'),
+    ID_KLAV = MAKEFOURCC('K','L','A','V'),
+    ID_KLAC = MAKEFOURCC('K','L','A','C'),
+    ID_KLAI = MAKEFOURCC('K','L','A','I'),
+    ID_KLBC = MAKEFOURCC('K','L','B','C'),
+    ID_KLBI = MAKEFOURCC('K','L','B','I'),
+    ID_KLAS = MAKEFOURCC('K','L','A','S'),
+    ID_KLAE = MAKEFOURCC('K','L','A','E'),
 };
 
 typedef struct {
@@ -58,10 +76,10 @@ typedef struct {
 
 DWORD GetModelKeyTrackDataTypeSize(MODELKEYTRACKDATATYPE dataType) {
     switch (dataType) {
-        case TDATA_INT: return 4;
-        case TDATA_FLOAT: return 4;
-        case TDATA_VECTOR3: return 12;
-        case TDATA_QUATERNION: return 16;
+        case TDATA_INT1: return 4;
+        case TDATA_FLOAT1: return 4;
+        case TDATA_FLOAT3: return 12;
+        case TDATA_FLOAT4: return 16;
         default: return 0;
     }
 }
@@ -156,9 +174,13 @@ LPMODEL R_LoadModel(LPCSTR modelFilename) {
     LPMODEL model = NULL;
     if (file == NULL) {
         // try to load without *0.mdx
-        PATHSTR tempFileName;
-        strncpy(tempFileName, modelFilename, strlen(modelFilename) - 5);
-        strcpy(tempFileName + strlen(modelFilename) - 5, ".mdx");
+        PATHSTR tempFileName = { 0 };
+        LPCSTR end = modelFilename + strlen(modelFilename) - 4;
+        if (end > modelFilename && isdigit(*(end - 1))) {
+            end--;
+        }
+        strncpy(tempFileName, modelFilename, end - modelFilename);
+        strcpy(tempFileName + strlen(tempFileName), ".mdx");
         file = ri.FileOpen(tempFileName);
         if (!file) {
             fprintf(stderr, "Model not found: %s\n", modelFilename);
@@ -228,7 +250,7 @@ blockReadCode_t MSG_ReadBlock(LPSIZEBUF buffer, blockReader_t const *readers, vo
             goto next_block;
         }
         buffer->readcount += block.cursize;;
-//        PrintTag(blockHeader);
+        PrintTag(blockHeader);
     next_block:
         continue;
     }
@@ -277,9 +299,8 @@ void ReadGeosetMatrices(LPSIZEBUF buffer, mdxGeoset_t *geoset) {
     SFileReadArray2(buffer, geoset, bounds, sizeof(mdxBounds_t));
 }
 
-mdxGeoset_t *ReadGeoset(LPSIZEBUF buffer) {
+void ReadGeoset(LPSIZEBUF buffer, mdxGeoset_t *geoset) {
     DWORD header;
-    mdxGeoset_t *geoset = ri.MemAlloc(sizeof(mdxGeoset_t));
     while (MSG_Read(buffer, &header, 4)) {
         switch (header) {
             case ID_VRTX: SFileReadArray2(buffer, geoset, vertices, sizeof(mdxVec3_t)); break;
@@ -297,7 +318,6 @@ mdxGeoset_t *ReadGeoset(LPSIZEBUF buffer) {
                 break;
         }
     };
-    return geoset;
 }
 
 void ReadKeyTrack(LPSIZEBUF buffer, MODELKEYTRACKDATATYPE dataType, mdxKeyTrack_t **output) {
@@ -323,8 +343,8 @@ void ReadMaterialLayer(LPSIZEBUF buffer, mdxMaterialLayer_t *layer) {
     MSG_Read(buffer, &layer->staticAlpha, 4);
     while (MSG_Read(buffer, &blockHeader, 4)) {
         switch (blockHeader) {
-            case ID_KMTA: ReadKeyTrack(buffer, TDATA_FLOAT, &layer->alpha); break;
-            case ID_KMTF: ReadKeyTrack(buffer, TDATA_INT, &layer->flipbook); break;
+            case ID_KMTA: ReadKeyTrack(buffer, TDATA_FLOAT1, &layer->alpha); break;
+            case ID_KMTF: ReadKeyTrack(buffer, TDATA_INT1, &layer->flipbook); break;
             default:
                 PrintTag(blockHeader);
                 break;
@@ -343,37 +363,39 @@ void ReadMaterialLayers(LPSIZEBUF buffer, mdxMaterial_t *material) {
     }
 }
 
-mdxMaterial_t *ReadMaterial(LPSIZEBUF buffer) {
+void ReadMaterial(LPSIZEBUF buffer, mdxMaterial_t *material) {
     DWORD blockHeader;
-    mdxMaterial_t *material = ri.MemAlloc(sizeof(mdxMaterial_t));
     material->priority = MSG_ReadLong(buffer);
     material->flags = MSG_ReadLong(buffer);
     while (MSG_Read(buffer, &blockHeader, 4)) {
         switch (blockHeader) {
             case ID_LAYS: ReadMaterialLayers(buffer, material); break;
-            case ID_KMTE: ReadKeyTrack(buffer, TDATA_FLOAT, &material->emission); break;
-            case ID_KMTA: ReadKeyTrack(buffer, TDATA_FLOAT, &material->alpha); break;
-            case ID_KMTF: ReadKeyTrack(buffer, TDATA_INT, &material->flipbook); break;
+            case ID_KMTE: ReadKeyTrack(buffer, TDATA_FLOAT1, &material->emission); break;
+            case ID_KMTA: ReadKeyTrack(buffer, TDATA_FLOAT1, &material->alpha); break;
+            case ID_KMTF: ReadKeyTrack(buffer, TDATA_INT1, &material->flipbook); break;
             default:
                 PrintTag(blockHeader);
-                return material;
+                return;
         }
     };
-    return material;
 }
 
-void ReadNode(LPSIZEBUF buffer, mdxNode_t *node) {
-    DWORD blockHeader;
+void ReadNode(LPSIZEBUF buffer, mdxNode_t *node, DWORD blockSize) {
+    DWORD blockEnd = buffer->readcount + blockSize;
     MSG_Read(buffer, &node->name, sizeof(mdxObjectName_t));
-    node->object_id = MSG_ReadLong(buffer);
+    node->node_id = MSG_ReadLong(buffer);
     node->parent_id = MSG_ReadLong(buffer);
     node->flags = MSG_ReadLong(buffer);
-    while (MSG_Read(buffer, &blockHeader, 4)) {
+    
+    while (buffer->readcount < blockEnd) {
+        DWORD blockHeader;
+        MSG_Read(buffer, &blockHeader, 4);
         switch (blockHeader) {
-            case ID_KGTR: ReadKeyTrack(buffer, TDATA_VECTOR3, &node->translation); break;
-            case ID_KGRT: ReadKeyTrack(buffer, TDATA_QUATERNION, &node->rotation); break;
-            case ID_KGSC: ReadKeyTrack(buffer, TDATA_VECTOR3, &node->scale); break;
+            case ID_KGTR: ReadKeyTrack(buffer, TDATA_FLOAT3, &node->translation); break;
+            case ID_KGRT: ReadKeyTrack(buffer, TDATA_FLOAT4, &node->rotation); break;
+            case ID_KGSC: ReadKeyTrack(buffer, TDATA_FLOAT3, &node->scale); break;
             default:
+                PrintTag(blockHeader);
                 break;
         }
     }
@@ -384,23 +406,18 @@ void MSG_ReadOverflow(LPSIZEBUF buffer, void *dest, DWORD bytes) {
     MSG_Read(buffer, dest, bytes);
 }
 
-mdxBone_t *ReadBone(LPSIZEBUF buffer) {
-    mdxBone_t *bone = ri.MemAlloc(sizeof(mdxBone_t));
-    ReadNode(buffer, &bone->node);
+void ReadBone(LPSIZEBUF buffer, mdxBone_t *bone) {
+    ReadNode(buffer, &bone->node, buffer->cursize - buffer->readcount);
     MSG_ReadOverflow(buffer, &bone->geoset_id, sizeof(DWORD));
     MSG_ReadOverflow(buffer, &bone->geoset_animation_id, sizeof(DWORD));
-    return bone;
 }
 
-mdxHelper_t *ReadHelper(LPSIZEBUF buffer) {
-    mdxHelper_t *helper = ri.MemAlloc(sizeof(mdxHelper_t));
-    ReadNode(buffer, &helper->node);
-    return helper;
+void ReadHelper(LPSIZEBUF buffer, mdxHelper_t *helper) {
+    ReadNode(buffer, &helper->node, buffer->cursize - buffer->readcount);
 }
 
-mdxCollisionShape_t *ReadCollisionShape(LPSIZEBUF buffer) {
-    mdxCollisionShape_t *cs = ri.MemAlloc(sizeof(mdxCollisionShape_t));
-    ReadNode(buffer, &cs->node);
+void ReadCollisionShape(LPSIZEBUF buffer, mdxCollisionShape_t *cs) {
+    ReadNode(buffer, &cs->node, buffer->cursize - buffer->readcount);
     MSG_ReadOverflow(buffer, &cs->type, sizeof(DWORD));
     MSG_ReadOverflow(buffer, &cs->vertex[0], sizeof(mdxVec3_t));
     if (cs->type != SHAPETYPE_SPHERE) {
@@ -409,12 +426,58 @@ mdxCollisionShape_t *ReadCollisionShape(LPSIZEBUF buffer) {
     if ((cs->type == SHAPETYPE_SPHERE) || (cs->type == SHAPETYPE_CYLINDER)) {
         MSG_ReadOverflow(buffer, &cs->radius, sizeof(float));
     }
-    return cs;
 }
 
-mdxCamera_t *ReadCamera(LPSIZEBUF buffer) {
+#define MSG_READ(BUFFER, VAR) \
+MSG_Read(BUFFER, &VAR, sizeof(VAR));
+
+void ReadParticleEmitter(LPSIZEBUF buffer, mdxParticleEmitter_t *pe) {
+    DWORD emitterSize = MSG_ReadLong(buffer), header;
+    ReadNode(buffer, &pe->node, emitterSize - sizeof(emitterSize));
+    MSG_READ(buffer, pe->Speed);
+    MSG_READ(buffer, pe->Variation);
+    MSG_READ(buffer, pe->Latitude);
+    MSG_READ(buffer, pe->Gravity);
+    MSG_READ(buffer, pe->LifeSpan);
+    MSG_READ(buffer, pe->EmissionRate);
+    MSG_READ(buffer, pe->Length);
+    MSG_READ(buffer, pe->Width);
+    MSG_READ(buffer, pe->FilterMode);
+    MSG_READ(buffer, pe->Rows);
+    MSG_READ(buffer, pe->Columns);
+    MSG_READ(buffer, pe->FrameFlags);
+    MSG_READ(buffer, pe->TailLength);
+    MSG_READ(buffer, pe->Time);
+    MSG_READ(buffer, pe->SegmentColor);
+    MSG_READ(buffer, pe->Alpha);
+    MSG_READ(buffer, pe->ParticleScaling);
+    MSG_READ(buffer, pe->LifeSpanUVAnim);
+    MSG_READ(buffer, pe->DecayUVAnim);
+    MSG_READ(buffer, pe->TailUVAnim);
+    MSG_READ(buffer, pe->TailDecayUVAnim);
+    MSG_READ(buffer, pe->TextureID);
+    MSG_READ(buffer, pe->Squirt);
+    MSG_READ(buffer, pe->PriorityPlane);
+    MSG_READ(buffer, pe->ReplaceableId);
+    while (MSG_Read(buffer, &header, 4)) {
+        switch (header) {
+            case ID_KP2V: ReadKeyTrack(buffer, TDATA_FLOAT1, &pe->keytracks.Visibility); break;
+            case ID_KP2E: ReadKeyTrack(buffer, TDATA_FLOAT1, &pe->keytracks.EmissionRate); break;
+            case ID_KP2W: ReadKeyTrack(buffer, TDATA_FLOAT1, &pe->keytracks.Width); break;
+            case ID_KP2N: ReadKeyTrack(buffer, TDATA_FLOAT1, &pe->keytracks.Length); break;
+            case ID_KP2S: ReadKeyTrack(buffer, TDATA_FLOAT1, &pe->keytracks.Speed); break;
+            case ID_KP2L: ReadKeyTrack(buffer, TDATA_FLOAT1, &pe->keytracks.Latitude); break;
+            case ID_KP2G: ReadKeyTrack(buffer, TDATA_FLOAT1, &pe->keytracks.Gravity); break;
+            case ID_KP2R: ReadKeyTrack(buffer, TDATA_FLOAT1, &pe->keytracks.Variation); break;
+            default:
+                PrintTag(header);
+                break;
+        }
+    }
+}
+
+void ReadCamera(LPSIZEBUF buffer, mdxCamera_t *camera) {
     DWORD blockHeader;
-    mdxCamera_t *camera = ri.MemAlloc(sizeof(mdxCamera_t));
     MSG_Read(buffer, &camera->name, sizeof(mdxObjectName_t));
     MSG_Read(buffer, &camera->pivot, sizeof(mdxVec3_t));
     MSG_Read(buffer, &camera->fieldOfView, sizeof(float));
@@ -423,50 +486,86 @@ mdxCamera_t *ReadCamera(LPSIZEBUF buffer) {
     MSG_Read(buffer, &camera->targetPivot, sizeof(mdxVec3_t));
     while (MSG_Read(buffer, &blockHeader, 4)) {
         switch (blockHeader) {
-            case ID_KCTR: ReadKeyTrack(buffer, TDATA_VECTOR3, &camera->translation); break;
-            case ID_KTTR: ReadKeyTrack(buffer, TDATA_VECTOR3, &camera->targetTranslation); break;
-            case ID_KCRL: ReadKeyTrack(buffer, TDATA_FLOAT, &camera->roll); break;
+            case ID_KCTR: ReadKeyTrack(buffer, TDATA_FLOAT3, &camera->translation); break;
+            case ID_KTTR: ReadKeyTrack(buffer, TDATA_FLOAT3, &camera->targetTranslation); break;
+            case ID_KCRL: ReadKeyTrack(buffer, TDATA_FLOAT1, &camera->roll); break;
             default:
                 break;
         }
     }
-    return camera;
 }
 
-
-
-mdxEvent_t *ReadEvent(LPSIZEBUF buffer) {
-    mdxEvent_t *event = ri.MemAlloc(sizeof(mdxEvent_t));
-    ReadNode(buffer, &event->node);
-    buffer->cursize += 1000;
+void ReadEvent(LPSIZEBUF buffer, mdxEvent_t *event) {
+    ReadNode(buffer, &event->node, buffer->cursize - buffer->readcount);
     DWORD blockHeader;
-    MSG_Read(buffer, &blockHeader, 4);
+    MSG_ReadOverflow(buffer, &blockHeader, 4);
     if (blockHeader == ID_KEVT) {
-        event->num_keys = MSG_ReadLong(buffer);
-        event->globalSeqId = MSG_ReadLong(buffer);
+        MSG_ReadOverflow(buffer, &event->num_keys, sizeof(DWORD));
+        MSG_ReadOverflow(buffer, &event->globalSeqId, sizeof(DWORD));
         event->keys = ri.MemAlloc(event->num_keys * sizeof(DWORD));
-        MSG_Read(buffer, event->keys, event->num_keys * sizeof(DWORD));
-        return event;
+        MSG_ReadOverflow(buffer, event->keys, event->num_keys * sizeof(DWORD));
     } else {
         PrintTag(blockHeader);
-        return NULL;
     }
 }
 
-mdxGeosetAnim_t *ReadGeosetAnim(LPSIZEBUF buffer) {
+void ReadAttachment(LPSIZEBUF buffer, mdxAttachment_t *attachment) {
+    DWORD attachmentSize = MSG_ReadLong(buffer), header;
+    ReadNode(buffer, &attachment->node, attachmentSize - sizeof(attachmentSize));
+    MSG_Read(buffer, attachment->path, MODEL_ATTACHMENT_PATH_LENGTH);
+    MSG_ReadLong(buffer);
+    attachment->attachmentID = MSG_ReadLong(buffer);
+    while (MSG_Read(buffer, &header, 4)) {
+        switch (header) {
+            case ID_KATV:
+                ReadKeyTrack(buffer, TDATA_FLOAT1, &attachment->Visibility);
+                break;
+            default:
+                PrintTag(header);
+                break;
+        }
+    }
+}
+
+void ReadLight(LPSIZEBUF buffer, mdxLight_t *light) {
+    DWORD lightSize = MSG_ReadLong(buffer), header;
+    ReadNode(buffer, &light->node, lightSize - sizeof(lightSize));
+    MSG_READ(buffer, light->type);
+    MSG_READ(buffer, light->AttenuationStart);
+    MSG_READ(buffer, light->AttenuationEnd);
+    MSG_READ(buffer, light->Color);
+    MSG_READ(buffer, light->Intensity);
+    MSG_READ(buffer, light->AmbColor);
+    MSG_READ(buffer, light->AmbIntensity);
+    while (MSG_Read(buffer, &header, 4)) {
+        switch (header) {
+            case ID_KLAV: ReadKeyTrack(buffer, TDATA_FLOAT1, &light->keytracks.Visibility); break;
+            case ID_KLAC: ReadKeyTrack(buffer, TDATA_FLOAT3, &light->keytracks.Color); break;
+            case ID_KLAI: ReadKeyTrack(buffer, TDATA_FLOAT1, &light->keytracks.Intensity); break;
+            case ID_KLBC: ReadKeyTrack(buffer, TDATA_FLOAT3, &light->keytracks.AmbColor); break;
+            case ID_KLBI: ReadKeyTrack(buffer, TDATA_FLOAT1, &light->keytracks.AmbIntensity); break;
+            case ID_KLAS: ReadKeyTrack(buffer, TDATA_INT1, &light->keytracks.AttenuationStart); break;
+            case ID_KLAE: ReadKeyTrack(buffer, TDATA_INT1, &light->keytracks.AttenuationEnd); break;
+            default:
+                PrintTag(header);
+                break;
+        }
+    }
+
+}
+
+void ReadGeosetAnim(LPSIZEBUF buffer, mdxGeosetAnim_t *geosetAnim) {
     DWORD blockHeader;
-    mdxGeosetAnim_t *geosetAnim = ri.MemAlloc(sizeof(mdxGeosetAnim_t));
     MSG_Read(buffer, geosetAnim, 24);
     while (MSG_Read(buffer, &blockHeader, 4)) {
         switch (blockHeader) {
-            case ID_KGAO: ReadKeyTrack(buffer, TDATA_FLOAT, &geosetAnim->alphas); break;
-            case ID_KGAC: ReadKeyTrack(buffer, TDATA_VECTOR3, &geosetAnim->colors); break;
+            case ID_KGAO: ReadKeyTrack(buffer, TDATA_FLOAT1, &geosetAnim->alphas); break;
+            case ID_KGAC: ReadKeyTrack(buffer, TDATA_FLOAT3, &geosetAnim->colors); break;
             default:
                 PrintTag(blockHeader);
-                return geosetAnim;
+                break;
         }
     };
-    return geosetAnim;
 }
 
 mdxNode_t *MDX_GetModelNodeWithObjectID(mdxModel_t *model, DWORD objectID) {
@@ -474,12 +573,12 @@ mdxNode_t *MDX_GetModelNodeWithObjectID(mdxModel_t *model, DWORD objectID) {
         return NULL;
     }
     FOR_EACH_LIST(mdxBone_t, bone, model->bones) {
-        if (bone->node.object_id == objectID) {
+        if (bone->node.node_id == objectID) {
             return &bone->node;
         }
     }
     FOR_EACH_LIST(mdxHelper_t, helper, model->helpers) {
-        if (helper->node.object_id == objectID) {
+        if (helper->node.node_id == objectID) {
             return &helper->node;
         }
     }
@@ -560,6 +659,21 @@ blockReadCode_t MDX_ReadTEXS(LPSIZEBUF sb, mdxModel_t *model) {
     return BLOCKREAD_OK;
 }
 
+blockReadCode_t MDX_ReadPRE2(LPSIZEBUF sb, mdxModel_t *model) {
+    MODEL_READ_LIST(sb, ParticleEmitter, emitters);
+    return BLOCKREAD_OK;
+}
+
+blockReadCode_t MDX_ReadATCH(LPSIZEBUF sb, mdxModel_t *model) {
+    MODEL_READ_LIST(sb, Attachment, attachments);
+    return BLOCKREAD_OK;
+}
+
+blockReadCode_t MDX_ReadLITE(LPSIZEBUF sb, mdxModel_t *model) {
+    MODEL_READ_LIST(sb, Light, lights);
+    return BLOCKREAD_OK;
+}
+
 blockReader_t R_MDLX[] = {
     { "VERS", (blockReaderFunc_t)MDX_ReadVERS },
     { "MODL", (blockReaderFunc_t)MDX_ReadMODL },
@@ -575,6 +689,9 @@ blockReader_t R_MDLX[] = {
     { "PIVT", (blockReaderFunc_t)MDX_ReadPIVT },
     { "TEXS", (blockReaderFunc_t)MDX_ReadTEXS },
     { "CLID", (blockReaderFunc_t)MDX_ReadCLID },
+    { "PRE2", (blockReaderFunc_t)MDX_ReadPRE2 },
+    { "ATCH", (blockReaderFunc_t)MDX_ReadATCH },
+    { "LITE", (blockReaderFunc_t)MDX_ReadLITE },
     { NULL },
 };
 
@@ -586,10 +703,22 @@ mdxModel_t *MDX_LoadBuffer(void *data, DWORD size) {
         return NULL;
     }
     FOR_EACH_LIST(mdxBone_t, bone, model->bones) {
-        model->nodes[bone->node.object_id] = &bone->node;
+        model->nodes[bone->node.node_id] = &bone->node;
     }
     FOR_EACH_LIST(mdxHelper_t, helper, model->helpers) {
-        model->nodes[helper->node.object_id] = &helper->node;
+        model->nodes[helper->node.node_id] = &helper->node;
+    }
+    FOR_EACH_LIST(mdxCollisionShape_t, shape, model->collisionShapes) {
+        model->nodes[shape->node.node_id] = &shape->node;
+    }
+    FOR_EACH_LIST(mdxParticleEmitter_t, emitter, model->emitters) {
+        model->nodes[emitter->node.node_id] = &emitter->node;
+    }
+    FOR_EACH_LIST(mdxAttachment_t, attachment, model->attachments) {
+        model->nodes[attachment->node.node_id] = &attachment->node;
+    }
+    FOR_EACH_LIST(mdxLight_t, light, model->lights) {
+        model->nodes[light->node.node_id] = &light->node;
     }
     FOR_EACH_LIST(mdxGeosetAnim_t, geosetAnim, model->geosetAnims) {
         mdxGeoset_t *geoset = model->geosets;

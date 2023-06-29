@@ -10,7 +10,7 @@ static umove_t tree_move_death = { "death", NULL, tree_decay1 };
 
 void tree_decay1(edict_t *self) {
 //    self->monsterinfo.currentmove = &tree_move_decay1;
-    self->unitinfo.aiflags |= AI_HOLD_FRAME;
+    self->aiflags |= AI_HOLD_FRAME;
 }
 
 void tree_pain(edict_t *self) {

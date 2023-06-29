@@ -18,6 +18,7 @@ struct matrix4 {
     union {
         float v[16];
         VECTOR4 column[4];
+        float m[4][4];
     };
 };
 

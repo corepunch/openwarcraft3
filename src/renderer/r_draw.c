@@ -23,7 +23,7 @@ void R_PrintSysText(LPCSTR string, DWORD x, DWORD y, COLOR32 color) {
     R_Call(glBindVertexArray, tr.buffer[RBUF_TEMP1]->vao);
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, tr.buffer[RBUF_TEMP1]->vbo);
     R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(VERTEX) * num_vertices, simp, GL_STATIC_DRAW);
-    R_Call(glUniformMatrix4fv, tr.shader[SHADER_UI]->uProjectionMatrix, 1, GL_FALSE, ui_matrix.v);
+    R_Call(glUniformMatrix4fv, tr.shader[SHADER_UI]->uViewProjectionMatrix, 1, GL_FALSE, ui_matrix.v);
     
     R_BindTexture(tr.texture[TEX_FONT], 0);
     
@@ -45,7 +45,7 @@ void R_DrawImage(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv) {
     
     R_Call(glDisable, GL_CULL_FACE);
     R_Call(glUseProgram, tr.shader[SHADER_UI]->progid);
-    R_Call(glUniformMatrix4fv, tr.shader[SHADER_UI]->uProjectionMatrix, 1, GL_FALSE, ui_matrix.v);
+    R_Call(glUniformMatrix4fv, tr.shader[SHADER_UI]->uViewProjectionMatrix, 1, GL_FALSE, ui_matrix.v);
     R_Call(glBindVertexArray, tr.buffer[RBUF_TEMP1]->vao);
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, tr.buffer[RBUF_TEMP1]->vbo);
     R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(VERTEX) * 6, simp, GL_STATIC_DRAW);
@@ -71,7 +71,7 @@ void R_DrawSelectionRect(LPCRECT rect, COLOR32 color) {
     Matrix4_ortho(&ui_matrix, 0.0f, window.width, window.height, 0.0f, 0.0f, 100.0f);
 
     R_Call(glUseProgram, tr.shader[SHADER_UI]->progid);
-    R_Call(glUniformMatrix4fv, tr.shader[SHADER_UI]->uProjectionMatrix, 1, GL_FALSE, ui_matrix.v);
+    R_Call(glUniformMatrix4fv, tr.shader[SHADER_UI]->uViewProjectionMatrix, 1, GL_FALSE, ui_matrix.v);
     R_Call(glBindVertexArray, tr.buffer[RBUF_TEMP1]->vao);
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, tr.buffer[RBUF_TEMP1]->vbo);
     R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(simp), simp, GL_STATIC_DRAW);

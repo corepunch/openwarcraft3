@@ -48,11 +48,6 @@ struct frame {
     int oldclientframe;
 };
 
-typedef struct  {
-    VECTOR3 origin;
-    DWORD timespamp;
-} moveConfirmation_t;
-
 typedef uiFrame_t uiLayoutLayer_t[MAX_LAYOUT_OBJECTS];
 
 struct client_state {

@@ -12,7 +12,7 @@ LPCSTR vs_default =
 "out vec2 v_texcoord2;\n"
 "out vec3 v_normal;\n"
 "out vec3 v_lightDir;\n"
-"uniform mat4 uProjectionMatrix;\n"
+"uniform mat4 uViewProjectionMatrix;\n"
 "uniform mat4 uTextureMatrix;\n"
 "uniform mat4 uModelMatrix;\n"
 "uniform mat4 uLightMatrix;\n"
@@ -25,7 +25,7 @@ LPCSTR vs_default =
 "    v_normal = normalize(uNormalMatrix * i_normal);\n"
 "    v_shadow = uLightMatrix * pos;\n"
 "    v_lightDir = -normalize(vec3(uLightMatrix[0][2], uLightMatrix[1][2], uLightMatrix[2][2]))*1.2;\n"
-"    gl_Position = uProjectionMatrix * uModelMatrix * vec4(i_position, 1.0);\n"
+"    gl_Position = uViewProjectionMatrix * uModelMatrix * vec4(i_position, 1.0);\n"
 "}\n";
 
 LPCSTR vs_skin =
@@ -47,7 +47,7 @@ LPCSTR vs_skin =
 "out vec3 v_normal;\n"
 "out vec3 v_lightDir;\n"
 "uniform mat4 uBones[64];\n"
-"uniform mat4 uProjectionMatrix;\n"
+"uniform mat4 uViewProjectionMatrix;\n"
 "uniform mat4 uTextureMatrix;\n"
 "uniform mat4 uModelMatrix;\n"
 "uniform mat4 uLightMatrix;\n"
@@ -82,7 +82,7 @@ LPCSTR vs_skin =
 "    v_normal = normalize(uNormalMatrix * normal.xyz);\n"
 "    v_shadow = uLightMatrix * uModelMatrix * position;\n"
 "    v_lightDir = -normalize(vec3(uLightMatrix[0][2], uLightMatrix[1][2], uLightMatrix[2][2]))*1.2;\n"
-"    gl_Position = uProjectionMatrix * uModelMatrix * position;\n"
+"    gl_Position = uViewProjectionMatrix * uModelMatrix * position;\n"
 "}\n";
 
 LPCSTR fs_default =
@@ -98,6 +98,19 @@ LPCSTR fs_default =
 "uniform sampler2D uShadowmap;\n"
 "uniform sampler2D uFogOfWar;\n"
 "uniform bool uUseDiscard;\n"
+"float get_light() {\n"
+"    return dot(v_normal, v_lightDir);\n"
+"}\n"
+"float get_shadow() {\n"
+"    float depth = texture(uShadowmap, vec2(v_shadow.x + 1.0, v_shadow.y + 1.0) * 0.5).r;\n"
+"    return depth < (v_shadow.z + 0.99) * 0.5 ? 0.0 : 1.0;\n"
+"}\n"
+"float get_lighting() {\n"
+"    return min(1.0, mix(0.35, 1.0, get_shadow() * get_light()) * 1.1);"
+"}\n"
+"float get_fogofwar() {\n"
+"    return texture(uFogOfWar, v_texcoord2).r;\n"
+"}\n"
 "void main() {\n"
 #ifdef DEBUG_PATHFINDING
 "    vec4 debug = texture(uShadowmap, v_texcoord2);\n"
@@ -112,12 +125,8 @@ LPCSTR fs_default =
 "    o_color = debug * 0.7;// mix(debug, color, 0.5) + vec4(stp);\n"
 "    return;\n"
 #endif
-"    float fogofwar = texture(uFogOfWar, v_texcoord2).r;\n"
-"    float depth = texture(uShadowmap, vec2(v_shadow.x + 1.0, v_shadow.y + 1.0) * 0.5).r;\n"
-"    float shade = depth < (v_shadow.z + 0.99) * 0.5 ? 0.0 : 1.0;\n"
 "    vec4 col = texture(uTexture, v_texcoord);\n"
-"    shade *= dot(v_normal, v_lightDir);\n"
-"    col.rgb *= fogofwar * min(1.0, mix(0.35, 1.0, shade) * 1.1);\n"
+"    col.rgb *= get_fogofwar() * get_lighting();\n"
 "    o_color = col * v_color;\n"
 "    if (o_color.a < 0.5 && uUseDiscard) discard;\n"
 "}\n";
@@ -128,9 +137,12 @@ LPCSTR fs_ui =
 "in vec2 v_texcoord;\n"
 "out vec4 o_color;\n"
 "uniform sampler2D uTexture;\n"
+"float crop_edges(vec2 tc) {\n"
+"   return step(abs(tc.x - 0.5), 0.5) * step(abs(tc.y - 0.5), 0.5);\n"
+"}\n"
 "void main() {\n"
 "    o_color = texture(uTexture, v_texcoord) * v_color;\n"
-"    o_color.a *= step(abs(v_texcoord.x-0.5),0.5)*step(abs(v_texcoord.y-0.5),0.5);\n"
+"    o_color.a *= crop_edges(v_texcoord);\n"
 "}\n";
 
 LPSHADER R_InitShader(LPCSTR vs_default, LPCSTR fs_default){
@@ -143,8 +155,7 @@ LPSHADER R_InitShader(LPCSTR vs_default, LPCSTR fs_default){
 
     GLint status;
     R_Call(glGetShaderiv, vs, GL_COMPILE_STATUS, &status);
-    if(status == GL_FALSE)
-    {
+    if(status == GL_FALSE) {
         fprintf(stderr, "vertex shader compilation failed\n");
         return NULL;
     }
@@ -154,8 +165,7 @@ LPSHADER R_InitShader(LPCSTR vs_default, LPCSTR fs_default){
     R_Call(glCompileShader, fs);
 
     R_Call(glGetShaderiv, fs, GL_COMPILE_STATUS, &status);
-    if(status == GL_FALSE)
-    {
+    if(status == GL_FALSE) {
         fprintf(stderr, "fragment shader compilation failed\n");
         return NULL;
     }
@@ -174,11 +184,13 @@ LPSHADER R_InitShader(LPCSTR vs_default, LPCSTR fs_default){
     R_Call(glBindAttribLocation, program->progid, attrib_skin2, "i_skin2");
     R_Call(glBindAttribLocation, program->progid, attrib_boneWeight1, "i_boneWeight1");
     R_Call(glBindAttribLocation, program->progid, attrib_boneWeight2, "i_boneWeight2");
+    R_Call(glBindAttribLocation, program->progid, attrib_particleSize, "i_size");
+    R_Call(glBindAttribLocation, program->progid, attrib_particleAxis, "i_axis");
 
     R_Call(glLinkProgram, program->progid);
     R_Call(glUseProgram, program->progid);
     
-    program->uProjectionMatrix = R_Call(glGetUniformLocation, program->progid, "uProjectionMatrix");
+    program->uViewProjectionMatrix = R_Call(glGetUniformLocation, program->progid, "uViewProjectionMatrix");
     program->uModelMatrix = R_Call(glGetUniformLocation, program->progid, "uModelMatrix");
     program->uLightMatrix = R_Call(glGetUniformLocation, program->progid, "uLightMatrix");
     program->uNormalMatrix = R_Call(glGetUniformLocation, program->progid, "uNormalMatrix");

@@ -114,7 +114,7 @@ EDICT_FUNC(harvest_cooldown) {
         look_for_another_tree(ent);
     } else {
         M_SetMove(ent, &harvest_move_cooldown);
-        ent->unitinfo.wait = HARVEST_COOLDOWN;
+        ent->wait = HARVEST_COOLDOWN;
     }
 }
 
@@ -124,7 +124,7 @@ EDICT_FUNC(harvest_walk) {
 
 EDICT_FUNC(harvest_swing) {
     M_SetMove(ent, &harvest_move_swing);
-    ent->unitinfo.wait = UNIT_ATTACK1_DAMAGE_POINT(ent->class_id);
+    ent->wait = UNIT_ATTACK1_DAMAGE_POINT(ent->class_id);
 }
 
 EDICT_FUNC(harvest_walkback) {

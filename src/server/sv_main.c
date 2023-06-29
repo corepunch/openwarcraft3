@@ -110,7 +110,7 @@ static struct cmodel *SV_LoadModelMDX(HANDLE file) {
     }
 //    FOR_LOOP(i, model->num_animations){
 //        animation_t *anim = &model->animations[i];
-//        printf("  %s %d\n",  anim->name, anim->interval[1] - anim->interval[0]);
+//        printf("  %s %d %d\n",  anim->name, anim->interval[0], anim->interval[1]);
 //    }
     return model;
 }
@@ -118,13 +118,19 @@ static struct cmodel *SV_LoadModelMDX(HANDLE file) {
 static struct cmodel *SV_LoadModel(LPCSTR filename) {
     DWORD fileheader;
     HANDLE file = FS_OpenFile(filename);
-    if (!file)
-        return NULL;
+    if (!file) {
+        PATHSTR path;
+        strcpy(path, filename);
+        path[strlen(path)-1] = 'x';
+        if (!(file = FS_OpenFile(path))) {
+            return NULL;
+        }
+    }
+//    printf("%s\n", filename);
     struct cmodel *model = NULL;
     SFileReadFile(file, &fileheader, 4, NULL, NULL);
     switch (fileheader) {
         case ID_MDLX:
-//            printf("%s\n", filename);
             model = SV_LoadModelMDX(file);
             break;
         default:

@@ -72,14 +72,14 @@ static void R_SetupGL(bool drawLight) {
     R_Call(glCullFace, GL_BACK);
 
     R_Call(glUseProgram, tr.shader[SHADER_SKIN]->progid);
-    R_Call(glUniformMatrix4fv, tr.shader[SHADER_SKIN]->uProjectionMatrix, 1, GL_FALSE, drawLight ? tr.viewDef.lightMatrix.v : tr.viewDef.projectionMatrix.v);
+    R_Call(glUniformMatrix4fv, tr.shader[SHADER_SKIN]->uViewProjectionMatrix, 1, GL_FALSE, drawLight ? tr.viewDef.lightMatrix.v : tr.viewDef.viewProjectionMatrix.v);
     R_Call(glUniformMatrix4fv, tr.shader[SHADER_SKIN]->uTextureMatrix, 1, GL_FALSE, texture_matrix.v);
     R_Call(glUniformMatrix4fv, tr.shader[SHADER_SKIN]->uModelMatrix, 1, GL_FALSE, model_matrix.v);
     R_Call(glUniformMatrix4fv, tr.shader[SHADER_SKIN]->uLightMatrix, 1, GL_FALSE, tr.viewDef.lightMatrix.v);
     R_Call(glUniformMatrix3fv, tr.shader[SHADER_SKIN]->uNormalMatrix, 1, GL_TRUE, normal_matrix.v);
     
     R_Call(glUseProgram, tr.shader[SHADER_DEFAULT]->progid);
-    R_Call(glUniformMatrix4fv, tr.shader[SHADER_DEFAULT]->uProjectionMatrix, 1, GL_FALSE, drawLight ? tr.viewDef.lightMatrix.v : tr.viewDef.projectionMatrix.v);
+    R_Call(glUniformMatrix4fv, tr.shader[SHADER_DEFAULT]->uViewProjectionMatrix, 1, GL_FALSE, drawLight ? tr.viewDef.lightMatrix.v : tr.viewDef.viewProjectionMatrix.v);
     R_Call(glUniformMatrix4fv, tr.shader[SHADER_DEFAULT]->uTextureMatrix, 1, GL_FALSE, texture_matrix.v);
     R_Call(glUniformMatrix4fv, tr.shader[SHADER_DEFAULT]->uModelMatrix, 1, GL_FALSE, model_matrix.v);
     R_Call(glUniformMatrix4fv, tr.shader[SHADER_DEFAULT]->uLightMatrix, 1, GL_FALSE, tr.viewDef.lightMatrix.v);
@@ -87,7 +87,7 @@ static void R_SetupGL(bool drawLight) {
 
     R_Call(glUseProgram, tr.shader[SHADER_UI]->progid);
 
-    R_Call(glUniformMatrix4fv, tr.shader[SHADER_UI]->uProjectionMatrix, 1, GL_FALSE, ui_matrix.v);
+    R_Call(glUniformMatrix4fv, tr.shader[SHADER_UI]->uViewProjectionMatrix, 1, GL_FALSE, ui_matrix.v);
     R_Call(glUniformMatrix4fv, tr.shader[SHADER_UI]->uModelMatrix, 1, GL_FALSE, model_matrix.v);
     
     R_Call(glDepthFunc, GL_LEQUAL);
@@ -181,10 +181,12 @@ void R_Init(DWORD width, DWORD height) {
     R_Call(glDisable, GL_DEPTH_TEST);
     R_Call(glClearColor, 0.0, 0.0, 0.0, 0.0);
     R_Call(glViewport, 0, 0, width, height);
+    
+    R_InitParticles();
 }
 
 bool R_IsPointVisible(LPCVECTOR3 point, float fThreshold) {
-    VECTOR3 screen = Matrix4_multiply_vector3(&tr.viewDef.projectionMatrix, point);
+    VECTOR3 screen = Matrix4_multiply_vector3(&tr.viewDef.viewProjectionMatrix, point);
     if (screen.x < -fThreshold) return false;
     if (screen.y < -fThreshold) return false;
     if (screen.x > fThreshold) return false;
@@ -236,6 +238,7 @@ void R_RenderView(void) {
     R_DrawWorld();
     R_DrawEntities();
     R_DrawAlphaSurfaces();
+    R_DrawParticles();
     R_RevertSettings();
 }
 
@@ -243,7 +246,9 @@ void R_RenderFrame(viewDef_t const *viewDef) {
     R_Call(glActiveTexture, GL_TEXTURE2);
     R_Call(glBindTexture, GL_TEXTURE_2D, R_GetFogOfWarTexture());
     R_Call(glActiveTexture, GL_TEXTURE0);
+
     tr.viewDef = *viewDef;
+
     R_RenderFogOfWar();
     R_RenderShadowMap();
     R_RenderView();
@@ -272,6 +277,7 @@ void R_EndFrame(void) {
 
 void R_Shutdown(void) {
     R_ShutdownFogOfWar();
+    R_ShutdownParticles();
     
     SDL_GL_DeleteContext(context);
     SDL_DestroyWindow(window);

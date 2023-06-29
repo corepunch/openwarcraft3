@@ -108,16 +108,16 @@ static QUATERNION interpQuat(mdxKeyFrame_t const *left, mdxKeyFrame_t const *rig
 
 void R_GetKeyframeValue(mdxKeyFrame_t const *left, mdxKeyFrame_t const *right, DWORD time, mdxKeyTrack_t const *keytrack, HANDLE out) {
     switch (keytrack->datatype) {
-        case TDATA_INT:
+        case TDATA_INT1:
             *((int *)out) = interpInt(left, right, time, keytrack->type);
             return;
-        case TDATA_FLOAT:
+        case TDATA_FLOAT1:
             *((float *)out) = interpFloat(left, right, time, keytrack->type);
             return;
-        case TDATA_VECTOR3:
+        case TDATA_FLOAT3:
             *((VECTOR3 *)out) = interpVec3(left, right, time, keytrack->type);
             return;
-        case TDATA_QUATERNION:
+        case TDATA_FLOAT4:
             *((QUATERNION *)out) = interpQuat(left, right, time, keytrack->type);
             return;
     }

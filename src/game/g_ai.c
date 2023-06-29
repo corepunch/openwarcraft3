@@ -29,17 +29,20 @@ void M_SetAnimation(edict_t *self, LPCSTR anim) {
 }
 
 void M_SetMove(edict_t *self, umove_t *move) {
-    self->unitinfo.currentmove = move;
+    self->currentmove = move;
     self->animation = gi.GetAnimation(self->s.model, move->animation);
+    if (!self->animation && strstr(move->animation, "stand ")) {
+        self->animation = gi.GetAnimation(self->s.model, "stand");
+    }
 }
 
 void M_RunWait(edict_t *self, void (*callback)(edict_t *)) {
-    if (self->unitinfo.wait <= 0)
+    if (self->wait <= 0)
         return;
-    if (self->unitinfo.wait > FRAMETIME / 1000.f) {
-        self->unitinfo.wait -= FRAMETIME / 1000.f;
+    if (self->wait > FRAMETIME / 1000.f) {
+        self->wait -= FRAMETIME / 1000.f;
     } else {
-        self->unitinfo.wait = 0;
+        self->wait = 0;
         callback(self);
     }
 }

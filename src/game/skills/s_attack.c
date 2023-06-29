@@ -4,32 +4,89 @@ EDICT_FUNC(attack_walk);
 EDICT_FUNC(attack_melee);
 EDICT_FUNC(attack_cooldown);
 
+typedef struct {
+    edict_t *target;
+    VECTOR3 start;
+    VECTOR3 dir;
+    DWORD speed;
+    DWORD model;
+    DWORD damage;
+}  rocketDesc_t;
+
+void fire_rocket(edict_t *ent, rocketDesc_t const *desc) {
+    VECTOR3 dir = Vector3_sub(&desc->target->s.origin, &ent->s.origin);
+    Vector3_normalize(&dir);
+    edict_t *rocket = G_Spawn();
+    rocket->s.origin = desc->start;
+    rocket->s.angle = atan2f(dir.y, dir.x);
+    rocket->s.model = desc->model;
+    rocket->velocity = desc->speed / 1000.f;
+    rocket->damage = desc->damage;
+    rocket->goalentity = desc->target;
+    rocket->owner = ent;
+    rocket->movetype = MOVETYPE_FLYMISSILE;
+    rocket->s.renderfx |= 64;
+//    rocket->clipmask = MASK_SHOT;
+//    rocket->solid = SOLID_BBOX;
+//    rocket->s.effects |= EF_ROCKET;
+//    VectorClear (rocket->mins);
+//    VectorClear (rocket->maxs);
+//    rocket->s.modelindex = gi.modelindex ("models/objects/rocket/tris.md2");
+//    rocket->owner = self;
+//    rocket->touch = rocket_touch;
+//    rocket->nextthink = level.time + 8000/speed;
+//    rocket->think = G_FreeEdict;
+//    rocket->dmg = damage;
+//    rocket->radius_dmg = radius_damage;
+//    rocket->dmg_radius = damage_radius;
+//    rocket->s.sound = gi.soundindex ("weapons/rockfly.wav");
+//    rocket->classname = "rocket";
+//
+//    if (self->client)
+//        check_dodge (self, rocket->s.origin, dir, speed);
+//
+//    gi.linkentity (rocket);
+}
+
 static float ai_rolldamage1(edict_t *self, int weapon) {
-    DWORD damageBase = UNIT_ATTACK1_DAMAGE_BASE(self->class_id);
-    DWORD numberOfDice = UNIT_ATTACK1_DAMAGE_NUMBER_OF_DICE(self->class_id);
-    DWORD sidesPerDie = UNIT_ATTACK1_DAMAGE_SIDES_PER_DIE(self->class_id);
-    FOR_LOOP(i, numberOfDice) {
-        damageBase += rand() % sidesPerDie + 1;
+    float damageBase = self->attack1.damageBase;
+    FOR_LOOP(i, self->attack1.numberOfDice) {
+        damageBase += rand() % self->attack1.sidesPerDie + 1;
     }
     return damageBase;
+}
+
+void M_GetEntityMatrix(entityState_t const *entity, LPMATRIX4 matrix) {
+    Matrix4_identity(matrix);
+    Matrix4_translate(matrix, &entity->origin);
+    Matrix4_rotate(matrix, &(VECTOR3){0, 0, entity->angle * 180 / M_PI}, ROTATE_XYZ);
+    Matrix4_scale(matrix, &(VECTOR3){entity->scale, entity->scale, entity->scale});
 }
 
 static EDICT_FUNC(ai_damagetarget) {
     edict_t *other = ent->goalentity;
     DWORD damage = ai_rolldamage1(ent, 1);
-    if (other->health <= damage) {
-        other->health = 0;
-        other->die(other, ent);
-        ent->stand(ent);
-        return;
-    }
-    other->health -= damage;
-    /*if (other->unitinfo.melee && !other->enemy) {
-        other->enemy = ent;
-        other->unitinfo.melee(other);
-        M_ChangeAngle(other);
-    } else */if (other->pain) {
-        other->pain(other);
+    if (ent->attack1.weapon == WPN_MISSILE) {
+        MATRIX4 matrix;
+        M_GetEntityMatrix(&ent->s, &matrix);
+        VECTOR3 origin = Matrix4_multiply_vector3(&matrix, &ent->attack1.origin);
+        fire_rocket(ent, &(rocketDesc_t) {
+            .start = origin,
+            .target = other,
+            .speed = ent->attack1.projectile.speed,
+            .model = ent->attack1.projectile.model,
+            .damage = damage,
+        });
+//        gi.WriteByte (svc_temp_entity);
+//        gi.WriteByte(TE_MISSILE);
+//        gi.WritePosition(&origin);
+//        gi.WriteShort(ent->attack1.projectile.model);
+//        gi.WriteShort(ent->attack1.projectile.speed);
+//        gi.WriteShort(Vector2_len(&dir) * 1000 / ent->attack1.projectile.speed);
+//        gi.WriteAngle(atan2(dir.y, dir.x));
+//        gi.multicast(&ent->s.origin, MULTICAST_PHS);
+    } else {
+        T_Damage(other, ent, damage);
     }
 }
 
@@ -58,19 +115,17 @@ static umove_t attack_move_melee = { "attack", ai_melee, attack_cooldown };
 
 void attack_start(edict_t *self, edict_t *target) {
     self->goalentity = target;
- 
     M_SetMove(self, &attack_move_walk);
 }
 
 void attack_cooldown(edict_t *self) {
     M_SetMove(self, &attack_move_cooldown);
-    
-    self->unitinfo.wait = UNIT_ATTACK1_BASE_COOLDOWN(self->class_id);
+    self->wait = self->attack1.cooldown;
 }
 
 void attack_melee(edict_t *self) {
     M_SetMove(self, &attack_move_melee);
-    self->unitinfo.wait = UNIT_ATTACK1_DAMAGE_POINT(self->class_id);
+    self->wait = self->attack1.damagePoint;
 }
 
 bool attack_menu_selecttarget(edict_t *ent, edict_t *target) {

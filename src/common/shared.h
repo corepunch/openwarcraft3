@@ -217,6 +217,7 @@ typedef enum {
     TE_GUNSHOT,
     TE_BLOOD,
     TE_MOVE_CONFIRMATION,
+    TE_MISSILE,
 } tempEvent_t;
 
 typedef enum {
@@ -419,6 +420,21 @@ struct Doodad {
     DWORD unitID;
     struct Doodad *next;
 };
+
+typedef struct particle_s {
+    struct particle_s *next;
+    struct texture const *texture;
+    VECTOR3 org;
+    VECTOR3 vel;
+    VECTOR3 accel;
+    COLOR32 color[3];
+    BYTE size[3];
+    BYTE midtime;
+    BYTE columns;
+    BYTE rows;
+    float time;
+    float lifespan;
+} cparticle_t;
 
 //#define NULL 0
 

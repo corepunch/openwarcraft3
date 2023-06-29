@@ -198,7 +198,9 @@ void R_RenderSplat(LPCVECTOR2 position,
 
     R_BindTexture(texture, 0);
     R_Call(glUseProgram, shader->progid);
-    R_Call(glUniformMatrix4fv, shader->uProjectionMatrix, 1, GL_FALSE, tr.viewDef.projectionMatrix.v);
+    R_Call(glUniformMatrix4fv, shader->uViewProjectionMatrix, 1, GL_FALSE, tr.viewDef.viewProjectionMatrix.v);
+    R_Call(glEnable, GL_BLEND);
+    R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     R_Call(glBindVertexArray, tr.buffer[RBUF_TEMP1]->vao);
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, tr.buffer[RBUF_TEMP1]->vbo);
     R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(VERTEX) * num_vertices, aVertexBuffer, GL_STATIC_DRAW);

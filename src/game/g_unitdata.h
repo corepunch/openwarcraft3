@@ -98,11 +98,17 @@
 #define UNIT_UBER_SPLAT(UNIT) UnitStringField(UnitsMetaData, UNIT, "uubs")
 #define UNIT_PATH_TEX(UNIT) UnitStringField(UnitsMetaData, UNIT, "upat")
 
+
+#define UNIT_ATTACK1_LAUNCH_X(UNIT) UnitRealField(UnitsMetaData, UNIT, "ulpx")
+#define UNIT_ATTACK1_LAUNCH_Y(UNIT) UnitRealField(UnitsMetaData, UNIT, "ulpy")
+#define UNIT_ATTACK1_LAUNCH_Z(UNIT) UnitRealField(UnitsMetaData, UNIT, "ulpz")
+
 #define UNIT_ATTACK1_DAMAGE_NUMBER_OF_DICE(UNIT) UnitIntegerField(UnitsMetaData, UNIT, "ua1d")
 #define UNIT_ATTACK1_DAMAGE_BASE(UNIT) UnitIntegerField(UnitsMetaData, UNIT, "ua1b")
 #define UNIT_ATTACK1_DAMAGE_SIDES_PER_DIE(UNIT) UnitIntegerField(UnitsMetaData, UNIT, "ua1s")
 #define UNIT_ATTACK1_MAXIMUM_NUMBER_OF_TARGETS(UNIT) UnitIntegerField(UnitsMetaData, UNIT, "utc1")
-#define UNIT_ATTACK1_ATTACK_TYPE(UNIT) UnitIntegerField(UnitsMetaData, UNIT, "ua1t")
+#define UNIT_ATTACK1_ATTACK_TYPE(UNIT) UnitStringField(UnitsMetaData, UNIT, "ua1t")
+#define UNIT_ATTACK1_WEAPON_TYPE(UNIT) UnitStringField(UnitsMetaData, UNIT, "ua1w")
 #define UNIT_ATTACK1_WEAPON_SOUND(UNIT) UnitIntegerField(UnitsMetaData, UNIT, "ucs1")
 #define UNIT_ATTACK1_AREA_OF_EFFECT_TARGETS(UNIT) UnitIntegerField(UnitsMetaData, UNIT, "ua1p")
 #define UNIT_ATTACK1_TARGETS_ALLOWED(UNIT) UnitIntegerField(UnitsMetaData, UNIT, "ua1g")
@@ -128,7 +134,8 @@
 #define UNIT_ATTACK2_DAMAGE_BASE(UNIT) UnitIntegerField(UnitsMetaData, UNIT, "ua2b")
 #define UNIT_ATTACK2_DAMAGE_SIDES_PER_DIE(UNIT) UnitIntegerField(UnitsMetaData, UNIT, "ua2s")
 #define UNIT_ATTACK2_MAXIMUM_NUMBER_OF_TARGETS(UNIT) UnitIntegerField(UnitsMetaData, UNIT, "utc2")
-#define UNIT_ATTACK2_ATTACK_TYPE(UNIT) UnitIntegerField(UnitsMetaData, UNIT, "ua2t")
+#define UNIT_ATTACK2_ATTACK_TYPE(UNIT) UnitStringField(UnitsMetaData, UNIT, "ua2t")
+#define UNIT_ATTACK2_WEAPON_TYPE(UNIT) UnitStringField(UnitsMetaData, UNIT, "ua2w")
 #define UNIT_ATTACK2_WEAPON_SOUND(UNIT) UnitIntegerField(UnitsMetaData, UNIT, "ucs2")
 #define UNIT_ATTACK2_AREA_OF_EFFECT_TARGETS(UNIT) UnitIntegerField(UnitsMetaData, UNIT, "ua2p")
 #define UNIT_ATTACK2_TARGETS_ALLOWED(UNIT) UnitIntegerField(UnitsMetaData, UNIT, "ua2g")

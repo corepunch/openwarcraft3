@@ -34,3 +34,72 @@ QUATERNION Quaternion_sqlerp(LPCQUATERNION a, LPCQUATERNION b, LPCQUATERNION c, 
     QUATERNION temp2 = Quaternion_slerp(b, c, t);
     return Quaternion_slerp(&temp1, &temp2, 2 * t * (1 - t));
 }
+
+float Quaternion_dotProduct(LPCQUATERNION left, LPCQUATERNION right) {
+    return left->w * right->w + left->x * right->x + left->y * right->y + left->z * right->z;
+}
+
+float Quaternion_length(LPCQUATERNION param) {
+    return sqrt(Quaternion_dotProduct(param, param));
+}
+
+QUATERNION Quaternion_unm(LPCQUATERNION param) {
+    return Quaternion_normalized(&(QUATERNION) {
+        .x = -param->x,
+        .y = -param->y,
+        .z = -param->z,
+        .w =  param->w,
+    });
+}
+
+QUATERNION Quaternion_normalized(LPCQUATERNION param) {
+    QUATERNION r;
+    float length = Quaternion_length(param);
+    if (length < EPSILON)
+        return *param;
+    r.x = param->x / length;
+    r.y = param->y / length;
+    r.z = param->z / length;
+    r.w = param->w / length;
+    return r;
+}
+
+QUATERNION Quaternion_fromMatrix(LPCMATRIX4 mat) {
+    QUATERNION r;
+
+    // Algorithm in Ken Shoemake's article in 1987 SIGGRAPH course notes
+    // article "Quaternion Calculus and Fast Animation".
+
+    float fTrace = mat->m[0][0] + mat->m[1][1] + mat->m[2][2];
+    float fRoot;
+
+    if (fTrace > 0.0) {
+        // |w| > 1/2, may as well choose w > 1/2
+        fRoot = sqrt(fTrace + 1.0f);  // 2w
+        r.w = 0.5f * fRoot;
+        fRoot = 0.5f / fRoot;  // 1/(4w)
+        r.x = (mat->m[1][2] - mat->m[2][1]) * fRoot;
+        r.y = (mat->m[2][0] - mat->m[0][2]) * fRoot;
+        r.z = (mat->m[0][1] - mat->m[1][0]) * fRoot;
+    } else {
+        // |w| <= 1/2
+        static int s_iNext[3] = { 1, 2, 0 };
+        int i = 0;
+        if ( mat->m[1][1] > mat->m[0][0] )
+            i = 1;
+        if ( mat->m[2][2] > mat->m[i][i] )
+            i = 2;
+        int j = s_iNext[i];
+        int k = s_iNext[j];
+        fRoot = sqrt(mat->m[i][i] - mat->m[j][j] - mat->m[k][k] + 1.0f);
+        float* apkQuat[3] = { &r.x, &r.y, &r.z };
+        *apkQuat[i] = 0.5f*fRoot;
+        fRoot = 0.5f/fRoot;
+        r.w = (mat->m[j][k] - mat->m[k][j]) * fRoot;
+        *apkQuat[j] = (mat->m[i][j] + mat->m[j][i]) * fRoot;
+        *apkQuat[k] = (mat->m[i][k] + mat->m[k][i]) * fRoot;
+    }
+
+    return Quaternion_normalized(&r);
+}
+

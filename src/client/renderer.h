@@ -57,10 +57,11 @@ typedef struct {
     RECT viewport;
     RECT scissor;
     DWORD time;
+    DWORD deltaTime;
     float lerpfrac;
     DWORD num_entities;
     renderEntity_t *entities;
-    MATRIX4 projectionMatrix;
+    MATRIX4 viewProjectionMatrix;
     MATRIX4 lightMatrix;
     DWORD rdflags;
 } viewDef_t;

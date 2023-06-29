@@ -79,20 +79,6 @@ static void V_ClearScene(void) {
     cl.viewDef.num_entities = 0;
 }
 
-static LINE3 CL_GetMouseLine(LPCVECTOR2 mouse) {
-    LINE3 line;
-    MATRIX4 cameramat;
-    MATRIX4 invcammat;
-    size2_t const windowSize = re.GetWindowSize();
-    float const x = (mouse->x / (float)windowSize.width - 0.5) * 2;
-    float const y = (0.5 - mouse->y / (float)windowSize.height) * 2;
-    Matrix4_getCameraMatrix(&cl.viewDef.camera, &cameramat);
-    Matrix4_inverse(&cameramat, &invcammat);
-    line.a = Matrix4_multiply_vector3(&invcammat, &(VECTOR3) { x, y, 0 });
-    line.b = Matrix4_multiply_vector3(&invcammat, &(VECTOR3) { x, y, 1 });
-    return line;
-}
-
 static void CL_AddBuilding(void) {
     if (!cl.cursorEntity)
         return;
@@ -188,11 +174,14 @@ void V_RenderView(void) {
     re.SetPathTexture(pathDebug);
 #endif
     
+    static DWORD lastTime = 0;
+    
     cl.viewDef.viewport = (RECT) { 0, 0, 1, 1 };
     cl.viewDef.scissor = (RECT) { 0, 0.2, 1, 0.8 };
     cl.viewDef.time = cl.time;
+    cl.viewDef.deltaTime = cl.time - lastTime;
     
-    Matrix4_getCameraMatrix(&cl.viewDef.camera, &cl.viewDef.projectionMatrix);
+    Matrix4_getCameraMatrix(&cl.viewDef.camera, &cl.viewDef.viewProjectionMatrix);
     Matrix4_getLightMatrix(&lightAngles, &cl.viewDef.camera.origin, VIEW_SHADOW_SIZE, &cl.viewDef.lightMatrix);
 
     V_ClearScene();
@@ -206,6 +195,8 @@ void V_RenderView(void) {
     if (cl.selection.in_progress) {
         re.DrawSelectionRect(&cl.selection.rect, (COLOR32){0,255,0,255});
     }
+    
+    lastTime = cl.time;
 }
 
 void V_AddEntity(renderEntity_t *ent) {

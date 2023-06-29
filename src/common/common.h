@@ -75,6 +75,8 @@ typedef enum t_attrib_id {
     attrib_skin2,
     attrib_boneWeight1,
     attrib_boneWeight2,
+    attrib_particleAxis,
+    attrib_particleSize,
 } t_attrib_id;
 
 struct texture;

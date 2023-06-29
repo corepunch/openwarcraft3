@@ -55,6 +55,29 @@ enum {
 };
 
 typedef enum {
+    ATK_NONE,
+    ATK_NORMAL,
+    ATK_PIERCE,
+    ATK_SIEGE,
+    ATK_SPELLS,
+    ATK_CHAOS,
+    ATK_MAGIC,
+    ATK_HERO,
+} attackType_t;
+
+typedef enum {
+    WPN_NONE,
+    WPN_NORMAL,
+    WPN_INSTANT,
+    WPN_ARTILLERY,
+    WPN_ALINE,
+    WPN_MISSILE,
+    WPN_MSPLASH,
+    WPN_MBOUNCE,
+    WPN_MLINE,
+} weaponType_t;
+
+typedef enum {
     TARG_NONE,
     TARG_AIR,
     TARG_ALIVE,
@@ -180,11 +203,20 @@ typedef struct ability_s {
 } ability_t;
 
 typedef struct {
-    umove_t *currentmove;
-    DWORD aiflags;
-//    unitRace_t race;
-    float wait;
-} unitinfo_t;
+    attackType_t type;
+    weaponType_t weapon;
+    VECTOR3 origin;
+    DWORD damageBase;
+    DWORD numberOfDice;
+    DWORD sidesPerDie;
+    float damagePoint;
+    float cooldown;
+    struct {
+        DWORD model;
+        float arc;
+        float speed;
+    } projectile;
+} unitAttack_t;
 
 struct edict_s {
     entityState_t s;
@@ -200,6 +232,7 @@ struct edict_s {
     float health;
     float collision;
     float max_health;
+    float velocity;
     DWORD harvested_lumber;
     DWORD harvested_gold;
     movetype_t movetype;
@@ -207,9 +240,17 @@ struct edict_s {
     handle_t heatmap2;
     edict_t *goalentity;
     edict_t *secondarygoal;
+    edict_t *owner;
     animation_t const *animation;
     bool inuse;
     int peonsinside;
+    umove_t *currentmove;
+    DWORD aiflags;
+    DWORD damage;
+//    unitRace_t race;
+    float wait;
+    unitAttack_t attack1;
+    unitAttack_t attack2;
 
     void (*stand)(edict_t *self);
     void (*birth)(edict_t *self);
@@ -217,8 +258,6 @@ struct edict_s {
     void (*think)(edict_t *self);
     void (*pain)(edict_t *self);
     void (*die)(edict_t *self, edict_t *attacker);
-
-    unitinfo_t unitinfo;
 };
 
 struct game_state {
@@ -267,6 +306,7 @@ typedef struct sheetMetaData_s {
 
 // g_spawn
 edict_t *G_Spawn(void);
+void G_FreeEdict(edict_t *ent);
 void SP_SpawnUnit(edict_t *edict);
 void SP_CallSpawn(edict_t *edict);
 void G_SpawnEntities(LPCSTR mapname, LPCDOODAD doodads);
@@ -354,6 +394,9 @@ bool G_IsEntitySelected(gclient_t *client, edict_t *ent);
 
 //  s_skills.c
 float AB_Number(ability_t const *ability, LPCSTR field);
+
+// g_combat.c
+void T_Damage(edict_t *target, edict_t *attacker, int damage);
 
 // globals
 extern struct game_locals game;

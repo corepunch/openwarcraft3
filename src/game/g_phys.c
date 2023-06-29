@@ -1,22 +1,36 @@
 #include "g_local.h"
 
-void SV_Physics_Step(edict_t *edict) {
-    M_CheckGround(edict);
+void SV_Physics_Step(edict_t *ent) {
+    M_CheckGround(ent);
 }
 
-void G_RunEntity(edict_t *edict) {
-    SAFE_CALL(edict->prethink, edict);
-    switch (edict->movetype) {
+void SV_Physics_Toss(edict_t *ent) {
+    float distance = ent->velocity * FRAMETIME;
+    VECTOR3 dir = Vector3_sub(&ent->goalentity->s.origin, &ent->s.origin);
+    if (Vector3_len(&dir) < distance) {
+        T_Damage(ent->goalentity, ent->owner, ent->damage);
+        G_FreeEdict(ent);
+    } else {
+        Vector3_normalize(&dir);
+        ent->s.origin = Vector3_mad(&ent->s.origin, distance, &dir);
+    }
+}
+
+void G_RunEntity(edict_t *ent) {
+    SAFE_CALL(ent->prethink, ent);
+    switch (ent->movetype) {
         case MOVETYPE_STEP:
-            SV_Physics_Step(edict);
+            SV_Physics_Step(ent);
+            break;
+        case MOVETYPE_FLYMISSILE:
+            SV_Physics_Toss(ent);
             break;
         default:
 //            gi.error("SV_Physics: bad movetype %d", edict->movetype);
             break;
     }
-    SAFE_CALL(edict->think, edict);
-    
-    edict->s.health = edict->health / MAX(1, edict->max_health);
+    SAFE_CALL(ent->think, ent);
+    ent->s.health = ent->health / MAX(1, ent->max_health);
 }
 
 bool M_IsHollow(edict_t *ent) {

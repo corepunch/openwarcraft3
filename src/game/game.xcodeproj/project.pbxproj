@@ -25,6 +25,7 @@
 		78BBB9A72A435D8300B0FC57 /* g_pathing.c in Sources */ = {isa = PBXBuildFile; fileRef = 78BBB9A62A435D8300B0FC57 /* g_pathing.c */; };
 		78BBB9AB2A44CC2000B0FC57 /* s_goldmine.c in Sources */ = {isa = PBXBuildFile; fileRef = 78BBB9AA2A44CC2000B0FC57 /* s_goldmine.c */; };
 		78C453902A1E7F2E00C93B16 /* g_commands.c in Sources */ = {isa = PBXBuildFile; fileRef = 78C4538F2A1E7F2E00C93B16 /* g_commands.c */; };
+		78C77C4F2A4C54540084A70B /* g_combat.c in Sources */ = {isa = PBXBuildFile; fileRef = 78C77C4E2A4C54540084A70B /* g_combat.c */; };
 		78E91BFB2A169439003D9F3A /* g_monster.c in Sources */ = {isa = PBXBuildFile; fileRef = 78E91BFA2A169439003D9F3A /* g_monster.c */; };
 		78E91BFE2A169771003D9F3A /* libcmath3.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 78E91BFD2A169771003D9F3A /* libcmath3.dylib */; };
 		78ED1A972A47714F00C42E21 /* s_cancel.c in Sources */ = {isa = PBXBuildFile; fileRef = 78ED1A962A47714F00C42E21 /* s_cancel.c */; };
@@ -55,6 +56,7 @@
 		78BBB9A62A435D8300B0FC57 /* g_pathing.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = g_pathing.c; sourceTree = "<group>"; };
 		78BBB9AA2A44CC2000B0FC57 /* s_goldmine.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = s_goldmine.c; sourceTree = "<group>"; };
 		78C4538F2A1E7F2E00C93B16 /* g_commands.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = g_commands.c; sourceTree = "<group>"; };
+		78C77C4E2A4C54540084A70B /* g_combat.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = g_combat.c; sourceTree = "<group>"; };
 		78E91BFA2A169439003D9F3A /* g_monster.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = g_monster.c; sourceTree = "<group>"; };
 		78E91BFD2A169771003D9F3A /* libcmath3.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; path = libcmath3.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
 		78ED1A962A47714F00C42E21 /* s_cancel.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = s_cancel.c; sourceTree = "<group>"; };
@@ -92,6 +94,7 @@
 			children = (
 				78A000F42A3F648200FE16C9 /* skills */,
 				786630642A18BFAC00266A62 /* g_ai.c */,
+				78C77C4E2A4C54540084A70B /* g_combat.c */,
 				78C4538F2A1E7F2E00C93B16 /* g_commands.c */,
 				78A8966B2A15F7D600BC5B56 /* g_main.c */,
 				78314AE32A2724A300062C4B /* g_metadata.c */,
@@ -201,6 +204,7 @@
 				78A000F22A3F34E900FE16C9 /* g_metadata.h in Sources */,
 				78A896722A15F7D600BC5B56 /* g_main.c in Sources */,
 				786630612A188F4800266A62 /* g_phys.c in Sources */,
+				78C77C4F2A4C54540084A70B /* g_combat.c in Sources */,
 				78ED1A972A47714F00C42E21 /* s_cancel.c in Sources */,
 				78FC6C362A25F66500C9F93D /* s_skills.c in Sources */,
 				7859EF622A2D0DDB0099A70E /* p_hud.c in Sources */,

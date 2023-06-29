@@ -7,6 +7,10 @@ static void CL_ReadPacketEntities(LPSIZEBUF msg) {
         if (nument == 0 && bits == 0)
             break;
         centity_t *ent = &cl.ents[nument];
+        if (bits & (1 << U_REMOVE)) {
+            memset(ent, 0, sizeof(centity_t));
+            continue;
+        }
         ent->prev = ent->current;
         MSG_ReadDeltaEntity(msg, &ent->current, nument, bits);
         if (ent->serverframe != cl.frame.serverframe - 1) {

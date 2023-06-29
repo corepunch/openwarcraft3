@@ -66,7 +66,7 @@ EDICT_FUNC(harvestgold_walk) {
 EDICT_FUNC(harvestgold_minegold) {
     if (ent->goalentity->peonsinside < MINING_CAPACITY) {
         M_SetMove(ent, &harvestgold_move_minegold);
-        ent->unitinfo.wait = MINING_DURATION;
+        ent->wait = MINING_DURATION;
         ent->s.renderfx |= RF_HIDDEN;
         ent->goalentity->peonsinside++;
     } else {
@@ -80,7 +80,7 @@ EDICT_FUNC(harvestgold_walkback) {
     ent->s.renderfx &= ~RF_HIDDEN;
     ent->harvested_gold += HARVEST_GOLD_CAPACITY;
     FILTER_EDICTS(other, other->goalentity == ent->goalentity &&
-                  other->unitinfo.currentmove == &harvestgold_move_wait)
+                  other->currentmove == &harvestgold_move_wait)
     {
         harvestgold_minegold(other);
     }

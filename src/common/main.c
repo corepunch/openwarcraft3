@@ -12,7 +12,7 @@ void Sys_Quit(void) {
 int main(int argc, LPSTR argv[]) {
     Com_Init();
     
-    SV_Map("Maps\\Campaign\\Human01.w3m");
+    SV_Map("Maps\\Campaign\\Human02.w3m");
     
     DWORD startTime = SDL_GetTicks();
     

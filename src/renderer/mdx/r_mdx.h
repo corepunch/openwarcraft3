@@ -7,6 +7,7 @@
 
 #define MAX_NODES 256
 #define MAX_BONES 64
+#define MODEL_ATTACHMENT_PATH_LENGTH 0x100
 
 typedef char mdxObjectName_t[80];
 typedef char mdxFileName_t[260];
@@ -36,6 +37,11 @@ typedef enum {
   MODEL_GEO_NO_DEPTH_SET = 0x80,
   MODEL_GEO_NO_FALLBACK = 0x100,   // added in v1500. seen in ElwynnTallWaterfall01.mdx, FelwoodTallWaterfall01.mdx and LavaFallsBlackRock*.mdx
 } mdxGeoFlags_t;
+
+enum {
+    MODEL_EMITTER_HEAD = 1,
+    MODEL_EMITTER_TAIL = 2
+};
 
 #define MDXNODE_Helper 0
 #define MDXNODE_DontInheritTranslation 1
@@ -76,10 +82,10 @@ typedef enum {
 } MODELCOLLISIONSHAPETYPE;
 
 typedef enum {
-    TDATA_INT,
-    TDATA_FLOAT,
-    TDATA_VECTOR3,
-    TDATA_QUATERNION,
+    TDATA_INT1,
+    TDATA_FLOAT1,
+    TDATA_FLOAT3,
+    TDATA_FLOAT4,
 } MODELKEYTRACKDATATYPE;
 
 typedef struct mdxBounds_s {
@@ -137,7 +143,7 @@ typedef struct mdxGeosetAnim_s {
 
 typedef struct mdxNode_s {
     mdxObjectName_t name;
-    DWORD object_id; // globally unique id, used as the index in the hierarchy. index into PIVT
+    DWORD node_id; // globally unique id, used as the index in the hierarchy. index into PIVT
     DWORD parent_id; // parent MDLGENOBJECT's objectId or 0xFFFFFFFF if none
     DWORD flags;
     mdxKeyTrack_t *translation; // vec3
@@ -156,6 +162,41 @@ typedef struct mdxHelper_s {
     mdxNode_t node;
     struct mdxHelper_s *next;
 } mdxHelper_t;
+
+typedef struct mdxAttachment_s {
+    mdxNode_t node;
+    char path[MODEL_ATTACHMENT_PATH_LENGTH];
+    DWORD attachmentID;
+    mdxKeyTrack_t *Visibility;
+    struct mdxAttachment_s *next;
+} mdxAttachment_t;
+
+typedef enum {
+    MODELLIGHTTYPE_OMNI = 0x0,
+    MODELLIGHTTYPE_DIRECT = 0x1,
+    MODELLIGHTTYPE_AMBIENT = 0x2,
+} MODELLIGHTTYPE;
+
+typedef struct mdxLight_s {
+    mdxNode_t node;
+    MODELLIGHTTYPE type;
+    float AttenuationStart;
+    float AttenuationEnd;
+    mdxVec3_t Color;
+    float Intensity;
+    mdxVec3_t AmbColor;
+    float AmbIntensity;
+    struct {
+        mdxKeyTrack_t *Visibility;
+        mdxKeyTrack_t *Color;
+        mdxKeyTrack_t *Intensity;
+        mdxKeyTrack_t *AmbColor;
+        mdxKeyTrack_t *AmbIntensity;
+        mdxKeyTrack_t *AttenuationStart;
+        mdxKeyTrack_t *AttenuationEnd;
+    } keytracks;
+    struct mdxLight_s *next;
+} mdxLight_t;
 
 typedef struct mdxCollisionShape_s {
     mdxNode_t node;
@@ -179,7 +220,7 @@ typedef struct mdxEvent_s {
 
 typedef struct mdxTexture_s {
     replaceableID_t replaceableID;
-    char path[256];
+    char path[MODEL_ATTACHMENT_PATH_LENGTH];
     int texid;
     int nWrapping; //(1:WrapWidth; 2:WrapHeight; 3:Both)
 } mdxTexture_t;
@@ -218,6 +259,52 @@ typedef struct mdxCamera_s {
     mdxKeyTrack_t *targetTranslation; // vec3
     struct mdxCamera_s *next;
 } mdxCamera_t;
+
+typedef struct {
+    DWORD start, end, repeat;
+} mdxParticleAnimation_t;
+
+typedef struct mdxParticleEmitter_s {
+    mdxNode_t node;
+    float Speed;
+    float Variation;
+    float Latitude;
+    float Gravity;
+    float LifeSpan;
+    float EmissionRate;
+    float Length;
+    float Width;
+    DWORD FilterMode;
+    DWORD Rows;
+    DWORD Columns;
+    DWORD FrameFlags; // float???
+    float TailLength;
+    float Time;
+    float SegmentColor[9];
+    BYTE Alpha[3];
+    float ParticleScaling[3];
+    mdxParticleAnimation_t LifeSpanUVAnim;
+    mdxParticleAnimation_t DecayUVAnim;
+    mdxParticleAnimation_t TailUVAnim;
+    mdxParticleAnimation_t TailDecayUVAnim;
+    DWORD TextureID;
+    DWORD Squirt;
+    DWORD PriorityPlane;
+    DWORD ReplaceableId;
+
+    struct {
+        mdxKeyTrack_t *Visibility;
+        mdxKeyTrack_t *EmissionRate;
+        mdxKeyTrack_t *Width;
+        mdxKeyTrack_t *Length;
+        mdxKeyTrack_t *Speed;
+        mdxKeyTrack_t *Latitude;
+        mdxKeyTrack_t *Gravity;
+        mdxKeyTrack_t *Variation;
+    } keytracks;
+    
+    struct mdxParticleEmitter_s *next;
+} mdxParticleEmitter_t;
 
 typedef struct mdxGeoset_s {
     mdxVec3_t *vertices;
@@ -265,6 +352,9 @@ typedef struct mdxModel_s {
     mdxHelper_t *helpers;
     mdxCamera_t *cameras;
     mdxGlobalSequence_t *globalSequences;
+    mdxParticleEmitter_t *emitters;
+    mdxAttachment_t *attachments;
+    mdxLight_t *lights;
     mdxNode_t *nodes[MAX_NODES];
     int num_textures;
     int num_sequences;

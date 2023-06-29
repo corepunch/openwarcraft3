@@ -4,6 +4,42 @@
 static edict_t waypoints[MAX_WAYPOINTS];
 DWORD current_waypoint = 0;
 
+LPCSTR attack_type[] = {
+    "none",
+    "normal",
+    "pierce",
+    "siege",
+    "spells",
+    "chaos",
+    "magic",
+    "hero",
+    NULL
+};
+
+LPCSTR weapon_type[] = {
+    "none",
+    "normal",
+    "instant",
+    "artillery",
+    "aline",
+    "missile",
+    "msplash",
+    "mbounce",
+    "mline",
+    NULL
+};
+
+DWORD FindEnumValue(LPCSTR value, LPCSTR values[]) {
+    if (!value)
+        return 0;
+    for (LPCSTR *s = values; *s; s++) {
+        if (!strcmp(*s, value)) {
+            return (DWORD)(s - values);
+        }
+    }
+    return 0;
+}
+
 static float get_unit_collision(pathTex_t const *pathtex) {
     int size = 0;
     for (int x = 0; x < pathtex->width; x++) {
@@ -69,9 +105,9 @@ handle_t M_RefreshHeatmap(edict_t *self) {
 }
 
 void M_MoveFrame(edict_t *self) {
-    if (self->unitinfo.aiflags & AI_HOLD_FRAME)
+    if (self->aiflags & AI_HOLD_FRAME)
         return;
-    umove_t const *move = self->unitinfo.currentmove;
+    umove_t const *move = self->currentmove;
     animation_t const *anim = self->animation;
     if (!anim)
         return;
@@ -87,7 +123,7 @@ void M_MoveFrame(edict_t *self) {
         self->s.frame = anim->interval[0] ;
     } else if (next_frame >= anim->interval[1]) {
         SAFE_CALL(move->endfunc, self);
-        if (!(self->unitinfo.aiflags & AI_HOLD_FRAME)) {
+        if (!(self->aiflags & AI_HOLD_FRAME)) {
             self->s.frame = anim->interval[0] ;
         }
     } else {
@@ -96,11 +132,11 @@ void M_MoveFrame(edict_t *self) {
 }
 
 void monster_think(edict_t *self) {
-    if (!self->unitinfo.currentmove)
+    if (!self->currentmove)
         return;
     M_MoveFrame(self);
-    if (self->unitinfo.currentmove->think) {
-        self->unitinfo.currentmove->think(self);
+    if (self->currentmove->think) {
+        self->currentmove->think(self);
     }
 }
 
@@ -177,6 +213,25 @@ void SP_SpawnUnit(edict_t *self) {
     self->max_health = UNIT_HP(self->class_id);
     self->health = UNIT_HP(self->class_id);
     self->think = monster_think;
+    
+    self->attack1.type = FindEnumValue(UNIT_ATTACK1_ATTACK_TYPE(self->class_id), attack_type);
+    self->attack1.weapon = FindEnumValue(UNIT_ATTACK1_WEAPON_TYPE(self->class_id), weapon_type);
+    self->attack1.damageBase = UNIT_ATTACK1_DAMAGE_BASE(self->class_id);
+    self->attack1.numberOfDice = UNIT_ATTACK1_DAMAGE_NUMBER_OF_DICE(self->class_id);
+    self->attack1.sidesPerDie = UNIT_ATTACK1_DAMAGE_SIDES_PER_DIE(self->class_id);
+    self->attack1.cooldown = UNIT_ATTACK1_BASE_COOLDOWN(self->class_id);
+    self->attack1.damagePoint = UNIT_ATTACK1_DAMAGE_POINT(self->class_id);
+
+    if (self->attack1.weapon == WPN_MISSILE) {
+        self->attack1.origin.x = UNIT_ATTACK1_LAUNCH_X(self->class_id);
+        self->attack1.origin.y = UNIT_ATTACK1_LAUNCH_Y(self->class_id);
+        self->attack1.origin.z = UNIT_ATTACK1_LAUNCH_Z(self->class_id);
+        self->attack1.projectile.model = gi.ModelIndex(UNIT_ATTACK1_PROJECTILE_ART(self->class_id));
+        self->attack1.projectile.arc = UNIT_ATTACK1_PROJECTILE_ARC(self->class_id);
+        self->attack1.projectile.speed = UNIT_ATTACK1_PROJECTILE_SPEED(self->class_id);        
+//        printf("%.4s %s\n", &self->class_id, UNIT_ATTACK1_PROJECTILE_ART(self->class_id));
+    }
+
     if ((self->pathtex = M_LoadPathTex(path_tex))) {
         self->collision = get_unit_collision(self->pathtex);
     }
