@@ -9,9 +9,21 @@ LPCTEXTURE g_groundTextures[MAX_MAP_LAYERS] = { NULL };
 static VERTEX aVertexBuffer[(SEGMENT_SIZE+1)*(SEGMENT_SIZE+1)*6];
 static LPVERTEX currentVertex = NULL;
 
-VECTOR3 R_GetVertexPosition(LPCWAR3MAP map, DWORD x, DWORD y) {
+VECTOR3 R_GetVertexPosition(LPCWAR3MAP map, DWORD x, DWORD y, bool useLevel) {
     LPCWAR3MAPVERTEX vert = GetWar3MapVertex(map, x, y);
-    float z = DECODE_HEIGHT(vert->accurate_height) + vert->level * TILESIZE - HEIGHT_COR;
+    float level = useLevel ? vert->level * TILESIZE - HEIGHT_COR : 0;
+    if (useLevel && vert->ramp) {
+        LPCWAR3MAPVERTEX a = GetWar3MapVertex(map, x+1, y);
+        LPCWAR3MAPVERTEX b = GetWar3MapVertex(map, x-1, y);
+        LPCWAR3MAPVERTEX c = GetWar3MapVertex(map, x, y+1);
+        LPCWAR3MAPVERTEX d = GetWar3MapVertex(map, x, y-1);
+        if (a && b && a->ramp && b->ramp && a->level != b->level) {
+            level = (a->level + b->level) * 0.5 * TILESIZE - HEIGHT_COR;
+        } else if (c && d && c->ramp && d->ramp && c->level != d->level) {
+            level = (c->level + d->level) * 0.5 * TILESIZE - HEIGHT_COR;
+        }
+    }
+    float z = DECODE_HEIGHT(vert->accurate_height) + level;
     return (VECTOR3) {
         .x = map->center.x + x * TILESIZE,
         .y = map->center.y + y * TILESIZE,
@@ -20,11 +32,12 @@ VECTOR3 R_GetVertexPosition(LPCWAR3MAP map, DWORD x, DWORD y) {
 }
 
 VECTOR3 R_GetVertexNormal(LPCWAR3MAP map, DWORD x, DWORD y) {
-    VECTOR3 const currentPoint = R_GetVertexPosition(map, x, y);
-    VECTOR3 const leftPoint = (x > 0) ? R_GetVertexPosition(map, x - 1, y) : currentPoint;
-    VECTOR3 const rightPoint = (x < map->width - 1) ? R_GetVertexPosition(map, x + 1, y) : currentPoint;
-    VECTOR3 const topPoint = (y > 0) ? R_GetVertexPosition(map, x, y - 1) : currentPoint;
-    VECTOR3 const bottomPoint = (y < map->height - 1) ? R_GetVertexPosition(map, x, y + 1) : currentPoint;
+    bool useLevel = false;
+    VECTOR3 const currentPoint = R_GetVertexPosition(map, x, y, useLevel);
+    VECTOR3 const leftPoint = (x > 0) ? R_GetVertexPosition(map, x - 1, y, useLevel) : currentPoint;
+    VECTOR3 const rightPoint = (x < map->width - 1) ? R_GetVertexPosition(map, x + 1, y, useLevel) : currentPoint;
+    VECTOR3 const topPoint = (y > 0) ? R_GetVertexPosition(map, x, y - 1, useLevel) : currentPoint;
+    VECTOR3 const bottomPoint = (y < map->height - 1) ? R_GetVertexPosition(map, x, y + 1, useLevel) : currentPoint;
     VECTOR3 const diffX = Vector3_sub(&rightPoint, &leftPoint);
     VECTOR3 const diffY = Vector3_sub(&bottomPoint, &topPoint);
     VECTOR3 normal = Vector3_cross(&diffX, &diffY);
@@ -40,18 +53,18 @@ static void R_MakeTile(LPCWAR3MAP map, DWORD x, DWORD y, DWORD ground, LPCTEXTUR
     if (_tile == 0)
         return;
 
-    if (!GetTileRamps(tile) && IsTileCliff(tile)) {
+    if (IsTileCliff(tile) && GetTileRamps(tile) < 4) {
         return;
     }
 
-    VECTOR3 p[] = {
-        R_GetVertexPosition(map, x, y),
-        R_GetVertexPosition(map, x + 1, y),
-        R_GetVertexPosition(map, x + 1, y + 1),
-        R_GetVertexPosition(map, x, y + 1),
+    VECTOR3 const p[] = {
+        R_GetVertexPosition(map, x, y, true),
+        R_GetVertexPosition(map, x + 1, y, true),
+        R_GetVertexPosition(map, x + 1, y + 1, true),
+        R_GetVertexPosition(map, x, y + 1, true),
     };
 
-    VECTOR3 n[] = {
+    VECTOR3 const n[] = {
         R_GetVertexNormal(map, x, y),
         R_GetVertexNormal(map, x + 1, y),
         R_GetVertexNormal(map, x + 1, y + 1),
@@ -72,53 +85,13 @@ static void R_MakeTile(LPCWAR3MAP map, DWORD x, DWORD y, DWORD ground, LPCTEXTUR
         GetTileDepth(waterlevel[3], p[3].z),
     };
 
-//    VECTOR2 const tilecenter = {
-//        map->center.x + (x + 0.5) * TILESIZE,
-//        map->center.y + (y + 0.5) * TILESIZE,
-//    };
-//
-//    p[0] = Vector2_lerp(&p[0], &tilecenter, 0.025);
-//    p[1] = Vector2_lerp(&p[1], &tilecenter, 0.025);
-//    p[2] = Vector2_lerp(&p[2], &tilecenter, 0.025);
-//    p[3] = Vector2_lerp(&p[3], &tilecenter, 0.025);
-
     struct vertex geom[] = {
-        {
-            .position = p[0],
-            .texcoord = {0, 0},
-            .normal = n[0],
-            .color = WATER(0),
-        },
-        {
-            .position = p[1],
-            .texcoord = {1, 0},
-            .normal = n[1],
-            .color = WATER(1),
-        },
-        {
-            .position = p[2],
-            .texcoord = {1, 1},
-            .normal = n[2],
-            .color = WATER(2),
-        },
-        {
-            .position = p[0],
-            .texcoord = {0, 0},
-            .normal = n[0],
-            .color = WATER(0),
-        },
-        {
-            .position = p[2],
-            .texcoord = {1, 1},
-            .normal = n[2],
-            .color = WATER(2),
-        },
-        {
-            .position = p[3],
-            .texcoord = {0, 1},
-            .normal = n[3],
-            .color = WATER(3),
-        },
+        { .position = p[0], .texcoord = {0, 0}, .normal = n[0], .color = WATER(0), },
+        { .position = p[1], .texcoord = {1, 0}, .normal = n[1], .color = WATER(1), },
+        { .position = p[2], .texcoord = {1, 1}, .normal = n[2], .color = WATER(2), },
+        { .position = p[0], .texcoord = {0, 0}, .normal = n[0], .color = WATER(0), },
+        { .position = p[2], .texcoord = {1, 1}, .normal = n[2], .color = WATER(2), },
+        { .position = p[3], .texcoord = {0, 1}, .normal = n[3], .color = WATER(3), },
     };
     
     if (texture) {

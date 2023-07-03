@@ -81,7 +81,7 @@ float GetWar3MapVertexHeight(LPCWAR3MAPVERTEX vert) {
 }
 
 float GetWar3MapVertexWaterLevel(LPCWAR3MAPVERTEX vert) {
-    return DECODE_HEIGHT(vert->waterlevel);
+    return DECODE_HEIGHT(vert->waterlevel) - WATER_HEIGHT_COR;
 }
 
 void GetTileVertices(DWORD x, DWORD y, LPCWAR3MAP war3Map, LPWAR3MAPVERTEX vertices) {
@@ -109,7 +109,7 @@ DWORD IsTileWater(LPCWAR3MAPVERTEX vertices) {
         bIsWater |= vertices[index].water;
     }
     FOR_LOOP(index, 4) {
-        bIsWater &= (vertices[index].waterlevel & 0x4000) == 0;
+        bIsWater &= !vertices[index].mapedge;
     }
     return bIsWater;
 }

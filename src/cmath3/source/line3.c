@@ -52,15 +52,16 @@ int Line3_intersect_sphere3(LPCLINE3 line, LPCSPHERE3 sphere, LPVECTOR3 output) 
 }
 
 int Line3_intersect_plane3(LPCLINE3 line, LPCPLANE3 plane, LPVECTOR3 output) {
-    VECTOR3 lineDirection = Vector3_sub(&line->b, &line->a);
-    if (Vector3_dot(&plane->normal, &lineDirection) == 0)
+    VECTOR3 direction = Vector3_sub(&line->b, &line->a);
+    float dotProduct = Vector3_dot(&direction, &plane->normal);
+    // Check if the line and plane are parallel
+    if (fabs(dotProduct) < EPSILON) {
         return 0;
-    Vector3_normalize(&lineDirection);
-    float const p1 = Vector3_dot(&plane->normal, &plane->point);
-    float const p2 = Vector3_dot(&plane->normal, &line->a);
-    float const t = (p1 - p2) / Vector3_dot(&plane->normal, &lineDirection);
-    VECTOR3 const scaledLineDirection = Vector3_scale(&lineDirection, t);
-    *output = Vector3_add(&line->a, &scaledLineDirection);
+    }
+    if (output) {
+        float t = -Plane3_MultiplyVector3(plane, &line->a) / dotProduct;
+        *output = Vector3_mad(&line->a, t, &direction);
+    }
     return 1;
 }
 

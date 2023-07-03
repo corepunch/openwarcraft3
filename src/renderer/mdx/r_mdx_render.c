@@ -1,7 +1,112 @@
 #include "r_mdx.h"
 #include "r_local.h"
 
-DWORD selCircles[NUM_SELECTION_CIRCLES] = { 100, 300, 100000 };
+static struct {
+    LPSHADER shader;
+} mdlx;
+
+//typedef enum {
+//    vertexattr_position,
+//    vertexattr_color,
+//    vertexattr_texcoord,
+//    vertexattr_normal,
+//    vertexattr_skin1,
+//    vertexattr_skin2,
+//    vertexattr_boneWeight1,
+//    vertexattr_boneWeight2,
+//} mdxVertexAttribute_t;
+
+static LPCSTR vs =
+"#version 140\n"
+"in vec3 i_position;\n"
+"in vec4 i_color;\n"
+"in vec2 i_texcoord;\n"
+"in vec3 i_normal;\n"
+"in vec4 i_skin1;\n"
+"in vec4 i_boneWeight1;\n"
+#if MAX_SKIN_BONES > 4
+"in vec4 i_boneWeight2;\n"
+"in vec4 i_skin2;\n"
+#endif
+"out vec4 v_color;\n"
+"out vec4 v_shadow;\n"
+"out vec2 v_texcoord;\n"
+"out vec2 v_texcoord2;\n"
+"out vec3 v_normal;\n"
+"out vec3 v_lightDir;\n"
+"uniform mat4 uBones[64];\n"
+"uniform mat4 uViewProjectionMatrix;\n"
+"uniform mat4 uTextureMatrix;\n"
+"uniform mat4 uModelMatrix;\n"
+"uniform mat4 uLightMatrix;\n"
+"uniform mat3 uNormalMatrix;\n"
+"uniform float uFirstBoneLookupIndex;\n"
+"uniform float uBoneWeightPairsCount;\n"
+"void main() {\n"
+"    vec4 pos4 = vec4(i_position, 1.0);\n"
+"    vec4 norm4 = vec4(i_normal, 0.0);\n"
+"    vec4 position = vec4(0.0);\n"
+"    vec4 normal = vec4(0.0);\n"
+"    vec4 bones = i_skin1 + vec4(uFirstBoneLookupIndex);\n"
+"    position += uBones[int(bones[0])] * pos4 * i_boneWeight1[0];\n"
+"    position += uBones[int(bones[1])] * pos4 * i_boneWeight1[1];\n"
+"    position += uBones[int(bones[2])] * pos4 * i_boneWeight1[2];\n"
+"    position += uBones[int(bones[3])] * pos4 * i_boneWeight1[3];\n"
+"    normal += uBones[int(bones[0])] * norm4 * i_boneWeight1[0];\n"
+"    normal += uBones[int(bones[1])] * norm4 * i_boneWeight1[1];\n"
+"    normal += uBones[int(bones[2])] * norm4 * i_boneWeight1[2];\n"
+"    normal += uBones[int(bones[3])] * norm4 * i_boneWeight1[3];\n"
+#if MAX_SKIN_BONES > 4
+"    position += uBones[int(i_skin2[0])] * pos4 * i_boneWeight2[0];\n"
+"    position += uBones[int(i_skin2[1])] * pos4 * i_boneWeight2[1];\n"
+"    position += uBones[int(i_skin2[2])] * pos4 * i_boneWeight2[2];\n"
+"    position += uBones[int(i_skin2[3])] * pos4 * i_boneWeight2[3];\n"
+"    normal += uBones[int(i_skin2[0])] * norm4 * i_boneWeight2[0];\n"
+"    normal += uBones[int(i_skin2[1])] * norm4 * i_boneWeight2[1];\n"
+"    normal += uBones[int(i_skin2[2])] * norm4 * i_boneWeight2[2];\n"
+"    normal += uBones[int(i_skin2[3])] * norm4 * i_boneWeight2[3];\n"
+#endif
+"    position.w = 1.0;\n"
+"    v_color = i_color;\n"
+"    v_texcoord = i_texcoord;\n"
+"    v_texcoord2 = (uTextureMatrix * uModelMatrix * position).xy;\n"
+"    v_normal = normalize(uNormalMatrix * normal.xyz);\n"
+"    v_shadow = uLightMatrix * uModelMatrix * position;\n"
+"    v_lightDir = -normalize(vec3(uLightMatrix[0][2], uLightMatrix[1][2], uLightMatrix[2][2]))*1.2;\n"
+"    gl_Position = uViewProjectionMatrix * uModelMatrix * position;\n"
+"}\n";
+
+LPCSTR fs =
+"#version 140\n"
+"in vec2 v_texcoord;\n"
+"in vec2 v_texcoord2;\n"
+"in vec4 v_shadow;\n"
+"in vec3 v_normal;\n"
+"in vec3 v_lightDir;\n"
+"out vec4 o_color;\n"
+"uniform sampler2D uTexture;\n"
+"uniform sampler2D uShadowmap;\n"
+"uniform sampler2D uFogOfWar;\n"
+"uniform bool uUseDiscard;\n"
+"float get_light() {\n"
+"    return dot(v_normal, v_lightDir);\n"
+"}\n"
+"float get_shadow() {\n"
+"    float depth = texture(uShadowmap, vec2(v_shadow.x + 1.0, v_shadow.y + 1.0) * 0.5).r;\n"
+"    return depth < (v_shadow.z + 0.99) * 0.5 ? 0.0 : 1.0;\n"
+"}\n"
+"float get_lighting() {\n"
+"    return min(1.0, mix(0.35, 1.0, get_shadow() * get_light()) * 1.1);"
+"}\n"
+"float get_fogofwar() {\n"
+"    return texture(uFogOfWar, v_texcoord2).r;\n"
+"}\n"
+"void main() {\n"
+"    vec4 col = texture(uTexture, v_texcoord);\n"
+"    col.rgb *= get_fogofwar() * get_lighting();\n"
+"    o_color = col;\n"
+"    if (o_color.a < 0.5 && uUseDiscard) discard;\n"
+"}\n";
 
 static MATRIX4 local_matrices[MAX_NODES];
 static MATRIX4 global_matrices[MAX_NODES];
@@ -9,7 +114,7 @@ static MATRIX4 global_matrices[MAX_NODES];
 DWORD GetModelKeyTrackDataTypeSize(MODELKEYTRACKDATATYPE dataType);
 DWORD GetModelKeyTrackTypeSize(MODELKEYTRACKTYPE keyTrackType);
 DWORD GetModelKeyFrameSize(MODELKEYTRACKDATATYPE dataType, MODELKEYTRACKTYPE keyTrackType);
-void R_GetKeyframeValue(mdxKeyFrame_t const *left, mdxKeyFrame_t const *right, DWORD time, mdxKeyTrack_t const *keytrack, HANDLE out);
+void R_GetKeyframeValue(mdxKeyFrame_t const *left, mdxKeyFrame_t const *right, mdxKeyTrack_t const *keytrack, DWORD time, HANDLE out);
 
 mdxSequence_t const *R_FindSequenceAtTime(mdxModel_t const *model, DWORD time) {
     FOR_LOOP(seqIndex, model->num_sequences) {
@@ -21,8 +126,8 @@ mdxSequence_t const *R_FindSequenceAtTime(mdxModel_t const *model, DWORD time) {
     return NULL;
 }
 
-static void MDX_GetModelKeytrackValue(mdxModel_t const *model, mdxKeyTrack_t const *keytrack, DWORD time, HANDLE output) {
-    DWORD const keyframeSize = GetModelKeyFrameSize(keytrack->datatype, keytrack->type);
+static void MDLX_GetModelKeytrackValue(mdxModel_t const *model, mdxKeyTrack_t const *keytrack, DWORD time, HANDLE output) {
+    DWORD const keyframeSize = GetModelKeyFrameSize(keytrack->datatype, keytrack->linetype);
     LPCSTR keyFrames = (LPCSTR)keytrack->values;
     mdxKeyFrame_t *prevKeyFrame = NULL;
     DWORD interval[2] = { 0, 0 };
@@ -52,7 +157,7 @@ static void MDX_GetModelKeytrackValue(mdxModel_t const *model, mdxKeyTrack_t con
             return;
         }
         if (keyFrame->time > time) {
-            R_GetKeyframeValue(prevKeyFrame, keyFrame, time, keytrack, output);
+            R_GetKeyframeValue(prevKeyFrame, keyFrame, keytrack, time, output);
             return;
         }
         prevKeyFrame = keyFrame;
@@ -70,31 +175,31 @@ static void R_CalculateNodeMatrix(mdxModel_t const *model, mdxNode_t *node, DWOR
     if (frame0 != frame1) {
         if (node->translation) {
             VECTOR3 t0 = vTranslation, t1 = vTranslation;
-            MDX_GetModelKeytrackValue(model, node->translation, frame0, &t0);
-            MDX_GetModelKeytrackValue(model, node->translation, frame1, &t1);
+            MDLX_GetModelKeytrackValue(model, node->translation, frame0, &t0);
+            MDLX_GetModelKeytrackValue(model, node->translation, frame1, &t1);
             vTranslation = Vector3_lerp(&t0, &t1, tr.viewDef.lerpfrac);
         }
         if (node->rotation) {
             QUATERNION r0 = vRotation, r1 = vRotation;
-            MDX_GetModelKeytrackValue(model, node->rotation, frame0, &r0);
-            MDX_GetModelKeytrackValue(model, node->rotation, frame1, &r1);
+            MDLX_GetModelKeytrackValue(model, node->rotation, frame0, &r0);
+            MDLX_GetModelKeytrackValue(model, node->rotation, frame1, &r1);
             vRotation = Quaternion_slerp(&r0, &r1, tr.viewDef.lerpfrac);
         }
         if (node->scale) {
             VECTOR3 s0 = vScale, s1 = vScale;
-            MDX_GetModelKeytrackValue(model, node->scale, frame0, &s0);
-            MDX_GetModelKeytrackValue(model, node->scale, frame1, &s1);
+            MDLX_GetModelKeytrackValue(model, node->scale, frame0, &s0);
+            MDLX_GetModelKeytrackValue(model, node->scale, frame1, &s1);
             vScale = Vector3_lerp(&s0, &s1, tr.viewDef.lerpfrac);
         }
     } else {
         if (node->translation) {
-            MDX_GetModelKeytrackValue(model, node->translation, frame1, &vTranslation);
+            MDLX_GetModelKeytrackValue(model, node->translation, frame1, &vTranslation);
         }
         if (node->rotation) {
-            MDX_GetModelKeytrackValue(model, node->rotation, frame1, &vRotation);
+            MDLX_GetModelKeytrackValue(model, node->rotation, frame1, &vRotation);
         }
         if (node->scale) {
-            MDX_GetModelKeytrackValue(model, node->scale, frame1, &vScale);
+            MDLX_GetModelKeytrackValue(model, node->scale, frame1, &vScale);
         }
     }
     if (!node->translation && !node->rotation && !node->scale) {
@@ -118,7 +223,7 @@ LPCMATRIX4 R_GetNodeGlobalMatrix(mdxModel_t const *model, LPCMATRIX4 model_matri
         } else {
             *global_matrix = *local_matrix;
         }
-        if (node->flags & MDXNODE_Billboarded) {
+        if (node->flags & MDLXNODE_Billboarded) {
             MATRIX4 tmp1, tmp2;
             VECTOR3 tmppvt = Matrix4_multiply_vector3(global_matrix, (LPCVECTOR3)(&model->pivots[node->node_id]));
             if (node->parent_id != -1) {
@@ -144,7 +249,7 @@ LPCMATRIX4 R_GetNodeGlobalMatrix(mdxModel_t const *model, LPCMATRIX4 model_matri
     return global_matrix;
 }
 
-static void MDX_BindBoneMatrices(mdxModel_t const *model, LPCMATRIX4 model_matrix, DWORD frame1, DWORD frame0) {
+static void MDLX_BindBoneMatrices(mdxModel_t const *model, LPCMATRIX4 model_matrix, DWORD frame1, DWORD frame0) {
     DWORD numBones = 1;
     memset(global_matrices, 0, sizeof(global_matrices));
     
@@ -159,8 +264,8 @@ static void MDX_BindBoneMatrices(mdxModel_t const *model, LPCMATRIX4 model_matri
         numBones++;
     }
 
-    R_Call(glUseProgram, tr.shader[SHADER_SKIN]->progid);
-    R_Call(glUniformMatrix4fv, tr.shader[SHADER_SKIN]->uBones, numBones, GL_FALSE, global_matrices->v);
+    R_Call(glUseProgram, mdlx.shader->progid);
+    R_Call(glUniformMatrix4fv, mdlx.shader->uBones, numBones, GL_FALSE, global_matrices->v);
 }
 
 extern bool is_rendering_lights;
@@ -168,7 +273,7 @@ extern bool is_rendering_lights;
 #define GET_PARTICLE_ANIM_PARAM(MODEL, EMITTER, NAME) \
 float NAME = EMITTER->NAME; \
 if (EMITTER->keytracks.NAME) { \
-    MDX_GetModelKeytrackValue(MODEL, EMITTER->keytracks.NAME, frame, &NAME); \
+    MDLX_GetModelKeytrackValue(MODEL, EMITTER->keytracks.NAME, frame, &NAME); \
 }
 
 static VECTOR3 FX_GenerateRandomDirection(float latitude) {
@@ -191,7 +296,7 @@ static VECTOR3 FX_GenerateRandomOrigin(float length, float width) {
     return origin;
 }
 
-static LPCTEXTURE MDX_GetTexture(mdxModel_t const *model,
+static LPCTEXTURE MDLX_GetTexture(mdxModel_t const *model,
                                  DWORD teamID,
                                  DWORD textureID,
                                  DWORD replaceableID,
@@ -208,7 +313,7 @@ static LPCTEXTURE MDX_GetTexture(mdxModel_t const *model,
     }
 }
 
-static COLOR32 MDX_GetEmitterColor(mdxParticleEmitter_t const *emitter, DWORD seg) {
+static COLOR32 MDLX_GetEmitterColor(mdxParticleEmitter_t const *emitter, DWORD seg) {
     return (COLOR32) {
         emitter->SegmentColor[seg*3+0] * 0xff,
         emitter->SegmentColor[seg*3+1] * 0xff,
@@ -217,7 +322,7 @@ static COLOR32 MDX_GetEmitterColor(mdxParticleEmitter_t const *emitter, DWORD se
     };
 }
 
-static void MDX_RenderEmitter(mdxModel_t const *model,
+static void MDLX_RenderEmitter(mdxModel_t const *model,
                               mdxParticleEmitter_t const *emitter,
                               LPCMATRIX4 modelMatrix,
                               float frame,
@@ -238,13 +343,13 @@ static void MDX_RenderEmitter(mdxModel_t const *model,
     MATRIX4 matrix;
     LPCMATRIX4 nodeMatrix = &global_matrices[emitter->node.node_id];
     DWORD lastFrameTime = tr.viewDef.time - tr.viewDef.deltaTime;
-    DWORD start = lastFrameTime - lastFrameTime % MSEC;
+    DWORD start = lastFrameTime - lastFrameTime % 1000;
 
     Matrix4_multiply(modelMatrix, nodeMatrix, &matrix);
 
     for (float time = start, spawning = 0;
          time < tr.viewDef.time;
-         time += MSEC / EmissionRate)
+         time += 1000 / EmissionRate)
     {
         if (time >= lastFrameTime) {
             spawning = 1;
@@ -253,7 +358,7 @@ static void MDX_RenderEmitter(mdxModel_t const *model,
             cparticle_t *p = R_SpawnParticle();
             if (!p) return;
             VECTOR3 origin = FX_GenerateRandomOrigin(emitter->Length, emitter->Width);
-            VECTOR3 pivoted = Vector3_add(&origin, (LPCVECTOR3)model->pivots[emitter->node.node_id]);
+            VECTOR3 pivoted = Vector3_add(&origin, &model->pivots[emitter->node.node_id]);
             VECTOR3 direction = FX_GenerateRandomDirection(emitter->Latitude * M_PI / 180);
             p->org = Matrix4_multiply_vector3(&matrix, &pivoted);
             p->vel = Vector3_scale(&direction, Speed);
@@ -261,12 +366,12 @@ static void MDX_RenderEmitter(mdxModel_t const *model,
             p->lifespan = emitter->LifeSpan;
             p->time = 0;
             p->midtime = emitter->Time * 0xff;
-            p->texture = MDX_GetTexture(model, teamID, emitter->TextureID, emitter->ReplaceableId, NULL);
+            p->texture = MDLX_GetTexture(model, teamID, emitter->TextureID, emitter->ReplaceableId, NULL);
             p->columns = emitter->Columns;
             p->rows = emitter->Rows;
-            p->color[0] = MDX_GetEmitterColor(emitter, 0);
-            p->color[1] = MDX_GetEmitterColor(emitter, 1);
-            p->color[2] = MDX_GetEmitterColor(emitter, 2);
+            p->color[0] = MDLX_GetEmitterColor(emitter, 0);
+            p->color[1] = MDLX_GetEmitterColor(emitter, 1);
+            p->color[2] = MDLX_GetEmitterColor(emitter, 2);
             p->size[0] = emitter->ParticleScaling[0];
             p->size[1] = emitter->ParticleScaling[1];
             p->size[2] = emitter->ParticleScaling[2];
@@ -274,7 +379,7 @@ static void MDX_RenderEmitter(mdxModel_t const *model,
     }
 }
 
-static bool MDX_SetBlendMode(const mdxMaterialLayer_t *layer, DWORD layerID) {
+static bool MDLX_SetBlendMode(const mdxMaterialLayer_t *layer, DWORD layerID) {
     switch (layer->blendMode) {
         case TEXOP_LOAD:
             if (layerID == 0) {
@@ -285,7 +390,7 @@ static bool MDX_SetBlendMode(const mdxMaterialLayer_t *layer, DWORD layerID) {
             R_Call(glDepthMask, GL_TRUE);
             break;
         case TEXOP_TRANSPARENT:
-            R_Call(glUniform1i, tr.shader[SHADER_SKIN]->uUseDiscard, 1);
+            R_Call(glUniform1i, mdlx.shader->uUseDiscard, 1);
             R_Call(glBlendFunc, GL_ONE, GL_ZERO);
             R_Call(glDepthMask, GL_TRUE);
             break;
@@ -320,7 +425,7 @@ static bool MDX_SetBlendMode(const mdxMaterialLayer_t *layer, DWORD layerID) {
     return true;
 }
 
-static mdxMaterial_t *MDX_GetMaterialAtIndex(mdxGeoset_t const *geoset, mdxModel_t const *model) {
+static mdxMaterial_t *MDLX_GetMaterialAtIndex(mdxGeoset_t const *geoset, mdxModel_t const *model) {
     mdxMaterial_t *material = model->materials;
     for (DWORD materialID = geoset->materialID; materialID > 0; materialID--) {
         material = material->next;
@@ -328,39 +433,35 @@ static mdxMaterial_t *MDX_GetMaterialAtIndex(mdxGeoset_t const *geoset, mdxModel
     return material;
 }
 
-static void MDX_RenderGeoset(mdxModel_t const *model,
+static void MDLX_RenderGeoset(mdxModel_t const *model,
                              mdxGeoset_t const *geoset,
                              DWORD team,
                              LPCMATRIX4 modelMatrix,
                              LPCTEXTURE overrideTexture)
 {
-    struct render_buffer *buf = geoset->userdata;
-    if (!buf)
-        return;
-
     MATRIX3 mNormalMatrix;
     Matrix3_normal(&mNormalMatrix, modelMatrix);
-    mdxMaterial_t const *material = MDX_GetMaterialAtIndex(geoset, model);
+    mdxMaterial_t const *material = MDLX_GetMaterialAtIndex(geoset, model);
 
-    R_Call(glUseProgram, tr.shader[SHADER_SKIN]->progid);
-    R_Call(glUniformMatrix4fv, tr.shader[SHADER_SKIN]->uModelMatrix, 1, GL_FALSE, modelMatrix->v);
-    R_Call(glUniformMatrix3fv, tr.shader[SHADER_SKIN]->uNormalMatrix, 1, GL_TRUE, mNormalMatrix.v);
-    R_Call(glUniform1i, tr.shader[SHADER_SKIN]->uUseDiscard, 0);
+    R_Call(glUseProgram, mdlx.shader->progid);
+    R_Call(glUniform1i, mdlx.shader->uUseDiscard, 0);
+    R_Call(glUniformMatrix4fv, mdlx.shader->uModelMatrix, 1, GL_FALSE, modelMatrix->v);
+    R_Call(glUniformMatrix3fv, mdlx.shader->uNormalMatrix, 1, GL_TRUE, mNormalMatrix.v);
 
     FOR_LOOP(layerID, material->num_layers) {
         mdxMaterialLayer_t const *layer = &material->layers[layerID];
-        if (!MDX_SetBlendMode(layer, layerID))
+        if (!MDLX_SetBlendMode(layer, layerID))
             continue;
         mdxTexture_t const *modeltex = &model->textures[layer->textureId];
-        LPCTEXTURE texture = MDX_GetTexture(model, team, layer->textureId, modeltex->replaceableID, overrideTexture);
+        LPCTEXTURE texture = MDLX_GetTexture(model, team, layer->textureId, modeltex->replaceableID, overrideTexture);
         R_BindTexture(texture, 0);
-        R_Call(glBindVertexArray, buf->vao);
-        R_Call(glBindBuffer, GL_ARRAY_BUFFER, buf->vbo);
-        R_Call(glDrawArrays, GL_TRIANGLES, 0, geoset->num_triangles);
+        R_Call(glBindVertexArray, geoset->vertexArrayBuffer);
+        R_Call(glBindBuffer, GL_ELEMENT_ARRAY_BUFFER, *geoset->buffer);
+        R_Call(glDrawElements, GL_TRIANGLES, geoset->num_triangles, GL_UNSIGNED_SHORT, NULL);
     }
 }
 
-mdxSequence_t const *MDX_FindSequenceByName(mdxModel_t const *model, LPCSTR name) {
+mdxSequence_t const *MDLX_FindSequenceByName(mdxModel_t const *model, LPCSTR name) {
     FOR_LOOP(i, model->num_sequences) {
         if (!strcmp(model->sequences[i].name, name)) {
             return &model->sequences[i];
@@ -369,12 +470,12 @@ mdxSequence_t const *MDX_FindSequenceByName(mdxModel_t const *model, LPCSTR name
     return NULL;
 }
 
-DWORD MDX_RemapAnimation(mdxModel_t const *model, DWORD frame, LPCSTR str) {
+DWORD MDLX_RemapAnimation(mdxModel_t const *model, DWORD frame, LPCSTR str) {
     mdxSequence_t const *seq = R_FindSequenceAtTime(model, frame);
     if (!seq) return frame;
     char buffer[64] = { 0 };
     sprintf(buffer, "%s %s", seq->name, str);
-    mdxSequence_t const *other = MDX_FindSequenceByName(model, buffer);
+    mdxSequence_t const *other = MDLX_FindSequenceByName(model, buffer);
     if (other) {
         return frame + other->interval[0] - seq->interval[0];
     } else {
@@ -382,10 +483,11 @@ DWORD MDX_RemapAnimation(mdxModel_t const *model, DWORD frame, LPCSTR str) {
     }
 }
 
-bool MDX_TraceModel(renderEntity_t const *ent, LPCLINE3 line) {
+bool MDLX_TraceModel(renderEntity_t const *ent, LPCLINE3 line) {
     MATRIX4 invmodel, matmodel;
     R_GetEntityMatrix(ent, &matmodel);
     mdxModel_t const *model = ent->model->mdx;
+    if (!model) return false;
     FOR_EACH_LIST(mdxCollisionShape_t, collisionShape, model->collisionShapes) {
         if (collisionShape->type != SHAPETYPE_SPHERE)
             continue;;
@@ -408,8 +510,8 @@ bool MDX_TraceModel(renderEntity_t const *ent, LPCLINE3 line) {
     FOR_EACH_LIST(mdxCollisionShape_t, collisionShape, model->collisionShapes) {
         if (collisionShape->type == SHAPETYPE_BOX) {
             BOX3 box = {
-                .min = *(LPCVECTOR3)collisionShape->vertex[0],
-                .max = *(LPCVECTOR3)collisionShape->vertex[1],
+                .min = collisionShape->vertex[0],
+                .max = collisionShape->vertex[1],
             };
             if (Line3_intersect_box3(&linelocal, &box, NULL))
                 return true;
@@ -428,8 +530,8 @@ bool MDX_TraceModel(renderEntity_t const *ent, LPCLINE3 line) {
 check_geosets:
     FOR_EACH_LIST(mdxGeoset_t, geoset, model->geosets) {
         BOX3 box2 = {
-            .min = *(LPCVECTOR3)&geoset->default_bounds.min,
-            .max = *(LPCVECTOR3)&geoset->default_bounds.max,
+            .min = *(LPCVECTOR3)&geoset->default_bounds.box.min,
+            .max = *(LPCVECTOR3)&geoset->default_bounds.box.max,
         };
         if (Line3_intersect_box3(&linelocal, &box2, NULL))
             goto check_geometry;
@@ -439,9 +541,9 @@ check_geometry:
     FOR_EACH_LIST(mdxGeoset_t, geoset, model->geosets) {
         FOR_LOOP(i, geoset->num_triangles / 3) {
             TRIANGLE3 tri = {
-                .a = *(LPCVECTOR3)geoset->vertices[geoset->triangles[i*3+0]],
-                .b = *(LPCVECTOR3)geoset->vertices[geoset->triangles[i*3+1]],
-                .c = *(LPCVECTOR3)geoset->vertices[geoset->triangles[i*3+2]],
+                .a = geoset->vertices[geoset->triangles[i*3+0]],
+                .b = geoset->vertices[geoset->triangles[i*3+1]],
+                .c = geoset->vertices[geoset->triangles[i*3+2]],
             };
             if (Line3_intersect_triangle(&linelocal, &tri, NULL))
                 return true;
@@ -450,74 +552,68 @@ check_geometry:
     return false;
 }
 
-static void MDX_RenderGeosets(const renderEntity_t *entity, const mdxModel_t *model, MATRIX4 *model_matrix) {
+static void MDLX_RenderGeosets(const renderEntity_t *entity, const mdxModel_t *model, LPCMATRIX4 model_matrix) {
     FOR_EACH_LIST(mdxGeoset_t, geoset, model->geosets) {
         if (geoset->geosetAnim && geoset->geosetAnim->alphas) {
             float fAlpha = 1.f;
-            MDX_GetModelKeytrackValue(model, geoset->geosetAnim->alphas, entity->frame, &fAlpha);
+            MDLX_GetModelKeytrackValue(model, geoset->geosetAnim->alphas, entity->frame, &fAlpha);
             if (fAlpha < EPSILON)
                 continue;
         }
-        MDX_RenderGeoset(model, geoset, entity->team&TEAM_MASK, model_matrix, entity->skin);
+        MDLX_RenderGeoset(model, geoset, entity->team&TEAM_MASK, model_matrix, entity->skin);
     }
 }
 
-static void MDX_RenderParticleEmitters(const renderEntity_t *entity, const mdxModel_t *model, MATRIX4 *model_matrix) {
+static void MDLX_RenderParticleEmitters(const renderEntity_t *entity, const mdxModel_t *model, LPCMATRIX4 model_matrix) {
     FOR_EACH_LIST(mdxParticleEmitter_t, emitter, model->emitters) {
         if (emitter->keytracks.Visibility) {
             float fVisibility = 1.f;
-            MDX_GetModelKeytrackValue(model, emitter->keytracks.Visibility, entity->frame, &fVisibility);
+            MDLX_GetModelKeytrackValue(model, emitter->keytracks.Visibility, entity->frame, &fVisibility);
             if (fVisibility < EPSILON)
                 continue;
         }
         float const frame = LerpNumber(entity->oldframe, entity->frame, tr.viewDef.lerpfrac);
-        MDX_RenderEmitter(model, emitter, model_matrix, frame, entity->team&TEAM_MASK);
+        MDLX_RenderEmitter(model, emitter, model_matrix, frame, entity->team&TEAM_MASK);
     }
 }
 
-static void MDX_RenderUberSplat(const renderEntity_t *entity, LPCVECTOR2 origin) {
-    if (entity->splat && !(entity->flags & RF_NO_UBERSPLAT)) {
-        COLOR32 color = { 255, 255, 255, 255 };
-        R_RenderSplat(origin, entity->splatsize, entity->splat, tr.shader[SHADER_DEFAULT], color);
-    }
-}
-
-static void MDX_RenderSelectedCircle(const renderEntity_t *entity, LPCVECTOR2 origin) {
-    if (entity->flags & RF_SELECTED) {
-        COLOR32 color = { 0, 255, 0, 255 };
-        float radius = entity->radius;
-        FOR_LOOP(i, NUM_SELECTION_CIRCLES) {
-            if ((radius * 2) > selCircles[i])
-                continue;
-            R_RenderSplat(origin, radius, tr.texture[TEX_SELECTION_CIRCLE+i], tr.shader[SHADER_UI], color);
-            break;
-        }
-    }
-}
-
-void R_RenderModel(renderEntity_t const *entity) {
-    MATRIX4 model_matrix;
-    mdxModel_t const *model = entity->model->mdx;
-    LPCVECTOR2 origin = (LPCVECTOR2)&entity->origin;
-    
+void MDX_RenderModel(renderEntity_t const *entity,
+                     mdxModel_t const *model,
+                     LPCMATRIX4 transform)
+{
     if (entity->flags & RF_HIDDEN)
         return;
     
+    if (!(tr.viewDef.rdflags & RDF_NOFRUSTUMCULL)) {
+        VECTOR3 const center = Box3_Center(&model->bounds.box);
+        SPHERE3 const sphere = {
+            .center = Matrix4_multiply_vector3(transform, &center),
+            .radius = model->bounds.radius * entity->scale,
+        };
+        if (!Frustum_ContainsSphere(&tr.viewDef.frustum, &sphere))
+            return;
+        if (!Frustum_ContainsBox(&tr.viewDef.frustum, &model->bounds.box, transform))
+            return;
+    }
+
     if (entity->flags & RF_HAS_LUMBER) {
         renderEntity_t ent = *entity;
-        ent.frame = MDX_RemapAnimation(model, ent.frame, "Lumber");
-        ent.oldframe = MDX_RemapAnimation(model, ent.oldframe, "Lumber");
+        ent.frame = MDLX_RemapAnimation(model, ent.frame, "Lumber");
+        ent.oldframe = MDLX_RemapAnimation(model, ent.oldframe, "Lumber");
         entity = &ent;
     } else if (entity->flags & RF_HAS_GOLD) {
         renderEntity_t ent = *entity;
-        ent.frame = MDX_RemapAnimation(model, ent.frame, "Gold");
-        ent.oldframe = MDX_RemapAnimation(model, ent.oldframe, "Gold");
+        ent.frame = MDLX_RemapAnimation(model, ent.frame, "Gold");
+        ent.oldframe = MDLX_RemapAnimation(model, ent.oldframe, "Gold");
         entity = &ent;
     }
-
-    R_GetEntityMatrix(entity, &model_matrix);
     
-    MDX_BindBoneMatrices(model, &model_matrix, entity->frame, entity->oldframe);
+    R_Call(glUseProgram, mdlx.shader->progid);
+    R_Call(glUniformMatrix4fv, mdlx.shader->uViewProjectionMatrix, 1, GL_FALSE, is_rendering_lights ? tr.viewDef.lightMatrix.v : tr.viewDef.viewProjectionMatrix.v);
+    R_Call(glUniformMatrix4fv, mdlx.shader->uTextureMatrix, 1, GL_FALSE, tr.viewDef.textureMatrix.v);
+    R_Call(glUniformMatrix4fv, mdlx.shader->uLightMatrix, 1, GL_FALSE, tr.viewDef.lightMatrix.v);
+
+    MDLX_BindBoneMatrices(model, transform, entity->frame, entity->oldframe);
 
     if (entity->flags & RF_NO_FOGOFWAR) {
         R_Call(glActiveTexture, GL_TEXTURE2);
@@ -525,22 +621,15 @@ void R_RenderModel(renderEntity_t const *entity) {
         R_Call(glActiveTexture, GL_TEXTURE0);
     }
     
-    MDX_RenderGeosets(entity, model, &model_matrix);
+    MDLX_RenderGeosets(entity, model, transform);
     
-    MDX_RenderParticleEmitters(entity, model, &model_matrix);
+    MDLX_RenderParticleEmitters(entity, model, transform);
     
     if ((entity->flags & RF_NO_FOGOFWAR) && tr.world) {
         R_Call(glActiveTexture, GL_TEXTURE2);
         R_Call(glBindTexture, GL_TEXTURE_2D, R_GetFogOfWarTexture());
         R_Call(glActiveTexture, GL_TEXTURE0);
     }
-
-    if (is_rendering_lights)
-        return;
-    
-    MDX_RenderUberSplat(entity, origin);
-    
-    MDX_RenderSelectedCircle(entity, origin);
 }
 
 bool R_GetModelCameraMatrix(mdxModel_t const *model, LPMATRIX4 output, LPVECTOR3 root) {
@@ -550,8 +639,8 @@ bool R_GetModelCameraMatrix(mdxModel_t const *model, LPMATRIX4 output, LPVECTOR3
     } else {
         MATRIX4 projection, view;
         Matrix4_perspective(&projection, 30, 1, 10.0, 1000.0);
-        VECTOR3 dir = Vector3_sub((LPVECTOR3)camera->targetPivot, (LPVECTOR3)camera->pivot);
-        Matrix4_lookAt(&view, (LPVECTOR3)camera->pivot, &dir, &(VECTOR3){0,0,1});
+        VECTOR3 dir = Vector3_sub(&camera->targetPivot, &camera->pivot);
+        Matrix4_lookAt(&view, &camera->pivot, &dir, &(VECTOR3){0,0,1});
         Matrix4_multiply(&projection, &view, output);
         *root = *(LPCVECTOR3)model->pivots;
         return true;
@@ -579,6 +668,7 @@ void R_DrawPortrait(LPCMODEL model, LPCRECT viewport) {
     renderEntity_t entity;
     viewDef_t viewdef;
     mdxModel_t const *mdx = model->mdx;
+    if (!model->mdx) return;
     mdxSequence_t const *seq = &mdx->sequences[2];
     
     memset(&entity, 0, sizeof(renderEntity_t));
@@ -608,4 +698,12 @@ void R_DrawPortrait(LPCMODEL model, LPCRECT viewport) {
     R_RenderShadowMap();
     
     R_RenderView();
+}
+
+void MDLX_Init(void) {
+    mdlx.shader = R_InitShader(vs, fs);
+}
+
+void MDLX_Shutdown(void) {
+    R_ReleaseShader(mdlx.shader);
 }

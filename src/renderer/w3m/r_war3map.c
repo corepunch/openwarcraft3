@@ -109,6 +109,13 @@ LPWAR3MAP FileReadWar3Map(HANDLE archive) {
     R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 #endif
+//    FOR_LOOP(y, map->height) {
+//        printf("%04x  ", y);
+//        FOR_LOOP(x, map->width) {
+//            printf("%x", GetWar3MapVertex(map, x, y)->level);
+//        }
+//        printf("\n");
+//    }
     return map;
 }
 

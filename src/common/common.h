@@ -9,6 +9,7 @@
 #define TILESIZE 128
 #define MAX_COMMAND_ENTITIES 64
 #define HEIGHT_COR (TILESIZE * 2 + 5)
+#define WATER_HEIGHT_COR 80
 #define DECODE_HEIGHT(x) (((x) - 0x2000) / 4)
 #define CMDARG_LEN 64
 #define MAX_CMDARGS 64
@@ -87,6 +88,7 @@ typedef void (*xcommand_t)(void);
 typedef struct model {
     unsigned int modeltype;
     struct mdxModel_s *mdx;
+    struct m3Model_s *m3;
 } model_t;
 
 KNOWN_AS(model, MODEL);

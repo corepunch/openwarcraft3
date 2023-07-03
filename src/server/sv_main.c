@@ -68,13 +68,13 @@ static int SV_FindIndex(LPCSTR name, int start, int max, bool create) {
 }
 
 enum {
-    ID_MDLX = MAKEFOURCC('M','D','L','X'),
+//    ID_MDLX = MAKEFOURCC('M','D','L','X'),
     ID_SEQS = MAKEFOURCC('S','E','Q','S'),
     ID_CLID = MAKEFOURCC('C','L','I','D'),
     ID_PIVT = MAKEFOURCC('P','I','V','T'),
 };
 
-void ConvertMDXAnimationName(animation_t *seq) {
+void ConvertMDLXAnimationName(animation_t *seq) {
     char *last_char = seq->name;
     for (char *ch = seq->name; *ch; ch++) {
         if (isnumber(*ch) || *ch == '-') {
@@ -89,7 +89,97 @@ void ConvertMDXAnimationName(animation_t *seq) {
     }
 }
 
-static struct cmodel *SV_LoadModelMDX(HANDLE file) {
+typedef struct {
+    DWORD nEntries;
+    DWORD offset;
+    DWORD flags;
+} Reference;
+
+struct ReferenceEntry {
+    DWORD id;
+    DWORD offset;
+    DWORD nEntries;
+    DWORD version;
+};
+
+struct MD33 {
+    DWORD ofsRefs;
+    DWORD nRefs;
+    Reference MODL;
+};
+
+struct BoundingSphere {
+    VECTOR3 min;
+    VECTOR3 max;
+    float radius;
+};
+
+struct Reference {
+    DWORD nEntries;
+    DWORD ref;
+    DWORD flags;
+};
+
+struct Sequence {
+    DWORD unknown[2];
+    struct Reference name;
+    DWORD interval[2];
+    float movementSpeed;
+    DWORD flags;
+    DWORD frequency;
+    LONG unk[3];
+    LONG unk2;
+    struct BoundingSphere boundingSphere;
+    LONG d5[3];
+};
+
+static HANDLE ReadEntry(HANDLE file, DWORD offset, DWORD size) {
+    HANDLE data = MemAlloc(size);
+    SFileSetFilePointer(file, offset, NULL, FILE_BEGIN);
+    SFileReadFile(file, data, size, NULL, NULL);
+    return data;
+}
+
+int compare_animation_name(const void *a, const void *b) {
+    const animation_t *value1 = (const animation_t *)a;
+    const animation_t *value2 = (const animation_t *)b;
+    return strcmp(value1->name, value2->name);
+}
+
+static struct cmodel *SV_LoadModelMD34(HANDLE file) {
+    struct cmodel *model = MemAlloc(sizeof(struct cmodel));
+    struct MD33 md33;
+    SFileReadFile(file, &md33, sizeof(struct MD33), NULL, NULL);
+    struct ReferenceEntry *ent = ReadEntry(file, md33.ofsRefs, sizeof(struct ReferenceEntry) * md33.nRefs);
+    FOR_LOOP(i, md33.nRefs) {
+        struct ReferenceEntry const *re = ent+i;
+        if (re->id != MAKEFOURCC('S','Q','E','S'))
+            continue;
+        struct Sequence *seq = ReadEntry(file, re->offset, re->nEntries * sizeof(struct Sequence));
+        model->animations = MemAlloc(sizeof(animation_t) * re->nEntries);
+        model->num_animations = re->nEntries;
+        DWORD startanim = 0;
+        FOR_LOOP(j, re->nEntries) {
+            struct Sequence *src = seq+j;
+            char *name = ReadEntry(file, ent[src->name.ref].offset, src->name.nEntries);
+            animation_t *dest = model->animations+j;
+            strncpy(model->animations[j].name, name, sizeof(model->animations[j].name));
+            dest->interval[0] = startanim + src->interval[0];
+            dest->interval[1] = startanim + src->interval[1];
+            startanim += src->interval[1];
+            MemFree(name);
+        }
+        qsort(model->animations, model->num_animations, sizeof(animation_t), compare_animation_name);
+        FOR_LOOP(j, re->nEntries) {
+            animation_t *dest = model->animations+j;
+            ConvertMDLXAnimationName(dest);
+        }
+        break;
+    }
+    return model;
+}
+
+static struct cmodel *SV_LoadModelMDLX(HANDLE file) {
     struct cmodel *model = MemAlloc(sizeof(struct cmodel));
     DWORD header, size;
     while (SFileReadFile(file, &header, 4, NULL, NULL)) {
@@ -100,7 +190,7 @@ static struct cmodel *SV_LoadModelMDX(HANDLE file) {
                 model->num_animations = size / sizeof(*model->animations);
                 SFileReadFile(file, model->animations, size, NULL, NULL);
                 FOR_LOOP(i, model->num_animations) {
-                    ConvertMDXAnimationName(model->animations+i);
+                    ConvertMDLXAnimationName(model->animations+i);
                 }
                 break;
             default:
@@ -131,7 +221,10 @@ static struct cmodel *SV_LoadModel(LPCSTR filename) {
     SFileReadFile(file, &fileheader, 4, NULL, NULL);
     switch (fileheader) {
         case ID_MDLX:
-            model = SV_LoadModelMDX(file);
+            model = SV_LoadModelMDLX(file);
+            break;
+        case ID_43DM:
+            model = SV_LoadModelMD34(file);
             break;
         default:
             fprintf(stderr, "Unknown model format %.5s in file %s\n", (LPSTR)&fileheader, filename);
@@ -142,6 +235,9 @@ static struct cmodel *SV_LoadModel(LPCSTR filename) {
 }
 
 int SV_ModelIndex(LPCSTR name) {
+//    if (!strcmp(name, "units\\human\\Peasant\\Peasant.mdx")) {
+//        name = "Assets\\Units\\Terran\\MarineTychus\\MarineTychus.m3";
+//    }
     int modelindex = SV_FindIndex(name, CS_MODELS, MAX_MODELS, true);
     if (!sv.models[modelindex]) {
         sv.models[modelindex] = SV_LoadModel(sv.configstrings[CS_MODELS + modelindex]);

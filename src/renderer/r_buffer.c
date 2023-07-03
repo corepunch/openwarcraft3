@@ -94,8 +94,9 @@ LPBUFFER R_MakeVertexArrayObject(LPCVERTEX vertices, DWORD size) {
     LPBUFFER buf = ri.MemAlloc(sizeof(BUFFER));
 
     R_Call(glGenVertexArrays, 1, &buf->vao);
-    R_Call(glGenBuffers, 1, &buf->vbo);
     R_Call(glBindVertexArray, buf->vao);
+   
+    R_Call(glGenBuffers, 1, &buf->vbo);
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, buf->vbo);
 
     R_Call(glEnableVertexAttribArray, attrib_position);

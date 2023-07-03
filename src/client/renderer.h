@@ -63,7 +63,9 @@ typedef struct {
     renderEntity_t *entities;
     MATRIX4 viewProjectionMatrix;
     MATRIX4 lightMatrix;
+    MATRIX4 textureMatrix;
     DWORD rdflags;
+    FRUSTUM3 frustum;
 } viewDef_t;
 
 typedef struct {

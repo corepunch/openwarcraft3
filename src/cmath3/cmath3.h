@@ -18,6 +18,7 @@
 #include "types/plane3.h"
 #include "types/triangle3.h"
 #include "types/rect.h"
+#include "types/frustum3.h"
 
 float LerpNumber(float a, float b, float t);
 

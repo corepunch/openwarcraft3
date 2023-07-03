@@ -12,4 +12,6 @@ typedef struct box3 BOX3;
 typedef struct box3 *LPBOX3;
 typedef struct box3 const *LPCBOX3;
 
+VECTOR3 Box3_Center(LPCBOX3 box);
+
 #endif

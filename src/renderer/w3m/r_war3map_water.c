@@ -51,41 +51,50 @@ static void R_MakeWaterTile(LPCWAR3MAP map, DWORD x, DWORD y) {
         GetWaterOpacity(waterlevel[2], height[2]),
         GetWaterOpacity(waterlevel[3], height[3]),
     };
+    
+#define WATER_SCALE(x,y) (((x%3)+y)/3.0)
+    
+    VECTOR2 const tc[] = {
+        { WATER_SCALE(x, 0),  WATER_SCALE(y, 0) },
+        { WATER_SCALE(x, 1),  WATER_SCALE(y, 0) },
+        { WATER_SCALE(x, 1),  WATER_SCALE(y, 1) },
+        { WATER_SCALE(x, 0),  WATER_SCALE(y, 1) },
+    };
 
     struct vertex geom[] = {
         {
             .position = { pos[0].x, pos[0].y, waterlevel[0] },
-            .texcoord = { 0, 0 },
+            .texcoord = tc[0],
             .normal = { 0, 0, 1 },
             .color = color[0],
         },
         {
             .position = { pos[1].x, pos[1].y, waterlevel[1] },
-            .texcoord = { 1, 0 },
+            .texcoord = tc[1],
             .normal = { 0, 0, 1 },
             .color = color[1],
         },
         {
             .position = { pos[2].x, pos[2].y, waterlevel[2] },
-            .texcoord = { 1, 1 },
+            .texcoord = tc[2],
             .normal = { 0, 0, 1 },
             .color = color[2],
         },
         {
             .position = { pos[0].x, pos[0].y, waterlevel[0] },
-            .texcoord = { 0, 0 },
+            .texcoord = tc[0],
             .normal = { 0, 0, 1 },
             .color = color[0],
         },
         {
             .position = { pos[2].x, pos[2].y, waterlevel[2] },
-            .texcoord = { 1, 1 },
+            .texcoord = tc[2],
             .normal = { 0, 0, 1 },
             .color = color[2],
         },
         {
             .position = { pos[3].x, pos[3].y, waterlevel[3] },
-            .texcoord = { 0, 1 },
+            .texcoord = tc[3],
             .normal = { 0, 0, 1 },
             .color = color[3],
         },

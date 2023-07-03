@@ -1,19 +1,12 @@
 #ifndef __r_mdx_h__
 #define __r_mdx_h__
 
-#include "../../common/shared.h"
+#include "../r_local.h"
 
-#define ID_MDLX ('M'|('D'<<8)|('L'<<16)|('X'<<24))
-
-#define MAX_NODES 256
-#define MAX_BONES 64
 #define MODEL_ATTACHMENT_PATH_LENGTH 0x100
 
 typedef char mdxObjectName_t[80];
 typedef char mdxFileName_t[260];
-typedef float mdxVec2_t[2];
-typedef float mdxVec3_t[3];
-typedef float vec_t;
 
 typedef enum {
   TEXOP_LOAD = 0x0,
@@ -43,36 +36,30 @@ enum {
     MODEL_EMITTER_TAIL = 2
 };
 
-#define MDXNODE_Helper 0
-#define MDXNODE_DontInheritTranslation 1
-#define MDXNODE_DontInheritRotation 2
-#define MDXNODE_DontInheritScaling 4
-#define MDXNODE_Billboarded 8
-#define MDXNODE_BillboardedLockX 16
-#define MDXNODE_BillboardedLockY 32
-#define MDXNODE_BillboardedLockZ 64
-#define MDXNODE_CameraAnchored 128
-#define MDXNODE_Bone 256
-#define MDXNODE_Light 512
-#define MDXNODE_EventObject 1024
-#define MDXNODE_Attachment 2048
-#define MDXNODE_ParticleEmitter 4096
-#define MDXNODE_CollisionShape 8192
-#define MDXNODE_RibbonEmitter 16384
-#define MDXNODE_Unshaded_EmitterUsesMdl 32768
-#define MDXNODE_SortPrimitivesFarZ_EmitterUsesTga 65536
-#define MDXNODE_LineEmitter 131072
-#define MDXNODE_Unfogged 262144
-#define MDXNODE_ModelSpace 524288
-#define MDXNODE_XYQuad 1048576
+#define MAX_MDLX_BUFFERS 8
 
-typedef enum {
-    TRACK_NO_INTERP = 0x0,
-    TRACK_LINEAR = 0x1,
-    TRACK_HERMITE = 0x2,
-    TRACK_BEZIER = 0x3,
-    NUM_TRACK_TYPES = 0x4,
-} MODELKEYTRACKTYPE;
+#define MDLXNODE_Helper 0
+#define MDLXNODE_DontInheritTranslation 1
+#define MDLXNODE_DontInheritRotation 2
+#define MDLXNODE_DontInheritScaling 4
+#define MDLXNODE_Billboarded 8
+#define MDLXNODE_BillboardedLockX 16
+#define MDLXNODE_BillboardedLockY 32
+#define MDLXNODE_BillboardedLockZ 64
+#define MDLXNODE_CameraAnchored 128
+#define MDLXNODE_Bone 256
+#define MDLXNODE_Light 512
+#define MDLXNODE_EventObject 1024
+#define MDLXNODE_Attachment 2048
+#define MDLXNODE_ParticleEmitter 4096
+#define MDLXNODE_CollisionShape 8192
+#define MDLXNODE_RibbonEmitter 16384
+#define MDLXNODE_Unshaded_EmitterUsesMdl 32768
+#define MDLXNODE_SortPrimitivesFarZ_EmitterUsesTga 65536
+#define MDLXNODE_LineEmitter 131072
+#define MDLXNODE_Unfogged 262144
+#define MDLXNODE_ModelSpace 524288
+#define MDLXNODE_XYQuad 1048576
 
 typedef enum {
     SHAPETYPE_BOX,
@@ -81,17 +68,9 @@ typedef enum {
     SHAPETYPE_CYLINDER,
 } MODELCOLLISIONSHAPETYPE;
 
-typedef enum {
-    TDATA_INT1,
-    TDATA_FLOAT1,
-    TDATA_FLOAT3,
-    TDATA_FLOAT4,
-} MODELKEYTRACKDATATYPE;
-
 typedef struct mdxBounds_s {
-    vec_t radius;
-    mdxVec3_t min;
-    mdxVec3_t max;
+    float radius;
+    BOX3 box;
 } mdxBounds_t;
 
 typedef enum {
@@ -104,9 +83,9 @@ typedef enum {
 typedef struct mdxSequence_s {
     mdxObjectName_t name;
     DWORD interval[2];
-    vec_t movespeed;     // movement speed of the entity while playing this animation
+    float movespeed;     // movement speed of the entity while playing this animation
     DWORD flags;      // &1: non looping
-    vec_t rarity;
+    float rarity;
     int syncpoint;
     mdxBounds_t bounds;
 } mdxSequence_t;
@@ -126,15 +105,15 @@ typedef struct {
 typedef struct {
     DWORD keyframeCount;
     MODELKEYTRACKDATATYPE datatype;
-    MODELKEYTRACKTYPE type;
+    MODELKEYTRACKTYPE linetype;
     DWORD globalSeqId;        // GLBS index or 0xFFFFFFFF if none
     mdxKeyFrame_t values[];
 } mdxKeyTrack_t;
 
 typedef struct mdxGeosetAnim_s {
-    vec_t staticAlpha;        // 0 is transparent, 1 is opaque
+    float staticAlpha;        // 0 is transparent, 1 is opaque
     DWORD flags;           // &1: color
-    mdxVec3_t staticColor;
+    VECTOR3 staticColor;
     DWORD geosetId;        // GEOS index or 0xFFFFFFFF if none
     mdxKeyTrack_t *alphas; // float
     mdxKeyTrack_t *colors; // vec3
@@ -182,9 +161,9 @@ typedef struct mdxLight_s {
     MODELLIGHTTYPE type;
     float AttenuationStart;
     float AttenuationEnd;
-    mdxVec3_t Color;
+    VECTOR3 Color;
     float Intensity;
-    mdxVec3_t AmbColor;
+    VECTOR3 AmbColor;
     float AmbIntensity;
     struct {
         mdxKeyTrack_t *Visibility;
@@ -201,7 +180,7 @@ typedef struct mdxLight_s {
 typedef struct mdxCollisionShape_s {
     mdxNode_t node;
     MODELCOLLISIONSHAPETYPE type;
-    mdxVec3_t vertex[2];
+    VECTOR3 vertex[2];
     float radius;
     struct mdxCollisionShape_s *next;
 } mdxCollisionShape_t;
@@ -231,7 +210,7 @@ typedef struct mdxMaterialLayer_s {
     DWORD textureId;        // TEXS index or 0xFFFFFFFF for none
     DWORD transformId;      // TXAN index or 0xFFFFFFFF for none
     int coordId;           // UAVS index or -1 for none, defines vertex buffer format coordId == -1 ? GxVBF_PN : GxVBF_PNT0
-    vec_t staticAlpha;
+    float staticAlpha;
     mdxKeyTrack_t *alpha; // float
     mdxKeyTrack_t *flipbook; // int
 } mdxMaterialLayer_t;
@@ -249,11 +228,11 @@ typedef struct mdxMaterial_s {
 
 typedef struct mdxCamera_s {
     mdxObjectName_t name;
-    mdxVec3_t pivot;
-    vec_t fieldOfView;      // default is 0.9500215
-    vec_t farClip;          // default is 27.7777786
-    vec_t nearClip;         // default is 0.222222224
-    mdxVec3_t targetPivot;
+    VECTOR3 pivot;
+    float fieldOfView;      // default is 0.9500215
+    float farClip;          // default is 27.7777786
+    float nearClip;         // default is 0.222222224
+    VECTOR3 targetPivot;
     mdxKeyTrack_t *translation; // vec3
     mdxKeyTrack_t *roll; // float
     mdxKeyTrack_t *targetTranslation; // vec3
@@ -307,9 +286,9 @@ typedef struct mdxParticleEmitter_s {
 } mdxParticleEmitter_t;
 
 typedef struct mdxGeoset_s {
-    mdxVec3_t *vertices;
-    mdxVec3_t *normals;
-    mdxVec2_t *texcoord;
+    VECTOR3 *vertices;
+    VECTOR3 *normals;
+    VECTOR2 *texcoord;
     mdxBounds_t *bounds;
     mdxBounds_t default_bounds;
     mdxGeosetAnim_t *geosetAnim;
@@ -332,19 +311,20 @@ typedef struct mdxGeoset_s {
     int num_vertexGroups;
     int num_matrixGroupSizes;
     int num_bounds;
-    int num_texcoordChannels;
-    void *userdata;
+    int num_texcoordChannels;    
+    DWORD vertexArrayBuffer;
+    DWORD buffer[MAX_MDLX_BUFFERS];
     struct mdxGeoset_s *next;
 } mdxGeoset_t;
 
 typedef struct mdxModel_s {
     DWORD version;
     mdxInfo_t info;
+    mdxBounds_t bounds;
     mdxGeoset_t *geosets;
     mdxTexture_t *textures;
     mdxSequence_t *sequences;
     mdxEvent_t *events;
-    mdxVec3_t *pivots;
     mdxMaterial_t *materials;
     mdxBone_t *bones;
     mdxGeosetAnim_t *geosetAnims;
@@ -356,13 +336,14 @@ typedef struct mdxModel_s {
     mdxAttachment_t *attachments;
     mdxLight_t *lights;
     mdxNode_t *nodes[MAX_NODES];
+    VECTOR3 *pivots;
     int num_textures;
     int num_sequences;
     int num_globalSequences;
     int num_pivots;
 } mdxModel_t;
 
-mdxModel_t *MDX_LoadBuffer(void *buffer, DWORD size);
-void MDX_Release(mdxModel_t *model);
+mdxModel_t *R_LoadModelMDLX(void *buffer, DWORD size);
+void MDLX_Release(mdxModel_t *model);
 
 #endif

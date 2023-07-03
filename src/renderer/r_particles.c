@@ -103,7 +103,7 @@ void R_UpdateParticles(void) {
     cparticle_t *active = NULL;
     cparticle_t *tail = NULL;
     cparticle_t *next = NULL;
-    float frameTime = tr.viewDef.deltaTime / (float)MSEC;
+    float frameTime = tr.viewDef.deltaTime / 1000.f;
     
     for (cparticle_t *p = active_particles; p; p = next) {
         next = p->next;

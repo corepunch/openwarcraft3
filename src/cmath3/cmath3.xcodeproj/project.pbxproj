@@ -7,6 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		7806B4612A52C8D600EE86BC /* frustum3.c in Sources */ = {isa = PBXBuildFile; fileRef = 7806B4602A52C8D600EE86BC /* frustum3.c */; };
+		7806B4632A52CA2400EE86BC /* plane3.c in Sources */ = {isa = PBXBuildFile; fileRef = 7806B4622A52CA2400EE86BC /* plane3.c */; };
+		7806B4652A52DF0B00EE86BC /* box3.c in Sources */ = {isa = PBXBuildFile; fileRef = 7806B4642A52DF0B00EE86BC /* box3.c */; };
 		78314B1B2A28C6CE00062C4B /* rect.h in Headers */ = {isa = PBXBuildFile; fileRef = 78314B192A28C6CE00062C4B /* rect.h */; };
 		78314B1C2A28C6CE00062C4B /* rect.c in Sources */ = {isa = PBXBuildFile; fileRef = 78314B1A2A28C6CE00062C4B /* rect.c */; };
 		78662FED2A176DB400266A62 /* triangle3.c in Sources */ = {isa = PBXBuildFile; fileRef = 78662FEC2A176DB400266A62 /* triangle3.c */; };
@@ -28,6 +31,10 @@
 
 /* Begin PBXFileReference section */
 		5D2300F92A375DF400F649AE /* box2.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = box2.h; sourceTree = "<group>"; };
+		7806B45F2A52C6D000EE86BC /* frustum3.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = frustum3.h; sourceTree = "<group>"; };
+		7806B4602A52C8D600EE86BC /* frustum3.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = frustum3.c; sourceTree = "<group>"; };
+		7806B4622A52CA2400EE86BC /* plane3.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = plane3.c; sourceTree = "<group>"; };
+		7806B4642A52DF0B00EE86BC /* box3.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = box3.c; sourceTree = "<group>"; };
 		78314B192A28C6CE00062C4B /* rect.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = rect.h; sourceTree = "<group>"; };
 		78314B1A2A28C6CE00062C4B /* rect.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = rect.c; sourceTree = "<group>"; };
 		78662FEB2A176C2000266A62 /* triangle3.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = triangle3.h; sourceTree = "<group>"; };
@@ -85,15 +92,18 @@
 		78A896E62A16042700BC5B56 /* source */ = {
 			isa = PBXGroup;
 			children = (
+				7806B4602A52C8D600EE86BC /* frustum3.c */,
 				78A896ED2A1615CD00BC5B56 /* line3.c */,
 				78A896E32A1603B800BC5B56 /* matrix3.c */,
 				78A896DF2A16032500BC5B56 /* matrix4.c */,
+				7806B4622A52CA2400EE86BC /* plane3.c */,
 				78A896DB2A1602B500BC5B56 /* quaternion.c */,
 				78314B1A2A28C6CE00062C4B /* rect.c */,
 				78662FEC2A176DB400266A62 /* triangle3.c */,
 				78A896CF2A16015D00BC5B56 /* vector2.c */,
 				78A896D32A1601FB00BC5B56 /* vector3.c */,
 				78A896D72A16025C00BC5B56 /* vector4.c */,
+				7806B4642A52DF0B00EE86BC /* box3.c */,
 			);
 			path = source;
 			sourceTree = "<group>";
@@ -103,6 +113,7 @@
 			children = (
 				5D2300F92A375DF400F649AE /* box2.h */,
 				78E91C062A1748D9003D9F3A /* box3.h */,
+				7806B45F2A52C6D000EE86BC /* frustum3.h */,
 				78A896EC2A1615B600BC5B56 /* line3.h */,
 				78A896E22A1603B800BC5B56 /* matrix3.h */,
 				78A896DE2A16032500BC5B56 /* matrix4.h */,
@@ -163,7 +174,7 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
-				LastUpgradeCheck = 1420;
+				LastUpgradeCheck = 1430;
 				TargetAttributes = {
 					78A896BC2A16012C00BC5B56 = {
 						CreatedOnToolsVersion = 14.2;
@@ -195,8 +206,11 @@
 			files = (
 				78314B1C2A28C6CE00062C4B /* rect.c in Sources */,
 				78A896E52A1603B800BC5B56 /* matrix3.c in Sources */,
+				7806B4632A52CA2400EE86BC /* plane3.c in Sources */,
+				7806B4652A52DF0B00EE86BC /* box3.c in Sources */,
 				78A896D92A16025C00BC5B56 /* vector4.c in Sources */,
 				78A896D52A1601FB00BC5B56 /* vector3.c in Sources */,
+				7806B4612A52C8D600EE86BC /* frustum3.c in Sources */,
 				78A896E12A16032500BC5B56 /* matrix4.c in Sources */,
 				78A896D12A16015D00BC5B56 /* vector2.c in Sources */,
 				78662FED2A176DB400266A62 /* triangle3.c in Sources */,
@@ -241,6 +255,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
@@ -299,6 +314,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -321,6 +337,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
+				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = BM2R8F5YHC;
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
@@ -334,6 +351,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
+				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = BM2R8F5YHC;
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;

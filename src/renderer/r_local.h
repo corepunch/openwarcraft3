@@ -42,7 +42,7 @@
 #define MAX_SKIN_BONES 8
 #define NUM_SELECTION_CIRCLES 3
 #define NUM_RECT_VERTICES 6
-#define MSEC 1000
+#define MAX_NODES 256
 
 #include "../common/common.h"
 #include "../client/renderer.h"
@@ -95,6 +95,21 @@ struct render_target {
     DWORD texture;
 };
 
+typedef enum {
+    TRACK_NO_INTERP = 0x0,
+    TRACK_LINEAR = 0x1,
+    TRACK_HERMITE = 0x2,
+    TRACK_BEZIER = 0x3,
+    NUM_TRACK_TYPES = 0x4,
+} MODELKEYTRACKTYPE;
+
+typedef enum {
+    TDATA_INT1,
+    TDATA_FLOAT1,
+    TDATA_FLOAT3,
+    TDATA_FLOAT4,
+} MODELKEYTRACKDATATYPE;
+
 enum {
     TEX_SHADOWMAP,
     TEX_WATER,
@@ -109,7 +124,6 @@ enum {
 
 enum {
     SHADER_DEFAULT,
-    SHADER_SKIN,
     SHADER_UI,
     SHADER_COUNT,
 };
@@ -158,10 +172,9 @@ LPTEXTURE R_MakeSysFontTexture(void);
 void R_LoadTextureMipLevel(LPCTEXTURE pTexture, DWORD level, LPCCOLOR32 pPixels, DWORD width, DWORD height);
 void R_BindTexture(LPCTEXTURE texture, DWORD unit);
 void R_RenderModel(renderEntity_t const *edict);
-bool MDX_TraceModel(renderEntity_t const *edict, LPCLINE3 line);
+bool MDLX_TraceModel(renderEntity_t const *edict, LPCLINE3 line);
 void R_ReleaseVertexArrayObject(LPBUFFER buffer);
 LPCTEXTURE R_FindTextureByID(DWORD textureID);
-bool R_IsPointVisible(LPCVECTOR3 point, float fThreshold);
 void R_DrawPortrait(LPCMODEL model, LPCRECT viewport);
 void R_RenderSplat(LPCVECTOR2 position, float radius, LPCTEXTURE texture, LPCSHADER shader, COLOR32 color);
 
@@ -224,6 +237,10 @@ cparticle_t *R_SpawnParticle(void);
 
 // r_war3map.c
 VECTOR2 GetWar3MapSize(LPCWAR3MAP war3Map);
+
+// loaders
+mdxModel_t *R_LoadModelMDLX(void *buffer, DWORD size);
+m3Model_t *R_LoadModelM3(void *buffer, DWORD size);
 
 extern struct render_globals tr;
 

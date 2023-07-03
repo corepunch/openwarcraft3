@@ -59,7 +59,7 @@ void R_DrawImage(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv) {
 }
 
 void R_DrawPic(LPCTEXTURE texture, float x, float y) {
-    R_DrawImage(texture, &(RECT ) { x, y, texture->width, texture->height }, NULL);
+    R_DrawImage(texture, &(RECT ) { x, y, texture->width / 2000.0, texture->height / 2000.0}, NULL);
 }
 
 void R_DrawSelectionRect(LPCRECT rect, COLOR32 color) {

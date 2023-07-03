@@ -1,11 +1,13 @@
 #include "r_war3map.h"
 #include "../mdx/r_mdx.h"
 
+#define SAME_TILE 852063
+#define NO_CLIFF MAKEFOURCC('C','L','n','o')
+
 static VERTEX aVertexBuffer[(SEGMENT_SIZE+1)*(SEGMENT_SIZE+1)*64];
 static LPVERTEX currentVertex = NULL;
 
-#define SAME_TILE 852063
-#define NO_CLIFF MAKEFOURCC('C','L','n','o')
+VECTOR3 R_GetVertexNormal(LPCWAR3MAP map, DWORD x, DWORD y);
 
 typedef struct {
     DWORD cliff;
@@ -33,6 +35,20 @@ static int TileBaseLevel(LPCWAR3MAPVERTEX tile) {
         minLevel = MIN(minLevel, tile[tileIndex].level);
     }
     return minLevel;
+}
+
+static VECTOR3 GetAccurateNormalAtPoint(float sx, float sy) {
+    float x = sx / TILESIZE;
+    float y = sy / TILESIZE;
+    float fx = floorf(x);
+    float fy = floorf(y);
+    VECTOR3 a = R_GetVertexNormal(tr.world, fx, fy);
+    VECTOR3 b = R_GetVertexNormal(tr.world, fx + 1, fy);
+    VECTOR3 c = R_GetVertexNormal(tr.world, fx, fy + 1);
+    VECTOR3 d = R_GetVertexNormal(tr.world, fx + 1, fy + 1);
+    VECTOR3 ab = Vector3_lerp(&a, &b, x - fx);
+    VECTOR3 cd = Vector3_lerp(&c, &d, x - fx);
+    return Vector3_lerp(&ab, &cd, y - fy);
 }
 
 static float GetAccurateHeightAtPoint(float sx, float sy) {
@@ -86,22 +102,22 @@ static void R_MakeCliff(LPCWAR3MAP map, DWORD x, DWORD y, cliffData_t const *dat
     GetTileVertices(x, y, map, tile);
     int remap[4] = { 3, 1, 0, 2 };
 
-    if (GetTileRamps(tile) || !IsTileCliff(tile) || tile[remap[0]].cliff != data->cliff)
+    if (GetTileRamps(tile) == 4 || !IsTileCliff(tile) || tile[remap[0]].cliff != data->cliff)
         return;
 
     char cliffcfg[5] = { 0 };
-    int const tileramps = GetTileRamps(tile);
+    bool const is_ramp = GetTileRamps(tile) > 1;
     int const baselevel = TileBaseLevel(tile);
 
     FOR_LOOP(index, 4) {
         LPCWAR3MAPVERTEX vert = &tile[remap[index]];
         int const diff = vert->level - baselevel;
         if (diff == 0) {
-            cliffcfg[index] = (tileramps > 1 && vert->ramp) ? 'L' : 'A';
+            cliffcfg[index] = (is_ramp && vert->ramp) ? 'L' : 'A';
         } else if (diff == 1) {
-            cliffcfg[index] = (tileramps > 1 && vert->ramp) ? 'H' : 'B';
+            cliffcfg[index] = (is_ramp && vert->ramp) ? 'H' : 'B';
         } else {
-            cliffcfg[index] = (tileramps > 1 && vert->ramp) ? 'X' : 'C';
+            cliffcfg[index] = (is_ramp && vert->ramp) ? 'X' : 'C';
         }
     }
     
@@ -116,27 +132,47 @@ static void R_MakeCliff(LPCWAR3MAP map, DWORD x, DWORD y, cliffData_t const *dat
         }
     }
 
-    LPCMODEL pModel = R_LoadCliffModel(data, cliffcfg, tileramps > 1);
+    LPCMODEL pModel = R_LoadCliffModel(data, cliffcfg, is_ramp);
     mdxGeoset_t *pGeoset = pModel->mdx->geosets;
+    
+    VECTOR2 offset = { (x+1) * TILESIZE, y * TILESIZE };
+    
+    if (is_ramp) {
+        LPCBOX3 bbox = &pModel->mdx->bounds.box;
+        VECTOR3 const diff = Vector3_sub(&bbox->max, &bbox->min);
+        BYTE a = GetWar3MapVertex(map,x,y)->level;
+        BYTE b = GetWar3MapVertex(map,x,y+1)->level;
+        BYTE c = GetWar3MapVertex(map,x+1,y)->level;
+        BYTE d = GetWar3MapVertex(map,x+1,y+1)->level;
+        if (diff.x > diff.y) {
+            if (a + b < c + d) {
+                offset.x -= TILESIZE;
+            }
+        } else {
+            if (a + c < b + d) {
+                offset.y -= TILESIZE;
+            }
+        }
+    }
 
     FOR_LOOP(t, pGeoset->num_triangles) {
         const int i = pGeoset->triangles[t];
-        const float fx = pGeoset->vertices[i][0] + (x+1) * TILESIZE;
-        const float fy = pGeoset->vertices[i][1] + y * TILESIZE;
+        const float fx = pGeoset->vertices[i].x + offset.x;
+        const float fy = pGeoset->vertices[i].y + offset.y;
         const float fh = GetAccurateHeightAtPoint(fx, fy);
         const float fw = GetAccurateWaterLevelAtPoint(fx, fy);
-        const float fz = pGeoset->vertices[i][2] + baselevel * TILESIZE + fh - HEIGHT_COR;
+        const float fz = pGeoset->vertices[i].z + baselevel * TILESIZE + fh - HEIGHT_COR;
         const float dp = GetTileDepth(fw, fz);
         struct vertex *v = currentVertex + t;
+        VECTOR3 fn = pGeoset->normals[i];
+        VECTOR3 an = GetAccurateNormalAtPoint(fx, fy);
         v->color = MakeColor(dp, LerpNumber(dp, 1, 0.25), LerpNumber(dp, 1, 0.5), 1);
         v->position.x = map->center.x + fx;
         v->position.y = map->center.y + fy;
         v->position.z = fz;
-        v->texcoord.x = pGeoset->texcoord[i][0];
-        v->texcoord.y = pGeoset->texcoord[i][1];
-        v->normal.x = pGeoset->normals[i][0];
-        v->normal.y = pGeoset->normals[i][1];
-        v->normal.z = pGeoset->normals[i][2];
+        v->texcoord = pGeoset->texcoord[i];
+        v->normal = Vector3_mad(&(VECTOR3){fn.x,fn.y,0}, fn.z, &an);
+        Vector3_normalize(&v->normal);
     }
 
     currentVertex += pGeoset->num_triangles;

@@ -108,105 +108,85 @@ DWORD R_ModelFindBiggestGroup(mdxGeoset_t const *geoset) {
     return biggest;
 }
 
-void R_SetupGeoset(mdxModel_t *model, mdxGeoset_t *geoset) {
+void R_SetupGeosetVertexBuffer(mdxGeoset_t *geoset) {
     DWORD biggestGeoset = R_ModelFindBiggestGroup(geoset);
     if (biggestGeoset > MAX_SKIN_BONES) {
         ri.error("Geoset with more that %d bones skinning int\n", MAX_SKIN_BONES);
         biggestGeoset = MAX_SKIN_BONES;
     }
+    
+    struct mdx_vertex {
+        BYTE skin[MAX_SKIN_BONES];
+        BYTE boneWeight[MAX_SKIN_BONES];
+    };
 
     typedef BYTE matrixGroup_t[MAX_SKIN_BONES];
-    vertex_t *vertices = ri.MemAlloc(sizeof(vertex_t) * geoset->num_triangles);
+    struct mdx_vertex *vertices = ri.MemAlloc(sizeof(vertex_t) * geoset->num_vertices);
     matrixGroup_t *matrixGroups = ri.MemAlloc(sizeof(matrixGroup_t) * geoset->num_matrixGroupSizes);
     DWORD indexOffset = 0;
 
     FOR_LOOP(matrixGroupIndex, geoset->num_matrixGroupSizes) {
-        memset(&matrixGroups[matrixGroupIndex], MAX_BONES - 1, sizeof(matrixGroup_t));
+        memset(&matrixGroups[matrixGroupIndex], MAX_NODES - 1, sizeof(matrixGroup_t));
         FOR_LOOP(matrixIndex, geoset->matrixGroupSizes[matrixGroupIndex]) {
             matrixGroups[matrixGroupIndex][matrixIndex] = geoset->matrices[indexOffset++];
         }
     }
 
-    FOR_LOOP(triangle, geoset->num_triangles) {
-        DWORD vertex = geoset->triangles[triangle];
+    FOR_LOOP(vertex, geoset->num_vertices) {
         DWORD matrixGroupIndex = geoset->vertexGroups[vertex];
         DWORD matrixGroupSize = MAX(1, geoset->matrixGroupSizes[matrixGroupIndex]);
-        vertex_t *vrtx = &vertices[triangle];
+        BYTE leftover = 0xff;
+        BYTE leftoversize = matrixGroupSize;
         BYTE *matrixGroup = matrixGroups[matrixGroupIndex];
-        vrtx->color = (color32_t) { 255, 255, 255, 255 };
-        if (geoset->vertices) vrtx->position = *(struct vector3 *)&geoset->vertices[vertex];
-        if (geoset->texcoord) vrtx->texcoord = *(struct vector2 *)&geoset->texcoord[vertex];
-        if (geoset->normals) vrtx->normal = *(struct vector3 *)&geoset->normals[vertex];
-        memcpy(vrtx->skin, matrixGroup, sizeof(matrixGroup_t));
-        memset(vrtx->boneWeight, 0, sizeof(matrixGroup_t));
-        uint8_t leftover = 255;
-        uint8_t leftoversize = matrixGroupSize;
+        memcpy(vertices[vertex].skin, matrixGroup, sizeof(matrixGroup_t));
+        memset(vertices[vertex].boneWeight, 0, sizeof(matrixGroup_t));
         FOR_LOOP(matrixIndex, matrixGroupSize) {
-            uint8_t value = (float)leftover / (float)leftoversize;
-            vrtx->boneWeight[matrixIndex] = value;
+            BYTE value = (float)leftover / (float)leftoversize;
+            vertices[vertex].boneWeight[matrixIndex] = value;
             leftover = MAX(0, leftover - value);
             leftoversize = MAX(1, leftoversize - 1);
         }
     }
 
-    geoset->userdata = R_MakeVertexArrayObject(vertices, geoset->num_triangles);
+    R_Call(glGenVertexArrays, 1, &geoset->vertexArrayBuffer);
+    R_Call(glBindVertexArray, geoset->vertexArrayBuffer);
 
+    R_Call(glGenBuffers, MAX_MDLX_BUFFERS, geoset->buffer);
+
+    R_Call(glBindBuffer, GL_ARRAY_BUFFER, geoset->buffer[1]);
+    R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(VECTOR3) * geoset->num_vertices, geoset->vertices, GL_STATIC_DRAW);
+    R_Call(glVertexAttribPointer, attrib_position, 3, GL_FLOAT, GL_FALSE, 0, 0);
+    R_Call(glEnableVertexAttribArray, attrib_position);
+
+    R_Call(glBindBuffer, GL_ARRAY_BUFFER, geoset->buffer[2]);
+    R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(VECTOR2) * geoset->num_texcoord, geoset->texcoord, GL_STATIC_DRAW);
+    R_Call(glVertexAttribPointer, attrib_texcoord, 2, GL_FLOAT, GL_FALSE, 0, 0);
+    R_Call(glEnableVertexAttribArray, attrib_texcoord);
+
+    R_Call(glBindBuffer, GL_ARRAY_BUFFER, geoset->buffer[3]);
+    R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(VECTOR3) * geoset->num_normals, geoset->normals, GL_STATIC_DRAW);
+    R_Call(glVertexAttribPointer, attrib_normal, 3, GL_FLOAT, GL_FALSE, 0, 0);
+    R_Call(glEnableVertexAttribArray, attrib_normal);
+
+    R_Call(glBindBuffer, GL_ARRAY_BUFFER, geoset->buffer[4]);
+
+    R_Call(glEnableVertexAttribArray, attrib_skin1);
+    R_Call(glEnableVertexAttribArray, attrib_skin2);
+    R_Call(glEnableVertexAttribArray, attrib_boneWeight1);
+    R_Call(glEnableVertexAttribArray, attrib_boneWeight2);
+
+    R_Call(glVertexAttribPointer, attrib_skin1, 4, GL_UNSIGNED_BYTE, GL_FALSE, sizeof(struct mdx_vertex), FOFS(mdx_vertex, skin[0]));
+    R_Call(glVertexAttribPointer, attrib_skin2, 4, GL_UNSIGNED_BYTE, GL_FALSE, sizeof(struct mdx_vertex), FOFS(mdx_vertex, skin[4]));
+    R_Call(glVertexAttribPointer, attrib_boneWeight1, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(struct mdx_vertex), FOFS(mdx_vertex, boneWeight[0]));
+    R_Call(glVertexAttribPointer, attrib_boneWeight2, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(struct mdx_vertex), FOFS(mdx_vertex, boneWeight[4]));
+
+    R_Call(glBufferData, GL_ARRAY_BUFFER, geoset->num_vertices * sizeof(VERTEX), vertices, GL_STATIC_DRAW);
+
+    R_Call(glBindBuffer, GL_ELEMENT_ARRAY_BUFFER, geoset->buffer[0]);
+    R_Call(glBufferData, GL_ELEMENT_ARRAY_BUFFER, sizeof(USHORT) * geoset->num_triangles, geoset->triangles, GL_STATIC_DRAW);
+            
     ri.MemFree(vertices);
     ri.MemFree(matrixGroups);
-}
-
-mdxModel_t *R_LoadModelMDX(void *buffer, DWORD size) {
-    mdxModel_t *model = MDX_LoadBuffer(buffer, size);
-    if (model) {
-        FOR_EACH_LIST(mdxGeoset_t, geoset, model->geosets) {
-            R_SetupGeoset(model, geoset);
-        }
-        FOR_LOOP(texid, model->num_textures) {
-            model->textures[texid].texid = R_RegisterTextureFile(model->textures[texid].path);
-        }
-    }
-    return model;
-}
-
-LPMODEL R_LoadModel(LPCSTR modelFilename) {
-    DWORD fileHeader;
-    HANDLE file = ri.FileOpen(modelFilename);
-    LPMODEL model = NULL;
-    if (file == NULL) {
-        // try to load without *0.mdx
-        PATHSTR tempFileName = { 0 };
-        LPCSTR end = modelFilename + strlen(modelFilename) - 4;
-        if (end > modelFilename && isdigit(*(end - 1))) {
-            end--;
-        }
-        strncpy(tempFileName, modelFilename, end - modelFilename);
-        strcpy(tempFileName + strlen(tempFileName), ".mdx");
-        file = ri.FileOpen(tempFileName);
-        if (!file) {
-            fprintf(stderr, "Model not found: %s\n", modelFilename);
-            return NULL;
-        }
-    }
-    DWORD fileSize = SFileGetFileSize(file, NULL);
-    void *buffer = ri.MemAlloc(fileSize);
-    SFileReadFile(file, buffer, fileSize, NULL, NULL);
-    switch (*(DWORD *)buffer) {
-        case ID_MDLX:
-            model = ri.MemAlloc(sizeof(model_t));
-            model->mdx = R_LoadModelMDX(buffer, fileSize);
-            model->modeltype = ID_MDLX;
-//            printf("%s\n", modelFilename);
-//            FOR_LOOP(i, model->mdx->num_sequences) {
-//                printf("%s\n", model->mdx->sequences[i].name);
-//            }
-            break;
-        default:
-            fprintf(stderr, "Unknown model format %.5s in file %s\n", (LPSTR)&fileHeader, modelFilename);
-            break;
-    }
-    ri.FileClose(file);
-    ri.MemFree(buffer);
-    return model;
 }
 
 void R_ReleaseModelNode(mdxNode_t *node) {
@@ -217,7 +197,7 @@ void R_ReleaseModelNode(mdxNode_t *node) {
 
 void R_ReleaseModel(LPMODEL model) {
     if (model->modeltype == ID_MDLX) {
-        MDX_Release(model->mdx);
+        MDLX_Release(model->mdx);
     }
     ri.MemFree(model);
 }
@@ -303,9 +283,9 @@ void ReadGeoset(LPSIZEBUF buffer, mdxGeoset_t *geoset) {
     DWORD header;
     while (MSG_Read(buffer, &header, 4)) {
         switch (header) {
-            case ID_VRTX: SFileReadArray2(buffer, geoset, vertices, sizeof(mdxVec3_t)); break;
-            case ID_NRMS: SFileReadArray2(buffer, geoset, normals, sizeof(mdxVec3_t)); break;
-            case ID_UVBS: SFileReadArray2(buffer, geoset, texcoord, sizeof(mdxVec2_t)); break;
+            case ID_VRTX: SFileReadArray2(buffer, geoset, vertices, sizeof(VECTOR3)); break;
+            case ID_NRMS: SFileReadArray2(buffer, geoset, normals, sizeof(VECTOR3)); break;
+            case ID_UVBS: SFileReadArray2(buffer, geoset, texcoord, sizeof(VECTOR2)); break;
             case ID_PTYP: SFileReadArray2(buffer, geoset, primitiveTypes, sizeof(int)); break;
             case ID_PCNT: SFileReadArray2(buffer, geoset, primitiveCounts, sizeof(int)); break;
             case ID_PVTX: SFileReadArray2(buffer, geoset, triangles, sizeof(short)); break;
@@ -318,6 +298,7 @@ void ReadGeoset(LPSIZEBUF buffer, mdxGeoset_t *geoset) {
                 break;
         }
     };
+    R_SetupGeosetVertexBuffer(geoset);
 }
 
 void ReadKeyTrack(LPSIZEBUF buffer, MODELKEYTRACKDATATYPE dataType, mdxKeyTrack_t **output) {
@@ -328,7 +309,7 @@ void ReadKeyTrack(LPSIZEBUF buffer, MODELKEYTRACKDATATYPE dataType, mdxKeyTrack_
     *output = ri.MemAlloc(sizeof(mdxKeyTrack_t) + dataSize);
     (*output)->keyframeCount = keyframeCount;
     (*output)->datatype = dataType;
-    (*output)->type = keyTrackType;
+    (*output)->linetype = keyTrackType;
     (*output)->globalSeqId = globalSeqId;
     MSG_Read(buffer, (*output)->values, dataSize);
 }
@@ -419,9 +400,9 @@ void ReadHelper(LPSIZEBUF buffer, mdxHelper_t *helper) {
 void ReadCollisionShape(LPSIZEBUF buffer, mdxCollisionShape_t *cs) {
     ReadNode(buffer, &cs->node, buffer->cursize - buffer->readcount);
     MSG_ReadOverflow(buffer, &cs->type, sizeof(DWORD));
-    MSG_ReadOverflow(buffer, &cs->vertex[0], sizeof(mdxVec3_t));
+    MSG_ReadOverflow(buffer, &cs->vertex[0], sizeof(VECTOR3));
     if (cs->type != SHAPETYPE_SPHERE) {
-        MSG_ReadOverflow(buffer, &cs->vertex[1], sizeof(mdxVec3_t));
+        MSG_ReadOverflow(buffer, &cs->vertex[1], sizeof(VECTOR3));
     }
     if ((cs->type == SHAPETYPE_SPHERE) || (cs->type == SHAPETYPE_CYLINDER)) {
         MSG_ReadOverflow(buffer, &cs->radius, sizeof(float));
@@ -479,11 +460,11 @@ void ReadParticleEmitter(LPSIZEBUF buffer, mdxParticleEmitter_t *pe) {
 void ReadCamera(LPSIZEBUF buffer, mdxCamera_t *camera) {
     DWORD blockHeader;
     MSG_Read(buffer, &camera->name, sizeof(mdxObjectName_t));
-    MSG_Read(buffer, &camera->pivot, sizeof(mdxVec3_t));
+    MSG_Read(buffer, &camera->pivot, sizeof(VECTOR3));
     MSG_Read(buffer, &camera->fieldOfView, sizeof(float));
     MSG_Read(buffer, &camera->farClip, sizeof(float));
     MSG_Read(buffer, &camera->nearClip, sizeof(float));
-    MSG_Read(buffer, &camera->targetPivot, sizeof(mdxVec3_t));
+    MSG_Read(buffer, &camera->targetPivot, sizeof(VECTOR3));
     while (MSG_Read(buffer, &blockHeader, 4)) {
         switch (blockHeader) {
             case ID_KCTR: ReadKeyTrack(buffer, TDATA_FLOAT3, &camera->translation); break;
@@ -568,7 +549,7 @@ void ReadGeosetAnim(LPSIZEBUF buffer, mdxGeosetAnim_t *geosetAnim) {
     };
 }
 
-mdxNode_t *MDX_GetModelNodeWithObjectID(mdxModel_t *model, DWORD objectID) {
+mdxNode_t *MDLX_GetModelNodeWithObjectID(mdxModel_t *model, DWORD objectID) {
     if (objectID == -1) {
         return NULL;
     }
@@ -585,12 +566,12 @@ mdxNode_t *MDX_GetModelNodeWithObjectID(mdxModel_t *model, DWORD objectID) {
     return NULL;
 }
 
-blockReadCode_t MDX_ReadMODL(LPSIZEBUF sb, mdxModel_t *model) {
+blockReadCode_t MDLX_ReadMODL(LPSIZEBUF sb, mdxModel_t *model) {
     MSG_Read(sb, &model->info, sizeof(mdxInfo_t));
     return BLOCKREAD_OK;
 }
 
-blockReadCode_t MDX_ReadVERS(LPSIZEBUF sb, mdxModel_t *model) {
+blockReadCode_t MDLX_ReadVERS(LPSIZEBUF sb, mdxModel_t *model) {
     if ((model->version = MSG_ReadLong(sb)) != 800) {
         fprintf(stderr, "Usupported MDLX version %d\n", model->version);
         return BLOCKREAD_ERROR;
@@ -599,107 +580,131 @@ blockReadCode_t MDX_ReadVERS(LPSIZEBUF sb, mdxModel_t *model) {
     }
 }
 
-blockReadCode_t MDX_ReadEVTS(LPSIZEBUF sb, mdxModel_t *model) {
+blockReadCode_t MDLX_ReadEVTS(LPSIZEBUF sb, mdxModel_t *model) {
     MODEL_READ_LIST(sb, Event, events);
     return BLOCKREAD_OK;
 }
 
-blockReadCode_t MDX_ReadGEOS(LPSIZEBUF sb, mdxModel_t *model) {
+blockReadCode_t MDLX_ReadGEOS(LPSIZEBUF sb, mdxModel_t *model) {
     MODEL_READ_LIST(sb, Geoset, geosets);
     return BLOCKREAD_OK;
 }
 
-blockReadCode_t MDX_ReadMTLS(LPSIZEBUF sb, mdxModel_t *model) {
+blockReadCode_t MDLX_ReadMTLS(LPSIZEBUF sb, mdxModel_t *model) {
     MODEL_READ_LIST(sb, Material, materials);
     return BLOCKREAD_OK;
 }
 
-blockReadCode_t MDX_ReadBONE(LPSIZEBUF sb, mdxModel_t *model) {
+blockReadCode_t MDLX_ReadBONE(LPSIZEBUF sb, mdxModel_t *model) {
     MODEL_READ_LIST(sb, Bone, bones);
     return BLOCKREAD_OK;
 }
 
-blockReadCode_t MDX_ReadGEOA(LPSIZEBUF sb, mdxModel_t *model) {
+blockReadCode_t MDLX_ReadGEOA(LPSIZEBUF sb, mdxModel_t *model) {
     MODEL_READ_LIST(sb, GeosetAnim, geosetAnims);
     return BLOCKREAD_OK;
 }
 
-blockReadCode_t MDX_ReadHELP(LPSIZEBUF sb, mdxModel_t *model) {
+blockReadCode_t MDLX_ReadHELP(LPSIZEBUF sb, mdxModel_t *model) {
     MODEL_READ_LIST(sb, Helper, helpers);
     return BLOCKREAD_OK;
 }
 
-blockReadCode_t MDX_ReadCLID(LPSIZEBUF sb, mdxModel_t *model) {
+blockReadCode_t MDLX_ReadCLID(LPSIZEBUF sb, mdxModel_t *model) {
     MODEL_READ_LIST(sb, CollisionShape, collisionShapes);
     return BLOCKREAD_OK;
 }
 
-blockReadCode_t MDX_ReadCAMS(LPSIZEBUF sb, mdxModel_t *model) {
+blockReadCode_t MDLX_ReadCAMS(LPSIZEBUF sb, mdxModel_t *model) {
     MODEL_READ_LIST(sb, Camera, cameras);
     return BLOCKREAD_OK;
 }
 
-blockReadCode_t MDX_ReadSEQS(LPSIZEBUF sb, mdxModel_t *model) {
+blockReadCode_t MDLX_ReadSEQS(LPSIZEBUF sb, mdxModel_t *model) {
     MODEL_READ_ARRAY(sb, Sequence, sequences);
     return BLOCKREAD_OK;
 }
 
-blockReadCode_t MDX_ReadGLBS(LPSIZEBUF sb, mdxModel_t *model) {
+blockReadCode_t MDLX_ReadGLBS(LPSIZEBUF sb, mdxModel_t *model) {
     MODEL_READ_ARRAY(sb, GlobalSequence, globalSequences);
     return BLOCKREAD_OK;
 }
 
-blockReadCode_t MDX_ReadPIVT(LPSIZEBUF sb, mdxModel_t *model) {
+blockReadCode_t MDLX_ReadPIVT(LPSIZEBUF sb, mdxModel_t *model) {
+    typedef VECTOR3 mdxVec3_t;
     MODEL_READ_ARRAY(sb, Vec3, pivots);
     return BLOCKREAD_OK;
 }
 
-blockReadCode_t MDX_ReadTEXS(LPSIZEBUF sb, mdxModel_t *model) {
+blockReadCode_t MDLX_ReadTEXS(LPSIZEBUF sb, mdxModel_t *model) {
     MODEL_READ_ARRAY(sb, Texture, textures);
+    FOR_LOOP(i, model->num_textures) {
+        mdxTexture_t *tex = model->textures+i;
+        tex->texid = R_RegisterTextureFile(tex->path);
+    }
     return BLOCKREAD_OK;
 }
 
-blockReadCode_t MDX_ReadPRE2(LPSIZEBUF sb, mdxModel_t *model) {
+blockReadCode_t MDLX_ReadPRE2(LPSIZEBUF sb, mdxModel_t *model) {
     MODEL_READ_LIST(sb, ParticleEmitter, emitters);
     return BLOCKREAD_OK;
 }
 
-blockReadCode_t MDX_ReadATCH(LPSIZEBUF sb, mdxModel_t *model) {
+blockReadCode_t MDLX_ReadATCH(LPSIZEBUF sb, mdxModel_t *model) {
     MODEL_READ_LIST(sb, Attachment, attachments);
     return BLOCKREAD_OK;
 }
 
-blockReadCode_t MDX_ReadLITE(LPSIZEBUF sb, mdxModel_t *model) {
+blockReadCode_t MDLX_ReadLITE(LPSIZEBUF sb, mdxModel_t *model) {
     MODEL_READ_LIST(sb, Light, lights);
     return BLOCKREAD_OK;
 }
 
 blockReader_t R_MDLX[] = {
-    { "VERS", (blockReaderFunc_t)MDX_ReadVERS },
-    { "MODL", (blockReaderFunc_t)MDX_ReadMODL },
-    { "EVTS", (blockReaderFunc_t)MDX_ReadEVTS },
-    { "GEOS", (blockReaderFunc_t)MDX_ReadGEOS },
-    { "MTLS", (blockReaderFunc_t)MDX_ReadMTLS },
-    { "BONE", (blockReaderFunc_t)MDX_ReadBONE },
-    { "GEOA", (blockReaderFunc_t)MDX_ReadGEOA },
-    { "HELP", (blockReaderFunc_t)MDX_ReadHELP },
-    { "CAMS", (blockReaderFunc_t)MDX_ReadCAMS },
-    { "SEQS", (blockReaderFunc_t)MDX_ReadSEQS },
-    { "GLBS", (blockReaderFunc_t)MDX_ReadGLBS },
-    { "PIVT", (blockReaderFunc_t)MDX_ReadPIVT },
-    { "TEXS", (blockReaderFunc_t)MDX_ReadTEXS },
-    { "CLID", (blockReaderFunc_t)MDX_ReadCLID },
-    { "PRE2", (blockReaderFunc_t)MDX_ReadPRE2 },
-    { "ATCH", (blockReaderFunc_t)MDX_ReadATCH },
-    { "LITE", (blockReaderFunc_t)MDX_ReadLITE },
+    { "VERS", (blockReaderFunc_t)MDLX_ReadVERS },
+    { "MODL", (blockReaderFunc_t)MDLX_ReadMODL },
+    { "EVTS", (blockReaderFunc_t)MDLX_ReadEVTS },
+    { "GEOS", (blockReaderFunc_t)MDLX_ReadGEOS },
+    { "MTLS", (blockReaderFunc_t)MDLX_ReadMTLS },
+    { "BONE", (blockReaderFunc_t)MDLX_ReadBONE },
+    { "GEOA", (blockReaderFunc_t)MDLX_ReadGEOA },
+    { "HELP", (blockReaderFunc_t)MDLX_ReadHELP },
+    { "CAMS", (blockReaderFunc_t)MDLX_ReadCAMS },
+    { "SEQS", (blockReaderFunc_t)MDLX_ReadSEQS },
+    { "GLBS", (blockReaderFunc_t)MDLX_ReadGLBS },
+    { "PIVT", (blockReaderFunc_t)MDLX_ReadPIVT },
+    { "TEXS", (blockReaderFunc_t)MDLX_ReadTEXS },
+    { "CLID", (blockReaderFunc_t)MDLX_ReadCLID },
+    { "PRE2", (blockReaderFunc_t)MDLX_ReadPRE2 },
+    { "ATCH", (blockReaderFunc_t)MDLX_ReadATCH },
+    { "LITE", (blockReaderFunc_t)MDLX_ReadLITE },
     { NULL },
 };
 
-mdxModel_t *MDX_LoadBuffer(void *data, DWORD size) {
+mdxBounds_t MDX_CalculateBounds(mdxModel_t const *model) {
+    mdxBounds_t b = { 0 };
+    FOR_EACH_LIST(mdxGeoset_t, geoset, model->geosets) {
+        FOR_LOOP(i, geoset->num_vertices) {
+            VECTOR3 const *vertex = geoset->vertices+i;
+            b.box.min.x = MIN(vertex->x, b.box.min.x);
+            b.box.min.y = MIN(vertex->y, b.box.min.y);
+            b.box.min.z = MIN(vertex->z, b.box.min.z);
+            b.box.max.x = MAX(vertex->x, b.box.max.x);
+            b.box.max.y = MAX(vertex->y, b.box.max.y);
+            b.box.max.z = MAX(vertex->z, b.box.max.z);
+        }
+    }
+    b.radius = MAX(b.radius, b.box.max.x - b.box.min.x);
+    b.radius = MAX(b.radius, b.box.max.y - b.box.min.y);
+    b.radius = MAX(b.radius, b.box.max.z - b.box.min.z);
+    return b;
+}
+
+mdxModel_t *R_LoadModelMDLX(void *data, DWORD size) {
     mdxModel_t *model = ri.MemAlloc(sizeof(mdxModel_t));
     sizeBuf_t buffer = { .data = data, .cursize = size, .readcount = 4 };
     if (MSG_ReadBlock(&buffer, R_MDLX, model) != BLOCKREAD_OK) {
-        MDX_Release(model);
+        MDLX_Release(model);
         return NULL;
     }
     FOR_EACH_LIST(mdxBone_t, bone, model->bones) {
@@ -732,18 +737,21 @@ mdxModel_t *MDX_LoadBuffer(void *data, DWORD size) {
             geoset->geosetAnim = geosetAnim;
         }
     }
+    model->bounds = MDX_CalculateBounds(model);
     return model;
 }
 
-void MDX_ReleaseModelNode(mdxNode_t *node) {
+void MDLX_ReleaseModelNode(mdxNode_t *node) {
     SAFE_DELETE(node->translation, ri.MemFree);
     SAFE_DELETE(node->rotation, ri.MemFree);
     SAFE_DELETE(node->scale, ri.MemFree);
 }
 
-void MDX_ReleaseModelGeoset(mdxGeoset_t *geoset) {
-    SAFE_DELETE(geoset->next, MDX_ReleaseModelGeoset);
-    SAFE_DELETE(geoset->userdata, R_ReleaseVertexArrayObject);
+void MDLX_ReleaseModelGeoset(mdxGeoset_t *geoset) {
+    R_Call(glDeleteVertexArrays, 1, &geoset->vertexArrayBuffer);
+    R_Call(glDeleteBuffers, MAX_MDLX_BUFFERS, geoset->buffer);
+
+    SAFE_DELETE(geoset->next, MDLX_ReleaseModelGeoset);
     SAFE_DELETE(geoset->vertices, ri.MemFree);
     SAFE_DELETE(geoset->normals, ri.MemFree);
     SAFE_DELETE(geoset->texcoord, ri.MemFree);
@@ -757,35 +765,35 @@ void MDX_ReleaseModelGeoset(mdxGeoset_t *geoset) {
     SAFE_DELETE(geoset, ri.MemFree);
 }
 
-void MDX_ReleaseModelMaterial(mdxMaterial_t *material) {
-    SAFE_DELETE(material->next, MDX_ReleaseModelMaterial);
+void MDLX_ReleaseModelMaterial(mdxMaterial_t *material) {
+    SAFE_DELETE(material->next, MDLX_ReleaseModelMaterial);
     SAFE_DELETE(material, ri.MemFree);
 }
 
-void MDX_ReleaseModelBone(mdxBone_t *bone) {
-    MDX_ReleaseModelNode(&bone->node);
-    SAFE_DELETE(bone->next, MDX_ReleaseModelBone);
+void MDLX_ReleaseModelBone(mdxBone_t *bone) {
+    MDLX_ReleaseModelNode(&bone->node);
+    SAFE_DELETE(bone->next, MDLX_ReleaseModelBone);
     SAFE_DELETE(bone, ri.MemFree);
 }
 
-void MDX_ReleaseModelGeosetAnim(mdxGeosetAnim_t *geosetAnim) {
-    SAFE_DELETE(geosetAnim->next, MDX_ReleaseModelGeosetAnim);
+void MDLX_ReleaseModelGeosetAnim(mdxGeosetAnim_t *geosetAnim) {
+    SAFE_DELETE(geosetAnim->next, MDLX_ReleaseModelGeosetAnim);
     SAFE_DELETE(geosetAnim->alphas, ri.MemFree);
     SAFE_DELETE(geosetAnim, ri.MemFree);
 }
 
-void MDX_ReleaseModelHelper(mdxHelper_t *helper) {
-    MDX_ReleaseModelNode(&helper->node);
-    SAFE_DELETE(helper->next, MDX_ReleaseModelHelper);
+void MDLX_ReleaseModelHelper(mdxHelper_t *helper) {
+    MDLX_ReleaseModelNode(&helper->node);
+    SAFE_DELETE(helper->next, MDLX_ReleaseModelHelper);
     SAFE_DELETE(helper, ri.MemFree);
 }
 
-void MDX_Release(mdxModel_t *model) {
-    SAFE_DELETE(model->geosets, MDX_ReleaseModelGeoset);
-    SAFE_DELETE(model->materials, MDX_ReleaseModelMaterial);
-    SAFE_DELETE(model->bones, MDX_ReleaseModelBone);
-    SAFE_DELETE(model->geosetAnims, MDX_ReleaseModelGeosetAnim);
-    SAFE_DELETE(model->helpers, MDX_ReleaseModelHelper);
+void MDLX_Release(mdxModel_t *model) {
+    SAFE_DELETE(model->geosets, MDLX_ReleaseModelGeoset);
+    SAFE_DELETE(model->materials, MDLX_ReleaseModelMaterial);
+    SAFE_DELETE(model->bones, MDLX_ReleaseModelBone);
+    SAFE_DELETE(model->geosetAnims, MDLX_ReleaseModelGeosetAnim);
+    SAFE_DELETE(model->helpers, MDLX_ReleaseModelHelper);
     SAFE_DELETE(model->textures, ri.MemFree);
     SAFE_DELETE(model->sequences, ri.MemFree);
     SAFE_DELETE(model->globalSequences, ri.MemFree);

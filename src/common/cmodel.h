@@ -158,7 +158,8 @@ typedef struct {
 
 struct War3MapVertex {
     USHORT accurate_height;
-    USHORT waterlevel;
+    USHORT waterlevel:14;
+    BYTE mapedge:2;
     BYTE ground:4;
     BYTE ramp:1;
     BYTE blight:1;
@@ -180,7 +181,7 @@ struct war3map {
     VECTOR2 center;
     DWORD width;
     DWORD height;
-    LPWAR3MAPVERTEX vertices;
+    HANDLE vertices;
     DWORD num_grounds;
     DWORD num_cliffs;
 };

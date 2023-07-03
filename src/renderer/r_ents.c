@@ -9,11 +9,7 @@ void R_GetEntityMatrix(renderEntity_t const *entity, LPMATRIX4 matrix) {
 
 void R_DrawEntities(void) {
     FOR_LOOP(i, tr.viewDef.num_entities) {
-        renderEntity_t const *edict = &tr.viewDef.entities[i];
-        if (!(tr.viewDef.rdflags & RDF_NOFRUSTUMCULL) &&
-            !R_IsPointVisible(&edict->origin, 1.25f))
-            continue;
-        R_RenderModel(edict);
+        R_RenderModel(tr.viewDef.entities+i);
     }
 }
 
@@ -41,7 +37,7 @@ bool R_TraceEntity(viewDef_t const *viewdef, float x, float y, LPDWORD number) {
     LINE3 const line = R_LineForScreenPoint(viewdef, x, y);
     FOR_LOOP(i, viewdef->num_entities) {
         renderEntity_t *ent = &viewdef->entities[i];
-        if (MDX_TraceModel(ent, &line)) {
+        if (MDLX_TraceModel(ent, &line)) {
             *number = ent->number;
             return true;
         }
@@ -116,3 +112,49 @@ void R_RenderOverlays(void) {
     }
 }
 
+extern bool is_rendering_lights;
+DWORD selCircles[NUM_SELECTION_CIRCLES] = { 100, 300, 100000 };
+
+static void R_RenderUberSplat(const renderEntity_t *entity, LPCVECTOR2 origin) {
+    if (entity->splat && !(entity->flags & RF_NO_UBERSPLAT)) {
+        COLOR32 color = { 255, 255, 255, 255 };
+        R_RenderSplat(origin, entity->splatsize, entity->splat, tr.shader[SHADER_DEFAULT], color);
+    }
+}
+
+static void R_RenderSelectedCircle(const renderEntity_t *entity, LPCVECTOR2 origin) {
+    if (entity->flags & RF_SELECTED) {
+        COLOR32 color = { 0, 255, 0, 255 };
+        float radius = entity->radius;
+        FOR_LOOP(i, NUM_SELECTION_CIRCLES) {
+            if ((radius * 2) > selCircles[i])
+                continue;
+            R_RenderSplat(origin, radius, tr.texture[TEX_SELECTION_CIRCLE+i], tr.shader[SHADER_UI], color);
+            break;
+        }
+    }
+}
+
+void MDX_RenderModel(renderEntity_t const *, mdxModel_t const *, LPCMATRIX4);
+void M3_RenderModel(renderEntity_t const *, m3Model_t const *, LPCMATRIX4);
+
+void R_RenderModel(renderEntity_t const *entity) {
+    MATRIX4 transform;
+    R_GetEntityMatrix(entity, &transform);
+    
+    switch (entity->model->modeltype) {
+        case ID_MDLX:
+            MDX_RenderModel(entity, entity->model->mdx, &transform);
+            break;
+        case ID_43DM:
+            M3_RenderModel(entity, entity->model->m3, &transform);
+            break;
+    }
+    
+    if (is_rendering_lights)
+        return;
+    
+    R_RenderUberSplat(entity, (LPCVECTOR2)&entity->origin);
+
+    R_RenderSelectedCircle(entity, (LPCVECTOR2)&entity->origin);
+}

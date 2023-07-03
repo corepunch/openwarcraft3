@@ -117,10 +117,20 @@ enum {
 #define CS_GENERAL (CS_PLAYERSKINS+MAX_CLIENTS)
 #define MAX_CONFIGSTRINGS (CS_GENERAL+MAX_GENERAL)
 
+#define ID_MDLX MAKEFOURCC('M','D','L','X')
+#define ID_43DM MAKEFOURCC('4','3','D','M')
+#define ID_BLP1 MAKEFOURCC('B','L','P','1')
+#define ID_BLP2 MAKEFOURCC('B','L','P','2')
+#define ID_DDS  MAKEFOURCC('D','D','S','\40')
+
+typedef struct m3Model_s m3Model_t;
+typedef struct mdxModel_s mdxModel_t;
+
 // Typedefs for ANSI C
 typedef unsigned char  BYTE;
 typedef unsigned short USHORT;
 typedef int            LONG;
+typedef short          SHORT;
 typedef unsigned int   DWORD;
 typedef unsigned short WORD;
 typedef unsigned long  DWORD_PTR;

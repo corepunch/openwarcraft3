@@ -2,7 +2,6 @@
 
 #include <StormLib.h>
 
-#define MPQ_PATH "/Users/igor/Documents/Warcraft3/war3.mpq"
 #define MAXPRINTMSG 4096
 
 const LPCSTR WarcraftSheets[] = {
@@ -47,17 +46,32 @@ const LPCSTR WarcraftSheets[] = {
     NULL
 };
 
-static HANDLE archive;
+#define MAX_ARCHIVES 64
+
+static HANDLE archives[MAX_ARCHIVES] = { 0 };
+
+HANDLE FS_AddArchive(LPCSTR filename) {
+    FOR_LOOP(i, MAX_ARCHIVES) {
+        if (archives[i])
+            continue;
+        SFileOpenArchive(filename, 0, 0, &archives[i]);
+        return archives[i];
+    }
+    return NULL;
+}
 
 #if 0
 static void ExtractStarCraft2(void) {
+    HANDLE archive;
     SFileOpenArchive("/Users/igor/Documents/SC2Install/Installer Tome 1.MPQ", 0, 0, &archive);
-    
-    SFileOpenArchive("/Users/igor/Desktop/terrain.MPQ", 0, 0, &archive);
-//    SFileOpenArchive("/Users/icherna/Documents/StarCraft2/Campaigns/Liberty.SC2Campaign/base.SC2Assets", 0, 0, &archive);
+//    SFileOpenArchive("/Users/igor/Desktop/terrain.MPQ", 0, 0, &archive);
+//    SFileOpenArchive("/Users/igor/Documents/StarCraft2/Campaigns/Liberty.SC2Campaign/base.SC2Assets", 0, 0, &archive);
 //    SFileOpenArchive("/Users/igor/Documents/StarCraft2/Mods/Liberty.SC2Mod/base.SC2Assets", 0, 0, &archive);
+    SFileOpenArchive("/Users/igor/Documents/StarCraft2/Mods/Liberty.SC2Mod/base.SC2Data", 0, 0, &archive);
 //    SFileOpenArchive("/Users/igor/Downloads/War3-1.27-Installer-enUS-TFT/Installer Tome.mpq", 0, 0, &archive);
-
+//    SFileExtractFile(archive, "Assets\\Units\\Terran\\MarineTychus\\MarineTychus.m3", "/Users/igor/Desktop/MarineTychus.m3", 0);
+//    SFileExtractFile(archive, "Assets\\Textures\\SpecialOps_Dropship_Diffuse.dds", "/Users/igor/Desktop/SpecialOps_Dropship_Diffuse.dds", 0);
+    
     SFILE_FIND_DATA findData;
     HANDLE handle = SFileFindFirstFile(archive, "*", &findData, 0);
     if (handle) {
@@ -67,20 +81,19 @@ static void ExtractStarCraft2(void) {
                 if (strstr(findData.cFileName, *s))
                     goto skip_print;
             }
-            if (strstr(findData.cFileName, "Azeroth")) {
+            if (strstr(findData.cFileName, "GameData")) {
                 printf("%s\n", findData.cFileName);
             }
-            
-//            if (strstr(findData.cFileName, "AbilData.xml")){
-//                HANDLE file;
-//                SFileOpenFileEx(archive, findData.cFileName, SFILE_OPEN_FROM_MPQ, &file);
-//                char ch;
-//                while (SFileReadFile(file, &ch, 1, NULL, NULL)) {
-//                    printf("%c", ch);
-//                }
-//                SFileCloseFile(file);
-//                printf("\n");
-//            }
+            if (strstr(findData.cFileName, "UnitData.xml")) {
+                HANDLE file;
+                SFileOpenFileEx(archive, findData.cFileName, SFILE_OPEN_FROM_MPQ, &file);
+                char ch;
+                while (SFileReadFile(file, &ch, 1, NULL, NULL)) {
+                    printf("%c", ch);
+                }
+                SFileCloseFile(file);
+                printf("\n");
+            }
 
         skip_print:;
         } while (SFileFindNextFile(handle, &findData));
@@ -95,9 +108,12 @@ static void ExtractStarCraft2(void) {
 #endif
 
 HANDLE FS_OpenFile(LPCSTR fileName) {
-    HANDLE file = NULL;
-    SFileOpenFileEx(archive, fileName, SFILE_OPEN_FROM_MPQ, &file);
-    return file;
+    FOR_LOOP(i, MAX_ARCHIVES) {
+        HANDLE file;
+        if (SFileOpenFileEx(archives[i], fileName, SFILE_OPEN_FROM_MPQ, &file))
+            return file;
+    }
+    return NULL;
 }
 
 bool FS_FileExists(LPCSTR fileName) {
@@ -115,12 +131,19 @@ void FS_CloseFile(HANDLE file) {
 }
 
 bool FS_ExtractFile(LPCSTR toExtract, LPCSTR extracted) {
-    return SFileExtractFile(archive, toExtract, extracted, 0);
+    FOR_LOOP(i, MAX_ARCHIVES) {
+        if (SFileExtractFile(archives[i], toExtract, extracted, 0))
+            return true;
+    }
+    return false;
 }
 
 void FS_Init(void) {
 //    ExtractStarCraft2();
-    SFileOpenArchive(MPQ_PATH, 0, 0, &archive);
+    
+    FS_AddArchive("/Users/igor/Documents/Warcraft3/war3.mpq");
+    FS_AddArchive("/Users/igor/Documents/StarCraft2/Campaigns/Liberty.SC2Campaign/base.SC2Assets");
+
 //    SFileExtractFile(archive, "Units\\UnitAbilities.slk", "/Users/igor/Desktop/UnitAbilities.slk", 0);
 //    SFileExtractFile(archive, "Units\\AbilityData.slk", "/Users/igor/Desktop/AbilityData.slk", 0);
 //    SFileExtractFile(archive, "Units\\UnitData.slk", "/Users/igor/Desktop/UnitData.slk", 0);
@@ -135,7 +158,7 @@ void FS_Init(void) {
     
 #if 0
     SFILE_FIND_DATA findData;
-    HANDLE handle = SFileFindFirstFile(archive, "*", &findData, 0);
+    HANDLE handle = SFileFindFirstFile(archives[0], "*", &findData, 0);
     if (handle) {
          do {
 //             if (!strstr(findData.cFileName, ".mdx") &&
@@ -143,17 +166,17 @@ void FS_Init(void) {
 //                 !strstr(findData.cFileName, ".ai") &&
 //             if (strstr(findData.cFileName, ".blp")) {
 //                 !strstr(findData.cFileName, ".tga") &&
-//                 !strstr(findData.cFileName, ".MDX") &&
+//                 !strstr(findData.cFileName, ".MDLX") &&
 //                 !strstr(findData.cFileName, ".wav") &&
 //                 !strstr(findData.cFileName, ".mp3") &&
 //                 !strstr(findData.cFileName, ".mdx") &&
-             if(strstr(findData.cFileName, ".mdx")) {
-//                 printf("%s\n", findData.cFileName);
+             if(strstr(findData.cFileName, "CliffTrans\\Cliff")) {
+                 printf("%s\n", findData.cFileName);
              }
-#if 1
+#if 0
              if (strstr(findData.cFileName, ".txt")){
                  HANDLE file;
-                 SFileOpenFileEx(archive, findData.cFileName, SFILE_OPEN_FROM_MPQ, &file);
+                 SFileOpenFileEx(archives[0], findData.cFileName, SFILE_OPEN_FROM_MPQ, &file);
                  char ch;
                  while (SFileReadFile(file, &ch, 1, NULL, NULL)) {
                      printf("%c", ch);
@@ -176,7 +199,9 @@ void FS_Init(void) {
 }
 
 void FS_Shutdown(void) {
-    SFileCloseArchive(archive);
+    FOR_LOOP(i, MAX_ARCHIVES) {
+        SFileCloseArchive(archives[i]);
+    }
 }
 
 HANDLE MemAlloc(long size) {

@@ -1,6 +1,6 @@
 #include "server.h"
 
-#define VISUAL_DISTANCE 1000
+#define VISUAL_DISTANCE 1500
 #define HIGH_NUMBER 9999
 
 static bool SV_CanClientSeeEntity(LPCCLIENT client, entityState_t const *edict) {

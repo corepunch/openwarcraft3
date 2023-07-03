@@ -11,12 +11,91 @@ SDL_GLContext context;
 
 bool is_rendering_lights = false;
 
+void M3_Init(void);
+void MDLX_Init(void);
+
+void M3_Shutdown(void);
+void MDLX_Shutdown(void);
+
+
+LPTEXTURE R_LoadTextureBLP1(HANDLE data, DWORD filesize);
+LPTEXTURE R_LoadTextureBLP2(HANDLE data, DWORD filesize);
+LPTEXTURE R_LoadTextureDDS(HANDLE data, DWORD filesize);
+
 void R_Viewport(LPCRECT viewport) {
     size2_t const windowSize = R_GetWindowSize();
     glViewport(viewport->x * windowSize.width / 800,
                viewport->y * windowSize.height / 600,
                viewport->w * windowSize.width / 800,
                viewport->h * windowSize.height / 600);
+}
+
+LPTEXTURE R_LoadTexture(LPCSTR textureFilename) {
+    LPTEXTURE texture = NULL;
+    HANDLE file = ri.FileOpen(textureFilename);
+    if (!file)
+        return NULL;
+    DWORD fileSize = SFileGetFileSize(file, NULL);
+    HANDLE buffer = ri.MemAlloc(fileSize);
+    SFileReadFile(file, buffer, fileSize, NULL, NULL);
+    switch (*(DWORD *)buffer) {
+        case ID_BLP1:
+            texture = R_LoadTextureBLP1(buffer, fileSize);
+            break;
+        case ID_BLP2:
+            texture = R_LoadTextureBLP2(buffer, fileSize);
+            break;
+        case ID_DDS:
+            texture = R_LoadTextureDDS(buffer, fileSize);
+            break;
+        default:
+            fprintf(stderr, "Unknown texture format %.4s in file %s\n", (LPSTR)buffer, textureFilename);
+            break;
+    }
+    ri.FileClose(file);
+    SAFE_DELETE(buffer, ri.MemFree);
+    return texture;
+}
+
+LPMODEL R_LoadModel(LPCSTR modelFilename) {
+    HANDLE file = ri.FileOpen(modelFilename);
+    LPMODEL model = NULL;
+    if (file == NULL) {
+        // try to load without *0.mdx
+        PATHSTR tempFileName = { 0 };
+        LPCSTR end = modelFilename + strlen(modelFilename) - 4;
+        if (end > modelFilename && isdigit(*(end - 1))) {
+            end--;
+        }
+        strncpy(tempFileName, modelFilename, end - modelFilename);
+        strcpy(tempFileName + strlen(tempFileName), ".mdx");
+        file = ri.FileOpen(tempFileName);
+        if (!file) {
+            fprintf(stderr, "Model not found: %s\n", modelFilename);
+            return NULL;
+        }
+    }
+    DWORD fileSize = SFileGetFileSize(file, NULL);
+    void *buffer = ri.MemAlloc(fileSize);
+    SFileReadFile(file, buffer, fileSize, NULL, NULL);
+    switch (*(DWORD *)buffer) {
+        case ID_MDLX:
+            model = ri.MemAlloc(sizeof(model_t));
+            model->mdx = R_LoadModelMDLX(buffer, fileSize);
+            model->modeltype = ID_MDLX;
+            break;
+        case ID_43DM:
+            model = ri.MemAlloc(sizeof(model_t));
+            model->m3 = R_LoadModelM3(buffer, fileSize);
+            model->modeltype = ID_43DM;
+            break;
+        default:
+            fprintf(stderr, "Unknown model format %.4s in file %s\n", (LPSTR)buffer, modelFilename);
+            break;
+    }
+    ri.FileClose(file);
+    ri.MemFree(buffer);
+    return model;
 }
 
 LPRENDERTARGET
@@ -54,15 +133,14 @@ static void R_SetupGL(bool drawLight) {
     MATRIX4 model_matrix;
     MATRIX3 normal_matrix;
     MATRIX4 ui_matrix;
-    MATRIX4 texture_matrix;
 
     Matrix4_identity(&model_matrix);
     if (tr.world) {
         VECTOR2 s = GetWar3MapSize(tr.world);
         VECTOR2 c = tr.world->center;
-        Matrix4_ortho(&texture_matrix, -s.x+c.x, s.x+c.x, -s.y+c.y, s.y+c.y, 0.0f, 100.0f);
+        Matrix4_ortho(&tr.viewDef.textureMatrix, -s.x+c.x, s.x+c.x, -s.y+c.y, s.y+c.y, 0.0f, 100.0f);
     } else {
-        Matrix4_identity(&texture_matrix);
+        Matrix4_identity(&tr.viewDef.textureMatrix);
     }
     Matrix4_ortho(&ui_matrix, 0.0f, window.width, window.height, 0.0f, 0.0f, 100.0f);
 
@@ -70,17 +148,10 @@ static void R_SetupGL(bool drawLight) {
 
     R_Call(glEnable, GL_CULL_FACE);
     R_Call(glCullFace, GL_BACK);
-
-    R_Call(glUseProgram, tr.shader[SHADER_SKIN]->progid);
-    R_Call(glUniformMatrix4fv, tr.shader[SHADER_SKIN]->uViewProjectionMatrix, 1, GL_FALSE, drawLight ? tr.viewDef.lightMatrix.v : tr.viewDef.viewProjectionMatrix.v);
-    R_Call(glUniformMatrix4fv, tr.shader[SHADER_SKIN]->uTextureMatrix, 1, GL_FALSE, texture_matrix.v);
-    R_Call(glUniformMatrix4fv, tr.shader[SHADER_SKIN]->uModelMatrix, 1, GL_FALSE, model_matrix.v);
-    R_Call(glUniformMatrix4fv, tr.shader[SHADER_SKIN]->uLightMatrix, 1, GL_FALSE, tr.viewDef.lightMatrix.v);
-    R_Call(glUniformMatrix3fv, tr.shader[SHADER_SKIN]->uNormalMatrix, 1, GL_TRUE, normal_matrix.v);
     
     R_Call(glUseProgram, tr.shader[SHADER_DEFAULT]->progid);
     R_Call(glUniformMatrix4fv, tr.shader[SHADER_DEFAULT]->uViewProjectionMatrix, 1, GL_FALSE, drawLight ? tr.viewDef.lightMatrix.v : tr.viewDef.viewProjectionMatrix.v);
-    R_Call(glUniformMatrix4fv, tr.shader[SHADER_DEFAULT]->uTextureMatrix, 1, GL_FALSE, texture_matrix.v);
+    R_Call(glUniformMatrix4fv, tr.shader[SHADER_DEFAULT]->uTextureMatrix, 1, GL_FALSE, tr.viewDef.textureMatrix.v);
     R_Call(glUniformMatrix4fv, tr.shader[SHADER_DEFAULT]->uModelMatrix, 1, GL_FALSE, model_matrix.v);
     R_Call(glUniformMatrix4fv, tr.shader[SHADER_DEFAULT]->uLightMatrix, 1, GL_FALSE, tr.viewDef.lightMatrix.v);
     R_Call(glUniformMatrix3fv, tr.shader[SHADER_DEFAULT]->uNormalMatrix, 1, GL_TRUE, normal_matrix.v);
@@ -120,6 +191,8 @@ LPCSTR modelNames[MODEL_COUNT] = {
     "UI\\Feedback\\SelectionCircle\\SelectionCircle.mdx"
 };
 
+//#include "mdx/r_mdx.h"
+
 LPTEXTURE R_AllocateSinglePixelTexture(int color) {
     LPTEXTURE texture = R_AllocateTexture(1, 1);
     R_LoadTextureMipLevel(texture, 0, (LPCCOLOR32)&color, 1, 1);
@@ -140,7 +213,53 @@ void R_Init(DWORD width, DWORD height) {
     
     window = SDL_CreateWindow("", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width, height, SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN);
     context = SDL_GL_CreateContext(window);
+        
+//    m3 = R_LoadModel("Assets\\Units\\Terran\\SpecialOpsDropship\\SpecialOpsDropship.m3");
+//    R_LoadModel("Assets\\Units\\Terran\\MarineTychus\\MarineTychus.m3");
+//    R_LoadModel("Assets\\Units\\Zerg\\Queen\\Queen.m3");
     
+//
+//    LPCSTR models[] = {
+//        "Doodads\\Terrain\\CliffTrans\\CliffTransHAAL0.mdx",
+//        "Doodads\\Terrain\\CliffTrans\\CliffTransHLAA0.mdx",
+//        "Doodads\\Terrain\\CliffTrans\\CliffTransXCAH0.mdx",
+//        "Doodads\\Terrain\\CliffTrans\\CliffTransAXHA0.mdx",
+//        "Doodads\\Terrain\\CliffTrans\\CliffTransAAXH0.mdx",
+//        "Doodads\\Terrain\\CliffTrans\\CliffTransAALH0.mdx",
+//        "Doodads\\Terrain\\CliffTrans\\CliffTransALHB0.mdx",
+//        "Doodads\\Terrain\\CliffTrans\\CliffTransAHXC0.mdx",
+//        "Doodads\\Terrain\\CliffTrans\\CliffTransAAHL0.mdx",
+//        "Doodads\\Terrain\\CliffTrans\\CliffTransBALH0.mdx",
+//        "Doodads\\Terrain\\CliffTrans\\CliffTransHXCA0.mdx",
+//        "Doodads\\Terrain\\CliffTrans\\CliffTransCXHA0.mdx",
+//        "Doodads\\Terrain\\CliffTrans\\CliffTransXHAA0.mdx",
+//        "Doodads\\Terrain\\CliffTrans\\CliffTransALHA0.mdx",
+//        "Doodads\\Terrain\\CliffTrans\\CliffTransBHLA0.mdx",
+//        "Doodads\\Terrain\\CliffTrans\\CliffTransHBAL0.mdx",
+//        "Doodads\\Terrain\\CliffTrans\\CliffTransABHL0.mdx",
+//        "Doodads\\Terrain\\CliffTrans\\CliffTransCAHX0.mdx",
+//        "Doodads\\Terrain\\CliffTrans\\CliffTransHAAX0.mdx",
+//        "Doodads\\Terrain\\CliffTrans\\CliffTransXAAH0.mdx",
+//        "Doodads\\Terrain\\CliffTrans\\CliffTransLAAH0.mdx",
+//        "Doodads\\Terrain\\CliffTrans\\CliffTransAHXA0.mdx",
+//        "Doodads\\Terrain\\CliffTrans\\CliffTransHXAA0.mdx",
+//        "Doodads\\Terrain\\CliffTrans\\CliffTransXHAC0.mdx",
+//        "Doodads\\Terrain\\CliffTrans\\CliffTransLHAA0.mdx",
+//        "Doodads\\Terrain\\CliffTrans\\CliffTransACXH0.mdx",
+//        "Doodads\\Terrain\\CliffTrans\\CliffTransHACX0.mdx",
+//        "Doodads\\Terrain\\CliffTrans\\CliffTransLHBA0.mdx",
+//        "Doodads\\Terrain\\CliffTrans\\CliffTransAHLA0.mdx",
+//        "Doodads\\Terrain\\CliffTrans\\CliffTransLABH0.mdx",
+//        "Doodads\\Terrain\\CliffTrans\\CliffTransHLAB0.mdx",
+//        "Doodads\\Terrain\\CliffTrans\\CliffTransAAHX0.mdx",
+//        NULL
+//    };
+//
+//    for (LPCSTR *model = models; *model; model++){
+//        model_t *m = R_LoadModel(*model);
+//        printf("%f %f %f %f\n", m->mdx->bounds.box.min.x, m->mdx->bounds.box.min.y, m->mdx->bounds.box.max.x, m->mdx->bounds.box.max.y);
+//    }
+//
     extern LPCSTR vs_skin;
     extern LPCSTR vs_default;
     extern LPCSTR fs_default;
@@ -168,7 +287,6 @@ void R_Init(DWORD width, DWORD height) {
     }
 
     tr.shader[SHADER_DEFAULT] = R_InitShader(vs_default, fs_default);
-    tr.shader[SHADER_SKIN] = R_InitShader(vs_skin, fs_default);
     tr.shader[SHADER_UI] = R_InitShader(vs_default, fs_ui);
     
     tr.buffer[RBUF_TEMP1] = R_MakeVertexArrayObject(NULL, 0);
@@ -183,15 +301,21 @@ void R_Init(DWORD width, DWORD height) {
     R_Call(glViewport, 0, 0, width, height);
     
     R_InitParticles();
+    
+    M3_Init();
+    MDLX_Init();
 }
 
-bool R_IsPointVisible(LPCVECTOR3 point, float fThreshold) {
-    VECTOR3 screen = Matrix4_multiply_vector3(&tr.viewDef.viewProjectionMatrix, point);
-    if (screen.x < -fThreshold) return false;
-    if (screen.y < -fThreshold) return false;
-    if (screen.x > fThreshold) return false;
-    if (screen.y > fThreshold) return false;
-    return true;
+void R_Shutdown(void) {
+    M3_Shutdown();
+    MDLX_Shutdown();
+    
+    R_ShutdownFogOfWar();
+    R_ShutdownParticles();
+    
+    SDL_GL_DeleteContext(context);
+    SDL_DestroyWindow(window);
+    SDL_Quit();
 }
 
 DWORD R_GetViewWidth(void) {
@@ -240,6 +364,9 @@ void R_RenderView(void) {
     R_DrawAlphaSurfaces();
     R_DrawParticles();
     R_RevertSettings();
+    
+//    extern LPCTEXTURE dds;
+//    R_DrawPic(dds, 0, 0);
 }
 
 void R_RenderFrame(viewDef_t const *viewDef) {
@@ -248,6 +375,7 @@ void R_RenderFrame(viewDef_t const *viewDef) {
     R_Call(glActiveTexture, GL_TEXTURE0);
 
     tr.viewDef = *viewDef;
+    Frustum_Calculate(&viewDef->viewProjectionMatrix, &tr.viewDef.frustum);
 
     R_RenderFogOfWar();
     R_RenderShadowMap();
@@ -273,15 +401,6 @@ void R_BeginFrame(void) {
 void R_EndFrame(void) {
     SDL_GL_SwapWindow(window);
     SDL_Delay(1);
-}
-
-void R_Shutdown(void) {
-    R_ShutdownFogOfWar();
-    R_ShutdownParticles();
-    
-    SDL_GL_DeleteContext(context);
-    SDL_DestroyWindow(window);
-    SDL_Quit();
 }
 
 size2_t R_GetWindowSize(void) {
