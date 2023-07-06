@@ -6,7 +6,7 @@ bool ParserDone(parser_t *p) {
     return !*p->str || p->error;
 }
 
-bool ParserComment(parser_t *p, LPCSTR str) {
+bool ParserSingleLineComment(parser_t *p, LPCSTR str) {
     return str[0] == '/' && str[1] == '/';
 }
 
@@ -48,7 +48,7 @@ HANDLE FS_ReadFile(LPCSTR filename, LPDWORD size) {
 
 LPSTR ParserGetToken(parser_t *p) {
     for (; !ParserDone(p); p->str++) {
-        if (ParserComment(p, p->str)) {
+        if (ParserSingleLineComment(p, p->str)) {
             *p->tok = '\0';
             for (; p->str[1] != '\n' && p->str[1] != '\0'; p->str++)
             p->tok = p->token;

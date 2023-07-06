@@ -77,6 +77,13 @@ static void G_RunFrame(void) {
         G_RunEntity(&globals.edicts[i]);
     }
     G_SolveCollisions();
+    FOR_LOOP(i, game.max_clients) {
+        DWORD barnum = 0;
+        FOR_SELECTED_UNITS(game.clients+i, ent) {
+            game.clients[i].ps.unit_stats[barnum++] = ent->s.stats[ENT_HEALTH];
+            game.clients[i].ps.unit_stats[barnum++] = ent->s.stats[ENT_MANA];
+        }
+    }
 }
 
 static LPCSTR G_GetThemeValue(LPCSTR filename) {
@@ -96,23 +103,102 @@ playerState_t *G_GetPlayerByNumber(DWORD number) {
     return NULL;
 }
 
-void SetPoint(parser_t *parser, uiFrameDef_t *frame);
+#define INFO_PANEL_UNIT_DETAIL_WIDTH UI_SCALE(0.180f)
+#define INFO_PANEL_UNIT_DETAIL_HEIGHT UI_SCALE(0.110f)
+
+static void Init_SimpleProgressIndicator(void) {
+    UI_FRAME(SimpleProgressIndicator);
+    SimpleProgressIndicator->f.size.width = INFO_PANEL_UNIT_DETAIL_WIDTH;
+    SimpleProgressIndicator->f.tex.index = UI_LoadTexture("SimpleXpBarConsole", true);
+    SimpleProgressIndicator->f.tex.index2 = UI_LoadTexture("SimpleXpBarBorder", true);
+    SimpleProgressIndicator->f.color = MAKE(COLOR32,160,0,160,255);
+}
+
+static void Init_ResourceBar(uiFrameDef_t *ConsoleUI) {
+    UI_FRAME(ResourceBarFrame);
+    UI_FRAME(ResourceBarGoldText);
+    UI_FRAME(ResourceBarLumberText);
+    UI_FRAME(ResourceBarSupplyText);
+    
+    if (ResourceBarGoldText) ResourceBarGoldText->f.stat = STAT_GOLD;
+    if (ResourceBarLumberText) ResourceBarLumberText->f.stat = STAT_LUMBER;
+    if (ResourceBarSupplyText) ResourceBarSupplyText->f.stat = STAT_FOOD;
+    
+    UI_SetParent(ResourceBarFrame, ConsoleUI);
+    UI_SetPoint(ResourceBarFrame, FRAMEPOINT_TOPRIGHT, ConsoleUI, FRAMEPOINT_TOPRIGHT, 0, 0);
+}
+
+static void Init_SimpleInfoPanelIconDamage(uiFrameDef_t *parent) {
+    UI_FRAME(SimpleInfoPanelIconDamage);
+    UI_CHILD_FRAME(InfoPanelIconBackdrop, SimpleInfoPanelIconDamage);
+    UI_CHILD_FRAME(InfoPanelIconLevel, SimpleInfoPanelIconDamage);
+//    UI_CHILD_FRAME(InfoPanelIconLabel, SimpleInfoPanelIconDamage);
+    UI_CHILD_FRAME(InfoPanelIconValue, SimpleInfoPanelIconDamage);
+    UI_SetParent(SimpleInfoPanelIconDamage, parent);
+    UI_SetPoint(SimpleInfoPanelIconDamage, FRAMEPOINT_TOPLEFT, parent, FRAMEPOINT_TOPLEFT, 0, UI_SCALE(-0.036));
+    UI_SetText(InfoPanelIconLevel, "5");
+    UI_SetText(InfoPanelIconValue, "3 - 7");
+    InfoPanelIconBackdrop->f.tex.index = UI_LoadTexture("InfoPanelIconDamagePierce", true);
+}
+
+static void Init_SimpleInfoPanelIconArmor(uiFrameDef_t *parent) {
+    UI_FRAME(SimpleInfoPanelIconArmor);
+    UI_CHILD_FRAME(InfoPanelIconBackdrop, SimpleInfoPanelIconArmor);
+    UI_CHILD_FRAME(InfoPanelIconLevel, SimpleInfoPanelIconArmor);
+//    UI_CHILD_FRAME(InfoPanelIconLabel, SimpleInfoPanelIconArmor);
+    UI_CHILD_FRAME(InfoPanelIconValue, SimpleInfoPanelIconArmor);
+    UI_SetParent(SimpleInfoPanelIconArmor, parent);
+    UI_SetPoint(SimpleInfoPanelIconArmor, FRAMEPOINT_TOPLEFT, parent, FRAMEPOINT_TOPLEFT, 0, UI_SCALE(-0.0705));
+    UI_SetText(InfoPanelIconLevel, "5");
+    UI_SetText(InfoPanelIconValue, "3 - 7");
+    InfoPanelIconBackdrop->f.tex.index = UI_LoadTexture("InfoPanelIconArmorLarge", true);
+}
+
+static void Init_SimpleInfoPanelUnitDetail(uiFrameDef_t *ConsoleUI, uiFrameDef_t *bottom) {
+    UI_FRAME(SimpleInfoPanelUnitDetail);
+    UI_CHILD_FRAME(SimpleNameValue, SimpleInfoPanelUnitDetail);
+    UI_CHILD_FRAME(SimpleClassValue, SimpleInfoPanelUnitDetail);
+    
+    UI_SetParent(SimpleInfoPanelUnitDetail, bottom);
+    UI_SetAllPoints(SimpleInfoPanelUnitDetail);
+    UI_SetText(SimpleNameValue, "Thrall");
+    UI_SetText(SimpleClassValue, "Level 1 Far Seer");
+
+    Init_SimpleInfoPanelIconDamage(SimpleInfoPanelUnitDetail);
+    Init_SimpleInfoPanelIconArmor(SimpleInfoPanelUnitDetail);
+}
+
+static uiFrameDef_t *InitBottomPanel(uiFrameDef_t *ConsoleUI) {
+    uiFrameDef_t *bottom = UI_Spawn(FT_SIMPLEFRAME, ConsoleUI);
+    UI_SetSize(bottom, INFO_PANEL_UNIT_DETAIL_WIDTH, INFO_PANEL_UNIT_DETAIL_HEIGHT);
+    UI_SetPoint(bottom, FRAMEPOINT_BOTTOM, ConsoleUI, FRAMEPOINT_BOTTOM, 0, 0);
+    return bottom;
+}
 
 static void G_ClientBegin(edict_t *edict) {
-    uiFrameDef_t *root = UI_Clear();
-    uiFrameDef_t *consoleUI = FDF_ParseFile(root, "UI\\FrameDef\\UI\\ConsoleUI.fdf");
-    uiFrameDef_t *resourceBar = FDF_ParseFile(consoleUI, "UI\\FrameDef\\UI\\ResourceBar.fdf");
-    resourceBar->SetPoint.type = FRAMEPOINT_TOPRIGHT;
-    resourceBar->SetPoint.target = FRAMEPOINT_TOPRIGHT;
-    resourceBar->SetPoint.relativeTo = consoleUI->f.number;
-    uiFrameDef_t *gold = UI_FindFrameByName(resourceBar, "ResourceBarGoldText");
-    uiFrameDef_t *lumber = UI_FindFrameByName(resourceBar, "ResourceBarLumberText");
-    uiFrameDef_t *supply = UI_FindFrameByName(resourceBar, "ResourceBarSupplyText");
-    if (gold) gold->f.stat = STAT_GOLD;
-    if (lumber) lumber->f.stat = STAT_LUMBER;
-    if (supply) supply->f.stat = STAT_FOOD;
-    SetPoint(NULL, resourceBar);
-    UI_WriteLayout(edict, root, LAYER_CONSOLE);
+    UI_Clear();
+    
+    UI_ParseFDF("UI\\FrameDef\\GlobalStrings.fdf");
+    UI_ParseFDF("UI\\FrameDef\\UI\\ConsoleUI.fdf");
+    UI_ParseFDF("UI\\FrameDef\\UI\\ResourceBar.fdf");
+    UI_ParseFDF("UI\\FrameDef\\UI\\SimpleInfoPanel.fdf");
+
+    UI_FRAME(ConsoleUI);
+    UI_SetAllPoints(ConsoleUI);
+
+    uiFrameDef_t *bottom = InitBottomPanel(ConsoleUI);
+
+    Init_ResourceBar(ConsoleUI);
+    Init_SimpleInfoPanelUnitDetail(ConsoleUI, bottom);
+    Init_SimpleProgressIndicator();
+    
+//    UI_PrintClasses();
+    
+//    UI_FRAME(SimpleHeroLevelBar);
+//    SimpleHeroLevelBar->f.size.width = INFO_PANEL_UNIT_DETAIL_WIDTH;
+//    SimpleProgressIndicator->f.tex.index = UI_LoadTexture("SimpleProgressBarBorder", true);
+    
+    UI_WriteLayout(edict, ConsoleUI, LAYER_CONSOLE);
 
     FILTER_EDICTS(ent, edict->client->ps.number == ent->s.player) {
         edict->client->ps.stats[STAT_FOOD_MADE] += UNIT_FOOD_MADE(ent->class_id);

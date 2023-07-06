@@ -73,12 +73,12 @@ void build_menu_selectlocation(edict_t *ent, DWORD building_id) {
 }
 
 void build_command(edict_t *edict) {
-    uiFrameDef_t *layer = UI_Clear();
+    uiFrameDef_t *layer = UI_EmptyScreen();
     edict_t *ent = G_GetMainSelectedEntity(edict->client);
     LPCSTR builds = UNIT_BUILDS(ent->class_id);
     if (!builds)
         return;
-    PARSE_LIST(builds, build, gi.ParserGetToken) {
+    PARSE_LIST(builds, build, getNextSegment) {
         LPCSTR art = FindConfigValue(build, STR_ART);
         LPCSTR buttonpos = FindConfigValue(build, STR_BUTTONPOS);
         if (!art || !buttonpos)

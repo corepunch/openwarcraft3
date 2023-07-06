@@ -30,7 +30,8 @@ void G_RunEntity(edict_t *ent) {
             break;
     }
     SAFE_CALL(ent->think, ent);
-    ent->s.health = ent->health / MAX(1, ent->max_health);
+    ent->s.stats[ENT_HEALTH] = 255 * ent->health / MAX(1, ent->max_health);
+    ent->s.stats[ENT_MANA] = 128;
 }
 
 bool M_IsHollow(edict_t *ent) {

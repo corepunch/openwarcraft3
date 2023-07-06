@@ -37,13 +37,13 @@ struct color32 MakeColor(float r, float g, float b, float a) {
     };
 }
 
-void SetTileUV(DWORD tile, LPVERTEX vertices, LPCTEXTURE texture) {
+void SetTileUV(LPCWAR3MAPVERTEX mv, DWORD tile, LPVERTEX vertices, LPCTEXTURE texture) {
     float u = 1.f/(texture->width / 64);
     float v = 1.f/(texture->height / 64);
     float ux = 0.0f;
     
-    if (tile == 15 && texture->width > texture->height && !(rand() & 3)) {
-        tile = rand() & 15;
+    if (tile == 15 && texture->width > texture->height) {
+        tile = mv->groundVariation;
         ux = 0.5f;
     }
 

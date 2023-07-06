@@ -194,7 +194,6 @@ LPMAPLAYER R_BuildMapSegmentCliffs(LPCWAR3MAP map, DWORD sx, DWORD sy, DWORD cli
         .upperTile = ri.FindSheetCell(tr.sheet[SHEET_CLIFF], cliffID_str, "upperTile"),
         .rampModelDir = ri.FindSheetCell(tr.sheet[SHEET_CLIFF], cliffID_str, "rampModelDir"),
         .cliffModelDir = ri.FindSheetCell(tr.sheet[SHEET_CLIFF], cliffID_str, "cliffModelDir"),
-
     };
     sprintf(zBuffer, "%s\\%c_%s.blp", data.texDir, map->tileset, data.texFile);
     mapLayer->texture = R_LoadTexture(zBuffer);

@@ -12,16 +12,8 @@ static LPVERTEX currentVertex = NULL;
 VECTOR3 R_GetVertexPosition(LPCWAR3MAP map, DWORD x, DWORD y, bool useLevel) {
     LPCWAR3MAPVERTEX vert = GetWar3MapVertex(map, x, y);
     float level = useLevel ? vert->level * TILESIZE - HEIGHT_COR : 0;
-    if (useLevel && vert->ramp) {
-        LPCWAR3MAPVERTEX a = GetWar3MapVertex(map, x+1, y);
-        LPCWAR3MAPVERTEX b = GetWar3MapVertex(map, x-1, y);
-        LPCWAR3MAPVERTEX c = GetWar3MapVertex(map, x, y+1);
-        LPCWAR3MAPVERTEX d = GetWar3MapVertex(map, x, y-1);
-        if (a && b && a->ramp && b->ramp && a->level != b->level) {
-            level = (a->level + b->level) * 0.5 * TILESIZE - HEIGHT_COR;
-        } else if (c && d && c->ramp && d->ramp && c->level != d->level) {
-            level = (c->level + d->level) * 0.5 * TILESIZE - HEIGHT_COR;
-        }
+    if (useLevel && vert->ramp && vert->cliffVariation) {
+        level += 0.5 * TILESIZE;
     }
     float z = DECODE_HEIGHT(vert->accurate_height) + level;
     return (VECTOR3) {
@@ -45,18 +37,30 @@ VECTOR3 R_GetVertexNormal(LPCWAR3MAP map, DWORD x, DWORD y) {
     return normal;
 }
 
+DWORD IsMidRamp(LPCWAR3MAPVERTEX mv) {
+    return
+        (mv[0].cliffVariation && mv[0].ramp) +
+        (mv[1].cliffVariation && mv[1].ramp) +
+        (mv[2].cliffVariation && mv[2].ramp) +
+        (mv[3].cliffVariation && mv[3].ramp);
+}
+
+
 static void R_MakeTile(LPCWAR3MAP map, DWORD x, DWORD y, DWORD ground, LPCTEXTURE texture) {
     struct War3MapVertex tile[4];
     GetTileVertices(x, y, map, tile);
     int _tile = GetTile(tile, ground);
+    int _ramps = GetTileRamps(tile);
 
     if (_tile == 0)
         return;
 
-    if (IsTileCliff(tile) && GetTileRamps(tile) < 4) {
+    if (IsTileCliff(tile) && _ramps < 4)
         return;
-    }
-
+    
+    if (_ramps == 2 && IsMidRamp(tile) == 1)
+        return;
+    
     VECTOR3 const p[] = {
         R_GetVertexPosition(map, x, y, true),
         R_GetVertexPosition(map, x + 1, y, true),
@@ -95,7 +99,7 @@ static void R_MakeTile(LPCWAR3MAP map, DWORD x, DWORD y, DWORD ground, LPCTEXTUR
     };
     
     if (texture) {
-        SetTileUV(_tile, geom, texture);
+        SetTileUV(GetWar3MapVertex(map, x, y), _tile, geom, texture);
     }
 
     memcpy(currentVertex, geom, sizeof(geom));

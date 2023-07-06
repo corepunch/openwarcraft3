@@ -24,7 +24,6 @@ struct game_import {
     handle_t (*BuildHeatmap)(edict_t *goalentity);
     VECTOR2 (*GetFlowDirection)(DWORD heatmapindex, float fx, float fy);
     float (*GetHeightAtPoint)(float x, float y);
-    LPSTR (*ParserGetToken)(parser_t *p);
     LPSTR (*ReadFileIntoString)(LPCSTR filename);
     HANDLE (*ReadFile)(LPCSTR filename, LPDWORD size);
     

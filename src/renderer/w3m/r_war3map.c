@@ -109,13 +109,26 @@ LPWAR3MAP FileReadWar3Map(HANDLE archive) {
     R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 #endif
-//    FOR_LOOP(y, map->height) {
+    FOR_LOOP(y, map->height) {
 //        printf("%04x  ", y);
-//        FOR_LOOP(x, map->width) {
+        FOR_LOOP(x, map->width) {
+            LPWAR3MAPVERTEX vert = (LPWAR3MAPVERTEX)GetWar3MapVertex(map, x, y);
+            if (!vert->ramp)
+                continue;
+            vert->cliffVariation = 0; // used also to mark mid-ramp
+            LPCWAR3MAPVERTEX l = GetWar3MapVertex(map, x-1, y);
+            LPCWAR3MAPVERTEX r = GetWar3MapVertex(map, x+1, y);
+            LPCWAR3MAPVERTEX t = GetWar3MapVertex(map, x, y-1);
+            LPCWAR3MAPVERTEX b = GetWar3MapVertex(map, x, y+1);
+            if (l && r && l->ramp && r->ramp && l->level != r->level) {
+                vert->cliffVariation = 1;
+            } else if (t && b && t->ramp && b->ramp && t->level != b->level) {
+                vert->cliffVariation = 1;
+            }
 //            printf("%x", GetWar3MapVertex(map, x, y)->level);
-//        }
+        }
 //        printf("\n");
-//    }
+    }
     return map;
 }
 

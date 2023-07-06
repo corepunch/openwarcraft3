@@ -141,7 +141,9 @@ LPTEXTURE R_MakeSysFontTexture(void) {
     COLOR32 color[FONT_WIDTH * FONT_HEIGHT];
     FOR_LOOP(i, FONT_WIDTH * FONT_HEIGHT) {
         BYTE value = font_map[i / 8];
-        color[i] = (COLOR32) { 255, 255, 255, 255 * ((value >> (7 - (i % 8))) & 1) };
+        COLOR32 col = COLOR32_WHITE;
+        col.a *= ((value >> (7 - (i % 8))) & 1);
+        color[i] = col;
     }
     R_Call(glGenTextures, 1, &texture->texid);
     R_Call(glBindTexture, GL_TEXTURE_2D, texture->texid);

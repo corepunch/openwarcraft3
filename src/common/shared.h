@@ -19,6 +19,10 @@
 
 #define IS_FOURCC(STRING) (STRING && strlen(STRING) == 4)
 
+#define MAKE(TYPE,...)(TYPE){__VA_ARGS__}
+
+#define COLOR32_WHITE MAKE(COLOR32,255,255,255,255)
+
 #ifndef __cplusplus
   #define bool char
   #define true 1
@@ -65,10 +69,7 @@ if (LIST) { \
 }
 
 #define PARSE_LIST(LIST, ITEM, PARSER) \
-parser_t parser = { 0 }; \
-parser.tok = parser.token; \
-parser.str = LIST; \
-parser.comma_space = true; \
+WordExtractor parser = { .buffer = LIST, .delimiters = "" }; \
 for (LPCSTR ITEM = PARSER(&parser); ITEM; ITEM = PARSER(&parser))
 
 enum {
@@ -89,6 +90,7 @@ enum {
 #define STAT_FOOD_USED 5
 
 #define MAX_STATS 32
+#define MAX_UNIT_STATS 32
 
 #define MAX_PACKET_ENTITIES 64
 #define MAX_CLIENTS 256
@@ -181,9 +183,18 @@ typedef struct {
     VECTOR3 origin;
     float distance;
     DWORD fov;
-    int rdflags;
-    short stats[MAX_STATS];
+    DWORD rdflags;
+    USHORT stats[MAX_STATS];
+    BYTE unit_stats[MAX_UNIT_STATS];
 } playerState_t;
+
+enum {
+    ENT_PLAYER,
+    ENT_HEALTH,
+    ENT_MANA,
+    ENT_UNUSED,
+    ENT_STAT_COUNT,
+};
 
 typedef struct entityState_s {
     DWORD number; // edict index
@@ -194,13 +205,13 @@ typedef struct entityState_s {
     float angle;
     float scale;
     float radius;
-    float health;
+    BYTE stats[ENT_STAT_COUNT];
+    DWORD player;
     DWORD model;
     DWORD image;
     DWORD sound;
     DWORD frame;
     DWORD event;
-    DWORD player;
     DWORD flags;
     DWORD renderfx;
     DWORD splat;
@@ -268,6 +279,7 @@ typedef enum {
     FT_SCREEN,
     FT_COMMANDBUTTON,
     FT_PORTRAIT,
+    FT_STRINGLIST,
 } uiFrameType_t;
 
 typedef enum {
@@ -300,20 +312,24 @@ typedef struct { // serialized as 4 bytes
     int16_t offset: 16;
 } uiFramePoint_t;
 
+#define UI_PARENT 0xff
+
 typedef uiFramePoint_t uiFramePoints_t[FPP_COUNT];
 
 typedef struct {
     DWORD number;
     DWORD parent;
+    COLOR32 color;
     struct { uiFramePoints_t x, y; } points;
     struct { uint16_t width, height; } size;
-    
+
     // Texture
     struct {
-        DWORD index;
+        USHORT index;
+        USHORT index2;
         uint8_t coord[4];
     } tex;
-
+    
     // String
     union {
         struct {
@@ -324,14 +340,12 @@ typedef struct {
         } flags;
         DWORD flagsvalue;
     };
-    
     struct {
         DWORD index;
     } font;
     DWORD textLength;
     DWORD stat;
     uiName_t text;
-
     // Command Button
     DWORD code;
 } uiFrame_t;

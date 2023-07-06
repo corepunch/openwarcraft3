@@ -44,14 +44,26 @@ VECTOR2 get_y(LPCRECT rect) {
     return (VECTOR2) { rect->y, rect->y + rect->h };
 }
 
-float get_anchor(uiFramePoint_t const *p, VECTOR2 (*get)(LPCRECT)) {
-    VECTOR2 b = get(SCR_LayoutRect(frames+p->relativeTo));
-    if (p->targetPos == FPP_MID) {
-        return (b.x + b.y) / 2 + p->offset;
-    } else if (p->targetPos == FPP_MAX) {
-        return b.y - p->offset;
+LPCRECT SCR_LayoutRectByNumber(uiFrame_t const *context, DWORD number) {
+    if (number == UI_PARENT) {
+        return SCR_LayoutRect(frames+context->parent);
     } else {
-        return b.x + p->offset;
+        return SCR_LayoutRect(frames+number);
+    }
+}
+
+float SCR_GetAnchor(uiFrame_t const *f,
+                    uiFramePoint_t const *p,
+                    VECTOR2 (*get)(LPCRECT))
+{
+    VECTOR2 b = get(SCR_LayoutRectByNumber(f, p->relativeTo));
+    float offset = get == get_x ? p->offset : -p->offset;
+    if (p->targetPos == FPP_MID) {
+        return (b.x + b.y) / 2 + offset;
+    } else if (p->targetPos == FPP_MAX) {
+        return b.y + offset;
+    } else {
+        return b.x + offset;
     }
 }
 
@@ -60,25 +72,46 @@ VECTOR2 get_position(uiFrame_t const *frame,
                      DWORD width,
                      VECTOR2 (*get)(LPCRECT))
 {
-    if (width == 0 && frame->flags.type == FT_SIMPLEFRAME) {
-        VECTOR2 b = get(SCR_LayoutRect(frames+frame->parent));
-        return (VECTOR2) { b.x, b.y - b.x };
-    }
     uiFramePoint_t const *pmin = p+FPP_MIN;
     uiFramePoint_t const *pmid = p+FPP_MID;
     uiFramePoint_t const *pmax = p+FPP_MAX;
     if (pmid->used) {
-        return (VECTOR2) { get_anchor(pmid, get) - width / 2, width, };
+        return (VECTOR2) {
+            SCR_GetAnchor(frame, pmid, get) - width / 2,
+            width,
+        };
     } else if (pmin->used && pmax->used) {
         return (VECTOR2) {
-            get_anchor(pmin, get),
-            get_anchor(pmax, get) - get_anchor(pmin, get),
+            SCR_GetAnchor(frame, pmin, get),
+            SCR_GetAnchor(frame, pmax, get) - SCR_GetAnchor(frame, pmin, get),
         };
     } else if (pmax->used) {
-        return (VECTOR2) { get_anchor(pmax, get) - width, width };
+        return (VECTOR2) {
+            SCR_GetAnchor(frame, pmax, get) - width,
+            width,
+        };
     } else {
-        return (VECTOR2) { get_anchor(pmin, get), width, };
+        return (VECTOR2) {
+            SCR_GetAnchor(frame, pmin, get),
+            width,
+        };
     }
+}
+
+LPCSTR SCR_GetStringValue(uiFrame_t const *frame) {
+    static char text[1024] = { 0 };
+    if (frame->text[0]) {
+        return frame->text;
+    } else if (frame->stat == STAT_FOOD) {
+        DWORD food_used = cl.playerstate.stats[STAT_FOOD_USED];
+        DWORD food_made = cl.playerstate.stats[STAT_FOOD_MADE];
+        sprintf(text, "%d/%d", food_used, food_made);
+    } else if (frame->stat > 0) {
+        sprintf(text, "%d", cl.playerstate.stats[frame->stat]);
+    } else {
+        sprintf(text, "text %d", frame->number);
+    }
+    return text;
 }
 
 LPCRECT SCR_LayoutRect(uiFrame_t const *frame) {
@@ -86,6 +119,15 @@ LPCRECT SCR_LayoutRect(uiFrame_t const *frame) {
         return &runtimes[frame->number].rect;
     } else {
         runtimes[frame->number].calculated = true; // done here to avoid recursion
+    }
+    if (frame->flags.type == FT_STRING || frame->flags.type == FT_TEXT) {
+        VECTOR2 textsize = re.GetTextSize(cl.fonts[frame->font.index], SCR_GetStringValue(frame));
+        if (frame->size.width == 0) {
+            ((uiFrame_t *)frame)->size.width = textsize.x * 10000;
+        }
+        if (frame->size.height == 0) {
+            ((uiFrame_t *)frame)->size.height = textsize.y * 10000;
+        }
     }
     VECTOR2 const rect[] = {
         get_position(frame, frame->points.x, frame->size.width, get_x),
@@ -100,17 +142,37 @@ LPCRECT SCR_LayoutRect(uiFrame_t const *frame) {
     return &runtimes[frame->number].rect;
 }
 
-void layout_tex(uiFrame_t const *frame) {
+void layout_statusbar(uiFrame_t const *frame) {
+    RECT const screen = Rect_div(SCR_LayoutRect(frame), 10000);
+    RECT const uv = get_uvrect(frame->tex.coord);
+    RECT screen2 = screen;
+    RECT uv2 = uv;
+    if (frame->stat > 0 ) {
+        screen2.w *= cl.playerstate.unit_stats[frame->stat] / (float)255;
+        uv2.w *= cl.playerstate.unit_stats[frame->stat] / (float)255;
+    } else {
+        screen2.w *= 0.5;
+        uv2.w *= 0.5;
+    }
+    RECT const suv2 = Rect_div(&uv2, 0xff);
+    re.DrawImage(cl.pics[frame->tex.index], &screen2, &suv2, frame->color);
+    if (frame->tex.index2 > 0) {
+        RECT const suv = Rect_div(&uv, 0xff);
+        re.DrawImage(cl.pics[frame->tex.index2], &screen, &suv, COLOR32_WHITE);
+    }
+}
+
+void layout_texture(uiFrame_t const *frame) {
     RECT const screen = Rect_div(SCR_LayoutRect(frame), 10000);
     RECT const uv = get_uvrect(frame->tex.coord);
     RECT const suv = Rect_div(&uv, 0xff);
-    re.DrawImage(cl.pics[frame->tex.index], &screen, &suv);
+    re.DrawImage(cl.pics[frame->tex.index], &screen, &suv, frame->color);
 }
 
 void layout_portrait(uiFrame_t const *frame) {
     RECT const screen = Rect_div(SCR_LayoutRect(frame), 10000);
     RECT const viewport = {
-        screen.x/0.8, 1 - (screen.y + screen.h)/ 0.6, screen.w/0.8, screen.h/0.6
+        screen.x/0.8,1-(screen.y+screen.h)/0.6,screen.w/0.8,screen.h/0.6
     };
     LPCMODEL port = cl.portraits[frame->tex.index];
     re.DrawPortrait(port ? port : cl.models[frame->tex.index], &viewport);
@@ -134,25 +196,17 @@ void layout_cmd(uiFrame_t const *frame) {
         }
     }
 
-    re.DrawImage(cl.pics[frame->tex.index], &screen, &suv);
+    re.DrawImage(cl.pics[frame->tex.index], &screen, &suv, COLOR32_WHITE);
 }
 
 void layout_string(uiFrame_t const *frame) {
-    RECT const screen = Rect_div(SCR_LayoutRect(frame), 10000);
-    COLOR32 color = { 255, 0, 0, 255 };
-    char text[64] = { 0 };
-    if (frame->stat == STAT_FOOD) {
-        DWORD food_used = cl.playerstate.stats[STAT_FOOD_USED];
-        DWORD food_made = cl.playerstate.stats[STAT_FOOD_MADE];
-        sprintf(text, "%d/%d", food_used, food_made);
-    } else if (frame->stat > 0) {
-        sprintf(text, "%d", cl.playerstate.stats[frame->stat]);
-    }
+    LPCSTR text = SCR_GetStringValue(frame);
+    RECT screen = Rect_div(SCR_LayoutRect(frame), 10000);
     re.DrawText(&(drawText_t) {
         .font = cl.fonts[frame->font.index],
         .text = text,
         .rect = screen,
-        .color = color,
+        .color = frame->color,
         .halign = frame->flags.textalignx,
         .valign = frame->flags.textaligny,
     });
@@ -168,12 +222,14 @@ void SCR_DrawOverlay(uiFrame_t const *_frames) {
     FOR_LOOP(i, MAX_LAYOUT_OBJECTS) {
         uiFrame_t const *frame = frames+i;
         switch (frame->flags.type) {
-            case FT_TEXTURE: layout_tex(frame); break;
+            case FT_TEXTURE: layout_texture(frame); break;
+            case FT_BACKDROP: layout_texture(frame); break;
+            case FT_SIMPLESTATUSBAR: layout_statusbar(frame); break;
             case FT_COMMANDBUTTON: layout_cmd(frame); break;
             case FT_STRING: layout_string(frame); break;
+            case FT_TEXT: layout_string(frame); break;
             case FT_PORTRAIT: layout_portrait(frame); break;
-            case FT_NONE:
-                return;
+//            case FT_NONE: break;
             default:
                 break;
         }

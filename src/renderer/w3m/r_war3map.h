@@ -48,7 +48,7 @@ DWORD GetTile(LPCWAR3MAPVERTEX mv, DWORD ground);
 float GetWar3MapVertexHeight(LPCWAR3MAPVERTEX vert);
 float GetWar3MapVertexWaterLevel(LPCWAR3MAPVERTEX vert);
 void GetTileVertices(DWORD x, DWORD y, LPCWAR3MAP terrain, LPWAR3MAPVERTEX vertices);
-void SetTileUV(DWORD tile, LPVERTEX vertices, LPCTEXTURE texture);
+void SetTileUV(LPCWAR3MAPVERTEX mv, DWORD tile, LPVERTEX vertices, LPCTEXTURE texture);
 DWORD GetTileRamps(LPCWAR3MAPVERTEX vertices);
 DWORD IsTileCliff(LPCWAR3MAPVERTEX vertices);
 DWORD IsTileWater(LPCWAR3MAPVERTEX vertices);

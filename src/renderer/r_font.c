@@ -2,6 +2,8 @@
 #include "stb/stb_truetype.h"
 
 #define MAX_GLYPHSET 256
+#define FONT_SCALE 2
+#define INV_SCALE(x) ((x) / (FONT_SCALE * 1000.f))
 
 typedef struct {
     LPTEXTURE image;
@@ -92,8 +94,9 @@ static glyphSet_t* R_GetGlyphSet(font_t *font, int codepoint) {
 
 
 LPFONT R_LoadFont(LPCSTR filename, DWORD size) {
+    size = MAX(9, size);
     font_t *font = ri.MemAlloc(sizeof(font_t));
-    font->size = size;
+    font->size = size * FONT_SCALE;
     
     /* load font into buffer */
     HANDLE file = ri.FileOpen(filename);
@@ -128,7 +131,7 @@ fail:
     return NULL;
 }
 
-void R_ReleaseFont(font_t *font) {
+void R_ReleaseFont(LPFONT font) {
     for (int i = 0; i < MAX_GLYPHSET; i++) {
         glyphSet_t *set = font->sets[i];
         if (set) {
@@ -140,7 +143,7 @@ void R_ReleaseFont(font_t *font) {
     ri.MemFree(font);
 }
 
-float R_GetFontWidth(font_t *font, LPCSTR text) {
+float R_GetFontWidth(LPFONT font, LPCSTR text) {
     float x = 0;
     LPCSTR p = text;
     unsigned codepoint;
@@ -148,34 +151,38 @@ float R_GetFontWidth(font_t *font, LPCSTR text) {
         p = utf8_to_codepoint(p, &codepoint);
         glyphSet_t *set = R_GetGlyphSet(font, codepoint);
         stbtt_bakedchar *g = &set->glyphs[codepoint & 0xff];
-        x += g->xadvance / 1000.f;
+        x += INV_SCALE(g->xadvance);
     }
     return x;
 }
 
 
-float R_GetFontHeight(font_t *font) {
-    return font->height / 1000.f;
+float R_GetFontHeight(LPFONT font) {
+    return FONT_SCALE * INV_SCALE(font->height);
+}
+
+VECTOR2 R_GetTextSize(LPCFONT font, LPCSTR text) {
+    return (VECTOR2) {
+        R_GetFontWidth((LPFONT)font, text),
+        R_GetFontHeight((LPFONT)font),
+    };
 }
 
 void R_DrawText(drawText_t const *arg) {
-    LPCSTR p = arg->text;
-    float x = 0;
-    float y = 0;
-    float w = R_GetFontWidth((LPFONT)arg->font, arg->text);
-    float h = R_GetFontHeight((LPFONT)arg->font);
-    unsigned codepoint;
+    VECTOR2 pos = { 0 };
+    VECTOR2 size = R_GetTextSize(arg->font, arg->text);
     switch (arg->halign) {
-        case FONT_JUSTIFYRIGHT: x = arg->rect.x + arg->rect.w - w; break;
-        case FONT_JUSTIFYCENTER: x = arg->rect.x + (arg->rect.w - w) / 2; break;
-        case FONT_JUSTIFYLEFT: x = arg->rect.y; break;
+        case FONT_JUSTIFYRIGHT: pos.x = arg->rect.x + arg->rect.w - size.x; break;
+        case FONT_JUSTIFYCENTER: pos.x = arg->rect.x + (arg->rect.w - size.x) / 2; break;
+        case FONT_JUSTIFYLEFT: pos.x = arg->rect.x; break;
     }
     switch (arg->valign) {
-        case FONT_JUSTIFYBOTTOM: y = arg->rect.y + arg->rect.h - h; break;
-        case FONT_JUSTIFYMIDDLE: y = arg->rect.y + (arg->rect.h - h) / 2; break;
-        case FONT_JUSTIFYTOP: y = arg->rect.y; break;
+        case FONT_JUSTIFYBOTTOM: pos.y = arg->rect.y + arg->rect.h - size.y; break;
+        case FONT_JUSTIFYMIDDLE: pos.y = arg->rect.y + (arg->rect.h - size.y) / 2; break;
+        case FONT_JUSTIFYTOP: pos.y = arg->rect.y; break;
     }
-    while (*p) {
+    for (LPCSTR p = arg->text; *p;) {
+        unsigned codepoint;
         p = utf8_to_codepoint(p, &codepoint);
         glyphSet_t *set = R_GetGlyphSet((LPFONT)arg->font, codepoint);
         stbtt_bakedchar *g = &set->glyphs[codepoint & 0xff];
@@ -188,13 +195,12 @@ void R_DrawText(drawText_t const *arg) {
             .h = (g->y1 - g->y0) / h,
         };
         RECT const screen = {
-            .x = x + g->xoff / 1000.f,
-            .y = y + g->yoff / 1000.f,
-            .w = (g->x1 - g->x0) / 1000.f,
-            .h = (g->y1 - g->y0) / 1000.f,
+            .x = pos.x + INV_SCALE(g->xoff),
+            .y = pos.y + INV_SCALE(g->yoff),
+            .w = INV_SCALE(g->x1 - g->x0),
+            .h = INV_SCALE(g->y1 - g->y0),
         };
-        
-        R_DrawImage(set->image, &screen, &uv_rect);
-        x += g->xadvance / 1000.f;
+        R_DrawImage(set->image, &screen, &uv_rect, COLOR32_WHITE);
+        pos.x += INV_SCALE(g->xadvance);
     }
 }

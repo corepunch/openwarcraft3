@@ -23,11 +23,10 @@ LPTEXTURE R_LoadTextureBLP2(HANDLE data, DWORD filesize);
 LPTEXTURE R_LoadTextureDDS(HANDLE data, DWORD filesize);
 
 void R_Viewport(LPCRECT viewport) {
-    size2_t const windowSize = R_GetWindowSize();
-    glViewport(viewport->x * windowSize.width / 800,
-               viewport->y * windowSize.height / 600,
-               viewport->w * windowSize.width / 800,
-               viewport->h * windowSize.height / 600);
+    glViewport(viewport->x * tr.drawableSize.width / 800,
+               viewport->y * tr.drawableSize.height / 600,
+               viewport->w * tr.drawableSize.width / 800,
+               viewport->h * tr.drawableSize.height / 600);
 }
 
 LPTEXTURE R_LoadTexture(LPCSTR textureFilename) {
@@ -211,8 +210,10 @@ void R_Init(DWORD width, DWORD height) {
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
     
-    window = SDL_CreateWindow("", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width, height, SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN);
+    window = SDL_CreateWindow("", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width, height, SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN | SDL_WINDOW_ALLOW_HIGHDPI);
     context = SDL_GL_CreateContext(window);
+    
+    SDL_GL_GetDrawableSize(window, (int *)&tr.drawableSize.width, (int *)&tr.drawableSize.height);
         
 //    m3 = R_LoadModel("Assets\\Units\\Terran\\SpecialOpsDropship\\SpecialOpsDropship.m3");
 //    R_LoadModel("Assets\\Units\\Terran\\MarineTychus\\MarineTychus.m3");
@@ -298,7 +299,7 @@ void R_Init(DWORD width, DWORD height) {
     
     R_Call(glDisable, GL_DEPTH_TEST);
     R_Call(glClearColor, 0.0, 0.0, 0.0, 0.0);
-    R_Call(glViewport, 0, 0, width, height);
+    R_Call(glViewport, 0, 0, tr.drawableSize.width, tr.drawableSize.height);
     
     R_InitParticles();
     
@@ -318,27 +319,21 @@ void R_Shutdown(void) {
     SDL_Quit();
 }
 
-DWORD R_GetViewWidth(void) {
-    int width, height;
-    SDL_GetWindowSize(window, &width, &height);
-    return width;
-}
-
-DWORD R_GetViewHeight(void) {
-    int width, height;
-    SDL_GetWindowSize(window, &width, &height);
-    return height;
-}
-
 void R_SetupViewport(LPCRECT r) {
-    DWORD w = R_GetViewWidth(), h  = R_GetViewHeight();
-    R_Call(glViewport, r->x * w, r->y * h, r->w * w, r->h * h);
+    R_Call(glViewport,
+           r->x * tr.drawableSize.width,
+           r->y * tr.drawableSize.height,
+           r->w * tr.drawableSize.width,
+           r->h * tr.drawableSize.height);
 }
 
 void R_SetupScissor(LPCRECT r) {
-    DWORD w = R_GetViewWidth(), h  = R_GetViewHeight();
     R_Call(glEnable, GL_SCISSOR_TEST);
-    R_Call(glScissor, r->x * w, r->y * h, r->w * w, r->h * h);
+    R_Call(glScissor,
+           r->x * tr.drawableSize.width,
+           r->y * tr.drawableSize.height,
+           r->w * tr.drawableSize.width,
+           r->h * tr.drawableSize.height);
 }
 
 void R_RevertSettings(void) {
@@ -447,6 +442,7 @@ refExport_t R_GetAPI(refImport_t imp) {
         .GetTextureSize = R_GetTextureSize,
         .DrawPortrait = R_DrawPortrait,
         .DrawText = R_DrawText,
+        .GetTextSize = R_GetTextSize,
         .TraceEntity = R_TraceEntity,
         .TraceLocation = R_TraceLocation,
         .EntitiesInRect = R_EntitiesInRect,

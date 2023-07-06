@@ -117,8 +117,7 @@ DWORD selCircles[NUM_SELECTION_CIRCLES] = { 100, 300, 100000 };
 
 static void R_RenderUberSplat(const renderEntity_t *entity, LPCVECTOR2 origin) {
     if (entity->splat && !(entity->flags & RF_NO_UBERSPLAT)) {
-        COLOR32 color = { 255, 255, 255, 255 };
-        R_RenderSplat(origin, entity->splatsize, entity->splat, tr.shader[SHADER_DEFAULT], color);
+        R_RenderSplat(origin, entity->splatsize, entity->splat, tr.shader[SHADER_DEFAULT], COLOR32_WHITE);
     }
 }
 

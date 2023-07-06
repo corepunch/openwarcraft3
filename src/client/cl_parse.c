@@ -65,6 +65,9 @@ void CL_ParseLayout(LPSIZEBUF msg) {
     uiFrame_t *frames = cl.layout[layer];
     uiFrame_t *ent = NULL;
     memset(frames, 0, sizeof(uiLayoutLayer_t));
+    frames[0].size.width = 8000;
+    frames[0].size.height = 6000;
+    frames[0].flags.type = FT_SCREEN;
     while (true) {
         DWORD bits = 0;
         int nument = MSG_ReadEntityBits(msg, &bits);

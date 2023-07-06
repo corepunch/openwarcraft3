@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		5DE0B2772A2E688400B6DA83 /* p_fdf.c in Sources */ = {isa = PBXBuildFile; fileRef = 5DE0B2752A2E688400B6DA83 /* p_fdf.c */; };
+		7806B4672A57373400EE86BC /* parser.c in Sources */ = {isa = PBXBuildFile; fileRef = 7806B4662A57373400EE86BC /* parser.c */; };
 		78314AE42A2724A300062C4B /* g_metadata.c in Sources */ = {isa = PBXBuildFile; fileRef = 78314AE32A2724A300062C4B /* g_metadata.c */; };
 		7859EF622A2D0DDB0099A70E /* p_hud.c in Sources */ = {isa = PBXBuildFile; fileRef = 7859EF612A2D0DDB0099A70E /* p_hud.c */; };
 		786630612A188F4800266A62 /* g_phys.c in Sources */ = {isa = PBXBuildFile; fileRef = 7866305F2A188F4800266A62 /* g_phys.c */; };
@@ -34,6 +35,8 @@
 
 /* Begin PBXFileReference section */
 		5DE0B2752A2E688400B6DA83 /* p_fdf.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = p_fdf.c; sourceTree = "<group>"; };
+		7806B4662A57373400EE86BC /* parser.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = parser.c; sourceTree = "<group>"; };
+		7806B4682A57375300EE86BC /* parser.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = parser.h; sourceTree = "<group>"; };
 		782D49972A29DEB6007793C7 /* g_shared.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = g_shared.h; sourceTree = "<group>"; };
 		78314AE32A2724A300062C4B /* g_metadata.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = g_metadata.c; sourceTree = "<group>"; };
 		7859EF612A2D0DDB0099A70E /* p_hud.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = p_hud.c; sourceTree = "<group>"; };
@@ -106,10 +109,12 @@
 				78A8966E2A15F7D600BC5B56 /* m_unit.c */,
 				5DE0B2752A2E688400B6DA83 /* p_fdf.c */,
 				7859EF612A2D0DDB0099A70E /* p_hud.c */,
+				7806B4662A57373400EE86BC /* parser.c */,
 				78A896682A15F7D600BC5B56 /* g_local.h */,
 				78A000F12A3F34E900FE16C9 /* g_metadata.h */,
 				782D49972A29DEB6007793C7 /* g_shared.h */,
 				78A000F02A3ED5A100FE16C9 /* g_unitdata.h */,
+				7806B4682A57375300EE86BC /* parser.h */,
 				78A000E92A3CA9A000FE16C9 /* common.txt */,
 				786637B62A1A5B6200266A62 /* warcraftdoc.txt */,
 				78E91BFC2A169771003D9F3A /* Frameworks */,
@@ -203,6 +208,7 @@
 			files = (
 				78A000F22A3F34E900FE16C9 /* g_metadata.h in Sources */,
 				78A896722A15F7D600BC5B56 /* g_main.c in Sources */,
+				7806B4672A57373400EE86BC /* parser.c in Sources */,
 				786630612A188F4800266A62 /* g_phys.c in Sources */,
 				78C77C4F2A4C54540084A70B /* g_combat.c in Sources */,
 				78ED1A972A47714F00C42E21 /* s_cancel.c in Sources */,

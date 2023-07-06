@@ -298,9 +298,9 @@ void R_ShutdownFogOfWar(void) {
 }
 
 DWORD R_GetFogOfWarTexture(void) {
-//    if (resources.rt[FOW_RT_RESULT]) {
-//        return resources.rt[FOW_RT_RESULT]->texture;
-//    } else {
+    if (resources.rt[FOW_RT_RESULT]) {
+        return resources.rt[FOW_RT_RESULT]->texture;
+    } else {
         return tr.texture[TEX_WHITE]->texid;
-//    }
+    }
 }

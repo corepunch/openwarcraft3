@@ -116,7 +116,6 @@ void SV_InitGameProgs(void) {
     import.error = PF_error;
     import.configstring = PF_Configstring;
     import.confignstring = PF_Confignstring;
-    import.ParserGetToken = ParserGetToken;
     import.WriteByte = PF_WriteByte;
     import.WriteShort = PF_WriteShort;
     import.WriteLong = PF_WriteLong;

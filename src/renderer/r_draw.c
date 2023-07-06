@@ -33,11 +33,10 @@ void R_PrintSysText(LPCSTR string, DWORD x, DWORD y, COLOR32 color) {
     R_Call(glDrawArrays, GL_TRIANGLES, 0, num_vertices);
 }
 
-void R_DrawImage(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv) {
+void R_DrawImage(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv, COLOR32 color) {
     VERTEX simp[6];
     RECT full = { 0, 0, 1, 1 };
-    COLOR32 white = {255,255,255,255};
-    R_AddQuad(simp, screen, uv ? uv : &full, white, 0);
+    R_AddQuad(simp, screen, uv ? uv : &full, color, 0);
     
     //    size2_t screensize = R_GetWindowSize();
     MATRIX4 ui_matrix;
@@ -59,7 +58,8 @@ void R_DrawImage(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv) {
 }
 
 void R_DrawPic(LPCTEXTURE texture, float x, float y) {
-    R_DrawImage(texture, &(RECT ) { x, y, texture->width / 2000.0, texture->height / 2000.0}, NULL);
+    RECT screen = { x, y, texture->width / 2000.0, texture->height / 2000.0};
+    R_DrawImage(texture, &screen, NULL, COLOR32_WHITE);
 }
 
 void R_DrawSelectionRect(LPCRECT rect, COLOR32 color) {

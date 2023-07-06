@@ -165,8 +165,8 @@ struct War3MapVertex {
     BYTE blight:1;
     BYTE water:1;
     BYTE boundary:1;
-    BYTE details:4;
-    BYTE unknown:4;
+    BYTE groundVariation:4;
+    BYTE cliffVariation:4; // used also to mark mid-ramp
     BYTE level:4;
     BYTE cliff:4;
 };

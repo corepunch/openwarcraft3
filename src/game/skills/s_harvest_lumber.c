@@ -44,7 +44,7 @@ static EDICT_FUNC(look_for_another_tree) {
 bool G_ActorHasSkill(edict_t *ent, LPCSTR id) {
     LPCSTR abilities = UNIT_ABILITIES_NORMAL(ent->class_id);
     if (abilities) {
-        PARSE_LIST(abilities, abil, gi.ParserGetToken) {
+        PARSE_LIST(abilities, abil, getNextSegment) {
             if (!strcmp(abil, id))
                 return true;
         }

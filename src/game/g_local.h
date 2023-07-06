@@ -8,6 +8,7 @@
 #include "../server/game.h"
 #include "g_shared.h"
 #include "g_unitdata.h"
+#include "parser.h"
 
 #define SAFE_CALL(FUNC, ...) if (FUNC) FUNC(__VA_ARGS__)
 #define ABILITY(NAME) void M_##NAME(edict_t *ent, edict_t *target)
@@ -19,6 +20,9 @@ for (edict_t *ENT = globals.edicts; \
 ENT - globals.edicts < globals.num_edicts; \
 ENT++) if (CONDITION)
 
+#define UI_FRAME(NAME) uiFrameDef_t *NAME = UI_FindFrame(#NAME);
+#define UI_CHILD_FRAME(NAME, PARENT) uiFrameDef_t *NAME = UI_FindChildFrame(PARENT, #NAME);
+
 #define FOR_SELECTED_UNITS(CLIENT, ENT) \
 FILTER_EDICTS(ENT, G_IsEntitySelected(CLIENT, ENT))
 
@@ -29,11 +33,6 @@ enum {
     LAYER_CONSOLE,
     LAYER_COMMANDBAR,
 };
-
-#define MAKE_UI_LAYER(LAYER) \
-UI_Clear(); \
-gi.WriteByte(svc_layout); \
-gi.WriteByte(LAYER);
 
 #define svc_bad 0
 // these ops are known to the game dll
@@ -125,7 +124,6 @@ typedef enum {
 } movetype_t;
 
 typedef struct uiFrameDef_s uiFrameDef_t;
-typedef uint32_t pointNames_t[FPP_COUNT];
 
 typedef enum { // Keep in sync with uiFramePointPos_t
     FRAMEPOINT_TOPLEFT,
@@ -142,16 +140,19 @@ typedef enum { // Keep in sync with uiFramePointPos_t
     FRAMEPOINT_UNUSED3,
 } uiFramePointType_t;
 
+typedef enum {
+    FONTFLAGS_FIXEDSIZE,
+    FONTFLAGS_PASSWORDFIELD,
+} uiFontFlags_t;
+
 struct uiFrameDef_s {
     uiFrame_t f;
-    DWORD Name;
-    struct uiFrameDef_s *parent;
+    uiName_t Name;
     RECT rect;
     bool DecorateFileNames;
     bool inuse;
     struct {
         bool TileBackground;
-        uiName_t Background;
         uiName_t CornerFlags;// "UL|UR|BL|BR|T|L|B|R",
         float CornerSize;
         float BackgroundSize;
@@ -166,16 +167,20 @@ struct uiFrameDef_s {
     } Anchor;
     struct {
         uiFramePointType_t type;
-        uint32_t relativeTo;
+        DWORD relativeTo;
         uiFramePointType_t target;
         int16_t x, y;
     } SetPoint;
     struct {
-        pointNames_t x, y;
-    } pointNames;
-    struct {
         uiName_t Name;
+        uiName_t Unknown;
+        uiFontFlags_t FontFlags;
         DWORD Size;
+        COLOR32 Color;
+        COLOR32 HighlightColor;
+        COLOR32 DisabledColor;
+        COLOR32 ShadowColor;
+        VECTOR2 ShadowOffset;
     } Font;
 };
 
@@ -371,12 +376,22 @@ void UI_AddCancelButton(edict_t *edict);
 void Add_CommandButtonCoded(uiFrameDef_t *root, DWORD code, LPCSTR art, LPCSTR buttonpos);
 
 // p_fdf.c
-uiFrameDef_t *UI_Clear(void);
+DWORD UI_LoadTexture(LPCSTR file, bool decorate);
+void UI_PrintClasses(void);
+void UI_Clear(void);
+void UI_ParseFDF(LPCSTR fileName);
+void UI_SetAllPoints(uiFrameDef_t *frame);
+void UI_SetParent(uiFrameDef_t *frame, uiFrameDef_t *parent);
+void UI_SetText(uiFrameDef_t *frame, LPCSTR text);
+void UI_SetSize(uiFrameDef_t *frame, DWORD width, DWORD height);
+uiFrameDef_t *UI_EmptyScreen(void);
 uiFrameDef_t *UI_Spawn(uiFrameType_t type, uiFrameDef_t *parent);
-uiFrameDef_t *FDF_ParseFile(uiFrameDef_t const *root, LPCSTR fileName);
-uiFrameDef_t *UI_FindFrameByName(uiFrameDef_t *frame, LPCSTR name);
+uiFrameDef_t *UI_FindFrame(LPCSTR name);
+uiFrameDef_t *UI_FindChildFrame(uiFrameDef_t *frame, LPCSTR name);
+DWORD UI_FindFrameNumber(LPCSTR name);
 void UI_WriteLayout(edict_t *ent, uiFrameDef_t const *frames, DWORD layer);
 void UI_SetPoint(uiFrameDef_t *frame, uiFramePointType_t framePoint, uiFrameDef_t *other, uiFramePointType_t otherPoint, int16_t x, int16_t y);
+LPCSTR UI_GetString(LPCSTR textID);
 
 // g_metadata.c
 LPCSTR UnitStringField(sheetMetaData_t *meta, DWORD unit_id, LPCSTR name);

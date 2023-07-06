@@ -43,7 +43,7 @@ void UI_AddAbilityButton(uiFrameDef_t *root, LPCSTR ability) {
 
 void Get_Portrait_f(edict_t *edict) {
     edict_t *ent = G_GetMainSelectedEntity(edict->client);
-    uiFrameDef_t *layer = UI_Clear();
+    uiFrameDef_t *layer = UI_EmptyScreen();
     uiFrameDef_t *portrait = UI_Spawn(FT_PORTRAIT, layer);
     portrait->f.tex.index = ent->s.model;
     portrait->f.size.width = 800;
@@ -52,10 +52,68 @@ void Get_Portrait_f(edict_t *edict) {
     UI_WriteLayout(edict, layer, LAYER_PORTRAIT);
 }
 
+#define MULTISELECT_X 0.326
+#define MULTISELECT_Y 0.082
+#define MULTISELECT_GRID_X 0.031
+#define MULTISELECT_GRID_Y 0.05
+#define MULTISELECT_SIZE1 0.024
+#define MULTISELECT_SIZE2 0.032
+#define MULTISELECT_COLUMNS 6
+#define HP_BAR_HEIGHT_RATIO 0.175f
+#define HP_BAR_SPACING_RATIO 0.02f
+#define HP_BAR_COLOR MAKE(COLOR32,0,255,0,255)
+#define MANA_BAR_COLOR MAKE(COLOR32,0,128,255,255)
+
+static uiFrameDef_t *HUD_MultiselectIcon(uiFrameDef_t *layer, edict_t *ent, DWORD i) {
+    float x = UI_SCALE((i%MULTISELECT_COLUMNS)*MULTISELECT_GRID_X+MULTISELECT_X);
+    float y = UI_SCALE(MULTISELECT_Y-(i/MULTISELECT_COLUMNS)*MULTISELECT_GRID_Y);
+    float s = UI_SCALE(i == 0 ? MULTISELECT_SIZE2 : MULTISELECT_SIZE1);
+    LPCSTR art = FindConfigValue(GetClassName(ent->class_id), STR_ART);
+    uiFrameDef_t *button = UI_Spawn(FT_TEXTURE, layer);
+    button->f.tex.index = gi.ImageIndex(art);
+    button->f.size.width = s;
+    button->f.size.height = s;
+    UI_SetPoint(button, FRAMEPOINT_CENTER, layer, FRAMEPOINT_BOTTOMLEFT, x, y);
+    return button;
+}
+
+static uiFrameDef_t *HUD_MultiselectHealth(uiFrameDef_t *button, edict_t *ent, DWORD index) {
+    float y = button->f.size.height * HP_BAR_SPACING_RATIO;
+    uiFrameDef_t *statusbar = UI_Spawn(FT_SIMPLESTATUSBAR, button);
+    statusbar->f.tex.index = gi.ImageIndex("SimpleHpBarConsole");
+    statusbar->f.color = HP_BAR_COLOR;
+    statusbar->f.size.width = button->f.size.width;
+    statusbar->f.size.height = button->f.size.height * HP_BAR_HEIGHT_RATIO;
+    statusbar->f.stat = index;
+    UI_SetPoint(statusbar, FRAMEPOINT_TOPLEFT, button, FRAMEPOINT_BOTTOMLEFT, 0, -y);
+    return statusbar;
+}
+
+static uiFrameDef_t *HUD_MultiselectMana(uiFrameDef_t *button, edict_t *ent, DWORD index) {
+    float y = button->f.size.height * (HP_BAR_HEIGHT_RATIO + HP_BAR_SPACING_RATIO * 2);
+    uiFrameDef_t *statusbar = UI_Spawn(FT_SIMPLESTATUSBAR, button);
+    statusbar->f.color = MANA_BAR_COLOR;
+    statusbar->f.tex.index = gi.ImageIndex("SimpleManaBarConsole");
+    statusbar->f.size.width = button->f.size.width;
+    statusbar->f.size.height = button->f.size.height * HP_BAR_HEIGHT_RATIO;
+    statusbar->f.stat = index;
+    UI_SetPoint(statusbar, FRAMEPOINT_TOPLEFT, button, FRAMEPOINT_BOTTOMLEFT, 0, -y);
+    return statusbar;
+}
+
 void Get_Commands_f(edict_t *edict) {
     edict_t *ent = G_GetMainSelectedEntity(edict->client);
-    uiFrameDef_t *layer = UI_Clear();
+    uiFrameDef_t *layer = UI_EmptyScreen();
     if (ent) {
+        DWORD selent = 0, statindex = 0;
+        FOR_SELECTED_UNITS(edict->client, ent) {
+//        for (; selent < 12;) {
+            uiFrameDef_t *button = HUD_MultiselectIcon(layer, ent, selent);
+            /*uiFrameDef_t *hpbar = */HUD_MultiselectHealth(button, ent, statindex++);
+            /*uiFrameDef_t *manabar = */HUD_MultiselectMana(button, ent, statindex++);
+            selent++;
+        }
+        
         LPCSTR abilities = UNIT_ABILITIES_NORMAL(ent->class_id);
         LPCSTR trains = UNIT_TRAINS(ent->class_id);
         if (UNIT_SPEED(ent->class_id) > 0) {
@@ -71,7 +129,7 @@ void Get_Commands_f(edict_t *edict) {
             UI_AddAbilityButton(layer, GetBuildCommand(RACE_HUMAN));
         }
         if (abilities) {
-            PARSE_LIST(abilities, abil, gi.ParserGetToken) {
+            PARSE_LIST(abilities, abil, getNextSegment) {
                 LPCSTR code = gi.FindSheetCell(game.config.abilities, abil, "code");
                 if (code && FindAbilityByClassname(code)) {
                     UI_AddAbilityButton(layer, code);
@@ -81,7 +139,7 @@ void Get_Commands_f(edict_t *edict) {
             }
         }
         if (trains) {
-            PARSE_LIST(trains, unit, gi.ParserGetToken) {
+            PARSE_LIST(trains, unit, getNextSegment) {
                 LPCSTR art = FindConfigValue(unit, STR_ART);
                 LPCSTR buttonpos = FindConfigValue(unit, STR_BUTTONPOS);
                 if (!art || !buttonpos)
@@ -95,7 +153,7 @@ void Get_Commands_f(edict_t *edict) {
 }
 
 void UI_AddCancelButton(edict_t *ent) {
-    uiFrameDef_t *layer = UI_Clear();
+    uiFrameDef_t *layer = UI_EmptyScreen();
     UI_AddAbilityButton(layer, STR_CmdCancel);
     UI_WriteLayout(ent, layer, LAYER_COMMANDBAR);
     memset(&ent->client->menu, 0, sizeof(menu_t));

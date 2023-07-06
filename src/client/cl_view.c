@@ -68,7 +68,7 @@ static void V_AddClientEntity(centity_t const *ent) {
     re.number = ent->current.number;
     re.splat = cl.pics[ent->current.splat & 0xffff];
     re.splatsize = ent->current.splat >> 16;
-    re.health = ent->current.health;
+    re.health = ent->current.stats[ENT_HEALTH] / 255.f;
 
     view_state.entities[view_state.num_entities++] = re;
 

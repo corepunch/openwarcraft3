@@ -93,9 +93,10 @@ typedef struct {
     void (*PrintSysText)(LPCSTR string, DWORD x, DWORD y, COLOR32 color);
     void (*DrawSelectionRect)(LPCRECT rect, COLOR32 color);
     void (*DrawPic)(LPCTEXTURE texture, float x, float y);
-    void (*DrawImage)(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv);
+    void (*DrawImage)(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv, COLOR32 color);
     void (*DrawPortrait)(LPCMODEL model, LPCRECT viewport);
     void (*DrawText)(drawText_t const *drawText);
+    VECTOR2 (*GetTextSize)(LPCFONT font, LPCSTR text);
 
     bool (*TraceEntity)(viewDef_t const *viewdef, float x, float y, LPDWORD number);
     bool (*TraceLocation)(viewDef_t const *viewdef, float x, float y, LPVECTOR3 point);

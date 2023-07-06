@@ -79,7 +79,7 @@ CLIENTCOMMAND(Button) {
         LPCSTR builds = UNIT_TRAINS(ent->class_id);
         if (!builds)
             return;
-        PARSE_LIST(builds, build, gi.ParserGetToken) {
+        PARSE_LIST(builds, build, getNextSegment) {
             if (*((DWORD *)build) == code) {
                 SP_TrainUnit(&client->ps, ent, code);
                 break;

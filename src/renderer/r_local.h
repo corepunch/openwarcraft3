@@ -158,6 +158,7 @@ struct render_globals {
     LPMODEL model[MODEL_COUNT];
     LPRENDERTARGET rt[RT_COUNT];
     sheetRow_t *sheet[SHEET_COUNT];
+    size2_t drawableSize;
 };
 
 void R_RegisterMap(LPCSTR mapFileName);
@@ -210,13 +211,14 @@ void R_DrawBuffer(LPCBUFFER buffer, DWORD num_vertices);
 
 // r_draw.c
 void R_PrintSysText(LPCSTR string, DWORD x, DWORD y, COLOR32 color);
-void R_DrawImage(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv);
+void R_DrawImage(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv, COLOR32 color);
 void R_DrawPic(LPCTEXTURE texture, float x, float y);
 void R_DrawSelectionRect(LPCRECT rect, COLOR32 color);
 void R_DrawBoundingBox(LPCBOX3 box, LPCMATRIX4 matrix, COLOR32 color);
 
 // r_font.c
 LPFONT R_LoadFont(LPCSTR filename, DWORD size);
+VECTOR2 R_GetTextSize(LPCFONT font, LPCSTR text);
 void R_DrawText(drawText_t const *drawText);
 
 // r_image.c

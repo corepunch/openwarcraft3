@@ -155,7 +155,9 @@ void FS_Init(void) {
 //    SFileExtractFile(archive, "Splats\\UberSplatData.slk", "/Users/igor/Desktop/UberSplatData.slk", 0);
 //    SFileExtractFile(archive, "Units\\MiscData.txt", "/Users/igor/Desktop/MiscData.txt", 0);
 //    SFileExtractFile(archive, "Abilities\\Weapons\\FireBallMissile\\FireBallMissile.mdx", "/Users/igor/Desktop/FireBallMissile.mdx", 0);
-    
+//    FS_ExtractFile("UI\\FrameDef\\GlobalStrings.fdf", "/Users/igor/Desktop/GlobalStrings.fdf");
+    FS_ExtractFile("UI\\FrameDef\\UI\\ConsoleUI.fdf", "/Users/igor/Desktop/ConsoleUI.fdf");
+
 #if 0
     SFILE_FIND_DATA findData;
     HANDLE handle = SFileFindFirstFile(archives[0], "*", &findData, 0);
@@ -170,11 +172,12 @@ void FS_Init(void) {
 //                 !strstr(findData.cFileName, ".wav") &&
 //                 !strstr(findData.cFileName, ".mp3") &&
 //                 !strstr(findData.cFileName, ".mdx") &&
-             if(strstr(findData.cFileName, "CliffTrans\\Cliff")) {
+//             if(strstr(findData.cFileName, ".blp")) {
                  printf("%s\n", findData.cFileName);
-             }
-#if 0
-             if (strstr(findData.cFileName, ".txt")){
+//             }
+#if 1
+//             if (strstr(findData.cFileName, "SimpleInfoPanel")){
+             if (strstr(findData.cFileName, ".fdf")){
                  HANDLE file;
                  SFileOpenFileEx(archives[0], findData.cFileName, SFILE_OPEN_FROM_MPQ, &file);
                  char ch;
