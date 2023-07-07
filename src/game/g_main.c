@@ -104,7 +104,7 @@ playerState_t *G_GetPlayerByNumber(DWORD number) {
 }
 
 #define INFO_PANEL_UNIT_DETAIL_WIDTH UI_SCALE(0.180f)
-#define INFO_PANEL_UNIT_DETAIL_HEIGHT UI_SCALE(0.110f)
+#define INFO_PANEL_UNIT_DETAIL_HEIGHT UI_SCALE(0.120f)
 
 static void Init_SimpleProgressIndicator(void) {
     UI_FRAME(SimpleProgressIndicator);
@@ -132,26 +132,32 @@ static void Init_SimpleInfoPanelIconDamage(uiFrameDef_t *parent) {
     UI_FRAME(SimpleInfoPanelIconDamage);
     UI_CHILD_FRAME(InfoPanelIconBackdrop, SimpleInfoPanelIconDamage);
     UI_CHILD_FRAME(InfoPanelIconLevel, SimpleInfoPanelIconDamage);
-//    UI_CHILD_FRAME(InfoPanelIconLabel, SimpleInfoPanelIconDamage);
     UI_CHILD_FRAME(InfoPanelIconValue, SimpleInfoPanelIconDamage);
     UI_SetParent(SimpleInfoPanelIconDamage, parent);
-    UI_SetPoint(SimpleInfoPanelIconDamage, FRAMEPOINT_TOPLEFT, parent, FRAMEPOINT_TOPLEFT, 0, UI_SCALE(-0.036));
+    UI_SetPoint(SimpleInfoPanelIconDamage, FRAMEPOINT_TOPLEFT, parent, FRAMEPOINT_TOPLEFT, 0, UI_SCALE(-0.040));
     UI_SetText(InfoPanelIconLevel, "5");
     UI_SetText(InfoPanelIconValue, "3 - 7");
-    InfoPanelIconBackdrop->f.tex.index = UI_LoadTexture("InfoPanelIconDamagePierce", true);
+    UI_SetTexture(InfoPanelIconBackdrop, "InfoPanelIconDamagePierce", true);
 }
 
 static void Init_SimpleInfoPanelIconArmor(uiFrameDef_t *parent) {
     UI_FRAME(SimpleInfoPanelIconArmor);
     UI_CHILD_FRAME(InfoPanelIconBackdrop, SimpleInfoPanelIconArmor);
     UI_CHILD_FRAME(InfoPanelIconLevel, SimpleInfoPanelIconArmor);
-//    UI_CHILD_FRAME(InfoPanelIconLabel, SimpleInfoPanelIconArmor);
     UI_CHILD_FRAME(InfoPanelIconValue, SimpleInfoPanelIconArmor);
     UI_SetParent(SimpleInfoPanelIconArmor, parent);
-    UI_SetPoint(SimpleInfoPanelIconArmor, FRAMEPOINT_TOPLEFT, parent, FRAMEPOINT_TOPLEFT, 0, UI_SCALE(-0.0705));
+    UI_SetPoint(SimpleInfoPanelIconArmor, FRAMEPOINT_TOPLEFT, parent, FRAMEPOINT_TOPLEFT, 0, UI_SCALE(-0.0745));
     UI_SetText(InfoPanelIconLevel, "5");
     UI_SetText(InfoPanelIconValue, "3 - 7");
-    InfoPanelIconBackdrop->f.tex.index = UI_LoadTexture("InfoPanelIconArmorLarge", true);
+    UI_SetTexture(InfoPanelIconBackdrop, "InfoPanelIconArmorLarge", true);
+}
+
+static void Init_SimpleInfoPanelIconHero(uiFrameDef_t *parent) {
+    UI_FRAME(SimpleInfoPanelIconHero);
+    UI_CHILD_FRAME(InfoPanelIconHeroIcon, SimpleInfoPanelIconHero);
+    UI_SetParent(SimpleInfoPanelIconHero, parent);
+    UI_SetPoint(SimpleInfoPanelIconHero, FRAMEPOINT_TOPLEFT, parent, FRAMEPOINT_TOPLEFT, UI_SCALE(0.1), UI_SCALE(-0.037));
+    UI_SetTexture(InfoPanelIconHeroIcon, "InfoPanelIconHeroIconSTR", true);
 }
 
 static void Init_SimpleInfoPanelUnitDetail(uiFrameDef_t *ConsoleUI, uiFrameDef_t *bottom) {
@@ -166,6 +172,7 @@ static void Init_SimpleInfoPanelUnitDetail(uiFrameDef_t *ConsoleUI, uiFrameDef_t
 
     Init_SimpleInfoPanelIconDamage(SimpleInfoPanelUnitDetail);
     Init_SimpleInfoPanelIconArmor(SimpleInfoPanelUnitDetail);
+    Init_SimpleInfoPanelIconHero(SimpleInfoPanelUnitDetail);
 }
 
 static uiFrameDef_t *InitBottomPanel(uiFrameDef_t *ConsoleUI) {
@@ -192,7 +199,7 @@ static void G_ClientBegin(edict_t *edict) {
     Init_SimpleInfoPanelUnitDetail(ConsoleUI, bottom);
     Init_SimpleProgressIndicator();
     
-//    UI_PrintClasses();
+    UI_PrintClasses();
     
 //    UI_FRAME(SimpleHeroLevelBar);
 //    SimpleHeroLevelBar->f.size.width = INFO_PANEL_UNIT_DETAIL_WIDTH;

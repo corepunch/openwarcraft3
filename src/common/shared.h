@@ -160,7 +160,7 @@ typedef struct bounds { float min, max; } bounds_t;
 typedef struct edges { float left, top, right, bottom; } edges_t;
 typedef struct transform2 { VECTOR2 translation, scale; float rotation; } transform2_t;
 typedef struct transform3 { VECTOR3 translation, rotation, scale; } transform3_t;
-typedef char uiName_t[80];
+typedef char UINAME[80];
 
 KNOWN_AS(SheetLayout, SHEETLAYOUT);
 KNOWN_AS(SheetCell, SHEET);
@@ -345,7 +345,7 @@ typedef struct {
     } font;
     DWORD textLength;
     DWORD stat;
-    uiName_t text;
+    UINAME text;
     // Command Button
     DWORD code;
 } uiFrame_t;

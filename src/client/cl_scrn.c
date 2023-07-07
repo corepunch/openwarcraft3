@@ -202,6 +202,7 @@ void layout_cmd(uiFrame_t const *frame) {
 void layout_string(uiFrame_t const *frame) {
     LPCSTR text = SCR_GetStringValue(frame);
     RECT screen = Rect_div(SCR_LayoutRect(frame), 10000);
+
     re.DrawText(&(drawText_t) {
         .font = cl.fonts[frame->font.index],
         .text = text,

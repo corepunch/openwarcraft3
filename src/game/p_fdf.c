@@ -234,19 +234,19 @@ MAKE_PARSER(FrameNumber) {
 }
 
 MAKE_PARSER(Name) {
-    memset(out, 0, sizeof(uiName_t));
+    memset(out, 0, sizeof(UINAME));
     memcpy(out, token, strlen(token));
 }
 
 MAKE_PARSER(Text) {
     LPCSTR str = UI_GetString(token);
-    memset(out, 0, sizeof(uiName_t));
+    memset(out, 0, sizeof(UINAME));
     memcpy(out, str, strlen(str));
 }
 
 typedef struct stringListItem_s {
     struct stringListItem_s *next;
-    uiName_t name;
+    UINAME name;
     LPSTR value;
 } stringListItem_t;
 
@@ -265,7 +265,7 @@ MAKE_PARSER(FontFlags) {
 }
 
 MAKE_PARSER(FramePointType) {
-    *((uiFramePointType_t *)out) = ParseEnumString(token, FramePointType);
+    *((UIFRAMEPOINT *)out) = ParseEnumString(token, FramePointType);
 }
 
 MAKE_PARSER(File) {
@@ -287,18 +287,28 @@ MAKE_PARSERCALL(Font) {
 }
 
 MAKE_PARSERCALL(SetPoint) {
-    DWORD x = frame->SetPoint.type & 3;
+    if (!frame->AnyPointsSet) { // clear any template points
+        memset(&frame->f.points, 0, sizeof(frame->f.points));
+        frame->AnyPointsSet = true;
+    }
+    DWORD const x = frame->SetPoint.type & 3;
+    uiFramePoint_t *xp = frame->f.points.x;
+    if (x != FPP_MID || (!xp[FPP_MIN].used && !xp[FPP_MAX].used)) {
+        xp[FPP_MID].used = false;
+        xp[x].used = true;
+        xp[x].offset = frame->SetPoint.x;
+        xp[x].targetPos = frame->SetPoint.target & 3;
+        xp[x].relativeTo = frame->SetPoint.relativeTo;
+    }
     DWORD y = (frame->SetPoint.type >> 2) & 3;
-    uiFramePoint_t *xp = &frame->f.points.x[x];
-    uiFramePoint_t *yp = &frame->f.points.y[y];
-    xp->used = true;
-    yp->used = true;
-    xp->offset = frame->SetPoint.x;
-    yp->offset = frame->SetPoint.y;
-    xp->targetPos = frame->SetPoint.target & 3;
-    yp->targetPos = (frame->SetPoint.target >> 2) & 3;
-    xp->relativeTo = frame->SetPoint.relativeTo;
-    yp->relativeTo = frame->SetPoint.relativeTo;
+    uiFramePoint_t *yp = frame->f.points.y;
+    if (y != FPP_MID || (!yp[FPP_MIN].used && !yp[FPP_MAX].used)) {
+        yp[FPP_MID].used = false;
+        yp[y].used = true;
+        yp[y].offset = frame->SetPoint.y;
+        yp[y].targetPos = (frame->SetPoint.target >> 2) & 3;
+        yp[y].relativeTo = frame->SetPoint.relativeTo;
+    }
 }
 
 MAKE_PARSERCALL(Anchor) {
@@ -471,9 +481,10 @@ void UI_InheritFrom(uiFrameDef_t *frame, LPCSTR inheritName) {
         uiFrameDef_t tmp;
         memcpy(&tmp, frame, sizeof(uiFrameDef_t));
         memcpy(frame, inherit, sizeof(uiFrameDef_t));
-        memcpy(frame->Name, tmp.Name, sizeof(uiName_t));
+        memcpy(frame->Name, tmp.Name, sizeof(UINAME));
         frame->f.parent = tmp.f.parent;
         frame->f.number = tmp.f.number;
+        frame->AnyPointsSet = false;
     } else if (inherit) {
         fprintf(stderr, "Can't inherit from different type %s\n", inheritName);
     } else {
@@ -495,7 +506,7 @@ void FDF_ParseFrame(WordExtractor *p, uiFrameDef_t *frame) {
             UI_InheritFrom(frame, inheritName);
             state++;
         } else if (state == 0) {
-            strncpy(frame->Name, tok, sizeof(uiName_t));
+            strncpy(frame->Name, tok, sizeof(UINAME));
             state++;
         } else {
             parser_error(p);
@@ -583,9 +594,9 @@ void UI_WriteLayout(edict_t *ent,
 }
 
 void UI_SetPointByNumber(uiFrameDef_t *frame,
-                         uiFramePointType_t framePoint,
+                         UIFRAMEPOINT framePoint,
                          DWORD otherNumber,
-                         uiFramePointType_t otherPoint,
+                         UIFRAMEPOINT otherPoint,
                          SHORT x,
                          SHORT y)
 {
@@ -598,9 +609,9 @@ void UI_SetPointByNumber(uiFrameDef_t *frame,
 }
 
 void UI_SetPoint(uiFrameDef_t *frame,
-                 uiFramePointType_t framePoint,
+                 UIFRAMEPOINT framePoint,
                  uiFrameDef_t *other,
-                 uiFramePointType_t otherPoint,
+                 UIFRAMEPOINT otherPoint,
                  SHORT x,
                  SHORT y)
 {
@@ -632,4 +643,8 @@ LPCSTR UI_GetString(LPCSTR textID) {
         }
     }
     return textID;
+}
+
+void UI_SetTexture(uiFrameDef_t *frame, LPCSTR name, bool decorate) {
+    frame->f.tex.index = UI_LoadTexture(name, decorate);
 }

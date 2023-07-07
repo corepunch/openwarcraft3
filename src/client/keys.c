@@ -1,6 +1,6 @@
 #include "client.h"
 
-static uiName_t keybindings[MAX_KEYS];
+static UINAME keybindings[MAX_KEYS];
 
 typedef struct {
     LPCSTR name;

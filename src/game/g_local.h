@@ -123,8 +123,6 @@ typedef enum {
     MOVETYPE_BOUNCE
 } movetype_t;
 
-typedef struct uiFrameDef_s uiFrameDef_t;
-
 typedef enum { // Keep in sync with uiFramePointPos_t
     FRAMEPOINT_TOPLEFT,
     FRAMEPOINT_TOP,
@@ -138,43 +136,44 @@ typedef enum { // Keep in sync with uiFramePointPos_t
     FRAMEPOINT_BOTTOM,
     FRAMEPOINT_BOTTOMRIGHT,
     FRAMEPOINT_UNUSED3,
-} uiFramePointType_t;
+} UIFRAMEPOINT;
 
 typedef enum {
     FONTFLAGS_FIXEDSIZE,
     FONTFLAGS_PASSWORDFIELD,
-} uiFontFlags_t;
+} UIFONTFLAGS;
 
-struct uiFrameDef_s {
+typedef struct {
     uiFrame_t f;
-    uiName_t Name;
+    UINAME Name;
     RECT rect;
     bool DecorateFileNames;
     bool inuse;
+    bool AnyPointsSet;
     struct {
         bool TileBackground;
-        uiName_t CornerFlags;// "UL|UR|BL|BR|T|L|B|R",
+        UINAME CornerFlags;// "UL|UR|BL|BR|T|L|B|R",
         float CornerSize;
         float BackgroundSize;
         VECTOR4 BackgroundInsets;// 0.01 0.01 0.01 0.01,
-        uiName_t EdgeFile;//  "EscMenuBorder",
+        UINAME EdgeFile;//  "EscMenuBorder",
         bool BlendAll;
     } Backdrop;
     DWORD DialogBackdrop;
     struct {
-        uiFramePointType_t corner;
-        int16_t x, y;
+        UIFRAMEPOINT corner;
+        USHORT x, y;
     } Anchor;
     struct {
-        uiFramePointType_t type;
+        UIFRAMEPOINT type;
         DWORD relativeTo;
-        uiFramePointType_t target;
-        int16_t x, y;
+        UIFRAMEPOINT target;
+        USHORT x, y;
     } SetPoint;
     struct {
-        uiName_t Name;
-        uiName_t Unknown;
-        uiFontFlags_t FontFlags;
+        UINAME Name;
+        UINAME Unknown;
+        UIFONTFLAGS FontFlags;
         DWORD Size;
         COLOR32 Color;
         COLOR32 HighlightColor;
@@ -182,7 +181,7 @@ struct uiFrameDef_s {
         COLOR32 ShadowColor;
         VECTOR2 ShadowOffset;
     } Font;
-};
+} uiFrameDef_t;
 
 struct client_s {
     playerState_t ps;
@@ -384,13 +383,14 @@ void UI_SetAllPoints(uiFrameDef_t *frame);
 void UI_SetParent(uiFrameDef_t *frame, uiFrameDef_t *parent);
 void UI_SetText(uiFrameDef_t *frame, LPCSTR text);
 void UI_SetSize(uiFrameDef_t *frame, DWORD width, DWORD height);
+void UI_SetTexture(uiFrameDef_t *frame, LPCSTR name, bool decorate);
 uiFrameDef_t *UI_EmptyScreen(void);
 uiFrameDef_t *UI_Spawn(uiFrameType_t type, uiFrameDef_t *parent);
 uiFrameDef_t *UI_FindFrame(LPCSTR name);
 uiFrameDef_t *UI_FindChildFrame(uiFrameDef_t *frame, LPCSTR name);
 DWORD UI_FindFrameNumber(LPCSTR name);
 void UI_WriteLayout(edict_t *ent, uiFrameDef_t const *frames, DWORD layer);
-void UI_SetPoint(uiFrameDef_t *frame, uiFramePointType_t framePoint, uiFrameDef_t *other, uiFramePointType_t otherPoint, int16_t x, int16_t y);
+void UI_SetPoint(uiFrameDef_t *frame, UIFRAMEPOINT framePoint, uiFrameDef_t *other, UIFRAMEPOINT otherPoint, int16_t x, int16_t y);
 LPCSTR UI_GetString(LPCSTR textID);
 
 // g_metadata.c
