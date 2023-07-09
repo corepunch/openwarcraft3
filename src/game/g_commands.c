@@ -2,7 +2,7 @@
 
 #define CLIENTCOMMAND(NAME) void CMD_##NAME(edict_t *clent, DWORD argc, LPCSTR argv[])
 
-edict_t *G_GetMainSelectedEntity(gclient_t *client) {
+edict_t *G_GetMainSelectedUnit(gclient_t *client) {
     FOR_SELECTED_UNITS(client, ent) {
         return ent;
     }
@@ -75,7 +75,7 @@ CLIENTCOMMAND(Button) {
     } else if (client->menu.cmdbutton) {
         client->menu.cmdbutton(clent, code);
     } else {
-        edict_t *ent = G_GetMainSelectedEntity(client);
+        edict_t *ent = G_GetMainSelectedUnit(client);
         LPCSTR builds = UNIT_TRAINS(ent->class_id);
         if (!builds)
             return;

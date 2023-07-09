@@ -368,7 +368,7 @@ LPCSTR FindConfigValue(LPCSTR category, LPCSTR field);
 LPCSTR GetClassName(DWORD class_id);
 
 // p_hud.c
-edict_t *G_GetMainSelectedEntity(gclient_t *client);
+edict_t *G_GetMainSelectedUnit(gclient_t *client);
 void Get_Commands_f(edict_t *ent);
 void Get_Portrait_f(edict_t *ent);
 void UI_AddCancelButton(edict_t *edict);

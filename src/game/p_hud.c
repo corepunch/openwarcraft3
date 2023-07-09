@@ -50,7 +50,7 @@ static void Init_SimpleInfoPanelIconHero(uiFrameDef_t *parent) {
     UI_SetTexture(InfoPanelIconHeroIcon, "InfoPanelIconHeroIconSTR", true);
 }
 
-static void Init_SimpleInfoPanelUnitDetail(void) {
+static void Init_SimpleInfoPanelUnitDetail(edict_t *unit) {
     uiFrameDef_t BottomPanel;
     UI_InitFrame(&BottomPanel, 1, FT_SIMPLEFRAME);
     UI_SetSize(&BottomPanel, INFO_PANEL_UNIT_DETAIL_WIDTH, INFO_PANEL_UNIT_DETAIL_HEIGHT);
@@ -61,7 +61,7 @@ static void Init_SimpleInfoPanelUnitDetail(void) {
     UI_CHILD_FRAME(SimpleClassValue, SimpleInfoPanelUnitDetail);
 
     UI_SetParent(SimpleInfoPanelUnitDetail, &BottomPanel);
-    UI_SetText(SimpleNameValue, "Thrall");
+    UI_SetText(SimpleNameValue, UNIT_NAME(unit->class_id));
     UI_SetText(SimpleClassValue, "Level 1 Far Seer");
 
     Init_SimpleInfoPanelIconDamage(SimpleInfoPanelUnitDetail);
@@ -109,7 +109,7 @@ void UI_AddAbilityButton(LPCSTR ability) {
 }
 
 void ui_portrait(gclient_t *client) {
-    edict_t *ent = G_GetMainSelectedEntity(client);
+    edict_t *ent = G_GetMainSelectedUnit(client);
     uiFrameDef_t portrait;
     UI_InitFrame(&portrait, COMMAND_BUTTON_START, FT_PORTRAIT);
     portrait.f.tex.index = ent->s.model;
@@ -180,7 +180,7 @@ static void HUD_MultiselectIcon(edict_t *ent, DWORD i) {
 }
 
 void ui_unit_commands(gclient_t *client) {
-    edict_t *ent = G_GetMainSelectedEntity(client);
+    edict_t *ent = G_GetMainSelectedUnit(client);
     if (!ent) return;
     LPCSTR abilities = UNIT_ABILITIES_NORMAL(ent->class_id);
     LPCSTR trains = UNIT_TRAINS(ent->class_id);
@@ -232,7 +232,7 @@ void ui_unit_info(gclient_t *client) {
             HUD_MultiselectIcon(ent, selent++);
         }
     } else if (NumSelectedUnits(client) > 0) {
-        Init_SimpleInfoPanelUnitDetail();
+        Init_SimpleInfoPanelUnitDetail(G_GetMainSelectedUnit(client));
         Init_SimpleProgressIndicator();
     }
 }

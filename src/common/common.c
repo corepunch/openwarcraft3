@@ -158,25 +158,16 @@ void FS_Init(void) {
 //    FS_ExtractFile("UI\\FrameDef\\GlobalStrings.fdf", "/Users/igor/Desktop/GlobalStrings.fdf");
     FS_ExtractFile("UI\\FrameDef\\UI\\ConsoleUI.fdf", "/Users/igor/Desktop/ConsoleUI.fdf");
 
-#if 1
+#if 0
     SFILE_FIND_DATA findData;
     HANDLE handle = SFileFindFirstFile(archives[0], "*", &findData, 0);
     if (handle) {
          do {
-//             if (!strstr(findData.cFileName, ".mdx") &&
-//                 !strstr(findData.cFileName, ".w3m") &&
-//                 !strstr(findData.cFileName, ".ai") &&
-//             if (strstr(findData.cFileName, ".blp")) {
-//                 !strstr(findData.cFileName, ".tga") &&
-//                 !strstr(findData.cFileName, ".MDLX") &&
-//                 !strstr(findData.cFileName, ".wav") &&
-//                 !strstr(findData.cFileName, ".mp3") &&
-//                 !strstr(findData.cFileName, ".mdx") &&
 //             if(strstr(findData.cFileName, ".blp")) {
 //                 printf("%s\n", findData.cFileName);
 //             }
-#if 1
-             if (strstr(findData.cFileName, "SimpleInfoPanel")){
+#if 0
+             if (strstr(findData.cFileName, "GlobalStrings")){
 //             if (strstr(findData.cFileName, ".txt")) {
                  HANDLE file;
                  SFileOpenFileEx(archives[0], findData.cFileName, SFILE_OPEN_FROM_MPQ, &file);

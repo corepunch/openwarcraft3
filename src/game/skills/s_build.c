@@ -73,7 +73,7 @@ void build_menu_selectlocation(edict_t *ent, DWORD building_id) {
 }
 
 void ui_builds(gclient_t *client) {
-    edict_t *ent = G_GetMainSelectedEntity(client);
+    edict_t *ent = G_GetMainSelectedUnit(client);
     LPCSTR builds = UNIT_BUILDS(ent->class_id);
     if (!builds)
         return;
