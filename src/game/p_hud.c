@@ -18,27 +18,30 @@ static void Init_SimpleProgressIndicator(void) {
     UI_WriteFrameWithChildren(SimpleProgressIndicator);
 }
 
-static void Init_SimpleInfoPanelIconDamage(uiFrameDef_t *parent) {
+static void Init_SimpleInfoPanelIconDamage(uiFrameDef_t *parent, edict_t *unit) {
+    DWORD const dmgBase = UNIT_ATTACK1_DAMAGE_BASE(unit->class_id);
+    DWORD const dmgDice = UNIT_ATTACK1_DAMAGE_NUMBER_OF_DICE(unit->class_id);
+    DWORD const dmgNumSides = UNIT_ATTACK1_DAMAGE_SIDES_PER_DIE(unit->class_id);
     UI_FRAME(SimpleInfoPanelIconDamage);
     UI_CHILD_FRAME(InfoPanelIconBackdrop, SimpleInfoPanelIconDamage);
     UI_CHILD_FRAME(InfoPanelIconLevel, SimpleInfoPanelIconDamage);
     UI_CHILD_FRAME(InfoPanelIconValue, SimpleInfoPanelIconDamage);
     UI_SetParent(SimpleInfoPanelIconDamage, parent);
     UI_SetPoint(SimpleInfoPanelIconDamage, FRAMEPOINT_TOPLEFT, parent, FRAMEPOINT_TOPLEFT, 0, UI_SCALE(-0.040));
-    UI_SetText(InfoPanelIconLevel, "5");
-    UI_SetText(InfoPanelIconValue, "3 - 7");
+    UI_SetText(InfoPanelIconLevel, "1");
+    UI_SetText(InfoPanelIconValue, "%d - %d", dmgBase + dmgDice, dmgBase + dmgDice * dmgNumSides);
     UI_SetTexture(InfoPanelIconBackdrop, "InfoPanelIconDamagePierce", true);
 }
 
-static void Init_SimpleInfoPanelIconArmor(uiFrameDef_t *parent) {
+static void Init_SimpleInfoPanelIconArmor(uiFrameDef_t *parent, edict_t *unit) {
     UI_FRAME(SimpleInfoPanelIconArmor);
     UI_CHILD_FRAME(InfoPanelIconBackdrop, SimpleInfoPanelIconArmor);
     UI_CHILD_FRAME(InfoPanelIconLevel, SimpleInfoPanelIconArmor);
     UI_CHILD_FRAME(InfoPanelIconValue, SimpleInfoPanelIconArmor);
     UI_SetParent(SimpleInfoPanelIconArmor, parent);
     UI_SetPoint(SimpleInfoPanelIconArmor, FRAMEPOINT_TOPLEFT, parent, FRAMEPOINT_TOPLEFT, 0, UI_SCALE(-0.0745));
-    UI_SetText(InfoPanelIconLevel, "5");
-    UI_SetText(InfoPanelIconValue, "3 - 7");
+    UI_SetText(InfoPanelIconLevel, "1");
+    UI_SetText(InfoPanelIconValue, "4");
     UI_SetTexture(InfoPanelIconBackdrop, "InfoPanelIconArmorLarge", true);
 }
 
@@ -81,8 +84,8 @@ static void Init_SimpleInfoPanelUnitDetail(edict_t *unit) {
     UI_SetText(SimpleNameValue, unitHeroName ? unitHeroName : unitTypeName);
     UI_SetText(SimpleClassValue, "Level %d %s", unit->hero.level, unitTypeName);
 
-    Init_SimpleInfoPanelIconDamage(SimpleInfoPanelUnitDetail);
-    Init_SimpleInfoPanelIconArmor(SimpleInfoPanelUnitDetail);
+    Init_SimpleInfoPanelIconDamage(SimpleInfoPanelUnitDetail, unit);
+    Init_SimpleInfoPanelIconArmor(SimpleInfoPanelUnitDetail, unit);
     Init_SimpleInfoPanelIconHero(SimpleInfoPanelUnitDetail, unit);
     
     gi.WriteUIFrame(&BottomPanel.f);
