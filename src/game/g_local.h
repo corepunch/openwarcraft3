@@ -22,6 +22,13 @@ ENT++) if (CONDITION)
 
 #define UI_FRAME(NAME) uiFrameDef_t *NAME = UI_FindFrame(#NAME);
 #define UI_CHILD_FRAME(NAME, PARENT) uiFrameDef_t *NAME = UI_FindChildFrame(PARENT, #NAME);
+#define UI_CHILD_VALUE(NAME, PARENT, VALUE, ...) \
+uiFrameDef_t *__##NAME = UI_FindChildFrame(PARENT, #NAME); \
+if (__##NAME) { \
+    UI_Set##VALUE(__##NAME, __VA_ARGS__); \
+} else { \
+    fprintf(stderr, #NAME " not found");\
+}
 
 #define FOR_SELECTED_UNITS(CLIENT, ENT) \
 FILTER_EDICTS(ENT, G_IsEntitySelected(CLIENT, ENT))

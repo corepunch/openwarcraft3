@@ -35,14 +35,16 @@ static void Init_SimpleInfoPanelIconDamage(uiFrameDef_t *parent, edict_t *unit) 
 
 static void Init_SimpleInfoPanelIconArmor(uiFrameDef_t *parent, edict_t *unit) {
     UI_FRAME(SimpleInfoPanelIconArmor);
-    UI_CHILD_FRAME(InfoPanelIconBackdrop, SimpleInfoPanelIconArmor);
-    UI_CHILD_FRAME(InfoPanelIconLevel, SimpleInfoPanelIconArmor);
-    UI_CHILD_FRAME(InfoPanelIconValue, SimpleInfoPanelIconArmor);
+    UI_CHILD_VALUE(InfoPanelIconBackdrop, SimpleInfoPanelIconArmor, Texture, "InfoPanelIconArmorLarge", true);
+    UI_CHILD_VALUE(InfoPanelIconLevel, SimpleInfoPanelIconArmor, Text, "1");
+    UI_CHILD_VALUE(InfoPanelIconValue, SimpleInfoPanelIconArmor, Text, "4");
     UI_SetParent(SimpleInfoPanelIconArmor, parent);
     UI_SetPoint(SimpleInfoPanelIconArmor, FRAMEPOINT_TOPLEFT, parent, FRAMEPOINT_TOPLEFT, 0, UI_SCALE(-0.0745));
-    UI_SetText(InfoPanelIconLevel, "1");
-    UI_SetText(InfoPanelIconValue, "4");
-    UI_SetTexture(InfoPanelIconBackdrop, "InfoPanelIconArmorLarge", true);
+}
+
+static void Init_SimpleInfoPanelBuildingDetail(uiFrameDef_t *parent, edict_t *unit) {
+    UI_FRAME(SimpleInfoPanelBuildingDetail);
+    UI_SetParent(SimpleInfoPanelBuildingDetail, parent);
 }
 
 static void Init_SimpleInfoPanelIconHero(uiFrameDef_t *parent, edict_t *unit) {
@@ -55,16 +57,12 @@ static void Init_SimpleInfoPanelIconHero(uiFrameDef_t *parent, edict_t *unit) {
     char icon[256] = {0};
     sprintf(icon, "InfoPanelIconHeroIcon%s", primary);
     UI_FRAME(SimpleInfoPanelIconHero);
-    UI_CHILD_FRAME(InfoPanelIconHeroIcon, SimpleInfoPanelIconHero);
-    UI_CHILD_FRAME(InfoPanelIconHeroStrengthValue, SimpleInfoPanelIconHero);
-    UI_CHILD_FRAME(InfoPanelIconHeroAgilityValue, SimpleInfoPanelIconHero);
-    UI_CHILD_FRAME(InfoPanelIconHeroIntellectValue, SimpleInfoPanelIconHero);
+    UI_CHILD_VALUE(InfoPanelIconHeroIcon, SimpleInfoPanelIconHero, Texture, icon, true);
+    UI_CHILD_VALUE(InfoPanelIconHeroStrengthValue, SimpleInfoPanelIconHero, Text, "%d", hero_str);
+    UI_CHILD_VALUE(InfoPanelIconHeroAgilityValue, SimpleInfoPanelIconHero, Text, "%d", hero_agi);
+    UI_CHILD_VALUE(InfoPanelIconHeroIntellectValue, SimpleInfoPanelIconHero, Text, "%d", hero_int);
     UI_SetParent(SimpleInfoPanelIconHero, parent);
     UI_SetPoint(SimpleInfoPanelIconHero, FRAMEPOINT_TOPLEFT, parent, FRAMEPOINT_TOPLEFT, UI_SCALE(0.1), UI_SCALE(-0.037));
-    UI_SetTexture(InfoPanelIconHeroIcon, icon, true);
-    UI_SetText(InfoPanelIconHeroStrengthValue, "%d", hero_str);
-    UI_SetText(InfoPanelIconHeroAgilityValue, "%d", hero_agi);
-    UI_SetText(InfoPanelIconHeroIntellectValue, "%d", hero_int);
 }
 
 static void Init_SimpleInfoPanelUnitDetail(edict_t *unit) {
@@ -77,12 +75,10 @@ static void Init_SimpleInfoPanelUnitDetail(edict_t *unit) {
     UI_SetPointByNumber(&BottomPanel, FRAMEPOINT_BOTTOM, 0, FRAMEPOINT_BOTTOM, 0, 0);
     
     UI_FRAME(SimpleInfoPanelUnitDetail);
-    UI_CHILD_FRAME(SimpleNameValue, SimpleInfoPanelUnitDetail);
-    UI_CHILD_FRAME(SimpleClassValue, SimpleInfoPanelUnitDetail);
+    UI_CHILD_VALUE(SimpleNameValue, SimpleInfoPanelUnitDetail, Text, unitHeroName ? unitHeroName : unitTypeName);
+    UI_CHILD_VALUE(SimpleClassValue, SimpleInfoPanelUnitDetail, Text, "Level %d %s", unit->hero.level, unitTypeName);
     
     UI_SetParent(SimpleInfoPanelUnitDetail, &BottomPanel);
-    UI_SetText(SimpleNameValue, unitHeroName ? unitHeroName : unitTypeName);
-    UI_SetText(SimpleClassValue, "Level %d %s", unit->hero.level, unitTypeName);
 
     Init_SimpleInfoPanelIconDamage(SimpleInfoPanelUnitDetail, unit);
     Init_SimpleInfoPanelIconArmor(SimpleInfoPanelUnitDetail, unit);
