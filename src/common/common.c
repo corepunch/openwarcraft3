@@ -158,7 +158,7 @@ void FS_Init(void) {
 //    FS_ExtractFile("UI\\FrameDef\\GlobalStrings.fdf", "/Users/igor/Desktop/GlobalStrings.fdf");
     FS_ExtractFile("UI\\FrameDef\\UI\\ConsoleUI.fdf", "/Users/igor/Desktop/ConsoleUI.fdf");
 
-#if 0
+#if 1
     SFILE_FIND_DATA findData;
     HANDLE handle = SFileFindFirstFile(archives[0], "*", &findData, 0);
     if (handle) {
@@ -176,8 +176,8 @@ void FS_Init(void) {
 //                 printf("%s\n", findData.cFileName);
 //             }
 #if 1
-//             if (strstr(findData.cFileName, "SimpleInfoPanel")){
-             if (strstr(findData.cFileName, ".txt")) {
+             if (strstr(findData.cFileName, "SimpleInfoPanel")){
+//             if (strstr(findData.cFileName, ".txt")) {
                  HANDLE file;
                  SFileOpenFileEx(archives[0], findData.cFileName, SFILE_OPEN_FROM_MPQ, &file);
                  char ch;

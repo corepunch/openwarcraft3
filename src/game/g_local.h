@@ -395,7 +395,7 @@ void UI_SetPoint(uiFrameDef_t *frame, UIFRAMEPOINT framePoint, uiFrameDef_t *oth
 void UI_SetPointByNumber(uiFrameDef_t *frame, UIFRAMEPOINT framePoint, DWORD otherNumber, UIFRAMEPOINT otherPoint, SHORT x, SHORT y);
 LPCSTR UI_GetString(LPCSTR textID);
 void UI_InitFrame(uiFrameDef_t *frame, DWORD number, uiFrameType_t type);
-
+void UI_WriteFrameWithChildren(uiFrameDef_t const *frame);
 void UI_WriteLayout2(edict_t *ent, void (*BuildUI)(gclient_t *), DWORD layer);
 
 // g_metadata.c

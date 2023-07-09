@@ -103,17 +103,6 @@ playerState_t *G_GetPlayerByNumber(DWORD number) {
     return NULL;
 }
 
-#define INFO_PANEL_UNIT_DETAIL_WIDTH UI_SCALE(0.180f)
-#define INFO_PANEL_UNIT_DETAIL_HEIGHT UI_SCALE(0.120f)
-
-static void Init_SimpleProgressIndicator(void) {
-    UI_FRAME(SimpleProgressIndicator);
-    SimpleProgressIndicator->f.size.width = INFO_PANEL_UNIT_DETAIL_WIDTH;
-    SimpleProgressIndicator->f.tex.index = UI_LoadTexture("SimpleXpBarConsole", true);
-    SimpleProgressIndicator->f.tex.index2 = UI_LoadTexture("SimpleXpBarBorder", true);
-    SimpleProgressIndicator->f.color = MAKE(COLOR32,160,0,160,255);
-}
-
 static void Init_ResourceBar(uiFrameDef_t *ConsoleUI) {
     UI_FRAME(ResourceBarFrame);
     UI_FRAME(ResourceBarGoldText);
@@ -128,60 +117,6 @@ static void Init_ResourceBar(uiFrameDef_t *ConsoleUI) {
     UI_SetPoint(ResourceBarFrame, FRAMEPOINT_TOPRIGHT, ConsoleUI, FRAMEPOINT_TOPRIGHT, 0, 0);
 }
 
-static void Init_SimpleInfoPanelIconDamage(uiFrameDef_t *parent) {
-    UI_FRAME(SimpleInfoPanelIconDamage);
-    UI_CHILD_FRAME(InfoPanelIconBackdrop, SimpleInfoPanelIconDamage);
-    UI_CHILD_FRAME(InfoPanelIconLevel, SimpleInfoPanelIconDamage);
-    UI_CHILD_FRAME(InfoPanelIconValue, SimpleInfoPanelIconDamage);
-    UI_SetParent(SimpleInfoPanelIconDamage, parent);
-    UI_SetPoint(SimpleInfoPanelIconDamage, FRAMEPOINT_TOPLEFT, parent, FRAMEPOINT_TOPLEFT, 0, UI_SCALE(-0.040));
-    UI_SetText(InfoPanelIconLevel, "5");
-    UI_SetText(InfoPanelIconValue, "3 - 7");
-    UI_SetTexture(InfoPanelIconBackdrop, "InfoPanelIconDamagePierce", true);
-}
-
-static void Init_SimpleInfoPanelIconArmor(uiFrameDef_t *parent) {
-    UI_FRAME(SimpleInfoPanelIconArmor);
-    UI_CHILD_FRAME(InfoPanelIconBackdrop, SimpleInfoPanelIconArmor);
-    UI_CHILD_FRAME(InfoPanelIconLevel, SimpleInfoPanelIconArmor);
-    UI_CHILD_FRAME(InfoPanelIconValue, SimpleInfoPanelIconArmor);
-    UI_SetParent(SimpleInfoPanelIconArmor, parent);
-    UI_SetPoint(SimpleInfoPanelIconArmor, FRAMEPOINT_TOPLEFT, parent, FRAMEPOINT_TOPLEFT, 0, UI_SCALE(-0.0745));
-    UI_SetText(InfoPanelIconLevel, "5");
-    UI_SetText(InfoPanelIconValue, "3 - 7");
-    UI_SetTexture(InfoPanelIconBackdrop, "InfoPanelIconArmorLarge", true);
-}
-
-static void Init_SimpleInfoPanelIconHero(uiFrameDef_t *parent) {
-    UI_FRAME(SimpleInfoPanelIconHero);
-    UI_CHILD_FRAME(InfoPanelIconHeroIcon, SimpleInfoPanelIconHero);
-    UI_SetParent(SimpleInfoPanelIconHero, parent);
-    UI_SetPoint(SimpleInfoPanelIconHero, FRAMEPOINT_TOPLEFT, parent, FRAMEPOINT_TOPLEFT, UI_SCALE(0.1), UI_SCALE(-0.037));
-    UI_SetTexture(InfoPanelIconHeroIcon, "InfoPanelIconHeroIconSTR", true);
-}
-
-static void Init_SimpleInfoPanelUnitDetail(uiFrameDef_t *ConsoleUI, uiFrameDef_t *bottom) {
-    UI_FRAME(SimpleInfoPanelUnitDetail);
-    UI_CHILD_FRAME(SimpleNameValue, SimpleInfoPanelUnitDetail);
-    UI_CHILD_FRAME(SimpleClassValue, SimpleInfoPanelUnitDetail);
-    
-    UI_SetParent(SimpleInfoPanelUnitDetail, bottom);
-    UI_SetAllPoints(SimpleInfoPanelUnitDetail);
-    UI_SetText(SimpleNameValue, "Thrall");
-    UI_SetText(SimpleClassValue, "Level 1 Far Seer");
-
-    Init_SimpleInfoPanelIconDamage(SimpleInfoPanelUnitDetail);
-    Init_SimpleInfoPanelIconArmor(SimpleInfoPanelUnitDetail);
-    Init_SimpleInfoPanelIconHero(SimpleInfoPanelUnitDetail);
-}
-
-static uiFrameDef_t *InitBottomPanel(uiFrameDef_t *ConsoleUI) {
-    uiFrameDef_t *bottom = UI_Spawn(FT_SIMPLEFRAME, ConsoleUI);
-    UI_SetSize(bottom, INFO_PANEL_UNIT_DETAIL_WIDTH, INFO_PANEL_UNIT_DETAIL_HEIGHT);
-    UI_SetPoint(bottom, FRAMEPOINT_BOTTOM, ConsoleUI, FRAMEPOINT_BOTTOM, 0, 0);
-    return bottom;
-}
-
 static void G_ClientBegin(edict_t *edict) {
     UI_ClearTemplates();
     
@@ -193,13 +128,9 @@ static void G_ClientBegin(edict_t *edict) {
     UI_FRAME(ConsoleUI);
     UI_SetAllPoints(ConsoleUI);
 
-    uiFrameDef_t *bottom = InitBottomPanel(ConsoleUI);
-
     Init_ResourceBar(ConsoleUI);
-    Init_SimpleInfoPanelUnitDetail(ConsoleUI, bottom);
-    Init_SimpleProgressIndicator();
     
-    UI_PrintClasses();
+//    UI_PrintClasses();
     
 //    UI_FRAME(SimpleHeroLevelBar);
 //    SimpleHeroLevelBar->f.size.width = INFO_PANEL_UNIT_DETAIL_WIDTH;

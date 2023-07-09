@@ -567,7 +567,7 @@ void UI_ParseFDF(LPCSTR fileName) {
     gi.MemFree(buffer2);
 }
 
-static void UI_WriteFrameWithChildren(uiFrameDef_t const *frame) {
+void UI_WriteFrameWithChildren(uiFrameDef_t const *frame) {
     gi.WriteUIFrame(&frame->f);
     FOR_LOOP(i, MAX_UI_CLASSES) {
         uiFrameDef_t const *it = frames+i;

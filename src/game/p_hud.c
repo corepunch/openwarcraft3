@@ -1,10 +1,76 @@
 #include "g_local.h"
 
+#define INFO_PANEL_UNIT_DETAIL_WIDTH UI_SCALE(0.180f)
+#define INFO_PANEL_UNIT_DETAIL_HEIGHT UI_SCALE(0.120f)
+
 #define COMMAND_BUTTON_SIZE 0.039
 #define COMMAND_BUTTON_START 1
 
 static DWORD cmd_columns[4] = { UI_SCALE(0.2375), UI_SCALE(0.2809), UI_SCALE(0.3243), UI_SCALE(0.3677) };
 static DWORD cmd_rows[3] = { UI_SCALE(0.1136), UI_SCALE(0.0697), UI_SCALE(0.0258) };
+
+static void Init_SimpleProgressIndicator(void) {
+    UI_FRAME(SimpleProgressIndicator);
+    SimpleProgressIndicator->f.size.width = INFO_PANEL_UNIT_DETAIL_WIDTH;
+    SimpleProgressIndicator->f.tex.index = UI_LoadTexture("SimpleXpBarConsole", true);
+    SimpleProgressIndicator->f.tex.index2 = UI_LoadTexture("SimpleXpBarBorder", true);
+    SimpleProgressIndicator->f.color = MAKE(COLOR32,160,0,160,255);
+    UI_WriteFrameWithChildren(SimpleProgressIndicator);
+}
+
+static void Init_SimpleInfoPanelIconDamage(uiFrameDef_t *parent) {
+    UI_FRAME(SimpleInfoPanelIconDamage);
+    UI_CHILD_FRAME(InfoPanelIconBackdrop, SimpleInfoPanelIconDamage);
+    UI_CHILD_FRAME(InfoPanelIconLevel, SimpleInfoPanelIconDamage);
+    UI_CHILD_FRAME(InfoPanelIconValue, SimpleInfoPanelIconDamage);
+    UI_SetParent(SimpleInfoPanelIconDamage, parent);
+    UI_SetPoint(SimpleInfoPanelIconDamage, FRAMEPOINT_TOPLEFT, parent, FRAMEPOINT_TOPLEFT, 0, UI_SCALE(-0.040));
+    UI_SetText(InfoPanelIconLevel, "5");
+    UI_SetText(InfoPanelIconValue, "3 - 7");
+    UI_SetTexture(InfoPanelIconBackdrop, "InfoPanelIconDamagePierce", true);
+}
+
+static void Init_SimpleInfoPanelIconArmor(uiFrameDef_t *parent) {
+    UI_FRAME(SimpleInfoPanelIconArmor);
+    UI_CHILD_FRAME(InfoPanelIconBackdrop, SimpleInfoPanelIconArmor);
+    UI_CHILD_FRAME(InfoPanelIconLevel, SimpleInfoPanelIconArmor);
+    UI_CHILD_FRAME(InfoPanelIconValue, SimpleInfoPanelIconArmor);
+    UI_SetParent(SimpleInfoPanelIconArmor, parent);
+    UI_SetPoint(SimpleInfoPanelIconArmor, FRAMEPOINT_TOPLEFT, parent, FRAMEPOINT_TOPLEFT, 0, UI_SCALE(-0.0745));
+    UI_SetText(InfoPanelIconLevel, "5");
+    UI_SetText(InfoPanelIconValue, "3 - 7");
+    UI_SetTexture(InfoPanelIconBackdrop, "InfoPanelIconArmorLarge", true);
+}
+
+static void Init_SimpleInfoPanelIconHero(uiFrameDef_t *parent) {
+    UI_FRAME(SimpleInfoPanelIconHero);
+    UI_CHILD_FRAME(InfoPanelIconHeroIcon, SimpleInfoPanelIconHero);
+    UI_SetParent(SimpleInfoPanelIconHero, parent);
+    UI_SetPoint(SimpleInfoPanelIconHero, FRAMEPOINT_TOPLEFT, parent, FRAMEPOINT_TOPLEFT, UI_SCALE(0.1), UI_SCALE(-0.037));
+    UI_SetTexture(InfoPanelIconHeroIcon, "InfoPanelIconHeroIconSTR", true);
+}
+
+static void Init_SimpleInfoPanelUnitDetail(void) {
+    uiFrameDef_t BottomPanel;
+    UI_InitFrame(&BottomPanel, 1, FT_SIMPLEFRAME);
+    UI_SetSize(&BottomPanel, INFO_PANEL_UNIT_DETAIL_WIDTH, INFO_PANEL_UNIT_DETAIL_HEIGHT);
+    UI_SetPointByNumber(&BottomPanel, FRAMEPOINT_BOTTOM, 0, FRAMEPOINT_BOTTOM, 0, 0);
+    
+    UI_FRAME(SimpleInfoPanelUnitDetail);
+    UI_CHILD_FRAME(SimpleNameValue, SimpleInfoPanelUnitDetail);
+    UI_CHILD_FRAME(SimpleClassValue, SimpleInfoPanelUnitDetail);
+
+    UI_SetParent(SimpleInfoPanelUnitDetail, &BottomPanel);
+    UI_SetText(SimpleNameValue, "Thrall");
+    UI_SetText(SimpleClassValue, "Level 1 Far Seer");
+
+    Init_SimpleInfoPanelIconDamage(SimpleInfoPanelUnitDetail);
+    Init_SimpleInfoPanelIconArmor(SimpleInfoPanelUnitDetail);
+    Init_SimpleInfoPanelIconHero(SimpleInfoPanelUnitDetail);
+    
+    gi.WriteUIFrame(&BottomPanel.f);
+    UI_WriteFrameWithChildren(SimpleInfoPanelUnitDetail);
+}
 
 static LPCSTR GetBuildCommand(unitRace_t race) {
     switch (race) {
@@ -151,10 +217,23 @@ void ui_unit_commands(gclient_t *client) {
     }
 }
 
-void ui_unit_info(gclient_t *client) {
-    DWORD selent = 0, statindex = 0;
+DWORD NumSelectedUnits(gclient_t *client) {
+    DWORD selent = 0;
     FOR_SELECTED_UNITS(client, ent) {
-        HUD_MultiselectIcon(ent, selent++);
+        selent++;
+    }
+    return selent;
+}
+
+void ui_unit_info(gclient_t *client) {
+    if (NumSelectedUnits(client) > 1) {
+        DWORD selent = 0;
+        FOR_SELECTED_UNITS(client, ent) {
+            HUD_MultiselectIcon(ent, selent++);
+        }
+    } else if (NumSelectedUnits(client) > 0) {
+        Init_SimpleInfoPanelUnitDetail();
+        Init_SimpleProgressIndicator();
     }
 }
 
