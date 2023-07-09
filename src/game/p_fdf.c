@@ -90,17 +90,24 @@ void UI_PrintClasses(void) {
     }
 }
 
-void UI_Clear(void) {
+void UI_ClearTemplates(void) {
     memset(frames, 0, sizeof(frames));
 }
 
-uiFrameDef_t *UI_EmptyScreen(void) {
-    UI_Clear();
-    frames[0].inuse = true;
-    frames[0].f.size.width = 8000;
-    frames[0].f.size.height = 6000;
-    frames[0].f.flags.type = FT_SCREEN;
-    return frames;
+void UI_InitFrame(uiFrameDef_t *frame, DWORD number, uiFrameType_t type) {
+    memset(frame, 0, sizeof(uiFrameDef_t));
+    frame->inuse = true;
+    frame->f.number = number;
+    frame->f.flags.type = type;
+    frame->f.color = COLOR32_WHITE;
+    if (type == FT_TEXTURE ||
+        type == FT_SIMPLESTATUSBAR ||
+        type == FT_COMMANDBUTTON ||
+        type == FT_BACKDROP)
+    {
+        frame->f.tex.coord[1] = 0xff;
+        frame->f.tex.coord[3] = 0xff;
+    }
 }
 
 uiFrameDef_t *UI_Spawn(uiFrameType_t type, uiFrameDef_t *parent) {
@@ -108,20 +115,8 @@ uiFrameDef_t *UI_Spawn(uiFrameType_t type, uiFrameDef_t *parent) {
         if (i==0) continue;
         uiFrameDef_t *frame = &frames[i];
         if (!frame->inuse) {
-            memset(frame, 0, sizeof(uiFrameDef_t));
-            frame->inuse = true;
-            frame->f.number = i;
-            frame->f.flags.type = type;
-            frame->f.color = (COLOR32){255,255,255,255};
+            UI_InitFrame(frame, i, type);
             frame->f.parent = parent ? parent->f.number : 0;
-            if (type == FT_TEXTURE ||
-                type == FT_SIMPLESTATUSBAR ||
-                type == FT_COMMANDBUTTON ||
-                type == FT_BACKDROP)
-            {
-                frame->f.tex.coord[1] = 0xff;
-                frame->f.tex.coord[3] = 0xff;
-            }
             return frame;
         }
     }
@@ -589,6 +584,17 @@ void UI_WriteLayout(edict_t *ent,
     gi.WriteByte(svc_layout);
     gi.WriteByte(layer);
     UI_WriteFrameWithChildren(root);
+    gi.WriteLong(0); // end of list
+    gi.unicast(ent);
+}
+
+void UI_WriteLayout2(edict_t *ent,
+                     void (*BuildUI)(gclient_t *),
+                     DWORD layer)
+{
+    gi.WriteByte(svc_layout);
+    gi.WriteByte(layer);
+    BuildUI(ent->client);
     gi.WriteLong(0); // end of list
     gi.unicast(ent);
 }

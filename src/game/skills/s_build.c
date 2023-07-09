@@ -72,9 +72,8 @@ void build_menu_selectlocation(edict_t *ent, DWORD building_id) {
     ent->build_project = building_id;
 }
 
-void build_command(edict_t *edict) {
-    uiFrameDef_t *layer = UI_EmptyScreen();
-    edict_t *ent = G_GetMainSelectedEntity(edict->client);
+void ui_builds(gclient_t *client) {
+    edict_t *ent = G_GetMainSelectedEntity(client);
     LPCSTR builds = UNIT_BUILDS(ent->class_id);
     if (!builds)
         return;
@@ -84,10 +83,13 @@ void build_command(edict_t *edict) {
         if (!art || !buttonpos)
             return;
         DWORD code = *((DWORD *)build);
-        Add_CommandButtonCoded(layer, code, art, buttonpos);
+        Add_CommandButtonCoded(code, art, buttonpos);
     }
-    UI_AddAbilityButton(layer, STR_CmdCancel);
-    UI_WriteLayout(edict, layer, LAYER_COMMANDBAR);
+    UI_AddAbilityButton(STR_CmdCancel);
+}
+
+void build_command(edict_t *edict) {
+    UI_WriteLayout2(edict, ui_builds, LAYER_COMMANDBAR);
     edict->client->menu.cmdbutton = build_menu_selectlocation;
 }
 

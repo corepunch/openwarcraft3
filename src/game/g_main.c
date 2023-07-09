@@ -183,7 +183,7 @@ static uiFrameDef_t *InitBottomPanel(uiFrameDef_t *ConsoleUI) {
 }
 
 static void G_ClientBegin(edict_t *edict) {
-    UI_Clear();
+    UI_ClearTemplates();
     
     UI_ParseFDF("UI\\FrameDef\\GlobalStrings.fdf");
     UI_ParseFDF("UI\\FrameDef\\UI\\ConsoleUI.fdf");

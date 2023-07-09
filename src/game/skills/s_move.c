@@ -30,11 +30,9 @@ bool move_selectlocation(edict_t *clent, LPCVECTOR2 location) {
     return true;
 }
 
-void move_command(edict_t *edict) {
-    uiFrameDef_t *layer = UI_EmptyScreen();
-    UI_AddAbilityButton(layer, STR_CmdCancel);
-    UI_WriteLayout(edict, layer, LAYER_COMMANDBAR);
-    edict->client->menu.on_location_selected = move_selectlocation;
+void move_command(edict_t *ent) {
+    UI_AddCancelButton(ent);
+    ent->client->menu.on_location_selected = move_selectlocation;
 }
 
 void SP_ability_move(ability_t *self) {

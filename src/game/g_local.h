@@ -32,6 +32,7 @@ enum {
     LAYER_PORTRAIT,
     LAYER_CONSOLE,
     LAYER_COMMANDBAR,
+    LAYER_INFOPANEL,
 };
 
 #define svc_bad 0
@@ -370,28 +371,32 @@ LPCSTR GetClassName(DWORD class_id);
 edict_t *G_GetMainSelectedEntity(gclient_t *client);
 void Get_Commands_f(edict_t *ent);
 void Get_Portrait_f(edict_t *ent);
-void UI_AddAbilityButton(uiFrameDef_t *root, LPCSTR ability);
 void UI_AddCancelButton(edict_t *edict);
-void Add_CommandButtonCoded(uiFrameDef_t *root, DWORD code, LPCSTR art, LPCSTR buttonpos);
+
+void UI_AddAbilityButton(LPCSTR ability);
+void Add_CommandButtonCoded(DWORD code, LPCSTR art, LPCSTR buttonpos);
 
 // p_fdf.c
 DWORD UI_LoadTexture(LPCSTR file, bool decorate);
 void UI_PrintClasses(void);
-void UI_Clear(void);
+void UI_ClearTemplates(void);
 void UI_ParseFDF(LPCSTR fileName);
 void UI_SetAllPoints(uiFrameDef_t *frame);
 void UI_SetParent(uiFrameDef_t *frame, uiFrameDef_t *parent);
 void UI_SetText(uiFrameDef_t *frame, LPCSTR text);
 void UI_SetSize(uiFrameDef_t *frame, DWORD width, DWORD height);
 void UI_SetTexture(uiFrameDef_t *frame, LPCSTR name, bool decorate);
-uiFrameDef_t *UI_EmptyScreen(void);
 uiFrameDef_t *UI_Spawn(uiFrameType_t type, uiFrameDef_t *parent);
 uiFrameDef_t *UI_FindFrame(LPCSTR name);
 uiFrameDef_t *UI_FindChildFrame(uiFrameDef_t *frame, LPCSTR name);
 DWORD UI_FindFrameNumber(LPCSTR name);
 void UI_WriteLayout(edict_t *ent, uiFrameDef_t const *frames, DWORD layer);
 void UI_SetPoint(uiFrameDef_t *frame, UIFRAMEPOINT framePoint, uiFrameDef_t *other, UIFRAMEPOINT otherPoint, int16_t x, int16_t y);
+void UI_SetPointByNumber(uiFrameDef_t *frame, UIFRAMEPOINT framePoint, DWORD otherNumber, UIFRAMEPOINT otherPoint, SHORT x, SHORT y);
 LPCSTR UI_GetString(LPCSTR textID);
+void UI_InitFrame(uiFrameDef_t *frame, DWORD number, uiFrameType_t type);
+
+void UI_WriteLayout2(edict_t *ent, void (*BuildUI)(gclient_t *), DWORD layer);
 
 // g_metadata.c
 LPCSTR UnitStringField(sheetMetaData_t *meta, DWORD unit_id, LPCSTR name);
