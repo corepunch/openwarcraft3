@@ -41,7 +41,7 @@
 #define UNIT_UNIT_CLASSIFICATION(UNIT) UnitIntegerField(UnitsMetaData, UNIT, "utyp")
 #define UNIT_HIT_POINTS_REGENERATION_TYPE(UNIT) UnitIntegerField(UnitsMetaData, UNIT, "uhrt")
 #define UNIT_PLACEMENT_PREVENTED_BY(UNIT) UnitIntegerField(UnitsMetaData, UNIT, "upar")
-#define UNIT_PRIMARY_ATTRIBUTE(UNIT) UnitIntegerField(UnitsMetaData, UNIT, "upra")
+#define UNIT_PRIMARY_ATTRIBUTE(UNIT) UnitStringField(UnitsMetaData, UNIT, "upra")
 #define UNIT_STRENGTH_PER_LEVEL(UNIT) UnitRealField(UnitsMetaData, UNIT, "ustp")
 #define UNIT_AGILITY_PER_LEVEL(UNIT) UnitRealField(UnitsMetaData, UNIT, "uagp")
 #define UNIT_INTELLIGENCE_PER_LEVEL(UNIT) UnitRealField(UnitsMetaData, UNIT, "uinp")

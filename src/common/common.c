@@ -149,14 +149,14 @@ void FS_Init(void) {
 //    SFileExtractFile(archive, "Units\\UnitData.slk", "/Users/igor/Desktop/UnitData.slk", 0);
 //    SFileExtractFile(archive, "Units\\UnitUI.slk", "/Users/igor/Desktop/UnitUI.slk", 0);
 //    SFileExtractFile(archive, "Units\\UnitMetaData.slk", "/Users/igor/Desktop/UnitMetaData.slk", 0);
-//    SFileExtractFile(archive, "Units\\UnitBalance.slk", "/Users/igor/Desktop/UnitBalance.slk", 0);
+    FS_ExtractFile("Units\\UnitBalance.slk", "/Users/igor/Desktop/UnitBalance.slk");
 //    SFileExtractFile(archive, "Units\\UnitWeapons.slk", "/Users/igor/Desktop/UnitWeapons.slk", 0);
 //    SFileExtractFile(archive, "Splats\\SplatData.slk", "/Users/igor/Desktop/SplatData.slk", 0);
 //    SFileExtractFile(archive, "Splats\\UberSplatData.slk", "/Users/igor/Desktop/UberSplatData.slk", 0);
 //    SFileExtractFile(archive, "Units\\MiscData.txt", "/Users/igor/Desktop/MiscData.txt", 0);
 //    SFileExtractFile(archive, "Abilities\\Weapons\\FireBallMissile\\FireBallMissile.mdx", "/Users/igor/Desktop/FireBallMissile.mdx", 0);
 //    FS_ExtractFile("UI\\FrameDef\\GlobalStrings.fdf", "/Users/igor/Desktop/GlobalStrings.fdf");
-    FS_ExtractFile("UI\\FrameDef\\UI\\ConsoleUI.fdf", "/Users/igor/Desktop/ConsoleUI.fdf");
+//    FS_ExtractFile("UI\\FrameDef\\UI\\ConsoleUI.fdf", "/Users/igor/Desktop/ConsoleUI.fdf");
 
 #if 0
     SFILE_FIND_DATA findData;
