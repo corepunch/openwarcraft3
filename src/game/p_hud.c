@@ -42,15 +42,24 @@ static void Init_SimpleInfoPanelIconArmor(uiFrameDef_t *parent) {
     UI_SetTexture(InfoPanelIconBackdrop, "InfoPanelIconArmorLarge", true);
 }
 
-static void Init_SimpleInfoPanelIconHero(uiFrameDef_t *parent) {
+static void Init_SimpleInfoPanelIconHero(uiFrameDef_t *parent, edict_t *unit) {
     UI_FRAME(SimpleInfoPanelIconHero);
     UI_CHILD_FRAME(InfoPanelIconHeroIcon, SimpleInfoPanelIconHero);
+    UI_CHILD_FRAME(InfoPanelIconHeroStrengthValue, SimpleInfoPanelIconHero);
+    UI_CHILD_FRAME(InfoPanelIconHeroAgilityValue, SimpleInfoPanelIconHero);
+    UI_CHILD_FRAME(InfoPanelIconHeroIntellectValue, SimpleInfoPanelIconHero);
     UI_SetParent(SimpleInfoPanelIconHero, parent);
     UI_SetPoint(SimpleInfoPanelIconHero, FRAMEPOINT_TOPLEFT, parent, FRAMEPOINT_TOPLEFT, UI_SCALE(0.1), UI_SCALE(-0.037));
     UI_SetTexture(InfoPanelIconHeroIcon, "InfoPanelIconHeroIconSTR", true);
+    UI_SetText(InfoPanelIconHeroStrengthValue, "%d", unit->hero.str);
+    UI_SetText(InfoPanelIconHeroAgilityValue, "%d", unit->hero.agi);
+    UI_SetText(InfoPanelIconHeroIntellectValue, "%d", unit->hero.intel);
 }
 
 static void Init_SimpleInfoPanelUnitDetail(edict_t *unit) {
+    LPCSTR unitTypeName = UNIT_NAME(unit->class_id);
+    LPCSTR unitHeroName = UNIT_PROPER_NAMES(unit->class_id);
+
     uiFrameDef_t BottomPanel;
     UI_InitFrame(&BottomPanel, 1, FT_SIMPLEFRAME);
     UI_SetSize(&BottomPanel, INFO_PANEL_UNIT_DETAIL_WIDTH, INFO_PANEL_UNIT_DETAIL_HEIGHT);
@@ -59,14 +68,14 @@ static void Init_SimpleInfoPanelUnitDetail(edict_t *unit) {
     UI_FRAME(SimpleInfoPanelUnitDetail);
     UI_CHILD_FRAME(SimpleNameValue, SimpleInfoPanelUnitDetail);
     UI_CHILD_FRAME(SimpleClassValue, SimpleInfoPanelUnitDetail);
-
+    
     UI_SetParent(SimpleInfoPanelUnitDetail, &BottomPanel);
-    UI_SetText(SimpleNameValue, UNIT_NAME(unit->class_id));
-    UI_SetText(SimpleClassValue, "Level 1 Far Seer");
+    UI_SetText(SimpleNameValue, unitHeroName ? unitHeroName : unitTypeName);
+    UI_SetText(SimpleClassValue, "Level %d %s", unit->hero.level, unitTypeName);
 
     Init_SimpleInfoPanelIconDamage(SimpleInfoPanelUnitDetail);
     Init_SimpleInfoPanelIconArmor(SimpleInfoPanelUnitDetail);
-    Init_SimpleInfoPanelIconHero(SimpleInfoPanelUnitDetail);
+    Init_SimpleInfoPanelIconHero(SimpleInfoPanelUnitDetail, unit);
     
     gi.WriteUIFrame(&BottomPanel.f);
     UI_WriteFrameWithChildren(SimpleInfoPanelUnitDetail);

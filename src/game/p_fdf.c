@@ -633,7 +633,12 @@ void UI_SetParent(uiFrameDef_t *frame, uiFrameDef_t *parent) {
     frame->f.parent = parent ? parent->f.number : 0;
 }
 
-void UI_SetText(uiFrameDef_t *frame, LPCSTR text) {
+void UI_SetText(uiFrameDef_t *frame, LPCSTR format, ...) {
+    va_list argptr;
+    static char text[1024];
+    va_start(argptr, format);
+    vsprintf(text, format,argptr);
+    va_end(argptr);
     strcpy(frame->f.text, UI_GetString(text));
 }
 

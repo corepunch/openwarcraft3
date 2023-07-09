@@ -234,6 +234,7 @@ struct edict_s {
     DWORD class_id;
     DWORD variation;
     DWORD build_project;
+    doodadHero_t hero;
     float health;
     float collision;
     float max_health;
@@ -383,7 +384,7 @@ void UI_ClearTemplates(void);
 void UI_ParseFDF(LPCSTR fileName);
 void UI_SetAllPoints(uiFrameDef_t *frame);
 void UI_SetParent(uiFrameDef_t *frame, uiFrameDef_t *parent);
-void UI_SetText(uiFrameDef_t *frame, LPCSTR text);
+void UI_SetText(uiFrameDef_t *frame, LPCSTR format, ...);
 void UI_SetSize(uiFrameDef_t *frame, DWORD width, DWORD height);
 void UI_SetTexture(uiFrameDef_t *frame, LPCSTR name, bool decorate);
 uiFrameDef_t *UI_Spawn(uiFrameType_t type, uiFrameDef_t *parent);

@@ -151,20 +151,13 @@ void G_SpawnEntities(LPCSTR mapname, LPCDOODAD entities) {
     globals.num_edicts = game.max_clients + 1;
     FOR_EACH_LIST(DOODAD const, doodad, entities) {
         edict_t *e = G_Spawn();
-        entityState_t *s = &e->s;
-        s->origin = doodad->position;
-        s->angle = doodad->angle;
-        s->scale = doodad->scale.x;
         e->class_id = doodad->doodID;
         e->variation = doodad->variation;
-        s->player = doodad->player & 7;
-//        if (e->class_id == MAKEFOURCC('h', 'p', 'e', 'a')) {
-////            e->class_id = MAKEFOURCC('h','r','i','f');
-//            e->class_id = MAKEFOURCC('H','a','m','g');
-//        }
-//        if (e->class_id == MAKEFOURCC('H', 'u', 't', 'h')) {
-//            s->player = 2;
-//        }
+        e->hero = doodad->hero;
+        e->s.player = doodad->player & 7;
+        e->s.origin = doodad->position;
+        e->s.angle = doodad->angle;
+        e->s.scale = doodad->scale.x;
         SP_CallSpawn(e);
     }
     SP_worldspawn(NULL);
