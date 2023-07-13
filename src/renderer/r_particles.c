@@ -198,7 +198,7 @@ void R_DrawParticles(void) {
         VECTOR3 vel = Vector3_mad(&p->vel, p->time, &p->accel);
         VECTOR3 org = Vector3_mad(&p->org, p->time, &vel);
         COLOR32 col = FX_BlendColor(p);
-        float size = FX_BlendFloat(p->size, p->time, p->midtime / 255.f);
+        float size = FX_BlendFloat(p->size, p->time, BYTE2FLOAT(p->midtime));
         pv = R_AddParticle(pv, &org, FX_GetFrame(p), col, size * 2.0);
         texture = p->texture;
     }

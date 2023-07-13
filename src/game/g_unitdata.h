@@ -76,7 +76,7 @@
 #define UNIT_MINIMUM_ATTACK_RANGE(UNIT) UnitRealField(UnitsMetaData, UNIT, "uamn")
 #define UNIT_RAISABLE(UNIT) UnitBooleanField(UnitsMetaData, UNIT, "urai")
 #define UNIT_DECAYABLE(UNIT) UnitBooleanField(UnitsMetaData, UNIT, "udec")
-#define UNIT_IS_A_BUILDING(UNIT) UnitBooleanField(UnitsMetaData, UNIT, "ubdg")
+#define UNIT_IS_BUILDING(UNIT) UnitBooleanField(UnitsMetaData, UNIT, "ubdg")
 #define UNIT_USE_EXTENDED_LINE_OF_SIGHT(UNIT) UnitBooleanField(UnitsMetaData, UNIT, "ulos")
 #define UNIT_NEUTRAL_BUILDING_SHOWS_MINIMAP_ICON(UNIT) UnitBooleanField(UnitsMetaData, UNIT, "unbm")
 #define UNIT_HERO_HIDE_HERO_INTERFACE_ICON(UNIT) UnitBooleanField(UnitsMetaData, UNIT, "uhhb")

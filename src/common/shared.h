@@ -17,6 +17,8 @@
 #define MIN(x, y) (((x)<(y))?(x):(y))
 #define MAX(x, y) (((x)>(y))?(x):(y))
 
+#define BYTE2FLOAT(x) ((x)/255.f)
+
 #define IS_FOURCC(STRING) (STRING && strlen(STRING) == 4)
 
 #define MAKE(TYPE,...)(TYPE){__VA_ARGS__}
@@ -90,7 +92,6 @@ enum {
 #define STAT_FOOD_USED 5
 
 #define MAX_STATS 32
-#define MAX_UNIT_STATS 32
 
 #define MAX_PACKET_ENTITIES 64
 #define MAX_CLIENTS 256
@@ -185,7 +186,6 @@ typedef struct {
     DWORD fov;
     DWORD rdflags;
     USHORT stats[MAX_STATS];
-    BYTE unit_stats[MAX_UNIT_STATS];
 } playerState_t;
 
 enum {
@@ -280,6 +280,9 @@ typedef enum {
     FT_COMMANDBUTTON,
     FT_PORTRAIT,
     FT_STRINGLIST,
+    // custom types
+    FT_BUILDQUEUE,
+    FT_MULTISELECT,
 } uiFrameType_t;
 
 typedef enum {
@@ -322,15 +325,11 @@ typedef struct {
     COLOR32 color;
     struct { uiFramePoints_t x, y; } points;
     struct { uint16_t width, height; } size;
-
-    // Texture
     struct {
         USHORT index;
         USHORT index2;
-        uint8_t coord[4];
+        uint8_t coord[4];  // also used as animation start timestamp
     } tex;
-    
-    // String
     union {
         struct {
             uiFrameType_t type: 8;
@@ -343,11 +342,13 @@ typedef struct {
     struct {
         DWORD index;
     } font;
+    struct {
+        SHORT x, y;
+    } offset;
     DWORD textLength;
     DWORD stat;
     UINAME text;
-    // Command Button
-    DWORD code;
+    float value;
 } uiFrame_t;
 
 typedef struct sheetField_s {

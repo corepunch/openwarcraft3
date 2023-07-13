@@ -50,10 +50,10 @@ netField_t uiFrameFields[] = {
     { NETF(uiFrame_t, tex.index), NFT_LONG },
     { NETF(uiFrame_t, tex.coord), NFT_LONG },
     { NETF(uiFrame_t, font.index), NFT_SHORT },
-    { NETF(uiFrame_t, code), NFT_LONG },
     { NETF(uiFrame_t, stat), NFT_BYTE },
     { NETF(uiFrame_t, color), NFT_LONG },
     { NETF(uiFrame_t, text), NFT_TEXT },
+    { NETF(uiFrame_t, offset), NFT_LONG },
     { NULL }
 };
 
@@ -294,18 +294,6 @@ void MSG_WriteDeltaPlayerState(LPSIZEBUF msg,
     DWORD bits = MSG_GetBits(from, to, playerStateFields);
     MSG_WriteEntityBits(msg, bits, to->number);
     MSG_WriteFields(msg, to, playerStateFields, bits);
-    bits = 0;
-    FOR_LOOP(i, MAX_UNIT_STATS) {
-        if (from->unit_stats[i] != to->unit_stats[i]) {
-            bits |= 1 << i;
-        }
-    }
-    MSG_WriteLong(msg, bits);
-    FOR_LOOP(i, MAX_UNIT_STATS) {
-        if (bits & (1 << i)) {
-            MSG_WriteByte(msg, to->unit_stats[i]);
-        }
-    }
 }
 
 void MSG_ReadDeltaPlayerState(LPSIZEBUF msg,
@@ -315,12 +303,6 @@ void MSG_ReadDeltaPlayerState(LPSIZEBUF msg,
 {
     edict->number = number;
     MSG_ReadFields(msg, edict, playerStateFields, bits);
-    bits = MSG_ReadLong(msg);
-    FOR_LOOP(i, MAX_UNIT_STATS) {
-        if (bits & (1 << i)) {
-            edict->unit_stats[i] = MSG_ReadByte(msg);
-        }
-    }
 }
 
 void SZ_Printf(LPSIZEBUF msg, LPCSTR fmt, ...) {

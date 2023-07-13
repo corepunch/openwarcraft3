@@ -1,5 +1,7 @@
 #include "g_local.h"
 
+#define MAX_SPAWN_ITERATIONS 10
+
 LPCSTR targs[] = {
     "none", // NONE
     "air",  // AIR
@@ -104,8 +106,8 @@ static void SP_SpawnDestructable(edict_t *edict) {
     edict->s.model = gi.ModelIndex(buffer);
     edict->s.radius = 50;//destr->radius;
     edict->collision = 50;
-    edict->max_health = DESTRUCTABLE_HIT_POINT_MAXIMUM(edict->class_id);
-    edict->health = edict->max_health;
+    edict->health.value = DESTRUCTABLE_HIT_POINT_MAXIMUM(edict->class_id);
+    edict->health.max_value = DESTRUCTABLE_HIT_POINT_MAXIMUM(edict->class_id);
     edict->targtype = G_GetTargetType(DESTRUCTABLE_TARGETED_AS(edict->class_id));
 }
 
@@ -177,3 +179,23 @@ edict_t *SP_SpawnAtLocation(DWORD class_id, DWORD player, LPCVECTOR2 location) {
     return ent;
 }
 
+void SP_SpawnTrainedUnit(edict_t *townhall, DWORD class_id) {
+    float const colsize = UNIT_SELECTION_SCALE(class_id) * SEL_SCALE / 2;
+    float const start_angle = M_PI * 1.25f;
+    FOR_LOOP(i, MAX_SPAWN_ITERATIONS) {
+        float const radius = townhall->s.radius + colsize * (i * 2 + 1);
+        float const num_points = M_PI * radius / colsize;
+        FOR_LOOP(j, num_points) {
+            float const angle = start_angle + 2 * M_PI * j / num_points;
+            VECTOR2 const org = {
+                townhall->s.origin2.x + cosf(angle) * radius,
+                townhall->s.origin2.y + sinf(angle) * radius,
+            };
+            if (M_CheckCollision(&org, colsize))
+                continue;
+            edict_t *ent = SP_SpawnAtLocation(class_id, townhall->s.player, &org);
+            ent->s.angle = angle;
+            return;
+        }
+    }
+}

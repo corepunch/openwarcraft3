@@ -77,13 +77,6 @@ static void G_RunFrame(void) {
         G_RunEntity(&globals.edicts[i]);
     }
     G_SolveCollisions();
-    FOR_LOOP(i, game.max_clients) {
-        DWORD barnum = 0;
-        FOR_SELECTED_UNITS(game.clients+i, ent) {
-            game.clients[i].ps.unit_stats[barnum++] = ent->s.stats[ENT_HEALTH];
-            game.clients[i].ps.unit_stats[barnum++] = ent->s.stats[ENT_MANA];
-        }
-    }
 }
 
 static LPCSTR G_GetThemeValue(LPCSTR filename) {

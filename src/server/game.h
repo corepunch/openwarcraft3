@@ -26,6 +26,7 @@ struct game_import {
     float (*GetHeightAtPoint)(float x, float y);
     LPSTR (*ReadFileIntoString)(LPCSTR filename);
     HANDLE (*ReadFile)(LPCSTR filename, LPDWORD size);
+    DWORD (*GetTime)(void);
     
     sheetRow_t *(*ReadSheet)(LPCSTR sheetFilename);
     sheetRow_t *(*ReadConfig)(LPCSTR configFilename);

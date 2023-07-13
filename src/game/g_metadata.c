@@ -103,9 +103,7 @@ int UnitIntegerField(sheetMetaData_t *metadatas, DWORD unit_id, LPCSTR name) {
 
 bool UnitBooleanField(sheetMetaData_t *metadatas, DWORD unit_id, LPCSTR name) {
     LPCSTR str = UnitStringField(metadatas, unit_id, name);
-    if (atoi(str) != 0) return true;
-    if (!strcmp(str, "TRUE")) return true;
-    return false;
+    return str && (atoi(str) != 0 || !strcmp(str, "TRUE"));
 }
 
 float UnitRealField(sheetMetaData_t *metadatas, DWORD unit_id, LPCSTR name) {

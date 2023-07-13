@@ -67,21 +67,21 @@ CLIENTCOMMAND(Point) {
 }
 
 CLIENTCOMMAND(Button) {
-    DWORD code = atoi(argv[1]);
+    LPCSTR classname = argv[1];
     gclient_t *client = clent->client;
-    ability_t *ability = GetAbilityByIndex(code);
+    ability_t *ability = FindAbilityByClassname(classname);
     if (ability && ability->cmd) {
         ability->cmd(clent);
     } else if (client->menu.cmdbutton) {
-        client->menu.cmdbutton(clent, code);
+        client->menu.cmdbutton(clent, *((DWORD *)classname));
     } else {
         edict_t *ent = G_GetMainSelectedUnit(client);
         LPCSTR builds = UNIT_TRAINS(ent->class_id);
         if (!builds)
             return;
         PARSE_LIST(builds, build, getNextSegment) {
-            if (*((DWORD *)build) == code) {
-                SP_TrainUnit(&client->ps, ent, code);
+            if (!strcmp(build, classname)) {
+                SP_TrainUnit(ent, *((DWORD *)classname));
                 break;
             }
         }

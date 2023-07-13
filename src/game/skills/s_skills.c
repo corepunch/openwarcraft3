@@ -4,7 +4,7 @@ void SP_ability_harvest(ability_t *self);
 void SP_ability_move(ability_t *self);
 void SP_ability_attack(ability_t *self);
 void SP_ability_build(ability_t *self);
-void SP_ability_train(ability_t *self);
+//void SP_ability_train(ability_t *self);
 void SP_ability_goldmine(ability_t *self);
 void SP_ability_cancel(ability_t *self);
 

@@ -3,6 +3,7 @@
 #include "client.h"
 
 #define COMMAND_SIZE 0.039
+#define UI_SCALE 10000
 
 static uiFrame_t const *frames;
 
@@ -120,14 +121,29 @@ LPCRECT SCR_LayoutRect(uiFrame_t const *frame) {
     } else {
         runtimes[frame->number].calculated = true; // done here to avoid recursion
     }
-    if (frame->flags.type == FT_STRING || frame->flags.type == FT_TEXT) {
-        VECTOR2 textsize = re.GetTextSize(cl.fonts[frame->font.index], SCR_GetStringValue(frame));
-        if (frame->size.width == 0) {
-            ((uiFrame_t *)frame)->size.width = textsize.x * 10000;
-        }
-        if (frame->size.height == 0) {
-            ((uiFrame_t *)frame)->size.height = textsize.y * 10000;
-        }
+    VECTOR2 elemsize;
+    size2_t imagesize;
+    switch (frame->flags.type) {
+        case FT_STRING:
+        case FT_TEXT:
+            elemsize = re.GetTextSize(cl.fonts[frame->font.index], SCR_GetStringValue(frame));
+            elemsize.x *= UI_SCALE;
+            elemsize.y *= UI_SCALE;
+            break;
+        case FT_TEXTURE:
+        case FT_SIMPLESTATUSBAR:
+            imagesize = re.GetTextureSize(cl.pics[frame->tex.index]);
+            elemsize.x = imagesize.width * 8;
+            elemsize.y = imagesize.height * 6;
+            break;
+        default:
+            break;
+    }
+    if (frame->size.width == 0) {
+        ((uiFrame_t *)frame)->size.width = elemsize.x;
+    }
+    if (frame->size.height == 0) {
+        ((uiFrame_t *)frame)->size.height = elemsize.y;
     }
     VECTOR2 const rect[] = {
         get_position(frame, frame->points.x, frame->size.width, get_x),
@@ -143,17 +159,17 @@ LPCRECT SCR_LayoutRect(uiFrame_t const *frame) {
 }
 
 void layout_statusbar(uiFrame_t const *frame) {
-    RECT const screen = Rect_div(SCR_LayoutRect(frame), 10000);
-    RECT const uv = get_uvrect(frame->tex.coord);
+    RECT const screen = Rect_div(SCR_LayoutRect(frame), UI_SCALE);
+    RECT const uv = { 0, 0, 255, 255 };
     RECT screen2 = screen;
     RECT uv2 = uv;
-    if (frame->stat > 0 ) {
-        screen2.w *= cl.playerstate.unit_stats[frame->stat] / (float)255;
-        uv2.w *= cl.playerstate.unit_stats[frame->stat] / (float)255;
-    } else {
-        screen2.w *= 0.5;
-        uv2.w *= 0.5;
-    }
+//    if (frame->stat > 0 ) {
+//        screen2.w *= cl.playerstate.unit_stats[frame->stat] / (float)255;
+//        uv2.w *= cl.playerstate.unit_stats[frame->stat] / (float)255;
+//    } else {
+        screen2.w *= frame->value;
+        uv2.w *= frame->value;
+//    }
     RECT const suv2 = Rect_div(&uv2, 0xff);
     re.DrawImage(cl.pics[frame->tex.index], &screen2, &suv2, frame->color);
     if (frame->tex.index2 > 0) {
@@ -163,14 +179,84 @@ void layout_statusbar(uiFrame_t const *frame) {
 }
 
 void layout_texture(uiFrame_t const *frame) {
-    RECT const screen = Rect_div(SCR_LayoutRect(frame), 10000);
+    RECT const screen = Rect_div(SCR_LayoutRect(frame), UI_SCALE);
     RECT const uv = get_uvrect(frame->tex.coord);
     RECT const suv = Rect_div(&uv, 0xff);
     re.DrawImage(cl.pics[frame->tex.index], &screen, &suv, frame->color);
 }
 
+void layout_buildqueue(uiFrame_t const *frame) {
+    static UINAME buffer = { 0 };
+    RECT screen = Rect_div(SCR_LayoutRect(frame), UI_SCALE);
+    RECT const uv = { 0, 0, 1, 1 };
+    DWORD start_time, first_image, time_bar;
+    bool first_item = true;
+    sscanf(frame->text, "%x %x %x,", &first_image, &time_bar, &start_time);
+    strcpy(buffer, strchr(frame->text, ',')+1);
+    for (LPCSTR token = strtok(buffer, ","); token != NULL; token = strtok(NULL, ",")) {
+        DWORD img = 0, end_time = 0;
+        sscanf(token, "%x %x", &img, &end_time);
+        if (end_time < cl.time) {
+            start_time = end_time;
+            continue;
+        } else if (first_item) {
+            if (start_time != end_time) {
+                float total = end_time - start_time;
+                float current = cl.time - start_time;
+                ((uiFrame_t *)frames)[time_bar].value = MIN(1, current / total);
+            }
+            ((uiFrame_t *)frames)[first_image].tex.index = img;
+        } else {
+            re.DrawImage(cl.pics[img], &screen, &uv, frame->color);
+            screen.x += (float)frame->offset.x / (float)UI_SCALE;
+        }
+        first_item = false;
+    }
+}
+
+#define HP_BAR_HEIGHT_RATIO 0.175f
+#define HP_BAR_SPACING_RATIO 0.02f
+
+void layout_multiselect(uiFrame_t const *frame) {
+    static UINAME buffer = { 0 };
+    RECT screen = Rect_div(SCR_LayoutRect(frame), UI_SCALE);
+    DWORD hp_bar, mana_bar, columns;
+    sscanf(frame->text, "%x %x %x,", &hp_bar, &mana_bar, &columns);
+    strcpy(buffer, strchr(frame->text, ',')+1);
+    DWORD column = 0;
+    for (LPCSTR token = strtok(buffer, ","); token != NULL; token = strtok(NULL, ",")) {
+        RECT uv = { 0, 0, 1, 1 };
+        DWORD img = 0, nument = 0;
+        sscanf(token, "%x %x", &img, &nument);
+        re.DrawImage(cl.pics[img], &screen, &uv, frame->color);
+        if (nument < MAX_CLIENT_ENTITIES) {
+            float health = BYTE2FLOAT(cl.ents[nument].current.stats[ENT_HEALTH]);
+            float mana = BYTE2FLOAT(cl.ents[nument].current.stats[ENT_MANA]);
+            RECT rect = {
+                screen.x,
+                screen.y + screen.h * (1 + HP_BAR_SPACING_RATIO),
+                screen.w * health,
+                screen.h * HP_BAR_HEIGHT_RATIO
+            };
+            uv.w = health;
+            re.DrawImage(cl.pics[hp_bar], &rect, &uv, MAKE(COLOR32,0,255,0,255));
+            uv.w = mana;
+            rect.w = screen.w * mana;
+            rect.y += screen.h * (HP_BAR_HEIGHT_RATIO + HP_BAR_SPACING_RATIO);
+            re.DrawImage(cl.pics[mana_bar], &rect, &uv, MAKE(COLOR32,0,255,255,255));
+        }
+        if (++column >= columns) {
+            column = 0;
+            screen.x = Rect_div(SCR_LayoutRect(frame), UI_SCALE).x;
+            screen.y += (float)frame->offset.y / (float)UI_SCALE;
+        } else {
+            screen.x += (float)frame->offset.x / (float)UI_SCALE;
+        }
+    }
+}
+
 void layout_portrait(uiFrame_t const *frame) {
-    RECT const screen = Rect_div(SCR_LayoutRect(frame), 10000);
+    RECT const screen = Rect_div(SCR_LayoutRect(frame), UI_SCALE);
     RECT const viewport = {
         screen.x/0.8,1-(screen.y+screen.h)/0.6,screen.w/0.8,screen.h/0.6
     };
@@ -179,7 +265,7 @@ void layout_portrait(uiFrame_t const *frame) {
 }
 
 void layout_cmd(uiFrame_t const *frame) {
-    RECT screen = Rect_div(SCR_LayoutRect(frame), 10000);
+    RECT screen = Rect_div(SCR_LayoutRect(frame), UI_SCALE);
     RECT const uv = get_uvrect(frame->tex.coord);
     RECT const suv = Rect_div(&uv, 0xff);
     VECTOR2 m = {
@@ -192,7 +278,7 @@ void layout_cmd(uiFrame_t const *frame) {
         }
         if (mouse.event == UI_LEFT_MOUSE_UP) {
             MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
-            SZ_Printf(&cls.netchan.message, "button %d", frame->code);
+            SZ_Printf(&cls.netchan.message, "button %s", frame->text);
         }
     }
 
@@ -201,7 +287,7 @@ void layout_cmd(uiFrame_t const *frame) {
 
 void layout_string(uiFrame_t const *frame) {
     LPCSTR text = SCR_GetStringValue(frame);
-    RECT screen = Rect_div(SCR_LayoutRect(frame), 10000);
+    RECT screen = Rect_div(SCR_LayoutRect(frame), UI_SCALE);
 
     re.DrawText(&(drawText_t) {
         .font = cl.fonts[frame->font.index],
@@ -218,22 +304,37 @@ void SCR_Clear(uiFrame_t const *_frames) {
     frames = _frames;
 }
 
+typedef struct {
+    uiFrameType_t type;
+    void (*func)(uiFrame_t const *);
+} drawer_t;
+
+static drawer_t drawers[] = {
+    { FT_TEXTURE, layout_texture },
+    { FT_BACKDROP, layout_texture },
+    { FT_SIMPLESTATUSBAR, layout_statusbar },
+    { FT_COMMANDBUTTON, layout_cmd },
+    { FT_STRING, layout_string },
+    { FT_TEXT, layout_string },
+    { FT_PORTRAIT, layout_portrait },
+    { FT_BUILDQUEUE, layout_buildqueue },
+    { FT_MULTISELECT, layout_multiselect },
+//    { FT_NONE, NULL },
+};
+
+void SCR_DrawFrame(uiFrame_t const *frame) {
+    FOR_LOOP(j, sizeof(drawers)/sizeof(*drawers)) {
+        if (drawers[j].type == frame->flags.type) {
+            drawers[j].func(frame);
+            break;
+        }
+    }
+}
+
 void SCR_DrawOverlay(uiFrame_t const *_frames) {
     SCR_Clear(_frames);
     FOR_LOOP(i, MAX_LAYOUT_OBJECTS) {
-        uiFrame_t const *frame = frames+i;
-        switch (frame->flags.type) {
-            case FT_TEXTURE: layout_texture(frame); break;
-            case FT_BACKDROP: layout_texture(frame); break;
-            case FT_SIMPLESTATUSBAR: layout_statusbar(frame); break;
-            case FT_COMMANDBUTTON: layout_cmd(frame); break;
-            case FT_STRING: layout_string(frame); break;
-            case FT_TEXT: layout_string(frame); break;
-            case FT_PORTRAIT: layout_portrait(frame); break;
-//            case FT_NONE: break;
-            default:
-                break;
-        }
+        SCR_DrawFrame(frames+i);
     }
 }
 

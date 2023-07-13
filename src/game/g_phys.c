@@ -16,6 +16,28 @@ void SV_Physics_Toss(edict_t *ent) {
     }
 }
 
+DWORD M_GetBuildEndTime(DWORD start, DWORD class_id) {
+    return start + UNIT_BUILD_TIME(class_id) * 1000;
+}
+
+void G_GetNextBuildFromQueue(edict_t *ent) {
+    FOR_LOOP(q, MAX_BUILD_QUEUE-1) {
+        ent->build.queue[q] = ent->build.queue[q+1];
+    }
+    ent->build.queue[MAX_BUILD_QUEUE-1] = 0;
+    if (ent->build.queue[0]) {
+        ent->build.start = gi.GetTime();
+        ent->build.end = gi.GetTime() + UNIT_BUILD_TIME(ent->build.queue[0]) * 1000;
+    }
+}
+
+void G_ProcessBuilds(edict_t *ent) {
+    if (ent->build.queue[0] && ent->build.end <= gi.GetTime()) {
+        SP_SpawnTrainedUnit(ent, ent->build.queue[0]);
+        G_GetNextBuildFromQueue(ent);
+    }
+}
+
 void G_RunEntity(edict_t *ent) {
     SAFE_CALL(ent->prethink, ent);
     switch (ent->movetype) {
@@ -29,9 +51,10 @@ void G_RunEntity(edict_t *ent) {
 //            gi.error("SV_Physics: bad movetype %d", edict->movetype);
             break;
     }
+    G_ProcessBuilds(ent);
     SAFE_CALL(ent->think, ent);
-    ent->s.stats[ENT_HEALTH] = 255 * ent->health / MAX(1, ent->max_health);
-    ent->s.stats[ENT_MANA] = 128;
+    ent->s.stats[ENT_HEALTH] = compress_stat(&ent->health);
+    ent->s.stats[ENT_MANA] = compress_stat(&ent->mana);
 }
 
 bool M_IsHollow(edict_t *ent) {

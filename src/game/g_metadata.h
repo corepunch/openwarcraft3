@@ -168,7 +168,7 @@ sheetMetaData_t UnitsMetaData[] = {
     { "uhpm", "HP", "UnitBalance" },
     { "uint", "INT", "UnitBalance" },
     { "uinp", "INTplus", "UnitBalance" },
-    { "ubdg", "isbldg", "UnitBalance" },
+    { "ubdg", "isbldg", "UnitUI" }, // "UnitBalance" },
     { "ulev", "level", "UnitBalance" },
     { "ulum", "lumbercost", "UnitBalance" },
     { "ulur", "lumberRep", "UnitBalance" },

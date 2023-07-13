@@ -5,6 +5,8 @@
 
 static bool SV_CanClientSeeEntity(LPCCLIENT client, entityState_t const *edict) {
     edict_t *clent = client->edict;
+    if (edict->player == clent->client->ps.number)
+        return true;
     if (fabs(edict->origin.x - clent->client->ps.origin.x) > VISUAL_DISTANCE)
         return false;
     if (fabs(edict->origin.y - clent->client->ps.origin.y) > VISUAL_DISTANCE)

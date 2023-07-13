@@ -57,8 +57,6 @@ edict_t *Waypoint_add(LPCVECTOR2 spot) {
     return waypoint;
 }
 
-#define MAX_SPAWN_ITERATIONS 10
-
 bool player_pay(playerState_t *ps, DWORD project) {
     if (!ps) return false;
     if (UNIT_GOLD_COST(project) > ps->stats[STAT_GOLD]) return false;
@@ -68,33 +66,34 @@ bool player_pay(playerState_t *ps, DWORD project) {
     return true;
 }
 
-void SP_TrainUnit(playerState_t *ps, edict_t *townhall, DWORD class_id) {
-    float const colsize = UNIT_SELECTION_SCALE(class_id) * SEL_SCALE / 2;
-    float const start_angle = M_PI * 1.25f;
-    FOR_LOOP(i, MAX_SPAWN_ITERATIONS) {
-        float const radius = townhall->s.radius + colsize * (i * 2 + 1);
-        float const num_points = M_PI * radius / colsize;
-        FOR_LOOP(j, num_points) {
-            float const angle = start_angle + 2 * M_PI * j / num_points;
-            VECTOR2 const org = {
-                townhall->s.origin2.x + cosf(angle) * radius,
-                townhall->s.origin2.y + sinf(angle) * radius,
-            };
-            if (M_CheckCollision(&org, colsize))
-                continue;
-            if (player_pay(ps, class_id)) {
-                edict_t *ent = SP_SpawnAtLocation(class_id, townhall->s.player, &org);
-                ent->s.angle = angle;
-            } else {
-                printf("Not enough resources\n");
-            }
-            return;
+DWORD *FindPlaceInBuildQueue(edict_t *ent) {
+    FOR_LOOP(i, MAX_BUILD_QUEUE) {
+        if (!ent->build.queue[i])
+            return ent->build.queue+i;
+    }
+    return NULL;
+}
+
+void SP_TrainUnit(edict_t *townhall, DWORD class_id) {
+    edict_t *clent = game_state.edicts+townhall->s.player;
+    playerState_t *player = G_GetPlayerByNumber(townhall->s.player);
+    DWORD *placeInQueue = FindPlaceInBuildQueue(townhall);
+    if (placeInQueue && player_pay(player, class_id)) {
+        if (placeInQueue == townhall->build.queue) {
+            townhall->build.queue[0] = class_id;
+            townhall->build.start = gi.GetTime();
+            townhall->build.end = gi.GetTime() + UNIT_BUILD_TIME(class_id) * 1000;
+        } else {
+            *placeInQueue = class_id;
         }
+        Get_Commands_f(clent);
+    } else {
+        fprintf(stdout, "Not enough resources\n");
     }
 }
 
 bool M_IsDead(edict_t *ent) {
-    return ent->health <= 0;
+    return ent->health.value <= 0;
 }
 
 handle_t M_RefreshHeatmap(edict_t *self) {
@@ -210,8 +209,10 @@ void SP_SpawnUnit(edict_t *self) {
     self->s.flags |= UNIT_SPEED(self->class_id) > 0 ? EF_MOVABLE : 0;
     self->collision = self->s.radius;//UNIT_COLLISION(self->class_id);
     self->targtype = G_GetTargetType(UNIT_TARGETED_AS(self->class_id));
-    self->max_health = UNIT_HP(self->class_id);
-    self->health = UNIT_HP(self->class_id);
+    self->mana.value = UNIT_MANA(self->class_id);
+    self->mana.max_value = UNIT_MANA(self->class_id);
+    self->health.value = UNIT_HP(self->class_id);
+    self->health.max_value = UNIT_HP(self->class_id);
     self->think = monster_think;
     
     self->attack1.type = FindEnumValue(UNIT_ATTACK1_ATTACK_TYPE(self->class_id), attack_type);
@@ -250,5 +251,13 @@ float M_DistanceToGoal(edict_t *ent) {
         return Vector2_distance(&ent->goalentity->s.origin2, &ent->s.origin2);
     } else {
         return 0;
+    }
+}
+
+BYTE compress_stat(edictStat_t const *stat) {
+    if (stat->max_value <= 0) {
+        return 0;
+    } else {
+        return 255 * stat->value / stat->max_value;
     }
 }

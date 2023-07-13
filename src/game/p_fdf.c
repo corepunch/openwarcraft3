@@ -167,7 +167,7 @@ LPCSTR UI_ApplySkin(LPCSTR entry, bool force) {
     if (filename) {
         return filename;
     } else {
-        fprintf(stderr, "Can't find %s in skin", entry);
+//        fprintf(stderr, "Can't find %s in skin\n", entry);
         return entry;
     }
 }
@@ -658,4 +658,13 @@ LPCSTR UI_GetString(LPCSTR textID) {
 
 void UI_SetTexture(uiFrameDef_t *frame, LPCSTR name, bool decorate) {
     frame->f.tex.index = UI_LoadTexture(name, decorate);
+}
+
+void UI_SetTexture2(uiFrameDef_t *frame, LPCSTR name, bool decorate) {
+    frame->f.tex.index2 = UI_LoadTexture(name, decorate);
+}
+
+void UI_SetOffset(uiFrameDef_t *frame, SHORT x, SHORT y) {
+    frame->f.offset.x = x;
+    frame->f.offset.y = y;
 }

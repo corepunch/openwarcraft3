@@ -54,6 +54,9 @@ void PF_Configstring(DWORD index, LPCSTR value) {
     strcpy(sv.configstrings[index], value);
 }
 
+DWORD SV_GetTime(void) {
+    return sv.time;
+}
 
 void PF_Unicast(edict_t *ent) {
     if (!ent)
@@ -101,11 +104,10 @@ void SV_InitGameProgs(void) {
     import.ImageIndex = SV_ImageIndex;
     import.SoundIndex = SV_SoundIndex;
     import.FontIndex = SV_FontIndex;
-
     import.ReadSheet = FS_ParseSLK;
     import.ReadConfig = FS_ParseINI;
     import.FindSheetCell = FS_FindSheetCell;
-
+    import.GetTime = SV_GetTime;
     import.GetAnimation = SV_GetAnimation;
     import.GetHeightAtPoint = CM_GetHeightAtPoint;
     import.BuildHeatmap = CM_BuildHeatmap;

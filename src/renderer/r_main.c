@@ -210,7 +210,7 @@ void R_Init(DWORD width, DWORD height) {
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
     
-    window = SDL_CreateWindow("", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width, height, SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN | SDL_WINDOW_ALLOW_HIGHDPI);
+    window = SDL_CreateWindow("", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width, height, SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN/* | SDL_WINDOW_ALLOW_HIGHDPI*/);
     context = SDL_GL_CreateContext(window);
     
     SDL_GL_GetDrawableSize(window, (int *)&tr.drawableSize.width, (int *)&tr.drawableSize.height);
@@ -219,48 +219,6 @@ void R_Init(DWORD width, DWORD height) {
 //    R_LoadModel("Assets\\Units\\Terran\\MarineTychus\\MarineTychus.m3");
 //    R_LoadModel("Assets\\Units\\Zerg\\Queen\\Queen.m3");
     
-//
-//    LPCSTR models[] = {
-//        "Doodads\\Terrain\\CliffTrans\\CliffTransHAAL0.mdx",
-//        "Doodads\\Terrain\\CliffTrans\\CliffTransHLAA0.mdx",
-//        "Doodads\\Terrain\\CliffTrans\\CliffTransXCAH0.mdx",
-//        "Doodads\\Terrain\\CliffTrans\\CliffTransAXHA0.mdx",
-//        "Doodads\\Terrain\\CliffTrans\\CliffTransAAXH0.mdx",
-//        "Doodads\\Terrain\\CliffTrans\\CliffTransAALH0.mdx",
-//        "Doodads\\Terrain\\CliffTrans\\CliffTransALHB0.mdx",
-//        "Doodads\\Terrain\\CliffTrans\\CliffTransAHXC0.mdx",
-//        "Doodads\\Terrain\\CliffTrans\\CliffTransAAHL0.mdx",
-//        "Doodads\\Terrain\\CliffTrans\\CliffTransBALH0.mdx",
-//        "Doodads\\Terrain\\CliffTrans\\CliffTransHXCA0.mdx",
-//        "Doodads\\Terrain\\CliffTrans\\CliffTransCXHA0.mdx",
-//        "Doodads\\Terrain\\CliffTrans\\CliffTransXHAA0.mdx",
-//        "Doodads\\Terrain\\CliffTrans\\CliffTransALHA0.mdx",
-//        "Doodads\\Terrain\\CliffTrans\\CliffTransBHLA0.mdx",
-//        "Doodads\\Terrain\\CliffTrans\\CliffTransHBAL0.mdx",
-//        "Doodads\\Terrain\\CliffTrans\\CliffTransABHL0.mdx",
-//        "Doodads\\Terrain\\CliffTrans\\CliffTransCAHX0.mdx",
-//        "Doodads\\Terrain\\CliffTrans\\CliffTransHAAX0.mdx",
-//        "Doodads\\Terrain\\CliffTrans\\CliffTransXAAH0.mdx",
-//        "Doodads\\Terrain\\CliffTrans\\CliffTransLAAH0.mdx",
-//        "Doodads\\Terrain\\CliffTrans\\CliffTransAHXA0.mdx",
-//        "Doodads\\Terrain\\CliffTrans\\CliffTransHXAA0.mdx",
-//        "Doodads\\Terrain\\CliffTrans\\CliffTransXHAC0.mdx",
-//        "Doodads\\Terrain\\CliffTrans\\CliffTransLHAA0.mdx",
-//        "Doodads\\Terrain\\CliffTrans\\CliffTransACXH0.mdx",
-//        "Doodads\\Terrain\\CliffTrans\\CliffTransHACX0.mdx",
-//        "Doodads\\Terrain\\CliffTrans\\CliffTransLHBA0.mdx",
-//        "Doodads\\Terrain\\CliffTrans\\CliffTransAHLA0.mdx",
-//        "Doodads\\Terrain\\CliffTrans\\CliffTransLABH0.mdx",
-//        "Doodads\\Terrain\\CliffTrans\\CliffTransHLAB0.mdx",
-//        "Doodads\\Terrain\\CliffTrans\\CliffTransAAHX0.mdx",
-//        NULL
-//    };
-//
-//    for (LPCSTR *model = models; *model; model++){
-//        model_t *m = R_LoadModel(*model);
-//        printf("%f %f %f %f\n", m->mdx->bounds.box.min.x, m->mdx->bounds.box.min.y, m->mdx->bounds.box.max.x, m->mdx->bounds.box.max.y);
-//    }
-//
     extern LPCSTR vs_skin;
     extern LPCSTR vs_default;
     extern LPCSTR fs_default;

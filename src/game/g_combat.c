@@ -1,13 +1,13 @@
 #include "g_local.h"
 
 void T_Damage(edict_t *target, edict_t *attacker, int damage) {
-    if (target->health <= damage) {
-        target->health = 0;
+    if (target->health.value <= damage) {
+        target->health.value = 0;
         target->die(target, attacker);
         attacker->stand(attacker);
         return;
     }
-    target->health -= damage;
+    target->health.value -= damage;
     /*if (other->melee && !other->enemy) {
      other->enemy = ent;
      other->melee(other);

@@ -14,6 +14,7 @@
 #define ABILITY(NAME) void M_##NAME(edict_t *ent, edict_t *target)
 #define UI_SCALE(x) ((x) * 10000)
 #define SEL_SCALE 72
+#define MAX_BUILD_QUEUE 7
 
 #define FILTER_EDICTS(ENT, CONDITION) \
 for (edict_t *ENT = globals.edicts; \
@@ -23,9 +24,9 @@ ENT++) if (CONDITION)
 #define UI_FRAME(NAME) uiFrameDef_t *NAME = UI_FindFrame(#NAME);
 #define UI_CHILD_FRAME(NAME, PARENT) uiFrameDef_t *NAME = UI_FindChildFrame(PARENT, #NAME);
 #define UI_CHILD_VALUE(NAME, PARENT, VALUE, ...) \
-uiFrameDef_t *__##NAME = UI_FindChildFrame(PARENT, #NAME); \
-if (__##NAME) { \
-    UI_Set##VALUE(__##NAME, __VA_ARGS__); \
+uiFrameDef_t *NAME = UI_FindChildFrame(PARENT, #NAME); \
+if (NAME) { \
+    UI_Set##VALUE(NAME, __VA_ARGS__); \
 } else { \
     fprintf(stderr, #NAME " not found");\
 }
@@ -230,6 +231,11 @@ typedef struct {
     } projectile;
 } unitAttack_t;
 
+typedef struct {
+    float value;
+    float max_value;
+} edictStat_t;
+
 struct edict_s {
     entityState_t s;
     gclient_t *client;
@@ -242,10 +248,10 @@ struct edict_s {
     DWORD variation;
     DWORD build_project;
     doodadHero_t hero;
-    float health;
     float collision;
-    float max_health;
     float velocity;
+    edictStat_t health;
+    edictStat_t mana;
     DWORD harvested_lumber;
     DWORD harvested_gold;
     movetype_t movetype;
@@ -260,6 +266,11 @@ struct edict_s {
     umove_t *currentmove;
     DWORD aiflags;
     DWORD damage;
+    struct {
+        DWORD start;
+        DWORD end;
+        DWORD queue[MAX_BUILD_QUEUE];
+    } build;
 //    unitRace_t race;
     float wait;
     unitAttack_t attack1;
@@ -350,8 +361,9 @@ float M_DistanceToGoal(edict_t *ent);
 float M_MoveDistance(edict_t *self);
 handle_t M_RefreshHeatmap(edict_t *self);
 bool M_IsDead(edict_t *ent);
-void SP_TrainUnit(playerState_t *ps, edict_t *townhall, DWORD class_id);
+void SP_TrainUnit(edict_t *townhall, DWORD class_id);
 bool player_pay(playerState_t *ps, DWORD project);
+BYTE compress_stat(edictStat_t const *stat);
 
 // g_pathing.c
 pathTex_t *LoadTGA(const BYTE* mem, size_t size);
@@ -381,11 +393,9 @@ void Get_Commands_f(edict_t *ent);
 void Get_Portrait_f(edict_t *ent);
 void UI_AddCancelButton(edict_t *edict);
 
-void UI_AddAbilityButton(LPCSTR ability);
-void Add_CommandButtonCoded(DWORD code, LPCSTR art, LPCSTR buttonpos);
+void UI_AddCommandButton(LPCSTR ability);
 
 // p_fdf.c
-DWORD UI_LoadTexture(LPCSTR file, bool decorate);
 void UI_PrintClasses(void);
 void UI_ClearTemplates(void);
 void UI_ParseFDF(LPCSTR fileName);
@@ -394,17 +404,20 @@ void UI_SetParent(uiFrameDef_t *frame, uiFrameDef_t *parent);
 void UI_SetText(uiFrameDef_t *frame, LPCSTR format, ...);
 void UI_SetSize(uiFrameDef_t *frame, DWORD width, DWORD height);
 void UI_SetTexture(uiFrameDef_t *frame, LPCSTR name, bool decorate);
-uiFrameDef_t *UI_Spawn(uiFrameType_t type, uiFrameDef_t *parent);
-uiFrameDef_t *UI_FindFrame(LPCSTR name);
-uiFrameDef_t *UI_FindChildFrame(uiFrameDef_t *frame, LPCSTR name);
-DWORD UI_FindFrameNumber(LPCSTR name);
+void UI_SetTexture2(uiFrameDef_t *frame, LPCSTR name, bool decorate);
 void UI_WriteLayout(edict_t *ent, uiFrameDef_t const *frames, DWORD layer);
 void UI_SetPoint(uiFrameDef_t *frame, UIFRAMEPOINT framePoint, uiFrameDef_t *other, UIFRAMEPOINT otherPoint, int16_t x, int16_t y);
 void UI_SetPointByNumber(uiFrameDef_t *frame, UIFRAMEPOINT framePoint, DWORD otherNumber, UIFRAMEPOINT otherPoint, SHORT x, SHORT y);
-LPCSTR UI_GetString(LPCSTR textID);
 void UI_InitFrame(uiFrameDef_t *frame, DWORD number, uiFrameType_t type);
 void UI_WriteFrameWithChildren(uiFrameDef_t const *frame);
 void UI_WriteLayout2(edict_t *ent, void (*BuildUI)(gclient_t *), DWORD layer);
+void UI_SetOffset(uiFrameDef_t *frame, SHORT x, SHORT y);
+DWORD UI_FindFrameNumber(LPCSTR name);
+DWORD UI_LoadTexture(LPCSTR file, bool decorate);
+LPCSTR UI_GetString(LPCSTR textID);
+uiFrameDef_t *UI_Spawn(uiFrameType_t type, uiFrameDef_t *parent);
+uiFrameDef_t *UI_FindFrame(LPCSTR name);
+uiFrameDef_t *UI_FindChildFrame(uiFrameDef_t *frame, LPCSTR name);
 
 // g_metadata.c
 LPCSTR UnitStringField(sheetMetaData_t *meta, DWORD unit_id, LPCSTR name);
@@ -425,6 +438,9 @@ float AB_Number(ability_t const *ability, LPCSTR field);
 
 // g_combat.c
 void T_Damage(edict_t *target, edict_t *attacker, int damage);
+
+// g_spawn.c
+void SP_SpawnTrainedUnit(edict_t *townhall, DWORD class_id);
 
 // globals
 extern struct game_locals game;

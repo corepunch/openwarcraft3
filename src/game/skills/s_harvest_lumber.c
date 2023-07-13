@@ -85,11 +85,11 @@ static EDICT_FUNC(ai_chop) {
         ent->harvested_lumber += HARVEST_TREE_DAMAGE;
         ent->s.renderfx |= RF_HAS_LUMBER;
     }
-    if (tree->health < HARVEST_TREE_DAMAGE) {
-        tree->health = 0;
+    if (tree->health.value < HARVEST_TREE_DAMAGE) {
+        tree->health.value = 0;
         tree->die(tree, ent);
     } else if (tree->pain) {
-        tree->health -= HARVEST_TREE_DAMAGE;
+        tree->health.value -= HARVEST_TREE_DAMAGE;
         tree->pain(tree);
     }
 }

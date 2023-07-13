@@ -78,14 +78,9 @@ void ui_builds(gclient_t *client) {
     if (!builds)
         return;
     PARSE_LIST(builds, build, getNextSegment) {
-        LPCSTR art = FindConfigValue(build, STR_ART);
-        LPCSTR buttonpos = FindConfigValue(build, STR_BUTTONPOS);
-        if (!art || !buttonpos)
-            return;
-        DWORD code = *((DWORD *)build);
-        Add_CommandButtonCoded(code, art, buttonpos);
+        UI_AddCommandButton(build);
     }
-    UI_AddAbilityButton(STR_CmdCancel);
+    UI_AddCommandButton(STR_CmdCancel);
 }
 
 void build_command(edict_t *edict) {

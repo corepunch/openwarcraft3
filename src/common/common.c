@@ -144,21 +144,21 @@ void FS_Init(void) {
     FS_AddArchive("/Users/igor/Documents/Warcraft3/war3.mpq");
     FS_AddArchive("/Users/igor/Documents/StarCraft2/Campaigns/Liberty.SC2Campaign/base.SC2Assets");
 
-//    SFileExtractFile(archive, "Units\\UnitAbilities.slk", "/Users/igor/Desktop/UnitAbilities.slk", 0);
-//    SFileExtractFile(archive, "Units\\AbilityData.slk", "/Users/igor/Desktop/AbilityData.slk", 0);
-//    SFileExtractFile(archive, "Units\\UnitData.slk", "/Users/igor/Desktop/UnitData.slk", 0);
-//    SFileExtractFile(archive, "Units\\UnitUI.slk", "/Users/igor/Desktop/UnitUI.slk", 0);
-//    SFileExtractFile(archive, "Units\\UnitMetaData.slk", "/Users/igor/Desktop/UnitMetaData.slk", 0);
+//    FS_ExtractFile("Units\\UnitAbilities.slk", "/Users/igor/Desktop/UnitAbilities.slk");
+//    FS_ExtractFile("Units\\UnitData.slk", "/Users/igor/Desktop/UnitData.slk");
+//    FS_ExtractFile("Units\\UnitUI.slk", "/Users/igor/Desktop/UnitUI.slk");
+//    FS_ExtractFile("Units\\UnitMetaData.slk", "/Users/igor/Desktop/UnitMetaData.slk");
 //    FS_ExtractFile("Units\\UnitBalance.slk", "/Users/igor/Desktop/UnitBalance.slk");
-//    SFileExtractFile(archive, "Units\\UnitWeapons.slk", "/Users/igor/Desktop/UnitWeapons.slk", 0);
-//    SFileExtractFile(archive, "Splats\\SplatData.slk", "/Users/igor/Desktop/SplatData.slk", 0);
-//    SFileExtractFile(archive, "Splats\\UberSplatData.slk", "/Users/igor/Desktop/UberSplatData.slk", 0);
-//    SFileExtractFile(archive, "Units\\MiscData.txt", "/Users/igor/Desktop/MiscData.txt", 0);
-//    SFileExtractFile(archive, "Abilities\\Weapons\\FireBallMissile\\FireBallMissile.mdx", "/Users/igor/Desktop/FireBallMissile.mdx", 0);
+//    FS_ExtractFile("Units\\UnitWeapons.slk", "/Users/igor/Desktop/UnitWeapons.slk");
+//    FS_ExtractFile("Units\\AbilityData.slk", "/Users/igor/Desktop/AbilityData.slk");
+//    FS_ExtractFile("Splats\\SplatData.slk", "/Users/igor/Desktop/SplatData.slk");
+//    FS_ExtractFile("Splats\\UberSplatData.slk", "/Users/igor/Desktop/UberSplatData.slk");
+//    FS_ExtractFile("Units\\MiscData.txt", "/Users/igor/Desktop/MiscData.txt");
+//    FS_ExtractFile("Abilities\\Weapons\\FireBallMissile\\FireBallMissile.mdx", "/Users/igor/Desktop/FireBallMissile.mdx");
 //    FS_ExtractFile("UI\\FrameDef\\GlobalStrings.fdf", "/Users/igor/Desktop/GlobalStrings.fdf");
 //    FS_ExtractFile("UI\\FrameDef\\UI\\ConsoleUI.fdf", "/Users/igor/Desktop/ConsoleUI.fdf");
 
-#if 1
+#if 0
     SFILE_FIND_DATA findData;
     HANDLE handle = SFileFindFirstFile(archives[0], "*", &findData, 0);
     if (handle) {

@@ -271,7 +271,7 @@ void CM_ReadUnits(HANDLE archive) {
     DWORD version;
     DWORD num_units;
     HANDLE file;
-    SFileExtractFile(archive, "war3map.w3u", "/Users/igor/Desktop/war3map.w3u", 0);
+//    SFileExtractFile(archive, "war3map.w3u", "/Users/igor/Desktop/war3map.w3u", 0);
     SFileOpenFileEx(archive, "war3map.w3u", SFILE_OPEN_FROM_MPQ, &file);
     SFileReadFile(file, &version, 4, NULL, NULL);
     SFileReadFile(file, &num_units, 4, NULL, NULL);
