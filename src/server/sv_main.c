@@ -1,5 +1,7 @@
 #include "server.h"
 
+//#define PRINT_ANIMATIONS
+
 struct game_export *ge;
 struct server sv;
 struct server_static svs;
@@ -74,7 +76,7 @@ enum {
     ID_PIVT = MAKEFOURCC('P','I','V','T'),
 };
 
-void ConvertMDLXAnimationName(animation_t *seq) {
+void ConvertMDLXAnimationName(LPANIMATION seq) {
     char *last_char = seq->name;
     for (char *ch = seq->name; *ch; ch++) {
         if (isnumber(*ch) || *ch == '-') {
@@ -141,8 +143,8 @@ static HANDLE ReadEntry(HANDLE file, DWORD offset, DWORD size) {
 }
 
 int compare_animation_name(const void *a, const void *b) {
-    const animation_t *value1 = (const animation_t *)a;
-    const animation_t *value2 = (const animation_t *)b;
+    LPCANIMATION value1 = (LPCANIMATION )a;
+    LPCANIMATION value2 = (LPCANIMATION )b;
     return strcmp(value1->name, value2->name);
 }
 
@@ -162,7 +164,7 @@ static struct cmodel *SV_LoadModelMD34(HANDLE file) {
         FOR_LOOP(j, re->nEntries) {
             struct Sequence *src = seq+j;
             char *name = ReadEntry(file, ent[src->name.ref].offset, src->name.nEntries);
-            animation_t *dest = model->animations+j;
+            LPANIMATION dest = model->animations+j;
             strncpy(model->animations[j].name, name, sizeof(model->animations[j].name));
             dest->interval[0] = startanim + src->interval[0];
             dest->interval[1] = startanim + src->interval[1];
@@ -171,7 +173,7 @@ static struct cmodel *SV_LoadModelMD34(HANDLE file) {
         }
         qsort(model->animations, model->num_animations, sizeof(animation_t), compare_animation_name);
         FOR_LOOP(j, re->nEntries) {
-            animation_t *dest = model->animations+j;
+            LPANIMATION dest = model->animations+j;
             ConvertMDLXAnimationName(dest);
         }
         break;
@@ -198,10 +200,12 @@ static struct cmodel *SV_LoadModelMDLX(HANDLE file) {
                 break;
         }
     }
-//    FOR_LOOP(i, model->num_animations){
-//        animation_t *anim = &model->animations[i];
-//        printf("  %s %d %d\n",  anim->name, anim->interval[0], anim->interval[1]);
-//    }
+#ifdef PRINT_ANIMATIONS
+    FOR_LOOP(i, model->num_animations){
+        LPANIMATION anim = &model->animations[i];
+        printf("  %s %d %d\n",  anim->name, anim->interval[0], anim->interval[1]);
+    }
+#endif
     return model;
 }
 
@@ -216,7 +220,9 @@ static struct cmodel *SV_LoadModel(LPCSTR filename) {
             return NULL;
         }
     }
-//    printf("%s\n", filename);
+#ifdef PRINT_ANIMATIONS
+    printf("%s\n", filename);
+#endif
     struct cmodel *model = NULL;
     SFileReadFile(file, &fileheader, 4, NULL, NULL);
     switch (fileheader) {
@@ -246,7 +252,7 @@ int SV_ModelIndex(LPCSTR name) {
     if (!strstr(name, "Doodads\\")) {
         printf("%s\n", name);
 //        FOR_LOOP(i, sv.models[modelindex]->num_animations){
-//            animation_t *anim = &sv.models[modelindex]->animations[i];
+//            LPANIMATION anim = &sv.models[modelindex]->animations[i];
 //            printf("    %s\n", anim->name);
 //        }
     }

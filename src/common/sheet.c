@@ -43,14 +43,6 @@ static TCHAR *GetToken(TCHAR *buffer, DWORD index) {
     return buffer;
 }
 
-static DWORD Sheet_GetHeight(LPSHEET sheet) {
-    DWORD height = 0;
-    FOR_EACH_LIST(struct SheetCell const, cell, sheet) {
-        height = MAX(height, cell->row);
-    }
-    return height;
-}
-
 //int text_size = 0;
 
 static void FS_FillSheetCell(DWORD x, DWORD y, LPSTR text) {

@@ -137,7 +137,7 @@ void MemFree(HANDLE mem);
 void Sys_MkDir(LPCSTR directory);
 
 struct edict_s;
-handle_t CM_BuildHeatmap(struct edict_s *goalentity);
+DWORD CM_BuildHeatmap(struct edict_s *goalentity);
 
 // parser.c
 LPSTR ParserGetTokenEx(parser_t *p, bool sameLine);

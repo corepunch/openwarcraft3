@@ -76,13 +76,13 @@ LPCSTR FontFlags[] = {
 };
 
 #define MAX_UI_CLASSES 256
-#define F(x, type) { #x,((uint8_t *)&((uiFrameDef_t*)0)->x - (uint8_t *)NULL), Parse##type }
+#define F(x, type) { #x,((uint8_t *)&((UIFRAMEDEF*)0)->x - (uint8_t *)NULL), Parse##type }
 #define ITEM(x) { #x, x }
 #define TARGET(TYPE) TYPE *target = (TYPE *)((uint8_t *)frame + arg->fofs);
 
-uiFrameDef_t frames[MAX_UI_CLASSES] = { 0 };
+UIFRAMEDEF frames[MAX_UI_CLASSES] = { 0 };
 
-void FDF_ParseFrame(WordExtractor *p, uiFrameDef_t *frame);
+void FDF_ParseFrame(WordExtractor *p, UIFRAMEDEF *frame);
 
 void UI_PrintClasses(void) {
     FOR_LOOP(i, MAX_UI_CLASSES) {
@@ -94,8 +94,8 @@ void UI_ClearTemplates(void) {
     memset(frames, 0, sizeof(frames));
 }
 
-void UI_InitFrame(uiFrameDef_t *frame, DWORD number, uiFrameType_t type) {
-    memset(frame, 0, sizeof(uiFrameDef_t));
+void UI_InitFrame(UIFRAMEDEF *frame, DWORD number, uiFrameType_t type) {
+    memset(frame, 0, sizeof(UIFRAMEDEF));
     frame->inuse = true;
     frame->f.number = number;
     frame->f.flags.type = type;
@@ -110,10 +110,10 @@ void UI_InitFrame(uiFrameDef_t *frame, DWORD number, uiFrameType_t type) {
     }
 }
 
-uiFrameDef_t *UI_Spawn(uiFrameType_t type, uiFrameDef_t *parent) {
+UIFRAMEDEF *UI_Spawn(uiFrameType_t type, UIFRAMEDEF *parent) {
     FOR_LOOP(i, MAX_UI_CLASSES) {
         if (i==0) continue;
-        uiFrameDef_t *frame = &frames[i];
+        UIFRAMEDEF *frame = &frames[i];
         if (!frame->inuse) {
             UI_InitFrame(frame, i, type);
             frame->f.parent = parent ? parent->f.number : 0;
@@ -126,18 +126,18 @@ uiFrameDef_t *UI_Spawn(uiFrameType_t type, uiFrameDef_t *parent) {
 typedef struct {
     LPCSTR name;
     DWORD fofs;
-    void (*func)(LPCSTR, uiFrameDef_t *frame, void *);
+    void (*func)(LPCSTR, UIFRAMEDEF *frame, void *);
 } parseArg_t;
 
 typedef struct {
     LPCSTR name;
     parseArg_t args[16];
-    void (*func)(WordExtractor *, uiFrameDef_t *);
+    void (*func)(WordExtractor *, UIFRAMEDEF *);
 } parseItem_t;
 
 typedef struct {
     LPCSTR name;
-    void (*func)(WordExtractor *, uiFrameDef_t *);
+    void (*func)(WordExtractor *, UIFRAMEDEF *);
 } parseClass_t;
 
 void parser_error(WordExtractor *parser) {
@@ -162,7 +162,7 @@ int ParseEnum(WordExtractor *p, LPCSTR const *values) {
     return value;
 }
 
-LPCSTR UI_ApplySkin(LPCSTR entry, bool force) {
+LPCSTR UI_ApplySkin(LPCSTR entry, BOOL force) {
     LPCSTR filename = gi.FindSheetCell(game.config.theme, "Default", entry);
     if (filename) {
         return filename;
@@ -182,30 +182,30 @@ LPCSTR EnsureExtension(LPCSTR file, LPCSTR ext) {
     }
 }
 
-DWORD UI_LoadTexture(LPCSTR file, bool decorate) {
+DWORD UI_LoadTexture(LPCSTR file, BOOL decorate) {
     file = UI_ApplySkin(file, decorate);
     file = EnsureExtension(file, ".blp");
     return gi.ImageIndex(file);
 }
 
 #define MAKE_PARSER(TYPE) \
-void Parse##TYPE(LPCSTR token, uiFrameDef_t *frame, void *out)
+void Parse##TYPE(LPCSTR token, UIFRAMEDEF *frame, void *out)
 
 #define MAKE_PARSERCALL(TYPE) \
-void TYPE(WordExtractor *parser, uiFrameDef_t *frame)
+void TYPE(WordExtractor *parser, UIFRAMEDEF *frame)
 
 #define MAKE_ENUMPARSER(TYPE, FIELD) \
 MAKE_PARSER(TYPE) { \
     frame->f.flags.FIELD = ParseEnumString(token, TYPE); \
 }
 
-MAKE_PARSER(Float) { *((float *)out) = atof(token); }
-MAKE_PARSER(Float8) { *((uint8_t *)out) = atof(token) * 0xff; }
-MAKE_PARSER(Float16) { *((int16_t *)out) = ceilf(UI_SCALE(atof(token))); }
-MAKE_PARSER(Integer) { *((int *)out) = atoi(token); }
-MAKE_PARSER(Vector2) { float *v = out; sscanf(token, "%f %f", v+0, v+1); }
-MAKE_PARSER(Vector3) { float *v = out; sscanf(token, "%f %f %f", v+0, v+1, v+2); }
-MAKE_PARSER(Vector4) { float *v = out; sscanf(token, "%f %f %f %f", v+0, v+1, v+2, v+3); }
+MAKE_PARSER(Float) { *((FLOAT *)out) = atof(token); }
+MAKE_PARSER(Float8) { *((BYTE *)out) = atof(token) * 0xff; }
+MAKE_PARSER(Float16) { *((SHORT *)out) = ceilf(UI_SCALE(atof(token))); }
+MAKE_PARSER(Integer) { *((LONG *)out) = atoi(token); }
+MAKE_PARSER(Vector2) { FLOAT *v = out; sscanf(token, "%f %f", v+0, v+1); }
+MAKE_PARSER(Vector3) { FLOAT *v = out; sscanf(token, "%f %f %f", v+0, v+1, v+2); }
+MAKE_PARSER(Vector4) { FLOAT *v = out; sscanf(token, "%f %f %f %f", v+0, v+1, v+2, v+3); }
 MAKE_PARSER(Color) {
     VECTOR4 vec4;
     ParseVector4(token, frame, &vec4);
@@ -264,11 +264,11 @@ MAKE_PARSER(FramePointType) {
 }
 
 MAKE_PARSER(File) {
-    bool decorate = frame->DecorateFileNames | frames[frame->f.parent].DecorateFileNames;
+    BOOL decorate = frame->DecorateFileNames | frames[frame->f.parent].DecorateFileNames;
     switch (frame->f.flags.type) {
         case FT_TEXTURE:
         case FT_BACKDROP:
-            frame->f.tex.index = UI_LoadTexture(token, decorate);
+            *((DWORD *)out) = UI_LoadTexture(token, decorate);
             break;
         default:
             fprintf(stderr, "\"File\" not supported here\n");
@@ -350,7 +350,7 @@ MAKE_PARSERCALL(String) {
 MAKE_PARSERCALL(Frame) {
     LPCSTR stype = getFirstWord(parser);
     uiFrameType_t type = ParseEnumString(stype, FrameType);
-    uiFrameDef_t *current = UI_Spawn(type, frame);
+    UIFRAMEDEF *current = UI_Spawn(type, frame);
     FDF_ParseFrame(parser, current);
 }
 
@@ -360,8 +360,8 @@ MAKE_PARSERCALL(IncludeFile) {
 }
 
 MAKE_PARSERCALL(StringList) {
-    uiFrameDef_t string_list;
-    memset(&string_list, 0, sizeof(uiFrameDef_t));
+    UIFRAMEDEF string_list;
+    memset(&string_list, 0, sizeof(UIFRAMEDEF));
     string_list.f.flags.type = FT_STRINGLIST;
     FDF_ParseFrame(parser, &string_list);
 }
@@ -405,19 +405,19 @@ parseItem_t items[] = {
     { "UseActiveContext", F_END, UseActiveContext },
     { "DialogBackdrop", { F(DialogBackdrop, FrameNumber), F_END } },
     { "BackdropTileBackground", F_END, BackdropTileBackground },
-    { "BackdropBackground", { F(f.tex.index, File), F_END } },
+    { "BackdropBackground", { F(Backdrop.Background, File), F_END } },
     { "BackdropCornerFlags", { F(Backdrop.CornerFlags, Name), F_END } },
     { "BackdropCornerSize", { F(Backdrop.CornerSize, Float), F_END } },
     { "BackdropBackgroundSize", { F(Backdrop.BackgroundSize, Float), F_END } },
     { "BackdropBackgroundInsets", { F(Backdrop.BackgroundInsets, Vector4), F_END } },
-    { "BackdropEdgeFile", { F(Backdrop.EdgeFile, Name), NULL } },
+    { "BackdropEdgeFile", { F(Backdrop.EdgeFile, File), NULL } },
     { "BackdropBlendAll", F_END, BackdropBlendAll },
     { "SetAllPoints", F_END, SetAllPoints },
     // End of list
     F_END
 };
 
-void parse_item(WordExtractor *parser, uiFrameDef_t *frame, parseItem_t *item) {
+void parse_item(WordExtractor *parser, UIFRAMEDEF *frame, parseItem_t *item) {
     for (parseArg_t *arg = item->args; arg->name; arg++) {
         LPCSTR token = getNextSegment(parser);
         arg->func(token, frame, (uint8_t *)frame + arg->fofs);
@@ -430,7 +430,7 @@ void parse_item(WordExtractor *parser, uiFrameDef_t *frame, parseItem_t *item) {
     }
 }
 
-void parse_func(WordExtractor *parser, uiFrameDef_t *frame) {
+void parse_func(WordExtractor *parser, UIFRAMEDEF *frame) {
     LPCSTR token = NULL;
     while ((token = getFirstWord(parser)) && (*token != '}')) {
         if (frame->f.flags.type == FT_STRINGLIST) {
@@ -461,21 +461,21 @@ void parse_func(WordExtractor *parser, uiFrameDef_t *frame) {
     }
 }
 
-uiFrameDef_t *FindFrameTemplate(LPCSTR str) {
+UIFRAMEDEF *FindFrameTemplate(LPCSTR str) {
     FOR_LOOP(i, MAX_UI_CLASSES) {
-        uiFrameDef_t *tmp = frames+i;
+        UIFRAMEDEF *tmp = frames+i;
         if (!strcmp(tmp->Name, str))
             return tmp;
     }
     return NULL;
 }
 
-void UI_InheritFrom(uiFrameDef_t *frame, LPCSTR inheritName) {
-    uiFrameDef_t *inherit = FindFrameTemplate(inheritName);
+void UI_InheritFrom(UIFRAMEDEF *frame, LPCSTR inheritName) {
+    UIFRAMEDEF *inherit = FindFrameTemplate(inheritName);
     if (inherit && inherit->f.flags.type == frame->f.flags.type) {
-        uiFrameDef_t tmp;
-        memcpy(&tmp, frame, sizeof(uiFrameDef_t));
-        memcpy(frame, inherit, sizeof(uiFrameDef_t));
+        UIFRAMEDEF tmp;
+        memcpy(&tmp, frame, sizeof(UIFRAMEDEF));
+        memcpy(frame, inherit, sizeof(UIFRAMEDEF));
         memcpy(frame->Name, tmp.Name, sizeof(UINAME));
         frame->f.parent = tmp.f.parent;
         frame->f.number = tmp.f.number;
@@ -487,13 +487,13 @@ void UI_InheritFrom(uiFrameDef_t *frame, LPCSTR inheritName) {
     }
 }
 
-void FDF_ParseFrame(WordExtractor *p, uiFrameDef_t *frame) {
+void FDF_ParseFrame(WordExtractor *p, UIFRAMEDEF *frame) {
     DWORD state = 0;
     LPCSTR tok;
     while ((tok = getFirstWord(p)) && (*tok != '{')) {
         if (!strcmp(tok, "INHERITS")) {
             LPCSTR inheritName = getFirstWord(p);
-            bool withChildren = false;
+            BOOL withChildren = false;
             if (!strcmp(inheritName, "WITHCHILDREN")) {
                 withChildren = true;
                 inheritName = getFirstWord(p);
@@ -511,7 +511,7 @@ void FDF_ParseFrame(WordExtractor *p, uiFrameDef_t *frame) {
     parse_func(p, frame);
 }
 
-uiFrameDef_t *UI_FindFrame(LPCSTR name) {
+UIFRAMEDEF *UI_FindFrame(LPCSTR name) {
     FOR_LOOP(i, MAX_UI_CLASSES) {
         if (!strcmp(frames[i].Name, name)) {
             return frames+i;
@@ -520,13 +520,13 @@ uiFrameDef_t *UI_FindFrame(LPCSTR name) {
     return NULL;
 }
 
-uiFrameDef_t *UI_FindChildFrame(uiFrameDef_t *frame, LPCSTR name) {
+UIFRAMEDEF *UI_FindChildFrame(UIFRAMEDEF *frame, LPCSTR name) {
     if (!strcmp(frame->Name, name))
         return frame;
     FOR_LOOP(i, MAX_UI_CLASSES) {
         if (frames[i].f.parent != frame->f.number)
             continue;
-        uiFrameDef_t *found = UI_FindChildFrame(frames+i, name);
+        UIFRAMEDEF *found = UI_FindChildFrame(frames+i, name);
         if (found)
             return found;
     }
@@ -535,7 +535,7 @@ uiFrameDef_t *UI_FindChildFrame(uiFrameDef_t *frame, LPCSTR name) {
 
 void FDF_ParseScene(WordExtractor *parser) {
     LPCSTR token = NULL;
-    uiFrameDef_t *frame = NULL;
+    UIFRAMEDEF *frame = NULL;
     while (*(token = getFirstWord(parser))) {
         for (parseClass_t *it = classes; it->name; it++) {
             if (!strcmp(it->name, token)) {
@@ -567,18 +567,18 @@ void UI_ParseFDF(LPCSTR fileName) {
     gi.MemFree(buffer2);
 }
 
-void UI_WriteFrameWithChildren(uiFrameDef_t const *frame) {
+void UI_WriteFrameWithChildren(UIFRAMEDEF const *frame) {
     gi.WriteUIFrame(&frame->f);
     FOR_LOOP(i, MAX_UI_CLASSES) {
-        uiFrameDef_t const *it = frames+i;
-        if (it->f.parent == frame->f.number && it->f.number > 0) {
+        UIFRAMEDEF const *it = frames+i;
+        if (it->f.parent == frame->f.number && it->f.number > 0 && !it->hidden) {
             UI_WriteFrameWithChildren(it);
         }
     }
 }
 
-void UI_WriteLayout(edict_t *ent,
-                    uiFrameDef_t const *root,
+void UI_WriteLayout(LPEDICT ent,
+                    UIFRAMEDEF const *root,
                     DWORD layer)
 {
     gi.WriteByte(svc_layout);
@@ -588,7 +588,7 @@ void UI_WriteLayout(edict_t *ent,
     gi.unicast(ent);
 }
 
-void UI_WriteLayout2(edict_t *ent,
+void UI_WriteLayout2(LPEDICT ent,
                      void (*BuildUI)(gclient_t *),
                      DWORD layer)
 {
@@ -599,7 +599,7 @@ void UI_WriteLayout2(edict_t *ent,
     gi.unicast(ent);
 }
 
-void UI_SetPointByNumber(uiFrameDef_t *frame,
+void UI_SetPointByNumber(UIFRAMEDEF *frame,
                          UIFRAMEPOINT framePoint,
                          DWORD otherNumber,
                          UIFRAMEPOINT otherPoint,
@@ -614,9 +614,9 @@ void UI_SetPointByNumber(uiFrameDef_t *frame,
     SetPoint(NULL, frame);
 }
 
-void UI_SetPoint(uiFrameDef_t *frame,
+void UI_SetPoint(UIFRAMEDEF *frame,
                  UIFRAMEPOINT framePoint,
-                 uiFrameDef_t *other,
+                 UIFRAMEDEF *other,
                  UIFRAMEPOINT otherPoint,
                  SHORT x,
                  SHORT y)
@@ -624,16 +624,16 @@ void UI_SetPoint(uiFrameDef_t *frame,
     UI_SetPointByNumber(frame, framePoint, other ? other->f.number : 0, otherPoint, x, y);
 }
 
-void UI_SetAllPoints(uiFrameDef_t *frame) {
+void UI_SetAllPoints(UIFRAMEDEF *frame) {
     UI_SetPointByNumber(frame, FRAMEPOINT_TOPLEFT, UI_PARENT, FRAMEPOINT_TOPLEFT, 0, 0);
     UI_SetPointByNumber(frame, FRAMEPOINT_BOTTOMRIGHT, UI_PARENT, FRAMEPOINT_BOTTOMRIGHT, 0, 0);
 }
 
-void UI_SetParent(uiFrameDef_t *frame, uiFrameDef_t *parent) {
+void UI_SetParent(UIFRAMEDEF *frame, UIFRAMEDEF *parent) {
     frame->f.parent = parent ? parent->f.number : 0;
 }
 
-void UI_SetText(uiFrameDef_t *frame, LPCSTR format, ...) {
+void UI_SetText(UIFRAMEDEF *frame, LPCSTR format, ...) {
     va_list argptr;
     static char text[1024];
     va_start(argptr, format);
@@ -642,7 +642,7 @@ void UI_SetText(uiFrameDef_t *frame, LPCSTR format, ...) {
     strcpy(frame->f.text, UI_GetString(text));
 }
 
-void UI_SetSize(uiFrameDef_t *frame, DWORD width, DWORD height) {
+void UI_SetSize(UIFRAMEDEF *frame, DWORD width, DWORD height) {
     frame->f.size.width = width;
     frame->f.size.height = height;
 }
@@ -656,15 +656,19 @@ LPCSTR UI_GetString(LPCSTR textID) {
     return textID;
 }
 
-void UI_SetTexture(uiFrameDef_t *frame, LPCSTR name, bool decorate) {
+void UI_SetTexture(UIFRAMEDEF *frame, LPCSTR name, BOOL decorate) {
     frame->f.tex.index = UI_LoadTexture(name, decorate);
 }
 
-void UI_SetTexture2(uiFrameDef_t *frame, LPCSTR name, bool decorate) {
+void UI_SetTexture2(UIFRAMEDEF *frame, LPCSTR name, BOOL decorate) {
     frame->f.tex.index2 = UI_LoadTexture(name, decorate);
 }
 
-void UI_SetOffset(uiFrameDef_t *frame, SHORT x, SHORT y) {
+void UI_SetOffset(UIFRAMEDEF *frame, SHORT x, SHORT y) {
     frame->f.offset.x = x;
     frame->f.offset.y = y;
+}
+
+void UI_SetHidden(UIFRAMEDEF *frame, BOOL value) {
+    frame->hidden = value;
 }

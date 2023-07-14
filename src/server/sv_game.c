@@ -78,7 +78,7 @@ void PF_error(LPCSTR fmt, ...) {
     fprintf(stderr, "Game Error: %s\n", msg);
 }
 
-animation_t const *SV_GetAnimation(int modelindex, LPCSTR animname) {
+LPCANIMATION SV_GetAnimation(int modelindex, LPCSTR animname) {
     struct cmodel *model = sv.models[modelindex];
     if (!model)
         return NULL;
@@ -90,7 +90,7 @@ animation_t const *SV_GetAnimation(int modelindex, LPCSTR animname) {
     return NULL;
 }
 
-VECTOR2 get_flow_direction(handle_t heatmapindex, float fx, float fy);
+VECTOR2 get_flow_direction(DWORD heatmapindex, float fx, float fy);
 
 void SV_InitGameProgs(void) {
     struct game_import import;

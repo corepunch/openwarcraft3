@@ -13,6 +13,7 @@
 		7859EF622A2D0DDB0099A70E /* p_hud.c in Sources */ = {isa = PBXBuildFile; fileRef = 7859EF612A2D0DDB0099A70E /* p_hud.c */; };
 		786630612A188F4800266A62 /* g_phys.c in Sources */ = {isa = PBXBuildFile; fileRef = 7866305F2A188F4800266A62 /* g_phys.c */; };
 		786630652A18BFAC00266A62 /* g_ai.c in Sources */ = {isa = PBXBuildFile; fileRef = 786630642A18BFAC00266A62 /* g_ai.c */; };
+		7893D1252A614222005365DA /* s_train.c in Sources */ = {isa = PBXBuildFile; fileRef = 7893D1242A614222005365DA /* s_train.c */; };
 		78A000E82A3C8B5B00FE16C9 /* m_tree.c in Sources */ = {isa = PBXBuildFile; fileRef = 78A000E72A3C8B5B00FE16C9 /* m_tree.c */; };
 		78A000EB2A3CEB0A00FE16C9 /* s_harvest_lumber.c in Sources */ = {isa = PBXBuildFile; fileRef = 78A000EA2A3CEB0A00FE16C9 /* s_harvest_lumber.c */; };
 		78A000EF2A3E28AD00FE16C9 /* s_move.c in Sources */ = {isa = PBXBuildFile; fileRef = 78A000EE2A3E28AD00FE16C9 /* s_move.c */; };
@@ -43,6 +44,7 @@
 		7866305F2A188F4800266A62 /* g_phys.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = g_phys.c; sourceTree = "<group>"; };
 		786630642A18BFAC00266A62 /* g_ai.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = g_ai.c; sourceTree = "<group>"; };
 		786637B62A1A5B6200266A62 /* warcraftdoc.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = warcraftdoc.txt; sourceTree = "<group>"; };
+		7893D1242A614222005365DA /* s_train.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = s_train.c; sourceTree = "<group>"; };
 		78A000E72A3C8B5B00FE16C9 /* m_tree.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = m_tree.c; sourceTree = "<group>"; };
 		78A000E92A3CA9A000FE16C9 /* common.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = common.txt; sourceTree = "<group>"; };
 		78A000EA2A3CEB0A00FE16C9 /* s_harvest_lumber.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = s_harvest_lumber.c; sourceTree = "<group>"; };
@@ -88,6 +90,7 @@
 				78A000EA2A3CEB0A00FE16C9 /* s_harvest_lumber.c */,
 				78A000EE2A3E28AD00FE16C9 /* s_move.c */,
 				78FC6C352A25F66500C9F93D /* s_skills.c */,
+				7893D1242A614222005365DA /* s_train.c */,
 			);
 			path = skills;
 			sourceTree = "<group>";
@@ -219,6 +222,7 @@
 				786630652A18BFAC00266A62 /* g_ai.c in Sources */,
 				78A896752A15F7D600BC5B56 /* m_unit.c in Sources */,
 				5DE0B2772A2E688400B6DA83 /* p_fdf.c in Sources */,
+				7893D1252A614222005365DA /* s_train.c in Sources */,
 				78BBB9AB2A44CC2000B0FC57 /* s_goldmine.c in Sources */,
 				78A000F82A40217800FE16C9 /* s_build.c in Sources */,
 				78A000EB2A3CEB0A00FE16C9 /* s_harvest_lumber.c in Sources */,

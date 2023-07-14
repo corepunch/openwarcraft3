@@ -34,6 +34,7 @@
 #define UNIT_MOVE_TYPE(UNIT) UnitIntegerField(UnitsMetaData, UNIT, "umvt")
 #define UNIT_TARGETED_AS(UNIT) UnitStringField(UnitsMetaData, UNIT, "utar")
 #define UNIT_BUILD_TIME(UNIT) UnitIntegerField(UnitsMetaData, UNIT, "ubld")
+#define UNIT_BUILD_TIME_MSEC(UNIT) (UnitIntegerField(UnitsMetaData, UNIT, "ubld") * 1000)
 #define UNIT_GOLD_COST(UNIT) UnitIntegerField(UnitsMetaData, UNIT, "ugol")
 #define UNIT_LUMBER_COST(UNIT) UnitIntegerField(UnitsMetaData, UNIT, "ulum")
 #define UNIT_FOOD_USED(UNIT) UnitIntegerField(UnitsMetaData, UNIT, "ufoo")

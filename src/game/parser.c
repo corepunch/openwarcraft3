@@ -59,8 +59,8 @@ LPCSTR getNextSegment(WordExtractor* p) {
 }
 
 void removeComments(char *buffer) {
-    bool in_single_line_comment = false;
-    bool in_block_comment = false;
+    BOOL in_single_line_comment = false;
+    BOOL in_block_comment = false;
     char *src = buffer;
     char *dest = buffer;
     while (*src != '\0') {

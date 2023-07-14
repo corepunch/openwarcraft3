@@ -1,11 +1,11 @@
 #include "g_local.h"
 
-EDICT_FUNC(attack_walk);
-EDICT_FUNC(attack_melee);
-EDICT_FUNC(attack_cooldown);
+void attack_walk(LPEDICT ent);
+void attack_melee(LPEDICT ent);
+void attack_cooldown(LPEDICT ent);
 
 typedef struct {
-    edict_t *target;
+    LPEDICT target;
     VECTOR3 start;
     VECTOR3 dir;
     DWORD speed;
@@ -13,10 +13,10 @@ typedef struct {
     DWORD damage;
 }  rocketDesc_t;
 
-void fire_rocket(edict_t *ent, rocketDesc_t const *desc) {
+void fire_rocket(LPEDICT ent, rocketDesc_t const *desc) {
     VECTOR3 dir = Vector3_sub(&desc->target->s.origin, &ent->s.origin);
     Vector3_normalize(&dir);
-    edict_t *rocket = G_Spawn();
+    LPEDICT rocket = G_Spawn();
     rocket->s.origin = desc->start;
     rocket->s.angle = atan2f(dir.y, dir.x);
     rocket->s.model = desc->model;
@@ -48,8 +48,8 @@ void fire_rocket(edict_t *ent, rocketDesc_t const *desc) {
 //    gi.linkentity (rocket);
 }
 
-static float ai_rolldamage1(edict_t *self, int weapon) {
-    float damageBase = self->attack1.damageBase;
+static FLOAT ai_rolldamage1(LPEDICT self, int weapon) {
+    FLOAT damageBase = self->attack1.damageBase;
     FOR_LOOP(i, self->attack1.numberOfDice) {
         damageBase += rand() % self->attack1.sidesPerDie + 1;
     }
@@ -63,8 +63,8 @@ void M_GetEntityMatrix(entityState_t const *entity, LPMATRIX4 matrix) {
     Matrix4_scale(matrix, &(VECTOR3){entity->scale, entity->scale, entity->scale});
 }
 
-static EDICT_FUNC(ai_damagetarget) {
-    edict_t *other = ent->goalentity;
+static void ai_damagetarget(LPEDICT ent) {
+    LPEDICT other = ent->goalentity;
     DWORD damage = ai_rolldamage1(ent, 1);
     if (ent->attack1.weapon == WPN_MISSILE) {
         MATRIX4 matrix;
@@ -90,17 +90,17 @@ static EDICT_FUNC(ai_damagetarget) {
     }
 }
 
-static EDICT_FUNC(ai_cooldown) {
+static void ai_cooldown(LPEDICT ent) {
     M_RunWait(ent, attack_melee);
 }
 
-static EDICT_FUNC(ai_melee) {
+static void ai_melee(LPEDICT ent) {
     M_ChangeAngle(ent);
     M_RunWait(ent, ai_damagetarget);
 }
 
-static EDICT_FUNC(ai_walk) {
-    float range = UNIT_ATTACK1_RANGE(ent->class_id);
+static void ai_walk(LPEDICT ent) {
+    FLOAT range = UNIT_ATTACK1_RANGE(ent->class_id);
     if (M_DistanceToGoal(ent) < range) {
         attack_melee(ent);
     } else {
@@ -113,22 +113,22 @@ static umove_t attack_move_walk = { "walk", ai_walk };
 static umove_t attack_move_cooldown = { "stand ready", ai_cooldown };
 static umove_t attack_move_melee = { "attack", ai_melee, attack_cooldown };
 
-void attack_start(edict_t *self, edict_t *target) {
+void attack_start(LPEDICT self, LPEDICT target) {
     self->goalentity = target;
     M_SetMove(self, &attack_move_walk);
 }
 
-void attack_cooldown(edict_t *self) {
+void attack_cooldown(LPEDICT self) {
     M_SetMove(self, &attack_move_cooldown);
     self->wait = self->attack1.cooldown;
 }
 
-void attack_melee(edict_t *self) {
+void attack_melee(LPEDICT self) {
     M_SetMove(self, &attack_move_melee);
     self->wait = self->attack1.damagePoint;
 }
 
-bool attack_menu_selecttarget(edict_t *ent, edict_t *target) {
+BOOL attack_menu_selecttarget(LPEDICT ent, LPEDICT target) {
     if (target->targtype == TARG_GROUND) {
         FOR_SELECTED_UNITS(ent->client, e) {
             attack_start(e, target);
@@ -139,7 +139,7 @@ bool attack_menu_selecttarget(edict_t *ent, edict_t *target) {
     }
 }
 
-void attack_command(edict_t *ent) {
+void attack_command(LPEDICT ent) {
     UI_AddCancelButton(ent);
     ent->client->menu.on_entity_selected = attack_menu_selecttarget;
 }

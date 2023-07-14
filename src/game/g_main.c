@@ -18,7 +18,7 @@ LPCSTR miscdata_files[] = {
     NULL
 };
 
-static void InitMiscValue(LPCSTR name, float *dest) {
+static void InitMiscValue(LPCSTR name, FLOAT *dest) {
     LPCSTR strvalue = gi.FindSheetCell(game.config.misc, "Misc", name);
     *dest = strvalue ? atof(strvalue) : 0;
 }
@@ -96,7 +96,7 @@ playerState_t *G_GetPlayerByNumber(DWORD number) {
     return NULL;
 }
 
-static void Init_ResourceBar(uiFrameDef_t *ConsoleUI) {
+static void Init_ResourceBar(UIFRAMEDEF *ConsoleUI) {
     UI_FRAME(ResourceBarFrame);
     UI_FRAME(ResourceBarGoldText);
     UI_FRAME(ResourceBarLumberText);
@@ -110,7 +110,7 @@ static void Init_ResourceBar(uiFrameDef_t *ConsoleUI) {
     UI_SetPoint(ResourceBarFrame, FRAMEPOINT_TOPRIGHT, ConsoleUI, FRAMEPOINT_TOPRIGHT, 0, 0);
 }
 
-static void G_ClientBegin(edict_t *edict) {
+static void G_ClientBegin(LPEDICT edict) {
     UI_ClearTemplates();
     
     UI_ParseFDF("UI\\FrameDef\\GlobalStrings.fdf");

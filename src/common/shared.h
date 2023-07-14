@@ -131,6 +131,7 @@ typedef struct mdxModel_s mdxModel_t;
 
 // Typedefs for ANSI C
 typedef unsigned char  BYTE;
+typedef unsigned char  BOOL;
 typedef unsigned short USHORT;
 typedef int            LONG;
 typedef short          SHORT;
@@ -141,6 +142,7 @@ typedef long           LONG_PTR;
 typedef long           INT_PTR;
 typedef long long      LONGLONG;
 typedef unsigned long long ULONGLONG;
+typedef float          FLOAT;
 typedef void         * HANDLE;
 typedef void         * LPOVERLAPPED; // Unsupported on Linux and Mac
 typedef char           TCHAR;
@@ -148,11 +150,12 @@ typedef unsigned int   LCID;
 typedef LONG         * PLONG;
 typedef DWORD        * LPDWORD;
 typedef BYTE         * LPBYTE;
+typedef FLOAT        * LPFLOAT;
 typedef const char   * LPCTSTR;
 typedef const char   * LPCSTR;
 typedef char         * LPTSTR;
 typedef char         * LPSTR;
-typedef unsigned int   handle_t;
+typedef FLOAT const  * LPCFLOAT;
 typedef char           PATHSTR[MAX_PATHLEN];
 typedef void const   * LPCVOID;
 typedef struct color { float r, g, b, a; } color_t;
@@ -168,6 +171,7 @@ KNOWN_AS(SheetCell, SHEET);
 KNOWN_AS(Doodad, DOODAD);
 KNOWN_AS(vector3, VECTOR3);
 KNOWN_AS(color32, COLOR32);
+KNOWN_AS(animation_s, ANIMATION);
 
 typedef enum {
     MULTICAST_ALL,
@@ -217,7 +221,7 @@ typedef struct entityState_s {
     DWORD splat;
 } entityState_t;
 
-typedef struct {
+typedef struct animation_s {
     char name[80];
     DWORD interval[2];
     float movespeed;     // movement speed of the entity while playing this animation

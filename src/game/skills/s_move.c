@@ -1,8 +1,8 @@
 #include "g_local.h"
 
-EDICT_FUNC(move_walk);
+void move_walk(LPEDICT ent);
 
-static EDICT_FUNC(ai_walk) {
+static void ai_walk(LPEDICT ent) {
     if (M_DistanceToGoal(ent) <= M_MoveDistance(ent)) {
         ent->stand(ent);
     } else {
@@ -13,13 +13,13 @@ static EDICT_FUNC(ai_walk) {
 
 static umove_t move_move_walk = { "walk", ai_walk };
 
-void move_move(edict_t *self, edict_t *target) {
+void move_move(LPEDICT self, LPEDICT target) {
     self->goalentity = target;
     M_SetMove(self, &move_move_walk);
 }
 
-bool move_selectlocation(edict_t *clent, LPCVECTOR2 location) {
-    edict_t *waypoint = Waypoint_add(location);
+BOOL move_selectlocation(LPEDICT clent, LPCVECTOR2 location) {
+    LPEDICT waypoint = Waypoint_add(location);
     FOR_SELECTED_UNITS(clent->client, ent) {
         move_move(ent, waypoint);
     }
@@ -30,7 +30,7 @@ bool move_selectlocation(edict_t *clent, LPCVECTOR2 location) {
     return true;
 }
 
-void move_command(edict_t *ent) {
+void move_command(LPEDICT ent) {
     UI_AddCancelButton(ent);
     ent->client->menu.on_location_selected = move_selectlocation;
 }

@@ -40,7 +40,7 @@ DWORD FindEnumValue(LPCSTR value, LPCSTR values[]) {
     return 0;
 }
 
-static float get_unit_collision(pathTex_t const *pathtex) {
+static FLOAT get_unit_collision(pathTex_t const *pathtex) {
     int size = 0;
     for (int x = 0; x < pathtex->width; x++) {
         if (pathtex->map[(pathtex->width + 1) * x].b)
@@ -49,15 +49,15 @@ static float get_unit_collision(pathTex_t const *pathtex) {
     return size * 16 * 1.3;
 }
 
-edict_t *Waypoint_add(LPCVECTOR2 spot) {
-    edict_t *waypoint = &waypoints[current_waypoint++ % MAX_WAYPOINTS];
+LPEDICT Waypoint_add(LPCVECTOR2 spot) {
+    LPEDICT waypoint = &waypoints[current_waypoint++ % MAX_WAYPOINTS];
     waypoint->s.origin.x = spot->x;
     waypoint->s.origin.y = spot->y;
     M_CheckGround(waypoint);
     return waypoint;
 }
 
-bool player_pay(playerState_t *ps, DWORD project) {
+BOOL player_pay(playerState_t *ps, DWORD project) {
     if (!ps) return false;
     if (UNIT_GOLD_COST(project) > ps->stats[STAT_GOLD]) return false;
     if (UNIT_LUMBER_COST(project) > ps->stats[STAT_LUMBER]) return false;
@@ -66,54 +66,28 @@ bool player_pay(playerState_t *ps, DWORD project) {
     return true;
 }
 
-DWORD *FindPlaceInBuildQueue(edict_t *ent) {
-    FOR_LOOP(i, MAX_BUILD_QUEUE) {
-        if (!ent->build.queue[i])
-            return ent->build.queue+i;
-    }
-    return NULL;
-}
-
-void SP_TrainUnit(edict_t *townhall, DWORD class_id) {
-    edict_t *clent = game_state.edicts+townhall->s.player;
-    playerState_t *player = G_GetPlayerByNumber(townhall->s.player);
-    DWORD *placeInQueue = FindPlaceInBuildQueue(townhall);
-    if (placeInQueue && player_pay(player, class_id)) {
-        if (placeInQueue == townhall->build.queue) {
-            townhall->build.queue[0] = class_id;
-            townhall->build.start = gi.GetTime();
-            townhall->build.end = gi.GetTime() + UNIT_BUILD_TIME(class_id) * 1000;
-        } else {
-            *placeInQueue = class_id;
-        }
-        Get_Commands_f(clent);
-    } else {
-        fprintf(stdout, "Not enough resources\n");
-    }
-}
-
-bool M_IsDead(edict_t *ent) {
+BOOL M_IsDead(LPEDICT ent) {
     return ent->health.value <= 0;
 }
 
-handle_t M_RefreshHeatmap(edict_t *self) {
+DWORD M_RefreshHeatmap(LPEDICT self) {
     if (!self->heatmap2) {
         self->heatmap2 = gi.BuildHeatmap(self);
     }
     return self->heatmap2;
 }
 
-void M_MoveFrame(edict_t *self) {
+void M_MoveFrame(LPEDICT self) {
     if (self->aiflags & AI_HOLD_FRAME)
         return;
     umove_t const *move = self->currentmove;
-    animation_t const *anim = self->animation;
+    LPCANIMATION anim = self->animation;
     if (!anim)
         return;
     DWORD next_frame = self->s.frame + FRAMETIME;
     if (!strcmp(anim->name, "birth")) {
         DWORD anim_len = anim->interval[1] - anim->interval[0];
-        DWORD build_time = UNIT_BUILD_TIME(self->class_id) * 1000;
+        DWORD build_time = UNIT_BUILD_TIME_MSEC(self->class_id);
         next_frame = self->s.frame + FRAMETIME * anim_len / build_time;
     }
     if (self->s.frame < anim->interval[0] ||
@@ -130,7 +104,7 @@ void M_MoveFrame(edict_t *self) {
     }
 }
 
-void monster_think(edict_t *self) {
+void monster_think(LPEDICT self) {
     if (!self->currentmove)
         return;
     M_MoveFrame(self);
@@ -139,8 +113,8 @@ void monster_think(edict_t *self) {
     }
 }
 
-void monster_start(edict_t *self) {
-    animation_t const *anim = self->animation;
+void monster_start(LPEDICT self) {
+    LPCANIMATION anim = self->animation;
     if (anim) {
         DWORD len = MAX(1, anim->interval[1] - anim->interval[0] - 1);
         self->s.frame = (anim->interval[0] + (rand() % len));
@@ -197,7 +171,7 @@ DWORD M_LoadUberSplat(LPCSTR uber_splat) {
     }
 }
 
-void SP_SpawnUnit(edict_t *self) {
+void SP_SpawnUnit(LPEDICT self) {
     PATHSTR model_filename;
     LPCSTR uber_splat = UNIT_UBER_SPLAT(self->class_id);
     LPCSTR path_tex = UNIT_PATH_TEX(self->class_id);
@@ -238,15 +212,15 @@ void SP_SpawnUnit(edict_t *self) {
     }
 }
 
-void M_CheckGround(edict_t *self) {
+void M_CheckGround(LPEDICT self) {
     self->s.origin.z = gi.GetHeightAtPoint(self->s.origin.x, self->s.origin.y);
 }
 
-bool M_CheckAttack(edict_t *self) {
+BOOL M_CheckAttack(LPEDICT self) {
     return false;
 }
 
-float M_DistanceToGoal(edict_t *ent) {
+FLOAT M_DistanceToGoal(LPEDICT ent) {
     if (ent->goalentity) {
         return Vector2_distance(&ent->goalentity->s.origin2, &ent->s.origin2);
     } else {
@@ -254,7 +228,7 @@ float M_DistanceToGoal(edict_t *ent) {
     }
 }
 
-BYTE compress_stat(edictStat_t const *stat) {
+BYTE compress_stat(EDICTSTAT const *stat) {
     if (stat->max_value <= 0) {
         return 0;
     } else {

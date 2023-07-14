@@ -76,7 +76,7 @@ typedef enum {
 } MODELCOLLISIONSHAPETYPE;
 
 struct cmodel {
-    animation_t *animations;
+    LPANIMATION animations;
     DWORD num_animations;
 };
 

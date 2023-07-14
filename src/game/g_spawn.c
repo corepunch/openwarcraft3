@@ -36,7 +36,7 @@ LPCSTR targs[] = {
     "deco", // DECORATION
 };
 
-targtype_t G_GetTargetType(LPCSTR str) {
+TARGTYPE G_GetTargetType(LPCSTR str) {
     DWORD const len = (DWORD)strlen(str);
     if (len < 3) return TARG_NONE;
     char buf[64] = { 0 };
@@ -50,7 +50,7 @@ targtype_t G_GetTargetType(LPCSTR str) {
 
 //struct spawn {
 //    LPCSTR name;
-//    void (*func)(edict_t *edict);
+//    void (*func)(LPEDICT edict);
 //};
 
 //static struct spawn spawns[] = {
@@ -60,34 +60,34 @@ targtype_t G_GetTargetType(LPCSTR str) {
 
 extern sheetRow_t *Doodads;
 
-void SP_monster_unit(edict_t *edict);
-void SP_monster_tree(edict_t *edict);
+void SP_monster_unit(LPEDICT edict);
+void SP_monster_tree(LPEDICT edict);
 
-static void G_InitEdict(edict_t *e) {
+static void G_InitEdict(LPEDICT e) {
     memset(e, 0, sizeof(edict_t));
     e->inuse = true;
     e->s.scale = 1;
     e->s.number = (int)(e - game_state.edicts);
 }
 
-void G_FreeEdict(edict_t *ent) {
+void G_FreeEdict(LPEDICT ent) {
     memset(ent, 0, sizeof(edict_t));
 }
 
-edict_t *G_Spawn(void) {
+LPEDICT G_Spawn(void) {
     for (DWORD i = game.max_clients + 1; i < globals.num_edicts; i++) {
-        edict_t *e = &game_state.edicts[i];
+        LPEDICT e = &game_state.edicts[i];
         if (!e->inuse) {
             G_InitEdict(e);
             return e;
         }
     }
-    edict_t *edict = &game_state.edicts[globals.num_edicts++];
+    LPEDICT edict = &game_state.edicts[globals.num_edicts++];
     G_InitEdict(edict);
     return edict;
 }
 
-static void SP_SpawnDoodad(edict_t *edict) {
+static void SP_SpawnDoodad(LPEDICT edict) {
     LPCSTR class_id = GetClassName(edict->class_id);
     LPCSTR dir = gi.FindSheetCell(Doodads, class_id, "dir");
     LPCSTR file = gi.FindSheetCell(Doodads, class_id, "file");
@@ -96,7 +96,7 @@ static void SP_SpawnDoodad(edict_t *edict) {
     edict->s.model = gi.ModelIndex(buffer);
 }
 
-static void SP_SpawnDestructable(edict_t *edict) {
+static void SP_SpawnDestructable(LPEDICT edict) {
     LPCSTR dir = DESTRUCTABLE_DIRECTORY(edict->class_id);
     LPCSTR file = DESTRUCTABLE_FILE(edict->class_id);
     PATHSTR buffer;
@@ -119,7 +119,7 @@ sheetRow_t *find_row(LPCSTR dood_id) {
     return NULL;
 }
 
-void SP_CallSpawn(edict_t *edict) {
+void SP_CallSpawn(LPEDICT edict) {
     if (!edict->class_id)
         return;
     if (find_row(GetClassName(edict->class_id))) {
@@ -142,7 +142,7 @@ void SP_CallSpawn(edict_t *edict) {
 //    }
 }
 
-void SP_worldspawn(edict_t *ent) {
+void SP_worldspawn(LPEDICT ent) {
     SetAbilityNames();
 }
 
@@ -152,7 +152,7 @@ void G_SpawnEntities(LPCSTR mapname, LPCDOODAD entities) {
     }
     globals.num_edicts = game.max_clients + 1;
     FOR_EACH_LIST(DOODAD const, doodad, entities) {
-        edict_t *e = G_Spawn();
+        LPEDICT e = G_Spawn();
         e->class_id = doodad->doodID;
         e->variation = doodad->variation;
         e->hero = doodad->hero;
@@ -160,14 +160,18 @@ void G_SpawnEntities(LPCSTR mapname, LPCDOODAD entities) {
         e->s.origin = doodad->position;
         e->s.angle = doodad->angle;
         e->s.scale = doodad->scale.x;
+//        if (doodad->inventoryItems) {
+//            int a= 0;
+//        }
         SP_CallSpawn(e);
     }
     SP_worldspawn(NULL);
 }
  
-edict_t *SP_SpawnAtLocation(DWORD class_id, DWORD player, LPCVECTOR2 location) {
-    edict_t *ent = G_Spawn();
+LPEDICT SP_SpawnAtLocation(DWORD class_id, DWORD player, LPCVECTOR2 location) {
+    LPEDICT ent = G_Spawn();
     ent->class_id = class_id;
+    ent->spawn_time = gi.GetTime();
     ent->s.origin.x = location->x;
     ent->s.origin.y = location->y;
     ent->s.origin.z = gi.GetHeightAtPoint(location->x, location->y);
@@ -179,23 +183,22 @@ edict_t *SP_SpawnAtLocation(DWORD class_id, DWORD player, LPCVECTOR2 location) {
     return ent;
 }
 
-void SP_SpawnTrainedUnit(edict_t *townhall, DWORD class_id) {
-    float const colsize = UNIT_SELECTION_SCALE(class_id) * SEL_SCALE / 2;
-    float const start_angle = M_PI * 1.25f;
+BOOL SP_FindEmptySpaceAround(LPEDICT townhall, DWORD class_id, LPVECTOR2 out, FLOAT *angle) {
+    FLOAT const colsize = UNIT_SELECTION_SCALE(class_id) * SEL_SCALE / 2;
+    FLOAT const start_angle = M_PI * 1.25f;
     FOR_LOOP(i, MAX_SPAWN_ITERATIONS) {
-        float const radius = townhall->s.radius + colsize * (i * 2 + 1);
-        float const num_points = M_PI * radius / colsize;
+        FLOAT const radius = townhall->s.radius + colsize * (i * 2 + 1);
+        FLOAT const num_points = M_PI * radius / colsize;
         FOR_LOOP(j, num_points) {
-            float const angle = start_angle + 2 * M_PI * j / num_points;
-            VECTOR2 const org = {
-                townhall->s.origin2.x + cosf(angle) * radius,
-                townhall->s.origin2.y + sinf(angle) * radius,
-            };
-            if (M_CheckCollision(&org, colsize))
+            *angle = start_angle + 2 * M_PI * j / num_points;
+            *out = MAKE(VECTOR2,
+                townhall->s.origin2.x + cosf(*angle) * radius,
+                townhall->s.origin2.y + sinf(*angle) * radius,
+            );
+            if (M_CheckCollision(out, colsize))
                 continue;
-            edict_t *ent = SP_SpawnAtLocation(class_id, townhall->s.player, &org);
-            ent->s.angle = angle;
-            return;
+            return true;
         }
     }
+    return false;
 }

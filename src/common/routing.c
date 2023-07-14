@@ -116,7 +116,7 @@ static point2_t LocationToPathMap(LPCVECTOR2 location) {
     return (point2_t) { n_target.x * pathmap.width, n_target.y * pathmap.height };
 }
 
-handle_t build_heatmap(point2_t target) {
+DWORD build_heatmap(point2_t target) {
 #ifdef DEBUG_PATHFINDING
     CM_FillDebugObstacles();
 #endif
@@ -152,7 +152,7 @@ handle_t build_heatmap(point2_t target) {
     return 0;
 }
 
-handle_t CM_BuildHeatmap(edict_t *goalentity) {
+DWORD CM_BuildHeatmap(edict_t *goalentity) {
     memcpy(pathmap.data, pathmap.original, pathmap.width * pathmap.height);
     FOR_LOOP(i, pathmap.width * pathmap.height) {
         pathmap.heatmap[i].next = NULL;

@@ -163,12 +163,12 @@ void FS_Init(void) {
     HANDLE handle = SFileFindFirstFile(archives[0], "*", &findData, 0);
     if (handle) {
          do {
-//             if(strstr(findData.cFileName, ".blp")) {
-//                 printf("%s\n", findData.cFileName);
-//             }
-#if 1
-             if (strstr(findData.cFileName, "SimpleInfo")){
-//             if (strstr(findData.cFileName, ".txt")) {
+             if(strstr(findData.cFileName, ".fdf")) {
+                 printf("%s\n", findData.cFileName);
+             }
+#if 0
+//             if (strstr(findData.cFileName, "SimpleInfo")){
+             if (strstr(findData.cFileName, ".fdf")) {
                  HANDLE file;
                  SFileOpenFileEx(archives[0], findData.cFileName, SFILE_OPEN_FROM_MPQ, &file);
                  char ch;

@@ -1,9 +1,9 @@
 #include "g_local.h"
 
-EDICT_FUNC(build_walk);
-EDICT_FUNC(build_build);
+void build_walk(LPEDICT ent);
+void build_build(LPEDICT ent);
 
-static EDICT_FUNC(ai_walk) {
+static void ai_walk(LPEDICT ent) {
     if (M_DistanceToGoal(ent) <= M_MoveDistance(ent)) {
         build_build(ent);
     } else {
@@ -12,13 +12,20 @@ static EDICT_FUNC(ai_walk) {
     }
 }
 
-static EDICT_FUNC(ai_build) {
-    
+static void ai_build(LPEDICT ent) {
+    FLOAT const k = (FLOAT)FRAMETIME / (FLOAT)UNIT_BUILD_TIME_MSEC(ent->build->class_id);
+    EDICTSTAT *hp = &ent->build->health;
+    hp->value += hp->max_value * k;
+    if (hp->value >= hp->max_value) {
+        hp->value = hp->max_value;
+        ent->build->stand(ent->build);
+        ent->stand(ent);
+    }
 }
 
 static umove_t build_move_walk = { "walk", ai_walk };
 static umove_t build_move_stand = { "stand", ai_stand };
-static umove_t build_move_build = { "stand", ai_build };
+static umove_t build_move_build = { "stand work", ai_build };
 
 static void FillUnitData(entityState_t *ent, DWORD unit_id, LPCSTR anim) {
     PATHSTR buffer = { 0 };
@@ -30,24 +37,32 @@ static void FillUnitData(entityState_t *ent, DWORD unit_id, LPCSTR anim) {
     ent->model = gi.ModelIndex(buffer);
     ent->scale = UNIT_SCALING_VALUE(unit_id);
     ent->angle = -M_PI / 2;
-    animation_t const *animation = gi.GetAnimation(ent->model, anim);
+    LPCANIMATION animation = gi.GetAnimation(ent->model, anim);
     if (animation) {
         ent->frame = animation->interval[0];
     }
 }
 
-EDICT_FUNC(build_build) {
+void build_build(LPEDICT ent) {
     if (player_pay(G_GetPlayerByNumber(ent->s.player), ent->build_project)) {
-        SP_SpawnAtLocation(ent->build_project, ent->s.player, &ent->s.origin2);
+        VECTOR2 origin;
+        FLOAT angle;
+        LPEDICT building = SP_SpawnAtLocation(ent->build_project, ent->s.player, &ent->s.origin2);
         M_SetMove(ent, &build_move_build);
+        SP_FindEmptySpaceAround(building, ent->class_id, &origin, &angle);
+        ent->s.origin2 = origin;
+        ent->s.angle = angle - M_PI;
         ent->selected = 0;
+        ent->build = building;
+        building->health.value = 0;
+        building->build = building;
     } else {
         ent->stand(ent);
     }
 }
 
-bool build_menu_send_builder(edict_t *clent, LPCVECTOR2 location) {
-    edict_t *waypoint = Waypoint_add(location);
+BOOL build_menu_send_builder(LPEDICT clent, LPCVECTOR2 location) {
+    LPEDICT waypoint = Waypoint_add(location);
     FOR_SELECTED_UNITS(clent->client, ent) {
         ent->goalentity = waypoint;
         ent->build_project = clent->build_project;
@@ -61,7 +76,7 @@ bool build_menu_send_builder(edict_t *clent, LPCVECTOR2 location) {
     return true;
 }
 
-void build_menu_selectlocation(edict_t *ent, DWORD building_id) {
+void build_menu_selectlocation(LPEDICT ent, DWORD building_id) {
     entityState_t cursor;
     FillUnitData(&cursor, building_id, "stand");
     UI_AddCancelButton(ent);
@@ -73,7 +88,7 @@ void build_menu_selectlocation(edict_t *ent, DWORD building_id) {
 }
 
 void ui_builds(gclient_t *client) {
-    edict_t *ent = G_GetMainSelectedUnit(client);
+    LPEDICT ent = G_GetMainSelectedUnit(client);
     LPCSTR builds = UNIT_BUILDS(ent->class_id);
     if (!builds)
         return;
@@ -83,12 +98,12 @@ void ui_builds(gclient_t *client) {
     UI_AddCommandButton(STR_CmdCancel);
 }
 
-void build_command(edict_t *edict) {
+void build_command(LPEDICT edict) {
     UI_WriteLayout2(edict, ui_builds, LAYER_COMMANDBAR);
     edict->client->menu.cmdbutton = build_menu_selectlocation;
 }
 
-void build_start(edict_t *self, edict_t *target) {
+void build_start(LPEDICT self, LPEDICT target) {
 //    self->goalentity = target;
     M_SetMove(self, &build_move_stand);
 }

@@ -1,6 +1,6 @@
 #include "g_local.h"
 
-void cancel_command(edict_t *edict) {
+void cancel_command(LPEDICT edict) {
     Get_Commands_f(edict);
 }
 

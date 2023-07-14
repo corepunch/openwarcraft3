@@ -20,7 +20,7 @@ static void Init_SimpleProgressIndicator(void) {
     UI_WriteFrameWithChildren(SimpleProgressIndicator);
 }
 
-static void Init_SimpleInfoPanelIconDamage(uiFrameDef_t *parent, edict_t *unit) {
+static void Init_SimpleInfoPanelIconDamage(UIFRAMEDEF *parent, LPEDICT unit) {
     DWORD const dmgBase = UNIT_ATTACK1_DAMAGE_BASE(unit->class_id);
     DWORD const dmgDice = UNIT_ATTACK1_DAMAGE_NUMBER_OF_DICE(unit->class_id);
     DWORD const dmgNumSides = UNIT_ATTACK1_DAMAGE_SIDES_PER_DIE(unit->class_id);
@@ -35,7 +35,7 @@ static void Init_SimpleInfoPanelIconDamage(uiFrameDef_t *parent, edict_t *unit) 
     UI_SetTexture(InfoPanelIconBackdrop, "InfoPanelIconDamagePierce", true);
 }
 
-static void Init_SimpleInfoPanelIconArmor(uiFrameDef_t *parent, edict_t *unit) {
+static void Init_SimpleInfoPanelIconArmor(UIFRAMEDEF *parent, LPEDICT unit) {
     UI_FRAME(SimpleInfoPanelIconArmor);
     UI_CHILD_VALUE(InfoPanelIconBackdrop, SimpleInfoPanelIconArmor, Texture, "InfoPanelIconArmorLarge", true);
     UI_CHILD_VALUE(InfoPanelIconLevel, SimpleInfoPanelIconArmor, Text, "1");
@@ -44,7 +44,7 @@ static void Init_SimpleInfoPanelIconArmor(uiFrameDef_t *parent, edict_t *unit) {
     UI_SetPoint(SimpleInfoPanelIconArmor, FRAMEPOINT_TOPLEFT, parent, FRAMEPOINT_TOPLEFT, 0, UI_SCALE(-0.0745));
 }
 
-static void Init_SimpleInfoPanelIconHero(uiFrameDef_t *parent, edict_t *unit) {
+static void Init_SimpleInfoPanelIconHero(UIFRAMEDEF *parent, LPEDICT unit) {
     int hero_str = UNIT_STRENGTH(unit->class_id) + UNIT_STRENGTH_PER_LEVEL(unit->class_id) * unit->hero.level;
     int hero_agi = UNIT_AGILITY(unit->class_id) + UNIT_AGILITY_PER_LEVEL(unit->class_id) * unit->hero.level;
     int hero_int = UNIT_INTELLIGENCE(unit->class_id) + UNIT_INTELLIGENCE_PER_LEVEL(unit->class_id) * unit->hero.level;
@@ -62,7 +62,7 @@ static void Init_SimpleInfoPanelIconHero(uiFrameDef_t *parent, edict_t *unit) {
     UI_SetPoint(SimpleInfoPanelIconHero, FRAMEPOINT_TOPLEFT, parent, FRAMEPOINT_TOPLEFT, UI_SCALE(0.1), UI_SCALE(-0.037));
 }
 
-static void Init_SimpleInfoPanelIconFood(uiFrameDef_t *parent, edict_t *unit) {
+static void Init_SimpleInfoPanelIconFood(UIFRAMEDEF *parent, LPEDICT unit) {
     UI_FRAME(SimpleInfoPanelIconFood);
     UI_CHILD_VALUE(InfoPanelIconBackdrop, SimpleInfoPanelIconFood, Texture, "InfoPanelIconArmorLarge", true);
     UI_CHILD_VALUE(InfoPanelIconLevel, SimpleInfoPanelIconFood, Text, "1");
@@ -71,46 +71,47 @@ static void Init_SimpleInfoPanelIconFood(uiFrameDef_t *parent, edict_t *unit) {
     UI_SetPoint(SimpleInfoPanelIconFood, FRAMEPOINT_TOPLEFT, parent, FRAMEPOINT_TOPLEFT, 0, UI_SCALE(-0.0345));
 }
 
-static void Init_BuildQueue(uiFrameDef_t *infoPanel, edict_t *unit) {
+static void Init_BuildQueue(UIFRAMEDEF *infoPanel, LPEDICT unit) {
     UI_CHILD_FRAME(SimpleBuildTimeIndicator, infoPanel);
+    UI_CHILD_VALUE(SimpleBuildingActionLabel, infoPanel, Text, "Constructing");
+    UINAME configstring = { 0 };
+    UIFRAMEDEF firstItem, imageList;
     
-    uiFrameDef_t firstItem;
     UI_InitFrame(&firstItem, 201, FT_TEXTURE);
     UI_SetParent(&firstItem, infoPanel);
     UI_SetPoint(&firstItem, FRAMEPOINT_TOPLEFT, infoPanel, FRAMEPOINT_TOPLEFT, 100, -390);
     UI_SetSize(&firstItem, 280, 310);
-    gi.WriteUIFrame(&firstItem.f);
 
-    DWORD endtime = unit->build.start;
-    char configstring[1024] = { 0 };
-    sprintf(configstring, "%x %x %x,", firstItem.f.number, SimpleBuildTimeIndicator->f.number, unit->build.start);
-    FOR_LOOP(queue, MAX_BUILD_QUEUE) {
-        if (!unit->build.queue[queue])
-            break;
-        DWORD buttonClassID = unit->build.queue[queue];
-        LPCSTR buttonClassName = GetClassName(buttonClassID);
+    UI_CHILD_VALUE(SimpleBuildQueueBackdrop, infoPanel, Hidden, unit->currentmove->think == ai_birth);
+
+    sprintf(configstring, "%x %x,", firstItem.f.number, SimpleBuildTimeIndicator->f.number);
+    for (LPEDICT queue = unit->build; queue; queue = queue->build) {
+        LPCSTR buttonClassName = GetClassName(queue->class_id);
         LPCSTR buttonArt = FindConfigValue(buttonClassName, STR_ART);
         LPSTR buffer = configstring+strlen(configstring);
-        endtime += UNIT_BUILD_TIME(buttonClassID) * 1000;
-        sprintf(buffer, "%x %x,", UI_LoadTexture(buttonArt, false), endtime);
+        sprintf(buffer, "%x %x,", UI_LoadTexture(buttonArt, false), queue->s.number);
+        if (queue->build == queue)
+            break;
     }
 
-    uiFrameDef_t imageList;
     UI_InitFrame(&imageList, 200, FT_BUILDQUEUE);
     UI_SetParent(&imageList, infoPanel);
     UI_SetPoint(&imageList, FRAMEPOINT_TOPLEFT, infoPanel, FRAMEPOINT_TOPLEFT, 95, -800);
     UI_SetSize(&imageList, 200, 215);
     UI_SetText(&imageList, configstring);
     UI_SetOffset(&imageList, 281, 0);
+
+    gi.WriteUIFrame(&firstItem.f);
     gi.WriteUIFrame(&imageList.f);
 }
 
-static void Init_SimpleInfoPanelBuildingDetail(uiFrameDef_t *bottomPanel, edict_t *unit) {
+static void Init_SimpleInfoPanelBuildingDetail(UIFRAMEDEF *bottomPanel, LPEDICT unit) {
     UI_FRAME(SimpleInfoPanelBuildingDetail);
     UI_CHILD_VALUE(SimpleBuildingNameValue, SimpleInfoPanelBuildingDetail, Text, UNIT_NAME(unit->class_id));
     UI_CHILD_VALUE(SimpleBuildTimeIndicator, SimpleInfoPanelBuildingDetail, Texture, "SimpleBuildTimeIndicator", true);
     UI_CHILD_VALUE(SimpleBuildingActionLabel, SimpleInfoPanelBuildingDetail, Text, "Training");
     UI_CHILD_VALUE(SimpleBuildingDescriptionValue, SimpleInfoPanelBuildingDetail, Text, " ");
+    UI_CHILD_VALUE(SimpleBuildQueueBackdrop, SimpleInfoPanelBuildingDetail, Hidden, false);
     
     UI_SetTexture2(SimpleBuildTimeIndicator, "SimpleBuildTimeIndicatorBorder", true);
     UI_SetParent(SimpleInfoPanelBuildingDetail, bottomPanel);
@@ -122,7 +123,7 @@ static void Init_SimpleInfoPanelBuildingDetail(uiFrameDef_t *bottomPanel, edict_
     UI_WriteFrameWithChildren(SimpleInfoPanelBuildingDetail);
 }
 
-static void Init_SimpleInfoPanelUnitDetail(uiFrameDef_t *bottomPanel, edict_t *unit) {
+static void Init_SimpleInfoPanelUnitDetail(UIFRAMEDEF *bottomPanel, LPEDICT unit) {
     LPCSTR unitTypeName = UNIT_NAME(unit->class_id);
     LPCSTR unitHeroName = UNIT_PROPER_NAMES(unit->class_id);
     
@@ -138,8 +139,8 @@ static void Init_SimpleInfoPanelUnitDetail(uiFrameDef_t *bottomPanel, edict_t *u
     UI_WriteFrameWithChildren(SimpleInfoPanelUnitDetail);
 }
 
-static uiFrameDef_t *Init_BottomPanel(void) {
-    static uiFrameDef_t BottomPanel;
+static UIFRAMEDEF *Init_BottomPanel(void) {
+    static UIFRAMEDEF BottomPanel;
     UI_InitFrame(&BottomPanel, 1, FT_SIMPLEFRAME);
     UI_SetSize(&BottomPanel, INFO_PANEL_UNIT_DETAIL_WIDTH, INFO_PANEL_UNIT_DETAIL_HEIGHT);
     UI_SetPointByNumber(&BottomPanel, FRAMEPOINT_BOTTOM, 0, FRAMEPOINT_BOTTOM, 0, 0);
@@ -161,27 +162,26 @@ void UI_AddCommandButton(LPCSTR code) {
     LPCSTR art = FindConfigValue(code, STR_ART);
     LPCSTR buttonpos = FindConfigValue(code, STR_BUTTONPOS);
     if (!art) {
-        gi.error("Not ART for %s\n", code);
+        gi.error("Not ART for %s", code);
         return;
     }
     if (!buttonpos) {
-        gi.error("Not BUTTONPOS for %s\n", code);
+        gi.error("Not BUTTONPOS for %s", code);
         return;
     }
     sscanf(buttonpos, "%d,%d", &x, &y);
-    uiFrameDef_t button;
+    UIFRAMEDEF button;
     UI_InitFrame(&button, x + (y << 2) + COMMAND_BUTTON_START, FT_COMMANDBUTTON);
-    button.f.tex.index = gi.ImageIndex(art);
-    button.f.size.width = UI_SCALE(COMMAND_BUTTON_SIZE);
-    button.f.size.height = UI_SCALE(COMMAND_BUTTON_SIZE);
-    strcpy(button.f.text, code);
+    UI_SetTexture(&button, art, false);
+    UI_SetSize(&button, UI_SCALE(COMMAND_BUTTON_SIZE), UI_SCALE(COMMAND_BUTTON_SIZE));
+    UI_SetText(&button, code);
     UI_SetPointByNumber(&button, FRAMEPOINT_CENTER, UI_PARENT, FRAMEPOINT_BOTTOM, cmd_columns[x], cmd_rows[y]);
     gi.WriteUIFrame(&button.f);
 }
 
 void ui_portrait(gclient_t *client) {
-    edict_t *ent = G_GetMainSelectedUnit(client);
-    uiFrameDef_t portrait;
+    LPEDICT ent = G_GetMainSelectedUnit(client);
+    UIFRAMEDEF portrait;
     UI_InitFrame(&portrait, COMMAND_BUTTON_START, FT_PORTRAIT);
     portrait.f.tex.index = ent->s.model;
     portrait.f.size.width = 800;
@@ -190,13 +190,13 @@ void ui_portrait(gclient_t *client) {
     gi.WriteUIFrame(&portrait.f);
 }
 
-void Get_Portrait_f(edict_t *edict) {
+void Get_Portrait_f(LPEDICT edict) {
     UI_WriteLayout2(edict, ui_portrait, LAYER_PORTRAIT);
 }
 
 void ui_unit_commands(gclient_t *client) {
-    edict_t *ent = G_GetMainSelectedUnit(client);
-    if (!ent) return;
+    LPEDICT ent = G_GetMainSelectedUnit(client);
+    if (!ent || ent->currentmove->think == ai_birth) return;
     LPCSTR abilities = UNIT_ABILITIES_NORMAL(ent->class_id);
     LPCSTR trains = UNIT_TRAINS(ent->class_id);
     if (UNIT_SPEED(ent->class_id) > 0) {
@@ -226,6 +226,19 @@ void ui_unit_commands(gclient_t *client) {
             UI_AddCommandButton(unit);
         }
     }
+    
+    UIFRAMEDEF button;
+    
+    UI_InitFrame(&button, 50, FT_TEXTURE);
+    UI_SetSize(&button, 160, 160);
+    UI_SetTexture(&button, "ToolTipGoldIcon", true);
+    UI_SetPointByNumber(&button, FRAMEPOINT_CENTER, UI_PARENT, FRAMEPOINT_BOTTOMRIGHT, -500, 2000);
+    gi.WriteUIFrame(&button.f);
+    
+    button.f.number = 51;
+    UI_SetTexture(&button, "ToolTipLumberIcon", true);
+    UI_SetPointByNumber(&button, FRAMEPOINT_CENTER, UI_PARENT, FRAMEPOINT_BOTTOMRIGHT, -300, 2000);
+    gi.WriteUIFrame(&button.f);
 }
 
 DWORD NumSelectedUnits(gclient_t *client) {
@@ -239,7 +252,7 @@ DWORD NumSelectedUnits(gclient_t *client) {
 void Init_SimpleInfoPanelMultiselect(gclient_t *client) {
     DWORD SimpleHpBarConsole = gi.ImageIndex("SimpleHpBarConsole");
     DWORD SimpleManaBarConsole = gi.ImageIndex("SimpleManaBarConsole");
-    uiFrameDef_t multiselect;
+    UIFRAMEDEF multiselect;
     uiFrame_t *f = &multiselect.f;
     LPSTR config = f->text;
 
@@ -275,10 +288,10 @@ void ui_unit_info(gclient_t *client) {
 //            HUD_MultiselectIcon(ent, selent++);
 //        }
     } else if (NumSelectedUnits(client) > 0) {
-        edict_t *ent = G_GetMainSelectedUnit(client);
-        uiFrameDef_t *bottomPanel = Init_BottomPanel();
+        LPEDICT ent = G_GetMainSelectedUnit(client);
+        UIFRAMEDEF *bottomPanel = Init_BottomPanel();
         gi.WriteUIFrame(&bottomPanel->f);
-        if (ent->build.queue[0]) {
+        if (ent->build) {
             Init_SimpleInfoPanelBuildingDetail(bottomPanel, ent);
         } else {
             Init_SimpleInfoPanelUnitDetail(bottomPanel, ent);
@@ -291,13 +304,13 @@ void ui_cancel_only(gclient_t *client) {
     UI_AddCommandButton(STR_CmdCancel);
 }
 
-void Get_Commands_f(edict_t *edict) {
+void Get_Commands_f(LPEDICT edict) {
     UI_WriteLayout2(edict, ui_unit_commands, LAYER_COMMANDBAR);
     UI_WriteLayout2(edict, ui_unit_info, LAYER_INFOPANEL);
     memset(&edict->client->menu, 0, sizeof(menu_t));
 }
 
-void UI_AddCancelButton(edict_t *ent) {
+void UI_AddCancelButton(LPEDICT ent) {
     UI_WriteLayout2(ent, ui_cancel_only, LAYER_COMMANDBAR);
     memset(&ent->client->menu, 0, sizeof(menu_t));
 }

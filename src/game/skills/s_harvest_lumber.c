@@ -1,29 +1,29 @@
 #include "g_local.h"
 
-float HARVEST_LUMBER_CAPACITY;
-float HARVEST_GOLD_CAPACITY;
-float HARVEST_TREE_DAMAGE;
-float HARVEST_RANGE;
-float HARVEST_COOLDOWN;
-float HARVEST_SEARCH_RANGE;
+FLOAT HARVEST_LUMBER_CAPACITY;
+FLOAT HARVEST_GOLD_CAPACITY;
+FLOAT HARVEST_TREE_DAMAGE;
+FLOAT HARVEST_RANGE;
+FLOAT HARVEST_COOLDOWN;
+FLOAT HARVEST_SEARCH_RANGE;
 
-EDICT_FUNC(harvest_cooldown);
-EDICT_FUNC(harvest_swing);
-EDICT_FUNC(harvest_walkback);
-EDICT_FUNC(harvest_walk);
+void harvest_cooldown(LPEDICT ent);
+void harvest_swing(LPEDICT ent);
+void harvest_walkback(LPEDICT ent);
+void harvest_walk(LPEDICT ent);
 
-void harvest_start(edict_t *self, edict_t *target);
-void harvest_gold_start(edict_t *self, edict_t *target);
-edict_t *find_townhall(edict_t *unit);
+void harvest_start(LPEDICT self, LPEDICT target);
+void harvest_gold_start(LPEDICT self, LPEDICT target);
+LPEDICT find_townhall(LPEDICT unit);
     
-static edict_t *find_another_tree(edict_t *ent) {
-    float min_dist = HARVEST_SEARCH_RANGE;
-    edict_t *other = NULL;
+static LPEDICT find_another_tree(LPEDICT ent) {
+    FLOAT min_dist = HARVEST_SEARCH_RANGE;
+    LPEDICT other = NULL;
     FOR_LOOP(i, globals.num_edicts) {
-        edict_t *tree = &globals.edicts[i];
+        LPEDICT tree = &globals.edicts[i];
         if (tree->targtype != TARG_TREE || M_IsDead(tree))
             continue;
-        float dist = Vector2_distance(&ent->s.origin2, &tree->s.origin2);
+        FLOAT dist = Vector2_distance(&ent->s.origin2, &tree->s.origin2);
         if (dist < min_dist) {
             other = tree;
             min_dist = dist;
@@ -32,8 +32,8 @@ static edict_t *find_another_tree(edict_t *ent) {
     return other;
 }
 
-static EDICT_FUNC(look_for_another_tree) {
-    edict_t *other = find_another_tree(ent);
+static void look_for_another_tree(LPEDICT ent) {
+    LPEDICT other = find_another_tree(ent);
     if (other) {
         harvest_start(ent, other);
     } else {
@@ -41,7 +41,7 @@ static EDICT_FUNC(look_for_another_tree) {
     }
 }
 
-bool G_ActorHasSkill(edict_t *ent, LPCSTR id) {
+BOOL G_ActorHasSkill(LPEDICT ent, LPCSTR id) {
     LPCSTR abilities = UNIT_ABILITIES_NORMAL(ent->class_id);
     if (abilities) {
         PARSE_LIST(abilities, abil, getNextSegment) {
@@ -52,7 +52,7 @@ bool G_ActorHasSkill(edict_t *ent, LPCSTR id) {
     return false;
 }
 
-static EDICT_FUNC(ai_walktree) {
+static void ai_walktree(LPEDICT ent) {
     if (M_DistanceToGoal(ent) > HARVEST_RANGE) {
         M_ChangeAngle(ent);
         M_MoveInDirection(ent);
@@ -63,7 +63,7 @@ static EDICT_FUNC(ai_walktree) {
     }
 }
 
-static EDICT_FUNC(ai_walkback) {
+static void ai_walkback(LPEDICT ent) {
     if (M_DistanceToGoal(ent) < (ent->collision + ent->goalentity->collision + 5)) {
         ent->goalentity = ent->secondarygoal;
         playerState_t *player = G_GetPlayerByNumber(ent->s.player);
@@ -79,8 +79,8 @@ static EDICT_FUNC(ai_walkback) {
     }
 }
 
-static EDICT_FUNC(ai_chop) {
-    edict_t *tree = ent->secondarygoal;
+static void ai_chop(LPEDICT ent) {
+    LPEDICT tree = ent->secondarygoal;
     if (!M_IsDead(tree)) {
         ent->harvested_lumber += HARVEST_TREE_DAMAGE;
         ent->s.renderfx |= RF_HAS_LUMBER;
@@ -94,11 +94,11 @@ static EDICT_FUNC(ai_chop) {
     }
 }
 
-static EDICT_FUNC(ai_swing) {
+static void ai_swing(LPEDICT ent) {
     M_RunWait(ent, ai_chop);
 }
 
-static EDICT_FUNC(ai_cooldown) {
+static void ai_cooldown(LPEDICT ent) {
     M_RunWait(ent, harvest_swing);
 }
 
@@ -107,7 +107,7 @@ static umove_t harvest_move_walkback = { "walk", ai_walkback };
 static umove_t harvest_move_swing = { "attack", ai_swing, harvest_cooldown };
 static umove_t harvest_move_cooldown = { "stand ready", ai_cooldown };
 
-EDICT_FUNC(harvest_cooldown) {
+void harvest_cooldown(LPEDICT ent) {
     if (ent->harvested_lumber >= HARVEST_LUMBER_CAPACITY) {
         harvest_walkback(ent);
     } else if (M_IsDead(ent->goalentity)) {
@@ -118,17 +118,17 @@ EDICT_FUNC(harvest_cooldown) {
     }
 }
 
-EDICT_FUNC(harvest_walk) {
+void harvest_walk(LPEDICT ent) {
     M_SetMove(ent, &harvest_move_walk);
 }
 
-EDICT_FUNC(harvest_swing) {
+void harvest_swing(LPEDICT ent) {
     M_SetMove(ent, &harvest_move_swing);
     ent->wait = UNIT_ATTACK1_DAMAGE_POINT(ent->class_id);
 }
 
-EDICT_FUNC(harvest_walkback) {
-    edict_t *townhall = find_townhall(ent);
+void harvest_walkback(LPEDICT ent) {
+    LPEDICT townhall = find_townhall(ent);
     if (townhall) {
         ent->goalentity = townhall;
         M_SetMove(ent, &harvest_move_walkback);
@@ -137,15 +137,15 @@ EDICT_FUNC(harvest_walkback) {
     }
 }
 
-EDICT_FUNC(CMD_Harvest);
+void CMD_Harvest(LPEDICT ent);
 
-void harvest_start(edict_t *self, edict_t *target) {
+void harvest_start(LPEDICT self, LPEDICT target) {
     self->goalentity = target;
     self->secondarygoal = target;
     harvest_walk(self);
 }
 
-bool harvest_menu_selecttarget(edict_t *clent, edict_t *target) {
+BOOL harvest_menu_selecttarget(LPEDICT clent, LPEDICT target) {
     if (G_ActorHasSkill(target, "Agld")) {
         FOR_SELECTED_UNITS(clent->client, ent) {
             harvest_gold_start(ent, target);
@@ -158,7 +158,7 @@ bool harvest_menu_selecttarget(edict_t *clent, edict_t *target) {
     return true;
 }
 
-void harvest_command(edict_t *ent) {
+void harvest_command(LPEDICT ent) {
     UI_AddCancelButton(ent);
     ent->client->menu.on_entity_selected = harvest_menu_selecttarget;
 }

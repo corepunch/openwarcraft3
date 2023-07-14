@@ -12,6 +12,8 @@
 typedef struct edict_s edict_t;
 typedef struct client_s gclient_t;
 
+KNOWN_AS(edict_s, EDICT);
+
 struct game_import {
     HANDLE (*MemAlloc)(long size);
     void (*MemFree)(HANDLE);
@@ -20,8 +22,8 @@ struct game_import {
     int (*ImageIndex)(LPCSTR imageName);
     int (*FontIndex)(LPCSTR fontName, DWORD fontSize);
     bool (*ExtractFile)(LPCSTR toExtract, LPCSTR extracted);
-    animation_t const *(*GetAnimation)(int modelindex, LPCSTR name);
-    handle_t (*BuildHeatmap)(edict_t *goalentity);
+    LPCANIMATION (*GetAnimation)(int modelindex, LPCSTR name);
+    DWORD (*BuildHeatmap)(edict_t *goalentity);
     VECTOR2 (*GetFlowDirection)(DWORD heatmapindex, float fx, float fy);
     float (*GetHeightAtPoint)(float x, float y);
     LPSTR (*ReadFileIntoString)(LPCSTR filename);

@@ -96,17 +96,17 @@ LPCSTR UnitStringField(sheetMetaData_t *metadatas, DWORD unit_id, LPCSTR name) {
     }
 }
 
-int UnitIntegerField(sheetMetaData_t *metadatas, DWORD unit_id, LPCSTR name) {
+LONG UnitIntegerField(sheetMetaData_t *metadatas, DWORD unit_id, LPCSTR name) {
     LPCSTR str = UnitStringField(metadatas, unit_id, name);
     return str ? atoi(str) : 0;
 }
 
-bool UnitBooleanField(sheetMetaData_t *metadatas, DWORD unit_id, LPCSTR name) {
+BOOL UnitBooleanField(sheetMetaData_t *metadatas, DWORD unit_id, LPCSTR name) {
     LPCSTR str = UnitStringField(metadatas, unit_id, name);
     return str && (atoi(str) != 0 || !strcmp(str, "TRUE"));
 }
 
-float UnitRealField(sheetMetaData_t *metadatas, DWORD unit_id, LPCSTR name) {
+FLOAT UnitRealField(sheetMetaData_t *metadatas, DWORD unit_id, LPCSTR name) {
     LPCSTR str = UnitStringField(metadatas, unit_id, name);
     return str ? atof(str) : 0;
 }

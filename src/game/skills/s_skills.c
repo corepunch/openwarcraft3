@@ -8,9 +8,9 @@ void SP_ability_build(ability_t *self);
 void SP_ability_goldmine(ability_t *self);
 void SP_ability_cancel(ability_t *self);
 
-void CMD_CancelCommand(edict_t *ent);
+void CMD_CancelCommand(LPEDICT ent);
 
-float AB_Number(ability_t const *ability, LPCSTR field) {
+FLOAT AB_Number(ability_t const *ability, LPCSTR field) {
     LPCSTR str = gi.FindSheetCell(game.config.abilities, ability->classname, field);
     return str ? atof(str) : 0;
 }

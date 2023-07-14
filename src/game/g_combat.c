@@ -1,6 +1,6 @@
 #include "g_local.h"
 
-void T_Damage(edict_t *target, edict_t *attacker, int damage) {
+void T_Damage(LPEDICT target, LPEDICT attacker, int damage) {
     if (target->health.value <= damage) {
         target->health.value = 0;
         target->die(target, attacker);

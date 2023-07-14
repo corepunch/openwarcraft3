@@ -189,22 +189,18 @@ void layout_buildqueue(uiFrame_t const *frame) {
     static UINAME buffer = { 0 };
     RECT screen = Rect_div(SCR_LayoutRect(frame), UI_SCALE);
     RECT const uv = { 0, 0, 1, 1 };
-    DWORD start_time, first_image, time_bar;
+    DWORD first_image, time_bar;
     bool first_item = true;
-    sscanf(frame->text, "%x %x %x,", &first_image, &time_bar, &start_time);
+    sscanf(frame->text, "%x %x,", &first_image, &time_bar);
     strcpy(buffer, strchr(frame->text, ',')+1);
     for (LPCSTR token = strtok(buffer, ","); token != NULL; token = strtok(NULL, ",")) {
-        DWORD img = 0, end_time = 0;
-        sscanf(token, "%x %x", &img, &end_time);
-        if (end_time < cl.time) {
-            start_time = end_time;
+        DWORD img = 0, nument = 0;
+        sscanf(token, "%x %x", &img, &nument);
+        entityState_t *ent = &cl.ents[nument].current;
+        if (ent->stats[ENT_HEALTH] == 255) {
             continue;
         } else if (first_item) {
-            if (start_time != end_time) {
-                float total = end_time - start_time;
-                float current = cl.time - start_time;
-                ((uiFrame_t *)frames)[time_bar].value = MIN(1, current / total);
-            }
+            ((uiFrame_t *)frames)[time_bar].value = BYTE2FLOAT(ent->stats[ENT_HEALTH]);
             ((uiFrame_t *)frames)[first_image].tex.index = img;
         } else {
             re.DrawImage(cl.pics[img], &screen, &uv, frame->color);

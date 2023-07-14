@@ -12,7 +12,7 @@ typedef enum {
 typedef struct {
     LPCSTR buffer;
     const char* delimiters;
-    bool error;
+    BOOL error;
 } WordExtractor;
 
 LPCSTR getFirstWord(WordExtractor* p);

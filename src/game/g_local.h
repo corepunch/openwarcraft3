@@ -11,20 +11,20 @@
 #include "parser.h"
 
 #define SAFE_CALL(FUNC, ...) if (FUNC) FUNC(__VA_ARGS__)
-#define ABILITY(NAME) void M_##NAME(edict_t *ent, edict_t *target)
+#define ABILITY(NAME) void M_##NAME(LPEDICT ent, LPEDICT target)
 #define UI_SCALE(x) ((x) * 10000)
 #define SEL_SCALE 72
 #define MAX_BUILD_QUEUE 7
 
 #define FILTER_EDICTS(ENT, CONDITION) \
-for (edict_t *ENT = globals.edicts; \
+for (LPEDICT ENT = globals.edicts; \
 ENT - globals.edicts < globals.num_edicts; \
 ENT++) if (CONDITION)
 
-#define UI_FRAME(NAME) uiFrameDef_t *NAME = UI_FindFrame(#NAME);
-#define UI_CHILD_FRAME(NAME, PARENT) uiFrameDef_t *NAME = UI_FindChildFrame(PARENT, #NAME);
+#define UI_FRAME(NAME) UIFRAMEDEF *NAME = UI_FindFrame(#NAME);
+#define UI_CHILD_FRAME(NAME, PARENT) UIFRAMEDEF *NAME = UI_FindChildFrame(PARENT, #NAME);
 #define UI_CHILD_VALUE(NAME, PARENT, VALUE, ...) \
-uiFrameDef_t *NAME = UI_FindChildFrame(PARENT, #NAME); \
+UIFRAMEDEF *NAME = UI_FindChildFrame(PARENT, #NAME); \
 if (NAME) { \
     UI_Set##VALUE(NAME, __VA_ARGS__); \
 } else { \
@@ -33,8 +33,6 @@ if (NAME) { \
 
 #define FOR_SELECTED_UNITS(CLIENT, ENT) \
 FILTER_EDICTS(ENT, G_IsEntitySelected(CLIENT, ENT))
-
-#define EDICT_FUNC(NAME) void NAME(edict_t *ent)
 
 enum {
     LAYER_PORTRAIT,
@@ -53,9 +51,9 @@ enum {
 #define svc_cursor 4
 
 typedef struct {
-    bool (*on_entity_selected)(edict_t *clent, edict_t *selected);
-    bool (*on_location_selected)(edict_t *clent, LPCVECTOR2 location);
-    void (*cmdbutton)(edict_t *clent, DWORD code);
+    BOOL (*on_entity_selected)(LPEDICT clent, LPEDICT selected);
+    BOOL (*on_location_selected)(LPEDICT clent, LPCVECTOR2 location);
+    void (*cmdbutton)(LPEDICT clent, DWORD code);
 } menu_t;
 
 enum {
@@ -117,7 +115,7 @@ typedef enum {
     TARG_FRIEND,
     TARG_BRIDGE,
     TARG_DECORATION,
-} targtype_t;
+} TARGTYPE;
 
 typedef enum {
     MOVETYPE_NONE,            // never moves
@@ -130,7 +128,7 @@ typedef enum {
     MOVETYPE_TOSS,            // gravity
     MOVETYPE_FLYMISSILE,      // extra size to monsters
     MOVETYPE_BOUNCE
-} movetype_t;
+} MOVETYPE;
 
 typedef enum { // Keep in sync with uiFramePointPos_t
     FRAMEPOINT_TOPLEFT,
@@ -156,17 +154,19 @@ typedef struct {
     uiFrame_t f;
     UINAME Name;
     RECT rect;
-    bool DecorateFileNames;
-    bool inuse;
-    bool AnyPointsSet;
+    BOOL DecorateFileNames;
+    BOOL inuse;
+    BOOL AnyPointsSet;
+    BOOL hidden;
     struct {
-        bool TileBackground;
+        BOOL TileBackground;
+        DWORD Background;
         UINAME CornerFlags;// "UL|UR|BL|BR|T|L|B|R",
-        float CornerSize;
-        float BackgroundSize;
+        FLOAT CornerSize;
+        FLOAT BackgroundSize;
         VECTOR4 BackgroundInsets;// 0.01 0.01 0.01 0.01,
-        UINAME EdgeFile;//  "EscMenuBorder",
-        bool BlendAll;
+        DWORD EdgeFile;//  "EscMenuBorder",
+        BOOL BlendAll;
     } Backdrop;
     DWORD DialogBackdrop;
     struct {
@@ -190,7 +190,7 @@ typedef struct {
         COLOR32 ShadowColor;
         VECTOR2 ShadowOffset;
     } Font;
-} uiFrameDef_t;
+} UIFRAMEDEF;
 
 struct client_s {
     playerState_t ps;
@@ -200,14 +200,14 @@ struct client_s {
 
 typedef struct {
     LPCSTR animation;
-    void (*think)(edict_t *self);
-    void (*endfunc)(edict_t *self);
+    void (*think)(LPEDICT self);
+    void (*endfunc)(LPEDICT self);
 } umove_t;
 
 typedef struct ability_s {
     LPCSTR classname;
     void (*init)(struct ability_s *ability);
-    void (*cmd)(edict_t *ent);
+    void (*cmd)(LPEDICT ent);
     void *data;
 
     // client side info
@@ -222,19 +222,19 @@ typedef struct {
     DWORD damageBase;
     DWORD numberOfDice;
     DWORD sidesPerDie;
-    float damagePoint;
-    float cooldown;
+    FLOAT damagePoint;
+    FLOAT cooldown;
     struct {
         DWORD model;
-        float arc;
-        float speed;
+        FLOAT arc;
+        FLOAT speed;
     } projectile;
 } unitAttack_t;
 
 typedef struct {
-    float value;
-    float max_value;
-} edictStat_t;
+    FLOAT value;
+    FLOAT max_value;
+} EDICTSTAT;
 
 struct edict_s {
     entityState_t s;
@@ -247,45 +247,42 @@ struct edict_s {
     DWORD class_id;
     DWORD variation;
     DWORD build_project;
+    DWORD spawn_time;
     doodadHero_t hero;
-    float collision;
-    float velocity;
-    edictStat_t health;
-    edictStat_t mana;
+    FLOAT collision;
+    FLOAT velocity;
+    EDICTSTAT health;
+    EDICTSTAT mana;
     DWORD harvested_lumber;
     DWORD harvested_gold;
-    movetype_t movetype;
-    targtype_t targtype;
-    handle_t heatmap2;
-    edict_t *goalentity;
-    edict_t *secondarygoal;
-    edict_t *owner;
-    animation_t const *animation;
-    bool inuse;
-    int peonsinside;
+    MOVETYPE movetype;
+    TARGTYPE targtype;
+    DWORD heatmap2;
+    LPEDICT goalentity;
+    LPEDICT secondarygoal;
+    LPEDICT owner;
+    LPEDICT build;
+    LPCANIMATION animation;
+    BOOL inuse;
+    DWORD peonsinside;
     umove_t *currentmove;
     DWORD aiflags;
     DWORD damage;
-    struct {
-        DWORD start;
-        DWORD end;
-        DWORD queue[MAX_BUILD_QUEUE];
-    } build;
 //    unitRace_t race;
-    float wait;
+    FLOAT wait;
     unitAttack_t attack1;
     unitAttack_t attack2;
 
-    void (*stand)(edict_t *self);
-    void (*birth)(edict_t *self);
-    void (*prethink)(edict_t *self);
-    void (*think)(edict_t *self);
-    void (*pain)(edict_t *self);
-    void (*die)(edict_t *self, edict_t *attacker);
+    void (*stand)(LPEDICT self);
+    void (*birth)(LPEDICT self);
+    void (*prethink)(LPEDICT self);
+    void (*think)(LPEDICT self);
+    void (*pain)(LPEDICT self);
+    void (*die)(LPEDICT self, LPEDICT attacker);
 };
 
 struct game_state {
-    edict_t *edicts;
+    LPEDICT edicts;
 };
 
 struct game_locals {
@@ -300,20 +297,20 @@ struct game_locals {
         sheetRow_t *misc;
     } config;
     struct {
-        float attackHalfAngle;
-        float maxCollisionRadius;
-        float decayTime;
-        float boneDecayTime;
-        float dissipateTime;
-        float structureDecayTime;
-        float bulletDeathTime;
-        float closeEnoughRange;
-        float dawnTimeGameHours;
-        float duskTimeGameHours;
-        float gameDayHours;
-        float gameDayLength;
-        float buildingAngle;
-        float rootAngle;
+        FLOAT attackHalfAngle;
+        FLOAT maxCollisionRadius;
+        FLOAT decayTime;
+        FLOAT boneDecayTime;
+        FLOAT dissipateTime;
+        FLOAT structureDecayTime;
+        FLOAT bulletDeathTime;
+        FLOAT closeEnoughRange;
+        FLOAT dawnTimeGameHours;
+        FLOAT duskTimeGameHours;
+        FLOAT gameDayHours;
+        FLOAT gameDayLength;
+        FLOAT buildingAngle;
+        FLOAT rootAngle;
     } constants;
 };
 
@@ -328,53 +325,54 @@ typedef struct sheetMetaData_s {
     sheetRow_t *table;
 } sheetMetaData_t;
 
-// g_spawn
-edict_t *G_Spawn(void);
-void G_FreeEdict(edict_t *ent);
-void SP_SpawnUnit(edict_t *edict);
-void SP_CallSpawn(edict_t *edict);
-void G_SpawnEntities(LPCSTR mapname, LPCDOODAD doodads);
-void G_SpawnUnits(LPCDOODAD units, DWORD num_units);
-void G_BuildHeatmap(edict_t *edict, LPCVECTOR2 location);
-void G_ClientCommand(edict_t *ent, DWORD argc, LPCSTR argv[]);
-edict_t *SP_SpawnAtLocation(DWORD class_id, DWORD player, LPCVECTOR2 location);
+// g_main.c
+void G_ClientCommand(LPEDICT ent, DWORD argc, LPCSTR argv[]);
 playerState_t *G_GetPlayerByNumber(DWORD number);
-targtype_t G_GetTargetType(LPCSTR str);
+TARGTYPE G_GetTargetType(LPCSTR str);
 
-edict_t *Waypoint_add(LPCVECTOR2 spot);
-void M_CheckGround (edict_t *self);
-void monster_start(edict_t *self);
+// g_spawn.c
+LPEDICT G_Spawn(void);
+void G_FreeEdict(LPEDICT ent);
+void SP_CallSpawn(LPEDICT edict);
+void G_SpawnEntities(LPCSTR mapname, LPCDOODAD doodads);
+BOOL SP_FindEmptySpaceAround(LPEDICT townhall, DWORD class_id, LPVECTOR2 out, FLOAT *angle);
+LPEDICT SP_SpawnAtLocation(DWORD class_id, DWORD player, LPCVECTOR2 location);
+
+LPEDICT Waypoint_add(LPCVECTOR2 spot);
+void M_CheckGround (LPEDICT self);
+void monster_start(LPEDICT self);
 
 // g_ai.c
-void ai_birth(edict_t *self);
-void ai_stand(edict_t *self);
-void ai_pain(edict_t *self);
-void M_RunWait(edict_t *self, void (*callback)(edict_t *));
+void ai_birth(LPEDICT self);
+void ai_stand(LPEDICT self);
+void ai_pain(LPEDICT self);
+void M_RunWait(LPEDICT self, void (*callback)(LPEDICT ));
 
 // g_monster.c
-void M_MoveInDirection(edict_t *self);
-void M_ChangeAngle(edict_t *self);
-bool M_CheckAttack(edict_t *self);
-void M_SetAnimation(edict_t *self, LPCSTR anim);
-void M_SetMove(edict_t *self, umove_t *move);
-float M_DistanceToGoal(edict_t *ent);
-float M_MoveDistance(edict_t *self);
-handle_t M_RefreshHeatmap(edict_t *self);
-bool M_IsDead(edict_t *ent);
-void SP_TrainUnit(edict_t *townhall, DWORD class_id);
-bool player_pay(playerState_t *ps, DWORD project);
-BYTE compress_stat(edictStat_t const *stat);
+void M_MoveInDirection(LPEDICT self);
+void M_ChangeAngle(LPEDICT self);
+BOOL M_CheckAttack(LPEDICT self);
+void M_SetAnimation(LPEDICT self, LPCSTR anim);
+void M_SetMove(LPEDICT self, umove_t *move);
+FLOAT M_DistanceToGoal(LPEDICT ent);
+FLOAT M_MoveDistance(LPEDICT self);
+DWORD M_RefreshHeatmap(LPEDICT self);
+BOOL M_IsDead(LPEDICT ent);
+void SP_SpawnUnit(LPEDICT edict);
+void SP_TrainUnit(LPEDICT townhall, DWORD class_id);
+BOOL player_pay(playerState_t *ps, DWORD project);
+BYTE compress_stat(EDICTSTAT const *stat);
 
 // g_pathing.c
-pathTex_t *LoadTGA(const BYTE* mem, size_t size);
+pathTex_t *LoadTGA(BYTE const* mem, size_t size);
 
 // g_move.c
-bool SV_CloseEnough(edict_t *self, edict_t const *goal, float distance);
+BOOL SV_CloseEnough(LPEDICT self, LPCEDICT goal, FLOAT distance);
 
 // g_phys.c
-void G_RunEntity(edict_t *edict);
+void G_RunEntity(LPEDICT edict);
 void G_SolveCollisions(void);
-bool M_CheckCollision(LPCVECTOR2 origin, float radius);
+BOOL M_CheckCollision(LPCVECTOR2 origin, FLOAT radius);
 
 // g_abilities.c
 ability_t *FindAbilityByClassname(LPCSTR classname);
@@ -388,10 +386,10 @@ LPCSTR FindConfigValue(LPCSTR category, LPCSTR field);
 LPCSTR GetClassName(DWORD class_id);
 
 // p_hud.c
-edict_t *G_GetMainSelectedUnit(gclient_t *client);
-void Get_Commands_f(edict_t *ent);
-void Get_Portrait_f(edict_t *ent);
-void UI_AddCancelButton(edict_t *edict);
+LPEDICT G_GetMainSelectedUnit(gclient_t *client);
+void Get_Commands_f(LPEDICT ent);
+void Get_Portrait_f(LPEDICT ent);
+void UI_AddCancelButton(LPEDICT edict);
 
 void UI_AddCommandButton(LPCSTR ability);
 
@@ -399,48 +397,46 @@ void UI_AddCommandButton(LPCSTR ability);
 void UI_PrintClasses(void);
 void UI_ClearTemplates(void);
 void UI_ParseFDF(LPCSTR fileName);
-void UI_SetAllPoints(uiFrameDef_t *frame);
-void UI_SetParent(uiFrameDef_t *frame, uiFrameDef_t *parent);
-void UI_SetText(uiFrameDef_t *frame, LPCSTR format, ...);
-void UI_SetSize(uiFrameDef_t *frame, DWORD width, DWORD height);
-void UI_SetTexture(uiFrameDef_t *frame, LPCSTR name, bool decorate);
-void UI_SetTexture2(uiFrameDef_t *frame, LPCSTR name, bool decorate);
-void UI_WriteLayout(edict_t *ent, uiFrameDef_t const *frames, DWORD layer);
-void UI_SetPoint(uiFrameDef_t *frame, UIFRAMEPOINT framePoint, uiFrameDef_t *other, UIFRAMEPOINT otherPoint, int16_t x, int16_t y);
-void UI_SetPointByNumber(uiFrameDef_t *frame, UIFRAMEPOINT framePoint, DWORD otherNumber, UIFRAMEPOINT otherPoint, SHORT x, SHORT y);
-void UI_InitFrame(uiFrameDef_t *frame, DWORD number, uiFrameType_t type);
-void UI_WriteFrameWithChildren(uiFrameDef_t const *frame);
-void UI_WriteLayout2(edict_t *ent, void (*BuildUI)(gclient_t *), DWORD layer);
-void UI_SetOffset(uiFrameDef_t *frame, SHORT x, SHORT y);
+void UI_SetAllPoints(UIFRAMEDEF *frame);
+void UI_SetParent(UIFRAMEDEF *frame, UIFRAMEDEF *parent);
+void UI_SetText(UIFRAMEDEF *frame, LPCSTR format, ...);
+void UI_SetSize(UIFRAMEDEF *frame, DWORD width, DWORD height);
+void UI_SetTexture(UIFRAMEDEF *frame, LPCSTR name, BOOL decorate);
+void UI_SetTexture2(UIFRAMEDEF *frame, LPCSTR name, BOOL decorate);
+void UI_WriteLayout(LPEDICT ent, UIFRAMEDEF const *frames, DWORD layer);
+void UI_SetPoint(UIFRAMEDEF *frame, UIFRAMEPOINT framePoint, UIFRAMEDEF *other, UIFRAMEPOINT otherPoint, int16_t x, int16_t y);
+void UI_SetPointByNumber(UIFRAMEDEF *frame, UIFRAMEPOINT framePoint, DWORD otherNumber, UIFRAMEPOINT otherPoint, SHORT x, SHORT y);
+void UI_InitFrame(UIFRAMEDEF *frame, DWORD number, uiFrameType_t type);
+void UI_WriteFrameWithChildren(UIFRAMEDEF const *frame);
+void UI_WriteLayout2(LPEDICT ent, void (*BuildUI)(gclient_t *), DWORD layer);
+void UI_SetOffset(UIFRAMEDEF *frame, SHORT x, SHORT y);
+void UI_SetHidden(UIFRAMEDEF *frame, BOOL value);
 DWORD UI_FindFrameNumber(LPCSTR name);
-DWORD UI_LoadTexture(LPCSTR file, bool decorate);
+DWORD UI_LoadTexture(LPCSTR file, BOOL decorate);
 LPCSTR UI_GetString(LPCSTR textID);
-uiFrameDef_t *UI_Spawn(uiFrameType_t type, uiFrameDef_t *parent);
-uiFrameDef_t *UI_FindFrame(LPCSTR name);
-uiFrameDef_t *UI_FindChildFrame(uiFrameDef_t *frame, LPCSTR name);
+UIFRAMEDEF *UI_Spawn(uiFrameType_t type, UIFRAMEDEF *parent);
+UIFRAMEDEF *UI_FindFrame(LPCSTR name);
+UIFRAMEDEF *UI_FindChildFrame(UIFRAMEDEF *frame, LPCSTR name);
 
 // g_metadata.c
 LPCSTR UnitStringField(sheetMetaData_t *meta, DWORD unit_id, LPCSTR name);
-int UnitIntegerField(sheetMetaData_t *meta, DWORD unit_id, LPCSTR name);
-bool UnitBooleanField(sheetMetaData_t *meta, DWORD unit_id, LPCSTR name);
-float UnitRealField(sheetMetaData_t *meta, DWORD unit_id, LPCSTR name);
+LONG UnitIntegerField(sheetMetaData_t *meta, DWORD unit_id, LPCSTR name);
+BOOL UnitBooleanField(sheetMetaData_t *meta, DWORD unit_id, LPCSTR name);
+FLOAT UnitRealField(sheetMetaData_t *meta, DWORD unit_id, LPCSTR name);
 
 void InitUnitData(void);
 void ShutdownUnitData(void);
 
 // g_command.c
-void G_SelectEntity(gclient_t *client, edict_t *ent);
-void G_DeselectEntity(gclient_t *client, edict_t *ent);
-bool G_IsEntitySelected(gclient_t *client, edict_t *ent);
+void G_SelectEntity(gclient_t *client, LPEDICT ent);
+void G_DeselectEntity(gclient_t *client, LPEDICT ent);
+BOOL G_IsEntitySelected(gclient_t *client, LPEDICT ent);
 
 //  s_skills.c
-float AB_Number(ability_t const *ability, LPCSTR field);
+FLOAT AB_Number(ability_t const *ability, LPCSTR field);
 
 // g_combat.c
-void T_Damage(edict_t *target, edict_t *attacker, int damage);
-
-// g_spawn.c
-void SP_SpawnTrainedUnit(edict_t *townhall, DWORD class_id);
+void T_Damage(LPEDICT target, LPEDICT attacker, int damage);
 
 // globals
 extern struct game_locals game;

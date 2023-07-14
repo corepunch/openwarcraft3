@@ -133,6 +133,10 @@ static void R_MakeCliff(LPCWAR3MAP map, DWORD x, DWORD y, cliffData_t const *dat
     }
 
     LPCMODEL pModel = R_LoadCliffModel(data, cliffcfg, is_ramp);
+    if (!pModel) {
+        fprintf(stderr, "Model %.4s not found\n", (LPCSTR)&cliffcfg);
+        return;
+    }
     mdxGeoset_t *pGeoset = pModel->mdx->geosets;
     
     VECTOR2 offset = { (x+1) * TILESIZE, y * TILESIZE };
