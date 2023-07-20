@@ -232,7 +232,7 @@ static VECTOR2 process_text(LPCDRAWTEXT arg, BOOL draw) {
             DWORD icon = atoi(p+6);
             switch (*(DWORD*)(p+1)) {
                 case MAKEFOURCC('I', 'c', 'o', 'n'):
-                    if (arg->icons[icon]) {
+                    if (draw && arg->icons[icon]) {
                         R_DrawImage(arg->icons[icon],
                                     &MAKE(RECT, cursor.x, cursor.y + linesize * 0.1, linesize, linesize),
                                     &MAKE(RECT, 0, 0, 1, 1),

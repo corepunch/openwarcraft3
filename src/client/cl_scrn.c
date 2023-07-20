@@ -408,6 +408,7 @@ void layout_tooltiptext(LPCUIFRAME frame, LPCRECT scrn) {
         RECT screen = *scrn;
         FLOAT const PADDING = 0.005;
         DRAWTEXT drawtext = get_drawtext(frame, screen.w - PADDING * 2, active_tooltip);
+        drawtext.wordWrap = true;
         VECTOR2 textsize = re.GetTextSize(&drawtext);
         textsize.y += PADDING * 2;
         screen.y += screen.h - textsize.y;
