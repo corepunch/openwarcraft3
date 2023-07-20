@@ -38,7 +38,7 @@ struct client_s {
 
 struct edict_s {
     entityState_t s;
-    gclient_t *client;
+    LPGAMECLIENT client;
     pathTex_t *pathtex;
     DWORD svflags;
     DWORD selected;

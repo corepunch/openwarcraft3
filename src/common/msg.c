@@ -53,7 +53,7 @@ netField_t uiFrameFields[] = {
     { NETF(uiFrame_t, stat), NFT_BYTE },
     { NETF(uiFrame_t, color), NFT_LONG },
     { NETF(uiFrame_t, text), NFT_TEXT },
-    { NETF(uiFrame_t, offset), NFT_LONG },
+    { NETF(uiFrame_t, tooltip), NFT_TEXT },
     { NULL }
 };
 
@@ -199,6 +199,9 @@ static DWORD MSG_GetBits(void const *from,
         int *fromF = (int *)((uint8_t *)from + field->offset);
         int *toF = (int *)((uint8_t *)to + field->offset);
         if (*fromF != *toF) {
+            if (field->type == NFT_TEXT && **((LPCSTR *)toF) == 0) {
+                continue;
+            }
             bits |= 1 << (field - fields);
         }
     }
@@ -220,7 +223,7 @@ static void MSG_WriteFields(LPSIZEBUF msg,
             case NFT_LONG: MSG_WriteLong(msg, *toF); break;
             case NFT_SHORT: MSG_WriteShort(msg, *toF); break;
             case NFT_BYTE: MSG_WriteByte(msg, *toF); break;
-            case NFT_TEXT: MSG_WriteString(msg, (LPCSTR)toF); break;
+            case NFT_TEXT: MSG_WriteString(msg, *(LPCSTR *)toF); break;
         }
     }
 }
@@ -240,7 +243,10 @@ static void MSG_ReadFields(LPSIZEBUF msg,
             case NFT_LONG: *toF = MSG_ReadLong(msg); break;
             case NFT_SHORT: *toF = MSG_ReadShort(msg); break;
             case NFT_BYTE: *toF = MSG_ReadByte(msg); break;
-            case NFT_TEXT: MSG_ReadString(msg, (LPSTR)toF); break;
+            case NFT_TEXT:
+                *((LPCSTR *)toF) = (LPCSTR)(msg->data + msg->readcount);
+                while (*(msg->data+(msg->readcount++)));
+                break;
         }
     }
 }
@@ -267,8 +273,8 @@ void MSG_ReadDeltaEntity(LPSIZEBUF msg,
 }
 
 void MSG_WriteDeltaUIFrame(LPSIZEBUF msg,
-                           uiFrame_t const *from,
-                           uiFrame_t const *to,
+                           LPCUIFRAME from,
+                           LPCUIFRAME to,
                            bool force)
 {
     DWORD bits = MSG_GetBits(from, to, uiFrameFields);
@@ -279,7 +285,7 @@ void MSG_WriteDeltaUIFrame(LPSIZEBUF msg,
 }
 
 void MSG_ReadDeltaUIFrame(LPSIZEBUF msg,
-                          uiFrame_t *edict,
+                          LPUIFRAME edict,
                           int number,
                           int bits)
 {

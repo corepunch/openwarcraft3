@@ -2,22 +2,22 @@
 
 #define CLIENTCOMMAND(NAME) void CMD_##NAME(LPEDICT clent, DWORD argc, LPCSTR argv[])
 
-LPEDICT G_GetMainSelectedUnit(gclient_t *client) {
+LPEDICT G_GetMainSelectedUnit(LPGAMECLIENT client) {
     FOR_SELECTED_UNITS(client, ent) {
         return ent;
     }
     return NULL;
 }
 
-void G_SelectEntity(gclient_t *client, LPEDICT ent) {
+void G_SelectEntity(LPGAMECLIENT client, LPEDICT ent) {
     ent->selected |= 1 << client->ps.number;
 }
 
-void G_DeselectEntity(gclient_t *client, LPEDICT ent) {
+void G_DeselectEntity(LPGAMECLIENT client, LPEDICT ent) {
     ent->selected &= ~(1 << client->ps.number);
 }
 
-BOOL G_IsEntitySelected(gclient_t *client, LPEDICT ent) {
+BOOL G_IsEntitySelected(LPGAMECLIENT client, LPEDICT ent) {
     return ent->selected & (1 << client->ps.number);
 }
 
@@ -26,7 +26,7 @@ void CMD_CancelCommand(LPEDICT ent) {
 }
 
 CLIENTCOMMAND(Select) {
-    gclient_t *client = clent->client;
+    LPGAMECLIENT client = clent->client;
     if (client->menu.on_entity_selected) {
         DWORD number = atoi(argv[1]);
         if (number >= globals.num_edicts)
@@ -57,7 +57,7 @@ CLIENTCOMMAND(Select) {
 }
 
 CLIENTCOMMAND(Point) {
-    gclient_t *client = clent->client;
+    LPGAMECLIENT client = clent->client;
     if (client->menu.on_location_selected) {
         VECTOR2 loc = { atoi(argv[1]), atoi(argv[2]) };
         if (client->menu.on_location_selected(clent, &loc)) {
@@ -68,7 +68,7 @@ CLIENTCOMMAND(Point) {
 
 CLIENTCOMMAND(Button) {
     LPCSTR classname = argv[1];
-    gclient_t *client = clent->client;
+    LPGAMECLIENT client = clent->client;
     ability_t *ability = FindAbilityByClassname(classname);
     if (ability && ability->cmd) {
         ability->cmd(clent);

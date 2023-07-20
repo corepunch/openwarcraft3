@@ -101,9 +101,11 @@ void IN_SelectDown(void) {
     };
     
     FOR_LOOP(layer_id, MAX_LAYOUT_LAYERS) {
-        SCR_Clear(cl.layout[layer_id]);
+        if (cl.layout[layer_id] == NULL)
+            continue;
+        LPCUIFRAME frames = SCR_Clear(cl.layout[layer_id]);
         FOR_LOOP(object_id, MAX_LAYOUT_OBJECTS) {
-            uiFrame_t const *frame = &cl.layout[layer_id][object_id];
+            LPCUIFRAME frame = frames+object_id;
             if (frame->flags.type != FT_TEXTURE)
                 continue;
             RECT const screen = Rect_div(SCR_LayoutRect(frame), 10000);
@@ -115,33 +117,33 @@ void IN_SelectDown(void) {
 }
 
 void IN_SelectUp(void) {
-    if (cl.selection.in_progress) {
-        RECT const r = cl.selection.rect;
-        cl.selection.in_progress = false;
-        DWORD entnum;
-        VECTOR3 point;
-        if (fabs(r.w)+fabs(r.h) < 10) {
-            if (re.TraceEntity(&cl.viewDef, r.x, r.y, &entnum)) {
-                MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
-                SZ_Printf(&cls.netchan.message, "select %d", entnum);
-            }
-            if (re.TraceLocation(&cl.viewDef, r.x, r.y, &point)){
-                MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
-                SZ_Printf(&cls.netchan.message, "point %d %d", (int)point.x, (int)point.y);
-            }
-        } else {
-            DWORD selected[MAX_SELECTED_ENTITIES] = { 0 };
-            DWORD num = re.EntitiesInRect(&cl.viewDef, &cl.selection.rect, MAX_SELECTED_ENTITIES, selected);
-            char buffer[1024] = { 0 };
-            if (num == 0)
-                return;
-            strcpy(buffer, "select");
-            FOR_LOOP(i, num) {
-                sprintf(buffer+strlen(buffer), " %d", selected[i]);
-            }
+    if (!cl.selection.in_progress)
+        return;
+    RECT const r = cl.selection.rect;
+    cl.selection.in_progress = false;
+    DWORD entnum;
+    VECTOR3 point;
+    if (fabs(r.w)+fabs(r.h) < 10) {
+        if (re.TraceEntity(&cl.viewDef, r.x, r.y, &entnum)) {
             MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
-            SZ_Printf(&cls.netchan.message, buffer);
+            SZ_Printf(&cls.netchan.message, "select %d", entnum);
         }
+        if (re.TraceLocation(&cl.viewDef, r.x, r.y, &point)){
+            MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
+            SZ_Printf(&cls.netchan.message, "point %d %d", (int)point.x, (int)point.y);
+        }
+    } else {
+        DWORD selected[MAX_SELECTED_ENTITIES] = { 0 };
+        DWORD num = re.EntitiesInRect(&cl.viewDef, &cl.selection.rect, MAX_SELECTED_ENTITIES, selected);
+        char buffer[1024] = { 0 };
+        if (num == 0)
+            return;
+        strcpy(buffer, "select");
+        FOR_LOOP(i, num) {
+            sprintf(buffer+strlen(buffer), " %d", selected[i]);
+        }
+        MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
+        SZ_Printf(&cls.netchan.message, buffer);
     }
 }
 

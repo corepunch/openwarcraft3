@@ -154,6 +154,5 @@ void R_RenderModel(renderEntity_t const *entity) {
         return;
     
     R_RenderUberSplat(entity, (LPCVECTOR2)&entity->origin);
-
     R_RenderSelectedCircle(entity, (LPCVECTOR2)&entity->origin);
 }

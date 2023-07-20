@@ -33,10 +33,17 @@ void R_PrintSysText(LPCSTR string, DWORD x, DWORD y, COLOR32 color) {
     R_Call(glDrawArrays, GL_TRIANGLES, 0, num_vertices);
 }
 
-void R_DrawImage(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv, COLOR32 color) {
+void R_DrawImageEx(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv, COLOR32 color, BOOL rotate) {
     VERTEX simp[6];
     RECT full = { 0, 0, 1, 1 };
     R_AddQuad(simp, screen, uv ? uv : &full, color, 0);
+    
+    if (rotate) {
+        VECTOR2 tmp1 = simp[1].texcoord;
+        VECTOR2 tmp2 = simp[5].texcoord;
+        simp[1].texcoord = tmp2;
+        simp[5].texcoord = tmp1;
+    }
     
     //    size2_t screensize = R_GetWindowSize();
     MATRIX4 ui_matrix;
@@ -55,6 +62,10 @@ void R_DrawImage(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv, COLOR32 color) 
     R_Call(glEnable, GL_BLEND);
     R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     R_Call(glDrawArrays, GL_TRIANGLES, 0, 6);
+}
+
+void R_DrawImage(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv, COLOR32 color) {
+    R_DrawImageEx(texture, screen,uv, color, false);
 }
 
 void R_DrawPic(LPCTEXTURE texture, float x, float y) {

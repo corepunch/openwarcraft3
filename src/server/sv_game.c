@@ -17,7 +17,7 @@ void PF_WriteEntity(entityState_t const *ent) {
     MSG_WriteDeltaEntity(&sv.multicast, &empty, ent, true);
 }
 
-void PF_WriteUIFrame(uiFrame_t const *frame) {
+void PF_WriteUIFrame(LPCUIFRAME frame) {
     uiFrame_t empty;
     memset(&empty, 0, sizeof(uiFrame_t));
     empty.tex.coord[1] = 0xff;
@@ -78,7 +78,7 @@ void PF_error(LPCSTR fmt, ...) {
     fprintf(stderr, "Game Error: %s\n", msg);
 }
 
-LPCANIMATION SV_GetAnimation(int modelindex, LPCSTR animname) {
+LPCANIMATION SV_GetAnimation(DWORD modelindex, LPCSTR animname) {
     struct cmodel *model = sv.models[modelindex];
     if (!model)
         return NULL;

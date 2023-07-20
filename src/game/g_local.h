@@ -21,10 +21,10 @@ for (LPEDICT ENT = globals.edicts; \
 ENT - globals.edicts < globals.num_edicts; \
 ENT++) if (CONDITION)
 
-#define UI_FRAME(NAME) UIFRAMEDEF *NAME = UI_FindFrame(#NAME);
-#define UI_CHILD_FRAME(NAME, PARENT) UIFRAMEDEF *NAME = UI_FindChildFrame(PARENT, #NAME);
+#define UI_FRAME(NAME) LPFRAMEDEF NAME = UI_FindFrame(#NAME);
+#define UI_CHILD_FRAME(NAME, PARENT) LPFRAMEDEF NAME = UI_FindChildFrame(PARENT, #NAME);
 #define UI_CHILD_VALUE(NAME, PARENT, VALUE, ...) \
-UIFRAMEDEF *NAME = UI_FindChildFrame(PARENT, #NAME); \
+LPFRAMEDEF NAME = UI_FindChildFrame(PARENT, #NAME); \
 if (NAME) { \
     UI_Set##VALUE(NAME, __VA_ARGS__); \
 } else { \
@@ -49,6 +49,8 @@ enum {
 #define svc_layout 2
 #define svc_playerinfo 3
 #define svc_cursor 4
+
+KNOWN_AS(uiFrameDef_s, FRAMEDEF);
 
 typedef struct {
     BOOL (*on_entity_selected)(LPEDICT clent, LPEDICT selected);
@@ -150,9 +152,10 @@ typedef enum {
     FONTFLAGS_PASSWORDFIELD,
 } UIFONTFLAGS;
 
-typedef struct {
+struct uiFrameDef_s {
     uiFrame_t f;
     UINAME Name;
+    UINAME Text;
     RECT rect;
     BOOL DecorateFileNames;
     BOOL inuse;
@@ -162,9 +165,9 @@ typedef struct {
         BOOL TileBackground;
         DWORD Background;
         UINAME CornerFlags;// "UL|UR|BL|BR|T|L|B|R",
-        FLOAT CornerSize;
-        FLOAT BackgroundSize;
-        VECTOR4 BackgroundInsets;// 0.01 0.01 0.01 0.01,
+        SHORT CornerSize;
+        SHORT BackgroundSize;
+        SHORT BackgroundInsets[4];// 0.01 0.01 0.01 0.01,
         DWORD EdgeFile;//  "EscMenuBorder",
         BOOL BlendAll;
     } Backdrop;
@@ -190,7 +193,7 @@ typedef struct {
         COLOR32 ShadowColor;
         VECTOR2 ShadowOffset;
     } Font;
-} UIFRAMEDEF;
+};
 
 struct client_s {
     playerState_t ps;
@@ -238,7 +241,7 @@ typedef struct {
 
 struct edict_s {
     entityState_t s;
-    gclient_t *client;
+    LPGAMECLIENT client;
     pathTex_t *pathtex;
     DWORD svflags;
     DWORD selected;
@@ -288,7 +291,7 @@ struct game_state {
 struct game_locals {
     DWORD max_clients;
     DWORD num_abilities;
-    gclient_t *clients;
+    LPGAMECLIENT clients;
     struct {
         sheetRow_t *abilities;
         sheetRow_t *theme;
@@ -386,7 +389,7 @@ LPCSTR FindConfigValue(LPCSTR category, LPCSTR field);
 LPCSTR GetClassName(DWORD class_id);
 
 // p_hud.c
-LPEDICT G_GetMainSelectedUnit(gclient_t *client);
+LPEDICT G_GetMainSelectedUnit(LPGAMECLIENT client);
 void Get_Commands_f(LPEDICT ent);
 void Get_Portrait_f(LPEDICT ent);
 void UI_AddCancelButton(LPEDICT edict);
@@ -397,26 +400,27 @@ void UI_AddCommandButton(LPCSTR ability);
 void UI_PrintClasses(void);
 void UI_ClearTemplates(void);
 void UI_ParseFDF(LPCSTR fileName);
-void UI_SetAllPoints(UIFRAMEDEF *frame);
-void UI_SetParent(UIFRAMEDEF *frame, UIFRAMEDEF *parent);
-void UI_SetText(UIFRAMEDEF *frame, LPCSTR format, ...);
-void UI_SetSize(UIFRAMEDEF *frame, DWORD width, DWORD height);
-void UI_SetTexture(UIFRAMEDEF *frame, LPCSTR name, BOOL decorate);
-void UI_SetTexture2(UIFRAMEDEF *frame, LPCSTR name, BOOL decorate);
-void UI_WriteLayout(LPEDICT ent, UIFRAMEDEF const *frames, DWORD layer);
-void UI_SetPoint(UIFRAMEDEF *frame, UIFRAMEPOINT framePoint, UIFRAMEDEF *other, UIFRAMEPOINT otherPoint, int16_t x, int16_t y);
-void UI_SetPointByNumber(UIFRAMEDEF *frame, UIFRAMEPOINT framePoint, DWORD otherNumber, UIFRAMEPOINT otherPoint, SHORT x, SHORT y);
-void UI_InitFrame(UIFRAMEDEF *frame, DWORD number, uiFrameType_t type);
-void UI_WriteFrameWithChildren(UIFRAMEDEF const *frame);
-void UI_WriteLayout2(LPEDICT ent, void (*BuildUI)(gclient_t *), DWORD layer);
-void UI_SetOffset(UIFRAMEDEF *frame, SHORT x, SHORT y);
-void UI_SetHidden(UIFRAMEDEF *frame, BOOL value);
+void UI_ParseFDF_Buffer(LPCSTR fileName, LPSTR buffer);
+void UI_SetAllPoints(LPFRAMEDEF frame);
+void UI_SetParent(LPFRAMEDEF frame, LPFRAMEDEF parent);
+void UI_SetText(LPFRAMEDEF frame, LPCSTR format, ...);
+void UI_SetSize(LPFRAMEDEF frame, DWORD width, DWORD height);
+void UI_SetTexture(LPFRAMEDEF frame, LPCSTR name, BOOL decorate);
+void UI_SetTexture2(LPFRAMEDEF frame, LPCSTR name, BOOL decorate);
+void UI_WriteLayout(LPEDICT ent, LPCFRAMEDEF frames, DWORD layer);
+void UI_SetPoint(LPFRAMEDEF frame, UIFRAMEPOINT framePoint, LPFRAMEDEF other, UIFRAMEPOINT otherPoint, int16_t x, int16_t y);
+void UI_SetPointByNumber(LPFRAMEDEF frame, UIFRAMEPOINT framePoint, DWORD otherNumber, UIFRAMEPOINT otherPoint, SHORT x, SHORT y);
+void UI_InitFrame(LPFRAMEDEF frame, DWORD number, uiFrameType_t type);
+void UI_WriteFrame(LPCFRAMEDEF frame);
+void UI_WriteFrameWithChildren(LPCFRAMEDEF frame);
+void UI_WriteLayout2(LPEDICT ent, void (*BuildUI)(LPGAMECLIENT ), DWORD layer);
+void UI_SetHidden(LPFRAMEDEF frame, BOOL value);
 DWORD UI_FindFrameNumber(LPCSTR name);
 DWORD UI_LoadTexture(LPCSTR file, BOOL decorate);
 LPCSTR UI_GetString(LPCSTR textID);
-UIFRAMEDEF *UI_Spawn(uiFrameType_t type, UIFRAMEDEF *parent);
-UIFRAMEDEF *UI_FindFrame(LPCSTR name);
-UIFRAMEDEF *UI_FindChildFrame(UIFRAMEDEF *frame, LPCSTR name);
+LPFRAMEDEF UI_Spawn(uiFrameType_t type, LPFRAMEDEF parent);
+LPFRAMEDEF UI_FindFrame(LPCSTR name);
+LPFRAMEDEF UI_FindChildFrame(LPFRAMEDEF frame, LPCSTR name);
 
 // g_metadata.c
 LPCSTR UnitStringField(sheetMetaData_t *meta, DWORD unit_id, LPCSTR name);
@@ -428,9 +432,9 @@ void InitUnitData(void);
 void ShutdownUnitData(void);
 
 // g_command.c
-void G_SelectEntity(gclient_t *client, LPEDICT ent);
-void G_DeselectEntity(gclient_t *client, LPEDICT ent);
-BOOL G_IsEntitySelected(gclient_t *client, LPEDICT ent);
+void G_SelectEntity(LPGAMECLIENT client, LPEDICT ent);
+void G_DeselectEntity(LPGAMECLIENT client, LPEDICT ent);
+BOOL G_IsEntitySelected(LPGAMECLIENT client, LPEDICT ent);
 
 //  s_skills.c
 FLOAT AB_Number(ability_t const *ability, LPCSTR field);

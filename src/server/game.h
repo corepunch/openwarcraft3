@@ -10,8 +10,8 @@
 #define MAX_ANIMS_IN_TYPE 16
 
 typedef struct edict_s edict_t;
-typedef struct client_s gclient_t;
 
+KNOWN_AS(client_s, GAMECLIENT);
 KNOWN_AS(edict_s, EDICT);
 
 struct game_import {
@@ -22,30 +22,30 @@ struct game_import {
     int (*ImageIndex)(LPCSTR imageName);
     int (*FontIndex)(LPCSTR fontName, DWORD fontSize);
     bool (*ExtractFile)(LPCSTR toExtract, LPCSTR extracted);
-    LPCANIMATION (*GetAnimation)(int modelindex, LPCSTR name);
+    LPCANIMATION (*GetAnimation)(DWORD modelindex, LPCSTR name);
     DWORD (*BuildHeatmap)(edict_t *goalentity);
-    VECTOR2 (*GetFlowDirection)(DWORD heatmapindex, float fx, float fy);
-    float (*GetHeightAtPoint)(float x, float y);
+    VECTOR2 (*GetFlowDirection)(DWORD heatmapindex, FLOAT fx, FLOAT fy);
+    float (*GetHeightAtPoint)(FLOAT x, FLOAT y);
     LPSTR (*ReadFileIntoString)(LPCSTR filename);
     HANDLE (*ReadFile)(LPCSTR filename, LPDWORD size);
     DWORD (*GetTime)(void);
-    
+
     sheetRow_t *(*ReadSheet)(LPCSTR sheetFilename);
     sheetRow_t *(*ReadConfig)(LPCSTR configFilename);
     LPCSTR (*FindSheetCell)(sheetRow_t *sheet, LPCSTR row, LPCSTR column);
 
     void (*multicast)(LPCVECTOR3 origin, multicast_t to);
     void (*unicast)(edict_t *ent);
-    void (*WriteByte)(int c);
-    void (*WriteShort)(int c);
-    void (*WriteLong)(int c);
-    void (*WriteFloat)(float f);
+    void (*WriteByte)(LONG c);
+    void (*WriteShort)(LONG c);
+    void (*WriteLong)(LONG c);
+    void (*WriteFloat)(FLOAT f);
     void (*WriteString)(LPCSTR s);
     void (*WritePosition)(LPCVECTOR3 pos);
     void (*WriteDirection)(LPCVECTOR3 dir);
-    void (*WriteAngle)(float f);
+    void (*WriteAngle)(FLOAT f);
     void (*WriteEntity)(entityState_t const *ent);
-    void (*WriteUIFrame)(uiFrame_t const *frame);
+    void (*WriteUIFrame)(LPCUIFRAME frame);
 
     void (*configstring)(DWORD index, LPCSTR string);
     void (*confignstring)(DWORD index, LPCSTR string, DWORD len);

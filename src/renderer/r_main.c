@@ -394,6 +394,7 @@ refExport_t R_GetAPI(refImport_t imp) {
         .EndFrame = R_EndFrame,
         .DrawPic = R_DrawPic,
         .DrawImage = R_DrawImage,
+        .DrawImageEx = R_DrawImageEx,
         .DrawSelectionRect = R_DrawSelectionRect,
         .PrintSysText = R_PrintSysText,
         .GetWindowSize = R_GetWindowSize,

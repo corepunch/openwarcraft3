@@ -62,22 +62,18 @@ void CL_ParsePlayerInfo(LPSIZEBUF msg) {
 
 void CL_ParseLayout(LPSIZEBUF msg) {
     DWORD layer = MSG_ReadByte(msg);
-    uiFrame_t *frames = cl.layout[layer];
-    uiFrame_t *ent = NULL;
-    memset(frames, 0, sizeof(uiLayoutLayer_t));
-    frames[0].size.width = 8000;
-    frames[0].size.height = 6000;
-    frames[0].flags.type = FT_SCREEN;
+    SAFE_DELETE(cl.layout[layer], MemFree);
+    DWORD start = msg->readcount;
     while (true) {
+        UIFRAME ent = { 0 };
         DWORD bits = 0;
         int nument = MSG_ReadEntityBits(msg, &bits);
         if (nument == 0 && bits == 0)
             break;
-        ent = &frames[nument];
-        ent->tex.coord[1] = 0xff;
-        ent->tex.coord[3] = 0xff;
-        MSG_ReadDeltaUIFrame(msg, ent, nument, bits);
+        MSG_ReadDeltaUIFrame(msg, &ent, nument, bits);
     }
+    cl.layout[layer] = MemAlloc(msg->readcount-start);
+    memcpy(cl.layout[layer], msg->data+start, msg->readcount-start);
 }
 
 void CL_ParseCursor(LPSIZEBUF msg) {

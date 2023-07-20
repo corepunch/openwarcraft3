@@ -172,6 +172,7 @@ KNOWN_AS(Doodad, DOODAD);
 KNOWN_AS(vector3, VECTOR3);
 KNOWN_AS(color32, COLOR32);
 KNOWN_AS(animation_s, ANIMATION);
+KNOWN_AS(uiFrame_s, UIFRAME);
 
 typedef enum {
     MULTICAST_ALL,
@@ -287,6 +288,7 @@ typedef enum {
     // custom types
     FT_BUILDQUEUE,
     FT_MULTISELECT,
+    FT_TOOLTIPTEXT,
 } uiFrameType_t;
 
 typedef enum {
@@ -323,7 +325,7 @@ typedef struct { // serialized as 4 bytes
 
 typedef uiFramePoint_t uiFramePoints_t[FPP_COUNT];
 
-typedef struct {
+typedef struct uiFrame_s {
     DWORD number;
     DWORD parent;
     COLOR32 color;
@@ -346,12 +348,10 @@ typedef struct {
     struct {
         DWORD index;
     } font;
-    struct {
-        SHORT x, y;
-    } offset;
     DWORD textLength;
     DWORD stat;
-    UINAME text;
+    LPCSTR text;
+    LPCSTR tooltip;
     float value;
 } uiFrame_t;
 

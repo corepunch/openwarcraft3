@@ -48,8 +48,6 @@ struct frame {
     int oldclientframe;
 };
 
-typedef uiFrame_t uiLayoutLayer_t[MAX_LAYOUT_OBJECTS];
-
 struct client_state {
     LPMODEL models[MAX_MODELS];
     LPMODEL portraits[MAX_MODELS];
@@ -57,7 +55,7 @@ struct client_state {
     LPCFONT fonts[MAX_FONTSTYLES];
     PATHSTR configstrings[MAX_CONFIGSTRINGS];
     centity_t ents[MAX_CLIENT_ENTITIES];
-    uiLayoutLayer_t layout[MAX_LAYOUT_LAYERS];
+    HANDLE layout[MAX_LAYOUT_LAYERS];
     viewDef_t viewDef;
     struct frame frame;
     VECTOR2 startingPosition;
@@ -90,10 +88,10 @@ void Matrix4_getCameraMatrix(viewCamera_t const *camera, LPMATRIX4 output);
 void V_AddEntity(renderEntity_t *ent);
 
 // cl_scrn.c
-void SCR_Clear(uiFrame_t const *frame);
+LPCUIFRAME SCR_Clear(HANDLE data);
+LPCRECT SCR_LayoutRect(LPCUIFRAME frame);
 void SCR_UpdateScreen(void);
-LPCRECT SCR_LayoutRect(uiFrame_t const *frame);
-    
+
 // cl_input.c
 void CL_Input(void);
 void CL_InitInput(void);

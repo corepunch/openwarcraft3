@@ -87,7 +87,7 @@ void build_menu_selectlocation(LPEDICT ent, DWORD building_id) {
     ent->build_project = building_id;
 }
 
-void ui_builds(gclient_t *client) {
+void ui_builds(LPGAMECLIENT client) {
     LPEDICT ent = G_GetMainSelectedUnit(client);
     LPCSTR builds = UNIT_BUILDS(ent->class_id);
     if (!builds)

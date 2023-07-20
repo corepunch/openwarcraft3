@@ -164,11 +164,11 @@ void FS_Init(void) {
     if (handle) {
          do {
              if(strstr(findData.cFileName, ".fdf")) {
-                 printf("%s\n", findData.cFileName);
+//                 printf("%s\n", findData.cFileName);
              }
 #if 0
 //             if (strstr(findData.cFileName, "SimpleInfo")){
-             if (strstr(findData.cFileName, ".fdf")) {
+             if (strstr(findData.cFileName, ".txt")) {
                  HANDLE file;
                  SFileOpenFileEx(archives[0], findData.cFileName, SFILE_OPEN_FROM_MPQ, &file);
                  char ch;

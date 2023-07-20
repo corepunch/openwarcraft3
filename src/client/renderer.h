@@ -3,6 +3,8 @@
 
 #include "../common/common.h"
 
+KNOWN_AS(drawText_s, DRAWTEXT);
+
 enum {
     RDF_NOWORLDMODEL = 1,
     RDF_NOFRUSTUMCULL = 2,
@@ -68,14 +70,18 @@ typedef struct {
     FRUSTUM3 frustum;
 } viewDef_t;
 
-typedef struct {
+struct drawText_s {
     LPCFONT font;
     LPCSTR text;
     RECT rect;
-    color32_t color;
+    COLOR32 color;
+    FLOAT textWidth;
+    FLOAT lineHeight;
+    BOOL wordWrap;
     uiFontJustificationH_t halign;
     uiFontJustificationV_t valign;
-} drawText_t;
+    LPCTEXTURE *icons;
+};
 
 typedef struct {
     void (*Init)(DWORD width, DWORD height);
@@ -94,9 +100,10 @@ typedef struct {
     void (*DrawSelectionRect)(LPCRECT rect, COLOR32 color);
     void (*DrawPic)(LPCTEXTURE texture, float x, float y);
     void (*DrawImage)(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv, COLOR32 color);
+    void (*DrawImageEx)(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv, COLOR32 color, BOOL rotate);
     void (*DrawPortrait)(LPCMODEL model, LPCRECT viewport);
-    void (*DrawText)(drawText_t const *drawText);
-    VECTOR2 (*GetTextSize)(LPCFONT font, LPCSTR text);
+    void (*DrawText)(LPCDRAWTEXT drawText);
+    VECTOR2 (*GetTextSize)(LPCDRAWTEXT drawText);
 
     bool (*TraceEntity)(viewDef_t const *viewdef, float x, float y, LPDWORD number);
     bool (*TraceLocation)(viewDef_t const *viewdef, float x, float y, LPVECTOR3 point);

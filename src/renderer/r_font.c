@@ -10,11 +10,11 @@ typedef struct {
     stbtt_bakedchar glyphs[MAX_GLYPHSET];
 } glyphSet_t;
 
-typedef struct font {
+typedef struct  font {
     void *data;
     stbtt_fontinfo stbfont;
     glyphSet_t *sets[MAX_GLYPHSET];
-    float size;
+    FLOAT size;
     int height;
 } font_t;
 
@@ -41,7 +41,7 @@ static glyphSet_t* R_LoadGlyphSet(font_t *font, int idx) {
     int width = 128;
     int height = 128;
     uint8_t *fontimage;
-    float s;
+    FLOAT s;
     int res;
     
 retry:
@@ -63,7 +63,7 @@ retry:
     /* adjust glyph yoffsets and xadvance */
     int ascent, descent, linegap;
     stbtt_GetFontVMetrics(&font->stbfont, &ascent, &descent, &linegap);
-    float scale = stbtt_ScaleForMappingEmToPixels(&font->stbfont, font->size);
+    FLOAT scale = stbtt_ScaleForMappingEmToPixels(&font->stbfont, font->size);
     int scaled_ascent = ascent * scale + 0.5;
     for (int i = 0; i < 256; i++) {
         set->glyphs[i].yoff += scaled_ascent;
@@ -115,7 +115,7 @@ LPFONT R_LoadFont(LPCSTR filename, DWORD size) {
     /* get height and scale */
     int ascent, descent, linegap;
     stbtt_GetFontVMetrics(&font->stbfont, &ascent, &descent, &linegap);
-    float scale = stbtt_ScaleForMappingEmToPixels(&font->stbfont, size);
+    FLOAT scale = stbtt_ScaleForMappingEmToPixels(&font->stbfont, size);
     font->height = (ascent - descent + linegap) * scale + 0.5;
     
     /* make tab and newline glyphs invisible */
@@ -143,8 +143,8 @@ void R_ReleaseFont(LPFONT font) {
     ri.MemFree(font);
 }
 
-float R_GetFontWidth(LPFONT font, LPCSTR text) {
-    float x = 0;
+FLOAT R_GetFontWidth(LPFONT font, LPCSTR text) {
+    FLOAT x = 0;
     LPCSTR p = text;
     unsigned codepoint;
     while (*p) {
@@ -157,20 +157,24 @@ float R_GetFontWidth(LPFONT font, LPCSTR text) {
 }
 
 
-float R_GetFontHeight(LPFONT font) {
+FLOAT R_GetFontHeight(LPFONT font) {
     return FONT_SCALE * INV_SCALE(font->height);
 }
 
-VECTOR2 R_GetTextSize(LPCFONT font, LPCSTR text) {
-    return (VECTOR2) {
-        R_GetFontWidth((LPFONT)font, text),
-        R_GetFontHeight((LPFONT)font),
-    };
+BOOL will_word_fit(LPCSTR text, FLOAT width, LPCFONT font) {
+    for (LPCSTR p = text; *p && !isspace(*p) && *p != '|';) {
+        unsigned codepoint;
+        p = utf8_to_codepoint(p, &codepoint);
+        glyphSet_t *set = R_GetGlyphSet((LPFONT)font, codepoint);
+        stbtt_bakedchar *g = &set->glyphs[codepoint & 0xff];
+        width -= INV_SCALE(g->xadvance);
+    }
+    return width >= 0;
 }
 
-void R_DrawText(drawText_t const *arg) {
+static VECTOR2 get_position(LPCDRAWTEXT arg) {
     VECTOR2 pos = { 0 };
-    VECTOR2 size = R_GetTextSize(arg->font, arg->text);
+    VECTOR2 size = R_GetTextSize(arg);
     switch (arg->halign) {
         case FONT_JUSTIFYRIGHT: pos.x = arg->rect.x + arg->rect.w - size.x; break;
         case FONT_JUSTIFYCENTER: pos.x = arg->rect.x + (arg->rect.w - size.x) / 2; break;
@@ -181,26 +185,106 @@ void R_DrawText(drawText_t const *arg) {
         case FONT_JUSTIFYMIDDLE: pos.y = arg->rect.y + (arg->rect.h - size.y) / 2; break;
         case FONT_JUSTIFYTOP: pos.y = arg->rect.y; break;
     }
+    return pos;
+}
+
+static RECT get_uvrect(stbtt_bakedchar *g, FLOAT h, FLOAT w) {
+    RECT const uv_rect = {
+        .x = g->x0 / w,
+        .y = g->y0 / h,
+        .w = (g->x1 - g->x0) / w,
+        .h = (g->y1 - g->y0) / h,
+    };
+    return uv_rect;
+}
+
+static RECT get_screenrect(LPCVECTOR2 cursor, stbtt_bakedchar *g) {
+    RECT const screen = {
+        .x = cursor->x + INV_SCALE(g->xoff),
+        .y = cursor->y + INV_SCALE(g->yoff),
+        .w = INV_SCALE(g->x1 - g->x0),
+        .h = INV_SCALE(g->y1 - g->y0),
+    };
+    return screen;
+}
+
+static VECTOR2 process_text(LPCDRAWTEXT arg, BOOL draw) {
+    VECTOR2 pos = draw ? get_position(arg) : MAKE(VECTOR2, 0, 0);
+    COLOR32 color = COLOR32_WHITE;
+    VECTOR2 cursor = pos;
+    FLOAT maxwidth = 0;
+    FLOAT linesize = 0.5 * arg->font->size / 1000.f;
     for (LPCSTR p = arg->text; *p;) {
+        if (*p == '\n') {
+            cursor.x = pos.x;
+            cursor.y += linesize * arg->lineHeight * 1.1;
+            p++;
+            continue;
+        }
+        if (!strncmp(p, "|n", 2)) {
+        next_line:
+            cursor.x = pos.x;
+            cursor.y += linesize * arg->lineHeight * 1.1;
+            p += 2;
+            continue;
+        }
+        if (*p == '<') {
+            DWORD icon = atoi(p+6);
+            switch (*(DWORD*)(p+1)) {
+                case MAKEFOURCC('I', 'c', 'o', 'n'):
+                    if (arg->icons[icon]) {
+                        R_DrawImage(arg->icons[icon],
+                                    &MAKE(RECT, cursor.x, cursor.y + linesize * 0.1, linesize, linesize),
+                                    &MAKE(RECT, 0, 0, 1, 1),
+                                    COLOR32_WHITE);
+                    }
+                    cursor.x += linesize;
+                    break;
+            }
+            p = strchr(p + 1, '>') + 1;
+            continue;;
+        }
+        if (!strncmp(p, "|r", 2)) {
+            color = COLOR32_WHITE;
+            p += 2;
+            continue;
+        }
+        if (!strncmp(p, "|c", 2)) {
+            COLOR32 c;
+            sscanf(p+2, "%08x", (DWORD *)&c);
+            color.a = c.a;
+            color.b = c.r;
+            color.g = c.g;
+            color.r = c.b;
+            p += 10;
+            continue;
+        }
+        if (arg->wordWrap && cursor.x > pos.x && !will_word_fit(p, arg->textWidth - (cursor.x - pos.x), arg->font)) {
+            cursor.x = pos.x;
+            cursor.y += linesize * arg->lineHeight;
+        }
         unsigned codepoint;
         p = utf8_to_codepoint(p, &codepoint);
         glyphSet_t *set = R_GetGlyphSet((LPFONT)arg->font, codepoint);
         stbtt_bakedchar *g = &set->glyphs[codepoint & 0xff];
-        float w = set->image->width;
-        float h = set->image->height;
-        RECT const uv_rect = {
-            .x = g->x0 / w,
-            .y = g->y0 / h,
-            .w = (g->x1 - g->x0) / w,
-            .h = (g->y1 - g->y0) / h,
-        };
-        RECT const screen = {
-            .x = pos.x + INV_SCALE(g->xoff),
-            .y = pos.y + INV_SCALE(g->yoff),
-            .w = INV_SCALE(g->x1 - g->x0),
-            .h = INV_SCALE(g->y1 - g->y0),
-        };
-        R_DrawImage(set->image, &screen, &uv_rect, COLOR32_WHITE);
-        pos.x += INV_SCALE(g->xadvance);
+        if (draw) {
+            FLOAT const w = set->image->width;
+            FLOAT const h = set->image->height;
+            RECT const uv_rect = get_uvrect(g, h, w);
+            RECT const screen = get_screenrect(&cursor, g);
+            R_DrawImage(set->image, &screen, &uv_rect, color);
+        }
+        cursor.x += INV_SCALE(g->xadvance);
+        maxwidth = MAX(maxwidth, cursor.x);
     }
+    return MAKE(VECTOR2, maxwidth, cursor.y + R_GetFontHeight((LPFONT)arg->font));
+}
+
+
+void R_DrawText(LPCDRAWTEXT arg) {
+    process_text(arg, true);
+}
+
+VECTOR2 R_GetTextSize(LPCDRAWTEXT arg) {
+    return process_text(arg, false);
 }
