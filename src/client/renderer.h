@@ -4,6 +4,14 @@
 #include "../common/common.h"
 
 KNOWN_AS(drawText_s, DRAWTEXT);
+KNOWN_AS(drawImage_s, DRAWIMAGE);
+
+typedef enum {
+    SHADER_DEFAULT,
+    SHADER_UI,
+    SHADER_COMMANDBUTTON,
+    SHADER_COUNT,
+} SHADERTYPE;
 
 enum {
     RDF_NOWORLDMODEL = 1,
@@ -83,6 +91,16 @@ struct drawText_s {
     LPCTEXTURE *icons;
 };
 
+struct drawImage_s {
+    LPCTEXTURE texture;
+    SHADERTYPE shader;
+    RECT screen;
+    RECT uv;
+    COLOR32 color;
+    BOOL rotate;
+    FLOAT uActiveGlow;
+};
+
 typedef struct {
     void (*Init)(DWORD width, DWORD height);
     void (*Shutdown)(void);
@@ -100,7 +118,7 @@ typedef struct {
     void (*DrawSelectionRect)(LPCRECT rect, COLOR32 color);
     void (*DrawPic)(LPCTEXTURE texture, float x, float y);
     void (*DrawImage)(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv, COLOR32 color);
-    void (*DrawImageEx)(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv, COLOR32 color, BOOL rotate);
+    void (*DrawImageEx)(LPCDRAWIMAGE drawImage);
     void (*DrawPortrait)(LPCMODEL model, LPCRECT viewport);
     void (*DrawText)(LPCDRAWTEXT drawText);
     VECTOR2 (*GetTextSize)(LPCDRAWTEXT drawText);

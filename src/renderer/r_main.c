@@ -224,6 +224,7 @@ void R_Init(DWORD width, DWORD height) {
     extern LPCSTR fs_default;
     extern LPCSTR fs_ui;
     extern LPCSTR fs_alphatest;
+    extern LPCSTR fs_commandbutton;
     
     FOR_LOOP(i, MODEL_COUNT) {
         tr.model[i] = R_LoadModel(modelNames[i]);
@@ -247,7 +248,8 @@ void R_Init(DWORD width, DWORD height) {
 
     tr.shader[SHADER_DEFAULT] = R_InitShader(vs_default, fs_default);
     tr.shader[SHADER_UI] = R_InitShader(vs_default, fs_ui);
-    
+    tr.shader[SHADER_COMMANDBUTTON] = R_InitShader(vs_default, fs_commandbutton);
+
     tr.buffer[RBUF_TEMP1] = R_MakeVertexArrayObject(NULL, 0);
     tr.texture[TEX_WHITE] = R_AllocateSinglePixelTexture(0xffffffff);
     tr.texture[TEX_BLACK] = R_AllocateSinglePixelTexture(0xff000000);

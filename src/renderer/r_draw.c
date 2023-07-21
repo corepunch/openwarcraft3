@@ -33,30 +33,34 @@ void R_PrintSysText(LPCSTR string, DWORD x, DWORD y, COLOR32 color) {
     R_Call(glDrawArrays, GL_TRIANGLES, 0, num_vertices);
 }
 
-void R_DrawImageEx(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv, COLOR32 color, BOOL rotate) {
+void R_DrawImageEx(LPCDRAWIMAGE drawImage) {
     VERTEX simp[6];
-    RECT full = { 0, 0, 1, 1 };
-    R_AddQuad(simp, screen, uv ? uv : &full, color, 0);
+    R_AddQuad(simp, &drawImage->screen, &drawImage->uv, drawImage->color, 0);
     
-    if (rotate) {
+    if (drawImage->rotate) {
         VECTOR2 tmp1 = simp[1].texcoord;
         VECTOR2 tmp2 = simp[5].texcoord;
         simp[1].texcoord = tmp2;
         simp[5].texcoord = tmp1;
     }
+
+    LPCSHADER shader = tr.shader[drawImage->shader];
     
     //    size2_t screensize = R_GetWindowSize();
-    MATRIX4 ui_matrix;
+    MATRIX4 ui_matrix, model_matrix;
     Matrix4_ortho(&ui_matrix, 0.0f, 0.8, 0.6, 0.0f, 0.0f, 100.0f);
+    Matrix4_identity(&model_matrix);
     
     R_Call(glDisable, GL_CULL_FACE);
-    R_Call(glUseProgram, tr.shader[SHADER_UI]->progid);
-    R_Call(glUniformMatrix4fv, tr.shader[SHADER_UI]->uViewProjectionMatrix, 1, GL_FALSE, ui_matrix.v);
+    R_Call(glUseProgram, shader->progid);
+    R_Call(glUniformMatrix4fv, shader->uViewProjectionMatrix, 1, GL_FALSE, ui_matrix.v);
+    R_Call(glUniformMatrix4fv, shader->uModelMatrix, 1, GL_FALSE, model_matrix.v);
+    R_Call(glUniform1f , shader->uActiveGlow, drawImage->uActiveGlow);
     R_Call(glBindVertexArray, tr.buffer[RBUF_TEMP1]->vao);
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, tr.buffer[RBUF_TEMP1]->vbo);
     R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(VERTEX) * 6, simp, GL_STATIC_DRAW);
     
-    R_BindTexture(texture, 0);
+    R_BindTexture(drawImage->texture, 0);
     
     R_Call(glDisable, GL_CULL_FACE);
     R_Call(glEnable, GL_BLEND);
@@ -65,7 +69,13 @@ void R_DrawImageEx(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv, COLOR32 color
 }
 
 void R_DrawImage(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv, COLOR32 color) {
-    R_DrawImageEx(texture, screen,uv, color, false);
+    R_DrawImageEx(&MAKE(DRAWIMAGE,
+                        .texture = texture,
+                        .screen = *screen,
+                        .uv = uv ? *uv : MAKE(RECT,0,0,1,1),
+                        .color = color,
+                        .rotate = false,
+                        .shader = SHADER_UI));
 }
 
 void R_DrawPic(LPCTEXTURE texture, float x, float y) {

@@ -164,7 +164,7 @@ LPCRECT SCR_LayoutRect(LPCUIFRAME frame) {
     return &runtimes[frame->number].rect;
 }
 
-void layout_statusbar(LPCUIFRAME frame, LPCRECT screen) {
+void SCR_DrawStatusbar(LPCUIFRAME frame, LPCRECT screen) {
     RECT const uv = { 0, 0, 255, 255 };
     RECT screen2 = *screen;
     RECT uv2 = uv;
@@ -183,7 +183,7 @@ void layout_statusbar(LPCUIFRAME frame, LPCRECT screen) {
     }
 }
 
-void layout_texture(LPCUIFRAME frame, LPCRECT screen) {
+void SCR_DrawTexture(LPCUIFRAME frame, LPCRECT screen) {
     RECT const uv = get_uvrect(frame->tex.coord);
     RECT const suv = Rect_div(&uv, 0xff);
     re.DrawImage(cl.pics[frame->tex.index], screen, &suv, frame->color);
@@ -222,7 +222,7 @@ void get_rects(LPCRECT screen, LPRECT rects, float corner_size) {
     }
 }
 
-void layout_backdrop(LPCUIFRAME frame, LPCRECT screen) {
+void SCR_DrawBackdrop(LPCUIFRAME frame, LPCRECT screen) {
     RECT const uv = { 0, 0, 1, 1};
     
     BACKDROPCORNER const corners[NUM_BACKDROP_CORNERS] = {
@@ -264,10 +264,16 @@ void layout_backdrop(LPCUIFRAME frame, LPCRECT screen) {
     get_rects(screen, rects, CornerSize / (float)UI_SCALE);
     
     FOR_LOOP(i, NUM_BACKDROP_CORNERS) {
-        float const k = 1.0 / NUM_BACKDROP_CORNERS;
+        FLOAT const k = 1.0 / NUM_BACKDROP_CORNERS;
         RECT const rect = { i * k, 0, k, 1 };
-        bool const flip = (corners[i] == BACKDROP_TOP_EDGE || corners[i] == BACKDROP_BOTTOM_EDGE);
-        re.DrawImageEx(cl.pics[EdgeFile], &rects[corners[i]], &rect, frame->color, flip);
+        BOOL const flip = (corners[i] == BACKDROP_TOP_EDGE || corners[i] == BACKDROP_BOTTOM_EDGE);
+        re.DrawImageEx(&MAKE(DRAWIMAGE,
+                             .texture = cl.pics[EdgeFile],
+                             .screen = rects[corners[i]],
+                             .uv = rect,
+                             .color = frame->color,
+                             .rotate = flip,
+                             .shader = SHADER_UI));
     }
     
     RECT background = *screen;
@@ -280,7 +286,7 @@ void layout_backdrop(LPCUIFRAME frame, LPCRECT screen) {
     re.DrawImage(cl.pics[Background], &background, &uv, frame->color);
 }
 
-void layout_buildqueue(LPCUIFRAME frame, LPCRECT scrn) {
+void SCR_DrawBuildQueue(LPCUIFRAME frame, LPCRECT scrn) {
     static UINAME buffer = { 0 };
     RECT screen = *scrn;
     RECT const uv = { 0, 0, 1, 1 };
@@ -294,10 +300,7 @@ void layout_buildqueue(LPCUIFRAME frame, LPCRECT scrn) {
         entityState_t *ent = &cl.ents[nument].current;
         if (ent->stats[ENT_HEALTH] == 255) {
             continue;
-        } else if (first_item) {
-            ((LPUIFRAME )frames)[time_bar].value = BYTE2FLOAT(ent->stats[ENT_HEALTH]);
-            ((LPUIFRAME )frames)[first_image].tex.index = img;
-        } else {
+        } else if (!first_item) {
             re.DrawImage(cl.pics[img], &screen, &uv, frame->color);
             screen.x += (float)offset_x / (float)UI_SCALE;
         }
@@ -305,10 +308,27 @@ void layout_buildqueue(LPCUIFRAME frame, LPCRECT scrn) {
     }
 }
 
+void SCR_UpdateBuildQueue(LPCUIFRAME frame, LPCRECT screen) {
+    static UINAME buffer = { 0 };
+    DWORD first_image, time_bar, offset_x;
+    sscanf(frame->text, "%x %x %x,", &first_image, &time_bar, &offset_x);
+    strcpy(buffer, strchr(frame->text, ',')+1);
+    for (LPCSTR token = strtok(buffer, ","); token != NULL; token = strtok(NULL, ",")) {
+        DWORD img = 0, nument = 0;
+        sscanf(token, "%x %x", &img, &nument);
+        entityState_t *ent = &cl.ents[nument].current;
+        if (ent->stats[ENT_HEALTH] != 255) {
+            ((LPUIFRAME )frames)[time_bar].value = BYTE2FLOAT(ent->stats[ENT_HEALTH]);
+            ((LPUIFRAME )frames)[first_image].tex.index = img;
+            break;
+        }
+    }
+}
+
 #define HP_BAR_HEIGHT_RATIO 0.175f
 #define HP_BAR_SPACING_RATIO 0.02f
 
-void layout_multiselect(LPCUIFRAME frame, LPCRECT scrn) {
+void SCR_DrawMultiSelect(LPCUIFRAME frame, LPCRECT scrn) {
     static UINAME buffer = { 0 };
     RECT screen = *scrn;
     DWORD hp_bar, mana_bar, columns;
@@ -347,7 +367,7 @@ void layout_multiselect(LPCUIFRAME frame, LPCRECT scrn) {
     }
 }
 
-void layout_portrait(LPCUIFRAME frame, LPCRECT screen) {
+void SCR_DrawPortrait(LPCUIFRAME frame, LPCRECT screen) {
     RECT const viewport = {
         screen->x/0.8,1-(screen->y+screen->h)/0.6,screen->w/0.8,screen->h/0.6
     };
@@ -355,25 +375,33 @@ void layout_portrait(LPCUIFRAME frame, LPCRECT screen) {
     re.DrawPortrait(port ? port : cl.models[frame->tex.index], &viewport);
 }
 
-void layout_cmd(LPCUIFRAME frame, LPCRECT screen) {
+void SCR_DrawCommandButton(LPCUIFRAME frame, LPCRECT screen) {
     RECT const uv = get_uvrect(frame->tex.coord);
     RECT const suv = Rect_div(&uv, 0xff);
     VECTOR2 m = {
         mouse.origin.x * 0.8 / WINDOW_WIDTH,
         mouse.origin.y * 0.6 / WINDOW_HEIGHT
     };
-    RECT scrn = *screen;
+    RECT scrn = scale_rect(screen, 0.925);
+
     if (Rect_contains(screen, &m)) {
         if (mouse.button == 1 || mouse.event == UI_LEFT_MOUSE_UP) {
-            scrn = scale_rect(&scrn, 0.95);
+            scrn = scale_rect(screen, 0.875);
         }
         if (mouse.event == UI_LEFT_MOUSE_UP) {
             MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
             SZ_Printf(&cls.netchan.message, "button %s", frame->text);
         }
     }
-
-    re.DrawImage(cl.pics[frame->tex.index], &scrn, &suv, COLOR32_WHITE);
+    
+    re.DrawImageEx(&MAKE(DRAWIMAGE,
+                         .texture = cl.pics[frame->tex.index],
+                         .screen = scrn,
+                         .uv = suv,
+                         .color = COLOR32_WHITE,
+                         .rotate = false,
+                         .shader = SHADER_COMMANDBUTTON,
+                         .uActiveGlow = frame->flags.alphaMode));
 }
 
 DRAWTEXT get_drawtext(LPCUIFRAME frame, FLOAT avl_width, LPCSTR text) {
@@ -395,7 +423,7 @@ void layout_text(LPCUIFRAME frame, LPCRECT screen, LPCSTR text, bool wordWrap) {
     re.DrawText(&drawtext);
 }
 
-void layout_string(LPCUIFRAME frame, LPCRECT screen) {
+void SCR_DrawString(LPCUIFRAME frame, LPCRECT screen) {
     layout_text(frame, screen, SCR_GetStringValue(frame), false);
 }
 
@@ -403,7 +431,7 @@ RECT Rect_inset(LPCRECT r, float inset) {
     return MAKE(RECT,r->x+inset,r->y+inset,r->w-inset*2,r->h-inset*2);
 }
 
-void layout_tooltiptext(LPCUIFRAME frame, LPCRECT scrn) {
+void SCR_DrawTooltip(LPCUIFRAME frame, LPCRECT scrn) {
     if (active_tooltip) {
         RECT screen = *scrn;
         FLOAT const PADDING = 0.005;
@@ -414,7 +442,7 @@ void layout_tooltiptext(LPCUIFRAME frame, LPCRECT scrn) {
         screen.y += screen.h - textsize.y;
         screen.h = textsize.y;
         RECT text = Rect_inset(&screen, PADDING);
-        layout_backdrop(frame, &screen);
+        SCR_DrawBackdrop(frame, &screen);
         layout_text(frame, &text, active_tooltip, true);
     }
 }
@@ -443,22 +471,37 @@ LPCUIFRAME SCR_Clear(HANDLE data) {
     return frames;
 }
 
+void SCR_UpdateCommandButton(LPCUIFRAME frame, LPCRECT screen) {
+    VECTOR2 m = {
+        mouse.origin.x * 0.8 / WINDOW_WIDTH,
+        mouse.origin.y * 0.6 / WINDOW_HEIGHT
+    };
+    if (Rect_contains(screen, &m) && frame->tooltip) {
+        active_tooltip = frame->tooltip;
+    }
+}
+
 typedef struct {
     uiFrameType_t type;
     void (*func)(LPCUIFRAME, LPCRECT);
 } drawer_t;
 
+static drawer_t updaters[] = {
+    { FT_COMMANDBUTTON, SCR_UpdateCommandButton },
+    { FT_BUILDQUEUE, SCR_UpdateBuildQueue },
+};
+
 static drawer_t drawers[] = {
-    { FT_TEXTURE, layout_texture },
-    { FT_BACKDROP, layout_backdrop },
-    { FT_SIMPLESTATUSBAR, layout_statusbar },
-    { FT_COMMANDBUTTON, layout_cmd },
-    { FT_STRING, layout_string },
-    { FT_TEXT, layout_string },
-    { FT_TOOLTIPTEXT, layout_tooltiptext },
-    { FT_PORTRAIT, layout_portrait },
-    { FT_BUILDQUEUE, layout_buildqueue },
-    { FT_MULTISELECT, layout_multiselect },
+    { FT_TEXTURE, SCR_DrawTexture },
+    { FT_BACKDROP, SCR_DrawBackdrop },
+    { FT_SIMPLESTATUSBAR, SCR_DrawStatusbar },
+    { FT_COMMANDBUTTON, SCR_DrawCommandButton },
+    { FT_STRING, SCR_DrawString },
+    { FT_TEXT, SCR_DrawString },
+    { FT_TOOLTIPTEXT, SCR_DrawTooltip },
+    { FT_PORTRAIT, SCR_DrawPortrait },
+    { FT_BUILDQUEUE, SCR_DrawBuildQueue },
+    { FT_MULTISELECT, SCR_DrawMultiSelect },
 //    { FT_NONE, NULL },
 };
 
@@ -472,20 +515,19 @@ void SCR_DrawFrame(LPCUIFRAME frame) {
     }
 }
 
+void SCR_UpdateFrame(LPCUIFRAME frame) {
+    RECT const screen = Rect_div(SCR_LayoutRect(frame), UI_SCALE);
+    FOR_LOOP(j, sizeof(updaters)/sizeof(*updaters)) {
+        if (updaters[j].type == frame->flags.type) {
+            updaters[j].func(frame, &screen);
+            break;
+        }
+    }
+}
+
 void SCR_UpdateTooltip(HANDLE _frames) {
     FOR_LOOP(i, MAX_LAYOUT_OBJECTS) {
-        LPCUIFRAME frame = frames+i;
-        if (frame->flags.type != FT_COMMANDBUTTON) {
-            continue;
-        }
-        VECTOR2 m = {
-            mouse.origin.x * 0.8 / WINDOW_WIDTH,
-            mouse.origin.y * 0.6 / WINDOW_HEIGHT
-        };
-        RECT const screen = Rect_div(SCR_LayoutRect(frame), UI_SCALE);
-        if (Rect_contains(&screen, &m) && frame->tooltip) {
-            active_tooltip = frame->tooltip;
-        }
+        SCR_UpdateFrame(frames+i);
     }
 }
 
@@ -510,6 +552,7 @@ void SCR_DrawOverlays(void) {
         HANDLE *layout = cl.layout[layer];
         if (layout) {
             SCR_Clear(layout);
+            SCR_UpdateTooltip(layout);
             SCR_DrawOverlay(layout);
         }
     }

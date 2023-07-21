@@ -86,6 +86,24 @@ LPCSTR fs_ui =
 "    o_color.a *= crop_edges(v_texcoord);\n"
 "}\n";
 
+LPCSTR fs_commandbutton =
+"#version 140\n"
+"in vec4 v_color;\n"
+"in vec2 v_texcoord;\n"
+"out vec4 o_color;\n"
+"uniform sampler2D uTexture;\n"
+"uniform float uActiveGlow;\n"
+"float crop_edges(vec2 tc) {\n"
+"   return step(abs(tc.x - 0.5), 0.5) * step(abs(tc.y - 0.5), 0.5);\n"
+"}\n"
+"void main() {\n"
+"    o_color = texture(uTexture, v_texcoord) * v_color;\n"
+"    float glow = max(abs(v_texcoord.x - 0.5), abs(v_texcoord.y - 0.5));\n"
+"    glow = smoothstep(0.33, 0.5, glow) * 0.75 * uActiveGlow;\n"
+"    o_color.rgb = mix(o_color.rgb,vec3(0.5,1.0,0.5),glow);\n"
+"    o_color.a *= crop_edges(v_texcoord);\n"
+"}\n";
+
 LPSHADER R_InitShader(LPCSTR vs_default, LPCSTR fs_default){
     GLuint vs = R_Call(glCreateShader, GL_VERTEX_SHADER);
     GLuint fs = R_Call(glCreateShader, GL_FRAGMENT_SHADER);
@@ -131,18 +149,21 @@ LPSHADER R_InitShader(LPCSTR vs_default, LPCSTR fs_default){
     R_Call(glLinkProgram, program->progid);
     R_Call(glUseProgram, program->progid);
     
-    program->uViewProjectionMatrix = R_Call(glGetUniformLocation, program->progid, "uViewProjectionMatrix");
-    program->uModelMatrix = R_Call(glGetUniformLocation, program->progid, "uModelMatrix");
-    program->uLightMatrix = R_Call(glGetUniformLocation, program->progid, "uLightMatrix");
-    program->uNormalMatrix = R_Call(glGetUniformLocation, program->progid, "uNormalMatrix");
-    program->uTextureMatrix = R_Call(glGetUniformLocation, program->progid, "uTextureMatrix");
-    program->uTexture = R_Call(glGetUniformLocation, program->progid, "uTexture");
-    program->uShadowmap = R_Call(glGetUniformLocation, program->progid, "uShadowmap");
-    program->uFogOfWar = R_Call(glGetUniformLocation, program->progid, "uFogOfWar");
-    program->uBones = R_Call(glGetUniformLocation, program->progid, "uBones");
-    program->uUseDiscard = R_Call(glGetUniformLocation, program->progid, "uUseDiscard");
-    program->uEyePosition = R_Call(glGetUniformLocation, program->progid, "uEyePosition");
-    
+#define R_RegisterUniform(PROGRAM, NAME) PROGRAM->NAME = R_Call(glGetUniformLocation, PROGRAM->progid, #NAME);
+
+    R_RegisterUniform(program, uViewProjectionMatrix);
+    R_RegisterUniform(program, uModelMatrix);
+    R_RegisterUniform(program, uLightMatrix);
+    R_RegisterUniform(program, uNormalMatrix);
+    R_RegisterUniform(program, uTextureMatrix);
+    R_RegisterUniform(program, uTexture);
+    R_RegisterUniform(program, uShadowmap);
+    R_RegisterUniform(program, uFogOfWar);
+    R_RegisterUniform(program, uBones);
+    R_RegisterUniform(program, uUseDiscard);
+    R_RegisterUniform(program, uEyePosition);
+    R_RegisterUniform(program, uActiveGlow);
+
     R_Call(glUniform1i, program->uTexture, 0);
     R_Call(glUniform1i, program->uShadowmap, 1);
     R_Call(glUniform1i, program->uFogOfWar, 2);

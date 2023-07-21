@@ -3,7 +3,6 @@
 #define INFO_PANEL_UNIT_DETAIL_WIDTH UI_SCALE(0.180f)
 #define INFO_PANEL_UNIT_DETAIL_HEIGHT UI_SCALE(0.120f)
 
-#define COMMAND_BUTTON_SIZE 0.039
 #define COMMAND_BUTTON_START 1
 
 #define BUILDQUEUE_OFFSET 281
@@ -12,8 +11,9 @@
 #define MULTISELECT_OFFSX 310
 #define MULTISELECT_OFFSY 500
 
-static DWORD cmd_columns[4] = { UI_SCALE(0.2375), UI_SCALE(0.2809), UI_SCALE(0.3243), UI_SCALE(0.3677) };
-static DWORD cmd_rows[3] = { UI_SCALE(0.1136), UI_SCALE(0.0697), UI_SCALE(0.0258) };
+#define COMMAND_BUTTON_SIZE UI_SCALE(0.0434)
+#define COMMAND_BUTTONS_X UI_SCALE(0.2365)
+#define COMMAND_BUTTONS_Y UI_SCALE(0.1131)
 
 static void Init_SimpleProgressIndicator(void) {
     UI_FRAME(SimpleProgressIndicator);
@@ -196,7 +196,7 @@ void UI_AddCommandButton(LPCSTR code) {
     DWORD food_cost = UNIT_FOOD_USED(class_id);
     if (gold_cost > 0 || limber_cost > 0 || food_cost > 0) {
         sprintf(tooltip+strlen(tooltip), "%s|n", tip);
-        //            UI_CHILD_VALUE(ToolTipText, ToolTip, Text, "Peasant\n|cffffcc00<Icon,%d> 256   <Icon,%d> 128|\nGathers resources", ToolTipGoldIcon, ToolTipSupplyIcon);
+//        UI_CHILD_VALUE(ToolTipText, ToolTip, Text, "Peasant\n|cffffcc00<Icon,%d> 256   <Icon,%d> 128|\nGathers resources", ToolTipGoldIcon, ToolTipSupplyIcon);
         if (gold_cost > 0) {
             sprintf(tooltip+strlen(tooltip), "<Icon,%d> %d   ", ToolTipGoldIcon, gold_cost);
         }
@@ -211,12 +211,16 @@ void UI_AddCommandButton(LPCSTR code) {
         sprintf(tooltip, "%s|n%s", tip, remove_quotes(ubertip));
     }
     sscanf(buttonpos, "%d,%d", &x, &y);
+    DWORD bx = COMMAND_BUTTONS_X + COMMAND_BUTTON_SIZE * x;
+    DWORD by = COMMAND_BUTTONS_Y - COMMAND_BUTTON_SIZE * y;
     UI_InitFrame(&button, x + (y << 2) + COMMAND_BUTTON_START, FT_COMMANDBUTTON);
     UI_SetTexture(&button, art, false);
-    UI_SetSize(&button, UI_SCALE(COMMAND_BUTTON_SIZE), UI_SCALE(COMMAND_BUTTON_SIZE));
+    UI_SetSize(&button, COMMAND_BUTTON_SIZE, COMMAND_BUTTON_SIZE);
     UI_SetText(&button, code);
-    UI_SetPointByNumber(&button, FRAMEPOINT_CENTER, UI_PARENT, FRAMEPOINT_BOTTOM, cmd_columns[x], cmd_rows[y]);
+    UI_SetPointByNumber(&button, FRAMEPOINT_CENTER, UI_PARENT, FRAMEPOINT_BOTTOM, bx, by);
+//    button.f.tex.index2 = UI_LoadTexture("CommandButtonActiveHighlight", true);
     button.f.tooltip = tooltip;
+    button.f.flags.alphaMode = x==0 && y==0;
     UI_WriteFrame(&button);
 }
 

@@ -259,6 +259,7 @@ MAKE_PARSER(Name) {
 
 MAKE_PARSER(Text) {
     LPCSTR str = UI_GetString(token);
+    frame->f.text = frame->Text;
     memset(out, 0, sizeof(UINAME));
     memcpy(out, str, strlen(str));
 }
