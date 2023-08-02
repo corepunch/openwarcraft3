@@ -13,6 +13,15 @@
 		7859EF622A2D0DDB0099A70E /* p_hud.c in Sources */ = {isa = PBXBuildFile; fileRef = 7859EF612A2D0DDB0099A70E /* p_hud.c */; };
 		786630612A188F4800266A62 /* g_phys.c in Sources */ = {isa = PBXBuildFile; fileRef = 7866305F2A188F4800266A62 /* g_phys.c */; };
 		786630652A18BFAC00266A62 /* g_ai.c in Sources */ = {isa = PBXBuildFile; fileRef = 786630642A18BFAC00266A62 /* g_ai.c */; };
+		787B1D972A74078F003285E6 /* api.c in Sources */ = {isa = PBXBuildFile; fileRef = 787B1D962A73FADB003285E6 /* api.c */; };
+		787B1D9A2A740D66003285E6 /* module.c in Sources */ = {isa = PBXBuildFile; fileRef = 787B1D992A740D66003285E6 /* module.c */; };
+		787CFBBA2A6C2C4900B822F2 /* s_repair.c in Sources */ = {isa = PBXBuildFile; fileRef = 787CFBB92A6C2C4900B822F2 /* s_repair.c */; };
+		787CFBBC2A6E70B700B822F2 /* s_stop.c in Sources */ = {isa = PBXBuildFile; fileRef = 787CFBBB2A6E70B700B822F2 /* s_stop.c */; };
+		787CFBBE2A6E752F00B822F2 /* s_holdpos.c in Sources */ = {isa = PBXBuildFile; fileRef = 787CFBBD2A6E752F00B822F2 /* s_holdpos.c */; };
+		787CFBC02A6E754100B822F2 /* s_patrol.c in Sources */ = {isa = PBXBuildFile; fileRef = 787CFBBF2A6E754100B822F2 /* s_patrol.c */; };
+		787CFBC22A6E754E00B822F2 /* s_militia.c in Sources */ = {isa = PBXBuildFile; fileRef = 787CFBC12A6E754E00B822F2 /* s_militia.c */; };
+		787CFBC52A6EEC8E00B822F2 /* g_save.c in Sources */ = {isa = PBXBuildFile; fileRef = 787CFBC42A6EEC8E00B822F2 /* g_save.c */; };
+		787CFBC72A6FA46500B822F2 /* jass.c in Sources */ = {isa = PBXBuildFile; fileRef = 787CFBC62A6FA46500B822F2 /* jass.c */; };
 		7893D1252A614222005365DA /* s_train.c in Sources */ = {isa = PBXBuildFile; fileRef = 7893D1242A614222005365DA /* s_train.c */; };
 		78A000E82A3C8B5B00FE16C9 /* m_tree.c in Sources */ = {isa = PBXBuildFile; fileRef = 78A000E72A3C8B5B00FE16C9 /* m_tree.c */; };
 		78A000EB2A3CEB0A00FE16C9 /* s_harvest_lumber.c in Sources */ = {isa = PBXBuildFile; fileRef = 78A000EA2A3CEB0A00FE16C9 /* s_harvest_lumber.c */; };
@@ -44,6 +53,17 @@
 		7866305F2A188F4800266A62 /* g_phys.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = g_phys.c; sourceTree = "<group>"; };
 		786630642A18BFAC00266A62 /* g_ai.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = g_ai.c; sourceTree = "<group>"; };
 		786637B62A1A5B6200266A62 /* warcraftdoc.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = warcraftdoc.txt; sourceTree = "<group>"; };
+		787B1D952A73FADB003285E6 /* api.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = api.h; sourceTree = "<group>"; };
+		787B1D962A73FADB003285E6 /* api.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = api.c; sourceTree = "<group>"; };
+		787B1D992A740D66003285E6 /* module.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = module.c; sourceTree = "<group>"; };
+		787CFBB92A6C2C4900B822F2 /* s_repair.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = s_repair.c; sourceTree = "<group>"; };
+		787CFBBB2A6E70B700B822F2 /* s_stop.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = s_stop.c; sourceTree = "<group>"; };
+		787CFBBD2A6E752F00B822F2 /* s_holdpos.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = s_holdpos.c; sourceTree = "<group>"; };
+		787CFBBF2A6E754100B822F2 /* s_patrol.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = s_patrol.c; sourceTree = "<group>"; };
+		787CFBC12A6E754E00B822F2 /* s_militia.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = s_militia.c; sourceTree = "<group>"; };
+		787CFBC32A6EBA3C00B822F2 /* s_skills.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = s_skills.h; sourceTree = "<group>"; };
+		787CFBC42A6EEC8E00B822F2 /* g_save.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = g_save.c; sourceTree = "<group>"; };
+		787CFBC62A6FA46500B822F2 /* jass.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = jass.c; sourceTree = "<group>"; };
 		7893D1242A614222005365DA /* s_train.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = s_train.c; sourceTree = "<group>"; };
 		78A000E72A3C8B5B00FE16C9 /* m_tree.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = m_tree.c; sourceTree = "<group>"; };
 		78A000E92A3CA9A000FE16C9 /* common.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = common.txt; sourceTree = "<group>"; };
@@ -80,6 +100,17 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		787B1D982A740C8E003285E6 /* jass */ = {
+			isa = PBXGroup;
+			children = (
+				787B1D962A73FADB003285E6 /* api.c */,
+				787CFBC62A6FA46500B822F2 /* jass.c */,
+				787B1D952A73FADB003285E6 /* api.h */,
+				787B1D992A740D66003285E6 /* module.c */,
+			);
+			path = jass;
+			sourceTree = "<group>";
+		};
 		78A000F42A3F648200FE16C9 /* skills */ = {
 			isa = PBXGroup;
 			children = (
@@ -89,8 +120,14 @@
 				78BBB9AA2A44CC2000B0FC57 /* s_goldmine.c */,
 				78A000EA2A3CEB0A00FE16C9 /* s_harvest_lumber.c */,
 				78A000EE2A3E28AD00FE16C9 /* s_move.c */,
+				787CFBB92A6C2C4900B822F2 /* s_repair.c */,
 				78FC6C352A25F66500C9F93D /* s_skills.c */,
+				787CFBBB2A6E70B700B822F2 /* s_stop.c */,
 				7893D1242A614222005365DA /* s_train.c */,
+				787CFBBD2A6E752F00B822F2 /* s_holdpos.c */,
+				787CFBBF2A6E754100B822F2 /* s_patrol.c */,
+				787CFBC12A6E754E00B822F2 /* s_militia.c */,
+				787CFBC32A6EBA3C00B822F2 /* s_skills.h */,
 			);
 			path = skills;
 			sourceTree = "<group>";
@@ -98,6 +135,7 @@
 		78A896442A15F7A500BC5B56 = {
 			isa = PBXGroup;
 			children = (
+				787B1D982A740C8E003285E6 /* jass */,
 				78A000F42A3F648200FE16C9 /* skills */,
 				786630642A18BFAC00266A62 /* g_ai.c */,
 				78C77C4E2A4C54540084A70B /* g_combat.c */,
@@ -107,6 +145,7 @@
 				78E91BFA2A169439003D9F3A /* g_monster.c */,
 				78BBB9A62A435D8300B0FC57 /* g_pathing.c */,
 				7866305F2A188F4800266A62 /* g_phys.c */,
+				787CFBC42A6EEC8E00B822F2 /* g_save.c */,
 				78A896692A15F7D600BC5B56 /* g_spawn.c */,
 				78A000E72A3C8B5B00FE16C9 /* m_tree.c */,
 				78A8966E2A15F7D600BC5B56 /* m_unit.c */,
@@ -209,29 +248,38 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				787B1D972A74078F003285E6 /* api.c in Sources */,
 				78A000F22A3F34E900FE16C9 /* g_metadata.h in Sources */,
 				78A896722A15F7D600BC5B56 /* g_main.c in Sources */,
+				787CFBBC2A6E70B700B822F2 /* s_stop.c in Sources */,
 				7806B4672A57373400EE86BC /* parser.c in Sources */,
 				786630612A188F4800266A62 /* g_phys.c in Sources */,
+				787CFBC72A6FA46500B822F2 /* jass.c in Sources */,
 				78C77C4F2A4C54540084A70B /* g_combat.c in Sources */,
+				787CFBC02A6E754100B822F2 /* s_patrol.c in Sources */,
 				78ED1A972A47714F00C42E21 /* s_cancel.c in Sources */,
 				78FC6C362A25F66500C9F93D /* s_skills.c in Sources */,
 				7859EF622A2D0DDB0099A70E /* p_hud.c in Sources */,
 				78A000EF2A3E28AD00FE16C9 /* s_move.c in Sources */,
 				78314AE42A2724A300062C4B /* g_metadata.c in Sources */,
 				786630652A18BFAC00266A62 /* g_ai.c in Sources */,
+				787CFBC52A6EEC8E00B822F2 /* g_save.c in Sources */,
 				78A896752A15F7D600BC5B56 /* m_unit.c in Sources */,
 				5DE0B2772A2E688400B6DA83 /* p_fdf.c in Sources */,
 				7893D1252A614222005365DA /* s_train.c in Sources */,
 				78BBB9AB2A44CC2000B0FC57 /* s_goldmine.c in Sources */,
 				78A000F82A40217800FE16C9 /* s_build.c in Sources */,
+				787CFBBA2A6C2C4900B822F2 /* s_repair.c in Sources */,
 				78A000EB2A3CEB0A00FE16C9 /* s_harvest_lumber.c in Sources */,
 				78E91BFB2A169439003D9F3A /* g_monster.c in Sources */,
 				78A000F62A3F6E9C00FE16C9 /* s_attack.c in Sources */,
+				787CFBBE2A6E752F00B822F2 /* s_holdpos.c in Sources */,
 				78A000E82A3C8B5B00FE16C9 /* m_tree.c in Sources */,
 				78BBB9A72A435D8300B0FC57 /* g_pathing.c in Sources */,
 				78A896702A15F7D600BC5B56 /* g_spawn.c in Sources */,
 				78C453902A1E7F2E00C93B16 /* g_commands.c in Sources */,
+				787CFBC22A6E754E00B822F2 /* s_militia.c in Sources */,
+				787B1D9A2A740D66003285E6 /* module.c in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

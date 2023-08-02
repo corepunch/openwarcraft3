@@ -11,7 +11,7 @@ void PF_WritePos(LPCVECTOR3 pos) { MSG_WritePos(&sv.multicast, pos); }
 void PF_WriteDir(LPCVECTOR3 dir) { MSG_WriteDir(&sv.multicast, dir); }
 void PF_WriteAngle(float f) { MSG_WriteAngle(&sv.multicast, f); }
 
-void PF_WriteEntity(entityState_t const *ent) {
+void PF_WriteEntity(LPCENTITYSTATE ent) {
     entityState_t empty;
     memset(&empty, 0, sizeof(entityState_t));
     MSG_WriteDeltaEntity(&sv.multicast, &empty, ent, true);

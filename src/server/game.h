@@ -24,6 +24,7 @@ struct game_import {
     bool (*ExtractFile)(LPCSTR toExtract, LPCSTR extracted);
     LPCANIMATION (*GetAnimation)(DWORD modelindex, LPCSTR name);
     DWORD (*BuildHeatmap)(edict_t *goalentity);
+    
     VECTOR2 (*GetFlowDirection)(DWORD heatmapindex, FLOAT fx, FLOAT fy);
     float (*GetHeightAtPoint)(FLOAT x, FLOAT y);
     LPSTR (*ReadFileIntoString)(LPCSTR filename);
@@ -44,7 +45,7 @@ struct game_import {
     void (*WritePosition)(LPCVECTOR3 pos);
     void (*WriteDirection)(LPCVECTOR3 dir);
     void (*WriteAngle)(FLOAT f);
-    void (*WriteEntity)(entityState_t const *ent);
+    void (*WriteEntity)(LPCENTITYSTATE ent);
     void (*WriteUIFrame)(LPCUIFRAME frame);
 
     void (*configstring)(DWORD index, LPCSTR string);
@@ -57,7 +58,7 @@ struct client;
 struct game_export {
     void (*Init)(void);
     void (*Shutdown)(void);
-    void (*SpawnEntities)(LPCSTR mapname, LPCDOODAD doodads);
+    void (*SpawnEntities)(LPCMAPINFO mapinfo, LPCDOODAD doodads);
     void (*RunFrame)(void);
     LPCSTR (*GetThemeValue)(LPCSTR filename);
     void (*ClientCommand)(edict_t *ent, DWORD argc, LPCSTR argv[]);

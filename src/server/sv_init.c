@@ -17,7 +17,7 @@ void SV_Map(LPCSTR mapFilename) {
     SZ_Init(&sv.multicast, sv.multicast_buf, MAX_MSGLEN);
     CM_LoadMap(mapFilename);
     SV_CreateBaseline();
-    ge->SpawnEntities(mapFilename, CM_GetDoodads());
+    ge->SpawnEntities(CM_GetMapInfo(), CM_GetDoodads());
     sv.state = ss_game;
 }
 

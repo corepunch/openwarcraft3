@@ -32,6 +32,8 @@ void unit_stand(LPEDICT self) {
     M_SetMove(self, &unit_move_stand);
     self->build = NULL;
     self->s.renderfx &= ~RF_NO_UBERSPLAT;
+    self->s.ability = 0;
+    
 }
 
 void unit_die(LPEDICT self, LPEDICT attacker) {

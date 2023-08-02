@@ -1,4 +1,4 @@
-#include "g_local.h"
+#include "s_skills.h"
 
 void move_walk(LPEDICT ent);
 
@@ -11,7 +11,7 @@ static void ai_walk(LPEDICT ent) {
     }
 }
 
-static umove_t move_move_walk = { "walk", ai_walk };
+static umove_t move_move_walk = { "walk", ai_walk, NULL, &a_move };
 
 void move_move(LPEDICT self, LPEDICT target) {
     self->goalentity = target;
@@ -35,6 +35,6 @@ void move_command(LPEDICT ent) {
     ent->client->menu.on_location_selected = move_selectlocation;
 }
 
-void SP_ability_move(ability_t *self) {
-    self->cmd = move_command;
-}
+ability_t a_move = {
+    .cmd = move_command,
+};

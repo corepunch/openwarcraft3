@@ -1,4 +1,4 @@
-#include "g_local.h"
+#include "s_skills.h"
 
 FLOAT MAX_GOLD;
 FLOAT MINING_DURATION;
@@ -54,10 +54,10 @@ static void ai_minegold(LPEDICT ent) {
 static void ai_waittoenter(LPEDICT ent) {
 }
 
-static umove_t harvestgold_move_walk = { "walk", ai_walkmine };
-static umove_t harvestgold_move_walkback = { "walk", ai_walkback };
-static umove_t harvestgold_move_minegold = { "attack", ai_minegold };
-static umove_t harvestgold_move_wait = { "stand", ai_waittoenter };
+static umove_t harvestgold_move_walk = { "walk", ai_walkmine, NULL, &a_goldmine };
+static umove_t harvestgold_move_walkback = { "walk", ai_walkback, NULL, &a_goldmine };
+static umove_t harvestgold_move_minegold = { "attack", ai_minegold, NULL, &a_goldmine };
+static umove_t harvestgold_move_wait = { "stand", ai_waittoenter, NULL, &a_goldmine };
 
 void harvestgold_walk(LPEDICT ent) {
     M_SetMove(ent, &harvestgold_move_walk);
@@ -80,7 +80,7 @@ void harvestgold_walkback(LPEDICT ent) {
     ent->s.renderfx &= ~RF_HIDDEN;
     ent->harvested_gold += HARVEST_GOLD_CAPACITY;
     FILTER_EDICTS(other, other->goalentity == ent->goalentity &&
-                  other->currentmove == &harvestgold_move_wait)
+                  M_GetCurrentMove(other) == &harvestgold_move_wait)
     {
         harvestgold_minegold(other);
     }
@@ -103,8 +103,12 @@ void harvest_gold_start(LPEDICT self, LPEDICT target) {
     harvestgold_walk(self);
 }
 
-void SP_ability_goldmine(ability_t *self) {
-    MAX_GOLD = AB_Number(self, "Data11");;
-    MINING_DURATION = AB_Number(self, "Data12");
-    MINING_CAPACITY = AB_Number(self, "Data13");
+void SP_ability_goldmine(LPCSTR classname, ability_t *self) {
+    MAX_GOLD = AB_Number(classname, "Data11");;
+    MINING_DURATION = AB_Number(classname, "Data12");
+    MINING_CAPACITY = AB_Number(classname, "Data13");
 }
+
+ability_t a_goldmine = {
+    .init = SP_ability_goldmine,
+};

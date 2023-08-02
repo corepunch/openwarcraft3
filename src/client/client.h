@@ -60,7 +60,7 @@ struct client_state {
     struct frame frame;
     VECTOR2 startingPosition;
     playerState_t playerstate;
-    entityState_t *cursorEntity;
+    LPENTITYSTATE cursorEntity;
     LPCMODEL moveConfirmation;
     DWORD num_entities;
     DWORD sock;

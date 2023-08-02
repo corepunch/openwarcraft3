@@ -1,9 +1,9 @@
-#include "g_local.h"
+#include "s_skills.h"
 
-void cancel_command(LPEDICT edict) {
-    Get_Commands_f(edict);
+void cancel_command(LPEDICT ent) {
+    Get_Commands_f(ent);
 }
 
-void SP_ability_cancel(ability_t *self) {
-    self->cmd = cancel_command;
-}
+ability_t a_cancel = {
+    .cmd = cancel_command,
+};

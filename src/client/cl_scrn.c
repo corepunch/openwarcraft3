@@ -47,6 +47,16 @@ VECTOR2 get_y(LPCRECT rect) {
     return (VECTOR2) { rect->y, rect->y + rect->h };
 }
 
+LPCENTITYSTATE CL_SelectedEntity(void) {
+    FOR_LOOP(index, MAX_CLIENT_ENTITIES) {
+        centity_t const *ce = &cl.ents[index];
+        if (ce->current.renderfx & RF_SELECTED) {
+            return &ce->current;
+        }
+    }
+    return NULL;
+}
+
 LPCRECT SCR_LayoutRectByNumber(LPCUIFRAME context, DWORD number) {
     if (number == UI_PARENT) {
         return SCR_LayoutRect(frames+context->parent);
@@ -297,7 +307,7 @@ void SCR_DrawBuildQueue(LPCUIFRAME frame, LPCRECT scrn) {
     for (LPCSTR token = strtok(buffer, ","); token != NULL; token = strtok(NULL, ",")) {
         DWORD img = 0, nument = 0;
         sscanf(token, "%x %x", &img, &nument);
-        entityState_t *ent = &cl.ents[nument].current;
+        LPENTITYSTATE ent = &cl.ents[nument].current;
         if (ent->stats[ENT_HEALTH] == 255) {
             continue;
         } else if (!first_item) {
@@ -316,7 +326,7 @@ void SCR_UpdateBuildQueue(LPCUIFRAME frame, LPCRECT screen) {
     for (LPCSTR token = strtok(buffer, ","); token != NULL; token = strtok(NULL, ",")) {
         DWORD img = 0, nument = 0;
         sscanf(token, "%x %x", &img, &nument);
-        entityState_t *ent = &cl.ents[nument].current;
+        LPENTITYSTATE ent = &cl.ents[nument].current;
         if (ent->stats[ENT_HEALTH] != 255) {
             ((LPUIFRAME )frames)[time_bar].value = BYTE2FLOAT(ent->stats[ENT_HEALTH]);
             ((LPUIFRAME )frames)[first_image].tex.index = img;
@@ -376,6 +386,7 @@ void SCR_DrawPortrait(LPCUIFRAME frame, LPCRECT screen) {
 }
 
 void SCR_DrawCommandButton(LPCUIFRAME frame, LPCRECT screen) {
+    LPCENTITYSTATE selentity = CL_SelectedEntity();
     RECT const uv = get_uvrect(frame->tex.coord);
     RECT const suv = Rect_div(&uv, 0xff);
     VECTOR2 m = {
@@ -401,7 +412,7 @@ void SCR_DrawCommandButton(LPCUIFRAME frame, LPCRECT screen) {
                          .color = COLOR32_WHITE,
                          .rotate = false,
                          .shader = SHADER_COMMANDBUTTON,
-                         .uActiveGlow = frame->flags.alphaMode));
+                         .uActiveGlow = selentity ? selentity->ability == frame->font.index : 0));
 }
 
 DRAWTEXT get_drawtext(LPCUIFRAME frame, FLOAT avl_width, LPCSTR text) {

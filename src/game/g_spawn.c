@@ -146,7 +146,7 @@ void SP_worldspawn(LPEDICT ent) {
     SetAbilityNames();
 }
 
-void G_SpawnEntities(LPCSTR mapname, LPCDOODAD entities) {
+void G_SpawnEntities(LPCMAPINFO mapinfo, LPCDOODAD entities) {
     FOR_LOOP(i, game.max_clients) {
         game_state.edicts[i + 1].client = game.clients + i;
     }
@@ -160,12 +160,20 @@ void G_SpawnEntities(LPCSTR mapname, LPCDOODAD entities) {
         e->s.origin = doodad->position;
         e->s.angle = doodad->angle;
         e->s.scale = doodad->scale.x;
-//        if (doodad->inventoryItems) {
-//            int a= 0;
-//        }
+        // if (doodad->inventoryItems) {
+        //     int a= 0;
+        // }
         SP_CallSpawn(e);
     }
     SP_worldspawn(NULL);
+    
+    game_state.mapinfo = mapinfo;
+    game_state.j = JASS_Allocate();
+
+    JASS_Parse(game_state.j, "Scripts\\common.j");
+    JASS_Parse(game_state.j, "Scripts\\Blizzard.j");
+    JASS_Parse_Native(game_state.j, "/Users/igor/Desktop/war3map.j");
+    JASS_ExecuteFunc(game_state.j, "main");
 }
  
 LPEDICT SP_SpawnAtLocation(DWORD class_id, DWORD player, LPCVECTOR2 location) {

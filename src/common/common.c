@@ -144,6 +144,7 @@ void FS_Init(void) {
     FS_AddArchive("/Users/igor/Documents/Warcraft3/war3.mpq");
     FS_AddArchive("/Users/igor/Documents/StarCraft2/Campaigns/Liberty.SC2Campaign/base.SC2Assets");
 
+//    FS_ExtractFile("Scripts\\common.j", "/Users/igor/Desktop/common.j");
 //    FS_ExtractFile("Units\\UnitAbilities.slk", "/Users/igor/Desktop/UnitAbilities.slk");
 //    FS_ExtractFile("Units\\UnitData.slk", "/Users/igor/Desktop/UnitData.slk");
 //    FS_ExtractFile("Units\\UnitUI.slk", "/Users/igor/Desktop/UnitUI.slk");
@@ -163,12 +164,12 @@ void FS_Init(void) {
     HANDLE handle = SFileFindFirstFile(archives[0], "*", &findData, 0);
     if (handle) {
          do {
-             if(strstr(findData.cFileName, ".fdf")) {
-//                 printf("%s\n", findData.cFileName);
+             if(strstr(findData.cFileName, ".j")) {
+                 printf("%s\n", findData.cFileName);
              }
-#if 0
+#if 1
 //             if (strstr(findData.cFileName, "SimpleInfo")){
-             if (strstr(findData.cFileName, ".txt")) {
+             if (strstr(findData.cFileName, "Blizzard.j")) {
                  HANDLE file;
                  SFileOpenFileEx(archives[0], findData.cFileName, SFILE_OPEN_FROM_MPQ, &file);
                  char ch;

@@ -70,9 +70,9 @@ if (LIST) { \
     LIST = VAR; \
 }
 
-#define PARSE_LIST(LIST, ITEM, PARSER) \
-WordExtractor parser = { .buffer = LIST, .delimiters = "" }; \
-for (LPCSTR ITEM = PARSER(&parser); ITEM; ITEM = PARSER(&parser))
+#define PARSE_LIST(LIST, ITEM, PARSEFUNC) \
+PARSER parser = { .buffer = LIST, .delimiters = "" }; \
+for (LPCSTR ITEM = PARSEFUNC(&parser); ITEM; ITEM = PARSEFUNC(&parser))
 
 enum {
     RF_SELECTED = 1 << 0,
@@ -173,6 +173,9 @@ KNOWN_AS(vector3, VECTOR3);
 KNOWN_AS(color32, COLOR32);
 KNOWN_AS(animation_s, ANIMATION);
 KNOWN_AS(uiFrame_s, UIFRAME);
+KNOWN_AS(entityState_s, ENTITYSTATE);
+KNOWN_AS(mapInfo_s, MAPINFO);
+KNOWN_AS(mapPlayer_s, MAPPLAYER);
 
 typedef enum {
     MULTICAST_ALL,
@@ -217,8 +220,9 @@ typedef struct entityState_s {
     DWORD sound;
     DWORD frame;
     DWORD event;
-    DWORD flags;
-    DWORD renderfx;
+    USHORT flags;
+    BYTE renderfx;
+    BYTE ability;
     DWORD splat;
 } entityState_t;
 
@@ -464,6 +468,8 @@ typedef struct particle_s {
     float time;
     float lifespan;
 } cparticle_t;
+
+#include "mapinfo.h"
 
 //#define NULL 0
 

@@ -3,7 +3,7 @@
 #define VISUAL_DISTANCE 1500
 #define HIGH_NUMBER 9999
 
-static bool SV_CanClientSeeEntity(LPCCLIENT client, entityState_t const *edict) {
+static bool SV_CanClientSeeEntity(LPCCLIENT client, LPCENTITYSTATE edict) {
     edict_t *clent = client->edict;
     if (edict->player == clent->client->ps.number)
         return true;
@@ -14,7 +14,7 @@ static bool SV_CanClientSeeEntity(LPCCLIENT client, entityState_t const *edict) 
     return true;
 }
 
-entityState_t *SV_NextClientEntity(void) {
+LPENTITYSTATE SV_NextClientEntity(void) {
     int index = svs.next_client_entities++ % svs.num_client_entities;
     return &svs.client_entities[index];
 }
@@ -33,7 +33,7 @@ void SV_BuildClientFrame(LPCLIENT client) {
             continue;
         if (!SV_CanClientSeeEntity(client, &edict->s) && index > ge->max_clients)
             continue;
-        entityState_t *state = SV_NextClientEntity();
+        LPENTITYSTATE state = SV_NextClientEntity();
         *state = edict->s;
         if (edict->selected & (1 << clent->client->ps.number)) {
             state->renderfx |= RF_SELECTED;
@@ -51,8 +51,8 @@ void SV_EmitPacketEntities(LPCCLIENTFRAME from, LPCCLIENTFRAME to, LPSIZEBUF msg
          newindex < to->num_entities ||
          oldindex < from_num_entities;)
     {
-        entityState_t *newent = NULL;
-        entityState_t *oldent = NULL;
+        LPENTITYSTATE newent = NULL;
+        LPENTITYSTATE oldent = NULL;
         int newnum = 0, oldnum = 0;
         if (newindex >= to->num_entities) {
             newnum = HIGH_NUMBER;

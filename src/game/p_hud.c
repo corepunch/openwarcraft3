@@ -86,7 +86,7 @@ static void Init_BuildQueue(LPFRAMEDEF infoPanel, LPEDICT unit) {
     UI_SetPoint(&firstItem, FRAMEPOINT_TOPLEFT, infoPanel, FRAMEPOINT_TOPLEFT, 100, -390);
     UI_SetSize(&firstItem, 280, 310);
 
-    UI_CHILD_VALUE(SimpleBuildQueueBackdrop, infoPanel, Hidden, unit->currentmove->think == ai_birth);
+    UI_CHILD_VALUE(SimpleBuildQueueBackdrop, infoPanel, Hidden, M_GetCurrentMove(unit)->think == ai_birth);
 
     sprintf(configstring, "%x %x %x,", firstItem.f.number, SimpleBuildTimeIndicator->f.number, BUILDQUEUE_OFFSET);
     for (LPEDICT queue = unit->build; queue; queue = queue->build) {
@@ -150,7 +150,7 @@ static LPFRAMEDEF Init_BottomPanel(void) {
     return &BottomPanel;
 }
 
-static LPCSTR GetBuildCommand(unitRace_t race) {
+LPCSTR GetBuildCommand(unitRace_t race) {
     switch (race) {
         case RACE_HUMAN: return STR_CmdBuildHuman;
         case RACE_ORC: return STR_CmdBuildOrc;
@@ -160,7 +160,7 @@ static LPCSTR GetBuildCommand(unitRace_t race) {
     }
 }
 
-LPCSTR remove_quotes(LPCSTR text) {
+static LPCSTR remove_quotes(LPCSTR text) {
     if (*text != '"')
         return text;
     static char text2[1024] = { 0 };
@@ -169,23 +169,32 @@ LPCSTR remove_quotes(LPCSTR text) {
     return text2;
 }
 
+static LPCSTR get_ability_art(LPCSTR code) {
+    if (!strcmp(code, STR_CmdBuild)) {
+        return GetBuildCommand(RACE_HUMAN);
+    } else {
+        return code;
+    }
+}
+
 void UI_AddCommandButton(LPCSTR code) {
     DWORD ToolTipGoldIcon = UI_LoadTexture("ToolTipGoldIcon", true);
     DWORD ToolTipLumberIcon = UI_LoadTexture("ToolTipLumberIcon", true);
 //    DWORD ToolTipStonesIcon = UI_LoadTexture("ToolTipStonesIcon", true);
 //    DWORD ToolTipManaIcon = UI_LoadTexture("ToolTipManaIcon", true);
     DWORD ToolTipSupplyIcon = UI_LoadTexture("ToolTipSupplyIcon", true);
-    LPCSTR art = FindConfigValue(code, STR_ART);
-    LPCSTR buttonpos = FindConfigValue(code, STR_BUTTONPOS);
-    LPCSTR tip = FindConfigValue(code, STR_TIP);
-    LPCSTR ubertip = FindConfigValue(code, STR_UBERTIP);
+    LPCSTR altcode = get_ability_art(code);
+    LPCSTR art = FindConfigValue(altcode, STR_ART);
+    LPCSTR buttonpos = FindConfigValue(altcode, STR_BUTTONPOS);
+    LPCSTR tip = FindConfigValue(altcode, STR_TIP);
+    LPCSTR ubertip = FindConfigValue(altcode, STR_UBERTIP);
     FRAMEDEF button;
     if (!art) {
-        gi.error("Not ART for %s", code);
+        gi.error("Not ART for %s", altcode);
         return;
     }
     if (!buttonpos) {
-        gi.error("Not BUTTONPOS for %s", code);
+        gi.error("Not BUTTONPOS for %s", altcode);
         return;
     }
     char tooltip[1024] = { 0 };
@@ -221,6 +230,7 @@ void UI_AddCommandButton(LPCSTR code) {
 //    button.f.tex.index2 = UI_LoadTexture("CommandButtonActiveHighlight", true);
     button.f.tooltip = tooltip;
     button.f.flags.alphaMode = x==0 && y==0;
+    button.f.font.index = FindAbilityIndex(code);
     UI_WriteFrame(&button);
 }
 
@@ -241,7 +251,7 @@ void Get_Portrait_f(LPEDICT edict) {
 
 void ui_unit_commands(LPGAMECLIENT client) {
     LPEDICT ent = G_GetMainSelectedUnit(client);
-    if (!ent || ent->currentmove->think == ai_birth) return;
+    if (!ent || M_GetCurrentMove(ent)->think == ai_birth) return;
     LPCSTR abilities = UNIT_ABILITIES_NORMAL(ent->class_id);
     LPCSTR trains = UNIT_TRAINS(ent->class_id);
     if (UNIT_SPEED(ent->class_id) > 0) {
@@ -254,10 +264,10 @@ void ui_unit_commands(LPGAMECLIENT client) {
         UI_AddCommandButton(STR_CmdAttack);
     }
     if (UNIT_BUILDS(ent->class_id)) {
-        UI_AddCommandButton(GetBuildCommand(RACE_HUMAN));
+        UI_AddCommandButton(STR_CmdBuild);
     }
     if (abilities) {
-        PARSE_LIST(abilities, abil, getNextSegment) {
+        PARSE_LIST(abilities, abil, parse_segment) {
             LPCSTR code = gi.FindSheetCell(game.config.abilities, abil, "code");
             if (code && FindAbilityByClassname(code)) {
                 UI_AddCommandButton(code);
@@ -267,7 +277,7 @@ void ui_unit_commands(LPGAMECLIENT client) {
         }
     }
     if (trains) {
-        PARSE_LIST(trains, unit, getNextSegment) {
+        PARSE_LIST(trains, unit, parse_segment) {
             UI_AddCommandButton(unit);
         }
     }

@@ -1,4 +1,4 @@
-#include "g_local.h"
+#include "s_skills.h"
 
 void attack_walk(LPEDICT ent);
 void attack_melee(LPEDICT ent);
@@ -56,7 +56,7 @@ static FLOAT ai_rolldamage1(LPEDICT self, int weapon) {
     return damageBase;
 }
 
-void M_GetEntityMatrix(entityState_t const *entity, LPMATRIX4 matrix) {
+void M_GetEntityMatrix(LPCENTITYSTATE entity, LPMATRIX4 matrix) {
     Matrix4_identity(matrix);
     Matrix4_translate(matrix, &entity->origin);
     Matrix4_rotate(matrix, &(VECTOR3){0, 0, entity->angle * 180 / M_PI}, ROTATE_XYZ);
@@ -109,9 +109,9 @@ static void ai_walk(LPEDICT ent) {
     }
 }
 
-static umove_t attack_move_walk = { "walk", ai_walk };
-static umove_t attack_move_cooldown = { "stand ready", ai_cooldown };
-static umove_t attack_move_melee = { "attack", ai_melee, attack_cooldown };
+static umove_t attack_move_walk = { "walk", ai_walk, NULL, &a_attack };
+static umove_t attack_move_cooldown = { "stand ready", ai_cooldown, NULL, &a_attack };
+static umove_t attack_move_melee = { "attack", ai_melee, attack_cooldown, &a_attack };
 
 void attack_start(LPEDICT self, LPEDICT target) {
     self->goalentity = target;
@@ -144,6 +144,6 @@ void attack_command(LPEDICT ent) {
     ent->client->menu.on_entity_selected = attack_menu_selecttarget;
 }
 
-void SP_ability_attack(ability_t *self) {
-    self->cmd = attack_command;
-}
+ability_t a_attack = {
+    .cmd = attack_command,
+};

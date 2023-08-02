@@ -3,7 +3,7 @@
 
 static struct {
     LPWAR3MAP map;
-    mapInfo_t info;
+    MAPINFO info;
     struct Doodad *doodads;
 } world;
 
@@ -27,7 +27,7 @@ void SFileReadString(HANDLE file, LPSTR *lppString) {
 }
 
 static void CM_ReadInfo(HANDLE archive) {
-    mapInfo_t *info = &world.info;
+    LPMAPINFO info = &world.info;
     HANDLE file;
     SFileOpenFileEx(archive, "war3map.w3i", SFILE_OPEN_FROM_MPQ, &file);
     SFileReadFile(file, &info->fileFormat, 4, NULL, NULL);
@@ -116,7 +116,7 @@ static void CM_ReadInfo(HANDLE archive) {
     SFileCloseFile(file);
 }
 
-static void MapInfo_Release(mapInfo_t *mapInfo) {
+static void MapInfo_Release(LPMAPINFO mapInfo) {
     FOR_LOOP(i, mapInfo->num_players) {
         SAFE_DELETE(mapInfo->players[i].playerName, MemFree);
     }
@@ -290,6 +290,7 @@ void CM_LoadMap(LPCSTR mapFilename) {
     CM_ReadInfo(mapArchive);
     CM_ReadUnits(mapArchive);
         
+//    SFileExtractFile(mapArchive, "war3map.j", "/Users/igor/Desktop/war3map.j", 0);
 //    HANDLE file;
 //    SFileOpenFileEx(mapArchive, "war3map.j", SFILE_OPEN_FROM_MPQ, &file);
 //    char ch;
@@ -330,12 +331,16 @@ LPDOODAD CM_GetDoodads(void) {
     return world.doodads;
 }
 
-mapPlayer_t const *CM_GetPlayer(DWORD index) {
+LPCMAPPLAYER CM_GetPlayer(DWORD index) {
     if (index < world.info.num_players) {
         return &world.info.players[index];
     } else {
         return NULL;
     }
+}
+
+LPCMAPINFO CM_GetMapInfo(void) {
+    return &world.info;
 }
 
 VECTOR2 CM_GetNormalizedMapPosition(float x, float y) {

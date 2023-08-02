@@ -19,7 +19,7 @@ LPCSTR CL_GetConfigString(DWORD index) {
     return cl.configstrings[index];
 }
 
-entityState_t const *CL_GetEntityByIndex(DWORD number) {
+LPCENTITYSTATE CL_GetEntityByIndex(DWORD number) {
     if (number < cl.num_entities) {
         return &cl.ents[number].current;
     } else {

@@ -10,6 +10,8 @@
 #include "g_unitdata.h"
 #include "parser.h"
 
+#define EDICTFIELD(x, type) { #x, FOFS(edict_s, x)-(HANDLE)NULL, type }
+
 #define SAFE_CALL(FUNC, ...) if (FUNC) FUNC(__VA_ARGS__)
 #define ABILITY(NAME) void M_##NAME(LPEDICT ent, LPEDICT target)
 #define UI_SCALE(x) ((x) * 10000)
@@ -51,6 +53,7 @@ enum {
 #define svc_cursor 4
 
 KNOWN_AS(uiFrameDef_s, FRAMEDEF);
+KNOWN_AS(jass_s, JASS);
 
 typedef struct {
     BOOL (*on_entity_selected)(LPEDICT clent, LPEDICT selected);
@@ -61,6 +64,28 @@ typedef struct {
 enum {
     AI_HOLD_FRAME = 1 << 0,
 };
+
+typedef enum {
+    F_INT,
+    F_FLOAT,
+    F_LSTRING,            // string on disk, pointer in memory, TAG_LEVEL
+    F_GSTRING,            // string on disk, pointer in memory, TAG_GAME
+    F_VECTOR,
+    F_ANGLEHACK,
+    F_EDICT,            // index on disk, pointer in memory
+    F_ITEM,                // index on disk, pointer in memory
+    F_CLIENT,            // index on disk, pointer in memory
+    F_FUNCTION,
+    F_MMOVE,
+    F_IGNORE
+} fieldtype_t;
+
+typedef struct {
+    LPCSTR name;
+    DWORD ofs;
+    fieldtype_t type;
+    DWORD flags;
+} field_t;
 
 typedef enum {
     ATK_NONE,
@@ -205,17 +230,12 @@ typedef struct {
     LPCSTR animation;
     void (*think)(LPEDICT self);
     void (*endfunc)(LPEDICT self);
+    struct ability_s *ability;
 } umove_t;
 
 typedef struct ability_s {
-    LPCSTR classname;
-    void (*init)(struct ability_s *ability);
+    void (*init)(LPCSTR classname, struct ability_s *ability);
     void (*cmd)(LPEDICT ent);
-    void *data;
-
-    // client side info
-    DWORD buttonimage;
-    struct { DWORD x, y; } buttonpos;
 } ability_t;
 
 typedef struct {
@@ -251,26 +271,26 @@ struct edict_s {
     DWORD variation;
     DWORD build_project;
     DWORD spawn_time;
-    doodadHero_t hero;
-    FLOAT collision;
-    FLOAT velocity;
-    EDICTSTAT health;
-    EDICTSTAT mana;
     DWORD harvested_lumber;
     DWORD harvested_gold;
+    DWORD heatmap2;
+    DWORD peonsinside;
+    DWORD aiflags;
+    DWORD damage;
+    FLOAT collision;
+    FLOAT velocity;
+    doodadHero_t hero;
+    EDICTSTAT health;
+    EDICTSTAT mana;
     MOVETYPE movetype;
     TARGTYPE targtype;
-    DWORD heatmap2;
     LPEDICT goalentity;
     LPEDICT secondarygoal;
     LPEDICT owner;
     LPEDICT build;
     LPCANIMATION animation;
     BOOL inuse;
-    DWORD peonsinside;
     umove_t *currentmove;
-    DWORD aiflags;
-    DWORD damage;
 //    unitRace_t race;
     FLOAT wait;
     unitAttack_t attack1;
@@ -285,6 +305,8 @@ struct edict_s {
 };
 
 struct game_state {
+    LPJASS j;
+    LPCMAPINFO mapinfo;
     LPEDICT edicts;
 };
 
@@ -337,7 +359,7 @@ TARGTYPE G_GetTargetType(LPCSTR str);
 LPEDICT G_Spawn(void);
 void G_FreeEdict(LPEDICT ent);
 void SP_CallSpawn(LPEDICT edict);
-void G_SpawnEntities(LPCSTR mapname, LPCDOODAD doodads);
+void G_SpawnEntities(LPCMAPINFO mapinfo, LPCDOODAD doodads);
 BOOL SP_FindEmptySpaceAround(LPEDICT townhall, DWORD class_id, LPVECTOR2 out, FLOAT *angle);
 LPEDICT SP_SpawnAtLocation(DWORD class_id, DWORD player, LPCVECTOR2 location);
 
@@ -357,6 +379,7 @@ void M_ChangeAngle(LPEDICT self);
 BOOL M_CheckAttack(LPEDICT self);
 void M_SetAnimation(LPEDICT self, LPCSTR anim);
 void M_SetMove(LPEDICT self, umove_t *move);
+umove_t const *M_GetCurrentMove(LPCEDICT ent);
 FLOAT M_DistanceToGoal(LPEDICT ent);
 FLOAT M_MoveDistance(LPEDICT self);
 DWORD M_RefreshHeatmap(LPEDICT self);
@@ -378,8 +401,8 @@ void G_SolveCollisions(void);
 BOOL M_CheckCollision(LPCVECTOR2 origin, FLOAT radius);
 
 // g_abilities.c
-ability_t *FindAbilityByClassname(LPCSTR classname);
-ability_t *GetAbilityByIndex(DWORD index);
+ability_t const *FindAbilityByClassname(LPCSTR classname);
+ability_t const *GetAbilityByIndex(DWORD index);
 DWORD FindAbilityIndex(LPCSTR classname);
 void InitAbilities(void);
 void SetAbilityNames(void);
@@ -393,8 +416,8 @@ LPEDICT G_GetMainSelectedUnit(LPGAMECLIENT client);
 void Get_Commands_f(LPEDICT ent);
 void Get_Portrait_f(LPEDICT ent);
 void UI_AddCancelButton(LPEDICT edict);
-
 void UI_AddCommandButton(LPCSTR ability);
+LPCSTR GetBuildCommand(unitRace_t race);
 
 // p_fdf.c
 void UI_PrintClasses(void);
@@ -437,10 +460,19 @@ void G_DeselectEntity(LPGAMECLIENT client, LPEDICT ent);
 BOOL G_IsEntitySelected(LPGAMECLIENT client, LPEDICT ent);
 
 //  s_skills.c
-FLOAT AB_Number(ability_t const *ability, LPCSTR field);
+FLOAT AB_Number(LPCSTR classname, LPCSTR field);
+DWORD GetAbilityIndex(ability_t const *ability);
 
 // g_combat.c
 void T_Damage(LPEDICT target, LPEDICT attacker, int damage);
+
+// p_jass.c
+LPJASS JASS_Allocate(void);
+BOOL JASS_Parse(LPJASS j, LPCSTR fileName);
+BOOL JASS_Parse_Native(LPJASS j,LPCSTR fileName);
+void JASS_ExecuteFunc(LPJASS j, LPCSTR name);
+
+void *find_in_array(void *array, long sizeofelem, LPCSTR name);
 
 // globals
 extern struct game_locals game;

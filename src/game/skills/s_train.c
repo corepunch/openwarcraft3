@@ -1,4 +1,4 @@
-#include "g_local.h"
+#include "s_skills.h"
 
 static void ShowTrainedUnit(LPEDICT townhall, LPEDICT unit) {
     VECTOR2 origin;
@@ -23,7 +23,7 @@ void ai_build(LPEDICT ent) {
     }
 }
 
-static umove_t train_move_train = { "stand", ai_build, NULL };
+static umove_t train_move_train = { "stand", ai_build, NULL, &a_train };
 
 void unit_add_build_queue(LPEDICT self, LPEDICT item) {
     if (!self->build) {
@@ -55,3 +55,6 @@ void SP_TrainUnit(LPEDICT townhall, DWORD class_id) {
     }
 }
 
+ability_t a_train = {
+    
+};

@@ -32,6 +32,11 @@ void G_RunEntity(LPEDICT ent) {
     SAFE_CALL(ent->think, ent);
     ent->s.stats[ENT_HEALTH] = compress_stat(&ent->health);
     ent->s.stats[ENT_MANA] = compress_stat(&ent->mana);
+    if (M_GetCurrentMove(ent)) {
+        ent->s.ability = GetAbilityIndex(M_GetCurrentMove(ent)->ability);
+    } else {
+        ent->s.ability = 0;
+    }
 }
 
 BOOL M_IsHollow(LPEDICT ent) {

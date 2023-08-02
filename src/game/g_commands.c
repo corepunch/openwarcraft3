@@ -69,7 +69,7 @@ CLIENTCOMMAND(Point) {
 CLIENTCOMMAND(Button) {
     LPCSTR classname = argv[1];
     LPGAMECLIENT client = clent->client;
-    ability_t *ability = FindAbilityByClassname(classname);
+    ability_t const *ability = FindAbilityByClassname(classname);
     if (ability && ability->cmd) {
         ability->cmd(clent);
     } else if (client->menu.cmdbutton) {
@@ -79,7 +79,7 @@ CLIENTCOMMAND(Button) {
         LPCSTR builds = UNIT_TRAINS(ent->class_id);
         if (!builds)
             return;
-        PARSE_LIST(builds, build, getNextSegment) {
+        PARSE_LIST(builds, build, parse_segment) {
             if (!strcmp(build, classname)) {
                 SP_TrainUnit(ent, *((DWORD *)classname));
                 break;

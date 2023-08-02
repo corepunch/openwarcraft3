@@ -1,4 +1,4 @@
-#include "g_local.h"
+#include "s_skills.h"
 
 FLOAT HARVEST_LUMBER_CAPACITY;
 FLOAT HARVEST_GOLD_CAPACITY;
@@ -20,7 +20,7 @@ static LPEDICT find_another_tree(LPEDICT ent) {
     FLOAT min_dist = HARVEST_SEARCH_RANGE;
     LPEDICT other = NULL;
     FOR_LOOP(i, globals.num_edicts) {
-        LPEDICT tree = &globals.edicts[i];
+        LPEDICT tree = globals.edicts+i;
         if (tree->targtype != TARG_TREE || M_IsDead(tree))
             continue;
         FLOAT dist = Vector2_distance(&ent->s.origin2, &tree->s.origin2);
@@ -44,7 +44,7 @@ static void look_for_another_tree(LPEDICT ent) {
 BOOL G_ActorHasSkill(LPEDICT ent, LPCSTR id) {
     LPCSTR abilities = UNIT_ABILITIES_NORMAL(ent->class_id);
     if (abilities) {
-        PARSE_LIST(abilities, abil, getNextSegment) {
+        PARSE_LIST(abilities, abil, parse_segment) {
             if (!strcmp(abil, id))
                 return true;
         }
@@ -102,10 +102,10 @@ static void ai_cooldown(LPEDICT ent) {
     M_RunWait(ent, harvest_swing);
 }
 
-static umove_t harvest_move_walk = { "walk", ai_walktree };
-static umove_t harvest_move_walkback = { "walk", ai_walkback };
-static umove_t harvest_move_swing = { "attack", ai_swing, harvest_cooldown };
-static umove_t harvest_move_cooldown = { "stand ready", ai_cooldown };
+static umove_t harvest_move_walk = { "walk", ai_walktree, NULL, &a_harvest };
+static umove_t harvest_move_walkback = { "walk", ai_walkback, NULL, &a_harvest };
+static umove_t harvest_move_swing = { "attack", ai_swing, harvest_cooldown, &a_harvest };
+static umove_t harvest_move_cooldown = { "stand ready", ai_cooldown, NULL, &a_harvest };
 
 void harvest_cooldown(LPEDICT ent) {
     if (ent->harvested_lumber >= HARVEST_LUMBER_CAPACITY) {
@@ -163,14 +163,16 @@ void harvest_command(LPEDICT ent) {
     ent->client->menu.on_entity_selected = harvest_menu_selecttarget;
 }
 
-void SP_ability_harvest(ability_t *self) {
-    HARVEST_LUMBER_CAPACITY = AB_Number(self, "Data12");
-    HARVEST_GOLD_CAPACITY = AB_Number(self, "Data13");
-    HARVEST_TREE_DAMAGE = AB_Number(self, "Data11");
-    HARVEST_RANGE = AB_Number(self, "Rng1");
-    HARVEST_COOLDOWN = AB_Number(self, "Dur1");
-    HARVEST_SEARCH_RANGE = AB_Number(self, "Area1");
-    
-    self->cmd = harvest_command;
+void SP_ability_harvest(LPCSTR classname, ability_t *self) {
+    HARVEST_LUMBER_CAPACITY = AB_Number(classname, "Data12");
+    HARVEST_GOLD_CAPACITY = AB_Number(classname, "Data13");
+    HARVEST_TREE_DAMAGE = AB_Number(classname, "Data11");
+    HARVEST_RANGE = AB_Number(classname, "Rng1");
+    HARVEST_COOLDOWN = AB_Number(classname, "Dur1");
+    HARVEST_SEARCH_RANGE = AB_Number(classname, "Area1");
 }
 
+ability_t a_harvest = {
+    .init = SP_ability_harvest,
+    .cmd = harvest_command,
+};

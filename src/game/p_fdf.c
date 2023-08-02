@@ -1,9 +1,6 @@
 #include "g_local.h"
 #include "parser.h"
 
-#include <stdlib.h> // atof()
-#include <ctype.h> // isspace()
-
 LPCSTR FrameType[] = {
     "",
     "BACKDROP",
@@ -92,7 +89,7 @@ LPCSTR FontFlags[] = {
 
 FRAMEDEF frames[MAX_UI_CLASSES] = { 0 };
 
-void FDF_ParseFrame(WordExtractor *p, LPFRAMEDEF frame);
+void FDF_ParseFrame(LPPARSER p, LPFRAMEDEF frame);
 
 void UI_PrintClasses(void) {
     FOR_LOOP(i, MAX_UI_CLASSES) {
@@ -143,17 +140,13 @@ typedef struct {
 typedef struct {
     LPCSTR name;
     parseArg_t args[16];
-    void (*func)(WordExtractor *, LPFRAMEDEF);
+    void (*func)(LPPARSER , LPFRAMEDEF);
 } parseItem_t;
 
 typedef struct {
     LPCSTR name;
-    void (*func)(WordExtractor *, LPFRAMEDEF);
+    void (*func)(LPPARSER , LPFRAMEDEF);
 } parseClass_t;
-
-void parser_error(WordExtractor *parser) {
-    parser->error = true;
-}
 
 int ParseEnumString(LPCSTR token, LPCSTR const *values) {
     for (int i = 0; *values; i++, values++) {
@@ -164,8 +157,8 @@ int ParseEnumString(LPCSTR token, LPCSTR const *values) {
     return -1;
 }
 
-int ParseEnum(WordExtractor *p, LPCSTR const *values) {
-    LPCSTR token = getFirstWord(p);
+int ParseEnum(LPPARSER p, LPCSTR const *values) {
+    LPCSTR token = parse_token(p);
     int value = ParseEnumString(token, values);
     if (value == -1) {
         parser_error(p);
@@ -203,7 +196,7 @@ DWORD UI_LoadTexture(LPCSTR file, BOOL decorate) {
 void Parse##TYPE(LPCSTR token, LPFRAMEDEF frame, void *out)
 
 #define MAKE_PARSERCALL(TYPE) \
-void TYPE(WordExtractor *parser, LPFRAMEDEF frame)
+void TYPE(LPPARSER parser, LPFRAMEDEF frame)
 
 #define MAKE_ENUMPARSER(TYPE, FIELD) \
 MAKE_PARSER(TYPE) { \
@@ -365,14 +358,14 @@ MAKE_PARSERCALL(String) {
 }
 
 MAKE_PARSERCALL(Frame) {
-    LPCSTR stype = getFirstWord(parser);
+    LPCSTR stype = parse_token(parser);
     uiFrameType_t type = ParseEnumString(stype, FrameType);
     LPFRAMEDEF current = UI_Spawn(type, frame);
     FDF_ParseFrame(parser, current);
 }
 
 MAKE_PARSERCALL(IncludeFile) {
-    LPCSTR filename = getFirstWord(parser);
+    LPCSTR filename = parse_token(parser);
     UI_ParseFDF(filename);
 }
 
@@ -385,7 +378,7 @@ MAKE_PARSERCALL(StringList) {
 
 #define F_END { NULL }
 
-parseClass_t classes[] = {
+static parseClass_t classes[] = {
     { "Frame", Frame },
     { "Texture", Texture },
     { "String", String },
@@ -395,7 +388,7 @@ parseClass_t classes[] = {
     F_END,
 };
 
-parseItem_t items[] = {
+static parseItem_t items[] = {
     // Flags
     { "DecorateFileNames", { F_END }, DecorateFileNames },
     // Fields
@@ -434,22 +427,22 @@ parseItem_t items[] = {
     F_END
 };
 
-void parse_item(WordExtractor *parser, LPFRAMEDEF frame, parseItem_t *item) {
+void parse_item(LPPARSER parser, LPFRAMEDEF frame, parseItem_t *item) {
     for (parseArg_t *arg = item->args; arg->name; arg++) {
-        LPCSTR token = getNextSegment(parser);
+        LPCSTR token = parse_segment(parser);
         arg->func(token, frame, (uint8_t *)frame + arg->fofs);
     }
     if (!item->args->name) { // eat trailing comma
-        getNextSegment(parser);
+        parse_segment(parser);
     }
     if (item->func) {
         item->func(parser, frame);
     }
 }
 
-void parse_func(WordExtractor *parser, LPFRAMEDEF frame) {
+void parse_func(LPPARSER parser, LPFRAMEDEF frame) {
     LPCSTR token = NULL;
-    while ((token = getFirstWord(parser)) && (*token != '}')) {
+    while ((token = parse_token(parser)) && (*token != '}')) {
         if (frame->f.flags.type == FT_STRINGLIST) {
             static parseItem_t stringitem = { "", { F(f, StringListItem), F_END } };
             stringListItem_t *str = gi.MemAlloc(sizeof(stringListItem_t));
@@ -504,16 +497,16 @@ void UI_InheritFrom(LPFRAMEDEF frame, LPCSTR inheritName) {
     }
 }
 
-void FDF_ParseFrame(WordExtractor *p, LPFRAMEDEF frame) {
+void FDF_ParseFrame(LPPARSER p, LPFRAMEDEF frame) {
     DWORD state = 0;
     LPCSTR tok;
-    while ((tok = getFirstWord(p)) && (*tok != '{')) {
+    while ((tok = parse_token(p)) && (*tok != '{')) {
         if (!strcmp(tok, "INHERITS")) {
-            LPCSTR inheritName = getFirstWord(p);
+            LPCSTR inheritName = parse_token(p);
             BOOL withChildren = false;
             if (!strcmp(inheritName, "WITHCHILDREN")) {
                 withChildren = true;
-                inheritName = getFirstWord(p);
+                inheritName = parse_token(p);
             }
             UI_InheritFrom(frame, inheritName);
             state++;
@@ -550,10 +543,10 @@ LPFRAMEDEF UI_FindChildFrame(LPFRAMEDEF frame, LPCSTR name) {
     return NULL;
 }
 
-void FDF_ParseScene(WordExtractor *parser) {
+void FDF_ParseScene(LPPARSER parser) {
     LPCSTR token = NULL;
     LPFRAMEDEF frame = NULL;
-    while (*(token = getFirstWord(parser))) {
+    while (*(token = parse_token(parser))) {
         for (parseClass_t *it = classes; it->name; it++) {
             if (!strcmp(it->name, token)) {
                 it->func(parser, frame);
@@ -568,11 +561,12 @@ void FDF_ParseScene(WordExtractor *parser) {
 
 void UI_ParseFDF_Buffer(LPCSTR fileName, LPSTR buffer2) {
     LPSTR buffer = buffer2;
-    removeComments(buffer);
-    removeBOM(buffer, strlen(buffer));
-    WordExtractor parser = {
+    remove_comments(buffer);
+    remove_bom(buffer, strlen(buffer));
+    PARSER parser = {
         .buffer = buffer,
         .delimiters = ",;{}",
+        .eat_quotes = true,
     };
     FDF_ParseScene(&parser);
     if (parser.error) {

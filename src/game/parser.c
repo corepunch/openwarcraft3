@@ -2,15 +2,20 @@
 
 #define MAX_SEGMENT_SIZE 1024
 
-LPCSTR getFirstWord(WordExtractor* p) {
+LPCSTR parse_token(LPPARSER p) {
     static char word[MAX_SEGMENT_SIZE];
     while (isspace(*p->buffer)) ++p->buffer;
     if (*p->buffer == '\"') {
-        LPCSTR closingQuote = strchr(++p->buffer, '"');
-        size_t stringLength = closingQuote - p->buffer;
+        LPCSTR closingQuote = strchr(p->buffer+1, '"');
+        size_t stringLength = closingQuote-p->buffer+1;
+        if (p->eat_quotes) {
+            p->buffer++;
+            stringLength -= 2;
+        }
         memcpy(word, p->buffer, stringLength);
         word[stringLength] = '\0';
         p->buffer = ++closingQuote;
+//        printf("%s\n", word);
         return word;
     } else if (strchr(p->delimiters, *p->buffer)) {
         word[0] = *(p->buffer++);
@@ -28,7 +33,14 @@ LPCSTR getFirstWord(WordExtractor* p) {
     }
 }
 
-LPCSTR getNextSegment(WordExtractor* p) {
+LPCSTR peek_token(LPPARSER p) {
+    PARSER tmp = *p;
+    LPCSTR token = parse_token(p);
+    *p = tmp;
+    return token;
+}
+
+LPCSTR parse_segment(LPPARSER p) {
     static char segment[MAX_SEGMENT_SIZE];
     if (*p->buffer == '\0') {
         return NULL;
@@ -58,7 +70,7 @@ LPCSTR getNextSegment(WordExtractor* p) {
     return segment;
 }
 
-void removeComments(char *buffer) {
+void remove_comments(char *buffer) {
     BOOL in_single_line_comment = false;
     BOOL in_block_comment = false;
     char *src = buffer;
@@ -87,7 +99,7 @@ void removeComments(char *buffer) {
     *dest = '\0';  // Null-terminate the modified buffer
 }
 
-BOMStatus removeBOM(char buffer[], size_t length) {
+BOMStatus remove_bom(char buffer[], size_t length) {
     unsigned char utf8BOM[] = { 0xEF, 0xBB, 0xBF };
     unsigned char utf16LEBOM[] = { 0xFF, 0xFE };
     unsigned char utf16BEBOM[] = { 0xFE, 0xFF };
@@ -104,5 +116,21 @@ BOMStatus removeBOM(char buffer[], size_t length) {
     } else {
         return NO_BOM;
     }
+}
+
+void parser_error(LPPARSER parser) {
+    parser->error = true;
+}
+
+void *find_in_array(void *array, long sizeofelem, LPCSTR name) {
+    LPSTR str = array;
+    while (*(LPCSTR *)str) {
+        LPCSTR value = *(LPCSTR *)str;
+        if (!strcmp(value, name)) {
+            return str;
+        }
+        str += sizeofelem;
+    }
+    return NULL;
 }
 

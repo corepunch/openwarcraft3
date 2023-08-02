@@ -80,7 +80,7 @@ DWORD M_RefreshHeatmap(LPEDICT self) {
 void M_MoveFrame(LPEDICT self) {
     if (self->aiflags & AI_HOLD_FRAME)
         return;
-    umove_t const *move = self->currentmove;
+    umove_t const *move = M_GetCurrentMove(self);
     LPCANIMATION anim = self->animation;
     if (!anim)
         return;
@@ -105,11 +105,11 @@ void M_MoveFrame(LPEDICT self) {
 }
 
 void monster_think(LPEDICT self) {
-    if (!self->currentmove)
+    if (!M_GetCurrentMove(self))
         return;
     M_MoveFrame(self);
-    if (self->currentmove->think) {
-        self->currentmove->think(self);
+    if (M_GetCurrentMove(self)->think) {
+        M_GetCurrentMove(self)->think(self);
     }
 }
 

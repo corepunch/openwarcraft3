@@ -158,7 +158,6 @@ static void G_ClientBegin(LPEDICT edict) {
     UI_ParseFDF("UI\\FrameDef\\UI\\ConsoleUI.fdf");
     UI_ParseFDF("UI\\FrameDef\\UI\\ResourceBar.fdf");
     UI_ParseFDF("UI\\FrameDef\\UI\\SimpleInfoPanel.fdf");
-    
 
     UI_FRAME(ConsoleUI);
     UI_SetAllPoints(ConsoleUI);

@@ -60,7 +60,7 @@ struct client {
 
 extern struct server_static {
     struct client clients[MAX_CLIENTS];
-    entityState_t *client_entities;
+    LPENTITYSTATE client_entities;
     bool initialized;
     DWORD num_clients;
     DWORD num_client_entities;
@@ -87,7 +87,7 @@ extern struct server {
     struct cmodel *models[MAX_MODELS];
     DWORD framenum;
     DWORD time;
-    entityState_t *baselines;
+    LPENTITYSTATE baselines;
     sizeBuf_t multicast;
     BYTE multicast_buf[MAX_MSGLEN];
 } sv;

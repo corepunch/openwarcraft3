@@ -96,6 +96,7 @@
 		7866305B2A17D17900266A62 /* world.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = world.c; sourceTree = "<group>"; };
 		7866373C2A1A4C0800266A62 /* macos.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = macos.c; sourceTree = "<group>"; };
 		786637BB2A1B737500266A62 /* cl_console.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = cl_console.c; sourceTree = "<group>"; };
+		787B1D9B2A77AC70003285E6 /* mapinfo.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = mapinfo.h; sourceTree = "<group>"; };
 		7897B7D12A0BEB6A008007CD /* renderer.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = renderer.h; sourceTree = "<group>"; };
 		7897B7D22A0BEB76008007CD /* common.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = common.h; sourceTree = "<group>"; };
 		7897B7D82A0BF40F008007CD /* client.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = client.h; sourceTree = "<group>"; };
@@ -159,6 +160,7 @@
 				7866305B2A17D17900266A62 /* world.c */,
 				78988A2E2A151C700090DEAA /* cmodel.h */,
 				7897B7D22A0BEB76008007CD /* common.h */,
+				787B1D9B2A77AC70003285E6 /* mapinfo.h */,
 				7897B7EF2A0CC6CF008007CD /* net.h */,
 				78A8963F2A15F18F00BC5B56 /* shared.h */,
 			);

@@ -36,6 +36,10 @@ void M_SetMove(LPEDICT self, umove_t *move) {
     }
 }
 
+umove_t const *M_GetCurrentMove(LPCEDICT ent) {
+    return ent->currentmove;
+}
+
 void M_RunWait(LPEDICT self, void (*callback)(LPEDICT )) {
     if (self->wait <= 0)
         return;

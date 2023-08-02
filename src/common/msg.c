@@ -29,8 +29,7 @@ netField_t entityStateFields[] = {
     { NETF(entityState_t, model), NFT_SHORT },
     { NETF(entityState_t, image), NFT_SHORT },
     { NETF(entityState_t, player), NFT_BYTE },
-    { NETF(entityState_t, flags), NFT_BYTE },
-    { NETF(entityState_t, renderfx), NFT_BYTE },
+    { NETF(entityState_t, flags), NFT_LONG },
     { NETF(entityState_t, radius), NFT_FLOAT },
     { NETF(entityState_t, splat), NFT_LONG },
     { NETF(entityState_t, stats), NFT_LONG },
@@ -252,8 +251,8 @@ static void MSG_ReadFields(LPSIZEBUF msg,
 }
 
 void MSG_WriteDeltaEntity(LPSIZEBUF msg,
-                          entityState_t const *from,
-                          entityState_t const *to,
+                          LPCENTITYSTATE from,
+                          LPCENTITYSTATE to,
                           bool force)
 {
     DWORD bits = MSG_GetBits(from, to, entityStateFields);
@@ -264,7 +263,7 @@ void MSG_WriteDeltaEntity(LPSIZEBUF msg,
 }
 
 void MSG_ReadDeltaEntity(LPSIZEBUF msg,
-                         entityState_t *edict,
+                         LPENTITYSTATE edict,
                          int number,
                          int bits)
 {
