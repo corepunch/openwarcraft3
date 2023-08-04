@@ -2,6 +2,16 @@
 
 #define MAX_SEGMENT_SIZE 1024
 
+BOOL eat_token(LPPARSER p, LPCSTR value) {
+    LPCSTR tok = peek_token(p);
+    if (!strcmp(tok, value)) {
+        parse_token(p);
+        return true;
+    } else {
+        return false;
+    }
+}
+
 LPCSTR parse_token(LPPARSER p) {
     static char word[MAX_SEGMENT_SIZE];
     while (isspace(*p->buffer)) ++p->buffer;

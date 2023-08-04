@@ -1,4 +1,5 @@
 #include "api.h"
+#include "jass_parser.h"
 #include "../parser.h"
 
 #define F_END { NULL }
@@ -6,7 +7,7 @@
 #define MAX_JASS_STACK 256
 #define MAX_JASS_FUNCTIONS 8000
 #define MAX_JASS_ARGS 16
-#define JASS_DELIM ",;()+-/*"
+#define JASS_DELIM ",;()+-/*="
 #define JASS_CONSTANT "constant"
 #define JASS_ARRAY "array"
 #define JASS_NULL "null"
@@ -181,16 +182,28 @@ BOOL is_float(LPCSTR tok) {
     return *endptr == '\0';
 }
 
+BOOL is_string(LPCSTR tok) {
+    return *tok == '"';
+}
+
+BOOL is_identifier(LPCSTR str) {
+    if (!isalpha(*str) && *str != '_')
+        return false;
+    for (; *str; ++str) {
+        if (!isalnum(*str) && *str != '_')
+            return false;
+    }
+    return true;
+}
+
 BOOL is_operator(LPCSTR str) {
     return \
     !strcmp(str, "+") ||
     !strcmp(str, "-") ||
     !strcmp(str, "*") ||
     !strcmp(str, "/") ||
-    !strcmp(str, "!=") ||
-    !strcmp(str, "==") ||
-    !strcmp(str, ">=") ||
-    !strcmp(str, "<=") ||
+    !strcmp(str, "!") ||
+    !strcmp(str, "=") ||
     !strcmp(str, ">") ||
     !strcmp(str, "<");
 }
@@ -462,12 +475,6 @@ void jass_swap(LPJASS j, int a, int b) {
     *jass_stackvalue(j, a) = *jass_stackvalue(j, b);
     *jass_stackvalue(j, -2) = tmp;
 }
-
-typedef enum {
-    TT_UNKNOWN,
-    TT_VALUE,
-    TT_OPERATOR,
-} TOKENTYPE;
 
 static DWORD jass_doparser(LPJASS j, LPPARSER p, bool single, LPJASSDICT locals) {
     LPCSTR tok = NULL;
@@ -777,6 +784,9 @@ BOOL JASS_Parse_Buffer(LPJASS j, LPCSTR fileName, LPSTR buffer2) {
     remove_bom(buffer, strlen(buffer));
     PARSER p = { .buffer = buffer, .delimiters = JASS_DELIM };
     LPCSTR tok = NULL;
+    LPTOKEN tokens = JASS_ParseTokens(&MAKE(PARSER, .buffer = buffer, .delimiters = JASS_DELIM));
+
+    p = MAKE(PARSER, .buffer = buffer, .delimiters = JASS_DELIM);
     
     while (*(tok = parse_token(&p))) {
         if (!strcmp(tok, JASS_CONSTANT))
