@@ -68,15 +68,17 @@ static LPTOKEN alloc_token(TOKENTYPE type) {
 
 PARSER(parse_identifier) {
     LPTOKEN token = alloc_token(TT_IDENTIFIER);
-    token->value = read_identifier(p);
+    token->primary = read_identifier(p);
     return token;
 }
 
 PARSER(keyword_type) {
     LPTOKEN token = alloc_token(TT_TYPEDEF);
-    token->value = read_identifier(p);
+    token->primary = read_identifier(p);
     if (eat_token(p, "extends")) {
-        token->extends = parse_identifier(p);
+        token->secondary = read_identifier(p);
+    } else {
+        PARSER_THROW("EXTENDS expected");
     }
     return token;
 }
@@ -88,8 +90,8 @@ PARSER(parse_args) {
     LPTOKEN args = NULL;
     while (!args || eat_token(p, ",")) {
         LPTOKEN arg = alloc_token(TT_VARDECL);
-        arg->value = read_identifier(p);
-        arg->name = read_identifier(p);
+        arg->primary = read_identifier(p);
+        arg->secondary = read_identifier(p);
         PUSH_BACK(TOKEN, arg, args);
     }
     return args;
@@ -97,12 +99,12 @@ PARSER(parse_args) {
 
 PARSER(parse_function_decl) {
     LPTOKEN token = alloc_token(TT_TYPEDEF);
-    token->value = read_identifier(p);
+    token->primary = read_identifier(p);
     if (eat_token(p, "takes")) {
         token->args = parse_args(p);
     }
     if (eat_token(p, "returns")) {
-        token->returns = parse_identifier(p);
+        token->secondary = read_identifier(p);
     }
     return token;
 }
@@ -133,7 +135,7 @@ void remove_quotes(LPSTR str, char quote) {
 
 LPTOKEN alloc_ident_token(LPPARSER p, TOKENTYPE tt) {
     LPTOKEN t = alloc_token(tt);
-    t->value = strdup(parse_token(p));
+    t->primary = strdup(parse_token(p));
     return t;
 }
 
@@ -154,10 +156,10 @@ PARSER(parse_expression) {
         left = alloc_ident_token(p, TT_REAL);
     } else if (is_string(tok)) {
         left = alloc_ident_token(p, TT_STRING);
-        remove_quotes(left->value, '\"');
+        remove_quotes(left->primary, '\"');
     } else if (is_fourcc(tok)) {
         left = alloc_ident_token(p, TT_FOURCC);
-        remove_quotes(left->value, '\'');
+        remove_quotes(left->primary, '\'');
     } else if (!strcmp(tok, "true") || !strcmp(tok, "false")) {
         left = alloc_ident_token(p, TT_BOOLEAN);
     } else if (is_identifier(tok)) {
@@ -176,12 +178,12 @@ PARSER(parse_expression) {
     }
     if (is_operator(peek_token(p))) {
         LPTOKEN oper = alloc_token(TT_OPERATOR);
-        oper->value = strdup(parse_token(p));
+        oper->primary = strdup(parse_token(p));
         if (!strcmp(peek_token(p), "=")) {
-            LPSTR op = oper->value;
-            oper->value = gi.MemAlloc(3);
-            oper->value[0] = *op;
-            oper->value[1] = *parse_token(p);
+            LPSTR op = oper->primary;
+            oper->primary = gi.MemAlloc(3);
+            oper->primary[0] = *op;
+            oper->primary[1] = *parse_token(p);
             FREE(op);
         }
         oper->left = left;
@@ -205,11 +207,11 @@ PARSER(keyword_globals) {
         if (eat_token(p, "constant")) {
             token->flags |= TF_CONSTANT;
         }
-        token->value = read_identifier(p);
+        token->primary = read_identifier(p);
         if (eat_token(p, "array")) {
             token->flags |= TF_ARRAY;
         }
-        token->name = read_identifier(p);
+        token->secondary = read_identifier(p);
         if (eat_token(p, "=")) {
             token->init = parse_expression(p);
         }
@@ -220,7 +222,7 @@ PARSER(keyword_globals) {
 
 PARSER(statement_set) {
     LPTOKEN token = alloc_token(TT_SET);
-    token->name = read_identifier(p);
+    token->secondary = read_identifier(p);
     if (eat_token(p, "[")) {
         token->index = parse_expression(p);
     }
@@ -236,8 +238,8 @@ PARSER(statement_call) {
 
 PARSER(statement_local) {
     LPTOKEN token = alloc_token(TT_VARDECL);
-    token->value = read_identifier(p);
-    token->name = read_identifier(p);
+    token->primary = read_identifier(p);
+    token->secondary = read_identifier(p);
     if (eat_token(p, "=")) {
         token->init = parse_expression(p);
     }

@@ -3,10 +3,7 @@
 #include "../parser.h"
 
 #define F_END { NULL }
-#define MAX_JASS_TYPES 256
 #define MAX_JASS_STACK 256
-#define MAX_JASS_FUNCTIONS 8000
-#define MAX_JASS_ARGS 16
 #define JASS_DELIM ",;()[]+-/*="
 #define JASS_CONSTANT "constant"
 #define JASS_ARRAY "array"
@@ -31,11 +28,6 @@ extern JASSMODULE jass_funcs[];
 
 typedef struct {
     LPCSTR name;
-    void (*func)(LPJASS, LPPARSER);
-} parseClass_t;
-
-typedef struct {
-    LPCSTR name;
     void (*func)(LPJASS, LPJASSENV, LPPARSER);
 } parseStatement_t;
 
@@ -47,15 +39,16 @@ struct jass_var {
 };
 
 struct jass_type {
-    UINAME name;
+    LPCSTR name;
     LPCSTR ctype;
     LPCJASSTYPE inherit;
+    LPJASSTYPE next;
 };
 
 struct jass_arg {
     LPJASSARG next;
     LPCJASSTYPE type;
-    UINAME name;
+    LPCSTR name;
 };
 
 JASSTYPE jass_types[] = {
@@ -147,15 +140,16 @@ void removeDoubleBackslashes(LPSTR str) {
 struct jass_function {
     LPJASSARG args;
     LPCJASSTYPE returns;
-    UINAME name;
-    LPSTR code;
+    LPJASSFUNC next;
+    LPCSTR name;
+    LPCTOKEN code;
     DWORD (*nativefunc)(LPJASS j);
     BOOL constant;
 };
 
 struct jass_dict {
     LPJASSDICT next;
-    UINAME key;
+    LPCSTR key;
     JASSVAR value;
 };
 
@@ -165,12 +159,10 @@ struct jass_env {
 
 struct jass_s {
     LPJASSDICT globals;
-    JASSTYPE types[MAX_JASS_TYPES];
-    JASSFUNC functions[MAX_JASS_FUNCTIONS];
+    LPJASSTYPE types;
+    LPJASSFUNC functions;
     JASSVAR stack[MAX_JASS_STACK];
     DWORD num_stack;
-    DWORD num_functions;
-    DWORD num_types;
     DWORD stack_offset;
 };
 
@@ -228,9 +220,9 @@ BOOL is_comma(LPCSTR str) {
 }
 
 static LPCJASSFUNC find_function(LPCJASS j, LPCSTR name) {
-    FOR_LOOP(i, j->num_functions) {
-        if (!strcmp(j->functions[i].name, name)) {
-            return &j->functions[i];
+    FOR_EACH_LIST(JASSFUNC, func, j->functions) {
+        if (!strcmp(func->name, name)) {
+            return func;
         }
     }
     return NULL;
@@ -251,9 +243,9 @@ static LPCJASSTYPE find_type(LPCJASS j, LPCSTR name) {
             return &jass_types[i];
         }
     }
-    FOR_LOOP(i, j->num_types) {
-        if (!strcmp(j->types[i].name, name)) {
-            return &j->types[i];
+    FOR_EACH_LIST(JASSTYPE, type, j->types) {
+        if (!strcmp(type->name, name)) {
+            return type;
         }
     }
     return NULL;
@@ -611,26 +603,6 @@ LPJASSDICT parse_dict(LPJASS j, LPPARSER p, LPJASSDICT locals) {
     return item;
 }
 
-static void keyword_type(LPJASS j, LPPARSER p) {
-    LPJASSTYPE type = &j->types[j->num_types++];
-    strcpy(type->name, parse_token(p));
-    if (!strcmp(parse_token(p), "extends")) {
-        type->inherit = find_type(j, parse_token(p));
-    } else {
-        parser_error(p);
-        j->num_types--;
-    }
-}
-
-static void keyword_globals(LPJASS j, LPPARSER p) {
-    while (strcmp(peek_token(p), "endglobals")) {
-        LPJASSDICT item = parse_dict(j, p, NULL);
-        ADD_TO_LIST(item, j->globals);
-//        printf("%s\n", item->key);
-    }
-    parse_token(p); // eat "endglobals"
-}
-
 static LPCSTR parse_takes(LPJASS j, LPJASSFUNC f, LPCSTR tok, LPPARSER p) {
     if (strcmp(tok, "takes")) {
         parser_error(p);
@@ -659,88 +631,6 @@ static void parse_returns(LPJASS j, LPJASSFUNC f, LPCSTR tok, LPPARSER p) {
         return;
     }
     f->returns = find_type(j, parse_token(p));
-}
-
-void parse_function_header(LPJASS j, LPPARSER p, LPJASSFUNC f) {
-    LPCSTR tok = parse_token(p);
-    strcpy(f->name, tok);
-    tok = parse_token(p);
-    tok = parse_takes(j, f, tok, p);
-    parse_returns(j, f, tok, p);
-}
-
-//void print_header(LPCJASSFUNC f) {
-//    if (!f->returns) {
-//        printf("void %s(", f->name);
-//    } else {
-//        printf("%s %s(", f->returns->name, f->name);
-//    }
-//    if (f->num_args > 0) {
-//        FOR_LOOP(i, f->num_args) {
-//            if (i > 0) printf(", ");
-//            printf("%s %s", f->args[i].type, f->args[i].name);
-//        }
-//    } else {
-//        printf("void");
-//    }
-//    printf(")\n");
-//}
-
-//void print_api(LPCJASSFUNC f) {
-//    printf("DWORD %s(LPJASS j) {\n", f->name);
-//    FOR_LOOP(i, f->num_args) {
-//        LPCJASSARG arg = f->args+i;
-//        LPCJASSTYPE type = get_base_type(arg->type);
-//        if (get_base_type(type) == jass_types + jasstype_handle) {
-//            printf("  // %s %s = jass_check%s(j, %d, \"%s\");\n", type->ctype, arg->name, type->name, i+1, arg->type->name);
-//        } else {
-//            printf("  // %s %s = jass_check%s(j, %d);\n", type->ctype, arg->name, type->name, i+1);
-//        }
-//    }
-//    if (!f->returns) {
-//        printf("  return 0;\n");
-//    } else if (get_base_type(f->returns) == jass_types + jasstype_handle) {
-//        printf("  return jass_pushhandle(j, 0, \"%s\");\n", f->returns->name);
-//    } else {
-//        printf("  return jass_push%s(j, 0);\n", f->returns->name);
-//    }
-//    printf("}\n");
-//}
-//
-//void print_header(LPCJASSFUNC f) {
-//    printf("DWORD %s(LPJASS j);\n", f->name);
-//}
-//
-//void print_module(LPCJASSFUNC f) {
-//    printf("{ \"%s\", %s },\n", f->name, f->name);
-//}
-
-static void keyword_native(LPJASS j, LPPARSER p) {
-    LPJASSFUNC f = &j->functions[j->num_functions++];
-    parse_function_header(j, p, f);
-//    print_header(f);
-//    print_api(f);
-//    print_module(f);
-    LPJASSMODULE mod = find_in_array(jass_funcs, sizeof(JASSMODULE), f->name);
-    if (mod) {
-        f->nativefunc = mod->func;
-    }
-}
-
-static void keyword_function(LPJASS j, LPPARSER p) {
-    LPJASSFUNC f = &j->functions[j->num_functions++];
-    parse_function_header(j, p, f);
-    LPCSTR start = p->buffer;
-    LPCSTR tok = parse_token(p);
-    while (true) {
-        if (!strcmp(tok, "endfunction")) {
-            long const len = p->buffer - start - sizeof(tok);
-            f->code = gi.MemAlloc(len + 1);
-            memcpy(f->code, start, len);
-            break;
-        }
-        tok = parse_token(p);
-    }
 }
 
 static void statement_set(LPJASS j, LPJASSENV env, LPPARSER p) {
@@ -777,14 +667,6 @@ static void statement_if(LPJASS j, LPJASSENV env, LPPARSER p) {
     }
 }
 
-static parseClass_t global_keywords[] = {
-    { "globals", keyword_globals },
-    { "function", keyword_function },
-    { "type", keyword_type },
-    { "native", keyword_native },
-    F_END,
-};
-
 static parseStatement_t function_keywords[] = {
     { "set", statement_set },
     { "call", statement_call },
@@ -793,33 +675,85 @@ static parseStatement_t function_keywords[] = {
     F_END,
 };
 
+#define TOKENFUNC(NAME) void eval_##NAME(LPJASS j, LPCTOKEN token)
+#define TOKENEVAL(NAME) { #NAME, TT_##NAME, eval_##NAME }
+
+TOKENFUNC(TYPEDEF) {
+    LPJASSTYPE type = JASSALLOC(JASSTYPE);;
+    type->name = token->primary;
+    type->inherit = find_type(j, token->secondary);
+    ADD_TO_LIST(type, j->types);
+}
+
+TOKENFUNC(FUNCTION) {
+    LPJASSFUNC func = JASSALLOC(JASSFUNC);
+    func->name = token->primary;
+    func->code = token->body;
+    func->returns = find_type(j, token->secondary);
+    FOR_EACH_LIST(TOKEN, arg, token->args) {
+        LPJASSARG jarg = JASSALLOC(JASSARG);
+        jarg->name = arg->secondary;
+        jarg->type = find_type(j, arg->primary);
+        PUSH_BACK(JASSARG, jarg, func->args);
+    }
+    if (token->flags & TF_NATIVE) {
+        LPJASSMODULE mod = find_in_array(jass_funcs, sizeof(JASSMODULE), func->name);
+        if (mod) {
+            func->nativefunc = mod->func;
+        }
+    }
+    ADD_TO_LIST(func, j->functions);
+}
+
+struct {
+    LPCSTR name;
+    TOKENTYPE type;
+    void (*func)(LPJASS, LPCTOKEN);
+} token_eval[] = {
+    TOKENEVAL(TYPEDEF),
+    TOKENEVAL(FUNCTION),
+};
+
 BOOL JASS_Parse_Buffer(LPJASS j, LPCSTR fileName, LPSTR buffer2) {
     LPSTR buffer = buffer2;
     remove_comments(buffer);
     remove_bom(buffer, strlen(buffer));
-    PARSER p = { .buffer = buffer, .delimiters = JASS_DELIM };
-    LPCSTR tok = NULL;
-    LPTOKEN tokens = JASS_ParseTokens(&MAKE(PARSER, .buffer = buffer, .delimiters = JASS_DELIM));
+//    PARSER p = { .buffer = buffer, .delimiters = JASS_DELIM };
+//    LPCSTR tok = NULL;
+    LPTOKEN program = JASS_ParseTokens(&MAKE(PARSER, .buffer = buffer, .delimiters = JASS_DELIM));
 
-    p = MAKE(PARSER, .buffer = buffer, .delimiters = JASS_DELIM);
-    
-    while (*(tok = parse_token(&p))) {
-        if (!strcmp(tok, JASS_CONSTANT))
-            continue;
-        parseClass_t *keyword = find_in_array(global_keywords, sizeof(*global_keywords), tok);
-        if (keyword) {
-            keyword->func(j, &p);
-        } else {
-            parser_error(&p);
-            return false;
+    FOR_EACH_LIST(TOKEN, tok, program) {
+        FOR_LOOP(index, sizeof(token_eval) / sizeof(*token_eval)) {
+            if (tok->type == token_eval[index].type) {
+                token_eval[index].func(j, tok);
+                goto next_loop;
+            }
         }
+        fprintf(stderr, "Can't evaluate token of type %d\n", tok->type);
+        break;
+    next_loop:
+        continue;
     }
-    if (p.error) {
-        fprintf(stderr, "Failed to parse %s\n", fileName);
+    
+//    p = MAKE(PARSER, .buffer = buffer, .delimiters = JASS_DELIM);
+//
+//    while (*(tok = parse_token(&p))) {
+//        if (!strcmp(tok, JASS_CONSTANT))
+//            continue;
+//        parseClass_t *keyword = find_in_array(global_keywords, sizeof(*global_keywords), tok);
+//        if (keyword) {
+//            keyword->func(j, &p);
+//        } else {
+//            parser_error(&p);
+//            return false;
+//        }
+//    }
+//    if (p.error) {
+//        fprintf(stderr, "Failed to parse %s\n", fileName);
         return false;
-    } else {
-        return true;
-    }
+//    } else {
+//        return true;
+//    }
 }
 
 LPJASS JASS_Allocate(void) {

@@ -23,7 +23,7 @@
 		787CFBC02A6E754100B822F2 /* s_patrol.c in Sources */ = {isa = PBXBuildFile; fileRef = 787CFBBF2A6E754100B822F2 /* s_patrol.c */; };
 		787CFBC22A6E754E00B822F2 /* s_militia.c in Sources */ = {isa = PBXBuildFile; fileRef = 787CFBC12A6E754E00B822F2 /* s_militia.c */; };
 		787CFBC52A6EEC8E00B822F2 /* g_save.c in Sources */ = {isa = PBXBuildFile; fileRef = 787CFBC42A6EEC8E00B822F2 /* g_save.c */; };
-		787CFBC72A6FA46500B822F2 /* jass.c in Sources */ = {isa = PBXBuildFile; fileRef = 787CFBC62A6FA46500B822F2 /* jass.c */; };
+		787CFBC72A6FA46500B822F2 /* runtime.c in Sources */ = {isa = PBXBuildFile; fileRef = 787CFBC62A6FA46500B822F2 /* runtime.c */; };
 		7893D1252A614222005365DA /* s_train.c in Sources */ = {isa = PBXBuildFile; fileRef = 7893D1242A614222005365DA /* s_train.c */; };
 		78A000E82A3C8B5B00FE16C9 /* m_tree.c in Sources */ = {isa = PBXBuildFile; fileRef = 78A000E72A3C8B5B00FE16C9 /* m_tree.c */; };
 		78A000EB2A3CEB0A00FE16C9 /* s_harvest_lumber.c in Sources */ = {isa = PBXBuildFile; fileRef = 78A000EA2A3CEB0A00FE16C9 /* s_harvest_lumber.c */; };
@@ -67,7 +67,7 @@
 		787CFBC12A6E754E00B822F2 /* s_militia.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = s_militia.c; sourceTree = "<group>"; };
 		787CFBC32A6EBA3C00B822F2 /* s_skills.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = s_skills.h; sourceTree = "<group>"; };
 		787CFBC42A6EEC8E00B822F2 /* g_save.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = g_save.c; sourceTree = "<group>"; };
-		787CFBC62A6FA46500B822F2 /* jass.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = jass.c; sourceTree = "<group>"; };
+		787CFBC62A6FA46500B822F2 /* runtime.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = runtime.c; sourceTree = "<group>"; };
 		7893D1242A614222005365DA /* s_train.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = s_train.c; sourceTree = "<group>"; };
 		78A000E72A3C8B5B00FE16C9 /* m_tree.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = m_tree.c; sourceTree = "<group>"; };
 		78A000E92A3CA9A000FE16C9 /* common.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = common.txt; sourceTree = "<group>"; };
@@ -108,11 +108,11 @@
 			isa = PBXGroup;
 			children = (
 				787B1D962A73FADB003285E6 /* api.c */,
-				787CFBC62A6FA46500B822F2 /* jass.c */,
-				787B1D952A73FADB003285E6 /* api.h */,
-				787B1D992A740D66003285E6 /* module.c */,
-				787B1DA82A7BB6E1003285E6 /* jass_parser.h */,
 				787B1DA92A7BB6E1003285E6 /* jass_parser.c */,
+				787B1D992A740D66003285E6 /* module.c */,
+				787CFBC62A6FA46500B822F2 /* runtime.c */,
+				787B1D952A73FADB003285E6 /* api.h */,
+				787B1DA82A7BB6E1003285E6 /* jass_parser.h */,
 			);
 			path = jass;
 			sourceTree = "<group>";
@@ -262,7 +262,7 @@
 				787CFBBC2A6E70B700B822F2 /* s_stop.c in Sources */,
 				7806B4672A57373400EE86BC /* parser.c in Sources */,
 				786630612A188F4800266A62 /* g_phys.c in Sources */,
-				787CFBC72A6FA46500B822F2 /* jass.c in Sources */,
+				787CFBC72A6FA46500B822F2 /* runtime.c in Sources */,
 				78C77C4F2A4C54540084A70B /* g_combat.c in Sources */,
 				787CFBC02A6E754100B822F2 /* s_patrol.c in Sources */,
 				78ED1A972A47714F00C42E21 /* s_cancel.c in Sources */,

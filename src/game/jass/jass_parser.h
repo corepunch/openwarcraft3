@@ -35,8 +35,8 @@ enum {
 };
 
 struct token {
-    LPSTR value;
-    LPSTR name;
+    LPSTR primary;
+    LPSTR secondary;
     TOKENTYPE type;
     DWORD flags;
     LPTOKEN init;
@@ -45,8 +45,6 @@ struct token {
     LPTOKEN args;
     LPTOKEN left;
     LPTOKEN right;
-    LPTOKEN extends;
-    LPTOKEN returns;
     LPTOKEN condition;
     LPTOKEN elseblock;
     LPTOKEN index;
