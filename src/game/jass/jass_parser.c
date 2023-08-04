@@ -1,9 +1,17 @@
 #include "jass_parser.h"
+#include <setjmp.h>
 
 #define ALLOC(type) gi.MemAlloc(sizeof(type))
 #define FREE(val) SAFE_DELETE(val, gi.MemFree)
 #define PARSER(NAME) static LPTOKEN NAME(LPPARSER p)
 
+#define PARSER_THROW(...) \
+fprintf(stderr, __VA_ARGS__); \
+fprintf(stderr, "\n"); \
+parser_throw(); \
+longjmp(exception_env, 1);
+
+static jmp_buf exception_env;
 typedef LPTOKEN (*LPGRAMMARFUNC)(LPPARSER);
 
 typedef struct {
@@ -18,6 +26,11 @@ BOOL is_integer(LPCSTR tok);
 BOOL is_float(LPCSTR tok);
 BOOL is_identifier(LPCSTR str);
 BOOL is_string(LPCSTR tok);
+BOOL is_fourcc(LPCSTR tok);
+
+void parser_throw(void) {
+    int a = 0;
+}
 
 LPSTR read_identifier(LPPARSER p) {
     if (is_identifier(peek_token(p))) {
@@ -25,10 +38,6 @@ LPSTR read_identifier(LPPARSER p) {
     } else {
         return NULL;
     }
-}
-
-static void parser_throw(LPPARSER p, LPCSTR error) {
-    parser_error(p);
 }
 
 static LPGRAMMARFUNC eat_keyword(LPPARSER p, parseClass_t *keywords) {
@@ -46,8 +55,7 @@ static BOOL parse_body(LPPARSER p, LPTOKEN function) {
     if (func && (token = func(p))) {
         PUSH_BACK(TOKEN, token, function->body);
     } else {
-        parser_throw(p, "error parsing function");
-        return false;
+        PARSER_THROW("error parsing function");
     }
     return true;
 }
@@ -111,40 +119,59 @@ PARSER(keyword_constant) {
         token->flags |= TF_CONSTANT;
         return token;
     } else {
-        parser_throw(p, "expected native after constant");
-        return NULL;
+        PARSER_THROW("expected native after constant");
     }
 }
 
+void remove_quotes(LPSTR str, char quote) {
+    size_t len = strlen(str);
+    if (len >= 2 && str[0] == quote && str[len - 1] == quote) {
+        memmove(str, str + 1, len - 2);
+        str[len - 2] = '\0';
+    }
+}
+
+LPTOKEN alloc_ident_token(LPPARSER p, TOKENTYPE tt) {
+    LPTOKEN t = alloc_token(tt);
+    t->value = strdup(parse_token(p));
+    return t;
+}
+
 PARSER(parse_expression) {
-    LPCSTR tok = parse_token(p);
+    LPCSTR tok = peek_token(p);
     LPTOKEN left = NULL;
-    if (!strcmp(tok, "-")) {
-        left = alloc_token(TT_OPERATOR);
-        left->value = strdup(parse_token(p));
+    if (eat_token(p, "function")) {
+        left = alloc_ident_token(p, TT_IDENTIFIER);
+        left->flags |= TF_FUNCTION;
+    } else if (!strcmp(tok, "-") || !strcmp(tok, "not")) {
+        left = alloc_ident_token(p, TT_OPERATOR);
         left->body = parse_expression(p);
-        return left;
+    } else if (eat_token(p, "(")) {
+        left = parse_expression(p);
     } else if (is_integer(tok)) {
-        left = alloc_token(TT_INTEGER);
-        left->value = strdup(tok);
+        left = alloc_ident_token(p, TT_INTEGER);
     } else if (is_float(tok)) {
-        left = alloc_token(TT_REAL);
-        left->value = strdup(tok);
+        left = alloc_ident_token(p, TT_REAL);
     } else if (is_string(tok)) {
-        left = alloc_token(TT_STRING);
-        left->value = strdup(tok);
+        left = alloc_ident_token(p, TT_STRING);
+        remove_quotes(left->value, '\"');
+    } else if (is_fourcc(tok)) {
+        left = alloc_ident_token(p, TT_FOURCC);
+        remove_quotes(left->value, '\'');
     } else if (!strcmp(tok, "true") || !strcmp(tok, "false")) {
-        left = alloc_token(TT_BOOLEAN);
-        left->value = strdup(tok);
+        left = alloc_ident_token(p, TT_BOOLEAN);
     } else if (is_identifier(tok)) {
-        left = alloc_token(TT_IDENTIFIER);
-        left->value = strdup(tok);
+        left = alloc_ident_token(p, TT_IDENTIFIER);
         if (eat_token(p, "(")) {
             left->type = TT_CALL;
-            left->args = parse_expression(p);
+            if (!eat_token(p, ")")) {
+                left->args = parse_expression(p);
+            }
+        }
+        if (eat_token(p, "[")) {
+            left->index = parse_expression(p);
         }
     } else {
-        parser_throw(p, "Invalid identifier");
         return NULL;
     }
     if (is_operator(peek_token(p))) {
@@ -165,7 +192,7 @@ PARSER(parse_expression) {
         left->next = parse_expression(p);
         return left;
     }
-    if (eat_token(p, ")")) {
+    if (eat_token(p, ")") || eat_token(p, "]")) {
         return left;
     }
     return left;
@@ -194,6 +221,9 @@ PARSER(keyword_globals) {
 PARSER(statement_set) {
     LPTOKEN token = alloc_token(TT_SET);
     token->name = read_identifier(p);
+    if (eat_token(p, "[")) {
+        token->index = parse_expression(p);
+    }
     if (eat_token(p, "=")) {
         token->init = parse_expression(p);
     }
@@ -217,21 +247,28 @@ PARSER(statement_local) {
 PARSER(statement_if) {
     LPTOKEN token = alloc_token(TT_IF);
     LPTOKEN target = token;
-    if (eat_token(p, "(")) {
-        token->condition = parse_expression(p);
-    }
+    token->condition = parse_expression(p);
     if (!eat_token(p, "then")) {
-        parser_throw(p, "THEN expected");
         FREE(token);
-        return NULL;
+        PARSER_THROW("THEN expected");
     }
     while (!eat_token(p, "endif")) {
-        if (eat_token(p, "else")) {
-            target = alloc_token(TT_ELSE);
-            token->elseblock = target;
+        if (eat_token(p, "elseif")) {
+            LPTOKEN next = alloc_token(TT_ELSE);
+            next->condition = parse_expression(p);
+            if (!eat_token(p, "then")) {
+                FREE(token);
+                PARSER_THROW("THEN expected");
+            }
+            target->elseblock = next;
+            target = next;
+        } else if (eat_token(p, "else")) {
+            LPTOKEN next = alloc_token(TT_ELSE);
+            target->elseblock = next;
+            target = next;
         } else if (!parse_body(p, target)) {
             FREE(token);
-            return NULL;
+            PARSER_THROW("broken if statement")
         }
     }
     return token;
@@ -294,15 +331,21 @@ static parseClass_t global_keywords[] = {
 };
 
 LPTOKEN JASS_ParseTokens(LPPARSER p) {
-    LPTOKEN tokens = NULL, token = NULL;
-    while (*peek_token(p)) {
-        LPGRAMMARFUNC func = eat_keyword(p, global_keywords);
-        if (func && (token = func(p))) {
-            PUSH_BACK(TOKEN, token, tokens);
-        } else {
-            parser_throw(p, "unknwon keyword");
-            return NULL;
+    LPTOKEN tokens = NULL;
+    if (setjmp(exception_env) == 0) {
+        LPTOKEN token = NULL;
+        while (*peek_token(p)) {
+            LPGRAMMARFUNC func = eat_keyword(p, global_keywords);
+            if (func && (token = func(p))) {
+                PUSH_BACK(TOKEN, token, tokens);
+            } else {
+                PARSER_THROW("unknwon keyword");
+            }
         }
+        return tokens;
+    } else {
+        FREE(tokens);
+        fprintf(stderr, "Parser Error\n");
+        return NULL;
     }
-    return tokens;
 }

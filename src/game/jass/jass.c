@@ -7,7 +7,7 @@
 #define MAX_JASS_STACK 256
 #define MAX_JASS_FUNCTIONS 8000
 #define MAX_JASS_ARGS 16
-#define JASS_DELIM ",;()+-/*="
+#define JASS_DELIM ",;()[]+-/*="
 #define JASS_CONSTANT "constant"
 #define JASS_ARRAY "array"
 #define JASS_NULL "null"
@@ -22,6 +22,10 @@
 KNOWN_AS(jass_dict, JASSDICT);
 KNOWN_AS(jass_arg, JASSARG);
 KNOWN_AS(jass_env, JASSENV);
+
+LPCSTR keywords[] = {
+    "elseif", "else", "endif", "set", "endfunction", "local", "then", NULL
+};
 
 extern JASSMODULE jass_funcs[];
 
@@ -182,16 +186,25 @@ BOOL is_float(LPCSTR tok) {
     return *endptr == '\0';
 }
 
+BOOL is_fourcc(LPCSTR tok) {
+    return *tok == '\'';
+}
+
 BOOL is_string(LPCSTR tok) {
-    return *tok == '"';
+    return *tok == '\"';
 }
 
 BOOL is_identifier(LPCSTR str) {
     if (!isalpha(*str) && *str != '_')
         return false;
-    for (; *str; ++str) {
-        if (!isalnum(*str) && *str != '_')
+    for (LPCSTR s = str; *s; ++s) {
+        if (!isalnum(*s) && *s != '_')
             return false;
+    }
+    for (LPCSTR *kw = keywords; *kw; kw++) {
+        if (!strcmp(str, *kw)) {
+            return false;
+        }
     }
     return true;
 }
@@ -205,7 +218,9 @@ BOOL is_operator(LPCSTR str) {
     !strcmp(str, "!") ||
     !strcmp(str, "=") ||
     !strcmp(str, ">") ||
-    !strcmp(str, "<");
+    !strcmp(str, "<") ||
+    !strcmp(str, "and") ||
+    !strcmp(str, "or");
 }
 
 BOOL is_comma(LPCSTR str) {

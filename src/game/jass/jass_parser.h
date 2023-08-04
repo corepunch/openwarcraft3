@@ -17,6 +17,7 @@ typedef enum {
     TT_INTEGER,
     TT_REAL,
     TT_STRING,
+    TT_FOURCC,
     TT_BOOLEAN,
     TT_IF,
     TT_SET,
@@ -30,6 +31,7 @@ enum {
     TF_NATIVE = 1,
     TF_CONSTANT = 2,
     TF_ARRAY = 4,
+    TF_FUNCTION = 8,
 };
 
 struct token {
@@ -47,6 +49,7 @@ struct token {
     LPTOKEN returns;
     LPTOKEN condition;
     LPTOKEN elseblock;
+    LPTOKEN index;
 };
 
 LPTOKEN JASS_ParseTokens(LPPARSER p);
