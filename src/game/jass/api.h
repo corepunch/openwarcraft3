@@ -8,6 +8,8 @@ KNOWN_AS(jass_type, JASSTYPE);
 KNOWN_AS(jass_var, JASSVAR);
 KNOWN_AS(jass_module, JASSMODULE);
 
+typedef DWORD (*LPJASSCFUNCTION)(LPJASS);
+
 typedef enum {
     jasstype_integer,
     jasstype_real,
@@ -16,11 +18,12 @@ typedef enum {
     jasstype_code,
     jasstype_handle,
     jasstype_function,
+    jasstype_cfunction,
 } JASSTYPEID;
 
 struct jass_module {
     LPCSTR name;
-    DWORD (*func)(LPJASS);
+    LPJASSCFUNCTION func;
 };
 
 LONG jass_checkinteger(LPJASS j, int index);

@@ -28,8 +28,24 @@ BOOL is_identifier(LPCSTR str);
 BOOL is_string(LPCSTR tok);
 BOOL is_fourcc(LPCSTR tok);
 
+LPCSTR jass_getoperator(LPCSTR str) {
+    if (!strcmp(str, "+")) return "__add";
+    if (!strcmp(str, "-")) return "__sub";
+    if (!strcmp(str, "*")) return "__mul";
+    if (!strcmp(str, "/")) return "__div";
+    if (!strcmp(str, "!=")) return "__ne";
+    if (!strcmp(str, "==")) return "__eq";
+    if (!strcmp(str, ">=")) return "__ge";
+    if (!strcmp(str, "<=")) return "__le";
+    if (!strcmp(str, ">")) return "__gt";
+    if (!strcmp(str, "<")) return "__lt";
+    if (!strcmp(str, "and")) return "__and";
+    if (!strcmp(str, "or")) return "__or";
+    return str;
+}
+
 void parser_throw(void) {
-    int a = 0;
+    assert(false);
 }
 
 LPSTR read_identifier(LPPARSER p) {
@@ -139,15 +155,25 @@ LPTOKEN alloc_ident_token(LPPARSER p, TOKENTYPE tt) {
     return t;
 }
 
+LPTOKEN alloc_operator_token(LPCSTR operator) {
+    LPCSTR operatorid = jass_getoperator(operator);
+    LPTOKEN t = alloc_token(TT_CALL);
+    t->primary = strdup(operatorid);
+    return t;
+}
+
 PARSER(parse_expression) {
     LPCSTR tok = peek_token(p);
     LPTOKEN left = NULL;
     if (eat_token(p, "function")) {
         left = alloc_ident_token(p, TT_IDENTIFIER);
         left->flags |= TF_FUNCTION;
-    } else if (!strcmp(tok, "-") || !strcmp(tok, "not")) {
-        left = alloc_ident_token(p, TT_OPERATOR);
-        left->body = parse_expression(p);
+    } else if (eat_token(p, "-")) {
+        left = alloc_operator_token("__unm");
+        left->args = parse_expression(p);
+    } else if (eat_token(p, "not")) {
+        left = alloc_operator_token("__not");
+        left->args = parse_expression(p);
     } else if (eat_token(p, "(")) {
         left = parse_expression(p);
     } else if (is_integer(tok)) {
@@ -177,15 +203,12 @@ PARSER(parse_expression) {
         return NULL;
     }
     if (is_operator(peek_token(p))) {
-        LPTOKEN oper = alloc_token(TT_OPERATOR);
-        oper->primary = strdup(parse_token(p));
-        if (!strcmp(peek_token(p), "=")) {
-            LPSTR op = oper->primary;
-            oper->primary = gi.MemAlloc(3);
-            oper->primary[0] = *op;
-            oper->primary[1] = *parse_token(p);
-            FREE(op);
+        UINAME op = { 0 };
+        op[0] = *parse_token(p);
+        if (eat_token(p, "=")) {
+            op[1] = '=';
         }
+        LPTOKEN oper = alloc_operator_token(op);
         oper->left = left;
         oper->right = parse_expression(p);
         return oper;

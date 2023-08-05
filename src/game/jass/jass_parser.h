@@ -8,7 +8,6 @@ KNOWN_AS(token, TOKEN);
 typedef enum {
     TT_UNKNOWN,
     TT_VALUE,
-    TT_OPERATOR,
     TT_FUNCTION,
     TT_TYPEDEF,
     TT_VARDECL,
