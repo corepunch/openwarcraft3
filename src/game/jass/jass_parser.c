@@ -3,7 +3,7 @@
 
 #define ALLOC(type) gi.MemAlloc(sizeof(type))
 #define FREE(val) SAFE_DELETE(val, gi.MemFree)
-#define PARSER(NAME) static LPTOKEN NAME(LPPARSER p)
+#define PARSER(NAME, ...) static LPTOKEN NAME(LPPARSER p, ##__VA_ARGS__)
 
 #define PARSER_THROW(...) \
 fprintf(stderr, __VA_ARGS__); \
@@ -162,7 +162,7 @@ LPTOKEN alloc_operator_token(LPCSTR operator) {
     return t;
 }
 
-PARSER(parse_expression) {
+PARSER(parse_expression2, BOOL single) {
     LPCSTR tok = peek_token(p);
     LPTOKEN left = NULL;
     if (eat_token(p, "function")) {
@@ -170,12 +170,12 @@ PARSER(parse_expression) {
         left->flags |= TF_FUNCTION;
     } else if (eat_token(p, "-")) {
         left = alloc_operator_token("__unm");
-        left->args = parse_expression(p);
+        left->args = parse_expression2(p, true);
     } else if (eat_token(p, "not")) {
         left = alloc_operator_token("__not");
-        left->args = parse_expression(p);
+        left->args = parse_expression2(p, true);
     } else if (eat_token(p, "(")) {
-        left = parse_expression(p);
+        left = parse_expression2(p, false);
     } else if (is_integer(tok)) {
         left = alloc_ident_token(p, TT_INTEGER);
     } else if (is_float(tok)) {
@@ -193,14 +193,17 @@ PARSER(parse_expression) {
         if (eat_token(p, "(")) {
             left->type = TT_CALL;
             if (!eat_token(p, ")")) {
-                left->args = parse_expression(p);
+                left->args = parse_expression2(p, false);
             }
         }
         if (eat_token(p, "[")) {
-            left->index = parse_expression(p);
+            left->index = parse_expression2(p, false);
         }
     } else {
         return NULL;
+    }
+    if (single) {
+        return left;
     }
     if (is_operator(peek_token(p))) {
         UINAME op = { 0 };
@@ -209,12 +212,13 @@ PARSER(parse_expression) {
             op[1] = '=';
         }
         LPTOKEN oper = alloc_operator_token(op);
-        oper->left = left;
-        oper->right = parse_expression(p);
+        LPTOKEN right = parse_expression2(p, false);
+        PUSH_BACK(TOKEN, left, oper->args);
+        PUSH_BACK(TOKEN, right, oper->args);
         return oper;
     }
     if (eat_token(p, ",")) {
-        left->next = parse_expression(p);
+        left->next = parse_expression2(p, false);
         return left;
     }
     if (eat_token(p, ")") || eat_token(p, "]")) {
@@ -223,10 +227,14 @@ PARSER(parse_expression) {
     return left;
 }
 
+PARSER(parse_expression) {
+    return parse_expression2(p, false);
+}
+
 PARSER(keyword_globals) {
     LPTOKEN globals = NULL;
     while (!eat_token(p, "endglobals")) {
-        LPTOKEN token = alloc_token(TT_VARDECL);
+        LPTOKEN token = alloc_token(TT_GLOBAL);
         if (eat_token(p, "constant")) {
             token->flags |= TF_CONSTANT;
         }

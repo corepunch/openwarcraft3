@@ -11,6 +11,7 @@ typedef enum {
     TT_FUNCTION,
     TT_TYPEDEF,
     TT_VARDECL,
+    TT_GLOBAL,
     TT_IDENTIFIER,
     TT_CALL,
     TT_INTEGER,
@@ -42,8 +43,6 @@ struct token {
     LPTOKEN body;
     LPTOKEN next;
     LPTOKEN args;
-    LPTOKEN left;
-    LPTOKEN right;
     LPTOKEN condition;
     LPTOKEN elseblock;
     LPTOKEN index;
