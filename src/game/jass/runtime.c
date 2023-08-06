@@ -133,11 +133,11 @@ DWORD __ne(LPJASS j) {
 }
 
 DWORD __and(LPJASS j) {
-    return jass_pushboolean(j, jass_checknumber(j, 1) && jass_checknumber(j, 2));
+    return jass_pushboolean(j, jass_toboolean(j, 1) && jass_toboolean(j, 2));
 }
 
 DWORD __or(LPJASS j) {
-    return jass_pushboolean(j, jass_checknumber(j, 1) || jass_checknumber(j, 2));
+    return jass_pushboolean(j, jass_toboolean(j, 1) || jass_toboolean(j, 2));
 }
 
 JASSMODULE jass_operators[] = {
