@@ -114,7 +114,7 @@ PARSER(parse_args) {
 }
 
 PARSER(parse_function_decl) {
-    LPTOKEN token = alloc_token(TT_TYPEDEF);
+    LPTOKEN token = alloc_token(TT_FUNCTION);
     token->primary = read_identifier(p);
     if (eat_token(p, "takes")) {
         token->args = parse_args(p);

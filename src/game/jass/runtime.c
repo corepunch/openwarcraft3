@@ -60,6 +60,7 @@ JASSTYPE jass_types[] = {
     { "code", "LPCSTR", NULL },
     { "handle", "HANDLE", NULL },
     { "function", "HANDLE", NULL },
+    { "cfunction", "HANDLE", NULL },
 };
 
 static LPJASSVAR jass_stackvalue(LPJASS j, int index);
@@ -433,7 +434,7 @@ DWORD jass_pushstring(LPJASS j, LPCSTR value) {
 
 DWORD jass_pushcfunction(LPJASS j, LPJASSCFUNCTION func) {
     JASS_ADD_STACK(j, var, jasstype_cfunction);
-    JASS_SET_VALUE(var, func, sizeof(*func));
+    JASS_SET_VALUE(var, &func, sizeof(LPJASSCFUNCTION));
     return 1;
 }
  
@@ -564,7 +565,7 @@ static DWORD jass_dotoken(LPJASS j, LPTOKEN token, LPJASSDICT locals) {
     }
 }
 
-LPJASSDICT parse_dict(LPJASS j, LPTOKEN token, LPJASSDICT locals) {
+LPJASSDICT parse_dict(LPJASS j, LPCTOKEN token, LPJASSDICT locals) {
     LPJASSDICT item = JASSALLOC(JASSDICT);
     item->value.constant = token->flags & TF_CONSTANT;
     item->value.array = token->flags & TF_ARRAY;
@@ -633,7 +634,8 @@ TOKENFUNC(TYPEDEF) {
 }
 
 TOKENFUNC(VARDECL) {
-    
+    LPJASSDICT global = parse_dict(j, token, NULL);
+    ADD_TO_LIST(global, j->globals);
 }
 
 TOKENFUNC(FUNCTION) {
@@ -757,7 +759,7 @@ void jass_call(LPJASS j, DWORD args) {
     DWORD old_stack_offset = j->stack_offset, ret = 0;
     j->stack_offset = j->num_stack - args - 1;
     if (jass_getvarbasetype(var) == jasstype_cfunction) {
-        LPJASSCFUNCTION func = var->value;
+        LPJASSCFUNCTION func = *(LPJASSCFUNCTION *)var->value;
         ret = func(j);
     } else {
 //        LPCJASSFUNC func = var->value;
