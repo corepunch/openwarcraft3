@@ -558,6 +558,7 @@ static DWORD jass_dotoken(LPJASS j, LPCTOKEN token, LPJASSDICT locals) {
                 jass_call(j, args);
                 return j->num_stack - stacksize;
             } else {
+                fprintf(stderr, "Can't find function %s\n", token->primary);
                 assert(false);
                 return 0;
             }
@@ -671,6 +672,12 @@ struct {
 
 TOKENFUNC(TOKENS) {
     FOR_EACH_LIST(TOKEN const, tok, token) {
+        if (tok->type == TT_RETURN) {
+            if (tok->body){
+                jass_dotoken(j, tok->body, env->locals);
+            }
+            return;
+        }
         FOR_LOOP(index, sizeof(token_eval) / sizeof(*token_eval)) {
             if (tok->type == token_eval[index].type) {
                 token_eval[index].func(j, env, tok);
@@ -748,6 +755,7 @@ void jass_call(LPJASS j, DWORD args) {
     } else {
         LPCJASSFUNC func = var->value;
         JASSENV env = { 0 };
+        printf("%s\n", func->name);
         eval_TOKENS(j, &env, func->code);
     }
     for (LPJASSVAR it = var; it < last; it++) JASS_SET_NULL(it)

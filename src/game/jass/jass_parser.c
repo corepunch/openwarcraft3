@@ -207,7 +207,7 @@ PARSER(parse_expression2, BOOL single) {
     }
     if (is_operator(peek_token(p))) {
         UINAME op = { 0 };
-        op[0] = *parse_token(p);
+        strcpy(op, parse_token(p));
         if (eat_token(p, "=")) {
             op[1] = '=';
         }
