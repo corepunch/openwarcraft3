@@ -233,20 +233,6 @@ BOOL is_identifier(LPCSTR str) {
     return true;
 }
 
-BOOL is_operator(LPCSTR str) {
-    return \
-    !strcmp(str, "+") ||
-    !strcmp(str, "-") ||
-    !strcmp(str, "*") ||
-    !strcmp(str, "/") ||
-    !strcmp(str, "!") ||
-    !strcmp(str, "=") ||
-    !strcmp(str, ">") ||
-    !strcmp(str, "<") ||
-    !strcmp(str, "and") ||
-    !strcmp(str, "or");
-}
-
 BOOL is_comma(LPCSTR str) {
     return !strcmp(str, ",");
 }

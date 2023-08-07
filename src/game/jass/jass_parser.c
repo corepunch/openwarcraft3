@@ -21,12 +21,27 @@ typedef struct {
 
 extern parseClass_t function_keywords[];
 
-BOOL is_operator(LPCSTR str);
 BOOL is_integer(LPCSTR tok);
 BOOL is_float(LPCSTR tok);
 BOOL is_identifier(LPCSTR str);
 BOOL is_string(LPCSTR tok);
 BOOL is_fourcc(LPCSTR tok);
+
+BOOL is_multiplicative_operator(LPCSTR str) {
+    return !strcmp(str, "*") || !strcmp(str, "/");
+}
+
+BOOL is_additive_operator(LPCSTR str) {
+    return !strcmp(str, "+") || !strcmp(str, "-");
+}
+
+BOOL is_compare_operator(LPCSTR str) {
+    return !strcmp(str, ">") || !strcmp(str, "<") || !strcmp(str, "=") || !strcmp(str, "!");
+}
+
+BOOL is_logic_operator(LPCSTR str) {
+    return !strcmp(str, "and") || !strcmp(str, "or");
+}
 
 LPCSTR jass_getoperator(LPCSTR str) {
     if (!strcmp(str, "+")) return "__add";
@@ -162,7 +177,9 @@ LPTOKEN alloc_operator_token(LPCSTR operator) {
     return t;
 }
 
-PARSER(parse_expression2, BOOL single) {
+PARSER(parse_logical_expression);
+
+PARSER(read_single_identifier) {
     LPCSTR tok = peek_token(p);
     LPTOKEN left = NULL;
     if (eat_token(p, "function")) {
@@ -170,12 +187,12 @@ PARSER(parse_expression2, BOOL single) {
         left->flags |= TF_FUNCTION;
     } else if (eat_token(p, "-")) {
         left = alloc_operator_token("__unm");
-        left->args = parse_expression2(p, true);
+        left->args = read_single_identifier(p);
     } else if (eat_token(p, "not")) {
         left = alloc_operator_token("__not");
-        left->args = parse_expression2(p, true);
+        left->args = read_single_identifier(p);
     } else if (eat_token(p, "(")) {
-        left = parse_expression2(p, false);
+        left = parse_logical_expression(p);
     } else if (is_integer(tok)) {
         left = alloc_ident_token(p, TT_INTEGER);
     } else if (is_float(tok)) {
@@ -193,42 +210,76 @@ PARSER(parse_expression2, BOOL single) {
         if (eat_token(p, "(")) {
             left->type = TT_CALL;
             if (!eat_token(p, ")")) {
-                left->args = parse_expression2(p, false);
+                left->args = parse_logical_expression(p);
             }
         }
         if (eat_token(p, "[")) {
-            left->index = parse_expression2(p, false);
+            left->index = parse_logical_expression(p);
         }
     } else {
         return NULL;
     }
-    if (single) {
-        return left;
+    return left;
+}
+
+PARSER(parse_multiplicative_expression) {
+    LPTOKEN left = read_single_identifier(p);
+    if (is_multiplicative_operator(peek_token(p))) {
+        LPTOKEN oper = alloc_operator_token(parse_token(p));
+        LPTOKEN right = parse_multiplicative_expression(p);
+        PUSH_BACK(TOKEN, left, oper->args);
+        PUSH_BACK(TOKEN, right, oper->args);
+        return oper;
     }
-    if (is_operator(peek_token(p))) {
+    return left;
+}
+
+PARSER(parse_additive_expression) {
+    LPTOKEN left = parse_multiplicative_expression(p);
+    if (is_additive_operator(peek_token(p))) {
+        LPTOKEN oper = alloc_operator_token(parse_token(p));
+        LPTOKEN right = parse_additive_expression(p);
+        PUSH_BACK(TOKEN, left, oper->args);
+        PUSH_BACK(TOKEN, right, oper->args);
+        return oper;
+    }
+    return left;
+}
+
+PARSER(parse_comparison_expression) {
+    LPTOKEN left = parse_additive_expression(p);
+    if (is_compare_operator(peek_token(p))) {
         UINAME op = { 0 };
         strcpy(op, parse_token(p));
         if (eat_token(p, "=")) {
             op[1] = '=';
         }
         LPTOKEN oper = alloc_operator_token(op);
-        LPTOKEN right = parse_expression2(p, false);
+        LPTOKEN right = parse_comparison_expression(p);
+        PUSH_BACK(TOKEN, left, oper->args);
+        PUSH_BACK(TOKEN, right, oper->args);
+        return oper;
+    }
+    return left;
+}
+
+PARSER(parse_logical_expression) {
+    LPTOKEN left = parse_comparison_expression(p);
+    if (is_logic_operator(peek_token(p))) {
+        LPTOKEN oper = alloc_operator_token(parse_token(p));
+        LPTOKEN right = parse_logical_expression(p);
         PUSH_BACK(TOKEN, left, oper->args);
         PUSH_BACK(TOKEN, right, oper->args);
         return oper;
     }
     if (eat_token(p, ",")) {
-        left->next = parse_expression2(p, false);
+        left->next = parse_logical_expression(p);
         return left;
     }
     if (eat_token(p, ")") || eat_token(p, "]")) {
         return left;
     }
     return left;
-}
-
-PARSER(parse_expression) {
-    return parse_expression2(p, false);
 }
 
 PARSER(keyword_globals) {
@@ -244,7 +295,7 @@ PARSER(keyword_globals) {
         }
         token->secondary = read_identifier(p);
         if (eat_token(p, "=")) {
-            token->init = parse_expression(p);
+            token->init = parse_logical_expression(p);
         }
         PUSH_BACK(TOKEN, token, globals);
     }
@@ -255,16 +306,16 @@ PARSER(statement_set) {
     LPTOKEN token = alloc_token(TT_SET);
     token->secondary = read_identifier(p);
     if (eat_token(p, "[")) {
-        token->index = parse_expression(p);
+        token->index = parse_logical_expression(p);
     }
     if (eat_token(p, "=")) {
-        token->init = parse_expression(p);
+        token->init = parse_logical_expression(p);
     }
     return token;
 }
 
 PARSER(statement_call) {
-    return parse_expression(p);
+    return parse_logical_expression(p);
 }
 
 PARSER(statement_local) {
@@ -272,7 +323,7 @@ PARSER(statement_local) {
     token->primary = read_identifier(p);
     token->secondary = read_identifier(p);
     if (eat_token(p, "=")) {
-        token->init = parse_expression(p);
+        token->init = parse_logical_expression(p);
     }
     return token;
 }
@@ -280,7 +331,7 @@ PARSER(statement_local) {
 PARSER(statement_if) {
     LPTOKEN token = alloc_token(TT_IF);
     LPTOKEN target = token;
-    token->condition = parse_expression(p);
+    token->condition = parse_logical_expression(p);
     if (!eat_token(p, "then")) {
         FREE(token);
         PARSER_THROW("THEN expected");
@@ -288,7 +339,7 @@ PARSER(statement_if) {
     while (!eat_token(p, "endif")) {
         if (eat_token(p, "elseif")) {
             LPTOKEN next = alloc_token(TT_ELSE);
-            next->condition = parse_expression(p);
+            next->condition = parse_logical_expression(p);
             if (!eat_token(p, "then")) {
                 FREE(token);
                 PARSER_THROW("THEN expected");
@@ -309,7 +360,7 @@ PARSER(statement_if) {
 
 PARSER(statement_exitwhen) {
     LPTOKEN token = alloc_token(TT_EXITWHEN);
-    token->condition = parse_expression(p);
+    token->condition = parse_logical_expression(p);
     return token;
 }
 
@@ -329,7 +380,7 @@ PARSER(statement_loop) {
 
 PARSER(statement_return) {
     LPTOKEN ret = alloc_token(TT_RETURN);
-    ret->body = parse_expression(p);
+    ret->body = parse_logical_expression(p);
     return ret;
 }
 
