@@ -524,6 +524,7 @@ static DWORD jass_dotoken(LPJASS j, LPCTOKEN token, LPJASSDICT locals) {
             } else {
                 return jass_pushnull(j);
             }
+        case TT_FOURCC: return jass_pushinteger(j, *(DWORD *)token->primary);
         case TT_CALL:
             if ((f = find_function(j, token->primary))) {
                 DWORD args = 0;
