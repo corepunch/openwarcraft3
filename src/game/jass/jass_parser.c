@@ -170,8 +170,13 @@ LPTOKEN alloc_ident_token(LPPARSER p, TOKENTYPE tt) {
     return t;
 }
 
-LPTOKEN alloc_operator_token(LPCSTR operator) {
-    LPCSTR operatorid = jass_getoperator(operator);
+LPTOKEN parse_operator_token(LPPARSER p) {
+    UINAME op = { 0 };
+    strcpy(op, parse_token(p));
+    if (eat_token(p, "=")) {
+        op[1] = '=';
+    }
+    LPCSTR operatorid = jass_getoperator(op);
     LPTOKEN t = alloc_token(TT_CALL);
     t->primary = strdup(operatorid);
     return t;
@@ -186,10 +191,12 @@ PARSER(read_single_identifier) {
         left = alloc_ident_token(p, TT_IDENTIFIER);
         left->flags |= TF_FUNCTION;
     } else if (eat_token(p, "-")) {
-        left = alloc_operator_token("__unm");
+        left = alloc_token(TT_CALL);
+        left->primary = strdup("__unm");
         left->args = read_single_identifier(p);
     } else if (eat_token(p, "not")) {
-        left = alloc_operator_token("__not");
+        left = alloc_token(TT_CALL);
+        left->primary = strdup("__not");
         left->args = read_single_identifier(p);
     } else if (eat_token(p, "(")) {
         left = parse_logical_expression(p);
@@ -225,7 +232,7 @@ PARSER(read_single_identifier) {
 PARSER(parse_multiplicative_expression) {
     LPTOKEN left = read_single_identifier(p);
     if (is_multiplicative_operator(peek_token(p))) {
-        LPTOKEN oper = alloc_operator_token(parse_token(p));
+        LPTOKEN oper = parse_operator_token(p);
         LPTOKEN right = parse_multiplicative_expression(p);
         PUSH_BACK(TOKEN, left, oper->args);
         PUSH_BACK(TOKEN, right, oper->args);
@@ -237,7 +244,7 @@ PARSER(parse_multiplicative_expression) {
 PARSER(parse_additive_expression) {
     LPTOKEN left = parse_multiplicative_expression(p);
     if (is_additive_operator(peek_token(p))) {
-        LPTOKEN oper = alloc_operator_token(parse_token(p));
+        LPTOKEN oper = parse_operator_token(p);
         LPTOKEN right = parse_additive_expression(p);
         PUSH_BACK(TOKEN, left, oper->args);
         PUSH_BACK(TOKEN, right, oper->args);
@@ -249,12 +256,7 @@ PARSER(parse_additive_expression) {
 PARSER(parse_comparison_expression) {
     LPTOKEN left = parse_additive_expression(p);
     if (is_compare_operator(peek_token(p))) {
-        UINAME op = { 0 };
-        strcpy(op, parse_token(p));
-        if (eat_token(p, "=")) {
-            op[1] = '=';
-        }
-        LPTOKEN oper = alloc_operator_token(op);
+        LPTOKEN oper = parse_operator_token(p);
         LPTOKEN right = parse_comparison_expression(p);
         PUSH_BACK(TOKEN, left, oper->args);
         PUSH_BACK(TOKEN, right, oper->args);
@@ -266,7 +268,7 @@ PARSER(parse_comparison_expression) {
 PARSER(parse_logical_expression) {
     LPTOKEN left = parse_comparison_expression(p);
     if (is_logic_operator(peek_token(p))) {
-        LPTOKEN oper = alloc_operator_token(parse_token(p));
+        LPTOKEN oper = parse_operator_token(p);
         LPTOKEN right = parse_logical_expression(p);
         PUSH_BACK(TOKEN, left, oper->args);
         PUSH_BACK(TOKEN, right, oper->args);
