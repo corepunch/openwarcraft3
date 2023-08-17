@@ -177,6 +177,102 @@ typedef enum {
     FONTFLAGS_PASSWORDFIELD,
 } UIFONTFLAGS;
 
+typedef enum {
+    EVENT_GAME_VICTORY = 0,
+    EVENT_GAME_END_LEVEL = 1,
+    EVENT_GAME_VARIABLE_LIMIT = 2,
+    EVENT_GAME_STATE_LIMIT = 3,
+    EVENT_GAME_TIMER_EXPIRED = 4,
+    EVENT_GAME_ENTER_REGION = 5,
+    EVENT_GAME_LEAVE_REGION = 6,
+    EVENT_GAME_TRACKABLE_HIT = 7,
+    EVENT_GAME_TRACKABLE_TRACK = 8,
+    EVENT_GAME_SHOW_SKILL = 9,
+    EVENT_GAME_BUILD_SUBMENU = 10,
+    EVENT_PLAYER_STATE_LIMIT = 11,
+    EVENT_PLAYER_ALLIANCE_CHANGED = 12,
+    EVENT_PLAYER_DEFEAT = 13,
+    EVENT_PLAYER_VICTORY = 14,
+    EVENT_PLAYER_LEAVE = 15,
+    EVENT_PLAYER_CHAT = 16,
+    EVENT_PLAYER_END_CINEMATIC = 17,
+    EVENT_PLAYER_UNIT_ATTACKED = 18,
+    EVENT_PLAYER_UNIT_RESCUED = 19,
+    EVENT_PLAYER_UNIT_DEATH = 20,
+    EVENT_PLAYER_UNIT_DECAY = 21,
+    EVENT_PLAYER_UNIT_DETECTED = 22,
+    EVENT_PLAYER_UNIT_HIDDEN = 23,
+    EVENT_PLAYER_UNIT_SELECTED = 24,
+    EVENT_PLAYER_UNIT_DESELECTED = 25,
+    EVENT_PLAYER_UNIT_CONSTRUCT_START = 26,
+    EVENT_PLAYER_UNIT_CONSTRUCT_CANCEL = 27,
+    EVENT_PLAYER_UNIT_CONSTRUCT_FINISH = 28,
+    EVENT_PLAYER_UNIT_UPGRADE_START = 29,
+    EVENT_PLAYER_UNIT_UPGRADE_CANCEL = 30,
+    EVENT_PLAYER_UNIT_UPGRADE_FINISH = 31,
+    EVENT_PLAYER_UNIT_TRAIN_START = 32,
+    EVENT_PLAYER_UNIT_TRAIN_CANCEL = 33,
+    EVENT_PLAYER_UNIT_TRAIN_FINISH = 34,
+    EVENT_PLAYER_UNIT_RESEARCH_START = 35,
+    EVENT_PLAYER_UNIT_RESEARCH_CANCEL = 36,
+    EVENT_PLAYER_UNIT_RESEARCH_FINISH = 37,
+    EVENT_PLAYER_UNIT_ISSUED_ORDER = 38,
+    EVENT_PLAYER_UNIT_ISSUED_POINT_ORDER = 39,
+    EVENT_PLAYER_UNIT_ISSUED_TARGET_ORDER = 40,
+    EVENT_PLAYER_UNIT_ISSUED_UNIT_ORDER = 40,    // for compat
+    EVENT_PLAYER_HERO_LEVEL = 41,
+    EVENT_PLAYER_HERO_SKILL = 42,
+    EVENT_PLAYER_HERO_REVIVABLE = 43,
+    EVENT_PLAYER_HERO_REVIVE_START = 44,
+    EVENT_PLAYER_HERO_REVIVE_CANCEL = 45,
+    EVENT_PLAYER_HERO_REVIVE_FINISH = 46,
+    EVENT_PLAYER_UNIT_SUMMON = 47,
+    EVENT_PLAYER_UNIT_DROP_ITEM = 48,
+    EVENT_PLAYER_UNIT_PICKUP_ITEM = 49,
+    EVENT_PLAYER_UNIT_USE_ITEM = 50,
+    EVENT_PLAYER_UNIT_LOADED = 51,
+    EVENT_UNIT_DAMAGED = 52,
+    EVENT_UNIT_DEATH = 53,
+    EVENT_UNIT_DECAY = 54,
+    EVENT_UNIT_DETECTED = 55,
+    EVENT_UNIT_HIDDEN = 56,
+    EVENT_UNIT_SELECTED = 57,
+    EVENT_UNIT_DESELECTED = 58,
+    EVENT_UNIT_STATE_LIMIT = 59,
+    EVENT_UNIT_ACQUIRED_TARGET = 60,
+    EVENT_UNIT_TARGET_IN_RANGE = 61,
+    EVENT_UNIT_ATTACKED = 62,
+    EVENT_UNIT_RESCUED = 63,
+    EVENT_UNIT_CONSTRUCT_CANCEL = 64,
+    EVENT_UNIT_CONSTRUCT_FINISH = 65,
+    EVENT_UNIT_UPGRADE_START = 66,
+    EVENT_UNIT_UPGRADE_CANCEL = 67,
+    EVENT_UNIT_UPGRADE_FINISH = 68,
+    EVENT_UNIT_TRAIN_START = 69,
+    EVENT_UNIT_TRAIN_CANCEL = 70,
+    EVENT_UNIT_TRAIN_FINISH = 71,
+    EVENT_UNIT_RESEARCH_START = 72,
+    EVENT_UNIT_RESEARCH_CANCEL = 73,
+    EVENT_UNIT_RESEARCH_FINISH = 74,
+    EVENT_UNIT_ISSUED_ORDER = 75,
+    EVENT_UNIT_ISSUED_POINT_ORDER = 76,
+    EVENT_UNIT_ISSUED_TARGET_ORDER = 77,
+    EVENT_UNIT_HERO_LEVEL = 78,
+    EVENT_UNIT_HERO_SKILL = 79,
+    EVENT_UNIT_HERO_REVIVABLE = 80,
+    EVENT_UNIT_HERO_REVIVE_START = 81,
+    EVENT_UNIT_HERO_REVIVE_CANCEL = 82,
+    EVENT_UNIT_HERO_REVIVE_FINISH = 83,
+    EVENT_UNIT_SUMMON = 84,
+    EVENT_UNIT_DROP_ITEM = 85,
+    EVENT_UNIT_PICKUP_ITEM = 86,
+    EVENT_UNIT_USE_ITEM = 87,
+    EVENT_UNIT_LOADED = 88,
+    EVENT_WIDGET_DEATH = 89,
+    EVENT_DIALOG_BUTTON_CLICK = 90,
+    EVENT_DIALOG_CLICK = 91,
+} UNITEVENT;
+
 struct uiFrameDef_s {
     uiFrame_t f;
     UINAME Name;
@@ -220,10 +316,28 @@ struct uiFrameDef_s {
     } Font;
 };
 
+typedef struct {
+    FLOAT target_distance;
+    FLOAT far_z;
+//    FLOAT angle_of_attack;
+    FLOAT fov;
+//    FLOAT roll;
+//    FLOAT rotations;
+    FLOAT z_offset;
+    VECTOR3 viewangles;
+    VECTOR2 position;
+} gcamerasetup_t;
+
 struct client_s {
     playerState_t ps;
     DWORD ping;
     menu_t menu;
+    struct {
+        gcamerasetup_t state;
+        gcamerasetup_t old_state;
+        DWORD start_time;
+        DWORD end_time;
+    } camera;
 };
 
 typedef struct {
@@ -259,6 +373,15 @@ typedef struct {
     FLOAT max_value;
 } EDICTSTAT;
 
+typedef struct {
+    float MoveSpeed;
+    float FlyHeight;
+//    float FlyRate;
+    float TurnSpeed;
+    float PropWindow;
+    float AcquireRange;
+} UNITINFO;
+
 struct edict_s {
     entityState_t s;
     LPGAMECLIENT client;
@@ -277,6 +400,7 @@ struct edict_s {
     DWORD peonsinside;
     DWORD aiflags;
     DWORD damage;
+    DWORD resources;
     FLOAT collision;
     FLOAT velocity;
     doodadHero_t hero;
@@ -293,6 +417,7 @@ struct edict_s {
     umove_t *currentmove;
 //    unitRace_t race;
     FLOAT wait;
+    UNITINFO unitinfo;
     unitAttack_t attack1;
     unitAttack_t attack2;
 
@@ -465,6 +590,10 @@ DWORD GetAbilityIndex(ability_t const *ability);
 
 // g_combat.c
 void T_Damage(LPEDICT target, LPEDICT attacker, int damage);
+
+// m_unit.c
+BOOL unit_issue_order(LPEDICT self, LPCSTR order, LPCVECTOR2 point);
+BOOL unit_issue_immediate_order(LPEDICT self, LPCSTR order);
 
 // p_jass.c
 LPJASS JASS_Allocate(void);

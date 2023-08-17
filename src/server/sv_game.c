@@ -1,4 +1,5 @@
 #include <stdarg.h>
+#include <pthread.h>
 
 #include "server.h"
 
@@ -91,6 +92,37 @@ LPCANIMATION SV_GetAnimation(DWORD modelindex, LPCSTR animname) {
 }
 
 VECTOR2 get_flow_direction(DWORD heatmapindex, float fx, float fy);
+struct thread {
+    pthread_t thread;
+    BOOL used;
+};
+
+struct thread threads[NUM_THREADS] = { 0 };
+
+DWORD PF_CreateThread(HANDLE (func)(HANDLE), HANDLE args) {
+    FOR_LOOP(i, NUM_THREADS) {
+        if (!threads[i].used) {
+            if (pthread_create(&threads[i].thread, NULL, func, args) != 0) {
+                fprintf(stderr, "Error creating thread\n");
+                exit(EXIT_FAILURE);
+            } else {
+                return i;
+            }
+        }
+    }
+    return -1;
+}
+
+void PF_JoinThread(DWORD thread) {
+    if (pthread_join(threads[thread].thread, NULL) != 0) {
+        fprintf(stderr, "Error joining thread %d\n", thread);
+        exit(EXIT_FAILURE);
+    }
+}
+
+void PF_Sleep(DWORD msec) {
+    usleep(msec * 1000);
+}
 
 void SV_InitGameProgs(void) {
     struct game_import import;
@@ -128,7 +160,10 @@ void SV_InitGameProgs(void) {
     import.WriteAngle = PF_WriteAngle;
     import.WriteEntity = PF_WriteEntity;
     import.WriteUIFrame = PF_WriteUIFrame;
-    
+    import.CreateThread = PF_CreateThread;
+    import.JoinThread = PF_JoinThread;
+    import.Sleep = PF_Sleep;
+
     ge = GetGameAPI(&import);
     ge->Init();
 }

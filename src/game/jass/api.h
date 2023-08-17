@@ -3,10 +3,29 @@
 
 #include "g_local.h"
 
+#define API_ALLOC(TYPE, NAME) TYPE *NAME = gi.MemAlloc(sizeof(TYPE));
+
 KNOWN_AS(jass_function, JASSFUNC);
 KNOWN_AS(jass_type, JASSTYPE);
 KNOWN_AS(jass_var, JASSVAR);
 KNOWN_AS(jass_module, JASSMODULE);
+
+typedef enum {
+    CAMERA_FIELD_TARGET_DISTANCE,
+    CAMERA_FIELD_FARZ,
+    CAMERA_FIELD_ANGLE_OF_ATTACK,
+    CAMERA_FIELD_FIELD_OF_VIEW,
+    CAMERA_FIELD_ROLL,
+    CAMERA_FIELD_ROTATION,
+    CAMERA_FIELD_ZOFFSET,
+} CAMERAFIELD;
+
+typedef enum {
+    UNIT_STATE_LIFE,
+    UNIT_STATE_MAX_LIFE,
+    UNIT_STATE_MANA,
+    UNIT_STATE_MAX_MANA,
+} UNITSTATE;
 
 typedef DWORD (*LPJASSCFUNCTION)(LPJASS);
 
@@ -17,7 +36,6 @@ typedef enum {
     jasstype_boolean,
     jasstype_code,
     jasstype_handle,
-    jasstype_function,
     jasstype_cfunction,
 } JASSTYPEID;
 
@@ -26,18 +44,47 @@ struct jass_module {
     LPJASSCFUNCTION func;
 };
 
+typedef struct gtriggeraction_s {
+    LPCJASSFUNC func;
+    struct gtriggeraction_s *next;
+} gtriggeraction_t;
+
+typedef struct {
+    gtriggeraction_t *actions;
+} gtrigger_t;
+
+typedef struct {
+    UINAME campaign;
+} ggamecache_t;
+
+typedef struct {
+    LPEDICT units[64];
+    DWORD num_units;
+} ggroup_t;
+
+typedef struct {
+    PATHSTR fileName;
+    BOOL looping;
+    BOOL is3D;
+    BOOL stopwhenoutofrange;
+    LONG fadeInRate;
+    LONG fadeOutRate;
+    DWORD duration;
+} gsound_t;
+
 LONG jass_checkinteger(LPJASS j, int index);
 FLOAT jass_checknumber(LPJASS j, int index);
 BOOL jass_checkboolean(LPJASS j, int index);
 LPCSTR jass_checkstring(LPJASS j, int index);
-LPCSTR jass_checkcode(LPJASS j, int index);
+LPCJASSFUNC jass_checkcode(LPJASS j, int index);
 HANDLE jass_checkhandle(LPJASS j, int index, LPCSTR type);
 BOOL jass_toboolean(LPJASS j, int index);
-
+void jass_call(LPJASS j, DWORD args);
 JASSTYPEID jass_gettype(LPJASS j, int index);
 DWORD jass_pushnull(LPJASS j);
 DWORD jass_pushinteger(LPJASS j, LONG value);
-DWORD jass_pushhandle(LPJASS j, LONG value, LPCSTR type);
+DWORD jass_pushhandle(LPJASS j, HANDLE value, LPCSTR type);
+DWORD jass_pushlighthandle(LPJASS j, HANDLE value, LPCSTR type);
 DWORD jass_pushnumber(LPJASS j, FLOAT value);
 DWORD jass_pushboolean(LPJASS j, BOOL value);
 DWORD jass_pushstring(LPJASS j, LPCSTR value);
@@ -164,10 +211,10 @@ DWORD TimerGetTimeout(LPJASS j);
 DWORD PauseTimer(LPJASS j);
 DWORD ResumeTimer(LPJASS j);
 DWORD GetExpiredTimer(LPJASS j);
-DWORD CreateGroup(LPJASS j);
-DWORD GroupAddUnit(LPJASS j);
-DWORD GroupRemoveUnit(LPJASS j);
-DWORD GroupClear(LPJASS j);
+    DWORD CreateGroup(LPJASS j);
+    DWORD GroupAddUnit(LPJASS j);
+    DWORD GroupRemoveUnit(LPJASS j);
+    DWORD GroupClear(LPJASS j);
 DWORD GroupEnumUnitsOfType(LPJASS j);
 DWORD GroupEnumUnitsOfPlayer(LPJASS j);
 DWORD GroupEnumUnitsOfTypeCounted(LPJASS j);
@@ -197,19 +244,19 @@ DWORD ForceEnumPlayersCounted(LPJASS j);
 DWORD ForceEnumAllies(LPJASS j);
 DWORD ForceEnumEnemies(LPJASS j);
 DWORD ForForce(LPJASS j);
-DWORD Rect(LPJASS j);
-DWORD RectFromLoc(LPJASS j);
+    DWORD Rect(LPJASS j);
+    DWORD RectFromLoc(LPJASS j);
 DWORD RemoveRect(LPJASS j);
-DWORD SetRect(LPJASS j);
-DWORD SetRectFromLoc(LPJASS j);
-DWORD MoveRectTo(LPJASS j);
-DWORD MoveRectToLoc(LPJASS j);
-DWORD GetRectCenterX(LPJASS j);
-DWORD GetRectCenterY(LPJASS j);
-DWORD GetRectMinX(LPJASS j);
-DWORD GetRectMinY(LPJASS j);
-DWORD GetRectMaxX(LPJASS j);
-DWORD GetRectMaxY(LPJASS j);
+    DWORD SetRect(LPJASS j);
+    DWORD SetRectFromLoc(LPJASS j);
+    DWORD MoveRectTo(LPJASS j);
+    DWORD MoveRectToLoc(LPJASS j);
+    DWORD GetRectCenterX(LPJASS j);
+    DWORD GetRectCenterY(LPJASS j);
+    DWORD GetRectMinX(LPJASS j);
+    DWORD GetRectMinY(LPJASS j);
+    DWORD GetRectMaxX(LPJASS j);
+    DWORD GetRectMaxY(LPJASS j);
 DWORD CreateRegion(LPJASS j);
 DWORD RemoveRegion(LPJASS j);
 DWORD RegionAddRect(LPJASS j);
@@ -218,16 +265,16 @@ DWORD RegionAddCell(LPJASS j);
 DWORD RegionAddCellAtLoc(LPJASS j);
 DWORD RegionClearCell(LPJASS j);
 DWORD RegionClearCellAtLoc(LPJASS j);
-DWORD Location(LPJASS j);
+    DWORD Location(LPJASS j);
 DWORD RemoveLocation(LPJASS j);
-DWORD MoveLocation(LPJASS j);
-DWORD GetLocationX(LPJASS j);
-DWORD GetLocationY(LPJASS j);
+    DWORD MoveLocation(LPJASS j);
+    DWORD GetLocationX(LPJASS j);
+    DWORD GetLocationY(LPJASS j);
 DWORD IsUnitInRegion(LPJASS j);
 DWORD IsPointInRegion(LPJASS j);
 DWORD IsLocationInRegion(LPJASS j);
 DWORD GetWorldBounds(LPJASS j);
-DWORD CreateTrigger(LPJASS j);
+    DWORD CreateTrigger(LPJASS j);
 DWORD DestroyTrigger(LPJASS j);
 DWORD ResetTrigger(LPJASS j);
 DWORD EnableTrigger(LPJASS j);
@@ -329,13 +376,13 @@ DWORD TriggerRegisterUnitInRange(LPJASS j);
 DWORD TriggerAddCondition(LPJASS j);
 DWORD TriggerRemoveCondition(LPJASS j);
 DWORD TriggerClearConditions(LPJASS j);
-DWORD TriggerAddAction(LPJASS j);
+    DWORD TriggerAddAction(LPJASS j);
 DWORD TriggerRemoveAction(LPJASS j);
 DWORD TriggerClearActions(LPJASS j);
 DWORD TriggerSleepAction(LPJASS j);
 DWORD TriggerWaitForSound(LPJASS j);
-DWORD TriggerEvaluate(LPJASS j);
-DWORD TriggerExecute(LPJASS j);
+    DWORD TriggerEvaluate(LPJASS j);
+    DWORD TriggerExecute(LPJASS j);
 DWORD TriggerExecuteWait(LPJASS j);
 DWORD GetWidgetLife(LPJASS j);
 DWORD SetWidgetLife(LPJASS j);
@@ -375,7 +422,7 @@ DWORD SetItemInvulnerable(LPJASS j);
 DWORD IsItemInvulnerable(LPJASS j);
 DWORD CreateUnit(LPJASS j);
 DWORD CreateUnitByName(LPJASS j);
-DWORD CreateUnitAtLoc(LPJASS j);
+    DWORD CreateUnitAtLoc(LPJASS j);
 DWORD CreateUnitAtLocByName(LPJASS j);
 DWORD CreateCorpse(LPJASS j);
 DWORD KillUnit(LPJASS j);
@@ -388,15 +435,15 @@ DWORD SetUnitPosition(LPJASS j);
 DWORD SetUnitPositionLoc(LPJASS j);
 DWORD SetUnitFacing(LPJASS j);
 DWORD SetUnitFacingTimed(LPJASS j);
-DWORD SetUnitMoveSpeed(LPJASS j);
-DWORD SetUnitFlyHeight(LPJASS j);
-DWORD SetUnitTurnSpeed(LPJASS j);
-DWORD SetUnitPropWindow(LPJASS j);
-DWORD SetUnitAcquireRange(LPJASS j);
-DWORD GetUnitAcquireRange(LPJASS j);
-DWORD GetUnitTurnSpeed(LPJASS j);
-DWORD GetUnitPropWindow(LPJASS j);
-DWORD GetUnitFlyHeight(LPJASS j);
+    DWORD SetUnitMoveSpeed(LPJASS j);
+    DWORD SetUnitFlyHeight(LPJASS j);
+    DWORD SetUnitTurnSpeed(LPJASS j);
+    DWORD SetUnitPropWindow(LPJASS j);
+    DWORD SetUnitAcquireRange(LPJASS j);
+    DWORD GetUnitAcquireRange(LPJASS j);
+    DWORD GetUnitTurnSpeed(LPJASS j);
+    DWORD GetUnitPropWindow(LPJASS j);
+    DWORD GetUnitFlyHeight(LPJASS j);
 DWORD GetUnitDefaultAcquireRange(LPJASS j);
 DWORD GetUnitDefaultTurnSpeed(LPJASS j);
 DWORD GetUnitDefaultPropWindow(LPJASS j);
@@ -422,8 +469,8 @@ DWORD SetHeroInt(LPJASS j);
 DWORD GetHeroXP(LPJASS j);
 DWORD SetHeroXP(LPJASS j);
 DWORD AddHeroXP(LPJASS j);
-DWORD SetHeroLevel(LPJASS j);
-DWORD GetHeroLevel(LPJASS j);
+    DWORD SetHeroLevel(LPJASS j);
+    DWORD GetHeroLevel(LPJASS j);
 DWORD SuspendHeroXP(LPJASS j);
 DWORD IsSuspendedXP(LPJASS j);
 DWORD SelectHeroSkill(LPJASS j);
@@ -497,8 +544,8 @@ DWORD UnitWakeUp(LPJASS j);
 DWORD UnitApplyTimedLife(LPJASS j);
 DWORD IssueImmediateOrder(LPJASS j);
 DWORD IssueImmediateOrderById(LPJASS j);
-DWORD IssuePointOrder(LPJASS j);
-DWORD IssuePointOrderLoc(LPJASS j);
+    DWORD IssuePointOrder(LPJASS j);
+    DWORD IssuePointOrderLoc(LPJASS j);
 DWORD IssuePointOrderById(LPJASS j);
 DWORD IssuePointOrderByIdLoc(LPJASS j);
 DWORD IssueTargetOrder(LPJASS j);
@@ -513,15 +560,15 @@ DWORD IssueNeutralPointOrder(LPJASS j);
 DWORD IssueNeutralPointOrderById(LPJASS j);
 DWORD IssueNeutralTargetOrder(LPJASS j);
 DWORD IssueNeutralTargetOrderById(LPJASS j);
-DWORD SetResourceAmount(LPJASS j);
-DWORD AddResourceAmount(LPJASS j);
-DWORD GetResourceAmount(LPJASS j);
+    DWORD SetResourceAmount(LPJASS j);
+    DWORD AddResourceAmount(LPJASS j);
+    DWORD GetResourceAmount(LPJASS j);
 DWORD WaygateGetDestinationX(LPJASS j);
 DWORD WaygateGetDestinationY(LPJASS j);
 DWORD WaygateSetDestination(LPJASS j);
 DWORD WaygateActivate(LPJASS j);
 DWORD WaygateIsActive(LPJASS j);
-DWORD Player(LPJASS j);
+    DWORD Player(LPJASS j);
 DWORD GetLocalPlayer(LPJASS j);
 DWORD IsPlayerAlly(LPJASS j);
 DWORD IsPlayerEnemy(LPJASS j);

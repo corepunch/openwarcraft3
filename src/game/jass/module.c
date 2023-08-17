@@ -1,4 +1,10 @@
 #include "api.h"
+#include "api_unit.h"
+#include "api_camera.h"
+#include "api_player.h"
+#include "api_leaderboard.h"
+#include "api_destructable.h"
+#include "api_sound.h"
 
 JASSMODULE jass_funcs[] = {
     { "ConvertRace", ConvertRace },

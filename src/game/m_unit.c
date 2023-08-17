@@ -56,3 +56,25 @@ void SP_monster_unit(LPEDICT self) {
     
     monster_start(self);
 }
+
+void order_move(LPEDICT self, LPEDICT target);
+void order_stop(LPEDICT clent);
+
+BOOL unit_issue_order(LPEDICT self, LPCSTR order, LPCVECTOR2 point) {
+    if (!strcmp(order, "move")) {
+        LPEDICT waypoint = Waypoint_add(point);
+        order_move(self, waypoint);
+        return true;
+    }
+//    printf("%.4s %s\n", &self->class_id, order);
+    return false;
+}
+
+BOOL unit_issue_immediate_order(LPEDICT self, LPCSTR order) {
+    if (!strcmp(order, "stop")) {
+        order_stop(self);
+        return true;
+    }
+//    printf("%.4s %s\n", &self->class_id, order);
+    return false;
+}

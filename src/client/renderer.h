@@ -63,7 +63,7 @@ typedef struct {
 } renderEntity_t;
 
 typedef struct {
-    viewCamera_t camera;
+    viewCamera_t camerastate[2];
     RECT viewport;
     RECT scissor;
     DWORD time;

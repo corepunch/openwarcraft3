@@ -164,10 +164,10 @@ void FS_Init(void) {
     HANDLE handle = SFileFindFirstFile(archives[0], "*", &findData, 0);
     if (handle) {
          do {
-             if(strstr(findData.cFileName, ".j")) {
+//             if(strstr(findData.cFileName, ".j")) {
                  printf("%s\n", findData.cFileName);
-             }
-#if 1
+//             }
+#if 0
 //             if (strstr(findData.cFileName, "SimpleInfo")){
              if (strstr(findData.cFileName, "Blizzard.j")) {
                  HANDLE file;

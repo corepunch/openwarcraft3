@@ -18,23 +18,40 @@ void Matrix4_fromViewAngles(LPCVECTOR3 target, LPCVECTOR3 angles, float distance
     Matrix4_translate(output, &vieworg);
 }
 
-void Matrix4_getLightMatrix(LPCVECTOR3 sunangles, LPCVECTOR3 target, float scale, LPMATRIX4 output) {
+void Matrix4_getLightMatrix(LPCVECTOR3 sunangles, float scale, LPMATRIX4 output) {
     MATRIX4 proj, view, tmp1, tmp2;
+    viewCamera_t const *a = cl.viewDef.camerastate+1;
+    viewCamera_t const *b = cl.viewDef.camerastate+0;
+    VECTOR3 const target = Vector3_lerp(&a->origin, &b->origin, cl.viewDef.lerpfrac);
     Matrix4_ortho(&proj, -scale, scale, -scale, scale, -1000.0, 3000.0);
     Matrix4_identity(&tmp1);
     Matrix4_rotate(&tmp1, &(VECTOR3){0,0,45}, ROTATE_XYZ);
-    Matrix4_fromViewAngles(target, sunangles, 1000, &tmp2);
+    Matrix4_fromViewAngles(&target, sunangles, 1000, &tmp2);
     Matrix4_multiply(&tmp1, &tmp2, &view);
     Matrix4_translate(&view, &(VECTOR3){0,-500,0});
     Matrix4_multiply(&proj, &view, output);
 }
 
-void Matrix4_getCameraMatrix(viewCamera_t const *camera, LPMATRIX4 output) {
+void Matrix4_getCameraMatrix(LPMATRIX4 output) {
     MATRIX4 proj, view;
     size2_t const windowSize = re.GetWindowSize();
     float const aspect = (float)windowSize.width / (float)windowSize.height;
-    Matrix4_perspective(&proj, camera->fov, aspect, camera->znear, camera->zfar);
-    Matrix4_fromViewAngles(&camera->origin, &camera->viewangles, camera->distance, &view);
+    viewCamera_t const *a = cl.viewDef.camerastate+1;
+    viewCamera_t const *b = cl.viewDef.camerastate+0;
+    VECTOR3 const origin = Vector3_lerp(&a->origin, &b->origin, cl.viewDef.lerpfrac);
+    VECTOR3 const viewangles = Vector3_lerp(&a->viewangles, &b->viewangles, cl.viewDef.lerpfrac);
+
+    Matrix4_perspective(&proj,
+                        LerpNumber(a->fov, b->fov, cl.viewDef.lerpfrac),
+                        aspect,
+                        LerpNumber(a->znear, b->znear, cl.viewDef.lerpfrac),
+                        LerpNumber(a->zfar, b->zfar, cl.viewDef.lerpfrac));
+
+    Matrix4_fromViewAngles(&origin,
+                           &viewangles,
+                           LerpNumber(a->distance, b->distance, cl.viewDef.lerpfrac),
+                           &view);
+
     Matrix4_multiply(&proj, &view, output);
 }
 
@@ -55,6 +72,7 @@ float LerpRotation(float a, float b, float t) {
 
 static void V_AddClientEntity(centity_t const *ent) {
     renderEntity_t re = { 0 };
+    
     re.origin = Vector3_lerp(&ent->prev.origin, &ent->current.origin, cl.viewDef.lerpfrac);
     re.angle = LerpRotation(ent->prev.angle, ent->current.angle, cl.viewDef.lerpfrac);
     re.scale = LerpNumber(ent->prev.scale, ent->current.scale, cl.viewDef.lerpfrac);
@@ -102,8 +120,6 @@ static void CL_AddBuilding(void) {
 }
 
 static void CL_AddEntities(void) {
-    cl.viewDef.lerpfrac = (float)(cl.time - cl.frame.servertime) / FRAMETIME;
-
     FOR_LOOP(index, MAX_CLIENT_ENTITIES) {
         centity_t const *ce = &cl.ents[index];
         if (!ce->current.model)
@@ -176,13 +192,14 @@ void V_RenderView(void) {
     
     static DWORD lastTime = 0;
     
+    cl.viewDef.lerpfrac = (float)(cl.time - cl.frame.servertime) / FRAMETIME;
     cl.viewDef.viewport = (RECT) { 0, 0, 1, 1 };
     cl.viewDef.scissor = (RECT) { 0, 0.2, 1, 0.8 };
     cl.viewDef.time = cl.time;
     cl.viewDef.deltaTime = cl.time - lastTime;
     
-    Matrix4_getCameraMatrix(&cl.viewDef.camera, &cl.viewDef.viewProjectionMatrix);
-    Matrix4_getLightMatrix(&lightAngles, &cl.viewDef.camera.origin, VIEW_SHADOW_SIZE, &cl.viewDef.lightMatrix);
+    Matrix4_getCameraMatrix(&cl.viewDef.viewProjectionMatrix);
+    Matrix4_getLightMatrix(&lightAngles, VIEW_SHADOW_SIZE, &cl.viewDef.lightMatrix);
 
     V_ClearScene();
     CL_AddEntities();

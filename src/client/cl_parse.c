@@ -52,12 +52,13 @@ void CL_ParsePlayerInfo(LPSIZEBUF msg) {
     DWORD bits;
     DWORD plnum = MSG_ReadEntityBits(msg, &bits);
     MSG_ReadDeltaPlayerState(msg, &cl.playerstate, plnum, bits);
-    cl.viewDef.camera.origin.x = cl.playerstate.origin.x;
-    cl.viewDef.camera.origin.y = cl.playerstate.origin.y;
-    cl.viewDef.camera.origin.z = 0;
-    cl.viewDef.camera.viewangles = cl.playerstate.viewangles;
-    cl.viewDef.camera.distance = cl.playerstate.distance;
-    cl.viewDef.camera.fov = cl.playerstate.fov;
+    cl.viewDef.camerastate[1] = cl.viewDef.camerastate[0];
+    cl.viewDef.camerastate[0].origin.x = cl.playerstate.origin.x;
+    cl.viewDef.camerastate[0].origin.y = cl.playerstate.origin.y;
+    cl.viewDef.camerastate[0].origin.z = 0;
+    cl.viewDef.camerastate[0].viewangles = cl.playerstate.viewangles;
+    cl.viewDef.camerastate[0].distance = cl.playerstate.distance;
+    cl.viewDef.camerastate[0].fov = cl.playerstate.fov;
 }
 
 void CL_ParseLayout(LPSIZEBUF msg) {

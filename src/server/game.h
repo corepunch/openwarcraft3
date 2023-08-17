@@ -25,6 +25,10 @@ struct game_import {
     LPCANIMATION (*GetAnimation)(DWORD modelindex, LPCSTR name);
     DWORD (*BuildHeatmap)(edict_t *goalentity);
     
+    DWORD (*CreateThread)(HANDLE (func)(HANDLE), HANDLE args);
+    void (*JoinThread)(DWORD thread);
+    void (*Sleep)(DWORD msec);
+    
     VECTOR2 (*GetFlowDirection)(DWORD heatmapindex, FLOAT fx, FLOAT fy);
     float (*GetHeightAtPoint)(FLOAT x, FLOAT y);
     LPSTR (*ReadFileIntoString)(LPCSTR filename);

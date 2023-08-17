@@ -97,11 +97,11 @@ static LPTOKEN alloc_token(TOKENTYPE type) {
     return token;
 }
 
-PARSER(parse_identifier) {
-    LPTOKEN token = alloc_token(TT_IDENTIFIER);
-    token->primary = read_identifier(p);
-    return token;
-}
+//PARSER(parse_identifier) {
+//    LPTOKEN token = alloc_token(TT_IDENTIFIER);
+//    token->primary = read_identifier(p);
+//    return token;
+//}
 
 PARSER(keyword_type) {
     LPTOKEN token = alloc_token(TT_TYPEDEF);

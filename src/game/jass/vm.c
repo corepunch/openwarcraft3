@@ -13,9 +13,36 @@
 #define JASS_UNM "-"
 #define JASS_COMMA ","
 #define JASS_OPERATOR(NAME) { #NAME, NAME }
+#define INF_LOOP_PROTECTION 1024
 
 #define assert_type(var, type) assert(jass_checktype(var, type))
 #define JASSALLOC(type) gi.MemAlloc(sizeof(type))
+
+#define JASS_ADD_STACK(j, VAR, TYPE) \
+LPJASSVAR VAR = &j->stack[j->num_stack++]; \
+memset(VAR, 0, sizeof(*VAR)); \
+VAR->type = &jass_types[TYPE];
+
+#define JASS_SET_VALUE(VAR, VALUE, SIZE) \
+jass_setnull(VAR); \
+if (VALUE) { \
+  (VAR)->value = gi.MemAlloc(SIZE); \
+  memcpy((VAR)->value, VALUE, SIZE); \
+}
+
+#define JASS_CMPOP(NAME, OP) \
+DWORD NAME(LPJASS j) { \
+    return jass_pushboolean(j, jass_checknumber(j, 1) OP jass_checknumber(j, 2)); \
+}
+
+#define JASS_NUMOP(NAME, OP) \
+DWORD NAME(LPJASS j) { \
+    if (jass_gettype(j, 1) == jasstype_integer && jass_gettype(j, 2) == jasstype_integer) { \
+        return jass_pushinteger(j, jass_checkinteger(j, 1) OP jass_checkinteger(j, 2)); \
+    } else { \
+        return jass_pushnumber(j, jass_checknumber(j, 1) OP jass_checknumber(j, 2)); \
+    } \
+}
 
 KNOWN_AS(jass_dict, JASSDICT);
 KNOWN_AS(jass_arg, JASSARG);
@@ -34,9 +61,16 @@ typedef struct {
 
 struct jass_var {
     LPCJASSTYPE type;
+    struct {
+        LPJASSDICT locals;
+        DWORD returnstack;
+        BOOL done;
+    } env;
     HANDLE value;
+    DWORD *refcount;
     BOOL constant;
     BOOL array;
+    DWORD size;
 };
 
 struct jass_type {
@@ -59,7 +93,6 @@ JASSTYPE jass_types[] = {
     { "boolean", "BOOL", NULL },
     { "code", "LPCSTR", NULL },
     { "handle", "HANDLE", NULL },
-    { "function", "HANDLE", NULL },
     { "cfunction", "HANDLE", NULL },
 };
 
@@ -78,21 +111,6 @@ DWORD __unm(LPJASS j) {
     }
 }
 
-
-#define JASS_CMPOP(NAME, OP) \
-DWORD NAME(LPJASS j) { \
-    return jass_pushboolean(j, jass_checknumber(j, 1) OP jass_checknumber(j, 2)); \
-}
-
-#define JASS_NUMOP(NAME, OP) \
-DWORD NAME(LPJASS j) { \
-    if (jass_gettype(j, 1) == jasstype_integer && jass_gettype(j, 2) == jasstype_integer) { \
-        return jass_pushinteger(j, jass_checkinteger(j, 1) OP jass_checkinteger(j, 2)); \
-    } else { \
-        return jass_pushnumber(j, jass_checknumber(j, 1) OP jass_checknumber(j, 2)); \
-    } \
-}
-
 JASS_NUMOP(__add, +);
 JASS_NUMOP(__sub, -);
 JASS_NUMOP(__mul, *);
@@ -106,6 +124,9 @@ static BOOL var_eq(LPCJASSVAR a, LPCJASSVAR b) {
     if (jass_getvarbasetype(a) != jass_getvarbasetype(b)) {
         return false;
     }
+    if (!strcmp(a->type->name, "player")) {
+        return true;
+    }
     switch ((a->value == NULL) + (b->value == NULL)) {
         case 2: return true;
         case 1: return false;
@@ -115,10 +136,9 @@ static BOOL var_eq(LPCJASSVAR a, LPCJASSVAR b) {
         case jasstype_real: return !memcmp(a->value, b->value, sizeof(FLOAT));
         case jasstype_string: return !strcmp(a->value, b->value);
         case jasstype_boolean: return !memcmp(a->value, b->value, sizeof(BOOL));
-        case jasstype_code: return !strcmp(a->value, b->value);
-        case jasstype_handle: return !memcmp(a->value, b->value, sizeof(HANDLE));
-        case jasstype_function: return !memcmp(a->value, b->value, sizeof(HANDLE));
+        case jasstype_code: return !memcmp(a->value, b->value, sizeof(HANDLE));
         case jasstype_cfunction: return !memcmp(a->value, b->value, sizeof(HANDLE));
+        case jasstype_handle: return !memcmp(a->value, b->value, sizeof(HANDLE));
     }
     return false;
 }
@@ -140,6 +160,10 @@ DWORD __or(LPJASS j) {
     return jass_pushboolean(j, jass_toboolean(j, 1) || jass_toboolean(j, 2));
 }
 
+DWORD __not(LPJASS j) {
+    return jass_pushboolean(j, !jass_toboolean(j, 1));
+}
+
 JASSMODULE jass_operators[] = {
     JASS_OPERATOR(__add),
     JASS_OPERATOR(__sub),
@@ -154,6 +178,7 @@ JASSMODULE jass_operators[] = {
     JASS_OPERATOR(__and),
     JASS_OPERATOR(__or),
     JASS_OPERATOR(__unm),
+    JASS_OPERATOR(__not),
     { NULL },
 };
 
@@ -185,17 +210,13 @@ struct jass_dict {
     JASSVAR value;
 };
 
-struct jass_env {
-    LPJASSDICT locals;
-};
-
 struct jass_s {
     LPJASSDICT globals;
     LPJASSTYPE types;
     LPJASSFUNC functions;
     JASSVAR stack[MAX_JASS_STACK];
+    LPJASSVAR stack_pointer;
     DWORD num_stack;
-    DWORD stack_offset;
 };
 
 BOOL is_integer(LPCSTR tok) {
@@ -278,13 +299,20 @@ static LPCJASSTYPE find_type(LPCJASS j, LPCSTR name) {
     return NULL;
 }
 
-static void jass_call(LPJASS j, DWORD args);
-
 LPCJASSTYPE get_base_type(LPCJASSTYPE type) {
     while (type->inherit) {
         type = type->inherit;
     }
     return type;
+}
+
+void jass_setreturn(LPJASS j) {
+    jass_stackvalue(j, 0)->env.done = true;
+    jass_stackvalue(j, 0)->env.returnstack = j->num_stack;
+}
+
+BOOL jass_mustreturn(LPJASS j) {
+    return jass_stackvalue(j, 0)->env.done;
 }
 
 DWORD jass_top(LPJASS j) {
@@ -299,7 +327,7 @@ LPJASSVAR jass_stackvalue(LPJASS j, int index) {
     if (index < 0) {
         return j->stack + (j->num_stack + index);
     } else {
-        return j->stack + (j->stack_offset + index);
+        return j->stack_pointer + index;
     }
 }
 
@@ -320,35 +348,61 @@ void jass_pop(LPJASS j, DWORD count) {
     j->num_stack -= count;
 }
 
-#define JASS_ADD_STACK(j, VAR, TYPE) \
-LPJASSVAR VAR = &j->stack[j->num_stack++]; \
-memset(VAR, 0, sizeof(*VAR)); \
-VAR->type = &jass_types[TYPE];
+static void jass_setnull(LPJASSVAR var);
 
-#define JASS_SET_NULL(VAR) \
-SAFE_DELETE((VAR)->value, gi.MemFree);
-
-#define JASS_SET_VALUE(VAR, VALUE, SIZE) \
-JASS_SET_NULL(VAR); \
-if (VALUE) { \
-  (VAR)->value = gi.MemAlloc(SIZE); \
-  memcpy((VAR)->value, VALUE, SIZE); \
+static void jass_deletedict(LPJASSDICT dict) {
+    SAFE_DELETE(dict->next, jass_deletedict);
+    jass_setnull(&dict->value);
+    gi.MemFree(dict);
 }
 
+void jass_setnull(LPJASSVAR var) {
+    SAFE_DELETE(var->env.locals, jass_deletedict);
+    switch (jass_getvarbasetype(var)) {
+        case jasstype_handle:
+            if (var->refcount && *var->refcount > 0) {
+                (*var->refcount)--;
+                var->value = NULL;
+                var->refcount = NULL;
+            } else {
+                SAFE_DELETE(var->value, gi.MemFree);
+                SAFE_DELETE(var->refcount, gi.MemFree);
+            }
+            break;
+        case jasstype_code:
+        case jasstype_cfunction:
+            // skip
+            break;
+        default:
+            SAFE_DELETE(var->value, gi.MemFree);
+            break;
+    }
+}
+
+//void jass_setenv(LPJASS j, int index, LPJASSDICT env) {
+//    jass_stackvalue(j, index)->env.locals = env;
+//}
+//
 void jass_copy(LPJASS j, LPJASSVAR var, LPCJASSVAR other) {
     FLOAT fval = 0;
     if (!other->value) {
-        JASS_SET_NULL(var);
+        jass_setnull(var);
         return;
     }
     switch (jass_getvarbasetype(var)) {
         case jasstype_integer:
-            assert(jass_checktype(other, jasstype_integer));
+            assert(other->type == var->type);
             JASS_SET_VALUE(var, other->value, sizeof(LONG));
             break;
         case jasstype_handle:
-            assert(jass_checktype(other, jasstype_handle));
-            JASS_SET_VALUE(var, other->value, sizeof(LONG));
+            if (other->type != var->type) {
+                fprintf(stderr, "Warning: Passing %s to %s type\n", other->type->name, var->type->name);
+            }
+            var->value = other->value;
+            var->refcount = other->refcount;
+            if (var->refcount) {
+                (*var->refcount)++;
+            }
             break;
         case jasstype_real:
             switch (jass_getvarbasetype(other)) {
@@ -365,11 +419,11 @@ void jass_copy(LPJASS j, LPJASSVAR var, LPCJASSVAR other) {
             JASS_SET_VALUE(var, &fval, sizeof(FLOAT));
             break;
         case jasstype_boolean:
-            assert(jass_checktype(other, jasstype_boolean));
+            assert(other->type == var->type);
             JASS_SET_VALUE(var, other->value, sizeof(BOOL));
             break;
         case jasstype_string:
-            assert(jass_checktype(other, jasstype_string));
+            assert(other->type == var->type);
             JASS_SET_VALUE(var, other->value, strlen(other->value)+1);
             break;
         default:
@@ -389,9 +443,22 @@ DWORD jass_pushinteger(LPJASS j, LONG value) {
     return 1;
 }
 
-DWORD jass_pushhandle(LPJASS j, LONG value, LPCSTR type) {
+DWORD jass_pushhandle(LPJASS j, HANDLE value, LPCSTR type) {
     JASS_ADD_STACK(j, var, jasstype_handle);
-    JASS_SET_VALUE(var, &value, sizeof(value));
+    jass_setnull(var);
+    var->type = find_type(j, type);
+    var->value = value;
+    var->refcount = gi.MemAlloc(sizeof(DWORD));
+    return 1;
+}
+
+DWORD jass_pushlighthandle(LPJASS j, HANDLE value, LPCSTR type) {
+    JASS_ADD_STACK(j, var, jasstype_handle);
+    jass_setnull(var);
+    var->type = find_type(j, type);
+    var->value = value;
+    var->refcount = gi.MemAlloc(sizeof(DWORD));
+    *var->refcount = 1; // so that runtime won't ever delete it
     return 1;
 }
 
@@ -430,14 +497,16 @@ DWORD jass_pushfunction(LPJASS j, LPCJASSFUNC func) {
     if (func->nativefunc) {
         return jass_pushcfunction(j, func->nativefunc);
     } else {
-        JASS_ADD_STACK(j, var, jasstype_function);
-        JASS_SET_VALUE(var, func, sizeof(*func));
+        JASS_ADD_STACK(j, var, jasstype_code);
+        var->value = (LPJASSFUNC)func;
         return 1;
     }
 }
 
 DWORD jass_pushvalue(LPJASS j, LPCJASSVAR other) {
-    JASS_ADD_STACK(j, var, get_base_type(other->type) - jass_types);
+    LPJASSVAR var = &j->stack[j->num_stack++];
+    memset(var, 0, sizeof(*var));
+    var->type = other->type;
     jass_copy(j, var, other);
     return 1;
 }
@@ -475,9 +544,8 @@ BOOL jass_toboolean(LPJASS j, int index) {
         case jasstype_real: return *(FLOAT *)var->value != 0;
         case jasstype_string: return strlen(var->value) > 0;
         case jasstype_boolean: return *(BOOL *)var->value != 0;
-        case jasstype_code: return strlen(var->value) > 0;
         case jasstype_handle: return true;
-        case jasstype_function: return true;
+        case jasstype_code: return true;
         default: return false;
     }
 }
@@ -488,7 +556,7 @@ LPCSTR jass_checkstring(LPJASS j, int index) {
     return var->value;
 }
 
-LPCSTR jass_checkcode(LPJASS j, int index) {
+LPCJASSFUNC jass_checkcode(LPJASS j, int index) {
     LPCJASSVAR var = jass_stackvalue(j, index);
     assert_type(var, jasstype_code);
     return var->value;
@@ -496,8 +564,8 @@ LPCSTR jass_checkcode(LPJASS j, int index) {
 
 HANDLE jass_checkhandle(LPJASS j, int index, LPCSTR type) {
     LPCJASSVAR var = jass_stackvalue(j, index);
-    assert_type(var, jasstype_handle);
-    return var->value ? *(HANDLE *)var->value : 0;
+    assert(!strcmp(var->type->name, type));
+    return var->value;
 }
 
 void jass_swap(LPJASS j, int a, int b) {
@@ -506,7 +574,10 @@ void jass_swap(LPJASS j, int a, int b) {
     *jass_stackvalue(j, -2) = tmp;
 }
 
-static DWORD jass_dotoken(LPJASS j, LPCTOKEN token, LPJASSDICT locals) {
+static DWORD jass_dotoken(LPJASS j, LPCTOKEN token) {
+    if (!token) {
+        return 0;
+    }
     LPCJASSFUNC f = NULL;
     LPJASSCFUNCTION cf = NULL;
     LPCJASSVAR v = NULL;
@@ -517,20 +588,29 @@ static DWORD jass_dotoken(LPJASS j, LPCTOKEN token, LPJASSDICT locals) {
         case TT_STRING: return jass_pushstring(j, token->primary);
         case TT_BOOLEAN: return jass_pushboolean(j, atob(token->primary));
         case TT_IDENTIFIER:
-            if ((v = find_dict(j->globals, token->primary))) {
+            if (token->flags & TF_FUNCTION) {
+                if ((f = find_function(j, token->primary))) {
+                    return jass_pushfunction(j, f);
+                } else {
+                    return jass_pushnull(j);
+                }
+            } else if ((v = find_dict(j->globals, token->primary))) {
                 return jass_pushvalue(j, v);
-            } else if ((v = find_dict(locals, token->primary))) {
+            } else if ((v = find_dict(jass_stackvalue(j, 0)->env.locals, token->primary))) {
                 return jass_pushvalue(j, v);
             } else {
                 return jass_pushnull(j);
             }
         case TT_FOURCC: return jass_pushinteger(j, *(DWORD *)token->primary);
         case TT_CALL:
-            if ((f = find_function(j, token->primary))) {
+            if (!strcmp(token->primary, "CommentString") && token->args) {
+                fprintf(stdout, "%s\n", token->args->primary);
+                return 0;
+            } else if ((f = find_function(j, token->primary))) {
                 DWORD args = 0;
                 jass_pushfunction(j, f);
                 FOR_EACH_LIST(TOKEN, arg, token->args) {
-                    jass_dotoken(j, arg, locals);
+                    jass_dotoken(j, arg);
                     args++;
                 }
                 jass_call(j, args);
@@ -539,7 +619,7 @@ static DWORD jass_dotoken(LPJASS j, LPCTOKEN token, LPJASSDICT locals) {
                 DWORD args = 0;
                 jass_pushcfunction(j, cf);
                 FOR_EACH_LIST(TOKEN, arg, token->args) {
-                    jass_dotoken(j, arg, locals);
+                    jass_dotoken(j, arg);
                     args++;
                 }
                 jass_call(j, args);
@@ -555,30 +635,37 @@ static DWORD jass_dotoken(LPJASS j, LPCTOKEN token, LPJASSDICT locals) {
     }
 }
 
-static void jass_set_value(LPJASS j, LPJASSVAR dest, LPCTOKEN init, LPJASSDICT locals) {
-    DWORD stack = jass_dotoken(j, init, locals);
+static void jass_set_value(LPJASS j, LPJASSVAR dest, LPCTOKEN init) {
+    DWORD stack = jass_dotoken(j, init);
     if (stack > 0) {
         jass_copy(j, dest, j->stack + jass_top(j));
         jass_pop(j, 1);
     }
 }
 
-LPJASSDICT parse_dict(LPJASS j, LPCTOKEN token, LPJASSDICT locals) {
+LPJASSDICT parse_dict(LPJASS j, LPCTOKEN token) {
     LPJASSDICT item = JASSALLOC(JASSDICT);
     item->value.constant = token->flags & TF_CONSTANT;
     item->value.array = token->flags & TF_ARRAY;
     item->value.type = find_type(j, token->primary);
     item->key = token->secondary;
     if (token->init) {
-        jass_set_value(j, &item->value, token->init, locals);
+        jass_set_value(j, &item->value, token->init);
     }
     return item;
 }
 
-#define TOKENFUNC(NAME) void eval_##NAME(LPJASS j, LPJASSENV env, LPCTOKEN token)
+BOOL jass_popboolean(LPJASS j) {
+    BOOL const value = jass_toboolean(j, -1);
+    jass_pop(j, 1);
+    return value;
+}
+
+#define TOKENFUNC(NAME) void eval_##NAME(LPJASS j, LPCTOKEN token)
 #define TOKENEVAL(NAME) { #NAME, TT_##NAME, eval_##NAME }
 
 TOKENFUNC(TOKENS);
+TOKENFUNC(SINGLETOKEN);
 
 TOKENFUNC(TYPEDEF) {
     LPJASSTYPE type = JASSALLOC(JASSTYPE);;
@@ -588,34 +675,38 @@ TOKENFUNC(TYPEDEF) {
 }
 
 TOKENFUNC(IF) {
-    jass_dotoken(j, token->condition, env->locals);
-    BOOL const cond = jass_toboolean(j, -1);
-    jass_pop(j, 1);
-    if (cond) {
-        eval_TOKENS(j, env, token->body);
-    } else if (token->elseblock) {
-        eval_TOKENS(j, env, token->elseblock);
+    LPCTOKEN block = token;
+    while (block) {
+        if (!block->condition) {
+            eval_TOKENS(j, block->body);
+            return;
+        }
+        jass_dotoken(j, block->condition);
+        if (jass_popboolean(j)) {
+            eval_TOKENS(j, block->body);
+        }
+        block = block->elseblock;
     }
 }
 
 TOKENFUNC(SET) {
     LPJASSVAR v = NULL;
     if ((v = find_dict(j->globals, token->secondary))) {
-        return jass_set_value(j, v, token->init, env->locals);
-    } else if ((v = find_dict(env->locals, token->secondary))) {
-        return jass_set_value(j, v, token->init, env->locals);
+        return jass_set_value(j, v, token->init);
+    } else if ((v = find_dict(jass_stackvalue(j, 0)->env.locals, token->secondary))) {
+        return jass_set_value(j, v, token->init);
     } else {
         fprintf(stderr, "Can't find variable %s\n", token->primary);
     }
 }
 
 TOKENFUNC(VARDECL) {
-    LPJASSDICT vardecl = parse_dict(j, token, NULL);
-    ADD_TO_LIST(vardecl, env->locals);
+    LPJASSDICT vardecl = parse_dict(j, token);
+    ADD_TO_LIST(vardecl, jass_stackvalue(j, 0)->env.locals);
 }
 
 TOKENFUNC(GLOBAL) {
-    LPJASSDICT global = parse_dict(j, token, NULL);
+    LPJASSDICT global = parse_dict(j, token);
     ADD_TO_LIST(global, j->globals);
 }
 
@@ -640,13 +731,35 @@ TOKENFUNC(FUNCTION) {
 }
 
 TOKENFUNC(CALL) {
-    jass_dotoken(j, token, env->locals);
+    jass_dotoken(j, token);
+}
+
+TOKENFUNC(LOOP) {
+    for (DWORD i = 0;; i++) {
+        FOR_EACH_LIST(TOKEN const, tok, token->body) {
+            if (jass_mustreturn(j)) {
+                return;
+            } else if (token->type == TT_RETURN) {
+                jass_setreturn(j);
+                jass_dotoken(j, token->body);
+                return;
+            } else if (tok->type == TT_EXITWHEN) {
+                jass_dotoken(j, tok->condition);
+                if (jass_popboolean(j)) {
+                    return;
+                }
+            } else {
+                eval_SINGLETOKEN(j, tok);
+            }
+        }
+        assert(i < INF_LOOP_PROTECTION);
+    }
 }
 
 struct {
     LPCSTR name;
     TOKENTYPE type;
-    void (*func)(LPJASS, LPJASSENV, LPCTOKEN);
+    void (*func)(LPJASS, LPCTOKEN);
 } token_eval[] = {
     TOKENEVAL(TYPEDEF),
     TOKENEVAL(FUNCTION),
@@ -655,26 +768,30 @@ struct {
     TOKENEVAL(CALL),
     TOKENEVAL(IF),
     TOKENEVAL(SET),
+    TOKENEVAL(LOOP),
 };
+
+TOKENFUNC(SINGLETOKEN) {
+    FOR_LOOP(index, sizeof(token_eval) / sizeof(*token_eval)) {
+        if (token->type == token_eval[index].type) {
+            token_eval[index].func(j, token);
+            return;
+        }
+    }
+    fprintf(stderr, "Can't evaluate token of type %d\n", token->type);
+    assert(false);
+}
 
 TOKENFUNC(TOKENS) {
     FOR_EACH_LIST(TOKEN const, tok, token) {
-        if (tok->type == TT_RETURN) {
-            if (tok->body){
-                jass_dotoken(j, tok->body, env->locals);
-            }
+        if (jass_mustreturn(j)) {
             return;
+        } else if (tok->type == TT_RETURN) {
+            jass_setreturn(j);
+            jass_dotoken(j, tok->body);
+        } else {
+            eval_SINGLETOKEN(j, tok);
         }
-        FOR_LOOP(index, sizeof(token_eval) / sizeof(*token_eval)) {
-            if (tok->type == token_eval[index].type) {
-                token_eval[index].func(j, env, tok);
-                goto next_loop;
-            }
-        }
-        fprintf(stderr, "Can't evaluate token of type %d\n", tok->type);
-        break;
-    next_loop:
-        continue;
     }
 }
 
@@ -683,13 +800,14 @@ BOOL JASS_Parse_Buffer(LPJASS j, LPCSTR fileName, LPSTR buffer2) {
     remove_comments(buffer);
     remove_bom(buffer, strlen(buffer));
     LPTOKEN program = JASS_ParseTokens(&MAKE(PARSER, .buffer = buffer, .delimiters = JASS_DELIM));
-    JASSENV env = { 0 };
-    eval_TOKENS(j, &env, program);
+    eval_TOKENS(j, program);
     return true;
 }
 
 LPJASS JASS_Allocate(void) {
-    return JASSALLOC(JASS);
+    LPJASS j = JASSALLOC(JASS);
+    j->stack_pointer = j->stack;
+    return j;
 }
 
 BOOL JASS_Parse(LPJASS j, LPCSTR fileName) {
@@ -731,24 +849,72 @@ BOOL JASS_Parse_Native(LPJASS j, LPCSTR fileName) {
     return success;
 }
 
+#define DEBUG_JASS
+
+#ifdef DEBUG_JASS
+static int depth = 0, callnum = 0;
+#endif
+
 void jass_call(LPJASS j, DWORD args) {
-    LPJASSVAR var = &j->stack[j->num_stack - args - 1];
-    LPJASSVAR last = &j->stack[j->num_stack];
-    DWORD old_stack_offset = j->stack_offset, ret = 0;
-    j->stack_offset = j->num_stack - args - 1;
-    if (jass_getvarbasetype(var) == jasstype_cfunction) {
-        LPJASSCFUNCTION func = *(LPJASSCFUNCTION *)var->value;
+    LPJASSVAR root = &j->stack[j->num_stack - args - 1];
+    LPJASSVAR old_stack_pointer = j->stack_pointer;
+    DWORD ret = 0;
+    j->stack_pointer = &j->stack[j->num_stack - args - 1];
+#ifdef DEBUG_JASS
+    callnum++;
+    depth++;
+    FOR_LOOP(i, depth) printf(" ");
+#endif
+    if (jass_getvarbasetype(root) == jasstype_cfunction) {
+        LPJASSCFUNCTION func = *(LPJASSCFUNCTION *)root->value;
         ret = func(j);
+#ifdef DEBUG_JASS
+        for (DWORD i = 0; jass_funcs[i].name; i++) {
+            if (jass_funcs[i].func == func) {
+                printf("%s", jass_funcs[i].name);
+                break;
+            }
+        }
+        for (DWORD i = 0; jass_operators[i].name; i++) {
+            if (jass_operators[i].func == func) {
+                printf("%s", jass_operators[i].name);
+                break;
+            }
+        }
+        printf("\n");
+#endif
     } else {
-        LPCJASSFUNC func = var->value;
-        JASSENV env = { 0 };
+        LPCJASSFUNC func = root->value;
+        LPJASSDICT locals = NULL;
+        DWORD argnum = 1;
+#ifdef DEBUG_JASS
         printf("%s\n", func->name);
-        eval_TOKENS(j, &env, func->code);
+#endif
+        FOR_EACH_LIST(JASSARG, arg, func->args) {
+            LPJASSDICT local = JASSALLOC(JASSDICT);
+            local->key = arg->name;
+            local->value.type = arg->type;
+            jass_copy(j, &local->value, &j->stack_pointer[argnum]);
+            PUSH_BACK(JASSDICT, local, locals);
+            argnum++;
+        }
+//        printf("%s\n", func->name);
+        root->env.done = false;
+        root->env.returnstack = -1;
+        root->env.locals = locals;
+        eval_TOKENS(j, func->code);
+        if (root->env.returnstack != -1) {
+            ret = j->num_stack - root->env.returnstack;
+        }
     }
-    for (LPJASSVAR it = var; it < last; it++) JASS_SET_NULL(it)
-    memmove(var, last, ret * sizeof(JASSVAR));
-    j->num_stack -= last - var;
-    j->stack_offset = old_stack_offset;
+    LPJASSVAR last = &j->stack[j->num_stack - ret];
+    for (LPJASSVAR it = root; it < last; it++) jass_setnull(it);
+    memmove(root, last, ret * sizeof(JASSVAR));
+    j->num_stack -= last - root;
+    j->stack_pointer = old_stack_pointer;
+#ifdef DEBUG_JASS
+    depth--;
+#endif
 }
 
 void JASS_ExecuteFunc(LPJASS j, LPCSTR name) {

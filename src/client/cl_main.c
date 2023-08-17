@@ -67,8 +67,10 @@ void CL_Init(void) {
 
     cl.moveConfirmation = re.LoadModel("UI\\Feedback\\Confirmation\\Confirmation.mdx");
     
-    cl.viewDef.camera.zfar = 5000;
-    cl.viewDef.camera.znear = 100;
+    cl.viewDef.camerastate[0].zfar = 5000;
+    cl.viewDef.camerastate[0].znear = 100;
+    cl.viewDef.camerastate[1].zfar = 5000;
+    cl.viewDef.camerastate[1].znear = 100;
 
     Key_SetBinding(K_MOUSE1, "+select");
     
@@ -100,8 +102,8 @@ void CL_ReadPackets(void) {
 void CL_SendCmd(void) {
 //    extern clientMessage_t msg;
     static VECTOR3 camera_location;
-    if (Vector3_distance(&cl.viewDef.camera.origin, &camera_location) > EPSILON) {
-        camera_location = cl.viewDef.camera.origin;
+    if (Vector3_distance(&cl.viewDef.camerastate->origin, &camera_location) > EPSILON) {
+        camera_location = cl.viewDef.camerastate->origin;
         MSG_WriteByte(&cls.netchan.message, clc_move);
         MSG_WriteShort(&cls.netchan.message, camera_location.x);
         MSG_WriteShort(&cls.netchan.message, camera_location.y);

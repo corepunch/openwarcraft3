@@ -21,3 +21,11 @@ RECT Rect_scale(LPCRECT rect, float scale) {
 RECT Rect_div(LPCRECT rect, int res) {
     return Rect_scale(rect, 1.0 / res);
 }
+
+VECTOR2 Rect_center(LPCRECT rect) {
+    VECTOR2 const center = {
+        rect->x + rect->w * 0.5f,
+        rect->y + rect->h * 0.5f,
+    };
+    return center;
+}

@@ -10,6 +10,7 @@ typedef enum {
     NFT_LONG,
     NFT_FLOAT,
     NFT_PACKED_FLOAT,
+    NFT_ANGLE,
     NFT_TEXT,
 } netFieldType_t;
 
@@ -23,7 +24,7 @@ netField_t entityStateFields[] = {
     { NETF(entityState_t, origin.x), NFT_FLOAT },
     { NETF(entityState_t, origin.y), NFT_FLOAT },
     { NETF(entityState_t, origin.z), NFT_FLOAT },
-    { NETF(entityState_t, angle), NFT_PACKED_FLOAT },
+    { NETF(entityState_t, angle), NFT_ANGLE },
     { NETF(entityState_t, scale), NFT_PACKED_FLOAT },
     { NETF(entityState_t, frame), NFT_LONG },
     { NETF(entityState_t, model), NFT_SHORT },
@@ -57,12 +58,11 @@ netField_t uiFrameFields[] = {
 };
 
 netField_t playerStateFields[] = {
-    { NETF(playerState_t, viewangles.x), NFT_FLOAT },
-    { NETF(playerState_t, viewangles.y), NFT_FLOAT },
-    { NETF(playerState_t, viewangles.z), NFT_FLOAT },
+    { NETF(playerState_t, viewangles.x), NFT_ANGLE },
+    { NETF(playerState_t, viewangles.y), NFT_ANGLE },
+    { NETF(playerState_t, viewangles.z), NFT_ANGLE },
     { NETF(playerState_t, origin.x), NFT_FLOAT },
     { NETF(playerState_t, origin.y), NFT_FLOAT },
-    { NETF(playerState_t, origin.z), NFT_FLOAT },
     { NETF(playerState_t, fov), NFT_BYTE },
     { NETF(playerState_t, distance), NFT_FLOAT },
     { NETF(playerState_t, rdflags), NFT_LONG },
@@ -219,6 +219,7 @@ static void MSG_WriteFields(LPSIZEBUF msg,
         switch (field->type) {
             case NFT_FLOAT: MSG_WriteShort(msg, *(float *)toF); break;
             case NFT_PACKED_FLOAT: MSG_WriteShort(msg, *(float *)toF * 500); break;
+            case NFT_ANGLE: MSG_WriteShort(msg, (*(float *)toF) / 360 * 0xffff); break;
             case NFT_LONG: MSG_WriteLong(msg, *toF); break;
             case NFT_SHORT: MSG_WriteShort(msg, *toF); break;
             case NFT_BYTE: MSG_WriteByte(msg, *toF); break;
@@ -239,6 +240,7 @@ static void MSG_ReadFields(LPSIZEBUF msg,
         switch (field->type) {
             case NFT_FLOAT: *(float *)toF = MSG_ReadShort(msg); break;
             case NFT_PACKED_FLOAT: *(float *)toF = MSG_ReadShort(msg) / 500.f; break;
+            case NFT_ANGLE: *(float *)toF = MSG_ReadShort(msg) * 360.f / 0xffff; break;
             case NFT_LONG: *toF = MSG_ReadLong(msg); break;
             case NFT_SHORT: *toF = MSG_ReadShort(msg); break;
             case NFT_BYTE: *toF = MSG_ReadByte(msg); break;

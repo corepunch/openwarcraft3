@@ -15,6 +15,7 @@
 #define UPDATE_BACKUP 16
 #define UPDATE_MASK (UPDATE_BACKUP-1)
 #define U_REMOVE 15
+#define NUM_THREADS 16
 
 #define SFileReadArray(file, object, variable, elemsize, alloc) \
 SFileReadFile(file, &object->num_##variable, 4, NULL, NULL); \

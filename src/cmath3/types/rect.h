@@ -14,5 +14,6 @@ typedef struct rect const *LPCRECT;
 int Rect_contains(LPCRECT rect, LPCVECTOR2 point);
 RECT Rect_scale(LPCRECT rect, float scale);
 RECT Rect_div(LPCRECT rect, int res);
+VECTOR2 Rect_center(LPCRECT rect);
 
 #endif /* rect_h */

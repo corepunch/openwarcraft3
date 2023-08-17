@@ -13,7 +13,7 @@ static void ai_walk(LPEDICT ent) {
 
 static umove_t move_move_walk = { "walk", ai_walk, NULL, &a_move };
 
-void move_move(LPEDICT self, LPEDICT target) {
+void order_move(LPEDICT self, LPEDICT target) {
     self->goalentity = target;
     M_SetMove(self, &move_move_walk);
 }
@@ -21,7 +21,7 @@ void move_move(LPEDICT self, LPEDICT target) {
 BOOL move_selectlocation(LPEDICT clent, LPCVECTOR2 location) {
     LPEDICT waypoint = Waypoint_add(location);
     FOR_SELECTED_UNITS(clent->client, ent) {
-        move_move(ent, waypoint);
+        order_move(ent, waypoint);
     }
     gi.WriteByte(svc_temp_entity);
     gi.WriteByte(TE_MOVE_CONFIRMATION);

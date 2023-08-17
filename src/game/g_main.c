@@ -73,6 +73,20 @@ static void G_ShutdownGame(void) {
 }
 
 static void G_RunFrame(void) {
+    FOR_LOOP(i, game.max_clients) {
+        LPGAMECLIENT client = game.clients+i;
+        DWORD duration = client->camera.end_time - client->camera.start_time;
+        if (gi.GetTime() < client->camera.end_time && duration > 0) {
+            float k = (gi.GetTime() - client->camera.start_time) / (float)(duration);
+            gcamerasetup_t const *a = &client->camera.old_state;
+            gcamerasetup_t const *b = &client->camera.state;
+            client->ps.origin = Vector2_lerp(&a->position, &b->position, k);
+            client->ps.viewangles = Vector3_lerp(&a->viewangles, &b->viewangles, k);
+        } else {
+            client->ps.origin = client->camera.state.position;
+            client->ps.viewangles = client->camera.state.viewangles;
+        }
+    }
     FOR_LOOP(i, globals.num_edicts) {
         G_RunEntity(&globals.edicts[i]);
     }
@@ -109,7 +123,6 @@ static void Init_ResourceBar(LPFRAMEDEF ConsoleUI) {
     UI_SetParent(ResourceBarFrame, ConsoleUI);
     UI_SetPoint(ResourceBarFrame, FRAMEPOINT_TOPRIGHT, ConsoleUI, FRAMEPOINT_TOPRIGHT, 0, 0);
 }
-
 
 LPCSTR tooltip = \
 "Frame \"FRAME\" \"ToolTip\" {\n"

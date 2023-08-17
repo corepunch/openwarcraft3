@@ -5,3 +5,7 @@ static umove_t stop_stand = { "stand", ai_stand, NULL, &a_stop};
 ability_t a_stop = {
 //    .cmd = build_command,
 };
+
+void order_stop(LPEDICT ent) {
+    ent->stand(ent);
+}

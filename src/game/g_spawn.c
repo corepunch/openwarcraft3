@@ -146,6 +146,14 @@ void SP_worldspawn(LPEDICT ent) {
     SetAbilityNames();
 }
 
+HANDLE G_RunScripts(HANDLE arg) {
+    JASS_Parse(game_state.j, "Scripts\\common.j");
+    JASS_Parse(game_state.j, "Scripts\\Blizzard.j");
+    JASS_Parse_Native(game_state.j, "/Users/igor/Desktop/war3map.j");
+    JASS_ExecuteFunc(game_state.j, "main");
+    return NULL;
+}
+
 void G_SpawnEntities(LPCMAPINFO mapinfo, LPCDOODAD entities) {
     FOR_LOOP(i, game.max_clients) {
         game_state.edicts[i + 1].client = game.clients + i;
@@ -169,11 +177,8 @@ void G_SpawnEntities(LPCMAPINFO mapinfo, LPCDOODAD entities) {
     
     game_state.mapinfo = mapinfo;
     game_state.j = JASS_Allocate();
-
-    JASS_Parse(game_state.j, "Scripts\\common.j");
-    JASS_Parse(game_state.j, "Scripts\\Blizzard.j");
-    JASS_Parse_Native(game_state.j, "/Users/igor/Desktop/war3map.j");
-    JASS_ExecuteFunc(game_state.j, "main");
+    
+    gi.CreateThread(G_RunScripts, NULL);
 }
  
 LPEDICT SP_SpawnAtLocation(DWORD class_id, DWORD player, LPCVECTOR2 location) {
@@ -187,7 +192,9 @@ LPEDICT SP_SpawnAtLocation(DWORD class_id, DWORD player, LPCVECTOR2 location) {
     ent->s.angle = -M_PI / 2;
     ent->s.player = player;
     SP_CallSpawn(ent);
-    ent->birth(ent);
+    if (ent->birth) {
+        ent->birth(ent);
+    }
     return ent;
 }
 

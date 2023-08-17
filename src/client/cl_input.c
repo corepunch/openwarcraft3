@@ -70,8 +70,8 @@ void CL_Input(void) {
                         break;
                     case 3:
                         moved = true;
-                        cl.viewDef.camera.origin.x -= event.motion.xrel * 5;
-                        cl.viewDef.camera.origin.y += event.motion.yrel * 5;
+                        cl.viewDef.camerastate->origin.x -= event.motion.xrel * 5;
+                        cl.viewDef.camerastate->origin.y += event.motion.yrel * 5;
                         break;
                 }
                 break;

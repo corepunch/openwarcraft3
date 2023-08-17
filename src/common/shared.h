@@ -61,6 +61,9 @@ for (type *property = array; property - array < num; property++)
 
 #define SAFE_DELETE(x, func) if (x) { func(x); (x) = NULL; }
 
+#define DEG2RAD(ANGLE) ((ANGLE) / 180.0 * M_PI)
+#define RAD2DEG(ANGLE) ((ANGLE) / M_PI * 180.0)
+
 #define PUSH_BACK(TYPE, VAR, LIST) \
 if (LIST) { \
     TYPE *last##TYPE = LIST; \
@@ -189,7 +192,7 @@ typedef enum {
 typedef struct {
     DWORD number;
     VECTOR3 viewangles;
-    VECTOR3 origin;
+    VECTOR2 origin;
     float distance;
     DWORD fov;
     DWORD rdflags;
