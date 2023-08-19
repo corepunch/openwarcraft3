@@ -80,53 +80,6 @@ LPCSTR parse_segment(LPPARSER p) {
     return segment;
 }
 
-void remove_comments(char *buffer) {
-    BOOL in_single_line_comment = false;
-    BOOL in_block_comment = false;
-    char *src = buffer;
-    char *dest = buffer;
-    while (*src != '\0') {
-        if (!in_single_line_comment && !in_block_comment) {
-            if (*src == '/' && *(src + 1) == '/') {
-                in_single_line_comment = true;
-                src += 2;
-            } else if (*src == '/' && *(src + 1) == '*') {
-                in_block_comment = true;
-                src += 2;
-            } else {
-                *dest++ = *src++;
-            }
-        } else if (in_single_line_comment && *src == '\n') {
-            in_single_line_comment = false;
-            *dest++ = *src++;
-        } else if (in_block_comment && *src == '*' && *(src + 1) == '/') {
-            in_block_comment = false;
-            src += 2;
-        } else {
-            src++;
-        }
-    }
-    *dest = '\0';  // Null-terminate the modified buffer
-}
-
-BOMStatus remove_bom(char buffer[], size_t length) {
-    unsigned char utf8BOM[] = { 0xEF, 0xBB, 0xBF };
-    unsigned char utf16LEBOM[] = { 0xFF, 0xFE };
-    unsigned char utf16BEBOM[] = { 0xFE, 0xFF };
-
-    if (length >= 3 && memcmp(buffer, utf8BOM, 3) == 0) {
-        memmove(buffer, buffer + 3, length - 3);
-        return UTF8_BOM_FOUND;
-    } else if (length >= 2 && memcmp(buffer, utf16LEBOM, 2) == 0) {
-        memmove(buffer, buffer + 2, length - 2);
-        return UTF16LE_BOM_FOUND;
-    } else if (length >= 2 && memcmp(buffer, utf16BEBOM, 2) == 0) {
-        memmove(buffer, buffer + 2, length - 2);
-        return UTF16BE_BOM_FOUND;
-    } else {
-        return NO_BOM;
-    }
-}
 
 void parser_error(LPPARSER parser) {
     parser->error = true;

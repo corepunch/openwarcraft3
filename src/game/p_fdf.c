@@ -561,8 +561,8 @@ void FDF_ParseScene(LPPARSER parser) {
 
 void UI_ParseFDF_Buffer(LPCSTR fileName, LPSTR buffer2) {
     LPSTR buffer = buffer2;
-    remove_comments(buffer);
-    remove_bom(buffer, strlen(buffer));
+    gi.TextRemoveComments(buffer);
+    gi.TextRemoveBom(buffer);
     PARSER parser = {
         .buffer = buffer,
         .delimiters = ",;{}",

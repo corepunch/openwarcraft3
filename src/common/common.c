@@ -167,9 +167,10 @@ void FS_Init(void) {
 //             if(strstr(findData.cFileName, ".j")) {
                  printf("%s\n", findData.cFileName);
 //             }
-#if 0
+#if 1
 //             if (strstr(findData.cFileName, "SimpleInfo")){
-             if (strstr(findData.cFileName, "Blizzard.j")) {
+//             if (strstr(findData.cFileName, "Blizzard.j")) {
+             if (strstr(findData.cFileName, ".txt")) {
                  HANDLE file;
                  SFileOpenFileEx(archives[0], findData.cFileName, SFILE_OPEN_FROM_MPQ, &file);
                  char ch;

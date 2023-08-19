@@ -9,6 +9,7 @@ KNOWN_AS(jass_function, JASSFUNC);
 KNOWN_AS(jass_type, JASSTYPE);
 KNOWN_AS(jass_var, JASSVAR);
 KNOWN_AS(jass_module, JASSMODULE);
+KNOWN_AS(vm_program, VMPROGRAM);
 
 typedef enum {
     CAMERA_FIELD_TARGET_DISTANCE,
@@ -71,6 +72,11 @@ typedef struct {
     LONG fadeOutRate;
     DWORD duration;
 } gsound_t;
+
+struct vm_program {
+    HANDLE data;
+    DWORD size;
+};
 
 LONG jass_checkinteger(LPJASS j, int index);
 FLOAT jass_checknumber(LPJASS j, int index);

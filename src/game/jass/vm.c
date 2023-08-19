@@ -48,6 +48,8 @@ KNOWN_AS(jass_dict, JASSDICT);
 KNOWN_AS(jass_arg, JASSARG);
 KNOWN_AS(jass_env, JASSENV);
 
+VMPROGRAM VM_Compile(LPCTOKEN token);
+
 LPCSTR keywords[] = {
     "elseif", "else", "endif", "set", "endfunction", "local", "then", NULL
 };
@@ -61,23 +63,21 @@ typedef struct {
 
 struct jass_var {
     LPCJASSTYPE type;
+    HANDLE value;
+    DWORD *refcount;
+    BOOL constant;
+    BOOL array;
     struct {
         LPJASSDICT locals;
         DWORD returnstack;
         BOOL done;
     } env;
-    HANDLE value;
-    DWORD *refcount;
-    BOOL constant;
-    BOOL array;
-    DWORD size;
 };
 
 struct jass_type {
-    LPCSTR name;
-    LPCSTR ctype;
     LPCJASSTYPE inherit;
     LPJASSTYPE next;
+    LPCSTR name;
 };
 
 struct jass_arg {
@@ -87,17 +87,18 @@ struct jass_arg {
 };
 
 JASSTYPE jass_types[] = {
-    { "integer", "LONG", NULL },
-    { "real", "FLOAT", NULL },
-    { "string", "LPCSTR", NULL },
-    { "boolean", "BOOL", NULL },
-    { "code", "LPCSTR", NULL },
-    { "handle", "HANDLE", NULL },
-    { "cfunction", "HANDLE", NULL },
+    { NULL, NULL, "integer" },
+    { NULL, NULL, "real" },
+    { NULL, NULL, "string" },
+    { NULL, NULL, "boolean" },
+    { NULL, NULL, "code" },
+    { NULL, NULL, "handle" },
+    { NULL, NULL, "cfunction" },
 };
 
 static LPJASSVAR jass_stackvalue(LPJASS j, int index);
 static JASSTYPEID jass_getvarbasetype(LPCJASSVAR var);
+static DWORD jass_dotoken(LPJASS j, LPCTOKEN token);
 
 BOOL atob(LPCSTR str) {
     return !strcmp(str, "true");
@@ -382,7 +383,17 @@ void jass_setnull(LPJASSVAR var) {
 //void jass_setenv(LPJASS j, int index, LPJASSDICT env) {
 //    jass_stackvalue(j, index)->env.locals = env;
 //}
-//
+
+BOOL is_handle_convertible(LPCJASSTYPE from, LPCJASSTYPE to) {
+    if (from == to) {
+        return true;
+    } else if (from->inherit) {
+        return is_handle_convertible(from->inherit, to);
+    } else {
+        return false;
+    }
+}
+
 void jass_copy(LPJASS j, LPJASSVAR var, LPCJASSVAR other) {
     FLOAT fval = 0;
     if (!other->value) {
@@ -395,7 +406,7 @@ void jass_copy(LPJASS j, LPJASSVAR var, LPCJASSVAR other) {
             JASS_SET_VALUE(var, other->value, sizeof(LONG));
             break;
         case jasstype_handle:
-            if (other->type != var->type) {
+            if (!is_handle_convertible(other->type, var->type)) {
                 fprintf(stderr, "Warning: Passing %s to %s type\n", other->type->name, var->type->name);
             }
             var->value = other->value;
@@ -574,65 +585,99 @@ void jass_swap(LPJASS j, int a, int b) {
     *jass_stackvalue(j, -2) = tmp;
 }
 
-static DWORD jass_dotoken(LPJASS j, LPCTOKEN token) {
-    if (!token) {
-        return 0;
+DWORD VM_EvalInteger(LPJASS j, LPCTOKEN token) {
+    return jass_pushinteger(j, atoi(token->primary));
+}
+
+DWORD VM_EvalReal(LPJASS j, LPCTOKEN token) {
+    return jass_pushnumber(j, atof(token->primary));
+}
+
+DWORD VM_EvalString(LPJASS j, LPCTOKEN token) {
+    return jass_pushstring(j, token->primary);
+}
+
+DWORD VM_EvalBoolean(LPJASS j, LPCTOKEN token) {
+    return jass_pushboolean(j, atob(token->primary));
+}
+
+DWORD VM_EvalIdentifier(LPJASS j, LPCTOKEN token) {
+    LPCJASSFUNC f = NULL;
+    LPCJASSVAR v = NULL;
+    if (token->flags & TF_FUNCTION) {
+        if ((f = find_function(j, token->primary))) {
+            return jass_pushfunction(j, f);
+        } else {
+            return jass_pushnull(j);
+        }
+    } else if ((v = find_dict(j->globals, token->primary))) {
+        return jass_pushvalue(j, v);
+    } else if ((v = find_dict(jass_stackvalue(j, 0)->env.locals, token->primary))) {
+        return jass_pushvalue(j, v);
+    } else {
+        return jass_pushnull(j);
     }
+}
+
+DWORD VM_EvalFourCC(LPJASS j, LPCTOKEN token) {
+    return jass_pushinteger(j, *(DWORD *)token->primary);
+}
+
+DWORD VM_EvalCall(LPJASS j, LPCTOKEN token) {
     LPCJASSFUNC f = NULL;
     LPJASSCFUNCTION cf = NULL;
-    LPCJASSVAR v = NULL;
     DWORD stacksize = j->num_stack;
-    switch (token->type) {
-        case TT_INTEGER: return jass_pushinteger(j, atoi(token->primary));
-        case TT_REAL: return jass_pushnumber(j, atof(token->primary));
-        case TT_STRING: return jass_pushstring(j, token->primary);
-        case TT_BOOLEAN: return jass_pushboolean(j, atob(token->primary));
-        case TT_IDENTIFIER:
-            if (token->flags & TF_FUNCTION) {
-                if ((f = find_function(j, token->primary))) {
-                    return jass_pushfunction(j, f);
-                } else {
-                    return jass_pushnull(j);
-                }
-            } else if ((v = find_dict(j->globals, token->primary))) {
-                return jass_pushvalue(j, v);
-            } else if ((v = find_dict(jass_stackvalue(j, 0)->env.locals, token->primary))) {
-                return jass_pushvalue(j, v);
-            } else {
-                return jass_pushnull(j);
-            }
-        case TT_FOURCC: return jass_pushinteger(j, *(DWORD *)token->primary);
-        case TT_CALL:
-            if (!strcmp(token->primary, "CommentString") && token->args) {
-                fprintf(stdout, "%s\n", token->args->primary);
-                return 0;
-            } else if ((f = find_function(j, token->primary))) {
-                DWORD args = 0;
-                jass_pushfunction(j, f);
-                FOR_EACH_LIST(TOKEN, arg, token->args) {
-                    jass_dotoken(j, arg);
-                    args++;
-                }
-                jass_call(j, args);
-                return j->num_stack - stacksize;
-            } else if ((cf = find_cfunction(j, token->primary))) {
-                DWORD args = 0;
-                jass_pushcfunction(j, cf);
-                FOR_EACH_LIST(TOKEN, arg, token->args) {
-                    jass_dotoken(j, arg);
-                    args++;
-                }
-                jass_call(j, args);
-                return j->num_stack - stacksize;
-            } else {
-                fprintf(stderr, "Can't find function %s\n", token->primary);
-                assert(false);
-                return 0;
-            }
-        default:
-            assert(false);
-            return 0;
+    if (!strcmp(token->primary, "CommentString") && token->args) {
+        fprintf(stdout, "%s\n", token->args->primary);
+        return 0;
+    } else if ((f = find_function(j, token->primary))) {
+        DWORD args = 0;
+        jass_pushfunction(j, f);
+        FOR_EACH_LIST(TOKEN, arg, token->args) {
+            jass_dotoken(j, arg);
+            args++;
+        }
+        jass_call(j, args);
+        return j->num_stack - stacksize;
+    } else if ((cf = find_cfunction(j, token->primary))) {
+        DWORD args = 0;
+        jass_pushcfunction(j, cf);
+        FOR_EACH_LIST(TOKEN, arg, token->args) {
+            jass_dotoken(j, arg);
+            args++;
+        }
+        jass_call(j, args);
+        return j->num_stack - stacksize;
+    } else {
+        fprintf(stderr, "Can't find function %s\n", token->primary);
+        assert(false);
+        return 0;
     }
+}
+
+static struct {
+    TOKENTYPE tokentype;
+    DWORD (*func)(LPJASS j, LPCTOKEN token);
+} token_types[] = {
+    { TT_INTEGER, VM_EvalInteger },
+    { TT_REAL, VM_EvalReal },
+    { TT_STRING, VM_EvalString },
+    { TT_BOOLEAN, VM_EvalBoolean },
+    { TT_IDENTIFIER, VM_EvalIdentifier },
+    { TT_FOURCC, VM_EvalFourCC },
+    { TT_CALL, VM_EvalCall },
+};
+
+DWORD jass_dotoken(LPJASS j, LPCTOKEN token) {
+    if (!token)
+        return 0;
+    FOR_LOOP(idx, sizeof(token_types)/sizeof(*token_types)) {
+        if (token_types[idx].tokentype == token->type) {
+            return token_types[idx].func(j, token);
+        }
+    }
+    assert(false);
+    return 0;
 }
 
 static void jass_set_value(LPJASS j, LPJASSVAR dest, LPCTOKEN init) {
@@ -797,9 +842,10 @@ TOKENFUNC(TOKENS) {
 
 BOOL JASS_Parse_Buffer(LPJASS j, LPCSTR fileName, LPSTR buffer2) {
     LPSTR buffer = buffer2;
-    remove_comments(buffer);
-    remove_bom(buffer, strlen(buffer));
+    gi.TextRemoveComments(buffer);
+    gi.TextRemoveBom(buffer);
     LPTOKEN program = JASS_ParseTokens(&MAKE(PARSER, .buffer = buffer, .delimiters = JASS_DELIM));
+//    VM_Compile(program);
     eval_TOKENS(j, program);
     return true;
 }

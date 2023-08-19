@@ -9,6 +9,9 @@ static struct {
 
 void CM_ReadPathMap(HANDLE archive);
 
+void PF_TextRemoveComments(LPSTR buffer);
+BOMStatus PF_TextRemoveBom(LPSTR buffer);
+
 void SFileReadString(HANDLE file, LPSTR *lppString) {
     DWORD filePosition = SFileSetFilePointer(file, 0, 0, FILE_CURRENT);
     DWORD stringLength = 1;
@@ -278,6 +281,38 @@ void CM_ReadUnits(HANDLE archive) {
     SFileCloseFile(file);
 }
 
+LPSTR FS_ReadArchiveFileIntoString(HANDLE archive, LPCSTR filename) {
+    HANDLE file;
+    SFileOpenFileEx(archive, filename, SFILE_OPEN_FROM_MPQ, &file);
+    DWORD fileSize = SFileGetFileSize(file, NULL);
+    LPSTR buffer = MemAlloc(fileSize + 1);
+    SFileReadFile(file, buffer, fileSize, NULL, NULL);
+    FS_CloseFile(file);
+    buffer[fileSize] = '\0';
+    return buffer;
+}
+
+void CM_ReadStrings(HANDLE archive) {
+    LPSTR buffer = FS_ReadArchiveFileIntoString(archive, "war3map.wts");
+    PF_TextRemoveBom(buffer);
+    LPCSTR token = strtok(buffer, "\n");
+    while (token) {
+        if (strncmp(token, "STRING ", strlen("STRING ")) == 0) {
+            mapTrigStr_t *entry = MemAlloc(sizeof(mapTrigStr_t));
+            sscanf(token, "STRING %d", &entry->id);
+            token = strtok(NULL, "\n");
+            if (token && token[0] == '{') {
+                token = strtok(NULL, "\n");
+                strcpy(entry->text, token);
+//                printf("ID: %d\nText: %s\n\n", entry->id, entry->text);
+                ADD_TO_LIST(entry, world.info.strings)
+            }
+        }
+        token = strtok(NULL, "\n");
+    }
+    MemFree(buffer);
+}
+
 void CM_LoadMap(LPCSTR mapFilename) {
     HANDLE mapArchive;
     memset(&world, 0, sizeof(world));
@@ -289,10 +324,11 @@ void CM_LoadMap(LPCSTR mapFilename) {
     CM_ReadHeightmap(mapArchive);
     CM_ReadInfo(mapArchive);
     CM_ReadUnits(mapArchive);
+    CM_ReadStrings(mapArchive);
         
-//    SFileExtractFile(mapArchive, "war3map.j", "/Users/igor/Desktop/war3map.j", 0);
+//    SFileExtractFile(mapArchive, "war3map.wts", "/Users/igor/Desktop/war3map.wts", 0);
 //    HANDLE file;
-//    SFileOpenFileEx(mapArchive, "war3map.j", SFILE_OPEN_FROM_MPQ, &file);
+//    SFileOpenFileEx(mapArchive, "war3map.wts", SFILE_OPEN_FROM_MPQ, &file);
 //    char ch;
 //    while (SFileReadFile(file, &ch, 1, NULL, NULL)) {
 //        printf("%c", ch);

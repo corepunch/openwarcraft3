@@ -181,6 +181,14 @@ KNOWN_AS(mapInfo_s, MAPINFO);
 KNOWN_AS(mapPlayer_s, MAPPLAYER);
 
 typedef enum {
+    NO_BOM,
+    UTF8_BOM_FOUND,
+    UTF16LE_BOM_FOUND,
+    UTF16BE_BOM_FOUND,
+    INVALID_BOM
+} BOMStatus;
+
+typedef enum {
     MULTICAST_ALL,
     MULTICAST_PHS,
     MULTICAST_PVS,

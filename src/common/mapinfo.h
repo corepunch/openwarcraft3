@@ -126,6 +126,14 @@ typedef struct {
     MapRandomGroup *randomGroups;
 } mapRandomUnitTable_t;
 
+#define MAX_TRIGSTR_LENGTH 1024
+
+typedef struct trigstr {
+    DWORD id;
+    char text[MAX_TRIGSTR_LENGTH];
+    struct trigstr *next;
+} mapTrigStr_t;
+
 struct mapInfo_s {
     DWORD fileFormat; // file format version = 18
     DWORD numberOfSaves;
@@ -156,6 +164,7 @@ struct mapInfo_s {
     mapUpgradeAvailability_t *upgradeAvailabilities;
     mapTechAvailability_t *techAvailabilities;
     mapRandomUnitTable_t *randomUnits;
+    mapTrigStr_t *strings;
 };
 
 #endif

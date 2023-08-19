@@ -9,10 +9,10 @@
 
 #define MAX_ANIMS_IN_TYPE 16
 
-typedef struct edict_s edict_t;
-
 KNOWN_AS(client_s, GAMECLIENT);
 KNOWN_AS(edict_s, EDICT);
+
+typedef struct edict_s edict_t;
 
 struct game_import {
     HANDLE (*MemAlloc)(long size);
@@ -38,6 +38,9 @@ struct game_import {
     sheetRow_t *(*ReadSheet)(LPCSTR sheetFilename);
     sheetRow_t *(*ReadConfig)(LPCSTR configFilename);
     LPCSTR (*FindSheetCell)(sheetRow_t *sheet, LPCSTR row, LPCSTR column);
+    
+    void (*TextRemoveComments)(LPSTR buffer);
+    BOMStatus (*TextRemoveBom)(LPSTR buffer);
 
     void (*multicast)(LPCVECTOR3 origin, multicast_t to);
     void (*unicast)(edict_t *ent);
