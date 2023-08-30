@@ -51,7 +51,8 @@ static VECTOR3 GetAccurateNormalAtPoint(float sx, float sy) {
     return Vector3_lerp(&ab, &cd, y - fy);
 }
 
-static float GetAccurateHeightAtPoint(float sx, float sy) {
+float GetAccurateHeightAtPoint(float sx, float sy) {
+    if (!tr.world) return 0;
     float x = sx / TILESIZE;
     float y = sy / TILESIZE;
     float fx = floorf(x);

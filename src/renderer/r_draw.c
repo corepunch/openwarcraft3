@@ -62,6 +62,8 @@ void R_DrawImageEx(LPCDRAWIMAGE drawImage) {
     
     R_BindTexture(drawImage->texture, 0);
     
+    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
     R_Call(glDisable, GL_CULL_FACE);
     R_Call(glEnable, GL_BLEND);
     R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -83,13 +85,12 @@ void R_DrawPic(LPCTEXTURE texture, float x, float y) {
     R_DrawImage(texture, &screen, NULL, COLOR32_WHITE);
 }
 
-void R_DrawSelectionRect(LPCRECT rect, COLOR32 color) {
-    size2_t const window = R_GetWindowSize();
+void R_DrawWireRect(LPCRECT rect, COLOR32 color) {
     static VERTEX simp[5];
     R_AddStrip(simp, rect, color);
 
     MATRIX4 ui_matrix;
-    Matrix4_ortho(&ui_matrix, 0.0f, window.width, window.height, 0.0f, 0.0f, 100.0f);
+    Matrix4_ortho(&ui_matrix, 0.0f, 0.8, 0.6, 0.0f, 0.0f, 100.0f);
 
     R_Call(glUseProgram, tr.shader[SHADER_UI]->progid);
     R_Call(glUniformMatrix4fv, tr.shader[SHADER_UI]->uViewProjectionMatrix, 1, GL_FALSE, ui_matrix.v);
@@ -103,6 +104,17 @@ void R_DrawSelectionRect(LPCRECT rect, COLOR32 color) {
     R_Call(glEnable, GL_BLEND);
     R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     R_Call(glDrawArrays, GL_LINE_STRIP, 0, sizeof(simp) / sizeof(*simp));
+}
+
+void R_DrawSelectionRect(LPCRECT rect, COLOR32 color) {
+    size2_t const window = R_GetWindowSize();
+    RECT screen = {
+        rect->x * 0.8 / window.width,
+        rect->y * 0.6 / window.height,
+        rect->w * 0.8 / window.width,
+        rect->h * 0.6 / window.height,
+    };
+    R_DrawWireRect(&screen, color);
 }
 
 void R_DrawBoundingBox(LPCBOX3 box, LPCMATRIX4 matrix, COLOR32 color) {

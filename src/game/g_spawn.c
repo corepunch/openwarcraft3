@@ -67,22 +67,18 @@ static void G_InitEdict(LPEDICT e) {
     memset(e, 0, sizeof(edict_t));
     e->inuse = true;
     e->s.scale = 1;
-    e->s.number = (int)(e - game_state.edicts);
-}
-
-void G_FreeEdict(LPEDICT ent) {
-    memset(ent, 0, sizeof(edict_t));
+    e->s.number = (int)(e - g_edicts);
 }
 
 LPEDICT G_Spawn(void) {
-    for (DWORD i = game.max_clients + 1; i < globals.num_edicts; i++) {
-        LPEDICT e = &game_state.edicts[i];
+    for (DWORD i = game.max_clients; i < globals.num_edicts; i++) {
+        LPEDICT e = &g_edicts[i];
         if (!e->inuse) {
             G_InitEdict(e);
             return e;
         }
     }
-    LPEDICT edict = &game_state.edicts[globals.num_edicts++];
+    LPEDICT edict = &g_edicts[globals.num_edicts++];
     G_InitEdict(edict);
     return edict;
 }
@@ -147,18 +143,39 @@ void SP_worldspawn(LPEDICT ent) {
 }
 
 HANDLE G_RunScripts(HANDLE arg) {
-    JASS_Parse(game_state.j, "Scripts\\common.j");
-    JASS_Parse(game_state.j, "Scripts\\Blizzard.j");
-    JASS_Parse_Native(game_state.j, "/Users/igor/Desktop/war3map.j");
-    JASS_ExecuteFunc(game_state.j, "main");
+    JASS_Parse(level.j, "Scripts\\common.j");
+    JASS_Parse(level.j, "Scripts\\Blizzard.j");
+    JASS_Parse_Native(level.j, "/Users/igor/Desktop/war3map.j");
+    while (!level.started) {
+        gi.Sleep(10);
+    }
+    JASS_ExecuteFunc(level.j, "main");
     return NULL;
 }
 
+static void G_InitMapPlayer(LPEDICT clent, LPCMAPPLAYER player, DWORD playernum) {
+    playerState_t *ps = &clent->client->ps;
+    memset(ps, 0, sizeof(playerState_t));
+    ps->number = playernum;
+    ps->origin.x = player->startingPosition.x;
+    ps->origin.y = player->startingPosition.y;
+    ps->viewquat = Quaternion_fromEuler(&MAKE(VECTOR3, 326, 0, 0), ROTATE_ZYX);
+    ps->fov = 50;
+    ps->distance = 1650;
+    ps->stats[STAT_GOLD] = 300;
+    ps->stats[STAT_LUMBER] = 80;
+    ps->stats[STAT_FOOD] = 5;
+    clent->client->mapplayer = player;
+}
+
 void G_SpawnEntities(LPCMAPINFO mapinfo, LPCDOODAD entities) {
-    FOR_LOOP(i, game.max_clients) {
-        game_state.edicts[i + 1].client = game.clients + i;
+    memset(&level, 0, sizeof(level));
+    FOR_LOOP(p, MAX_PLAYERS) {
+        LPGAMECLIENT client = game.clients+p;
+        g_edicts[p].client = client;
+        G_InitMapPlayer(g_edicts+p, mapinfo->players+p, p);
     }
-    globals.num_edicts = game.max_clients + 1;
+    globals.num_edicts = game.max_clients;
     FOR_EACH_LIST(DOODAD const, doodad, entities) {
         LPEDICT e = G_Spawn();
         e->class_id = doodad->doodID;
@@ -168,16 +185,15 @@ void G_SpawnEntities(LPCMAPINFO mapinfo, LPCDOODAD entities) {
         e->s.origin = doodad->position;
         e->s.angle = doodad->angle;
         e->s.scale = doodad->scale.x;
-        // if (doodad->inventoryItems) {
-        //     int a= 0;
-        // }
         SP_CallSpawn(e);
     }
     SP_worldspawn(NULL);
     
-    game_state.mapinfo = mapinfo;
-    game_state.j = JASS_Allocate();
-    
+    level.mapinfo = mapinfo;
+    level.j = JASS_Allocate();
+
+    UI_Init();
+
     gi.CreateThread(G_RunScripts, NULL);
 }
  

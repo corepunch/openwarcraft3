@@ -48,6 +48,8 @@ static LPMAPSEGMENT R_BuildMapSegment(LPCWAR3MAP map, DWORD sx, DWORD sy) {
             ADD_TO_LIST(mapLayer, mapSegment->layers);
         }
     }
+    mapSegment->bbox.min = MAKE(VECTOR3, FLT_MAX, FLT_MAX, FLT_MAX);
+    mapSegment->bbox.max = MAKE(VECTOR3, -FLT_MAX, -FLT_MAX, -FLT_MAX);
     return mapSegment;
 }
 
@@ -61,23 +63,23 @@ static VECTOR3 R_GetMapVertexPoint(LPCWAR3MAP map, DWORD x, DWORD y) {
 }
 
 static void R_LoadMapSegments(LPCWAR3MAP map) {
-    FOR_LOOP(x, (map->width - 1) / SEGMENT_SIZE) {
-        FOR_LOOP(y, (map->height - 1) / SEGMENT_SIZE) {
-            LPMAPSEGMENT segment = R_BuildMapSegment(map, x, y);
-
-            segment->corners[CORNER_TOP_LEFT] =
-            R_GetMapVertexPoint(map, x * SEGMENT_SIZE, y * SEGMENT_SIZE);
-
-            segment->corners[CORNER_TOP_RIGHT] =
-            R_GetMapVertexPoint(map, (x+1) * SEGMENT_SIZE, y * SEGMENT_SIZE);
-
-            segment->corners[CORNER_BOTTOM_RIGHT] =
-            R_GetMapVertexPoint(map, (x+1) * SEGMENT_SIZE, (y+1) * SEGMENT_SIZE);
-
-            segment->corners[CORNER_BOTTOM_LEFT] =
-            R_GetMapVertexPoint(map, x * SEGMENT_SIZE, (y+1) * SEGMENT_SIZE);
-
+    FOR_LOOP(fx, (map->width - 1) / SEGMENT_SIZE) {
+        FOR_LOOP(fy, (map->height - 1) / SEGMENT_SIZE) {
+            LPMAPSEGMENT segment = R_BuildMapSegment(map, fx, fy);
             ADD_TO_LIST(segment, g_mapSegments);
+            FOR_LOOP(sx, SEGMENT_SIZE+1) {
+                FOR_LOOP(sy, SEGMENT_SIZE+1) {
+                    FLOAT x = fx * SEGMENT_SIZE + sx;
+                    FLOAT y = fy * SEGMENT_SIZE + sy;
+                    VECTOR3 v = R_GetMapVertexPoint(map, x, y);
+                    segment->bbox.min.x = MIN(segment->bbox.min.x, v.x);
+                    segment->bbox.min.y = MIN(segment->bbox.min.y, v.y);
+                    segment->bbox.min.z = MIN(segment->bbox.min.z, v.z);
+                    segment->bbox.max.x = MAX(segment->bbox.max.x, v.x);
+                    segment->bbox.max.y = MAX(segment->bbox.max.y, v.y);
+                    segment->bbox.max.z = MAX(segment->bbox.max.z, v.z);
+                }
+            }
         }
     }
 }
@@ -145,31 +147,8 @@ void R_RegisterMap(char const *mapFilename) {
     R_LoadMapSegments(map);
 }
 
-VECTOR3 R_GetPointOnScreen(LPCVECTOR3 point) {
-    VECTOR3 screen;
-    extern bool is_rendering_lights;
-    if (is_rendering_lights) {
-        screen = Matrix4_multiply_vector3(&tr.viewDef.lightMatrix, point);
-    } else {
-        screen = Matrix4_multiply_vector3(&tr.viewDef.viewProjectionMatrix, point);
-    }
-    return screen;
-}
-
-static bool R_IsSegmentVisible(LPCMAPSEGMENT segment) {
-    VECTOR3 corners[CORNER_COUNT];
-    FOR_LOOP(corner, CORNER_COUNT) {
-        corners[corner] = R_GetPointOnScreen(&segment->corners[corner]);
-    }
-    if (corners[CORNER_TOP_RIGHT].x < -1 && corners[CORNER_BOTTOM_RIGHT].x < -1) return false;
-    if (corners[CORNER_TOP_LEFT].x > 1 && corners[CORNER_BOTTOM_LEFT].x > 1) return false;
-    if (corners[CORNER_TOP_LEFT].y > 1.0 && corners[CORNER_TOP_RIGHT].y > 1.0) return false;
-    if (corners[CORNER_BOTTOM_LEFT].y < -1.0 && corners[CORNER_BOTTOM_RIGHT].y < -1.0) return false;
-    return true;
-}
-
 static void R_DrawSegment(LPCMAPSEGMENT segment, DWORD mask) {
-    if (!R_IsSegmentVisible(segment))
+    if (!Frustum_ContainsAABox(&tr.viewDef.frustum, &segment->bbox))
         return;
     FOR_EACH_LIST(MAPLAYER, layer, segment->layers) {
         if (((1 << layer->type) & mask) == 0)

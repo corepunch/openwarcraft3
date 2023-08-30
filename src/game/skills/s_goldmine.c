@@ -104,7 +104,7 @@ void harvest_gold_start(LPEDICT self, LPEDICT target) {
 }
 
 void SP_ability_goldmine(LPCSTR classname, ability_t *self) {
-    MAX_GOLD = AB_Number(classname, "Data11");;
+    MAX_GOLD = AB_Number(classname, "Data11");
     MINING_DURATION = AB_Number(classname, "Data12");
     MINING_CAPACITY = AB_Number(classname, "Data13");
 }

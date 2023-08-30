@@ -315,6 +315,14 @@ void Matrix4_rotate(LPMATRIX4 m, LPCVECTOR3 euler, ROTATIONORDER order) {
     Matrix4_multiply(&tmp, &tmp2, m);
 }
 
+void Matrix4_rotateQuat(LPMATRIX4 m, LPCQUATERNION quat) {
+    MATRIX4 tmp, tmp2;
+    VECTOR3 zero = { 0, 0, 0 };
+    tmp = *m;
+    Matrix4_from_rotation_origin(&tmp2, quat, &zero);
+    Matrix4_multiply(&tmp, &tmp2, m);
+}
+
 void Matrix4_from_rotation_origin(LPMATRIX4 out, LPCQUATERNION rotation, LPCVECTOR3 origin) {
     const float x = rotation->x;
     const float y = rotation->y;

@@ -13,6 +13,7 @@ typedef enum {
     TT_VARDECL,
     TT_GLOBAL,
     TT_IDENTIFIER,
+    TT_ARRAYACCESS,
     TT_CALL,
     TT_INTEGER,
     TT_REAL,

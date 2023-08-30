@@ -23,22 +23,18 @@ struct game_import {
     int (*FontIndex)(LPCSTR fontName, DWORD fontSize);
     bool (*ExtractFile)(LPCSTR toExtract, LPCSTR extracted);
     LPCANIMATION (*GetAnimation)(DWORD modelindex, LPCSTR name);
-    DWORD (*BuildHeatmap)(edict_t *goalentity);
-    
+    DWORD (*BuildHeatmap)(LPEDICT goalentity);
     DWORD (*CreateThread)(HANDLE (func)(HANDLE), HANDLE args);
     void (*JoinThread)(DWORD thread);
     void (*Sleep)(DWORD msec);
-    
     VECTOR2 (*GetFlowDirection)(DWORD heatmapindex, FLOAT fx, FLOAT fy);
-    float (*GetHeightAtPoint)(FLOAT x, FLOAT y);
+    FLOAT (*GetHeightAtPoint)(FLOAT x, FLOAT y);
     LPSTR (*ReadFileIntoString)(LPCSTR filename);
     HANDLE (*ReadFile)(LPCSTR filename, LPDWORD size);
     DWORD (*GetTime)(void);
-
     sheetRow_t *(*ReadSheet)(LPCSTR sheetFilename);
     sheetRow_t *(*ReadConfig)(LPCSTR configFilename);
     LPCSTR (*FindSheetCell)(sheetRow_t *sheet, LPCSTR row, LPCSTR column);
-    
     void (*TextRemoveComments)(LPSTR buffer);
     BOMStatus (*TextRemoveBom)(LPSTR buffer);
 
@@ -68,8 +64,9 @@ struct game_export {
     void (*SpawnEntities)(LPCMAPINFO mapinfo, LPCDOODAD doodads);
     void (*RunFrame)(void);
     LPCSTR (*GetThemeValue)(LPCSTR filename);
-    void (*ClientCommand)(edict_t *ent, DWORD argc, LPCSTR argv[]);
-    void (*ClientBegin)(edict_t *ent);
+    void (*ClientCommand)(LPEDICT ent, DWORD argc, LPCSTR argv[]);
+    void (*ClientPanCamera)(LPEDICT ent, LPVECTOR2 offset);
+    void (*ClientBegin)(LPEDICT ent);
     edict_t *edicts;
     int num_edicts;
     int max_edicts;

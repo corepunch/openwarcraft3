@@ -8,14 +8,6 @@
 KNOWN_AS(MapLayer, MAPLAYER);
 KNOWN_AS(MapSegment, MAPSEGMENT);
 
-enum {
-    CORNER_TOP_LEFT,
-    CORNER_TOP_RIGHT,
-    CORNER_BOTTOM_RIGHT,
-    CORNER_BOTTOM_LEFT,
-    CORNER_COUNT
-};
-
 typedef enum {
     MAPLAYERTYPE_GROUND,
     MAPLAYERTYPE_CLIFF,
@@ -33,7 +25,7 @@ struct MapLayer {
 struct MapSegment {
     LPMAPLAYER layers;
     LPMAPSEGMENT next;
-    VECTOR3 corners[CORNER_COUNT];
+    BOX3 bbox;
 };
 
 LPMAPLAYER R_BuildMapSegmentLayer(LPCWAR3MAP map, DWORD sx, DWORD sy, DWORD layer);

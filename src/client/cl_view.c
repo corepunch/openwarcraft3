@@ -10,7 +10,7 @@ static struct {
 
 VECTOR3 lightAngles = {-40,0,60};
 
-void Matrix4_fromViewAngles(LPCVECTOR3 target, LPCVECTOR3 angles, float distance, LPMATRIX4 output) {
+void Matrix4_fromViewAngles(LPCVECTOR3 target, LPCVECTOR3 angles, FLOAT distance, LPMATRIX4 output) {
     VECTOR3 const vieworg = Vector3_unm(target);
     Matrix4_identity(output);
     Matrix4_translate(output, &(VECTOR3){0, 0, -distance});
@@ -18,7 +18,15 @@ void Matrix4_fromViewAngles(LPCVECTOR3 target, LPCVECTOR3 angles, float distance
     Matrix4_translate(output, &vieworg);
 }
 
-void Matrix4_getLightMatrix(LPCVECTOR3 sunangles, float scale, LPMATRIX4 output) {
+void Matrix4_fromViewQuat(LPCVECTOR3 target, LPCQUATERNION quat, FLOAT distance, LPMATRIX4 output) {
+    VECTOR3 const vieworg = Vector3_unm(target);
+    Matrix4_identity(output);
+    Matrix4_translate(output, &(VECTOR3){0, 0, -distance});
+    Matrix4_rotateQuat(output, quat);
+    Matrix4_translate(output, &vieworg);
+}
+
+void Matrix4_getLightMatrix(LPCVECTOR3 sunangles, FLOAT scale, LPMATRIX4 output) {
     MATRIX4 proj, view, tmp1, tmp2;
     viewCamera_t const *a = cl.viewDef.camerastate+1;
     viewCamera_t const *b = cl.viewDef.camerastate+0;
@@ -34,33 +42,30 @@ void Matrix4_getLightMatrix(LPCVECTOR3 sunangles, float scale, LPMATRIX4 output)
 
 void Matrix4_getCameraMatrix(LPMATRIX4 output) {
     MATRIX4 proj, view;
-    size2_t const windowSize = re.GetWindowSize();
-    float const aspect = (float)windowSize.width / (float)windowSize.height;
-    viewCamera_t const *a = cl.viewDef.camerastate+1;
-    viewCamera_t const *b = cl.viewDef.camerastate+0;
-    VECTOR3 const origin = Vector3_lerp(&a->origin, &b->origin, cl.viewDef.lerpfrac);
-    VECTOR3 const viewangles = Vector3_lerp(&a->viewangles, &b->viewangles, cl.viewDef.lerpfrac);
+    size2_t windowSize = re.GetWindowSize();
+    viewCamera_t *a = cl.viewDef.camerastate+1;
+    viewCamera_t *b = cl.viewDef.camerastate+0;
+    VECTOR3 origin = Vector3_lerp(&a->origin, &b->origin, cl.viewDef.lerpfrac);
+    QUATERNION quat = Quaternion_slerp(&a->viewquat, &b->viewquat, cl.viewDef.lerpfrac);
+    FLOAT distance = LerpNumber(a->distance, b->distance, cl.viewDef.lerpfrac);
+    FLOAT fov = LerpNumber(a->fov, b->fov, cl.viewDef.lerpfrac);
+    FLOAT aspect = (FLOAT)windowSize.width / (FLOAT)windowSize.height;
+    FLOAT znear = LerpNumber(a->znear, b->znear, cl.viewDef.lerpfrac);
+    FLOAT zfar = LerpNumber(a->zfar, b->zfar, cl.viewDef.lerpfrac);
+    
+    origin.z = re.GetHeightAtPoint(origin.x, origin.y) - 256;
 
-    Matrix4_perspective(&proj,
-                        LerpNumber(a->fov, b->fov, cl.viewDef.lerpfrac),
-                        aspect,
-                        LerpNumber(a->znear, b->znear, cl.viewDef.lerpfrac),
-                        LerpNumber(a->zfar, b->zfar, cl.viewDef.lerpfrac));
-
-    Matrix4_fromViewAngles(&origin,
-                           &viewangles,
-                           LerpNumber(a->distance, b->distance, cl.viewDef.lerpfrac),
-                           &view);
-
+    Matrix4_perspective(&proj, fov, aspect, znear, zfar);
+    Matrix4_fromViewQuat(&origin, &quat, distance, &view);
     Matrix4_multiply(&proj, &view, output);
 }
 
-float LerpRotation(float a, float b, float t) {
+FLOAT LerpRotation(FLOAT a, FLOAT b, FLOAT t) {
     if (b < 0) {
         b = b + 2 * M_PI;
     }
-    float apos = a + 2 * M_PI;
-    float aneg = a - 2 * M_PI;
+    FLOAT apos = a + 2 * M_PI;
+    FLOAT aneg = a - 2 * M_PI;
     if (fabs(a - b) < fabs(apos - b) && fabs(a - b) < fabs(aneg - b)) {
         return LerpNumber(a, b, t);
     } else if (fabs(apos - b) < fabs(aneg - b)) {
@@ -192,11 +197,12 @@ void V_RenderView(void) {
     
     static DWORD lastTime = 0;
     
-    cl.viewDef.lerpfrac = (float)(cl.time - cl.frame.servertime) / FRAMETIME;
+    cl.viewDef.lerpfrac = (FLOAT)(cl.time - cl.frame.servertime) / FRAMETIME;
     cl.viewDef.viewport = (RECT) { 0, 0, 1, 1 };
-    cl.viewDef.scissor = (RECT) { 0, 0.2, 1, 0.8 };
+    cl.viewDef.scissor = (RECT) { 0, 0.22, 1, 0.76 };
     cl.viewDef.time = cl.time;
     cl.viewDef.deltaTime = cl.time - lastTime;
+    cl.viewDef.rdflags = cl.playerstate.rdflags;
     
     Matrix4_getCameraMatrix(&cl.viewDef.viewProjectionMatrix);
     Matrix4_getLightMatrix(&lightAngles, VIEW_SHADOW_SIZE, &cl.viewDef.lightMatrix);

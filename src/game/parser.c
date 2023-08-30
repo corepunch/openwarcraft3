@@ -52,12 +52,11 @@ LPCSTR peek_token(LPPARSER p) {
 
 LPCSTR parse_segment(LPPARSER p) {
     static char segment[MAX_SEGMENT_SIZE];
-    if (*p->buffer == '\0') {
+    memset(segment, 0, MAX_SEGMENT_SIZE);
+    if (*p->buffer == '\0')
         return NULL;
-    }
-    while (isspace(*p->buffer)) {
+    while (isspace(*p->buffer))
         ++p->buffer;
-    }
     LPCSTR start = p->buffer;
     if (*p->buffer == '\"') {
         ++start;

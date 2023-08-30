@@ -378,6 +378,8 @@ size2_t R_GetTextureSize(LPCTEXTURE texture) {
     }
 }
 
+float GetAccurateHeightAtPoint(float sx, float sy);
+
 refExport_t R_GetAPI(refImport_t imp) {
 #ifdef DEBUG_PATHFINDING
     void R_SetPathTexture(LPCCOLOR32 debugTexture);
@@ -404,6 +406,7 @@ refExport_t R_GetAPI(refImport_t imp) {
         .DrawPortrait = R_DrawPortrait,
         .DrawText = R_DrawText,
         .GetTextSize = R_GetTextSize,
+        .GetHeightAtPoint = GetAccurateHeightAtPoint,
         .TraceEntity = R_TraceEntity,
         .TraceLocation = R_TraceLocation,
         .EntitiesInRect = R_EntitiesInRect,

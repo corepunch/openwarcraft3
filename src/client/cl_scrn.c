@@ -26,7 +26,7 @@ RECT get_uvrect(uint8_t const *texcoord) {
     return uv;
 }
 
-RECT scale_rect(LPCRECT rect, float factor) {
+RECT scale_rect(LPCRECT rect, FLOAT factor) {
     VECTOR2 diff = {
         rect->w * (1 - factor),
         rect->h * (1 - factor)
@@ -65,12 +65,12 @@ LPCRECT SCR_LayoutRectByNumber(LPCUIFRAME context, DWORD number) {
     }
 }
 
-float SCR_GetAnchor(LPCUIFRAME f,
+FLOAT SCR_GetAnchor(LPCUIFRAME f,
                     uiFramePoint_t const *p,
                     VECTOR2 (*get)(LPCRECT))
 {
     VECTOR2 b = get(SCR_LayoutRectByNumber(f, p->relativeTo));
-    float offset = get == get_x ? p->offset : -p->offset;
+    FLOAT offset = get == get_x ? p->offset : -p->offset;
     if (p->targetPos == FPP_MID) {
         return (b.x + b.y) / 2 + offset;
     } else if (p->targetPos == FPP_MAX) {
@@ -127,6 +127,19 @@ LPCSTR SCR_GetStringValue(LPCUIFRAME frame) {
     return text;
 }
 
+DRAWTEXT get_drawtext(LPCUIFRAME frame, FLOAT avl_width, LPCSTR text) {
+    return MAKE(DRAWTEXT,
+                .font = cl.fonts[frame->font.index],
+                .text = text,
+                .color = frame->color,
+                .halign = frame->flags.textalignx,
+                .valign = frame->flags.textaligny,
+                .icons = cl.pics,
+                .lineHeight = 1.33,
+                .wordWrap = true,
+                .textWidth = avl_width);
+}
+
 LPCRECT SCR_LayoutRect(LPCUIFRAME frame) {
     if (runtimes[frame->number].calculated) {
         return &runtimes[frame->number].rect;
@@ -135,14 +148,16 @@ LPCRECT SCR_LayoutRect(LPCUIFRAME frame) {
     }
     VECTOR2 elemsize;
     size2_t imagesize;
+    FLOAT avl_space = 9999;
+    DRAWTEXT drawtext;
     switch (frame->flags.type) {
         case FT_STRING:
         case FT_TEXT:
-            elemsize =
-            re.GetTextSize(&MAKE(DRAWTEXT,
-                                 .font = cl.fonts[frame->font.index],
-                                 .text = SCR_GetStringValue(frame),
-                                 .textWidth = 9999));
+            if (frame->size.width > 0) {
+                avl_space = frame->size.width / (float)UI_SCALE;
+            }
+            drawtext = get_drawtext(frame, avl_space, SCR_GetStringValue(frame));
+            elemsize = re.GetTextSize(&drawtext);
             elemsize.x *= UI_SCALE;
             elemsize.y *= UI_SCALE;
             break;
@@ -179,8 +194,8 @@ void SCR_DrawStatusbar(LPCUIFRAME frame, LPCRECT screen) {
     RECT screen2 = *screen;
     RECT uv2 = uv;
 //    if (frame->stat > 0 ) {
-//        screen2.w *= cl.playerstate.unit_stats[frame->stat] / (float)255;
-//        uv2.w *= cl.playerstate.unit_stats[frame->stat] / (float)255;
+//        screen2.w *= cl.playerstate.unit_stats[frame->stat] / (FLOAT)255;
+//        uv2.w *= cl.playerstate.unit_stats[frame->stat] / (FLOAT)255;
 //    } else {
         screen2.w *= frame->value;
         uv2.w *= frame->value;
@@ -200,19 +215,6 @@ void SCR_DrawTexture(LPCUIFRAME frame, LPCRECT screen) {
 }
 
 typedef enum {
-    BACKDROP_TOP_LEFT_CORNER,
-    BACKDROP_TOP_EDGE,
-    BACKDROP_TOP_RIGHT_CORNER,
-    BACKDROP_LEFT_EDGE,
-    BACKDROP_CENTER,
-    BACKDROP_RIGHT_EDGE,
-    BACKDROP_BOTTOM_LEFT_CORNER,
-    BACKDROP_BOTTOM_EDGE,
-    BACKDROP_BOTTOM_RIGHT_CORNER,
-    BACKDROP_SIZE,
-} BACKDROPCORNER;
-
-typedef enum {
     BACKDROPINSET_RIGHT,
     BACKDROPINSET_TOP,
     BACKDROPINSET_BOTTOM,
@@ -221,9 +223,9 @@ typedef enum {
 
 #define NUM_BACKDROP_CORNERS 8
 
-void get_rects(LPCRECT screen, LPRECT rects, float corner_size) {
-    float x[] = { 0, corner_size, screen->w - corner_size, screen->w };
-    float y[] = { 0, corner_size, screen->h - corner_size, screen->h };
+void backdrop_rects(LPCRECT screen, LPRECT rects, FLOAT corner_size) {
+    FLOAT x[] = { 0, corner_size, screen->w - corner_size, screen->w };
+    FLOAT y[] = { 0, corner_size, screen->h - corner_size, screen->h };
     FOR_LOOP(i, BACKDROP_SIZE) {
         rects[i].x = screen->x + x[i % 3];
         rects[i].y = screen->y + y[i / 3];
@@ -232,9 +234,30 @@ void get_rects(LPCRECT screen, LPRECT rects, float corner_size) {
     }
 }
 
+FLOAT backdrop_edge_tile(LPCRECT rect, BACKDROPCORNER edge, FLOAT imagesize) {
+    switch (edge) {
+        case BACKDROP_LEFT_EDGE:
+        case BACKDROP_RIGHT_EDGE:
+            return ceil(rect->h / imagesize);
+        case BACKDROP_TOP_EDGE:
+        case BACKDROP_BOTTOM_EDGE:
+            return ceil(rect->w / imagesize);
+        default:
+            return 1;
+    }
+}
+
+BOOL backdrop_edge_flip(BACKDROPCORNER edge) {
+    switch (edge) {
+        case BACKDROP_TOP_EDGE:
+        case BACKDROP_BOTTOM_EDGE:
+            return true;
+        default:
+            return false;
+    }
+}
+
 void SCR_DrawBackdrop(LPCUIFRAME frame, LPCRECT screen) {
-    RECT const uv = { 0, 0, 1, 1};
-    
     BACKDROPCORNER const corners[NUM_BACKDROP_CORNERS] = {
         BACKDROP_LEFT_EDGE,
         BACKDROP_RIGHT_EDGE,
@@ -246,7 +269,7 @@ void SCR_DrawBackdrop(LPCUIFRAME frame, LPCRECT screen) {
         BACKDROP_BOTTOM_RIGHT_CORNER,
     };
     
-    UINAME CornerFlags;// "UL|UR|BL|BR|T|L|B|R",
+    LONG CornerFlags;
     LONG TileBackground;
     LONG Background;
     LONG CornerSize;
@@ -255,10 +278,8 @@ void SCR_DrawBackdrop(LPCUIFRAME frame, LPCRECT screen) {
     LONG EdgeFile;//  "EscMenuBorder",
     LONG BlendAll;
     
-    memset(CornerFlags, 0, sizeof(UINAME));
-    memcpy(CornerFlags, frame->text, strchr(frame->text, ',') - frame->text);
-    
-    sscanf(strchr(frame->text, ',') + 1, "%d,%d,%d,%d,%d %d %d %d,%d,%d,",
+    sscanf(frame->text, "%d,%d,%d,%d,%d,%d %d %d %d,%d,%d,",
+           &CornerFlags,
            &TileBackground,
            &Background,
            &CornerSize,
@@ -271,12 +292,22 @@ void SCR_DrawBackdrop(LPCUIFRAME frame, LPCRECT screen) {
            &BlendAll);
     
     RECT rects[BACKDROP_SIZE];
-    get_rects(screen, rects, CornerSize / (float)UI_SCALE);
+    backdrop_rects(screen, rects, CornerSize / (FLOAT)UI_SCALE);
+    
+    size2_t backSize = re.GetTextureSize(cl.pics[Background]);
+    size2_t edgeSize = re.GetTextureSize(cl.pics[EdgeFile]);
     
     FOR_LOOP(i, NUM_BACKDROP_CORNERS) {
+        if ((CornerFlags & (1 << corners[i])) == 0)
+            continue;
         FLOAT const k = 1.0 / NUM_BACKDROP_CORNERS;
-        RECT const rect = { i * k, 0, k, 1 };
-        BOOL const flip = (corners[i] == BACKDROP_TOP_EDGE || corners[i] == BACKDROP_BOTTOM_EDGE);
+        FLOAT const h = edgeSize.height / 1000.f;
+        FLOAT const tile = backdrop_edge_tile(rects+corners[i], corners[i], h);
+        if (tile > 100) {
+            backdrop_edge_tile(rects+corners[i], corners[i], h);
+        }
+        BOOL const flip = backdrop_edge_flip(corners[i]);
+        RECT const rect = { i * k, 0, k, tile };
         re.DrawImageEx(&MAKE(DRAWIMAGE,
                              .texture = cl.pics[EdgeFile],
                              .screen = rects[corners[i]],
@@ -286,13 +317,18 @@ void SCR_DrawBackdrop(LPCUIFRAME frame, LPCRECT screen) {
                              .shader = SHADER_UI));
     }
     
+    RECT uv = { 0, 0, 1, 1};
     RECT background = *screen;
-    background.x += BackgroundInsets[BACKDROPINSET_LEFT] / (float)UI_SCALE;
-    background.y += BackgroundInsets[BACKDROPINSET_TOP] / (float)UI_SCALE;
-    background.w -= BackgroundInsets[BACKDROPINSET_LEFT] / (float)UI_SCALE;
-    background.w -= BackgroundInsets[BACKDROPINSET_RIGHT] / (float)UI_SCALE;
-    background.h -= BackgroundInsets[BACKDROPINSET_TOP] / (float)UI_SCALE;
-    background.h -= BackgroundInsets[BACKDROPINSET_BOTTOM] / (float)UI_SCALE;
+    background.x += BackgroundInsets[BACKDROPINSET_LEFT] / (FLOAT)UI_SCALE;
+    background.y += BackgroundInsets[BACKDROPINSET_TOP] / (FLOAT)UI_SCALE;
+    background.w -= BackgroundInsets[BACKDROPINSET_LEFT] / (FLOAT)UI_SCALE;
+    background.w -= BackgroundInsets[BACKDROPINSET_RIGHT] / (FLOAT)UI_SCALE;
+    background.h -= BackgroundInsets[BACKDROPINSET_TOP] / (FLOAT)UI_SCALE;
+    background.h -= BackgroundInsets[BACKDROPINSET_BOTTOM] / (FLOAT)UI_SCALE;
+    if (TileBackground) {
+        uv.w = background.w / (backSize.width / 1000.f);
+        uv.h = background.h / (backSize.height / 1000.f);
+    }
     re.DrawImage(cl.pics[Background], &background, &uv, frame->color);
 }
 
@@ -312,7 +348,7 @@ void SCR_DrawBuildQueue(LPCUIFRAME frame, LPCRECT scrn) {
             continue;
         } else if (!first_item) {
             re.DrawImage(cl.pics[img], &screen, &uv, frame->color);
-            screen.x += (float)offset_x / (float)UI_SCALE;
+            screen.x += (FLOAT)offset_x / (FLOAT)UI_SCALE;
         }
         first_item = false;
     }
@@ -352,8 +388,8 @@ void SCR_DrawMultiSelect(LPCUIFRAME frame, LPCRECT scrn) {
         sscanf(token, "%x %x", &img, &nument);
         re.DrawImage(cl.pics[img], &screen, &uv, frame->color);
         if (nument < MAX_CLIENT_ENTITIES) {
-            float health = BYTE2FLOAT(cl.ents[nument].current.stats[ENT_HEALTH]);
-            float mana = BYTE2FLOAT(cl.ents[nument].current.stats[ENT_MANA]);
+            FLOAT health = BYTE2FLOAT(cl.ents[nument].current.stats[ENT_HEALTH]);
+            FLOAT mana = BYTE2FLOAT(cl.ents[nument].current.stats[ENT_MANA]);
             RECT rect = {
                 screen.x,
                 screen.y + screen.h * (1 + HP_BAR_SPACING_RATIO),
@@ -370,9 +406,9 @@ void SCR_DrawMultiSelect(LPCUIFRAME frame, LPCRECT scrn) {
         if (++column >= columns) {
             column = 0;
             screen.x = Rect_div(SCR_LayoutRect(frame), UI_SCALE).x;
-            screen.y += (float)offset_y / (float)UI_SCALE;
+            screen.y += (FLOAT)offset_y / (FLOAT)UI_SCALE;
         } else {
-            screen.x += (float)offset_x / (float)UI_SCALE;
+            screen.x += (FLOAT)offset_x / (FLOAT)UI_SCALE;
         }
     }
 }
@@ -415,30 +451,18 @@ void SCR_DrawCommandButton(LPCUIFRAME frame, LPCRECT screen) {
                          .uActiveGlow = selentity ? selentity->ability == frame->font.index : 0));
 }
 
-DRAWTEXT get_drawtext(LPCUIFRAME frame, FLOAT avl_width, LPCSTR text) {
-    return MAKE(DRAWTEXT,
-                .font = cl.fonts[frame->font.index],
-                .text = text,
-                .color = frame->color,
-                .halign = frame->flags.textalignx,
-                .valign = frame->flags.textaligny,
-                .icons = cl.pics,
-                .lineHeight = 1.33,
-                .textWidth = avl_width);
-}
-
-void layout_text(LPCUIFRAME frame, LPCRECT screen, LPCSTR text, bool wordWrap) {
+void layout_text(LPCUIFRAME frame, LPCRECT screen, LPCSTR text) {
     DRAWTEXT drawtext = get_drawtext(frame, screen->w, text);
     drawtext.rect = *screen;
-    drawtext.wordWrap = wordWrap;
+    drawtext.wordWrap = true;
     re.DrawText(&drawtext);
 }
 
 void SCR_DrawString(LPCUIFRAME frame, LPCRECT screen) {
-    layout_text(frame, screen, SCR_GetStringValue(frame), false);
+    layout_text(frame, screen, SCR_GetStringValue(frame));
 }
 
-RECT Rect_inset(LPCRECT r, float inset) {
+RECT Rect_inset(LPCRECT r, FLOAT inset) {
     return MAKE(RECT,r->x+inset,r->y+inset,r->w-inset*2,r->h-inset*2);
 }
 
@@ -454,7 +478,7 @@ void SCR_DrawTooltip(LPCUIFRAME frame, LPCRECT scrn) {
         screen.h = textsize.y;
         RECT text = Rect_inset(&screen, PADDING);
         SCR_DrawBackdrop(frame, &screen);
-        layout_text(frame, &text, active_tooltip, true);
+        layout_text(frame, &text, active_tooltip);
     }
 }
 
@@ -493,7 +517,7 @@ void SCR_UpdateCommandButton(LPCUIFRAME frame, LPCRECT screen) {
 }
 
 typedef struct {
-    uiFrameType_t type;
+    FRAMETYPE type;
     void (*func)(LPCUIFRAME, LPCRECT);
 } drawer_t;
 
@@ -577,6 +601,8 @@ void SCR_UpdateScreen(void) {
     SCR_DrawOverlays();
 
     CON_DrawConsole();
+    
+//    if (cl.pics[28]) re.DrawPic(cl.pics[28], 0, 0);
     
     re.EndFrame();
 }

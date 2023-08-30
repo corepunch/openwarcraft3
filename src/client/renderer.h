@@ -13,11 +13,6 @@ typedef enum {
     SHADER_COUNT,
 } SHADERTYPE;
 
-enum {
-    RDF_NOWORLDMODEL = 1,
-    RDF_NOFRUSTUMCULL = 2,
-};
-
 typedef struct {
     HANDLE (*FileOpen)(LPCSTR fileName);
     bool (*FileExtract)(LPCSTR toExtract, LPCSTR extracted);
@@ -38,7 +33,7 @@ typedef struct {
 typedef struct {
     VECTOR3 origin;
     VECTOR3 eye;
-    VECTOR3 viewangles;
+    QUATERNION viewquat;
     float distance;
     float fov;
     float znear;
@@ -123,6 +118,7 @@ typedef struct {
     void (*DrawText)(LPCDRAWTEXT drawText);
     VECTOR2 (*GetTextSize)(LPCDRAWTEXT drawText);
 
+    FLOAT (*GetHeightAtPoint)(float x, float y);
     bool (*TraceEntity)(viewDef_t const *viewdef, float x, float y, LPDWORD number);
     bool (*TraceLocation)(viewDef_t const *viewdef, float x, float y, LPVECTOR3 point);
     DWORD (*EntitiesInRect)(viewDef_t const *viewdef, LPCRECT rect, DWORD max, LPDWORD array);

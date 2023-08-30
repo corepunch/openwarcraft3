@@ -5,6 +5,9 @@
 #include "api_leaderboard.h"
 #include "api_destructable.h"
 #include "api_sound.h"
+#include "api_trigger.h"
+#include "api_group.h"
+#include "api_math.h"
 
 JASSMODULE jass_funcs[] = {
     { "ConvertRace", ConvertRace },

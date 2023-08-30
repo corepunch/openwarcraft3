@@ -17,10 +17,10 @@
 
 static void Init_SimpleProgressIndicator(void) {
     UI_FRAME(SimpleProgressIndicator);
-    SimpleProgressIndicator->f.size.width = INFO_PANEL_UNIT_DETAIL_WIDTH;
-    SimpleProgressIndicator->f.tex.index = UI_LoadTexture("SimpleXpBarConsole", true);
-    SimpleProgressIndicator->f.tex.index2 = UI_LoadTexture("SimpleXpBarBorder", true);
-    SimpleProgressIndicator->f.color = MAKE(COLOR32,160,0,160,255);
+    SimpleProgressIndicator->Width = INFO_PANEL_UNIT_DETAIL_WIDTH;
+    UI_SetTexture(SimpleProgressIndicator, "SimpleXpBarConsole", true);
+    UI_SetTexture2(SimpleProgressIndicator, "SimpleXpBarBorder", true);
+    SimpleProgressIndicator->Color = MAKE(COLOR32,160,0,160,255);
     UI_WriteFrameWithChildren(SimpleProgressIndicator);
 }
 
@@ -88,7 +88,7 @@ static void Init_BuildQueue(LPFRAMEDEF infoPanel, LPEDICT unit) {
 
     UI_CHILD_VALUE(SimpleBuildQueueBackdrop, infoPanel, Hidden, M_GetCurrentMove(unit)->think == ai_birth);
 
-    sprintf(configstring, "%x %x %x,", firstItem.f.number, SimpleBuildTimeIndicator->f.number, BUILDQUEUE_OFFSET);
+    sprintf(configstring, "%x %x %x,", firstItem.Number, SimpleBuildTimeIndicator->Number, BUILDQUEUE_OFFSET);
     for (LPEDICT queue = unit->build; queue; queue = queue->build) {
         LPCSTR buttonClassName = GetClassName(queue->class_id);
         LPCSTR buttonArt = FindConfigValue(buttonClassName, STR_ART);
@@ -228,9 +228,9 @@ void UI_AddCommandButton(LPCSTR code) {
     UI_SetText(&button, code);
     UI_SetPointByNumber(&button, FRAMEPOINT_CENTER, UI_PARENT, FRAMEPOINT_BOTTOM, bx, by);
 //    button.f.tex.index2 = UI_LoadTexture("CommandButtonActiveHighlight", true);
-    button.f.tooltip = tooltip;
-    button.f.flags.alphaMode = x==0 && y==0;
-    button.f.font.index = FindAbilityIndex(code);
+    button.Tooltip = tooltip;
+    button.AlphaMode = x==0 && y==0;
+    button.Font.Index = FindAbilityIndex(code);
     UI_WriteFrame(&button);
 }
 
@@ -238,9 +238,9 @@ void ui_portrait(LPGAMECLIENT client) {
     LPEDICT ent = G_GetMainSelectedUnit(client);
     FRAMEDEF portrait;
     UI_InitFrame(&portrait, COMMAND_BUTTON_START, FT_PORTRAIT);
-    portrait.f.tex.index = ent->s.model;
-    portrait.f.size.width = 800;
-    portrait.f.size.height = 800;
+    portrait.Portrait.model = ent->s.model;
+    portrait.Width = 800;
+    portrait.Height = 800;
     UI_SetPointByNumber(&portrait, FRAMEPOINT_BOTTOMLEFT, UI_PARENT, FRAMEPOINT_BOTTOMLEFT, 2150, 300);
     UI_WriteFrame(&portrait);
 }
@@ -306,9 +306,9 @@ void Init_SimpleInfoPanelMultiselect(LPGAMECLIENT client) {
         sprintf(config + strlen(config), "%x %x,", gi.ImageIndex(art), ent->s.number);
     }
     
-    multiselect.f.text = config;
-    multiselect.f.size.width = 250;
-    multiselect.f.size.height = 250;
+    multiselect.Text = config;
+    multiselect.Width = 250;
+    multiselect.Height = 250;
     
     UI_SetPointByNumber(&multiselect,
                         FRAMEPOINT_CENTER,
@@ -353,4 +353,18 @@ void Get_Commands_f(LPEDICT edict) {
 void UI_AddCancelButton(LPEDICT ent) {
     UI_WriteLayout2(ent, ui_cancel_only, LAYER_COMMANDBAR);
     memset(&ent->client->menu, 0, sizeof(menu_t));
+}
+
+void UI_ShowInterface(LPEDICT ent, BOOL flag, FLOAT fadeDuration) {
+    if (flag) {
+        UI_FRAME(ConsoleUI);
+        UI_WriteLayout(ent, ConsoleUI, LAYER_CONSOLE);
+    } else {
+        UI_FRAME(CinematicPanel);
+        UI_FRAME(CinematicSpeakerText);
+        UI_FRAME(CinematicDialogueText);
+        CinematicSpeakerText->hidden = true;
+        CinematicDialogueText->hidden = true;
+        UI_WriteLayout(ent, CinematicPanel, LAYER_CONSOLE);
+    }
 }

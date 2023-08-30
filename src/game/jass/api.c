@@ -1,5 +1,7 @@
 #include "api.h"
 
+extern LPCMAPPLAYER currentplayer;
+
 DWORD class_id(LPCSTR str) { return *(DWORD *)str; }
 
 #define CONVERT_FUNC(NAME, STR) \
@@ -274,356 +276,54 @@ DWORD ResumeTimer(LPJASS j) {
 DWORD GetExpiredTimer(LPJASS j) {
     return jass_pushhandle(j, 0, "timer");
 }
-DWORD CreateGroup(LPJASS j) {
-    API_ALLOC(ggroup_t, value);
-    return jass_pushhandle(j, value, "group");
-}
-DWORD GroupAddUnit(LPJASS j) {
-    ggroup_t *whichGroup = jass_checkhandle(j, 1, "group");
-    LPEDICT whichUnit = jass_checkhandle(j, 2, "unit");
-    whichGroup->units[whichGroup->num_units++] = whichUnit;
-    return 0;
-}
-DWORD GroupRemoveUnit(LPJASS j) {
-    ggroup_t *whichGroup = jass_checkhandle(j, 1, "group");
-    LPEDICT whichUnit = jass_checkhandle(j, 2, "unit");
-    FOR_LOOP(i, whichGroup->num_units) {
-        if (whichGroup->units[i] == whichUnit) {
-            for (DWORD j = i; j < whichGroup->num_units - 1; j++) {
-                whichGroup->units[j] = whichGroup->units[j + 1];
-            }
-            whichGroup->num_units--;
-            return 0;
-        }
-    }
-    return 0;
-}
-DWORD GroupClear(LPJASS j) {
-    ggroup_t *whichGroup = jass_checkhandle(j, 1, "group");
-    whichGroup->num_units = 0;
-    return 0;
-}
-DWORD GroupEnumUnitsOfType(LPJASS j) {
-    //HANDLE whichGroup = jass_checkhandle(j, 1, "group");
-    //LPCSTR unitname = jass_checkstring(j, 2);
-    //HANDLE filter = jass_checkhandle(j, 3, "boolexpr");
-    return 0;
-}
-DWORD GroupEnumUnitsOfPlayer(LPJASS j) {
-    //HANDLE whichGroup = jass_checkhandle(j, 1, "group");
-    //HANDLE whichPlayer = jass_checkhandle(j, 2, "player");
-    //HANDLE filter = jass_checkhandle(j, 3, "boolexpr");
-    return 0;
-}
-DWORD GroupEnumUnitsOfTypeCounted(LPJASS j) {
-    //HANDLE whichGroup = jass_checkhandle(j, 1, "group");
-    //LPCSTR unitname = jass_checkstring(j, 2);
-    //HANDLE filter = jass_checkhandle(j, 3, "boolexpr");
-    //LONG countLimit = jass_checkinteger(j, 4);
-    return 0;
-}
-DWORD GroupEnumUnitsInRect(LPJASS j) {
-    //HANDLE whichGroup = jass_checkhandle(j, 1, "group");
-    //HANDLE r = jass_checkhandle(j, 2, "rect");
-    //HANDLE filter = jass_checkhandle(j, 3, "boolexpr");
-    return 0;
-}
-DWORD GroupEnumUnitsInRectCounted(LPJASS j) {
-    //HANDLE whichGroup = jass_checkhandle(j, 1, "group");
-    //HANDLE r = jass_checkhandle(j, 2, "rect");
-    //HANDLE filter = jass_checkhandle(j, 3, "boolexpr");
-    //LONG countLimit = jass_checkinteger(j, 4);
-    return 0;
-}
-DWORD GroupEnumUnitsInRange(LPJASS j) {
-    //HANDLE whichGroup = jass_checkhandle(j, 1, "group");
-    //FLOAT x = jass_checknumber(j, 2);
-    //FLOAT y = jass_checknumber(j, 3);
-    //FLOAT radius = jass_checknumber(j, 4);
-    //HANDLE filter = jass_checkhandle(j, 5, "boolexpr");
-    return 0;
-}
-DWORD GroupEnumUnitsInRangeOfLoc(LPJASS j) {
-    //HANDLE whichGroup = jass_checkhandle(j, 1, "group");
-    //HANDLE whichLocation = jass_checkhandle(j, 2, "location");
-    //FLOAT radius = jass_checknumber(j, 3);
-    //HANDLE filter = jass_checkhandle(j, 4, "boolexpr");
-    return 0;
-}
-DWORD GroupEnumUnitsInRangeCounted(LPJASS j) {
-    //HANDLE whichGroup = jass_checkhandle(j, 1, "group");
-    //FLOAT x = jass_checknumber(j, 2);
-    //FLOAT y = jass_checknumber(j, 3);
-    //FLOAT radius = jass_checknumber(j, 4);
-    //HANDLE filter = jass_checkhandle(j, 5, "boolexpr");
-    //LONG countLimit = jass_checkinteger(j, 6);
-    return 0;
-}
-DWORD GroupEnumUnitsInRangeOfLocCounted(LPJASS j) {
-    //HANDLE whichGroup = jass_checkhandle(j, 1, "group");
-    //HANDLE whichLocation = jass_checkhandle(j, 2, "location");
-    //FLOAT radius = jass_checknumber(j, 3);
-    //HANDLE filter = jass_checkhandle(j, 4, "boolexpr");
-    //LONG countLimit = jass_checkinteger(j, 5);
-    return 0;
-}
-DWORD GroupEnumUnitsSelected(LPJASS j) {
-    //HANDLE whichGroup = jass_checkhandle(j, 1, "group");
-    //HANDLE whichPlayer = jass_checkhandle(j, 2, "player");
-    //HANDLE filter = jass_checkhandle(j, 3, "boolexpr");
-    return 0;
-}
-DWORD GroupImmediateOrder(LPJASS j) {
-    //HANDLE whichGroup = jass_checkhandle(j, 1, "group");
-    //LPCSTR order = jass_checkstring(j, 2);
-    return jass_pushboolean(j, 0);
-}
-DWORD GroupImmediateOrderById(LPJASS j) {
-    //HANDLE whichGroup = jass_checkhandle(j, 1, "group");
-    //LONG order = jass_checkinteger(j, 2);
-    return jass_pushboolean(j, 0);
-}
-DWORD GroupPointOrder(LPJASS j) {
-    //HANDLE whichGroup = jass_checkhandle(j, 1, "group");
-    //LPCSTR order = jass_checkstring(j, 2);
-    //FLOAT x = jass_checknumber(j, 3);
-    //FLOAT y = jass_checknumber(j, 4);
-    return jass_pushboolean(j, 0);
-}
-DWORD GroupPointOrderLoc(LPJASS j) {
-    //HANDLE whichGroup = jass_checkhandle(j, 1, "group");
-    //LPCSTR order = jass_checkstring(j, 2);
-    //HANDLE whichLocation = jass_checkhandle(j, 3, "location");
-    return jass_pushboolean(j, 0);
-}
-DWORD GroupPointOrderById(LPJASS j) {
-    //HANDLE whichGroup = jass_checkhandle(j, 1, "group");
-    //LONG order = jass_checkinteger(j, 2);
-    //FLOAT x = jass_checknumber(j, 3);
-    //FLOAT y = jass_checknumber(j, 4);
-    return jass_pushboolean(j, 0);
-}
-DWORD GroupPointOrderByIdLoc(LPJASS j) {
-    //HANDLE whichGroup = jass_checkhandle(j, 1, "group");
-    //LONG order = jass_checkinteger(j, 2);
-    //HANDLE whichLocation = jass_checkhandle(j, 3, "location");
-    return jass_pushboolean(j, 0);
-}
-DWORD GroupTargetOrder(LPJASS j) {
-    //HANDLE whichGroup = jass_checkhandle(j, 1, "group");
-    //LPCSTR order = jass_checkstring(j, 2);
-    //HANDLE targetWidget = jass_checkhandle(j, 3, "widget");
-    return jass_pushboolean(j, 0);
-}
-DWORD GroupTargetOrderById(LPJASS j) {
-    //HANDLE whichGroup = jass_checkhandle(j, 1, "group");
-    //LONG order = jass_checkinteger(j, 2);
-    //HANDLE targetWidget = jass_checkhandle(j, 3, "widget");
-    return jass_pushboolean(j, 0);
-}
-DWORD ForGroup(LPJASS j) {
-    //HANDLE whichGroup = jass_checkhandle(j, 1, "group");
-    //LPCSTR callback = jass_checkcode(j, 2);
-    return 0;
-}
-DWORD FirstOfGroup(LPJASS j) {
-    //HANDLE whichGroup = jass_checkhandle(j, 1, "group");
-    return jass_pushhandle(j, 0, "unit");
-}
 DWORD CreateForce(LPJASS j) {
-    return jass_pushhandle(j, 0, "force");
+    API_ALLOC(DWORD, value);
+    return jass_pushhandle(j, value, "force");
 }
 DWORD ForceAddPlayer(LPJASS j) {
-    //HANDLE whichForce = jass_checkhandle(j, 1, "force");
-    //HANDLE whichPlayer = jass_checkhandle(j, 2, "player");
+    LPDWORD whichForce = jass_checkhandle(j, 1, "force");
+    LPMAPPLAYER whichPlayer = jass_checkhandle(j, 2, "player");
+    *whichForce |= 1 << PLAYER_NUM(whichPlayer);
     return 0;
 }
 DWORD ForceRemovePlayer(LPJASS j) {
-    //HANDLE whichForce = jass_checkhandle(j, 1, "force");
-    //HANDLE whichPlayer = jass_checkhandle(j, 2, "player");
+    LPDWORD whichForce = jass_checkhandle(j, 1, "force");
+    LPMAPPLAYER whichPlayer = jass_checkhandle(j, 2, "player");
+    *whichForce &= ~(1 << PLAYER_NUM(whichPlayer));
     return 0;
 }
 DWORD ForceClear(LPJASS j) {
-    //HANDLE whichForce = jass_checkhandle(j, 1, "force");
+    LPDWORD whichForce = jass_checkhandle(j, 1, "force");
+    *whichForce = 0;
     return 0;
 }
 DWORD ForceEnumPlayers(LPJASS j) {
-    //HANDLE whichForce = jass_checkhandle(j, 1, "force");
+    //LPDWORD whichForce = jass_checkhandle(j, 1, "force");
     //HANDLE filter = jass_checkhandle(j, 2, "boolexpr");
     return 0;
 }
 DWORD ForceEnumPlayersCounted(LPJASS j) {
-    //HANDLE whichForce = jass_checkhandle(j, 1, "force");
+    //LPDWORD whichForce = jass_checkhandle(j, 1, "force");
     //HANDLE filter = jass_checkhandle(j, 2, "boolexpr");
     //LONG countLimit = jass_checkinteger(j, 3);
     return 0;
 }
 DWORD ForceEnumAllies(LPJASS j) {
-    //HANDLE whichForce = jass_checkhandle(j, 1, "force");
-    //HANDLE whichPlayer = jass_checkhandle(j, 2, "player");
+    //LPDWORD whichForce = jass_checkhandle(j, 1, "force");
+    //LPMAPPLAYER whichPlayer = jass_checkhandle(j, 2, "player");
     //HANDLE filter = jass_checkhandle(j, 3, "boolexpr");
     return 0;
 }
 DWORD ForceEnumEnemies(LPJASS j) {
-    //HANDLE whichForce = jass_checkhandle(j, 1, "force");
-    //HANDLE whichPlayer = jass_checkhandle(j, 2, "player");
+    //LPDWORD whichForce = jass_checkhandle(j, 1, "force");
+    //LPMAPPLAYER whichPlayer = jass_checkhandle(j, 2, "player");
     //HANDLE filter = jass_checkhandle(j, 3, "boolexpr");
     return 0;
 }
 DWORD ForForce(LPJASS j) {
-    //HANDLE whichForce = jass_checkhandle(j, 1, "force");
+    //LPDWORD whichForce = jass_checkhandle(j, 1, "force");
     //LPCSTR callback = jass_checkcode(j, 2);
     return 0;
-}
-DWORD Rect(LPJASS j) {
-    FLOAT minx = jass_checknumber(j, 1);
-    FLOAT miny = jass_checknumber(j, 2);
-    FLOAT maxx = jass_checknumber(j, 3);
-    FLOAT maxy = jass_checknumber(j, 4);
-    API_ALLOC(RECT, rect);
-    rect->x = minx;
-    rect->y = miny;
-    rect->w = maxx - minx;
-    rect->h = maxy - miny;
-    return jass_pushhandle(j, rect, "rect");
-}
-DWORD RectFromLoc(LPJASS j) {
-    LPCVECTOR2 min = jass_checkhandle(j, 1, "location");
-    LPCVECTOR2 max = jass_checkhandle(j, 2, "location");
-    API_ALLOC(RECT, rect);
-    rect->x = min->x;
-    rect->y = min->y;
-    rect->w = max->x - min->x;
-    rect->h = max->y - min->y;
-    return jass_pushhandle(j, rect, "rect");
-}
-DWORD RemoveRect(LPJASS j) {
-    //HANDLE whichRect = jass_checkhandle(j, 1, "rect");
-    return 0;
-}
-DWORD SetRect(LPJASS j) {
-    LPRECT whichRect = jass_checkhandle(j, 1, "rect");
-    FLOAT minx = jass_checknumber(j, 2);
-    FLOAT miny = jass_checknumber(j, 3);
-    FLOAT maxx = jass_checknumber(j, 4);
-    FLOAT maxy = jass_checknumber(j, 5);
-    whichRect->x = minx;
-    whichRect->y = miny;
-    whichRect->w = maxx - minx;
-    whichRect->h = maxy - miny;
-    return 0;
-}
-DWORD SetRectFromLoc(LPJASS j) {
-    LPRECT whichRect = jass_checkhandle(j, 1, "rect");
-    LPCVECTOR2 min = jass_checkhandle(j, 2, "location");
-    LPCVECTOR2 max = jass_checkhandle(j, 3, "location");
-    whichRect->x = min->x;
-    whichRect->y = min->y;
-    whichRect->w = max->x - min->x;
-    whichRect->h = max->y - min->y;
-    return 0;
-}
-DWORD MoveRectTo(LPJASS j) {
-    LPRECT whichRect = jass_checkhandle(j, 1, "rect");
-    FLOAT newCenterX = jass_checknumber(j, 2);
-    FLOAT newCenterY = jass_checknumber(j, 3);
-    whichRect->x += newCenterX - Rect_center(whichRect).x;
-    whichRect->y += newCenterY - Rect_center(whichRect).y;
-    return 0;
-}
-DWORD MoveRectToLoc(LPJASS j) {
-    LPRECT whichRect = jass_checkhandle(j, 1, "rect");
-    LPCVECTOR2 newCenterLoc = jass_checkhandle(j, 2, "location");
-    whichRect->x += newCenterLoc->x - Rect_center(whichRect).x;
-    whichRect->y += newCenterLoc->y - Rect_center(whichRect).y;
-    return 0;
-}
-DWORD GetRectCenterX(LPJASS j) {
-    LPCRECT whichRect = jass_checkhandle(j, 1, "rect");
-    return jass_pushnumber(j, Rect_center(whichRect).x);
-}
-DWORD GetRectCenterY(LPJASS j) {
-    LPCRECT whichRect = jass_checkhandle(j, 1, "rect");
-    return jass_pushnumber(j, Rect_center(whichRect).y);
-}
-DWORD GetRectMinX(LPJASS j) {
-    LPCRECT whichRect = jass_checkhandle(j, 1, "rect");
-    return jass_pushnumber(j, whichRect->x);
-}
-DWORD GetRectMinY(LPJASS j) {
-    LPCRECT whichRect = jass_checkhandle(j, 1, "rect");
-    return jass_pushnumber(j, whichRect->y);
-}
-DWORD GetRectMaxX(LPJASS j) {
-    LPCRECT whichRect = jass_checkhandle(j, 1, "rect");
-    return jass_pushnumber(j, whichRect->x + whichRect->w);
-}
-DWORD GetRectMaxY(LPJASS j) {
-    LPCRECT whichRect = jass_checkhandle(j, 1, "rect");
-    return jass_pushnumber(j, whichRect->y + whichRect->h);
-}
-DWORD CreateRegion(LPJASS j) {
-    return jass_pushhandle(j, 0, "region");
-}
-DWORD RemoveRegion(LPJASS j) {
-    //HANDLE whichRegion = jass_checkhandle(j, 1, "region");
-    return 0;
-}
-DWORD RegionAddRect(LPJASS j) {
-    //HANDLE whichRegion = jass_checkhandle(j, 1, "region");
-    //HANDLE r = jass_checkhandle(j, 2, "rect");
-    return 0;
-}
-DWORD RegionClearRect(LPJASS j) {
-    //HANDLE whichRegion = jass_checkhandle(j, 1, "region");
-    //HANDLE r = jass_checkhandle(j, 2, "rect");
-    return 0;
-}
-DWORD RegionAddCell(LPJASS j) {
-    //HANDLE whichRegion = jass_checkhandle(j, 1, "region");
-    //FLOAT x = jass_checknumber(j, 2);
-    //FLOAT y = jass_checknumber(j, 3);
-    return 0;
-}
-DWORD RegionAddCellAtLoc(LPJASS j) {
-    //HANDLE whichRegion = jass_checkhandle(j, 1, "region");
-    //HANDLE whichLocation = jass_checkhandle(j, 2, "location");
-    return 0;
-}
-DWORD RegionClearCell(LPJASS j) {
-    //HANDLE whichRegion = jass_checkhandle(j, 1, "region");
-    //FLOAT x = jass_checknumber(j, 2);
-    //FLOAT y = jass_checknumber(j, 3);
-    return 0;
-}
-DWORD RegionClearCellAtLoc(LPJASS j) {
-    //HANDLE whichRegion = jass_checkhandle(j, 1, "region");
-    //HANDLE whichLocation = jass_checkhandle(j, 2, "location");
-    return 0;
-}
-DWORD Location(LPJASS j) {
-    API_ALLOC(VECTOR2, location);
-    location->x = jass_checknumber(j, 1);
-    location->y = jass_checknumber(j, 2);
-    return jass_pushhandle(j, location, "location");
-}
-DWORD RemoveLocation(LPJASS j) {
-    //HANDLE whichLocation = jass_checkhandle(j, 1, "location");
-    return 0;
-}
-DWORD MoveLocation(LPJASS j) {
-    LPVECTOR2 whichLocation = jass_checkhandle(j, 1, "location");
-    whichLocation->x = jass_checknumber(j, 2);
-    whichLocation->y = jass_checknumber(j, 3);
-    return 0;
-}
-DWORD GetLocationX(LPJASS j) {
-    LPVECTOR2 whichLocation = jass_checkhandle(j, 1, "location");
-    return jass_pushnumber(j, whichLocation->x);
-}
-DWORD GetLocationY(LPJASS j) {
-    LPVECTOR2 whichLocation = jass_checkhandle(j, 1, "location");
-    return jass_pushnumber(j, whichLocation->y);
 }
 DWORD IsUnitInRegion(LPJASS j) {
     //HANDLE whichRegion = jass_checkhandle(j, 1, "region");
@@ -644,44 +344,12 @@ DWORD IsLocationInRegion(LPJASS j) {
 DWORD GetWorldBounds(LPJASS j) {
     return jass_pushhandle(j, 0, "rect");
 }
-DWORD CreateTrigger(LPJASS j) {
-    API_ALLOC(gtrigger_t, value);
-    return jass_pushhandle(j, value, "trigger");
-}
-DWORD DestroyTrigger(LPJASS j) {
-    //HANDLE whichTrigger = jass_checkhandle(j, 1, "trigger");
-    return 0;
-}
-DWORD ResetTrigger(LPJASS j) {
-    //HANDLE whichTrigger = jass_checkhandle(j, 1, "trigger");
-    return 0;
-}
-DWORD EnableTrigger(LPJASS j) {
-    //HANDLE whichTrigger = jass_checkhandle(j, 1, "trigger");
-    return 0;
-}
-DWORD DisableTrigger(LPJASS j) {
-    //HANDLE whichTrigger = jass_checkhandle(j, 1, "trigger");
-    return 0;
-}
-DWORD IsTriggerEnabled(LPJASS j) {
-    //HANDLE whichTrigger = jass_checkhandle(j, 1, "trigger");
-    return jass_pushboolean(j, 0);
-}
-DWORD TriggerWaitOnSleeps(LPJASS j) {
-    //HANDLE whichTrigger = jass_checkhandle(j, 1, "trigger");
-    //BOOL flag = jass_checkboolean(j, 2);
-    return 0;
-}
-DWORD IsTriggerWaitOnSleeps(LPJASS j) {
-    //HANDLE whichTrigger = jass_checkhandle(j, 1, "trigger");
-    return jass_pushboolean(j, 0);
-}
 DWORD GetFilterUnit(LPJASS j) {
     return jass_pushhandle(j, 0, "unit");
 }
 DWORD GetEnumUnit(LPJASS j) {
-    return jass_pushhandle(j, 0, "unit");
+    extern LPEDICT currentunit;
+    return jass_pushlighthandle(j, currentunit, "unit");
 }
 DWORD GetFilterDestructable(LPJASS j) {
     return jass_pushhandle(j, 0, "destructable");
@@ -694,20 +362,6 @@ DWORD GetFilterPlayer(LPJASS j) {
 }
 DWORD GetEnumPlayer(LPJASS j) {
     return jass_pushhandle(j, 0, "player");
-}
-DWORD GetTriggeringTrigger(LPJASS j) {
-    return jass_pushhandle(j, 0, "trigger");
-}
-DWORD GetTriggerEventId(LPJASS j) {
-    return jass_pushhandle(j, 0, "eventid");
-}
-DWORD GetTriggerEvalCount(LPJASS j) {
-    //HANDLE whichTrigger = jass_checkhandle(j, 1, "trigger");
-    return jass_pushinteger(j, 0);
-}
-DWORD GetTriggerExecCount(LPJASS j) {
-    //HANDLE whichTrigger = jass_checkhandle(j, 1, "trigger");
-    return jass_pushinteger(j, 0);
 }
 DWORD ExecuteFunc(LPJASS j) {
     //LPCSTR funcName = jass_checkstring(j, 1);
@@ -747,82 +401,17 @@ DWORD DestroyBoolExpr(LPJASS j) {
     //HANDLE e = jass_checkhandle(j, 1, "boolexpr");
     return 0;
 }
-DWORD TriggerRegisterVariableEvent(LPJASS j) {
-    //HANDLE whichTrigger = jass_checkhandle(j, 1, "trigger");
-    //LPCSTR varName = jass_checkstring(j, 2);
-    //HANDLE opcode = jass_checkhandle(j, 3, "limitop");
-    //FLOAT limitval = jass_checknumber(j, 4);
-    return jass_pushhandle(j, 0, "event");
-}
-DWORD TriggerRegisterTimerEvent(LPJASS j) {
-    //HANDLE whichTrigger = jass_checkhandle(j, 1, "trigger");
-    //FLOAT timeout = jass_checknumber(j, 2);
-    //BOOL periodic = jass_checkboolean(j, 3);
-    return jass_pushhandle(j, 0, "event");
-}
-DWORD TriggerRegisterTimerExpireEvent(LPJASS j) {
-    //HANDLE whichTrigger = jass_checkhandle(j, 1, "trigger");
-    //HANDLE t = jass_checkhandle(j, 2, "timer");
-    return jass_pushhandle(j, 0, "event");
-}
-DWORD TriggerRegisterGameStateEvent(LPJASS j) {
-    //HANDLE whichTrigger = jass_checkhandle(j, 1, "trigger");
-    //HANDLE whichState = jass_checkhandle(j, 2, "gamestate");
-    //HANDLE opcode = jass_checkhandle(j, 3, "limitop");
-    //FLOAT limitval = jass_checknumber(j, 4);
-    return jass_pushhandle(j, 0, "event");
-}
-DWORD TriggerRegisterDialogEvent(LPJASS j) {
-    //HANDLE whichTrigger = jass_checkhandle(j, 1, "trigger");
-    //HANDLE whichDialog = jass_checkhandle(j, 2, "dialog");
-    return jass_pushhandle(j, 0, "event");
-}
-DWORD TriggerRegisterDialogButtonEvent(LPJASS j) {
-    //HANDLE whichTrigger = jass_checkhandle(j, 1, "trigger");
-    //HANDLE whichButton = jass_checkhandle(j, 2, "button");
-    return jass_pushhandle(j, 0, "event");
-}
 DWORD GetEventGameState(LPJASS j) {
     return jass_pushhandle(j, 0, "gamestate");
-}
-DWORD TriggerRegisterGameEvent(LPJASS j) {
-    //HANDLE whichTrigger = jass_checkhandle(j, 1, "trigger");
-    //HANDLE whichGameEvent = jass_checkhandle(j, 2, "gameevent");
-    return jass_pushhandle(j, 0, "event");
 }
 DWORD GetWinningPlayer(LPJASS j) {
     return jass_pushhandle(j, 0, "player");
 }
-DWORD TriggerRegisterEnterRegion(LPJASS j) {
-    //HANDLE whichTrigger = jass_checkhandle(j, 1, "trigger");
-    //HANDLE whichRegion = jass_checkhandle(j, 2, "region");
-    //HANDLE filter = jass_checkhandle(j, 3, "boolexpr");
-    return jass_pushhandle(j, 0, "event");
-}
-DWORD GetTriggeringRegion(LPJASS j) {
-    return jass_pushhandle(j, 0, "region");
-}
 DWORD GetEnteringUnit(LPJASS j) {
     return jass_pushhandle(j, 0, "unit");
 }
-DWORD TriggerRegisterLeaveRegion(LPJASS j) {
-    //HANDLE whichTrigger = jass_checkhandle(j, 1, "trigger");
-    //HANDLE whichRegion = jass_checkhandle(j, 2, "region");
-    //HANDLE filter = jass_checkhandle(j, 3, "boolexpr");
-    return jass_pushhandle(j, 0, "event");
-}
 DWORD GetLeavingUnit(LPJASS j) {
     return jass_pushhandle(j, 0, "unit");
-}
-DWORD TriggerRegisterTrackableHitEvent(LPJASS j) {
-    //HANDLE whichTrigger = jass_checkhandle(j, 1, "trigger");
-    //HANDLE t = jass_checkhandle(j, 2, "trackable");
-    return jass_pushhandle(j, 0, "event");
-}
-DWORD TriggerRegisterTrackableTrackEvent(LPJASS j) {
-    //HANDLE whichTrigger = jass_checkhandle(j, 1, "trigger");
-    //HANDLE t = jass_checkhandle(j, 2, "trackable");
-    return jass_pushhandle(j, 0, "event");
 }
 DWORD GetTriggeringTrackable(LPJASS j) {
     return jass_pushhandle(j, 0, "trackable");
@@ -832,22 +421,6 @@ DWORD GetClickedButton(LPJASS j) {
 }
 DWORD GetClickedDialog(LPJASS j) {
     return jass_pushhandle(j, 0, "dialog");
-}
-DWORD TriggerRegisterPlayerEvent(LPJASS j) {
-    //HANDLE whichTrigger = jass_checkhandle(j, 1, "trigger");
-    //HANDLE whichPlayer = jass_checkhandle(j, 2, "player");
-    //HANDLE whichPlayerEvent = jass_checkhandle(j, 3, "playerevent");
-    return jass_pushhandle(j, 0, "event");
-}
-DWORD GetTriggerPlayer(LPJASS j) {
-    return jass_pushhandle(j, 0, "player");
-}
-DWORD TriggerRegisterPlayerUnitEvent(LPJASS j) {
-    //HANDLE whichTrigger = jass_checkhandle(j, 1, "trigger");
-    //HANDLE whichPlayer = jass_checkhandle(j, 2, "player");
-    //HANDLE whichPlayerUnitEvent = jass_checkhandle(j, 3, "playerunitevent");
-    //HANDLE filter = jass_checkhandle(j, 4, "boolexpr");
-    return jass_pushhandle(j, 0, "event");
 }
 DWORD GetLevelingUnit(LPJASS j) {
     return jass_pushhandle(j, 0, "unit");
@@ -951,29 +524,8 @@ DWORD GetOrderTargetItem(LPJASS j) {
 DWORD GetOrderTargetUnit(LPJASS j) {
     return jass_pushhandle(j, 0, "unit");
 }
-DWORD TriggerRegisterPlayerAllianceChange(LPJASS j) {
-    //HANDLE whichTrigger = jass_checkhandle(j, 1, "trigger");
-    //HANDLE whichPlayer = jass_checkhandle(j, 2, "player");
-    //HANDLE whichAlliance = jass_checkhandle(j, 3, "alliancetype");
-    return jass_pushhandle(j, 0, "event");
-}
-DWORD TriggerRegisterPlayerStateEvent(LPJASS j) {
-    //HANDLE whichTrigger = jass_checkhandle(j, 1, "trigger");
-    //HANDLE whichPlayer = jass_checkhandle(j, 2, "player");
-    //HANDLE whichState = jass_checkhandle(j, 3, "playerstate");
-    //HANDLE opcode = jass_checkhandle(j, 4, "limitop");
-    //FLOAT limitval = jass_checknumber(j, 5);
-    return jass_pushhandle(j, 0, "event");
-}
 DWORD GetEventPlayerState(LPJASS j) {
     return jass_pushhandle(j, 0, "playerstate");
-}
-DWORD TriggerRegisterPlayerChatEvent(LPJASS j) {
-    //HANDLE whichTrigger = jass_checkhandle(j, 1, "trigger");
-    //HANDLE whichPlayer = jass_checkhandle(j, 2, "player");
-    //LPCSTR chatMessageToDetect = jass_checkstring(j, 3);
-    //BOOL exactMatchOnly = jass_checkboolean(j, 4);
-    return jass_pushhandle(j, 0, "event");
 }
 DWORD GetEventPlayerChatString(LPJASS j) {
     return jass_pushstring(j, 0);
@@ -981,30 +533,8 @@ DWORD GetEventPlayerChatString(LPJASS j) {
 DWORD GetEventPlayerChatStringMatched(LPJASS j) {
     return jass_pushstring(j, 0);
 }
-DWORD TriggerRegisterDeathEvent(LPJASS j) {
-    //HANDLE whichTrigger = jass_checkhandle(j, 1, "trigger");
-    //HANDLE whichWidget = jass_checkhandle(j, 2, "widget");
-    return jass_pushhandle(j, 0, "event");
-}
-DWORD GetTriggerUnit(LPJASS j) {
-    return jass_pushhandle(j, 0, "unit");
-}
-DWORD TriggerRegisterUnitStateEvent(LPJASS j) {
-    //HANDLE whichTrigger = jass_checkhandle(j, 1, "trigger");
-    //HANDLE whichUnit = jass_checkhandle(j, 2, "unit");
-    //HANDLE whichState = jass_checkhandle(j, 3, "unitstate");
-    //HANDLE opcode = jass_checkhandle(j, 4, "limitop");
-    //FLOAT limitval = jass_checknumber(j, 5);
-    return jass_pushhandle(j, 0, "event");
-}
 DWORD GetEventUnitState(LPJASS j) {
     return jass_pushhandle(j, 0, "unitstate");
-}
-DWORD TriggerRegisterUnitEvent(LPJASS j) {
-    gtrigger_t *whichTrigger = jass_checkhandle(j, 1, "trigger");
-    LPEDICT whichUnit = jass_checkhandle(j, 2, "unit");
-    LPDWORD whichEvent = jass_checkhandle(j, 3, "unitevent");
-    return jass_pushhandle(j, 0, "event");
 }
 DWORD GetEventDamage(LPJASS j) {
     return jass_pushnumber(j, 0);
@@ -1012,79 +542,8 @@ DWORD GetEventDamage(LPJASS j) {
 DWORD GetEventDetectingPlayer(LPJASS j) {
     return jass_pushhandle(j, 0, "player");
 }
-DWORD TriggerRegisterFilterUnitEvent(LPJASS j) {
-    //HANDLE whichTrigger = jass_checkhandle(j, 1, "trigger");
-    //HANDLE whichUnit = jass_checkhandle(j, 2, "unit");
-    //HANDLE whichEvent = jass_checkhandle(j, 3, "unitevent");
-    //HANDLE filter = jass_checkhandle(j, 4, "boolexpr");
-    return jass_pushhandle(j, 0, "event");
-}
 DWORD GetEventTargetUnit(LPJASS j) {
     return jass_pushhandle(j, 0, "unit");
-}
-DWORD TriggerRegisterUnitInRange(LPJASS j) {
-    //HANDLE whichTrigger = jass_checkhandle(j, 1, "trigger");
-    //HANDLE whichUnit = jass_checkhandle(j, 2, "unit");
-    //FLOAT range = jass_checknumber(j, 3);
-    //HANDLE filter = jass_checkhandle(j, 4, "boolexpr");
-    return jass_pushhandle(j, 0, "event");
-}
-DWORD TriggerAddCondition(LPJASS j) {
-    //HANDLE whichTrigger = jass_checkhandle(j, 1, "trigger");
-    //HANDLE condition = jass_checkhandle(j, 2, "boolexpr");
-    return jass_pushhandle(j, 0, "triggercondition");
-}
-DWORD TriggerRemoveCondition(LPJASS j) {
-    //HANDLE whichTrigger = jass_checkhandle(j, 1, "trigger");
-    //HANDLE whichCondition = jass_checkhandle(j, 2, "triggercondition");
-    return 0;
-}
-DWORD TriggerClearConditions(LPJASS j) {
-    //HANDLE whichTrigger = jass_checkhandle(j, 1, "trigger");
-    return 0;
-}
-DWORD TriggerAddAction(LPJASS j) {
-    gtrigger_t *whichTrigger = jass_checkhandle(j, 1, "trigger");
-    gtriggeraction_t *action = gi.MemAlloc(sizeof(gtriggeraction_t));
-    action->func = jass_checkcode(j, 2);
-    ADD_TO_LIST(action, whichTrigger->actions);
-    return jass_pushlighthandle(j, action, "triggeraction");
-}
-DWORD TriggerRemoveAction(LPJASS j) {
-    //HANDLE whichTrigger = jass_checkhandle(j, 1, "trigger");
-    //HANDLE whichAction = jass_checkhandle(j, 2, "triggeraction");
-    return 0;
-}
-DWORD TriggerClearActions(LPJASS j) {
-    //HANDLE whichTrigger = jass_checkhandle(j, 1, "trigger");
-    return 0;
-}
-DWORD TriggerSleepAction(LPJASS j) {
-    FLOAT timeout = jass_checknumber(j, 1);
-    gi.Sleep(timeout * 1000);
-    return 0;
-}
-DWORD TriggerWaitForSound(LPJASS j) {
-    gsound_t *s = jass_checkhandle(j, 1, "sound");
-    FLOAT offset = jass_checknumber(j, 2);
-    gi.Sleep(s->duration * 0.1 + offset * 1000);
-    return 0;
-}
-DWORD TriggerEvaluate(LPJASS j) {
-    gtrigger_t *whichTrigger = jass_checkhandle(j, 1, "trigger");
-    return jass_pushboolean(j, whichTrigger->actions ? true : false);
-}
-DWORD TriggerExecute(LPJASS j) {
-    gtrigger_t *whichTrigger = jass_checkhandle(j, 1, "trigger");
-    FOR_EACH_LIST(gtriggeraction_t, action, whichTrigger->actions) {
-        jass_pushfunction(j, action->func);
-        jass_call(j, 0);
-    }
-    return 0;
-}
-DWORD TriggerExecuteWait(LPJASS j) {
-    //HANDLE whichTrigger = jass_checkhandle(j, 1, "trigger");
-    return 0;
 }
 DWORD GetWidgetLife(LPJASS j) {
     //HANDLE whichWidget = jass_checkhandle(j, 1, "widget");
@@ -1102,9 +561,6 @@ DWORD GetWidgetX(LPJASS j) {
 DWORD GetWidgetY(LPJASS j) {
     //HANDLE whichWidget = jass_checkhandle(j, 1, "widget");
     return jass_pushnumber(j, 0);
-}
-DWORD GetTriggerWidget(LPJASS j) {
-    return jass_pushhandle(j, 0, "widget");
 }
 DWORD CreateItem(LPJASS j) {
     //LONG itemid = jass_checkinteger(j, 1);
@@ -1150,7 +606,7 @@ DWORD SetItemDroppable(LPJASS j) {
 }
 DWORD SetItemPlayer(LPJASS j) {
     //HANDLE whichItem = jass_checkhandle(j, 1, "item");
-    //HANDLE whichPlayer = jass_checkhandle(j, 2, "player");
+    //LPMAPPLAYER whichPlayer = jass_checkhandle(j, 2, "player");
     //BOOL changeColor = jass_checkboolean(j, 3);
     return 0;
 }
@@ -1272,7 +728,7 @@ DWORD DialogAddButton(LPJASS j) {
     return jass_pushhandle(j, 0, "button");
 }
 DWORD DialogDisplay(LPJASS j) {
-    //HANDLE whichPlayer = jass_checkhandle(j, 1, "player");
+    //LPMAPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
     //HANDLE whichDialog = jass_checkhandle(j, 2, "dialog");
     //BOOL flag = jass_checkboolean(j, 3);
     return 0;
@@ -1398,7 +854,7 @@ DWORD UnitPoolRemoveUnitType(LPJASS j) {
 }
 DWORD PlaceRandomUnit(LPJASS j) {
     //HANDLE whichPool = jass_checkhandle(j, 1, "unitpool");
-    //HANDLE forWhichPlayer = jass_checkhandle(j, 2, "player");
+    //LPMAPPLAYER forWhichPlayer = jass_checkhandle(j, 2, "player");
     //FLOAT x = jass_checknumber(j, 3);
     //FLOAT y = jass_checknumber(j, 4);
     //FLOAT facing = jass_checknumber(j, 5);
@@ -1482,7 +938,8 @@ DWORD SetSkyModel(LPJASS j) {
     return 0;
 }
 DWORD EnableUserControl(LPJASS j) {
-    //BOOL b = jass_checkboolean(j, 1);
+    BOOL b = jass_checkboolean(j, 1);
+    PLAYER_CLIENT(currentplayer)->no_control = !b;
     return 0;
 }
 DWORD SuspendTimeOfDay(LPJASS j) {
@@ -1497,8 +954,12 @@ DWORD GetTimeOfDayScale(LPJASS j) {
     return jass_pushnumber(j, 0);
 }
 DWORD ShowInterface(LPJASS j) {
-    //BOOL flag = jass_checkboolean(j, 1);
-    //FLOAT fadeDuration = jass_checknumber(j, 2);
+    BOOL flag = jass_checkboolean(j, 1);
+    FLOAT fadeDuration = jass_checknumber(j, 2);
+    LPMAPPLAYER player = currentplayer;
+    if (player) {
+        UI_ShowInterface(PLAYER_ENT(player), flag, fadeDuration);
+    }
     return 0;
 }
 DWORD PauseGame(LPJASS j) {
@@ -1756,11 +1217,18 @@ DWORD IsCineFilterDisplayed(LPJASS j) {
 DWORD SetCinematicScene(LPJASS j) {
     //LONG portraitUnitId = jass_checkinteger(j, 1);
     //HANDLE color = jass_checkhandle(j, 2, "playercolor");
-    //LPCSTR speakerTitle = jass_checkstring(j, 3);
+    LPCSTR speakerTitle = jass_checkstring(j, 3);
     LPCSTR text = jass_checkstring(j, 4);
     //FLOAT sceneDuration = jass_checknumber(j, 5);
     //FLOAT voiceoverDuration = jass_checknumber(j, 6);
-    printf("Scene: %s\n", text);
+    UI_FRAME(CinematicPanel);
+    UI_FRAME(CinematicSpeakerText);
+    UI_FRAME(CinematicDialogueText);
+    CinematicSpeakerText->Text = G_GetString(speakerTitle);
+    CinematicDialogueText->Text = G_GetString(text);
+    CinematicSpeakerText->hidden = false;
+    CinematicDialogueText->hidden = false;
+    UI_WriteLayout(PLAYER_ENT(currentplayer), CinematicPanel, LAYER_CONSOLE);
     return 0;
 }
 DWORD EndCinematicScene(LPJASS j) {

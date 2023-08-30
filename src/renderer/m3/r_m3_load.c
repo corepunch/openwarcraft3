@@ -699,9 +699,9 @@ void M3_Init(void) {
     m3.shader = R_InitShader(vs, fs);
     m3.uFirstBoneLookupIndex = R_Call(glGetUniformLocation, m3.shader->progid, "uFirstBoneLookupIndex");
     m3.uBoneWeightPairsCount = R_Call(glGetUniformLocation, m3.shader->progid, "uBoneWeightPairsCount");
-    m3.uDiffuseMap = R_Call(glGetUniformLocation, m3.shader->progid, "uDiffuseMap");;
-    m3.uSpecularMap = R_Call(glGetUniformLocation, m3.shader->progid, "uSpecularMap");;
-    m3.uNormalMap = R_Call(glGetUniformLocation, m3.shader->progid, "uNormalMap");;
+    m3.uDiffuseMap = R_Call(glGetUniformLocation, m3.shader->progid, "uDiffuseMap");
+    m3.uSpecularMap = R_Call(glGetUniformLocation, m3.shader->progid, "uSpecularMap");
+    m3.uNormalMap = R_Call(glGetUniformLocation, m3.shader->progid, "uNormalMap");
     
     R_Call(glUniform1i, m3.uDiffuseMap, 0);
     R_Call(glUniform1i, m3.uSpecularMap, 3);

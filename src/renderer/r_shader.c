@@ -83,7 +83,7 @@ LPCSTR fs_ui =
 "}\n"
 "void main() {\n"
 "    o_color = texture(uTexture, v_texcoord) * v_color;\n"
-"    o_color.a *= crop_edges(v_texcoord);\n"
+"    //o_color.a *= crop_edges(v_texcoord);\n"
 "}\n";
 
 LPCSTR fs_commandbutton =

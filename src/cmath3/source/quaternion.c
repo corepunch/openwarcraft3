@@ -103,3 +103,9 @@ QUATERNION Quaternion_fromMatrix(LPCMATRIX4 mat) {
     return Quaternion_normalized(&r);
 }
 
+QUATERNION Quaternion_fromEuler(LPCVECTOR3 euler, ROTATIONORDER order) {
+    MATRIX4 tmp;
+    Matrix4_identity(&tmp);
+    Matrix4_rotate(&tmp, euler, order);
+    return Quaternion_fromMatrix(&tmp);
+}

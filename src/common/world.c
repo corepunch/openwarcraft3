@@ -53,11 +53,13 @@ static void CM_ReadInfo(HANDLE archive) {
     SFileReadString(file, &info->prologueScreenTitle);
     SFileReadString(file, &info->prologueScreenSubtitle);
 
-    SFileReadFile(file, &info->num_players, sizeof(DWORD), NULL, NULL);
-    info->players = MemAlloc(sizeof(mapPlayer_t) * info->num_players);
-    FOR_LOOP(i, info->num_players) {
-        mapPlayer_t *player = &info->players[i];
-        SFileReadFile(file, &player->internalPlayerNumber, sizeof(DWORD), NULL, NULL);
+    DWORD num_players = 0;
+    SFileReadFile(file, &num_players, sizeof(DWORD), NULL, NULL);
+    FOR_LOOP(i, num_players) {
+        DWORD playerNumber = 0;
+        SFileReadFile(file, &playerNumber, sizeof(DWORD), NULL, NULL);
+        mapPlayer_t *player = info->players+playerNumber;
+        player->used = true;
         SFileReadFile(file, &player->playerType, sizeof(playerType_t), NULL, NULL);
         SFileReadFile(file, &player->playerRace, sizeof(playerRace_t), NULL, NULL);
         SFileReadFile(file, &player->flags, sizeof(DWORD), NULL, NULL);
@@ -120,7 +122,7 @@ static void CM_ReadInfo(HANDLE archive) {
 }
 
 static void MapInfo_Release(LPMAPINFO mapInfo) {
-    FOR_LOOP(i, mapInfo->num_players) {
+    FOR_LOOP(i, MAX_PLAYERS) {
         SAFE_DELETE(mapInfo->players[i].playerName, MemFree);
     }
     FOR_LOOP(i, mapInfo->num_forces) {
@@ -146,7 +148,6 @@ static void MapInfo_Release(LPMAPINFO mapInfo) {
     SAFE_DELETE(mapInfo->prologueScreenText, MemFree);
     SAFE_DELETE(mapInfo->prologueScreenTitle, MemFree);
     SAFE_DELETE(mapInfo->prologueScreenSubtitle, MemFree);
-    SAFE_DELETE(mapInfo->players, MemFree);
     SAFE_DELETE(mapInfo->forces, MemFree);
     SAFE_DELETE(mapInfo->upgradeAvailabilities, MemFree);
     SAFE_DELETE(mapInfo->techAvailabilities, MemFree);
@@ -292,10 +293,14 @@ LPSTR FS_ReadArchiveFileIntoString(HANDLE archive, LPCSTR filename) {
     return buffer;
 }
 
+void removeTrailingWhitespace(char *s) {
+    for (char *ch = s+strlen(s)-1; ch>=s && isspace(*ch); *(ch--)='\0');
+}
+
 void CM_ReadStrings(HANDLE archive) {
     LPSTR buffer = FS_ReadArchiveFileIntoString(archive, "war3map.wts");
     PF_TextRemoveBom(buffer);
-    LPCSTR token = strtok(buffer, "\n");
+    LPSTR token = strtok(buffer, "\n");
     while (token) {
         if (strncmp(token, "STRING ", strlen("STRING ")) == 0) {
             mapTrigStr_t *entry = MemAlloc(sizeof(mapTrigStr_t));
@@ -303,6 +308,7 @@ void CM_ReadStrings(HANDLE archive) {
             token = strtok(NULL, "\n");
             if (token && token[0] == '{') {
                 token = strtok(NULL, "\n");
+                removeTrailingWhitespace(token);
                 strcpy(entry->text, token);
 //                printf("ID: %d\nText: %s\n\n", entry->id, entry->text);
                 ADD_TO_LIST(entry, world.info.strings)
@@ -367,12 +373,18 @@ LPDOODAD CM_GetDoodads(void) {
     return world.doodads;
 }
 
-LPCMAPPLAYER CM_GetPlayer(DWORD index) {
-    if (index < world.info.num_players) {
-        return &world.info.players[index];
-    } else {
-        return NULL;
+//LPCMAPPLAYER CM_GetPlayer(DWORD index) {
+//    return &world.info.players[index&(MAX_PLAYERS-1)];
+//}
+
+DWORD CM_GetLocalPlayerNumber(void) {
+    FOR_LOOP(i, MAX_PLAYERS) {
+        LPCMAPPLAYER player = world.info.players+i;
+        if (player->playerType == kPlayerTypeHuman) {
+            return i;
+        }
     }
+    return 0;
 }
 
 LPCMAPINFO CM_GetMapInfo(void) {

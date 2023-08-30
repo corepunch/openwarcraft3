@@ -9,7 +9,9 @@ typedef enum {
     NFT_SHORT,
     NFT_LONG,
     NFT_FLOAT,
+    NFT_ROUND,
     NFT_PACKED_FLOAT,
+    NFT_QUATERNION,
     NFT_ANGLE,
     NFT_TEXT,
 } netFieldType_t;
@@ -21,9 +23,9 @@ typedef struct {
 } netField_t;
 
 netField_t entityStateFields[] = {
-    { NETF(entityState_t, origin.x), NFT_FLOAT },
-    { NETF(entityState_t, origin.y), NFT_FLOAT },
-    { NETF(entityState_t, origin.z), NFT_FLOAT },
+    { NETF(entityState_t, origin.x), NFT_ROUND },
+    { NETF(entityState_t, origin.y), NFT_ROUND },
+    { NETF(entityState_t, origin.z), NFT_ROUND },
     { NETF(entityState_t, angle), NFT_ANGLE },
     { NETF(entityState_t, scale), NFT_PACKED_FLOAT },
     { NETF(entityState_t, frame), NFT_LONG },
@@ -31,14 +33,14 @@ netField_t entityStateFields[] = {
     { NETF(entityState_t, image), NFT_SHORT },
     { NETF(entityState_t, player), NFT_BYTE },
     { NETF(entityState_t, flags), NFT_LONG },
-    { NETF(entityState_t, radius), NFT_FLOAT },
+    { NETF(entityState_t, radius), NFT_ROUND },
     { NETF(entityState_t, splat), NFT_LONG },
     { NETF(entityState_t, stats), NFT_LONG },
     { NULL }
 };
 
 netField_t uiFrameFields[] = {
-    { NETF(uiFrame_t, parent), NFT_BYTE },
+    { NETF(uiFrame_t, parent), NFT_SHORT },
     { NETF(uiFrame_t, flagsvalue), NFT_SHORT },
     { NETF(uiFrame_t, points.x[FPP_MIN]), NFT_LONG },
     { NETF(uiFrame_t, points.x[FPP_MID]), NFT_LONG },
@@ -58,13 +60,14 @@ netField_t uiFrameFields[] = {
 };
 
 netField_t playerStateFields[] = {
-    { NETF(playerState_t, viewangles.x), NFT_ANGLE },
-    { NETF(playerState_t, viewangles.y), NFT_ANGLE },
-    { NETF(playerState_t, viewangles.z), NFT_ANGLE },
-    { NETF(playerState_t, origin.x), NFT_FLOAT },
-    { NETF(playerState_t, origin.y), NFT_FLOAT },
+    { NETF(playerState_t, viewquat.x), NFT_QUATERNION },
+    { NETF(playerState_t, viewquat.y), NFT_QUATERNION },
+    { NETF(playerState_t, viewquat.z), NFT_QUATERNION },
+    { NETF(playerState_t, viewquat.w), NFT_QUATERNION },
+    { NETF(playerState_t, origin.x), NFT_ROUND },
+    { NETF(playerState_t, origin.y), NFT_ROUND },
     { NETF(playerState_t, fov), NFT_BYTE },
-    { NETF(playerState_t, distance), NFT_FLOAT },
+    { NETF(playerState_t, distance), NFT_ROUND },
     { NETF(playerState_t, rdflags), NFT_LONG },
     { NETF(playerState_t, stats[0]), NFT_LONG },
     { NETF(playerState_t, stats[2]), NFT_LONG },
@@ -216,10 +219,13 @@ static void MSG_WriteFields(LPSIZEBUF msg,
         if ((bits & (1 << (field - fields))) == 0)
             continue;
         int *toF = (int *)((uint8_t *)to + field->offset);
+        float _float = *(float *)toF;
         switch (field->type) {
-            case NFT_FLOAT: MSG_WriteShort(msg, *(float *)toF); break;
-            case NFT_PACKED_FLOAT: MSG_WriteShort(msg, *(float *)toF * 500); break;
-            case NFT_ANGLE: MSG_WriteShort(msg, (*(float *)toF) / 360 * 0xffff); break;
+            case NFT_FLOAT: MSG_WriteFloat(msg, _float); break;
+            case NFT_ROUND: MSG_WriteShort(msg, _float); break;
+            case NFT_QUATERNION: MSG_WriteShort(msg, _float * 32767); break;
+            case NFT_PACKED_FLOAT: MSG_WriteShort(msg, _float * 500); break;
+            case NFT_ANGLE: MSG_WriteShort(msg, _float / 360 * 0xffff); break;
             case NFT_LONG: MSG_WriteLong(msg, *toF); break;
             case NFT_SHORT: MSG_WriteShort(msg, *toF); break;
             case NFT_BYTE: MSG_WriteByte(msg, *toF); break;
@@ -238,7 +244,9 @@ static void MSG_ReadFields(LPSIZEBUF msg,
             continue;
         int *toF = (int *)((uint8_t *)edict + field->offset);
         switch (field->type) {
-            case NFT_FLOAT: *(float *)toF = MSG_ReadShort(msg); break;
+            case NFT_FLOAT: *(float *)toF = MSG_ReadFloat(msg); break;
+            case NFT_ROUND: *(float *)toF = MSG_ReadShort(msg); break;
+            case NFT_QUATERNION: *(float *)toF = ((float)MSG_ReadShort(msg)) / 32767; break;
             case NFT_PACKED_FLOAT: *(float *)toF = MSG_ReadShort(msg) / 500.f; break;
             case NFT_ANGLE: *(float *)toF = MSG_ReadShort(msg) * 360.f / 0xffff; break;
             case NFT_LONG: *toF = MSG_ReadLong(msg); break;

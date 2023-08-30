@@ -17,11 +17,18 @@
 #define UI_SCALE(x) ((x) * 10000)
 #define SEL_SCALE 72
 #define MAX_BUILD_QUEUE 7
+#define MAX_EVENT_QUEUE 256
+#define MAX_ENTITIES 4096
+#define FOV_ASPECT 1.7
 
 #define FILTER_EDICTS(ENT, CONDITION) \
 for (LPEDICT ENT = globals.edicts; \
 ENT - globals.edicts < globals.num_edicts; \
 ENT++) if (CONDITION)
+
+#define PLAYER_NUM(PLAYER) (DWORD)(PLAYER - &level.mapinfo->players[0])
+#define PLAYER_ENT(PLAYER) G_GetPlayerEntityByNumber(PLAYER_NUM(PLAYER))
+#define PLAYER_CLIENT(PLAYER) G_GetPlayerClientByNumber(PLAYER_NUM(PLAYER))
 
 #define UI_FRAME(NAME) LPFRAMEDEF NAME = UI_FindFrame(#NAME);
 #define UI_CHILD_FRAME(NAME, PARENT) LPFRAMEDEF NAME = UI_FindChildFrame(PARENT, #NAME);
@@ -54,6 +61,7 @@ enum {
 
 KNOWN_AS(uiFrameDef_s, FRAMEDEF);
 KNOWN_AS(jass_s, JASS);
+KNOWN_AS(gcamerasetup_s, CAMERASETUP);
 
 typedef struct {
     BOOL (*on_entity_selected)(LPEDICT clent, LPEDICT selected);
@@ -271,21 +279,55 @@ typedef enum {
     EVENT_WIDGET_DEATH = 89,
     EVENT_DIALOG_BUTTON_CLICK = 90,
     EVENT_DIALOG_CLICK = 91,
-} UNITEVENT;
+} EVENTTYPE;
+
+typedef enum {
+    FILETEXTURE,
+} HIGHLIGHTTYPE;
+
+typedef enum {
+    AUTOTRACK = 1,
+    HIGHLIGHTONFOCUS = 2,
+    HIGHLIGHTONMOUSEOVER = 4,
+} CONTROLSTYLE;
+
+typedef enum {
+    LAYOUT_HORIZONTAL,
+    LAYOUT_VERTICAL,
+} LAYOUTDIRECTION;
 
 struct uiFrameDef_s {
-    uiFrame_t f;
+    LPFRAMEDEF Parent;
+    FRAMETYPE Type;
     UINAME Name;
-    UINAME Text;
+    UINAME TextStorage;
+    LPCSTR Text;
+    LPCSTR Tooltip;
     RECT rect;
+    BOX2 UVs;
+    DWORD Width;
+    DWORD Height;
+    DWORD Number;
+    COLOR32 Color;
+    ALPHAMODE AlphaMode;
     BOOL DecorateFileNames;
     BOOL inuse;
     BOOL AnyPointsSet;
     BOOL hidden;
+    DWORD TextLength;
+    DWORD Stat;
+    struct {
+        uiFramePoints_t x;
+        uiFramePoints_t y;
+    } Points;
+    struct {
+        DWORD Image;
+        DWORD Image2;
+    } Texture;
     struct {
         BOOL TileBackground;
         DWORD Background;
-        UINAME CornerFlags;// "UL|UR|BL|BR|T|L|B|R",
+        DWORD CornerFlags;// "UL|UR|BL|BR|T|L|B|R",
         SHORT CornerSize;
         SHORT BackgroundSize;
         SHORT BackgroundInsets[4];// 0.01 0.01 0.01 0.01,
@@ -293,6 +335,9 @@ struct uiFrameDef_s {
         BOOL BlendAll;
     } Backdrop;
     DWORD DialogBackdrop;
+    struct {
+        DWORD model;
+    } Portrait;
     struct {
         UIFRAMEPOINT corner;
         USHORT x, y;
@@ -308,15 +353,85 @@ struct uiFrameDef_s {
         UINAME Unknown;
         UIFONTFLAGS FontFlags;
         DWORD Size;
+        DWORD Index;
         COLOR32 Color;
         COLOR32 HighlightColor;
         COLOR32 DisabledColor;
         COLOR32 ShadowColor;
         VECTOR2 ShadowOffset;
+        struct {
+            VECTOR2 Offset;
+            uiFontJustificationH_t Horizontal;
+            uiFontJustificationV_t Vertical;
+        } Justification;
     } Font;
+    struct {
+        HIGHLIGHTTYPE Type;
+        DWORD AlphaFile;
+        ALPHAMODE AlphaMode;
+    } Highlight;
+    struct {
+        VECTOR2 PushedTextOffset;
+//        UINAME Text;
+    } Button;
+    struct {
+        DWORD Style;
+        struct {
+            UINAME Normal;
+            UINAME Pushed;
+            UINAME Disabled;
+            UINAME MouseOver;
+            UINAME DisabledPushed;
+        } Backdrop;
+    } Control;
+    struct {
+        FLOAT InitialValue;
+        LAYOUTDIRECTION Layout;
+        FLOAT MaxValue;
+        FLOAT MinValue;
+        FLOAT StepSize;
+        UINAME ThumbButtonFrame;
+    } Slider;
+    struct {
+        FLOAT Border;
+        struct {
+            UINAME Text;
+            DWORD Value;
+            FLOAT Height;
+        } Item;
+        COLOR32 TextHighlightColor;
+    } Menu;
+    struct {
+        FLOAT BorderSize;
+        COLOR32 CursorColor;
+        COLOR32 HighlightColor;
+        BOOL HighlightInitial;
+        DWORD MaxChars;
+        BOOL Focus;
+        UINAME Text;
+        COLOR32 TextColor;
+        UINAME TextFrame;
+        VECTOR2 TextOffset;
+    } Edit;
+    struct {
+        UINAME ArrowFrame;
+        UINAME MenuFrame;
+        UINAME TitleFrame;
+        FLOAT ButtonInset;
+    } Popup;
+    struct {
+        FLOAT LineHeight;
+        FLOAT LineGap;
+        FLOAT Inset;
+        UINAME ScrollBar;
+    } TextArea;
+    struct {
+        UINAME CheckHighlight;
+        UINAME DisabledCheckHighlight;
+    } CheckBox;
 };
 
-typedef struct {
+struct gcamerasetup_s {
     FLOAT target_distance;
     FLOAT far_z;
 //    FLOAT angle_of_attack;
@@ -326,15 +441,17 @@ typedef struct {
     FLOAT z_offset;
     VECTOR3 viewangles;
     VECTOR2 position;
-} gcamerasetup_t;
+};
 
 struct client_s {
     playerState_t ps;
+    LPCMAPPLAYER mapplayer;
     DWORD ping;
+    BOOL no_control;
     menu_t menu;
     struct {
-        gcamerasetup_t state;
-        gcamerasetup_t old_state;
+        CAMERASETUP state;
+        CAMERASETUP old_state;
         DWORD start_time;
         DWORD end_time;
     } camera;
@@ -382,6 +499,11 @@ typedef struct {
     float AcquireRange;
 } UNITINFO;
 
+typedef struct {
+    EVENTTYPE type;
+    LPEDICT edict;
+} GAMEEVENT;
+
 struct edict_s {
     entityState_t s;
     LPGAMECLIENT client;
@@ -401,6 +523,7 @@ struct edict_s {
     DWORD aiflags;
     DWORD damage;
     DWORD resources;
+    DWORD freetime;
     FLOAT collision;
     FLOAT velocity;
     doodadHero_t hero;
@@ -427,12 +550,6 @@ struct edict_s {
     void (*think)(LPEDICT self);
     void (*pain)(LPEDICT self);
     void (*die)(LPEDICT self, LPEDICT attacker);
-};
-
-struct game_state {
-    LPJASS j;
-    LPCMAPINFO mapinfo;
-    LPEDICT edicts;
 };
 
 struct game_locals {
@@ -465,7 +582,15 @@ struct game_locals {
 };
 
 struct level_locals {
-    
+    LPJASS j;
+    LPCMAPINFO mapinfo;
+    DWORD framenum;
+    DWORD time;
+    struct {
+        GAMEEVENT queue[MAX_EVENT_QUEUE];
+        DWORD write, read;
+    } events;
+    BOOL started;
 };
 
 typedef struct sheetMetaData_s {
@@ -476,13 +601,15 @@ typedef struct sheetMetaData_s {
 } sheetMetaData_t;
 
 // g_main.c
-void G_ClientCommand(LPEDICT ent, DWORD argc, LPCSTR argv[]);
 playerState_t *G_GetPlayerByNumber(DWORD number);
+LPEDICT G_GetPlayerEntityByNumber(DWORD number);
+LPGAMECLIENT G_GetPlayerClientByNumber(DWORD number);
 TARGTYPE G_GetTargetType(LPCSTR str);
+LPCSTR G_GetString(LPCSTR name);
+void G_PublishEvent(LPEDICT edict, EVENTTYPE type);
 
 // g_spawn.c
 LPEDICT G_Spawn(void);
-void G_FreeEdict(LPEDICT ent);
 void SP_CallSpawn(LPEDICT edict);
 void G_SpawnEntities(LPCMAPINFO mapinfo, LPCDOODAD doodads);
 BOOL SP_FindEmptySpaceAround(LPEDICT townhall, DWORD class_id, LPVECTOR2 out, FLOAT *angle);
@@ -542,6 +669,7 @@ void Get_Commands_f(LPEDICT ent);
 void Get_Portrait_f(LPEDICT ent);
 void UI_AddCancelButton(LPEDICT edict);
 void UI_AddCommandButton(LPCSTR ability);
+void UI_ShowInterface(LPEDICT ent, BOOL flag, FLOAT fadeDuration);
 LPCSTR GetBuildCommand(unitRace_t race);
 
 // p_fdf.c
@@ -558,7 +686,7 @@ void UI_SetTexture2(LPFRAMEDEF frame, LPCSTR name, BOOL decorate);
 void UI_WriteLayout(LPEDICT ent, LPCFRAMEDEF frames, DWORD layer);
 void UI_SetPoint(LPFRAMEDEF frame, UIFRAMEPOINT framePoint, LPFRAMEDEF other, UIFRAMEPOINT otherPoint, int16_t x, int16_t y);
 void UI_SetPointByNumber(LPFRAMEDEF frame, UIFRAMEPOINT framePoint, DWORD otherNumber, UIFRAMEPOINT otherPoint, SHORT x, SHORT y);
-void UI_InitFrame(LPFRAMEDEF frame, DWORD number, uiFrameType_t type);
+void UI_InitFrame(LPFRAMEDEF frame, DWORD number, FRAMETYPE type);
 void UI_WriteFrame(LPCFRAMEDEF frame);
 void UI_WriteFrameWithChildren(LPCFRAMEDEF frame);
 void UI_WriteLayout2(LPEDICT ent, void (*BuildUI)(LPGAMECLIENT ), DWORD layer);
@@ -566,7 +694,7 @@ void UI_SetHidden(LPFRAMEDEF frame, BOOL value);
 DWORD UI_FindFrameNumber(LPCSTR name);
 DWORD UI_LoadTexture(LPCSTR file, BOOL decorate);
 LPCSTR UI_GetString(LPCSTR textID);
-LPFRAMEDEF UI_Spawn(uiFrameType_t type, LPFRAMEDEF parent);
+LPFRAMEDEF UI_Spawn(FRAMETYPE type, LPFRAMEDEF parent);
 LPFRAMEDEF UI_FindFrame(LPCSTR name);
 LPFRAMEDEF UI_FindChildFrame(LPFRAMEDEF frame, LPCSTR name);
 
@@ -583,6 +711,8 @@ void ShutdownUnitData(void);
 void G_SelectEntity(LPGAMECLIENT client, LPEDICT ent);
 void G_DeselectEntity(LPGAMECLIENT client, LPEDICT ent);
 BOOL G_IsEntitySelected(LPGAMECLIENT client, LPEDICT ent);
+void G_ClientCommand(LPEDICT ent, DWORD argc, LPCSTR argv[]);
+void G_ClientPanCamera(LPEDICT ent, LPVECTOR2 offset);
 
 //  s_skills.c
 FLOAT AB_Number(LPCSTR classname, LPCSTR field);
@@ -591,9 +721,13 @@ DWORD GetAbilityIndex(ability_t const *ability);
 // g_combat.c
 void T_Damage(LPEDICT target, LPEDICT attacker, int damage);
 
+// g_utils.c
+void G_FreeEdict(LPEDICT ent);
+
 // m_unit.c
 BOOL unit_issue_order(LPEDICT self, LPCSTR order, LPCVECTOR2 point);
 BOOL unit_issue_immediate_order(LPEDICT self, LPCSTR order);
+LPEDICT unit_create_or_find(DWORD player, DWORD unitid, LPCVECTOR2 location, FLOAT facing);
 
 // p_jass.c
 LPJASS JASS_Allocate(void);
@@ -603,12 +737,15 @@ void JASS_ExecuteFunc(LPJASS j, LPCSTR name);
 
 void *find_in_array(void *array, long sizeofelem, LPCSTR name);
 
+// ui_init
+void UI_Init(void);
+
 // globals
 extern struct game_locals game;
-extern struct game_state game_state;
 extern struct game_export globals;
 extern struct game_import gi;
 extern struct level_locals level;
+extern struct edict_s *g_edicts;
 
 extern sheetMetaData_t UnitsMetaData[];
 extern sheetMetaData_t DestructableMetaData[];

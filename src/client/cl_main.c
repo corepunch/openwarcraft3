@@ -100,29 +100,6 @@ void CL_ReadPackets(void) {
 }
 
 void CL_SendCmd(void) {
-//    extern clientMessage_t msg;
-    static VECTOR3 camera_location;
-    if (Vector3_distance(&cl.viewDef.camerastate->origin, &camera_location) > EPSILON) {
-        camera_location = cl.viewDef.camerastate->origin;
-        MSG_WriteByte(&cls.netchan.message, clc_move);
-        MSG_WriteShort(&cls.netchan.message, camera_location.x);
-        MSG_WriteShort(&cls.netchan.message, camera_location.y);
-        Netchan_Transmit(NS_CLIENT, &cls.netchan);
-    }
-//    if (msg.cmd != CMD_NO_COMMAND && msg.num_entities > 0){
-//        MSG_WriteByte(&cls.netchan.message, clc_command);
-//        MSG_WriteByte(&cls.netchan.message, msg.cmd);
-//        MSG_WriteShort(&cls.netchan.message, msg.num_entities);
-//        FOR_LOOP(i, msg.num_entities) {
-//            MSG_WriteShort(&cls.netchan.message, msg.entities[i]);
-//        }
-//        MSG_WriteShort(&cls.netchan.message, msg.targetentity);
-//        MSG_WriteShort(&cls.netchan.message, msg.location.x);
-//        MSG_WriteShort(&cls.netchan.message, msg.location.y);
-//        Netchan_Transmit(NS_CLIENT, &cls.netchan);
-//    }
-//    msg.cmd = CMD_NO_COMMAND;
-    
     Netchan_Transmit(NS_CLIENT, &cls.netchan);
 }
 

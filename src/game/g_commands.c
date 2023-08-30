@@ -88,6 +88,10 @@ CLIENTCOMMAND(Button) {
     }
 }
 
+CLIENTCOMMAND(Cancel) {
+    G_PublishEvent(clent, EVENT_PLAYER_END_CINEMATIC);
+}
+
 typedef struct {
     LPCSTR name;
     void (*func)(LPEDICT ent, DWORD argc, LPCSTR argv[]);
@@ -97,6 +101,7 @@ clientCommand_t clientCommands[] = {
     { "button", CMD_Button },
     { "select", CMD_Select },
     { "point", CMD_Point },
+    { "cancel", CMD_Cancel },
     { NULL }
 };
 
@@ -107,4 +112,11 @@ void G_ClientCommand(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
             return;
         }
     }
+}
+
+void G_ClientPanCamera(LPEDICT ent, LPVECTOR2 offset) {
+    if (ent->client->no_control)
+        return;
+    ent->client->camera.state.position.x += offset->x;
+    ent->client->camera.state.position.y += offset->y;
 }

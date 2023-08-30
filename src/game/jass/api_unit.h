@@ -60,7 +60,9 @@ DWORD KillUnit(LPJASS j) {
 }
 DWORD RemoveUnit(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    whichUnit->inuse = false;
+    if (whichUnit) {
+        G_FreeEdict(whichUnit);
+    }
     return 0;
 }
 DWORD ShowUnit(LPJASS j) {
@@ -73,13 +75,21 @@ DWORD ShowUnit(LPJASS j) {
     }
     return 0;
 }
-DWORD SetUnitState(LPJASS j) {
-    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    UNITSTATE *whichUnitState = jass_checkhandle(j, 2, "unitstate");
-    FLOAT newVal = jass_checknumber(j, 3);
+
+JASS_API(SetUnitState,
+(EDICT, whichUnit, "unit"),
+(UNITSTATE, whichUnitState, "unitstate"),
+(number, newVal))
+{
     (&whichUnit->health.value)[*whichUnitState] = newVal;
-    return 0;
 }
+//DWORD SetUnitState(LPJASS j) {
+//    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+//    UNITSTATE *whichUnitState = jass_checkhandle(j, 2, "unitstate");
+//    FLOAT newVal = jass_checknumber(j, 3);
+//    (&whichUnit->health.value)[*whichUnitState] = newVal;
+//    return 0;
+//}
 DWORD GetUnitState(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     UNITSTATE *whichUnitState = jass_checkhandle(j, 2, "unitstate");
@@ -111,8 +121,8 @@ DWORD GetUnitDefaultFlyHeight(LPJASS j) {
 DWORD SetUnitOwner(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     LPCMAPPLAYER whichPlayer = jass_checkhandle(j, 2, "player");
-    BOOL changeColor = jass_checkboolean(j, 3);
-    whichUnit->s.player = (DWORD)(whichPlayer - game_state.mapinfo->players);
+//    BOOL changeColor = jass_checkboolean(j, 3);
+    whichUnit->s.player = (DWORD)(whichPlayer - level.mapinfo->players);
     return 0;
 }
 DWORD SetUnitColor(LPJASS j) {
@@ -122,8 +132,8 @@ DWORD SetUnitColor(LPJASS j) {
 }
 DWORD SetUnitScale(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    FLOAT scaleX = jass_checknumber(j, 2);
-    FLOAT scaleY = jass_checknumber(j, 3);
+//    FLOAT scaleX = jass_checknumber(j, 2);
+//    FLOAT scaleY = jass_checknumber(j, 3);
     FLOAT scaleZ = jass_checknumber(j, 4);
     whichUnit->s.scale = scaleZ;
     return 0;
@@ -173,13 +183,23 @@ DWORD AddUnitAnimationProperties(LPJASS j) {
     //BOOL add = jass_checkboolean(j, 3);
     return 0;
 }
+
+//JASS_API(SetUnitLookAt,
+//(EDICT, whichUnit, "unit"),
+//(string, whichBone),
+//(EDICT, lookAtTarget, "unit"),
+//(number, offsetX),
+//(number, offsetY),
+//(number, offsetZ))
+//{
+//}
 DWORD SetUnitLookAt(LPJASS j) {
-    //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    //LPCSTR whichBone = jass_checkstring(j, 2);
-    //HANDLE lookAtTarget = jass_checkhandle(j, 3, "unit");
-    //FLOAT offsetX = jass_checknumber(j, 4);
-    //FLOAT offsetY = jass_checknumber(j, 5);
-    //FLOAT offsetZ = jass_checknumber(j, 6);
+//    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+//    LPCSTR whichBone = jass_checkstring(j, 2);
+//    HANDLE lookAtTarget = jass_checkhandle(j, 3, "unit");
+//    FLOAT offsetX = jass_checknumber(j, 4);
+//    FLOAT offsetY = jass_checknumber(j, 5);
+//    FLOAT offsetZ = jass_checknumber(j, 6);
     return 0;
 }
 DWORD ResetUnitLookAt(LPJASS j) {
@@ -695,14 +715,12 @@ DWORD RecycleGuardPosition(LPJASS j) {
     return 0;
 }
 DWORD CreateUnit(LPJASS j) {
-    LPMAPPLAYER id = jass_checkhandle(j, 1, "player");
-    LONG unitid = jass_checkinteger(j, 2);
-    FLOAT x = jass_checknumber(j, 3);
-    FLOAT y = jass_checknumber(j, 4);
-    FLOAT face = jass_checknumber(j, 5);
-    DWORD playernum = (DWORD)(id - game_state.mapinfo->players);
-    LPEDICT unit = SP_SpawnAtLocation(unitid, playernum, &MAKE(VECTOR2, x, y));
-    unit->s.angle = face;
+    LPMAPPLAYER player = jass_checkhandle(j, 1, "player");
+    LPEDICT unit =
+    unit_create_or_find(PLAYER_NUM(player),
+                        jass_checkinteger(j, 2),
+                        &MAKE(VECTOR2, jass_checknumber(j, 3), jass_checknumber(j, 4)),
+                        jass_checknumber(j, 5));
     return jass_pushlighthandle(j, unit, "unit");
 }
 DWORD CreateUnitByName(LPJASS j) {
@@ -714,13 +732,12 @@ DWORD CreateUnitByName(LPJASS j) {
     return jass_pushhandle(j, 0, "unit");
 }
 DWORD CreateUnitAtLoc(LPJASS j) {
-    LPMAPPLAYER id = jass_checkhandle(j, 1, "player");
-    LONG unitid = jass_checkinteger(j, 2);
-    LPVECTOR2 whichLocation = jass_checkhandle(j, 3, "location");
-    FLOAT face = jass_checknumber(j, 4);
-    DWORD playernum = (DWORD)(id - game_state.mapinfo->players);
-    LPEDICT unit = SP_SpawnAtLocation(unitid, playernum, whichLocation);
-    unit->s.angle = face;
+    LPMAPPLAYER player = jass_checkhandle(j, 1, "player");
+    LPEDICT unit =
+    unit_create_or_find(PLAYER_NUM(player),
+                        jass_checkinteger(j, 2),
+                        jass_checkhandle(j, 3, "location"),
+                        jass_checknumber(j, 4));
     return jass_pushlighthandle(j, unit, "unit");
 }
 DWORD CreateUnitAtLocByName(LPJASS j) {

@@ -221,6 +221,7 @@ PARSER(read_single_identifier) {
             }
         }
         if (eat_token(p, "[")) {
+            left->type = TT_ARRAYACCESS;
             left->index = parse_logical_expression(p);
         }
     } else {

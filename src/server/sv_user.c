@@ -32,21 +32,7 @@ void SV_Begin_f(LPCLIENT cl) {
 }
 
 void SV_PlayerInfo_f(LPCLIENT cl) {
-    mapPlayer_t const *player = CM_GetPlayer(1);
-    if (player) {
-        edict_t *clent = cl->edict;
-        playerState_t *ps = &clent->client->ps;
-        memset(ps, 0, sizeof(playerState_t));
-        ps->number = player->internalPlayerNumber;
-        ps->origin.x = player->startingPosition.x;
-        ps->origin.y = player->startingPosition.y;
-        ps->viewangles = (VECTOR3) { -34, 0, 0 };
-        ps->fov = 30;
-        ps->distance = 3000;
-        ps->stats[STAT_GOLD] = 300;
-        ps->stats[STAT_LUMBER] = 80;
-        ps->stats[STAT_FOOD] = 5;
-    }
+    cl->edict = EDICT_NUM(CM_GetLocalPlayerNumber());
     MSG_WriteByte(&cl->netchan.message, svc_mirror);
     MSG_WriteString(&cl->netchan.message, "begin");
     Netchan_Transmit(NS_SERVER, &cl->netchan);

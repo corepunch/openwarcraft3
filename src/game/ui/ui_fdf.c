@@ -1,5 +1,5 @@
-#include "g_local.h"
-#include "parser.h"
+#include "../g_local.h"
+#include "../parser.h"
 
 LPCSTR FrameType[] = {
     "",
@@ -45,8 +45,13 @@ LPCSTR FrameType[] = {
     "TOOLTIPTEXT",
     NULL
 };
+LPCSTR HighlightType[] = {
+    "FILETEXTURE",
+    NULL
+};
 LPCSTR AlphaMode[] = {
     "ALPHAKEY",
+    "ADD",
     NULL
 };
 LPCSTR FontJustificationH[] = {
@@ -81,8 +86,26 @@ LPCSTR FontFlags[] = {
     "PASSWORDFIELD",
     NULL
 };
+LPCSTR ControlStyle[] = {
+    "AUTOTRACK",
+    "HIGHLIGHTONFOCUS",
+    "HIGHLIGHTONMOUSEOVER",
+    NULL
+};
+LPCSTR CornerFlags[] = {
+    "UL",
+    "T",
+    "UR",
+    "L",
+    "-",
+    "R",
+    "BL",
+    "B",
+    "BR",
+    NULL
+};
 
-#define MAX_UI_CLASSES 256
+#define MAX_UI_CLASSES MAX_LAYOUT_OBJECTS
 #define F(x, type) { #x,((uint8_t *)&((FRAMEDEF *)0)->x - (uint8_t *)NULL), Parse##type }
 #define ITEM(x) { #x, x }
 #define TARGET(TYPE) TYPE *target = (TYPE *)((uint8_t *)frame + arg->fofs);
@@ -93,7 +116,7 @@ void FDF_ParseFrame(LPPARSER p, LPFRAMEDEF frame);
 
 void UI_PrintClasses(void) {
     FOR_LOOP(i, MAX_UI_CLASSES) {
-        printf("%d  %s\n", frames[i].f.number, frames[i].Name);
+        printf("%d  %s\n", frames[i].Number, frames[i].Name);
     }
 }
 
@@ -101,30 +124,34 @@ void UI_ClearTemplates(void) {
     memset(frames, 0, sizeof(frames));
 }
 
-void UI_InitFrame(LPFRAMEDEF frame, DWORD number, uiFrameType_t type) {
+void UI_InitFrame(LPFRAMEDEF frame, DWORD number, FRAMETYPE type) {
     memset(frame, 0, sizeof(FRAMEDEF));
     frame->inuse = true;
-    frame->f.number = number;
-    frame->f.flags.type = type;
-    frame->f.color = COLOR32_WHITE;
-    frame->f.text = frame->Text;
-    if (type == FT_TEXTURE ||
-        type == FT_SIMPLESTATUSBAR ||
-        type == FT_COMMANDBUTTON ||
-        type == FT_BACKDROP)
-    {
-        frame->f.tex.coord[1] = 0xff;
-        frame->f.tex.coord[3] = 0xff;
+    frame->Number = number;
+    frame->Type = type;
+    frame->Color = COLOR32_WHITE;
+    frame->Text = frame->TextStorage;
+    switch (type) {
+        case FT_TEXTURE:
+        case FT_SIMPLESTATUSBAR:
+        case FT_COMMANDBUTTON:
+        case FT_BACKDROP:
+            frame->UVs.max.x = 1;
+            frame->UVs.max.y = 1;
+            break;
+        case FT_TEXT:
+            frame->Font.Color = COLOR32_WHITE;
+            break;
     }
 }
 
-LPFRAMEDEF UI_Spawn(uiFrameType_t type, LPFRAMEDEF parent) {
+LPFRAMEDEF UI_Spawn(FRAMETYPE type, LPFRAMEDEF parent) {
     FOR_LOOP(i, MAX_UI_CLASSES) {
         if (i==0) continue;
         LPFRAMEDEF frame = &frames[i];
         if (!frame->inuse) {
             UI_InitFrame(frame, i, type);
-            frame->f.parent = parent ? parent->f.number : 0;
+            frame->Parent = parent;
             return frame;
         }
     }
@@ -198,9 +225,19 @@ void Parse##TYPE(LPCSTR token, LPFRAMEDEF frame, void *out)
 #define MAKE_PARSERCALL(TYPE) \
 void TYPE(LPPARSER parser, LPFRAMEDEF frame)
 
-#define MAKE_ENUMPARSER(TYPE, FIELD) \
+#define MAKE_ENUMPARSER(TYPE) \
 MAKE_PARSER(TYPE) { \
-    frame->f.flags.FIELD = ParseEnumString(token, TYPE); \
+    *((DWORD *)out) = ParseEnumString(token, TYPE); \
+}
+
+#define MAKE_FLAGSPARSER(TYPE) \
+MAKE_PARSER(TYPE) { \
+    PATHSTR b; \
+    strcpy(b, token); \
+    for (LPSTR s = b; *s; s++) *s = *s == '|' ? ',' : *s; \
+    PARSE_LIST(b, flag, parse_segment) { \
+        *((DWORD *)out) |= 1 << ParseEnumString(flag, TYPE); \
+    } \
 }
 
 static SHORT Float2Short(float f) {
@@ -225,6 +262,7 @@ MAKE_PARSER(Float16_4) {
 }
 MAKE_PARSER(Color) {
     VECTOR4 vec4;
+    vec4.w = 1;
     ParseVector4(token, frame, &vec4);
     ((COLOR32 *)out)->r = vec4.x * 0xff;
     ((COLOR32 *)out)->g = vec4.y * 0xff;
@@ -233,14 +271,14 @@ MAKE_PARSER(Color) {
 }
 
 MAKE_PARSER(FrameNumber) {
-    *((DWORD *)out) = 0xffff;
+    *(DWORD *)out = 0;
     FOR_LOOP(i, MAX_UI_CLASSES) {
-        int dist1 = abs((int)i - (int)frame->f.number);
-        int dist2 = abs(*((int *)out) - (int)frame->f.number);
+        int dist1 = abs((int)i - (int)frame->Number);
+        int dist2 = abs(*((int *)out) - (int)frame->Number);
         if (dist1 > dist2)
             return;
-        if ( !strcmp(frames[i].Name, token)) {
-            *((DWORD *)out) = i;
+        if (!strcmp(frames[i].Name, token)) {
+            *(DWORD *)out = frames[i].Number;
         }
     }
 }
@@ -252,7 +290,6 @@ MAKE_PARSER(Name) {
 
 MAKE_PARSER(Text) {
     LPCSTR str = UI_GetString(token);
-    frame->f.text = frame->Text;
     memset(out, 0, sizeof(UINAME));
     memcpy(out, str, strlen(str));
 }
@@ -269,35 +306,32 @@ MAKE_PARSER(StringListItem) {
     strings->value = strdup(token);
 }
 
-MAKE_ENUMPARSER(AlphaMode, alphaMode);
-MAKE_ENUMPARSER(FontJustificationH, textalignx);
-MAKE_ENUMPARSER(FontJustificationV, textaligny);
+MAKE_ENUMPARSER(AlphaMode);
+MAKE_ENUMPARSER(FontJustificationH);
+MAKE_ENUMPARSER(FontJustificationV);
+MAKE_ENUMPARSER(HighlightType);
+MAKE_ENUMPARSER(FontFlags);
+MAKE_ENUMPARSER(FramePointType);
+MAKE_FLAGSPARSER(CornerFlags);
+MAKE_FLAGSPARSER(ControlStyle);
 
-MAKE_PARSER(FontFlags) {
-    frame->Font.FontFlags = ParseEnumString(token, FontFlags);
-}
-
-MAKE_PARSER(FramePointType) {
-    *((UIFRAMEPOINT *)out) = ParseEnumString(token, FramePointType);
-}
-
-MAKE_PARSER(File) {
-    BOOL decorate = frame->DecorateFileNames | frames[frame->f.parent].DecorateFileNames;
+MAKE_PARSER(TextureFile) {
+    BOOL decorate = frame->DecorateFileNames | (frame->Parent ? frame->Parent->DecorateFileNames : false);
     *((DWORD *)out) = UI_LoadTexture(token, decorate);
 }
 
 MAKE_PARSERCALL(Font) {
     LPCSTR file = UI_ApplySkin(frame->Font.Name, true);
-    frame->f.font.index = gi.FontIndex(file, frame->Font.Size / 10);
+    frame->Font.Index = gi.FontIndex(file, frame->Font.Size / 10);
 }
 
 MAKE_PARSERCALL(SetPoint) {
     if (!frame->AnyPointsSet) { // clear any template points
-        memset(&frame->f.points, 0, sizeof(frame->f.points));
+        memset(&frame->Points, 0, sizeof(frame->Points));
         frame->AnyPointsSet = true;
     }
     DWORD const x = frame->SetPoint.type & 3;
-    uiFramePoint_t *xp = frame->f.points.x;
+    uiFramePoint_t *xp = frame->Points.x;
     if (x != FPP_MID || (!xp[FPP_MIN].used && !xp[FPP_MAX].used)) {
         xp[FPP_MID].used = false;
         xp[x].used = true;
@@ -306,7 +340,7 @@ MAKE_PARSERCALL(SetPoint) {
         xp[x].relativeTo = frame->SetPoint.relativeTo;
     }
     DWORD y = (frame->SetPoint.type >> 2) & 3;
-    uiFramePoint_t *yp = frame->f.points.y;
+    uiFramePoint_t *yp = frame->Points.y;
     if (y != FPP_MID || (!yp[FPP_MIN].used && !yp[FPP_MAX].used)) {
         yp[FPP_MID].used = false;
         yp[y].used = true;
@@ -327,6 +361,14 @@ MAKE_PARSERCALL(Anchor) {
 
 MAKE_PARSERCALL(DecorateFileNames) {
     frame->DecorateFileNames = true;
+}
+
+MAKE_PARSERCALL(SliderLayoutHorizontal) {
+    frame->Slider.Layout = LAYOUT_HORIZONTAL;
+}
+
+MAKE_PARSERCALL(SliderLayoutVertical) {
+    frame->Slider.Layout = LAYOUT_VERTICAL;
 }
 
 MAKE_PARSERCALL(BackdropTileBackground) {
@@ -359,7 +401,7 @@ MAKE_PARSERCALL(String) {
 
 MAKE_PARSERCALL(Frame) {
     LPCSTR stype = parse_token(parser);
-    uiFrameType_t type = ParseEnumString(stype, FrameType);
+    FRAMETYPE type = ParseEnumString(stype, FrameType);
     LPFRAMEDEF current = UI_Spawn(type, frame);
     FDF_ParseFrame(parser, current);
 }
@@ -372,8 +414,16 @@ MAKE_PARSERCALL(IncludeFile) {
 MAKE_PARSERCALL(StringList) {
     FRAMEDEF string_list;
     memset(&string_list, 0, sizeof(FRAMEDEF));
-    string_list.f.flags.type = FT_STRINGLIST;
+    string_list.Type = FT_STRINGLIST;
     FDF_ParseFrame(parser, &string_list);
+}
+
+MAKE_PARSERCALL(EditHighlightInitial) {
+    frame->Edit.HighlightInitial = true;
+}
+
+MAKE_PARSERCALL(EditSetFocus) {
+    frame->Edit.Focus = true;
 }
 
 #define F_END { NULL }
@@ -391,38 +441,91 @@ static parseClass_t classes[] = {
 static parseItem_t items[] = {
     // Flags
     { "DecorateFileNames", { F_END }, DecorateFileNames },
+    { "SetAllPoints", F_END, SetAllPoints },
+    { "SetPoint", { F(SetPoint.type, FramePointType), F(SetPoint.relativeTo, FrameNumber), F(SetPoint.target, FramePointType), F(SetPoint.x, Float16), F(SetPoint.y, Float16), F_END }, SetPoint },
+    { "UseActiveContext", F_END, UseActiveContext },
+    { "DialogBackdrop", { F(DialogBackdrop, FrameNumber), F_END } },
     // Fields
-    { "Width", { F(f.size.width, Float16), F_END } },
-    { "Height", { F(f.size.height, Float16), F_END } },
-    { "File", { F(f.tex.index, File), F_END } },
-    { "TexCoord", { F(f.tex.coord[0], Float8), F(f.tex.coord[1], Float8), F(f.tex.coord[2], Float8), F(f.tex.coord[3], Float8), F_END } },
-    { "AlphaMode", { F(f.flags, AlphaMode), F_END } },
+    { "Width", { F(Width, Float16), F_END } },
+    { "Height", { F(Height, Float16), F_END } },
+    { "File", { F(Texture.Image, TextureFile), F_END } },
+    { "TexCoord", { F(UVs.min.x, Float), F(UVs.max.x, Float), F(UVs.min.y, Float), F(UVs.max.y, Float), F_END } },
+    { "AlphaMode", { F(AlphaMode, AlphaMode), F_END } },
     { "Anchor", { F(Anchor.corner, FramePointType), F(Anchor.x, Float16), F(Anchor.y, Float16), F_END }, Anchor },
     { "Font", { F(Font.Name, Name), F(Font.Size, Float16), F_END }, Font },
-    { "Text", { F(Text, Text), F_END } },
-    { "ButtonText", { F(Text, Text), F_END } },
-    { "TextLength", { F(f.textLength, Integer), F_END } },
+    { "Text", { F(TextStorage, Text), F_END } },
+    { "TextLength", { F(TextLength, Integer), F_END } },
     { "FrameFont", { F(Font.Name, Name), F(Font.Size, Float16), F(Font.Unknown, Name), F_END }, Font },
-    { "FontJustificationH", { F(f.flags, FontJustificationH), F_END } },
-    { "FontJustificationV", { F(f.flags, FontJustificationV), F_END } },
+    // Font
+    { "FontJustificationH", { F(Font.Justification.Horizontal, FontJustificationH), F_END } },
+    { "FontJustificationV", { F(Font.Justification.Vertical, FontJustificationV), F_END } },
+    { "FontJustificationOffset", { F(Font.Justification.Offset, Vector2), F_END } },
     { "FontFlags", { F(Font.FontFlags, FontFlags), F_END } },
     { "FontColor", { F(Font.Color, Color), F_END } },
     { "FontHighlightColor", { F(Font.HighlightColor, Color), F_END } },
     { "FontDisabledColor", { F(Font.DisabledColor, Color), F_END } },
     { "FontShadowColor", { F(Font.ShadowColor, Color), F_END } },
     { "FontShadowOffset", { F(Font.ShadowOffset, Vector2), F_END } },
-    { "SetPoint", { F(SetPoint.type, FramePointType), F(SetPoint.relativeTo, FrameNumber), F(SetPoint.target, FramePointType), F(SetPoint.x, Float16), F(SetPoint.y, Float16), F_END }, SetPoint },
-    { "UseActiveContext", F_END, UseActiveContext },
-    { "DialogBackdrop", { F(DialogBackdrop, FrameNumber), F_END } },
+    // Backdrop
     { "BackdropTileBackground", F_END, BackdropTileBackground },
-    { "BackdropBackground", { F(Backdrop.Background, File), F_END } },
-    { "BackdropCornerFlags", { F(Backdrop.CornerFlags, Name), F_END } },
+    { "BackdropBackground", { F(Backdrop.Background, TextureFile), F_END } },
+    { "BackdropCornerFlags", { F(Backdrop.CornerFlags, CornerFlags), F_END } },
     { "BackdropCornerSize", { F(Backdrop.CornerSize, Float16), F_END } },
     { "BackdropBackgroundSize", { F(Backdrop.BackgroundSize, Float16), F_END } },
     { "BackdropBackgroundInsets", { F(Backdrop.BackgroundInsets, Float16_4), F_END } },
-    { "BackdropEdgeFile", { F(Backdrop.EdgeFile, File), NULL } },
+    { "BackdropEdgeFile", { F(Backdrop.EdgeFile, TextureFile), NULL } },
     { "BackdropBlendAll", F_END, BackdropBlendAll },
-    { "SetAllPoints", F_END, SetAllPoints },
+    // Highlight
+    { "HighlightType", { F(Highlight.Type, HighlightType), F_END } },
+    { "HighlightAlphaFile", { F(Highlight.AlphaFile, TextureFile), F_END } },
+    { "HighlightAlphaMode", { F(Highlight.AlphaMode, AlphaMode), F_END } },
+    // Control
+    { "ControlStyle", { F(Control.Style, ControlStyle), F_END } },
+    { "ControlBackdrop", { F(Control.Backdrop.Normal, Name), F_END } },
+    { "ControlPushedBackdrop", { F(Control.Backdrop.Pushed, Name), F_END } },
+    { "ControlDisabledBackdrop", { F(Control.Backdrop.Disabled, Name), F_END } },
+    { "ControlMouseOverHighlight", { F(Control.Backdrop.MouseOver, Name), F_END } },
+    { "ControlDisabledPushedBackdrop", { F(Control.Backdrop.DisabledPushed, Name), F_END } },
+    // Button
+    { "ButtonText", { F(TextStorage, Text), F_END } },
+    { "ButtonPushedTextOffset", { F(Button.PushedTextOffset, Vector2), F_END } },
+    // Slider
+    { "SliderInitialValue", { F(Slider.InitialValue, Float), F_END } },
+    { "SliderLayoutHorizontal", { F_END }, SliderLayoutHorizontal },
+    { "SliderLayoutVertical", { F_END }, SliderLayoutVertical },
+    { "SliderMaxValue", { F(Slider.MaxValue, Float), F_END } },
+    { "SliderMinValue", { F(Slider.MinValue, Float), F_END } },
+    { "SliderStepSize", { F(Slider.StepSize, Float), F_END } },
+    { "SliderThumbButtonFrame", { F(Slider.ThumbButtonFrame, Name), F_END } },
+    // Menu
+    { "MenuBorder", { F(Menu.Border, Float), F_END } },
+    { "MenuItem", { F(Menu.Item.Text, Name), F(Menu.Item.Value, Integer), F_END } },
+    { "MenuItemHeight", { F(Menu.Item.Height, Float), F_END } },
+    { "MenuTextHighlightColor", { F(Menu.TextHighlightColor, Color), F_END } },
+    // Edit
+    { "EditBorderSize", { F(Edit.BorderSize, Float), F_END } },
+    { "EditCursorColor", { F(Edit.CursorColor, Color), F_END } },
+    { "EditHighlightColor", { F(Edit.HighlightColor, Color), F_END } },
+    { "EditHighlightInitial", { F_END }, EditHighlightInitial },
+    { "EditMaxChars", { F(Edit.MaxChars, Integer), F_END } },
+    { "EditSetFocus", { F_END }, EditSetFocus },
+    { "EditText", { F(Edit.Text, Text), F_END } },
+    { "EditTextColor", { F(Edit.TextColor, Color), F_END } },
+    { "EditTextFrame", { F(Edit.TextFrame, Name), F_END } },
+    { "EditTextOffset", { F(Edit.TextOffset, Vector2), F_END } },
+    // Popup
+    { "PopupButtonInset", { F(Popup.ButtonInset, Float), F_END } },
+    { "PopupArrowFrame", { F(Popup.ArrowFrame, Name), F_END } },
+    { "PopupMenuFrame", { F(Popup.MenuFrame, Name), F_END } },
+    { "PopupTitleFrame", { F(Popup.TitleFrame, Name), F_END } },
+    // TextArea
+    { "TextAreaLineHeight", { F(TextArea.LineHeight, Float), F_END } },
+    { "TextAreaLineGap", { F(TextArea.LineGap, Float), F_END } },
+    { "TextAreaInset", { F(TextArea.Inset, Float), F_END } },
+    { "TextAreaScrollBar", { F(TextArea.ScrollBar, Name), F_END } },
+    // CheckBox
+    { "CheckBoxCheckHighlight", { F(CheckBox.CheckHighlight, Name), F_END } },
+    { "CheckBoxDisabledCheckHighlight", { F(CheckBox.DisabledCheckHighlight, Name), F_END } },
     // End of list
     F_END
 };
@@ -443,8 +546,8 @@ void parse_item(LPPARSER parser, LPFRAMEDEF frame, parseItem_t *item) {
 void parse_func(LPPARSER parser, LPFRAMEDEF frame) {
     LPCSTR token = NULL;
     while ((token = parse_token(parser)) && (*token != '}')) {
-        if (frame->f.flags.type == FT_STRINGLIST) {
-            static parseItem_t stringitem = { "", { F(f, StringListItem), F_END } };
+        if (frame->Type == FT_STRINGLIST) {
+            static parseItem_t stringitem = { "", { F(Name, StringListItem), F_END } };
             stringListItem_t *str = gi.MemAlloc(sizeof(stringListItem_t));
             ADD_TO_LIST(str, strings);
             strcpy(str->name, token);
@@ -482,13 +585,13 @@ LPFRAMEDEF FindFrameTemplate(LPCSTR str) {
 
 void UI_InheritFrom(LPFRAMEDEF frame, LPCSTR inheritName) {
     LPFRAMEDEF inherit = FindFrameTemplate(inheritName);
-    if (inherit && inherit->f.flags.type == frame->f.flags.type) {
+    if (inherit && inherit->Type == frame->Type) {
         FRAMEDEF tmp;
         memcpy(&tmp, frame, sizeof(FRAMEDEF));
         memcpy(frame, inherit, sizeof(FRAMEDEF));
         memcpy(frame->Name, tmp.Name, sizeof(UINAME));
-        frame->f.parent = tmp.f.parent;
-        frame->f.number = tmp.f.number;
+        frame->Parent = tmp.Parent;
+        frame->Number = tmp.Number;
         frame->AnyPointsSet = false;
     } else if (inherit) {
         fprintf(stderr, "Can't inherit from different type %s\n", inheritName);
@@ -534,7 +637,7 @@ LPFRAMEDEF UI_FindChildFrame(LPFRAMEDEF frame, LPCSTR name) {
     if (!strcmp(frame->Name, name))
         return frame;
     FOR_LOOP(i, MAX_UI_CLASSES) {
-        if (frames[i].f.parent != frame->f.number)
+        if (frames[i].Parent != frame)
             continue;
         LPFRAMEDEF found = UI_FindChildFrame(frames+i, name);
         if (found)
@@ -552,6 +655,10 @@ void FDF_ParseScene(LPPARSER parser) {
                 it->func(parser, frame);
                 goto parse_next;
             }
+        }
+        if (!strcmp(token, ",")) {
+            fprintf(stderr, "Warning: Unexpected token in FDF\n");
+            goto parse_next;
         }
         parser_error(parser);
         return;
@@ -582,68 +689,14 @@ void UI_ParseFDF(LPCSTR fileName) {
     }
 }
 
-#define SPRINTF_ADD(TEXT, ...) snprintf(TEXT+strlen(TEXT), sizeof(TEXT), __VA_ARGS__);
-
-void UI_WriteFrame(LPCFRAMEDEF frame) {
-    UINAME backdrop;
-    uiFrame_t tmp;
-    memcpy(&tmp, &frame->f, sizeof(tmp));
-    if (tmp.flags.type == FT_BACKDROP || tmp.flags.type == FT_TOOLTIPTEXT) {
-//      BackdropTileBackground,
-//      BackdropBackground  "ToolTipBackground",
-//      BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R",
-//      BackdropCornerSize  0.008,
-//      BackdropBackgroundSize  0.036,
-//      BackdropBackgroundInsets 0.0025 0.0025 0.0025 0.0025,
-//      BackdropEdgeFile  "ToolTipBorder",
-//      BackdropBlendAll,
-        memset(&backdrop, 0, sizeof(backdrop));
-        SPRINTF_ADD(backdrop, "%s,", frame->Backdrop.CornerFlags);
-        SPRINTF_ADD(backdrop, "%d,", frame->Backdrop.TileBackground);
-        SPRINTF_ADD(backdrop, "%d,", frame->Backdrop.Background);
-        SPRINTF_ADD(backdrop, "%d,", frame->Backdrop.CornerSize);
-        SPRINTF_ADD(backdrop, "%d,", frame->Backdrop.BackgroundSize);
-        SPRINTF_ADD(backdrop, "%d ", frame->Backdrop.BackgroundInsets[0]);
-        SPRINTF_ADD(backdrop, "%d ", frame->Backdrop.BackgroundInsets[1]);
-        SPRINTF_ADD(backdrop, "%d ", frame->Backdrop.BackgroundInsets[2]);
-        SPRINTF_ADD(backdrop, "%d,", frame->Backdrop.BackgroundInsets[3]);
-        SPRINTF_ADD(backdrop, "%d,", frame->Backdrop.EdgeFile);
-        SPRINTF_ADD(backdrop, "%d,", frame->Backdrop.BlendAll);
-        tmp.text = backdrop;
-    }
-    gi.WriteUIFrame(&tmp);
-}
-
 void UI_WriteFrameWithChildren(LPCFRAMEDEF frame) {
     UI_WriteFrame(frame);
     FOR_LOOP(i, MAX_UI_CLASSES) {
         LPCFRAMEDEF it = frames+i;
-        if (it->f.parent == frame->f.number && it->f.number > 0 && !it->hidden) {
+        if (it->Parent == frame && it->Number > 0 && !it->hidden) {
             UI_WriteFrameWithChildren(it);
         }
     }
-}
-
-void UI_WriteLayout(LPEDICT ent,
-                    LPCFRAMEDEF root,
-                    DWORD layer)
-{
-    gi.WriteByte(svc_layout);
-    gi.WriteByte(layer);
-    UI_WriteFrameWithChildren(root);
-    gi.WriteLong(0); // end of list
-    gi.unicast(ent);
-}
-
-void UI_WriteLayout2(LPEDICT ent,
-                     void (*BuildUI)(LPGAMECLIENT),
-                     DWORD layer)
-{
-    gi.WriteByte(svc_layout);
-    gi.WriteByte(layer);
-    BuildUI(ent->client);
-    gi.WriteLong(0); // end of list
-    gi.unicast(ent);
 }
 
 void UI_SetPointByNumber(LPFRAMEDEF frame,
@@ -668,7 +721,7 @@ void UI_SetPoint(LPFRAMEDEF frame,
                  SHORT x,
                  SHORT y)
 {
-    UI_SetPointByNumber(frame, framePoint, other ? other->f.number : 0, otherPoint, x, y);
+    UI_SetPointByNumber(frame, framePoint, other ? other->Number : 0, otherPoint, x, y);
 }
 
 void UI_SetAllPoints(LPFRAMEDEF frame) {
@@ -677,7 +730,7 @@ void UI_SetAllPoints(LPFRAMEDEF frame) {
 }
 
 void UI_SetParent(LPFRAMEDEF frame, LPFRAMEDEF parent) {
-    frame->f.parent = parent ? parent->f.number : 0;
+    frame->Parent = parent;
 }
 
 void UI_SetText(LPFRAMEDEF frame, LPCSTR format, ...) {
@@ -686,13 +739,13 @@ void UI_SetText(LPFRAMEDEF frame, LPCSTR format, ...) {
     va_start(argptr, format);
     vsprintf(text, format,argptr);
     va_end(argptr);
-    strcpy(frame->Text, UI_GetString(text));
-    frame->f.text = frame->Text;
+    strcpy(frame->TextStorage, UI_GetString(text));
+    frame->Text = frame->TextStorage;
 }
 
 void UI_SetSize(LPFRAMEDEF frame, DWORD width, DWORD height) {
-    frame->f.size.width = width;
-    frame->f.size.height = height;
+    frame->Width = width;
+    frame->Height = height;
 }
 
 LPCSTR UI_GetString(LPCSTR textID) {
@@ -705,11 +758,11 @@ LPCSTR UI_GetString(LPCSTR textID) {
 }
 
 void UI_SetTexture(LPFRAMEDEF frame, LPCSTR name, BOOL decorate) {
-    frame->f.tex.index = UI_LoadTexture(name, decorate);
+    frame->Texture.Image = UI_LoadTexture(name, decorate);
 }
 
 void UI_SetTexture2(LPFRAMEDEF frame, LPCSTR name, BOOL decorate) {
-    frame->f.tex.index2 = UI_LoadTexture(name, decorate);
+    frame->Texture.Image2 = UI_LoadTexture(name, decorate);
 }
 
 void UI_SetHidden(LPFRAMEDEF frame, BOOL value) {

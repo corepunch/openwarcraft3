@@ -1,3 +1,5 @@
+extern LPCMAPPLAYER currentplayer;
+
 DWORD SetPlayerTeam(LPJASS j) {
     //HANDLE whichPlayer = jass_checkhandle(j, 1, "player");
     //LONG whichTeam = jass_checkinteger(j, 2);
@@ -135,11 +137,11 @@ DWORD IssueNeutralTargetOrderById(LPJASS j) {
 }
 DWORD Player(LPJASS j) {
     LONG number = jass_checkinteger(j, 1);
-    LPMAPPLAYER player = game_state.mapinfo->players+number;
-    return jass_pushlighthandle(j, player, "player");
+    LPCMAPPLAYER player = level.mapinfo->players+number;
+    return jass_pushlighthandle(j, (LPMAPPLAYER)player, "player");
 }
 DWORD GetLocalPlayer(LPJASS j) {
-    return jass_pushhandle(j, 0, "player");
+    return jass_pushlighthandle(j, (LPMAPPLAYER)currentplayer, "player");
 }
 DWORD IsPlayerAlly(LPJASS j) {
     //HANDLE whichPlayer = jass_checkhandle(j, 1, "player");
@@ -152,9 +154,9 @@ DWORD IsPlayerEnemy(LPJASS j) {
     return jass_pushboolean(j, 0);
 }
 DWORD IsPlayerInForce(LPJASS j) {
-    //HANDLE whichPlayer = jass_checkhandle(j, 1, "player");
-    //HANDLE whichForce = jass_checkhandle(j, 2, "force");
-    return jass_pushboolean(j, 0);
+    LPMAPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
+    LPDWORD whichForce = jass_checkhandle(j, 2, "force");
+    return jass_pushboolean(j, (*whichForce) & (1 << PLAYER_NUM(whichPlayer)));
 }
 DWORD IsPlayerObserver(LPJASS j) {
     //HANDLE whichPlayer = jass_checkhandle(j, 1, "player");
@@ -328,18 +330,40 @@ DWORD SetFogStateRadiusLoc(LPJASS j) {
     return 0;
 }
 DWORD FogMaskEnable(LPJASS j) {
-    //BOOL enable = jass_checkboolean(j, 1);
+    BOOL enable = jass_checkboolean(j, 1);
+    if (currentplayer) {
+        LPGAMECLIENT client = PLAYER_CLIENT(currentplayer);
+        SET_FLAG(client->ps.rdflags, RDF_NOFOGMASK, !enable);
+    } else FOR_LOOP(i, game.max_clients) {
+        SET_FLAG(game.clients[i].ps.rdflags, RDF_NOFOGMASK, !enable);
+    }
+    return 0;
+}
+DWORD FogEnable(LPJASS j) {
+    BOOL enable = jass_checkboolean(j, 1);
+    if (currentplayer) {
+        LPGAMECLIENT client = PLAYER_CLIENT(currentplayer);
+        SET_FLAG(client->ps.rdflags, RDF_NOFOG, !enable);
+    } else FOR_LOOP(i, game.max_clients) {
+        SET_FLAG(game.clients[i].ps.rdflags, RDF_NOFOG, !enable);
+    }
     return 0;
 }
 DWORD IsFogMaskEnabled(LPJASS j) {
-    return jass_pushboolean(j, 0);
-}
-DWORD FogEnable(LPJASS j) {
-    //BOOL enable = jass_checkboolean(j, 1);
-    return 0;
+    if (currentplayer) {
+        LPGAMECLIENT client = PLAYER_CLIENT(currentplayer);
+        return jass_pushboolean(j, !(client->ps.rdflags & RDF_NOFOGMASK));
+    } else {
+        return jass_pushboolean(j, !(game.clients->ps.rdflags & RDF_NOFOGMASK));
+    }
 }
 DWORD IsFogEnabled(LPJASS j) {
-    return jass_pushboolean(j, 0);
+    if (currentplayer) {
+        LPGAMECLIENT client = PLAYER_CLIENT(currentplayer);
+        return jass_pushboolean(j, !(client->ps.rdflags & RDF_NOFOG));
+    } else {
+        return jass_pushboolean(j, !(game.clients->ps.rdflags & RDF_NOFOG));
+    }
 }
 DWORD CreateFogModifierRect(LPJASS j) {
     //HANDLE forWhichPlayer = jass_checkhandle(j, 1, "player");

@@ -2,6 +2,7 @@
 #define __mapinfo_h__
 
 #define TILESIZE 128
+#define MAX_PLAYERS 16
 
 typedef struct {
     float bounds[8];
@@ -55,7 +56,8 @@ typedef enum {
 } forceFlags_t;
 
 typedef struct mapPlayer_s {
-    DWORD internalPlayerNumber;
+//    DWORD number;
+    BOOL used;
     playerType_t playerType;
     playerRace_t playerRace;
     DWORD flags;
@@ -154,12 +156,12 @@ struct mapInfo_s {
     LPSTR prologueScreenText;
     LPSTR prologueScreenTitle;
     LPSTR prologueScreenSubtitle;
-    DWORD num_players;
+//    DWORD num_players;
     DWORD num_forces;
     DWORD num_upgradeAvailabilities;
     DWORD num_techAvailabilities;
     DWORD num_randomUnits;
-    mapPlayer_t *players;
+    mapPlayer_t players[MAX_PLAYERS];
     mapForce_t *forces;
     mapUpgradeAvailability_t *upgradeAvailabilities;
     mapTechAvailability_t *techAvailabilities;

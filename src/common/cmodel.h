@@ -36,7 +36,8 @@ struct war3map {
 void CM_LoadMap(LPCSTR mapFilename);
 float CM_GetHeightAtPoint(float sx, float sy);
 LPDOODAD CM_GetDoodads(void);
-LPCMAPPLAYER CM_GetPlayer(DWORD index);
+//LPCMAPPLAYER CM_GetPlayer(DWORD index);
+DWORD CM_GetLocalPlayerNumber(void);
 LPCMAPINFO CM_GetMapInfo(void);
 VECTOR2 CM_GetNormalizedMapPosition(float x, float y);
 VECTOR2 CM_GetDenormalizedMapPosition(float x, float y);

@@ -45,7 +45,7 @@ void unit_build(LPEDICT self, DWORD class_id) {
 }
 
 void SP_TrainUnit(LPEDICT townhall, DWORD class_id) {
-    LPEDICT clent = game_state.edicts+townhall->s.player;
+    LPEDICT clent = g_edicts+townhall->s.player;
     playerState_t *player = G_GetPlayerByNumber(townhall->s.player);
     if (player_pay(player, class_id)) {
         unit_build(townhall, class_id);

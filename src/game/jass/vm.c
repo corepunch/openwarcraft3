@@ -44,11 +44,16 @@ DWORD NAME(LPJASS j) { \
     } \
 }
 
+KNOWN_AS(jass_array, JASSARRAY);
 KNOWN_AS(jass_dict, JASSDICT);
 KNOWN_AS(jass_arg, JASSARG);
 KNOWN_AS(jass_env, JASSENV);
+KNOWN_AS(jass_event, JASSEVENT);
 
 VMPROGRAM VM_Compile(LPCTOKEN token);
+LPCMAPPLAYER currentplayer = NULL;
+LPTRIGGER currenttrigger = NULL;
+LPEDICT currentunit = NULL;
 
 LPCSTR keywords[] = {
     "elseif", "else", "endif", "set", "endfunction", "local", "then", NULL
@@ -72,6 +77,7 @@ struct jass_var {
         DWORD returnstack;
         BOOL done;
     } env;
+    LPJASSARRAY _array;
 };
 
 struct jass_type {
@@ -124,9 +130,6 @@ JASS_CMPOP(__lt, <);
 static BOOL var_eq(LPCJASSVAR a, LPCJASSVAR b) {
     if (jass_getvarbasetype(a) != jass_getvarbasetype(b)) {
         return false;
-    }
-    if (!strcmp(a->type->name, "player")) {
-        return true;
     }
     switch ((a->value == NULL) + (b->value == NULL)) {
         case 2: return true;
@@ -205,16 +208,30 @@ struct jass_function {
     BOOL constant;
 };
 
+struct jass_array {
+    LPJASSARRAY next;
+    DWORD index;
+    JASSVAR value;
+};
+
 struct jass_dict {
     LPJASSDICT next;
     LPCSTR key;
     JASSVAR value;
 };
 
+struct jass_event {
+    LPJASSEVENT next;
+    HANDLE subject;
+    EVENTTYPE event;
+    LPTRIGGER trigger;
+};
+
 struct jass_s {
     LPJASSDICT globals;
     LPJASSTYPE types;
     LPJASSFUNC functions;
+    LPJASSEVENT events;
     JASSVAR stack[MAX_JASS_STACK];
     LPJASSVAR stack_pointer;
     DWORD num_stack;
@@ -257,6 +274,49 @@ BOOL is_identifier(LPCSTR str) {
 
 BOOL is_comma(LPCSTR str) {
     return !strcmp(str, ",");
+}
+
+DWORD jass_pushevent(LPJASS j, HANDLE subject, EVENTTYPE event, LPTRIGGER trigger) {
+    LPJASSEVENT tr = JASSALLOC(JASSEVENT);
+    tr->subject = subject;
+    tr->event = event;
+    tr->trigger = trigger;
+    ADD_TO_LIST(tr, j->events);
+    return jass_pushlighthandle(j, tr, "event");
+}
+
+void jass_calltrigger(LPJASS j, LPTRIGGER trigger) {
+    if (trigger->disabled)
+        return;
+    FOR_EACH_LIST(gtriggeraction_t, action, trigger->actions) {
+        currenttrigger = trigger;
+        jass_pushfunction(j, action->func);
+        jass_call(j, 0);
+    }
+}
+
+static void jass_executeevent(LPJASS j, GAMEEVENT *evt) {
+    HANDLE subject = evt->edict;
+    if (evt->type >= EVENT_PLAYER_STATE_LIMIT &&
+        evt->type <= EVENT_PLAYER_END_CINEMATIC)
+    {
+        subject = (LPMAPPLAYER)level.mapinfo->players+evt->edict->client->ps.number;
+    }
+    FOR_EACH_LIST(JASSEVENT, e, j->events) {
+        if (e->subject == subject && e->event == evt->type) {
+            jass_calltrigger(j, e->trigger);
+        }
+    }
+}
+
+void jass_runevents(LPJASS j) {
+    for (;
+         level.events.read < level.events.write;
+         level.events.read++)
+    {
+        GAMEEVENT *evt = &level.events.queue[level.events.read % MAX_EVENT_QUEUE];
+        jass_executeevent(j, evt);
+    }
 }
 
 static LPJASSCFUNCTION find_cfunction(LPCJASS j, LPCSTR name) {
@@ -394,13 +454,31 @@ BOOL is_handle_convertible(LPCJASSTYPE from, LPCJASSTYPE to) {
     }
 }
 
+static LPJASSVAR ensure_array_value(LPJASS j, LPJASSVAR dest, DWORD index) {
+    FOR_EACH_LIST(JASSARRAY, var, dest->_array) {
+        if (var->index == index) {
+            return &var->value;
+        }
+    }
+    LPJASSARRAY jv = JASSALLOC(JASSARRAY);
+    jv->value.type = dest->type;
+    jv->index = index;
+    ADD_TO_LIST(jv, dest->_array);
+    return &jv->value;
+}
+
 void jass_copy(LPJASS j, LPJASSVAR var, LPCJASSVAR other) {
     FLOAT fval = 0;
-    if (!other->value) {
-        jass_setnull(var);
+    jass_setnull(var);
+    if (other->_array) {
+        var->type = other->type;
+        FOR_EACH_LIST(JASSARRAY, srcar, other->_array) {
+            jass_copy(j, ensure_array_value(j, var, srcar->index), &srcar->value);
+        }
         return;
-    }
-    switch (jass_getvarbasetype(var)) {
+    } else if (!other->value) {
+        return;
+    } else switch (jass_getvarbasetype(var)) {
         case jasstype_integer:
             assert(other->type == var->type);
             JASS_SET_VALUE(var, other->value, sizeof(LONG));
@@ -515,9 +593,10 @@ DWORD jass_pushfunction(LPJASS j, LPCJASSFUNC func) {
 }
 
 DWORD jass_pushvalue(LPJASS j, LPCJASSVAR other) {
+    LPCJASSTYPE type = other->type;
     LPJASSVAR var = &j->stack[j->num_stack++];
     memset(var, 0, sizeof(*var));
-    var->type = other->type;
+    var->type = type;
     jass_copy(j, var, other);
     return 1;
 }
@@ -585,6 +664,18 @@ void jass_swap(LPJASS j, int a, int b) {
     *jass_stackvalue(j, -2) = tmp;
 }
 
+BOOL jass_popboolean(LPJASS j) {
+    BOOL value = jass_toboolean(j, -1);
+    jass_pop(j, 1);
+    return value;
+}
+
+DWORD jass_popinteger(LPJASS j) {
+    DWORD value = jass_checkinteger(j, -1);
+    jass_pop(j, 1);
+    return value;
+}
+
 DWORD VM_EvalInteger(LPJASS j, LPCTOKEN token) {
     return jass_pushinteger(j, atoi(token->primary));
 }
@@ -617,6 +708,19 @@ DWORD VM_EvalIdentifier(LPJASS j, LPCTOKEN token) {
     } else {
         return jass_pushnull(j);
     }
+}
+
+DWORD VM_EvalArrayAccess(LPJASS j, LPCTOKEN token) {
+    assert(jass_dotoken(j, token->index) == 1);
+    DWORD index_val = jass_popinteger(j);
+    VM_EvalIdentifier(j, token);
+    LPJASSVAR var = jass_stackvalue(j, -1);
+    LPJASSVAR item = ensure_array_value(j, var, index_val);
+    jass_pop(j, 1);
+    JASSVAR tmp;
+    memcpy(&tmp, item, sizeof(JASSVAR));
+    jass_pushvalue(j, &tmp);
+    return 1;
 }
 
 DWORD VM_EvalFourCC(LPJASS j, LPCTOKEN token) {
@@ -664,6 +768,7 @@ static struct {
     { TT_STRING, VM_EvalString },
     { TT_BOOLEAN, VM_EvalBoolean },
     { TT_IDENTIFIER, VM_EvalIdentifier },
+    { TT_ARRAYACCESS, VM_EvalArrayAccess },
     { TT_FOURCC, VM_EvalFourCC },
     { TT_CALL, VM_EvalCall },
 };
@@ -682,10 +787,18 @@ DWORD jass_dotoken(LPJASS j, LPCTOKEN token) {
 
 static void jass_set_value(LPJASS j, LPJASSVAR dest, LPCTOKEN init) {
     DWORD stack = jass_dotoken(j, init);
-    if (stack > 0) {
-        jass_copy(j, dest, j->stack + jass_top(j));
-        jass_pop(j, 1);
-    }
+    assert(stack == 1);
+    jass_copy(j, dest, j->stack + jass_top(j));
+    jass_pop(j, 1);
+}
+
+static void jass_set_array_value(LPJASS j, LPJASSVAR dest, LPCTOKEN index, LPCTOKEN init) {
+    assert(jass_dotoken(j, index) == 1);
+    DWORD index_val = jass_popinteger(j);
+    LPJASSVAR index_dest = ensure_array_value(j, dest, index_val);
+    assert(jass_dotoken(j, init) == 1);
+    jass_copy(j, index_dest, j->stack + jass_top(j));
+    jass_pop(j, 1);
 }
 
 LPJASSDICT parse_dict(LPJASS j, LPCTOKEN token) {
@@ -700,12 +813,6 @@ LPJASSDICT parse_dict(LPJASS j, LPCTOKEN token) {
     return item;
 }
 
-BOOL jass_popboolean(LPJASS j) {
-    BOOL const value = jass_toboolean(j, -1);
-    jass_pop(j, 1);
-    return value;
-}
-
 #define TOKENFUNC(NAME) void eval_##NAME(LPJASS j, LPCTOKEN token)
 #define TOKENEVAL(NAME) { #NAME, TT_##NAME, eval_##NAME }
 
@@ -713,33 +820,63 @@ TOKENFUNC(TOKENS);
 TOKENFUNC(SINGLETOKEN);
 
 TOKENFUNC(TYPEDEF) {
-    LPJASSTYPE type = JASSALLOC(JASSTYPE);;
+    LPJASSTYPE type = JASSALLOC(JASSTYPE);
     type->name = token->primary;
     type->inherit = find_type(j, token->secondary);
     ADD_TO_LIST(type, j->types);
 }
 
+BOOL uses_localplayer(LPCTOKEN token) {
+    if (token->type == TT_CALL && !strcmp(token->primary, "GetLocalPlayer")) {
+        return true;
+    }
+    FOR_EACH_LIST(TOKEN, arg, token->args) {
+        if (uses_localplayer(arg)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 TOKENFUNC(IF) {
-    LPCTOKEN block = token;
-    while (block) {
-        if (!block->condition) {
-            eval_TOKENS(j, block->body);
+    if (uses_localplayer(token->condition)) {
+        FOR_LOOP(i, MAX_PLAYERS) {
+            currentplayer = level.mapinfo->players+i;
+            jass_dotoken(j, token->condition);
+            if (jass_popboolean(j)) {
+                eval_TOKENS(j, token->body);
+            }
+            currentplayer = NULL;
+        }
+        assert(!token->elseblock);
+    } else while (token) {
+        if (!token->condition) {
+            eval_TOKENS(j, token->body);
             return;
         }
-        jass_dotoken(j, block->condition);
+        jass_dotoken(j, token->condition);
         if (jass_popboolean(j)) {
-            eval_TOKENS(j, block->body);
+            eval_TOKENS(j, token->body);
+            return;
         }
-        block = block->elseblock;
+        token = token->elseblock;
     }
 }
 
 TOKENFUNC(SET) {
     LPJASSVAR v = NULL;
     if ((v = find_dict(j->globals, token->secondary))) {
-        return jass_set_value(j, v, token->init);
+        if (token->index) {
+            return jass_set_array_value(j, v, token->index, token->init);
+        } else {
+            return jass_set_value(j, v, token->init);
+        }
     } else if ((v = find_dict(jass_stackvalue(j, 0)->env.locals, token->secondary))) {
-        return jass_set_value(j, v, token->init);
+        if (token->index) {
+            return jass_set_array_value(j, v, token->index, token->init);
+        } else {
+            return jass_set_value(j, v, token->init);
+        }
     } else {
         fprintf(stderr, "Can't find variable %s\n", token->primary);
     }
@@ -895,7 +1032,7 @@ BOOL JASS_Parse_Native(LPJASS j, LPCSTR fileName) {
     return success;
 }
 
-#define DEBUG_JASS
+//#define DEBUG_JASS
 
 #ifdef DEBUG_JASS
 static int depth = 0, callnum = 0;
@@ -913,7 +1050,6 @@ void jass_call(LPJASS j, DWORD args) {
 #endif
     if (jass_getvarbasetype(root) == jasstype_cfunction) {
         LPJASSCFUNCTION func = *(LPJASSCFUNCTION *)root->value;
-        ret = func(j);
 #ifdef DEBUG_JASS
         for (DWORD i = 0; jass_funcs[i].name; i++) {
             if (jass_funcs[i].func == func) {
@@ -929,6 +1065,7 @@ void jass_call(LPJASS j, DWORD args) {
         }
         printf("\n");
 #endif
+        ret = func(j);
     } else {
         LPCJASSFUNC func = root->value;
         LPJASSDICT locals = NULL;

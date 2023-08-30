@@ -14,6 +14,7 @@
 #define MAX_PATHLEN 256
 #define TOKEN_LEN 1024
 #define FRAMETIME 100
+#define MAX_LAYOUT_OBJECTS 0xffff
 #define MIN(x, y) (((x)<(y))?(x):(y))
 #define MAX(x, y) (((x)>(y))?(x):(y))
 
@@ -64,6 +65,8 @@ for (type *property = array; property - array < num; property++)
 #define DEG2RAD(ANGLE) ((ANGLE) / 180.0 * M_PI)
 #define RAD2DEG(ANGLE) ((ANGLE) / M_PI * 180.0)
 
+#define SET_FLAG(VAR, FLAG, VALUE) if (VALUE) { VAR |= FLAG; } else { VAR &= ~FLAG; }
+
 #define PUSH_BACK(TYPE, VAR, LIST) \
 if (LIST) { \
     TYPE *last##TYPE = LIST; \
@@ -84,6 +87,13 @@ enum {
     RF_HIDDEN = 1 << 3,
     RF_NO_UBERSPLAT = 1 << 4,
     RF_NO_FOGOFWAR = 1 << 5,
+};
+
+enum {
+    RDF_NOFOG = 1 << 0,
+    RDF_NOFOGMASK = 1 << 1,
+    RDF_NOWORLDMODEL = 1 << 2,
+    RDF_NOFRUSTUMCULL = 1 << 3,
 };
 
 #define MAX_COMMANDS 12
@@ -199,7 +209,7 @@ typedef enum {
 
 typedef struct {
     DWORD number;
-    VECTOR3 viewangles;
+    QUATERNION viewquat;
     VECTOR2 origin;
     float distance;
     DWORD fov;
@@ -304,11 +314,25 @@ typedef enum {
     FT_BUILDQUEUE,
     FT_MULTISELECT,
     FT_TOOLTIPTEXT,
-} uiFrameType_t;
+} FRAMETYPE;
+
+typedef enum {
+    BACKDROP_TOP_LEFT_CORNER,
+    BACKDROP_TOP_EDGE,
+    BACKDROP_TOP_RIGHT_CORNER,
+    BACKDROP_LEFT_EDGE,
+    BACKDROP_CENTER,
+    BACKDROP_RIGHT_EDGE,
+    BACKDROP_BOTTOM_LEFT_CORNER,
+    BACKDROP_BOTTOM_EDGE,
+    BACKDROP_BOTTOM_RIGHT_CORNER,
+    BACKDROP_SIZE,
+} BACKDROPCORNER;
 
 typedef enum {
     AM_ALPHAKEY,
-} uiAlphaMode_t;
+    AM_ADD,
+} ALPHAMODE;
 
 typedef enum {
     FPP_MIN,
@@ -353,8 +377,8 @@ typedef struct uiFrame_s {
     } tex;
     union {
         struct {
-            uiFrameType_t type: 8;
-            uiAlphaMode_t alphaMode: 2;
+            FRAMETYPE type: 8;
+            ALPHAMODE alphaMode: 2;
             uiFontJustificationH_t textalignx: 2;
             uiFontJustificationV_t textaligny: 2;
         } flags;

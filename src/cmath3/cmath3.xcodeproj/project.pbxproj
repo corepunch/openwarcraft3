@@ -13,6 +13,7 @@
 		78314B1B2A28C6CE00062C4B /* rect.h in Headers */ = {isa = PBXBuildFile; fileRef = 78314B192A28C6CE00062C4B /* rect.h */; };
 		78314B1C2A28C6CE00062C4B /* rect.c in Sources */ = {isa = PBXBuildFile; fileRef = 78314B1A2A28C6CE00062C4B /* rect.c */; };
 		78662FED2A176DB400266A62 /* triangle3.c in Sources */ = {isa = PBXBuildFile; fileRef = 78662FEC2A176DB400266A62 /* triangle3.c */; };
+		78731BB02A9E298000077EDE /* box2.c in Sources */ = {isa = PBXBuildFile; fileRef = 78731BAF2A9E298000077EDE /* box2.c */; };
 		78A896CD2A16014C00BC5B56 /* cmath3.h in Headers */ = {isa = PBXBuildFile; fileRef = 78A896CB2A16014C00BC5B56 /* cmath3.h */; };
 		78A896D02A16015D00BC5B56 /* vector2.h in Headers */ = {isa = PBXBuildFile; fileRef = 78A896CE2A16015D00BC5B56 /* vector2.h */; };
 		78A896D12A16015D00BC5B56 /* vector2.c in Sources */ = {isa = PBXBuildFile; fileRef = 78A896CF2A16015D00BC5B56 /* vector2.c */; };
@@ -39,6 +40,7 @@
 		78314B1A2A28C6CE00062C4B /* rect.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = rect.c; sourceTree = "<group>"; };
 		78662FEB2A176C2000266A62 /* triangle3.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = triangle3.h; sourceTree = "<group>"; };
 		78662FEC2A176DB400266A62 /* triangle3.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = triangle3.c; sourceTree = "<group>"; };
+		78731BAF2A9E298000077EDE /* box2.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = box2.c; sourceTree = "<group>"; };
 		78A896BD2A16012C00BC5B56 /* libcmath3.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; includeInIndex = 0; path = libcmath3.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
 		78A896CB2A16014C00BC5B56 /* cmath3.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = cmath3.h; sourceTree = "<group>"; };
 		78A896CE2A16015D00BC5B56 /* vector2.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = vector2.h; sourceTree = "<group>"; };
@@ -92,6 +94,8 @@
 		78A896E62A16042700BC5B56 /* source */ = {
 			isa = PBXGroup;
 			children = (
+				78731BAF2A9E298000077EDE /* box2.c */,
+				7806B4642A52DF0B00EE86BC /* box3.c */,
 				7806B4602A52C8D600EE86BC /* frustum3.c */,
 				78A896ED2A1615CD00BC5B56 /* line3.c */,
 				78A896E32A1603B800BC5B56 /* matrix3.c */,
@@ -103,7 +107,6 @@
 				78A896CF2A16015D00BC5B56 /* vector2.c */,
 				78A896D32A1601FB00BC5B56 /* vector3.c */,
 				78A896D72A16025C00BC5B56 /* vector4.c */,
-				7806B4642A52DF0B00EE86BC /* box3.c */,
 			);
 			path = source;
 			sourceTree = "<group>";
@@ -204,6 +207,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				78731BB02A9E298000077EDE /* box2.c in Sources */,
 				78314B1C2A28C6CE00062C4B /* rect.c in Sources */,
 				78A896E52A1603B800BC5B56 /* matrix3.c in Sources */,
 				7806B4632A52CA2400EE86BC /* plane3.c in Sources */,

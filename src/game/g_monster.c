@@ -182,6 +182,7 @@ void SP_SpawnUnit(LPEDICT self) {
     self->s.radius = UNIT_SELECTION_SCALE(self->class_id) * SEL_SCALE / 2;
     self->s.flags |= UNIT_SPEED(self->class_id) > 0 ? EF_MOVABLE : 0;
     self->collision = self->s.radius;//UNIT_COLLISION(self->class_id);
+//    printf("%.4s\n", &self->class_id);
     self->targtype = G_GetTargetType(UNIT_TARGETED_AS(self->class_id));
     self->mana.value = UNIT_MANA(self->class_id);
     self->mana.max_value = UNIT_MANA(self->class_id);

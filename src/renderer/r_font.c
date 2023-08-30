@@ -169,7 +169,7 @@ BOOL will_word_fit(LPCSTR text, FLOAT width, LPCFONT font) {
         stbtt_bakedchar *g = &set->glyphs[codepoint & 0xff];
         width -= INV_SCALE(g->xadvance);
     }
-    return width >= 0;
+    return width >= -0.001;
 }
 
 static VECTOR2 get_position(LPCDRAWTEXT arg) {
@@ -209,8 +209,11 @@ static RECT get_screenrect(LPCVECTOR2 cursor, stbtt_bakedchar *g) {
 }
 
 static VECTOR2 process_text(LPCDRAWTEXT arg, BOOL draw) {
+    if (!arg->font) {
+        return MAKE(VECTOR2, 0, 0);
+    }
     VECTOR2 pos = draw ? get_position(arg) : MAKE(VECTOR2, 0, 0);
-    COLOR32 color = COLOR32_WHITE;
+    COLOR32 color = arg->color;
     VECTOR2 cursor = pos;
     FLOAT maxwidth = 0;
     FLOAT linesize = 0.5 * arg->font->size / 1000.f;
@@ -283,6 +286,8 @@ static VECTOR2 process_text(LPCDRAWTEXT arg, BOOL draw) {
 
 void R_DrawText(LPCDRAWTEXT arg) {
     process_text(arg, true);
+    
+//    R_DrawWireRect(&arg->rect, MAKE(COLOR32, 255, 0, 255, 255));
 }
 
 VECTOR2 R_GetTextSize(LPCDRAWTEXT arg) {

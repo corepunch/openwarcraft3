@@ -4,6 +4,14 @@
 
 mouseEvent_t mouse;
 
+static void pan_camera(float x, float y, float sensivity) {
+    cl.viewDef.camerastate->origin.x += x * sensivity;
+    cl.viewDef.camerastate->origin.y += y * sensivity;
+    MSG_WriteByte(&cls.netchan.message, clc_move);
+    MSG_WriteShort(&cls.netchan.message, x * sensivity);
+    MSG_WriteShort(&cls.netchan.message, y * sensivity);
+}
+
 void CL_Input(void) {
     static int moved = false;
     SDL_Event event;
@@ -29,8 +37,11 @@ void CL_Input(void) {
         
         switch(event.type) {
             case SDL_KEYUP:
-                if(event.key.keysym.sym == SDLK_ESCAPE)
-                    return Com_Quit();
+                if(event.key.keysym.sym == SDLK_ESCAPE) {
+//                    return Com_Quit();
+                    MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
+                    SZ_Printf(&cls.netchan.message, "cancel");
+                }
                 break;
             case SDL_MOUSEBUTTONDOWN:
                 moved = false;
@@ -64,14 +75,13 @@ void CL_Input(void) {
                 mouse.origin.y = event.motion.y;
                 switch (mouse.button) {
                     case 1:
-                        cl.selection.rect.w = event.button.x - cl.selection.rect.x;
-                        cl.selection.rect.h = event.button.y - cl.selection.rect.y;
+                        cl.selection.rect.w = event.motion.x - cl.selection.rect.x;
+                        cl.selection.rect.h = event.motion.y - cl.selection.rect.y;
                         moved = true;
                         break;
                     case 3:
                         moved = true;
-                        cl.viewDef.camerastate->origin.x -= event.motion.xrel * 5;
-                        cl.viewDef.camerastate->origin.y += event.motion.yrel * 5;
+                        pan_camera(-event.motion.xrel, event.motion.yrel, 5);
                         break;
                 }
                 break;

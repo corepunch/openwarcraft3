@@ -30,9 +30,9 @@ void SV_InitGame(void) {
     svs.client_entities = MemAlloc(sizeof(entityState_t) * svs.num_client_entities);
     
     FOR_LOOP(i, ge->max_clients) {
-        edict_t *ent = EDICT_NUM(i+1);
-        ent->s.number = i+1;
-        svs.clients[i].edict = ent;
+        edict_t *ent = EDICT_NUM(i);
+        ent->s.number = i;
+//        svs.clients[i].edict = ent;
     }
 }
 
@@ -49,11 +49,11 @@ void SV_ClientConnect(void) {
 }
 
 void SV_Init(void) {
-    SV_InitGameProgs();
-    
     memset(&svs, 0, sizeof(struct server_static));
     memset(&sv, 0, sizeof(struct server));
 
+    SV_InitGameProgs();
+    
     FOR_LOOP(index, MAX_CLIENTS) {
         LPCLIENT cl = &svs.clients[index];
         SZ_Init(&cl->netchan.message, cl->netchan.message_buf, MAX_MSGLEN);

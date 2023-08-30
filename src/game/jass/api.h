@@ -2,6 +2,9 @@
 #define api_h
 
 #include "g_local.h"
+#include "api_macros.h"
+
+#define MAX_GROUP_SIZE 256
 
 #define API_ALLOC(TYPE, NAME) TYPE *NAME = gi.MemAlloc(sizeof(TYPE));
 
@@ -10,6 +13,7 @@ KNOWN_AS(jass_type, JASSTYPE);
 KNOWN_AS(jass_var, JASSVAR);
 KNOWN_AS(jass_module, JASSMODULE);
 KNOWN_AS(vm_program, VMPROGRAM);
+KNOWN_AS(gtrigger_s, TRIGGER);
 
 typedef enum {
     CAMERA_FIELD_TARGET_DISTANCE,
@@ -50,16 +54,18 @@ typedef struct gtriggeraction_s {
     struct gtriggeraction_s *next;
 } gtriggeraction_t;
 
-typedef struct {
-    gtriggeraction_t *actions;
-} gtrigger_t;
 
 typedef struct {
     UINAME campaign;
 } ggamecache_t;
 
+struct gtrigger_s {
+    struct gtriggeraction_s *actions;
+    BOOL disabled;
+};
+
 typedef struct {
-    LPEDICT units[64];
+    LPEDICT units[MAX_GROUP_SIZE];
     DWORD num_units;
 } ggroup_t;
 
@@ -86,6 +92,7 @@ LPCJASSFUNC jass_checkcode(LPJASS j, int index);
 HANDLE jass_checkhandle(LPJASS j, int index, LPCSTR type);
 BOOL jass_toboolean(LPJASS j, int index);
 void jass_call(LPJASS j, DWORD args);
+void jass_runevents(LPJASS j);
 JASSTYPEID jass_gettype(LPJASS j, int index);
 DWORD jass_pushnull(LPJASS j);
 DWORD jass_pushinteger(LPJASS j, LONG value);
@@ -96,6 +103,8 @@ DWORD jass_pushboolean(LPJASS j, BOOL value);
 DWORD jass_pushstring(LPJASS j, LPCSTR value);
 DWORD jass_pushstringlen(LPJASS j, LPCSTR value, DWORD len);
 DWORD jass_pushfunction(LPJASS j, LPCJASSFUNC func);
+DWORD jass_pushevent(LPJASS j, HANDLE subject, EVENTTYPE event, LPTRIGGER trigger);
+void jass_calltrigger(LPJASS j, LPTRIGGER trigger);
 
 DWORD ConvertRace(LPJASS j);
 DWORD ConvertAllianceType(LPJASS j);

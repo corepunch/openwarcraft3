@@ -1,3 +1,5 @@
+extern LPCMAPPLAYER currentplayer;
+
 DWORD SetCameraTargetController(LPJASS j) {
     //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     //FLOAT xoffset = jass_checknumber(j, 2);
@@ -36,31 +38,46 @@ DWORD StopCamera(LPJASS j) {
     return 0;
 }
 DWORD ResetToGameCamera(LPJASS j) {
-    //FLOAT duration = jass_checknumber(j, 1);
+    FLOAT duration = jass_checknumber(j, 1);
+    LPGAMECLIENT gc = G_GetPlayerClientByNumber(PLAYER_NUM(currentplayer));
+    gc->camera.old_state = gc->camera.state;
+    gc->camera.state.viewangles = (VECTOR3) { 326, 0, 0 };
+    gc->camera.state.fov = 50 * FOV_ASPECT;
+    gc->camera.state.target_distance = 1650;
+    gc->camera.start_time = gi.GetTime();
+    gc->camera.end_time = gc->camera.start_time + (duration * 1000);
     return 0;
 }
 DWORD PanCameraTo(LPJASS j) {
-    //FLOAT x = jass_checknumber(j, 1);
-    //FLOAT y = jass_checknumber(j, 2);
+    LPGAMECLIENT gc = G_GetPlayerClientByNumber(PLAYER_NUM(currentplayer));
+    gc->camera.state.position.x = jass_checknumber(j, 1);
+    gc->camera.state.position.y = jass_checknumber(j, 2);
+    gc->camera.end_time = gc->camera.start_time;
     return 0;
 }
 DWORD PanCameraToTimed(LPJASS j) {
-    //FLOAT x = jass_checknumber(j, 1);
-    //FLOAT y = jass_checknumber(j, 2);
-    //FLOAT duration = jass_checknumber(j, 3);
+    FLOAT duration = jass_checknumber(j, 3);
+    LPGAMECLIENT gc = G_GetPlayerClientByNumber(PLAYER_NUM(currentplayer));
+    gc->camera.state.position.x = jass_checknumber(j, 1);
+    gc->camera.state.position.y = jass_checknumber(j, 2);
+    gc->camera.end_time = gc->camera.start_time + (duration * 1000);
     return 0;
 }
 DWORD PanCameraToWithZ(LPJASS j) {
-    //FLOAT x = jass_checknumber(j, 1);
-    //FLOAT y = jass_checknumber(j, 2);
+    LPGAMECLIENT gc = G_GetPlayerClientByNumber(PLAYER_NUM(currentplayer));
+    gc->camera.state.position.x = jass_checknumber(j, 1);
+    gc->camera.state.position.y = jass_checknumber(j, 2);
+    gc->camera.end_time = gc->camera.start_time;
     //FLOAT zOffsetDest = jass_checknumber(j, 3);
     return 0;
 }
 DWORD PanCameraToTimedWithZ(LPJASS j) {
-    //FLOAT x = jass_checknumber(j, 1);
-    //FLOAT y = jass_checknumber(j, 2);
+    FLOAT duration = jass_checknumber(j, 4);
+    LPGAMECLIENT gc = G_GetPlayerClientByNumber(PLAYER_NUM(currentplayer));
+    gc->camera.state.position.x = jass_checknumber(j, 1);
+    gc->camera.state.position.y = jass_checknumber(j, 2);
+    gc->camera.end_time = gc->camera.start_time + (duration * 1000);
     //FLOAT zOffsetDest = jass_checknumber(j, 3);
-    //FLOAT duration = jass_checknumber(j, 4);
     return 0;
 }
 DWORD SetCinematicCamera(LPJASS j) {
@@ -80,11 +97,11 @@ DWORD AdjustCameraField(LPJASS j) {
     return 0;
 }
 DWORD CreateCameraSetup(LPJASS j) {
-    API_ALLOC(gcamerasetup_t, camerasetup);
+    API_ALLOC(CAMERASETUP, camerasetup);
     return jass_pushhandle(j, camerasetup, "camerasetup");
 }
 DWORD CameraSetupSetField(LPJASS j) {
-    gcamerasetup_t *whichSetup = jass_checkhandle(j, 1, "camerasetup");
+    LPCAMERASETUP whichSetup = jass_checkhandle(j, 1, "camerasetup");
     CAMERAFIELD *whichField = jass_checkhandle(j, 2, "camerafield");
     FLOAT value = jass_checknumber(j, 3);
     switch (*whichField) {
@@ -100,7 +117,7 @@ DWORD CameraSetupSetField(LPJASS j) {
     return 0;
 }
 DWORD CameraSetupGetField(LPJASS j) {
-    gcamerasetup_t *whichSetup = jass_checkhandle(j, 1, "camerasetup");
+    LPCAMERASETUP whichSetup = jass_checkhandle(j, 1, "camerasetup");
     DWORD *whichField = jass_checkhandle(j, 2, "camerafield");
     FLOAT value = 0;
     switch (*whichField) {
@@ -109,13 +126,13 @@ DWORD CameraSetupGetField(LPJASS j) {
         case CAMERA_FIELD_ANGLE_OF_ATTACK: value = -90 - whichSetup->viewangles.x; break;
         case CAMERA_FIELD_FIELD_OF_VIEW: value = whichSetup->fov; break;
         case CAMERA_FIELD_ROLL: value = whichSetup->viewangles.y; break;
-        case CAMERA_FIELD_ROTATION: value = -90 - whichSetup->viewangles.z; break;
+        case CAMERA_FIELD_ROTATION: value = 90 - whichSetup->viewangles.z; break;
         case CAMERA_FIELD_ZOFFSET: value = whichSetup->z_offset; break;
     }
     return jass_pushnumber(j, value);
 }
 DWORD CameraSetupSetDestPosition(LPJASS j) {
-    gcamerasetup_t *whichSetup = jass_checkhandle(j, 1, "camerasetup");
+    LPCAMERASETUP whichSetup = jass_checkhandle(j, 1, "camerasetup");
     FLOAT x = jass_checknumber(j, 2);
     FLOAT y = jass_checknumber(j, 3);
 //    FLOAT duration = jass_checknumber(j, 4);
@@ -124,15 +141,15 @@ DWORD CameraSetupSetDestPosition(LPJASS j) {
     return 0;
 }
 DWORD CameraSetupGetDestPositionLoc(LPJASS j) {
-    gcamerasetup_t *whichSetup = jass_checkhandle(j, 1, "camerasetup");
+    LPCAMERASETUP whichSetup = jass_checkhandle(j, 1, "camerasetup");
     return jass_pushlighthandle(j, &whichSetup->position, "location");
 }
 DWORD CameraSetupGetDestPositionX(LPJASS j) {
-    gcamerasetup_t *whichSetup = jass_checkhandle(j, 1, "camerasetup");
+    LPCAMERASETUP whichSetup = jass_checkhandle(j, 1, "camerasetup");
     return jass_pushnumber(j, whichSetup->position.x);
 }
 DWORD CameraSetupGetDestPositionY(LPJASS j) {
-    gcamerasetup_t *whichSetup = jass_checkhandle(j, 1, "camerasetup");
+    LPCAMERASETUP whichSetup = jass_checkhandle(j, 1, "camerasetup");
     return jass_pushnumber(j, whichSetup->position.y);
 }
 DWORD CameraSetupApply(LPJASS j) {
@@ -147,16 +164,14 @@ DWORD CameraSetupApplyWithZ(LPJASS j) {
     return 0;
 }
 DWORD CameraSetupApplyForceDuration(LPJASS j) {
-    gcamerasetup_t *whichSetup = jass_checkhandle(j, 1, "camerasetup");
+    LPCAMERASETUP whichSetup = jass_checkhandle(j, 1, "camerasetup");
     BOOL doPan = jass_checkboolean(j, 2);
     FLOAT forceDuration = jass_checknumber(j, 3);
-    FOR_LOOP(idx, game.max_clients) {
-        LPGAMECLIENT gc = game.clients+idx;
-        gc->camera.old_state = gc->camera.state;
-        gc->camera.state = *whichSetup;
-        gc->camera.start_time = gi.GetTime();
-        gc->camera.end_time = gc->camera.start_time + (doPan ? forceDuration * 1000 : 0);
-    }
+    LPGAMECLIENT gc = G_GetPlayerClientByNumber(PLAYER_NUM(currentplayer));
+    gc->camera.old_state = gc->camera.state;
+    gc->camera.state = *whichSetup;
+    gc->camera.start_time = gi.GetTime();
+    gc->camera.end_time = gc->camera.start_time + (doPan ? forceDuration * 1000 : 0);
     return 0;
 }
 DWORD CameraSetupApplyForceDurationWithZ(LPJASS j) {
@@ -181,7 +196,7 @@ DWORD CameraSetSmoothingFactor(LPJASS j) {
 }
 DWORD GetCameraMargin(LPJASS j) {
     LONG whichMargin = jass_checkinteger(j, 1);
-    mapCameraBounds_t const *bounds = &game_state.mapinfo->cameraBounds;
+    mapCameraBounds_t const *bounds = &level.mapinfo->cameraBounds;
     switch (whichMargin) {
         case 0: jass_pushnumber(j, bounds->margin.left * TILESIZE); break;
         case 1: jass_pushnumber(j, bounds->margin.right * TILESIZE); break;

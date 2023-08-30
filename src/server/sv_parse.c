@@ -2,8 +2,9 @@
 
 void SV_ParseMove(LPSIZEBUF msg, LPCLIENT client) {
     edict_t *clent = client->edict;
-    clent->client->ps.origin.x = MSG_ReadShort(msg);
-    clent->client->ps.origin.y = MSG_ReadShort(msg);
+    float x = MSG_ReadShort(msg);
+    float y = MSG_ReadShort(msg);
+    ge->ClientPanCamera(clent, &MAKE(VECTOR2, x, y));
 }
 
 void SV_ParseClientMessage(LPSIZEBUF msg, LPCLIENT client) {

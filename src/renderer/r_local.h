@@ -190,6 +190,7 @@ LINE3 R_LineForScreenPoint(viewDef_t const *viewdef, float x, float y);
 DWORD R_EntitiesInRect(viewDef_t const *viewdef, LPCRECT rect, DWORD max, LPDWORD array);
 void R_DrawEntities(void);
 void R_RenderOverlays(void);
+FLOAT R_GetHeightAtPoint(FLOAT x, FLOAT y);
 
 // r_mdx.c
 LPMODEL R_LoadModel(LPCSTR modelFilename);
@@ -211,6 +212,7 @@ void R_DrawImageEx(LPCDRAWIMAGE drawImage);
 void R_DrawPic(LPCTEXTURE texture, float x, float y);
 void R_DrawSelectionRect(LPCRECT rect, COLOR32 color);
 void R_DrawBoundingBox(LPCBOX3 box, LPCMATRIX4 matrix, COLOR32 color);
+void R_DrawWireRect(LPCRECT rect, COLOR32 color);
 
 // r_font.c
 LPFONT R_LoadFont(LPCSTR filename, DWORD size);

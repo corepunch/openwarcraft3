@@ -56,7 +56,7 @@ void CL_ParsePlayerInfo(LPSIZEBUF msg) {
     cl.viewDef.camerastate[0].origin.x = cl.playerstate.origin.x;
     cl.viewDef.camerastate[0].origin.y = cl.playerstate.origin.y;
     cl.viewDef.camerastate[0].origin.z = 0;
-    cl.viewDef.camerastate[0].viewangles = cl.playerstate.viewangles;
+    cl.viewDef.camerastate[0].viewquat = cl.playerstate.viewquat;
     cl.viewDef.camerastate[0].distance = cl.playerstate.distance;
     cl.viewDef.camerastate[0].fov = cl.playerstate.fov;
 }
