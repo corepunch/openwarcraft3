@@ -13,7 +13,6 @@ KNOWN_AS(jass_type, JASSTYPE);
 KNOWN_AS(jass_var, JASSVAR);
 KNOWN_AS(jass_module, JASSMODULE);
 KNOWN_AS(vm_program, VMPROGRAM);
-KNOWN_AS(gtrigger_s, TRIGGER);
 
 typedef enum {
     CAMERA_FIELD_TARGET_DISTANCE,
@@ -54,6 +53,10 @@ typedef struct gtriggeraction_s {
     struct gtriggeraction_s *next;
 } gtriggeraction_t;
 
+typedef struct gtriggercondition_s {
+    LPCJASSFUNC expr;
+    struct gtriggercondition_s *next;
+} gtriggercondition_t;
 
 typedef struct {
     UINAME campaign;
@@ -61,6 +64,7 @@ typedef struct {
 
 struct gtrigger_s {
     struct gtriggeraction_s *actions;
+    struct gtriggercondition_s *conditions;
     BOOL disabled;
 };
 
@@ -91,7 +95,7 @@ LPCSTR jass_checkstring(LPJASS j, int index);
 LPCJASSFUNC jass_checkcode(LPJASS j, int index);
 HANDLE jass_checkhandle(LPJASS j, int index, LPCSTR type);
 BOOL jass_toboolean(LPJASS j, int index);
-void jass_call(LPJASS j, DWORD args);
+DWORD jass_call(LPJASS j, DWORD args);
 void jass_runevents(LPJASS j);
 JASSTYPEID jass_gettype(LPJASS j, int index);
 DWORD jass_pushnull(LPJASS j);
@@ -103,8 +107,9 @@ DWORD jass_pushboolean(LPJASS j, BOOL value);
 DWORD jass_pushstring(LPJASS j, LPCSTR value);
 DWORD jass_pushstringlen(LPJASS j, LPCSTR value, DWORD len);
 DWORD jass_pushfunction(LPJASS j, LPCJASSFUNC func);
-DWORD jass_pushevent(LPJASS j, HANDLE subject, EVENTTYPE event, LPTRIGGER trigger);
-void jass_calltrigger(LPJASS j, LPTRIGGER trigger);
+LPTRIGGER jass_gethosttrigger(LPJASS j);
+BOOL jass_calltrigger(LPJASS j, LPTRIGGER trigger);
+BOOL jass_popboolean(LPJASS j);
 
 DWORD ConvertRace(LPJASS j);
 DWORD ConvertAllianceType(LPJASS j);

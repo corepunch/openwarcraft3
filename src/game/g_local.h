@@ -19,6 +19,7 @@
 #define MAX_BUILD_QUEUE 7
 #define MAX_EVENT_QUEUE 256
 #define MAX_ENTITIES 4096
+#define MAX_REGION_SIZE 16
 #define FOV_ASPECT 1.7
 
 #define FILTER_EDICTS(ENT, CONDITION) \
@@ -62,6 +63,9 @@ enum {
 KNOWN_AS(uiFrameDef_s, FRAMEDEF);
 KNOWN_AS(jass_s, JASS);
 KNOWN_AS(gcamerasetup_s, CAMERASETUP);
+KNOWN_AS(gregion_s, REGION);
+KNOWN_AS(gevent_s, EVENT);
+KNOWN_AS(gtrigger_s, TRIGGER);
 
 typedef struct {
     BOOL (*on_entity_selected)(LPEDICT clent, LPEDICT selected);
@@ -117,6 +121,26 @@ typedef enum {
     WPN_MBOUNCE,
     WPN_MLINE,
 } weaponType_t;
+
+typedef enum {
+    PLAYERSTATE_GAME_RESULT = 0,
+    PLAYERSTATE_RESOURCE_GOLD = 1,
+    PLAYERSTATE_RESOURCE_LUMBER = 2,
+    PLAYERSTATE_RESOURCE_HERO_TOKENS = 3,
+    PLAYERSTATE_RESOURCE_FOOD_CAP = 4,
+    PLAYERSTATE_RESOURCE_FOOD_USED = 5,
+    PLAYERSTATE_FOOD_CAP_CEILING = 6,
+    PLAYERSTATE_GIVES_BOUNTY = 7,
+    PLAYERSTATE_ALLIED_VICTORY = 8,
+    PLAYERSTATE_PLACED = 9,
+    PLAYERSTATE_OBSERVER_ON_DEATH = 10,
+    PLAYERSTATE_OBSERVER = 11,
+    PLAYERSTATE_UNFOLLOWABLE = 12,
+    PLAYERSTATE_GOLD_UPKEEP_RATE = 13,
+    PLAYERSTATE_LUMBER_UPKEEP_RATE = 14,
+    PLAYERSTATE_GOLD_GATHERED = 15,
+    PLAYERSTATE_LUMBER_GATHERED = 16,
+} PLAYERSTATE;
 
 typedef enum {
     TARG_NONE,
@@ -431,6 +455,11 @@ struct uiFrameDef_s {
     } CheckBox;
 };
 
+struct gregion_s {
+    BOX2 rects[MAX_REGION_SIZE];
+    DWORD num_rects;
+};
+
 struct gcamerasetup_s {
     FLOAT target_distance;
     FLOAT far_z;
@@ -502,6 +531,7 @@ typedef struct {
 typedef struct {
     EVENTTYPE type;
     LPEDICT edict;
+    LPREGION region;
 } GAMEEVENT;
 
 struct edict_s {
@@ -527,6 +557,7 @@ struct edict_s {
     FLOAT collision;
     FLOAT velocity;
     doodadHero_t hero;
+    VECTOR2 old_origin;
     EDICTSTAT health;
     EDICTSTAT mana;
     MOVETYPE movetype;
@@ -581,16 +612,28 @@ struct game_locals {
     } constants;
 };
 
+struct gevent_s {
+    LPEVENT next;
+    HANDLE subject;
+    EVENTTYPE type;
+    LPTRIGGER trigger;
+    REGION region;
+};
+
+typedef struct {
+    LPEVENT handlers;
+    GAMEEVENT queue[MAX_EVENT_QUEUE];
+    DWORD write, read;
+} LEVELEVENTS;
+
 struct level_locals {
-    LPJASS j;
+    LPJASS vm;
     LPCMAPINFO mapinfo;
+    LEVELEVENTS events;
     DWORD framenum;
     DWORD time;
-    struct {
-        GAMEEVENT queue[MAX_EVENT_QUEUE];
-        DWORD write, read;
-    } events;
     BOOL started;
+    BOOL scriptsStarted;
 };
 
 typedef struct sheetMetaData_s {
@@ -606,7 +649,7 @@ LPEDICT G_GetPlayerEntityByNumber(DWORD number);
 LPGAMECLIENT G_GetPlayerClientByNumber(DWORD number);
 TARGTYPE G_GetTargetType(LPCSTR str);
 LPCSTR G_GetString(LPCSTR name);
-void G_PublishEvent(LPEDICT edict, EVENTTYPE type);
+GAMEEVENT *G_PublishEvent(LPEDICT edict, EVENTTYPE type);
 
 // g_spawn.c
 LPEDICT G_Spawn(void);
@@ -723,6 +766,8 @@ void T_Damage(LPEDICT target, LPEDICT attacker, int damage);
 
 // g_utils.c
 void G_FreeEdict(LPEDICT ent);
+LPEVENT G_MakeEvent(EVENTTYPE type);
+BOOL G_RegionContains(LPCREGION region, LPCVECTOR2 point);
 
 // m_unit.c
 BOOL unit_issue_order(LPEDICT self, LPCSTR order, LPCVECTOR2 point);
@@ -734,6 +779,10 @@ LPJASS JASS_Allocate(void);
 BOOL JASS_Parse(LPJASS j, LPCSTR fileName);
 BOOL JASS_Parse_Native(LPJASS j,LPCSTR fileName);
 void JASS_ExecuteFunc(LPJASS j, LPCSTR name);
+
+// g_events.c
+void G_RunEntities(void);
+void G_RunEvents(void);
 
 void *find_in_array(void *array, long sizeofelem, LPCSTR name);
 

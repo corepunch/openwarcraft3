@@ -75,15 +75,17 @@ DWORD GetRectMaxY(LPJASS j) {
     return jass_pushnumber(j, whichRect->max.y);
 }
 DWORD CreateRegion(LPJASS j) {
-    return jass_pushhandle(j, 0, "region");
+    API_ALLOC(REGION, region);
+    return jass_pushhandle(j, region, "region");
 }
 DWORD RemoveRegion(LPJASS j) {
     //HANDLE whichRegion = jass_checkhandle(j, 1, "region");
     return 0;
 }
 DWORD RegionAddRect(LPJASS j) {
-    //HANDLE whichRegion = jass_checkhandle(j, 1, "region");
-    //HANDLE r = jass_checkhandle(j, 2, "rect");
+    LPREGION whichRegion = jass_checkhandle(j, 1, "region");
+    LPBOX2 r = jass_checkhandle(j, 2, "rect");
+    whichRegion->rects[whichRegion->num_rects++] = *r;
     return 0;
 }
 DWORD RegionClearRect(LPJASS j) {

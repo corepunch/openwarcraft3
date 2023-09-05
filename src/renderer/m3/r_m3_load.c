@@ -1,6 +1,8 @@
 #include "../r_local.h"
 #include "r_m3.h"
 
+#define M3_MAX_NODES 128
+
 #define M3_FOR_EACH(TYPE, VAR, LIST) \
 for (m3##TYPE##_t const *VAR = LIST; VAR < LIST + LIST##Num; VAR++)
 
@@ -149,9 +151,8 @@ static LPCSTR fs =
 "    o_color = vec4(finalColor, 1.0);\n"
 "}\n";
 
-
-static MATRIX4 bonemats[MAX_NODES];
-static MATRIX4 tmp[MAX_NODES];
+static MATRIX4 bonemats[M3_MAX_NODES];
+static MATRIX4 tmp[M3_MAX_NODES];
 
 m3Model_t *currentmodel;
 

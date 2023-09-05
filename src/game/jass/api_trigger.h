@@ -34,8 +34,7 @@ DWORD IsTriggerWaitOnSleeps(LPJASS j) {
     return jass_pushboolean(j, 0);
 }
 DWORD GetTriggeringTrigger(LPJASS j) {
-    extern LPTRIGGER currenttrigger;
-    return jass_pushlighthandle(j, currenttrigger, "trigger");
+    return jass_pushlighthandle(j, jass_gethosttrigger(j), "trigger");
 }
 DWORD GetTriggerEventId(LPJASS j) {
     return jass_pushhandle(j, 0, "eventid");
@@ -89,10 +88,13 @@ DWORD TriggerRegisterGameEvent(LPJASS j) {
     return jass_pushhandle(j, 0, "event");
 }
 DWORD TriggerRegisterEnterRegion(LPJASS j) {
-    //LPTRIGGER whichTrigger = jass_checkhandle(j, 1, "trigger");
-    //HANDLE whichRegion = jass_checkhandle(j, 2, "region");
+    LPTRIGGER whichTrigger = jass_checkhandle(j, 1, "trigger");
+    LPREGION whichRegion = jass_checkhandle(j, 2, "region");
     //HANDLE filter = jass_checkhandle(j, 3, "boolexpr");
-    return jass_pushhandle(j, 0, "event");
+    LPEVENT evt = G_MakeEvent(EVENT_GAME_ENTER_REGION);
+    evt->trigger = whichTrigger;
+    evt->region = *whichRegion;
+    return jass_pushlighthandle(j, evt, "event");
 }
 DWORD GetTriggeringRegion(LPJASS j) {
     return jass_pushhandle(j, 0, "region");
@@ -117,7 +119,10 @@ DWORD TriggerRegisterPlayerEvent(LPJASS j) {
     LPTRIGGER whichTrigger = jass_checkhandle(j, 1, "trigger");
     LPMAPPLAYER whichPlayer = jass_checkhandle(j, 2, "player");
     EVENTTYPE *whichPlayerEvent = jass_checkhandle(j, 3, "playerevent");
-    return jass_pushevent(j, whichPlayer, *whichPlayerEvent, whichTrigger);
+    LPEVENT evt = G_MakeEvent(*whichPlayerEvent);
+    evt->subject = whichPlayer;
+    evt->trigger = whichTrigger;
+    return jass_pushlighthandle(j, evt, "event");
 }
 DWORD GetTriggerPlayer(LPJASS j) {
     return jass_pushhandle(j, 0, "player");
@@ -127,7 +132,10 @@ DWORD TriggerRegisterPlayerUnitEvent(LPJASS j) {
     LPMAPPLAYER whichPlayer = jass_checkhandle(j, 2, "player");
     EVENTTYPE *whichPlayerUnitEvent = jass_checkhandle(j, 3, "playerunitevent");
     //HANDLE filter = jass_checkhandle(j, 4, "boolexpr");
-    return jass_pushevent(j, whichPlayer, *whichPlayerUnitEvent, whichTrigger);
+    LPEVENT evt = G_MakeEvent(*whichPlayerUnitEvent);
+    evt->subject = whichPlayer;
+    evt->trigger = whichTrigger;
+    return jass_pushlighthandle(j, evt, "event");
 }
 DWORD TriggerRegisterPlayerAllianceChange(LPJASS j) {
     //LPTRIGGER whichTrigger = jass_checkhandle(j, 1, "trigger");
@@ -166,8 +174,11 @@ DWORD TriggerRegisterUnitStateEvent(LPJASS j) {
 DWORD TriggerRegisterUnitEvent(LPJASS j) {
     LPTRIGGER whichTrigger = jass_checkhandle(j, 1, "trigger");
     LPEDICT whichUnit = jass_checkhandle(j, 2, "unit");
-    LPDWORD whichEvent = jass_checkhandle(j, 3, "unitevent");
-    return jass_pushhandle(j, 0, "event");
+    EVENTTYPE *whichEvent = jass_checkhandle(j, 3, "unitevent");
+    LPEVENT evt = G_MakeEvent(*whichEvent);
+    evt->subject = whichUnit;
+    evt->trigger = whichTrigger;
+    return jass_pushlighthandle(j, evt, "event");
 }
 DWORD TriggerRegisterFilterUnitEvent(LPJASS j) {
     //LPTRIGGER whichTrigger = jass_checkhandle(j, 1, "trigger");
@@ -184,17 +195,35 @@ DWORD TriggerRegisterUnitInRange(LPJASS j) {
     return jass_pushhandle(j, 0, "event");
 }
 DWORD TriggerAddCondition(LPJASS j) {
-    //LPTRIGGER whichTrigger = jass_checkhandle(j, 1, "trigger");
-    //HANDLE condition = jass_checkhandle(j, 2, "boolexpr");
-    return jass_pushhandle(j, 0, "triggercondition");
+    LPTRIGGER whichTrigger = jass_checkhandle(j, 1, "trigger");
+    gtriggercondition_t *condition = gi.MemAlloc(sizeof(gtriggercondition_t));
+    condition->expr = jass_checkhandle(j, 2, "boolexpr");
+    ADD_TO_LIST(condition, whichTrigger->conditions);
+    return jass_pushlighthandle(j, condition, "triggercondition");
 }
 DWORD TriggerRemoveCondition(LPJASS j) {
-    //LPTRIGGER whichTrigger = jass_checkhandle(j, 1, "trigger");
-    //HANDLE whichCondition = jass_checkhandle(j, 2, "triggercondition");
+    LPTRIGGER whichTrigger = jass_checkhandle(j, 1, "trigger");
+    gtriggercondition_t *whichCondition = jass_checkhandle(j, 2, "triggercondition");
+    gtriggercondition_t **prev = &whichTrigger->conditions;
+    FOR_EACH_LIST(gtriggercondition_t, it, whichTrigger->conditions) {
+        if (it == whichCondition) {
+            *prev = it->next;
+            gi.MemFree(it);
+            break;
+        }
+        prev = &it->next;
+    }
     return 0;
 }
 DWORD TriggerClearConditions(LPJASS j) {
-    //LPTRIGGER whichTrigger = jass_checkhandle(j, 1, "trigger");
+    LPTRIGGER whichTrigger = jass_checkhandle(j, 1, "trigger");
+    if (!whichTrigger->conditions)
+        return 0;
+    for (gtriggercondition_t *it = whichTrigger->conditions; it;) {
+        gtriggercondition_t *next = it->next;
+        gi.MemFree(it);
+        it = next;
+    }
     return 0;
 }
 DWORD TriggerAddAction(LPJASS j) {
@@ -205,8 +234,17 @@ DWORD TriggerAddAction(LPJASS j) {
     return jass_pushlighthandle(j, action, "triggeraction");
 }
 DWORD TriggerRemoveAction(LPJASS j) {
-    //LPTRIGGER whichTrigger = jass_checkhandle(j, 1, "trigger");
-    //HANDLE whichAction = jass_checkhandle(j, 2, "triggeraction");
+    LPTRIGGER whichTrigger = jass_checkhandle(j, 1, "trigger");
+    gtriggeraction_t *whichAction = jass_checkhandle(j, 2, "triggeraction");
+    gtriggeraction_t **prev = &whichTrigger->actions;
+    FOR_EACH_LIST(gtriggeraction_t, it, whichTrigger->actions) {
+        if (it == whichAction) {
+            *prev = it->next;
+            gi.MemFree(it);
+            break;
+        }
+        prev = &it->next;
+    }
     return 0;
 }
 DWORD TriggerClearActions(LPJASS j) {

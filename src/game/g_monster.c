@@ -59,10 +59,10 @@ LPEDICT Waypoint_add(LPCVECTOR2 spot) {
 
 BOOL player_pay(playerState_t *ps, DWORD project) {
     if (!ps) return false;
-    if (UNIT_GOLD_COST(project) > ps->stats[STAT_GOLD]) return false;
-    if (UNIT_LUMBER_COST(project) > ps->stats[STAT_LUMBER]) return false;
-    ps->stats[STAT_GOLD] -= UNIT_GOLD_COST(project);
-    ps->stats[STAT_LUMBER] -= UNIT_LUMBER_COST(project);
+    if (UNIT_GOLD_COST(project) > ps->stats[PLAYERSTATE_RESOURCE_GOLD]) return false;
+    if (UNIT_LUMBER_COST(project) > ps->stats[PLAYERSTATE_RESOURCE_LUMBER]) return false;
+    ps->stats[PLAYERSTATE_RESOURCE_GOLD] -= UNIT_GOLD_COST(project);
+    ps->stats[PLAYERSTATE_RESOURCE_LUMBER] -= UNIT_LUMBER_COST(project);
     return true;
 }
 

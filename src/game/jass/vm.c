@@ -48,12 +48,12 @@ KNOWN_AS(jass_array, JASSARRAY);
 KNOWN_AS(jass_dict, JASSDICT);
 KNOWN_AS(jass_arg, JASSARG);
 KNOWN_AS(jass_env, JASSENV);
-KNOWN_AS(jass_event, JASSEVENT);
 
 VMPROGRAM VM_Compile(LPCTOKEN token);
 LPCMAPPLAYER currentplayer = NULL;
-LPTRIGGER currenttrigger = NULL;
 LPEDICT currentunit = NULL;
+LPEDICT enteringunit = NULL;
+LPEDICT leavingunit = NULL;
 
 LPCSTR keywords[] = {
     "elseif", "else", "endif", "set", "endfunction", "local", "then", NULL
@@ -220,21 +220,15 @@ struct jass_dict {
     JASSVAR value;
 };
 
-struct jass_event {
-    LPJASSEVENT next;
-    HANDLE subject;
-    EVENTTYPE event;
-    LPTRIGGER trigger;
-};
-
 struct jass_s {
     LPJASSDICT globals;
     LPJASSTYPE types;
     LPJASSFUNC functions;
-    LPJASSEVENT events;
     JASSVAR stack[MAX_JASS_STACK];
-    LPJASSVAR stack_pointer;
     DWORD num_stack;
+    LPJASSVAR stack_pointer;
+    LPTRIGGER host_trigger;
+    gtriggeraction_t *current_action;
 };
 
 BOOL is_integer(LPCSTR tok) {
@@ -276,47 +270,37 @@ BOOL is_comma(LPCSTR str) {
     return !strcmp(str, ",");
 }
 
-DWORD jass_pushevent(LPJASS j, HANDLE subject, EVENTTYPE event, LPTRIGGER trigger) {
-    LPJASSEVENT tr = JASSALLOC(JASSEVENT);
-    tr->subject = subject;
-    tr->event = event;
-    tr->trigger = trigger;
-    ADD_TO_LIST(tr, j->events);
-    return jass_pushlighthandle(j, tr, "event");
+static HANDLE RunAction(HANDLE handle) {
+    struct jass_s *j = handle;
+    jass_pushfunction(j, j->current_action->func);
+    jass_call(j, 0);
+    gi.MemFree(handle);
+    return NULL;
 }
 
-void jass_calltrigger(LPJASS j, LPTRIGGER trigger) {
+LPTRIGGER jass_gethosttrigger(LPJASS j) {
+    return j->host_trigger;
+}
+
+BOOL jass_calltrigger(LPJASS j, LPTRIGGER trigger) {
     if (trigger->disabled)
-        return;
-    FOR_EACH_LIST(gtriggeraction_t, action, trigger->actions) {
-        currenttrigger = trigger;
-        jass_pushfunction(j, action->func);
-        jass_call(j, 0);
-    }
-}
-
-static void jass_executeevent(LPJASS j, GAMEEVENT *evt) {
-    HANDLE subject = evt->edict;
-    if (evt->type >= EVENT_PLAYER_STATE_LIMIT &&
-        evt->type <= EVENT_PLAYER_END_CINEMATIC)
-    {
-        subject = (LPMAPPLAYER)level.mapinfo->players+evt->edict->client->ps.number;
-    }
-    FOR_EACH_LIST(JASSEVENT, e, j->events) {
-        if (e->subject == subject && e->event == evt->type) {
-            jass_calltrigger(j, e->trigger);
+        return false;
+    FOR_EACH_LIST(gtriggercondition_t, cond, trigger->conditions) {
+        jass_pushfunction(j, cond->expr);
+        if (jass_call(j, 0) != 1 || !jass_popboolean(j)) {
+            return false;
         }
     }
-}
-
-void jass_runevents(LPJASS j) {
-    for (;
-         level.events.read < level.events.write;
-         level.events.read++)
-    {
-        GAMEEVENT *evt = &level.events.queue[level.events.read % MAX_EVENT_QUEUE];
-        jass_executeevent(j, evt);
+    FOR_EACH_LIST(gtriggeraction_t, action, trigger->actions) {
+        struct jass_s *thread = JASSALLOC(struct jass_s);
+        memcpy(thread, j, sizeof(struct jass_s));
+        memset(thread->stack, 0, sizeof(thread->stack));
+        thread->num_stack = 0;
+        thread->host_trigger = trigger;
+        thread->current_action = action;
+        gi.CreateThread(RunAction, thread);
     }
+    return true;
 }
 
 static LPJASSCFUNCTION find_cfunction(LPCJASS j, LPCSTR name) {
@@ -654,7 +638,7 @@ LPCJASSFUNC jass_checkcode(LPJASS j, int index) {
 
 HANDLE jass_checkhandle(LPJASS j, int index, LPCSTR type) {
     LPCJASSVAR var = jass_stackvalue(j, index);
-    assert(!strcmp(var->type->name, type));
+    assert(is_handle_convertible(var->type, find_type(j, type)));
     return var->value;
 }
 
@@ -674,6 +658,11 @@ DWORD jass_popinteger(LPJASS j) {
     DWORD value = jass_checkinteger(j, -1);
     jass_pop(j, 1);
     return value;
+}
+
+HANDLE VM_TriggerThread(HANDLE arg) {
+    JASS_ExecuteFunc(level.vm, "main");
+    return NULL;
 }
 
 DWORD VM_EvalInteger(LPJASS j, LPCTOKEN token) {
@@ -1032,13 +1021,13 @@ BOOL JASS_Parse_Native(LPJASS j, LPCSTR fileName) {
     return success;
 }
 
-//#define DEBUG_JASS
+#define DEBUG_JASS
 
 #ifdef DEBUG_JASS
 static int depth = 0, callnum = 0;
 #endif
 
-void jass_call(LPJASS j, DWORD args) {
+DWORD jass_call(LPJASS j, DWORD args) {
     LPJASSVAR root = &j->stack[j->num_stack - args - 1];
     LPJASSVAR old_stack_pointer = j->stack_pointer;
     DWORD ret = 0;
@@ -1053,13 +1042,13 @@ void jass_call(LPJASS j, DWORD args) {
 #ifdef DEBUG_JASS
         for (DWORD i = 0; jass_funcs[i].name; i++) {
             if (jass_funcs[i].func == func) {
-                printf("%s", jass_funcs[i].name);
+                printf("%s (native)", jass_funcs[i].name);
                 break;
             }
         }
         for (DWORD i = 0; jass_operators[i].name; i++) {
             if (jass_operators[i].func == func) {
-                printf("%s", jass_operators[i].name);
+                printf("%s (native)", jass_operators[i].name);
                 break;
             }
         }
@@ -1098,6 +1087,7 @@ void jass_call(LPJASS j, DWORD args) {
 #ifdef DEBUG_JASS
     depth--;
 #endif
+    return ret;
 }
 
 void JASS_ExecuteFunc(LPJASS j, LPCSTR name) {

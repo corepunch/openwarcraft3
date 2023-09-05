@@ -69,13 +69,14 @@ static void CM_ReadInfo(HANDLE archive) {
         SFileReadFile(file, &player->allyHighPrioritiesFlags, sizeof(DWORD), NULL, NULL);
     }
 
-    SFileReadFile(file, &info->num_forces, sizeof(DWORD), NULL, NULL);
-    info->forces = MemAlloc(sizeof(mapForce_t) * info->num_forces);
-    FOR_LOOP(i, info->num_forces) {
-        mapForce_t *force = &info->forces[i];
-        SFileReadFile(file, &force->focesFlags, sizeof(DWORD), NULL, NULL);
+    SFileReadFile(file, &info->num_teams, sizeof(DWORD), NULL, NULL);
+    info->teams = MemAlloc(sizeof(mapTeam_t) * info->num_teams);
+    FOR_LOOP(i, info->num_teams) {
+        mapTeam_t *force = &info->teams[i];
+        SFileReadFile(file, &force->flags, sizeof(DWORD), NULL, NULL);
         SFileReadFile(file, &force->playerMasks, sizeof(DWORD), NULL, NULL);
-        SFileReadString(file, &force->forceName);
+        SFileReadString(file, &force->name);
+        printf("%s\n", force->name);
     }
 
     SFileReadFile(file, &info->num_upgradeAvailabilities, sizeof(DWORD), NULL, NULL);
@@ -125,8 +126,8 @@ static void MapInfo_Release(LPMAPINFO mapInfo) {
     FOR_LOOP(i, MAX_PLAYERS) {
         SAFE_DELETE(mapInfo->players[i].playerName, MemFree);
     }
-    FOR_LOOP(i, mapInfo->num_forces) {
-        SAFE_DELETE(mapInfo->forces[i].forceName, MemFree);
+    FOR_LOOP(i, mapInfo->num_teams) {
+        SAFE_DELETE(mapInfo->teams[i].name, MemFree);
     }
     FOR_LOOP(i, mapInfo->num_randomUnits) {
         FOR_LOOP(j, mapInfo->randomUnits[i].num_randomGroups) {
@@ -148,7 +149,7 @@ static void MapInfo_Release(LPMAPINFO mapInfo) {
     SAFE_DELETE(mapInfo->prologueScreenText, MemFree);
     SAFE_DELETE(mapInfo->prologueScreenTitle, MemFree);
     SAFE_DELETE(mapInfo->prologueScreenSubtitle, MemFree);
-    SAFE_DELETE(mapInfo->forces, MemFree);
+    SAFE_DELETE(mapInfo->teams, MemFree);
     SAFE_DELETE(mapInfo->upgradeAvailabilities, MemFree);
     SAFE_DELETE(mapInfo->techAvailabilities, MemFree);
     SAFE_DELETE(mapInfo->randomUnits, MemFree);

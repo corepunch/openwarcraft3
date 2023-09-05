@@ -7,8 +7,6 @@ struct game_locals game;
 struct level_locals level;
 struct edict_s *g_edicts;
 
-void jass_runevents(LPJASS j);
-
 LPCSTR miscdata_files[] = {
     "UI\\MiscData.txt",
     "Units\\MiscData.txt",
@@ -73,10 +71,7 @@ static void G_ShutdownGame(void) {
     ShutdownUnitData();
 }
 
-static void G_RunFrame(void) {
-    if (!level.started)
-        return;
-    jass_runevents(level.j);
+static void G_RunClients(void) {
     FOR_LOOP(i, game.max_clients) {
         LPGAMECLIENT client = game.clients+i;
         DWORD duration = client->camera.end_time - client->camera.start_time;
@@ -97,9 +92,23 @@ static void G_RunFrame(void) {
             client->ps.distance = client->camera.state.target_distance;
         }
     }
-    FOR_LOOP(i, globals.num_edicts) {
-        G_RunEntity(&globals.edicts[i]);
+}
+
+static void G_RunFrame(void) {
+    if (!level.started)
+        return;
+
+    if (!level.scriptsStarted) {
+        JASS_ExecuteFunc(level.vm, "main");
+        level.scriptsStarted = true;
     }
+    
+    G_RunEvents();
+
+    G_RunClients();
+
+    G_RunEntities();
+
     G_SolveCollisions();
 }
 
@@ -140,10 +149,11 @@ playerState_t *G_GetPlayerByNumber(DWORD number) {
     return NULL;
 }
 
-void G_PublishEvent(LPEDICT edict, EVENTTYPE type) {
+GAMEEVENT *G_PublishEvent(LPEDICT edict, EVENTTYPE type) {
     GAMEEVENT *evt = &level.events.queue[level.events.write++ % MAX_EVENT_QUEUE];
     evt->type = type;
     evt->edict = edict;
+    return evt;
 }
 
 LPCSTR G_GetString(LPCSTR name) {
@@ -161,8 +171,8 @@ static void G_ClientBegin(LPEDICT edict) {
     UI_FRAME(ConsoleUI);
     UI_WriteLayout(edict, ConsoleUI, LAYER_CONSOLE);
     FILTER_EDICTS(ent, edict->client->ps.number == ent->s.player) {
-        edict->client->ps.stats[STAT_FOOD_MADE] += UNIT_FOOD_MADE(ent->class_id);
-        edict->client->ps.stats[STAT_FOOD_USED] += UNIT_FOOD_USED(ent->class_id);
+        edict->client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] += UNIT_FOOD_MADE(ent->class_id);
+        edict->client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED] += UNIT_FOOD_USED(ent->class_id);
     }
     level.started = true;
 }

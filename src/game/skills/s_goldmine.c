@@ -36,7 +36,7 @@ static void ai_walkback(LPEDICT ent) {
         ent->goalentity = ent->secondarygoal;
         playerState_t *player = G_GetPlayerByNumber(ent->s.player);
         if (player) {
-            player->stats[STAT_GOLD] += ent->harvested_gold;
+            player->stats[PLAYERSTATE_RESOURCE_GOLD] += ent->harvested_gold;
         }
         ent->s.renderfx &= ~RF_HAS_GOLD;
         ent->harvested_gold = 0;

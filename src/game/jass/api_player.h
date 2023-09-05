@@ -1,22 +1,22 @@
 extern LPCMAPPLAYER currentplayer;
 
 DWORD SetPlayerTeam(LPJASS j) {
-    //HANDLE whichPlayer = jass_checkhandle(j, 1, "player");
+    //LPMAPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
     //LONG whichTeam = jass_checkinteger(j, 2);
     return 0;
 }
 DWORD SetPlayerStartLocation(LPJASS j) {
-    //HANDLE whichPlayer = jass_checkhandle(j, 1, "player");
+    //LPMAPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
     //LONG startLocIndex = jass_checkinteger(j, 2);
     return 0;
 }
 DWORD ForcePlayerStartLocation(LPJASS j) {
-    //HANDLE whichPlayer = jass_checkhandle(j, 1, "player");
+    //LPMAPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
     //LONG startLocIndex = jass_checkinteger(j, 2);
     return 0;
 }
 DWORD SetPlayerColor(LPJASS j) {
-    //HANDLE whichPlayer = jass_checkhandle(j, 1, "player");
+    //LPMAPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
     //HANDLE color = jass_checkhandle(j, 2, "playercolor");
     return 0;
 }
@@ -35,47 +35,47 @@ DWORD SetPlayerTaxRate(LPJASS j) {
     return 0;
 }
 DWORD SetPlayerRacePreference(LPJASS j) {
-    //HANDLE whichPlayer = jass_checkhandle(j, 1, "player");
+    //LPMAPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
     //HANDLE whichRacePreference = jass_checkhandle(j, 2, "racepreference");
     return 0;
 }
 DWORD SetPlayerRaceSelectable(LPJASS j) {
-    //HANDLE whichPlayer = jass_checkhandle(j, 1, "player");
+    //LPMAPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
     //BOOL value = jass_checkboolean(j, 2);
     return 0;
 }
 DWORD SetPlayerController(LPJASS j) {
-    //HANDLE whichPlayer = jass_checkhandle(j, 1, "player");
+    //LPMAPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
     //HANDLE controlType = jass_checkhandle(j, 2, "mapcontrol");
     return 0;
 }
 DWORD SetPlayerOnScoreScreen(LPJASS j) {
-    //HANDLE whichPlayer = jass_checkhandle(j, 1, "player");
+    //LPMAPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
     //BOOL flag = jass_checkboolean(j, 2);
     return 0;
 }
 DWORD GetPlayerTeam(LPJASS j) {
-    //HANDLE whichPlayer = jass_checkhandle(j, 1, "player");
+    //LPMAPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
     return jass_pushinteger(j, 0);
 }
 DWORD GetPlayerStartLocation(LPJASS j) {
-    //HANDLE whichPlayer = jass_checkhandle(j, 1, "player");
+    //LPMAPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
     return jass_pushinteger(j, 0);
 }
 DWORD GetPlayerColor(LPJASS j) {
-    //HANDLE whichPlayer = jass_checkhandle(j, 1, "player");
+    //LPMAPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
     return jass_pushhandle(j, 0, "playercolor");
 }
 DWORD GetPlayerSelectable(LPJASS j) {
-    //HANDLE whichPlayer = jass_checkhandle(j, 1, "player");
+    //LPMAPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
     return jass_pushboolean(j, 0);
 }
 DWORD GetPlayerController(LPJASS j) {
-    //HANDLE whichPlayer = jass_checkhandle(j, 1, "player");
+    //LPMAPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
     return jass_pushhandle(j, 0, "mapcontrol");
 }
 DWORD GetPlayerSlotState(LPJASS j) {
-    //HANDLE whichPlayer = jass_checkhandle(j, 1, "player");
+    //LPMAPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
     return jass_pushhandle(j, 0, "playerslotstate");
 }
 DWORD GetPlayerTaxRate(LPJASS j) {
@@ -85,12 +85,12 @@ DWORD GetPlayerTaxRate(LPJASS j) {
     return jass_pushinteger(j, 0);
 }
 DWORD IsPlayerRacePrefSet(LPJASS j) {
-    //HANDLE whichPlayer = jass_checkhandle(j, 1, "player");
+    //LPMAPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
     //HANDLE pref = jass_checkhandle(j, 2, "racepreference");
     return jass_pushboolean(j, 0);
 }
 DWORD GetPlayerName(LPJASS j) {
-    //HANDLE whichPlayer = jass_checkhandle(j, 1, "player");
+    //LPMAPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
     return jass_pushstring(j, 0);
 }
 DWORD IssueNeutralImmediateOrder(LPJASS j) {
@@ -144,12 +144,12 @@ DWORD GetLocalPlayer(LPJASS j) {
     return jass_pushlighthandle(j, (LPMAPPLAYER)currentplayer, "player");
 }
 DWORD IsPlayerAlly(LPJASS j) {
-    //HANDLE whichPlayer = jass_checkhandle(j, 1, "player");
+    //LPMAPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
     //HANDLE otherPlayer = jass_checkhandle(j, 2, "player");
     return jass_pushboolean(j, 0);
 }
 DWORD IsPlayerEnemy(LPJASS j) {
-    //HANDLE whichPlayer = jass_checkhandle(j, 1, "player");
+    //LPMAPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
     //HANDLE otherPlayer = jass_checkhandle(j, 2, "player");
     return jass_pushboolean(j, 0);
 }
@@ -159,7 +159,7 @@ DWORD IsPlayerInForce(LPJASS j) {
     return jass_pushboolean(j, (*whichForce) & (1 << PLAYER_NUM(whichPlayer)));
 }
 DWORD IsPlayerObserver(LPJASS j) {
-    //HANDLE whichPlayer = jass_checkhandle(j, 1, "player");
+    //LPMAPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
     return jass_pushboolean(j, 0);
 }
 DWORD IsVisibleToPlayer(LPJASS j) {
@@ -196,34 +196,35 @@ DWORD IsLocationMaskedToPlayer(LPJASS j) {
     return jass_pushboolean(j, 0);
 }
 DWORD GetPlayerRace(LPJASS j) {
-    //HANDLE whichPlayer = jass_checkhandle(j, 1, "player");
+    //LPMAPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
     return jass_pushhandle(j, 0, "race");
 }
 DWORD GetPlayerId(LPJASS j) {
-    //HANDLE whichPlayer = jass_checkhandle(j, 1, "player");
+    //LPMAPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
     return jass_pushinteger(j, 0);
 }
 DWORD GetPlayerUnitCount(LPJASS j) {
-    //HANDLE whichPlayer = jass_checkhandle(j, 1, "player");
+    //LPMAPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
     //BOOL includeIncomplete = jass_checkboolean(j, 2);
     return jass_pushinteger(j, 0);
 }
 DWORD GetPlayerTypedUnitCount(LPJASS j) {
-    //HANDLE whichPlayer = jass_checkhandle(j, 1, "player");
+    //LPMAPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
     //LPCSTR unitName = jass_checkstring(j, 2);
     //BOOL includeIncomplete = jass_checkboolean(j, 3);
     //BOOL includeUpgrades = jass_checkboolean(j, 4);
     return jass_pushinteger(j, 0);
 }
 DWORD GetPlayerStructureCount(LPJASS j) {
-    //HANDLE whichPlayer = jass_checkhandle(j, 1, "player");
+    //LPMAPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
     //BOOL includeIncomplete = jass_checkboolean(j, 2);
     return jass_pushinteger(j, 0);
 }
 DWORD GetPlayerState(LPJASS j) {
-    //HANDLE whichPlayer = jass_checkhandle(j, 1, "player");
-    //HANDLE whichPlayerState = jass_checkhandle(j, 2, "playerstate");
-    return jass_pushinteger(j, 0);
+    LPMAPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
+    PLAYERSTATE *whichPlayerState = jass_checkhandle(j, 2, "playerstate");
+    LPGAMECLIENT client = PLAYER_CLIENT(whichPlayer);
+    return jass_pushinteger(j, client->ps.stats[*whichPlayerState]);
 }
 DWORD GetPlayerAlliance(LPJASS j) {
     //HANDLE sourcePlayer = jass_checkhandle(j, 1, "player");
@@ -232,77 +233,79 @@ DWORD GetPlayerAlliance(LPJASS j) {
     return jass_pushboolean(j, 0);
 }
 DWORD GetPlayerHandicap(LPJASS j) {
-    //HANDLE whichPlayer = jass_checkhandle(j, 1, "player");
+    //LPMAPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
     return jass_pushnumber(j, 0);
 }
 DWORD GetPlayerHandicapXP(LPJASS j) {
-    //HANDLE whichPlayer = jass_checkhandle(j, 1, "player");
+    //LPMAPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
     return jass_pushnumber(j, 0);
 }
 DWORD SetPlayerHandicap(LPJASS j) {
-    //HANDLE whichPlayer = jass_checkhandle(j, 1, "player");
+    //LPMAPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
     //FLOAT handicap = jass_checknumber(j, 2);
     return 0;
 }
 DWORD SetPlayerHandicapXP(LPJASS j) {
-    //HANDLE whichPlayer = jass_checkhandle(j, 1, "player");
+    //LPMAPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
     //FLOAT handicap = jass_checknumber(j, 2);
     return 0;
 }
 DWORD SetPlayerTechMaxAllowed(LPJASS j) {
-    //HANDLE whichPlayer = jass_checkhandle(j, 1, "player");
+    //LPMAPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
     //LONG techid = jass_checkinteger(j, 2);
     //LONG maximum = jass_checkinteger(j, 3);
     return 0;
 }
 DWORD GetPlayerTechMaxAllowed(LPJASS j) {
-    //HANDLE whichPlayer = jass_checkhandle(j, 1, "player");
+    //LPMAPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
     //LONG techid = jass_checkinteger(j, 2);
     return jass_pushinteger(j, 0);
 }
 DWORD AddPlayerTechResearched(LPJASS j) {
-    //HANDLE whichPlayer = jass_checkhandle(j, 1, "player");
+    //LPMAPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
     //LONG techid = jass_checkinteger(j, 2);
     //LONG levels = jass_checkinteger(j, 3);
     return 0;
 }
 DWORD SetPlayerTechResearched(LPJASS j) {
-    //HANDLE whichPlayer = jass_checkhandle(j, 1, "player");
+    //LPMAPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
     //LONG techid = jass_checkinteger(j, 2);
     //LONG setToLevel = jass_checkinteger(j, 3);
     return 0;
 }
 DWORD GetPlayerTechResearched(LPJASS j) {
-    //HANDLE whichPlayer = jass_checkhandle(j, 1, "player");
+    //LPMAPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
     //LONG techid = jass_checkinteger(j, 2);
     //BOOL specificonly = jass_checkboolean(j, 3);
     return jass_pushboolean(j, 0);
 }
 DWORD GetPlayerTechCount(LPJASS j) {
-    //HANDLE whichPlayer = jass_checkhandle(j, 1, "player");
+    //LPMAPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
     //LONG techid = jass_checkinteger(j, 2);
     //BOOL specificonly = jass_checkboolean(j, 3);
     return jass_pushinteger(j, 0);
 }
 DWORD SetPlayerAbilityAvailable(LPJASS j) {
-    //HANDLE whichPlayer = jass_checkhandle(j, 1, "player");
+    //LPMAPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
     //LONG abilid = jass_checkinteger(j, 2);
     //BOOL avail = jass_checkboolean(j, 3);
     return 0;
 }
 DWORD SetPlayerState(LPJASS j) {
-    //HANDLE whichPlayer = jass_checkhandle(j, 1, "player");
-    //HANDLE whichPlayerState = jass_checkhandle(j, 2, "playerstate");
-    //LONG value = jass_checkinteger(j, 3);
+    LPMAPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
+    PLAYERSTATE *whichPlayerState = jass_checkhandle(j, 2, "playerstate");
+    LONG value = jass_checkinteger(j, 3);
+    LPGAMECLIENT client = PLAYER_CLIENT(whichPlayer);
+    client->ps.stats[*whichPlayerState] = MAX(0, value);
     return 0;
 }
 DWORD RemovePlayer(LPJASS j) {
-    //HANDLE whichPlayer = jass_checkhandle(j, 1, "player");
+    //LPMAPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
     //HANDLE gameResult = jass_checkhandle(j, 2, "playergameresult");
     return 0;
 }
 DWORD CachePlayerHeroData(LPJASS j) {
-    //HANDLE whichPlayer = jass_checkhandle(j, 1, "player");
+    //LPMAPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
     return 0;
 }
 DWORD SetFogStateRect(LPJASS j) {
@@ -456,7 +459,7 @@ DWORD RemoveAllGuardPositions(LPJASS j) {
     return 0;
 }
 DWORD SetBlight(LPJASS j) {
-    //HANDLE whichPlayer = jass_checkhandle(j, 1, "player");
+    //LPMAPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
     //FLOAT x = jass_checknumber(j, 2);
     //FLOAT y = jass_checknumber(j, 3);
     //FLOAT radius = jass_checknumber(j, 4);
@@ -464,22 +467,50 @@ DWORD SetBlight(LPJASS j) {
     return 0;
 }
 DWORD SetBlightRect(LPJASS j) {
-    //HANDLE whichPlayer = jass_checkhandle(j, 1, "player");
+    //LPMAPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
     //HANDLE r = jass_checkhandle(j, 2, "rect");
     //BOOL addBlight = jass_checkboolean(j, 3);
     return 0;
 }
 DWORD SetBlightPoint(LPJASS j) {
-    //HANDLE whichPlayer = jass_checkhandle(j, 1, "player");
+    //LPMAPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
     //FLOAT x = jass_checknumber(j, 2);
     //FLOAT y = jass_checknumber(j, 3);
     //BOOL addBlight = jass_checkboolean(j, 4);
     return 0;
 }
 DWORD SetBlightLoc(LPJASS j) {
-    //HANDLE whichPlayer = jass_checkhandle(j, 1, "player");
+    //LPMAPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
     //HANDLE whichLocation = jass_checkhandle(j, 2, "location");
     //FLOAT radius = jass_checknumber(j, 3);
     //BOOL addBlight = jass_checkboolean(j, 4);
+    return 0;
+}
+DWORD ClearSelection(LPJASS j) {
+    FOR_LOOP(i, globals.num_edicts) {
+        if (currentplayer) {
+            g_edicts[i].selected &= 1 << PLAYER_NUM(currentplayer);
+        } else {
+            g_edicts[i].selected = 0;
+        }
+    }
+    return 0;
+}
+DWORD SelectUnit(LPJASS j) {
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    BOOL flag = jass_checkboolean(j, 2);
+    if (flag) {
+        if (currentplayer) {
+            whichUnit->selected |= 1 << PLAYER_NUM(currentplayer);
+        } else {
+            whichUnit->selected = -1;
+        }
+    } else {
+        if (currentplayer) {
+            whichUnit->selected &= 1 << PLAYER_NUM(currentplayer);
+        } else {
+            whichUnit->selected = 0;
+        }
+    }
     return 0;
 }

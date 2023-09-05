@@ -250,7 +250,7 @@ DWORD TimerStart(LPJASS j) {
     //HANDLE whichTimer = jass_checkhandle(j, 1, "timer");
     //FLOAT timeout = jass_checknumber(j, 2);
     //BOOL periodic = jass_checkboolean(j, 3);
-    //LPCSTR handlerFunc = jass_checkcode(j, 4);
+    //LPCJASSFUNC handlerFunc = jass_checkcode(j, 4);
     return 0;
 }
 DWORD TimerGetElapsed(LPJASS j) {
@@ -322,7 +322,7 @@ DWORD ForceEnumEnemies(LPJASS j) {
 }
 DWORD ForForce(LPJASS j) {
     //LPDWORD whichForce = jass_checkhandle(j, 1, "force");
-    //LPCSTR callback = jass_checkcode(j, 2);
+    //LPCJASSFUNC callback = jass_checkcode(j, 2);
     return 0;
 }
 DWORD IsUnitInRegion(LPJASS j) {
@@ -382,15 +382,15 @@ DWORD Not(LPJASS j) {
     return jass_pushhandle(j, 0, "boolexpr");
 }
 DWORD Condition(LPJASS j) {
-    //LPCSTR func = jass_checkcode(j, 1);
-    return jass_pushhandle(j, 0, "conditionfunc");
+    LPCJASSFUNC func = jass_checkcode(j, 1);
+    return jass_pushlighthandle(j, (HANDLE)func, "conditionfunc");
 }
 DWORD DestroyCondition(LPJASS j) {
     //HANDLE c = jass_checkhandle(j, 1, "conditionfunc");
     return 0;
 }
 DWORD Filter(LPJASS j) {
-    //LPCSTR func = jass_checkcode(j, 1);
+    //LPCJASSFUNC func = jass_checkcode(j, 1);
     return jass_pushhandle(j, 0, "filterfunc");
 }
 DWORD DestroyFilter(LPJASS j) {
@@ -408,10 +408,12 @@ DWORD GetWinningPlayer(LPJASS j) {
     return jass_pushhandle(j, 0, "player");
 }
 DWORD GetEnteringUnit(LPJASS j) {
-    return jass_pushhandle(j, 0, "unit");
+    extern LPEDICT enteringunit;
+    return jass_pushlighthandle(j, enteringunit, "unit");
 }
 DWORD GetLeavingUnit(LPJASS j) {
-    return jass_pushhandle(j, 0, "unit");
+    extern LPEDICT leavingunit;
+    return jass_pushlighthandle(j, leavingunit, "unit");
 }
 DWORD GetTriggeringTrackable(LPJASS j) {
     return jass_pushhandle(j, 0, "trackable");

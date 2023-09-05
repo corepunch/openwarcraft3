@@ -56,7 +56,7 @@ DWORD IsDestructableInvulnerable(LPJASS j) {
 DWORD EnumDestructablesInRect(LPJASS j) {
     //HANDLE r = jass_checkhandle(j, 1, "rect");
     //HANDLE filter = jass_checkhandle(j, 2, "boolexpr");
-    //LPCSTR actionFunc = jass_checkcode(j, 3);
+    //LPCJASSFUNC actionFunc = jass_checkcode(j, 3);
     return 0;
 }
 DWORD GetDestructableTypeId(LPJASS j) {

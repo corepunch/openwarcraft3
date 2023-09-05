@@ -68,7 +68,7 @@ static void ai_walkback(LPEDICT ent) {
         ent->goalentity = ent->secondarygoal;
         playerState_t *player = G_GetPlayerByNumber(ent->s.player);
         if (player) {
-            player->stats[STAT_LUMBER] += ent->harvested_lumber;
+            player->stats[PLAYERSTATE_RESOURCE_LUMBER] += ent->harvested_lumber;
         }
         ent->s.renderfx &= ~RF_HAS_LUMBER;
         ent->harvested_lumber = 0;

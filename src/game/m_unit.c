@@ -62,24 +62,25 @@ void order_move(LPEDICT self, LPEDICT target);
 void order_stop(LPEDICT clent);
 
 BOOL unit_issue_order(LPEDICT self, LPCSTR order, LPCVECTOR2 point) {
+//    printf("%.4s %s\n", &self->class_id, order);
     if (!strcmp(order, "move") || !strcmp(order, "attack")) {
         LPEDICT waypoint = Waypoint_add(point);
         order_move(self, waypoint);
         return true;
     }
-//    printf("%.4s %s\n", &self->class_id, order);
     return false;
 }
 
 BOOL unit_issue_immediate_order(LPEDICT self, LPCSTR order) {
+//    printf("%.4s %s\n", &self->class_id, order);
     if (!strcmp(order, "stop")) {
         order_stop(self);
         return true;
     }
-//    printf("%.4s %s\n", &self->class_id, order);
     return false;
 }
 
+void G_SolveCollisions(void);
 LPEDICT unit_create_or_find(DWORD player, DWORD unitid, LPCVECTOR2 location, FLOAT facing) {
     FOR_LOOP(i, globals.num_edicts) {
         LPEDICT ent = &globals.edicts[i];
@@ -87,11 +88,11 @@ LPEDICT unit_create_or_find(DWORD player, DWORD unitid, LPCVECTOR2 location, FLO
             Vector2_distance(location, &ent->s.origin2) < 10)
         {
             ent->s.player = player;
-            ent->s.angle = facing;
+            ent->s.angle = facing * M_PI / 180;
             return ent;
         }
     }
     LPEDICT unit = SP_SpawnAtLocation(unitid, player, location);
-    unit->s.angle = facing;
+    unit->s.angle = facing * M_PI / 180;;
     return unit;
 }

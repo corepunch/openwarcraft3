@@ -46,6 +46,13 @@ void CL_ParseFrame(LPSIZEBUF msg) {
     cl.frame.servertime = MSG_ReadLong(msg);
     cl.frame.oldclientframe = MSG_ReadLong(msg);
     cl.time = cl.frame.servertime;
+    
+    FOR_LOOP(index, MAX_CLIENT_ENTITIES) {
+        centity_t *ce = &cl.ents[index];
+        if (!ce->current.model)
+            continue;
+        ce->prev = ce->current;
+    }
 }
 
 void CL_ParsePlayerInfo(LPSIZEBUF msg) {

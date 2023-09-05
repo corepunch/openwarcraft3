@@ -4,6 +4,8 @@
 
 #define COMMAND_SIZE 0.039
 #define UI_SCALE 10000
+#define PLAYERSTATE_RESOURCE_FOOD_CAP 4
+#define PLAYERSTATE_RESOURCE_FOOD_USED 5
 
 static LPCSTR active_tooltip = NULL;
 
@@ -115,9 +117,9 @@ LPCSTR SCR_GetStringValue(LPCUIFRAME frame) {
     static char text[1024] = { 0 };
     if (frame->text) {
         return frame->text;
-    } else if (frame->stat == STAT_FOOD) {
-        DWORD food_used = cl.playerstate.stats[STAT_FOOD_USED];
-        DWORD food_made = cl.playerstate.stats[STAT_FOOD_MADE];
+    } else if (frame->stat == PLAYERSTATE_RESOURCE_FOOD_USED) {
+        DWORD food_used = cl.playerstate.stats[PLAYERSTATE_RESOURCE_FOOD_USED];
+        DWORD food_made = cl.playerstate.stats[PLAYERSTATE_RESOURCE_FOOD_CAP];
         sprintf(text, "%d/%d", food_used, food_made);
     } else if (frame->stat > 0) {
         sprintf(text, "%d", cl.playerstate.stats[frame->stat]);

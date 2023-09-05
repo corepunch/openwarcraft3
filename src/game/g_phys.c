@@ -40,13 +40,13 @@ void G_RunEntity(LPEDICT ent) {
 }
 
 BOOL M_IsHollow(LPEDICT ent) {
-    return M_IsDead(ent) || ent->s.renderfx & RF_HIDDEN;
+    return M_IsDead(ent) || ent->s.renderfx & RF_HIDDEN || !ent->s.model || !ent->inuse;
 }
 
 BOOL M_CheckCollision(LPCVECTOR2 origin, FLOAT radius) {
     for (LPEDICT a = globals.edicts; a - globals.edicts < globals.num_edicts; a++) {
         VECTOR2 d = Vector2_sub(&a->s.origin2, origin);
-        if (!a->s.model || M_IsHollow(a))
+        if (M_IsHollow(a))
             continue;
         if (!(a->s.flags & EF_MOVABLE))
             continue;
@@ -58,11 +58,11 @@ BOOL M_CheckCollision(LPCVECTOR2 origin, FLOAT radius) {
 
 void G_SolveCollisions(void) {
     for (LPEDICT a = globals.edicts; a - globals.edicts < globals.num_edicts; a++) {
-        if (!a->s.model || M_IsHollow(a))
+        if (M_IsHollow(a))
             continue;
         for (LPEDICT b = a+1; b - globals.edicts < globals.num_edicts; b++) {
             VECTOR2 d = Vector2_sub(&a->s.origin2, &b->s.origin2);
-            if (!b->s.model || M_IsHollow(b))
+            if (M_IsHollow(b))
                 continue;
             if (!(a->s.flags & EF_MOVABLE) && !(b->s.flags & EF_MOVABLE))
                 continue;

@@ -68,10 +68,10 @@ typedef struct mapPlayer_s {
 } mapPlayer_t;
 
 typedef struct {
-    DWORD focesFlags;
-    DWORD playerMasks; // (bit "x"=1 -> player "x" is in this force)
-    LPSTR forceName;
-} mapForce_t;
+    DWORD flags;
+    DWORD playerMasks; // (bit "x"=1 -> player "x" is in this team)
+    LPSTR name;
+} mapTeam_t;
 
 typedef enum {
     upgrade_unavailable,
@@ -157,12 +157,12 @@ struct mapInfo_s {
     LPSTR prologueScreenTitle;
     LPSTR prologueScreenSubtitle;
 //    DWORD num_players;
-    DWORD num_forces;
+    DWORD num_teams;
     DWORD num_upgradeAvailabilities;
     DWORD num_techAvailabilities;
     DWORD num_randomUnits;
     mapPlayer_t players[MAX_PLAYERS];
-    mapForce_t *forces;
+    mapTeam_t *teams;
     mapUpgradeAvailability_t *upgradeAvailabilities;
     mapTechAvailability_t *techAvailabilities;
     mapRandomUnitTable_t *randomUnits;

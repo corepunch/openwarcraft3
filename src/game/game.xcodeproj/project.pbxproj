@@ -28,6 +28,7 @@
 		787CFBC22A6E754E00B822F2 /* s_militia.c in Sources */ = {isa = PBXBuildFile; fileRef = 787CFBC12A6E754E00B822F2 /* s_militia.c */; };
 		787CFBC52A6EEC8E00B822F2 /* g_save.c in Sources */ = {isa = PBXBuildFile; fileRef = 787CFBC42A6EEC8E00B822F2 /* g_save.c */; };
 		787CFBC72A6FA46500B822F2 /* vm.c in Sources */ = {isa = PBXBuildFile; fileRef = 787CFBC62A6FA46500B822F2 /* vm.c */; };
+		7892D52D2AA609B8002EBB6E /* g_events.c in Sources */ = {isa = PBXBuildFile; fileRef = 7892D52C2AA609B8002EBB6E /* g_events.c */; };
 		7893D1252A614222005365DA /* s_train.c in Sources */ = {isa = PBXBuildFile; fileRef = 7893D1242A614222005365DA /* s_train.c */; };
 		78A000E82A3C8B5B00FE16C9 /* m_tree.c in Sources */ = {isa = PBXBuildFile; fileRef = 78A000E72A3C8B5B00FE16C9 /* m_tree.c */; };
 		78A000EB2A3CEB0A00FE16C9 /* s_harvest_lumber.c in Sources */ = {isa = PBXBuildFile; fileRef = 78A000EA2A3CEB0A00FE16C9 /* s_harvest_lumber.c */; };
@@ -87,6 +88,7 @@
 		787CFBC32A6EBA3C00B822F2 /* s_skills.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = s_skills.h; sourceTree = "<group>"; };
 		787CFBC42A6EEC8E00B822F2 /* g_save.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = g_save.c; sourceTree = "<group>"; };
 		787CFBC62A6FA46500B822F2 /* vm.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = vm.c; sourceTree = "<group>"; };
+		7892D52C2AA609B8002EBB6E /* g_events.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = g_events.c; sourceTree = "<group>"; };
 		7893D1242A614222005365DA /* s_train.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = s_train.c; sourceTree = "<group>"; };
 		78A000E72A3C8B5B00FE16C9 /* m_tree.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = m_tree.c; sourceTree = "<group>"; };
 		78A000E92A3CA9A000FE16C9 /* common.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = common.txt; sourceTree = "<group>"; };
@@ -185,10 +187,12 @@
 				787B1D982A740C8E003285E6 /* jass */,
 				78A000F42A3F648200FE16C9 /* skills */,
 				7874A5412A93BB83006A8DB5 /* ui */,
+				78E91BFC2A169771003D9F3A /* Frameworks */,
+				78A8964E2A15F7A500BC5B56 /* Products */,
 				786630642A18BFAC00266A62 /* g_ai.c */,
-				78731BAB2A9E1EF500077EDE /* g_utils.c */,
 				78C77C4E2A4C54540084A70B /* g_combat.c */,
 				78C4538F2A1E7F2E00C93B16 /* g_commands.c */,
+				7892D52C2AA609B8002EBB6E /* g_events.c */,
 				78A8966B2A15F7D600BC5B56 /* g_main.c */,
 				78314AE32A2724A300062C4B /* g_metadata.c */,
 				78E91BFA2A169439003D9F3A /* g_monster.c */,
@@ -196,6 +200,7 @@
 				7866305F2A188F4800266A62 /* g_phys.c */,
 				787CFBC42A6EEC8E00B822F2 /* g_save.c */,
 				78A896692A15F7D600BC5B56 /* g_spawn.c */,
+				78731BAB2A9E1EF500077EDE /* g_utils.c */,
 				78A000E72A3C8B5B00FE16C9 /* m_tree.c */,
 				78A8966E2A15F7D600BC5B56 /* m_unit.c */,
 				7859EF612A2D0DDB0099A70E /* p_hud.c */,
@@ -207,8 +212,6 @@
 				7806B4682A57375300EE86BC /* parser.h */,
 				78A000E92A3CA9A000FE16C9 /* common.txt */,
 				786637B62A1A5B6200266A62 /* warcraftdoc.txt */,
-				78E91BFC2A169771003D9F3A /* Frameworks */,
-				78A8964E2A15F7A500BC5B56 /* Products */,
 			);
 			sourceTree = "<group>";
 		};
@@ -313,6 +316,7 @@
 				78FC6C362A25F66500C9F93D /* s_skills.c in Sources */,
 				7859EF622A2D0DDB0099A70E /* p_hud.c in Sources */,
 				78A000EF2A3E28AD00FE16C9 /* s_move.c in Sources */,
+				7892D52D2AA609B8002EBB6E /* g_events.c in Sources */,
 				785D8FDD2A961E9F005A26B5 /* ui_init.c in Sources */,
 				78314AE42A2724A300062C4B /* g_metadata.c in Sources */,
 				786630652A18BFAC00266A62 /* g_ai.c in Sources */,

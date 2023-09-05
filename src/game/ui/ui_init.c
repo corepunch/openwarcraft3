@@ -6,9 +6,9 @@ static void Init_ResourceBar(LPFRAMEDEF ConsoleUI) {
     UI_FRAME(ResourceBarLumberText);
     UI_FRAME(ResourceBarSupplyText);
     
-    if (ResourceBarGoldText) ResourceBarGoldText->Stat = STAT_GOLD;
-    if (ResourceBarLumberText) ResourceBarLumberText->Stat = STAT_LUMBER;
-    if (ResourceBarSupplyText) ResourceBarSupplyText->Stat = STAT_FOOD;
+    if (ResourceBarGoldText) ResourceBarGoldText->Stat = PLAYERSTATE_RESOURCE_GOLD;
+    if (ResourceBarLumberText) ResourceBarLumberText->Stat = PLAYERSTATE_RESOURCE_LUMBER;
+    if (ResourceBarSupplyText) ResourceBarSupplyText->Stat = PLAYERSTATE_RESOURCE_FOOD_USED;
     
     UI_SetParent(ResourceBarFrame, ConsoleUI);
     UI_SetPoint(ResourceBarFrame, FRAMEPOINT_TOPRIGHT, ConsoleUI, FRAMEPOINT_TOPRIGHT, 0, 0);

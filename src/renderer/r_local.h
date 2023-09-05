@@ -42,7 +42,6 @@
 #define MAX_SKIN_BONES 8
 #define NUM_SELECTION_CIRCLES 3
 #define NUM_RECT_VERTICES 6
-#define MAX_NODES 256
 
 #include "../common/common.h"
 #include "../client/renderer.h"

@@ -22,11 +22,11 @@ static LPCSTR vs =
 "in vec4 i_color;\n"
 "in vec2 i_texcoord;\n"
 "in vec3 i_normal;\n"
-"in vec4 i_skin1;\n"
+"in ivec4 i_skin1;\n"
 "in vec4 i_boneWeight1;\n"
 #if MAX_SKIN_BONES > 4
 "in vec4 i_boneWeight2;\n"
-"in vec4 i_skin2;\n"
+"in ivec4 i_skin2;\n"
 #endif
 "out vec4 v_color;\n"
 "out vec4 v_shadow;\n"
@@ -34,38 +34,25 @@ static LPCSTR vs =
 "out vec2 v_texcoord2;\n"
 "out vec3 v_normal;\n"
 "out vec3 v_lightDir;\n"
-"uniform mat4 uBones[64];\n"
+"uniform mat4 uBones[128];\n"
 "uniform mat4 uViewProjectionMatrix;\n"
 "uniform mat4 uTextureMatrix;\n"
 "uniform mat4 uModelMatrix;\n"
 "uniform mat4 uLightMatrix;\n"
 "uniform mat3 uNormalMatrix;\n"
-"uniform float uFirstBoneLookupIndex;\n"
-"uniform float uBoneWeightPairsCount;\n"
 "void main() {\n"
 "    vec4 pos4 = vec4(i_position, 1.0);\n"
 "    vec4 norm4 = vec4(i_normal, 0.0);\n"
 "    vec4 position = vec4(0.0);\n"
 "    vec4 normal = vec4(0.0);\n"
-"    vec4 bones = i_skin1 + vec4(uFirstBoneLookupIndex);\n"
-"    position += uBones[int(bones[0])] * pos4 * i_boneWeight1[0];\n"
-"    position += uBones[int(bones[1])] * pos4 * i_boneWeight1[1];\n"
-"    position += uBones[int(bones[2])] * pos4 * i_boneWeight1[2];\n"
-"    position += uBones[int(bones[3])] * pos4 * i_boneWeight1[3];\n"
-"    normal += uBones[int(bones[0])] * norm4 * i_boneWeight1[0];\n"
-"    normal += uBones[int(bones[1])] * norm4 * i_boneWeight1[1];\n"
-"    normal += uBones[int(bones[2])] * norm4 * i_boneWeight1[2];\n"
-"    normal += uBones[int(bones[3])] * norm4 * i_boneWeight1[3];\n"
+"    for (int i = 0; i < 4; ++i) {\n"
+"        position += uBones[i_skin1[i]] * pos4 * i_boneWeight1[i];\n"
+"        normal += uBones[i_skin1[i]] * norm4 * i_boneWeight1[i];\n"
 #if MAX_SKIN_BONES > 4
-"    position += uBones[int(i_skin2[0])] * pos4 * i_boneWeight2[0];\n"
-"    position += uBones[int(i_skin2[1])] * pos4 * i_boneWeight2[1];\n"
-"    position += uBones[int(i_skin2[2])] * pos4 * i_boneWeight2[2];\n"
-"    position += uBones[int(i_skin2[3])] * pos4 * i_boneWeight2[3];\n"
-"    normal += uBones[int(i_skin2[0])] * norm4 * i_boneWeight2[0];\n"
-"    normal += uBones[int(i_skin2[1])] * norm4 * i_boneWeight2[1];\n"
-"    normal += uBones[int(i_skin2[2])] * norm4 * i_boneWeight2[2];\n"
-"    normal += uBones[int(i_skin2[3])] * norm4 * i_boneWeight2[3];\n"
+"        position += uBones[i_skin2[i]] * pos4 * i_boneWeight2[i];\n"
+"        normal += uBones[i_skin2[i]] * norm4 * i_boneWeight2[i];\n"
 #endif
+"    }\n"
 "    position.w = 1.0;\n"
 "    v_color = i_color;\n"
 "    v_texcoord = i_texcoord;\n"
@@ -108,8 +95,8 @@ LPCSTR fs =
 "    if (o_color.a < 0.5 && uUseDiscard) discard;\n"
 "}\n";
 
-static MATRIX4 local_matrices[MAX_NODES];
-static MATRIX4 global_matrices[MAX_NODES];
+static MATRIX4 local_matrices[MDX_MAX_NODES];
+static MATRIX4 global_matrices[MDX_MATRIX_PALETTE];
 
 DWORD GetModelKeyTrackDataTypeSize(MODELKEYTRACKDATATYPE dataType);
 DWORD GetModelKeyTrackTypeSize(MODELKEYTRACKTYPE keyTrackType);
@@ -249,6 +236,13 @@ LPCMATRIX4 R_GetNodeGlobalMatrix(mdxModel_t const *model, LPCMATRIX4 model_matri
     return global_matrix;
 }
 
+void AddSkin(LPVECTOR3 pos, LPCMATRIX4 mat, LPCVECTOR3 org, FLOAT weight) {
+    if (weight == 0) return;
+    VECTOR3 val = Matrix4_multiply_vector3(mat, org);
+    val = Vector3_scale(&val, weight);
+    *pos = Vector3_add(pos, &val);
+}
+
 static void MDLX_BindBoneMatrices(mdxModel_t const *model, LPCMATRIX4 model_matrix, DWORD frame1, DWORD frame0) {
     DWORD numBones = 1;
     memset(global_matrices, 0, sizeof(global_matrices));
@@ -263,6 +257,24 @@ static void MDLX_BindBoneMatrices(mdxModel_t const *model, LPCMATRIX4 model_matr
     FOR_EACH_LIST(mdxBone_t, bone, model->bones) {
         numBones++;
     }
+    
+#if 0
+    if (model->knight) {
+        static VECTOR3 pos[1024];
+        FOR_EACH_LIST(mdxGeoset_t, geoset, model->geosets) {
+            FOR_LOOP(i, geoset->num_vertices) {
+                VECTOR3 org = geoset->vertices[i];
+                memset(pos+i, 0, sizeof(VECTOR3));
+                FOR_LOOP(j, MAX_SKIN_BONES) {
+                    AddSkin(pos+i, global_matrices+geoset->skinning[i].skin[j], &org, geoset->skinning[i].boneWeight[j]/255.f);
+            }
+            R_Call(glBindBuffer, GL_ARRAY_BUFFER, geoset->buffer[1]);
+            R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(VECTOR3) * geoset->vertices, pos, GL_STATIC_DRAW);
+            R_Call(glVertexAttribPointer, attrib_position, 3, GL_FLOAT, GL_FALSE, 0, 0);
+            R_Call(glEnableVertexAttribArray, attrib_position);
+        }
+    }
+#endif
 
     R_Call(glUseProgram, mdlx.shader->progid);
     R_Call(glUniformMatrix4fv, mdlx.shader->uBones, numBones, GL_FALSE, global_matrices->v);

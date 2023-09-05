@@ -115,23 +115,18 @@ void R_SetupGeosetVertexBuffer(mdxGeoset_t *geoset) {
         biggestGeoset = MAX_SKIN_BONES;
     }
     
-    struct mdx_vertex {
-        BYTE skin[MAX_SKIN_BONES];
-        BYTE boneWeight[MAX_SKIN_BONES];
-    };
-
     typedef BYTE matrixGroup_t[MAX_SKIN_BONES];
-    struct mdx_vertex *vertices = ri.MemAlloc(sizeof(vertex_t) * geoset->num_vertices);
+    mdxVertexSkin_t *vertices = ri.MemAlloc(sizeof(mdxVertexSkin_t) * geoset->num_vertices);
     matrixGroup_t *matrixGroups = ri.MemAlloc(sizeof(matrixGroup_t) * geoset->num_matrixGroupSizes);
     DWORD indexOffset = 0;
 
     FOR_LOOP(matrixGroupIndex, geoset->num_matrixGroupSizes) {
-        memset(&matrixGroups[matrixGroupIndex], MAX_NODES - 1, sizeof(matrixGroup_t));
+        memset(&matrixGroups[matrixGroupIndex], 0xff, sizeof(matrixGroup_t));
         FOR_LOOP(matrixIndex, geoset->matrixGroupSizes[matrixGroupIndex]) {
             matrixGroups[matrixGroupIndex][matrixIndex] = geoset->matrices[indexOffset++];
         }
     }
-
+    
     FOR_LOOP(vertex, geoset->num_vertices) {
         DWORD matrixGroupIndex = geoset->vertexGroups[vertex];
         DWORD matrixGroupSize = MAX(1, geoset->matrixGroupSizes[matrixGroupIndex]);
@@ -175,17 +170,18 @@ void R_SetupGeosetVertexBuffer(mdxGeoset_t *geoset) {
     R_Call(glEnableVertexAttribArray, attrib_boneWeight1);
     R_Call(glEnableVertexAttribArray, attrib_boneWeight2);
 
-    R_Call(glVertexAttribPointer, attrib_skin1, 4, GL_UNSIGNED_BYTE, GL_FALSE, sizeof(struct mdx_vertex), FOFS(mdx_vertex, skin[0]));
-    R_Call(glVertexAttribPointer, attrib_skin2, 4, GL_UNSIGNED_BYTE, GL_FALSE, sizeof(struct mdx_vertex), FOFS(mdx_vertex, skin[4]));
-    R_Call(glVertexAttribPointer, attrib_boneWeight1, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(struct mdx_vertex), FOFS(mdx_vertex, boneWeight[0]));
-    R_Call(glVertexAttribPointer, attrib_boneWeight2, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(struct mdx_vertex), FOFS(mdx_vertex, boneWeight[4]));
+    R_Call(glVertexAttribPointer, attrib_skin1, 4, GL_UNSIGNED_BYTE, GL_FALSE, sizeof(mdxVertexSkin_t), FOFS(mdxVertexSkin_s, skin[0]));
+    R_Call(glVertexAttribPointer, attrib_skin2, 4, GL_UNSIGNED_BYTE, GL_FALSE, sizeof(mdxVertexSkin_t), FOFS(mdxVertexSkin_s, skin[4]));
+    R_Call(glVertexAttribPointer, attrib_boneWeight1, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(mdxVertexSkin_t), FOFS(mdxVertexSkin_s, boneWeight[0]));
+    R_Call(glVertexAttribPointer, attrib_boneWeight2, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(mdxVertexSkin_t), FOFS(mdxVertexSkin_s, boneWeight[4]));
 
-    R_Call(glBufferData, GL_ARRAY_BUFFER, geoset->num_vertices * sizeof(VERTEX), vertices, GL_STATIC_DRAW);
+    R_Call(glBufferData, GL_ARRAY_BUFFER, geoset->num_vertices * sizeof(mdxVertexSkin_t), vertices, GL_STATIC_DRAW);
 
     R_Call(glBindBuffer, GL_ELEMENT_ARRAY_BUFFER, geoset->buffer[0]);
     R_Call(glBufferData, GL_ELEMENT_ARRAY_BUFFER, sizeof(USHORT) * geoset->num_triangles, geoset->triangles, GL_STATIC_DRAW);
             
     ri.MemFree(vertices);
+//    geoset->skinning = vertices;
     ri.MemFree(matrixGroups);
 }
 

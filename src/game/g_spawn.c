@@ -73,7 +73,7 @@ static void G_InitEdict(LPEDICT e) {
 LPEDICT G_Spawn(void) {
     for (DWORD i = game.max_clients; i < globals.num_edicts; i++) {
         LPEDICT e = &g_edicts[i];
-        if (!e->inuse) {
+        if (!e->inuse && e->freetime + 1000 < level.time) {
             G_InitEdict(e);
             return e;
         }
@@ -142,17 +142,6 @@ void SP_worldspawn(LPEDICT ent) {
     SetAbilityNames();
 }
 
-HANDLE G_RunScripts(HANDLE arg) {
-    JASS_Parse(level.j, "Scripts\\common.j");
-    JASS_Parse(level.j, "Scripts\\Blizzard.j");
-    JASS_Parse_Native(level.j, "/Users/igor/Desktop/war3map.j");
-    while (!level.started) {
-        gi.Sleep(10);
-    }
-    JASS_ExecuteFunc(level.j, "main");
-    return NULL;
-}
-
 static void G_InitMapPlayer(LPEDICT clent, LPCMAPPLAYER player, DWORD playernum) {
     playerState_t *ps = &clent->client->ps;
     memset(ps, 0, sizeof(playerState_t));
@@ -162,9 +151,6 @@ static void G_InitMapPlayer(LPEDICT clent, LPCMAPPLAYER player, DWORD playernum)
     ps->viewquat = Quaternion_fromEuler(&MAKE(VECTOR3, 326, 0, 0), ROTATE_ZYX);
     ps->fov = 50;
     ps->distance = 1650;
-    ps->stats[STAT_GOLD] = 300;
-    ps->stats[STAT_LUMBER] = 80;
-    ps->stats[STAT_FOOD] = 5;
     clent->client->mapplayer = player;
 }
 
@@ -190,11 +176,13 @@ void G_SpawnEntities(LPCMAPINFO mapinfo, LPCDOODAD entities) {
     SP_worldspawn(NULL);
     
     level.mapinfo = mapinfo;
-    level.j = JASS_Allocate();
+    level.vm = JASS_Allocate();
+    
+    JASS_Parse(level.vm, "Scripts\\common.j");
+    JASS_Parse(level.vm, "Scripts\\Blizzard.j");
+    JASS_Parse_Native(level.vm, "/Users/igor/Desktop/war3map.j");
 
     UI_Init();
-
-    gi.CreateThread(G_RunScripts, NULL);
 }
  
 LPEDICT SP_SpawnAtLocation(DWORD class_id, DWORD player, LPCVECTOR2 location) {

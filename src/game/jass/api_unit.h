@@ -313,14 +313,6 @@ DWORD SetUnitPathing(LPJASS j) {
     //BOOL flag = jass_checkboolean(j, 2);
     return 0;
 }
-DWORD ClearSelection(LPJASS j) {
-    return 0;
-}
-DWORD SelectUnit(LPJASS j) {
-    //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    //BOOL flag = jass_checkboolean(j, 2);
-    return 0;
-}
 DWORD GetUnitPointValue(LPJASS j) {
     //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     return jass_pushinteger(j, 0);
@@ -396,8 +388,8 @@ DWORD GetUnitDefaultMoveSpeed(LPJASS j) {
     return jass_pushnumber(j, 0);
 }
 DWORD GetOwningPlayer(LPJASS j) {
-    //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    return jass_pushhandle(j, 0, "player");
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    return jass_pushlighthandle(j, (HANDLE)level.mapinfo->players+whichUnit->s.player, "player");
 }
 DWORD GetUnitTypeId(LPJASS j) {
     //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");

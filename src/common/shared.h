@@ -97,13 +97,6 @@ enum {
 };
 
 #define MAX_COMMANDS 12
-
-#define STAT_GOLD 1
-#define STAT_LUMBER 2
-#define STAT_FOOD 3
-#define STAT_FOOD_MADE 4
-#define STAT_FOOD_USED 5
-
 #define MAX_STATS 32
 
 #define MAX_PACKET_ENTITIES 64

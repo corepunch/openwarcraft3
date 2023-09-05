@@ -56,8 +56,11 @@ LPTEXTURE R_LoadTexture(LPCSTR textureFilename) {
     return texture;
 }
 
+BOOL knight = false;
+
 LPMODEL R_LoadModel(LPCSTR modelFilename) {
     HANDLE file = ri.FileOpen(modelFilename);
+    knight = strstr(modelFilename, "Knight.mdx");
     LPMODEL model = NULL;
     if (file == NULL) {
         // try to load without *0.mdx
@@ -214,7 +217,7 @@ void R_Init(DWORD width, DWORD height) {
     context = SDL_GL_CreateContext(window);
     
     SDL_GL_GetDrawableSize(window, (int *)&tr.drawableSize.width, (int *)&tr.drawableSize.height);
-        
+    
 //    m3 = R_LoadModel("Assets\\Units\\Terran\\SpecialOpsDropship\\SpecialOpsDropship.m3");
 //    R_LoadModel("Assets\\Units\\Terran\\MarineTychus\\MarineTychus.m3");
 //    R_LoadModel("Assets\\Units\\Zerg\\Queen\\Queen.m3");

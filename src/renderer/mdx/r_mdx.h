@@ -4,6 +4,8 @@
 #include "../r_local.h"
 
 #define MODEL_ATTACHMENT_PATH_LENGTH 0x100
+#define MDX_MAX_NODES 256
+#define MDX_MATRIX_PALETTE 128
 
 typedef char mdxObjectName_t[80];
 typedef char mdxFileName_t[260];
@@ -72,6 +74,11 @@ typedef struct mdxBounds_s {
     float radius;
     BOX3 box;
 } mdxBounds_t;
+
+typedef struct mdxVertexSkin_s {
+    BYTE skin[MAX_SKIN_BONES];
+    BYTE boneWeight[MAX_SKIN_BONES];
+} mdxVertexSkin_t;
 
 typedef enum {
     TEXREPL_NONE,
@@ -292,6 +299,7 @@ typedef struct mdxGeoset_s {
     mdxBounds_t *bounds;
     mdxBounds_t default_bounds;
     mdxGeosetAnim_t *geosetAnim;
+//    mdxVertexSkin_t *skinning;
     int *matrices;
     int *primitiveTypes;
     int *primitiveCounts;
@@ -335,7 +343,7 @@ typedef struct mdxModel_s {
     mdxParticleEmitter_t *emitters;
     mdxAttachment_t *attachments;
     mdxLight_t *lights;
-    mdxNode_t *nodes[MAX_NODES];
+    mdxNode_t *nodes[MDX_MAX_NODES];
     VECTOR3 *pivots;
     int num_textures;
     int num_sequences;
