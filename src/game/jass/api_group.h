@@ -39,9 +39,15 @@ DWORD GroupEnumUnitsOfType(LPJASS j) {
     return 0;
 }
 DWORD GroupEnumUnitsOfPlayer(LPJASS j) {
-    //ggroup_t *whichGroup = jass_checkhandle(j, 1, "group");
-    //LPMAPPLAYER whichPlayer = jass_checkhandle(j, 2, "player");
+    ggroup_t *whichGroup = jass_checkhandle(j, 1, "group");
+    LPMAPPLAYER whichPlayer = jass_checkhandle(j, 2, "player");
     //HANDLE filter = jass_checkhandle(j, 3, "boolexpr");
+    FOR_LOOP(i, globals.num_edicts) {
+        LPEDICT ent = &globals.edicts[i];
+        if (ent->s.player == PLAYER_NUM(whichPlayer)) {
+            group_add_entity(whichGroup, ent);
+        }
+    }
     return 0;
 }
 DWORD GroupEnumUnitsOfTypeCounted(LPJASS j) {
@@ -61,9 +67,9 @@ DWORD GroupEnumUnitsInRect(LPJASS j) {
             group_add_entity(whichGroup, ent);
         }
     }
-
     return 0;
 }
+
 DWORD GroupEnumUnitsInRectCounted(LPJASS j) {
     ggroup_t *whichGroup = jass_checkhandle(j, 1, "group");
     HANDLE r = jass_checkhandle(j, 2, "rect");
@@ -79,35 +85,61 @@ DWORD GroupEnumUnitsInRectCounted(LPJASS j) {
     return 0;
 }
 DWORD GroupEnumUnitsInRange(LPJASS j) {
-    //ggroup_t *whichGroup = jass_checkhandle(j, 1, "group");
-    //FLOAT x = jass_checknumber(j, 2);
-    //FLOAT y = jass_checknumber(j, 3);
-    //FLOAT radius = jass_checknumber(j, 4);
+    ggroup_t *whichGroup = jass_checkhandle(j, 1, "group");
+    FLOAT x = jass_checknumber(j, 2);
+    FLOAT y = jass_checknumber(j, 3);
+    FLOAT radius = jass_checknumber(j, 4);
     //HANDLE filter = jass_checkhandle(j, 5, "boolexpr");
+    FOR_LOOP(i, globals.num_edicts) {
+        LPEDICT ent = &globals.edicts[i];
+        if (Vector2_distance(&ent->s.origin2, &MAKE(VECTOR2, x, y)) < radius) {
+            group_add_entity(whichGroup, ent);
+        }
+    }
     return 0;
 }
 DWORD GroupEnumUnitsInRangeOfLoc(LPJASS j) {
-    //ggroup_t *whichGroup = jass_checkhandle(j, 1, "group");
-    //HANDLE whichLocation = jass_checkhandle(j, 2, "location");
-    //FLOAT radius = jass_checknumber(j, 3);
+    ggroup_t *whichGroup = jass_checkhandle(j, 1, "group");
+    LPCVECTOR2 whichLocation = jass_checkhandle(j, 2, "location");
+    FLOAT radius = jass_checknumber(j, 3);
     //HANDLE filter = jass_checkhandle(j, 4, "boolexpr");
+    FOR_LOOP(i, globals.num_edicts) {
+        LPEDICT ent = &globals.edicts[i];
+        if (Vector2_distance(&ent->s.origin2, whichLocation) < radius) {
+            group_add_entity(whichGroup, ent);
+        }
+    }
     return 0;
 }
 DWORD GroupEnumUnitsInRangeCounted(LPJASS j) {
-    //ggroup_t *whichGroup = jass_checkhandle(j, 1, "group");
-    //FLOAT x = jass_checknumber(j, 2);
-    //FLOAT y = jass_checknumber(j, 3);
-    //FLOAT radius = jass_checknumber(j, 4);
+    ggroup_t *whichGroup = jass_checkhandle(j, 1, "group");
+    FLOAT x = jass_checknumber(j, 2);
+    FLOAT y = jass_checknumber(j, 3);
+    FLOAT radius = jass_checknumber(j, 4);
     //HANDLE filter = jass_checkhandle(j, 5, "boolexpr");
-    //LONG countLimit = jass_checkinteger(j, 6);
+    LONG countLimit = jass_checkinteger(j, 6);
+    FOR_LOOP(i, globals.num_edicts) {
+        LPEDICT ent = &globals.edicts[i];
+        if (Vector2_distance(&ent->s.origin2, &MAKE(VECTOR2, x, y)) < radius && countLimit > 0) {
+            group_add_entity(whichGroup, ent);
+            countLimit--;
+        }
+    }
     return 0;
 }
 DWORD GroupEnumUnitsInRangeOfLocCounted(LPJASS j) {
-    //ggroup_t *whichGroup = jass_checkhandle(j, 1, "group");
-    //HANDLE whichLocation = jass_checkhandle(j, 2, "location");
-    //FLOAT radius = jass_checknumber(j, 3);
+    ggroup_t *whichGroup = jass_checkhandle(j, 1, "group");
+    HANDLE whichLocation = jass_checkhandle(j, 2, "location");
+    FLOAT radius = jass_checknumber(j, 3);
     //HANDLE filter = jass_checkhandle(j, 4, "boolexpr");
-    //LONG countLimit = jass_checkinteger(j, 5);
+    LONG countLimit = jass_checkinteger(j, 5);
+    FOR_LOOP(i, globals.num_edicts) {
+        LPEDICT ent = &globals.edicts[i];
+        if (Vector2_distance(&ent->s.origin2, whichLocation) < radius && countLimit > 0) {
+            group_add_entity(whichGroup, ent);
+            countLimit--;
+        }
+    }
     return 0;
 }
 DWORD GroupEnumUnitsSelected(LPJASS j) {
