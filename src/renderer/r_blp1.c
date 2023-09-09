@@ -227,6 +227,7 @@ jpeg_readimage(HANDLE buf, DWORD size) {
         *p2 += numlines * image.channels * image.width;
     }
     jpeg_finish_decompress(&cinfo);
+    jpeg_destroy_decompress(&cinfo);
     return image;
 }
 

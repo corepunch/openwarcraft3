@@ -5,7 +5,7 @@ static struct {
     LPWAR3MAP map;
     MAPINFO info;
     struct Doodad *doodads;
-} world;
+} world = { 0 };
 
 void CM_ReadPathMap(HANDLE archive);
 
@@ -311,13 +311,17 @@ void CM_ReadStrings(HANDLE archive) {
                 token = strtok(NULL, "\n");
                 removeTrailingWhitespace(token);
                 strcpy(entry->text, token);
-//                printf("ID: %d\nText: %s\n\n", entry->id, entry->text);
+                printf("ID: %d\nText: %s\n\n", entry->id, entry->text);
                 ADD_TO_LIST(entry, world.info.strings)
             }
         }
         token = strtok(NULL, "\n");
     }
     MemFree(buffer);
+}
+
+void CM_ReadMapScript(HANDLE archive) {
+    world.info.mapscript = FS_ReadArchiveFileIntoString(archive, "war3map.j");
 }
 
 void CM_LoadMap(LPCSTR mapFilename) {
@@ -332,6 +336,7 @@ void CM_LoadMap(LPCSTR mapFilename) {
     CM_ReadInfo(mapArchive);
     CM_ReadUnits(mapArchive);
     CM_ReadStrings(mapArchive);
+    CM_ReadMapScript(mapArchive);
         
 //    SFileExtractFile(mapArchive, "war3map.wts", "/Users/igor/Desktop/war3map.wts", 0);
 //    HANDLE file;

@@ -11,13 +11,13 @@
 		7806B4672A57373400EE86BC /* parser.c in Sources */ = {isa = PBXBuildFile; fileRef = 7806B4662A57373400EE86BC /* parser.c */; };
 		78314AE42A2724A300062C4B /* g_metadata.c in Sources */ = {isa = PBXBuildFile; fileRef = 78314AE32A2724A300062C4B /* g_metadata.c */; };
 		7859EF622A2D0DDB0099A70E /* p_hud.c in Sources */ = {isa = PBXBuildFile; fileRef = 7859EF612A2D0DDB0099A70E /* p_hud.c */; };
+		785C745C2AA885930053B1CA /* g_items.c in Sources */ = {isa = PBXBuildFile; fileRef = 785C745B2AA885930053B1CA /* g_items.c */; };
 		785D8FDD2A961E9F005A26B5 /* ui_init.c in Sources */ = {isa = PBXBuildFile; fileRef = 785D8FDC2A961E9F005A26B5 /* ui_init.c */; };
 		786630612A188F4800266A62 /* g_phys.c in Sources */ = {isa = PBXBuildFile; fileRef = 7866305F2A188F4800266A62 /* g_phys.c */; };
 		786630652A18BFAC00266A62 /* g_ai.c in Sources */ = {isa = PBXBuildFile; fileRef = 786630642A18BFAC00266A62 /* g_ai.c */; };
 		78731BAC2A9E1EF600077EDE /* g_utils.c in Sources */ = {isa = PBXBuildFile; fileRef = 78731BAB2A9E1EF500077EDE /* g_utils.c */; };
 		7874A53F2A8E9561006A8DB5 /* compiler.c in Sources */ = {isa = PBXBuildFile; fileRef = 7874A53E2A8E9561006A8DB5 /* compiler.c */; };
 		7874A5432A93BBA2006A8DB5 /* ui_write.c in Sources */ = {isa = PBXBuildFile; fileRef = 7874A5422A93BBA2006A8DB5 /* ui_write.c */; };
-		787B1D972A74078F003285E6 /* api.c in Sources */ = {isa = PBXBuildFile; fileRef = 787B1D962A73FADB003285E6 /* api.c */; };
 		787B1D9A2A740D66003285E6 /* module.c in Sources */ = {isa = PBXBuildFile; fileRef = 787B1D992A740D66003285E6 /* module.c */; };
 		787B1DAA2A7BB6E1003285E6 /* jass_parser.h in Headers */ = {isa = PBXBuildFile; fileRef = 787B1DA82A7BB6E1003285E6 /* jass_parser.h */; };
 		787B1DAB2A7BB6E1003285E6 /* jass_parser.c in Sources */ = {isa = PBXBuildFile; fileRef = 787B1DA92A7BB6E1003285E6 /* jass_parser.c */; };
@@ -57,6 +57,9 @@
 		782D49972A29DEB6007793C7 /* g_shared.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = g_shared.h; sourceTree = "<group>"; };
 		78314AE32A2724A300062C4B /* g_metadata.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = g_metadata.c; sourceTree = "<group>"; };
 		7859EF612A2D0DDB0099A70E /* p_hud.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = p_hud.c; sourceTree = "<group>"; };
+		785C74592AA87E840053B1CA /* api_item.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = api_item.h; sourceTree = "<group>"; };
+		785C745A2AA87EC30053B1CA /* api_misc.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = api_misc.h; sourceTree = "<group>"; };
+		785C745B2AA885930053B1CA /* g_items.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = g_items.c; sourceTree = "<group>"; };
 		785D8FDC2A961E9F005A26B5 /* ui_init.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = ui_init.c; sourceTree = "<group>"; };
 		7866305F2A188F4800266A62 /* g_phys.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = g_phys.c; sourceTree = "<group>"; };
 		786630642A18BFAC00266A62 /* g_ai.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = g_ai.c; sourceTree = "<group>"; };
@@ -76,7 +79,6 @@
 		7874A5402A8E9DAC006A8DB5 /* bytecode.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = bytecode.h; sourceTree = "<group>"; };
 		7874A5422A93BBA2006A8DB5 /* ui_write.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = ui_write.c; sourceTree = "<group>"; };
 		787B1D952A73FADB003285E6 /* api.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = api.h; sourceTree = "<group>"; };
-		787B1D962A73FADB003285E6 /* api.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = api.c; sourceTree = "<group>"; };
 		787B1D992A740D66003285E6 /* module.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = module.c; sourceTree = "<group>"; };
 		787B1DA82A7BB6E1003285E6 /* jass_parser.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = jass_parser.h; sourceTree = "<group>"; };
 		787B1DA92A7BB6E1003285E6 /* jass_parser.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = jass_parser.c; sourceTree = "<group>"; };
@@ -138,7 +140,6 @@
 		787B1D982A740C8E003285E6 /* jass */ = {
 			isa = PBXGroup;
 			children = (
-				787B1D962A73FADB003285E6 /* api.c */,
 				7874A53E2A8E9561006A8DB5 /* compiler.c */,
 				787B1DA92A7BB6E1003285E6 /* jass_parser.c */,
 				787B1D992A740D66003285E6 /* module.c */,
@@ -147,8 +148,10 @@
 				7874A5292A8A5DF9006A8DB5 /* api_destructable.h */,
 				78731BAE2A9E284700077EDE /* api_group.h */,
 				7874A5282A8A5D34006A8DB5 /* api_leaderboard.h */,
+				785C74592AA87E840053B1CA /* api_item.h */,
 				78731BB22A9E70BE00077EDE /* api_macros.h */,
 				78731BB12A9E2BAB00077EDE /* api_math.h */,
+				785C745A2AA87EC30053B1CA /* api_misc.h */,
 				7874A5272A8A5C75006A8DB5 /* api_player.h */,
 				7874A52A2A8AB02D006A8DB5 /* api_sound.h */,
 				78731BAA2A9DE4ED00077EDE /* api_trigger.h */,
@@ -193,6 +196,7 @@
 				78C77C4E2A4C54540084A70B /* g_combat.c */,
 				78C4538F2A1E7F2E00C93B16 /* g_commands.c */,
 				7892D52C2AA609B8002EBB6E /* g_events.c */,
+				785C745B2AA885930053B1CA /* g_items.c */,
 				78A8966B2A15F7D600BC5B56 /* g_main.c */,
 				78314AE32A2724A300062C4B /* g_metadata.c */,
 				78E91BFA2A169439003D9F3A /* g_monster.c */,
@@ -300,7 +304,6 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				787B1D972A74078F003285E6 /* api.c in Sources */,
 				78A000F22A3F34E900FE16C9 /* g_metadata.h in Sources */,
 				787B1DAB2A7BB6E1003285E6 /* jass_parser.c in Sources */,
 				78A896722A15F7D600BC5B56 /* g_main.c in Sources */,
@@ -337,6 +340,7 @@
 				78C453902A1E7F2E00C93B16 /* g_commands.c in Sources */,
 				787CFBC22A6E754E00B822F2 /* s_militia.c in Sources */,
 				7874A53F2A8E9561006A8DB5 /* compiler.c in Sources */,
+				785C745C2AA885930053B1CA /* g_items.c in Sources */,
 				787B1D9A2A740D66003285E6 /* module.c in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

@@ -13,7 +13,7 @@
 #define CONSOLE_MESSAGE_TIME 5000
 #define VIEW_SHADOW_SIZE 1500
 #define MAX_CONFIRMATION_OBJECTS 16
-#define MAX_LAYOUT_LAYERS 4
+#define MAX_LAYOUT_LAYERS 16
 #define MAX_SELECTED_ENTITIES 64
 
 typedef struct {
@@ -58,7 +58,7 @@ struct client_state {
     viewDef_t viewDef;
     struct frame frame;
     VECTOR2 startingPosition;
-    playerState_t playerstate;
+    PLAYER playerstate;
     LPENTITYSTATE cursorEntity;
     LPCMODEL moveConfirmation;
     DWORD num_entities;

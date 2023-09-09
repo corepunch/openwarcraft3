@@ -138,9 +138,10 @@ void InitUnitData(void) {
     G_SetConfigTable(UnitsMetaData, "UnitData", gi.ReadSheet("Units\\UnitData.slk"));
     G_SetConfigTable(UnitsMetaData, "UnitUI", gi.ReadSheet("Units\\UnitUI.slk"));
     G_SetConfigTable(UnitsMetaData, "UnitWeapons", gi.ReadSheet("Units\\UnitWeapons.slk"));
-    G_SetConfigTable(UnitsMetaData, "ItemData", gi.ReadSheet("Units\\ItemData.slk"));
     
     G_SetConfigTable(DestructableMetaData, "DestructableData", DestructableData);
+    
+    G_SetConfigTable(ItemsMetaData, "ItemData", gi.ReadSheet("Units\\ItemData.slk"));
 }
 
 void ShutdownUnitData(void) {

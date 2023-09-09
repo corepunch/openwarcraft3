@@ -57,7 +57,7 @@ LPEDICT Waypoint_add(LPCVECTOR2 spot) {
     return waypoint;
 }
 
-BOOL player_pay(playerState_t *ps, DWORD project) {
+BOOL player_pay(LPPLAYER ps, DWORD project) {
     if (!ps) return false;
     if (UNIT_GOLD_COST(project) > ps->stats[PLAYERSTATE_RESOURCE_GOLD]) return false;
     if (UNIT_LUMBER_COST(project) > ps->stats[PLAYERSTATE_RESOURCE_LUMBER]) return false;

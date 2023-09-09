@@ -56,11 +56,8 @@ LPTEXTURE R_LoadTexture(LPCSTR textureFilename) {
     return texture;
 }
 
-BOOL knight = false;
-
 LPMODEL R_LoadModel(LPCSTR modelFilename) {
     HANDLE file = ri.FileOpen(modelFilename);
-    knight = strstr(modelFilename, "Knight.mdx");
     LPMODEL model = NULL;
     if (file == NULL) {
         // try to load without *0.mdx
@@ -226,6 +223,7 @@ void R_Init(DWORD width, DWORD height) {
     extern LPCSTR vs_default;
     extern LPCSTR fs_default;
     extern LPCSTR fs_ui;
+    extern LPCSTR fs_splat;
     extern LPCSTR fs_alphatest;
     extern LPCSTR fs_commandbutton;
     
@@ -251,6 +249,7 @@ void R_Init(DWORD width, DWORD height) {
 
     tr.shader[SHADER_DEFAULT] = R_InitShader(vs_default, fs_default);
     tr.shader[SHADER_UI] = R_InitShader(vs_default, fs_ui);
+    tr.shader[SHADER_SPLAT] = R_InitShader(vs_default, fs_splat);
     tr.shader[SHADER_COMMANDBUTTON] = R_InitShader(vs_default, fs_commandbutton);
 
     tr.buffer[RBUF_TEMP1] = R_MakeVertexArrayObject(NULL, 0);

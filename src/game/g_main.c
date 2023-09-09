@@ -59,6 +59,7 @@ static void G_InitGame(void) {
     game.config.splats = gi.ReadSheet("Splats\\SplatData.slk");
     game.config.uberSplats = gi.ReadSheet("Splats\\UberSplatData.slk");
     game.config.abilities = gi.ReadSheet("Units\\AbilityData.slk");
+    game.config.items = gi.ReadSheet("Units\\ItemData.slk");
     
     InitConstants();
     InitUnitData();
@@ -99,7 +100,7 @@ static void G_RunFrame(void) {
         return;
 
     if (!level.scriptsStarted) {
-        JASS_ExecuteFunc(level.vm, "main");
+        jass_callbyname(level.vm, "main");
         level.scriptsStarted = true;
     }
     
@@ -140,7 +141,7 @@ LPGAMECLIENT G_GetPlayerClientByNumber(DWORD number) {
     return NULL;
 }
 
-playerState_t *G_GetPlayerByNumber(DWORD number) {
+LPPLAYER G_GetPlayerByNumber(DWORD number) {
     FOR_LOOP(i, game.max_clients) {
         if (game.clients[i].ps.number == number) {
             return &game.clients[i].ps;

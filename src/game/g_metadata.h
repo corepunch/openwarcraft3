@@ -327,3 +327,10 @@ sheetMetaData_t UnitsMetaData[] = {
     { "ucs2", "weapType2", "UnitWeapons" },
     { NULL }
 };
+
+sheetMetaData_t ItemsMetaData[] = {
+    { "inam", "comment", "ItemData" },
+    { "icla", "itemClass", "ItemData" },
+    { "ifil", "file", "ItemData" },
+    { NULL }
+};

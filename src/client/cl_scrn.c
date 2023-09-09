@@ -2,7 +2,6 @@
 
 #include "client.h"
 
-#define COMMAND_SIZE 0.039
 #define UI_SCALE 10000
 #define PLAYERSTATE_RESOURCE_FOOD_CAP 4
 #define PLAYERSTATE_RESOURCE_FOOD_USED 5
@@ -10,6 +9,7 @@
 static LPCSTR active_tooltip = NULL;
 
 static UIFRAME frames[MAX_LAYOUT_OBJECTS];
+static DWORD num_frames = 0;
 
 struct {
     RECT rect;
@@ -432,7 +432,6 @@ void SCR_DrawCommandButton(LPCUIFRAME frame, LPCRECT screen) {
         mouse.origin.y * 0.6 / WINDOW_HEIGHT
     };
     RECT scrn = scale_rect(screen, 0.925);
-
     if (Rect_contains(screen, &m)) {
         if (mouse.button == 1 || mouse.event == UI_LEFT_MOUSE_UP) {
             scrn = scale_rect(screen, 0.875);
@@ -487,6 +486,7 @@ void SCR_DrawTooltip(LPCUIFRAME frame, LPCRECT scrn) {
 LPCUIFRAME SCR_Clear(HANDLE data) {
     memset(runtimes, 0, sizeof(runtimes));
     memset(frames, 0, sizeof(frames));
+    num_frames = 0;
     frames[0].size.width = 8000;
     frames[0].size.height = 6000;
     frames[0].flags.type = FT_SCREEN;
@@ -504,6 +504,7 @@ LPCUIFRAME SCR_Clear(HANDLE data) {
         ent->tex.coord[1] = 0xff;
         ent->tex.coord[3] = 0xff;
         MSG_ReadDeltaUIFrame(&msg, ent, nument, bits);
+        num_frames = MAX(num_frames, nument);
     }
     return frames;
 }
@@ -563,13 +564,13 @@ void SCR_UpdateFrame(LPCUIFRAME frame) {
 }
 
 void SCR_UpdateTooltip(HANDLE _frames) {
-    FOR_LOOP(i, MAX_LAYOUT_OBJECTS) {
+    FOR_LOOP(i, num_frames) {
         SCR_UpdateFrame(frames+i);
     }
 }
 
 void SCR_DrawOverlay(HANDLE _frames) {
-    FOR_LOOP(i, MAX_LAYOUT_OBJECTS) {
+    FOR_LOOP(i, num_frames) {
         SCR_DrawFrame(frames+i);
     }
 }

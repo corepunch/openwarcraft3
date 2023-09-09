@@ -62,6 +62,8 @@ void R_DrawImageEx(LPCDRAWIMAGE drawImage) {
     
     R_BindTexture(drawImage->texture, 0);
     
+//    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+//    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
     R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
     R_Call(glDisable, GL_CULL_FACE);

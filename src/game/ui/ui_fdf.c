@@ -193,7 +193,7 @@ int ParseEnum(LPPARSER p, LPCSTR const *values) {
     return value;
 }
 
-LPCSTR UI_ApplySkin(LPCSTR entry, BOOL force) {
+LPCSTR UI_ApplySkin(LPCSTR entry) {
     LPCSTR filename = gi.FindSheetCell(game.config.theme, "Default", entry);
     if (filename) {
         return filename;
@@ -214,7 +214,7 @@ LPCSTR EnsureExtension(LPCSTR file, LPCSTR ext) {
 }
 
 DWORD UI_LoadTexture(LPCSTR file, BOOL decorate) {
-    file = UI_ApplySkin(file, decorate);
+    file = decorate ? UI_ApplySkin(file) : file;
     file = EnsureExtension(file, ".blp");
     return gi.ImageIndex(file);
 }
@@ -321,7 +321,7 @@ MAKE_PARSER(TextureFile) {
 }
 
 MAKE_PARSERCALL(Font) {
-    LPCSTR file = UI_ApplySkin(frame->Font.Name, true);
+    LPCSTR file = UI_ApplySkin(frame->Font.Name);
     frame->Font.Index = gi.FontIndex(file, frame->Font.Size / 10);
 }
 

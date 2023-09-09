@@ -182,6 +182,7 @@ KNOWN_AS(uiFrame_s, UIFRAME);
 KNOWN_AS(entityState_s, ENTITYSTATE);
 KNOWN_AS(mapInfo_s, MAPINFO);
 KNOWN_AS(mapPlayer_s, MAPPLAYER);
+KNOWN_AS(playerState_s, PLAYER);
 
 typedef enum {
     NO_BOM,
@@ -200,7 +201,7 @@ typedef enum {
     MULTICAST_PVS_R
 } multicast_t;
 
-typedef struct {
+struct playerState_s {
     DWORD number;
     QUATERNION viewquat;
     VECTOR2 origin;
@@ -208,7 +209,7 @@ typedef struct {
     DWORD fov;
     DWORD rdflags;
     USHORT stats[MAX_STATS];
-} playerState_t;
+};
 
 enum {
     ENT_PLAYER,

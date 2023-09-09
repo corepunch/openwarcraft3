@@ -78,12 +78,22 @@ LPCSTR fs_ui =
 "in vec2 v_texcoord;\n"
 "out vec4 o_color;\n"
 "uniform sampler2D uTexture;\n"
+"void main() {\n"
+"    o_color = texture(uTexture, v_texcoord) * v_color;\n"
+"}\n";
+
+LPCSTR fs_splat =
+"#version 140\n"
+"in vec4 v_color;\n"
+"in vec2 v_texcoord;\n"
+"out vec4 o_color;\n"
+"uniform sampler2D uTexture;\n"
 "float crop_edges(vec2 tc) {\n"
 "   return step(abs(tc.x - 0.5), 0.5) * step(abs(tc.y - 0.5), 0.5);\n"
 "}\n"
 "void main() {\n"
 "    o_color = texture(uTexture, v_texcoord) * v_color;\n"
-"    //o_color.a *= crop_edges(v_texcoord);\n"
+"    o_color.a *= crop_edges(v_texcoord);\n"
 "}\n";
 
 LPCSTR fs_commandbutton =

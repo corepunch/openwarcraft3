@@ -172,4 +172,7 @@
 #define DESTRUCTABLE_FILE(UNIT) UnitStringField(DestructableMetaData, UNIT, "bfil")
 #define DESTRUCTABLE_DIRECTORY(UNIT) UnitStringField(DestructableMetaData, UNIT, "bdir")
 
+#define ITEM_NAME(UNIT) UnitStringField(ItemsMetaData, UNIT, "inam")
+#define ITEM_FILE(UNIT) UnitStringField(ItemsMetaData, UNIT, "ifil")
+
 #endif

@@ -30,7 +30,7 @@ typedef enum {
 } clientState_t;
 
 struct client_s {
-    playerState_t ps; // communicated by server to clients
+    PLAYER ps; // communicated by server to clients
     int ping;
     // the game dll can add anything it wants after
     // this point in the structure
@@ -45,7 +45,7 @@ struct edict_s {
 };
 
 struct client_frame {
-    playerState_t ps;
+    PLAYER ps;
     DWORD num_entities;
     DWORD first_entity;        // into the circular sv_packet_entities[]
 };

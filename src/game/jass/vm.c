@@ -14,6 +14,7 @@
 #define JASS_COMMA ","
 #define JASS_OPERATOR(NAME) { #NAME, NAME }
 #define INF_LOOP_PROTECTION 1024
+#define DEBUG_JASS
 
 #define assert_type(var, type) assert(jass_checktype(var, type))
 #define JASSALLOC(type) gi.MemAlloc(sizeof(type))
@@ -50,10 +51,8 @@ KNOWN_AS(jass_arg, JASSARG);
 KNOWN_AS(jass_env, JASSENV);
 
 VMPROGRAM VM_Compile(LPCTOKEN token);
-LPCMAPPLAYER currentplayer = NULL;
+LPPLAYER currentplayer = NULL;
 LPEDICT currentunit = NULL;
-LPEDICT enteringunit = NULL;
-LPEDICT leavingunit = NULL;
 
 LPCSTR keywords[] = {
     "elseif", "else", "endif", "set", "endfunction", "local", "then", NULL
@@ -227,8 +226,7 @@ struct jass_s {
     JASSVAR stack[MAX_JASS_STACK];
     DWORD num_stack;
     LPJASSVAR stack_pointer;
-    LPTRIGGER host_trigger;
-    gtriggeraction_t *current_action;
+    JASSCONTEXT context;
 };
 
 BOOL is_integer(LPCSTR tok) {
@@ -272,32 +270,44 @@ BOOL is_comma(LPCSTR str) {
 
 static HANDLE RunAction(HANDLE handle) {
     struct jass_s *j = handle;
-    jass_pushfunction(j, j->current_action->func);
+    jass_pushfunction(j, j->context.action->func);
     jass_call(j, 0);
     gi.MemFree(handle);
     return NULL;
 }
 
-LPTRIGGER jass_gethosttrigger(LPJASS j) {
-    return j->host_trigger;
+LPCJASSCONTEXT jass_getcontext(LPJASS j) {
+    return &j->context;
 }
 
-BOOL jass_calltrigger(LPJASS j, LPTRIGGER trigger) {
+BOOL jass_calltrigger(LPJASS j, LPTRIGGER trigger, LPEDICT unit) {
     if (trigger->disabled)
         return false;
     FOR_EACH_LIST(gtriggercondition_t, cond, trigger->conditions) {
-        jass_pushfunction(j, cond->expr);
-        if (jass_call(j, 0) != 1 || !jass_popboolean(j)) {
+        struct jass_s *thread = JASSALLOC(struct jass_s);
+        memcpy(thread, j, sizeof(struct jass_s));
+        memset(thread->stack, 0, sizeof(thread->stack));
+        thread->num_stack = 0;
+        thread->context.trigger = trigger;
+        thread->context.unit = unit;
+        jass_pushfunction(thread, cond->expr);
+        if (jass_call(thread, 0) != 1 || !jass_popboolean(thread)) {
+            gi.MemFree(thread);
             return false;
         }
+        gi.MemFree(thread);
     }
     FOR_EACH_LIST(gtriggeraction_t, action, trigger->actions) {
         struct jass_s *thread = JASSALLOC(struct jass_s);
         memcpy(thread, j, sizeof(struct jass_s));
         memset(thread->stack, 0, sizeof(thread->stack));
         thread->num_stack = 0;
-        thread->host_trigger = trigger;
-        thread->current_action = action;
+        thread->context.trigger = trigger;
+        thread->context.action = action;
+        if (unit) {
+            thread->context.unit = unit;
+            thread->context.playerState = G_GetPlayerByNumber(unit->s.player);
+        }
         gi.CreateThread(RunAction, thread);
     }
     return true;
@@ -520,9 +530,21 @@ DWORD jass_pushhandle(LPJASS j, HANDLE value, LPCSTR type) {
     JASS_ADD_STACK(j, var, jasstype_handle);
     jass_setnull(var);
     var->type = find_type(j, type);
-    var->value = value;
-    var->refcount = gi.MemAlloc(sizeof(DWORD));
+    if (value) {
+        var->value = value;
+        var->refcount = gi.MemAlloc(sizeof(DWORD));
+    }
     return 1;
+}
+
+DWORD jass_pushnullhandle(LPJASS j, LPCSTR type) {
+    return jass_pushhandle(j, 0, type);
+}
+
+HANDLE jass_newhandle(LPJASS j, DWORD size, LPCSTR type) {
+    HANDLE data = size ? gi.MemAlloc(size) : NULL;
+    jass_pushhandle(j, data, type);
+    return data;
 }
 
 DWORD jass_pushlighthandle(LPJASS j, HANDLE value, LPCSTR type) {
@@ -661,7 +683,7 @@ DWORD jass_popinteger(LPJASS j) {
 }
 
 HANDLE VM_TriggerThread(HANDLE arg) {
-    JASS_ExecuteFunc(level.vm, "main");
+    jass_callbyname(level.vm, "main");
     return NULL;
 }
 
@@ -830,7 +852,7 @@ BOOL uses_localplayer(LPCTOKEN token) {
 TOKENFUNC(IF) {
     if (uses_localplayer(token->condition)) {
         FOR_LOOP(i, MAX_PLAYERS) {
-            currentplayer = level.mapinfo->players+i;
+            currentplayer = G_GetPlayerByNumber(i);
             jass_dotoken(j, token->condition);
             if (jass_popboolean(j)) {
                 eval_TOKENS(j, token->body);
@@ -966,7 +988,7 @@ TOKENFUNC(TOKENS) {
     }
 }
 
-BOOL JASS_Parse_Buffer(LPJASS j, LPCSTR fileName, LPSTR buffer2) {
+BOOL jass_dobuffer(LPJASS j, LPSTR buffer2) {
     LPSTR buffer = buffer2;
     gi.TextRemoveComments(buffer);
     gi.TextRemoveBom(buffer);
@@ -976,16 +998,16 @@ BOOL JASS_Parse_Buffer(LPJASS j, LPCSTR fileName, LPSTR buffer2) {
     return true;
 }
 
-LPJASS JASS_Allocate(void) {
+LPJASS jass_newstate(void) {
     LPJASS j = JASSALLOC(JASS);
     j->stack_pointer = j->stack;
     return j;
 }
 
-BOOL JASS_Parse(LPJASS j, LPCSTR fileName) {
+BOOL jass_dofile(LPJASS j, LPCSTR fileName) {
     LPSTR buffer = gi.ReadFileIntoString(fileName);
     if (buffer) {
-        BOOL success = JASS_Parse_Buffer(j, fileName, buffer);
+        BOOL success = jass_dobuffer(j, buffer);
         gi.MemFree(buffer);
         return success;
     } else {
@@ -993,35 +1015,33 @@ BOOL JASS_Parse(LPJASS j, LPCSTR fileName) {
     }
 }
 
-BOOL JASS_Parse_Native(LPJASS j, LPCSTR fileName) {
-    FILE *file = fopen(fileName, "rb");
-    if (file == NULL) {
-        fprintf(stderr, "Error opening the file.\n");
-        return false;
-    }
-    fseek(file, 0, SEEK_END);
-    long file_size = ftell(file);
-    fseek(file, 0, SEEK_SET);
-    LPSTR buffer = gi.MemAlloc(file_size + 1); // +1 for null-terminator
-    if (buffer == NULL) {
-        fprintf(stderr, "Memory allocation failed.\n");
-        fclose(file);
-        return false;
-    }
-    fread(buffer, 1, file_size, file);
-    buffer[file_size] = '\0';
-
-    fclose(file);
-
-    BOOL success = JASS_Parse_Buffer(j, fileName, buffer);
-        
-    // Free the buffer memory
-    gi.MemFree(buffer);
-
-    return success;
-}
-
-#define DEBUG_JASS
+//BOOL jass_dofilenative(LPJASS j, LPCSTR fileName) {
+//    FILE *file = fopen(fileName, "rb");
+//    if (file == NULL) {
+//        fprintf(stderr, "Error opening the file.\n");
+//        return false;
+//    }
+//    fseek(file, 0, SEEK_END);
+//    long file_size = ftell(file);
+//    fseek(file, 0, SEEK_SET);
+//    LPSTR buffer = gi.MemAlloc(file_size + 1); // +1 for null-terminator
+//    if (buffer == NULL) {
+//        fprintf(stderr, "Memory allocation failed.\n");
+//        fclose(file);
+//        return false;
+//    }
+//    fread(buffer, 1, file_size, file);
+//    buffer[file_size] = '\0';
+//
+//    fclose(file);
+//
+//    BOOL success = jass_dobuffer(j, fileName, buffer);
+//
+//    // Free the buffer memory
+//    gi.MemFree(buffer);
+//
+//    return success;
+//}
 
 #ifdef DEBUG_JASS
 static int depth = 0, callnum = 0;
@@ -1090,7 +1110,7 @@ DWORD jass_call(LPJASS j, DWORD args) {
     return ret;
 }
 
-void JASS_ExecuteFunc(LPJASS j, LPCSTR name) {
+void jass_callbyname(LPJASS j, LPCSTR name) {
     LPCJASSFUNC f = find_function(j, name);
     if (f) {
         jass_pushfunction(j, f);

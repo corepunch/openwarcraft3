@@ -1,14 +1,9 @@
 #include "g_local.h"
 
-BOOL jass_calltrigger(LPJASS j, LPTRIGGER trigger);
+BOOL jass_calltrigger(LPJASS j, LPTRIGGER trigger, LPEDICT unit);
 
 static void G_ExecuteEvent(GAMEEVENT *evt) {
-    HANDLE subject = evt->edict;
-    if (evt->type >= EVENT_PLAYER_STATE_LIMIT &&
-        evt->type <= EVENT_PLAYER_END_CINEMATIC)
-    {
-        subject = (LPMAPPLAYER)level.mapinfo->players+evt->edict->client->ps.number;
-    }
+    LPEDICT subject = evt->edict;
     FOR_EACH_LIST(EVENT, e, level.events.handlers) {
         switch (e->type) {
             case EVENT_GAME_VICTORY:
@@ -22,20 +17,18 @@ static void G_ExecuteEvent(GAMEEVENT *evt) {
             case EVENT_GAME_TIMER_EXPIRED:
                 break;
             case EVENT_GAME_ENTER_REGION:
-                if (e->type == evt->type && evt->region == &e->region) {
-                    extern LPEDICT enteringunit;
-                    enteringunit = subject;
-                    printf("%.4s entered region\n", (LPCSTR)&enteringunit->class_id);
-                    jass_calltrigger(level.vm, e->trigger);
-                    enteringunit = NULL;
+                if (evt->responseTo == e) {
+                    jass_calltrigger(level.vm, e->trigger, subject);
                 }
                 break;
             case EVENT_GAME_LEAVE_REGION:
-                if (e->type == evt->type && evt->region == &e->region) {
-                    extern LPEDICT leavingunit;
-                    leavingunit = subject;
-                    jass_calltrigger(level.vm, e->trigger);
-                    leavingunit = NULL;
+                if (evt->responseTo == e) {
+                    jass_calltrigger(level.vm, e->trigger, subject);
+                }
+                break;
+            case EVENT_UNIT_IN_RANGE:
+                if (evt->responseTo == e) {
+                    jass_calltrigger(level.vm, e->trigger, subject);
                 }
                 break;
             case EVENT_GAME_TRACKABLE_HIT:
@@ -48,7 +41,7 @@ static void G_ExecuteEvent(GAMEEVENT *evt) {
                 break;
             default:
                 if (e->subject == subject && e->type == evt->type) {
-                    jass_calltrigger(level.vm, e->trigger);
+                    jass_calltrigger(level.vm, e->trigger, subject);
                 }
                 break;
         }
@@ -57,18 +50,33 @@ static void G_ExecuteEvent(GAMEEVENT *evt) {
 
 static void G_TriggerRegionEvents(LPEDICT ent) {
     FOR_EACH_LIST(EVENT, evt, level.events.handlers) {
-        if (evt->type == EVENT_GAME_ENTER_REGION) {
-            if (G_RegionContains(&evt->region, &ent->s.origin2) &&
-                !G_RegionContains(&evt->region, &ent->old_origin))
-            {
-                G_PublishEvent(ent, evt->type)->region = &evt->region;
-            }
-        } else if (evt->type == EVENT_GAME_LEAVE_REGION) {
-            if (!G_RegionContains(&evt->region, &ent->s.origin2) &&
-                G_RegionContains(&evt->region, &ent->old_origin))
-            {
-                G_PublishEvent(ent, evt->type)->region = &evt->region;
-            }
+        switch (evt->type) {
+            case EVENT_GAME_ENTER_REGION:
+                if (G_RegionContains(&evt->region, &ent->s.origin2) &&
+                    !G_RegionContains(&evt->region, &ent->old_origin))
+                {
+                    G_PublishEvent(ent, evt->type)->responseTo = evt;
+                }
+                break;
+            case EVENT_GAME_LEAVE_REGION:
+                if (!G_RegionContains(&evt->region, &ent->s.origin2) &&
+                    G_RegionContains(&evt->region, &ent->old_origin))
+                {
+                    G_PublishEvent(ent, evt->type)->responseTo = evt;
+                }
+                break;
+            case EVENT_UNIT_IN_RANGE:
+                if (ent != evt->subject &&
+                    Vector2_distance(&((LPEDICT)evt->subject)->old_origin, &ent->old_origin) > evt->range &&
+                    Vector2_distance(&((LPEDICT)evt->subject)->s.origin2, &ent->s.origin2) <= evt->range)
+                {
+                    GAMEEVENT *e = G_PublishEvent(ent, evt->type);
+                    e->edict = ent;
+                    e->responseTo = evt;
+                }
+                break;
+            default:
+                break;
         }
     }
 }

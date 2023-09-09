@@ -72,13 +72,13 @@ void UI_WriteLayout(LPEDICT ent,
     gi.unicast(ent);
 }
 
-void UI_WriteLayout2(LPEDICT ent,
-                     void (*BuildUI)(LPGAMECLIENT),
-                     DWORD layer)
-{
-    gi.WriteByte(svc_layout);
-    gi.WriteByte(layer);
-    BuildUI(ent->client);
-    gi.WriteLong(0); // end of list
-    gi.unicast(ent);
-}
+//void UI_WRITE_LAYER(LPEDICT ent,
+//                     void (*BuildUI)(LPGAMECLIENT),
+//                     DWORD layer)
+//{
+//    gi.WriteByte(svc_layout);
+//    gi.WriteByte(layer);
+//    BuildUI(ent->client);
+//    gi.WriteLong(0); // end of list
+//    gi.unicast(ent);
+//}

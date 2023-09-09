@@ -1,4 +1,7 @@
-extern LPCMAPPLAYER currentplayer;
+#define API_PLAYERSTATE(NAME) \
+LPPLAYER NAME = G_GetPlayerByNumber(jass_getcontext(j)->unit->s.player);
+
+extern LPPLAYER currentplayer;
 
 DWORD SetCameraTargetController(LPJASS j) {
     //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
@@ -98,7 +101,7 @@ DWORD AdjustCameraField(LPJASS j) {
 }
 DWORD CreateCameraSetup(LPJASS j) {
     API_ALLOC(CAMERASETUP, camerasetup);
-    return jass_pushhandle(j, camerasetup, "camerasetup");
+    return 1;
 }
 DWORD CameraSetupSetField(LPJASS j) {
     LPCAMERASETUP whichSetup = jass_checkhandle(j, 1, "camerasetup");
@@ -231,8 +234,12 @@ DWORD GetCameraTargetPositionY(LPJASS j) {
 DWORD GetCameraTargetPositionZ(LPJASS j) {
     return jass_pushnumber(j, 0);
 }
+
 DWORD GetCameraTargetPositionLoc(LPJASS j) {
-    return jass_pushhandle(j, 0, "location");
+    API_ALLOC(VECTOR2, location);
+    API_PLAYERSTATE(playerstate);
+    *location = playerstate->origin;
+    return 1;
 }
 DWORD GetCameraEyePositionX(LPJASS j) {
     return jass_pushnumber(j, 0);
@@ -244,5 +251,5 @@ DWORD GetCameraEyePositionZ(LPJASS j) {
     return jass_pushnumber(j, 0);
 }
 DWORD GetCameraEyePositionLoc(LPJASS j) {
-    return jass_pushhandle(j, 0, "location");
+    return jass_pushnullhandle(j, "location");
 }

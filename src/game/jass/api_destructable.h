@@ -5,7 +5,7 @@ DWORD CreateDestructable(LPJASS j) {
     //FLOAT face = jass_checknumber(j, 4);
     //FLOAT scale = jass_checknumber(j, 5);
     //LONG variation = jass_checkinteger(j, 6);
-    return jass_pushhandle(j, 0, "destructable");
+    return jass_pushnullhandle(j, "destructable");
 }
 DWORD CreateDestructableZ(LPJASS j) {
     //LONG objectid = jass_checkinteger(j, 1);
@@ -15,7 +15,7 @@ DWORD CreateDestructableZ(LPJASS j) {
     //FLOAT face = jass_checknumber(j, 5);
     //FLOAT scale = jass_checknumber(j, 6);
     //LONG variation = jass_checkinteger(j, 7);
-    return jass_pushhandle(j, 0, "destructable");
+    return jass_pushnullhandle(j, "destructable");
 }
 DWORD CreateDeadDestructable(LPJASS j) {
     //LONG objectid = jass_checkinteger(j, 1);
@@ -24,7 +24,7 @@ DWORD CreateDeadDestructable(LPJASS j) {
     //FLOAT face = jass_checknumber(j, 4);
     //FLOAT scale = jass_checknumber(j, 5);
     //LONG variation = jass_checkinteger(j, 6);
-    return jass_pushhandle(j, 0, "destructable");
+    return jass_pushnullhandle(j, "destructable");
 }
 DWORD CreateDeadDestructableZ(LPJASS j) {
     //LONG objectid = jass_checkinteger(j, 1);
@@ -34,7 +34,7 @@ DWORD CreateDeadDestructableZ(LPJASS j) {
     //FLOAT face = jass_checknumber(j, 5);
     //FLOAT scale = jass_checknumber(j, 6);
     //LONG variation = jass_checkinteger(j, 7);
-    return jass_pushhandle(j, 0, "destructable");
+    return jass_pushnullhandle(j, "destructable");
 }
 DWORD RemoveDestructable(LPJASS j) {
     //HANDLE d = jass_checkhandle(j, 1, "destructable");

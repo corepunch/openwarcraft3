@@ -88,9 +88,9 @@ void SV_EmitPacketEntities(LPCCLIENTFRAME from, LPCCLIENTFRAME to, LPSIZEBUF msg
 }
 
 void SV_WritePlayerstateToClient(LPCCLIENTFRAME from, LPCCLIENTFRAME to, LPSIZEBUF msg) {
-    playerState_t const *ps = &to->ps;
-    playerState_t const *ops = NULL;
-    playerState_t dummy;
+    LPCPLAYER ps = &to->ps;
+    LPCPLAYER ops = NULL;
+    PLAYER dummy;
     if (!from) {
         memset(&dummy, 0, sizeof(dummy));
         ops = &dummy;

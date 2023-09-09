@@ -4,8 +4,8 @@ void group_add_entity(ggroup_t *group, LPEDICT ent) {
 }
 
 DWORD CreateGroup(LPJASS j) {
-    API_ALLOC(ggroup_t, value);
-    return jass_pushhandle(j, value, "group");
+    API_ALLOC(ggroup_t, group);
+    return 1;
 }
 DWORD GroupAddUnit(LPJASS j) {
     ggroup_t *whichGroup = jass_checkhandle(j, 1, "group");
@@ -40,7 +40,7 @@ DWORD GroupEnumUnitsOfType(LPJASS j) {
 }
 DWORD GroupEnumUnitsOfPlayer(LPJASS j) {
     ggroup_t *whichGroup = jass_checkhandle(j, 1, "group");
-    LPMAPPLAYER whichPlayer = jass_checkhandle(j, 2, "player");
+    LPPLAYER whichPlayer = jass_checkhandle(j, 2, "player");
     //HANDLE filter = jass_checkhandle(j, 3, "boolexpr");
     FOR_LOOP(i, globals.num_edicts) {
         LPEDICT ent = &globals.edicts[i];
@@ -144,7 +144,7 @@ DWORD GroupEnumUnitsInRangeOfLocCounted(LPJASS j) {
 }
 DWORD GroupEnumUnitsSelected(LPJASS j) {
     //ggroup_t *whichGroup = jass_checkhandle(j, 1, "group");
-    //LPMAPPLAYER whichPlayer = jass_checkhandle(j, 2, "player");
+    //LPPLAYER whichPlayer = jass_checkhandle(j, 2, "player");
     //HANDLE filter = jass_checkhandle(j, 3, "boolexpr");
     return 0;
 }
@@ -209,5 +209,5 @@ DWORD ForGroup(LPJASS j) {
 }
 DWORD FirstOfGroup(LPJASS j) {
     //ggroup_t *whichGroup = jass_checkhandle(j, 1, "group");
-    return jass_pushhandle(j, 0, "unit");
+    return jass_pushnullhandle(j, "unit");
 }

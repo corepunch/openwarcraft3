@@ -11,9 +11,16 @@
 #define MULTISELECT_OFFSX 310
 #define MULTISELECT_OFFSY 500
 
-#define COMMAND_BUTTON_SIZE UI_SCALE(0.0434)
+#define COMMAND_BUTTON_CELL UI_SCALE(0.0434)
 #define COMMAND_BUTTONS_X UI_SCALE(0.2365)
 #define COMMAND_BUTTONS_Y UI_SCALE(0.1131)
+#define COMMAND_BUTTON_SIZE UI_SCALE(0.039)
+
+#define INVENTORY_BUTTON_CELL_X UI_SCALE(0.0394)
+#define INVENTORY_BUTTON_CELL_Y UI_SCALE(0.0384)
+#define INVENTORY_BUTTONS_X UI_SCALE(0.1315)
+#define INVENTORY_BUTTONS_Y UI_SCALE(0.0971)
+#define INVENTORY_BUTTON_SIZE UI_SCALE(0.033)
 
 static void Init_SimpleProgressIndicator(void) {
     UI_FRAME(SimpleProgressIndicator);
@@ -220,8 +227,8 @@ void UI_AddCommandButton(LPCSTR code) {
         sprintf(tooltip, "%s|n%s", tip, remove_quotes(ubertip));
     }
     sscanf(buttonpos, "%d,%d", &x, &y);
-    DWORD bx = COMMAND_BUTTONS_X + COMMAND_BUTTON_SIZE * x;
-    DWORD by = COMMAND_BUTTONS_Y - COMMAND_BUTTON_SIZE * y;
+    DWORD bx = COMMAND_BUTTONS_X + COMMAND_BUTTON_CELL * x;
+    DWORD by = COMMAND_BUTTONS_Y - COMMAND_BUTTON_CELL * y;
     UI_InitFrame(&button, x + (y << 2) + COMMAND_BUTTON_START, FT_COMMANDBUTTON);
     UI_SetTexture(&button, art, false);
     UI_SetSize(&button, COMMAND_BUTTON_SIZE, COMMAND_BUTTON_SIZE);
@@ -246,12 +253,48 @@ void ui_portrait(LPGAMECLIENT client) {
 }
 
 void Get_Portrait_f(LPEDICT edict) {
-    UI_WriteLayout2(edict, ui_portrait, LAYER_PORTRAIT);
+    UI_WRITE_LAYER(edict, ui_portrait, LAYER_PORTRAIT);
+}
+
+void ui_unit_inventory(LPGAMECLIENT client) {
+    LPEDICT ent = G_GetMainSelectedUnit(client);
+    if (!ent)
+        return;
+    char tooltip[1024] = { 0 };
+    FOR_LOOP(i, MAX_INVENTORY) {
+        DWORD itemID = ent->inventory[i];
+//        itemID = MAKEFOURCC('s','e','h','r');
+        if (!itemID)
+            continue;
+        DWORD x = i % 2;
+        DWORD y = i / 2;
+        LPCSTR code = GetClassName(itemID);
+        LPCSTR art = FindConfigValue(code, STR_ART);
+        LPCSTR tip = FindConfigValue(code, STR_TIP);
+        LPCSTR ubertip = FindConfigValue(code, STR_UBERTIP);
+        FRAMEDEF button;
+        sprintf(tooltip, "%s|n%s", tip, remove_quotes(ubertip));
+        DWORD bx = INVENTORY_BUTTONS_X + INVENTORY_BUTTON_CELL_X * x;
+        DWORD by = INVENTORY_BUTTONS_Y - INVENTORY_BUTTON_CELL_Y * y;
+        UI_InitFrame(&button, x + (y << 2) + COMMAND_BUTTON_START, FT_COMMANDBUTTON);
+        UI_SetTexture(&button, art, false);
+        UI_SetSize(&button, INVENTORY_BUTTON_SIZE, INVENTORY_BUTTON_SIZE);
+        UI_SetText(&button, code);
+        UI_SetPointByNumber(&button, FRAMEPOINT_CENTER, UI_PARENT, FRAMEPOINT_BOTTOM, bx, by);
+        button.Tooltip = tooltip;
+        button.AlphaMode = x==0 && y==0;
+        button.Font.Index = FindAbilityIndex(code);
+        UI_WriteFrame(&button);
+
+    }
 }
 
 void ui_unit_commands(LPGAMECLIENT client) {
     LPEDICT ent = G_GetMainSelectedUnit(client);
-    if (!ent || M_GetCurrentMove(ent)->think == ai_birth) return;
+    if (!ent)
+        return;
+    if (M_GetCurrentMove(ent)->think == ai_birth)
+        return;
     LPCSTR abilities = UNIT_ABILITIES_NORMAL(ent->class_id);
     LPCSTR trains = UNIT_TRAINS(ent->class_id);
     if (UNIT_SPEED(ent->class_id) > 0) {
@@ -344,14 +387,24 @@ void ui_cancel_only(LPGAMECLIENT client) {
     UI_AddCommandButton(STR_CmdCancel);
 }
 
+void ui_print_text(LPGAMECLIENT client, LPCSTR message) {
+    FRAMEDEF text;
+    UI_InitFrame(&text, COMMAND_BUTTON_START, FT_TEXT);
+    LPCSTR fontfile = UI_ApplySkin("MessageFont");
+    LPCSTR fontheight = UI_ApplySkin("WorldFrameMessage");
+    text.Font.Index = gi.FontIndex(fontfile, atof(fontheight) * 1000);
+    text.Text = message;
+}
+
 void Get_Commands_f(LPEDICT edict) {
-    UI_WriteLayout2(edict, ui_unit_commands, LAYER_COMMANDBAR);
-    UI_WriteLayout2(edict, ui_unit_info, LAYER_INFOPANEL);
+    UI_WRITE_LAYER(edict, ui_unit_commands, LAYER_COMMANDBAR);
+    UI_WRITE_LAYER(edict, ui_unit_info, LAYER_INFOPANEL);
+    UI_WRITE_LAYER(edict, ui_unit_inventory, LAYER_INVENTORY);
     memset(&edict->client->menu, 0, sizeof(menu_t));
 }
 
 void UI_AddCancelButton(LPEDICT ent) {
-    UI_WriteLayout2(ent, ui_cancel_only, LAYER_COMMANDBAR);
+    UI_WRITE_LAYER(ent, ui_cancel_only, LAYER_COMMANDBAR);
     memset(&ent->client->menu, 0, sizeof(menu_t));
 }
 
@@ -367,4 +420,8 @@ void UI_ShowInterface(LPEDICT ent, BOOL flag, FLOAT fadeDuration) {
         CinematicDialogueText->hidden = true;
         UI_WriteLayout(ent, CinematicPanel, LAYER_CONSOLE);
     }
+}
+
+void UI_ShowText(LPEDICT ent, LPCVECTOR2 pos, LPCSTR text, FLOAT duration) {
+    UI_WRITE_LAYER(ent, ui_print_text, LAYER_COMMANDBAR, text);
 }

@@ -6,7 +6,7 @@ DWORD SetUnit##NAME(LPJASS j) {  \
 }  \
 DWORD GetUnit##NAME(LPJASS j) {  \
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");  \
-    return jass_pushhandle(j, &whichUnit->FIELD, #TYPE); \
+    return jass_pushlighthandle(j, &whichUnit->FIELD, #TYPE); \
 }
 
 #define UNIT_ACCESS(NAME, FIELD) \
@@ -322,20 +322,31 @@ DWORD GetUnitPointValueByType(LPJASS j) {
     return jass_pushinteger(j, 0);
 }
 DWORD UnitAddItem(LPJASS j) {
-    //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    //HANDLE whichItem = jass_checkhandle(j, 2, "item");
-    return jass_pushboolean(j, 0);
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    LPEDICT whichItem = jass_checkhandle(j, 2, "item");
+    printf("UnitAddItem %.4s %.4s\n", (LPCSTR)&whichUnit->class_id, (LPCSTR)&whichItem->class_id);
+    if (unit_additem(whichUnit, whichItem->class_id)) {
+        G_FreeEdict(whichItem);
+        return jass_pushboolean(j, true);
+    } else {
+        return jass_pushboolean(j, false);
+    }
 }
 DWORD UnitAddItemById(LPJASS j) {
-    //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    //LONG itemId = jass_checkinteger(j, 2);
-    return jass_pushhandle(j, 0, "item");
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    LONG itemId = jass_checkinteger(j, 2);
+    if (unit_additem(whichUnit, itemId)) {
+        return jass_pushnullhandle(j, "item");
+    } else {
+        LPEDICT item = SP_SpawnAtLocation(itemId, 0, &whichUnit->s.origin2);
+        return jass_pushlighthandle(j, item, "item");
+    }
 }
 DWORD UnitAddItemToSlotById(LPJASS j) {
-    //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    //LONG itemId = jass_checkinteger(j, 2);
-    //LONG itemSlot = jass_checkinteger(j, 3);
-    return jass_pushboolean(j, 0);
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    LONG itemId = jass_checkinteger(j, 2);
+    LONG itemSlot = jass_checkinteger(j, 3);
+    return jass_pushboolean(j, unit_additemtoslot(whichUnit, itemId, itemSlot));
 }
 DWORD UnitRemoveItem(LPJASS j) {
     //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
@@ -343,9 +354,15 @@ DWORD UnitRemoveItem(LPJASS j) {
     return 0;
 }
 DWORD UnitRemoveItemFromSlot(LPJASS j) {
-    //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    //LONG itemSlot = jass_checkinteger(j, 2);
-    return jass_pushhandle(j, 0, "item");
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    LONG itemSlot = jass_checkinteger(j, 2);
+    if (whichUnit->inventory[itemSlot] != 0) {
+        DWORD itemId = whichUnit->inventory[itemSlot];
+        LPEDICT item = SP_SpawnAtLocation(itemId, 0, &whichUnit->s.origin2);
+        return jass_pushlighthandle(j, item, "item");
+    } else {
+        return jass_pushnullhandle(j, "item");
+    }
 }
 DWORD UnitHasItem(LPJASS j) {
     //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
@@ -355,7 +372,7 @@ DWORD UnitHasItem(LPJASS j) {
 DWORD UnitItemInSlot(LPJASS j) {
     //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     //LONG itemSlot = jass_checkinteger(j, 2);
-    return jass_pushhandle(j, 0, "item");
+    return jass_pushnullhandle(j, "item");
 }
 DWORD UnitUseItem(LPJASS j) {
     //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
@@ -377,11 +394,11 @@ DWORD UnitUseItemTarget(LPJASS j) {
 }
 DWORD GetUnitLoc(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    API_ALLOC(VECTOR2, loc);
+    API_ALLOC(VECTOR2, location);
     if (whichUnit) {
-        *loc = whichUnit->s.origin2;
+        *location = whichUnit->s.origin2;
     }
-    return jass_pushhandle(j, loc, "location");
+    return 1;
 }
 DWORD GetUnitDefaultMoveSpeed(LPJASS j) {
     //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
@@ -397,7 +414,7 @@ DWORD GetUnitTypeId(LPJASS j) {
 }
 DWORD GetUnitRace(LPJASS j) {
     //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    return jass_pushhandle(j, 0, "race");
+    return jass_pushnullhandle(j, "race");
 }
 DWORD GetUnitName(LPJASS j) {
     //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
@@ -590,14 +607,14 @@ DWORD IssuePointOrder(LPJASS j) {
     LPCSTR order = jass_checkstring(j, 2);
     FLOAT x = jass_checknumber(j, 3);
     FLOAT y = jass_checknumber(j, 4);
-    BOOL ret = unit_issue_order(whichUnit, order, &MAKE(VECTOR2, x, y));
+    BOOL ret = unit_issueorder(whichUnit, order, &MAKE(VECTOR2, x, y));
     return jass_pushboolean(j, ret);
 }
 DWORD IssuePointOrderLoc(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     LPCSTR order = jass_checkstring(j, 2);
     LPCVECTOR2 whichLocation = jass_checkhandle(j, 3, "location");
-    BOOL ret = unit_issue_order(whichUnit, order, whichLocation);
+    BOOL ret = unit_issueorder(whichUnit, order, whichLocation);
     return jass_pushboolean(j, ret);
 }
 DWORD IssuePointOrderById(LPJASS j) {
@@ -707,9 +724,9 @@ DWORD RecycleGuardPosition(LPJASS j) {
     return 0;
 }
 DWORD CreateUnit(LPJASS j) {
-    LPMAPPLAYER player = jass_checkhandle(j, 1, "player");
+    LPPLAYER player = jass_checkhandle(j, 1, "player");
     LPEDICT unit =
-    unit_create_or_find(PLAYER_NUM(player),
+    unit_createorfind(PLAYER_NUM(player),
                         jass_checkinteger(j, 2),
                         &MAKE(VECTOR2, jass_checknumber(j, 3), jass_checknumber(j, 4)),
                         jass_checknumber(j, 5));
@@ -721,15 +738,15 @@ DWORD CreateUnitByName(LPJASS j) {
     //FLOAT x = jass_checknumber(j, 3);
     //FLOAT y = jass_checknumber(j, 4);
     //FLOAT face = jass_checknumber(j, 5);
-    return jass_pushhandle(j, 0, "unit");
+    return jass_pushnullhandle(j, "unit");
 }
 DWORD CreateUnitAtLoc(LPJASS j) {
-    LPMAPPLAYER player = jass_checkhandle(j, 1, "player");
+    LPPLAYER player = jass_checkhandle(j, 1, "player");
     LPEDICT unit =
-    unit_create_or_find(PLAYER_NUM(player),
-                        jass_checkinteger(j, 2),
-                        jass_checkhandle(j, 3, "location"),
-                        jass_checknumber(j, 4));
+    unit_createorfind(PLAYER_NUM(player),
+                      jass_checkinteger(j, 2),
+                      jass_checkhandle(j, 3, "location"),
+                      jass_checknumber(j, 4));
     return jass_pushlighthandle(j, unit, "unit");
 }
 DWORD CreateUnitAtLocByName(LPJASS j) {
@@ -737,7 +754,7 @@ DWORD CreateUnitAtLocByName(LPJASS j) {
     //LPCSTR unitname = jass_checkstring(j, 2);
     //HANDLE whichLocation = jass_checkhandle(j, 3, "location");
     //FLOAT face = jass_checknumber(j, 4);
-    return jass_pushhandle(j, 0, "unit");
+    return jass_pushnullhandle(j, "unit");
 }
 DWORD CreateCorpse(LPJASS j) {
     //HANDLE whichPlayer = jass_checkhandle(j, 1, "player");
@@ -745,12 +762,12 @@ DWORD CreateCorpse(LPJASS j) {
     //FLOAT x = jass_checknumber(j, 3);
     //FLOAT y = jass_checknumber(j, 4);
     //FLOAT face = jass_checknumber(j, 5);
-    return jass_pushhandle(j, 0, "unit");
+    return jass_pushnullhandle(j, "unit");
 }
 DWORD CreateBlightedGoldmine(LPJASS j) {
     //HANDLE id = jass_checkhandle(j, 1, "player");
     //FLOAT x = jass_checknumber(j, 2);
     //FLOAT y = jass_checknumber(j, 3);
     //FLOAT face = jass_checknumber(j, 4);
-    return jass_pushhandle(j, 0, "unit");
+    return jass_pushnullhandle(j, "unit");
 }

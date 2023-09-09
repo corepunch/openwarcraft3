@@ -34,7 +34,7 @@ static void ai_walkmine(LPEDICT ent) {
 static void ai_walkback(LPEDICT ent) {
     if (M_DistanceToGoal(ent) < (ent->collision + ent->goalentity->collision + 5)) {
         ent->goalentity = ent->secondarygoal;
-        playerState_t *player = G_GetPlayerByNumber(ent->s.player);
+        LPPLAYER player = G_GetPlayerByNumber(ent->s.player);
         if (player) {
             player->stats[PLAYERSTATE_RESOURCE_GOLD] += ent->harvested_gold;
         }

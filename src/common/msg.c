@@ -60,20 +60,20 @@ netField_t uiFrameFields[] = {
 };
 
 netField_t playerStateFields[] = {
-    { NETF(playerState_t, viewquat.x), NFT_QUATERNION },
-    { NETF(playerState_t, viewquat.y), NFT_QUATERNION },
-    { NETF(playerState_t, viewquat.z), NFT_QUATERNION },
-    { NETF(playerState_t, viewquat.w), NFT_QUATERNION },
-    { NETF(playerState_t, origin.x), NFT_ROUND },
-    { NETF(playerState_t, origin.y), NFT_ROUND },
-    { NETF(playerState_t, fov), NFT_BYTE },
-    { NETF(playerState_t, distance), NFT_ROUND },
-    { NETF(playerState_t, rdflags), NFT_LONG },
-    { NETF(playerState_t, stats[0]), NFT_LONG },
-    { NETF(playerState_t, stats[2]), NFT_LONG },
-    { NETF(playerState_t, stats[4]), NFT_LONG },
-    { NETF(playerState_t, stats[6]), NFT_LONG },
-    { NETF(playerState_t, stats[8]), NFT_LONG },
+    { NETF(PLAYER, viewquat.x), NFT_QUATERNION },
+    { NETF(PLAYER, viewquat.y), NFT_QUATERNION },
+    { NETF(PLAYER, viewquat.z), NFT_QUATERNION },
+    { NETF(PLAYER, viewquat.w), NFT_QUATERNION },
+    { NETF(PLAYER, origin.x), NFT_ROUND },
+    { NETF(PLAYER, origin.y), NFT_ROUND },
+    { NETF(PLAYER, fov), NFT_BYTE },
+    { NETF(PLAYER, distance), NFT_ROUND },
+    { NETF(PLAYER, rdflags), NFT_LONG },
+    { NETF(PLAYER, stats[0]), NFT_LONG },
+    { NETF(PLAYER, stats[2]), NFT_LONG },
+    { NETF(PLAYER, stats[4]), NFT_LONG },
+    { NETF(PLAYER, stats[6]), NFT_LONG },
+    { NETF(PLAYER, stats[8]), NFT_LONG },
     { NULL }
 };
 
@@ -303,8 +303,8 @@ void MSG_ReadDeltaUIFrame(LPSIZEBUF msg,
 }
 
 void MSG_WriteDeltaPlayerState(LPSIZEBUF msg,
-                               playerState_t const *from,
-                               playerState_t const *to)
+                               LPCPLAYER from,
+                               LPCPLAYER to)
 {
     DWORD bits = MSG_GetBits(from, to, playerStateFields);
     MSG_WriteEntityBits(msg, bits, to->number);
@@ -312,7 +312,7 @@ void MSG_WriteDeltaPlayerState(LPSIZEBUF msg,
 }
 
 void MSG_ReadDeltaPlayerState(LPSIZEBUF msg,
-                              playerState_t *edict,
+                              LPPLAYER edict,
                               int number,
                               int bits)
 {

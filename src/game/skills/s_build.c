@@ -100,7 +100,7 @@ void ui_builds(LPGAMECLIENT client) {
 }
 
 void build_command(LPEDICT edict) {
-    UI_WriteLayout2(edict, ui_builds, LAYER_COMMANDBAR);
+    UI_WRITE_LAYER(edict, ui_builds, LAYER_COMMANDBAR);
     edict->client->menu.cmdbutton = build_menu_selectlocation;
 }
 

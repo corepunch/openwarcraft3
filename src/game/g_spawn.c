@@ -126,6 +126,8 @@ void SP_CallSpawn(LPEDICT edict) {
     } else if (UNIT_MODEL(edict->class_id)) {
         SP_SpawnUnit(edict);
         SP_monster_unit(edict);
+    } else if (ITEM_FILE(edict->class_id)) {
+        SP_SpawnItem(edict);
     } else {
         edict->svflags |= SVF_NOCLIENT;
 //        fprintf(stderr, "Unknown id %.4s\n", (const char *)&edict->class_id);
@@ -143,8 +145,8 @@ void SP_worldspawn(LPEDICT ent) {
 }
 
 static void G_InitMapPlayer(LPEDICT clent, LPCMAPPLAYER player, DWORD playernum) {
-    playerState_t *ps = &clent->client->ps;
-    memset(ps, 0, sizeof(playerState_t));
+    LPPLAYER ps = &clent->client->ps;
+    memset(ps, 0, sizeof(PLAYER));
     ps->number = playernum;
     ps->origin.x = player->startingPosition.x;
     ps->origin.y = player->startingPosition.y;
@@ -176,11 +178,12 @@ void G_SpawnEntities(LPCMAPINFO mapinfo, LPCDOODAD entities) {
     SP_worldspawn(NULL);
     
     level.mapinfo = mapinfo;
-    level.vm = JASS_Allocate();
+    level.vm = jass_newstate();
     
-    JASS_Parse(level.vm, "Scripts\\common.j");
-    JASS_Parse(level.vm, "Scripts\\Blizzard.j");
-    JASS_Parse_Native(level.vm, "/Users/igor/Desktop/war3map.j");
+    jass_dofile(level.vm, "Scripts\\common.j");
+    jass_dofile(level.vm, "Scripts\\Blizzard.j");
+//    jass_dofilenative(level.vm, "/Users/igor/Desktop/war3map.j");
+    jass_dobuffer(level.vm, level.mapinfo->mapscript);
 
     UI_Init();
 }

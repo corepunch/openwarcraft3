@@ -20,6 +20,7 @@
 #define MAX_EVENT_QUEUE 256
 #define MAX_ENTITIES 4096
 #define MAX_REGION_SIZE 16
+#define MAX_INVENTORY 6
 #define FOV_ASPECT 1.7
 
 #define FILTER_EDICTS(ENT, CONDITION) \
@@ -27,7 +28,7 @@ for (LPEDICT ENT = globals.edicts; \
 ENT - globals.edicts < globals.num_edicts; \
 ENT++) if (CONDITION)
 
-#define PLAYER_NUM(PLAYER) (DWORD)(PLAYER - &level.mapinfo->players[0])
+#define PLAYER_NUM(PLAYER) (PLAYER->number)
 #define PLAYER_ENT(PLAYER) G_GetPlayerEntityByNumber(PLAYER_NUM(PLAYER))
 #define PLAYER_CLIENT(PLAYER) G_GetPlayerClientByNumber(PLAYER_NUM(PLAYER))
 
@@ -41,6 +42,14 @@ if (NAME) { \
     fprintf(stderr, #NAME " not found");\
 }
 
+#define UI_WRITE_LAYER(ent, BuildUI, layer, ...) \
+    gi.WriteByte(svc_layout); \
+    gi.WriteByte(layer); \
+    BuildUI(ent->client, ##__VA_ARGS__); \
+    gi.WriteLong(0); \
+    gi.unicast(ent);
+
+
 #define FOR_SELECTED_UNITS(CLIENT, ENT) \
 FILTER_EDICTS(ENT, G_IsEntitySelected(CLIENT, ENT))
 
@@ -49,6 +58,8 @@ enum {
     LAYER_CONSOLE,
     LAYER_COMMANDBAR,
     LAYER_INFOPANEL,
+    LAYER_INVENTORY,
+    LAYER_MESSAGE,
 };
 
 #define svc_bad 0
@@ -303,6 +314,8 @@ typedef enum {
     EVENT_WIDGET_DEATH = 89,
     EVENT_DIALOG_BUTTON_CLICK = 90,
     EVENT_DIALOG_CLICK = 91,
+    
+    EVENT_UNIT_IN_RANGE,
 } EVENTTYPE;
 
 typedef enum {
@@ -473,7 +486,7 @@ struct gcamerasetup_s {
 };
 
 struct client_s {
-    playerState_t ps;
+    PLAYER ps;
     LPCMAPPLAYER mapplayer;
     DWORD ping;
     BOOL no_control;
@@ -531,8 +544,13 @@ typedef struct {
 typedef struct {
     EVENTTYPE type;
     LPEDICT edict;
-    LPREGION region;
+    LPEVENT responseTo;
 } GAMEEVENT;
+
+typedef struct {
+    DWORD class_id;
+    VECTOR2 origin;
+} gitem_t;
 
 struct edict_s {
     entityState_t s;
@@ -554,6 +572,7 @@ struct edict_s {
     DWORD damage;
     DWORD resources;
     DWORD freetime;
+    DWORD inventory[MAX_INVENTORY];
     FLOAT collision;
     FLOAT velocity;
     doodadHero_t hero;
@@ -589,6 +608,7 @@ struct game_locals {
     LPGAMECLIENT clients;
     struct {
         sheetRow_t *abilities;
+        sheetRow_t *items;
         sheetRow_t *theme;
         sheetRow_t *splats;
         sheetRow_t *uberSplats;
@@ -614,10 +634,11 @@ struct game_locals {
 
 struct gevent_s {
     LPEVENT next;
-    HANDLE subject;
+    LPEDICT subject;
     EVENTTYPE type;
     LPTRIGGER trigger;
     REGION region;
+    FLOAT range;
 };
 
 typedef struct {
@@ -644,7 +665,7 @@ typedef struct sheetMetaData_s {
 } sheetMetaData_t;
 
 // g_main.c
-playerState_t *G_GetPlayerByNumber(DWORD number);
+LPPLAYER G_GetPlayerByNumber(DWORD number);
 LPEDICT G_GetPlayerEntityByNumber(DWORD number);
 LPGAMECLIENT G_GetPlayerClientByNumber(DWORD number);
 TARGTYPE G_GetTargetType(LPCSTR str);
@@ -681,7 +702,7 @@ DWORD M_RefreshHeatmap(LPEDICT self);
 BOOL M_IsDead(LPEDICT ent);
 void SP_SpawnUnit(LPEDICT edict);
 void SP_TrainUnit(LPEDICT townhall, DWORD class_id);
-BOOL player_pay(playerState_t *ps, DWORD project);
+BOOL player_pay(LPPLAYER ps, DWORD project);
 BYTE compress_stat(EDICTSTAT const *stat);
 
 // g_pathing.c
@@ -713,6 +734,7 @@ void Get_Portrait_f(LPEDICT ent);
 void UI_AddCancelButton(LPEDICT edict);
 void UI_AddCommandButton(LPCSTR ability);
 void UI_ShowInterface(LPEDICT ent, BOOL flag, FLOAT fadeDuration);
+void UI_ShowText(LPEDICT ent, LPCVECTOR2 pos, LPCSTR text, FLOAT duration);
 LPCSTR GetBuildCommand(unitRace_t race);
 
 // p_fdf.c
@@ -732,11 +754,11 @@ void UI_SetPointByNumber(LPFRAMEDEF frame, UIFRAMEPOINT framePoint, DWORD otherN
 void UI_InitFrame(LPFRAMEDEF frame, DWORD number, FRAMETYPE type);
 void UI_WriteFrame(LPCFRAMEDEF frame);
 void UI_WriteFrameWithChildren(LPCFRAMEDEF frame);
-void UI_WriteLayout2(LPEDICT ent, void (*BuildUI)(LPGAMECLIENT ), DWORD layer);
 void UI_SetHidden(LPFRAMEDEF frame, BOOL value);
 DWORD UI_FindFrameNumber(LPCSTR name);
 DWORD UI_LoadTexture(LPCSTR file, BOOL decorate);
 LPCSTR UI_GetString(LPCSTR textID);
+LPCSTR UI_ApplySkin(LPCSTR entry);
 LPFRAMEDEF UI_Spawn(FRAMETYPE type, LPFRAMEDEF parent);
 LPFRAMEDEF UI_FindFrame(LPCSTR name);
 LPFRAMEDEF UI_FindChildFrame(LPFRAMEDEF frame, LPCSTR name);
@@ -770,19 +792,25 @@ LPEVENT G_MakeEvent(EVENTTYPE type);
 BOOL G_RegionContains(LPCREGION region, LPCVECTOR2 point);
 
 // m_unit.c
-BOOL unit_issue_order(LPEDICT self, LPCSTR order, LPCVECTOR2 point);
-BOOL unit_issue_immediate_order(LPEDICT self, LPCSTR order);
-LPEDICT unit_create_or_find(DWORD player, DWORD unitid, LPCVECTOR2 location, FLOAT facing);
+BOOL unit_issueorder(LPEDICT self, LPCSTR order, LPCVECTOR2 point);
+BOOL unit_issueimmediateorder(LPEDICT self, LPCSTR order);
+LPEDICT unit_createorfind(DWORD player, DWORD unitid, LPCVECTOR2 location, FLOAT facing);
+BOOL unit_additemtoslot(LPEDICT edict, DWORD class_id, DWORD i);
+BOOL unit_additem(LPEDICT edict, DWORD class_id);
 
 // p_jass.c
-LPJASS JASS_Allocate(void);
-BOOL JASS_Parse(LPJASS j, LPCSTR fileName);
-BOOL JASS_Parse_Native(LPJASS j,LPCSTR fileName);
-void JASS_ExecuteFunc(LPJASS j, LPCSTR name);
+LPJASS jass_newstate(void);
+BOOL jass_dofile(LPJASS j, LPCSTR fileName);
+BOOL jass_dofilenative(LPJASS j,LPCSTR fileName);
+void jass_callbyname(LPJASS j, LPCSTR name);
+BOOL jass_dobuffer(LPJASS j, LPSTR buffer);
 
 // g_events.c
 void G_RunEntities(void);
 void G_RunEvents(void);
+
+// g_items.c
+void SP_SpawnItem(LPEDICT self);
 
 void *find_in_array(void *array, long sizeofelem, LPCSTR name);
 
@@ -799,5 +827,6 @@ extern struct edict_s *g_edicts;
 extern sheetMetaData_t UnitsMetaData[];
 extern sheetMetaData_t DestructableMetaData[];
 extern sheetMetaData_t DoodadsMetaData[];
+extern sheetMetaData_t ItemsMetaData[];
 
 #endif

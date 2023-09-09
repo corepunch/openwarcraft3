@@ -1,11 +1,10 @@
 DWORD Rect(LPJASS j) {
     API_ALLOC(BOX2, rect);
-    
     rect->min.x = jass_checknumber(j, 1);
     rect->min.y = jass_checknumber(j, 2);
     rect->max.x = jass_checknumber(j, 3);
     rect->max.y = jass_checknumber(j, 4);
-    return jass_pushhandle(j, rect, "rect");
+    return 1;
 }
 DWORD RectFromLoc(LPJASS j) {
     LPCVECTOR2 min = jass_checkhandle(j, 1, "location");
@@ -13,7 +12,7 @@ DWORD RectFromLoc(LPJASS j) {
     API_ALLOC(BOX2, rect);
     rect->min = *min;
     rect->max = *max;
-    return jass_pushhandle(j, rect, "rect");
+    return 1;
 }
 DWORD RemoveRect(LPJASS j) {
     //HANDLE whichRect = jass_checkhandle(j, 1, "rect");
@@ -76,7 +75,7 @@ DWORD GetRectMaxY(LPJASS j) {
 }
 DWORD CreateRegion(LPJASS j) {
     API_ALLOC(REGION, region);
-    return jass_pushhandle(j, region, "region");
+    return 1;
 }
 DWORD RemoveRegion(LPJASS j) {
     //HANDLE whichRegion = jass_checkhandle(j, 1, "region");
@@ -119,7 +118,7 @@ DWORD Location(LPJASS j) {
     API_ALLOC(VECTOR2, location);
     location->x = jass_checknumber(j, 1);
     location->y = jass_checknumber(j, 2);
-    return jass_pushhandle(j, location, "location");
+    return 1;
 }
 DWORD RemoveLocation(LPJASS j) {
     //HANDLE whichLocation = jass_checkhandle(j, 1, "location");

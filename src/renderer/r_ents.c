@@ -128,7 +128,7 @@ static void R_RenderSelectedCircle(const renderEntity_t *entity, LPCVECTOR2 orig
         FOR_LOOP(i, NUM_SELECTION_CIRCLES) {
             if ((radius * 2) > selCircles[i])
                 continue;
-            R_RenderSplat(origin, radius, tr.texture[TEX_SELECTION_CIRCLE+i], tr.shader[SHADER_UI], color);
+            R_RenderSplat(origin, radius, tr.texture[TEX_SELECTION_CIRCLE+i], tr.shader[SHADER_SPLAT], color);
             break;
         }
     }

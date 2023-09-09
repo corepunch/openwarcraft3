@@ -67,7 +67,7 @@ static void ExtractStarCraft2(void) {
 //    SFileOpenArchive("/Users/igor/Desktop/terrain.MPQ", 0, 0, &archive);
 //    SFileOpenArchive("/Users/igor/Documents/StarCraft2/Campaigns/Liberty.SC2Campaign/base.SC2Assets", 0, 0, &archive);
 //    SFileOpenArchive("/Users/igor/Documents/StarCraft2/Mods/Liberty.SC2Mod/base.SC2Assets", 0, 0, &archive);
-    SFileOpenArchive("/Users/igor/Documents/StarCraft2/Mods/Liberty.SC2Mod/base.SC2Data", 0, 0, &archive);
+//    SFileOpenArchive("/Users/igor/Documents/StarCraft2/Mods/Liberty.SC2Mod/base.SC2Data", 0, 0, &archive);
 //    SFileOpenArchive("/Users/igor/Downloads/War3-1.27-Installer-enUS-TFT/Installer Tome.mpq", 0, 0, &archive);
 //    SFileExtractFile(archive, "Assets\\Units\\Terran\\MarineTychus\\MarineTychus.m3", "/Users/igor/Desktop/MarineTychus.m3", 0);
 //    SFileExtractFile(archive, "Assets\\Textures\\SpecialOps_Dropship_Diffuse.dds", "/Users/igor/Desktop/SpecialOps_Dropship_Diffuse.dds", 0);
@@ -81,10 +81,10 @@ static void ExtractStarCraft2(void) {
                 if (strstr(findData.cFileName, *s))
                     goto skip_print;
             }
-            if (strstr(findData.cFileName, "GameData")) {
-                printf("%s\n", findData.cFileName);
+            if (strstr(findData.cFileName, ".galaxy")) {
+//                printf("%s\n", findData.cFileName);
             }
-            if (strstr(findData.cFileName, "UnitData.xml")) {
+            if (strstr(findData.cFileName, "MapScript.galaxy")) {
                 HANDLE file;
                 SFileOpenFileEx(archive, findData.cFileName, SFILE_OPEN_FROM_MPQ, &file);
                 char ch;
@@ -152,6 +152,7 @@ void FS_Init(void) {
 //    FS_ExtractFile("Units\\UnitBalance.slk", "/Users/igor/Desktop/UnitBalance.slk");
 //    FS_ExtractFile("Units\\UnitWeapons.slk", "/Users/igor/Desktop/UnitWeapons.slk");
 //    FS_ExtractFile("Units\\AbilityData.slk", "/Users/igor/Desktop/AbilityData.slk");
+//    FS_ExtractFile("Units\\ItemData.slk", "/Users/igor/Desktop/ItemData.slk");
 //    FS_ExtractFile("Splats\\SplatData.slk", "/Users/igor/Desktop/SplatData.slk");
 //    FS_ExtractFile("Splats\\UberSplatData.slk", "/Users/igor/Desktop/UberSplatData.slk");
 //    FS_ExtractFile("Units\\MiscData.txt", "/Users/igor/Desktop/MiscData.txt");
@@ -159,19 +160,20 @@ void FS_Init(void) {
 //    FS_ExtractFile("UI\\FrameDef\\GlobalStrings.fdf", "/Users/igor/Desktop/GlobalStrings.fdf");
 //    FS_ExtractFile("UI\\FrameDef\\UI\\ConsoleUI.fdf", "/Users/igor/Desktop/ConsoleUI.fdf");
 
-#if 0
+#if 1
     SFILE_FIND_DATA findData;
     HANDLE handle = SFileFindFirstFile(archives[0], "*", &findData, 0);
     if (handle) {
          do {
-//             if(strstr(findData.cFileName, ".j")) {
+//             if(strstr(findData.cFileName, ".slk")) {
 //                 printf("%s\n", findData.cFileName);
 //             }
 #if 1
 //             if (strstr(findData.cFileName, "SimpleInfo")){
 //             if (strstr(findData.cFileName, "Blizzard.j")) {
-             if (strstr(findData.cFileName, "EscMenuTemplates") ||
-                strstr(findData.cFileName, "CinematicPanel")) {
+//             if (strstr(findData.cFileName, "EscMenuTemplates") ||
+//                strstr(findData.cFileName, "CinematicPanel")) {
+              if (strstr(findData.cFileName, ".txt")){
                  HANDLE file;
                  SFileOpenFileEx(archives[0], findData.cFileName, SFILE_OPEN_FROM_MPQ, &file);
                  char ch;

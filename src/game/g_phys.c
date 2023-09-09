@@ -1,5 +1,7 @@
 #include "g_local.h"
 
+#define M_IsHollow(ent) (ent->health.value <= 0 || ent->s.renderfx & RF_HIDDEN || !ent->s.model || !ent->inuse)
+
 void SV_Physics_Step(LPEDICT ent) {
     M_CheckGround(ent);
 }
@@ -39,11 +41,7 @@ void G_RunEntity(LPEDICT ent) {
     }
 }
 
-BOOL M_IsHollow(LPEDICT ent) {
-    return M_IsDead(ent) || ent->s.renderfx & RF_HIDDEN || !ent->s.model || !ent->inuse;
-}
-
-BOOL M_CheckCollision(LPCVECTOR2 origin, FLOAT radius) {
+inline BOOL M_CheckCollision(LPCVECTOR2 origin, FLOAT radius) {
     for (LPEDICT a = globals.edicts; a - globals.edicts < globals.num_edicts; a++) {
         VECTOR2 d = Vector2_sub(&a->s.origin2, origin);
         if (M_IsHollow(a))

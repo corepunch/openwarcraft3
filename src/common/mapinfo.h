@@ -167,6 +167,7 @@ struct mapInfo_s {
     mapTechAvailability_t *techAvailabilities;
     mapRandomUnitTable_t *randomUnits;
     mapTrigStr_t *strings;
+    LPSTR mapscript;
 };
 
 #endif

@@ -1,5 +1,5 @@
 DWORD CreateLeaderboard(LPJASS j) {
-    return jass_pushhandle(j, 0, "leaderboard");
+    return jass_pushnullhandle(j, "leaderboard");
 }
 DWORD DestroyLeaderboard(LPJASS j) {
     //HANDLE lb = jass_checkhandle(j, 1, "leaderboard");
@@ -85,7 +85,7 @@ DWORD PlayerSetLeaderboard(LPJASS j) {
 }
 DWORD PlayerGetLeaderboard(LPJASS j) {
     //HANDLE toPlayer = jass_checkhandle(j, 1, "player");
-    return jass_pushhandle(j, 0, "leaderboard");
+    return jass_pushnullhandle(j, "leaderboard");
 }
 DWORD LeaderboardSetLabelColor(LPJASS j) {
     //HANDLE lb = jass_checkhandle(j, 1, "leaderboard");

@@ -14,7 +14,7 @@ DWORD CreateSound(LPJASS j) {
     sound->fadeInRate = fadeInRate;
     sound->fadeOutRate = fadeOutRate;
 //    sound->eaxSetting = eaxSetting;
-    return jass_pushhandle(j, sound, "sound");
+    return 1;
 }
 DWORD CreateSoundFilenameWithLabel(LPJASS j) {
     //LPCSTR fileName = jass_checkstring(j, 1);
@@ -24,7 +24,7 @@ DWORD CreateSoundFilenameWithLabel(LPJASS j) {
     //LONG fadeInRate = jass_checkinteger(j, 5);
     //LONG fadeOutRate = jass_checkinteger(j, 6);
     //LPCSTR SLKEntryName = jass_checkstring(j, 7);
-    return jass_pushhandle(j, 0, "sound");
+    return jass_pushnullhandle(j, "sound");
 }
 DWORD CreateSoundFromLabel(LPJASS j) {
     //LPCSTR soundLabel = jass_checkstring(j, 1);
@@ -33,13 +33,13 @@ DWORD CreateSoundFromLabel(LPJASS j) {
     //BOOL stopwhenoutofrange = jass_checkboolean(j, 4);
     //LONG fadeInRate = jass_checkinteger(j, 5);
     //LONG fadeOutRate = jass_checkinteger(j, 6);
-    return jass_pushhandle(j, 0, "sound");
+    return jass_pushnullhandle(j, "sound");
 }
 DWORD CreateMIDISound(LPJASS j) {
     //LPCSTR soundLabel = jass_checkstring(j, 1);
     //LONG fadeInRate = jass_checkinteger(j, 2);
     //LONG fadeOutRate = jass_checkinteger(j, 3);
-    return jass_pushhandle(j, 0, "sound");
+    return jass_pushnullhandle(j, "sound");
 }
 DWORD SetSoundParamsFromLabel(LPJASS j) {
     //HANDLE soundHandle = jass_checkhandle(j, 1, "sound");

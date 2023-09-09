@@ -61,7 +61,7 @@ void SP_monster_unit(LPEDICT self) {
 void order_move(LPEDICT self, LPEDICT target);
 void order_stop(LPEDICT clent);
 
-BOOL unit_issue_order(LPEDICT self, LPCSTR order, LPCVECTOR2 point) {
+BOOL unit_issueorder(LPEDICT self, LPCSTR order, LPCVECTOR2 point) {
 //    printf("%.4s %s\n", &self->class_id, order);
     if (!strcmp(order, "move") || !strcmp(order, "attack")) {
         LPEDICT waypoint = Waypoint_add(point);
@@ -71,7 +71,7 @@ BOOL unit_issue_order(LPEDICT self, LPCSTR order, LPCVECTOR2 point) {
     return false;
 }
 
-BOOL unit_issue_immediate_order(LPEDICT self, LPCSTR order) {
+BOOL unit_issueimmediateorder(LPEDICT self, LPCSTR order) {
 //    printf("%.4s %s\n", &self->class_id, order);
     if (!strcmp(order, "stop")) {
         order_stop(self);
@@ -81,7 +81,11 @@ BOOL unit_issue_immediate_order(LPEDICT self, LPCSTR order) {
 }
 
 void G_SolveCollisions(void);
-LPEDICT unit_create_or_find(DWORD player, DWORD unitid, LPCVECTOR2 location, FLOAT facing) {
+
+LPEDICT unit_createorfind(DWORD player, DWORD unitid, LPCVECTOR2 location, FLOAT facing) {
+    if (unitid == MAKEFOURCC('H', 'a', 'r', 't')) {
+        int a=0;
+    }
     FOR_LOOP(i, globals.num_edicts) {
         LPEDICT ent = &globals.edicts[i];
         if (ent->class_id == unitid &&
@@ -93,6 +97,29 @@ LPEDICT unit_create_or_find(DWORD player, DWORD unitid, LPCVECTOR2 location, FLO
         }
     }
     LPEDICT unit = SP_SpawnAtLocation(unitid, player, location);
+//    printf("%.4s\n", &unit->class_id);
+    if (unit->stand) {
+        unit->stand(unit);
+    }
     unit->s.angle = facing * M_PI / 180;;
     return unit;
 }
+
+BOOL unit_additemtoslot(LPEDICT edict, DWORD class_id, DWORD i) {
+    if (edict->inventory[i] == 0) {
+        edict->inventory[i] = class_id;
+        return true;
+    } else {
+        return false;
+    }
+}
+
+BOOL unit_additem(LPEDICT edict, DWORD class_id) {
+    FOR_LOOP(i, MAX_INVENTORY) {
+        if (unit_additemtoslot(edict, class_id, i)) {
+            return true;
+        }
+    }
+    return false;
+}
+
