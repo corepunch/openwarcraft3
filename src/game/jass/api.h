@@ -52,12 +52,12 @@ struct jass_module {
 typedef struct gtriggeraction_s {
     LPCJASSFUNC func;
     struct gtriggeraction_s *next;
-} gtriggeraction_t;
+} TRIGGERACTION;
 
 typedef struct gtriggercondition_s {
     LPCJASSFUNC expr;
     struct gtriggercondition_s *next;
-} gtriggercondition_t;
+} TRIGGERCONDITION;
 
 typedef struct {
     UINAME campaign;
@@ -93,7 +93,7 @@ struct jass_context {
     LPTRIGGER trigger;
     LPEDICT unit;
     LPPLAYER playerState;
-    gtriggeraction_t *action;
+    LPCJASSFUNC func;
 };
 
 LONG jass_checkinteger(LPJASS j, int index);

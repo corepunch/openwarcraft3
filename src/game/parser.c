@@ -79,6 +79,27 @@ LPCSTR parse_segment(LPPARSER p) {
     return segment;
 }
 
+LPCSTR parse_segment2(LPPARSER p) {
+    static char segment[MAX_SEGMENT_SIZE];
+    memset(segment, 0, MAX_SEGMENT_SIZE);
+    if (*p->buffer == '\0')
+        return NULL;
+    while (isspace(*p->buffer))
+        ++p->buffer;
+    DWORD num_quotes = 0;
+    for (LPSTR out = segment; *p->buffer; ++p->buffer, ++out) {
+        if (*p->buffer == ',' && (num_quotes & 1) == 0) {
+            ++p->buffer;
+            break;
+        }
+        if (*p->buffer == '"')
+            ++num_quotes;
+        *out = *p->buffer;
+    }
+    return segment;
+}
+
+
 
 void parser_error(LPPARSER parser) {
     parser->error = true;

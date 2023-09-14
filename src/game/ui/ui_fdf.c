@@ -1,6 +1,9 @@
 #include "../g_local.h"
 #include "../parser.h"
 
+#define UINAME_FMT "\"%79[^\"]\""
+#define PATHSTR_FMT "\"%255[^\"]\""
+
 LPCSTR FrameType[] = {
     "",
     "BACKDROP",
@@ -136,11 +139,13 @@ void UI_InitFrame(LPFRAMEDEF frame, DWORD number, FRAMETYPE type) {
         case FT_SIMPLESTATUSBAR:
         case FT_COMMANDBUTTON:
         case FT_BACKDROP:
-            frame->UVs.max.x = 1;
-            frame->UVs.max.y = 1;
+            frame->Texture.TexCoord.max.x = 1;
+            frame->Texture.TexCoord.max.y = 1;
             break;
         case FT_TEXT:
             frame->Font.Color = COLOR32_WHITE;
+            break;
+        default:
             break;
     }
 }
@@ -193,14 +198,18 @@ int ParseEnum(LPPARSER p, LPCSTR const *values) {
     return value;
 }
 
-LPCSTR UI_ApplySkin(LPCSTR entry) {
-    LPCSTR filename = gi.FindSheetCell(game.config.theme, "Default", entry);
+LPCSTR Theme_String(LPCSTR entry, LPCSTR category) {
+    LPCSTR filename = gi.FindSheetCell(game.config.theme, category, entry);
     if (filename) {
         return filename;
     } else {
 //        fprintf(stderr, "Can't find %s in skin\n", entry);
         return entry;
     }
+}
+
+FLOAT Theme_Float(LPCSTR entry, LPCSTR category) {
+    return atof(Theme_String(entry, category));
 }
 
 LPCSTR EnsureExtension(LPCSTR file, LPCSTR ext) {
@@ -214,7 +223,7 @@ LPCSTR EnsureExtension(LPCSTR file, LPCSTR ext) {
 }
 
 DWORD UI_LoadTexture(LPCSTR file, BOOL decorate) {
-    file = decorate ? UI_ApplySkin(file) : file;
+    file = decorate ? Theme_String(file, "Default") : file;
     file = EnsureExtension(file, ".blp");
     return gi.ImageIndex(file);
 }
@@ -233,7 +242,7 @@ MAKE_PARSER(TYPE) { \
 #define MAKE_FLAGSPARSER(TYPE) \
 MAKE_PARSER(TYPE) { \
     PATHSTR b; \
-    strcpy(b, token); \
+    sscanf(token, PATHSTR_FMT, b); \
     for (LPSTR s = b; *s; s++) *s = *s == '|' ? ',' : *s; \
     PARSE_LIST(b, flag, parse_segment) { \
         *((DWORD *)out) |= 1 << ParseEnumString(flag, TYPE); \
@@ -272,12 +281,14 @@ MAKE_PARSER(Color) {
 
 MAKE_PARSER(FrameNumber) {
     *(DWORD *)out = 0;
+    UINAME name = {0};
+    sscanf(token, UINAME_FMT, name);
     FOR_LOOP(i, MAX_UI_CLASSES) {
         int dist1 = abs((int)i - (int)frame->Number);
         int dist2 = abs(*((int *)out) - (int)frame->Number);
         if (dist1 > dist2)
             return;
-        if (!strcmp(frames[i].Name, token)) {
+        if (!strcmp(frames[i].Name, name)) {
             *(DWORD *)out = frames[i].Number;
         }
     }
@@ -285,13 +296,22 @@ MAKE_PARSER(FrameNumber) {
 
 MAKE_PARSER(Name) {
     memset(out, 0, sizeof(UINAME));
-    memcpy(out, token, strlen(token));
+    sscanf(token, UINAME_FMT, (LPSTR)out);
+}
+
+MAKE_PARSER(ButtonText) {
+    BUTTONTEXT *bt = out;
+    memset(bt, 0, sizeof(BUTTONTEXT));
+    assert(sscanf(token, UINAME_FMT " " UINAME_FMT, bt->frame, bt->text) == 2);
 }
 
 MAKE_PARSER(Text) {
-    LPCSTR str = UI_GetString(token);
+    UINAME key = { 0 };
+    sscanf(token, UINAME_FMT, key);
+    LPCSTR str = UI_GetString(key);
     memset(out, 0, sizeof(UINAME));
     memcpy(out, str, strlen(str));
+    frame->Text = out;
 }
 
 typedef struct stringListItem_s {
@@ -303,7 +323,8 @@ typedef struct stringListItem_s {
 stringListItem_t *strings = NULL;
 
 MAKE_PARSER(StringListItem) {
-    strings->value = strdup(token);
+    strings->value = strdup(token+1);
+    strings->value[strlen(strings->value)-1] = 0;
 }
 
 MAKE_ENUMPARSER(AlphaMode);
@@ -316,12 +337,14 @@ MAKE_FLAGSPARSER(CornerFlags);
 MAKE_FLAGSPARSER(ControlStyle);
 
 MAKE_PARSER(TextureFile) {
-    BOOL decorate = frame->DecorateFileNames | (frame->Parent ? frame->Parent->DecorateFileNames : false);
-    *((DWORD *)out) = UI_LoadTexture(token, decorate);
+    PATHSTR path = { 0 };
+    sscanf(token, PATHSTR_FMT, path);
+//    BOOL decorate = frame->DecorateFileNames | (frame->Parent ? frame->Parent->DecorateFileNames : false);
+    *((DWORD *)out) = UI_LoadTexture(path, true);
 }
 
 MAKE_PARSERCALL(Font) {
-    LPCSTR file = UI_ApplySkin(frame->Font.Name);
+    LPCSTR file = Theme_String(frame->Font.Name, "Default");
     frame->Font.Index = gi.FontIndex(file, frame->Font.Size / 10);
 }
 
@@ -449,7 +472,7 @@ static parseItem_t items[] = {
     { "Width", { F(Width, Float16), F_END } },
     { "Height", { F(Height, Float16), F_END } },
     { "File", { F(Texture.Image, TextureFile), F_END } },
-    { "TexCoord", { F(UVs.min.x, Float), F(UVs.max.x, Float), F(UVs.min.y, Float), F(UVs.max.y, Float), F_END } },
+    { "TexCoord", { F(Texture.TexCoord.min.x, Float), F(Texture.TexCoord.max.x, Float), F(Texture.TexCoord.min.y, Float), F(Texture.TexCoord.max.y, Float), F_END } },
     { "AlphaMode", { F(AlphaMode, AlphaMode), F_END } },
     { "Anchor", { F(Anchor.corner, FramePointType), F(Anchor.x, Float16), F(Anchor.y, Float16), F_END }, Anchor },
     { "Font", { F(Font.Name, Name), F(Font.Size, Float16), F_END }, Font },
@@ -486,9 +509,6 @@ static parseItem_t items[] = {
     { "ControlDisabledBackdrop", { F(Control.Backdrop.Disabled, Name), F_END } },
     { "ControlMouseOverHighlight", { F(Control.Backdrop.MouseOver, Name), F_END } },
     { "ControlDisabledPushedBackdrop", { F(Control.Backdrop.DisabledPushed, Name), F_END } },
-    // Button
-    { "ButtonText", { F(TextStorage, Text), F_END } },
-    { "ButtonPushedTextOffset", { F(Button.PushedTextOffset, Vector2), F_END } },
     // Slider
     { "SliderInitialValue", { F(Slider.InitialValue, Float), F_END } },
     { "SliderLayoutHorizontal", { F_END }, SliderLayoutHorizontal },
@@ -523,16 +543,29 @@ static parseItem_t items[] = {
     { "TextAreaLineGap", { F(TextArea.LineGap, Float), F_END } },
     { "TextAreaInset", { F(TextArea.Inset, Float), F_END } },
     { "TextAreaScrollBar", { F(TextArea.ScrollBar, Name), F_END } },
+    { "TextAreaMaxLines", { F(TextArea.MaxLines, Integer), F_END } },
     // CheckBox
     { "CheckBoxCheckHighlight", { F(CheckBox.CheckHighlight, Name), F_END } },
     { "CheckBoxDisabledCheckHighlight", { F(CheckBox.DisabledCheckHighlight, Name), F_END } },
+    // Button
+    { "ButtonText", { F(TextStorage, Text), F_END } },
+    { "ButtonPushedTextOffset", { F(Button.PushedTextOffset, Vector2), F_END } },
+    { "NormalTexture", { F(Button.NormalTexture, Name), F_END } },
+    { "PushedTexture", { F(Button.PushedTexture, Name), F_END } },
+    { "DisabledTexture", { F(Button.DisabledTexture, Name), F_END } },
+    { "NormalText", { F(Button.NormalText, ButtonText), F_END } },
+    { "DisabledText", { F(Button.DisabledText, ButtonText), F_END } },
+    { "HighlightText", { F(Button.HighlightText, ButtonText), F_END } },
+    { "UseHighlight", { F(Button.UseHighlight, Name), F_END } },
     // End of list
     F_END
 };
 
+LPCSTR parse_segment2(LPPARSER p);
+
 void parse_item(LPPARSER parser, LPFRAMEDEF frame, parseItem_t *item) {
     for (parseArg_t *arg = item->args; arg->name; arg++) {
-        LPCSTR token = parse_segment(parser);
+        LPCSTR token = parse_segment2(parser);
         arg->func(token, frame, (uint8_t *)frame + arg->fofs);
     }
     if (!item->args->name) { // eat trailing comma
@@ -656,13 +689,13 @@ void FDF_ParseScene(LPPARSER parser) {
                 goto parse_next;
             }
         }
-        if (!strcmp(token, ",")) {
-            fprintf(stderr, "Warning: Unexpected token in FDF\n");
-            goto parse_next;
-        }
+        fprintf(stderr, "Unknown token %s\n", token);
         parser_error(parser);
         return;
     parse_next:;
+        while (*parser->buffer == ',') {
+            ++parser->buffer;
+        }
     }
 }
 

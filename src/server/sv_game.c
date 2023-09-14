@@ -15,11 +15,17 @@ void PF_WriteAngle(float f) { MSG_WriteAngle(&sv.multicast, f); }
 void PF_TextRemoveComments(LPSTR buffer) {
     BOOL in_single_line_comment = false;
     BOOL in_block_comment = false;
+    DWORD num_quotes = 0;
     char *src = buffer;
     char *dest = buffer;
     while (*src != '\0') {
         if (!in_single_line_comment && !in_block_comment) {
-            if (*src == '/' && *(src + 1) == '/') {
+            if (*src == '"') {
+                num_quotes++;
+                *dest++ = *src++;
+            } else if (num_quotes&1) {
+                *dest++ = *src++;
+            } else if (*src == '/' && *(src + 1) == '/') {
                 in_single_line_comment = true;
                 src += 2;
             } else if (*src == '/' && *(src + 1) == '*') {

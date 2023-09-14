@@ -65,7 +65,7 @@ struct client_state {
     DWORD sock;
     DWORD time;
     struct {
-        RECT  rect;
+        RECT rect;
         bool in_progress;
     } selection;
 };

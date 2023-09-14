@@ -343,7 +343,7 @@ DWORD GetWorldBounds(LPJASS j) {
     return jass_pushnullhandle(j, "rect");
 }
 DWORD GetFilterUnit(LPJASS j) {
-    return jass_pushnullhandle(j, "unit");
+    return jass_pushlighthandle(j, jass_getcontext(j)->unit, "unit");
 }
 DWORD GetEnumUnit(LPJASS j) {
     extern LPEDICT currentunit;
@@ -421,10 +421,10 @@ DWORD GetClickedDialog(LPJASS j) {
     return jass_pushnullhandle(j, "dialog");
 }
 DWORD GetLevelingUnit(LPJASS j) {
-    return jass_pushnullhandle(j, "unit");
+    return jass_pushlighthandle(j, jass_getcontext(j)->unit, "unit");
 }
 DWORD GetLearningUnit(LPJASS j) {
-    return jass_pushnullhandle(j, "unit");
+    return jass_pushlighthandle(j, jass_getcontext(j)->unit, "unit");
 }
 DWORD GetLearnedSkill(LPJASS j) {
     return jass_pushinteger(j, 0);
@@ -433,37 +433,37 @@ DWORD GetLearnedSkillLevel(LPJASS j) {
     return jass_pushinteger(j, 0);
 }
 DWORD GetRevivableUnit(LPJASS j) {
-    return jass_pushnullhandle(j, "unit");
+    return jass_pushlighthandle(j, jass_getcontext(j)->unit, "unit");
 }
 DWORD GetRevivingUnit(LPJASS j) {
-    return jass_pushnullhandle(j, "unit");
+    return jass_pushlighthandle(j, jass_getcontext(j)->unit, "unit");
 }
 DWORD GetAttacker(LPJASS j) {
-    return jass_pushnullhandle(j, "unit");
+    return jass_pushlighthandle(j, jass_getcontext(j)->unit, "unit");
 }
 DWORD GetRescuer(LPJASS j) {
-    return jass_pushnullhandle(j, "unit");
+    return jass_pushlighthandle(j, jass_getcontext(j)->unit, "unit");
 }
 DWORD GetDyingUnit(LPJASS j) {
-    return jass_pushnullhandle(j, "unit");
+    return jass_pushlighthandle(j, jass_getcontext(j)->unit, "unit");
 }
 DWORD GetKillingUnit(LPJASS j) {
-    return jass_pushnullhandle(j, "unit");
+    return jass_pushlighthandle(j, jass_getcontext(j)->unit, "unit");
 }
 DWORD GetDecayingUnit(LPJASS j) {
-    return jass_pushnullhandle(j, "unit");
+    return jass_pushlighthandle(j, jass_getcontext(j)->unit, "unit");
 }
 DWORD GetConstructingStructure(LPJASS j) {
-    return jass_pushnullhandle(j, "unit");
+    return jass_pushlighthandle(j, jass_getcontext(j)->unit, "unit");
 }
 DWORD GetCancelledStructure(LPJASS j) {
-    return jass_pushnullhandle(j, "unit");
+    return jass_pushlighthandle(j, jass_getcontext(j)->unit, "unit");
 }
 DWORD GetConstructedStructure(LPJASS j) {
-    return jass_pushnullhandle(j, "unit");
+    return jass_pushlighthandle(j, jass_getcontext(j)->unit, "unit");
 }
 DWORD GetResearchingUnit(LPJASS j) {
-    return jass_pushnullhandle(j, "unit");
+    return jass_pushlighthandle(j, jass_getcontext(j)->unit, "unit");
 }
 DWORD GetResearched(LPJASS j) {
     return jass_pushinteger(j, 0);
@@ -472,28 +472,28 @@ DWORD GetTrainedUnitType(LPJASS j) {
     return jass_pushinteger(j, 0);
 }
 DWORD GetTrainedUnit(LPJASS j) {
-    return jass_pushnullhandle(j, "unit");
+    return jass_pushlighthandle(j, jass_getcontext(j)->unit, "unit");
 }
 DWORD GetDetectedUnit(LPJASS j) {
-    return jass_pushnullhandle(j, "unit");
+    return jass_pushlighthandle(j, jass_getcontext(j)->unit, "unit");
 }
 DWORD GetSummoningUnit(LPJASS j) {
-    return jass_pushnullhandle(j, "unit");
+    return jass_pushlighthandle(j, jass_getcontext(j)->unit, "unit");
 }
 DWORD GetSummonedUnit(LPJASS j) {
-    return jass_pushnullhandle(j, "unit");
+    return jass_pushlighthandle(j, jass_getcontext(j)->unit, "unit");
 }
 DWORD GetTransportUnit(LPJASS j) {
-    return jass_pushnullhandle(j, "unit");
+    return jass_pushlighthandle(j, jass_getcontext(j)->unit, "unit");
 }
 DWORD GetLoadedUnit(LPJASS j) {
-    return jass_pushnullhandle(j, "unit");
+    return jass_pushlighthandle(j, jass_getcontext(j)->unit, "unit");
 }
 DWORD GetManipulatingUnit(LPJASS j) {
-    return jass_pushnullhandle(j, "unit");
+    return jass_pushlighthandle(j, jass_getcontext(j)->unit, "unit");
 }
 DWORD GetOrderedUnit(LPJASS j) {
-    return jass_pushnullhandle(j, "unit");
+    return jass_pushlighthandle(j, jass_getcontext(j)->unit, "unit");
 }
 DWORD GetIssuedOrderId(LPJASS j) {
     return jass_pushinteger(j, 0);
@@ -514,7 +514,7 @@ DWORD GetOrderTargetDestructable(LPJASS j) {
     return jass_pushnullhandle(j, "destructable");
 }
 DWORD GetOrderTargetUnit(LPJASS j) {
-    return jass_pushnullhandle(j, "unit");
+    return jass_pushlighthandle(j, jass_getcontext(j)->unit, "unit");
 }
 DWORD GetEventPlayerState(LPJASS j) {
     return jass_pushnullhandle(j, "playerstate");
@@ -535,7 +535,7 @@ DWORD GetEventDetectingPlayer(LPJASS j) {
     return jass_pushnullhandle(j, "player");
 }
 DWORD GetEventTargetUnit(LPJASS j) {
-    return jass_pushnullhandle(j, "unit");
+    return jass_pushlighthandle(j, jass_getcontext(j)->unit, "unit");
 }
 DWORD GetWidgetLife(LPJASS j) {
     //HANDLE whichWidget = jass_checkhandle(j, 1, "widget");
@@ -755,7 +755,7 @@ DWORD RestoreUnit(LPJASS j) {
 //    FLOAT x = jass_checknumber(j, 5);
 //    FLOAT y = jass_checknumber(j, 6);
 //    FLOAT facing = jass_checknumber(j, 7);
-//    return jass_pushnullhandle(j, "unit");
+//    return jass_pushlighthandle(j, jass_getcontext(j)->unit, "unit");
     return jass_pushnull(j);
 }
 DWORD GetRandomInt(LPJASS j) {
@@ -892,7 +892,7 @@ DWORD ShowInterface(LPJASS j) {
     FLOAT fadeDuration = jass_checknumber(j, 2);
     LPPLAYER player = currentplayer;
     if (player) {
-        UI_ShowInterface(PLAYER_ENT(player), flag, fadeDuration);
+//        UI_ShowInterface(PLAYER_ENT(player), flag, fadeDuration);
     }
     return 0;
 }
@@ -950,109 +950,6 @@ DWORD CreateTrackable(LPJASS j) {
     //FLOAT y = jass_checknumber(j, 3);
     //FLOAT facing = jass_checknumber(j, 4);
     return jass_pushnullhandle(j, "trackable");
-}
-DWORD CreateQuest(LPJASS j) {
-    return jass_pushnullhandle(j, "quest");
-}
-DWORD DestroyQuest(LPJASS j) {
-    //HANDLE whichQuest = jass_checkhandle(j, 1, "quest");
-    return 0;
-}
-DWORD QuestSetTitle(LPJASS j) {
-    //HANDLE whichQuest = jass_checkhandle(j, 1, "quest");
-    //LPCSTR title = jass_checkstring(j, 2);
-    return 0;
-}
-DWORD QuestSetDescription(LPJASS j) {
-    //HANDLE whichQuest = jass_checkhandle(j, 1, "quest");
-    //LPCSTR description = jass_checkstring(j, 2);
-    return 0;
-}
-DWORD QuestSetIconPath(LPJASS j) {
-    //HANDLE whichQuest = jass_checkhandle(j, 1, "quest");
-    //LPCSTR iconPath = jass_checkstring(j, 2);
-    return 0;
-}
-DWORD QuestSetRequired(LPJASS j) {
-    //HANDLE whichQuest = jass_checkhandle(j, 1, "quest");
-    //BOOL required = jass_checkboolean(j, 2);
-    return 0;
-}
-DWORD QuestSetCompleted(LPJASS j) {
-    //HANDLE whichQuest = jass_checkhandle(j, 1, "quest");
-    //BOOL completed = jass_checkboolean(j, 2);
-    return 0;
-}
-DWORD QuestSetDiscovered(LPJASS j) {
-    //HANDLE whichQuest = jass_checkhandle(j, 1, "quest");
-    //BOOL discovered = jass_checkboolean(j, 2);
-    return 0;
-}
-DWORD QuestSetFailed(LPJASS j) {
-    //HANDLE whichQuest = jass_checkhandle(j, 1, "quest");
-    //BOOL failed = jass_checkboolean(j, 2);
-    return 0;
-}
-DWORD QuestSetEnabled(LPJASS j) {
-    //HANDLE whichQuest = jass_checkhandle(j, 1, "quest");
-    //BOOL enabled = jass_checkboolean(j, 2);
-    return 0;
-}
-DWORD IsQuestRequired(LPJASS j) {
-    //HANDLE whichQuest = jass_checkhandle(j, 1, "quest");
-    return jass_pushboolean(j, 0);
-}
-DWORD IsQuestCompleted(LPJASS j) {
-    //HANDLE whichQuest = jass_checkhandle(j, 1, "quest");
-    return jass_pushboolean(j, 0);
-}
-DWORD IsQuestDiscovered(LPJASS j) {
-    //HANDLE whichQuest = jass_checkhandle(j, 1, "quest");
-    return jass_pushboolean(j, 0);
-}
-DWORD IsQuestFailed(LPJASS j) {
-    //HANDLE whichQuest = jass_checkhandle(j, 1, "quest");
-    return jass_pushboolean(j, 0);
-}
-DWORD IsQuestEnabled(LPJASS j) {
-    //HANDLE whichQuest = jass_checkhandle(j, 1, "quest");
-    return jass_pushboolean(j, 0);
-}
-DWORD QuestCreateItem(LPJASS j) {
-    //HANDLE whichQuest = jass_checkhandle(j, 1, "quest");
-    return jass_pushnullhandle(j, "questitem");
-}
-DWORD QuestItemSetDescription(LPJASS j) {
-    //HANDLE whichQuestItem = jass_checkhandle(j, 1, "questitem");
-    //LPCSTR description = jass_checkstring(j, 2);
-    return 0;
-}
-DWORD QuestItemSetCompleted(LPJASS j) {
-    //HANDLE whichQuestItem = jass_checkhandle(j, 1, "questitem");
-    //BOOL completed = jass_checkboolean(j, 2);
-    return 0;
-}
-DWORD IsQuestItemCompleted(LPJASS j) {
-    //HANDLE whichQuestItem = jass_checkhandle(j, 1, "questitem");
-    return jass_pushboolean(j, 0);
-}
-DWORD CreateDefeatCondition(LPJASS j) {
-    return jass_pushnullhandle(j, "defeatcondition");
-}
-DWORD DestroyDefeatCondition(LPJASS j) {
-    //HANDLE whichCondition = jass_checkhandle(j, 1, "defeatcondition");
-    return 0;
-}
-DWORD DefeatConditionSetDescription(LPJASS j) {
-    //HANDLE whichCondition = jass_checkhandle(j, 1, "defeatcondition");
-    //LPCSTR description = jass_checkstring(j, 2);
-    return 0;
-}
-DWORD FlashQuestDialogButton(LPJASS j) {
-    return 0;
-}
-DWORD ForceQuestDialogUpdate(LPJASS j) {
-    return 0;
 }
 DWORD CreateTimerDialog(LPJASS j) {
     //HANDLE t = jass_checkhandle(j, 1, "timer");
@@ -1155,17 +1052,13 @@ DWORD SetCinematicScene(LPJASS j) {
     LPCSTR text = jass_checkstring(j, 4);
     //FLOAT sceneDuration = jass_checknumber(j, 5);
     //FLOAT voiceoverDuration = jass_checknumber(j, 6);
-    UI_FRAME(CinematicPanel);
-    UI_FRAME(CinematicSpeakerText);
-    UI_FRAME(CinematicDialogueText);
-    CinematicSpeakerText->Text = G_GetString(speakerTitle);
-    CinematicDialogueText->Text = G_GetString(text);
-    CinematicSpeakerText->hidden = false;
-    CinematicDialogueText->hidden = false;
-    UI_WriteLayout(PLAYER_ENT(currentplayer), CinematicPanel, LAYER_CONSOLE);
+    currentplayer->texts[PLAYERTEXT_SPEAKER] = G_GetString(speakerTitle);
+    currentplayer->texts[PLAYERTEXT_DIALOGUE] = G_GetString(text);
     return 0;
 }
 DWORD EndCinematicScene(LPJASS j) {
+    currentplayer->texts[PLAYERTEXT_SPEAKER] = "";
+    currentplayer->texts[PLAYERTEXT_DIALOGUE] = "";
     return 0;
 }
 

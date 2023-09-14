@@ -83,9 +83,6 @@ BOOL unit_issueimmediateorder(LPEDICT self, LPCSTR order) {
 void G_SolveCollisions(void);
 
 LPEDICT unit_createorfind(DWORD player, DWORD unitid, LPCVECTOR2 location, FLOAT facing) {
-    if (unitid == MAKEFOURCC('H', 'a', 'r', 't')) {
-        int a=0;
-    }
     FOR_LOOP(i, globals.num_edicts) {
         LPEDICT ent = &globals.edicts[i];
         if (ent->class_id == unitid &&

@@ -60,6 +60,7 @@
 		785C74592AA87E840053B1CA /* api_item.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = api_item.h; sourceTree = "<group>"; };
 		785C745A2AA87EC30053B1CA /* api_misc.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = api_misc.h; sourceTree = "<group>"; };
 		785C745B2AA885930053B1CA /* g_items.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = g_items.c; sourceTree = "<group>"; };
+		785C746A2AB09F680053B1CA /* api_quest.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = api_quest.h; sourceTree = "<group>"; };
 		785D8FDC2A961E9F005A26B5 /* ui_init.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = ui_init.c; sourceTree = "<group>"; };
 		7866305F2A188F4800266A62 /* g_phys.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = g_phys.c; sourceTree = "<group>"; };
 		786630642A18BFAC00266A62 /* g_ai.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = g_ai.c; sourceTree = "<group>"; };
@@ -149,6 +150,7 @@
 				78731BAE2A9E284700077EDE /* api_group.h */,
 				7874A5282A8A5D34006A8DB5 /* api_leaderboard.h */,
 				785C74592AA87E840053B1CA /* api_item.h */,
+				785C746A2AB09F680053B1CA /* api_quest.h */,
 				78731BB22A9E70BE00077EDE /* api_macros.h */,
 				78731BB12A9E2BAB00077EDE /* api_math.h */,
 				785C745A2AA87EC30053B1CA /* api_misc.h */,

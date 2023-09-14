@@ -76,7 +76,6 @@ static void CM_ReadInfo(HANDLE archive) {
         SFileReadFile(file, &force->flags, sizeof(DWORD), NULL, NULL);
         SFileReadFile(file, &force->playerMasks, sizeof(DWORD), NULL, NULL);
         SFileReadString(file, &force->name);
-        printf("%s\n", force->name);
     }
 
     SFileReadFile(file, &info->num_upgradeAvailabilities, sizeof(DWORD), NULL, NULL);
@@ -311,7 +310,7 @@ void CM_ReadStrings(HANDLE archive) {
                 token = strtok(NULL, "\n");
                 removeTrailingWhitespace(token);
                 strcpy(entry->text, token);
-                printf("ID: %d\nText: %s\n\n", entry->id, entry->text);
+//                printf("ID: %d\nText: %s\n\n", entry->id, entry->text);
                 ADD_TO_LIST(entry, world.info.strings)
             }
         }

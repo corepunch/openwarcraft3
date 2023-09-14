@@ -237,6 +237,7 @@ cparticle_t *R_SpawnParticle(void);
 // r_war3map.c
 VECTOR2 GetWar3MapSize(LPCWAR3MAP war3Map);
 
+
 // loaders
 mdxModel_t *R_LoadModelMDLX(void *buffer, DWORD size);
 m3Model_t *R_LoadModelM3(void *buffer, DWORD size);

@@ -55,11 +55,13 @@ FILTER_EDICTS(ENT, G_IsEntitySelected(CLIENT, ENT))
 
 enum {
     LAYER_PORTRAIT,
+    LAYER_CINEMATIC,
     LAYER_CONSOLE,
     LAYER_COMMANDBAR,
     LAYER_INFOPANEL,
     LAYER_INVENTORY,
     LAYER_MESSAGE,
+    LAYER_QUESTDIALOG,
 };
 
 #define svc_bad 0
@@ -77,6 +79,8 @@ KNOWN_AS(gcamerasetup_s, CAMERASETUP);
 KNOWN_AS(gregion_s, REGION);
 KNOWN_AS(gevent_s, EVENT);
 KNOWN_AS(gtrigger_s, TRIGGER);
+KNOWN_AS(gquest_s, QUEST);
+KNOWN_AS(gquestitem_s, QUESTITEM);
 
 typedef struct {
     BOOL (*on_entity_selected)(LPEDICT clent, LPEDICT selected);
@@ -152,6 +156,11 @@ typedef enum {
     PLAYERSTATE_GOLD_GATHERED = 15,
     PLAYERSTATE_LUMBER_GATHERED = 16,
 } PLAYERSTATE;
+
+typedef enum {
+    PLAYERTEXT_SPEAKER,
+    PLAYERTEXT_DIALOGUE,
+} PLAYERTEXT;
 
 typedef enum {
     TARG_NONE,
@@ -333,6 +342,11 @@ typedef enum {
     LAYOUT_VERTICAL,
 } LAYOUTDIRECTION;
 
+typedef struct {
+    UINAME frame;
+    UINAME text;
+} BUTTONTEXT;
+
 struct uiFrameDef_s {
     LPFRAMEDEF Parent;
     FRAMETYPE Type;
@@ -341,7 +355,6 @@ struct uiFrameDef_s {
     LPCSTR Text;
     LPCSTR Tooltip;
     RECT rect;
-    BOX2 UVs;
     DWORD Width;
     DWORD Height;
     DWORD Number;
@@ -360,6 +373,7 @@ struct uiFrameDef_s {
     struct {
         DWORD Image;
         DWORD Image2;
+        BOX2 TexCoord;
     } Texture;
     struct {
         BOOL TileBackground;
@@ -410,6 +424,13 @@ struct uiFrameDef_s {
     struct {
         VECTOR2 PushedTextOffset;
 //        UINAME Text;
+        UINAME NormalTexture;
+        UINAME PushedTexture;
+        UINAME DisabledTexture;
+        UINAME UseHighlight;
+        BUTTONTEXT NormalText;
+        BUTTONTEXT DisabledText;
+        BUTTONTEXT HighlightText;
     } Button;
     struct {
         DWORD Style;
@@ -460,6 +481,7 @@ struct uiFrameDef_s {
         FLOAT LineHeight;
         FLOAT LineGap;
         FLOAT Inset;
+        DWORD MaxLines;
         UINAME ScrollBar;
     } TextArea;
     struct {
@@ -551,6 +573,24 @@ typedef struct {
     DWORD class_id;
     VECTOR2 origin;
 } gitem_t;
+
+struct gquestitem_s {
+    LPSTR description;
+    LPQUESTITEM next;
+    BOOL completed;
+};
+
+struct gquest_s {
+    LPSTR title;
+    LPSTR description;
+    LPQUESTITEM items;
+    LPQUEST next;
+    BOOL discovered;
+    BOOL required;
+    BOOL completed;
+    BOOL failed;
+    BOOL enabled;
+};
 
 struct edict_s {
     entityState_t s;
@@ -651,6 +691,7 @@ struct level_locals {
     LPJASS vm;
     LPCMAPINFO mapinfo;
     LEVELEVENTS events;
+    LPQUEST quests;
     DWORD framenum;
     DWORD time;
     BOOL started;
@@ -752,16 +793,20 @@ void UI_WriteLayout(LPEDICT ent, LPCFRAMEDEF frames, DWORD layer);
 void UI_SetPoint(LPFRAMEDEF frame, UIFRAMEPOINT framePoint, LPFRAMEDEF other, UIFRAMEPOINT otherPoint, int16_t x, int16_t y);
 void UI_SetPointByNumber(LPFRAMEDEF frame, UIFRAMEPOINT framePoint, DWORD otherNumber, UIFRAMEPOINT otherPoint, SHORT x, SHORT y);
 void UI_InitFrame(LPFRAMEDEF frame, DWORD number, FRAMETYPE type);
-void UI_WriteFrame(LPCFRAMEDEF frame);
-void UI_WriteFrameWithChildren(LPCFRAMEDEF frame);
 void UI_SetHidden(LPFRAMEDEF frame, BOOL value);
 DWORD UI_FindFrameNumber(LPCSTR name);
 DWORD UI_LoadTexture(LPCSTR file, BOOL decorate);
 LPCSTR UI_GetString(LPCSTR textID);
-LPCSTR UI_ApplySkin(LPCSTR entry);
 LPFRAMEDEF UI_Spawn(FRAMETYPE type, LPFRAMEDEF parent);
 LPFRAMEDEF UI_FindFrame(LPCSTR name);
 LPFRAMEDEF UI_FindChildFrame(LPFRAMEDEF frame, LPCSTR name);
+
+LPCSTR Theme_String(LPCSTR entry, LPCSTR category);
+FLOAT Theme_Float(LPCSTR entry, LPCSTR category);
+
+// ui_write.c
+void UI_WriteFrame(LPCFRAMEDEF frame);
+void UI_WriteFrameWithChildren(LPCFRAMEDEF frame);
 
 // g_metadata.c
 LPCSTR UnitStringField(sheetMetaData_t *meta, DWORD unit_id, LPCSTR name);
@@ -789,7 +834,9 @@ void T_Damage(LPEDICT target, LPEDICT attacker, int damage);
 // g_utils.c
 void G_FreeEdict(LPEDICT ent);
 LPEVENT G_MakeEvent(EVENTTYPE type);
+LPQUEST G_MakeQuest(void);
 BOOL G_RegionContains(LPCREGION region, LPCVECTOR2 point);
+void G_RemoveQuest(LPQUEST quest);
 
 // m_unit.c
 BOOL unit_issueorder(LPEDICT self, LPCSTR order, LPCVECTOR2 point);
@@ -800,9 +847,10 @@ BOOL unit_additem(LPEDICT edict, DWORD class_id);
 
 // p_jass.c
 LPJASS jass_newstate(void);
+void jass_close(LPJASS j);
 BOOL jass_dofile(LPJASS j, LPCSTR fileName);
 BOOL jass_dofilenative(LPJASS j,LPCSTR fileName);
-void jass_callbyname(LPJASS j, LPCSTR name);
+void jass_callbyname(LPJASS j, LPCSTR name, BOOL async);
 BOOL jass_dobuffer(LPJASS j, LPSTR buffer);
 
 // g_events.c

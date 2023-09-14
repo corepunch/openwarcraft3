@@ -14,6 +14,7 @@ typedef enum {
     NFT_QUATERNION,
     NFT_ANGLE,
     NFT_TEXT,
+    NFT_DUPTEXT,
 } netFieldType_t;
 
 typedef struct {
@@ -60,23 +61,22 @@ netField_t uiFrameFields[] = {
 };
 
 netField_t playerStateFields[] = {
-    { NETF(PLAYER, viewquat.x), NFT_QUATERNION },
-    { NETF(PLAYER, viewquat.y), NFT_QUATERNION },
-    { NETF(PLAYER, viewquat.z), NFT_QUATERNION },
-    { NETF(PLAYER, viewquat.w), NFT_QUATERNION },
+    { NETF(PLAYER, viewquat), NFT_QUATERNION },
     { NETF(PLAYER, origin.x), NFT_ROUND },
     { NETF(PLAYER, origin.y), NFT_ROUND },
     { NETF(PLAYER, fov), NFT_BYTE },
     { NETF(PLAYER, distance), NFT_ROUND },
     { NETF(PLAYER, rdflags), NFT_LONG },
+    { NETF(PLAYER, uiflags), NFT_LONG },
     { NETF(PLAYER, stats[0]), NFT_LONG },
     { NETF(PLAYER, stats[2]), NFT_LONG },
     { NETF(PLAYER, stats[4]), NFT_LONG },
     { NETF(PLAYER, stats[6]), NFT_LONG },
     { NETF(PLAYER, stats[8]), NFT_LONG },
+    { NETF(PLAYER, texts[0]), NFT_DUPTEXT },
+    { NETF(PLAYER, texts[1]), NFT_DUPTEXT },
     { NULL }
 };
-
 
 void MSG_Write(LPSIZEBUF buf, LPCVOID value, DWORD size) {
     if (buf->cursize + size > buf->maxsize) {
@@ -201,7 +201,7 @@ static DWORD MSG_GetBits(void const *from,
         int *fromF = (int *)((uint8_t *)from + field->offset);
         int *toF = (int *)((uint8_t *)to + field->offset);
         if (*fromF != *toF) {
-            if (field->type == NFT_TEXT && **((LPCSTR *)toF) == 0) {
+            if ((field->type == NFT_TEXT || field->type == NFT_DUPTEXT) && **((LPCSTR *)toF) == 0) {
                 continue;
             }
             bits |= 1 << (field - fields);
@@ -219,17 +219,20 @@ static void MSG_WriteFields(LPSIZEBUF msg,
         if ((bits & (1 << (field - fields))) == 0)
             continue;
         int *toF = (int *)((uint8_t *)to + field->offset);
-        float _float = *(float *)toF;
+        FLOAT *_float = (FLOAT *)toF;
         switch (field->type) {
-            case NFT_FLOAT: MSG_WriteFloat(msg, _float); break;
-            case NFT_ROUND: MSG_WriteShort(msg, _float); break;
-            case NFT_QUATERNION: MSG_WriteShort(msg, _float * 32767); break;
-            case NFT_PACKED_FLOAT: MSG_WriteShort(msg, _float * 500); break;
-            case NFT_ANGLE: MSG_WriteShort(msg, _float / 360 * 0xffff); break;
+            case NFT_FLOAT: MSG_WriteFloat(msg, *_float); break;
+            case NFT_ROUND: MSG_WriteShort(msg, *_float); break;
+            case NFT_PACKED_FLOAT: MSG_WriteShort(msg, *_float * 500); break;
+            case NFT_ANGLE: MSG_WriteShort(msg, *_float / 360 * 0xffff); break;
             case NFT_LONG: MSG_WriteLong(msg, *toF); break;
             case NFT_SHORT: MSG_WriteShort(msg, *toF); break;
             case NFT_BYTE: MSG_WriteByte(msg, *toF); break;
             case NFT_TEXT: MSG_WriteString(msg, *(LPCSTR *)toF); break;
+            case NFT_DUPTEXT: MSG_WriteString(msg, *(LPCSTR *)toF); break;
+            case NFT_QUATERNION:
+                FOR_LOOP(i, 4) MSG_WriteShort(msg, *(_float+i) * 32767);
+                break;
         }
     }
 }
@@ -243,18 +246,28 @@ static void MSG_ReadFields(LPSIZEBUF msg,
         if ((bits & (1 << (field - fields))) == 0)
             continue;
         int *toF = (int *)((uint8_t *)edict + field->offset);
+        FLOAT *_float = (FLOAT *)toF;
         switch (field->type) {
-            case NFT_FLOAT: *(float *)toF = MSG_ReadFloat(msg); break;
-            case NFT_ROUND: *(float *)toF = MSG_ReadShort(msg); break;
-            case NFT_QUATERNION: *(float *)toF = ((float)MSG_ReadShort(msg)) / 32767; break;
-            case NFT_PACKED_FLOAT: *(float *)toF = MSG_ReadShort(msg) / 500.f; break;
-            case NFT_ANGLE: *(float *)toF = MSG_ReadShort(msg) * 360.f / 0xffff; break;
+            case NFT_FLOAT: *_float = MSG_ReadFloat(msg); break;
+            case NFT_ROUND: *_float = MSG_ReadShort(msg); break;
+            case NFT_PACKED_FLOAT: *_float = MSG_ReadShort(msg) / 500.f; break;
+            case NFT_ANGLE: *_float = MSG_ReadShort(msg) * 360.f / 0xffff; break;
             case NFT_LONG: *toF = MSG_ReadLong(msg); break;
             case NFT_SHORT: *toF = MSG_ReadShort(msg); break;
             case NFT_BYTE: *toF = MSG_ReadByte(msg); break;
             case NFT_TEXT:
                 *((LPCSTR *)toF) = (LPCSTR)(msg->data + msg->readcount);
                 while (*(msg->data+(msg->readcount++)));
+                break;
+            case NFT_DUPTEXT:
+                if (*((LPSTR *)toF)) {
+                    MemFree(*((LPSTR *)toF));
+                }
+                *((LPCSTR *)toF) = strdup((LPCSTR)(msg->data + msg->readcount));
+                while (*(msg->data+(msg->readcount++)));
+                break;
+            case NFT_QUATERNION:
+                FOR_LOOP(i, 4) *(_float+i) = ((float)MSG_ReadShort(msg)) / 32767;
                 break;
         }
     }

@@ -76,6 +76,24 @@ if (LIST) { \
     LIST = VAR; \
 }
 
+#define REMOVE_FROM_LIST(TYPE, VAR, LIST, DELETER) \
+TYPE **prev = &LIST; \
+FOR_EACH_LIST(TYPE, it, LIST) { \
+    if (it == VAR) { \
+        *prev = it->next; \
+        DELETER(it); \
+        break; \
+    } \
+    prev = &it->next; \
+}
+
+#define DELETE_LIST(TYPE, LIST, DELETER) \
+for (TYPE *it = LIST; it;) { \
+    TYPE *next = it->next; \
+    DELETER(it); \
+    it = next; \
+}
+
 #define PARSE_LIST(LIST, ITEM, PARSEFUNC) \
 PARSER parser = { .buffer = LIST, .delimiters = "" }; \
 for (LPCSTR ITEM = PARSEFUNC(&parser); ITEM; ITEM = PARSEFUNC(&parser))
@@ -208,7 +226,9 @@ struct playerState_s {
     float distance;
     DWORD fov;
     DWORD rdflags;
+    DWORD uiflags;
     USHORT stats[MAX_STATS];
+    LPCSTR texts[MAX_STATS];
 };
 
 enum {

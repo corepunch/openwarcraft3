@@ -100,7 +100,7 @@ static void G_RunFrame(void) {
         return;
 
     if (!level.scriptsStarted) {
-        jass_callbyname(level.vm, "main");
+        jass_callbyname(level.vm, "main", true);
         level.scriptsStarted = true;
     }
     
@@ -170,11 +170,18 @@ LPCSTR G_GetString(LPCSTR name) {
 
 static void G_ClientBegin(LPEDICT edict) {
     UI_FRAME(ConsoleUI);
+    UI_FRAME(CinematicPanel);
+    UI_FRAME(QuestDialog);
+
     UI_WriteLayout(edict, ConsoleUI, LAYER_CONSOLE);
+    UI_WriteLayout(edict, CinematicPanel, LAYER_CINEMATIC);
+    UI_WriteLayout(edict, QuestDialog, LAYER_QUESTDIALOG);
+    
     FILTER_EDICTS(ent, edict->client->ps.number == ent->s.player) {
         edict->client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] += UNIT_FOOD_MADE(ent->class_id);
         edict->client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED] += UNIT_FOOD_USED(ent->class_id);
     }
+    
     level.started = true;
 }
 

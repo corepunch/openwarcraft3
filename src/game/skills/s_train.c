@@ -17,6 +17,7 @@ void ai_build(LPEDICT ent) {
     if (hp->value >= hp->max_value) {
         hp->value = hp->max_value;
         ShowTrainedUnit(ent, ent->build);
+        G_PublishEvent(ent->build, EVENT_PLAYER_UNIT_TRAIN_FINISH);
         if (!(ent->build = ent->build->build)) {
             ent->stand(ent);
         }

@@ -20,7 +20,7 @@ void CON_printf(LPCSTR fmt, ...) {
 }
 
 void CON_DrawConsole(void) {
-    DWORD x = 4, y = 0;
+    DWORD x = 10, y = 40;
     COLOR32 color = {255,255,255,160};
     FOR_LOOP(i, MAX_CONSOLE_MESSAGES) {
         if (!*messages[i].msg || cl.time > messages[i].time + CONSOLE_MESSAGE_TIME)

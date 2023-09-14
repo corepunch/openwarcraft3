@@ -224,7 +224,7 @@ static VECTOR2 process_text(LPCDRAWTEXT arg, BOOL draw) {
             p++;
             continue;
         }
-        if (!strncmp(p, "|n", 2)) {
+        if (!strncmp(p, "|n", 2) || !strncmp(p, "|N", 2)) {
         next_line:
             cursor.x = pos.x;
             cursor.y += linesize * arg->lineHeight * 1.1;
@@ -247,12 +247,12 @@ static VECTOR2 process_text(LPCDRAWTEXT arg, BOOL draw) {
             p = strchr(p + 1, '>') + 1;
             continue;;
         }
-        if (!strncmp(p, "|r", 2)) {
+        if (!strncmp(p, "|r", 2) || !strncmp(p, "|R", 2)) {
             color = COLOR32_WHITE;
             p += 2;
             continue;
         }
-        if (!strncmp(p, "|c", 2)) {
+        if (!strncmp(p, "|c", 2) || !strncmp(p, "|C", 2)) {
             COLOR32 c;
             sscanf(p+2, "%08x", (DWORD *)&c);
             color.a = c.a;

@@ -19,6 +19,7 @@ static void ai_build(LPEDICT ent) {
     hp->value += hp->max_value * k;
     if (hp->value >= hp->max_value) {
         hp->value = hp->max_value;
+        G_PublishEvent(ent->build, EVENT_PLAYER_UNIT_CONSTRUCT_FINISH);
         ent->build->stand(ent->build);
         ent->stand(ent);
     }
@@ -57,6 +58,7 @@ void build_build(LPEDICT ent) {
 //        ent->build = building;
         building->health.value = 0;
         building->build = building;
+        G_PublishEvent(building, EVENT_PLAYER_UNIT_CONSTRUCT_START);
     } else {
         ent->stand(ent);
     }

@@ -20,3 +20,24 @@ BOOL G_RegionContains(LPCREGION region, LPCVECTOR2 point) {
     }
     return false;
 }
+
+LPQUEST G_MakeQuest(void) {
+    LPQUEST quest = gi.MemAlloc(sizeof(QUEST));
+    ADD_TO_LIST(quest, level.quests);
+    return quest;
+}
+
+static void DeleteQuestItem(LPQUESTITEM questitem) {
+    free(questitem->description);
+}
+
+static void DeleteQuest(LPQUEST quest) {
+    DELETE_LIST(QUESTITEM, quest->items, DeleteQuestItem);
+    free(quest->description);
+    free(quest->title);
+    gi.MemFree(quest);
+}
+
+void G_RemoveQuest(LPQUEST quest) {
+    REMOVE_FROM_LIST(QUEST, quest, level.quests, DeleteQuest);
+}

@@ -29,11 +29,18 @@ void R_Viewport(LPCRECT viewport) {
                viewport->h * tr.drawableSize.height / 600);
 }
 
+LPTEXTURE R_AllocateSinglePixelTexture(int color) {
+    LPTEXTURE texture = R_AllocateTexture(1, 1);
+    R_LoadTextureMipLevel(texture, 0, (LPCCOLOR32)&color, 1, 1);
+    return texture;
+}
+
 LPTEXTURE R_LoadTexture(LPCSTR textureFilename) {
     LPTEXTURE texture = NULL;
     HANDLE file = ri.FileOpen(textureFilename);
-    if (!file)
-        return NULL;
+    if (!file) {
+        return R_AllocateSinglePixelTexture(0xffffffff);
+    }
     DWORD fileSize = SFileGetFileSize(file, NULL);
     HANDLE buffer = ri.MemAlloc(fileSize);
     SFileReadFile(file, buffer, fileSize, NULL, NULL);
@@ -191,12 +198,6 @@ LPCSTR modelNames[MODEL_COUNT] = {
 };
 
 //#include "mdx/r_mdx.h"
-
-LPTEXTURE R_AllocateSinglePixelTexture(int color) {
-    LPTEXTURE texture = R_AllocateTexture(1, 1);
-    R_LoadTextureMipLevel(texture, 0, (LPCCOLOR32)&color, 1, 1);
-    return texture;
-}
 
 void R_Init(DWORD width, DWORD height) {
     SDL_Init(SDL_INIT_VIDEO);

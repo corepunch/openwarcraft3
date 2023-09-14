@@ -200,59 +200,38 @@ DWORD TriggerRegisterUnitInRange(LPJASS j) {
 }
 DWORD TriggerAddCondition(LPJASS j) {
     LPTRIGGER whichTrigger = jass_checkhandle(j, 1, "trigger");
-    gtriggercondition_t *condition = gi.MemAlloc(sizeof(gtriggercondition_t));
+    TRIGGERCONDITION *condition = gi.MemAlloc(sizeof(TRIGGERCONDITION));
     condition->expr = jass_checkhandle(j, 2, "boolexpr");
     ADD_TO_LIST(condition, whichTrigger->conditions);
     return jass_pushlighthandle(j, condition, "triggercondition");
 }
 DWORD TriggerRemoveCondition(LPJASS j) {
     LPTRIGGER whichTrigger = jass_checkhandle(j, 1, "trigger");
-    gtriggercondition_t *whichCondition = jass_checkhandle(j, 2, "triggercondition");
-    gtriggercondition_t **prev = &whichTrigger->conditions;
-    FOR_EACH_LIST(gtriggercondition_t, it, whichTrigger->conditions) {
-        if (it == whichCondition) {
-            *prev = it->next;
-            gi.MemFree(it);
-            break;
-        }
-        prev = &it->next;
-    }
+    TRIGGERCONDITION *whichCondition = jass_checkhandle(j, 2, "triggercondition");
+    REMOVE_FROM_LIST(TRIGGERCONDITION, whichCondition, whichTrigger->conditions, gi.MemFree);
     return 0;
 }
 DWORD TriggerClearConditions(LPJASS j) {
     LPTRIGGER whichTrigger = jass_checkhandle(j, 1, "trigger");
-    if (!whichTrigger->conditions)
-        return 0;
-    for (gtriggercondition_t *it = whichTrigger->conditions; it;) {
-        gtriggercondition_t *next = it->next;
-        gi.MemFree(it);
-        it = next;
-    }
+    DELETE_LIST(TRIGGERCONDITION, whichTrigger->conditions, gi.MemFree);
     return 0;
 }
 DWORD TriggerAddAction(LPJASS j) {
     LPTRIGGER whichTrigger = jass_checkhandle(j, 1, "trigger");
-    gtriggeraction_t *action = gi.MemAlloc(sizeof(gtriggeraction_t));
+    TRIGGERACTION *action = gi.MemAlloc(sizeof(TRIGGERACTION));
     action->func = jass_checkcode(j, 2);
     ADD_TO_LIST(action, whichTrigger->actions);
     return jass_pushlighthandle(j, action, "triggeraction");
 }
 DWORD TriggerRemoveAction(LPJASS j) {
     LPTRIGGER whichTrigger = jass_checkhandle(j, 1, "trigger");
-    gtriggeraction_t *whichAction = jass_checkhandle(j, 2, "triggeraction");
-    gtriggeraction_t **prev = &whichTrigger->actions;
-    FOR_EACH_LIST(gtriggeraction_t, it, whichTrigger->actions) {
-        if (it == whichAction) {
-            *prev = it->next;
-            gi.MemFree(it);
-            break;
-        }
-        prev = &it->next;
-    }
+    TRIGGERACTION *whichAction = jass_checkhandle(j, 2, "triggeraction");
+    REMOVE_FROM_LIST(TRIGGERACTION, whichAction, whichTrigger->actions, gi.MemFree);
     return 0;
 }
 DWORD TriggerClearActions(LPJASS j) {
-    //LPTRIGGER whichTrigger = jass_checkhandle(j, 1, "trigger");
+    LPTRIGGER whichTrigger = jass_checkhandle(j, 1, "trigger");
+    DELETE_LIST(TRIGGERACTION, whichTrigger->actions, gi.MemFree);
     return 0;
 }
 DWORD TriggerSleepAction(LPJASS j) {
@@ -268,11 +247,20 @@ DWORD TriggerWaitForSound(LPJASS j) {
 }
 DWORD TriggerEvaluate(LPJASS j) {
     LPTRIGGER whichTrigger = jass_checkhandle(j, 1, "trigger");
-    return jass_pushboolean(j, whichTrigger->actions ? true : false);
+    FOR_EACH_LIST(TRIGGERCONDITION, cond, whichTrigger->conditions) {
+        jass_pushfunction(j, cond->expr);
+        if (jass_call(j, 0) != 1 || !jass_popboolean(j)) {
+            return jass_pushboolean(j, false);
+        }
+    }
+    return jass_pushboolean(j, true);
 }
 DWORD TriggerExecute(LPJASS j) {
     LPTRIGGER whichTrigger = jass_checkhandle(j, 1, "trigger");
-    jass_calltrigger(j, whichTrigger, NULL);
+    FOR_EACH_LIST(TRIGGERACTION, action, whichTrigger->actions) {
+        jass_pushfunction(j, action->func);
+        jass_call(j, 0);
+    }
     return 0;
 }
 DWORD TriggerExecuteWait(LPJASS j) {

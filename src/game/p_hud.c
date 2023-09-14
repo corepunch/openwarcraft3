@@ -230,7 +230,7 @@ void UI_AddCommandButton(LPCSTR code) {
     DWORD bx = COMMAND_BUTTONS_X + COMMAND_BUTTON_CELL * x;
     DWORD by = COMMAND_BUTTONS_Y - COMMAND_BUTTON_CELL * y;
     UI_InitFrame(&button, x + (y << 2) + COMMAND_BUTTON_START, FT_COMMANDBUTTON);
-    UI_SetTexture(&button, art, false);
+    UI_SetTexture(&button, art, true);
     UI_SetSize(&button, COMMAND_BUTTON_SIZE, COMMAND_BUTTON_SIZE);
     UI_SetText(&button, code);
     UI_SetPointByNumber(&button, FRAMEPOINT_CENTER, UI_PARENT, FRAMEPOINT_BOTTOM, bx, by);
@@ -390,10 +390,12 @@ void ui_cancel_only(LPGAMECLIENT client) {
 void ui_print_text(LPGAMECLIENT client, LPCSTR message) {
     FRAMEDEF text;
     UI_InitFrame(&text, COMMAND_BUTTON_START, FT_TEXT);
-    LPCSTR fontfile = UI_ApplySkin("MessageFont");
-    LPCSTR fontheight = UI_ApplySkin("WorldFrameMessage");
-    text.Font.Index = gi.FontIndex(fontfile, atof(fontheight) * 1000);
+    LPCSTR fontfile = Theme_String("MessageFont", "Default");
+    FLOAT fontheight = Theme_Float("WorldFrameMessage", "FontHeights");
+    text.Font.Index = gi.FontIndex(fontfile, fontheight * 1000);
     text.Text = message;
+    UI_SetPointByNumber(&text, FRAMEPOINT_TOPLEFT, UI_PARENT, FRAMEPOINT_TOPLEFT, 500, -3000);
+    UI_WriteFrame(&text);
 }
 
 void Get_Commands_f(LPEDICT edict) {
@@ -410,18 +412,12 @@ void UI_AddCancelButton(LPEDICT ent) {
 
 void UI_ShowInterface(LPEDICT ent, BOOL flag, FLOAT fadeDuration) {
     if (flag) {
-        UI_FRAME(ConsoleUI);
-        UI_WriteLayout(ent, ConsoleUI, LAYER_CONSOLE);
+        ent->client->ps.uiflags = 1 << LAYER_CINEMATIC;
     } else {
-        UI_FRAME(CinematicPanel);
-        UI_FRAME(CinematicSpeakerText);
-        UI_FRAME(CinematicDialogueText);
-        CinematicSpeakerText->hidden = true;
-        CinematicDialogueText->hidden = true;
-        UI_WriteLayout(ent, CinematicPanel, LAYER_CONSOLE);
+        ent->client->ps.uiflags = ~(1 << LAYER_CINEMATIC);
     }
 }
 
 void UI_ShowText(LPEDICT ent, LPCVECTOR2 pos, LPCSTR text, FLOAT duration) {
-    UI_WRITE_LAYER(ent, ui_print_text, LAYER_COMMANDBAR, text);
+    UI_WRITE_LAYER(ent, ui_print_text, LAYER_MESSAGE, G_GetString(text));
 }

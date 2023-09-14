@@ -2,6 +2,8 @@
 #include "jass_parser.h"
 #include "../parser.h"
 
+//#define DEBUG_JASS
+
 #define F_END { NULL }
 #define MAX_JASS_STACK 256
 #define JASS_DELIM ",;()[]+-/*="
@@ -14,7 +16,6 @@
 #define JASS_COMMA ","
 #define JASS_OPERATOR(NAME) { #NAME, NAME }
 #define INF_LOOP_PROTECTION 1024
-#define DEBUG_JASS
 
 #define assert_type(var, type) assert(jass_checktype(var, type))
 #define JASSALLOC(type) gi.MemAlloc(sizeof(type))
@@ -89,6 +90,38 @@ struct jass_arg {
     LPJASSARG next;
     LPCJASSTYPE type;
     LPCSTR name;
+};
+
+struct jass_function {
+    LPJASSARG args;
+    LPCJASSTYPE returns;
+    LPJASSFUNC next;
+    LPCSTR name;
+    LPCTOKEN code;
+    DWORD (*nativefunc)(LPJASS j);
+    BOOL constant;
+};
+
+struct jass_array {
+    LPJASSARRAY next;
+    DWORD index;
+    JASSVAR value;
+};
+
+struct jass_dict {
+    LPJASSDICT next;
+    LPCSTR key;
+    JASSVAR value;
+};
+
+struct jass_s {
+    LPJASSDICT globals;
+    LPJASSTYPE types;
+    LPJASSFUNC functions;
+    JASSVAR stack[MAX_JASS_STACK];
+    DWORD num_stack;
+    LPJASSVAR stack_pointer;
+    JASSCONTEXT context;
 };
 
 JASSTYPE jass_types[] = {
@@ -197,38 +230,6 @@ void removeDoubleBackslashes(LPSTR str) {
     str[j] = '\0'; // Null-terminate the modified string
 }
 
-struct jass_function {
-    LPJASSARG args;
-    LPCJASSTYPE returns;
-    LPJASSFUNC next;
-    LPCSTR name;
-    LPCTOKEN code;
-    DWORD (*nativefunc)(LPJASS j);
-    BOOL constant;
-};
-
-struct jass_array {
-    LPJASSARRAY next;
-    DWORD index;
-    JASSVAR value;
-};
-
-struct jass_dict {
-    LPJASSDICT next;
-    LPCSTR key;
-    JASSVAR value;
-};
-
-struct jass_s {
-    LPJASSDICT globals;
-    LPJASSTYPE types;
-    LPJASSFUNC functions;
-    JASSVAR stack[MAX_JASS_STACK];
-    DWORD num_stack;
-    LPJASSVAR stack_pointer;
-    JASSCONTEXT context;
-};
-
 BOOL is_integer(LPCSTR tok) {
     LPSTR endptr;
     strtol(tok, &endptr, 10);
@@ -269,8 +270,8 @@ BOOL is_comma(LPCSTR str) {
 }
 
 static HANDLE RunAction(HANDLE handle) {
-    struct jass_s *j = handle;
-    jass_pushfunction(j, j->context.action->func);
+    LPJASS j = handle;
+    jass_pushfunction(j, j->context.func);
     jass_call(j, 0);
     gi.MemFree(handle);
     return NULL;
@@ -280,35 +281,39 @@ LPCJASSCONTEXT jass_getcontext(LPJASS j) {
     return &j->context;
 }
 
+void jass_startthread(LPJASS j, LPCJASSCONTEXT context) {
+    LPJASS thread = jass_newstate();
+    memcpy(thread, j, sizeof(JASS));
+    memset(thread->stack, 0, sizeof(thread->stack));
+    thread->stack_pointer = thread->stack;
+    thread->num_stack = 0;
+    thread->context = *context;
+    gi.CreateThread(RunAction, thread);
+}
+
 BOOL jass_calltrigger(LPJASS j, LPTRIGGER trigger, LPEDICT unit) {
     if (trigger->disabled)
         return false;
-    FOR_EACH_LIST(gtriggercondition_t, cond, trigger->conditions) {
-        struct jass_s *thread = JASSALLOC(struct jass_s);
-        memcpy(thread, j, sizeof(struct jass_s));
-        memset(thread->stack, 0, sizeof(thread->stack));
-        thread->num_stack = 0;
-        thread->context.trigger = trigger;
-        thread->context.unit = unit;
-        jass_pushfunction(thread, cond->expr);
-        if (jass_call(thread, 0) != 1 || !jass_popboolean(thread)) {
-            gi.MemFree(thread);
+    JASS tmp_state;
+    FOR_EACH_LIST(TRIGGERCONDITION, cond, trigger->conditions) {
+        memcpy(&tmp_state, j, sizeof(struct jass_s));
+        memset(tmp_state.stack, 0, sizeof(tmp_state.stack));
+        tmp_state.num_stack = 0;
+        tmp_state.context.trigger = trigger;
+        tmp_state.context.unit = unit;
+        jass_pushfunction(&tmp_state, cond->expr);
+        if (jass_call(&tmp_state, 0) != 1 || !jass_popboolean(&tmp_state)) {
             return false;
         }
-        gi.MemFree(thread);
     }
-    FOR_EACH_LIST(gtriggeraction_t, action, trigger->actions) {
-        struct jass_s *thread = JASSALLOC(struct jass_s);
-        memcpy(thread, j, sizeof(struct jass_s));
-        memset(thread->stack, 0, sizeof(thread->stack));
-        thread->num_stack = 0;
-        thread->context.trigger = trigger;
-        thread->context.action = action;
-        if (unit) {
-            thread->context.unit = unit;
-            thread->context.playerState = G_GetPlayerByNumber(unit->s.player);
-        }
-        gi.CreateThread(RunAction, thread);
+    FOR_EACH_LIST(TRIGGERACTION, action, trigger->actions) {
+        LPPLAYER player = unit ? G_GetPlayerByNumber(unit->s.player) : NULL;
+        jass_startthread(j, &MAKE(JASSCONTEXT,
+                                  .trigger = trigger,
+                                  .func = action->func,
+                                  .unit = unit,
+                                  .playerState = player,
+                              ));
     }
     return true;
 }
@@ -682,11 +687,6 @@ DWORD jass_popinteger(LPJASS j) {
     return value;
 }
 
-HANDLE VM_TriggerThread(HANDLE arg) {
-    jass_callbyname(level.vm, "main");
-    return NULL;
-}
-
 DWORD VM_EvalInteger(LPJASS j, LPCTOKEN token) {
     return jass_pushinteger(j, atoi(token->primary));
 }
@@ -1004,6 +1004,10 @@ LPJASS jass_newstate(void) {
     return j;
 }
 
+void jass_close(LPJASS j) {
+    gi.MemFree(j);
+}
+
 BOOL jass_dofile(LPJASS j, LPCSTR fileName) {
     LPSTR buffer = gi.ReadFileIntoString(fileName);
     if (buffer) {
@@ -1110,10 +1114,16 @@ DWORD jass_call(LPJASS j, DWORD args) {
     return ret;
 }
 
-void jass_callbyname(LPJASS j, LPCSTR name) {
-    LPCJASSFUNC f = find_function(j, name);
-    if (f) {
-        jass_pushfunction(j, f);
+void jass_callbyname(LPJASS j, LPCSTR name, BOOL async) {
+    LPCJASSFUNC func = find_function(j, name);
+    if (!func) {
+        fprintf(stderr, "Function not found %s\n", name);
+        return;
+    }
+    if (async) {
+        jass_startthread(j, &MAKE(JASSCONTEXT, .func = func));
+    } else {
+        jass_pushfunction(j, func);
         jass_call(j, 0);
     }
 }

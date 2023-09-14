@@ -324,7 +324,7 @@ DWORD GetUnitPointValueByType(LPJASS j) {
 DWORD UnitAddItem(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     LPEDICT whichItem = jass_checkhandle(j, 2, "item");
-    printf("UnitAddItem %.4s %.4s\n", (LPCSTR)&whichUnit->class_id, (LPCSTR)&whichItem->class_id);
+//    printf("UnitAddItem %.4s %.4s\n", (LPCSTR)&whichUnit->class_id, (LPCSTR)&whichItem->class_id);
     if (unit_additem(whichUnit, whichItem->class_id)) {
         G_FreeEdict(whichItem);
         return jass_pushboolean(j, true);

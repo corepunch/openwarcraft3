@@ -115,14 +115,20 @@ VECTOR2 get_position(LPCUIFRAME frame,
 
 LPCSTR SCR_GetStringValue(LPCUIFRAME frame) {
     static char text[1024] = { 0 };
-    if (frame->text) {
+    if (frame->stat >= MAX_STATS) {
+        if (cl.playerstate.texts[frame->stat - MAX_STATS]) {
+            strcpy(text, cl.playerstate.texts[frame->stat - MAX_STATS]);
+        } else {
+            memset(text, 0, sizeof(text));
+        }
+    } else if (frame->stat > 0) {
+        sprintf(text, "%d", cl.playerstate.stats[frame->stat]);
+    } else if (frame->text) {
         return frame->text;
     } else if (frame->stat == PLAYERSTATE_RESOURCE_FOOD_USED) {
         DWORD food_used = cl.playerstate.stats[PLAYERSTATE_RESOURCE_FOOD_USED];
         DWORD food_made = cl.playerstate.stats[PLAYERSTATE_RESOURCE_FOOD_CAP];
         sprintf(text, "%d/%d", food_used, food_made);
-    } else if (frame->stat > 0) {
-        sprintf(text, "%d", cl.playerstate.stats[frame->stat]);
     } else {
         sprintf(text, "text %d", frame->number);
     }
@@ -214,6 +220,34 @@ void SCR_DrawTexture(LPCUIFRAME frame, LPCRECT screen) {
     RECT const uv = get_uvrect(frame->tex.coord);
     RECT const suv = Rect_div(&uv, 0xff);
     re.DrawImage(cl.pics[frame->tex.index], screen, &suv, frame->color);
+}
+
+typedef struct {
+    DWORD texture;
+    DWORD texcoord;
+    DWORD font;
+    COLOR32 fontcolor;
+    LPCSTR text;
+} buttonState_t;
+
+void SCR_SimpleButton(LPCUIFRAME frame, LPCRECT screen) {
+//    RECT const uv = get_uvrect(frame->tex.coord);
+    buttonState_t normal;
+    sscanf(frame->text, "%02x%08x%02x%08x",
+           &normal.texture,
+           &normal.texcoord,
+           &normal.font,
+           (LPDWORD)&normal.fontcolor);
+    LPCSTR label = frame->text + 20;
+    RECT const uv = get_uvrect((BYTE *)&normal.texcoord);
+    RECT const suv = Rect_div(&uv, 0xff);
+    re.DrawImage(cl.pics[normal.texture], screen, &suv, MAKE(COLOR32,255,255,255,255));
+    re.DrawText(&MAKE(DRAWTEXT,
+                      .rect = *screen,
+                      .font = cl.fonts[normal.font],
+                      .text = label,
+                      .color = normal.fontcolor,
+                      .textWidth = screen->w));
 }
 
 typedef enum {
@@ -441,7 +475,6 @@ void SCR_DrawCommandButton(LPCUIFRAME frame, LPCRECT screen) {
             SZ_Printf(&cls.netchan.message, "button %s", frame->text);
         }
     }
-    
     re.DrawImageEx(&MAKE(DRAWIMAGE,
                          .texture = cl.pics[frame->tex.index],
                          .screen = scrn,
@@ -504,7 +537,7 @@ LPCUIFRAME SCR_Clear(HANDLE data) {
         ent->tex.coord[1] = 0xff;
         ent->tex.coord[3] = 0xff;
         MSG_ReadDeltaUIFrame(&msg, ent, nument, bits);
-        num_frames = MAX(num_frames, nument);
+        num_frames = MAX(num_frames, nument+1);
     }
     return frames;
 }
@@ -540,6 +573,7 @@ static drawer_t drawers[] = {
     { FT_PORTRAIT, SCR_DrawPortrait },
     { FT_BUILDQUEUE, SCR_DrawBuildQueue },
     { FT_MULTISELECT, SCR_DrawMultiSelect },
+    { FT_SIMPLEBUTTON, SCR_SimpleButton },
 //    { FT_NONE, NULL },
 };
 
@@ -579,6 +613,8 @@ void SCR_DrawOverlays(void) {
     active_tooltip = NULL;
 
     FOR_LOOP(layer, MAX_LAYOUT_LAYERS) {
+        if ((1 << layer) & cl.playerstate.uiflags)
+            continue;
         HANDLE *layout = cl.layout[layer];
         if (layout) {
             SCR_Clear(layout);
@@ -587,6 +623,8 @@ void SCR_DrawOverlays(void) {
     }
     
     FOR_LOOP(layer, MAX_LAYOUT_LAYERS) {
+        if ((1 << layer) & cl.playerstate.uiflags)
+            continue;
         HANDLE *layout = cl.layout[layer];
         if (layout) {
             SCR_Clear(layout);
@@ -605,7 +643,7 @@ void SCR_UpdateScreen(void) {
 
     CON_DrawConsole();
     
-//    if (cl.pics[28]) re.DrawPic(cl.pics[28], 0, 0);
+//    if (cl.pics[42]) re.DrawPic(cl.pics[42], 0, 0);
     
     re.EndFrame();
 }
