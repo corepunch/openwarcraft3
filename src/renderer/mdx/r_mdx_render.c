@@ -593,9 +593,6 @@ void MDX_RenderModel(renderEntity_t const *entity,
                      mdxModel_t const *model,
                      LPCMATRIX4 transform)
 {
-    if (entity->flags & RF_HIDDEN)
-        return;
-    
     if (!(tr.viewDef.rdflags & RDF_NOFRUSTUMCULL)) {
         VECTOR3 const center = Box3_Center(&model->bounds.box);
         SPHERE3 const sphere = {

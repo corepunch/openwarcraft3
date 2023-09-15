@@ -90,6 +90,7 @@ static void SP_SpawnDoodad(LPEDICT edict) {
     PATHSTR buffer;
     sprintf(buffer, "%s\\%s\\%s%d.mdx", dir, file, file, edict->variation);
     edict->s.model = gi.ModelIndex(buffer);
+    edict->movetype = MOVETYPE_NONE;
 }
 
 static void SP_SpawnDestructable(LPEDICT edict) {
@@ -105,6 +106,7 @@ static void SP_SpawnDestructable(LPEDICT edict) {
     edict->health.value = DESTRUCTABLE_HIT_POINT_MAXIMUM(edict->class_id);
     edict->health.max_value = DESTRUCTABLE_HIT_POINT_MAXIMUM(edict->class_id);
     edict->targtype = G_GetTargetType(DESTRUCTABLE_TARGETED_AS(edict->class_id));
+    edict->movetype = MOVETYPE_NONE;
 }
 
 sheetRow_t *find_row(LPCSTR dood_id) {
@@ -158,13 +160,23 @@ static void G_InitMapPlayer(LPEDICT clent, LPCMAPPLAYER player, DWORD playernum)
 
 void G_SpawnEntities(LPCMAPINFO mapinfo, LPCDOODAD entities) {
     memset(&level, 0, sizeof(level));
+
+    level.mapinfo = mapinfo;
+    level.vm = jass_newstate();
+    
     FOR_LOOP(p, MAX_PLAYERS) {
         LPGAMECLIENT client = game.clients+p;
         g_edicts[p].client = client;
         G_InitMapPlayer(g_edicts+p, mapinfo->players+p, p);
     }
+
     globals.num_edicts = game.max_clients;
+
     FOR_EACH_LIST(DOODAD const, doodad, entities) {
+//        if (doodad->doodID == MAKEFOURCC('h', 'C', '0', '2')) {
+//            int a=0;
+//            printf("%.4s", )
+//        }
         LPEDICT e = G_Spawn();
         e->class_id = doodad->doodID;
         e->variation = doodad->variation;
@@ -176,9 +188,6 @@ void G_SpawnEntities(LPCMAPINFO mapinfo, LPCDOODAD entities) {
         SP_CallSpawn(e);
     }
     SP_worldspawn(NULL);
-    
-    level.mapinfo = mapinfo;
-    level.vm = jass_newstate();
     
     jass_dofile(level.vm, "Scripts\\common.j");
     jass_dofile(level.vm, "Scripts\\Blizzard.j");

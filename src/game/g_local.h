@@ -14,7 +14,6 @@
 
 #define SAFE_CALL(FUNC, ...) if (FUNC) FUNC(__VA_ARGS__)
 #define ABILITY(NAME) void M_##NAME(LPEDICT ent, LPEDICT target)
-#define UI_SCALE(x) ((x) * 10000)
 #define SEL_SCALE 72
 #define MAX_BUILD_QUEUE 7
 #define MAX_EVENT_QUEUE 256
@@ -43,8 +42,7 @@ if (NAME) { \
 }
 
 #define UI_WRITE_LAYER(ent, BuildUI, layer, ...) \
-    gi.WriteByte(svc_layout); \
-    gi.WriteByte(layer); \
+    UI_WriteStart(layer); \
     BuildUI(ent->client, ##__VA_ARGS__); \
     gi.WriteLong(0); \
     gi.unicast(ent);
@@ -347,17 +345,21 @@ typedef struct {
     UINAME text;
 } BUTTONTEXT;
 
+typedef struct {
+    uiFramePointPos_t targetPos;
+    bool used;
+    LPCFRAMEDEF relativeTo;
+    FLOAT offset;
+} FRAMEPOINT;
+
 struct uiFrameDef_s {
-    LPFRAMEDEF Parent;
+    LPCFRAMEDEF Parent;
     FRAMETYPE Type;
     UINAME Name;
     UINAME TextStorage;
-    LPCSTR Text;
-    LPCSTR Tooltip;
-    RECT rect;
-    DWORD Width;
-    DWORD Height;
-    DWORD Number;
+    UINAME OnClick;
+    LPCSTR Text, Tooltip;
+    FLOAT Width, Height;
     COLOR32 Color;
     ALPHAMODE AlphaMode;
     BOOL DecorateFileNames;
@@ -367,8 +369,8 @@ struct uiFrameDef_s {
     DWORD TextLength;
     DWORD Stat;
     struct {
-        uiFramePoints_t x;
-        uiFramePoints_t y;
+        FRAMEPOINT x[FPP_COUNT];
+        FRAMEPOINT y[FPP_COUNT];
     } Points;
     struct {
         DWORD Image;
@@ -379,31 +381,31 @@ struct uiFrameDef_s {
         BOOL TileBackground;
         DWORD Background;
         DWORD CornerFlags;// "UL|UR|BL|BR|T|L|B|R",
-        SHORT CornerSize;
-        SHORT BackgroundSize;
-        SHORT BackgroundInsets[4];// 0.01 0.01 0.01 0.01,
+        FLOAT CornerSize;
+        FLOAT BackgroundSize;
+        FLOAT BackgroundInsets[4];// 0.01 0.01 0.01 0.01,
         DWORD EdgeFile;//  "EscMenuBorder",
         BOOL BlendAll;
     } Backdrop;
-    DWORD DialogBackdrop;
+    LPCFRAMEDEF DialogBackdrop;
     struct {
         DWORD model;
     } Portrait;
     struct {
         UIFRAMEPOINT corner;
-        USHORT x, y;
+        FLOAT x, y;
     } Anchor;
     struct {
         UIFRAMEPOINT type;
-        DWORD relativeTo;
+        LPCFRAMEDEF relativeTo;
         UIFRAMEPOINT target;
-        USHORT x, y;
+        FLOAT x, y;
     } SetPoint;
     struct {
         UINAME Name;
         UINAME Unknown;
         UIFONTFLAGS FontFlags;
-        DWORD Size;
+        FLOAT Size;
         DWORD Index;
         COLOR32 Color;
         COLOR32 HighlightColor;
@@ -488,6 +490,21 @@ struct uiFrameDef_s {
         UINAME CheckHighlight;
         UINAME DisabledCheckHighlight;
     } CheckBox;
+    struct {
+        LPCFRAMEDEF FirstItem;
+        LPCFRAMEDEF BuildTimer;
+        DWORD ItemOffset;
+        DWORD NumQueue;
+        uiBuildQueueItem_t Queue[MAX_BUILD_QUEUE];
+    } BuildQueue;
+    struct {
+        DWORD HpBar;
+        DWORD ManaBar;
+        VECTOR2 Offset;
+        DWORD NumColumns;
+        DWORD NumItems;
+        uiBuildQueueItem_t Items[MAX_SELECTED_ENTITIES];
+    } Multiselect;
 };
 
 struct gregion_s {
@@ -583,6 +600,7 @@ struct gquestitem_s {
 struct gquest_s {
     LPSTR title;
     LPSTR description;
+    LPSTR iconPath;
     LPQUESTITEM items;
     LPQUEST next;
     BOOL discovered;
@@ -596,6 +614,7 @@ struct edict_s {
     entityState_t s;
     LPGAMECLIENT client;
     pathTex_t *pathtex;
+    FLOAT collision;
     DWORD svflags;
     DWORD selected;
 
@@ -613,7 +632,6 @@ struct edict_s {
     DWORD resources;
     DWORD freetime;
     DWORD inventory[MAX_INVENTORY];
-    FLOAT collision;
     FLOAT velocity;
     doodadHero_t hero;
     VECTOR2 old_origin;
@@ -705,12 +723,17 @@ typedef struct sheetMetaData_s {
     sheetRow_t *table;
 } sheetMetaData_t;
 
+typedef struct {
+    LPCSTR name;
+    void (*callback)(LPEDICT, LPCFRAMEDEF);
+} uiTrigger_t;
+
 // g_main.c
 LPPLAYER G_GetPlayerByNumber(DWORD number);
 LPEDICT G_GetPlayerEntityByNumber(DWORD number);
 LPGAMECLIENT G_GetPlayerClientByNumber(DWORD number);
 TARGTYPE G_GetTargetType(LPCSTR str);
-LPCSTR G_GetString(LPCSTR name);
+LPCSTR G_LevelString(LPCSTR name);
 GAMEEVENT *G_PublishEvent(LPEDICT edict, EVENTTYPE type);
 
 // g_spawn.c
@@ -784,15 +807,18 @@ void UI_ClearTemplates(void);
 void UI_ParseFDF(LPCSTR fileName);
 void UI_ParseFDF_Buffer(LPCSTR fileName, LPSTR buffer);
 void UI_SetAllPoints(LPFRAMEDEF frame);
-void UI_SetParent(LPFRAMEDEF frame, LPFRAMEDEF parent);
+void UI_SetParent(LPFRAMEDEF frame, LPCFRAMEDEF parent);
 void UI_SetText(LPFRAMEDEF frame, LPCSTR format, ...);
-void UI_SetSize(LPFRAMEDEF frame, DWORD width, DWORD height);
+void UI_SetOnClick(LPFRAMEDEF frame, LPCSTR format, ...);
+void UI_SetTextPointer(LPFRAMEDEF frame, LPCSTR text);
+void UI_SetSize(LPFRAMEDEF frame, FLOAT width, FLOAT height);
 void UI_SetTexture(LPFRAMEDEF frame, LPCSTR name, BOOL decorate);
 void UI_SetTexture2(LPFRAMEDEF frame, LPCSTR name, BOOL decorate);
 void UI_WriteLayout(LPEDICT ent, LPCFRAMEDEF frames, DWORD layer);
-void UI_SetPoint(LPFRAMEDEF frame, UIFRAMEPOINT framePoint, LPFRAMEDEF other, UIFRAMEPOINT otherPoint, int16_t x, int16_t y);
-void UI_SetPointByNumber(LPFRAMEDEF frame, UIFRAMEPOINT framePoint, DWORD otherNumber, UIFRAMEPOINT otherPoint, SHORT x, SHORT y);
-void UI_InitFrame(LPFRAMEDEF frame, DWORD number, FRAMETYPE type);
+void UI_WriteStart(DWORD layer);
+void UI_WriteWithTriggers(LPEDICT ent, LPCFRAMEDEF root, DWORD layer, uiTrigger_t const *triggers);
+void UI_SetPoint(LPFRAMEDEF frame, UIFRAMEPOINT framePoint, LPCFRAMEDEF other, UIFRAMEPOINT otherPoint, FLOAT x, FLOAT y);
+void UI_InitFrame(LPFRAMEDEF frame, FRAMETYPE type);
 void UI_SetHidden(LPFRAMEDEF frame, BOOL value);
 DWORD UI_FindFrameNumber(LPCSTR name);
 DWORD UI_LoadTexture(LPCSTR file, BOOL decorate);
@@ -806,7 +832,8 @@ FLOAT Theme_Float(LPCSTR entry, LPCSTR category);
 
 // ui_write.c
 void UI_WriteFrame(LPCFRAMEDEF frame);
-void UI_WriteFrameWithChildren(LPCFRAMEDEF frame);
+void UI_WriteFrameWithChildren(LPCFRAMEDEF frame, LPCFRAMEDEF parent);
+void UI_WriteFrameWithChildrenWithTriggers(LPEDICT ent, LPCFRAMEDEF frame, LPCFRAMEDEF parent, uiTrigger_t const *triggers);
 
 // g_metadata.c
 LPCSTR UnitStringField(sheetMetaData_t *meta, DWORD unit_id, LPCSTR name);

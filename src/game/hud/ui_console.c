@@ -1,34 +1,29 @@
-#include "g_local.h"
+#include "../g_local.h"
 
-#define INFO_PANEL_UNIT_DETAIL_WIDTH UI_SCALE(0.180f)
-#define INFO_PANEL_UNIT_DETAIL_HEIGHT UI_SCALE(0.120f)
-
-#define COMMAND_BUTTON_START 1
-
-#define BUILDQUEUE_OFFSET 281
-
+#define INFO_PANEL_UNIT_DETAIL 0.180, 0.120
+#define BUILDQUEUE_OFFSET 0.0281
 #define MULTISELECT_COLUMNS 6
-#define MULTISELECT_OFFSX 310
-#define MULTISELECT_OFFSY 500
-
-#define COMMAND_BUTTON_CELL UI_SCALE(0.0434)
-#define COMMAND_BUTTONS_X UI_SCALE(0.2365)
-#define COMMAND_BUTTONS_Y UI_SCALE(0.1131)
-#define COMMAND_BUTTON_SIZE UI_SCALE(0.039)
-
-#define INVENTORY_BUTTON_CELL_X UI_SCALE(0.0394)
-#define INVENTORY_BUTTON_CELL_Y UI_SCALE(0.0384)
-#define INVENTORY_BUTTONS_X UI_SCALE(0.1315)
-#define INVENTORY_BUTTONS_Y UI_SCALE(0.0971)
-#define INVENTORY_BUTTON_SIZE UI_SCALE(0.033)
+#define MULTISELECT_OFFSET 0.031, 0.050
+#define COMMAND_BUTTON(x,y) 0.2365 + (x) * 0.0434, 0.1131 + (y) * 0.0434
+#define COMMAND_BUTTON_SIZE 0.039
+#define INVENTORY_BUTTON(x,y) 0.1315 + (x) * 0.0394, 0.0971 + (y) * 0.0384
+#define INVENTORY_BUTTON_SIZE 0.033
+#define PORTRTAIT_SIZE 0.08
+#define PORTRTAIT_POSITION 0.215, 0.03
+#define BUILD_QUEUE_POSITION 0.0100, -0.0390
+#define BUILD_QUEUE_SIZE 0.0280, 0.0310
+#define BUILD_QUEUE_IMAGES_POSITION 0.0095, -0.0800
+#define BUILD_QUEUE_IMAGES_SIZE 0.0200, 0.0215
+#define MULTISELECT_SIZE 0.025
+#define MULTISELECT_POSITION 0.3260, 0.0820
 
 static void Init_SimpleProgressIndicator(void) {
     UI_FRAME(SimpleProgressIndicator);
-    SimpleProgressIndicator->Width = INFO_PANEL_UNIT_DETAIL_WIDTH;
+    SimpleProgressIndicator->Width = MAKE(VECTOR2, INFO_PANEL_UNIT_DETAIL).x;
     UI_SetTexture(SimpleProgressIndicator, "SimpleXpBarConsole", true);
     UI_SetTexture2(SimpleProgressIndicator, "SimpleXpBarBorder", true);
     SimpleProgressIndicator->Color = MAKE(COLOR32,160,0,160,255);
-    UI_WriteFrameWithChildren(SimpleProgressIndicator);
+    UI_WriteFrameWithChildren(SimpleProgressIndicator, NULL);
 }
 
 static void Init_SimpleInfoPanelIconDamage(LPFRAMEDEF parent, LPEDICT unit) {
@@ -40,7 +35,7 @@ static void Init_SimpleInfoPanelIconDamage(LPFRAMEDEF parent, LPEDICT unit) {
     UI_CHILD_FRAME(InfoPanelIconLevel, SimpleInfoPanelIconDamage);
     UI_CHILD_FRAME(InfoPanelIconValue, SimpleInfoPanelIconDamage);
     UI_SetParent(SimpleInfoPanelIconDamage, parent);
-    UI_SetPoint(SimpleInfoPanelIconDamage, FRAMEPOINT_TOPLEFT, parent, FRAMEPOINT_TOPLEFT, 0, UI_SCALE(-0.040));
+    UI_SetPoint(SimpleInfoPanelIconDamage, FRAMEPOINT_TOPLEFT, parent, FRAMEPOINT_TOPLEFT, 0, -0.040);
     UI_SetText(InfoPanelIconLevel, "1");
     UI_SetText(InfoPanelIconValue, "%d - %d", dmgBase + dmgDice, dmgBase + dmgDice * dmgNumSides);
     UI_SetTexture(InfoPanelIconBackdrop, "InfoPanelIconDamagePierce", true);
@@ -52,7 +47,7 @@ static void Init_SimpleInfoPanelIconArmor(LPFRAMEDEF parent, LPEDICT unit) {
     UI_CHILD_VALUE(InfoPanelIconLevel, SimpleInfoPanelIconArmor, Text, "1");
     UI_CHILD_VALUE(InfoPanelIconValue, SimpleInfoPanelIconArmor, Text, "4");
     UI_SetParent(SimpleInfoPanelIconArmor, parent);
-    UI_SetPoint(SimpleInfoPanelIconArmor, FRAMEPOINT_TOPLEFT, parent, FRAMEPOINT_TOPLEFT, 0, UI_SCALE(-0.0745));
+    UI_SetPoint(SimpleInfoPanelIconArmor, FRAMEPOINT_TOPLEFT, parent, FRAMEPOINT_TOPLEFT, 0, -0.0745);
 }
 
 static void Init_SimpleInfoPanelIconHero(LPFRAMEDEF parent, LPEDICT unit) {
@@ -70,7 +65,7 @@ static void Init_SimpleInfoPanelIconHero(LPFRAMEDEF parent, LPEDICT unit) {
     UI_CHILD_VALUE(InfoPanelIconHeroAgilityValue, SimpleInfoPanelIconHero, Text, "%d", hero_agi);
     UI_CHILD_VALUE(InfoPanelIconHeroIntellectValue, SimpleInfoPanelIconHero, Text, "%d", hero_int);
     UI_SetParent(SimpleInfoPanelIconHero, parent);
-    UI_SetPoint(SimpleInfoPanelIconHero, FRAMEPOINT_TOPLEFT, parent, FRAMEPOINT_TOPLEFT, UI_SCALE(0.1), UI_SCALE(-0.037));
+    UI_SetPoint(SimpleInfoPanelIconHero, FRAMEPOINT_TOPLEFT, parent, FRAMEPOINT_TOPLEFT, 0.1, -0.037);
 }
 
 static void Init_SimpleInfoPanelIconFood(LPFRAMEDEF parent, LPEDICT unit) {
@@ -79,37 +74,38 @@ static void Init_SimpleInfoPanelIconFood(LPFRAMEDEF parent, LPEDICT unit) {
     UI_CHILD_VALUE(InfoPanelIconLevel, SimpleInfoPanelIconFood, Text, "1");
     UI_CHILD_VALUE(InfoPanelIconValue, SimpleInfoPanelIconFood, Text, "4");
     UI_SetParent(SimpleInfoPanelIconFood, parent);
-    UI_SetPoint(SimpleInfoPanelIconFood, FRAMEPOINT_TOPLEFT, parent, FRAMEPOINT_TOPLEFT, 0, UI_SCALE(-0.0345));
+    UI_SetPoint(SimpleInfoPanelIconFood, FRAMEPOINT_TOPLEFT, parent, FRAMEPOINT_TOPLEFT, 0, -0.0345);
 }
 
-static void Init_BuildQueue(LPFRAMEDEF infoPanel, LPEDICT unit) {
+static void UI_WriteBuildQueue(LPFRAMEDEF infoPanel, LPEDICT unit) {
     UI_CHILD_FRAME(SimpleBuildTimeIndicator, infoPanel);
     UI_CHILD_VALUE(SimpleBuildingActionLabel, infoPanel, Text, "Constructing");
-    UINAME configstring = { 0 };
     FRAMEDEF firstItem, imageList;
     
-    UI_InitFrame(&firstItem, 201, FT_TEXTURE);
+    UI_InitFrame(&firstItem, FT_TEXTURE);
     UI_SetParent(&firstItem, infoPanel);
-    UI_SetPoint(&firstItem, FRAMEPOINT_TOPLEFT, infoPanel, FRAMEPOINT_TOPLEFT, 100, -390);
-    UI_SetSize(&firstItem, 280, 310);
+    UI_SetPoint(&firstItem, FRAMEPOINT_TOPLEFT, infoPanel, FRAMEPOINT_TOPLEFT, BUILD_QUEUE_POSITION);
+    UI_SetSize(&firstItem, BUILD_QUEUE_SIZE);
 
     UI_CHILD_VALUE(SimpleBuildQueueBackdrop, infoPanel, Hidden, M_GetCurrentMove(unit)->think == ai_birth);
 
-    sprintf(configstring, "%x %x %x,", firstItem.Number, SimpleBuildTimeIndicator->Number, BUILDQUEUE_OFFSET);
+    UI_InitFrame(&imageList, FT_BUILDQUEUE);
+    imageList.BuildQueue.FirstItem = &firstItem;
+    imageList.BuildQueue.BuildTimer = SimpleBuildTimeIndicator;
+    imageList.BuildQueue.ItemOffset = BUILDQUEUE_OFFSET;
     for (LPEDICT queue = unit->build; queue; queue = queue->build) {
         LPCSTR buttonClassName = GetClassName(queue->class_id);
         LPCSTR buttonArt = FindConfigValue(buttonClassName, STR_ART);
-        LPSTR buffer = configstring+strlen(configstring);
-        sprintf(buffer, "%x %x,", UI_LoadTexture(buttonArt, false), queue->s.number);
-        if (queue->build == queue)
+        imageList.BuildQueue.Queue[imageList.BuildQueue.NumQueue].image = UI_LoadTexture(buttonArt, false);
+        imageList.BuildQueue.Queue[imageList.BuildQueue.NumQueue].entity = queue->s.number;
+        imageList.BuildQueue.NumQueue++;
+        if (queue->build == queue || imageList.BuildQueue.NumQueue == MAX_BUILD_QUEUE)
             break;
     }
 
-    UI_InitFrame(&imageList, 200, FT_BUILDQUEUE);
     UI_SetParent(&imageList, infoPanel);
-    UI_SetPoint(&imageList, FRAMEPOINT_TOPLEFT, infoPanel, FRAMEPOINT_TOPLEFT, 95, -800);
-    UI_SetSize(&imageList, 200, 215);
-    UI_SetText(&imageList, configstring);
+    UI_SetPoint(&imageList, FRAMEPOINT_TOPLEFT, infoPanel, FRAMEPOINT_TOPLEFT, BUILD_QUEUE_IMAGES_POSITION);
+    UI_SetSize(&imageList, BUILD_QUEUE_IMAGES_SIZE);
     
     UI_WriteFrame(&firstItem);
     UI_WriteFrame(&imageList);
@@ -124,13 +120,11 @@ static void Init_SimpleInfoPanelBuildingDetail(LPFRAMEDEF bottomPanel, LPEDICT u
     UI_CHILD_VALUE(SimpleBuildQueueBackdrop, SimpleInfoPanelBuildingDetail, Hidden, false);
     
     UI_SetTexture2(SimpleBuildTimeIndicator, "SimpleBuildTimeIndicatorBorder", true);
-    UI_SetParent(SimpleInfoPanelBuildingDetail, bottomPanel);
 
+    UI_WriteFrameWithChildren(SimpleInfoPanelBuildingDetail, bottomPanel);
 //    Init_SimpleInfoPanelIconArmor(SimpleInfoPanelBuildingDetail, unit);
 //    Init_SimpleInfoPanelIconFood(SimpleInfoPanelBuildingDetail, unit);
-    Init_BuildQueue(SimpleInfoPanelBuildingDetail, unit);
-
-    UI_WriteFrameWithChildren(SimpleInfoPanelBuildingDetail);
+    UI_WriteBuildQueue(SimpleInfoPanelBuildingDetail, unit);
 }
 
 static void Init_SimpleInfoPanelUnitDetail(LPFRAMEDEF bottomPanel, LPEDICT unit) {
@@ -145,15 +139,14 @@ static void Init_SimpleInfoPanelUnitDetail(LPFRAMEDEF bottomPanel, LPEDICT unit)
     Init_SimpleInfoPanelIconArmor(SimpleInfoPanelUnitDetail, unit);
     Init_SimpleInfoPanelIconHero(SimpleInfoPanelUnitDetail, unit);
     
-    UI_SetParent(SimpleInfoPanelUnitDetail, bottomPanel);
-    UI_WriteFrameWithChildren(SimpleInfoPanelUnitDetail);
+    UI_WriteFrameWithChildren(SimpleInfoPanelUnitDetail, bottomPanel);
 }
 
 static LPFRAMEDEF Init_BottomPanel(void) {
     static FRAMEDEF BottomPanel;
-    UI_InitFrame(&BottomPanel, 1, FT_SIMPLEFRAME);
-    UI_SetSize(&BottomPanel, INFO_PANEL_UNIT_DETAIL_WIDTH, INFO_PANEL_UNIT_DETAIL_HEIGHT);
-    UI_SetPointByNumber(&BottomPanel, FRAMEPOINT_BOTTOM, 0, FRAMEPOINT_BOTTOM, 0, 0);
+    UI_InitFrame(&BottomPanel, FT_SIMPLEFRAME);
+    UI_SetSize(&BottomPanel, INFO_PANEL_UNIT_DETAIL);
+    UI_SetPoint(&BottomPanel, FRAMEPOINT_BOTTOM, NULL, FRAMEPOINT_BOTTOM, 0, 0);
     return &BottomPanel;
 }
 
@@ -227,28 +220,27 @@ void UI_AddCommandButton(LPCSTR code) {
         sprintf(tooltip, "%s|n%s", tip, remove_quotes(ubertip));
     }
     sscanf(buttonpos, "%d,%d", &x, &y);
-    DWORD bx = COMMAND_BUTTONS_X + COMMAND_BUTTON_CELL * x;
-    DWORD by = COMMAND_BUTTONS_Y - COMMAND_BUTTON_CELL * y;
-    UI_InitFrame(&button, x + (y << 2) + COMMAND_BUTTON_START, FT_COMMANDBUTTON);
+    VECTOR2 bpos = MAKE(VECTOR2, COMMAND_BUTTON(x, -y));
+    UI_InitFrame(&button, FT_COMMANDBUTTON);
     UI_SetTexture(&button, art, true);
     UI_SetSize(&button, COMMAND_BUTTON_SIZE, COMMAND_BUTTON_SIZE);
-    UI_SetText(&button, code);
-    UI_SetPointByNumber(&button, FRAMEPOINT_CENTER, UI_PARENT, FRAMEPOINT_BOTTOM, bx, by);
+    UI_SetOnClick(&button, "button %s", code);
+    UI_SetPoint(&button, FRAMEPOINT_CENTER, NULL, FRAMEPOINT_BOTTOM, bpos.x, bpos.y);
 //    button.f.tex.index2 = UI_LoadTexture("CommandButtonActiveHighlight", true);
     button.Tooltip = tooltip;
     button.AlphaMode = x==0 && y==0;
-    button.Font.Index = FindAbilityIndex(code);
+    button.Stat = FindAbilityIndex(code);
     UI_WriteFrame(&button);
 }
 
 void ui_portrait(LPGAMECLIENT client) {
     LPEDICT ent = G_GetMainSelectedUnit(client);
     FRAMEDEF portrait;
-    UI_InitFrame(&portrait, COMMAND_BUTTON_START, FT_PORTRAIT);
+    UI_InitFrame(&portrait, FT_PORTRAIT);
     portrait.Portrait.model = ent->s.model;
-    portrait.Width = 800;
-    portrait.Height = 800;
-    UI_SetPointByNumber(&portrait, FRAMEPOINT_BOTTOMLEFT, UI_PARENT, FRAMEPOINT_BOTTOMLEFT, 2150, 300);
+    portrait.Width = PORTRTAIT_SIZE;
+    portrait.Height = PORTRTAIT_SIZE;
+    UI_SetPoint(&portrait, FRAMEPOINT_BOTTOMLEFT, NULL, FRAMEPOINT_BOTTOMLEFT, PORTRTAIT_POSITION);
     UI_WriteFrame(&portrait);
 }
 
@@ -274,16 +266,15 @@ void ui_unit_inventory(LPGAMECLIENT client) {
         LPCSTR ubertip = FindConfigValue(code, STR_UBERTIP);
         FRAMEDEF button;
         sprintf(tooltip, "%s|n%s", tip, remove_quotes(ubertip));
-        DWORD bx = INVENTORY_BUTTONS_X + INVENTORY_BUTTON_CELL_X * x;
-        DWORD by = INVENTORY_BUTTONS_Y - INVENTORY_BUTTON_CELL_Y * y;
-        UI_InitFrame(&button, x + (y << 2) + COMMAND_BUTTON_START, FT_COMMANDBUTTON);
+        VECTOR2 bpos = MAKE(VECTOR2, INVENTORY_BUTTON(x, -y));
+        UI_InitFrame(&button, FT_COMMANDBUTTON);
         UI_SetTexture(&button, art, false);
         UI_SetSize(&button, INVENTORY_BUTTON_SIZE, INVENTORY_BUTTON_SIZE);
-        UI_SetText(&button, code);
-        UI_SetPointByNumber(&button, FRAMEPOINT_CENTER, UI_PARENT, FRAMEPOINT_BOTTOM, bx, by);
+        UI_SetOnClick(&button, "inventory %s", code);
+        UI_SetPoint(&button, FRAMEPOINT_CENTER, NULL, FRAMEPOINT_BOTTOM, bpos.x, bpos.y);
         button.Tooltip = tooltip;
         button.AlphaMode = x==0 && y==0;
-        button.Font.Index = FindAbilityIndex(code);
+        button.Stat = FindAbilityIndex(code);
         UI_WriteFrame(&button);
 
     }
@@ -335,31 +326,24 @@ DWORD NumSelectedUnits(LPGAMECLIENT client) {
 }
 
 void Init_SimpleInfoPanelMultiselect(LPGAMECLIENT client) {
-    DWORD SimpleHpBarConsole = gi.ImageIndex("SimpleHpBarConsole");
-    DWORD SimpleManaBarConsole = gi.ImageIndex("SimpleManaBarConsole");
     FRAMEDEF multiselect;
-    UINAME config = { 0 };
     
-    UI_InitFrame(&multiselect, 1, FT_MULTISELECT);
+    UI_InitFrame(&multiselect, FT_MULTISELECT);
     
-    sprintf(config, "%x %x %x %x %x,", SimpleHpBarConsole, SimpleManaBarConsole, MULTISELECT_COLUMNS, MULTISELECT_OFFSX, MULTISELECT_OFFSY);
-
+    multiselect.Multiselect.HpBar = gi.ImageIndex("SimpleHpBarConsole");
+    multiselect.Multiselect.ManaBar = gi.ImageIndex("SimpleManaBarConsole");
+    multiselect.Multiselect.NumColumns = MULTISELECT_COLUMNS;
+    multiselect.Multiselect.Offset = MAKE(VECTOR2, MULTISELECT_OFFSET);
+    
     FOR_SELECTED_UNITS(client, ent) {
+        uiBuildQueueItem_t *it = multiselect.Multiselect.Items + (multiselect.Multiselect.NumItems++);
         LPCSTR art = FindConfigValue(GetClassName(ent->class_id), STR_ART);
-        sprintf(config + strlen(config), "%x %x,", gi.ImageIndex(art), ent->s.number);
+        it->image = gi.ImageIndex(art);
+        it->entity = ent->s.number;
     }
     
-    multiselect.Text = config;
-    multiselect.Width = 250;
-    multiselect.Height = 250;
-    
-    UI_SetPointByNumber(&multiselect,
-                        FRAMEPOINT_CENTER,
-                        UI_PARENT,
-                        FRAMEPOINT_BOTTOMLEFT,
-                        3260,
-                        820 );
-
+    UI_SetSize(&multiselect, MULTISELECT_SIZE, MULTISELECT_SIZE);
+    UI_SetPoint(&multiselect, FRAMEPOINT_CENTER, NULL, FRAMEPOINT_BOTTOMLEFT, MULTISELECT_POSITION);
     UI_WriteFrame(&multiselect);
 }
 
@@ -387,17 +371,6 @@ void ui_cancel_only(LPGAMECLIENT client) {
     UI_AddCommandButton(STR_CmdCancel);
 }
 
-void ui_print_text(LPGAMECLIENT client, LPCSTR message) {
-    FRAMEDEF text;
-    UI_InitFrame(&text, COMMAND_BUTTON_START, FT_TEXT);
-    LPCSTR fontfile = Theme_String("MessageFont", "Default");
-    FLOAT fontheight = Theme_Float("WorldFrameMessage", "FontHeights");
-    text.Font.Index = gi.FontIndex(fontfile, fontheight * 1000);
-    text.Text = message;
-    UI_SetPointByNumber(&text, FRAMEPOINT_TOPLEFT, UI_PARENT, FRAMEPOINT_TOPLEFT, 500, -3000);
-    UI_WriteFrame(&text);
-}
-
 void Get_Commands_f(LPEDICT edict) {
     UI_WRITE_LAYER(edict, ui_unit_commands, LAYER_COMMANDBAR);
     UI_WRITE_LAYER(edict, ui_unit_info, LAYER_INFOPANEL);
@@ -416,8 +389,4 @@ void UI_ShowInterface(LPEDICT ent, BOOL flag, FLOAT fadeDuration) {
     } else {
         ent->client->ps.uiflags = ~(1 << LAYER_CINEMATIC);
     }
-}
-
-void UI_ShowText(LPEDICT ent, LPCVECTOR2 pos, LPCSTR text, FLOAT duration) {
-    UI_WRITE_LAYER(ent, ui_print_text, LAYER_MESSAGE, G_GetString(text));
 }

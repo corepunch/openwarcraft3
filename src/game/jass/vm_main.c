@@ -1,4 +1,4 @@
-#include "api.h"
+#include "vm_public.h"
 #include "jass_parser.h"
 #include "../parser.h"
 

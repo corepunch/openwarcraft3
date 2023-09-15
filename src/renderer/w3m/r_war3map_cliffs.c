@@ -185,7 +185,7 @@ static void R_MakeCliff(LPCWAR3MAP map, DWORD x, DWORD y, cliffData_t const *dat
 
 LPMAPLAYER R_BuildMapSegmentCliffs(LPCWAR3MAP map, DWORD sx, DWORD sy, DWORD cliff) {
     LPMAPLAYER mapLayer = ri.MemAlloc(sizeof(MAPLAYER));
-    PATHSTR zBuffer;
+    PATHSTR buffer = { 0 };
     DWORD cliffID = map->cliffs[cliff];
     if (cliffID == NO_CLIFF)
         return NULL;
@@ -200,11 +200,14 @@ LPMAPLAYER R_BuildMapSegmentCliffs(LPCWAR3MAP map, DWORD sx, DWORD sy, DWORD cli
         .rampModelDir = ri.FindSheetCell(tr.sheet[SHEET_CLIFF], cliffID_str, "rampModelDir"),
         .cliffModelDir = ri.FindSheetCell(tr.sheet[SHEET_CLIFF], cliffID_str, "cliffModelDir"),
     };
-    sprintf(zBuffer, "%s\\%c_%s.blp", data.texDir, map->tileset, data.texFile);
-    mapLayer->texture = R_LoadTexture(zBuffer);
-    if (!mapLayer->texture) {
-        sprintf(zBuffer, "%s\\%s.blp", data.texDir, data.texFile);
-        mapLayer->texture = R_LoadTexture(zBuffer);
+    sprintf(buffer, "%s\\%c_%s.blp", data.texDir, map->tileset, data.texFile);
+    HANDLE testfile = ri.FileOpen(buffer);
+    if (testfile) {
+        ri.FileClose(testfile);
+        mapLayer->texture = R_LoadTexture(buffer);
+    } else {
+        sprintf(buffer, "%s\\%s.blp", data.texDir, data.texFile);
+        mapLayer->texture = R_LoadTexture(buffer);
     }
     mapLayer->type = MAPLAYERTYPE_CLIFF;
     currentVertex = aVertexBuffer;

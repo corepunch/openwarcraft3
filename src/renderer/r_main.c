@@ -338,7 +338,7 @@ void R_RenderFrame(viewDef_t const *viewDef) {
     R_RenderFogOfWar();
     R_RenderShadowMap();
     R_RenderView();
-//    R_RenderOverlays();
+    R_RenderOverlays();
 }
 
 void R_DrawBuffer(LPCBUFFER buffer, DWORD num_vertices) {

@@ -136,6 +136,44 @@ typedef struct trigstr {
     struct trigstr *next;
 } mapTrigStr_t;
 
+typedef enum {
+    mod_int,
+    mod_real,
+    mod_unreal,
+    mod_string,
+    mod_bool,
+    mod_char,
+    mod_unitList,
+    mod_itemList,
+    mod_regenType,
+    mod_attackType,
+    mod_weaponType,
+    mod_targetType,
+    mod_moveType,
+    mod_defenseType,
+    mod_pathingTexture,
+    mod_upgradeList,
+    mod_stringList,
+    mod_abilityList,
+    mod_heroAbilityList,
+    mod_missileArt,
+    mod_attributeType,
+    mod_attackBits,
+} unitModificationType_t;
+
+typedef struct unitModification_t {
+    DWORD modID;
+    unitModificationType_t type;
+    HANDLE data;
+} unitModification_t;
+
+typedef struct {
+    DWORD originalUnitID; // from "Units\UnitData.slk"
+    DWORD newUnitID;
+    WORD numbeOfModifications;
+    unitModification_t *modifications;
+} unitData_t;
+
 struct mapInfo_s {
     DWORD fileFormat; // file format version = 18
     DWORD numberOfSaves;
@@ -161,12 +199,16 @@ struct mapInfo_s {
     DWORD num_upgradeAvailabilities;
     DWORD num_techAvailabilities;
     DWORD num_randomUnits;
+    DWORD num_originalUnits;
+    DWORD num_userCreatedUnits;
     mapPlayer_t players[MAX_PLAYERS];
     mapTeam_t *teams;
     mapUpgradeAvailability_t *upgradeAvailabilities;
     mapTechAvailability_t *techAvailabilities;
     mapRandomUnitTable_t *randomUnits;
     mapTrigStr_t *strings;
+    unitData_t *originalUnits;
+    unitData_t *userCreatedUnits;
     LPSTR mapscript;
 };
 

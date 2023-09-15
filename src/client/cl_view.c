@@ -94,7 +94,19 @@ static void V_AddClientEntity(centity_t const *ent) {
     re.health = BYTE2FLOAT(ent->current.stats[ENT_HEALTH]);
 
     view_state.entities[view_state.num_entities++] = re;
-
+    
+    if (ent->current.model2 > 0) {
+        re.model = cl.models[ent->current.model2];
+        re.skin = 0;
+        re.frame = 0;
+        re.oldframe = 0;
+        re.scale = 1;
+        re.flags |= RF_NO_SHADOW;
+        if (ent->current.renderfx & RF_ATTACH_OVERHEAD) {
+            re.origin.z += re.radius * 2.5;
+        }
+        view_state.entities[view_state.num_entities++] = re;
+    }
 }
 
 static void V_ClearScene(void) {

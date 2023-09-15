@@ -53,8 +53,12 @@ LPCSTR HighlightType[] = {
     NULL
 };
 LPCSTR AlphaMode[] = {
+    "BLEND",
     "ALPHAKEY",
     "ADD",
+    "ADDALPHA",
+    "MODULATE",
+    "MODULATE2X",
     NULL
 };
 LPCSTR FontJustificationH[] = {
@@ -117,20 +121,13 @@ FRAMEDEF frames[MAX_UI_CLASSES] = { 0 };
 
 void FDF_ParseFrame(LPPARSER p, LPFRAMEDEF frame);
 
-void UI_PrintClasses(void) {
-    FOR_LOOP(i, MAX_UI_CLASSES) {
-        printf("%d  %s\n", frames[i].Number, frames[i].Name);
-    }
-}
-
 void UI_ClearTemplates(void) {
     memset(frames, 0, sizeof(frames));
 }
 
-void UI_InitFrame(LPFRAMEDEF frame, DWORD number, FRAMETYPE type) {
+void UI_InitFrame(LPFRAMEDEF frame, FRAMETYPE type) {
     memset(frame, 0, sizeof(FRAMEDEF));
     frame->inuse = true;
-    frame->Number = number;
     frame->Type = type;
     frame->Color = COLOR32_WHITE;
     frame->Text = frame->TextStorage;
@@ -142,6 +139,7 @@ void UI_InitFrame(LPFRAMEDEF frame, DWORD number, FRAMETYPE type) {
             frame->Texture.TexCoord.max.x = 1;
             frame->Texture.TexCoord.max.y = 1;
             break;
+        case FT_STRING:
         case FT_TEXT:
             frame->Font.Color = COLOR32_WHITE;
             break;
@@ -155,7 +153,7 @@ LPFRAMEDEF UI_Spawn(FRAMETYPE type, LPFRAMEDEF parent) {
         if (i==0) continue;
         LPFRAMEDEF frame = &frames[i];
         if (!frame->inuse) {
-            UI_InitFrame(frame, i, type);
+            UI_InitFrame(frame, type);
             frame->Parent = parent;
             return frame;
         }
@@ -236,7 +234,10 @@ void TYPE(LPPARSER parser, LPFRAMEDEF frame)
 
 #define MAKE_ENUMPARSER(TYPE) \
 MAKE_PARSER(TYPE) { \
-    *((DWORD *)out) = ParseEnumString(token, TYPE); \
+    UINAME fmt; \
+    if (*token == '"') sscanf(token, UINAME_FMT, fmt); \
+    else strcpy(fmt, token); \
+    *((DWORD *)out) = ParseEnumString(fmt, TYPE); \
 }
 
 #define MAKE_FLAGSPARSER(TYPE) \
@@ -249,26 +250,11 @@ MAKE_PARSER(TYPE) { \
     } \
 }
 
-static SHORT Float2Short(float f) {
-    return ceilf(UI_SCALE(f));
-}
-
 MAKE_PARSER(Float) { *((FLOAT *)out) = atof(token); }
-MAKE_PARSER(Float8) { *((BYTE *)out) = atof(token) * 0xff; }
-MAKE_PARSER(Float16) { *((SHORT *)out) = Float2Short(atof(token)); }
 MAKE_PARSER(Integer) { *((LONG *)out) = atoi(token); }
 MAKE_PARSER(Vector2) { FLOAT *v = out; sscanf(token, "%f %f", v+0, v+1); }
 MAKE_PARSER(Vector3) { FLOAT *v = out; sscanf(token, "%f %f %f", v+0, v+1, v+2); }
 MAKE_PARSER(Vector4) { FLOAT *v = out; sscanf(token, "%f %f %f %f", v+0, v+1, v+2, v+3); }
-MAKE_PARSER(Float16_4) {
-    VECTOR4 vec4;
-    ParseVector4(token, frame, &vec4);
-    SHORT *v = out;
-    v[0] = Float2Short(vec4.x);
-    v[1] = Float2Short(vec4.y);
-    v[2] = Float2Short(vec4.z);
-    v[3] = Float2Short(vec4.w);
-}
 MAKE_PARSER(Color) {
     VECTOR4 vec4;
     vec4.w = 1;
@@ -278,33 +264,27 @@ MAKE_PARSER(Color) {
     ((COLOR32 *)out)->b = vec4.z * 0xff;
     ((COLOR32 *)out)->a = vec4.w * 0xff;
 }
-
-MAKE_PARSER(FrameNumber) {
-    *(DWORD *)out = 0;
+MAKE_PARSER(FramePtr) {
+    *(LPCFRAMEDEF *)out = NULL;
     UINAME name = {0};
     sscanf(token, UINAME_FMT, name);
     FOR_LOOP(i, MAX_UI_CLASSES) {
-        int dist1 = abs((int)i - (int)frame->Number);
-        int dist2 = abs(*((int *)out) - (int)frame->Number);
-        if (dist1 > dist2)
+        if (labs(frames+i-frame) > labs(*((LPCFRAMEDEF *)out)-frame))
             return;
         if (!strcmp(frames[i].Name, name)) {
-            *(DWORD *)out = frames[i].Number;
+            *(LPCFRAMEDEF *)out = frames+i;
         }
     }
 }
-
 MAKE_PARSER(Name) {
     memset(out, 0, sizeof(UINAME));
     sscanf(token, UINAME_FMT, (LPSTR)out);
 }
-
 MAKE_PARSER(ButtonText) {
     BUTTONTEXT *bt = out;
     memset(bt, 0, sizeof(BUTTONTEXT));
     assert(sscanf(token, UINAME_FMT " " UINAME_FMT, bt->frame, bt->text) == 2);
 }
-
 MAKE_PARSER(Text) {
     UINAME key = { 0 };
     sscanf(token, UINAME_FMT, key);
@@ -354,7 +334,7 @@ MAKE_PARSERCALL(SetPoint) {
         frame->AnyPointsSet = true;
     }
     DWORD const x = frame->SetPoint.type & 3;
-    uiFramePoint_t *xp = frame->Points.x;
+    FRAMEPOINT *xp = frame->Points.x;
     if (x != FPP_MID || (!xp[FPP_MIN].used && !xp[FPP_MAX].used)) {
         xp[FPP_MID].used = false;
         xp[x].used = true;
@@ -363,7 +343,7 @@ MAKE_PARSERCALL(SetPoint) {
         xp[x].relativeTo = frame->SetPoint.relativeTo;
     }
     DWORD y = (frame->SetPoint.type >> 2) & 3;
-    uiFramePoint_t *yp = frame->Points.y;
+    FRAMEPOINT *yp = frame->Points.y;
     if (y != FPP_MID || (!yp[FPP_MIN].used && !yp[FPP_MAX].used)) {
         yp[FPP_MID].used = false;
         yp[y].used = true;
@@ -376,7 +356,7 @@ MAKE_PARSERCALL(SetPoint) {
 MAKE_PARSERCALL(Anchor) {
     frame->SetPoint.type = frame->Anchor.corner;
     frame->SetPoint.target = frame->Anchor.corner;
-    frame->SetPoint.relativeTo = UI_PARENT;
+    frame->SetPoint.relativeTo = NULL;
     frame->SetPoint.x = frame->Anchor.x;
     frame->SetPoint.y = frame->Anchor.y;
     SetPoint(parser, frame);
@@ -465,20 +445,20 @@ static parseItem_t items[] = {
     // Flags
     { "DecorateFileNames", { F_END }, DecorateFileNames },
     { "SetAllPoints", F_END, SetAllPoints },
-    { "SetPoint", { F(SetPoint.type, FramePointType), F(SetPoint.relativeTo, FrameNumber), F(SetPoint.target, FramePointType), F(SetPoint.x, Float16), F(SetPoint.y, Float16), F_END }, SetPoint },
+    { "SetPoint", { F(SetPoint.type, FramePointType), F(SetPoint.relativeTo, FramePtr), F(SetPoint.target, FramePointType), F(SetPoint.x, Float), F(SetPoint.y, Float), F_END }, SetPoint },
     { "UseActiveContext", F_END, UseActiveContext },
-    { "DialogBackdrop", { F(DialogBackdrop, FrameNumber), F_END } },
+    { "DialogBackdrop", { F(DialogBackdrop, FramePtr), F_END } },
     // Fields
-    { "Width", { F(Width, Float16), F_END } },
-    { "Height", { F(Height, Float16), F_END } },
+    { "Width", { F(Width, Float), F_END } },
+    { "Height", { F(Height, Float), F_END } },
     { "File", { F(Texture.Image, TextureFile), F_END } },
     { "TexCoord", { F(Texture.TexCoord.min.x, Float), F(Texture.TexCoord.max.x, Float), F(Texture.TexCoord.min.y, Float), F(Texture.TexCoord.max.y, Float), F_END } },
     { "AlphaMode", { F(AlphaMode, AlphaMode), F_END } },
-    { "Anchor", { F(Anchor.corner, FramePointType), F(Anchor.x, Float16), F(Anchor.y, Float16), F_END }, Anchor },
-    { "Font", { F(Font.Name, Name), F(Font.Size, Float16), F_END }, Font },
+    { "Anchor", { F(Anchor.corner, FramePointType), F(Anchor.x, Float), F(Anchor.y, Float), F_END }, Anchor },
+    { "Font", { F(Font.Name, Name), F(Font.Size, Float), F_END }, Font },
     { "Text", { F(TextStorage, Text), F_END } },
     { "TextLength", { F(TextLength, Integer), F_END } },
-    { "FrameFont", { F(Font.Name, Name), F(Font.Size, Float16), F(Font.Unknown, Name), F_END }, Font },
+    { "FrameFont", { F(Font.Name, Name), F(Font.Size, Float), F(Font.Unknown, Name), F_END }, Font },
     // Font
     { "FontJustificationH", { F(Font.Justification.Horizontal, FontJustificationH), F_END } },
     { "FontJustificationV", { F(Font.Justification.Vertical, FontJustificationV), F_END } },
@@ -493,9 +473,9 @@ static parseItem_t items[] = {
     { "BackdropTileBackground", F_END, BackdropTileBackground },
     { "BackdropBackground", { F(Backdrop.Background, TextureFile), F_END } },
     { "BackdropCornerFlags", { F(Backdrop.CornerFlags, CornerFlags), F_END } },
-    { "BackdropCornerSize", { F(Backdrop.CornerSize, Float16), F_END } },
-    { "BackdropBackgroundSize", { F(Backdrop.BackgroundSize, Float16), F_END } },
-    { "BackdropBackgroundInsets", { F(Backdrop.BackgroundInsets, Float16_4), F_END } },
+    { "BackdropCornerSize", { F(Backdrop.CornerSize, Float), F_END } },
+    { "BackdropBackgroundSize", { F(Backdrop.BackgroundSize, Float), F_END } },
+    { "BackdropBackgroundInsets", { F(Backdrop.BackgroundInsets, Vector4), F_END } },
     { "BackdropEdgeFile", { F(Backdrop.EdgeFile, TextureFile), NULL } },
     { "BackdropBlendAll", F_END, BackdropBlendAll },
     // Highlight
@@ -585,6 +565,7 @@ void parse_func(LPPARSER parser, LPFRAMEDEF frame) {
             ADD_TO_LIST(str, strings);
             strcpy(str->name, token);
             parse_item(parser, frame, &stringitem);
+//            printf("%s %s\n", str->name, str->value);
             goto parse_next;
         } else {
             for (parseItem_t *it = items; it->name; it++) {
@@ -624,7 +605,6 @@ void UI_InheritFrom(LPFRAMEDEF frame, LPCSTR inheritName) {
         memcpy(frame, inherit, sizeof(FRAMEDEF));
         memcpy(frame->Name, tmp.Name, sizeof(UINAME));
         frame->Parent = tmp.Parent;
-        frame->Number = tmp.Number;
         frame->AnyPointsSet = false;
     } else if (inherit) {
         fprintf(stderr, "Can't inherit from different type %s\n", inheritName);
@@ -722,47 +702,44 @@ void UI_ParseFDF(LPCSTR fileName) {
     }
 }
 
-void UI_WriteFrameWithChildren(LPCFRAMEDEF frame) {
-    UI_WriteFrame(frame);
+void UI_WriteFrameWithChildren(LPCFRAMEDEF frame, LPCFRAMEDEF parent) {
+    if (parent) {
+        LPCFRAMEDEF oldparent = frame->Parent;
+        ((LPFRAMEDEF)frame)->Parent = parent;
+        UI_WriteFrame(frame);
+        ((LPFRAMEDEF)frame)->Parent = oldparent;
+    } else {
+        UI_WriteFrame(frame);
+    }
     FOR_LOOP(i, MAX_UI_CLASSES) {
         LPCFRAMEDEF it = frames+i;
-        if (it->Parent == frame && it->Number > 0 && !it->hidden) {
-            UI_WriteFrameWithChildren(it);
+        if (it->Parent == frame && !it->hidden) {
+            UI_WriteFrameWithChildren(it, NULL);
         }
     }
 }
 
-void UI_SetPointByNumber(LPFRAMEDEF frame,
-                         UIFRAMEPOINT framePoint,
-                         DWORD otherNumber,
-                         UIFRAMEPOINT otherPoint,
-                         SHORT x,
-                         SHORT y)
+void UI_SetPoint(LPFRAMEDEF frame,
+                 UIFRAMEPOINT framePoint,
+                 LPCFRAMEDEF other,
+                 UIFRAMEPOINT otherPoint,
+                 FLOAT x,
+                 FLOAT y)
 {
     frame->SetPoint.type = framePoint;
-    frame->SetPoint.relativeTo = otherNumber;
+    frame->SetPoint.relativeTo = other;
     frame->SetPoint.target = otherPoint;
     frame->SetPoint.x = x;
     frame->SetPoint.y = y;
     SetPoint(NULL, frame);
 }
 
-void UI_SetPoint(LPFRAMEDEF frame,
-                 UIFRAMEPOINT framePoint,
-                 LPFRAMEDEF other,
-                 UIFRAMEPOINT otherPoint,
-                 SHORT x,
-                 SHORT y)
-{
-    UI_SetPointByNumber(frame, framePoint, other ? other->Number : 0, otherPoint, x, y);
-}
-
 void UI_SetAllPoints(LPFRAMEDEF frame) {
-    UI_SetPointByNumber(frame, FRAMEPOINT_TOPLEFT, UI_PARENT, FRAMEPOINT_TOPLEFT, 0, 0);
-    UI_SetPointByNumber(frame, FRAMEPOINT_BOTTOMRIGHT, UI_PARENT, FRAMEPOINT_BOTTOMRIGHT, 0, 0);
+    UI_SetPoint(frame, FRAMEPOINT_TOPLEFT, NULL, FRAMEPOINT_TOPLEFT, 0, 0);
+    UI_SetPoint(frame, FRAMEPOINT_BOTTOMRIGHT, NULL, FRAMEPOINT_BOTTOMRIGHT, 0, 0);
 }
 
-void UI_SetParent(LPFRAMEDEF frame, LPFRAMEDEF parent) {
+void UI_SetParent(LPFRAMEDEF frame, LPCFRAMEDEF parent) {
     frame->Parent = parent;
 }
 
@@ -776,7 +753,18 @@ void UI_SetText(LPFRAMEDEF frame, LPCSTR format, ...) {
     frame->Text = frame->TextStorage;
 }
 
-void UI_SetSize(LPFRAMEDEF frame, DWORD width, DWORD height) {
+void UI_SetOnClick(LPFRAMEDEF frame, LPCSTR format, ...) {
+    va_list argptr;
+    va_start(argptr, format);
+    vsprintf(frame->OnClick, format,argptr);
+    va_end(argptr);
+}
+
+void UI_SetTextPointer(LPFRAMEDEF frame, LPCSTR text) {
+    frame->Text = text;
+}
+
+void UI_SetSize(LPFRAMEDEF frame, FLOAT width, FLOAT height) {
     frame->Width = width;
     frame->Height = height;
 }
@@ -800,4 +788,33 @@ void UI_SetTexture2(LPFRAMEDEF frame, LPCSTR name, BOOL decorate) {
 
 void UI_SetHidden(LPFRAMEDEF frame, BOOL value) {
     frame->hidden = value;
+}
+
+void UI_WriteFrameWithChildrenWithTriggers(LPEDICT ent, LPCFRAMEDEF frame, LPCFRAMEDEF parent, uiTrigger_t const *triggers) {
+    if (parent) {
+        LPCFRAMEDEF oldparent = frame->Parent;
+        ((LPFRAMEDEF)frame)->Parent = parent;
+        UI_WriteFrame(frame);
+        ((LPFRAMEDEF)frame)->Parent = oldparent;
+    } else {
+        UI_WriteFrame(frame);
+    }
+    for (uiTrigger_t const *t = triggers; t->name; t++) {
+        if (!strcmp(t->name, frame->Name)) {
+            t->callback(ent, (LPFRAMEDEF)frame);
+        }
+    }
+    FOR_LOOP(i, MAX_UI_CLASSES) {
+        LPCFRAMEDEF it = frames+i;
+        if (it->Parent == frame && !it->hidden) {
+            UI_WriteFrameWithChildrenWithTriggers(ent, it, NULL, triggers);
+        }
+    }
+}
+
+void UI_WriteWithTriggers(LPEDICT ent, LPCFRAMEDEF root, DWORD layer, uiTrigger_t const *triggers) {
+    UI_WriteStart(layer);
+    UI_WriteFrameWithChildrenWithTriggers(ent, root, NULL, triggers);
+    gi.WriteLong(0); // end of list
+    gi.unicast(ent);
 }

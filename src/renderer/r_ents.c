@@ -108,6 +108,8 @@ void R_RenderOverlays(void) {
         renderEntity_t const *ent = &tr.viewDef.entities[i];
         if (!(ent->flags & RF_SELECTED))
             continue;
+        if (ent->flags & RF_HIDDEN)
+            return;
         DrawEntityOverlay(ent);
     }
 }
@@ -140,6 +142,12 @@ void M3_RenderModel(renderEntity_t const *, m3Model_t const *, LPCMATRIX4);
 void R_RenderModel(renderEntity_t const *entity) {
     MATRIX4 transform;
     R_GetEntityMatrix(entity, &transform);
+    
+    if (entity->flags & RF_HIDDEN)
+        return;
+    
+    if (is_rendering_lights && (entity->flags & RF_NO_SHADOW))
+        return;
     
     switch (entity->model->modeltype) {
         case ID_MDLX:

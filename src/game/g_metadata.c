@@ -88,6 +88,13 @@ sheetMetaData_t *G_FindMetaData(sheetMetaData_t *metadatas, LPCSTR name) {
 }
 
 LPCSTR UnitStringField(sheetMetaData_t *metadatas, DWORD unit_id, LPCSTR name) {
+    FOR_LOOP(n, level.mapinfo->num_userCreatedUnits) {
+        if (level.mapinfo->userCreatedUnits[n].newUnitID == unit_id) {
+            unit_id = level.mapinfo->userCreatedUnits[n].originalUnitID;
+//            printf("%.4s\n", &unit_id);
+//            int a= 0;
+        }
+    }
     sheetMetaData_t *metadata = G_FindMetaData(metadatas, name);
     if (metadata && metadata->table) {
         return gi.FindSheetCell(metadata->table, GetClassName(unit_id), metadata->field);

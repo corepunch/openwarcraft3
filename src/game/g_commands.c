@@ -36,12 +36,24 @@ CLIENTCOMMAND(Select) {
         }
     } else {
         BOOL selected = false;
+        BOOL hasunits = false;
+        for (DWORD i = 1; i < argc; i++) {
+            DWORD number = atoi(argv[i]);
+            if (number >= globals.num_edicts)
+                continue;
+            LPEDICT e = &globals.edicts[number];
+            if (!UNIT_IS_BUILDING(e->class_id)) {
+                hasunits = true;
+            }
+        }
         for (DWORD i = 1; i < argc; i++) {
             DWORD number = atoi(argv[i]);
             if (number >= globals.num_edicts)
                 continue;
             LPEDICT e = &globals.edicts[number];
             if (e->s.player == client->ps.number) {
+                if (hasunits && UNIT_IS_BUILDING(e->class_id))
+                    continue;
                 if (!selected) {
                     FOR_SELECTED_UNITS(client, ent) G_DeselectEntity(client, ent);
                     selected = true;
@@ -92,6 +104,30 @@ CLIENTCOMMAND(Cancel) {
     G_PublishEvent(clent, EVENT_PLAYER_END_CINEMATIC);
 }
 
+void UI_ShowQuests(LPEDICT ent);
+void UI_ShowQuest(LPEDICT ent, LPCQUEST quest);
+void UI_HideQuests(LPEDICT ent);
+
+CLIENTCOMMAND(Quests) {
+    UI_ShowQuests(clent);
+}
+
+CLIENTCOMMAND(HideQuests) {
+    UI_HideQuests(clent);
+}
+
+CLIENTCOMMAND(Quest) {
+    DWORD index = atoi(argv[1]);
+    FOR_EACH_LIST(QUEST, q, level.quests) {
+        if (index == 0) {
+            UI_ShowQuest(clent, q);
+            break;
+        } else {
+            index--;
+        }
+    }
+}
+
 typedef struct {
     LPCSTR name;
     void (*func)(LPEDICT ent, DWORD argc, LPCSTR argv[]);
@@ -102,6 +138,9 @@ clientCommand_t clientCommands[] = {
     { "select", CMD_Select },
     { "point", CMD_Point },
     { "cancel", CMD_Cancel },
+    { "quests", CMD_Quests },
+    { "hidequests", CMD_HideQuests },
+    { "quest", CMD_Quest },
     { NULL }
 };
 

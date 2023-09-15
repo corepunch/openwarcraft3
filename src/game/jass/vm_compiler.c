@@ -1,6 +1,6 @@
-#include "api.h"
+#include "vm_public.h"
+#include "vm_bytecode.h"
 #include "jass_parser.h"
-#include "bytecode.h"
 
 #define TOKENFUNC(NAME) void write_##NAME(LPWRITER w, LPCTOKEN t)
 #define TOKENEVAL(NAME) { #NAME, TT_##NAME, write_##NAME }

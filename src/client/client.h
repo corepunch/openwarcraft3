@@ -14,7 +14,6 @@
 #define VIEW_SHADOW_SIZE 1500
 #define MAX_CONFIRMATION_OBJECTS 16
 #define MAX_LAYOUT_LAYERS 16
-#define MAX_SELECTED_ENTITIES 64
 
 typedef struct {
     entityState_t baseline;

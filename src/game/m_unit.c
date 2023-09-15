@@ -48,7 +48,7 @@ void unit_birth(LPEDICT self) {
 }
 
 void SP_monster_unit(LPEDICT self) {
-    self->movetype = MOVETYPE_STEP;
+    self->movetype = UNIT_SPEED(self->class_id) > 0 ? MOVETYPE_STEP : MOVETYPE_NONE;
     self->die = unit_die;
     self->stand = unit_stand;
     self->birth = unit_birth;

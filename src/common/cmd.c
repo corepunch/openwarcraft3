@@ -41,6 +41,8 @@ void Cbuf_AddText(LPCSTR text) {
     SZ_Write(&cmd_text, text, l);
 }
 
+LPCSTR current_command = NULL;
+
 void Cmd_ExecuteString(LPCSTR text) {
     parser_t parser = { 0 };
     parser.tok = parser.token;
@@ -49,6 +51,8 @@ void Cmd_ExecuteString(LPCSTR text) {
 
     if (!token)
         return;
+    
+    current_command = text;
 
     // check functions
     FOR_EACH_LIST(cmd_function_t, cmd, cmd_functions) {
@@ -74,6 +78,7 @@ void Cbuf_Execute(void) {
 
     while (cmd_text.cursize) {
         // find a \n or ; line break
+        text = (LPSTR)cmd_text.data;
         text = (LPSTR)cmd_text.data;
         quotes = 0;
         for (i=0 ; i< cmd_text.cursize ; i++) {

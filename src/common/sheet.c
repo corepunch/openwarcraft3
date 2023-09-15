@@ -17,12 +17,11 @@ static sheetCell_t cells[256 * 1024] = { 0 };
 static sheetRow_t rows[32 * 1024] = { 0 };
 static sheetField_t fields[256 * 1024] = { 0 };
 static char text_buffer[8 * 1024 * 1024] = { 0 };
-LPSTR current_text = text_buffer;
-LPSHEET current_cell = cells;
-LPSHEET previous_cell = cells;
-
-sheetRow_t *current_row = rows;
-sheetField_t *current_field = fields;
+static LPSTR current_text = text_buffer;
+static LPSHEET current_cell = cells;
+static LPSHEET previous_cell = cells;
+static sheetRow_t *current_row = rows;
+static sheetField_t *current_field = fields;
 
 static DWORD SheetParseTokens(TCHAR *buffer) {
     DWORD numtokens = 1;

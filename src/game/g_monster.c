@@ -180,7 +180,6 @@ void SP_SpawnUnit(LPEDICT self) {
     self->s.splat = M_LoadUberSplat(uber_splat);
     self->s.scale = UNIT_SCALING_VALUE(self->class_id);
     self->s.radius = UNIT_SELECTION_SCALE(self->class_id) * SEL_SCALE / 2;
-    self->s.flags |= UNIT_SPEED(self->class_id) > 0 ? EF_MOVABLE : 0;
     self->collision = self->s.radius;//UNIT_COLLISION(self->class_id);
 //    printf("%.4s\n", &self->class_id);
     self->targtype = G_GetTargetType(UNIT_TARGETED_AS(self->class_id));
@@ -189,6 +188,7 @@ void SP_SpawnUnit(LPEDICT self) {
     self->health.value = UNIT_HP(self->class_id);
     self->health.max_value = UNIT_HP(self->class_id);
     self->think = monster_think;
+    self->svflags |= SVF_MONSTER;
     
     self->attack1.type = FindEnumValue(UNIT_ATTACK1_ATTACK_TYPE(self->class_id), attack_type);
     self->attack1.weapon = FindEnumValue(UNIT_ATTACK1_WEAPON_TYPE(self->class_id), weapon_type);

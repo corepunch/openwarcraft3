@@ -79,6 +79,8 @@ void PF_WriteUIFrame(LPCUIFRAME frame) {
     empty.tex.coord[1] = 0xff;
     empty.tex.coord[3] = 0xff;
     MSG_WriteDeltaUIFrame(&sv.multicast, &empty, frame, true);
+    MSG_WriteByte(&sv.multicast, frame->buffer.size);
+    MSG_Write(&sv.multicast, frame->buffer.data, frame->buffer.size);
 }
 
 void PF_Confignstring(DWORD index, LPCSTR value, DWORD len) {

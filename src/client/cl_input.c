@@ -2,6 +2,15 @@
 
 #include <SDL.h>
 
+//struct {
+//    LPCSTR command;
+//    DWORD key;
+//} hotkey_t;
+//
+//hotkey_t hotkeys = {
+//    { "show_quests",  }
+//};
+
 mouseEvent_t mouse;
 
 static void pan_camera(float x, float y, float sensivity) {
@@ -36,12 +45,14 @@ void CL_Input(void) {
         }
         
         switch(event.type) {
+            case SDL_KEYDOWN:
+                Key_Event(event.key.keysym.sym, true, event.key.timestamp);
+                break;
             case SDL_KEYUP:
-                if(event.key.keysym.sym == SDLK_ESCAPE) {
+                Key_Event(event.key.keysym.sym, false, event.key.timestamp);
+//                if(event.key.keysym.sym == SDLK_ESCAPE) {
 //                    return Com_Quit();
-                    MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
-                    SZ_Printf(&cls.netchan.message, "cancel");
-                }
+//                }
                 break;
             case SDL_MOUSEBUTTONDOWN:
                 moved = false;
@@ -157,7 +168,14 @@ void IN_SelectUp(void) {
     }
 }
 
+void CL_ForwardToServer_f(void) {
+    extern LPCSTR current_command;
+    MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
+    SZ_Printf(&cls.netchan.message, current_command+4);
+}
+
 void CL_InitInput(void) {
     Cmd_AddCommand("+select", IN_SelectDown);
     Cmd_AddCommand("-select", IN_SelectUp);
+    Cmd_AddCommand("cmd", CL_ForwardToServer_f);
 }

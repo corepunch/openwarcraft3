@@ -6,6 +6,11 @@
 typedef unsigned char keyCode_t;
 
 enum {
+    K_TAB = 9,
+    K_ENTER = 13,
+    K_ESCAPE = 27,
+    K_SPACE = 32,
+    
     K_MOUSE1 = 200,
     K_MOUSE2 = 201,
     K_MOUSE3 = 202,

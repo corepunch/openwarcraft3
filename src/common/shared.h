@@ -12,6 +12,7 @@
 
 #define TMP_MAP "/tmp/map.w3m"
 #define MAX_PATHLEN 256
+#define MAX_SELECTED_ENTITIES 64
 #define TOKEN_LEN 1024
 #define FRAMETIME 100
 #define MAX_LAYOUT_OBJECTS 0xffff
@@ -98,20 +99,25 @@ for (TYPE *it = LIST; it;) { \
 PARSER parser = { .buffer = LIST, .delimiters = "" }; \
 for (LPCSTR ITEM = PARSEFUNC(&parser); ITEM; ITEM = PARSEFUNC(&parser))
 
+
+#define FLAG(NAME, X) NAME = (1 << X)
+
 enum {
-    RF_SELECTED = 1 << 0,
-    RF_HAS_LUMBER = 1 << 1,
-    RF_HAS_GOLD = 1 << 2,
-    RF_HIDDEN = 1 << 3,
-    RF_NO_UBERSPLAT = 1 << 4,
-    RF_NO_FOGOFWAR = 1 << 5,
+    FLAG(RF_SELECTED, 0),
+    FLAG(RF_HAS_LUMBER, 1),
+    FLAG(RF_HAS_GOLD, 2),
+    FLAG(RF_HIDDEN, 3),
+    FLAG(RF_NO_UBERSPLAT, 4),
+    FLAG(RF_NO_FOGOFWAR, 5),
+    FLAG(RF_NO_SHADOW, 6),
+    FLAG(RF_ATTACH_OVERHEAD, 7),
 };
 
 enum {
-    RDF_NOFOG = 1 << 0,
-    RDF_NOFOGMASK = 1 << 1,
-    RDF_NOWORLDMODEL = 1 << 2,
-    RDF_NOFRUSTUMCULL = 1 << 3,
+    FLAG(RDF_NOFOG, 0),
+    FLAG(RDF_NOFOGMASK, 1),
+    FLAG(RDF_NOWORLDMODEL, 2),
+    FLAG(RDF_NOFRUSTUMCULL, 3),
 };
 
 #define MAX_COMMANDS 12
@@ -182,11 +188,11 @@ typedef char         * LPSTR;
 typedef FLOAT const  * LPCFLOAT;
 typedef char           PATHSTR[MAX_PATHLEN];
 typedef void const   * LPCVOID;
-typedef struct color { float r, g, b, a; } color_t;
+typedef struct color { FLOAT r, g, b, a; } color_t;
 typedef struct color32 { BYTE r, g, b, a; } color32_t;
-typedef struct bounds { float min, max; } bounds_t;
-typedef struct edges { float left, top, right, bottom; } edges_t;
-typedef struct transform2 { VECTOR2 translation, scale; float rotation; } transform2_t;
+typedef struct bounds { FLOAT min, max; } bounds_t;
+typedef struct edges { FLOAT left, top, right, bottom; } edges_t;
+typedef struct transform2 { VECTOR2 translation, scale; FLOAT rotation; } transform2_t;
 typedef struct transform3 { VECTOR3 translation, rotation, scale; } transform3_t;
 typedef char UINAME[80];
 
@@ -223,7 +229,7 @@ struct playerState_s {
     DWORD number;
     QUATERNION viewquat;
     VECTOR2 origin;
-    float distance;
+    FLOAT distance;
     DWORD fov;
     DWORD rdflags;
     DWORD uiflags;
@@ -243,14 +249,15 @@ typedef struct entityState_s {
     DWORD number; // edict index
     union {
         VECTOR3 origin;
-        struct { VECTOR2 origin2; float z; };
+        struct { VECTOR2 origin2; FLOAT z; };
     };
-    float angle;
-    float scale;
-    float radius;
+    FLOAT angle;
+    FLOAT scale;
+    FLOAT radius;
     BYTE stats[ENT_STAT_COUNT];
     DWORD player;
     DWORD model;
+    DWORD model2;
     DWORD image;
     DWORD sound;
     DWORD frame;
@@ -264,11 +271,11 @@ typedef struct entityState_s {
 typedef struct animation_s {
     char name[80];
     DWORD interval[2];
-    float movespeed;     // movement speed of the entity while playing this animation
+    FLOAT movespeed;     // movement speed of the entity while playing this animation
     DWORD flags;      // &1: non looping
-    float rarity;
+    FLOAT rarity;
     int syncpoint;
-    float radius;
+    FLOAT radius;
     VECTOR3 min;
     VECTOR3 max;
 } animation_t;
@@ -344,8 +351,12 @@ typedef enum {
 } BACKDROPCORNER;
 
 typedef enum {
+    AM_BLEND,
     AM_ALPHAKEY,
     AM_ADD,
+    AM_ADDALPHA,
+    AM_MODULATE,
+    AM_MODULATE2X,
 } ALPHAMODE;
 
 typedef enum {
@@ -367,14 +378,15 @@ typedef enum {
     FONT_JUSTIFYBOTTOM,
 } uiFontJustificationV_t;
 
+#define UI_FRAMEPOINT_SCALE 32767.0
+#define UI_PARENT 255
+
 typedef struct { // serialized as 4 bytes
     uiFramePointPos_t targetPos: 7;
     bool used: 1;
     uint8_t relativeTo: 8;
     int16_t offset: 16;
 } uiFramePoint_t;
-
-#define UI_PARENT 0xff
 
 typedef uiFramePoint_t uiFramePoints_t[FPP_COUNT];
 
@@ -383,30 +395,110 @@ typedef struct uiFrame_s {
     DWORD parent;
     COLOR32 color;
     struct { uiFramePoints_t x, y; } points;
-    struct { uint16_t width, height; } size;
+    struct { FLOAT width, height; } size;
     struct {
         USHORT index;
         USHORT index2;
-        uint8_t coord[4];  // also used as animation start timestamp
+        BYTE coord[4];  // also used as animation start timestamp
     } tex;
     union {
         struct {
             FRAMETYPE type: 8;
             ALPHAMODE alphaMode: 2;
-            uiFontJustificationH_t textalignx: 2;
-            uiFontJustificationV_t textaligny: 2;
         } flags;
         DWORD flagsvalue;
     };
     struct {
-        DWORD index;
-    } font;
+        HANDLE data;
+        DWORD size;
+    } buffer;
     DWORD textLength;
     DWORD stat;
     LPCSTR text;
     LPCSTR tooltip;
-    float value;
+    LPCSTR onclick;
+    FLOAT value;
 } uiFrame_t;
+
+typedef USHORT RESOURCE;
+
+typedef struct {
+    USHORT image;
+    USHORT entity;
+} uiBuildQueueItem_t;
+
+typedef struct {
+    USHORT firstitem;
+    USHORT buildtimer;
+    FLOAT itemoffset;
+    USHORT numitems;
+    uiBuildQueueItem_t items[];
+} uiBuildQueue_t;
+
+typedef struct {
+    RESOURCE hp_bar;
+    RESOURCE mana_bar;
+    VECTOR2 offset;
+    USHORT numcolumns;
+    USHORT numitems;
+    uiBuildQueueItem_t items[];
+} uiMultiselect_t;
+
+typedef struct {
+    uiFontJustificationH_t textalignx: 4;
+    uiFontJustificationV_t textaligny: 4;
+    SHORT offsetx;
+    SHORT offsety;
+    RESOURCE font;
+} uiLabel_t;
+
+typedef struct {
+    RESOURCE font;
+    FLOAT inset;
+} uiTextArea_t;
+
+typedef struct {
+    RESOURCE alphaFile;
+    ALPHAMODE alphaMode;
+} uiHighlight_t;
+
+typedef struct {
+    RESOURCE texture;
+    RESOURCE font;
+    BYTE texcoord[4];
+    COLOR32 fontcolor;
+} uiSimpleButtonState_t;
+
+typedef struct {
+    uiSimpleButtonState_t normal;
+    uiSimpleButtonState_t pushed;
+    uiSimpleButtonState_t disabled;
+    uiSimpleButtonState_t highlight;
+} uiSimpleButton_t;
+
+typedef struct {
+    SHORT CornerFlags;
+    FLOAT CornerSize;
+    FLOAT BackgroundSize;
+    FLOAT BackgroundInsets[4];// 0.01 0.01 0.01 0.01,
+    RESOURCE EdgeFile;//  "EscMenuBorder",
+    RESOURCE Background;
+    BOOL TileBackground:1;
+    BOOL BlendAll:1;
+} uiBackdrop_t;
+
+typedef struct {
+    uiBackdrop_t background;
+    uiLabel_t text;
+} uiTooltip_t;
+
+typedef struct {
+    uiBackdrop_t normal;
+    uiBackdrop_t pushed;
+    uiBackdrop_t disabled;
+    uiBackdrop_t disabledPushed;
+    uiBackdrop_t highlight;
+} uiGlueTextButton_t;
 
 typedef struct sheetField_s {
     LPCSTR name, value;
@@ -471,7 +563,7 @@ struct Doodad {
     DWORD doodID;
     DWORD variation;
     VECTOR3 position;
-    float angle;
+    FLOAT angle;
     VECTOR3 scale;
     BYTE flags;
     DWORD player;
@@ -483,7 +575,7 @@ struct Doodad {
     DWORD droppedItemSetPtr;
     DWORD num_droppedItemSets;
     DWORD goldAmount; // (default = 12500)
-    float targetAcquisition; // (-1 = normal, -2 = camp)
+    FLOAT targetAcquisition; // (-1 = normal, -2 = camp)
     doodadHero_t hero;
     DWORD num_inventoryItems;
     DWORD num_modifiedAbilities;
@@ -514,8 +606,8 @@ typedef struct particle_s {
     BYTE midtime;
     BYTE columns;
     BYTE rows;
-    float time;
-    float lifespan;
+    FLOAT time;
+    FLOAT lifespan;
 } cparticle_t;
 
 #include "mapinfo.h"

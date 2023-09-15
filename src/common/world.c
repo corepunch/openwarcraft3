@@ -12,7 +12,7 @@ void CM_ReadPathMap(HANDLE archive);
 void PF_TextRemoveComments(LPSTR buffer);
 BOMStatus PF_TextRemoveBom(LPSTR buffer);
 
-void SFileReadString(HANDLE file, LPSTR *lppString) {
+DWORD SFileReadStringLength(HANDLE file) {
     DWORD filePosition = SFileSetFilePointer(file, 0, 0, FILE_CURRENT);
     DWORD stringLength = 1;
     while (true) {
@@ -24,8 +24,13 @@ void SFileReadString(HANDLE file, LPSTR *lppString) {
             stringLength++;
         }
     }
-    *lppString = MemAlloc(stringLength);
     SFileSetFilePointer(file, filePosition, 0, FILE_BEGIN);
+    return stringLength;
+}
+
+void SFileReadString(HANDLE file, LPSTR *lppString) {
+    DWORD stringLength = SFileReadStringLength(file);
+    *lppString = MemAlloc(stringLength);
     SFileReadFile(file, *lppString, stringLength, NULL, NULL);
 }
 
@@ -271,14 +276,73 @@ static void CM_ReadHeightmap(HANDLE archive) {
     SFileCloseFile(file);
 }
 
+void CM_ReadModification(HANDLE file, unitModification_t *mod) {
+    SFileReadFile(file, &mod->modID, 4, NULL, NULL);
+    SFileReadFile(file, &mod->type, 4, NULL, NULL);
+    DWORD strlength = 0;
+    switch (mod->type) {
+        case mod_int:
+        case mod_real:
+        case mod_unreal:
+            mod->data = MemAlloc(4);
+            SFileReadFile(file, mod->data, 4, NULL, NULL);
+            break;
+        case mod_bool:
+        case mod_char:
+            mod->data = MemAlloc(1);
+            SFileReadFile(file, mod->data, 1, NULL, NULL);
+            break;
+        case mod_string:
+        case mod_unitList:
+        case mod_itemList:
+        case mod_regenType:
+        case mod_attackType:
+        case mod_weaponType:
+        case mod_targetType:
+        case mod_moveType:
+        case mod_defenseType:
+        case mod_pathingTexture:
+        case mod_upgradeList:
+        case mod_stringList:
+        case mod_abilityList:
+        case mod_heroAbilityList:
+        case mod_missileArt:
+        case mod_attributeType:
+        case mod_attackBits:
+            strlength = SFileReadStringLength(file);
+            mod->data = MemAlloc(strlength);
+            SFileReadFile(file, mod->data, strlength, NULL, NULL);
+            break;
+        default:
+            assert(false);
+            break;
+    }
+}
+
+unitData_t *CM_ReadUnitsOverrides(HANDLE file, DWORD *numUnits) {
+    DWORD unknown;
+    SFileReadFile(file,numUnits, 4, NULL, NULL);
+    unitData_t *units = MemAlloc(*numUnits * sizeof(unitData_t));
+    for (unitData_t *unit = units; unit - units < *numUnits; unit++) {
+        SFileReadFile(file, &unit->originalUnitID, 4, NULL, NULL);
+        SFileReadFile(file, &unit->newUnitID, 4, NULL, NULL);
+        SFileReadFile(file, &unit->numbeOfModifications, 4, NULL, NULL);
+        unit->modifications = MemAlloc(unit->numbeOfModifications * sizeof(unitModification_t));
+        FOR_LOOP(j, unit->numbeOfModifications) {
+            CM_ReadModification(file, &unit->modifications[j]);
+            SFileReadFile(file, &unknown, 4, NULL, NULL);
+        }
+    }
+    return units;
+}
+
 void CM_ReadUnits(HANDLE archive) {
     DWORD version;
-    DWORD num_units;
     HANDLE file;
-//    SFileExtractFile(archive, "war3map.w3u", "/Users/igor/Desktop/war3map.w3u", 0);
     SFileOpenFileEx(archive, "war3map.w3u", SFILE_OPEN_FROM_MPQ, &file);
     SFileReadFile(file, &version, 4, NULL, NULL);
-    SFileReadFile(file, &num_units, 4, NULL, NULL);
+    world.info.originalUnits = CM_ReadUnitsOverrides(file, &world.info.num_originalUnits);
+    world.info.userCreatedUnits = CM_ReadUnitsOverrides(file, &world.info.num_userCreatedUnits);
     SFileCloseFile(file);
 }
 
@@ -346,6 +410,24 @@ void CM_LoadMap(LPCSTR mapFilename) {
 //    }
 //    SFileCloseFile(file);
 //    printf("\n");
+    
+    
+//    SFILE_FIND_DATA findData;
+//    HANDLE handle = SFileFindFirstFile(mapArchive, "*", &findData, 0);
+//    if (handle) {
+//         do {
+//             printf("%s\n", findData.cFileName);
+//             HANDLE file;
+//             SFileOpenFileEx(mapArchive, findData.cFileName, SFILE_OPEN_FROM_MPQ, &file);
+//             char ch;
+//             while (SFileReadFile(file, &ch, 1, NULL, NULL)) {
+//                 printf("%c", ch);
+//             }
+//             SFileCloseFile(file);
+//             printf("\n");
+//         } while (SFileFindNextFile(handle, &findData));
+//         SFileFindClose(handle);
+//     }
 
     SFileCloseArchive(mapArchive);
 }

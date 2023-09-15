@@ -244,7 +244,14 @@ int SV_ModelIndex(LPCSTR name) {
 //    if (!strcmp(name, "units\\human\\Peasant\\Peasant.mdx")) {
 //        name = "Assets\\Units\\Terran\\MarineTychus\\MarineTychus.m3";
 //    }
-    int modelindex = SV_FindIndex(name, CS_MODELS, MAX_MODELS, true);
+    PATHSTR model_filename = { 0 };
+    strcpy(model_filename, name);
+    if (!strstr(model_filename, ".mdx")) {
+        LPSTR mdl = strstr(model_filename, ".mdl");
+        mdl = mdl ? mdl : (model_filename + strlen(model_filename));
+        strcpy(mdl, ".mdx");
+    }
+    int modelindex = SV_FindIndex(model_filename, CS_MODELS, MAX_MODELS, true);
     if (!sv.models[modelindex]) {
         sv.models[modelindex] = SV_LoadModel(sv.configstrings[CS_MODELS + modelindex]);
     }

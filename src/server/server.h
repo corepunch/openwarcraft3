@@ -40,6 +40,7 @@ struct edict_s {
     entityState_t s;
     LPGAMECLIENT client;
     pathTex_t *pathtex;
+    FLOAT collision;
     DWORD svflags;
     DWORD selected;
 };

@@ -75,10 +75,12 @@ void CL_ParseLayout(LPSIZEBUF msg) {
     while (true) {
         UIFRAME ent = { 0 };
         DWORD bits = 0;
-        int nument = MSG_ReadEntityBits(msg, &bits);
+        DWORD nument = MSG_ReadEntityBits(msg, &bits);
         if (nument == 0 && bits == 0)
             break;
         MSG_ReadDeltaUIFrame(msg, &ent, nument, bits);
+        ent.buffer.size = MSG_ReadByte(msg);
+        msg->readcount += ent.buffer.size;
     }
     cl.layout[layer] = MemAlloc(msg->readcount-start);
     memcpy(cl.layout[layer], msg->data+start, msg->readcount-start);

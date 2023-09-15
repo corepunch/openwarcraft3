@@ -23,7 +23,7 @@ BOOL G_RegionContains(LPCREGION region, LPCVECTOR2 point) {
 
 LPQUEST G_MakeQuest(void) {
     LPQUEST quest = gi.MemAlloc(sizeof(QUEST));
-    ADD_TO_LIST(quest, level.quests);
+    PUSH_BACK(QUEST, quest, level.quests);
     return quest;
 }
 

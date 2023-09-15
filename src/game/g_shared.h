@@ -68,8 +68,6 @@ enum {
 #define STR_OTHER "other"
 #define STR_COMMONER "commoner"
 
-#define EF_MOVABLE 1
-
 typedef enum {
     RACE_UNKNOWN,
     RACE_HUMAN,

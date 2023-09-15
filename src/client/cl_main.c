@@ -73,6 +73,8 @@ void CL_Init(void) {
     cl.viewDef.camerastate[1].znear = 100;
 
     Key_SetBinding(K_MOUSE1, "+select");
+    Key_SetBinding('q', "cmd quests");
+    Key_SetBinding(K_ESCAPE, "cmd cancel");
     
     CL_InitInput();
 }

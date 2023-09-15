@@ -20,8 +20,9 @@ DWORD QuestSetDescription(LPJASS j) {
     return 0;
 }
 DWORD QuestSetIconPath(LPJASS j) {
-    //LPQUEST whichQuest = jass_checkhandle(j, 1, "quest");
-    //LPCSTR iconPath = jass_checkstring(j, 2);
+    LPQUEST whichQuest = jass_checkhandle(j, 1, "quest");
+    LPCSTR iconPath = jass_checkstring(j, 2);
+    whichQuest->iconPath = strdup(iconPath);
     return 0;
 }
 DWORD QuestSetRequired(LPJASS j) {

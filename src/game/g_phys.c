@@ -1,6 +1,10 @@
 #include "g_local.h"
 
-#define M_IsHollow(ent) (ent->health.value <= 0 || ent->s.renderfx & RF_HIDDEN || !ent->s.model || !ent->inuse)
+#define IS_HOLLOW(ent) (ent->health.value <= 0 || ent->s.renderfx & RF_HIDDEN || !ent->s.model || !ent->inuse)
+#define IS_STATIC(ent) (ent->movetype == MOVETYPE_NONE)
+#define IS_MOVING(ent) (ent->currentmove->ability == &a_move)
+
+extern ability_t a_move;
 
 void SV_Physics_Step(LPEDICT ent) {
     M_CheckGround(ent);
@@ -44,9 +48,9 @@ void G_RunEntity(LPEDICT ent) {
 inline BOOL M_CheckCollision(LPCVECTOR2 origin, FLOAT radius) {
     for (LPEDICT a = globals.edicts; a - globals.edicts < globals.num_edicts; a++) {
         VECTOR2 d = Vector2_sub(&a->s.origin2, origin);
-        if (M_IsHollow(a))
+        if (IS_HOLLOW(a))
             continue;
-        if (!(a->s.flags & EF_MOVABLE))
+        if (IS_STATIC(a))
             continue;
         if (Vector2_len(&d) < radius + a->collision)
             return true;
@@ -56,34 +60,44 @@ inline BOOL M_CheckCollision(LPCVECTOR2 origin, FLOAT radius) {
 
 void G_SolveCollisions(void) {
     for (LPEDICT a = globals.edicts; a - globals.edicts < globals.num_edicts; a++) {
-        if (M_IsHollow(a))
+        if (IS_HOLLOW(a))
             continue;
+        BOOL const a_static = IS_STATIC(a);
         for (LPEDICT b = a+1; b - globals.edicts < globals.num_edicts; b++) {
-            VECTOR2 d = Vector2_sub(&a->s.origin2, &b->s.origin2);
-            if (M_IsHollow(b))
+            BOOL const b_static = IS_STATIC(b);
+            if (IS_HOLLOW(b))
                 continue;
-            if (!(a->s.flags & EF_MOVABLE) && !(b->s.flags & EF_MOVABLE))
+            if (a_static && b_static)
                 continue;
-            FLOAT const distance = Vector2_len(&d);
-            FLOAT const radius = (a->collision + b->collision) * 0.85;
+            FLOAT const radius = (a->collision + b->collision);
+            if (fabs(a->s.origin.x - b->s.origin.x) >= radius)
+                continue;
+            if (fabs(a->s.origin.y - b->s.origin.y) >= radius)
+                continue;
+            FLOAT const distance = Vector2_distance(&a->s.origin2, &b->s.origin2);
             if (distance >= radius)
                 continue;
+            VECTOR2 d = Vector2_sub(&a->s.origin2, &b->s.origin2);
             Vector2_normalize(&d);
             FLOAT const diff = distance - radius;
-            if ((a->s.flags & EF_MOVABLE) && (b->s.flags & EF_MOVABLE)) {
-                if (a->goalentity && b->goalentity) {
-                    FLOAT const ad = M_DistanceToGoal(a);
-                    FLOAT const bd = M_DistanceToGoal(b);
-                    a->s.origin2 = Vector2_mad(&a->s.origin2, -diff * ad / (ad + bd), &d);
-                    b->s.origin2 = Vector2_mad(&b->s.origin2, diff * bd / (ad + bd), &d);
-                } else {
-                    a->s.origin2 = Vector2_mad(&a->s.origin2, -diff * 0.5f, &d);
-                    b->s.origin2 = Vector2_mad(&b->s.origin2, diff * 0.5f, &d);
-                }
-            } else if (a->s.flags & EF_MOVABLE) {
-                a->s.origin2 = Vector2_mad(&a->s.origin2, -diff, &d);
-            } else {
+            if (a_static) {
                 b->s.origin2 = Vector2_mad(&b->s.origin2, diff, &d);
+            } else if (b_static) {
+                a->s.origin2 = Vector2_mad(&a->s.origin2, -diff, &d);
+            } else if (IS_MOVING(a) && IS_MOVING(b)) {
+                FLOAT const ad = M_DistanceToGoal(a);
+                FLOAT const bd = M_DistanceToGoal(b);
+                a->s.origin2 = Vector2_mad(&a->s.origin2, -diff * ad / (ad + bd), &d);
+                b->s.origin2 = Vector2_mad(&b->s.origin2, diff * bd / (ad + bd), &d);
+            } else {
+                a->s.origin2 = Vector2_mad(&a->s.origin2, -diff * 0.5f, &d);
+                b->s.origin2 = Vector2_mad(&b->s.origin2, diff * 0.5f, &d);
+                // one of the colliders reached the point?
+                // then stop the other one as well
+                if (a->goalentity == b->goalentity) {
+                    if (IS_MOVING(a)) a->stand(a);
+                    if (IS_MOVING(b)) b->stand(b);
+                }
             }
         }
     }

@@ -157,7 +157,7 @@ GAMEEVENT *G_PublishEvent(LPEDICT edict, EVENTTYPE type) {
     return evt;
 }
 
-LPCSTR G_GetString(LPCSTR name) {
+LPCSTR G_LevelString(LPCSTR name) {
     DWORD string_id = 0;
     sscanf(name, "TRIGSTR_%d", &string_id);
     FOR_EACH_LIST(mapTrigStr_t, trigstr, level.mapinfo->strings) {
@@ -171,11 +171,9 @@ LPCSTR G_GetString(LPCSTR name) {
 static void G_ClientBegin(LPEDICT edict) {
     UI_FRAME(ConsoleUI);
     UI_FRAME(CinematicPanel);
-    UI_FRAME(QuestDialog);
 
     UI_WriteLayout(edict, ConsoleUI, LAYER_CONSOLE);
     UI_WriteLayout(edict, CinematicPanel, LAYER_CINEMATIC);
-    UI_WriteLayout(edict, QuestDialog, LAYER_QUESTDIALOG);
     
     FILTER_EDICTS(ent, edict->client->ps.number == ent->s.player) {
         edict->client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] += UNIT_FOOD_MADE(ent->class_id);

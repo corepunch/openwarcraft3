@@ -7,8 +7,6 @@
 #define SVF_DEADMONSTER 0x00000002    // treat as CONTENTS_DEADMONSTER for collision
 #define SVF_MONSTER 0x00000004    // treat as CONTENTS_MONSTER for collision
 
-#define MAX_ANIMS_IN_TYPE 16
-
 KNOWN_AS(client_s, GAMECLIENT);
 KNOWN_AS(edict_s, EDICT);
 

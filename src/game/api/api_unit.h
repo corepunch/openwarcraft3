@@ -120,9 +120,9 @@ DWORD GetUnitDefaultFlyHeight(LPJASS j) {
 }
 DWORD SetUnitOwner(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    LPCMAPPLAYER whichPlayer = jass_checkhandle(j, 2, "player");
+    LPCPLAYER whichPlayer = jass_checkhandle(j, 2, "player");
 //    BOOL changeColor = jass_checkboolean(j, 3);
-    whichUnit->s.player = (DWORD)(whichPlayer - level.mapinfo->players);
+    whichUnit->s.player = PLAYER_NUM(whichPlayer);
     return 0;
 }
 DWORD SetUnitColor(LPJASS j) {
@@ -406,7 +406,8 @@ DWORD GetUnitDefaultMoveSpeed(LPJASS j) {
 }
 DWORD GetOwningPlayer(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    return jass_pushlighthandle(j, (HANDLE)level.mapinfo->players+whichUnit->s.player, "player");
+    LPPLAYER player = G_GetPlayerByNumber(whichUnit->s.player);
+    return jass_pushlighthandle(j, player, "player");
 }
 DWORD GetUnitTypeId(LPJASS j) {
     //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");

@@ -2,12 +2,10 @@
 
 #include "client.h"
 
-#define UI_SCALE 10000
 #define PLAYERSTATE_RESOURCE_FOOD_CAP 4
 #define PLAYERSTATE_RESOURCE_FOOD_USED 5
 
 static LPCSTR active_tooltip = NULL;
-
 static UIFRAME frames[MAX_LAYOUT_OBJECTS];
 static DWORD num_frames = 0;
 
@@ -72,19 +70,19 @@ FLOAT SCR_GetAnchor(LPCUIFRAME f,
                     VECTOR2 (*get)(LPCRECT))
 {
     VECTOR2 b = get(SCR_LayoutRectByNumber(f, p->relativeTo));
-    FLOAT offset = get == get_x ? p->offset : -p->offset;
+    SHORT offset = get == get_x ? p->offset : -p->offset;
     if (p->targetPos == FPP_MID) {
-        return (b.x + b.y) / 2 + offset;
+        return (b.x + b.y) / 2 + offset / UI_FRAMEPOINT_SCALE;
     } else if (p->targetPos == FPP_MAX) {
-        return b.y + offset;
+        return b.y + offset / UI_FRAMEPOINT_SCALE;
     } else {
-        return b.x + offset;
+        return b.x + offset / UI_FRAMEPOINT_SCALE;
     }
 }
 
 VECTOR2 get_position(LPCUIFRAME frame,
                      uiFramePoints_t const p,
-                     DWORD width,
+                     FLOAT width,
                      VECTOR2 (*get)(LPCRECT))
 {
     uiFramePoint_t const *pmin = p+FPP_MIN;
@@ -135,13 +133,17 @@ LPCSTR SCR_GetStringValue(LPCUIFRAME frame) {
     return text;
 }
 
-DRAWTEXT get_drawtext(LPCUIFRAME frame, FLOAT avl_width, LPCSTR text) {
+DRAWTEXT get_drawtext(LPCUIFRAME frame,
+                      FLOAT avl_width,
+                      LPCSTR text,
+                      uiLabel_t const *label)
+{
     return MAKE(DRAWTEXT,
-                .font = cl.fonts[frame->font.index],
+                .font = cl.fonts[label->font],
                 .text = text,
                 .color = frame->color,
-                .halign = frame->flags.textalignx,
-                .valign = frame->flags.textaligny,
+                .halign = label->textalignx,
+                .valign = label->textaligny,
                 .icons = cl.pics,
                 .lineHeight = 1.33,
                 .wordWrap = true,
@@ -154,20 +156,21 @@ LPCRECT SCR_LayoutRect(LPCUIFRAME frame) {
     } else {
         runtimes[frame->number].calculated = true; // done here to avoid recursion
     }
+    if (frame->flags.type == FT_PORTRAIT) {
+        int a=0;
+    }
     VECTOR2 elemsize;
     size2_t imagesize;
-    FLOAT avl_space = 9999;
+    FLOAT avl_space = runtimes[0].rect.w;
     DRAWTEXT drawtext;
     switch (frame->flags.type) {
         case FT_STRING:
         case FT_TEXT:
             if (frame->size.width > 0) {
-                avl_space = frame->size.width / (float)UI_SCALE;
+                avl_space = frame->size.width;
             }
-            drawtext = get_drawtext(frame, avl_space, SCR_GetStringValue(frame));
+            drawtext = get_drawtext(frame, avl_space, SCR_GetStringValue(frame), frame->buffer.data);
             elemsize = re.GetTextSize(&drawtext);
-            elemsize.x *= UI_SCALE;
-            elemsize.y *= UI_SCALE;
             break;
         case FT_TEXTURE:
         case FT_SIMPLESTATUSBAR:
@@ -222,31 +225,29 @@ void SCR_DrawTexture(LPCUIFRAME frame, LPCRECT screen) {
     re.DrawImage(cl.pics[frame->tex.index], screen, &suv, frame->color);
 }
 
-typedef struct {
-    DWORD texture;
-    DWORD texcoord;
-    DWORD font;
-    COLOR32 fontcolor;
-    LPCSTR text;
-} buttonState_t;
+void SCR_DrawHighlight(LPCUIFRAME frame, LPCRECT screen) {
+    uiHighlight_t const *highlight = frame->buffer.data;
+    re.DrawImageEx(&MAKE(DRAWIMAGE,
+                         .texture = cl.pics[highlight->alphaFile],
+                         .alphamode = highlight->alphaMode,
+                         .screen = *screen,
+                         .uv = MAKE(RECT,0,0,1,1),
+                         .color = COLOR32_WHITE,
+                         .rotate = false,
+                         .shader = SHADER_UI));
+}
 
 void SCR_SimpleButton(LPCUIFRAME frame, LPCRECT screen) {
-//    RECT const uv = get_uvrect(frame->tex.coord);
-    buttonState_t normal;
-    sscanf(frame->text, "%02x%08x%02x%08x",
-           &normal.texture,
-           &normal.texcoord,
-           &normal.font,
-           (LPDWORD)&normal.fontcolor);
-    LPCSTR label = frame->text + 20;
-    RECT const uv = get_uvrect((BYTE *)&normal.texcoord);
+    uiSimpleButton_t *button = frame->buffer.data;
+    LPCSTR label = frame->text;
+    RECT const uv = get_uvrect((BYTE *)&button->normal.texcoord);
     RECT const suv = Rect_div(&uv, 0xff);
-    re.DrawImage(cl.pics[normal.texture], screen, &suv, MAKE(COLOR32,255,255,255,255));
+    re.DrawImage(cl.pics[button->normal.texture], screen, &suv, COLOR32_WHITE);
     re.DrawText(&MAKE(DRAWTEXT,
                       .rect = *screen,
-                      .font = cl.fonts[normal.font],
+                      .font = cl.fonts[button->normal.font],
                       .text = label,
-                      .color = normal.fontcolor,
+                      .color = button->normal.fontcolor,
                       .textWidth = screen->w));
 }
 
@@ -293,7 +294,7 @@ BOOL backdrop_edge_flip(BACKDROPCORNER edge) {
     }
 }
 
-void SCR_DrawBackdrop(LPCUIFRAME frame, LPCRECT screen) {
+void SCR_DrawBackdrop2(LPCUIFRAME frame, LPCRECT screen, uiBackdrop_t const *backdrop) {
     BACKDROPCORNER const corners[NUM_BACKDROP_CORNERS] = {
         BACKDROP_LEFT_EDGE,
         BACKDROP_RIGHT_EDGE,
@@ -304,37 +305,14 @@ void SCR_DrawBackdrop(LPCUIFRAME frame, LPCRECT screen) {
         BACKDROP_BOTTOM_LEFT_CORNER,
         BACKDROP_BOTTOM_RIGHT_CORNER,
     };
-    
-    LONG CornerFlags;
-    LONG TileBackground;
-    LONG Background;
-    LONG CornerSize;
-    LONG BackgroundSize;
-    LONG BackgroundInsets[4];// 0.01 0.01 0.01 0.01,
-    LONG EdgeFile;//  "EscMenuBorder",
-    LONG BlendAll;
-    
-    sscanf(frame->text, "%d,%d,%d,%d,%d,%d %d %d %d,%d,%d,",
-           &CornerFlags,
-           &TileBackground,
-           &Background,
-           &CornerSize,
-           &BackgroundSize,
-           &BackgroundInsets[0],
-           &BackgroundInsets[1],
-           &BackgroundInsets[2],
-           &BackgroundInsets[3],
-           &EdgeFile,
-           &BlendAll);
-    
     RECT rects[BACKDROP_SIZE];
-    backdrop_rects(screen, rects, CornerSize / (FLOAT)UI_SCALE);
+    backdrop_rects(screen, rects, backdrop->CornerSize);
     
-    size2_t backSize = re.GetTextureSize(cl.pics[Background]);
-    size2_t edgeSize = re.GetTextureSize(cl.pics[EdgeFile]);
+    size2_t backSize = re.GetTextureSize(cl.pics[backdrop->Background]);
+    size2_t edgeSize = re.GetTextureSize(cl.pics[backdrop->EdgeFile]);
     
     FOR_LOOP(i, NUM_BACKDROP_CORNERS) {
-        if ((CornerFlags & (1 << corners[i])) == 0)
+        if ((backdrop->CornerFlags & (1 << corners[i])) == 0)
             continue;
         FLOAT const k = 1.0 / NUM_BACKDROP_CORNERS;
         FLOAT const h = edgeSize.height / 1000.f;
@@ -345,7 +323,7 @@ void SCR_DrawBackdrop(LPCUIFRAME frame, LPCRECT screen) {
         BOOL const flip = backdrop_edge_flip(corners[i]);
         RECT const rect = { i * k, 0, k, tile };
         re.DrawImageEx(&MAKE(DRAWIMAGE,
-                             .texture = cl.pics[EdgeFile],
+                             .texture = cl.pics[backdrop->EdgeFile],
                              .screen = rects[corners[i]],
                              .uv = rect,
                              .color = frame->color,
@@ -355,53 +333,52 @@ void SCR_DrawBackdrop(LPCUIFRAME frame, LPCRECT screen) {
     
     RECT uv = { 0, 0, 1, 1};
     RECT background = *screen;
-    background.x += BackgroundInsets[BACKDROPINSET_LEFT] / (FLOAT)UI_SCALE;
-    background.y += BackgroundInsets[BACKDROPINSET_TOP] / (FLOAT)UI_SCALE;
-    background.w -= BackgroundInsets[BACKDROPINSET_LEFT] / (FLOAT)UI_SCALE;
-    background.w -= BackgroundInsets[BACKDROPINSET_RIGHT] / (FLOAT)UI_SCALE;
-    background.h -= BackgroundInsets[BACKDROPINSET_TOP] / (FLOAT)UI_SCALE;
-    background.h -= BackgroundInsets[BACKDROPINSET_BOTTOM] / (FLOAT)UI_SCALE;
-    if (TileBackground) {
+    background.x += backdrop->BackgroundInsets[BACKDROPINSET_LEFT];
+    background.y += backdrop->BackgroundInsets[BACKDROPINSET_TOP];
+    background.w -= backdrop->BackgroundInsets[BACKDROPINSET_LEFT];
+    background.w -= backdrop->BackgroundInsets[BACKDROPINSET_RIGHT];
+    background.h -= backdrop->BackgroundInsets[BACKDROPINSET_TOP];
+    background.h -= backdrop->BackgroundInsets[BACKDROPINSET_BOTTOM];
+    if (backdrop->TileBackground) {
         uv.w = background.w / (backSize.width / 1000.f);
         uv.h = background.h / (backSize.height / 1000.f);
     }
-    re.DrawImage(cl.pics[Background], &background, &uv, frame->color);
+    re.DrawImage(cl.pics[backdrop->Background], &background, &uv, frame->color);
+}
+
+void SCR_DrawBackdrop(LPCUIFRAME frame, LPCRECT screen) {
+    SCR_DrawBackdrop2(frame, screen, frame->buffer.data);
+}
+
+void SCR_GlueTextButton(LPCUIFRAME frame, LPCRECT screen) {
+    uiGlueTextButton_t const *gluetextbutton = frame->buffer.data;
+    SCR_DrawBackdrop2(frame, screen, &gluetextbutton->normal);
 }
 
 void SCR_DrawBuildQueue(LPCUIFRAME frame, LPCRECT scrn) {
-    static UINAME buffer = { 0 };
     RECT screen = *scrn;
     RECT const uv = { 0, 0, 1, 1 };
-    DWORD first_image, time_bar, offset_x;
     bool first_item = true;
-    sscanf(frame->text, "%x %x %x,", &first_image, &time_bar, &offset_x);
-    strcpy(buffer, strchr(frame->text, ',')+1);
-    for (LPCSTR token = strtok(buffer, ","); token != NULL; token = strtok(NULL, ",")) {
-        DWORD img = 0, nument = 0;
-        sscanf(token, "%x %x", &img, &nument);
-        LPENTITYSTATE ent = &cl.ents[nument].current;
+    uiBuildQueue_t const *queue = frame->buffer.data;
+    FOR_LOOP(i, queue->numitems) {
+        LPENTITYSTATE ent = &cl.ents[queue->items[i].entity].current;
         if (ent->stats[ENT_HEALTH] == 255) {
             continue;
         } else if (!first_item) {
-            re.DrawImage(cl.pics[img], &screen, &uv, frame->color);
-            screen.x += (FLOAT)offset_x / (FLOAT)UI_SCALE;
+            re.DrawImage(cl.pics[queue->items[i].image], &screen, &uv, frame->color);
+            screen.x += queue->itemoffset;
         }
         first_item = false;
     }
 }
 
 void SCR_UpdateBuildQueue(LPCUIFRAME frame, LPCRECT screen) {
-    static UINAME buffer = { 0 };
-    DWORD first_image, time_bar, offset_x;
-    sscanf(frame->text, "%x %x %x,", &first_image, &time_bar, &offset_x);
-    strcpy(buffer, strchr(frame->text, ',')+1);
-    for (LPCSTR token = strtok(buffer, ","); token != NULL; token = strtok(NULL, ",")) {
-        DWORD img = 0, nument = 0;
-        sscanf(token, "%x %x", &img, &nument);
-        LPENTITYSTATE ent = &cl.ents[nument].current;
+    uiBuildQueue_t const *queue = frame->buffer.data;
+    FOR_LOOP(i, queue->numitems) {
+        LPENTITYSTATE ent = &cl.ents[queue->items[i].entity].current;
         if (ent->stats[ENT_HEALTH] != 255) {
-            ((LPUIFRAME )frames)[time_bar].value = BYTE2FLOAT(ent->stats[ENT_HEALTH]);
-            ((LPUIFRAME )frames)[first_image].tex.index = img;
+            ((LPUIFRAME)frames)[queue->buildtimer].value = BYTE2FLOAT(ent->stats[ENT_HEALTH]);
+            ((LPUIFRAME)frames)[queue->firstitem].tex.index = queue->items[i].image;
             break;
         }
     }
@@ -411,21 +388,16 @@ void SCR_UpdateBuildQueue(LPCUIFRAME frame, LPCRECT screen) {
 #define HP_BAR_SPACING_RATIO 0.02f
 
 void SCR_DrawMultiSelect(LPCUIFRAME frame, LPCRECT scrn) {
-    static UINAME buffer = { 0 };
     RECT screen = *scrn;
-    DWORD hp_bar, mana_bar, columns;
-    DWORD offset_x, offset_y;
-    sscanf(frame->text, "%x %x %x %x %x,", &hp_bar, &mana_bar, &columns, &offset_x, &offset_y);
-    strcpy(buffer, strchr(frame->text, ',')+1);
+    uiMultiselect_t const *multiselect = frame->buffer.data;
     DWORD column = 0;
-    for (LPCSTR token = strtok(buffer, ","); token != NULL; token = strtok(NULL, ",")) {
+    FOR_LOOP(i, multiselect->numitems) {
         RECT uv = { 0, 0, 1, 1 };
-        DWORD img = 0, nument = 0;
-        sscanf(token, "%x %x", &img, &nument);
-        re.DrawImage(cl.pics[img], &screen, &uv, frame->color);
-        if (nument < MAX_CLIENT_ENTITIES) {
-            FLOAT health = BYTE2FLOAT(cl.ents[nument].current.stats[ENT_HEALTH]);
-            FLOAT mana = BYTE2FLOAT(cl.ents[nument].current.stats[ENT_MANA]);
+        uiBuildQueueItem_t const *item = &multiselect->items[i];
+        re.DrawImage(cl.pics[item->image], &screen, &uv, frame->color);
+        if (item->entity < MAX_CLIENT_ENTITIES) {
+            FLOAT health = BYTE2FLOAT(cl.ents[item->entity].current.stats[ENT_HEALTH]);
+            FLOAT mana = BYTE2FLOAT(cl.ents[item->entity].current.stats[ENT_MANA]);
             RECT rect = {
                 screen.x,
                 screen.y + screen.h * (1 + HP_BAR_SPACING_RATIO),
@@ -433,18 +405,18 @@ void SCR_DrawMultiSelect(LPCUIFRAME frame, LPCRECT scrn) {
                 screen.h * HP_BAR_HEIGHT_RATIO
             };
             uv.w = health;
-            re.DrawImage(cl.pics[hp_bar], &rect, &uv, MAKE(COLOR32,0,255,0,255));
+            re.DrawImage(cl.pics[multiselect->hp_bar], &rect, &uv, MAKE(COLOR32,0,255,0,255));
             uv.w = mana;
             rect.w = screen.w * mana;
             rect.y += screen.h * (HP_BAR_HEIGHT_RATIO + HP_BAR_SPACING_RATIO);
-            re.DrawImage(cl.pics[mana_bar], &rect, &uv, MAKE(COLOR32,0,255,255,255));
+            re.DrawImage(cl.pics[multiselect->mana_bar], &rect, &uv, MAKE(COLOR32,0,255,255,255));
         }
-        if (++column >= columns) {
+        if (++column >= multiselect->numcolumns) {
             column = 0;
-            screen.x = Rect_div(SCR_LayoutRect(frame), UI_SCALE).x;
-            screen.y += (FLOAT)offset_y / (FLOAT)UI_SCALE;
+            screen.x = SCR_LayoutRect(frame)->x;
+            screen.y += multiselect->offset.y;
         } else {
-            screen.x += (FLOAT)offset_x / (FLOAT)UI_SCALE;
+            screen.x += multiselect->offset.x;
         }
     }
 }
@@ -470,10 +442,6 @@ void SCR_DrawCommandButton(LPCUIFRAME frame, LPCRECT screen) {
         if (mouse.button == 1 || mouse.event == UI_LEFT_MOUSE_UP) {
             scrn = scale_rect(screen, 0.875);
         }
-        if (mouse.event == UI_LEFT_MOUSE_UP) {
-            MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
-            SZ_Printf(&cls.netchan.message, "button %s", frame->text);
-        }
     }
     re.DrawImageEx(&MAKE(DRAWIMAGE,
                          .texture = cl.pics[frame->tex.index],
@@ -482,18 +450,43 @@ void SCR_DrawCommandButton(LPCUIFRAME frame, LPCRECT screen) {
                          .color = COLOR32_WHITE,
                          .rotate = false,
                          .shader = SHADER_COMMANDBUTTON,
-                         .uActiveGlow = selentity ? selentity->ability == frame->font.index : 0));
+                         .uActiveGlow = selentity ? selentity->ability == frame->stat : 0));
 }
 
 void layout_text(LPCUIFRAME frame, LPCRECT screen, LPCSTR text) {
-    DRAWTEXT drawtext = get_drawtext(frame, screen->w, text);
+    DRAWTEXT drawtext = get_drawtext(frame, screen->w, text, frame->buffer.data);
     drawtext.rect = *screen;
     drawtext.wordWrap = true;
     re.DrawText(&drawtext);
 }
 
 void SCR_DrawString(LPCUIFRAME frame, LPCRECT screen) {
-    layout_text(frame, screen, SCR_GetStringValue(frame));
+    uiLabel_t const *label = frame->buffer.data;
+    RECT scr = *screen;
+    scr.x += label->offsetx;
+    scr.y += label->offsety;
+    layout_text(frame, &scr, SCR_GetStringValue(frame));
+}
+
+void SCR_DrawTextArea(LPCUIFRAME frame, LPCRECT screen) {
+    uiTextArea_t const *textArea = frame->buffer.data;
+    RECT scr = {
+        screen->x + textArea->inset,
+        screen->y + textArea->inset,
+        screen->w - textArea->inset * 2,
+        screen->h - textArea->inset * 2,
+    };
+    re.DrawText(&MAKE(DRAWTEXT,
+                      .font = cl.fonts[textArea->font],
+                      .text = frame->text,
+                      .color = frame->color,
+                      .halign = FONT_JUSTIFYLEFT,
+                      .valign = FONT_JUSTIFYTOP,
+                      .icons = cl.pics,
+                      .lineHeight = 1.33,
+                      .textWidth = scr.w,
+                      .rect = scr,
+                      .wordWrap = true));
 }
 
 RECT Rect_inset(LPCRECT r, FLOAT inset) {
@@ -503,8 +496,10 @@ RECT Rect_inset(LPCRECT r, FLOAT inset) {
 void SCR_DrawTooltip(LPCUIFRAME frame, LPCRECT scrn) {
     if (active_tooltip) {
         RECT screen = *scrn;
+        uiTooltip_t const *tooltip = frame->buffer.data;
         FLOAT const PADDING = 0.005;
-        DRAWTEXT drawtext = get_drawtext(frame, screen.w - PADDING * 2, active_tooltip);
+        FLOAT const avlspace = screen.w - PADDING * 2;
+        DRAWTEXT drawtext = get_drawtext(frame, avlspace, active_tooltip, &tooltip->text);
         drawtext.wordWrap = true;
         VECTOR2 textsize = re.GetTextSize(&drawtext);
         textsize.y += PADDING * 2;
@@ -512,7 +507,10 @@ void SCR_DrawTooltip(LPCUIFRAME frame, LPCRECT scrn) {
         screen.h = textsize.y;
         RECT text = Rect_inset(&screen, PADDING);
         SCR_DrawBackdrop(frame, &screen);
-        layout_text(frame, &text, active_tooltip);
+        drawtext = get_drawtext(frame, text.w, active_tooltip, &tooltip->text);
+        drawtext.rect = text;
+        drawtext.wordWrap = true;
+        re.DrawText(&drawtext);
     }
 }
 
@@ -520,8 +518,8 @@ LPCUIFRAME SCR_Clear(HANDLE data) {
     memset(runtimes, 0, sizeof(runtimes));
     memset(frames, 0, sizeof(frames));
     num_frames = 0;
-    frames[0].size.width = 8000;
-    frames[0].size.height = 6000;
+    frames[0].size.width = 0.8;
+    frames[0].size.height = 0.6;
     frames[0].flags.type = FT_SCREEN;
     sizeBuf_t msg = {
         .data = data,
@@ -530,13 +528,16 @@ LPCUIFRAME SCR_Clear(HANDLE data) {
     };
     while (true) {
         DWORD bits = 0;
-        int nument = MSG_ReadEntityBits(&msg, &bits);
+        DWORD nument = MSG_ReadEntityBits(&msg, &bits);
         if (nument == 0 && bits == 0)
             break;
         LPUIFRAME ent = &frames[nument];
         ent->tex.coord[1] = 0xff;
         ent->tex.coord[3] = 0xff;
         MSG_ReadDeltaUIFrame(&msg, ent, nument, bits);
+        ent->buffer.size = MSG_ReadByte(&msg);
+        ent->buffer.data = msg.data + msg.readcount;
+        msg.readcount += ent->buffer.size;
         num_frames = MAX(num_frames, nument+1);
     }
     return frames;
@@ -564,34 +565,49 @@ static drawer_t updaters[] = {
 
 static drawer_t drawers[] = {
     { FT_TEXTURE, SCR_DrawTexture },
+    { FT_HIGHLIGHT, SCR_DrawHighlight },
     { FT_BACKDROP, SCR_DrawBackdrop },
     { FT_SIMPLESTATUSBAR, SCR_DrawStatusbar },
     { FT_COMMANDBUTTON, SCR_DrawCommandButton },
     { FT_STRING, SCR_DrawString },
     { FT_TEXT, SCR_DrawString },
+    { FT_TEXTAREA, SCR_DrawTextArea },
     { FT_TOOLTIPTEXT, SCR_DrawTooltip },
     { FT_PORTRAIT, SCR_DrawPortrait },
     { FT_BUILDQUEUE, SCR_DrawBuildQueue },
     { FT_MULTISELECT, SCR_DrawMultiSelect },
     { FT_SIMPLEBUTTON, SCR_SimpleButton },
+    { FT_GLUETEXTBUTTON, SCR_GlueTextButton },
+    { FT_GLUEBUTTON, SCR_GlueTextButton },
 //    { FT_NONE, NULL },
 };
 
 void SCR_DrawFrame(LPCUIFRAME frame) {
-    RECT const screen = Rect_div(SCR_LayoutRect(frame), UI_SCALE);
+    VECTOR2 m = {
+        mouse.origin.x * 0.8 / WINDOW_WIDTH,
+        mouse.origin.y * 0.6 / WINDOW_HEIGHT
+    };
+    RECT const *screen = SCR_LayoutRect(frame);
     FOR_LOOP(j, sizeof(drawers)/sizeof(*drawers)) {
         if (drawers[j].type == frame->flags.type) {
-            drawers[j].func(frame, &screen);
+            drawers[j].func(frame, screen);
             break;
         }
+    }
+    if (Rect_contains(screen, &m) &&
+        mouse.event == UI_LEFT_MOUSE_UP &&
+        frame->onclick)
+    {
+        MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
+        MSG_WriteString(&cls.netchan.message, frame->onclick);
     }
 }
 
 void SCR_UpdateFrame(LPCUIFRAME frame) {
-    RECT const screen = Rect_div(SCR_LayoutRect(frame), UI_SCALE);
+    RECT const *screen = SCR_LayoutRect(frame);
     FOR_LOOP(j, sizeof(updaters)/sizeof(*updaters)) {
         if (updaters[j].type == frame->flags.type) {
-            updaters[j].func(frame, &screen);
+            updaters[j].func(frame, screen);
             break;
         }
     }
@@ -611,7 +627,6 @@ void SCR_DrawOverlay(HANDLE _frames) {
 
 void SCR_DrawOverlays(void) {
     active_tooltip = NULL;
-
     FOR_LOOP(layer, MAX_LAYOUT_LAYERS) {
         if ((1 << layer) & cl.playerstate.uiflags)
             continue;
@@ -621,7 +636,6 @@ void SCR_DrawOverlays(void) {
             SCR_UpdateTooltip(layout);
         }
     }
-    
     FOR_LOOP(layer, MAX_LAYOUT_LAYERS) {
         if ((1 << layer) & cl.playerstate.uiflags)
             continue;

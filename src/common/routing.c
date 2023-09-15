@@ -2,6 +2,8 @@
 
 #include <limits.h>
 
+#define MAX_ITERATIONS 0xffff
+
 typedef struct {
     point2_t parent;
     int f, g, h, s;
@@ -125,7 +127,7 @@ DWORD build_heatmap(point2_t target) {
     routeNode_t **next = &open->next;
     open->closed = true;
     
-    for (int iter = 0; open && iter < 20000; iter++, open = open->next) {
+    for (int iter = 0; open && iter < MAX_ITERATIONS; iter++, open = open->next) {
         FOR_LOOP(i, 8) {
             int new_x = open->x + dx[i];
             int new_y = open->y + dy[i];
@@ -161,15 +163,26 @@ DWORD CM_BuildHeatmap(edict_t *goalentity) {
     }
     FOR_LOOP(i, ge->num_edicts){
         edict_t *ent = EDICT_NUM(i);
-        point2_t p = LocationToPathMap(&ent->s.origin2);
-        pathTex_t *pt = ent->pathtex;
-        if (!pt || ent == goalentity)
+        if (ent == goalentity)
             continue;
-        FOR_LOOP(x, pt->width) {
-            FOR_LOOP(y, pt->height) {
-                DWORD px = x + p.x - pt->width / 2;
-                DWORD py = y + p.y - pt->height / 2;
-                path_node(px, py)->nowalk |= pt->map[x + y * pt->width].b;
+        point2_t p = LocationToPathMap(&ent->s.origin2);
+        if (ent->pathtex) {
+            pathTex_t *pt = ent->pathtex;
+            FOR_LOOP(x, pt->width) {
+                FOR_LOOP(y, pt->height) {
+                    DWORD px = x + p.x - pt->width / 2;
+                    DWORD py = y + p.y - pt->height / 2;
+                    path_node(px, py)->nowalk |= pt->map[x + y * pt->width].b;
+                }
+            }
+        } else if (!(ent->svflags & SVF_MONSTER)) {
+            DWORD radius = ent->collision / 24;
+            FOR_LOOP(x, MAX(1, radius * 2)) {
+                FOR_LOOP(y, MAX(1, radius * 2)) {
+                    DWORD px = x + p.x - radius;
+                    DWORD py = y + p.y - radius;
+                    path_node(px, py)->nowalk |= 1;
+                }
             }
         }
     }

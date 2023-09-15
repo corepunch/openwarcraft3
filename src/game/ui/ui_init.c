@@ -1,14 +1,20 @@
 #include "../g_local.h"
 
+#define TOOLTIP_SIZE 0.2200, 0.1000
+#define TOOLTIP_POSITION 0.0, 0.1600
+#define QUEST_DIALOG_POSITION 0.0, -0.0230
+
 static void Init_ResourceBar(LPFRAMEDEF ConsoleUI) {
     UI_FRAME(ResourceBarFrame);
     UI_FRAME(ResourceBarGoldText);
     UI_FRAME(ResourceBarLumberText);
     UI_FRAME(ResourceBarSupplyText);
+    UI_FRAME(ResourceBarUpkeepText);
     
-    if (ResourceBarGoldText) ResourceBarGoldText->Stat = PLAYERSTATE_RESOURCE_GOLD;
-    if (ResourceBarLumberText) ResourceBarLumberText->Stat = PLAYERSTATE_RESOURCE_LUMBER;
-    if (ResourceBarSupplyText) ResourceBarSupplyText->Stat = PLAYERSTATE_RESOURCE_FOOD_USED;
+    ResourceBarGoldText->Stat = PLAYERSTATE_RESOURCE_GOLD;
+    ResourceBarLumberText->Stat = PLAYERSTATE_RESOURCE_LUMBER;
+    ResourceBarSupplyText->Stat = PLAYERSTATE_RESOURCE_FOOD_USED;
+    ResourceBarUpkeepText->Text = UI_GetString("UPKEEP_NONE");
     
     UI_SetParent(ResourceBarFrame, ConsoleUI);
     UI_SetPoint(ResourceBarFrame, FRAMEPOINT_TOPRIGHT, ConsoleUI, FRAMEPOINT_TOPRIGHT, 0, 0);
@@ -16,14 +22,6 @@ static void Init_ResourceBar(LPFRAMEDEF ConsoleUI) {
 
 static void Init_UpperButtonBar(LPFRAMEDEF ConsoleUI) {
     UI_FRAME(UpperButtonBarFrame);
-//    UI_FRAME(ResourceBarGoldText);
-//    UI_FRAME(ResourceBarLumberText);
-//    UI_FRAME(ResourceBarSupplyText);
-    
-//    if (ResourceBarGoldText) ResourceBarGoldText->Stat = PLAYERSTATE_RESOURCE_GOLD;
-//    if (ResourceBarLumberText) ResourceBarLumberText->Stat = PLAYERSTATE_RESOURCE_LUMBER;
-//    if (ResourceBarSupplyText) ResourceBarSupplyText->Stat = PLAYERSTATE_RESOURCE_FOOD_USED;
-    
     UI_SetParent(UpperButtonBarFrame, ConsoleUI);
     UI_SetPoint(UpperButtonBarFrame, FRAMEPOINT_TOPLEFT, ConsoleUI, FRAMEPOINT_TOPLEFT, 0, 0);
 }
@@ -63,9 +61,9 @@ void Init_ToolTip(LPFRAMEDEF parent) {
 //    DWORD ToolTipSupplyIcon = UI_LoadTexture("ToolTipSupplyIcon", true);
     
     UI_FRAME(ToolTip);
-    ToolTip->Parent = parent;
-    UI_SetSize(ToolTip, 2200, 1000);
-    UI_SetPointByNumber(ToolTip, FRAMEPOINT_BOTTOMRIGHT, UI_PARENT, FRAMEPOINT_BOTTOMRIGHT, 0, 1600);
+    UI_SetParent(ToolTip, parent);
+    UI_SetSize(ToolTip, TOOLTIP_SIZE);
+    UI_SetPoint(ToolTip, FRAMEPOINT_BOTTOMRIGHT, NULL, FRAMEPOINT_BOTTOMRIGHT, TOOLTIP_POSITION);
 }
 
 void Init_CinematicPanel(void) {
@@ -90,7 +88,7 @@ void UI_Init(void) {
     UI_SetAllPoints(ConsoleUI);
     
     UI_FRAME(QuestDialog);
-    UI_SetPointByNumber(QuestDialog, FRAMEPOINT_CENTER, UI_PARENT, FRAMEPOINT_CENTER, 0, 0);
+    UI_SetPoint(QuestDialog, FRAMEPOINT_TOP, NULL, FRAMEPOINT_TOP, QUEST_DIALOG_POSITION);
 
     Init_ResourceBar(ConsoleUI);
     Init_ToolTip(ConsoleUI);

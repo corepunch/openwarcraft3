@@ -1,3 +1,5 @@
+#define IS_UNIT(ent) (ent->svflags & SVF_MONSTER)
+
 void group_add_entity(ggroup_t *group, LPEDICT ent) {
     assert(group->num_units < MAX_GROUP_SIZE);
     group->units[group->num_units++] = ent;
@@ -63,7 +65,7 @@ DWORD GroupEnumUnitsInRect(LPJASS j) {
 //    HANDLE filter = jass_checkhandle(j, 3, "boolexpr");
     FOR_LOOP(i, globals.num_edicts) {
         LPEDICT ent = &globals.edicts[i];
-        if (Box2_containsPoint(r, &ent->s.origin2)) {
+        if (IS_UNIT(ent) && Box2_containsPoint(r, &ent->s.origin2)) {
             group_add_entity(whichGroup, ent);
         }
     }
@@ -77,7 +79,7 @@ DWORD GroupEnumUnitsInRectCounted(LPJASS j) {
     LONG countLimit = jass_checkinteger(j, 4);
     FOR_LOOP(i, globals.num_edicts) {
         LPEDICT ent = &globals.edicts[i];
-        if (Box2_containsPoint(r, &ent->s.origin2) && countLimit > 0) {
+        if (IS_UNIT(ent) && Box2_containsPoint(r, &ent->s.origin2) && countLimit > 0) {
             group_add_entity(whichGroup, ent);
             countLimit--;
         }
@@ -92,7 +94,7 @@ DWORD GroupEnumUnitsInRange(LPJASS j) {
     //HANDLE filter = jass_checkhandle(j, 5, "boolexpr");
     FOR_LOOP(i, globals.num_edicts) {
         LPEDICT ent = &globals.edicts[i];
-        if (Vector2_distance(&ent->s.origin2, &MAKE(VECTOR2, x, y)) < radius) {
+        if (IS_UNIT(ent) && Vector2_distance(&ent->s.origin2, &MAKE(VECTOR2, x, y)) < radius) {
             group_add_entity(whichGroup, ent);
         }
     }
@@ -105,7 +107,7 @@ DWORD GroupEnumUnitsInRangeOfLoc(LPJASS j) {
     //HANDLE filter = jass_checkhandle(j, 4, "boolexpr");
     FOR_LOOP(i, globals.num_edicts) {
         LPEDICT ent = &globals.edicts[i];
-        if (Vector2_distance(&ent->s.origin2, whichLocation) < radius) {
+        if (IS_UNIT(ent) && Vector2_distance(&ent->s.origin2, whichLocation) < radius) {
             group_add_entity(whichGroup, ent);
         }
     }
@@ -120,7 +122,7 @@ DWORD GroupEnumUnitsInRangeCounted(LPJASS j) {
     LONG countLimit = jass_checkinteger(j, 6);
     FOR_LOOP(i, globals.num_edicts) {
         LPEDICT ent = &globals.edicts[i];
-        if (Vector2_distance(&ent->s.origin2, &MAKE(VECTOR2, x, y)) < radius && countLimit > 0) {
+        if (IS_UNIT(ent) && Vector2_distance(&ent->s.origin2, &MAKE(VECTOR2, x, y)) < radius && countLimit > 0) {
             group_add_entity(whichGroup, ent);
             countLimit--;
         }
@@ -135,7 +137,7 @@ DWORD GroupEnumUnitsInRangeOfLocCounted(LPJASS j) {
     LONG countLimit = jass_checkinteger(j, 5);
     FOR_LOOP(i, globals.num_edicts) {
         LPEDICT ent = &globals.edicts[i];
-        if (Vector2_distance(&ent->s.origin2, whichLocation) < radius && countLimit > 0) {
+        if (IS_UNIT(ent) && Vector2_distance(&ent->s.origin2, whichLocation) < radius && countLimit > 0) {
             group_add_entity(whichGroup, ent);
             countLimit--;
         }

@@ -1,5 +1,5 @@
-#ifndef api_h
-#define api_h
+#ifndef vm_public_h
+#define vm_public_h
 
 #include "g_local.h"
 #include "api_macros.h"

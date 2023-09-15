@@ -48,7 +48,7 @@ DWORD FindAbilityIndex(LPCSTR classname) {
 }
 
 void InitAbilities(void) {
-    game.num_abilities = sizeof(abilitylist)/sizeof(abilitylist[0]) - 1;
+    game.num_abilities = sizeof(abilitylist)/sizeof(abilitylist[0]);
     FOR_LOOP(i, game.num_abilities) {
         abilityitem_t *abil = &abilitylist[i];
         if (abil->ability->init) {

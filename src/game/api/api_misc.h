@@ -751,7 +751,7 @@ DWORD RestoreUnit(LPJASS j) {
 //    ggamecache_t const *cache = jass_checkhandle(j, 1, "gamecache");
 //    LPCSTR missionKey = jass_checkstring(j, 2);
 //    LPCSTR key = jass_checkstring(j, 3);
-//    LPCMAPPLAYER forWhichPlayer = jass_checkhandle(j, 4, "player");
+//    LPCPLAYER forWhichPlayer = jass_checkhandle(j, 4, "player");
 //    FLOAT x = jass_checknumber(j, 5);
 //    FLOAT y = jass_checknumber(j, 6);
 //    FLOAT facing = jass_checknumber(j, 7);
@@ -892,7 +892,7 @@ DWORD ShowInterface(LPJASS j) {
     FLOAT fadeDuration = jass_checknumber(j, 2);
     LPPLAYER player = currentplayer;
     if (player) {
-//        UI_ShowInterface(PLAYER_ENT(player), flag, fadeDuration);
+        UI_ShowInterface(PLAYER_ENT(player), flag, fadeDuration);
     }
     return 0;
 }
@@ -1052,95 +1052,20 @@ DWORD SetCinematicScene(LPJASS j) {
     LPCSTR text = jass_checkstring(j, 4);
     //FLOAT sceneDuration = jass_checknumber(j, 5);
     //FLOAT voiceoverDuration = jass_checknumber(j, 6);
-    currentplayer->texts[PLAYERTEXT_SPEAKER] = G_GetString(speakerTitle);
-    currentplayer->texts[PLAYERTEXT_DIALOGUE] = G_GetString(text);
+    currentplayer->texts[PLAYERTEXT_SPEAKER] = G_LevelString(speakerTitle);
+    currentplayer->texts[PLAYERTEXT_DIALOGUE] = G_LevelString(text);
     return 0;
 }
 DWORD EndCinematicScene(LPJASS j) {
-    currentplayer->texts[PLAYERTEXT_SPEAKER] = "";
-    currentplayer->texts[PLAYERTEXT_DIALOGUE] = "";
+    if (currentplayer) {
+        currentplayer->texts[PLAYERTEXT_SPEAKER] = "";
+        currentplayer->texts[PLAYERTEXT_DIALOGUE] = "";
+    }
     return 0;
 }
-
 DWORD NewSoundEnvironment(LPJASS j) {
     //LPCSTR environmentName = jass_checkstring(j, 1);
     return 0;
-}
-
-DWORD AddWeatherEffect(LPJASS j) {
-    //HANDLE where = jass_checkhandle(j, 1, "rect");
-    //LONG effectID = jass_checkinteger(j, 2);
-    return jass_pushnullhandle(j, "weathereffect");
-}
-DWORD RemoveWeatherEffect(LPJASS j) {
-    //HANDLE whichEffect = jass_checkhandle(j, 1, "weathereffect");
-    return 0;
-}
-DWORD EnableWeatherEffect(LPJASS j) {
-    //HANDLE whichEffect = jass_checkhandle(j, 1, "weathereffect");
-    //BOOL enable = jass_checkboolean(j, 2);
-    return 0;
-}
-DWORD AddSpecialEffect(LPJASS j) {
-    //LPCSTR modelName = jass_checkstring(j, 1);
-    //FLOAT x = jass_checknumber(j, 2);
-    //FLOAT y = jass_checknumber(j, 3);
-    return jass_pushnullhandle(j, "effect");
-}
-DWORD AddSpecialEffectLoc(LPJASS j) {
-    //LPCSTR modelName = jass_checkstring(j, 1);
-    //HANDLE where = jass_checkhandle(j, 2, "location");
-    return jass_pushnullhandle(j, "effect");
-}
-DWORD AddSpecialEffectTarget(LPJASS j) {
-    //LPCSTR modelName = jass_checkstring(j, 1);
-    //HANDLE targetWidget = jass_checkhandle(j, 2, "widget");
-    //LPCSTR attachPointName = jass_checkstring(j, 3);
-    return jass_pushnullhandle(j, "effect");
-}
-DWORD DestroyEffect(LPJASS j) {
-    //HANDLE whichEffect = jass_checkhandle(j, 1, "effect");
-    return 0;
-}
-DWORD AddSpellEffect(LPJASS j) {
-    //LPCSTR abilityString = jass_checkstring(j, 1);
-    //HANDLE t = jass_checkhandle(j, 2, "effecttype");
-    //FLOAT x = jass_checknumber(j, 3);
-    //FLOAT y = jass_checknumber(j, 4);
-    return jass_pushnullhandle(j, "effect");
-}
-DWORD AddSpellEffectLoc(LPJASS j) {
-    //LPCSTR abilityString = jass_checkstring(j, 1);
-    //HANDLE t = jass_checkhandle(j, 2, "effecttype");
-    //HANDLE where = jass_checkhandle(j, 3, "location");
-    return jass_pushnullhandle(j, "effect");
-}
-DWORD AddSpellEffectById(LPJASS j) {
-    //LONG abilityId = jass_checkinteger(j, 1);
-    //HANDLE t = jass_checkhandle(j, 2, "effecttype");
-    //FLOAT x = jass_checknumber(j, 3);
-    //FLOAT y = jass_checknumber(j, 4);
-    return jass_pushnullhandle(j, "effect");
-}
-DWORD AddSpellEffectByIdLoc(LPJASS j) {
-    //LONG abilityId = jass_checkinteger(j, 1);
-    //HANDLE t = jass_checkhandle(j, 2, "effecttype");
-    //HANDLE where = jass_checkhandle(j, 3, "location");
-    return jass_pushnullhandle(j, "effect");
-}
-DWORD AddSpellEffectTarget(LPJASS j) {
-    //LPCSTR modelName = jass_checkstring(j, 1);
-    //HANDLE t = jass_checkhandle(j, 2, "effecttype");
-    //HANDLE targetWidget = jass_checkhandle(j, 3, "widget");
-    //LPCSTR attachPoint = jass_checkstring(j, 4);
-    return jass_pushnullhandle(j, "effect");
-}
-DWORD AddSpellEffectTargetById(LPJASS j) {
-    //LONG abilityId = jass_checkinteger(j, 1);
-    //HANDLE t = jass_checkhandle(j, 2, "effecttype");
-    //HANDLE targetWidget = jass_checkhandle(j, 3, "widget");
-    //LPCSTR attachPoint = jass_checkstring(j, 4);
-    return jass_pushnullhandle(j, "effect");
 }
 DWORD SetDoodadAnimation(LPJASS j) {
     //FLOAT x = jass_checknumber(j, 1);
