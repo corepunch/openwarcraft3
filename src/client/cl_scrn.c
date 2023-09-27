@@ -156,9 +156,6 @@ LPCRECT SCR_LayoutRect(LPCUIFRAME frame) {
     } else {
         runtimes[frame->number].calculated = true; // done here to avoid recursion
     }
-    if (frame->flags.type == FT_PORTRAIT) {
-        int a=0;
-    }
     VECTOR2 elemsize;
     size2_t imagesize;
     FLOAT avl_space = runtimes[0].rect.w;
