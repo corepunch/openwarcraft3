@@ -325,7 +325,7 @@ MAKE_PARSER(TextureFile) {
 
 MAKE_PARSERCALL(Font) {
     LPCSTR file = Theme_String(frame->Font.Name, "Default");
-    frame->Font.Index = gi.FontIndex(file, frame->Font.Size / 10);
+    frame->Font.Index = gi.FontIndex(file, frame->Font.Size * 1000);
 }
 
 MAKE_PARSERCALL(SetPoint) {

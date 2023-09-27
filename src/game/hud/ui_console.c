@@ -4,9 +4,9 @@
 #define BUILDQUEUE_OFFSET 0.0281
 #define MULTISELECT_COLUMNS 6
 #define MULTISELECT_OFFSET 0.031, 0.050
-#define COMMAND_BUTTON(x,y) 0.2365 + (x) * 0.0434, 0.1131 + (y) * 0.0434
+#define COMMAND_BUTTON_POSITION(x,y) 0.2365 + (x) * 0.0434, 0.1131 - (y) * 0.0434
 #define COMMAND_BUTTON_SIZE 0.039
-#define INVENTORY_BUTTON(x,y) 0.1315 + (x) * 0.0394, 0.0971 + (y) * 0.0384
+#define INVENTORY_BUTTON_POSITION(x,y) 0.1315 + (x) * 0.0394, 0.0971 - (y) * 0.0384
 #define INVENTORY_BUTTON_SIZE 0.033
 #define PORTRTAIT_SIZE 0.08
 #define PORTRTAIT_POSITION 0.215, 0.03
@@ -220,7 +220,7 @@ void UI_AddCommandButton(LPCSTR code) {
         sprintf(tooltip, "%s|n%s", tip, remove_quotes(ubertip));
     }
     sscanf(buttonpos, "%d,%d", &x, &y);
-    VECTOR2 bpos = MAKE(VECTOR2, COMMAND_BUTTON(x, -y));
+    VECTOR2 bpos = MAKE(VECTOR2, COMMAND_BUTTON_POSITION(x, y));
     UI_InitFrame(&button, FT_COMMANDBUTTON);
     UI_SetTexture(&button, art, true);
     UI_SetSize(&button, COMMAND_BUTTON_SIZE, COMMAND_BUTTON_SIZE);
@@ -266,7 +266,7 @@ void ui_unit_inventory(LPGAMECLIENT client) {
         LPCSTR ubertip = FindConfigValue(code, STR_UBERTIP);
         FRAMEDEF button;
         sprintf(tooltip, "%s|n%s", tip, remove_quotes(ubertip));
-        VECTOR2 bpos = MAKE(VECTOR2, INVENTORY_BUTTON(x, -y));
+        VECTOR2 bpos = MAKE(VECTOR2, INVENTORY_BUTTON_POSITION(x, y));
         UI_InitFrame(&button, FT_COMMANDBUTTON);
         UI_SetTexture(&button, art, false);
         UI_SetSize(&button, INVENTORY_BUTTON_SIZE, INVENTORY_BUTTON_SIZE);
