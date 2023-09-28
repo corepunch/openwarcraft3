@@ -201,10 +201,10 @@ DWORD GetCameraMargin(LPJASS j) {
     LONG whichMargin = jass_checkinteger(j, 1);
     mapCameraBounds_t const *bounds = &level.mapinfo->cameraBounds;
     switch (whichMargin) {
-        case 0: jass_pushnumber(j, bounds->margin.left * TILESIZE); break;
-        case 1: jass_pushnumber(j, bounds->margin.right * TILESIZE); break;
-        case 2: jass_pushnumber(j, bounds->margin.top * TILESIZE); break;
-        case 3: jass_pushnumber(j, bounds->margin.bottom * TILESIZE); break;
+        case 0: jass_pushnumber(j, bounds->margin.left * TILE_SIZE); break;
+        case 1: jass_pushnumber(j, bounds->margin.right * TILE_SIZE); break;
+        case 2: jass_pushnumber(j, bounds->margin.top * TILE_SIZE); break;
+        case 3: jass_pushnumber(j, bounds->margin.bottom * TILE_SIZE); break;
         default: jass_pushnull(j);
     }
     return 1;

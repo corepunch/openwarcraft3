@@ -16,6 +16,7 @@ void SV_Map(LPCSTR mapFilename) {
     strcpy(sv.configstrings[CS_MODELS+1], mapFilename);
     SZ_Init(&sv.multicast, sv.multicast_buf, MAX_MSGLEN);
     CM_LoadMap(mapFilename);
+    SV_ClearWorld();
     SV_CreateBaseline();
     ge->SpawnEntities(CM_GetMapInfo(), CM_GetDoodads());
     sv.state = ss_game;

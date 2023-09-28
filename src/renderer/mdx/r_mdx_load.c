@@ -634,10 +634,6 @@ blockReadCode_t MDLX_ReadPIVT(LPSIZEBUF sb, mdxModel_t *model) {
 
 blockReadCode_t MDLX_ReadTEXS(LPSIZEBUF sb, mdxModel_t *model) {
     MODEL_READ_ARRAY(sb, Texture, textures);
-    FOR_LOOP(i, model->num_textures) {
-        mdxTexture_t *tex = model->textures+i;
-        tex->texid = R_RegisterTextureFile(tex->path);
-    }
     return BLOCKREAD_OK;
 }
 
@@ -720,6 +716,10 @@ mdxModel_t *R_LoadModelMDLX(void *data, DWORD size) {
     }
     FOR_EACH_LIST(mdxLight_t, light, model->lights) {
         model->nodes[light->node.node_id] = &light->node;
+    }
+    FOR_LOOP(i, model->num_textures) {
+        mdxTexture_t *tex = model->textures+i;
+        tex->texid = R_RegisterTextureFile(tex->path);
     }
     FOR_EACH_LIST(mdxGeosetAnim_t, geosetAnim, model->geosetAnims) {
         mdxGeoset_t *geoset = model->geosets;

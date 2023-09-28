@@ -177,15 +177,16 @@ void G_SpawnEntities(LPCMAPINFO mapinfo, LPCDOODAD entities) {
 //            int a=0;
 //            printf("%.4s", )
 //        }
-        LPEDICT e = G_Spawn();
-        e->class_id = doodad->doodID;
-        e->variation = doodad->variation;
-        e->hero = doodad->hero;
-        e->s.player = doodad->player & 7;
-        e->s.origin = doodad->position;
-        e->s.angle = doodad->angle;
-        e->s.scale = doodad->scale.x;
-        SP_CallSpawn(e);
+        LPEDICT ent = G_Spawn();
+        ent->class_id = doodad->doodID;
+        ent->variation = doodad->variation;
+        ent->hero = doodad->hero;
+        ent->s.player = doodad->player & 7;
+        ent->s.origin = doodad->position;
+        ent->s.angle = doodad->angle;
+        ent->s.scale = doodad->scale.x;
+        gi.LinkEntity(ent);
+        SP_CallSpawn(ent);
     }
     SP_worldspawn(NULL);
     
@@ -207,6 +208,7 @@ LPEDICT SP_SpawnAtLocation(DWORD class_id, DWORD player, LPCVECTOR2 location) {
     ent->s.scale = 1;
     ent->s.angle = -M_PI / 2;
     ent->s.player = player;
+    gi.LinkEntity(ent);
     SP_CallSpawn(ent);
     if (ent->birth) {
         ent->birth(ent);

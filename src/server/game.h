@@ -9,8 +9,13 @@
 
 KNOWN_AS(client_s, GAMECLIENT);
 KNOWN_AS(edict_s, EDICT);
+KNOWN_AS(link_s, LINK);
 
 typedef struct edict_s edict_t;
+
+struct link_s {
+    LPLINK prev, next;
+};
 
 struct game_import {
     HANDLE (*MemAlloc)(long size);
@@ -25,6 +30,9 @@ struct game_import {
     DWORD (*CreateThread)(HANDLE (func)(HANDLE), HANDLE args);
     void (*JoinThread)(DWORD thread);
     void (*Sleep)(DWORD msec);
+    void (*LinkEntity)(LPEDICT ent);
+    void (*UnlinkEntity)(LPEDICT ent);
+    DWORD (*BoxEdicts)(LPCBOX2 area, LPEDICT *list, DWORD maxcount, BOOL (*pred)(LPCEDICT));
     VECTOR2 (*GetFlowDirection)(DWORD heatmapindex, FLOAT fx, FLOAT fy);
     FLOAT (*GetHeightAtPoint)(FLOAT x, FLOAT y);
     LPSTR (*ReadFileIntoString)(LPCSTR filename);

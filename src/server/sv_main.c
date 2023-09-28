@@ -267,6 +267,15 @@ int SV_ModelIndex(LPCSTR name) {
     return modelindex;
 }
 
+void SV_LoadModels(void) {
+    for (DWORD i = 2; i < MAX_MODELS && *sv.configstrings[CS_MODELS + i]; i++) {
+        if (sv.models[i])
+            continue;
+        LPCSTR filename = sv.configstrings[CS_MODELS + i];
+        sv.models[i] = SV_LoadModel(sv.configstrings[CS_MODELS + i]);
+    }
+}
+
 int SV_SoundIndex(LPCSTR name) {
     return SV_FindIndex(name, CS_SOUNDS, MAX_SOUNDS, true);
 }

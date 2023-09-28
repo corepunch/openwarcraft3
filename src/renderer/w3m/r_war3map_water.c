@@ -25,10 +25,10 @@ static void R_MakeWaterTile(LPCWAR3MAP map, DWORD x, DWORD y) {
         return;
 
     VECTOR2 const pos[] = {
-        { tr.world->center.x + x * TILESIZE, tr.world->center.y + y * TILESIZE },
-        { tr.world->center.x + (x + 1) * TILESIZE, tr.world->center.y + y * TILESIZE },
-        { tr.world->center.x + (x + 1) * TILESIZE, tr.world->center.y + (y + 1) * TILESIZE },
-        { tr.world->center.x + x * TILESIZE, tr.world->center.y + (y + 1) * TILESIZE },
+        { tr.world->center.x + x * TILE_SIZE, tr.world->center.y + y * TILE_SIZE },
+        { tr.world->center.x + (x + 1) * TILE_SIZE, tr.world->center.y + y * TILE_SIZE },
+        { tr.world->center.x + (x + 1) * TILE_SIZE, tr.world->center.y + (y + 1) * TILE_SIZE },
+        { tr.world->center.x + x * TILE_SIZE, tr.world->center.y + (y + 1) * TILE_SIZE },
     };
 
     float const waterlevel[] = {

@@ -41,8 +41,12 @@ struct edict_s {
     LPGAMECLIENT client;
     pathTex_t *pathtex;
     FLOAT collision;
+    BOX2 bounds;
     DWORD svflags;
     DWORD selected;
+    DWORD areanum;
+    LINK area;
+    BOOL inuse;
 };
 
 struct client_frame {
@@ -113,5 +117,11 @@ void SV_WriteConfigString(LPSIZEBUF msg, DWORD i);
 
 // sv_user.c
 void SV_ExecuteUserCommand(LPSIZEBUF msg, LPCLIENT client);
+
+// sv_world.c
+void SV_LinkEntity(LPEDICT ent);
+void SV_UnlinkEntity(LPEDICT ent);
+DWORD SV_AreaEdicts(LPCBOX2 area, LPEDICT *list, DWORD maxcount, BOOL (*pred)(LPCEDICT));
+void SV_ClearWorld(void);
 
 #endif

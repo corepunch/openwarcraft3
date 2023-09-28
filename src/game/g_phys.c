@@ -19,6 +19,7 @@ void SV_Physics_Toss(LPEDICT ent) {
     } else {
         Vector3_normalize(&dir);
         ent->s.origin = Vector3_mad(&ent->s.origin, distance, &dir);
+        gi.LinkEntity(ent);
     }
 }
 
@@ -82,16 +83,22 @@ void G_SolveCollisions(void) {
             FLOAT const diff = distance - radius;
             if (a_static) {
                 b->s.origin2 = Vector2_mad(&b->s.origin2, diff, &d);
+                gi.LinkEntity(b);
             } else if (b_static) {
                 a->s.origin2 = Vector2_mad(&a->s.origin2, -diff, &d);
+                gi.LinkEntity(a);
             } else if (IS_MOVING(a) && IS_MOVING(b)) {
                 FLOAT const ad = M_DistanceToGoal(a);
                 FLOAT const bd = M_DistanceToGoal(b);
                 a->s.origin2 = Vector2_mad(&a->s.origin2, -diff * ad / (ad + bd), &d);
                 b->s.origin2 = Vector2_mad(&b->s.origin2, diff * bd / (ad + bd), &d);
+                gi.LinkEntity(a);
+                gi.LinkEntity(b);
             } else {
                 a->s.origin2 = Vector2_mad(&a->s.origin2, -diff * 0.5f, &d);
                 b->s.origin2 = Vector2_mad(&b->s.origin2, diff * 0.5f, &d);
+                gi.LinkEntity(a);
+                gi.LinkEntity(b);
                 // one of the colliders reached the point?
                 // then stop the other one as well
                 if (a->goalentity == b->goalentity) {

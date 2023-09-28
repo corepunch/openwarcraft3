@@ -9,16 +9,16 @@ LPCTEXTURE g_groundTextures[MAX_MAP_LAYERS] = { NULL };
 static VERTEX aVertexBuffer[(SEGMENT_SIZE+1)*(SEGMENT_SIZE+1)*6];
 static LPVERTEX currentVertex = NULL;
 
-VECTOR3 R_GetVertexPosition(LPCWAR3MAP map, DWORD x, DWORD y, bool useLevel) {
+VECTOR3 R_GetVertexPosition(LPCWAR3MAP map, DWORD x, DWORD y, BOOL useLevel) {
     LPCWAR3MAPVERTEX vert = GetWar3MapVertex(map, x, y);
-    float level = useLevel ? vert->level * TILESIZE - HEIGHT_COR : 0;
+    FLOAT level = useLevel ? vert->level * TILE_SIZE - HEIGHT_COR : 0;
     if (useLevel && vert->ramp && vert->cliffVariation) {
-        level += 0.5 * TILESIZE;
+        level += 0.5 * TILE_SIZE;
     }
-    float z = DECODE_HEIGHT(vert->accurate_height) + level;
+    FLOAT z = DECODE_HEIGHT(vert->accurate_height) + level;
     return (VECTOR3) {
-        .x = map->center.x + x * TILESIZE,
-        .y = map->center.y + y * TILESIZE,
+        .x = map->center.x + x * TILE_SIZE,
+        .y = map->center.y + y * TILE_SIZE,
         .z = z,
     };
 }
@@ -75,14 +75,14 @@ static void R_MakeTile(LPCWAR3MAP map, DWORD x, DWORD y, DWORD ground, LPCTEXTUR
         R_GetVertexNormal(map, x, y + 1),
     };
 
-    float const waterlevel[] = {
+    FLOAT const waterlevel[] = {
         GetWar3MapVertexWaterLevel(&tile[3]),
         GetWar3MapVertexWaterLevel(&tile[2]),
         GetWar3MapVertexWaterLevel(&tile[0]),
         GetWar3MapVertexWaterLevel(&tile[1]),
     };
 
-    float const color[] = {
+    FLOAT const color[] = {
         GetTileDepth(waterlevel[0], p[0].z),
         GetTileDepth(waterlevel[1], p[1].z),
         GetTileDepth(waterlevel[2], p[2].z),
@@ -135,7 +135,7 @@ LPMAPLAYER R_BuildMapSegmentLayer(LPCWAR3MAP map, DWORD sx, DWORD sy, DWORD laye
 }
 
 void R_RenderSplat(LPCVECTOR2 position,
-                   float radius,
+                   FLOAT radius,
                    LPCTEXTURE texture,
                    LPCSHADER shader,
                    COLOR32 color)
@@ -144,9 +144,9 @@ void R_RenderSplat(LPCVECTOR2 position,
 
     Matrix4_identity(&mModelMatrix);
     
-    float const splatSize = radius * 2;
-    float const sx = position->x;
-    float const sy = position->y;
+    FLOAT const splatSize = radius * 2;
+    FLOAT const sx = position->x;
+    FLOAT const sy = position->y;
     
     VECTOR2 tmin = GetWar3MapPosition(tr.world, sx - radius, sy - radius);
     VECTOR2 tmax = GetWar3MapPosition(tr.world, sx + radius, sy + radius);
@@ -188,8 +188,8 @@ void R_RenderSplat(LPCVECTOR2 position,
 
 VECTOR3 CM_PointIntoHeightmap(LPCVECTOR3 point) {
     return (VECTOR3) {
-        .x = (point->x - tr.world->center.x) / TILESIZE,
-        .y = (point->y - tr.world->center.y) / TILESIZE,
+        .x = (point->x - tr.world->center.x) / TILE_SIZE,
+        .y = (point->y - tr.world->center.y) / TILE_SIZE,
         .z = point->z
     };
 }
@@ -200,13 +200,13 @@ short R_GetHeightMapValue(int x, int y) {
 
 VECTOR3 R_PointFromHeightmap(LPCVECTOR3 point) {
     return (VECTOR3) {
-        .x = point->x * TILESIZE + tr.world->center.x,
-        .y = point->y * TILESIZE + tr.world->center.y,
+        .x = point->x * TILE_SIZE + tr.world->center.x,
+        .y = point->y * TILE_SIZE + tr.world->center.y,
         .z = point->z
     };
 }
 
-bool R_TraceLocation(viewDef_t const *viewdef, float x, float y, LPVECTOR3 output) {
+bool R_TraceLocation(viewDef_t const *viewdef, FLOAT x, FLOAT y, LPVECTOR3 output) {
     LINE3 const gline = R_LineForScreenPoint(viewdef, x, y);
     LINE3 line = {
         .a = CM_PointIntoHeightmap(&gline.a),

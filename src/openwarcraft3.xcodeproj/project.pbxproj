@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		5D2300F62A36242E00F649AE /* sv_user.c in Sources */ = {isa = PBXBuildFile; fileRef = 5D2300F52A36242E00F649AE /* sv_user.c */; };
+		78120E5D2AC5CDEE00DC0064 /* sv_world.c in Sources */ = {isa = PBXBuildFile; fileRef = 78120E5C2AC5CDEE00DC0064 /* sv_world.c */; };
 		78314AE12A2677DE00062C4B /* sv_game.c in Sources */ = {isa = PBXBuildFile; fileRef = 78314AE02A26527500062C4B /* sv_game.c */; };
 		78314AE22A2677DE00062C4B /* sv_send.c in Sources */ = {isa = PBXBuildFile; fileRef = 78314ADF2A26520700062C4B /* sv_send.c */; };
 		78314B182A28C47F00062C4B /* cl_input.c in Sources */ = {isa = PBXBuildFile; fileRef = 78314B172A28C47F00062C4B /* cl_input.c */; };
@@ -90,6 +91,7 @@
 
 /* Begin PBXFileReference section */
 		5D2300F52A36242E00F649AE /* sv_user.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = sv_user.c; sourceTree = "<group>"; };
+		78120E5C2AC5CDEE00DC0064 /* sv_world.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = sv_world.c; sourceTree = "<group>"; };
 		78314ADF2A26520700062C4B /* sv_send.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = sv_send.c; sourceTree = "<group>"; };
 		78314AE02A26527500062C4B /* sv_game.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = sv_game.c; sourceTree = "<group>"; };
 		78314B172A28C47F00062C4B /* cl_input.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = cl_input.c; sourceTree = "<group>"; };
@@ -196,6 +198,7 @@
 				78A896F12A168AB700BC5B56 /* sv_parse.c */,
 				78314ADF2A26520700062C4B /* sv_send.c */,
 				5D2300F52A36242E00F649AE /* sv_user.c */,
+				78120E5C2AC5CDEE00DC0064 /* sv_world.c */,
 				7897B7E92A0CB3C1008007CD /* game.h */,
 				7897B7DB2A0BF4FD008007CD /* server.h */,
 			);
@@ -352,6 +355,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				78120E5D2AC5CDEE00DC0064 /* sv_world.c in Sources */,
 				78314AE12A2677DE00062C4B /* sv_game.c in Sources */,
 				5D2300F62A36242E00F649AE /* sv_user.c in Sources */,
 				78314AE22A2677DE00062C4B /* sv_send.c in Sources */,

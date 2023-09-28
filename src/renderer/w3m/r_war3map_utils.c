@@ -8,8 +8,8 @@ LPCWAR3MAPVERTEX GetWar3MapVertex(LPCWAR3MAP war3Map, DWORD x, DWORD y) {
 
 VECTOR2 GetWar3MapSize(LPCWAR3MAP war3Map) {
     VECTOR2 size = {
-        .x = (tr.world->width - 1) * TILESIZE,
-        .y = (tr.world->height - 1) * TILESIZE
+        .x = (tr.world->width - 1) * TILE_SIZE,
+        .y = (tr.world->height - 1) * TILE_SIZE
     };
     return size;
 }
@@ -77,7 +77,7 @@ DWORD GetTile(LPCWAR3MAPVERTEX mv, DWORD ground) {
 }
 
 float GetWar3MapVertexHeight(LPCWAR3MAPVERTEX vert) {
-    return DECODE_HEIGHT(vert->accurate_height) + vert->level * TILESIZE - HEIGHT_COR;
+    return DECODE_HEIGHT(vert->accurate_height) + vert->level * TILE_SIZE - HEIGHT_COR;
 }
 
 float GetWar3MapVertexWaterLevel(LPCWAR3MAPVERTEX vert) {

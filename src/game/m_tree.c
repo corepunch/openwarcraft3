@@ -3,8 +3,8 @@
 void tree_decay1(LPEDICT self);
 void tree_stand(LPEDICT self);
 
-static umove_t tree_move_birth = { "birth", ai_stand, tree_stand };
-static umove_t tree_move_stand = { "stand", ai_stand, tree_stand };
+static umove_t tree_move_birth = { "birth", ai_idle, tree_stand };
+static umove_t tree_move_stand = { "stand", ai_idle, tree_stand };
 static umove_t tree_move_pain = { "stand hit", ai_pain, tree_stand };
 static umove_t tree_move_death = { "death", NULL, tree_decay1 };
 

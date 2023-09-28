@@ -81,9 +81,9 @@ KNOWN_AS(gquest_s, QUEST);
 KNOWN_AS(gquestitem_s, QUESTITEM);
 
 typedef struct {
-    BOOL (*on_entity_selected)(LPEDICT clent, LPEDICT selected);
-    BOOL (*on_location_selected)(LPEDICT clent, LPCVECTOR2 location);
-    void (*cmdbutton)(LPEDICT clent, DWORD code);
+    BOOL (*on_entity_selected)(LPEDICT, LPEDICT);
+    BOOL (*on_location_selected)(LPEDICT, LPCVECTOR2);
+    void (*cmdbutton)(LPEDICT, DWORD);
 } menu_t;
 
 enum {
@@ -159,6 +159,19 @@ typedef enum {
     PLAYERTEXT_SPEAKER,
     PLAYERTEXT_DIALOGUE,
 } PLAYERTEXT;
+
+typedef enum {
+    ALLIANCE_PASSIVE = 0,
+    ALLIANCE_HELP_REQUEST = 1,
+    ALLIANCE_HELP_RESPONSE = 2,
+    ALLIANCE_SHARED_XP = 3,
+    ALLIANCE_SHARED_SPELLS = 4,
+    ALLIANCE_SHARED_VISION = 5,
+    ALLIANCE_SHARED_CONTROL = 6,
+    ALLIANCE_SHARED_ADVANCED_CONTROL = 7,
+    ALLIANCE_RESCUABLE = 8,
+    ALLIANCE_SHARED_VISION_FORCED = 9,
+} PLAYERALLIANCE;
 
 typedef enum {
     TARG_NONE,
@@ -540,14 +553,14 @@ struct client_s {
 
 typedef struct {
     LPCSTR animation;
-    void (*think)(LPEDICT self);
-    void (*endfunc)(LPEDICT self);
+    void (*think)(LPEDICT);
+    void (*endfunc)(LPEDICT);
     struct ability_s *ability;
 } umove_t;
 
 typedef struct ability_s {
-    void (*init)(LPCSTR classname, struct ability_s *ability);
-    void (*cmd)(LPEDICT ent);
+    void (*init)(LPCSTR, struct ability_s *);
+    void (*cmd)(LPEDICT);
 } ability_t;
 
 typedef struct {
@@ -610,13 +623,21 @@ struct gquest_s {
     BOOL enabled;
 };
 
+typedef struct {
+    struct { FLOAT day, night; } sight_radius;
+} unitbalance_t;
+
 struct edict_s {
     entityState_t s;
     LPGAMECLIENT client;
     pathTex_t *pathtex;
     FLOAT collision;
+    BOX2 bounds;
     DWORD svflags;
     DWORD selected;
+    DWORD areanum;
+    LINK area;
+    BOOL inuse;
 
     // keep above in sync with server.h
     DWORD class_id;
@@ -644,7 +665,7 @@ struct edict_s {
     LPEDICT owner;
     LPEDICT build;
     LPCANIMATION animation;
-    BOOL inuse;
+    unitbalance_t balance;
     umove_t *currentmove;
 //    unitRace_t race;
     FLOAT wait;
@@ -652,12 +673,12 @@ struct edict_s {
     unitAttack_t attack1;
     unitAttack_t attack2;
 
-    void (*stand)(LPEDICT self);
-    void (*birth)(LPEDICT self);
-    void (*prethink)(LPEDICT self);
-    void (*think)(LPEDICT self);
-    void (*pain)(LPEDICT self);
-    void (*die)(LPEDICT self, LPEDICT attacker);
+    void (*stand)(LPEDICT);
+    void (*birth)(LPEDICT);
+    void (*prethink)(LPEDICT);
+    void (*think)(LPEDICT);
+    void (*pain)(LPEDICT);
+    void (*die)(LPEDICT, LPEDICT);
 };
 
 struct game_locals {
@@ -710,6 +731,7 @@ struct level_locals {
     LPCMAPINFO mapinfo;
     LEVELEVENTS events;
     LPQUEST quests;
+    USHORT alliances[MAX_PLAYERS][MAX_PLAYERS];
     DWORD framenum;
     DWORD time;
     BOOL started;
@@ -729,165 +751,168 @@ typedef struct {
 } uiTrigger_t;
 
 // g_main.c
-LPPLAYER G_GetPlayerByNumber(DWORD number);
-LPEDICT G_GetPlayerEntityByNumber(DWORD number);
-LPGAMECLIENT G_GetPlayerClientByNumber(DWORD number);
-TARGTYPE G_GetTargetType(LPCSTR str);
-LPCSTR G_LevelString(LPCSTR name);
-GAMEEVENT *G_PublishEvent(LPEDICT edict, EVENTTYPE type);
+LPPLAYER G_GetPlayerByNumber(DWORD);
+LPEDICT G_GetPlayerEntityByNumber(DWORD);
+LPGAMECLIENT G_GetPlayerClientByNumber(DWORD);
+TARGTYPE G_GetTargetType(LPCSTR);
+LPCSTR G_LevelString(LPCSTR);
+GAMEEVENT *G_PublishEvent(LPEDICT, EVENTTYPE);
 
 // g_spawn.c
 LPEDICT G_Spawn(void);
-void SP_CallSpawn(LPEDICT edict);
-void G_SpawnEntities(LPCMAPINFO mapinfo, LPCDOODAD doodads);
-BOOL SP_FindEmptySpaceAround(LPEDICT townhall, DWORD class_id, LPVECTOR2 out, FLOAT *angle);
-LPEDICT SP_SpawnAtLocation(DWORD class_id, DWORD player, LPCVECTOR2 location);
+void SP_CallSpawn(LPEDICT);
+void G_SpawnEntities(LPCMAPINFO, LPCDOODAD);
+BOOL SP_FindEmptySpaceAround(LPEDICT, DWORD, LPVECTOR2, FLOAT *);
+LPEDICT SP_SpawnAtLocation(DWORD, DWORD, LPCVECTOR2);
 
-LPEDICT Waypoint_add(LPCVECTOR2 spot);
-void M_CheckGround (LPEDICT self);
-void monster_start(LPEDICT self);
+LPEDICT Waypoint_add(LPCVECTOR2);
+void M_CheckGround (LPEDICT);
+void monster_start(LPEDICT);
 
 // g_ai.c
-void ai_birth(LPEDICT self);
-void ai_stand(LPEDICT self);
-void ai_pain(LPEDICT self);
-void M_RunWait(LPEDICT self, void (*callback)(LPEDICT ));
+void ai_birth(LPEDICT);
+void ai_stand(LPEDICT);
+void ai_pain(LPEDICT);
+void ai_idle(LPEDICT);
+void M_RunWait(LPEDICT, void (*callback)(LPEDICT ));
 
 // g_monster.c
-void M_MoveInDirection(LPEDICT self);
-void M_ChangeAngle(LPEDICT self);
-BOOL M_CheckAttack(LPEDICT self);
-void M_SetAnimation(LPEDICT self, LPCSTR anim);
-void M_SetMove(LPEDICT self, umove_t *move);
-umove_t const *M_GetCurrentMove(LPCEDICT ent);
-FLOAT M_DistanceToGoal(LPEDICT ent);
-FLOAT M_MoveDistance(LPEDICT self);
-DWORD M_RefreshHeatmap(LPEDICT self);
-BOOL M_IsDead(LPEDICT ent);
-void SP_SpawnUnit(LPEDICT edict);
-void SP_TrainUnit(LPEDICT townhall, DWORD class_id);
-BOOL player_pay(LPPLAYER ps, DWORD project);
-BYTE compress_stat(EDICTSTAT const *stat);
+void M_MoveInDirection(LPEDICT);
+void M_ChangeAngle(LPEDICT);
+BOOL M_CheckAttack(LPEDICT);
+void M_SetAnimation(LPEDICT, LPCSTR);
+void M_SetMove(LPEDICT, umove_t *);
+umove_t const *M_GetCurrentMove(LPCEDICT);
+FLOAT M_DistanceToGoal(LPEDICT);
+FLOAT M_MoveDistance(LPEDICT);
+DWORD M_RefreshHeatmap(LPEDICT);
+BOOL M_IsDead(LPEDICT);
+void SP_SpawnUnit(LPEDICT);
+void SP_TrainUnit(LPEDICT, DWORD);
+BOOL player_pay(LPPLAYER, DWORD);
+BYTE compress_stat(EDICTSTAT const *);
 
 // g_pathing.c
-pathTex_t *LoadTGA(BYTE const* mem, size_t size);
+pathTex_t *LoadTGA(BYTE const*, size_t);
 
 // g_move.c
-BOOL SV_CloseEnough(LPEDICT self, LPCEDICT goal, FLOAT distance);
+BOOL SV_CloseEnough(LPEDICT, LPCEDICT, FLOAT);
 
 // g_phys.c
-void G_RunEntity(LPEDICT edict);
+void G_RunEntity(LPEDICT);
 void G_SolveCollisions(void);
-BOOL M_CheckCollision(LPCVECTOR2 origin, FLOAT radius);
+BOOL M_CheckCollision(LPCVECTOR2, FLOAT);
 
 // g_abilities.c
-ability_t const *FindAbilityByClassname(LPCSTR classname);
-ability_t const *GetAbilityByIndex(DWORD index);
-DWORD FindAbilityIndex(LPCSTR classname);
+ability_t const *FindAbilityByClassname(LPCSTR);
+ability_t const *GetAbilityByIndex(DWORD);
+DWORD FindAbilityIndex(LPCSTR);
 void InitAbilities(void);
 void SetAbilityNames(void);
 
 // g_config.c
-LPCSTR FindConfigValue(LPCSTR category, LPCSTR field);
-LPCSTR GetClassName(DWORD class_id);
+LPCSTR FindConfigValue(LPCSTR, LPCSTR);
+LPCSTR GetClassName(DWORD);
 
 // p_hud.c
-LPEDICT G_GetMainSelectedUnit(LPGAMECLIENT client);
-void Get_Commands_f(LPEDICT ent);
-void Get_Portrait_f(LPEDICT ent);
-void UI_AddCancelButton(LPEDICT edict);
-void UI_AddCommandButton(LPCSTR ability);
-void UI_ShowInterface(LPEDICT ent, BOOL flag, FLOAT fadeDuration);
-void UI_ShowText(LPEDICT ent, LPCVECTOR2 pos, LPCSTR text, FLOAT duration);
-LPCSTR GetBuildCommand(unitRace_t race);
+LPEDICT G_GetMainSelectedUnit(LPGAMECLIENT);
+void Get_Commands_f(LPEDICT);
+void Get_Portrait_f(LPEDICT);
+void UI_AddCancelButton(LPEDICT);
+void UI_AddCommandButton(LPCSTR);
+void UI_ShowInterface(LPEDICT, BOOL, FLOAT);
+void UI_ShowText(LPEDICT, LPCVECTOR2, LPCSTR, FLOAT);
+LPCSTR GetBuildCommand(unitRace_t);
 
 // p_fdf.c
 void UI_PrintClasses(void);
 void UI_ClearTemplates(void);
-void UI_ParseFDF(LPCSTR fileName);
-void UI_ParseFDF_Buffer(LPCSTR fileName, LPSTR buffer);
-void UI_SetAllPoints(LPFRAMEDEF frame);
-void UI_SetParent(LPFRAMEDEF frame, LPCFRAMEDEF parent);
-void UI_SetText(LPFRAMEDEF frame, LPCSTR format, ...);
-void UI_SetOnClick(LPFRAMEDEF frame, LPCSTR format, ...);
-void UI_SetTextPointer(LPFRAMEDEF frame, LPCSTR text);
-void UI_SetSize(LPFRAMEDEF frame, FLOAT width, FLOAT height);
-void UI_SetTexture(LPFRAMEDEF frame, LPCSTR name, BOOL decorate);
-void UI_SetTexture2(LPFRAMEDEF frame, LPCSTR name, BOOL decorate);
-void UI_WriteLayout(LPEDICT ent, LPCFRAMEDEF frames, DWORD layer);
-void UI_WriteStart(DWORD layer);
-void UI_WriteWithTriggers(LPEDICT ent, LPCFRAMEDEF root, DWORD layer, uiTrigger_t const *triggers);
-void UI_SetPoint(LPFRAMEDEF frame, UIFRAMEPOINT framePoint, LPCFRAMEDEF other, UIFRAMEPOINT otherPoint, FLOAT x, FLOAT y);
-void UI_InitFrame(LPFRAMEDEF frame, FRAMETYPE type);
-void UI_SetHidden(LPFRAMEDEF frame, BOOL value);
-DWORD UI_FindFrameNumber(LPCSTR name);
-DWORD UI_LoadTexture(LPCSTR file, BOOL decorate);
-LPCSTR UI_GetString(LPCSTR textID);
-LPFRAMEDEF UI_Spawn(FRAMETYPE type, LPFRAMEDEF parent);
-LPFRAMEDEF UI_FindFrame(LPCSTR name);
-LPFRAMEDEF UI_FindChildFrame(LPFRAMEDEF frame, LPCSTR name);
+void UI_ParseFDF(LPCSTR);
+void UI_ParseFDF_Buffer(LPCSTR, LPSTR);
+void UI_SetAllPoints(LPFRAMEDEF);
+void UI_SetParent(LPFRAMEDEF, LPCFRAMEDEF);
+void UI_SetText(LPFRAMEDEF, LPCSTR, ...);
+void UI_SetOnClick(LPFRAMEDEF, LPCSTR, ...);
+void UI_SetTextPointer(LPFRAMEDEF, LPCSTR);
+void UI_SetSize(LPFRAMEDEF, FLOAT, FLOAT);
+void UI_SetTexture(LPFRAMEDEF, LPCSTR, BOOL);
+void UI_SetTexture2(LPFRAMEDEF, LPCSTR, BOOL);
+void UI_WriteLayout(LPEDICT, LPCFRAMEDEF, DWORD);
+void UI_WriteStart(DWORD);
+void UI_WriteWithTriggers(LPEDICT, LPCFRAMEDEF, DWORD, uiTrigger_t const *);
+void UI_SetPoint(LPFRAMEDEF, UIFRAMEPOINT, LPCFRAMEDEF, UIFRAMEPOINT, FLOAT, FLOAT);
+void UI_InitFrame(LPFRAMEDEF, FRAMETYPE);
+void UI_SetHidden(LPFRAMEDEF, BOOL);
+DWORD UI_FindFrameNumber(LPCSTR);
+DWORD UI_LoadTexture(LPCSTR, BOOL);
+LPCSTR UI_GetString(LPCSTR);
+LPFRAMEDEF UI_Spawn(FRAMETYPE, LPFRAMEDEF);
+LPFRAMEDEF UI_FindFrame(LPCSTR);
+LPFRAMEDEF UI_FindChildFrame(LPFRAMEDEF, LPCSTR);
 
-LPCSTR Theme_String(LPCSTR entry, LPCSTR category);
-FLOAT Theme_Float(LPCSTR entry, LPCSTR category);
+LPCSTR Theme_String(LPCSTR, LPCSTR);
+FLOAT Theme_Float(LPCSTR, LPCSTR);
 
 // ui_write.c
-void UI_WriteFrame(LPCFRAMEDEF frame);
-void UI_WriteFrameWithChildren(LPCFRAMEDEF frame, LPCFRAMEDEF parent);
-void UI_WriteFrameWithChildrenWithTriggers(LPEDICT ent, LPCFRAMEDEF frame, LPCFRAMEDEF parent, uiTrigger_t const *triggers);
+void UI_WriteFrame(LPCFRAMEDEF);
+void UI_WriteFrameWithChildren(LPCFRAMEDEF, LPCFRAMEDEF);
+void UI_WriteFrameWithChildrenWithTriggers(LPEDICT, LPCFRAMEDEF, LPCFRAMEDEF, uiTrigger_t const *);
 
 // g_metadata.c
-LPCSTR UnitStringField(sheetMetaData_t *meta, DWORD unit_id, LPCSTR name);
-LONG UnitIntegerField(sheetMetaData_t *meta, DWORD unit_id, LPCSTR name);
-BOOL UnitBooleanField(sheetMetaData_t *meta, DWORD unit_id, LPCSTR name);
-FLOAT UnitRealField(sheetMetaData_t *meta, DWORD unit_id, LPCSTR name);
+LPCSTR UnitStringField(sheetMetaData_t *, DWORD, LPCSTR);
+LONG UnitIntegerField(sheetMetaData_t *, DWORD, LPCSTR);
+BOOL UnitBooleanField(sheetMetaData_t *, DWORD, LPCSTR);
+FLOAT UnitRealField(sheetMetaData_t *, DWORD, LPCSTR);
 
 void InitUnitData(void);
 void ShutdownUnitData(void);
 
 // g_command.c
-void G_SelectEntity(LPGAMECLIENT client, LPEDICT ent);
-void G_DeselectEntity(LPGAMECLIENT client, LPEDICT ent);
-BOOL G_IsEntitySelected(LPGAMECLIENT client, LPEDICT ent);
-void G_ClientCommand(LPEDICT ent, DWORD argc, LPCSTR argv[]);
-void G_ClientPanCamera(LPEDICT ent, LPVECTOR2 offset);
+void G_SelectEntity(LPGAMECLIENT, LPEDICT);
+void G_DeselectEntity(LPGAMECLIENT, LPEDICT);
+BOOL G_IsEntitySelected(LPGAMECLIENT, LPEDICT);
+void G_ClientCommand(LPEDICT, DWORD, LPCSTR[]);
+void G_ClientPanCamera(LPEDICT, LPVECTOR2);
 
 //  s_skills.c
-FLOAT AB_Number(LPCSTR classname, LPCSTR field);
-DWORD GetAbilityIndex(ability_t const *ability);
+FLOAT AB_Number(LPCSTR, LPCSTR);
+DWORD GetAbilityIndex(ability_t const *);
 
 // g_combat.c
-void T_Damage(LPEDICT target, LPEDICT attacker, int damage);
+void T_Damage(LPEDICT, LPEDICT, int);
 
 // g_utils.c
-void G_FreeEdict(LPEDICT ent);
-LPEVENT G_MakeEvent(EVENTTYPE type);
+void G_FreeEdict(LPEDICT);
+LPEVENT G_MakeEvent(EVENTTYPE);
 LPQUEST G_MakeQuest(void);
-BOOL G_RegionContains(LPCREGION region, LPCVECTOR2 point);
-void G_RemoveQuest(LPQUEST quest);
+BOOL G_RegionContains(LPCREGION, LPCVECTOR2);
+void G_RemoveQuest(LPQUEST);
+void G_SetPlayerAlliance(LPCPLAYER, LPCPLAYER, PLAYERALLIANCE, BOOL);
+BOOL G_GetPlayerAlliance(LPCPLAYER, LPCPLAYER, PLAYERALLIANCE);
 
 // m_unit.c
-BOOL unit_issueorder(LPEDICT self, LPCSTR order, LPCVECTOR2 point);
-BOOL unit_issueimmediateorder(LPEDICT self, LPCSTR order);
-LPEDICT unit_createorfind(DWORD player, DWORD unitid, LPCVECTOR2 location, FLOAT facing);
-BOOL unit_additemtoslot(LPEDICT edict, DWORD class_id, DWORD i);
-BOOL unit_additem(LPEDICT edict, DWORD class_id);
+BOOL unit_issueorder(LPEDICT, LPCSTR, LPCVECTOR2);
+BOOL unit_issueimmediateorder(LPEDICT, LPCSTR);
+LPEDICT unit_createorfind(DWORD, DWORD, LPCVECTOR2, FLOAT);
+BOOL unit_additemtoslot(LPEDICT, DWORD, DWORD);
+BOOL unit_additem(LPEDICT, DWORD);
 
 // p_jass.c
 LPJASS jass_newstate(void);
-void jass_close(LPJASS j);
-BOOL jass_dofile(LPJASS j, LPCSTR fileName);
-BOOL jass_dofilenative(LPJASS j,LPCSTR fileName);
-void jass_callbyname(LPJASS j, LPCSTR name, BOOL async);
-BOOL jass_dobuffer(LPJASS j, LPSTR buffer);
+void jass_close(LPJASS);
+BOOL jass_dofile(LPJASS, LPCSTR);
+BOOL jass_dofilenative(LPJASS, LPCSTR);
+void jass_callbyname(LPJASS, LPCSTR, BOOL);
+BOOL jass_dobuffer(LPJASS, LPSTR);
 
 // g_events.c
 void G_RunEntities(void);
 void G_RunEvents(void);
 
 // g_items.c
-void SP_SpawnItem(LPEDICT self);
+void SP_SpawnItem(LPEDICT);
 
-void *find_in_array(void *array, long sizeofelem, LPCSTR name);
+void *find_in_array(void *array, long, LPCSTR);
 
 // ui_init
 void UI_Init(void);

@@ -38,8 +38,8 @@ static int TileBaseLevel(LPCWAR3MAPVERTEX tile) {
 }
 
 static VECTOR3 GetAccurateNormalAtPoint(float sx, float sy) {
-    float x = sx / TILESIZE;
-    float y = sy / TILESIZE;
+    float x = sx / TILE_SIZE;
+    float y = sy / TILE_SIZE;
     float fx = floorf(x);
     float fy = floorf(y);
     VECTOR3 a = R_GetVertexNormal(tr.world, fx, fy);
@@ -53,8 +53,8 @@ static VECTOR3 GetAccurateNormalAtPoint(float sx, float sy) {
 
 float GetAccurateHeightAtPoint(float sx, float sy) {
     if (!tr.world) return 0;
-    float x = sx / TILESIZE;
-    float y = sy / TILESIZE;
+    float x = sx / TILE_SIZE;
+    float y = sy / TILE_SIZE;
     float fx = floorf(x);
     float fy = floorf(y);
     float a = GetWar3MapVertex(tr.world, fx, fy)->accurate_height;
@@ -67,8 +67,8 @@ float GetAccurateHeightAtPoint(float sx, float sy) {
 }
 
 static float GetAccurateWaterLevelAtPoint(float sx, float sy) {
-    float x = sx / TILESIZE;
-    float y = sy / TILESIZE;
+    float x = sx / TILE_SIZE;
+    float y = sy / TILE_SIZE;
     float fx = floorf(x);
     float fy = floorf(y);
     float a = GetWar3MapVertex(tr.world, fx, fy)->waterlevel;
@@ -140,7 +140,7 @@ static void R_MakeCliff(LPCWAR3MAP map, DWORD x, DWORD y, cliffData_t const *dat
     }
     mdxGeoset_t *pGeoset = pModel->mdx->geosets;
     
-    VECTOR2 offset = { (x+1) * TILESIZE, y * TILESIZE };
+    VECTOR2 offset = { (x+1) * TILE_SIZE, y * TILE_SIZE };
     
     if (is_ramp) {
         LPCBOX3 bbox = &pModel->mdx->bounds.box;
@@ -151,11 +151,11 @@ static void R_MakeCliff(LPCWAR3MAP map, DWORD x, DWORD y, cliffData_t const *dat
         BYTE d = GetWar3MapVertex(map,x+1,y+1)->level;
         if (diff.x > diff.y) {
             if (a + b < c + d) {
-                offset.x -= TILESIZE;
+                offset.x -= TILE_SIZE;
             }
         } else {
             if (a + c < b + d) {
-                offset.y -= TILESIZE;
+                offset.y -= TILE_SIZE;
             }
         }
     }
@@ -166,7 +166,7 @@ static void R_MakeCliff(LPCWAR3MAP map, DWORD x, DWORD y, cliffData_t const *dat
         const float fy = pGeoset->vertices[i].y + offset.y;
         const float fh = GetAccurateHeightAtPoint(fx, fy);
         const float fw = GetAccurateWaterLevelAtPoint(fx, fy);
-        const float fz = pGeoset->vertices[i].z + baselevel * TILESIZE + fh - HEIGHT_COR;
+        const float fz = pGeoset->vertices[i].z + baselevel * TILE_SIZE + fh - HEIGHT_COR;
         const float dp = GetTileDepth(fw, fz);
         struct vertex *v = currentVertex + t;
         VECTOR3 fn = pGeoset->normals[i];

@@ -205,6 +205,9 @@ void SV_InitGameProgs(void) {
     import.ReadFile = FS_ReadFile;
     import.ExtractFile = FS_ExtractFile;
     import.error = PF_error;
+    import.LinkEntity = SV_LinkEntity;
+    import.UnlinkEntity = SV_UnlinkEntity;
+    import.BoxEdicts = SV_AreaEdicts;
     import.configstring = PF_Configstring;
     import.confignstring = PF_Confignstring;
     import.WriteByte = PF_WriteByte;

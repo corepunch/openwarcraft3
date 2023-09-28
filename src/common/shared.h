@@ -233,6 +233,7 @@ struct playerState_s {
     DWORD fov;
     DWORD rdflags;
     DWORD uiflags;
+    DWORD team;
     USHORT stats[MAX_STATS];
     LPCSTR texts[MAX_STATS];
 };

@@ -197,6 +197,9 @@ void SP_SpawnUnit(LPEDICT self) {
     self->attack1.sidesPerDie = UNIT_ATTACK1_DAMAGE_SIDES_PER_DIE(self->class_id);
     self->attack1.cooldown = UNIT_ATTACK1_BASE_COOLDOWN(self->class_id);
     self->attack1.damagePoint = UNIT_ATTACK1_DAMAGE_POINT(self->class_id);
+    
+    self->balance.sight_radius.day = UNIT_SIGHT_RADIUS(self->class_id) / 2;
+    self->balance.sight_radius.night = UNIT_SIGHT_RADIUS_NIGHT(self->class_id) / 2;
 
     if (self->attack1.weapon == WPN_MISSILE) {
         self->attack1.origin.x = UNIT_ATTACK1_LAUNCH_X(self->class_id);

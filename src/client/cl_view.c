@@ -163,7 +163,7 @@ void CL_PrepRefresh(void) {
         map_registered = true;
     }
     
-    for (int i = 2; i < MAX_MODELS && *cl.configstrings[CS_MODELS + i]; i++) {
+    for (DWORD i = 2; i < MAX_MODELS && *cl.configstrings[CS_MODELS + i]; i++) {
         if (cl.models[i])
             continue;
         LPCSTR filename = cl.configstrings[CS_MODELS + i];
@@ -177,13 +177,13 @@ void CL_PrepRefresh(void) {
         }
     }
     
-    for (int i = 1; i < MAX_IMAGES && *cl.configstrings[CS_IMAGES + i]; i++) {
+    for (DWORD i = 1; i < MAX_IMAGES && *cl.configstrings[CS_IMAGES + i]; i++) {
         if (cl.pics[i])
             continue;
         cl.pics[i] = re.LoadTexture(cl.configstrings[CS_IMAGES + i]);
     }
     
-    for (int i = 1; i < MAX_FONTSTYLES && *cl.configstrings[CS_FONTS + i]; i++) {
+    for (DWORD i = 1; i < MAX_FONTSTYLES && *cl.configstrings[CS_FONTS + i]; i++) {
         if (cl.fonts[i])
             continue;
         LPCSTR fontspec = cl.configstrings[CS_FONTS + i];

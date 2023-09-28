@@ -56,8 +56,8 @@ static LPMAPSEGMENT R_BuildMapSegment(LPCWAR3MAP map, DWORD sx, DWORD sy) {
 static VECTOR3 R_GetMapVertexPoint(LPCWAR3MAP map, DWORD x, DWORD y) {
     LPCWAR3MAPVERTEX mapVertex = GetWar3MapVertex(map, x, y);
     return (VECTOR3) {
-        .x = map->center.x + x * TILESIZE,
-        .y = map->center.y + y * TILESIZE,
+        .x = map->center.x + x * TILE_SIZE,
+        .y = map->center.y + y * TILE_SIZE,
         .z = GetWar3MapVertexHeight(mapVertex),
     };
 }

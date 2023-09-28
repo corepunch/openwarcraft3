@@ -41,5 +41,6 @@ DWORD CM_GetLocalPlayerNumber(void);
 LPCMAPINFO CM_GetMapInfo(void);
 VECTOR2 CM_GetNormalizedMapPosition(float x, float y);
 VECTOR2 CM_GetDenormalizedMapPosition(float x, float y);
+BOX2 CM_GetWorldBounds(void);
 
 #endif

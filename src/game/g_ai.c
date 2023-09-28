@@ -20,8 +20,11 @@ FLOAT M_MoveDistance(LPEDICT self) {
 
 void M_MoveInDirection(LPEDICT self) {
     FLOAT const distance = M_MoveDistance(self);
+
     self->s.origin.x += cos(self->s.angle) * distance;
     self->s.origin.y += sin(self->s.angle) * distance;
+
+    gi.LinkEntity(self);
 }
 
 void M_SetAnimation(LPEDICT self, LPCSTR anim) {
@@ -51,7 +54,29 @@ void M_RunWait(LPEDICT self, void (*callback)(LPEDICT )) {
     }
 }
 
+void ai_idle(LPEDICT self) {
+}
+
+void attack_start(LPEDICT self, LPEDICT target);
+
 void ai_stand(LPEDICT self) {
+    if (!(self->svflags & SVF_MONSTER))
+        return;
+    if (level.mapinfo->players[self->s.player].playerType != kPlayerTypeComputer)
+        return;
+    FOR_LOOP(i, globals.num_edicts) {
+        LPEDICT ent = g_edicts+i;
+        if (!(ent->svflags & SVF_MONSTER) || ent->s.player == self->s.player)
+            continue;
+        if (level.alliances[ent->s.player][self->s.player] != 0)
+            continue;
+        if (level.mapinfo->players[ent->s.player].playerType != kPlayerTypeHuman)
+            continue;
+        FLOAT distance = Vector2_distance(&ent->s.origin2, &self->s.origin2);
+        if (distance < self->balance.sight_radius.day) {
+            attack_start(self, ent);
+        }
+    }
 }
 
 void ai_birth(LPEDICT self) {

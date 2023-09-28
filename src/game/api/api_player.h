@@ -1,8 +1,9 @@
 extern LPPLAYER currentplayer;
 
 DWORD SetPlayerTeam(LPJASS j) {
-    //LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
-    //LONG whichTeam = jass_checkinteger(j, 2);
+    LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
+    LONG whichTeam = jass_checkinteger(j, 2);
+    whichPlayer->team = whichTeam;
     return 0;
 }
 DWORD SetPlayerStartLocation(LPJASS j) {
@@ -21,10 +22,11 @@ DWORD SetPlayerColor(LPJASS j) {
     return 0;
 }
 DWORD SetPlayerAlliance(LPJASS j) {
-    //HANDLE sourcePlayer = jass_checkhandle(j, 1, "player");
-    //HANDLE otherPlayer = jass_checkhandle(j, 2, "player");
-    //HANDLE whichAllianceSetting = jass_checkhandle(j, 3, "alliancetype");
-    //BOOL value = jass_checkboolean(j, 4);
+    LPPLAYER sourcePlayer = jass_checkhandle(j, 1, "player");
+    LPPLAYER otherPlayer = jass_checkhandle(j, 2, "player");
+    PLAYERALLIANCE *whichAllianceSetting = jass_checkhandle(j, 3, "alliancetype");
+    BOOL value = jass_checkboolean(j, 4);
+    G_SetPlayerAlliance(sourcePlayer, otherPlayer, *whichAllianceSetting, value);
     return 0;
 }
 DWORD SetPlayerTaxRate(LPJASS j) {
@@ -55,8 +57,8 @@ DWORD SetPlayerOnScoreScreen(LPJASS j) {
     return 0;
 }
 DWORD GetPlayerTeam(LPJASS j) {
-    //LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
-    return jass_pushinteger(j, 0);
+    LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
+    return jass_pushinteger(j, whichPlayer->team);
 }
 DWORD GetPlayerStartLocation(LPJASS j) {
     //LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
@@ -227,10 +229,10 @@ DWORD GetPlayerState(LPJASS j) {
     return jass_pushinteger(j, client->ps.stats[*whichPlayerState]);
 }
 DWORD GetPlayerAlliance(LPJASS j) {
-    //HANDLE sourcePlayer = jass_checkhandle(j, 1, "player");
-    //HANDLE otherPlayer = jass_checkhandle(j, 2, "player");
-    //HANDLE whichAllianceSetting = jass_checkhandle(j, 3, "alliancetype");
-    return jass_pushboolean(j, 0);
+    LPPLAYER sourcePlayer = jass_checkhandle(j, 1, "player");
+    LPPLAYER otherPlayer = jass_checkhandle(j, 2, "player");
+    PLAYERALLIANCE *whichAllianceSetting = jass_checkhandle(j, 3, "alliancetype");
+    return jass_pushboolean(j, G_GetPlayerAlliance(sourcePlayer, otherPlayer, *whichAllianceSetting));
 }
 DWORD GetPlayerHandicap(LPJASS j) {
     //LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");

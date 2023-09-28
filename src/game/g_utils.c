@@ -41,3 +41,18 @@ static void DeleteQuest(LPQUEST quest) {
 void G_RemoveQuest(LPQUEST quest) {
     REMOVE_FROM_LIST(QUEST, quest, level.quests, DeleteQuest);
 }
+
+void G_SetPlayerAlliance(LPCPLAYER p1, LPCPLAYER p2, PLAYERALLIANCE type, BOOL value) {
+    DWORD flag = 1 << type;
+    if (value) {
+        level.alliances[p1->number][p2->number] |= flag;
+        level.alliances[p2->number][p1->number] |= flag;
+    } else {
+        level.alliances[p1->number][p2->number] &= ~flag;
+        level.alliances[p2->number][p1->number] &= ~flag;
+    }
+}
+
+BOOL G_GetPlayerAlliance(LPCPLAYER p1, LPCPLAYER p2, PLAYERALLIANCE type) {
+    return level.alliances[p1->number][p2->number] &= (1 << type);
+}

@@ -84,6 +84,7 @@ LPMODEL R_LoadModel(LPCSTR modelFilename) {
     DWORD fileSize = SFileGetFileSize(file, NULL);
     void *buffer = ri.MemAlloc(fileSize);
     SFileReadFile(file, buffer, fileSize, NULL, NULL);
+    ri.FileClose(file);
     switch (*(DWORD *)buffer) {
         case ID_MDLX:
             model = ri.MemAlloc(sizeof(model_t));
@@ -99,7 +100,6 @@ LPMODEL R_LoadModel(LPCSTR modelFilename) {
             fprintf(stderr, "Unknown model format %.4s in file %s\n", (LPSTR)buffer, modelFilename);
             break;
     }
-    ri.FileClose(file);
     ri.MemFree(buffer);
     return model;
 }
@@ -211,7 +211,7 @@ void R_Init(DWORD width, DWORD height) {
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
     
-    window = SDL_CreateWindow("", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width, height, SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN/* | SDL_WINDOW_ALLOW_HIGHDPI*/);
+    window = SDL_CreateWindow("", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width, height, SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN | SDL_WINDOW_ALLOW_HIGHDPI);
     context = SDL_GL_CreateContext(window);
     
     SDL_GL_GetDrawableSize(window, (int *)&tr.drawableSize.width, (int *)&tr.drawableSize.height);

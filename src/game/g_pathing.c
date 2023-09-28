@@ -12,7 +12,7 @@ typedef struct {
 
 #define TGA_ORIGIN_MASK 0x30
 
-pathTex_t *LoadTGA(const BYTE* mem, size_t size) {
+pathTex_t *LoadTGA(BYTE const* mem, size_t size) {
     tgaHeader_t *header = (tgaHeader_t*)mem;
     const BYTE *tga = mem + sizeof(tgaHeader_t) + header->id_length;
     DWORD columns = header->width;

@@ -174,7 +174,7 @@ static void CM_ReadDoodads(HANDLE archive) {
         SFileReadFile(file, &doodad->doodID, sizeof(DWORD), NULL, NULL);
         SFileReadFile(file, &doodad->variation, sizeof(DWORD), NULL, NULL);
         SFileReadFile(file, &doodad->position, sizeof(VECTOR3), NULL, NULL);
-        SFileReadFile(file, &doodad->angle, sizeof(float), NULL, NULL);
+        SFileReadFile(file, &doodad->angle, sizeof(FLOAT), NULL, NULL);
         SFileReadFile(file, &doodad->scale, sizeof(VECTOR3), NULL, NULL);
         SFileReadFile(file, &doodad->flags, sizeof(BYTE), NULL, NULL);
         SFileReadFile(file, &doodad->treeLife, sizeof(BYTE), NULL, NULL);
@@ -190,7 +190,7 @@ static void CM_ReadUnit(HANDLE file, struct Doodad *unit) {
     SFileReadFile(file, &unit->doodID, sizeof(DWORD), NULL, NULL);
     SFileReadFile(file, &unit->variation, sizeof(DWORD), NULL, NULL);
     SFileReadFile(file, &unit->position, sizeof(VECTOR3), NULL, NULL);
-    SFileReadFile(file, &unit->angle, sizeof(float), NULL, NULL);
+    SFileReadFile(file, &unit->angle, sizeof(FLOAT), NULL, NULL);
     SFileReadFile(file, &unit->scale, sizeof(VECTOR3), NULL, NULL);
     SFileReadFile(file, &unit->flags, sizeof(BYTE), NULL, NULL);
     SFileReadFile(file, &unit->player, sizeof(DWORD), NULL, NULL);
@@ -210,7 +210,7 @@ static void CM_ReadUnit(HANDLE file, struct Doodad *unit) {
     }
 
     SFileReadFile(file, &unit->goldAmount, sizeof(DWORD), NULL, NULL); // (default = 12500)
-    SFileReadFile(file, &unit->targetAcquisition, sizeof(float), NULL, NULL); // (-1 = normal, -2 = camp)
+    SFileReadFile(file, &unit->targetAcquisition, sizeof(FLOAT), NULL, NULL); // (-1 = normal, -2 = camp)
 
     SFileReadFile(file, &unit->hero, sizeof(DWORD), NULL, NULL); // (set to 1 for non hero units and items)
     // in Frozen Throne:
@@ -438,21 +438,21 @@ static LPCWAR3MAPVERTEX CM_GetWar3MapVertex(DWORD x, DWORD y) {
     return (LPCWAR3MAPVERTEX)ptr;
 }
 
-static float CM_GetWar3MapVertexHeight(LPCWAR3MAPVERTEX vert) {
-    return DECODE_HEIGHT(vert->accurate_height) + vert->level * TILESIZE - HEIGHT_COR;
+static FLOAT CM_GetWar3MapVertexHeight(LPCWAR3MAPVERTEX vert) {
+    return DECODE_HEIGHT(vert->accurate_height) + vert->level * TILE_SIZE - HEIGHT_COR;
 }
 
-float CM_GetHeightAtPoint(float sx, float sy) {
-    float x = (sx - world.map->center.x) / TILESIZE;
-    float y = (sy - world.map->center.y) / TILESIZE;
-    float fx = floorf(x);
-    float fy = floorf(y);
-    float a = CM_GetWar3MapVertexHeight(CM_GetWar3MapVertex(fx, fy));
-    float b = CM_GetWar3MapVertexHeight(CM_GetWar3MapVertex(fx + 1, fy));
-    float c = CM_GetWar3MapVertexHeight(CM_GetWar3MapVertex(fx, fy + 1));
-    float d = CM_GetWar3MapVertexHeight(CM_GetWar3MapVertex(fx + 1, fy + 1));
-    float ab = LerpNumber(a, b, x - fx);
-    float cd = LerpNumber(c, d, x - fx);
+FLOAT CM_GetHeightAtPoint(FLOAT sx, FLOAT sy) {
+    FLOAT x = (sx - world.map->center.x) / TILE_SIZE;
+    FLOAT y = (sy - world.map->center.y) / TILE_SIZE;
+    FLOAT fx = floorf(x);
+    FLOAT fy = floorf(y);
+    FLOAT a = CM_GetWar3MapVertexHeight(CM_GetWar3MapVertex(fx, fy));
+    FLOAT b = CM_GetWar3MapVertexHeight(CM_GetWar3MapVertex(fx + 1, fy));
+    FLOAT c = CM_GetWar3MapVertexHeight(CM_GetWar3MapVertex(fx, fy + 1));
+    FLOAT d = CM_GetWar3MapVertexHeight(CM_GetWar3MapVertex(fx + 1, fy + 1));
+    FLOAT ab = LerpNumber(a, b, x - fx);
+    FLOAT cd = LerpNumber(c, d, x - fx);
     return LerpNumber(ab, cd, y - fy);
 }
 
@@ -478,18 +478,27 @@ LPCMAPINFO CM_GetMapInfo(void) {
     return &world.info;
 }
 
-VECTOR2 CM_GetNormalizedMapPosition(float x, float y) {
-    float _x = (x - world.map->center.x) / ((world.map->width-1) * TILESIZE);
-    float _y = (y - world.map->center.y) / ((world.map->height-1) * TILESIZE);
+VECTOR2 CM_GetNormalizedMapPosition(FLOAT x, FLOAT y) {
+    FLOAT _x = (x - world.map->center.x) / ((world.map->width-1) * TILE_SIZE);
+    FLOAT _y = (y - world.map->center.y) / ((world.map->height-1) * TILE_SIZE);
     return (VECTOR2) { _x, _y };
 }
 
-VECTOR2 CM_GetDenormalizedMapPosition(float x, float y) {
-    float _x = x * (world.map->width-1) * TILESIZE + world.map->center.x;
-    float _y = y * (world.map->height-1) * TILESIZE + world.map->center.y;
+VECTOR2 CM_GetDenormalizedMapPosition(FLOAT x, FLOAT y) {
+    FLOAT _x = x * (world.map->width-1) * TILE_SIZE + world.map->center.x;
+    FLOAT _y = y * (world.map->height-1) * TILE_SIZE + world.map->center.y;
     return (VECTOR2) { _x, _y };
 }
 
 void CM_ReleaseModel(void) {
     MapInfo_Release(&world.info);
+}
+
+BOX2 CM_GetWorldBounds(void) {
+    return MAKE(BOX2,
+                .min = world.map->center,
+                .max = {
+                    .x = (world.map->width-1) *  TILE_SIZE + world.map->center.x,
+                    .y = (world.map->height-1) * TILE_SIZE + world.map->center.y,
+                });
 }

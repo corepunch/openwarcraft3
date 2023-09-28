@@ -135,7 +135,7 @@ sheetRow_t *FS_ParseSLK(LPCSTR fileName) {
             czBuffer[cur++] = ch;
         }
     }
-    SFileCloseFile(file);
+    FS_CloseFile(file);
     if (start != current_cell) { // close the table
         previous_cell->next = NULL;
         return FS_MakeRowsFromSheet(start);

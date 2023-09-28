@@ -1,7 +1,9 @@
 #ifndef __mapinfo_h__
 #define __mapinfo_h__
 
-#define TILESIZE 128
+#define TILE_SIZE 128
+#define SEGMENT_SIZE 8
+//#define AREA_SIZE (TILE_SIZE * SEGMENT_SIZE)
 #define MAX_PLAYERS 16
 
 typedef struct {

@@ -3,8 +3,6 @@
 
 #include "r_local.h"
 
-#define SEGMENT_SIZE 8
-
 KNOWN_AS(MapLayer, MAPLAYER);
 KNOWN_AS(MapSegment, MAPSEGMENT);
 

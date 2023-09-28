@@ -107,12 +107,21 @@ static void ExtractStarCraft2(void) {
 }
 #endif
 
+static BOOL filelock = false;
+void PF_Sleep(DWORD msec);
+
 HANDLE FS_OpenFile(LPCSTR fileName) {
+    while (filelock) {
+        PF_Sleep(10);
+    }
+    filelock = true;
     FOR_LOOP(i, MAX_ARCHIVES) {
         HANDLE file;
-        if (SFileOpenFileEx(archives[i], fileName, SFILE_OPEN_FROM_MPQ, &file))
+        if (SFileOpenFileEx(archives[i], fileName, SFILE_OPEN_FROM_MPQ, &file)) {
             return file;
+        }
     }
+    filelock = false;
     return NULL;
 }
 
@@ -128,6 +137,7 @@ bool FS_FileExists(LPCSTR fileName) {
 
 void FS_CloseFile(HANDLE file) {
     SFileCloseFile(file);
+    filelock = false;
 }
 
 bool FS_ExtractFile(LPCSTR toExtract, LPCSTR extracted) {
