@@ -572,6 +572,7 @@ typedef struct {
     DWORD sidesPerDie;
     FLOAT damagePoint;
     FLOAT cooldown;
+    FLOAT range;
     struct {
         DWORD model;
         FLOAT arc;
@@ -625,6 +626,7 @@ struct gquest_s {
 
 typedef struct {
     struct { FLOAT day, night; } sight_radius;
+    struct { DWORD health, mana; } max;
 } unitbalance_t;
 
 struct edict_s {
@@ -638,6 +640,7 @@ struct edict_s {
     DWORD areanum;
     LINK area;
     BOOL inuse;
+    BOX2 areabounds;
 
     // keep above in sync with server.h
     DWORD class_id;
@@ -782,7 +785,6 @@ void M_ChangeAngle(LPEDICT);
 BOOL M_CheckAttack(LPEDICT);
 void M_SetAnimation(LPEDICT, LPCSTR);
 void M_SetMove(LPEDICT, umove_t *);
-umove_t const *M_GetCurrentMove(LPCEDICT);
 FLOAT M_DistanceToGoal(LPEDICT);
 FLOAT M_MoveDistance(LPEDICT);
 DWORD M_RefreshHeatmap(LPEDICT);
@@ -802,6 +804,8 @@ BOOL SV_CloseEnough(LPEDICT, LPCEDICT, FLOAT);
 void G_RunEntity(LPEDICT);
 void G_SolveCollisions(void);
 BOOL M_CheckCollision(LPCVECTOR2, FLOAT);
+void G_PushEntity(LPEDICT ent, FLOAT distance, LPCVECTOR2 direction);
+void G_PushEntity3(LPEDICT ent, FLOAT distance, LPCVECTOR3 direction);
 
 // g_abilities.c
 ability_t const *FindAbilityByClassname(LPCSTR);

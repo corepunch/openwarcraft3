@@ -1,10 +1,20 @@
 #include "g_local.h"
 
-#define IS_HOLLOW(ent) (ent->health.value <= 0 || ent->s.renderfx & RF_HIDDEN || !ent->s.model || !ent->inuse)
+#define IS_HOLLOW(ent) ((ent->svflags & SVF_DEADMONSTER) || (ent->s.renderfx & RF_HIDDEN) || !ent->s.model || !ent->inuse)
 #define IS_STATIC(ent) (ent->movetype == MOVETYPE_NONE)
-#define IS_MOVING(ent) (ent->currentmove->ability == &a_move)
+#define IS_MOVING(ent) (ent->currentmove && ent->currentmove->ability == &a_move)
 
 extern ability_t a_move;
+
+void G_PushEntity(LPEDICT ent, FLOAT distance, LPCVECTOR2 direction) {
+    ent->s.origin2 = Vector2_mad(&ent->s.origin2, distance, direction);
+    gi.LinkEntity(ent);
+}
+
+void G_PushEntity3(LPEDICT ent, FLOAT distance, LPCVECTOR3 direction) {
+    ent->s.origin = Vector3_mad(&ent->s.origin, distance, direction);
+    gi.LinkEntity(ent);
+}
 
 void SV_Physics_Step(LPEDICT ent) {
     M_CheckGround(ent);
@@ -18,8 +28,7 @@ void SV_Physics_Toss(LPEDICT ent) {
         G_FreeEdict(ent);
     } else {
         Vector3_normalize(&dir);
-        ent->s.origin = Vector3_mad(&ent->s.origin, distance, &dir);
-        gi.LinkEntity(ent);
+        G_PushEntity3(ent, distance, &dir);
     }
 }
 
@@ -39,8 +48,8 @@ void G_RunEntity(LPEDICT ent) {
     SAFE_CALL(ent->think, ent);
     ent->s.stats[ENT_HEALTH] = compress_stat(&ent->health);
     ent->s.stats[ENT_MANA] = compress_stat(&ent->mana);
-    if (M_GetCurrentMove(ent)) {
-        ent->s.ability = GetAbilityIndex(M_GetCurrentMove(ent)->ability);
+    if (ent->currentmove) {
+        ent->s.ability = GetAbilityIndex(ent->currentmove->ability);
     } else {
         ent->s.ability = 0;
     }
@@ -59,48 +68,44 @@ inline BOOL M_CheckCollision(LPCVECTOR2 origin, FLOAT radius) {
     return false;
 }
 
+static LPCEDICT current_entity = NULL;
+
+static BOOL FilterColliders(LPCEDICT ent) {
+    return ent != current_entity && !IS_HOLLOW(ent);
+}
+
+#define MAX_COLLIDERS 64
+
+static LPEDICT sv_colliders[MAX_COLLIDERS];
+
 void G_SolveCollisions(void) {
-    for (LPEDICT a = globals.edicts; a - globals.edicts < globals.num_edicts; a++) {
-        if (IS_HOLLOW(a))
+    FOR_LOOP(i, globals.num_edicts) {
+        LPEDICT a = g_edicts+i;
+        if (IS_HOLLOW(a) || IS_STATIC(a))
             continue;
-        BOOL const a_static = IS_STATIC(a);
-        for (LPEDICT b = a+1; b - globals.edicts < globals.num_edicts; b++) {
-            BOOL const b_static = IS_STATIC(b);
-            if (IS_HOLLOW(b))
-                continue;
-            if (a_static && b_static)
-                continue;
+        current_entity = a;
+        DWORD num_colliders = gi.BoxEdicts(&a->bounds, sv_colliders, MAX_COLLIDERS, FilterColliders);
+        FOR_LOOP(j, num_colliders) {
+            LPEDICT b = sv_colliders[j];
             FLOAT const radius = (a->collision + b->collision);
-            if (fabs(a->s.origin.x - b->s.origin.x) >= radius)
-                continue;
-            if (fabs(a->s.origin.y - b->s.origin.y) >= radius)
-                continue;
             FLOAT const distance = Vector2_distance(&a->s.origin2, &b->s.origin2);
             if (distance >= radius)
                 continue;
             VECTOR2 d = Vector2_sub(&a->s.origin2, &b->s.origin2);
             Vector2_normalize(&d);
             FLOAT const diff = distance - radius;
-            if (a_static) {
-                b->s.origin2 = Vector2_mad(&b->s.origin2, diff, &d);
-                gi.LinkEntity(b);
-            } else if (b_static) {
-                a->s.origin2 = Vector2_mad(&a->s.origin2, -diff, &d);
-                gi.LinkEntity(a);
+            if (IS_STATIC(b)) {
+                G_PushEntity(a, -diff, &d);
             } else if (IS_MOVING(a) && IS_MOVING(b)) {
                 FLOAT const ad = M_DistanceToGoal(a);
                 FLOAT const bd = M_DistanceToGoal(b);
-                a->s.origin2 = Vector2_mad(&a->s.origin2, -diff * ad / (ad + bd), &d);
-                b->s.origin2 = Vector2_mad(&b->s.origin2, diff * bd / (ad + bd), &d);
-                gi.LinkEntity(a);
-                gi.LinkEntity(b);
+                G_PushEntity(a, -diff * ad / (ad + bd), &d);
+                G_PushEntity(b, diff * bd / (ad + bd), &d);
             } else {
-                a->s.origin2 = Vector2_mad(&a->s.origin2, -diff * 0.5f, &d);
-                b->s.origin2 = Vector2_mad(&b->s.origin2, diff * 0.5f, &d);
-                gi.LinkEntity(a);
-                gi.LinkEntity(b);
-                // one of the colliders reached the point?
-                // then stop the other one as well
+                G_PushEntity(a, -diff * 0.5f, &d);
+                G_PushEntity(b, diff * 0.5f, &d);
+//                // one of the colliders reached the point?
+//                // then stop the other one as well
                 if (a->goalentity == b->goalentity) {
                     if (IS_MOVING(a)) a->stand(a);
                     if (IS_MOVING(b)) b->stand(b);

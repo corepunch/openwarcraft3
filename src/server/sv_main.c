@@ -89,6 +89,9 @@ void ConvertMDLXAnimationName(LPANIMATION seq) {
             last_char = ch;
         }
     }
+    for (DWORD i = (DWORD)strlen(seq->name)-1; i > 0 && isspace(seq->name[i]); i--) {
+        seq->name[i] = '\0';
+    }
 }
 
 typedef struct {

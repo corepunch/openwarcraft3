@@ -80,7 +80,7 @@ void harvestgold_walkback(LPEDICT ent) {
     ent->s.renderfx &= ~RF_HIDDEN;
     ent->harvested_gold += HARVEST_GOLD_CAPACITY;
     FILTER_EDICTS(other, other->goalentity == ent->goalentity &&
-                  M_GetCurrentMove(other) == &harvestgold_move_wait)
+                  other->currentmove == &harvestgold_move_wait)
     {
         harvestgold_minegold(other);
     }

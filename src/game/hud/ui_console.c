@@ -87,7 +87,7 @@ static void UI_WriteBuildQueue(LPFRAMEDEF infoPanel, LPEDICT unit) {
     UI_SetPoint(&firstItem, FRAMEPOINT_TOPLEFT, infoPanel, FRAMEPOINT_TOPLEFT, BUILD_QUEUE_POSITION);
     UI_SetSize(&firstItem, BUILD_QUEUE_SIZE);
 
-    UI_CHILD_VALUE(SimpleBuildQueueBackdrop, infoPanel, Hidden, M_GetCurrentMove(unit)->think == ai_birth);
+    UI_CHILD_VALUE(SimpleBuildQueueBackdrop, infoPanel, Hidden, unit->currentmove->think == ai_birth);
 
     UI_InitFrame(&imageList, FT_BUILDQUEUE);
     imageList.BuildQueue.FirstItem = &firstItem;
@@ -284,7 +284,7 @@ void ui_unit_commands(LPGAMECLIENT client) {
     LPEDICT ent = G_GetMainSelectedUnit(client);
     if (!ent)
         return;
-    if (M_GetCurrentMove(ent)->think == ai_birth)
+    if (ent->currentmove->think == ai_birth)
         return;
     LPCSTR abilities = UNIT_ABILITIES_NORMAL(ent->class_id);
     LPCSTR trains = UNIT_TRAINS(ent->class_id);

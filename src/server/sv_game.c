@@ -141,7 +141,8 @@ LPCANIMATION SV_GetAnimation(DWORD modelindex, LPCSTR animname) {
     if (!model)
         return NULL;
     FOR_LOOP(i, model->num_animations) {
-        if (!strcmp(animname, model->animations[i].name)) {
+        LPCSTR name = model->animations[i].name;
+        if (!strcmp(animname, name)) {
             return &model->animations[i];
         }
     }

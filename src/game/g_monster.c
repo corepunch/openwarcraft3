@@ -80,7 +80,7 @@ DWORD M_RefreshHeatmap(LPEDICT self) {
 void M_MoveFrame(LPEDICT self) {
     if (self->aiflags & AI_HOLD_FRAME)
         return;
-    umove_t const *move = M_GetCurrentMove(self);
+    umove_t const *move = self->currentmove;
     LPCANIMATION anim = self->animation;
     if (!anim)
         return;
@@ -105,11 +105,11 @@ void M_MoveFrame(LPEDICT self) {
 }
 
 void monster_think(LPEDICT self) {
-    if (!M_GetCurrentMove(self))
+    if (!self->currentmove)
         return;
     M_MoveFrame(self);
-    if (M_GetCurrentMove(self)->think) {
-        M_GetCurrentMove(self)->think(self);
+    if (self->currentmove->think) {
+        self->currentmove->think(self);
     }
 }
 
@@ -187,6 +187,8 @@ void SP_SpawnUnit(LPEDICT self) {
     self->mana.max_value = UNIT_MANA(self->class_id);
     self->health.value = UNIT_HP(self->class_id);
     self->health.max_value = UNIT_HP(self->class_id);
+    self->balance.sight_radius.day = UNIT_SIGHT_RADIUS(self->class_id);
+    self->balance.sight_radius.night = UNIT_SIGHT_RADIUS_NIGHT(self->class_id);
     self->think = monster_think;
     self->svflags |= SVF_MONSTER;
     
@@ -197,10 +199,8 @@ void SP_SpawnUnit(LPEDICT self) {
     self->attack1.sidesPerDie = UNIT_ATTACK1_DAMAGE_SIDES_PER_DIE(self->class_id);
     self->attack1.cooldown = UNIT_ATTACK1_BASE_COOLDOWN(self->class_id);
     self->attack1.damagePoint = UNIT_ATTACK1_DAMAGE_POINT(self->class_id);
+    self->attack1.range = UNIT_ATTACK1_RANGE(self->class_id);
     
-    self->balance.sight_radius.day = UNIT_SIGHT_RADIUS(self->class_id) / 2;
-    self->balance.sight_radius.night = UNIT_SIGHT_RADIUS_NIGHT(self->class_id) / 2;
-
     if (self->attack1.weapon == WPN_MISSILE) {
         self->attack1.origin.x = UNIT_ATTACK1_LAUNCH_X(self->class_id);
         self->attack1.origin.y = UNIT_ATTACK1_LAUNCH_Y(self->class_id);

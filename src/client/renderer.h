@@ -46,6 +46,8 @@ typedef struct {
     LPCMODEL model;
     LPCTEXTURE skin;
     LPCTEXTURE splat;
+    LPCTEXTURE healthbar;
+    LPCTEXTURE manabar;
     DWORD number;
     DWORD team;
     DWORD frame;

@@ -39,6 +39,7 @@ void unit_stand(LPEDICT self) {
 void unit_die(LPEDICT self, LPEDICT attacker) {
     M_SetMove(self, &unit_move_death);
     G_PublishEvent(self, EVENT_UNIT_DEATH);
+    self->svflags |= SVF_DEADMONSTER;
 }
 
 void unit_birth(LPEDICT self) {

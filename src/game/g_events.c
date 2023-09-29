@@ -48,7 +48,7 @@ static void G_ExecuteEvent(GAMEEVENT *evt) {
     }
 }
 
-static void G_TriggerRegionEvents(LPEDICT ent) {
+static void G_TouchTriggers(LPEDICT ent) {
     FOR_EACH_LIST(EVENT, evt, level.events.handlers) {
         switch (evt->type) {
             case EVENT_GAME_ENTER_REGION:
@@ -91,10 +91,9 @@ void G_RunEntities(void) {
     }
     FOR_LOOP(i, globals.num_edicts) {
         LPEDICT ent = globals.edicts+i;
-        if (memcmp(&ent->old_origin, &ent->s.origin2, sizeof(VECTOR2)) != 0) {
-            G_TriggerRegionEvents(ent);
-            ent->old_origin = ent->s.origin2;
-        }
+        if (!memcmp(&ent->old_origin, &ent->s.origin2, sizeof(VECTOR2)))
+            continue;
+        G_TouchTriggers(ent);
     }
 }
 

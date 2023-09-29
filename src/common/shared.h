@@ -132,23 +132,27 @@ enum {
 #define MAX_ITEMS 256
 #define MAX_GENERAL (MAX_CLIENTS*2)
 
-#define CS_NAME 0
-#define CS_CDTRACK 1
-#define CS_SKY 2
-#define CS_SKYAXIS 3        // %f %f %f format
-#define CS_SKYROTATE 4
-#define CS_STATUSBAR 5        // display program string
-#define CS_AIRACCEL 29        // air acceleration control
-#define CS_MAXCLIENTS 30
-#define CS_MAPCHECKSUM 31        // for catching cheater maps
-#define CS_MODELS 32
-#define CS_SOUNDS (CS_MODELS+MAX_MODELS)
-#define CS_IMAGES (CS_SOUNDS+MAX_SOUNDS)
-#define CS_FONTS (CS_IMAGES+MAX_IMAGES)
-#define CS_ITEMS (CS_FONTS+MAX_FONTSTYLES)
-#define CS_PLAYERSKINS (CS_ITEMS+MAX_ITEMS)
-#define CS_GENERAL (CS_PLAYERSKINS+MAX_CLIENTS)
-#define MAX_CONFIGSTRINGS (CS_GENERAL+MAX_GENERAL)
+enum {
+    CS_NAME = 0,
+    CS_CDTRACK = 1,
+    CS_SKY = 2,
+    CS_SKYAXIS = 3,        // %f %f %f format
+    CS_SKYROTATE = 4,
+    CS_STATUSBAR = 5,        // display program string
+    CS_HEALTHBAR = 6,
+    CS_MANAHBAR = 6,
+    CS_AIRACCEL = 29,        // air acceleration control
+    CS_MAXCLIENTS = 30,
+    CS_MAPCHECKSUM = 31,        // for catching cheater maps
+    CS_MODELS = 32,
+    CS_SOUNDS = (CS_MODELS+MAX_MODELS),
+    CS_IMAGES = (CS_SOUNDS+MAX_SOUNDS),
+    CS_FONTS = (CS_IMAGES+MAX_IMAGES),
+    CS_ITEMS = (CS_FONTS+MAX_FONTSTYLES),
+    CS_PLAYERSKINS = (CS_ITEMS+MAX_ITEMS),
+    CS_GENERAL = (CS_PLAYERSKINS+MAX_CLIENTS),
+    MAX_CONFIGSTRINGS = (CS_GENERAL+MAX_GENERAL),
+};
 
 #define ID_MDLX MAKEFOURCC('M','D','L','X')
 #define ID_43DM MAKEFOURCC('4','3','D','M')

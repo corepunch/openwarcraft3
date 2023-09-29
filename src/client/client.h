@@ -54,6 +54,9 @@ struct client_state {
     PATHSTR configstrings[MAX_CONFIGSTRINGS];
     centity_t ents[MAX_CLIENT_ENTITIES];
     HANDLE layout[MAX_LAYOUT_LAYERS];
+    
+    LPCTEXTURE healthbar;
+    
     viewDef_t viewDef;
     struct frame frame;
     VECTOR2 startingPosition;

@@ -47,6 +47,7 @@ struct edict_s {
     DWORD areanum;
     LINK area;
     BOOL inuse;
+    BOX2 areabounds;
 };
 
 struct client_frame {

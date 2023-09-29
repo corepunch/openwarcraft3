@@ -19,12 +19,9 @@ FLOAT M_MoveDistance(LPEDICT self) {
 }
 
 void M_MoveInDirection(LPEDICT self) {
-    FLOAT const distance = M_MoveDistance(self);
-
-    self->s.origin.x += cos(self->s.angle) * distance;
-    self->s.origin.y += sin(self->s.angle) * distance;
-
-    gi.LinkEntity(self);
+    G_PushEntity(self,
+                 M_MoveDistance(self),
+                 &MAKE(VECTOR2, cos(self->s.angle), sin(self->s.angle)));
 }
 
 void M_SetAnimation(LPEDICT self, LPCSTR anim) {
@@ -34,13 +31,13 @@ void M_SetAnimation(LPEDICT self, LPCSTR anim) {
 void M_SetMove(LPEDICT self, umove_t *move) {
     self->currentmove = move;
     self->animation = gi.GetAnimation(self->s.model, move->animation);
-    if (!self->animation && strstr(move->animation, "stand ")) {
+    if (self->animation) {
+        // skip
+    } else if (strstr(move->animation, "stand ")) {
         self->animation = gi.GetAnimation(self->s.model, "stand");
+    } else if (strstr(move->animation, "attack ")) {
+        self->animation = gi.GetAnimation(self->s.model, "attack");
     }
-}
-
-umove_t const *M_GetCurrentMove(LPCEDICT ent) {
-    return ent->currentmove;
 }
 
 void M_RunWait(LPEDICT self, void (*callback)(LPEDICT )) {
@@ -59,21 +56,40 @@ void ai_idle(LPEDICT self) {
 
 void attack_start(LPEDICT self, LPEDICT target);
 
+#define MAX_SIGHT_ENTITIES 32
+
+static LPEDICT current_entity = NULL;
+static LPEDICT sight_entities[MAX_SIGHT_ENTITIES];
+
+static BOOL filter_sight(LPCEDICT ent) {
+    if (!(ent->svflags & SVF_MONSTER) || ent->s.player == current_entity->s.player)
+        return false;
+    if (level.alliances[ent->s.player][current_entity->s.player] != 0)
+        return false;
+    if (level.mapinfo->players[ent->s.player].playerType != kPlayerTypeHuman)
+        return false;
+    if (ent->svflags & SVF_DEADMONSTER)
+        return false;
+    if (UNIT_IS_BUILDING(ent->class_id))
+        return false;
+    return true;
+}
+
 void ai_stand(LPEDICT self) {
     if (!(self->svflags & SVF_MONSTER))
         return;
     if (level.mapinfo->players[self->s.player].playerType != kPlayerTypeComputer)
         return;
-    FOR_LOOP(i, globals.num_edicts) {
-        LPEDICT ent = g_edicts+i;
-        if (!(ent->svflags & SVF_MONSTER) || ent->s.player == self->s.player)
-            continue;
-        if (level.alliances[ent->s.player][self->s.player] != 0)
-            continue;
-        if (level.mapinfo->players[ent->s.player].playerType != kPlayerTypeHuman)
-            continue;
-        FLOAT distance = Vector2_distance(&ent->s.origin2, &self->s.origin2);
-        if (distance < self->balance.sight_radius.day) {
+    current_entity = self;
+    FLOAT const sight = self->balance.sight_radius.day / 2;
+    BOX2 const sightbox = {
+        { self->s.origin2.x - sight, self->s.origin2.y - sight },
+        { self->s.origin2.x + sight, self->s.origin2.y + sight },
+    };
+    DWORD numents = gi.BoxEdicts(&sightbox, sight_entities, MAX_SIGHT_ENTITIES, filter_sight);
+    FOR_LOOP(i, numents) {
+        LPEDICT ent = sight_entities[i];
+        if (Vector2_distance(&ent->s.origin2, &self->s.origin2) < sight) {
             attack_start(self, ent);
         }
     }

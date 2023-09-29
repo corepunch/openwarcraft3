@@ -98,7 +98,7 @@ void R_RenderOverlays(void) {
     R_Call(glBindVertexArray, tr.buffer[RBUF_TEMP1]->vao);
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, tr.buffer[RBUF_TEMP1]->vbo);
     
-    R_BindTexture(tr.texture[TEX_WHITE], 0);
+//    R_BindTexture(tr.texture[TEX_WHITE], 0);
     
     R_Call(glDisable, GL_CULL_FACE);
     R_Call(glEnable, GL_BLEND);
@@ -110,6 +110,7 @@ void R_RenderOverlays(void) {
             continue;
         if (ent->flags & RF_HIDDEN)
             return;
+        R_BindTexture(ent->healthbar, 0);
         DrawEntityOverlay(ent);
     }
 }

@@ -92,6 +92,7 @@ static void V_AddClientEntity(centity_t const *ent) {
     re.splat = cl.pics[ent->current.splat & 0xffff];
     re.splatsize = ent->current.splat >> 16;
     re.health = BYTE2FLOAT(ent->current.stats[ENT_HEALTH]);
+    re.healthbar = cl.healthbar;
 
     view_state.entities[view_state.num_entities++] = re;
     
@@ -161,6 +162,10 @@ void CL_PrepRefresh(void) {
     if (!map_registered) {
         re.RegisterMap(cl.configstrings[CS_MODELS+1]);
         map_registered = true;
+    }
+    
+    if (cl.configstrings[CS_HEALTHBAR] && !cl.healthbar) {
+        cl.healthbar = re.LoadTexture(cl.configstrings[CS_HEALTHBAR]);
     }
     
     for (DWORD i = 2; i < MAX_MODELS && *cl.configstrings[CS_MODELS + i]; i++) {

@@ -1,16 +1,20 @@
 #include "server.h"
 
-#define AREA_DEPTH 4
-#define AREA_NODES 32
+#define AREA_DEPTH 6
+#define AREA_NODES 128
 
 #define STRUCT_FROM_LINK(l,t,m) ((t *)((BYTE *)l - (long long)&(((t *)0)->m)))
 #define EDICT_FROM_AREA(l) STRUCT_FROM_LINK(l,EDICT,area)
+#define GET_AXIS(vec, axis) (*((LPCFLOAT)(vec)+axis))
+#define SET_AXIS(vec, axis, value) (*((LPFLOAT)(vec)+axis))=value
 
 KNOWN_AS(areanode_s, AREANODE);
 
 struct areanode_s {
-    int axis;        // -1 = leaf node
-    float dist;
+    DWORD axis;  // -1 = leaf node
+    DWORD depth; // for debug
+    BOX2 bounds;
+    FLOAT dist;
     struct areanode_s *children[2];
 //    link_t trigger_edicts;
     LINK solid_edicts;
@@ -35,9 +39,6 @@ void InsertLinkBefore (LPLINK l, LPLINK before) {
     l->next->prev = l;
 }
 
-#define GetAxis(vec, axis) (*((LPCFLOAT)(vec)+axis))
-#define SetAxis(vec, axis, value) (*((LPFLOAT)(vec)+axis))=value
-
 LPAREANODE SV_CreateAreaNode(DWORD depth, LPCVECTOR2 mins, LPCVECTOR2 maxs) {
     LPAREANODE anode = &sv_areanodes[sv_numareanodes++];
     VECTOR2 size = Vector2_sub(maxs, mins);
@@ -45,6 +46,9 @@ LPAREANODE SV_CreateAreaNode(DWORD depth, LPCVECTOR2 mins, LPCVECTOR2 maxs) {
 
     ClearLink (&anode->solid_edicts);
  
+    anode->bounds = MAKE(BOX2, *mins, *maxs);
+    anode->depth = depth;
+
     if (depth == AREA_DEPTH) {
         anode->axis = -1;
         anode->children[0] = anode->children[1] = NULL;
@@ -52,10 +56,10 @@ LPAREANODE SV_CreateAreaNode(DWORD depth, LPCVECTOR2 mins, LPCVECTOR2 maxs) {
     }
         
     anode->axis = size.x < size.y;
-    anode->dist = 0.5 * (GetAxis(maxs, anode->axis) + GetAxis(mins, anode->axis));
+    anode->dist = 0.5 * (GET_AXIS(maxs, anode->axis) + GET_AXIS(mins, anode->axis));
     
-    SetAxis(&maxs1, anode->axis, anode->dist);
-    SetAxis(&mins2, anode->axis, anode->dist);
+    SET_AXIS(&maxs1, anode->axis, anode->dist);
+    SET_AXIS(&mins2, anode->axis, anode->dist);
 
     anode->children[0] = SV_CreateAreaNode(depth+1, &mins2, &maxs2);
     anode->children[1] = SV_CreateAreaNode(depth+1, &mins1, &maxs1);
@@ -95,21 +99,22 @@ void SV_LinkEntity(LPEDICT ent) {
 
     // because movement is clipped an epsilon away from an actual edge,
     // we must fully check even when bounding boxes don't quite touch
-    ent->bounds.min = Vector2_sub(&ent->s.origin2, &eps);
-    ent->bounds.max = Vector2_add(&ent->s.origin2, &eps);
+    ent->bounds.min = Vector2_sub(&ent->bounds.min, &eps);
+    ent->bounds.max = Vector2_add(&ent->bounds.max, &eps);
 
     LPAREANODE node = sv_areanodes;
     while (1) {
         if (node->axis == -1)
             break;
-        if (GetAxis(&ent->bounds.min, node->axis) > node->dist)
+        if (GET_AXIS(&ent->bounds.min, node->axis) > node->dist)
             node = node->children[0];
-        else if (GetAxis(&ent->bounds.max, node->axis) < node->dist)
+        else if (GET_AXIS(&ent->bounds.max, node->axis) < node->dist)
             node = node->children[1];
         else
             break; // crosses the node
     }
     InsertLinkBefore(&ent->area, &node->solid_edicts);
+    ent->areabounds = node->bounds;
 }
 
 typedef struct {
@@ -122,14 +127,14 @@ typedef struct {
 
 void SV_AreaEdicts_r(LPCAREANODE node, areaworker_t *worker) {
     LPCLINK start = &node->solid_edicts;
-
+    
     for (LPCLINK l = start->next; l != start; l = l->next) {
         LPEDICT check = EDICT_FROM_AREA(l);
 
         if (   check->bounds.min.x > worker->bounds.max.x
             || check->bounds.min.y > worker->bounds.max.y
-            || check->bounds.min.x < worker->bounds.min.x
-            || check->bounds.min.y < worker->bounds.min.y)
+            || check->bounds.max.x < worker->bounds.min.x
+            || check->bounds.max.y < worker->bounds.min.y)
             continue; // not touching
 
         if (worker->count == worker->maxcount) {
@@ -146,10 +151,10 @@ void SV_AreaEdicts_r(LPCAREANODE node, areaworker_t *worker) {
         return; // terminal node
 
     // recurse down both sides
-    if (GetAxis(&worker->bounds.max, node->axis) > node->dist)
+    if (GET_AXIS(&worker->bounds.max, node->axis) > node->dist)
         SV_AreaEdicts_r(node->children[0], worker);
     
-    if (GetAxis(&worker->bounds.min, node->axis) < node->dist)
+    if (GET_AXIS(&worker->bounds.min, node->axis) < node->dist)
         SV_AreaEdicts_r(node->children[1], worker);
 }
 
@@ -162,5 +167,5 @@ DWORD SV_AreaEdicts(LPCBOX2 area, LPEDICT *list, DWORD maxcount, BOOL (*pred)(LP
         .pred = pred,
     };
     SV_AreaEdicts_r(sv_areanodes, &w);
-    return 0;
+    return w.count;
 }

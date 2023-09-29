@@ -144,6 +144,8 @@ void SP_CallSpawn(LPEDICT edict) {
 
 void SP_worldspawn(LPEDICT ent) {
     SetAbilityNames();
+    gi.configstring(CS_HEALTHBAR, Theme_String("SimpleHpBarConsole", "Default"));
+    gi.configstring(CS_MANAHBAR, Theme_String("SimpleManaBarConsole", "Default"));
 }
 
 static void G_InitMapPlayer(LPEDICT clent, LPCMAPPLAYER player, DWORD playernum) {
@@ -185,8 +187,8 @@ void G_SpawnEntities(LPCMAPINFO mapinfo, LPCDOODAD entities) {
         ent->s.origin = doodad->position;
         ent->s.angle = doodad->angle;
         ent->s.scale = doodad->scale.x;
-        gi.LinkEntity(ent);
         SP_CallSpawn(ent);
+        gi.LinkEntity(ent);
     }
     SP_worldspawn(NULL);
     

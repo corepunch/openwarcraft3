@@ -24,6 +24,7 @@ void tree_stand(LPEDICT self) {
 void tree_die(LPEDICT self, LPEDICT attacker) {
     M_SetMove(self, &tree_move_death);
     G_PublishEvent(self, EVENT_UNIT_DEATH);
+    self->svflags |= SVF_DEADMONSTER;
 }
 
 void tree_birth(LPEDICT self) {
