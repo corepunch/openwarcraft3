@@ -5,6 +5,7 @@ void attack_melee(LPEDICT ent);
 void attack_melee_cooldown(LPEDICT ent);
 void attack_ranged(LPEDICT ent);
 void attack_ranged_cooldown(LPEDICT ent);
+void attack_start(LPEDICT self, LPEDICT target);
 
 typedef struct {
     LPEDICT target;
@@ -65,6 +66,14 @@ void M_GetEntityMatrix(LPCENTITYSTATE entity, LPMATRIX4 matrix) {
     Matrix4_scale(matrix, &(VECTOR3){entity->scale, entity->scale, entity->scale});
 }
 
+static BOOL can_attack(LPCEDICT ent) {
+    if (ent->attack1.type == ATK_NONE)
+        return false;
+    if (!ent->currentmove || ent->currentmove->ability != &a_attack)
+        return true;
+    return false;
+}
+
 void T_Damage(LPEDICT target, LPEDICT attacker, int damage) {
     if (target->health.value <= damage) {
         target->health.value = 0;
@@ -74,13 +83,11 @@ void T_Damage(LPEDICT target, LPEDICT attacker, int damage) {
     } else {
         target->health.value -= damage;
     }
-    /*if (other->melee && !other->enemy) {
-     other->enemy = ent;
-     other->melee(other);
-     M_ChangeAngle(other);
-     } else */if (target->pain) {
-         target->pain(target);
-     }
+    if (can_attack(target)) {
+        attack_start(target, attacker);
+    } else if (target->pain) {
+        target->pain(target);
+    }
 }
 
 static void damage_target(LPEDICT ent) {
