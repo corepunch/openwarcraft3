@@ -219,6 +219,7 @@ typedef enum {
     MOVETYPE_FLY,
     MOVETYPE_TOSS,            // gravity
     MOVETYPE_FLYMISSILE,      // extra size to monsters
+    MOVETYPE_LINK,
     MOVETYPE_BOUNCE
 } MOVETYPE;
 
@@ -373,7 +374,7 @@ struct uiFrameDef_s {
     UINAME Name;
     UINAME TextStorage;
     UINAME OnClick;
-    LPCSTR Text, Tooltip;
+    LPCSTR Text, Tip, Ubertip;
     FLOAT Width, Height;
     COLOR32 Color;
     ALPHAMODE AlphaMode;
@@ -801,6 +802,7 @@ void M_ChangeAngle(LPEDICT);
 BOOL M_CheckAttack(LPEDICT);
 void M_SetAnimation(LPEDICT, LPCSTR);
 void M_SetMove(LPEDICT, umove_t *);
+void M_MoveFrame(LPEDICT);
 FLOAT M_DistanceToGoal(LPEDICT);
 FLOAT M_MoveDistance(LPEDICT);
 DWORD M_RefreshHeatmap(LPEDICT);
@@ -918,6 +920,7 @@ LPEDICT unit_createorfind(DWORD, DWORD, LPCVECTOR2, FLOAT);
 BOOL unit_additemtoslot(LPEDICT, DWORD, DWORD);
 BOOL unit_additem(LPEDICT, DWORD);
 void unit_addstatus(LPEDICT, LPCSTR, DWORD);
+void unit_learnability(LPEDICT, DWORD);
 
 // p_jass.c
 LPJASS jass_newstate(void);

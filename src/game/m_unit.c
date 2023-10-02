@@ -124,3 +124,17 @@ BOOL unit_additem(LPEDICT edict, DWORD class_id) {
 void unit_addstatus(LPEDICT ent, LPCSTR skill, DWORD level) {
     
 }
+
+void unit_learnability(LPEDICT ent, DWORD abilcode) {
+    FOR_LOOP(i, MAX_HERO_ABILITIES) {
+        heroability_t *ha = ent->heroabilities+i;
+        if (ha->level == 0) {
+            ha->level = 1;
+            ha->code = abilcode;
+            return;
+        } else if (ha->code == abilcode) {
+            ha->level++;
+            return;
+        }
+    }
+}

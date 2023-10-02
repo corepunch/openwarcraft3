@@ -88,7 +88,9 @@ void M_MoveFrame(LPEDICT self) {
     if (!strcmp(anim->name, "birth")) {
         DWORD anim_len = anim->interval[1] - anim->interval[0];
         DWORD build_time = UNIT_BUILD_TIME_MSEC(self->class_id);
-        next_frame = self->s.frame + FRAMETIME * anim_len / build_time;
+        if (build_time > 0) {
+            next_frame = self->s.frame + FRAMETIME * anim_len / build_time;
+        }
     }
     if (self->s.frame < anim->interval[0] ||
         self->s.frame >= anim->interval[1])

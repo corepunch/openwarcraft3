@@ -1,13 +1,26 @@
 #include "s_skills.h"
 
+#define ID_DEVOTION_AURA "AHad"
+
 static LPCSTR TARGET_ART;
 
-#define ID_DEVOTION_AURA "AHad"
+static umove_t aura_move_stand = { "stand", ai_idle, NULL };
+static umove_t aura_move_death = { "death", NULL, G_FreeEdict };
 
 void devotionaura_command(LPEDICT clent) {
     LPEDICT unit = G_GetMainSelectedUnit(clent->client);
     unit_addstatus(unit, ID_DEVOTION_AURA, 1);
-    unit->s.model2 = gi.ModelIndex(TARGET_ART);
+    
+    LPEDICT effect = G_Spawn();
+    effect->s.origin = unit->s.origin;
+    effect->s.angle = unit->s.angle;
+    effect->s.model = gi.ModelIndex(TARGET_ART);
+    effect->goalentity = unit;
+    effect->movetype = MOVETYPE_LINK;
+    effect->think = M_MoveFrame;
+    
+    M_SetMove(effect, &aura_move_stand);
+    
     Get_Commands_f(clent);
 }
 

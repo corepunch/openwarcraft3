@@ -226,55 +226,50 @@ void UI_AddCommandButtonExtended(LPCSTR code, BOOL research, DWORD level) {
         gi.error("Not BUTTONPOS for %s", altcode);
         return;
     }
-    char tooltip[1024] = { 0 };
+    UI_InitFrame(&button, FT_COMMANDBUTTON);
+    if (research) {
+        UI_SetOnClick(&button, "research %s", code);
+    } else {
+        UI_SetOnClick(&button, "button %s", code);
+    }
     DWORD x, y;
     DWORD class_id = *(DWORD const*)code;
     DWORD gold_cost = UNIT_GOLD_COST(class_id);
     DWORD limber_cost = UNIT_LUMBER_COST(class_id);
     DWORD food_cost = UNIT_FOOD_USED(class_id);
     if (gold_cost > 0 || limber_cost > 0 || food_cost > 0) {
-        sprintf(tooltip+strlen(tooltip), "%s|n", remove_quotes(tip));
-//        UI_CHILD_VALUE(ToolTipText, ToolTip, Text, "Peasant\n|cffffcc00<Icon,%d> 256   <Icon,%d> 128|\nGathers resources", ToolTipGoldIcon, ToolTipSupplyIcon);
+        static char tip_buffer[1024] = { 0 };
+        memset(tip_buffer, 0, sizeof(tip_buffer));
+        strcpy(tip_buffer, tip);
         if (gold_cost > 0) {
-            sprintf(tooltip+strlen(tooltip), "<Icon,%d> %d   ", ToolTipGoldIcon, gold_cost);
+            sprintf(tip_buffer+strlen(tip_buffer), "<Icon,%d> %d   ", ToolTipGoldIcon, gold_cost);
         }
         if (limber_cost > 0) {
-            sprintf(tooltip+strlen(tooltip), "<Icon,%d> %d   ", ToolTipLumberIcon, limber_cost);
+            sprintf(tip_buffer+strlen(tip_buffer), "<Icon,%d> %d   ", ToolTipLumberIcon, limber_cost);
         }
         if (food_cost > 0) {
-            sprintf(tooltip+strlen(tooltip), "<Icon,%d> %d   ", ToolTipSupplyIcon, food_cost);
+            sprintf(tip_buffer+strlen(tip_buffer), "<Icon,%d> %d   ", ToolTipSupplyIcon, food_cost);
         }
-        sprintf(tooltip+strlen(tooltip), "|n%s", remove_quotes(ubertip));
+        tip = tip_buffer;
     } else {
-        LPCSTR _tip = remove_quotes(tip);
-        if (!research) {
-            PARSE_LIST(_tip, perlevel, parse_segment) {
-                if (level == 1) {
-                    _tip = perlevel;
-                    break;
-                }
+        PARSE_LIST(tip, perlevel, parse_segment) {
+            if (level == 1) {
+                tip = perlevel;
+                break;
             }
-        } else {
-            
         }
-        LPCSTR corrected = process_string(remove_quotes(ubertip));
-        sprintf(tooltip, "%s|n%s", _tip, corrected);
+        ubertip = process_string(ubertip);
     }
     sscanf(buttonpos, "%d,%d", &x, &y);
     VECTOR2 bpos = MAKE(VECTOR2, COMMAND_BUTTON_POSITION(x, y));
-    UI_InitFrame(&button, FT_COMMANDBUTTON);
     UI_SetTexture(&button, art, true);
     UI_SetSize(&button, COMMAND_BUTTON_SIZE, COMMAND_BUTTON_SIZE);
-    if (research) {
-        UI_SetOnClick(&button, "research %s", code);
-    } else {
-        UI_SetOnClick(&button, "button %s", code);
-    }
     UI_SetPoint(&button, FRAMEPOINT_CENTER, NULL, FRAMEPOINT_BOTTOM, bpos.x, bpos.y);
 //    button.f.tex.index2 = UI_LoadTexture("CommandButtonActiveHighlight", true);
-    button.Tooltip = tooltip;
     button.AlphaMode = x==0 && y==0;
     button.Stat = FindAbilityIndex(code);
+    button.Tip = remove_quotes(tip);
+    button.Ubertip = remove_quotes(ubertip);
     UI_WriteFrame(&button);
 }
 
@@ -301,7 +296,6 @@ void ui_unit_inventory(LPGAMECLIENT client) {
     LPEDICT ent = G_GetMainSelectedUnit(client);
     if (!ent)
         return;
-    char tooltip[1024] = { 0 };
     FOR_LOOP(i, MAX_INVENTORY) {
         DWORD itemID = ent->inventory[i];
 //        itemID = MAKEFOURCC('s','e','h','r');
@@ -314,14 +308,14 @@ void ui_unit_inventory(LPGAMECLIENT client) {
         LPCSTR tip = FindConfigValue(code, STR_TIP);
         LPCSTR ubertip = FindConfigValue(code, STR_UBERTIP);
         FRAMEDEF button;
-        sprintf(tooltip, "%s|n%s", tip, remove_quotes(ubertip));
         VECTOR2 bpos = MAKE(VECTOR2, INVENTORY_BUTTON_POSITION(x, y));
         UI_InitFrame(&button, FT_COMMANDBUTTON);
         UI_SetTexture(&button, art, false);
         UI_SetSize(&button, INVENTORY_BUTTON_SIZE, INVENTORY_BUTTON_SIZE);
         UI_SetOnClick(&button, "inventory %s", code);
         UI_SetPoint(&button, FRAMEPOINT_CENTER, NULL, FRAMEPOINT_BOTTOM, bpos.x, bpos.y);
-        button.Tooltip = tooltip;
+        button.Tip = remove_quotes(tip);
+        button.Ubertip = remove_quotes(ubertip);
         button.AlphaMode = x==0 && y==0;
         button.Stat = FindAbilityIndex(code);
         UI_WriteFrame(&button);
@@ -365,9 +359,11 @@ void ui_unit_commands(LPGAMECLIENT client) {
     }
     FOR_LOOP(i, MAX_HERO_ABILITIES) {
         heroability_t const *ha = ent->heroabilities+i;
-        if (ha->level > 0) {
-            UI_AddCommandButtonExtended(GetClassName(ha->code), false, ha->level);
-        }
+        if (ha->level == 0)
+            continue;
+        UINAME classname;
+        strcpy(classname, GetClassName(ha->code));
+        UI_AddCommandButtonExtended(classname, false, ha->level);
     }
     if (trains) {
         PARSE_LIST(trains, unit, parse_segment) {
@@ -395,6 +391,10 @@ void Init_SimpleInfoPanelMultiselect(LPGAMECLIENT client) {
     multiselect.Multiselect.Offset = MAKE(VECTOR2, MULTISELECT_OFFSET);
     
     FOR_SELECTED_UNITS(client, ent) {
+        LPCSTR tip = FindConfigValue(GetClassName(ent->class_id), STR_TIP);
+        LPCSTR ubertip = FindConfigValue(GetClassName(ent->class_id), STR_UBERTIP);
+        printf("%s\n", remove_quotes(tip));
+        printf("%s\n", remove_quotes(ubertip));
         uiBuildQueueItem_t *it = multiselect.Multiselect.Items + (multiselect.Multiselect.NumItems++);
         LPCSTR art = FindConfigValue(GetClassName(ent->class_id), STR_ART);
         it->image = gi.ImageIndex(art);

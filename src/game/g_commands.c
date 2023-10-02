@@ -110,15 +110,7 @@ CLIENTCOMMAND(Research) {
 //    }
     LPEDICT ent = G_GetMainSelectedUnit(client);
     DWORD abilcode = *(DWORD const *)classname;
-    FOR_LOOP(i, MAX_HERO_ABILITIES) {
-        heroability_t *ha = ent->heroabilities+i;
-        if (ha->level == 0) {
-            ha->level = 1;
-            ha->code = abilcode;
-        } else if (ha->code == abilcode) {
-            ha->level++;
-        }
-    }
+    unit_learnability(ent, abilcode);
     Get_Commands_f(clent);
 }
 

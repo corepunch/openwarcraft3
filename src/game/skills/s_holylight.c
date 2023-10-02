@@ -2,9 +2,29 @@
 
 static LPCSTR TARGET_ART;
 
+void holylight_done(LPEDICT self);
+
+static umove_t effect_move_birth = { "birth", NULL, G_FreeEdict };
+static umove_t move_heal = { "stand channel", ai_idle, holylight_done, &a_holylight };
+
+void holylight_done(LPEDICT self) {
+    self->stand(self);
+}
+
 void holylight_command(LPEDICT clent) {
     LPEDICT unit = G_GetMainSelectedUnit(clent->client);
-    unit->s.model2 = gi.ModelIndex(TARGET_ART);
+    
+    LPEDICT effect = G_Spawn();
+    effect->s.origin = unit->s.origin;
+    effect->s.angle = unit->s.angle;
+    effect->s.model = gi.ModelIndex(TARGET_ART);
+    effect->goalentity = unit;
+    effect->movetype = MOVETYPE_LINK;
+    effect->think = M_MoveFrame;
+    
+    M_SetMove(effect, &effect_move_birth);
+
+    M_SetMove(unit, &move_heal);
     Get_Commands_f(clent);
 }
 
