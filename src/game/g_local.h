@@ -21,6 +21,7 @@
 #define MAX_REGION_SIZE 16
 #define MAX_INVENTORY 6
 #define FOV_ASPECT 1.7
+#define MAX_HERO_ABILITIES 4
 
 #define FILTER_EDICTS(ENT, CONDITION) \
 for (LPEDICT ENT = globals.edicts; \
@@ -629,6 +630,11 @@ typedef struct {
     struct { DWORD health, mana; } max;
 } unitbalance_t;
 
+typedef struct {
+    DWORD code;
+    DWORD level;
+} heroability_t;
+
 struct edict_s {
     entityState_t s;
     LPGAMECLIENT client;
@@ -658,6 +664,7 @@ struct edict_s {
     DWORD inventory[MAX_INVENTORY];
     FLOAT velocity;
     doodadHero_t hero;
+    heroability_t heroabilities[MAX_HERO_ABILITIES];
     VECTOR2 old_origin;
     EDICTSTAT health;
     EDICTSTAT mana;
@@ -824,6 +831,7 @@ void Get_Commands_f(LPEDICT);
 void Get_Portrait_f(LPEDICT);
 void UI_AddCancelButton(LPEDICT);
 void UI_AddCommandButton(LPCSTR);
+void UI_AddCommandButtonExtended(LPCSTR code, BOOL research, DWORD level);
 void UI_ShowInterface(LPEDICT, BOOL, FLOAT);
 void UI_ShowText(LPEDICT, LPCVECTOR2, LPCSTR, FLOAT);
 LPCSTR GetBuildCommand(unitRace_t);

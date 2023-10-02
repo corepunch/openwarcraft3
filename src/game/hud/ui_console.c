@@ -160,13 +160,40 @@ LPCSTR GetBuildCommand(unitRace_t race) {
     }
 }
 
+static LPCSTR ability_string(LPCSTR classname, LPCSTR field) {
+    return gi.FindSheetCell(game.config.abilities, classname, field);
+}
+
+static LPCSTR process_string(LPCSTR input) {
+    static char output[1024];
+    char classname[10], field[10];
+    LPCSTR replacement;
+    memset(output, 0, sizeof(output));
+    for (LPCSTR p = input; *p; p++) {
+        if (*p == '<') {
+            int num_matched = sscanf(p, "<%[^,],%[^>]>", classname, field);
+            if (num_matched == 2 && (replacement = ability_string(classname, field))) {
+                strcat(output, replacement);
+                p += strlen(classname) + strlen(field) + 2;
+            } else {
+                strncat(output, p, 1);
+            }
+        } else {
+            strncat(output, p, 1);
+        }
+    }
+    return output;
+}
+
 static LPCSTR remove_quotes(LPCSTR text) {
     if (*text != '"')
         return text;
-    static char text2[1024] = { 0 };
-    memset(text2, 0, sizeof(text2));
-    memcpy(text2, text+1, strlen(text)-2);
-    return text2;
+    static int counter = 0;
+    static char text2[8][1024] = { 0 };
+    LPSTR txt = text2[(counter++)&7];
+    memset(txt, 0, sizeof(text2[0]));
+    memcpy(txt, text+1, strlen(text)-2);
+    return txt;
 }
 
 static LPCSTR get_ability_art(LPCSTR code) {
@@ -177,17 +204,19 @@ static LPCSTR get_ability_art(LPCSTR code) {
     }
 }
 
-void UI_AddCommandButton(LPCSTR code) {
+#define RESEARCH_BUTTON(KEY) (research ? "Research" KEY : KEY)
+
+void UI_AddCommandButtonExtended(LPCSTR code, BOOL research, DWORD level) {
     DWORD ToolTipGoldIcon = UI_LoadTexture("ToolTipGoldIcon", true);
     DWORD ToolTipLumberIcon = UI_LoadTexture("ToolTipLumberIcon", true);
 //    DWORD ToolTipStonesIcon = UI_LoadTexture("ToolTipStonesIcon", true);
 //    DWORD ToolTipManaIcon = UI_LoadTexture("ToolTipManaIcon", true);
     DWORD ToolTipSupplyIcon = UI_LoadTexture("ToolTipSupplyIcon", true);
     LPCSTR altcode = get_ability_art(code);
-    LPCSTR art = FindConfigValue(altcode, STR_ART);
-    LPCSTR buttonpos = FindConfigValue(altcode, STR_BUTTONPOS);
-    LPCSTR tip = FindConfigValue(altcode, STR_TIP);
-    LPCSTR ubertip = FindConfigValue(altcode, STR_UBERTIP);
+    LPCSTR art = FindConfigValue(altcode, RESEARCH_BUTTON(STR_ART));
+    LPCSTR buttonpos = FindConfigValue(altcode, RESEARCH_BUTTON(STR_BUTTONPOS));
+    LPCSTR tip = FindConfigValue(altcode, RESEARCH_BUTTON(STR_TIP));
+    LPCSTR ubertip = FindConfigValue(altcode, RESEARCH_BUTTON(STR_UBERTIP));
     FRAMEDEF button;
     if (!art) {
         gi.error("Not ART for %s", altcode);
@@ -204,7 +233,7 @@ void UI_AddCommandButton(LPCSTR code) {
     DWORD limber_cost = UNIT_LUMBER_COST(class_id);
     DWORD food_cost = UNIT_FOOD_USED(class_id);
     if (gold_cost > 0 || limber_cost > 0 || food_cost > 0) {
-        sprintf(tooltip+strlen(tooltip), "%s|n", tip);
+        sprintf(tooltip+strlen(tooltip), "%s|n", remove_quotes(tip));
 //        UI_CHILD_VALUE(ToolTipText, ToolTip, Text, "Peasant\n|cffffcc00<Icon,%d> 256   <Icon,%d> 128|\nGathers resources", ToolTipGoldIcon, ToolTipSupplyIcon);
         if (gold_cost > 0) {
             sprintf(tooltip+strlen(tooltip), "<Icon,%d> %d   ", ToolTipGoldIcon, gold_cost);
@@ -217,20 +246,40 @@ void UI_AddCommandButton(LPCSTR code) {
         }
         sprintf(tooltip+strlen(tooltip), "|n%s", remove_quotes(ubertip));
     } else {
-        sprintf(tooltip, "%s|n%s", tip, remove_quotes(ubertip));
+        LPCSTR _tip = remove_quotes(tip);
+        if (!research) {
+            PARSE_LIST(_tip, perlevel, parse_segment) {
+                if (level == 1) {
+                    _tip = perlevel;
+                    break;
+                }
+            }
+        } else {
+            
+        }
+        LPCSTR corrected = process_string(remove_quotes(ubertip));
+        sprintf(tooltip, "%s|n%s", _tip, corrected);
     }
     sscanf(buttonpos, "%d,%d", &x, &y);
     VECTOR2 bpos = MAKE(VECTOR2, COMMAND_BUTTON_POSITION(x, y));
     UI_InitFrame(&button, FT_COMMANDBUTTON);
     UI_SetTexture(&button, art, true);
     UI_SetSize(&button, COMMAND_BUTTON_SIZE, COMMAND_BUTTON_SIZE);
-    UI_SetOnClick(&button, "button %s", code);
+    if (research) {
+        UI_SetOnClick(&button, "research %s", code);
+    } else {
+        UI_SetOnClick(&button, "button %s", code);
+    }
     UI_SetPoint(&button, FRAMEPOINT_CENTER, NULL, FRAMEPOINT_BOTTOM, bpos.x, bpos.y);
 //    button.f.tex.index2 = UI_LoadTexture("CommandButtonActiveHighlight", true);
     button.Tooltip = tooltip;
     button.AlphaMode = x==0 && y==0;
     button.Stat = FindAbilityIndex(code);
     UI_WriteFrame(&button);
+}
+
+void UI_AddCommandButton(LPCSTR code) {
+    UI_AddCommandButtonExtended(code, false, 0);
 }
 
 void ui_portrait(LPGAMECLIENT client) {
@@ -286,8 +335,10 @@ void ui_unit_commands(LPGAMECLIENT client) {
         return;
     if (ent->currentmove->think == ai_birth)
         return;
-    LPCSTR abilities = UNIT_ABILITIES_NORMAL(ent->class_id);
+    LPCSTR abil_normal = UNIT_ABILITIES_NORMAL(ent->class_id);
+    LPCSTR abil_hero = UNIT_ABILITIES_HERO(ent->class_id);
     LPCSTR trains = UNIT_TRAINS(ent->class_id);
+//    BOOL hero = (ent->class_id & 0xff) < 'a';
     if (UNIT_SPEED(ent->class_id) > 0) {
         UI_AddCommandButton(STR_CmdMove);
         UI_AddCommandButton(STR_CmdHoldPos);
@@ -300,14 +351,22 @@ void ui_unit_commands(LPGAMECLIENT client) {
     if (UNIT_BUILDS(ent->class_id)) {
         UI_AddCommandButton(STR_CmdBuild);
     }
-    if (abilities) {
-        PARSE_LIST(abilities, abil, parse_segment) {
+    if (abil_hero) {
+        UI_AddCommandButton(STR_CmdSelectSkill);
+    } else if (abil_normal) {
+        PARSE_LIST(abil_normal, abil, parse_segment) {
             LPCSTR code = gi.FindSheetCell(game.config.abilities, abil, "code");
             if (code && FindAbilityByClassname(code)) {
                 UI_AddCommandButton(code);
             } else {
                 gi.error("Ability not implemented: %s - %s", abil, gi.FindSheetCell(game.config.abilities, abil, "comments"));
             }
+        }
+    }
+    FOR_LOOP(i, MAX_HERO_ABILITIES) {
+        heroability_t const *ha = ent->heroabilities+i;
+        if (ha->level > 0) {
+            UI_AddCommandButtonExtended(GetClassName(ha->code), false, ha->level);
         }
     }
     if (trains) {

@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		5DE0B2772A2E688400B6DA83 /* ui_fdf.c in Sources */ = {isa = PBXBuildFile; fileRef = 5DE0B2752A2E688400B6DA83 /* ui_fdf.c */; };
 		7806B4672A57373400EE86BC /* parser.c in Sources */ = {isa = PBXBuildFile; fileRef = 7806B4662A57373400EE86BC /* parser.c */; };
+		78120E632ACAAF9A00DC0064 /* s_selectskill.c in Sources */ = {isa = PBXBuildFile; fileRef = 78120E622ACAAF9A00DC0064 /* s_selectskill.c */; };
 		78314AE42A2724A300062C4B /* g_metadata.c in Sources */ = {isa = PBXBuildFile; fileRef = 78314AE32A2724A300062C4B /* g_metadata.c */; };
 		7859EF622A2D0DDB0099A70E /* ui_quests.c in Sources */ = {isa = PBXBuildFile; fileRef = 7859EF612A2D0DDB0099A70E /* ui_quests.c */; };
 		785C745C2AA885930053B1CA /* g_items.c in Sources */ = {isa = PBXBuildFile; fileRef = 785C745B2AA885930053B1CA /* g_items.c */; };
@@ -56,6 +57,7 @@
 		7806B4662A57373400EE86BC /* parser.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = parser.c; sourceTree = "<group>"; };
 		7806B4682A57375300EE86BC /* parser.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = parser.h; sourceTree = "<group>"; };
 		78120E5B2AC454D500DC0064 /* api_effect.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = api_effect.h; sourceTree = "<group>"; };
+		78120E622ACAAF9A00DC0064 /* s_selectskill.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = s_selectskill.c; sourceTree = "<group>"; };
 		782D49972A29DEB6007793C7 /* g_shared.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = g_shared.h; sourceTree = "<group>"; };
 		78314AE32A2724A300062C4B /* g_metadata.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = g_metadata.c; sourceTree = "<group>"; };
 		7859EF612A2D0DDB0099A70E /* ui_quests.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = ui_quests.c; sourceTree = "<group>"; };
@@ -194,14 +196,15 @@
 				78ED1A962A47714F00C42E21 /* s_cancel.c */,
 				78BBB9AA2A44CC2000B0FC57 /* s_goldmine.c */,
 				78A000EA2A3CEB0A00FE16C9 /* s_harvest_lumber.c */,
+				787CFBBD2A6E752F00B822F2 /* s_holdpos.c */,
+				787CFBC12A6E754E00B822F2 /* s_militia.c */,
 				78A000EE2A3E28AD00FE16C9 /* s_move.c */,
+				787CFBBF2A6E754100B822F2 /* s_patrol.c */,
 				787CFBB92A6C2C4900B822F2 /* s_repair.c */,
+				78120E622ACAAF9A00DC0064 /* s_selectskill.c */,
 				78FC6C352A25F66500C9F93D /* s_skills.c */,
 				787CFBBB2A6E70B700B822F2 /* s_stop.c */,
 				7893D1242A614222005365DA /* s_train.c */,
-				787CFBBD2A6E752F00B822F2 /* s_holdpos.c */,
-				787CFBBF2A6E754100B822F2 /* s_patrol.c */,
-				787CFBC12A6E754E00B822F2 /* s_militia.c */,
 				787CFBC32A6EBA3C00B822F2 /* s_skills.h */,
 			);
 			path = skills;
@@ -336,6 +339,7 @@
 				786630612A188F4800266A62 /* g_phys.c in Sources */,
 				787CFBC72A6FA46500B822F2 /* vm_main.c in Sources */,
 				78731BAC2A9E1EF600077EDE /* g_utils.c in Sources */,
+				78120E632ACAAF9A00DC0064 /* s_selectskill.c in Sources */,
 				7874A5432A93BBA2006A8DB5 /* ui_write.c in Sources */,
 				787CFBC02A6E754100B822F2 /* s_patrol.c in Sources */,
 				78ED1A972A47714F00C42E21 /* s_cancel.c in Sources */,

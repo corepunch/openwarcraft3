@@ -100,6 +100,28 @@ CLIENTCOMMAND(Button) {
     }
 }
 
+CLIENTCOMMAND(Research) {
+    LPCSTR classname = argv[1];
+    LPGAMECLIENT client = clent->client;
+//    ability_t const *ability = FindAbilityByClassname(classname);
+//    if (!ability) {
+//        gi.error("No such ability %s", classname);
+//        return;
+//    }
+    LPEDICT ent = G_GetMainSelectedUnit(client);
+    DWORD abilcode = *(DWORD const *)classname;
+    FOR_LOOP(i, MAX_HERO_ABILITIES) {
+        heroability_t *ha = ent->heroabilities+i;
+        if (ha->level == 0) {
+            ha->level = 1;
+            ha->code = abilcode;
+        } else if (ha->code == abilcode) {
+            ha->level++;
+        }
+    }
+    Get_Commands_f(clent);
+}
+
 CLIENTCOMMAND(Cancel) {
     G_PublishEvent(clent, EVENT_PLAYER_END_CINEMATIC);
 }
@@ -135,6 +157,7 @@ typedef struct {
 
 clientCommand_t clientCommands[] = {
     { "button", CMD_Button },
+    { "research", CMD_Research },
     { "select", CMD_Select },
     { "point", CMD_Point },
     { "cancel", CMD_Cancel },
