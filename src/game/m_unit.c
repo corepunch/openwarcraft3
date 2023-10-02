@@ -121,3 +121,6 @@ BOOL unit_additem(LPEDICT edict, DWORD class_id) {
     return false;
 }
 
+void unit_addstatus(LPEDICT ent, LPCSTR skill, DWORD level) {
+    
+}

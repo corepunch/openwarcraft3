@@ -22,6 +22,7 @@
 #define MAX_INVENTORY 6
 #define FOV_ASPECT 1.7
 #define MAX_HERO_ABILITIES 4
+#define MAX_UNIT_STATUSES 8
 
 #define FILTER_EDICTS(ENT, CONDITION) \
 for (LPEDICT ENT = globals.edicts; \
@@ -635,6 +636,12 @@ typedef struct {
     DWORD level;
 } heroability_t;
 
+typedef struct {
+    DWORD code;
+    DWORD level;
+    DWORD timestamp;
+} heroabilitystatus_t;
+
 struct edict_s {
     entityState_t s;
     LPGAMECLIENT client;
@@ -665,6 +672,8 @@ struct edict_s {
     FLOAT velocity;
     doodadHero_t hero;
     heroability_t heroabilities[MAX_HERO_ABILITIES];
+    heroabilitystatus_t abilstatus[MAX_UNIT_STATUSES];
+    
     VECTOR2 old_origin;
     EDICTSTAT health;
     EDICTSTAT mana;
@@ -908,6 +917,7 @@ BOOL unit_issueimmediateorder(LPEDICT, LPCSTR);
 LPEDICT unit_createorfind(DWORD, DWORD, LPCVECTOR2, FLOAT);
 BOOL unit_additemtoslot(LPEDICT, DWORD, DWORD);
 BOOL unit_additem(LPEDICT, DWORD);
+void unit_addstatus(LPEDICT, LPCSTR, DWORD);
 
 // p_jass.c
 LPJASS jass_newstate(void);

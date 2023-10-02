@@ -26,6 +26,7 @@ static abilityitem_t abilitylist[] = {
     { "Amil", &a_militia },
     { "Arep", &a_repair },
     { "Agld", &a_goldmine },
+    { "AHad", &a_devotionaura},
 };
 
 ability_t const *FindAbilityByClassname(LPCSTR classname) {

@@ -170,14 +170,14 @@ void FS_Init(void) {
 //    FS_ExtractFile("UI\\FrameDef\\GlobalStrings.fdf", "/Users/igor/Desktop/GlobalStrings.fdf");
 //    FS_ExtractFile("UI\\FrameDef\\UI\\ConsoleUI.fdf", "/Users/igor/Desktop/ConsoleUI.fdf");
 
-#if 1
+#if 0
     SFILE_FIND_DATA findData;
     HANDLE handle = SFileFindFirstFile(archives[0], "*", &findData, 0);
     if (handle) {
          do {
-             if(strstr(findData.cFileName, ".fdf")) {
+//             if(strstr(findData.cFileName, ".fdf")) {
 //                 printf("%s\n", findData.cFileName);
-             }
+//             }
 #if 1
 //             if (strstr(findData.cFileName, "EscMenuTemplates")||strstr(findData.cFileName, "QuestDialog")){
 //             if (strstr(findData.cFileName, "Blizzard.j")) {
