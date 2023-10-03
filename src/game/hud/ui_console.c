@@ -186,13 +186,15 @@ static LPCSTR process_string(LPCSTR input) {
 }
 
 static LPCSTR remove_quotes(LPCSTR text) {
-    if (*text != '"')
-        return text;
     static int counter = 0;
     static char text2[8][1024] = { 0 };
     LPSTR txt = text2[(counter++)&7];
     memset(txt, 0, sizeof(text2[0]));
-    memcpy(txt, text+1, strlen(text)-2);
+    if (*text != '"') {
+        memcpy(txt, text, strlen(text));
+    } else {
+        memcpy(txt, text+1, strlen(text)-2);
+    }
     return txt;
 }
 
@@ -205,6 +207,20 @@ static LPCSTR get_ability_art(LPCSTR code) {
 }
 
 #define RESEARCH_BUTTON(KEY) (research ? "Research" KEY : KEY)
+
+static LPCSTR string_for_level(LPCSTR str, DWORD level) {
+    if (level == 0) {
+        return str;
+    }
+    PARSE_LIST(str, perlevel, parse_segment) {
+        if (level > 1) {
+            level--;
+        } else {
+            return perlevel;
+        }
+    }
+    return str;
+}
 
 void UI_AddCommandButtonExtended(LPCSTR code, BOOL research, DWORD level) {
     DWORD ToolTipGoldIcon = UI_LoadTexture("ToolTipGoldIcon", true);
@@ -251,15 +267,8 @@ void UI_AddCommandButtonExtended(LPCSTR code, BOOL research, DWORD level) {
             sprintf(tip_buffer+strlen(tip_buffer), "<Icon,%d> %d   ", ToolTipSupplyIcon, food_cost);
         }
         tip = tip_buffer;
-    } else {
-        PARSE_LIST(tip, perlevel, parse_segment) {
-            if (level == 1) {
-                tip = perlevel;
-                break;
-            }
-        }
-        ubertip = process_string(ubertip);
     }
+
     sscanf(buttonpos, "%d,%d", &x, &y);
     VECTOR2 bpos = MAKE(VECTOR2, COMMAND_BUTTON_POSITION(x, y));
     UI_SetTexture(&button, art, true);
@@ -268,8 +277,8 @@ void UI_AddCommandButtonExtended(LPCSTR code, BOOL research, DWORD level) {
 //    button.f.tex.index2 = UI_LoadTexture("CommandButtonActiveHighlight", true);
     button.AlphaMode = x==0 && y==0;
     button.Stat = FindAbilityIndex(code);
-    button.Tip = remove_quotes(tip);
-    button.Ubertip = remove_quotes(ubertip);
+    button.Tip = remove_quotes(string_for_level(tip, level));
+    button.Ubertip = remove_quotes(string_for_level(ubertip, level));
     UI_WriteFrame(&button);
 }
 
@@ -393,8 +402,8 @@ void Init_SimpleInfoPanelMultiselect(LPGAMECLIENT client) {
     FOR_SELECTED_UNITS(client, ent) {
         LPCSTR tip = FindConfigValue(GetClassName(ent->class_id), STR_TIP);
         LPCSTR ubertip = FindConfigValue(GetClassName(ent->class_id), STR_UBERTIP);
-        printf("%s\n", remove_quotes(tip));
-        printf("%s\n", remove_quotes(ubertip));
+//        printf("%s\n", remove_quotes(tip));
+//        printf("%s\n", remove_quotes(ubertip));
         uiBuildQueueItem_t *it = multiselect.Multiselect.Items + (multiselect.Multiselect.NumItems++);
         LPCSTR art = FindConfigValue(GetClassName(ent->class_id), STR_ART);
         it->image = gi.ImageIndex(art);

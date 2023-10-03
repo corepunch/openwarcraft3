@@ -90,6 +90,7 @@ extern struct server {
     serverState_t state;
     PATHSTR name;
     PATHSTR configstrings[MAX_CONFIGSTRINGS];
+    BOOL syncstrings[MAX_CONFIGSTRINGS];
     struct cmodel *models[MAX_MODELS];
     DWORD framenum;
     DWORD time;

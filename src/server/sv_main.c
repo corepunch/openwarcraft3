@@ -14,6 +14,7 @@ void SV_WriteConfigString(LPSIZEBUF msg, DWORD i) {
     } else {
         MSG_WriteString(msg, ge->GetThemeValue(sv.configstrings[i]));
     }
+    sv.syncstrings[i] = true;
 }
 
 static void SV_SendClientDatagram(LPCLIENT client) {
@@ -23,6 +24,12 @@ static void SV_SendClientDatagram(LPCLIENT client) {
 }
 
 static void SV_SendClientMessages(void) {
+    FOR_LOOP(i, MAX_CONFIGSTRINGS) {
+        if (*sv.configstrings[i] && !sv.syncstrings[i]) {
+            SV_WriteConfigString(&sv.multicast, i);
+            SV_Multicast(&(VECTOR3){0,0,0}, MULTICAST_ALL_R);
+        }
+    }
     FOR_LOOP(i, svs.num_clients) {
         LPCLIENT client = &svs.clients[i];
         if (client->state == cs_spawned) {
@@ -57,15 +64,6 @@ static int SV_FindIndex(LPCSTR name, int start, int max, bool create) {
     if (!create)
         return 0;
     strncpy(sv.configstrings[start+i], name, sizeof(*sv.configstrings));
-    if (sv.state != ss_loading) {    // send the update to everyone
-        sizeBuf_t tmp = sv.multicast;
-        static BYTE buf[MAX_PATHLEN + 32];
-        memset(buf, 0, sizeof(buf));
-        SZ_Init(&sv.multicast, buf, sizeof(buf));
-        SV_WriteConfigString(&sv.multicast, start+i);
-        SV_Multicast(&(VECTOR3){0,0,0}, MULTICAST_ALL_R);
-        sv.multicast = tmp;
-    }
     return i;
 }
 
@@ -307,6 +305,8 @@ void SV_Frame(DWORD msec) {
     }
 
     SV_ReadPackets();
+
     SV_RunGameFrame();
+
     SV_SendClientMessages();
 }

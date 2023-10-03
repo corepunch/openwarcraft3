@@ -28,7 +28,7 @@ static void CL_ParseConfigString(LPSIZEBUF msg) {
     } else {
         MSG_ReadString(msg, cl.configstrings[index]);
     }
-//    printf("%d %s\n", index, cl.configstrings[index]);
+    printf("%d %s\n", index, cl.configstrings[index]);
 }
 
 static void CL_ParseBaseline(LPSIZEBUF msg) {
