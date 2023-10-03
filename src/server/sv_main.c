@@ -256,7 +256,7 @@ int SV_ModelIndex(LPCSTR name) {
     if (!sv.models[modelindex]) {
         sv.models[modelindex] = SV_LoadModel(sv.configstrings[CS_MODELS + modelindex]);
     }
-#if 1
+#if 0
     if (!strstr(name, "Doodads\\")) {
         printf("%s\n", name);
         FOR_LOOP(i, sv.models[modelindex]->num_animations){

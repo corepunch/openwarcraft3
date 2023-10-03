@@ -77,7 +77,7 @@ netField_t playerStateFields[] = {
     { NETF(PLAYER, texts[1]), NFT_DUPTEXT },
     { NULL }
 };
-#include <pthread.h>
+//#include <pthread.h>
 void MSG_Write(LPSIZEBUF buf, LPCVOID value, DWORD size) {
     if (buf->cursize + size > buf->maxsize) {
         fprintf(stderr, "Write buffer overflow\n");
@@ -85,14 +85,11 @@ void MSG_Write(LPSIZEBUF buf, LPCVOID value, DWORD size) {
     }
     memcpy(buf->data + buf->cursize, value, size);
     buf->cursize += size;
-    static pthread_t thread_id = 0;
-    if (thread_id != pthread_self()) {
-//        if (thread_id != 0) {
-//            int a= 0;
-//        }
-        thread_id = pthread_self();
-        printf("Current thread ID: %lu\n", (unsigned long)thread_id);
-    }
+//    static pthread_t thread_id = 0;
+//    if (thread_id != pthread_self()) {
+//        thread_id = pthread_self();
+//        printf("Current thread ID: %lu\n", (unsigned long)thread_id);
+//    }
 }
 
 void MSG_WriteByte(LPSIZEBUF buf, int value) {
