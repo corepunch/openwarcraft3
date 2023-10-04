@@ -62,6 +62,7 @@
 		78120E622ACAAF9A00DC0064 /* s_selectskill.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = s_selectskill.c; sourceTree = "<group>"; };
 		78120E642ACAE8AA00DC0064 /* s_devotionaura.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = s_devotionaura.c; sourceTree = "<group>"; };
 		78120E662ACAF98700DC0064 /* s_holylight.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = s_holylight.c; sourceTree = "<group>"; };
+		78120E682ACD897D00DC0064 /* api_cinefilter.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = api_cinefilter.h; sourceTree = "<group>"; };
 		782D49972A29DEB6007793C7 /* g_shared.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = g_shared.h; sourceTree = "<group>"; };
 		78314AE32A2724A300062C4B /* g_metadata.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = g_metadata.c; sourceTree = "<group>"; };
 		7859EF612A2D0DDB0099A70E /* ui_quests.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = ui_quests.c; sourceTree = "<group>"; };
@@ -143,6 +144,7 @@
 				787B1D992A740D66003285E6 /* api_module.c */,
 				7874A5262A8A5BE7006A8DB5 /* api_camera.h */,
 				7874A5292A8A5DF9006A8DB5 /* api_destructable.h */,
+				78120E682ACD897D00DC0064 /* api_cinefilter.h */,
 				78120E5B2AC454D500DC0064 /* api_effect.h */,
 				78731BAE2A9E284700077EDE /* api_group.h */,
 				785C74592AA87E840053B1CA /* api_item.h */,

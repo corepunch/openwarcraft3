@@ -34,6 +34,10 @@ DWORD IsTriggerWaitOnSleeps(LPJASS j) {
     return jass_pushboolean(j, 0);
 }
 DWORD GetTriggeringTrigger(LPJASS j) {
+    LPCJASSCONTEXT ctx =jass_getcontext(j);
+    if (!jass_getcontext(j)->trigger) {
+        int a= 0;
+    }
     return jass_pushlighthandle(j, jass_getcontext(j)->trigger, "trigger");
 }
 DWORD GetTriggerEventId(LPJASS j) {
@@ -247,20 +251,11 @@ DWORD TriggerWaitForSound(LPJASS j) {
 }
 DWORD TriggerEvaluate(LPJASS j) {
     LPTRIGGER whichTrigger = jass_checkhandle(j, 1, "trigger");
-    FOR_EACH_LIST(TRIGGERCONDITION, cond, whichTrigger->conditions) {
-        jass_pushfunction(j, cond->expr);
-        if (jass_call(j, 0) != 1 || !jass_popboolean(j)) {
-            return jass_pushboolean(j, false);
-        }
-    }
-    return jass_pushboolean(j, true);
+    return jass_pushboolean(j, jass_evaluatetrigger(j, whichTrigger, NULL));
 }
 DWORD TriggerExecute(LPJASS j) {
     LPTRIGGER whichTrigger = jass_checkhandle(j, 1, "trigger");
-    FOR_EACH_LIST(TRIGGERACTION, action, whichTrigger->actions) {
-        jass_pushfunction(j, action->func);
-        jass_call(j, 0);
-    }
+    jass_executetrigger(j, whichTrigger, NULL);
     return 0;
 }
 DWORD TriggerExecuteWait(LPJASS j) {

@@ -377,7 +377,7 @@ struct uiFrameDef_s {
     LPCSTR Text, Tip, Ubertip;
     FLOAT Width, Height;
     COLOR32 Color;
-    ALPHAMODE AlphaMode;
+    BLEND_MODE AlphaMode;
     BOOL DecorateFileNames;
     BOOL inuse;
     BOOL AnyPointsSet;
@@ -437,7 +437,7 @@ struct uiFrameDef_s {
     struct {
         HIGHLIGHTTYPE Type;
         DWORD AlphaFile;
-        ALPHAMODE AlphaMode;
+        BLEND_MODE AlphaMode;
     } Highlight;
     struct {
         VECTOR2 PushedTextOffset;
@@ -741,6 +741,18 @@ struct gevent_s {
 };
 
 typedef struct {
+    DWORD texture;
+    BLEND_MODE blendmode;
+    TEXMAP_FLAGS texmapflags;
+    struct {
+        BOX2 uv;
+        COLOR32 color;
+    } start, end;
+    DWORD duration;
+    BOOL displayed;
+} CINEFILTER;
+
+typedef struct {
     LPEVENT handlers;
     GAMEEVENT queue[MAX_EVENT_QUEUE];
     DWORD write, read;
@@ -752,6 +764,7 @@ struct level_locals {
     LEVELEVENTS events;
     LPQUEST quests;
     USHORT alliances[MAX_PLAYERS][MAX_PLAYERS];
+    CINEFILTER cinefilter;
     DWORD framenum;
     DWORD time;
     BOOL started;

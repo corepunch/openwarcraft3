@@ -229,6 +229,30 @@ typedef enum {
     MULTICAST_PVS_R
 } multicast_t;
 
+typedef enum {
+    BLEND_MODE_NONE,
+    BLEND_MODE_ALPHAKEY,
+    BLEND_MODE_BLEND,
+    BLEND_MODE_ADD,
+    BLEND_MODE_MODULATE,
+    BLEND_MODE_MODULATE_2X,
+} BLEND_MODE;
+
+typedef enum {
+    TEXMAP_FLAG_NONE,
+    TEXMAP_FLAG_WRAP_U,
+    TEXMAP_FLAG_WRAP_V,
+    TEXMAP_FLAG_WRAP_UV,
+} TEXMAP_FLAGS;
+
+enum {
+    ENT_PLAYER,
+    ENT_HEALTH,
+    ENT_MANA,
+    ENT_UNUSED,
+    ENT_STAT_COUNT,
+};
+
 struct playerState_s {
     DWORD number;
     QUATERNION viewquat;
@@ -240,14 +264,6 @@ struct playerState_s {
     DWORD team;
     USHORT stats[MAX_STATS];
     LPCSTR texts[MAX_STATS];
-};
-
-enum {
-    ENT_PLAYER,
-    ENT_HEALTH,
-    ENT_MANA,
-    ENT_UNUSED,
-    ENT_STAT_COUNT,
 };
 
 typedef struct entityState_s {
@@ -356,15 +372,6 @@ typedef enum {
 } BACKDROPCORNER;
 
 typedef enum {
-    AM_BLEND,
-    AM_ALPHAKEY,
-    AM_ADD,
-    AM_ADDALPHA,
-    AM_MODULATE,
-    AM_MODULATE2X,
-} ALPHAMODE;
-
-typedef enum {
     FPP_MIN,
     FPP_MID,
     FPP_MAX,
@@ -409,7 +416,7 @@ typedef struct uiFrame_s {
     union {
         struct {
             FRAMETYPE type: 8;
-            ALPHAMODE alphaMode: 2;
+            BLEND_MODE alphaMode: 2;
         } flags;
         DWORD flagsvalue;
     };
@@ -464,7 +471,7 @@ typedef struct {
 
 typedef struct {
     RESOURCE alphaFile;
-    ALPHAMODE alphaMode;
+    BLEND_MODE alphaMode;
 } uiHighlight_t;
 
 typedef struct {
