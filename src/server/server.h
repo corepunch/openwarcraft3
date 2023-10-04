@@ -111,6 +111,9 @@ int SV_SoundIndex(LPCSTR name);
 int SV_ImageIndex(LPCSTR name);
 int SV_FontIndex(LPCSTR name, DWORD fontSize);
 
+// sv_game.c
+struct cmodel *SV_LoadModel(LPCSTR filename);
+
 void SV_Multicast(LPCVECTOR3 origin, multicast_t to);
 void SV_InitGameProgs(void);
 

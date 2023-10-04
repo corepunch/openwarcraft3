@@ -136,18 +136,215 @@ void PF_error(LPCSTR fmt, ...) {
     fprintf(stderr, "Game Error: %s\n", msg);
 }
 
+enum {
+//    ID_MDLX = MAKEFOURCC('M','D','L','X'),
+    ID_SEQS = MAKEFOURCC('S','E','Q','S'),
+    ID_CLID = MAKEFOURCC('C','L','I','D'),
+    ID_PIVT = MAKEFOURCC('P','I','V','T'),
+};
+
+DWORD fnv1a32(LPCSTR str) {
+    DWORD prime = 16777619;
+    DWORD hash = 2166136261;
+    while (*str) {
+        hash = (hash ^ *str++) * prime;
+    }
+    return hash;
+}
+
+void ConvertMDLXAnimationName(LPANIMATION seq) {
+    char buffer[80];
+    char *last_char = buffer;
+    memset(buffer, 0, sizeof(buffer));
+    strcpy(buffer, seq->name);
+    for (char *ch = buffer; *ch; ch++) {
+        if (isnumber(*ch) || *ch == '-') {
+            while (*(++last_char)) {
+                *last_char = '\0';
+            }
+            seq->syncpoint = fnv1a32(buffer);
+            return;
+        } else if (isalpha(*ch)) {
+            *ch = tolower(*ch);
+            last_char = ch;
+        }
+    }
+    for (DWORD i = (DWORD)strlen(buffer)-1; i > 0 && isspace(buffer[i]); i--) {
+        buffer[i] = '\0';
+    }
+    seq->syncpoint = fnv1a32(buffer);
+}
+
+typedef struct {
+    DWORD nEntries;
+    DWORD offset;
+    DWORD flags;
+} Reference;
+
+struct ReferenceEntry {
+    DWORD id;
+    DWORD offset;
+    DWORD nEntries;
+    DWORD version;
+};
+
+struct MD33 {
+    DWORD ofsRefs;
+    DWORD nRefs;
+    Reference MODL;
+};
+
+struct BoundingSphere {
+    VECTOR3 min;
+    VECTOR3 max;
+    float radius;
+};
+
+struct Reference {
+    DWORD nEntries;
+    DWORD ref;
+    DWORD flags;
+};
+
+struct Sequence {
+    DWORD unknown[2];
+    struct Reference name;
+    DWORD interval[2];
+    float movementSpeed;
+    DWORD flags;
+    DWORD frequency;
+    LONG unk[3];
+    LONG unk2;
+    struct BoundingSphere boundingSphere;
+    LONG d5[3];
+};
+
+static HANDLE ReadEntry(HANDLE file, DWORD offset, DWORD size) {
+    HANDLE data = MemAlloc(size);
+    SFileSetFilePointer(file, offset, NULL, FILE_BEGIN);
+    SFileReadFile(file, data, size, NULL, NULL);
+    return data;
+}
+
+int compare_animation_name(const void *a, const void *b) {
+    LPCANIMATION value1 = (LPCANIMATION )a;
+    LPCANIMATION value2 = (LPCANIMATION )b;
+    return strcmp(value1->name, value2->name);
+}
+
+static struct cmodel *SV_LoadModelMD34(HANDLE file) {
+    struct cmodel *model = MemAlloc(sizeof(struct cmodel));
+    struct MD33 md33;
+    SFileReadFile(file, &md33, sizeof(struct MD33), NULL, NULL);
+    struct ReferenceEntry *ent = ReadEntry(file, md33.ofsRefs, sizeof(struct ReferenceEntry) * md33.nRefs);
+    FOR_LOOP(i, md33.nRefs) {
+        struct ReferenceEntry const *re = ent+i;
+        if (re->id != MAKEFOURCC('S','Q','E','S'))
+            continue;
+        struct Sequence *seq = ReadEntry(file, re->offset, re->nEntries * sizeof(struct Sequence));
+        model->animations = MemAlloc(sizeof(animation_t) * re->nEntries);
+        model->num_animations = re->nEntries;
+        DWORD startanim = 0;
+        FOR_LOOP(j, re->nEntries) {
+            struct Sequence *src = seq+j;
+            char *name = ReadEntry(file, ent[src->name.ref].offset, src->name.nEntries);
+            LPANIMATION dest = model->animations+j;
+            strncpy(model->animations[j].name, name, sizeof(model->animations[j].name));
+            dest->interval[0] = startanim + src->interval[0];
+            dest->interval[1] = startanim + src->interval[1];
+            startanim += src->interval[1];
+            MemFree(name);
+        }
+        qsort(model->animations, model->num_animations, sizeof(animation_t), compare_animation_name);
+        FOR_LOOP(j, re->nEntries) {
+            LPANIMATION dest = model->animations+j;
+            ConvertMDLXAnimationName(dest);
+        }
+        break;
+    }
+    return model;
+}
+
+static struct cmodel *SV_LoadModelMDLX(HANDLE file) {
+    struct cmodel *model = MemAlloc(sizeof(struct cmodel));
+    DWORD header, size;
+    while (SFileReadFile(file, &header, 4, NULL, NULL)) {
+        SFileReadFile(file, &size, 4, NULL, NULL);
+        switch (header) {
+            case ID_SEQS:
+                model->animations = MemAlloc(size);
+                model->num_animations = size / sizeof(*model->animations);
+                SFileReadFile(file, model->animations, size, NULL, NULL);
+                FOR_LOOP(i, model->num_animations) {
+                    ConvertMDLXAnimationName(model->animations+i);
+                }
+                break;
+            default:
+                SFileSetFilePointer(file, size, NULL, FILE_CURRENT);
+                break;
+        }
+    }
+#ifdef PRINT_ANIMATIONS
+    FOR_LOOP(i, model->num_animations){
+        LPANIMATION anim = &model->animations[i];
+        printf("  %s %d %d\n",  anim->name, anim->interval[0], anim->interval[1]);
+    }
+#endif
+    return model;
+}
+
+struct cmodel *SV_LoadModel(LPCSTR filename) {
+    DWORD fileheader;
+    HANDLE file = FS_OpenFile(filename);
+    if (!file) {
+        PATHSTR path;
+        strcpy(path, filename);
+        path[strlen(path)-1] = 'x';
+        if (!(file = FS_OpenFile(path))) {
+            return NULL;
+        }
+    }
+#ifdef PRINT_ANIMATIONS
+    printf("%s\n", filename);
+#endif
+    struct cmodel *model = NULL;
+    SFileReadFile(file, &fileheader, 4, NULL, NULL);
+    switch (fileheader) {
+        case ID_MDLX:
+            model = SV_LoadModelMDLX(file);
+            break;
+        case ID_43DM:
+            model = SV_LoadModelMD34(file);
+            break;
+        default:
+            fprintf(stderr, "Unknown model format %.5s in file %s\n", (LPSTR)&fileheader, filename);
+            break;
+    }
+    FS_CloseFile(file);
+    return model;
+}
+
 LPCANIMATION SV_GetAnimation(DWORD modelindex, LPCSTR animname) {
     struct cmodel *model = sv.models[modelindex];
     if (!model)
         return NULL;
+    DWORD hash = fnv1a32(animname);
     FOR_LOOP(i, model->num_animations) {
-        LPCSTR name = model->animations[i].name;
-        if (!strcmp(animname, name)) {
-            return &model->animations[i];
+        LPANIMATION anim = model->animations+i;
+        if (anim->syncpoint == hash) {
+            return anim;
+        }
+    }
+    FOR_LOOP(i, model->num_animations) {
+        LPANIMATION anim = model->animations+i;
+        if (!strcasecmp(anim->name, animname)) {
+            return anim;
         }
     }
     return NULL;
 }
+
+
 
 VECTOR2 get_flow_direction(DWORD heatmapindex, float fx, float fy);
 struct thread {

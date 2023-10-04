@@ -279,7 +279,7 @@ typedef struct animation_s {
     FLOAT movespeed;     // movement speed of the entity while playing this animation
     DWORD flags;      // &1: non looping
     FLOAT rarity;
-    int syncpoint;
+    DWORD syncpoint;
     FLOAT radius;
     VECTOR3 min;
     VECTOR3 max;

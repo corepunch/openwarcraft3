@@ -3,11 +3,11 @@
 void move_walk(LPEDICT ent);
 
 static void ai_walk(LPEDICT ent) {
-    if (M_DistanceToGoal(ent) <= M_MoveDistance(ent)) {
+    if (M_DistanceToGoal(ent) <= unit_movedistance(ent)) {
         ent->stand(ent);
     } else {
-        M_ChangeAngle(ent);
-        M_MoveInDirection(ent);
+        unit_changeangle(ent);
+        unit_moveindirection(ent);
     }
 }
 
@@ -15,7 +15,7 @@ static umove_t move_move_walk = { "walk", ai_walk, NULL, &a_move };
 
 void order_move(LPEDICT self, LPEDICT target) {
     self->goalentity = target;
-    M_SetMove(self, &move_move_walk);
+    unit_setmove(self, &move_move_walk);
 }
 
 BOOL move_selectlocation(LPEDICT clent, LPCVECTOR2 location) {

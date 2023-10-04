@@ -22,9 +22,9 @@ void holylight_command(LPEDICT clent) {
     effect->movetype = MOVETYPE_LINK;
     effect->think = M_MoveFrame;
     
-    M_SetMove(effect, &effect_move_birth);
+    unit_setmove(effect, &effect_move_birth);
 
-    M_SetMove(unit, &move_heal);
+    unit_setmove(unit, &move_heal);
     Get_Commands_f(clent);
 }
 

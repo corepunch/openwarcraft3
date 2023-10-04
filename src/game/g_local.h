@@ -794,17 +794,17 @@ void ai_birth(LPEDICT);
 void ai_stand(LPEDICT);
 void ai_pain(LPEDICT);
 void ai_idle(LPEDICT);
-void M_RunWait(LPEDICT, void (*callback)(LPEDICT ));
+void unit_runwait(LPEDICT, void (*callback)(LPEDICT ));
 
 // g_monster.c
-void M_MoveInDirection(LPEDICT);
-void M_ChangeAngle(LPEDICT);
+void unit_moveindirection(LPEDICT);
+void unit_changeangle(LPEDICT);
 BOOL M_CheckAttack(LPEDICT);
-void M_SetAnimation(LPEDICT, LPCSTR);
-void M_SetMove(LPEDICT, umove_t *);
+void unit_setanimation(LPEDICT, LPCSTR);
+void unit_setmove(LPEDICT, umove_t *);
 void M_MoveFrame(LPEDICT);
 FLOAT M_DistanceToGoal(LPEDICT);
-FLOAT M_MoveDistance(LPEDICT);
+FLOAT unit_movedistance(LPEDICT);
 DWORD M_RefreshHeatmap(LPEDICT);
 BOOL M_IsDead(LPEDICT);
 void SP_SpawnUnit(LPEDICT);
@@ -916,11 +916,16 @@ BOOL G_GetPlayerAlliance(LPCPLAYER, LPCPLAYER, PLAYERALLIANCE);
 // m_unit.c
 BOOL unit_issueorder(LPEDICT, LPCSTR, LPCVECTOR2);
 BOOL unit_issueimmediateorder(LPEDICT, LPCSTR);
+BOOL unit_issuetargetorder(LPEDICT, LPCSTR, LPEDICT);
 LPEDICT unit_createorfind(DWORD, DWORD, LPCVECTOR2, FLOAT);
 BOOL unit_additemtoslot(LPEDICT, DWORD, DWORD);
 BOOL unit_additem(LPEDICT, DWORD);
 void unit_addstatus(LPEDICT, LPCSTR, DWORD);
 void unit_learnability(LPEDICT, DWORD);
+
+void order_attack(LPEDICT, LPEDICT);
+void order_move(LPEDICT, LPEDICT);
+void order_stop(LPEDICT);
 
 // p_jass.c
 LPJASS jass_newstate(void);

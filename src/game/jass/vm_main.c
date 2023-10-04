@@ -2,7 +2,7 @@
 #include "jass_parser.h"
 #include "../parser.h"
 
-//#define DEBUG_JASS
+#define DEBUG_JASS
 
 #define F_END { NULL }
 #define MAX_JASS_STACK 256

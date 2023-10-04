@@ -19,7 +19,7 @@ void devotionaura_command(LPEDICT clent) {
     effect->movetype = MOVETYPE_LINK;
     effect->think = M_MoveFrame;
     
-    M_SetMove(effect, &aura_move_stand);
+    unit_setmove(effect, &aura_move_stand);
     
     Get_Commands_f(clent);
 }

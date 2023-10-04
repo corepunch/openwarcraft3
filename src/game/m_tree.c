@@ -14,21 +14,21 @@ void tree_decay1(LPEDICT self) {
 }
 
 void tree_pain(LPEDICT self) {
-    M_SetMove(self, &tree_move_pain);
+    unit_setmove(self, &tree_move_pain);
 }
 
 void tree_stand(LPEDICT self) {
-    M_SetMove(self, &tree_move_stand);
+    unit_setmove(self, &tree_move_stand);
 }
 
 void tree_die(LPEDICT self, LPEDICT attacker) {
-    M_SetMove(self, &tree_move_death);
+    unit_setmove(self, &tree_move_death);
     G_PublishEvent(self, EVENT_UNIT_DEATH);
     self->svflags |= SVF_DEADMONSTER;
 }
 
 void tree_birth(LPEDICT self) {
-    M_SetMove(self, &tree_move_birth);
+    unit_setmove(self, &tree_move_birth);
 }
 
 void SP_monster_tree(LPEDICT self) {
@@ -36,7 +36,7 @@ void SP_monster_tree(LPEDICT self) {
     self->pain = tree_pain;
     self->die = tree_die;
 
-    M_SetMove(self, &tree_move_stand);
+    unit_setmove(self, &tree_move_stand);
  
     void monster_think(LPEDICT self);
     self->think = monster_think;

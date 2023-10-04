@@ -5,11 +5,11 @@ void build_build(LPEDICT ent);
 void repair_build(LPEDICT ent, LPEDICT building);
 
 static void ai_walk(LPEDICT ent) {
-    if (M_DistanceToGoal(ent) <= M_MoveDistance(ent)) {
+    if (M_DistanceToGoal(ent) <= unit_movedistance(ent)) {
         build_build(ent);
     } else {
-        M_ChangeAngle(ent);
-        M_MoveInDirection(ent);
+        unit_changeangle(ent);
+        unit_moveindirection(ent);
     }
 }
 
@@ -69,7 +69,7 @@ BOOL build_menu_send_builder(LPEDICT clent, LPCVECTOR2 location) {
     FOR_SELECTED_UNITS(clent->client, ent) {
         ent->goalentity = waypoint;
         ent->build_project = clent->build_project;
-        M_SetMove(ent, &build_move_walk);
+        unit_setmove(ent, &build_move_walk);
     }
     entityState_t empty;
     memset(&empty, 0, sizeof(entityState_t));
@@ -108,7 +108,7 @@ void build_command(LPEDICT edict) {
 
 void build_start(LPEDICT self, LPEDICT target) {
 //    self->goalentity = target;
-    M_SetMove(self, &build_move_stand);
+    unit_setmove(self, &build_move_stand);
 }
 
 ability_t a_build = {
