@@ -747,8 +747,8 @@ typedef struct {
     struct {
         BOX2 uv;
         COLOR32 color;
+        DWORD time;
     } start, end;
-    DWORD duration;
     BOOL displayed;
 } CINEFILTER;
 

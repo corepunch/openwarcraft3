@@ -59,7 +59,8 @@ DWORD SetCineFilterEndColor(LPJASS j) {
 }
 DWORD SetCineFilterDuration(LPJASS j) {
     FLOAT duration = jass_checknumber(j, 1);
-    level.cinefilter.duration = duration * 1000;
+    level.cinefilter.start.time = gi.GetTime();
+    level.cinefilter.end.time = gi.GetTime() + duration * 1000;
     return 0;
 }
 DWORD DisplayCineFilter(LPJASS j) {

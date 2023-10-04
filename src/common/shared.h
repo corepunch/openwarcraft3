@@ -26,6 +26,7 @@
 #define MAKE(TYPE,...)(TYPE){__VA_ARGS__}
 
 #define COLOR32_WHITE MAKE(COLOR32,255,255,255,255)
+#define COLOR32_BLACK MAKE(COLOR32,0,0,0,255)
 
 #ifndef __cplusplus
   #define bool char
@@ -262,6 +263,7 @@ struct playerState_s {
     DWORD rdflags;
     DWORD uiflags;
     DWORD team;
+    FLOAT cinefade;
     USHORT stats[MAX_STATS];
     LPCSTR texts[MAX_STATS];
 };

@@ -72,7 +72,18 @@ static void G_ShutdownGame(void) {
     ShutdownUnitData();
 }
 
+FLOAT G_Cinefade(void) {
+    DWORD duration = level.cinefilter.end.time - level.cinefilter.start.time;
+    if (gi.GetTime() > level.cinefilter.end.time) {
+        return level.cinefilter.end.color.a / 255.0;
+    } else {
+        FLOAT k = (gi.GetTime() - level.cinefilter.start.time) / (FLOAT)duration;
+        return LerpNumber(level.cinefilter.start.color.a, level.cinefilter.end.color.a, k) / 255.0;
+    }
+}
+
 static void G_RunClients(void) {
+    FLOAT cinefade = G_Cinefade();
     FOR_LOOP(i, game.max_clients) {
         LPGAMECLIENT client = game.clients+i;
         DWORD duration = client->camera.end_time - client->camera.start_time;
@@ -92,6 +103,7 @@ static void G_RunClients(void) {
             client->ps.fov = client->camera.state.fov / FOV_ASPECT;
             client->ps.distance = client->camera.state.target_distance;
         }
+        client->ps.cinefade = cinefade;
     }
 }
 

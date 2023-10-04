@@ -68,6 +68,7 @@ netField_t playerStateFields[] = {
     { NETF(PLAYER, distance), NFT_ROUND },
     { NETF(PLAYER, rdflags), NFT_LONG },
     { NETF(PLAYER, uiflags), NFT_LONG },
+    { NETF(PLAYER, cinefade), NFT_FLOAT },
     { NETF(PLAYER, stats[0]), NFT_LONG },
     { NETF(PLAYER, stats[2]), NFT_LONG },
     { NETF(PLAYER, stats[4]), NFT_LONG },
