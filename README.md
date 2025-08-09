@@ -5,6 +5,8 @@ Open source re-implementation of Warcraft III
 
 <img width="1026" alt="Screenshot 2023-05-25 at 09 58 15" src="https://github.com/corepunch/openwarcraft3/assets/83646194/a79e447d-e42c-4468-b4ca-3d212efe346a">
 
+Currently support War3.mpq from Warcraft III v1.0 or similar
+
 ## Cloning
 
     git clone --recurse-submodules git@github.com:corepunch/openwarcraft3.git
