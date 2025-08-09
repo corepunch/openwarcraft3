@@ -1,7 +1,7 @@
 #ifndef __r_war3map_h__
 #define __r_war3map_h__
 
-#include "r_local.h"
+#include "../r_local.h"
 
 KNOWN_AS(MapLayer, MAPLAYER);
 KNOWN_AS(MapSegment, MAPSEGMENT);

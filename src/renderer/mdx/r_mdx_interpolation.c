@@ -1,4 +1,4 @@
-#include "r_local.h"
+#include "../r_local.h"
 #include "r_mdx.h"
 
 enum {

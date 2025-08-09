@@ -12,7 +12,7 @@ DWORD GetUnit##NAME(LPJASS j) {  \
 #define UNIT_ACCESS(NAME, FIELD) \
 DWORD SetUnit##NAME(LPJASS j) {  \
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");  \
-    whichUnit->FIELD = jass_checknumber(j, 2); \
+    if(whichUnit)whichUnit->FIELD = jass_checknumber(j, 2); \
     return 0; \
 }  \
 DWORD GetUnit##NAME(LPJASS j) {  \

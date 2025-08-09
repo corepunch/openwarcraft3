@@ -1,5 +1,5 @@
 #include "r_mdx.h"
-#include "r_local.h"
+#include "../r_local.h"
 
 static struct {
     LPSHADER shader;

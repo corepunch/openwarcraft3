@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <assert.h>
 #include <stdarg.h>
+#include <stdint.h>
 
 #include "../cmath3/cmath3.h"
 
