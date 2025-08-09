@@ -130,9 +130,11 @@ void SP_CallSpawn(LPEDICT edict) {
         SP_monster_unit(edict);
     } else if (ITEM_FILE(edict->class_id)) {
         SP_SpawnItem(edict);
+    } else if (MAKEFOURCC('s', 'l', 'o', 'c') == edict->class_id) {
+        edict->svflags |= SVF_NOCLIENT;
     } else {
         edict->svflags |= SVF_NOCLIENT;
-//        fprintf(stderr, "Unknown id %.4s\n", (const char *)&edict->class_id);
+        fprintf(stderr, "Warning: Unknown id %.4s\n", (const char *)&edict->class_id);
     }
 //    for (struct spawn *s = spawns; s->func; s++) {
 //        if (*((int const *)s->name) == edict->class_id) {
