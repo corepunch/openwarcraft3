@@ -26,8 +26,8 @@ static void ai_walkmine(LPEDICT ent) {
     if (M_DistanceToGoal(ent) <  ent->collision + 180) {
         harvestgold_minegold(ent);
     } else {
-        M_ChangeAngle(ent);
-        M_MoveInDirection(ent);
+        unit_changeangle(ent);
+        unit_moveindirection(ent);
     }
 }
 
@@ -42,13 +42,13 @@ static void ai_walkback(LPEDICT ent) {
         ent->harvested_gold = 0;
         harvestgold_walk(ent);
     } else {
-        M_ChangeAngle(ent);
-        M_MoveInDirection(ent);
+        unit_changeangle(ent);
+        unit_moveindirection(ent);
     }
 }
 
 static void ai_minegold(LPEDICT ent) {
-    M_RunWait(ent, harvestgold_walkback);
+    unit_runwait(ent, harvestgold_walkback);
 }
 
 static void ai_waittoenter(LPEDICT ent) {
@@ -60,12 +60,12 @@ static umove_t harvestgold_move_minegold = { "attack", ai_minegold, NULL, &a_gol
 static umove_t harvestgold_move_wait = { "stand", ai_waittoenter, NULL, &a_goldmine };
 
 void harvestgold_walk(LPEDICT ent) {
-    M_SetMove(ent, &harvestgold_move_walk);
+    unit_setmove(ent, &harvestgold_move_walk);
 }
 
 void harvestgold_minegold(LPEDICT ent) {
     if (ent->goalentity->peonsinside < MINING_CAPACITY) {
-        M_SetMove(ent, &harvestgold_move_minegold);
+        unit_setmove(ent, &harvestgold_move_minegold);
         ent->wait = MINING_DURATION;
         ent->s.renderfx |= RF_HIDDEN;
         ent->goalentity->peonsinside++;
@@ -87,14 +87,14 @@ void harvestgold_walkback(LPEDICT ent) {
     LPEDICT townhall = find_townhall(ent);
     if (townhall) {
         ent->goalentity = townhall;
-        M_SetMove(ent, &harvestgold_move_walkback);
+        unit_setmove(ent, &harvestgold_move_walkback);
     } else {
         ent->stand(ent);
     }
 }
 
 void harvestgold_wait(LPEDICT ent) {
-    M_SetMove(ent, &harvestgold_move_wait);
+    unit_setmove(ent, &harvestgold_move_wait);
 }
 
 void harvest_gold_start(LPEDICT self, LPEDICT target) {

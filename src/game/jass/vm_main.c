@@ -291,7 +291,7 @@ void jass_startthread(LPJASS j, LPCJASSCONTEXT context) {
     gi.CreateThread(RunAction, thread);
 }
 
-BOOL jass_calltrigger(LPJASS j, LPTRIGGER trigger, LPEDICT unit) {
+BOOL jass_evaluatetrigger(LPJASS j, LPTRIGGER trigger, LPEDICT unit) {
     if (trigger->disabled)
         return false;
     JASS tmp_state;
@@ -306,6 +306,10 @@ BOOL jass_calltrigger(LPJASS j, LPTRIGGER trigger, LPEDICT unit) {
             return false;
         }
     }
+    return true;
+}
+
+void jass_executetrigger(LPJASS j, LPTRIGGER trigger, LPEDICT unit) {
     FOR_EACH_LIST(TRIGGERACTION, action, trigger->actions) {
         LPPLAYER player = unit ? G_GetPlayerByNumber(unit->s.player) : NULL;
         jass_startthread(j, &MAKE(JASSCONTEXT,
@@ -315,7 +319,15 @@ BOOL jass_calltrigger(LPJASS j, LPTRIGGER trigger, LPEDICT unit) {
                                   .playerState = player,
                               ));
     }
-    return true;
+}
+
+BOOL jass_calltrigger(LPJASS j, LPTRIGGER trigger, LPEDICT unit) {
+    if (jass_evaluatetrigger(j, trigger, unit)) {
+        jass_executetrigger(j, trigger, unit);
+        return true;
+    } else {
+        return false;
+    }
 }
 
 static LPJASSCFUNCTION find_cfunction(LPCJASS j, LPCSTR name) {

@@ -21,6 +21,8 @@
 #define MAX_REGION_SIZE 16
 #define MAX_INVENTORY 6
 #define FOV_ASPECT 1.7
+#define MAX_HERO_ABILITIES 4
+#define MAX_UNIT_STATUSES 8
 
 #define FILTER_EDICTS(ENT, CONDITION) \
 for (LPEDICT ENT = globals.edicts; \
@@ -217,6 +219,7 @@ typedef enum {
     MOVETYPE_FLY,
     MOVETYPE_TOSS,            // gravity
     MOVETYPE_FLYMISSILE,      // extra size to monsters
+    MOVETYPE_LINK,
     MOVETYPE_BOUNCE
 } MOVETYPE;
 
@@ -371,10 +374,10 @@ struct uiFrameDef_s {
     UINAME Name;
     UINAME TextStorage;
     UINAME OnClick;
-    LPCSTR Text, Tooltip;
+    LPCSTR Text, Tip, Ubertip;
     FLOAT Width, Height;
     COLOR32 Color;
-    ALPHAMODE AlphaMode;
+    BLEND_MODE AlphaMode;
     BOOL DecorateFileNames;
     BOOL inuse;
     BOOL AnyPointsSet;
@@ -434,7 +437,7 @@ struct uiFrameDef_s {
     struct {
         HIGHLIGHTTYPE Type;
         DWORD AlphaFile;
-        ALPHAMODE AlphaMode;
+        BLEND_MODE AlphaMode;
     } Highlight;
     struct {
         VECTOR2 PushedTextOffset;
@@ -629,6 +632,17 @@ typedef struct {
     struct { DWORD health, mana; } max;
 } unitbalance_t;
 
+typedef struct {
+    DWORD code;
+    DWORD level;
+} heroability_t;
+
+typedef struct {
+    DWORD code;
+    DWORD level;
+    DWORD timestamp;
+} heroabilitystatus_t;
+
 struct edict_s {
     entityState_t s;
     LPGAMECLIENT client;
@@ -658,6 +672,9 @@ struct edict_s {
     DWORD inventory[MAX_INVENTORY];
     FLOAT velocity;
     doodadHero_t hero;
+    heroability_t heroabilities[MAX_HERO_ABILITIES];
+    heroabilitystatus_t abilstatus[MAX_UNIT_STATUSES];
+    
     VECTOR2 old_origin;
     EDICTSTAT health;
     EDICTSTAT mana;
@@ -724,6 +741,18 @@ struct gevent_s {
 };
 
 typedef struct {
+    DWORD texture;
+    BLEND_MODE blendmode;
+    TEXMAP_FLAGS texmapflags;
+    struct {
+        BOX2 uv;
+        COLOR32 color;
+        DWORD time;
+    } start, end;
+    BOOL displayed;
+} CINEFILTER;
+
+typedef struct {
     LPEVENT handlers;
     GAMEEVENT queue[MAX_EVENT_QUEUE];
     DWORD write, read;
@@ -735,6 +764,7 @@ struct level_locals {
     LEVELEVENTS events;
     LPQUEST quests;
     USHORT alliances[MAX_PLAYERS][MAX_PLAYERS];
+    CINEFILTER cinefilter;
     DWORD framenum;
     DWORD time;
     BOOL started;
@@ -777,16 +807,17 @@ void ai_birth(LPEDICT);
 void ai_stand(LPEDICT);
 void ai_pain(LPEDICT);
 void ai_idle(LPEDICT);
-void M_RunWait(LPEDICT, void (*callback)(LPEDICT ));
+void unit_runwait(LPEDICT, void (*callback)(LPEDICT ));
 
 // g_monster.c
-void M_MoveInDirection(LPEDICT);
-void M_ChangeAngle(LPEDICT);
+void unit_moveindirection(LPEDICT);
+void unit_changeangle(LPEDICT);
 BOOL M_CheckAttack(LPEDICT);
-void M_SetAnimation(LPEDICT, LPCSTR);
-void M_SetMove(LPEDICT, umove_t *);
+void unit_setanimation(LPEDICT, LPCSTR);
+void unit_setmove(LPEDICT, umove_t *);
+void M_MoveFrame(LPEDICT);
 FLOAT M_DistanceToGoal(LPEDICT);
-FLOAT M_MoveDistance(LPEDICT);
+FLOAT unit_movedistance(LPEDICT);
 DWORD M_RefreshHeatmap(LPEDICT);
 BOOL M_IsDead(LPEDICT);
 void SP_SpawnUnit(LPEDICT);
@@ -824,6 +855,7 @@ void Get_Commands_f(LPEDICT);
 void Get_Portrait_f(LPEDICT);
 void UI_AddCancelButton(LPEDICT);
 void UI_AddCommandButton(LPCSTR);
+void UI_AddCommandButtonExtended(LPCSTR code, BOOL research, DWORD level);
 void UI_ShowInterface(LPEDICT, BOOL, FLOAT);
 void UI_ShowText(LPEDICT, LPCVECTOR2, LPCSTR, FLOAT);
 LPCSTR GetBuildCommand(unitRace_t);
@@ -897,9 +929,16 @@ BOOL G_GetPlayerAlliance(LPCPLAYER, LPCPLAYER, PLAYERALLIANCE);
 // m_unit.c
 BOOL unit_issueorder(LPEDICT, LPCSTR, LPCVECTOR2);
 BOOL unit_issueimmediateorder(LPEDICT, LPCSTR);
+BOOL unit_issuetargetorder(LPEDICT, LPCSTR, LPEDICT);
 LPEDICT unit_createorfind(DWORD, DWORD, LPCVECTOR2, FLOAT);
 BOOL unit_additemtoslot(LPEDICT, DWORD, DWORD);
 BOOL unit_additem(LPEDICT, DWORD);
+void unit_addstatus(LPEDICT, LPCSTR, DWORD);
+void unit_learnability(LPEDICT, DWORD);
+
+void order_attack(LPEDICT, LPEDICT);
+void order_move(LPEDICT, LPEDICT);
+void order_stop(LPEDICT);
 
 // p_jass.c
 LPJASS jass_newstate(void);

@@ -994,57 +994,6 @@ DWORD IsTimerDialogDisplayed(LPJASS j) {
     //HANDLE whichDialog = jass_checkhandle(j, 1, "timerdialog");
     return jass_pushboolean(j, 0);
 }
-DWORD SetCineFilterTexture(LPJASS j) {
-    //LPCSTR filename = jass_checkstring(j, 1);
-    return 0;
-}
-DWORD SetCineFilterBlendMode(LPJASS j) {
-    //HANDLE whichMode = jass_checkhandle(j, 1, "blendmode");
-    return 0;
-}
-DWORD SetCineFilterTexMapFlags(LPJASS j) {
-    //HANDLE whichFlags = jass_checkhandle(j, 1, "texmapflags");
-    return 0;
-}
-DWORD SetCineFilterStartUV(LPJASS j) {
-    //FLOAT minu = jass_checknumber(j, 1);
-    //FLOAT minv = jass_checknumber(j, 2);
-    //FLOAT maxu = jass_checknumber(j, 3);
-    //FLOAT maxv = jass_checknumber(j, 4);
-    return 0;
-}
-DWORD SetCineFilterEndUV(LPJASS j) {
-    //FLOAT minu = jass_checknumber(j, 1);
-    //FLOAT minv = jass_checknumber(j, 2);
-    //FLOAT maxu = jass_checknumber(j, 3);
-    //FLOAT maxv = jass_checknumber(j, 4);
-    return 0;
-}
-DWORD SetCineFilterStartColor(LPJASS j) {
-    //LONG red = jass_checkinteger(j, 1);
-    //LONG green = jass_checkinteger(j, 2);
-    //LONG blue = jass_checkinteger(j, 3);
-    //LONG alpha = jass_checkinteger(j, 4);
-    return 0;
-}
-DWORD SetCineFilterEndColor(LPJASS j) {
-    //LONG red = jass_checkinteger(j, 1);
-    //LONG green = jass_checkinteger(j, 2);
-    //LONG blue = jass_checkinteger(j, 3);
-    //LONG alpha = jass_checkinteger(j, 4);
-    return 0;
-}
-DWORD SetCineFilterDuration(LPJASS j) {
-    //FLOAT duration = jass_checknumber(j, 1);
-    return 0;
-}
-DWORD DisplayCineFilter(LPJASS j) {
-    //BOOL flag = jass_checkboolean(j, 1);
-    return 0;
-}
-DWORD IsCineFilterDisplayed(LPJASS j) {
-    return jass_pushboolean(j, 0);
-}
 DWORD SetCinematicScene(LPJASS j) {
     //LONG portraitUnitId = jass_checkinteger(j, 1);
     //HANDLE color = jass_checkhandle(j, 2, "playercolor");

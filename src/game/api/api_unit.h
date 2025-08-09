@@ -12,7 +12,7 @@ DWORD GetUnit##NAME(LPJASS j) {  \
 #define UNIT_ACCESS(NAME, FIELD) \
 DWORD SetUnit##NAME(LPJASS j) {  \
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");  \
-    whichUnit->FIELD = jass_checknumber(j, 2); \
+    if(whichUnit)whichUnit->FIELD = jass_checknumber(j, 2); \
     return 0; \
 }  \
 DWORD GetUnit##NAME(LPJASS j) {  \
@@ -162,8 +162,9 @@ DWORD QueueUnitAnimation(LPJASS j) {
     return 0;
 }
 DWORD SetUnitAnimation(LPJASS j) {
-    //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    //LPCSTR whichAnimation = jass_checkstring(j, 2);
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    LPCSTR whichAnimation = jass_checkstring(j, 2);
+    whichUnit->animation = gi.GetAnimation(whichUnit->s.model, whichAnimation);
     return 0;
 }
 DWORD SetUnitAnimationByIndex(LPJASS j) {
@@ -632,10 +633,10 @@ DWORD IssuePointOrderByIdLoc(LPJASS j) {
     return jass_pushboolean(j, 0);
 }
 DWORD IssueTargetOrder(LPJASS j) {
-    //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    //LPCSTR order = jass_checkstring(j, 2);
-    //HANDLE targetWidget = jass_checkhandle(j, 3, "widget");
-    return jass_pushboolean(j, 0);
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    LPCSTR order = jass_checkstring(j, 2);
+    LPEDICT targetWidget = jass_checkhandle(j, 3, "widget");
+    return jass_pushboolean(j, unit_issuetargetorder(whichUnit, order, targetWidget));
 }
 DWORD IssueTargetOrderById(LPJASS j) {
     //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");

@@ -20,11 +20,14 @@ static abilityitem_t abilitylist[] = {
     { STR_CmdHoldPos, &a_holdpos },
     { STR_CmdPatrol, &a_patrol },
     { STR_CmdCancel, &a_cancel },
-    
+    { STR_CmdSelectSkill, &a_selectskill },
+
     { "Ahar", &a_harvest },
     { "Amil", &a_militia },
     { "Arep", &a_repair },
     { "Agld", &a_goldmine },
+    { "AHad", &a_devotionaura },
+    { "AHhb", &a_holylight },
 };
 
 ability_t const *FindAbilityByClassname(LPCSTR classname) {

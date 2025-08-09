@@ -57,6 +57,7 @@ enum {
 #define STR_UBERTIP "Ubertip"
 #define STR_PLACEMENT_MODEL "PlacementModel"
 #define STR_PLACEMENT_TEXTURE "PlacementTexture"
+#define STR_TARGET_ART "TargetArt"
 
 #define STR_HUMAN "human"
 #define STR_ORC "orc"

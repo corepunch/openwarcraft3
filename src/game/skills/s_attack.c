@@ -5,7 +5,7 @@ void attack_melee(LPEDICT ent);
 void attack_melee_cooldown(LPEDICT ent);
 void attack_ranged(LPEDICT ent);
 void attack_ranged_cooldown(LPEDICT ent);
-void attack_start(LPEDICT self, LPEDICT target);
+void order_attack(LPEDICT self, LPEDICT target);
 
 typedef struct {
     LPEDICT target;
@@ -84,7 +84,7 @@ void T_Damage(LPEDICT target, LPEDICT attacker, int damage) {
         target->health.value -= damage;
     }
     if (can_attack(target)) {
-        attack_start(target, attacker);
+        order_attack(target, attacker);
     } else if (target->pain) {
         target->pain(target);
     }
@@ -121,20 +121,20 @@ static void throw_missile(LPEDICT ent) {
 
 
 static void ai_melee(LPEDICT ent) {
-    M_ChangeAngle(ent);
-    M_RunWait(ent, damage_target);
+    unit_changeangle(ent);
+    unit_runwait(ent, damage_target);
 }
 
 static void ai_ranged(LPEDICT ent) {
-    M_ChangeAngle(ent);
-    M_RunWait(ent, throw_missile);
+    unit_changeangle(ent);
+    unit_runwait(ent, throw_missile);
 }
 
 static void ai_melee_cooldown(LPEDICT ent) {
     if (M_DistanceToGoal(ent) > ent->attack1.range) {
         attack_walk(ent);
     } else {
-        M_RunWait(ent, attack_melee);
+        unit_runwait(ent, attack_melee);
     }
 }
 
@@ -142,14 +142,14 @@ static void ai_ranged_cooldown(LPEDICT ent) {
     if (M_DistanceToGoal(ent) > ent->attack1.range) {
         attack_walk(ent);
     } else {
-        M_RunWait(ent, attack_ranged);
+        unit_runwait(ent, attack_ranged);
     }
 }
 
 static void ai_walk(LPEDICT ent) {
     if (M_DistanceToGoal(ent) > ent->attack1.range) {
-        M_ChangeAngle(ent);
-        M_MoveInDirection(ent);
+        unit_changeangle(ent);
+        unit_moveindirection(ent);
     } else if (ent->attack1.weapon == WPN_MISSILE) {
         attack_ranged(ent);
     } else {
@@ -164,38 +164,38 @@ static umove_t attack_move_ranged_cooldown = { "stand ready", ai_ranged_cooldown
 static umove_t attack_move_ranged = { "attack range", ai_ranged, attack_ranged_cooldown, &a_attack };
 
 void attack_walk(LPEDICT self) {
-    M_SetMove(self, &attack_move_walk);
+    unit_setmove(self, &attack_move_walk);
 }
 
-void attack_start(LPEDICT self, LPEDICT target) {
+void order_attack(LPEDICT self, LPEDICT target) {
     self->goalentity = target;
     attack_walk(self);
 }
 
 void attack_melee_cooldown(LPEDICT self) {
-    M_SetMove(self, &attack_move_melee_cooldown);
+    unit_setmove(self, &attack_move_melee_cooldown);
     self->wait = self->attack1.cooldown;
 }
 
 void attack_melee(LPEDICT self) {
-    M_SetMove(self, &attack_move_melee);
+    unit_setmove(self, &attack_move_melee);
     self->wait = self->attack1.damagePoint;
 }
 
 void attack_ranged_cooldown(LPEDICT self) {
-    M_SetMove(self, &attack_move_ranged_cooldown);
+    unit_setmove(self, &attack_move_ranged_cooldown);
     self->wait = self->attack1.cooldown;
 }
 
 void attack_ranged(LPEDICT self) {
-    M_SetMove(self, &attack_move_ranged);
+    unit_setmove(self, &attack_move_ranged);
     self->wait = self->attack1.damagePoint;
 }
 
 BOOL attack_menu_selecttarget(LPEDICT ent, LPEDICT target) {
     if (target->targtype == TARG_GROUND) {
         FOR_SELECTED_UNITS(ent->client, e) {
-            attack_start(e, target);
+            order_attack(e, target);
         }
         return true;
     } else {

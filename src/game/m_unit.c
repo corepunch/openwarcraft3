@@ -7,7 +7,7 @@ void unit_cooldown(LPEDICT self);
 void unit_stand(LPEDICT self);
 
 void ai_birth2(LPEDICT self) {
-    M_RunWait(self, unit_stand);
+    unit_runwait(self, unit_stand);
 }
 
 //static mmove_t unit_move_decay2 = { "Decay Bone", NULL, unit_die };
@@ -29,7 +29,7 @@ void unit_decay1(LPEDICT self) {
 }
 
 void unit_stand(LPEDICT self) {
-    M_SetMove(self, &unit_move_stand);
+    unit_setmove(self, &unit_move_stand);
     self->build = NULL;
     self->s.renderfx &= ~RF_NO_UBERSPLAT;
     self->s.ability = 0;
@@ -37,30 +37,24 @@ void unit_stand(LPEDICT self) {
 }
 
 void unit_die(LPEDICT self, LPEDICT attacker) {
-    M_SetMove(self, &unit_move_death);
+    unit_setmove(self, &unit_move_death);
     G_PublishEvent(self, EVENT_UNIT_DEATH);
     self->svflags |= SVF_DEADMONSTER;
 }
 
 void unit_birth(LPEDICT self) {
-    M_SetMove(self, &unit_move_birth);
+    unit_setmove(self, &unit_move_birth);
     self->wait = UNIT_BUILD_TIME(self->class_id);
     self->s.renderfx |= RF_NO_UBERSPLAT;
 }
 
-void SP_monster_unit(LPEDICT self) {
-    self->movetype = UNIT_SPEED(self->class_id) > 0 ? MOVETYPE_STEP : MOVETYPE_NONE;
-    self->die = unit_die;
-    self->stand = unit_stand;
-    self->birth = unit_birth;
-    
-    M_SetMove(self, &unit_move_stand);
-    
-    monster_start(self);
+BOOL unit_issuetargetorder(LPEDICT self, LPCSTR order, LPEDICT target) {
+    if (!strcmp(order, "attack")) {
+        order_attack(self, target);
+        return true;
+    }
+    return false;
 }
-
-void order_move(LPEDICT self, LPEDICT target);
-void order_stop(LPEDICT clent);
 
 BOOL unit_issueorder(LPEDICT self, LPCSTR order, LPCVECTOR2 point) {
 //    printf("%.4s %s\n", &self->class_id, order);
@@ -81,9 +75,12 @@ BOOL unit_issueimmediateorder(LPEDICT self, LPCSTR order) {
     return false;
 }
 
-void G_SolveCollisions(void);
-
-LPEDICT unit_createorfind(DWORD player, DWORD unitid, LPCVECTOR2 location, FLOAT facing) {
+LPEDICT 
+unit_createorfind(DWORD player,
+                  DWORD unitid,
+                  LPCVECTOR2 location,
+                  FLOAT facing) 
+{
     FOR_LOOP(i, globals.num_edicts) {
         LPEDICT ent = &globals.edicts[i];
         if (ent->class_id == unitid &&
@@ -121,3 +118,31 @@ BOOL unit_additem(LPEDICT edict, DWORD class_id) {
     return false;
 }
 
+void unit_addstatus(LPEDICT ent, LPCSTR skill, DWORD level) {
+    
+}
+
+void unit_learnability(LPEDICT ent, DWORD abilcode) {
+    FOR_LOOP(i, MAX_HERO_ABILITIES) {
+        heroability_t *ha = ent->heroabilities+i;
+        if (ha->level == 0) {
+            ha->level = 1;
+            ha->code = abilcode;
+            return;
+        } else if (ha->code == abilcode) {
+            ha->level++;
+            return;
+        }
+    }
+}
+
+void SP_monster_unit(LPEDICT self) {
+    self->movetype = UNIT_SPEED(self->class_id) > 0 ? MOVETYPE_STEP : MOVETYPE_NONE;
+    self->die = unit_die;
+    self->stand = unit_stand;
+    self->birth = unit_birth;
+    
+    unit_setmove(self, &unit_move_stand);
+    
+    monster_start(self);
+}

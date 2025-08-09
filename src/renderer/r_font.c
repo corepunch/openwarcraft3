@@ -225,7 +225,7 @@ static VECTOR2 process_text(LPCDRAWTEXT arg, BOOL draw) {
             continue;
         }
         if (!strncmp(p, "|n", 2) || !strncmp(p, "|N", 2)) {
-        next_line:
+        // next_line:
             cursor.x = pos.x;
             cursor.y += linesize * arg->lineHeight * 1.1;
             p += 2;

@@ -1,5 +1,5 @@
 #include "r_mdx.h"
-#include "r_local.h"
+#include "../r_local.h"
 
 static struct {
     LPSHADER shader;
@@ -393,7 +393,7 @@ static void MDLX_RenderEmitter(mdxModel_t const *model,
 
 static bool MDLX_SetBlendMode(const mdxMaterialLayer_t *layer, DWORD layerID) {
     switch (layer->blendMode) {
-        case TEXOP_LOAD:
+        case BLEND_MODE_NONE:
             if (layerID == 0) {
                 R_Call(glBlendFunc, GL_ONE, GL_ZERO);
             } else {
@@ -401,12 +401,12 @@ static bool MDLX_SetBlendMode(const mdxMaterialLayer_t *layer, DWORD layerID) {
             }
             R_Call(glDepthMask, GL_TRUE);
             break;
-        case TEXOP_TRANSPARENT:
+        case BLEND_MODE_ALPHAKEY:
             R_Call(glUniform1i, mdlx.shader->uUseDiscard, 1);
             R_Call(glBlendFunc, GL_ONE, GL_ZERO);
             R_Call(glDepthMask, GL_TRUE);
             break;
-        case TEXOP_BLEND:
+        case BLEND_MODE_BLEND:
             if (is_rendering_lights)
                 return false;
             R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -416,18 +416,18 @@ static bool MDLX_SetBlendMode(const mdxMaterialLayer_t *layer, DWORD layerID) {
         default:
             return false;
 #else
-        case TEXOP_ADD:
+        case BLEND_MODE_ADD:
             if (is_rendering_lights)
                 return false;
             R_Call(glBlendFunc, GL_ONE, GL_ONE);
             R_Call(glDepthMask, GL_FALSE);
             break;
-        case TEXOP_ADD_ALPHA:
-            if (is_rendering_lights)
-                return false;
-            R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE);
-            R_Call(glDepthMask, GL_FALSE);
-            break;
+//        case TEXOP_ADD_ALPHA:
+//            if (is_rendering_lights)
+//                return false;
+//            R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE);
+//            R_Call(glDepthMask, GL_FALSE);
+//            break;
         default:
             R_Call(glBlendFunc, GL_ONE, GL_ZERO);
             R_Call(glDepthMask, GL_TRUE);

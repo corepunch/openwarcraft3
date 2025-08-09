@@ -42,7 +42,7 @@ void unit_build(LPEDICT self, DWORD class_id) {
     ent->birth(ent);
     ent->s.renderfx |= RF_HIDDEN;
     unit_add_build_queue(self, ent);
-    M_SetMove(self, &train_move_train);
+    unit_setmove(self, &train_move_train);
 }
 
 void SP_TrainUnit(LPEDICT townhall, DWORD class_id) {

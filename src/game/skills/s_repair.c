@@ -18,7 +18,7 @@ static umove_t repair_move_build = { "stand work", ai_repair, NULL, &a_repair };
 void repair_build(LPEDICT ent, LPEDICT building) {
     VECTOR2 origin;
     FLOAT angle;
-    M_SetMove(ent, &repair_move_build);
+    unit_setmove(ent, &repair_move_build);
     SP_FindEmptySpaceAround(building, ent->class_id, &origin, &angle);
     ent->s.origin2 = origin;
     ent->s.angle = angle - M_PI;

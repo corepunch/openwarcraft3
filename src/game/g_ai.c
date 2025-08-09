@@ -2,7 +2,7 @@
 
 #define NAVI_THRESHOLD 50
 
-void M_ChangeAngle(LPEDICT self) {
+void unit_changeangle(LPEDICT self) {
     VECTOR2 dir;
     if (M_DistanceToGoal(self) > NAVI_THRESHOLD) {
         DWORD heatmap = M_RefreshHeatmap(self->goalentity);
@@ -13,22 +13,22 @@ void M_ChangeAngle(LPEDICT self) {
     self->s.angle = atan2(dir.y, dir.x);
 }
 
-FLOAT M_MoveDistance(LPEDICT self) {
+FLOAT unit_movedistance(LPEDICT self) {
     FLOAT speed = UNIT_SPEED(self->class_id);
     return 10 * speed / FRAMETIME;
 }
 
-void M_MoveInDirection(LPEDICT self) {
+void unit_moveindirection(LPEDICT self) {
     G_PushEntity(self,
-                 M_MoveDistance(self),
+                 unit_movedistance(self),
                  &MAKE(VECTOR2, cos(self->s.angle), sin(self->s.angle)));
 }
 
-void M_SetAnimation(LPEDICT self, LPCSTR anim) {
+void unit_setanimation(LPEDICT self, LPCSTR anim) {
     self->animation = gi.GetAnimation(self->s.model, anim);
 }
 
-void M_SetMove(LPEDICT self, umove_t *move) {
+void unit_setmove(LPEDICT self, umove_t *move) {
     self->currentmove = move;
     self->animation = gi.GetAnimation(self->s.model, move->animation);
     if (self->animation) {
@@ -40,7 +40,7 @@ void M_SetMove(LPEDICT self, umove_t *move) {
     }
 }
 
-void M_RunWait(LPEDICT self, void (*callback)(LPEDICT )) {
+void unit_runwait(LPEDICT self, void (*callback)(LPEDICT )) {
     if (self->wait <= 0)
         return;
     if (self->wait > FRAMETIME / 1000.f) {
@@ -54,7 +54,7 @@ void M_RunWait(LPEDICT self, void (*callback)(LPEDICT )) {
 void ai_idle(LPEDICT self) {
 }
 
-void attack_start(LPEDICT self, LPEDICT target);
+void order_attack(LPEDICT self, LPEDICT target);
 
 #define MAX_SIGHT_ENTITIES 32
 
@@ -90,7 +90,7 @@ void ai_stand(LPEDICT self) {
     FOR_LOOP(i, numents) {
         LPEDICT ent = sight_entities[i];
         if (Vector2_distance(&ent->s.origin2, &self->s.origin2) < sight) {
-            attack_start(self, ent);
+            order_attack(self, ent);
         }
     }
 }

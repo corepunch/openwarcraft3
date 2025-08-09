@@ -12,6 +12,7 @@
 #include "api_math.h"
 #include "api_item.h"
 #include "api_quest.h"
+#include "api_cinefilter.h"
 #include "api_misc.h"
 
 JASSMODULE jass_funcs[] = {

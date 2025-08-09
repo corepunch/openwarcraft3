@@ -210,7 +210,7 @@ jpeg_readimage(HANDLE buf, DWORD size) {
     jpeg_create_decompress(&cinfo);
     jpeg_mem_src(&cinfo, buf, size);
     jpeg_read_header(&cinfo, true);
-    cinfo.out_color_space = JCS_YCCK;
+//    cinfo.out_color_space = JCS_YCCK;
     jpeg_start_decompress(&cinfo);
     struct jpeg_imageinfo image = (struct jpeg_imageinfo) {
         .width = cinfo.output_width,

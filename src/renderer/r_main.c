@@ -1,7 +1,7 @@
 #include "r_local.h"
 
-#include <SDL.h>
-#include <SDL_opengl.h>
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_opengl.h>
 
 refImport_t ri;
 struct render_globals tr;

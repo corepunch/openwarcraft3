@@ -1,8 +1,8 @@
 #ifndef vm_public_h
 #define vm_public_h
 
-#include "g_local.h"
-#include "api_macros.h"
+#include "../g_local.h"
+#include "../api/api_macros.h"
 
 #define MAX_GROUP_SIZE 256
 
@@ -120,5 +120,8 @@ HANDLE jass_newhandle(LPJASS j, DWORD size, LPCSTR type);
 LPCJASSCONTEXT jass_getcontext(LPJASS j);
 BOOL jass_calltrigger(LPJASS j, LPTRIGGER trigger, LPEDICT unit);
 BOOL jass_popboolean(LPJASS j);
+BOOL jass_evaluatetrigger(LPJASS j, LPTRIGGER trigger, LPEDICT unit);
+void jass_executetrigger(LPJASS j, LPTRIGGER trigger, LPEDICT unit);
+
 
 #endif

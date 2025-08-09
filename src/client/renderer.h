@@ -92,7 +92,7 @@ struct drawText_s {
 struct drawImage_s {
     LPCTEXTURE texture;
     SHADERTYPE shader;
-    ALPHAMODE alphamode;
+    BLEND_MODE alphamode;
     RECT screen;
     RECT uv;
     COLOR32 color;

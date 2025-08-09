@@ -54,8 +54,8 @@ BOOL G_ActorHasSkill(LPEDICT ent, LPCSTR id) {
 
 static void ai_walktree(LPEDICT ent) {
     if (M_DistanceToGoal(ent) > HARVEST_RANGE) {
-        M_ChangeAngle(ent);
-        M_MoveInDirection(ent);
+        unit_changeangle(ent);
+        unit_moveindirection(ent);
     } else if (M_IsDead(ent->goalentity)) {
         look_for_another_tree(ent);
     } else {
@@ -74,8 +74,8 @@ static void ai_walkback(LPEDICT ent) {
         ent->harvested_lumber = 0;
         harvest_walk(ent);
     } else {
-        M_ChangeAngle(ent);
-        M_MoveInDirection(ent);
+        unit_changeangle(ent);
+        unit_moveindirection(ent);
     }
 }
 
@@ -95,11 +95,11 @@ static void ai_chop(LPEDICT ent) {
 }
 
 static void ai_swing(LPEDICT ent) {
-    M_RunWait(ent, ai_chop);
+    unit_runwait(ent, ai_chop);
 }
 
 static void ai_cooldown(LPEDICT ent) {
-    M_RunWait(ent, harvest_swing);
+    unit_runwait(ent, harvest_swing);
 }
 
 static umove_t harvest_move_walk = { "walk", ai_walktree, NULL, &a_harvest };
@@ -113,17 +113,17 @@ void harvest_cooldown(LPEDICT ent) {
     } else if (M_IsDead(ent->goalentity)) {
         look_for_another_tree(ent);
     } else {
-        M_SetMove(ent, &harvest_move_cooldown);
+        unit_setmove(ent, &harvest_move_cooldown);
         ent->wait = HARVEST_COOLDOWN;
     }
 }
 
 void harvest_walk(LPEDICT ent) {
-    M_SetMove(ent, &harvest_move_walk);
+    unit_setmove(ent, &harvest_move_walk);
 }
 
 void harvest_swing(LPEDICT ent) {
-    M_SetMove(ent, &harvest_move_swing);
+    unit_setmove(ent, &harvest_move_swing);
     ent->wait = UNIT_ATTACK1_DAMAGE_POINT(ent->class_id);
 }
 
@@ -131,7 +131,7 @@ void harvest_walkback(LPEDICT ent) {
     LPEDICT townhall = find_townhall(ent);
     if (townhall) {
         ent->goalentity = townhall;
-        M_SetMove(ent, &harvest_move_walkback);
+        unit_setmove(ent, &harvest_move_walkback);
     } else {
         ent->stand(ent);
     }

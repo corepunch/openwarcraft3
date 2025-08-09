@@ -32,6 +32,11 @@ void SV_Physics_Toss(LPEDICT ent) {
     }
 }
 
+void SV_Physics_Link(LPEDICT ent) {
+    ent->s.origin = ent->goalentity->s.origin;
+    ent->s.angle = ent->goalentity->s.angle;
+}
+
 void G_RunEntity(LPEDICT ent) {
     SAFE_CALL(ent->prethink, ent);
     switch (ent->movetype) {
@@ -40,6 +45,9 @@ void G_RunEntity(LPEDICT ent) {
             break;
         case MOVETYPE_FLYMISSILE:
             SV_Physics_Toss(ent);
+            break;
+        case MOVETYPE_LINK:
+            SV_Physics_Link(ent);
             break;
         default:
 //            gi.error("SV_Physics: bad movetype %d", edict->movetype);

@@ -10,16 +10,16 @@
 typedef char mdxObjectName_t[80];
 typedef char mdxFileName_t[260];
 
-typedef enum {
-  TEXOP_LOAD = 0x0,
-  TEXOP_TRANSPARENT = 0x1,
-  TEXOP_BLEND = 0x2,
-  TEXOP_ADD = 0x3,
-  TEXOP_ADD_ALPHA = 0x4,
-  TEXOP_MODULATE = 0x5,
-  TEXOP_MODULATE2X = 0x6,
-  NUMTEXOPS = 0x7,
-} mdxTexOp_t;
+//typedef enum {
+//  TEXOP_LOAD = 0x0,
+//  TEXOP_TRANSPARENT = 0x1,
+//  TEXOP_BLEND = 0x2,
+//  TEXOP_ADD = 0x3,
+//  TEXOP_ADD_ALPHA = 0x4,
+//  TEXOP_MODULATE = 0x5,
+//  TEXOP_MODULATE2X = 0x6,
+//  NUMTEXOPS = 0x7,
+//} mdxTexOp_t;
 
 typedef enum {
   MODEL_GEO_UNSHADED = 0x1,
@@ -212,7 +212,7 @@ typedef struct mdxTexture_s {
 } mdxTexture_t;
 
 typedef struct mdxMaterialLayer_s {
-    mdxTexOp_t blendMode;
+    BLEND_MODE blendMode;
     mdxGeoFlags_t flags;
     DWORD textureId;        // TEXS index or 0xFFFFFFFF for none
     DWORD transformId;      // TXAN index or 0xFFFFFFFF for none

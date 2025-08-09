@@ -1,5 +1,5 @@
 #include "r_mdx.h"
-#include "r_local.h"
+#include "../r_local.h"
 
 #define LPCSTR const char *
 #define FOR_EACH_LIST(type, property, list) \

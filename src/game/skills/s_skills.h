@@ -15,5 +15,8 @@ extern ability_t a_stop;
 extern ability_t a_holdpos;
 extern ability_t a_patrol;
 extern ability_t a_militia;
+extern ability_t a_selectskill;
+extern ability_t a_devotionaura;
+extern ability_t a_holylight;
 
 #endif
