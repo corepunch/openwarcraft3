@@ -13,6 +13,7 @@ GAME_OBJS := $(patsubst src/game/%.c,$(OBJ_DIR)/game/%.o,$(shell find src/game -
 APP_OBJS := $(patsubst src/%.c,$(OBJ_DIR)/%.o,$(wildcard src/client/*.c) $(wildcard src/server/*.c) $(wildcard src/common/*.c))
 
 ifeq ($(shell uname -s),Linux)
+	LDFLAGS += -Wl,-z,defs -lm -lEGL -lGL
 endif
 
 ifeq ($(shell uname -s),Darwin)
@@ -43,16 +44,16 @@ $(BIN_DIR):
 	@mkdir -p $@
 
 $(LIB_DIR)/libcmath3.so: $(CMATH3_OBJS) $(LIB_DIR)
-	$(CC) $(LDFLAGS) -shared -o $@ $(CMATH3_OBJS)
+	$(CC) -shared -o $@ $(CMATH3_OBJS) $(LDFLAGS)
 
 $(LIB_DIR)/libgame.so: $(GAME_OBJS) $(LIB_DIR)
-	$(CC) $(LDFLAGS) -shared -lcmath3 -o $@ $(GAME_OBJS)
+	$(CC) -shared -o $@ $(GAME_OBJS) $(LDFLAGS) -lcmath3
 
 $(LIB_DIR)/librenderer.so: cmath3 $(RENDERER_OBJS) $(LIB_DIR)
-	$(CC) $(LDFLAGS) -shared -lcmath3 -lSDL2 -lstorm -ljpeg -o $@ $(RENDERER_OBJS)
+	$(CC) -shared -o $@ $(RENDERER_OBJS) $(LDFLAGS) -lcmath3 -lSDL2 -lstorm -ljpeg
 
 $(BIN_DIR)/openwarcraft3: cmath3 game renderer $(APP_OBJS) $(BIN_DIR)
-	$(CC) $(LDFLAGS) -lcmath3 -lSDL2 -lstorm -lgame -lrenderer -o $@ $(APP_OBJS)
+	$(CC) -o $@ $(APP_OBJS) $(LDFLAGS) -lcmath3 -lSDL2 -lstorm -lgame -lrenderer
 
 $(OBJ_DIR)/%.o: src/%.c
 	@mkdir -p $(dir $@)

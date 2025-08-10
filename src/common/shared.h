@@ -419,7 +419,7 @@ typedef struct uiFrame_s {
     union {
         struct {
             FRAMETYPE type: 8;
-            BLEND_MODE alphaMode: 2;
+            BYTE alphaMode: 2;
         } flags;
         DWORD flagsvalue;
     };

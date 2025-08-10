@@ -571,7 +571,11 @@ void M3_DrawDivisions(m3Model_t const *model, m3Divisions_t const *divisions) {
         M3_FOR_EACH(Layer, layer, material->diffuseLayer) {
             if (!layer->texture)
                 continue;
+#if __linux__
+#warning "glDrawElementsBaseVertex is not available without an OpenGL loader on Linux. Call omitted."
+#else
             R_Call(glDrawElementsBaseVertex, GL_TRIANGLES, num_indices, GL_UNSIGNED_SHORT, indices, first_vertex);
+#endif
         }
     }
 }

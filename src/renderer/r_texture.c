@@ -42,7 +42,12 @@ void R_LoadTextureMipLevel(LPCTEXTURE pTexture, DWORD level, LPCCOLOR32 pPixels,
     if (width == 0 || height == 0)
         return;
     R_Call(glBindTexture, GL_TEXTURE_2D, pTexture->texid);
+#if __linux__
+    #warning "Using GL_RGBA instead of GL_BGRA on Linux in glTexImage2D."
+    R_Call(glTexImage2D, GL_TEXTURE_2D, level, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, pPixels);
+#else
     R_Call(glTexImage2D, GL_TEXTURE_2D, level, GL_RGBA, width, height, 0, GL_BGRA, GL_UNSIGNED_BYTE, pPixels);
+#endif
     if (level > 0) {
         R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, level);
         R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);

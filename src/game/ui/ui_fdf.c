@@ -444,9 +444,9 @@ static parseClass_t classes[] = {
 static parseItem_t items[] = {
     // Flags
     { "DecorateFileNames", { F_END }, DecorateFileNames },
-    { "SetAllPoints", F_END, SetAllPoints },
+    { "SetAllPoints", { F_END }, SetAllPoints },
     { "SetPoint", { F(SetPoint.type, FramePointType), F(SetPoint.relativeTo, FramePtr), F(SetPoint.target, FramePointType), F(SetPoint.x, Float), F(SetPoint.y, Float), F_END }, SetPoint },
-    { "UseActiveContext", F_END, UseActiveContext },
+    { "UseActiveContext", { F_END }, UseActiveContext },
     { "DialogBackdrop", { F(DialogBackdrop, FramePtr), F_END } },
     // Fields
     { "Width", { F(Width, Float), F_END } },
@@ -470,14 +470,14 @@ static parseItem_t items[] = {
     { "FontShadowColor", { F(Font.ShadowColor, Color), F_END } },
     { "FontShadowOffset", { F(Font.ShadowOffset, Vector2), F_END } },
     // Backdrop
-    { "BackdropTileBackground", F_END, BackdropTileBackground },
+    { "BackdropTileBackground", { F_END }, BackdropTileBackground },
     { "BackdropBackground", { F(Backdrop.Background, TextureFile), F_END } },
     { "BackdropCornerFlags", { F(Backdrop.CornerFlags, CornerFlags), F_END } },
     { "BackdropCornerSize", { F(Backdrop.CornerSize, Float), F_END } },
     { "BackdropBackgroundSize", { F(Backdrop.BackgroundSize, Float), F_END } },
     { "BackdropBackgroundInsets", { F(Backdrop.BackgroundInsets, Vector4), F_END } },
-    { "BackdropEdgeFile", { F(Backdrop.EdgeFile, TextureFile), NULL } },
-    { "BackdropBlendAll", F_END, BackdropBlendAll },
+    { "BackdropEdgeFile", { F(Backdrop.EdgeFile, TextureFile), F_END } },
+    { "BackdropBlendAll", { F_END }, BackdropBlendAll },
     // Highlight
     { "HighlightType", { F(Highlight.Type, HighlightType), F_END } },
     { "HighlightAlphaFile", { F(Highlight.AlphaFile, TextureFile), F_END } },

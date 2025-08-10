@@ -14,7 +14,8 @@
 #include <OpenGLES/ES3/gl.h>
 #endif
 #elif __linux__
-#include <SDL2/SDL_opengl.h>
+//#include <SDL2/SDL_opengl.h>
+#include <GLES3/gl3.h>
 #endif
 
 #define GetError()\
