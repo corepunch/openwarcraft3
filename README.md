@@ -1,7 +1,8 @@
 # openwarcraft3
-Open source re-implementation of Warcraft III. Uses SDL2 and currently runs on Linux and Mac.
 
-Was developed using War3.mpq from Warcraft III v1.0 as a reference, but 1.29b support is in progress.
+OpenWarcraft3 is an open-source implementation of Warcraft III that uses SDL2 and runs on Linux and macOS. 
+
+It was developed using War3.mpq from Warcraft III v1.0 as reference, with ongoing support for version 1.29b.
 
 <a href="https://youtu.be/m3mgmPJLqbo">Check the video on YouTube</a> or see screenshots below.
 
@@ -94,13 +95,10 @@ sudo apt-get install libsdl2-dev libjpeg-dev libstorm-dev
 
 # Project Architecture & Functionality Outline
 
-## Project Overview
-OpenWarcraft3 is an open-source re-implementation of Warcraft III that uses SDL2 and runs on Linux and macOS. It was developed using War3.mpq from Warcraft III v1.0 as reference, with ongoing support for version 1.29b.
-
 ## Core Architecture Components
 
 ### 1. Core Libraries Structure
-Based on the build system, the project is organized into three main library components:
+The project is organized into three main library components:
 
 #### **cmath3 Library**
 - Mathematical operations and utilities
