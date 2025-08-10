@@ -22,9 +22,6 @@ jobs:
             libjpeg-dev \
             libstorm-dev
 
-      - name: configure
-        run: ./configure
-
       - name: build
         run: make
 
