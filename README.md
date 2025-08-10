@@ -3,9 +3,13 @@ Open source re-implementation of Warcraft III. Uses SDL2 and currently runs on L
 
 Was developed using War3.mpq from Warcraft III v1.0 as a reference, but 1.29b support is in progress.
 
-<img width="1025" alt="Screenshot 2023-05-25 at 09 57 57" src="https://github.com/corepunch/openwarcraft3/assets/83646194/643c7aa7-2b91-469c-857e-0f6910c939af">
+<a href="https://youtu.be/m3mgmPJLqbo">Check the video on YouTube</a> or see screenshots below.
 
-<img width="1026" alt="Screenshot 2023-05-25 at 09 58 15" src="https://github.com/corepunch/openwarcraft3/assets/83646194/a79e447d-e42c-4468-b4ca-3d212efe346a">
+<img width="1024" src="https://github.com/user-attachments/assets/c76a93af-1801-402e-83bc-b3e0a4462312" />
+
+<img width="1024" src="https://github.com/corepunch/openwarcraft3/assets/83646194/643c7aa7-2b91-469c-857e-0f6910c939af">
+
+<img width="1024" src="https://github.com/corepunch/openwarcraft3/assets/83646194/a79e447d-e42c-4468-b4ca-3d212efe346a">
 
 ## Cloning
 
