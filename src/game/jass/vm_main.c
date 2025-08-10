@@ -810,7 +810,7 @@ DWORD jass_dotoken(LPJASS j, LPCTOKEN token) {
 
 static void jass_set_value(LPJASS j, LPJASSVAR dest, LPCTOKEN init) {
     DWORD stack = jass_dotoken(j, init);
-    assert(stack == 1);
+    assert(stack == 1); // likely init points to undefined, check what's inside
     jass_copy(j, dest, j->stack + jass_top(j));
     jass_pop(j, 1);
 }
@@ -1023,6 +1023,7 @@ void jass_close(LPJASS j) {
 BOOL jass_dofile(LPJASS j, LPCSTR fileName) {
     LPSTR buffer = gi.ReadFileIntoString(fileName);
     if (buffer) {
+//        fprintf(stdout, "jass_dofile: %s\n", fileName);
         BOOL success = jass_dobuffer(j, buffer);
         gi.MemFree(buffer);
         return success;

@@ -324,6 +324,9 @@ PARSER(statement_call) {
 PARSER(statement_local) {
     LPTOKEN token = alloc_token(TT_VARDECL);
     token->primary = read_identifier(p);
+    if (eat_token(p, "array")) {
+        token->flags |= TF_ARRAY;
+    }
     token->secondary = read_identifier(p);
     if (eat_token(p, "=")) {
         token->init = parse_logical_expression(p);
@@ -394,6 +397,7 @@ parseClass_t function_keywords[] = {
     { "if", statement_if },
     { "loop", statement_loop },
     { "return", statement_return },
+    { "exitwhen", statement_exitwhen },
     { NULL },
 };
 

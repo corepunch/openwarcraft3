@@ -1065,3 +1065,87 @@ DWORD Preloader(LPJASS j) {
     //LPCSTR filename = jass_checkstring(j, 1);
     return 0;
 }
+
+// **************
+// 1.29 additions
+// **************
+
+DWORD GetPlayerNeutralPassive(LPJASS j) {
+    return jass_pushinteger(j, 12);
+}
+DWORD GetPlayerNeutralAggressive(LPJASS j) {
+    return jass_pushinteger(j, 15);
+}
+DWORD GetBJMaxPlayers(LPJASS j) {
+    return jass_pushinteger(j, game.max_clients);
+}
+DWORD GetBJPlayerNeutralVictim(LPJASS j) {
+    return jass_pushinteger(j, 13);
+}
+DWORD GetBJPlayerNeutralExtra(LPJASS j) {
+    return jass_pushinteger(j, 14);
+}
+DWORD GetBJMaxPlayerSlots(LPJASS j) {
+    return jass_pushinteger(j, 12);
+}
+DWORD ConvertVersion(LPJASS j) {
+    API_ALLOC(DWORD, version);
+    *version = jass_checkinteger(j, 1);
+    return 1;
+}
+DWORD ConvertItemType(LPJASS j) {
+    API_ALLOC(DWORD, itemtype);
+    *itemtype = jass_checkinteger(j, 1);
+    return 1;
+}
+DWORD ConvertAttackType(LPJASS j) {
+    API_ALLOC(DWORD, attacktype);
+    *attacktype = jass_checkinteger(j, 1);
+    return 1;
+}
+DWORD ConvertDamageType(LPJASS j) {
+    API_ALLOC(DWORD, damagetype);
+    *damagetype = jass_checkinteger(j, 1);
+    return 1;
+}
+DWORD ConvertWeaponType(LPJASS j) {
+    API_ALLOC(DWORD, weapontype);
+    *weapontype = jass_checkinteger(j, 1);
+    return 1;
+}
+DWORD ConvertSoundType(LPJASS j) {
+    API_ALLOC(DWORD, soundtype);
+    *soundtype = jass_checkinteger(j, 1);
+    return 1;
+}
+DWORD ConvertPathingType(LPJASS j) {
+    API_ALLOC(DWORD, pathingtype);
+    *pathingtype = jass_checkinteger(j, 1);
+    return 1;
+}
+DWORD ConvertMouseButtonType(LPJASS j) {
+    API_ALLOC(DWORD, mousebuttontype);
+    *mousebuttontype = jass_checkinteger(j, 1);
+    return 1;
+}
+DWORD ConvertAIDifficulty(LPJASS j) {
+    API_ALLOC(DWORD, aidifficulty);
+    *aidifficulty = jass_checkinteger(j, 1);
+    return 1;
+}
+DWORD ConvertPlayerScore(LPJASS j) {
+    API_ALLOC(DWORD, playerscore);
+    *playerscore = jass_checkinteger(j, 1);
+    return 1;
+}
+DWORD VersionGet(LPJASS j) {
+    API_ALLOC(DWORD, version);
+    *version = 0;
+    return 1;
+}
+DWORD VersionCompatible(LPJASS j) {
+    return jass_pushboolean(j, jass_checkinteger(j, 1) == 0);
+}
+DWORD VersionSupported(LPJASS j) {
+    return jass_pushboolean(j, jass_checkinteger(j, 1) == 0);
+}

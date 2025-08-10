@@ -144,7 +144,7 @@ void R_RenderModel(renderEntity_t const *entity) {
     MATRIX4 transform;
     R_GetEntityMatrix(entity, &transform);
     
-    if (entity->flags & RF_HIDDEN)
+    if ((entity->flags & RF_HIDDEN) || !entity->model)
         return;
     
     if (is_rendering_lights && (entity->flags & RF_NO_SHADOW))

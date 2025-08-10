@@ -13,9 +13,10 @@ typedef struct SheetCell {
     LPSHEET next;
 } sheetCell_t;
 
-static sheetCell_t cells[256 * 1024] = { 0 };
-static sheetRow_t rows[32 * 1024] = { 0 };
-static sheetField_t fields[256 * 1024] = { 0 };
+// TODO: allocate these as needed, this is only PoC and will only work for 1 level
+static sheetCell_t cells[1024 * 1024] = { 0 };
+static sheetRow_t rows[1024 * 1024] = { 0 };
+static sheetField_t fields[1024 * 1024] = { 0 };
 static char text_buffer[8 * 1024 * 1024] = { 0 };
 static LPSTR current_text = text_buffer;
 static LPSHEET current_cell = cells;
@@ -104,7 +105,7 @@ sheetRow_t *FS_MakeRowsFromSheet(LPSHEET sheet) {
 sheetRow_t *FS_ParseSLK(LPCSTR fileName) {
     HANDLE file = FS_OpenFile(fileName);
     DWORD fileSize = SFileGetFileSize(file, NULL);
-    TCHAR czBuffer[MAX_SHEET_LINE];
+    TCHAR czBuffer[MAX_SHEET_LINE]={0};
     TCHAR ch = 0;
     DWORD X = 1, Y = 1;
     LPSHEET start = current_cell;

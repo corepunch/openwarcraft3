@@ -22,8 +22,15 @@ DWORD SetPlayerColor(LPJASS j) {
     return 0;
 }
 DWORD SetPlayerAlliance(LPJASS j) {
-    LPPLAYER sourcePlayer = jass_checkhandle(j, 1, "player");
-    LPPLAYER otherPlayer = jass_checkhandle(j, 2, "player");
+    LPPLAYER sourcePlayer, otherPlayer;
+    if (!(sourcePlayer = jass_checkhandle(j, 1, "player"))) {
+        fprintf(stderr, "SetPlayerAlliance(): sourcePlayer is nil\n");
+        return 0;
+    }
+    if (!(otherPlayer = jass_checkhandle(j, 2, "player"))) {
+        fprintf(stderr, "SetPlayerAlliance(): otherPlayer is nil\n");
+        return 0;
+    }
     PLAYERALLIANCE *whichAllianceSetting = jass_checkhandle(j, 3, "alliancetype");
     BOOL value = jass_checkboolean(j, 4);
     G_SetPlayerAlliance(sourcePlayer, otherPlayer, *whichAllianceSetting, value);

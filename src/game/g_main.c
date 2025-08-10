@@ -51,7 +51,7 @@ static void G_InitGame(void) {
     globals.edicts = g_edicts;
     globals.num_edicts = 0;
     globals.max_edicts = MAX_ENTITIES;
-    globals.max_clients = 16;
+    globals.max_clients = MAX_CLIENTS;
 
     game.max_clients = globals.max_clients;
     game.clients = gi.MemAlloc(game.max_clients * sizeof(GAMECLIENT));
@@ -150,7 +150,8 @@ LPGAMECLIENT G_GetPlayerClientByNumber(DWORD number) {
             return cl;
         }
     }
-    return NULL;
+    return &game.clients[MAX_PLAYERS-1];
+//    return NULL;
 }
 
 LPPLAYER G_GetPlayerByNumber(DWORD number) {
@@ -159,7 +160,8 @@ LPPLAYER G_GetPlayerByNumber(DWORD number) {
             return &game.clients[i].ps;
         }
     }
-    return NULL;
+    return &game.clients[MAX_PLAYERS-1].ps;
+//    return NULL;
 }
 
 GAMEEVENT *G_PublishEvent(LPEDICT edict, EVENTTYPE type) {

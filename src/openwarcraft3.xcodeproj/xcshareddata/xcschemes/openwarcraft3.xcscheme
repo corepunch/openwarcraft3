@@ -56,7 +56,7 @@
             isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument
-            argument = "-mpq=/Users/igor/Documents/Warcraft3/war3.mpq"
+            argument = "-mpq=/Users/igor/Documents/Warcraft3_129b/war3.mpq"
             isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument

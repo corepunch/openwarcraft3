@@ -88,7 +88,11 @@ static void SP_SpawnDoodad(LPEDICT edict) {
     LPCSTR dir = gi.FindSheetCell(Doodads, class_id, "dir");
     LPCSTR file = gi.FindSheetCell(Doodads, class_id, "file");
     PATHSTR buffer;
-    sprintf(buffer, "%s\\%s\\%s%d.mdx", dir, file, file, edict->variation);
+    if (dir) {
+        sprintf(buffer, "%s\\%s\\%s%d.mdx", dir, file, file, edict->variation);
+    } else {
+        sprintf(buffer, "%s%d.mdx", file, edict->variation);
+    }
     edict->s.model = gi.ModelIndex(buffer);
     edict->movetype = MOVETYPE_NONE;
 }
@@ -99,7 +103,11 @@ static void SP_SpawnDestructable(LPEDICT edict) {
     PATHSTR buffer;
     sprintf(buffer, "%s.blp", DESTRUCTABLE_TEXTURE(edict->class_id));
     edict->s.image = gi.ImageIndex(buffer);
-    sprintf(buffer, "%s\\%s\\%s%d.mdx", dir, file, file, edict->variation);
+    if (dir) {
+        sprintf(buffer, "%s\\%s\\%s%d.mdx", dir, file, file, edict->variation);
+    } else {
+        sprintf(buffer, "%s%d.mdx", file, edict->variation);
+    }
     edict->s.model = gi.ModelIndex(buffer);
     edict->s.radius = 50;//destr->radius;
     edict->collision = 50;
@@ -133,8 +141,11 @@ void SP_CallSpawn(LPEDICT edict) {
     } else if (MAKEFOURCC('s', 'l', 'o', 'c') == edict->class_id) {
         edict->svflags |= SVF_NOCLIENT;
     } else {
+        if (edict->class_id == MAKEFOURCC('L', 'T', 'l', 't')) {
+            UnitStringField(DestructableMetaData, edict->class_id, "bfil");
+        }
         edict->svflags |= SVF_NOCLIENT;
-        fprintf(stderr, "Warning: Unknown id %.4s\n", (const char *)&edict->class_id);
+        fprintf(stderr, "Warning: Unknown ID %.4s\n", (const char *)&edict->class_id);
     }
 //    for (struct spawn *s = spawns; s->func; s++) {
 //        if (*((int const *)s->name) == edict->class_id) {

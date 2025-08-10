@@ -190,7 +190,9 @@ static LPCSTR remove_quotes(LPCSTR text) {
     static char text2[8][1024] = { 0 };
     LPSTR txt = text2[(counter++)&7];
     memset(txt, 0, sizeof(text2[0]));
-    if (*text != '"') {
+    if (!text) {
+        return "";
+    } else if (*text != '"') {
         memcpy(txt, text, strlen(text));
     } else {
         memcpy(txt, text+1, strlen(text)-2);

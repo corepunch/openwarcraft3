@@ -126,7 +126,7 @@ enum {
 #define MAX_STATS 32
 
 #define MAX_PACKET_ENTITIES 64
-#define MAX_CLIENTS 256
+#define MAX_CLIENTS 24
 #define MAX_FONTSTYLES 256
 #define MAX_MODELS 256
 #define MAX_SOUNDS 256
