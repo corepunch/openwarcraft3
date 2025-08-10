@@ -4,7 +4,7 @@ OpenWarcraft3 is an open-source implementation of Warcraft III that uses SDL2 an
 
 It was developed using War3.mpq from Warcraft III v1.0 as reference, with ongoing support for version 1.29b.
 
-<a href="https://youtu.be/m3mgmPJLqbo">Check the video on YouTube</a> or see screenshots below.
+<a href="https://youtu.be/vg7Jm046vcI">Check the video on YouTube</a> or see screenshots below.
 
 <img width="1024" src="https://github.com/user-attachments/assets/c76a93af-1801-402e-83bc-b3e0a4462312" />
 
