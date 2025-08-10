@@ -1,7 +1,7 @@
 # openwarcraft3
-Open source re-implementation of Warcraft III
+Open source re-implementation of Warcraft III. Uses SDL2 and currently runs on Linux and Mac.
 
-Currently supports War3.mpq from Warcraft III v1.0 or similar
+Was developed using War3.mpq from Warcraft III v1.0 as a reference, but 1.29b support is in progress.
 
 <img width="1025" alt="Screenshot 2023-05-25 at 09 57 57" src="https://github.com/corepunch/openwarcraft3/assets/83646194/643c7aa7-2b91-469c-857e-0f6910c939af">
 
