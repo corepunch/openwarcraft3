@@ -19,40 +19,37 @@ extern LPTEXTURE Texture;
 HANDLE FS_AddArchive(LPCSTR);
 
 void Sys_Quit(void) {
-  exit(0);
+    exit(0);
 }
 
 int main(int argc, LPSTR argv[]) {
-  LPCSTR map = NULL;
-  BOOL mpq = 0;
-  for (int i = 0; i < argc; i++) {
-    if (!strncmp(argv[i], "-mpq=", 5)) {
-      FS_AddArchive(argv[i]+5);
-      mpq = 1;
+    LPCSTR map = NULL;
+    BOOL mpq = 0;
+    for (int i = 0; i < argc; i++) {
+        if (!strncmp(argv[i], "-mpq=", 5)) {
+            FS_AddArchive(argv[i]+5);
+            mpq = 1;
+        }
+        if (!strncmp(argv[i], "-map=", 5)) {
+            map = argv[i]+5;
+        }
     }
-    if (!strncmp(argv[i], "-map=", 5)) {
-      map = argv[i]+5;
+    
+    if (!mpq || !map) {
+        printf(USAGE);
+        return 1;
     }
-  }
-  
-  if (!mpq || !map) {
-    printf(USAGE);
-    return 1;
-  }
-
-  Com_Init();
-  
-  SV_Map(map);
-  
-  DWORD startTime = SDL_GetTicks();
-  
-  while (true) {
-    DWORD currentTime = SDL_GetTicks();
-    DWORD msec = currentTime - startTime;
-    SV_Frame(msec);
-    CL_Frame(msec);
-    startTime = currentTime;
-  }
-  
-  return 0;
+    
+    Com_Init();
+    SV_Map(map);
+    DWORD startTime = SDL_GetTicks();
+    while (true) {
+        DWORD currentTime = SDL_GetTicks();
+        DWORD msec = currentTime - startTime;
+        SV_Frame(msec);
+        CL_Frame(msec);
+        startTime = currentTime;
+    }
+    
+    return 0;
 }

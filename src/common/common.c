@@ -55,6 +55,9 @@ HANDLE FS_AddArchive(LPCSTR filename) {
         if (archives[i])
             continue;
         SFileOpenArchive(filename, 0, 0, &archives[i]);
+        if (!archives[i]) {
+            fprintf(stderr, "Can't add archive %s\n", filename);
+        }
         return archives[i];
     }
     return NULL;

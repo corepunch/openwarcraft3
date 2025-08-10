@@ -1,6 +1,8 @@
 build/
+data/
 src/DerivedData/
 *xcuserdata*
 *.user
 *.xcuserstate
+*.zip
 .DS_Store

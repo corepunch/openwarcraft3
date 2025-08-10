@@ -51,6 +51,15 @@ make build
 
 This will compile all libraries (`cmath3`, `renderer`, `game`) and the `openwarcraft3` executable.
 
+### Download Warcraft 3 v1.29b installation
+
+```bash
+make download
+```
+
+This will download 1.2Gb file from `archive.org` into the `data` folder.
+This is optional, otherwise modify $(MPQ) in the Makefile to run desired `War3.mpq` file.
+
 ### Run
 
 ```bash

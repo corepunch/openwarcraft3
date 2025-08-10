@@ -1,11 +1,17 @@
-CC      := gcc
-BIN_DIR := build/bin
-LIB_DIR := build/lib
-OBJ_DIR := build/obj
-CFLAGS  := -Wall -fPIC -Isrc/cmath3/types
-LDFLAGS := -L$(LIB_DIR)
-MPQ     := /Users/igor/Documents/Warcraft3/war3.mpq
-MAP     := Maps\\Campaign\\Human02.w3m
+# MPQ      := /Users/igor/Documents/Warcraft3/war3.mpq
+MPQ      := data/Warcraft\ III/War3.mpq
+MAP      := Maps\\Campaign\\Human02.w3m
+
+ZIP_URL  := https://archive.org/download/warcraft-iii-installer-enus/Warcraft-III-1.29.2-enUS.zip
+ZIP_FILE := Warcraft-III-1.29.2-enUS.zip
+DATA_DIR := data
+
+CC       := gcc
+BIN_DIR  := build/bin
+LIB_DIR  := build/lib
+OBJ_DIR  := build/obj
+CFLAGS   := -Wall -fPIC -Isrc/cmath3/types
+LDFLAGS  := -L$(LIB_DIR)
 
 CMATH3_OBJS := $(patsubst src/cmath3/%.c,$(OBJ_DIR)/cmath3/%.o,$(shell find src/cmath3 -name '*.c'))
 RENDERER_OBJS := $(patsubst src/renderer/%.c,$(OBJ_DIR)/renderer/%.o,$(shell find src/renderer -name '*.c'))
@@ -59,7 +65,14 @@ $(OBJ_DIR)/%.o: src/%.c
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) -c $< -o $@
 
+download: $(ZIP_FILE)
+	mkdir -p $(DATA_DIR)
+	unzip -o $(ZIP_FILE) -d $(DATA_DIR)
+	
+$(ZIP_FILE):
+	curl -L -o $(ZIP_FILE) $(ZIP_URL)
+
 clean:
 	rm -rf build/obj build/lib
 
-.PHONY: default cmath3 renderer game clean
+.PHONY: default cmath3 renderer game openwarcraft3 clean download
