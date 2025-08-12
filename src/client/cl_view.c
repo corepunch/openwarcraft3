@@ -53,7 +53,7 @@ void Matrix4_getCameraMatrix(LPMATRIX4 output) {
     FLOAT znear = LerpNumber(a->znear, b->znear, cl.viewDef.lerpfrac);
     FLOAT zfar = LerpNumber(a->zfar, b->zfar, cl.viewDef.lerpfrac);
     
-    origin.z = re.GetHeightAtPoint(origin.x, origin.y) - 256;
+    origin.z = CM_GetHeightAtPoint(origin.x, origin.y) - 256;
 
     Matrix4_perspective(&proj, fov, aspect, znear, zfar);
     Matrix4_fromViewQuat(&origin, &quat, distance, &view);
