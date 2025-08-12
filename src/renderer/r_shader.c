@@ -124,21 +124,46 @@ LPSHADER R_InitShader(LPCSTR vs_default, LPCSTR fs_default){
 
     GLint status;
     R_Call(glGetShaderiv, vs, GL_COMPILE_STATUS, &status);
-    if(status == GL_FALSE) {
-        fprintf(stderr, "vertex shader compilation failed\n");
+    if (status == GL_FALSE) {
+        GLint logLength = 0;
+        glGetShaderiv(vs, GL_INFO_LOG_LENGTH, &logLength);
+        if (logLength > 1) { // There's something to print
+            char *log = malloc(logLength);
+            if (log) {
+                glGetShaderInfoLog(vs, logLength, NULL, log);
+                fprintf(stderr, "Vertex shader compilation failed:\n%s\n", log);
+                free(log);
+            } else {
+                fprintf(stderr, "Vertex shader compilation failed (could not allocate log buffer)\n");
+            }
+        } else {
+            fprintf(stderr, "Vertex shader compilation failed (no log)\n");
+        }
         return NULL;
     }
-
     length = (int)strlen(fs_default);
     R_Call(glShaderSource, fs, 1, (const GLchar **)&fs_default, &length);
     R_Call(glCompileShader, fs);
 
     R_Call(glGetShaderiv, fs, GL_COMPILE_STATUS, &status);
-    if(status == GL_FALSE) {
-        fprintf(stderr, "fragment shader compilation failed\n");
+    if (status == GL_FALSE) {
+        GLint logLength = 0;
+        glGetShaderiv(fs, GL_INFO_LOG_LENGTH, &logLength);
+        if (logLength > 1) { // There's something to print
+            char *log = malloc(logLength);
+            if (log) {
+                glGetShaderInfoLog(fs, logLength, NULL, log);
+                fprintf(stderr, "Vertex shader compilation failed:\n%s\n", log);
+                free(log);
+            } else {
+                fprintf(stderr, "Vertex shader compilation failed (could not allocate log buffer)\n");
+            }
+        } else {
+            fprintf(stderr, "Vertex shader compilation failed (no log)\n");
+        }
         return NULL;
     }
-    
+
     LPSHADER program = ri.MemAlloc(sizeof(struct shader_program));
     program->progid = R_Call(glCreateProgram, );
 
@@ -159,7 +184,7 @@ LPSHADER R_InitShader(LPCSTR vs_default, LPCSTR fs_default){
     R_Call(glLinkProgram, program->progid);
     R_Call(glUseProgram, program->progid);
     
-#define R_RegisterUniform(PROGRAM, NAME) PROGRAM->NAME = R_Call(glGetUniformLocation, PROGRAM->progid, #NAME);
+#define R_RegisterUniform(PROGRAM, NAME) PROGRAM->NAME = glGetUniformLocation(PROGRAM->progid, #NAME);
 
     R_RegisterUniform(program, uViewProjectionMatrix);
     R_RegisterUniform(program, uModelMatrix);
@@ -173,7 +198,7 @@ LPSHADER R_InitShader(LPCSTR vs_default, LPCSTR fs_default){
     R_RegisterUniform(program, uUseDiscard);
     R_RegisterUniform(program, uEyePosition);
     R_RegisterUniform(program, uActiveGlow);
-
+    
     R_Call(glUniform1i, program->uTexture, 0);
     R_Call(glUniform1i, program->uShadowmap, 1);
     R_Call(glUniform1i, program->uFogOfWar, 2);
