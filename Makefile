@@ -59,7 +59,7 @@ $(LIB_DIR)/librenderer.so: cmath3 $(RENDERER_OBJS) $(LIB_DIR)
 	$(CC) -shared -o $@ $(RENDERER_OBJS) $(LDFLAGS) -lcmath3 -lSDL2 -lstorm -ljpeg
 
 $(BIN_DIR)/openwarcraft3: cmath3 game renderer $(APP_OBJS) $(BIN_DIR)
-	$(CC) -o $@ $(APP_OBJS) $(LDFLAGS) -lcmath3 -lSDL2 -lstorm -lgame -lrenderer
+	$(CC) -o $@ $(APP_OBJS) -Wl,-rpath,'$$ORIGIN/../lib' $(LDFLAGS) -lcmath3 -lSDL2 -lstorm -lgame -lrenderer
 
 $(OBJ_DIR)/%.o: src/%.c
 	@mkdir -p $(dir $@)
