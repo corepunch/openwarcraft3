@@ -52,7 +52,7 @@ static LPCSTR vs =
 "        position += uBones[int(i_skin2[i])] * pos4 * i_boneWeight2[i];\n"
 "        normal += uBones[int(i_skin2[i])] * norm4 * i_boneWeight2[i];\n"
 #endif
-"    }\nposition=pos4;\n"
+"    }\n"
 "    position.w = 1.0;\n"
 "    v_color = i_color;\n"
 "    v_texcoord = i_texcoord;\n"
