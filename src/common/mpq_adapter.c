@@ -79,18 +79,22 @@ BOOL MPQ_OpenFileEx(MPQ_ARCHIVE hMpq, LPCSTR szFileName, DWORD dwSearchScope, MP
         return FALSE;
     }
     
-    unsigned char* buffer = (unsigned char*)malloc((size_t)file_size);
-    if (buffer == NULL) {
-        free(file_handle);
-        return FALSE;
-    }
-    
-    result = libmpq__file_read(hMpq, file_number, buffer, file_size);
-    
-    if (result != 0) {
-        free(buffer);
-        free(file_handle);
-        return FALSE;
+    /* Handle zero-size files */
+    unsigned char* buffer = NULL;
+    if (file_size > 0) {
+        buffer = (unsigned char*)malloc((size_t)file_size);
+        if (buffer == NULL) {
+            free(file_handle);
+            return FALSE;
+        }
+        
+        result = libmpq__file_read(hMpq, file_number, buffer, (off_t)file_size);
+        
+        if (result != 0) {
+            free(buffer);
+            free(file_handle);
+            return FALSE;
+        }
     }
     
     file_handle->archive = hMpq;
@@ -189,16 +193,31 @@ DWORD MPQ_SetFilePointer(MPQ_FILE hFile, LONG lFilePos, LONG* plFilePosHigh, DWO
     }
     
     off_t new_offset = 0;
+    off_t file_pos_offset = (off_t)lFilePos;
     
     switch (dwMoveMethod) {
         case FILE_BEGIN:
-            new_offset = lFilePos;
+            new_offset = file_pos_offset;
             break;
         case FILE_CURRENT:
-            new_offset = hFile->offset + lFilePos;
+            /* Check for overflow in addition */
+            if (lFilePos > 0 && hFile->offset > (off_t)(SIZE_MAX - lFilePos)) {
+                return 0xFFFFFFFF;  /* Overflow would occur */
+            }
+            if (lFilePos < 0 && hFile->offset < (off_t)lFilePos) {
+                return 0xFFFFFFFF;  /* Underflow would occur */
+            }
+            new_offset = hFile->offset + file_pos_offset;
             break;
         case FILE_END:
-            new_offset = hFile->cached_size + lFilePos;
+            /* Check for overflow in addition */
+            if (lFilePos > 0 && hFile->cached_size > (off_t)(SIZE_MAX - lFilePos)) {
+                return 0xFFFFFFFF;  /* Overflow would occur */
+            }
+            if (lFilePos < 0 && hFile->cached_size < (off_t)(-lFilePos)) {
+                return 0xFFFFFFFF;  /* Underflow would occur */
+            }
+            new_offset = hFile->cached_size + file_pos_offset;
             break;
         default:
             return 0xFFFFFFFF;
