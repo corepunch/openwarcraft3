@@ -33,6 +33,9 @@ solution "openwarcraft3"
 			["ALWAYS_SEARCH_USER_PATHS"] = "YES", -- This is the minimum version of macos we'll be able to run on
 		};
 
+	filter {"system:bsd"}
+		defines { "OW3_PLATFORM_BSD" }
+
 	filter {"system:windows"}
 		defines { "OW3_PLATFORM_WINDOWS" }
 
@@ -65,6 +68,10 @@ project "openwarcraft3"
 		links { "gdi32", "kernel32", "psapi" }
 	filter "system:linux"
 		links { "dl", "GL", "pthread", "X11" }
+	filter "system:bsd"
+		links { "GL", "pthread", "mpq" }
+		includedirs { "/usr/local/include" }
+		libdirs { "/usr/local/lib" }
 	filter "system:macosx"
 		links { "QuartzCore.framework", "Metal.framework", "Cocoa.framework", "IOKit.framework", "CoreVideo.framework" }
 		linkoptions { 

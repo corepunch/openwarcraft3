@@ -22,6 +22,14 @@ ifeq ($(shell uname -s),Linux)
 	LDFLAGS += -Wl,-z,defs -lm -lEGL -lGL
 endif
 
+ifeq ($(shell uname -s),OpenBSD)
+	CFLAGS += -I/usr/local/include
+	LDFLAGS += -L/usr/local/lib -lm -lGL
+	MPQ_LIB := -lmpq
+else
+	MPQ_LIB := -lstorm
+endif
+
 ifeq ($(shell uname -s),Darwin)
 	ifeq ($(shell uname -m),arm64)
 		HOMEBREW_PREFIX := /opt/homebrew
@@ -56,10 +64,10 @@ $(LIB_DIR)/libgame.so: $(GAME_OBJS) $(LIB_DIR)
 	$(CC) -shared -o $@ $(GAME_OBJS) $(LDFLAGS) -lcmath3
 
 $(LIB_DIR)/librenderer.so: cmath3 $(RENDERER_OBJS) $(LIB_DIR)
-	$(CC) -shared -o $@ $(RENDERER_OBJS) $(LDFLAGS) -lcmath3 -lSDL2 -lstorm -ljpeg
+	$(CC) -shared -o $@ $(RENDERER_OBJS) $(LDFLAGS) -lcmath3 -lSDL2 $(MPQ_LIB) -ljpeg
 
 $(BIN_DIR)/openwarcraft3: cmath3 game renderer $(APP_OBJS) $(BIN_DIR)
-	$(CC) -o $@ $(APP_OBJS) -Wl,-rpath,'$$ORIGIN/../lib' $(LDFLAGS) -lcmath3 -lSDL2 -lstorm -lgame -lrenderer
+	$(CC) -o $@ $(APP_OBJS) -Wl,-rpath,'$$ORIGIN/../lib' $(LDFLAGS) -lcmath3 -lSDL2 $(MPQ_LIB) -lgame -lrenderer
 
 $(OBJ_DIR)/%.o: src/%.c
 	@mkdir -p $(dir $@)

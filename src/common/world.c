@@ -1,5 +1,5 @@
 #include "common.h"
-#include <StormLib.h>
+#include "mpq_adapter.h"
 
 static struct {
     LPWAR3MAP map;

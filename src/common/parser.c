@@ -1,4 +1,4 @@
-#include <StormLib.h>
+#include "mpq_adapter.h"
 
 #include "common.h"
 
