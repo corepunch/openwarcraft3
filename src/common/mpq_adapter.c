@@ -119,10 +119,13 @@ BOOL MPQ_ReadFile(MPQ_FILE hFile, LPVOID lpBuffer, DWORD dwToRead, LPDWORD pdwRe
         return TRUE;  /* Not an error, just EOF */
     }
     
-    /* Adjust read size if needed */
+    /* Calculate bytes to read safely to avoid overflow */
     off_t bytes_to_read = dwToRead;
-    if (hFile->offset + bytes_to_read > hFile->cached_size) {
-        bytes_to_read = hFile->cached_size - hFile->offset;
+    off_t remaining = hFile->cached_size - hFile->offset;
+    
+    /* Ensure we don't read past end of file */
+    if (bytes_to_read > remaining) {
+        bytes_to_read = remaining;
     }
     
     /* Copy from cached data */
@@ -143,7 +146,12 @@ DWORD MPQ_GetFileSize(MPQ_FILE hFile, LPDWORD pdwFileSizeHigh) {
     }
     
     if (pdwFileSizeHigh != NULL) {
-        *pdwFileSizeHigh = (DWORD)(hFile->cached_size >> 32);
+        /* Safe handling for both 32-bit and 64-bit off_t */
+        #if defined(_FILE_OFFSET_BITS) && _FILE_OFFSET_BITS == 64
+            *pdwFileSizeHigh = (DWORD)(hFile->cached_size >> 32);
+        #else
+            *pdwFileSizeHigh = 0;
+        #endif
     }
     
     return (DWORD)(hFile->cached_size & 0xFFFFFFFF);
@@ -178,7 +186,12 @@ DWORD MPQ_SetFilePointer(MPQ_FILE hFile, LONG lFilePos, LONG* plFilePosHigh, DWO
     hFile->offset = new_offset;
     
     if (plFilePosHigh != NULL) {
-        *plFilePosHigh = (LONG)(new_offset >> 32);
+        /* Safe handling for both 32-bit and 64-bit off_t */
+        #if defined(_FILE_OFFSET_BITS) && _FILE_OFFSET_BITS == 64
+            *plFilePosHigh = (LONG)(new_offset >> 32);
+        #else
+            *plFilePosHigh = 0;
+        #endif
     }
     
     return (DWORD)(new_offset & 0xFFFFFFFF);

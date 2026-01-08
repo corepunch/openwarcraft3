@@ -92,7 +92,7 @@ BOOL MPQ_FindClose(MPQ_FIND_HANDLE hFind);
 #else /* USE_STORMLIB */
 
 /* StormLib is used as-is, no wrapper needed */
-#define SFILE_FIND_DATA _SFILE_FIND_DATA
+typedef struct _SFILE_FIND_DATA SFILE_FIND_DATA;
 
 #endif /* USE_LIBMPQ */
 
