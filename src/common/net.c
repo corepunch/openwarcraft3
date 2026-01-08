@@ -1,4 +1,21 @@
 #include <stdarg.h>
+
+#ifdef USE_LOOPBACK
+// Loopback implementation for local client-server communication
+#include "common.h"
+
+#define BUFFER_SIZE (1024 * 256)
+
+struct loopback {
+    char buffer[BUFFER_SIZE];
+    int read;
+    int write;
+};
+
+static struct loopback bufs[2] = { 0 };
+
+#else
+// TCP/IP socket implementation for networked multiplayer
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
@@ -20,7 +37,42 @@ struct socketBuffer {
 };
 
 static struct socketBuffer sockBuffers[MAX_SOCKETS] = { 0 };
+#endif
 
+#ifdef USE_LOOPBACK
+// Loopback implementation
+void NET_Write(NETSOURCE netsrc, DWORD sock, LPCVOID data, DWORD size) {
+    struct loopback *buf = &bufs[netsrc];
+    FOR_LOOP(i, size) {
+        buf->buffer[(buf->write++) % BUFFER_SIZE] = ((LPSTR)data)[i];
+    }
+}
+
+int NET_Read(NETSOURCE netsrc, DWORD sock, HANDLE data, DWORD size) {
+    struct loopback *buf = &bufs[!netsrc];
+    FOR_LOOP(i, size) {
+        if (buf->read == buf->write)
+            return i;
+        ((LPSTR)data)[i] = buf->buffer[(buf->read++) % BUFFER_SIZE];
+    }
+    return size;
+}
+
+int NET_GetPacket(NETSOURCE netsrc, DWORD sock, LPSIZEBUF msg) {
+    DWORD size = 0;
+    if (NET_Read(netsrc, sock, &size, 4)) {
+        assert(size < MAX_MSGLEN);
+        NET_Read(netsrc, sock, msg->data, size);
+        msg->cursize = size;
+        msg->maxsize = size;
+        msg->readcount = 0;
+        return size;
+    }
+    return 0;
+}
+
+#else
+// TCP/IP socket implementation
 void NET_Write(NETSOURCE netsrc, DWORD sock, LPCVOID data, DWORD size) {
     if (sock == 0) {
         // Socket 0 is invalid, skip
@@ -130,6 +182,7 @@ int NET_GetPacket(NETSOURCE netsrc, DWORD sock, LPSIZEBUF msg) {
     msg->readcount = 0;
     return size;
 }
+#endif // USE_LOOPBACK
 
 //int NET_SendPacket(DWORD sock, LPSIZEBUF msg) {
 //    NET_Write(sock, &msg->cursize, 4);
@@ -196,6 +249,7 @@ void Netchan_OutOfBandPrint(NETSOURCE netsrc, netadr_t adr, LPCSTR format, ...) 
     Netchan_OutOfBand(netsrc, adr, (DWORD)strlen(string), (BYTE *)string);
 }
 
+#ifndef USE_LOOPBACK
 // TCP/IP socket functions
 
 DWORD NET_TCPSocket(void) {
@@ -321,3 +375,86 @@ void NET_CloseSocket(DWORD sock) {
         }
     }
 }
+
+// Network discovery - broadcast to find active games on LAN
+void NET_DiscoverGames(unsigned short port, int timeout_ms) {
+    int sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+    if (sock < 0) {
+        fprintf(stderr, "NET_DiscoverGames: socket creation failed: %d\n", errno);
+        return;
+    }
+    
+    // Enable broadcast
+    int broadcast = 1;
+    if (setsockopt(sock, SOL_SOCKET, SO_BROADCAST, &broadcast, sizeof(broadcast)) < 0) {
+        fprintf(stderr, "NET_DiscoverGames: failed to enable broadcast: %d\n", errno);
+        close(sock);
+        return;
+    }
+    
+    // Set receive timeout
+    struct timeval tv;
+    tv.tv_sec = timeout_ms / 1000;
+    tv.tv_usec = (timeout_ms % 1000) * 1000;
+    setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+    
+    // Broadcast discovery packet
+    struct sockaddr_in broadcastAddr;
+    memset(&broadcastAddr, 0, sizeof(broadcastAddr));
+    broadcastAddr.sin_family = AF_INET;
+    broadcastAddr.sin_addr.s_addr = INADDR_BROADCAST;
+    broadcastAddr.sin_port = htons(port);
+    
+    const char *query = "OPENWARCRAFT3_DISCOVER";
+    if (sendto(sock, query, strlen(query), 0, 
+               (struct sockaddr *)&broadcastAddr, sizeof(broadcastAddr)) < 0) {
+        fprintf(stderr, "NET_DiscoverGames: broadcast failed: %d\n", errno);
+        close(sock);
+        return;
+    }
+    
+    fprintf(stderr, "NET_DiscoverGames: sent discovery broadcast on port %u\n", port);
+    
+    // Listen for responses
+    char buffer[1024];
+    struct sockaddr_in serverAddr;
+    socklen_t addrLen = sizeof(serverAddr);
+    int gameCount = 0;
+    
+    fprintf(stderr, "Scanning for active games (timeout: %dms)...\n", timeout_ms);
+    
+    while (1) {
+        memset(buffer, 0, sizeof(buffer));
+        int bytes = recvfrom(sock, buffer, sizeof(buffer) - 1, 0,
+                            (struct sockaddr *)&serverAddr, &addrLen);
+        
+        if (bytes < 0) {
+            if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                // Timeout - no more responses
+                break;
+            }
+            fprintf(stderr, "NET_DiscoverGames: recvfrom error: %d\n", errno);
+            break;
+        }
+        
+        if (bytes > 0) {
+            buffer[bytes] = '\0';
+            gameCount++;
+            fprintf(stderr, "[Game %d] %s:%d - %s\n", 
+                    gameCount,
+                    inet_ntoa(serverAddr.sin_addr),
+                    ntohs(serverAddr.sin_port),
+                    buffer);
+        }
+    }
+    
+    if (gameCount == 0) {
+        fprintf(stderr, "No active games found on the network.\n");
+    } else {
+        fprintf(stderr, "Found %d active game(s).\n", gameCount);
+    }
+    
+    close(sock);
+}
+
+#endif // USE_LOOPBACK
