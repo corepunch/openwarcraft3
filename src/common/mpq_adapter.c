@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <stdint.h>
 
 /* Windows types compatibility - these should be defined in shared.h */
 #ifndef TRUE
@@ -12,6 +13,11 @@
 #endif
 #ifndef FALSE
 #define FALSE 0
+#endif
+
+/* SIZE_MAX may not be defined in older systems */
+#ifndef SIZE_MAX
+#define SIZE_MAX ((size_t)-1)
 #endif
 
 /* Open an MPQ archive */
@@ -67,7 +73,13 @@ BOOL MPQ_OpenFileEx(MPQ_ARCHIVE hMpq, LPCSTR szFileName, DWORD dwSearchScope, MP
     }
     
     /* Allocate buffer and read entire file for efficient random access */
-    unsigned char* buffer = (unsigned char*)malloc(file_size);
+    /* Check for overflow - file_size should fit in size_t */
+    if (file_size < 0 || (sizeof(size_t) < sizeof(off_t) && file_size > (off_t)SIZE_MAX)) {
+        free(file_handle);
+        return FALSE;
+    }
+    
+    unsigned char* buffer = (unsigned char*)malloc((size_t)file_size);
     if (buffer == NULL) {
         free(file_handle);
         return FALSE;
@@ -128,12 +140,25 @@ BOOL MPQ_ReadFile(MPQ_FILE hFile, LPVOID lpBuffer, DWORD dwToRead, LPDWORD pdwRe
         bytes_to_read = remaining;
     }
     
+    /* Additional safety check for pointer arithmetic */
+    if (hFile->offset < 0 || bytes_to_read < 0 || 
+        hFile->offset > hFile->cached_size || 
+        bytes_to_read > (hFile->cached_size - hFile->offset)) {
+        return FALSE;
+    }
+    
     /* Copy from cached data */
-    memcpy(lpBuffer, hFile->cached_data + hFile->offset, bytes_to_read);
+    memcpy(lpBuffer, hFile->cached_data + hFile->offset, (size_t)bytes_to_read);
     hFile->offset += bytes_to_read;
     
     if (pdwRead != NULL) {
-        *pdwRead = (DWORD)bytes_to_read;
+        /* Check if bytes_to_read fits in DWORD before casting */
+        if (bytes_to_read > 0xFFFFFFFF) {
+            /* This shouldn't happen with DWORD dwToRead input, but be safe */
+            *pdwRead = 0xFFFFFFFF;
+        } else {
+            *pdwRead = (DWORD)bytes_to_read;
+        }
     }
     
     return TRUE;
