@@ -3,6 +3,7 @@
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
+#include <netdb.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
@@ -10,6 +11,7 @@
 #include "common.h"
 
 #define BUFFER_SIZE (1024 * 256)
+#define MAX_SOCKETS 32
 
 // Per-socket receive buffer for partial packet handling
 struct socketBuffer {
@@ -17,7 +19,7 @@ struct socketBuffer {
     int size;  // Current amount of data in buffer
 };
 
-static struct socketBuffer sockBuffers[32] = { 0 };  // Support up to 32 sockets
+static struct socketBuffer sockBuffers[MAX_SOCKETS] = { 0 };
 
 void NET_Write(NETSOURCE netsrc, DWORD sock, LPCVOID data, DWORD size) {
     if (sock == 0) {
@@ -42,7 +44,7 @@ void NET_Write(NETSOURCE netsrc, DWORD sock, LPCVOID data, DWORD size) {
 }
 
 int NET_Read(NETSOURCE netsrc, DWORD sock, HANDLE data, DWORD size) {
-    if (sock == 0 || sock >= 32) {
+    if (sock == 0 || sock >= MAX_SOCKETS) {
         return 0;
     }
     
@@ -93,7 +95,19 @@ int NET_GetPacket(NETSOURCE netsrc, DWORD sock, LPSIZEBUF msg) {
     // Read the 4-byte size header
     int bytesRead = NET_Read(netsrc, sock, &size, 4);
     if (bytesRead < 4) {
-        return 0;  // Incomplete or no packet
+        // Not enough data for size header, buffer it for next call
+        if (bytesRead > 0 && sock < MAX_SOCKETS) {
+            struct socketBuffer *sockBuf = &sockBuffers[sock];
+            if (sockBuf->size + bytesRead <= BUFFER_SIZE - 4) {
+                memcpy(sockBuf->buffer + sockBuf->size, &size, bytesRead);
+                sockBuf->size += bytesRead;
+            }
+        }
+        return 0;
+    }
+    
+    if (size == 0) {
+        return 0;  // Empty packet
     }
     
     if (size >= MAX_MSGLEN) {
@@ -104,12 +118,21 @@ int NET_GetPacket(NETSOURCE netsrc, DWORD sock, LPSIZEBUF msg) {
     // Read the packet data
     bytesRead = NET_Read(netsrc, sock, msg->data, size);
     if (bytesRead < (int)size) {
-        // Incomplete packet - buffer what we got for next call
-        if (sock < 32) {
+        // Incomplete packet - put size header and partial data back in buffer
+        if (sock < MAX_SOCKETS) {
             struct socketBuffer *sockBuf = &sockBuffers[sock];
-            if (sockBuf->size + bytesRead < BUFFER_SIZE) {
-                memcpy(sockBuf->buffer + sockBuf->size, msg->data, bytesRead);
-                sockBuf->size += bytesRead;
+            // Calculate total needed space: 4 bytes for size + partial data
+            int totalNeeded = 4 + bytesRead;
+            if (sockBuf->size + totalNeeded <= BUFFER_SIZE) {
+                // Shift existing buffer data to make room at the beginning
+                if (sockBuf->size > 0) {
+                    memmove(sockBuf->buffer + totalNeeded, sockBuf->buffer, sockBuf->size);
+                }
+                // Put size header at the beginning
+                memcpy(sockBuf->buffer, &size, 4);
+                // Put partial packet data after size
+                memcpy(sockBuf->buffer + 4, msg->data, bytesRead);
+                sockBuf->size += totalNeeded;
             }
         }
         return 0;
@@ -261,10 +284,15 @@ int NET_TCPConnect(DWORD sock, LPCSTR host, unsigned short port) {
     addr.sin_family = AF_INET;
     addr.sin_port = htons(port);
     
-    // Convert host to IP address
+    // Try to convert as IP address first
     if (inet_pton(AF_INET, host, &addr.sin_addr) <= 0) {
-        fprintf(stderr, "NET_TCPConnect: invalid address: %s\n", host);
-        return -1;
+        // Not a valid IP address, try hostname resolution
+        struct hostent *he = gethostbyname(host);
+        if (he == NULL || he->h_addrtype != AF_INET) {
+            fprintf(stderr, "NET_TCPConnect: failed to resolve hostname: %s\n", host);
+            return -1;
+        }
+        memcpy(&addr.sin_addr, he->h_addr_list[0], he->h_length);
     }
     
     if (connect(sock, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
@@ -301,7 +329,7 @@ void NET_CloseSocket(DWORD sock) {
         close(sock);
         
         // Clear socket buffer
-        if (sock < 32) {
+        if (sock < MAX_SOCKETS) {
             memset(&sockBuffers[sock], 0, sizeof(sockBuffers[sock]));
         }
     }
