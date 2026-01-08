@@ -57,6 +57,9 @@ typedef struct {
     int file_count;
 } MPQ_FIND_DATA, *LPMPQ_FIND_DATA;
 
+/* Find handle type */
+typedef void* MPQ_FIND_HANDLE;
+
 /* Adapter function prototypes */
 BOOL MPQ_OpenArchive(LPCSTR szMpqName, DWORD dwPriority, DWORD dwFlags, MPQ_ARCHIVE* phMpq);
 BOOL MPQ_CloseArchive(MPQ_ARCHIVE hMpq);
@@ -66,9 +69,9 @@ BOOL MPQ_ReadFile(MPQ_FILE hFile, LPVOID lpBuffer, DWORD dwToRead, LPDWORD pdwRe
 DWORD MPQ_GetFileSize(MPQ_FILE hFile, LPDWORD pdwFileSizeHigh);
 DWORD MPQ_SetFilePointer(MPQ_FILE hFile, LONG lFilePos, LONG* plFilePosHigh, DWORD dwMoveMethod);
 BOOL MPQ_ExtractFile(MPQ_ARCHIVE hMpq, LPCSTR szToExtract, LPCSTR szExtracted, DWORD dwSearchScope);
-HANDLE MPQ_FindFirstFile(MPQ_ARCHIVE hMpq, LPCSTR szMask, LPMPQ_FIND_DATA lpFindFileData, LPCSTR szListFile);
-BOOL MPQ_FindNextFile(HANDLE hFind, LPMPQ_FIND_DATA lpFindFileData);
-BOOL MPQ_FindClose(HANDLE hFind);
+MPQ_FIND_HANDLE MPQ_FindFirstFile(MPQ_ARCHIVE hMpq, LPCSTR szMask, LPMPQ_FIND_DATA lpFindFileData, LPCSTR szListFile);
+BOOL MPQ_FindNextFile(MPQ_FIND_HANDLE hFind, LPMPQ_FIND_DATA lpFindFileData);
+BOOL MPQ_FindClose(MPQ_FIND_HANDLE hFind);
 
 /* Macro definitions for transparent API */
 #define SFileOpenArchive MPQ_OpenArchive
@@ -84,7 +87,6 @@ BOOL MPQ_FindClose(HANDLE hFind);
 #define SFileFindClose MPQ_FindClose
 
 /* Type aliases */
-#define HANDLE MPQ_ARCHIVE
 #define SFILE_FIND_DATA MPQ_FIND_DATA
 
 #else /* USE_STORMLIB */

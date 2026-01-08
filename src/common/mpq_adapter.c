@@ -6,6 +6,14 @@
 #include <string.h>
 #include <stdio.h>
 
+/* Windows types compatibility - these should be defined in shared.h */
+#ifndef TRUE
+#define TRUE 1
+#endif
+#ifndef FALSE
+#define FALSE 0
+#endif
+
 /* Open an MPQ archive */
 BOOL MPQ_OpenArchive(LPCSTR szMpqName, DWORD dwPriority, DWORD dwFlags, MPQ_ARCHIVE* phMpq) {
     mpq_archive_s* archive = NULL;
@@ -194,7 +202,7 @@ BOOL MPQ_ExtractFile(MPQ_ARCHIVE hMpq, LPCSTR szToExtract, LPCSTR szExtracted, D
 }
 
 /* Find first file in archive - simplified implementation */
-HANDLE MPQ_FindFirstFile(MPQ_ARCHIVE hMpq, LPCSTR szMask, LPMPQ_FIND_DATA lpFindFileData, LPCSTR szListFile) {
+MPQ_FIND_HANDLE MPQ_FindFirstFile(MPQ_ARCHIVE hMpq, LPCSTR szMask, LPMPQ_FIND_DATA lpFindFileData, LPCSTR szListFile) {
     /* Note: libmpq doesn't have native file enumeration like StormLib.
      * This is a simplified implementation that may not work for all cases.
      * For full functionality, you would need to read and parse the (listfile) 
@@ -217,13 +225,13 @@ HANDLE MPQ_FindFirstFile(MPQ_ARCHIVE hMpq, LPCSTR szMask, LPMPQ_FIND_DATA lpFind
 }
 
 /* Find next file */
-BOOL MPQ_FindNextFile(HANDLE hFind, LPMPQ_FIND_DATA lpFindFileData) {
+BOOL MPQ_FindNextFile(MPQ_FIND_HANDLE hFind, LPMPQ_FIND_DATA lpFindFileData) {
     /* Not fully implemented - libmpq limitation */
     return FALSE;
 }
 
 /* Close find handle */
-BOOL MPQ_FindClose(HANDLE hFind) {
+BOOL MPQ_FindClose(MPQ_FIND_HANDLE hFind) {
     /* Nothing to clean up in our simplified implementation */
     return TRUE;
 }
