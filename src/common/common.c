@@ -1,6 +1,6 @@
 #include "common.h"
 
-#include <StormLib.h>
+#include "mpq_adapter.h"
 
 #define MAXPRINTMSG 4096
 

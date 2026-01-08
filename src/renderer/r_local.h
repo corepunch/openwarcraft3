@@ -2,7 +2,7 @@
 #define r_local_h
 
 #include <SDL2/SDL.h>
-#include <StormLib.h>
+#include "../common/mpq_adapter.h"
 
 // TODO: M1 doesn't link without these includes
 

@@ -75,7 +75,7 @@ This will run the built `openwarcraft3` executable from the `build/bin` folder.
 
 The Makefile build requires the following libraries installed on your system:
 
-* **StormLib** — for MPQ archive support
+* **StormLib** (or **libmpq** on OpenBSD) — for MPQ archive support
 * **SDL2** — for windowing and input
 * **libjpeg** — for JPEG image decoding
 
@@ -90,6 +90,14 @@ On Linux, use your distribution package manager, e.g., for Ubuntu:
 ```bash
 sudo apt-get install libsdl2-dev libjpeg-dev libstorm-dev
 ```
+
+On OpenBSD, install the packages using pkg_add:
+
+```bash
+doas pkg_add sdl2 libmpq jpeg
+```
+
+**Note:** OpenBSD support uses libmpq instead of StormLib, as StormLib is not well-supported on OpenBSD. The code automatically detects OpenBSD and uses the appropriate library.
 
 ---
 

@@ -4,7 +4,7 @@
 #include "../common/common.h"
 #include "game.h"
 
-#include <StormLib.h>
+#include "../common/mpq_adapter.h"
 
 #define EDICT_NUM(n) ((edict_t *)((LPSTR)ge->edicts + ge->edict_size*(n)))
 #define NUM_FOR_EDICT(e) (DWORD)(((LPSTR)(e)-(LPSTR)ge->edicts) / ge->edict_size)

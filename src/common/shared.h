@@ -180,6 +180,7 @@ typedef long long      LONGLONG;
 typedef unsigned long long ULONGLONG;
 typedef float          FLOAT;
 typedef void         * HANDLE;
+typedef void         * LPVOID;
 typedef void         * LPOVERLAPPED; // Unsupported on Linux and Mac
 typedef char           TCHAR;
 typedef unsigned int   LCID;
