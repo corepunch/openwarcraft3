@@ -95,14 +95,7 @@ int NET_GetPacket(NETSOURCE netsrc, DWORD sock, LPSIZEBUF msg) {
     // Read the 4-byte size header
     int bytesRead = NET_Read(netsrc, sock, &size, 4);
     if (bytesRead < 4) {
-        // Not enough data for size header, buffer it for next call
-        if (bytesRead > 0 && sock < MAX_SOCKETS) {
-            struct socketBuffer *sockBuf = &sockBuffers[sock];
-            if (sockBuf->size + bytesRead <= BUFFER_SIZE - 4) {
-                memcpy(sockBuf->buffer + sockBuf->size, &size, bytesRead);
-                sockBuf->size += bytesRead;
-            }
-        }
+        // Not enough data yet - NET_Read already buffered what was available
         return 0;
     }
     
@@ -118,21 +111,15 @@ int NET_GetPacket(NETSOURCE netsrc, DWORD sock, LPSIZEBUF msg) {
     // Read the packet data
     bytesRead = NET_Read(netsrc, sock, msg->data, size);
     if (bytesRead < (int)size) {
-        // Incomplete packet - put size header and partial data back in buffer
+        // Not enough data yet - NET_Read already buffered what was available
+        // We need to put the size header back in the buffer for next attempt
         if (sock < MAX_SOCKETS) {
             struct socketBuffer *sockBuf = &sockBuffers[sock];
-            // Calculate total needed space: 4 bytes for size + partial data
-            int totalNeeded = 4 + bytesRead;
-            if (sockBuf->size + totalNeeded <= BUFFER_SIZE) {
-                // Shift existing buffer data to make room at the beginning
-                if (sockBuf->size > 0) {
-                    memmove(sockBuf->buffer + totalNeeded, sockBuf->buffer, sockBuf->size);
-                }
-                // Put size header at the beginning
+            // Make room for the size header at the beginning
+            if (sockBuf->size + 4 <= BUFFER_SIZE) {
+                memmove(sockBuf->buffer + 4, sockBuf->buffer, sockBuf->size);
                 memcpy(sockBuf->buffer, &size, 4);
-                // Put partial packet data after size
-                memcpy(sockBuf->buffer + 4, msg->data, bytesRead);
-                sockBuf->size += totalNeeded;
+                sockBuf->size += 4;
             }
         }
         return 0;
@@ -325,7 +312,7 @@ void NET_SetNonBlocking(DWORD sock, bool nonblocking) {
 }
 
 void NET_CloseSocket(DWORD sock) {
-    if (sock > 0) {
+    if (sock != 0) {
         close(sock);
         
         // Clear socket buffer
