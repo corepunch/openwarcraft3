@@ -337,7 +337,7 @@ The project implements a client-server architecture where game logic is centrali
 
 ```c
 struct loopback {
-    char buffer[BUFFER_SIZE];  // 256KB circular buffer
+    char buffer[BUFFER_SIZE];  // 256 KiB (262,144 bytes) circular buffer
     int read;
     int write;
 };
