@@ -43,6 +43,13 @@ void NET_Write(NETSOURCE netsrc, DWORD sock, LPCVOID data, DWORD size);
 int NET_Read(NETSOURCE netsrc, DWORD sock, HANDLE data, DWORD size);
 int NET_GetPacket(NETSOURCE netsrc, DWORD sock, LPSIZEBUF msg);
 
+DWORD NET_TCPSocket(void);
+DWORD NET_TCPListen(unsigned short port, int backlog);
+DWORD NET_TCPAccept(DWORD listensock);
+int NET_TCPConnect(DWORD sock, LPCSTR host, unsigned short port);
+void NET_SetNonBlocking(DWORD sock, bool nonblocking);
+void NET_CloseSocket(DWORD sock);
+
 void Netchan_Transmit(NETSOURCE netsrc, struct netchan *netchan);
 void Netchan_OutOfBand(NETSOURCE netsrc, netadr_t adr, DWORD length, BYTE *data);
 void Netchan_OutOfBandPrint(NETSOURCE netsrc, netadr_t adr, LPCSTR format, ...);
