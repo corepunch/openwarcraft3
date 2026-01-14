@@ -341,20 +341,25 @@ int NET_TCPConnect(DWORD sock, LPCSTR host, unsigned short port) {
     
     fprintf(stderr, "NET_TCPConnect: connected to %s:%u\n", host, port);
     
-    // Store the socket if we're given a handle to update
-    // Otherwise just close it (this might need adjustment based on usage)
-    if (sock == 0) {
-        // Create new socket and return success
-        storeSocket(tcpSock);
-    } else if (sock < MAX_SOCKETS) {
+    // SDL_net creates and connects in one operation, so we need to handle both cases:
+    // 1. If sock is provided and valid, replace the existing socket
+    // 2. If sock is 0, the caller should have called NET_TCPSocket first (which is now a no-op)
+    //    In this case, we can't store the socket without knowing where to put it
+    if (sock > 0 && sock < MAX_SOCKETS) {
         // Replace existing socket
         if (socketMap[sock]) {
             SDLNet_TCP_Close(socketMap[sock]);
         }
         socketMap[sock] = tcpSock;
+        return 0;
+    } else {
+        // No valid handle provided - close the socket and return error
+        // The caller should use NET_TCPSocket first, then NET_TCPConnect
+        // But with SDL_net, they should just call NET_TCPConnect with a pre-allocated handle
+        SDLNet_TCP_Close(tcpSock);
+        fprintf(stderr, "NET_TCPConnect: invalid socket handle %u\n", sock);
+        return -1;
     }
-    
-    return 0;
 }
 
 void NET_SetNonBlocking(DWORD sock, bool nonblocking) {
@@ -426,7 +431,12 @@ void NET_DiscoverGames(unsigned short port, int timeout_ms) {
         int numrecv = SDLNet_UDP_Recv(sock, packet);
         if (numrecv == 1) {
             gameCount++;
-            packet->data[packet->len] = '\0';  // Null terminate
+            // Ensure null termination without buffer overflow
+            if (packet->len < packet->maxlen) {
+                packet->data[packet->len] = '\0';  // Null terminate
+            } else {
+                packet->data[packet->maxlen - 1] = '\0';  // Truncate and terminate
+            }
             fprintf(stderr, "[Game %d] %d.%d.%d.%d:%d - %s\n", 
                     gameCount,
                     (packet->address.host >> 0) & 0xFF,
