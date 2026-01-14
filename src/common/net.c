@@ -273,8 +273,15 @@ void Netchan_OutOfBandPrint(NETSOURCE netsrc, netadr_t adr, LPCSTR format, ...) 
 // SDL_net TCP/IP socket functions
 
 DWORD NET_TCPSocket(void) {
-    // SDL_net doesn't create standalone sockets, they're created via TCP_Open
-    // This is just a placeholder that returns an invalid handle
+    // SDL_net doesn't separate socket creation from connection/listening
+    // This function is deprecated with SDL_net. Instead:
+    // - For server sockets, use NET_TCPListen() directly
+    // - For client sockets, use NET_TCPConnect() with a pre-allocated handle
+    // 
+    // To maintain some compatibility, we could allocate a slot here,
+    // but that would leak resources if NET_TCPConnect is never called.
+    // Therefore, this returns 0 (invalid handle).
+    fprintf(stderr, "NET_TCPSocket: deprecated with SDL_net, use NET_TCPListen or NET_TCPConnect\n");
     return 0;
 }
 
@@ -397,8 +404,13 @@ void NET_DiscoverGames(unsigned short port, int timeout_ms) {
     
     // Prepare broadcast address
     IPaddress broadcastAddr;
-    broadcastAddr.host = INADDR_BROADCAST;
-    broadcastAddr.port = SDL_SwapBE16(port);
+    // Use SDLNet_ResolveHost to properly handle byte ordering
+    if (SDLNet_ResolveHost(&broadcastAddr, "255.255.255.255", port) < 0) {
+        fprintf(stderr, "NET_DiscoverGames: SDLNet_ResolveHost for broadcast failed: %s\n", SDLNet_GetError());
+        SDLNet_FreePacket(packet);
+        SDLNet_UDP_Close(sock);
+        return;
+    }
     
     // Prepare discovery message
     const char *query = "OPENWARCRAFT3_DISCOVER";
@@ -432,10 +444,12 @@ void NET_DiscoverGames(unsigned short port, int timeout_ms) {
         if (numrecv == 1) {
             gameCount++;
             // Ensure null termination without buffer overflow
-            if (packet->len < packet->maxlen) {
-                packet->data[packet->len] = '\0';  // Null terminate
-            } else {
-                packet->data[packet->maxlen - 1] = '\0';  // Truncate and terminate
+            if (packet->maxlen > 0) {
+                if (packet->len < packet->maxlen) {
+                    packet->data[packet->len] = '\0';  // Null terminate
+                } else {
+                    packet->data[packet->maxlen - 1] = '\0';  // Truncate and terminate
+                }
             }
             fprintf(stderr, "[Game %d] %d.%d.%d.%d:%d - %s\n", 
                     gameCount,
