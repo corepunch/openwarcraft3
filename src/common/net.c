@@ -15,15 +15,8 @@ struct loopback {
 static struct loopback bufs[2] = { 0 };
 
 #else
-// TCP/IP socket implementation for networked multiplayer
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <netinet/tcp.h>
-#include <arpa/inet.h>
-#include <netdb.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <errno.h>
+// SDL_net TCP/IP socket implementation for networked multiplayer
+#include <SDL2/SDL_net.h>
 
 #include "common.h"
 
@@ -37,6 +30,44 @@ struct socketBuffer {
 };
 
 static struct socketBuffer sockBuffers[MAX_SOCKETS] = { 0 };
+
+// Map DWORD socket handles to SDL_net TCPsocket pointers
+static TCPsocket socketMap[MAX_SOCKETS] = { 0 };
+
+// Get TCPsocket from handle
+static TCPsocket getSocket(DWORD handle) {
+    if (handle == 0 || handle >= MAX_SOCKETS) {
+        return NULL;
+    }
+    return socketMap[handle];
+}
+
+// Store TCPsocket and return handle
+static DWORD storeSocket(TCPsocket sock) {
+    if (!sock) {
+        return 0;
+    }
+    
+    // Find an available slot
+    for (int i = 1; i < MAX_SOCKETS; i++) {
+        if (socketMap[i] == NULL) {
+            socketMap[i] = sock;
+            return (DWORD)i;
+        }
+    }
+    
+    // No slots available
+    SDLNet_TCP_Close(sock);
+    return 0;
+}
+
+// Remove socket from map
+static void removeSocket(DWORD handle) {
+    if (handle > 0 && handle < MAX_SOCKETS) {
+        socketMap[handle] = NULL;
+        memset(&sockBuffers[handle], 0, sizeof(sockBuffers[handle]));
+    }
+}
 #endif
 
 #ifdef USE_LOOPBACK
@@ -72,23 +103,18 @@ int NET_GetPacket(NETSOURCE netsrc, DWORD sock, LPSIZEBUF msg) {
 }
 
 #else
-// TCP/IP socket implementation
+// SDL_net TCP/IP socket implementation
 void NET_Write(NETSOURCE netsrc, DWORD sock, LPCVOID data, DWORD size) {
-    if (sock == 0) {
-        // Socket 0 is invalid, skip
+    TCPsocket tcpSock = getSocket(sock);
+    if (!tcpSock) {
         return;
     }
     
     int sent = 0;
     while (sent < (int)size) {
-        int result = send(sock, (const char *)data + sent, size - sent, 0);
-        if (result < 0) {
-            if (errno == EAGAIN || errno == EWOULDBLOCK) {
-                // Socket buffer full, wait and retry
-                usleep(1000);  // Sleep 1ms
-                continue;
-            }
-            fprintf(stderr, "NET_Write: send error: %d\n", errno);
+        int result = SDLNet_TCP_Send(tcpSock, (const char *)data + sent, size - sent);
+        if (result <= 0) {
+            fprintf(stderr, "NET_Write: SDLNet_TCP_Send error: %s\n", SDLNet_GetError());
             return;
         }
         sent += result;
@@ -96,7 +122,8 @@ void NET_Write(NETSOURCE netsrc, DWORD sock, LPCVOID data, DWORD size) {
 }
 
 int NET_Read(NETSOURCE netsrc, DWORD sock, HANDLE data, DWORD size) {
-    if (sock == 0 || sock >= MAX_SOCKETS) {
+    TCPsocket tcpSock = getSocket(sock);
+    if (!tcpSock) {
         return 0;
     }
     
@@ -122,17 +149,9 @@ int NET_Read(NETSOURCE netsrc, DWORD sock, HANDLE data, DWORD size) {
     
     // Read more data from socket if needed
     while (totalRead < (int)size) {
-        int result = recv(sock, (char *)data + totalRead, size - totalRead, 0);
-        if (result < 0) {
-            if (errno == EAGAIN || errno == EWOULDBLOCK) {
-                // No more data available right now
-                return totalRead;
-            }
-            fprintf(stderr, "NET_Read: recv error: %d\n", errno);
-            return totalRead;
-        }
-        if (result == 0) {
-            // Connection closed
+        int result = SDLNet_TCP_Recv(tcpSock, (char *)data + totalRead, size - totalRead);
+        if (result <= 0) {
+            // No more data available or error
             return totalRead;
         }
         totalRead += result;
@@ -165,7 +184,8 @@ int NET_GetPacket(NETSOURCE netsrc, DWORD sock, LPSIZEBUF msg) {
     if (bytesRead < (int)size) {
         // Not enough data yet - NET_Read already buffered what was available
         // We need to put the size header back in the buffer for next attempt
-        if (sock < MAX_SOCKETS) {
+        TCPsocket tcpSock = getSocket(sock);
+        if (tcpSock && sock < MAX_SOCKETS) {
             struct socketBuffer *sockBuf = &sockBuffers[sock];
             // Make room for the size header at the beginning
             if (sockBuf->size + 4 <= BUFFER_SIZE) {
@@ -250,202 +270,178 @@ void Netchan_OutOfBandPrint(NETSOURCE netsrc, netadr_t adr, LPCSTR format, ...) 
 }
 
 #ifndef USE_LOOPBACK
-// TCP/IP socket functions
+// SDL_net TCP/IP socket functions
 
 DWORD NET_TCPSocket(void) {
-    int sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-    if (sock < 0) {
-        fprintf(stderr, "NET_TCPSocket: socket creation failed: %d\n", errno);
-        return 0;
-    }
-    
-    // Enable TCP_NODELAY to disable Nagle's algorithm for lower latency
-    int flag = 1;
-    setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(flag));
-    
-    // Enable SO_REUSEADDR to allow quick restart
-    setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &flag, sizeof(flag));
-    
-    return (DWORD)sock;
+    // SDL_net doesn't create standalone sockets, they're created via TCP_Open
+    // This is just a placeholder that returns an invalid handle
+    return 0;
 }
 
 DWORD NET_TCPListen(unsigned short port, int backlog) {
-    DWORD sock = NET_TCPSocket();
-    if (sock == 0) {
+    IPaddress ip;
+    
+    // Resolve to INADDR_ANY to create a server socket
+    if (SDLNet_ResolveHost(&ip, NULL, port) < 0) {
+        fprintf(stderr, "NET_TCPListen: SDLNet_ResolveHost failed: %s\n", SDLNet_GetError());
         return 0;
     }
     
-    struct sockaddr_in addr;
-    memset(&addr, 0, sizeof(addr));
-    addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = INADDR_ANY;
-    addr.sin_port = htons(port);
-    
-    if (bind(sock, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
-        fprintf(stderr, "NET_TCPListen: bind failed on port %u: %d\n", port, errno);
-        close(sock);
-        return 0;
-    }
-    
-    if (listen(sock, backlog) < 0) {
-        fprintf(stderr, "NET_TCPListen: listen failed: %d\n", errno);
-        close(sock);
+    TCPsocket sock = SDLNet_TCP_Open(&ip);
+    if (!sock) {
+        fprintf(stderr, "NET_TCPListen: SDLNet_TCP_Open failed on port %u: %s\n", port, SDLNet_GetError());
         return 0;
     }
     
     fprintf(stderr, "NET_TCPListen: listening on port %u\n", port);
-    return sock;
+    return storeSocket(sock);
 }
 
 DWORD NET_TCPAccept(DWORD listensock) {
-    struct sockaddr_in clientAddr;
-    socklen_t clientLen = sizeof(clientAddr);
-    
-    int clientSock = accept(listensock, (struct sockaddr *)&clientAddr, &clientLen);
-    if (clientSock < 0) {
-        if (errno != EAGAIN && errno != EWOULDBLOCK) {
-            fprintf(stderr, "NET_TCPAccept: accept failed: %d\n", errno);
-        }
+    TCPsocket serverSock = getSocket(listensock);
+    if (!serverSock) {
         return 0;
     }
     
-    // Enable TCP_NODELAY on client socket
-    int flag = 1;
-    setsockopt(clientSock, IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(flag));
+    TCPsocket clientSock = SDLNet_TCP_Accept(serverSock);
+    if (!clientSock) {
+        // No connection available (not an error)
+        return 0;
+    }
     
-    fprintf(stderr, "NET_TCPAccept: accepted connection from %s:%d\n",
-            inet_ntoa(clientAddr.sin_addr), ntohs(clientAddr.sin_port));
+    IPaddress *remoteIP = SDLNet_TCP_GetPeerAddress(clientSock);
+    if (remoteIP) {
+        fprintf(stderr, "NET_TCPAccept: accepted connection from %d.%d.%d.%d:%d\n",
+                (remoteIP->host >> 0) & 0xFF,
+                (remoteIP->host >> 8) & 0xFF,
+                (remoteIP->host >> 16) & 0xFF,
+                (remoteIP->host >> 24) & 0xFF,
+                remoteIP->port);
+    }
     
-    return (DWORD)clientSock;
+    return storeSocket(clientSock);
 }
 
 int NET_TCPConnect(DWORD sock, LPCSTR host, unsigned short port) {
-    struct sockaddr_in addr;
-    memset(&addr, 0, sizeof(addr));
-    addr.sin_family = AF_INET;
-    addr.sin_port = htons(port);
+    IPaddress ip;
     
-    // Try to convert as IP address first
-    if (inet_pton(AF_INET, host, &addr.sin_addr) <= 0) {
-        // Not a valid IP address, try hostname resolution
-        struct hostent *he = gethostbyname(host);
-        if (he == NULL || he->h_addrtype != AF_INET) {
-            fprintf(stderr, "NET_TCPConnect: failed to resolve hostname: %s\n", host);
-            return -1;
-        }
-        memcpy(&addr.sin_addr, he->h_addr_list[0], he->h_length);
+    // Resolve the hostname and port
+    if (SDLNet_ResolveHost(&ip, host, port) < 0) {
+        fprintf(stderr, "NET_TCPConnect: SDLNet_ResolveHost failed for %s:%u: %s\n", 
+                host, port, SDLNet_GetError());
+        return -1;
     }
     
-    if (connect(sock, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
-        if (errno != EINPROGRESS) {
-            fprintf(stderr, "NET_TCPConnect: connect failed to %s:%u: %d\n", host, port, errno);
-            return -1;
-        }
+    TCPsocket tcpSock = SDLNet_TCP_Open(&ip);
+    if (!tcpSock) {
+        fprintf(stderr, "NET_TCPConnect: SDLNet_TCP_Open failed to %s:%u: %s\n", 
+                host, port, SDLNet_GetError());
+        return -1;
     }
     
     fprintf(stderr, "NET_TCPConnect: connected to %s:%u\n", host, port);
+    
+    // Store the socket if we're given a handle to update
+    // Otherwise just close it (this might need adjustment based on usage)
+    if (sock == 0) {
+        // Create new socket and return success
+        storeSocket(tcpSock);
+    } else if (sock < MAX_SOCKETS) {
+        // Replace existing socket
+        if (socketMap[sock]) {
+            SDLNet_TCP_Close(socketMap[sock]);
+        }
+        socketMap[sock] = tcpSock;
+    }
+    
     return 0;
 }
 
 void NET_SetNonBlocking(DWORD sock, bool nonblocking) {
-    int flags = fcntl(sock, F_GETFL, 0);
-    if (flags < 0) {
-        fprintf(stderr, "NET_SetNonBlocking: fcntl F_GETFL failed: %d\n", errno);
-        return;
-    }
-    
-    if (nonblocking) {
-        flags |= O_NONBLOCK;
-    } else {
-        flags &= ~O_NONBLOCK;
-    }
-    
-    if (fcntl(sock, F_SETFL, flags) < 0) {
-        fprintf(stderr, "NET_SetNonBlocking: fcntl F_SETFL failed: %d\n", errno);
-    }
+    // SDL_net doesn't have a direct non-blocking mode API
+    // SDL_net sockets are non-blocking by default for accept and recv operations
+    // This function is kept for API compatibility but does nothing
+    (void)sock;
+    (void)nonblocking;
 }
 
 void NET_CloseSocket(DWORD sock) {
-    if (sock != 0) {
-        close(sock);
-        
-        // Clear socket buffer
-        if (sock < MAX_SOCKETS) {
-            memset(&sockBuffers[sock], 0, sizeof(sockBuffers[sock]));
-        }
+    TCPsocket tcpSock = getSocket(sock);
+    if (tcpSock) {
+        SDLNet_TCP_Close(tcpSock);
+        removeSocket(sock);
     }
 }
 
 // Network discovery - broadcast to find active games on LAN
 void NET_DiscoverGames(unsigned short port, int timeout_ms) {
-    int sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-    if (sock < 0) {
-        fprintf(stderr, "NET_DiscoverGames: socket creation failed: %d\n", errno);
+    // UDP discovery using SDL_net
+    UDPsocket sock = SDLNet_UDP_Open(0);  // 0 = bind to any port
+    if (!sock) {
+        fprintf(stderr, "NET_DiscoverGames: SDLNet_UDP_Open failed: %s\n", SDLNet_GetError());
         return;
     }
     
-    // Enable broadcast
-    int broadcast = 1;
-    if (setsockopt(sock, SOL_SOCKET, SO_BROADCAST, &broadcast, sizeof(broadcast)) < 0) {
-        fprintf(stderr, "NET_DiscoverGames: failed to enable broadcast: %d\n", errno);
-        close(sock);
+    // Allocate a packet for sending
+    UDPpacket *packet = SDLNet_AllocPacket(1024);
+    if (!packet) {
+        fprintf(stderr, "NET_DiscoverGames: SDLNet_AllocPacket failed: %s\n", SDLNet_GetError());
+        SDLNet_UDP_Close(sock);
         return;
     }
     
-    // Set receive timeout
-    struct timeval tv;
-    tv.tv_sec = timeout_ms / 1000;
-    tv.tv_usec = (timeout_ms % 1000) * 1000;
-    setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+    // Prepare broadcast address
+    IPaddress broadcastAddr;
+    broadcastAddr.host = INADDR_BROADCAST;
+    broadcastAddr.port = SDL_SwapBE16(port);
     
-    // Broadcast discovery packet
-    struct sockaddr_in broadcastAddr;
-    memset(&broadcastAddr, 0, sizeof(broadcastAddr));
-    broadcastAddr.sin_family = AF_INET;
-    broadcastAddr.sin_addr.s_addr = INADDR_BROADCAST;
-    broadcastAddr.sin_port = htons(port);
-    
+    // Prepare discovery message
     const char *query = "OPENWARCRAFT3_DISCOVER";
-    if (sendto(sock, query, strlen(query), 0, 
-               (struct sockaddr *)&broadcastAddr, sizeof(broadcastAddr)) < 0) {
-        fprintf(stderr, "NET_DiscoverGames: broadcast failed: %d\n", errno);
-        close(sock);
+    int queryLen = strlen(query);
+    memcpy(packet->data, query, queryLen);
+    packet->len = queryLen;
+    packet->address = broadcastAddr;
+    
+    // Send broadcast
+    if (SDLNet_UDP_Send(sock, -1, packet) == 0) {
+        fprintf(stderr, "NET_DiscoverGames: SDLNet_UDP_Send failed: %s\n", SDLNet_GetError());
+        SDLNet_FreePacket(packet);
+        SDLNet_UDP_Close(sock);
         return;
     }
     
     fprintf(stderr, "NET_DiscoverGames: sent discovery broadcast on port %u\n", port);
-    
-    // Listen for responses
-    char buffer[1024];
-    struct sockaddr_in serverAddr;
-    socklen_t addrLen = sizeof(serverAddr);
-    int gameCount = 0;
-    
     fprintf(stderr, "Scanning for active games (timeout: %dms)...\n", timeout_ms);
     
+    // Listen for responses
+    int gameCount = 0;
+    Uint32 startTime = SDL_GetTicks();
+    
     while (1) {
-        memset(buffer, 0, sizeof(buffer));
-        int bytes = recvfrom(sock, buffer, sizeof(buffer) - 1, 0,
-                            (struct sockaddr *)&serverAddr, &addrLen);
-        
-        if (bytes < 0) {
-            if (errno == EAGAIN || errno == EWOULDBLOCK) {
-                // Timeout - no more responses
-                break;
-            }
-            fprintf(stderr, "NET_DiscoverGames: recvfrom error: %d\n", errno);
+        Uint32 currentTime = SDL_GetTicks();
+        if (currentTime - startTime > (Uint32)timeout_ms) {
             break;
         }
         
-        if (bytes > 0) {
-            buffer[bytes] = '\0';
+        int numrecv = SDLNet_UDP_Recv(sock, packet);
+        if (numrecv == 1) {
             gameCount++;
-            fprintf(stderr, "[Game %d] %s:%d - %s\n", 
+            packet->data[packet->len] = '\0';  // Null terminate
+            fprintf(stderr, "[Game %d] %d.%d.%d.%d:%d - %s\n", 
                     gameCount,
-                    inet_ntoa(serverAddr.sin_addr),
-                    ntohs(serverAddr.sin_port),
-                    buffer);
+                    (packet->address.host >> 0) & 0xFF,
+                    (packet->address.host >> 8) & 0xFF,
+                    (packet->address.host >> 16) & 0xFF,
+                    (packet->address.host >> 24) & 0xFF,
+                    SDL_SwapBE16(packet->address.port),
+                    (char*)packet->data);
+        } else if (numrecv == -1) {
+            fprintf(stderr, "NET_DiscoverGames: SDLNet_UDP_Recv error: %s\n", SDLNet_GetError());
+            break;
         }
+        
+        // Small delay to avoid busy waiting
+        SDL_Delay(10);
     }
     
     if (gameCount == 0) {
@@ -454,7 +450,8 @@ void NET_DiscoverGames(unsigned short port, int timeout_ms) {
         fprintf(stderr, "Found %d active game(s).\n", gameCount);
     }
     
-    close(sock);
+    SDLNet_FreePacket(packet);
+    SDLNet_UDP_Close(sock);
 }
 
 #endif // USE_LOOPBACK
