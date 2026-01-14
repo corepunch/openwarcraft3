@@ -2,6 +2,10 @@
 
 #include "mpq_adapter.h"
 
+#ifndef USE_LOOPBACK
+#include <SDL2/SDL_net.h>
+#endif
+
 #define MAXPRINTMSG 4096
 
 const LPCSTR WarcraftSheets[] = {
@@ -232,10 +236,21 @@ void Com_Quit(void) {
     CL_Shutdown();
     SV_Shutdown();
     FS_Shutdown();
+#ifndef USE_LOOPBACK
+    // Cleanup SDL_net
+    SDLNet_Quit();
+#endif
     Sys_Quit();
 }
 
 void Com_Init(void) {
+#ifndef USE_LOOPBACK
+    // Initialize SDL_net
+    if (SDLNet_Init() < 0) {
+        fprintf(stderr, "SDLNet_Init failed: %s\n", SDLNet_GetError());
+        exit(1);
+    }
+#endif
     Cbuf_Init();
     FS_Init();
     SV_Init();
