@@ -397,13 +397,13 @@ These features improve the player experience but aren't blocking basic functiona
 ### Phase 1: Minimum Viable Multiplayer (3-4 weeks)
 **Goal**: Two players can connect, gather resources, build units, and fight
 
-- [x] Network implementation (2-3 days) - **CRITICAL**
-- [x] Resource system (3-4 days) - **CRITICAL**
-- [x] Building system (5-7 days) - **CRITICAL**
-- [x] Combat system (5-7 days) - **CRITICAL**
-- [x] Unit training (3-4 days) - **HIGH**
-- [x] Victory conditions (1-2 days) - **HIGH**
-- [x] Chat system (1-2 days) - **HIGH**
+- [ ] Network implementation (2-3 days) - **CRITICAL**
+- [ ] Resource system (3-4 days) - **CRITICAL**
+- [ ] Building system (5-7 days) - **CRITICAL**
+- [ ] Combat system (5-7 days) - **CRITICAL**
+- [ ] Unit training (3-4 days) - **HIGH**
+- [ ] Victory conditions (1-2 days) - **HIGH**
+- [ ] Chat system (1-2 days) - **HIGH**
 
 **Total: ~20-29 days**
 
@@ -437,19 +437,19 @@ These features improve the player experience but aren't blocking basic functiona
 ## Recommended Implementation Order
 
 ### Week 1: Foundation
-1. ✅ **Enable SDL_net networking** (remove USE_LOOPBACK)
-2. ✅ **Test multi-client connections**
-3. ✅ **Implement resource tracking**
+1. 🔲 **Enable SDL_net networking** (remove USE_LOOPBACK)
+2. 🔲 **Test multi-client connections**
+3. 🔲 **Implement resource tracking**
 
 ### Week 2-3: Core Mechanics
-4. ✅ **Complete combat system** (targeting, attacks, damage)
-5. ✅ **Finish building placement** and construction
-6. ✅ **Complete unit training** with queue
+4. 🔲 **Complete combat system** (targeting, attacks, damage)
+5. 🔲 **Finish building placement** and construction
+6. 🔲 **Complete unit training** with queue
 
 ### Week 4: Game Loop
-7. ✅ **Victory/defeat conditions**
-8. ✅ **Chat system**
-9. ✅ **Basic UI improvements** (resources, unit stats)
+7. 🔲 **Victory/defeat conditions**
+8. 🔲 **Chat system**
+9. 🔲 **Basic UI improvements** (resources, unit stats)
 
 ### Week 5+: Enhancement
 10. 🔄 Minimap
@@ -460,12 +460,12 @@ These features improve the player experience but aren't blocking basic functiona
 
 ## Testing Milestones
 
-### Milestone 1: "First Connection" ✅ (when networking done)
+### Milestone 1: "First Connection" (when networking done)
 - [ ] Two clients can connect to server
 - [ ] Clients can see each other's units move
 - [ ] Basic synchronization works
 
-### Milestone 2: "First Game" ✅ (after Phase 1)
+### Milestone 2: "First Game" (after Phase 1)
 - [ ] Start with resources
 - [ ] Build workers
 - [ ] Gather resources
@@ -474,7 +474,7 @@ These features improve the player experience but aren't blocking basic functiona
 - [ ] Units can attack
 - [ ] Game ends when one player eliminated
 
-### Milestone 3: "Fun to Play" ✅ (after Phase 2)
+### Milestone 3: "Fun to Play" (after Phase 2)
 - [ ] Good UI/UX with minimap
 - [ ] Smooth gameplay feel
 - [ ] Strategic depth with tech trees
