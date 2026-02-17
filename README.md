@@ -1,6 +1,6 @@
-# openwarcraft3
+<img width="647" height="88" alt="81777aa949eadb74bf8e871d0d0cfd16" src="https://github.com/user-attachments/assets/67313005-70d7-4e68-97a3-3e0ff1e788ed" />
 
-OpenWarcraft3 is an open-source implementation of Warcraft III that uses SDL2 and runs on Linux and macOS. 
+**OpenWarcraft3** is an open-source implementation of Warcraft III that uses SDL2 and runs on Linux and macOS. 
 
 It was developed using War3.mpq from Warcraft III v1.0 as reference, with ongoing support for version 1.29b.
 
