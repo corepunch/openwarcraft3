@@ -1,0 +1,69 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to attach assets to (e.g. v0.0.1-alpha)'
+        required: true
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            name: linux-x64
+          - os: macos-latest
+            name: macos-x64
+
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libgles2-mesa-dev \
+            libsdl2-dev \
+            libjpeg-dev \
+            libstorm-dev
+
+      - name: Install dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: brew install sdl2 libjpeg stormlib
+
+      - name: Build
+        run: make build
+
+      - name: Create release archive
+        run: |
+          mkdir -p release
+          cp build/bin/openwarcraft3 release/
+          cp -r build/lib/. release/
+          tar -czf openwarcraft3-${{ matrix.name }}.tar.gz -C release .
+
+      - name: Determine release tag
+        id: get_tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "tag=${{ github.event.inputs.tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Upload release asset
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "${{ steps.get_tag.outputs.tag }}" \
+            "openwarcraft3-${{ matrix.name }}.tar.gz" \
+            --clobber

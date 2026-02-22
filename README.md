@@ -8,9 +8,33 @@ It was developed using War3.mpq from Warcraft III v1.0 as reference, with ongoin
 
 ## Download
 
-Pre-built Linux binaries are available on the [Releases page](https://github.com/corepunch/openwarcraft3/releases/latest).
+Pre-built binaries for Linux and macOS are available on the [Releases page](https://github.com/corepunch/openwarcraft3/releases/latest).
 
 You can also download the latest build artifact from the [CI workflow runs](https://github.com/corepunch/openwarcraft3/actions/workflows/c-cpp.yml) (click the most recent successful run and download `openwarcraft3-linux-x64`).
+
+## Releases
+
+Release assets (compiled executables) are produced automatically by the [Release workflow](.github/workflows/release.yml).
+
+### How releases are produced
+
+When a new GitHub Release is **published**, the Release workflow runs automatically and:
+1. Builds the project on `ubuntu-latest` and `macos-latest`.
+2. Packages each build as a `.tar.gz` archive containing the `openwarcraft3` binary and shared libraries.
+3. Uploads the archives as release assets:
+   - `openwarcraft3-linux-x64.tar.gz`
+   - `openwarcraft3-macos-x64.tar.gz`
+
+### Re-running the workflow for an existing release
+
+To attach assets to an existing release (e.g. `v0.0.1-alpha`) without creating a new one:
+
+1. Go to **Actions → Release** in GitHub.
+2. Click **Run workflow**.
+3. Enter the tag name (e.g. `v0.0.1-alpha`) in the **tag** input field.
+4. Click **Run workflow**.
+
+The workflow will build for both platforms and upload (or overwrite) the assets on the specified release.
 
 <p align="center">
   <img src="https://github.com/user-attachments/assets/c76a93af-1801-402e-83bc-b3e0a4462312" width="31%" style="margin-right:2%;" />
