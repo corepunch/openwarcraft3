@@ -1,10 +1,10 @@
-<img width="647" height="88" alt="81777aa949eadb74bf8e871d0d0cfd16" src="https://github.com/user-attachments/assets/67313005-70d7-4e68-97a3-3e0ff1e788ed" />
+<img width="647" height="88" alt="OpenWarcraft3 logo" src="https://github.com/user-attachments/assets/67313005-70d7-4e68-97a3-3e0ff1e788ed" />
 
-**OpenWarcraft3** is an open-source implementation of Warcraft III that uses SDL2 and runs on Linux and macOS. 
+**OpenWarcraft3** is an open-source implementation of Warcraft III that uses SDL2 and runs on Linux and macOS.
 
 It was developed using War3.mpq from Warcraft III v1.0 as reference, with ongoing support for version 1.29b.
 
-<a href="https://youtu.be/vg7Jm046vcI">Check the video on YouTube</a> or see screenshots below.
+<a href="https://youtu.be/vg7Jm046vcI">▶ Watch the demo on YouTube</a> · see screenshots below
 
 <img width="1024" src="https://github.com/user-attachments/assets/c76a93af-1801-402e-83bc-b3e0a4462312" />
 
@@ -12,84 +12,71 @@ It was developed using War3.mpq from Warcraft III v1.0 as reference, with ongoin
 
 <img width="1024" src="https://github.com/corepunch/openwarcraft3/assets/83646194/a79e447d-e42c-4468-b4ca-3d212efe346a">
 
-## Cloning
+---
+
+## Getting Started
+
+### 1. Clone
 
 ```bash
 git clone --recurse-submodules git@github.com:corepunch/openwarcraft3.git
+cd openwarcraft3
 ```
 
-## Create project using premake5
+### 2. Install Dependencies
 
-```bash
-tools\bin\windows\premake5.exe vs2022
-```
+The build requires **StormLib**, **SDL2**, and **libjpeg**.
 
-Or mac
-
-```bash
-tools/bin/darwin/premake5 xcode4
-```
-
-or
-
-```bash
-tools/bin/darwin/premake5 --cc=clang gmake
-```
-
-The project files will be created in the build folder.
-
----
-
-## Or build using Makefile
-
-You can also build and run the project using the included Makefile on Linux and macOS.
-
-### Build
-
-```bash
-make build
-```
-
-This will compile all libraries (`cmath3`, `renderer`, `game`) and the `openwarcraft3` executable.
-
-### Download Warcraft 3 v1.29b installation
-
-```bash
-make download
-```
-
-This will download 1.2Gb file from `archive.org` into the `data` folder.
-This is optional, otherwise modify $(MPQ) in the Makefile to run desired `War3.mpq` file.
-
-### Run
-
-```bash
-make run
-```
-
-This will run the built `openwarcraft3` executable from the `build/bin` folder.
-
----
-
-### Dependencies
-
-The Makefile build requires the following libraries installed on your system:
-
-* **StormLib** — for MPQ archive support
-* **SDL2** — for windowing and input
-* **libjpeg** — for JPEG image decoding
-
-On macOS, these can be installed via [Homebrew](https://brew.sh/):
+**macOS** (via [Homebrew](https://brew.sh/)):
 
 ```bash
 brew install sdl2 libjpeg stormlib
 ```
 
-On Linux, use your distribution package manager, e.g., for Ubuntu:
+**Linux** (Ubuntu/Debian):
 
 ```bash
 sudo apt-get install libsdl2-dev libjpeg-dev libstorm-dev
 ```
+
+### 3. Build
+
+```bash
+make build
+```
+
+Compiles all libraries (`cmath3`, `renderer`, `game`) and the `openwarcraft3` executable into `build/`.
+
+### 4. Run
+
+```bash
+make run
+```
+
+Runs `openwarcraft3` from `build/bin/` using the MPQ path configured in the Makefile.
+
+### (Optional) Download Warcraft III 1.29b assets
+
+```bash
+make download
+```
+
+Downloads a ~1.2 GB installer from `archive.org` into the `data/` folder. Skip this step if you already have a `War3.mpq` and update the `MPQ` variable in the Makefile to point to it.
+
+---
+
+## Advanced: Building with Premake5
+
+Premake5 can generate native project files for Visual Studio, Xcode, or GMake. Bundled binaries are in `tools/bin/`.
+
+| Platform | Command |
+|---|---|
+| Windows (VS 2022) | `tools\bin\windows\premake5.exe vs2022` |
+| macOS (Xcode) | `tools/bin/darwin/premake5 xcode4` |
+| macOS (GMake) | `tools/bin/darwin/premake5 --cc=clang gmake` |
+| Linux (GMake) | `premake5 --cc=clang gmake` *(install [premake5](https://premake.github.io/download) separately)* |
+
+Project files are generated in the `build/` folder.
 
 ---
 
