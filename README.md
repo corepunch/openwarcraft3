@@ -18,8 +18,6 @@ You can also download the latest build artifact from the [CI workflow runs](http
   <img src="https://github.com/corepunch/openwarcraft3/assets/83646194/a79e447d-e42c-4468-b4ca-3d212efe346a" width="31%" />
 </p>
 
----
-
 ## Getting Started
 
 ### 1. Clone
