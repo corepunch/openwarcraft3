@@ -2,6 +2,9 @@
 
 #define PRINT_POSITION 0.0500, -0.3000
 
+/* Demonstrates the programmatic C API approach (see ui_fdf.c for the full API
+ * reference): initialise a FRAMEDEF with UI_InitFrame, configure its
+ * properties, and emit it to the outgoing message with UI_WriteFrame. */
 void ui_print_text(LPGAMECLIENT client, LPCSTR message) {
     FRAMEDEF text;
     UI_InitFrame(&text, FT_TEXT);
