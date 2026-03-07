@@ -54,11 +54,11 @@ netField_t entityStateFields[] = {
  *                   4-byte uiFramePoint_t slots per axis (FPP_MIN/MID/MAX
  *                   = left/center/right for x, top/middle/bottom for y).
  *                   Each slot packs: used (1 b), targetPos (7 b),
- *                   relativeTo frame index (8 b), and offset (16 b) —
- *                   the offset IS the coordinate, scaled by
- *                   UI_FRAMEPOINT_SCALE (32767).  Typically one slot per
- *                   axis is set; two slots allow the frame to stretch
- *                   between two anchor points.
+ *                   relativeTo frame index (8 b), and offset (16 b, int) —
+ *                   the offset is the coordinate multiplied by
+ *                   UI_FRAMEPOINT_SCALE (32767), i.e. 0.02 → 655.
+ *                   Typically one slot per axis is set; two slots allow
+ *                   the frame to stretch between two anchor points.
  *   size          — explicit width/height in normalised screen units
  *                   (viewport is 0.8 × 0.6)
  *   tex.index     — texture/"pic" index resolved from the MPQ
