@@ -1,3 +1,20 @@
+/*
+ * ui_write.c — Serialize the UI frame tree for transmission to clients.
+ *
+ * UI_WriteLayout() traverses a frame tree depth-first and emits an
+ * svc_layout message containing delta-encoded uiFrame_t structs.  For each
+ * frame, UI_WriteFrame() copies the base properties (anchor points, size,
+ * texture, color) and appends a small type-specific data block (backdrop
+ * edges, button texture states, label font settings, etc.).
+ *
+ * The client receives the blob in CL_ParseLayout() (cl_parse.c) and stores
+ * it verbatim.  The renderer reads it each frame to draw the UI without the
+ * client needing to understand the frame hierarchy.
+ *
+ * Dynamic updates (e.g. command card changes) follow the same path: the
+ * server calls UI_WriteLayout() again with the modified sub-tree to replace
+ * a specific UI layer on the client.
+ */
 #include "../g_local.h"
 
 #define SPRINTF_ADD(TEXT, ...) \
@@ -245,6 +262,9 @@ static void WriteHighlight(LPCFRAMEDEF frame, sizeBuf_t *sb) {
     MSG_Write(sb, &data, sizeof(data));
 }
 
+/* Serialize a single frame and its type-specific data block into the outgoing
+ * svc_layout message.  The frame number is encoded relative to the list of
+ * frames already written in this layout pass so parent references stay valid. */
 void UI_WriteFrame(LPCFRAMEDEF frame) {
     UINAME buffer;
     uiFrame_t tmp;
@@ -308,6 +328,9 @@ void UI_WriteStart(DWORD layer) {
     frameptr = framesWritten;
 }
 
+/* Serialize the complete frame tree rooted at root and unicast the resulting
+ * svc_layout message to ent.  layer identifies which client-side UI layer
+ * (LAYER_CONSOLE, LAYER_CINEMATIC, etc.) will be replaced. */
 void UI_WriteLayout(LPEDICT ent, LPCFRAMEDEF root, DWORD layer) {
     UI_WriteStart(layer);
     UI_WriteFrameWithChildren(root, NULL);

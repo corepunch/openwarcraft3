@@ -1,3 +1,18 @@
+/*
+ * g_phys.c — Server-side physics and collision resolution.
+ *
+ * G_RunEntity() is called every game frame for each live entity.  It
+ * dispatches on the entity's movetype:
+ *   MOVETYPE_STEP        — ground-hugging units; snaps Z to terrain height.
+ *   MOVETYPE_FLYMISSILE  — projectiles; moves toward goalentity and deals
+ *                          damage on arrival (SV_Physics_Toss).
+ *   MOVETYPE_LINK        — entities locked to another entity's position.
+ *
+ * After all entities have moved, G_SolveCollisions() resolves overlapping
+ * entity pairs by pushing them apart.  Moving units share the separation
+ * proportionally based on their remaining distance to their goal, which
+ * prevents deadlocks when many units converge on the same destination.
+ */
 #include "g_local.h"
 
 #define IS_HOLLOW(ent) ((ent->svflags & SVF_DEADMONSTER) || (ent->s.renderfx & RF_HIDDEN) || !ent->s.model || !ent->inuse)
@@ -20,6 +35,9 @@ void SV_Physics_Step(LPEDICT ent) {
     M_CheckGround(ent);
 }
 
+/* Move a projectile (MOVETYPE_FLYMISSILE) one frame toward its target.
+ * If the distance remaining is less than the per-frame travel distance the
+ * projectile hits, deals damage via T_Damage(), and is freed. */
 void SV_Physics_Toss(LPEDICT ent) {
     FLOAT distance = ent->velocity * FRAMETIME;
     VECTOR3 dir = Vector3_sub(&ent->goalentity->s.origin, &ent->s.origin);
@@ -37,6 +55,9 @@ void SV_Physics_Link(LPEDICT ent) {
     ent->s.angle = ent->goalentity->s.angle;
 }
 
+/* Per-entity update called every game frame.  Runs physics based on movetype,
+ * then calls the entity's think function, and finally compresses health/mana
+ * into the 8-bit stat fields that are sent to clients. */
 void G_RunEntity(LPEDICT ent) {
     SAFE_CALL(ent->prethink, ent);
     switch (ent->movetype) {
@@ -86,6 +107,13 @@ static BOOL FilterColliders(LPCEDICT ent) {
 
 static LPEDICT sv_colliders[MAX_COLLIDERS];
 
+/* Resolve all entity-entity overlaps for one game frame.
+ * For each entity, nearby candidates are fetched with a bounding-box query.
+ * Overlapping pairs are pushed apart:
+ *   - If one side is static, only the dynamic entity moves.
+ *   - If both are actively walking, separation is split by distance-to-goal
+ *     so that the unit closer to its destination yields more ground.
+ *   - Otherwise the separation is split evenly. */
 void G_SolveCollisions(void) {
     FOR_LOOP(i, globals.num_edicts) {
         LPEDICT a = g_edicts+i;
