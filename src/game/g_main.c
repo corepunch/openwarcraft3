@@ -1,3 +1,25 @@
+/*
+ * g_main.c — Game library entry point and main simulation loop.
+ *
+ * This file implements the game_export interface consumed by the server
+ * (sv_game.c).  GetGameAPI() is called once at startup and returns a
+ * vtable of function pointers used by the server to drive the game.
+ *
+ * Key callbacks:
+ *   Init        — allocates entity pool, loads config/unit data tables.
+ *   SpawnEntities — loads a map and spawns all its entities.
+ *   RunFrame    — called once per server frame; runs events, client camera
+ *                 interpolation, entity physics/AI, and collision resolution.
+ *   ClientBegin — called when a client finishes connecting; sends the initial
+ *                 UI layout (svc_layout) and tallies food counts.
+ *   ClientCommand — routes player commands to the skills system.
+ *
+ * G_RunFrame() is the inner loop:
+ *   1. G_RunEvents()      — dispatch queued game events to triggers.
+ *   2. G_RunClients()     — interpolate camera positions for smooth panning.
+ *   3. G_RunEntities()    — call G_RunEntity() on every live entity.
+ *   4. G_SolveCollisions() — resolve entity overlaps (g_phys.c).
+ */
 #include "g_local.h"
 #include "g_unitdata.h"
 
@@ -107,6 +129,10 @@ static void G_RunClients(void) {
     }
 }
 
+/* One complete server-frame simulation step.
+ * Skipped until the first map has been started; on the very first frame after
+ * a map loads, the JASS "main" function is invoked to run map initialization
+ * triggers. */
 static void G_RunFrame(void) {
     if (!level.started)
         return;
@@ -182,6 +208,10 @@ LPCSTR G_LevelString(LPCSTR name) {
     return name;
 }
 
+/* Called when a client finishes the connection handshake and is ready to play.
+ * Serializes the top-level ConsoleUI and CinematicPanel frame trees and sends
+ * them to the client as svc_layout messages so the client can render the HUD.
+ * Also counts the player's initial food supply from pre-placed buildings. */
 static void G_ClientBegin(LPEDICT edict) {
     UI_FRAME(ConsoleUI);
     UI_FRAME(CinematicPanel);
@@ -197,6 +227,9 @@ static void G_ClientBegin(LPEDICT edict) {
     level.started = true;
 }
 
+/* Return the game API vtable to the server.
+ * Called once at startup; after this point the server drives the game
+ * exclusively through the returned function pointers. */
 struct game_export *GetGameAPI(struct game_import *import) {
     gi = *import;
     globals.Init = G_InitGame;

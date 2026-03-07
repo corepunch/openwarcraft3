@@ -1,3 +1,19 @@
+/*
+ * s_attack.c — Attack ability and projectile system.
+ *
+ * Implements the a_attack ability used by all combat units.  Handles both
+ * melee and ranged (missile) attack styles, each with a damage phase and a
+ * cooldown phase driven by the umove_t state machine.
+ *
+ * Ranged attacks spawn a projectile entity via fire_rocket().  The projectile
+ * is a regular server entity with MOVETYPE_FLYMISSILE; each frame g_phys.c
+ * advances it toward its target until it hits, at which point T_Damage() is
+ * called and the entity is freed.
+ *
+ * T_Damage() is also the central damage resolution function: it reduces
+ * health, triggers counter-attacks, and calls the die() callback when a unit
+ * is killed.
+ */
 #include "s_skills.h"
 
 void attack_walk(LPEDICT ent);
@@ -16,6 +32,9 @@ typedef struct {
     DWORD damage;
 }  rocketDesc_t;
 
+/* Spawn a projectile entity aimed at desc->target.
+ * The entity is given MOVETYPE_FLYMISSILE so that SV_Physics_Toss() in
+ * g_phys.c will move it each frame until it reaches the target. */
 void fire_rocket(LPEDICT ent, rocketDesc_t const *desc) {
     VECTOR3 dir = Vector3_sub(&desc->target->s.origin, &ent->s.origin);
     Vector3_normalize(&dir);
@@ -74,6 +93,10 @@ static BOOL can_attack(LPCEDICT ent) {
     return false;
 }
 
+/* Apply damage to target from attacker.
+ * If the hit is lethal, the target's die() callback is invoked and the
+ * attacker returns to its stand (idle) state.  Otherwise, if the target is
+ * able to attack back it issues an automatic counter-attack order. */
 void T_Damage(LPEDICT target, LPEDICT attacker, int damage) {
     if (target->health.value <= damage) {
         target->health.value = 0;
@@ -167,6 +190,7 @@ void attack_walk(LPEDICT self) {
     unit_setmove(self, &attack_move_walk);
 }
 
+/* Set the attack target and start walking toward attack range. */
 void order_attack(LPEDICT self, LPEDICT target) {
     self->goalentity = target;
     attack_walk(self);

@@ -1,5 +1,19 @@
+/*
+ * cl_parse.c — Parse server-to-client messages.
+ *
+ * CL_ParseServerMessage() is the main dispatch loop: it reads each message
+ * type byte and calls the appropriate handler.  The supported message types
+ * are defined in src/common/common.h (svc_* constants).
+ *
+ * Entity state arrives as delta-compressed packets (svc_packetentities) that
+ * are applied on top of the previous frame's state.  Player state, UI layout,
+ * config strings and temporary effects each have their own message types.
+ */
 #include "client.h"
 
+/* Apply a stream of delta-encoded entity updates.  For each entity the server
+ * sends only the fields that changed since the previous frame.  A U_REMOVE
+ * flag signals that an entity should be removed from the local table. */
 static void CL_ReadPacketEntities(LPSIZEBUF msg) {
     while (true) {
         DWORD bits = 0;
@@ -41,6 +55,9 @@ static void CL_ParseBaseline(LPSIZEBUF msg) {
     memcpy(&cent->prev, &cent->baseline, sizeof(entityState_t));
 }
 
+/* Handle the svc_frame header: record the server frame number and time, then
+ * snapshot the current entity states into their "prev" fields so the renderer
+ * can interpolate between the previous and current positions. */
 void CL_ParseFrame(LPSIZEBUF msg) {
     cl.frame.serverframe = MSG_ReadLong(msg);
     cl.frame.servertime = MSG_ReadLong(msg);
@@ -68,6 +85,9 @@ void CL_ParsePlayerInfo(LPSIZEBUF msg) {
     cl.viewDef.camerastate[0].fov = cl.playerstate.fov;
 }
 
+/* Receive an svc_layout message from the server.  The server serializes the
+ * entire UI frame tree as a binary blob; the client stores the raw blob and
+ * passes it to the renderer each frame without interpreting the contents. */
 void CL_ParseLayout(LPSIZEBUF msg) {
     DWORD layer = MSG_ReadByte(msg);
     SAFE_DELETE(cl.layout[layer], MemFree);
@@ -104,6 +124,9 @@ void CL_MirrorMessage(LPSIZEBUF msg) {
     MSG_WriteString(&cls.netchan.message, buf);
 }
 
+/* Dispatch loop for a complete server message buffer.  Each iteration reads
+ * one message-type byte and calls the matching handler.  An unknown type
+ * stops processing and prints an error to stderr. */
 void CL_ParseServerMessage(LPSIZEBUF msg) {
     BYTE pack_id = 0;
     while (MSG_Read(msg, &pack_id, 1)) {

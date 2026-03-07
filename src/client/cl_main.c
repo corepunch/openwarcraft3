@@ -1,3 +1,14 @@
+/*
+ * cl_main.c — Main client loop and initialization.
+ *
+ * The client is responsible for three things:
+ *   1. Capturing user input and forwarding commands to the server.
+ *   2. Receiving game state snapshots from the server and applying them.
+ *   3. Preparing and rendering the scene each frame.
+ *
+ * CL_Frame() is the entry point called from the platform event loop.
+ * CL_Init() sets up the renderer and input bindings at startup.
+ */
 #include "client.h"
 #include "renderer.h"
 
@@ -84,6 +95,8 @@ void CL_ConnectionlessPacket(void) {
     MSG_WriteString(&cls.netchan.message, "new");
 }
 
+/* Read all available server packets from the network buffer and dispatch each
+ * message type to the appropriate CL_Parse* handler in cl_parse.c. */
 void CL_ReadPackets(void) {
     static BYTE net_message_buffer[MAX_MSGLEN];
     static sizeBuf_t net_message = {
@@ -119,6 +132,9 @@ void CL_SendCommand(void) {
     Cbuf_Execute();
 }
 
+/* Main client tick called from the platform event loop.
+ * Advances the client clock, applies incoming server state, samples input,
+ * sends commands, and renders the current frame. */
 void CL_Frame(DWORD msec) {
     cl.time += msec;
 

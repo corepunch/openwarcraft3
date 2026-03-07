@@ -1,3 +1,30 @@
+/*
+ * net.c — Network layer: loopback and TCP/IP implementations.
+ *
+ * Provides a uniform packet interface used by both client (NS_CLIENT) and
+ * server (NS_SERVER):
+ *   NET_Write()      — write raw bytes to the outgoing channel.
+ *   NET_Read()       — read raw bytes from the incoming channel.
+ *   NET_GetPacket()  — read one complete length-prefixed packet.
+ *   Netchan_Transmit() — flush the netchan message buffer as one packet.
+ *
+ * Two implementations are available, selected at compile time:
+ *
+ *   USE_LOOPBACK (default) — in-process circular buffers.
+ *     Two 256 KiB ring buffers act as loopback channels: bufs[0] carries
+ *     client→server traffic and bufs[1] carries server→client traffic.
+ *     This is used when both sides run in the same process (single-player /
+ *     local development).
+ *
+ *   TCP/IP sockets — real network sockets for true multiplayer.
+ *     NET_TCPSocket(), NET_TCPListen(), NET_TCPAccept(), NET_TCPConnect()
+ *     manage socket lifecycle.  Partial packet handling is done with a
+ *     per-socket receive buffer (sockBuffers[]).
+ *
+ * Switching from loopback to TCP only requires a compile-time flag; no other
+ * code needs to change because the rest of the engine calls only the
+ * NET_ and Netchan_ functions listed above.
+ */
 #include <stdarg.h>
 
 #ifdef USE_LOOPBACK

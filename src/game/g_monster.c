@@ -1,3 +1,15 @@
+/*
+ * g_monster.c — Unit and monster shared behavior.
+ *
+ * This file owns the per-unit animation driver (M_MoveFrame), the waypoint
+ * pool used for move orders (Waypoint_add), and unit initialization
+ * (SP_SpawnUnit) which reads unit stats from the data tables and sets up
+ * combat parameters, models, and collision radii.
+ *
+ * The think function registered on every unit entity is monster_think(),
+ * which advances the current animation frame and calls the active umove_t
+ * think callback each game tick.
+ */
 #include "g_local.h"
 
 #define MAX_WAYPOINTS 256
@@ -49,6 +61,10 @@ static FLOAT get_unit_collision(pathTex_t const *pathtex) {
     return size * 16 * 1.3;
 }
 
+/* Allocate a waypoint entity at the given map location.
+ * The waypoint's Z coordinate is set from the terrain height so that units
+ * moving toward it will hug the ground.  The pool is a circular array of
+ * MAX_WAYPOINTS slots, so old waypoints are silently recycled. */
 LPEDICT Waypoint_add(LPCVECTOR2 spot) {
     LPEDICT waypoint = &waypoints[current_waypoint++ % MAX_WAYPOINTS];
     waypoint->s.origin.x = spot->x;
@@ -77,6 +93,10 @@ DWORD M_RefreshHeatmap(LPEDICT self) {
     return self->heatmap2;
 }
 
+/* Advance the unit's animation frame by FRAMETIME milliseconds.
+ * If the new frame would exceed the animation's end interval, the current
+ * umove_t endfunc is called (e.g. to loop the walk cycle or transition to
+ * the cooldown phase after an attack). */
 void M_MoveFrame(LPEDICT self) {
     if (self->aiflags & AI_HOLD_FRAME)
         return;
@@ -106,6 +126,9 @@ void M_MoveFrame(LPEDICT self) {
     }
 }
 
+/* Per-unit think function registered on every monster/unit entity.
+ * Called each game frame by G_RunEntity; drives the animation clock and
+ * invokes the active umove_t think callback (e.g. ai_walk, ai_melee). */
 void monster_think(LPEDICT self) {
     if (!self->currentmove)
         return;
@@ -173,6 +196,10 @@ DWORD M_LoadUberSplat(LPCSTR uber_splat) {
     }
 }
 
+/* Initialize a unit entity from the unit data tables.
+ * Reads model path, scale, collision radius, HP, mana, and attack parameters
+ * (type, weapon class, damage dice, range, projectile model/speed) for the
+ * unit's class_id and stores them in the edict. */
 void SP_SpawnUnit(LPEDICT self) {
     PATHSTR model_filename;
     LPCSTR uber_splat = UNIT_UBER_SPLAT(self->class_id);

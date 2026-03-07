@@ -1,3 +1,20 @@
+/*
+ * ui_init.c — Server-side UI initialization.
+ *
+ * The UI system runs entirely on the server.  At startup UI_Init() loads all
+ * Warcraft III FDF (Frame Definition File) assets from the MPQ archive via
+ * UI_ParseFDF().  These files describe the frame hierarchy — types, textures,
+ * fonts, and layout anchors — and are stored as frameDef_t templates.
+ *
+ * After parsing, UI_Init() instantiates the top-level frames (ConsoleUI,
+ * ResourceBar, ToolTip, UpperButtonBar, CinematicPanel) and positions them
+ * using the same anchor-point system as the original Warcraft III UI.
+ *
+ * When a client connects, G_ClientBegin() (g_main.c) calls UI_WriteLayout()
+ * (ui_write.c) to serialize the complete frame tree and send it to the client
+ * as an svc_layout message.  The client stores the raw blob and hands it to
+ * the renderer without interpreting the frame hierarchy itself.
+ */
 #include "../g_local.h"
 
 #define TOOLTIP_SIZE 0.2200, 0.1000
@@ -73,6 +90,8 @@ void Init_CinematicPanel(void) {
     CinematicDialogueText->Stat = MAX_STATS + PLAYERTEXT_DIALOGUE;
 }
 
+/* Parse all FDF assets and build the initial UI frame hierarchy.
+ * Must be called once at game startup before any client connects. */
 void UI_Init(void) {
     UI_ClearTemplates();
     

@@ -1,3 +1,13 @@
+/*
+ * sv_main.c — Main server loop and frame processing.
+ *
+ * The server advances the game in fixed-size time steps (FRAMETIME).
+ * Every frame it reads pending client commands, calls the game library to
+ * run one simulation step, and then sends the resulting entity/player state
+ * to every connected client.
+ *
+ * Entry point called from the platform main loop: SV_Frame().
+ */
 #include "server.h"
 
 //#define PRINT_ANIMATIONS
@@ -23,6 +33,8 @@ static void SV_SendClientDatagram(LPCLIENT client) {
     Netchan_Transmit(NS_SERVER, &client->netchan);
 }
 
+/* Flush any un-synced config strings to all clients, then send a per-frame
+ * datagram to every spawned client containing the current entity snapshot. */
 static void SV_SendClientMessages(void) {
     FOR_LOOP(i, MAX_CONFIGSTRINGS) {
         if (*sv.configstrings[i] && !sv.syncstrings[i]) {
@@ -38,6 +50,7 @@ static void SV_SendClientMessages(void) {
     }
 }
 
+/* Read and dispatch all pending client messages from the network buffers. */
 static void SV_ReadPackets(void) {
     static BYTE net_message_buffer[MAX_MSGLEN];
     static sizeBuf_t net_message = {
@@ -117,12 +130,17 @@ int SV_FontIndex(LPCSTR name, DWORD fontSize) {
     return SV_FindIndex(fontspec, CS_FONTS, MAX_FONTSTYLES, true);
 }
 
+/* Advance the simulation by one frame: increment the frame counter and game
+ * clock, then invoke the game library's RunFrame callback. */
 void SV_RunGameFrame(void) {
     sv.framenum++;
     sv.time += FRAMETIME;
     ge->RunFrame();
 }
 
+/* Main server tick called from the platform event loop with the elapsed
+ * milliseconds since the last call.  Returns immediately if it is not yet
+ * time for a new game frame so the caller can do other work. */
 void SV_Frame(DWORD msec) {
     svs.realtime += msec;
     

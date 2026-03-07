@@ -1,8 +1,23 @@
+/*
+ * sv_ents.c — Server-side entity snapshot and synchronization.
+ *
+ * Each frame the server collects the set of entities visible to each client
+ * (SV_BuildClientFrame), compares it to the previous frame, and sends only
+ * the changed fields using delta compression (SV_EmitPacketEntities).
+ *
+ * The result is an svc_frame message containing svc_playerinfo (camera /
+ * player state) followed by svc_packetentities (entity deltas).  The client
+ * applies these deltas in cl_parse.c to keep its local entity table up to
+ * date.
+ */
 #include "server.h"
 
 #define VISUAL_DISTANCE 1500
 #define HIGH_NUMBER 9999
 
+/* Determine whether a client should receive updates for the given entity.
+ * Always true for the client's own player-owned entities; otherwise based
+ * on a simple distance check against the client's camera position. */
 static bool SV_CanClientSeeEntity(LPCCLIENT client, LPCENTITYSTATE edict) {
     edict_t *clent = client->edict;
     if (edict->player == clent->client->ps.number)
@@ -19,6 +34,9 @@ LPENTITYSTATE SV_NextClientEntity(void) {
     return &svs.client_entities[index];
 }
 
+/* Populate a client frame snapshot with all entities visible to the client.
+ * The snapshot records the player state and a list of entity states that will
+ * be delta-encoded and sent by SV_WriteFrameToClient. */
 void SV_BuildClientFrame(LPCLIENT client) {
     edict_t *clent = client->edict;
     LPCLIENTFRAME frame = &client->frames[sv.framenum & UPDATE_MASK];
@@ -42,6 +60,10 @@ void SV_BuildClientFrame(LPCLIENT client) {
     }
 }
 
+/* Write the delta-compressed entity list for this frame.
+ * Entities present in both old and new frames are written as deltas.
+ * New entities are written against the server baseline.
+ * Entities removed since the last frame receive a U_REMOVE flag. */
 void SV_EmitPacketEntities(LPCCLIENTFRAME from, LPCCLIENTFRAME to, LPSIZEBUF msg) {
     int const from_num_entities = from ? from->num_entities : 0;
 
@@ -101,6 +123,9 @@ void SV_WritePlayerstateToClient(LPCCLIENTFRAME from, LPCCLIENTFRAME to, LPSIZEB
     MSG_WriteDeltaPlayerState(msg, ops, ps);
 }
 
+/* Write the full frame packet (svc_frame header + player state + entity list)
+ * to the client's outgoing channel and record the sent frame number so the
+ * next call can compute the correct delta. */
 void SV_WriteFrameToClient(LPCLIENT client) {
     LPCLIENTFRAME frame = &client->frames[sv.framenum & UPDATE_MASK];
     LPCLIENTFRAME oldframe = &client->frames[client->lastframe & UPDATE_MASK];
