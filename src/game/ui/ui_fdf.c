@@ -1,3 +1,57 @@
+/*
+ * ui_fdf.c — FDF parser and programmatic frame-definition API.
+ *
+ * This file provides two ways to create UI frames without loading an external
+ * .fdf file:
+ *
+ * 1. Parsing FDF text at runtime
+ *    UI_ParseFDF_Buffer() accepts a C string written in FDF syntax (see
+ *    ui_init.c for an inline example) and registers the resulting frameDef_t
+ *    templates in the global frame registry.  The string is mutated during
+ *    parsing, so always pass a writable copy (e.g. strdup()).
+ *
+ * 2. Programmatic C API
+ *    Individual frames can be created directly in C without any FDF text.
+ *    Initialise a FRAMEDEF struct with UI_InitFrame, set its properties via
+ *    the helper functions below, then emit it with UI_WriteFrame:
+ *
+ *      FRAMEDEF f;
+ *      UI_InitFrame(&f, FT_TEXT);
+ *      UI_SetPoint(&f, FRAMEPOINT_TOPLEFT, NULL, FRAMEPOINT_TOPLEFT, 0.05, -0.30);
+ *      UI_SetText(&f, "Hello, world!");
+ *      UI_WriteFrame(&f);
+ *
+ *    Helper functions:
+ *
+ *      UI_InitFrame(frame, type)
+ *          Zero-initialise and set the frame type (FT_TEXT, FT_BACKDROP,
+ *          FT_COMMANDBUTTON, …).
+ *
+ *      UI_SetPoint(frame, point, relativeTo, targetPoint, x, y)
+ *          Anchor one of the frame's nine points to another frame.
+ *
+ *      UI_SetSize(frame, width, height)
+ *          Set explicit width/height dimensions.
+ *
+ *      UI_SetText(frame, fmt, ...)
+ *          Printf-style text assignment for label/text frames.
+ *
+ *      UI_SetTexture(frame, name, decorate)
+ *          Assign a texture by skin-entry name.
+ *
+ *      UI_SetParent(frame, parent)
+ *          Attach the frame to a parent in the hierarchy.
+ *
+ *      UI_WriteFrame(frame)
+ *          Serialize one frame into the outgoing svc_layout message.
+ *
+ *      UI_WriteFrameWithChildren(frame, parent)
+ *          Serialize a frame and its entire sub-tree.
+ *
+ *    See src/game/hud/ui_log.c for a complete worked example using the
+ *    programmatic API.
+ */
+
 #include "../g_local.h"
 #include "../parser.h"
 

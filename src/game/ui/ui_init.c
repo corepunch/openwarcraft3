@@ -14,6 +14,43 @@
  * (ui_write.c) to serialize the complete frame tree and send it to the client
  * as an svc_layout message.  The client stores the raw blob and hands it to
  * the renderer without interpreting the frame hierarchy itself.
+ *
+ * Inline FDF strings
+ * ------------------
+ * A frame hierarchy can also be written as a C string literal following FDF
+ * syntax and registered at runtime with UI_ParseFDF_Buffer().  This is useful
+ * for self-contained components that have no corresponding .fdf file on disk.
+ * The Init_ToolTip() function below is a worked example:
+ *
+ *   static LPCSTR tooltip =
+ *       "Frame \"FRAME\" \"ToolTip\" {\n"
+ *       "    Frame \"TOOLTIPTEXT\" \"ToolTipText\" {\n"
+ *       "        SetAllPoints,\n"
+ *       "        BackdropBackground  \"ToolTipBackground\",\n"
+ *       "        BackdropCornerFlags \"UL|UR|BL|BR|T|L|B|R\",\n"
+ *       "        BackdropCornerSize  0.008,\n"
+ *       "        FrameFont \"MasterFont\", 0.010, \"\",\n"
+ *       "        FontJustificationH JUSTIFYLEFT,\n"
+ *       "        FontColor 1.0 1.0 1.0 1.0,\n"
+ *       "    }\n"
+ *       "}\n";
+ *
+ *   void Init_ToolTip(LPFRAMEDEF parent) {
+ *       LPSTR buffer = strdup(tooltip);
+ *       UI_ParseFDF_Buffer("Tooltip", buffer);  // registers the template
+ *       free(buffer);
+ *
+ *       // retrieve the registered frame by name and position it
+ *       UI_FRAME(ToolTip);
+ *       UI_SetParent(ToolTip, parent);
+ *       UI_SetSize(ToolTip, 0.22, 0.10);
+ *       UI_SetPoint(ToolTip, FRAMEPOINT_BOTTOMRIGHT, NULL, FRAMEPOINT_BOTTOMRIGHT, 0.0, 0.16);
+ *   }
+ *
+ * UI_ParseFDF_Buffer() parses the string in place (it is mutated during
+ * parsing, so always pass a writable copy).  After the call, frames can be
+ * retrieved by name with UI_FindFrame() or the UI_FRAME() convenience macro,
+ * then positioned and parented as usual.
  */
 #include "../g_local.h"
 

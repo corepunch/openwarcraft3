@@ -14,6 +14,33 @@
  * Dynamic updates (e.g. command card changes) follow the same path: the
  * server calls UI_WriteLayout() again with the modified sub-tree to replace
  * a specific UI layer on the client.
+ *
+ * Sending a UI layer to a client
+ * ------------------------------
+ * Frames are written into an outgoing buffer with UI_WriteFrame().  The
+ * UI_WRITE_LAYER macro wraps the complete send sequence — opening the layer
+ * message, invoking a builder function, appending the end-of-list sentinel,
+ * and unicasting the result to a single client:
+ *
+ *   UI_WRITE_LAYER(edict, ui_print_text, LAYER_MESSAGE, message);
+ *
+ * Equivalent explicit form:
+ *
+ *   UI_WriteStart(LAYER_MESSAGE);      // begin svc_layout for this layer
+ *   ui_print_text(ent->client, text);  // emit frames into the buffer
+ *   gi.WriteLong(0);                   // end-of-list sentinel
+ *   gi.unicast(ent);                   // send to the client
+ *
+ * Available layers (defined in g_local.h):
+ *
+ *   LAYER_PORTRAIT    — Unit portrait
+ *   LAYER_CINEMATIC   — Cinematic panel
+ *   LAYER_CONSOLE     — Main HUD console
+ *   LAYER_COMMANDBAR  — Ability/command buttons
+ *   LAYER_INFOPANEL   — Selected-unit info panel
+ *   LAYER_INVENTORY   — Inventory slot buttons
+ *   LAYER_MESSAGE     — On-screen text messages
+ *   LAYER_QUESTDIALOG — Quest dialog overlay
  */
 #include "../g_local.h"
 
