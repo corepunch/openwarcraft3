@@ -212,7 +212,15 @@ The client receives the `svc_layout` message in `CL_ParseLayout` (`src/client/cl
 
 ### Wire Message Format
 
-All UI is generated on the server. Each frame is sent as a compact, delta-encoded `uiFrame_t` message carrying only the fields that changed: `x`/`y` anchor positions, `pic` (texture index), `stat` (live player stat), `text`, `tooltip`, and `onclick`. See `uiFrameFields[]` in `src/common/msg.c` for the full field list.
+All UI is generated on the server. Each frame is sent to the client as a compact, delta-encoded message — only changed fields are transmitted. Conceptually a frame message looks like:
+
+```
+x 0.02  y -0.02  pic 13  stat 1  text "Gold: 500"
+```
+
+Each field maps to the corresponding `uiFrame_t` member (`x`/`y` are the anchor offsets, `pic` is `tex.index`, `stat` shows a live player stat). See `uiFrameFields[]` in `src/common/msg.c` for the full field list.
+
+Server-side example:
 
 ```c
 FRAMEDEF f;
