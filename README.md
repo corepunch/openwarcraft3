@@ -210,6 +210,43 @@ When a client connects, `G_ClientBegin` (`src/game/g_main.c`) calls `UI_WriteLay
 
 The client receives the `svc_layout` message in `CL_ParseLayout` (`src/client/cl_parse.c`) and stores the raw serialized layout blob. The renderer reads this blob each frame to draw the UI without the client needing to understand the frame hierarchy.
 
+### Wire Message Format (`uiFrame_t`)
+
+Every UI element is represented as a `uiFrame_t` struct (defined in `src/common/shared.h`). The server populates one of these per frame and calls `gi.WriteUIFrame` to send it. The struct is compact and self-contained — it describes where the element sits, what it looks like, what text or stat it displays, and what command it fires when clicked.
+
+The key fields (see `uiFrameFields[]` in `src/common/msg.c`):
+
+| Field | Description |
+|---|---|
+| `type` (in `flagsvalue`) | Frame type: `FT_TEXT`, `FT_BACKDROP`, `FT_COMMANDBUTTON`, `FT_PORTRAIT`, … |
+| `parent` | Frame number of the parent frame (use `UI_PARENT` to anchor to the layer root) |
+| `points.x[FPP_MIN/MID/MAX]` | Horizontal anchor points (left / center / right), each carrying a `relativeTo` reference frame number and a pixel `offset` |
+| `points.y[FPP_MIN/MID/MAX]` | Vertical anchor points (top / middle / bottom) |
+| `size.width`, `size.height` | Explicit size in normalized screen units (0–0.8 × 0–0.6) |
+| `tex.index` | Texture/image index (`pic`) — resolved from the MPQ at load time |
+| `tex.coord[4]` | UV sub-rectangle within the texture (min/max x and y as bytes) |
+| `stat` | Player stat index to display as a live number; `0` means use `text` instead |
+| `color` | RGBA tint applied to the element |
+| `text` | Static string to display (label, button caption, etc.) |
+| `tooltip` | Tooltip string shown on hover |
+| `onclick` | Server command string sent back when the element is clicked (e.g. `"button Amov"`) |
+
+A small type-specific buffer is appended after the base fields for things like backdrop edge textures, button state textures, or label alignment — see `UI_WriteFrame` in `src/game/ui/ui_write.c`.
+
+Messages are **delta-encoded**: only fields that changed since the last transmission are included in the packet, so a simple text label might fit in just a handful of bytes.
+
+A minimal server-side example that produces a "Hello, World" text element:
+
+```c
+FRAMEDEF f;
+UI_InitFrame(&f, FT_TEXT);           // type = FT_TEXT
+f.Text = "Hello, World";             // text field
+UI_SetPoint(&f, FRAMEPOINT_CENTER,
+             NULL, FRAMEPOINT_CENTER,
+             0.0f, 0.0f);            // x/y centered on screen
+UI_WriteFrame(&f);                   // serialise → uiFrame_t → client
+```
+
 ### Dynamic UI Updates
 
 During gameplay the server can push incremental UI updates for things like the command card (ability buttons shown for the selected unit). These updates follow the same `svc_layout` / delta-encoding path, replacing only the affected layer on the client.
