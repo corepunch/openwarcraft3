@@ -23,7 +23,7 @@
  *
  * Switching from loopback to TCP only requires a compile-time flag; no other
  * code needs to change because the rest of the engine calls only the
- * NET_*/Netchan_* functions above.
+ * NET_ and Netchan_ functions listed above.
  */
 #include <stdarg.h>
 
