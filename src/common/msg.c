@@ -41,6 +41,41 @@ netField_t entityStateFields[] = {
     { NULL }
 };
 
+/* Wire fields for a single UI frame (uiFrame_t).
+ *
+ * The server generates all UI and sends each frame to the client as a
+ * delta-encoded uiFrame_t — only fields that changed since the last
+ * transmission are included.  Conceptually each frame carries:
+ *
+ *   parent        — parent frame index (UI_PARENT = 255 for layer root)
+ *   flagsvalue    — frame type (FT_TEXT, FT_BACKDROP, FT_COMMANDBUTTON, …)
+ *                   packed with alpha mode
+ *   x / y         — position on each axis; internally stored as three
+ *                   4-byte uiFramePoint_t slots per axis (FPP_MIN/MID/MAX
+ *                   = left/center/right for x, top/middle/bottom for y).
+ *                   Each slot packs: used (1 b), targetPos (7 b),
+ *                   relativeTo frame index (8 b), and offset (16 b, int) —
+ *                   the offset is the coordinate multiplied by
+ *                   UI_FRAMEPOINT_SCALE (32767), i.e. 0.02 → 655.
+ *                   Typically one slot per axis is set; two slots allow
+ *                   the frame to stretch between two anchor points.
+ *   size          — explicit width/height in normalised screen units
+ *                   (viewport is 0.8 × 0.6)
+ *   tex.index     — texture/"pic" index resolved from the MPQ
+ *   tex.coord     — UV sub-rectangle inside the texture (4 bytes:
+ *                   xmin, xmax, ymin, ymax scaled to 0-255)
+ *   stat          — player stat index shown as a live number;
+ *                   0 means use the text string instead
+ *   color         — RGBA tint
+ *   text          — static display string (label, button caption, …)
+ *   tooltip       — tooltip string shown on hover
+ *   onclick       — server command sent back when the element is clicked
+ *                   (e.g. "button Amov")
+ *
+ * A small type-specific buffer is appended after these base fields for
+ * backdrop edge textures, button states, label alignment, etc.
+ * See UI_WriteFrame() in src/game/ui/ui_write.c.
+ */
 netField_t uiFrameFields[] = {
     { NETF(uiFrame_t, parent), NFT_SHORT },
     { NETF(uiFrame_t, flagsvalue), NFT_SHORT },
