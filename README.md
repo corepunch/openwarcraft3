@@ -260,3 +260,7 @@ The build is driven by a `Makefile` for Linux/macOS and a `premake5.lua` that ca
 - Support for original v1.0 assets with ongoing work for v1.29b compatibility
 - Active development focused on expanding game feature completeness
 - Cross-platform support for Linux and macOS environments
+
+## License
+
+This project is licensed under the [MIT License](LICENSE). Contributions are welcome!
