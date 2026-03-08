@@ -75,4 +75,22 @@ $(ZIP_FILE):
 clean:
 	rm -rf build/obj build/lib
 
-.PHONY: default cmath3 renderer game openwarcraft3 clean download
+# -----------------------------------------------------------------------
+# Tests — compiled directly from source, no OpenGL/SDL2 dependency.
+# -----------------------------------------------------------------------
+CMATH3_SRCS := $(shell find src/cmath3/source -name '*.c')
+TEST_CFLAGS  := -Wall -Isrc/cmath3/types -Isrc/cmath3
+
+$(BIN_DIR)/test_cmath3: tests/test_cmath3.c $(CMATH3_SRCS) | $(BIN_DIR)
+	$(CC) $(TEST_CFLAGS) -o $@ tests/test_cmath3.c $(CMATH3_SRCS) -lm
+
+$(BIN_DIR)/test_game_parser: tests/test_game_parser.c | $(BIN_DIR)
+	$(CC) $(TEST_CFLAGS) -Isrc/common -Isrc/game -Itests/stubs \
+	    -o $@ tests/test_game_parser.c -lm
+
+test: $(BIN_DIR)/test_cmath3 $(BIN_DIR)/test_game_parser
+	@echo "Running tests..."
+	@$(BIN_DIR)/test_cmath3
+	@$(BIN_DIR)/test_game_parser
+
+.PHONY: default cmath3 renderer game openwarcraft3 clean download test
