@@ -158,6 +158,10 @@ static void test_dead_unit_not_involved_in_collision(void) {
 /*
  * Build a minimal packed TGA image in a byte buffer and return its size.
  * image_type 3 = uncompressed grayscale, pixel_size 8.
+ *
+ * The layout below intentionally mirrors tgaHeader_t defined in
+ * g_pathing.c (same fields, same pack(1) alignment).  If that struct
+ * ever changes, this one must be updated to match.
  */
 #pragma pack(push, 1)
 typedef struct {
@@ -166,11 +170,11 @@ typedef struct {
     BYTE  colormap_size;
     WORD  x_origin, y_origin, width, height;
     BYTE  pixel_size, attributes;
-} test_tga_header_t;
+} test_tga_hdr_t;   /* mirrors tgaHeader_t from g_pathing.c */
 #pragma pack(pop)
 
 static size_t make_tga_grayscale_1x1(BYTE buf[static 32], BYTE grey) {
-    test_tga_header_t hdr = {0};
+    test_tga_hdr_t hdr = {0};
     hdr.image_type  = 3;
     hdr.width       = 1;
     hdr.height      = 1;
@@ -181,7 +185,7 @@ static size_t make_tga_grayscale_1x1(BYTE buf[static 32], BYTE grey) {
 }
 
 static size_t make_tga_rgb_2x2(BYTE buf[static 64]) {
-    test_tga_header_t hdr = {0};
+    test_tga_hdr_t hdr = {0};
     hdr.image_type  = 2;
     hdr.width       = 2;
     hdr.height      = 2;
@@ -235,7 +239,7 @@ static void test_load_tga_rgb_2x2_dimensions(void) {
 
 static void test_load_tga_unsupported_type_returns_null(void) {
     BYTE buf[64] = {0};
-    test_tga_header_t *hdr = (test_tga_header_t *)buf;
+    test_tga_hdr_t *hdr = (test_tga_hdr_t *)buf;
     hdr->image_type = 10; /* RLE-compressed — not supported */
     hdr->width      = 1;
     hdr->height     = 1;

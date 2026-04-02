@@ -111,7 +111,7 @@ static void test_distance_to_goal_along_x_axis(void) {
 
 static void test_distance_to_goal_diagonal(void) {
     LPEDICT unit = make_moving_unit(0.0f, 0.0f);
-    LPEDICT wp   = alloc_test_unit(0, 30.0f, 40.0f); /* 3-4-5 triple → 50 */
+    LPEDICT wp   = alloc_test_unit(0, 30.0f, 40.0f); /* 3-4-5 right triangle → 50 */
     unit->goalentity = wp;
     ASSERT_EQ_FLOAT(M_DistanceToGoal(unit), 50.0f, 0.1f);
 }
