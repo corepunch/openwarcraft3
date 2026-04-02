@@ -1,0 +1,14 @@
+ID;PWXL;N;EBB;Y4;X3
+C;Y1;X1;K"unitDataID"
+C;Y1;X2;K"collision"
+C;Y1;X3;K"movetp"
+C;Y2;X1;K"hpea"
+C;Y2;X2;K"16"
+C;Y2;X3;K"foot"
+C;Y3;X1;K"hfoo"
+C;Y3;X2;K"16"
+C;Y3;X3;K"foot"
+C;Y4;X1;K"hkni"
+C;Y4;X2;K"24"
+C;Y4;X3;K"horse"
+E

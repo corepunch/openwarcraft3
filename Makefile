@@ -75,4 +75,40 @@ $(ZIP_FILE):
 clean:
 	rm -rf build/obj build/lib
 
-.PHONY: default cmath3 renderer game openwarcraft3 clean download
+# ---------------------------------------------------------------------------
+# Test target — builds and runs the unit test binary.
+#
+# The test binary compiles only the game modules needed by the tests
+# (no renderer, no StormLib, no SDL2) together with the cmath3 objects.
+# Global game state and gi function-pointers are provided by the test
+# harness (tests/test_harness.c) rather than by src/game/g_main.c.
+# ---------------------------------------------------------------------------
+TEST_GAME_SRCS := \
+	src/game/g_ai.c \
+	src/game/g_events.c \
+	src/game/g_metadata.c \
+	src/game/g_monster.c \
+	src/game/g_pathing.c \
+	src/game/g_phys.c \
+	src/game/g_utils.c \
+	src/game/m_unit.c \
+	src/game/skills/s_move.c \
+	src/game/skills/s_skills.c \
+	src/game/skills/s_stop.c
+
+TEST_SRCS := \
+	tests/test_main.c \
+	tests/test_harness.c \
+	tests/test_slk.c \
+	tests/test_unit.c \
+	tests/test_movement.c \
+	tests/test_collision.c
+
+TEST_CFLAGS := -Wall -Isrc/cmath3/types -Isrc/game -Isrc/server -Isrc/common -Isrc/game/skills
+
+test: $(CMATH3_OBJS) $(BIN_DIR)
+	$(CC) $(TEST_CFLAGS) -o $(BIN_DIR)/test_openwarcraft3 \
+		$(TEST_SRCS) $(TEST_GAME_SRCS) $(CMATH3_OBJS) -lm
+	$(BIN_DIR)/test_openwarcraft3
+
+.PHONY: default cmath3 renderer game openwarcraft3 clean download test
