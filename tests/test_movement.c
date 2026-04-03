@@ -35,16 +35,12 @@
  * Helpers
  * --------------------------------------------------------------------- */
 
-static DWORD hpea_id(void) {
-    DWORD id; memcpy(&id, "hpea", 4); return id;
-}
-
 /* Create a unit at (x, y) with the lifecycle callbacks and zero collision
  * (movement tests don't want unintended push-apart).  Resets entity pool
  * so each test starts from a clean slate. */
 static LPEDICT make_moving_unit(FLOAT x, FLOAT y) {
     reset_entities();
-    LPEDICT ent = alloc_test_unit(hpea_id(), x, y);
+    LPEDICT ent = alloc_test_unit(UNIT_ID("hpea"), x, y);
     ent->movetype  = MOVETYPE_STEP;
     ent->stand     = unit_stand;
     ent->birth     = unit_birth;
@@ -72,7 +68,7 @@ static void test_order_move_sets_walk_animation(void) {
     LPEDICT wp   = alloc_test_unit(0, 30.0f, 0.0f);
     order_move(unit, wp);
     ASSERT_NOT_NULL(unit->currentmove);
-    ASSERT_STR_EQ(unit->currentmove->animation, "walk");
+    ASSERT_ANIM(unit, "walk");
 }
 
 /* -----------------------------------------------------------------------
@@ -94,8 +90,8 @@ static void test_waypoint_add_sets_origin(void) {
 static void test_unit_movedistance_matches_formula(void) {
     /* unit_movedistance = 10 * speed / FRAMETIME */
     LPEDICT unit = make_moving_unit(0.0f, 0.0f);
-    FLOAT expected = 10.0f * UNIT_SPEED(hpea_id()) / (FLOAT)FRAMETIME;
-    ASSERT_EQ_FLOAT(unit_movedistance(unit), expected, 0.01f);
+    FLOAT expected = 10.0f * UNIT_SPEED(UNIT_ID("hpea")) / (FLOAT)FRAMETIME;
+    ASSERT_FLOAT_EQ(unit_movedistance(unit), expected);
 }
 
 /* -----------------------------------------------------------------------
@@ -106,7 +102,7 @@ static void test_distance_to_goal_along_x_axis(void) {
     LPEDICT unit = make_moving_unit(0.0f, 0.0f);
     LPEDICT wp   = alloc_test_unit(0, 100.0f, 0.0f);
     unit->goalentity = wp;
-    ASSERT_EQ_FLOAT(M_DistanceToGoal(unit), 100.0f, 0.01f);
+    ASSERT_FLOAT_EQ(M_DistanceToGoal(unit), 100.0f);
 }
 
 static void test_distance_to_goal_diagonal(void) {
@@ -120,7 +116,7 @@ static void test_distance_to_goal_zero_when_at_goal(void) {
     LPEDICT unit = make_moving_unit(10.0f, 10.0f);
     LPEDICT wp   = alloc_test_unit(0, 10.0f, 10.0f);
     unit->goalentity = wp;
-    ASSERT_EQ_FLOAT(M_DistanceToGoal(unit), 0.0f, 0.01f);
+    ASSERT_FLOAT_EQ(M_DistanceToGoal(unit), 0.0f);
 }
 
 /* -----------------------------------------------------------------------
@@ -161,7 +157,7 @@ static void test_unit_reaches_goal_and_transitions_to_stand(void) {
         unit->currentmove->think(unit);
     }
 
-    ASSERT_STR_EQ(unit->currentmove->animation, "stand");
+    ASSERT_ANIM(unit, "stand");
 }
 
 static void test_unit_position_changes_after_move_frame(void) {
@@ -199,9 +195,7 @@ static void test_unit_does_not_overshoot_goal(void) {
  * Suite runner
  * --------------------------------------------------------------------- */
 
-void run_movement_tests(void) {
-    setup_game();
-
+BEGIN_SUITE(movement)
     RUN_TEST(test_order_move_sets_goalentity);
     RUN_TEST(test_order_move_sets_walk_animation);
     RUN_TEST(test_waypoint_add_sets_origin);
@@ -213,6 +207,4 @@ void run_movement_tests(void) {
     RUN_TEST(test_unit_reaches_goal_and_transitions_to_stand);
     RUN_TEST(test_unit_position_changes_after_move_frame);
     RUN_TEST(test_unit_does_not_overshoot_goal);
-
-    teardown_game();
-}
+END_SUITE()

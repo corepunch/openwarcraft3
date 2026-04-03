@@ -82,6 +82,15 @@ void setup_test_unit_data(void);
  */
 LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y);
 
+/*
+ * UNIT_ID(s) — build a unit-class DWORD from a 4-character string
+ * literal at compile time, matching the memcpy-based FOURCC convention
+ * used throughout the game code.
+ *
+ *   UNIT_ID("hpea")  →  same value as: DWORD id; memcpy(&id,"hpea",4);
+ */
+#define UNIT_ID(s)  MAKEFOURCC((s)[0], (s)[1], (s)[2], (s)[3])
+
 /* -----------------------------------------------------------------------
  * SLK helpers
  * --------------------------------------------------------------------- */

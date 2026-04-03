@@ -23,10 +23,6 @@
  * Helpers
  * --------------------------------------------------------------------- */
 
-static DWORD hpea_id(void) {
-    DWORD id; memcpy(&id, "hpea", 4); return id;
-}
-
 /*
  * Create a minimal unit edict with the lifecycle callbacks wired up, as
  * SP_monster_unit would do — but without the full SP_SpawnUnit data-load.
@@ -34,7 +30,7 @@ static DWORD hpea_id(void) {
  */
 static LPEDICT make_unit(FLOAT x, FLOAT y) {
     reset_entities();
-    LPEDICT ent = alloc_test_unit(hpea_id(), x, y);
+    LPEDICT ent = alloc_test_unit(UNIT_ID("hpea"), x, y);
     ent->movetype  = MOVETYPE_STEP;
     ent->stand     = unit_stand;
     ent->birth     = unit_birth;
@@ -54,16 +50,16 @@ static void test_unit_birth_sets_birth_animation(void) {
     LPEDICT ent = make_unit(0, 0);
     unit_birth(ent);
     ASSERT_NOT_NULL(ent->currentmove);
-    ASSERT_STR_EQ(ent->currentmove->animation, "birth");
+    ASSERT_ANIM(ent, "birth");
 }
 
 static void test_unit_birth_sets_wait_from_build_time(void) {
-    /* UNIT_BUILD_TIME(hpea) == 45 (set up in test harness).
+    /* UNIT_BUILD_TIME("hpea") == 45 (set up in test harness).
      * unit_birth stores the build time directly in ent->wait. */
     LPEDICT ent = make_unit(0, 0);
     unit_birth(ent);
     ASSERT(ent->wait > 0);
-    ASSERT_EQ_INT((int)ent->wait, UNIT_BUILD_TIME(hpea_id()));
+    ASSERT_EQ_INT((int)ent->wait, UNIT_BUILD_TIME(UNIT_ID("hpea")));
 }
 
 static void test_unit_birth_sets_no_ubersplat_flag(void) {
@@ -80,7 +76,7 @@ static void test_unit_stand_sets_stand_animation(void) {
     LPEDICT ent = make_unit(0, 0);
     unit_stand(ent);
     ASSERT_NOT_NULL(ent->currentmove);
-    ASSERT_STR_EQ(ent->currentmove->animation, "stand");
+    ASSERT_ANIM(ent, "stand");
 }
 
 static void test_unit_stand_clears_build_pointer(void) {
@@ -106,7 +102,7 @@ static void test_unit_die_sets_death_animation(void) {
     LPEDICT ent = make_unit(0, 0);
     unit_die(ent, NULL);
     ASSERT_NOT_NULL(ent->currentmove);
-    ASSERT_STR_EQ(ent->currentmove->animation, "death");
+    ASSERT_ANIM(ent, "death");
 }
 
 static void test_unit_die_raises_dead_monster_flag(void) {
@@ -150,7 +146,7 @@ static void test_issueorder_move_sets_walk_animation(void) {
     VECTOR2 dest = {100.0f, 0.0f};
     unit_issueorder(ent, "move", &dest);
     ASSERT_NOT_NULL(ent->currentmove);
-    ASSERT_STR_EQ(ent->currentmove->animation, "walk");
+    ASSERT_ANIM(ent, "walk");
 }
 
 static void test_issueorder_unknown_returns_false(void) {
@@ -165,11 +161,11 @@ static void test_issueimmediateorder_stop(void) {
     /* Put unit in walk state first. */
     VECTOR2 dest = {100.0f, 0.0f};
     unit_issueorder(ent, "move", &dest);
-    ASSERT_STR_EQ(ent->currentmove->animation, "walk");
+    ASSERT_ANIM(ent, "walk");
 
     BOOL result = unit_issueimmediateorder(ent, "stop");
     ASSERT(result);
-    ASSERT_STR_EQ(ent->currentmove->animation, "stand");
+    ASSERT_ANIM(ent, "stand");
 }
 
 static void test_issueimmediateorder_unknown_returns_false(void) {
@@ -184,37 +180,31 @@ static void test_issueimmediateorder_unknown_returns_false(void) {
 
 static void test_additemtoslot_fills_empty_slot(void) {
     LPEDICT ent = make_unit(0, 0);
-    DWORD item; memcpy(&item, "ratf", 4);
-    BOOL ok = unit_additemtoslot(ent, item, 0);
+    BOOL ok = unit_additemtoslot(ent, UNIT_ID("ratf"), 0);
     ASSERT(ok);
-    ASSERT_EQ_INT(ent->inventory[0], (long long)item);
+    ASSERT_EQ_INT(ent->inventory[0], (long long)UNIT_ID("ratf"));
 }
 
 static void test_additemtoslot_rejects_occupied_slot(void) {
     LPEDICT ent = make_unit(0, 0);
-    DWORD item; memcpy(&item, "ratf", 4);
-    unit_additemtoslot(ent, item, 0);
-    BOOL ok = unit_additemtoslot(ent, item, 0); /* same slot */
+    unit_additemtoslot(ent, UNIT_ID("ratf"), 0);
+    BOOL ok = unit_additemtoslot(ent, UNIT_ID("ratf"), 0); /* same slot */
     ASSERT(!ok);
 }
 
 static void test_additem_fills_first_free_slot(void) {
     LPEDICT ent = make_unit(0, 0);
-    DWORD a; memcpy(&a, "ratf", 4);
-    DWORD b; memcpy(&b, "rde2", 4);
-    unit_additemtoslot(ent, a, 0);
-    BOOL ok = unit_additem(ent, b);
+    unit_additemtoslot(ent, UNIT_ID("ratf"), 0);
+    BOOL ok = unit_additem(ent, UNIT_ID("rde2"));
     ASSERT(ok);
-    ASSERT_EQ_INT(ent->inventory[1], (long long)b);
+    ASSERT_EQ_INT(ent->inventory[1], (long long)UNIT_ID("rde2"));
 }
 
 static void test_additem_fails_when_inventory_full(void) {
     LPEDICT ent = make_unit(0, 0);
-    DWORD dummy; memcpy(&dummy, "ratf", 4);
     for (int i = 0; i < MAX_INVENTORY; i++)
-        unit_additemtoslot(ent, dummy, i);
-    DWORD extra; memcpy(&extra, "rde2", 4);
-    BOOL ok = unit_additem(ent, extra);
+        unit_additemtoslot(ent, UNIT_ID("ratf"), i);
+    BOOL ok = unit_additem(ent, UNIT_ID("rde2"));
     ASSERT(!ok);
 }
 
@@ -222,9 +212,7 @@ static void test_additem_fails_when_inventory_full(void) {
  * Suite runner
  * --------------------------------------------------------------------- */
 
-void run_unit_tests(void) {
-    setup_game();
-
+BEGIN_SUITE(unit)
     RUN_TEST(test_unit_birth_sets_birth_animation);
     RUN_TEST(test_unit_birth_sets_wait_from_build_time);
     RUN_TEST(test_unit_birth_sets_no_ubersplat_flag);
@@ -247,6 +235,4 @@ void run_unit_tests(void) {
     RUN_TEST(test_additemtoslot_rejects_occupied_slot);
     RUN_TEST(test_additem_fills_first_free_slot);
     RUN_TEST(test_additem_fails_when_inventory_full);
-
-    teardown_game();
-}
+END_SUITE()

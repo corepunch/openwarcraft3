@@ -92,6 +92,32 @@ extern int _tests_failed;
     printf("%s\n", (_tests_failed == _before) ? "PASS" : "FAIL"); \
 } while (0)
 
+/*
+ * BEGIN_SUITE(name) / END_SUITE() — wrap a list of RUN_TEST() calls in a
+ * function that calls setup_game() / teardown_game() automatically.
+ *
+ *   BEGIN_SUITE(my_feature)
+ *       RUN_TEST(test_foo);
+ *       RUN_TEST(test_bar);
+ *   END_SUITE()
+ *
+ * expands to: void run_my_feature_tests(void) { setup_game(); ... teardown_game(); }
+ */
+#define BEGIN_SUITE(name)  void run_##name##_tests(void) { setup_game();
+#define END_SUITE()        teardown_game(); }
+
+/*
+ * ASSERT_FLOAT_EQ(a, b) — floating-point equality with the standard
+ * 0.01 epsilon used throughout the test suite.
+ */
+#define ASSERT_FLOAT_EQ(a, b)  ASSERT_EQ_FLOAT(a, b, 0.01f)
+
+/*
+ * ASSERT_ANIM(ent, anim) — assert that the entity's active animation
+ * name matches the expected string.
+ */
+#define ASSERT_ANIM(ent, anim)  ASSERT_STR_EQ((ent)->currentmove->animation, (anim))
+
 /* Print summary and return 0 (success) or 1 (failure) as main() exit code. */
 #define TEST_RESULTS() do { \
     int _passed = _tests_run - _tests_failed; \
