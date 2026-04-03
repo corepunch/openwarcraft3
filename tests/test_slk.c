@@ -144,63 +144,45 @@ static void test_slk_parse_empty_string_returns_null(void) {
  * --------------------------------------------------------------------- */
 
 static void test_unit_speed_peasant(void) {
-    DWORD hpea;
-    memcpy(&hpea, "hpea", 4);
-    ASSERT_EQ_FLOAT(UNIT_SPEED(hpea), 270.0f, 0.01f);
+    ASSERT_FLOAT_EQ(UNIT_SPEED(UNIT_ID("hpea")), 270.0f);
 }
 
 static void test_unit_speed_footman(void) {
-    DWORD hfoo;
-    memcpy(&hfoo, "hfoo", 4);
-    ASSERT_EQ_FLOAT(UNIT_SPEED(hfoo), 270.0f, 0.01f);
+    ASSERT_FLOAT_EQ(UNIT_SPEED(UNIT_ID("hfoo")), 270.0f);
 }
 
 static void test_unit_hp_peasant(void) {
-    DWORD hpea;
-    memcpy(&hpea, "hpea", 4);
-    ASSERT_EQ_FLOAT(UNIT_HP(hpea), 250.0f, 0.01f);
+    ASSERT_FLOAT_EQ(UNIT_HP(UNIT_ID("hpea")), 250.0f);
 }
 
 static void test_unit_hp_footman(void) {
-    DWORD hfoo;
-    memcpy(&hfoo, "hfoo", 4);
-    ASSERT_EQ_FLOAT(UNIT_HP(hfoo), 420.0f, 0.01f);
+    ASSERT_FLOAT_EQ(UNIT_HP(UNIT_ID("hfoo")), 420.0f);
 }
 
 static void test_unit_build_time_peasant(void) {
-    DWORD hpea;
-    memcpy(&hpea, "hpea", 4);
-    ASSERT_EQ_INT(UNIT_BUILD_TIME(hpea), 45);
+    ASSERT_EQ_INT(UNIT_BUILD_TIME(UNIT_ID("hpea")), 45);
 }
 
 static void test_unit_build_time_footman(void) {
-    DWORD hfoo;
-    memcpy(&hfoo, "hfoo", 4);
-    ASSERT_EQ_INT(UNIT_BUILD_TIME(hfoo), 60);
+    ASSERT_EQ_INT(UNIT_BUILD_TIME(UNIT_ID("hfoo")), 60);
 }
 
 static void test_unit_collision_peasant(void) {
-    DWORD hpea;
-    memcpy(&hpea, "hpea", 4);
-    ASSERT_EQ_INT(UNIT_COLLISION(hpea), 16);
+    ASSERT_EQ_INT(UNIT_COLLISION(UNIT_ID("hpea")), 16);
 }
 
 static void test_unit_unknown_id_returns_zero(void) {
-    DWORD xxxx;
-    memcpy(&xxxx, "xxxx", 4);
     /* Unknown unit ID must not crash and must return 0 / 0.0. */
-    ASSERT_EQ_FLOAT(UNIT_SPEED(xxxx),      0.0f, 0.01f);
-    ASSERT_EQ_FLOAT(UNIT_HP(xxxx),         0.0f, 0.01f);
-    ASSERT_EQ_INT  (UNIT_BUILD_TIME(xxxx), 0);
+    ASSERT_FLOAT_EQ(UNIT_SPEED(UNIT_ID("xxxx")),      0.0f);
+    ASSERT_FLOAT_EQ(UNIT_HP(UNIT_ID("xxxx")),         0.0f);
+    ASSERT_EQ_INT  (UNIT_BUILD_TIME(UNIT_ID("xxxx")), 0);
 }
 
 /* -----------------------------------------------------------------------
  * Suite runner
  * --------------------------------------------------------------------- */
 
-void run_slk_tests(void) {
-    setup_game();
-
+BEGIN_SUITE(slk)
     RUN_TEST(test_find_cell_existing_row_and_column);
     RUN_TEST(test_find_cell_missing_row_returns_null);
     RUN_TEST(test_find_cell_missing_column_returns_null);
@@ -223,6 +205,4 @@ void run_slk_tests(void) {
     RUN_TEST(test_unit_build_time_footman);
     RUN_TEST(test_unit_collision_peasant);
     RUN_TEST(test_unit_unknown_id_returns_zero);
-
-    teardown_game();
-}
+END_SUITE()

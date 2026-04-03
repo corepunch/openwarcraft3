@@ -28,15 +28,13 @@
  * Helpers
  * --------------------------------------------------------------------- */
 
-static DWORD hpea_id(void) { DWORD id; memcpy(&id, "hpea", 4); return id; }
-
 /*
  * Create a live, dynamic (MOVETYPE_STEP) unit suitable for collision
  * testing.  Setting s.model to a non-zero value is required so that
  * IS_HOLLOW() evaluates to false.
  */
 static LPEDICT make_collision_unit(FLOAT x, FLOAT y, FLOAT radius) {
-    LPEDICT ent   = alloc_test_unit(hpea_id(), x, y);
+    LPEDICT ent   = alloc_test_unit(UNIT_ID("hpea"), x, y);
     ent->movetype  = MOVETYPE_STEP;
     ent->collision = radius;
     ent->s.model   = 1;   /* IS_HOLLOW requires s.model != 0 */
@@ -252,9 +250,7 @@ static void test_load_tga_unsupported_type_returns_null(void) {
  * Suite runner
  * --------------------------------------------------------------------- */
 
-void run_collision_tests(void) {
-    setup_game();
-
+BEGIN_SUITE(collision)
     RUN_TEST(test_push_entity_moves_in_direction);
     RUN_TEST(test_push_entity_negative_distance_moves_back);
 
@@ -267,6 +263,4 @@ void run_collision_tests(void) {
     RUN_TEST(test_load_tga_grayscale_pixel_value);
     RUN_TEST(test_load_tga_rgb_2x2_dimensions);
     RUN_TEST(test_load_tga_unsupported_type_returns_null);
-
-    teardown_game();
-}
+END_SUITE()
