@@ -1,0 +1,1612 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Open-source Warcraft III implementation using SDL2, running on Linux and macOS.">
+      
+      
+        <meta name="author" content="corepunch">
+      
+      
+        <link rel="canonical" href="https://corepunch.github.io/openwarcraft3/">
+      
+      
+      
+        <link rel="next" href="file-formats/map/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>OpenWarcraft3</title>
+      
+    
+    
+      <link rel="stylesheet" href="assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL(".",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="deep-orange" data-md-color-accent="orange">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#download" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="." title="OpenWarcraft3" class="md-header__button md-logo" aria-label="OpenWarcraft3" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            OpenWarcraft3
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Home
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="deep-orange" data-md-color-accent="orange"  aria-hidden="true"  type="radio" name="__palette" id="__palette_0">
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/corepunch/openwarcraft3" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    corepunch/openwarcraft3
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+    
+  
+  
+    <li class="md-tabs__item md-tabs__item--active">
+      <a href="." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="file-formats/map/" class="md-tabs__link">
+          
+  
+  
+  File Formats
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="architecture/client/" class="md-tabs__link">
+          
+  
+  
+  Architecture
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="." title="OpenWarcraft3" class="md-nav__button md-logo" aria-label="OpenWarcraft3" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    OpenWarcraft3
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/corepunch/openwarcraft3" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    corepunch/openwarcraft3
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="." class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#download" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Download
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#getting-started" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Getting Started
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Getting Started">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-clone" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Clone
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-install-dependencies" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Install Dependencies
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-build" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Build
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-run" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Run
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#optional-download-warcraft-iii-129b-assets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        (Optional) Download Warcraft III 1.29b assets
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#advanced-building-with-premake5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Advanced: Building with Premake5
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Architecture
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Architecture">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#client-server-architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Client-Server Architecture
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#frame-syncing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Frame Syncing
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Frame Syncing">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#entity-synchronization-and-delta-compression" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Entity Synchronization and Delta Compression
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#projectile-system" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Projectile System
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#unit-movement" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Unit Movement
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ui-system" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        UI System
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="UI System">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fdf-parsing-and-frame-templates" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        FDF Parsing and Frame Templates
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#writing-ui-to-clients" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Writing UI to Clients
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#wire-message-format" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Wire Message Format
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dynamic-ui-updates" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dynamic UI Updates
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#build-system" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Build System
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#external-dependencies" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        External Dependencies
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#current-status" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Current Status
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#license" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        License
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    File Formats
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    File Formats
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="file-formats/map/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Warcraft III Map (W3M/W3X)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="file-formats/mdx/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Warcraft III Model (MDX)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="file-formats/slk/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SLK Spreadsheet
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="file-formats/fdf/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    UI Frame Definition (FDF)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="file-formats/m3/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    StarCraft II Model (M3)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Architecture
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="architecture/client/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Client
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="architecture/server/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Server
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="architecture/ui/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    UI System
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="architecture/map-renderer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Map Renderer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#download" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Download
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#getting-started" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Getting Started
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Getting Started">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-clone" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Clone
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-install-dependencies" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Install Dependencies
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-build" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Build
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-run" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Run
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#optional-download-warcraft-iii-129b-assets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        (Optional) Download Warcraft III 1.29b assets
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#advanced-building-with-premake5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Advanced: Building with Premake5
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Architecture
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Architecture">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#client-server-architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Client-Server Architecture
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#frame-syncing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Frame Syncing
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Frame Syncing">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#entity-synchronization-and-delta-compression" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Entity Synchronization and Delta Compression
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#projectile-system" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Projectile System
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#unit-movement" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Unit Movement
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ui-system" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        UI System
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="UI System">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fdf-parsing-and-frame-templates" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        FDF Parsing and Frame Templates
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#writing-ui-to-clients" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Writing UI to Clients
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#wire-message-format" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Wire Message Format
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dynamic-ui-updates" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dynamic UI Updates
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#build-system" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Build System
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#external-dependencies" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        External Dependencies
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#current-status" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Current Status
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#license" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        License
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<p><img width="647" height="88" alt="OpenWarcraft3 logo" src="https://github.com/user-attachments/assets/67313005-70d7-4e68-97a3-3e0ff1e788ed" /></p>
+<p><strong>OpenWarcraft3</strong> is an open-source implementation of Warcraft III that uses SDL2 and runs on Linux and macOS.</p>
+<p>It was developed using War3.mpq from Warcraft III v1.0 as reference, with ongoing support for version 1.29b.</p>
+<p><a href="https://youtu.be/vg7Jm046vcI">▶ Watch the demo on YouTube</a> · see screenshots below</p>
+<h2 id="download">Download</h2>
+<p>Pre-built binaries for Linux and macOS are available on the <a href="https://github.com/corepunch/openwarcraft3/releases/latest">Releases page</a>.</p>
+<p>You can also download the latest build artifact from the <a href="https://github.com/corepunch/openwarcraft3/actions/workflows/c-cpp.yml">CI workflow runs</a> (click the most recent successful run and download <code>openwarcraft3-linux-x64</code>).</p>
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/c76a93af-1801-402e-83bc-b3e0a4462312" width="31%" style="margin-right:2%;" />
+  <img src="https://github.com/corepunch/openwarcraft3/assets/83646194/643c7aa7-2b91-469c-857e-0f6910c939af" width="31%" style="margin-right:2%;" />
+  <img src="https://github.com/corepunch/openwarcraft3/assets/83646194/a79e447d-e42c-4468-b4ca-3d212efe346a" width="31%" />
+</p>
+
+<h2 id="getting-started">Getting Started</h2>
+<h3 id="1-clone">1. Clone</h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>git<span class="w"> </span>clone<span class="w"> </span>--recurse-submodules<span class="w"> </span>git@github.com:corepunch/openwarcraft3.git
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="nb">cd</span><span class="w"> </span>openwarcraft3
+</code></pre></div>
+<h3 id="2-install-dependencies">2. Install Dependencies</h3>
+<p>The build requires <strong>StormLib</strong>, <strong>SDL2</strong>, and <strong>libjpeg</strong>.</p>
+<p><strong>macOS</strong> (via <a href="https://brew.sh/">Homebrew</a>):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>brew<span class="w"> </span>install<span class="w"> </span>sdl2<span class="w"> </span>libjpeg<span class="w"> </span>stormlib
+</code></pre></div>
+<p><strong>Linux</strong> (Ubuntu/Debian):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>sudo<span class="w"> </span>apt-get<span class="w"> </span>install<span class="w"> </span>libsdl2-dev<span class="w"> </span>libjpeg-dev<span class="w"> </span>libstorm-dev
+</code></pre></div>
+<h3 id="3-build">3. Build</h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>make<span class="w"> </span>build
+</code></pre></div>
+<p>Compiles all libraries (<code>cmath3</code>, <code>renderer</code>, <code>game</code>) and the <code>openwarcraft3</code> executable into <code>build/</code>.</p>
+<h3 id="4-run">4. Run</h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>make<span class="w"> </span>run
+</code></pre></div>
+<p>Runs <code>openwarcraft3</code> from <code>build/bin/</code> using the MPQ path configured in the Makefile.</p>
+<h3 id="optional-download-warcraft-iii-129b-assets">(Optional) Download Warcraft III 1.29b assets</h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>make<span class="w"> </span>download
+</code></pre></div>
+<p>Downloads a ~1.2 GB installer from <code>archive.org</code> into the <code>data/</code> folder. Skip this step if you already have a <code>War3.mpq</code> and update the <code>MPQ</code> variable in the Makefile to point to it.</p>
+<hr />
+<h2 id="advanced-building-with-premake5">Advanced: Building with Premake5</h2>
+<p>Premake5 can generate native project files for Visual Studio, Xcode, or GMake. Bundled binaries are in <code>tools/bin/</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Platform</th>
+<th>Command</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Windows (VS 2022)</td>
+<td><code>tools\bin\windows\premake5.exe vs2022</code></td>
+</tr>
+<tr>
+<td>macOS (Xcode)</td>
+<td><code>tools/bin/darwin/premake5 xcode4</code></td>
+</tr>
+<tr>
+<td>macOS (GMake)</td>
+<td><code>tools/bin/darwin/premake5 --cc=clang gmake</code></td>
+</tr>
+<tr>
+<td>Linux (GMake)</td>
+<td><code>premake5 --cc=clang gmake</code> <em>(install <a href="https://premake.github.io/download">premake5</a> separately)</em></td>
+</tr>
+</tbody>
+</table>
+<p>Project files are generated in the <code>build/</code> folder.</p>
+<hr />
+<h1 id="architecture">Architecture</h1>
+<h2 id="client-server-architecture">Client-Server Architecture</h2>
+<p>OpenWarcraft3 uses a strict client-server separation where all game logic runs exclusively on the server and clients are responsible only for rendering and input.</p>
+<p>The <strong>server</strong> hosts the game library (<code>src/game/</code>), which is a shared library loaded at runtime. It maintains the authoritative game state: all entities, their positions, health, current animations, and AI state. The server processes player commands, runs the game simulation each frame, and sends the resulting state to clients.</p>
+<p>The <strong>client</strong> (<code>src/client/</code>) captures user input via SDL2, forwards commands to the server, receives the updated game state, and renders it using the renderer library (<code>src/renderer/</code>). The client never runs game logic directly — it is purely a display and input layer.</p>
+<p>Communication between the client and server happens through the network layer (<code>src/common/net.c</code>). Currently the game runs in a single process and uses a <strong>double-buffer loopback</strong> for communication: two circular buffers act as one-way channels (client→server and server→client). The architecture is designed so that replacing the loopback with a real TCP/IP socket requires no changes outside <code>net.c</code>.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>SDL2 Input  →  Client (cl_main.c)  →  net.c loopback  →  Server (sv_main.c)
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>                    ↑                                            |
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>                    └──────────── net.c loopback ←──────────────┘
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>                                  (game state)
+</code></pre></div>
+<h2 id="frame-syncing">Frame Syncing</h2>
+<p>The server advances the game in fixed-size time steps. Every frame the server:</p>
+<ol>
+<li>Reads any pending client commands (<code>SV_ReadPackets</code> in <code>sv_main.c</code>)</li>
+<li>Advances the game clock by <code>FRAMETIME</code> (100 ms) and calls <code>ge-&gt;RunFrame()</code> in <code>g_main.c</code></li>
+<li>Builds and sends a snapshot of the current game state to each client (<code>SV_SendClientMessages</code>)</li>
+</ol>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="c1">// src/server/sv_main.c</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="kt">void</span><span class="w"> </span><span class="nf">SV_Frame</span><span class="p">(</span><span class="n">DWORD</span><span class="w"> </span><span class="n">msec</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">    </span><span class="n">svs</span><span class="p">.</span><span class="n">realtime</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">msec</span><span class="p">;</span>
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">svs</span><span class="p">.</span><span class="n">realtime</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">sv</span><span class="p">.</span><span class="n">time</span><span class="p">)</span>
+<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="w">        </span><span class="k">return</span><span class="p">;</span><span class="w">  </span><span class="c1">// not yet time for a new frame</span>
+<a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="w">    </span><span class="n">SV_ReadPackets</span><span class="p">();</span>
+<a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="w">    </span><span class="n">SV_RunGameFrame</span><span class="p">();</span><span class="w">        </span><span class="c1">// increments sv.framenum, sv.time, calls ge-&gt;RunFrame()</span>
+<a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a><span class="w">    </span><span class="n">SV_SendClientMessages</span><span class="p">();</span><span class="w">  </span><span class="c1">// sends entity state to each connected client</span>
+<a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a><span class="p">}</span>
+</code></pre></div>
+<p>The client runs at its own rate and simply applies each server snapshot as it arrives. On every client frame (<code>CL_Frame</code> in <code>cl_main.c</code>) the client reads incoming server messages, processes input, sends commands, and renders the current known state:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="c1">// src/client/cl_main.c</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="kt">void</span><span class="w"> </span><span class="nf">CL_Frame</span><span class="p">(</span><span class="n">DWORD</span><span class="w"> </span><span class="n">msec</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="w">    </span><span class="n">cl</span><span class="p">.</span><span class="n">time</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">msec</span><span class="p">;</span>
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="w">    </span><span class="n">CL_ReadPackets</span><span class="p">();</span><span class="w">   </span><span class="c1">// apply server snapshots</span>
+<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="w">    </span><span class="n">CL_Input</span><span class="p">();</span><span class="w">         </span><span class="c1">// sample user input</span>
+<a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a><span class="w">    </span><span class="n">CL_SendCommand</span><span class="p">();</span><span class="w">   </span><span class="c1">// forward commands to server</span>
+<a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a><span class="w">    </span><span class="n">CL_PrepRefresh</span><span class="p">();</span><span class="w">   </span><span class="c1">// build render scene</span>
+<a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a><span class="w">    </span><span class="n">SCR_UpdateScreen</span><span class="p">();</span><span class="w"> </span><span class="c1">// draw the frame</span>
+<a id="__codelineno-8-9" name="__codelineno-8-9" href="#__codelineno-8-9"></a><span class="p">}</span>
+</code></pre></div>
+<h3 id="entity-synchronization-and-delta-compression">Entity Synchronization and Delta Compression</h3>
+<p>Each server frame, <code>SV_BuildClientFrame</code> (<code>src/server/sv_ents.c</code>) collects the entities visible to a client into a snapshot. <code>SV_WriteFrameToClient</code> then compares the new snapshot against the previous one and writes only the fields that changed using <code>MSG_WriteDeltaEntity</code>. This delta compression keeps message sizes small even when many entities exist.</p>
+<p>The client receives these delta messages in <code>CL_ReadPacketEntities</code> (<code>src/client/cl_parse.c</code>) and applies them to its local entity table, keeping <code>prev</code> and <code>current</code> state for interpolation.</p>
+<h2 id="projectile-system">Projectile System</h2>
+<p>Ranged attacks spawn a projectile entity (<code>fire_rocket</code> in <code>src/game/skills/s_attack.c</code>). The projectile stores a reference to its target entity, a launch speed, a damage value, and a model index for rendering. Its <code>movetype</code> is set to <code>MOVETYPE_FLYMISSILE</code>.</p>
+<p>Each game frame, <code>G_RunEntity</code> (<code>src/game/g_phys.c</code>) dispatches on <code>movetype</code>. For <code>MOVETYPE_FLYMISSILE</code>, <code>SV_Physics_Toss</code> moves the projectile straight toward the target's current position at a fixed speed. When the remaining distance is less than the distance traveled this frame, the projectile calls <code>T_Damage</code> on the target and frees itself:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="c1">// src/game/g_phys.c</span>
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="kt">void</span><span class="w"> </span><span class="nf">SV_Physics_Toss</span><span class="p">(</span><span class="n">LPEDICT</span><span class="w"> </span><span class="n">ent</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="w">    </span><span class="n">FLOAT</span><span class="w"> </span><span class="n">distance</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ent</span><span class="o">-&gt;</span><span class="n">velocity</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">FRAMETIME</span><span class="p">;</span>
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="w">    </span><span class="n">VECTOR3</span><span class="w"> </span><span class="n">dir</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Vector3_sub</span><span class="p">(</span><span class="o">&amp;</span><span class="n">ent</span><span class="o">-&gt;</span><span class="n">goalentity</span><span class="o">-&gt;</span><span class="n">s</span><span class="p">.</span><span class="n">origin</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">ent</span><span class="o">-&gt;</span><span class="n">s</span><span class="p">.</span><span class="n">origin</span><span class="p">);</span>
+<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">Vector3_len</span><span class="p">(</span><span class="o">&amp;</span><span class="n">dir</span><span class="p">)</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">distance</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a><span class="w">        </span><span class="n">T_Damage</span><span class="p">(</span><span class="n">ent</span><span class="o">-&gt;</span><span class="n">goalentity</span><span class="p">,</span><span class="w"> </span><span class="n">ent</span><span class="o">-&gt;</span><span class="n">owner</span><span class="p">,</span><span class="w"> </span><span class="n">ent</span><span class="o">-&gt;</span><span class="n">damage</span><span class="p">);</span>
+<a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a><span class="w">        </span><span class="n">G_FreeEdict</span><span class="p">(</span><span class="n">ent</span><span class="p">);</span>
+<a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a><span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a><span class="w">        </span><span class="n">Vector3_normalize</span><span class="p">(</span><span class="o">&amp;</span><span class="n">dir</span><span class="p">);</span>
+<a id="__codelineno-9-10" name="__codelineno-9-10" href="#__codelineno-9-10"></a><span class="w">        </span><span class="n">G_PushEntity3</span><span class="p">(</span><span class="n">ent</span><span class="p">,</span><span class="w"> </span><span class="n">distance</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">dir</span><span class="p">);</span>
+<a id="__codelineno-9-11" name="__codelineno-9-11" href="#__codelineno-9-11"></a><span class="w">    </span><span class="p">}</span>
+<a id="__codelineno-9-12" name="__codelineno-9-12" href="#__codelineno-9-12"></a><span class="p">}</span>
+</code></pre></div>
+<p><code>T_Damage</code> (<code>src/game/skills/s_attack.c</code>) reduces the target's health. If the target survives and is capable of attacking back, it automatically issues a counter-attack order. If the target's health reaches zero, its <code>die</code> callback is invoked.</p>
+<p>Because projectiles are regular server entities with a model, they are automatically included in the entity snapshot and rendered on the client without any special handling.</p>
+<h2 id="unit-movement">Unit Movement</h2>
+<p>When a player right-clicks on the ground, the client sends a command to the server. The server's command handler (<code>src/game/g_commands.c</code>) resolves the selected units and calls <code>move_selectlocation</code> (<code>src/game/skills/s_move.c</code>), which:</p>
+<ol>
+<li>Allocates a <strong>waypoint</strong> entity at the target map position, snapping its Z coordinate to the terrain height (<code>Waypoint_add</code> in <code>src/game/g_monster.c</code>)</li>
+<li>Calls <code>order_move</code> on each selected unit, setting the unit's <code>goalentity</code> to the waypoint and switching its current move to the walk state</li>
+</ol>
+<p>Each server frame, units in the walk state execute <code>ai_walk</code> (<code>src/game/skills/s_move.c</code>):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="k">static</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">ai_walk</span><span class="p">(</span><span class="n">LPEDICT</span><span class="w"> </span><span class="n">ent</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">M_DistanceToGoal</span><span class="p">(</span><span class="n">ent</span><span class="p">)</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="n">unit_movedistance</span><span class="p">(</span><span class="n">ent</span><span class="p">))</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="w">        </span><span class="n">ent</span><span class="o">-&gt;</span><span class="n">stand</span><span class="p">(</span><span class="n">ent</span><span class="p">);</span><span class="w">        </span><span class="c1">// arrived — switch to idle</span>
+<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a><span class="w">        </span><span class="n">unit_changeangle</span><span class="p">(</span><span class="n">ent</span><span class="p">);</span><span class="w">  </span><span class="c1">// rotate toward goal</span>
+<a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a><span class="w">        </span><span class="n">unit_moveindirection</span><span class="p">(</span><span class="n">ent</span><span class="p">);</span><span class="w"> </span><span class="c1">// advance one frame&#39;s worth</span>
+<a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a><span class="w">    </span><span class="p">}</span>
+<a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a><span class="p">}</span>
+</code></pre></div>
+<p>After all entities have moved, <code>G_SolveCollisions</code> (<code>src/game/g_phys.c</code>) iterates over every pair of overlapping entities and separates them. When two moving units collide, the separation is split proportionally based on each unit's remaining distance to its goal — the unit that is closer to its destination yields more, preventing deadlocks at the destination.</p>
+<p>Animation is driven by <code>M_MoveFrame</code> (<code>src/game/g_monster.c</code>), which advances <code>edict-&gt;s.frame</code> each game tick according to the current animation interval. When an animation cycle completes, the <code>endfunc</code> of the current <code>umove_t</code> is called to transition to the next state (e.g. attack → cooldown → attack again).</p>
+<h2 id="ui-system">UI System</h2>
+<p>All UI logic runs on the <strong>server</strong> inside the game library (<code>src/game/ui/</code>). The client receives serialized UI state and renders it; it has no knowledge of UI structure or layout rules.</p>
+<h3 id="fdf-parsing-and-frame-templates">FDF Parsing and Frame Templates</h3>
+<p>At startup, <code>UI_Init</code> (<code>src/game/ui/ui_init.c</code>) loads Warcraft III's <code>.fdf</code> (Frame Definition File) assets via <code>UI_ParseFDF</code>. These files describe the hierarchy of UI frames — their type (backdrop, button, label, etc.), textures, fonts, anchor points, and sizes. The parsed data is stored as <code>frameDef_t</code> templates in a global registry.</p>
+<h3 id="writing-ui-to-clients">Writing UI to Clients</h3>
+<p>When a client connects, <code>G_ClientBegin</code> (<code>src/game/g_main.c</code>) calls <code>UI_WriteLayout</code> to serialize the complete UI tree and send it to the client as an <code>svc_layout</code> message. <code>UI_WriteLayout</code> (<code>src/game/ui/ui_write.c</code>) traverses the frame tree depth-first; for each frame it calls <code>UI_WriteFrame</code>, which:</p>
+<ol>
+<li>Copies the frame's base properties (position anchors, size, texture, color) into a <code>uiFrame_t</code> struct</li>
+<li>Writes type-specific data (backdrop edges, button states, label font settings, etc.) into a small inline buffer</li>
+<li>Calls <code>gi.WriteUIFrame</code> to emit the frame as a delta-encoded message</li>
+</ol>
+<p>The client receives the <code>svc_layout</code> message in <code>CL_ParseLayout</code> (<code>src/client/cl_parse.c</code>) and stores the raw serialized layout blob. The renderer reads this blob each frame to draw the UI without the client needing to understand the frame hierarchy.</p>
+<h3 id="wire-message-format">Wire Message Format</h3>
+<p>All UI is generated on the server. Each frame is sent to the client as a compact, delta-encoded message — only changed fields are transmitted. Conceptually a frame message looks like:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>x 655  y -655  pic 13  stat 1  text &quot;Gold: 500&quot;
+</code></pre></div>
+<p>Each field maps to the corresponding <code>uiFrame_t</code> member (<code>x</code>/<code>y</code> are integer anchor offsets scaled by <code>UI_FRAMEPOINT_SCALE</code> (32767), <code>pic</code> is <code>tex.index</code>, <code>stat</code> shows a live player stat). See <code>uiFrameFields[]</code> in <code>src/common/msg.c</code> for the full field list.</p>
+<p>Server-side example:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="n">FRAMEDEF</span><span class="w"> </span><span class="n">f</span><span class="p">;</span>
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="n">UI_InitFrame</span><span class="p">(</span><span class="o">&amp;</span><span class="n">f</span><span class="p">,</span><span class="w"> </span><span class="n">FT_TEXT</span><span class="p">);</span>
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="n">f</span><span class="p">.</span><span class="n">Text</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;Gold: 500&quot;</span><span class="p">;</span>
+<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="n">f</span><span class="p">.</span><span class="n">Stat</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">PLAYERSTATE_RESOURCE_GOLD</span><span class="p">;</span><span class="w">     </span><span class="c1">// live stat — updated automatically each frame</span>
+<a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a><span class="n">UI_SetPoint</span><span class="p">(</span><span class="o">&amp;</span><span class="n">f</span><span class="p">,</span><span class="w"> </span><span class="n">FRAMEPOINT_TOPLEFT</span><span class="p">,</span><span class="w"> </span><span class="nb">NULL</span><span class="p">,</span><span class="w"> </span><span class="n">FRAMEPOINT_TOPLEFT</span><span class="p">,</span><span class="w"> </span><span class="mf">0.02</span><span class="p">,</span><span class="w"> </span><span class="mf">-0.02</span><span class="p">);</span>
+<a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a><span class="n">UI_WriteFrame</span><span class="p">(</span><span class="o">&amp;</span><span class="n">f</span><span class="p">);</span>
+</code></pre></div>
+<h3 id="dynamic-ui-updates">Dynamic UI Updates</h3>
+<p>During gameplay the server can push incremental UI updates for things like the command card (ability buttons shown for the selected unit). These updates follow the same <code>svc_layout</code> / delta-encoding path, replacing only the affected layer on the client.</p>
+<hr />
+<h2 id="build-system">Build System</h2>
+<p>The project builds three shared libraries and one executable:</p>
+<ol>
+<li><strong>libcmath3</strong> — mathematics (vectors, matrices, quaternions, geometric primitives); no external dependencies</li>
+<li><strong>librenderer</strong> — OpenGL rendering engine; depends on <code>libcmath3</code>, SDL2, StormLib, libjpeg</li>
+<li><strong>libgame</strong> — server-side game logic; depends on <code>libcmath3</code></li>
+<li><strong>openwarcraft3</strong> — main executable linking all three libraries plus SDL2 and StormLib</li>
+</ol>
+<p>The build is driven by a <code>Makefile</code> for Linux/macOS and a <code>premake5.lua</code> that can generate Visual Studio 2022, Xcode, or GMake project files.</p>
+<h2 id="external-dependencies">External Dependencies</h2>
+<ul>
+<li><strong>StormLib</strong>: reads Warcraft III MPQ archives</li>
+<li><strong>SDL2</strong>: windowing, input, and OpenGL context</li>
+<li><strong>libjpeg</strong>: JPEG texture decoding</li>
+<li><strong>OpenGL</strong>: 3D rendering (system-provided)</li>
+</ul>
+<h2 id="current-status">Current Status</h2>
+<ul>
+<li>Functional game implementation with basic Warcraft III features</li>
+<li>Support for original v1.0 assets with ongoing work for v1.29b compatibility</li>
+<li>Active development focused on expanding game feature completeness</li>
+<li>Cross-platform support for Linux and macOS environments</li>
+</ul>
+<h2 id="license">License</h2>
+<p>This project is licensed under the <a href="LICENSE">MIT License</a>. Contributions are welcome!</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": ".", "features": ["navigation.tabs", "navigation.sections", "navigation.top", "search.highlight", "content.code.copy"], "search": "assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>
