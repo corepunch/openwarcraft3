@@ -5,6 +5,7 @@ site_author: corepunch
 repo_url: https://github.com/corepunch/openwarcraft3
 repo_name: corepunch/openwarcraft3
 edit_uri: edit/main/doc/
+docs_dir: doc
 
 theme:
   name: material
