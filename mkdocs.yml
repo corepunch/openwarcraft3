@@ -33,6 +33,7 @@ nav:
     - Client: architecture/client.md
     - Server: architecture/server.md
     - UI System: architecture/ui.md
+    - Map Renderer: architecture/map-renderer.md
 
 markdown_extensions:
   - tables
