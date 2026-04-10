@@ -4,7 +4,7 @@
 
 It was developed using War3.mpq from Warcraft III v1.0 as reference, with ongoing support for version 1.29b.
 
-<a href="https://youtu.be/vg7Jm046vcI">▶ Watch the demo on YouTube</a> · see screenshots below
+<a href="https://corepunch.github.io/openwarcraft3/">📖 Documentation</a> · <a href="https://youtu.be/vg7Jm046vcI">▶ Watch the demo on YouTube</a> · see screenshots below
 
 ## Download
 
