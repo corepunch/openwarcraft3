@@ -16,7 +16,6 @@ theme:
   icon:
     repo: fontawesome/brands/github
   features:
-    - navigation.tabs
     - navigation.sections
     - navigation.top
     - search.highlight
