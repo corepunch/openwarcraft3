@@ -3,6 +3,8 @@
 
 #define MAX_MSGLEN 256 * 1024
 
+#define PORT_SERVER 27910
+
 typedef void const *LPCVOID;
 typedef struct sizeBuf_s *LPSIZEBUF;
 typedef struct entityState_s entityState_t;
@@ -30,28 +32,32 @@ typedef struct {
     netadrtype_t type;
     BYTE ip[4];
     BYTE ipx[10];
-    unsigned short port;
+    unsigned short port;        // stored in network byte order
 } netadr_t;
 
 struct netchan {
-    DWORD sock;
+    netadr_t remote_address;    // where packets are sent/expected from
     sizeBuf_t message;
     BYTE message_buf[MAX_MSGLEN];
 };
 
-void NET_Write(NETSOURCE netsrc, DWORD sock, LPCVOID data, DWORD size);
-int NET_Read(NETSOURCE netsrc, DWORD sock, HANDLE data, DWORD size);
-int NET_GetPacket(NETSOURCE netsrc, DWORD sock, LPSIZEBUF msg);
+// Initialise the UDP socket, binding to the given port.
+// Pass port=0 to let the OS pick an ephemeral port (client mode).
+bool NET_Init(unsigned short port);
+void NET_Shutdown(void);
 
-#ifndef USE_LOOPBACK
-DWORD NET_TCPSocket(void);
-DWORD NET_TCPListen(unsigned short port, int backlog);
-DWORD NET_TCPAccept(DWORD listensock);
-int NET_TCPConnect(DWORD sock, LPCSTR host, unsigned short port);
-void NET_SetNonBlocking(DWORD sock, bool nonblocking);
-void NET_CloseSocket(DWORD sock);
-void NET_DiscoverGames(unsigned short port, int timeout_ms);
-#endif
+// Parse "host" or "host:port" into a netadr_t.  default_port is used
+// when no port is present in the string.  Returns true on success.
+bool NET_StringToAdr(LPCSTR s, unsigned short default_port, netadr_t *adr);
+
+// Send a packet.  Routes to the loopback buffer (NA_LOOPBACK) or the
+// UDP socket (NA_IP / NA_BROADCAST) based on to.type.
+void NET_SendPacket(NETSOURCE netsrc, int length, const void *data, netadr_t to);
+
+// Receive one packet.  Checks the loopback buffer first, then the UDP
+// socket.  Fills *from with the sender's address.  Returns packet size
+// (> 0) on success, 0 when no packet is available.
+int NET_GetPacket(NETSOURCE netsrc, netadr_t *from, LPSIZEBUF msg);
 
 void Netchan_Transmit(NETSOURCE netsrc, struct netchan *netchan);
 void Netchan_OutOfBand(NETSOURCE netsrc, netadr_t adr, DWORD length, BYTE *data);

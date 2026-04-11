@@ -126,6 +126,7 @@ LPCSTR FS_FindSheetCell(sheetRow_t *sheet, LPCSTR row, LPCSTR column);
 void CL_Init(void);
 void CL_Frame(DWORD msec);
 void CL_Shutdown(void);
+void CL_Connect(LPCSTR host, unsigned short port);
 
 void SV_Init(void);
 void SV_Frame(DWORD msec);

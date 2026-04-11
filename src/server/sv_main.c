@@ -59,9 +59,16 @@ static void SV_ReadPackets(void) {
         .cursize = 0,
         .readcount = 0,
     };
-    FOR_LOOP(i, svs.num_clients) {
-        LPCLIENT client = &svs.clients[i];
-        while (NET_GetPacket(NS_SERVER, client->netchan.sock, &net_message)) {
+    netadr_t from;
+    int r;
+    while ((r = NET_GetPacket(NS_SERVER, &from, &net_message)) != 0) {
+        // Out-of-band packets (first int == -1) are connection requests
+        if (r >= 4 && *(int *)net_message.data == -1) {
+            SV_DirectConnect(&from);
+            continue;
+        }
+        LPCLIENT client = SV_FindClientByAddr(&from);
+        if (client) {
             SV_ParseClientMessage(&net_message, client);
         }
     }
