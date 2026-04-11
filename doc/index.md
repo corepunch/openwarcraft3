@@ -94,14 +94,24 @@ The **server** hosts the game library (`src/game/`), which is a shared library l
 
 The **client** (`src/client/`) captures user input via SDL2, forwards commands to the server, receives the updated game state, and renders it using the renderer library (`src/renderer/`). The client never runs game logic directly — it is purely a display and input layer.
 
-Communication between the client and server happens through the network layer (`src/common/net.c`). Currently the game runs in a single process and uses a **double-buffer loopback** for communication: two circular buffers act as one-way channels (client→server and server→client). The architecture is designed so that replacing the loopback with a real TCP/IP socket requires no changes outside `net.c`.
+Communication between the client and server happens through the network layer (`src/common/net.c`), which follows the Quake 2 runtime-dispatch model.  The routing decision is made at runtime on `netadr_t.type`:
+
+- **Loopback** (`NA_LOOPBACK`) — when both server and client run in the same process (started with `-map=`), two 256 KiB ring buffers carry traffic in each direction with zero latency and no socket overhead.
+- **UDP** (`NA_IP`) — when the executable is started with `-connect=<host>`, it binds a non-blocking UDP socket and communicates with a remote listen server over the network.
 
 ```
-SDL2 Input  →  Client (cl_main.c)  →  net.c loopback  →  Server (sv_main.c)
-                    ↑                                            |
-                    └──────────── net.c loopback ←──────────────┘
-                                  (game state)
+# Listen server (loopback, single process)
+SDL2 Input  →  Client (cl_main.c)  →  net.c ring buffer  →  Server (sv_main.c)
+                    ↑                                               |
+                    └──────────── net.c ring buffer ←──────────────┘
+
+# Remote client (UDP)
+SDL2 Input  →  Client (cl_main.c)  →  UDP socket  →  Server (sv_main.c)
+                    ↑                                      |
+                    └─────────── UDP socket ←──────────────┘
 ```
+
+See the [Network Architecture](architecture/network.md) page for the full design, wire format, and CLI reference.
 
 ## Build System
 

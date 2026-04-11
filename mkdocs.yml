@@ -32,6 +32,7 @@ nav:
   - Architecture:
     - Client: architecture/client.md
     - Server: architecture/server.md
+    - Network: architecture/network.md
     - UI System: architecture/ui.md
     - Map Renderer: architecture/map-renderer.md
 
