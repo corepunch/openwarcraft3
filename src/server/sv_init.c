@@ -11,7 +11,16 @@ void SV_CreateBaseline(void) {
 }
 
 void SV_ClientConnect(void) {
-    if (svs.num_clients >= MAX_CLIENTS) {
+    // Reuse slot 0 if it already holds a loopback client (e.g. repeated SV_Map
+    // calls without a full SV_Shutdown in between).
+    if (svs.num_clients > 0 &&
+        svs.clients[0].netchan.remote_address.type == NA_LOOPBACK) {
+        netadr_t adr = { NA_LOOPBACK };
+        Netchan_OutOfBandPrint(NS_SERVER, adr, "client_connect");
+        return;
+    }
+    if (svs.num_clients >= MAX_CLIENTS ||
+        svs.num_clients >= ge->max_clients) {
         fprintf(stderr, "SV_ClientConnect: server full\n");
         return;
     }
@@ -96,6 +105,8 @@ void SV_InitGame(void) {
 void SV_Shutdown(void) {
     SAFE_DELETE(sv.baselines, MemFree);
     SAFE_DELETE(svs.client_entities, MemFree);
+    svs.num_clients = 0;
+    svs.initialized = false;
     ge->Shutdown();
 }
 
