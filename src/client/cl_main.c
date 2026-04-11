@@ -11,6 +11,7 @@
  */
 #include "client.h"
 #include "renderer.h"
+#include <arpa/inet.h>
 
 refExport_t re;
 
@@ -106,10 +107,17 @@ void CL_ReadPackets(void) {
         .readcount = 0,
     };
     netadr_t from;
-    while (NET_GetPacket(NS_CLIENT, &from, &net_message)) {
-        if (*(int *)net_message.data == -1) {
-            CL_ConnectionlessPacket();
-            continue;
+    int r;
+    while ((r = NET_GetPacket(NS_CLIENT, &from, &net_message)) != 0) {
+        // Guard: need at least 4 bytes for the OOB marker.
+        // Read the header via memcpy to avoid strict-aliasing UB.
+        if (r >= 4) {
+            int hdr;
+            memcpy(&hdr, net_message.data, sizeof(hdr));
+            if (hdr == -1) {
+                CL_ConnectionlessPacket();
+                continue;
+            }
         }
         CL_ParseServerMessage(&net_message);
     }
@@ -134,7 +142,7 @@ void CL_Connect(LPCSTR host, unsigned short port) {
     // client slot and reply with "client_connect".
     Netchan_OutOfBandPrint(NS_CLIENT, adr, "connect");
     fprintf(stderr, "CL_Connect: connecting to %d.%d.%d.%d:%u\n",
-            adr.ip[0], adr.ip[1], adr.ip[2], adr.ip[3], port);
+            adr.ip[0], adr.ip[1], adr.ip[2], adr.ip[3], ntohs(adr.port));
 }
 
 void CL_Shutdown(void) {

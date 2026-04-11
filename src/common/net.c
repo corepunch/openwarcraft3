@@ -91,10 +91,20 @@ static int udp_socket = -1;
 static void NET_SendUDPPacket(int length, const void *data, netadr_t to) {
     if (udp_socket < 0)
         return;
+    if (length <= 0 || length > MAX_MSGLEN) {
+        fprintf(stderr, "NET_SendUDPPacket: bad packet length %d\n", length);
+        return;
+    }
 
     // Packet format: [4-byte little-endian length][data]
-    static char sendbuf[MAX_MSGLEN + 4];
-    *(DWORD *)sendbuf = (DWORD)length;
+    static unsigned char sendbuf[MAX_MSGLEN + 4];
+    DWORD len_le = (DWORD)length;
+    // Write length as 4 bytes in explicit little-endian order to avoid
+    // strict-aliasing UB and ensure wire-level portability.
+    sendbuf[0] = (unsigned char)( len_le        & 0xff);
+    sendbuf[1] = (unsigned char)((len_le >>  8) & 0xff);
+    sendbuf[2] = (unsigned char)((len_le >> 16) & 0xff);
+    sendbuf[3] = (unsigned char)((len_le >> 24) & 0xff);
     memcpy(sendbuf + 4, data, length);
 
     struct sockaddr_in addr;
@@ -114,7 +124,7 @@ static int NET_GetUDPPacket(NETSOURCE netsrc, netadr_t *from, LPSIZEBUF msg) {
     if (udp_socket < 0)
         return 0;
 
-    static char recvbuf[MAX_MSGLEN + 4];
+    static unsigned char recvbuf[MAX_MSGLEN + 4];
     struct sockaddr_in srcaddr;
     socklen_t addrlen = sizeof(srcaddr);
 
@@ -128,7 +138,13 @@ static int NET_GetUDPPacket(NETSOURCE netsrc, netadr_t *from, LPSIZEBUF msg) {
     if (bytes < 4)
         return 0;
 
-    DWORD size = *(DWORD *)recvbuf;
+    // Read the 4-byte little-endian length prefix via memcpy to avoid
+    // strict-aliasing UB and cope with potentially unaligned buffers.
+    DWORD size = 0;
+    size  = (DWORD)recvbuf[0];
+    size |= (DWORD)recvbuf[1] <<  8;
+    size |= (DWORD)recvbuf[2] << 16;
+    size |= (DWORD)recvbuf[3] << 24;
     if ((int)(size + 4) > bytes || size >= MAX_MSGLEN) {
         fprintf(stderr, "NET_GetUDPPacket: invalid packet size %u\n", size);
         return 0;
@@ -295,8 +311,9 @@ void Netchan_OutOfBandPrint(NETSOURCE netsrc, netadr_t adr, LPCSTR format, ...) 
     va_list argptr;
     static char string[MAX_MSGLEN - 4];
     va_start(argptr, format);
-    vsprintf(string, format, argptr);
+    vsnprintf(string, sizeof(string), format, argptr);
     va_end(argptr);
+    string[sizeof(string) - 1] = '\0';
     Netchan_OutOfBand(netsrc, adr, (DWORD)strlen(string), (BYTE *)string);
 }
 

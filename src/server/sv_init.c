@@ -11,6 +11,10 @@ void SV_CreateBaseline(void) {
 }
 
 void SV_ClientConnect(void) {
+    if (svs.num_clients >= MAX_CLIENTS) {
+        fprintf(stderr, "SV_ClientConnect: server full\n");
+        return;
+    }
     LPCLIENT cl = &svs.clients[svs.num_clients];
     svs.num_clients++;
     cl->state = cs_connected;

@@ -94,7 +94,9 @@ TEST_GAME_SRCS := \
 	src/game/m_unit.c \
 	src/game/skills/s_move.c \
 	src/game/skills/s_skills.c \
-	src/game/skills/s_stop.c
+	src/game/skills/s_stop.c \
+	src/common/net.c \
+	src/common/msg.c
 
 TEST_SRCS := \
 	tests/test_main.c \
@@ -102,7 +104,8 @@ TEST_SRCS := \
 	tests/test_slk.c \
 	tests/test_unit.c \
 	tests/test_movement.c \
-	tests/test_collision.c
+	tests/test_collision.c \
+	tests/test_net.c
 
 TEST_CFLAGS := -Wall -Isrc/cmath3/types -Isrc/game -Isrc/server -Isrc/common -Isrc/game/skills
 
