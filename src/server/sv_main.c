@@ -62,10 +62,19 @@ static void SV_ReadPackets(void) {
     netadr_t from;
     int r;
     while ((r = NET_GetPacket(NS_SERVER, &from, &net_message)) != 0) {
-        // Out-of-band packets (first int == -1) are connection requests
-        if (r >= 4 && *(int *)net_message.data == -1) {
-            SV_DirectConnect(&from);
-            continue;
+        // Out-of-band packets (first 4 bytes == -1) are connection requests.
+        // Validate that the payload starts with "connect" before allocating
+        // a client slot, to prevent trivial slot-filling / DoS.
+        if (r >= 4) {
+            int hdr;
+            memcpy(&hdr, net_message.data, sizeof(hdr));
+            if (hdr == -1) {
+                if (r >= 4 + 7 &&
+                    memcmp(net_message.data + 4, "connect", 7) == 0) {
+                    SV_DirectConnect(&from);
+                }
+                continue;
+            }
         }
         LPCLIENT client = SV_FindClientByAddr(&from);
         if (client) {

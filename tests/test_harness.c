@@ -49,6 +49,10 @@ static void mock_MemFree(HANDLE p) {
     free(p);
 }
 
+/* Global MemAlloc / MemFree used by common modules (e.g. msg.c). */
+HANDLE MemAlloc(long size) { return mock_MemAlloc(size); }
+void   MemFree(HANDLE p)   { mock_MemFree(p); }
+
 static LPCANIMATION mock_GetAnimation(DWORD modelindex, LPCSTR name) {
     (void)modelindex; (void)name;
     return NULL;
