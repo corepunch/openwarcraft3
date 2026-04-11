@@ -29,7 +29,7 @@ This fixed-step approach decouples the simulation rate from the render rate and 
 
 ### 1. SV_ReadPackets
 
-Drains the loopback receive buffer for each connected client slot. Dispatches `clc_*` messages:
+Drains the network receive buffer (loopback ring or UDP socket) for each connected client slot. Dispatches `clc_*` messages:
 
 | Opcode | Effect |
 |--------|--------|
@@ -118,5 +118,5 @@ The client's acknowledged frame number is tracked per slot so the server can re-
 | `src/game/g_phys.c` | Entity movement, collision response |
 | `src/game/g_commands.c` | Player command handlers (move, attack, ability) |
 | `src/game/g_monster.c` | Unit lifecycle, animation state machine |
-| `src/common/net.c` | Loopback transport shared with the client |
+| `src/common/net.c` | Loopback + UDP transport shared with the client |
 | `src/common/msg.c` | Message serialisation and delta encoding helpers |
