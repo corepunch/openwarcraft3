@@ -101,8 +101,11 @@ extern struct server {
 
 extern struct game_export *ge;
 
+// sv_init.c
 void SV_Map(LPCSTR pFilename);
 void SV_InitGame(void);
+LPCLIENT SV_FindClientByAddr(const netadr_t *from);
+void SV_DirectConnect(const netadr_t *from);
 void SV_BuildClientFrame(LPCLIENT client);
 void SV_WriteFrameToClient(LPCLIENT client);
 void SV_ParseClientMessage(LPSIZEBUF msg, LPCLIENT client);

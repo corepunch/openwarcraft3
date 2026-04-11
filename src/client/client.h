@@ -64,7 +64,6 @@ struct client_state {
     LPENTITYSTATE cursorEntity;
     LPCMODEL moveConfirmation;
     DWORD num_entities;
-    DWORD sock;
     DWORD time;
     struct {
         RECT rect;
@@ -75,6 +74,9 @@ struct client_state {
 struct client_static {
     struct netchan netchan;
 };
+
+// cl_main.c
+void CL_Connect(LPCSTR host, unsigned short port);
 
 void V_RenderView(void);
 void CL_PrepRefresh(void);

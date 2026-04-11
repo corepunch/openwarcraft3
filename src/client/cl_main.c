@@ -105,7 +105,8 @@ void CL_ReadPackets(void) {
         .cursize = 0,
         .readcount = 0,
     };
-    while (NET_GetPacket(NS_CLIENT, cl.sock, &net_message)) {
+    netadr_t from;
+    while (NET_GetPacket(NS_CLIENT, &from, &net_message)) {
         if (*(int *)net_message.data == -1) {
             CL_ConnectionlessPacket();
             continue;
@@ -116,6 +117,24 @@ void CL_ReadPackets(void) {
 
 void CL_SendCmd(void) {
     Netchan_Transmit(NS_CLIENT, &cls.netchan);
+}
+
+/* Set up the netchan to point at a remote server and send an initial
+ * connection request.  The server will respond with an out-of-band
+ * "client_connect" packet which triggers CL_ConnectionlessPacket(). */
+void CL_Connect(LPCSTR host, unsigned short port) {
+    netadr_t adr;
+    if (!NET_StringToAdr(host, port, &adr)) {
+        fprintf(stderr, "CL_Connect: bad server address \"%s\"\n", host);
+        return;
+    }
+    cls.netchan.remote_address = adr;
+    SZ_Init(&cls.netchan.message, cls.netchan.message_buf, MAX_MSGLEN);
+    // Send an out-of-band "connect" request; the server will register this
+    // client slot and reply with "client_connect".
+    Netchan_OutOfBandPrint(NS_CLIENT, adr, "connect");
+    fprintf(stderr, "CL_Connect: connecting to %d.%d.%d.%d:%u\n",
+            adr.ip[0], adr.ip[1], adr.ip[2], adr.ip[3], port);
 }
 
 void CL_Shutdown(void) {

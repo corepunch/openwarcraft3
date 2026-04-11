@@ -231,6 +231,7 @@ void MemFree(HANDLE mem) {
 void Com_Quit(void) {
     CL_Shutdown();
     SV_Shutdown();
+    NET_Shutdown();
     FS_Shutdown();
     Sys_Quit();
 }
