@@ -13,13 +13,22 @@ OBJ_DIR  := build/obj
 CFLAGS   := -Wall -fPIC -Isrc/cmath3/types
 LDFLAGS  := -L$(LIB_DIR)
 
-CMATH3_OBJS := $(patsubst src/cmath3/%.c,$(OBJ_DIR)/cmath3/%.o,$(shell find src/cmath3 -name '*.c'))
+# Orion-UI submodule paths
+ORION_DIR    := vendor/orion-ui
+PLATFORM_DIR := $(ORION_DIR)/platform
+ORION_LIB    := $(LIB_DIR)/liborion.a
+
+CMATH3_OBJS   := $(patsubst src/cmath3/%.c,$(OBJ_DIR)/cmath3/%.o,$(shell find src/cmath3 -name '*.c'))
 RENDERER_OBJS := $(patsubst src/renderer/%.c,$(OBJ_DIR)/renderer/%.o,$(shell find src/renderer -name '*.c'))
-GAME_OBJS := $(patsubst src/game/%.c,$(OBJ_DIR)/game/%.o,$(shell find src/game -name '*.c'))
-APP_OBJS := $(patsubst src/%.c,$(OBJ_DIR)/%.o,$(wildcard src/client/*.c) $(wildcard src/server/*.c) $(wildcard src/common/*.c))
+GAME_OBJS     := $(patsubst src/game/%.c,$(OBJ_DIR)/game/%.o,$(shell find src/game -name '*.c'))
+APP_OBJS      := $(patsubst src/%.c,$(OBJ_DIR)/%.o,$(wildcard src/client/*.c) $(wildcard src/server/*.c) $(wildcard src/common/*.c) $(wildcard src/ui/*.c))
 
 ifeq ($(shell uname -s),Linux)
-	LDFLAGS += -Wl,-z,defs -lm -lEGL -lGL
+	PLATFORM_LIB     := $(LIB_DIR)/libplatform.so
+	PLATFORM_LDFLAGS := $(shell pkg-config --libs x11 egl gl 2>/dev/null || echo "-lX11 -lEGL -lGL")
+	PLATFORM_CFLAGS  := $(shell pkg-config --cflags x11 egl gl 2>/dev/null)
+	LDFLAGS          += -Wl,-z,defs -lm $(PLATFORM_LDFLAGS)
+	PLATFORM_LIB_EXT := so
 endif
 
 ifeq ($(shell uname -s),Darwin)
@@ -28,11 +37,26 @@ ifeq ($(shell uname -s),Darwin)
 	else
 		HOMEBREW_PREFIX := /usr/local
 	endif
-	CFLAGS += -DGL_SILENCE_DEPRECATION
-	CFLAGS += -I$(HOMEBREW_PREFIX)/include
-	LDFLAGS += -L$(HOMEBREW_PREFIX)/lib
-	LDFLAGS += -framework AppKit -framework OpenGL
+	PLATFORM_LIB     := $(LIB_DIR)/libplatform.dylib
+	PLATFORM_LDFLAGS := -framework AppKit -framework OpenGL
+	PLATFORM_CFLAGS  := -I$(HOMEBREW_PREFIX)/include
+	CFLAGS           += -DGL_SILENCE_DEPRECATION
+	CFLAGS           += -I$(HOMEBREW_PREFIX)/include
+	LDFLAGS          += -L$(HOMEBREW_PREFIX)/lib $(PLATFORM_LDFLAGS)
+	PLATFORM_LIB_EXT := dylib
 endif
+
+# Compile flags used when building the orion-ui unity object
+ORION_CFLAGS := -std=c11 -Wall -Wextra -fPIC \
+                -I$(ORION_DIR) -I$(PLATFORM_DIR) \
+                -DGL_SILENCE_DEPRECATION -D_DEFAULT_SOURCE \
+                -DUI_WINDOW_SCALE=1 \
+                -Wno-unused-parameter \
+                $(PLATFORM_CFLAGS) \
+                $(shell pkg-config --cflags cglm 2>/dev/null)
+
+# Extra include paths for game source files that use orion-ui headers
+CFLAGS += -I$(ORION_DIR) -I$(PLATFORM_DIR) -DUI_WINDOW_SCALE=1
 
 default: build
 build: cmath3 renderer game openwarcraft3
@@ -49,6 +73,21 @@ $(LIB_DIR):
 $(BIN_DIR):
 	@mkdir -p $@
 
+$(OBJ_DIR):
+	@mkdir -p $@
+
+# ── Build platform shared library using its own Makefile ──────────────────
+$(PLATFORM_LIB): | $(LIB_DIR)
+	$(MAKE) -C $(PLATFORM_DIR) OUTDIR=$(abspath $(LIB_DIR))
+
+# ── Build orion-ui static library (unity build) ───────────────────────────
+$(ORION_LIB): $(PLATFORM_LIB) | $(LIB_DIR) $(OBJ_DIR)
+	@mkdir -p $(OBJ_DIR)
+	find $(ORION_DIR)/user $(ORION_DIR)/kernel $(ORION_DIR)/commctl \
+	     -name "*.c" | sort | sed 's|.*|#include "&"|' | \
+	$(CC) $(ORION_CFLAGS) -x c -c -o $(OBJ_DIR)/liborion_unity.o -
+	$(AR) rcs $@ $(OBJ_DIR)/liborion_unity.o
+
 $(LIB_DIR)/libcmath3.so: $(CMATH3_OBJS) $(LIB_DIR)
 	$(CC) -shared -o $@ $(CMATH3_OBJS) $(LDFLAGS)
 
@@ -56,10 +95,13 @@ $(LIB_DIR)/libgame.so: $(GAME_OBJS) $(LIB_DIR)
 	$(CC) -shared -o $@ $(GAME_OBJS) $(LDFLAGS) -lcmath3
 
 $(LIB_DIR)/librenderer.so: cmath3 $(RENDERER_OBJS) $(LIB_DIR)
-	$(CC) -shared -o $@ $(RENDERER_OBJS) $(LDFLAGS) -lcmath3 -lSDL2 -lstorm -ljpeg
+	$(CC) -shared -o $@ $(RENDERER_OBJS) $(LDFLAGS) -lcmath3 -lstorm -ljpeg
 
-$(BIN_DIR)/openwarcraft3: cmath3 game renderer $(APP_OBJS) $(BIN_DIR)
-	$(CC) -o $@ $(APP_OBJS) -Wl,-rpath,'$$ORIGIN/../lib' $(LDFLAGS) -lcmath3 -lSDL2 -lstorm -lgame -lrenderer
+$(BIN_DIR)/openwarcraft3: cmath3 game renderer $(ORION_LIB) $(APP_OBJS) $(BIN_DIR)
+	$(CC) -o $@ $(APP_OBJS) \
+	      -Wl,-rpath,'$$ORIGIN/../lib' $(LDFLAGS) \
+	      $(ORION_LIB) -lplatform \
+	      -lcmath3 -lstorm -lgame -lrenderer
 
 $(OBJ_DIR)/%.o: src/%.c
 	@mkdir -p $(dir $@)

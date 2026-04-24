@@ -10,6 +10,12 @@ typedef struct  {
 static consoleMessage_t messages[MAX_CONSOLE_MESSAGES] = { 0 };
 static DWORD current_message = 0;
 
+static void (*g_log_hook)(const char *msg) = NULL;
+
+void CON_SetLogHook(void (*hook)(const char *msg)) {
+    g_log_hook = hook;
+}
+
 void CON_printf(LPCSTR fmt, ...) {
     consoleMessage_t *msg = &messages[current_message++ % MAX_CONSOLE_MESSAGES];
     va_list argptr;
@@ -17,6 +23,8 @@ void CON_printf(LPCSTR fmt, ...) {
     vsprintf(msg->msg, fmt, argptr);
     va_end(argptr);
     msg->time = cl.time;
+    if (g_log_hook)
+        g_log_hook(msg->msg);
 }
 
 void CON_DrawConsole(void) {

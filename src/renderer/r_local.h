@@ -1,10 +1,7 @@
 #ifndef r_local_h
 #define r_local_h
 
-#include <SDL2/SDL.h>
 #include <StormLib.h>
-
-// TODO: M1 doesn't link without these includes
 
 #if __APPLE__
 #include <TargetConditionals.h>
@@ -14,8 +11,8 @@
 #include <OpenGLES/ES3/gl.h>
 #endif
 #elif __linux__
-//#include <SDL2/SDL_opengl.h>
-#include <GLES3/gl3.h>
+#include <GL/glcorearb.h>
+#include <GL/gl.h>
 #endif
 
 #define GetError()\
@@ -124,6 +121,7 @@ enum {
 
 enum {
     RT_DEPTHMAP,
+    RT_GAME,
     RT_COUNT,
 };
 
@@ -153,6 +151,7 @@ struct render_globals {
     LPRENDERTARGET rt[RT_COUNT];
     sheetRow_t *sheet[SHEET_COUNT];
     size2_t drawableSize;
+    DWORD game_depth_rbo;
 };
 
 void R_RegisterMap(LPCSTR mapFileName);
@@ -221,6 +220,7 @@ void R_DrawText(LPCDRAWTEXT drawText);
 // r_image.c
 LPRENDERTARGET R_AllocateRenderTexture(GLsizei width, GLsizei height, GLenum format, GLenum type, GLenum attachment);
 void R_ReleaseRenderTexture(LPRENDERTARGET rt);
+DWORD R_GetGameTexture(void);
 
 // r_fogofwar.c
 void R_InitFogOfWar(DWORD width, DWORD height);

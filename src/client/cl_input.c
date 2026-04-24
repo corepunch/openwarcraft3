@@ -1,112 +1,79 @@
 #include "client.h"
 
-#include <SDL2/SDL.h>
-
-//struct {
-//    LPCSTR command;
-//    DWORD key;
-//} hotkey_t;
-//
-//hotkey_t hotkeys = {
-//    { "show_quests",  }
-//};
-
 mouseEvent_t mouse;
+
+static int current_button = 0;
 
 static void pan_camera(float x, float y, float sensivity) {
     cl.viewDef.camerastate->origin.x += x * sensivity;
     cl.viewDef.camerastate->origin.y += y * sensivity;
     MSG_WriteByte(&cls.netchan.message, clc_move);
-    MSG_WriteShort(&cls.netchan.message, x * sensivity);
-    MSG_WriteShort(&cls.netchan.message, y * sensivity);
+    MSG_WriteShort(&cls.netchan.message, (short)(x * sensivity));
+    MSG_WriteShort(&cls.netchan.message, (short)(y * sensivity));
+}
+
+// Called by the orion-ui game window proc on mouse-button-down events.
+void CL_MouseButtonDown(int button, float x, float y, unsigned int time) {
+    mouse.origin.x = x;
+    mouse.origin.y = y;
+    mouse.button = (DWORD)button;
+    current_button = button;
+    unsigned char key = (button == 1) ? K_MOUSE1 : (button == 2 ? K_MOUSE2 : K_MOUSE3);
+    switch (button) {
+        case 1: mouse.event = UI_LEFT_MOUSE_DOWN;  break;
+        case 2: mouse.event = UI_RIGHT_MOUSE_DOWN; break;
+        default: break;
+    }
+    Key_Event(key, true, time);
+}
+
+// Called by the orion-ui game window proc on mouse-button-up events.
+void CL_MouseButtonUp(int button, float x, float y, unsigned int time) {
+    mouse.origin.x = x;
+    mouse.origin.y = y;
+    mouse.button = 0;
+    current_button = 0;
+    unsigned char key = (button == 1) ? K_MOUSE1 : (button == 2 ? K_MOUSE2 : K_MOUSE3);
+    switch (button) {
+        case 1: mouse.event = UI_LEFT_MOUSE_UP;  break;
+        case 2: mouse.event = UI_RIGHT_MOUSE_UP; break;
+        default: break;
+    }
+    Key_Event(key, false, time);
+}
+
+// Called by the orion-ui game window proc on mouse-move events.
+void CL_MouseMove(float x, float y, float dx, float dy) {
+    mouse.origin.x = x;
+    mouse.origin.y = y;
+    switch (current_button) {
+        case 1:
+            cl.selection.rect.w = x - cl.selection.rect.x;
+            cl.selection.rect.h = y - cl.selection.rect.y;
+            break;
+        case 3:
+            pan_camera(-dx, dy, 5);
+            break;
+        default:
+            break;
+    }
+}
+
+// Called by the orion-ui game window proc on key-down events.
+void CL_KeyDown(unsigned char key, unsigned int time) {
+    Key_Event(key, true, time);
+}
+
+// Called by the orion-ui game window proc on key-up events.
+void CL_KeyUp(unsigned char key, unsigned int time) {
+    Key_Event(key, false, time);
 }
 
 void CL_Input(void) {
-    static int moved = false;
-    SDL_Event event;
+    // Input is now driven by orion-ui window messages delivered to the game
+    // window proc (ui_main.c).  This function only resets the per-frame
+    // mouse-event flag so that game systems see a clean state each tick.
     mouse.event = UI_EVENT_NONE;
-    while(SDL_PollEvent(&event)) {
-        DWORD mousevt = K_MOUSE1 + event.button.button - 1;
-        switch(event.type) {
-            case SDL_MOUSEBUTTONDOWN:
-                mouse.origin.x = event.button.x;
-                mouse.origin.y = event.button.y;
-                Key_Event(mousevt, true, event.button.timestamp);
-                break;
-            case SDL_MOUSEBUTTONUP:
-                mouse.origin.x = event.button.x;
-                mouse.origin.y = event.button.y;
-                Key_Event(mousevt, false, event.button.timestamp);
-                break;
-            case SDL_MOUSEMOTION:
-                mouse.origin.x = event.motion.x;
-                mouse.origin.y = event.motion.y;
-                break;
-        }
-        
-        switch(event.type) {
-            case SDL_KEYDOWN:
-                Key_Event(event.key.keysym.sym, true, event.key.timestamp);
-                break;
-            case SDL_KEYUP:
-                Key_Event(event.key.keysym.sym, false, event.key.timestamp);
-//                if(event.key.keysym.sym == SDLK_ESCAPE) {
-//                    return Com_Quit();
-//                }
-                break;
-            case SDL_MOUSEBUTTONDOWN:
-                moved = false;
-                mouse.origin.x = event.button.x;
-                mouse.origin.y = event.button.y;
-                mouse.button = event.button.button;
-                switch (event.button.button) {
-                    case 1:
-                        mouse.event = UI_LEFT_MOUSE_DOWN;
-                        break;
-                    case 2:
-                        mouse.event = UI_RIGHT_MOUSE_DOWN;
-                        break;
-                }
-                break;
-            case SDL_MOUSEBUTTONUP:
-                mouse.origin.x = event.button.x;
-                mouse.origin.y = event.button.y;
-                mouse.button = 0;
-                switch (event.button.button) {
-                    case 1:
-                        mouse.event = UI_LEFT_MOUSE_UP;
-                        break;
-                    case 2:
-                        mouse.event = UI_RIGHT_MOUSE_UP;
-                        break;
-                }
-                break;
-            case SDL_MOUSEMOTION:
-                mouse.origin.x = event.motion.x;
-                mouse.origin.y = event.motion.y;
-                switch (mouse.button) {
-                    case 1:
-                        cl.selection.rect.w = event.motion.x - cl.selection.rect.x;
-                        cl.selection.rect.h = event.motion.y - cl.selection.rect.y;
-                        moved = true;
-                        break;
-                    case 3:
-                        moved = true;
-                        pan_camera(-event.motion.xrel, event.motion.yrel, 5);
-                        break;
-                }
-                break;
-            case SDL_WINDOWEVENT:
-                switch (event.window.event) {
-                    case SDL_WINDOWEVENT_CLOSE:   // exit game
-                        return Com_Quit();
-                    default:
-                        break;
-                }
-                break;
-        }
-    }
-//    cl.viewDef.camera.origin.z = CM_GetHeightAtPoint(cl.viewDef.camera.origin.x, cl.viewDef.camera.origin.y);
 }
 
 void IN_SelectDown(void) {

@@ -81,8 +81,6 @@ void CL_Connect(LPCSTR host, unsigned short port);
 void V_RenderView(void);
 void CL_PrepRefresh(void);
 void CL_ParseServerMessage(LPSIZEBUF msg);
-void CON_DrawConsole(void);
-void CON_printf(LPCSTR fmt, ...);
 
 // cl_view.c
 //void Matrix4_fromViewAngles(LPCVECTOR3 target, LPCVECTOR3 angles, float distance, LPMATRIX4 output);
@@ -95,9 +93,19 @@ LPCUIFRAME SCR_Clear(HANDLE data);
 LPCRECT SCR_LayoutRect(LPCUIFRAME frame);
 void SCR_UpdateScreen(void);
 
+// cl_console.c
+void CON_DrawConsole(void);
+void CON_printf(LPCSTR fmt, ...);
+void CON_SetLogHook(void (*hook)(const char *msg));
+
 // cl_input.c
 void CL_Input(void);
 void CL_InitInput(void);
+void CL_MouseButtonDown(int button, float x, float y, unsigned int time);
+void CL_MouseButtonUp(int button, float x, float y, unsigned int time);
+void CL_MouseMove(float x, float y, float dx, float dy);
+void CL_KeyDown(unsigned char key, unsigned int time);
+void CL_KeyUp(unsigned char key, unsigned int time);
 
 // cl_tent.c
 void CL_ParseTEnt(LPSIZEBUF msg);

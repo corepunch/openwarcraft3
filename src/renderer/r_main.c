@@ -1,13 +1,7 @@
 #include "r_local.h"
 
-#include <SDL2/SDL.h>
-#include <SDL2/SDL_opengl.h>
-
 refImport_t ri;
 struct render_globals tr;
-
-SDL_Window *window;
-SDL_GLContext context;
 
 bool is_rendering_lights = false;
 
@@ -176,7 +170,7 @@ static void R_SetupGL(bool drawLight) {
         R_Call(glDepthMask, GL_TRUE);
         R_Call(glClear, GL_DEPTH_BUFFER_BIT);
     } else {
-        R_Call(glBindFramebuffer, GL_FRAMEBUFFER, 0);
+        R_Call(glBindFramebuffer, GL_FRAMEBUFFER, tr.rt[RT_GAME]->buffer);
         R_Call(glActiveTexture, GL_TEXTURE1);
         R_Call(glBindTexture, GL_TEXTURE_2D, tr.rt[RT_DEPTHMAP]->texture);
     }
@@ -200,21 +194,10 @@ LPCSTR modelNames[MODEL_COUNT] = {
 //#include "mdx/r_mdx.h"
 
 void R_Init(DWORD width, DWORD height) {
-    SDL_Init(SDL_INIT_VIDEO);
-    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
-    SDL_GL_SetAttribute(SDL_GL_ACCELERATED_VISUAL, 1);
-    SDL_GL_SetAttribute(SDL_GL_RED_SIZE, 8);
-    SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, 8);
-    SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, 8);
-    SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 8);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
-    
-    window = SDL_CreateWindow("", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width, height, SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN | SDL_WINDOW_ALLOW_HIGHDPI);
-    context = SDL_GL_CreateContext(window);
-    
-    SDL_GL_GetDrawableSize(window, (int *)&tr.drawableSize.width, (int *)&tr.drawableSize.height);
+    // The OpenGL context has already been created by ui_init_graphics().
+    // Record the game render dimensions; all game 3D rendering goes to RT_GAME.
+    tr.drawableSize.width  = width;
+    tr.drawableSize.height = height;
     
 //    m3 = R_LoadModel("Assets\\Units\\Terran\\SpecialOpsDropship\\SpecialOpsDropship.m3");
 //    R_LoadModel("Assets\\Units\\Terran\\MarineTychus\\MarineTychus.m3");
@@ -259,10 +242,32 @@ void R_Init(DWORD width, DWORD height) {
     tr.texture[TEX_WATER] = R_LoadTexture("ReplaceableTextures\\Water\\Water12.blp");
     tr.texture[TEX_FONT] = R_MakeSysFontTexture();
     tr.rt[RT_DEPTHMAP] = R_AllocateRenderTexture(SHADOW_TEXSIZE, SHADOW_TEXSIZE, GL_DEPTH_COMPONENT, GL_FLOAT, GL_DEPTH_ATTACHMENT);
+
+    // Create the game render FBO: RGBA color + depth renderbuffer
+    {
+        LPRENDERTARGET rt = ri.MemAlloc(sizeof(RENDERTARGET));
+        R_Call(glGenFramebuffers, 1, &rt->buffer);
+        R_Call(glBindFramebuffer, GL_FRAMEBUFFER, rt->buffer);
+
+        R_Call(glGenTextures, 1, &rt->texture);
+        R_Call(glBindTexture, GL_TEXTURE_2D, rt->texture);
+        R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        R_Call(glTexImage2D, GL_TEXTURE_2D, 0, GL_RGBA, (GLsizei)width, (GLsizei)height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+        R_Call(glFramebufferTexture2D, GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, rt->texture, 0);
+
+        R_Call(glGenRenderbuffers, 1, &tr.game_depth_rbo);
+        R_Call(glBindRenderbuffer, GL_RENDERBUFFER, tr.game_depth_rbo);
+        R_Call(glRenderbufferStorage, GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, (GLsizei)width, (GLsizei)height);
+        R_Call(glFramebufferRenderbuffer, GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, tr.game_depth_rbo);
+
+        R_Call(glBindFramebuffer, GL_FRAMEBUFFER, 0);
+        tr.rt[RT_GAME] = rt;
+    }
     
     R_Call(glDisable, GL_DEPTH_TEST);
     R_Call(glClearColor, 0.0, 0.0, 0.0, 0.0);
-    R_Call(glViewport, 0, 0, tr.drawableSize.width, tr.drawableSize.height);
+    R_Call(glViewport, 0, 0, (GLsizei)width, (GLsizei)height);
     
     R_InitParticles();
     
@@ -276,10 +281,11 @@ void R_Shutdown(void) {
     
     R_ShutdownFogOfWar();
     R_ShutdownParticles();
-    
-    SDL_GL_DeleteContext(context);
-    SDL_DestroyWindow(window);
-    SDL_Quit();
+
+    if (tr.game_depth_rbo) {
+        glDeleteRenderbuffers(1, &tr.game_depth_rbo);
+        tr.game_depth_rbo = 0;
+    }
 }
 
 void R_SetupViewport(LPCRECT r) {
@@ -348,6 +354,7 @@ void R_DrawBuffer(LPCBUFFER buffer, DWORD num_vertices) {
 }
 
 void R_BeginFrame(void) {
+    R_Call(glBindFramebuffer, GL_FRAMEBUFFER, tr.rt[RT_GAME]->buffer);
     R_Call(glEnable, GL_DEPTH_TEST);
     R_Call(glDepthMask, GL_TRUE);
     R_Call(glDepthFunc, GL_LEQUAL);
@@ -357,17 +364,21 @@ void R_BeginFrame(void) {
 }
 
 void R_EndFrame(void) {
-    SDL_GL_SwapWindow(window);
-    SDL_Delay(1);
+    // Unbind the game FBO; buffer-swap is handled by orion-ui's repost_messages().
+    R_Call(glBindFramebuffer, GL_FRAMEBUFFER, 0);
 }
 
 size2_t R_GetWindowSize(void) {
-    int width, height;
-    SDL_GetWindowSize(window, &width, &height);
     return (size2_t) {
-        .width = width,
-        .height = height,
+        .width  = tr.drawableSize.width,
+        .height = tr.drawableSize.height,
     };
+}
+
+DWORD R_GetGameTexture(void) {
+    if (tr.rt[RT_GAME])
+        return tr.rt[RT_GAME]->texture;
+    return 0;
 }
 
 size2_t R_GetTextureSize(LPCTEXTURE texture) {
@@ -409,6 +420,7 @@ refExport_t R_GetAPI(refImport_t imp) {
         .DrawPortrait = R_DrawPortrait,
         .DrawText = R_DrawText,
         .GetTextSize = R_GetTextSize,
+        .GetGameTexture = R_GetGameTexture,
         .GetHeightAtPoint = GetAccurateHeightAtPoint,
         .TraceEntity = R_TraceEntity,
         .TraceLocation = R_TraceLocation,

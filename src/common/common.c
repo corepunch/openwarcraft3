@@ -63,6 +63,27 @@ HANDLE FS_AddArchive(LPCSTR filename) {
     return NULL;
 }
 
+// List all *.w3m files found in the primary MPQ archive.
+// Returns the number of entries written into out[].
+int FS_ListMaps(char (*out)[260], int max_maps) {
+    int count = 0;
+    if (!archives[0] || max_maps <= 0)
+        return 0;
+    SFILE_FIND_DATA findData;
+    HANDLE hFind = SFileFindFirstFile(archives[0], "*.w3m", &findData, NULL);
+    if (!hFind)
+        return 0;
+    do {
+        if (count < max_maps) {
+            strncpy(out[count], findData.cFileName, 259);
+            out[count][259] = '\0';
+            count++;
+        }
+    } while (SFileFindNextFile(hFind, &findData));
+    SFileFindClose(hFind);
+    return count;
+}
+
 #if 0
 static void ExtractStarCraft2(void) {
     HANDLE archive;
