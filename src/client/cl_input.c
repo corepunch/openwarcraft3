@@ -18,10 +18,10 @@ void CL_MouseButtonDown(int button, float x, float y, unsigned int time) {
     mouse.origin.y = y;
     mouse.button = (DWORD)button;
     current_button = button;
-    unsigned char key = (button == 1) ? K_MOUSE1 : (button == 2 ? K_MOUSE2 : K_MOUSE3);
+    unsigned char key = (button == 1) ? K_MOUSE1 : (button == 3 ? K_MOUSE2 : K_MOUSE3);
     switch (button) {
         case 1: mouse.event = UI_LEFT_MOUSE_DOWN;  break;
-        case 2: mouse.event = UI_RIGHT_MOUSE_DOWN; break;
+        case 3: mouse.event = UI_RIGHT_MOUSE_DOWN; break;
         default: break;
     }
     Key_Event(key, true, time);
@@ -33,10 +33,10 @@ void CL_MouseButtonUp(int button, float x, float y, unsigned int time) {
     mouse.origin.y = y;
     mouse.button = 0;
     current_button = 0;
-    unsigned char key = (button == 1) ? K_MOUSE1 : (button == 2 ? K_MOUSE2 : K_MOUSE3);
+    unsigned char key = (button == 1) ? K_MOUSE1 : (button == 3 ? K_MOUSE2 : K_MOUSE3);
     switch (button) {
         case 1: mouse.event = UI_LEFT_MOUSE_UP;  break;
-        case 2: mouse.event = UI_RIGHT_MOUSE_UP; break;
+        case 3: mouse.event = UI_RIGHT_MOUSE_UP; break;
         default: break;
     }
     Key_Event(key, false, time);

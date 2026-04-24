@@ -24,6 +24,13 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+/* ── Constants ───────────────────────────────────────────────────────────── */
+
+#define MAX_MAP_PATH         260   // maximum MPQ-internal path length
+#define MAX_MAP_DISPLAY_NAME  64   // combobox_string_t is 64 bytes
+#define MAX_MAPS             256
+#define LOG_BUF_SIZE (64 * 1024)
+
 /* ── Forward declarations from game code ─────────────────────────────────── */
 
 // server / map loading
@@ -59,27 +66,42 @@ static window_t *g_map_combo = NULL;   // combobox inside map selector
 
 /* ── Map list storage ────────────────────────────────────────────────────── */
 
-#define MAX_MAP_PATH         260   // maximum MPQ-internal path length
-#define MAX_MAP_DISPLAY_NAME  64   // combobox_string_t is 64 bytes
-#define MAX_MAPS             256
 static char g_map_paths[MAX_MAPS][MAX_MAP_PATH];
 static int  g_num_maps = 0;
 
 /* ── Log window ──────────────────────────────────────────────────────────── */
 
-#define LOG_BUF_SIZE (64 * 1024)
 static char g_log_buf[LOG_BUF_SIZE];
 static int  g_log_len = 0;
 
 // Appended to the multiedit control each time CON_printf fires.
 static void on_log_message(const char *msg) {
     int len = (int)strlen(msg);
-    // If we would overflow, discard the oldest half.
+
+    // Trim oversized messages so they always fit in an empty buffer.
+    if (len > LOG_BUF_SIZE - 2) {
+        msg += len - (LOG_BUF_SIZE - 2);
+        len = LOG_BUF_SIZE - 2;
+    }
+
+    // If we would overflow, discard old text.  Drop at least half the
+    // buffer, but always enough to fit the new message + newline + NUL.
     if (g_log_len + len + 2 >= LOG_BUF_SIZE) {
         int half = LOG_BUF_SIZE / 2;
-        memmove(g_log_buf, g_log_buf + half, (size_t)(g_log_len - half));
-        g_log_len -= half;
+        int drop = g_log_len + len + 2 - LOG_BUF_SIZE;
+        int move_len;
+
+        if (drop < half)
+            drop = half;
+        if (drop > g_log_len)
+            drop = g_log_len;
+
+        move_len = g_log_len - drop;
+        if (move_len > 0)
+            memmove(g_log_buf, g_log_buf + drop, (size_t)move_len);
+        g_log_len = move_len;
     }
+
     memcpy(g_log_buf + g_log_len, msg, (size_t)len);
     g_log_len += len;
     g_log_buf[g_log_len++] = '\n';

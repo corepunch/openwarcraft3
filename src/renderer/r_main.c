@@ -285,9 +285,15 @@ void R_Shutdown(void) {
     R_ShutdownFogOfWar();
     R_ShutdownParticles();
 
-    if (tr.game_depth_rbo) {
-        glDeleteRenderbuffers(1, &tr.game_depth_rbo);
-        tr.game_depth_rbo = 0;
+    if (tr.rt[RT_GAME]) {
+        // Delete the depth renderbuffer that was attached separately, then
+        // release the FBO, colour texture, and RENDERTARGET allocation.
+        if (tr.game_depth_rbo) {
+            glDeleteRenderbuffers(1, &tr.game_depth_rbo);
+            tr.game_depth_rbo = 0;
+        }
+        R_ReleaseRenderTexture(tr.rt[RT_GAME]);
+        tr.rt[RT_GAME] = NULL;
     }
 }
 
