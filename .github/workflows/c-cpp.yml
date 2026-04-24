@@ -13,6 +13,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - name: Run unit tests
         run: make test
@@ -22,13 +24,15 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - name: Install dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y \
             libgles2-mesa-dev \
-            libsdl2-dev \
+            libx11-dev \
             libjpeg-dev \
             libstorm-dev
 
