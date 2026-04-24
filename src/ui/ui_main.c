@@ -44,7 +44,7 @@ typedef void (*con_log_hook_t)(const char *msg);
 extern void CON_SetLogHook(con_log_hook_t hook);
 
 // map listing — fills an array of 260-char paths, returns count
-extern int FS_ListMaps(char (*out)[260], int max_maps);
+extern int FS_ListMaps(char (*out)[MAX_MAP_PATH], int max_maps);
 
 // timing — axGetMilliseconds() from platform
 extern unsigned long axGetMilliseconds(void);
@@ -59,8 +59,10 @@ static window_t *g_map_combo = NULL;   // combobox inside map selector
 
 /* ── Map list storage ────────────────────────────────────────────────────── */
 
-#define MAX_MAPS 256
-static char g_map_paths[MAX_MAPS][260];
+#define MAX_MAP_PATH         260   // maximum MPQ-internal path length
+#define MAX_MAP_DISPLAY_NAME  64   // combobox_string_t is 64 bytes
+#define MAX_MAPS             256
+static char g_map_paths[MAX_MAPS][MAX_MAP_PATH];
 static int  g_num_maps = 0;
 
 /* ── Log window ──────────────────────────────────────────────────────────── */
@@ -132,10 +134,10 @@ static result_t win_map_proc(window_t *win, uint32_t msg,
             // Populate with discovered .w3m files.
             if (g_map_combo) {
                 for (int i = 0; i < g_num_maps; i++) {
-                    // Truncate to 63 chars (combobox_string_t is 64 bytes).
-                    char display[64];
-                    strncpy(display, g_map_paths[i], 63);
-                    display[63] = '\0';
+                    // Truncate to combobox_string_t capacity (64 bytes including NUL).
+                    char display[MAX_MAP_DISPLAY_NAME];
+                    strncpy(display, g_map_paths[i], MAX_MAP_DISPLAY_NAME - 1);
+                    display[MAX_MAP_DISPLAY_NAME - 1] = '\0';
                     post_message(g_map_combo, cbAddString, 0, display);
                 }
             }

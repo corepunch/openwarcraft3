@@ -68,7 +68,7 @@ Three windows are created at startup:
    routes all keyboard/mouse events to the game via the bridge functions above.
 2. **Log Window** (320 × 400) — a read-only `win_multiedit` that mirrors
    `CON_printf` output via the log hook.
-3. **Map Selector** (320 × 360) — lists `*.w3m` files found in the MPQ via
+3. **Map Selector** (320 × 120) — lists `*.w3m` files found in the MPQ via
    `FS_ListMaps()` and calls `SV_Map()` when the player clicks "Load".
 
 Public API (`src/ui/ui_main.c`):

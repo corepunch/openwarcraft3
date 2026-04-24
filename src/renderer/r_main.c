@@ -170,6 +170,9 @@ static void R_SetupGL(bool drawLight) {
         R_Call(glDepthMask, GL_TRUE);
         R_Call(glClear, GL_DEPTH_BUFFER_BIT);
     } else {
+        // R_BeginFrame already binds RT_GAME; this redundant bind ensures
+        // that multi-pass rendering (light pass first, scene pass second)
+        // always switches back to the game FBO for the scene pass.
         R_Call(glBindFramebuffer, GL_FRAMEBUFFER, tr.rt[RT_GAME]->buffer);
         R_Call(glActiveTexture, GL_TEXTURE1);
         R_Call(glBindTexture, GL_TEXTURE_2D, tr.rt[RT_DEPTHMAP]->texture);

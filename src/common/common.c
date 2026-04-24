@@ -65,6 +65,8 @@ HANDLE FS_AddArchive(LPCSTR filename) {
 
 // List all *.w3m files found in the primary MPQ archive.
 // Returns the number of entries written into out[].
+// Each entry is a NUL-terminated MPQ-internal path of at most 259 characters
+// (the array dimension 260 matches MAX_MAP_PATH in ui_main.c).
 int FS_ListMaps(char (*out)[260], int max_maps) {
     int count = 0;
     if (!archives[0] || max_maps <= 0)
