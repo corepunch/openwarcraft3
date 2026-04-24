@@ -1,4 +1,5 @@
 #include "r_war3map.h"
+#include <float.h>
 
 LPMAPSEGMENT g_mapSegments = NULL;
 
