@@ -4,3 +4,6 @@
 [submodule "vendor/stormlib"]
 	path = vendor/stormlib
 	url = git@github.com:ladislav-zezula/StormLib.git
+[submodule "vendor/orion-ui"]
+	path = vendor/orion-ui
+	url = https://github.com/corepunch/orion-ui.git
