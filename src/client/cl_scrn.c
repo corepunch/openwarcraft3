@@ -653,16 +653,20 @@ void SCR_DrawOverlays(void) {
     }
 }
 
+void SCR_DrawTopBar(void) {
+    SCR_DrawOverlays();
+}
+
+void SCR_DrawBottomBar(void) {
+    SCR_DrawOverlays();
+}
+
 void SCR_UpdateScreen(void) {
     re.BeginFrame();
     
     V_RenderView();
-    
-    SCR_DrawOverlays();
 
     CON_DrawConsole();
-    
-//    if (cl.pics[42]) re.DrawPic(cl.pics[42], 0, 0);
     
     re.EndFrame();
 }

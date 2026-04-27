@@ -216,7 +216,7 @@ void V_RenderView(void) {
     
     cl.viewDef.lerpfrac = (FLOAT)(cl.time - cl.frame.servertime) / FRAMETIME;
     cl.viewDef.viewport = (RECT) { 0, 0, 1, 1 };
-    cl.viewDef.scissor = (RECT) { 0, 0.22, 1, 0.76 };
+    cl.viewDef.scissor  = (RECT) { 0, 0, 1, 1 };
     cl.viewDef.time = cl.time;
     cl.viewDef.deltaTime = cl.time - lastTime;
     cl.viewDef.rdflags = cl.playerstate.rdflags;

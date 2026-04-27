@@ -206,6 +206,8 @@ void R_Init(DWORD width, DWORD height) {
     tr.game_y = 0;
     tr.game_w = (int)width;
     tr.game_h = (int)height;
+    tr.ui_y_start = 0.0f;
+    tr.ui_y_end   = 0.6f;
     
 //    m3 = R_LoadModel("Assets\\Units\\Terran\\SpecialOpsDropship\\SpecialOpsDropship.m3");
 //    R_LoadModel("Assets\\Units\\Terran\\MarineTychus\\MarineTychus.m3");
@@ -345,7 +347,26 @@ void R_SetGameViewport(int x, int y, int w, int h) {
     tr.drawableSize.height = (DWORD)h;
 }
 
-void R_BeginFrame(void) {
+void R_SetUIRange(float y_start, float y_end) {
+    tr.ui_y_start = y_start;
+    tr.ui_y_end   = y_end;
+}
+
+// R_BeginUIFrame — lightweight begin used by the top/bottom bar sub-windows.
+// Sets the GL viewport for the bar window, clears the area, and disables
+// 3-D state (depth test, cull face).  Does NOT clear the depth buffer.
+void R_BeginUIFrame(void) {
+    R_Call(glBindFramebuffer, GL_FRAMEBUFFER, 0);
+    R_Call(glViewport, tr.game_x, tr.game_y, (GLsizei)tr.game_w, (GLsizei)tr.game_h);
+    R_Call(glEnable, GL_SCISSOR_TEST);
+    R_Call(glScissor, tr.game_x, tr.game_y, (GLsizei)tr.game_w, (GLsizei)tr.game_h);
+    R_Call(glClear, GL_COLOR_BUFFER_BIT);
+    R_Call(glDisable, GL_SCISSOR_TEST);
+    R_Call(glDisable, GL_DEPTH_TEST);
+    R_Call(glDisable, GL_CULL_FACE);
+}
+
+
     // Render directly into the default framebuffer within the game window's
     // client area, positioned by the stored game_x/y/w/h GL coordinates.
     R_Call(glBindFramebuffer, GL_FRAMEBUFFER, 0);

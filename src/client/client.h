@@ -92,6 +92,8 @@ void V_AddEntity(renderEntity_t *ent);
 LPCUIFRAME SCR_Clear(HANDLE data);
 LPCRECT SCR_LayoutRect(LPCUIFRAME frame);
 void SCR_UpdateScreen(void);
+void SCR_DrawTopBar(void);
+void SCR_DrawBottomBar(void);
 
 // cl_console.c
 void CON_DrawConsole(void);

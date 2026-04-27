@@ -1,14 +1,27 @@
 /*
  * ui_main.c — Orion-UI integration for OpenWarcraft3.
  *
- * Provides three windows:
- *   1. Game Window  — displays the 3-D game scene rendered directly into the
- *                     default framebuffer using glViewport for positioning.
- *                     All keyboard / mouse input aimed at the game is routed
- *                     through this window's proc.
- *   2. Log Window   — shows CON_printf() output in a read-only text area.
- *   3. Map Selector — lists *.w3m files found in the loaded MPQ archive and
- *                     lets the player pick a map to start.
+ * Provides five windows arranged in a vertical stack:
+ *   1. Top-bar Window  — thin strip that draws the top resource/status bar.
+ *   2. Game Window     — displays the 3-D game scene rendered directly into
+ *                        the default framebuffer using glViewport for
+ *                        positioning.  All keyboard / mouse input aimed at
+ *                        the game is routed through this window's proc.
+ *   3. Bottom-bar Window — wide strip that draws command buttons, minimap,
+ *                          unit-info panel, etc.
+ *   4. Log Window      — shows CON_printf() output in a read-only text area.
+ *   5. Map Selector    — lists *.w3m files found in the loaded MPQ archive
+ *                        and lets the player pick a map to start.
+ *
+ * Layout (logical pixels, x=20 left-edge):
+ *   y=20  : top-bar   (UI_GAME_W × UI_TOP_BAR_H)
+ *   y=32  : game      (UI_GAME_W × UI_GAME_H)
+ *   y=488 : bottom-bar (UI_GAME_W × UI_BOTTOM_BAR_H)
+ *
+ * The game window is now sized to match exactly the 3-D scene area that was
+ * previously exposed via glScissor({0, 0.22, 1, 0.76}).  By sizing the window
+ * to the desired 3-D area the renderer no longer needs a sub-viewport scissor
+ * inside R_RenderView; the OS window boundary provides the clipping instead.
  *
  * NOTE: This file intentionally does NOT include any game headers (client.h,
  * common.h, …) because the game's rect_t typedef conflicts with orion-ui's
@@ -32,6 +45,29 @@
 #define MAX_MAPS             256
 #define LOG_BUF_SIZE (64 * 1024)
 
+// Game-area layout: these match the scissor {0, 0.22, 1, 0.76} that was
+// previously applied to the 800×600 game window.
+//   top-bar   height = (1 - 0.22 - 0.76) * 600 = 12 px
+//   game area height =              0.76  * 600 = 456 px
+//   bottom-bar height =             0.22  * 600 = 132 px
+#define UI_GAME_W       800
+#define UI_TOP_BAR_H     12
+#define UI_GAME_H       456
+#define UI_BOTTOM_BAR_H 132
+
+// Vertical positions of each window (x=20 is the shared left edge).
+#define UI_WIN_X           20
+#define UI_TOP_BAR_Y       20
+#define UI_GAME_Y         (UI_TOP_BAR_Y + UI_TOP_BAR_H)   // 32
+#define UI_BOTTOM_BAR_Y   (UI_GAME_Y   + UI_GAME_H)        // 488
+
+// UI ortho Y sub-ranges (0-0.6 space, y=0 at top, y=0.6 at bottom).
+//   top-bar   : 0       to UI_TOP_Y_END
+//   game area : UI_TOP_Y_END to UI_BOTTOM_Y_START
+//   bottom-bar: UI_BOTTOM_Y_START to 0.6f
+#define UI_TOP_Y_END       0.012f   // 12  / 1000 (1 unit = 1000 px at 800×600)
+#define UI_BOTTOM_Y_START  0.468f   // 468 / 1000
+
 /* ── Forward declarations from game code ─────────────────────────────────── */
 
 // server / map loading
@@ -46,9 +82,17 @@ extern void CL_KeyUp(unsigned char key, unsigned int time);
 
 // screen update — renders the current frame directly into the default framebuffer
 extern void SCR_UpdateScreen(void);
+// UI-bar overlay renders (implemented in cl_scrn.c)
+extern void SCR_DrawTopBar(void);
+extern void SCR_DrawBottomBar(void);
 
 // renderer — sets the GL viewport position used by the game renderer
 extern void R_SetGameViewport(int x, int y, int w, int h);
+// renderer — sets the active UI ortho Y sub-range for R_DrawImageEx etc.
+extern void R_SetUIRange(float y_start, float y_end);
+// renderer — lightweight frame begin/end for UI-only (bar) windows
+extern void R_BeginUIFrame(void);
+extern void R_EndFrame(void);
 
 // console hook — register a callback to receive every CON_printf() message
 typedef void (*con_log_hook_t)(const char *msg);
@@ -62,11 +106,13 @@ extern unsigned long axGetMilliseconds(void);
 
 /* ── Window handles ──────────────────────────────────────────────────────── */
 
-static window_t *g_game_win  = NULL;
-static window_t *g_log_win   = NULL;
-static window_t *g_map_win   = NULL;
-static window_t *g_log_edit  = NULL;   // multiedit inside log window
-static window_t *g_map_combo = NULL;   // combobox inside map selector
+static window_t *g_topbar_win = NULL;
+static window_t *g_game_win   = NULL;
+static window_t *g_bottombar_win = NULL;
+static window_t *g_log_win    = NULL;
+static window_t *g_map_win    = NULL;
+static window_t *g_log_edit   = NULL;   // multiedit inside log window
+static window_t *g_map_combo  = NULL;   // combobox inside map selector
 
 /* ── Map list storage ────────────────────────────────────────────────────── */
 
@@ -197,6 +243,115 @@ static result_t win_map_proc(window_t *win, uint32_t msg,
     }
 }
 
+/* ── Top-bar window ──────────────────────────────────────────────────────── */
+
+// Renders the thin resource/status bar at the top of the game area.
+// The full 0-0.8 × 0-0.6 UI overlay is drawn with an ortho matrix clamped
+// to the top-bar Y range [0, UI_TOP_Y_END] so only top-bar frames are visible.
+static result_t win_topbar_proc(window_t *win, uint32_t msg,
+                                uint32_t wparam, void *lparam)
+{
+    switch (msg) {
+        case evPaint: {
+            rect_t client = get_client_rect(win);
+            rect_t client_abs = {
+                win->frame.x,
+                win->frame.y + win->frame.h - client.h,
+                client.w,
+                client.h,
+            };
+            rect_t gl_rect = get_opengl_rect(&client_abs);
+            R_SetGameViewport(gl_rect.x, gl_rect.y, gl_rect.w, gl_rect.h);
+            R_SetUIRange(0.0f, UI_TOP_Y_END);
+            R_BeginUIFrame();
+            SCR_DrawTopBar();
+            R_EndFrame();
+            return 1;
+        }
+        case evDestroy:
+            g_topbar_win = NULL;
+            return 0;
+        default:
+            return 0;
+    }
+}
+
+/* ── Bottom-bar window ───────────────────────────────────────────────────── */
+
+// Renders the command-button panel, minimap, and unit-info strip.
+// The ortho matrix is clamped to [UI_BOTTOM_Y_START, 0.6] so only bottom-bar
+// frames are visible.  Mouse events are forwarded with coordinates adjusted
+// to the full game-window space so hit-testing in SCR_DrawCommandButton etc.
+// works correctly.
+static result_t win_bottombar_proc(window_t *win, uint32_t msg,
+                                   uint32_t wparam, void *lparam)
+{
+    switch (msg) {
+        case evPaint: {
+            rect_t client = get_client_rect(win);
+            rect_t client_abs = {
+                win->frame.x,
+                win->frame.y + win->frame.h - client.h,
+                client.w,
+                client.h,
+            };
+            rect_t gl_rect = get_opengl_rect(&client_abs);
+            R_SetGameViewport(gl_rect.x, gl_rect.y, gl_rect.w, gl_rect.h);
+            R_SetUIRange(UI_BOTTOM_Y_START, 0.6f);
+            R_BeginUIFrame();
+            SCR_DrawBottomBar();
+            R_EndFrame();
+            return 1;
+        }
+        case evMouseMove: {
+            int16_t lx  = (int16_t)LOWORD(wparam);
+            int16_t ly  = (int16_t)HIWORD(wparam);
+            int16_t rdx = (int16_t)LOWORD((uint32_t)(intptr_t)lparam);
+            int16_t rdy = (int16_t)HIWORD((uint32_t)(intptr_t)lparam);
+            // Translate bar-local y into full game-window y space so that
+            // UI hit-testing uses consistent coordinates with the game window.
+            CL_MouseMove((float)lx,
+                         (float)(UI_GAME_H + ly),
+                         (float)rdx, (float)rdy);
+            invalidate_window(win);
+            return 1;
+        }
+        case evLeftButtonDown: {
+            int16_t lx = (int16_t)LOWORD(wparam);
+            int16_t ly = (int16_t)HIWORD(wparam);
+            CL_MouseButtonDown(1, (float)lx, (float)(UI_GAME_H + ly),
+                               (unsigned int)axGetMilliseconds());
+            return 1;
+        }
+        case evLeftButtonUp: {
+            int16_t lx = (int16_t)LOWORD(wparam);
+            int16_t ly = (int16_t)HIWORD(wparam);
+            CL_MouseButtonUp(1, (float)lx, (float)(UI_GAME_H + ly),
+                             (unsigned int)axGetMilliseconds());
+            return 1;
+        }
+        case evRightButtonDown: {
+            int16_t lx = (int16_t)LOWORD(wparam);
+            int16_t ly = (int16_t)HIWORD(wparam);
+            CL_MouseButtonDown(3, (float)lx, (float)(UI_GAME_H + ly),
+                               (unsigned int)axGetMilliseconds());
+            return 1;
+        }
+        case evRightButtonUp: {
+            int16_t lx = (int16_t)LOWORD(wparam);
+            int16_t ly = (int16_t)HIWORD(wparam);
+            CL_MouseButtonUp(3, (float)lx, (float)(UI_GAME_H + ly),
+                             (unsigned int)axGetMilliseconds());
+            return 1;
+        }
+        case evDestroy:
+            g_bottombar_win = NULL;
+            return 0;
+        default:
+            return 0;
+    }
+}
+
 /* ── Game window ─────────────────────────────────────────────────────────── */
 
 // Physical-pixel GL rect for a logical UI rect (handles HiDPI/retina scaling
@@ -294,18 +449,38 @@ void UI_Init(void) {
     // is width * UI_WINDOW_SCALE x height * UI_WINDOW_SCALE pixels.
     ui_init_graphics(UI_INIT_DESKTOP, "OpenWarcraft3", 1176, 720);
 
+    // Top-bar window: draws the resource/status strip at the top of the game
+    // area.  WINDOW_NOTITLE keeps it chrome-free so it appears flush with the
+    // game window below it.
+    g_topbar_win = create_window("",
+                                 WINDOW_NOTITLE | WINDOW_NORESIZE | WINDOW_NOFILL,
+                                 MAKERECT(UI_WIN_X, UI_TOP_BAR_Y,
+                                          UI_GAME_W, UI_TOP_BAR_H),
+                                 NULL, win_topbar_proc, 0, NULL);
+    if (g_topbar_win)
+        show_window(g_topbar_win, true);
+
     // Game window: renders the 3-D scene directly into the default framebuffer
-    // using glViewport.  WINDOW_NORESIZE keeps it at a fixed size.
-    // WINDOW_NOFILL prevents orion-ui from filling the client area with the
-    // window background colour before our evPaint handler renders the scene.
+    // using glViewport.  Sized to exactly the 3-D area so no sub-viewport
+    // scissor is required inside the renderer.
     g_game_win = create_window("OpenWarcraft3",
                                WINDOW_NORESIZE | WINDOW_NOFILL,
-                               MAKERECT(20, 20, 800, 600),
+                               MAKERECT(UI_WIN_X, UI_GAME_Y,
+                                        UI_GAME_W, UI_GAME_H),
                                NULL, win_game_proc, 0, NULL);
     if (g_game_win) {
         show_window(g_game_win, true);
         set_focus(g_game_win);
     }
+
+    // Bottom-bar window: draws command buttons, minimap and unit-info panel.
+    g_bottombar_win = create_window("",
+                                    WINDOW_NOTITLE | WINDOW_NORESIZE | WINDOW_NOFILL,
+                                    MAKERECT(UI_WIN_X, UI_BOTTOM_BAR_Y,
+                                             UI_GAME_W, UI_BOTTOM_BAR_H),
+                                    NULL, win_bottombar_proc, 0, NULL);
+    if (g_bottombar_win)
+        show_window(g_bottombar_win, true);
 
     // Log window: small console that mirrors CON_printf output.
     g_log_win = create_window("Log",
@@ -338,10 +513,14 @@ int UI_IsRunning(void) {
 // UI_ProcessEvents — drain the platform event queue and repaint windows.
 // Must be called once per game tick, after SV_Frame() and CL_Frame().
 void UI_ProcessEvents(void) {
-    // Invalidate the game window each frame so evPaint fires and the new
-    // game frame is rendered directly into the default framebuffer.
+    // Invalidate all three game-area windows each frame so evPaint fires and
+    // the new frame is rendered directly into the default framebuffer.
+    if (g_topbar_win)
+        invalidate_window(g_topbar_win);
     if (g_game_win)
         invalidate_window(g_game_win);
+    if (g_bottombar_win)
+        invalidate_window(g_bottombar_win);
 
     ui_event_t evt;
     while (get_message(&evt))
