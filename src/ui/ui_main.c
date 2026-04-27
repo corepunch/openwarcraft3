@@ -203,10 +203,11 @@ static result_t win_game_proc(window_t *win, uint32_t msg,
             unsigned int tex = R_GetGameTexture();
             if (tex) {
                 rect_t client = get_client_rect(win);
+                frect_t uv = { 0.0f, 1.0f, 1.0f, 0.0f };
                 // Game FBO uses OpenGL's bottom-left texture origin; UI space
                 // is top-left, so flip V while blitting into the window.
-                draw_sprite_region((int)tex, &client, 0.0f, 1.0f, 1.0f, 0.0f,
-                                   0xFFFFFFFF);
+                draw_sprite_region((int)tex, &client, &uv,
+                                   0xFFFFFFFF, NO_ALPHA);
             }
             return 1;
         }
