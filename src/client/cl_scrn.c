@@ -653,6 +653,12 @@ void SCR_DrawOverlays(void) {
     }
 }
 
+// Both bar functions call the same SCR_DrawOverlays() because the ortho
+// sub-range set by R_SetUIRange() in the window proc acts as a natural clip:
+// UI frames whose Y position falls outside the active [y_start, y_end] range
+// produce NDC coordinates beyond ±1 and are discarded by the rasteriser.
+// The top-bar ortho [0, 0.012] therefore shows only top-bar frames, and the
+// bottom-bar ortho [0.468, 0.6] shows only bottom-bar frames.
 void SCR_DrawTopBar(void) {
     SCR_DrawOverlays();
 }

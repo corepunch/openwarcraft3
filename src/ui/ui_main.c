@@ -47,9 +47,9 @@
 
 // Game-area layout: these match the scissor {0, 0.22, 1, 0.76} that was
 // previously applied to the 800×600 game window.
-//   top-bar   height = (1 - 0.22 - 0.76) * 600 = 12 px
-//   game area height =              0.76  * 600 = 456 px
-//   bottom-bar height =             0.22  * 600 = 132 px
+//   top-bar   height = (1.0 - 0.22 - 0.76) * 600 = 0.02 * 600 = 12 px
+//   game area height =               0.76   * 600 = 456 px
+//   bottom-bar height =              0.22   * 600 = 132 px
 #define UI_GAME_W       800
 #define UI_TOP_BAR_H     12
 #define UI_GAME_H       456

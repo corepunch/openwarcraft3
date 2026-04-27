@@ -367,6 +367,7 @@ void R_BeginUIFrame(void) {
 }
 
 
+void R_BeginFrame(void) {
     // Render directly into the default framebuffer within the game window's
     // client area, positioned by the stored game_x/y/w/h GL coordinates.
     R_Call(glBindFramebuffer, GL_FRAMEBUFFER, 0);
