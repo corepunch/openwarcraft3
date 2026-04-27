@@ -170,9 +170,9 @@ static void R_SetupGL(bool drawLight) {
         R_Call(glDepthMask, GL_TRUE);
         R_Call(glClear, GL_DEPTH_BUFFER_BIT);
     } else {
-        // Return to the default framebuffer for the scene pass and restore
-        // the game viewport so multi-pass rendering (light pass first, scene
-        // pass second) always uses the correct destination.
+        // Bind the default framebuffer and the shadow-map depth texture for
+        // the scene pass.  The viewport/scissor are set by R_BeginFrame and
+        // then adjusted per-pass by R_SetupViewport/R_SetupScissor.
         R_Call(glBindFramebuffer, GL_FRAMEBUFFER, 0);
         R_Call(glActiveTexture, GL_TEXTURE1);
         R_Call(glBindTexture, GL_TEXTURE_2D, tr.rt[RT_DEPTHMAP]->texture);

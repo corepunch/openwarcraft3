@@ -199,20 +199,29 @@ static result_t win_map_proc(window_t *win, uint32_t msg,
 
 /* ── Game window ─────────────────────────────────────────────────────────── */
 
+// Physical-pixel GL rect for a logical UI rect (handles HiDPI/retina scaling
+// and Y-axis flip to GL bottom-left origin).
+// Defined in vendor/orion-ui/user/draw_impl.c.
+extern rect_t get_opengl_rect(rect_t const *r);
+
 static result_t win_game_proc(window_t *win, uint32_t msg,
                                uint32_t wparam, void *lparam)
 {
     switch (msg) {
         case evPaint: {
-            // Compute the GL viewport for the game client area.
-            // GL uses bottom-left origin; the frame extents give us:
-            //   y_gl = screen_height - frame.y - frame.h
-            // (title-bar height cancels: client_y_top + client_h = frame.y + frame.h)
             rect_t client = get_client_rect(win);
-            int screen_h  = ui_get_system_metrics(kSystemMetricScreenHeight);
-            int x_gl = win->frame.x;
-            int y_gl = screen_h - win->frame.y - win->frame.h;
-            R_SetGameViewport(x_gl, y_gl, client.w, client.h);
+            // Build the absolute logical rect for the client area.
+            // frame.y + (frame.h - client.h) == frame.y + titlebar_height.
+            rect_t client_abs = {
+                win->frame.x,
+                win->frame.y + win->frame.h - client.h,
+                client.w,
+                client.h,
+            };
+            // get_opengl_rect converts logical → physical framebuffer pixels
+            // and flips Y to GL's bottom-left origin, handling HiDPI/retina.
+            rect_t gl_rect = get_opengl_rect(&client_abs);
+            R_SetGameViewport(gl_rect.x, gl_rect.y, gl_rect.w, gl_rect.h);
             SCR_UpdateScreen();
             return 1;
         }
