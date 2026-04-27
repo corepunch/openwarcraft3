@@ -339,6 +339,8 @@ void R_SetGameViewport(int x, int y, int w, int h) {
     tr.game_y = y;
     tr.game_w = w;
     tr.game_h = h;
+    // Update drawableSize to match the actual client render area so that
+    // projection matrices and viewport scaling use the real pixel dimensions.
     tr.drawableSize.width  = (DWORD)w;
     tr.drawableSize.height = (DWORD)h;
 }

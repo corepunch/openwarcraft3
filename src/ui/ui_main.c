@@ -204,10 +204,10 @@ static result_t win_game_proc(window_t *win, uint32_t msg,
 {
     switch (msg) {
         case evPaint: {
-            // Compute the GL viewport coordinates for the game client area.
-            // GL uses a bottom-left origin, so we flip the Y axis:
+            // Compute the GL viewport for the game client area.
+            // GL uses bottom-left origin; the frame extents give us:
             //   y_gl = screen_height - frame.y - frame.h
-            // The title-bar height cancels out, leaving just the frame extents.
+            // (title-bar height cancels: client_y_top + client_h = frame.y + frame.h)
             rect_t client = get_client_rect(win);
             int screen_h  = ui_get_system_metrics(kSystemMetricScreenHeight);
             int x_gl = win->frame.x;
