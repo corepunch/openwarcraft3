@@ -121,7 +121,6 @@ enum {
 
 enum {
     RT_DEPTHMAP,
-    RT_GAME,
     RT_COUNT,
 };
 
@@ -151,7 +150,7 @@ struct render_globals {
     LPRENDERTARGET rt[RT_COUNT];
     sheetRow_t *sheet[SHEET_COUNT];
     size2_t drawableSize;
-    DWORD game_depth_rbo;
+    int game_x, game_y, game_w, game_h;
 };
 
 void R_RegisterMap(LPCSTR mapFileName);
@@ -220,7 +219,6 @@ void R_DrawText(LPCDRAWTEXT drawText);
 // r_image.c
 LPRENDERTARGET R_AllocateRenderTexture(GLsizei width, GLsizei height, GLenum format, GLenum type, GLenum attachment);
 void R_ReleaseRenderTexture(LPRENDERTARGET rt);
-DWORD R_GetGameTexture(void);
 
 // r_fogofwar.c
 void R_InitFogOfWar(DWORD width, DWORD height);

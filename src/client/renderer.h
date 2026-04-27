@@ -121,7 +121,6 @@ typedef struct {
     void (*DrawPortrait)(LPCMODEL model, LPCRECT viewport);
     void (*DrawText)(LPCDRAWTEXT drawText);
     VECTOR2 (*GetTextSize)(LPCDRAWTEXT drawText);
-    DWORD (*GetGameTexture)(void);
 
     FLOAT (*GetHeightAtPoint)(float x, float y);
     bool (*TraceEntity)(viewDef_t const *viewdef, float x, float y, LPDWORD number);

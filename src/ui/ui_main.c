@@ -2,9 +2,10 @@
  * ui_main.c — Orion-UI integration for OpenWarcraft3.
  *
  * Provides three windows:
- *   1. Game Window  — displays the 3-D game scene rendered to an off-screen
- *                     FBO via the renderer.  All keyboard / mouse input aimed
- *                     at the game is routed through this window's proc.
+ *   1. Game Window  — displays the 3-D game scene rendered directly into the
+ *                     default framebuffer using glViewport for positioning.
+ *                     All keyboard / mouse input aimed at the game is routed
+ *                     through this window's proc.
  *   2. Log Window   — shows CON_printf() output in a read-only text area.
  *   3. Map Selector — lists *.w3m files found in the loaded MPQ archive and
  *                     lets the player pick a map to start.
@@ -43,8 +44,11 @@ extern void CL_MouseMove(float x, float y, float dx, float dy);
 extern void CL_KeyDown(unsigned char key, unsigned int time);
 extern void CL_KeyUp(unsigned char key, unsigned int time);
 
-// renderer — returns the GLuint texture ID of the game FBO colour attachment
-extern unsigned int R_GetGameTexture(void);
+// screen update — renders the current frame directly into the default framebuffer
+extern void SCR_UpdateScreen(void);
+
+// renderer — sets the GL viewport position used by the game renderer
+extern void R_SetGameViewport(int x, int y, int w, int h);
 
 // console hook — register a callback to receive every CON_printf() message
 typedef void (*con_log_hook_t)(const char *msg);
@@ -200,14 +204,16 @@ static result_t win_game_proc(window_t *win, uint32_t msg,
 {
     switch (msg) {
         case evPaint: {
-            unsigned int tex = R_GetGameTexture();
-            if (tex) {
-                rect_t client = get_client_rect(win);
-                // Game FBO uses OpenGL's bottom-left texture origin; UI space
-                // is top-left, so flip V while blitting into the window.
-                draw_sprite_region((int)tex, &client, 0.0f, 1.0f, 1.0f, 0.0f,
-                                   0xFFFFFFFF);
-            }
+            // Compute the GL viewport coordinates for the game client area.
+            // GL uses a bottom-left origin, so we flip the Y axis:
+            //   y_gl = screen_height - frame.y - frame.h
+            // The title-bar height cancels out, leaving just the frame extents.
+            rect_t client = get_client_rect(win);
+            int screen_h  = ui_get_system_metrics(kSystemMetricScreenHeight);
+            int x_gl = win->frame.x;
+            int y_gl = screen_h - win->frame.y - win->frame.h;
+            R_SetGameViewport(x_gl, y_gl, client.w, client.h);
+            SCR_UpdateScreen();
             return 1;
         }
 
@@ -279,10 +285,12 @@ void UI_Init(void) {
     // is width * UI_WINDOW_SCALE x height * UI_WINDOW_SCALE pixels.
     ui_init_graphics(UI_INIT_DESKTOP, "OpenWarcraft3", 1400, 900);
 
-    // Game window: hosts the 3-D render FBO and captures all game input.
-    // WINDOW_NORESIZE keeps it at a fixed 1024x768 client size.
+    // Game window: renders the 3-D scene directly into the default framebuffer
+    // using glViewport.  WINDOW_NORESIZE keeps it at a fixed size.
+    // WINDOW_NOFILL prevents orion-ui from filling the client area with the
+    // window background colour before our evPaint handler renders the scene.
     g_game_win = create_window("OpenWarcraft3",
-                               WINDOW_NORESIZE,
+                               WINDOW_NORESIZE | WINDOW_NOFILL,
                                MAKERECT(20, 20, 1024, 768),
                                NULL, win_game_proc, 0, NULL);
     if (g_game_win) {
@@ -322,7 +330,7 @@ int UI_IsRunning(void) {
 // Must be called once per game tick, after SV_Frame() and CL_Frame().
 void UI_ProcessEvents(void) {
     // Invalidate the game window each frame so evPaint fires and the new
-    // frame from the game FBO is displayed.
+    // game frame is rendered directly into the default framebuffer.
     if (g_game_win)
         invalidate_window(g_game_win);
 

@@ -161,7 +161,7 @@ void CL_SendCommand(void) {
 
 /* Main client tick called from the platform event loop.
  * Advances the client clock, applies incoming server state, samples input,
- * sends commands, and renders the current frame. */
+ * and sends commands.  Rendering is deferred to evPaint in the UI layer. */
 void CL_Frame(DWORD msec) {
     cl.time += msec;
 
@@ -172,6 +172,4 @@ void CL_Frame(DWORD msec) {
     CL_SendCommand();
 
     CL_PrepRefresh();
-
-    SCR_UpdateScreen();
 }

@@ -170,10 +170,10 @@ static void R_SetupGL(bool drawLight) {
         R_Call(glDepthMask, GL_TRUE);
         R_Call(glClear, GL_DEPTH_BUFFER_BIT);
     } else {
-        // R_BeginFrame already binds RT_GAME; this redundant bind ensures
-        // that multi-pass rendering (light pass first, scene pass second)
-        // always switches back to the game FBO for the scene pass.
-        R_Call(glBindFramebuffer, GL_FRAMEBUFFER, tr.rt[RT_GAME]->buffer);
+        // Return to the default framebuffer for the scene pass and restore
+        // the game viewport so multi-pass rendering (light pass first, scene
+        // pass second) always uses the correct destination.
+        R_Call(glBindFramebuffer, GL_FRAMEBUFFER, 0);
         R_Call(glActiveTexture, GL_TEXTURE1);
         R_Call(glBindTexture, GL_TEXTURE_2D, tr.rt[RT_DEPTHMAP]->texture);
     }
@@ -198,9 +198,14 @@ LPCSTR modelNames[MODEL_COUNT] = {
 
 void R_Init(DWORD width, DWORD height) {
     // The OpenGL context has already been created by ui_init_graphics().
-    // Record the game render dimensions; all game 3D rendering goes to RT_GAME.
+    // Record the game render dimensions; game 3D rendering goes directly to
+    // the default framebuffer using glViewport for positioning.
     tr.drawableSize.width  = width;
     tr.drawableSize.height = height;
+    tr.game_x = 0;
+    tr.game_y = 0;
+    tr.game_w = (int)width;
+    tr.game_h = (int)height;
     
 //    m3 = R_LoadModel("Assets\\Units\\Terran\\SpecialOpsDropship\\SpecialOpsDropship.m3");
 //    R_LoadModel("Assets\\Units\\Terran\\MarineTychus\\MarineTychus.m3");
@@ -246,28 +251,6 @@ void R_Init(DWORD width, DWORD height) {
     tr.texture[TEX_FONT] = R_MakeSysFontTexture();
     tr.rt[RT_DEPTHMAP] = R_AllocateRenderTexture(SHADOW_TEXSIZE, SHADOW_TEXSIZE, GL_DEPTH_COMPONENT, GL_FLOAT, GL_DEPTH_ATTACHMENT);
 
-    // Create the game render FBO: RGBA color + depth renderbuffer
-    {
-        LPRENDERTARGET rt = ri.MemAlloc(sizeof(RENDERTARGET));
-        R_Call(glGenFramebuffers, 1, &rt->buffer);
-        R_Call(glBindFramebuffer, GL_FRAMEBUFFER, rt->buffer);
-
-        R_Call(glGenTextures, 1, &rt->texture);
-        R_Call(glBindTexture, GL_TEXTURE_2D, rt->texture);
-        R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        R_Call(glTexImage2D, GL_TEXTURE_2D, 0, GL_RGBA, (GLsizei)width, (GLsizei)height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
-        R_Call(glFramebufferTexture2D, GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, rt->texture, 0);
-
-        R_Call(glGenRenderbuffers, 1, &tr.game_depth_rbo);
-        R_Call(glBindRenderbuffer, GL_RENDERBUFFER, tr.game_depth_rbo);
-        R_Call(glRenderbufferStorage, GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, (GLsizei)width, (GLsizei)height);
-        R_Call(glFramebufferRenderbuffer, GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, tr.game_depth_rbo);
-
-        R_Call(glBindFramebuffer, GL_FRAMEBUFFER, 0);
-        tr.rt[RT_GAME] = rt;
-    }
-    
     R_Call(glDisable, GL_DEPTH_TEST);
     R_Call(glClearColor, 0.0, 0.0, 0.0, 0.0);
     R_Call(glViewport, 0, 0, (GLsizei)width, (GLsizei)height);
@@ -284,34 +267,23 @@ void R_Shutdown(void) {
     
     R_ShutdownFogOfWar();
     R_ShutdownParticles();
-
-    if (tr.rt[RT_GAME]) {
-        // Delete the depth renderbuffer that was attached separately, then
-        // release the FBO, colour texture, and RENDERTARGET allocation.
-        if (tr.game_depth_rbo) {
-            glDeleteRenderbuffers(1, &tr.game_depth_rbo);
-            tr.game_depth_rbo = 0;
-        }
-        R_ReleaseRenderTexture(tr.rt[RT_GAME]);
-        tr.rt[RT_GAME] = NULL;
-    }
 }
 
 void R_SetupViewport(LPCRECT r) {
     R_Call(glViewport,
-           r->x * tr.drawableSize.width,
-           r->y * tr.drawableSize.height,
-           r->w * tr.drawableSize.width,
-           r->h * tr.drawableSize.height);
+           tr.game_x + (GLint)(r->x * tr.drawableSize.width),
+           tr.game_y + (GLint)(r->y * tr.drawableSize.height),
+           (GLsizei)(r->w * tr.drawableSize.width),
+           (GLsizei)(r->h * tr.drawableSize.height));
 }
 
 void R_SetupScissor(LPCRECT r) {
     R_Call(glEnable, GL_SCISSOR_TEST);
     R_Call(glScissor,
-           r->x * tr.drawableSize.width,
-           r->y * tr.drawableSize.height,
-           r->w * tr.drawableSize.width,
-           r->h * tr.drawableSize.height);
+           tr.game_x + (GLint)(r->x * tr.drawableSize.width),
+           tr.game_y + (GLint)(r->y * tr.drawableSize.height),
+           (GLsizei)(r->w * tr.drawableSize.width),
+           (GLsizei)(r->h * tr.drawableSize.height));
 }
 
 void R_RevertSettings(void) {
@@ -362,10 +334,22 @@ void R_DrawBuffer(LPCBUFFER buffer, DWORD num_vertices) {
     R_Call(glDrawArrays, GL_TRIANGLES, 0, num_vertices);
 }
 
+void R_SetGameViewport(int x, int y, int w, int h) {
+    tr.game_x = x;
+    tr.game_y = y;
+    tr.game_w = w;
+    tr.game_h = h;
+    tr.drawableSize.width  = (DWORD)w;
+    tr.drawableSize.height = (DWORD)h;
+}
+
 void R_BeginFrame(void) {
-    R_Call(glBindFramebuffer, GL_FRAMEBUFFER, tr.rt[RT_GAME]->buffer);
-    R_Call(glViewport, 0, 0, (GLsizei)tr.drawableSize.width, (GLsizei)tr.drawableSize.height);
-    R_Call(glDisable, GL_SCISSOR_TEST);
+    // Render directly into the default framebuffer within the game window's
+    // client area, positioned by the stored game_x/y/w/h GL coordinates.
+    R_Call(glBindFramebuffer, GL_FRAMEBUFFER, 0);
+    R_Call(glViewport, tr.game_x, tr.game_y, (GLsizei)tr.game_w, (GLsizei)tr.game_h);
+    R_Call(glEnable, GL_SCISSOR_TEST);
+    R_Call(glScissor, tr.game_x, tr.game_y, (GLsizei)tr.game_w, (GLsizei)tr.game_h);
     R_Call(glEnable, GL_DEPTH_TEST);
     R_Call(glDepthMask, GL_TRUE);
     R_Call(glDepthFunc, GL_LEQUAL);
@@ -375,8 +359,11 @@ void R_BeginFrame(void) {
 }
 
 void R_EndFrame(void) {
-    // Unbind the game FBO; buffer-swap is handled by orion-ui's repost_messages().
+    // Restore GL state expected by orion-ui's 2-D rendering pipeline.
     R_Call(glBindFramebuffer, GL_FRAMEBUFFER, 0);
+    R_Call(glDisable, GL_DEPTH_TEST);
+    R_Call(glDisable, GL_CULL_FACE);
+    R_Call(glDisable, GL_SCISSOR_TEST);
 }
 
 size2_t R_GetWindowSize(void) {
@@ -384,12 +371,6 @@ size2_t R_GetWindowSize(void) {
         .width  = tr.drawableSize.width,
         .height = tr.drawableSize.height,
     };
-}
-
-DWORD R_GetGameTexture(void) {
-    if (tr.rt[RT_GAME])
-        return tr.rt[RT_GAME]->texture;
-    return 0;
 }
 
 size2_t R_GetTextureSize(LPCTEXTURE texture) {
@@ -431,7 +412,6 @@ refExport_t R_GetAPI(refImport_t imp) {
         .DrawPortrait = R_DrawPortrait,
         .DrawText = R_DrawText,
         .GetTextSize = R_GetTextSize,
-        .GetGameTexture = R_GetGameTexture,
         .GetHeightAtPoint = GetAccurateHeightAtPoint,
         .TraceEntity = R_TraceEntity,
         .TraceLocation = R_TraceLocation,
