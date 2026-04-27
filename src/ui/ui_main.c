@@ -292,7 +292,7 @@ void UI_Init(void) {
     // Create the platform window + OpenGL context.
     // Width / height are the virtual coordinate space; the physical OS window
     // is width * UI_WINDOW_SCALE x height * UI_WINDOW_SCALE pixels.
-    ui_init_graphics(UI_INIT_DESKTOP, "OpenWarcraft3", 1400, 900);
+    ui_init_graphics(UI_INIT_DESKTOP, "OpenWarcraft3", 1176, 720);
 
     // Game window: renders the 3-D scene directly into the default framebuffer
     // using glViewport.  WINDOW_NORESIZE keeps it at a fixed size.
@@ -300,7 +300,7 @@ void UI_Init(void) {
     // window background colour before our evPaint handler renders the scene.
     g_game_win = create_window("OpenWarcraft3",
                                WINDOW_NORESIZE | WINDOW_NOFILL,
-                               MAKERECT(20, 20, 1024, 768),
+                               MAKERECT(20, 20, 800, 600),
                                NULL, win_game_proc, 0, NULL);
     if (g_game_win) {
         show_window(g_game_win, true);
@@ -310,7 +310,7 @@ void UI_Init(void) {
     // Log window: small console that mirrors CON_printf output.
     g_log_win = create_window("Log",
                               0,
-                              MAKERECT(1064, 20, 320, 400),
+                              MAKERECT(840, 20, 320, 400),
                               NULL, win_log_proc, 0, NULL);
     if (g_log_win)
         show_window(g_log_win, true);
@@ -320,7 +320,7 @@ void UI_Init(void) {
     if (g_num_maps > 0) {
         g_map_win = create_window("Select Map",
                                   WINDOW_NORESIZE,
-                                  MAKERECT(1064, 440, 320, 120),
+                                  MAKERECT(840, 440, 320, 120),
                                   NULL, win_map_proc, 0, NULL);
         if (g_map_win)
             show_window(g_map_win, true);
