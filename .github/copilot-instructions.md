@@ -21,3 +21,9 @@ This codebase is inspired by **Quake 2**. The developer working on this project 
 ## Domain
 
 - This is a **real-time strategy game** (RTS), so game logic should account for unit management, pathfinding, resource gathering, building construction, and large numbers of entities — adapted from the Quake 2 entity/server model where applicable.
+
+## Copilot Knowledge Reuse
+
+- For renderer and Orion-UI integration details, read `doc/architecture/rendering-ui-integration.md`.
+- For task-time guidance while editing rendering/UI code paths, use `.github/instructions/rendering-ui-pipeline.instructions.md`.
+- When investigating repaint bugs during drag/resize, prioritize scissor and stencil interactions at the boundary between `CL_Frame` and `UI_ProcessEvents`.

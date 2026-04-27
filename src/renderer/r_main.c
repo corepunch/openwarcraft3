@@ -362,7 +362,12 @@ void R_DrawBuffer(LPCBUFFER buffer, DWORD num_vertices) {
     R_Call(glDrawArrays, GL_TRIANGLES, 0, num_vertices);
 }
 
+GLint viewport[4]={0};
+GLint scissor[4]={0};
+
 void R_BeginFrame(void) {
+    R_Call(glGetIntegerv, GL_SCISSOR_BOX, scissor);
+    R_Call(glGetIntegerv, GL_VIEWPORT, viewport);
     R_Call(glBindFramebuffer, GL_FRAMEBUFFER, tr.rt[RT_GAME]->buffer);
     R_Call(glViewport, 0, 0, (GLsizei)tr.drawableSize.width, (GLsizei)tr.drawableSize.height);
     R_Call(glDisable, GL_SCISSOR_TEST);
@@ -377,6 +382,8 @@ void R_BeginFrame(void) {
 void R_EndFrame(void) {
     // Unbind the game FBO; buffer-swap is handled by orion-ui's repost_messages().
     R_Call(glBindFramebuffer, GL_FRAMEBUFFER, 0);
+    R_Call(glScissor, scissor[0], scissor[1], scissor[2], scissor[3]);
+    R_Call(glViewport, viewport[0], viewport[1], viewport[2], viewport[3]);
 }
 
 size2_t R_GetWindowSize(void) {
