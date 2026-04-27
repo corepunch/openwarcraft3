@@ -383,6 +383,11 @@ void R_BeginFrame(void) {
 }
 
 void R_EndFrame(void) {
+    // Reset the UI ortho sub-range to the full canvas so that subsequent
+    // draws (console, selection rect, etc.) are not accidentally clipped by
+    // a bar-window's narrow range from a prior R_SetUIRange() call.
+    tr.ui_y_start = 0.0f;
+    tr.ui_y_end   = 0.6f;
     // Restore GL state expected by orion-ui's 2-D rendering pipeline.
     R_Call(glBindFramebuffer, GL_FRAMEBUFFER, 0);
     R_Call(glDisable, GL_DEPTH_TEST);

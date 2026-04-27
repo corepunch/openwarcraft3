@@ -323,10 +323,11 @@ static result_t win_bottombar_proc(window_t *win, uint32_t msg,
             int16_t ly  = (int16_t)HIWORD(wparam);
             int16_t rdx = (int16_t)LOWORD((uint32_t)(intptr_t)lparam);
             int16_t rdy = (int16_t)HIWORD((uint32_t)(intptr_t)lparam);
-            // Translate bar-local y into full game-window y space so that
-            // UI hit-testing uses consistent coordinates with the game window.
+            // Translate bar-local y into full virtual-coordinate y so that
+            // UI hit-testing is consistent: bottom bar starts at
+            // UI_TOP_BAR_H + UI_GAME_H pixels below the top of the layout.
             CL_MouseMove((float)lx,
-                         (float)(UI_GAME_H + ly),
+                         (float)(UI_TOP_BAR_H + UI_GAME_H + ly),
                          (float)rdx, (float)rdy);
             invalidate_window(win);
             return 1;
@@ -334,28 +335,28 @@ static result_t win_bottombar_proc(window_t *win, uint32_t msg,
         case evLeftButtonDown: {
             int16_t lx = (int16_t)LOWORD(wparam);
             int16_t ly = (int16_t)HIWORD(wparam);
-            CL_MouseButtonDown(1, (float)lx, (float)(UI_GAME_H + ly),
+            CL_MouseButtonDown(1, (float)lx, (float)(UI_TOP_BAR_H + UI_GAME_H + ly),
                                (unsigned int)axGetMilliseconds());
             return 1;
         }
         case evLeftButtonUp: {
             int16_t lx = (int16_t)LOWORD(wparam);
             int16_t ly = (int16_t)HIWORD(wparam);
-            CL_MouseButtonUp(1, (float)lx, (float)(UI_GAME_H + ly),
+            CL_MouseButtonUp(1, (float)lx, (float)(UI_TOP_BAR_H + UI_GAME_H + ly),
                              (unsigned int)axGetMilliseconds());
             return 1;
         }
         case evRightButtonDown: {
             int16_t lx = (int16_t)LOWORD(wparam);
             int16_t ly = (int16_t)HIWORD(wparam);
-            CL_MouseButtonDown(3, (float)lx, (float)(UI_GAME_H + ly),
+            CL_MouseButtonDown(3, (float)lx, (float)(UI_TOP_BAR_H + UI_GAME_H + ly),
                                (unsigned int)axGetMilliseconds());
             return 1;
         }
         case evRightButtonUp: {
             int16_t lx = (int16_t)LOWORD(wparam);
             int16_t ly = (int16_t)HIWORD(wparam);
-            CL_MouseButtonUp(3, (float)lx, (float)(UI_GAME_H + ly),
+            CL_MouseButtonUp(3, (float)lx, (float)(UI_TOP_BAR_H + UI_GAME_H + ly),
                              (unsigned int)axGetMilliseconds());
             return 1;
         }
