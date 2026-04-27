@@ -364,6 +364,8 @@ void R_DrawBuffer(LPCBUFFER buffer, DWORD num_vertices) {
 
 void R_BeginFrame(void) {
     R_Call(glBindFramebuffer, GL_FRAMEBUFFER, tr.rt[RT_GAME]->buffer);
+    R_Call(glViewport, 0, 0, (GLsizei)tr.drawableSize.width, (GLsizei)tr.drawableSize.height);
+    R_Call(glDisable, GL_SCISSOR_TEST);
     R_Call(glEnable, GL_DEPTH_TEST);
     R_Call(glDepthMask, GL_TRUE);
     R_Call(glDepthFunc, GL_LEQUAL);
