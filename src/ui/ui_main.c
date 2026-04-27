@@ -51,7 +51,7 @@
 //   game area height =               0.76   * 600 = 456 px
 //   bottom-bar height =              0.22   * 600 = 132 px
 #define UI_GAME_W       800
-#define UI_TOP_BAR_H     12
+#define UI_TOP_BAR_H     18
 #define UI_GAME_H       456
 #define UI_BOTTOM_BAR_H 132
 
@@ -113,6 +113,15 @@ static window_t *g_log_win    = NULL;
 static window_t *g_map_win    = NULL;
 static window_t *g_log_edit   = NULL;   // multiedit inside log window
 static window_t *g_map_combo  = NULL;   // combobox inside map selector
+
+static rect_t make_window_frame_rect(int x, int y, int w, int h, flags_t flags)
+{
+    rect_t frame = { 0, 0, w, h };
+    adjust_window_rect(&frame, flags);
+    frame.x += x;
+    frame.y += y;
+    return frame;
+}
 
 /* ── Map list storage ────────────────────────────────────────────────────── */
 
@@ -445,18 +454,21 @@ static result_t win_game_proc(window_t *win, uint32_t msg,
 // BEFORE Com_Init() (which initialises the renderer using the GL context
 // created here by ui_init_graphics).
 void UI_Init(void) {
+    rect_t frame;
+
     // Create the platform window + OpenGL context.
     // Width / height are the virtual coordinate space; the physical OS window
     // is width * UI_WINDOW_SCALE x height * UI_WINDOW_SCALE pixels.
     ui_init_graphics(UI_INIT_DESKTOP, "OpenWarcraft3", 1176, 720);
 
-    // Top-bar window: draws the resource/status strip at the top of the game
-    // area.  WINDOW_NOTITLE keeps it chrome-free so it appears flush with the
-    // game window below it.
-    g_topbar_win = create_window("",
-                                 WINDOW_NOTITLE | WINDOW_NORESIZE | WINDOW_NOFILL,
-                                 MAKERECT(UI_WIN_X, UI_TOP_BAR_Y,
-                                          UI_GAME_W, UI_TOP_BAR_H),
+    // Top-bar window: draw the resource/status strip with a normal frame while
+    // keeping the client area at the intended top-bar size.
+    frame = make_window_frame_rect(UI_WIN_X, UI_TOP_BAR_Y,
+                                   UI_GAME_W, UI_TOP_BAR_H,
+                                   WINDOW_NORESIZE | WINDOW_NOFILL);
+    g_topbar_win = create_window("Resources",
+                                 WINDOW_NORESIZE | WINDOW_NOFILL,
+                                 &frame,
                                  NULL, win_topbar_proc, 0, NULL);
     if (g_topbar_win)
         show_window(g_topbar_win, true);
@@ -464,29 +476,35 @@ void UI_Init(void) {
     // Game window: renders the 3-D scene directly into the default framebuffer
     // using glViewport.  Sized to exactly the 3-D area so no sub-viewport
     // scissor is required inside the renderer.
-    g_game_win = create_window("OpenWarcraft3",
+    frame = make_window_frame_rect(UI_WIN_X, UI_GAME_Y,
+                                   UI_GAME_W, UI_GAME_H,
+                                   WINDOW_NORESIZE | WINDOW_NOFILL);
+    g_game_win = create_window("Viewport",
                                WINDOW_NORESIZE | WINDOW_NOFILL,
-                               MAKERECT(UI_WIN_X, UI_GAME_Y,
-                                        UI_GAME_W, UI_GAME_H),
+                               &frame,
                                NULL, win_game_proc, 0, NULL);
     if (g_game_win) {
         show_window(g_game_win, true);
         set_focus(g_game_win);
     }
 
-    // Bottom-bar window: draws command buttons, minimap and unit-info panel.
-    g_bottombar_win = create_window("",
-                                    WINDOW_NOTITLE | WINDOW_NORESIZE | WINDOW_NOFILL,
-                                    MAKERECT(UI_WIN_X, UI_BOTTOM_BAR_Y,
-                                             UI_GAME_W, UI_BOTTOM_BAR_H),
+    // Bottom-bar window: draw the command/minimap strip with a normal frame
+    // while keeping the client area at the intended bottom-bar size.
+    frame = make_window_frame_rect(UI_WIN_X, UI_BOTTOM_BAR_Y,
+                                   UI_GAME_W, UI_BOTTOM_BAR_H,
+                                   WINDOW_NORESIZE | WINDOW_NOFILL);
+    g_bottombar_win = create_window("Commands",
+                                    WINDOW_NORESIZE | WINDOW_NOFILL,
+                                    &frame,
                                     NULL, win_bottombar_proc, 0, NULL);
     if (g_bottombar_win)
         show_window(g_bottombar_win, true);
 
     // Log window: small console that mirrors CON_printf output.
+    frame = make_window_frame_rect(840, 20, 320, 400, 0);
     g_log_win = create_window("Log",
                               0,
-                              MAKERECT(840, 20, 320, 400),
+                              &frame,
                               NULL, win_log_proc, 0, NULL);
     if (g_log_win)
         show_window(g_log_win, true);
@@ -494,9 +512,10 @@ void UI_Init(void) {
     // Map selector: lists *.w3m files from the MPQ.
     g_num_maps = FS_ListMaps(g_map_paths, MAX_MAPS);
     if (g_num_maps > 0) {
+        frame = make_window_frame_rect(840, 440, 320, 120, WINDOW_NORESIZE);
         g_map_win = create_window("Select Map",
                                   WINDOW_NORESIZE,
-                                  MAKERECT(840, 440, 320, 120),
+                                  &frame,
                                   NULL, win_map_proc, 0, NULL);
         if (g_map_win)
             show_window(g_map_win, true);
