@@ -203,7 +203,10 @@ static result_t win_game_proc(window_t *win, uint32_t msg,
             unsigned int tex = R_GetGameTexture();
             if (tex) {
                 rect_t client = get_client_rect(win);
-                draw_rect((int)tex, &client);
+                // Game FBO uses OpenGL's bottom-left texture origin; UI space
+                // is top-left, so flip V while blitting into the window.
+                draw_sprite_region((int)tex, &client, 0.0f, 1.0f, 1.0f, 0.0f,
+                                   0xFFFFFFFF);
             }
             return 1;
         }
@@ -274,7 +277,7 @@ void UI_Init(void) {
     // Create the platform window + OpenGL context.
     // Width / height are the virtual coordinate space; the physical OS window
     // is width * UI_WINDOW_SCALE x height * UI_WINDOW_SCALE pixels.
-    ui_init_graphics(0, "OpenWarcraft3", 1400, 900);
+    ui_init_graphics(UI_INIT_DESKTOP, "OpenWarcraft3", 1400, 900);
 
     // Game window: hosts the 3-D render FBO and captures all game input.
     // WINDOW_NORESIZE keeps it at a fixed 1024x768 client size.
@@ -282,14 +285,18 @@ void UI_Init(void) {
                                WINDOW_NORESIZE,
                                MAKERECT(20, 20, 1024, 768),
                                NULL, win_game_proc, 0, NULL);
-    if (g_game_win)
+    if (g_game_win) {
+        show_window(g_game_win, true);
         set_focus(g_game_win);
+    }
 
     // Log window: small console that mirrors CON_printf output.
     g_log_win = create_window("Log",
                               0,
                               MAKERECT(1064, 20, 320, 400),
                               NULL, win_log_proc, 0, NULL);
+    if (g_log_win)
+        show_window(g_log_win, true);
 
     // Map selector: lists *.w3m files from the MPQ.
     g_num_maps = FS_ListMaps(g_map_paths, MAX_MAPS);
@@ -298,6 +305,8 @@ void UI_Init(void) {
                                   WINDOW_NORESIZE,
                                   MAKERECT(1064, 440, 320, 120),
                                   NULL, win_map_proc, 0, NULL);
+        if (g_map_win)
+            show_window(g_map_win, true);
     }
 
     // Hook CON_printf so messages are mirrored to the log window.

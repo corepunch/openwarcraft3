@@ -10,18 +10,24 @@ CC       := gcc
 BIN_DIR  := build/bin
 LIB_DIR  := build/lib
 OBJ_DIR  := build/obj
+SHARE_DIR := build/share
 CFLAGS   := -Wall -fPIC -Isrc/cmath3/types
 LDFLAGS  := -L$(LIB_DIR)
+RPATH_FLAG := -Wl,-rpath,'$$ORIGIN/../lib'
 
 # Orion-UI submodule paths
 ORION_DIR    := vendor/orion-ui
 PLATFORM_DIR := $(ORION_DIR)/platform
 ORION_LIB    := $(LIB_DIR)/liborion.a
+ORION_SHARE_SRC := $(ORION_DIR)/share
+ORION_SHARE_DST := $(SHARE_DIR)/orion
+ORION_SHARE_STAMP := $(ORION_SHARE_DST)/.stamp
 
 CMATH3_OBJS   := $(patsubst src/cmath3/%.c,$(OBJ_DIR)/cmath3/%.o,$(shell find src/cmath3 -name '*.c'))
 RENDERER_OBJS := $(patsubst src/renderer/%.c,$(OBJ_DIR)/renderer/%.o,$(shell find src/renderer -name '*.c'))
 GAME_OBJS     := $(patsubst src/game/%.c,$(OBJ_DIR)/game/%.o,$(shell find src/game -name '*.c'))
 APP_OBJS      := $(patsubst src/%.c,$(OBJ_DIR)/%.o,$(wildcard src/client/*.c) $(wildcard src/server/*.c) $(wildcard src/common/*.c) $(wildcard src/ui/*.c))
+ORION_SHARE_FILES := $(shell find $(ORION_SHARE_SRC) -type f)
 
 ifeq ($(shell uname -s),Linux)
 	PLATFORM_LIB     := $(LIB_DIR)/libplatform.so
@@ -43,6 +49,7 @@ ifeq ($(shell uname -s),Darwin)
 	CFLAGS           += -DGL_SILENCE_DEPRECATION
 	CFLAGS           += -I$(HOMEBREW_PREFIX)/include
 	LDFLAGS          += -L$(HOMEBREW_PREFIX)/lib $(PLATFORM_LDFLAGS)
+	RPATH_FLAG       := -Wl,-rpath,@executable_path/../lib
 	PLATFORM_LIB_EXT := dylib
 endif
 
@@ -76,6 +83,14 @@ $(BIN_DIR):
 $(OBJ_DIR):
 	@mkdir -p $@
 
+$(SHARE_DIR):
+	@mkdir -p $@
+
+$(ORION_SHARE_STAMP): $(ORION_SHARE_FILES) | $(SHARE_DIR)
+	rm -rf $(ORION_SHARE_DST)
+	cp -R $(ORION_SHARE_SRC) $(ORION_SHARE_DST)
+	touch $@
+
 # ── Build platform shared library using its own Makefile ──────────────────
 $(PLATFORM_LIB): | $(LIB_DIR)
 	$(MAKE) -C $(PLATFORM_DIR) OUTDIR=$(abspath $(LIB_DIR))
@@ -97,9 +112,9 @@ $(LIB_DIR)/libgame.so: $(GAME_OBJS) $(LIB_DIR)
 $(LIB_DIR)/librenderer.so: cmath3 $(RENDERER_OBJS) $(LIB_DIR)
 	$(CC) -shared -o $@ $(RENDERER_OBJS) $(LDFLAGS) -lcmath3 -lstorm -ljpeg
 
-$(BIN_DIR)/openwarcraft3: cmath3 game renderer $(ORION_LIB) $(APP_OBJS) $(BIN_DIR)
+$(BIN_DIR)/openwarcraft3: cmath3 game renderer $(ORION_LIB) $(ORION_SHARE_STAMP) $(APP_OBJS) $(BIN_DIR)
 	$(CC) -o $@ $(APP_OBJS) \
-	      -Wl,-rpath,'$$ORIGIN/../lib' $(LDFLAGS) \
+	      $(RPATH_FLAG) $(LDFLAGS) \
 	      $(ORION_LIB) -lplatform \
 	      -lcmath3 -lstorm -lgame -lrenderer
 
@@ -115,7 +130,7 @@ $(ZIP_FILE):
 	curl -L -o $(ZIP_FILE) $(ZIP_URL)
 
 clean:
-	rm -rf build/obj build/lib
+	rm -rf build/obj build/lib build/share
 
 # ---------------------------------------------------------------------------
 # Test target — builds and runs the unit test binary.
