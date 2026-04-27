@@ -241,9 +241,15 @@ static result_t win_map_proc(window_t *win, uint32_t msg,
         default:
             return 0;
     }
+    return 0;
 }
 
 /* ── Top-bar window ──────────────────────────────────────────────────────── */
+
+// Physical-pixel GL rect for a logical UI rect (handles HiDPI/retina scaling
+// and Y-axis flip to GL bottom-left origin).
+// Defined in vendor/orion-ui/user/draw_impl.c.
+extern rect_t get_opengl_rect(rect_t const *r);
 
 // Renders the thin resource/status bar at the top of the game area.
 // The full 0-0.8 × 0-0.6 UI overlay is drawn with an ortho matrix clamped
@@ -353,11 +359,6 @@ static result_t win_bottombar_proc(window_t *win, uint32_t msg,
 }
 
 /* ── Game window ─────────────────────────────────────────────────────────── */
-
-// Physical-pixel GL rect for a logical UI rect (handles HiDPI/retina scaling
-// and Y-axis flip to GL bottom-left origin).
-// Defined in vendor/orion-ui/user/draw_impl.c.
-extern rect_t get_opengl_rect(rect_t const *r);
 
 static result_t win_game_proc(window_t *win, uint32_t msg,
                                uint32_t wparam, void *lparam)
