@@ -580,10 +580,6 @@ static drawer_t drawers[] = {
 };
 
 void SCR_DrawFrame(LPCUIFRAME frame) {
-    VECTOR2 m = {
-        mouse.origin.x * 0.8 / WINDOW_WIDTH,
-        mouse.origin.y * 0.6 / WINDOW_HEIGHT
-    };
     RECT const *screen = SCR_LayoutRect(frame);
     FOR_LOOP(j, sizeof(drawers)/sizeof(*drawers)) {
         if (drawers[j].type == frame->flags.type) {
@@ -591,6 +587,17 @@ void SCR_DrawFrame(LPCUIFRAME frame) {
             break;
         }
     }
+}
+
+// Processes onclick for a single frame.  Called exactly once per frame from
+// SCR_ProcessOverlays() so that a click is never dispatched more than once
+// even when multiple bar windows paint in the same tick.
+static void SCR_ProcessFrame(LPCUIFRAME frame) {
+    VECTOR2 m = {
+        mouse.origin.x * 0.8 / WINDOW_WIDTH,
+        mouse.origin.y * 0.6 / WINDOW_HEIGHT
+    };
+    RECT const *screen = SCR_LayoutRect(frame);
     if (Rect_contains(screen, &m) &&
         mouse.event == UI_LEFT_MOUSE_UP &&
         frame->onclick)
@@ -631,6 +638,9 @@ void SCR_DrawOverlays(void) {
         re.DrawImage(cl.pics[0], &MAKE(RECT,0,0,1,1), &MAKE(RECT,0,0,1,1), color);
     }
     
+    // Tooltip pre-pass: compute active_tooltip across all layers before any
+    // drawing starts, so SCR_DrawTooltip shows the correct tooltip regardless
+    // of layer order.
     FOR_LOOP(layer, MAX_LAYOUT_LAYERS) {
         if ((1 << layer) & cl.playerstate.uiflags)
             continue;
@@ -641,14 +651,33 @@ void SCR_DrawOverlays(void) {
         }
     }
     
+    // Draw pass: render each layer's frames.  Onclick is NOT processed here;
+    // it is handled once per frame in SCR_ProcessOverlays().
     FOR_LOOP(layer, MAX_LAYOUT_LAYERS) {
         if ((1 << layer) & cl.playerstate.uiflags)
             continue;
         HANDLE *layout = cl.layout[layer];
         if (layout) {
             SCR_Clear(layout);
-            SCR_UpdateTooltip(layout);
             SCR_DrawOverlay(layout);
+        }
+    }
+}
+
+// Processes input events (onclick) for all layout layers exactly once per
+// frame.  Called from SCR_UpdateScreen() before bar windows paint so that
+// clicks are never dispatched more than once even when both bar windows call
+// SCR_DrawOverlays() in the same tick.
+static void SCR_ProcessOverlays(void) {
+    FOR_LOOP(layer, MAX_LAYOUT_LAYERS) {
+        if ((1 << layer) & cl.playerstate.uiflags)
+            continue;
+        HANDLE *layout = cl.layout[layer];
+        if (layout) {
+            SCR_Clear(layout);
+            FOR_LOOP(i, num_frames) {
+                SCR_ProcessFrame(frames+i);
+            }
         }
     }
 }
@@ -659,6 +688,7 @@ void SCR_DrawOverlays(void) {
 // produce NDC coordinates beyond ±1 and are discarded by the rasteriser.
 // The top-bar ortho [0, 0.012] therefore shows only top-bar frames, and the
 // bottom-bar ortho [0.468, 0.6] shows only bottom-bar frames.
+// Onclick processing is NOT done here; it is handled in SCR_UpdateScreen().
 void SCR_DrawTopBar(void) {
     SCR_DrawOverlays();
 }
@@ -668,6 +698,10 @@ void SCR_DrawBottomBar(void) {
 }
 
 void SCR_UpdateScreen(void) {
+    // Process onclick and other input events exactly once per frame, before
+    // any window paints, to prevent duplicate dispatch across bar windows.
+    SCR_ProcessOverlays();
+
     re.BeginFrame();
     
     V_RenderView();
