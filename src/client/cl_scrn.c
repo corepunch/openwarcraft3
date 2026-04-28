@@ -431,9 +431,10 @@ void SCR_DrawCommandButton(LPCUIFRAME frame, LPCRECT screen) {
     RECT const uv = get_uvrect(frame->tex.coord);
     RECT const suv = Rect_div(&uv, 0xff);
     size2_t const win = re.GetWindowSize();
+    float const scale = 0.8f / (float)win.width;
     VECTOR2 m = {
-        mouse.origin.x * 0.8f / (float)win.width,
-        mouse.origin.y * 0.6f / (float)win.height
+        mouse.origin.x * scale,
+        mouse.origin.y * scale,
     };
     RECT scrn = scale_rect(screen, 0.925);
     if (Rect_contains(screen, &m)) {
@@ -543,9 +544,10 @@ LPCUIFRAME SCR_Clear(HANDLE data) {
 
 void SCR_UpdateCommandButton(LPCUIFRAME frame, LPCRECT screen) {
     size2_t const win = re.GetWindowSize();
+    float const scale = 0.8f / (float)win.width;
     VECTOR2 m = {
-        mouse.origin.x * 0.8f / (float)win.width,
-        mouse.origin.y * 0.6f / (float)win.height
+        mouse.origin.x * scale,
+        mouse.origin.y * scale,
     };
     if (Rect_contains(screen, &m) && frame->tooltip) {
         active_tooltip = frame->tooltip;
@@ -596,9 +598,10 @@ void SCR_DrawFrame(LPCUIFRAME frame) {
 // even when multiple bar windows paint in the same tick.
 static void SCR_ProcessFrame(LPCUIFRAME frame) {
     size2_t const win = re.GetWindowSize();
+    float const scale = 0.8f / (float)win.width;
     VECTOR2 m = {
-        mouse.origin.x * 0.8f / (float)win.width,
-        mouse.origin.y * 0.6f / (float)win.height
+        mouse.origin.x * scale,
+        mouse.origin.y * scale,
     };
     RECT const *screen = SCR_LayoutRect(frame);
     if (Rect_contains(screen, &m) &&

@@ -346,16 +346,18 @@ void R_SetGameViewport(int x, int y, int w, int h) {
 }
 
 // R_BeginBarFrame — lightweight frame begin used by the top/bottom bar sub-windows.
-// Takes the GL physical-pixel rect of the bar's client area.  Sets the viewport
-// and scissor to that rect, clears the area, and disables 3-D state.  The
-// scissor is kept ENABLED so that UI draws are naturally clipped to the bar
-// region without relying on a narrowed ortho projection.  Does NOT touch
-// tr.game_x/y/w/h, which remain owned exclusively by the 3-D game window.
-void R_BeginBarFrame(int x, int y, int w, int h) {
+// vp_* is the full WC3 canvas physical-pixel rect.  Setting the GL viewport to
+// the full canvas ensures that R_DrawImageEx's fixed ortho (0,0.8,0.6,0) maps
+// WC3 UI coordinates to their correct screen positions.
+// sc_* is the bar's own physical-pixel rect and is used as the GL scissor so
+// that only the bar's slice of the canvas is visible.
+// Does NOT touch tr.game_x/y/w/h, which remain owned by the 3-D game window.
+void R_BeginBarFrame(int vp_x, int vp_y, int vp_w, int vp_h,
+                     int sc_x, int sc_y, int sc_w, int sc_h) {
     R_Call(glBindFramebuffer, GL_FRAMEBUFFER, 0);
-    R_Call(glViewport, x, y, (GLsizei)w, (GLsizei)h);
+    R_Call(glViewport, vp_x, vp_y, (GLsizei)vp_w, (GLsizei)vp_h);
     R_Call(glEnable, GL_SCISSOR_TEST);
-    R_Call(glScissor, x, y, (GLsizei)w, (GLsizei)h);
+    R_Call(glScissor, sc_x, sc_y, (GLsizei)sc_w, (GLsizei)sc_h);
     R_Call(glClear, GL_COLOR_BUFFER_BIT);
     R_Call(glDisable, GL_DEPTH_TEST);
     R_Call(glDisable, GL_CULL_FACE);

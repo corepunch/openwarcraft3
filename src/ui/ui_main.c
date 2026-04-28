@@ -83,8 +83,11 @@ extern void SCR_ProcessOverlays(void);
 
 // renderer — sets the GL viewport position used by the game renderer
 extern void R_SetGameViewport(int x, int y, int w, int h);
-// renderer — frame begin/end for UI bar windows (does NOT touch game viewport)
-extern void R_BeginBarFrame(int x, int y, int w, int h);
+// renderer — frame begin/end for UI bar windows (does NOT touch game viewport).
+// vp_* is the full WC3 canvas physical rect (GL viewport); sc_* is the bar's
+// physical rect (GL scissor) so only the bar's slice of the canvas is visible.
+extern void R_BeginBarFrame(int vp_x, int vp_y, int vp_w, int vp_h,
+                            int sc_x, int sc_y, int sc_w, int sc_h);
 extern void R_EndBarFrame(void);
 
 // console hook — register a callback to receive every CON_printf() message
@@ -262,6 +265,11 @@ static result_t win_map_proc(window_t *win, uint32_t msg,
 // Defined in vendor/orion-ui/user/draw_impl.c.
 extern rect_t get_opengl_rect(rect_t const *r);
 
+// DPI scale factor: physical pixels per logical point.
+// Updated each time the game window paints; used by bar procs to scale
+// logical mouse coordinates to physical pixel space.
+static float s_dpi_scale = 1.0f;
+
 // Convert a bar-local y coordinate to the full virtual-screen y used by the
 // game input system.  The bar window's logical frame origin (minus the game
 // area's logical top, UI_TOP_BAR_Y) gives the correct offset without relying
@@ -284,17 +292,44 @@ static rect_t client_gl_rect(window_t *win)
     return get_opengl_rect(&client_abs);
 }
 
+// Compute the full WC3 canvas GL rect for a top-bar window.
+// The canvas spans all three sub-windows (top-bar + game + bottom-bar = 600 px
+// logical).  Its GL y-origin is below the top-bar's GL rect by the combined
+// height of the game area and bottom bar.
+static void top_canvas_gl_rect(window_t *win, rect_t *sc, rect_t *canvas)
+{
+    *sc = client_gl_rect(win);
+    int canvas_h = (g_top_bar_h > 0)
+        ? (int)((float)sc->h * 600.0f / (float)g_top_bar_h + 0.5f)
+        : sc->h;
+    *canvas = (rect_t){ sc->x, sc->y + sc->h - canvas_h, sc->w, canvas_h };
+}
+
+// Compute the full WC3 canvas GL rect for a bottom-bar window.
+// The bottom bar sits at the very bottom of the canvas, so canvas y == sc.y.
+static void bottom_canvas_gl_rect(window_t *win, rect_t *sc, rect_t *canvas)
+{
+    *sc = client_gl_rect(win);
+    int canvas_h = (g_bottom_bar_h > 0)
+        ? (int)((float)sc->h * 600.0f / (float)g_bottom_bar_h + 0.5f)
+        : sc->h;
+    *canvas = (rect_t){ sc->x, sc->y, sc->w, canvas_h };
+}
+
 // Renders the thin resource/status bar at the top of the game area.
-// R_BeginBarFrame sets the scissor to this bar's pixel rect so only frames
-// that fall within it are visible.  The game viewport (tr.game_x/y/w/h) is
-// not touched; it remains owned by the game window.
+// R_BeginBarFrame uses the full canvas as the GL viewport (so WC3 ortho coords
+// map to their correct screen positions) and the bar's own rect as the GL
+// scissor (so only the bar's slice is visible).  The game viewport
+// (tr.game_x/y/w/h) is not touched; it remains owned by the game window.
 static result_t win_topbar_proc(window_t *win, uint32_t msg,
                                 uint32_t wparam, void *lparam)
 {
     switch (msg) {
         case evPaint: {
-            rect_t gl = client_gl_rect(win);
-            R_BeginBarFrame(gl.x, gl.y, gl.w, gl.h);
+            rect_t sc, canvas;
+            top_canvas_gl_rect(win, &sc, &canvas);
+            R_BeginBarFrame(canvas.x, canvas.y, canvas.w, canvas.h,
+                            sc.x, sc.y, sc.w, sc.h);
             SCR_DrawTopBar();
             R_EndBarFrame();
             return 1;
@@ -348,7 +383,9 @@ static result_t win_topbar_proc(window_t *win, uint32_t msg,
 /* ── Bottom-bar window ───────────────────────────────────────────────────── */
 
 // Renders the command-button panel, minimap, and unit-info strip.
-// R_BeginBarFrame clips drawing to this bar's pixel rect.
+// R_BeginBarFrame uses the full canvas as the GL viewport and the bar's rect
+// as the GL scissor, so WC3 UI elements render at correct positions and only
+// the bar's slice is visible.
 // Mouse events are translated from bar-local coordinates to the full virtual-
 // screen space via to_game_y() so that hit-testing in SCR_DrawCommandButton
 // etc. works correctly.
@@ -357,8 +394,10 @@ static result_t win_bottombar_proc(window_t *win, uint32_t msg,
 {
     switch (msg) {
         case evPaint: {
-            rect_t gl = client_gl_rect(win);
-            R_BeginBarFrame(gl.x, gl.y, gl.w, gl.h);
+            rect_t sc, canvas;
+            bottom_canvas_gl_rect(win, &sc, &canvas);
+            R_BeginBarFrame(canvas.x, canvas.y, canvas.w, canvas.h,
+                            sc.x, sc.y, sc.w, sc.h);
             SCR_DrawBottomBar();
             R_EndBarFrame();
             return 1;
@@ -410,10 +449,6 @@ static result_t win_bottombar_proc(window_t *win, uint32_t msg,
 }
 
 /* ── Game window ─────────────────────────────────────────────────────────── */
-
-// DPI scale factor: physical pixels per logical point for the game window.
-// Updated each evPaint; used to convert logical mouse coords → physical.
-static float s_dpi_scale = 1.0f;
 
 
 static result_t win_game_proc(window_t *win, uint32_t msg,
