@@ -430,9 +430,10 @@ void SCR_DrawCommandButton(LPCUIFRAME frame, LPCRECT screen) {
     LPCENTITYSTATE selentity = CL_SelectedEntity();
     RECT const uv = get_uvrect(frame->tex.coord);
     RECT const suv = Rect_div(&uv, 0xff);
+    size2_t const win = re.GetWindowSize();
     VECTOR2 m = {
-        mouse.origin.x * 0.8 / WINDOW_WIDTH,
-        mouse.origin.y * 0.6 / WINDOW_HEIGHT
+        mouse.origin.x * 0.8f / (float)win.width,
+        mouse.origin.y * 0.6f / (float)win.height
     };
     RECT scrn = scale_rect(screen, 0.925);
     if (Rect_contains(screen, &m)) {
@@ -541,9 +542,10 @@ LPCUIFRAME SCR_Clear(HANDLE data) {
 }
 
 void SCR_UpdateCommandButton(LPCUIFRAME frame, LPCRECT screen) {
+    size2_t const win = re.GetWindowSize();
     VECTOR2 m = {
-        mouse.origin.x * 0.8 / WINDOW_WIDTH,
-        mouse.origin.y * 0.6 / WINDOW_HEIGHT
+        mouse.origin.x * 0.8f / (float)win.width,
+        mouse.origin.y * 0.6f / (float)win.height
     };
     if (Rect_contains(screen, &m) && frame->tooltip) {
         active_tooltip = frame->tooltip;
@@ -580,9 +582,10 @@ static drawer_t drawers[] = {
 };
 
 void SCR_DrawFrame(LPCUIFRAME frame) {
+    size2_t const win = re.GetWindowSize();
     VECTOR2 m = {
-        mouse.origin.x * 0.8 / WINDOW_WIDTH,
-        mouse.origin.y * 0.6 / WINDOW_HEIGHT
+        mouse.origin.x * 0.8f / (float)win.width,
+        mouse.origin.y * 0.6f / (float)win.height
     };
     RECT const *screen = SCR_LayoutRect(frame);
     FOR_LOOP(j, sizeof(drawers)/sizeof(*drawers)) {
