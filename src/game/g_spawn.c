@@ -211,6 +211,35 @@ void G_SpawnEntities(LPCMAPINFO mapinfo, LPCDOODAD entities) {
     jass_dobuffer(level.vm, level.mapinfo->mapscript);
 
     UI_Init();
+
+    // Compute the game-viewport bounds from the FDF-loaded frame heights so
+    // the client can size its OS windows to exactly match the bar areas.
+    // ResourceBarFrame and UpperButtonBarFrame mark the top of the 3-D area;
+    // ConsoleUIBackdrop marks the bottom.  Fall back to the original scissor-
+    // derived values (top=0.040, bottom=0.132) when a frame is not present.
+    {
+        LPFRAMEDEF resource_bar      = UI_FindFrame("ResourceBarFrame");
+        LPFRAMEDEF upper_bar         = UI_FindFrame("UpperButtonBarFrame");
+        LPFRAMEDEF console_backdrop  = UI_FindFrame("ConsoleUIBackdrop");
+
+        float vp_top_h    = 0.040f;   // default: 40 px (includes day/night clock)
+        float vp_bottom_h = 0.132f;   // default: 132 px (from original scissor)
+
+        if (resource_bar     && resource_bar->Height     > 0.0f)
+            vp_top_h = resource_bar->Height;
+        if (upper_bar        && upper_bar->Height        > vp_top_h)
+            vp_top_h = upper_bar->Height;
+        if (console_backdrop && console_backdrop->Height > 0.0f)
+            vp_bottom_h = console_backdrop->Height;
+
+        float vp_game_y = vp_top_h;
+        float vp_game_h = 0.6f - vp_top_h - vp_bottom_h;
+        if (vp_game_h < 0.1f) vp_game_h = 0.1f;   // sanity: never degenerate
+
+        char vp[64];
+        snprintf(vp, sizeof(vp), "%.4f %.4f", vp_game_y, vp_game_h);
+        gi.configstring(CS_VIEWPORT, vp);
+    }
 }
  
 LPEDICT SP_SpawnAtLocation(DWORD class_id, DWORD player, LPCVECTOR2 location) {

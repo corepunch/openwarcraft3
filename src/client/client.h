@@ -95,6 +95,9 @@ void SCR_UpdateScreen(void);
 void SCR_DrawTopBar(void);
 void SCR_DrawBottomBar(void);
 
+// ui_main.c — called when CS_VIEWPORT is received from the server
+void UI_SetViewport(float game_y, float game_h);
+
 // cl_console.c
 void CON_DrawConsole(void);
 void CON_printf(LPCSTR fmt, ...);
