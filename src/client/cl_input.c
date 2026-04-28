@@ -83,9 +83,10 @@ void IN_SelectDown(void) {
     cl.selection.rect.w = 0;
     cl.selection.rect.h = 0;
 
+    size2_t const win = re.GetWindowSize();
     VECTOR2 m = {
-        mouse.origin.x * 0.8 / WINDOW_WIDTH,
-        mouse.origin.y * 0.6 / WINDOW_HEIGHT
+        mouse.origin.x * 0.8f / (float)win.width,
+        mouse.origin.y * 0.6f / (float)win.height
     };
     
     FOR_LOOP(layer_id, MAX_LAYOUT_LAYERS) {

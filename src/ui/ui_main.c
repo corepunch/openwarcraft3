@@ -304,36 +304,36 @@ static result_t win_topbar_proc(window_t *win, uint32_t msg,
             int16_t ly  = (int16_t)HIWORD(wparam);
             int16_t rdx = (int16_t)LOWORD((uint32_t)(intptr_t)lparam);
             int16_t rdy = (int16_t)HIWORD((uint32_t)(intptr_t)lparam);
-            CL_MouseMove((float)lx, (float)to_game_y(win, ly),
-                         (float)rdx, (float)rdy);
+            CL_MouseMove((float)lx * s_dpi_scale, (float)to_game_y(win, ly) * s_dpi_scale,
+                         (float)rdx * s_dpi_scale, (float)rdy * s_dpi_scale);
             invalidate_window(win);
             return 1;
         }
         case evLeftButtonDown: {
             int16_t lx = (int16_t)LOWORD(wparam);
             int16_t ly = (int16_t)HIWORD(wparam);
-            CL_MouseButtonDown(1, (float)lx, (float)to_game_y(win, ly),
+            CL_MouseButtonDown(1, (float)lx * s_dpi_scale, (float)to_game_y(win, ly) * s_dpi_scale,
                                (unsigned int)axGetMilliseconds());
             return 1;
         }
         case evLeftButtonUp: {
             int16_t lx = (int16_t)LOWORD(wparam);
             int16_t ly = (int16_t)HIWORD(wparam);
-            CL_MouseButtonUp(1, (float)lx, (float)to_game_y(win, ly),
+            CL_MouseButtonUp(1, (float)lx * s_dpi_scale, (float)to_game_y(win, ly) * s_dpi_scale,
                              (unsigned int)axGetMilliseconds());
             return 1;
         }
         case evRightButtonDown: {
             int16_t lx = (int16_t)LOWORD(wparam);
             int16_t ly = (int16_t)HIWORD(wparam);
-            CL_MouseButtonDown(3, (float)lx, (float)to_game_y(win, ly),
+            CL_MouseButtonDown(3, (float)lx * s_dpi_scale, (float)to_game_y(win, ly) * s_dpi_scale,
                                (unsigned int)axGetMilliseconds());
             return 1;
         }
         case evRightButtonUp: {
             int16_t lx = (int16_t)LOWORD(wparam);
             int16_t ly = (int16_t)HIWORD(wparam);
-            CL_MouseButtonUp(3, (float)lx, (float)to_game_y(win, ly),
+            CL_MouseButtonUp(3, (float)lx * s_dpi_scale, (float)to_game_y(win, ly) * s_dpi_scale,
                              (unsigned int)axGetMilliseconds());
             return 1;
         }
@@ -368,36 +368,36 @@ static result_t win_bottombar_proc(window_t *win, uint32_t msg,
             int16_t ly  = (int16_t)HIWORD(wparam);
             int16_t rdx = (int16_t)LOWORD((uint32_t)(intptr_t)lparam);
             int16_t rdy = (int16_t)HIWORD((uint32_t)(intptr_t)lparam);
-            CL_MouseMove((float)lx, (float)to_game_y(win, ly),
-                         (float)rdx, (float)rdy);
+            CL_MouseMove((float)lx * s_dpi_scale, (float)to_game_y(win, ly) * s_dpi_scale,
+                         (float)rdx * s_dpi_scale, (float)rdy * s_dpi_scale);
             invalidate_window(win);
             return 1;
         }
         case evLeftButtonDown: {
             int16_t lx = (int16_t)LOWORD(wparam);
             int16_t ly = (int16_t)HIWORD(wparam);
-            CL_MouseButtonDown(1, (float)lx, (float)to_game_y(win, ly),
+            CL_MouseButtonDown(1, (float)lx * s_dpi_scale, (float)to_game_y(win, ly) * s_dpi_scale,
                                (unsigned int)axGetMilliseconds());
             return 1;
         }
         case evLeftButtonUp: {
             int16_t lx = (int16_t)LOWORD(wparam);
             int16_t ly = (int16_t)HIWORD(wparam);
-            CL_MouseButtonUp(1, (float)lx, (float)to_game_y(win, ly),
+            CL_MouseButtonUp(1, (float)lx * s_dpi_scale, (float)to_game_y(win, ly) * s_dpi_scale,
                              (unsigned int)axGetMilliseconds());
             return 1;
         }
         case evRightButtonDown: {
             int16_t lx = (int16_t)LOWORD(wparam);
             int16_t ly = (int16_t)HIWORD(wparam);
-            CL_MouseButtonDown(3, (float)lx, (float)to_game_y(win, ly),
+            CL_MouseButtonDown(3, (float)lx * s_dpi_scale, (float)to_game_y(win, ly) * s_dpi_scale,
                                (unsigned int)axGetMilliseconds());
             return 1;
         }
         case evRightButtonUp: {
             int16_t lx = (int16_t)LOWORD(wparam);
             int16_t ly = (int16_t)HIWORD(wparam);
-            CL_MouseButtonUp(3, (float)lx, (float)to_game_y(win, ly),
+            CL_MouseButtonUp(3, (float)lx * s_dpi_scale, (float)to_game_y(win, ly) * s_dpi_scale,
                              (unsigned int)axGetMilliseconds());
             return 1;
         }
@@ -411,13 +411,33 @@ static result_t win_bottombar_proc(window_t *win, uint32_t msg,
 
 /* ── Game window ─────────────────────────────────────────────────────────── */
 
+// DPI scale factor: physical pixels per logical point for the game window.
+// Updated each evPaint; used to convert logical mouse coords → physical.
+static float s_dpi_scale = 1.0f;
+
+
 static result_t win_game_proc(window_t *win, uint32_t msg,
                                uint32_t wparam, void *lparam)
 {
     switch (msg) {
         case evPaint: {
-            rect_t gl = client_gl_rect(win);
-            R_SetGameViewport(gl.x, gl.y, gl.w, gl.h);
+            rect_t client = get_client_rect(win);
+            // Build the absolute logical rect for the client area.
+            // frame.y + (frame.h - client.h) == frame.y + titlebar_height.
+            rect_t client_abs = {
+                win->frame.x,
+                win->frame.y + win->frame.h - client.h,
+                client.w,
+                client.h,
+            };
+            // get_opengl_rect converts logical → physical framebuffer pixels
+            // and flips Y to GL's bottom-left origin, handling HiDPI/retina.
+            rect_t gl_rect = get_opengl_rect(&client_abs);
+            // Track the ratio so mouse events can be converted to physical
+            // pixel coordinates matching what the renderer expects.
+            if (client_abs.w > 0)
+                s_dpi_scale = (float)gl_rect.w / (float)client_abs.w;
+            R_SetGameViewport(gl_rect.x, gl_rect.y, gl_rect.w, gl_rect.h);
             SCR_UpdateScreen();
             return 1;
         }
@@ -427,7 +447,8 @@ static result_t win_game_proc(window_t *win, uint32_t msg,
             int16_t ly  = (int16_t)HIWORD(wparam);
             int16_t rdx = (int16_t)LOWORD((uint32_t)(intptr_t)lparam);
             int16_t rdy = (int16_t)HIWORD((uint32_t)(intptr_t)lparam);
-            CL_MouseMove((float)lx, (float)ly, (float)rdx, (float)rdy);
+            CL_MouseMove((float)lx * s_dpi_scale, (float)ly * s_dpi_scale,
+                         (float)rdx * s_dpi_scale, (float)rdy * s_dpi_scale);
             invalidate_window(win);
             return 1;
         }
@@ -435,28 +456,28 @@ static result_t win_game_proc(window_t *win, uint32_t msg,
         case evLeftButtonDown: {
             int16_t lx = (int16_t)LOWORD(wparam);
             int16_t ly = (int16_t)HIWORD(wparam);
-            CL_MouseButtonDown(1, (float)lx, (float)ly,
+            CL_MouseButtonDown(1, (float)lx * s_dpi_scale, (float)ly * s_dpi_scale,
                                (unsigned int)axGetMilliseconds());
             return 1;
         }
         case evLeftButtonUp: {
             int16_t lx = (int16_t)LOWORD(wparam);
             int16_t ly = (int16_t)HIWORD(wparam);
-            CL_MouseButtonUp(1, (float)lx, (float)ly,
+            CL_MouseButtonUp(1, (float)lx * s_dpi_scale, (float)ly * s_dpi_scale,
                              (unsigned int)axGetMilliseconds());
             return 1;
         }
         case evRightButtonDown: {
             int16_t lx = (int16_t)LOWORD(wparam);
             int16_t ly = (int16_t)HIWORD(wparam);
-            CL_MouseButtonDown(3, (float)lx, (float)ly,
+            CL_MouseButtonDown(3, (float)lx * s_dpi_scale, (float)ly * s_dpi_scale,
                                (unsigned int)axGetMilliseconds());
             return 1;
         }
         case evRightButtonUp: {
             int16_t lx = (int16_t)LOWORD(wparam);
             int16_t ly = (int16_t)HIWORD(wparam);
-            CL_MouseButtonUp(3, (float)lx, (float)ly,
+            CL_MouseButtonUp(3, (float)lx * s_dpi_scale, (float)ly * s_dpi_scale,
                              (unsigned int)axGetMilliseconds());
             return 1;
         }
