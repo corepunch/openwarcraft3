@@ -665,10 +665,10 @@ void SCR_DrawOverlays(void) {
 }
 
 // Processes input events (onclick) for all layout layers exactly once per
-// frame.  Called from SCR_UpdateScreen() before bar windows paint so that
+// frame.  Called from UI_ProcessEvents() before bar windows paint so that
 // clicks are never dispatched more than once even when both bar windows call
 // SCR_DrawOverlays() in the same tick.
-static void SCR_ProcessOverlays(void) {
+void SCR_ProcessOverlays(void) {
     FOR_LOOP(layer, MAX_LAYOUT_LAYERS) {
         if ((1 << layer) & cl.playerstate.uiflags)
             continue;
@@ -682,13 +682,10 @@ static void SCR_ProcessOverlays(void) {
     }
 }
 
-// Both bar functions call the same SCR_DrawOverlays() because the ortho
-// sub-range set by R_SetUIRange() in the window proc acts as a natural clip:
-// UI frames whose Y position falls outside the active [y_start, y_end] range
-// produce NDC coordinates beyond ±1 and are discarded by the rasteriser.
-// The top-bar ortho [0, 0.012] therefore shows only top-bar frames, and the
-// bottom-bar ortho [0.468, 0.6] shows only bottom-bar frames.
-// Onclick processing is NOT done here; it is handled in SCR_UpdateScreen().
+// Both bar windows draw the full overlay list; each bar window's scissor rect
+// (set by R_BeginBarFrame) clips the output to that window's pixel region,
+// so only frames visually belonging to the bar are shown.
+// Onclick processing is NOT done here; it is handled in UI_ProcessEvents().
 void SCR_DrawTopBar(void) {
     SCR_DrawOverlays();
 }
@@ -698,15 +695,11 @@ void SCR_DrawBottomBar(void) {
 }
 
 void SCR_UpdateScreen(void) {
-    // Process onclick and other input events exactly once per frame, before
-    // any window paints, to prevent duplicate dispatch across bar windows.
-    SCR_ProcessOverlays();
-
     re.BeginFrame();
-    
+
     V_RenderView();
 
     CON_DrawConsole();
-    
+
     re.EndFrame();
 }

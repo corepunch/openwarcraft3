@@ -94,6 +94,7 @@ LPCRECT SCR_LayoutRect(LPCUIFRAME frame);
 void SCR_UpdateScreen(void);
 void SCR_DrawTopBar(void);
 void SCR_DrawBottomBar(void);
+void SCR_ProcessOverlays(void);
 
 // ui_main.c — called when CS_VIEWPORT is received from the server
 void UI_SetViewport(float game_y, float game_h);

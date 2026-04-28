@@ -206,8 +206,6 @@ void R_Init(DWORD width, DWORD height) {
     tr.game_y = 0;
     tr.game_w = (int)width;
     tr.game_h = (int)height;
-    tr.ui_y_start = 0.0f;
-    tr.ui_y_end   = 0.6f;
     
 //    m3 = R_LoadModel("Assets\\Units\\Terran\\SpecialOpsDropship\\SpecialOpsDropship.m3");
 //    R_LoadModel("Assets\\Units\\Terran\\MarineTychus\\MarineTychus.m3");
@@ -347,23 +345,27 @@ void R_SetGameViewport(int x, int y, int w, int h) {
     tr.drawableSize.height = (DWORD)h;
 }
 
-void R_SetUIRange(float y_start, float y_end) {
-    tr.ui_y_start = y_start;
-    tr.ui_y_end   = y_end;
-}
-
-// R_BeginUIFrame — lightweight begin used by the top/bottom bar sub-windows.
-// Sets the GL viewport for the bar window, clears the area, and disables
-// 3-D state (depth test, cull face).  Does NOT clear the depth buffer.
-void R_BeginUIFrame(void) {
+// R_BeginBarFrame — lightweight frame begin used by the top/bottom bar sub-windows.
+// Takes the GL physical-pixel rect of the bar's client area.  Sets the viewport
+// and scissor to that rect, clears the area, and disables 3-D state.  The
+// scissor is kept ENABLED so that UI draws are naturally clipped to the bar
+// region without relying on a narrowed ortho projection.  Does NOT touch
+// tr.game_x/y/w/h, which remain owned exclusively by the 3-D game window.
+void R_BeginBarFrame(int x, int y, int w, int h) {
     R_Call(glBindFramebuffer, GL_FRAMEBUFFER, 0);
-    R_Call(glViewport, tr.game_x, tr.game_y, (GLsizei)tr.game_w, (GLsizei)tr.game_h);
+    R_Call(glViewport, x, y, (GLsizei)w, (GLsizei)h);
     R_Call(glEnable, GL_SCISSOR_TEST);
-    R_Call(glScissor, tr.game_x, tr.game_y, (GLsizei)tr.game_w, (GLsizei)tr.game_h);
+    R_Call(glScissor, x, y, (GLsizei)w, (GLsizei)h);
     R_Call(glClear, GL_COLOR_BUFFER_BIT);
-    R_Call(glDisable, GL_SCISSOR_TEST);
     R_Call(glDisable, GL_DEPTH_TEST);
     R_Call(glDisable, GL_CULL_FACE);
+}
+
+// R_EndBarFrame — counterpart to R_BeginBarFrame.  Disables the scissor test
+// that was left enabled for drawing, and rebinds the default framebuffer.
+void R_EndBarFrame(void) {
+    R_Call(glBindFramebuffer, GL_FRAMEBUFFER, 0);
+    R_Call(glDisable, GL_SCISSOR_TEST);
 }
 
 
@@ -383,11 +385,6 @@ void R_BeginFrame(void) {
 }
 
 void R_EndFrame(void) {
-    // Reset the UI ortho sub-range to the full canvas so that subsequent
-    // draws (console, selection rect, etc.) are not accidentally clipped by
-    // a bar-window's narrow range from a prior R_SetUIRange() call.
-    tr.ui_y_start = 0.0f;
-    tr.ui_y_end   = 0.6f;
     // Restore GL state expected by orion-ui's 2-D rendering pipeline.
     R_Call(glBindFramebuffer, GL_FRAMEBUFFER, 0);
     R_Call(glDisable, GL_DEPTH_TEST);

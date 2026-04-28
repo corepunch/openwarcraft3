@@ -22,6 +22,11 @@
  * actual FDF frame heights, it writes CS_VIEWPORT = "game_y game_h" and the
  * client calls UI_SetViewport() to resize/reposition the windows accordingly.
  *
+ * Each bar window uses R_BeginBarFrame / R_EndBarFrame which restrict GL
+ * drawing to the bar's own pixel region via scissor.  This keeps the 3-D game
+ * viewport (tr.game_x/y/w/h) exclusively owned by the game window, and
+ * eliminates the need for a narrowed ortho projection to clip bar frames.
+ *
  * NOTE: This file intentionally does NOT include any game headers (client.h,
  * common.h, …) because the game's rect_t typedef conflicts with orion-ui's
  * own rect_t.  All interaction with game code is done through plain C
@@ -76,14 +81,13 @@ extern void SCR_UpdateScreen(void);
 // UI-bar overlay renders (implemented in cl_scrn.c)
 extern void SCR_DrawTopBar(void);
 extern void SCR_DrawBottomBar(void);
+extern void SCR_ProcessOverlays(void);
 
 // renderer — sets the GL viewport position used by the game renderer
 extern void R_SetGameViewport(int x, int y, int w, int h);
-// renderer — sets the active UI ortho Y sub-range for R_DrawImageEx etc.
-extern void R_SetUIRange(float y_start, float y_end);
-// renderer — lightweight frame begin/end for UI-only (bar) windows
-extern void R_BeginUIFrame(void);
-extern void R_EndFrame(void);
+// renderer — frame begin/end for UI bar windows (does NOT touch game viewport)
+extern void R_BeginBarFrame(int x, int y, int w, int h);
+extern void R_EndBarFrame(void);
 
 // console hook — register a callback to receive every CON_printf() message
 typedef void (*con_log_hook_t)(const char *msg);
@@ -113,14 +117,6 @@ static window_t *g_map_combo  = NULL;   // combobox inside map selector
 static int g_top_bar_h    = 40;    // logical pixels
 static int g_game_h       = 428;   // logical pixels
 static int g_bottom_bar_h = 132;   // logical pixels
-
-// UI ortho Y sub-ranges (0-0.6 space, y=0 at top, y=0.6 at bottom).
-//   top-bar   : 0               to g_ui_top_y_end
-//   game area : (handled by 3-D renderer)
-//   bottom-bar: g_ui_bottom_y_start to 0.6f
-// 1 pixel = 0.001 ortho units  (800×600 → 0.8×0.6 virtual space).
-static float g_ui_top_y_end      = 0.040f;  // 40  / 1000
-static float g_ui_bottom_y_start = 0.468f;  // (40 + 428) / 1000
 
 static rect_t make_window_frame_rect(int x, int y, int w, int h, flags_t flags)
 {
@@ -268,27 +264,41 @@ static result_t win_map_proc(window_t *win, uint32_t msg,
 // Defined in vendor/orion-ui/user/draw_impl.c.
 extern rect_t get_opengl_rect(rect_t const *r);
 
+// Convert a bar-local y coordinate to the full virtual-screen y used by the
+// game input system.  The bar window's logical frame origin (minus the game
+// area's logical top, UI_TOP_BAR_Y) gives the correct offset without relying
+// on sibling-window height constants.
+static int16_t to_game_y(window_t *win, int16_t local_y)
+{
+    return (int16_t)(local_y + win->frame.y - UI_TOP_BAR_Y);
+}
+
+// Helper: compute the absolute GL rect for a window's client area.
+static rect_t client_gl_rect(window_t *win)
+{
+    rect_t client = get_client_rect(win);
+    rect_t client_abs = {
+        win->frame.x,
+        win->frame.y + win->frame.h - client.h,
+        client.w,
+        client.h,
+    };
+    return get_opengl_rect(&client_abs);
+}
+
 // Renders the thin resource/status bar at the top of the game area.
-// The full 0-0.8 × 0-0.6 UI overlay is drawn with an ortho matrix clamped
-// to the top-bar Y range [0, UI_TOP_Y_END] so only top-bar frames are visible.
+// R_BeginBarFrame sets the scissor to this bar's pixel rect so only frames
+// that fall within it are visible.  The game viewport (tr.game_x/y/w/h) is
+// not touched; it remains owned by the game window.
 static result_t win_topbar_proc(window_t *win, uint32_t msg,
                                 uint32_t wparam, void *lparam)
 {
     switch (msg) {
         case evPaint: {
-            rect_t client = get_client_rect(win);
-            rect_t client_abs = {
-                win->frame.x,
-                win->frame.y + win->frame.h - client.h,
-                client.w,
-                client.h,
-            };
-            rect_t gl_rect = get_opengl_rect(&client_abs);
-            R_SetGameViewport(gl_rect.x, gl_rect.y, gl_rect.w, gl_rect.h);
-            R_SetUIRange(0.0f, g_ui_top_y_end);
-            R_BeginUIFrame();
+            rect_t gl = client_gl_rect(win);
+            R_BeginBarFrame(gl.x, gl.y, gl.w, gl.h);
             SCR_DrawTopBar();
-            R_EndFrame();
+            R_EndBarFrame();
             return 1;
         }
         case evDestroy:
@@ -302,28 +312,19 @@ static result_t win_topbar_proc(window_t *win, uint32_t msg,
 /* ── Bottom-bar window ───────────────────────────────────────────────────── */
 
 // Renders the command-button panel, minimap, and unit-info strip.
-// The ortho matrix is clamped to [UI_BOTTOM_Y_START, 0.6] so only bottom-bar
-// frames are visible.  Mouse events are forwarded with coordinates adjusted
-// to the full game-window space so hit-testing in SCR_DrawCommandButton etc.
-// works correctly.
+// R_BeginBarFrame clips drawing to this bar's pixel rect.
+// Mouse events are translated from bar-local coordinates to the full virtual-
+// screen space via to_game_y() so that hit-testing in SCR_DrawCommandButton
+// etc. works correctly.
 static result_t win_bottombar_proc(window_t *win, uint32_t msg,
                                    uint32_t wparam, void *lparam)
 {
     switch (msg) {
         case evPaint: {
-            rect_t client = get_client_rect(win);
-            rect_t client_abs = {
-                win->frame.x,
-                win->frame.y + win->frame.h - client.h,
-                client.w,
-                client.h,
-            };
-            rect_t gl_rect = get_opengl_rect(&client_abs);
-            R_SetGameViewport(gl_rect.x, gl_rect.y, gl_rect.w, gl_rect.h);
-            R_SetUIRange(g_ui_bottom_y_start, 0.6f);
-            R_BeginUIFrame();
+            rect_t gl = client_gl_rect(win);
+            R_BeginBarFrame(gl.x, gl.y, gl.w, gl.h);
             SCR_DrawBottomBar();
-            R_EndFrame();
+            R_EndBarFrame();
             return 1;
         }
         case evMouseMove: {
@@ -331,11 +332,7 @@ static result_t win_bottombar_proc(window_t *win, uint32_t msg,
             int16_t ly  = (int16_t)HIWORD(wparam);
             int16_t rdx = (int16_t)LOWORD((uint32_t)(intptr_t)lparam);
             int16_t rdy = (int16_t)HIWORD((uint32_t)(intptr_t)lparam);
-            // Translate bar-local y into full virtual-coordinate y so that
-            // UI hit-testing is consistent: bottom bar starts at
-            // g_top_bar_h + g_game_h pixels below the top of the layout.
-            CL_MouseMove((float)lx,
-                         (float)(g_top_bar_h + g_game_h + ly),
+            CL_MouseMove((float)lx, (float)to_game_y(win, ly),
                          (float)rdx, (float)rdy);
             invalidate_window(win);
             return 1;
@@ -343,28 +340,28 @@ static result_t win_bottombar_proc(window_t *win, uint32_t msg,
         case evLeftButtonDown: {
             int16_t lx = (int16_t)LOWORD(wparam);
             int16_t ly = (int16_t)HIWORD(wparam);
-            CL_MouseButtonDown(1, (float)lx, (float)(g_top_bar_h + g_game_h + ly),
+            CL_MouseButtonDown(1, (float)lx, (float)to_game_y(win, ly),
                                (unsigned int)axGetMilliseconds());
             return 1;
         }
         case evLeftButtonUp: {
             int16_t lx = (int16_t)LOWORD(wparam);
             int16_t ly = (int16_t)HIWORD(wparam);
-            CL_MouseButtonUp(1, (float)lx, (float)(g_top_bar_h + g_game_h + ly),
+            CL_MouseButtonUp(1, (float)lx, (float)to_game_y(win, ly),
                              (unsigned int)axGetMilliseconds());
             return 1;
         }
         case evRightButtonDown: {
             int16_t lx = (int16_t)LOWORD(wparam);
             int16_t ly = (int16_t)HIWORD(wparam);
-            CL_MouseButtonDown(3, (float)lx, (float)(g_top_bar_h + g_game_h + ly),
+            CL_MouseButtonDown(3, (float)lx, (float)to_game_y(win, ly),
                                (unsigned int)axGetMilliseconds());
             return 1;
         }
         case evRightButtonUp: {
             int16_t lx = (int16_t)LOWORD(wparam);
             int16_t ly = (int16_t)HIWORD(wparam);
-            CL_MouseButtonUp(3, (float)lx, (float)(g_top_bar_h + g_game_h + ly),
+            CL_MouseButtonUp(3, (float)lx, (float)to_game_y(win, ly),
                              (unsigned int)axGetMilliseconds());
             return 1;
         }
@@ -383,19 +380,8 @@ static result_t win_game_proc(window_t *win, uint32_t msg,
 {
     switch (msg) {
         case evPaint: {
-            rect_t client = get_client_rect(win);
-            // Build the absolute logical rect for the client area.
-            // frame.y + (frame.h - client.h) == frame.y + titlebar_height.
-            rect_t client_abs = {
-                win->frame.x,
-                win->frame.y + win->frame.h - client.h,
-                client.w,
-                client.h,
-            };
-            // get_opengl_rect converts logical → physical framebuffer pixels
-            // and flips Y to GL's bottom-left origin, handling HiDPI/retina.
-            rect_t gl_rect = get_opengl_rect(&client_abs);
-            R_SetGameViewport(gl_rect.x, gl_rect.y, gl_rect.w, gl_rect.h);
+            rect_t gl = client_gl_rect(win);
+            R_SetGameViewport(gl.x, gl.y, gl.w, gl.h);
             SCR_UpdateScreen();
             return 1;
         }
@@ -471,11 +457,9 @@ void UI_SetViewport(float game_y, float game_h) {
     if (gh       < 1) gh       = 1;
     if (bottom_h < 1) bottom_h = 1;
 
-    g_top_bar_h           = top_h;
-    g_game_h              = gh;
-    g_bottom_bar_h        = bottom_h;
-    g_ui_top_y_end        = game_y;
-    g_ui_bottom_y_start   = game_y + game_h;
+    g_top_bar_h    = top_h;
+    g_game_h       = gh;
+    g_bottom_bar_h = bottom_h;
 
     flags_t bar_flags = WINDOW_NORESIZE | WINDOW_NOFILL;
     int game_y_px   = UI_TOP_BAR_Y + top_h;
@@ -588,6 +572,11 @@ int UI_IsRunning(void) {
 // UI_ProcessEvents — drain the platform event queue and repaint windows.
 // Must be called once per game tick, after SV_Frame() and CL_Frame().
 void UI_ProcessEvents(void) {
+    // Process onclick and other UI input events exactly once per tick, before
+    // any window paints, so that clicks are never dispatched more than once
+    // even when both bar windows redraw in the same tick.
+    SCR_ProcessOverlays();
+
     // Invalidate all three game-area windows each frame so evPaint fires and
     // the new frame is rendered directly into the default framebuffer.
     if (g_topbar_win)

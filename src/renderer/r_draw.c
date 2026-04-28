@@ -62,8 +62,7 @@ void R_DrawImageEx(LPCDRAWIMAGE drawImage) {
     
     //    size2_t screensize = R_GetWindowSize();
     MATRIX4 ui_matrix, model_matrix;
-    Matrix4_ortho(&ui_matrix, 0.0f, 0.8, tr.ui_y_end, tr.ui_y_start, 0.0f, 100.0f);
-    Matrix4_identity(&model_matrix);
+    Matrix4_ortho(&ui_matrix, 0.0f, 0.8, 0.6f, 0.0f, 0.0f, 100.0f);
     
     R_Call(glDisable, GL_CULL_FACE);
     R_Call(glUseProgram, shader->progid);
@@ -114,7 +113,7 @@ void R_DrawWireRect(LPCRECT rect, COLOR32 color) {
     R_AddStrip(simp, rect, color);
 
     MATRIX4 ui_matrix;
-    Matrix4_ortho(&ui_matrix, 0.0f, 0.8, tr.ui_y_end, tr.ui_y_start, 0.0f, 100.0f);
+    Matrix4_ortho(&ui_matrix, 0.0f, 0.8, 0.6f, 0.0f, 0.0f, 100.0f);
 
     R_Call(glUseProgram, tr.shader[SHADER_UI]->progid);
     R_Call(glUniformMatrix4fv, tr.shader[SHADER_UI]->uViewProjectionMatrix, 1, GL_FALSE, ui_matrix.v);

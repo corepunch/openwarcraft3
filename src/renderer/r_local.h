@@ -151,12 +151,6 @@ struct render_globals {
     sheetRow_t *sheet[SHEET_COUNT];
     size2_t drawableSize;
     int game_x, game_y, game_w, game_h;
-    // UI ortho sub-range: the portion of the 0-0.8 x 0-0.6 UI space visible
-    // in the current window.  Defaults to (0, 0.6) = full range.  Set to a
-    // narrower band when rendering into the top- or bottom-bar sub-windows so
-    // that only frames belonging to that bar are shown.
-    float ui_y_start;
-    float ui_y_end;
 };
 
 void R_RegisterMap(LPCSTR mapFileName);
