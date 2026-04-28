@@ -49,15 +49,13 @@
 #define MAX_MAPS             256
 #define LOG_BUF_SIZE (64 * 1024)
 
-// Game-area layout: these match the scissor {0, 0.22, 1, 0.76} that was
-// previously applied to the 800×600 game window.
-//   top-bar   height = (1.0 - 0.22 - 0.76) * 600 = 0.02 * 600 = 12 px
-//   game area height =               0.76   * 600 = 456 px
-//   bottom-bar height =              0.22   * 600 = 132 px
+// Default 800x600 gameplay layout used before CS_VIEWPORT arrives:
+//   top-bar    40 px (includes the WC3 day/night clock)
+//   game area 428 px
+//   bottom-bar 132 px
 //
 // At runtime these are updated by UI_SetViewport() when CS_VIEWPORT arrives
 // from the server, so the server's FDF-parsed bar heights drive the layout.
-// Default: top=40px (includes WC3 day/night clock), game=428px, bottom=132px.
 #define UI_GAME_W       800
 
 // Vertical positions of each window (x=20 is the shared left edge).
@@ -301,6 +299,44 @@ static result_t win_topbar_proc(window_t *win, uint32_t msg,
             R_EndBarFrame();
             return 1;
         }
+        case evMouseMove: {
+            int16_t lx  = (int16_t)LOWORD(wparam);
+            int16_t ly  = (int16_t)HIWORD(wparam);
+            int16_t rdx = (int16_t)LOWORD((uint32_t)(intptr_t)lparam);
+            int16_t rdy = (int16_t)HIWORD((uint32_t)(intptr_t)lparam);
+            CL_MouseMove((float)lx, (float)to_game_y(win, ly),
+                         (float)rdx, (float)rdy);
+            invalidate_window(win);
+            return 1;
+        }
+        case evLeftButtonDown: {
+            int16_t lx = (int16_t)LOWORD(wparam);
+            int16_t ly = (int16_t)HIWORD(wparam);
+            CL_MouseButtonDown(1, (float)lx, (float)to_game_y(win, ly),
+                               (unsigned int)axGetMilliseconds());
+            return 1;
+        }
+        case evLeftButtonUp: {
+            int16_t lx = (int16_t)LOWORD(wparam);
+            int16_t ly = (int16_t)HIWORD(wparam);
+            CL_MouseButtonUp(1, (float)lx, (float)to_game_y(win, ly),
+                             (unsigned int)axGetMilliseconds());
+            return 1;
+        }
+        case evRightButtonDown: {
+            int16_t lx = (int16_t)LOWORD(wparam);
+            int16_t ly = (int16_t)HIWORD(wparam);
+            CL_MouseButtonDown(3, (float)lx, (float)to_game_y(win, ly),
+                               (unsigned int)axGetMilliseconds());
+            return 1;
+        }
+        case evRightButtonUp: {
+            int16_t lx = (int16_t)LOWORD(wparam);
+            int16_t ly = (int16_t)HIWORD(wparam);
+            CL_MouseButtonUp(3, (float)lx, (float)to_game_y(win, ly),
+                             (unsigned int)axGetMilliseconds());
+            return 1;
+        }
         case evDestroy:
             g_topbar_win = NULL;
             return 0;
@@ -450,18 +486,32 @@ static result_t win_game_proc(window_t *win, uint32_t msg,
 // Repositions / resizes the three bar/game windows so the OS window boundary
 // provides the correct clipping for each section.
 void UI_SetViewport(float game_y, float game_h) {
-    int top_h    = (int)(game_y * 1000.0f + 0.5f);
-    int gh       = (int)(game_h * 1000.0f + 0.5f);
-    int bottom_h = 600 - top_h - gh;
-    if (top_h    < 1) top_h    = 1;
-    if (gh       < 1) gh       = 1;
-    if (bottom_h < 1) bottom_h = 1;
+    int top_h;
+    int gh;
+    int bottom_h;
+
+    // game_y and game_h are in WC3 ortho units (0–0.6 range).
+    // Virtual pixel height is 600, so 1 ortho unit = 1000 pixels.
+    top_h = (int)(game_y * 1000.0f + 0.5f);
+    gh    = (int)(game_h * 1000.0f + 0.5f);
+
+    if (top_h < 1)   top_h = 1;   // minimum 1 px per bar
+    if (gh    < 1)   gh    = 1;
+    if (top_h > 598) top_h = 598; // leave room for game + bottom (each >= 1 px)
+    if (gh    > 598) gh    = 598;
+
+    if (top_h + gh > 599) {        // leave at least 1 px for bottom bar
+        gh = 599 - top_h;
+        if (gh < 1) { gh = 1; top_h = 598; }
+    }
+
+    bottom_h = 600 - top_h - gh;  // remaining pixels go to bottom bar
 
     g_top_bar_h    = top_h;
     g_game_h       = gh;
     g_bottom_bar_h = bottom_h;
 
-    flags_t bar_flags = WINDOW_NORESIZE | WINDOW_NOFILL;
+    flags_t bar_flags = WINDOW_NORESIZE | WINDOW_NOFILL | WINDOW_NOTITLE;
     int game_y_px   = UI_TOP_BAR_Y + top_h;
     int bottom_y_px = game_y_px + gh;
 
@@ -500,13 +550,12 @@ void UI_Init(void) {
     // is width * UI_WINDOW_SCALE x height * UI_WINDOW_SCALE pixels.
     ui_init_graphics(UI_INIT_DESKTOP, "OpenWarcraft3", 1176, 720);
 
-    // Top-bar window: draw the resource/status strip with a normal frame while
-    // keeping the client area at the intended top-bar size.
+    // Top-bar window: chrome-free strip that draws the resource/status bar.
     frame = make_window_frame_rect(UI_WIN_X, UI_TOP_BAR_Y,
                                    UI_GAME_W, g_top_bar_h,
-                                   WINDOW_NORESIZE | WINDOW_NOFILL);
+                                   WINDOW_NORESIZE | WINDOW_NOFILL | WINDOW_NOTITLE);
     g_topbar_win = create_window("Resources",
-                                 WINDOW_NORESIZE | WINDOW_NOFILL,
+                                 WINDOW_NORESIZE | WINDOW_NOFILL | WINDOW_NOTITLE,
                                  &frame,
                                  NULL, win_topbar_proc, 0, NULL);
     if (g_topbar_win)
@@ -517,9 +566,9 @@ void UI_Init(void) {
     // scissor is required inside the renderer.
     frame = make_window_frame_rect(UI_WIN_X, UI_TOP_BAR_Y + g_top_bar_h,
                                    UI_GAME_W, g_game_h,
-                                   WINDOW_NORESIZE | WINDOW_NOFILL);
+                                   WINDOW_NORESIZE | WINDOW_NOFILL | WINDOW_NOTITLE);
     g_game_win = create_window("Viewport",
-                               WINDOW_NORESIZE | WINDOW_NOFILL,
+                               WINDOW_NORESIZE | WINDOW_NOFILL | WINDOW_NOTITLE,
                                &frame,
                                NULL, win_game_proc, 0, NULL);
     if (g_game_win) {
@@ -527,13 +576,12 @@ void UI_Init(void) {
         set_focus(g_game_win);
     }
 
-    // Bottom-bar window: draw the command/minimap strip with a normal frame
-    // while keeping the client area at the intended bottom-bar size.
+    // Bottom-bar window: chrome-free strip that draws command/minimap strip.
     frame = make_window_frame_rect(UI_WIN_X, UI_TOP_BAR_Y + g_top_bar_h + g_game_h,
                                    UI_GAME_W, g_bottom_bar_h,
-                                   WINDOW_NORESIZE | WINDOW_NOFILL);
+                                   WINDOW_NORESIZE | WINDOW_NOFILL | WINDOW_NOTITLE);
     g_bottombar_win = create_window("Commands",
-                                    WINDOW_NORESIZE | WINDOW_NOFILL,
+                                    WINDOW_NORESIZE | WINDOW_NOFILL | WINDOW_NOTITLE,
                                     &frame,
                                     NULL, win_bottombar_proc, 0, NULL);
     if (g_bottombar_win)

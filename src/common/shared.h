@@ -142,8 +142,8 @@ enum {
     CS_SKYROTATE = 4,
     CS_STATUSBAR = 5,        // display program string
     CS_HEALTHBAR = 6,
-    CS_MANAHBAR = 6,
-    CS_VIEWPORT = 7,         // "game_y game_h" in WC3 ortho units (0–0.6 range)
+    CS_MANAHBAR = 7,
+    CS_VIEWPORT = 8,         // "game_y game_h" in WC3 ortho units (0–0.6 range)
     CS_AIRACCEL = 29,        // air acceleration control
     CS_MAXCLIENTS = 30,
     CS_MAPCHECKSUM = 31,        // for catching cheater maps

@@ -232,9 +232,17 @@ void G_SpawnEntities(LPCMAPINFO mapinfo, LPCDOODAD entities) {
         if (console_backdrop && console_backdrop->Height > 0.0f)
             vp_bottom_h = console_backdrop->Height;
 
+        // Clamp bar heights so the game area stays positive and the
+        // sum top + game + bottom == 0.6 (the WC3 virtual screen height).
+        if (vp_top_h < 0.001f)  vp_top_h    = 0.001f;
+        if (vp_top_h > 0.590f)  vp_top_h    = 0.590f;
+        if (vp_bottom_h < 0.001f) vp_bottom_h = 0.001f;
+        if (vp_top_h + vp_bottom_h > 0.590f)
+            vp_bottom_h = 0.590f - vp_top_h;
+
         float vp_game_y = vp_top_h;
         float vp_game_h = 0.6f - vp_top_h - vp_bottom_h;
-        if (vp_game_h < 0.1f) vp_game_h = 0.1f;   // sanity: never degenerate
+        if (vp_game_h < 0.010f) vp_game_h = 0.010f;  // sanity: never degenerate
 
         char vp[64];
         snprintf(vp, sizeof(vp), "%.4f %.4f", vp_game_y, vp_game_h);
