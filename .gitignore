@@ -7,3 +7,6 @@ src/DerivedData/
 *.zip
 .DS_Store
 War3.mpq
+
+# CodeQL
+_codeql_detected_source_root/
