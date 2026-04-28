@@ -56,7 +56,7 @@ void ai_idle(LPEDICT self) {
 
 void order_attack(LPEDICT self, LPEDICT target);
 
-#define MAX_SIGHT_ENTITIES 32
+#define MAX_SIGHT_ENTITIES 256
 
 static LPEDICT current_entity = NULL;
 static LPEDICT sight_entities[MAX_SIGHT_ENTITIES];

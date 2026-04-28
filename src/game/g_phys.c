@@ -103,7 +103,7 @@ static BOOL FilterColliders(LPCEDICT ent) {
     return ent != current_entity && !IS_HOLLOW(ent);
 }
 
-#define MAX_COLLIDERS 64
+#define MAX_COLLIDERS 256
 
 static LPEDICT sv_colliders[MAX_COLLIDERS];
 
