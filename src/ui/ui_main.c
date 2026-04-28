@@ -13,15 +13,14 @@
  *   5. Map Selector    — lists *.w3m files found in the loaded MPQ archive
  *                        and lets the player pick a map to start.
  *
- * Layout (logical pixels, x=20 left-edge):
- *   y=20  : top-bar   (UI_GAME_W × UI_TOP_BAR_H)
- *   y=32  : game      (UI_GAME_W × UI_GAME_H)
- *   y=488 : bottom-bar (UI_GAME_W × UI_BOTTOM_BAR_H)
+ * Layout (logical pixels, x=20 left-edge, default values):
+ *   y=20  : top-bar    (UI_GAME_W × g_top_bar_h)    — default 40 px
+ *   y=60  : game       (UI_GAME_W × g_game_h)        — default 428 px
+ *   y=488 : bottom-bar (UI_GAME_W × g_bottom_bar_h)  — default 132 px
  *
- * The game window is now sized to match exactly the 3-D scene area that was
- * previously exposed via glScissor({0, 0.22, 1, 0.76}).  By sizing the window
- * to the desired 3-D area the renderer no longer needs a sub-viewport scissor
- * inside R_RenderView; the OS window boundary provides the clipping instead.
+ * Bar heights are dynamic: after the server runs UI_Init() and knows the
+ * actual FDF frame heights, it writes CS_VIEWPORT = "game_y game_h" and the
+ * client calls UI_SetViewport() to resize/reposition the windows accordingly.
  *
  * NOTE: This file intentionally does NOT include any game headers (client.h,
  * common.h, …) because the game's rect_t typedef conflicts with orion-ui's
@@ -50,23 +49,15 @@
 //   top-bar   height = (1.0 - 0.22 - 0.76) * 600 = 0.02 * 600 = 12 px
 //   game area height =               0.76   * 600 = 456 px
 //   bottom-bar height =              0.22   * 600 = 132 px
+//
+// At runtime these are updated by UI_SetViewport() when CS_VIEWPORT arrives
+// from the server, so the server's FDF-parsed bar heights drive the layout.
+// Default: top=40px (includes WC3 day/night clock), game=428px, bottom=132px.
 #define UI_GAME_W       800
-#define UI_TOP_BAR_H     18
-#define UI_GAME_H       456
-#define UI_BOTTOM_BAR_H 132
 
 // Vertical positions of each window (x=20 is the shared left edge).
 #define UI_WIN_X           20
 #define UI_TOP_BAR_Y       20
-#define UI_GAME_Y         (UI_TOP_BAR_Y + UI_TOP_BAR_H)   // 32
-#define UI_BOTTOM_BAR_Y   (UI_GAME_Y   + UI_GAME_H)        // 488
-
-// UI ortho Y sub-ranges (0-0.6 space, y=0 at top, y=0.6 at bottom).
-//   top-bar   : 0       to UI_TOP_Y_END
-//   game area : UI_TOP_Y_END to UI_BOTTOM_Y_START
-//   bottom-bar: UI_BOTTOM_Y_START to 0.6f
-#define UI_TOP_Y_END       0.012f   // 12  / 1000 (1 unit = 1000 px at 800×600)
-#define UI_BOTTOM_Y_START  0.468f   // 468 / 1000
 
 /* ── Forward declarations from game code ─────────────────────────────────── */
 
@@ -113,6 +104,23 @@ static window_t *g_log_win    = NULL;
 static window_t *g_map_win    = NULL;
 static window_t *g_log_edit   = NULL;   // multiedit inside log window
 static window_t *g_map_combo  = NULL;   // combobox inside map selector
+
+/* ── Dynamic layout globals ──────────────────────────────────────────────── */
+// Updated by UI_SetViewport() when CS_VIEWPORT is received from the server.
+// Default heights (pixels): top=40 (WC3 resource bar + day/night clock),
+// game=428 (3-D area), bottom=132 (console panel).
+// top_h + game_h + bottom_h must equal 600 (the WC3 virtual screen height).
+static int g_top_bar_h    = 40;    // logical pixels
+static int g_game_h       = 428;   // logical pixels
+static int g_bottom_bar_h = 132;   // logical pixels
+
+// UI ortho Y sub-ranges (0-0.6 space, y=0 at top, y=0.6 at bottom).
+//   top-bar   : 0               to g_ui_top_y_end
+//   game area : (handled by 3-D renderer)
+//   bottom-bar: g_ui_bottom_y_start to 0.6f
+// 1 pixel = 0.001 ortho units  (800×600 → 0.8×0.6 virtual space).
+static float g_ui_top_y_end      = 0.040f;  // 40  / 1000
+static float g_ui_bottom_y_start = 0.468f;  // (40 + 428) / 1000
 
 static rect_t make_window_frame_rect(int x, int y, int w, int h, flags_t flags)
 {
@@ -277,7 +285,7 @@ static result_t win_topbar_proc(window_t *win, uint32_t msg,
             };
             rect_t gl_rect = get_opengl_rect(&client_abs);
             R_SetGameViewport(gl_rect.x, gl_rect.y, gl_rect.w, gl_rect.h);
-            R_SetUIRange(0.0f, UI_TOP_Y_END);
+            R_SetUIRange(0.0f, g_ui_top_y_end);
             R_BeginUIFrame();
             SCR_DrawTopBar();
             R_EndFrame();
@@ -312,7 +320,7 @@ static result_t win_bottombar_proc(window_t *win, uint32_t msg,
             };
             rect_t gl_rect = get_opengl_rect(&client_abs);
             R_SetGameViewport(gl_rect.x, gl_rect.y, gl_rect.w, gl_rect.h);
-            R_SetUIRange(UI_BOTTOM_Y_START, 0.6f);
+            R_SetUIRange(g_ui_bottom_y_start, 0.6f);
             R_BeginUIFrame();
             SCR_DrawBottomBar();
             R_EndFrame();
@@ -325,9 +333,9 @@ static result_t win_bottombar_proc(window_t *win, uint32_t msg,
             int16_t rdy = (int16_t)HIWORD((uint32_t)(intptr_t)lparam);
             // Translate bar-local y into full virtual-coordinate y so that
             // UI hit-testing is consistent: bottom bar starts at
-            // UI_TOP_BAR_H + UI_GAME_H pixels below the top of the layout.
+            // g_top_bar_h + g_game_h pixels below the top of the layout.
             CL_MouseMove((float)lx,
-                         (float)(UI_TOP_BAR_H + UI_GAME_H + ly),
+                         (float)(g_top_bar_h + g_game_h + ly),
                          (float)rdx, (float)rdy);
             invalidate_window(win);
             return 1;
@@ -335,28 +343,28 @@ static result_t win_bottombar_proc(window_t *win, uint32_t msg,
         case evLeftButtonDown: {
             int16_t lx = (int16_t)LOWORD(wparam);
             int16_t ly = (int16_t)HIWORD(wparam);
-            CL_MouseButtonDown(1, (float)lx, (float)(UI_TOP_BAR_H + UI_GAME_H + ly),
+            CL_MouseButtonDown(1, (float)lx, (float)(g_top_bar_h + g_game_h + ly),
                                (unsigned int)axGetMilliseconds());
             return 1;
         }
         case evLeftButtonUp: {
             int16_t lx = (int16_t)LOWORD(wparam);
             int16_t ly = (int16_t)HIWORD(wparam);
-            CL_MouseButtonUp(1, (float)lx, (float)(UI_TOP_BAR_H + UI_GAME_H + ly),
+            CL_MouseButtonUp(1, (float)lx, (float)(g_top_bar_h + g_game_h + ly),
                              (unsigned int)axGetMilliseconds());
             return 1;
         }
         case evRightButtonDown: {
             int16_t lx = (int16_t)LOWORD(wparam);
             int16_t ly = (int16_t)HIWORD(wparam);
-            CL_MouseButtonDown(3, (float)lx, (float)(UI_TOP_BAR_H + UI_GAME_H + ly),
+            CL_MouseButtonDown(3, (float)lx, (float)(g_top_bar_h + g_game_h + ly),
                                (unsigned int)axGetMilliseconds());
             return 1;
         }
         case evRightButtonUp: {
             int16_t lx = (int16_t)LOWORD(wparam);
             int16_t ly = (int16_t)HIWORD(wparam);
-            CL_MouseButtonUp(3, (float)lx, (float)(UI_TOP_BAR_H + UI_GAME_H + ly),
+            CL_MouseButtonUp(3, (float)lx, (float)(g_top_bar_h + g_game_h + ly),
                              (unsigned int)axGetMilliseconds());
             return 1;
         }
@@ -450,6 +458,52 @@ static result_t win_game_proc(window_t *win, uint32_t msg,
 
 /* ── Public API ──────────────────────────────────────────────────────────── */
 
+// UI_SetViewport — called by the client when CS_VIEWPORT arrives from the
+// server.  game_y and game_h are in WC3 ortho units (0–0.6); multiply by
+// 1000 to convert to logical pixels (800×600 virtual screen).
+// Repositions / resizes the three bar/game windows so the OS window boundary
+// provides the correct clipping for each section.
+void UI_SetViewport(float game_y, float game_h) {
+    int top_h    = (int)(game_y * 1000.0f + 0.5f);
+    int gh       = (int)(game_h * 1000.0f + 0.5f);
+    int bottom_h = 600 - top_h - gh;
+    if (top_h    < 1) top_h    = 1;
+    if (gh       < 1) gh       = 1;
+    if (bottom_h < 1) bottom_h = 1;
+
+    g_top_bar_h           = top_h;
+    g_game_h              = gh;
+    g_bottom_bar_h        = bottom_h;
+    g_ui_top_y_end        = game_y;
+    g_ui_bottom_y_start   = game_y + game_h;
+
+    flags_t bar_flags = WINDOW_NORESIZE | WINDOW_NOFILL;
+    int game_y_px   = UI_TOP_BAR_Y + top_h;
+    int bottom_y_px = game_y_px + gh;
+
+    if (g_topbar_win) {
+        rect_t f = make_window_frame_rect(UI_WIN_X, UI_TOP_BAR_Y,
+                                          UI_GAME_W, top_h, bar_flags);
+        move_window(g_topbar_win, f.x, f.y);
+        resize_window(g_topbar_win, f.w, f.h);
+        invalidate_window(g_topbar_win);
+    }
+    if (g_game_win) {
+        rect_t f = make_window_frame_rect(UI_WIN_X, game_y_px,
+                                          UI_GAME_W, gh, bar_flags);
+        move_window(g_game_win, f.x, f.y);
+        resize_window(g_game_win, f.w, f.h);
+        invalidate_window(g_game_win);
+    }
+    if (g_bottombar_win) {
+        rect_t f = make_window_frame_rect(UI_WIN_X, bottom_y_px,
+                                          UI_GAME_W, bottom_h, bar_flags);
+        move_window(g_bottombar_win, f.x, f.y);
+        resize_window(g_bottombar_win, f.w, f.h);
+        invalidate_window(g_bottombar_win);
+    }
+}
+
 // UI_Init — create all UI windows and register the CON_printf hook.
 // Must be called AFTER the MPQ archives are open (for FS_ListMaps) but
 // BEFORE Com_Init() (which initialises the renderer using the GL context
@@ -465,7 +519,7 @@ void UI_Init(void) {
     // Top-bar window: draw the resource/status strip with a normal frame while
     // keeping the client area at the intended top-bar size.
     frame = make_window_frame_rect(UI_WIN_X, UI_TOP_BAR_Y,
-                                   UI_GAME_W, UI_TOP_BAR_H,
+                                   UI_GAME_W, g_top_bar_h,
                                    WINDOW_NORESIZE | WINDOW_NOFILL);
     g_topbar_win = create_window("Resources",
                                  WINDOW_NORESIZE | WINDOW_NOFILL,
@@ -477,8 +531,8 @@ void UI_Init(void) {
     // Game window: renders the 3-D scene directly into the default framebuffer
     // using glViewport.  Sized to exactly the 3-D area so no sub-viewport
     // scissor is required inside the renderer.
-    frame = make_window_frame_rect(UI_WIN_X, UI_GAME_Y,
-                                   UI_GAME_W, UI_GAME_H,
+    frame = make_window_frame_rect(UI_WIN_X, UI_TOP_BAR_Y + g_top_bar_h,
+                                   UI_GAME_W, g_game_h,
                                    WINDOW_NORESIZE | WINDOW_NOFILL);
     g_game_win = create_window("Viewport",
                                WINDOW_NORESIZE | WINDOW_NOFILL,
@@ -491,8 +545,8 @@ void UI_Init(void) {
 
     // Bottom-bar window: draw the command/minimap strip with a normal frame
     // while keeping the client area at the intended bottom-bar size.
-    frame = make_window_frame_rect(UI_WIN_X, UI_BOTTOM_BAR_Y,
-                                   UI_GAME_W, UI_BOTTOM_BAR_H,
+    frame = make_window_frame_rect(UI_WIN_X, UI_TOP_BAR_Y + g_top_bar_h + g_game_h,
+                                   UI_GAME_W, g_bottom_bar_h,
                                    WINDOW_NORESIZE | WINDOW_NOFILL);
     g_bottombar_win = create_window("Commands",
                                     WINDOW_NORESIZE | WINDOW_NOFILL,

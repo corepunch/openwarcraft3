@@ -202,6 +202,21 @@ void CL_PrepRefresh(void) {
             cl.fonts[i] = re.LoadFont(cl.configstrings[CS_FONTS + i], 16);
         }
     }
+
+    // When the server provides viewport geometry (CS_VIEWPORT = "game_y game_h"
+    // in WC3 ortho units 0–0.6) notify the UI layer once so the bar windows
+    // resize to match the actual FDF-defined bar heights.
+    if (cl.configstrings[CS_VIEWPORT][0]) {
+        static PATHSTR last_viewport = { 0 };
+        if (strcmp(last_viewport, cl.configstrings[CS_VIEWPORT])) {
+            float vp_game_y = 0.0f, vp_game_h = 0.6f;
+            sscanf(cl.configstrings[CS_VIEWPORT], "%f %f",
+                   &vp_game_y, &vp_game_h);
+            UI_SetViewport(vp_game_y, vp_game_h);
+            strncpy(last_viewport, cl.configstrings[CS_VIEWPORT],
+                    sizeof(last_viewport) - 1);
+        }
+    }
 }
 
 void V_RenderView(void) {
