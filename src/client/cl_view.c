@@ -215,6 +215,7 @@ void CL_PrepRefresh(void) {
             UI_SetViewport(vp_game_y, vp_game_h);
             strncpy(last_viewport, cl.configstrings[CS_VIEWPORT],
                     sizeof(last_viewport) - 1);
+            last_viewport[sizeof(last_viewport) - 1] = '\0';
         }
     }
 }
