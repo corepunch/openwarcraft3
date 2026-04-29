@@ -16,7 +16,7 @@ static struct {
 //    vertexattr_boneWeight2,
 //} mdxVertexAttribute_t;
 
-static LPCSTR vs =
+static LPCSTR mdx_vs =
 "#version 140\n"
 "in vec3 i_position;\n"
 "in vec4 i_color;\n"
@@ -63,7 +63,7 @@ static LPCSTR vs =
 "    gl_Position = uViewProjectionMatrix * uModelMatrix * position;\n"
 "}\n";
 
-LPCSTR fs =
+static LPCSTR mdx_fs =
 "#version 140\n"
 "in vec2 v_texcoord;\n"
 "in vec2 v_texcoord2;\n"
@@ -709,7 +709,7 @@ void R_DrawPortrait(LPCMODEL model, LPCRECT viewport) {
 }
 
 void MDLX_Init(void) {
-    mdlx.shader = R_InitShader(vs, fs);
+    mdlx.shader = R_InitShader(mdx_vs, mdx_fs);
 }
 
 void MDLX_Shutdown(void) {

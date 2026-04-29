@@ -36,7 +36,7 @@ M3_READER(TYPE##SequenceData) { \
     M3_REFR(sb, data->values, TYPE, 0); \
 }
 
-static LPCSTR vs =
+static LPCSTR m3_vs =
 "#version 140\n"
 "in vec3 i_position;\n"
 "in vec4 i_color;\n"
@@ -81,7 +81,7 @@ static LPCSTR vs =
 "}\n";
 
 
-static LPCSTR fs =
+static LPCSTR m3_fs =
 "#version 140\n"
 "in vec2 v_texcoord;\n"
 "in vec2 v_texcoord2;\n"
@@ -701,7 +701,7 @@ void M3_RenderModel(renderEntity_t const *entity, m3Model_t const *model, LPCMAT
 }
 
 void M3_Init(void) {
-    m3.shader = R_InitShader(vs, fs);
+    m3.shader = R_InitShader(m3_vs, m3_fs);
     m3.uFirstBoneLookupIndex = R_Call(glGetUniformLocation, m3.shader->progid, "uFirstBoneLookupIndex");
     m3.uBoneWeightPairsCount = R_Call(glGetUniformLocation, m3.shader->progid, "uBoneWeightPairsCount");
     m3.uDiffuseMap = R_Call(glGetUniformLocation, m3.shader->progid, "uDiffuseMap");
