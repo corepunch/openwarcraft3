@@ -107,7 +107,7 @@ void IN_SelectDown(void) {
                 default:
                     break;
             }
-            RECT const screen = Rect_div(SCR_LayoutRect(frame), 10000);
+            RECT const screen = *SCR_LayoutRect(frame);
             if (Rect_contains(&screen, &m)) {
                 cl.selection.in_progress = false;
             }
