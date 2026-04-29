@@ -58,13 +58,13 @@ void order_attack(LPEDICT self, LPEDICT target);
 
 #define MAX_SIGHT_ENTITIES 256
 
-static LPEDICT current_entity = NULL;
+static LPEDICT ai_current_entity = NULL;
 static LPEDICT sight_entities[MAX_SIGHT_ENTITIES];
 
 static BOOL filter_sight(LPCEDICT ent) {
-    if (!(ent->svflags & SVF_MONSTER) || ent->s.player == current_entity->s.player)
+    if (!(ent->svflags & SVF_MONSTER) || ent->s.player == ai_current_entity->s.player)
         return false;
-    if (level.alliances[ent->s.player][current_entity->s.player] != 0)
+    if (level.alliances[ent->s.player][ai_current_entity->s.player] != 0)
         return false;
     if (level.mapinfo->players[ent->s.player].playerType != kPlayerTypeHuman)
         return false;
@@ -80,7 +80,7 @@ void ai_stand(LPEDICT self) {
         return;
     if (level.mapinfo->players[self->s.player].playerType != kPlayerTypeComputer)
         return;
-    current_entity = self;
+    ai_current_entity = self;
     FLOAT const sight = self->balance.sight_radius.day / 2;
     BOX2 const sightbox = {
         { self->s.origin2.x - sight, self->s.origin2.y - sight },

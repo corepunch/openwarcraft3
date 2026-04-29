@@ -1,6 +1,6 @@
 #include "s_skills.h"
 
-static LPCSTR TARGET_ART;
+static LPCSTR HOLYLIGHT_TARGET_ART;
 
 void holylight_done(LPEDICT self);
 
@@ -17,7 +17,7 @@ void holylight_command(LPEDICT clent) {
     LPEDICT effect = G_Spawn();
     effect->s.origin = unit->s.origin;
     effect->s.angle = unit->s.angle;
-    effect->s.model = gi.ModelIndex(TARGET_ART);
+    effect->s.model = gi.ModelIndex(HOLYLIGHT_TARGET_ART);
     effect->goalentity = unit;
     effect->movetype = MOVETYPE_LINK;
     effect->think = M_MoveFrame;
@@ -29,7 +29,7 @@ void holylight_command(LPEDICT clent) {
 }
 
 void SP_ability_holylight(LPCSTR classname, ability_t *self) {
-    TARGET_ART = FindConfigValue(classname, STR_TARGET_ART);
+    HOLYLIGHT_TARGET_ART = FindConfigValue(classname, STR_TARGET_ART);
 }
 
 ability_t a_holylight = {

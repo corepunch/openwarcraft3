@@ -63,7 +63,7 @@ static void ai_walktree(LPEDICT ent) {
     }
 }
 
-static void ai_walkback(LPEDICT ent) {
+static void harvest_ai_walkback(LPEDICT ent) {
     if (M_DistanceToGoal(ent) < (ent->collision + ent->goalentity->collision + 5)) {
         ent->goalentity = ent->secondarygoal;
         LPPLAYER player = G_GetPlayerByNumber(ent->s.player);
@@ -103,7 +103,7 @@ static void ai_cooldown(LPEDICT ent) {
 }
 
 static umove_t harvest_move_walk = { "walk", ai_walktree, NULL, &a_harvest };
-static umove_t harvest_move_walkback = { "walk", ai_walkback, NULL, &a_harvest };
+static umove_t harvest_move_walkback = { "walk", harvest_ai_walkback, NULL, &a_harvest };
 static umove_t harvest_move_swing = { "attack", ai_swing, harvest_cooldown, &a_harvest };
 static umove_t harvest_move_cooldown = { "stand ready", ai_cooldown, NULL, &a_harvest };
 

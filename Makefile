@@ -6,80 +6,111 @@ ZIP_URL  := https://archive.org/download/warcraft-iii-installer-enus/Warcraft-II
 ZIP_FILE := Warcraft-III-1.29.2-enUS.zip
 DATA_DIR := data
 
-CC       := gcc
-BIN_DIR  := build/bin
-LIB_DIR  := build/lib
-OBJ_DIR  := build/obj
-CFLAGS   := -Wall -fPIC -Isrc/cmath3/types
-LDFLAGS  := -L$(LIB_DIR)
+CC      := gcc
+BIN_DIR := build/bin
+LIB_DIR := build/lib
+CFLAGS  := -Wall -Isrc -Isrc/cmath3 -Isrc/cmath3/types
 
-CMATH3_OBJS := $(patsubst src/cmath3/%.c,$(OBJ_DIR)/cmath3/%.o,$(shell find src/cmath3 -name '*.c'))
-RENDERER_OBJS := $(patsubst src/renderer/%.c,$(OBJ_DIR)/renderer/%.o,$(shell find src/renderer -name '*.c'))
-GAME_OBJS := $(patsubst src/game/%.c,$(OBJ_DIR)/game/%.o,$(shell find src/game -name '*.c'))
-APP_OBJS := $(patsubst src/%.c,$(OBJ_DIR)/%.o,$(wildcard src/client/*.c) $(wildcard src/server/*.c) $(wildcard src/common/*.c))
-
-ifeq ($(shell uname -s),Linux)
-	LDFLAGS += -Wl,-z,defs -lm -lEGL -lGL
+# ---------------------------------------------------------------------------
+# Platform detection
+# ---------------------------------------------------------------------------
+ifeq ($(OS),Windows_NT)
+    LIB_EXT   := .dll
+    LIB_FLAGS := -shared
+    EXE_EXT   := .exe
+    RPATH     :=
+    LDFLAGS   := -L$(LIB_DIR)
+    LIBS      := -lSDL2main -lSDL2 -lstorm -ljpeg -lm -lopengl32 -lgdi32
+else
+    UNAME_S := $(shell uname -s)
+    EXE_EXT :=
+    ifeq ($(UNAME_S),Darwin)
+        ifeq ($(shell uname -m),arm64)
+            HOMEBREW_PREFIX := /opt/homebrew
+        else
+            HOMEBREW_PREFIX := /usr/local
+        endif
+        LIB_EXT   := .dylib
+        LIB_FLAGS := -dynamiclib
+        RPATH     := -Wl,-rpath,@executable_path/../lib
+        CFLAGS    += -DGL_SILENCE_DEPRECATION -I$(HOMEBREW_PREFIX)/include
+        LDFLAGS   := -L$(LIB_DIR) -L$(HOMEBREW_PREFIX)/lib
+        LIBS      := -lSDL2 -lstorm -ljpeg -framework AppKit -framework OpenGL
+    else
+        # Linux
+        LIB_EXT   := .so
+        LIB_FLAGS := -shared -fPIC
+        RPATH     := -Wl,-rpath,'$$ORIGIN/../lib'
+        CFLAGS    += -fPIC
+        LDFLAGS   := -L$(LIB_DIR) -Wl,-z,defs
+        LIBS      := -lSDL2 -lstorm -ljpeg -lEGL -lGL -lm
+    endif
 endif
 
-ifeq ($(shell uname -s),Darwin)
-	ifeq ($(shell uname -m),arm64)
-		HOMEBREW_PREFIX := /opt/homebrew
-	else
-		HOMEBREW_PREFIX := /usr/local
-	endif
-	CFLAGS += -DGL_SILENCE_DEPRECATION
-	CFLAGS += -I$(HOMEBREW_PREFIX)/include
-	LDFLAGS += -L$(HOMEBREW_PREFIX)/lib
-	LDFLAGS += -framework AppKit -framework OpenGL
-endif
+CMATH3_LIB   := $(LIB_DIR)/libcmath3$(LIB_EXT)
+RENDERER_LIB := $(LIB_DIR)/librenderer$(LIB_EXT)
+GAME_LIB     := $(LIB_DIR)/libgame$(LIB_EXT)
+BINARY       := $(BIN_DIR)/openwarcraft3$(EXE_EXT)
+
+# Unity-build helper: pipe all .c files in a directory tree as #include
+# directives to gcc's stdin so the whole module is one translation unit.
+UNITY = find $1 -name '*.c' $2 | sort | sed 's/.*/#include "&"/'
 
 default: build
 build: cmath3 renderer game openwarcraft3
-cmath3: $(LIB_DIR)/libcmath3.so
-renderer: $(LIB_DIR)/librenderer.so
-game: $(LIB_DIR)/libgame.so
-openwarcraft3: $(BIN_DIR)/openwarcraft3
-run: 
-	build/bin/openwarcraft3 -mpq=$(MPQ) -map=$(MAP)
+cmath3:      $(CMATH3_LIB)
+renderer:    $(RENDERER_LIB)
+game:        $(GAME_LIB)
+openwarcraft3: $(BINARY)
+run:
+	$(BINARY) -mpq=$(MPQ) -map=$(MAP)
 
-$(LIB_DIR):
+$(BIN_DIR) $(LIB_DIR):
 	@mkdir -p $@
 
-$(BIN_DIR):
-	@mkdir -p $@
+# cmath3 — math library
+$(CMATH3_LIB): $(shell find src/cmath3 -name '*.c') | $(LIB_DIR)
+	@echo "[cmath3]"
+	@$(call UNITY,src/cmath3) | \
+		$(CC) $(CFLAGS) $(LIB_FLAGS) -x c -o $@ - $(LDFLAGS)
 
-$(LIB_DIR)/libcmath3.so: $(CMATH3_OBJS) $(LIB_DIR)
-	$(CC) -shared -o $@ $(CMATH3_OBJS) $(LDFLAGS)
+# renderer — depends on cmath3
+$(RENDERER_LIB): $(CMATH3_LIB) $(shell find src/renderer -name '*.c') | $(LIB_DIR)
+	@echo "[renderer]"
+	@(echo '#define STB_TRUETYPE_IMPLEMENTATION'; \
+	  echo '#include "src/renderer/stb/stb_truetype.h"'; \
+	  $(call UNITY,src/renderer,! -path '*/stb/*.c')) | \
+		$(CC) $(CFLAGS) $(LIB_FLAGS) -x c -o $@ - $(LDFLAGS) -lcmath3 $(LIBS)
 
-$(LIB_DIR)/libgame.so: $(GAME_OBJS) $(LIB_DIR)
-	$(CC) -shared -o $@ $(GAME_OBJS) $(LDFLAGS) -lcmath3
+# game — depends on cmath3
+$(GAME_LIB): $(CMATH3_LIB) $(shell find src/game -name '*.c') | $(LIB_DIR)
+	@echo "[game]"
+	@$(call UNITY,src/game) | \
+		$(CC) $(CFLAGS) $(LIB_FLAGS) -x c -o $@ - $(LDFLAGS) -lcmath3 -lm
 
-$(LIB_DIR)/librenderer.so: cmath3 $(RENDERER_OBJS) $(LIB_DIR)
-	$(CC) -shared -o $@ $(RENDERER_OBJS) $(LDFLAGS) -lcmath3 -lSDL2 -lstorm -ljpeg
-
-$(BIN_DIR)/openwarcraft3: cmath3 game renderer $(APP_OBJS) $(BIN_DIR)
-	$(CC) -o $@ $(APP_OBJS) -Wl,-rpath,'$$ORIGIN/../lib' $(LDFLAGS) -lcmath3 -lSDL2 -lstorm -lgame -lrenderer
-
-$(OBJ_DIR)/%.o: src/%.c
-	@mkdir -p $(dir $@)
-	$(CC) $(CFLAGS) -c $< -o $@
+# main binary — depends on all three libraries
+APP_SRCS := $(shell find src/client src/server src/common -name '*.c')
+$(BINARY): $(CMATH3_LIB) $(GAME_LIB) $(RENDERER_LIB) $(APP_SRCS) | $(BIN_DIR)
+	@echo "[openwarcraft3]"
+	@$(call UNITY,src/client src/server src/common) | \
+		$(CC) $(CFLAGS) -x c -o $@ - $(RPATH) $(LDFLAGS) \
+		-lcmath3 -lgame -lrenderer $(LIBS)
 
 download: $(ZIP_FILE)
 	mkdir -p $(DATA_DIR)
 	unzip -o $(ZIP_FILE) -d $(DATA_DIR)
-	
+
 $(ZIP_FILE):
 	curl -L -o $(ZIP_FILE) $(ZIP_URL)
 
 clean:
-	rm -rf build/obj build/lib
+	rm -rf build
 
 # ---------------------------------------------------------------------------
 # Test target — builds and runs the unit test binary.
 #
 # The test binary compiles only the game modules needed by the tests
-# (no renderer, no StormLib, no SDL2) together with the cmath3 objects.
+# (no renderer, no StormLib, no SDL2) together with the cmath3 sources.
 # Global game state and gi function-pointers are provided by the test
 # harness (tests/test_harness.c) rather than by src/game/g_main.c.
 # ---------------------------------------------------------------------------
@@ -109,9 +140,10 @@ TEST_SRCS := \
 
 TEST_CFLAGS := -Wall -Isrc/cmath3/types -Isrc/game -Isrc/server -Isrc/common -Isrc/game/skills
 
-test: $(CMATH3_OBJS) $(BIN_DIR)
-	$(CC) $(TEST_CFLAGS) -o $(BIN_DIR)/test_openwarcraft3 \
-		$(TEST_SRCS) $(TEST_GAME_SRCS) $(CMATH3_OBJS) -lm
-	$(BIN_DIR)/test_openwarcraft3
+test: | $(BIN_DIR)
+	$(CC) $(TEST_CFLAGS) -o $(BIN_DIR)/test_openwarcraft3$(EXE_EXT) \
+		$(TEST_SRCS) $(TEST_GAME_SRCS) \
+		$(shell find src/cmath3 -name '*.c') -lm
+	$(BIN_DIR)/test_openwarcraft3$(EXE_EXT)
 
-.PHONY: default cmath3 renderer game openwarcraft3 clean download test
+.PHONY: default build cmath3 renderer game openwarcraft3 run clean download test

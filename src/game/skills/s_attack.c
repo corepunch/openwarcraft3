@@ -169,7 +169,7 @@ static void ai_ranged_cooldown(LPEDICT ent) {
     }
 }
 
-static void ai_walk(LPEDICT ent) {
+static void attack_ai_walk(LPEDICT ent) {
     if (M_DistanceToGoal(ent) > ent->attack1.range) {
         unit_changeangle(ent);
         unit_moveindirection(ent);
@@ -180,7 +180,7 @@ static void ai_walk(LPEDICT ent) {
     }
 }
 
-static umove_t attack_move_walk = { "walk", ai_walk, NULL, &a_attack };
+static umove_t attack_move_walk = { "walk", attack_ai_walk, NULL, &a_attack };
 static umove_t attack_move_melee_cooldown = { "stand ready", ai_melee_cooldown, NULL, &a_attack };
 static umove_t attack_move_melee = { "attack", ai_melee, attack_melee_cooldown, &a_attack };
 static umove_t attack_move_ranged_cooldown = { "stand ready", ai_ranged_cooldown, NULL, &a_attack };
