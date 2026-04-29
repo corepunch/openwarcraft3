@@ -156,7 +156,7 @@ PARSER(keyword_constant) {
     }
 }
 
-void remove_quotes(LPSTR str, char quote) {
+static void jass_remove_quotes(LPSTR str, char quote) {
     size_t len = strlen(str);
     if (len >= 2 && str[0] == quote && str[len - 1] == quote) {
         memmove(str, str + 1, len - 2);
@@ -206,10 +206,10 @@ PARSER(read_single_identifier) {
         left = alloc_ident_token(p, TT_REAL);
     } else if (is_string(tok)) {
         left = alloc_ident_token(p, TT_STRING);
-        remove_quotes(left->primary, '\"');
+        jass_remove_quotes(left->primary, '\"');
     } else if (is_fourcc(tok)) {
         left = alloc_ident_token(p, TT_FOURCC);
-        remove_quotes(left->primary, '\'');
+        jass_remove_quotes(left->primary, '\'');
     } else if (!strcmp(tok, "true") || !strcmp(tok, "false")) {
         left = alloc_ident_token(p, TT_BOOLEAN);
     } else if (is_identifier(tok)) {

@@ -785,7 +785,7 @@ DWORD VM_EvalCall(LPJASS j, LPCTOKEN token) {
 static struct {
     TOKENTYPE tokentype;
     DWORD (*func)(LPJASS j, LPCTOKEN token);
-} token_types[] = {
+} vm_token_types[] = {
     { TT_INTEGER, VM_EvalInteger },
     { TT_REAL, VM_EvalReal },
     { TT_STRING, VM_EvalString },
@@ -799,9 +799,9 @@ static struct {
 DWORD jass_dotoken(LPJASS j, LPCTOKEN token) {
     if (!token)
         return 0;
-    FOR_LOOP(idx, sizeof(token_types)/sizeof(*token_types)) {
-        if (token_types[idx].tokentype == token->type) {
-            return token_types[idx].func(j, token);
+    FOR_LOOP(idx, sizeof(vm_token_types)/sizeof(*vm_token_types)) {
+        if (vm_token_types[idx].tokentype == token->type) {
+            return vm_token_types[idx].func(j, token);
         }
     }
     assert(false);
