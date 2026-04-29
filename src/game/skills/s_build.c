@@ -4,7 +4,7 @@ void build_walk(LPEDICT ent);
 void build_build(LPEDICT ent);
 void repair_build(LPEDICT ent, LPEDICT building);
 
-static void build_ai_walk(LPEDICT ent) {
+static void ai_build_walk(LPEDICT ent) {
     if (M_DistanceToGoal(ent) <= unit_movedistance(ent)) {
         build_build(ent);
     } else {
@@ -25,7 +25,7 @@ static void ai_build(LPEDICT ent) {
     }
 }
 
-static umove_t build_move_walk = { "walk", build_ai_walk, NULL, &a_build };
+static umove_t build_move_walk = { "walk", ai_build_walk, NULL, &a_build };
 static umove_t build_move_stand = { "stand", ai_stand, NULL, &a_build };
 
 static void FillUnitData(LPENTITYSTATE ent, DWORD unit_id, LPCSTR anim) {

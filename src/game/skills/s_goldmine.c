@@ -31,7 +31,7 @@ static void ai_walkmine(LPEDICT ent) {
     }
 }
 
-static void goldmine_ai_walkback(LPEDICT ent) {
+static void ai_goldmine_walkback(LPEDICT ent) {
     if (M_DistanceToGoal(ent) < (ent->collision + ent->goalentity->collision + 5)) {
         ent->goalentity = ent->secondarygoal;
         LPPLAYER player = G_GetPlayerByNumber(ent->s.player);
@@ -55,7 +55,7 @@ static void ai_waittoenter(LPEDICT ent) {
 }
 
 static umove_t harvestgold_move_walk = { "walk", ai_walkmine, NULL, &a_goldmine };
-static umove_t harvestgold_move_walkback = { "walk", goldmine_ai_walkback, NULL, &a_goldmine };
+static umove_t harvestgold_move_walkback = { "walk", ai_goldmine_walkback, NULL, &a_goldmine };
 static umove_t harvestgold_move_minegold = { "attack", ai_minegold, NULL, &a_goldmine };
 static umove_t harvestgold_move_wait = { "stand", ai_waittoenter, NULL, &a_goldmine };
 
