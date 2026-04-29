@@ -95,8 +95,18 @@ void IN_SelectDown(void) {
         LPCUIFRAME frames = SCR_Clear(cl.layout[layer_id]);
         FOR_LOOP(object_id, MAX_LAYOUT_OBJECTS) {
             LPCUIFRAME frame = frames+object_id;
-            if (frame->flags.type != FT_TEXTURE)
-                continue;
+            // Block game selection for any opaque/interactive HUD element.
+            // FT_HIGHLIGHT and FT_SIMPLESTATUSBAR are game-world overlays
+            // (selection rings, HP bars) positioned over units — do not block.
+            switch (frame->flags.type) {
+                case FT_NONE:
+                case FT_HIGHLIGHT:
+                case FT_SIMPLESTATUSBAR:
+                case FT_TOOLTIPTEXT:
+                    continue;
+                default:
+                    break;
+            }
             RECT const screen = Rect_div(SCR_LayoutRect(frame), 10000);
             if (Rect_contains(&screen, &m)) {
                 cl.selection.in_progress = false;

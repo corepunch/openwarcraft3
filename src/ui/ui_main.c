@@ -239,8 +239,12 @@ static result_t win_game_proc(window_t *win, uint32_t msg,
             int16_t ly  = (int16_t)HIWORD(wparam);
             int16_t rdx = (int16_t)LOWORD((uint32_t)(intptr_t)lparam);
             int16_t rdy = (int16_t)HIWORD((uint32_t)(intptr_t)lparam);
+            // Absolute position (lx/ly) must be in physical pixels for
+            // ray-casting (R_PointToScreenSpace divides by tr.drawableSize).
+            // Delta (rdx/rdy) is used only for camera panning whose sensitivity
+            // was tuned for logical pixels, so do NOT scale it by s_dpi_scale.
             CL_MouseMove((float)lx * s_dpi_scale, (float)ly * s_dpi_scale,
-                         (float)rdx * s_dpi_scale, (float)rdy * s_dpi_scale);
+                         (float)rdx, (float)rdy);
             invalidate_window(win);
             return 1;
         }
