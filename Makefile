@@ -79,7 +79,7 @@ $(BIN_DIR) $(LIB_DIR):
 $(CMATH3_LIB): $(shell find src/cmath3 -name '*.c') | $(LIB_DIR)
 	@echo "[cmath3]"
 	@$(call UNITY,src/cmath3) | \
-		$(CC) $(CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - $(LDFLAGS)
+		$(CC) $(CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - $(LDFLAGS) -lm
 
 # renderer — depends on cmath3
 $(RENDERER_LIB): $(CMATH3_LIB) $(shell find src/renderer -name '*.c') | $(LIB_DIR)
