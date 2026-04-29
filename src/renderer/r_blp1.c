@@ -1,35 +1,11 @@
 #include "r_local.h"
+#include "r_blp.h"
 
 #include <jpeglib.h>
 #include <jerror.h>
 
 // Opaque type representing a BLP file
 typedef void* tBLPInfos;
-
-enum tBLPEncoding
-{
-    BLP_ENCODING_UNCOMPRESSED = 1,
-    BLP_ENCODING_DXT = 2,
-    BLP_ENCODING_UNCOMPRESSED_RAW_BGRA = 3
-};
-
-enum tBLPAlphaDepth
-{
-    BLP_ALPHA_DEPTH_0 = 0,
-    BLP_ALPHA_DEPTH_1 = 1,
-    BLP_ALPHA_DEPTH_4 = 4,
-    BLP_ALPHA_DEPTH_8 = 8,
-};
-
-enum tBLPFormat
-{
-    BLP_FORMAT_JPEG = 0,
-
-    BLP_FORMAT_PALETTED_NO_ALPHA = (BLP_ENCODING_UNCOMPRESSED << 16) | (BLP_ALPHA_DEPTH_0 << 8),
-    BLP_FORMAT_PALETTED_ALPHA_1  = (BLP_ENCODING_UNCOMPRESSED << 16) | (BLP_ALPHA_DEPTH_1 << 8),
-    BLP_FORMAT_PALETTED_ALPHA_4  = (BLP_ENCODING_UNCOMPRESSED << 16) | (BLP_ALPHA_DEPTH_4 << 8),
-    BLP_FORMAT_PALETTED_ALPHA_8  = (BLP_ENCODING_UNCOMPRESSED << 16) | (BLP_ALPHA_DEPTH_8 << 8),
-};
 
 // A description of the BLP1 format can be found in the file doc/MagosBformat.txt
 struct tBLP1Header
