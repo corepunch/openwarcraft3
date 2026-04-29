@@ -18,6 +18,7 @@ ifeq ($(OS),Windows_NT)
     LIB_EXT   := .dll
     LIB_FLAGS := -shared
     EXE_EXT   := .exe
+    INSTALL_NAME =
     RPATH     :=
     LDFLAGS   := -L$(LIB_DIR)
     LIBS      := -lSDL2main -lSDL2 -lstorm -ljpeg -lm -lopengl32 -lgdi32
@@ -32,6 +33,9 @@ else
         endif
         LIB_EXT   := .dylib
         LIB_FLAGS := -dynamiclib
+        # Set the dylib install name to @rpath/<libname> so the executable
+        # resolves it via the @executable_path/../lib rpath, not a build path.
+        INSTALL_NAME = -Wl,-install_name,@rpath/$(notdir $@)
         RPATH     := -Wl,-rpath,@executable_path/../lib
         CFLAGS    += -DGL_SILENCE_DEPRECATION -I$(HOMEBREW_PREFIX)/include
         LDFLAGS   := -L$(LIB_DIR) -L$(HOMEBREW_PREFIX)/lib
@@ -40,6 +44,7 @@ else
         # Linux
         LIB_EXT   := .so
         LIB_FLAGS := -shared -fPIC
+        INSTALL_NAME =
         RPATH     := -Wl,-rpath,'$$ORIGIN/../lib'
         CFLAGS    += -fPIC
         LDFLAGS   := -L$(LIB_DIR) -Wl,-z,defs
@@ -54,7 +59,9 @@ BINARY       := $(BIN_DIR)/openwarcraft3$(EXE_EXT)
 
 # Unity-build helper: pipe all .c files in a directory tree as #include
 # directives to gcc's stdin so the whole module is one translation unit.
-UNITY = find $1 -name '*.c' $2 | sort | sed 's/.*/#include "&"/'
+# Note: awk with octal \043 for '#' avoids Make treating '#' in a variable
+# value as a comment character, which would truncate the sed expression.
+UNITY = find $1 -name '*.c' $2 | sort | awk '{printf "\043include \"%s\"\n", $$0}'
 
 default: build
 build: cmath3 renderer game openwarcraft3
@@ -72,21 +79,21 @@ $(BIN_DIR) $(LIB_DIR):
 $(CMATH3_LIB): $(shell find src/cmath3 -name '*.c') | $(LIB_DIR)
 	@echo "[cmath3]"
 	@$(call UNITY,src/cmath3) | \
-		$(CC) $(CFLAGS) $(LIB_FLAGS) -x c -o $@ - $(LDFLAGS)
+		$(CC) $(CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - $(LDFLAGS)
 
 # renderer — depends on cmath3
 $(RENDERER_LIB): $(CMATH3_LIB) $(shell find src/renderer -name '*.c') | $(LIB_DIR)
 	@echo "[renderer]"
 	@(echo '#define STB_TRUETYPE_IMPLEMENTATION'; \
-	  echo '#include "src/renderer/stb/stb_truetype.h"'; \
+	  echo '#include "renderer/stb/stb_truetype.h"'; \
 	  $(call UNITY,src/renderer,! -path '*/stb/*.c')) | \
-		$(CC) $(CFLAGS) $(LIB_FLAGS) -x c -o $@ - $(LDFLAGS) -lcmath3 $(LIBS)
+		$(CC) $(CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - $(LDFLAGS) -lcmath3 $(LIBS)
 
 # game — depends on cmath3
 $(GAME_LIB): $(CMATH3_LIB) $(shell find src/game -name '*.c') | $(LIB_DIR)
 	@echo "[game]"
 	@$(call UNITY,src/game) | \
-		$(CC) $(CFLAGS) $(LIB_FLAGS) -x c -o $@ - $(LDFLAGS) -lcmath3 -lm
+		$(CC) $(CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - $(LDFLAGS) -lcmath3 -lm
 
 # main binary — depends on all three libraries
 APP_SRCS := $(shell find src/client src/server src/common -name '*.c')
