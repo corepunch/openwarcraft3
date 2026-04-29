@@ -1,7 +1,9 @@
 #include "r_local.h"
 
 #include <SDL2/SDL.h>
+#ifndef __APPLE__
 #include <SDL2/SDL_opengl.h>
+#endif
 
 refImport_t ri;
 struct render_globals tr;
