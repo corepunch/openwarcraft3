@@ -17,7 +17,7 @@
 
 void move_walk(LPEDICT ent);
 
-static void move_ai_walk(LPEDICT ent) {
+static void ai_move_walk(LPEDICT ent) {
     if (M_DistanceToGoal(ent) <= unit_movedistance(ent)) {
         ent->stand(ent);
     } else {
@@ -26,7 +26,7 @@ static void move_ai_walk(LPEDICT ent) {
     }
 }
 
-static umove_t move_move_walk = { "walk", move_ai_walk, NULL, &a_move };
+static umove_t move_move_walk = { "walk", ai_move_walk, NULL, &a_move };
 
 /* Set the unit's move target and begin walking.
  * goalentity must be a waypoint or any entity whose origin is the destination. */
