@@ -95,11 +95,13 @@ void IN_SelectDown(void) {
         LPCUIFRAME frames = SCR_Clear(cl.layout[layer_id]);
         FOR_LOOP(object_id, MAX_LAYOUT_OBJECTS) {
             LPCUIFRAME frame = frames+object_id;
-            // Block game selection for any opaque/interactive HUD element.
-            // FT_HIGHLIGHT and FT_SIMPLESTATUSBAR are game-world overlays
-            // (selection rings, HP bars) positioned over units — do not block.
+            // Block game selection for opaque/interactive HUD elements only.
+            // FT_SCREEN is the root canvas frame (covers entire screen) and
+            // must not block. FT_HIGHLIGHT/FT_SIMPLESTATUSBAR are game-world
+            // overlays (selection rings, HP bars) — do not block.
             switch (frame->flags.type) {
                 case FT_NONE:
+                case FT_SCREEN:
                 case FT_HIGHLIGHT:
                 case FT_SIMPLESTATUSBAR:
                 case FT_TOOLTIPTEXT:
