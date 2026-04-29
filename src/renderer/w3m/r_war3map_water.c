@@ -1,7 +1,7 @@
 #include "r_war3map.h"
 
-static VERTEX aVertexBuffer[(SEGMENT_SIZE+1)*(SEGMENT_SIZE+1)*6];
-static LPVERTEX currentVertex = NULL;
+static VERTEX water_vertex_buffer[(SEGMENT_SIZE+1)*(SEGMENT_SIZE+1)*6];
+static LPVERTEX water_current_vertex = NULL;
 
 // HELPERS
 
@@ -100,21 +100,21 @@ static void R_MakeWaterTile(LPCWAR3MAP map, DWORD x, DWORD y) {
         },
     };
 
-    memcpy(currentVertex, geom, sizeof(geom));
-    currentVertex += sizeof(geom) / sizeof(VERTEX);
+    memcpy(water_current_vertex, geom, sizeof(geom));
+    water_current_vertex += sizeof(geom) / sizeof(VERTEX);
 }
 
 LPMAPLAYER R_BuildMapSegmentWater(LPCWAR3MAP map, DWORD sx, DWORD sy) {
     LPMAPLAYER mapLayer = ri.MemAlloc(sizeof(MAPLAYER));
     mapLayer->type = MAPLAYERTYPE_WATER;
     mapLayer->texture = tr.texture[TEX_WATER];
-    currentVertex = aVertexBuffer;
+    water_current_vertex = water_vertex_buffer;
     for (DWORD x = sx * SEGMENT_SIZE; x < (sx + 1) * SEGMENT_SIZE; x++) {
         for (DWORD y = sy * SEGMENT_SIZE; y < (sy + 1) * SEGMENT_SIZE; y++) {
             R_MakeWaterTile(map, x, y);
         }
     }
-    mapLayer->num_vertices = (DWORD)(currentVertex - aVertexBuffer);
-    mapLayer->buffer = R_MakeVertexArrayObject(aVertexBuffer, mapLayer->num_vertices);
+    mapLayer->num_vertices = (DWORD)(water_current_vertex - water_vertex_buffer);
+    mapLayer->buffer = R_MakeVertexArrayObject(water_vertex_buffer, mapLayer->num_vertices);
     return mapLayer;
 }

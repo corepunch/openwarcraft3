@@ -61,7 +61,7 @@ static struct {
     LPRENDERTARGET rt[FOW_RT_COUNT];
     LPBUFFER casters;
     LPTEXTURE sight;
-} resources = { 0 };
+} fow_resources = { 0 };
 
 typedef struct caster_vertex {
     struct { short x, y, z; } position;
@@ -177,19 +177,19 @@ void R_RenderFogOfWar(void) {
     Matrix4_translate(&model_matrix, &(VECTOR3) { -tr.world->center.x, -tr.world->center.y, 0 });
     Matrix4_ortho(&proj_matrix, 0.0f, mapsize.x, 0.0f, mapsize.y, 0.0f, 100.0f);
 
-    DWORD num_casters = R_AddCastersToBuffer(resources.casters);
+    DWORD num_casters = R_AddCastersToBuffer(fow_resources.casters);
     R_PushRectToBuffer(RBUF_TEMP1, &(RECT const){0,0,1,1}, 1);
 
-    R_Call(glUseProgram, resources.shader[FOW_SHADER_RAYCAST]->progid);
-    R_Call(glUniformMatrix4fv, resources.shader[FOW_SHADER_RAYCAST]->uViewProjectionMatrix, 1, GL_FALSE, proj_matrix.v);
-    R_Call(glUniformMatrix4fv, resources.shader[FOW_SHADER_RAYCAST]->uModelMatrix, 1, GL_FALSE, model_matrix.v);
+    R_Call(glUseProgram, fow_resources.shader[FOW_SHADER_RAYCAST]->progid);
+    R_Call(glUniformMatrix4fv, fow_resources.shader[FOW_SHADER_RAYCAST]->uViewProjectionMatrix, 1, GL_FALSE, proj_matrix.v);
+    R_Call(glUniformMatrix4fv, fow_resources.shader[FOW_SHADER_RAYCAST]->uModelMatrix, 1, GL_FALSE, model_matrix.v);
 
     R_Call(glUseProgram, tr.shader[SHADER_UI]->progid);
     R_Call(glUniformMatrix4fv, tr.shader[SHADER_UI]->uViewProjectionMatrix, 1, GL_FALSE, proj_matrix.v);
 
     R_Call(glViewport, 0, 0, texture_width, texture_height);
     R_Call(glScissor, 0, 0, texture_width, texture_height);
-    R_Call(glBindFramebuffer, GL_FRAMEBUFFER, resources.rt[FOW_RT_IMMEDIATE]->buffer);
+    R_Call(glBindFramebuffer, GL_FRAMEBUFFER, fow_resources.rt[FOW_RT_IMMEDIATE]->buffer);
     R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     R_Call(glDepthMask, GL_FALSE);
     R_Call(glDepthFunc, GL_ALWAYS);
@@ -198,7 +198,7 @@ void R_RenderFogOfWar(void) {
     R_Call(glClearColor, 0, 0, 0, 0);
     R_Call(glClear, GL_COLOR_BUFFER_BIT);
     R_Call(glActiveTexture, GL_TEXTURE0);
-    R_Call(glBindTexture, GL_TEXTURE_2D, resources.sight->texid);
+    R_Call(glBindTexture, GL_TEXTURE_2D, fow_resources.sight->texid);
 
     FOR_LOOP(p, tr.viewDef.num_entities) {
         renderEntity_t *ent = tr.viewDef.entities+p;
@@ -213,16 +213,16 @@ void R_RenderFogOfWar(void) {
         // Draw smooth circle into dst alpha
         R_MakeSightMatrix(ent, &model_matrix);
         R_Call(glBindVertexArray, tr.buffer[RBUF_TEMP1]->vao);
-        R_Call(glBindTexture, GL_TEXTURE_2D, resources.sight->texid);
+        R_Call(glBindTexture, GL_TEXTURE_2D, fow_resources.sight->texid);
         R_Call(glBindBuffer, GL_ARRAY_BUFFER, tr.buffer[RBUF_TEMP1]->vbo);
         R_Call(glDrawArrays, GL_TRIANGLES, 0, NUM_RECT_VERTICES);
 
         // Draw line of sight into dst alpha
-        R_Call(glUseProgram, resources.shader[FOW_SHADER_RAYCAST]->progid);
-        R_Call(glUniform2fv, resources.shader[FOW_SHADER_RAYCAST]->uEyePosition, 1, (GLfloat *)&ent->origin);
-        R_Call(glBindVertexArray, resources.casters->vao);
+        R_Call(glUseProgram, fow_resources.shader[FOW_SHADER_RAYCAST]->progid);
+        R_Call(glUniform2fv, fow_resources.shader[FOW_SHADER_RAYCAST]->uEyePosition, 1, (GLfloat *)&ent->origin);
+        R_Call(glBindVertexArray, fow_resources.casters->vao);
         R_Call(glBlendFunc, GL_DST_ALPHA, GL_ZERO);
-        R_Call(glBindBuffer, GL_ARRAY_BUFFER, resources.casters->vbo);
+        R_Call(glBindBuffer, GL_ARRAY_BUFFER, fow_resources.casters->vbo);
         R_Call(glDrawArrays, GL_TRIANGLES, 0, num_casters);
         
         // Draw white rect using dst alpha
@@ -246,16 +246,16 @@ void R_RenderFogOfWar(void) {
     // Add current state to history
     R_Call(glBlendEquation, GL_MAX);
     R_Call(glBlendFunc, GL_ONE, GL_ONE);
-    R_Call(glBindFramebuffer, GL_FRAMEBUFFER, resources.rt[FOW_RT_HISTORY]->buffer);
-    R_BlitTexture(resources.rt[FOW_RT_IMMEDIATE]->texture, 1.0);
+    R_Call(glBindFramebuffer, GL_FRAMEBUFFER, fow_resources.rt[FOW_RT_HISTORY]->buffer);
+    R_BlitTexture(fow_resources.rt[FOW_RT_IMMEDIATE]->texture, 1.0);
     
     // revert blend func
     R_Call(glBlendEquation, GL_FUNC_ADD);
     R_Call(glBlendFunc, GL_ONE, GL_ZERO);
-    R_Call(glBindFramebuffer, GL_FRAMEBUFFER, resources.rt[FOW_RT_RESULT]->buffer);
-    R_BlitTexture(resources.rt[FOW_RT_HISTORY]->texture, 0.5);
+    R_Call(glBindFramebuffer, GL_FRAMEBUFFER, fow_resources.rt[FOW_RT_RESULT]->buffer);
+    R_BlitTexture(fow_resources.rt[FOW_RT_HISTORY]->texture, 0.5);
     R_Call(glBlendFunc, GL_ONE, GL_ONE);
-    R_BlitTexture(resources.rt[FOW_RT_IMMEDIATE]->texture, 0.5);
+    R_BlitTexture(fow_resources.rt[FOW_RT_IMMEDIATE]->texture, 0.5);
 
     R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
@@ -282,24 +282,24 @@ LPBUFFER R_MakeCastersVertexArrayObject(void) {
 }
 
 void R_InitFogOfWar(DWORD width, DWORD height) {
-    resources.rt[FOW_RT_IMMEDIATE] = R_AllocateRenderTexture(width, height, GL_RGBA, GL_UNSIGNED_BYTE, GL_COLOR_ATTACHMENT0);
-    resources.rt[FOW_RT_HISTORY] = R_AllocateRenderTexture(width, height, GL_RGBA, GL_UNSIGNED_BYTE, GL_COLOR_ATTACHMENT0);
-    resources.rt[FOW_RT_RESULT] = R_AllocateRenderTexture(width, height, GL_RGBA, GL_UNSIGNED_BYTE, GL_COLOR_ATTACHMENT0);
-    resources.shader[FOW_SHADER_RAYCAST] = R_InitShader(vs_shadow, fs_shadow);
-    resources.casters = R_MakeCastersVertexArrayObject();
-    resources.sight = R_AllocateSightTexture();
+    fow_resources.rt[FOW_RT_IMMEDIATE] = R_AllocateRenderTexture(width, height, GL_RGBA, GL_UNSIGNED_BYTE, GL_COLOR_ATTACHMENT0);
+    fow_resources.rt[FOW_RT_HISTORY] = R_AllocateRenderTexture(width, height, GL_RGBA, GL_UNSIGNED_BYTE, GL_COLOR_ATTACHMENT0);
+    fow_resources.rt[FOW_RT_RESULT] = R_AllocateRenderTexture(width, height, GL_RGBA, GL_UNSIGNED_BYTE, GL_COLOR_ATTACHMENT0);
+    fow_resources.shader[FOW_SHADER_RAYCAST] = R_InitShader(vs_shadow, fs_shadow);
+    fow_resources.casters = R_MakeCastersVertexArrayObject();
+    fow_resources.sight = R_AllocateSightTexture();
 }
 
 void R_ShutdownFogOfWar(void) {
-    FOR_LOOP(i, FOW_SHADER_COUNT) R_ReleaseShader(resources.shader[i]);
-    FOR_LOOP(i, FOW_RT_COUNT) R_ReleaseRenderTexture(resources.rt[i]);
-    R_ReleaseVertexArrayObject(resources.casters);
-    R_ReleaseTexture(resources.sight);
+    FOR_LOOP(i, FOW_SHADER_COUNT) R_ReleaseShader(fow_resources.shader[i]);
+    FOR_LOOP(i, FOW_RT_COUNT) R_ReleaseRenderTexture(fow_resources.rt[i]);
+    R_ReleaseVertexArrayObject(fow_resources.casters);
+    R_ReleaseTexture(fow_resources.sight);
 }
 
 DWORD R_GetFogOfWarTexture(void) {
-//    if (resources.rt[FOW_RT_RESULT] && !(tr.viewDef.rdflags & RDF_NOFOG)) {
-//        return resources.rt[FOW_RT_RESULT]->texture;
+//    if (fow_resources.rt[FOW_RT_RESULT] && !(tr.viewDef.rdflags & RDF_NOFOG)) {
+//        return fow_resources.rt[FOW_RT_RESULT]->texture;
 //    } else {
         return tr.texture[TEX_WHITE]->texid;
 //    }

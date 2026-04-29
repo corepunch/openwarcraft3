@@ -86,6 +86,7 @@ $(RENDERER_LIB): $(CMATH3_LIB) $(shell find src/renderer -name '*.c') | $(LIB_DI
 	@echo "[renderer]"
 	@(echo '#define STB_TRUETYPE_IMPLEMENTATION'; \
 	  echo '#include "renderer/stb/stb_truetype.h"'; \
+	  echo '#undef STB_TRUETYPE_IMPLEMENTATION'; \
 	  $(call UNITY,src/renderer,! -path '*/stb/*.c')) | \
 		$(CC) $(CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - $(LDFLAGS) -lcmath3 $(LIBS)
 

@@ -6,8 +6,8 @@ MakeColor(color[INDEX], LerpNumber(color[INDEX], 1, 0.25f), LerpNumber(color[IND
 
 LPCTEXTURE g_groundTextures[MAX_MAP_LAYERS] = { NULL };
 
-static VERTEX aVertexBuffer[(SEGMENT_SIZE+1)*(SEGMENT_SIZE+1)*6];
-static LPVERTEX currentVertex = NULL;
+static VERTEX ground_vertex_buffer[(SEGMENT_SIZE+1)*(SEGMENT_SIZE+1)*6];
+static LPVERTEX ground_current_vertex = NULL;
 
 VECTOR3 R_GetVertexPosition(LPCWAR3MAP map, DWORD x, DWORD y, BOOL useLevel) {
     LPCWAR3MAPVERTEX vert = GetWar3MapVertex(map, x, y);
@@ -102,8 +102,8 @@ static void R_MakeTile(LPCWAR3MAP map, DWORD x, DWORD y, DWORD ground, LPCTEXTUR
         SetTileUV(GetWar3MapVertex(map, x, y), _tile, geom, texture);
     }
 
-    memcpy(currentVertex, geom, sizeof(geom));
-    currentVertex += sizeof(geom) / sizeof(VERTEX);
+    memcpy(ground_current_vertex, geom, sizeof(geom));
+    ground_current_vertex += sizeof(geom) / sizeof(VERTEX);
 }
 
 LPMAPLAYER R_BuildMapSegmentLayer(LPCWAR3MAP map, DWORD sx, DWORD sy, DWORD layer) {
@@ -123,14 +123,14 @@ LPMAPLAYER R_BuildMapSegmentLayer(LPCWAR3MAP map, DWORD sx, DWORD sy, DWORD laye
     }
     mapLayer->texture = g_groundTextures[layer];
     mapLayer->type = MAPLAYERTYPE_GROUND;
-    currentVertex = aVertexBuffer;
+    ground_current_vertex = ground_vertex_buffer;
     for (DWORD x = sx * SEGMENT_SIZE; x < (sx + 1) * SEGMENT_SIZE; x++) {
         for (DWORD y = sy * SEGMENT_SIZE; y < (sy + 1) * SEGMENT_SIZE; y++) {
             R_MakeTile(map, x, y, layer, mapLayer->texture);
         }
     }
-    mapLayer->num_vertices = (DWORD)(currentVertex - aVertexBuffer);
-    mapLayer->buffer = R_MakeVertexArrayObject(aVertexBuffer, mapLayer->num_vertices);
+    mapLayer->num_vertices = (DWORD)(ground_current_vertex - ground_vertex_buffer);
+    mapLayer->buffer = R_MakeVertexArrayObject(ground_vertex_buffer, mapLayer->num_vertices);
     return mapLayer;
 }
 
@@ -151,7 +151,7 @@ void R_RenderSplat(LPCVECTOR2 position,
     VECTOR2 tmin = GetWar3MapPosition(tr.world, sx - radius, sy - radius);
     VECTOR2 tmax = GetWar3MapPosition(tr.world, sx + radius, sy + radius);
 
-    currentVertex = aVertexBuffer;
+    ground_current_vertex = ground_vertex_buffer;
 
     for (DWORD x = MAX(0, floor(tmin.x*tr.world->width)-1);
          x < MIN(tr.world->width, ceil(tmax.x*tr.world->width));
@@ -164,10 +164,10 @@ void R_RenderSplat(LPCVECTOR2 position,
             R_MakeTile(tr.world, x, y, 0, NULL);
         }
     }
-    int num_vertices = (DWORD)(currentVertex - aVertexBuffer);
+    int num_vertices = (DWORD)(ground_current_vertex - ground_vertex_buffer);
     
     FOR_LOOP(i, num_vertices){
-        LPVERTEX v = &aVertexBuffer[i];
+        LPVERTEX v = &ground_vertex_buffer[i];
         v->texcoord.x = (v->position.x + radius - sx) / splatSize;
         v->texcoord.y = 1 - (v->position.y + radius - sy) / splatSize;
         v->color = color;
@@ -182,7 +182,7 @@ void R_RenderSplat(LPCVECTOR2 position,
     R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     R_Call(glBindVertexArray, tr.buffer[RBUF_TEMP1]->vao);
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, tr.buffer[RBUF_TEMP1]->vbo);
-    R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(VERTEX) * num_vertices, aVertexBuffer, GL_STATIC_DRAW);
+    R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(VERTEX) * num_vertices, ground_vertex_buffer, GL_STATIC_DRAW);
     R_Call(glDrawArrays, GL_TRIANGLES, 0, num_vertices);
 }
 

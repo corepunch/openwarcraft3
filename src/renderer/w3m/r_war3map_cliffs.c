@@ -4,8 +4,8 @@
 #define SAME_TILE 852063
 #define NO_CLIFF MAKEFOURCC('C','L','n','o')
 
-static VERTEX aVertexBuffer[(SEGMENT_SIZE+1)*(SEGMENT_SIZE+1)*64];
-static LPVERTEX currentVertex = NULL;
+static VERTEX cliffs_vertex_buffer[(SEGMENT_SIZE+1)*(SEGMENT_SIZE+1)*64];
+static LPVERTEX cliffs_current_vertex = NULL;
 
 VECTOR3 R_GetVertexNormal(LPCWAR3MAP map, DWORD x, DWORD y);
 
@@ -168,7 +168,7 @@ static void R_MakeCliff(LPCWAR3MAP map, DWORD x, DWORD y, cliffData_t const *dat
         const float fw = GetAccurateWaterLevelAtPoint(fx, fy);
         const float fz = pGeoset->vertices[i].z + baselevel * TILE_SIZE + fh - HEIGHT_COR;
         const float dp = GetTileDepth(fw, fz);
-        struct vertex *v = currentVertex + t;
+        struct vertex *v = cliffs_current_vertex + t;
         VECTOR3 fn = pGeoset->normals[i];
         VECTOR3 an = GetAccurateNormalAtPoint(fx, fy);
         v->color = MakeColor(dp, LerpNumber(dp, 1, 0.25), LerpNumber(dp, 1, 0.5), 1);
@@ -180,7 +180,7 @@ static void R_MakeCliff(LPCWAR3MAP map, DWORD x, DWORD y, cliffData_t const *dat
         Vector3_normalize(&v->normal);
     }
 
-    currentVertex += pGeoset->num_triangles;
+    cliffs_current_vertex += pGeoset->num_triangles;
 }
 
 LPMAPLAYER R_BuildMapSegmentCliffs(LPCWAR3MAP map, DWORD sx, DWORD sy, DWORD cliff) {
@@ -210,13 +210,13 @@ LPMAPLAYER R_BuildMapSegmentCliffs(LPCWAR3MAP map, DWORD sx, DWORD sy, DWORD cli
         mapLayer->texture = R_LoadTexture(buffer);
     }
     mapLayer->type = MAPLAYERTYPE_CLIFF;
-    currentVertex = aVertexBuffer;
+    cliffs_current_vertex = cliffs_vertex_buffer;
     for (DWORD x = sx * SEGMENT_SIZE; x < (sx + 1) * SEGMENT_SIZE; x++) {
         for (DWORD y = sy * SEGMENT_SIZE; y < (sy + 1) * SEGMENT_SIZE; y++) {
             R_MakeCliff(map, x, y, &data);
         }
     }
-    mapLayer->num_vertices = (DWORD)(currentVertex - aVertexBuffer);
-    mapLayer->buffer = R_MakeVertexArrayObject(aVertexBuffer, mapLayer->num_vertices);
+    mapLayer->num_vertices = (DWORD)(cliffs_current_vertex - cliffs_vertex_buffer);
+    mapLayer->buffer = R_MakeVertexArrayObject(cliffs_vertex_buffer, mapLayer->num_vertices);
     return mapLayer;
 }
