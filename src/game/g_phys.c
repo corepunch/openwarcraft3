@@ -97,10 +97,10 @@ inline BOOL M_CheckCollision(LPCVECTOR2 origin, FLOAT radius) {
     return false;
 }
 
-static LPCEDICT current_entity = NULL;
+static LPCEDICT phys_current_entity = NULL;
 
 static BOOL FilterColliders(LPCEDICT ent) {
-    return ent != current_entity && !IS_HOLLOW(ent);
+    return ent != phys_current_entity && !IS_HOLLOW(ent);
 }
 
 #define MAX_COLLIDERS 256
@@ -119,7 +119,7 @@ void G_SolveCollisions(void) {
         LPEDICT a = g_edicts+i;
         if (IS_HOLLOW(a) || IS_STATIC(a))
             continue;
-        current_entity = a;
+        phys_current_entity = a;
         DWORD num_colliders = gi.BoxEdicts(&a->bounds, sv_colliders, MAX_COLLIDERS, FilterColliders);
         FOR_LOOP(j, num_colliders) {
             LPEDICT b = sv_colliders[j];
