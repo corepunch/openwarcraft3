@@ -230,7 +230,7 @@ typedef struct {
 typedef struct {
     LPCSTR name;
     void (*func)(LPPARSER , LPFRAMEDEF);
-} parseClass_t;
+} fdf_parse_class_t;
 
 int ParseEnumString(LPCSTR token, LPCSTR const *values) {
     for (int i = 0; *values; i++, values++) {
@@ -485,7 +485,7 @@ MAKE_PARSERCALL(EditSetFocus) {
 
 #define F_END { NULL }
 
-static parseClass_t classes[] = {
+static fdf_parse_class_t classes[] = {
     { "Frame", Frame },
     { "Texture", Texture },
     { "String", String },
@@ -628,7 +628,7 @@ void parse_func(LPPARSER parser, LPFRAMEDEF frame) {
                     goto parse_next;
                 }
             }
-            for (parseClass_t *it = classes; it->name; it++) {
+            for (fdf_parse_class_t *it = classes; it->name; it++) {
                 if (!strcmp(it->name, token)) {
                     it->func(parser, frame);
                     goto parse_next;
@@ -717,7 +717,7 @@ void FDF_ParseScene(LPPARSER parser) {
     LPCSTR token = NULL;
     LPFRAMEDEF frame = NULL;
     while (*(token = parse_token(parser))) {
-        for (parseClass_t *it = classes; it->name; it++) {
+        for (fdf_parse_class_t *it = classes; it->name; it++) {
             if (!strcmp(it->name, token)) {
                 it->func(parser, frame);
                 goto parse_next;

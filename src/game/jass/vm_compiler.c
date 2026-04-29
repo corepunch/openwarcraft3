@@ -129,7 +129,7 @@ TOKENFUNC(Call) {
 static struct {
     TOKENTYPE tokentype;
     void (*func)(LPWRITER w, LPCTOKEN t);
-} token_types[] = {
+} compiler_token_types[] = {
     { TT_INTEGER, write_Integer },
     { TT_REAL, write_Real },
     { TT_STRING, write_String },
@@ -141,9 +141,9 @@ static struct {
 
 TOKENFUNC(RegularToken) {
     if (!t) return;
-    FOR_LOOP(idx, sizeof(token_types)/sizeof(*token_types)) {
-        if (token_types[idx].tokentype == t->type) {
-            token_types[idx].func(w, t);
+    FOR_LOOP(idx, sizeof(compiler_token_types)/sizeof(*compiler_token_types)) {
+        if (compiler_token_types[idx].tokentype == t->type) {
+            compiler_token_types[idx].func(w, t);
             return;
         }
     }

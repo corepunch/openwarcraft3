@@ -10,7 +10,7 @@ static void ShowTrainedUnit(LPEDICT townhall, LPEDICT unit) {
     unit->stand(unit);
 }
 
-void ai_build(LPEDICT ent) {
+void ai_train_build(LPEDICT ent) {
     FLOAT const k = (FLOAT)FRAMETIME / (FLOAT)UNIT_BUILD_TIME_MSEC(ent->build->class_id);
     EDICTSTAT *hp = &ent->build->health;
     hp->value += hp->max_value * k;
@@ -24,7 +24,7 @@ void ai_build(LPEDICT ent) {
     }
 }
 
-static umove_t train_move_train = { "stand", ai_build, NULL, &a_train };
+static umove_t train_move_train = { "stand", ai_train_build, NULL, &a_train };
 
 void unit_add_build_queue(LPEDICT self, LPEDICT item) {
     if (!self->build) {
