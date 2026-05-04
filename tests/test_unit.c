@@ -209,7 +209,7 @@ static void test_additem_fails_when_inventory_full(void) {
     LPEDICT ent = make_unit(0, 0);
     for (int i = 0; i < MAX_INVENTORY; i++) {
         LPEDICT item = alloc_test_unit(UNIT_ID("ratf"), 0, 0);
-        unit_additemtoslot(ent, item, (DWORD)i);
+        unit_additemtoslot(ent, item, i);
     }
     LPEDICT extra = alloc_test_unit(UNIT_ID("rde2"), 0, 0);
     BOOL ok = unit_additem(ent, extra);
