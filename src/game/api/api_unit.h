@@ -357,6 +357,7 @@ DWORD UnitAddItem(LPJASS j) {
 DWORD UnitAddItemById(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     LONG itemId = jass_checkinteger(j, 2);
+    if (!whichUnit) return jass_pushnullhandle(j, "item");
     LPEDICT item = SP_SpawnAtLocation(itemId, 0, &whichUnit->s.origin2);
     if (item && unit_additem(whichUnit, item)) {
         gi.UnlinkEntity(item);
@@ -370,6 +371,7 @@ DWORD UnitAddItemToSlotById(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     LONG itemId = jass_checkinteger(j, 2);
     LONG itemSlot = jass_checkinteger(j, 3);
+    if (!whichUnit) return jass_pushboolean(j, false);
     LPEDICT item = SP_SpawnAtLocation(itemId, 0, &whichUnit->s.origin2);
     if (item && unit_additemtoslot(whichUnit, item, (DWORD)itemSlot)) {
         gi.UnlinkEntity(item);
