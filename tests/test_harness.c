@@ -34,6 +34,7 @@ struct edict_s     *g_edicts;
 
 static edict_t      _test_edicts[MAX_ENTITIES];
 static MAPINFO      _test_mapinfo;
+static struct client_s _test_clients[MAX_CLIENTS];
 
 /* =======================================================================
  * Mock gi function implementations
@@ -214,6 +215,7 @@ void setup_game(void) {
     memset(&level,        0, sizeof(level));
     memset(_test_edicts,  0, sizeof(_test_edicts));
     memset(&_test_mapinfo,0, sizeof(_test_mapinfo));
+    memset(_test_clients, 0, sizeof(_test_clients));
 
     g_edicts = _test_edicts;
 
@@ -265,6 +267,11 @@ void setup_game(void) {
     globals.max_edicts  = MAX_ENTITIES;
     globals.max_clients = MAX_CLIENTS;
     game.max_clients    = MAX_CLIENTS;
+    game.clients        = _test_clients;
+    /* Assign each player a unique number matching its slot index. */
+    FOR_LOOP(i, MAX_CLIENTS) {
+        _test_clients[i].ps.number = (DWORD)i;
+    }
 
     /* Provide a minimal mapinfo so level.mapinfo is never NULL. */
     level.mapinfo = &_test_mapinfo;
