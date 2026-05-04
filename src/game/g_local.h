@@ -674,7 +674,10 @@ struct edict_s {
     doodadHero_t hero;
     heroability_t heroabilities[MAX_HERO_ABILITIES];
     heroabilitystatus_t abilstatus[MAX_UNIT_STATUSES];
-    
+    BOOL invulnerable;  // unit cannot take damage when true
+    BOOL paused;        // unit AI and movement suspended when true
+    BOOL no_pathing;    // pathfinding disabled when true
+    DWORD unit_color;   // explicit per-unit color override (0 = use owner color)
     VECTOR2 old_origin;
     EDICTSTAT health;
     EDICTSTAT mana;

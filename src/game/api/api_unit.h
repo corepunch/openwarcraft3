@@ -103,20 +103,20 @@ DWORD SetUnitPosition(LPJASS j) {
     return 0;
 }
 DWORD GetUnitDefaultAcquireRange(LPJASS j) {
-    //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    return jass_pushnumber(j, 0);
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    return jass_pushnumber(j, whichUnit ? whichUnit->unitinfo.AcquireRange : 0);
 }
 DWORD GetUnitDefaultTurnSpeed(LPJASS j) {
-    //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    return jass_pushnumber(j, 0);
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    return jass_pushnumber(j, whichUnit ? whichUnit->unitinfo.TurnSpeed : 0);
 }
 DWORD GetUnitDefaultPropWindow(LPJASS j) {
-    //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    return jass_pushnumber(j, 0);
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    return jass_pushnumber(j, whichUnit ? whichUnit->unitinfo.PropWindow : 0);
 }
 DWORD GetUnitDefaultFlyHeight(LPJASS j) {
-    //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    return jass_pushnumber(j, 0);
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    return jass_pushnumber(j, whichUnit ? whichUnit->unitinfo.FlyHeight : 0);
 }
 DWORD SetUnitOwner(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
@@ -126,8 +126,11 @@ DWORD SetUnitOwner(LPJASS j) {
     return 0;
 }
 DWORD SetUnitColor(LPJASS j) {
-    //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    //HANDLE whichColor = jass_checkhandle(j, 2, "playercolor");
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    DWORD *pColor = jass_checkhandle(j, 2, "playercolor");
+    if (whichUnit && pColor) {
+        whichUnit->unit_color = *pColor;
+    }
     return 0;
 }
 DWORD SetUnitScale(LPJASS j) {
@@ -219,37 +222,46 @@ DWORD SetUnitRescueRange(LPJASS j) {
     return 0;
 }
 DWORD SetHeroStr(LPJASS j) {
-    //LPEDICT whichHero = jass_checkhandle(j, 1, "unit");
-    //LONG newStr = jass_checkinteger(j, 2);
-    //BOOL permanent = jass_checkboolean(j, 3);
+    LPEDICT whichHero = jass_checkhandle(j, 1, "unit");
+    LONG newStr = jass_checkinteger(j, 2);
+//    BOOL permanent = jass_checkboolean(j, 3);
+    if (whichHero) whichHero->hero.str = (DWORD)MAX(0, newStr);
     return 0;
 }
 DWORD SetHeroAgi(LPJASS j) {
-    //LPEDICT whichHero = jass_checkhandle(j, 1, "unit");
-    //LONG newAgi = jass_checkinteger(j, 2);
-    //BOOL permanent = jass_checkboolean(j, 3);
+    LPEDICT whichHero = jass_checkhandle(j, 1, "unit");
+    LONG newAgi = jass_checkinteger(j, 2);
+//    BOOL permanent = jass_checkboolean(j, 3);
+    if (whichHero) whichHero->hero.agi = (DWORD)MAX(0, newAgi);
     return 0;
 }
 DWORD SetHeroInt(LPJASS j) {
-    //LPEDICT whichHero = jass_checkhandle(j, 1, "unit");
-    //LONG newInt = jass_checkinteger(j, 2);
-    //BOOL permanent = jass_checkboolean(j, 3);
+    LPEDICT whichHero = jass_checkhandle(j, 1, "unit");
+    LONG newInt = jass_checkinteger(j, 2);
+//    BOOL permanent = jass_checkboolean(j, 3);
+    if (whichHero) whichHero->hero.intel = (DWORD)MAX(0, newInt);
     return 0;
 }
 DWORD GetHeroXP(LPJASS j) {
-    //LPEDICT whichHero = jass_checkhandle(j, 1, "unit");
-    return jass_pushinteger(j, 0);
+    LPEDICT whichHero = jass_checkhandle(j, 1, "unit");
+    return jass_pushinteger(j, whichHero ? (LONG)whichHero->hero.xp : 0);
 }
 DWORD SetHeroXP(LPJASS j) {
-    //LPEDICT whichHero = jass_checkhandle(j, 1, "unit");
-    //LONG newXpVal = jass_checkinteger(j, 2);
-    //BOOL showEyeCandy = jass_checkboolean(j, 3);
+    LPEDICT whichHero = jass_checkhandle(j, 1, "unit");
+    LONG newXpVal = jass_checkinteger(j, 2);
+//    BOOL showEyeCandy = jass_checkboolean(j, 3);
+    if (whichHero && !whichHero->hero.suspend_xp) {
+        whichHero->hero.xp = (DWORD)MAX(0, newXpVal);
+    }
     return 0;
 }
 DWORD AddHeroXP(LPJASS j) {
-    //LPEDICT whichHero = jass_checkhandle(j, 1, "unit");
-    //LONG xpToAdd = jass_checkinteger(j, 2);
-    //BOOL showEyeCandy = jass_checkboolean(j, 3);
+    LPEDICT whichHero = jass_checkhandle(j, 1, "unit");
+    LONG xpToAdd = jass_checkinteger(j, 2);
+//    BOOL showEyeCandy = jass_checkboolean(j, 3);
+    if (whichHero && !whichHero->hero.suspend_xp && xpToAdd > 0) {
+        whichHero->hero.xp += (DWORD)xpToAdd;
+    }
     return 0;
 }
 DWORD SetHeroLevel(LPJASS j) {
@@ -264,13 +276,14 @@ DWORD GetHeroLevel(LPJASS j) {
     return jass_pushinteger(j, whichHero->hero.level);
 }
 DWORD SuspendHeroXP(LPJASS j) {
-    //LPEDICT whichHero = jass_checkhandle(j, 1, "unit");
-    //BOOL flag = jass_checkboolean(j, 2);
+    LPEDICT whichHero = jass_checkhandle(j, 1, "unit");
+    BOOL flag = jass_checkboolean(j, 2);
+    if (whichHero) whichHero->hero.suspend_xp = flag;
     return 0;
 }
 DWORD IsSuspendedXP(LPJASS j) {
-    //LPEDICT whichHero = jass_checkhandle(j, 1, "unit");
-    return jass_pushboolean(j, 0);
+    LPEDICT whichHero = jass_checkhandle(j, 1, "unit");
+    return jass_pushboolean(j, whichHero && whichHero->hero.suspend_xp);
 }
 DWORD SelectHeroSkill(LPJASS j) {
     LPEDICT whichHero = jass_checkhandle(j, 1, "unit");
@@ -296,22 +309,25 @@ DWORD SetUnitExploded(LPJASS j) {
     return 0;
 }
 DWORD SetUnitInvulnerable(LPJASS j) {
-    //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    //BOOL flag = jass_checkboolean(j, 2);
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    BOOL flag = jass_checkboolean(j, 2);
+    if (whichUnit) whichUnit->invulnerable = flag;
     return 0;
 }
 DWORD PauseUnit(LPJASS j) {
-    //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    //BOOL flag = jass_checkboolean(j, 2);
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    BOOL flag = jass_checkboolean(j, 2);
+    if (whichUnit) whichUnit->paused = flag;
     return 0;
 }
 DWORD IsUnitPaused(LPJASS j) {
-    //LPEDICT whichHero = jass_checkhandle(j, 1, "unit");
-    return jass_pushboolean(j, 0);
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    return jass_pushboolean(j, whichUnit && whichUnit->paused);
 }
 DWORD SetUnitPathing(LPJASS j) {
-    //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    //BOOL flag = jass_checkboolean(j, 2);
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    BOOL flag = jass_checkboolean(j, 2);
+    if (whichUnit) whichUnit->no_pathing = !flag;
     return 0;
 }
 DWORD GetUnitPointValue(LPJASS j) {
@@ -366,14 +382,22 @@ DWORD UnitRemoveItemFromSlot(LPJASS j) {
     }
 }
 DWORD UnitHasItem(LPJASS j) {
-    //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    //HANDLE whichItem = jass_checkhandle(j, 2, "item");
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    LPEDICT whichItem = jass_checkhandle(j, 2, "item");
+    if (!whichUnit || !whichItem) return jass_pushboolean(j, 0);
+    FOR_LOOP(i, MAX_INVENTORY) {
+        if (whichUnit->inventory[i] == whichItem->class_id) return jass_pushboolean(j, 1);
+    }
     return jass_pushboolean(j, 0);
 }
 DWORD UnitItemInSlot(LPJASS j) {
-    //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    //LONG itemSlot = jass_checkinteger(j, 2);
-    return jass_pushnullhandle(j, "item");
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    LONG itemSlot = jass_checkinteger(j, 2);
+    if (!whichUnit || itemSlot < 0 || itemSlot >= MAX_INVENTORY || whichUnit->inventory[itemSlot] == 0) {
+        return jass_pushnullhandle(j, "item");
+    }
+    LPEDICT item = SP_SpawnAtLocation(whichUnit->inventory[itemSlot], 0, &whichUnit->s.origin2);
+    return jass_pushlighthandle(j, item, "item");
 }
 DWORD UnitUseItem(LPJASS j) {
     //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
@@ -402,8 +426,8 @@ DWORD GetUnitLoc(LPJASS j) {
     return 1;
 }
 DWORD GetUnitDefaultMoveSpeed(LPJASS j) {
-    //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    return jass_pushnumber(j, 0);
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    return jass_pushnumber(j, whichUnit ? whichUnit->unitinfo.MoveSpeed : 0);
 }
 DWORD GetOwningPlayer(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
@@ -411,49 +435,59 @@ DWORD GetOwningPlayer(LPJASS j) {
     return jass_pushlighthandle(j, player, "player");
 }
 DWORD GetUnitTypeId(LPJASS j) {
-    //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    return jass_pushinteger(j, 0);
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    return jass_pushinteger(j, whichUnit ? (LONG)whichUnit->class_id : 0);
 }
 DWORD GetUnitRace(LPJASS j) {
     //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     return jass_pushnullhandle(j, "race");
 }
 DWORD GetUnitName(LPJASS j) {
-    //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    return jass_pushstring(j, 0);
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    LPCSTR name = whichUnit ? UnitStringField(UnitsMetaData, whichUnit->class_id, "unam") : NULL;
+    return jass_pushstring(j, name ? name : "");
 }
 DWORD GetUnitFoodUsed(LPJASS j) {
-    //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    return jass_pushinteger(j, 0);
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    return jass_pushinteger(j, whichUnit ? UnitIntegerField(UnitsMetaData, whichUnit->class_id, "IUfu") : 0);
 }
 DWORD GetUnitFoodMade(LPJASS j) {
-    //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    return jass_pushinteger(j, 0);
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    return jass_pushinteger(j, whichUnit ? UnitIntegerField(UnitsMetaData, whichUnit->class_id, "IUfm") : 0);
 }
 DWORD IsUnitInGroup(LPJASS j) {
-    //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    //HANDLE whichGroup = jass_checkhandle(j, 2, "group");
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    ggroup_t *whichGroup = jass_checkhandle(j, 2, "group");
+    FOR_LOOP(i, whichGroup->num_units) {
+        if (whichGroup->units[i] == whichUnit) return jass_pushboolean(j, 1);
+    }
     return jass_pushboolean(j, 0);
 }
 DWORD IsUnitInForce(LPJASS j) {
-    //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    //HANDLE whichForce = jass_checkhandle(j, 2, "force");
-    return jass_pushboolean(j, 0);
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    LPDWORD whichForce = jass_checkhandle(j, 2, "force");
+    if (!whichUnit || !whichForce) return jass_pushboolean(j, 0);
+    return jass_pushboolean(j, (*whichForce) & (1 << whichUnit->s.player));
 }
 DWORD IsUnitOwnedByPlayer(LPJASS j) {
-    //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    //HANDLE whichPlayer = jass_checkhandle(j, 2, "player");
-    return jass_pushboolean(j, 0);
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    LPPLAYER whichPlayer = jass_checkhandle(j, 2, "player");
+    if (!whichUnit || !whichPlayer) return jass_pushboolean(j, 0);
+    return jass_pushboolean(j, whichUnit->s.player == PLAYER_NUM(whichPlayer));
 }
 DWORD IsUnitAlly(LPJASS j) {
-    //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    //HANDLE whichPlayer = jass_checkhandle(j, 2, "player");
-    return jass_pushboolean(j, 0);
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    LPPLAYER whichPlayer = jass_checkhandle(j, 2, "player");
+    if (!whichUnit || !whichPlayer) return jass_pushboolean(j, 0);
+    LPPLAYER unitOwner = G_GetPlayerByNumber(whichUnit->s.player);
+    return jass_pushboolean(j, G_GetPlayerAlliance(unitOwner, whichPlayer, ALLIANCE_PASSIVE));
 }
 DWORD IsUnitEnemy(LPJASS j) {
-    //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    //HANDLE whichPlayer = jass_checkhandle(j, 2, "player");
-    return jass_pushboolean(j, 0);
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    LPPLAYER whichPlayer = jass_checkhandle(j, 2, "player");
+    if (!whichUnit || !whichPlayer) return jass_pushboolean(j, 0);
+    LPPLAYER unitOwner = G_GetPlayerByNumber(whichUnit->s.player);
+    return jass_pushboolean(j, !G_GetPlayerAlliance(unitOwner, whichPlayer, ALLIANCE_PASSIVE));
 }
 DWORD IsUnitVisible(LPJASS j) {
     //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
@@ -481,9 +515,10 @@ DWORD IsUnitMasked(LPJASS j) {
     return jass_pushboolean(j, 0);
 }
 DWORD IsUnitSelected(LPJASS j) {
-    //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    //HANDLE whichPlayer = jass_checkhandle(j, 2, "player");
-    return jass_pushboolean(j, 0);
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    LPPLAYER whichPlayer = jass_checkhandle(j, 2, "player");
+    if (!whichUnit || !whichPlayer) return jass_pushboolean(j, 0);
+    return jass_pushboolean(j, (whichUnit->selected >> PLAYER_NUM(whichPlayer)) & 1);
 }
 DWORD IsUnitRace(LPJASS j) {
     //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
@@ -496,32 +531,35 @@ DWORD IsUnitType(LPJASS j) {
     return jass_pushboolean(j, 0);
 }
 DWORD IsUnit(LPJASS j) {
-    //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    //HANDLE whichSpecifiedUnit = jass_checkhandle(j, 2, "unit");
-    return jass_pushboolean(j, 0);
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    LPEDICT whichSpecifiedUnit = jass_checkhandle(j, 2, "unit");
+    return jass_pushboolean(j, whichUnit != NULL && whichUnit == whichSpecifiedUnit);
 }
 DWORD IsUnitInRange(LPJASS j) {
-    //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    //HANDLE otherUnit = jass_checkhandle(j, 2, "unit");
-    //FLOAT distance = jass_checknumber(j, 3);
-    return jass_pushboolean(j, 0);
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    LPEDICT otherUnit = jass_checkhandle(j, 2, "unit");
+    FLOAT distance = jass_checknumber(j, 3);
+    if (!whichUnit || !otherUnit) return jass_pushboolean(j, 0);
+    return jass_pushboolean(j, Vector2_distance(&whichUnit->s.origin2, &otherUnit->s.origin2) <= distance);
 }
 DWORD IsUnitInRangeXY(LPJASS j) {
-    //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    //FLOAT x = jass_checknumber(j, 2);
-    //FLOAT y = jass_checknumber(j, 3);
-    //FLOAT distance = jass_checknumber(j, 4);
-    return jass_pushboolean(j, 0);
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    FLOAT x = jass_checknumber(j, 2);
+    FLOAT y = jass_checknumber(j, 3);
+    FLOAT distance = jass_checknumber(j, 4);
+    if (!whichUnit) return jass_pushboolean(j, 0);
+    return jass_pushboolean(j, Vector2_distance(&whichUnit->s.origin2, &MAKE(VECTOR2, x, y)) <= distance);
 }
 DWORD IsUnitInRangeLoc(LPJASS j) {
-    //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    //HANDLE whichLocation = jass_checkhandle(j, 2, "location");
-    //FLOAT distance = jass_checknumber(j, 3);
-    return jass_pushboolean(j, 0);
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    LPCVECTOR2 whichLocation = jass_checkhandle(j, 2, "location");
+    FLOAT distance = jass_checknumber(j, 3);
+    if (!whichUnit || !whichLocation) return jass_pushboolean(j, 0);
+    return jass_pushboolean(j, Vector2_distance(&whichUnit->s.origin2, whichLocation) <= distance);
 }
 DWORD IsUnitHidden(LPJASS j) {
-    //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    return jass_pushboolean(j, 0);
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    return jass_pushboolean(j, whichUnit && (whichUnit->s.renderfx & RF_HIDDEN));
 }
 DWORD IsUnitIllusion(LPJASS j) {
     //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
@@ -597,7 +635,7 @@ DWORD UnitApplyTimedLife(LPJASS j) {
 DWORD IssueImmediateOrder(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     LPCSTR order = jass_checkstring(j, 2);
-    return jass_pushboolean(j, 0);
+    return jass_pushboolean(j, unit_issueimmediateorder(whichUnit, order));
 }
 DWORD IssueImmediateOrderById(LPJASS j) {
     //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");

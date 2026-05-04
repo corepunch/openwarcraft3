@@ -93,21 +93,31 @@ DWORD R2S(LPJASS j) {
 }
 DWORD R2SW(LPJASS j) {
     FLOAT r = jass_checknumber(j, 1);
-    //LONG width = jass_checkinteger(j, 2);
-    //LONG precision = jass_checkinteger(j, 3);
+    LONG width = jass_checkinteger(j, 2);
+    LONG precision = jass_checkinteger(j, 3);
     char buffer[64] = { 0 };
-    sprintf(buffer, "%f", r);
+    sprintf(buffer, "%*.*f", width, precision, r);
     return jass_pushstring(j, buffer);
 }
 DWORD SubString(LPJASS j) {
-    //LPCSTR source = jass_checkstring(j, 1);
-    //LONG start = jass_checkinteger(j, 2);
-    //LONG end = jass_checkinteger(j, 3);
-    return jass_pushstring(j, 0);
+    LPCSTR source = jass_checkstring(j, 1);
+    LONG start = jass_checkinteger(j, 2);
+    LONG end = jass_checkinteger(j, 3);
+    if (!source) return jass_pushstring(j, "");
+    LONG len = (LONG)strlen(source);
+    if (start < 0) start = 0;
+    if (end > len) end = len;
+    if (start >= end) return jass_pushstring(j, "");
+    char buf[512];
+    LONG n = end - start;
+    if (n >= (LONG)sizeof(buf)) n = (LONG)sizeof(buf) - 1;
+    strncpy(buf, source + start, n);
+    buf[n] = '\0';
+    return jass_pushstring(j, buf);
 }
 DWORD GetLocalizedString(LPJASS j) {
-    //LPCSTR source = jass_checkstring(j, 1);
-    return jass_pushstring(j, 0);
+    LPCSTR source = jass_checkstring(j, 1);
+    return jass_pushstring(j, source ? source : "");
 }
 DWORD GetLocalizedHotkey(LPJASS j) {
     //LPCSTR source = jass_checkstring(j, 1);
@@ -193,10 +203,19 @@ DWORD SetCreatureDensity(LPJASS j) {
     return 0;
 }
 DWORD GetTeams(LPJASS j) {
-    return jass_pushinteger(j, 0);
+    DWORD teams = 0;
+    FOR_LOOP(i, game.max_clients) {
+        DWORD t = game.clients[i].ps.team;
+        BOOL found = false;
+        FOR_LOOP(k, i) {
+            if (game.clients[k].ps.team == t) { found = true; break; }
+        }
+        if (!found) teams++;
+    }
+    return jass_pushinteger(j, (LONG)teams);
 }
 DWORD GetPlayers(LPJASS j) {
-    return jass_pushinteger(j, 0);
+    return jass_pushinteger(j, (LONG)game.max_clients);
 }
 DWORD IsGameTypeSupported(LPJASS j) {
     //HANDLE whichGameType = jass_checkhandle(j, 1, "gametype");
@@ -759,14 +778,17 @@ DWORD RestoreUnit(LPJASS j) {
     return jass_pushnull(j);
 }
 DWORD GetRandomInt(LPJASS j) {
-    //LONG lowBound = jass_checkinteger(j, 1);
-    //LONG highBound = jass_checkinteger(j, 2);
-    return jass_pushinteger(j, 0);
+    LONG lowBound = jass_checkinteger(j, 1);
+    LONG highBound = jass_checkinteger(j, 2);
+    if (lowBound >= highBound) return jass_pushinteger(j, lowBound);
+    return jass_pushinteger(j, lowBound + rand() % (highBound - lowBound + 1));
 }
 DWORD GetRandomReal(LPJASS j) {
-    //FLOAT lowBound = jass_checknumber(j, 1);
-    //FLOAT highBound = jass_checknumber(j, 2);
-    return jass_pushnumber(j, 0);
+    FLOAT lowBound = jass_checknumber(j, 1);
+    FLOAT highBound = jass_checknumber(j, 2);
+    if (lowBound >= highBound) return jass_pushnumber(j, lowBound);
+    FLOAT t = (FLOAT)rand() / (FLOAT)RAND_MAX;
+    return jass_pushnumber(j, lowBound + t * (highBound - lowBound));
 }
 DWORD CreateUnitPool(LPJASS j) {
     return jass_pushnullhandle(j, "unitpool");
@@ -830,7 +852,8 @@ DWORD ChooseRandomItem(LPJASS j) {
     return jass_pushinteger(j, 0);
 }
 DWORD SetRandomSeed(LPJASS j) {
-    //LONG seed = jass_checkinteger(j, 1);
+    LONG seed = jass_checkinteger(j, 1);
+    srand((unsigned int)seed);
     return 0;
 }
 DWORD SetTerrainFog(LPJASS j) {

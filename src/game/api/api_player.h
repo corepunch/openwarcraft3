@@ -7,13 +7,15 @@ DWORD SetPlayerTeam(LPJASS j) {
     return 0;
 }
 DWORD SetPlayerStartLocation(LPJASS j) {
-    //LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
-    //LONG startLocIndex = jass_checkinteger(j, 2);
+    LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
+    LONG startLocIndex = jass_checkinteger(j, 2);
+    if (whichPlayer) PLAYER_CLIENT(whichPlayer)->ps.start_location = startLocIndex;
     return 0;
 }
 DWORD ForcePlayerStartLocation(LPJASS j) {
-    //LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
-    //LONG startLocIndex = jass_checkinteger(j, 2);
+    LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
+    LONG startLocIndex = jass_checkinteger(j, 2);
+    if (whichPlayer) PLAYER_CLIENT(whichPlayer)->ps.start_location = startLocIndex;
     return 0;
 }
 DWORD SetPlayerColor(LPJASS j) {
@@ -71,8 +73,9 @@ DWORD GetPlayerTeam(LPJASS j) {
     return jass_pushinteger(j, whichPlayer->team);
 }
 DWORD GetPlayerStartLocation(LPJASS j) {
-    //LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
-    return jass_pushinteger(j, 0);
+    LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
+    LONG loc = whichPlayer ? PLAYER_CLIENT(whichPlayer)->ps.start_location : -1;
+    return jass_pushinteger(j, loc);
 }
 DWORD GetPlayerColor(LPJASS j) {
     LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
