@@ -17,8 +17,11 @@ DWORD ForcePlayerStartLocation(LPJASS j) {
     return 0;
 }
 DWORD SetPlayerColor(LPJASS j) {
-    //LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
-    //HANDLE color = jass_checkhandle(j, 2, "playercolor");
+    LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
+    DWORD *color = jass_checkhandle(j, 2, "playercolor");
+    if (whichPlayer && color) {
+        whichPlayer->color = *color;
+    }
     return 0;
 }
 DWORD SetPlayerAlliance(LPJASS j) {
@@ -72,8 +75,10 @@ DWORD GetPlayerStartLocation(LPJASS j) {
     return jass_pushinteger(j, 0);
 }
 DWORD GetPlayerColor(LPJASS j) {
-    //LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
-    return jass_pushnullhandle(j, "playercolor");
+    LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
+    API_ALLOC(DWORD, color);
+    *color = whichPlayer ? whichPlayer->color : 0;
+    return 1;
 }
 DWORD GetPlayerSelectable(LPJASS j) {
     //LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
@@ -99,8 +104,12 @@ DWORD IsPlayerRacePrefSet(LPJASS j) {
     return jass_pushboolean(j, 0);
 }
 DWORD GetPlayerName(LPJASS j) {
-    //LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
-    return jass_pushstring(j, 0);
+    LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
+    LPGAMECLIENT client = whichPlayer ? PLAYER_CLIENT(whichPlayer) : NULL;
+    LPCSTR name = (client && client->mapplayer && client->mapplayer->playerName)
+                  ? client->mapplayer->playerName
+                  : (whichPlayer && whichPlayer->name ? whichPlayer->name : "");
+    return jass_pushstring(j, name);
 }
 DWORD IssueNeutralImmediateOrder(LPJASS j) {
     //HANDLE forWhichPlayer = jass_checkhandle(j, 1, "player");
@@ -153,14 +162,16 @@ DWORD GetLocalPlayer(LPJASS j) {
     return jass_pushlighthandle(j, (LPMAPPLAYER)currentplayer, "player");
 }
 DWORD IsPlayerAlly(LPJASS j) {
-    //LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
-    //HANDLE otherPlayer = jass_checkhandle(j, 2, "player");
-    return jass_pushboolean(j, 0);
+    LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
+    LPPLAYER otherPlayer = jass_checkhandle(j, 2, "player");
+    if (!whichPlayer || !otherPlayer) return jass_pushboolean(j, 0);
+    return jass_pushboolean(j, G_GetPlayerAlliance(whichPlayer, otherPlayer, ALLIANCE_PASSIVE));
 }
 DWORD IsPlayerEnemy(LPJASS j) {
-    //LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
-    //HANDLE otherPlayer = jass_checkhandle(j, 2, "player");
-    return jass_pushboolean(j, 0);
+    LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
+    LPPLAYER otherPlayer = jass_checkhandle(j, 2, "player");
+    if (!whichPlayer || !otherPlayer) return jass_pushboolean(j, 0);
+    return jass_pushboolean(j, !G_GetPlayerAlliance(whichPlayer, otherPlayer, ALLIANCE_PASSIVE));
 }
 DWORD IsPlayerInForce(LPJASS j) {
     LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
@@ -209,8 +220,8 @@ DWORD GetPlayerRace(LPJASS j) {
     return jass_pushnullhandle(j, "race");
 }
 DWORD GetPlayerId(LPJASS j) {
-    //LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
-    return jass_pushinteger(j, 0);
+    LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
+    return jass_pushinteger(j, whichPlayer ? (LONG)whichPlayer->number : 0);
 }
 DWORD GetPlayerUnitCount(LPJASS j) {
     //LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");

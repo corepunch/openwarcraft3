@@ -264,6 +264,8 @@ struct playerState_s {
     DWORD rdflags;
     DWORD uiflags;
     DWORD team;
+    DWORD color;
+    LPSTR name;
     FLOAT cinefade;
     USHORT stats[MAX_STATS];
     LPCSTR texts[MAX_STATS];

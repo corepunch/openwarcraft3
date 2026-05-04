@@ -120,6 +120,7 @@ HANDLE jass_newhandle(LPJASS j, DWORD size, LPCSTR type);
 LPCJASSCONTEXT jass_getcontext(LPJASS j);
 BOOL jass_calltrigger(LPJASS j, LPTRIGGER trigger, LPEDICT unit);
 BOOL jass_popboolean(LPJASS j);
+void jass_pop(LPJASS j, DWORD count);
 BOOL jass_evaluatetrigger(LPJASS j, LPTRIGGER trigger, LPEDICT unit);
 void jass_executetrigger(LPJASS j, LPTRIGGER trigger, LPEDICT unit);
 
