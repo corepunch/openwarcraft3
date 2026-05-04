@@ -1,4 +1,4 @@
-<img width="647" height="88" alt="OpenWarcraft3 logo" src="https://github.com/user-attachments/assets/67313005-70d7-4e68-97a3-3e0ff1e788ed" />
+<img width="647" height="88" alt="OpenWarcraft3 logo" src="doc/images/logo.jpg" />
 
 **OpenWarcraft3** is an open-source implementation of Warcraft III that uses SDL2 and runs on Linux and macOS.
 
@@ -13,9 +13,9 @@ Pre-built binaries for Linux and macOS are available on the [Releases page](http
 You can also download the latest build artifact from the [CI workflow runs](https://github.com/corepunch/openwarcraft3/actions/workflows/c-cpp.yml) (click the most recent successful run and download `openwarcraft3-linux-x64`).
 
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/c76a93af-1801-402e-83bc-b3e0a4462312" width="31%" style="margin-right:2%;" />
-  <img src="https://github.com/corepunch/openwarcraft3/assets/83646194/643c7aa7-2b91-469c-857e-0f6910c939af" width="31%" style="margin-right:2%;" />
-  <img src="https://github.com/corepunch/openwarcraft3/assets/83646194/a79e447d-e42c-4468-b4ca-3d212efe346a" width="31%" />
+  <img src="doc/images/screenshot1.jpg" width="31%" style="margin-right:2%;" />
+  <img src="doc/images/screenshot2.jpg" width="31%" style="margin-right:2%;" />
+  <img src="doc/images/screenshot3.jpg" width="31%" />
 </p>
 
 ## Getting Started
