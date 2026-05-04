@@ -198,20 +198,23 @@ static void test_hero_xp_add(void) {
     LPEDICT ent = make_unit_hero();
     ent->hero.xp = 100;
     DWORD add = 50;
-    /* Replicate AddHeroXP logic: overflow-safe add */
-    DWORD before = ent->hero.xp;
-    ent->hero.xp = (before + add < before) ? ~(DWORD)0 : before + add;
+    /* Replicate AddHeroXP logic: cap at INT32_MAX */
+    DWORD cur = ent->hero.xp;
+    DWORD sum = cur + add;
+    ent->hero.xp = (sum < cur || sum > (DWORD)INT32_MAX) ? (DWORD)INT32_MAX : sum;
     ASSERT_EQ_INT((int)ent->hero.xp, 150);
 }
 
 static void test_hero_xp_overflow_clamps(void) {
     LPEDICT ent = make_unit_hero();
-    ent->hero.xp = UINT32_MAX - 10;
+    ent->hero.xp = (DWORD)INT32_MAX - 5;
     DWORD add = 100;
-    DWORD before = ent->hero.xp;
-    ent->hero.xp = (before + add < before) ? ~(DWORD)0 : before + add;
-    /* Overflow wraps, clamp gives UINT32_MAX */
-    ASSERT_EQ_INT((long long)ent->hero.xp, (long long)UINT32_MAX);
+    DWORD cur = ent->hero.xp;
+    DWORD sum = cur + add;
+    ent->hero.xp = (sum < cur || sum > (DWORD)INT32_MAX) ? (DWORD)INT32_MAX : sum;
+    /* Overflow past INT32_MAX clamps to INT32_MAX, never goes negative */
+    ASSERT_EQ_INT((long long)ent->hero.xp, (long long)INT32_MAX);
+    ASSERT((LONG)ent->hero.xp >= 0);
 }
 
 /* =========================================================================
@@ -237,8 +240,9 @@ static void test_hero_xp_not_added_when_suspended(void) {
     LONG xp_to_add = 50;
     if (!ent->hero.suspend_xp && xp_to_add > 0) {
         DWORD add = (DWORD)xp_to_add;
-        DWORD before = ent->hero.xp;
-        ent->hero.xp = (before + add < before) ? ~(DWORD)0 : before + add;
+        DWORD cur = ent->hero.xp;
+        DWORD sum = cur + add;
+        ent->hero.xp = (sum < cur || sum > (DWORD)INT32_MAX) ? (DWORD)INT32_MAX : sum;
     }
     ASSERT_EQ_INT((int)ent->hero.xp, 100);
 }
@@ -472,6 +476,53 @@ static void test_item_type_id(void) {
 }
 
 /* =========================================================================
+ * Inventory — edict-based UnitHasItem / UnitItemInSlot
+ * ========================================================================= */
+
+static void test_unit_has_item_true(void) {
+    reset_entities();
+    LPEDICT unit = alloc_test_unit(UNIT_ID("hpea"), 0, 0);
+    LPEDICT item = alloc_test_unit(UNIT_ID("ratf"), 0, 0);
+    unit_additemtoslot(unit, item, 0);
+    /* UnitHasItem checks pointer identity */
+    BOOL found = false;
+    FOR_LOOP(i, MAX_INVENTORY) {
+        if (unit->inventory[i] == item) { found = true; break; }
+    }
+    ASSERT(found);
+}
+
+static void test_unit_has_item_false_different_instance(void) {
+    /* Two items of the same type — only one is in inventory.
+     * With edict-based inventory, distinct instances are distinguishable. */
+    reset_entities();
+    LPEDICT unit  = alloc_test_unit(UNIT_ID("hpea"), 0, 0);
+    LPEDICT item1 = alloc_test_unit(UNIT_ID("ratf"), 0, 0);
+    LPEDICT item2 = alloc_test_unit(UNIT_ID("ratf"), 0, 0);
+    unit_additemtoslot(unit, item1, 0);
+    /* item2 is NOT in inventory */
+    BOOL found = false;
+    FOR_LOOP(i, MAX_INVENTORY) {
+        if (unit->inventory[i] == item2) { found = true; break; }
+    }
+    ASSERT(!found);
+}
+
+static void test_unit_item_in_slot_returns_edict(void) {
+    reset_entities();
+    LPEDICT unit = alloc_test_unit(UNIT_ID("hpea"), 0, 0);
+    LPEDICT item = alloc_test_unit(UNIT_ID("ratf"), 0, 0);
+    unit_additemtoslot(unit, item, 2);
+    ASSERT(unit->inventory[2] == item);
+}
+
+static void test_unit_item_in_slot_empty_is_null(void) {
+    reset_entities();
+    LPEDICT unit = alloc_test_unit(UNIT_ID("hpea"), 0, 0);
+    ASSERT_NULL(unit->inventory[0]);
+}
+
+/* =========================================================================
  * Unit — IsUnitOwnedByPlayer
  * ========================================================================= */
 
@@ -581,6 +632,11 @@ BEGIN_SUITE(api)
     /* Item */
     RUN_TEST(test_item_position_set);
     RUN_TEST(test_item_type_id);
+    /* Inventory — edict-based */
+    RUN_TEST(test_unit_has_item_true);
+    RUN_TEST(test_unit_has_item_false_different_instance);
+    RUN_TEST(test_unit_item_in_slot_returns_edict);
+    RUN_TEST(test_unit_item_in_slot_empty_is_null);
     /* Unit ownership / range */
     RUN_TEST(test_unit_owned_by_player);
     RUN_TEST(test_unit_not_owned_by_player);

@@ -79,8 +79,8 @@ DWORD GetPlayerStartLocation(LPJASS j) {
 }
 DWORD GetPlayerColor(LPJASS j) {
     LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
-    API_ALLOC(DWORD, pColor);
-    *pColor = whichPlayer ? whichPlayer->color : 0;
+    DWORD *playercolor = jass_newhandle(j, sizeof(DWORD), "playercolor");
+    *playercolor = whichPlayer ? whichPlayer->color : 0;
     return 1;
 }
 DWORD GetPlayerSelectable(LPJASS j) {

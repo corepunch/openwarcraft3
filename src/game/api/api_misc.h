@@ -95,8 +95,13 @@ DWORD R2SW(LPJASS j) {
     FLOAT r = jass_checknumber(j, 1);
     LONG width = jass_checkinteger(j, 2);
     LONG precision = jass_checkinteger(j, 3);
-    char buffer[64] = { 0 };
-    sprintf(buffer, "%*.*f", width, precision, r);
+    /* Clamp to safe values so the formatted float fits in the 64-byte buffer.
+     * A floating-point number needs at most ~25 chars; add width up to 32
+     * and precision up to 16 for a safe upper bound well within 64 bytes. */
+    if (width < 0 || width > 32) width = 0;
+    if (precision < 0 || precision > 16) precision = 6;
+    char buffer[64];
+    snprintf(buffer, sizeof(buffer), "%*.*f", (int)width, (int)precision, (double)r);
     return jass_pushstring(j, buffer);
 }
 DWORD SubString(LPJASS j) {
@@ -108,13 +113,13 @@ DWORD SubString(LPJASS j) {
     if (start < 0) start = 0;
     if (end > len) end = len;
     if (start >= end) return jass_pushstring(j, "");
-    // limit to 511 characters to stay within the stack-allocated buffer
     LONG n = end - start;
-    if (n > 511) n = 511;
-    char buf[512];
-    strncpy(buf, source + start, (size_t)n);
+    char *buf = gi.MemAlloc(n + 1);
+    memcpy(buf, source + start, (size_t)n);
     buf[n] = '\0';
-    return jass_pushstring(j, buf);
+    DWORD result = jass_pushstring(j, buf);
+    gi.MemFree(buf);
+    return result;
 }
 DWORD GetLocalizedString(LPJASS j) {
     LPCSTR source = jass_checkstring(j, 1);
@@ -204,19 +209,10 @@ DWORD SetCreatureDensity(LPJASS j) {
     return 0;
 }
 DWORD GetTeams(LPJASS j) {
-    DWORD teams = 0;
-    FOR_LOOP(i, game.max_clients) {
-        DWORD t = game.clients[i].ps.team;
-        BOOL found = false;
-        FOR_LOOP(k, i) {
-            if (game.clients[k].ps.team == t) { found = true; break; }
-        }
-        if (!found) teams++;
-    }
-    return jass_pushinteger(j, (LONG)teams);
+    return jass_pushinteger(j, level.mapinfo ? (LONG)level.mapinfo->num_teams : 0);
 }
 DWORD GetPlayers(LPJASS j) {
-    return jass_pushinteger(j, (LONG)game.max_clients);
+    return jass_pushinteger(j, MAX_PLAYERS);
 }
 DWORD IsGameTypeSupported(LPJASS j) {
     //HANDLE whichGameType = jass_checkhandle(j, 1, "gametype");

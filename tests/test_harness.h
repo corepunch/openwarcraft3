@@ -24,8 +24,8 @@ void unit_die(LPEDICT self, LPEDICT attacker);
 BOOL unit_issueorder(LPEDICT self, LPCSTR order, LPCVECTOR2 point);
 BOOL unit_issueimmediateorder(LPEDICT self, LPCSTR order);
 BOOL unit_issuetargetorder(LPEDICT self, LPCSTR order, LPEDICT target);
-BOOL unit_additem(LPEDICT edict, DWORD class_id);
-BOOL unit_additemtoslot(LPEDICT edict, DWORD class_id, DWORD slot);
+BOOL unit_additem(LPEDICT edict, LPEDICT item);
+BOOL unit_additemtoslot(LPEDICT edict, LPEDICT item, DWORD slot);
 
 /* g_ai.c */
 FLOAT unit_movedistance(LPEDICT self);
