@@ -234,9 +234,9 @@ static void test_hero_xp_not_added_when_suspended(void) {
     ent->hero.xp = 100;
     ent->hero.suspend_xp = true;
     /* Replicate AddHeroXP: skip when suspend_xp is set */
-    LONG xpToAdd = 50;
-    if (!ent->hero.suspend_xp && xpToAdd > 0) {
-        DWORD add = (DWORD)xpToAdd;
+    LONG xp_to_add = 50;
+    if (!ent->hero.suspend_xp && xp_to_add > 0) {
+        DWORD add = (DWORD)xp_to_add;
         DWORD before = ent->hero.xp;
         ent->hero.xp = (before + add < before) ? ~(DWORD)0 : before + add;
     }
@@ -334,6 +334,7 @@ static void test_group_first_of_group(void) {
     g.units[1] = b;
     g.num_units = 2;
     ASSERT(g.units[0] == a);
+    ASSERT(g.units[1] == b);
 }
 
 static void test_group_is_unit_in_group_true(void) {
@@ -377,7 +378,7 @@ static void substr(const char *source, LONG start, LONG end, char *out, LONG out
     if (start < 0) start = 0;
     if (end > len) end = len;
     LONG n = end - start;
-    if (n <= 0 || n >= outsz) { out[0] = '\0'; return; }
+    if (n <= 0 || n + 1 > outsz) { out[0] = '\0'; return; }
     strncpy(out, source + start, (size_t)n);
     out[n] = '\0';
 }
