@@ -108,10 +108,11 @@ DWORD SubString(LPJASS j) {
     if (start < 0) start = 0;
     if (end > len) end = len;
     if (start >= end) return jass_pushstring(j, "");
-    char buf[512];
+    // limit to 511 characters to stay within the stack-allocated buffer
     LONG n = end - start;
-    if (n >= (LONG)sizeof(buf)) n = (LONG)sizeof(buf) - 1;
-    strncpy(buf, source + start, n);
+    if (n > 511) n = 511;
+    char buf[512];
+    strncpy(buf, source + start, (size_t)n);
     buf[n] = '\0';
     return jass_pushstring(j, buf);
 }

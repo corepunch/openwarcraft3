@@ -260,7 +260,8 @@ DWORD AddHeroXP(LPJASS j) {
     LONG xpToAdd = jass_checkinteger(j, 2);
 //    BOOL showEyeCandy = jass_checkboolean(j, 3);
     if (whichHero && !whichHero->hero.suspend_xp && xpToAdd > 0) {
-        whichHero->hero.xp += (DWORD)xpToAdd;
+        DWORD add = (DWORD)xpToAdd;
+        whichHero->hero.xp = (whichHero->hero.xp + add < whichHero->hero.xp) ? ~(DWORD)0 : whichHero->hero.xp + add;
     }
     return 0;
 }
@@ -396,8 +397,9 @@ DWORD UnitItemInSlot(LPJASS j) {
     if (!whichUnit || itemSlot < 0 || itemSlot >= MAX_INVENTORY || whichUnit->inventory[itemSlot] == 0) {
         return jass_pushnullhandle(j, "item");
     }
-    LPEDICT item = SP_SpawnAtLocation(whichUnit->inventory[itemSlot], 0, &whichUnit->s.origin2);
-    return jass_pushlighthandle(j, item, "item");
+    // inventory stores item class IDs; we cannot return a persistent entity handle here
+    // so return null (item is only accessible by removing it from the slot)
+    return jass_pushnullhandle(j, "item");
 }
 DWORD UnitUseItem(LPJASS j) {
     //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
@@ -458,6 +460,7 @@ DWORD GetUnitFoodMade(LPJASS j) {
 DWORD IsUnitInGroup(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     ggroup_t *whichGroup = jass_checkhandle(j, 2, "group");
+    if (!whichUnit || !whichGroup) return jass_pushboolean(j, 0);
     FOR_LOOP(i, whichGroup->num_units) {
         if (whichGroup->units[i] == whichUnit) return jass_pushboolean(j, 1);
     }
