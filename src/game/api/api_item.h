@@ -6,7 +6,8 @@ DWORD CreateItem(LPJASS j) {
     return jass_pushlighthandle(j, item, "item");
 }
 DWORD RemoveItem(LPJASS j) {
-    //HANDLE whichItem = jass_checkhandle(j, 1, "item");
+    LPEDICT whichItem = jass_checkhandle(j, 1, "item");
+    if (whichItem) G_FreeEdict(whichItem);
     return 0;
 }
 DWORD GetItemPlayer(LPJASS j) {
@@ -14,21 +15,22 @@ DWORD GetItemPlayer(LPJASS j) {
     return jass_pushnullhandle(j, "player");
 }
 DWORD GetItemTypeId(LPJASS j) {
-    //HANDLE i = jass_checkhandle(j, 1, "item");
-    return jass_pushinteger(j, 0);
+    LPEDICT item = jass_checkhandle(j, 1, "item");
+    return jass_pushinteger(j, item ? (LONG)item->class_id : 0);
 }
 DWORD GetItemX(LPJASS j) {
-    //HANDLE i = jass_checkhandle(j, 1, "item");
-    return jass_pushnumber(j, 0);
+    LPEDICT item = jass_checkhandle(j, 1, "item");
+    return jass_pushnumber(j, item ? item->s.origin.x : 0);
 }
 DWORD GetItemY(LPJASS j) {
-    //HANDLE i = jass_checkhandle(j, 1, "item");
-    return jass_pushnumber(j, 0);
+    LPEDICT item = jass_checkhandle(j, 1, "item");
+    return jass_pushnumber(j, item ? item->s.origin.y : 0);
 }
 DWORD SetItemPosition(LPJASS j) {
-    //HANDLE i = jass_checkhandle(j, 1, "item");
-    //FLOAT x = jass_checknumber(j, 2);
-    //FLOAT y = jass_checknumber(j, 3);
+    LPEDICT item = jass_checkhandle(j, 1, "item");
+    FLOAT x = jass_checknumber(j, 2);
+    FLOAT y = jass_checknumber(j, 3);
+    if (item) { item->s.origin.x = x; item->s.origin.y = y; }
     return 0;
 }
 DWORD SetItemDropOnDeath(LPJASS j) {

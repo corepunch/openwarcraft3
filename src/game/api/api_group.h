@@ -151,9 +151,13 @@ DWORD GroupEnumUnitsSelected(LPJASS j) {
     return 0;
 }
 DWORD GroupImmediateOrder(LPJASS j) {
-    //ggroup_t *whichGroup = jass_checkhandle(j, 1, "group");
-    //LPCSTR order = jass_checkstring(j, 2);
-    return jass_pushboolean(j, 0);
+    ggroup_t *whichGroup = jass_checkhandle(j, 1, "group");
+    LPCSTR order = jass_checkstring(j, 2);
+    BOOL any = false;
+    FOR_LOOP(i, whichGroup->num_units) {
+        if (unit_issueimmediateorder(whichGroup->units[i], order)) any = true;
+    }
+    return jass_pushboolean(j, any);
 }
 DWORD GroupImmediateOrderById(LPJASS j) {
     //ggroup_t *whichGroup = jass_checkhandle(j, 1, "group");
@@ -161,17 +165,24 @@ DWORD GroupImmediateOrderById(LPJASS j) {
     return jass_pushboolean(j, 0);
 }
 DWORD GroupPointOrder(LPJASS j) {
-    //ggroup_t *whichGroup = jass_checkhandle(j, 1, "group");
-    //LPCSTR order = jass_checkstring(j, 2);
-    //FLOAT x = jass_checknumber(j, 3);
-    //FLOAT y = jass_checknumber(j, 4);
-    return jass_pushboolean(j, 0);
+    ggroup_t *whichGroup = jass_checkhandle(j, 1, "group");
+    LPCSTR order = jass_checkstring(j, 2);
+    VECTOR2 dest = MAKE(VECTOR2, jass_checknumber(j, 3), jass_checknumber(j, 4));
+    BOOL any = false;
+    FOR_LOOP(i, whichGroup->num_units) {
+        if (unit_issueorder(whichGroup->units[i], order, &dest)) any = true;
+    }
+    return jass_pushboolean(j, any);
 }
 DWORD GroupPointOrderLoc(LPJASS j) {
-    //ggroup_t *whichGroup = jass_checkhandle(j, 1, "group");
-    //LPCSTR order = jass_checkstring(j, 2);
-    //HANDLE whichLocation = jass_checkhandle(j, 3, "location");
-    return jass_pushboolean(j, 0);
+    ggroup_t *whichGroup = jass_checkhandle(j, 1, "group");
+    LPCSTR order = jass_checkstring(j, 2);
+    LPCVECTOR2 dest = jass_checkhandle(j, 3, "location");
+    BOOL any = false;
+    FOR_LOOP(i, whichGroup->num_units) {
+        if (unit_issueorder(whichGroup->units[i], order, dest)) any = true;
+    }
+    return jass_pushboolean(j, any);
 }
 DWORD GroupPointOrderById(LPJASS j) {
     //ggroup_t *whichGroup = jass_checkhandle(j, 1, "group");
@@ -187,10 +198,14 @@ DWORD GroupPointOrderByIdLoc(LPJASS j) {
     return jass_pushboolean(j, 0);
 }
 DWORD GroupTargetOrder(LPJASS j) {
-    //ggroup_t *whichGroup = jass_checkhandle(j, 1, "group");
-    //LPCSTR order = jass_checkstring(j, 2);
-    //HANDLE targetWidget = jass_checkhandle(j, 3, "widget");
-    return jass_pushboolean(j, 0);
+    ggroup_t *whichGroup = jass_checkhandle(j, 1, "group");
+    LPCSTR order = jass_checkstring(j, 2);
+    LPEDICT targetWidget = jass_checkhandle(j, 3, "widget");
+    BOOL any = false;
+    FOR_LOOP(i, whichGroup->num_units) {
+        if (unit_issuetargetorder(whichGroup->units[i], order, targetWidget)) any = true;
+    }
+    return jass_pushboolean(j, any);
 }
 DWORD GroupTargetOrderById(LPJASS j) {
     //ggroup_t *whichGroup = jass_checkhandle(j, 1, "group");
@@ -210,6 +225,9 @@ DWORD ForGroup(LPJASS j) {
     return 0;
 }
 DWORD FirstOfGroup(LPJASS j) {
-    //ggroup_t *whichGroup = jass_checkhandle(j, 1, "group");
+    ggroup_t *whichGroup = jass_checkhandle(j, 1, "group");
+    if (whichGroup && whichGroup->num_units > 0) {
+        return jass_pushlighthandle(j, whichGroup->units[0], "unit");
+    }
     return jass_pushnullhandle(j, "unit");
 }

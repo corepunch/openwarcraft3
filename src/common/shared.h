@@ -266,6 +266,7 @@ struct playerState_s {
     DWORD team;
     DWORD color;    // player color index (0 = red, 1 = blue, … see PLAYER_COLOR_*)
     LPSTR name;     // player display name (set from mapplayer or by script)
+    LONG  start_location; // start location index assigned to this player (-1 = none)
     FLOAT cinefade;
     USHORT stats[MAX_STATS];
     LPCSTR texts[MAX_STATS];
@@ -553,10 +554,12 @@ typedef struct {
 } point2_t;
 
 typedef struct {
-    DWORD level; // (set to 1 for non hero units and items)
-    DWORD str;
-    DWORD agi;
-    DWORD intel;
+    DWORD level;        // (set to 1 for non hero units and items)
+    DWORD str;          // strength attribute
+    DWORD agi;          // agility attribute
+    DWORD intel;        // intelligence attribute
+    DWORD xp;           // accumulated experience points
+    BOOL  suspend_xp;   // when true, XP gains are suspended
 } doodadHero_t;
 
 typedef struct {
