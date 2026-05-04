@@ -35,8 +35,9 @@ static DWORD native_Negate(LPJASS j) {
     return jass_pushinteger(j, -jass_checkinteger(j, 1));
 }
 
-/* jass_runevents is declared in vm_public.h but never defined in the
- * game source — provide a no-op stub here so the linker is satisfied. */
+/* jass_runevents is declared in vm_public.h but not yet implemented in the
+ * game source — provide a no-op stub here as a temporary workaround for
+ * the test binary. */
 void jass_runevents(LPJASS j) { (void)j; }
 
 JASSMODULE jass_funcs[] = {

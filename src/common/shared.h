@@ -264,8 +264,8 @@ struct playerState_s {
     DWORD rdflags;
     DWORD uiflags;
     DWORD team;
-    DWORD color;
-    LPSTR name;
+    DWORD color;    // player color index (0 = red, 1 = blue, … see PLAYER_COLOR_*)
+    LPSTR name;     // player display name (set from mapplayer or by script)
     FLOAT cinefade;
     USHORT stats[MAX_STATS];
     LPCSTR texts[MAX_STATS];

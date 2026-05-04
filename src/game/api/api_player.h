@@ -18,9 +18,9 @@ DWORD ForcePlayerStartLocation(LPJASS j) {
 }
 DWORD SetPlayerColor(LPJASS j) {
     LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
-    DWORD *color = jass_checkhandle(j, 2, "playercolor");
-    if (whichPlayer && color) {
-        whichPlayer->color = *color;
+    DWORD *pColor = jass_checkhandle(j, 2, "playercolor");
+    if (whichPlayer && pColor) {
+        whichPlayer->color = *pColor;
     }
     return 0;
 }
@@ -76,8 +76,8 @@ DWORD GetPlayerStartLocation(LPJASS j) {
 }
 DWORD GetPlayerColor(LPJASS j) {
     LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
-    API_ALLOC(DWORD, color);
-    *color = whichPlayer ? whichPlayer->color : 0;
+    API_ALLOC(DWORD, pColor);
+    *pColor = whichPlayer ? whichPlayer->color : 0;
     return 1;
 }
 DWORD GetPlayerSelectable(LPJASS j) {
@@ -106,9 +106,12 @@ DWORD IsPlayerRacePrefSet(LPJASS j) {
 DWORD GetPlayerName(LPJASS j) {
     LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
     LPGAMECLIENT client = whichPlayer ? PLAYER_CLIENT(whichPlayer) : NULL;
-    LPCSTR name = (client && client->mapplayer && client->mapplayer->playerName)
-                  ? client->mapplayer->playerName
-                  : (whichPlayer && whichPlayer->name ? whichPlayer->name : "");
+    LPCSTR name = "";
+    if (client && client->mapplayer && client->mapplayer->playerName) {
+        name = client->mapplayer->playerName;
+    } else if (whichPlayer && whichPlayer->name) {
+        name = whichPlayer->name;
+    }
     return jass_pushstring(j, name);
 }
 DWORD IssueNeutralImmediateOrder(LPJASS j) {
