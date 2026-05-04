@@ -6,3 +6,4 @@ src/DerivedData/
 *.xcuserstate
 *.zip
 .DS_Store
+_codeql_detected_source_root
