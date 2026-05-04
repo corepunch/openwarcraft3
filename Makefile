@@ -131,6 +131,9 @@ TEST_GAME_SRCS := \
 	src/game/g_phys.c \
 	src/game/g_utils.c \
 	src/game/m_unit.c \
+	src/game/parser.c \
+	src/game/jass/vm_main.c \
+	src/game/jass/jass_parser.c \
 	src/game/skills/s_move.c \
 	src/game/skills/s_skills.c \
 	src/game/skills/s_stop.c \
@@ -144,7 +147,8 @@ TEST_SRCS := \
 	tests/test_unit.c \
 	tests/test_movement.c \
 	tests/test_collision.c \
-	tests/test_net.c
+	tests/test_net.c \
+	tests/test_jass.c
 
 TEST_CFLAGS := -Wall -Isrc/cmath3/types -Isrc/game -Isrc/server -Isrc/common -Isrc/game/skills
 

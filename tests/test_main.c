@@ -21,6 +21,7 @@ void run_unit_tests(void);
 void run_movement_tests(void);
 void run_collision_tests(void);
 void run_net_tests(void);
+void run_jass_tests(void);
 
 int main(void) {
     printf("=== OpenWarcraft3 Unit Tests ===\n\n");
@@ -43,6 +44,10 @@ int main(void) {
 
     printf("[Network layer / loopback / address parsing]\n");
     run_net_tests();
+    printf("\n");
+
+    printf("[JASS interpreter]\n");
+    run_jass_tests();
     printf("\n");
 
     TEST_RESULTS();

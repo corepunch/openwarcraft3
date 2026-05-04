@@ -488,11 +488,37 @@ GAMEEVENT *G_PublishEvent(LPEDICT edict, EVENTTYPE type) {
     return NULL;
 }
 
-/* g_events.c — JASS trigger integration (no scripting VM in tests). */
-BOOL jass_calltrigger(LPJASS j, LPTRIGGER trigger, LPEDICT unit) {
-    (void)j; (void)trigger; (void)unit;
-    return false;
+/* g_main.c — Player lookup helpers used by vm_main.c and g_utils.c. */
+LPPLAYER G_GetPlayerByNumber(DWORD number) {
+    FOR_LOOP(i, game.max_clients) {
+        if (game.clients[i].ps.number == number) {
+            return &game.clients[i].ps;
+        }
+    }
+    return &game.clients[MAX_PLAYERS - 1].ps;
 }
+
+LPEDICT G_GetPlayerEntityByNumber(DWORD number) {
+    FOR_LOOP(i, globals.num_edicts) {
+        LPEDICT ent = &g_edicts[i];
+        if (ent->client && ent->client->ps.number == number) {
+            return ent;
+        }
+    }
+    return NULL;
+}
+
+LPGAMECLIENT G_GetPlayerClientByNumber(DWORD number) {
+    FOR_LOOP(i, game.max_clients) {
+        LPGAMECLIENT cl = &game.clients[i];
+        if (cl->ps.number == number) {
+            return cl;
+        }
+    }
+    return &game.clients[MAX_PLAYERS - 1];
+}
+
+LPCSTR G_LevelString(LPCSTR name) { return name; }
 
 /* g_spawn.c — target-type string parser. */
 TARGTYPE G_GetTargetType(LPCSTR str) { (void)str; return TARG_NONE; }
