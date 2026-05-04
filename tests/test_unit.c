@@ -179,32 +179,40 @@ static void test_issueimmediateorder_unknown_returns_false(void) {
  * --------------------------------------------------------------------- */
 
 static void test_additemtoslot_fills_empty_slot(void) {
-    LPEDICT ent = make_unit(0, 0);
-    BOOL ok = unit_additemtoslot(ent, UNIT_ID("ratf"), 0);
+    LPEDICT ent  = make_unit(0, 0);
+    LPEDICT item = alloc_test_unit(UNIT_ID("ratf"), 0, 0);
+    BOOL ok = unit_additemtoslot(ent, item, 0);
     ASSERT(ok);
-    ASSERT_EQ_INT(ent->inventory[0], (long long)UNIT_ID("ratf"));
+    ASSERT(ent->inventory[0] == item);
 }
 
 static void test_additemtoslot_rejects_occupied_slot(void) {
-    LPEDICT ent = make_unit(0, 0);
-    unit_additemtoslot(ent, UNIT_ID("ratf"), 0);
-    BOOL ok = unit_additemtoslot(ent, UNIT_ID("ratf"), 0); /* same slot */
+    LPEDICT ent   = make_unit(0, 0);
+    LPEDICT item1 = alloc_test_unit(UNIT_ID("ratf"), 0, 0);
+    LPEDICT item2 = alloc_test_unit(UNIT_ID("ratf"), 0, 0);
+    unit_additemtoslot(ent, item1, 0);
+    BOOL ok = unit_additemtoslot(ent, item2, 0); /* same slot, already occupied */
     ASSERT(!ok);
 }
 
 static void test_additem_fills_first_free_slot(void) {
-    LPEDICT ent = make_unit(0, 0);
-    unit_additemtoslot(ent, UNIT_ID("ratf"), 0);
-    BOOL ok = unit_additem(ent, UNIT_ID("rde2"));
+    LPEDICT ent   = make_unit(0, 0);
+    LPEDICT item1 = alloc_test_unit(UNIT_ID("ratf"), 0, 0);
+    LPEDICT item2 = alloc_test_unit(UNIT_ID("rde2"), 0, 0);
+    unit_additemtoslot(ent, item1, 0);
+    BOOL ok = unit_additem(ent, item2);
     ASSERT(ok);
-    ASSERT_EQ_INT(ent->inventory[1], (long long)UNIT_ID("rde2"));
+    ASSERT(ent->inventory[1] == item2);
 }
 
 static void test_additem_fails_when_inventory_full(void) {
     LPEDICT ent = make_unit(0, 0);
-    for (int i = 0; i < MAX_INVENTORY; i++)
-        unit_additemtoslot(ent, UNIT_ID("ratf"), i);
-    BOOL ok = unit_additem(ent, UNIT_ID("rde2"));
+    for (int i = 0; i < MAX_INVENTORY; i++) {
+        LPEDICT item = alloc_test_unit(UNIT_ID("ratf"), 0, 0);
+        unit_additemtoslot(ent, item, (DWORD)i);
+    }
+    LPEDICT extra = alloc_test_unit(UNIT_ID("rde2"), 0, 0);
+    BOOL ok = unit_additem(ent, extra);
     ASSERT(!ok);
 }
 

@@ -100,18 +100,18 @@ unit_createorfind(DWORD player,
     return unit;
 }
 
-BOOL unit_additemtoslot(LPEDICT edict, DWORD class_id, DWORD i) {
-    if (edict->inventory[i] == 0) {
-        edict->inventory[i] = class_id;
+BOOL unit_additemtoslot(LPEDICT edict, LPEDICT item, DWORD i) {
+    if (edict->inventory[i] == NULL) {
+        edict->inventory[i] = item;
         return true;
     } else {
         return false;
     }
 }
 
-BOOL unit_additem(LPEDICT edict, DWORD class_id) {
+BOOL unit_additem(LPEDICT edict, LPEDICT item) {
     FOR_LOOP(i, MAX_INVENTORY) {
-        if (unit_additemtoslot(edict, class_id, i)) {
+        if (unit_additemtoslot(edict, item, i)) {
             return true;
         }
     }

@@ -261,7 +261,10 @@ DWORD AddHeroXP(LPJASS j) {
 //    BOOL showEyeCandy = jass_checkboolean(j, 3);
     if (whichHero && !whichHero->hero.suspend_xp && xpToAdd > 0) {
         DWORD add = (DWORD)xpToAdd;
-        whichHero->hero.xp = (whichHero->hero.xp + add < whichHero->hero.xp) ? ~(DWORD)0 : whichHero->hero.xp + add;
+        DWORD cur = whichHero->hero.xp;
+        /* Cap at INT32_MAX so GetHeroXP (signed return) never reads negative. */
+        DWORD sum = cur + add;
+        whichHero->hero.xp = (sum < cur || sum > (DWORD)INT32_MAX) ? (DWORD)INT32_MAX : sum;
     }
     return 0;
 }
@@ -342,9 +345,10 @@ DWORD GetUnitPointValueByType(LPJASS j) {
 DWORD UnitAddItem(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     LPEDICT whichItem = jass_checkhandle(j, 2, "item");
-//    printf("UnitAddItem %.4s %.4s\n", (LPCSTR)&whichUnit->class_id, (LPCSTR)&whichItem->class_id);
-    if (unit_additem(whichUnit, whichItem->class_id)) {
-        G_FreeEdict(whichItem);
+    if (!whichUnit || !whichItem) return jass_pushboolean(j, false);
+    if (unit_additem(whichUnit, whichItem)) {
+        /* Item is now tracked in inventory — remove from world but keep alive. */
+        gi.UnlinkEntity(whichItem);
         return jass_pushboolean(j, true);
     } else {
         return jass_pushboolean(j, false);
@@ -353,18 +357,27 @@ DWORD UnitAddItem(LPJASS j) {
 DWORD UnitAddItemById(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     LONG itemId = jass_checkinteger(j, 2);
-    if (unit_additem(whichUnit, itemId)) {
-        return jass_pushnullhandle(j, "item");
-    } else {
-        LPEDICT item = SP_SpawnAtLocation(itemId, 0, &whichUnit->s.origin2);
+    LPEDICT item = SP_SpawnAtLocation(itemId, 0, &whichUnit->s.origin2);
+    if (item && unit_additem(whichUnit, item)) {
+        gi.UnlinkEntity(item);
         return jass_pushlighthandle(j, item, "item");
+    } else {
+        if (item) G_FreeEdict(item);
+        return jass_pushnullhandle(j, "item");
     }
 }
 DWORD UnitAddItemToSlotById(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     LONG itemId = jass_checkinteger(j, 2);
     LONG itemSlot = jass_checkinteger(j, 3);
-    return jass_pushboolean(j, unit_additemtoslot(whichUnit, itemId, itemSlot));
+    LPEDICT item = SP_SpawnAtLocation(itemId, 0, &whichUnit->s.origin2);
+    if (item && unit_additemtoslot(whichUnit, item, (DWORD)itemSlot)) {
+        gi.UnlinkEntity(item);
+        return jass_pushboolean(j, true);
+    } else {
+        if (item) G_FreeEdict(item);
+        return jass_pushboolean(j, false);
+    }
 }
 DWORD UnitRemoveItem(LPJASS j) {
     //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
@@ -374,32 +387,37 @@ DWORD UnitRemoveItem(LPJASS j) {
 DWORD UnitRemoveItemFromSlot(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     LONG itemSlot = jass_checkinteger(j, 2);
-    if (whichUnit->inventory[itemSlot] != 0) {
-        DWORD itemId = whichUnit->inventory[itemSlot];
-        LPEDICT item = SP_SpawnAtLocation(itemId, 0, &whichUnit->s.origin2);
-        return jass_pushlighthandle(j, item, "item");
-    } else {
+    if (!whichUnit || itemSlot < 0 || itemSlot >= MAX_INVENTORY) {
         return jass_pushnullhandle(j, "item");
     }
+    LPEDICT item = whichUnit->inventory[itemSlot];
+    if (!item) return jass_pushnullhandle(j, "item");
+    whichUnit->inventory[itemSlot] = NULL;
+    /* Move item to unit's current position and put it back in the world. */
+    item->s.origin.x = whichUnit->s.origin.x;
+    item->s.origin.y = whichUnit->s.origin.y;
+    item->s.origin2  = whichUnit->s.origin2;
+    gi.LinkEntity(item);
+    return jass_pushlighthandle(j, item, "item");
 }
 DWORD UnitHasItem(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     LPEDICT whichItem = jass_checkhandle(j, 2, "item");
     if (!whichUnit || !whichItem) return jass_pushboolean(j, 0);
     FOR_LOOP(i, MAX_INVENTORY) {
-        if (whichUnit->inventory[i] == whichItem->class_id) return jass_pushboolean(j, 1);
+        if (whichUnit->inventory[i] == whichItem) return jass_pushboolean(j, 1);
     }
     return jass_pushboolean(j, 0);
 }
 DWORD UnitItemInSlot(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     LONG itemSlot = jass_checkinteger(j, 2);
-    if (!whichUnit || itemSlot < 0 || itemSlot >= MAX_INVENTORY || whichUnit->inventory[itemSlot] == 0) {
+    if (!whichUnit || itemSlot < 0 || itemSlot >= MAX_INVENTORY) {
         return jass_pushnullhandle(j, "item");
     }
-    // inventory stores item class IDs; we cannot return a persistent entity handle here
-    // so return null (item is only accessible by removing it from the slot)
-    return jass_pushnullhandle(j, "item");
+    LPEDICT item = whichUnit->inventory[itemSlot];
+    if (!item) return jass_pushnullhandle(j, "item");
+    return jass_pushlighthandle(j, item, "item");
 }
 DWORD UnitUseItem(LPJASS j) {
     //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");

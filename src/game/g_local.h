@@ -669,7 +669,7 @@ struct edict_s {
     DWORD damage;
     DWORD resources;
     DWORD freetime;
-    DWORD inventory[MAX_INVENTORY];
+    LPEDICT inventory[MAX_INVENTORY];
     FLOAT velocity;
     doodadHero_t hero;
     heroability_t heroabilities[MAX_HERO_ABILITIES];
@@ -934,8 +934,8 @@ BOOL unit_issueorder(LPEDICT, LPCSTR, LPCVECTOR2);
 BOOL unit_issueimmediateorder(LPEDICT, LPCSTR);
 BOOL unit_issuetargetorder(LPEDICT, LPCSTR, LPEDICT);
 LPEDICT unit_createorfind(DWORD, DWORD, LPCVECTOR2, FLOAT);
-BOOL unit_additemtoslot(LPEDICT, DWORD, DWORD);
-BOOL unit_additem(LPEDICT, DWORD);
+BOOL unit_additemtoslot(LPEDICT, LPEDICT, DWORD);
+BOOL unit_additem(LPEDICT, LPEDICT);
 void unit_addstatus(LPEDICT, LPCSTR, DWORD);
 void unit_learnability(LPEDICT, DWORD);
 
