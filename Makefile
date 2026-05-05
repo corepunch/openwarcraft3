@@ -134,9 +134,11 @@ TEST_GAME_SRCS := \
 	src/game/parser.c \
 	src/game/jass/vm_main.c \
 	src/game/jass/jass_parser.c \
+	src/game/skills/s_attack.c \
 	src/game/skills/s_move.c \
 	src/game/skills/s_skills.c \
 	src/game/skills/s_stop.c \
+	src/game/skills/s_train.c \
 	src/common/net.c \
 	src/common/msg.c
 
@@ -150,7 +152,8 @@ TEST_SRCS := \
 	tests/test_net.c \
 	tests/test_jass.c \
 	tests/test_api.c \
-	tests/test_game.c
+	tests/test_game.c \
+	tests/test_combat.c
 
 TEST_CFLAGS := -Wall -Isrc/cmath3/types -Isrc/game -Isrc/server -Isrc/common -Isrc/game/skills
 

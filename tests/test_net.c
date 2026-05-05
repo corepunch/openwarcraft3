@@ -317,6 +317,57 @@ static void test_msg_readbyte_past_end_returns_zero(void) {
     ASSERT_EQ_INT(MSG_ReadByte(&sb), 0);
 }
 
+static void test_msg_writepos_readpos_roundtrip(void) {
+    BYTE buf[32];
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+    VECTOR3 out = {0};
+    VECTOR3 in  = {128.0f, -64.0f, 32.0f};
+    MSG_WritePos(&sb, &in);
+    sb.readcount = 0;
+    MSG_ReadPos(&sb, &out);
+    /* WritePos/ReadPos use MSG_WriteShort/MSG_ReadShort (lossy integer encoding). */
+    ASSERT_EQ_INT((int)out.x, (int)in.x);
+    ASSERT_EQ_INT((int)out.y, (int)in.y);
+    ASSERT_EQ_INT((int)out.z, (int)in.z);
+}
+
+static void test_msg_writedir_readdir_roundtrip(void) {
+    BYTE buf[32];
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+    VECTOR3 dir = {0.707f, 0.0f, -0.707f};
+    VECTOR3 out = {0};
+    MSG_WriteDir(&sb, &dir);
+    sb.readcount = 0;
+    MSG_ReadDir(&sb, &out);
+    ASSERT_EQ_FLOAT(out.x, dir.x, 0.001f);
+    ASSERT_EQ_FLOAT(out.y, dir.y, 0.001f);
+    ASSERT_EQ_FLOAT(out.z, dir.z, 0.001f);
+}
+
+static void test_msg_writeangle_readangle_roundtrip(void) {
+    BYTE buf[8];
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+    /* WriteAngle quantizes to 1/256th of a full revolution. */
+    float angle = 1.5f;   /* radians */
+    MSG_WriteAngle(&sb, angle);
+    sb.readcount = 0;
+    float out = MSG_ReadAngle(&sb);
+    /* Tolerance = one quantum = 2π/256 ≈ 0.025 */
+    ASSERT_EQ_FLOAT(out, angle, 0.025f);
+}
+
+static void test_msg_multiple_types_sequential(void) {
+    BYTE buf[64];
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+    MSG_WriteByte(&sb,  42);
+    MSG_WriteShort(&sb, 1000);
+    MSG_WriteLong(&sb,  0x12345678);
+    sb.readcount = 0;
+    ASSERT_EQ_INT(MSG_ReadByte(&sb)  & 0xFF,       42);
+    ASSERT_EQ_INT(MSG_ReadShort(&sb) & 0xFFFF, 1000);
+    ASSERT_EQ_INT((unsigned int)MSG_ReadLong(&sb), (unsigned int)0x12345678);
+}
+
 /* -----------------------------------------------------------------------
  * Suite entry point
  * --------------------------------------------------------------------- */
@@ -343,4 +394,8 @@ void run_net_tests(void) {
     RUN_TEST(test_msg_writefloat_readfloat_roundtrip);
     RUN_TEST(test_msg_writestring_readstring_roundtrip);
     RUN_TEST(test_msg_readbyte_past_end_returns_zero);
+    RUN_TEST(test_msg_writepos_readpos_roundtrip);
+    RUN_TEST(test_msg_writedir_readdir_roundtrip);
+    RUN_TEST(test_msg_writeangle_readangle_roundtrip);
+    RUN_TEST(test_msg_multiple_types_sequential);
 }
