@@ -220,7 +220,7 @@ static void test_runentity_ability_index_from_currentmove(void) {
      * index of a_stop in the ability table. */
     LPEDICT ent      = make_combat_unit(UNIT_ID("hpea"), 250.0f, 0.0f, 0.0f);
     ent->movetype    = MOVETYPE_NONE;
-    unit_stand(ent);   /* sets currentmove to the stand move which has &a_stop via unit_move_stand */
+    unit_stand(ent);   /* places ent into the stand/idle move state */
     ASSERT_NOT_NULL(ent->currentmove);
 
     G_RunEntity(ent);

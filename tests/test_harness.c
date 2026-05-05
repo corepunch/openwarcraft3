@@ -572,9 +572,10 @@ BOOL G_IsEntitySelected(LPGAMECLIENT client, LPEDICT ent) {
     return false;
 }
 
-/* Abilities defined in skill files not included in the test binary.
+/* Stubs for abilities defined in skill files not included in the test binary.
  * s_skills.c references all of these via its abilitylist[] table.
- * Note: a_attack is the real symbol from s_attack.c (now linked). */
+ * (a_attack is the real symbol from s_attack.c, a_stop/a_move from their
+ * respective .c files — only the remaining abilities need stubs here.) */
 ability_t a_build       = {0};
 ability_t a_holdpos     = {0};
 ability_t a_patrol      = {0};
