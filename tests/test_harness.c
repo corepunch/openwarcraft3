@@ -169,8 +169,8 @@ static void   mock_error(LPCSTR fmt, ...)               { (void)fmt; }
  *   hfoo — Human Footman: speed 270, HP 420, build 60 s, collision 16
  * ===================================================================== */
 
-static sheetField_t hpea_balance_fields[3];
-static sheetField_t hfoo_balance_fields[3];
+static sheetField_t hpea_balance_fields[5];
+static sheetField_t hfoo_balance_fields[5];
 static sheetRow_t   test_balance_rows[2];
 
 static sheetField_t hpea_data_fields[2];
@@ -178,14 +178,18 @@ static sheetField_t hfoo_data_fields[2];
 static sheetRow_t   test_data_rows[2];
 
 void setup_test_unit_data(void) {
-    /* --- UnitBalance table (speed, HP, build time) --- */
+    /* --- UnitBalance table (speed, HP, build time, gold/lumber cost) --- */
     hpea_balance_fields[0] = (sheetField_t){"spd",    "270", &hpea_balance_fields[1]};
     hpea_balance_fields[1] = (sheetField_t){"realHP", "250", &hpea_balance_fields[2]};
-    hpea_balance_fields[2] = (sheetField_t){"bldtm",  "45",  NULL};
+    hpea_balance_fields[2] = (sheetField_t){"bldtm",     "45",  &hpea_balance_fields[3]};
+    hpea_balance_fields[3] = (sheetField_t){"goldcost",  "75",  &hpea_balance_fields[4]};
+    hpea_balance_fields[4] = (sheetField_t){"lumbercost","0",   NULL};
 
     hfoo_balance_fields[0] = (sheetField_t){"spd",    "270", &hfoo_balance_fields[1]};
     hfoo_balance_fields[1] = (sheetField_t){"realHP", "420", &hfoo_balance_fields[2]};
-    hfoo_balance_fields[2] = (sheetField_t){"bldtm",  "60",  NULL};
+    hfoo_balance_fields[2] = (sheetField_t){"bldtm",     "60",  &hfoo_balance_fields[3]};
+    hfoo_balance_fields[3] = (sheetField_t){"goldcost",  "135", &hfoo_balance_fields[4]};
+    hfoo_balance_fields[4] = (sheetField_t){"lumbercost","0",   NULL};
 
     test_balance_rows[0] = (sheetRow_t){"hpea", hpea_balance_fields, &test_balance_rows[1]};
     test_balance_rows[1] = (sheetRow_t){"hfoo", hfoo_balance_fields, NULL};
@@ -530,10 +534,15 @@ LPCSTR G_LevelString(LPCSTR name) { return name; }
 /* g_spawn.c — target-type string parser. */
 TARGTYPE G_GetTargetType(LPCSTR str) { (void)str; return TARG_NONE; }
 
-/* s_attack.c — referenced by g_ai.c (order_attack) and g_phys.c (T_Damage). */
-void order_attack(LPEDICT self, LPEDICT target) { (void)self; (void)target; }
-void T_Damage(LPEDICT target, LPEDICT attacker, int damage) {
-    (void)target; (void)attacker; (void)damage;
+/* g_spawn.c — G_Spawn allocates the next free edict slot.
+ * Used by fire_rocket() in s_attack.c to spawn projectile entities. */
+LPEDICT G_Spawn(void) {
+    int idx = globals.num_edicts++;
+    LPEDICT ent = &g_edicts[idx];
+    memset(ent, 0, sizeof(*ent));
+    ent->inuse    = true;
+    ent->s.number = idx;
+    return ent;
 }
 
 /* g_spawn.c */
@@ -541,10 +550,18 @@ LPEDICT SP_SpawnAtLocation(DWORD class_id, DWORD player, LPCVECTOR2 location) {
     (void)class_id; (void)player; (void)location;
     return NULL;
 }
-void SP_TrainUnit(LPEDICT ent, DWORD id)  { (void)ent; (void)id; }
+BOOL SP_FindEmptySpaceAround(LPEDICT ent, DWORD class_id, LPVECTOR2 out, FLOAT *angle) {
+    (void)ent; (void)class_id;
+    if (out)   { out->x = 0.0f; out->y = 0.0f; }
+    if (angle) { *angle = 0.0f; }
+    return true;
+}
 
 /* g_commands.c */
 void CMD_CancelCommand(LPEDICT ent) { (void)ent; }
+
+/* p_hud.c — used by SP_TrainUnit after building. */
+void Get_Commands_f(LPEDICT ent) { (void)ent; }
 
 /* hud/ */
 void UI_AddCancelButton(LPEDICT ent) { (void)ent; }
@@ -556,8 +573,8 @@ BOOL G_IsEntitySelected(LPGAMECLIENT client, LPEDICT ent) {
 }
 
 /* Abilities defined in skill files not included in the test binary.
- * s_skills.c references all of these via its abilitylist[] table. */
-ability_t a_attack      = {0};
+ * s_skills.c references all of these via its abilitylist[] table.
+ * Note: a_attack is the real symbol from s_attack.c (now linked). */
 ability_t a_build       = {0};
 ability_t a_holdpos     = {0};
 ability_t a_patrol      = {0};
