@@ -189,7 +189,7 @@ void setup_test_unit_data(void) {
     hfoo_balance_fields[1] = (sheetField_t){"realHP", "420", &hfoo_balance_fields[2]};
     hfoo_balance_fields[2] = (sheetField_t){"bldtm",     "60",  &hfoo_balance_fields[3]};
     hfoo_balance_fields[3] = (sheetField_t){"goldcost",  "135", &hfoo_balance_fields[4]};
-    hfoo_balance_fields[4] = (sheetField_t){"lumbercost","0",   NULL};
+    hfoo_balance_fields[4] = (sheetField_t){"lumbercost","20",  NULL};
 
     test_balance_rows[0] = (sheetRow_t){"hpea", hpea_balance_fields, &test_balance_rows[1]};
     test_balance_rows[1] = (sheetRow_t){"hfoo", hfoo_balance_fields, NULL};
@@ -487,16 +487,13 @@ void free_slk_rows(sheetRow_t *rows) {
  * Stubs for game symbols that are not compiled into the test binary
  * ===================================================================== */
 
-/* g_main.c — G_PublishEvent stores events in the level queue. */
+/* g_main.c — G_PublishEvent stores events in the level queue.
+ * Matches the production implementation (circular ring buffer). */
 GAMEEVENT *G_PublishEvent(LPEDICT edict, EVENTTYPE type) {
-    (void)edict;
-    FOR_LOOP(i, MAX_EVENT_QUEUE) {
-        if (level.events.queue[i].type == 0) {
-            level.events.queue[i].type = type;
-            return &level.events.queue[i];
-        }
-    }
-    return NULL;
+    GAMEEVENT *evt = &level.events.queue[level.events.write++ % MAX_EVENT_QUEUE];
+    evt->type  = type;
+    evt->edict = edict;
+    return evt;
 }
 
 /* g_main.c — Player lookup helpers used by vm_main.c and g_utils.c. */
@@ -537,6 +534,10 @@ TARGTYPE G_GetTargetType(LPCSTR str) { (void)str; return TARG_NONE; }
 /* g_spawn.c — G_Spawn allocates the next free edict slot.
  * Used by fire_rocket() in s_attack.c to spawn projectile entities. */
 LPEDICT G_Spawn(void) {
+    if (globals.num_edicts >= globals.max_edicts) {
+        assert(0 && "G_Spawn: _test_edicts[] exhausted");
+        return NULL;
+    }
     int idx = globals.num_edicts++;
     LPEDICT ent = &g_edicts[idx];
     memset(ent, 0, sizeof(*ent));
