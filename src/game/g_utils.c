@@ -55,5 +55,5 @@ void G_SetPlayerAlliance(LPCPLAYER p1, LPCPLAYER p2, PLAYERALLIANCE type, BOOL v
 }
 
 BOOL G_GetPlayerAlliance(LPCPLAYER p1, LPCPLAYER p2, PLAYERALLIANCE type) {
-    return level.alliances[p1->number][p2->number] &= (1 << type);
+    return level.alliances[p1->number][p2->number] & (1 << type);
 }
