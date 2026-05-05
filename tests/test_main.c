@@ -23,6 +23,7 @@ void run_collision_tests(void);
 void run_net_tests(void);
 void run_jass_tests(void);
 void run_api_tests(void);
+void run_game_tests(void);
 
 int main(void) {
     printf("=== OpenWarcraft3 Unit Tests ===\n\n");
@@ -53,6 +54,10 @@ int main(void) {
 
     printf("[JASS native API]\n");
     run_api_tests();
+    printf("\n");
+
+    printf("[Game utilities]\n");
+    run_game_tests();
     printf("\n");
 
     TEST_RESULTS();

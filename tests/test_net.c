@@ -254,6 +254,70 @@ static void test_string_to_adr_bad_address(void) {
 }
 
 /* -----------------------------------------------------------------------
+ * MSG_Write* / MSG_Read* round-trips
+ * --------------------------------------------------------------------- */
+
+/*
+ * Helper: allocate a fresh size-buffer backed by a stack array and return it
+ * ready for writing.  The read-position starts at 0.
+ */
+static sizeBuf_t make_msg_buf(BYTE *buf, DWORD bufsz) {
+    sizeBuf_t sb;
+    SZ_Init(&sb, buf, bufsz);
+    return sb;
+}
+
+static void test_msg_writebyte_readbyte_roundtrip(void) {
+    BYTE buf[16];
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+    MSG_WriteByte(&sb, 0xAB);
+    sb.readcount = 0;
+    ASSERT_EQ_INT(MSG_ReadByte(&sb) & 0xFF, 0xAB);
+}
+
+static void test_msg_writeshort_readshort_roundtrip(void) {
+    BYTE buf[16];
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+    MSG_WriteShort(&sb, 0x1234);
+    sb.readcount = 0;
+    ASSERT_EQ_INT(MSG_ReadShort(&sb) & 0xFFFF, 0x1234);
+}
+
+static void test_msg_writelong_readlong_roundtrip(void) {
+    BYTE buf[16];
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+    MSG_WriteLong(&sb, 0xDEADBEEF);
+    sb.readcount = 0;
+    ASSERT_EQ_INT((unsigned int)MSG_ReadLong(&sb), (unsigned int)0xDEADBEEF);
+}
+
+static void test_msg_writefloat_readfloat_roundtrip(void) {
+    BYTE buf[16];
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+    MSG_WriteFloat(&sb, 3.14f);
+    sb.readcount = 0;
+    ASSERT_EQ_FLOAT(MSG_ReadFloat(&sb), 3.14f, 0.0001f);
+}
+
+static void test_msg_writestring_readstring_roundtrip(void) {
+    BYTE buf[64];
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+    MSG_WriteString(&sb, "hello");
+    sb.readcount = 0;
+    char out[32] = {0};
+    MSG_ReadString(&sb, out);
+    ASSERT_STR_EQ(out, "hello");
+}
+
+static void test_msg_readbyte_past_end_returns_zero(void) {
+    /* An empty (cursize==0) buffer: any read must return 0, not crash. */
+    BYTE buf[8] = {0};
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+    /* cursize stays 0 — nothing has been written. */
+    ASSERT_EQ_INT(MSG_ReadByte(&sb), 0);
+}
+
+/* -----------------------------------------------------------------------
  * Suite entry point
  * --------------------------------------------------------------------- */
 
@@ -272,4 +336,11 @@ void run_net_tests(void) {
     RUN_TEST(test_string_to_adr_ip_with_port);
     RUN_TEST(test_string_to_adr_port_overrides_default);
     RUN_TEST(test_string_to_adr_bad_address);
+    /* MSG read/write round-trips */
+    RUN_TEST(test_msg_writebyte_readbyte_roundtrip);
+    RUN_TEST(test_msg_writeshort_readshort_roundtrip);
+    RUN_TEST(test_msg_writelong_readlong_roundtrip);
+    RUN_TEST(test_msg_writefloat_readfloat_roundtrip);
+    RUN_TEST(test_msg_writestring_readstring_roundtrip);
+    RUN_TEST(test_msg_readbyte_past_end_returns_zero);
 }

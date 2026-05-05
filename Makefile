@@ -149,7 +149,8 @@ TEST_SRCS := \
 	tests/test_collision.c \
 	tests/test_net.c \
 	tests/test_jass.c \
-	tests/test_api.c
+	tests/test_api.c \
+	tests/test_game.c
 
 TEST_CFLAGS := -Wall -Isrc/cmath3/types -Isrc/game -Isrc/server -Isrc/common -Isrc/game/skills
 
