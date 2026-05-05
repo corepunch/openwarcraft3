@@ -286,7 +286,7 @@ static void test_msg_writeshort_readshort_roundtrip(void) {
 static void test_msg_writelong_readlong_roundtrip(void) {
     BYTE buf[16];
     sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
-    MSG_WriteLong(&sb, 0xDEADBEEF);
+    MSG_WriteLong(&sb, (int)0xDEADBEEF);
     sb.readcount = 0;
     ASSERT_EQ_INT((unsigned int)MSG_ReadLong(&sb), (unsigned int)0xDEADBEEF);
 }

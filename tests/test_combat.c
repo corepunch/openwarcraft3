@@ -9,16 +9,16 @@
  *                          frame reset), AI_HOLD_FRAME inhibits advance,
  *                          no animation → no-op
  *   G_RunEntity          — stat fields compressed after run,
- *                          ability index updated from currentmove
+ *                          ability index updated from currentmove (non-zero)
  *   Ability lookup       — FindAbilityByClassname hit/miss,
  *                          GetAbilityByIndex, GetAbilityIndex
- *   player_pay           — deducts gold+lumber on success,
+ *   player_pay           — deducts gold on success,
  *                          refuses when gold insufficient,
  *                          refuses when lumber insufficient,
  *                          NULL player guard
  *   unit_add_build_queue — single item, chained items
  *   Quest system         — G_MakeQuest fields, set/query, G_RemoveQuest
- *   G_PublishEvent       — queue write, sequential events
+ *   G_PublishEvent       — queue write/read using ring-buffer semantics
  */
 
 #include "test_framework.h"
@@ -31,6 +31,7 @@ void  T_Damage(LPEDICT target, LPEDICT attacker, int damage);
 void  M_MoveFrame(LPEDICT self);
 void  G_RunEntity(LPEDICT ent);
 void  unit_add_build_queue(LPEDICT self, LPEDICT item);
+void  order_move(LPEDICT self, LPEDICT target);
 
 /* ==========================================================================
  * Shared helpers
@@ -216,16 +217,22 @@ static void test_runentity_stat_fields_updated(void) {
 }
 
 static void test_runentity_ability_index_from_currentmove(void) {
-    /* The stop move uses a_stop.  After G_RunEntity, s.ability should be the
-     * index of a_stop in the ability table. */
+    /* Use order_move to place the entity into the walk state.  The walk
+     * umove_t has ability == &a_move, whose index in abilitylist[] is
+     * non-zero (a_stop is at index 0).  This ensures the assertion
+     * would catch G_RunEntity hard-coding s.ability = 0. */
     LPEDICT ent      = make_combat_unit(UNIT_ID("hpea"), 250.0f, 0.0f, 0.0f);
     ent->movetype    = MOVETYPE_NONE;
-    unit_stand(ent);   /* places ent into the stand/idle move state */
+    VECTOR2 dest     = MAKE(VECTOR2, 100.0f, 100.0f);
+    LPEDICT waypoint = Waypoint_add(&dest);
+    order_move(ent, waypoint);  /* sets currentmove->ability = &a_move */
     ASSERT_NOT_NULL(ent->currentmove);
+    ASSERT_NOT_NULL(ent->currentmove->ability);
 
     G_RunEntity(ent);
 
     DWORD expected = GetAbilityIndex(ent->currentmove->ability);
+    ASSERT(expected != 0);  /* a_move is not the first entry (a_stop is) */
     ASSERT_EQ_INT((int)ent->s.ability, (int)expected);
 }
 
@@ -271,8 +278,8 @@ static void test_get_ability_index_roundtrip(void) {
  * ========================================================================== */
 
 /* Test unit data provides:
- *   hpea — ugol=75, ulum=0
- *   hfoo — ugol=135, ulum=0
+ *   hpea — goldcost=75,  lumbercost=0
+ *   hfoo — goldcost=135, lumbercost=20
  * These are registered in setup_test_unit_data() via the UnitBalance table. */
 
 static void test_player_pay_deducts_gold(void) {
@@ -280,7 +287,7 @@ static void test_player_pay_deducts_gold(void) {
     p->stats[PLAYERSTATE_RESOURCE_GOLD]   = 200;
     p->stats[PLAYERSTATE_RESOURCE_LUMBER] = 0;
 
-    BOOL ok = player_pay(p, UNIT_ID("hpea")); /* costs 75 gold */
+    BOOL ok = player_pay(p, UNIT_ID("hpea")); /* costs 75 gold, 0 lumber */
 
     ASSERT(ok);
     ASSERT_EQ_INT((int)p->stats[PLAYERSTATE_RESOURCE_GOLD], 125);
@@ -295,6 +302,18 @@ static void test_player_pay_insufficient_gold_fails(void) {
 
     ASSERT(!ok);
     ASSERT_EQ_INT((int)p->stats[PLAYERSTATE_RESOURCE_GOLD], 50); /* unchanged */
+}
+
+static void test_player_pay_insufficient_lumber_fails(void) {
+    LPPLAYER p = &game.clients[0].ps;
+    p->stats[PLAYERSTATE_RESOURCE_GOLD]   = 200; /* enough for 135 */
+    p->stats[PLAYERSTATE_RESOURCE_LUMBER] = 10;  /* need 20 */
+
+    BOOL ok = player_pay(p, UNIT_ID("hfoo")); /* costs 135 gold, 20 lumber */
+
+    ASSERT(!ok);
+    ASSERT_EQ_INT((int)p->stats[PLAYERSTATE_RESOURCE_GOLD],   200); /* unchanged */
+    ASSERT_EQ_INT((int)p->stats[PLAYERSTATE_RESOURCE_LUMBER],  10); /* unchanged */
 }
 
 static void test_player_pay_null_player_fails(void) {
@@ -357,6 +376,7 @@ static void test_build_queue_three_items_linked(void) {
 static void test_quest_make_non_null(void) {
     LPQUEST q = G_MakeQuest();
     ASSERT_NOT_NULL(q);
+    G_RemoveQuest(q);
 }
 
 static void test_quest_fields_default_false(void) {
@@ -366,26 +386,28 @@ static void test_quest_fields_default_false(void) {
     ASSERT(!q->discovered);
     ASSERT(!q->required);
     ASSERT(!q->enabled);
+    G_RemoveQuest(q);
 }
 
 static void test_quest_set_title(void) {
     LPQUEST q = G_MakeQuest();
     q->title = strdup("Defeat the Lich King");
     ASSERT_STR_EQ(q->title, "Defeat the Lich King");
-    free(q->title);
-    q->title = NULL;
+    G_RemoveQuest(q);
 }
 
 static void test_quest_set_completed(void) {
     LPQUEST q = G_MakeQuest();
     q->completed = true;
     ASSERT(q->completed);
+    G_RemoveQuest(q);
 }
 
 static void test_quest_set_failed(void) {
     LPQUEST q = G_MakeQuest();
     q->failed = true;
     ASSERT(q->failed);
+    G_RemoveQuest(q);
 }
 
 static void test_quest_remove_clears_from_list(void) {
@@ -461,6 +483,7 @@ BEGIN_SUITE(combat)
     /* player_pay */
     RUN_TEST(test_player_pay_deducts_gold);
     RUN_TEST(test_player_pay_insufficient_gold_fails);
+    RUN_TEST(test_player_pay_insufficient_lumber_fails);
     RUN_TEST(test_player_pay_null_player_fails);
 
     /* unit_add_build_queue */

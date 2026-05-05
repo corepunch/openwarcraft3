@@ -228,7 +228,7 @@ static void test_runwait_small_wait_triggers_callback(void) {
 static void test_issuetargetorder_attack_returns_true(void) {
     LPEDICT unit   = make_test_unit();
     LPEDICT target = alloc_test_unit(UNIT_ID("hfoo"), 50.0f, 0.0f);
-    /* order_attack is stubbed in test_harness.c — just verify return value. */
+    /* order_attack is the real implementation from s_attack.c — just verify return value. */
     BOOL result = unit_issuetargetorder(unit, "attack", target);
     ASSERT(result);
 }
