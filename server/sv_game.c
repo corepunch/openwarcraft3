@@ -74,6 +74,7 @@ void PF_WriteEntity(LPCENTITYSTATE ent) {
 }
 
 void PF_WriteUIFrame(LPCUIFRAME frame) {
+    DWORD before = sv.multicast.cursize;
     uiFrame_t empty;
     memset(&empty, 0, sizeof(uiFrame_t));
     empty.tex.coord[1] = 0xff;
@@ -81,6 +82,10 @@ void PF_WriteUIFrame(LPCUIFRAME frame) {
     MSG_WriteDeltaUIFrame(&sv.multicast, &empty, frame, true);
     MSG_WriteByte(&sv.multicast, frame->buffer.size);
     MSG_Write(&sv.multicast, frame->buffer.data, frame->buffer.size);
+    if (sv.multicast.cursize >= before) {
+        extern DWORD layoutBytesWritten;
+        layoutBytesWritten += sv.multicast.cursize - before;
+    }
 }
 
 void PF_Confignstring(DWORD index, LPCSTR value, DWORD len) {

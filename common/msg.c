@@ -116,7 +116,11 @@ netField_t playerStateFields[] = {
 //#include <pthread.h>
 void MSG_Write(LPSIZEBUF buf, LPCVOID value, DWORD size) {
     if (buf->cursize + size > buf->maxsize) {
-        fprintf(stderr, "Write buffer overflow\n");
+        fprintf(stderr,
+                "Write buffer overflow (msg): size=%u cursize=%u maxsize=%u\n",
+                (unsigned)size,
+                (unsigned)buf->cursize,
+                (unsigned)buf->maxsize);
         return;
     }
     memcpy(buf->data + buf->cursize, value, size);

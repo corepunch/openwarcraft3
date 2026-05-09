@@ -10,12 +10,19 @@ void SV_CreateBaseline(void) {
     }
 }
 
+static void SV_InitMulticast(void) {
+    if (sv.multicast.maxsize == 0) {
+        SZ_Init(&sv.multicast, sv.multicast_buf, MAX_MSGLEN);
+    }
+}
+
 void SV_ClientConnect(void) {
     // Reuse slot 0 if it already holds a loopback client (e.g. repeated SV_Map
     // calls without a full SV_Shutdown in between).
     if (svs.num_clients > 0 &&
         svs.clients[0].netchan.remote_address.type == NA_LOOPBACK) {
         netadr_t adr = { NA_LOOPBACK };
+        SV_InitMulticast();
         Netchan_OutOfBandPrint(NS_SERVER, adr, "client_connect");
         return;
     }
@@ -27,6 +34,7 @@ void SV_ClientConnect(void) {
     LPCLIENT cl = &svs.clients[svs.num_clients];
     svs.num_clients++;
     cl->state = cs_connected;
+    SV_InitMulticast();
     // Local client uses the in-process loopback path
     memset(&cl->netchan.remote_address, 0, sizeof(cl->netchan.remote_address));
     cl->netchan.remote_address.type = NA_LOOPBACK;
@@ -65,6 +73,7 @@ void SV_DirectConnect(const netadr_t *from) {
     LPCLIENT cl = &svs.clients[svs.num_clients];
     svs.num_clients++;
     cl->state = cs_connected;
+    SV_InitMulticast();
     cl->netchan.remote_address = *from;
     SZ_Init(&cl->netchan.message, cl->netchan.message_buf, MAX_MSGLEN);
     Netchan_OutOfBandPrint(NS_SERVER, *from, "client_connect");

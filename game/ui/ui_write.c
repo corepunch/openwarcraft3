@@ -57,6 +57,7 @@ DEST[3] = SRC.max.y * 0xff;
 
 static LPCFRAMEDEF framesWritten[MAX_FRAMES_WRITE];
 LPCFRAMEDEF *frameptr = framesWritten;
+DWORD layoutBytesWritten = 0;
 
 typedef struct sizeBuf_s *LPSIZEBUF;
 
@@ -69,7 +70,7 @@ typedef struct sizeBuf_s {
 
 void MSG_Write(LPSIZEBUF buf, LPCVOID value, DWORD size) {
     if (buf->cursize + size > buf->maxsize) {
-        fprintf(stderr, "Write buffer overflow\n");
+        fprintf(stderr, "Write buffer overflow (ui)\n");
         return;
     }
     memcpy(buf->data + buf->cursize, value, size);
@@ -354,6 +355,7 @@ void UI_WriteStart(DWORD layer) {
     gi.WriteByte(svc_layout);
     gi.WriteByte(layer);
     frameptr = framesWritten;
+    layoutBytesWritten = 0;
 }
 
 /* Serialize the complete frame tree rooted at root and unicast the resulting
@@ -364,4 +366,8 @@ void UI_WriteLayout(LPEDICT ent, LPCFRAMEDEF root, DWORD layer) {
     UI_WriteFrameWithChildren(root, NULL);
     gi.WriteLong(0); // end of list
     gi.unicast(ent);
+    fprintf(stderr, "UI_WriteLayout: layer=%u bytes=%u frames=%td\n",
+            (unsigned)layer,
+            (unsigned)layoutBytesWritten,
+            frameptr - framesWritten);
 }
