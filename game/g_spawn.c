@@ -89,9 +89,9 @@ static void SP_SpawnDoodad(LPEDICT edict) {
     LPCSTR file = gi.FindSheetCell(Doodads, class_id, "file");
     PATHSTR buffer;
     if (dir) {
-        sprintf(buffer, "%s\\%s\\%s%d.mdx", dir, file, file, edict->variation);
+        snprintf(buffer, sizeof(buffer), "%s\\%s\\%s%d.mdx", dir, file, file, edict->variation);
     } else {
-        sprintf(buffer, "%s%d.mdx", file, edict->variation);
+        snprintf(buffer, sizeof(buffer), "%s%d.mdx", file, edict->variation);
     }
     edict->s.model = gi.ModelIndex(buffer);
     edict->movetype = MOVETYPE_NONE;
@@ -101,12 +101,12 @@ static void SP_SpawnDestructable(LPEDICT edict) {
     LPCSTR dir = DESTRUCTABLE_DIRECTORY(edict->class_id);
     LPCSTR file = DESTRUCTABLE_FILE(edict->class_id);
     PATHSTR buffer;
-    sprintf(buffer, "%s.blp", DESTRUCTABLE_TEXTURE(edict->class_id));
+    snprintf(buffer, sizeof(buffer), "%s.blp", DESTRUCTABLE_TEXTURE(edict->class_id));
     edict->s.image = gi.ImageIndex(buffer);
     if (dir) {
-        sprintf(buffer, "%s\\%s\\%s%d.mdx", dir, file, file, edict->variation);
+        snprintf(buffer, sizeof(buffer), "%s\\%s\\%s%d.mdx", dir, file, file, edict->variation);
     } else {
-        sprintf(buffer, "%s%d.mdx", file, edict->variation);
+        snprintf(buffer, sizeof(buffer), "%s%d.mdx", file, edict->variation);
     }
     edict->s.model = gi.ModelIndex(buffer);
     edict->s.radius = 50;//destr->radius;
