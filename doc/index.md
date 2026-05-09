@@ -23,7 +23,7 @@ You can also download the latest build artifact from the [CI workflow runs](http
 ### 1. Clone
 
 ```bash
-git clone --recurse-submodules git@github.com:corepunch/openwarcraft3.git
+git clone git@github.com:corepunch/openwarcraft3.git
 cd openwarcraft3
 ```
 
@@ -69,21 +69,6 @@ Downloads a ~1.2 GB installer from `archive.org` into the `data/` folder. Skip t
 
 ---
 
-## Advanced: Building with Premake5
-
-Premake5 can generate native project files for Visual Studio, Xcode, or GMake. Bundled binaries are in `tools/bin/`.
-
-| Platform | Command |
-|---|---|
-| Windows (VS 2022) | `tools\bin\windows\premake5.exe vs2022` |
-| macOS (Xcode) | `tools/bin/darwin/premake5 xcode4` |
-| macOS (GMake) | `tools/bin/darwin/premake5 --cc=clang gmake` |
-| Linux (GMake) | `premake5 --cc=clang gmake` *(install [premake5](https://premake.github.io/download) separately)* |
-
-Project files are generated in the `build/` folder.
-
----
-
 ## Architecture
 
 ### Client-Server Architecture
@@ -122,7 +107,7 @@ The project builds three shared libraries and one executable:
 3. **libgame** — server-side game logic; depends on `libcmath3`
 4. **openwarcraft3** — main executable linking all three libraries plus SDL2 and StormLib
 
-The build is driven by a `Makefile` for Linux/macOS and a `premake5.lua` that can generate Visual Studio 2022, Xcode, or GMake project files.
+The build is driven by a `Makefile` for Linux/macOS.
 
 ## External Dependencies
 
