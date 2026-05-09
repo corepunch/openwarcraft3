@@ -176,6 +176,16 @@ static void Init_MapSelectMenu(void) {
     UI_FRAME(Mission2Button);
     UI_FRAME(Mission1Button);
     UI_FRAME(Mission0Button);
+    (void)Mission9Button;
+    (void)Mission8Button;
+    (void)Mission7Button;
+    (void)Mission6Button;
+    (void)Mission5Button;
+    (void)Mission4Button;
+    (void)Mission3Button;
+    (void)Mission2Button;
+    (void)Mission1Button;
+    (void)Mission0Button;
 
     UI_SetOnClick(BackButton, "menu singleplayer");
     UI_SetOnClick(Mission13Button, "menu load Maps\\Campaign\\Human02.w3m");

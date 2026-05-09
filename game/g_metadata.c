@@ -1,14 +1,5 @@
 #include "g_local.h"
 #include "g_metadata.h"
-#include <sys/time.h>
-
-static double NowSeconds(void)
-{
-    struct timeval tv;
-
-    gettimeofday(&tv, NULL);
-    return (double)tv.tv_sec + (double)tv.tv_usec / 1000000.0;
-}
 
 typedef struct sheet_tail_cache_entry_s {
     sheetRow_t *rows;

@@ -44,7 +44,6 @@ LPTEXTURE R_LoadTexture(LPCSTR textureFilename) {
         return R_AllocateSinglePixelTexture(0xffffffff);
     }
     DWORD fileSize = SFileGetFileSize(file, NULL);
-    fprintf(stderr, "R_LoadTexture: %s size=%u\n", textureFilename, (unsigned)fileSize);
     HANDLE buffer = ri.MemAlloc(fileSize);
     SFileReadFile(file, buffer, fileSize, NULL, NULL);
     switch (*(DWORD *)buffer) {
@@ -85,7 +84,6 @@ LPMODEL R_LoadModel(LPCSTR modelFilename) {
         }
     }
     DWORD fileSize = SFileGetFileSize(file, NULL);
-    fprintf(stderr, "R_LoadModel: %s size=%u\n", modelFilename, (unsigned)fileSize);
     void *buffer = ri.MemAlloc(fileSize);
     SFileReadFile(file, buffer, fileSize, NULL, NULL);
     ri.FileClose(file);
