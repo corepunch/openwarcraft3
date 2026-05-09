@@ -27,7 +27,7 @@ else
     EXE_EXT :=
     ifeq ($(UNAME_S),Darwin)
 		ARCH ?= arm64
-        ifeq ($(shell uname -m),arm64)
+		ifeq ($(ARCH),arm64)
             HOMEBREW_PREFIX := /opt/homebrew
         else
             HOMEBREW_PREFIX := /usr/local
@@ -57,6 +57,7 @@ CMATH3_LIB   := $(LIB_DIR)/libcmath3$(LIB_EXT)
 RENDERER_LIB := $(LIB_DIR)/librenderer$(LIB_EXT)
 GAME_LIB     := $(LIB_DIR)/libgame$(LIB_EXT)
 BINARY       := $(BIN_DIR)/openwarcraft3$(EXE_EXT)
+MPQ_TOOL     := $(BIN_DIR)/mpqtool$(EXE_EXT)
 
 # Unity-build helper: pipe all .c files in a directory tree as #include
 # directives to gcc's stdin so the whole module is one translation unit.
@@ -65,13 +66,18 @@ BINARY       := $(BIN_DIR)/openwarcraft3$(EXE_EXT)
 UNITY = find $1 -name '*.c' $2 | sort | awk '{printf "\043include \"%s\"\n", $$0}'
 
 default: build
-build: cmath3 renderer game openwarcraft3
+build: cmath3 renderer game openwarcraft3 mpqtool
 cmath3:      $(CMATH3_LIB)
 renderer:    $(RENDERER_LIB)
 game:        $(GAME_LIB)
 openwarcraft3: $(BINARY)
+mpqtool:     $(MPQ_TOOL)
 run:
 	$(BINARY) -mpq=$(MPQ) -map=$(MAP)
+
+$(MPQ_TOOL): tools/mpqtool.c | $(BIN_DIR)
+	@echo "[mpqtool]"
+	$(CC) $(CFLAGS) -o $@ $< $(LDFLAGS) -lstorm
 
 $(BIN_DIR) $(LIB_DIR):
 	@mkdir -p $@
@@ -167,4 +173,4 @@ test: | $(BIN_DIR)
 		$(shell find cmath3 -name '*.c') -lm
 	$(BIN_DIR)/test_openwarcraft3$(EXE_EXT)
 
-.PHONY: default build cmath3 renderer game openwarcraft3 run clean download test
+.PHONY: default build cmath3 renderer game openwarcraft3 mpqtool run clean download test

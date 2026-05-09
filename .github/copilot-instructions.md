@@ -21,3 +21,15 @@ This codebase is inspired by **Quake 2**. The developer working on this project 
 ## Domain
 
 - This is a **real-time strategy game** (RTS), so game logic should account for unit management, pathfinding, resource gathering, building construction, and large numbers of entities — adapted from the Quake 2 entity/server model where applicable.
+
+## MPQ Inspection Workflow
+
+- When investigating Warcraft III assets, prefer using the local CLI utility `build/bin/mpqtool` instead of guessing file paths.
+- Use `ls` mode to browse archive structure incrementally:
+	- `build/bin/mpqtool -mpq <path-to-mpq> ls`
+	- `build/bin/mpqtool -mpq <path-to-mpq> ls <subdir>`
+- Use `cat` mode to dump file contents to stdout so output can be piped or redirected:
+	- `build/bin/mpqtool -mpq <path-to-mpq> cat <archive-file>`
+	- Example with redirect: `build/bin/mpqtool -mpq <path-to-mpq> cat Scripts/war3map.j > /tmp/war3map.j`
+- Normalize slashes as needed when querying paths; both `\` and `/` are accepted by the tool input.
+- For agent workflows, default to this tool whenever you need to discover MPQ contents, inspect text assets, or extract raw file bytes for analysis.
