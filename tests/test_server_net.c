@@ -50,10 +50,11 @@ static int open_client_socket(void) {
 
 static void send_connect_oob(int sock, unsigned short server_port) {
     enum {
+        MAX_CONNECT_DATAGRAM_SIZE = 64,
         OOB_HEADER_SIZE = 4,
         CONNECT_TEXT_SIZE = 7
     };
-    BYTE datagram[64];
+    BYTE datagram[MAX_CONNECT_DATAGRAM_SIZE];
     DWORD msg_len = OOB_HEADER_SIZE + CONNECT_TEXT_SIZE; /* -1 + "connect" */
     DWORD packet_len = 4 + msg_len; /* net packet header + payload */
     int oob_marker = -1;
@@ -74,31 +75,38 @@ static void send_connect_oob(int sock, unsigned short server_port) {
 }
 
 static BOOL recv_client_connect_oob(int sock) {
+    enum {
+        MAX_RECV_RETRIES = 40,
+        RECV_POLL_DELAY_US = 5000
+    };
     BYTE datagram[128];
     struct sockaddr_in from;
     socklen_t fromlen = sizeof(from);
     int flags = fcntl(sock, F_GETFL, 0);
     fcntl(sock, F_SETFL, flags | O_NONBLOCK);
 
-    FOR_LOOP(i, 40) {
+    FOR_LOOP(i, MAX_RECV_RETRIES) {
         int r = recvfrom(sock, datagram, sizeof(datagram), 0, (struct sockaddr *)&from, &fromlen);
         if (r > 0) {
             if (r >= 4 + 4 + 14 && memcmp(datagram + 8, "client_connect", 14) == 0)
                 return true;
             return false;
         }
-        usleep(5000);
+        usleep(RECV_POLL_DELAY_US);
     }
     return false;
 }
 
 static void pump_server_connects(void) {
-    enum { MIN_CONNECT_MSG_SIZE = 11 }; /* -1 marker (4) + "connect" (7) */
+    enum {
+        MAX_PACKETS_PER_PUMP = 64,
+        MIN_CONNECT_MSG_SIZE = 11 /* -1 marker (4) + "connect" (7) */
+    };
     BYTE msg_buf[MAX_MSGLEN];
     sizeBuf_t msg = { msg_buf, MAX_MSGLEN, 0, 0 };
     netadr_t from;
     int r;
-    FOR_LOOP(i, 64) {
+    FOR_LOOP(i, MAX_PACKETS_PER_PUMP) {
         r = NET_GetPacket(NS_SERVER, &from, &msg);
         if (!r)
             break;
