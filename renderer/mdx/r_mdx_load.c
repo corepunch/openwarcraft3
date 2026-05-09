@@ -101,6 +101,9 @@ DWORD GetModelKeyFrameSize(MODELKEYTRACKDATATYPE dataType,
 }
 
 DWORD R_ModelFindBiggestGroup(mdxGeoset_t const *geoset) {
+    if (!geoset || !geoset->matrixGroupSizes || geoset->num_matrixGroupSizes <= 0) {
+        return 0;
+    }
     DWORD biggest = 0;
     FOR_LOOP(i, geoset->num_matrixGroupSizes) {
         biggest = MAX(geoset->matrixGroupSizes[i], biggest);
@@ -117,29 +120,55 @@ void R_SetupGeosetVertexBuffer(mdxGeoset_t *geoset) {
     
     typedef BYTE matrixGroup_t[MAX_SKIN_BONES];
     mdxVertexSkin_t *vertices = ri.MemAlloc(sizeof(mdxVertexSkin_t) * geoset->num_vertices);
-    matrixGroup_t *matrixGroups = ri.MemAlloc(sizeof(matrixGroup_t) * geoset->num_matrixGroupSizes);
+    DWORD matrixGroupCount = geoset->num_matrixGroupSizes > 0 && geoset->matrixGroupSizes && geoset->matrices
+        ? (DWORD)geoset->num_matrixGroupSizes
+        : 1;
+    matrixGroup_t *matrixGroups = ri.MemAlloc(sizeof(matrixGroup_t) * matrixGroupCount);
     DWORD indexOffset = 0;
 
-    FOR_LOOP(matrixGroupIndex, geoset->num_matrixGroupSizes) {
+    FOR_LOOP(matrixGroupIndex, matrixGroupCount) {
         memset(&matrixGroups[matrixGroupIndex], 0xff, sizeof(matrixGroup_t));
-        FOR_LOOP(matrixIndex, geoset->matrixGroupSizes[matrixGroupIndex]) {
+        if (matrixGroupCount == 1 && (!geoset->matrixGroupSizes || !geoset->matrices || geoset->num_matrixGroupSizes <= 0)) {
+            matrixGroups[matrixGroupIndex][0] = 0;
+            continue;
+        }
+        DWORD groupSize = geoset->matrixGroupSizes[matrixGroupIndex];
+        if (groupSize > MAX_SKIN_BONES) {
+            groupSize = MAX_SKIN_BONES;
+        }
+        FOR_LOOP(matrixIndex, groupSize) {
             matrixGroups[matrixGroupIndex][matrixIndex] = geoset->matrices[indexOffset++];
         }
     }
 
     FOR_LOOP(vertex, geoset->num_vertices) {
-        DWORD matrixGroupIndex = geoset->vertexGroups[vertex];
-        DWORD matrixGroupSize = MAX(1, geoset->matrixGroupSizes[matrixGroupIndex]);
+        DWORD matrixGroupIndex = 0;
+        DWORD matrixGroupSize = 1;
         BYTE leftover = 0xff;
-        BYTE leftoversize = matrixGroupSize;
+        BYTE leftoversize = 1;
+        if (geoset->vertexGroups && geoset->matrixGroupSizes && geoset->num_matrixGroupSizes > 0) {
+            matrixGroupIndex = (BYTE)geoset->vertexGroups[vertex];
+            if (matrixGroupIndex >= matrixGroupCount) {
+                matrixGroupIndex = matrixGroupCount - 1;
+            }
+            matrixGroupSize = MAX(1, geoset->matrixGroupSizes[matrixGroupIndex]);
+            if (matrixGroupSize > MAX_SKIN_BONES) {
+                matrixGroupSize = MAX_SKIN_BONES;
+            }
+            leftoversize = matrixGroupSize;
+        }
         BYTE *matrixGroup = matrixGroups[matrixGroupIndex];
         memcpy(vertices[vertex].skin, matrixGroup, sizeof(matrixGroup_t));
         memset(vertices[vertex].boneWeight, 0, sizeof(matrixGroup_t));
-        FOR_LOOP(matrixIndex, matrixGroupSize) {
-            BYTE value = (float)leftover / (float)leftoversize;
-            vertices[vertex].boneWeight[matrixIndex] = value;
-            leftover = MAX(0, leftover - value);
-            leftoversize = MAX(1, leftoversize - 1);
+        if (matrixGroupCount == 1 && matrixGroup[0] == 0) {
+            vertices[vertex].boneWeight[0] = 255;
+        } else {
+            FOR_LOOP(matrixIndex, matrixGroupSize) {
+                BYTE value = (float)leftover / (float)leftoversize;
+                vertices[vertex].boneWeight[matrixIndex] = value;
+                leftover = MAX(0, leftover - value);
+                leftoversize = MAX(1, leftoversize - 1);
+            }
         }
     }
     R_Call(glGenVertexArrays, 1, &geoset->vertexArrayBuffer);
