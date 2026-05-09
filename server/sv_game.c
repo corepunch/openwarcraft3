@@ -269,18 +269,22 @@ static struct cmodel *SV_LoadModelMDLX(HANDLE file) {
     struct cmodel *model = MemAlloc(sizeof(struct cmodel));
     DWORD fileSize = SFileGetFileSize(file, NULL);
     DWORD payloadSize = fileSize > 4 ? fileSize - 4 : 0;
-    BYTE *payload = MemAlloc(payloadSize);
+    BYTE *payload = NULL;
     BYTE *ptr;
     BYTE *end;
 
     if (payloadSize > 0) {
-        SFileReadFile(file, payload, payloadSize, NULL, NULL);
+        DWORD bytesRead = 0;
+        payload = MemAlloc(payloadSize);
+        SFileReadFile(file, payload, payloadSize, &bytesRead, NULL);
+        payloadSize = bytesRead;
     }
     ptr = payload;
     end = payload + payloadSize;
-    while (ptr + 8 <= end) {
-        DWORD header = *(DWORD *)ptr;
-        DWORD size = *(DWORD *)(ptr + 4);
+    while (ptr && ptr + 8 <= end) {
+        DWORD header, size;
+        memcpy(&header, ptr, sizeof(DWORD));
+        memcpy(&size, ptr + 4, sizeof(DWORD));
         ptr += 8;
         if (ptr + size > end) {
             size = (DWORD)(end - ptr);

@@ -2,6 +2,7 @@
 #include "../server/server.h"
 
 #include <SDL2/SDL.h>
+#include <stdlib.h>
 
 #define USAGE \
 "Usage:\n" \

@@ -83,6 +83,7 @@ void SV_Map(LPCSTR mapFilename) {
     fprintf(stderr, "SV_Map: loading collision/map data\n");
     if (!CM_LoadMap(mapFilename)) {
         fprintf(stderr, "SV_Map: map load failed\n");
+        sv.state = ss_dead;
         return;
     }
     fprintf(stderr, "SV_Map: collision/map data loaded\n");

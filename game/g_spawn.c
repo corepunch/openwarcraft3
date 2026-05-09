@@ -187,7 +187,6 @@ void G_SpawnEntities(LPCMAPINFO mapinfo, LPCDOODAD entities) {
 
     globals.num_edicts = game.max_clients;
 
-    DWORD spawned = 0;
     FOR_EACH_LIST(DOODAD const, doodad, entities) {
 //        if (doodad->doodID == MAKEFOURCC('h', 'C', '0', '2')) {
 //            int a=0;
@@ -203,7 +202,6 @@ void G_SpawnEntities(LPCMAPINFO mapinfo, LPCDOODAD entities) {
         ent->s.scale = doodad->scale.x;
         SP_CallSpawn(ent);
         gi.LinkEntity(ent);
-        spawned++;
     }
     SP_worldspawn(NULL);
     
