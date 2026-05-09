@@ -1,6 +1,7 @@
 #include "mpq.h"
 
 #include "common.h"
+#include <ctype.h>
 
 bool ParserDone(parser_t *p) {
     return !*p->str || p->error;

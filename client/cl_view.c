@@ -193,7 +193,7 @@ void CL_PrepRefresh(void) {
     }
 
     if (Com_InMenuMode() && !menu_preview_model) {
-        menu_preview_model = re.LoadModel("units\\orc\\Peon\\Peon.mdx");
+        menu_preview_model = re.LoadModel("UI\\Glues\\MainMenu\\MainMenu3d\\MainMenu3d.mdx");
         if (!menu_preview_model) {
             menu_preview_model = re.LoadModel("units\\human\\Peasant\\Peasant.mdx");
         }

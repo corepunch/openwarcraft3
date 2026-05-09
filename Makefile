@@ -58,6 +58,7 @@ RENDERER_LIB := $(LIB_DIR)/librenderer$(LIB_EXT)
 GAME_LIB     := $(LIB_DIR)/libgame$(LIB_EXT)
 BINARY       := $(BIN_DIR)/openwarcraft3$(EXE_EXT)
 MPQ_TOOL     := $(BIN_DIR)/mpqtool$(EXE_EXT)
+MDX_TOOL     := $(BIN_DIR)/mdxtool$(EXE_EXT)
 MPQ_TEST     := $(BIN_DIR)/test_mpq_compat$(EXE_EXT)
 
 # Unity-build helper: pipe all .c files in a directory tree as #include
@@ -67,12 +68,13 @@ MPQ_TEST     := $(BIN_DIR)/test_mpq_compat$(EXE_EXT)
 UNITY = find $1 -name '*.c' $2 | sort | awk '{printf "\043include \"%s\"\n", $$0}'
 
 default: build
-build: shared renderer game openwarcraft3 mpqtool
+build: shared renderer game openwarcraft3 mpqtool mdxtool
 shared:      $(SHARED_LIB)
 renderer:    $(RENDERER_LIB)
 game:        $(GAME_LIB)
 openwarcraft3: $(BINARY)
 mpqtool:     $(MPQ_TOOL)
+mdxtool:     $(MDX_TOOL)
 run:
 	$(BINARY) -mpq=$(MPQ)
 
@@ -82,6 +84,11 @@ run-map:
 $(MPQ_TOOL): tools/mpqtool.c common/mpq.c common/mpq.h | $(BIN_DIR)
 	@echo "[mpqtool]"
 	$(CC) $(CFLAGS) -o $@ $< common/mpq.c $(LDFLAGS) -lm -lz
+
+$(MDX_TOOL): tools/mdxtool.c common/mpq.c common/sheet.c common/parser.c | $(BIN_DIR) $(SHARED_LIB) $(RENDERER_LIB)
+	@echo "[mdxtool]"
+	$(CC) $(CFLAGS) -o $@ $< common/mpq.c common/sheet.c common/parser.c \
+		$(RPATH) $(LDFLAGS) -lshared -lrenderer $(LIBS) -lm -lz
 
 $(MPQ_TEST): tests/test_mpq_compat.c common/mpq.c common/mpq.h | $(BIN_DIR)
 	@echo "[mpq-compat-test]"
@@ -184,4 +191,4 @@ test: | $(BIN_DIR)
 test-mpq-compat: mpqtool $(MPQ_TEST)
 	$(MPQ_TEST) -mpq=$(MPQ)
 
-.PHONY: default build shared renderer game openwarcraft3 mpqtool run run-map clean download test test-mpq-compat
+.PHONY: default build shared renderer game openwarcraft3 mpqtool mdxtool run run-map clean download test test-mpq-compat
