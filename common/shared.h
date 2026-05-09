@@ -41,11 +41,7 @@ typedef struct STRUCT const *LPC##TYPE;
 #define FOR_LOOP(property, max) \
 for (DWORD property = 0, end = max; property < end; ++property)
 
-#define PrintTag(tag) \
-do { \
-LPSTR ch = (char*)&tag; \
-printf("%c%c%c%c\n", ch[0], ch[1], ch[2], ch[3]); \
-} while(false);
+#define PrintTag(tag) do { (void)(tag); } while(false)
 
 #define FOR_EACH_LIST(type, property, list) \
 for (type *property = list, *next = list ? (list)->next : NULL; \

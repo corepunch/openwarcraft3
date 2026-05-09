@@ -1,13 +1,4 @@
-#include <sys/time.h>
 #include "r_local.h"
-
-static double NowSecondsShader(void)
-{
-    struct timeval tv;
-
-    gettimeofday(&tv, NULL);
-    return (double)tv.tv_sec + (double)tv.tv_usec / 1000000.0;
-}
 
 LPCSTR vs_default =
 "#version 140\n"
@@ -124,27 +115,15 @@ LPCSTR fs_commandbutton =
 "}\n";
 
 LPSHADER R_InitShader(LPCSTR vs_default, LPCSTR fs_default){
-    double start = NowSecondsShader();
-    fprintf(stderr, "R_InitShader: begin\n");
-    fprintf(stderr, "R_InitShader: glCreateShader(vertex) begin\n");
     GLuint vs = R_Call(glCreateShader, GL_VERTEX_SHADER);
-    fprintf(stderr, "R_InitShader: glCreateShader(vertex) done %.3f s\n", NowSecondsShader() - start);
-    fprintf(stderr, "R_InitShader: glCreateShader(fragment) begin\n");
     GLuint fs = R_Call(glCreateShader, GL_FRAGMENT_SHADER);
-    fprintf(stderr, "R_InitShader: glCreateShader(fragment) done %.3f s\n", NowSecondsShader() - start);
 
     int length = (int)strlen(vs_default);
-    fprintf(stderr, "R_InitShader: vertex source begin\n");
     R_Call(glShaderSource, vs, 1, (const GLchar **)&vs_default, &length);
-    fprintf(stderr, "R_InitShader: vertex source done %.3f s\n", NowSecondsShader() - start);
-    fprintf(stderr, "R_InitShader: vertex compile begin\n");
     R_Call(glCompileShader, vs);
-    fprintf(stderr, "R_InitShader: vertex compile done %.3f s\n", NowSecondsShader() - start);
 
     GLint status;
-    fprintf(stderr, "R_InitShader: vertex status begin\n");
     R_Call(glGetShaderiv, vs, GL_COMPILE_STATUS, &status);
-    fprintf(stderr, "R_InitShader: vertex status done %.3f s\n", NowSecondsShader() - start);
     if (status == GL_FALSE) {
         GLint logLength = 0;
         glGetShaderiv(vs, GL_INFO_LOG_LENGTH, &logLength);
@@ -163,16 +142,10 @@ LPSHADER R_InitShader(LPCSTR vs_default, LPCSTR fs_default){
         return NULL;
     }
     length = (int)strlen(fs_default);
-    fprintf(stderr, "R_InitShader: fragment source begin\n");
     R_Call(glShaderSource, fs, 1, (const GLchar **)&fs_default, &length);
-    fprintf(stderr, "R_InitShader: fragment source done %.3f s\n", NowSecondsShader() - start);
-    fprintf(stderr, "R_InitShader: fragment compile begin\n");
     R_Call(glCompileShader, fs);
-    fprintf(stderr, "R_InitShader: fragment compile done %.3f s\n", NowSecondsShader() - start);
 
-    fprintf(stderr, "R_InitShader: fragment status begin\n");
     R_Call(glGetShaderiv, fs, GL_COMPILE_STATUS, &status);
-    fprintf(stderr, "R_InitShader: fragment status done %.3f s\n", NowSecondsShader() - start);
     if (status == GL_FALSE) {
         GLint logLength = 0;
         glGetShaderiv(fs, GL_INFO_LOG_LENGTH, &logLength);
@@ -192,17 +165,11 @@ LPSHADER R_InitShader(LPCSTR vs_default, LPCSTR fs_default){
     }
 
     LPSHADER program = ri.MemAlloc(sizeof(struct shader_program));
-    fprintf(stderr, "R_InitShader: program alloc done %.3f s\n", NowSecondsShader() - start);
-    fprintf(stderr, "R_InitShader: glCreateProgram begin\n");
     program->progid = R_Call(glCreateProgram, );
-    fprintf(stderr, "R_InitShader: glCreateProgram done %.3f s\n", NowSecondsShader() - start);
 
-    fprintf(stderr, "R_InitShader: attach shaders begin\n");
     R_Call(glAttachShader, program->progid, vs);
     R_Call(glAttachShader, program->progid, fs);
-    fprintf(stderr, "R_InitShader: attach shaders done %.3f s\n", NowSecondsShader() - start);
 
-    fprintf(stderr, "R_InitShader: bind attribs begin\n");
     R_Call(glBindAttribLocation, program->progid, attrib_position, "i_position");
     R_Call(glBindAttribLocation, program->progid, attrib_color, "i_color");
     R_Call(glBindAttribLocation, program->progid, attrib_texcoord, "i_texcoord");
@@ -213,14 +180,9 @@ LPSHADER R_InitShader(LPCSTR vs_default, LPCSTR fs_default){
     R_Call(glBindAttribLocation, program->progid, attrib_boneWeight2, "i_boneWeight2");
     R_Call(glBindAttribLocation, program->progid, attrib_particleSize, "i_size");
     R_Call(glBindAttribLocation, program->progid, attrib_particleAxis, "i_axis");
-    fprintf(stderr, "R_InitShader: bind attribs done %.3f s\n", NowSecondsShader() - start);
 
-    fprintf(stderr, "R_InitShader: link begin\n");
     R_Call(glLinkProgram, program->progid);
-    fprintf(stderr, "R_InitShader: link done %.3f s\n", NowSecondsShader() - start);
-    fprintf(stderr, "R_InitShader: use begin\n");
     R_Call(glUseProgram, program->progid);
-    fprintf(stderr, "R_InitShader: use done %.3f s\n", NowSecondsShader() - start);
     
 #define R_RegisterUniform(PROGRAM, NAME) PROGRAM->NAME = glGetUniformLocation(PROGRAM->progid, #NAME);
 
@@ -240,7 +202,6 @@ LPSHADER R_InitShader(LPCSTR vs_default, LPCSTR fs_default){
     R_Call(glUniform1i, program->uTexture, 0);
     R_Call(glUniform1i, program->uShadowmap, 1);
     R_Call(glUniform1i, program->uFogOfWar, 2);
-    fprintf(stderr, "R_InitShader: complete %.3f s\n", NowSecondsShader() - start);
 
     return program;
 }

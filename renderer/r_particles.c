@@ -1,4 +1,3 @@
-#include <sys/time.h>
 #include "r_local.h"
 
 #define NUM_PARTICLE_VERTICES 6
@@ -19,14 +18,6 @@ static struct {
     LPTEXTURE texture;
     particleVertex_t vertices[MAX_PARTICLES * NUM_PARTICLE_VERTICES];
 } particles_resources = { 0 };
-
-static double NowSecondsParticles(void)
-{
-    struct timeval tv;
-
-    gettimeofday(&tv, NULL);
-    return (double)tv.tv_sec + (double)tv.tv_usec / 1000000.0;
-}
 
 cparticle_t *active_particles, *free_particles;
 cparticle_t particles[MAX_PARTICLES];
@@ -216,40 +207,24 @@ void R_DrawParticles(void) {
 }
 
 static LPBUFFER R_MakeParticlesVertexArrayObject(void) {
-    double start = NowSecondsParticles();
-    fprintf(stderr, "R_MakeParticlesVertexArrayObject: begin\n");
     LPBUFFER buf = ri.MemAlloc(sizeof(BUFFER));
 
-    fprintf(stderr, "R_MakeParticlesVertexArrayObject: glGenVertexArrays begin\n");
     R_Call(glGenVertexArrays, 1, &buf->vao);
-    fprintf(stderr, "R_MakeParticlesVertexArrayObject: glGenVertexArrays done %.3f s\n", NowSecondsParticles() - start);
-    fprintf(stderr, "R_MakeParticlesVertexArrayObject: glGenBuffers begin\n");
     R_Call(glGenBuffers, 1, &buf->vbo);
-    fprintf(stderr, "R_MakeParticlesVertexArrayObject: glGenBuffers done %.3f s\n", NowSecondsParticles() - start);
-    fprintf(stderr, "R_MakeParticlesVertexArrayObject: glBindVertexArray begin\n");
     R_Call(glBindVertexArray, buf->vao);
-    fprintf(stderr, "R_MakeParticlesVertexArrayObject: glBindVertexArray done %.3f s\n", NowSecondsParticles() - start);
-    fprintf(stderr, "R_MakeParticlesVertexArrayObject: glBindBuffer begin\n");
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, buf->vbo);
-    fprintf(stderr, "R_MakeParticlesVertexArrayObject: glBindBuffer done %.3f s\n", NowSecondsParticles() - start);
 
-    fprintf(stderr, "R_MakeParticlesVertexArrayObject: enable attribs begin\n");
     R_Call(glEnableVertexAttribArray, attrib_position);
     R_Call(glEnableVertexAttribArray, attrib_color);
     R_Call(glEnableVertexAttribArray, attrib_texcoord);
     R_Call(glEnableVertexAttribArray, attrib_particleSize);
     R_Call(glEnableVertexAttribArray, attrib_particleAxis);
-    fprintf(stderr, "R_MakeParticlesVertexArrayObject: enable attribs done %.3f s\n", NowSecondsParticles() - start);
     
-    fprintf(stderr, "R_MakeParticlesVertexArrayObject: attrib pointers begin\n");
     R_Call(glVertexAttribPointer, attrib_position, 3, GL_FLOAT, GL_FALSE, sizeof(struct particle_vertex), FOFS(particle_vertex, position));
     R_Call(glVertexAttribPointer, attrib_color, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(struct particle_vertex), FOFS(particle_vertex, color));
     R_Call(glVertexAttribPointer, attrib_texcoord, 2, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(struct particle_vertex), FOFS(particle_vertex, uv));
     R_Call(glVertexAttribPointer, attrib_particleSize, 1, GL_FLOAT, GL_FALSE, sizeof(struct particle_vertex), FOFS(particle_vertex, size));
     R_Call(glVertexAttribPointer, attrib_particleAxis, 2, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(struct particle_vertex), FOFS(particle_vertex, axis));
-    fprintf(stderr, "R_MakeParticlesVertexArrayObject: attrib pointers done %.3f s\n", NowSecondsParticles() - start);
-
-    fprintf(stderr, "R_MakeParticlesVertexArrayObject: complete %.3f s\n", NowSecondsParticles() - start);
     return buf;
 }
 
@@ -267,8 +242,6 @@ float dottexture[DOT_TEXTURE][DOT_TEXTURE] = {
 };
 
 void R_InitParticles(void) {
-    double start = NowSecondsParticles();
-    fprintf(stderr, "R_InitParticles: begin\n");
     COLOR32 data[DOT_TEXTURE][DOT_TEXTURE];
     FOR_LOOP(x, DOT_TEXTURE) FOR_LOOP(y, DOT_TEXTURE) {
         data[x][y].r = 0xff;
@@ -277,21 +250,12 @@ void R_InitParticles(void) {
         data[x][y].a = dottexture[x][y] * 127;
     }
     
-    fprintf(stderr, "R_InitParticles: texture begin\n");
     particles_resources.texture = R_AllocateTexture(DOT_TEXTURE, DOT_TEXTURE);
-    fprintf(stderr, "R_InitParticles: texture alloc done %.3f s\n", NowSecondsParticles() - start);
     R_LoadTextureMipLevel(particles_resources.texture, 0, (LPCCOLOR32)data, DOT_TEXTURE, DOT_TEXTURE);
-    fprintf(stderr, "R_InitParticles: texture upload done %.3f s\n", NowSecondsParticles() - start);
 
-    fprintf(stderr, "R_InitParticles: shader begin\n");
     particles_resources.shader = R_InitShader(vs_particle, fs_particle);
-    fprintf(stderr, "R_InitParticles: shader done %.3f s\n", NowSecondsParticles() - start);
-    fprintf(stderr, "R_InitParticles: vao begin\n");
     particles_resources.particles = R_MakeParticlesVertexArrayObject();
-    fprintf(stderr, "R_InitParticles: vao done %.3f s\n", NowSecondsParticles() - start);
-    fprintf(stderr, "R_InitParticles: clear begin\n");
     R_ClearParticles();
-    fprintf(stderr, "R_InitParticles: complete %.3f s\n", NowSecondsParticles() - start);
 }
 
 void R_ShutdownParticles(void) {

@@ -193,10 +193,6 @@ void M3_Read(m3Reader_t *buffer, void *dest, DWORD bytes) {
     buffer->readcount += bytes;
 }
 
-void PrintRef(m3Model_t const *model, Reference ref) {
-    printf("%.4s\n", model->refs[ref.ref].id);
-}
-
 m3Reader_t M3_MakeSizeBuf(m3Model_t const *model, Reference ref) {
     return (m3Reader_t) {
         .data = model->buffer + model->refs[ref.ref].offset,

@@ -1,4 +1,3 @@
-#include <sys/time.h>
 #include "g_local.h"
 
 #define MAX_SPAWN_ITERATIONS 10
@@ -61,14 +60,6 @@ TARGTYPE G_GetTargetType(LPCSTR str) {
 
 extern sheetRow_t *Doodads;
 
-static double NowSecondsSpawn(void)
-{
-    struct timeval tv;
-
-    gettimeofday(&tv, NULL);
-    return (double)tv.tv_sec + (double)tv.tv_usec / 1000000.0;
-}
-
 void SP_monster_unit(LPEDICT edict);
 void SP_monster_tree(LPEDICT edict);
 
@@ -102,7 +93,6 @@ static void SP_SpawnDoodad(LPEDICT edict) {
     } else {
         sprintf(buffer, "%s%d.mdx", file, edict->variation);
     }
-    fprintf(stderr, "SP_SpawnDoodad: class=%.4s model=%s\n", class_id, buffer);
     edict->s.model = gi.ModelIndex(buffer);
     edict->movetype = MOVETYPE_NONE;
 }
@@ -112,14 +102,12 @@ static void SP_SpawnDestructable(LPEDICT edict) {
     LPCSTR file = DESTRUCTABLE_FILE(edict->class_id);
     PATHSTR buffer;
     sprintf(buffer, "%s.blp", DESTRUCTABLE_TEXTURE(edict->class_id));
-    fprintf(stderr, "SP_SpawnDestructable: class=%.4s image=%s\n", (const char *)&edict->class_id, buffer);
     edict->s.image = gi.ImageIndex(buffer);
     if (dir) {
         sprintf(buffer, "%s\\%s\\%s%d.mdx", dir, file, file, edict->variation);
     } else {
         sprintf(buffer, "%s%d.mdx", file, edict->variation);
     }
-    fprintf(stderr, "SP_SpawnDestructable: class=%.4s model=%s\n", (const char *)&edict->class_id, buffer);
     edict->s.model = gi.ModelIndex(buffer);
     edict->s.radius = 50;//destr->radius;
     edict->collision = 50;
@@ -141,18 +129,14 @@ void SP_CallSpawn(LPEDICT edict) {
     if (!edict->class_id)
         return;
     if (find_row(GetClassName(edict->class_id))) {
-        fprintf(stderr, "SP_CallSpawn: doodad %.4s\n", (const char *)&edict->class_id);
         SP_SpawnDoodad(edict);
     } else if (DESTRUCTABLE_FILE(edict->class_id)) {
-        fprintf(stderr, "SP_CallSpawn: destructable %.4s\n", (const char *)&edict->class_id);
         SP_SpawnDestructable(edict);
         SP_monster_tree(edict);
     } else if (UNIT_MODEL(edict->class_id)) {
-        fprintf(stderr, "SP_CallSpawn: unit %.4s\n", (const char *)&edict->class_id);
         SP_SpawnUnit(edict);
         SP_monster_unit(edict);
     } else if (ITEM_FILE(edict->class_id)) {
-        fprintf(stderr, "SP_CallSpawn: item %.4s\n", (const char *)&edict->class_id);
         SP_SpawnItem(edict);
     } else if (MAKEFOURCC('s', 'l', 'o', 'c') == edict->class_id) {
         edict->svflags |= SVF_NOCLIENT;
@@ -190,7 +174,6 @@ static void G_InitMapPlayer(LPEDICT clent, LPCMAPPLAYER player, DWORD playernum)
 }
 
 void G_SpawnEntities(LPCMAPINFO mapinfo, LPCDOODAD entities) {
-    double start = NowSecondsSpawn();
     memset(&level, 0, sizeof(level));
 
     level.mapinfo = mapinfo;
@@ -204,7 +187,6 @@ void G_SpawnEntities(LPCMAPINFO mapinfo, LPCDOODAD entities) {
 
     globals.num_edicts = game.max_clients;
 
-    fprintf(stderr, "G_SpawnEntities: begin doodad spawn\n");
     DWORD spawned = 0;
     FOR_EACH_LIST(DOODAD const, doodad, entities) {
 //        if (doodad->doodID == MAKEFOURCC('h', 'C', '0', '2')) {
@@ -219,32 +201,18 @@ void G_SpawnEntities(LPCMAPINFO mapinfo, LPCDOODAD entities) {
         ent->s.origin = doodad->position;
         ent->s.angle = doodad->angle;
         ent->s.scale = doodad->scale.x;
-        if (spawned < 20 || (spawned % 500) == 0) {
-            fprintf(stderr, "G_SpawnEntities: spawn %u class=%.4s begin %.3f s\n", (unsigned)spawned, (const char *)&ent->class_id, NowSecondsSpawn() - start);
-        }
         SP_CallSpawn(ent);
-        if (spawned < 20 || (spawned % 500) == 0) {
-            fprintf(stderr, "G_SpawnEntities: spawn %u class=%.4s done %.3f s\n", (unsigned)spawned, (const char *)&ent->class_id, NowSecondsSpawn() - start);
-        }
         gi.LinkEntity(ent);
         spawned++;
-        if ((spawned % 500) == 0) {
-            fprintf(stderr, "G_SpawnEntities: doodad spawn %u %.3f s\n", (unsigned)spawned, NowSecondsSpawn() - start);
-        }
     }
-    fprintf(stderr, "G_SpawnEntities: doodad spawn complete (%u) %.3f s\n", (unsigned)spawned, NowSecondsSpawn() - start);
     SP_worldspawn(NULL);
     
-    fprintf(stderr, "G_SpawnEntities: load common scripts %.3f s\n", NowSecondsSpawn() - start);
     jass_dofile(level.vm, "Scripts\\common.j");
     jass_dofile(level.vm, "Scripts\\Blizzard.j");
-    fprintf(stderr, "G_SpawnEntities: load map script %.3f s\n", NowSecondsSpawn() - start);
 //    jass_dofilenative(level.vm, "/Users/igor/Desktop/war3map.j");
     jass_dobuffer(level.vm, level.mapinfo->mapscript);
 
-    fprintf(stderr, "G_SpawnEntities: init UI %.3f s\n", NowSecondsSpawn() - start);
     UI_Init();
-    fprintf(stderr, "G_SpawnEntities: complete %.3f s\n", NowSecondsSpawn() - start);
 }
  
 LPEDICT SP_SpawnAtLocation(DWORD class_id, DWORD player, LPCVECTOR2 location) {

@@ -205,7 +205,6 @@ void SP_SpawnUnit(LPEDICT self) {
     LPCSTR uber_splat = UNIT_UBER_SPLAT(self->class_id);
     LPCSTR path_tex = UNIT_PATH_TEX(self->class_id);
     sprintf(model_filename, "%s.mdx", UNIT_MODEL(self->class_id));
-    fprintf(stderr, "SP_SpawnUnit: class=%.4s model=%s\n", (const char *)&self->class_id, model_filename);
     self->s.model = gi.ModelIndex(model_filename);
     self->s.splat = M_LoadUberSplat(uber_splat);
     self->s.scale = UNIT_SCALING_VALUE(self->class_id);
@@ -235,7 +234,6 @@ void SP_SpawnUnit(LPEDICT self) {
         self->attack1.origin.x = UNIT_ATTACK1_LAUNCH_X(self->class_id);
         self->attack1.origin.y = UNIT_ATTACK1_LAUNCH_Y(self->class_id);
         self->attack1.origin.z = UNIT_ATTACK1_LAUNCH_Z(self->class_id);
-        fprintf(stderr, "SP_SpawnUnit: class=%.4s projectile=%s\n", (const char *)&self->class_id, UNIT_ATTACK1_PROJECTILE_ART(self->class_id));
         self->attack1.projectile.model = gi.ModelIndex(UNIT_ATTACK1_PROJECTILE_ART(self->class_id));
         self->attack1.projectile.arc = UNIT_ATTACK1_PROJECTILE_ARC(self->class_id);
         self->attack1.projectile.speed = UNIT_ATTACK1_PROJECTILE_SPEED(self->class_id);        

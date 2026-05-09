@@ -192,8 +192,6 @@ FLOAT UnitRealField(sheetMetaData_t *metadatas, DWORD unit_id, LPCSTR name) {
 void InitUnitData(void) {
     sheetRow_t *Profile = NULL;
     sheetRow_t *profileTail = NULL;
-    double phase_start;
-    double init_start = NowSeconds();
 
     abilityConfigs = NULL;
     abilityConfigsTail = NULL;
@@ -201,12 +199,8 @@ void InitUnitData(void) {
     commandStringsConfig = NULL;
     Doodads = NULL;
     
-    fprintf(stderr, "InitUnitData: load config_files\n");
-    phase_start = NowSeconds();
     for (LPCSTR *config = config_files; *config; config++) {
-        double file_start = NowSeconds();
         sheetRow_t *current = gi.ReadConfig(*config);
-        fprintf(stderr, "InitUnitData: ReadConfig %s %.3f s\n", *config, NowSeconds() - file_start);
         if (current) {
             AppendSheetRows(&abilityConfigs, &abilityConfigsTail, current);
             if (!strcmp(*config, "Units\\CommandFunc.txt")) {
@@ -216,75 +210,24 @@ void InitUnitData(void) {
             }
         }
     }
-    fprintf(stderr, "InitUnitData: config_files total %.3f s\n", NowSeconds() - phase_start);
-    
-    fprintf(stderr, "InitUnitData: load profile_files\n");
-    phase_start = NowSeconds();
     for (LPCSTR *config = profile_files; *config; config++) {
-        fprintf(stderr, "InitUnitData: begin ReadConfig %s\n", *config);
-        double file_start = NowSeconds();
         sheetRow_t *current = gi.ReadConfig(*config);
-        fprintf(stderr, "InitUnitData: ReadConfig %s %.3f s\n", *config, NowSeconds() - file_start);
         if (current) {
-            double append_start = NowSeconds();
             AppendSheetRows(&Profile, &profileTail, current);
-            fprintf(stderr, "InitUnitData: append profile %s %.3f s\n", *config, NowSeconds() - append_start);
         }
     }
-    fprintf(stderr, "InitUnitData: profile_files total %.3f s\n", NowSeconds() - phase_start);
-    
-    fprintf(stderr, "InitUnitData: load slk tables\n");
-    phase_start = NowSeconds();
     sheetRow_t *DestructableData = gi.ReadSheet("Units\\DestructableData.slk");
-    fprintf(stderr, "InitUnitData: ReadSheet Units\\DestructableData.slk %.3f s\n", NowSeconds() - phase_start);
-    phase_start = NowSeconds();
     Doodads = gi.ReadSheet("Doodads\\Doodads.slk");
-    fprintf(stderr, "InitUnitData: ReadSheet Doodads\\Doodads.slk %.3f s\n", NowSeconds() - phase_start);
-    
-    fprintf(stderr, "InitUnitData: set metadata tables\n");
-    phase_start = NowSeconds();
     G_SetConfigTable(UnitsMetaData, "Profile", Profile);
-    {
-        fprintf(stderr, "InitUnitData: begin ReadSheet Units\\UnitAbilities.slk\n");
-        double file_start = NowSeconds();
-        G_SetConfigTable(UnitsMetaData, "UnitAbilities", gi.ReadSheet("Units\\UnitAbilities.slk"));
-        fprintf(stderr, "InitUnitData: ReadSheet Units\\UnitAbilities.slk %.3f s\n", NowSeconds() - file_start);
-    }
-    {
-        fprintf(stderr, "InitUnitData: begin ReadSheet Units\\UnitBalance.slk\n");
-        double file_start = NowSeconds();
-        G_SetConfigTable(UnitsMetaData, "UnitBalance", gi.ReadSheet("Units\\UnitBalance.slk"));
-        fprintf(stderr, "InitUnitData: ReadSheet Units\\UnitBalance.slk %.3f s\n", NowSeconds() - file_start);
-    }
-    {
-        fprintf(stderr, "InitUnitData: begin ReadSheet Units\\UnitData.slk\n");
-        double file_start = NowSeconds();
-        G_SetConfigTable(UnitsMetaData, "UnitData", gi.ReadSheet("Units\\UnitData.slk"));
-        fprintf(stderr, "InitUnitData: ReadSheet Units\\UnitData.slk %.3f s\n", NowSeconds() - file_start);
-    }
-    {
-        fprintf(stderr, "InitUnitData: begin ReadSheet Units\\UnitUI.slk\n");
-        double file_start = NowSeconds();
-        G_SetConfigTable(UnitsMetaData, "UnitUI", gi.ReadSheet("Units\\UnitUI.slk"));
-        fprintf(stderr, "InitUnitData: ReadSheet Units\\UnitUI.slk %.3f s\n", NowSeconds() - file_start);
-    }
-    {
-        fprintf(stderr, "InitUnitData: begin ReadSheet Units\\UnitWeapons.slk\n");
-        double file_start = NowSeconds();
-        G_SetConfigTable(UnitsMetaData, "UnitWeapons", gi.ReadSheet("Units\\UnitWeapons.slk"));
-        fprintf(stderr, "InitUnitData: ReadSheet Units\\UnitWeapons.slk %.3f s\n", NowSeconds() - file_start);
-    }
+    G_SetConfigTable(UnitsMetaData, "UnitAbilities", gi.ReadSheet("Units\\UnitAbilities.slk"));
+    G_SetConfigTable(UnitsMetaData, "UnitBalance", gi.ReadSheet("Units\\UnitBalance.slk"));
+    G_SetConfigTable(UnitsMetaData, "UnitData", gi.ReadSheet("Units\\UnitData.slk"));
+    G_SetConfigTable(UnitsMetaData, "UnitUI", gi.ReadSheet("Units\\UnitUI.slk"));
+    G_SetConfigTable(UnitsMetaData, "UnitWeapons", gi.ReadSheet("Units\\UnitWeapons.slk"));
     
     G_SetConfigTable(DestructableMetaData, "DestructableData", DestructableData);
     
-    {
-        fprintf(stderr, "InitUnitData: begin ReadSheet Units\\ItemData.slk\n");
-        double file_start = NowSeconds();
-        G_SetConfigTable(ItemsMetaData, "ItemData", gi.ReadSheet("Units\\ItemData.slk"));
-        fprintf(stderr, "InitUnitData: ReadSheet Units\\ItemData.slk %.3f s\n", NowSeconds() - file_start);
-    }
-    fprintf(stderr, "InitUnitData: set metadata tables total %.3f s\n", NowSeconds() - phase_start);
-    fprintf(stderr, "InitUnitData: complete %.3f s\n", NowSeconds() - init_start);
+    G_SetConfigTable(ItemsMetaData, "ItemData", gi.ReadSheet("Units\\ItemData.slk"));
 }
 
 void ShutdownUnitData(void) {

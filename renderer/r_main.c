@@ -66,7 +66,6 @@ LPTEXTURE R_LoadTexture(LPCSTR textureFilename) {
 }
 
 LPMODEL R_LoadModel(LPCSTR modelFilename) {
-    fprintf(stderr, "R_LoadModel: open %s\n", modelFilename);
     HANDLE file = ri.FileOpen(modelFilename);
     LPMODEL model = NULL;
     if (file == NULL) {
@@ -84,21 +83,17 @@ LPMODEL R_LoadModel(LPCSTR modelFilename) {
             return NULL;
         }
     }
-    fprintf(stderr, "R_LoadModel: reading %s\n", modelFilename);
     DWORD fileSize = SFileGetFileSize(file, NULL);
     void *buffer = ri.MemAlloc(fileSize);
     SFileReadFile(file, buffer, fileSize, NULL, NULL);
     ri.FileClose(file);
-    fprintf(stderr, "R_LoadModel: dispatch format %s\n", modelFilename);
     switch (*(DWORD *)buffer) {
         case ID_MDLX:
-            fprintf(stderr, "R_LoadModel: MDLX %s\n", modelFilename);
             model = ri.MemAlloc(sizeof(model_t));
             model->mdx = R_LoadModelMDLX(buffer, fileSize);
             model->modeltype = ID_MDLX;
             break;
         case ID_43DM:
-            fprintf(stderr, "R_LoadModel: M3 %s\n", modelFilename);
             model = ri.MemAlloc(sizeof(model_t));
             model->m3 = R_LoadModelM3(buffer, fileSize);
             model->modeltype = ID_43DM;

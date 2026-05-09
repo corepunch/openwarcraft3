@@ -1,16 +1,7 @@
 #include <stdarg.h>
 #include <pthread.h>
-#include <sys/time.h>
 
 #include "server.h"
-
-static double NowSecondsServerLoad(void)
-{
-    struct timeval tv;
-
-    gettimeofday(&tv, NULL);
-    return (double)tv.tv_sec + (double)tv.tv_usec / 1000000.0;
-}
 
 void PF_WriteByte(int c) { MSG_WriteByte(&sv.multicast, c); }
 void PF_WriteShort(int c) { MSG_WriteShort(&sv.multicast, c); }
@@ -282,7 +273,6 @@ static struct cmodel *SV_LoadModelMDLX(HANDLE file) {
     BYTE *ptr;
     BYTE *end;
 
-    fprintf(stderr, "SV_LoadModelMDLX: parse begin\n");
     if (payloadSize > 0) {
         SFileReadFile(file, payload, payloadSize, NULL, NULL);
     }
@@ -295,7 +285,6 @@ static struct cmodel *SV_LoadModelMDLX(HANDLE file) {
         if (ptr + size > end) {
             size = (DWORD)(end - ptr);
         }
-        fprintf(stderr, "SV_LoadModelMDLX: %.4s size=%u\n", (LPSTR)&header, (unsigned)size);
         switch (header) {
             case ID_SEQS:
                 model->animations = MemAlloc(size);
@@ -304,10 +293,6 @@ static struct cmodel *SV_LoadModelMDLX(HANDLE file) {
                 FOR_LOOP(i, model->num_animations) {
                     ConvertMDLXAnimationName(model->animations+i);
                 }
-                fprintf(stderr, "SV_LoadModelMDLX: SEQS done\n");
-                break;
-            default:
-                fprintf(stderr, "SV_LoadModelMDLX: skip %.4s done\n", (LPSTR)&header);
                 break;
         }
         ptr += size;
@@ -319,30 +304,24 @@ static struct cmodel *SV_LoadModelMDLX(HANDLE file) {
         printf("  %s %d %d\n",  anim->name, anim->interval[0], anim->interval[1]);
     }
 #endif
-    fprintf(stderr, "SV_LoadModelMDLX: complete\n");
     return model;
 }
 
 struct cmodel *SV_LoadModel(LPCSTR filename) {
-    double start = NowSecondsServerLoad();
-    fprintf(stderr, "SV_LoadModel: begin %s\n", filename);
     DWORD fileheader;
     HANDLE file = FS_OpenFile(filename);
     if (!file) {
         PATHSTR path;
         strcpy(path, filename);
         path[strlen(path)-1] = 'x';
-        if (!(file = FS_OpenFile(path))) {
-            fprintf(stderr, "SV_LoadModel: missing %s after %.3f s\n", filename, NowSecondsServerLoad() - start);
+        if (!(file = FS_OpenFile(path)))
             return NULL;
-        }
     }
 #ifdef PRINT_ANIMATIONS
     printf("%s\n", filename);
 #endif
     struct cmodel *model = NULL;
     SFileReadFile(file, &fileheader, 4, NULL, NULL);
-    fprintf(stderr, "SV_LoadModel: header read %.3f s\n", NowSecondsServerLoad() - start);
     switch (fileheader) {
         case ID_MDLX:
             model = SV_LoadModelMDLX(file);
@@ -355,7 +334,6 @@ struct cmodel *SV_LoadModel(LPCSTR filename) {
             break;
     }
     FS_CloseFile(file);
-    fprintf(stderr, "SV_LoadModel: complete %s %.3f s\n", filename, NowSecondsServerLoad() - start);
     return model;
 }
 
