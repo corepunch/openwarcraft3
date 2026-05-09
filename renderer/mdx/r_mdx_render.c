@@ -684,8 +684,10 @@ void R_DrawPortrait(LPCMODEL model, LPCRECT viewport) {
     VECTOR3 lightAngles = { 10, 270, 0 };
     renderEntity_t entity;
     viewDef_t viewdef;
+    if (!model || !model->mdx) {
+        return;
+    }
     mdxModel_t const *mdx = model->mdx;
-    if (!model->mdx) return;
     mdxSequence_t const *seq = &mdx->sequences[2];
     
     memset(&entity, 0, sizeof(renderEntity_t));
