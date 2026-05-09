@@ -202,7 +202,7 @@ static size_t make_tga_rgb_2x2(BYTE buf[static 64]) {
     return sizeof(hdr) + 4 * 3;
 }
 
-static size_t make_tga_rgba_1x1(BYTE buf[static 64], BYTE b, BYTE g, BYTE r, BYTE a) {
+static size_t make_tga_bgra_1x1(BYTE buf[static 64], BYTE b, BYTE g, BYTE r, BYTE a) {
     test_tga_hdr_t hdr = {0};
     hdr.image_type  = 2;
     hdr.width       = 1;
@@ -265,10 +265,10 @@ static void test_load_tga_rgb_2x2_dimensions(void) {
 
 static void test_load_tga_rgba_channel_order(void) {
     BYTE buf[64];
-    size_t sz = make_tga_rgba_1x1(buf, 0x00, 0x00, 0xFF, 0x7A);
+    size_t sz = make_tga_bgra_1x1(buf, 0x00, 0x00, 0xFF, 0x7A);
     pathTex_t *tex = LoadTGA(buf, sz);
     ASSERT_NOT_NULL(tex);
-    /* Pathing TGA uses BGRA bytes; red channel (no-walk) lands in COLOR32.b. */
+    /* In Warcraft pathing, red marks unwalkable cells; loader stores that byte in COLOR32.b. */
     ASSERT_EQ_INT(tex->map[0].r, 0x00);
     ASSERT_EQ_INT(tex->map[0].g, 0x00);
     ASSERT_EQ_INT(tex->map[0].b, 0xFF);
