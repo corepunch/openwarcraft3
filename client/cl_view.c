@@ -9,6 +9,7 @@ static struct {
 } view_state;
 
 static bool world_loaded = false;
+static LPMODEL menu_preview_model = NULL;
 
 VECTOR3 lightAngles = {-40,0,60};
 
@@ -39,6 +40,25 @@ void Matrix4_getLightMatrix(LPCVECTOR3 sunangles, FLOAT scale, LPMATRIX4 output)
     Matrix4_fromViewAngles(&target, sunangles, 1000, &tmp2);
     Matrix4_multiply(&tmp1, &tmp2, &view);
     Matrix4_translate(&view, &(VECTOR3){0,-500,0});
+    Matrix4_multiply(&proj, &view, output);
+}
+
+static void Matrix4_getPreviewCameraMatrix(LPCVECTOR3 target, LPMATRIX4 output) {
+    MATRIX4 proj, view;
+    size2_t windowSize = re.GetWindowSize();
+    VECTOR3 eye = { 520.0f, -420.0f, 220.0f };
+    VECTOR3 dir = Vector3_sub(target, &eye);
+    FLOAT aspect = (FLOAT)windowSize.width / (FLOAT)windowSize.height;
+
+    Matrix4_perspective(&proj, 35.0f, aspect, 10.0f, 4000.0f);
+    Matrix4_lookAt(&view, &eye, &dir, &(VECTOR3){0, 0, 1});
+    Matrix4_multiply(&proj, &view, output);
+}
+
+static void Matrix4_getPreviewLightMatrix(LPCVECTOR3 sunangles, LPCVECTOR3 target, float scale, LPMATRIX4 output) {
+    MATRIX4 proj, view;
+    Matrix4_ortho(&proj, -scale, scale, -scale, scale, -1000.0, 3000.0);
+    Matrix4_fromViewAngles(target, sunangles, 1000, &view);
     Matrix4_multiply(&proj, &view, output);
 }
 
@@ -171,6 +191,13 @@ void CL_PrepRefresh(void) {
     if (cl.configstrings[CS_HEALTHBAR] && !cl.healthbar) {
         cl.healthbar = re.LoadTexture(cl.configstrings[CS_HEALTHBAR]);
     }
+
+    if (Com_InMenuMode() && !menu_preview_model) {
+        menu_preview_model = re.LoadModel("units\\orc\\Peon\\Peon.mdx");
+        if (!menu_preview_model) {
+            menu_preview_model = re.LoadModel("units\\human\\Peasant\\Peasant.mdx");
+        }
+    }
     
     for (DWORD i = 2; i < MAX_MODELS && *cl.configstrings[CS_MODELS + i]; i++) {
         if (cl.models[i])
@@ -218,10 +245,37 @@ void V_RenderView(void) {
     
     static DWORD lastTime = 0;
     if (!world_loaded) {
+        if (!menu_preview_model) {
+            lastTime = cl.time;
+            return;
+        }
+
+        renderEntity_t entity = { 0 };
+        VECTOR3 target = { 0, 0, 90 };
+
+        cl.viewDef.viewport = (RECT) { 0, 0, 1, 1 };
+        cl.viewDef.scissor = (RECT) { 0, 0, 1, 1 };
+        cl.viewDef.time = cl.time;
+        cl.viewDef.deltaTime = cl.time - lastTime;
+        cl.viewDef.rdflags = RDF_NOWORLDMODEL | RDF_NOFRUSTUMCULL;
+        cl.viewDef.num_entities = 1;
+        cl.viewDef.entities = &entity;
+
+        entity.model = menu_preview_model;
+        entity.scale = 1;
+        entity.origin = (VECTOR3){ 0, 0, 0 };
+        entity.frame = 0;
+        entity.oldframe = 0;
+
+        Matrix4_getPreviewCameraMatrix(&target, &cl.viewDef.viewProjectionMatrix);
+        Matrix4_getPreviewLightMatrix(&lightAngles, &target, VIEW_SHADOW_SIZE, &cl.viewDef.lightMatrix);
+        Matrix4_identity(&cl.viewDef.textureMatrix);
+
+        re.RenderFrame(&cl.viewDef);
         lastTime = cl.time;
         return;
     }
-    
+
     cl.viewDef.lerpfrac = (FLOAT)(cl.time - cl.frame.servertime) / FRAMETIME;
     cl.viewDef.viewport = (RECT) { 0, 0, 1, 1 };
     cl.viewDef.scissor = (RECT) { 0, 0.22, 1, 0.76 };
@@ -249,4 +303,8 @@ void V_RenderView(void) {
 
 void V_AddEntity(renderEntity_t *ent) {
     view_state.entities[view_state.num_entities++] = *ent;
+}
+
+void V_Shutdown(void) {
+    SAFE_DELETE(menu_preview_model, re.ReleaseModel);
 }
