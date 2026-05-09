@@ -217,17 +217,17 @@ static size_t make_tga_rgba_1x1(BYTE buf[static 64], BYTE b, BYTE g, BYTE r, BYT
     return sizeof(hdr) + 4;
 }
 
-static size_t make_tga_grayscale_1x1_with_id(BYTE buf[static 64], BYTE grey, BYTE id_length) {
+static size_t make_tga_grayscale_1x1_with_id(BYTE buf[static 64], BYTE grey, BYTE id_len) {
     test_tga_hdr_t hdr = {0};
-    hdr.id_length   = id_length;
+    hdr.id_length   = id_len;
     hdr.image_type  = 3;
     hdr.width       = 1;
     hdr.height      = 1;
     hdr.pixel_size  = 8;
     memcpy(buf, &hdr, sizeof(hdr));
-    memset(buf + sizeof(hdr), 0xEE, id_length);
-    buf[sizeof(hdr) + id_length] = grey;
-    return sizeof(hdr) + id_length + 1;
+    memset(buf + sizeof(hdr), 0xEE, id_len);
+    buf[sizeof(hdr) + id_len] = grey;
+    return sizeof(hdr) + id_len + 1;
 }
 
 static void test_load_tga_grayscale_1x1_dimensions(void) {
@@ -263,16 +263,16 @@ static void test_load_tga_rgb_2x2_dimensions(void) {
     gi.MemFree(tex);
 }
 
-static void test_load_tga_rgba_1x1_preserves_raw_byte_order(void) {
+static void test_load_tga_rgba_1x1_pathing_red_ends_up_in_b_and_alpha_is_kept(void) {
     BYTE buf[64];
-    size_t sz = make_tga_rgba_1x1(buf, 0x12, 0x34, 0x56, 0x78);
+    size_t sz = make_tga_rgba_1x1(buf, 0x00, 0x00, 0xFF, 0x7A);
     pathTex_t *tex = LoadTGA(buf, sz);
     ASSERT_NOT_NULL(tex);
-    /* Loader copies source bytes as-is into COLOR32 storage order. */
-    ASSERT_EQ_INT(tex->map[0].r, 0x12);
-    ASSERT_EQ_INT(tex->map[0].g, 0x34);
-    ASSERT_EQ_INT(tex->map[0].b, 0x56);
-    ASSERT_EQ_INT(tex->map[0].a, 0x78);
+    /* Pathing TGA uses BGRA bytes; red channel (no-walk) lands in COLOR32.b. */
+    ASSERT_EQ_INT(tex->map[0].r, 0x00);
+    ASSERT_EQ_INT(tex->map[0].g, 0x00);
+    ASSERT_EQ_INT(tex->map[0].b, 0xFF);
+    ASSERT_EQ_INT(tex->map[0].a, 0x7A);
     gi.MemFree(tex);
 }
 
@@ -326,7 +326,7 @@ BEGIN_SUITE(collision)
     RUN_TEST(test_load_tga_grayscale_1x1_dimensions);
     RUN_TEST(test_load_tga_grayscale_pixel_value);
     RUN_TEST(test_load_tga_rgb_2x2_dimensions);
-    RUN_TEST(test_load_tga_rgba_1x1_preserves_raw_byte_order);
+    RUN_TEST(test_load_tga_rgba_1x1_pathing_red_ends_up_in_b_and_alpha_is_kept);
     RUN_TEST(test_load_tga_grayscale_with_id_field_skips_id_bytes);
     RUN_TEST(test_load_tga_colormap_not_supported_returns_null);
     RUN_TEST(test_load_tga_unsupported_type_returns_null);
