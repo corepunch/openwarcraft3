@@ -57,7 +57,8 @@ void SV_DirectConnect(const netadr_t *from) {
     // Ignore if address is already registered
     if (SV_FindClientByAddr(from))
         return;
-    if (svs.num_clients >= MAX_CLIENTS) {
+    if (svs.num_clients >= MAX_CLIENTS ||
+        svs.num_clients >= ge->max_clients) {
         fprintf(stderr, "SV_DirectConnect: server full\n");
         return;
     }
@@ -116,4 +117,3 @@ void SV_Init(void) {
 
     SV_InitGameProgs();
 }
-

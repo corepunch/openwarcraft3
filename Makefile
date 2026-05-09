@@ -139,6 +139,8 @@ TEST_GAME_SRCS := \
 	src/game/skills/s_skills.c \
 	src/game/skills/s_stop.c \
 	src/game/skills/s_train.c \
+	src/server/sv_init.c \
+	src/server/sv_send.c \
 	src/common/net.c \
 	src/common/msg.c
 
@@ -153,9 +155,10 @@ TEST_SRCS := \
 	tests/test_jass.c \
 	tests/test_api.c \
 	tests/test_game.c \
-	tests/test_combat.c
+	tests/test_combat.c \
+	tests/test_server_net.c
 
-TEST_CFLAGS := -Wall -Isrc/cmath3/types -Isrc/game -Isrc/server -Isrc/common -Isrc/game/skills
+TEST_CFLAGS := -Wall -Itests/stubs -Isrc/cmath3/types -Isrc/game -Isrc/server -Isrc/common -Isrc/game/skills
 
 test: | $(BIN_DIR)
 	$(CC) $(TEST_CFLAGS) -o $(BIN_DIR)/test_openwarcraft3$(EXE_EXT) \
