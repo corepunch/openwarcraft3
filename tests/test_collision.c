@@ -263,7 +263,7 @@ static void test_load_tga_rgb_2x2_dimensions(void) {
     gi.MemFree(tex);
 }
 
-static void test_load_tga_rgba_1x1_pathing_red_ends_up_in_b_and_alpha_is_kept(void) {
+static void test_load_tga_rgba_channel_order(void) {
     BYTE buf[64];
     size_t sz = make_tga_rgba_1x1(buf, 0x00, 0x00, 0xFF, 0x7A);
     pathTex_t *tex = LoadTGA(buf, sz);
@@ -326,7 +326,7 @@ BEGIN_SUITE(collision)
     RUN_TEST(test_load_tga_grayscale_1x1_dimensions);
     RUN_TEST(test_load_tga_grayscale_pixel_value);
     RUN_TEST(test_load_tga_rgb_2x2_dimensions);
-    RUN_TEST(test_load_tga_rgba_1x1_pathing_red_ends_up_in_b_and_alpha_is_kept);
+    RUN_TEST(test_load_tga_rgba_channel_order);
     RUN_TEST(test_load_tga_grayscale_with_id_field_skips_id_bytes);
     RUN_TEST(test_load_tga_colormap_not_supported_returns_null);
     RUN_TEST(test_load_tga_unsupported_type_returns_null);
