@@ -74,6 +74,9 @@ game:        $(GAME_LIB)
 openwarcraft3: $(BINARY)
 mpqtool:     $(MPQ_TOOL)
 run:
+	$(BINARY) -mpq=$(MPQ)
+
+run-map:
 	$(BINARY) -mpq=$(MPQ) -map=$(MAP)
 
 $(MPQ_TOOL): tools/mpqtool.c common/mpq.c common/mpq.h | $(BIN_DIR)
@@ -181,4 +184,4 @@ test: | $(BIN_DIR)
 test-mpq-compat: mpqtool $(MPQ_TEST)
 	$(MPQ_TEST) -mpq=$(MPQ)
 
-.PHONY: default build shared renderer game openwarcraft3 mpqtool run clean download test test-mpq-compat
+.PHONY: default build shared renderer game openwarcraft3 mpqtool run run-map clean download test test-mpq-compat

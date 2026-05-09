@@ -120,18 +120,16 @@ HANDLE FS_OpenFile(LPCSTR fileName) {
         PF_Sleep(10);
     }
     filelock = true;
-    fprintf(stderr, "FS_OpenFile: %s\n", fileName ? fileName : "(null)");
     if (!fileName || !*fileName) {
-        fprintf(stderr, "FS_OpenFile blank caller\n");
+        filelock = false;
+        return NULL;
     }
     FOR_LOOP(i, MAX_ARCHIVES) {
         HANDLE file;
         if (SFileOpenFileEx(archives[i], fileName, SFILE_OPEN_FROM_MPQ, &file)) {
-            fprintf(stderr, "FS_OpenFile: ok %s\n", fileName);
             return file;
         }
     }
-    fprintf(stderr, "FS_OpenFile: miss %s\n", fileName);
     filelock = false;
     return NULL;
 }
