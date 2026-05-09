@@ -18,7 +18,7 @@ struct server_static svs;
 /* External symbols referenced by sv_init.c but unused in these tests. */
 void SV_InitGameProgs(void) {}
 void SV_ClearWorld(void) {}
-void CM_LoadMap(LPCSTR mapFilename) { (void)mapFilename; }
+bool CM_LoadMap(LPCSTR mapFilename) { (void)mapFilename; return true; }
 LPDOODAD CM_GetDoodads(void) { return NULL; }
 LPCMAPINFO CM_GetMapInfo(void) { return NULL; }
 

@@ -3,7 +3,7 @@
  *
  * Tests are self-contained: each one calls jass_newstate(), runs a snippet
  * of JASS via jass_dobuffer() or jass_callbyname(), then inspects the stack
- * or the result of a call.  No MPQ, renderer, or StormLib is needed.
+ * or the result of a call.  No MPQ, renderer, or archive backend is needed.
  *
  * The minimal jass_funcs[] table at the bottom of this file exposes just
  * enough native functions to exercise native-call paths without linking

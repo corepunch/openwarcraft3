@@ -126,7 +126,7 @@ void R_SetupGeosetVertexBuffer(mdxGeoset_t *geoset) {
             matrixGroups[matrixGroupIndex][matrixIndex] = geoset->matrices[indexOffset++];
         }
     }
-    
+
     FOR_LOOP(vertex, geoset->num_vertices) {
         DWORD matrixGroupIndex = geoset->vertexGroups[vertex];
         DWORD matrixGroupSize = MAX(1, geoset->matrixGroupSizes[matrixGroupIndex]);
@@ -142,12 +142,9 @@ void R_SetupGeosetVertexBuffer(mdxGeoset_t *geoset) {
             leftoversize = MAX(1, leftoversize - 1);
         }
     }
-
-    R_Call(glGenVertexArrays, 1, &geoset->vertexArrayBuffer);
-    R_Call(glBindVertexArray, geoset->vertexArrayBuffer);
-
-    R_Call(glGenBuffers, MAX_MDLX_BUFFERS, geoset->buffer);
-
+    glGenVertexArrays(1, &geoset->vertexArrayBuffer);
+    glBindVertexArray(geoset->vertexArrayBuffer);
+    glGenBuffers(MAX_MDLX_BUFFERS, geoset->buffer);
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, geoset->buffer[1]);
     R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(VECTOR3) * geoset->num_vertices, geoset->vertices, GL_STATIC_DRAW);
     R_Call(glVertexAttribPointer, attrib_position, 3, GL_FLOAT, GL_FALSE, 0, 0);
@@ -795,4 +792,3 @@ void MDLX_Release(mdxModel_t *model) {
     SAFE_DELETE(model->globalSequences, ri.MemFree);
     SAFE_DELETE(model->pivots, ri.MemFree);
 }
-

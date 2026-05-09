@@ -1,7 +1,16 @@
 #include <stdarg.h>
 #include <pthread.h>
+#include <sys/time.h>
 
 #include "server.h"
+
+static double NowSecondsServerLoad(void)
+{
+    struct timeval tv;
+
+    gettimeofday(&tv, NULL);
+    return (double)tv.tv_sec + (double)tv.tv_usec / 1000000.0;
+}
 
 void PF_WriteByte(int c) { MSG_WriteByte(&sv.multicast, c); }
 void PF_WriteShort(int c) { MSG_WriteShort(&sv.multicast, c); }
@@ -267,33 +276,56 @@ static struct cmodel *SV_LoadModelMD34(HANDLE file) {
 
 static struct cmodel *SV_LoadModelMDLX(HANDLE file) {
     struct cmodel *model = MemAlloc(sizeof(struct cmodel));
-    DWORD header, size;
-    while (SFileReadFile(file, &header, 4, NULL, NULL)) {
-        SFileReadFile(file, &size, 4, NULL, NULL);
+    DWORD fileSize = SFileGetFileSize(file, NULL);
+    DWORD payloadSize = fileSize > 4 ? fileSize - 4 : 0;
+    BYTE *payload = MemAlloc(payloadSize);
+    BYTE *ptr;
+    BYTE *end;
+
+    fprintf(stderr, "SV_LoadModelMDLX: parse begin\n");
+    if (payloadSize > 0) {
+        SFileReadFile(file, payload, payloadSize, NULL, NULL);
+    }
+    ptr = payload;
+    end = payload + payloadSize;
+    while (ptr + 8 <= end) {
+        DWORD header = *(DWORD *)ptr;
+        DWORD size = *(DWORD *)(ptr + 4);
+        ptr += 8;
+        if (ptr + size > end) {
+            size = (DWORD)(end - ptr);
+        }
+        fprintf(stderr, "SV_LoadModelMDLX: %.4s size=%u\n", (LPSTR)&header, (unsigned)size);
         switch (header) {
             case ID_SEQS:
                 model->animations = MemAlloc(size);
                 model->num_animations = size / sizeof(*model->animations);
-                SFileReadFile(file, model->animations, size, NULL, NULL);
+                memcpy(model->animations, ptr, size);
                 FOR_LOOP(i, model->num_animations) {
                     ConvertMDLXAnimationName(model->animations+i);
                 }
+                fprintf(stderr, "SV_LoadModelMDLX: SEQS done\n");
                 break;
             default:
-                SFileSetFilePointer(file, size, NULL, FILE_CURRENT);
+                fprintf(stderr, "SV_LoadModelMDLX: skip %.4s done\n", (LPSTR)&header);
                 break;
         }
+        ptr += size;
     }
+    MemFree(payload);
 #ifdef PRINT_ANIMATIONS
     FOR_LOOP(i, model->num_animations){
         LPANIMATION anim = &model->animations[i];
         printf("  %s %d %d\n",  anim->name, anim->interval[0], anim->interval[1]);
     }
 #endif
+    fprintf(stderr, "SV_LoadModelMDLX: complete\n");
     return model;
 }
 
 struct cmodel *SV_LoadModel(LPCSTR filename) {
+    double start = NowSecondsServerLoad();
+    fprintf(stderr, "SV_LoadModel: begin %s\n", filename);
     DWORD fileheader;
     HANDLE file = FS_OpenFile(filename);
     if (!file) {
@@ -301,6 +333,7 @@ struct cmodel *SV_LoadModel(LPCSTR filename) {
         strcpy(path, filename);
         path[strlen(path)-1] = 'x';
         if (!(file = FS_OpenFile(path))) {
+            fprintf(stderr, "SV_LoadModel: missing %s after %.3f s\n", filename, NowSecondsServerLoad() - start);
             return NULL;
         }
     }
@@ -309,6 +342,7 @@ struct cmodel *SV_LoadModel(LPCSTR filename) {
 #endif
     struct cmodel *model = NULL;
     SFileReadFile(file, &fileheader, 4, NULL, NULL);
+    fprintf(stderr, "SV_LoadModel: header read %.3f s\n", NowSecondsServerLoad() - start);
     switch (fileheader) {
         case ID_MDLX:
             model = SV_LoadModelMDLX(file);
@@ -321,6 +355,7 @@ struct cmodel *SV_LoadModel(LPCSTR filename) {
             break;
     }
     FS_CloseFile(file);
+    fprintf(stderr, "SV_LoadModel: complete %s %.3f s\n", filename, NowSecondsServerLoad() - start);
     return model;
 }
 
@@ -382,6 +417,7 @@ void PF_Sleep(DWORD msec) {
 void SV_InitGameProgs(void) {
     struct game_import import;
     
+    fprintf(stderr, "SV_InitGameProgs: build import table\n");
     import.multicast = SV_Multicast;
     import.unicast = PF_Unicast;
         
@@ -424,6 +460,9 @@ void SV_InitGameProgs(void) {
     import.TextRemoveComments = PF_TextRemoveComments;
     import.TextRemoveBom = PF_TextRemoveBom;
 
+    fprintf(stderr, "SV_InitGameProgs: GetGameAPI\n");
     ge = GetGameAPI(&import);
+    fprintf(stderr, "SV_InitGameProgs: ge->Init\n");
     ge->Init();
+    fprintf(stderr, "SV_InitGameProgs: complete\n");
 }

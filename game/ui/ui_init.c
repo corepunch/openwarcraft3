@@ -130,8 +130,9 @@ void Init_CinematicPanel(void) {
 /* Parse all FDF assets and build the initial UI frame hierarchy.
  * Must be called once at game startup before any client connects. */
 void UI_Init(void) {
+    fprintf(stderr, "UI_Init: begin\n");
     UI_ClearTemplates();
-    
+
     UI_ParseFDF("UI\\FrameDef\\GlobalStrings.fdf");
     UI_ParseFDF("UI\\FrameDef\\UI\\CinematicPanel.fdf");
     UI_ParseFDF("UI\\FrameDef\\UI\\ConsoleUI.fdf");
@@ -150,6 +151,7 @@ void UI_Init(void) {
     Init_ToolTip(ConsoleUI);
     Init_UpperButtonBar(ConsoleUI);
     Init_CinematicPanel();
+    fprintf(stderr, "UI_Init: complete\n");
 
 //    UI_PrintClasses();
 //    UI_FRAME(SimpleHeroLevelBar);

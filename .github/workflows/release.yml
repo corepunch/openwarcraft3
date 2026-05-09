@@ -34,12 +34,11 @@ jobs:
           sudo apt-get install -y \
             libgles2-mesa-dev \
             libsdl2-dev \
-            libjpeg-dev \
-            libstorm-dev
+            libjpeg-dev
 
       - name: Install dependencies (macOS)
         if: runner.os == 'macOS'
-        run: brew install sdl2 libjpeg stormlib
+        run: brew install sdl2 libjpeg
 
       - name: Build
         run: make build

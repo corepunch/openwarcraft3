@@ -5,7 +5,7 @@
  * This file owns every global variable that g_main.c normally defines
  * (gi, globals, game, level, g_edicts) so the test binary does not link
  * against that module.  All gi function-pointers are set to lightweight
- * stubs that are safe to call without StormLib, SDL2, or OpenGL.
+ * stubs that are safe to call without the archive backend, SDL2, or OpenGL.
  *
  * Stubs for symbols defined in game source files that we do not compile
  * into the test binary (g_spawn.c, hud/, s_attack.c, etc.) are also
@@ -327,7 +327,7 @@ LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y) {
 }
 
 /* =======================================================================
- * FS_FindSheetCell — pure-C SLK cell lookup (no StormLib)
+ * FS_FindSheetCell — pure-C SLK cell lookup (no archive backend)
  * ===================================================================== */
 
 LPCSTR FS_FindSheetCell(sheetRow_t *sheet, LPCSTR row, LPCSTR column) {

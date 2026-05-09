@@ -1,9 +1,18 @@
+#include <sys/time.h>
 #include "r_mdx.h"
 #include "../r_local.h"
 
 static struct {
     LPSHADER shader;
 } mdlx;
+
+static double NowSecondsMDLX(void)
+{
+    struct timeval tv;
+
+    gettimeofday(&tv, NULL);
+    return (double)tv.tv_sec + (double)tv.tv_usec / 1000000.0;
+}
 
 //typedef enum {
 //    vertexattr_position,
@@ -709,7 +718,10 @@ void R_DrawPortrait(LPCMODEL model, LPCRECT viewport) {
 }
 
 void MDLX_Init(void) {
+    double start = NowSecondsMDLX();
+    fprintf(stderr, "MDLX_Init: begin\n");
     mdlx.shader = R_InitShader(mdx_vs, mdx_fs);
+    fprintf(stderr, "MDLX_Init: complete %.3f s\n", NowSecondsMDLX() - start);
 }
 
 void MDLX_Shutdown(void) {

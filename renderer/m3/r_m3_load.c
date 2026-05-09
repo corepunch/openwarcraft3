@@ -1,3 +1,4 @@
+#include <sys/time.h>
 #include "../r_local.h"
 #include "r_m3.h"
 
@@ -34,6 +35,14 @@ M3_READER(TYPE##SequenceData) { \
     M3_READ(sb, data->flags, 0); \
     M3_READ(sb, data->biggestKey, 0); \
     M3_REFR(sb, data->values, TYPE, 0); \
+}
+
+static double NowSecondsM3(void)
+{
+    struct timeval tv;
+
+    gettimeofday(&tv, NULL);
+    return (double)tv.tv_sec + (double)tv.tv_usec / 1000000.0;
 }
 
 static LPCSTR m3_vs =
@@ -701,7 +710,10 @@ void M3_RenderModel(renderEntity_t const *entity, m3Model_t const *model, LPCMAT
 }
 
 void M3_Init(void) {
+    double start = NowSecondsM3();
+    fprintf(stderr, "M3_Init: begin\n");
     m3.shader = R_InitShader(m3_vs, m3_fs);
+    fprintf(stderr, "M3_Init: shader done %.3f s\n", NowSecondsM3() - start);
     m3.uFirstBoneLookupIndex = R_Call(glGetUniformLocation, m3.shader->progid, "uFirstBoneLookupIndex");
     m3.uBoneWeightPairsCount = R_Call(glGetUniformLocation, m3.shader->progid, "uBoneWeightPairsCount");
     m3.uDiffuseMap = R_Call(glGetUniformLocation, m3.shader->progid, "uDiffuseMap");
@@ -711,6 +723,7 @@ void M3_Init(void) {
     R_Call(glUniform1i, m3.uDiffuseMap, 0);
     R_Call(glUniform1i, m3.uSpecularMap, 3);
     R_Call(glUniform1i, m3.uNormalMap, 4);
+    fprintf(stderr, "M3_Init: complete %.3f s\n", NowSecondsM3() - start);
 }
 
 void M3_Shutdown(void) {

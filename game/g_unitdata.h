@@ -161,6 +161,8 @@
 
 #define UNIT_ATTACKS_ENABLED(UNIT) UnitBooleanField(UnitsMetaData, UNIT, "uaen")
 
+sheetRow_t *G_SheetTail(sheetRow_t *rows);
+
 #define DESTRUCTABLE_NAME(UNIT) UnitStringField(DestructableMetaData, UNIT, "bnam")
 #define DESTRUCTABLE_HIT_POINT_MAXIMUM(UNIT) UnitRealField(DestructableMetaData, UNIT, "bhps")
 #define DESTRUCTABLE_TARGETED_AS(UNIT) UnitStringField(DestructableMetaData, UNIT, "btar")

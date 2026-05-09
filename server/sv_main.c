@@ -8,7 +8,16 @@
  *
  * Entry point called from the platform main loop: SV_Frame().
  */
+#include <sys/time.h>
 #include "server.h"
+
+static double NowSecondsSVMain(void)
+{
+    struct timeval tv;
+
+    gettimeofday(&tv, NULL);
+    return (double)tv.tv_sec + (double)tv.tv_usec / 1000000.0;
+}
 
 //#define PRINT_ANIMATIONS
 
@@ -97,6 +106,8 @@ static int SV_FindIndex(LPCSTR name, int start, int max, bool create) {
 }
 
 int SV_ModelIndex(LPCSTR name) {
+    double start = NowSecondsSVMain();
+    fprintf(stderr, "SV_ModelIndex: begin %s\n", name);
 //    if (!strcmp(name, "units\\human\\Peasant\\Peasant.mdx")) {
 //        name = "Assets\\Units\\Terran\\MarineTychus\\MarineTychus.m3";
 //    }
@@ -111,6 +122,7 @@ int SV_ModelIndex(LPCSTR name) {
     if (!sv.models[modelindex]) {
         sv.models[modelindex] = SV_LoadModel(sv.configstrings[CS_MODELS + modelindex]);
     }
+    fprintf(stderr, "SV_ModelIndex: complete %s -> %d %.3f s\n", name, modelindex, NowSecondsSVMain() - start);
 #if 0
     if (!strstr(name, "Doodads\\")) {
         printf("%s\n", name);

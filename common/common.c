@@ -1,6 +1,6 @@
 #include "common.h"
 
-#include <StormLib.h>
+#include "mpq.h"
 
 #define MAXPRINTMSG 4096
 
@@ -237,10 +237,12 @@ void Com_Quit(void) {
 }
 
 void Com_Init(void) {
+    fprintf(stderr, "Com_Init: begin\n");
     Cbuf_Init();
-    FS_Init();
-    SV_Init();
-    CL_Init();
+    TRACE(FS_Init);
+    TRACE(SV_Init);
+    TRACE(CL_Init);
+    fprintf(stderr, "Com_Init: complete\n");
 }
 
 void Com_Error(errorCode_t code, LPCSTR fmt, ...) {

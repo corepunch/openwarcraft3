@@ -29,18 +29,18 @@ cd openwarcraft3
 
 ### 2. Install Dependencies
 
-The build requires **StormLib**, **SDL2**, and **libjpeg**.
+The build requires **SDL2** and **libjpeg**. MPQ reading is handled by the in-tree `common/mpq.c` implementation.
 
 **macOS** (via [Homebrew](https://brew.sh/)):
 
 ```bash
-brew install sdl2 libjpeg stormlib
+brew install sdl2 libjpeg
 ```
 
 **Linux** (Ubuntu/Debian):
 
 ```bash
-sudo apt-get install libsdl2-dev libjpeg-dev libstorm-dev
+sudo apt-get install libsdl2-dev libjpeg-dev
 ```
 
 ### 3. Build
@@ -49,7 +49,7 @@ sudo apt-get install libsdl2-dev libjpeg-dev libstorm-dev
 make build
 ```
 
-Compiles all libraries (`cmath3`, `renderer`, `game`) and the `openwarcraft3` executable into `build/`.
+Compiles all libraries (`shared`, `renderer`, `game`) and the `openwarcraft3` executable into `build/`.
 
 ### 4. Run
 
@@ -236,16 +236,16 @@ During gameplay the server can push incremental UI updates for things like the c
 
 The project builds three shared libraries and one executable:
 
-1. **libcmath3** — mathematics (vectors, matrices, quaternions, geometric primitives); no external dependencies
-2. **librenderer** — OpenGL rendering engine; depends on `libcmath3`, SDL2, StormLib, libjpeg
-3. **libgame** — server-side game logic; depends on `libcmath3`
-4. **openwarcraft3** — main executable linking all three libraries plus SDL2 and StormLib
+1. **libshared** (`shared/`) — mathematics (vectors, matrices, quaternions, geometric primitives); no external dependencies
+2. **librenderer** (`renderer/`) — OpenGL rendering engine; depends on `libshared`, SDL2, libjpeg
+3. **libgame** (`game/`) — server-side game logic; depends on `libshared`
+4. **openwarcraft3** — main executable linking all three libraries plus SDL2
 
-The build is driven by a `Makefile` for Linux/macOS.
+The build is driven by a `Makefile` for Linux/macOS. Run `make test` to execute the unit test suite.
 
 ## External Dependencies
 
-- **StormLib**: reads Warcraft III MPQ archives
+- **MPQ layer** (`common/mpq.c`): in-tree Warcraft III MPQ reader; no StormLib dependency at build or run time. `mpqtool` CLI exposes `ls` and `cat` for archive inspection.
 - **SDL2**: windowing, input, and OpenGL context
 - **libjpeg**: JPEG texture decoding
 - **OpenGL**: 3D rendering (system-provided)

@@ -66,6 +66,7 @@ LPTEXTURE R_LoadTexture(LPCSTR textureFilename) {
 }
 
 LPMODEL R_LoadModel(LPCSTR modelFilename) {
+    fprintf(stderr, "R_LoadModel: open %s\n", modelFilename);
     HANDLE file = ri.FileOpen(modelFilename);
     LPMODEL model = NULL;
     if (file == NULL) {
@@ -83,17 +84,21 @@ LPMODEL R_LoadModel(LPCSTR modelFilename) {
             return NULL;
         }
     }
+    fprintf(stderr, "R_LoadModel: reading %s\n", modelFilename);
     DWORD fileSize = SFileGetFileSize(file, NULL);
     void *buffer = ri.MemAlloc(fileSize);
     SFileReadFile(file, buffer, fileSize, NULL, NULL);
     ri.FileClose(file);
+    fprintf(stderr, "R_LoadModel: dispatch format %s\n", modelFilename);
     switch (*(DWORD *)buffer) {
         case ID_MDLX:
+            fprintf(stderr, "R_LoadModel: MDLX %s\n", modelFilename);
             model = ri.MemAlloc(sizeof(model_t));
             model->mdx = R_LoadModelMDLX(buffer, fileSize);
             model->modeltype = ID_MDLX;
             break;
         case ID_43DM:
+            fprintf(stderr, "R_LoadModel: M3 %s\n", modelFilename);
             model = ri.MemAlloc(sizeof(model_t));
             model->m3 = R_LoadModelM3(buffer, fileSize);
             model->modeltype = ID_43DM;
@@ -202,7 +207,9 @@ LPCSTR modelNames[MODEL_COUNT] = {
 //#include "mdx/r_mdx.h"
 
 void R_Init(DWORD width, DWORD height) {
+    fprintf(stderr, "R_Init: SDL_Init\n");
     SDL_Init(SDL_INIT_VIDEO);
+    fprintf(stderr, "R_Init: SDL attributes\n");
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
     SDL_GL_SetAttribute(SDL_GL_ACCELERATED_VISUAL, 1);
     SDL_GL_SetAttribute(SDL_GL_RED_SIZE, 8);
@@ -213,9 +220,12 @@ void R_Init(DWORD width, DWORD height) {
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
     
+    fprintf(stderr, "R_Init: SDL_CreateWindow\n");
     window = SDL_CreateWindow("", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width, height, SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN | SDL_WINDOW_ALLOW_HIGHDPI);
+    fprintf(stderr, "R_Init: SDL_GL_CreateContext\n");
     context = SDL_GL_CreateContext(window);
     
+    fprintf(stderr, "R_Init: SDL_GL_GetDrawableSize\n");
     SDL_GL_GetDrawableSize(window, (int *)&tr.drawableSize.width, (int *)&tr.drawableSize.height);
     
 //    m3 = R_LoadModel("Assets\\Units\\Terran\\SpecialOpsDropship\\SpecialOpsDropship.m3");
@@ -233,11 +243,11 @@ void R_Init(DWORD width, DWORD height) {
     FOR_LOOP(i, MODEL_COUNT) {
         tr.model[i] = R_LoadModel(modelNames[i]);
     }
-    
+
     FOR_LOOP(i, SHEET_COUNT) {
         tr.sheet[i] = ri.ReadSheet(sheetNames[i]);
     }
-    
+
     FOR_LOOP(i, NUM_SELECTION_CIRCLES) {
         tr.texture[TEX_SELECTION_CIRCLE+i] = R_LoadTexture(selCirclesNames[i]);
     }
@@ -261,13 +271,10 @@ void R_Init(DWORD width, DWORD height) {
     tr.texture[TEX_WATER] = R_LoadTexture("ReplaceableTextures\\Water\\Water12.blp");
     tr.texture[TEX_FONT] = R_MakeSysFontTexture();
     tr.rt[RT_DEPTHMAP] = R_AllocateRenderTexture(SHADOW_TEXSIZE, SHADOW_TEXSIZE, GL_DEPTH_COMPONENT, GL_FLOAT, GL_DEPTH_ATTACHMENT);
-    
     R_Call(glDisable, GL_DEPTH_TEST);
     R_Call(glClearColor, 0.0, 0.0, 0.0, 0.0);
     R_Call(glViewport, 0, 0, tr.drawableSize.width, tr.drawableSize.height);
-    
     R_InitParticles();
-    
     M3_Init();
     MDLX_Init();
 }

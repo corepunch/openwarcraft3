@@ -60,6 +60,7 @@ void CL_ClearState(void) {
 void CL_Init(void) {
     CON_printf("OpenWarcraft3 v0.1");
 
+    fprintf(stderr, "CL_Init: get renderer API\n");
     re = R_GetAPI((refImport_t) {
         .MemAlloc = MemAlloc,
         .MemFree = MemFree,
@@ -71,12 +72,16 @@ void CL_Init(void) {
         .error = CON_printf,
     });
     
+    fprintf(stderr, "CL_Init: renderer init\n");
     re.Init(WINDOW_WIDTH, WINDOW_HEIGHT);
 
+    fprintf(stderr, "CL_Init: netchan init\n");
     SZ_Init(&cls.netchan.message, cls.netchan.message_buf, MAX_MSGLEN);
     
+    fprintf(stderr, "CL_Init: clear state\n");
     CL_ClearState();
 
+    fprintf(stderr, "CL_Init: load confirmation model\n");
     cl.moveConfirmation = re.LoadModel("UI\\Feedback\\Confirmation\\Confirmation.mdx");
     
     cl.viewDef.camerastate[0].zfar = 5000;
@@ -88,7 +93,9 @@ void CL_Init(void) {
     Key_SetBinding('q', "cmd quests");
     Key_SetBinding(K_ESCAPE, "cmd cancel");
     
+    fprintf(stderr, "CL_Init: input init\n");
     CL_InitInput();
+    fprintf(stderr, "CL_Init: complete\n");
 }
 
 void CL_ConnectionlessPacket(void) {

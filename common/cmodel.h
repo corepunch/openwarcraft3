@@ -33,7 +33,7 @@ struct war3map {
     DWORD num_cliffs;
 };
 
-void CM_LoadMap(LPCSTR mapFilename);
+bool CM_LoadMap(LPCSTR mapFilename);
 float CM_GetHeightAtPoint(float sx, float sy);
 LPDOODAD CM_GetDoodads(void);
 //LPCMAPPLAYER CM_GetPlayer(DWORD index);

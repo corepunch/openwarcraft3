@@ -29,8 +29,7 @@ jobs:
           sudo apt-get install -y \
             libgles2-mesa-dev \
             libsdl2-dev \
-            libjpeg-dev \
-            libstorm-dev
+            libjpeg-dev
 
       - name: Build
         run: make

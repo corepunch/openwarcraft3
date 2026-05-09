@@ -122,6 +122,7 @@ HANDLE FS_ReadFile(LPCSTR filename, LPDWORD size);
 sheetRow_t *FS_ParseINI(LPCSTR fileName);
 sheetRow_t *FS_ParseSLK(LPCSTR fileName);
 LPCSTR FS_FindSheetCell(sheetRow_t *sheet, LPCSTR row, LPCSTR column);
+sheetRow_t *FS_GetParsedSheetTail(void);
 
 void CL_Init(void);
 void CL_Frame(DWORD msec);

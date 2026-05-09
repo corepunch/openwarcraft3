@@ -45,10 +45,19 @@ static void InitMiscValue(LPCSTR name, FLOAT *dest) {
 }
 
 static void InitConstants(void) {
+    sheetRow_t *miscTail = NULL;
+
     for (LPCSTR *config = miscdata_files; *config; config++) {
         sheetRow_t *current = gi.ReadConfig(*config);
         if (current) {
-            PUSH_BACK(sheetRow_t, current, game.config.misc);
+            sheetRow_t *currentTail = G_SheetTail(current);
+
+            if (miscTail) {
+                miscTail->next = current;
+            } else {
+                game.config.misc = current;
+            }
+            miscTail = currentTail;
         }
     }
     InitMiscValue("AttackHalfAngle", &game.constants.attackHalfAngle);
@@ -68,6 +77,7 @@ static void InitConstants(void) {
 }
 
 static void G_InitGame(void) {
+    fprintf(stderr, "G_InitGame: begin\n");
     g_edicts = gi.MemAlloc(sizeof(edict_t) * MAX_ENTITIES);
     
     globals.edicts = g_edicts;
@@ -77,15 +87,16 @@ static void G_InitGame(void) {
 
     game.max_clients = globals.max_clients;
     game.clients = gi.MemAlloc(game.max_clients * sizeof(GAMECLIENT));
+    fprintf(stderr, "%s: load theme/config sheets\n", __func__);
     game.config.theme = gi.ReadConfig("UI\\war3skins.txt");
     game.config.splats = gi.ReadSheet("Splats\\SplatData.slk");
     game.config.uberSplats = gi.ReadSheet("Splats\\UberSplatData.slk");
     game.config.abilities = gi.ReadSheet("Units\\AbilityData.slk");
     game.config.items = gi.ReadSheet("Units\\ItemData.slk");
-    
-    InitConstants();
-    InitUnitData();
-    InitAbilities();
+    TRACE(InitConstants);
+    TRACE(InitUnitData);
+    TRACE(InitAbilities);
+    fprintf(stderr, "G_InitGame: complete\n");
 }
 
 static void G_ShutdownGame(void) {

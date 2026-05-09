@@ -9,7 +9,7 @@ DATA_DIR := data
 CC      := gcc
 BIN_DIR := build/bin
 LIB_DIR := build/lib
-CFLAGS  := -Wall -I. -Icmath3 -Icmath3/types
+CFLAGS  := -Wall -I. -Ishared -Ishared/types
 
 # ---------------------------------------------------------------------------
 # Platform detection
@@ -21,7 +21,7 @@ ifeq ($(OS),Windows_NT)
     INSTALL_NAME =
     RPATH     :=
     LDFLAGS   := -L$(LIB_DIR)
-    LIBS      := -lSDL2main -lSDL2 -lstorm -ljpeg -lm -lopengl32 -lgdi32
+	LIBS      := -lSDL2main -lSDL2 -ljpeg -lm -lopengl32 -lgdi32
 else
     UNAME_S := $(shell uname -s)
     EXE_EXT :=
@@ -40,7 +40,7 @@ else
         RPATH     := -Wl,-rpath,@executable_path/../lib
 		CFLAGS    += -DGL_SILENCE_DEPRECATION -I$(HOMEBREW_PREFIX)/include -arch $(ARCH)
 		LDFLAGS   := -L$(LIB_DIR) -L$(HOMEBREW_PREFIX)/lib -arch $(ARCH)
-        LIBS      := -lSDL2 -lstorm -ljpeg -framework AppKit -framework OpenGL
+		LIBS      := -lSDL2 -ljpeg -framework AppKit -framework OpenGL
     else
         # Linux
         LIB_EXT   := .so
@@ -49,15 +49,16 @@ else
         RPATH     := -Wl,-rpath,'$$ORIGIN/../lib'
         CFLAGS    += -fPIC
         LDFLAGS   := -L$(LIB_DIR) -Wl,-z,defs
-        LIBS      := -lSDL2 -lstorm -ljpeg -lEGL -lGL -lm
+		LIBS      := -lSDL2 -ljpeg -lEGL -lGL -lm
     endif
 endif
 
-CMATH3_LIB   := $(LIB_DIR)/libcmath3$(LIB_EXT)
+SHARED_LIB   := $(LIB_DIR)/libshared$(LIB_EXT)
 RENDERER_LIB := $(LIB_DIR)/librenderer$(LIB_EXT)
 GAME_LIB     := $(LIB_DIR)/libgame$(LIB_EXT)
 BINARY       := $(BIN_DIR)/openwarcraft3$(EXE_EXT)
 MPQ_TOOL     := $(BIN_DIR)/mpqtool$(EXE_EXT)
+MPQ_TEST     := $(BIN_DIR)/test_mpq_compat$(EXE_EXT)
 
 # Unity-build helper: pipe all .c files in a directory tree as #include
 # directives to gcc's stdin so the whole module is one translation unit.
@@ -66,8 +67,8 @@ MPQ_TOOL     := $(BIN_DIR)/mpqtool$(EXE_EXT)
 UNITY = find $1 -name '*.c' $2 | sort | awk '{printf "\043include \"%s\"\n", $$0}'
 
 default: build
-build: cmath3 renderer game openwarcraft3 mpqtool
-cmath3:      $(CMATH3_LIB)
+build: shared renderer game openwarcraft3 mpqtool
+shared:      $(SHARED_LIB)
 renderer:    $(RENDERER_LIB)
 game:        $(GAME_LIB)
 openwarcraft3: $(BINARY)
@@ -75,41 +76,45 @@ mpqtool:     $(MPQ_TOOL)
 run:
 	$(BINARY) -mpq=$(MPQ) -map=$(MAP)
 
-$(MPQ_TOOL): tools/mpqtool.c | $(BIN_DIR)
+$(MPQ_TOOL): tools/mpqtool.c common/mpq.c common/mpq.h | $(BIN_DIR)
 	@echo "[mpqtool]"
-	$(CC) $(CFLAGS) -o $@ $< $(LDFLAGS) -lstorm
+	$(CC) $(CFLAGS) -o $@ $< common/mpq.c $(LDFLAGS) -lm -lz
+
+$(MPQ_TEST): tests/test_mpq_compat.c common/mpq.c common/mpq.h | $(BIN_DIR)
+	@echo "[mpq-compat-test]"
+	$(CC) $(CFLAGS) -o $@ tests/test_mpq_compat.c common/mpq.c -lm -lz
 
 $(BIN_DIR) $(LIB_DIR):
 	@mkdir -p $@
 
-# cmath3 — math library
-$(CMATH3_LIB): $(shell find cmath3 -name '*.c') | $(LIB_DIR)
-	@echo "[cmath3]"
-	@$(call UNITY,cmath3) | \
+# shared — math library
+$(SHARED_LIB): $(shell find shared -name '*.c') | $(LIB_DIR)
+	@echo "[shared]"
+	@$(call UNITY,shared) | \
 		$(CC) $(CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - $(LDFLAGS) -lm
 
-# renderer — depends on cmath3
-$(RENDERER_LIB): $(CMATH3_LIB) $(shell find renderer -name '*.c') | $(LIB_DIR)
+# renderer — depends on shared
+$(RENDERER_LIB): $(SHARED_LIB) $(shell find renderer -name '*.c') | $(LIB_DIR)
 	@echo "[renderer]"
 	@(echo '#define STB_TRUETYPE_IMPLEMENTATION'; \
 	  echo '#include "renderer/stb/stb_truetype.h"'; \
 	  echo '#undef STB_TRUETYPE_IMPLEMENTATION'; \
 	  $(call UNITY,renderer,! -path '*/stb/*.c')) | \
-		$(CC) $(CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - $(LDFLAGS) -lcmath3 $(LIBS)
+		$(CC) $(CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - common/mpq.c $(LDFLAGS) -lshared $(LIBS) -lz
 
-# game — depends on cmath3
-$(GAME_LIB): $(CMATH3_LIB) $(shell find game -name '*.c') | $(LIB_DIR)
+# game — depends on shared
+$(GAME_LIB): $(SHARED_LIB) $(shell find game -name '*.c') | $(LIB_DIR)
 	@echo "[game]"
 	@$(call UNITY,game) | \
-		$(CC) $(CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - $(LDFLAGS) -lcmath3 -lm
+		$(CC) $(CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - $(LDFLAGS) -lshared -lm
 
 # main binary — depends on all three libraries
 APP_SRCS := $(shell find client server common -name '*.c')
-$(BINARY): $(CMATH3_LIB) $(GAME_LIB) $(RENDERER_LIB) $(APP_SRCS) | $(BIN_DIR)
+$(BINARY): $(SHARED_LIB) $(GAME_LIB) $(RENDERER_LIB) $(APP_SRCS) | $(BIN_DIR)
 	@echo "[openwarcraft3]"
 	@$(call UNITY,client server common) | \
 		$(CC) $(CFLAGS) -x c -o $@ - $(RPATH) $(LDFLAGS) \
-		-lcmath3 -lgame -lrenderer $(LIBS)
+		-lshared -lgame -lrenderer $(LIBS) -lz
 
 download: $(ZIP_FILE)
 	mkdir -p $(DATA_DIR)
@@ -125,7 +130,7 @@ clean:
 # Test target — builds and runs the unit test binary.
 #
 # The test binary compiles only the game modules needed by the tests
-# (no renderer, no StormLib, no SDL2) together with the cmath3 sources.
+# (no renderer, no archive backend, no SDL2) together with the shared sources.
 # Global game state and gi function-pointers are provided by the test
 # harness (tests/test_harness.c) rather than by game/g_main.c.
 # ---------------------------------------------------------------------------
@@ -165,12 +170,15 @@ TEST_SRCS := \
 	tests/test_combat.c \
 	tests/test_server_net.c
 
-TEST_CFLAGS := -Wall -Itests/stubs -Icmath3/types -Igame -Iserver -Icommon -Igame/skills
+TEST_CFLAGS := -Wall -Itests/stubs -Ishared/types -Igame -Iserver -Icommon -Igame/skills
 
 test: | $(BIN_DIR)
 	$(CC) $(TEST_CFLAGS) -o $(BIN_DIR)/test_openwarcraft3$(EXE_EXT) \
 		$(TEST_SRCS) $(TEST_GAME_SRCS) \
-		$(shell find cmath3 -name '*.c') -lm
+		$(shell find shared -name '*.c') -lm
 	$(BIN_DIR)/test_openwarcraft3$(EXE_EXT)
 
-.PHONY: default build cmath3 renderer game openwarcraft3 mpqtool run clean download test
+test-mpq-compat: mpqtool $(MPQ_TEST)
+	$(MPQ_TEST) -mpq=$(MPQ)
+
+.PHONY: default build shared renderer game openwarcraft3 mpqtool run clean download test test-mpq-compat

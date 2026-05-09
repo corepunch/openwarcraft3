@@ -56,26 +56,43 @@ int main(int argc, LPSTR argv[]) {
         return 1;
     }
 
-    // Bind the UDP socket.  The listen server uses PORT_SERVER so remote
-    // clients know where to send; a pure client binds to 0 (OS picks a
-    // free ephemeral port).
-    unsigned short udp_port = connect_addr ? 0 : PORT_SERVER;
-    if (!NET_Init(udp_port)) {
-        fprintf(stderr, "NET_Init failed\n");
-        return 1;
+    fprintf(stderr, "main: mpq loaded, mode=%s\n", connect_addr ? "connect" : "map");
+
+    // Bind the UDP socket unless explicitly disabled for local diagnostics.
+    // The current sandbox cannot create/bind UDP sockets, so this escape hatch
+    // lets us exercise the map/UI startup path anyway.
+    if (!getenv("OW3_SKIP_NET")) {
+        unsigned short udp_port = connect_addr ? 0 : PORT_SERVER;
+        if (!NET_Init(udp_port)) {
+            if (!connect_addr) {
+                fprintf(stderr, "main: retrying NET_Init on ephemeral port for local smoke test\n");
+                if (!NET_Init(0)) {
+                    fprintf(stderr, "NET_Init failed\n");
+                    return 1;
+                }
+            } else {
+                fprintf(stderr, "NET_Init failed\n");
+                return 1;
+            }
+        }
+    } else {
+        fprintf(stderr, "main: OW3_SKIP_NET set, skipping NET_Init\n");
     }
 
     Com_Init();
 
     if (connect_addr) {
         // Remote-client mode: skip the local server, connect over UDP.
+        fprintf(stderr, "main: connecting to %s\n", connect_addr);
         CL_Connect(connect_addr, PORT_SERVER);
     } else {
         // Listen-server mode: load the map and spawn entities.
-        SV_Map(map);
+        TRACE(SV_Map, map);
+        fprintf(stderr, "main: map load complete\n");
     }
 
     DWORD startTime = SDL_GetTicks();
+    fprintf(stderr, "main: entering frame loop\n");
     while (true) {
         DWORD currentTime = SDL_GetTicks();
         DWORD msec = currentTime - startTime;

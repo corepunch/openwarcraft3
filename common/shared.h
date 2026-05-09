@@ -9,7 +9,7 @@
 #include <stdarg.h>
 #include <stdint.h>
 
-#include "../cmath3/cmath3.h"
+#include "../shared/shared.h"
 
 #define TMP_MAP "/tmp/map.w3m"
 #define MAX_PATHLEN 256
@@ -30,9 +30,7 @@
 #define COLOR32_BLACK MAKE(COLOR32,0,0,0,255)
 
 #ifndef __cplusplus
-  #define bool char
-  #define true 1
-  #define false 0
+  #include <stdbool.h>
 #endif
 
 #define KNOWN_AS(STRUCT, TYPE) \
@@ -100,6 +98,13 @@ for (TYPE *it = LIST; it;) { \
 #define PARSE_LIST(LIST, ITEM, PARSEFUNC) \
 PARSER parser = { .buffer = LIST, .delimiters = "" }; \
 for (LPCSTR ITEM = PARSEFUNC(&parser); ITEM; ITEM = PARSEFUNC(&parser))
+
+#define TRACE_CALL(FUNC, ...) FUNC(__VA_ARGS__)
+#define TRACE(FUNC, ...) \
+do { \
+    fprintf(stderr, "%s: %s\n", __func__, #FUNC); \
+    TRACE_CALL(FUNC, ##__VA_ARGS__); \
+} while (0)
 
 
 #define FLAG(NAME, X) NAME = (1 << X)

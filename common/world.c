@@ -1,5 +1,5 @@
 #include "common.h"
-#include <StormLib.h>
+#include "mpq.h"
 
 static struct {
     LPWAR3MAP map;
@@ -388,11 +388,19 @@ void CM_ReadMapScript(HANDLE archive) {
 //    SFileExtractFile(archive, "war3map.j", "/Users/igor/Desktop/Human02.j", 0);
 }
 
-void CM_LoadMap(LPCSTR mapFilename) {
+bool CM_LoadMap(LPCSTR mapFilename) {
     HANDLE mapArchive;
     memset(&world, 0, sizeof(world));
-    FS_ExtractFile(mapFilename, TMP_MAP);
-    SFileOpenArchive(TMP_MAP, 0, 0, &mapArchive);
+    fprintf(stderr, "CM_LoadMap: extract %s -> %s\n", mapFilename, TMP_MAP);
+    if (!FS_ExtractFile(mapFilename, TMP_MAP)) {
+        Com_Error(ERR_DROP, "CM_LoadMap: failed to extract map %s\n", mapFilename);
+        return false;
+    }
+    if (!SFileOpenArchive(TMP_MAP, 0, 0, &mapArchive)) {
+        Com_Error(ERR_DROP, "CM_LoadMap: failed to open extracted map %s\n", TMP_MAP);
+        return false;
+    }
+    fprintf(stderr, "CM_LoadMap: archive open ok\n");
     CM_ReadPathMap(mapArchive);
     CM_ReadDoodads(mapArchive);
     CM_ReadUnitDoodads(mapArchive);
@@ -401,6 +409,7 @@ void CM_LoadMap(LPCSTR mapFilename) {
     CM_ReadUnits(mapArchive);
     CM_ReadStrings(mapArchive);
     CM_ReadMapScript(mapArchive);
+    fprintf(stderr, "CM_LoadMap: parse complete\n");
         
 //    SFileExtractFile(mapArchive, "war3map.wts", "/Users/igor/Desktop/war3map.wts", 0);
 //    HANDLE file;
@@ -431,6 +440,7 @@ void CM_LoadMap(LPCSTR mapFilename) {
 //     }
 
     SFileCloseArchive(mapArchive);
+    return true;
 }
 
 static LPCWAR3MAPVERTEX CM_GetWar3MapVertex(DWORD x, DWORD y) {

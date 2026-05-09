@@ -1,6 +1,7 @@
 build/
 data/
 src/DerivedData/
+StormLib-master/
 *xcuserdata*
 *.user
 *.xcuserstate
