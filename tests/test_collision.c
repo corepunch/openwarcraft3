@@ -263,12 +263,12 @@ static void test_load_tga_rgb_2x2_dimensions(void) {
     gi.MemFree(tex);
 }
 
-static void test_load_tga_rgba_1x1_preserves_bgra_channels(void) {
+static void test_load_tga_rgba_1x1_preserves_raw_byte_order(void) {
     BYTE buf[64];
     size_t sz = make_tga_rgba_1x1(buf, 0x12, 0x34, 0x56, 0x78);
     pathTex_t *tex = LoadTGA(buf, sz);
     ASSERT_NOT_NULL(tex);
-    /* Warcraft pathing TGAs are BGRA; loader preserves byte order in COLOR32. */
+    /* Loader copies source bytes as-is into COLOR32 storage order. */
     ASSERT_EQ_INT(tex->map[0].r, 0x12);
     ASSERT_EQ_INT(tex->map[0].g, 0x34);
     ASSERT_EQ_INT(tex->map[0].b, 0x56);
@@ -326,7 +326,7 @@ BEGIN_SUITE(collision)
     RUN_TEST(test_load_tga_grayscale_1x1_dimensions);
     RUN_TEST(test_load_tga_grayscale_pixel_value);
     RUN_TEST(test_load_tga_rgb_2x2_dimensions);
-    RUN_TEST(test_load_tga_rgba_1x1_preserves_bgra_channels);
+    RUN_TEST(test_load_tga_rgba_1x1_preserves_raw_byte_order);
     RUN_TEST(test_load_tga_grayscale_with_id_field_skips_id_bytes);
     RUN_TEST(test_load_tga_colormap_not_supported_returns_null);
     RUN_TEST(test_load_tga_unsupported_type_returns_null);
