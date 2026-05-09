@@ -268,7 +268,7 @@ static void test_load_tga_rgba_channel_order(void) {
     size_t sz = make_tga_bgra_1x1(buf, 0x00, 0x00, 0xFF, 0x7A);
     pathTex_t *tex = LoadTGA(buf, sz);
     ASSERT_NOT_NULL(tex);
-    /* TGA stores BGRA bytes, so file red (unwalkable in WC3 pathing) becomes COLOR32.b after load. */
+    /* Loader does not remap BGRA bytes; WC3 pathing's file red (unwalkable) is read from COLOR32.b. */
     ASSERT_EQ_INT(tex->map[0].r, 0x00);
     ASSERT_EQ_INT(tex->map[0].g, 0x00);
     ASSERT_EQ_INT(tex->map[0].b, 0xFF);
@@ -291,7 +291,7 @@ static void test_load_tga_colormap_not_supported_returns_null(void) {
     BYTE buf[64] = {0};
     test_tga_hdr_t *hdr = (test_tga_hdr_t *)buf;
     hdr->image_type    = 2;
-    hdr->colormap_type = 1; /* color-mapped images are unsupported by LoadTGA */
+    hdr->colormap_type = 1; /* colormapped images are unsupported by LoadTGA */
     hdr->width         = 1;
     hdr->height        = 1;
     hdr->pixel_size    = 24;
