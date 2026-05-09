@@ -291,10 +291,18 @@ void R_InitFogOfWar(DWORD width, DWORD height) {
 }
 
 void R_ShutdownFogOfWar(void) {
-    FOR_LOOP(i, FOW_SHADER_COUNT) R_ReleaseShader(fow_resources.shader[i]);
-    FOR_LOOP(i, FOW_RT_COUNT) R_ReleaseRenderTexture(fow_resources.rt[i]);
+    FOR_LOOP(i, FOW_SHADER_COUNT) {
+        R_ReleaseShader(fow_resources.shader[i]);
+        fow_resources.shader[i] = NULL;
+    }
+    FOR_LOOP(i, FOW_RT_COUNT) {
+        R_ReleaseRenderTexture(fow_resources.rt[i]);
+        fow_resources.rt[i] = NULL;
+    }
     R_ReleaseVertexArrayObject(fow_resources.casters);
+    fow_resources.casters = NULL;
     R_ReleaseTexture(fow_resources.sight);
+    fow_resources.sight = NULL;
 }
 
 DWORD R_GetFogOfWarTexture(void) {

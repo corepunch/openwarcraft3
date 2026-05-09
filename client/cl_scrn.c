@@ -518,6 +518,8 @@ LPCUIFRAME SCR_Clear(HANDLE data) {
     frames[0].size.width = 0.8;
     frames[0].size.height = 0.6;
     frames[0].flags.type = FT_SCREEN;
+    runtimes[0].rect = (RECT) { 0, 0, frames[0].size.width, frames[0].size.height };
+    runtimes[0].calculated = true;
     sizeBuf_t msg = {
         .data = data,
         .cursize = 100000,
