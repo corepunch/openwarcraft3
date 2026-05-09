@@ -22,6 +22,10 @@ void Key_SetBinding(keyCode_t key, LPCSTR binding) {
 void Key_Event(keyCode_t key, bool down, DWORD time) {
     LPCSTR kb = keybindings[key];
     char cmd[1024];
+
+    if (!kb || !*kb) {
+        return;
+    }
     
     if (!down) {
         if (*kb == '+') {

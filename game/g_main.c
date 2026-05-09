@@ -224,6 +224,12 @@ LPCSTR G_LevelString(LPCSTR name) {
  * them to the client as svc_layout messages so the client can render the HUD.
  * Also counts the player's initial food supply from pre-placed buildings. */
 static void G_ClientBegin(LPEDICT edict) {
+    if (gi.InMenuMode()) {
+        UI_ShowMainMenu(edict);
+        edict->client->menu_screen = MENU_SCREEN_MAIN;
+        return;
+    }
+
     UI_FRAME(ConsoleUI);
     UI_FRAME(CinematicPanel);
 

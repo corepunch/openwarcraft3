@@ -336,6 +336,8 @@ void UI_WriteFrame(LPCFRAMEDEF frame) {
         case FT_TEXTAREA:
             WriteTextArea(frame, &buf, &tmp);
             break;
+        case FT_MODEL:
+        case FT_SPRITE:
         case FT_PORTRAIT:
             tmp.tex.index = frame->Portrait.model;
             break;

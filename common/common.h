@@ -104,6 +104,8 @@ KNOWN_AS(CliffInfo, CLIFFINFO);
 // common.c
 void Com_Init(void);
 void Com_Error(errorCode_t code, LPCSTR fmt, ...);
+void Com_SetMenuMode(bool enabled);
+bool Com_InMenuMode(void);
 
 void LoadMap(LPCSTR pFilename);
 
@@ -128,10 +130,14 @@ void CL_Init(void);
 void CL_Frame(DWORD msec);
 void CL_Shutdown(void);
 void CL_Connect(LPCSTR host, unsigned short port);
+void CL_SetMenuBindings(void);
+void CL_SetGameplayBindings(void);
 
 void SV_Init(void);
 void SV_Frame(DWORD msec);
 void SV_Shutdown(void);
+void SV_Map(LPCSTR pFilename);
+void MenuAction(LPCSTR action, LPCSTR arg);
 
 HANDLE MemAlloc(long size);
 void MemFree(HANDLE mem);

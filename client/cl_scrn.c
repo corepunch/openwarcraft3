@@ -570,6 +570,8 @@ static drawer_t drawers[] = {
     { FT_TEXT, SCR_DrawString },
     { FT_TEXTAREA, SCR_DrawTextArea },
     { FT_TOOLTIPTEXT, SCR_DrawTooltip },
+    { FT_MODEL, SCR_DrawPortrait },
+    { FT_SPRITE, SCR_DrawPortrait },
     { FT_PORTRAIT, SCR_DrawPortrait },
     { FT_BUILDQUEUE, SCR_DrawBuildQueue },
     { FT_MULTISELECT, SCR_DrawMultiSelect },

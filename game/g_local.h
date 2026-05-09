@@ -88,6 +88,15 @@ typedef struct {
     void (*cmdbutton)(LPEDICT, DWORD);
 } menu_t;
 
+typedef enum {
+    MENU_SCREEN_MAIN,
+    MENU_SCREEN_SINGLEPLAYER,
+    MENU_SCREEN_MULTIPLAYER,
+    MENU_SCREEN_MAPSELECT,
+    MENU_SCREEN_OPTIONS,
+    MENU_SCREEN_CREDITS,
+} menu_screen_t;
+
 enum {
     AI_HOLD_FRAME = 1 << 0,
 };
@@ -545,6 +554,7 @@ struct client_s {
     LPCMAPPLAYER mapplayer;
     DWORD ping;
     BOOL no_control;
+    menu_screen_t menu_screen;
     menu_t menu;
     struct {
         CAMERASETUP state;
@@ -862,6 +872,10 @@ void UI_AddCommandButtonExtended(LPCSTR code, BOOL research, DWORD level);
 void UI_ShowInterface(LPEDICT, BOOL, FLOAT);
 void UI_ShowText(LPEDICT, LPCVECTOR2, LPCSTR, FLOAT);
 LPCSTR GetBuildCommand(unitRace_t);
+void UI_ShowMainMenu(LPEDICT);
+void UI_ShowSinglePlayerMenu(LPEDICT);
+void UI_ShowMultiplayerMenu(LPEDICT);
+void UI_ShowMapSelectMenu(LPEDICT, LPCSTR);
 
 // p_fdf.c
 void UI_PrintClasses(void);

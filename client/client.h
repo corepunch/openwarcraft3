@@ -77,6 +77,8 @@ struct client_static {
 
 // cl_main.c
 void CL_Connect(LPCSTR host, unsigned short port);
+void CL_SetMenuBindings(void);
+void CL_SetGameplayBindings(void);
 
 void V_RenderView(void);
 void CL_PrepRefresh(void);
