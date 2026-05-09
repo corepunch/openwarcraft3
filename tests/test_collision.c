@@ -171,14 +171,14 @@ typedef struct {
 } test_tga_hdr_t;   /* mirrors tgaHeader_t from g_pathing.c */
 #pragma pack(pop)
 
-static size_t make_tga_grayscale_1x1(BYTE buf[static 32], BYTE grey) {
+static size_t make_tga_grayscale_1x1(BYTE buf[static 32], BYTE gray) {
     test_tga_hdr_t hdr = {0};
     hdr.image_type  = 3;
     hdr.width       = 1;
     hdr.height      = 1;
     hdr.pixel_size  = 8;
     memcpy(buf, &hdr, sizeof(hdr));
-    buf[sizeof(hdr)] = grey;
+    buf[sizeof(hdr)] = gray;
     return sizeof(hdr) + 1;
 }
 
@@ -217,7 +217,7 @@ static size_t make_tga_rgba_1x1(BYTE buf[static 64], BYTE b, BYTE g, BYTE r, BYT
     return sizeof(hdr) + 4;
 }
 
-static size_t make_tga_grayscale_1x1_with_id(BYTE buf[static 64], BYTE grey, BYTE id_len) {
+static size_t make_tga_grayscale_1x1_with_id(BYTE buf[static 64], BYTE gray, BYTE id_len) {
     test_tga_hdr_t hdr = {0};
     hdr.id_length   = id_len;
     hdr.image_type  = 3;
@@ -226,7 +226,7 @@ static size_t make_tga_grayscale_1x1_with_id(BYTE buf[static 64], BYTE grey, BYT
     hdr.pixel_size  = 8;
     memcpy(buf, &hdr, sizeof(hdr));
     memset(buf + sizeof(hdr), 0xEE, id_len);
-    buf[sizeof(hdr) + id_len] = grey;
+    buf[sizeof(hdr) + id_len] = gray;
     return sizeof(hdr) + id_len + 1;
 }
 
