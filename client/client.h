@@ -81,6 +81,7 @@ void CL_SetMenuBindings(void);
 void CL_SetGameplayBindings(void);
 
 void V_RenderView(void);
+void V_Shutdown(void);
 void CL_PrepRefresh(void);
 void CL_ParseServerMessage(LPSIZEBUF msg);
 void CON_DrawConsole(void);
