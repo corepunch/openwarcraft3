@@ -8,6 +8,8 @@ static struct {
     int num_entities;
 } view_state;
 
+static bool world_loaded = false;
+
 VECTOR3 lightAngles = {-40,0,60};
 
 void Matrix4_fromViewAngles(LPCVECTOR3 target, LPCVECTOR3 angles, FLOAT distance, LPMATRIX4 output) {
@@ -41,6 +43,10 @@ void Matrix4_getLightMatrix(LPCVECTOR3 sunangles, FLOAT scale, LPMATRIX4 output)
 }
 
 void Matrix4_getCameraMatrix(LPMATRIX4 output) {
+    if (!world_loaded) {
+        Matrix4_identity(output);
+        return;
+    }
     MATRIX4 proj, view;
     size2_t windowSize = re.GetWindowSize();
     viewCamera_t *a = cl.viewDef.camerastate+1;
@@ -156,9 +162,10 @@ static void CL_AddEntities(void) {
 void CL_PrepRefresh(void) {
     static bool map_registered = false;
     
-    if (cl.configstrings[CS_MODELS+1][0] && !map_registered) {
+    if (!Com_InMenuMode() && cl.configstrings[CS_MODELS+1][0] && !map_registered) {
         re.RegisterMap(cl.configstrings[CS_MODELS+1]);
         map_registered = true;
+        world_loaded = true;
     }
     
     if (cl.configstrings[CS_HEALTHBAR] && !cl.healthbar) {
@@ -210,7 +217,7 @@ void V_RenderView(void) {
 #endif
     
     static DWORD lastTime = 0;
-    if (!cl.configstrings[CS_MODELS+1][0]) {
+    if (!world_loaded) {
         lastTime = cl.time;
         return;
     }

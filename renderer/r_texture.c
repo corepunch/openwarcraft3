@@ -35,7 +35,12 @@ LPTEXTURE R_AllocateTexture(DWORD width, DWORD height) {
 }
 
 void R_ReleaseTexture(LPTEXTURE texture) {
+    if (!texture) {
+        return;
+    }
     R_Call(glDeleteTextures, 1, &texture->texid);
+    texture->texid = 0;
+    ri.MemFree(texture);
 }
 
 void R_LoadTextureMipLevel(LPCTEXTURE pTexture, DWORD level, LPCCOLOR32 pPixels, DWORD width, DWORD height) {

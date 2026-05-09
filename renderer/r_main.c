@@ -12,6 +12,7 @@ SDL_Window *window;
 SDL_GLContext context;
 
 bool is_rendering_lights = false;
+static bool renderer_shutdown = false;
 
 void M3_Init(void);
 void MDLX_Init(void);
@@ -130,8 +131,17 @@ R_AllocateRenderTexture(GLsizei width,
 }
 
 void R_ReleaseRenderTexture(LPRENDERTARGET rt) {
-    glDeleteFramebuffers(1, &rt->buffer);
-    glDeleteTextures(1, &rt->texture);
+    if (!rt) {
+        return;
+    }
+    if (rt->buffer) {
+        glDeleteFramebuffers(1, &rt->buffer);
+        rt->buffer = 0;
+    }
+    if (rt->texture) {
+        glDeleteTextures(1, &rt->texture);
+        rt->texture = 0;
+    }
     ri.MemFree(rt);
 }
 
@@ -202,6 +212,7 @@ LPCSTR modelNames[MODEL_COUNT] = {
 //#include "mdx/r_mdx.h"
 
 void R_Init(DWORD width, DWORD height) {
+    renderer_shutdown = false;
     fprintf(stderr, "R_Init: SDL_Init\n");
     SDL_Init(SDL_INIT_VIDEO);
     fprintf(stderr, "R_Init: SDL attributes\n");
@@ -276,6 +287,10 @@ void R_Init(DWORD width, DWORD height) {
 }
 
 void R_Shutdown(void) {
+    if (renderer_shutdown) {
+        return;
+    }
+    renderer_shutdown = true;
     M3_Shutdown();
     MDLX_Shutdown();
     

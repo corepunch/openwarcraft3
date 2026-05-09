@@ -128,8 +128,12 @@ LPBUFFER R_MakeVertexArrayObject(LPCVERTEX vertices, DWORD size) {
 }
 
 void R_ReleaseVertexArrayObject(LPBUFFER buffer) {
+    if (!buffer) {
+        return;
+    }
     R_Call(glDeleteBuffers, 1, &buffer->vbo);
     R_Call(glDeleteVertexArrays, 1, &buffer->vao);
+    buffer->vbo = 0;
+    buffer->vao = 0;
     ri.MemFree(buffer);
 }
-

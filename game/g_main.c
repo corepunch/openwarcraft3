@@ -224,9 +224,13 @@ LPCSTR G_LevelString(LPCSTR name) {
  * them to the client as svc_layout messages so the client can render the HUD.
  * Also counts the player's initial food supply from pre-placed buildings. */
 static void G_ClientBegin(LPEDICT edict) {
+    LPGAMECLIENT client = edict->client ? edict->client : game.clients;
+    if (!edict->client) {
+        edict->client = client;
+    }
     if (gi.InMenuMode()) {
         UI_ShowMainMenu(edict);
-        edict->client->menu_screen = MENU_SCREEN_MAIN;
+        client->menu_screen = MENU_SCREEN_MAIN;
         return;
     }
 
@@ -236,9 +240,9 @@ static void G_ClientBegin(LPEDICT edict) {
     UI_WriteLayout(edict, ConsoleUI, LAYER_CONSOLE);
     UI_WriteLayout(edict, CinematicPanel, LAYER_CINEMATIC);
     
-    FILTER_EDICTS(ent, edict->client->ps.number == ent->s.player) {
-        edict->client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] += UNIT_FOOD_MADE(ent->class_id);
-        edict->client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED] += UNIT_FOOD_USED(ent->class_id);
+    FILTER_EDICTS(ent, client->ps.number == ent->s.player) {
+        client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] += UNIT_FOOD_MADE(ent->class_id);
+        client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED] += UNIT_FOOD_USED(ent->class_id);
     }
     
     level.started = true;
