@@ -202,6 +202,34 @@ static size_t make_tga_rgb_2x2(BYTE buf[static 64]) {
     return sizeof(hdr) + 4 * 3;
 }
 
+static size_t make_tga_rgba_1x1(BYTE buf[static 64], BYTE b, BYTE g, BYTE r, BYTE a) {
+    test_tga_hdr_t hdr = {0};
+    hdr.image_type  = 2;
+    hdr.width       = 1;
+    hdr.height      = 1;
+    hdr.pixel_size  = 32;
+    memcpy(buf, &hdr, sizeof(hdr));
+    BYTE *px = buf + sizeof(hdr);
+    *px++ = b;
+    *px++ = g;
+    *px++ = r;
+    *px++ = a;
+    return sizeof(hdr) + 4;
+}
+
+static size_t make_tga_grayscale_1x1_with_id(BYTE buf[static 64], BYTE grey, BYTE id_length) {
+    test_tga_hdr_t hdr = {0};
+    hdr.id_length   = id_length;
+    hdr.image_type  = 3;
+    hdr.width       = 1;
+    hdr.height      = 1;
+    hdr.pixel_size  = 8;
+    memcpy(buf, &hdr, sizeof(hdr));
+    memset(buf + sizeof(hdr), 0xEE, id_length);
+    buf[sizeof(hdr) + id_length] = grey;
+    return sizeof(hdr) + id_length + 1;
+}
+
 static void test_load_tga_grayscale_1x1_dimensions(void) {
     BYTE buf[64];
     size_t sz = make_tga_grayscale_1x1(buf, 0xAB);
@@ -235,6 +263,42 @@ static void test_load_tga_rgb_2x2_dimensions(void) {
     gi.MemFree(tex);
 }
 
+static void test_load_tga_rgba_1x1_preserves_bgra_channels(void) {
+    BYTE buf[64];
+    size_t sz = make_tga_rgba_1x1(buf, 0x12, 0x34, 0x56, 0x78);
+    pathTex_t *tex = LoadTGA(buf, sz);
+    ASSERT_NOT_NULL(tex);
+    /* Warcraft pathing TGAs are BGRA; loader preserves byte order in COLOR32. */
+    ASSERT_EQ_INT(tex->map[0].r, 0x12);
+    ASSERT_EQ_INT(tex->map[0].g, 0x34);
+    ASSERT_EQ_INT(tex->map[0].b, 0x56);
+    ASSERT_EQ_INT(tex->map[0].a, 0x78);
+    gi.MemFree(tex);
+}
+
+static void test_load_tga_grayscale_with_id_field_skips_id_bytes(void) {
+    BYTE buf[64];
+    size_t sz = make_tga_grayscale_1x1_with_id(buf, 0x7C, 3);
+    pathTex_t *tex = LoadTGA(buf, sz);
+    ASSERT_NOT_NULL(tex);
+    ASSERT_EQ_INT(tex->map[0].r, 0x7C);
+    ASSERT_EQ_INT(tex->map[0].g, 0x7C);
+    ASSERT_EQ_INT(tex->map[0].b, 0x7C);
+    gi.MemFree(tex);
+}
+
+static void test_load_tga_colormap_not_supported_returns_null(void) {
+    BYTE buf[64] = {0};
+    test_tga_hdr_t *hdr = (test_tga_hdr_t *)buf;
+    hdr->image_type    = 2;
+    hdr->colormap_type = 1; /* color-mapped images are unsupported by LoadTGA */
+    hdr->width         = 1;
+    hdr->height        = 1;
+    hdr->pixel_size    = 24;
+    pathTex_t *tex = LoadTGA(buf, sizeof(buf));
+    ASSERT_NULL(tex);
+}
+
 static void test_load_tga_unsupported_type_returns_null(void) {
     BYTE buf[64] = {0};
     test_tga_hdr_t *hdr = (test_tga_hdr_t *)buf;
@@ -262,5 +326,8 @@ BEGIN_SUITE(collision)
     RUN_TEST(test_load_tga_grayscale_1x1_dimensions);
     RUN_TEST(test_load_tga_grayscale_pixel_value);
     RUN_TEST(test_load_tga_rgb_2x2_dimensions);
+    RUN_TEST(test_load_tga_rgba_1x1_preserves_bgra_channels);
+    RUN_TEST(test_load_tga_grayscale_with_id_field_skips_id_bytes);
+    RUN_TEST(test_load_tga_colormap_not_supported_returns_null);
     RUN_TEST(test_load_tga_unsupported_type_returns_null);
 END_SUITE()
