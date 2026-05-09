@@ -374,13 +374,13 @@ MAKE_PARSER(TextureFile) {
     PATHSTR path = { 0 };
     sscanf(token, PATHSTR_FMT, path);
 //    BOOL decorate = frame->DecorateFileNames | (frame->Parent ? frame->Parent->DecorateFileNames : false);
-    *((DWORD *)out) = UI_LoadTexture(path, true);
+    *((DWORD *)out) = path[0] ? UI_LoadTexture(path, true) : 0;
 }
 
 MAKE_PARSER(ModelPath) {
     PATHSTR path = { 0 };
     sscanf(token, PATHSTR_FMT, path);
-    *((DWORD *)out) = gi.ModelIndex(path);
+    *((DWORD *)out) = path[0] ? gi.ModelIndex(path) : 0;
 }
 
 MAKE_PARSERCALL(Font) {
@@ -426,6 +426,9 @@ MAKE_PARSERCALL(DecorateFileNames) {
     frame->DecorateFileNames = true;
 }
 
+MAKE_PARSERCALL(BackdropMirrored) {
+}
+
 MAKE_PARSERCALL(SliderLayoutHorizontal) {
     frame->Slider.Layout = LAYOUT_HORIZONTAL;
 }
@@ -438,8 +441,21 @@ MAKE_PARSERCALL(BackdropTileBackground) {
     frame->Backdrop.TileBackground = true;
 }
 
+MAKE_PARSERCALL(BackdropHalfSides) {
+    // Warcraft uses this for some button backdrops. We don't model the split
+    // edge geometry separately yet, but we can safely accept the token so the
+    // template file loads.
+}
+
 MAKE_PARSERCALL(UseActiveContext) {
 //    frame->Backdrop.TileBackground = true;
+}
+
+MAKE_PARSERCALL(TabFocusDefault) {
+    frame->Control.TabFocusDefault = true;
+}
+
+MAKE_PARSERCALL(TabFocusPush) {
 }
 
 MAKE_PARSERCALL(BackdropBlendAll) {
@@ -504,9 +520,15 @@ static fdf_parse_class_t classes[] = {
 static parseItem_t items[] = {
     // Flags
     { "DecorateFileNames", { F_END }, DecorateFileNames },
+    { "BackdropMirrored", { F_END }, BackdropMirrored },
     { "SetAllPoints", { F_END }, SetAllPoints },
     { "SetPoint", { F(SetPoint.type, FramePointType), F(SetPoint.relativeTo, FramePtr), F(SetPoint.target, FramePointType), F(SetPoint.x, Float), F(SetPoint.y, Float), F_END }, SetPoint },
     { "UseActiveContext", { F_END }, UseActiveContext },
+    { "ControlShortcutKey", { F(Control.ShortcutKey, Name), F_END } },
+    { "ControlFocusHighlight", { F(Control.Backdrop.Focus, Name), F_END } },
+    { "TabFocusDefault", { F_END }, TabFocusDefault },
+    { "TabFocusPush", { F_END }, TabFocusPush },
+    { "TabFocusNext", { F(Control.TabFocusNext, Name), F_END } },
     { "DialogBackdrop", { F(DialogBackdrop, FramePtr), F_END } },
     // Fields
     { "Width", { F(Width, Float), F_END } },
@@ -532,8 +554,14 @@ static parseItem_t items[] = {
     { "FontShadowOffset", { F(Font.ShadowOffset, Vector2), F_END } },
     // Backdrop
     { "BackdropTileBackground", { F_END }, BackdropTileBackground },
+    { "BackdropHalfSides", { F_END }, BackdropHalfSides },
     { "BackdropBackground", { F(Backdrop.Background, TextureFile), F_END } },
     { "BackdropCornerFlags", { F(Backdrop.CornerFlags, CornerFlags), F_END } },
+    { "BackdropCornerFile", { F(Backdrop.EdgeFile, TextureFile), F_END } },
+    { "BackdropLeftFile", { F_END }, BackdropHalfSides },
+    { "BackdropRightFile", { F_END }, BackdropHalfSides },
+    { "BackdropTopFile", { F_END }, BackdropHalfSides },
+    { "BackdropBottomFile", { F_END }, BackdropHalfSides },
     { "BackdropCornerSize", { F(Backdrop.CornerSize, Float), F_END } },
     { "BackdropBackgroundSize", { F(Backdrop.BackgroundSize, Float), F_END } },
     { "BackdropBackgroundInsets", { F(Backdrop.BackgroundInsets, Vector4), F_END } },
@@ -557,8 +585,12 @@ static parseItem_t items[] = {
     { "SliderMaxValue", { F(Slider.MaxValue, Float), F_END } },
     { "SliderMinValue", { F(Slider.MinValue, Float), F_END } },
     { "SliderStepSize", { F(Slider.StepSize, Float), F_END } },
+    { "ScrollBarIncButtonFrame", { F(Slider.IncButtonFrame, Name), F_END } },
+    { "ScrollBarDecButtonFrame", { F(Slider.DecButtonFrame, Name), F_END } },
     { "SliderThumbButtonFrame", { F(Slider.ThumbButtonFrame, Name), F_END } },
     // Menu
+    { "ListBoxBorder", { F(ListBox.Border, Float), F_END } },
+    { "ListBoxScrollBar", { F(ListBox.ScrollBar, Name), F_END } },
     { "MenuBorder", { F(Menu.Border, Float), F_END } },
     { "MenuItem", { F(Menu.Item.Text, Name), F(Menu.Item.Value, Integer), F_END } },
     { "MenuItemHeight", { F(Menu.Item.Height, Float), F_END } },
@@ -643,6 +675,7 @@ void parse_func(LPPARSER parser, LPFRAMEDEF frame) {
             }
         }
         fprintf(stderr, "Can't recognize token '%s'\n", token);
+        fprintf(stderr, "parse context: %.120s\n", parser->buffer);
         parser->error = true;
         return;
     parse_next:;
@@ -658,9 +691,26 @@ LPFRAMEDEF FindFrameTemplate(LPCSTR str) {
     return NULL;
 }
 
+static BOOL UI_FrameTypesCompatible(FRAMETYPE frameType, FRAMETYPE inheritType) {
+    if (frameType == inheritType) {
+        return true;
+    }
+    switch (frameType) {
+        case FT_GLUETEXTBUTTON: return inheritType == FT_TEXTBUTTON;
+        case FT_GLUEBUTTON: return inheritType == FT_BUTTON;
+        case FT_GLUECHECKBOX: return inheritType == FT_CHECKBOX;
+        case FT_GLUEEDITBOX: return inheritType == FT_EDITBOX;
+        case FT_GLUEPOPUPMENU: return inheritType == FT_POPUPMENU;
+        case FT_SIMPLEBUTTON: return inheritType == FT_BUTTON;
+        case FT_SIMPLECHECKBOX: return inheritType == FT_CHECKBOX;
+        case FT_SIMPLESTATUSBAR: return inheritType == FT_SIMPLESTATUSBAR;
+        default: return false;
+    }
+}
+
 void UI_InheritFrom(LPFRAMEDEF frame, LPCSTR inheritName) {
     LPFRAMEDEF inherit = FindFrameTemplate(inheritName);
-    if (inherit && inherit->Type == frame->Type) {
+    if (inherit && UI_FrameTypesCompatible(frame->Type, inherit->Type)) {
         FRAMEDEF tmp;
         memcpy(&tmp, frame, sizeof(FRAMEDEF));
         memcpy(frame, inherit, sizeof(FRAMEDEF));

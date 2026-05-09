@@ -127,114 +127,6 @@ void Init_CinematicPanel(void) {
     CinematicDialogueText->Stat = MAX_STATS + PLAYERTEXT_DIALOGUE;
 }
 
-static LPCSTR main_menu_fdf = \
-"Frame \"FRAME\" \"MapSelectMenu\" INHERITS \"StandardFrameTemplate\" {\n"
-"    SetAllPoints,\n"
-"    Frame \"TEXT\" \"MapSelectTitle\" INHERITS \"StandardTitleTextTemplate\" {\n"
-"        SetPoint TOPLEFT, \"MapSelectMenu\", TOPLEFT, 0.02625, -0.109,\n"
-"        Text \"Select a Map\",\n"
-"    }\n"
-"    Frame \"TEXT\" \"MapSelectMessage\" INHERITS \"StandardSmallTextTemplate\" {\n"
-"        SetPoint TOPLEFT, \"MapSelectTitle\", BOTTOMLEFT, 0.0, -0.005,\n"
-"        Text \"Choose the scenario to load.\",\n"
-"        FontJustificationH JUSTIFYLEFT,\n"
-"        FontJustificationV JUSTIFYTOP,\n"
-"    }\n"
-"    Frame \"BACKDROP\" \"MapSelectHuman01Backdrop\" INHERITS \"StandardMenuButtonBaseBackdrop\" {\n"
-"        SetPoint TOPRIGHT, \"MapSelectMenu\", TOPRIGHT, -0.015, -0.156,\n"
-"        Frame \"GLUETEXTBUTTON\" \"MapSelectHuman01Button\" INHERITS WITHCHILDREN \"StandardButtonTemplate\" {\n"
-"            SetPoint TOPRIGHT, \"MapSelectHuman01Backdrop\", TOPRIGHT, -0.012, -0.0165,\n"
-"            Frame \"TEXT\" \"MapSelectHuman01ButtonText\" INHERITS \"StandardButtonTextTemplate\" {\n"
-"                Text \"Human 01\",\n"
-"            }\n"
-"        }\n"
-"    }\n"
-"    Frame \"BACKDROP\" \"MapSelectHuman02Backdrop\" INHERITS \"StandardMenuButtonBaseBackdrop\" {\n"
-"        SetPoint TOPRIGHT, \"MapSelectHuman01Backdrop\", BOTTOMRIGHT, 0, 0.005,\n"
-"        Frame \"GLUETEXTBUTTON\" \"MapSelectHuman02Button\" INHERITS WITHCHILDREN \"StandardButtonTemplate\" {\n"
-"            SetPoint TOPRIGHT, \"MapSelectHuman02Backdrop\", TOPRIGHT, -0.012, -0.0165,\n"
-"            Frame \"TEXT\" \"MapSelectHuman02ButtonText\" INHERITS \"StandardButtonTextTemplate\" {\n"
-"                Text \"Human 02\",\n"
-"            }\n"
-"        }\n"
-"    }\n"
-"    Frame \"BACKDROP\" \"MapSelectOrc01Backdrop\" INHERITS \"StandardMenuButtonBaseBackdrop\" {\n"
-"        SetPoint TOPRIGHT, \"MapSelectHuman02Backdrop\", BOTTOMRIGHT, 0, 0.005,\n"
-"        Frame \"GLUETEXTBUTTON\" \"MapSelectOrc01Button\" INHERITS WITHCHILDREN \"StandardButtonTemplate\" {\n"
-"            SetPoint TOPRIGHT, \"MapSelectOrc01Backdrop\", TOPRIGHT, -0.012, -0.0165,\n"
-"            Frame \"TEXT\" \"MapSelectOrc01ButtonText\" INHERITS \"StandardButtonTextTemplate\" {\n"
-"                Text \"Orc 01\",\n"
-"            }\n"
-"        }\n"
-"    }\n"
-"    Frame \"BACKDROP\" \"MapSelectUndead01Backdrop\" INHERITS \"StandardMenuButtonBaseBackdrop\" {\n"
-"        SetPoint TOPRIGHT, \"MapSelectOrc01Backdrop\", BOTTOMRIGHT, 0, 0.005,\n"
-"        Frame \"GLUETEXTBUTTON\" \"MapSelectUndead01Button\" INHERITS WITHCHILDREN \"StandardButtonTemplate\" {\n"
-"            SetPoint TOPRIGHT, \"MapSelectUndead01Backdrop\", TOPRIGHT, -0.012, -0.0165,\n"
-"            Frame \"TEXT\" \"MapSelectUndead01ButtonText\" INHERITS \"StandardButtonTextTemplate\" {\n"
-"                Text \"Undead 01\",\n"
-"            }\n"
-"        }\n"
-"    }\n"
-"    Frame \"BACKDROP\" \"MapSelectBackBackdrop\" INHERITS \"StandardMenuButtonBaseBackdrop\" {\n"
-"        SetPoint BOTTOMRIGHT, \"MapSelectMenu\", BOTTOMRIGHT, -0.015, 0.05,\n"
-"        Frame \"GLUETEXTBUTTON\" \"MapSelectBackButton\" INHERITS WITHCHILDREN \"StandardButtonTemplate\" {\n"
-"            SetPoint TOPRIGHT, \"MapSelectBackBackdrop\", TOPRIGHT, -0.012, -0.0165,\n"
-"            Frame \"TEXT\" \"MapSelectBackButtonText\" INHERITS \"StandardButtonTextTemplate\" {\n"
-"                Text \"Back\",\n"
-"            }\n"
-"        }\n"
-"    }\n"
-"}\n";
-
-static LPCSTR multiplayer_menu_fdf = \
-"Frame \"FRAME\" \"MultiplayerMenu\" INHERITS \"StandardFrameTemplate\" {\n"
-"    SetAllPoints,\n"
-"    Frame \"TEXT\" \"MultiplayerTitle\" INHERITS \"StandardTitleTextTemplate\" {\n"
-"        SetPoint TOPLEFT, \"MultiplayerMenu\", TOPLEFT, 0.02625, -0.109,\n"
-"        Text \"Multiplayer\",\n"
-"    }\n"
-"    Frame \"TEXT\" \"MultiplayerMessage\" INHERITS \"StandardSmallTextTemplate\" {\n"
-"        SetPoint TOPLEFT, \"MultiplayerTitle\", BOTTOMLEFT, 0.0, -0.005,\n"
-"        Text \"Active servers will appear here.\",\n"
-"        FontJustificationH JUSTIFYLEFT,\n"
-"        FontJustificationV JUSTIFYTOP,\n"
-"    }\n"
-"    Frame \"TEXT\" \"ServerLine1Text\" INHERITS \"StandardInfoTextTemplate\" {\n"
-"        SetPoint TOPLEFT, \"MultiplayerMessage\", BOTTOMLEFT, 0.0, -0.01,\n"
-"        Text \"No active servers yet\",\n"
-"        FontJustificationH JUSTIFYLEFT,\n"
-"    }\n"
-"    Frame \"TEXT\" \"ServerLine2Text\" INHERITS \"StandardInfoTextTemplate\" {\n"
-"        SetPoint TOPLEFT, \"ServerLine1Text\", BOTTOMLEFT, 0.0, -0.01,\n"
-"        Text \"Appwrite browser coming soon\",\n"
-"        FontJustificationH JUSTIFYLEFT,\n"
-"    }\n"
-"    Frame \"TEXT\" \"ServerLine3Text\" INHERITS \"StandardInfoTextTemplate\" {\n"
-"        SetPoint TOPLEFT, \"ServerLine2Text\", BOTTOMLEFT, 0.0, -0.01,\n"
-"        Text \"Refresh to retry later\",\n"
-"        FontJustificationH JUSTIFYLEFT,\n"
-"    }\n"
-"    Frame \"BACKDROP\" \"MultiplayerRefreshBackdrop\" INHERITS \"StandardMenuButtonBaseBackdrop\" {\n"
-"        SetPoint TOPRIGHT, \"MultiplayerMenu\", TOPRIGHT, -0.015, -0.156,\n"
-"        Frame \"GLUETEXTBUTTON\" \"MultiplayerRefreshButton\" INHERITS WITHCHILDREN \"StandardButtonTemplate\" {\n"
-"            SetPoint TOPRIGHT, \"MultiplayerRefreshBackdrop\", TOPRIGHT, -0.012, -0.0165,\n"
-"            Frame \"TEXT\" \"MultiplayerRefreshButtonText\" INHERITS \"StandardButtonTextTemplate\" {\n"
-"                Text \"Refresh\",\n"
-"            }\n"
-"        }\n"
-"    }\n"
-"    Frame \"BACKDROP\" \"MultiplayerBackBackdrop\" INHERITS \"StandardMenuButtonBaseBackdrop\" {\n"
-"        SetPoint BOTTOMRIGHT, \"MultiplayerMenu\", BOTTOMRIGHT, -0.015, 0.05,\n"
-"        Frame \"GLUETEXTBUTTON\" \"MultiplayerBackButton\" INHERITS WITHCHILDREN \"StandardButtonTemplate\" {\n"
-"            SetPoint TOPRIGHT, \"MultiplayerBackBackdrop\", TOPRIGHT, -0.012, -0.0165,\n"
-"            Frame \"TEXT\" \"MultiplayerBackButtonText\" INHERITS \"StandardButtonTextTemplate\" {\n"
-"                Text \"Back\",\n"
-"            }\n"
-"        }\n"
-"    }\n"
-"}\n";
-
 static void Init_MainMenu(void) {
     UI_FRAME(WarCraftIIILogo);
     UI_FRAME(SinglePlayerButton);
@@ -269,24 +161,49 @@ static void Init_SinglePlayerMenu(void) {
 }
 
 static void Init_MapSelectMenu(void) {
-    UI_FRAME(MapSelectHuman01Button);
-    UI_FRAME(MapSelectHuman02Button);
-    UI_FRAME(MapSelectOrc01Button);
-    UI_FRAME(MapSelectUndead01Button);
-    UI_FRAME(MapSelectBackButton);
+    UI_FRAME(BackButton);
+    UI_FRAME(Mission13Button);
+    UI_FRAME(Mission12Button);
+    UI_FRAME(Mission11Button);
+    UI_FRAME(Mission10Button);
+    UI_FRAME(Mission9Button);
+    UI_FRAME(Mission8Button);
+    UI_FRAME(Mission7Button);
+    UI_FRAME(Mission6Button);
+    UI_FRAME(Mission5Button);
+    UI_FRAME(Mission4Button);
+    UI_FRAME(Mission3Button);
+    UI_FRAME(Mission2Button);
+    UI_FRAME(Mission1Button);
+    UI_FRAME(Mission0Button);
 
-    UI_SetOnClick(MapSelectHuman01Button, "menu load Maps\\Campaign\\Human01.w3m");
-    UI_SetOnClick(MapSelectHuman02Button, "menu load Maps\\Campaign\\Human02.w3m");
-    UI_SetOnClick(MapSelectOrc01Button, "menu load Maps\\Campaign\\Orc01.w3m");
-    UI_SetOnClick(MapSelectUndead01Button, "menu load Maps\\Campaign\\Undead01.w3m");
-    UI_SetOnClick(MapSelectBackButton, "menu singleplayer");
+    UI_SetOnClick(BackButton, "menu singleplayer");
+    UI_SetOnClick(Mission13Button, "menu load Maps\\Campaign\\Human02.w3m");
+    UI_SetOnClick(Mission12Button, "menu load Maps\\Campaign\\Human01.w3m");
+    UI_SetOnClick(Mission11Button, "menu load Maps\\Campaign\\Orc01.w3m");
+    UI_SetOnClick(Mission10Button, "menu load Maps\\Campaign\\Undead01.w3m");
 }
 
-static void Init_MultiplayerMenu(void) {
-    UI_FRAME(MultiplayerRefreshButton);
-    UI_FRAME(MultiplayerBackButton);
-    UI_SetOnClick(MultiplayerRefreshButton, "menu refresh");
-    UI_SetOnClick(MultiplayerBackButton, "menu main");
+static void Init_MultiplayerJoinMenu(void) {
+    UI_FRAME(CreateButton);
+    UI_FRAME(LoadButton);
+    UI_FRAME(JoinButton);
+    UI_FRAME(CancelButton);
+    UI_SetOnClick(CreateButton, "menu multiplayer create");
+    UI_SetOnClick(LoadButton, "menu multiplayer join");
+    UI_SetOnClick(JoinButton, "menu multiplayer join");
+    UI_SetOnClick(CancelButton, "menu main");
+}
+
+static void Init_MultiplayerCreateMenu(void) {
+    UI_FRAME(MapInfoButton);
+    UI_FRAME(AdvancedOptionsButton);
+    UI_FRAME(PlayButton);
+    UI_FRAME(CancelButton);
+    UI_SetOnClick(MapInfoButton, "menu main");
+    UI_SetOnClick(AdvancedOptionsButton, "menu main");
+    UI_SetOnClick(PlayButton, "menu main");
+    UI_SetOnClick(CancelButton, "menu multiplayer join");
 }
 
 /* Parse all FDF assets and build the initial UI frame hierarchy.
@@ -302,16 +219,12 @@ void UI_Init(void) {
     UI_ParseFDF("UI\\FrameDef\\UI\\SimpleInfoPanel.fdf");
     UI_ParseFDF("UI\\FrameDef\\UI\\UpperButtonBar.fdf");
     UI_ParseFDF("UI\\FrameDef\\UI\\QuestDialog.fdf");
-    {
-        LPSTR buffer = strdup(main_menu_fdf);
-        UI_ParseFDF_Buffer("MainMenuOverlay", buffer);
-        free(buffer);
-    }
-    {
-        LPSTR buffer = strdup(multiplayer_menu_fdf);
-        UI_ParseFDF_Buffer("MultiplayerMenuOverlay", buffer);
-        free(buffer);
-    }
+    UI_ParseFDF("UI\\FrameDef\\Glue\\StandardTemplates.fdf");
+    UI_ParseFDF("UI\\FrameDef\\Glue\\MainMenu.fdf");
+    UI_ParseFDF("UI\\FrameDef\\Glue\\SinglePlayerMenu.fdf");
+    UI_ParseFDF("UI\\FrameDef\\Glue\\CampaignMenu.fdf");
+    UI_ParseFDF("UI\\FrameDef\\Glue\\LocalMultiplayerJoin.fdf");
+    UI_ParseFDF("UI\\FrameDef\\Glue\\LocalMultiplayerCreate.fdf");
 
     UI_FRAME(ConsoleUI);
     UI_SetAllPoints(ConsoleUI);
@@ -326,7 +239,8 @@ void UI_Init(void) {
     Init_MainMenu();
     Init_SinglePlayerMenu();
     Init_MapSelectMenu();
-    Init_MultiplayerMenu();
+    Init_MultiplayerJoinMenu();
+    Init_MultiplayerCreateMenu();
     fprintf(stderr, "UI_Init: complete\n");
 
 //    UI_PrintClasses();
@@ -347,12 +261,12 @@ void UI_ShowSinglePlayerMenu(LPEDICT ent) {
 }
 
 void UI_ShowMultiplayerMenu(LPEDICT ent) {
-    UI_FRAME(MultiplayerMenu);
-    UI_WriteLayout(ent, MultiplayerMenu, LAYER_CONSOLE);
+    UI_FRAME(LocalMultiplayerJoin);
+    UI_WriteLayout(ent, LocalMultiplayerJoin, LAYER_CONSOLE);
 }
 
 void UI_ShowMapSelectMenu(LPEDICT ent, LPCSTR category) {
     (void)category;
-    UI_FRAME(MapSelectMenu);
-    UI_WriteLayout(ent, MapSelectMenu, LAYER_CONSOLE);
+    UI_FRAME(CampaignMenu);
+    UI_WriteLayout(ent, CampaignMenu, LAYER_CONSOLE);
 }

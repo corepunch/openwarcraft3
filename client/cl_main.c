@@ -67,6 +67,7 @@ void CL_Init(void) {
         .FileOpen = FS_OpenFile,
         .FileClose = FS_CloseFile,
         .FileExtract = FS_ExtractFile,
+        .InMenuMode = Com_InMenuMode,
         .ReadSheet = FS_ParseSLK,
         .FindSheetCell = FS_FindSheetCell,
         .error = CON_printf,

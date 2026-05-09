@@ -467,7 +467,11 @@ struct uiFrameDef_s {
             UINAME Disabled;
             UINAME MouseOver;
             UINAME DisabledPushed;
+            UINAME Focus;
         } Backdrop;
+        UINAME ShortcutKey;
+        UINAME TabFocusNext;
+        BOOL TabFocusDefault;
     } Control;
     struct {
         FLOAT InitialValue;
@@ -476,7 +480,13 @@ struct uiFrameDef_s {
         FLOAT MinValue;
         FLOAT StepSize;
         UINAME ThumbButtonFrame;
+        UINAME IncButtonFrame;
+        UINAME DecButtonFrame;
     } Slider;
+    struct {
+        FLOAT Border;
+        UINAME ScrollBar;
+    } ListBox;
     struct {
         FLOAT Border;
         struct {

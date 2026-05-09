@@ -25,6 +25,7 @@
 #define __STR(x) #x
 
 extern LPTEXTURE Texture;
+void UI_Init(void);
 
 HANDLE FS_AddArchive(LPCSTR);
 
@@ -97,6 +98,7 @@ int main(int argc, LPSTR argv[]) {
     } else if (menu_mode) {
         // Menu mode still uses the local loopback server so the client can
         // consume server-authored UI layouts.
+        TRACE(UI_Init);
         TRACE(SV_ClientConnect);
     } else if (!menu_mode) {
         // Listen-server mode: load the map and spawn entities.

@@ -44,6 +44,7 @@ LPTEXTURE R_LoadTexture(LPCSTR textureFilename) {
         return R_AllocateSinglePixelTexture(0xffffffff);
     }
     DWORD fileSize = SFileGetFileSize(file, NULL);
+    fprintf(stderr, "R_LoadTexture: %s size=%u\n", textureFilename, (unsigned)fileSize);
     HANDLE buffer = ri.MemAlloc(fileSize);
     SFileReadFile(file, buffer, fileSize, NULL, NULL);
     switch (*(DWORD *)buffer) {
@@ -84,6 +85,7 @@ LPMODEL R_LoadModel(LPCSTR modelFilename) {
         }
     }
     DWORD fileSize = SFileGetFileSize(file, NULL);
+    fprintf(stderr, "R_LoadModel: %s size=%u\n", modelFilename, (unsigned)fileSize);
     void *buffer = ri.MemAlloc(fileSize);
     SFileReadFile(file, buffer, fileSize, NULL, NULL);
     ri.FileClose(file);
@@ -235,24 +237,25 @@ void R_Init(DWORD width, DWORD height) {
     extern LPCSTR fs_alphatest;
     extern LPCSTR fs_commandbutton;
     
-    FOR_LOOP(i, MODEL_COUNT) {
-        tr.model[i] = R_LoadModel(modelNames[i]);
-    }
+    if (!ri.InMenuMode || !ri.InMenuMode()) {
+        FOR_LOOP(i, MODEL_COUNT) {
+            tr.model[i] = R_LoadModel(modelNames[i]);
+        }
+        FOR_LOOP(i, SHEET_COUNT) {
+            tr.sheet[i] = ri.ReadSheet(sheetNames[i]);
+        }
 
-    FOR_LOOP(i, SHEET_COUNT) {
-        tr.sheet[i] = ri.ReadSheet(sheetNames[i]);
-    }
+        FOR_LOOP(i, NUM_SELECTION_CIRCLES) {
+            tr.texture[TEX_SELECTION_CIRCLE+i] = R_LoadTexture(selCirclesNames[i]);
+        }
 
-    FOR_LOOP(i, NUM_SELECTION_CIRCLES) {
-        tr.texture[TEX_SELECTION_CIRCLE+i] = R_LoadTexture(selCirclesNames[i]);
-    }
-
-    FOR_LOOP(team, MAX_TEAMS) {
-        PATHSTR glowFilename, colorFilename;
-        sprintf(glowFilename, "ReplaceableTextures\\TeamGlow\\TeamGlow%02d.blp", team);
-        sprintf(colorFilename, "ReplaceableTextures\\TeamColor\\TeamColor%02d.blp", team);
-        tr.texture[TEX_TEAM_GLOW + team] = R_LoadTexture(glowFilename);
-        tr.texture[TEX_TEAM_COLOR + team] = R_LoadTexture(colorFilename);
+        FOR_LOOP(team, MAX_TEAMS) {
+            PATHSTR glowFilename, colorFilename;
+            sprintf(glowFilename, "ReplaceableTextures\\TeamGlow\\TeamGlow%02d.blp", team);
+            sprintf(colorFilename, "ReplaceableTextures\\TeamColor\\TeamColor%02d.blp", team);
+            tr.texture[TEX_TEAM_GLOW + team] = R_LoadTexture(glowFilename);
+            tr.texture[TEX_TEAM_COLOR + team] = R_LoadTexture(colorFilename);
+        }
     }
 
     tr.shader[SHADER_DEFAULT] = R_InitShader(vs_default, fs_default);
