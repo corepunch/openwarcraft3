@@ -56,12 +56,12 @@ static void send_connect_oob(int sock, unsigned short server_port) {
     BYTE datagram[64];
     DWORD msg_len = OOB_HEADER_SIZE + CONNECT_TEXT_SIZE; /* -1 + "connect" */
     DWORD packet_len = 4 + msg_len; /* net packet header + payload */
-    int oob = -1;
+    int oob_marker = -1;
     datagram[0] = (BYTE)(msg_len & 0xFF);
     datagram[1] = (BYTE)((msg_len >> 8) & 0xFF);
     datagram[2] = (BYTE)((msg_len >> 16) & 0xFF);
     datagram[3] = (BYTE)((msg_len >> 24) & 0xFF);
-    memcpy(datagram + 4, &oob, sizeof(oob));
+    memcpy(datagram + 4, &oob_marker, sizeof(oob_marker));
     memcpy(datagram + 8, "connect", 7);
 
     struct sockaddr_in to;
@@ -93,7 +93,7 @@ static BOOL recv_client_connect_oob(int sock) {
 }
 
 static void pump_server_connects(void) {
-    enum { MIN_CONNECT_OOB_PAYLOAD = 11 };
+    enum { MIN_CONNECT_MSG_SIZE = 11 }; /* -1 marker (4) + "connect" (7) */
     BYTE msg_buf[MAX_MSGLEN];
     sizeBuf_t msg = { msg_buf, MAX_MSGLEN, 0, 0 };
     netadr_t from;
@@ -102,7 +102,7 @@ static void pump_server_connects(void) {
         r = NET_GetPacket(NS_SERVER, &from, &msg);
         if (!r)
             break;
-        if (r >= MIN_CONNECT_OOB_PAYLOAD) {
+        if (r >= MIN_CONNECT_MSG_SIZE) {
             int hdr = 0;
             memcpy(&hdr, msg.data, sizeof(hdr));
             if (hdr == -1 && memcmp(msg.data + 4, "connect", 7) == 0)
@@ -161,6 +161,7 @@ static void test_udp_connect_honors_ge_max_clients_limit(void) {
 
 static void test_multicast_syncs_updates_to_all_connected_clients(void) {
     BYTE payload[] = { 0x11, 0x22, 0x33, 0x44 };
+    VECTOR3 origin = { 0, 0, 0 };
     reset_server_state(4);
     SZ_Init(&sv.multicast, sv.multicast_buf, sizeof(sv.multicast_buf));
     FOR_LOOP(i, 3) {
@@ -170,7 +171,7 @@ static void test_multicast_syncs_updates_to_all_connected_clients(void) {
     svs.num_clients = 3;
 
     SZ_Write(&sv.multicast, payload, sizeof(payload));
-    SV_Multicast(&(VECTOR3){0,0,0}, MULTICAST_ALL_R);
+    SV_Multicast(&origin, MULTICAST_ALL_R);
 
     FOR_LOOP(i, 3) {
         ASSERT_EQ_INT(svs.clients[i].netchan.message.cursize, (int)sizeof(payload));
