@@ -25,17 +25,22 @@ void CL_Input(void) {
     SDL_Event event;
     mouse.event = UI_EVENT_NONE;
     while(SDL_PollEvent(&event)) {
-        DWORD mousevt = K_MOUSE1 + event.button.button - 1;
         switch(event.type) {
             case SDL_MOUSEBUTTONDOWN:
+                {
+                    DWORD mousevt = K_MOUSE1 + event.button.button - 1;
                 mouse.origin.x = event.button.x;
                 mouse.origin.y = event.button.y;
                 Key_Event(mousevt, true, event.button.timestamp);
+                }
                 break;
             case SDL_MOUSEBUTTONUP:
+                {
+                    DWORD mousevt = K_MOUSE1 + event.button.button - 1;
                 mouse.origin.x = event.button.x;
                 mouse.origin.y = event.button.y;
                 Key_Event(mousevt, false, event.button.timestamp);
+                }
                 break;
             case SDL_MOUSEMOTION:
                 mouse.origin.x = event.motion.x;
@@ -57,6 +62,14 @@ void CL_Input(void) {
                 mouse.origin.x = event.button.x;
                 mouse.origin.y = event.button.y;
                 mouse.button = event.button.button;
+                if (Com_InMenuMode()) {
+                    if (event.button.button == 1) {
+                        mouse.event = UI_LEFT_MOUSE_DOWN;
+                    } else if (event.button.button == 2) {
+                        mouse.event = UI_RIGHT_MOUSE_DOWN;
+                    }
+                    break;
+                }
                 switch (event.button.button) {
                     case 1:
                         mouse.event = UI_LEFT_MOUSE_DOWN;
@@ -70,6 +83,14 @@ void CL_Input(void) {
                 mouse.origin.x = event.button.x;
                 mouse.origin.y = event.button.y;
                 mouse.button = 0;
+                if (Com_InMenuMode()) {
+                    if (event.button.button == 1) {
+                        mouse.event = UI_LEFT_MOUSE_UP;
+                    } else if (event.button.button == 2) {
+                        mouse.event = UI_RIGHT_MOUSE_UP;
+                    }
+                    break;
+                }
                 switch (event.button.button) {
                     case 1:
                         mouse.event = UI_LEFT_MOUSE_UP;
@@ -82,6 +103,9 @@ void CL_Input(void) {
             case SDL_MOUSEMOTION:
                 mouse.origin.x = event.motion.x;
                 mouse.origin.y = event.motion.y;
+                if (Com_InMenuMode()) {
+                    break;
+                }
                 switch (mouse.button) {
                     case 1:
                         cl.selection.rect.w = event.motion.x - cl.selection.rect.x;
@@ -103,6 +127,23 @@ void CL_Input(void) {
         }
     }
 //    cl.viewDef.camera.origin.z = CM_GetHeightAtPoint(cl.viewDef.camera.origin.x, cl.viewDef.camera.origin.y);
+}
+
+void CL_SetMenuBindings(void) {
+    Key_SetBinding(K_ESCAPE, "quit");
+}
+
+void CL_SetGameplayBindings(void) {
+    cl.moveConfirmation = re.LoadModel("UI\\Feedback\\Confirmation\\Confirmation.mdx");
+
+    cl.viewDef.camerastate[0].zfar = 5000;
+    cl.viewDef.camerastate[0].znear = 100;
+    cl.viewDef.camerastate[1].zfar = 5000;
+    cl.viewDef.camerastate[1].znear = 100;
+
+    Key_SetBinding(K_MOUSE1, "+select");
+    Key_SetBinding('q', "cmd quests");
+    Key_SetBinding(K_ESCAPE, "cmd cancel");
 }
 
 void IN_SelectDown(void) {

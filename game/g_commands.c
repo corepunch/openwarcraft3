@@ -25,6 +25,34 @@ void CMD_CancelCommand(LPEDICT ent) {
     Get_Commands_f(ent);
 }
 
+static void CMD_MenuMain(LPEDICT ent) {
+    UI_ShowMainMenu(ent);
+    ent->client->menu_screen = MENU_SCREEN_MAIN;
+}
+
+static void CMD_MenuSinglePlayer(LPEDICT ent) {
+    UI_ShowSinglePlayerMenu(ent);
+    ent->client->menu_screen = MENU_SCREEN_SINGLEPLAYER;
+}
+
+static void CMD_MenuMultiplayer(LPEDICT ent) {
+    UI_ShowMultiplayerMenu(ent);
+    ent->client->menu_screen = MENU_SCREEN_MULTIPLAYER;
+}
+
+static void CMD_MenuMapSelect(LPEDICT ent, LPCSTR category) {
+    UI_ShowMapSelectMenu(ent, category);
+    ent->client->menu_screen = MENU_SCREEN_MAPSELECT;
+}
+
+static void CMD_MenuLoad(LPEDICT ent, LPCSTR map) {
+    (void)ent;
+    if (!map || !*map) {
+        return;
+    }
+    gi.MenuAction("load", map);
+}
+
 CLIENTCOMMAND(Select) {
     LPGAMECLIENT client = clent->client;
     if (client->menu.on_entity_selected) {
@@ -130,6 +158,43 @@ CLIENTCOMMAND(HideQuests) {
     UI_HideQuests(clent);
 }
 
+CLIENTCOMMAND(Menu) {
+    if (argc < 2) {
+        CMD_MenuMain(clent);
+        return;
+    }
+    if (!strcmp(argv[1], "main")) {
+        CMD_MenuMain(clent);
+    } else if (!strcmp(argv[1], "singleplayer")) {
+        CMD_MenuSinglePlayer(clent);
+    } else if (!strcmp(argv[1], "multiplayer")) {
+        CMD_MenuMultiplayer(clent);
+    } else if (!strcmp(argv[1], "mapselect")) {
+        CMD_MenuMapSelect(clent, argc > 2 ? argv[2] : "campaign");
+    } else if (!strcmp(argv[1], "load")) {
+        CMD_MenuLoad(clent, argc > 2 ? argv[2] : NULL);
+    } else if (!strcmp(argv[1], "quit")) {
+        gi.MenuAction("quit", NULL);
+    } else if (!strcmp(argv[1], "refresh")) {
+        switch (clent->client->menu_screen) {
+            case MENU_SCREEN_SINGLEPLAYER:
+                CMD_MenuSinglePlayer(clent);
+                break;
+            case MENU_SCREEN_MULTIPLAYER:
+                CMD_MenuMultiplayer(clent);
+                break;
+            case MENU_SCREEN_MAPSELECT:
+                CMD_MenuMapSelect(clent, argc > 2 ? argv[2] : "campaign");
+                break;
+            default:
+                CMD_MenuMain(clent);
+                break;
+        }
+    } else {
+        CMD_MenuMain(clent);
+    }
+}
+
 CLIENTCOMMAND(Quest) {
     DWORD index = atoi(argv[1]);
     FOR_EACH_LIST(QUEST, q, level.quests) {
@@ -156,6 +221,7 @@ clientCommand_t clientCommands[] = {
     { "quests", CMD_Quests },
     { "hidequests", CMD_HideQuests },
     { "quest", CMD_Quest },
+    { "menu", CMD_Menu },
     { NULL }
 };
 

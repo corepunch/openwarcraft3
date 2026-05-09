@@ -32,7 +32,11 @@ void SV_Begin_f(LPCLIENT cl) {
 }
 
 void SV_PlayerInfo_f(LPCLIENT cl) {
-    cl->edict = EDICT_NUM(CM_GetLocalPlayerNumber());
+    if (Com_InMenuMode() && !sv.configstrings[CS_MODELS+1][0]) {
+        cl->edict = EDICT_NUM(1);
+    } else {
+        cl->edict = EDICT_NUM(CM_GetLocalPlayerNumber());
+    }
     MSG_WriteByte(&cl->netchan.message, svc_mirror);
     MSG_WriteString(&cl->netchan.message, "begin");
     Netchan_Transmit(NS_SERVER, &cl->netchan);
@@ -80,4 +84,3 @@ void SV_ExecuteUserCommand(LPSIZEBUF msg, LPCLIENT client) {
     }
     ge->ClientCommand(client->edict, argc, argv);
 }
-

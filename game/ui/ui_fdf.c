@@ -377,6 +377,12 @@ MAKE_PARSER(TextureFile) {
     *((DWORD *)out) = UI_LoadTexture(path, true);
 }
 
+MAKE_PARSER(ModelPath) {
+    PATHSTR path = { 0 };
+    sscanf(token, PATHSTR_FMT, path);
+    *((DWORD *)out) = gi.ModelIndex(path);
+}
+
 MAKE_PARSERCALL(Font) {
     LPCSTR file = Theme_String(frame->Font.Name, "Default");
     frame->Font.Index = gi.FontIndex(file, frame->Font.Size * 1000);
@@ -507,6 +513,7 @@ static parseItem_t items[] = {
     { "Height", { F(Height, Float), F_END } },
     { "File", { F(Texture.Image, TextureFile), F_END } },
     { "TexCoord", { F(Texture.TexCoord.min.x, Float), F(Texture.TexCoord.max.x, Float), F(Texture.TexCoord.min.y, Float), F(Texture.TexCoord.max.y, Float), F_END } },
+    { "BackgroundArt", { F(Portrait.model, ModelPath), F_END } },
     { "AlphaMode", { F(AlphaMode, AlphaMode), F_END } },
     { "Anchor", { F(Anchor.corner, FramePointType), F(Anchor.x, Float), F(Anchor.y, Float), F_END }, Anchor },
     { "Font", { F(Font.Name, Name), F(Font.Size, Float), F_END }, Font },

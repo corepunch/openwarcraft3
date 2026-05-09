@@ -33,6 +33,8 @@ struct game_import {
     void (*LinkEntity)(LPEDICT ent);
     void (*UnlinkEntity)(LPEDICT ent);
     DWORD (*BoxEdicts)(LPCBOX2 area, LPEDICT *list, DWORD maxcount, BOOL (*pred)(LPCEDICT));
+    bool (*InMenuMode)(void);
+    void (*MenuAction)(LPCSTR action, LPCSTR arg);
     VECTOR2 (*GetFlowDirection)(DWORD heatmapindex, FLOAT fx, FLOAT fy);
     FLOAT (*GetHeightAtPoint)(FLOAT x, FLOAT y);
     LPSTR (*ReadFileIntoString)(LPCSTR filename);

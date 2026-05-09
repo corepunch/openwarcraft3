@@ -81,20 +81,17 @@ void CL_Init(void) {
     fprintf(stderr, "CL_Init: clear state\n");
     CL_ClearState();
 
-    fprintf(stderr, "CL_Init: load confirmation model\n");
-    cl.moveConfirmation = re.LoadModel("UI\\Feedback\\Confirmation\\Confirmation.mdx");
-    
-    cl.viewDef.camerastate[0].zfar = 5000;
-    cl.viewDef.camerastate[0].znear = 100;
-    cl.viewDef.camerastate[1].zfar = 5000;
-    cl.viewDef.camerastate[1].znear = 100;
+    Cmd_AddCommand("quit", Com_Quit);
 
-    Key_SetBinding(K_MOUSE1, "+select");
-    Key_SetBinding('q', "cmd quests");
-    Key_SetBinding(K_ESCAPE, "cmd cancel");
-    
-    fprintf(stderr, "CL_Init: input init\n");
     CL_InitInput();
+
+    if (Com_InMenuMode()) {
+        fprintf(stderr, "CL_Init: menu bindings\n");
+        CL_SetMenuBindings();
+    } else {
+        fprintf(stderr, "CL_Init: gameplay setup\n");
+        CL_SetGameplayBindings();
+    }
     fprintf(stderr, "CL_Init: complete\n");
 }
 
@@ -172,13 +169,9 @@ void CL_SendCommand(void) {
 void CL_Frame(DWORD msec) {
     cl.time += msec;
 
-    CL_ReadPackets();
-
     CL_Input();
-
+    CL_ReadPackets();
     CL_SendCommand();
-
     CL_PrepRefresh();
-
     SCR_UpdateScreen();
 }

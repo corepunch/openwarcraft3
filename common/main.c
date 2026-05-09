@@ -7,6 +7,7 @@
 #define USAGE \
 "Usage:\n" \
 "  openwarcraft3 -mpq=<path> -map=<map>          (listen server + local client)\n" \
+"  openwarcraft3 -mpq=<path>                    (client menu)\n" \
 "  openwarcraft3 -mpq=<path> -connect=<host>     (remote client, default port " \
                                                     __XSTR(PORT_SERVER) ")\n" \
 "  openwarcraft3 -mpq=<path> -connect=<host:port>\n" \
@@ -52,32 +53,39 @@ int main(int argc, LPSTR argv[]) {
         }
     }
 
-    if (!mpq || (!map && !connect_addr)) {
+    if (!mpq) {
         printf(USAGE);
         return 1;
     }
 
-    fprintf(stderr, "main: mpq loaded, mode=%s\n", connect_addr ? "connect" : "map");
+    bool menu_mode = !map && !connect_addr;
+    Com_SetMenuMode(menu_mode);
+    fprintf(stderr, "main: mpq loaded, mode=%s\n",
+            connect_addr ? "connect" : (menu_mode ? "menu" : "map"));
 
     // Bind the UDP socket unless explicitly disabled for local diagnostics.
     // The current sandbox cannot create/bind UDP sockets, so this escape hatch
     // lets us exercise the map/UI startup path anyway.
-    if (!getenv("OW3_SKIP_NET")) {
-        unsigned short udp_port = connect_addr ? 0 : PORT_SERVER;
-        if (!NET_Init(udp_port)) {
-            if (!connect_addr) {
-                fprintf(stderr, "main: retrying NET_Init on ephemeral port for local smoke test\n");
-                if (!NET_Init(0)) {
+    if (!menu_mode) {
+        if (!getenv("OW3_SKIP_NET")) {
+            unsigned short udp_port = connect_addr ? 0 : PORT_SERVER;
+            if (!NET_Init(udp_port)) {
+                if (!connect_addr) {
+                    fprintf(stderr, "main: retrying NET_Init on ephemeral port for local smoke test\n");
+                    if (!NET_Init(0)) {
+                        fprintf(stderr, "NET_Init failed\n");
+                        return 1;
+                    }
+                } else {
                     fprintf(stderr, "NET_Init failed\n");
                     return 1;
                 }
-            } else {
-                fprintf(stderr, "NET_Init failed\n");
-                return 1;
             }
+        } else {
+            fprintf(stderr, "main: OW3_SKIP_NET set, skipping NET_Init\n");
         }
     } else {
-        fprintf(stderr, "main: OW3_SKIP_NET set, skipping NET_Init\n");
+        fprintf(stderr, "main: menu mode, skipping NET_Init\n");
     }
 
     Com_Init();
@@ -86,7 +94,11 @@ int main(int argc, LPSTR argv[]) {
         // Remote-client mode: skip the local server, connect over UDP.
         fprintf(stderr, "main: connecting to %s\n", connect_addr);
         CL_Connect(connect_addr, PORT_SERVER);
-    } else {
+    } else if (menu_mode) {
+        // Menu mode still uses the local loopback server so the client can
+        // consume server-authored UI layouts.
+        TRACE(SV_ClientConnect);
+    } else if (!menu_mode) {
         // Listen-server mode: load the map and spawn entities.
         TRACE(SV_Map, map);
         fprintf(stderr, "main: map load complete\n");

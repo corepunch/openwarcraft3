@@ -424,6 +424,8 @@ void SV_InitGameProgs(void) {
     import.LinkEntity = SV_LinkEntity;
     import.UnlinkEntity = SV_UnlinkEntity;
     import.BoxEdicts = SV_AreaEdicts;
+    import.InMenuMode = Com_InMenuMode;
+    import.MenuAction = MenuAction;
     import.configstring = PF_Configstring;
     import.confignstring = PF_Confignstring;
     import.WriteByte = PF_WriteByte;

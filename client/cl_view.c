@@ -154,12 +154,9 @@ static void CL_AddEntities(void) {
 }
 
 void CL_PrepRefresh(void) {
-    if (!cl.configstrings[CS_MODELS+1][0])
-        return; // no map loaded
-    
     static bool map_registered = false;
     
-    if (!map_registered) {
+    if (cl.configstrings[CS_MODELS+1][0] && !map_registered) {
         re.RegisterMap(cl.configstrings[CS_MODELS+1]);
         map_registered = true;
     }
@@ -213,6 +210,10 @@ void V_RenderView(void) {
 #endif
     
     static DWORD lastTime = 0;
+    if (!cl.configstrings[CS_MODELS+1][0]) {
+        lastTime = cl.time;
+        return;
+    }
     
     cl.viewDef.lerpfrac = (FLOAT)(cl.time - cl.frame.servertime) / FRAMETIME;
     cl.viewDef.viewport = (RECT) { 0, 0, 1, 1 };

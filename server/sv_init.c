@@ -115,6 +115,9 @@ void SV_InitGame(void) {
 }
 
 void SV_Shutdown(void) {
+    if (!svs.initialized) {
+        return;
+    }
     SAFE_DELETE(sv.baselines, MemFree);
     SAFE_DELETE(svs.client_entities, MemFree);
     svs.num_clients = 0;
