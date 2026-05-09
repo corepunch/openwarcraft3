@@ -49,8 +49,13 @@ static int open_client_socket(void) {
 }
 
 static void send_connect_oob(int sock, unsigned short server_port) {
-    static BYTE datagram[64];
-    DWORD msg_len = 4 + 7; /* -1 header + "connect" */
+    enum {
+        OOB_HEADER_SIZE = 4,
+        CONNECT_TEXT_SIZE = 7
+    };
+    BYTE datagram[64];
+    DWORD msg_len = OOB_HEADER_SIZE + CONNECT_TEXT_SIZE; /* -1 + "connect" */
+    DWORD packet_len = 4 + msg_len; /* net packet header + payload */
     int oob = -1;
     datagram[0] = (BYTE)(msg_len & 0xFF);
     datagram[1] = (BYTE)((msg_len >> 8) & 0xFF);
@@ -65,7 +70,7 @@ static void send_connect_oob(int sock, unsigned short server_port) {
     to.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
     to.sin_port = htons(server_port);
 
-    (void)sendto(sock, datagram, 4 + msg_len, 0, (struct sockaddr *)&to, sizeof(to));
+    (void)sendto(sock, datagram, packet_len, 0, (struct sockaddr *)&to, sizeof(to));
 }
 
 static BOOL recv_client_connect_oob(int sock) {
@@ -88,15 +93,16 @@ static BOOL recv_client_connect_oob(int sock) {
 }
 
 static void pump_server_connects(void) {
-    static BYTE msg_buf[MAX_MSGLEN];
-    static sizeBuf_t msg = { msg_buf, MAX_MSGLEN, 0, 0 };
+    enum { MIN_CONNECT_OOB_PAYLOAD = 11 };
+    BYTE msg_buf[MAX_MSGLEN];
+    sizeBuf_t msg = { msg_buf, MAX_MSGLEN, 0, 0 };
     netadr_t from;
     int r;
     FOR_LOOP(i, 64) {
         r = NET_GetPacket(NS_SERVER, &from, &msg);
         if (!r)
             break;
-        if (r >= 11) {
+        if (r >= MIN_CONNECT_OOB_PAYLOAD) {
             int hdr = 0;
             memcpy(&hdr, msg.data, sizeof(hdr));
             if (hdr == -1 && memcmp(msg.data + 4, "connect", 7) == 0)
