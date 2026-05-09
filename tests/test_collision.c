@@ -268,7 +268,7 @@ static void test_load_tga_rgba_channel_order(void) {
     size_t sz = make_tga_bgra_1x1(buf, 0x00, 0x00, 0xFF, 0x7A);
     pathTex_t *tex = LoadTGA(buf, sz);
     ASSERT_NOT_NULL(tex);
-    /* For WC3-compatible pathing TGAs, red marks unwalkable cells; loader stores that byte in COLOR32.b. */
+    /* TGA stores BGRA bytes, so file red (unwalkable in WC3 pathing) becomes COLOR32.b after load. */
     ASSERT_EQ_INT(tex->map[0].r, 0x00);
     ASSERT_EQ_INT(tex->map[0].g, 0x00);
     ASSERT_EQ_INT(tex->map[0].b, 0xFF);
