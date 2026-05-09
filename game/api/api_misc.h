@@ -292,6 +292,7 @@ DWORD GetExpiredTimer(LPJASS j) {
 }
 DWORD CreateForce(LPJASS j) {
     API_ALLOC(DWORD, force);
+    (void)force;
     return 1;
 }
 DWORD ForceAddPlayer(LPJASS j) {
@@ -885,6 +886,8 @@ DWORD SetTerrainFogEx(LPJASS j) {
 DWORD SetDayNightModels(LPJASS j) {
     LPCSTR terrainDNCFile = jass_checkstring(j, 1);
     LPCSTR unitDNCFile = jass_checkstring(j, 2);
+    (void)terrainDNCFile;
+    (void)unitDNCFile;
     return 0;
 }
 DWORD SetSkyModel(LPJASS j) {

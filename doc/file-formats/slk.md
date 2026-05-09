@@ -42,11 +42,11 @@ The first row (`Y=1`) contains column headers. Subsequent rows hold data records
 
 ## INI / Profile Files
 
-Alongside SLK files, Warcraft III uses `profile.txt` style INI files (`war3mapSkin.txt`, `TriggerData.txt`, etc.). These follow a standard `[Section]\nKey=Value` layout. OpenWarcraft3 parses both via `src/common/sheet.c`.
+Alongside SLK files, Warcraft III uses `profile.txt` style INI files (`war3mapSkin.txt`, `TriggerData.txt`, etc.). These follow a standard `[Section]\nKey=Value` layout. OpenWarcraft3 parses both via `common/sheet.c`.
 
 ## Parsing in OpenWarcraft3
 
-The SLK parser is in `src/common/sheet.c`. It works in two phases:
+The SLK parser is in `common/sheet.c`. It works in two phases:
 
 ### Phase 1 — Tokenisation (`SheetParseTokens`)
 
@@ -74,7 +74,7 @@ After all cells are parsed, `FS_MakeRowsFromSheet` converts the flat cell list i
 LPCSTR value = FS_GetField(row, "HP");
 ```
 
-The resulting row array drives unit spawning (`src/game/g_spawn.c`) and metadata lookups (`src/game/g_metadata.c`) at runtime.
+The resulting row array drives unit spawning (`game/g_spawn.c`) and metadata lookups (`game/g_metadata.c`) at runtime.
 
 ## Example SLK Snippet
 
@@ -100,7 +100,7 @@ E
 
 | Source | Purpose |
 |--------|---------|
-| `src/common/sheet.c` | SLK parser and row accessor |
-| `src/common/shared.h` | `sheetRow_t`, `sheetField_t` type definitions |
-| `src/game/g_metadata.c` | Unit metadata lookups from SLK tables |
-| `src/game/g_spawn.c` | Unit spawning using SLK data |
+| `common/sheet.c` | SLK parser and row accessor |
+| `common/shared.h` | `sheetRow_t`, `sheetField_t` type definitions |
+| `game/g_metadata.c` | Unit metadata lookups from SLK tables |
+| `game/g_spawn.c` | Unit spawning using SLK data |

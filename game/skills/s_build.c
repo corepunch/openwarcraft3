@@ -26,7 +26,7 @@ static void ai_build(LPEDICT ent) {
 }
 
 static umove_t build_move_walk = { "walk", ai_build_walk, NULL, &a_build };
-static umove_t build_move_stand = { "stand", ai_stand, NULL, &a_build };
+static umove_t build_move_stand = { "stand", ai_build, NULL, &a_build };
 
 static void FillUnitData(LPENTITYSTATE ent, DWORD unit_id, LPCSTR anim) {
     PATHSTR buffer = { 0 };

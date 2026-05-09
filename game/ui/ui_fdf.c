@@ -673,9 +673,7 @@ void FDF_ParseFrame(LPPARSER p, LPFRAMEDEF frame) {
     while ((tok = parse_token(p)) && (*tok != '{')) {
         if (!strcmp(tok, "INHERITS")) {
             LPCSTR inheritName = parse_token(p);
-            BOOL withChildren = false;
             if (!strcmp(inheritName, "WITHCHILDREN")) {
-                withChildren = true;
                 inheritName = parse_token(p);
             }
             UI_InheritFrom(frame, inheritName);

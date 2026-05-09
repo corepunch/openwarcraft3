@@ -75,11 +75,11 @@ Downloads a ~1.2 GB installer from `archive.org` into the `data/` folder. Skip t
 
 OpenWarcraft3 uses a strict client-server separation where all game logic runs exclusively on the server and clients are responsible only for rendering and input.
 
-The **server** hosts the game library (`src/game/`), which is a shared library loaded at runtime. It maintains the authoritative game state: all entities, their positions, health, current animations, and AI state. The server processes player commands, runs the game simulation each frame, and sends the resulting state to clients.
+The **server** hosts the game library (`game/`), which is a shared library loaded at runtime. It maintains the authoritative game state: all entities, their positions, health, current animations, and AI state. The server processes player commands, runs the game simulation each frame, and sends the resulting state to clients.
 
-The **client** (`src/client/`) captures user input via SDL2, forwards commands to the server, receives the updated game state, and renders it using the renderer library (`src/renderer/`). The client never runs game logic directly — it is purely a display and input layer.
+The **client** (`client/`) captures user input via SDL2, forwards commands to the server, receives the updated game state, and renders it using the renderer library (`renderer/`). The client never runs game logic directly — it is purely a display and input layer.
 
-Communication between the client and server happens through the network layer (`src/common/net.c`), which follows the Quake 2 runtime-dispatch model.  The routing decision is made at runtime on `netadr_t.type`:
+Communication between the client and server happens through the network layer (`common/net.c`), which follows the Quake 2 runtime-dispatch model.  The routing decision is made at runtime on `netadr_t.type`:
 
 - **Loopback** (`NA_LOOPBACK`) — when both server and client run in the same process (started with `-map=`), two 256 KiB ring buffers carry traffic in each direction with zero latency and no socket overhead.
 - **UDP** (`NA_IP`) — when the executable is started with `-connect=<host>`, it binds a non-blocking UDP socket and communicates with a remote listen server over the network.

@@ -1,7 +1,7 @@
 #include "../g_local.h"
 
 #define INFO_PANEL_UNIT_DETAIL 0.180, 0.120
-#define BUILDQUEUE_OFFSET 0.0281
+#define BUILDQUEUE_OFFSET 0.0281f
 #define MULTISELECT_COLUMNS 6
 #define MULTISELECT_OFFSET 0.031, 0.050
 #define COMMAND_BUTTON_POSITION(x,y) 0.2365 + (x) * 0.0434, 0.1131 - (y) * 0.0434
@@ -122,8 +122,8 @@ static void Init_SimpleInfoPanelBuildingDetail(LPFRAMEDEF bottomPanel, LPEDICT u
     UI_SetTexture2(SimpleBuildTimeIndicator, "SimpleBuildTimeIndicatorBorder", true);
 
     UI_WriteFrameWithChildren(SimpleInfoPanelBuildingDetail, bottomPanel);
-//    Init_SimpleInfoPanelIconArmor(SimpleInfoPanelBuildingDetail, unit);
-//    Init_SimpleInfoPanelIconFood(SimpleInfoPanelBuildingDetail, unit);
+    Init_SimpleInfoPanelIconArmor(SimpleInfoPanelBuildingDetail, unit);
+    Init_SimpleInfoPanelIconFood(SimpleInfoPanelBuildingDetail, unit);
     UI_WriteBuildQueue(SimpleInfoPanelBuildingDetail, unit);
 }
 
@@ -279,8 +279,8 @@ void UI_AddCommandButtonExtended(LPCSTR code, BOOL research, DWORD level) {
 //    button.f.tex.index2 = UI_LoadTexture("CommandButtonActiveHighlight", true);
     button.AlphaMode = x==0 && y==0;
     button.Stat = FindAbilityIndex(code);
-    button.Tip = remove_quotes(string_for_level(tip, level));
-    button.Ubertip = remove_quotes(string_for_level(ubertip, level));
+    button.Tip = remove_quotes(process_string(string_for_level(tip, level)));
+    button.Ubertip = remove_quotes(process_string(string_for_level(ubertip, level)));
     UI_WriteFrame(&button);
 }
 
@@ -308,10 +308,10 @@ void ui_unit_inventory(LPGAMECLIENT client) {
     if (!ent)
         return;
     FOR_LOOP(i, MAX_INVENTORY) {
-        DWORD itemID = ent->inventory[i];
-//        itemID = MAKEFOURCC('s','e','h','r');
-        if (!itemID)
+        LPEDICT item = ent->inventory[i];
+        if (!item)
             continue;
+        DWORD itemID = item->class_id;
         DWORD x = i % 2;
         DWORD y = i / 2;
         LPCSTR code = GetClassName(itemID);
@@ -402,10 +402,6 @@ void Init_SimpleInfoPanelMultiselect(LPGAMECLIENT client) {
     multiselect.Multiselect.Offset = MAKE(VECTOR2, MULTISELECT_OFFSET);
     
     FOR_SELECTED_UNITS(client, ent) {
-        LPCSTR tip = FindConfigValue(GetClassName(ent->class_id), STR_TIP);
-        LPCSTR ubertip = FindConfigValue(GetClassName(ent->class_id), STR_UBERTIP);
-//        printf("%s\n", remove_quotes(tip));
-//        printf("%s\n", remove_quotes(ubertip));
         uiBuildQueueItem_t *it = multiselect.Multiselect.Items + (multiselect.Multiselect.NumItems++);
         LPCSTR art = FindConfigValue(GetClassName(ent->class_id), STR_ART);
         it->image = gi.ImageIndex(art);

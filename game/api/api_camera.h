@@ -27,14 +27,14 @@ DWORD SetCameraQuickPosition(LPJASS j) {
     return 0;
 }
 DWORD SetCameraBounds(LPJASS j) {
-    FLOAT x1 = jass_checknumber(j, 1);
-    FLOAT y1 = jass_checknumber(j, 2);
-    FLOAT x2 = jass_checknumber(j, 3);
-    FLOAT y2 = jass_checknumber(j, 4);
-    FLOAT x3 = jass_checknumber(j, 5);
-    FLOAT y3 = jass_checknumber(j, 6);
-    FLOAT x4 = jass_checknumber(j, 7);
-    FLOAT y4 = jass_checknumber(j, 8);
+    (void)jass_checknumber(j, 1);
+    (void)jass_checknumber(j, 2);
+    (void)jass_checknumber(j, 3);
+    (void)jass_checknumber(j, 4);
+    (void)jass_checknumber(j, 5);
+    (void)jass_checknumber(j, 6);
+    (void)jass_checknumber(j, 7);
+    (void)jass_checknumber(j, 8);
     return 0;
 }
 DWORD StopCamera(LPJASS j) {
@@ -101,6 +101,7 @@ DWORD AdjustCameraField(LPJASS j) {
 }
 DWORD CreateCameraSetup(LPJASS j) {
     API_ALLOC(CAMERASETUP, camerasetup);
+    (void)camerasetup;
     return 1;
 }
 DWORD CameraSetupSetField(LPJASS j) {

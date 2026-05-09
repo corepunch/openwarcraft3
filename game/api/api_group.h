@@ -7,6 +7,7 @@ void group_add_entity(ggroup_t *group, LPEDICT ent) {
 
 DWORD CreateGroup(LPJASS j) {
     API_ALLOC(ggroup_t, group);
+    (void)group;
     return 1;
 }
 DWORD GroupAddUnit(LPJASS j) {

@@ -23,7 +23,7 @@ FrameType "FrameName" {
 
 ### Frame Types
 
-The following frame types are recognised by the parser (`src/game/ui/ui_fdf.c`):
+The following frame types are recognised by the parser (`game/ui/ui_fdf.c`):
 
 | Type | Purpose |
 |------|---------|
@@ -84,7 +84,7 @@ This aligns the frame's top-left corner 2% from the screen left edge and 2% from
 
 ## Frame Registry
 
-`UI_ParseFDF` (`src/game/ui/ui_fdf.c`) tokenises the FDF text, constructs `frameDef_t` structs, and stores them in the global frame registry keyed by name. The registry is queried at UI layout time to instantiate concrete `uiFrame_t` objects.
+`UI_ParseFDF` (`game/ui/ui_fdf.c`) tokenises the FDF text, constructs `frameDef_t` structs, and stores them in the global frame registry keyed by name. The registry is queried at UI layout time to instantiate concrete `uiFrame_t` objects.
 
 ## Programmatic API
 
@@ -111,14 +111,14 @@ Helper functions:
 | `UI_WriteFrame(frame)` | Emit one frame into the `svc_layout` message |
 | `UI_WriteFrameWithChildren(frame, parent)` | Emit a frame and its entire sub-tree |
 
-See `src/game/hud/ui_log.c` for a worked example.
+See `game/hud/ui_log.c` for a worked example.
 
 ## Related Source Files
 
 | Source | Purpose |
 |--------|---------|
-| `src/game/ui/ui_fdf.c` | FDF text parser and programmatic frame API |
-| `src/game/ui/ui_init.c` | `UI_Init` — loads FDF assets and builds the initial layout |
-| `src/game/ui/ui_write.c` | `UI_WriteLayout` — serialises the frame tree to clients |
-| `src/client/cl_parse.c` | `CL_ParseLayout` — receives and stores serialised UI |
-| `src/common/msg.c` | `uiFrameFields[]` — delta-encoded wire field list |
+| `game/ui/ui_fdf.c` | FDF text parser and programmatic frame API |
+| `game/ui/ui_init.c` | `UI_Init` — loads FDF assets and builds the initial layout |
+| `game/ui/ui_write.c` | `UI_WriteLayout` — serialises the frame tree to clients |
+| `client/cl_parse.c` | `CL_ParseLayout` — receives and stores serialised UI |
+| `common/msg.c` | `uiFrameFields[]` — delta-encoded wire field list |

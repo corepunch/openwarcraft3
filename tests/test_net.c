@@ -25,8 +25,8 @@
 #include "test_framework.h"
 
 /* Pull in the net types + common types without game state. */
-#include "../src/common/shared.h"
-#include "../src/common/net.h"
+#include "../common/shared.h"
+#include "../common/net.h"
 
 /* -----------------------------------------------------------------------
  * Helpers

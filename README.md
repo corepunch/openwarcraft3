@@ -75,11 +75,11 @@ Downloads a ~1.2 GB installer from `archive.org` into the `data/` folder. Skip t
 
 OpenWarcraft3 uses a strict client-server separation where all game logic runs exclusively on the server and clients are responsible only for rendering and input.
 
-The **server** hosts the game library (`src/game/`), which is a shared library loaded at runtime. It maintains the authoritative game state: all entities, their positions, health, current animations, and AI state. The server processes player commands, runs the game simulation each frame, and sends the resulting state to clients.
+The **server** hosts the game library (`game/`), which is a shared library loaded at runtime. It maintains the authoritative game state: all entities, their positions, health, current animations, and AI state. The server processes player commands, runs the game simulation each frame, and sends the resulting state to clients.
 
-The **client** (`src/client/`) captures user input via SDL2, forwards commands to the server, receives the updated game state, and renders it using the renderer library (`src/renderer/`). The client never runs game logic directly — it is purely a display and input layer.
+The **client** (`client/`) captures user input via SDL2, forwards commands to the server, receives the updated game state, and renders it using the renderer library (`renderer/`). The client never runs game logic directly — it is purely a display and input layer.
 
-Communication between the client and server happens through the network layer (`src/common/net.c`), which follows the Quake 2 runtime-dispatch model.  The routing decision is made at runtime on `netadr_t.type`:
+Communication between the client and server happens through the network layer (`common/net.c`), which follows the Quake 2 runtime-dispatch model.  The routing decision is made at runtime on `netadr_t.type`:
 
 - **Loopback** (`NA_LOOPBACK`) — when both server and client run in the same process (started with `-map=`), two 256 KiB ring buffers carry traffic in each direction with zero latency and no socket overhead.
 - **UDP** (`NA_IP`) — when the executable is started with `-connect=<host>`, it binds a non-blocking UDP socket and communicates with a remote listen server over the network.
@@ -107,7 +107,7 @@ The server advances the game in fixed-size time steps. Every frame the server:
 3. Builds and sends a snapshot of the current game state to each client (`SV_SendClientMessages`)
 
 ```c
-// src/server/sv_main.c
+// server/sv_main.c
 void SV_Frame(DWORD msec) {
     svs.realtime += msec;
     if (svs.realtime < sv.time)
@@ -121,7 +121,7 @@ void SV_Frame(DWORD msec) {
 The client runs at its own rate and simply applies each server snapshot as it arrives. On every client frame (`CL_Frame` in `cl_main.c`) the client reads incoming server messages, processes input, sends commands, and renders the current known state:
 
 ```c
-// src/client/cl_main.c
+// client/cl_main.c
 void CL_Frame(DWORD msec) {
     cl.time += msec;
     CL_ReadPackets();   // apply server snapshots
@@ -134,18 +134,18 @@ void CL_Frame(DWORD msec) {
 
 ### Entity Synchronization and Delta Compression
 
-Each server frame, `SV_BuildClientFrame` (`src/server/sv_ents.c`) collects the entities visible to a client into a snapshot. `SV_WriteFrameToClient` then compares the new snapshot against the previous one and writes only the fields that changed using `MSG_WriteDeltaEntity`. This delta compression keeps message sizes small even when many entities exist.
+Each server frame, `SV_BuildClientFrame` (`server/sv_ents.c`) collects the entities visible to a client into a snapshot. `SV_WriteFrameToClient` then compares the new snapshot against the previous one and writes only the fields that changed using `MSG_WriteDeltaEntity`. This delta compression keeps message sizes small even when many entities exist.
 
-The client receives these delta messages in `CL_ReadPacketEntities` (`src/client/cl_parse.c`) and applies them to its local entity table, keeping `prev` and `current` state for interpolation.
+The client receives these delta messages in `CL_ReadPacketEntities` (`client/cl_parse.c`) and applies them to its local entity table, keeping `prev` and `current` state for interpolation.
 
 ## Projectile System
 
-Ranged attacks spawn a projectile entity (`fire_rocket` in `src/game/skills/s_attack.c`). The projectile stores a reference to its target entity, a launch speed, a damage value, and a model index for rendering. Its `movetype` is set to `MOVETYPE_FLYMISSILE`.
+Ranged attacks spawn a projectile entity (`fire_rocket` in `game/skills/s_attack.c`). The projectile stores a reference to its target entity, a launch speed, a damage value, and a model index for rendering. Its `movetype` is set to `MOVETYPE_FLYMISSILE`.
 
-Each game frame, `G_RunEntity` (`src/game/g_phys.c`) dispatches on `movetype`. For `MOVETYPE_FLYMISSILE`, `SV_Physics_Toss` moves the projectile straight toward the target's current position at a fixed speed. When the remaining distance is less than the distance traveled this frame, the projectile calls `T_Damage` on the target and frees itself:
+Each game frame, `G_RunEntity` (`game/g_phys.c`) dispatches on `movetype`. For `MOVETYPE_FLYMISSILE`, `SV_Physics_Toss` moves the projectile straight toward the target's current position at a fixed speed. When the remaining distance is less than the distance traveled this frame, the projectile calls `T_Damage` on the target and frees itself:
 
 ```c
-// src/game/g_phys.c
+// game/g_phys.c
 void SV_Physics_Toss(LPEDICT ent) {
     FLOAT distance = ent->velocity * FRAMETIME;
     VECTOR3 dir = Vector3_sub(&ent->goalentity->s.origin, &ent->s.origin);
@@ -159,18 +159,18 @@ void SV_Physics_Toss(LPEDICT ent) {
 }
 ```
 
-`T_Damage` (`src/game/skills/s_attack.c`) reduces the target's health. If the target survives and is capable of attacking back, it automatically issues a counter-attack order. If the target's health reaches zero, its `die` callback is invoked.
+`T_Damage` (`game/skills/s_attack.c`) reduces the target's health. If the target survives and is capable of attacking back, it automatically issues a counter-attack order. If the target's health reaches zero, its `die` callback is invoked.
 
 Because projectiles are regular server entities with a model, they are automatically included in the entity snapshot and rendered on the client without any special handling.
 
 ## Unit Movement
 
-When a player right-clicks on the ground, the client sends a command to the server. The server's command handler (`src/game/g_commands.c`) resolves the selected units and calls `move_selectlocation` (`src/game/skills/s_move.c`), which:
+When a player right-clicks on the ground, the client sends a command to the server. The server's command handler (`game/g_commands.c`) resolves the selected units and calls `move_selectlocation` (`game/skills/s_move.c`), which:
 
-1. Allocates a **waypoint** entity at the target map position, snapping its Z coordinate to the terrain height (`Waypoint_add` in `src/game/g_monster.c`)
+1. Allocates a **waypoint** entity at the target map position, snapping its Z coordinate to the terrain height (`Waypoint_add` in `game/g_monster.c`)
 2. Calls `order_move` on each selected unit, setting the unit's `goalentity` to the waypoint and switching its current move to the walk state
 
-Each server frame, units in the walk state execute `ai_walk` (`src/game/skills/s_move.c`):
+Each server frame, units in the walk state execute `ai_walk` (`game/skills/s_move.c`):
 
 ```c
 static void ai_walk(LPEDICT ent) {
@@ -183,27 +183,27 @@ static void ai_walk(LPEDICT ent) {
 }
 ```
 
-After all entities have moved, `G_SolveCollisions` (`src/game/g_phys.c`) iterates over every pair of overlapping entities and separates them. When two moving units collide, the separation is split proportionally based on each unit's remaining distance to its goal — the unit that is closer to its destination yields more, preventing deadlocks at the destination.
+After all entities have moved, `G_SolveCollisions` (`game/g_phys.c`) iterates over every pair of overlapping entities and separates them. When two moving units collide, the separation is split proportionally based on each unit's remaining distance to its goal — the unit that is closer to its destination yields more, preventing deadlocks at the destination.
 
-Animation is driven by `M_MoveFrame` (`src/game/g_monster.c`), which advances `edict->s.frame` each game tick according to the current animation interval. When an animation cycle completes, the `endfunc` of the current `umove_t` is called to transition to the next state (e.g. attack → cooldown → attack again).
+Animation is driven by `M_MoveFrame` (`game/g_monster.c`), which advances `edict->s.frame` each game tick according to the current animation interval. When an animation cycle completes, the `endfunc` of the current `umove_t` is called to transition to the next state (e.g. attack → cooldown → attack again).
 
 ## UI System
 
-All UI logic runs on the **server** inside the game library (`src/game/ui/`). The client receives serialized UI state and renders it; it has no knowledge of UI structure or layout rules.
+All UI logic runs on the **server** inside the game library (`game/ui/`). The client receives serialized UI state and renders it; it has no knowledge of UI structure or layout rules.
 
 ### FDF Parsing and Frame Templates
 
-At startup, `UI_Init` (`src/game/ui/ui_init.c`) loads Warcraft III's `.fdf` (Frame Definition File) assets via `UI_ParseFDF`. These files describe the hierarchy of UI frames — their type (backdrop, button, label, etc.), textures, fonts, anchor points, and sizes. The parsed data is stored as `frameDef_t` templates in a global registry.
+At startup, `UI_Init` (`game/ui/ui_init.c`) loads Warcraft III's `.fdf` (Frame Definition File) assets via `UI_ParseFDF`. These files describe the hierarchy of UI frames — their type (backdrop, button, label, etc.), textures, fonts, anchor points, and sizes. The parsed data is stored as `frameDef_t` templates in a global registry.
 
 ### Writing UI to Clients
 
-When a client connects, `G_ClientBegin` (`src/game/g_main.c`) calls `UI_WriteLayout` to serialize the complete UI tree and send it to the client as an `svc_layout` message. `UI_WriteLayout` (`src/game/ui/ui_write.c`) traverses the frame tree depth-first; for each frame it calls `UI_WriteFrame`, which:
+When a client connects, `G_ClientBegin` (`game/g_main.c`) calls `UI_WriteLayout` to serialize the complete UI tree and send it to the client as an `svc_layout` message. `UI_WriteLayout` (`game/ui/ui_write.c`) traverses the frame tree depth-first; for each frame it calls `UI_WriteFrame`, which:
 
 1. Copies the frame's base properties (position anchors, size, texture, color) into a `uiFrame_t` struct
 2. Writes type-specific data (backdrop edges, button states, label font settings, etc.) into a small inline buffer
 3. Calls `gi.WriteUIFrame` to emit the frame as a delta-encoded message
 
-The client receives the `svc_layout` message in `CL_ParseLayout` (`src/client/cl_parse.c`) and stores the raw serialized layout blob. The renderer reads this blob each frame to draw the UI without the client needing to understand the frame hierarchy.
+The client receives the `svc_layout` message in `CL_ParseLayout` (`client/cl_parse.c`) and stores the raw serialized layout blob. The renderer reads this blob each frame to draw the UI without the client needing to understand the frame hierarchy.
 
 ### Wire Message Format
 
@@ -213,7 +213,7 @@ All UI is generated on the server. Each frame is sent to the client as a compact
 x 655  y -655  pic 13  stat 1  text "Gold: 500"
 ```
 
-Each field maps to the corresponding `uiFrame_t` member (`x`/`y` are integer anchor offsets scaled by `UI_FRAMEPOINT_SCALE` (32767), `pic` is `tex.index`, `stat` shows a live player stat). See `uiFrameFields[]` in `src/common/msg.c` for the full field list.
+Each field maps to the corresponding `uiFrame_t` member (`x`/`y` are integer anchor offsets scaled by `UI_FRAMEPOINT_SCALE` (32767), `pic` is `tex.index`, `stat` shows a live player stat). See `uiFrameFields[]` in `common/msg.c` for the full field list.
 
 Server-side example:
 

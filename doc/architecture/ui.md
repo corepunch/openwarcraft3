@@ -1,6 +1,6 @@
 # UI System Architecture
 
-All UI logic in OpenWarcraft3 runs on the **server** inside the game library (`src/game/ui/`). The client is a dumb renderer: it stores a serialised UI blob and repaints it each frame without knowing anything about the frame hierarchy or layout rules.
+All UI logic in OpenWarcraft3 runs on the **server** inside the game library (`game/ui/`). The client is a dumb renderer: it stores a serialised UI blob and repaints it each frame without knowing anything about the frame hierarchy or layout rules.
 
 ## Concepts
 
@@ -13,7 +13,7 @@ All UI logic in OpenWarcraft3 runs on the **server** inside the game library (`s
 
 ## Initialisation
 
-`UI_Init` (`src/game/ui/ui_init.c`) is called once from `G_ClientBegin` when the first client connects:
+`UI_Init` (`game/ui/ui_init.c`) is called once from `G_ClientBegin` when the first client connects:
 
 1. Loads Warcraft III `.fdf` files from the MPQ archive via `UI_ParseFDF` (`ui_fdf.c`).
 2. Builds built-in frame definitions for the HUD (resource display, command card, minimap backdrop, chat area) using the programmatic C API.
@@ -39,11 +39,11 @@ The frame tree is a depth-first hierarchy. Each `uiFrame_t` node stores:
 
 ## Serialisation (`UI_WriteLayout`)
 
-`UI_WriteLayout` (`src/game/ui/ui_write.c`) serialises the frame tree to a client by traversing it depth-first and calling `UI_WriteFrame` for each node.
+`UI_WriteLayout` (`game/ui/ui_write.c`) serialises the frame tree to a client by traversing it depth-first and calling `UI_WriteFrame` for each node.
 
 `UI_WriteFrame` copies the frame's properties into a `uiFrame_t` struct and calls `gi.WriteUIFrame`, which delta-encodes the struct against a known baseline and writes it as a compact binary message.
 
-The fields used for delta encoding are declared in `uiFrameFields[]` in `src/common/msg.c`:
+The fields used for delta encoding are declared in `uiFrameFields[]` in `common/msg.c`:
 
 ```c
 // Conceptual field list (not exact code):
@@ -61,11 +61,11 @@ Only fields that differ from the baseline are transmitted, minimising per-update
 
 ## Client-Side Rendering
 
-The client stores the raw `svc_layout` message blob in `cl.layout`. The renderer (`src/renderer/`) reads this blob each frame in `R_DrawUI`. It walks the serialised frame list and for each frame:
+The client stores the raw `svc_layout` message blob in `cl.layout`. The renderer (`renderer/`) reads this blob each frame in `R_DrawUI`. It walks the serialised frame list and for each frame:
 
 1. Resolves the anchor position by accumulating parent offsets (the server has already computed absolute coordinates by the time the layout is sent, so no layout recalculation is required on the client).
 2. Draws a textured quad for backdrop/button frames using the texture index.
-3. Rasterises any text string using the font system (`src/renderer/r_font.c`).
+3. Rasterises any text string using the font system (`renderer/r_font.c`).
 4. Replaces any `stat`-tagged text fields with the current live player stat value stored in `cl.playerstate`.
 
 The client never parses FDF files and has no knowledge of frame types — it only interprets the compact binary format emitted by `UI_WriteFrame`.
@@ -82,7 +82,7 @@ All these updates go through the same `svc_layout` / delta-encoding path.
 
 ## Adding a New UI Element
 
-1. In `src/game/ui/ui_init.c` (or any server-side `.c` file), declare a `FRAMEDEF`, configure it with the helper functions, and emit it:
+1. In `game/ui/ui_init.c` (or any server-side `.c` file), declare a `FRAMEDEF`, configure it with the helper functions, and emit it:
 
 ```c
 FRAMEDEF btn;
@@ -99,11 +99,11 @@ UI_WriteFrame(&btn);
 
 | File | Purpose |
 |------|---------|
-| `src/game/ui/ui_init.c` | `UI_Init`, built-in HUD layout |
-| `src/game/ui/ui_fdf.c` | FDF parser and programmatic frame API |
-| `src/game/ui/ui_write.c` | `UI_WriteLayout`, `UI_WriteFrame` — serialisation |
-| `src/game/hud/` | In-game HUD frames (resource bar, command card, etc.) |
-| `src/client/cl_parse.c` | `CL_ParseLayout` — receive and store UI blob |
-| `src/renderer/r_main.c` | `R_DrawUI` — render UI from stored blob |
-| `src/renderer/r_font.c` | Bitmap font rasteriser |
-| `src/common/msg.c` | `uiFrameFields[]`, delta encode/decode helpers |
+| `game/ui/ui_init.c` | `UI_Init`, built-in HUD layout |
+| `game/ui/ui_fdf.c` | FDF parser and programmatic frame API |
+| `game/ui/ui_write.c` | `UI_WriteLayout`, `UI_WriteFrame` — serialisation |
+| `game/hud/` | In-game HUD frames (resource bar, command card, etc.) |
+| `client/cl_parse.c` | `CL_ParseLayout` — receive and store UI blob |
+| `renderer/r_main.c` | `R_DrawUI` — render UI from stored blob |
+| `renderer/r_font.c` | Bitmap font rasteriser |
+| `common/msg.c` | `uiFrameFields[]`, delta encode/decode helpers |

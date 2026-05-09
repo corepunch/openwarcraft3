@@ -14,8 +14,8 @@
 #include "test_harness.h"
 
 /* Pull in the JASS public API.  vm_main.c is compiled into the test binary. */
-#include "../src/game/jass/vm_public.h"
-#include "../src/game/jass/jass_parser.h"
+#include "../game/jass/vm_public.h"
+#include "../game/jass/jass_parser.h"
 
 /* -------------------------------------------------------------------------
  * Minimal jass_funcs table (replaces api_module.c for the test binary).

@@ -244,9 +244,9 @@ VMPROGRAM VM_Compile(LPCTOKEN t) {
             .buffersize = sizeof(vmBuffers[2]),
         },
         .init = {
-            .data = vmBuffers[4],
+            .data = vmBuffers[3],
             .writecount = 0,
-            .buffersize = sizeof(vmBuffers[4]),
+            .buffersize = sizeof(vmBuffers[3]),
         }
     };
     write_TOKENS(&w, t);
@@ -254,7 +254,10 @@ VMPROGRAM VM_Compile(LPCTOKEN t) {
     printf("%s", vmBuffers[1]);
     printf("%s", vmBuffers[2]);
     printf("_init:\n");
-    printf("%s", vmBuffers[4]);
+    printf("%s", vmBuffers[3]);
     VMPROGRAM program = { vmBuffers[0], 0 };
     return program;
 }
+
+#undef TOKENFUNC
+#undef TOKENEVAL

@@ -6,6 +6,7 @@ DWORD CreateSound(LPJASS j) {
     LONG fadeInRate = jass_checkinteger(j, 5);
     LONG fadeOutRate = jass_checkinteger(j, 6);
     LPCSTR eaxSetting = jass_checkstring(j, 7);
+    (void)eaxSetting;
     API_ALLOC(gsound_t, sound);
     strcpy(sound->fileName, fileName);
     sound->looping = looping;

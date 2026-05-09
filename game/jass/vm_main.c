@@ -836,6 +836,12 @@ LPJASSDICT parse_dict(LPJASS j, LPCTOKEN token) {
     return item;
 }
 
+#ifdef TOKENFUNC
+#undef TOKENFUNC
+#endif
+#ifdef TOKENEVAL
+#undef TOKENEVAL
+#endif
 #define TOKENFUNC(NAME) void eval_##NAME(LPJASS j, LPCTOKEN token)
 #define TOKENEVAL(NAME) { #NAME, TT_##NAME, eval_##NAME }
 

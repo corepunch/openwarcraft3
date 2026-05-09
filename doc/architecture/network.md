@@ -44,7 +44,7 @@ by the payload into the appropriate ring buffer.  Receiving polls the other
 side's ring buffer.
 
 ```c
-// src/common/net.c
+// common/net.c
 void NET_SendPacket(NETSOURCE netsrc, int length, const void *data, netadr_t to) {
     switch (to.type) {
     case NA_LOOPBACK:
@@ -147,9 +147,9 @@ openwarcraft3 -mpq=/path/to/War3.mpq -connect=192.168.1.10:27910
 
 | File | Purpose |
 |------|---------|
-| `src/common/net.c` | `NET_SendPacket`, `NET_GetPacket`, loopback buffers, UDP socket |
-| `src/common/net.h` | `netadr_t`, `netchan_t`, `NETSOURCE`, public API |
-| `src/common/main.c` | CLI parsing, `NET_Init`, mode selection |
-| `src/server/sv_init.c` | `SV_ClientConnect` (loopback slot), `SV_DirectConnect` (UDP slot) |
-| `src/server/sv_main.c` | `SV_ReadPackets` — OOB routing and per-slot dispatch |
-| `src/client/cl_main.c` | `CL_Connect`, `CL_ReadPackets` |
+| `common/net.c` | `NET_SendPacket`, `NET_GetPacket`, loopback buffers, UDP socket |
+| `common/net.h` | `netadr_t`, `netchan_t`, `NETSOURCE`, public API |
+| `common/main.c` | CLI parsing, `NET_Init`, mode selection |
+| `server/sv_init.c` | `SV_ClientConnect` (loopback slot), `SV_DirectConnect` (UDP slot) |
+| `server/sv_main.c` | `SV_ReadPackets` — OOB routing and per-slot dispatch |
+| `client/cl_main.c` | `CL_Connect`, `CL_ReadPackets` |

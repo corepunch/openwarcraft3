@@ -178,7 +178,6 @@ static void WriteSimpleButton(LPCFRAMEDEF frame, sizeBuf_t *sb, LPSTR buffer) {
 
     LPCFRAMEDEF NormalText = UI_FindFrame(frame->Button.NormalText.frame);
     LPCFRAMEDEF DisabledText = UI_FindFrame(frame->Button.DisabledText.frame);
-    LPCFRAMEDEF HighlightText = UI_FindFrame(frame->Button.HighlightText.frame);
 
     uiSimpleButton_t data = { 0 };
     
@@ -240,7 +239,7 @@ static void WriteLabel(LPCFRAMEDEF frame, sizeBuf_t *sb, uiFrame_t *tmp) {
         DWORD anchor = frame->Font.Justification.Horizontal ^ 1; // to map FontJustification to FramePointPos
         tmp->points.x[anchor].targetPos = anchor;
         tmp->points.x[anchor].relativeTo = UI_PARENT;
-        tmp->points.x[anchor].used = true;
+        tmp->points.x[anchor].used = 1;
     }
     if(!tmp->points.y[FPP_MIN].used &&
        !tmp->points.y[FPP_MID].used &&
@@ -249,7 +248,7 @@ static void WriteLabel(LPCFRAMEDEF frame, sizeBuf_t *sb, uiFrame_t *tmp) {
         DWORD anchor = frame->Font.Justification.Vertical ^ 1; // to map FontJustification to FramePointPos
         tmp->points.y[anchor].targetPos = anchor;
         tmp->points.y[anchor].relativeTo = UI_PARENT;
-        tmp->points.y[anchor].used = true;
+        tmp->points.y[anchor].used = 1;
     }
     tmp->color = frame->Font.Color;
     if (*frame->Text == '\0') {

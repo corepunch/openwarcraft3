@@ -22,7 +22,6 @@ static void pan_camera(float x, float y, float sensivity) {
 }
 
 void CL_Input(void) {
-    static int moved = false;
     SDL_Event event;
     mouse.event = UI_EVENT_NONE;
     while(SDL_PollEvent(&event)) {
@@ -55,7 +54,6 @@ void CL_Input(void) {
 //                }
                 break;
             case SDL_MOUSEBUTTONDOWN:
-                moved = false;
                 mouse.origin.x = event.button.x;
                 mouse.origin.y = event.button.y;
                 mouse.button = event.button.button;
@@ -88,10 +86,8 @@ void CL_Input(void) {
                     case 1:
                         cl.selection.rect.w = event.motion.x - cl.selection.rect.x;
                         cl.selection.rect.h = event.motion.y - cl.selection.rect.y;
-                        moved = true;
                         break;
                     case 3:
-                        moved = true;
                         pan_camera(-event.motion.xrel, event.motion.yrel, 5);
                         break;
                 }

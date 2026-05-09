@@ -401,7 +401,7 @@ typedef enum {
 
 typedef struct { // serialized as 4 bytes
     uiFramePointPos_t targetPos: 7;
-    bool used: 1;
+    uint8_t used: 1;
     uint8_t relativeTo: 8;
     int16_t offset: 16;
 } uiFramePoint_t;

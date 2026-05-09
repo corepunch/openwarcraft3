@@ -1,10 +1,10 @@
 # Server Architecture
 
-The server (`src/server/`) is the authoritative simulation layer. It owns the canonical game state, runs the game library (`src/game/`) as a shared library, and delivers entity snapshots to clients each frame.
+The server (`server/`) is the authoritative simulation layer. It owns the canonical game state, runs the game library (`game/`) as a shared library, and delivers entity snapshots to clients each frame.
 
 ## Startup
 
-`SV_Init` (`src/server/sv_main.c`) runs at process startup:
+`SV_Init` (`server/sv_main.c`) runs at process startup:
 
 1. Loads the game library (`libgame.so` / `game.dylib`) via `dlopen` and obtains a `game_export_t *` pointer by calling `GetGameAPI`.
 2. Calls `ge->Init()` to let the game library set up its global state.
@@ -47,17 +47,17 @@ void SV_RunGameFrame(void) {
 }
 ```
 
-`G_RunFrame` (in `src/game/g_main.c`) iterates every live entity and calls `G_RunEntity`, which dispatches on `movetype` and calls the entity's `think` or `update` callback.
+`G_RunFrame` (in `game/g_main.c`) iterates every live entity and calls `G_RunEntity`, which dispatches on `movetype` and calls the entity's `think` or `update` callback.
 
 ### 3. SV_SendClientMessages
 
-For each connected client, `SV_BuildClientFrame` (`src/server/sv_ents.c`) collects the entities visible to that client into a snapshot. `SV_WriteFrameToClient` then delta-encodes the snapshot against the previous one using `MSG_WriteDeltaEntity` and transmits it as an `svc_packetentities` message.
+For each connected client, `SV_BuildClientFrame` (`server/sv_ents.c`) collects the entities visible to that client into a snapshot. `SV_WriteFrameToClient` then delta-encodes the snapshot against the previous one using `MSG_WriteDeltaEntity` and transmits it as an `svc_packetentities` message.
 
 Delta compression ensures only changed entity fields are sent, keeping bandwidth usage low even with many active entities.
 
 ## Game Library Interface
 
-The server communicates with the game library through two vtable structs defined in `src/game/api/`:
+The server communicates with the game library through two vtable structs defined in `game/api/`:
 
 ### `game_import_t` — server services provided to the game
 
@@ -99,10 +99,10 @@ Only the `entityState_t` part is delta-encoded and sent to clients.
 
 ## Snapshots and Delta Compression
 
-The server maintains a ring buffer of `clientSnapshot_t` records per client (in `src/server/sv_ents.c`). Each snapshot stores the full `entityState_t` set visible to that client at a given frame. `SV_WriteFrameToClient` compares the latest snapshot against the acknowledged one and emits only the fields that differ:
+The server maintains a ring buffer of `clientSnapshot_t` records per client (in `server/sv_ents.c`). Each snapshot stores the full `entityState_t` set visible to that client at a given frame. `SV_WriteFrameToClient` compares the latest snapshot against the acknowledged one and emits only the fields that differ:
 
 ```c
-// src/server/sv_ents.c
+// server/sv_ents.c
 MSG_WriteDeltaEntity(&msg, &oldState, &newState, false, newState.number == cl->clientNum+1);
 ```
 
@@ -112,11 +112,11 @@ The client's acknowledged frame number is tracked per slot so the server can re-
 
 | File | Purpose |
 |------|---------|
-| `src/server/sv_main.c` | `SV_Frame`, `SV_Init`, `SV_ReadPackets` |
-| `src/server/sv_ents.c` | `SV_BuildClientFrame`, `SV_WriteFrameToClient`, delta encoding |
-| `src/game/g_main.c` | `G_RunFrame`, `G_ClientBegin`, entity-per-frame dispatch |
-| `src/game/g_phys.c` | Entity movement, collision response |
-| `src/game/g_commands.c` | Player command handlers (move, attack, ability) |
-| `src/game/g_monster.c` | Unit lifecycle, animation state machine |
-| `src/common/net.c` | Loopback + UDP transport shared with the client |
-| `src/common/msg.c` | Message serialisation and delta encoding helpers |
+| `server/sv_main.c` | `SV_Frame`, `SV_Init`, `SV_ReadPackets` |
+| `server/sv_ents.c` | `SV_BuildClientFrame`, `SV_WriteFrameToClient`, delta encoding |
+| `game/g_main.c` | `G_RunFrame`, `G_ClientBegin`, entity-per-frame dispatch |
+| `game/g_phys.c` | Entity movement, collision response |
+| `game/g_commands.c` | Player command handlers (move, attack, ability) |
+| `game/g_monster.c` | Unit lifecycle, animation state machine |
+| `common/net.c` | Loopback + UDP transport shared with the client |
+| `common/msg.c` | Message serialisation and delta encoding helpers |

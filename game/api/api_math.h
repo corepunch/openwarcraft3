@@ -75,6 +75,7 @@ DWORD GetRectMaxY(LPJASS j) {
 }
 DWORD CreateRegion(LPJASS j) {
     API_ALLOC(REGION, region);
+    (void)region;
     return 1;
 }
 DWORD RemoveRegion(LPJASS j) {

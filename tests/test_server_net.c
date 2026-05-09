@@ -6,9 +6,9 @@
 
 #include "test_framework.h"
 
-#include "../src/common/shared.h"
-#include "../src/common/net.h"
-#include "../src/server/server.h"
+#include "../common/shared.h"
+#include "../common/net.h"
+#include "../server/server.h"
 
 /* sv_init.c / sv_send.c globals (normally from sv_main.c). */
 struct game_export *ge;

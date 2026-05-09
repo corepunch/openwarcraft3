@@ -509,7 +509,7 @@ struct uiFrameDef_s {
     struct {
         LPCFRAMEDEF FirstItem;
         LPCFRAMEDEF BuildTimer;
-        DWORD ItemOffset;
+        FLOAT ItemOffset;
         DWORD NumQueue;
         uiBuildQueueItem_t Queue[MAX_BUILD_QUEUE];
     } BuildQueue;

@@ -291,6 +291,7 @@ DWORD IsSuspendedXP(LPJASS j) {
 }
 DWORD SelectHeroSkill(LPJASS j) {
     LPEDICT whichHero = jass_checkhandle(j, 1, "unit");
+    (void)whichHero;
     //LONG abilcode = jass_checkinteger(j, 2);
     return 0;
 }

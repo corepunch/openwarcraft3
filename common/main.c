@@ -37,7 +37,10 @@ int main(int argc, LPSTR argv[]) {
 
     for (int i = 0; i < argc; i++) {
         if (!strncmp(argv[i], "-mpq=", 5)) {
-            FS_AddArchive(argv[i] + 5);
+            if (!FS_AddArchive(argv[i] + 5)) {
+                fprintf(stderr, "Failed to open MPQ archive: %s\n", argv[i] + 5);
+                return 1;
+            }
             mpq = 1;
         }
         if (!strncmp(argv[i], "-map=", 5)) {

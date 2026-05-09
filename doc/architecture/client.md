@@ -1,12 +1,12 @@
 # Client Architecture
 
-The client (`src/client/`) is the presentation layer of OpenWarcraft3. It owns the SDL2 window, the OpenGL context, the input system, and the connection to the server. It never runs game logic — all simulation takes place on the server.
+The client (`client/`) is the presentation layer of OpenWarcraft3. It owns the SDL2 window, the OpenGL context, the input system, and the connection to the server. It never runs game logic — all simulation takes place on the server.
 
 ## Startup
 
 The client is initialised by `CL_Init` in `cl_main.c`, which:
 
-1. Opens a connection to the server via `NET_OpenLoopback` (`src/common/net.c`).
+1. Opens a connection to the server via `NET_OpenLoopback` (`common/net.c`).
 2. Registers client-side console commands.
 3. Sends a `clc_connect` message to the server.
 
@@ -14,7 +14,7 @@ The server responds with `svc_serverdata` (map name, game parameters) followed b
 
 ## Main Loop
 
-`CL_Frame(DWORD msec)` is called once per rendered frame by the platform layer (`src/common/main.c`). It performs the following steps in order:
+`CL_Frame(DWORD msec)` is called once per rendered frame by the platform layer (`common/main.c`). It performs the following steps in order:
 
 ```c
 void CL_Frame(DWORD msec) {
@@ -59,14 +59,14 @@ Camera rotation is applied to the stored `cl.viewangles` every frame. Mouse butt
 
 Serialises the current `usercmd_t` as a `clc_move` message and writes it to the loopback send buffer for the server to read on its next `SV_ReadPackets` call.
 
-For higher-level actions (right-click, ability use, unit selection), the input code sends dedicated `clc_*` messages that the server's command dispatcher (`src/game/g_commands.c`) handles.
+For higher-level actions (right-click, ability use, unit selection), the input code sends dedicated `clc_*` messages that the server's command dispatcher (`game/g_commands.c`) handles.
 
 ### 4. CL_PrepRefresh
 
 Builds the render scene:
 - Sets the camera view origin and angles from `cl.viewangles`.
 - Calls `CL_AddEntities` which iterates `cl.entities` and calls `V_AddEntity` for each visible entity. Entities with the `EF_NODRAW` flag are skipped.
-- Client-side temporary effects (`src/client/cl_tent.c`) add short-lived visual-only entities such as blood splats and hit sparks.
+- Client-side temporary effects (`client/cl_tent.c`) add short-lived visual-only entities such as blood splats and hit sparks.
 
 ### 5. SCR_UpdateScreen
 
@@ -88,12 +88,12 @@ The client keeps two snapshots per entity: `prev` and `current`. `CL_PrepRefresh
 
 | File | Purpose |
 |------|---------|
-| `src/client/cl_main.c` | `CL_Frame`, `CL_Init`, `CL_ReadPackets` |
-| `src/client/cl_input.c` | Input sampling, `usercmd_t` construction |
-| `src/client/cl_parse.c` | Server message handlers |
-| `src/client/cl_view.c` | Camera, `CL_PrepRefresh`, `V_AddEntity` |
-| `src/client/cl_tent.c` | Temporary client-side effects |
-| `src/client/cl_scrn.c` | HUD / screen overlay |
-| `src/client/cl_console.c` | In-game console |
-| `src/client/keys.c` | Key event dispatch and binding table |
-| `src/common/net.c` | Loopback transport shared by client and server |
+| `client/cl_main.c` | `CL_Frame`, `CL_Init`, `CL_ReadPackets` |
+| `client/cl_input.c` | Input sampling, `usercmd_t` construction |
+| `client/cl_parse.c` | Server message handlers |
+| `client/cl_view.c` | Camera, `CL_PrepRefresh`, `V_AddEntity` |
+| `client/cl_tent.c` | Temporary client-side effects |
+| `client/cl_scrn.c` | HUD / screen overlay |
+| `client/cl_console.c` | In-game console |
+| `client/keys.c` | Key event dispatch and binding table |
+| `common/net.c` | Loopback transport shared by client and server |

@@ -9,8 +9,8 @@
 #define test_harness_h
 
 /* Pull in the full game type hierarchy (same includes the game uses). */
-#include "../src/game/g_local.h"
-#include "../src/game/g_unitdata.h"
+#include "../game/g_local.h"
+#include "../game/g_unitdata.h"
 
 /* -----------------------------------------------------------------------
  * Forward declarations for functions defined in game .c files that have
