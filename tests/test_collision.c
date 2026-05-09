@@ -210,10 +210,10 @@ static size_t make_tga_bgra_1x1(BYTE buf[static 64], BYTE b, BYTE g, BYTE r, BYT
     hdr.pixel_size  = 32;
     memcpy(buf, &hdr, sizeof(hdr));
     BYTE *px = buf + sizeof(hdr);
-    *px++ = b;
-    *px++ = g;
-    *px++ = r;
-    *px++ = a;
+    px[0] = b;
+    px[1] = g;
+    px[2] = r;
+    px[3] = a;
     return sizeof(hdr) + 4;
 }
 
@@ -268,7 +268,7 @@ static void test_load_tga_rgba_channel_order(void) {
     size_t sz = make_tga_bgra_1x1(buf, 0x00, 0x00, 0xFF, 0x7A);
     pathTex_t *tex = LoadTGA(buf, sz);
     ASSERT_NOT_NULL(tex);
-    /* In Warcraft pathing, red marks unwalkable cells; loader stores that byte in COLOR32.b. */
+    /* For WC3-compatible pathing TGAs, red marks unwalkable cells; loader stores that byte in COLOR32.b. */
     ASSERT_EQ_INT(tex->map[0].r, 0x00);
     ASSERT_EQ_INT(tex->map[0].g, 0x00);
     ASSERT_EQ_INT(tex->map[0].b, 0xFF);
