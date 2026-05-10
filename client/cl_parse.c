@@ -148,10 +148,16 @@ void CL_ParseLayout(LPSIZEBUF msg) {
     while (true) {
         UIFRAME ent = { 0 };
         DWORD bits = 0;
+        if (msg->readcount + sizeof(WORD) * 2 > msg->cursize) {
+            break;
+        }
         DWORD nument = MSG_ReadEntityBits(msg, &bits);
         if (nument == 0 && bits == 0)
             break;
         MSG_ReadDeltaUIFrame(msg, &ent, nument, bits);
+        if (msg->readcount + sizeof(WORD) > msg->cursize) {
+            break;
+        }
 #ifdef DIAG_OUTPUT
         frame_count++;
         if (ent.onclick) {
@@ -163,6 +169,10 @@ void CL_ParseLayout(LPSIZEBUF msg) {
         }
 #endif
         ent.buffer.size = MSG_ReadShort(msg);
+        if (msg->readcount > msg->cursize ||
+            ent.buffer.size > msg->cursize - msg->readcount) {
+            break;
+        }
 
 #ifdef DIAG_OUTPUT
         if (ent.buffer.size > 0) {
@@ -208,6 +218,9 @@ void CL_ParseLayout(LPSIZEBUF msg) {
 #endif
 
         msg->readcount += ent.buffer.size;
+    }
+    if (start > msg->cursize || msg->readcount > msg->cursize || msg->readcount < start) {
+        return;
     }
     payload_size = msg->readcount - start;
     cl.layout[layer] = MemAlloc(sizeof(DWORD) + payload_size);

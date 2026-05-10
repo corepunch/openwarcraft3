@@ -95,7 +95,7 @@ $(MPQ_TOOL): tools/mpqtool.c common/mpq.c common/mpq.h | $(BIN_DIR)
 	@echo "[mpqtool]"
 	$(CC) $(CFLAGS) -o $@ $< common/mpq.c $(LDFLAGS) -lm -lz
 
-$(MDX_TOOL): tools/mdxtool.c common/mpq.c common/sheet.c common/parser.c | $(BIN_DIR) $(SHARED_LIB) $(RENDERER_LIB)
+$(MDX_TOOL): tools/mdxtool.c tools/viewer_common.c tools/viewer_common.h common/mpq.c common/sheet.c common/parser.c | $(BIN_DIR) $(SHARED_LIB) $(RENDERER_LIB)
 	@echo "[mdxtool]"
 	$(CC) $(CFLAGS) -o $@ $< tools/viewer_common.c common/mpq.c common/sheet.c common/parser.c \
 		$(RPATH) $(LDFLAGS) -lshared -lrenderer $(LIBS) -lm -lz

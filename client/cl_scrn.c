@@ -589,7 +589,7 @@ LPCUIFRAME SCR_Clear(HANDLE data) {
     };
     while (true) {
         DWORD bits = 0;
-        if (msg.readcount + sizeof(WORD) > msg.cursize) {
+        if (msg.readcount + sizeof(WORD) * 2 > msg.cursize) {
             break;
         }
         DWORD nument = MSG_ReadEntityBits(&msg, &bits);
