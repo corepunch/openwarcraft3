@@ -108,7 +108,8 @@ static int SV_FindIndex(LPCSTR name, int start, int max, bool create) {
                 name);
         return 0;
     }
-    strncpy(sv.configstrings[start+i], name, sizeof(*sv.configstrings));
+    strncpy(sv.configstrings[start+i], name, sizeof(*sv.configstrings) - 1);
+    sv.configstrings[start+i][sizeof(*sv.configstrings) - 1] = '\0';
     return i;
 }
 

@@ -247,25 +247,23 @@ void R_Init(DWORD width, DWORD height) {
     extern LPCSTR fs_alphatest;
     extern LPCSTR fs_commandbutton;
     
-    if (!ri.InMenuMode || !ri.InMenuMode()) {
-        FOR_LOOP(i, MODEL_COUNT) {
-            tr.model[i] = R_LoadModel(modelNames[i]);
-        }
-        FOR_LOOP(i, SHEET_COUNT) {
-            tr.sheet[i] = ri.ReadSheet(sheetNames[i]);
-        }
+    FOR_LOOP(i, MODEL_COUNT) {
+        tr.model[i] = R_LoadModel(modelNames[i]);
+    }
+    FOR_LOOP(i, SHEET_COUNT) {
+        tr.sheet[i] = ri.ReadSheet(sheetNames[i]);
+    }
 
-        FOR_LOOP(i, NUM_SELECTION_CIRCLES) {
-            tr.texture[TEX_SELECTION_CIRCLE+i] = R_LoadTexture(selCirclesNames[i]);
-        }
+    FOR_LOOP(i, NUM_SELECTION_CIRCLES) {
+        tr.texture[TEX_SELECTION_CIRCLE+i] = R_LoadTexture(selCirclesNames[i]);
+    }
 
-        FOR_LOOP(team, MAX_TEAMS) {
-            PATHSTR glowFilename, colorFilename;
-            sprintf(glowFilename, "ReplaceableTextures\\TeamGlow\\TeamGlow%02d.blp", team);
-            sprintf(colorFilename, "ReplaceableTextures\\TeamColor\\TeamColor%02d.blp", team);
-            tr.texture[TEX_TEAM_GLOW + team] = R_LoadTexture(glowFilename);
-            tr.texture[TEX_TEAM_COLOR + team] = R_LoadTexture(colorFilename);
-        }
+    FOR_LOOP(team, MAX_TEAMS) {
+        PATHSTR glowFilename, colorFilename;
+        sprintf(glowFilename, "ReplaceableTextures\\TeamGlow\\TeamGlow%02d.blp", team);
+        sprintf(colorFilename, "ReplaceableTextures\\TeamColor\\TeamColor%02d.blp", team);
+        tr.texture[TEX_TEAM_GLOW + team] = R_LoadTexture(glowFilename);
+        tr.texture[TEX_TEAM_COLOR + team] = R_LoadTexture(colorFilename);
     }
 
     tr.shader[SHADER_DEFAULT] = R_InitShader(vs_default, fs_default);
