@@ -127,7 +127,7 @@ void R_SetupGeosetVertexBuffer(mdxGeoset_t *geoset) {
     DWORD indexOffset = 0;
 
     FOR_LOOP(matrixGroupIndex, matrixGroupCount) {
-        memset(&matrixGroups[matrixGroupIndex], 0xff, sizeof(matrixGroup_t));
+        memset(&matrixGroups[matrixGroupIndex], 0x00, sizeof(matrixGroup_t));
         if (matrixGroupCount == 1 && (!geoset->matrixGroupSizes || !geoset->matrices || geoset->num_matrixGroupSizes <= 0)) {
             matrixGroups[matrixGroupIndex][0] = 0;
             continue;
@@ -136,8 +136,20 @@ void R_SetupGeosetVertexBuffer(mdxGeoset_t *geoset) {
         if (groupSize > MAX_SKIN_BONES) {
             groupSize = MAX_SKIN_BONES;
         }
+        if (indexOffset >= (DWORD)geoset->num_matrices) {
+            groupSize = 0;
+        } else if (indexOffset + groupSize > (DWORD)geoset->num_matrices) {
+            groupSize = (DWORD)geoset->num_matrices - indexOffset;
+        }
         FOR_LOOP(matrixIndex, groupSize) {
-            matrixGroups[matrixGroupIndex][matrixIndex] = geoset->matrices[indexOffset++];
+            int matrix_id = geoset->matrices[indexOffset++];
+            if (matrix_id < 0) {
+                matrix_id = 0;
+            }
+            if (matrix_id >= MDX_MATRIX_PALETTE) {
+                matrix_id = MDX_MATRIX_PALETTE - 1;
+            }
+            matrixGroups[matrixGroupIndex][matrixIndex] = (BYTE)matrix_id;
         }
     }
 
@@ -154,6 +166,9 @@ void R_SetupGeosetVertexBuffer(mdxGeoset_t *geoset) {
             matrixGroupSize = MAX(1, geoset->matrixGroupSizes[matrixGroupIndex]);
             if (matrixGroupSize > MAX_SKIN_BONES) {
                 matrixGroupSize = MAX_SKIN_BONES;
+            }
+            if (matrixGroupSize > geoset->num_matrices) {
+                matrixGroupSize = geoset->num_matrices;
             }
             leftoversize = matrixGroupSize;
         }
@@ -726,22 +741,34 @@ mdxModel_t *R_LoadModelMDLX(void *data, DWORD size) {
         return NULL;
     }
     FOR_EACH_LIST(mdxBone_t, bone, model->bones) {
-        model->nodes[bone->node.node_id] = &bone->node;
+        if (bone->node.node_id < MDX_MAX_NODES) {
+            model->nodes[bone->node.node_id] = &bone->node;
+        }
     }
     FOR_EACH_LIST(mdxHelper_t, helper, model->helpers) {
-        model->nodes[helper->node.node_id] = &helper->node;
+        if (helper->node.node_id < MDX_MAX_NODES) {
+            model->nodes[helper->node.node_id] = &helper->node;
+        }
     }
     FOR_EACH_LIST(mdxCollisionShape_t, shape, model->collisionShapes) {
-        model->nodes[shape->node.node_id] = &shape->node;
+        if (shape->node.node_id < MDX_MAX_NODES) {
+            model->nodes[shape->node.node_id] = &shape->node;
+        }
     }
     FOR_EACH_LIST(mdxParticleEmitter_t, emitter, model->emitters) {
-        model->nodes[emitter->node.node_id] = &emitter->node;
+        if (emitter->node.node_id < MDX_MAX_NODES) {
+            model->nodes[emitter->node.node_id] = &emitter->node;
+        }
     }
     FOR_EACH_LIST(mdxAttachment_t, attachment, model->attachments) {
-        model->nodes[attachment->node.node_id] = &attachment->node;
+        if (attachment->node.node_id < MDX_MAX_NODES) {
+            model->nodes[attachment->node.node_id] = &attachment->node;
+        }
     }
     FOR_EACH_LIST(mdxLight_t, light, model->lights) {
-        model->nodes[light->node.node_id] = &light->node;
+        if (light->node.node_id < MDX_MAX_NODES) {
+            model->nodes[light->node.node_id] = &light->node;
+        }
     }
     FOR_LOOP(i, model->num_textures) {
         mdxTexture_t *tex = model->textures+i;

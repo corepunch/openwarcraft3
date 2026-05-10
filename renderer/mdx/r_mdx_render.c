@@ -105,7 +105,8 @@ static LPCSTR mdx_fs =
 "}\n";
 
 static MATRIX4 local_matrices[MDX_MAX_NODES];
-static MATRIX4 global_matrices[MDX_MATRIX_PALETTE];
+static MATRIX4 node_matrices[MDX_MAX_NODES];
+static MATRIX4 bone_matrices[MDX_MATRIX_PALETTE];
 
 DWORD GetModelKeyTrackDataTypeSize(MODELKEYTRACKDATATYPE dataType);
 DWORD GetModelKeyTrackTypeSize(MODELKEYTRACKTYPE keyTrackType);
@@ -167,7 +168,11 @@ static void R_CalculateNodeMatrix(mdxModel_t const *model, mdxNode_t *node, DWOR
     VECTOR3 vTranslation = { 0, 0, 0 };
     QUATERNION vRotation = { 0, 0, 0, 1 };
     VECTOR3 vScale = { 1, 1, 1 };
-    LPCVECTOR3 pivot = (VECTOR3 const *)&model->pivots[node->node_id];
+    VECTOR3 zero_pivot = { 0, 0, 0 };
+    LPCVECTOR3 pivot = &zero_pivot;
+    if (node->node_id < (DWORD)model->num_pivots) {
+        pivot = (VECTOR3 const *)&model->pivots[node->node_id];
+    }
     if (frame0 != frame1) {
         if (node->translation) {
             VECTOR3 t0 = vTranslation, t1 = vTranslation;
@@ -210,20 +215,33 @@ static void R_CalculateNodeMatrix(mdxModel_t const *model, mdxNode_t *node, DWOR
 }
 
 LPCMATRIX4 R_GetNodeGlobalMatrix(mdxModel_t const *model, LPCMATRIX4 model_matrix, mdxNode_t const *node) {
-    LPMATRIX4 global_matrix = global_matrices+node->node_id;
+    if (!node || node->node_id >= MDX_MAX_NODES) {
+        return NULL;
+    }
+    LPMATRIX4 global_matrix = node_matrices + node->node_id;
     LPMATRIX4 local_matrix = local_matrices+node->node_id;
     if (global_matrix->v[15] == 0) {
-        if (node->parent_id != -1) {
+        if (node->parent_id != -1 && node->parent_id < MDX_MAX_NODES && model->nodes[node->parent_id]) {
             LPCMATRIX4 parent_matrix = R_GetNodeGlobalMatrix(model, model_matrix, model->nodes[node->parent_id]);
+            if (!parent_matrix) {
+                return NULL;
+            }
             Matrix4_multiply(parent_matrix, local_matrix, global_matrix);
         } else {
             *global_matrix = *local_matrix;
         }
         if (node->flags & MDLXNODE_Billboarded) {
             MATRIX4 tmp1, tmp2;
-            VECTOR3 tmppvt = Matrix4_multiply_vector3(global_matrix, (LPCVECTOR3)(&model->pivots[node->node_id]));
-            if (node->parent_id != -1) {
+            VECTOR3 pivot = { 0, 0, 0 };
+            if (node->node_id < (DWORD)model->num_pivots) {
+                pivot = *(LPCVECTOR3)(&model->pivots[node->node_id]);
+            }
+            VECTOR3 tmppvt = Matrix4_multiply_vector3(global_matrix, &pivot);
+            if (node->parent_id != -1 && node->parent_id < MDX_MAX_NODES && model->nodes[node->parent_id]) {
                 LPCMATRIX4 parent_matrix = R_GetNodeGlobalMatrix(model, model_matrix, model->nodes[node->parent_id]);
+                if (!parent_matrix) {
+                    return NULL;
+                }
                 QUATERNION tmprot = Quaternion_fromMatrix(parent_matrix);
                 tmprot = Quaternion_unm(&tmprot);
                 Matrix4_from_rotation_origin(&tmp1, &tmprot, &tmppvt);
@@ -253,18 +271,26 @@ void AddSkin(LPVECTOR3 pos, LPCMATRIX4 mat, LPCVECTOR3 org, FLOAT weight) {
 }
 
 static void MDLX_BindBoneMatrices(mdxModel_t const *model, LPCMATRIX4 model_matrix, DWORD frame1, DWORD frame0) {
-    DWORD numBones = 1;
-    memset(global_matrices, 0, sizeof(global_matrices));
-    
-    for (mdxNode_t *const *node = model->nodes; *node; node++) {
-        R_CalculateNodeMatrix(model, *node, frame1, frame0, &local_matrices[(*node)->node_id]);
+    memset(node_matrices, 0, sizeof(node_matrices));
+
+    FOR_LOOP(node_id, MDX_MAX_NODES) {
+        mdxNode_t *node = model->nodes[node_id];
+        if (!node)
+            continue;
+        R_CalculateNodeMatrix(model, node, frame1, frame0, &local_matrices[node->node_id]);
     }
-    for (mdxNode_t *const *node = model->nodes; *node; node++) {
-        R_GetNodeGlobalMatrix(model, model_matrix, *node);
+    FOR_LOOP(node_id, MDX_MAX_NODES) {
+        mdxNode_t *node = model->nodes[node_id];
+        if (!node)
+            continue;
+        R_GetNodeGlobalMatrix(model, model_matrix, node);
     }
 
-    FOR_EACH_LIST(mdxBone_t, bone, model->bones) {
-        numBones++;
+    FOR_LOOP(i, MDX_MATRIX_PALETTE) {
+        Matrix4_identity(&bone_matrices[i]);
+        if (i < MDX_MAX_NODES && model->nodes[i]) {
+            bone_matrices[i] = node_matrices[i];
+        }
     }
     
 #if 0
@@ -285,7 +311,7 @@ static void MDLX_BindBoneMatrices(mdxModel_t const *model, LPCMATRIX4 model_matr
     }
 #endif
     R_Call(glUseProgram, mdlx.shader->progid);
-    R_Call(glUniformMatrix4fv, mdlx.shader->uBones, numBones, GL_FALSE, global_matrices->v);
+    R_Call(glUniformMatrix4fv, mdlx.shader->uBones, MDX_MATRIX_PALETTE, GL_FALSE, bone_matrices->v);
 }
 
 extern bool is_rendering_lights;
@@ -361,7 +387,10 @@ static void MDLX_RenderEmitter(mdxModel_t const *model,
     
     EmissionRate = MAX(1, EmissionRate);
     MATRIX4 matrix;
-    LPCMATRIX4 nodeMatrix = &global_matrices[emitter->node.node_id];
+    if (emitter->node.node_id >= MDX_MAX_NODES) {
+        return;
+    }
+    LPCMATRIX4 nodeMatrix = &node_matrices[emitter->node.node_id];
     DWORD lastFrameTime = tr.viewDef.time - tr.viewDef.deltaTime;
     DWORD start = lastFrameTime - lastFrameTime % 1000;
 
@@ -378,7 +407,11 @@ static void MDLX_RenderEmitter(mdxModel_t const *model,
             cparticle_t *p = R_SpawnParticle();
             if (!p) return;
             VECTOR3 origin = FX_GenerateRandomOrigin(emitter->Length, emitter->Width);
-            VECTOR3 pivoted = Vector3_add(&origin, &model->pivots[emitter->node.node_id]);
+            VECTOR3 pivot = { 0, 0, 0 };
+            if (emitter->node.node_id < (DWORD)model->num_pivots) {
+                pivot = model->pivots[emitter->node.node_id];
+            }
+            VECTOR3 pivoted = Vector3_add(&origin, &pivot);
             VECTOR3 direction = FX_GenerateRandomDirection(emitter->Latitude * M_PI / 180);
             p->org = Matrix4_multiply_vector3(&matrix, &pivoted);
             p->vel = Vector3_scale(&direction, Speed);
