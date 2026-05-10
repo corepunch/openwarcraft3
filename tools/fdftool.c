@@ -20,6 +20,7 @@
 #define MAX_TOOL_FONTS MAX_FONTSTYLES
 #define UI_VIEW_WIDTH 0.8f
 #define UI_VIEW_HEIGHT 0.6f
+#define TEXCOORD_SCALE 255.0f
 
 typedef struct {
     LPCFRAMEDEF frame;
@@ -64,6 +65,8 @@ static void usage(void) {
     fprintf(stderr,
             "Usage:\n"
             "  fdftool -mpq <archive.mpq> [-mpq <archive.mpq> ...] -fdf <file.fdf> [-fdf <file.fdf> ...] -root <FrameName>\n"
+            "\n"
+            "Note: both '\\' and '/' path separators are accepted.\n"
             "\n"
             "Examples:\n"
             "  fdftool -mpq War3.mpq -fdf UI\\FrameDef\\Glue\\MainMenu.fdf -root MainMenuFrame\n"
@@ -281,6 +284,7 @@ static FLOAT get_anchor(LPCFRAMEDEF frame,
 {
     LPCRECT relative = relative_rect(frame, point);
     VECTOR2 base = get(relative);
+    /* FDF uses +Y up, but screen-space layout is +Y down. */
     SHORT offset = is_x ? point->offset : -point->offset;
     if (point->targetPos == FPP_MID) {
         return (base.x + base.y) * 0.5f + offset;
@@ -397,11 +401,11 @@ static void draw_simple_backdrop(LPCFRAMEDEF frame, LPCRECT rect) {
 
 static void draw_texture(LPCFRAMEDEF frame, LPCRECT rect) {
     RECT uv = Rect_div(&(RECT) {
-        frame->Texture.TexCoord.min.x * 0xff,
-        frame->Texture.TexCoord.min.y * 0xff,
-        (frame->Texture.TexCoord.max.x - frame->Texture.TexCoord.min.x) * 0xff,
-        (frame->Texture.TexCoord.max.y - frame->Texture.TexCoord.min.y) * 0xff,
-    }, 0xff);
+        frame->Texture.TexCoord.min.x * TEXCOORD_SCALE,
+        frame->Texture.TexCoord.min.y * TEXCOORD_SCALE,
+        (frame->Texture.TexCoord.max.x - frame->Texture.TexCoord.min.x) * TEXCOORD_SCALE,
+        (frame->Texture.TexCoord.max.y - frame->Texture.TexCoord.min.y) * TEXCOORD_SCALE,
+    }, TEXCOORD_SCALE);
     DWORD image = frame->Texture.Image;
     if (image > 0 && image < MAX_TOOL_IMAGES && images[image]) {
         re.DrawImage(images[image], rect, &uv, frame->Color.a ? frame->Color : COLOR32_WHITE);
@@ -550,7 +554,7 @@ int main(int argc, char **argv) {
 
     re.Init(1280, 720);
     images[0] = re.LoadTexture("");
-    default_font = RegisterFont("Fonts\\FRIZQT__.TTF", 16);
+    default_font = RegisterFont("Fonts/FRIZQT__.TTF", 16);
 
     gi = (struct game_import) {
         .MemAlloc = MemAlloc,
