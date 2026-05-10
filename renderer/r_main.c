@@ -1,4 +1,5 @@
 #include "r_local.h"
+#include "m3/r_m3.h"
 
 #include <SDL2/SDL.h>
 #ifndef __APPLE__
@@ -403,6 +404,94 @@ size2_t R_GetTextureSize(LPCTEXTURE texture) {
 
 float GetAccurateHeightAtPoint(float sx, float sy);
 
+typedef struct {
+    LPMODEL model;
+    DWORD count;
+    char paths[256][512];
+} model_texture_cache_t;
+
+static model_texture_cache_t model_texture_cache = { 0 };
+
+static void R_TextureCacheAdd(LPCSTR path) {
+    if (!path || !*path || model_texture_cache.count >= 256) {
+        return;
+    }
+    FOR_LOOP(i, model_texture_cache.count) {
+        if (!strcmp(model_texture_cache.paths[i], path)) {
+            return;
+        }
+    }
+    strncpy(model_texture_cache.paths[model_texture_cache.count], path, sizeof(model_texture_cache.paths[0]) - 1);
+    model_texture_cache.paths[model_texture_cache.count][sizeof(model_texture_cache.paths[0]) - 1] = 0;
+    model_texture_cache.count++;
+}
+
+static void R_BuildModelTextureCache(LPMODEL model) {
+    if (model_texture_cache.model == model) {
+        return;
+    }
+    model_texture_cache.model = model;
+    model_texture_cache.count = 0;
+
+    if (!model) {
+        return;
+    }
+
+    switch (model->modeltype) {
+        case ID_MDLX:
+            if (model->mdx && model->mdx->textures) {
+                FOR_LOOP(i, model->mdx->num_textures) {
+                    R_TextureCacheAdd(model->mdx->textures[i].path);
+                }
+            }
+            break;
+        case ID_43DM:
+            if (model->m3 && model->m3->materialStandard) {
+                FOR_LOOP(i, model->m3->materialStandardNum) {
+                    m3Material_t const *material = &model->m3->materialStandard[i];
+                    m3Layer_t const *layers[] = {
+                        material->diffuseLayer,
+                        material->decalLayer,
+                        material->specularLayer,
+                        material->glossLayer,
+                        material->emissiveLayer,
+                        material->emissive2Layer,
+                        material->evioLayer,
+                        material->evioMaskLayer,
+                        material->alphaMaskLayer,
+                        material->alphaMask2Layer,
+                        material->normalLayer,
+                        material->heightLayer,
+                        material->lightMapLayer,
+                        material->ambientOcclusionLayer,
+                    };
+                    FOR_LOOP(layerIndex, sizeof(layers) / sizeof(layers[0])) {
+                        m3Layer_t const *layer = layers[layerIndex];
+                        if (layer && layer->imagePath && *layer->imagePath) {
+                            R_TextureCacheAdd(layer->imagePath);
+                        }
+                    }
+                }
+            }
+            break;
+        default:
+            break;
+    }
+}
+
+DWORD R_GetModelTextureCount(LPMODEL model) {
+    R_BuildModelTextureCache(model);
+    return model_texture_cache.model == model ? model_texture_cache.count : 0;
+}
+
+LPCSTR R_GetModelTexturePath(LPMODEL model, DWORD index) {
+    R_BuildModelTextureCache(model);
+    if (!model || model_texture_cache.model != model || index >= model_texture_cache.count) {
+        return NULL;
+    }
+    return model_texture_cache.paths[index];
+}
+
 refExport_t R_GetAPI(refImport_t imp) {
 #ifdef DEBUG_PATHFINDING
     void R_SetPathTexture(LPCCOLOR32 debugTexture);
@@ -429,6 +518,8 @@ refExport_t R_GetAPI(refImport_t imp) {
         .DrawPortrait = R_DrawPortrait,
         .DrawText = R_DrawText,
         .GetTextSize = R_GetTextSize,
+        .GetModelTextureCount = R_GetModelTextureCount,
+        .GetModelTexturePath = R_GetModelTexturePath,
         .GetHeightAtPoint = GetAccurateHeightAtPoint,
         .TraceEntity = R_TraceEntity,
         .TraceLocation = R_TraceLocation,
