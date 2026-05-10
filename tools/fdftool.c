@@ -64,8 +64,8 @@ static void usage(void) {
             "  fdftool -mpq <archive.mpq> [-mpq <archive.mpq> ...] -fdf <file.fdf> [-fdf <file.fdf> ...] -root <FrameName>\n"
             "\n"
             "Examples:\n"
-            "  fdftool -mpq War3.mpq -fdf UI\\\\FrameDef\\\\Glue\\\\MainMenu.fdf -root MainMenuFrame\n"
-            "  fdftool -mpq War3.mpq -fdf UI\\\\FrameDef\\\\UI\\\\ConsoleUI.fdf -fdf UI\\\\FrameDef\\\\UI\\\\ResourceBar.fdf -root ConsoleUI\n");
+            "  fdftool -mpq War3.mpq -fdf UI\\FrameDef\\Glue\\MainMenu.fdf -root MainMenuFrame\n"
+            "  fdftool -mpq War3.mpq -fdf UI\\FrameDef\\UI\\ConsoleUI.fdf -fdf UI\\FrameDef\\UI\\ResourceBar.fdf -root ConsoleUI\n");
 }
 
 static void errorf(LPCSTR fmt, ...) {
@@ -127,16 +127,15 @@ BOMStatus TextRemoveBom(LPSTR buffer) {
     unsigned char utf8_bom[] = { 0xEF, 0xBB, 0xBF };
     unsigned char utf16le_bom[] = { 0xFF, 0xFE };
     unsigned char utf16be_bom[] = { 0xFE, 0xFF };
-    size_t length = strlen(buffer);
 
-    if (length >= 3 && memcmp(buffer, utf8_bom, 3) == 0) {
-        memmove(buffer, buffer + 3, length - 3);
+    if (memcmp(buffer, utf8_bom, 3) == 0) {
+        memmove(buffer, buffer + 3, strlen(buffer + 3) + 1);
         return UTF8_BOM_FOUND;
-    } else if (length >= 2 && memcmp(buffer, utf16le_bom, 2) == 0) {
-        memmove(buffer, buffer + 2, length - 2);
+    } else if (memcmp(buffer, utf16le_bom, 2) == 0) {
+        memmove(buffer, buffer + 2, strlen(buffer + 2) + 1);
         return UTF16LE_BOM_FOUND;
-    } else if (length >= 2 && memcmp(buffer, utf16be_bom, 2) == 0) {
-        memmove(buffer, buffer + 2, length - 2);
+    } else if (memcmp(buffer, utf16be_bom, 2) == 0) {
+        memmove(buffer, buffer + 2, strlen(buffer + 2) + 1);
         return UTF16BE_BOM_FOUND;
     } else {
         return NO_BOM;
@@ -255,11 +254,11 @@ void Com_SetMenuMode(bool enabled) {
 
 static LPCRECT layout_rect(LPCFRAMEDEF frame);
 
-static VECTOR2 rect_x(LPCRECT rect) {
+static VECTOR2 rect_x_bounds(LPCRECT rect) {
     return (VECTOR2) { rect->x, rect->x + rect->w };
 }
 
-static VECTOR2 rect_y(LPCRECT rect) {
+static VECTOR2 rect_y_bounds(LPCRECT rect) {
     return (VECTOR2) { rect->y, rect->y + rect->h };
 }
 
@@ -375,8 +374,8 @@ static LPCRECT layout_rect(LPCFRAMEDEF frame) {
         }
     }
 
-    x = layout_axis(frame, frame->Points.x, width, rect_x, true);
-    y = layout_axis(frame, frame->Points.y, height, rect_y, false);
+    x = layout_axis(frame, frame->Points.x, width, rect_x_bounds, true);
+    y = layout_axis(frame, frame->Points.y, height, rect_y_bounds, false);
     runtime->rect = (RECT) { x.x, y.x, x.y, y.y };
     runtime->calculating = false;
     runtime->calculated = true;
