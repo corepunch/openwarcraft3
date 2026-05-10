@@ -9,7 +9,9 @@ static struct {
 } view_state;
 
 static bool world_loaded = false;
-static LPMODEL menu_preview_model = NULL;
+#ifdef DIAG_OUTPUT
+static DWORD next_menu_render_log_time = 0;
+#endif
 
 VECTOR3 lightAngles = {-40,0,60};
 
@@ -143,6 +145,12 @@ FLOAT LerpRotation(FLOAT a, FLOAT b, FLOAT t) {
 
 static void V_AddClientEntity(centity_t const *ent) {
     renderEntity_t re = { 0 };
+    if (view_state.num_entities >= MAX_CLIENT_ENTITIES) {
+        return;
+    }
+    if (ent->current.model >= MAX_MODELS) {
+        return;
+    }
     
     re.origin = Vector3_lerp(&ent->prev.origin, &ent->current.origin, cl.viewDef.lerpfrac);
     re.angle = LerpRotation(ent->prev.angle, ent->current.angle, cl.viewDef.lerpfrac);
@@ -163,6 +171,12 @@ static void V_AddClientEntity(centity_t const *ent) {
     view_state.entities[view_state.num_entities++] = re;
     
     if (ent->current.model2 > 0) {
+        if (ent->current.model2 >= MAX_MODELS) {
+            return;
+        }
+        if (view_state.num_entities >= MAX_CLIENT_ENTITIES) {
+            return;
+        }
         re.model = cl.models[ent->current.model2];
         re.skin = 0;
         re.frame = 0;
@@ -183,6 +197,10 @@ static void V_ClearScene(void) {
 
 static void CL_AddBuilding(void) {
     if (!cl.cursorEntity)
+        return;
+    if (view_state.num_entities >= MAX_CLIENT_ENTITIES)
+        return;
+    if (cl.cursorEntity->model >= MAX_MODELS)
         return;
 
     renderEntity_t ent;
@@ -219,6 +237,66 @@ static void CL_AddEntities(void) {
     cl.viewDef.entities = view_state.entities;
 }
 
+static void CL_DebugLogMenuRenderState(renderEntity_t const *menu_ent) {
+#ifndef DIAG_OUTPUT
+    (void)menu_ent;
+#else
+    if (!Com_InMenuMode() || cl.time < next_menu_render_log_time) {
+        return;
+    }
+
+    next_menu_render_log_time = cl.time + 1000;
+
+    DIAGF(
+            "V_RenderView(menu): render_entities=%d selected_model_ptr=%p\n",
+            cl.viewDef.num_entities,
+            menu_ent ? (void *)menu_ent->model : NULL);
+
+    {
+        DWORD printed = 0;
+        DWORD total = 0;
+        FOR_LOOP(i, MAX_CLIENT_ENTITIES) {
+            centity_t const *ce = &cl.ents[i];
+            DWORD model_index = ce->current.model;
+            if (!model_index) {
+                continue;
+            }
+            total++;
+            if (printed < 8) {
+                LPCSTR model_name = (model_index < MAX_MODELS) ? cl.configstrings[CS_MODELS + model_index] : "<model-index-oob>";
+                DIAGF(
+                        "  snapshot[%u]: model=%u (%s) loaded=%s origin=(%.1f %.1f %.1f)\n",
+                        (unsigned)i,
+                        (unsigned)model_index,
+                        model_name ? model_name : "<null>",
+                        (model_index < MAX_MODELS && cl.models[model_index]) ? "yes" : "no",
+                        ce->current.origin.x,
+                        ce->current.origin.y,
+                        ce->current.origin.z);
+                printed++;
+            }
+        }
+        DIAGF("  snapshot_total=%u\n", (unsigned)total);
+    }
+
+    if (menu_ent && re.GetModelCamera) {
+        VECTOR3 eye = { 0 }, cam_target = { 0 };
+        float fov_deg = 0;
+        float znear = 0;
+        float zfar = 0;
+        bool ok = re.GetModelCamera((LPMODEL)menu_ent->model, &eye, &cam_target, &fov_deg, &znear, &zfar);
+        DIAGF(
+                "  model-camera: ok=%d eye=(%.2f %.2f %.2f) target=(%.2f %.2f %.2f) fov=%.2f znear=%.2f zfar=%.2f\n",
+                ok ? 1 : 0,
+                eye.x, eye.y, eye.z,
+                cam_target.x, cam_target.y, cam_target.z,
+                fov_deg,
+                znear,
+                zfar);
+    }
+#endif
+}
+
 void CL_PrepRefresh(void) {
     static bool map_registered = false;
     
@@ -232,14 +310,8 @@ void CL_PrepRefresh(void) {
         cl.healthbar = re.LoadTexture(cl.configstrings[CS_HEALTHBAR]);
     }
 
-    if (Com_InMenuMode() && !menu_preview_model) {
-        menu_preview_model = re.LoadModel("UI\\Glues\\MainMenu\\MainMenu3d\\MainMenu3d.mdx");
-        if (!menu_preview_model) {
-            menu_preview_model = re.LoadModel("units\\human\\Peasant\\Peasant.mdx");
-        }
-    }
-    
-    for (DWORD i = 2; i < MAX_MODELS && *cl.configstrings[CS_MODELS + i]; i++) {
+    DWORD model_start = Com_InMenuMode() ? 1 : 2;
+    for (DWORD i = model_start; i < MAX_MODELS && *cl.configstrings[CS_MODELS + i]; i++) {
         if (cl.models[i])
             continue;
         LPCSTR filename = cl.configstrings[CS_MODELS + i];
@@ -248,8 +320,16 @@ void CL_PrepRefresh(void) {
         memcpy(portrait, filename, ext - filename);
         sprintf(portrait + strlen(portrait), "_Portrait%s", ext);
         cl.models[i] = re.LoadModel(filename);
+        DIAGF("CL_PrepRefresh: model[%u] %s loaded=%s\n",
+              (unsigned)i,
+              filename,
+              cl.models[i] ? "yes" : "no");
         if (FS_FileExists(portrait)) {
             cl.portraits[i] = re.LoadModel(portrait);
+            DIAGF("CL_PrepRefresh: portrait[%u] %s loaded=%s\n",
+                  (unsigned)i,
+                  portrait,
+                  cl.portraits[i] ? "yes" : "no");
         }
     }
     
@@ -257,6 +337,10 @@ void CL_PrepRefresh(void) {
         if (cl.pics[i])
             continue;
         cl.pics[i] = re.LoadTexture(cl.configstrings[CS_IMAGES + i]);
+        DIAGF("CL_PrepRefresh: image[%u] %s loaded=%s\n",
+              (unsigned)i,
+              cl.configstrings[CS_IMAGES + i],
+              cl.pics[i] ? "yes" : "no");
     }
     
     for (DWORD i = 1; i < MAX_FONTSTYLES && *cl.configstrings[CS_FONTS + i]; i++) {
@@ -269,8 +353,17 @@ void CL_PrepRefresh(void) {
             memcpy(filename, fontspec, split - fontspec);
             DWORD fontsize = atoi(split+1);
             cl.fonts[i] = re.LoadFont(filename, fontsize);
+            DIAGF("CL_PrepRefresh: font[%u] %s,%u loaded=%s\n",
+                  (unsigned)i,
+                  filename,
+                  (unsigned)fontsize,
+                  cl.fonts[i] ? "yes" : "no");
         } else {
             cl.fonts[i] = re.LoadFont(cl.configstrings[CS_FONTS + i], 16);
+            DIAGF("CL_PrepRefresh: font[%u] %s,16 loaded=%s\n",
+                  (unsigned)i,
+                  cl.configstrings[CS_FONTS + i],
+                  cl.fonts[i] ? "yes" : "no");
         }
     }
 }
@@ -285,29 +378,37 @@ void V_RenderView(void) {
     
     static DWORD lastTime = 0;
     if (!world_loaded) {
-        if (!menu_preview_model) {
-            lastTime = cl.time;
-            return;
-        }
-
-        renderEntity_t entity = { 0 };
         VECTOR3 target = { 0, 0, 90 };
+        renderEntity_t const *menu_ent = NULL;
 
         cl.viewDef.viewport = (RECT) { 0, 0, 1, 1 };
         cl.viewDef.scissor = (RECT) { 0, 0, 1, 1 };
         cl.viewDef.time = cl.time;
         cl.viewDef.deltaTime = cl.time - lastTime;
         cl.viewDef.rdflags = RDF_NOWORLDMODEL | RDF_NOFRUSTUMCULL;
-        cl.viewDef.num_entities = 1;
-        cl.viewDef.entities = &entity;
 
-        entity.model = menu_preview_model;
-        entity.scale = 1;
-        entity.origin = (VECTOR3){ 0, 0, 0 };
-        entity.frame = 0;
-        entity.oldframe = 0;
+        V_ClearScene();
+        CL_AddEntities();
 
-        if (Matrix4_getMenuModelCameraMatrix(menu_preview_model, &cl.viewDef.viewProjectionMatrix, &target)) {
+        if (cl.viewDef.num_entities <= 0) {
+            lastTime = cl.time;
+            return;
+        }
+
+        FOR_LOOP(i, cl.viewDef.num_entities) {
+            if (cl.viewDef.entities[i].model) {
+                menu_ent = &cl.viewDef.entities[i];
+                break;
+            }
+        }
+
+        if (menu_ent) {
+            target = menu_ent->origin;
+        }
+
+        CL_DebugLogMenuRenderState(menu_ent);
+
+        if (menu_ent && Matrix4_getMenuModelCameraMatrix(menu_ent->model, &cl.viewDef.viewProjectionMatrix, &target)) {
             Matrix4_getPreviewLightMatrix(&lightAngles, &target, VIEW_SHADOW_SIZE, &cl.viewDef.lightMatrix);
         } else {
             Matrix4_getPreviewCameraMatrix(&target, &cl.viewDef.viewProjectionMatrix);
@@ -346,9 +447,11 @@ void V_RenderView(void) {
 }
 
 void V_AddEntity(renderEntity_t *ent) {
+    if (view_state.num_entities >= MAX_CLIENT_ENTITIES) {
+        return;
+    }
     view_state.entities[view_state.num_entities++] = *ent;
 }
 
 void V_Shutdown(void) {
-    SAFE_DELETE(menu_preview_model, re.ReleaseModel);
 }

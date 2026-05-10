@@ -11,6 +11,10 @@ BIN_DIR := build/bin
 LIB_DIR := build/lib
 CFLAGS  := -Wall -I. -Ishared -Ishared/types
 
+ifeq ($(DIAG_OUTPUT),1)
+	CFLAGS += -DDIAG_OUTPUT
+endif
+
 # ---------------------------------------------------------------------------
 # Platform detection
 # ---------------------------------------------------------------------------
@@ -82,6 +86,10 @@ run:
 
 run-map:
 	$(BINARY) -mpq=$(MPQ) -map=$(MAP)
+
+diag: clean
+	$(MAKE) DIAG_OUTPUT=1 build
+	$(MAKE) DIAG_OUTPUT=1 run
 
 $(MPQ_TOOL): tools/mpqtool.c common/mpq.c common/mpq.h | $(BIN_DIR)
 	@echo "[mpqtool]"
@@ -198,4 +206,4 @@ test: | $(BIN_DIR)
 test-mpq-compat: mpqtool $(MPQ_TEST)
 	$(MPQ_TEST) -mpq=$(MPQ)
 
-.PHONY: default build shared renderer game openwarcraft3 mpqtool mdxtool maptool run run-map clean download test test-mpq-compat
+.PHONY: default build shared renderer game openwarcraft3 mpqtool mdxtool maptool run run-map diag clean download test test-mpq-compat

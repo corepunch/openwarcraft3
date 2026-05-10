@@ -34,7 +34,11 @@ void R_PrintSysText(LPCSTR string, DWORD x, DWORD y, COLOR32 color) {
 }
 
 void R_SetBlending(BLEND_MODE mode) {
-    R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    if (mode == BLEND_MODE_ADD) {
+        R_Call(glBlendFunc, GL_ONE, GL_ONE);
+    } else {
+        R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    }
     return;
 //    switch (mode) {
 //        case BLEND_MODE_NONE: R_Call(glBlendFunc, GL_ONE, GL_ZERO); break;
@@ -87,6 +91,8 @@ void R_DrawImageEx(LPCDRAWIMAGE drawImage) {
         R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     }
+    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     R_Call(glDisable, GL_CULL_FACE);
     R_Call(glEnable, GL_BLEND);
     R_Call(glDrawArrays, GL_TRIANGLES, 0, 6);

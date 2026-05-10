@@ -25,11 +25,193 @@ static void usage(void) {
         "Usage:\n"
         "  mpqtool -mpq <archive.mpq> ls [path]\n"
         "  mpqtool -mpq <archive.mpq> cat <file>\n"
+        "  mpqtool -mpq <archive.mpq> imginfo <file>\n"
         "\n"
         "Examples:\n"
         "  mpqtool -mpq War3.mpq ls\n"
         "  mpqtool -mpq War3.mpq ls Units\n"
-        "  mpqtool -mpq War3.mpq cat Units/UnitData.slk\n");
+        "  mpqtool -mpq War3.mpq cat Units/UnitData.slk\n"
+        "  mpqtool -mpq War3.mpq imginfo UI/Widgets/Glues/GlueScreen-Button1-Border.blp\n");
+}
+
+static unsigned short rd_u16le(const unsigned char *p) {
+    return (unsigned short)(p[0] | (p[1] << 8));
+}
+
+static unsigned int rd_u32le(const unsigned char *p) {
+    return (unsigned int)(p[0] | (p[1] << 8) | (p[2] << 16) | (p[3] << 24));
+}
+
+static const char *blp_content_name(unsigned int content) {
+    switch (content) {
+        case 0: return "JPEG";
+        case 1: return "DIRECT_PALETTED";
+        default: return "UNKNOWN";
+    }
+}
+
+static const char *blp2_encoding_name(unsigned int encoding) {
+    switch (encoding) {
+        case 0: return "JPEG";
+        case 1: return "PALETTIZED";
+        case 2: return "DXT";
+        case 3: return "BGRA";
+        default: return "UNKNOWN";
+    }
+}
+
+static int cmd_imginfo(HANDLE archive, const char *file_path) {
+    HANDLE file;
+    unsigned char header[512];
+    DWORD read_bytes = 0;
+    DWORD file_size = 0;
+
+    if (!SFileOpenFileEx(archive, file_path, SFILE_OPEN_FROM_MPQ, &file)) {
+        fprintf(stderr, "Cannot open MPQ file: %s\n", file_path);
+        return 1;
+    }
+
+    file_size = SFileGetFileSize(file, NULL);
+    if (!SFileReadFile(file, header, sizeof(header), &read_bytes, NULL) || read_bytes < 16) {
+        fprintf(stderr, "Failed reading file header: %s\n", file_path);
+        SFileCloseFile(file);
+        return 1;
+    }
+
+    printf("file=%s\n", file_path);
+    printf("size=%u\n", (unsigned)file_size);
+
+    if (read_bytes >= 4 && memcmp(header, "BLP1", 4) == 0) {
+        unsigned int content;
+        unsigned int alpha_bits;
+        unsigned int width;
+        unsigned int height;
+        unsigned int extra;
+        unsigned int has_mips;
+        unsigned int mip_count = 0;
+
+        if (read_bytes < 0x9C) {
+            fprintf(stderr, "BLP1 header too small in %s\n", file_path);
+            SFileCloseFile(file);
+            return 1;
+        }
+
+        content = rd_u32le(header + 0x04);
+        alpha_bits = rd_u32le(header + 0x08);
+        width = rd_u32le(header + 0x0C);
+        height = rd_u32le(header + 0x10);
+        extra = rd_u32le(header + 0x14);
+        has_mips = rd_u32le(header + 0x18);
+
+        for (unsigned int i = 0; i < 16; i++) {
+            unsigned int off = rd_u32le(header + 0x1C + i * 4);
+            unsigned int sz = rd_u32le(header + 0x5C + i * 4);
+            if (off != 0 && sz != 0) {
+                mip_count++;
+            }
+        }
+
+        printf("type=BLP1\n");
+        printf("content=%u (%s)\n", content, blp_content_name(content));
+        printf("alpha_bits=%u\n", alpha_bits);
+        printf("width=%u\n", width);
+        printf("height=%u\n", height);
+        printf("extra=%u\n", extra);
+        printf("has_mipmaps=%u\n", has_mips ? 1u : 0u);
+        printf("mip_levels_present=%u\n", mip_count);
+
+        for (unsigned int i = 0; i < 16; i++) {
+            unsigned int off = rd_u32le(header + 0x1C + i * 4);
+            unsigned int sz = rd_u32le(header + 0x5C + i * 4);
+            if (off == 0 && sz == 0) {
+                continue;
+            }
+            printf("mip[%u].offset=%u mip[%u].size=%u\n", i, off, i, sz);
+        }
+    } else if (read_bytes >= 4 && memcmp(header, "BLP2", 4) == 0) {
+        unsigned int version;
+        unsigned int encoding;
+        unsigned int alpha_bits;
+        unsigned int alpha_type;
+        unsigned int has_mips;
+        unsigned int width;
+        unsigned int height;
+        unsigned int mip_count = 0;
+
+        if (read_bytes < 0x94) {
+            fprintf(stderr, "BLP2 header too small in %s\n", file_path);
+            SFileCloseFile(file);
+            return 1;
+        }
+
+        version = rd_u32le(header + 0x04);
+        encoding = header[0x08];
+        alpha_bits = header[0x09];
+        alpha_type = header[0x0A];
+        has_mips = header[0x0B];
+        width = rd_u32le(header + 0x0C);
+        height = rd_u32le(header + 0x10);
+
+        for (unsigned int i = 0; i < 16; i++) {
+            unsigned int off = rd_u32le(header + 0x14 + i * 4);
+            unsigned int sz = rd_u32le(header + 0x54 + i * 4);
+            if (off != 0 && sz != 0) {
+                mip_count++;
+            }
+        }
+
+        printf("type=BLP2\n");
+        printf("version=%u\n", version);
+        printf("encoding=%u (%s)\n", encoding, blp2_encoding_name(encoding));
+        printf("alpha_bits=%u\n", alpha_bits);
+        printf("alpha_type=%u\n", alpha_type);
+        printf("width=%u\n", width);
+        printf("height=%u\n", height);
+        printf("has_mipmaps=%u\n", has_mips ? 1u : 0u);
+        printf("mip_levels_present=%u\n", mip_count);
+
+        for (unsigned int i = 0; i < 16; i++) {
+            unsigned int off = rd_u32le(header + 0x14 + i * 4);
+            unsigned int sz = rd_u32le(header + 0x54 + i * 4);
+            if (off == 0 && sz == 0) {
+                continue;
+            }
+            printf("mip[%u].offset=%u mip[%u].size=%u\n", i, off, i, sz);
+        }
+    } else if (read_bytes >= 8 &&
+               header[0] == 0x89 && header[1] == 'P' && header[2] == 'N' && header[3] == 'G') {
+        printf("type=PNG\n");
+        if (read_bytes >= 24) {
+            unsigned int width = (header[16] << 24) | (header[17] << 16) | (header[18] << 8) | header[19];
+            unsigned int height = (header[20] << 24) | (header[21] << 16) | (header[22] << 8) | header[23];
+            printf("width=%u\n", width);
+            printf("height=%u\n", height);
+        }
+    } else if (read_bytes >= 3 && header[0] == 0xFF && header[1] == 0xD8 && header[2] == 0xFF) {
+        printf("type=JPEG\n");
+    } else if (read_bytes >= 18) {
+        unsigned int id_len = header[0];
+        unsigned int image_type = header[2];
+        unsigned int width = rd_u16le(header + 12);
+        unsigned int height = rd_u16le(header + 14);
+        unsigned int bpp = header[16];
+
+        if (image_type != 0 && width > 0 && height > 0) {
+            printf("type=TGA\n");
+            printf("image_type=%u\n", image_type);
+            printf("id_length=%u\n", id_len);
+            printf("width=%u\n", width);
+            printf("height=%u\n", height);
+            printf("bits_per_pixel=%u\n", bpp);
+        } else {
+            printf("type=UNKNOWN\n");
+        }
+    } else {
+        printf("type=UNKNOWN\n");
+    }
+
+    SFileCloseFile(file);
+    return 0;
 }
 
 static void normalize_slashes(char *s) {
@@ -240,6 +422,18 @@ int main(int argc, char **argv) {
         normalize_slashes(path);
         trim_edge_slashes(path);
         rc = cmd_cat(archive, path);
+    } else if (strcmp(cmd, "imginfo") == 0) {
+        char path[512];
+        if (!arg) {
+            usage();
+            SFileCloseArchive(archive);
+            return 1;
+        }
+        strncpy(path, arg, sizeof(path) - 1);
+        path[sizeof(path) - 1] = '\0';
+        normalize_slashes(path);
+        trim_edge_slashes(path);
+        rc = cmd_imginfo(archive, path);
     } else {
         usage();
         rc = 1;

@@ -42,9 +42,15 @@ void SV_BuildClientFrame(LPCLIENT client) {
     LPCLIENTFRAME frame = &client->frames[sv.framenum & UPDATE_MASK];
     frame->ps = clent->client->ps;
     frame->num_entities = 0;
+    if (!svs.client_entities || svs.num_client_entities == 0) {
+        frame->first_entity = 0;
+        return;
+    }
     frame->first_entity = svs.next_client_entities;
     for (int index = 1; index < ge->num_edicts; index++) {
         edict_t *edict = EDICT_NUM(index);
+        if (!edict->inuse)
+            continue;
         if (edict->svflags & SVF_NOCLIENT)
             continue;
         if (!edict->s.model && !edict->s.sound && !edict->s.event)
@@ -66,6 +72,7 @@ void SV_BuildClientFrame(LPCLIENT client) {
  * Entities removed since the last frame receive a U_REMOVE flag. */
 void SV_EmitPacketEntities(LPCCLIENTFRAME from, LPCCLIENTFRAME to, LPSIZEBUF msg) {
     int const from_num_entities = from ? from->num_entities : 0;
+    entityState_t nullstate = { 0 };
 
     MSG_WriteByte (msg, svc_packetentities);
 
@@ -95,7 +102,11 @@ void SV_EmitPacketEntities(LPCCLIENTFRAME from, LPCCLIENTFRAME to, LPSIZEBUF msg
             continue;
         }
         if (newnum < oldnum) { // this is a new entity, send it from the baseline
-            MSG_WriteDeltaEntity(msg, &sv.baselines[newnum], newent, false);
+            LPCENTITYSTATE base = &nullstate;
+            if (sv.baselines && newnum >= 0 && newnum < ge->max_edicts) {
+                base = &sv.baselines[newnum];
+            }
+            MSG_WriteDeltaEntity(msg, base, newent, false);
             newindex++;
             continue;
         }

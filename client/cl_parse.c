@@ -15,6 +15,10 @@
  * sends only the fields that changed since the previous frame.  A U_REMOVE
  * flag signals that an entity should be removed from the local table. */
 static void CL_ReadPacketEntities(LPSIZEBUF msg) {
+#ifdef DIAG_OUTPUT
+    DWORD changed_entities = 0;
+    static DWORD next_menu_entity_log_time = 0;
+#endif
     while (true) {
         DWORD bits = 0;
         int nument = MSG_ReadEntityBits(msg, &bits);
@@ -27,12 +31,47 @@ static void CL_ReadPacketEntities(LPSIZEBUF msg) {
         }
         ent->prev = ent->current;
         MSG_ReadDeltaEntity(msg, &ent->current, nument, bits);
+#ifdef DIAG_OUTPUT
+        changed_entities++;
+#endif
         if (ent->serverframe != cl.frame.serverframe - 1) {
             ent->prev = ent->current;
         }
         ent->serverframe = cl.frame.serverframe;
     }
     cl.num_entities = MAX_CLIENT_ENTITIES;
+
+#ifdef DIAG_OUTPUT
+    if (Com_InMenuMode() && cl.time >= next_menu_entity_log_time) {
+        DWORD printed = 0;
+        DWORD total = 0;
+        next_menu_entity_log_time = cl.time + 1000;
+        DIAGF("CL_ReadPacketEntities(menu): changed=%u\n", (unsigned)changed_entities);
+        FOR_LOOP(i, MAX_CLIENT_ENTITIES) {
+            centity_t const *ce = &cl.ents[i];
+            DWORD model_index = ce->current.model;
+            if (!model_index)
+                continue;
+            total++;
+            if (printed < 8) {
+                LPCSTR model_name = (model_index < MAX_MODELS) ? cl.configstrings[CS_MODELS + model_index] : "<model-index-oob>";
+                DIAGF(
+                        "  snap-ent[%u]: num=%u model=%u (%s) origin=(%.1f %.1f %.1f) frame=%u player=%u\n",
+                        (unsigned)i,
+                        (unsigned)ce->current.number,
+                        (unsigned)model_index,
+                        model_name ? model_name : "<null>",
+                        ce->current.origin.x,
+                        ce->current.origin.y,
+                        ce->current.origin.z,
+                        (unsigned)ce->current.frame,
+                        (unsigned)ce->current.player);
+                printed++;
+            }
+        }
+        DIAGF("  snap-ent-total=%u\n", (unsigned)total);
+    }
+#endif
 }
 
 static void CL_ParseConfigString(LPSIZEBUF msg) {
@@ -90,6 +129,20 @@ void CL_ParsePlayerInfo(LPSIZEBUF msg) {
  * passes it to the renderer each frame without interpreting the contents. */
 void CL_ParseLayout(LPSIZEBUF msg) {
     DWORD layer = MSG_ReadByte(msg);
+    DWORD payload_size = 0;
+#ifdef DIAG_OUTPUT
+    DWORD frame_count = 0;
+    DWORD btn_singleplayer = 0;
+    DWORD btn_multiplayer = 0;
+    DWORD btn_options = 0;
+    DWORD btn_credits = 0;
+    DWORD btn_quit = 0;
+    DWORD backdrop_frames = 0;
+    DWORD backdrop_missing_textures = 0;
+    DWORD gluebutton_frames = 0;
+    DWORD gluebutton_missing_textures = 0;
+    DWORD missing_log_lines = 0;
+#endif
     SAFE_DELETE(cl.layout[layer], MemFree);
     DWORD start = msg->readcount;
     while (true) {
@@ -99,11 +152,86 @@ void CL_ParseLayout(LPSIZEBUF msg) {
         if (nument == 0 && bits == 0)
             break;
         MSG_ReadDeltaUIFrame(msg, &ent, nument, bits);
-        ent.buffer.size = MSG_ReadByte(msg);
+#ifdef DIAG_OUTPUT
+        frame_count++;
+        if (ent.onclick) {
+            if (!strcmp(ent.onclick, "menu singleplayer")) btn_singleplayer++;
+            else if (!strcmp(ent.onclick, "menu multiplayer")) btn_multiplayer++;
+            else if (!strcmp(ent.onclick, "menu options")) btn_options++;
+            else if (!strcmp(ent.onclick, "menu credits")) btn_credits++;
+            else if (!strcmp(ent.onclick, "menu quit")) btn_quit++;
+        }
+#endif
+        ent.buffer.size = MSG_ReadShort(msg);
+
+#ifdef DIAG_OUTPUT
+        if (ent.buffer.size > 0) {
+            LPBYTE typedata = msg->data + msg->readcount;
+            if (ent.flags.type == FT_BACKDROP && ent.buffer.size >= sizeof(uiBackdrop_t)) {
+                uiBackdrop_t const *bd = (uiBackdrop_t const *)typedata;
+                backdrop_frames++;
+                if (!bd->Background || !bd->EdgeFile) {
+                    backdrop_missing_textures++;
+                    if (Com_InMenuMode() && missing_log_lines < 16) {
+                        DIAGF(
+                                "  missing-backdrop frame=%u size=%u bg=%u edge=%u flags=0x%x cornersize=%.4f\n",
+                                (unsigned)nument,
+                                (unsigned)ent.buffer.size,
+                                (unsigned)bd->Background,
+                                (unsigned)bd->EdgeFile,
+                                (unsigned)bd->CornerFlags,
+                                bd->CornerSize);
+                        missing_log_lines++;
+                    }
+                }
+            }
+            if ((ent.flags.type == FT_GLUETEXTBUTTON || ent.flags.type == FT_GLUEBUTTON) &&
+                ent.buffer.size >= sizeof(uiGlueTextButton_t)) {
+                uiGlueTextButton_t const *gb = (uiGlueTextButton_t const *)typedata;
+                gluebutton_frames++;
+                if (!gb->normal.Background || !gb->normal.EdgeFile) {
+                    gluebutton_missing_textures++;
+                    if (Com_InMenuMode() && missing_log_lines < 16) {
+                        DIAGF(
+                                "  missing-gluebutton frame=%u size=%u normal{bg=%u edge=%u} pushed{bg=%u edge=%u}\n",
+                                (unsigned)nument,
+                                (unsigned)ent.buffer.size,
+                                (unsigned)gb->normal.Background,
+                                (unsigned)gb->normal.EdgeFile,
+                                (unsigned)gb->pushed.Background,
+                                (unsigned)gb->pushed.EdgeFile);
+                        missing_log_lines++;
+                    }
+                }
+            }
+        }
+#endif
+
         msg->readcount += ent.buffer.size;
     }
-    cl.layout[layer] = MemAlloc(msg->readcount-start);
-    memcpy(cl.layout[layer], msg->data+start, msg->readcount-start);
+    payload_size = msg->readcount - start;
+    cl.layout[layer] = MemAlloc(sizeof(DWORD) + payload_size);
+    memcpy(cl.layout[layer], &payload_size, sizeof(payload_size));
+    memcpy((LPBYTE)cl.layout[layer] + sizeof(payload_size), msg->data + start, payload_size);
+
+    if (Com_InMenuMode()) {
+#ifdef DIAG_OUTPUT
+        DIAGF(
+            "CL_ParseLayout(menu): layer=%u bytes=%u frames=%u buttons{single=%u multi=%u options=%u credits=%u quit=%u} backdrops{%u missing=%u} gluebuttons{%u missing=%u}\n",
+                (unsigned)layer,
+                (unsigned)payload_size,
+                (unsigned)frame_count,
+                (unsigned)btn_singleplayer,
+                (unsigned)btn_multiplayer,
+                (unsigned)btn_options,
+                (unsigned)btn_credits,
+            (unsigned)btn_quit,
+            (unsigned)backdrop_frames,
+            (unsigned)backdrop_missing_textures,
+            (unsigned)gluebutton_frames,
+            (unsigned)gluebutton_missing_textures);
+#endif
+    }
 }
 
 void CL_ParseCursor(LPSIZEBUF msg) {
@@ -131,6 +259,8 @@ void CL_ParseServerMessage(LPSIZEBUF msg) {
     BYTE pack_id = 0;
     while (MSG_Read(msg, &pack_id, 1)) {
         switch (pack_id) {
+            case svc_bad:
+                return;
             case svc_playerinfo:
                 CL_ParsePlayerInfo(msg);
                 break;

@@ -138,4 +138,5 @@ void SV_Init(void) {
     memset(&sv, 0, sizeof(struct server));
 
     SV_InitGameProgs();
+    SV_InitGame();
 }
