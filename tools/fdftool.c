@@ -1,6 +1,7 @@
 #include "client/renderer.h"
 #include "game/g_local.h"
 #include "tools/viewer_common.h"
+#include "common/mpq.h"
 
 #include <SDL2/SDL.h>
 #include <stdarg.h>
@@ -41,15 +42,15 @@ static DWORD num_fdfs = 0;
 static LPCSTR root_name = NULL;
 
 static LPCMODEL models[MAX_TOOL_MODELS] = { 0 };
-static PATHSTR model_names[MAX_TOOL_MODELS] = { { 0 } };
+static char model_names[MAX_TOOL_MODELS][512] = { { 0 } };
 static DWORD num_models = 1;
 
 static LPCTEXTURE images[MAX_TOOL_IMAGES] = { 0 };
-static PATHSTR image_names[MAX_TOOL_IMAGES] = { { 0 } };
+static char image_names[MAX_TOOL_IMAGES][512] = { { 0 } };
 static DWORD num_images = 1;
 
 static LPCFONT fonts[MAX_TOOL_FONTS] = { 0 };
-static PATHSTR font_names[MAX_TOOL_FONTS] = { { 0 } };
+static char font_names[MAX_TOOL_FONTS][512] = { { 0 } };
 static DWORD font_sizes[MAX_TOOL_FONTS] = { 0 };
 static DWORD num_fonts = 1;
 static DWORD default_font = 0;
@@ -197,7 +198,7 @@ LPSTR ReadFileIntoString(LPCSTR fileName) {
     return buffer;
 }
 
-static DWORD RegisterModel(LPCSTR modelName) {
+static int RegisterModel(LPCSTR modelName) {
     if (!modelName || !*modelName) {
         return 0;
     }
@@ -214,7 +215,7 @@ static DWORD RegisterModel(LPCSTR modelName) {
     return num_models++;
 }
 
-static DWORD RegisterImage(LPCSTR imageName) {
+static int RegisterImage(LPCSTR imageName) {
     if (!imageName || !*imageName) {
         return 0;
     }
@@ -231,7 +232,7 @@ static DWORD RegisterImage(LPCSTR imageName) {
     return num_images++;
 }
 
-static DWORD RegisterFont(LPCSTR fontName, DWORD fontSize) {
+static int RegisterFont(LPCSTR fontName, DWORD fontSize) {
     if (!fontName || !*fontName) {
         return default_font;
     }
