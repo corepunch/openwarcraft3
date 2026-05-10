@@ -463,6 +463,18 @@ static bool MDLX_SetBlendMode(const mdxMaterialLayer_t *layer, DWORD layerID) {
             R_Call(glBlendFunc, GL_ONE, GL_ONE);
             R_Call(glDepthMask, GL_FALSE);
             break;
+        case BLEND_MODE_MODULATE:
+            if (is_rendering_lights)
+                return false;
+            R_Call(glBlendFunc, GL_DST_COLOR, GL_ZERO);
+            R_Call(glDepthMask, GL_FALSE);
+            break;
+        case BLEND_MODE_MODULATE_2X:
+            if (is_rendering_lights)
+                return false;
+            R_Call(glBlendFunc, GL_DST_COLOR, GL_SRC_COLOR);
+            R_Call(glDepthMask, GL_FALSE);
+            break;
 //        case TEXOP_ADD_ALPHA:
 //            if (is_rendering_lights)
 //                return false;
@@ -476,6 +488,18 @@ static bool MDLX_SetBlendMode(const mdxMaterialLayer_t *layer, DWORD layerID) {
 #endif
     }
     return true;
+}
+
+static void MDLX_ApplyLayerFlags(const mdxMaterialLayer_t *layer) {
+    if (layer->flags & MODEL_GEO_TWOSIDED) {
+        R_Call(glDisable, GL_CULL_FACE);
+    }
+    if (layer->flags & MODEL_GEO_NO_DEPTH_TEST) {
+        R_Call(glDisable, GL_DEPTH_TEST);
+    }
+    if (layer->flags & MODEL_GEO_NO_DEPTH_SET) {
+        R_Call(glDepthMask, GL_FALSE);
+    }
 }
 
 static mdxMaterial_t *MDLX_GetMaterialAtIndex(mdxGeoset_t const *geoset, mdxModel_t const *model) {
@@ -503,8 +527,13 @@ static void MDLX_RenderGeoset(mdxModel_t const *model,
 
     FOR_LOOP(layerID, material->num_layers) {
         mdxMaterialLayer_t const *layer = &material->layers[layerID];
+        R_Call(glEnable, GL_DEPTH_TEST);
+        R_Call(glEnable, GL_CULL_FACE);
+        R_Call(glCullFace, GL_BACK);
+        R_Call(glDepthMask, GL_TRUE);
         if (!MDLX_SetBlendMode(layer, layerID))
             continue;
+        MDLX_ApplyLayerFlags(layer);
         mdxTexture_t const *modeltex = &model->textures[layer->textureId];
         LPCTEXTURE texture = MDLX_GetTexture(model, team, layer->textureId, modeltex->replaceableID, overrideTexture);
         R_BindTexture(texture, 0);
@@ -512,6 +541,11 @@ static void MDLX_RenderGeoset(mdxModel_t const *model,
         R_Call(glBindBuffer, GL_ELEMENT_ARRAY_BUFFER, *geoset->buffer);
         R_Call(glDrawElements, GL_TRIANGLES, geoset->num_triangles, GL_UNSIGNED_SHORT, NULL);
     }
+
+    R_Call(glEnable, GL_DEPTH_TEST);
+    R_Call(glEnable, GL_CULL_FACE);
+    R_Call(glCullFace, GL_BACK);
+    R_Call(glDepthMask, GL_TRUE);
 }
 
 mdxSequence_t const *MDLX_FindSequenceByName(mdxModel_t const *model, LPCSTR name) {
