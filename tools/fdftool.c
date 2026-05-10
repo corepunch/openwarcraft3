@@ -18,6 +18,8 @@
 #define MAX_TOOL_MODELS MAX_MODELS
 #define MAX_TOOL_IMAGES MAX_IMAGES
 #define MAX_TOOL_FONTS MAX_FONTSTYLES
+#define UI_VIEW_WIDTH 0.8f
+#define UI_VIEW_HEIGHT 0.6f
 
 typedef struct {
     LPCFRAMEDEF frame;
@@ -54,7 +56,7 @@ static DWORD default_font = 0;
 static runtime_frame_t runtimes[MAX_LAYOUT_OBJECTS];
 static LPCFRAMEDEF scene_frames[MAX_LAYOUT_OBJECTS];
 static DWORD num_scene_frames = 0;
-static RECT screen_rect = { 0, 0, 0.8f, 0.6f };
+static RECT screen_rect = { 0, 0, UI_VIEW_WIDTH, UI_VIEW_HEIGHT };
 
 static refExport_t re;
 
@@ -434,10 +436,10 @@ static void draw_portrait(LPCFRAMEDEF frame, LPCRECT rect) {
         return;
     }
     viewport = (RECT) {
-        rect->x / 0.8f,
-        1.0f - (rect->y + rect->h) / 0.6f,
-        rect->w / 0.8f,
-        rect->h / 0.6f,
+        rect->x / UI_VIEW_WIDTH,
+        1.0f - (rect->y + rect->h) / UI_VIEW_HEIGHT,
+        rect->w / UI_VIEW_WIDTH,
+        rect->h / UI_VIEW_HEIGHT,
     };
     re.DrawPortrait(models[model], &viewport);
 }
