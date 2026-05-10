@@ -4,7 +4,7 @@
 #include "../r_local.h"
 
 #define MODEL_ATTACHMENT_PATH_LENGTH 0x100
-#define MDX_MAX_NODES 256
+#define MDX_MAX_NODES 1024
 #define MDX_MATRIX_PALETTE 128
 
 typedef char mdxObjectName_t[80];
