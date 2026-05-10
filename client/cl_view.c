@@ -55,6 +55,46 @@ static void Matrix4_getPreviewCameraMatrix(LPCVECTOR3 target, LPMATRIX4 output) 
     Matrix4_multiply(&proj, &view, output);
 }
 
+static bool Matrix4_getMenuModelCameraMatrix(LPCMODEL model, LPMATRIX4 output, LPVECTOR3 lightTarget) {
+    VECTOR3 eye = { 0, 0, 0 };
+    VECTOR3 target = { 0, 0, 0 };
+    VECTOR3 dir;
+    MATRIX4 proj, view;
+    size2_t windowSize = re.GetWindowSize();
+    FLOAT aspect = (FLOAT)windowSize.width / (FLOAT)windowSize.height;
+    float fov_deg = 35.0f;
+    float znear = 1.0f;
+    float zfar = 5000.0f;
+
+    if (!re.GetModelCamera || !re.GetModelCamera((LPMODEL)model, &eye, &target, &fov_deg, &znear, &zfar)) {
+        return false;
+    }
+
+    if (fov_deg <= 1.0f || fov_deg >= 179.0f) {
+        fov_deg = 35.0f;
+    }
+    if (znear < 0.01f) {
+        znear = 1.0f;
+    }
+    if (zfar <= znear + 1.0f) {
+        zfar = znear + 5000.0f;
+    }
+
+    dir = Vector3_sub(&target, &eye);
+    if (Vector3_len(&dir) < 0.001f) {
+        return false;
+    }
+
+    Matrix4_perspective(&proj, fov_deg, aspect, znear, zfar);
+    Matrix4_lookAt(&view, &eye, &dir, &(VECTOR3){0, 0, 1});
+    Matrix4_multiply(&proj, &view, output);
+
+    if (lightTarget) {
+        *lightTarget = target;
+    }
+    return true;
+}
+
 static void Matrix4_getPreviewLightMatrix(LPCVECTOR3 sunangles, LPCVECTOR3 target, float scale, LPMATRIX4 output) {
     MATRIX4 proj, view;
     Matrix4_ortho(&proj, -scale, scale, -scale, scale, -1000.0, 3000.0);
@@ -267,8 +307,12 @@ void V_RenderView(void) {
         entity.frame = 0;
         entity.oldframe = 0;
 
-        Matrix4_getPreviewCameraMatrix(&target, &cl.viewDef.viewProjectionMatrix);
-        Matrix4_getPreviewLightMatrix(&lightAngles, &target, VIEW_SHADOW_SIZE, &cl.viewDef.lightMatrix);
+        if (Matrix4_getMenuModelCameraMatrix(menu_preview_model, &cl.viewDef.viewProjectionMatrix, &target)) {
+            Matrix4_getPreviewLightMatrix(&lightAngles, &target, VIEW_SHADOW_SIZE, &cl.viewDef.lightMatrix);
+        } else {
+            Matrix4_getPreviewCameraMatrix(&target, &cl.viewDef.viewProjectionMatrix);
+            Matrix4_getPreviewLightMatrix(&lightAngles, &target, VIEW_SHADOW_SIZE, &cl.viewDef.lightMatrix);
+        }
         Matrix4_identity(&cl.viewDef.textureMatrix);
 
         re.RenderFrame(&cl.viewDef);
