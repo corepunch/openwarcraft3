@@ -219,7 +219,8 @@ void CL_ParseLayout(LPSIZEBUF msg) {
 
         msg->readcount += ent.buffer.size;
     }
-    if (start > msg->cursize || msg->readcount > msg->cursize || msg->readcount < start) {
+    if (start > msg->cursize || msg->readcount > msg->cursize ||
+        msg->readcount < start) { /* guard against malformed data and wraparound */
         return;
     }
     payload_size = msg->readcount - start;
