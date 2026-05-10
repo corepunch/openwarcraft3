@@ -304,6 +304,32 @@ void SCR_DrawBackdrop2(LPCUIFRAME frame, LPCRECT screen, uiBackdrop_t const *bac
     };
     RECT rects[BACKDROP_SIZE];
     backdrop_rects(screen, rects, backdrop->CornerSize);
+
+#ifdef DIAG_OUTPUT
+    if (Com_InMenuMode() && (!backdrop->Background || !backdrop->EdgeFile)) {
+        static DWORD next_log_time = 0;
+        if (cl.time >= next_log_time) {
+            next_log_time = cl.time + 1000;
+            DIAGF("SCR_DrawBackdrop2: frame=%u color=(%u,%u,%u,%u) bg=%u ptr=%p edge=%u ptr=%p flags=0x%x blendall=%u cornersize=%.4f rect=(%.3f,%.3f,%.3f,%.3f)\n",
+                  (unsigned)frame->number,
+                  (unsigned)frame->color.r,
+                  (unsigned)frame->color.g,
+                  (unsigned)frame->color.b,
+                  (unsigned)frame->color.a,
+                  (unsigned)backdrop->Background,
+                  (void *)(backdrop->Background < MAX_IMAGES ? cl.pics[backdrop->Background] : NULL),
+                  (unsigned)backdrop->EdgeFile,
+                  (void *)(backdrop->EdgeFile < MAX_IMAGES ? cl.pics[backdrop->EdgeFile] : NULL),
+                  (unsigned)backdrop->CornerFlags,
+                  (unsigned)backdrop->BlendAll,
+                  backdrop->CornerSize,
+                  screen->x,
+                  screen->y,
+                  screen->w,
+                  screen->h);
+        }
+    }
+#endif
     
     size2_t backSize = re.GetTextureSize(cl.pics[backdrop->Background]);
     size2_t edgeSize = re.GetTextureSize(cl.pics[backdrop->EdgeFile]);
@@ -321,6 +347,7 @@ void SCR_DrawBackdrop2(LPCUIFRAME frame, LPCRECT screen, uiBackdrop_t const *bac
         RECT const rect = { i * k, 0, k, tile };
         re.DrawImageEx(&MAKE(DRAWIMAGE,
                              .texture = cl.pics[backdrop->EdgeFile],
+                             .alphamode = BLEND_MODE_BLEND,
                              .screen = rects[corners[i]],
                              .uv = rect,
                              .color = frame->color,
@@ -340,7 +367,14 @@ void SCR_DrawBackdrop2(LPCUIFRAME frame, LPCRECT screen, uiBackdrop_t const *bac
         uv.w = background.w / (backSize.width / 1000.f);
         uv.h = background.h / (backSize.height / 1000.f);
     }
-    re.DrawImage(cl.pics[backdrop->Background], &background, &uv, frame->color);
+    re.DrawImageEx(&MAKE(DRAWIMAGE,
+                         .texture = cl.pics[backdrop->Background],
+                         .alphamode = BLEND_MODE_BLEND,
+                         .screen = background,
+                         .uv = uv,
+                         .color = frame->color,
+                         .rotate = false,
+                         .shader = SHADER_UI));
 }
 
 void SCR_DrawBackdrop(LPCUIFRAME frame, LPCRECT screen) {
@@ -349,6 +383,24 @@ void SCR_DrawBackdrop(LPCUIFRAME frame, LPCRECT screen) {
 
 void SCR_GlueTextButton(LPCUIFRAME frame, LPCRECT screen) {
     uiGlueTextButton_t const *gluetextbutton = frame->buffer.data;
+#ifdef DIAG_OUTPUT
+    if (Com_InMenuMode()) {
+        static DWORD next_log_time = 0;
+        if (cl.time >= next_log_time) {
+            next_log_time = cl.time + 1000;
+            DIAGF("SCR_GlueTextButton: frame=%u rect=(%.3f,%.3f,%.3f,%.3f) normal{bg=%u edge=%u flags=0x%x cornersize=%.4f}\n",
+                  (unsigned)frame->number,
+                  screen->x,
+                  screen->y,
+                  screen->w,
+                  screen->h,
+                  (unsigned)gluetextbutton->normal.Background,
+                  (unsigned)gluetextbutton->normal.EdgeFile,
+                  (unsigned)gluetextbutton->normal.CornerFlags,
+                  gluetextbutton->normal.CornerSize);
+        }
+    }
+#endif
     SCR_DrawBackdrop2(frame, screen, &gluetextbutton->normal);
 }
 
@@ -512,6 +564,9 @@ void SCR_DrawTooltip(LPCUIFRAME frame, LPCRECT scrn) {
 }
 
 LPCUIFRAME SCR_Clear(HANDLE data) {
+    DWORD layout_size = 0;
+    LPBYTE layout_data = (LPBYTE)data;
+
     memset(runtimes, 0, sizeof(runtimes));
     memset(frames, 0, sizeof(frames));
     num_frames = 0;
@@ -520,21 +575,40 @@ LPCUIFRAME SCR_Clear(HANDLE data) {
     frames[0].flags.type = FT_SCREEN;
     runtimes[0].rect = (RECT) { 0, 0, frames[0].size.width, frames[0].size.height };
     runtimes[0].calculated = true;
+
+    if (!layout_data) {
+        return frames;
+    }
+
+    memcpy(&layout_size, layout_data, sizeof(layout_size));
+
     sizeBuf_t msg = {
-        .data = data,
-        .cursize = 100000,
+        .data = layout_data + sizeof(layout_size),
+        .cursize = layout_size,
         .readcount = 0,
     };
     while (true) {
         DWORD bits = 0;
+        if (msg.readcount + sizeof(WORD) > msg.cursize) {
+            break;
+        }
         DWORD nument = MSG_ReadEntityBits(&msg, &bits);
         if (nument == 0 && bits == 0)
             break;
+        if (nument >= MAX_LAYOUT_OBJECTS) {
+            break;
+        }
         LPUIFRAME ent = &frames[nument];
         ent->tex.coord[1] = 0xff;
         ent->tex.coord[3] = 0xff;
         MSG_ReadDeltaUIFrame(&msg, ent, nument, bits);
-        ent->buffer.size = MSG_ReadByte(&msg);
+        if (msg.readcount + sizeof(WORD) > msg.cursize) {
+            break;
+        }
+        ent->buffer.size = MSG_ReadShort(&msg);
+        if (msg.readcount + ent->buffer.size > msg.cursize) {
+            break;
+        }
         ent->buffer.data = msg.data + msg.readcount;
         msg.readcount += ent->buffer.size;
         num_frames = MAX(num_frames, nument+1);

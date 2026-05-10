@@ -102,6 +102,12 @@ do { \
     TRACE_CALL(FUNC, ##__VA_ARGS__); \
 } while (0)
 
+#ifdef DIAG_OUTPUT
+#define DIAGF(...) fprintf(stderr, __VA_ARGS__)
+#else
+#define DIAGF(...) ((void)0)
+#endif
+
 
 #define FLAG(NAME, X) NAME = (1 << X)
 

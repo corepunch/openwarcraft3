@@ -129,6 +129,8 @@ void Init_CinematicPanel(void) {
 
 static void Init_MainMenu(void) {
     UI_FRAME(WarCraftIIILogo);
+    UI_FRAME(RealmSelect);
+    UI_FRAME(ControlLayer);
     UI_FRAME(SinglePlayerButton);
     UI_FRAME(BattleNetButton);
     UI_FRAME(LocalAreaNetworkButton);
@@ -138,6 +140,12 @@ static void Init_MainMenu(void) {
 
     if (WarCraftIIILogo) {
         UI_SetSize(WarCraftIIILogo, 0.34, 0.23);
+    }
+    if (RealmSelect) {
+        UI_SetHidden(RealmSelect, true);
+    }
+    if (ControlLayer) {
+        UI_SetHidden(ControlLayer, false);
     }
     UI_SetOnClick(SinglePlayerButton, "menu singleplayer");
     UI_SetOnClick(BattleNetButton, "menu multiplayer");

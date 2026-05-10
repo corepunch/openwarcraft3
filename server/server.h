@@ -62,6 +62,7 @@ struct client {
     clientState_t state;
     edict_t *edict; // EDICT_NUM(clientnum+1)
     DWORD lastframe;
+    DWORD last_menu_datagram_time;
 };
 
 extern struct server_static {

@@ -372,9 +372,16 @@ MAKE_FLAGSPARSER(ControlStyle);
 
 MAKE_PARSER(TextureFile) {
     PATHSTR path = { 0 };
+    DWORD image = 0;
     sscanf(token, PATHSTR_FMT, path);
 //    BOOL decorate = frame->DecorateFileNames | (frame->Parent ? frame->Parent->DecorateFileNames : false);
-    *((DWORD *)out) = path[0] ? UI_LoadTexture(path, true) : 0;
+    image = path[0] ? UI_LoadTexture(path, true) : 0;
+    *((DWORD *)out) = image;
+#ifdef DIAG_OUTPUT
+    if (path[0] && image == 0) {
+        DIAGF("ParseTextureFile: frame=%s token=%s resolved image=0\n", frame->Name, path);
+    }
+#endif
 }
 
 MAKE_PARSER(ModelPath) {
@@ -712,10 +719,12 @@ void UI_InheritFrom(LPFRAMEDEF frame, LPCSTR inheritName) {
     LPFRAMEDEF inherit = FindFrameTemplate(inheritName);
     if (inherit && UI_FrameTypesCompatible(frame->Type, inherit->Type)) {
         FRAMEDEF tmp;
+        FRAMETYPE requested_type = frame->Type;
         memcpy(&tmp, frame, sizeof(FRAMEDEF));
         memcpy(frame, inherit, sizeof(FRAMEDEF));
         memcpy(frame->Name, tmp.Name, sizeof(UINAME));
         frame->Parent = tmp.Parent;
+        frame->Type = requested_type;
         frame->AnyPointsSet = false;
     } else if (inherit) {
         fprintf(stderr, "Can't inherit from different type %s\n", inheritName);

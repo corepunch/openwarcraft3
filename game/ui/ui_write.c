@@ -53,7 +53,7 @@ DEST[1] = SRC.max.x * 0xff; \
 DEST[2] = SRC.min.y * 0xff; \
 DEST[3] = SRC.max.y * 0xff;
 
-#define MAX_FRAMES_WRITE 256
+#define MAX_FRAMES_WRITE 1024
 
 static LPCFRAMEDEF framesWritten[MAX_FRAMES_WRITE];
 LPCFRAMEDEF *frameptr = framesWritten;
@@ -348,6 +348,38 @@ void UI_WriteFrame(LPCFRAMEDEF frame) {
     tmp.buffer.size = buf.cursize;
     tmp.buffer.data = buf.data;
     tmp.flags.type = frame->Type;
+#ifdef DIAG_OUTPUT
+    if (tmp.flags.type == FT_BACKDROP && tmp.buffer.size >= sizeof(uiBackdrop_t)) {
+        uiBackdrop_t const *bd = (uiBackdrop_t const *)tmp.buffer.data;
+        DIAGF("UI_WriteFrame: id=%u name=%s type=BACKDROP color=(%u,%u,%u,%u) bg=%u edge=%u flags=0x%x cornersize=%.4f size=%.4fx%.4f\n",
+              (unsigned)tmp.number,
+              frame->Name,
+              (unsigned)tmp.color.r,
+              (unsigned)tmp.color.g,
+              (unsigned)tmp.color.b,
+              (unsigned)tmp.color.a,
+              (unsigned)bd->Background,
+              (unsigned)bd->EdgeFile,
+              (unsigned)bd->CornerFlags,
+              bd->CornerSize,
+              tmp.size.width,
+              tmp.size.height);
+    } else if ((tmp.flags.type == FT_GLUETEXTBUTTON || tmp.flags.type == FT_GLUEBUTTON) &&
+               tmp.buffer.size >= sizeof(uiGlueTextButton_t)) {
+        uiGlueTextButton_t const *gb = (uiGlueTextButton_t const *)tmp.buffer.data;
+        DIAGF("UI_WriteFrame: id=%u name=%s type=%s color=(%u,%u,%u,%u) normal{bg=%u edge=%u flags=0x%x}\n",
+              (unsigned)tmp.number,
+              frame->Name,
+              tmp.flags.type == FT_GLUETEXTBUTTON ? "GLUETEXTBUTTON" : "GLUEBUTTON",
+              (unsigned)tmp.color.r,
+              (unsigned)tmp.color.g,
+              (unsigned)tmp.color.b,
+              (unsigned)tmp.color.a,
+              (unsigned)gb->normal.Background,
+              (unsigned)gb->normal.EdgeFile,
+              (unsigned)gb->normal.CornerFlags);
+    }
+#endif
     gi.WriteUIFrame(&tmp);
 }
 
@@ -366,8 +398,9 @@ void UI_WriteLayout(LPEDICT ent, LPCFRAMEDEF root, DWORD layer) {
     UI_WriteFrameWithChildren(root, NULL);
     gi.WriteLong(0); // end of list
     gi.unicast(ent);
-    fprintf(stderr, "UI_WriteLayout: layer=%u bytes=%u frames=%td\n",
-            (unsigned)layer,
-            (unsigned)layoutBytesWritten,
-            frameptr - framesWritten);
+    DIAGF("UI_WriteLayout: layer=%u root=%s bytes=%u frames=%td\n",
+          (unsigned)layer,
+          root ? root->Name : "<null>",
+          (unsigned)layoutBytesWritten,
+          frameptr - framesWritten);
 }

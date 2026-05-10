@@ -12,6 +12,8 @@
 
 //#define PRINT_ANIMATIONS
 
+#define MENU_DATAGRAM_INTERVAL 250
+
 struct game_export *ge;
 struct server sv;
 struct server_static svs;
@@ -30,7 +32,6 @@ void SV_WriteConfigString(LPSIZEBUF msg, DWORD i) {
 static void SV_SendClientDatagram(LPCLIENT client) {
     SV_BuildClientFrame(client);
     SV_WriteFrameToClient(client);
-    Netchan_Transmit(NS_SERVER, &client->netchan);
 }
 
 /* Flush any un-synced config strings to all clients, then send a per-frame
@@ -45,6 +46,13 @@ static void SV_SendClientMessages(void) {
     FOR_LOOP(i, svs.num_clients) {
         LPCLIENT client = &svs.clients[i];
         if (client->state == cs_spawned) {
+            if (Com_InMenuMode()) {
+                DWORD elapsed = sv.time - client->last_menu_datagram_time;
+                if (client->last_menu_datagram_time && elapsed < MENU_DATAGRAM_INTERVAL) {
+                    continue;
+                }
+                client->last_menu_datagram_time = sv.time;
+            }
             SV_SendClientDatagram(client);
         }
     }
@@ -92,6 +100,14 @@ static int SV_FindIndex(LPCSTR name, int start, int max, bool create) {
             return i;
     if (!create)
         return 0;
+    if (i >= max) {
+        fprintf(stderr,
+                "SV_FindIndex: pool full start=%d max=%d name=%s\n",
+                start,
+                max,
+                name);
+        return 0;
+    }
     strncpy(sv.configstrings[start+i], name, sizeof(*sv.configstrings));
     return i;
 }
