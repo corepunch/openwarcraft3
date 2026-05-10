@@ -162,12 +162,32 @@ static void Init_SinglePlayerMenu(void) {
     UI_FRAME(SkirmishButton);
     UI_FRAME(CancelButton);
     UI_SetOnClick(CampaignButton, "menu mapselect campaign");
-    UI_SetOnClick(LoadSavedButton, "menu main");
-    UI_SetOnClick(ViewReplayButton, "menu main");
+    UI_SetOnClick(LoadSavedButton, "menu mapselect loadsaved");
+    UI_SetOnClick(ViewReplayButton, "menu mapselect replay");
     UI_SetOnClick(SkirmishButton, "menu mapselect skirmish");
     UI_SetOnClick(CancelButton, "menu main");
 }
 
+static void UI_WriteMenuWithMainFrame(LPEDICT ent, LPCFRAMEDEF root) {
+    UI_FRAME(MainMenuFrame);
+    UI_FRAME(ControlLayer);
+
+    if (!MainMenuFrame || !root) {
+        return;
+    }
+
+    if (ControlLayer) {
+        UI_SetHidden(ControlLayer, root != MainMenuFrame);
+    }
+
+    UI_WriteStart(LAYER_CONSOLE);
+    UI_WriteFrameWithChildren(MainMenuFrame, NULL);
+    if (root != MainMenuFrame) {
+        UI_WriteFrameWithChildren(root, NULL);
+    }
+    gi.WriteLong(0); // end of list
+    gi.unicast(ent);
+}
 static void Init_MapSelectMenu(void) {
     UI_FRAME(BackButton);
     UI_FRAME(Mission13Button);
@@ -223,7 +243,6 @@ static void Init_MultiplayerCreateMenu(void) {
     UI_SetOnClick(PlayButton, "menu main");
     UI_SetOnClick(CancelButton, "menu multiplayer join");
 }
-
 /* Parse all FDF assets and build the initial UI frame hierarchy.
  * Must be called once at game startup before any client connects. */
 void UI_Init(void) {
@@ -241,6 +260,9 @@ void UI_Init(void) {
     UI_ParseFDF("UI\\FrameDef\\Glue\\MainMenu.fdf");
     UI_ParseFDF("UI\\FrameDef\\Glue\\SinglePlayerMenu.fdf");
     UI_ParseFDF("UI\\FrameDef\\Glue\\CampaignMenu.fdf");
+    UI_ParseFDF("UI\\FrameDef\\Glue\\LoadSavedGameScreen.fdf");
+    UI_ParseFDF("UI\\FrameDef\\Glue\\ViewReplayScreen.fdf");
+    UI_ParseFDF("UI\\FrameDef\\Glue\\Skirmish.fdf");
     UI_ParseFDF("UI\\FrameDef\\Glue\\LocalMultiplayerJoin.fdf");
     UI_ParseFDF("UI\\FrameDef\\Glue\\LocalMultiplayerCreate.fdf");
 
@@ -270,12 +292,12 @@ void UI_Init(void) {
 
 void UI_ShowMainMenu(LPEDICT ent) {
     UI_FRAME(MainMenuFrame);
-    UI_WriteLayout(ent, MainMenuFrame, LAYER_CONSOLE);
+    UI_WriteMenuWithMainFrame(ent, MainMenuFrame);
 }
 
 void UI_ShowSinglePlayerMenu(LPEDICT ent) {
     UI_FRAME(SinglePlayerMenu);
-    UI_WriteLayout(ent, SinglePlayerMenu, LAYER_CONSOLE);
+    UI_WriteMenuWithMainFrame(ent, SinglePlayerMenu);
 }
 
 void UI_ShowMultiplayerMenu(LPEDICT ent) {
@@ -284,7 +306,17 @@ void UI_ShowMultiplayerMenu(LPEDICT ent) {
 }
 
 void UI_ShowMapSelectMenu(LPEDICT ent, LPCSTR category) {
-    (void)category;
-    UI_FRAME(CampaignMenu);
-    UI_WriteLayout(ent, CampaignMenu, LAYER_CONSOLE);
+    if (category && !strcmp(category, "skirmish")) {
+        UI_FRAME(Skirmish);
+        UI_WriteMenuWithMainFrame(ent, Skirmish);
+    } else if (category && !strcmp(category, "loadsaved")) {
+        UI_FRAME(LoadSavedGameScreen);
+        UI_WriteMenuWithMainFrame(ent, LoadSavedGameScreen);
+    } else if (category && !strcmp(category, "replay")) {
+        UI_FRAME(ViewReplayScreen);
+        UI_WriteMenuWithMainFrame(ent, ViewReplayScreen);
+    } else {
+        UI_FRAME(CampaignMenu);
+        UI_WriteMenuWithMainFrame(ent, CampaignMenu);
+    }
 }
