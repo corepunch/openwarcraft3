@@ -18,16 +18,40 @@ static HANDLE archives[64] = { 0 };
 static viewer_orbit_t orbit;
 static VECTOR3 g_model_center = { 0, 0, 0 };
 
-#define MAX_TEXTURE_PREVIEWS 12
+#define TEXTURE_PREVIEW_PATH_LENGTH 512
+
+static const float TEX_PANEL_X = 0.53f;
+static const float TEX_PANEL_Y = 0.02f;
+static const float TEX_CELL_W = 0.062f;
+static const float TEX_CELL_H = 0.080f;
+static const float TEX_THUMB_W = 0.055f;
+static const float TEX_THUMB_H = 0.046f;
+static const DWORD TEX_COLS = 4;
 
 typedef struct {
     DWORD count;
-    char paths[MAX_TEXTURE_PREVIEWS][512];
-    LPCTEXTURE textures[MAX_TEXTURE_PREVIEWS];
-    size2_t sizes[MAX_TEXTURE_PREVIEWS];
+    char (*paths)[TEXTURE_PREVIEW_PATH_LENGTH];
+    LPCTEXTURE *textures;
+    size2_t *sizes;
 } texture_preview_cache_t;
 
 static texture_preview_cache_t texture_previews = { 0 };
+
+static void FreeTexturePreviewCache(void) {
+    if (texture_previews.paths) {
+        free(texture_previews.paths);
+        texture_previews.paths = NULL;
+    }
+    if (texture_previews.textures) {
+        free(texture_previews.textures);
+        texture_previews.textures = NULL;
+    }
+    if (texture_previews.sizes) {
+        free(texture_previews.sizes);
+        texture_previews.sizes = NULL;
+    }
+    texture_previews.count = 0;
+}
 
 static void usage(void) {
     fprintf(stderr,
@@ -81,8 +105,13 @@ void Sys_Quit(void) {
     exit(0);
 }
 
-static void Matrix4_getPreviewCameraMatrix(viewer_orbit_t const *orbit, float aspect, LPMATRIX4 output) {
-    Viewer_OrbitBuildCamera(orbit, aspect, 35.0f, 10.0f, 4000.0f, output);
+static void Matrix4_getPreviewCameraMatrix(viewer_orbit_t const *orbit,
+                                           float aspect,
+                                           float near_clip,
+                                           float far_clip,
+                                           LPMATRIX4 output)
+{
+    Viewer_OrbitBuildCamera(orbit, aspect, 35.0f, near_clip, far_clip, output);
 }
 
 static void Matrix4_getSideLightMatrix(LPCVECTOR3 eye, LPCVECTOR3 target, float scale, LPMATRIX4 output) {
@@ -149,20 +178,30 @@ static LPCSTR TextureBaseName(LPCSTR path) {
 }
 
 static void BuildTexturePreviewCache(refExport_t const *re, LPMODEL model) {
-    texture_previews.count = 0;
-    memset(texture_previews.paths, 0, sizeof(texture_previews.paths));
-    memset(texture_previews.textures, 0, sizeof(texture_previews.textures));
-    memset(texture_previews.sizes, 0, sizeof(texture_previews.sizes));
+    FreeTexturePreviewCache();
 
     DWORD textureCount = re->GetModelTextureCount ? re->GetModelTextureCount(model) : 0;
-    for (DWORD i = 0; i < textureCount && texture_previews.count < MAX_TEXTURE_PREVIEWS; i++) {
+    if (textureCount == 0) {
+        return;
+    }
+
+    texture_previews.paths = calloc(textureCount, sizeof(*texture_previews.paths));
+    texture_previews.textures = calloc(textureCount, sizeof(*texture_previews.textures));
+    texture_previews.sizes = calloc(textureCount, sizeof(*texture_previews.sizes));
+
+    if (!texture_previews.paths || !texture_previews.textures || !texture_previews.sizes) {
+        FreeTexturePreviewCache();
+        return;
+    }
+
+    for (DWORD i = 0; i < textureCount; i++) {
         LPCSTR texturePath = re->GetModelTexturePath ? re->GetModelTexturePath(model, i) : NULL;
         if (!texturePath || !*texturePath) {
             continue;
         }
 
-        strncpy(texture_previews.paths[texture_previews.count], texturePath, sizeof(texture_previews.paths[0]) - 1);
-        texture_previews.paths[texture_previews.count][sizeof(texture_previews.paths[0]) - 1] = '\0';
+        strncpy(texture_previews.paths[texture_previews.count], texturePath, TEXTURE_PREVIEW_PATH_LENGTH - 1);
+        texture_previews.paths[texture_previews.count][TEXTURE_PREVIEW_PATH_LENGTH - 1] = '\0';
         texture_previews.textures[texture_previews.count] = re->LoadTexture(texturePath);
         if (texture_previews.textures[texture_previews.count] && re->GetTextureSize) {
             texture_previews.sizes[texture_previews.count] = re->GetTextureSize(texture_previews.textures[texture_previews.count]);
@@ -179,28 +218,20 @@ static void DrawTexturePreviews(refExport_t const *re) {
     }
 
     size2_t window = re->GetWindowSize();
-    const float panelX = 0.60f;
-    const float panelY = 0.06f;
-    const float cellW = 0.085f;
-    const float cellH = 0.11f;
-    const float thumbW = 0.075f;
-    const float thumbH = 0.070f;
-    const DWORD cols = 2;
-
     for (DWORD i = 0; i < texture_previews.count; i++) {
         LPCTEXTURE texture = texture_previews.textures[i];
         if (!texture) {
             continue;
         }
 
-        DWORD col = i % cols;
-        DWORD row = i / cols;
-        float cellX = panelX + (float)col * cellW;
-        float cellY = panelY + (float)row * cellH;
+        DWORD col = i % TEX_COLS;
+        DWORD row = i / TEX_COLS;
+        float cellX = TEX_PANEL_X + (float)col * TEX_CELL_W;
+        float cellY = TEX_PANEL_Y + (float)row * TEX_CELL_H;
         size2_t texSize = texture_previews.sizes[i];
         float aspect = texSize.height ? (float)texSize.width / (float)texSize.height : 1.0f;
-        float drawW = thumbW;
-        float drawH = thumbH;
+        float drawW = TEX_THUMB_W;
+        float drawH = TEX_THUMB_H;
 
         if (aspect > 1.0f) {
             drawH = drawW / aspect;
@@ -208,15 +239,15 @@ static void DrawTexturePreviews(refExport_t const *re) {
             drawW = drawH * aspect;
         }
 
-        if (drawW > thumbW) {
-            drawW = thumbW;
+        if (drawW > TEX_THUMB_W) {
+            drawW = TEX_THUMB_W;
         }
-        if (drawH > thumbH) {
-            drawH = thumbH;
+        if (drawH > TEX_THUMB_H) {
+            drawH = TEX_THUMB_H;
         }
 
-        float drawX = cellX + (thumbW - drawW) * 0.5f;
-        float drawY = cellY + (thumbH - drawH) * 0.5f;
+        float drawX = cellX + (TEX_THUMB_W - drawW) * 0.5f;
+        float drawY = cellY + (TEX_THUMB_H - drawH) * 0.5f;
         RECT screen = { drawX, drawY, drawW, drawH };
         RECT uv = { 0, 0, 1, 1 };
 
@@ -237,17 +268,26 @@ static bool BuildModelCameraMatrix(mdxModel_t const *model, float aspect, LPMATR
     MATRIX4 proj, view;
     mdxCamera_t const *camera = model->cameras;
     VECTOR3 dir = Vector3_sub(&camera->targetPivot, &camera->pivot);
+    float fov_deg = camera->fieldOfView * (180.0f / (float)M_PI);
+    float near_clip = camera->nearClip;
+    float far_clip = camera->farClip;
 
-    Matrix4_perspective(&proj, 30.0f, aspect, 10.0f, 1000.0f);
+    if (!isfinite(fov_deg) || fov_deg <= 1.0f || fov_deg >= 179.0f) {
+        fov_deg = 35.0f;
+    }
+    if (!isfinite(near_clip) || near_clip < 0.01f) {
+        near_clip = 1.0f;
+    }
+    if (!isfinite(far_clip) || far_clip <= near_clip + 1.0f) {
+        far_clip = near_clip + 5000.0f;
+    }
+
+    Matrix4_perspective(&proj, fov_deg, aspect, near_clip, far_clip);
     Matrix4_lookAt(&view, &camera->pivot, &dir, &(VECTOR3){ 0, 0, 1 });
     Matrix4_multiply(&proj, &view, output);
 
     if (root) {
-        if (model->pivots && model->num_pivots > 0) {
-            *root = model->pivots[0];
-        } else {
-            *root = (VECTOR3){ 0, 0, 0 };
-        }
+        *root = (VECTOR3){ 0, 0, 0 };
     }
     return true;
 }
@@ -271,6 +311,10 @@ static void RenderModelFrame(refExport_t const *re, LPMODEL model, DWORD now, bo
     size2_t windowSize = re->GetWindowSize();
     mdxSequence_t const *seq = PickSequence(mdx);
     float aspect = windowSize.height ? (float)windowSize.width / (float)windowSize.height : 1.0f;
+    float model_extent = 1000.0f;
+    float model_radius = 500.0f;
+    float near_clip;
+    float far_clip;
 
     entity.model = model;
     entity.scale = 1.0f;
@@ -284,13 +328,25 @@ static void RenderModelFrame(refExport_t const *re, LPMODEL model, DWORD now, bo
         entity.oldframe = entity.frame;
     }
 
+    if (mdx) {
+        BOX3 const *box = &mdx->bounds.box;
+        float width = fabsf(box->max.x - box->min.x);
+        float depth = fabsf(box->max.y - box->min.y);
+        float height = fabsf(box->max.z - box->min.z);
+        model_extent = MAX(width, MAX(depth, height));
+        model_radius = MAX(1.0f, model_extent * 0.5f);
+    }
+
+    near_clip = MAX(1.0f, model_radius * 0.001f);
+    far_clip = MAX(4000.0f, orbit.distance + model_radius * 4.0f);
+
     if (useModelCamera && BuildModelCameraMatrix(mdx, aspect, &viewdef.viewProjectionMatrix, &root)) {
         entity.origin = root;
         Matrix4_getSideLightMatrix(&model->mdx->cameras->pivot, &model->mdx->cameras->targetPivot, PORTRAIT_SHADOW_SIZE, &viewdef.lightMatrix);
     } else {
         target = g_model_center;
         orbit.target = g_model_center;
-        Matrix4_getPreviewCameraMatrix(&orbit, aspect, &viewdef.viewProjectionMatrix);
+        Matrix4_getPreviewCameraMatrix(&orbit, aspect, near_clip, far_clip, &viewdef.viewProjectionMatrix);
         Matrix4_getSideLightMatrix(&(VECTOR3){
             orbit.target.x + orbit.distance * cosf(orbit.pitch_deg * (float)M_PI / 180.0f) * cosf(orbit.yaw_deg * (float)M_PI / 180.0f),
             orbit.target.y + orbit.distance * cosf(orbit.pitch_deg * (float)M_PI / 180.0f) * sinf(orbit.yaw_deg * (float)M_PI / 180.0f),
@@ -416,6 +472,7 @@ int main(int argc, char **argv) {
     }
 
     re.ReleaseModel(model);
+    FreeTexturePreviewCache();
     re.Shutdown();
 
     Viewer_CloseArchives(archives, sizeof(archives) / sizeof(archives[0]));

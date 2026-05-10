@@ -492,6 +492,37 @@ LPCSTR R_GetModelTexturePath(LPMODEL model, DWORD index) {
     return model_texture_cache.paths[index];
 }
 
+bool R_GetModelCamera(LPMODEL model,
+                      LPVECTOR3 eye,
+                      LPVECTOR3 target,
+                      float *fov_deg,
+                      float *znear,
+                      float *zfar)
+{
+    if (!model || model->modeltype != ID_MDLX || !model->mdx || !model->mdx->cameras) {
+        return false;
+    }
+
+    mdxCamera_t const *camera = model->mdx->cameras;
+
+    if (eye) {
+        *eye = camera->pivot;
+    }
+    if (target) {
+        *target = camera->targetPivot;
+    }
+    if (fov_deg) {
+        *fov_deg = camera->fieldOfView * (180.0f / (float)M_PI);
+    }
+    if (znear) {
+        *znear = camera->nearClip;
+    }
+    if (zfar) {
+        *zfar = camera->farClip;
+    }
+    return true;
+}
+
 refExport_t R_GetAPI(refImport_t imp) {
 #ifdef DEBUG_PATHFINDING
     void R_SetPathTexture(LPCCOLOR32 debugTexture);
@@ -520,6 +551,7 @@ refExport_t R_GetAPI(refImport_t imp) {
         .GetTextSize = R_GetTextSize,
         .GetModelTextureCount = R_GetModelTextureCount,
         .GetModelTexturePath = R_GetModelTexturePath,
+        .GetModelCamera = R_GetModelCamera,
         .GetHeightAtPoint = GetAccurateHeightAtPoint,
         .TraceEntity = R_TraceEntity,
         .TraceLocation = R_TraceLocation,
