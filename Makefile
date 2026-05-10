@@ -64,6 +64,7 @@ BINARY       := $(BIN_DIR)/openwarcraft3$(EXE_EXT)
 MPQ_TOOL     := $(BIN_DIR)/mpqtool$(EXE_EXT)
 MDX_TOOL     := $(BIN_DIR)/mdxtool$(EXE_EXT)
 MAP_TOOL     := $(BIN_DIR)/maptool$(EXE_EXT)
+FDF_TOOL     := $(BIN_DIR)/fdftool$(EXE_EXT)
 MPQ_TEST     := $(BIN_DIR)/test_mpq_compat$(EXE_EXT)
 
 # Unity-build helper: pipe all .c files in a directory tree as #include
@@ -73,7 +74,7 @@ MPQ_TEST     := $(BIN_DIR)/test_mpq_compat$(EXE_EXT)
 UNITY = find $1 -name '*.c' $2 | sort | awk '{printf "\043include \"%s\"\n", $$0}'
 
 default: build
-build: shared renderer game openwarcraft3 mpqtool mdxtool maptool
+build: shared renderer game openwarcraft3 mpqtool mdxtool maptool fdftool
 shared:      $(SHARED_LIB)
 renderer:    $(RENDERER_LIB)
 game:        $(GAME_LIB)
@@ -81,6 +82,7 @@ openwarcraft3: $(BINARY)
 mpqtool:     $(MPQ_TOOL)
 mdxtool:     $(MDX_TOOL)
 maptool:     $(MAP_TOOL)
+fdftool:     $(FDF_TOOL)
 run:
 	$(BINARY) -mpq=$(MPQ)
 
@@ -103,6 +105,11 @@ $(MDX_TOOL): tools/mdxtool.c tools/viewer_common.c tools/viewer_common.h common/
 $(MAP_TOOL): tools/maptool.c tools/viewer_common.c common/mpq.c common/sheet.c common/parser.c | $(BIN_DIR) $(SHARED_LIB) $(RENDERER_LIB)
 	@echo "[maptool]"
 	$(CC) $(CFLAGS) -o $@ $< tools/viewer_common.c common/mpq.c common/sheet.c common/parser.c \
+		$(RPATH) $(LDFLAGS) -lshared -lrenderer $(LIBS) -lm -lz
+
+$(FDF_TOOL): tools/fdftool.c tools/viewer_common.c common/mpq.c common/sheet.c common/parser.c game/parser.c game/ui/ui_fdf.c | $(BIN_DIR) $(SHARED_LIB) $(RENDERER_LIB)
+	@echo "[fdftool]"
+	$(CC) $(CFLAGS) -o $@ $< tools/viewer_common.c common/mpq.c common/sheet.c common/parser.c game/parser.c game/ui/ui_fdf.c \
 		$(RPATH) $(LDFLAGS) -lshared -lrenderer $(LIBS) -lm -lz
 
 $(MPQ_TEST): tests/test_mpq_compat.c common/mpq.c common/mpq.h | $(BIN_DIR)
@@ -206,4 +213,4 @@ test: | $(BIN_DIR)
 test-mpq-compat: mpqtool $(MPQ_TEST)
 	$(MPQ_TEST) -mpq=$(MPQ)
 
-.PHONY: default build shared renderer game openwarcraft3 mpqtool mdxtool maptool run run-map diag clean download test test-mpq-compat
+.PHONY: default build shared renderer game openwarcraft3 mpqtool mdxtool maptool fdftool run run-map diag clean download test test-mpq-compat

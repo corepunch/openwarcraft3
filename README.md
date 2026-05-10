@@ -51,6 +51,11 @@ make build
 
 Compiles all libraries (`shared`, `renderer`, `game`) and the `openwarcraft3` executable into `build/`.
 
+Viewer tools are also built into `build/bin/`:
+- `mdxtool` — model viewer
+- `maptool` — map viewer
+- `fdftool` — FDF scene viewer
+
 ### 4. Run
 
 ```bash
