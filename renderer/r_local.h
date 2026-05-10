@@ -212,6 +212,8 @@ void R_DrawPic(LPCTEXTURE texture, float x, float y);
 void R_DrawSelectionRect(LPCRECT rect, COLOR32 color);
 void R_DrawBoundingBox(LPCBOX3 box, LPCMATRIX4 matrix, COLOR32 color);
 void R_DrawWireRect(LPCRECT rect, COLOR32 color);
+DWORD R_GetModelTextureCount(LPMODEL model);
+LPCSTR R_GetModelTexturePath(LPMODEL model, DWORD index);
 
 // r_font.c
 LPFONT R_LoadFont(LPCSTR filename, DWORD size);
