@@ -502,6 +502,10 @@ void SCR_DrawSprite(LPCUIFRAME frame, LPCRECT screen) {
         screen->w / UI_BASE_WIDTH,
         screen->h / UI_BASE_HEIGHT
     };
+    LPCSTR s = cl.configstrings[CS_MODELS + frame->tex.index];
+    if (strstr(s, "Panel")) {
+        re.DrawPortrait(cl.models[frame->tex.index], &viewport, "MainMenu Stand");
+    } else
     re.DrawPortrait(cl.models[frame->tex.index], &viewport, "Stand");
 }
 
@@ -715,7 +719,14 @@ void SCR_UpdateTooltip(HANDLE _frames) {
 
 void SCR_DrawOverlay(HANDLE _frames) {
     FOR_LOOP(i, num_frames) {
-        SCR_DrawFrame(frames+i);
+        if (frames[i].flags.type == FT_SPRITE) {
+            SCR_DrawFrame(frames+i);
+        }
+    }
+    FOR_LOOP(i, num_frames) {
+        if (frames[i].flags.type != FT_SPRITE) {
+            SCR_DrawFrame(frames+i);
+        }
     }
 }
 

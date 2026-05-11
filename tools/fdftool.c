@@ -976,7 +976,17 @@ static void draw_scene(void) {
         if (scene_frames[i].number == 0 && scene_frames[i].flags.type == 0) {
             continue;
         }
-        draw_frame(&scene_frames[i]);
+        if (scene_frames[i].flags.type == FT_SPRITE) {
+            draw_frame(&scene_frames[i]);
+        }
+    }
+    for (DWORD i = 1; i < num_scene_frames; i++) {
+        if (scene_frames[i].number == 0 && scene_frames[i].flags.type == 0) {
+            continue;
+        }
+        if (scene_frames[i].flags.type != FT_SPRITE) {
+            draw_frame(&scene_frames[i]);
+        }
     }
     for (DWORD i = 1; i < num_scene_frames; i++) {
         if (scene_frames[i].number == 0 && scene_frames[i].flags.type == 0) {

@@ -18,6 +18,14 @@ This codebase is inspired by **Quake 2**. The developer working on this project 
 - Game state should be managed in a straightforward, imperative style consistent with Quake 2's `g_*.c` / `cl_*.c` / `r_*.c` file layout.
 - The engine and game code may be separated (similar to Quake 2's `game.dll` / `ref_gl` split) to allow modular replacement of subsystems.
 
+## Engine/Game Boundary (Strict)
+
+- Engine modules (`renderer/`, `client/`, `common/`, `server/` core paths) must remain game-agnostic.
+- Never hardcode game-specific asset names, animation names, frame names, map/script conventions, or franchise-specific literals in engine code.
+- Examples of forbidden engine literals: specific sequence names like `"MainMenu Stand"`, specific UI roots, or title-specific asset assumptions.
+- If behavior needs title/game knowledge, put that policy in game-side code (`game/`, game.dll boundary) and pass generic parameters into engine APIs.
+- Prefer generic fallbacks in engine code (caller-provided names, first available sequence, data-driven metadata) rather than title-specific heuristics.
+
 ## Domain
 
 - This is a **real-time strategy game** (RTS), so game logic should account for unit management, pathfinding, resource gathering, building construction, and large numbers of entities — adapted from the Quake 2 entity/server model where applicable.

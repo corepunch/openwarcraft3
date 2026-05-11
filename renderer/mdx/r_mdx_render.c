@@ -155,7 +155,10 @@ void R_DrawPortrait(LPCMODEL model, LPCRECT viewport, LPCSTR anim) {
         return;
     }
     mdx = model->mdx;
-    seq = MDLX_FindSequenceByName(mdx, anim);
+    seq = (anim && *anim) ? MDLX_FindSequenceByName(mdx, anim) : NULL;
+    if (!seq && mdx->sequences && mdx->num_sequences > 0) {
+        seq = &mdx->sequences[0];
+    }
 
     if (!R_InitUIModelView(model, viewport, &viewdef, &entity, seq)) {
         return;
@@ -163,6 +166,10 @@ void R_DrawPortrait(LPCMODEL model, LPCRECT viewport, LPCSTR anim) {
 
     aspect = viewport->h > 0.0f ? viewport->w / viewport->h : 1.0f;
     if (!R_GetModelCameraMatrix(mdx, aspect, &viewdef.viewProjectionMatrix, &root)) {
+        if (!R_IsSpriteUIScreenSpace(mdx)) {
+            VECTOR3 const center = Box3_Center(&mdx->bounds.box);
+            entity.origin = Vector3_unm(&center);
+        }
         R_GetSpriteOrthoCameraMatrix(mdx, aspect, &viewdef.viewProjectionMatrix, &root);
     }
     Matrix4_getLightMatrix(&lightAngles, &root, PORTRAIT_SHADOW_SIZE, &viewdef.lightMatrix);
