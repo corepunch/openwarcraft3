@@ -624,8 +624,10 @@ static void render(app_t *app) {
            size instead. Use only the COLUMNS/LINES env vars (or defaults). */
         const char *ce = getenv("COLUMNS");
         const char *re = getenv("LINES");
-        size.cols = (ce && atoi(ce) > 0) ? atoi(ce) : 120;
-        size.rows = (re && atoi(re) > 0) ? atoi(re) : 32;
+        int cv = ce ? atoi(ce) : 0;
+        int rv = re ? atoi(re) : 0;
+        size.cols = cv > 0 ? cv : 120;
+        size.rows = rv > 0 ? rv : 32;
     } else {
         size = tui_get_size();
     }
