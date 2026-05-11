@@ -44,8 +44,8 @@ static LPCSTR fdfs[MAX_TOOL_FDFS] = { 0 };
 static DWORD num_fdfs = 0;
 static LPCSTR root_name = NULL;
 static bool g_info_only = false;
-static int window_width = VIEWER_WINDOW_WIDTH;
-static int window_height = VIEWER_WINDOW_HEIGHT;
+static int window_width = 800;
+static int window_height = 600;
 
 static LPCMODEL models[MAX_TOOL_MODELS] = { 0 };
 static char model_names[MAX_TOOL_MODELS][512] = { { 0 } };
@@ -739,38 +739,54 @@ static void draw_backdrop(LPCUIFRAME frame, LPCRECT rect, uiBackdrop_t const *ba
     size2_t edge_size;
     RECT uv;
     RECT background;
+    BOOL has_background;
+    BOOL has_edge;
+    COLOR32 color;
 
     if (!frame || !backdrop)
         return;
-    if (backdrop->Background <= 0 || backdrop->Background >= MAX_TOOL_IMAGES)
+    has_background = backdrop->Background > 0 &&
+                     backdrop->Background < MAX_TOOL_IMAGES &&
+                     images[backdrop->Background] != NULL;
+    has_edge = backdrop->EdgeFile > 0 &&
+               backdrop->EdgeFile < MAX_TOOL_IMAGES &&
+               images[backdrop->EdgeFile] != NULL;
+    if (!has_background && !has_edge)
         return;
-    if (backdrop->EdgeFile <= 0 || backdrop->EdgeFile >= MAX_TOOL_IMAGES)
-        return;
-    if (!images[backdrop->Background] || !images[backdrop->EdgeFile])
-        return;
+    color = frame->color.a ? frame->color : COLOR32_WHITE;
 
     backdrop_rects(rect, rects, backdrop->CornerSize);
-    back_size = re.GetTextureSize(images[backdrop->Background]);
-    edge_size = re.GetTextureSize(images[backdrop->EdgeFile]);
+    if (has_background) {
+        back_size = re.GetTextureSize(images[backdrop->Background]);
+    }
+    if (has_edge) {
+        edge_size = re.GetTextureSize(images[backdrop->EdgeFile]);
+    }
 
-    FOR_LOOP(i, NUM_BACKDROP_CORNERS) {
-        FLOAT const k = 1.0f / NUM_BACKDROP_CORNERS;
-        FLOAT const h = edge_size.height / 1000.f;
-        FLOAT const tile = backdrop_edge_tile(rects + corners[i], corners[i], h);
-        RECT const edge_uv = { i * k, 0, k, tile };
-        BOOL const flip = backdrop_edge_flip(corners[i]);
+    if (has_edge) {
+        FOR_LOOP(i, NUM_BACKDROP_CORNERS) {
+            FLOAT const k = 1.0f / NUM_BACKDROP_CORNERS;
+            FLOAT const h = edge_size.height / 1000.f;
+            FLOAT const tile = backdrop_edge_tile(rects + corners[i], corners[i], h);
+            RECT const edge_uv = { i * k, 0, k, tile };
+            BOOL const flip = backdrop_edge_flip(corners[i]);
 
-        if ((backdrop->CornerFlags & (1 << corners[i])) == 0)
-            continue;
+            if ((backdrop->CornerFlags & (1 << corners[i])) == 0)
+                continue;
 
-        re.DrawImageEx(&MAKE(DRAWIMAGE,
-                             .texture = images[backdrop->EdgeFile],
-                             .alphamode = BLEND_MODE_BLEND,
-                             .screen = rects[corners[i]],
-                             .uv = edge_uv,
-                             .color = frame->color,
-                             .rotate = flip,
-                             .shader = SHADER_UI));
+            re.DrawImageEx(&MAKE(DRAWIMAGE,
+                                 .texture = images[backdrop->EdgeFile],
+                                 .alphamode = BLEND_MODE_BLEND,
+                                 .screen = rects[corners[i]],
+                                 .uv = edge_uv,
+                                 .color = color,
+                                 .rotate = flip,
+                                 .shader = SHADER_UI));
+        }
+    }
+
+    if (!has_background) {
+        return;
     }
 
     uv = MAKE(RECT, 0, 0, 1, 1);
@@ -792,7 +808,7 @@ static void draw_backdrop(LPCUIFRAME frame, LPCRECT rect, uiBackdrop_t const *ba
                          .alphamode = BLEND_MODE_BLEND,
                          .screen = background,
                          .uv = uv,
-                         .color = frame->color,
+                         .color = color,
                          .rotate = false,
                          .shader = SHADER_UI));
 }
@@ -879,11 +895,14 @@ static void draw_portrait(LPCUIFRAME frame, LPCRECT rect) {
     if (model == 0 || model >= MAX_TOOL_MODELS || !models[model]) {
         return;
     }
+    if (screen_rect.w <= 0.0f || screen_rect.h <= 0.0f) {
+        return;
+    }
     viewport = (RECT) {
-        rect->x / UI_VIEW_WIDTH,
-        1.0f - (rect->y + rect->h) / UI_VIEW_HEIGHT,
-        rect->w / UI_VIEW_WIDTH,
-        rect->h / UI_VIEW_HEIGHT,
+        (rect->x - screen_rect.x) / screen_rect.w,
+        1.0f - ((rect->y - screen_rect.y + rect->h) / screen_rect.h),
+        rect->w / screen_rect.w,
+        rect->h / screen_rect.h,
     };
     re.DrawPortrait(models[model], &viewport);
 }
