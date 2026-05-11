@@ -3,6 +3,7 @@
 
 #include <stdarg.h>
 #include <stdbool.h>
+#include <ctype.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -22,6 +23,7 @@ static float g_preview_scale = 1.0f;
 
 typedef struct {
     DWORD num_sequences;
+    DWORD selected_sequence;
     DWORD num_textures;
     DWORD num_geosets;
     DWORD num_lights;
@@ -36,6 +38,7 @@ typedef struct {
     float bounds_d;
     float bounds_h;
     float orbit_distance;
+    char selected_sequence_name[81];
 } model_overlay_info_t;
 
 static model_overlay_info_t g_overlay = { 0 };
@@ -334,6 +337,111 @@ static DWORD CountVariableSizeEntries(LPBYTE data, DWORD size) {
     return count;
 }
 
+static void CopySequenceName(mdxSequence_t const *seq, char *out, size_t outSize) {
+    size_t i;
+
+    if (!out || outSize == 0) {
+        return;
+    }
+    out[0] = '\0';
+    if (!seq) {
+        return;
+    }
+
+    for (i = 0; i + 1 < outSize && i < sizeof(seq->name); i++) {
+        char c = seq->name[i];
+        if (!c) {
+            break;
+        }
+        out[i] = isprint((unsigned char)c) ? c : '?';
+    }
+    out[i] = '\0';
+}
+
+static bool StringEqualsNoCase(LPCSTR a, LPCSTR b) {
+    while (*a && *b) {
+        if (tolower((unsigned char)*a) != tolower((unsigned char)*b)) {
+            return false;
+        }
+        a++;
+        b++;
+    }
+    return *a == '\0' && *b == '\0';
+}
+
+static bool StringContainsNoCase(LPCSTR haystack, LPCSTR needle) {
+    size_t nlen;
+
+    if (!haystack || !needle) {
+        return false;
+    }
+    nlen = strlen(needle);
+    if (nlen == 0) {
+        return true;
+    }
+
+    for (; *haystack; haystack++) {
+        size_t i;
+        for (i = 0; i < nlen; i++) {
+            if (!haystack[i]) {
+                return false;
+            }
+            if (tolower((unsigned char)haystack[i]) != tolower((unsigned char)needle[i])) {
+                break;
+            }
+        }
+        if (i == nlen) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+static int FindSequenceIndex(mdxModel_t const *mdx, mdxSequence_t const *seq) {
+    if (!mdx || !seq || !mdx->sequences || mdx->num_sequences <= 0) {
+        return -1;
+    }
+    FOR_LOOP(i, mdx->num_sequences) {
+        if (mdx->sequences + i == seq) {
+            return (int)i;
+        }
+    }
+    return -1;
+}
+
+static mdxSequence_t const *FindSequenceByNameExact(mdxModel_t const *mdx, LPCSTR wanted) {
+    char seqName[81];
+
+    if (!mdx || !mdx->sequences || mdx->num_sequences <= 0 || !wanted) {
+        return NULL;
+    }
+    FOR_LOOP(i, mdx->num_sequences) {
+        mdxSequence_t const *seq = mdx->sequences + i;
+        CopySequenceName(seq, seqName, sizeof(seqName));
+        if (StringEqualsNoCase(seqName, wanted)) {
+            return seq;
+        }
+    }
+    return NULL;
+}
+
+static mdxSequence_t const *FindSequenceByNameContains(mdxModel_t const *mdx, LPCSTR wanted) {
+    char seqName[81];
+
+    if (!mdx || !mdx->sequences || mdx->num_sequences <= 0 || !wanted) {
+        return NULL;
+    }
+    FOR_LOOP(i, mdx->num_sequences) {
+        mdxSequence_t const *seq = mdx->sequences + i;
+        CopySequenceName(seq, seqName, sizeof(seqName));
+        if (StringContainsNoCase(seqName, wanted)) {
+            return seq;
+        }
+    }
+    return NULL;
+}
+
 static bool DumpModelInfoNoWindow(LPCSTR modelPath) {
     HANDLE file = FS_OpenFile(modelPath);
     if (!file) {
@@ -383,8 +491,24 @@ static bool DumpModelInfoNoWindow(LPCSTR modelPath) {
                 }
                 break;
             case MAKEFOURCC('S', 'E', 'Q', 'S'):
-                fprintf(stderr, "  SEQS: count=%u\n", (unsigned)(chunkSize / sizeof(mdxSequence_t)));
+            {
+                DWORD seqCount = chunkSize / sizeof(mdxSequence_t);
+                mdxSequence_t const *seqs = (mdxSequence_t const *)chunk;
+                fprintf(stderr, "  SEQS: count=%u\n", (unsigned)seqCount);
+                FOR_LOOP(i, seqCount) {
+                    char seqName[81];
+                    mdxSequence_t const *seq = seqs + i;
+                    CopySequenceName(seq, seqName, sizeof(seqName));
+                    fprintf(stderr,
+                            "    [%u] name=%s interval=%u..%u flags=0x%x\n",
+                            (unsigned)i,
+                            seqName,
+                            (unsigned)seq->interval[0],
+                            (unsigned)seq->interval[1],
+                            (unsigned)seq->flags);
+                }
                 break;
+            }
             case MAKEFOURCC('T', 'E', 'X', 'S'):
                 fprintf(stderr, "  TEXS: count=%u\n", (unsigned)(chunkSize / sizeof(mdxTexture_t)));
                 break;
@@ -561,12 +685,37 @@ static bool BuildModelCameraMatrix(mdxModel_t const *model, float aspect, LPMATR
 }
 
 static mdxSequence_t const *PickSequence(mdxModel_t const *mdx) {
+    mdxSequence_t const *seq;
+
     if (!mdx || !mdx->sequences || mdx->num_sequences <= 0) {
         return NULL;
     }
-    if (mdx->num_sequences > 2) {
-        return mdx->sequences + 2;
+
+    seq = FindSequenceByNameExact(mdx, "MainMenu Stand");
+    if (seq) {
+        return seq;
     }
+    seq = FindSequenceByNameExact(mdx, "Stand");
+    if (seq) {
+        return seq;
+    }
+    seq = FindSequenceByNameContains(mdx, "Stand");
+    if (seq) {
+        return seq;
+    }
+    seq = FindSequenceByNameExact(mdx, "MainMenu Birth");
+    if (seq) {
+        return seq;
+    }
+    seq = FindSequenceByNameExact(mdx, "Birth");
+    if (seq) {
+        return seq;
+    }
+    seq = FindSequenceByNameContains(mdx, "Birth");
+    if (seq) {
+        return seq;
+    }
+
     return mdx->sequences;
 }
 
@@ -578,6 +727,7 @@ static void RenderModelFrame(refExport_t const *re, LPMODEL model, DWORD now, bo
     VECTOR3 root = { 0, 0, 0 };
     size2_t windowSize = re->GetWindowSize();
     mdxSequence_t const *seq = PickSequence(mdx);
+    int seq_index = FindSequenceIndex(mdx, seq);
     float aspect = windowSize.height ? (float)windowSize.width / (float)windowSize.height : 1.0f;
     float model_extent = 1000.0f;
     float model_radius = 500.0f;
@@ -648,6 +798,16 @@ static void RenderModelFrame(refExport_t const *re, LPMODEL model, DWORD now, bo
 
         snprintf(line, sizeof(line), "SEQS %u", (unsigned)g_overlay.num_sequences);
         re->PrintSysText(line, left_x, y0 + dy * 0, COLOR32_WHITE);
+        snprintf(line, sizeof(line), "SEQ #%d %s", (int)g_overlay.selected_sequence, g_overlay.selected_sequence_name);
+        re->PrintSysText(line, left_x, y0 + dy * 8, COLOR32_WHITE);
+        if (seq) {
+            snprintf(line,
+                     sizeof(line),
+                     "INT  %u..%u",
+                     (unsigned)seq->interval[0],
+                     (unsigned)seq->interval[1]);
+            re->PrintSysText(line, left_x, y0 + dy * 9, COLOR32_WHITE);
+        }
         snprintf(line, sizeof(line), "TEXS %u", (unsigned)g_overlay.num_textures);
         re->PrintSysText(line, left_x, y0 + dy * 1, COLOR32_WHITE);
         snprintf(line, sizeof(line), "GEOS %u", (unsigned)g_overlay.num_geosets);
@@ -677,6 +837,39 @@ static void RenderModelFrame(refExport_t const *re, LPMODEL model, DWORD now, bo
         re->PrintSysText(line, right_x, y0 + dy * 5, COLOR32_WHITE);
         snprintf(line, sizeof(line), "SCALE  %.3f", g_preview_scale);
         re->PrintSysText(line, right_x, y0 + dy * 6, COLOR32_WHITE);
+
+        if (mdx && mdx->sequences && mdx->num_sequences > 0) {
+            int maxRows = 10;
+            int startRow = 0;
+            int listX = window.width - 420;
+            int listY = 46;
+
+            if (seq_index > maxRows / 2) {
+                startRow = seq_index - maxRows / 2;
+            }
+            if (startRow + maxRows > (int)mdx->num_sequences) {
+                startRow = (int)mdx->num_sequences - maxRows;
+            }
+            if (startRow < 0) {
+                startRow = 0;
+            }
+
+            for (int row = 0; row < maxRows; row++) {
+                int seqi = startRow + row;
+                char seqName[81];
+                if (seqi < 0 || seqi >= (int)mdx->num_sequences) {
+                    continue;
+                }
+                CopySequenceName(mdx->sequences + seqi, seqName, sizeof(seqName));
+                snprintf(line,
+                         sizeof(line),
+                         "%c[%02d] %s",
+                         seqi == seq_index ? '*' : ' ',
+                         seqi,
+                         seqName);
+                re->PrintSysText(line, listX, listY + row * dy, COLOR32_WHITE);
+            }
+        }
     }
     DrawTexturePreviews(re);
     re->EndFrame();
@@ -781,6 +974,13 @@ int main(int argc, char **argv) {
             model->mdx->num_sequences,
             (void *)model->mdx->cameras,
             model->mdx->num_pivots);
+
+    {
+        mdxSequence_t const *seq = PickSequence(model->mdx);
+        int seq_index = FindSequenceIndex(model->mdx, seq);
+        g_overlay.selected_sequence = seq_index >= 0 ? (DWORD)seq_index : 0;
+        CopySequenceName(seq, g_overlay.selected_sequence_name, sizeof(g_overlay.selected_sequence_name));
+    }
 
         g_overlay.num_sequences = model->mdx->num_sequences;
         g_overlay.num_textures = model->mdx->num_textures;

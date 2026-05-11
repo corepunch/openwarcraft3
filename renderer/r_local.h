@@ -173,6 +173,7 @@ bool MDLX_TraceModel(renderEntity_t const *edict, LPCLINE3 line);
 void R_ReleaseVertexArrayObject(LPBUFFER buffer);
 LPCTEXTURE R_FindTextureByID(DWORD textureID);
 void R_DrawPortrait(LPCMODEL model, LPCRECT viewport);
+void R_DrawSprite(LPCMODEL model, LPCRECT viewport);
 void R_RenderSplat(LPCVECTOR2 position, float radius, LPCTEXTURE texture, LPCSHADER shader, COLOR32 color);
 
 // r_shader.c

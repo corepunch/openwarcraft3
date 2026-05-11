@@ -1,0 +1,524 @@
+// -- INCLUDE FILES ---------------------------------------------
+
+IncludeFile "UI\FrameDef\Glue\StandardTemplates.fdf",
+
+// -- LOCAL TEMPLATES -------------------------------------------
+
+// -- FRAMES ----------------------------------------------------
+
+Frame "FRAME" "MainMenuFrame" INHERITS "StandardFrameTemplate" {
+    SetAllPoints,
+
+    Frame "SPRITE" "WarCraftIIILogo" {
+        BackgroundArt "UI\Glues\MainMenu\WarCraftIIILogo\WarCraftIIILogo.mdl",
+        SetPoint TOPLEFT, "MainMenuFrame", TOPLEFT, 0.13, 0.04,
+    }
+
+    Frame "FRAME" "RealmSelect" {
+		SetAllPoints,
+		
+	    Frame "TEXT" "RealmSelectText" INHERITS "StandardTitleTextTemplate" {
+	        SetPoint TOPLEFT, "MainMenuFrame", TOPLEFT, 0.02625, -0.109,
+                FontColor 1.0 1.0 1.0 1.0,
+	        Text "BNET_REALM_SELECT",
+	    }
+
+	    Frame "TEXT" "RealmSelectMessage" INHERITS "StandardSmallTextTemplate" {
+	        SetPoint TOPLEFT, "RealmSelectText", BOTTOMLEFT, 0.0, -0.005,
+	        Width 0.275,
+	        Height 0.06,
+	        Text "BNET_REALM_MESSAGE",
+	        FontJustificationH JUSTIFYLEFT,
+	        FontJustificationV JUSTIFYTOP,
+	    }
+	    
+	    Frame "FRAME" "RealmListContainer" {
+	    	SetPoint TOPLEFT, "RealmSelectMessage", BOTTOMLEFT, 0.0, 0.006,
+	    	Width 0.275,
+	    	Height 0.189,
+	    }
+
+        Frame "BACKDROP" "RealmSelectOKBackdrop" INHERITS "StandardMenuSmallButtonBaseBackdrop" {
+            Width 0.16,
+            Height 0.05,
+            SetPoint TOPLEFT, "MainMenuFrame", TOPLEFT, 0.207, -0.370,
+            BackdropMirrored,
+
+			Frame "GLUETEXTBUTTON" "RealmSelectOKButton" INHERITS WITHCHILDREN "StandardSmallButtonTemplate" {
+                Width 0.079,
+                Height 0.023,
+			    SetPoint TOPLEFT,"RealmSelectOKBackdrop",TOPLEFT, 0.008, -0.013,
+
+			    ButtonText "RealmSelectOKText",
+			    Frame "TEXT" "RealmSelectOKText" INHERITS "StandardButtonTextTemplate" {
+			        Text "OK",
+			    }
+			}
+        }
+
+        Frame "BACKDROP" "RealmSelectCancelBackdrop" INHERITS "StandardMenuSmallButtonBaseBackdrop" {
+            Width 0.16,
+            Height 0.05,
+            SetPoint RIGHT, "RealmSelectOKBackdrop", LEFT, -0.02, 0.0,
+            BackdropMirrored,
+
+			Frame "GLUETEXTBUTTON" "RealmSelectCancelButton" INHERITS WITHCHILDREN "StandardSmallButtonTemplate" {
+                Width 0.079,
+                Height 0.023,
+			    SetPoint TOPLEFT,"RealmSelectCancelBackdrop",TOPLEFT, 0.008, -0.013,
+
+			    ButtonText "RealmSelectCancelText",
+			    Frame "TEXT" "RealmSelectCancelText" INHERITS "StandardButtonTextTemplate" {
+			        Text "CANCEL",
+			    }
+			}
+        }
+	}
+
+    Frame "FRAME" "ControlLayer" {
+	    SetAllPoints,
+
+        Frame "BACKDROP" "SinglePlayerBackdrop" INHERITS "StandardMenuButtonBaseBackdrop" {
+            SetPoint TOPRIGHT,"MainMenuFrame",TOPRIGHT, -0.015, -0.110625,
+
+            Frame "GLUETEXTBUTTON" "SinglePlayerButton" INHERITS WITHCHILDREN "StandardButtonTemplate" {            
+                SetPoint TOPRIGHT,"SinglePlayerBackdrop",TOPRIGHT, -0.012, -0.0165,
+                ControlShortcutKey "S",
+                TabFocusDefault,
+                TabFocusNext "MultiPlayerButton",
+
+                ButtonText "SinglePlayerButtonText",
+                Frame "TEXT" "SinglePlayerButtonText" INHERITS "StandardButtonTextTemplate" {
+                    Text "KEY_SINGLE_PLAYER",
+                }
+            }
+        }
+
+        Frame "BACKDROP" "BattleNetBackdrop" INHERITS "StandardMenuButtonBaseBackdrop" {
+            SetPoint TOPRIGHT,"SinglePlayerBackdrop",BOTTOMRIGHT, 0, 0.005,
+
+		    Frame "GLUEBUTTON" "RealmButton" INHERITS WITHCHILDREN "StandardIconicButtonTemplate" {	
+	            SetPoint TOPRIGHT, "BattleNetBackdrop", TOPRIGHT, -0.012, -0.0165,
+
+				ControlBackdrop "RealmButtonBackdropTemplate",
+				Frame "BACKDROP" "RealmButtonBackdropTemplate" {
+				    BackdropBackground  "UI\Widgets\BattleNet\bnet-mainmenu-options-up.blp",
+				    BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R",
+				    BackdropCornerSize  0.0155,
+				    BackdropBackgroundSize  0.031,
+				    BackdropBackgroundInsets 0.004 0.004 0.004 0.004,
+				    BackdropEdgeFile  "UI\Widgets\Glues\GlueScreen-Button2-BackdropBorder.blp",
+				}
+			
+				ControlPushedBackdrop "RealmButtonPushedBackdropTemplate",
+				Frame "BACKDROP" "RealmButtonPushedBackdropTemplate" {
+				    BackdropBackground  "UI\Widgets\BattleNet\bnet-mainmenu-options-down.blp",
+				    BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R",
+				    BackdropCornerSize  0.0155,
+				    BackdropBackgroundSize  0.031,
+				    BackdropBackgroundInsets 0.004 0.004 0.004 0.004,
+				    BackdropEdgeFile  "UI\Widgets\Glues\GlueScreen-Button2-BackdropBorder-Down.blp",
+				}
+			
+				ControlDisabledBackdrop "RealmButtonDisabledBackdropTemplate",
+				Frame "BACKDROP" "RealmButtonDisabledBackdropTemplate" {
+				    BackdropBackground  "UI\Widgets\BattleNet\bnet-mainmenu-options-disabled.blp",
+				    BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R",
+				    BackdropCornerSize  0.0155,
+				    BackdropBackgroundSize  0.031,
+				    BackdropBackgroundInsets 0.004 0.004 0.004 0.004,
+				    BackdropEdgeFile  "UI\Widgets\Glues\GlueScreen-Button2-BackdropBorder-Disabled.blp",
+				}
+
+            }
+
+            Frame "GLUETEXTBUTTON" "BattleNetButton" INHERITS WITHCHILDREN "StandardButtonTemplate" {	
+                Width 0.149,
+                SetPoint TOPRIGHT, "RealmButton", TOPLEFT, 0.001, 0.0,
+                ControlShortcutKey "B",
+                TabFocusNext "LocalAreaNetworkButton",
+
+                ButtonText "BattleNetButtonText",
+                Frame "TEXT" "BattleNetButtonText" INHERITS "StandardButtonTextTemplate" {
+                    Text "KEY_BATTLE_NET",
+                }
+            }
+        }
+
+        Frame "BACKDROP" "LocalAreaNetworkBackdrop" INHERITS "StandardMenuButtonBaseBackdrop" {
+            SetPoint TOPRIGHT,"BattleNetBackdrop",BOTTOMRIGHT,0, 0.005,
+
+            Frame "GLUETEXTBUTTON" "LocalAreaNetworkButton" INHERITS WITHCHILDREN "StandardButtonTemplate" {
+                SetPoint TOPRIGHT,"LocalAreaNetworkBackdrop",TOPRIGHT, -0.012, -0.0165,
+                ControlShortcutKey "L",
+                TabFocusNext "OptionsButton",
+
+                ButtonText "LocalAreaNetworkButtonText",
+                Frame "TEXT" "LocalAreaNetworkButtonText" INHERITS "StandardButtonTextTemplate" {
+                    Text "KEY_LOCAL_AREA_NETWORK",
+                }
+            }
+        }
+
+        Frame "BACKDROP" "OptionsBackdrop" INHERITS "StandardMenuButtonBaseBackdrop" {
+            SetPoint TOPRIGHT,"LocalAreaNetworkBackdrop",BOTTOMRIGHT,0,0.005,
+
+            Frame "GLUETEXTBUTTON" "OptionsButton" INHERITS WITHCHILDREN "StandardButtonTemplate" {
+                SetPoint TOPRIGHT,"OptionsBackdrop",TOPRIGHT, -0.012, -0.0165,
+                ControlShortcutKey "O",
+                TabFocusNext "CreditsButton",
+
+                ButtonText "OptionsButtonText",
+                Frame "TEXT" "OptionsButtonText" INHERITS "StandardButtonTextTemplate" {
+                    Text "KEY_OPTIONS",
+                }
+            }
+        }
+
+        Frame "BACKDROP" "CreditsBackdrop" INHERITS "StandardMenuButtonBaseBackdrop" {
+            SetPoint TOPRIGHT,"OptionsBackdrop",BOTTOMRIGHT,0,0.005,
+
+            Frame "GLUETEXTBUTTON" "CreditsButton" INHERITS WITHCHILDREN "StandardButtonTemplate" {
+                SetPoint TOPRIGHT,"CreditsBackdrop",TOPRIGHT, -0.012, -0.0165,
+                ControlShortcutKey "C",
+                TabFocusNext "ExitButton",
+
+                ButtonText "CreditsButtonText",
+                Frame "TEXT" "CreditsButtonText" INHERITS "StandardButtonTextTemplate" {
+                    Text "KEY_CREDITS",
+                }
+            }
+        }
+
+        Frame "BACKDROP" "ExitBackdrop" INHERITS "StandardMenuButtonBaseBackdrop" {
+            Width 0.24,
+            SetPoint BOTTOMRIGHT,"MainMenuFrame",BOTTOMRIGHT,-0.015,0.05,
+
+            Frame "GLUETEXTBUTTON" "ExitButton" INHERITS WITHCHILDREN "StandardButtonTemplate" {
+                Width 0.168,
+                SetPoint TOPRIGHT,"ExitBackdrop",TOPRIGHT, -0.012, -0.0165,
+                ControlShortcutKey "Q",
+
+                ButtonText "ExitButtonText",
+                Frame "TEXT" "ExitButtonText" INHERITS "StandardButtonTextTemplate" {
+                    Text "KEY_QUIT",
+                }
+            }
+        }
+    }
+}
+
+// create this as child of MainMenuFrame when debugging
+Frame "GLUETEXTBUTTON" "DebugButton" INHERITS WITHCHILDREN "StandardBorderedButtonTemplate" {
+    SetPoint BOTTOMLEFT,"MainMenuFrame",BOTTOMLEFT,0.18,0.03,
+    ControlShortcutKey "E",
+
+    ButtonText "DebugButtonText",
+    Frame "TEXT" "DebugButtonText" INHERITS "StandardButtonTextTemplate" {
+        Text "KEY_DEBUG",
+    }
+}
+
+// create this as child of MainMenuFrame when debugging
+Frame "GLUETEXTBUTTON" "ReplayButton" INHERITS WITHCHILDREN "StandardBorderedButtonTemplate" {
+    SetPoint LEFT,"DebugButton",RIGHT,0.01,0,
+    ControlShortcutKey "Y",
+
+    ButtonText "ReplayButtonText",
+    Frame "TEXT" "ReplayButtonText" INHERITS "StandardButtonTextTemplate" {
+        Text "KEY_REPLAY",
+    }
+}
+
+
+// -- QuickReplayDialog -----------------------------------------------------------
+
+Frame "DIALOG" "QuickReplayDialog" {
+    Height 0.23,
+    Width 0.35,
+
+    DialogBackdrop "ReplayBackdrop",
+    Frame "BACKDROP" "ReplayBackdrop" {
+        BackdropTileBackground,
+        BackdropBackground  "UI\Widgets\BattleNet\bnet-dialoguebox-background.blp",
+        BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R",
+        BackdropCornerSize  0.064,
+        BackdropBackgroundSize  0.128,
+        BackdropBackgroundInsets 0.01 0.01 0.01 0.01,
+        BackdropEdgeFile  "UI\Widgets\BattleNet\bnet-dialoguebox-border.blp",
+    }
+
+    Frame "TEXT" "ReplayTitleText" INHERITS "StandardTitleTextTemplate" {
+        SetPoint TOP, "QuickReplayDialog", TOP, 0.0, -0.04,
+
+        Text "REPLAY_OPTIONS",
+    }
+
+    Frame "GLUECHECKBOX" "IgnoreSyncValues" INHERITS WITHCHILDREN "StandardCheckBoxTemplate" {
+        SetPoint TOPLEFT, "QuickReplayDialog", TOPLEFT, 0.04, -0.07,
+    }
+
+    Frame "TEXT" "IgnoreSyncValuesLabel" INHERITS "StandardInfoTextTemplate" {
+        DecorateFileNames,
+        FrameFont "MasterFont", 0.011, "",
+        SetPoint LEFT, "IgnoreSyncValues", RIGHT, 0.0045, 0.0,
+        Text "IGNORESYNCVALUES",
+    }
+
+    Frame "GLUECHECKBOX" "ReRecordSyncValues" INHERITS WITHCHILDREN "StandardCheckBoxTemplate" {
+        SetPoint TOP, "IgnoreSyncValues", BOTTOM, 0.0, -0.002,
+    }
+
+    Frame "TEXT" "ReRecordSyncValuesLabel" INHERITS "StandardInfoTextTemplate" {
+        DecorateFileNames,
+        FrameFont "MasterFont", 0.011, "",
+        SetPoint LEFT, "ReRecordSyncValues", RIGHT, 0.0045, 0.0,
+        Text "RERECORDSYNCVALUES",
+    }
+
+    Frame "GLUECHECKBOX" "OutputNetCommands" INHERITS WITHCHILDREN "StandardCheckBoxTemplate" {
+        SetPoint TOP, "ReRecordSyncValues", BOTTOM, 0.0, -0.002,
+    }
+
+    Frame "TEXT" "OutputNetCommandsLabel" INHERITS "StandardInfoTextTemplate" {
+        DecorateFileNames,
+        FrameFont "MasterFont", 0.011, "",
+        SetPoint LEFT, "OutputNetCommands", RIGHT, 0.0045, 0.0,
+        Text "OUTPUTNETCOMMANDS",
+    }
+
+    Frame "GLUETEXTBUTTON" "StartReplayButton" INHERITS WITHCHILDREN "StandardBorderedButtonTemplate" {
+        Width 0.13,
+        SetPoint BOTTOMRIGHT,"QuickReplayDialog",BOTTOM, -0.0, 0.03,
+        ControlShortcutKey "S",
+
+        ButtonText "StartReplayButtonText",
+        Frame "TEXT" "StartReplayButtonText" INHERITS "StandardButtonTextTemplate" {
+            Text "KEY_START_REPLAY",
+        }
+    }
+
+    Frame "GLUETEXTBUTTON" "CancelReplayButton" INHERITS WITHCHILDREN "StandardBorderedButtonTemplate" {
+        Width 0.13,
+        SetPoint BOTTOMLEFT,"QuickReplayDialog",BOTTOM, 0.01, 0.03,
+        ControlShortcutKey "A",
+
+        ButtonText "CancelReplayButtonText",
+        Frame "TEXT" "CancelReplayButtonText" INHERITS "StandardButtonTextTemplate" {
+            Text "KEY_CANCEL",
+        }
+    }
+}
+
+// -- QuickReplayConfirmDialog ----------------------------------------------------
+
+Frame "DIALOG" "QuickReplayConfirmDialog" {
+    Height 0.26,
+    Width 0.35,
+
+    DialogBackdrop "ReplayConfirmBackdrop",
+    Frame "BACKDROP" "ReplayConfirmBackdrop" {
+        BackdropTileBackground,
+        BackdropBackground  "UI\Widgets\BattleNet\bnet-dialoguebox-background.blp",
+        BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R",
+        BackdropCornerSize  0.064,
+        BackdropBackgroundSize  0.128,
+        BackdropBackgroundInsets 0.01 0.01 0.01 0.01,
+        BackdropEdgeFile  "UI\Widgets\BattleNet\bnet-dialoguebox-border.blp",
+    }
+
+    Frame "TEXT" "ConfirmReplayTitleText" INHERITS "StandardTitleTextTemplate" {
+        SetPoint TOP, "QuickReplayConfirmDialog", TOP, 0.0, -0.04,
+
+        Text "REPLAY_CONFIRM",
+    }
+
+    Frame "TEXT" "DescriptionLabel" INHERITS "StandardInfoTextTemplate" {
+	Width 0.26,
+        DecorateFileNames,
+        FontColor 1.0 1.0 1.0 1.0,
+        SetPoint TOPLEFT, "QuickReplayConfirmDialog", TOPLEFT, 0.04, -0.07,
+        Text "REPLAY_CONFIRM_DESC",
+    }
+
+    Frame "TEXT" "ReplayNetVersionLabel" INHERITS "StandardInfoTextTemplate" {
+        DecorateFileNames,
+        FrameFont "MasterFont", 0.011, "",
+        SetPoint TOPRIGHT, "DescriptionLabel", BOTTOM, 0.0, -0.012,
+        Text "REPLAY_CONFIRM_RE_NETVERSION",
+    }
+
+    Frame "TEXT" "ReplayNetVersion" INHERITS "StandardInfoTextTemplate" {
+        DecorateFileNames,
+        FrameFont "MasterFont", 0.011, "",
+        SetPoint LEFT, "ReplayNetVersionLabel", RIGHT, 0.0045, 0.0,
+        Text "",
+    }
+
+    Frame "TEXT" "ReplayBuildLabel" INHERITS "StandardInfoTextTemplate" {
+        DecorateFileNames,
+        FrameFont "MasterFont", 0.011, "",
+        SetPoint TOPRIGHT, "ReplayNetVersionLabel", BOTTOMRIGHT, 0.0, -0.002,
+        Text "REPLAY_CONFIRM_RE_BUILD",
+    }
+
+    Frame "TEXT" "ReplayBuild" INHERITS "StandardInfoTextTemplate" {
+        DecorateFileNames,
+        FrameFont "MasterFont", 0.011, "",
+        SetPoint LEFT, "ReplayBuildLabel", RIGHT, 0.0045, 0.0,
+        Text "",
+    }
+
+    Frame "TEXT" "GameNetVersionLabel" INHERITS "StandardInfoTextTemplate" {
+        DecorateFileNames,
+        FrameFont "MasterFont", 0.011, "",
+        SetPoint TOPRIGHT, "ReplayBuildLabel", BOTTOMRIGHT, 0.0, -0.002,
+        Text "REPLAY_CONFIRM_GA_NETVERSION",
+    }
+
+    Frame "TEXT" "GameNetVersion" INHERITS "StandardInfoTextTemplate" {
+        DecorateFileNames,
+        FrameFont "MasterFont", 0.011, "",
+        SetPoint LEFT, "GameNetVersionLabel", RIGHT, 0.0045, 0.0,
+        Text "",
+    }
+
+    Frame "TEXT" "GameBuildLabel" INHERITS "StandardInfoTextTemplate" {
+        DecorateFileNames,
+        FrameFont "MasterFont", 0.011, "",
+        SetPoint TOPRIGHT, "GameNetVersionLabel", BOTTOMRIGHT, 0.0, -0.002,
+        Text "REPLAY_CONFIRM_GA_BUILD",
+    }
+
+    Frame "TEXT" "GameBuild" INHERITS "StandardInfoTextTemplate" {
+        DecorateFileNames,
+        FrameFont "MasterFont", 0.011, "",
+        SetPoint LEFT, "GameBuildLabel", RIGHT, 0.0045, 0.0,
+        Text "",
+    }
+
+    Frame "GLUETEXTBUTTON" "StartConfirmReplayButton" INHERITS WITHCHILDREN "StandardBorderedButtonTemplate" {
+        Width 0.13,
+        SetPoint BOTTOMRIGHT,"QuickReplayConfirmDialog",BOTTOM, -0.0, 0.03,
+        ControlShortcutKey "S",
+
+        ButtonText "StartReplayButtonText",
+        Frame "TEXT" "StartReplayButtonText" INHERITS "StandardButtonTextTemplate" {
+            Text "KEY_START_REPLAY",
+        }
+    }
+
+    Frame "GLUETEXTBUTTON" "CancelConfirmReplayButton" INHERITS WITHCHILDREN "StandardBorderedButtonTemplate" {
+        Width 0.13,
+        SetPoint BOTTOMLEFT,"QuickReplayConfirmDialog",BOTTOM, 0.01, 0.03,
+        ControlShortcutKey "A",
+
+        ButtonText "CancelReplayButtonText",
+        Frame "TEXT" "CancelReplayButtonText" INHERITS "StandardButtonTextTemplate" {
+            Text "KEY_CANCEL",
+        }
+    }
+} 
+
+
+// -- BattleNetPatchDialog --------------------------------------------------------
+Frame "DIALOG" "BattleNetPatchDialog" {
+    Height 0.2,
+    Width 0.35,
+
+    DialogBackdrop "PatchBackdrop",
+    Frame "BACKDROP" "PatchBackdrop" {
+        BackdropTileBackground,
+        BackdropBackground  "UI\Widgets\BattleNet\bnet-dialoguebox-background.blp",
+        BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R",
+        BackdropCornerSize  0.064,
+        BackdropBackgroundSize  0.128,
+        BackdropBackgroundInsets 0.01 0.01 0.01 0.01,
+        BackdropEdgeFile  "UI\Widgets\BattleNet\bnet-dialoguebox-border.blp",
+	BackdropBlendAll,
+    }
+
+    Frame "TEXT" "PatchTitleText" INHERITS "StandardTitleTextTemplate" {
+        FontColor 0.99 0.827 0.0705 1.0,
+        SetPoint TOP, "BattleNetPatchDialog", TOP, 0.0, -0.04,
+
+        Text "DOWNLOADING_UPDATE",
+    }
+
+    Frame "TEXT" "PatchInfoText" INHERITS "StandardInfoTextTemplate" {
+        Width 0.30,
+        SetPoint TOP, "PatchTitleText", TOP, 0.0, -0.02,
+        FontColor 1.0 1.0 1.0 1.0,
+
+        Text "PATCH_RESTART",
+    }
+
+    Frame "BACKDROP" "PatchButtonBackdrop" INHERITS "StandardMenuSingleButtonBaseBackdrop" {
+        SetPoint BOTTOM, "BattleNetPatchDialog", BOTTOM, -0.015, 0.015,
+
+	    Frame "GLUETEXTBUTTON" "PatchButton" INHERITS WITHCHILDREN "StandardButtonTemplate" {
+                Width 0.159,
+		SetPoint TOPRIGHT,"PatchButtonBackdrop",TOPRIGHT, -0.032, -0.015625,
+
+                ButtonText "PatchButtonText",
+		    Frame "TEXT" "PatchButtonText" INHERITS "StandardButtonTextTemplate" {
+			    Text "CANCEL",
+		    }
+	    }
+    }
+
+    Frame "SPRITE" "PatchProgressBar" {
+        SetPoint BOTTOM, "BattleNetPatchDialog", BOTTOM, 0.0, 0.07875,
+        BackgroundArt "UI\Glues\BattleNet\ProgressBar\BattlenetProgressBar.mdl",
+
+        Frame "TEXT" "PatchProgressText" INHERITS "StandardTitleTextTemplate" {
+            SetPoint CENTER, "PatchProgressBar", CENTER, 0.0, -0.0125,
+        }
+    }
+}
+
+// -- BattleNetConnectDialog --------------------------------------------------------
+Frame "DIALOG" "BattleNetConnectDialog" {
+    Height 0.2,
+    Width 0.35,
+
+    DialogBackdrop "ConnectBackdrop",
+    Frame "BACKDROP" "ConnectBackdrop" {
+        BackdropTileBackground,
+        BackdropBackground  "UI\Widgets\BattleNet\bnet-dialoguebox-background.blp",
+        BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R",
+        BackdropCornerSize  0.064,
+        BackdropBackgroundSize  0.128,
+        BackdropBackgroundInsets 0.01 0.01 0.01 0.01,
+        BackdropEdgeFile  "UI\Widgets\BattleNet\bnet-dialoguebox-border.blp",
+	BackdropBlendAll,
+    }
+
+    Frame "TEXT" "ConnectTitleText" INHERITS "StandardTitleTextTemplate" {
+        SetPoint TOP, "BattleNetConnectDialog", TOP, 0.0, -0.04,
+        FontColor 0.99 0.827 0.0705 1.0,
+        Text "BNET_CONNECT_TITLE",
+    }
+
+    Frame "TEXT" "ConnectInfoText" INHERITS "StandardInfoTextTemplate" {
+        Width 0.30,
+        SetPoint TOP, "ConnectTitleText", BOTTOM, 0.0, -0.025,
+        FontColor 1.0 1.0 1.0 1.0,
+    }
+
+    Frame "BACKDROP" "ConnectButtonBackdrop" INHERITS "StandardMenuSingleButtonBaseBackdrop" {
+        SetPoint BOTTOM, "BattleNetConnectDialog", BOTTOM, -0.015, 0.015,
+
+	    Frame "GLUETEXTBUTTON" "ConnectButton" INHERITS WITHCHILDREN "StandardButtonTemplate" {
+            Width 0.159,
+		    SetPoint TOPRIGHT,"ConnectButtonBackdrop",TOPRIGHT, -0.032, -0.015625,
+
+            ButtonText "ConnectButtonText",
+		    Frame "TEXT" "ConnectButtonText" INHERITS "StandardButtonTextTemplate" {
+			    Text "CANCEL",
+		    }
+	    }
+    }
+}
+
+

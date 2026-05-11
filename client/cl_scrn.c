@@ -491,21 +491,18 @@ void SCR_DrawPortrait(LPCUIFRAME frame, LPCRECT screen) {
         screen->w / UI_BASE_WIDTH,
         screen->h / UI_BASE_HEIGHT
     };
-    if (Com_InMenuMode()) {
-        LPCSTR model_name = NULL;
-        if (frame->tex.index < MAX_MODELS) {
-            model_name = cl.configstrings[CS_MODELS + frame->tex.index];
-        }
-        if (model_name && (!strcmp(model_name, "UI\\Glues\\SpriteLayers\\TopRightPanel.mdx") ||
-                           !strcmp(model_name, "UI\\Glues\\SpriteLayers\\TopLeftPanel.mdx"))) {
-            re.DrawPortrait(cl.portraits[frame->tex.index] ? cl.portraits[frame->tex.index] : cl.models[frame->tex.index], &viewport);
-            return;
-        }
-        re.DrawPortrait(cl.portraits[frame->tex.index] ? cl.portraits[frame->tex.index] : cl.models[frame->tex.index], &viewport);
-        return;
-    }
     LPCMODEL port = cl.portraits[frame->tex.index];
     re.DrawPortrait(port ? port : cl.models[frame->tex.index], &viewport);
+}
+
+void SCR_DrawSprite(LPCUIFRAME frame, LPCRECT screen) {
+    RECT const viewport = {
+        screen->x / UI_BASE_WIDTH,
+        1 - ((screen->y + screen->h) / UI_BASE_HEIGHT),
+        screen->w / UI_BASE_WIDTH,
+        screen->h / UI_BASE_HEIGHT
+    };
+    re.DrawSprite(cl.models[frame->tex.index], &viewport);
 }
 
 void SCR_DrawCommandButton(LPCUIFRAME frame, LPCRECT screen) {
@@ -672,7 +669,7 @@ static drawer_t drawers[] = {
     { FT_TEXTAREA, SCR_DrawTextArea },
     { FT_TOOLTIPTEXT, SCR_DrawTooltip },
     { FT_MODEL, SCR_DrawPortrait },
-    { FT_SPRITE, SCR_DrawPortrait },
+    { FT_SPRITE, SCR_DrawSprite },
     { FT_PORTRAIT, SCR_DrawPortrait },
     { FT_BUILDQUEUE, SCR_DrawBuildQueue },
     { FT_MULTISELECT, SCR_DrawMultiSelect },

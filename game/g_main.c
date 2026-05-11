@@ -131,10 +131,21 @@ static void G_InitGame(void) {
 }
 
 static void G_ShutdownGame(void) {
+    if (g_edicts == NULL) {
+        menu_scene_entity = NULL;
+        return;
+    }
     menu_scene_entity = NULL;
     gi.MemFree(g_edicts);
+    g_edicts = NULL;
+    globals.edicts = NULL;
+    globals.num_edicts = 0;
 
     ShutdownUnitData();
+    if (game.clients) {
+        gi.MemFree(game.clients);
+        game.clients = NULL;
+    }
 }
 
 FLOAT G_Cinefade(void) {

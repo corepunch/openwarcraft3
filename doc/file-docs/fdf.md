@@ -367,6 +367,46 @@ Access path via `SkinManagerGetLocalPath("MasterFont")` → `"Fonts\BLQ55Web.ttf
 
 ---
 
+## Theme Keys (war3skins.txt)
+
+Warcraft UI files often reference symbolic names (skin keys) instead of direct texture/model paths.
+Those keys are resolved through `UI/war3skins.txt`.
+
+In this project, the theme table is loaded at startup in [game/g_main.c](game/g_main.c#L122),
+and keys are resolved through `Theme_String(...)` in [game/ui/ui_fdf.c](game/ui/ui_fdf.c#L253).
+
+### Main Menu Glue Layer Examples
+
+From Warcraft III `UI/war3skins.txt`:
+
+```ini
+MainMenuLogo=UI\Glues\MainMenu\WarCraftIIILogo\WarCraftIIILogo.mdl
+GlueSpriteLayerTopLeft=UI\Glues\SpriteLayers\TopLeftPanel.mdl
+GlueSpriteLayerTopRight=UI\Glues\SpriteLayers\TopRightPanel.mdl
+```
+
+So the name for TopRightPanel is:
+- `GlueSpriteLayerTopRight`
+
+And the name for TopLeftPanel is:
+- `GlueSpriteLayerTopLeft`
+
+These keys are used when building menu glue sprite layers in [game/ui/ui_init.c](game/ui/ui_init.c#L227),
+specifically where `GlueSpriteLayerTopRight` and `GlueSpriteLayerTopLeft` are looked up in [game/ui/ui_init.c](game/ui/ui_init.c#L230).
+
+### How To Inspect Quickly
+
+```bash
+build/bin/mpqtool -mpq "data/Warcraft III/War3.mpq" cat "UI/war3skins.txt" | grep -n "GlueSpriteLayerTopRight\|GlueSpriteLayerTopLeft\|MainMenuLogo"
+```
+
+### Practical Rule Of Thumb
+
+- If FDF says `DecorateFileNames` and uses names that are not file paths, check `UI/war3skins.txt` first.
+- For sprite/model mismatches in menus, verify skin key -> model path mapping before debugging renderer code.
+
+---
+
 ## Known Bugs / Caveats
 
 - `POPUPMENU` outside 4:3 breaks in V1.31.x.

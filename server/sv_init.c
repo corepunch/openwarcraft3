@@ -109,9 +109,25 @@ void SV_Map(LPCSTR mapFilename) {
 }
 
 void SV_InitGame(void) {
+    if (!ge) {
+        fprintf(stderr, "SV_InitGame: game API not initialized\n");
+        return;
+    }
+
     if (svs.initialized) {
         SV_Shutdown();
     }
+
+    // SV_Shutdown tears down game state (including ge->edicts), so make sure
+    // the game side is initialized before using EDICT_NUM.
+    if (!ge->edicts) {
+        if (!ge->Init) {
+            fprintf(stderr, "SV_InitGame: missing ge->Init callback\n");
+            return;
+        }
+        ge->Init();
+    }
+
     svs.initialized = true;
     svs.num_client_entities = UPDATE_BACKUP * MAX_CLIENTS * MAX_PACKET_ENTITIES;
     svs.client_entities = MemAlloc(sizeof(entityState_t) * svs.num_client_entities);
@@ -131,7 +147,9 @@ void SV_Shutdown(void) {
     SAFE_DELETE(svs.client_entities, MemFree);
     svs.num_clients = 0;
     svs.initialized = false;
-    ge->Shutdown();
+    if (ge && ge->Shutdown) {
+        ge->Shutdown();
+    }
 }
 
 void SV_Init(void) {

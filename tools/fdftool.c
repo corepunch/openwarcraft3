@@ -907,6 +907,24 @@ static void draw_portrait(LPCUIFRAME frame, LPCRECT rect) {
     re.DrawPortrait(models[model], &viewport);
 }
 
+static void draw_sprite(LPCUIFRAME frame, LPCRECT rect) {
+    DWORD model = frame->tex.index;
+    RECT viewport;
+    if (model == 0 || model >= MAX_TOOL_MODELS || !models[model]) {
+        return;
+    }
+    if (screen_rect.w <= 0.0f || screen_rect.h <= 0.0f) {
+        return;
+    }
+    viewport = (RECT) {
+        (rect->x - screen_rect.x) / screen_rect.w,
+        1.0f - ((rect->y - screen_rect.y + rect->h) / screen_rect.h),
+        rect->w / screen_rect.w,
+        rect->h / screen_rect.h,
+    };
+    re.DrawSprite(models[model], &viewport);
+}
+
 static void draw_frame(LPCUIFRAME frame) {
     LPCRECT rect = layout_rect(frame);
     switch (frame->flags.type) {
@@ -939,8 +957,10 @@ static void draw_frame(LPCUIFRAME frame) {
             break;
         case FT_MODEL:
         case FT_PORTRAIT:
-        case FT_SPRITE:
             draw_portrait(frame, rect);
+            break;
+        case FT_SPRITE:
+            draw_sprite(frame, rect);
             break;
         default:
             if (frame->tex.index) {

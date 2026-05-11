@@ -351,6 +351,17 @@ typedef struct mdxModel_s {
     int num_pivots;
 } mdxModel_t;
 
+typedef struct {
+    LPSHADER shader;
+} mdlx_state_t;
+
+extern mdlx_state_t mdlx;
+extern MATRIX4 node_matrices[MDX_MAX_NODES];
+
+mdxSequence_t const *R_FindSequenceAtTime(mdxModel_t const *model, DWORD time);
+void MDLX_GetModelKeytrackValue(mdxModel_t const *model, mdxKeyTrack_t const *keytrack, DWORD time, HANDLE output);
+mdxSequence_t const *MDLX_FindSequenceByName(mdxModel_t const *model, LPCSTR name);
+
 mdxModel_t *R_LoadModelMDLX(void *buffer, DWORD size);
 void MDLX_Release(mdxModel_t *model);
 
