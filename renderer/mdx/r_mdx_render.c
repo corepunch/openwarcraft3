@@ -71,6 +71,7 @@ static LPCSTR mdx_fs =
 "uniform sampler2D uShadowmap;\n"
 "uniform sampler2D uFogOfWar;\n"
 "uniform bool uUseDiscard;\n"
+"uniform bool uUnshaded;\n"
 "float get_light() {\n"
 "    return dot(v_normal, v_lightDir);\n"
 "}\n"
@@ -86,7 +87,9 @@ static LPCSTR mdx_fs =
 "}\n"
 "void main() {\n"
 "    vec4 col = texture(uTexture, v_texcoord);\n"
-"    col.rgb *= get_fogofwar() * get_lighting();\n"
+"    if (!uUnshaded) {\n"
+"        col.rgb *= get_fogofwar() * get_lighting();\n"
+"    }\n"
 "    o_color = col;\n"
 "    if (o_color.a < 0.5 && uUseDiscard) discard;\n"
 "}\n";
@@ -166,6 +169,7 @@ void R_DrawPortrait(LPCMODEL model, LPCRECT viewport, LPCSTR anim) {
 
     aspect = viewport->h > 0.0f ? viewport->w / viewport->h : 1.0f;
     if (!R_GetModelCameraMatrix(mdx, aspect, &viewdef.viewProjectionMatrix, &root)) {
+        entity.flags |= RF_NO_FOGOFWAR | RF_NO_SHADOW | RF_NO_LIGHTING;
         if (!R_IsSpriteUIScreenSpace(mdx)) {
             VECTOR3 const center = Box3_Center(&mdx->bounds.box);
             entity.origin = Vector3_unm(&center);

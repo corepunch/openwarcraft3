@@ -196,6 +196,7 @@ LPSHADER R_InitShader(LPCSTR vs_default, LPCSTR fs_default){
     R_RegisterUniform(program, uFogOfWar);
     R_RegisterUniform(program, uBones);
     R_RegisterUniform(program, uUseDiscard);
+    R_RegisterUniform(program, uUnshaded);
     R_RegisterUniform(program, uEyePosition);
     R_RegisterUniform(program, uActiveGlow);
     

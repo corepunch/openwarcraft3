@@ -86,6 +86,7 @@ struct shader_program {
     DWORD uFogOfWar;
     DWORD uBones;
     DWORD uUseDiscard;
+    DWORD uUnshaded;
     DWORD uEyePosition;
     DWORD uActiveGlow;
 };

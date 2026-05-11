@@ -120,6 +120,7 @@ enum {
     FLAG(RF_NO_FOGOFWAR, 5),
     FLAG(RF_NO_SHADOW, 6),
     FLAG(RF_ATTACH_OVERHEAD, 7),
+    FLAG(RF_NO_LIGHTING, 8),
 };
 
 enum {
