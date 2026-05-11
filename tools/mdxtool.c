@@ -16,7 +16,10 @@
 static const char *g_model_path = NULL;
 static const char *g_requested_animation = NULL;
 static bool g_use_model_camera = false;
+static bool g_use_front_ortho = false;
 static bool g_info_only = false;
+static bool g_dump_all = false;
+static bool g_run_once = false;
 static HANDLE archives[64] = { 0 };
 static viewer_orbit_t orbit;
 static VECTOR3 g_model_center = { 0, 0, 0 };
@@ -63,6 +66,8 @@ typedef struct {
 
 static texture_preview_cache_t texture_previews = { 0 };
 
+static BOX3 GetPreviewBounds(mdxModel_t const *mdx);
+
 static void FreeTexturePreviewCache(void) {
     if (texture_previews.paths) {
         free(texture_previews.paths);
@@ -82,16 +87,20 @@ static void FreeTexturePreviewCache(void) {
 static void usage(void) {
     fprintf(stderr,
         "Usage:\n"
-    "  mdxtool -mpq <archive.mpq> -model <file.mdx> [--anim <sequence>] [--use-model-camera] [--info]\n"
+    "  mdxtool -mpq <archive.mpq> -model <file.mdx> [--anim <sequence>] [--use-model-camera] [--front-ortho] [--info] [--dump-all] [--once]\n"
         "\n"
         "Examples:\n"
         "  mdxtool -mpq War3.mpq -model UI\\\\Glues\\\\MainMenu\\\\MainMenu3d\\\\MainMenu3d.mdx\n"
     "  mdxtool -mpq War3.mpq -model units\\\\orc\\\\Peon\\\\Peon.mdx --use-model-camera\n"
+    "  mdxtool -mpq War3.mpq -model UI\\\\Glues\\\\SpriteLayers\\\\TopRightPanel.mdx --front-ortho\n"
     "  mdxtool -mpq War3.mpq -model UI\\\\Glues\\\\MainMenu\\\\WarCraftIIILogo\\\\WarCraftIIILogo.mdx --anim \"MainMenu Stand\"\n"
     "  mdxtool -mpq War3.mpq -model UI\\\\Glues\\\\MainMenu\\\\WarCraftIIILogo\\\\WarCraftIIILogo.mdx --info\n"
     "\n"
     "Notes:\n"
-    "  --info prints model metadata and exits without creating a window.\n");
+    "  --info prints model metadata and exits without creating a window.\n"
+    "  --front-ortho uses a front-facing orthographic preview camera for flat UI models.\n"
+    "  --dump-all prints loaded model details (nodes, bones, geosets, materials, cameras).\n"
+    "  --once renders one frame and exits.\n");
 }
 
 static void errorf(LPCSTR fmt, ...) {
@@ -143,6 +152,32 @@ static void Matrix4_getPreviewCameraMatrix(viewer_orbit_t const *orbit,
                                            LPMATRIX4 output)
 {
     Viewer_OrbitBuildCamera(orbit, aspect, 35.0f, near_clip, far_clip, output);
+}
+
+static void Matrix4_getFrontOrthoCameraMatrix(mdxModel_t const *mdx,
+                                              float aspect,
+                                              float scale,
+                                              LPMATRIX4 output)
+{
+    BOX3 const bounds = GetPreviewBounds(mdx);
+    VECTOR3 const center = Box3_Center(&bounds);
+    float const width = fabsf(bounds.max.x - bounds.min.x) * scale;
+    float const height = fabsf(bounds.max.y - bounds.min.y) * scale;
+    float const depth = fabsf(bounds.max.z - bounds.min.z) * scale;
+    float const fit_aspect = MAX(0.001f, aspect);
+    float half_w = MAX(0.15f, width * 0.5f);
+    float half_h = MAX(0.15f, height * 0.5f);
+    float ortho_half_h = MAX(half_h, half_w / fit_aspect);
+    float ortho_half_w = ortho_half_h * fit_aspect;
+    float eye_z = center.z + MAX(4.0f, depth + 4.0f);
+    MATRIX4 proj, view;
+
+    Matrix4_ortho(&proj, -ortho_half_w, ortho_half_w, -ortho_half_h, ortho_half_h, 0.1f, MAX(32.0f, depth + 16.0f));
+    Matrix4_lookAt(&view,
+                   &(VECTOR3){ center.x, center.y, eye_z },
+                   &(VECTOR3){ 0, 0, -1 },
+                   &(VECTOR3){ 0, 1, 0 });
+    Matrix4_multiply(&proj, &view, output);
 }
 
 static void Matrix4_getSideLightMatrix(LPCVECTOR3 eye, LPCVECTOR3 target, float scale, LPMATRIX4 output) {
@@ -741,6 +776,135 @@ static mdxSequence_t const *PickSequence(mdxModel_t const *mdx) {
     return mdx->sequences;
 }
 
+static void DumpLoadedModel(mdxModel_t const *mdx, DWORD sample_frame) {
+    int materialIndex = 0;
+
+    if (!mdx) {
+        return;
+    }
+
+    fprintf(stderr,
+            "mdxtool --dump-all: name=%s version=%u sequences=%d textures=%d pivots=%d\n",
+            mdx->info.name,
+            (unsigned)mdx->version,
+            mdx->num_sequences,
+            mdx->num_textures,
+            mdx->num_pivots);
+
+    FOR_EACH_LIST(mdxBone_t, bone, mdx->bones) {
+        fprintf(stderr,
+                "  BONE: node_id=%u parent=%u geoset=%u geoa=%u flags=0x%x name=%s\n",
+                (unsigned)bone->node.node_id,
+                (unsigned)bone->node.parent_id,
+                (unsigned)bone->geoset_id,
+                (unsigned)bone->geoset_animation_id,
+                (unsigned)bone->node.flags,
+                bone->node.name);
+    }
+
+    FOR_EACH_LIST(mdxHelper_t, helper, mdx->helpers) {
+        fprintf(stderr,
+                "  HELP: node_id=%u parent=%u flags=0x%x name=%s\n",
+                (unsigned)helper->node.node_id,
+                (unsigned)helper->node.parent_id,
+                (unsigned)helper->node.flags,
+                helper->node.name);
+    }
+
+    FOR_EACH_LIST(mdxGeoset_t, geoset, mdx->geosets) {
+        fprintf(stderr,
+                "  GEOS: material=%d group=%d selectable=%d vertices=%d triangles=%d matrix_groups=%d matrices=%d geoa=%p bounds=(%.3f %.3f %.3f)->(%.3f %.3f %.3f)\n",
+                geoset->materialID,
+                geoset->group,
+                geoset->selectable,
+                geoset->num_vertices,
+                geoset->num_triangles,
+                geoset->num_matrixGroupSizes,
+                geoset->num_matrices,
+                (void *)geoset->geosetAnim,
+                geoset->default_bounds.box.min.x,
+                geoset->default_bounds.box.min.y,
+                geoset->default_bounds.box.min.z,
+                geoset->default_bounds.box.max.x,
+                geoset->default_bounds.box.max.y,
+                geoset->default_bounds.box.max.z);
+
+        if (geoset->matrixGroupSizes && geoset->num_matrixGroupSizes > 0) {
+            fprintf(stderr, "    MTGC:");
+            FOR_LOOP(i, geoset->num_matrixGroupSizes) {
+                fprintf(stderr, " %d", geoset->matrixGroupSizes[i]);
+            }
+            fprintf(stderr, "\n");
+        }
+        if (geoset->matrices && geoset->num_matrices > 0) {
+            fprintf(stderr, "    MATR:");
+            FOR_LOOP(i, geoset->num_matrices) {
+                fprintf(stderr, " %d", geoset->matrices[i]);
+            }
+            fprintf(stderr, "\n");
+        }
+        if (geoset->vertexGroups && geoset->num_vertexGroups > 0) {
+            int maxGroup = 0;
+            FOR_LOOP(i, geoset->num_vertexGroups) {
+                maxGroup = MAX(maxGroup, (unsigned char)geoset->vertexGroups[i]);
+            }
+            fprintf(stderr, "    GNDX: count=%d max_group=%d\n", geoset->num_vertexGroups, maxGroup);
+        }
+        if (geoset->geosetAnim) {
+            float alpha = geoset->geosetAnim->staticAlpha;
+            if (geoset->geosetAnim->alphas) {
+                MDLX_GetModelKeytrackValue(mdx, geoset->geosetAnim->alphas, sample_frame, &alpha);
+            }
+            fprintf(stderr,
+                    "    GEOA: staticAlpha=%.3f sampledAlpha=%.3f flags=0x%x geosetId=%u alphaTrack=%p colorTrack=%p\n",
+                    geoset->geosetAnim->staticAlpha,
+                    alpha,
+                    (unsigned)geoset->geosetAnim->flags,
+                    (unsigned)geoset->geosetAnim->geosetId,
+                    (void *)geoset->geosetAnim->alphas,
+                    (void *)geoset->geosetAnim->colors);
+        }
+    }
+
+    FOR_EACH_LIST(mdxMaterial_t, material, mdx->materials) {
+        fprintf(stderr,
+                "  MATS[%d]: priority=%d flags=0x%x layers=%d\n",
+                materialIndex,
+                material->priority,
+                material->flags,
+                material->num_layers);
+        FOR_LOOP(layerID, material->num_layers) {
+            mdxMaterialLayer_t const *layer = &material->layers[layerID];
+            fprintf(stderr,
+                    "    LAY[%u]: blend=%u flags=0x%x tex=%u coord=%d alpha=%.3f alphaTrack=%p flipbook=%p\n",
+                    (unsigned)layerID,
+                    (unsigned)layer->blendMode,
+                    (unsigned)layer->flags,
+                    (unsigned)layer->textureId,
+                    layer->coordId,
+                    layer->staticAlpha,
+                    (void *)layer->alpha,
+                    (void *)layer->flipbook);
+        }
+        materialIndex++;
+    }
+
+    FOR_EACH_LIST(mdxCamera_t, camera, mdx->cameras) {
+        fprintf(stderr,
+                "  CAMS: name=%s pivot=(%.3f %.3f %.3f) target=(%.3f %.3f %.3f) fov=%.4f near=%.4f far=%.4f\n",
+                camera->name,
+                camera->pivot.x,
+                camera->pivot.y,
+                camera->pivot.z,
+                camera->targetPivot.x,
+                camera->targetPivot.y,
+                camera->targetPivot.z,
+                camera->fieldOfView,
+                camera->nearClip,
+                camera->farClip);
+    }
+}
+
 static void RenderModelFrame(refExport_t const *re, LPMODEL model, DWORD now, bool useModelCamera) {
     viewDef_t viewdef = { 0 };
     renderEntity_t entity = { 0 };
@@ -785,6 +949,14 @@ static void RenderModelFrame(refExport_t const *re, LPMODEL model, DWORD now, bo
     if (useModelCamera && BuildModelCameraMatrix(mdx, aspect, &viewdef.viewProjectionMatrix, &root)) {
         entity.origin = root;
         Matrix4_getSideLightMatrix(&model->mdx->cameras->pivot, &model->mdx->cameras->targetPivot, PORTRAIT_SHADOW_SIZE, &viewdef.lightMatrix);
+    } else if (g_use_front_ortho) {
+        target = g_model_center;
+        Matrix4_getFrontOrthoCameraMatrix(mdx, aspect, g_preview_scale, &viewdef.viewProjectionMatrix);
+        Matrix4_getSideLightMatrix(&(VECTOR3){
+            target.x + 8.0f,
+            target.y - 12.0f,
+            target.z + 16.0f,
+        }, &target, PORTRAIT_SHADOW_SIZE, &viewdef.lightMatrix);
     } else {
         target = g_model_center;
         orbit.target = g_model_center;
@@ -808,7 +980,7 @@ static void RenderModelFrame(refExport_t const *re, LPMODEL model, DWORD now, bo
 
     re->BeginFrame();
     re->RenderFrame(&viewdef);
-    re->PrintSysText(useModelCamera ? "mdxtool: model camera" : "mdxtool: preview camera", 10, 10, COLOR32_WHITE);
+    re->PrintSysText(useModelCamera ? "mdxtool: model camera" : (g_use_front_ortho ? "mdxtool: front ortho" : "mdxtool: preview camera"), 10, 10, COLOR32_WHITE);
     re->PrintSysText(g_model_path, 10, 28, COLOR32_WHITE);
     {
         size2_t window = re->GetWindowSize();
@@ -904,8 +1076,14 @@ int main(int argc, char **argv) {
     for (int i = 1; i < argc; i++) {
         if (!strcmp(argv[i], "--use-model-camera") || !strcmp(argv[i], "-use-model-camera")) {
             g_use_model_camera = true;
+        } else if (!strcmp(argv[i], "--front-ortho") || !strcmp(argv[i], "-front-ortho")) {
+            g_use_front_ortho = true;
         } else if (!strcmp(argv[i], "--info") || !strcmp(argv[i], "-info")) {
             g_info_only = true;
+        } else if (!strcmp(argv[i], "--dump-all") || !strcmp(argv[i], "-dump-all")) {
+            g_dump_all = true;
+        } else if (!strcmp(argv[i], "--once") || !strcmp(argv[i], "-once")) {
+            g_run_once = true;
         } else if (!strcmp(argv[i], "--anim") || !strcmp(argv[i], "-anim")) {
             if (++i >= argc) {
                 usage();
@@ -1029,11 +1207,27 @@ int main(int argc, char **argv) {
     size2_t window = re.GetWindowSize();
     float const aspect = window.height ? (float)window.width / (float)window.height : 1.0f;
     VECTOR3 orbit_target = g_model_center;
-    float const orbit_distance = FitPreviewDistance(model->mdx, aspect, 35.0f);
-    fprintf(stderr, "mdxtool: preview orbit distance=%.3f aspect=%.3f\n", orbit_distance, aspect);
+    float const orbit_distance = FitPreviewDistance(model->mdx, aspect, 35.0f) * g_preview_scale;
+        fprintf(stderr,
+            "mdxtool: preview mode=%s aspect=%.3f orbit_distance=%.3f\n",
+            g_use_model_camera ? "model-camera" : (g_use_front_ortho ? "front-ortho" : "orbit"),
+            aspect,
+            orbit_distance);
     g_overlay.orbit_distance = orbit_distance;
     Viewer_OrbitInit(&orbit, orbit_target, orbit_distance, -45.0f, 20.0f);
     orbit.reverse_drag = true;
+
+    if (g_dump_all) {
+        mdxSequence_t const *seq = PickSequence(model->mdx);
+        DWORD sample_frame = 0;
+        if (seq && seq->interval[1] > seq->interval[0]) {
+            sample_frame = seq->interval[0] + ((seq->interval[1] - seq->interval[0]) / 2);
+        }
+        fprintf(stderr, "mdxtool --dump-all: sample_frame=%u requested_anim=%s\n",
+                (unsigned)sample_frame,
+                g_requested_animation ? g_requested_animation : "(auto)");
+        DumpLoadedModel(model->mdx, sample_frame);
+    }
 
     bool running = true;
     while (running) {
@@ -1050,6 +1244,9 @@ int main(int argc, char **argv) {
 
         DWORD now = SDL_GetTicks();
         RenderModelFrame(&re, model, now, g_use_model_camera);
+        if (g_run_once) {
+            running = false;
+        }
     }
 
     re.ReleaseModel(model);

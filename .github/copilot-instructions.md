@@ -38,12 +38,23 @@ This codebase is inspired by **Quake 2**. The developer working on this project 
 
 - Use `build/bin/mdxtool` to validate MDX assets and detect data problems before debugging render code.
 - CLI synopsis:
-	- `build/bin/mdxtool -mpq <path-to-mpq> -model <archive-model-path> [--use-model-camera] [--info]`
+	- `build/bin/mdxtool -mpq <path-to-mpq> -model <archive-model-path> [--anim <sequence>] [--use-model-camera] [--front-ortho] [--info] [--dump-all] [--once]`
 - Viewer mode (opens window):
 	- `build/bin/mdxtool -mpq <path-to-mpq> -model <archive-model-path>`
 	- Example: `build/bin/mdxtool -mpq data/Warcraft\ III/War3.mpq -model UI\Glues\MainMenu\WarCraftIIILogo\WarCraftIIILogo.mdx`
+- Front-ortho viewer mode for flat UI layers:
+	- `build/bin/mdxtool -mpq <path-to-mpq> -model <archive-model-path> --front-ortho`
+	- Example: `build/bin/mdxtool -mpq data/Warcraft\ III/War3.mpq -model UI\Glues\SpriteLayers\TopRightPanel.mdx --front-ortho`
 - Info mode (no window, stdout only):
 	- `build/bin/mdxtool -mpq <path-to-mpq> -model <archive-model-path> --info`
+
+Common flags:
+- `--anim <sequence>`: render or inspect a specific sequence by name, e.g. `--anim "MainMenu Stand"`.
+- `--use-model-camera`: prefer the first embedded MDX camera when present.
+- `--front-ortho`: use a front-facing orthographic preview camera for flat UI models without useful embedded cameras.
+- `--info`: print model metadata and chunk counts without opening a window.
+- `--dump-all`: print loaded model details including nodes, bones, geosets, materials, and cameras.
+- `--once`: render one frame and exit; useful for scripted diagnostics and agent workflows.
 
 When to use `--info`:
 - Confirm the model exists and loads from MPQ path.
@@ -62,6 +73,12 @@ When to use `--info`:
 Expected output style:
 - `mdxtool --info: model=<path> size=<bytes>`
 - one line per relevant chunk with counts, e.g. `SEQS: count=...`, `CAMS: count=...`, `LITE: count=...`.
+
+Agent guidance:
+- Prefer `--info` first for existence, chunk counts, and camera availability.
+- Use `--dump-all --once` when chunk summaries are not enough and you need loaded geoset, material, bone, or animation-state details.
+- Use `--front-ortho` for glue sprites, panel layers, logos, and other flat UI-facing models.
+- Use `--use-model-camera` only when the model actually contains a useful embedded camera.
 
 Use this output in bug reports/diagnostics so rendering issues can be triaged from data facts (camera/lights/particles/sequence availability) without requiring screenshots.
 
