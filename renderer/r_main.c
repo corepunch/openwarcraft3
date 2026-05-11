@@ -587,7 +587,6 @@ refExport_t R_GetAPI(refImport_t imp) {
         .GetWindowSize = R_GetWindowSize,
         .GetTextureSize = R_GetTextureSize,
         .DrawPortrait = R_DrawPortrait,
-        .DrawSprite = R_DrawSprite,
         .DrawText = R_DrawText,
         .GetTextSize = R_GetTextSize,
         .GetModelInfo = R_GetModelInfo,

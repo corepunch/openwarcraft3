@@ -492,7 +492,7 @@ void SCR_DrawPortrait(LPCUIFRAME frame, LPCRECT screen) {
         screen->h / UI_BASE_HEIGHT
     };
     LPCMODEL port = cl.portraits[frame->tex.index];
-    re.DrawPortrait(port ? port : cl.models[frame->tex.index], &viewport);
+    re.DrawPortrait(port ? port : cl.models[frame->tex.index], &viewport, "Stand");
 }
 
 void SCR_DrawSprite(LPCUIFRAME frame, LPCRECT screen) {
@@ -502,7 +502,7 @@ void SCR_DrawSprite(LPCUIFRAME frame, LPCRECT screen) {
         screen->w / UI_BASE_WIDTH,
         screen->h / UI_BASE_HEIGHT
     };
-    re.DrawSprite(cl.models[frame->tex.index], &viewport);
+    re.DrawPortrait(cl.models[frame->tex.index], &viewport, "Stand");
 }
 
 void SCR_DrawCommandButton(LPCUIFRAME frame, LPCRECT screen) {

@@ -904,7 +904,7 @@ static void draw_portrait(LPCUIFRAME frame, LPCRECT rect) {
         rect->w / screen_rect.w,
         rect->h / screen_rect.h,
     };
-    re.DrawPortrait(models[model], &viewport);
+    re.DrawPortrait(models[model], &viewport, "Stand");
 }
 
 static void draw_sprite(LPCUIFRAME frame, LPCRECT rect) {
@@ -922,7 +922,7 @@ static void draw_sprite(LPCUIFRAME frame, LPCRECT rect) {
         rect->w / screen_rect.w,
         rect->h / screen_rect.h,
     };
-    re.DrawSprite(models[model], &viewport);
+    re.DrawPortrait(models[model], &viewport, "Stand");
 }
 
 static void draw_frame(LPCUIFRAME frame) {

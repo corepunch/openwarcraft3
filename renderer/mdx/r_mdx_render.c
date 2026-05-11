@@ -91,40 +91,20 @@ static LPCSTR mdx_fs =
 "    if (o_color.a < 0.5 && uUseDiscard) discard;\n"
 "}\n";
 
-static bool R_InitUIModelView(LPCMODEL model, LPCRECT viewport, viewDef_t *viewdef, renderEntity_t *entity, bool sprite_mode) {
-    mdxModel_t const *mdx;
-    mdxSequence_t const *seq = NULL;
-    VECTOR3 root;
-    VECTOR3 lightAngles = { 10, 270, 0 };
-    float aspect;
-
+static bool R_InitUIModelView(LPCMODEL model,
+                              LPCRECT viewport,
+                              viewDef_t *viewdef,
+                              renderEntity_t *entity,
+                              mdxSequence_t const *seq) {
     if (!model || !model->mdx) {
         return false;
     }
-    mdx = model->mdx;
-    void Matrix4_getLightMatrix(LPCVECTOR3 sunangles, LPCVECTOR3 target, float scale, LPMATRIX4 output);
-
 
     memset(entity, 0, sizeof(*entity));
     memset(viewdef, 0, sizeof(*viewdef));
 
     entity->scale = 1;
     entity->model = model;
-    seq = MDLX_FindSequenceByName(mdx, "MainMenu Stand");
-    if (!seq) {
-        seq = MDLX_FindSequenceByName(mdx, "Stand");
-    }
-    if (!seq) {
-        FOR_LOOP(i, mdx->num_sequences) {
-            if (strstr(mdx->sequences[i].name, "Stand")) {
-                seq = &mdx->sequences[i];
-                break;
-            }
-        }
-    }
-    if (!seq && mdx->num_sequences > 0) {
-        seq = &mdx->sequences[0];
-    }
     if (!seq) {
         return false;
     }
@@ -144,14 +124,6 @@ static bool R_InitUIModelView(LPCMODEL model, LPCRECT viewport, viewDef_t *viewd
     viewdef->entities = entity;
     viewdef->rdflags |= RDF_NOWORLDMODEL | RDF_NOFRUSTUMCULL;
 
-    aspect = viewport->h > 0.0f ? viewport->w / viewport->h : 1.0f;
-    if (sprite_mode) {
-        R_BuildUISpriteView(mdx, aspect, &viewdef->viewProjectionMatrix, &root);
-    } else {
-        R_BuildUIPortraitView(mdx, aspect, &viewdef->viewProjectionMatrix, &root);
-    }
-    Matrix4_getLightMatrix(&lightAngles, &root, PORTRAIT_SHADOW_SIZE, &viewdef->lightMatrix);
-
     return true;
 }
 
@@ -170,31 +142,30 @@ void Matrix4_getLightMatrix(LPCVECTOR3 sunangles, LPCVECTOR3 target, float scale
     Matrix4_multiply(&proj, &view, output);
 }
 
-void R_DrawPortrait(LPCMODEL model, LPCRECT viewport) {
+void R_DrawPortrait(LPCMODEL model, LPCRECT viewport, LPCSTR anim) {
+    VECTOR3 root;
+    VECTOR3 lightAngles = { 10, 270, 0 };
     renderEntity_t entity;
     viewDef_t viewdef;
+    mdxModel_t const *mdx;
+    mdxSequence_t const *seq;
+    float aspect;
 
-    if (!R_InitUIModelView(model, viewport, &viewdef, &entity, false)) {
+    if (!model || !model->mdx) {
+        return;
+    }
+    mdx = model->mdx;
+    seq = MDLX_FindSequenceByName(mdx, anim);
+
+    if (!R_InitUIModelView(model, viewport, &viewdef, &entity, seq)) {
         return;
     }
 
-    R_Call(glActiveTexture, GL_TEXTURE2);
-    R_Call(glBindTexture, GL_TEXTURE_2D, tr.texture[TEX_WHITE]->texid);
-    R_Call(glActiveTexture, GL_TEXTURE0);
-
-    tr.viewDef = viewdef;
-
-    R_RenderShadowMap();
-    R_RenderView();
-}
-
-void R_DrawSprite(LPCMODEL model, LPCRECT viewport) {
-    renderEntity_t entity;
-    viewDef_t viewdef;
-
-    if (!R_InitUIModelView(model, viewport, &viewdef, &entity, true)) {
-        return;
+    aspect = viewport->h > 0.0f ? viewport->w / viewport->h : 1.0f;
+    if (!R_GetModelCameraMatrix(mdx, aspect, &viewdef.viewProjectionMatrix, &root)) {
+        R_GetSpriteOrthoCameraMatrix(mdx, aspect, &viewdef.viewProjectionMatrix, &root);
     }
+    Matrix4_getLightMatrix(&lightAngles, &root, PORTRAIT_SHADOW_SIZE, &viewdef.lightMatrix);
 
     R_Call(glActiveTexture, GL_TEXTURE2);
     R_Call(glBindTexture, GL_TEXTURE_2D, tr.texture[TEX_WHITE]->texid);

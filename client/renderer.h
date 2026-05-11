@@ -136,8 +136,7 @@ typedef struct {
     void (*DrawPic)(LPCTEXTURE texture, float x, float y);
     void (*DrawImage)(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv, COLOR32 color);
     void (*DrawImageEx)(LPCDRAWIMAGE drawImage);
-    void (*DrawPortrait)(LPCMODEL model, LPCRECT viewport);
-    void (*DrawSprite)(LPCMODEL model, LPCRECT viewport);
+    void (*DrawPortrait)(LPCMODEL model, LPCRECT viewport, LPCSTR anim);
     void (*DrawText)(LPCDRAWTEXT drawText);
     VECTOR2 (*GetTextSize)(LPCDRAWTEXT drawText);
     bool (*GetModelInfo)(LPMODEL model, LPMODELINFO info);

@@ -64,35 +64,6 @@ static void R_GetBoundsForUICamera(mdxModel_t const *model,
     }
 }
 
-static void R_GetPortraitOrbitCameraMatrix(mdxModel_t const *model, float aspect, LPMATRIX4 output, LPVECTOR3 root) {
-    MATRIX4 projection, view;
-    VECTOR3 center = { 0, 0, 0 };
-    float width = 0.0f;
-    float height = 0.0f;
-    float radius = 128.0f;
-    float distance;
-    float near_clip;
-    float far_clip;
-    VECTOR3 eye;
-    VECTOR3 dir;
-
-    R_GetBoundsForUICamera(model, &center, &width, &height, &radius);
-    distance = MAX(200.0f, radius * 3.0f);
-    near_clip = MAX(1.0f, distance * 0.01f);
-    far_clip = MAX(5000.0f, distance * 8.0f);
-    eye = (VECTOR3) {
-        center.x + distance,
-        center.y - distance * 0.6f,
-        center.z + distance * 0.35f,
-    };
-    dir = Vector3_sub(&center, &eye);
-
-    Matrix4_perspective(&projection, 35.0f, aspect, near_clip, far_clip);
-    Matrix4_lookAt(&view, &eye, &dir, &(VECTOR3){0,0,1});
-    Matrix4_multiply(&projection, &view, output);
-    *root = center;
-}
-
 static void R_GetSpriteOrthoCameraMatrix(mdxModel_t const *model, float aspect, LPMATRIX4 output, LPVECTOR3 root) {
     MATRIX4 projection, view;
     VECTOR3 center = { 0, 0, 0 };
@@ -129,18 +100,3 @@ static void R_GetSpriteOrthoCameraMatrix(mdxModel_t const *model, float aspect, 
     *root = center;
 }
 
-static bool R_BuildUIPortraitView(mdxModel_t const *model, float aspect, LPMATRIX4 output, LPVECTOR3 root) {
-    if (R_GetModelCameraMatrix(model, aspect, output, root)) {
-        return true;
-    }
-    R_GetPortraitOrbitCameraMatrix(model, aspect, output, root);
-    return false;
-}
-
-static bool R_BuildUISpriteView(mdxModel_t const *model, float aspect, LPMATRIX4 output, LPVECTOR3 root) {
-    if (R_GetModelCameraMatrix(model, aspect, output, root)) {
-        return true;
-    }
-    R_GetSpriteOrthoCameraMatrix(model, aspect, output, root);
-    return false;
-}
