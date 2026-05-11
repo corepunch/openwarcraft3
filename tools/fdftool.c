@@ -472,6 +472,11 @@ static LPCRECT layout_rect(LPCUIFRAME frame) {
     runtime_frame_t *runtime;
     VECTOR2 x;
     VECTOR2 y;
+    VECTOR2 text_size;
+    DRAWTEXT drawtext;
+    uiLabel_t const *label;
+    DWORD font;
+    LPCSTR text;
     FLOAT width;
     FLOAT height;
 
@@ -487,6 +492,35 @@ static LPCRECT layout_rect(LPCUIFRAME frame) {
 
     width = frame->size.width;
     height = frame->size.height;
+
+    if ((frame->flags.type == FT_STRING || frame->flags.type == FT_TEXT) && (width <= 0 || height <= 0)) {
+        label = frame->buffer.data;
+        font = default_font;
+        text = frame->text ? frame->text : "";
+
+        if (label && label->font > 0 && label->font < MAX_TOOL_FONTS && fonts[label->font]) {
+            font = label->font;
+        }
+
+        if (font > 0 && font < MAX_TOOL_FONTS && fonts[font]) {
+            drawtext = MAKE(DRAWTEXT,
+                            .font = fonts[font],
+                            .text = text,
+                            .color = frame->color.a ? frame->color : COLOR32_WHITE,
+                            .halign = label ? label->textalignx : FONT_JUSTIFYLEFT,
+                            .valign = label ? label->textaligny : FONT_JUSTIFYTOP,
+                            .lineHeight = 1.33f,
+                            .wordWrap = true,
+                            .textWidth = width > 0 ? width : UI_VIEW_WIDTH);
+            text_size = re.GetTextSize(&drawtext);
+            if (width <= 0) {
+                width = text_size.x;
+            }
+            if (height <= 0) {
+                height = text_size.y;
+            }
+        }
+    }
 
     x = has_axis_points(frame->points.x)
         ? layout_axis(frame, frame->points.x, width, rect_x_bounds, true)
