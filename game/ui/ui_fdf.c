@@ -386,8 +386,21 @@ MAKE_PARSER(TextureFile) {
 
 MAKE_PARSER(ModelPath) {
     PATHSTR path = { 0 };
+    BOOL decorate = frame->DecorateFileNames | (frame->Parent ? frame->Parent->DecorateFileNames : false);
+    LPCSTR model = NULL;
+    DWORD modelIndex = 0;
     sscanf(token, PATHSTR_FMT, path);
-    *((DWORD *)out) = path[0] ? gi.ModelIndex(path) : 0;
+    model = decorate ? Theme_String(path, "Default") : path;
+    modelIndex = model[0] ? gi.ModelIndex(model) : 0;
+    *((DWORD *)out) = modelIndex;
+#ifdef DIAG_OUTPUT
+    if (decorate && path[0] && !strcmp(model, path)) {
+        DIAGF("ParseModelPath: unresolved skin key frame=%s token=%s\n", frame->Name, path);
+    }
+    if (path[0] && modelIndex == 0) {
+        DIAGF("ParseModelPath: frame=%s token=%s resolved=%s modelIndex=0\n", frame->Name, path, model);
+    }
+#endif
 }
 
 MAKE_PARSERCALL(Font) {

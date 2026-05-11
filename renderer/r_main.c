@@ -71,15 +71,27 @@ LPMODEL R_LoadModel(LPCSTR modelFilename) {
     HANDLE file = ri.FileOpen(modelFilename);
     LPMODEL model = NULL;
     if (file == NULL) {
-        // try to load without *0.mdx
-        PATHSTR tempFileName = { 0 };
-        LPCSTR end = modelFilename + strlen(modelFilename) - 4;
-        if (end > modelFilename && isdigit(*(end - 1))) {
-            end--;
+        // Warcraft III FDF often refers to models as .mdl even when only the
+        // .mdx file is present in the archive. Try that translation first so
+        // classic menu assets like WarCraftIIILogo resolve correctly.
+        if (strstr(modelFilename, ".mdl")) {
+            PATHSTR tempFileName = { 0 };
+            LPSTR ext = strstr(modelFilename, ".mdl");
+            strncpy(tempFileName, modelFilename, ext - modelFilename);
+            strcpy(tempFileName + strlen(tempFileName), ".mdx");
+            file = ri.FileOpen(tempFileName);
         }
-        strncpy(tempFileName, modelFilename, end - modelFilename);
-        strcpy(tempFileName + strlen(tempFileName), ".mdx");
-        file = ri.FileOpen(tempFileName);
+        if (!file) {
+            // Try again without trailing sequence digits, e.g. *0.mdx.
+            PATHSTR tempFileName = { 0 };
+            LPCSTR end = modelFilename + strlen(modelFilename) - 4;
+            if (end > modelFilename && isdigit(*(end - 1))) {
+                end--;
+            }
+            strncpy(tempFileName, modelFilename, end - modelFilename);
+            strcpy(tempFileName + strlen(tempFileName), ".mdx");
+            file = ri.FileOpen(tempFileName);
+        }
         if (!file) {
             fprintf(stderr, "Model not found: %s\n", modelFilename);
             return NULL;
@@ -101,6 +113,16 @@ LPMODEL R_LoadModel(LPCSTR modelFilename) {
             model->modeltype = ID_43DM;
             break;
         default:
+            if (strstr(modelFilename, ".mdl")) {
+                PATHSTR tempFileName = { 0 };
+                LPSTR ext = strstr(modelFilename, ".mdl");
+                if (ext) {
+                    strncpy(tempFileName, modelFilename, ext - modelFilename);
+                    strcpy(tempFileName + strlen(tempFileName), ".mdx");
+                    ri.MemFree(buffer);
+                    return R_LoadModel(tempFileName);
+                }
+            }
             fprintf(stderr, "Unknown model format %.4s in file %s\n", (LPSTR)buffer, modelFilename);
             break;
     }
@@ -336,6 +358,20 @@ void R_RenderView(void) {
     R_SetupViewport(&tr.viewDef.viewport);
     R_SetupScissor(&tr.viewDef.scissor);
     R_SetupGL(false);
+    if (tr.viewDef.rdflags & RDF_NOWORLDMODEL) {
+#ifdef DIAG_OUTPUT
+        static bool logged_menu_overlay_depth_clear = false;
+        if (!logged_menu_overlay_depth_clear && ri.InMenuMode()) {
+            logged_menu_overlay_depth_clear = true;
+            DIAGF("R_RenderView(menu): NOWORLDMODEL depth clear viewport=(%.3f,%.3f,%.3f,%.3f)\n",
+                  tr.viewDef.viewport.x,
+                  tr.viewDef.viewport.y,
+                  tr.viewDef.viewport.w,
+                  tr.viewDef.viewport.h);
+        }
+#endif
+        R_Call(glClear, GL_DEPTH_BUFFER_BIT);
+    }
     R_DrawWorld();
     R_DrawEntities();
     R_DrawAlphaSurfaces();
@@ -477,47 +513,64 @@ static void R_BuildModelTextureCache(LPMODEL model) {
     }
 }
 
-DWORD R_GetModelTextureCount(LPMODEL model) {
-    R_BuildModelTextureCache(model);
-    return model_texture_cache.model == model ? model_texture_cache.count : 0;
-}
-
-LPCSTR R_GetModelTexturePath(LPMODEL model, DWORD index) {
-    R_BuildModelTextureCache(model);
-    if (!model || model_texture_cache.model != model || index >= model_texture_cache.count) {
-        return NULL;
-    }
-    return model_texture_cache.paths[index];
-}
-
-bool R_GetModelCamera(LPMODEL model,
-                      LPVECTOR3 eye,
-                      LPVECTOR3 target,
-                      float *fov_deg,
-                      float *znear,
-                      float *zfar)
-{
-    if (!model || model->modeltype != ID_MDLX || !model->mdx || !model->mdx->cameras) {
+bool R_GetModelInfo(LPMODEL model, LPMODELINFO info) {
+    if (!model || !info) {
         return false;
     }
 
-    mdxCamera_t const *camera = model->mdx->cameras;
+    memset(info, 0, sizeof(*info));
 
-    if (eye) {
-        *eye = camera->pivot;
+    R_BuildModelTextureCache(model);
+    if (model_texture_cache.model == model) {
+        info->textureCount = MIN(model_texture_cache.count, MODELINFO_MAX_TEXTURES);
+        FOR_LOOP(i, info->textureCount) {
+            info->texturePaths[i] = model_texture_cache.paths[i];
+        }
     }
-    if (target) {
-        *target = camera->targetPivot;
+
+    if (model->modeltype == ID_MDLX && model->mdx) {
+        bool found = false;
+        float min_u = 1.0f, min_v = 1.0f, max_u = 0.0f, max_v = 0.0f;
+
+        FOR_EACH_LIST(mdxGeoset_t, geoset, model->mdx->geosets) {
+            if (!geoset->texcoord || geoset->num_texcoord <= 0) {
+                continue;
+            }
+            FOR_LOOP(i, geoset->num_texcoord) {
+                float u = geoset->texcoord[i].x;
+                float v = geoset->texcoord[i].y;
+                if (!found) {
+                    min_u = max_u = u;
+                    min_v = max_v = v;
+                    found = true;
+                } else {
+                    if (u < min_u) min_u = u;
+                    if (u > max_u) max_u = u;
+                    if (v < min_v) min_v = v;
+                    if (v > max_v) max_v = v;
+                }
+            }
+        }
+
+        if (found) {
+            info->textureUVRect.x = min_u;
+            info->textureUVRect.y = min_v;
+            info->textureUVRect.w = max_u - min_u;
+            info->textureUVRect.h = max_v - min_v;
+            info->hasTextureUVRect = true;
+        }
+
+        if (model->mdx->cameras) {
+            mdxCamera_t const *camera = model->mdx->cameras;
+            info->cameraEye = camera->pivot;
+            info->cameraTarget = camera->targetPivot;
+            info->cameraFovDeg = camera->fieldOfView * (180.0f / (float)M_PI);
+            info->cameraZNear = camera->nearClip;
+            info->cameraZFar = camera->farClip;
+            info->hasCamera = true;
+        }
     }
-    if (fov_deg) {
-        *fov_deg = camera->fieldOfView * (180.0f / (float)M_PI);
-    }
-    if (znear) {
-        *znear = camera->nearClip;
-    }
-    if (zfar) {
-        *zfar = camera->farClip;
-    }
+
     return true;
 }
 
@@ -547,9 +600,7 @@ refExport_t R_GetAPI(refImport_t imp) {
         .DrawPortrait = R_DrawPortrait,
         .DrawText = R_DrawText,
         .GetTextSize = R_GetTextSize,
-        .GetModelTextureCount = R_GetModelTextureCount,
-        .GetModelTexturePath = R_GetModelTexturePath,
-        .GetModelCamera = R_GetModelCamera,
+        .GetModelInfo = R_GetModelInfo,
         .GetHeightAtPoint = GetAccurateHeightAtPoint,
         .TraceEntity = R_TraceEntity,
         .TraceLocation = R_TraceLocation,

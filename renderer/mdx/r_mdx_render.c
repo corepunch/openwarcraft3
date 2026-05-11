@@ -6,6 +6,8 @@ static struct {
     LPSHADER shader;
 } mdlx;
 
+static bool mdlx_ui_render = false;
+
 static double NowSecondsMDLX(void)
 {
     struct timeval tv;
@@ -271,6 +273,7 @@ void AddSkin(LPVECTOR3 pos, LPCMATRIX4 mat, LPCVECTOR3 org, FLOAT weight) {
 }
 
 static void MDLX_BindBoneMatrices(mdxModel_t const *model, LPCMATRIX4 model_matrix, DWORD frame1, DWORD frame0) {
+    LPSHADER shader = mdlx_ui_render ? tr.shader[SHADER_UI] : mdlx.shader;
     memset(node_matrices, 0, sizeof(node_matrices));
 
     FOR_LOOP(node_id, MDX_MAX_NODES) {
@@ -310,8 +313,8 @@ static void MDLX_BindBoneMatrices(mdxModel_t const *model, LPCMATRIX4 model_matr
         }
     }
 #endif
-    R_Call(glUseProgram, mdlx.shader->progid);
-    R_Call(glUniformMatrix4fv, mdlx.shader->uBones, MDX_MATRIX_PALETTE, GL_FALSE, bone_matrices->v);
+    R_Call(glUseProgram, shader->progid);
+    R_Call(glUniformMatrix4fv, shader->uBones, MDX_MATRIX_PALETTE, GL_FALSE, bone_matrices->v);
 }
 
 extern bool is_rendering_lights;
@@ -443,12 +446,14 @@ static bool MDLX_SetBlendMode(const mdxMaterialLayer_t *layer, DWORD layerID) {
             R_Call(glDepthMask, GL_TRUE);
             break;
         case BLEND_MODE_ALPHAKEY:
-            R_Call(glUniform1i, mdlx.shader->uUseDiscard, 1);
+            if (!mdlx_ui_render) {
+                R_Call(glUniform1i, mdlx.shader->uUseDiscard, 1);
+            }
             R_Call(glBlendFunc, GL_ONE, GL_ZERO);
             R_Call(glDepthMask, GL_TRUE);
             break;
         case BLEND_MODE_BLEND:
-            if (is_rendering_lights)
+            if (is_rendering_lights && !mdlx_ui_render)
                 return false;
             R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
             R_Call(glDepthMask, GL_FALSE);
@@ -458,19 +463,19 @@ static bool MDLX_SetBlendMode(const mdxMaterialLayer_t *layer, DWORD layerID) {
             return false;
 #else
         case BLEND_MODE_ADD:
-            if (is_rendering_lights)
+            if (is_rendering_lights && !mdlx_ui_render)
                 return false;
             R_Call(glBlendFunc, GL_ONE, GL_ONE);
             R_Call(glDepthMask, GL_FALSE);
             break;
         case BLEND_MODE_MODULATE:
-            if (is_rendering_lights)
+            if (is_rendering_lights && !mdlx_ui_render)
                 return false;
             R_Call(glBlendFunc, GL_DST_COLOR, GL_ZERO);
             R_Call(glDepthMask, GL_FALSE);
             break;
         case BLEND_MODE_MODULATE_2X:
-            if (is_rendering_lights)
+            if (is_rendering_lights && !mdlx_ui_render)
                 return false;
             R_Call(glBlendFunc, GL_DST_COLOR, GL_SRC_COLOR);
             R_Call(glDepthMask, GL_FALSE);
@@ -517,19 +522,32 @@ static void MDLX_RenderGeoset(mdxModel_t const *model,
                              LPCTEXTURE overrideTexture)
 {
     MATRIX3 mNormalMatrix;
+    BOOL force_two_sided = ri.InMenuMode() && model && !model->cameras;
+    LPSHADER shader = mdlx.shader;
     Matrix3_normal(&mNormalMatrix, modelMatrix);
     mdxMaterial_t const *material = MDLX_GetMaterialAtIndex(geoset, model);
 
-    R_Call(glUseProgram, mdlx.shader->progid);
-    R_Call(glUniform1i, mdlx.shader->uUseDiscard, 0);
-    R_Call(glUniformMatrix4fv, mdlx.shader->uModelMatrix, 1, GL_FALSE, modelMatrix->v);
-    R_Call(glUniformMatrix3fv, mdlx.shader->uNormalMatrix, 1, GL_TRUE, mNormalMatrix.v);
+    R_Call(glUseProgram, shader->progid);
+    R_Call(glUniform1i, shader->uUseDiscard, 0);
+    R_Call(glUniform1i, shader->uUIRender, mdlx_ui_render ? 1 : 0);
+    R_Call(glUniformMatrix4fv, shader->uModelMatrix, 1, GL_FALSE, modelMatrix->v);
+    R_Call(glUniformMatrix3fv, shader->uNormalMatrix, 1, GL_TRUE, mNormalMatrix.v);
 
     FOR_LOOP(layerID, material->num_layers) {
         mdxMaterialLayer_t const *layer = &material->layers[layerID];
-        R_Call(glEnable, GL_DEPTH_TEST);
-        R_Call(glEnable, GL_CULL_FACE);
-        R_Call(glCullFace, GL_BACK);
+        if (mdlx_ui_render) {
+            R_Call(glDisable, GL_DEPTH_TEST);
+            R_Call(glDisable, GL_CULL_FACE);
+            R_Call(glDepthMask, GL_FALSE);
+        } else {
+            R_Call(glEnable, GL_DEPTH_TEST);
+        }
+        if (force_two_sided) {
+            R_Call(glDisable, GL_CULL_FACE);
+        } else {
+            R_Call(glEnable, GL_CULL_FACE);
+            R_Call(glCullFace, GL_BACK);
+        }
         R_Call(glDepthMask, GL_TRUE);
         if (!MDLX_SetBlendMode(layer, layerID))
             continue;
@@ -692,10 +710,12 @@ void MDX_RenderModel(renderEntity_t const *entity,
         entity = &ent;
     }
     
-    R_Call(glUseProgram, mdlx.shader->progid);
-    R_Call(glUniformMatrix4fv, mdlx.shader->uViewProjectionMatrix, 1, GL_FALSE, is_rendering_lights ? tr.viewDef.lightMatrix.v : tr.viewDef.viewProjectionMatrix.v);
-    R_Call(glUniformMatrix4fv, mdlx.shader->uTextureMatrix, 1, GL_FALSE, tr.viewDef.textureMatrix.v);
-    R_Call(glUniformMatrix4fv, mdlx.shader->uLightMatrix, 1, GL_FALSE, tr.viewDef.lightMatrix.v);
+    LPSHADER shader = mdlx.shader;
+    R_Call(glUseProgram, shader->progid);
+    R_Call(glUniformMatrix4fv, shader->uViewProjectionMatrix, 1, GL_FALSE, is_rendering_lights ? tr.viewDef.lightMatrix.v : tr.viewDef.viewProjectionMatrix.v);
+    R_Call(glUniformMatrix4fv, shader->uTextureMatrix, 1, GL_FALSE, tr.viewDef.textureMatrix.v);
+    R_Call(glUniformMatrix4fv, shader->uLightMatrix, 1, GL_FALSE, tr.viewDef.lightMatrix.v);
+    R_Call(glUniform1i, shader->uUIRender, mdlx_ui_render ? 1 : 0);
 
     MDLX_BindBoneMatrices(model, transform, entity->frame, entity->oldframe);
 
@@ -708,12 +728,16 @@ void MDX_RenderModel(renderEntity_t const *entity,
     MDLX_RenderGeosets(entity, model, transform);
     
     MDLX_RenderParticleEmitters(entity, model, transform);
-    
+
     if ((entity->flags & RF_NO_FOGOFWAR) && tr.world) {
         R_Call(glActiveTexture, GL_TEXTURE2);
         R_Call(glBindTexture, GL_TEXTURE_2D, R_GetFogOfWarTexture());
         R_Call(glActiveTexture, GL_TEXTURE0);
     }
+}
+
+void MDLX_SetUIRender(BOOL enabled) {
+    mdlx_ui_render = enabled ? true : false;
 }
 
 bool R_GetModelCameraMatrix(mdxModel_t const *model, LPMATRIX4 output, LPVECTOR3 root) {
@@ -729,6 +753,56 @@ bool R_GetModelCameraMatrix(mdxModel_t const *model, LPMATRIX4 output, LPVECTOR3
         *root = *(LPCVECTOR3)model->pivots;
         return true;
     }
+}
+
+static void R_GetFallbackPortraitCameraMatrix(mdxModel_t const *model, float aspect, LPMATRIX4 output, LPVECTOR3 root) {
+    MATRIX4 projection, view;
+    VECTOR3 center = { 0, 0, 0 };
+    float radius = 128.0f;
+    bool flat_menu_model = false;
+
+    if (model) {
+        BOX3 const *box = &model->bounds.box;
+        float width = fabsf(box->max.x - box->min.x);
+        float depth = fabsf(box->max.y - box->min.y);
+        float height = fabsf(box->max.z - box->min.z);
+        float extent = MAX(width, MAX(depth, height));
+        center.x = (box->min.x + box->max.x) * 0.5f;
+        center.y = (box->min.y + box->max.y) * 0.5f;
+        center.z = (box->min.z + box->max.z) * 0.5f;
+        if (extent > 0.001f) {
+            radius = extent * 0.5f;
+        }
+        flat_menu_model = ri.InMenuMode() && height <= 0.001f;
+    }
+
+    if (flat_menu_model) {
+        float half_width = MAX(0.15f, radius * 2.5f);
+        float half_height = MAX(0.15f, radius * 2.5f);
+        VECTOR3 eye = {
+            center.x,
+            center.y,
+            center.z + 1.0f,
+        };
+        VECTOR3 dir = { 0, 0, -1 };
+        Matrix4_ortho(&projection, -half_width * aspect, half_width * aspect, -half_height, half_height, 0.1f, 100.0f);
+        Matrix4_lookAt(&view, &eye, &dir, &(VECTOR3){0,1,0});
+    } else {
+        float distance = MAX(200.0f, radius * 3.0f);
+        float near_clip = MAX(1.0f, distance * 0.01f);
+        float far_clip = MAX(5000.0f, distance * 8.0f);
+        VECTOR3 eye = {
+            center.x + distance,
+            center.y - distance * 0.6f,
+            center.z + distance * 0.35f,
+        };
+        VECTOR3 dir = Vector3_sub(&center, &eye);
+
+        Matrix4_perspective(&projection, 35.0f, aspect, near_clip, far_clip);
+        Matrix4_lookAt(&view, &eye, &dir, &(VECTOR3){0,0,1});
+    }
+    Matrix4_multiply(&projection, &view, output);
+    *root = center;
 }
 
 void Matrix4_fromViewAngles(LPCVECTOR3 target, LPCVECTOR3 angles, float distance, LPMATRIX4 output) {
@@ -755,14 +829,43 @@ void R_DrawPortrait(LPCMODEL model, LPCRECT viewport) {
         return;
     }
     mdxModel_t const *mdx = model->mdx;
-    mdxSequence_t const *seq = &mdx->sequences[2];
+    mdxSequence_t const *seq = NULL;
+    BOOL used_model_camera = false;
+    seq = MDLX_FindSequenceByName(mdx, "MainMenu Stand");
     
     memset(&entity, 0, sizeof(renderEntity_t));
     memset(&viewdef, 0, sizeof(viewdef));
     
     entity.scale = 1;
     entity.model = model;
-    entity.frame = seq->interval[0]  + tr.viewDef.time % (seq->interval[1] - seq->interval[0]);
+    if (ri.InMenuMode() &&
+        mdx->num_textures > 0 &&
+        (strstr(mdx->info.name, "TopLeftPanel") ||
+         strstr(mdx->info.name, "TopRightPanel"))) {
+        entity.skin = R_FindTextureByID(mdx->textures[0].texid);
+    }
+    if (!seq) {
+        seq = MDLX_FindSequenceByName(mdx, "Stand");
+    }
+    if (!seq) {
+        FOR_LOOP(i, mdx->num_sequences) {
+            if (strstr(mdx->sequences[i].name, "Stand")) {
+                seq = &mdx->sequences[i];
+                break;
+            }
+        }
+    }
+    if (!seq && mdx->num_sequences > 0) {
+        seq = &mdx->sequences[0];
+    }
+    if (!seq) {
+        return;
+    }
+    DWORD seq_len = seq->interval[1] - seq->interval[0];
+    if (seq_len == 0) {
+        seq_len = 1;
+    }
+    entity.frame = seq->interval[0] + (tr.viewDef.time % seq_len);
     entity.oldframe = entity.frame;
     
     viewdef.viewport = *viewport;
@@ -774,8 +877,71 @@ void R_DrawPortrait(LPCMODEL model, LPCRECT viewport) {
     R_Call(glActiveTexture, GL_TEXTURE2);
     R_Call(glBindTexture, GL_TEXTURE_2D, tr.texture[TEX_WHITE]->texid);
     R_Call(glActiveTexture, GL_TEXTURE0);
-    
-    R_GetModelCameraMatrix(mdx, &viewdef.viewProjectionMatrix, &root);
+
+    used_model_camera = R_GetModelCameraMatrix(mdx, &viewdef.viewProjectionMatrix, &root);
+    if (!used_model_camera) {
+        float aspect = viewport->h > 0.0f ? viewport->w / viewport->h : 1.0f;
+        R_GetFallbackPortraitCameraMatrix(mdx, aspect, &viewdef.viewProjectionMatrix, &root);
+    }
+
+#ifdef DIAG_OUTPUT
+    if (ri.InMenuMode() && strstr(mdx->info.name, "WarCraftIIILogo")) {
+        static mdxModel_t const *last_logo_model = NULL;
+        static mdxSequence_t const *last_logo_seq = NULL;
+        static BOOL last_logo_used_model_camera = -1;
+        static BOOL last_logo_has_skin = -1;
+        if (last_logo_model != mdx ||
+            last_logo_seq != seq ||
+            last_logo_used_model_camera != used_model_camera ||
+            last_logo_has_skin != (entity.skin != NULL)) {
+            DIAGF("R_DrawPortrait(menu logo): model=%s seq=%s frames=[%u,%u] camera=%s skin=%s bounds=(%.1f %.1f %.1f)-(%.1f %.1f %.1f)\n",
+                  mdx->info.name,
+                  seq->name,
+                  (unsigned)seq->interval[0],
+                  (unsigned)seq->interval[1],
+                  used_model_camera ? "model" : "fallback",
+                  entity.skin ? "yes" : "no",
+                  mdx->bounds.box.min.x,
+                  mdx->bounds.box.min.y,
+                  mdx->bounds.box.min.z,
+                  mdx->bounds.box.max.x,
+                  mdx->bounds.box.max.y,
+                  mdx->bounds.box.max.z);
+            last_logo_model = mdx;
+            last_logo_seq = seq;
+            last_logo_used_model_camera = used_model_camera;
+            last_logo_has_skin = entity.skin != NULL;
+        }
+    }
+#endif
+
+#ifdef DIAG_OUTPUT
+    if (ri.InMenuMode()) {
+        static mdxModel_t const *logged_models[128] = { 0 };
+        static DWORD logged_count = 0;
+        BOOL logged = false;
+        FOR_LOOP(i, logged_count) {
+            if (logged_models[i] == mdx) {
+                logged = true;
+                break;
+            }
+        }
+        if (!logged && logged_count < 128) {
+            logged_models[logged_count++] = mdx;
+            DIAGF("R_DrawPortrait(menu): model=%p seq=%s interval=[%u,%u] cameras=%s num_sequences=%d viewport=(%.3f,%.3f,%.3f,%.3f)\n",
+                  (void *)mdx,
+                  seq->name,
+                  (unsigned)seq->interval[0],
+                  (unsigned)seq->interval[1],
+                  used_model_camera ? "model" : "fallback",
+                  mdx->num_sequences,
+                  viewport->x,
+                  viewport->y,
+                  viewport->w,
+                  viewport->h);
+        }
+    }
+#endif
     
     Matrix4_getLightMatrix(&lightAngles, &root, PORTRAIT_SHADOW_SIZE, &viewdef.lightMatrix);
 

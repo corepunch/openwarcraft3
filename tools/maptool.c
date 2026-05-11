@@ -174,7 +174,7 @@ int main(int argc, char **argv) {
     });
 
     fprintf(stderr, "maptool: renderer init\n");
-    re.Init(1280, 720);
+    re.Init(VIEWER_WINDOW_WIDTH, VIEWER_WINDOW_HEIGHT);
     fprintf(stderr, "maptool: renderer ready\n");
 
     fprintf(stderr, "maptool: registering map %s\n", mapPath);

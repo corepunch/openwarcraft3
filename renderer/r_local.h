@@ -86,6 +86,7 @@ struct shader_program {
     DWORD uFogOfWar;
     DWORD uBones;
     DWORD uUseDiscard;
+    DWORD uUIRender;
     DWORD uEyePosition;
     DWORD uActiveGlow;
 };
@@ -167,6 +168,7 @@ LPTEXTURE R_MakeSysFontTexture(void);
 void R_LoadTextureMipLevel(LPCTEXTURE pTexture, DWORD level, LPCCOLOR32 pPixels, DWORD width, DWORD height);
 void R_BindTexture(LPCTEXTURE texture, DWORD unit);
 void R_RenderModel(renderEntity_t const *edict);
+void MDLX_SetUIRender(BOOL enabled);
 bool MDLX_TraceModel(renderEntity_t const *edict, LPCLINE3 line);
 void R_ReleaseVertexArrayObject(LPBUFFER buffer);
 LPCTEXTURE R_FindTextureByID(DWORD textureID);
@@ -212,8 +214,7 @@ void R_DrawPic(LPCTEXTURE texture, float x, float y);
 void R_DrawSelectionRect(LPCRECT rect, COLOR32 color);
 void R_DrawBoundingBox(LPCBOX3 box, LPCMATRIX4 matrix, COLOR32 color);
 void R_DrawWireRect(LPCRECT rect, COLOR32 color);
-DWORD R_GetModelTextureCount(LPMODEL model);
-LPCSTR R_GetModelTexturePath(LPMODEL model, DWORD index);
+bool R_GetModelInfo(LPMODEL model, LPMODELINFO info);
 
 // r_font.c
 LPFONT R_LoadFont(LPCSTR filename, DWORD size);

@@ -40,6 +40,7 @@ LPCSTR fs_default =
 "uniform sampler2D uTexture;\n"
 "uniform sampler2D uShadowmap;\n"
 "uniform sampler2D uFogOfWar;\n"
+"uniform bool uUIRender;\n"
 "float get_light() {\n"
 "    return dot(v_normal, v_lightDir);\n"
 "}\n"
@@ -68,7 +69,9 @@ LPCSTR fs_default =
 "    return;\n"
 #endif
 "    vec4 col = texture(uTexture, v_texcoord) * v_color;\n"
-"    col.rgb *= get_fogofwar() * get_lighting();\n"
+"    if (!uUIRender) {\n"
+"        col.rgb *= get_fogofwar() * get_lighting();\n"
+"    }\n"
 "    o_color = col;\n"
 "}\n";
 
@@ -196,12 +199,14 @@ LPSHADER R_InitShader(LPCSTR vs_default, LPCSTR fs_default){
     R_RegisterUniform(program, uFogOfWar);
     R_RegisterUniform(program, uBones);
     R_RegisterUniform(program, uUseDiscard);
+    R_RegisterUniform(program, uUIRender);
     R_RegisterUniform(program, uEyePosition);
     R_RegisterUniform(program, uActiveGlow);
     
     R_Call(glUniform1i, program->uTexture, 0);
     R_Call(glUniform1i, program->uShadowmap, 1);
     R_Call(glUniform1i, program->uFogOfWar, 2);
+    R_Call(glUniform1i, program->uUIRender, 0);
 
     return program;
 }

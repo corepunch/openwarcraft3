@@ -128,7 +128,10 @@ void Init_CinematicPanel(void) {
 }
 
 static void Init_MainMenu(void) {
+    UI_FRAME(MainMenuFrame);
     UI_FRAME(WarCraftIIILogo);
+    UI_FRAME(TopLeftPanel);
+    UI_FRAME(TopRightPanel);
     UI_FRAME(RealmSelect);
     UI_FRAME(ControlLayer);
     UI_FRAME(SinglePlayerButton);
@@ -140,12 +143,35 @@ static void Init_MainMenu(void) {
 
     if (WarCraftIIILogo) {
         UI_SetSize(WarCraftIIILogo, 0.34, 0.23);
+        UI_SetHidden(WarCraftIIILogo, false);
+        UI_SetPoint(WarCraftIIILogo, FRAMEPOINT_TOPLEFT, MainMenuFrame, FRAMEPOINT_TOPLEFT, 0.13, 0.04);
+    }
+    if (TopLeftPanel) {
+        UI_SetHidden(TopLeftPanel, false);
+    }
+    if (TopRightPanel) {
+        UI_SetHidden(TopRightPanel, false);
     }
     if (RealmSelect) {
         UI_SetHidden(RealmSelect, true);
     }
     if (ControlLayer) {
         UI_SetHidden(ControlLayer, false);
+    }
+    if (WarCraftIIILogo) {
+        UI_SetParent(WarCraftIIILogo, MainMenuFrame);
+    }
+    if (TopLeftPanel) {
+        UI_SetParent(TopLeftPanel, MainMenuFrame);
+    }
+    if (TopRightPanel) {
+        UI_SetParent(TopRightPanel, MainMenuFrame);
+    }
+    if (RealmSelect) {
+        UI_SetParent(RealmSelect, MainMenuFrame);
+    }
+    if (ControlLayer) {
+        UI_SetParent(ControlLayer, MainMenuFrame);
     }
     UI_SetOnClick(SinglePlayerButton, "menu singleplayer");
     UI_SetOnClick(BattleNetButton, "menu multiplayer");
@@ -168,6 +194,71 @@ static void Init_SinglePlayerMenu(void) {
     UI_SetOnClick(CancelButton, "menu main");
 }
 
+static LPCSTR UI_ResolveThemeModel(LPCSTR key) {
+    LPCSTR model = Theme_String(key, "Default");
+    if (!model || !*model || !strcmp(model, key)) {
+        return NULL;
+    }
+    return model;
+}
+
+static void UI_WriteMainMenuGlueBackground(void) {
+    FRAMEDEF center;
+    LPCSTR center_model = UI_ResolveThemeModel("GlueSpriteLayerCenter");
+    if (!center_model) {
+        center_model = UI_ResolveThemeModel("GlueSpriteLayerBackground");
+    }
+    if (!center_model || !*center_model) {
+        return;
+    }
+    UI_InitFrame(&center, FT_SPRITE);
+    strcpy(center.Name, "GlueSpriteLayerBackground");
+    UI_SetAllPoints(&center);
+    center.Portrait.model = gi.ModelIndex(center_model);
+#ifdef DIAG_OUTPUT
+    DIAGF("UI_WriteMainMenuGlueBackground: name=%s model=%s modelIndex=%u\n",
+          center.Name,
+          center_model,
+          (unsigned)center.Portrait.model);
+#endif
+    UI_WriteFrame(&center);
+}
+
+static void UI_WriteMainMenuGlueTopLayers(void) {
+    FRAMEDEF top_right;
+    FRAMEDEF top_left;
+    LPCSTR top_right_model = UI_ResolveThemeModel("GlueSpriteLayerTopRight");
+    LPCSTR top_left_model = UI_ResolveThemeModel("GlueSpriteLayerTopLeft");
+
+    if (top_right_model && *top_right_model) {
+        UI_InitFrame(&top_right, FT_SPRITE);
+        strcpy(top_right.Name, "GlueSpriteLayerTopRight");
+        UI_SetAllPoints(&top_right);
+        top_right.Portrait.model = gi.ModelIndex(top_right_model);
+#ifdef DIAG_OUTPUT
+        DIAGF("UI_WriteMainMenuGlueTopLayers: name=%s model=%s modelIndex=%u\n",
+              top_right.Name,
+              top_right_model,
+              (unsigned)top_right.Portrait.model);
+#endif
+        UI_WriteFrame(&top_right);
+    }
+
+    if (top_left_model && *top_left_model) {
+        UI_InitFrame(&top_left, FT_SPRITE);
+        strcpy(top_left.Name, "GlueSpriteLayerTopLeft");
+        UI_SetAllPoints(&top_left);
+        top_left.Portrait.model = gi.ModelIndex(top_left_model);
+#ifdef DIAG_OUTPUT
+        DIAGF("UI_WriteMainMenuGlueTopLayers: name=%s model=%s modelIndex=%u\n",
+              top_left.Name,
+              top_left_model,
+              (unsigned)top_left.Portrait.model);
+#endif
+        UI_WriteFrame(&top_left);
+    }
+}
+
 static void UI_WriteMenuWithMainFrame(LPEDICT ent, LPCFRAMEDEF root) {
     UI_FRAME(MainMenuFrame);
     UI_FRAME(ControlLayer);
@@ -180,11 +271,19 @@ static void UI_WriteMenuWithMainFrame(LPEDICT ent, LPCFRAMEDEF root) {
         UI_SetHidden(ControlLayer, root != MainMenuFrame);
     }
 
+    fprintf(stderr, "UI_WriteMenuWithMainFrame: root=%s main=%s control=%s logo=%s\n",
+            root ? root->Name : "<null>",
+            MainMenuFrame ? MainMenuFrame->Name : "<null>",
+            ControlLayer ? ControlLayer->Name : "<null>",
+            UI_FindFrame("WarCraftIIILogo") ? "yes" : "no");
+
     UI_WriteStart(LAYER_CONSOLE);
+    UI_WriteMainMenuGlueBackground();
     UI_WriteFrameWithChildren(MainMenuFrame, NULL);
     if (root != MainMenuFrame) {
         UI_WriteFrameWithChildren(root, NULL);
     }
+    UI_WriteMainMenuGlueTopLayers();
     gi.WriteLong(0); // end of list
     gi.unicast(ent);
 }

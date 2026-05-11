@@ -5,6 +5,9 @@
 
 KNOWN_AS(drawText_s, DRAWTEXT);
 KNOWN_AS(drawImage_s, DRAWIMAGE);
+KNOWN_AS(modelInfo_s, MODELINFO);
+
+#define MODELINFO_MAX_TEXTURES 256
 
 typedef enum {
     SHADER_DEFAULT,
@@ -101,6 +104,20 @@ struct drawImage_s {
     FLOAT uActiveGlow;
 };
 
+struct modelInfo_s {
+    DWORD textureCount;
+    LPCSTR texturePaths[MODELINFO_MAX_TEXTURES];
+    RECT textureUVRect;
+    BOOL hasTextureUVRect;
+
+    VECTOR3 cameraEye;
+    VECTOR3 cameraTarget;
+    float cameraFovDeg;
+    float cameraZNear;
+    float cameraZFar;
+    BOOL hasCamera;
+};
+
 typedef struct {
     void (*Init)(DWORD width, DWORD height);
     void (*Shutdown)(void);
@@ -122,14 +139,7 @@ typedef struct {
     void (*DrawPortrait)(LPCMODEL model, LPCRECT viewport);
     void (*DrawText)(LPCDRAWTEXT drawText);
     VECTOR2 (*GetTextSize)(LPCDRAWTEXT drawText);
-    DWORD (*GetModelTextureCount)(LPMODEL model);
-    LPCSTR (*GetModelTexturePath)(LPMODEL model, DWORD index);
-    bool (*GetModelCamera)(LPMODEL model,
-                           LPVECTOR3 eye,
-                           LPVECTOR3 target,
-                           float *fov_deg,
-                           float *znear,
-                           float *zfar);
+    bool (*GetModelInfo)(LPMODEL model, LPMODELINFO info);
 
     FLOAT (*GetHeightAtPoint)(float x, float y);
     bool (*TraceEntity)(viewDef_t const *viewdef, float x, float y, LPDWORD number);

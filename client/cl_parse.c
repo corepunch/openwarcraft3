@@ -17,7 +17,8 @@
 static void CL_ReadPacketEntities(LPSIZEBUF msg) {
 #ifdef DIAG_OUTPUT
     DWORD changed_entities = 0;
-    static DWORD next_menu_entity_log_time = 0;
+    static DWORD last_menu_changed_entities = 0xffffffffu;
+    static DWORD last_menu_entity_total = 0xffffffffu;
 #endif
     while (true) {
         DWORD bits = 0;
@@ -42,10 +43,10 @@ static void CL_ReadPacketEntities(LPSIZEBUF msg) {
     cl.num_entities = MAX_CLIENT_ENTITIES;
 
 #ifdef DIAG_OUTPUT
-    if (Com_InMenuMode() && cl.time >= next_menu_entity_log_time) {
+    if (Com_InMenuMode() &&
+        (changed_entities != last_menu_changed_entities || cl.num_entities != last_menu_entity_total)) {
         DWORD printed = 0;
         DWORD total = 0;
-        next_menu_entity_log_time = cl.time + 1000;
         DIAGF("CL_ReadPacketEntities(menu): changed=%u\n", (unsigned)changed_entities);
         FOR_LOOP(i, MAX_CLIENT_ENTITIES) {
             centity_t const *ce = &cl.ents[i];
@@ -70,6 +71,8 @@ static void CL_ReadPacketEntities(LPSIZEBUF msg) {
             }
         }
         DIAGF("  snap-ent-total=%u\n", (unsigned)total);
+        last_menu_changed_entities = changed_entities;
+        last_menu_entity_total = cl.num_entities;
     }
 #endif
 }
@@ -141,6 +144,9 @@ void CL_ParseLayout(LPSIZEBUF msg) {
     DWORD backdrop_missing_textures = 0;
     DWORD gluebutton_frames = 0;
     DWORD gluebutton_missing_textures = 0;
+    DWORD sprite_frames = 0;
+    DWORD sprite_missing_models = 0;
+    DWORD sprite_log_lines = 0;
     DWORD missing_log_lines = 0;
 #endif
     SAFE_DELETE(cl.layout[layer], MemFree);
@@ -167,6 +173,21 @@ void CL_ParseLayout(LPSIZEBUF msg) {
             else if (!strcmp(ent.onclick, "menu credits")) btn_credits++;
             else if (!strcmp(ent.onclick, "menu quit")) btn_quit++;
         }
+        if (ent.flags.type == FT_SPRITE || ent.flags.type == FT_MODEL || ent.flags.type == FT_PORTRAIT) {
+            sprite_frames++;
+            if (!ent.tex.index || ent.tex.index >= MAX_MODELS) {
+                sprite_missing_models++;
+            }
+            if (Com_InMenuMode() && sprite_log_lines < 16) {
+                DIAGF("  sprite-frame frame=%u type=%u modelIndex=%u size=%.4fx%.4f\n",
+                      (unsigned)nument,
+                      (unsigned)ent.flags.type,
+                      (unsigned)ent.tex.index,
+                      ent.size.width,
+                      ent.size.height);
+                sprite_log_lines++;
+            }
+        }
 #endif
         ent.buffer.size = MSG_ReadShort(msg);
         if (msg->readcount > msg->cursize ||
@@ -177,6 +198,21 @@ void CL_ParseLayout(LPSIZEBUF msg) {
 #ifdef DIAG_OUTPUT
         if (ent.buffer.size > 0) {
             LPBYTE typedata = msg->data + msg->readcount;
+            if (Com_InMenuMode() &&
+                (ent.flags.type == FT_SPRITE || ent.flags.type == FT_MODEL || ent.flags.type == FT_PORTRAIT)) {
+                static DWORD logged_menu_sprites = 0;
+                if (logged_menu_sprites < 16) {
+                    fprintf(stderr, "CL_ParseLayout(menu sprite): frame=%u type=%u modelIndex=%u parent=%u size=%.4fx%.4f typedata=%u\n",
+                            (unsigned)nument,
+                            (unsigned)ent.flags.type,
+                            (unsigned)ent.tex.index,
+                            (unsigned)ent.parent,
+                            ent.size.width,
+                            ent.size.height,
+                            (unsigned)ent.buffer.size);
+                    logged_menu_sprites++;
+                }
+            }
             if (ent.flags.type == FT_BACKDROP && ent.buffer.size >= sizeof(uiBackdrop_t)) {
                 uiBackdrop_t const *bd = (uiBackdrop_t const *)typedata;
                 backdrop_frames++;
@@ -231,7 +267,7 @@ void CL_ParseLayout(LPSIZEBUF msg) {
     if (Com_InMenuMode()) {
 #ifdef DIAG_OUTPUT
         DIAGF(
-            "CL_ParseLayout(menu): layer=%u bytes=%u frames=%u buttons{single=%u multi=%u options=%u credits=%u quit=%u} backdrops{%u missing=%u} gluebuttons{%u missing=%u}\n",
+            "CL_ParseLayout(menu): layer=%u bytes=%u frames=%u buttons{single=%u multi=%u options=%u credits=%u quit=%u} backdrops{%u missing=%u} gluebuttons{%u missing=%u} sprites{%u missing=%u}\n",
                 (unsigned)layer,
                 (unsigned)payload_size,
                 (unsigned)frame_count,
@@ -243,7 +279,9 @@ void CL_ParseLayout(LPSIZEBUF msg) {
             (unsigned)backdrop_frames,
             (unsigned)backdrop_missing_textures,
             (unsigned)gluebutton_frames,
-            (unsigned)gluebutton_missing_textures);
+            (unsigned)gluebutton_missing_textures,
+            (unsigned)sprite_frames,
+            (unsigned)sprite_missing_models);
 #endif
     }
 }

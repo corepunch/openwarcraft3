@@ -306,34 +306,14 @@ void SCR_DrawBackdrop2(LPCUIFRAME frame, LPCRECT screen, uiBackdrop_t const *bac
     backdrop_rects(screen, rects, backdrop->CornerSize);
 
 #ifdef DIAG_OUTPUT
-    if (Com_InMenuMode() && (!backdrop->Background || !backdrop->EdgeFile)) {
-        static DWORD next_log_time = 0;
-        if (cl.time >= next_log_time) {
-            next_log_time = cl.time + 1000;
-            DIAGF("SCR_DrawBackdrop2: frame=%u color=(%u,%u,%u,%u) bg=%u ptr=%p edge=%u ptr=%p flags=0x%x blendall=%u cornersize=%.4f rect=(%.3f,%.3f,%.3f,%.3f)\n",
-                  (unsigned)frame->number,
-                  (unsigned)frame->color.r,
-                  (unsigned)frame->color.g,
-                  (unsigned)frame->color.b,
-                  (unsigned)frame->color.a,
-                  (unsigned)backdrop->Background,
-                  (void *)(backdrop->Background < MAX_IMAGES ? cl.pics[backdrop->Background] : NULL),
-                  (unsigned)backdrop->EdgeFile,
-                  (void *)(backdrop->EdgeFile < MAX_IMAGES ? cl.pics[backdrop->EdgeFile] : NULL),
-                  (unsigned)backdrop->CornerFlags,
-                  (unsigned)backdrop->BlendAll,
-                  backdrop->CornerSize,
-                  screen->x,
-                  screen->y,
-                  screen->w,
-                  screen->h);
-        }
-    }
+    (void)frame;
+    (void)screen;
+    (void)backdrop;
 #endif
-    
+
     size2_t backSize = re.GetTextureSize(cl.pics[backdrop->Background]);
     size2_t edgeSize = re.GetTextureSize(cl.pics[backdrop->EdgeFile]);
-    
+
     FOR_LOOP(i, NUM_BACKDROP_CORNERS) {
         if ((backdrop->CornerFlags & (1 << corners[i])) == 0)
             continue;
@@ -354,7 +334,7 @@ void SCR_DrawBackdrop2(LPCUIFRAME frame, LPCRECT screen, uiBackdrop_t const *bac
                              .rotate = flip,
                              .shader = SHADER_UI));
     }
-    
+
     RECT uv = { 0, 0, 1, 1};
     RECT background = *screen;
     background.x += backdrop->BackgroundInsets[BACKDROPINSET_LEFT];
@@ -384,22 +364,9 @@ void SCR_DrawBackdrop(LPCUIFRAME frame, LPCRECT screen) {
 void SCR_GlueTextButton(LPCUIFRAME frame, LPCRECT screen) {
     uiGlueTextButton_t const *gluetextbutton = frame->buffer.data;
 #ifdef DIAG_OUTPUT
-    if (Com_InMenuMode()) {
-        static DWORD next_log_time = 0;
-        if (cl.time >= next_log_time) {
-            next_log_time = cl.time + 1000;
-            DIAGF("SCR_GlueTextButton: frame=%u rect=(%.3f,%.3f,%.3f,%.3f) normal{bg=%u edge=%u flags=0x%x cornersize=%.4f}\n",
-                  (unsigned)frame->number,
-                  screen->x,
-                  screen->y,
-                  screen->w,
-                  screen->h,
-                  (unsigned)gluetextbutton->normal.Background,
-                  (unsigned)gluetextbutton->normal.EdgeFile,
-                  (unsigned)gluetextbutton->normal.CornerFlags,
-                  gluetextbutton->normal.CornerSize);
-        }
-    }
+    (void)frame;
+    (void)screen;
+    (void)gluetextbutton;
 #endif
     SCR_DrawBackdrop2(frame, screen, &gluetextbutton->normal);
 }
@@ -474,6 +441,44 @@ void SCR_DrawPortrait(LPCUIFRAME frame, LPCRECT screen) {
     RECT const viewport = {
         screen->x/0.8,1-(screen->y+screen->h)/0.6,screen->w/0.8,screen->h/0.6
     };
+#ifdef DIAG_OUTPUT
+    if (Com_InMenuMode()) {
+        static BYTE logged_draw[MAX_LAYOUT_OBJECTS] = { 0 };
+        if (!logged_draw[frame->number]) {
+            logged_draw[frame->number] = 1;
+            LPCSTR model_name = "";
+            if (frame->tex.index < MAX_MODELS) {
+                model_name = cl.configstrings[CS_MODELS + frame->tex.index];
+            }
+            DIAGF("SCR_DrawPortrait(menu): frame=%u type=%u modelIndex=%u modelPtr=%p portraitPtr=%p rect=(%.3f,%.3f,%.3f,%.3f)\n",
+                  (unsigned)frame->number,
+                  (unsigned)frame->flags.type,
+                  (unsigned)frame->tex.index,
+                  (void *)(frame->tex.index < MAX_MODELS ? cl.models[frame->tex.index] : NULL),
+                  (void *)(frame->tex.index < MAX_MODELS ? cl.portraits[frame->tex.index] : NULL),
+                  screen->x,
+                  screen->y,
+                  screen->w,
+                  screen->h);
+            DIAGF("SCR_DrawPortrait(menu): frame=%u modelName=%s\n",
+                  (unsigned)frame->number,
+                  model_name ? model_name : "");
+        }
+    }
+#endif
+    if (Com_InMenuMode()) {
+        LPCSTR model_name = NULL;
+        if (frame->tex.index < MAX_MODELS) {
+            model_name = cl.configstrings[CS_MODELS + frame->tex.index];
+        }
+        if (model_name && (!strcmp(model_name, "UI\\Glues\\SpriteLayers\\TopRightPanel.mdx") ||
+                           !strcmp(model_name, "UI\\Glues\\SpriteLayers\\TopLeftPanel.mdx"))) {
+            re.DrawPortrait(cl.portraits[frame->tex.index] ? cl.portraits[frame->tex.index] : cl.models[frame->tex.index], &viewport);
+            return;
+        }
+        re.DrawPortrait(cl.portraits[frame->tex.index] ? cl.portraits[frame->tex.index] : cl.models[frame->tex.index], &viewport);
+        return;
+    }
     LPCMODEL port = cl.portraits[frame->tex.index];
     re.DrawPortrait(port ? port : cl.models[frame->tex.index], &viewport);
 }
@@ -590,12 +595,26 @@ LPCUIFRAME SCR_Clear(HANDLE data) {
     while (true) {
         DWORD bits = 0;
         if (msg.readcount + sizeof(WORD) * 2 > msg.cursize) {
+#ifdef DIAG_OUTPUT
+            if (Com_InMenuMode()) {
+                DIAGF("SCR_Clear(menu): stop reason=bits-oob read=%u size=%u\n",
+                      (unsigned)msg.readcount,
+                      (unsigned)msg.cursize);
+            }
+#endif
             break;
         }
         DWORD nument = MSG_ReadEntityBits(&msg, &bits);
         if (nument == 0 && bits == 0)
             break;
         if (nument >= MAX_LAYOUT_OBJECTS) {
+#ifdef DIAG_OUTPUT
+            if (Com_InMenuMode()) {
+                DIAGF("SCR_Clear(menu): stop reason=frame-oob frame=%u max=%u\n",
+                      (unsigned)nument,
+                      (unsigned)MAX_LAYOUT_OBJECTS);
+            }
+#endif
             break;
         }
         LPUIFRAME ent = &frames[nument];
@@ -603,15 +622,54 @@ LPCUIFRAME SCR_Clear(HANDLE data) {
         ent->tex.coord[3] = 0xff;
         MSG_ReadDeltaUIFrame(&msg, ent, nument, bits);
         if (msg.readcount + sizeof(WORD) > msg.cursize) {
+#ifdef DIAG_OUTPUT
+            if (Com_InMenuMode()) {
+                DIAGF("SCR_Clear(menu): stop reason=sizefield-oob frame=%u read=%u size=%u\n",
+                      (unsigned)nument,
+                      (unsigned)msg.readcount,
+                      (unsigned)msg.cursize);
+            }
+#endif
             break;
         }
         ent->buffer.size = MSG_ReadShort(&msg);
         if (msg.readcount + ent->buffer.size > msg.cursize) {
+#ifdef DIAG_OUTPUT
+            if (Com_InMenuMode()) {
+                DIAGF("SCR_Clear(menu): stop reason=typedata-oob frame=%u typedata=%u read=%u size=%u bits=0x%x\n",
+                      (unsigned)nument,
+                      (unsigned)ent->buffer.size,
+                      (unsigned)msg.readcount,
+                      (unsigned)msg.cursize,
+                      (unsigned)bits);
+            }
+#endif
             break;
         }
         ent->buffer.data = msg.data + msg.readcount;
         msg.readcount += ent->buffer.size;
         num_frames = MAX(num_frames, nument+1);
+#ifdef DIAG_OUTPUT
+        if (Com_InMenuMode() &&
+            (ent->flags.type == FT_SPRITE || ent->flags.type == FT_MODEL || ent->flags.type == FT_PORTRAIT)) {
+            static BYTE logged[MAX_LAYOUT_OBJECTS] = { 0 };
+            if (!logged[nument]) {
+                logged[nument] = 1;
+                DIAGF("SCR_Clear(menu): frame=%u type=%u modelIndex=%u size=%.4fx%.4f pointsX{min=%u mid=%u max=%u} pointsY{min=%u mid=%u max=%u}\n",
+                      (unsigned)nument,
+                      (unsigned)ent->flags.type,
+                      (unsigned)ent->tex.index,
+                      ent->size.width,
+                      ent->size.height,
+                      (unsigned)ent->points.x[FPP_MIN].used,
+                      (unsigned)ent->points.x[FPP_MID].used,
+                      (unsigned)ent->points.x[FPP_MAX].used,
+                      (unsigned)ent->points.y[FPP_MIN].used,
+                      (unsigned)ent->points.y[FPP_MID].used,
+                      (unsigned)ent->points.y[FPP_MAX].used);
+            }
+        }
+#endif
     }
     return frames;
 }

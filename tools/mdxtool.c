@@ -14,9 +14,31 @@
 
 static const char *g_model_path = NULL;
 static bool g_use_model_camera = false;
+static bool g_info_only = false;
 static HANDLE archives[64] = { 0 };
 static viewer_orbit_t orbit;
 static VECTOR3 g_model_center = { 0, 0, 0 };
+static float g_preview_scale = 1.0f;
+
+typedef struct {
+    DWORD num_sequences;
+    DWORD num_textures;
+    DWORD num_geosets;
+    DWORD num_lights;
+    DWORD num_emitters;
+    DWORD num_attachments;
+    DWORD num_helpers;
+    DWORD num_bones;
+    DWORD num_collision_shapes;
+    DWORD num_cameras;
+    DWORD num_pivots;
+    float bounds_w;
+    float bounds_d;
+    float bounds_h;
+    float orbit_distance;
+} model_overlay_info_t;
+
+static model_overlay_info_t g_overlay = { 0 };
 
 #define TEXTURE_PREVIEW_PATH_LENGTH 512
 
@@ -56,11 +78,15 @@ static void FreeTexturePreviewCache(void) {
 static void usage(void) {
     fprintf(stderr,
         "Usage:\n"
-        "  mdxtool -mpq <archive.mpq> -model <file.mdx> [--use-model-camera]\n"
+    "  mdxtool -mpq <archive.mpq> -model <file.mdx> [--use-model-camera] [--info]\n"
         "\n"
         "Examples:\n"
         "  mdxtool -mpq War3.mpq -model UI\\\\Glues\\\\MainMenu\\\\MainMenu3d\\\\MainMenu3d.mdx\n"
-        "  mdxtool -mpq War3.mpq -model units\\\\orc\\\\Peon\\\\Peon.mdx --use-model-camera\n");
+    "  mdxtool -mpq War3.mpq -model units\\\\orc\\\\Peon\\\\Peon.mdx --use-model-camera\n"
+    "  mdxtool -mpq War3.mpq -model UI\\\\Glues\\\\MainMenu\\\\WarCraftIIILogo\\\\WarCraftIIILogo.mdx --info\n"
+    "\n"
+    "Notes:\n"
+    "  --info prints model metadata and exits without creating a window.\n");
 }
 
 static void errorf(LPCSTR fmt, ...) {
@@ -139,29 +165,268 @@ static void Matrix4_getSideLightMatrix(LPCVECTOR3 eye, LPCVECTOR3 target, float 
     Matrix4_multiply(&proj, &view, output);
 }
 
+static BOX3 GetPreviewBounds(mdxModel_t const *mdx) {
+    BOX3 bounds = { 0 };
+    bool has_bounds = false;
+
+    if (!mdx) {
+        return bounds;
+    }
+
+    FOR_EACH_LIST(mdxGeoset_t, geoset, mdx->geosets) {
+        if (geoset->vertices && geoset->num_vertices > 0) {
+            FOR_LOOP(i, geoset->num_vertices) {
+                VECTOR3 const *v = &geoset->vertices[i];
+                if (!isfinite(v->x) || !isfinite(v->y) || !isfinite(v->z)) {
+                    continue;
+                }
+                if (fabsf(v->x) > 100000.0f || fabsf(v->y) > 100000.0f || fabsf(v->z) > 100000.0f) {
+                    continue;
+                }
+                if (!has_bounds) {
+                    bounds.min = *v;
+                    bounds.max = *v;
+                    has_bounds = true;
+                } else {
+                    bounds.min.x = MIN(bounds.min.x, v->x);
+                    bounds.min.y = MIN(bounds.min.y, v->y);
+                    bounds.min.z = MIN(bounds.min.z, v->z);
+                    bounds.max.x = MAX(bounds.max.x, v->x);
+                    bounds.max.y = MAX(bounds.max.y, v->y);
+                    bounds.max.z = MAX(bounds.max.z, v->z);
+                }
+            }
+        }
+    }
+
+    if (!has_bounds) {
+        FOR_EACH_LIST(mdxGeoset_t, geoset, mdx->geosets) {
+            BOX3 const *box = &geoset->default_bounds.box;
+            if (!has_bounds) {
+                bounds = *box;
+                has_bounds = true;
+            } else {
+                bounds.min.x = MIN(bounds.min.x, box->min.x);
+                bounds.min.y = MIN(bounds.min.y, box->min.y);
+                bounds.min.z = MIN(bounds.min.z, box->min.z);
+                bounds.max.x = MAX(bounds.max.x, box->max.x);
+                bounds.max.y = MAX(bounds.max.y, box->max.y);
+                bounds.max.z = MAX(bounds.max.z, box->max.z);
+            }
+        }
+    }
+
+    if (!has_bounds) {
+        bounds = mdx->bounds.box;
+    }
+
+    return bounds;
+}
+
 static float FitPreviewDistance(mdxModel_t const *mdx, float aspect, float fov_deg) {
     if (!mdx) {
         return 850.0f;
     }
 
-    BOX3 const *box = &mdx->bounds.box;
-    float const width = fabsf(box->max.x - box->min.x);
-    float const depth = fabsf(box->max.y - box->min.y);
-    float const height = fabsf(box->max.z - box->min.z);
-    float const halfWidth = MAX(width, depth) * 0.5f;
-    float const halfHeight = MAX(height * 0.5f, 1.0f);
-    float const fill = 0.70f;
+    BOX3 const box = GetPreviewBounds(mdx);
+    float const width = fabsf(box.max.x - box.min.x);
+    float const depth = fabsf(box.max.y - box.min.y);
+    float const height = fabsf(box.max.z - box.min.z);
+    float const radius = MAX(sqrtf(width * width + depth * depth + height * height) * 0.5f, 0.001f);
+    float const fill = 0.65f;
     float const vfov = fov_deg * (float)M_PI / 180.0f;
     float const hfov = 2.0f * atanf(tanf(vfov * 0.5f) * aspect);
-    float const verticalDistance = halfHeight / (fill * tanf(vfov * 0.5f));
-    float const horizontalDistance = halfWidth / (fill * tanf(hfov * 0.5f));
-    float distance = MAX(verticalDistance, horizontalDistance);
+    float const min_half_fov = MIN(vfov, hfov) * 0.5f;
+    float distance = radius / (fill * sinf(min_half_fov));
 
-    if (!isfinite(distance) || distance < 40.0f) {
-        distance = 40.0f;
+    if (!isfinite(distance) || distance < 0.25f) {
+        distance = 0.25f;
     }
 
+    distance = MIN(distance, 5000.0f);
+
     return distance * 1.05f;
+}
+
+static DWORD CountGeosets(mdxModel_t const *mdx) {
+    DWORD count = 0;
+    FOR_EACH_LIST(mdxGeoset_t, geoset, mdx->geosets) {
+        (void)geoset;
+        count++;
+    }
+    return count;
+}
+
+static DWORD CountLights(mdxModel_t const *mdx) {
+    DWORD count = 0;
+    FOR_EACH_LIST(mdxLight_t, light, mdx->lights) {
+        (void)light;
+        count++;
+    }
+    return count;
+}
+
+static DWORD CountEmitters(mdxModel_t const *mdx) {
+    DWORD count = 0;
+    FOR_EACH_LIST(mdxParticleEmitter_t, emitter, mdx->emitters) {
+        (void)emitter;
+        count++;
+    }
+    return count;
+}
+
+static DWORD CountAttachments(mdxModel_t const *mdx) {
+    DWORD count = 0;
+    FOR_EACH_LIST(mdxAttachment_t, attachment, mdx->attachments) {
+        (void)attachment;
+        count++;
+    }
+    return count;
+}
+
+static DWORD CountHelpers(mdxModel_t const *mdx) {
+    DWORD count = 0;
+    FOR_EACH_LIST(mdxHelper_t, helper, mdx->helpers) {
+        (void)helper;
+        count++;
+    }
+    return count;
+}
+
+static DWORD CountBones(mdxModel_t const *mdx) {
+    DWORD count = 0;
+    FOR_EACH_LIST(mdxBone_t, bone, mdx->bones) {
+        (void)bone;
+        count++;
+    }
+    return count;
+}
+
+static DWORD CountCollisionShapes(mdxModel_t const *mdx) {
+    DWORD count = 0;
+    FOR_EACH_LIST(mdxCollisionShape_t, shape, mdx->collisionShapes) {
+        (void)shape;
+        count++;
+    }
+    return count;
+}
+
+static DWORD CountCameras(mdxModel_t const *mdx) {
+    DWORD count = 0;
+    FOR_EACH_LIST(mdxCamera_t, camera, mdx->cameras) {
+        (void)camera;
+        count++;
+    }
+    return count;
+}
+
+static DWORD CountVariableSizeEntries(LPBYTE data, DWORD size) {
+    DWORD count = 0;
+    DWORD offset = 0;
+    while (offset + sizeof(DWORD) <= size) {
+        DWORD entrySize = *(DWORD *)(data + offset);
+        if (entrySize == 0 || offset + sizeof(DWORD) + entrySize > size) {
+            break;
+        }
+        count++;
+        offset += sizeof(DWORD) + entrySize;
+    }
+    return count;
+}
+
+static bool DumpModelInfoNoWindow(LPCSTR modelPath) {
+    HANDLE file = FS_OpenFile(modelPath);
+    if (!file) {
+        fprintf(stderr, "mdxtool: failed to open model %s\n", modelPath);
+        return false;
+    }
+
+    DWORD fileSize = SFileGetFileSize(file, NULL);
+    if (fileSize < 4) {
+        FS_CloseFile(file);
+        fprintf(stderr, "mdxtool: model too small %s\n", modelPath);
+        return false;
+    }
+
+    LPBYTE data = MemAlloc(fileSize);
+    SFileReadFile(file, data, fileSize, NULL, NULL);
+    FS_CloseFile(file);
+
+    if (*(DWORD *)data != MAKEFOURCC('M', 'D', 'L', 'X')) {
+        MemFree(data);
+        fprintf(stderr, "mdxtool: unsupported model header for %s\n", modelPath);
+        return false;
+    }
+
+    fprintf(stderr, "mdxtool --info: model=%s size=%u bytes\n", modelPath, (unsigned)fileSize);
+
+    DWORD offset = 4;
+    while (offset + 8 <= fileSize) {
+        DWORD chunkId = *(DWORD *)(data + offset + 0);
+        DWORD chunkSize = *(DWORD *)(data + offset + 4);
+        offset += 8;
+        if (offset + chunkSize > fileSize) {
+            fprintf(stderr, "mdxtool --info: invalid chunk size at offset=%u\n", (unsigned)offset);
+            break;
+        }
+
+        LPBYTE chunk = data + offset;
+        switch (chunkId) {
+            case MAKEFOURCC('M', 'O', 'D', 'L'):
+                if (chunkSize >= sizeof(mdxInfo_t)) {
+                    mdxInfo_t const *info = (mdxInfo_t const *)chunk;
+                    fprintf(stderr,
+                            "  MODL: name=%s blendTime=%u boundsRadius=%.3f\n",
+                            info->name,
+                            (unsigned)info->blendTime,
+                            info->bounds.radius);
+                }
+                break;
+            case MAKEFOURCC('S', 'E', 'Q', 'S'):
+                fprintf(stderr, "  SEQS: count=%u\n", (unsigned)(chunkSize / sizeof(mdxSequence_t)));
+                break;
+            case MAKEFOURCC('T', 'E', 'X', 'S'):
+                fprintf(stderr, "  TEXS: count=%u\n", (unsigned)(chunkSize / sizeof(mdxTexture_t)));
+                break;
+            case MAKEFOURCC('P', 'I', 'V', 'T'):
+                fprintf(stderr, "  PIVT: count=%u\n", (unsigned)(chunkSize / sizeof(VECTOR3)));
+                break;
+            case MAKEFOURCC('C', 'A', 'M', 'S'):
+                fprintf(stderr, "  CAMS: count=%u\n", (unsigned)CountVariableSizeEntries(chunk, chunkSize));
+                break;
+            case MAKEFOURCC('G', 'E', 'O', 'S'):
+                fprintf(stderr, "  GEOS: count=%u\n", (unsigned)CountVariableSizeEntries(chunk, chunkSize));
+                break;
+            case MAKEFOURCC('L', 'I', 'T', 'E'):
+                fprintf(stderr, "  LITE: count=%u\n", (unsigned)CountVariableSizeEntries(chunk, chunkSize));
+                break;
+            case MAKEFOURCC('P', 'R', 'E', '2'):
+                fprintf(stderr, "  PRE2: count=%u\n", (unsigned)CountVariableSizeEntries(chunk, chunkSize));
+                break;
+            case MAKEFOURCC('A', 'T', 'C', 'H'):
+                fprintf(stderr, "  ATCH: count=%u\n", (unsigned)CountVariableSizeEntries(chunk, chunkSize));
+                break;
+            case MAKEFOURCC('H', 'E', 'L', 'P'):
+                fprintf(stderr, "  HELP: count=%u\n", (unsigned)CountVariableSizeEntries(chunk, chunkSize));
+                break;
+            case MAKEFOURCC('B', 'O', 'N', 'E'):
+                fprintf(stderr, "  BONE: count=%u\n", (unsigned)CountVariableSizeEntries(chunk, chunkSize));
+                break;
+            case MAKEFOURCC('C', 'L', 'I', 'D'):
+                fprintf(stderr, "  CLID: count=%u\n", (unsigned)CountVariableSizeEntries(chunk, chunkSize));
+                break;
+            case MAKEFOURCC('G', 'E', 'O', 'A'):
+                fprintf(stderr, "  GEOA: count=%u\n", (unsigned)CountVariableSizeEntries(chunk, chunkSize));
+                break;
+            default:
+                break;
+        }
+
+        offset += chunkSize;
+    }
+
+    MemFree(data);
+    return true;
 }
 
 static LPCSTR TextureBaseName(LPCSTR path) {
@@ -179,8 +444,11 @@ static LPCSTR TextureBaseName(LPCSTR path) {
 
 static void BuildTexturePreviewCache(refExport_t const *re, LPMODEL model) {
     FreeTexturePreviewCache();
-
-    DWORD textureCount = re->GetModelTextureCount ? re->GetModelTextureCount(model) : 0;
+    MODELINFO modelInfo = { 0 };
+    DWORD textureCount = 0;
+    if (re->GetModelInfo && re->GetModelInfo(model, &modelInfo)) {
+        textureCount = modelInfo.textureCount;
+    }
     if (textureCount == 0) {
         return;
     }
@@ -195,7 +463,7 @@ static void BuildTexturePreviewCache(refExport_t const *re, LPMODEL model) {
     }
 
     for (DWORD i = 0; i < textureCount; i++) {
-        LPCSTR texturePath = re->GetModelTexturePath ? re->GetModelTexturePath(model, i) : NULL;
+        LPCSTR texturePath = modelInfo.texturePaths[i];
         if (!texturePath || !*texturePath) {
             continue;
         }
@@ -317,7 +585,7 @@ static void RenderModelFrame(refExport_t const *re, LPMODEL model, DWORD now, bo
     float far_clip;
 
     entity.model = model;
-    entity.scale = 1.0f;
+    entity.scale = g_preview_scale;
     entity.frame = 0;
     entity.oldframe = 0;
     entity.origin = (VECTOR3){ 0, 0, 0 };
@@ -337,8 +605,10 @@ static void RenderModelFrame(refExport_t const *re, LPMODEL model, DWORD now, bo
         model_radius = MAX(1.0f, model_extent * 0.5f);
     }
 
-    near_clip = MAX(1.0f, model_radius * 0.001f);
-    far_clip = MAX(4000.0f, orbit.distance + model_radius * 4.0f);
+    model_radius *= g_preview_scale;
+
+    near_clip = MAX(0.01f, orbit.distance * 0.01f);
+    far_clip = MAX(100.0f, orbit.distance + model_radius * 8.0f);
 
     if (useModelCamera && BuildModelCameraMatrix(mdx, aspect, &viewdef.viewProjectionMatrix, &root)) {
         entity.origin = root;
@@ -368,6 +638,46 @@ static void RenderModelFrame(refExport_t const *re, LPMODEL model, DWORD now, bo
     re->RenderFrame(&viewdef);
     re->PrintSysText(useModelCamera ? "mdxtool: model camera" : "mdxtool: preview camera", 10, 10, COLOR32_WHITE);
     re->PrintSysText(g_model_path, 10, 28, COLOR32_WHITE);
+    {
+        size2_t window = re->GetWindowSize();
+        int left_x = 10;
+        int right_x = 100;
+        int y0 = 46;
+        int dy = 18;
+        char line[512];
+
+        snprintf(line, sizeof(line), "SEQS %u", (unsigned)g_overlay.num_sequences);
+        re->PrintSysText(line, left_x, y0 + dy * 0, COLOR32_WHITE);
+        snprintf(line, sizeof(line), "TEXS %u", (unsigned)g_overlay.num_textures);
+        re->PrintSysText(line, left_x, y0 + dy * 1, COLOR32_WHITE);
+        snprintf(line, sizeof(line), "GEOS %u", (unsigned)g_overlay.num_geosets);
+        re->PrintSysText(line, left_x, y0 + dy * 2, COLOR32_WHITE);
+        snprintf(line, sizeof(line), "CAMS %u", (unsigned)g_overlay.num_cameras);
+        re->PrintSysText(line, left_x, y0 + dy * 3, COLOR32_WHITE);
+        snprintf(line, sizeof(line), "LITE %u", (unsigned)g_overlay.num_lights);
+        re->PrintSysText(line, left_x, y0 + dy * 4, COLOR32_WHITE);
+        snprintf(line, sizeof(line), "PRE2 %u", (unsigned)g_overlay.num_emitters);
+        re->PrintSysText(line, left_x, y0 + dy * 5, COLOR32_WHITE);
+        snprintf(line, sizeof(line), "ATCH %u", (unsigned)g_overlay.num_attachments);
+        re->PrintSysText(line, left_x, y0 + dy * 6, COLOR32_WHITE);
+        snprintf(line, sizeof(line), "HELP %u", (unsigned)g_overlay.num_helpers);
+        re->PrintSysText(line, left_x, y0 + dy * 7, COLOR32_WHITE);
+
+        snprintf(line, sizeof(line), "CENTER %.3f %.3f %.3f", g_model_center.x, g_model_center.y, g_model_center.z);
+        re->PrintSysText(line, right_x, y0 + dy * 0, COLOR32_WHITE);
+        snprintf(line, sizeof(line), "BONE %u", (unsigned)g_overlay.num_bones);
+        re->PrintSysText(line, right_x, y0 + dy * 1, COLOR32_WHITE);
+        snprintf(line, sizeof(line), "CLID %u", (unsigned)g_overlay.num_collision_shapes);
+        re->PrintSysText(line, right_x, y0 + dy * 2, COLOR32_WHITE);
+        snprintf(line, sizeof(line), "PIVT %u", (unsigned)g_overlay.num_pivots);
+        re->PrintSysText(line, right_x, y0 + dy * 3, COLOR32_WHITE);
+        snprintf(line, sizeof(line), "BBOX %.3f %.3f %.3f", g_overlay.bounds_w, g_overlay.bounds_d, g_overlay.bounds_h);
+        re->PrintSysText(line, right_x, y0 + dy * 4, COLOR32_WHITE);
+        snprintf(line, sizeof(line), "DIST %.3f", g_overlay.orbit_distance);
+        re->PrintSysText(line, right_x, y0 + dy * 5, COLOR32_WHITE);
+        snprintf(line, sizeof(line), "SCALE  %.3f", g_preview_scale);
+        re->PrintSysText(line, right_x, y0 + dy * 6, COLOR32_WHITE);
+    }
     DrawTexturePreviews(re);
     re->EndFrame();
 }
@@ -379,6 +689,8 @@ int main(int argc, char **argv) {
     for (int i = 1; i < argc; i++) {
         if (!strcmp(argv[i], "--use-model-camera") || !strcmp(argv[i], "-use-model-camera")) {
             g_use_model_camera = true;
+        } else if (!strcmp(argv[i], "--info") || !strcmp(argv[i], "-info")) {
+            g_info_only = true;
         } else if (!strncmp(argv[i], "-mpq=", 5)) {
             mpq = argv[i] + 5;
         } else if (!strcmp(argv[i], "-mpq")) {
@@ -412,6 +724,12 @@ int main(int argc, char **argv) {
         return 1;
     }
 
+    if (g_info_only) {
+        bool ok = DumpModelInfoNoWindow(modelPath);
+        Viewer_CloseArchives(archives, sizeof(archives) / sizeof(archives[0]));
+        return ok ? 0 : 1;
+    }
+
     refExport_t re = R_GetAPI((refImport_t){
         .FileOpen = FS_OpenFile,
         .FileExtract = FS_ExtractFile,
@@ -426,7 +744,7 @@ int main(int argc, char **argv) {
 
     Com_SetMenuMode(true);
     fprintf(stderr, "mdxtool: renderer init\n");
-    re.Init(1280, 720);
+    re.Init(VIEWER_WINDOW_WIDTH, VIEWER_WINDOW_HEIGHT);
     fprintf(stderr, "mdxtool: renderer ready\n");
 
     g_model_path = modelPath;
@@ -439,11 +757,42 @@ int main(int argc, char **argv) {
     }
 
     fprintf(stderr, "mdxtool: loaded model %s\n", modelPath);
-    g_model_center = Box3_Center(&model->mdx->bounds.box);
+    {
+        BOX3 bounds = GetPreviewBounds(model->mdx);
+        float width = fabsf(bounds.max.x - bounds.min.x);
+        float depth = fabsf(bounds.max.y - bounds.min.y);
+        float height = fabsf(bounds.max.z - bounds.min.z);
+        float extent = MAX(width, MAX(depth, height));
+        g_model_center = Box3_Center(&bounds);
+        g_preview_scale = extent > 0.0001f ? MAX(1.0f, 8.0f / extent) : 1.0f;
+        g_preview_scale = MIN(g_preview_scale, 2000.0f);
+        fprintf(stderr,
+                "mdxtool: preview bounds min=(%.3f %.3f %.3f) max=(%.3f %.3f %.3f) size=(%.3f %.3f %.3f) center=(%.3f %.3f %.3f)\n",
+                bounds.min.x, bounds.min.y, bounds.min.z,
+                bounds.max.x, bounds.max.y, bounds.max.z,
+                width, depth, height,
+                g_model_center.x, g_model_center.y, g_model_center.z);
+        fprintf(stderr, "mdxtool: preview auto-scale=%.3f\n", g_preview_scale);
+        g_overlay.bounds_w = width;
+        g_overlay.bounds_d = depth;
+        g_overlay.bounds_h = height;
+    }
     fprintf(stderr, "Sequences: %d, cameras: %p, pivots: %d\n",
             model->mdx->num_sequences,
             (void *)model->mdx->cameras,
             model->mdx->num_pivots);
+
+        g_overlay.num_sequences = model->mdx->num_sequences;
+        g_overlay.num_textures = model->mdx->num_textures;
+        g_overlay.num_pivots = model->mdx->num_pivots;
+        g_overlay.num_geosets = CountGeosets(model->mdx);
+        g_overlay.num_lights = CountLights(model->mdx);
+        g_overlay.num_emitters = CountEmitters(model->mdx);
+        g_overlay.num_attachments = CountAttachments(model->mdx);
+        g_overlay.num_helpers = CountHelpers(model->mdx);
+        g_overlay.num_bones = CountBones(model->mdx);
+        g_overlay.num_collision_shapes = CountCollisionShapes(model->mdx);
+        g_overlay.num_cameras = CountCameras(model->mdx);
 
     BuildTexturePreviewCache(&re, model);
 
@@ -451,6 +800,8 @@ int main(int argc, char **argv) {
     float const aspect = window.height ? (float)window.width / (float)window.height : 1.0f;
     VECTOR3 orbit_target = g_model_center;
     float const orbit_distance = FitPreviewDistance(model->mdx, aspect, 35.0f);
+    fprintf(stderr, "mdxtool: preview orbit distance=%.3f aspect=%.3f\n", orbit_distance, aspect);
+    g_overlay.orbit_distance = orbit_distance;
     Viewer_OrbitInit(&orbit, orbit_target, orbit_distance, -45.0f, 20.0f);
     orbit.reverse_drag = true;
 

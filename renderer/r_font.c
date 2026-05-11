@@ -232,10 +232,17 @@ static VECTOR2 process_text(LPCDRAWTEXT arg, BOOL draw) {
             continue;
         }
         if (*p == '<') {
-            DWORD icon = atoi(p+6);
+            LPCSTR end = strchr(p + 1, '>');
+            DWORD icon = 0;
+            if (!end) {
+                break;
+            }
+            if (end > p + 6) {
+                icon = (DWORD)atoi(p + 6);
+            }
             switch (*(DWORD*)(p+1)) {
                 case MAKEFOURCC('I', 'c', 'o', 'n'):
-                    if (draw && arg->icons[icon]) {
+                    if (draw && arg->icons && icon < MAX_IMAGES && arg->icons[icon]) {
                         R_DrawImage(arg->icons[icon],
                                     &MAKE(RECT, cursor.x, cursor.y + linesize * 0.1, linesize, linesize),
                                     &MAKE(RECT, 0, 0, 1, 1),
@@ -244,7 +251,7 @@ static VECTOR2 process_text(LPCDRAWTEXT arg, BOOL draw) {
                     cursor.x += linesize;
                     break;
             }
-            p = strchr(p + 1, '>') + 1;
+            p = end + 1;
             continue;;
         }
         if (!strncmp(p, "|r", 2) || !strncmp(p, "|R", 2)) {

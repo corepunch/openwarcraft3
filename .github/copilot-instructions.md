@@ -33,3 +33,52 @@ This codebase is inspired by **Quake 2**. The developer working on this project 
 	- Example with redirect: `build/bin/mpqtool -mpq <path-to-mpq> cat Scripts/war3map.j > /tmp/war3map.j`
 - Normalize slashes as needed when querying paths; both `\` and `/` are accepted by the tool input.
 - For agent workflows, default to this tool whenever you need to discover MPQ contents, inspect text assets, or extract raw file bytes for analysis.
+
+## MDX Inspection Workflow (mdxtool)
+
+- Use `build/bin/mdxtool` to validate MDX assets and detect data problems before debugging render code.
+- CLI synopsis:
+	- `build/bin/mdxtool -mpq <path-to-mpq> -model <archive-model-path> [--use-model-camera] [--info]`
+- Viewer mode (opens window):
+	- `build/bin/mdxtool -mpq <path-to-mpq> -model <archive-model-path>`
+	- Example: `build/bin/mdxtool -mpq data/Warcraft\ III/War3.mpq -model UI\Glues\MainMenu\WarCraftIIILogo\WarCraftIIILogo.mdx`
+- Info mode (no window, stdout only):
+	- `build/bin/mdxtool -mpq <path-to-mpq> -model <archive-model-path> --info`
+
+When to use `--info`:
+- Confirm the model exists and loads from MPQ path.
+- Check whether a model has cameras (`CAMS`) for portrait/model-camera paths.
+- Check sequence counts (`SEQS`) for Birth/Stand/Death animation expectations.
+- Check textures (`TEXS`) and pivots (`PIVT`) for basic model completeness.
+- Check optional systems that often explain missing visuals:
+	- lights (`LITE`)
+	- particle emitters (`PRE2`)
+	- attachments (`ATCH`)
+	- helpers (`HELP`)
+	- bones (`BONE`)
+	- collision shapes (`CLID`)
+	- geosets (`GEOS`) and geoset anims (`GEOA`)
+
+Expected output style:
+- `mdxtool --info: model=<path> size=<bytes>`
+- one line per relevant chunk with counts, e.g. `SEQS: count=...`, `CAMS: count=...`, `LITE: count=...`.
+
+Use this output in bug reports/diagnostics so rendering issues can be triaged from data facts (camera/lights/particles/sequence availability) without requiring screenshots.
+
+## FDF Inspection Workflow (fdftool)
+
+- Use `build/bin/fdftool` to load and inspect FDF-defined UI scenes and frame layout.
+- CLI synopsis:
+	- `build/bin/fdftool -mpq <archive.mpq> [-mpq <archive.mpq> ...] -fdf <file.fdf> [-fdf <file.fdf> ...] -root <FrameName>`
+- Main menu scene example:
+	- `build/bin/fdftool -mpq data/Warcraft\ III/War3.mpq -fdf UI\FrameDef\Glue\MainMenu.fdf -root MainMenuFrame`
+- Non-main-menu example:
+	- `build/bin/fdftool -mpq data/Warcraft\ III/War3.mpq -fdf UI\FrameDef\UI\ConsoleUI.fdf -fdf UI\FrameDef\UI\ResourceBar.fdf -root ConsoleUI`
+
+Main-menu roots and logo behavior:
+- For roots `MainMenuFrame`, `ControlLayer`, and `RealmSelect`, `fdftool` uses the in-game menu build path (`UI_ShowMainMenu`) rather than only parsing the listed FDF files.
+- Because of that path, the Warcraft logo sprite/model is part of the built main-menu scene when present in the active menu definition.
+
+Agent guidance:
+- Prefer `fdftool` when diagnosing UI frame anchoring, missing textures, missing portrait/model widgets, and root frame composition.
+- Prefer `mdxtool --info` + `fdftool` together when a UI model is missing: first verify model/chunks, then verify frame/root placement.

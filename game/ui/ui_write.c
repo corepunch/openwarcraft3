@@ -68,7 +68,7 @@ typedef struct sizeBuf_s {
     DWORD readcount;
 } sizeBuf_t;
 
-void MSG_Write(LPSIZEBUF buf, LPCVOID value, DWORD size) {
+static void MSG_Write(LPSIZEBUF buf, LPCVOID value, DWORD size) {
     if (buf->cursize + size > buf->maxsize) {
         fprintf(stderr, "Write buffer overflow (ui)\n");
         return;
@@ -349,9 +349,24 @@ void UI_WriteFrame(LPCFRAMEDEF frame) {
     tmp.buffer.data = buf.data;
     tmp.flags.type = frame->Type;
 #ifdef DIAG_OUTPUT
+    if (!strcmp(frame->Name, "WarCraftIIILogo") ||
+        !strcmp(frame->Name, "MainMenuFrame") ||
+        !strcmp(frame->Name, "ControlLayer") ||
+        !strcmp(frame->Name, "RealmSelect")) {
+        fprintf(stderr, "UI_WriteFrame(menu): name=%s type=%u number=%u parent=%s modelIndex=%u tex=%u size=%.4fx%.4f hidden=%u\n",
+              frame->Name,
+              (unsigned)tmp.flags.type,
+              (unsigned)tmp.number,
+              frame->Parent ? frame->Parent->Name : "<null>",
+              (unsigned)tmp.tex.index,
+              (unsigned)tmp.tex.index2,
+              tmp.size.width,
+              tmp.size.height,
+              (unsigned)frame->hidden);
+    }
     if (tmp.flags.type == FT_BACKDROP && tmp.buffer.size >= sizeof(uiBackdrop_t)) {
         uiBackdrop_t const *bd = (uiBackdrop_t const *)tmp.buffer.data;
-        DIAGF("UI_WriteFrame: id=%u name=%s type=BACKDROP color=(%u,%u,%u,%u) bg=%u edge=%u flags=0x%x cornersize=%.4f size=%.4fx%.4f\n",
+        fprintf(stderr, "UI_WriteFrame: id=%u name=%s type=BACKDROP color=(%u,%u,%u,%u) bg=%u edge=%u flags=0x%x cornersize=%.4f size=%.4fx%.4f\n",
               (unsigned)tmp.number,
               frame->Name,
               (unsigned)tmp.color.r,
@@ -364,10 +379,14 @@ void UI_WriteFrame(LPCFRAMEDEF frame) {
               bd->CornerSize,
               tmp.size.width,
               tmp.size.height);
+    } else if (tmp.flags.type == FT_SPRITE && !strcmp(frame->Name, "WarCraftIIILogo")) {
+        fprintf(stderr, "UI_WriteFrame(menu): logo sprite modelIndex=%u buffer=%u\n",
+              (unsigned)tmp.tex.index,
+              (unsigned)tmp.buffer.size);
     } else if ((tmp.flags.type == FT_GLUETEXTBUTTON || tmp.flags.type == FT_GLUEBUTTON) &&
                tmp.buffer.size >= sizeof(uiGlueTextButton_t)) {
         uiGlueTextButton_t const *gb = (uiGlueTextButton_t const *)tmp.buffer.data;
-        DIAGF("UI_WriteFrame: id=%u name=%s type=%s color=(%u,%u,%u,%u) normal{bg=%u edge=%u flags=0x%x}\n",
+        fprintf(stderr, "UI_WriteFrame: id=%u name=%s type=%s color=(%u,%u,%u,%u) normal{bg=%u edge=%u flags=0x%x}\n",
               (unsigned)tmp.number,
               frame->Name,
               tmp.flags.type == FT_GLUETEXTBUTTON ? "GLUETEXTBUTTON" : "GLUEBUTTON",
@@ -378,6 +397,14 @@ void UI_WriteFrame(LPCFRAMEDEF frame) {
               (unsigned)gb->normal.Background,
               (unsigned)gb->normal.EdgeFile,
               (unsigned)gb->normal.CornerFlags);
+    } else if (tmp.flags.type == FT_SPRITE || tmp.flags.type == FT_MODEL || tmp.flags.type == FT_PORTRAIT) {
+        fprintf(stderr, "UI_WriteFrame: id=%u name=%s type=%s modelIndex=%u size=%.4fx%.4f\n",
+              (unsigned)tmp.number,
+              frame->Name,
+              tmp.flags.type == FT_SPRITE ? "SPRITE" : (tmp.flags.type == FT_MODEL ? "MODEL" : "PORTRAIT"),
+              (unsigned)tmp.tex.index,
+              tmp.size.width,
+              tmp.size.height);
     }
 #endif
     gi.WriteUIFrame(&tmp);

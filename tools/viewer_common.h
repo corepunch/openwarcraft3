@@ -4,6 +4,9 @@
 #include "../common/common.h"
 #include <SDL2/SDL.h>
 
+#define VIEWER_WINDOW_WIDTH 800
+#define VIEWER_WINDOW_HEIGHT 600
+
 typedef struct viewer_orbit_s {
     VECTOR3 target;
     float yaw_deg;

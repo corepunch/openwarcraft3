@@ -10,7 +10,6 @@ static struct {
 
 static bool world_loaded = false;
 #ifdef DIAG_OUTPUT
-static DWORD next_menu_render_log_time = 0;
 #endif
 
 VECTOR3 lightAngles = {-40,0,60};
@@ -62,15 +61,22 @@ static bool Matrix4_getMenuModelCameraMatrix(LPCMODEL model, LPMATRIX4 output, L
     VECTOR3 target = { 0, 0, 0 };
     VECTOR3 dir;
     MATRIX4 proj, view;
+    MODELINFO info = { 0 };
     size2_t windowSize = re.GetWindowSize();
     FLOAT aspect = (FLOAT)windowSize.width / (FLOAT)windowSize.height;
     float fov_deg = 35.0f;
     float znear = 1.0f;
     float zfar = 5000.0f;
 
-    if (!re.GetModelCamera || !re.GetModelCamera((LPMODEL)model, &eye, &target, &fov_deg, &znear, &zfar)) {
+    if (!re.GetModelInfo || !re.GetModelInfo((LPMODEL)model, &info) || !info.hasCamera) {
         return false;
     }
+
+    eye = info.cameraEye;
+    target = info.cameraTarget;
+    fov_deg = info.cameraFovDeg;
+    znear = info.cameraZNear;
+    zfar = info.cameraZFar;
 
     if (fov_deg <= 1.0f || fov_deg >= 179.0f) {
         fov_deg = 35.0f;
@@ -241,59 +247,49 @@ static void CL_DebugLogMenuRenderState(renderEntity_t const *menu_ent) {
 #ifndef DIAG_OUTPUT
     (void)menu_ent;
 #else
-    if (!Com_InMenuMode() || cl.time < next_menu_render_log_time) {
+    static BOOL logged_once = false;
+
+    if (!Com_InMenuMode()) {
+        return;
+    }
+    if (logged_once) {
         return;
     }
 
-    next_menu_render_log_time = cl.time + 1000;
-
-    DIAGF(
-            "V_RenderView(menu): render_entities=%d selected_model_ptr=%p\n",
-            cl.viewDef.num_entities,
-            menu_ent ? (void *)menu_ent->model : NULL);
-
-    {
-        DWORD printed = 0;
-        DWORD total = 0;
-        FOR_LOOP(i, MAX_CLIENT_ENTITIES) {
-            centity_t const *ce = &cl.ents[i];
-            DWORD model_index = ce->current.model;
-            if (!model_index) {
-                continue;
-            }
-            total++;
-            if (printed < 8) {
-                LPCSTR model_name = (model_index < MAX_MODELS) ? cl.configstrings[CS_MODELS + model_index] : "<model-index-oob>";
-                DIAGF(
-                        "  snapshot[%u]: model=%u (%s) loaded=%s origin=(%.1f %.1f %.1f)\n",
-                        (unsigned)i,
-                        (unsigned)model_index,
-                        model_name ? model_name : "<null>",
-                        (model_index < MAX_MODELS && cl.models[model_index]) ? "yes" : "no",
-                        ce->current.origin.x,
-                        ce->current.origin.y,
-                        ce->current.origin.z);
-                printed++;
-            }
+    DWORD snapshot_total = 0;
+    FOR_LOOP(i, MAX_CLIENT_ENTITIES) {
+        centity_t const *ce = &cl.ents[i];
+        if (ce->current.model) {
+            snapshot_total++;
         }
-        DIAGF("  snapshot_total=%u\n", (unsigned)total);
     }
 
-    if (menu_ent && re.GetModelCamera) {
-        VECTOR3 eye = { 0 }, cam_target = { 0 };
-        float fov_deg = 0;
-        float znear = 0;
-        float zfar = 0;
-        bool ok = re.GetModelCamera((LPMODEL)menu_ent->model, &eye, &cam_target, &fov_deg, &znear, &zfar);
-        DIAGF(
-                "  model-camera: ok=%d eye=(%.2f %.2f %.2f) target=(%.2f %.2f %.2f) fov=%.2f znear=%.2f zfar=%.2f\n",
-                ok ? 1 : 0,
-                eye.x, eye.y, eye.z,
-                cam_target.x, cam_target.y, cam_target.z,
-                fov_deg,
-                znear,
-                zfar);
+    VECTOR3 eye = { 0 }, cam_target = { 0 };
+    float fov_deg = 0;
+    float znear = 0;
+    float zfar = 0;
+    MODELINFO info = { 0 };
+    BOOL camera_ok = false;
+    if (menu_ent && re.GetModelInfo && re.GetModelInfo((LPMODEL)menu_ent->model, &info) && info.hasCamera) {
+        camera_ok = true;
+        eye = info.cameraEye;
+        cam_target = info.cameraTarget;
+        fov_deg = info.cameraFovDeg;
+        znear = info.cameraZNear;
+        zfar = info.cameraZFar;
     }
+
+    DIAGF("V_RenderView(menu): render_entities=%d selected_model_ptr=%p snapshot_total=%u camera_ok=%d eye=(%.2f %.2f %.2f) target=(%.2f %.2f %.2f) fov=%.2f znear=%.2f zfar=%.2f\n",
+          cl.viewDef.num_entities,
+          menu_ent ? (void *)menu_ent->model : NULL,
+          (unsigned)snapshot_total,
+          camera_ok ? 1 : 0,
+          eye.x, eye.y, eye.z,
+          cam_target.x, cam_target.y, cam_target.z,
+          fov_deg,
+          znear,
+          zfar);
+    logged_once = true;
 #endif
 }
 

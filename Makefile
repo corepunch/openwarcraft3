@@ -107,9 +107,9 @@ $(MAP_TOOL): tools/maptool.c tools/viewer_common.c common/mpq.c common/sheet.c c
 	$(CC) $(CFLAGS) -o $@ $< tools/viewer_common.c common/mpq.c common/sheet.c common/parser.c \
 		$(RPATH) $(LDFLAGS) -lshared -lrenderer $(LIBS) -lm -lz
 
-$(FDF_TOOL): tools/fdftool.c tools/viewer_common.c common/mpq.c common/sheet.c common/parser.c game/parser.c game/ui/ui_fdf.c | $(BIN_DIR) $(SHARED_LIB) $(RENDERER_LIB)
+$(FDF_TOOL): tools/fdftool.c tools/viewer_common.c common/mpq.c common/sheet.c common/parser.c common/msg.c game/parser.c game/ui/ui_fdf.c game/ui/ui_write.c | $(BIN_DIR) $(SHARED_LIB) $(RENDERER_LIB)
 	@echo "[fdftool]"
-	$(CC) $(CFLAGS) -o $@ $< tools/viewer_common.c common/mpq.c common/sheet.c common/parser.c game/parser.c game/ui/ui_fdf.c \
+	$(CC) $(CFLAGS) -o $@ $< tools/viewer_common.c common/mpq.c common/sheet.c common/parser.c common/msg.c game/parser.c game/ui/ui_fdf.c game/ui/ui_write.c game/ui/ui_init.c \
 		$(RPATH) $(LDFLAGS) -lshared -lrenderer $(LIBS) -lm -lz
 
 $(MPQ_TEST): tests/test_mpq_compat.c common/mpq.c common/mpq.h | $(BIN_DIR)
