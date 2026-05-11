@@ -14,6 +14,7 @@
 #endif
 
 static const char *g_model_path = NULL;
+static const char *g_requested_animation = NULL;
 static bool g_use_model_camera = false;
 static bool g_info_only = false;
 static HANDLE archives[64] = { 0 };
@@ -81,11 +82,12 @@ static void FreeTexturePreviewCache(void) {
 static void usage(void) {
     fprintf(stderr,
         "Usage:\n"
-    "  mdxtool -mpq <archive.mpq> -model <file.mdx> [--use-model-camera] [--info]\n"
+    "  mdxtool -mpq <archive.mpq> -model <file.mdx> [--anim <sequence>] [--use-model-camera] [--info]\n"
         "\n"
         "Examples:\n"
         "  mdxtool -mpq War3.mpq -model UI\\\\Glues\\\\MainMenu\\\\MainMenu3d\\\\MainMenu3d.mdx\n"
     "  mdxtool -mpq War3.mpq -model units\\\\orc\\\\Peon\\\\Peon.mdx --use-model-camera\n"
+    "  mdxtool -mpq War3.mpq -model UI\\\\Glues\\\\MainMenu\\\\WarCraftIIILogo\\\\WarCraftIIILogo.mdx --anim \"MainMenu Stand\"\n"
     "  mdxtool -mpq War3.mpq -model UI\\\\Glues\\\\MainMenu\\\\WarCraftIIILogo\\\\WarCraftIIILogo.mdx --info\n"
     "\n"
     "Notes:\n"
@@ -442,6 +444,21 @@ static mdxSequence_t const *FindSequenceByNameContains(mdxModel_t const *mdx, LP
     return NULL;
 }
 
+static mdxSequence_t const *FindSequenceByRequestedName(mdxModel_t const *mdx, LPCSTR wanted) {
+    mdxSequence_t const *seq;
+
+    if (!mdx || !wanted || !*wanted) {
+        return NULL;
+    }
+
+    seq = FindSequenceByNameExact(mdx, wanted);
+    if (seq) {
+        return seq;
+    }
+
+    return FindSequenceByNameContains(mdx, wanted);
+}
+
 static bool DumpModelInfoNoWindow(LPCSTR modelPath) {
     HANDLE file = FS_OpenFile(modelPath);
     if (!file) {
@@ -691,6 +708,11 @@ static mdxSequence_t const *PickSequence(mdxModel_t const *mdx) {
         return NULL;
     }
 
+    seq = FindSequenceByRequestedName(mdx, g_requested_animation);
+    if (seq) {
+        return seq;
+    }
+
     seq = FindSequenceByNameExact(mdx, "MainMenu Stand");
     if (seq) {
         return seq;
@@ -884,6 +906,14 @@ int main(int argc, char **argv) {
             g_use_model_camera = true;
         } else if (!strcmp(argv[i], "--info") || !strcmp(argv[i], "-info")) {
             g_info_only = true;
+        } else if (!strcmp(argv[i], "--anim") || !strcmp(argv[i], "-anim")) {
+            if (++i >= argc) {
+                usage();
+                return 1;
+            }
+            g_requested_animation = argv[i];
+        } else if (!strncmp(argv[i], "--anim=", 7) || !strncmp(argv[i], "-anim=", 6)) {
+            g_requested_animation = strchr(argv[i], '=') + 1;
         } else if (!strncmp(argv[i], "-mpq=", 5)) {
             mpq = argv[i] + 5;
         } else if (!strcmp(argv[i], "-mpq")) {
