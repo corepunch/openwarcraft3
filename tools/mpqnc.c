@@ -44,6 +44,8 @@ typedef struct {
     size_t scroll;
     char *cached_info_path;
     char *cached_info_text;
+    int   cached_panel_width;
+    bool  dump_mode;
 } app_t;
 
 typedef struct {
@@ -505,6 +507,7 @@ static void clear_info_cache(app_t *app) {
     free(app->cached_info_text);
     app->cached_info_path = NULL;
     app->cached_info_text = NULL;
+    app->cached_panel_width = 0;
 }
 
 static const entry_t *selected_entry(const app_t *app) {
@@ -519,34 +522,46 @@ static const entry_t *selected_entry(const app_t *app) {
 
 static void build_info_cache(app_t *app, int panel_width) {
     const entry_t *entry = selected_entry(app);
-    char path[1024];
+    char new_path[1024];
     char *raw = NULL;
     char *wrapped = NULL;
 
     if (!entry) {
-        clear_info_cache(app);
-        app->cached_info_path = xstrdup("");
-        app->cached_info_text = xstrdup("No entries");
+        if (!app->cached_info_text) {
+            clear_info_cache(app);
+            app->cached_info_path = xstrdup("");
+            app->cached_info_text = xstrdup("No entries");
+        }
         return;
     }
 
-    snprintf(path, sizeof(path), "%s", app->current_path ? app->current_path : "");
-    if (entry->is_dir && strcmp(entry->name, "..") != 0) {
-        char *child = join_path(path, entry->name);
-        free(app->cached_info_path);
-        app->cached_info_path = child;
-    } else if (strcmp(entry->name, "..") == 0) {
-        char *parent = parent_path(path);
-        free(app->cached_info_path);
-        app->cached_info_path = parent;
-    } else {
-        char *child = join_path(path, entry->name);
-        free(app->cached_info_path);
-        app->cached_info_path = child;
+    /* Compute the canonical path for the currently selected entry */
+    {
+        const char *base = app->current_path ? app->current_path : "";
+        if (strcmp(entry->name, "..") == 0) {
+            char *tmp = parent_path(base);
+            snprintf(new_path, sizeof(new_path), "%s", tmp);
+            free(tmp);
+        } else {
+            char *tmp = join_path(base, entry->name);
+            snprintf(new_path, sizeof(new_path), "%s", tmp);
+            free(tmp);
+        }
     }
 
+    /* Return early if cache is still valid */
+    if (app->cached_info_text &&
+        app->cached_info_path &&
+        strcmp(app->cached_info_path, new_path) == 0 &&
+        app->cached_panel_width == panel_width) {
+        return;
+    }
+
+    free(app->cached_info_path);
+    app->cached_info_path = xstrdup(new_path);
     free(app->cached_info_text);
     app->cached_info_text = NULL;
+    app->cached_panel_width = panel_width;
 
     if (entry->is_dir) {
         size_t dirs = 0;
@@ -564,7 +579,7 @@ static void build_info_cache(app_t *app, int panel_width) {
         char tmp[1024];
         snprintf(tmp, sizeof(tmp),
                  "Directory\n\npath: %s\nentries: %zu\nsubdirs: %zu\nfiles: %zu\n\nEnter opens a directory.\nBackspace goes to the parent.",
-                 app->cached_info_path && app->cached_info_path[0] ? app->cached_info_path : "/",
+                 new_path[0] ? new_path : "/",
                  app->entries.count,
                  dirs,
                  files);
@@ -600,9 +615,22 @@ static void build_info_cache(app_t *app, int panel_width) {
 }
 
 static void render(app_t *app) {
-    tui_size_t size = tui_get_size();
-    int cols = size.cols;
-    int rows = size.rows;
+    tui_size_t size;
+    int cols;
+    int rows;
+
+    if (app->dump_mode) {
+        /* In dump mode stdout is a pipe, so ioctl would read stdin's real terminal
+           size instead. Use only the COLUMNS/LINES env vars (or defaults). */
+        const char *ce = getenv("COLUMNS");
+        const char *re = getenv("LINES");
+        size.cols = (ce && atoi(ce) > 0) ? atoi(ce) : 120;
+        size.rows = (re && atoi(re) > 0) ? atoi(re) : 32;
+    } else {
+        size = tui_get_size();
+    }
+    cols = size.cols;
+    rows = size.rows;
     int left_w;
     int right_w;
     int body_h = rows - 4;
@@ -664,7 +692,9 @@ static void render(app_t *app) {
         free(copy);
     }
 
-    tui_clear_home();
+    if (!app->dump_mode) {
+        tui_clear_home();
+    }
     {
         char title[1024];
         snprintf(title, sizeof(title), "mpqnc  archive: %s", app->mpq_path ? app->mpq_path : "");
@@ -810,7 +840,10 @@ static browser_key_t read_key(void) {
 static void usage(void) {
     fprintf(stderr,
             "Usage:\n"
-            "  mpqnc -mpq <archive.mpq> [-path <archive/path>] [-mpqtool <path>] [-mdxtool <path>] [-fdftool <path>]\n"
+            "  mpqnc -mpq <archive.mpq> [-path <archive/path>] [-mpqtool <path>] [-mdxtool <path>] [-fdftool <path>] [--dump]\n"
+            "\n"
+            "Options:\n"
+            "  --dump          Render one frame to stdout and quit (no TTY required; useful for testing)\n"
             "\n"
             "Keyboard:\n"
             "  Up/Down or j/k  move selection\n"
@@ -920,6 +953,8 @@ int main(int argc, char **argv) {
         } else if (!strncmp(argv[i], "-fdftool=", 9)) {
             free(app.fdftool_path);
             app.fdftool_path = xstrdup(argv[i] + 9);
+        } else if (!strcmp(argv[i], "-dump") || !strcmp(argv[i], "--dump")) {
+            app.dump_mode = true;
         } else if (!strcmp(argv[i], "-h") || !strcmp(argv[i], "--help")) {
             usage();
             app_destroy(&app);
@@ -944,6 +979,14 @@ int main(int argc, char **argv) {
         app_set_path(&app, app.start_path);
     } else {
         app_set_path(&app, "");
+    }
+
+    if (app.dump_mode) {
+        load_entries(&app);
+        reset_selection(&app);
+        render(&app);
+        app_destroy(&app);
+        return 0;
     }
 
     terminal_enter();
