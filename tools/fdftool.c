@@ -23,6 +23,7 @@
 #define MAX_TOOL_FONTS MAX_FONTSTYLES
 #define UI_VIEW_WIDTH 0.8f
 #define UI_VIEW_HEIGHT 0.6f
+#define UI_MIN_ASPECT (4.0f / 3.0f)
 #define TEXCOORD_SCALE 255.0f
 
 typedef struct {
@@ -42,6 +43,9 @@ static HANDLE archives[MAX_TOOL_ARCHIVES] = { 0 };
 static LPCSTR fdfs[MAX_TOOL_FDFS] = { 0 };
 static DWORD num_fdfs = 0;
 static LPCSTR root_name = NULL;
+static bool g_info_only = false;
+static int window_width = VIEWER_WINDOW_WIDTH;
+static int window_height = VIEWER_WINDOW_HEIGHT;
 
 static LPCMODEL models[MAX_TOOL_MODELS] = { 0 };
 static char model_names[MAX_TOOL_MODELS][512] = { { 0 } };
@@ -72,7 +76,55 @@ static sizeBuf_t tool_layout = {
 };
 
 static refExport_t re;
-static DWORD g_debug_draw_pass = 0;
+extern LPCSTR FrameType[];
+
+static int Info_ModelIndex(LPCSTR modelName) {
+    (void)modelName;
+    return 0;
+}
+
+static int Info_ImageIndex(LPCSTR imageName) {
+    (void)imageName;
+    return 0;
+}
+
+static int Info_FontIndex(LPCSTR fontName, DWORD fontSize) {
+    (void)fontName;
+    (void)fontSize;
+    return 0;
+}
+
+static LPCSTR Info_FindSheetCell(sheetRow_t *sheet, LPCSTR row, LPCSTR column) {
+    (void)sheet;
+    (void)row;
+    (void)column;
+    return NULL;
+}
+
+static RECT tool_ui_scene_rect(void) {
+    size2_t window = re.GetWindowSize();
+    FLOAT window_aspect = UI_MIN_ASPECT;
+    FLOAT x_scale = 1.0f;
+    FLOAT y_scale = 1.0f;
+
+    if (window.width > 0 && window.height > 0) {
+        window_aspect = (FLOAT)window.width / (FLOAT)window.height;
+    }
+
+    if (window_aspect > UI_MIN_ASPECT) {
+        x_scale = window_aspect / UI_MIN_ASPECT;
+    } else if (window_aspect < UI_MIN_ASPECT) {
+        y_scale = UI_MIN_ASPECT / window_aspect;
+    }
+
+    FLOAT scene_w = UI_VIEW_WIDTH * x_scale;
+    FLOAT scene_h = UI_VIEW_HEIGHT * y_scale;
+    return MAKE(RECT,
+                (UI_VIEW_WIDTH - scene_w) * 0.5f,
+                (UI_VIEW_HEIGHT - scene_h) * 0.5f,
+                scene_w,
+                scene_h);
+}
 
 static void FDF_DEBUGF(LPCSTR fmt, ...) {
     va_list ap;
@@ -81,6 +133,71 @@ static void FDF_DEBUGF(LPCSTR fmt, ...) {
     vfprintf(stderr, fmt, ap);
     fprintf(stderr, "\n");
     va_end(ap);
+}
+
+static LPCSTR frame_type_name(FRAMETYPE type) {
+    if (FrameType[type]) {
+        return FrameType[type];
+    }
+    return "UNKNOWN";
+}
+
+static void dump_frame_tree(LPCFRAMEDEF frame, int depth) {
+    if (!frame || !frame->inuse) {
+        return;
+    }
+
+    for (int i = 0; i < depth; i++) {
+        fputs("  ", stdout);
+    }
+    printf("- %s [%s]", frame->Name[0] ? frame->Name : "<unnamed>", frame_type_name(frame->Type));
+    if (frame->Parent) {
+        printf(" parent=%s", frame->Parent->Name[0] ? frame->Parent->Name : "<unnamed>");
+    }
+    if (frame->Width > 0.0f || frame->Height > 0.0f) {
+        printf(" size=%.3f x %.3f", frame->Width, frame->Height);
+    }
+    if (frame->Text && frame->Text[0]) {
+        printf(" text=\"%s\"", frame->Text);
+    }
+    if (frame->hidden) {
+        printf(" hidden");
+    }
+    putchar('\n');
+
+    FOR_LOOP(i, MAX_LAYOUT_OBJECTS) {
+        LPCFRAMEDEF child = frames + i;
+        if (child->Parent == frame) {
+            dump_frame_tree(child, depth + 1);
+        }
+    }
+}
+
+static void dump_fdf_info(void) {
+    DWORD in_use = 0;
+    DWORD roots = 0;
+
+    FOR_LOOP(i, MAX_LAYOUT_OBJECTS) {
+        if (frames[i].inuse) {
+            in_use++;
+        }
+    }
+
+    printf("fdf.files=%u\n", (unsigned)num_fdfs);
+    printf("fdf.templates=%u\n", (unsigned)in_use);
+
+    FOR_LOOP(i, MAX_LAYOUT_OBJECTS) {
+        LPCFRAMEDEF frame = frames + i;
+        if (!frame->inuse || frame->Parent) {
+            continue;
+        }
+        roots++;
+        dump_frame_tree(frame, 0);
+    }
+
+    if (roots == 0) {
+        puts("(no root frames found)");
+    }
 }
 
 static bool is_mainmenu_root(LPCSTR root) {
@@ -147,8 +264,9 @@ static bool Tool_DecodeLayoutBuffer(void) {
     memset(scene_frames, 0, sizeof(scene_frames));
     scene_frames[0].number = 0;
     scene_frames[0].flags.type = FT_SCREEN;
-    scene_frames[0].size.width = UI_VIEW_WIDTH;
-    scene_frames[0].size.height = UI_VIEW_HEIGHT;
+    screen_rect = tool_ui_scene_rect();
+    scene_frames[0].size.width = screen_rect.w;
+    scene_frames[0].size.height = screen_rect.h;
     scene_frames[0].tex.coord[1] = 0xff;
     scene_frames[0].tex.coord[3] = 0xff;
     num_scene_frames = 1;
@@ -206,13 +324,16 @@ static bool Tool_DecodeLayoutBuffer(void) {
 static void usage(void) {
     fprintf(stderr,
             "Usage:\n"
-            "  fdftool -mpq <archive.mpq> [-mpq <archive.mpq> ...] -fdf <file.fdf> [-fdf <file.fdf> ...] -root <FrameName>\n"
+            "  fdftool -mpq <archive.mpq> [-mpq <archive.mpq> ...] -fdf <file.fdf> [-fdf <file.fdf> ...] -root <FrameName> [-width <px>] [-height <px>]\n"
+            "  fdftool -mpq <archive.mpq> -fdf <file.fdf> --info\n"
             "\n"
             "Note: both '\\' and '/' path separators are accepted.\n"
             "\n"
             "Examples:\n"
             "  fdftool -mpq War3.mpq -fdf UI\\FrameDef\\Glue\\MainMenu.fdf -root MainMenuFrame\n"
-            "  fdftool -mpq War3.mpq -fdf UI\\FrameDef\\UI\\ConsoleUI.fdf -fdf UI\\FrameDef\\UI\\ResourceBar.fdf -root ConsoleUI\n");
+            "  fdftool -mpq War3.mpq -fdf UI\\FrameDef\\UI\\ConsoleUI.fdf -fdf UI\\FrameDef\\UI\\ResourceBar.fdf -root ConsoleUI\n"
+            "  fdftool -mpq War3.mpq -fdf UI\\FrameDef\\Glue\\MainMenu.fdf -root MainMenuFrame -width 1280 -height 720\n"
+            "  fdftool -mpq War3.mpq -fdf UI\\FrameDef\\Glue\\MainMenu.fdf --info\n");
 }
 
 static void errorf(LPCSTR fmt, ...) {
@@ -812,14 +933,6 @@ static void draw_frame(LPCUIFRAME frame) {
 
 static void draw_scene(void) {
     size2_t const window = re.GetWindowSize();
-    g_debug_draw_pass++;
-    if (g_debug_draw_pass <= 6) {
-        FDF_DEBUGF("draw_scene_begin: pass=%u frames=%u window=%ux%u",
-                   (unsigned)g_debug_draw_pass,
-                   (unsigned)num_scene_frames,
-                   (unsigned)window.width,
-                   (unsigned)window.height);
-    }
     for (DWORD i = 1; i < num_scene_frames; i++) {
         if (scene_frames[i].number == 0 && scene_frames[i].flags.type == 0) {
             continue;
@@ -832,15 +945,12 @@ static void draw_scene(void) {
         }
         LPCRECT rect = layout_rect(&scene_frames[i]);
         RECT pixel = {
-            rect->x * window.width / UI_VIEW_WIDTH,
-            rect->y * window.height / UI_VIEW_HEIGHT,
-            rect->w * window.width / UI_VIEW_WIDTH,
-            rect->h * window.height / UI_VIEW_HEIGHT,
+            (rect->x - screen_rect.x) * window.width / screen_rect.w,
+            (rect->y - screen_rect.y) * window.height / screen_rect.h,
+            rect->w * window.width / screen_rect.w,
+            rect->h * window.height / screen_rect.h,
         };
         re.DrawSelectionRect(&pixel, MAKE(COLOR32, 0, 255, 0, 200));
-    }
-    if (g_debug_draw_pass <= 6) {
-        FDF_DEBUGF("draw_scene_end: pass=%u", (unsigned)g_debug_draw_pass);
     }
 }
 
@@ -874,11 +984,39 @@ static bool parse_args(int argc, char **argv) {
                 return false;
             }
             root_name = argv[i];
+        } else if (!strcmp(argv[i], "--info") || !strcmp(argv[i], "-info")) {
+            g_info_only = true;
+        } else if (!strncmp(argv[i], "-width=", 7)) {
+            window_width = atoi(argv[i] + 7);
+            if (window_width <= 0) {
+                return false;
+            }
+        } else if (!strcmp(argv[i], "-width")) {
+            if (++i >= argc) {
+                return false;
+            }
+            window_width = atoi(argv[i]);
+            if (window_width <= 0) {
+                return false;
+            }
+        } else if (!strncmp(argv[i], "-height=", 8)) {
+            window_height = atoi(argv[i] + 8);
+            if (window_height <= 0) {
+                return false;
+            }
+        } else if (!strcmp(argv[i], "-height")) {
+            if (++i >= argc) {
+                return false;
+            }
+            window_height = atoi(argv[i]);
+            if (window_height <= 0) {
+                return false;
+            }
         } else {
             return false;
         }
     }
-    return num_fdfs > 0 && root_name != NULL;
+    return num_fdfs > 0 && (g_info_only || root_name != NULL);
 }
 
 int main(int argc, char **argv) {
@@ -897,6 +1035,60 @@ int main(int argc, char **argv) {
         FDF_DEBUGF("args: fdf[%u]=%s", (unsigned)i, fdfs[i] ? fdfs[i] : "<null>");
     }
 
+    if (g_info_only) {
+        gi = (struct game_import) {
+            .MemAlloc = MemAlloc,
+            .MemFree = MemFree,
+            .ModelIndex = Info_ModelIndex,
+            .SoundIndex = NULL,
+            .ImageIndex = Info_ImageIndex,
+            .FontIndex = Info_FontIndex,
+            .ExtractFile = NULL,
+            .GetAnimation = NULL,
+            .BuildHeatmap = NULL,
+            .CreateThread = NULL,
+            .JoinThread = NULL,
+            .Sleep = NULL,
+            .LinkEntity = NULL,
+            .UnlinkEntity = NULL,
+            .BoxEdicts = NULL,
+            .InMenuMode = Com_InMenuMode,
+            .MenuAction = NULL,
+            .GetFlowDirection = NULL,
+            .GetHeightAtPoint = NULL,
+            .ReadFileIntoString = ReadFileIntoString,
+            .ReadFile = Tool_ReadFile,
+            .GetTime = NULL,
+            .ReadSheet = NULL,
+            .ReadConfig = NULL,
+            .FindSheetCell = Info_FindSheetCell,
+            .TextRemoveComments = TextRemoveComments,
+            .TextRemoveBom = TextRemoveBom,
+            .multicast = NULL,
+            .unicast = Tool_Unicast,
+            .WriteByte = Tool_WriteByte,
+            .WriteShort = Tool_WriteShort,
+            .WriteLong = Tool_WriteLong,
+            .WriteFloat = Tool_WriteFloat,
+            .WriteString = Tool_WriteString,
+            .WritePosition = NULL,
+            .WriteDirection = NULL,
+            .WriteAngle = NULL,
+            .WriteEntity = NULL,
+            .WriteUIFrame = Tool_WriteUIFrame,
+            .configstring = NULL,
+            .confignstring = NULL,
+            .error = errorf,
+        };
+        UI_ClearTemplates();
+        FOR_LOOP(i, num_fdfs) {
+            UI_ParseFDF(fdfs[i]);
+        }
+        dump_fdf_info();
+        Viewer_CloseArchives(archives, MAX_TOOL_ARCHIVES);
+        return 0;
+    }
+
     re = R_GetAPI((refImport_t) {
         .FileOpen = FS_OpenFile,
         .FileExtract = FS_ExtractFile,
@@ -909,7 +1101,7 @@ int main(int argc, char **argv) {
         .error = errorf,
     });
 
-    re.Init(VIEWER_WINDOW_WIDTH, VIEWER_WINDOW_HEIGHT);
+    re.Init(window_width, window_height);
     images[0] = re.LoadTexture("");
     default_font = RegisterFont("Fonts/FRIZQT__.TTF", 16);
 

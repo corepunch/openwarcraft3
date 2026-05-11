@@ -1,5 +1,22 @@
 #include "r_local.h"
 
+#define R_UI_BASE_WIDTH  0.8f
+#define R_UI_BASE_HEIGHT 0.6f
+#define R_UI_MIN_ASPECT  (4.0f / 3.0f)
+
+static RECT R_UISceneRect(void) {
+    size2_t window = R_GetWindowSize();
+    float aspect = (float)window.width / (float)window.height;
+    float x_scale = aspect > R_UI_MIN_ASPECT ? aspect / R_UI_MIN_ASPECT : 1.0f;
+    float y_scale = aspect < R_UI_MIN_ASPECT ? R_UI_MIN_ASPECT / aspect : 1.0f;
+    float scene_w = R_UI_BASE_WIDTH  * x_scale;
+    float scene_h = R_UI_BASE_HEIGHT * y_scale;
+    return MAKE(RECT,
+                (R_UI_BASE_WIDTH  - scene_w) * 0.5f,
+                (R_UI_BASE_HEIGHT - scene_h) * 0.5f,
+                scene_w, scene_h);
+}
+
 void R_PrintSysText(LPCSTR string, DWORD x, DWORD y, COLOR32 color) {
     static VERTEX simp[256 * 6];
     LPVERTEX it = simp;
@@ -64,9 +81,9 @@ void R_DrawImageEx(LPCDRAWIMAGE drawImage) {
 
     LPCSHADER shader = tr.shader[drawImage->shader];
     
-    //    size2_t screensize = R_GetWindowSize();
     MATRIX4 ui_matrix, model_matrix;
-    Matrix4_ortho(&ui_matrix, 0.0f, 0.8, 0.6, 0.0f, 0.0f, 100.0f);
+    RECT const scene = R_UISceneRect();
+    Matrix4_ortho(&ui_matrix, scene.x, scene.x + scene.w, scene.y + scene.h, scene.y, 0.0f, 100.0f);
     Matrix4_identity(&model_matrix);
     
     R_Call(glDisable, GL_CULL_FACE);
@@ -120,7 +137,8 @@ void R_DrawWireRect(LPCRECT rect, COLOR32 color) {
     R_AddStrip(simp, rect, color);
 
     MATRIX4 ui_matrix;
-    Matrix4_ortho(&ui_matrix, 0.0f, 0.8, 0.6, 0.0f, 0.0f, 100.0f);
+    RECT const scene = R_UISceneRect();
+    Matrix4_ortho(&ui_matrix, scene.x, scene.x + scene.w, scene.y + scene.h, scene.y, 0.0f, 100.0f);
 
     R_Call(glUseProgram, tr.shader[SHADER_UI]->progid);
     R_Call(glUniformMatrix4fv, tr.shader[SHADER_UI]->uViewProjectionMatrix, 1, GL_FALSE, ui_matrix.v);
@@ -138,11 +156,12 @@ void R_DrawWireRect(LPCRECT rect, COLOR32 color) {
 
 void R_DrawSelectionRect(LPCRECT rect, COLOR32 color) {
     size2_t const window = R_GetWindowSize();
+    RECT const scene = R_UISceneRect();
     RECT screen = {
-        rect->x * 0.8 / window.width,
-        rect->y * 0.6 / window.height,
-        rect->w * 0.8 / window.width,
-        rect->h * 0.6 / window.height,
+        scene.x + rect->x * scene.w / window.width,
+        scene.y + rect->y * scene.h / window.height,
+        rect->w * scene.w / window.width,
+        rect->h * scene.h / window.height,
     };
     R_DrawWireRect(&screen, color);
 }

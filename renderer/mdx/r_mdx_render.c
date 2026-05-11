@@ -1,4 +1,3 @@
-#include <sys/time.h>
 #include "r_mdx.h"
 #include "../r_local.h"
 
@@ -7,14 +6,6 @@ static struct {
 } mdlx;
 
 static bool mdlx_ui_render = false;
-
-static double NowSecondsMDLX(void)
-{
-    struct timeval tv;
-
-    gettimeofday(&tv, NULL);
-    return (double)tv.tv_sec + (double)tv.tv_usec / 1000000.0;
-}
 
 //typedef enum {
 //    vertexattr_position,
@@ -85,6 +76,7 @@ static LPCSTR mdx_fs =
 "uniform sampler2D uTexture;\n"
 "uniform sampler2D uShadowmap;\n"
 "uniform sampler2D uFogOfWar;\n"
+"uniform bool uUIRender;\n"
 "uniform bool uUseDiscard;\n"
 "float get_light() {\n"
 "    return dot(v_normal, v_lightDir);\n"
@@ -101,7 +93,9 @@ static LPCSTR mdx_fs =
 "}\n"
 "void main() {\n"
 "    vec4 col = texture(uTexture, v_texcoord);\n"
-"    col.rgb *= get_fogofwar() * get_lighting();\n"
+"    if (!uUIRender) {\n"
+"        col.rgb *= get_fogofwar() * get_lighting();\n"
+"    }\n"
 "    o_color = col;\n"
 "    if (o_color.a < 0.5 && uUseDiscard) discard;\n"
 "}\n";
@@ -273,7 +267,7 @@ void AddSkin(LPVECTOR3 pos, LPCMATRIX4 mat, LPCVECTOR3 org, FLOAT weight) {
 }
 
 static void MDLX_BindBoneMatrices(mdxModel_t const *model, LPCMATRIX4 model_matrix, DWORD frame1, DWORD frame0) {
-    LPSHADER shader = mdlx_ui_render ? tr.shader[SHADER_UI] : mdlx.shader;
+    LPSHADER shader = mdlx.shader;
     memset(node_matrices, 0, sizeof(node_matrices));
 
     FOR_LOOP(node_id, MDX_MAX_NODES) {
@@ -759,13 +753,16 @@ static void R_GetFallbackPortraitCameraMatrix(mdxModel_t const *model, float asp
     MATRIX4 projection, view;
     VECTOR3 center = { 0, 0, 0 };
     float radius = 128.0f;
+    float width = 0.0f;
+    float height = 0.0f;
     bool flat_menu_model = false;
+    bool logo_model = false;
 
     if (model) {
         BOX3 const *box = &model->bounds.box;
-        float width = fabsf(box->max.x - box->min.x);
+        width = fabsf(box->max.x - box->min.x);
         float depth = fabsf(box->max.y - box->min.y);
-        float height = fabsf(box->max.z - box->min.z);
+        height = fabsf(box->max.z - box->min.z);
         float extent = MAX(width, MAX(depth, height));
         center.x = (box->min.x + box->max.x) * 0.5f;
         center.y = (box->min.y + box->max.y) * 0.5f;
@@ -774,18 +771,30 @@ static void R_GetFallbackPortraitCameraMatrix(mdxModel_t const *model, float asp
             radius = extent * 0.5f;
         }
         flat_menu_model = ri.InMenuMode() && height <= 0.001f;
+        logo_model = ri.InMenuMode() && strstr(model->info.name, "WarCraftIIILogo") != NULL;
     }
 
     if (flat_menu_model) {
-        float half_width = MAX(0.15f, radius * 2.5f);
-        float half_height = MAX(0.15f, radius * 2.5f);
+        float fit_aspect = MAX(0.001f, aspect);
+        float fit_half_w = MAX(0.15f, width * 0.5f);
+        float fit_half_h = MAX(0.15f, height * 0.5f);
+        float margin = logo_model ? 1.02f : 1.08f;
+        float half_height = MAX(fit_half_h, fit_half_w / fit_aspect) * margin;
+        float half_width = half_height * fit_aspect;
+        if (width <= 0.001f) {
+            half_width = MAX(0.15f, radius * 2.25f * fit_aspect);
+            half_height = MAX(0.15f, radius * 2.25f);
+        }
+        if (logo_model) {
+            center.z -= half_height * 0.02f;
+        }
         VECTOR3 eye = {
             center.x,
             center.y,
             center.z + 1.0f,
         };
         VECTOR3 dir = { 0, 0, -1 };
-        Matrix4_ortho(&projection, -half_width * aspect, half_width * aspect, -half_height, half_height, 0.1f, 100.0f);
+        Matrix4_ortho(&projection, -half_width, half_width, -half_height, half_height, 0.1f, 100.0f);
         Matrix4_lookAt(&view, &eye, &dir, &(VECTOR3){0,1,0});
     } else {
         float distance = MAX(200.0f, radius * 3.0f);
@@ -884,79 +893,18 @@ void R_DrawPortrait(LPCMODEL model, LPCRECT viewport) {
         R_GetFallbackPortraitCameraMatrix(mdx, aspect, &viewdef.viewProjectionMatrix, &root);
     }
 
-#ifdef DIAG_OUTPUT
-    if (ri.InMenuMode() && strstr(mdx->info.name, "WarCraftIIILogo")) {
-        static mdxModel_t const *last_logo_model = NULL;
-        static mdxSequence_t const *last_logo_seq = NULL;
-        static BOOL last_logo_used_model_camera = -1;
-        static BOOL last_logo_has_skin = -1;
-        if (last_logo_model != mdx ||
-            last_logo_seq != seq ||
-            last_logo_used_model_camera != used_model_camera ||
-            last_logo_has_skin != (entity.skin != NULL)) {
-            DIAGF("R_DrawPortrait(menu logo): model=%s seq=%s frames=[%u,%u] camera=%s skin=%s bounds=(%.1f %.1f %.1f)-(%.1f %.1f %.1f)\n",
-                  mdx->info.name,
-                  seq->name,
-                  (unsigned)seq->interval[0],
-                  (unsigned)seq->interval[1],
-                  used_model_camera ? "model" : "fallback",
-                  entity.skin ? "yes" : "no",
-                  mdx->bounds.box.min.x,
-                  mdx->bounds.box.min.y,
-                  mdx->bounds.box.min.z,
-                  mdx->bounds.box.max.x,
-                  mdx->bounds.box.max.y,
-                  mdx->bounds.box.max.z);
-            last_logo_model = mdx;
-            last_logo_seq = seq;
-            last_logo_used_model_camera = used_model_camera;
-            last_logo_has_skin = entity.skin != NULL;
-        }
-    }
-#endif
-
-#ifdef DIAG_OUTPUT
-    if (ri.InMenuMode()) {
-        static mdxModel_t const *logged_models[128] = { 0 };
-        static DWORD logged_count = 0;
-        BOOL logged = false;
-        FOR_LOOP(i, logged_count) {
-            if (logged_models[i] == mdx) {
-                logged = true;
-                break;
-            }
-        }
-        if (!logged && logged_count < 128) {
-            logged_models[logged_count++] = mdx;
-            DIAGF("R_DrawPortrait(menu): model=%p seq=%s interval=[%u,%u] cameras=%s num_sequences=%d viewport=(%.3f,%.3f,%.3f,%.3f)\n",
-                  (void *)mdx,
-                  seq->name,
-                  (unsigned)seq->interval[0],
-                  (unsigned)seq->interval[1],
-                  used_model_camera ? "model" : "fallback",
-                  mdx->num_sequences,
-                  viewport->x,
-                  viewport->y,
-                  viewport->w,
-                  viewport->h);
-        }
-    }
-#endif
-    
     Matrix4_getLightMatrix(&lightAngles, &root, PORTRAIT_SHADOW_SIZE, &viewdef.lightMatrix);
 
     tr.viewDef = viewdef;
 
+    MDLX_SetUIRender(true);
     R_RenderShadowMap();
-    
     R_RenderView();
+    MDLX_SetUIRender(false);
 }
 
 void MDLX_Init(void) {
-    double start = NowSecondsMDLX();
-    fprintf(stderr, "MDLX_Init: begin\n");
     mdlx.shader = R_InitShader(mdx_vs, mdx_fs);
-    fprintf(stderr, "MDLX_Init: complete %.3f s\n", NowSecondsMDLX() - start);
 }
 
 void MDLX_Shutdown(void) {

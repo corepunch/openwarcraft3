@@ -243,56 +243,6 @@ static void CL_AddEntities(void) {
     cl.viewDef.entities = view_state.entities;
 }
 
-static void CL_DebugLogMenuRenderState(renderEntity_t const *menu_ent) {
-#ifndef DIAG_OUTPUT
-    (void)menu_ent;
-#else
-    static BOOL logged_once = false;
-
-    if (!Com_InMenuMode()) {
-        return;
-    }
-    if (logged_once) {
-        return;
-    }
-
-    DWORD snapshot_total = 0;
-    FOR_LOOP(i, MAX_CLIENT_ENTITIES) {
-        centity_t const *ce = &cl.ents[i];
-        if (ce->current.model) {
-            snapshot_total++;
-        }
-    }
-
-    VECTOR3 eye = { 0 }, cam_target = { 0 };
-    float fov_deg = 0;
-    float znear = 0;
-    float zfar = 0;
-    MODELINFO info = { 0 };
-    BOOL camera_ok = false;
-    if (menu_ent && re.GetModelInfo && re.GetModelInfo((LPMODEL)menu_ent->model, &info) && info.hasCamera) {
-        camera_ok = true;
-        eye = info.cameraEye;
-        cam_target = info.cameraTarget;
-        fov_deg = info.cameraFovDeg;
-        znear = info.cameraZNear;
-        zfar = info.cameraZFar;
-    }
-
-    DIAGF("V_RenderView(menu): render_entities=%d selected_model_ptr=%p snapshot_total=%u camera_ok=%d eye=(%.2f %.2f %.2f) target=(%.2f %.2f %.2f) fov=%.2f znear=%.2f zfar=%.2f\n",
-          cl.viewDef.num_entities,
-          menu_ent ? (void *)menu_ent->model : NULL,
-          (unsigned)snapshot_total,
-          camera_ok ? 1 : 0,
-          eye.x, eye.y, eye.z,
-          cam_target.x, cam_target.y, cam_target.z,
-          fov_deg,
-          znear,
-          zfar);
-    logged_once = true;
-#endif
-}
-
 void CL_PrepRefresh(void) {
     static bool map_registered = false;
     
@@ -316,16 +266,8 @@ void CL_PrepRefresh(void) {
         memcpy(portrait, filename, ext - filename);
         sprintf(portrait + strlen(portrait), "_Portrait%s", ext);
         cl.models[i] = re.LoadModel(filename);
-        DIAGF("CL_PrepRefresh: model[%u] %s loaded=%s\n",
-              (unsigned)i,
-              filename,
-              cl.models[i] ? "yes" : "no");
         if (FS_FileExists(portrait)) {
             cl.portraits[i] = re.LoadModel(portrait);
-            DIAGF("CL_PrepRefresh: portrait[%u] %s loaded=%s\n",
-                  (unsigned)i,
-                  portrait,
-                  cl.portraits[i] ? "yes" : "no");
         }
     }
     
@@ -333,10 +275,6 @@ void CL_PrepRefresh(void) {
         if (cl.pics[i])
             continue;
         cl.pics[i] = re.LoadTexture(cl.configstrings[CS_IMAGES + i]);
-        DIAGF("CL_PrepRefresh: image[%u] %s loaded=%s\n",
-              (unsigned)i,
-              cl.configstrings[CS_IMAGES + i],
-              cl.pics[i] ? "yes" : "no");
     }
     
     for (DWORD i = 1; i < MAX_FONTSTYLES && *cl.configstrings[CS_FONTS + i]; i++) {
@@ -349,17 +287,8 @@ void CL_PrepRefresh(void) {
             memcpy(filename, fontspec, split - fontspec);
             DWORD fontsize = atoi(split+1);
             cl.fonts[i] = re.LoadFont(filename, fontsize);
-            DIAGF("CL_PrepRefresh: font[%u] %s,%u loaded=%s\n",
-                  (unsigned)i,
-                  filename,
-                  (unsigned)fontsize,
-                  cl.fonts[i] ? "yes" : "no");
         } else {
             cl.fonts[i] = re.LoadFont(cl.configstrings[CS_FONTS + i], 16);
-            DIAGF("CL_PrepRefresh: font[%u] %s,16 loaded=%s\n",
-                  (unsigned)i,
-                  cl.configstrings[CS_FONTS + i],
-                  cl.fonts[i] ? "yes" : "no");
         }
     }
 }
@@ -401,8 +330,6 @@ void V_RenderView(void) {
         if (menu_ent) {
             target = menu_ent->origin;
         }
-
-        CL_DebugLogMenuRenderState(menu_ent);
 
         if (menu_ent && Matrix4_getMenuModelCameraMatrix(menu_ent->model, &cl.viewDef.viewProjectionMatrix, &target)) {
             Matrix4_getPreviewLightMatrix(&lightAngles, &target, VIEW_SHADOW_SIZE, &cl.viewDef.lightMatrix);

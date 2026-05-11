@@ -359,17 +359,6 @@ void R_RenderView(void) {
     R_SetupScissor(&tr.viewDef.scissor);
     R_SetupGL(false);
     if (tr.viewDef.rdflags & RDF_NOWORLDMODEL) {
-#ifdef DIAG_OUTPUT
-        static bool logged_menu_overlay_depth_clear = false;
-        if (!logged_menu_overlay_depth_clear && ri.InMenuMode()) {
-            logged_menu_overlay_depth_clear = true;
-            DIAGF("R_RenderView(menu): NOWORLDMODEL depth clear viewport=(%.3f,%.3f,%.3f,%.3f)\n",
-                  tr.viewDef.viewport.x,
-                  tr.viewDef.viewport.y,
-                  tr.viewDef.viewport.w,
-                  tr.viewDef.viewport.h);
-        }
-#endif
         R_Call(glClear, GL_DEPTH_BUFFER_BIT);
     }
     R_DrawWorld();

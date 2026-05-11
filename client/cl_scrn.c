@@ -2,6 +2,10 @@
 
 #include "client.h"
 
+#define UI_BASE_WIDTH 0.8f
+#define UI_BASE_HEIGHT 0.6f
+#define UI_MIN_ASPECT (4.0f / 3.0f)
+
 #define PLAYERSTATE_RESOURCE_FOOD_CAP 4
 #define PLAYERSTATE_RESOURCE_FOOD_USED 5
 
@@ -15,6 +19,49 @@ struct {
 } runtimes[MAX_LAYOUT_OBJECTS];
 
 LPCRECT SCR_LayoutRect(LPCUIFRAME frame);
+
+static RECT SCR_GetUISceneRect(void) {
+    size2_t window = re.GetWindowSize();
+    FLOAT window_aspect = UI_MIN_ASPECT;
+    FLOAT x_scale = 1.0f;
+    FLOAT y_scale = 1.0f;
+
+    if (window.width > 0 && window.height > 0) {
+        window_aspect = (FLOAT)window.width / (FLOAT)window.height;
+    }
+
+    if (window_aspect > UI_MIN_ASPECT) {
+        x_scale = window_aspect / UI_MIN_ASPECT;
+    } else if (window_aspect < UI_MIN_ASPECT) {
+        y_scale = UI_MIN_ASPECT / window_aspect;
+    }
+
+    FLOAT scene_w = UI_BASE_WIDTH * x_scale;
+    FLOAT scene_h = UI_BASE_HEIGHT * y_scale;
+    return MAKE(RECT,
+                (UI_BASE_WIDTH - scene_w) * 0.5f,
+                (UI_BASE_HEIGHT - scene_h) * 0.5f,
+                scene_w,
+                scene_h);
+}
+
+VECTOR2 SCR_MouseToFdf(void) {
+    size2_t window = re.GetWindowSize();
+    RECT scene = SCR_GetUISceneRect();
+    FLOAT nx = 0;
+    FLOAT ny = 0;
+
+    if (window.width > 0) {
+        nx = (FLOAT)mouse.origin.x / (FLOAT)window.width;
+    }
+    if (window.height > 0) {
+        ny = (FLOAT)mouse.origin.y / (FLOAT)window.height;
+    }
+
+    return MAKE(VECTOR2,
+                scene.x + nx * scene.w,
+                scene.y + ny * scene.h);
+}
 
 RECT get_uvrect(uint8_t const *texcoord) {
     RECT const uv = {
@@ -439,33 +486,11 @@ void SCR_DrawMultiSelect(LPCUIFRAME frame, LPCRECT scrn) {
 
 void SCR_DrawPortrait(LPCUIFRAME frame, LPCRECT screen) {
     RECT const viewport = {
-        screen->x/0.8,1-(screen->y+screen->h)/0.6,screen->w/0.8,screen->h/0.6
+        screen->x / UI_BASE_WIDTH,
+        1 - ((screen->y + screen->h) / UI_BASE_HEIGHT),
+        screen->w / UI_BASE_WIDTH,
+        screen->h / UI_BASE_HEIGHT
     };
-#ifdef DIAG_OUTPUT
-    if (Com_InMenuMode()) {
-        static BYTE logged_draw[MAX_LAYOUT_OBJECTS] = { 0 };
-        if (!logged_draw[frame->number]) {
-            logged_draw[frame->number] = 1;
-            LPCSTR model_name = "";
-            if (frame->tex.index < MAX_MODELS) {
-                model_name = cl.configstrings[CS_MODELS + frame->tex.index];
-            }
-            DIAGF("SCR_DrawPortrait(menu): frame=%u type=%u modelIndex=%u modelPtr=%p portraitPtr=%p rect=(%.3f,%.3f,%.3f,%.3f)\n",
-                  (unsigned)frame->number,
-                  (unsigned)frame->flags.type,
-                  (unsigned)frame->tex.index,
-                  (void *)(frame->tex.index < MAX_MODELS ? cl.models[frame->tex.index] : NULL),
-                  (void *)(frame->tex.index < MAX_MODELS ? cl.portraits[frame->tex.index] : NULL),
-                  screen->x,
-                  screen->y,
-                  screen->w,
-                  screen->h);
-            DIAGF("SCR_DrawPortrait(menu): frame=%u modelName=%s\n",
-                  (unsigned)frame->number,
-                  model_name ? model_name : "");
-        }
-    }
-#endif
     if (Com_InMenuMode()) {
         LPCSTR model_name = NULL;
         if (frame->tex.index < MAX_MODELS) {
@@ -487,10 +512,7 @@ void SCR_DrawCommandButton(LPCUIFRAME frame, LPCRECT screen) {
     LPCENTITYSTATE selentity = CL_SelectedEntity();
     RECT const uv = get_uvrect(frame->tex.coord);
     RECT const suv = Rect_div(&uv, 0xff);
-    VECTOR2 m = {
-        mouse.origin.x * 0.8 / WINDOW_WIDTH,
-        mouse.origin.y * 0.6 / WINDOW_HEIGHT
-    };
+    VECTOR2 const m = SCR_MouseToFdf();
     RECT scrn = scale_rect(screen, 0.925);
     if (Rect_contains(screen, &m)) {
         if (mouse.button == 1 || mouse.event == UI_LEFT_MOUSE_UP) {
@@ -575,10 +597,11 @@ LPCUIFRAME SCR_Clear(HANDLE data) {
     memset(runtimes, 0, sizeof(runtimes));
     memset(frames, 0, sizeof(frames));
     num_frames = 0;
-    frames[0].size.width = 0.8;
-    frames[0].size.height = 0.6;
+    RECT scene = SCR_GetUISceneRect();
+    frames[0].size.width = scene.w;
+    frames[0].size.height = scene.h;
     frames[0].flags.type = FT_SCREEN;
-    runtimes[0].rect = (RECT) { 0, 0, frames[0].size.width, frames[0].size.height };
+    runtimes[0].rect = scene;
     runtimes[0].calculated = true;
 
     if (!layout_data) {
@@ -595,26 +618,12 @@ LPCUIFRAME SCR_Clear(HANDLE data) {
     while (true) {
         DWORD bits = 0;
         if (msg.readcount + sizeof(WORD) * 2 > msg.cursize) {
-#ifdef DIAG_OUTPUT
-            if (Com_InMenuMode()) {
-                DIAGF("SCR_Clear(menu): stop reason=bits-oob read=%u size=%u\n",
-                      (unsigned)msg.readcount,
-                      (unsigned)msg.cursize);
-            }
-#endif
             break;
         }
         DWORD nument = MSG_ReadEntityBits(&msg, &bits);
         if (nument == 0 && bits == 0)
             break;
         if (nument >= MAX_LAYOUT_OBJECTS) {
-#ifdef DIAG_OUTPUT
-            if (Com_InMenuMode()) {
-                DIAGF("SCR_Clear(menu): stop reason=frame-oob frame=%u max=%u\n",
-                      (unsigned)nument,
-                      (unsigned)MAX_LAYOUT_OBJECTS);
-            }
-#endif
             break;
         }
         LPUIFRAME ent = &frames[nument];
@@ -622,63 +631,21 @@ LPCUIFRAME SCR_Clear(HANDLE data) {
         ent->tex.coord[3] = 0xff;
         MSG_ReadDeltaUIFrame(&msg, ent, nument, bits);
         if (msg.readcount + sizeof(WORD) > msg.cursize) {
-#ifdef DIAG_OUTPUT
-            if (Com_InMenuMode()) {
-                DIAGF("SCR_Clear(menu): stop reason=sizefield-oob frame=%u read=%u size=%u\n",
-                      (unsigned)nument,
-                      (unsigned)msg.readcount,
-                      (unsigned)msg.cursize);
-            }
-#endif
             break;
         }
         ent->buffer.size = MSG_ReadShort(&msg);
         if (msg.readcount + ent->buffer.size > msg.cursize) {
-#ifdef DIAG_OUTPUT
-            if (Com_InMenuMode()) {
-                DIAGF("SCR_Clear(menu): stop reason=typedata-oob frame=%u typedata=%u read=%u size=%u bits=0x%x\n",
-                      (unsigned)nument,
-                      (unsigned)ent->buffer.size,
-                      (unsigned)msg.readcount,
-                      (unsigned)msg.cursize,
-                      (unsigned)bits);
-            }
-#endif
             break;
         }
         ent->buffer.data = msg.data + msg.readcount;
         msg.readcount += ent->buffer.size;
         num_frames = MAX(num_frames, nument+1);
-#ifdef DIAG_OUTPUT
-        if (Com_InMenuMode() &&
-            (ent->flags.type == FT_SPRITE || ent->flags.type == FT_MODEL || ent->flags.type == FT_PORTRAIT)) {
-            static BYTE logged[MAX_LAYOUT_OBJECTS] = { 0 };
-            if (!logged[nument]) {
-                logged[nument] = 1;
-                DIAGF("SCR_Clear(menu): frame=%u type=%u modelIndex=%u size=%.4fx%.4f pointsX{min=%u mid=%u max=%u} pointsY{min=%u mid=%u max=%u}\n",
-                      (unsigned)nument,
-                      (unsigned)ent->flags.type,
-                      (unsigned)ent->tex.index,
-                      ent->size.width,
-                      ent->size.height,
-                      (unsigned)ent->points.x[FPP_MIN].used,
-                      (unsigned)ent->points.x[FPP_MID].used,
-                      (unsigned)ent->points.x[FPP_MAX].used,
-                      (unsigned)ent->points.y[FPP_MIN].used,
-                      (unsigned)ent->points.y[FPP_MID].used,
-                      (unsigned)ent->points.y[FPP_MAX].used);
-            }
-        }
-#endif
     }
     return frames;
 }
 
 void SCR_UpdateCommandButton(LPCUIFRAME frame, LPCRECT screen) {
-    VECTOR2 m = {
-        mouse.origin.x * 0.8 / WINDOW_WIDTH,
-        mouse.origin.y * 0.6 / WINDOW_HEIGHT
-    };
+    VECTOR2 const m = SCR_MouseToFdf();
     if (Rect_contains(screen, &m) && frame->tooltip) {
         active_tooltip = frame->tooltip;
     }
@@ -716,10 +683,7 @@ static drawer_t drawers[] = {
 };
 
 void SCR_DrawFrame(LPCUIFRAME frame) {
-    VECTOR2 m = {
-        mouse.origin.x * 0.8 / WINDOW_WIDTH,
-        mouse.origin.y * 0.6 / WINDOW_HEIGHT
-    };
+    VECTOR2 const m = SCR_MouseToFdf();
     RECT const *screen = SCR_LayoutRect(frame);
     FOR_LOOP(j, sizeof(drawers)/sizeof(*drawers)) {
         if (drawers[j].type == frame->flags.type) {

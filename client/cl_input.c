@@ -153,10 +153,7 @@ void IN_SelectDown(void) {
     cl.selection.rect.w = 0;
     cl.selection.rect.h = 0;
 
-    VECTOR2 m = {
-        mouse.origin.x * 0.8 / WINDOW_WIDTH,
-        mouse.origin.y * 0.6 / WINDOW_HEIGHT
-    };
+    VECTOR2 const m = SCR_MouseToFdf();
     
     FOR_LOOP(layer_id, MAX_LAYOUT_LAYERS) {
         if (cl.layout[layer_id] == NULL)

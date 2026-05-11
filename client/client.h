@@ -96,6 +96,7 @@ void V_AddEntity(renderEntity_t *ent);
 // cl_scrn.c
 LPCUIFRAME SCR_Clear(HANDLE data);
 LPCRECT SCR_LayoutRect(LPCUIFRAME frame);
+VECTOR2 SCR_MouseToFdf(void);
 void SCR_UpdateScreen(void);
 
 // cl_input.c
