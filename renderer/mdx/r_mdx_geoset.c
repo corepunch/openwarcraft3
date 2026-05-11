@@ -120,7 +120,6 @@ static void MDLX_RenderEmitter(mdxModel_t const *model,
 }
 
 static bool MDLX_SetBlendMode(const mdxMaterialLayer_t *layer, DWORD layerID) {
-    bool const ui_render = (tr.viewDef.rdflags & RDF_NOWORLDMODEL) ? true : false;
     switch (layer->blendMode) {
         case BLEND_MODE_NONE:
             if (layerID == 0) {
@@ -131,9 +130,7 @@ static bool MDLX_SetBlendMode(const mdxMaterialLayer_t *layer, DWORD layerID) {
             R_Call(glDepthMask, GL_TRUE);
             break;
         case BLEND_MODE_ALPHAKEY:
-            if (!ui_render) {
-                R_Call(glUniform1i, mdlx.shader->uUseDiscard, 1);
-            }
+            R_Call(glUniform1i, mdlx.shader->uUseDiscard, 1);
             R_Call(glBlendFunc, GL_ONE, GL_ZERO);
             R_Call(glDepthMask, GL_TRUE);
             break;
@@ -201,7 +198,6 @@ static void MDLX_RenderGeoset(mdxModel_t const *model,
                              LPCTEXTURE overrideTexture)
 {
     MATRIX3 mNormalMatrix;
-    bool const ui_render = (tr.viewDef.rdflags & RDF_NOWORLDMODEL) ? true : false;
     BOOL force_two_sided = model && !model->cameras;
     LPSHADER shader = mdlx.shader;
     Matrix3_normal(&mNormalMatrix, modelMatrix);
@@ -209,19 +205,12 @@ static void MDLX_RenderGeoset(mdxModel_t const *model,
 
     R_Call(glUseProgram, shader->progid);
     R_Call(glUniform1i, shader->uUseDiscard, 0);
-    R_Call(glUniform1i, shader->uUIRender, ui_render ? 1 : 0);
     R_Call(glUniformMatrix4fv, shader->uModelMatrix, 1, GL_FALSE, modelMatrix->v);
     R_Call(glUniformMatrix3fv, shader->uNormalMatrix, 1, GL_TRUE, mNormalMatrix.v);
 
     FOR_LOOP(layerID, material->num_layers) {
         mdxMaterialLayer_t const *layer = &material->layers[layerID];
-        if (ui_render) {
-            R_Call(glDisable, GL_DEPTH_TEST);
-            R_Call(glDisable, GL_CULL_FACE);
-            R_Call(glDepthMask, GL_FALSE);
-        } else {
-            R_Call(glEnable, GL_DEPTH_TEST);
-        }
+        R_Call(glEnable, GL_DEPTH_TEST);
         if (force_two_sided) {
             R_Call(glDisable, GL_CULL_FACE);
         } else {
@@ -366,7 +355,6 @@ void MDX_RenderModel(renderEntity_t const *entity,
                      mdxModel_t const *model,
                      LPCMATRIX4 transform)
 {
-    bool const ui_render = (tr.viewDef.rdflags & RDF_NOWORLDMODEL) ? true : false;
     if (!(tr.viewDef.rdflags & RDF_NOFRUSTUMCULL)) {
         VECTOR3 const center = Box3_Center(&model->bounds.box);
         SPHERE3 const sphere = {
@@ -396,7 +384,6 @@ void MDX_RenderModel(renderEntity_t const *entity,
     R_Call(glUniformMatrix4fv, shader->uViewProjectionMatrix, 1, GL_FALSE, is_rendering_lights ? tr.viewDef.lightMatrix.v : tr.viewDef.viewProjectionMatrix.v);
     R_Call(glUniformMatrix4fv, shader->uTextureMatrix, 1, GL_FALSE, tr.viewDef.textureMatrix.v);
     R_Call(glUniformMatrix4fv, shader->uLightMatrix, 1, GL_FALSE, tr.viewDef.lightMatrix.v);
-    R_Call(glUniform1i, shader->uUIRender, ui_render ? 1 : 0);
 
     MDLX_BindBoneMatrices(model, transform, entity->frame, entity->oldframe);
 
