@@ -300,7 +300,7 @@ void R_Init(DWORD width, DWORD height) {
     tr.texture[TEX_FONT] = R_MakeSysFontTexture();
     tr.rt[RT_DEPTHMAP] = R_AllocateRenderTexture(SHADOW_TEXSIZE, SHADOW_TEXSIZE, GL_DEPTH_COMPONENT, GL_FLOAT, GL_DEPTH_ATTACHMENT);
     R_Call(glDisable, GL_DEPTH_TEST);
-    R_Call(glClearColor, 0.0, 0.0, 0.0, 0.0);
+    R_Call(glClearColor, 0.5, 0.5, 0.5, 1.0);
     R_Call(glViewport, 0, 0, tr.drawableSize.width, tr.drawableSize.height);
     R_InitParticles();
     M3_Init();
@@ -590,6 +590,7 @@ refExport_t R_GetAPI(refImport_t imp) {
         .DrawText = R_DrawText,
         .GetTextSize = R_GetTextSize,
         .GetModelInfo = R_GetModelInfo,
+        .DrawBoundingBox = R_DrawBoundingBox,
         .GetHeightAtPoint = GetAccurateHeightAtPoint,
         .TraceEntity = R_TraceEntity,
         .TraceLocation = R_TraceLocation,

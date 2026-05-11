@@ -166,20 +166,43 @@ void R_DrawSelectionRect(LPCRECT rect, COLOR32 color) {
     R_DrawWireRect(&screen, color);
 }
 
-void R_DrawBoundingBox(LPCBOX3 box, LPCMATRIX4 matrix, COLOR32 color) {
-    static VERTEX simp[24];
-    R_AddWireBox(simp, box, color);
+void R_DrawBoundingBox(LPCBOX3 box, LPCMATRIX4 modelMatrix, LPCMATRIX4 vpMatrix, COLOR32 color) {
+    static const int edges[12][2] = {
+        {0,1},{1,2},{2,3},{3,0},
+        {4,5},{5,6},{6,7},{7,4},
+        {0,4},{1,5},{2,6},{3,7},
+    };
+    VECTOR3 corners[8] = {
+        { box->min.x, box->min.y, box->min.z },
+        { box->max.x, box->min.y, box->min.z },
+        { box->max.x, box->max.y, box->min.z },
+        { box->min.x, box->max.y, box->min.z },
+        { box->min.x, box->min.y, box->max.z },
+        { box->max.x, box->min.y, box->max.z },
+        { box->max.x, box->max.y, box->max.z },
+        { box->min.x, box->max.y, box->max.z },
+    };
+    VERTEX simp[24] = { 0 };
+    for (int i = 0; i < 12; i++) {
+        simp[i * 2 + 0].position = corners[edges[i][0]];
+        simp[i * 2 + 0].color = color;
+        simp[i * 2 + 1].position = corners[edges[i][1]];
+        simp[i * 2 + 1].color = color;
+    }
 
     R_Call(glUseProgram, tr.shader[SHADER_DEFAULT]->progid);
-    R_Call(glUniformMatrix4fv, tr.shader[SHADER_DEFAULT]->uModelMatrix, 1, GL_FALSE, matrix->v);
+    R_Call(glUniformMatrix4fv, tr.shader[SHADER_DEFAULT]->uViewProjectionMatrix, 1, GL_FALSE, vpMatrix->v);
+    R_Call(glUniformMatrix4fv, tr.shader[SHADER_DEFAULT]->uModelMatrix, 1, GL_FALSE, modelMatrix->v);
     R_Call(glBindVertexArray, tr.buffer[RBUF_TEMP1]->vao);
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, tr.buffer[RBUF_TEMP1]->vbo);
     R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(simp), simp, GL_STATIC_DRAW);
-    
+
     R_BindTexture(tr.texture[TEX_WHITE], 0);
-    
+
     R_Call(glDisable, GL_CULL_FACE);
+    R_Call(glDisable, GL_DEPTH_TEST);
     R_Call(glEnable, GL_BLEND);
     R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    R_Call(glDrawArrays, GL_LINE_STRIP, 0, sizeof(simp) / sizeof(*simp));
+    R_Call(glDrawArrays, GL_LINES, 0, 24);
+    R_Call(glEnable, GL_DEPTH_TEST);
 }

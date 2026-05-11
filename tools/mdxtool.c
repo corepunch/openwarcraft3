@@ -160,7 +160,6 @@ static void Matrix4_getFrontOrthoCameraMatrix(mdxModel_t const *mdx,
                                               LPMATRIX4 output)
 {
     BOX3 const bounds = GetPreviewBounds(mdx);
-    VECTOR3 const center = Box3_Center(&bounds);
     float const width = fabsf(bounds.max.x - bounds.min.x) * scale;
     float const height = fabsf(bounds.max.y - bounds.min.y) * scale;
     float const depth = fabsf(bounds.max.z - bounds.min.z) * scale;
@@ -169,7 +168,8 @@ static void Matrix4_getFrontOrthoCameraMatrix(mdxModel_t const *mdx,
     float half_h = MAX(0.15f, height * 0.5f);
     float ortho_half_h = MAX(half_h, half_w / fit_aspect);
     float ortho_half_w = ortho_half_h * fit_aspect;
-    float eye_z = center.z + MAX(4.0f, depth + 4.0f);
+    VECTOR3 center = { 0, 0, 0 };
+    float eye_z = MAX(4.0f, depth + 4.0f);
     MATRIX4 proj, view;
 
     Matrix4_ortho(&proj, -ortho_half_w, ortho_half_w, -ortho_half_h, ortho_half_h, 0.1f, MAX(32.0f, depth + 16.0f));
@@ -905,6 +905,58 @@ static void DumpLoadedModel(mdxModel_t const *mdx, DWORD sample_frame) {
     }
 }
 
+static void DumpFrameCoverage(refExport_t const *re) {
+    size2_t window = re->GetWindowSize();
+    DWORD width = window.width;
+    DWORD height = window.height;
+    BYTE *pixels;
+    DWORD lit = 0;
+    int min_x = (int)width;
+    int min_y = (int)height;
+    int max_x = -1;
+    int max_y = -1;
+
+    if (!width || !height) {
+        fprintf(stderr, "mdxtool: frame coverage unavailable (empty framebuffer)\n");
+        return;
+    }
+
+    pixels = malloc((size_t)width * (size_t)height * 4);
+    if (!pixels) {
+        fprintf(stderr, "mdxtool: frame coverage unavailable (alloc failed)\n");
+        return;
+    }
+
+    R_Call(glReadPixels, 0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
+    FOR_LOOP(y, height) {
+        FOR_LOOP(x, width) {
+            BYTE const *pixel = pixels + ((y * width + x) * 4);
+            if (pixel[0] <= 8 && pixel[1] <= 8 && pixel[2] <= 8 && pixel[3] <= 8) {
+                continue;
+            }
+            lit++;
+            min_x = MIN(min_x, (int)x);
+            min_y = MIN(min_y, (int)y);
+            max_x = MAX(max_x, (int)x);
+            max_y = MAX(max_y, (int)y);
+        }
+    }
+
+    if (lit > 0) {
+        fprintf(stderr,
+                "mdxtool: frame coverage lit_pixels=%u bbox=(%d,%d)-(%d,%d)\n",
+                (unsigned)lit,
+                min_x,
+                min_y,
+                max_x,
+                max_y);
+    } else {
+        fprintf(stderr, "mdxtool: frame coverage lit_pixels=0\n");
+    }
+
+    free(pixels);
+}
+
 static void RenderModelFrame(refExport_t const *re, LPMODEL model, DWORD now, bool useModelCamera) {
     viewDef_t viewdef = { 0 };
     renderEntity_t entity = { 0 };
@@ -919,6 +971,7 @@ static void RenderModelFrame(refExport_t const *re, LPMODEL model, DWORD now, bo
     float model_radius = 500.0f;
     float near_clip;
     float far_clip;
+    VECTOR3 preview_origin = Vector3_scale(&g_model_center, -g_preview_scale);
 
     entity.model = model;
     entity.scale = g_preview_scale;
@@ -950,7 +1003,8 @@ static void RenderModelFrame(refExport_t const *re, LPMODEL model, DWORD now, bo
         entity.origin = root;
         Matrix4_getSideLightMatrix(&model->mdx->cameras->pivot, &model->mdx->cameras->targetPivot, PORTRAIT_SHADOW_SIZE, &viewdef.lightMatrix);
     } else if (g_use_front_ortho) {
-        target = g_model_center;
+        entity.origin = preview_origin;
+        target = (VECTOR3){ 0, 0, 0 };
         Matrix4_getFrontOrthoCameraMatrix(mdx, aspect, g_preview_scale, &viewdef.viewProjectionMatrix);
         Matrix4_getSideLightMatrix(&(VECTOR3){
             target.x + 8.0f,
@@ -958,8 +1012,9 @@ static void RenderModelFrame(refExport_t const *re, LPMODEL model, DWORD now, bo
             target.z + 16.0f,
         }, &target, PORTRAIT_SHADOW_SIZE, &viewdef.lightMatrix);
     } else {
-        target = g_model_center;
-        orbit.target = g_model_center;
+        entity.origin = preview_origin;
+        target = (VECTOR3){ 0, 0, 0 };
+        orbit.target = target;
         Matrix4_getPreviewCameraMatrix(&orbit, aspect, near_clip, far_clip, &viewdef.viewProjectionMatrix);
         Matrix4_getSideLightMatrix(&(VECTOR3){
             orbit.target.x + orbit.distance * cosf(orbit.pitch_deg * (float)M_PI / 180.0f) * cosf(orbit.yaw_deg * (float)M_PI / 180.0f),
@@ -980,6 +1035,17 @@ static void RenderModelFrame(refExport_t const *re, LPMODEL model, DWORD now, bo
 
     re->BeginFrame();
     re->RenderFrame(&viewdef);
+    if (mdx) {
+        MATRIX4 entityMatrix;
+        Matrix4_identity(&entityMatrix);
+        Matrix4_translate(&entityMatrix, &entity.origin);
+        Matrix4_scale(&entityMatrix, &(VECTOR3){ entity.scale, entity.scale, entity.scale });
+        COLOR32 box_color = { 0, 255, 128, 180 };
+        re->DrawBoundingBox(&mdx->bounds.box, &entityMatrix, &viewdef.viewProjectionMatrix, box_color);
+    }
+    if (g_run_once) {
+        DumpFrameCoverage(re);
+    }
     re->PrintSysText(useModelCamera ? "mdxtool: model camera" : (g_use_front_ortho ? "mdxtool: front ortho" : "mdxtool: preview camera"), 10, 10, COLOR32_WHITE);
     re->PrintSysText(g_model_path, 10, 28, COLOR32_WHITE);
     {
