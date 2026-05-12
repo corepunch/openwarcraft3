@@ -38,10 +38,10 @@ static void test_normalize_anchor_offset_x_is_positive(void) {
     ASSERT_EQ_FLOAT(SCR_NormalizeAnchorOffset(&p, true), 3277.0f / UI_FRAMEPOINT_SCALE, 0.0001f);
 }
 
-static void test_normalize_anchor_offset_y_is_inverted(void) {
+static void test_normalize_anchor_offset_y_is_positive(void) {
     uiFramePoint_t p = { 0 };
     p.offset = 3277;
-    ASSERT_EQ_FLOAT(SCR_NormalizeAnchorOffset(&p, false), -3277.0f / UI_FRAMEPOINT_SCALE, 0.0001f);
+    ASSERT_EQ_FLOAT(SCR_NormalizeAnchorOffset(&p, false), 3277.0f / UI_FRAMEPOINT_SCALE, 0.0001f);
 }
 
 static void test_solve_axis_center_anchor_x(void) {
@@ -63,7 +63,7 @@ static void test_solve_axis_center_anchor_x(void) {
     ASSERT_FLOAT_EQ(pos.y, 0.2f);
 }
 
-static void test_solve_axis_center_anchor_y_with_offset_sign(void) {
+static void test_solve_axis_center_anchor_y_with_positive_offset(void) {
     LPUIFRAME frames = setup_layout_root();
     uiFrame_t *f = &frames[1];
     VECTOR2 pos;
@@ -79,7 +79,7 @@ static void test_solve_axis_center_anchor_y_with_offset_sign(void) {
     f->points.y[FPP_MID].offset = off;
 
     pos = SCR_SolveAxisPosition(f, f->points.y, f->size.height, false);
-    ASSERT_EQ_FLOAT(pos.x, 0.2f, 0.001f);
+    ASSERT_EQ_FLOAT(pos.x, 0.3f, 0.001f);
     ASSERT_FLOAT_EQ(pos.y, 0.1f);
 }
 
@@ -202,9 +202,9 @@ BEGIN_SUITE(ui_layout)
     RUN_TEST(test_axis_bounds_returns_x_interval);
     RUN_TEST(test_axis_bounds_returns_y_interval);
     RUN_TEST(test_normalize_anchor_offset_x_is_positive);
-    RUN_TEST(test_normalize_anchor_offset_y_is_inverted);
+    RUN_TEST(test_normalize_anchor_offset_y_is_positive);
     RUN_TEST(test_solve_axis_center_anchor_x);
-    RUN_TEST(test_solve_axis_center_anchor_y_with_offset_sign);
+    RUN_TEST(test_solve_axis_center_anchor_y_with_positive_offset);
     RUN_TEST(test_solve_axis_min_anchor_x);
     RUN_TEST(test_solve_axis_max_anchor_x);
     RUN_TEST(test_solve_axis_dual_anchor_stretch_x);

@@ -52,11 +52,11 @@ Refactor UI parser/serialization/layout code for deterministic testing first, th
 
 - [x] **Phase 12** — Tool-backed oracle tests (~5–10 tests, 15–25 assertions). Run `fdftool` and `mdxtool --info` against generated assets and compare normalized output summaries. _Depends on Phase 11._
 
-- [ ] **Phase 13** — UI coordinate migration. Flip canonical projection/input/layout to Warcraft-style Y-up (0 at bottom, 0.6 at top), remove compensating sign hacks, use new suites to catch regressions. _Depends on Phases 7–12._
-  - [ ] Flip ortho in `renderer/r_draw.c`
-  - [ ] Fix mouse mapping in `client/cl_scrn.c`
-  - [ ] Remove sign hacks in `SCR_GetAnchor`
-  - [ ] All new suites green
+- [x] **Phase 13** — UI coordinate migration. Flip canonical projection/input/layout to Warcraft-style Y-up (0 at bottom, 0.6 at top), remove compensating sign hacks, use new suites to catch regressions. _Depends on Phases 7–12._
+  - [x] Flip ortho in `renderer/r_draw.c`
+  - [x] Fix mouse mapping in `client/cl_scrn.c`
+  - [x] Remove sign hacks in `SCR_GetAnchor`
+  - [x] All new suites green
 
 - [ ] **Phase 14** — Cleanup and enforcement. Make generated-asset pipeline part of normal test flow, document resource ownership, require UI suites for changes touching parser/layout/serialization/sprites. _Depends on Phase 13._
 
