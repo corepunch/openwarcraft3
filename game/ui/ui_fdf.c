@@ -408,6 +408,17 @@ MAKE_PARSERCALL(Font) {
     frame->Font.Index = gi.FontIndex(file, frame->Font.Size * 1000);
 }
 
+static DWORD UI_DecodeFramePointY(DWORD framepoint) {
+    DWORD y = (framepoint >> 2) & 3;
+    if (y == FPP_MIN) {
+        return FPP_MAX;
+    }
+    if (y == FPP_MAX) {
+        return FPP_MIN;
+    }
+    return FPP_MID;
+}
+
 MAKE_PARSERCALL(SetPoint) {
     if (!frame->AnyPointsSet) { // clear any template points
         memset(&frame->Points, 0, sizeof(frame->Points));
@@ -422,13 +433,13 @@ MAKE_PARSERCALL(SetPoint) {
         xp[x].targetPos = frame->SetPoint.target & 3;
         xp[x].relativeTo = frame->SetPoint.relativeTo;
     }
-    DWORD y = (frame->SetPoint.type >> 2) & 3;
+    DWORD y = UI_DecodeFramePointY(frame->SetPoint.type);
     FRAMEPOINT *yp = frame->Points.y;
     if (y != FPP_MID || (!yp[FPP_MIN].used && !yp[FPP_MAX].used)) {
         yp[FPP_MID].used = false;
         yp[y].used = true;
         yp[y].offset = frame->SetPoint.y;
-        yp[y].targetPos = (frame->SetPoint.target >> 2) & 3;
+        yp[y].targetPos = UI_DecodeFramePointY(frame->SetPoint.target);
         yp[y].relativeTo = frame->SetPoint.relativeTo;
     }
 }

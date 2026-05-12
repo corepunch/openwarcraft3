@@ -1,3 +1,4 @@
+#include "renderer/r_local.h"
 #include "client/renderer.h"
 #include "game/g_local.h"
 #include "tools/viewer_common.h"
@@ -99,31 +100,6 @@ static LPCSTR Info_FindSheetCell(sheetRow_t *sheet, LPCSTR row, LPCSTR column) {
     (void)row;
     (void)column;
     return NULL;
-}
-
-static RECT tool_ui_scene_rect(void) {
-    size2_t window = re.GetWindowSize();
-    FLOAT window_aspect = UI_MIN_ASPECT;
-    FLOAT x_scale = 1.0f;
-    FLOAT y_scale = 1.0f;
-
-    if (window.width > 0 && window.height > 0) {
-        window_aspect = (FLOAT)window.width / (FLOAT)window.height;
-    }
-
-    if (window_aspect > UI_MIN_ASPECT) {
-        x_scale = window_aspect / UI_MIN_ASPECT;
-    } else if (window_aspect < UI_MIN_ASPECT) {
-        y_scale = UI_MIN_ASPECT / window_aspect;
-    }
-
-    FLOAT scene_w = UI_VIEW_WIDTH * x_scale;
-    FLOAT scene_h = UI_VIEW_HEIGHT * y_scale;
-    return MAKE(RECT,
-                (UI_VIEW_WIDTH - scene_w) * 0.5f,
-                (UI_VIEW_HEIGHT - scene_h) * 0.5f,
-                scene_w,
-                scene_h);
 }
 
 static void FDF_DEBUGF(LPCSTR fmt, ...) {
@@ -264,7 +240,7 @@ static bool Tool_DecodeLayoutBuffer(void) {
     memset(scene_frames, 0, sizeof(scene_frames));
     scene_frames[0].number = 0;
     scene_frames[0].flags.type = FT_SCREEN;
-    screen_rect = tool_ui_scene_rect();
+    screen_rect = R_UISceneRect();
     scene_frames[0].size.width = screen_rect.w;
     scene_frames[0].size.height = screen_rect.h;
     scene_frames[0].tex.coord[1] = 0xff;

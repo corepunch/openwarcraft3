@@ -1,82 +1,6 @@
 #include "viewer_common.h"
-#include "../common/mpq.h"
 
 #include <math.h>
-#include <stdlib.h>
-
-HANDLE Viewer_AddArchive(HANDLE *archives, size_t count, LPCSTR filename) {
-    for (size_t i = 0; i < count; i++) {
-        if (archives[i]) {
-            continue;
-        }
-        if (!SFileOpenArchive(filename, 0, 0, &archives[i])) {
-            fprintf(stderr, "Can't add archive %s\n", filename);
-            return NULL;
-        }
-        return archives[i];
-    }
-    fprintf(stderr, "Too many archives\n");
-    return NULL;
-}
-
-HANDLE Viewer_OpenFile(HANDLE const *archives, size_t count, LPCSTR fileName) {
-    if (!fileName || !*fileName) {
-        return NULL;
-    }
-    for (size_t i = 0; i < count; i++) {
-        HANDLE file = NULL;
-        if (archives[i] && SFileOpenFileEx(archives[i], fileName, SFILE_OPEN_FROM_MPQ, &file)) {
-            return file;
-        }
-    }
-    return NULL;
-}
-
-void Viewer_CloseFile(HANDLE file) {
-    if (file) {
-        SFileCloseFile(file);
-    }
-}
-
-bool Viewer_ExtractFile(HANDLE const *archives, size_t count, LPCSTR toExtract, LPCSTR extracted) {
-    for (size_t i = 0; i < count; i++) {
-        if (archives[i] && SFileExtractFile(archives[i], toExtract, extracted, 0)) {
-            return true;
-        }
-    }
-    return false;
-}
-
-bool Viewer_FileExists(HANDLE const *archives, size_t count, LPCSTR fileName) {
-    HANDLE file = Viewer_OpenFile(archives, count, fileName);
-    if (!file) {
-        return false;
-    }
-    Viewer_CloseFile(file);
-    return true;
-}
-
-void Viewer_CloseArchives(HANDLE *archives, size_t count) {
-    for (size_t i = 0; i < count; i++) {
-        if (archives[i]) {
-            SFileCloseArchive(archives[i]);
-            archives[i] = NULL;
-        }
-    }
-}
-
-HANDLE Viewer_MemAlloc(long size) {
-    void *mem = calloc(1, (size_t)size);
-    if (!mem) {
-        fprintf(stderr, "Out of memory allocating %ld bytes\n", size);
-        exit(1);
-    }
-    return mem;
-}
-
-void Viewer_MemFree(HANDLE mem) {
-    free(mem);
-}
 
 static VECTOR3 Viewer_OrbitEye(viewer_orbit_t const *orbit) {
     float const yaw = orbit->yaw_deg * (float)M_PI / 180.0f;
@@ -161,4 +85,35 @@ void Viewer_OrbitBuildLight(viewer_orbit_t const *orbit, LPCVECTOR3 sunangles, f
     Matrix4_lookAt(&view, &eye, &dir, &(VECTOR3){ 0, 0, 1 });
     Matrix4_multiply(&proj, &view, output);
     (void)sunangles;
+}
+HANDLE Viewer_AddArchive(HANDLE *archives, size_t count, LPCSTR filename) {
+    return Tool_AddArchive(archives, count, filename);
+}
+
+HANDLE Viewer_OpenFile(HANDLE const *archives, size_t count, LPCSTR fileName) {
+    return Tool_OpenFile(archives, count, fileName);
+}
+
+void Viewer_CloseFile(HANDLE file) {
+    Tool_CloseFile(file);
+}
+
+bool Viewer_ExtractFile(HANDLE const *archives, size_t count, LPCSTR toExtract, LPCSTR extracted) {
+    return Tool_ExtractFile(archives, count, toExtract, extracted);
+}
+
+bool Viewer_FileExists(HANDLE const *archives, size_t count, LPCSTR fileName) {
+    return Tool_FileExists(archives, count, fileName);
+}
+
+void Viewer_CloseArchives(HANDLE *archives, size_t count) {
+    Tool_CloseArchives(archives, count);
+}
+
+HANDLE Viewer_MemAlloc(long size) {
+    return Tool_MemAlloc(size);
+}
+
+void Viewer_MemFree(HANDLE mem) {
+    Tool_MemFree(mem);
 }

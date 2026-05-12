@@ -103,28 +103,28 @@ diag: clean
 	$(MAKE) DIAG_OUTPUT=1 build
 	$(MAKE) DIAG_OUTPUT=1 run
 
-$(MPQ_TOOL): tools/mpqtool.c common/mpq.c common/mpq.h | $(BIN_DIR)
+$(MPQ_TOOL): tools/mpqtool.c tools/tool_common.c common/mpq.c common/mpq.h | $(BIN_DIR)
 	@echo "[mpqtool]"
-	$(CC) $(CFLAGS) -o $@ $< common/mpq.c $(LDFLAGS) -lm -lz
+	$(CC) $(CFLAGS) -o $@ $< tools/tool_common.c common/mpq.c $(LDFLAGS) -lm -lz
 
-$(MDX_TOOL): tools/mdxtool.c tools/viewer_common.c tools/viewer_common.h common/mpq.c common/sheet.c common/parser.c | $(BIN_DIR) $(SHARED_LIB) $(RENDERER_LIB)
+$(MDX_TOOL): tools/mdxtool.c tools/viewer_common.c tools/tool_common.c tools/viewer_common.h common/mpq.c common/sheet.c common/parser.c | $(BIN_DIR) $(SHARED_LIB) $(RENDERER_LIB)
 	@echo "[mdxtool]"
-	$(CC) $(CFLAGS) -o $@ $< tools/viewer_common.c common/mpq.c common/sheet.c common/parser.c \
+	$(CC) $(CFLAGS) -o $@ $< tools/viewer_common.c tools/tool_common.c common/mpq.c common/sheet.c common/parser.c \
 		$(RPATH) $(LDFLAGS) -lshared -lrenderer $(LIBS) -lm -lz
 
-$(MAP_TOOL): tools/maptool.c tools/viewer_common.c common/mpq.c common/sheet.c common/parser.c | $(BIN_DIR) $(SHARED_LIB) $(RENDERER_LIB)
+$(MAP_TOOL): tools/maptool.c tools/viewer_common.c tools/tool_common.c common/mpq.c common/sheet.c common/parser.c | $(BIN_DIR) $(SHARED_LIB) $(RENDERER_LIB)
 	@echo "[maptool]"
-	$(CC) $(CFLAGS) -o $@ $< tools/viewer_common.c common/mpq.c common/sheet.c common/parser.c \
+	$(CC) $(CFLAGS) -o $@ $< tools/viewer_common.c tools/tool_common.c common/mpq.c common/sheet.c common/parser.c \
 		$(RPATH) $(LDFLAGS) -lshared -lrenderer $(LIBS) -lm -lz
 
-$(FDF_TOOL): tools/fdftool.c tools/viewer_common.c common/mpq.c common/sheet.c common/parser.c common/msg.c game/parser.c game/ui/ui_fdf.c game/ui/ui_write.c | $(BIN_DIR) $(SHARED_LIB) $(RENDERER_LIB)
+$(FDF_TOOL): tools/fdftool.c tools/viewer_common.c tools/tool_common.c common/mpq.c common/sheet.c common/parser.c common/msg.c game/parser.c game/ui/ui_fdf.c game/ui/ui_write.c | $(BIN_DIR) $(SHARED_LIB) $(RENDERER_LIB)
 	@echo "[fdftool]"
-	$(CC) $(CFLAGS) -o $@ $< tools/viewer_common.c common/mpq.c common/sheet.c common/parser.c common/msg.c game/parser.c game/ui/ui_fdf.c game/ui/ui_write.c game/ui/ui_init.c \
+	$(CC) $(CFLAGS) -o $@ $< tools/viewer_common.c tools/tool_common.c common/mpq.c common/sheet.c common/parser.c common/msg.c game/parser.c game/ui/ui_fdf.c game/ui/ui_write.c game/ui/ui_init.c \
 		$(RPATH) $(LDFLAGS) -lshared -lrenderer $(LIBS) -lm -lz
 
-$(MPQ_NC_TOOL): tools/mpqnc.c | $(BIN_DIR)
+$(MPQ_NC_TOOL): tools/mpqnc.c tools/tool_common.c common/mpq.c common/mpq.h | $(BIN_DIR)
 	@echo "[mpqnc]"
-	$(CC) $(CFLAGS) -o $@ $< $(LDFLAGS) -lm
+	$(CC) $(CFLAGS) -o $@ $< tools/tool_common.c common/mpq.c $(LDFLAGS) -lm -lz
 
 $(BLP_TOOL): tools/blpgen.c | $(BIN_DIR)
 	@echo "[blpgen]"
@@ -218,6 +218,7 @@ TEST_SRCS := \
 	tests/test_harness.c \
 	tests/test_client_stubs.c \
 	tests/test_slk.c \
+	tests/test_tool_common.c \
 	tests/test_unit.c \
 	tests/test_movement.c \
 	tests/test_collision.c \
@@ -233,7 +234,7 @@ TEST_SRCS := \
 	tests/test_ui_e2e.c \
 	tests/test_ui_oracle.c
 
-TEST_CFLAGS := -Wall -Itests/stubs -Ishared/types -Igame -Iserver -Icommon -Iclient -Igame/skills
+TEST_CFLAGS := -Wall -DTOOL_COMMON_NO_MPQ -Itests/stubs -Ishared/types -Igame -Iserver -Icommon -Iclient -Igame/skills
 
 TEST_UI_SRCS := \
 	tests/test_main_ui.c \
@@ -241,6 +242,7 @@ TEST_UI_SRCS := \
 	tests/test_client_stubs.c \
 	tests/test_server_net.c \
 	tests/test_jass.c \
+	tests/test_tool_common.c \
 	tests/test_ui_fdf.c \
 	tests/test_ui_serialize.c \
 	tests/test_ui_layout.c \
@@ -250,13 +252,13 @@ TEST_UI_SRCS := \
 test: test-assets | $(BIN_DIR)
 	$(CC) $(TEST_CFLAGS) -o $(BIN_DIR)/test_openwarcraft3$(EXE_EXT) \
 		$(TEST_SRCS) $(TEST_GAME_SRCS) \
-		$(shell find shared -name '*.c') -lm
+		$(shell find shared -name '*.c') tools/tool_common.c -lm
 	$(BIN_DIR)/test_openwarcraft3$(EXE_EXT)
 
 test-ui: test-assets | $(BIN_DIR)
 	$(CC) $(TEST_CFLAGS) -o $(BIN_DIR)/test_openwarcraft3_ui$(EXE_EXT) \
 		$(TEST_UI_SRCS) $(TEST_GAME_SRCS) \
-		$(shell find shared -name '*.c') -lm
+		$(shell find shared -name '*.c') tools/tool_common.c -lm
 	$(BIN_DIR)/test_openwarcraft3_ui$(EXE_EXT)
 
 test-mpq-compat: mpqtool $(MPQ_TEST)

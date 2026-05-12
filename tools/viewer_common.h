@@ -1,7 +1,7 @@
 #ifndef viewer_common_h
 #define viewer_common_h
 
-#include "../common/common.h"
+#include "tool_common.h"
 #include <SDL2/SDL.h>
 
 #define VIEWER_WINDOW_WIDTH 800

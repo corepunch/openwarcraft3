@@ -13,6 +13,7 @@
 #include <termios.h>
 #include <unistd.h>
 
+#include "tool_common.h"
 #include "tui.h"
 
 typedef struct {
@@ -72,34 +73,6 @@ static void die(const char *msg) {
     exit(1);
 }
 
-static void *xmalloc(size_t size) {
-    void *ptr = calloc(1, size ? size : 1);
-    if (!ptr) {
-        fprintf(stderr, "Out of memory\n");
-        exit(1);
-    }
-    return ptr;
-}
-
-static void *xrealloc(void *ptr, size_t size) {
-    void *next = realloc(ptr, size ? size : 1);
-    if (!next) {
-        fprintf(stderr, "Out of memory\n");
-        exit(1);
-    }
-    return next;
-}
-
-static char *xstrdup(const char *s) {
-    size_t len = s ? strlen(s) : 0;
-    char *copy = xmalloc(len + 1);
-    if (len) {
-        memcpy(copy, s, len);
-    }
-    copy[len] = '\0';
-    return copy;
-}
-
 static void buffer_append(char_buffer_t *buf, const char *data, size_t len) {
     if (len == 0) {
         return;
@@ -109,7 +82,7 @@ static void buffer_append(char_buffer_t *buf, const char *data, size_t len) {
         while (next < buf->count + len + 1) {
             next *= 2;
         }
-        buf->items = xrealloc(buf->items, next);
+        buf->items = Tool_XRealloc(buf->items, next);
         buf->cap = next;
     }
     memcpy(buf->items + buf->count, data, len);
@@ -164,7 +137,7 @@ static char *run_capture(char *const argv[], int *exit_code) {
     if (waitpid(pid, exit_code ? exit_code : &(int){0}, 0) < 0) {
         die("waitpid");
     }
-    return out.items ? out.items : xstrdup("");
+    return out.items ? out.items : Tool_XStrdup("");
 }
 
 static void free_entries(entry_list_t *list) {
@@ -183,10 +156,10 @@ static void free_entries(entry_list_t *list) {
 static void entry_list_push(entry_list_t *list, const char *name, bool is_dir) {
     if (list->count == list->cap) {
         size_t next = list->cap ? list->cap * 2 : 32;
-        list->items = xrealloc(list->items, next * sizeof(*list->items));
+        list->items = Tool_XRealloc(list->items, next * sizeof(*list->items));
         list->cap = next;
     }
-    list->items[list->count].name = xstrdup(name);
+    list->items[list->count].name = Tool_XStrdup(name);
     list->items[list->count].is_dir = is_dir;
     list->count++;
 }
@@ -198,56 +171,6 @@ static int entry_cmp(const void *a, const void *b) {
         return ea->is_dir ? -1 : 1;
     }
     return strcasecmp(ea->name, eb->name);
-}
-
-static void normalize_mpq_path(char *path) {
-    for (; *path; path++) {
-        if (*path == '\\') {
-            *path = '/';
-        }
-    }
-}
-
-static char *join_path(const char *base, const char *name) {
-    size_t base_len = base ? strlen(base) : 0;
-    size_t name_len = strlen(name);
-    bool need_slash = base_len > 0;
-    char *out = xmalloc(base_len + name_len + (need_slash ? 2 : 1));
-    if (need_slash) {
-        sprintf(out, "%s/%s", base, name);
-    } else {
-        sprintf(out, "%s", name);
-    }
-    return out;
-}
-
-static char *parent_path(const char *path) {
-    char *copy = xstrdup(path ? path : "");
-    char *slash;
-    normalize_mpq_path(copy);
-    slash = strrchr(copy, '/');
-    if (slash) {
-        *slash = '\0';
-    } else {
-        copy[0] = '\0';
-    }
-    return copy;
-}
-
-static const char *path_basename(const char *path) {
-    const char *slash = strrchr(path, '/');
-    const char *back = strrchr(path, '\\');
-    const char *base = slash;
-    if (!base || (back && back > base)) {
-        base = back;
-    }
-    return base ? base + 1 : path;
-}
-
-static const char *path_ext(const char *path) {
-    const char *base = path_basename(path);
-    const char *dot = strrchr(base, '.');
-    return dot ? dot + 1 : "";
 }
 
 static bool is_text_ext(const char *ext) {
@@ -346,7 +269,7 @@ static char *wrap_text(const char *text, size_t width) {
     while (*cursor) {
         const char *line_end = strchr(cursor, '\n');
         size_t len = line_end ? (size_t)(line_end - cursor) : strlen(cursor);
-        char *line = xmalloc(len + 1);
+        char *line = Tool_XMalloc(len + 1);
         memcpy(line, cursor, len);
         line[len] = '\0';
         wrapped_append_line(&out, line, width);
@@ -356,7 +279,7 @@ static char *wrap_text(const char *text, size_t width) {
     if (out.count == 0) {
         append_text_line(&out, "");
     }
-    return out.items ? out.items : xstrdup("");
+    return out.items ? out.items : Tool_XStrdup("");
 }
 
 static char *build_listing(app_t *app) {
@@ -376,7 +299,7 @@ static char *build_listing(app_t *app) {
     out = run_capture(argv, &exit_code);
     if (exit_code != 0 && (!out || !*out)) {
         free(out);
-        out = xstrdup("(mpqtool ls failed)");
+        out = Tool_XStrdup("(mpqtool ls failed)");
     }
     return out;
 }
@@ -525,22 +448,22 @@ static void build_info_cache(app_t *app, int panel_width) {
 
     if (!entry) {
         clear_info_cache(app);
-        app->cached_info_path = xstrdup("");
-        app->cached_info_text = xstrdup("No entries");
+        app->cached_info_path = Tool_XStrdup("");
+        app->cached_info_text = Tool_XStrdup("No entries");
         return;
     }
 
     snprintf(path, sizeof(path), "%s", app->current_path ? app->current_path : "");
     if (entry->is_dir && strcmp(entry->name, "..") != 0) {
-        char *child = join_path(path, entry->name);
+        char *child = Tool_PathJoin(path, entry->name);
         free(app->cached_info_path);
         app->cached_info_path = child;
     } else if (strcmp(entry->name, "..") == 0) {
-        char *parent = parent_path(path);
+        char *parent = Tool_PathParent(path);
         free(app->cached_info_path);
         app->cached_info_path = parent;
     } else {
-        char *child = join_path(path, entry->name);
+        char *child = Tool_PathJoin(path, entry->name);
         free(app->cached_info_path);
         app->cached_info_path = child;
     }
@@ -568,10 +491,10 @@ static void build_info_cache(app_t *app, int panel_width) {
                  app->entries.count,
                  dirs,
                  files);
-        raw = xstrdup(tmp);
+        raw = Tool_XStrdup(tmp);
     } else {
-        const char *ext = path_ext(entry->name);
-        char *full_path = join_path(app->current_path ? app->current_path : "", entry->name);
+        const char *ext = Tool_PathExt(entry->name);
+        char *full_path = Tool_PathJoin(app->current_path ? app->current_path : "", entry->name);
         if (!strcasecmp(ext, "mdx")) {
             raw = build_mdx_info(app, full_path);
         } else if (!strcasecmp(ext, "fdf")) {
@@ -586,13 +509,13 @@ static void build_info_cache(app_t *app, int panel_width) {
                      "No specialized inspector\n\npath: %s\nextension: %s\n\nTry Enter on a folder, or select a .mdx/.fdf/.blp/.txt file.",
                      full_path,
                      ext[0] ? ext : "(none)");
-            raw = xstrdup(tmp);
+            raw = Tool_XStrdup(tmp);
         }
         free(full_path);
     }
 
     if (!raw) {
-        raw = xstrdup("(no info available)");
+        raw = Tool_XStrdup("(no info available)");
     }
     wrapped = wrap_text(raw, (size_t)(panel_width > 0 ? panel_width : 1));
     free(raw);
@@ -639,7 +562,7 @@ static void render(app_t *app) {
     build_info_cache(app, right_w);
 
     if (app->cached_info_text) {
-        char *copy = xstrdup(app->cached_info_text);
+        char *copy = Tool_XStrdup(app->cached_info_text);
         char *cursor = copy;
         while (cursor && *cursor) {
             char *line = cursor;
@@ -652,14 +575,14 @@ static void render(app_t *app) {
             }
             if (info_count == info_cap) {
                 size_t next = info_cap ? info_cap * 2 : 32;
-                info_lines = xrealloc(info_lines, next * sizeof(*info_lines));
+                info_lines = Tool_XRealloc(info_lines, next * sizeof(*info_lines));
                 info_cap = next;
             }
-            info_lines[info_count++] = xstrdup(line);
+            info_lines[info_count++] = Tool_XStrdup(line);
         }
         if (info_count == 0) {
-            info_lines = xrealloc(info_lines, sizeof(*info_lines));
-            info_lines[info_count++] = xstrdup("");
+            info_lines = Tool_XRealloc(info_lines, sizeof(*info_lines));
+            info_lines[info_count++] = Tool_XStrdup("");
         }
         free(copy);
     }
@@ -822,9 +745,9 @@ static void usage(void) {
 
 static void app_init(app_t *app) {
     memset(app, 0, sizeof(*app));
-    app->mpqtool_path = xstrdup("build/bin/mpqtool");
-    app->mdxtool_path = xstrdup("build/bin/mdxtool");
-    app->fdftool_path = xstrdup("build/bin/fdftool");
+    app->mpqtool_path = Tool_XStrdup("build/bin/mpqtool");
+    app->mdxtool_path = Tool_XStrdup("build/bin/mdxtool");
+    app->fdftool_path = Tool_XStrdup("build/bin/fdftool");
 }
 
 static void app_destroy(app_t *app) {
@@ -840,7 +763,7 @@ static void app_destroy(app_t *app) {
 
 static void app_set_path(app_t *app, const char *path) {
     free(app->current_path);
-    app->current_path = xstrdup(path ? path : "");
+    app->current_path = Tool_XStrdup(path ? path : "");
 }
 
 static void open_selected(app_t *app) {
@@ -849,7 +772,7 @@ static void open_selected(app_t *app) {
         return;
     }
     if (strcmp(entry->name, "..") == 0) {
-        char *parent = parent_path(app->current_path ? app->current_path : "");
+        char *parent = Tool_PathParent(app->current_path ? app->current_path : "");
         app_set_path(app, parent);
         free(parent);
         reset_selection(app);
@@ -858,7 +781,7 @@ static void open_selected(app_t *app) {
     if (!entry->is_dir) {
         return;
     }
-    char *next = join_path(app->current_path ? app->current_path : "", entry->name);
+    char *next = Tool_PathJoin(app->current_path ? app->current_path : "", entry->name);
     app_set_path(app, next);
     free(next);
     reset_selection(app);
@@ -876,57 +799,57 @@ int main(int argc, char **argv) {
                 return 1;
             }
             free(app.mpq_path);
-            app.mpq_path = xstrdup(argv[i]);
+            app.mpq_path = Tool_XStrdup(argv[i]);
         } else if (!strncmp(argv[i], "-mpq=", 5)) {
             free(app.mpq_path);
-            app.mpq_path = xstrdup(argv[i] + 5);
+            app.mpq_path = Tool_XStrdup(argv[i] + 5);
         } else if (!strcmp(argv[i], "-path") || !strcmp(argv[i], "--path")) {
             if (++i >= argc) {
                 usage();
                 return 1;
             }
             free(app.start_path);
-            app.start_path = xstrdup(argv[i]);
+            app.start_path = Tool_XStrdup(argv[i]);
         } else if (!strncmp(argv[i], "-path=", 6)) {
             free(app.start_path);
-            app.start_path = xstrdup(argv[i] + 6);
+            app.start_path = Tool_XStrdup(argv[i] + 6);
         } else if (!strcmp(argv[i], "-mpqtool") || !strcmp(argv[i], "--mpqtool")) {
             if (++i >= argc) {
                 usage();
                 return 1;
             }
             free(app.mpqtool_path);
-            app.mpqtool_path = xstrdup(argv[i]);
+            app.mpqtool_path = Tool_XStrdup(argv[i]);
         } else if (!strncmp(argv[i], "-mpqtool=", 9)) {
             free(app.mpqtool_path);
-            app.mpqtool_path = xstrdup(argv[i] + 9);
+            app.mpqtool_path = Tool_XStrdup(argv[i] + 9);
         } else if (!strcmp(argv[i], "-mdxtool") || !strcmp(argv[i], "--mdxtool")) {
             if (++i >= argc) {
                 usage();
                 return 1;
             }
             free(app.mdxtool_path);
-            app.mdxtool_path = xstrdup(argv[i]);
+            app.mdxtool_path = Tool_XStrdup(argv[i]);
         } else if (!strncmp(argv[i], "-mdxtool=", 9)) {
             free(app.mdxtool_path);
-            app.mdxtool_path = xstrdup(argv[i] + 9);
+            app.mdxtool_path = Tool_XStrdup(argv[i] + 9);
         } else if (!strcmp(argv[i], "-fdftool") || !strcmp(argv[i], "--fdftool")) {
             if (++i >= argc) {
                 usage();
                 return 1;
             }
             free(app.fdftool_path);
-            app.fdftool_path = xstrdup(argv[i]);
+            app.fdftool_path = Tool_XStrdup(argv[i]);
         } else if (!strncmp(argv[i], "-fdftool=", 9)) {
             free(app.fdftool_path);
-            app.fdftool_path = xstrdup(argv[i] + 9);
+            app.fdftool_path = Tool_XStrdup(argv[i] + 9);
         } else if (!strcmp(argv[i], "-h") || !strcmp(argv[i], "--help")) {
             usage();
             app_destroy(&app);
             return 0;
         } else if (argv[i][0] != '-' && !app.mpq_path) {
             free(app.mpq_path);
-            app.mpq_path = xstrdup(argv[i]);
+            app.mpq_path = Tool_XStrdup(argv[i]);
         } else {
             usage();
             app_destroy(&app);
@@ -982,7 +905,7 @@ int main(int argc, char **argv) {
                 break;
             case KEY_LEFT:
                 if (app.current_path && app.current_path[0]) {
-                    char *parent = parent_path(app.current_path);
+                    char *parent = Tool_PathParent(app.current_path);
                     app_set_path(&app, parent);
                     free(parent);
                     load_entries(&app);
