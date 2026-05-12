@@ -152,6 +152,9 @@ void R_DrawSprite(LPCMODEL model, LPCSTR anim, float x, float y) {
     }
     mdxModel_t const *mdx = model->mdx;
     mdxSequence_t const *seq = (anim && *anim) ? MDLX_FindSequenceByName(mdx, anim) : NULL;
+
+    VECTOR3 const center = Box3_Center(&mdx->bounds.box);
+
     if (!seq && mdx->sequences && mdx->num_sequences > 0) {
         seq = &mdx->sequences[0];
     }
@@ -163,18 +166,13 @@ void R_DrawSprite(LPCMODEL model, LPCSTR anim, float x, float y) {
     viewdef.viewport = (struct rect) {0,0,1,1};
 
     entity.flags |= RF_NO_FOGOFWAR | RF_NO_SHADOW | RF_NO_LIGHTING;
-
-    VECTOR3 const center = Box3_Center(&mdx->bounds.box);
-
-    entity.origin = (VECTOR3){x+mdx->bounds.box.min.x, -y-mdx->bounds.box.min.y, 0};
-    // printf("Sprite origin: %f %f %f %f\n", viewport->x, viewport->y, viewport->w, viewport->h);
+    // this only works for TOPLEFT/TOPRIGHT anchored sprites, but that's all we have for now
+    entity.origin = (VECTOR3){x+center.x, y+mdx->bounds.box.min.y, 0};
+    // entity.origin = (VECTOR3){x+mdx->bounds.box.min.x, y-center.y, 0};
 
     RECT screen = R_UISceneRect();
     Matrix4_ortho(&viewdef.viewProjectionMatrix, screen.x, screen.x + screen.w, screen.y - screen.h, screen.y, 0.0f, 100.0f);
-
-    R_Call(glActiveTexture, GL_TEXTURE2);
-    R_Call(glBindTexture, GL_TEXTURE_2D, tr.texture[TEX_WHITE]->texid);
-    R_Call(glActiveTexture, GL_TEXTURE0);
+    Matrix4_scale(&viewdef.viewProjectionMatrix, &(VECTOR3){1, 1, 0});
 
     tr.viewDef = viewdef;
 

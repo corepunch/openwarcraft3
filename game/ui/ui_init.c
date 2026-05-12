@@ -129,7 +129,6 @@ void Init_CinematicPanel(void) {
 
 static void Init_MainMenu(void) {
     UI_FRAME(MainMenuFrame);
-    UI_FRAME(WarCraftIIILogo);
     UI_FRAME(TopLeftPanel);
     UI_FRAME(TopRightPanel);
     UI_FRAME(RealmSelect);
@@ -141,11 +140,6 @@ static void Init_MainMenu(void) {
     UI_FRAME(CreditsButton);
     UI_FRAME(ExitButton);
 
-    if (WarCraftIIILogo) {
-        UI_SetSize(WarCraftIIILogo, 0.34, 0.23);
-        UI_SetHidden(WarCraftIIILogo, false);
-        UI_SetPoint(WarCraftIIILogo, FRAMEPOINT_TOPLEFT, MainMenuFrame, FRAMEPOINT_TOPLEFT, 0.13, 0.04);
-    }
     if (TopLeftPanel) {
         UI_SetHidden(TopLeftPanel, false);
     }
@@ -157,9 +151,6 @@ static void Init_MainMenu(void) {
     }
     if (ControlLayer) {
         UI_SetHidden(ControlLayer, false);
-    }
-    if (WarCraftIIILogo) {
-        UI_SetParent(WarCraftIIILogo, MainMenuFrame);
     }
     if (TopLeftPanel) {
         UI_SetParent(TopLeftPanel, MainMenuFrame);
