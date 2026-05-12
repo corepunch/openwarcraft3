@@ -27,6 +27,7 @@ void run_game_tests(void);
 void run_combat_tests(void);
 void run_server_net_tests(void);
 void run_ui_fdf_tests(void);
+void run_ui_serialize_tests(void);
 
 int main(void) {
     printf("=== OpenWarcraft3 Unit Tests ===\n\n");
@@ -73,6 +74,10 @@ int main(void) {
 
     printf("[UI FDF parser / frame graph]\n");
     run_ui_fdf_tests();
+    printf("\n");
+
+    printf("[UI serialization / delta]\n");
+    run_ui_serialize_tests();
     printf("\n");
 
     TEST_RESULTS();
