@@ -5,6 +5,10 @@
 #include <string.h>
 #include <stdbool.h>
 
+#ifndef _WIN32
+#include <libgen.h>
+#endif
+
 #ifndef PATHSTR
 #define PATHSTR char[512]
 #endif
@@ -26,12 +30,16 @@ static void usage(void) {
         "  mpqtool -mpq <archive.mpq> ls [path]\n"
         "  mpqtool -mpq <archive.mpq> cat <file>\n"
         "  mpqtool -mpq <archive.mpq> imginfo <file>\n"
+    "  mpqtool -mpq <archive.mpq> create [max-files]\n"
+    "  mpqtool -mpq <archive.mpq> pack <src> <archive-file> [<src> <archive-file> ...]\n"
         "\n"
         "Examples:\n"
         "  mpqtool -mpq War3.mpq ls\n"
         "  mpqtool -mpq War3.mpq ls Units\n"
         "  mpqtool -mpq War3.mpq cat Units/UnitData.slk\n"
-        "  mpqtool -mpq War3.mpq imginfo UI/Widgets/Glues/GlueScreen-Button1-Border.blp\n");
+    "  mpqtool -mpq tests.mpq create 32\n"
+    "  mpqtool -mpq tests.mpq pack ./basic.fdf TestUI/Frames/basic.fdf ./checker.blp TestUI/Textures/checker.blp\n"
+    "  mpqtool -mpq War3.mpq imginfo UI/Widgets/Glues/GlueScreen-Button1-Border.blp\n");
 }
 
 static unsigned short rd_u16le(const unsigned char *p) {
@@ -369,10 +377,74 @@ static int cmd_ls(HANDLE archive, const char *path) {
     return 0;
 }
 
+static int cmd_create(const char *mpq_path, const char *arg)
+{
+    HANDLE archive;
+    DWORD max_files = 16;
+
+    if (arg && *arg) {
+        char *end = NULL;
+        unsigned long parsed = strtoul(arg, &end, 10);
+        if (!end || *end != '\0' || parsed == 0 || parsed > 65535) {
+            fprintf(stderr, "Invalid max-files value: %s\n", arg);
+            return 1;
+        }
+        max_files = (DWORD)parsed;
+    }
+
+    if (!SFileCreateArchive(mpq_path, 0, max_files, &archive)) {
+        fprintf(stderr, "Cannot create archive: %s\n", mpq_path);
+        return 1;
+    }
+    if (!SFileCloseArchive(archive)) {
+        fprintf(stderr, "Cannot finalize archive: %s\n", mpq_path);
+        return 1;
+    }
+    return 0;
+}
+
+static int cmd_pack(const char *mpq_path, int pair_count, char **pairs)
+{
+    HANDLE archive;
+    int i;
+
+    if (pair_count <= 0 || (pair_count % 2) != 0) {
+        fprintf(stderr, "pack requires <src> <archive-file> pairs\n");
+        return 1;
+    }
+
+    if (!SFileCreateArchive(mpq_path, 0, (DWORD)(pair_count / 2 + 1), &archive)) {
+        fprintf(stderr, "Cannot create archive: %s\n", mpq_path);
+        return 1;
+    }
+
+    for (i = 0; i < pair_count; i += 2) {
+        char path[512];
+        strncpy(path, pairs[i + 1], sizeof(path) - 1);
+        path[sizeof(path) - 1] = '\0';
+        normalize_slashes(path);
+        trim_edge_slashes(path);
+        if (!SFileAddFile(archive, pairs[i], path)) {
+            fprintf(stderr, "Cannot add file %s as %s\n", pairs[i], path);
+            SFileCloseArchive(archive);
+            return 1;
+        }
+    }
+
+    if (!SFileCloseArchive(archive)) {
+        fprintf(stderr, "Cannot finalize archive: %s\n", mpq_path);
+        return 1;
+    }
+
+    return 0;
+}
+
 int main(int argc, char **argv) {
     const char *mpq = NULL;
     const char *cmd = NULL;
     const char *arg = NULL;
+    char **extra = NULL;
+    int extra_count = 0;
     HANDLE archive;
     int rc;
 
@@ -393,14 +465,37 @@ int main(int argc, char **argv) {
         } else if (!arg) {
             arg = argv[i];
         } else {
-            usage();
-            return 1;
+            extra = &argv[i];
+            extra_count = argc - i;
+            break;
         }
     }
 
     if (!mpq || !cmd) {
         usage();
         return 1;
+    }
+
+    if (strcmp(cmd, "create") == 0) {
+        return cmd_create(mpq, arg);
+    } else if (strcmp(cmd, "pack") == 0) {
+        if (!arg) {
+            usage();
+            return 1;
+        }
+        if (!extra) {
+            fprintf(stderr, "pack requires <src> <archive-file> pairs\n");
+            return 1;
+        }
+        {
+            char *pairs[256];
+            int pair_count = 0;
+            pairs[pair_count++] = (char *)arg;
+            for (int i = 0; i < extra_count && pair_count < (int)(sizeof(pairs) / sizeof(pairs[0])); i++) {
+                pairs[pair_count++] = extra[i];
+            }
+            return cmd_pack(mpq, pair_count, pairs);
+        }
     }
 
     if (!SFileOpenArchive(mpq, 0, 0, &archive)) {

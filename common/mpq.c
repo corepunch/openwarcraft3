@@ -39,6 +39,7 @@
 #define MPQ_FILE_ENCRYPTED 0x00010000
 #define MPQ_FILE_KEY_V2 0x00020000
 #define MPQ_COMPRESSION_ZLIB 0x02
+#define MPQ_FILE_EXISTS 0x80000000u
 
 typedef struct {
     DWORD dwID;                 // "MPQ\x1a"
@@ -81,6 +82,11 @@ typedef struct {
     MPQ_BLOCK_ENTRY *blocktable;
     DWORD sector_size;
     BYTE *sector_buffer;
+    BOOL write_mode;
+    DWORD write_hash_table_size;
+    struct mpq_write_entry *write_entries;
+    DWORD write_count;
+    DWORD write_capacity;
 } MPQ_ARCHIVE;
 
 typedef struct {
@@ -108,6 +114,12 @@ typedef struct mpq_cache_entry {
     DWORD block_index;
     struct mpq_cache_entry *next;
 } MPQ_CACHE_ENTRY;
+
+typedef struct mpq_write_entry {
+    char *name;
+    BYTE *data;
+    DWORD size;
+} MPQ_WRITE_ENTRY;
 
 typedef struct {
     char *name;
@@ -407,6 +419,266 @@ static BOOL DecryptBlock(LPBYTE data, DWORD size, DWORD seed1)
     return TRUE;
 }
 
+static BOOL EncryptBlock(LPBYTE data, DWORD size, DWORD seed1)
+{
+    LPDWORD pdw = (LPDWORD)data;
+    DWORD nblocks = size >> 2;
+    DWORD seed2 = 0xEEEEEEEE;
+    DWORD index;
+
+    if (!storm_buffer_ready) {
+        InitStormBuffer();
+    }
+
+    for (index = 0; index < nblocks; index++) {
+        DWORD value = pdw[index];
+        DWORD seed2_base = seed2 + storm_buffer[MPQ_HASH_KEY2_MIX + (seed1 & 0xFF)];
+
+        pdw[index] = value ^ (seed1 + seed2_base);
+        seed1 = ((~seed1 << 0x15) + 0x11111111) | (seed1 >> 0x0B);
+        seed2 = value + seed2_base + (seed2_base << 5) + 3;
+    }
+
+    return TRUE;
+}
+
+static DWORD NextPowerOfTwo(DWORD value)
+{
+    DWORD result = 1;
+
+    while (result < value) {
+        result <<= 1;
+    }
+
+    return result;
+}
+
+static void FreeWriterEntries(MPQ_ARCHIVE *mpq)
+{
+    DWORD i;
+
+    if (!mpq || !mpq->write_entries) {
+        return;
+    }
+
+    for (i = 0; i < mpq->write_count; i++) {
+        free(mpq->write_entries[i].name);
+        free(mpq->write_entries[i].data);
+    }
+
+    free(mpq->write_entries);
+    mpq->write_entries = NULL;
+    mpq->write_count = 0;
+    mpq->write_capacity = 0;
+}
+
+static BOOL WriterHasEntry(MPQ_ARCHIVE *mpq, const char *fileName)
+{
+    DWORD i;
+    char key[1024];
+
+    if (!mpq || !fileName) {
+        return FALSE;
+    }
+
+    CanonicalizeMpqKey(fileName, key, sizeof(key));
+    for (i = 0; i < mpq->write_count; i++) {
+        char existing[1024];
+        CanonicalizeMpqKey(mpq->write_entries[i].name, existing, sizeof(existing));
+        if (!strcmp(existing, key)) {
+            return TRUE;
+        }
+    }
+
+    return FALSE;
+}
+
+static BOOL WriterAddData(MPQ_ARCHIVE *mpq, const char *archivedName, const BYTE *data, DWORD size)
+{
+    MPQ_WRITE_ENTRY *entry;
+    char path[1024];
+
+    if (!mpq || !mpq->write_mode || !archivedName || !*archivedName) {
+        return FALSE;
+    }
+
+    strncpy(path, archivedName, sizeof(path) - 1);
+    path[sizeof(path) - 1] = '\0';
+    NormalizeMpqPath(path);
+    TrimEdgeSlashes(path);
+    if (*path == '\0' || WriterHasEntry(mpq, path)) {
+        return FALSE;
+    }
+
+    if (mpq->write_count == mpq->write_capacity) {
+        DWORD next = mpq->write_capacity ? mpq->write_capacity * 2 : 16;
+        MPQ_WRITE_ENTRY *tmp = (MPQ_WRITE_ENTRY *)realloc(mpq->write_entries, next * sizeof(*tmp));
+        if (!tmp) {
+            return FALSE;
+        }
+        mpq->write_entries = tmp;
+        mpq->write_capacity = next;
+    }
+
+    entry = &mpq->write_entries[mpq->write_count++];
+    memset(entry, 0, sizeof(*entry));
+    entry->name = (char *)malloc(strlen(path) + 1);
+    if (!entry->name) {
+        mpq->write_count--;
+        return FALSE;
+    }
+    strcpy(entry->name, path);
+
+    if (size > 0) {
+        entry->data = (BYTE *)malloc(size);
+        if (!entry->data) {
+            free(entry->name);
+            memset(entry, 0, sizeof(*entry));
+            mpq->write_count--;
+            return FALSE;
+        }
+        memcpy(entry->data, data, size);
+    }
+
+    entry->size = size;
+    return TRUE;
+}
+
+static BOOL FinalizeCreatedArchive(MPQ_ARCHIVE *mpq)
+{
+    MPQ_HEADER_V1 header;
+    MPQ_HASH_ENTRY *hash_table = NULL;
+    MPQ_BLOCK_ENTRY *block_table = NULL;
+    MPQ_WRITE_ENTRY listfile = { 0 };
+    DWORD total_entries;
+    DWORD hash_size;
+    DWORD block_size = 0;
+    DWORD offset;
+    DWORD i;
+    BOOL ok = FALSE;
+
+    if (!mpq || !mpq->write_mode || !mpq->fp) {
+        return FALSE;
+    }
+
+    total_entries = mpq->write_count + 1;
+    hash_size = NextPowerOfTwo(MAX(mpq->write_hash_table_size, total_entries * 2));
+    if (hash_size < 16) {
+        hash_size = 16;
+    }
+
+    listfile.name = "(listfile)";
+    for (i = 0; i < mpq->write_count; i++) {
+        block_size += (DWORD)strlen(mpq->write_entries[i].name) + 1;
+    }
+    block_size += (DWORD)strlen(listfile.name) + 1;
+    listfile.data = (BYTE *)malloc(block_size ? block_size : 1);
+    if (!listfile.data) {
+        goto done;
+    }
+
+    offset = 0;
+    for (i = 0; i < mpq->write_count; i++) {
+        size_t len = strlen(mpq->write_entries[i].name);
+        memcpy(listfile.data + offset, mpq->write_entries[i].name, len);
+        offset += (DWORD)len;
+        listfile.data[offset++] = '\n';
+    }
+    memcpy(listfile.data + offset, listfile.name, strlen(listfile.name));
+    offset += (DWORD)strlen(listfile.name);
+    listfile.data[offset++] = '\n';
+    listfile.size = offset;
+
+    hash_table = (MPQ_HASH_ENTRY *)malloc(hash_size * sizeof(*hash_table));
+    block_table = (MPQ_BLOCK_ENTRY *)malloc(total_entries * sizeof(*block_table));
+    if (!hash_table || !block_table) {
+        goto done;
+    }
+
+    for (i = 0; i < hash_size; i++) {
+        hash_table[i].dwNameHash1 = 0xFFFFFFFF;
+        hash_table[i].dwNameHash2 = 0xFFFFFFFF;
+        hash_table[i].wLocale = 0xFFFF;
+        hash_table[i].bPlatform = 0xFF;
+        hash_table[i].bFlags = 0xFF;
+        hash_table[i].dwBlockIndex = MPQ_HASH_ENTRY_FREE;
+    }
+
+    memset(block_table, 0, total_entries * sizeof(*block_table));
+
+    memset(&header, 0, sizeof(header));
+    header.dwID = 0x1A51504D;
+    header.dwHeaderSize = sizeof(header);
+    header.wFormatVersion = 0;
+    header.wSectorSizeShift = 3;
+    header.dwHashTableSize = hash_size;
+    header.dwBlockTableSize = total_entries;
+
+    offset = sizeof(header);
+    for (i = 0; i < total_entries; i++) {
+        MPQ_WRITE_ENTRY *entry = (i < mpq->write_count) ? &mpq->write_entries[i] : &listfile;
+        DWORD slot = HashString(entry->name, MPQ_HASH_NAME_A) & (hash_size - 1);
+
+        block_table[i].dwBlockOffset = offset;
+        block_table[i].dwBlockSize = entry->size;
+        block_table[i].dwFileSize = entry->size;
+        block_table[i].dwFlags = MPQ_FILE_EXISTS;
+        offset += entry->size;
+
+        while (hash_table[slot].dwBlockIndex != MPQ_HASH_ENTRY_FREE) {
+            slot = (slot + 1) & (hash_size - 1);
+        }
+
+        hash_table[slot].dwNameHash1 = HashString(entry->name, MPQ_HASH_NAME_A);
+        hash_table[slot].dwNameHash2 = HashString(entry->name, MPQ_HASH_NAME_B);
+        hash_table[slot].wLocale = 0;
+        hash_table[slot].bPlatform = 0;
+        hash_table[slot].bFlags = 0;
+        hash_table[slot].dwBlockIndex = i;
+    }
+
+    header.dwHashTablePos = offset;
+    offset += hash_size * sizeof(*hash_table);
+    header.dwBlockTablePos = offset;
+    offset += total_entries * sizeof(*block_table);
+    header.dwArchiveSize = offset;
+
+    if (fseek(mpq->fp, 0, SEEK_SET) != 0) {
+        goto done;
+    }
+    if (fwrite(&header, sizeof(header), 1, mpq->fp) != 1) {
+        goto done;
+    }
+
+    for (i = 0; i < total_entries; i++) {
+        MPQ_WRITE_ENTRY *entry = (i < mpq->write_count) ? &mpq->write_entries[i] : &listfile;
+        if (entry->size > 0 && fwrite(entry->data, 1, entry->size, mpq->fp) != entry->size) {
+            goto done;
+        }
+    }
+
+    EncryptBlock((LPBYTE)hash_table, hash_size * sizeof(*hash_table), MPQ_KEY_HASH_TABLE);
+    EncryptBlock((LPBYTE)block_table, total_entries * sizeof(*block_table), MPQ_KEY_BLOCK_TABLE);
+
+    if (fwrite(hash_table, sizeof(*hash_table), hash_size, mpq->fp) != hash_size) {
+        goto done;
+    }
+    if (fwrite(block_table, sizeof(*block_table), total_entries, mpq->fp) != total_entries) {
+        goto done;
+    }
+    if (fflush(mpq->fp) != 0) {
+        goto done;
+    }
+
+    ok = TRUE;
+
+done:
+    free(listfile.data);
+    free(hash_table);
+    free(block_table);
+    return ok;
+}
+
 static BOOL SectorTableLooksValid(const DWORD *offsets, DWORD sector_count, DWORD compressed_size)
 {
     DWORD i;
@@ -616,12 +888,97 @@ fail:
     return FALSE;
 }
 
+BOOL SFileCreateArchive(LPCSTR filename, DWORD flags, DWORD maxFiles, HANDLE *archive)
+{
+    MPQ_ARCHIVE *mpq;
+    FILE *fp;
+
+    (void)flags;
+
+    if (!filename || !archive) {
+        return FALSE;
+    }
+
+    fp = fopen(filename, "wb+");
+    if (!fp) {
+        return FALSE;
+    }
+
+    mpq = (MPQ_ARCHIVE *)calloc(1, sizeof(*mpq));
+    if (!mpq) {
+        fclose(fp);
+        return FALSE;
+    }
+
+    mpq->fp = fp;
+    mpq->write_mode = TRUE;
+    mpq->write_hash_table_size = NextPowerOfTwo(MAX(maxFiles * 2, 16));
+    strncpy(mpq->filename, filename, sizeof(mpq->filename) - 1);
+    *archive = (HANDLE)mpq;
+    return TRUE;
+}
+
+BOOL SFileAddFile(HANDLE archive, LPCSTR sourceFile, LPCSTR archivedName)
+{
+    MPQ_ARCHIVE *mpq = (MPQ_ARCHIVE *)archive;
+    FILE *fp;
+    BYTE *buffer;
+    long size_long;
+    size_t size;
+    const char *name = archivedName ? archivedName : BaseNamePtr(sourceFile);
+    BOOL ok;
+
+    if (!mpq || !mpq->write_mode || !sourceFile || !name) {
+        return FALSE;
+    }
+
+    fp = fopen(sourceFile, "rb");
+    if (!fp) {
+        return FALSE;
+    }
+
+    if (fseek(fp, 0, SEEK_END) != 0) {
+        fclose(fp);
+        return FALSE;
+    }
+    size_long = ftell(fp);
+    if (size_long < 0 || fseek(fp, 0, SEEK_SET) != 0) {
+        fclose(fp);
+        return FALSE;
+    }
+
+    size = (size_t)size_long;
+    buffer = size ? (BYTE *)malloc(size) : NULL;
+    if (size > 0 && !buffer) {
+        fclose(fp);
+        return FALSE;
+    }
+    if (size > 0 && fread(buffer, 1, size, fp) != size) {
+        free(buffer);
+        fclose(fp);
+        return FALSE;
+    }
+    fclose(fp);
+
+    ok = WriterAddData(mpq, name, buffer, (DWORD)size);
+    free(buffer);
+    return ok;
+}
+
 BOOL SFileCloseArchive(HANDLE archive)
 {
     MPQ_ARCHIVE *mpq = (MPQ_ARCHIVE *)archive;
 
     if (!mpq) {
         return FALSE;
+    }
+
+    if (mpq->write_mode) {
+        BOOL ok = FinalizeCreatedArchive(mpq);
+        FreeWriterEntries(mpq);
+        if (mpq->fp) fclose(mpq->fp);
+        free(mpq);
+        return ok;
     }
 
     if (mpq->hashtable) free(mpq->hashtable);
