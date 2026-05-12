@@ -60,7 +60,7 @@ VECTOR2 SCR_MouseToFdf(void) {
 
     return MAKE(VECTOR2,
                 scene.x + nx * scene.w,
-                scene.y + ny * scene.h);
+                scene.y + (1.0f - ny) * scene.h);
 }
 
 RECT get_uvrect(uint8_t const *texcoord) {
@@ -99,7 +99,8 @@ VECTOR2 SCR_GetAxisBounds(LPCRECT rect, bool is_x_axis) {
 }
 
 FLOAT SCR_NormalizeAnchorOffset(uiFramePoint_t const *p, bool is_x_axis) {
-    SHORT offset = is_x_axis ? p->offset : -p->offset;
+    SHORT offset = p->offset;
+    (void)is_x_axis;
     return offset / UI_FRAMEPOINT_SCALE;
 }
 

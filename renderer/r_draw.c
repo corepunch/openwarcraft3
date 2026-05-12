@@ -83,7 +83,7 @@ void R_DrawImageEx(LPCDRAWIMAGE drawImage) {
     
     MATRIX4 ui_matrix, model_matrix;
     RECT const scene = R_UISceneRect();
-    Matrix4_ortho(&ui_matrix, scene.x, scene.x + scene.w, scene.y + scene.h, scene.y, 0.0f, 100.0f);
+    Matrix4_ortho(&ui_matrix, scene.x, scene.x + scene.w, scene.y, scene.y + scene.h, 0.0f, 100.0f);
     Matrix4_identity(&model_matrix);
     
     R_Call(glDisable, GL_CULL_FACE);
@@ -138,7 +138,7 @@ void R_DrawWireRect(LPCRECT rect, COLOR32 color) {
 
     MATRIX4 ui_matrix;
     RECT const scene = R_UISceneRect();
-    Matrix4_ortho(&ui_matrix, scene.x, scene.x + scene.w, scene.y + scene.h, scene.y, 0.0f, 100.0f);
+    Matrix4_ortho(&ui_matrix, scene.x, scene.x + scene.w, scene.y, scene.y + scene.h, 0.0f, 100.0f);
 
     R_Call(glUseProgram, tr.shader[SHADER_UI]->progid);
     R_Call(glUniformMatrix4fv, tr.shader[SHADER_UI]->uViewProjectionMatrix, 1, GL_FALSE, ui_matrix.v);
