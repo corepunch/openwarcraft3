@@ -225,7 +225,8 @@ TEST_SRCS := \
 	tests/test_game.c \
 	tests/test_combat.c \
 	tests/test_server_net.c \
-	tests/test_ui_fdf.c
+	tests/test_ui_fdf.c \
+	tests/test_ui_serialize.c
 
 TEST_CFLAGS := -Wall -Itests/stubs -Ishared/types -Igame -Iserver -Icommon -Igame/skills
 
