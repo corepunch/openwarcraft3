@@ -143,7 +143,7 @@ void Matrix4_getLightMatrix(LPCVECTOR3 sunangles, LPCVECTOR3 target, float scale
     Matrix4_multiply(&proj, &view, output);
 }
 
-void R_DrawSprite(LPCMODEL model, LPCSTR anim, float x, float y) {
+void R_DrawSprite(LPCMODEL model, LPCSTR anim, LPCRECT dest) {
     renderEntity_t entity;
     viewDef_t viewdef;
 
@@ -167,11 +167,11 @@ void R_DrawSprite(LPCMODEL model, LPCSTR anim, float x, float y) {
 
     entity.flags |= RF_NO_FOGOFWAR | RF_NO_SHADOW | RF_NO_LIGHTING;
     // this only works for TOPLEFT/TOPRIGHT anchored sprites, but that's all we have for now
-    entity.origin = (VECTOR3){x+center.x, y+mdx->bounds.box.min.y, 0};
-    // entity.origin = (VECTOR3){x+mdx->bounds.box.min.x, y-center.y, 0};
+    entity.origin = (VECTOR3){dest->x+center.x, dest->y+mdx->bounds.box.min.y, 0};
+    // entity.origin = (VECTOR3){dest->x+mdx->bounds.box.min.x, dest->y-center.y, 0};
 
-    RECT screen = R_UISceneRect();
-    Matrix4_ortho(&viewdef.viewProjectionMatrix, screen.x, screen.x + screen.w, screen.y - screen.h, screen.y, 0.0f, 100.0f);
+    RECT ui = R_UISceneRect();
+    Matrix4_ortho(&viewdef.viewProjectionMatrix, ui.x, ui.x + ui.w, ui.y, ui.y + ui.h, 0.0f, 100.0f);
     Matrix4_scale(&viewdef.viewProjectionMatrix, &(VECTOR3){1, 1, 0});
 
     tr.viewDef = viewdef;
@@ -242,7 +242,22 @@ void R_DrawPortrait(LPCMODEL model, LPCRECT viewport, LPCSTR anim) {
     viewdef.viewport = *viewport;
 
     if (!R_GetModelCameraMatrix(mdx, aspect, &viewdef.viewProjectionMatrix, &root)) {
-        return;
+        // Fallback: derive a generic front-facing perspective view from the model's bounds.
+        VECTOR3 const center = Box3_Center(&mdx->bounds.box);
+        float const dx = mdx->bounds.box.max.x - mdx->bounds.box.min.x;
+        float const dy = mdx->bounds.box.max.y - mdx->bounds.box.min.y;
+        float const dz = mdx->bounds.box.max.z - mdx->bounds.box.min.z;
+        float extent = dx > dy ? dx : dy;
+        extent = extent > dz ? extent : dz;
+        if (extent < 0.001f) extent = 100.0f;
+        float const fov_deg = 35.0f;
+        float const distance = extent * 1.5f;
+        VECTOR3 const fallback_angles = { 10, 270, 0 };
+        MATRIX4 projection, view;
+        Matrix4_perspective(&projection, fov_deg, aspect, 1.0f, distance * 4.0f);
+        Matrix4_fromViewAngles(&center, &fallback_angles, distance, &view);
+        Matrix4_multiply(&projection, &view, &viewdef.viewProjectionMatrix);
+        root = center;
     }
 
     Matrix4_getLightMatrix(&lightAngles, &root, PORTRAIT_SHADOW_SIZE, &viewdef.lightMatrix);

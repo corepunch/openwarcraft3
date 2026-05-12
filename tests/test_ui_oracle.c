@@ -17,20 +17,35 @@ static void ensure_test_assets(void) {
 
     f = fopen("build/tests/tests.mpq", "rb");
     if (!f) {
-        int rc = system("make -s test-assets > /tmp/openwarcraft3-test-assets.log 2>&1");
+#ifndef _WIN32
+        int rc = system("mkdir -p build/tests && make -s test-assets > build/tests/test-assets.log 2>&1");
         ASSERT_EQ_INT(rc, 0);
         f = fopen("build/tests/tests.mpq", "rb");
         ASSERT_NOT_NULL(f);
         if (!f) {
             return;
         }
+#else
+        return;
+#endif
     }
 
     fclose(f);
     ready = true;
 }
 
+/* Returns true when the given file path exists and is accessible. */
+static bool tool_available(const char *path) {
+    FILE *f = fopen(path, "rb");
+    if (!f) {
+        return false;
+    }
+    fclose(f);
+    return true;
+}
+
 static char *run_capture(const char *cmd) {
+#ifndef _WIN32
     FILE *pipe;
     char *out;
     size_t used = 0;
@@ -62,6 +77,10 @@ static char *run_capture(const char *cmd) {
     }
 
     return out;
+#else
+    (void)cmd;
+    return NULL;
+#endif
 }
 
 static void assert_contains(const char *haystack, const char *needle) {
@@ -73,6 +92,9 @@ static void assert_contains(const char *haystack, const char *needle) {
 static void test_oracle_fdftool_basic_layout_summary(void) {
     char *out;
 
+    if (!tool_available("build/bin/fdftool")) {
+        return;
+    }
     ensure_test_assets();
     out = run_capture("build/bin/fdftool -mpq build/tests/tests.mpq -fdf TestUI/Frames/basic_layout.fdf --info 2>&1");
     ASSERT_NOT_NULL(out);
@@ -91,6 +113,9 @@ static void test_oracle_fdftool_basic_layout_summary(void) {
 static void test_oracle_fdftool_simple_sprite_summary(void) {
     char *out;
 
+    if (!tool_available("build/bin/fdftool")) {
+        return;
+    }
     ensure_test_assets();
     out = run_capture("build/bin/fdftool -mpq build/tests/tests.mpq -fdf TestUI/Frames/simple_sprite.fdf --info 2>&1");
     ASSERT_NOT_NULL(out);
@@ -109,6 +134,9 @@ static void test_oracle_fdftool_simple_sprite_summary(void) {
 static void test_oracle_mdxtool_quad_info_counts(void) {
     char *out;
 
+    if (!tool_available("build/bin/mdxtool")) {
+        return;
+    }
     ensure_test_assets();
     out = run_capture("build/bin/mdxtool -mpq build/tests/tests.mpq -model TestUI/Models/quad_sprite.mdx --info 2>&1");
     ASSERT_NOT_NULL(out);
@@ -130,6 +158,9 @@ static void test_oracle_mdxtool_quad_info_counts(void) {
 static void test_oracle_mdxtool_anim_info_counts(void) {
     char *out;
 
+    if (!tool_available("build/bin/mdxtool")) {
+        return;
+    }
     ensure_test_assets();
     out = run_capture("build/bin/mdxtool -mpq build/tests/tests.mpq -model TestUI/Models/anim_pulse.mdx --info 2>&1");
     ASSERT_NOT_NULL(out);

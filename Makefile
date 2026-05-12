@@ -313,4 +313,4 @@ test-assets: blpgen mdxgen mpqtool | $(TESTS_DIR)
 $(TESTS_DIR):
 	@mkdir -p $@
 
-.PHONY: default build shared renderer game openwarcraft3 mpqtool mdxtool maptool fdftool mpqnc blpgen mdxgen run run-map diag clean download test test-ui test-mpq-compat test-assets
+.PHONY: default build shared renderer game openwarcraft3 mpqtool mdxtool maptool fdftool mpqnc blpgen mdxgen run run-demo run-map diag clean download test test-ui test-mpq-compat test-assets
