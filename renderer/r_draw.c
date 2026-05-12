@@ -4,7 +4,7 @@
 #define R_UI_BASE_HEIGHT 0.6f
 #define R_UI_MIN_ASPECT  (4.0f / 3.0f)
 
-static RECT R_UISceneRect(void) {
+RECT R_UISceneRect(void) {
     size2_t window = R_GetWindowSize();
     float aspect = (float)window.width / (float)window.height;
     float x_scale = aspect > R_UI_MIN_ASPECT ? aspect / R_UI_MIN_ASPECT : 1.0f;
