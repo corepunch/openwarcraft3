@@ -645,7 +645,10 @@ static void BuildTexturePreviewCache(refExport_t const *re, LPMODEL model) {
         strncpy(texture_previews.paths[texture_previews.count], texturePath, TEXTURE_PREVIEW_PATH_LENGTH - 1);
         texture_previews.paths[texture_previews.count][TEXTURE_PREVIEW_PATH_LENGTH - 1] = '\0';
         texture_previews.textures[texture_previews.count] = re->LoadTexture(texturePath);
-        if (texture_previews.textures[texture_previews.count] && re->GetTextureSize) {
+        if (!texture_previews.textures[texture_previews.count]) {
+            continue;
+        }
+        if (re->GetTextureSize) {
             texture_previews.sizes[texture_previews.count] = re->GetTextureSize(texture_previews.textures[texture_previews.count]);
         } else {
             texture_previews.sizes[texture_previews.count] = (size2_t){ 1, 1 };
