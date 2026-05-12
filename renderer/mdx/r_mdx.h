@@ -351,10 +351,6 @@ typedef struct mdxModel_s {
     int num_pivots;
 } mdxModel_t;
 
-bool R_GetModelCameraMatrix(mdxModel_t const *model, float aspect, LPMATRIX4 output, LPVECTOR3 root);
-void R_GetSpriteOrthoCameraMatrix(mdxModel_t const *model, float aspect, LPMATRIX4 output, LPVECTOR3 root);
-bool R_IsSpriteUIScreenSpace(mdxModel_t const *model);
-
 typedef struct {
     LPSHADER shader;
 } mdlx_state_t;
