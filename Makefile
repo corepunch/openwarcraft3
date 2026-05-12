@@ -230,7 +230,8 @@ TEST_SRCS := \
 	tests/test_ui_fdf.c \
 	tests/test_ui_serialize.c \
 	tests/test_ui_layout.c \
-	tests/test_ui_e2e.c
+	tests/test_ui_e2e.c \
+	tests/test_ui_oracle.c
 
 TEST_CFLAGS := -Wall -Itests/stubs -Ishared/types -Igame -Iserver -Icommon -Iclient -Igame/skills
 
