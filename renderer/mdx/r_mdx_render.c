@@ -167,11 +167,12 @@ void R_DrawSprite(LPCMODEL model, LPCSTR anim, float x, float y) {
 
     entity.flags |= RF_NO_FOGOFWAR | RF_NO_SHADOW | RF_NO_LIGHTING;
     // this only works for TOPLEFT/TOPRIGHT anchored sprites, but that's all we have for now
-    entity.origin = (VECTOR3){x+center.x, y+mdx->bounds.box.min.y, 0};
+    entity.origin = (VECTOR3){x+center.x, y/*+mdx->bounds.box.min.y*/, 0};
     // entity.origin = (VECTOR3){x+mdx->bounds.box.min.x, y-center.y, 0};
+    printf("%f\n", y);
 
     RECT screen = R_UISceneRect();
-    Matrix4_ortho(&viewdef.viewProjectionMatrix, screen.x, screen.x + screen.w, screen.y - screen.h, screen.y, 0.0f, 100.0f);
+    Matrix4_ortho(&viewdef.viewProjectionMatrix, screen.x, screen.x + screen.w, screen.y, screen.y + screen.h, 0.0f, 100.0f);
     Matrix4_scale(&viewdef.viewProjectionMatrix, &(VECTOR3){1, 1, 0});
 
     tr.viewDef = viewdef;

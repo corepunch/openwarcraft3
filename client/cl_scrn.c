@@ -365,12 +365,12 @@ void SCR_DrawBackdrop2(LPCUIFRAME frame, LPCRECT screen, uiBackdrop_t const *bac
     BACKDROPCORNER const corners[NUM_BACKDROP_CORNERS] = {
         BACKDROP_LEFT_EDGE,
         BACKDROP_RIGHT_EDGE,
-        BACKDROP_TOP_EDGE,
         BACKDROP_BOTTOM_EDGE,
-        BACKDROP_TOP_LEFT_CORNER,
-        BACKDROP_TOP_RIGHT_CORNER,
+        BACKDROP_TOP_EDGE,
         BACKDROP_BOTTOM_LEFT_CORNER,
         BACKDROP_BOTTOM_RIGHT_CORNER,
+        BACKDROP_TOP_LEFT_CORNER,
+        BACKDROP_TOP_RIGHT_CORNER,
     };
     RECT rects[BACKDROP_SIZE];
     backdrop_rects(screen, rects, backdrop->CornerSize);

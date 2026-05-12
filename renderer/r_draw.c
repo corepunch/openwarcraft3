@@ -70,13 +70,25 @@ void R_SetBlending(BLEND_MODE mode) {
 
 void R_DrawImageEx(LPCDRAWIMAGE drawImage) {
     VERTEX simp[6];
-    R_AddQuad(simp, &drawImage->screen, &drawImage->uv, drawImage->color, 0);
     
-    if (drawImage->rotate) {
+    if (drawImage->rotate) { // User for crazy backdrops Blizzard loves to do, where the uv's are rotated 90 degrees
+        R_AddQuad(simp, &drawImage->screen, &(RECT) {
+            .x = drawImage->uv.x + drawImage->uv.w, 
+            .y = drawImage->uv.y, 
+            .w = -drawImage->uv.w, 
+            .h = drawImage->uv.h
+        }, drawImage->color, 0);
         VECTOR2 tmp1 = simp[1].texcoord;
         VECTOR2 tmp2 = simp[5].texcoord;
         simp[1].texcoord = tmp2;
         simp[5].texcoord = tmp1;
+    } else {
+        R_AddQuad(simp, &drawImage->screen, &(RECT) {
+            .x = drawImage->uv.x, 
+            .y = drawImage->uv.y + drawImage->uv.h, 
+            .w = drawImage->uv.w, 
+            .h = -drawImage->uv.h
+        }, drawImage->color, 0);
     }
 
     LPCSHADER shader = tr.shader[drawImage->shader];

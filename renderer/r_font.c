@@ -199,11 +199,12 @@ static RECT get_uvrect(stbtt_bakedchar *g, FLOAT h, FLOAT w) {
 }
 
 static RECT get_screenrect(LPCVECTOR2 cursor, stbtt_bakedchar *g) {
+    FLOAT const glyph_h = INV_SCALE(g->y1 - g->y0);
     RECT const screen = {
         .x = cursor->x + INV_SCALE(g->xoff),
-        .y = cursor->y + INV_SCALE(g->yoff),
+        .y = cursor->y - INV_SCALE(g->yoff) - glyph_h,
         .w = INV_SCALE(g->x1 - g->x0),
-        .h = INV_SCALE(g->y1 - g->y0),
+        .h = glyph_h,
     };
     return screen;
 }
@@ -280,8 +281,10 @@ static VECTOR2 process_text(LPCDRAWTEXT arg, BOOL draw) {
         if (draw) {
             FLOAT const w = set->image->width;
             FLOAT const h = set->image->height;
+            VECTOR2 const glyph_cursor = MAKE(VECTOR2, cursor.x,
+                                              cursor.y + R_GetFontHeight((LPFONT)arg->font));
             RECT const uv_rect = get_uvrect(g, h, w);
-            RECT const screen = get_screenrect(&cursor, g);
+            RECT const screen = get_screenrect(&glyph_cursor, g);
             R_DrawImage(set->image, &screen, &uv_rect, color);
         }
         cursor.x += INV_SCALE(g->xadvance);
