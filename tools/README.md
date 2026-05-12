@@ -125,6 +125,29 @@ Example:
 build/bin/mpqnc -mpq "data/Warcraft III/War3.mpq" -path "UI/FrameDef/Glue"
 ```
 
+## `toolbox`
+
+SDL tool manager for the command-line helpers in `build/bin`.
+
+The layout follows classic commander/archive-manager tools: an MPQ browser on
+the left, tool and argument fields in the center, `-?` help on the right, and
+recent commands/output along the bottom. It stores recent commands next to the
+executable as `toolbox_recent.txt`.
+
+Syntax:
+
+```bash
+build/bin/toolbox [-mpq "<archive.mpq>"] [-mpqtool "<path>"]
+```
+
+Useful keys:
+
+- `F5` run the current command
+- `F6` refresh the selected tool's `-?` help
+- `Enter` open the selected MPQ directory or choose a file
+- `Tab` switch editable fields
+- `D` copy the selected MPQ entry into the active command field
+
 ## Notes
 
 - Paths inside MPQs usually use forward slashes, but most tools accept either

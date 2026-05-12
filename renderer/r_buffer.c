@@ -1,93 +1,67 @@
 #include "r_local.h"
 
+struct vshort {
+    float x, y, z;
+    float u, v;
+    color32_t color;
+};
+
+#define WRITE_VERTICES(buffer, data) \
+    for (int i = 0; i < sizeof(data) / sizeof(*data); i++) { \
+        buffer[i].position.x = data[i].x; \
+        buffer[i].position.y = data[i].y; \
+        buffer[i].position.z = data[i].z; \
+        buffer[i].texcoord.x = data[i].u; \
+        buffer[i].texcoord.y = data[i].v; \
+        buffer[i].color = data[i].color; \
+    } \
+    return buffer + sizeof(data) / sizeof(*data);
+
 VERTEX *R_AddQuad(VERTEX *buffer, LPCRECT screen, LPCRECT uv, COLOR32 color, float z) {
-    VERTEX const data[] = {
-        {
-            .position = { screen->x, screen->y, z },
-            .texcoord = { uv->x, uv->y },
-            .color = color,
-        },
-        {
-            .position = { screen->x+screen->w, screen->y, z },
-            .texcoord = { uv->x+uv->w, uv->y },
-            .color = color,
-        },
-        {
-            .position = { screen->x+screen->w, screen->y+screen->h, z },
-            .texcoord = { uv->x+uv->w, uv->y+uv->h },
-            .color = color,
-        },
-        {
-            .position = { screen->x, screen->y, z },
-            .texcoord = { uv->x, uv->y },
-            .color = color,
-        },
-        {
-            .position = { screen->x+screen->w, screen->y+screen->h, z },
-            .texcoord = { uv->x+uv->w, uv->y+uv->h },
-            .color = color,
-        },
-        {
-            .position = { screen->x, screen->y+screen->h, z },
-            .texcoord = { uv->x, uv->y+uv->h },
-            .color = color,
-        },
+    struct vshort const data[] = {
+        { screen->x, screen->y, z, uv->x, uv->y, color },
+        { screen->x+screen->w, screen->y, z, uv->x+uv->w, uv->y, color },
+        { screen->x+screen->w, screen->y+screen->h, z, uv->x+uv->w, uv->y+uv->h, color },
+        { screen->x, screen->y, z, uv->x, uv->y, color },
+        { screen->x+screen->w, screen->y+screen->h, z, uv->x+uv->w, uv->y+uv->h, color },
+        { screen->x, screen->y+screen->h, z, uv->x, uv->y+uv->h, color },
     };
-    memcpy(buffer, data, sizeof(data));
-    return buffer + NUM_RECT_VERTICES;
+    WRITE_VERTICES(buffer, data);
 }
 
 VERTEX *R_AddStrip(VERTEX *buffer, LPCRECT screen, COLOR32 color) {
-    VERTEX const data[] = {
-        {
-            .position = { screen->x, screen->y, 0 },
-            .color = color,
-        },
-        {
-            .position = { screen->x+screen->w, screen->y, 0 },
-            .color = color,
-        },
-        {
-            .position = { screen->x+screen->w, screen->y+screen->h, 0 },
-            .color = color,
-        },
-        {
-            .position = { screen->x, screen->y+screen->h, 0 },
-            .color = color,
-        },
-        {
-            .position = { screen->x, screen->y, 0 },
-            .color = color,
-        },
+    struct vshort const data[] = {
+        { screen->x, screen->y, 0, 0, 0, color },
+        { screen->x+screen->w, screen->y, 0, 0, 0, color },
+        { screen->x+screen->w, screen->y+screen->h, 0, 0, 0, color },
+        { screen->x, screen->y+screen->h, 0, 0, 0, color },
+        { screen->x, screen->y, 0, 0, 0, color },
     };
-    memcpy(buffer, data, sizeof(data));
-    return buffer + sizeof(data) / sizeof(*data);
+    WRITE_VERTICES(buffer, data);
 }
 
-
 VERTEX *R_AddWireBox(VERTEX *buffer, LPCBOX3 box, COLOR32 color) {
-    VERTEX data[] = {
-        { .position = { box->min.x, box->min.y, box->min.z }, .color = color },
-        { .position = { box->max.x, box->min.y, box->min.z }, .color = color },
-        { .position = { box->max.x, box->min.y, box->max.z }, .color = color },
-        { .position = { box->min.x, box->min.y, box->max.z }, .color = color },
-        { .position = { box->min.x, box->min.y, box->min.z }, .color = color },
-        { .position = { box->min.x, box->max.y, box->min.z }, .color = color },
-        { .position = { box->max.x, box->max.y, box->min.z }, .color = color },
-        { .position = { box->max.x, box->max.y, box->max.z }, .color = color },
-        { .position = { box->min.x, box->max.y, box->max.z }, .color = color },
-        { .position = { box->min.x, box->max.y, box->min.z }, .color = color },
-        { .position = { box->min.x, box->min.y, box->min.z }, .color = color },
-        { .position = { box->min.x, box->max.y, box->min.z }, .color = color },
-        { .position = { box->max.x, box->min.y, box->min.z }, .color = color },
-        { .position = { box->max.x, box->max.y, box->min.z }, .color = color },
-        { .position = { box->max.x, box->min.y, box->max.z }, .color = color },
-        { .position = { box->max.x, box->max.y, box->max.z }, .color = color },
-        { .position = { box->min.x, box->min.y, box->max.z }, .color = color },
-        { .position = { box->min.x, box->max.y, box->max.z }, .color = color },
+    struct vshort const data[] = {
+        { box->min.x, box->min.y, box->min.z, 0, 0, color },
+        { box->max.x, box->min.y, box->min.z, 0, 0, color },
+        { box->max.x, box->min.y, box->max.z, 0, 0, color },
+        { box->min.x, box->min.y, box->max.z, 0, 0, color },
+        { box->min.x, box->min.y, box->min.z, 0, 0, color },
+        { box->min.x, box->max.y, box->min.z, 0, 0, color },
+        { box->max.x, box->max.y, box->min.z, 0, 0, color },
+        { box->max.x, box->max.y, box->max.z, 0, 0, color },
+        { box->min.x, box->max.y, box->max.z, 0, 0, color },
+        { box->min.x, box->max.y, box->min.z, 0, 0, color },
+        { box->min.x, box->min.y, box->min.z, 0, 0, color },
+        { box->min.x, box->max.y, box->min.z, 0, 0, color },
+        { box->max.x, box->min.y, box->min.z, 0, 0, color },
+        { box->max.x, box->max.y, box->min.z, 0, 0, color },
+        { box->max.x, box->min.y, box->max.z, 0, 0, color },
+        { box->max.x, box->max.y, box->max.z, 0, 0, color },
+        { box->min.x, box->min.y, box->max.z, 0, 0, color },
+        { box->min.x, box->max.y, box->max.z, 0, 0, color },
     };
-    memcpy(buffer, data, sizeof(data));
-    return buffer + sizeof(data) / sizeof(*data);
+    WRITE_VERTICES(buffer, data);
 }
 
 LPBUFFER R_MakeVertexArrayObject(LPCVERTEX vertices, DWORD size) {
