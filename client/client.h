@@ -97,6 +97,12 @@ void V_AddEntity(renderEntity_t *ent);
 LPCUIFRAME SCR_Clear(HANDLE data);
 LPCRECT SCR_LayoutRect(LPCUIFRAME frame);
 VECTOR2 SCR_MouseToFdf(void);
+VECTOR2 SCR_GetAxisBounds(LPCRECT rect, bool is_x_axis);
+FLOAT SCR_NormalizeAnchorOffset(uiFramePoint_t const *p, bool is_x_axis);
+VECTOR2 SCR_SolveAxisPosition(LPCUIFRAME frame,
+                              uiFramePoints_t const points,
+                              FLOAT width,
+                              bool is_x_axis);
 void SCR_UpdateScreen(void);
 
 // cl_input.c
