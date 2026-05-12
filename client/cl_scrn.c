@@ -94,6 +94,15 @@ VECTOR2 get_y(LPCRECT rect) {
     return (VECTOR2) { rect->y, rect->y + rect->h };
 }
 
+VECTOR2 SCR_GetAxisBounds(LPCRECT rect, bool is_x_axis) {
+    return is_x_axis ? get_x(rect) : get_y(rect);
+}
+
+FLOAT SCR_NormalizeAnchorOffset(uiFramePoint_t const *p, bool is_x_axis) {
+    SHORT offset = is_x_axis ? p->offset : -p->offset;
+    return offset / UI_FRAMEPOINT_SCALE;
+}
+
 LPCENTITYSTATE CL_SelectedEntity(void) {
     FOR_LOOP(index, MAX_CLIENT_ENTITIES) {
         centity_t const *ce = &cl.ents[index];
@@ -116,34 +125,39 @@ FLOAT SCR_GetAnchor(LPCUIFRAME f,
                     uiFramePoint_t const *p,
                     VECTOR2 (*get)(LPCRECT))
 {
-    VECTOR2 b = get(SCR_LayoutRectByNumber(f, p->relativeTo));
-    SHORT offset = get == get_x ? p->offset : -p->offset;
+    bool const is_x_axis = (get == get_x);
+    VECTOR2 b = SCR_GetAxisBounds(SCR_LayoutRectByNumber(f, p->relativeTo), is_x_axis);
+    FLOAT offset = SCR_NormalizeAnchorOffset(p, is_x_axis);
     if (p->targetPos == FPP_MID) {
-        return (b.x + b.y) / 2 + offset / UI_FRAMEPOINT_SCALE;
+        return (b.x + b.y) / 2 + offset;
     } else if (p->targetPos == FPP_MAX) {
-        return b.y + offset / UI_FRAMEPOINT_SCALE;
+        return b.y + offset;
     } else {
-        return b.x + offset / UI_FRAMEPOINT_SCALE;
+        return b.x + offset;
     }
 }
 
-VECTOR2 get_position(LPCUIFRAME frame,
-                     uiFramePoints_t const p,
-                     FLOAT width,
-                     VECTOR2 (*get)(LPCRECT))
+VECTOR2 SCR_SolveAxisPosition(LPCUIFRAME frame,
+                              uiFramePoints_t const points,
+                              FLOAT width,
+                              bool is_x_axis)
 {
-    uiFramePoint_t const *pmin = p+FPP_MIN;
-    uiFramePoint_t const *pmid = p+FPP_MID;
-    uiFramePoint_t const *pmax = p+FPP_MAX;
+    uiFramePoint_t const *pmin = points + FPP_MIN;
+    uiFramePoint_t const *pmid = points + FPP_MID;
+    uiFramePoint_t const *pmax = points + FPP_MAX;
+    VECTOR2 (*get)(LPCRECT) = is_x_axis ? get_x : get_y;
+
     if (pmid->used) {
         return (VECTOR2) {
             SCR_GetAnchor(frame, pmid, get) - width / 2,
             width,
         };
     } else if (pmin->used && pmax->used) {
+        FLOAT anchor_min = SCR_GetAnchor(frame, pmin, get);
+        FLOAT anchor_max = SCR_GetAnchor(frame, pmax, get);
         return (VECTOR2) {
-            SCR_GetAnchor(frame, pmin, get),
-            SCR_GetAnchor(frame, pmax, get) - SCR_GetAnchor(frame, pmin, get),
+            anchor_min,
+            anchor_max - anchor_min,
         };
     } else if (pmax->used) {
         return (VECTOR2) {
@@ -156,6 +170,14 @@ VECTOR2 get_position(LPCUIFRAME frame,
             width,
         };
     }
+}
+
+VECTOR2 get_position(LPCUIFRAME frame,
+                     uiFramePoints_t const p,
+                     FLOAT width,
+                     VECTOR2 (*get)(LPCRECT))
+{
+    return SCR_SolveAxisPosition(frame, p, width, get == get_x);
 }
 
 LPCSTR SCR_GetStringValue(LPCUIFRAME frame) {

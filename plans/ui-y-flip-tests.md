@@ -44,7 +44,7 @@ Refactor UI parser/serialization/layout code for deterministic testing first, th
 
 - [x] **Phase 8** — UI serialization and delta suites (~30–40 tests). Validate `uiFrame_t` masks, payload sizes, text handling, type-specific buffer payloads, and roundtrip decode. Include generated texture/model path references. _Depends on Phase 6; parallel with Phase 7._
 
-- [ ] **Phase 9** — Refactor client layout solver for deterministic conformance testing. Extract anchor math, parent queries, measurement hooks, and stat providers from `client/cl_scrn.c`. _Depends on Phase 6; parallel with Phases 7–8._
+- [x] **Phase 9** — Refactor client layout solver for deterministic conformance testing. Extract anchor math, parent queries, measurement hooks, and stat providers from `client/cl_scrn.c`. _Depends on Phase 6; parallel with Phases 7–8._
 
 - [ ] **Phase 10** — Client layout suites (~30–40 tests). Cover single-anchor, dual-anchor stretch, center alignment, parent-relative recursion, offset signs, implied sizes, and Warcraft-style Y-up expectations. _Depends on Phase 9._
 
