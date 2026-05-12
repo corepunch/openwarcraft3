@@ -248,6 +248,18 @@ The project builds three shared libraries and one executable:
 
 The build is driven by a `Makefile` for Linux/macOS. Run `make test` to execute the unit test suite.
 
+### UI Test Enforcement
+
+UI tests are fully repo-owned and deterministic:
+
+1. Source fixtures live under `tests/resources-src/`.
+2. Generated test assets are built into `build/tests/resources/`.
+3. The packed archive is `build/tests/tests.mpq` (generated, never committed).
+
+`make test` now always runs `make test-assets` first, so the generated UI archive is part of the normal test flow.
+
+For UI-impacting changes (`game/ui/*`, `client/cl_scrn.c`, `renderer/r_draw.c`, sprite/model UI paths), run `make test-ui` before merging. This gate executes parser, serialization, layout, end-to-end, and tool-oracle UI suites.
+
 ## External Dependencies
 
 - **MPQ layer** (`common/mpq.c`): in-tree Warcraft III MPQ reader; no StormLib dependency at build or run time. `mpqtool` CLI exposes `ls` and `cat` for archive inspection.

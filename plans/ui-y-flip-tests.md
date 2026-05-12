@@ -58,7 +58,7 @@ Refactor UI parser/serialization/layout code for deterministic testing first, th
   - [x] Remove sign hacks in `SCR_GetAnchor`
   - [x] All new suites green
 
-- [ ] **Phase 14** — Cleanup and enforcement. Make generated-asset pipeline part of normal test flow, document resource ownership, require UI suites for changes touching parser/layout/serialization/sprites. _Depends on Phase 13._
+- [x] **Phase 14** — Cleanup and enforcement. Make generated-asset pipeline part of normal test flow, document resource ownership, require UI suites for changes touching parser/layout/serialization/sprites. _Depends on Phase 13._
 
 ## Test Targets
 

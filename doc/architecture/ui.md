@@ -80,6 +80,24 @@ The server can push incremental UI changes at any time, for example:
 
 All these updates go through the same `svc_layout` / delta-encoding path.
 
+## UI Test Asset Policy
+
+UI test fixtures and assets are repository-owned. Do not copy Warcraft III assets into tests.
+
+- Author source fixtures in `tests/resources-src/`.
+- Generate deterministic BLP/MDX assets into `build/tests/resources/`.
+- Pack and validate `build/tests/tests.mpq` via `make test-assets`.
+
+The normal test pipeline enforces this by running `test-assets` before `make test`.
+
+For UI-impacting changes, use `make test-ui` as the required gate. It runs:
+
+- FDF parser/frame-graph suites
+- UI serialization/delta suites
+- Client layout conformance suites
+- End-to-end server->client UI suites
+- Tool-backed oracle suites (`fdftool --info`, `mdxtool --info`)
+
 ## Adding a New UI Element
 
 1. In `game/ui/ui_init.c` (or any server-side `.c` file), declare a `FRAMEDEF`, configure it with the helper functions, and emit it:
