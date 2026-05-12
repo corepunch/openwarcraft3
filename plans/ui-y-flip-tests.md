@@ -40,7 +40,7 @@ Refactor UI parser/serialization/layout code for deterministic testing first, th
 
 - [x] **Phase 6** — Refactor server-side UI code for testability (no behavior change). Extract seams in `game/ui/ui_fdf.c` (parser/frame-graph) and `game/ui/ui_write.c` (serialization) so tests can capture deterministic byte streams and frame graphs without live networking. _Blocks parser/serialization/end-to-end suites._
 
-- [ ] **Phase 7** — FDF parser and frame-graph suites (~45–60 tests). Cover frame declarations, inheritance, SetPoint/Anchor semantics, mixed frame hierarchies, malformed inputs, duplicate-name behavior, and path/string handling for backdrop and sprite/model fields. _Depends on Phases 4 and 6._
+- [x] **Phase 7** — FDF parser and frame-graph suites (~45–60 tests). Cover frame declarations, inheritance, SetPoint/Anchor semantics, mixed frame hierarchies, malformed inputs, duplicate-name behavior, and path/string handling for backdrop and sprite/model fields. _Depends on Phases 4 and 6._
 
 - [ ] **Phase 8** — UI serialization and delta suites (~30–40 tests). Validate `uiFrame_t` masks, payload sizes, text handling, type-specific buffer payloads, and roundtrip decode. Include generated texture/model path references. _Depends on Phase 6; parallel with Phase 7._
 
