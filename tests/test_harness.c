@@ -145,7 +145,40 @@ static void   mock_JoinThread(DWORD t)                  { (void)t; }
 static void   mock_Sleep(DWORD ms)                      { (void)ms; }
 static LPSTR  mock_ReadFileIntoString(LPCSTR f)         { (void)f; return NULL; }
 static HANDLE mock_ReadFile(LPCSTR f, LPDWORD s)        { (void)f; if (s) *s=0; return NULL; }
-static void   mock_TextRemoveComments(LPSTR b)          { (void)b; }
+static void   mock_TextRemoveComments(LPSTR buffer) {
+    BOOL in_single_line_comment = false;
+    BOOL in_block_comment = false;
+    DWORD num_quotes = 0;
+    char *src = buffer;
+    char *dest = buffer;
+    while (*src != '\0') {
+        if (!in_single_line_comment && !in_block_comment) {
+            if (*src == '"') {
+                num_quotes++;
+                *dest++ = *src++;
+            } else if (num_quotes&1) {
+                *dest++ = *src++;
+            } else if (*src == '/' && *(src + 1) == '/') {
+                in_single_line_comment = true;
+                src += 2;
+            } else if (*src == '/' && *(src + 1) == '*') {
+                in_block_comment = true;
+                src += 2;
+            } else {
+                *dest++ = *src++;
+            }
+        } else if (in_single_line_comment && *src == '\n') {
+            in_single_line_comment = false;
+            *dest++ = *src++;
+        } else if (in_block_comment && *src == '*' && *(src + 1) == '/') {
+            in_block_comment = false;
+            src += 2;
+        } else {
+            src++;
+        }
+    }
+    *dest = '\0';
+}
 static BOMStatus mock_TextRemoveBom(LPSTR b)            { (void)b; return NO_BOM; }
 static void   mock_multicast(LPCVECTOR3 o, multicast_t t) { (void)o; (void)t; }
 static void   mock_unicast(edict_t *e)                  { (void)e; }

@@ -29,6 +29,7 @@ void run_server_net_tests(void);
 void run_ui_fdf_tests(void);
 void run_ui_serialize_tests(void);
 void run_ui_layout_tests(void);
+void run_ui_e2e_tests(void);
 
 int main(void) {
     printf("=== OpenWarcraft3 Unit Tests ===\n\n");
@@ -83,6 +84,10 @@ int main(void) {
 
     printf("[UI layout solver]\n");
     run_ui_layout_tests();
+    printf("\n");
+
+    printf("[UI end-to-end server→client]\n");
+    run_ui_e2e_tests();
     printf("\n");
 
     TEST_RESULTS();
