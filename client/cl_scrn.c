@@ -504,9 +504,10 @@ void SCR_DrawSprite(LPCUIFRAME frame, LPCRECT screen) {
     };
     LPCSTR s = cl.configstrings[CS_MODELS + frame->tex.index];
     if (strstr(s, "Panel")) {
-        re.DrawPortrait(cl.models[frame->tex.index], &viewport, "MainMenu Stand");
-    } else
-    re.DrawPortrait(cl.models[frame->tex.index], &viewport, "Stand");
+        re.DrawSprite(cl.models[frame->tex.index], &viewport, "MainMenu Stand");
+    } else {
+        re.DrawSprite(cl.models[frame->tex.index], &viewport, "Stand");
+    }
 }
 
 void SCR_DrawCommandButton(LPCUIFRAME frame, LPCRECT screen) {

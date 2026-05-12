@@ -145,9 +145,8 @@ void Matrix4_getLightMatrix(LPCVECTOR3 sunangles, LPCVECTOR3 target, float scale
     Matrix4_multiply(&proj, &view, output);
 }
 
-void R_DrawPortrait(LPCMODEL model, LPCRECT viewport, LPCSTR anim) {
+void R_DrawSprite(LPCMODEL model, LPCRECT viewport, LPCSTR anim) {
     VECTOR3 root;
-    VECTOR3 lightAngles = { 10, 270, 0 };
     renderEntity_t entity;
     viewDef_t viewdef;
     mdxModel_t const *mdx;
@@ -167,15 +166,94 @@ void R_DrawPortrait(LPCMODEL model, LPCRECT viewport, LPCSTR anim) {
         return;
     }
 
+    entity.flags |= RF_NO_FOGOFWAR | RF_NO_SHADOW | RF_NO_LIGHTING;
+
+    VECTOR3 const center = Box3_Center(&mdx->bounds.box);
+    entity.origin = Vector3_unm(&center);
+
     aspect = viewport->h > 0.0f ? viewport->w / viewport->h : 1.0f;
-    if (!R_GetModelCameraMatrix(mdx, aspect, &viewdef.viewProjectionMatrix, &root)) {
-        entity.flags |= RF_NO_FOGOFWAR | RF_NO_SHADOW | RF_NO_LIGHTING;
-        if (!R_IsSpriteUIScreenSpace(mdx)) {
-            VECTOR3 const center = Box3_Center(&mdx->bounds.box);
-            entity.origin = Vector3_unm(&center);
-        }
-        R_GetSpriteOrthoCameraMatrix(mdx, aspect, &viewdef.viewProjectionMatrix, &root);
+
+    float m[] = {
+        6.013071, 0.000000, 0.000000, 0.000000, 
+        0.000000, 6.666667, 0.000000, 0.000000,
+        0.000000, 0.000000, -0.062696, 0.000000, 
+        0.001894, 0.097333, -0.752110, 1.000000
+    };
+    memcpy(viewdef.viewProjectionMatrix.v, m, sizeof(m));
+
+    R_Call(glActiveTexture, GL_TEXTURE2);
+    R_Call(glBindTexture, GL_TEXTURE_2D, tr.texture[TEX_WHITE]->texid);
+    R_Call(glActiveTexture, GL_TEXTURE0);
+
+    tr.viewDef = viewdef;
+
+    R_RenderShadowMap();
+    R_RenderView();
+}
+
+static bool 
+R_GetModelCameraMatrix(mdxModel_t const *model, float aspect, LPMATRIX4 output, LPVECTOR3 root) 
+{
+    if (!model || !model->cameras) {
+        return false;
     }
+
+    mdxCamera_t const *camera = model->cameras;
+    MATRIX4 projection, view;
+    VECTOR3 dir = Vector3_sub(&camera->targetPivot, &camera->pivot);
+    float fov_deg = camera->fieldOfView * (180.0f / (float)M_PI);
+    float near_clip = camera->nearClip;
+    float far_clip = camera->farClip;
+
+    if (!isfinite(fov_deg) || fov_deg <= 1.0f || fov_deg >= 179.0f) {
+        fov_deg = 35.0f;
+    }
+    if (!isfinite(near_clip) || near_clip < 0.01f) {
+        near_clip = 1.0f;
+    }
+    if (!isfinite(far_clip) || far_clip <= near_clip + 1.0f) {
+        far_clip = near_clip + 5000.0f;
+    }
+    if (!isfinite(aspect) || aspect <= 0.0f) {
+        aspect = 1.0f;
+    }
+    if (Vector3_len(&dir) < 0.001f) {
+        return false;
+    }
+
+    Matrix4_perspective(&projection, fov_deg, aspect, near_clip, far_clip);
+    Matrix4_lookAt(&view, &camera->pivot, &dir, &(VECTOR3){0,0,1});
+    Matrix4_multiply(&projection, &view, output);
+    *root = camera->targetPivot;
+    return true;
+}
+
+void R_DrawPortrait(LPCMODEL model, LPCRECT viewport, LPCSTR anim) {
+    VECTOR3 root;
+    VECTOR3 lightAngles = { 10, 270, 0 };
+    renderEntity_t entity;
+    viewDef_t viewdef;
+    
+    if (!model || !model->mdx) {
+        return;
+    }
+    
+    mdxModel_t const *mdx = model->mdx;
+    mdxSequence_t const *seq = (anim && *anim) ? MDLX_FindSequenceByName(mdx, anim) : NULL;
+    float aspect = viewport->h > 0.0f ? viewport->w / viewport->h : 1.0f;
+
+    if (!seq && mdx->sequences && mdx->num_sequences > 0) {
+        seq = &mdx->sequences[0];
+    }
+
+    if (!R_InitUIModelView(model, viewport, &viewdef, &entity, seq)) {
+        return;
+    }
+
+    if (!R_GetModelCameraMatrix(mdx, aspect, &viewdef.viewProjectionMatrix, &root)) {
+        return;
+    }
+
     Matrix4_getLightMatrix(&lightAngles, &root, PORTRAIT_SHADOW_SIZE, &viewdef.lightMatrix);
 
     R_Call(glActiveTexture, GL_TEXTURE2);
