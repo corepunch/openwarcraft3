@@ -50,7 +50,7 @@ Refactor UI parser/serialization/layout code for deterministic testing first, th
 
 - [x] **Phase 11** — End-to-end server→client UI tests against `tests.mpq` (~20–30 tests). Build frame tree from generated FDF, serialize on server path, parse on client path, solve bounds, assert deterministic outcomes. _Depends on Phases 5, 8, and 10._
 
-- [ ] **Phase 12** — Tool-backed oracle tests (~5–10 tests, 15–25 assertions). Run `fdftool` and `mdxtool --info` against generated assets and compare normalized output summaries. _Depends on Phase 11._
+- [x] **Phase 12** — Tool-backed oracle tests (~5–10 tests, 15–25 assertions). Run `fdftool` and `mdxtool --info` against generated assets and compare normalized output summaries. _Depends on Phase 11._
 
 - [ ] **Phase 13** — UI coordinate migration. Flip canonical projection/input/layout to Warcraft-style Y-up (0 at bottom, 0.6 at top), remove compensating sign hacks, use new suites to catch regressions. _Depends on Phases 7–12._
   - [ ] Flip ortho in `renderer/r_draw.c`
