@@ -920,6 +920,13 @@ FLOAT Theme_Float(LPCSTR, LPCSTR);
 void UI_WriteFrame(LPCFRAMEDEF);
 void UI_WriteFrameWithChildren(LPCFRAMEDEF, LPCFRAMEDEF);
 void UI_WriteFrameWithChildrenWithTriggers(LPEDICT, LPCFRAMEDEF, LPCFRAMEDEF, uiTrigger_t const *);
+DWORD UI_CollectFrameTree(LPCFRAMEDEF root, LPCFRAMEDEF *out, DWORD max);
+BOOL UI_BuildFrameForWrite(LPCFRAMEDEF frame,
+                           LPUIFRAME out,
+                           LPBYTE typedata,
+                           DWORD typedata_max,
+                           LPSTR textbuf,
+                           DWORD textbuf_max);
 
 // g_metadata.c
 LPCSTR UnitStringField(sheetMetaData_t *, DWORD, LPCSTR);

@@ -289,33 +289,43 @@ static void WriteHighlight(LPCFRAMEDEF frame, sizeBuf_t *sb) {
     MSG_Write(sb, &data, sizeof(data));
 }
 
-/* Serialize a single frame and its type-specific data block into the outgoing
- * svc_layout message.  The frame number is encoded relative to the list of
- * frames already written in this layout pass so parent references stay valid. */
-void UI_WriteFrame(LPCFRAMEDEF frame) {
-    UINAME buffer;
-    uiFrame_t tmp;
-    memset(&tmp, 0, sizeof(tmp));
-    memset(&buffer, 0, sizeof(buffer));
-    BYTE typedata[256] = { 0};
-    sizeBuf_t buf = {
+/* Build a serialized uiFrame_t + typedata payload for a single frame without
+ * writing to the network message stream. This is a deterministic seam used by
+ * tests and by UI_WriteFrame itself. */
+BOOL UI_BuildFrameForWrite(LPCFRAMEDEF frame,
+                           LPUIFRAME out,
+                           LPBYTE typedata,
+                           DWORD typedata_max,
+                           LPSTR textbuf,
+                           DWORD textbuf_max)
+{
+    sizeBuf_t buf;
+
+    if (!frame || !out || !typedata || typedata_max == 0 || !textbuf || textbuf_max == 0) {
+        return false;
+    }
+
+    memset(out, 0, sizeof(*out));
+    memset(typedata, 0, typedata_max);
+    memset(textbuf, 0, textbuf_max);
+
+    buf = (sizeBuf_t) {
         .data = typedata,
-        .maxsize = sizeof(typedata),
+        .maxsize = typedata_max,
     };
-    UI_CopyFrameBase(&tmp, frame);
+
+    UI_CopyFrameBase(out, frame);
     switch (frame->Type) {
         case FT_BACKDROP:
-            WriteBackdrop(frame, &buf, buffer);
+            WriteBackdrop(frame, &buf, textbuf);
             break;
         case FT_TOOLTIPTEXT:
-            WriteTooltipText(frame, &buf, buffer);
+            WriteTooltipText(frame, &buf, textbuf);
             break;
         case FT_SIMPLEBUTTON:
-            WriteSimpleButton(frame, &buf, buffer);
-            tmp.text = buffer;
+            WriteSimpleButton(frame, &buf, textbuf);
+            out->text = textbuf;
             break;
-//        case FT_SIMPLESTATUSBAR:
-//            break;
         case FT_BUILDQUEUE:
             WriteBuildQueue(frame, &buf);
             break;
@@ -324,30 +334,51 @@ void UI_WriteFrame(LPCFRAMEDEF frame) {
             break;
         case FT_GLUEBUTTON:
         case FT_GLUETEXTBUTTON:
-            WriteGlueTextButton(frame, &buf, buffer);
-            tmp.text = buffer;
+            WriteGlueTextButton(frame, &buf, textbuf);
+            out->text = textbuf;
             break;
         case FT_HIGHLIGHT:
             WriteHighlight(frame, &buf);
             break;
         case FT_STRING:
         case FT_TEXT:
-            WriteLabel(frame, &buf, &tmp);
+            WriteLabel(frame, &buf, out);
             break;
         case FT_TEXTAREA:
-            WriteTextArea(frame, &buf, &tmp);
+            WriteTextArea(frame, &buf, out);
             break;
         case FT_MODEL:
         case FT_SPRITE:
         case FT_PORTRAIT:
-            tmp.tex.index = frame->Portrait.model;
+            out->tex.index = frame->Portrait.model;
             break;
         default:
             break;
     }
-    tmp.buffer.size = buf.cursize;
-    tmp.buffer.data = buf.data;
-    tmp.flags.type = frame->Type;
+
+    out->buffer.size = buf.cursize;
+    out->buffer.data = buf.data;
+    out->flags.type = frame->Type;
+
+    return true;
+}
+
+/* Serialize a single frame and its type-specific data block into the outgoing
+ * svc_layout message.  The frame number is encoded relative to the list of
+ * frames already written in this layout pass so parent references stay valid. */
+void UI_WriteFrame(LPCFRAMEDEF frame) {
+    UINAME textbuf;
+    uiFrame_t tmp;
+    BYTE typedata[256] = { 0};
+
+    if (!UI_BuildFrameForWrite(frame,
+                               &tmp,
+                               typedata,
+                               sizeof(typedata),
+                               textbuf,
+                               sizeof(textbuf))) {
+        return;
+    }
 #ifdef DIAG_OUTPUT
     if (!strcmp(frame->Name, "WarCraftIIILogo") ||
         !strcmp(frame->Name, "MainMenuFrame") ||

@@ -790,6 +790,40 @@ LPFRAMEDEF UI_FindChildFrame(LPFRAMEDEF frame, LPCSTR name) {
     return NULL;
 }
 
+static DWORD UI_CollectFrameTreeRecursive(LPCFRAMEDEF frame, LPCFRAMEDEF *out, DWORD max) {
+    DWORD total = 0;
+
+    if (!frame) {
+        return 0;
+    }
+
+    if (out && total < max) {
+        out[total] = frame;
+    }
+    total++;
+
+    FOR_LOOP(i, MAX_UI_CLASSES) {
+        LPCFRAMEDEF child = frames + i;
+        if (child->Parent == frame && !child->hidden) {
+            DWORD emitted = UI_CollectFrameTreeRecursive(child,
+                                                         out ? out + total : NULL,
+                                                         max > total ? max - total : 0);
+            total += emitted;
+        }
+    }
+
+    return total;
+}
+
+/* Collect the write-order frame graph rooted at root.
+ * The result order matches UI_WriteFrameWithChildren traversal:
+ *   node first, then visible children in template-slot order.
+ * Returns the total number of frames in the traversal, even if out is too
+ * small to hold all of them. */
+DWORD UI_CollectFrameTree(LPCFRAMEDEF root, LPCFRAMEDEF *out, DWORD max) {
+    return UI_CollectFrameTreeRecursive(root, out, max);
+}
+
 void FDF_ParseScene(LPPARSER parser) {
     LPCSTR token = NULL;
     LPFRAMEDEF frame = NULL;
