@@ -496,17 +496,18 @@ void SCR_DrawPortrait(LPCUIFRAME frame, LPCRECT screen) {
 }
 
 void SCR_DrawSprite(LPCUIFRAME frame, LPCRECT screen) {
-    RECT const viewport = {
-        screen->x / UI_BASE_WIDTH,
-        1 - ((screen->y + screen->h) / UI_BASE_HEIGHT),
-        screen->w / UI_BASE_WIDTH,
-        screen->h / UI_BASE_HEIGHT
-    };
+    // RECT const viewport = {
+    //     screen->x / UI_BASE_WIDTH,
+    //     1 - ((screen->y + screen->h) / UI_BASE_HEIGHT),
+    //     screen->w / UI_BASE_WIDTH,
+    //     screen->h / UI_BASE_HEIGHT
+    // };
     LPCSTR s = cl.configstrings[CS_MODELS + frame->tex.index];
+    // printf("Model for sprite: %s\n", s);
     if (strstr(s, "Panel")) {
-        re.DrawSprite(cl.models[frame->tex.index], &viewport, "MainMenu Stand");
+        re.DrawSprite(cl.models[frame->tex.index], "MainMenu Stand", screen->x, screen->y);
     } else {
-        re.DrawSprite(cl.models[frame->tex.index], &viewport, "Stand");
+        re.DrawSprite(cl.models[frame->tex.index], "Stand", screen->x, screen->y);
     }
 }
 

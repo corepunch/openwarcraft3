@@ -95,7 +95,6 @@ static LPCSTR mdx_fs =
 "}\n";
 
 static bool R_InitUIModelView(LPCMODEL model,
-                              LPCRECT viewport,
                               viewDef_t *viewdef,
                               renderEntity_t *entity,
                               mdxSequence_t const *seq) {
@@ -121,7 +120,6 @@ static bool R_InitUIModelView(LPCMODEL model,
         entity->oldframe = entity->frame;
     }
 
-    viewdef->viewport = *viewport;
     viewdef->scissor = (RECT) { 0, 0, 1, 1 };
     viewdef->num_entities = 1;
     viewdef->entities = entity;
@@ -145,41 +143,34 @@ void Matrix4_getLightMatrix(LPCVECTOR3 sunangles, LPCVECTOR3 target, float scale
     Matrix4_multiply(&proj, &view, output);
 }
 
-void R_DrawSprite(LPCMODEL model, LPCRECT viewport, LPCSTR anim) {
-    VECTOR3 root;
+void R_DrawSprite(LPCMODEL model, LPCSTR anim, float x, float y) {
     renderEntity_t entity;
     viewDef_t viewdef;
-    mdxModel_t const *mdx;
-    mdxSequence_t const *seq;
-    float aspect;
 
     if (!model || !model->mdx) {
         return;
     }
-    mdx = model->mdx;
-    seq = (anim && *anim) ? MDLX_FindSequenceByName(mdx, anim) : NULL;
+    mdxModel_t const *mdx = model->mdx;
+    mdxSequence_t const *seq = (anim && *anim) ? MDLX_FindSequenceByName(mdx, anim) : NULL;
     if (!seq && mdx->sequences && mdx->num_sequences > 0) {
         seq = &mdx->sequences[0];
     }
 
-    if (!R_InitUIModelView(model, viewport, &viewdef, &entity, seq)) {
+    if (!R_InitUIModelView(model, &viewdef, &entity, seq)) {
         return;
     }
+
+    viewdef.viewport = (struct rect) {0,0,1,1};
 
     entity.flags |= RF_NO_FOGOFWAR | RF_NO_SHADOW | RF_NO_LIGHTING;
 
     VECTOR3 const center = Box3_Center(&mdx->bounds.box);
-    entity.origin = Vector3_unm(&center);
 
-    aspect = viewport->h > 0.0f ? viewport->w / viewport->h : 1.0f;
+    entity.origin = (VECTOR3){x+mdx->bounds.box.min.x, -y-mdx->bounds.box.min.y, 0};
+    // printf("Sprite origin: %f %f %f %f\n", viewport->x, viewport->y, viewport->w, viewport->h);
 
-    float m[] = {
-        6.013071, 0.000000, 0.000000, 0.000000, 
-        0.000000, 6.666667, 0.000000, 0.000000,
-        0.000000, 0.000000, -0.062696, 0.000000, 
-        0.001894, 0.097333, -0.752110, 1.000000
-    };
-    memcpy(viewdef.viewProjectionMatrix.v, m, sizeof(m));
+    RECT screen = R_UISceneRect();
+    Matrix4_ortho(&viewdef.viewProjectionMatrix, screen.x, screen.x + screen.w, screen.y - screen.h, screen.y, 0.0f, 100.0f);
 
     R_Call(glActiveTexture, GL_TEXTURE2);
     R_Call(glBindTexture, GL_TEXTURE_2D, tr.texture[TEX_WHITE]->texid);
@@ -246,9 +237,11 @@ void R_DrawPortrait(LPCMODEL model, LPCRECT viewport, LPCSTR anim) {
         seq = &mdx->sequences[0];
     }
 
-    if (!R_InitUIModelView(model, viewport, &viewdef, &entity, seq)) {
+    if (!R_InitUIModelView(model, &viewdef, &entity, seq)) {
         return;
     }
+
+    viewdef.viewport = *viewport;
 
     if (!R_GetModelCameraMatrix(mdx, aspect, &viewdef.viewProjectionMatrix, &root)) {
         return;

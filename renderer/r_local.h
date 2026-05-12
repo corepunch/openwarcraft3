@@ -172,7 +172,7 @@ bool MDLX_TraceModel(renderEntity_t const *edict, LPCLINE3 line);
 void R_ReleaseVertexArrayObject(LPBUFFER buffer);
 LPCTEXTURE R_FindTextureByID(DWORD textureID);
 void R_DrawPortrait(LPCMODEL model, LPCRECT viewport, LPCSTR anim);
-void R_DrawSprite(LPCMODEL model, LPCRECT viewport, LPCSTR anim);
+void R_DrawSprite(LPCMODEL model, LPCSTR anim, float x, float y);
 void R_RenderSplat(LPCVECTOR2 position, float radius, LPCTEXTURE texture, LPCSHADER shader, COLOR32 color);
 
 // r_shader.c
@@ -215,6 +215,7 @@ void R_DrawSelectionRect(LPCRECT rect, COLOR32 color);
 void R_DrawBoundingBox(LPCBOX3 box, LPCMATRIX4 modelMatrix, LPCMATRIX4 vpMatrix, COLOR32 color);
 void R_DrawWireRect(LPCRECT rect, COLOR32 color);
 bool R_GetModelInfo(LPMODEL model, LPMODELINFO info);
+RECT R_UISceneRect(void);
 
 // r_font.c
 LPFONT R_LoadFont(LPCSTR filename, DWORD size);
