@@ -205,6 +205,8 @@ TEST_GAME_SRCS := \
 	game/skills/s_skills.c \
 	game/skills/s_stop.c \
 	game/skills/s_train.c \
+	game/ui/ui_fdf.c \
+	game/ui/ui_write.c \
 	server/sv_init.c \
 	server/sv_send.c \
 	common/net.c \
@@ -222,7 +224,8 @@ TEST_SRCS := \
 	tests/test_api.c \
 	tests/test_game.c \
 	tests/test_combat.c \
-	tests/test_server_net.c
+	tests/test_server_net.c \
+	tests/test_ui_fdf.c
 
 TEST_CFLAGS := -Wall -Itests/stubs -Ishared/types -Igame -Iserver -Icommon -Igame/skills
 

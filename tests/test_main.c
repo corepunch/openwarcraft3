@@ -26,6 +26,7 @@ void run_api_tests(void);
 void run_game_tests(void);
 void run_combat_tests(void);
 void run_server_net_tests(void);
+void run_ui_fdf_tests(void);
 
 int main(void) {
     printf("=== OpenWarcraft3 Unit Tests ===\n\n");
@@ -68,6 +69,10 @@ int main(void) {
 
     printf("[Server UDP connect / sync]\n");
     run_server_net_tests();
+    printf("\n");
+
+    printf("[UI FDF parser / frame graph]\n");
+    run_ui_fdf_tests();
     printf("\n");
 
     TEST_RESULTS();
