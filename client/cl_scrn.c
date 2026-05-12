@@ -60,7 +60,7 @@ VECTOR2 SCR_MouseToFdf(void) {
 
     return MAKE(VECTOR2,
                 scene.x + nx * scene.w,
-                scene.y + (1.0f - ny) * scene.h);
+                scene.y + ny * scene.h);
 }
 
 RECT get_uvrect(uint8_t const *texcoord) {

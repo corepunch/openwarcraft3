@@ -1,13 +1,10 @@
 #include "common/mpq.h"
+#include "tool_common.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
-
-#ifndef _WIN32
-#include <libgen.h>
-#endif
 
 #ifndef PATHSTR
 #define PATHSTR char[512]
@@ -222,24 +219,6 @@ static int cmd_imginfo(HANDLE archive, const char *file_path) {
     return 0;
 }
 
-static void normalize_slashes(char *s) {
-    for (; *s; s++) {
-        if (*s == '/') {
-            *s = '\\';
-        }
-    }
-}
-
-static void trim_edge_slashes(char *s) {
-    size_t len = strlen(s);
-    while (len > 0 && (s[len - 1] == '\\' || s[len - 1] == '/')) {
-        s[--len] = '\0';
-    }
-    while (*s == '\\' || *s == '/') {
-        memmove(s, s + 1, strlen(s));
-    }
-}
-
 static bool starts_with_ci(const char *s, const char *prefix) {
 #ifdef _WIN32
     return _strnicmp(s, prefix, strlen(prefix)) == 0;
@@ -318,8 +297,8 @@ static int cmd_ls(HANDLE archive, const char *path) {
     if (path && *path) {
         strncpy(prefix, path, sizeof(prefix) - 1);
         prefix[sizeof(prefix) - 1] = '\0';
-        normalize_slashes(prefix);
-        trim_edge_slashes(prefix);
+        Tool_NormalizeSlashes(prefix, '\\');
+        Tool_TrimEdgeSlashes(prefix);
     }
 
     prefix_len = strlen(prefix);
@@ -422,8 +401,8 @@ static int cmd_pack(const char *mpq_path, int pair_count, char **pairs)
         char path[512];
         strncpy(path, pairs[i + 1], sizeof(path) - 1);
         path[sizeof(path) - 1] = '\0';
-        normalize_slashes(path);
-        trim_edge_slashes(path);
+        Tool_NormalizeSlashes(path, '\\');
+        Tool_TrimEdgeSlashes(path);
         if (!SFileAddFile(archive, pairs[i], path)) {
             fprintf(stderr, "Cannot add file %s as %s\n", pairs[i], path);
             SFileCloseArchive(archive);
@@ -514,8 +493,8 @@ int main(int argc, char **argv) {
         }
         strncpy(path, arg, sizeof(path) - 1);
         path[sizeof(path) - 1] = '\0';
-        normalize_slashes(path);
-        trim_edge_slashes(path);
+        Tool_NormalizeSlashes(path, '\\');
+        Tool_TrimEdgeSlashes(path);
         rc = cmd_cat(archive, path);
     } else if (strcmp(cmd, "imginfo") == 0) {
         char path[512];
@@ -526,8 +505,8 @@ int main(int argc, char **argv) {
         }
         strncpy(path, arg, sizeof(path) - 1);
         path[sizeof(path) - 1] = '\0';
-        normalize_slashes(path);
-        trim_edge_slashes(path);
+        Tool_NormalizeSlashes(path, '\\');
+        Tool_TrimEdgeSlashes(path);
         rc = cmd_imginfo(archive, path);
     } else {
         usage();

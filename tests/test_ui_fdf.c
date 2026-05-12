@@ -114,7 +114,7 @@ static void test_inherits_rejects_incompatible_type(void) {
     ASSERT_FLOAT_EQ(derived_frame->Width, 0.0f);
 }
 
-static void test_setpoint_top_left_sets_min_anchor(void) {
+static void test_setpoint_top_left_sets_top_y_anchor(void) {
     LPFRAMEDEF root;
     LPFRAMEDEF child;
 
@@ -136,10 +136,10 @@ static void test_setpoint_top_left_sets_min_anchor(void) {
     ASSERT_FLOAT_EQ(child->Points.x[FPP_MIN].offset, 0.01f);
     ASSERT(child->Points.x[FPP_MIN].relativeTo == root);
 
-    ASSERT_EQ_INT(child->Points.y[FPP_MIN].used, 1);
-    ASSERT_EQ_INT(child->Points.y[FPP_MIN].targetPos, FPP_MIN);
-    ASSERT_FLOAT_EQ(child->Points.y[FPP_MIN].offset, -0.02f);
-    ASSERT(child->Points.y[FPP_MIN].relativeTo == root);
+    ASSERT_EQ_INT(child->Points.y[FPP_MAX].used, 1);
+    ASSERT_EQ_INT(child->Points.y[FPP_MAX].targetPos, FPP_MAX);
+    ASSERT_FLOAT_EQ(child->Points.y[FPP_MAX].offset, -0.02f);
+    ASSERT(child->Points.y[FPP_MAX].relativeTo == root);
 }
 
 static void test_setallpoints_sets_min_and_max(void) {
@@ -170,9 +170,9 @@ static void test_anchor_translates_to_setpoint_state(void) {
     frame = UI_FindFrame("Root");
     if (!require_not_null(frame)) return;
     ASSERT_EQ_INT(frame->Points.x[FPP_MAX].used, 1);
-    ASSERT_EQ_INT(frame->Points.y[FPP_MAX].used, 1);
+    ASSERT_EQ_INT(frame->Points.y[FPP_MIN].used, 1);
     ASSERT_FLOAT_EQ(frame->Points.x[FPP_MAX].offset, -0.03f);
-    ASSERT_FLOAT_EQ(frame->Points.y[FPP_MAX].offset, 0.04f);
+    ASSERT_FLOAT_EQ(frame->Points.y[FPP_MIN].offset, 0.04f);
 }
 
 static void test_backdrop_flags_and_insets_are_parsed(void) {
@@ -359,7 +359,7 @@ static void test_programmatic_setpoint_maps_to_points(void) {
     ASSERT_EQ_INT(child.Points.x[FPP_MID].used, 1);
     ASSERT_EQ_INT(child.Points.y[FPP_MID].used, 1);
     ASSERT_EQ_INT(child.Points.x[FPP_MID].targetPos, FPP_MIN);
-    ASSERT_EQ_INT(child.Points.y[FPP_MID].targetPos, FPP_MIN);
+    ASSERT_EQ_INT(child.Points.y[FPP_MID].targetPos, FPP_MAX);
     ASSERT_FLOAT_EQ(child.Points.x[FPP_MID].offset, 0.11f);
     ASSERT_FLOAT_EQ(child.Points.y[FPP_MID].offset, -0.22f);
     ASSERT(child.Points.x[FPP_MID].relativeTo == &root);
@@ -424,7 +424,7 @@ BEGIN_SUITE(ui_fdf)
     RUN_TEST(test_parse_nested_parent_child_relationship);
     RUN_TEST(test_inherits_copies_compatible_type_fields);
     RUN_TEST(test_inherits_rejects_incompatible_type);
-    RUN_TEST(test_setpoint_top_left_sets_min_anchor);
+    RUN_TEST(test_setpoint_top_left_sets_top_y_anchor);
     RUN_TEST(test_setallpoints_sets_min_and_max);
     RUN_TEST(test_anchor_translates_to_setpoint_state);
     RUN_TEST(test_backdrop_flags_and_insets_are_parsed);

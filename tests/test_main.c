@@ -26,6 +26,7 @@ void run_api_tests(void);
 void run_game_tests(void);
 void run_combat_tests(void);
 void run_server_net_tests(void);
+void run_tool_common_tests(void);
 void run_ui_fdf_tests(void);
 void run_ui_serialize_tests(void);
 void run_ui_layout_tests(void);
@@ -73,6 +74,10 @@ int main(void) {
 
     printf("[Server UDP connect / sync]\n");
     run_server_net_tests();
+    printf("\n");
+
+    printf("[Tool common helpers]\n");
+    run_tool_common_tests();
     printf("\n");
 
     printf("[UI FDF parser / frame graph]\n");

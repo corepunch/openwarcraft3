@@ -603,19 +603,6 @@ static bool DumpModelInfoNoWindow(LPCSTR modelPath) {
     return true;
 }
 
-static LPCSTR TextureBaseName(LPCSTR path) {
-    LPCSTR base = path;
-    if (!path) {
-        return "";
-    }
-    for (LPCSTR s = path; *s; s++) {
-        if (*s == '\\' || *s == '/') {
-            base = s + 1;
-        }
-    }
-    return base;
-}
-
 static void BuildTexturePreviewCache(refExport_t const *re, LPMODEL model) {
     FreeTexturePreviewCache();
     MODELINFO modelInfo = { 0 };
@@ -699,7 +686,7 @@ static void DrawTexturePreviews(refExport_t const *re) {
         re->DrawImage(texture, &screen, &uv, COLOR32_WHITE);
 
         char line[512];
-        snprintf(line, sizeof(line), "%s", TextureBaseName(texture_previews.paths[i]));
+        snprintf(line, sizeof(line), "%s", Tool_PathBasename(texture_previews.paths[i]));
         DWORD textX = (DWORD)((drawX / 0.8f) * window.width);
         DWORD textY = (DWORD)(((drawY + drawH + 0.005f) / 0.6f) * window.height);
         re->PrintSysText(line, textX, textY, COLOR32_WHITE);
