@@ -11,10 +11,10 @@ Refactor UI parser/serialization/layout code for deterministic testing first, th
   - [x] Wire `create` and `pack` commands in `tools/mpqtool.c`
   - [x] Build clean, smoke test passed
 
-- [ ] **Phase 2** — Texture generation support. Add a small tool in `tools/` to emit BLP2 test textures from declarative inputs (solid color, checker, grid, alpha mask, border atlas). _Depends on Phase 1._
-  - [ ] Add `tools/blpgen.c` (or extend existing tool)
-  - [ ] Generate: `solid_white.blp` (1x1), `checker_8x8.blp`, `alpha_ring_16x16.blp`, `panel_border_32x32.blp`
-  - [ ] BLP2 BGRA first; add one paletted fixture for decoder coverage
+- [x] **Phase 2** — Texture generation support. Add a small tool in `tools/` to emit BLP2 test textures from declarative inputs (solid color, checker, grid, alpha mask, border atlas). _Depends on Phase 1._
+  - [x] Add `tools/blpgen.c`
+  - [x] Generate: `solid_white.blp` (1x1), `checker_8x8.blp`, `alpha_ring_16x16.blp`, `panel_border_32x32.blp`
+  - [x] BLP2 BGRA first; `paletted` preset added for decoder coverage
 
 - [ ] **Phase 3** — Model generation support. Create a deterministic MDX fixture generator in `tools/` or extend `mdxtool` with generation modes. _Depends on Phase 1; parallel with Phase 2._
   - [ ] Add generation modes to `tools/mdxtool.c` or new `tools/mdxgen.c`
@@ -85,7 +85,7 @@ Refactor UI parser/serialization/layout code for deterministic testing first, th
 
 - `common/mpq.h` / `common/mpq.c` — MPQ write API (✅ done)
 - `tools/mpqtool.c` — archive creation/packing (✅ done)
-- `tools/blpgen.c` — BLP2 texture generator (to add)
+- `tools/blpgen.c` — BLP2 texture generator (✅ done)
 - `tools/mdxtool.c` / `tools/mdxgen.c` — MDX fixture generator (to add)
 - `tools/fdftool.c` — oracle/inspection path
 - `game/ui/ui_fdf.c` — parser and frame-graph seams
