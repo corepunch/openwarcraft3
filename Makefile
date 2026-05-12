@@ -1,5 +1,6 @@
 # MPQ      := /Users/igor/Documents/Warcraft3/war3.mpq
 MPQ      := data/Warcraft\ III/War3.mpq
+DEMO     := data/Warcraft3demo/war3.mpq
 MAP      := Maps\\Campaign\\Human02.w3m
 
 ZIP_URL  := https://archive.org/download/warcraft-iii-installer-enus/Warcraft-III-1.29.2-enUS.zip
@@ -87,6 +88,9 @@ fdftool:     $(FDF_TOOL)
 mpqnc:       $(MPQ_NC_TOOL)
 run:
 	$(BINARY) -mpq=$(MPQ)
+
+run-demo:
+	$(BINARY) -mpq=$(DEMO)
 
 run-map:
 	$(BINARY) -mpq=$(MPQ) -map=$(MAP)
