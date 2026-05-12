@@ -21,22 +21,22 @@ Refactor UI parser/serialization/layout code for deterministic testing first, th
   - [x] Generate: `quad_sprite.mdx` (1x1 quad, 1 seq), `panel_sprite.mdx` (2x1.5 quad), `anim_pulse.mdx` (2 seqs Stand+Birth)
   - [x] Include texture-path assignment, BONE, PIVT; validated with `mdxtool --info`
 
-- [ ] **Phase 4** — Define resource strategy and fixture set. Finalize file types and references per fixture. _Depends on Phases 2–3._
-  - [ ] `TestUI/Frames/basic_layout.fdf`
-  - [ ] `TestUI/Frames/backdrop_variants.fdf`
-  - [ ] `TestUI/Frames/simple_sprite.fdf`
-  - [ ] `TestUI/Frames/animated_sprite.fdf`
-  - [ ] `TestUI/Textures/solid_white.blp`
-  - [ ] `TestUI/Textures/checker_8x8.blp`
-  - [ ] `TestUI/Textures/alpha_ring_16x16.blp`
-  - [ ] `TestUI/Textures/panel_border_32x32.blp`
-  - [ ] `TestUI/Models/quad_sprite.mdx`
-  - [ ] `TestUI/Models/panel_sprite.mdx`
-  - [ ] `TestUI/Models/anim_pulse.mdx`
+- [x] **Phase 4** — Define resource strategy and fixture set. Finalize file types and references per fixture. _Depends on Phases 2–3._
+  - [x] `TestUI/Frames/basic_layout.fdf`
+  - [x] `TestUI/Frames/backdrop_variants.fdf`
+  - [x] `TestUI/Frames/simple_sprite.fdf`
+  - [x] `TestUI/Frames/animated_sprite.fdf`
+  - [x] `TestUI/Textures/solid_white.blp`
+  - [x] `TestUI/Textures/checker_8x8.blp`
+  - [x] `TestUI/Textures/alpha_ring_16x16.blp`
+  - [x] `TestUI/Textures/panel_border_32x32.blp`
+  - [x] `TestUI/Models/quad_sprite.mdx`
+  - [x] `TestUI/Models/panel_sprite.mdx`
+  - [x] `TestUI/Models/anim_pulse.mdx`
 
-- [ ] **Phase 5** — Build `tests.mpq` generation pipeline. Add `make test-assets` target that generates all fixtures and packs them into `build/tests/tests.mpq`. _Depends on Phases 1–4._
-  - [ ] Add `make test-assets` Makefile target
-  - [ ] Verify `mpqtool ls/cat` against `tests.mpq` in CI smoke check
+- [x] **Phase 5** — Build `tests.mpq` generation pipeline. Add `make test-assets` target that generates all fixtures and packs them into `build/tests/tests.mpq`. _Depends on Phases 1–4._
+  - [x] Add `make test-assets` Makefile target
+  - [x] Verify `mpqtool ls/cat` against `tests.mpq` in CI smoke check
 
 - [ ] **Phase 6** — Refactor server-side UI code for testability (no behavior change). Extract seams in `game/ui/ui_fdf.c` (parser/frame-graph) and `game/ui/ui_write.c` (serialization) so tests can capture deterministic byte streams and frame graphs without live networking. _Blocks parser/serialization/end-to-end suites._
 

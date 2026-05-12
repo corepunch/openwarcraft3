@@ -235,4 +235,55 @@ test: | $(BIN_DIR)
 test-mpq-compat: mpqtool $(MPQ_TEST)
 	$(MPQ_TEST) -mpq=$(MPQ)
 
-.PHONY: default build shared renderer game openwarcraft3 mpqtool mdxtool maptool fdftool mpqnc run run-map diag clean download test test-mpq-compat
+# ---------------------------------------------------------------------------
+# test-assets — generate fixture resources and pack them into build/tests/tests.mpq
+#
+# Generated files (never committed):
+#   build/tests/resources/TestUI/Textures/*.blp  — via blpgen
+#   build/tests/resources/TestUI/Models/*.mdx    — via mdxgen
+# Source-controlled FDF fixtures (tests/resources-src/**/*.fdf) are packed directly.
+# The archive is recreated from scratch on every run (deterministic).
+# ---------------------------------------------------------------------------
+TESTS_DIR     := build/tests
+TESTS_MPQ     := $(TESTS_DIR)/tests.mpq
+TESTS_RES_DIR := $(TESTS_DIR)/resources
+TESTS_SRC_DIR := tests/resources-src
+
+test-assets: blpgen mdxgen mpqtool | $(TESTS_DIR)
+	@echo "[test-assets] generating textures"
+	@mkdir -p $(TESTS_RES_DIR)/TestUI/Textures
+	$(BLP_TOOL) solid        1  1  ffffffff  $(TESTS_RES_DIR)/TestUI/Textures/solid_white.blp
+	$(BLP_TOOL) checker      8  8  2         $(TESTS_RES_DIR)/TestUI/Textures/checker_8x8.blp
+	$(BLP_TOOL) alpha_ring   16 16           $(TESTS_RES_DIR)/TestUI/Textures/alpha_ring_16x16.blp
+	$(BLP_TOOL) panel_border 32 32 2         $(TESTS_RES_DIR)/TestUI/Textures/panel_border_32x32.blp
+	$(BLP_TOOL) paletted     8  8  2         $(TESTS_RES_DIR)/TestUI/Textures/paletted_checker_8x8.blp
+	@echo "[test-assets] generating models"
+	@mkdir -p $(TESTS_RES_DIR)/TestUI/Models
+	$(MDX_GEN_TOOL) quad_sprite   TestUI/Textures/checker_8x8.blp       $(TESTS_RES_DIR)/TestUI/Models/quad_sprite.mdx
+	$(MDX_GEN_TOOL) panel_sprite  TestUI/Textures/solid_white.blp        $(TESTS_RES_DIR)/TestUI/Models/panel_sprite.mdx
+	$(MDX_GEN_TOOL) anim_pulse    TestUI/Textures/alpha_ring_16x16.blp   $(TESTS_RES_DIR)/TestUI/Models/anim_pulse.mdx
+	@echo "[test-assets] packing tests.mpq"
+	$(MPQ_TOOL) -mpq $(TESTS_MPQ) create 64
+	$(MPQ_TOOL) -mpq $(TESTS_MPQ) pack \
+		$(TESTS_RES_DIR)/TestUI/Textures/solid_white.blp        TestUI/Textures/solid_white.blp \
+		$(TESTS_RES_DIR)/TestUI/Textures/checker_8x8.blp        TestUI/Textures/checker_8x8.blp \
+		$(TESTS_RES_DIR)/TestUI/Textures/alpha_ring_16x16.blp   TestUI/Textures/alpha_ring_16x16.blp \
+		$(TESTS_RES_DIR)/TestUI/Textures/panel_border_32x32.blp TestUI/Textures/panel_border_32x32.blp \
+		$(TESTS_RES_DIR)/TestUI/Textures/paletted_checker_8x8.blp TestUI/Textures/paletted_checker_8x8.blp \
+		$(TESTS_RES_DIR)/TestUI/Models/quad_sprite.mdx           TestUI/Models/quad_sprite.mdx \
+		$(TESTS_RES_DIR)/TestUI/Models/panel_sprite.mdx          TestUI/Models/panel_sprite.mdx \
+		$(TESTS_RES_DIR)/TestUI/Models/anim_pulse.mdx            TestUI/Models/anim_pulse.mdx \
+		$(TESTS_SRC_DIR)/TestUI/Frames/basic_layout.fdf          TestUI/Frames/basic_layout.fdf \
+		$(TESTS_SRC_DIR)/TestUI/Frames/backdrop_variants.fdf     TestUI/Frames/backdrop_variants.fdf \
+		$(TESTS_SRC_DIR)/TestUI/Frames/simple_sprite.fdf         TestUI/Frames/simple_sprite.fdf \
+		$(TESTS_SRC_DIR)/TestUI/Frames/animated_sprite.fdf       TestUI/Frames/animated_sprite.fdf
+	@echo "[test-assets] verifying archive"
+	@$(MPQ_TOOL) -mpq $(TESTS_MPQ) ls | grep -q "TestUI/" && echo "  ls OK"
+	@$(MPQ_TOOL) -mpq $(TESTS_MPQ) cat TestUI/Frames/basic_layout.fdf | grep -q "TestRootFrame" && echo "  cat FDF OK"
+	@$(MPQ_TOOL) -mpq $(TESTS_MPQ) cat TestUI/Textures/solid_white.blp | head -c4 | grep -q "BLP2" && echo "  cat BLP OK"
+	@echo "[test-assets] done — $(TESTS_MPQ)"
+
+$(TESTS_DIR):
+	@mkdir -p $@
+
+.PHONY: default build shared renderer game openwarcraft3 mpqtool mdxtool maptool fdftool mpqnc blpgen mdxgen run run-map diag clean download test test-mpq-compat test-assets
