@@ -207,6 +207,7 @@ TEST_GAME_SRCS := \
 	game/skills/s_train.c \
 	game/ui/ui_fdf.c \
 	game/ui/ui_write.c \
+	client/cl_scrn.c \
 	server/sv_init.c \
 	server/sv_send.c \
 	common/net.c \
@@ -215,6 +216,7 @@ TEST_GAME_SRCS := \
 TEST_SRCS := \
 	tests/test_main.c \
 	tests/test_harness.c \
+	tests/test_client_stubs.c \
 	tests/test_slk.c \
 	tests/test_unit.c \
 	tests/test_movement.c \
@@ -226,9 +228,10 @@ TEST_SRCS := \
 	tests/test_combat.c \
 	tests/test_server_net.c \
 	tests/test_ui_fdf.c \
-	tests/test_ui_serialize.c
+	tests/test_ui_serialize.c \
+	tests/test_ui_layout.c
 
-TEST_CFLAGS := -Wall -Itests/stubs -Ishared/types -Igame -Iserver -Icommon -Igame/skills
+TEST_CFLAGS := -Wall -Itests/stubs -Ishared/types -Igame -Iserver -Icommon -Iclient -Igame/skills
 
 test: | $(BIN_DIR)
 	$(CC) $(TEST_CFLAGS) -o $(BIN_DIR)/test_openwarcraft3$(EXE_EXT) \

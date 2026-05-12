@@ -46,7 +46,7 @@ Refactor UI parser/serialization/layout code for deterministic testing first, th
 
 - [x] **Phase 9** — Refactor client layout solver for deterministic conformance testing. Extract anchor math, parent queries, measurement hooks, and stat providers from `client/cl_scrn.c`. _Depends on Phase 6; parallel with Phases 7–8._
 
-- [ ] **Phase 10** — Client layout suites (~30–40 tests). Cover single-anchor, dual-anchor stretch, center alignment, parent-relative recursion, offset signs, implied sizes, and Warcraft-style Y-up expectations. _Depends on Phase 9._
+- [x] **Phase 10** — Client layout suites (~30–40 tests). Cover single-anchor, dual-anchor stretch, center alignment, parent-relative recursion, offset signs, implied sizes, and Warcraft-style Y-up expectations. _Depends on Phase 9._
 
 - [ ] **Phase 11** — End-to-end server→client UI tests against `tests.mpq` (~20–30 tests). Build frame tree from generated FDF, serialize on server path, parse on client path, solve bounds, assert deterministic outcomes. _Depends on Phases 5, 8, and 10._
 

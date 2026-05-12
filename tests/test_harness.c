@@ -19,6 +19,8 @@
 
 #include "test_harness.h"
 
+void test_client_stubs_init(void);
+
 /* Forward-declare functions defined in game .c files but not in any header. */
 void G_SetConfigTable(sheetMetaData_t *metadatas, LPCSTR slk, sheetRow_t *table);
 
@@ -264,6 +266,7 @@ void setup_game(void) {
     gi.configstring        = mock_configstring;
     gi.confignstring       = mock_confignstring;
     gi.error               = mock_error;
+    test_client_stubs_init();
 
     /* Initialise game-export fields. */
     globals.edicts      = g_edicts;
