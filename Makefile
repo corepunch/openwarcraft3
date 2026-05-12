@@ -68,6 +68,7 @@ MAP_TOOL     := $(BIN_DIR)/maptool$(EXE_EXT)
 FDF_TOOL     := $(BIN_DIR)/fdftool$(EXE_EXT)
 MPQ_NC_TOOL  := $(BIN_DIR)/mpqnc$(EXE_EXT)
 BLP_TOOL     := $(BIN_DIR)/blpgen$(EXE_EXT)
+MDX_GEN_TOOL := $(BIN_DIR)/mdxgen$(EXE_EXT)
 MPQ_TEST     := $(BIN_DIR)/test_mpq_compat$(EXE_EXT)
 
 # Unity-build helper: pipe all .c files in a directory tree as #include
@@ -77,7 +78,7 @@ MPQ_TEST     := $(BIN_DIR)/test_mpq_compat$(EXE_EXT)
 UNITY = find $1 -name '*.c' $2 | sort | awk '{printf "\043include \"%s\"\n", $$0}'
 
 default: build
-build: shared renderer game openwarcraft3 mpqtool mdxtool maptool fdftool mpqnc blpgen
+build: shared renderer game openwarcraft3 mpqtool mdxtool maptool fdftool mpqnc blpgen mdxgen
 shared:      $(SHARED_LIB)
 renderer:    $(RENDERER_LIB)
 game:        $(GAME_LIB)
@@ -88,6 +89,7 @@ maptool:     $(MAP_TOOL)
 fdftool:     $(FDF_TOOL)
 mpqnc:       $(MPQ_NC_TOOL)
 blpgen:      $(BLP_TOOL)
+mdxgen:      $(MDX_GEN_TOOL)
 run:
 	$(BINARY) -mpq=$(MPQ)
 
@@ -126,6 +128,10 @@ $(MPQ_NC_TOOL): tools/mpqnc.c | $(BIN_DIR)
 
 $(BLP_TOOL): tools/blpgen.c | $(BIN_DIR)
 	@echo "[blpgen]"
+	$(CC) $(CFLAGS) -o $@ $< $(LDFLAGS) -lm
+
+$(MDX_GEN_TOOL): tools/mdxgen.c | $(BIN_DIR)
+	@echo "[mdxgen]"
 	$(CC) $(CFLAGS) -o $@ $< $(LDFLAGS) -lm
 
 $(MPQ_TEST): tests/test_mpq_compat.c common/mpq.c common/mpq.h | $(BIN_DIR)
