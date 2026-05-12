@@ -235,11 +235,29 @@ TEST_SRCS := \
 
 TEST_CFLAGS := -Wall -Itests/stubs -Ishared/types -Igame -Iserver -Icommon -Iclient -Igame/skills
 
-test: | $(BIN_DIR)
+TEST_UI_SRCS := \
+	tests/test_main_ui.c \
+	tests/test_harness.c \
+	tests/test_client_stubs.c \
+	tests/test_server_net.c \
+	tests/test_jass.c \
+	tests/test_ui_fdf.c \
+	tests/test_ui_serialize.c \
+	tests/test_ui_layout.c \
+	tests/test_ui_e2e.c \
+	tests/test_ui_oracle.c
+
+test: test-assets | $(BIN_DIR)
 	$(CC) $(TEST_CFLAGS) -o $(BIN_DIR)/test_openwarcraft3$(EXE_EXT) \
 		$(TEST_SRCS) $(TEST_GAME_SRCS) \
 		$(shell find shared -name '*.c') -lm
 	$(BIN_DIR)/test_openwarcraft3$(EXE_EXT)
+
+test-ui: test-assets | $(BIN_DIR)
+	$(CC) $(TEST_CFLAGS) -o $(BIN_DIR)/test_openwarcraft3_ui$(EXE_EXT) \
+		$(TEST_UI_SRCS) $(TEST_GAME_SRCS) \
+		$(shell find shared -name '*.c') -lm
+	$(BIN_DIR)/test_openwarcraft3_ui$(EXE_EXT)
 
 test-mpq-compat: mpqtool $(MPQ_TEST)
 	$(MPQ_TEST) -mpq=$(MPQ)
@@ -295,4 +313,4 @@ test-assets: blpgen mdxgen mpqtool | $(TESTS_DIR)
 $(TESTS_DIR):
 	@mkdir -p $@
 
-.PHONY: default build shared renderer game openwarcraft3 mpqtool mdxtool maptool fdftool mpqnc blpgen mdxgen run run-map diag clean download test test-mpq-compat test-assets
+.PHONY: default build shared renderer game openwarcraft3 mpqtool mdxtool maptool fdftool mpqnc blpgen mdxgen run run-map diag clean download test test-ui test-mpq-compat test-assets
