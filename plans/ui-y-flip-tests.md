@@ -16,10 +16,10 @@ Refactor UI parser/serialization/layout code for deterministic testing first, th
   - [x] Generate: `solid_white.blp` (1x1), `checker_8x8.blp`, `alpha_ring_16x16.blp`, `panel_border_32x32.blp`
   - [x] BLP2 BGRA first; `paletted` preset added for decoder coverage
 
-- [ ] **Phase 3** — Model generation support. Create a deterministic MDX fixture generator in `tools/` or extend `mdxtool` with generation modes. _Depends on Phase 1; parallel with Phase 2._
-  - [ ] Add generation modes to `tools/mdxtool.c` or new `tools/mdxgen.c`
-  - [ ] Generate: `quad_sprite.mdx`, `panel_sprite.mdx`, `anim_pulse.mdx`
-  - [ ] Include texture-path assignment, optional camera block, one or two named sequences
+- [x] **Phase 3** — Model generation support. Create a deterministic MDX fixture generator in `tools/` or extend `mdxtool` with generation modes. _Depends on Phase 1; parallel with Phase 2._
+  - [x] Add `tools/mdxgen.c`
+  - [x] Generate: `quad_sprite.mdx` (1x1 quad, 1 seq), `panel_sprite.mdx` (2x1.5 quad), `anim_pulse.mdx` (2 seqs Stand+Birth)
+  - [x] Include texture-path assignment, BONE, PIVT; validated with `mdxtool --info`
 
 - [ ] **Phase 4** — Define resource strategy and fixture set. Finalize file types and references per fixture. _Depends on Phases 2–3._
   - [ ] `TestUI/Frames/basic_layout.fdf`
@@ -86,7 +86,7 @@ Refactor UI parser/serialization/layout code for deterministic testing first, th
 - `common/mpq.h` / `common/mpq.c` — MPQ write API (✅ done)
 - `tools/mpqtool.c` — archive creation/packing (✅ done)
 - `tools/blpgen.c` — BLP2 texture generator (✅ done)
-- `tools/mdxtool.c` / `tools/mdxgen.c` — MDX fixture generator (to add)
+- `tools/mdxtool.c` / `tools/mdxgen.c` — MDX fixture generator (✅ done)
 - `tools/fdftool.c` — oracle/inspection path
 - `game/ui/ui_fdf.c` — parser and frame-graph seams
 - `game/ui/ui_write.c` — UI frame serialization seams
