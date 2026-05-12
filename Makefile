@@ -67,9 +67,10 @@ MDX_TOOL     := $(BIN_DIR)/mdxtool$(EXE_EXT)
 MAP_TOOL     := $(BIN_DIR)/maptool$(EXE_EXT)
 FDF_TOOL     := $(BIN_DIR)/fdftool$(EXE_EXT)
 MPQ_NC_TOOL  := $(BIN_DIR)/mpqnc$(EXE_EXT)
-BLP_TOOL     := $(BIN_DIR)/blpgen$(EXE_EXT)
-MDX_GEN_TOOL := $(BIN_DIR)/mdxgen$(EXE_EXT)
-MPQ_TEST     := $(BIN_DIR)/test_mpq_compat$(EXE_EXT)
+BLP_TOOL         := $(BIN_DIR)/blpgen$(EXE_EXT)
+TOOLBOX_TOOL     := $(BIN_DIR)/toolbox$(EXE_EXT)
+MDX_GEN_TOOL     := $(BIN_DIR)/mdxgen$(EXE_EXT)
+MPQ_TEST         := $(BIN_DIR)/test_mpq_compat$(EXE_EXT)
 
 # Unity-build helper: pipe all .c files in a directory tree as #include
 # directives to gcc's stdin so the whole module is one translation unit.
@@ -78,7 +79,7 @@ MPQ_TEST     := $(BIN_DIR)/test_mpq_compat$(EXE_EXT)
 UNITY = find $1 -name '*.c' $2 | sort | awk '{printf "\043include \"%s\"\n", $$0}'
 
 default: build
-build: shared renderer game openwarcraft3 mpqtool mdxtool maptool fdftool mpqnc blpgen mdxgen
+build: shared renderer game openwarcraft3 mpqtool mdxtool maptool fdftool mpqnc blpgen toolbox mdxgen
 shared:      $(SHARED_LIB)
 renderer:    $(RENDERER_LIB)
 game:        $(GAME_LIB)
@@ -89,6 +90,7 @@ maptool:     $(MAP_TOOL)
 fdftool:     $(FDF_TOOL)
 mpqnc:       $(MPQ_NC_TOOL)
 blpgen:      $(BLP_TOOL)
+toolbox:     $(TOOLBOX_TOOL)
 mdxgen:      $(MDX_GEN_TOOL)
 run:
 	$(BINARY) -mpq=$(MPQ)
@@ -129,6 +131,10 @@ $(MPQ_NC_TOOL): tools/mpqnc.c tools/tool_common.c common/mpq.c common/mpq.h | $(
 $(BLP_TOOL): tools/blpgen.c | $(BIN_DIR)
 	@echo "[blpgen]"
 	$(CC) $(CFLAGS) -o $@ $< $(LDFLAGS) -lm
+
+$(TOOLBOX_TOOL): tools/toolbox.c | $(BIN_DIR)
+	@echo "[toolbox]"
+	$(CC) $(CFLAGS) -o $@ $< $(LDFLAGS) $(LIBS)
 
 $(MDX_GEN_TOOL): tools/mdxgen.c | $(BIN_DIR)
 	@echo "[mdxgen]"
@@ -315,4 +321,4 @@ test-assets: blpgen mdxgen mpqtool | $(TESTS_DIR)
 $(TESTS_DIR):
 	@mkdir -p $@
 
-.PHONY: default build shared renderer game openwarcraft3 mpqtool mdxtool maptool fdftool mpqnc blpgen mdxgen run run-map diag clean download test test-ui test-mpq-compat test-assets
+.PHONY: default build shared renderer game openwarcraft3 mpqtool mdxtool maptool fdftool mpqnc blpgen toolbox mdxgen run run-map diag clean download test test-ui test-mpq-compat test-assets

@@ -46,7 +46,7 @@
 #include "../common/common.h"
 #include "../client/renderer.h"
 
-extern refImport_t ri;
+extern refImport_t ri
 
 KNOWN_AS(shader_program, SHADER);
 KNOWN_AS(render_buffer, BUFFER);
