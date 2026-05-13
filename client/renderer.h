@@ -109,13 +109,6 @@ struct modelInfo_s {
     LPCSTR texturePaths[MODELINFO_MAX_TEXTURES];
     RECT textureUVRect;
     BOOL hasTextureUVRect;
-
-    VECTOR3 cameraEye;
-    VECTOR3 cameraTarget;
-    float cameraFovDeg;
-    float cameraZNear;
-    float cameraZFar;
-    BOOL hasCamera;
 };
 
 typedef struct {
