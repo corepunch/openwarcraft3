@@ -71,7 +71,7 @@ void R_SetBlending(BLEND_MODE mode) {
 void R_DrawImageEx(LPCDRAWIMAGE drawImage) {
     VERTEX simp[6];
     
-    if (drawImage->rotate) { // User for crazy backdrops Blizzard loves to do, where the uv's are rotated 90 degrees
+    if (drawImage->rotate) { // Some UI backdrops use 90-degree-rotated UVs
         R_AddQuad(simp, &drawImage->screen, &(RECT) {
             .x = drawImage->uv.x + drawImage->uv.w, 
             .y = drawImage->uv.y, 
