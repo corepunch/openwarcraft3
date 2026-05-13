@@ -1,5 +1,7 @@
 #include "r_local.h"
+#define STB_TRUETYPE_IMPLEMENTATION
 #include "stb/stb_truetype.h"
+#undef STB_TRUETYPE_IMPLEMENTATION
 
 #define MAX_GLYPHSET 256
 #define FONT_SCALE 2
