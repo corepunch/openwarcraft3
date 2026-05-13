@@ -10,8 +10,8 @@ if (EMITTER->keytracks.NAME) { \
 }
 
 static VECTOR3 FX_GenerateRandomDirection(float latitude) {
-    float theta = (float)rand() / RAND_MAX * 2 * M_PI;
-    float phi = (float)rand() / RAND_MAX * latitude;
+    float theta = (float)(((double)rand() / (double)RAND_MAX) * 2.0 * M_PI);
+    float phi = (float)(((double)rand() / (double)RAND_MAX) * latitude);
     VECTOR3 direction = {
         .x = sin(phi) * cos(theta),
         .y = sin(phi) * sin(theta),
@@ -22,8 +22,8 @@ static VECTOR3 FX_GenerateRandomDirection(float latitude) {
 
 static VECTOR3 FX_GenerateRandomOrigin(float length, float width) {
     VECTOR3 origin = {
-        .x = ((float)rand() / RAND_MAX - 0.5) * length,
-        .y = ((float)rand() / RAND_MAX - 0.5) * width,
+        .x = (float)(((double)rand() / (double)RAND_MAX - 0.5) * length),
+        .y = (float)(((double)rand() / (double)RAND_MAX - 0.5) * width),
         .z = 0,
     };
     return origin;
