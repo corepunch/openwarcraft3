@@ -69,10 +69,10 @@ GAME_LIB     := $(LIB_DIR)/libgame$(LIB_EXT)
 BINARY       := $(BIN_DIR)/openwarcraft3$(EXE_EXT)
 MPQ_TEST         := $(BIN_DIR)/test_mpq_compat$(EXE_EXT)
 
-TOOL_SRCS := $(shell find tools -maxdepth 1 -name '*.c' ! -name '*_common.c' | sort)
+TOOL_SRCS := $(shell find tools -maxdepth 1 -name '*.c' | sort)
 TOOL_NAMES := $(patsubst tools/%.c,%,$(TOOL_SRCS))
 TOOL_BINS := $(addprefix $(BIN_DIR)/,$(addsuffix $(EXE_EXT),$(TOOL_NAMES)))
-TOOL_HEADERS := tools/tool_common.h tools/tool_common.c tools/viewer_common.h tools/viewer_common.c
+TOOL_DEPS := $(shell find tools -maxdepth 1 -name '*.h' | sort)
 
 # Unity-build helper: pipe all .c files in a directory tree as #include
 # directives to gcc's stdin so the whole module is one translation unit.
@@ -101,9 +101,9 @@ diag: clean
 	$(MAKE) DIAG_OUTPUT=1 build
 	$(MAKE) DIAG_OUTPUT=1 run
 
-$(BIN_DIR)/%$(EXE_EXT): tools/%.c $(TOOL_HEADERS) | $(BIN_DIR) $(SHARED_LIB) $(RENDERER_LIB) $(GAME_LIB)
+$(BIN_DIR)/%$(EXE_EXT): tools/%.c $(TOOL_DEPS) | $(BIN_DIR) $(SHARED_LIB) $(RENDERER_LIB) $(GAME_LIB)
 	@echo "[$*]"
-	$(CC) $(CFLAGS) -DTOOL_COMMON_IMPLEMENTATION -DVIEWER_COMMON_IMPLEMENTATION -o $@ $< \
+	$(CC) $(CFLAGS) -o $@ $< \
 		$(RPATH) $(LDFLAGS) -lshared -lrenderer -lgame $(LIBS) -lm -lz
 
 $(MPQ_TEST): tests/test_mpq_compat.c common/mpq.c common/mpq.h | $(BIN_DIR)
@@ -185,26 +185,9 @@ TEST_GAME_SRCS := \
 	common/net.c \
 	common/msg.c
 
-TEST_SRCS := \
-	tests/test_main.c \
-	tests/test_harness.c \
-	tests/test_client_stubs.c \
-	tests/test_slk.c \
-	tests/test_tool_common.c \
-	tests/test_unit.c \
-	tests/test_movement.c \
-	tests/test_collision.c \
-	tests/test_net.c \
-	tests/test_jass.c \
-	tests/test_api.c \
-	tests/test_game.c \
-	tests/test_combat.c \
-	tests/test_server_net.c \
-	tests/test_ui_fdf.c \
-	tests/test_ui_serialize.c \
-	tests/test_ui_layout.c \
-	tests/test_ui_e2e.c \
-	tests/test_ui_oracle.c
+TEST_SRCS := $(shell find tests -maxdepth 1 -name 'test_*.c' \
+	! -name 'test_main_ui.c' \
+	! -name 'test_mpq_compat.c' | sort)
 
 TEST_CFLAGS := -Wall -DTOOL_COMMON_NO_MPQ -Itests/stubs -Ishared/types -Igame -Iserver -Icommon -Iclient -Igame/skills
 
@@ -215,22 +198,18 @@ TEST_UI_SRCS := \
 	tests/test_server_net.c \
 	tests/test_jass.c \
 	tests/test_tool_common.c \
-	tests/test_ui_fdf.c \
-	tests/test_ui_serialize.c \
-	tests/test_ui_layout.c \
-	tests/test_ui_e2e.c \
-	tests/test_ui_oracle.c
+	$(shell find tests -maxdepth 1 -name 'test_ui_*.c' | sort)
 
 test: test-assets | $(BIN_DIR)
 	$(CC) $(TEST_CFLAGS) -o $(BIN_DIR)/test_openwarcraft3$(EXE_EXT) \
 		$(TEST_SRCS) $(TEST_GAME_SRCS) \
-		$(shell find shared -name '*.c') tools/tool_common.c -lm
+		$(shell find shared -name '*.c') -lm
 	$(BIN_DIR)/test_openwarcraft3$(EXE_EXT)
 
 test-ui: test-assets | $(BIN_DIR)
 	$(CC) $(TEST_CFLAGS) -o $(BIN_DIR)/test_openwarcraft3_ui$(EXE_EXT) \
 		$(TEST_UI_SRCS) $(TEST_GAME_SRCS) \
-		$(shell find shared -name '*.c') tools/tool_common.c -lm
+		$(shell find shared -name '*.c') -lm
 	$(BIN_DIR)/test_openwarcraft3_ui$(EXE_EXT)
 
 test-mpq-compat: mpqtool $(MPQ_TEST)
