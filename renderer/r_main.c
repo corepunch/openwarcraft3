@@ -548,16 +548,6 @@ bool R_GetModelInfo(LPMODEL model, LPMODELINFO info) {
             info->textureUVRect.h = max_v - min_v;
             info->hasTextureUVRect = true;
         }
-
-        if (model->mdx->cameras) {
-            mdxCamera_t const *camera = model->mdx->cameras;
-            info->cameraEye = camera->pivot;
-            info->cameraTarget = camera->targetPivot;
-            info->cameraFovDeg = camera->fieldOfView * (180.0f / (float)M_PI);
-            info->cameraZNear = camera->nearClip;
-            info->cameraZFar = camera->farClip;
-            info->hasCamera = true;
-        }
     }
 
     return true;

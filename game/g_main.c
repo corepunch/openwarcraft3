@@ -28,32 +28,6 @@ struct game_import gi;
 struct game_locals game;
 struct level_locals level;
 struct edict_s *g_edicts;
-static LPEDICT menu_scene_entity = NULL;
-
-static LPEDICT G_CreateMenuSceneEntity(DWORD player_number) {
-    LPEDICT ent;
-
-    if (globals.num_edicts < globals.max_clients) {
-        globals.num_edicts = globals.max_clients;
-    }
-
-    if (globals.num_edicts >= globals.max_edicts) {
-        return NULL;
-    }
-
-    ent = &g_edicts[globals.num_edicts++];
-    memset(ent, 0, sizeof(*ent));
-    ent->inuse = true;
-    ent->s.number = (DWORD)(ent - g_edicts);
-    ent->s.scale = 1.0f;
-    ent->s.player = player_number;
-    ent->s.origin = (VECTOR3){ 0, 0, 0 };
-    ent->s.model = gi.ModelIndex("UI\\Glues\\MainMenu\\MainMenu3d\\MainMenu3d.mdx");
-    if (!ent->s.model) {
-        ent->s.model = gi.ModelIndex("units\\human\\Peasant\\Peasant.mdx");
-    }
-    return ent;
-}
 
 LPCSTR miscdata_files[] = {
     "UI\\MiscData.txt",
@@ -114,7 +88,6 @@ static void G_InitGame(void) {
     FOR_LOOP(i, globals.max_clients) {
         g_edicts[i].s.number = i;
     }
-    menu_scene_entity = NULL;
 
     game.max_clients = globals.max_clients;
     game.clients = gi.MemAlloc(game.max_clients * sizeof(GAMECLIENT));
@@ -132,10 +105,8 @@ static void G_InitGame(void) {
 
 static void G_ShutdownGame(void) {
     if (g_edicts == NULL) {
-        menu_scene_entity = NULL;
         return;
     }
-    menu_scene_entity = NULL;
     gi.MemFree(g_edicts);
     g_edicts = NULL;
     globals.edicts = NULL;
@@ -272,14 +243,6 @@ static void G_ClientBegin(LPEDICT edict) {
         edict->client = client;
     }
     if (gi.InMenuMode()) {
-        if (!menu_scene_entity || !menu_scene_entity->inuse) {
-            menu_scene_entity = G_CreateMenuSceneEntity(client->ps.number);
-        } else {
-            menu_scene_entity->s.player = client->ps.number;
-        }
-        if (!menu_scene_entity || !menu_scene_entity->s.model) {
-            return;
-        }
         client->ps.origin = (VECTOR2){ 0, 0 };
         UI_ShowMainMenu(edict);
         client->menu_screen = MENU_SCREEN_MAIN;

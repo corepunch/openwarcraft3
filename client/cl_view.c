@@ -9,8 +9,6 @@ static struct {
 } view_state;
 
 static bool world_loaded = false;
-#ifdef DIAG_OUTPUT
-#endif
 
 VECTOR3 lightAngles = {-40,0,60};
 
@@ -54,53 +52,6 @@ static void Matrix4_getPreviewCameraMatrix(LPCVECTOR3 target, LPMATRIX4 output) 
     Matrix4_perspective(&proj, 35.0f, aspect, 10.0f, 4000.0f);
     Matrix4_lookAt(&view, &eye, &dir, &(VECTOR3){0, 0, 1});
     Matrix4_multiply(&proj, &view, output);
-}
-
-static bool Matrix4_getMenuModelCameraMatrix(LPCMODEL model, LPMATRIX4 output, LPVECTOR3 lightTarget) {
-    VECTOR3 eye = { 0, 0, 0 };
-    VECTOR3 target = { 0, 0, 0 };
-    VECTOR3 dir;
-    MATRIX4 proj, view;
-    MODELINFO info = { 0 };
-    size2_t windowSize = re.GetWindowSize();
-    FLOAT aspect = (FLOAT)windowSize.width / (FLOAT)windowSize.height;
-    float fov_deg = 35.0f;
-    float znear = 1.0f;
-    float zfar = 5000.0f;
-
-    if (!re.GetModelInfo || !re.GetModelInfo((LPMODEL)model, &info) || !info.hasCamera) {
-        return false;
-    }
-
-    eye = info.cameraEye;
-    target = info.cameraTarget;
-    fov_deg = info.cameraFovDeg;
-    znear = info.cameraZNear;
-    zfar = info.cameraZFar;
-
-    if (fov_deg <= 1.0f || fov_deg >= 179.0f) {
-        fov_deg = 35.0f;
-    }
-    if (znear < 0.01f) {
-        znear = 1.0f;
-    }
-    if (zfar <= znear + 1.0f) {
-        zfar = znear + 5000.0f;
-    }
-
-    dir = Vector3_sub(&target, &eye);
-    if (Vector3_len(&dir) < 0.001f) {
-        return false;
-    }
-
-    Matrix4_perspective(&proj, fov_deg, aspect, znear, zfar);
-    Matrix4_lookAt(&view, &eye, &dir, &(VECTOR3){0, 0, 1});
-    Matrix4_multiply(&proj, &view, output);
-
-    if (lightTarget) {
-        *lightTarget = target;
-    }
-    return true;
 }
 
 static void Matrix4_getPreviewLightMatrix(LPCVECTOR3 sunangles, LPCVECTOR3 target, float scale, LPMATRIX4 output) {
@@ -304,7 +255,6 @@ void V_RenderView(void) {
     static DWORD lastTime = 0;
     if (!world_loaded) {
         VECTOR3 target = { 0, 0, 90 };
-        renderEntity_t const *menu_ent = NULL;
 
         cl.viewDef.viewport = (RECT) { 0, 0, 1, 1 };
         cl.viewDef.scissor = (RECT) { 0, 0, 1, 1 };
@@ -313,30 +263,8 @@ void V_RenderView(void) {
         cl.viewDef.rdflags = RDF_NOWORLDMODEL | RDF_NOFRUSTUMCULL;
 
         V_ClearScene();
-        CL_AddEntities();
-
-        if (cl.viewDef.num_entities <= 0) {
-            lastTime = cl.time;
-            return;
-        }
-
-        FOR_LOOP(i, cl.viewDef.num_entities) {
-            if (cl.viewDef.entities[i].model) {
-                menu_ent = &cl.viewDef.entities[i];
-                break;
-            }
-        }
-
-        if (menu_ent) {
-            target = menu_ent->origin;
-        }
-
-        if (menu_ent && Matrix4_getMenuModelCameraMatrix(menu_ent->model, &cl.viewDef.viewProjectionMatrix, &target)) {
-            Matrix4_getPreviewLightMatrix(&lightAngles, &target, VIEW_SHADOW_SIZE, &cl.viewDef.lightMatrix);
-        } else {
-            Matrix4_getPreviewCameraMatrix(&target, &cl.viewDef.viewProjectionMatrix);
-            Matrix4_getPreviewLightMatrix(&lightAngles, &target, VIEW_SHADOW_SIZE, &cl.viewDef.lightMatrix);
-        }
+        Matrix4_getPreviewCameraMatrix(&target, &cl.viewDef.viewProjectionMatrix);
+        Matrix4_getPreviewLightMatrix(&lightAngles, &target, VIEW_SHADOW_SIZE, &cl.viewDef.lightMatrix);
         Matrix4_identity(&cl.viewDef.textureMatrix);
 
         re.RenderFrame(&cl.viewDef);
