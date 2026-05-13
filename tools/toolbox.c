@@ -63,6 +63,9 @@ typedef struct {
     int history_scroll;
     int output_scroll;
     int dragging_entry;
+    int filter_mode;
+    bool pick_to_extra;
+    bool run_on_open;
     bool running;
     bool needs_browser_refresh;
     bool needs_help_refresh;
@@ -84,10 +87,41 @@ static const tool_t tools[MAX_TOOLS] = {
     { "mpqnc", "mpqnc", "Terminal MPQ browser.", "-mpq {mpq} -path {path}" },
 };
 
+enum {
+    FILTER_ALL,
+    FILTER_MODELS,
+    FILTER_TEXTURES,
+    FILTER_UI,
+    FILTER_MAPS,
+    FILTER_COUNT
+};
+
+static const char *filter_names[FILTER_COUNT] = {
+    "All files",
+    "Models",
+    "Textures",
+    "UI",
+    "Maps",
+};
+
+typedef enum icon_kind_e {
+    ICON_FILE,
+    ICON_FOLDER,
+    ICON_ARCHIVE,
+    ICON_TEXTURE,
+    ICON_MODEL,
+    ICON_MAP,
+    ICON_UI,
+    ICON_TOOL,
+    ICON_TERMINAL,
+    ICON_OUTPUT,
+    ICON_ARGS
+} icon_kind_t;
+
 static void render(app_t *app);
 
 static const char *font_rows(char c) {
-    switch (toupper((unsigned char)c)) {
+    switch ((unsigned char)c) {
         case 'A': return "01110""10001""10001""11111""10001""10001""10001";
         case 'B': return "11110""10001""10001""11110""10001""10001""11110";
         case 'C': return "01111""10000""10000""10000""10000""10000""01111";
@@ -114,6 +148,32 @@ static const char *font_rows(char c) {
         case 'X': return "10001""10001""01010""00100""01010""10001""10001";
         case 'Y': return "10001""10001""01010""00100""00100""00100""00100";
         case 'Z': return "11111""00001""00010""00100""01000""10000""11111";
+        case 'a': return "00000""00000""01110""00001""01111""10001""01111";
+        case 'b': return "10000""10000""10110""11001""10001""10001""11110";
+        case 'c': return "00000""00000""01111""10000""10000""10000""01111";
+        case 'd': return "00001""00001""01101""10011""10001""10001""01111";
+        case 'e': return "00000""00000""01110""10001""11111""10000""01110";
+        case 'f': return "00110""01001""01000""11100""01000""01000""01000";
+        case 'g': return "00000""00000""01111""10001""01111""00001""01110";
+        case 'h': return "10000""10000""10110""11001""10001""10001""10001";
+        case 'i': return "00100""00000""01100""00100""00100""00100""01110";
+        case 'j': return "00010""00000""00110""00010""00010""10010""01100";
+        case 'k': return "10000""10000""10010""10100""11000""10100""10010";
+        case 'l': return "01100""00100""00100""00100""00100""00100""01110";
+        case 'm': return "00000""00000""11010""10101""10101""10101""10101";
+        case 'n': return "00000""00000""10110""11001""10001""10001""10001";
+        case 'o': return "00000""00000""01110""10001""10001""10001""01110";
+        case 'p': return "00000""00000""11110""10001""11110""10000""10000";
+        case 'q': return "00000""00000""01111""10001""01111""00001""00001";
+        case 'r': return "00000""00000""10110""11001""10000""10000""10000";
+        case 's': return "00000""00000""01111""10000""01110""00001""11110";
+        case 't': return "01000""01000""11100""01000""01000""01001""00110";
+        case 'u': return "00000""00000""10001""10001""10001""10011""01101";
+        case 'v': return "00000""00000""10001""10001""10001""01010""00100";
+        case 'w': return "00000""00000""10001""10101""10101""10101""01010";
+        case 'x': return "00000""00000""10001""01010""00100""01010""10001";
+        case 'y': return "00000""00000""10001""10001""01111""00001""01110";
+        case 'z': return "00000""00000""11111""00010""00100""01000""11111";
         case '0': return "01110""10001""10011""10101""11001""10001""01110";
         case '1': return "00100""01100""00100""00100""00100""00100""01110";
         case '2': return "01110""10001""00001""00010""00100""01000""11111";
@@ -350,6 +410,105 @@ static void lowres_draw_label(lowres_t *lr, rect_t rc, const char *text, bool ac
     lowres_draw_text_clip(lr, text, rc.x + 8, rc.y + 8, 2, active ? 0xffffff : 0xc9d6d3, rc.w - 16);
 }
 
+static void lowres_draw_icon(lowres_t *lr, icon_kind_t icon, int x, int y, int color, int accent) {
+    rect_t body = { x + 2, y + 5, 15, 12 };
+    rect_t tab = { x + 3, y + 2, 8, 5 };
+    switch (icon) {
+        case ICON_FOLDER:
+            lowres_fill_rect(lr, tab, accent);
+            lowres_fill_rect(lr, body, color);
+            lowres_stroke_rect(lr, (rect_t){ x + 2, y + 4, 15, 13 }, 0x0c1113);
+            break;
+        case ICON_ARCHIVE:
+            lowres_fill_rect(lr, (rect_t){ x + 3, y + 2, 13, 15 }, color);
+            lowres_stroke_rect(lr, (rect_t){ x + 3, y + 2, 13, 15 }, 0x0c1113);
+            lowres_fill_rect(lr, (rect_t){ x + 6, y + 3, 3, 2 }, accent);
+            lowres_fill_rect(lr, (rect_t){ x + 10, y + 6, 3, 2 }, accent);
+            lowres_fill_rect(lr, (rect_t){ x + 6, y + 9, 3, 2 }, accent);
+            lowres_fill_rect(lr, (rect_t){ x + 10, y + 12, 3, 2 }, accent);
+            break;
+        case ICON_TEXTURE:
+            lowres_fill_rect(lr, (rect_t){ x + 3, y + 3, 13, 13 }, color);
+            lowres_stroke_rect(lr, (rect_t){ x + 3, y + 3, 13, 13 }, 0x0c1113);
+            lowres_fill_rect(lr, (rect_t){ x + 5, y + 5, 4, 4 }, accent);
+            lowres_fill_rect(lr, (rect_t){ x + 10, y + 10, 4, 4 }, accent);
+            break;
+        case ICON_MODEL:
+            lowres_fill_rect(lr, (rect_t){ x + 8, y + 2, 5, 5 }, accent);
+            lowres_fill_rect(lr, (rect_t){ x + 4, y + 7, 5, 5 }, color);
+            lowres_fill_rect(lr, (rect_t){ x + 11, y + 10, 5, 5 }, color);
+            lowres_stroke_rect(lr, (rect_t){ x + 4, y + 7, 12, 8 }, 0x0c1113);
+            break;
+        case ICON_MAP:
+            lowres_fill_rect(lr, (rect_t){ x + 3, y + 3, 13, 13 }, color);
+            lowres_stroke_rect(lr, (rect_t){ x + 3, y + 3, 13, 13 }, 0x0c1113);
+            lowres_fill_rect(lr, (rect_t){ x + 5, y + 5, 3, 9 }, accent);
+            lowres_fill_rect(lr, (rect_t){ x + 11, y + 5, 3, 9 }, accent);
+            break;
+        case ICON_UI:
+            lowres_fill_rect(lr, (rect_t){ x + 3, y + 3, 13, 13 }, color);
+            lowres_stroke_rect(lr, (rect_t){ x + 3, y + 3, 13, 13 }, 0x0c1113);
+            lowres_fill_rect(lr, (rect_t){ x + 5, y + 6, 9, 2 }, accent);
+            lowres_fill_rect(lr, (rect_t){ x + 5, y + 11, 9, 2 }, accent);
+            break;
+        case ICON_TOOL:
+            lowres_fill_rect(lr, (rect_t){ x + 4, y + 5, 11, 4 }, color);
+            lowres_fill_rect(lr, (rect_t){ x + 7, y + 9, 5, 7 }, accent);
+            lowres_stroke_rect(lr, (rect_t){ x + 4, y + 5, 11, 11 }, 0x0c1113);
+            break;
+        case ICON_TERMINAL:
+            lowres_fill_rect(lr, (rect_t){ x + 2, y + 4, 15, 11 }, color);
+            lowres_stroke_rect(lr, (rect_t){ x + 2, y + 4, 15, 11 }, 0x0c1113);
+            lowres_fill_rect(lr, (rect_t){ x + 5, y + 7, 5, 2 }, accent);
+            lowres_fill_rect(lr, (rect_t){ x + 11, y + 11, 4, 2 }, accent);
+            break;
+        case ICON_OUTPUT:
+            lowres_fill_rect(lr, body, color);
+            lowres_stroke_rect(lr, body, 0x0c1113);
+            lowres_fill_rect(lr, (rect_t){ x + 5, y + 8, 9, 2 }, accent);
+            lowres_fill_rect(lr, (rect_t){ x + 5, y + 12, 6, 2 }, accent);
+            break;
+        case ICON_ARGS:
+            lowres_fill_rect(lr, (rect_t){ x + 4, y + 4, 3, 11 }, color);
+            lowres_fill_rect(lr, (rect_t){ x + 9, y + 4, 3, 11 }, color);
+            lowres_fill_rect(lr, (rect_t){ x + 14, y + 4, 3, 11 }, color);
+            lowres_fill_rect(lr, (rect_t){ x + 3, y + 8, 15, 2 }, accent);
+            lowres_fill_rect(lr, (rect_t){ x + 3, y + 13, 15, 2 }, accent);
+            break;
+        case ICON_FILE:
+        default:
+            lowres_fill_rect(lr, (rect_t){ x + 4, y + 2, 11, 15 }, color);
+            lowres_fill_rect(lr, (rect_t){ x + 11, y + 2, 4, 4 }, accent);
+            lowres_stroke_rect(lr, (rect_t){ x + 4, y + 2, 11, 15 }, 0x0c1113);
+            break;
+    }
+}
+
+static void lowres_draw_checkbox(lowres_t *lr, rect_t rc, const char *text, bool checked, bool active) {
+    lowres_fill_rect(lr, rc, active ? 0x20353c : 0x11191c);
+    lowres_stroke_rect(lr, rc, active ? 0x86d9ff : 0x42525b);
+    rect_t box = { rc.x + 8, rc.y + 7, 14, 14 };
+    lowres_fill_rect(lr, box, checked ? 0x2f6b54 : 0x0c1113);
+    lowres_stroke_rect(lr, box, checked ? 0x9ff2b2 : 0x6a7b7c);
+    if (checked) {
+        lowres_fill_rect(lr, (rect_t){ box.x + 3, box.y + 7, 3, 3 }, 0xffffff);
+        lowres_fill_rect(lr, (rect_t){ box.x + 6, box.y + 9, 3, 3 }, 0xffffff);
+        lowres_fill_rect(lr, (rect_t){ box.x + 9, box.y + 4, 3, 8 }, 0xffffff);
+    }
+    lowres_draw_text_clip(lr, text, rc.x + 30, rc.y + 8, 2, active ? 0xffffff : 0xc9d6d3, rc.w - 38);
+}
+
+static void lowres_draw_dropdown(lowres_t *lr, rect_t rc, const char *label, const char *value, bool active) {
+    char text[128];
+    snprintf(text, sizeof(text), "%s: %s", label, value);
+    lowres_fill_rect(lr, rc, active ? 0x20353c : 0x11191c);
+    lowres_stroke_rect(lr, rc, active ? 0x86d9ff : 0x42525b);
+    lowres_draw_text_clip(lr, text, rc.x + 8, rc.y + 8, 2, active ? 0xffffff : 0xc9d6d3, rc.w - 34);
+    lowres_fill_rect(lr, (rect_t){ rc.x + rc.w - 21, rc.y + 10, 13, 2 }, active ? 0xffffff : 0x91a6a6);
+    lowres_fill_rect(lr, (rect_t){ rc.x + rc.w - 18, rc.y + 13, 7, 2 }, active ? 0xffffff : 0x91a6a6);
+    lowres_fill_rect(lr, (rect_t){ rc.x + rc.w - 15, rc.y + 16, 2, 2 }, active ? 0xffffff : 0x91a6a6);
+}
+
 static void lowres_present(lowres_t *lr, SDL_Renderer *renderer, int screen_w, int screen_h) {
     SDL_Rect dst;
     if (!lr->surf || !lr->texture) {
@@ -375,6 +534,82 @@ static bool equals_ci(const char *a, const char *b) {
 #else
     return strcasecmp(a, b) == 0;
 #endif
+}
+
+static const char *path_ext(const char *path) {
+    const char *dot = strrchr(path, '.');
+    const char *slash = strrchr(path, '/');
+    const char *backslash = strrchr(path, '\\');
+    const char *sep = slash > backslash ? slash : backslash;
+    return dot && (!sep || dot > sep) ? dot + 1 : "";
+}
+
+static bool ext_is_one_of(const char *ext, const char *a, const char *b, const char *c, const char *d) {
+    return (a && equals_ci(ext, a)) ||
+           (b && equals_ci(ext, b)) ||
+           (c && equals_ci(ext, c)) ||
+           (d && equals_ci(ext, d));
+}
+
+static bool entry_matches_filter(app_t *app, const char *name, bool is_dir) {
+    if (is_dir || app->filter_mode == FILTER_ALL) {
+        return true;
+    }
+    const char *ext = path_ext(name);
+    switch (app->filter_mode) {
+        case FILTER_MODELS:
+            return ext_is_one_of(ext, "mdx", "mdl", "m3", NULL);
+        case FILTER_TEXTURES:
+            return ext_is_one_of(ext, "blp", "tga", "jpg", "jpeg") || equals_ci(ext, "dds");
+        case FILTER_UI:
+            return ext_is_one_of(ext, "fdf", "toc", "txt", NULL);
+        case FILTER_MAPS:
+            return ext_is_one_of(ext, "w3m", "w3x", "w3n", NULL);
+        default:
+            return true;
+    }
+}
+
+static icon_kind_t entry_icon(const mpq_entry_t *entry) {
+    if (entry->is_dir) {
+        return ICON_FOLDER;
+    }
+    const char *ext = path_ext(entry->name);
+    if (ext_is_one_of(ext, "mpq", "w3m", "w3x", "w3n")) {
+        return equals_ci(ext, "mpq") ? ICON_ARCHIVE : ICON_MAP;
+    }
+    if (ext_is_one_of(ext, "blp", "tga", "jpg", "jpeg") || equals_ci(ext, "dds")) {
+        return ICON_TEXTURE;
+    }
+    if (ext_is_one_of(ext, "mdx", "mdl", "m3", NULL)) {
+        return ICON_MODEL;
+    }
+    if (ext_is_one_of(ext, "fdf", "toc", "txt", NULL)) {
+        return ICON_UI;
+    }
+    return ICON_FILE;
+}
+
+static icon_kind_t tool_icon(int tool_index) {
+    switch (tool_index) {
+        case 0: return ICON_ARCHIVE;
+        case 1: return ICON_TEXTURE;
+        case 2: return ICON_UI;
+        case 3: return ICON_MODEL;
+        case 4: return ICON_MAP;
+        case 5: return ICON_TERMINAL;
+        default: return ICON_TOOL;
+    }
+}
+
+static icon_kind_t field_icon(int field_index) {
+    switch (field_index) {
+        case 0: return ICON_ARCHIVE;
+        case 1: return ICON_FILE;
+        case 2: return ICON_OUTPUT;
+        case 3: return ICON_ARGS;
+        default: return ICON_FILE;
+    }
 }
 
 static void dirname_of(const char *path, char *out, size_t out_size) {
@@ -607,6 +842,9 @@ static void refresh_browser(app_t *app) {
         if (is_dir) {
             line[n - 1] = 0;
         }
+        if (!entry_matches_filter(app, line, is_dir)) {
+            continue;
+        }
         snprintf(app->entries[app->entry_count].name, sizeof(app->entries[0].name), "%s", line);
         app->entries[app->entry_count].is_dir = is_dir;
         app->entry_count++;
@@ -651,7 +889,12 @@ static void put_selected_entry_in_field(app_t *app) {
         strncat(value, "\\", sizeof(value) - strlen(value) - 1);
     }
     strncat(value, e->name, sizeof(value) - strlen(value) - 1);
-    if (app->selected_field == 1) {
+    if (app->pick_to_extra) {
+        if (app->extra_args[0]) {
+            strncat(app->extra_args, " ", sizeof(app->extra_args) - strlen(app->extra_args) - 1);
+        }
+        shell_quote_append(app->extra_args, sizeof(app->extra_args), value);
+    } else if (app->selected_field == 1) {
         snprintf(app->archive_path, sizeof(app->archive_path), "%s", value);
     } else if (app->selected_field == 3) {
         if (app->extra_args[0]) {
@@ -705,28 +948,33 @@ static void render(app_t *app) {
     lowres_clear(lr, 0x101619);
     lowres_fill_rect(lr, header, 0x1c2a30);
     lowres_draw_text_clip(lr, "OPENWARCRAFT3 TOOLBOX", 14, 12, 3, 0xffffff, 420);
-    lowres_draw_text_clip(lr, "F5 RUN  F6 HELP  ENTER OPEN  BACKSPACE UP  D DRAG/COPY  ESC QUIT", 460, 15, 2, 0xa9bbb8, app->width - 470);
+    lowres_draw_text_clip(lr, "F5 RUN  F6 HELP  ENTER OPEN  F FILTER  D DRAG/COPY  ESC QUIT", 460, 15, 2, 0xa9bbb8, app->width - 470);
 
     draw_panel_title(lr, browser, "MPQ BROWSER");
     lowres_draw_text_clip(lr, app->browser_path[0] ? app->browser_path : "\\", browser.x + 8, browser.y + 34, 2, 0x8bd7ff, browser.w - 16);
-    int row_y = browser.y + 58;
-    int rows = (browser.h - 64) / 20;
+    rect_t filter = { browser.x + 8, browser.y + 56, browser.w - 16, 28 };
+    lowres_draw_dropdown(lr, filter, "Filter", filter_names[app->filter_mode], true);
+    int row_y = browser.y + 90;
+    int rows = (browser.h - 96) / 20;
     for (int i = 0; i < rows && i + app->browser_scroll < app->entry_count; i++) {
         int idx = i + app->browser_scroll;
         rect_t row = { browser.x + 6, row_y + i * 20, browser.w - 12, 18 };
         if (idx == app->selected_entry) {
             lowres_fill_rect(lr, row, 0x315263);
         }
-        char label[300];
-        snprintf(label, sizeof(label), "%s%s", app->entries[idx].is_dir ? "[+] " : "    ", app->entries[idx].name);
-        lowres_draw_text_clip(lr, label, row.x + 4, row.y + 3, 2, app->entries[idx].is_dir ? 0xf8d77e : 0xdde9e4, row.w - 8);
+        icon_kind_t icon = entry_icon(&app->entries[idx]);
+        int icon_color = app->entries[idx].is_dir ? 0xe5ba52 : 0x93adb3;
+        lowres_draw_icon(lr, icon, row.x + 3, row.y + 1, icon_color, app->entries[idx].is_dir ? 0xf7d989 : 0xc7d2d0);
+        lowres_draw_text_clip(lr, app->entries[idx].name, row.x + 28, row.y + 3, 2, app->entries[idx].is_dir ? 0xf8d77e : 0xdde9e4, row.w - 34);
     }
 
     draw_panel_title(lr, center, "TOOLS AND FIELDS");
     int y = center.y + 36;
     for (int i = 0; i < MAX_TOOLS; i++) {
         rect_t row = { center.x + 8, y, center.w - 16, 30 };
-        lowres_draw_label(lr, row, tools[i].name, i == app->selected_tool);
+        lowres_draw_label(lr, row, "", i == app->selected_tool);
+        lowres_draw_icon(lr, tool_icon(i), row.x + 8, row.y + 5, i == app->selected_tool ? 0xf6e8b1 : 0x7fa4aa, 0xffffff);
+        lowres_draw_text_clip(lr, tools[i].name, row.x + 34, row.y + 8, 2, i == app->selected_tool ? 0xffffff : 0xc9d6d3, row.w - 42);
         y += 34;
     }
     y += 6;
@@ -736,7 +984,9 @@ static void render(app_t *app) {
         lowres_draw_text_clip(lr, field_names[i], center.x + 8, y, 2, 0x91a6a6, center.w - 16);
         y += 18;
         rect_t fr = { center.x + 8, y, center.w - 16, 28 };
-        lowres_draw_label(lr, fr, field_values[i], i == app->selected_field);
+        lowres_draw_label(lr, fr, "", i == app->selected_field);
+        lowres_draw_icon(lr, field_icon(i), fr.x + 8, fr.y + 5, i == app->selected_field ? 0xf6e8b1 : 0x7fa4aa, 0xffffff);
+        lowres_draw_text_clip(lr, field_values[i], fr.x + 34, fr.y + 8, 2, i == app->selected_field ? 0xffffff : 0xc9d6d3, fr.w - 42);
         y += 34;
     }
     build_command(app);
@@ -748,7 +998,9 @@ static void render(app_t *app) {
 
     draw_panel_title(lr, right, "HELP / ACCEPTED SETTINGS");
     lowres_draw_text_clip(lr, tools[app->selected_tool].summary, right.x + 8, right.y + 34, 2, 0xdde9e4, right.w - 16);
-    draw_lines(lr, app->tool_help, (rect_t){ right.x + 4, right.y + 58, right.w - 8, right.h - 64 }, app->output_scroll, 0xa9bbb8);
+    lowres_draw_checkbox(lr, (rect_t){ right.x + 8, right.y + 58, right.w - 16, 28 }, "Copy picks to extra args", app->pick_to_extra, false);
+    lowres_draw_checkbox(lr, (rect_t){ right.x + 8, right.y + 92, right.w - 16, 28 }, "Run file on open", app->run_on_open, false);
+    draw_lines(lr, app->tool_help, (rect_t){ right.x + 4, right.y + 128, right.w - 8, right.h - 134 }, app->output_scroll, 0xa9bbb8);
 
     draw_panel_title(lr, bottom, "OUTPUT AND RECENT COMMANDS");
     rect_t out = { bottom.x + 4, bottom.y + 32, bottom.w * 62 / 100, bottom.h - 38 };
@@ -801,13 +1053,35 @@ static int tool_at(app_t *app, int mx, int my) {
 
 static int entry_at(app_t *app, int mx, int my) {
     rect_t browser = { 10, 52, app->width * 34 / 100 - 15, app->height - 240 };
-    int row_y = browser.y + 58;
+    int row_y = browser.y + 90;
+    int rows = (browser.h - 96) / 20;
     int row = (my - row_y) / 20;
-    if (mx < browser.x || mx >= browser.x + browser.w || row < 0) {
+    if (mx < browser.x || mx >= browser.x + browser.w || row < 0 || row >= rows) {
         return -1;
     }
     int idx = app->browser_scroll + row;
     return idx >= 0 && idx < app->entry_count ? idx : -1;
+}
+
+static bool filter_at(app_t *app, int mx, int my) {
+    rect_t browser = { 10, 52, app->width * 34 / 100 - 15, app->height - 240 };
+    rect_t filter = { browser.x + 8, browser.y + 56, browser.w - 16, 28 };
+    return point_in(filter, mx, my);
+}
+
+static int checkbox_at(app_t *app, int mx, int my) {
+    rect_t browser = { 10, 52, app->width * 34 / 100 - 15, app->height - 240 };
+    rect_t center = { browser.x + browser.w + 10, 52, app->width * 32 / 100, app->height - 240 };
+    rect_t right = { center.x + center.w + 10, 52, app->width - center.x - center.w - 20, app->height - 240 };
+    rect_t pick = { right.x + 8, right.y + 58, right.w - 16, 28 };
+    rect_t run = { right.x + 8, right.y + 92, right.w - 16, 28 };
+    if (point_in(pick, mx, my)) {
+        return 0;
+    }
+    if (point_in(run, mx, my)) {
+        return 1;
+    }
+    return -1;
 }
 
 static void open_selected_entry(app_t *app) {
@@ -831,6 +1105,9 @@ static void open_selected_entry(app_t *app) {
         }
         strncat(base, e->name, sizeof(base) - strlen(base) - 1);
         snprintf(app->archive_path, sizeof(app->archive_path), "%s", base);
+        if (app->run_on_open) {
+            run_current_command(app);
+        }
     }
 }
 
@@ -981,7 +1258,15 @@ int main(int argc, char **argv) {
                 int t = tool_at(&app, ev.button.x, ev.button.y);
                 int f = field_at(&app, ev.button.x, ev.button.y);
                 int e = entry_at(&app, ev.button.x, ev.button.y);
-                if (t >= 0) {
+                int c = checkbox_at(&app, ev.button.x, ev.button.y);
+                if (filter_at(&app, ev.button.x, ev.button.y)) {
+                    app.filter_mode = (app.filter_mode + 1) % FILTER_COUNT;
+                    app.needs_browser_refresh = true;
+                } else if (c == 0) {
+                    app.pick_to_extra = !app.pick_to_extra;
+                } else if (c == 1) {
+                    app.run_on_open = !app.run_on_open;
+                } else if (t >= 0) {
                     app.selected_tool = t;
                     app.needs_help_refresh = true;
                 } else if (f >= 0) {
@@ -1014,7 +1299,8 @@ int main(int argc, char **argv) {
                 if (point_in(browser, mx, my)) {
                     app.browser_scroll -= ev.wheel.y * 3;
                     if (app.browser_scroll < 0) app.browser_scroll = 0;
-                    if (app.browser_scroll > app.entry_count - 1) app.browser_scroll = app.entry_count - 1;
+                    int max_scroll = app.entry_count > 0 ? app.entry_count - 1 : 0;
+                    if (app.browser_scroll > max_scroll) app.browser_scroll = max_scroll;
                 } else {
                     app.output_scroll -= ev.wheel.y * 3;
                     if (app.output_scroll < 0) app.output_scroll = 0;
@@ -1038,12 +1324,15 @@ int main(int argc, char **argv) {
                     if (app.selected_entry < app.browser_scroll) app.browser_scroll = app.selected_entry;
                 } else if (k == SDLK_DOWN) {
                     if (app.selected_entry + 1 < app.entry_count) app.selected_entry++;
-                    int rows = (app.height - 240 - 64) / 20;
+                    int rows = (app.height - 240 - 96) / 20;
                     if (app.selected_entry >= app.browser_scroll + rows) app.browser_scroll++;
                 } else if (k == SDLK_d) {
                     app.dragging_entry = app.selected_entry;
                     put_selected_entry_in_field(&app);
                     app.dragging_entry = -1;
+                } else if (k == SDLK_f) {
+                    app.filter_mode = (app.filter_mode + 1) % FILTER_COUNT;
+                    app.needs_browser_refresh = true;
                 } else if (k == SDLK_r) {
                     app.needs_browser_refresh = true;
                 }
