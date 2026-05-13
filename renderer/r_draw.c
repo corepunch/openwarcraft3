@@ -149,8 +149,8 @@ void R_DrawWireRect(LPCRECT rect, COLOR32 color) {
     R_AddStrip(simp, rect, color);
 
     MATRIX4 ui_matrix;
-    RECT const scene = R_UISceneRect();
-    Matrix4_ortho(&ui_matrix, scene.x, scene.x + scene.w, scene.y, scene.y + scene.h, 0.0f, 100.0f);
+    size2_t const window = R_GetWindowSize();
+    Matrix4_ortho(&ui_matrix, 0.0f, window.width, window.height, 0.0f, 0.0f, 100.0f);
 
     R_Call(glUseProgram, tr.shader[SHADER_UI]->progid);
     R_Call(glUniformMatrix4fv, tr.shader[SHADER_UI]->uViewProjectionMatrix, 1, GL_FALSE, ui_matrix.v);
@@ -167,15 +167,7 @@ void R_DrawWireRect(LPCRECT rect, COLOR32 color) {
 }
 
 void R_DrawSelectionRect(LPCRECT rect, COLOR32 color) {
-    size2_t const window = R_GetWindowSize();
-    RECT const scene = R_UISceneRect();
-    RECT screen = {
-        scene.x + rect->x * scene.w / window.width,
-        scene.y + rect->y * scene.h / window.height,
-        rect->w * scene.w / window.width,
-        rect->h * scene.h / window.height,
-    };
-    R_DrawWireRect(&screen, color);
+    R_DrawWireRect(rect, color);
 }
 
 void R_DrawBoundingBox(LPCBOX3 box, LPCMATRIX4 modelMatrix, LPCMATRIX4 vpMatrix, COLOR32 color) {
