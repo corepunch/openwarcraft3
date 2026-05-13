@@ -2,9 +2,9 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "build-and-run-demo",
+      "label": "build-and-run",
       "type": "shell",
-      "command": "make && make run-demo",
+      "command": "make && make run",
       "group": {
         "kind": "build",
         "isDefault": true

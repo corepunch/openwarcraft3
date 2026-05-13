@@ -13,6 +13,22 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "../common/msg.c"
+#include "../game/parser.c"
+#include "../game/ui/ui_fdf.c"
+
+#define sizeBuf_s uiWriteSizeBuf_s
+#define LPSIZEBUF UIWriteSizeBufPtr
+#define sizeBuf_t UIWriteSizeBuf
+#define MSG_Write UIWrite_MSG_Write
+#include "../game/ui/ui_write.c"
+#undef MSG_Write
+#undef sizeBuf_t
+#undef LPSIZEBUF
+#undef sizeBuf_s
+
+#include "../game/ui/ui_init.c"
+
 #ifndef PATHSTR
 #define PATHSTR char[512]
 #endif

@@ -767,7 +767,7 @@ static void render(app_t *app) {
         hy += 18;
     }
 
-    lowres_present(lr, app->renderer, app->width, app->height);
+    lowres_present(lr, app->renderer, app->width * 2, app->height * 2);
 }
 
 static int field_at(app_t *app, int mx, int my) {
