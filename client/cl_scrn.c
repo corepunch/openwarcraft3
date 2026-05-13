@@ -55,7 +55,7 @@ VECTOR2 SCR_MouseToFdf(void) {
         nx = (FLOAT)mouse.origin.x / (FLOAT)window.width;
     }
     if (window.height > 0) {
-        ny = 1.0f - (FLOAT)mouse.origin.y / (FLOAT)window.height;
+        ny = (FLOAT)mouse.origin.y / (FLOAT)window.height;
     }
 
     return MAKE(VECTOR2,

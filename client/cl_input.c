@@ -13,6 +13,11 @@
 
 mouseEvent_t mouse;
 
+static DWORD mouse_flip_y(DWORD y) {
+    size2_t const window = re.GetWindowSize();
+    return window.height > 0 ? window.height - 1 - (DWORD)y : y;
+}
+
 static void pan_camera(float x, float y, float sensivity) {
     cl.viewDef.camerastate->origin.x += x * sensivity;
     cl.viewDef.camerastate->origin.y += y * sensivity;
@@ -30,7 +35,7 @@ void CL_Input(void) {
                 {
                     DWORD mousevt = K_MOUSE1 + event.button.button - 1;
                 mouse.origin.x = event.button.x;
-                mouse.origin.y = event.button.y;
+                mouse.origin.y = mouse_flip_y(event.button.y);
                 Key_Event(mousevt, true, event.button.timestamp);
                 }
                 break;
@@ -38,13 +43,13 @@ void CL_Input(void) {
                 {
                     DWORD mousevt = K_MOUSE1 + event.button.button - 1;
                 mouse.origin.x = event.button.x;
-                mouse.origin.y = event.button.y;
+                mouse.origin.y = mouse_flip_y(event.button.y);
                 Key_Event(mousevt, false, event.button.timestamp);
                 }
                 break;
             case SDL_MOUSEMOTION:
                 mouse.origin.x = event.motion.x;
-                mouse.origin.y = event.motion.y;
+                mouse.origin.y = mouse_flip_y(event.motion.y);
                 break;
         }
         
@@ -60,7 +65,7 @@ void CL_Input(void) {
                 break;
             case SDL_MOUSEBUTTONDOWN:
                 mouse.origin.x = event.button.x;
-                mouse.origin.y = event.button.y;
+                mouse.origin.y = mouse_flip_y(event.button.y);
                 mouse.button = event.button.button;
                 if (Com_InMenuMode()) {
                     if (event.button.button == 1) {
@@ -81,7 +86,7 @@ void CL_Input(void) {
                 break;
             case SDL_MOUSEBUTTONUP:
                 mouse.origin.x = event.button.x;
-                mouse.origin.y = event.button.y;
+                mouse.origin.y = mouse_flip_y(event.button.y);
                 mouse.button = 0;
                 if (Com_InMenuMode()) {
                     if (event.button.button == 1) {
@@ -102,14 +107,14 @@ void CL_Input(void) {
                 break;
             case SDL_MOUSEMOTION:
                 mouse.origin.x = event.motion.x;
-                mouse.origin.y = event.motion.y;
+                mouse.origin.y = mouse_flip_y(event.motion.y);
                 if (Com_InMenuMode()) {
                     break;
                 }
                 switch (mouse.button) {
                     case 1:
                         cl.selection.rect.w = event.motion.x - cl.selection.rect.x;
-                        cl.selection.rect.h = event.motion.y - cl.selection.rect.y;
+                        cl.selection.rect.h = mouse_flip_y(event.motion.y) - cl.selection.rect.y;
                         break;
                     case 3:
                         pan_camera(-event.motion.xrel, event.motion.yrel, 5);
