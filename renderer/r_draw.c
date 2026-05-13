@@ -150,6 +150,7 @@ void R_DrawWireRect(LPCRECT rect, COLOR32 color) {
 
     MATRIX4 ui_matrix;
     size2_t const window = R_GetWindowSize();
+    // Wire rects are supplied in pixel coordinates; this projection owns the Y flip.
     Matrix4_ortho(&ui_matrix, 0.0f, window.width, window.height, 0.0f, 0.0f, 100.0f);
 
     R_Call(glUseProgram, tr.shader[SHADER_UI]->progid);

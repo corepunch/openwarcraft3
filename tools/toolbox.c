@@ -23,6 +23,11 @@ typedef struct {
 } rect_t;
 
 typedef struct {
+    SDL_Surface *surf;
+    int scale;
+} lowres_t;
+
+typedef struct {
     const char *name;
     const char *exe;
     const char *summary;
@@ -146,6 +151,88 @@ static const char *font_rows(char c) {
     }
 }
 
+// Lowres framebuffer rendering functions
+static lowres_t lowres_create(int w, int h) {
+    lowres_t lr = {0};
+    lr.surf = SDL_CreateRGBSurface(0, w, h, 32, 0x000000ff, 0x0000ff00, 0x00ff0000, 0xff000000);
+    lr.scale = 2;  // default 2x scale
+    return lr;
+}
+
+static void lowres_destroy(lowres_t *lr) {
+    if (lr->surf) {
+        SDL_FreeSurface(lr->surf);
+        lr->surf = NULL;
+    }
+}
+
+static void lowres_fill_rect(lowres_t *lr, int x, int y, int w, int h, int color) {
+    if (!lr->surf) return;
+    SDL_Rect rect = { x, y, w, h };
+    Uint32 pixel = ((color & 0xff0000) >> 16) | (color & 0xff00) | ((color & 0xff) << 16) | 0xff000000;
+    SDL_FillRect(lr->surf, &rect, pixel);
+}
+
+static void lowres_stroke_rect(lowres_t *lr, int x, int y, int w, int h, int color) {
+    if (!lr->surf) return;
+    Uint32 pixel = ((color & 0xff0000) >> 16) | (color & 0xff00) | ((color & 0xff) << 16) | 0xff000000;
+    Uint32 *pixels = (Uint32 *)lr->surf->pixels;
+    int pitch = lr->surf->pitch / 4;
+    // Top and bottom
+    for (int xx = 0; xx < w; xx++) {
+        pixels[(y) * pitch + (x + xx)] = pixel;
+        pixels[(y + h - 1) * pitch + (x + xx)] = pixel;
+    }
+    // Left and right
+    for (int yy = 0; yy < h; yy++) {
+        pixels[(y + yy) * pitch + x] = pixel;
+        pixels[(y + yy) * pitch + (x + w - 1)] = pixel;
+    }
+}
+
+static void lowres_draw_char(lowres_t *lr, char c, int x, int y, int color) {
+    if (!lr->surf) return;
+    const char *rows = font_rows(c);
+    Uint32 *pixels = (Uint32 *)lr->surf->pixels;
+    int pitch = lr->surf->pitch / 4;
+    Uint32 fg_color = ((color & 0xff0000) >> 16) | (color & 0xff00) | ((color & 0xff) << 16) | 0xff000000;
+
+    for (int yy = 0; yy < 7; yy++) {
+        for (int xx = 0; xx < 5; xx++) {
+            if (rows[yy * 5 + xx] == '1') {
+                int px = x + xx;
+                int py = y + yy;
+                if (px >= 0 && py >= 0 && px < lr->surf->w && py < lr->surf->h) {
+                    pixels[py * pitch + px] = fg_color;
+                }
+            }
+        }
+    }
+}
+
+static void lowres_draw_text_clip(lowres_t *lr, const char *text, int x, int y, int color, int max_w) {
+    int cx = x;
+    int step = 6;  // character width in lowres pixels
+    if (!text || !lr->surf) return;
+    for (; *text; text++) {
+        if (*text == '\n' || cx + 5 > x + max_w) break;
+        lowres_draw_char(lr, *text, cx, y, color);
+        cx += step;
+    }
+}
+
+static void lowres_blit_to_screen(lowres_t *lr, SDL_Renderer *r, int screen_w, int screen_h) {
+    if (!lr->surf) return;
+    SDL_Texture *tex = SDL_CreateTextureFromSurface(r, lr->surf);
+    if (tex) {
+        SDL_SetTextureScaleMode(tex, SDL_ScaleModeNearest);
+        SDL_SetTextureBlendMode(tex, SDL_BLENDMODE_BLEND);
+        SDL_Rect dst = { 0, 0, screen_w, screen_h };
+        SDL_RenderCopy(r, tex, NULL, &dst);
+        SDL_DestroyTexture(tex);
+    }
+}
+
 static void set_color(SDL_Renderer *r, int hex) {
     SDL_SetRenderDrawColor(r, (hex >> 16) & 255, (hex >> 8) & 255, hex & 255, 255);
 }
@@ -162,30 +249,22 @@ static void stroke_rect(SDL_Renderer *r, rect_t rc, int color) {
     SDL_RenderDrawRect(r, &s);
 }
 
-static void draw_char(SDL_Renderer *r, char c, int x, int y, int scale, int color) {
-    const char *rows = font_rows(c);
-    set_color(r, color);
-    for (int yy = 0; yy < 7; yy++) {
-        for (int xx = 0; xx < 5; xx++) {
-            if (rows[yy * 5 + xx] == '1') {
-                SDL_Rect px = { x + xx * scale, y + yy * scale, scale, scale };
-                SDL_RenderFillRect(r, &px);
-            }
-        }
-    }
-}
-
 static void draw_text_clip(SDL_Renderer *r, const char *text, int x, int y, int scale, int color, int max_w) {
     int cx = x;
     int step = 6 * scale;
-    if (!text) {
-        return;
-    }
+    if (!text) return;
     for (; *text; text++) {
-        if (*text == '\n' || cx + 5 * scale > x + max_w) {
-            break;
+        if (*text == '\n' || cx + 5 * scale > x + max_w) break;
+        const char *rows = font_rows(*text);
+        set_color(r, color);
+        for (int yy = 0; yy < 7; yy++) {
+            for (int xx = 0; xx < 5; xx++) {
+                if (rows[yy * 5 + xx] == '1') {
+                    SDL_Rect px = { cx + xx * scale, y + yy * scale, scale, scale };
+                    SDL_RenderFillRect(r, &px);
+                }
+            }
         }
-        draw_char(r, *text, cx, y, scale, color);
         cx += step;
     }
 }

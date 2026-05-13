@@ -33,6 +33,7 @@
  *
  * Available layers (defined in g_local.h):
  *
+ *   LAYER_BACKGROUND  — Glue/menu background models
  *   LAYER_PORTRAIT    — Unit portrait
  *   LAYER_CINEMATIC   — Cinematic panel
  *   LAYER_CONSOLE     — Main HUD console

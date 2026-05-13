@@ -268,8 +268,12 @@ static void UI_WriteMenuWithMainFrame(LPEDICT ent, LPCFRAMEDEF root) {
             ControlLayer ? ControlLayer->Name : "<null>",
             UI_FindFrame("WarCraftIIILogo") ? "yes" : "no");
 
-    UI_WriteStart(LAYER_CONSOLE);
+    UI_WriteStart(LAYER_BACKGROUND);
     UI_WriteMainMenuGlueBackground();
+    gi.WriteLong(0); // end of list
+    gi.unicast(ent);
+
+    UI_WriteStart(LAYER_CONSOLE);
     UI_WriteFrameWithChildren(MainMenuFrame, NULL);
     if (root != MainMenuFrame) {
         UI_WriteFrameWithChildren(root, NULL);
