@@ -522,7 +522,8 @@ static FLOAT get_anchor(LPCUIFRAME frame,
 {
     LPCRECT relative = relative_rect(frame, point);
     VECTOR2 base = get(relative);
-    FLOAT offset = (is_x ? point->offset : -point->offset) / UI_FRAMEPOINT_SCALE;
+    FLOAT offset = point->offset / UI_FRAMEPOINT_SCALE;
+    (void)is_x;
     if (point->targetPos == FPP_MID) {
         return (base.x + base.y) * 0.5f + offset;
     } else if (point->targetPos == FPP_MAX) {
@@ -876,7 +877,7 @@ static void draw_portrait(LPCUIFRAME frame, LPCRECT rect) {
     }
     viewport = (RECT) {
         (rect->x - screen_rect.x) / screen_rect.w,
-        1.0f - ((rect->y - screen_rect.y + rect->h) / screen_rect.h),
+        (rect->y - screen_rect.y) / screen_rect.h,
         rect->w / screen_rect.w,
         rect->h / screen_rect.h,
     };
@@ -894,7 +895,7 @@ static void draw_sprite(LPCUIFRAME frame, LPCRECT rect) {
     }
     viewport = (RECT) {
         (rect->x - screen_rect.x) / screen_rect.w,
-        1.0f - ((rect->y - screen_rect.y + rect->h) / screen_rect.h),
+        (rect->y - screen_rect.y) / screen_rect.h,
         rect->w / screen_rect.w,
         rect->h / screen_rect.h,
     };
@@ -971,7 +972,7 @@ static void draw_scene(void) {
         LPCRECT rect = layout_rect(&scene_frames[i]);
         RECT pixel = {
             (rect->x - screen_rect.x) * window.width / screen_rect.w,
-            (rect->y - screen_rect.y) * window.height / screen_rect.h,
+            (screen_rect.y + screen_rect.h - rect->y - rect->h) * window.height / screen_rect.h,
             rect->w * window.width / screen_rect.w,
             rect->h * window.height / screen_rect.h,
         };
