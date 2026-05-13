@@ -24,6 +24,9 @@ typedef struct {
 
 typedef struct {
     SDL_Surface *surf;
+    SDL_Texture *texture;
+    int width;
+    int height;
     int scale;
 } lowres_t;
 
@@ -42,6 +45,7 @@ typedef struct {
 typedef struct {
     SDL_Window *window;
     SDL_Renderer *renderer;
+    lowres_t lowres;
     int width;
     int height;
     char exe_dir[PATH_MAX];
@@ -79,6 +83,8 @@ static const tool_t tools[MAX_TOOLS] = {
     { "maptool", "maptool", "Open a Warcraft III map.", "-mpq {mpq} -map {file}" },
     { "mpqnc", "mpqnc", "Terminal MPQ browser.", "-mpq {mpq} -path {path}" },
 };
+
+static void render(app_t *app);
 
 static const char *font_rows(char c) {
     switch (toupper((unsigned char)c)) {
@@ -151,128 +157,212 @@ static const char *font_rows(char c) {
     }
 }
 
-// Lowres framebuffer rendering functions
-static lowres_t lowres_create(int w, int h) {
-    lowres_t lr = {0};
-    lr.surf = SDL_CreateRGBSurface(0, w, h, 32, 0x000000ff, 0x0000ff00, 0x00ff0000, 0xff000000);
-    lr.scale = 2;  // default 2x scale
+static int lowres_coord(int value, int scale) {
+    return value / scale;
+}
+
+static int lowres_span(int value, int scale) {
+    return (value + scale - 1) / scale;
+}
+
+static Uint32 lowres_color(lowres_t *lr, int rgb) {
+    return SDL_MapRGBA(lr->surf->format,
+                       (rgb >> 16) & 255,
+                       (rgb >> 8) & 255,
+                       rgb & 255,
+                       255);
+}
+
+static lowres_t lowres_create(SDL_Renderer *renderer, int screen_w, int screen_h, int scale) {
+    lowres_t lr;
+    memset(&lr, 0, sizeof(lr));
+    lr.scale = scale > 0 ? scale : 1;
+    lr.width = lowres_span(screen_w, lr.scale);
+    lr.height = lowres_span(screen_h, lr.scale);
+    if (lr.width < 1) {
+        lr.width = 1;
+    }
+    if (lr.height < 1) {
+        lr.height = 1;
+    }
+    lr.surf = SDL_CreateRGBSurfaceWithFormat(0, lr.width, lr.height, 32, SDL_PIXELFORMAT_ARGB8888);
+    if (!lr.surf) {
+        return lr;
+    }
+    lr.texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, lr.width, lr.height);
+    if (!lr.texture) {
+        SDL_FreeSurface(lr.surf);
+        lr.surf = NULL;
+        return lr;
+    }
+    SDL_SetTextureScaleMode(lr.texture, SDL_ScaleModeNearest);
     return lr;
 }
 
 static void lowres_destroy(lowres_t *lr) {
+    if (lr->texture) {
+        SDL_DestroyTexture(lr->texture);
+        lr->texture = NULL;
+    }
     if (lr->surf) {
         SDL_FreeSurface(lr->surf);
         lr->surf = NULL;
     }
+    lr->width = 0;
+    lr->height = 0;
 }
 
-static void lowres_fill_rect(lowres_t *lr, int x, int y, int w, int h, int color) {
-    if (!lr->surf) return;
-    SDL_Rect rect = { x, y, w, h };
-    Uint32 pixel = ((color & 0xff0000) >> 16) | (color & 0xff00) | ((color & 0xff) << 16) | 0xff000000;
-    SDL_FillRect(lr->surf, &rect, pixel);
+static void lowres_ensure_size(lowres_t *lr, SDL_Renderer *renderer, int screen_w, int screen_h) {
+    int wanted_w = lowres_span(screen_w, lr->scale);
+    int wanted_h = lowres_span(screen_h, lr->scale);
+    if (wanted_w < 1) {
+        wanted_w = 1;
+    }
+    if (wanted_h < 1) {
+        wanted_h = 1;
+    }
+    if (lr->surf && lr->texture && lr->width == wanted_w && lr->height == wanted_h) {
+        return;
+    }
+    lowres_destroy(lr);
+    *lr = lowres_create(renderer, screen_w, screen_h, lr->scale);
 }
 
-static void lowres_stroke_rect(lowres_t *lr, int x, int y, int w, int h, int color) {
-    if (!lr->surf) return;
-    Uint32 pixel = ((color & 0xff0000) >> 16) | (color & 0xff00) | ((color & 0xff) << 16) | 0xff000000;
+static void lowres_clear(lowres_t *lr, int color) {
+    if (!lr->surf) {
+        return;
+    }
+    SDL_FillRect(lr->surf, NULL, lowres_color(lr, color));
+}
+
+static void lowres_fill_rect(lowres_t *lr, rect_t rc, int color) {
+    if (!lr->surf) {
+        return;
+    }
+    SDL_Rect s = {
+        lowres_coord(rc.x, lr->scale),
+        lowres_coord(rc.y, lr->scale),
+        lowres_span(rc.w, lr->scale),
+        lowres_span(rc.h, lr->scale),
+    };
+    SDL_FillRect(lr->surf, &s, lowres_color(lr, color));
+}
+
+static void lowres_stroke_rect(lowres_t *lr, rect_t rc, int color) {
+    if (!lr->surf) {
+        return;
+    }
+    Uint32 pixel = lowres_color(lr, color);
+    int x = lowres_coord(rc.x, lr->scale);
+    int y = lowres_coord(rc.y, lr->scale);
+    int w = lowres_span(rc.w, lr->scale);
+    int h = lowres_span(rc.h, lr->scale);
     Uint32 *pixels = (Uint32 *)lr->surf->pixels;
     int pitch = lr->surf->pitch / 4;
-    // Top and bottom
+    if (w <= 0 || h <= 0) {
+        return;
+    }
+    if (x < 0) {
+        w += x;
+        x = 0;
+    }
+    if (y < 0) {
+        h += y;
+        y = 0;
+    }
+    if (x >= lr->width || y >= lr->height) {
+        return;
+    }
+    if (x + w > lr->width) {
+        w = lr->width - x;
+    }
+    if (y + h > lr->height) {
+        h = lr->height - y;
+    }
+    if (w <= 0 || h <= 0) {
+        return;
+    }
+
     for (int xx = 0; xx < w; xx++) {
-        pixels[(y) * pitch + (x + xx)] = pixel;
+        pixels[y * pitch + (x + xx)] = pixel;
         pixels[(y + h - 1) * pitch + (x + xx)] = pixel;
     }
-    // Left and right
     for (int yy = 0; yy < h; yy++) {
         pixels[(y + yy) * pitch + x] = pixel;
         pixels[(y + yy) * pitch + (x + w - 1)] = pixel;
     }
 }
 
-static void lowres_draw_char(lowres_t *lr, char c, int x, int y, int color) {
-    if (!lr->surf) return;
+static void lowres_draw_char(lowres_t *lr, char c, int x, int y, int scale, int color) {
+    if (!lr->surf) {
+        return;
+    }
     const char *rows = font_rows(c);
     Uint32 *pixels = (Uint32 *)lr->surf->pixels;
     int pitch = lr->surf->pitch / 4;
-    Uint32 fg_color = ((color & 0xff0000) >> 16) | (color & 0xff00) | ((color & 0xff) << 16) | 0xff000000;
+    Uint32 fg_color = lowres_color(lr, color);
 
     for (int yy = 0; yy < 7; yy++) {
         for (int xx = 0; xx < 5; xx++) {
             if (rows[yy * 5 + xx] == '1') {
-                int px = x + xx;
-                int py = y + yy;
-                if (px >= 0 && py >= 0 && px < lr->surf->w && py < lr->surf->h) {
-                    pixels[py * pitch + px] = fg_color;
+                for (int sy = 0; sy < scale; sy++) {
+                    for (int sx = 0; sx < scale; sx++) {
+                        int px = x + xx * scale + sx;
+                        int py = y + yy * scale + sy;
+                        if (px >= 0 && py >= 0 && px < lr->width && py < lr->height) {
+                            pixels[py * pitch + px] = fg_color;
+                        }
+                    }
                 }
             }
         }
     }
 }
 
-static void lowres_draw_text_clip(lowres_t *lr, const char *text, int x, int y, int color, int max_w) {
-    int cx = x;
-    int step = 6;  // character width in lowres pixels
-    if (!text || !lr->surf) return;
-    for (; *text; text++) {
-        if (*text == '\n' || cx + 5 > x + max_w) break;
-        lowres_draw_char(lr, *text, cx, y, color);
-        cx += step;
+static void lowres_draw_text_clip(lowres_t *lr, const char *text, int x, int y, int scale, int color, int max_w) {
+    int text_scale = scale / lr->scale;
+    int cx;
+    int x0;
+    int max_w_lr;
+    int step;
+    if (!text || !lr->surf) {
+        return;
     }
-}
-
-static void lowres_blit_to_screen(lowres_t *lr, SDL_Renderer *r, int screen_w, int screen_h) {
-    if (!lr->surf) return;
-    SDL_Texture *tex = SDL_CreateTextureFromSurface(r, lr->surf);
-    if (tex) {
-        SDL_SetTextureScaleMode(tex, SDL_ScaleModeNearest);
-        SDL_SetTextureBlendMode(tex, SDL_BLENDMODE_BLEND);
-        SDL_Rect dst = { 0, 0, screen_w, screen_h };
-        SDL_RenderCopy(r, tex, NULL, &dst);
-        SDL_DestroyTexture(tex);
+    if (text_scale < 1) {
+        text_scale = 1;
     }
-}
-
-static void set_color(SDL_Renderer *r, int hex) {
-    SDL_SetRenderDrawColor(r, (hex >> 16) & 255, (hex >> 8) & 255, hex & 255, 255);
-}
-
-static void fill_rect(SDL_Renderer *r, rect_t rc, int color) {
-    SDL_Rect s = { rc.x, rc.y, rc.w, rc.h };
-    set_color(r, color);
-    SDL_RenderFillRect(r, &s);
-}
-
-static void stroke_rect(SDL_Renderer *r, rect_t rc, int color) {
-    SDL_Rect s = { rc.x, rc.y, rc.w, rc.h };
-    set_color(r, color);
-    SDL_RenderDrawRect(r, &s);
-}
-
-static void draw_text_clip(SDL_Renderer *r, const char *text, int x, int y, int scale, int color, int max_w) {
-    int cx = x;
-    int step = 6 * scale;
-    if (!text) return;
+    x0 = lowres_coord(x, lr->scale);
+    cx = x0;
+    max_w_lr = lowres_span(max_w, lr->scale);
+    step = 6 * text_scale;
     for (; *text; text++) {
-        if (*text == '\n' || cx + 5 * scale > x + max_w) break;
-        const char *rows = font_rows(*text);
-        set_color(r, color);
-        for (int yy = 0; yy < 7; yy++) {
-            for (int xx = 0; xx < 5; xx++) {
-                if (rows[yy * 5 + xx] == '1') {
-                    SDL_Rect px = { cx + xx * scale, y + yy * scale, scale, scale };
-                    SDL_RenderFillRect(r, &px);
-                }
-            }
+        if (*text == '\n' || cx + 5 * text_scale > x0 + max_w_lr) {
+            break;
         }
+        lowres_draw_char(lr, *text, cx, lowres_coord(y, lr->scale), text_scale, color);
         cx += step;
     }
 }
 
-static void draw_label(SDL_Renderer *r, rect_t rc, const char *text, bool active) {
-    fill_rect(r, rc, active ? 0x2c4a5a : 0x18242a);
-    stroke_rect(r, rc, active ? 0x86d9ff : 0x42525b);
-    draw_text_clip(r, text, rc.x + 8, rc.y + 8, 2, active ? 0xffffff : 0xc9d6d3, rc.w - 16);
+static void lowres_draw_label(lowres_t *lr, rect_t rc, const char *text, bool active) {
+    lowres_fill_rect(lr, rc, active ? 0x2c4a5a : 0x18242a);
+    lowres_stroke_rect(lr, rc, active ? 0x86d9ff : 0x42525b);
+    lowres_draw_text_clip(lr, text, rc.x + 8, rc.y + 8, 2, active ? 0xffffff : 0xc9d6d3, rc.w - 16);
+}
+
+static void lowres_present(lowres_t *lr, SDL_Renderer *renderer, int screen_w, int screen_h) {
+    SDL_Rect dst;
+    if (!lr->surf || !lr->texture) {
+        return;
+    }
+    SDL_UpdateTexture(lr->texture, NULL, lr->surf->pixels, lr->surf->pitch);
+    dst.x = 0;
+    dst.y = 0;
+    dst.w = screen_w;
+    dst.h = screen_h;
+    SDL_RenderClear(renderer);
+    SDL_RenderCopy(renderer, lr->texture, NULL, &dst);
+    SDL_RenderPresent(renderer);
 }
 
 static bool point_in(rect_t rc, int x, int y) {
@@ -538,7 +628,7 @@ static void run_current_command(app_t *app) {
     add_history(app, app->command);
     save_history(app);
     snprintf(app->output, sizeof(app->output), "Running:\n%s\n\n", app->command);
-    SDL_RenderPresent(app->renderer);
+    render(app);
     char *out = run_capture(app->command);
     if (out) {
         strncat(app->output, out, sizeof(app->output) - strlen(app->output) - 1);
@@ -571,13 +661,13 @@ static void put_selected_entry_in_field(app_t *app) {
     }
 }
 
-static void draw_panel_title(SDL_Renderer *r, rect_t rc, const char *title) {
-    fill_rect(r, (rect_t){ rc.x, rc.y, rc.w, 26 }, 0x22343c);
-    stroke_rect(r, rc, 0x4f6972);
-    draw_text_clip(r, title, rc.x + 8, rc.y + 7, 2, 0xf6e8b1, rc.w - 16);
+static void draw_panel_title(lowres_t *lr, rect_t rc, const char *title) {
+    lowres_fill_rect(lr, (rect_t){ rc.x, rc.y, rc.w, 26 }, 0x22343c);
+    lowres_stroke_rect(lr, rc, 0x4f6972);
+    lowres_draw_text_clip(lr, title, rc.x + 8, rc.y + 7, 2, 0xf6e8b1, rc.w - 16);
 }
 
-static void draw_lines(SDL_Renderer *r, const char *text, rect_t rc, int scroll, int color) {
+static void draw_lines(lowres_t *lr, const char *text, rect_t rc, int scroll, int color) {
     int y = rc.y + 8;
     int line_h = 18;
     int skip = scroll;
@@ -599,86 +689,85 @@ static void draw_lines(SDL_Renderer *r, const char *text, rect_t rc, int scroll,
             skip--;
             continue;
         }
-        draw_text_clip(r, line, rc.x + 8, y, 2, color, rc.w - 16);
+        lowres_draw_text_clip(lr, line, rc.x + 8, y, 2, color, rc.w - 16);
         y += line_h;
     }
 }
 
 static void render(app_t *app) {
-    SDL_Renderer *r = app->renderer;
+    lowres_t *lr = &app->lowres;
     rect_t header = { 0, 0, app->width, 42 };
     rect_t browser = { 10, 52, app->width * 34 / 100 - 15, app->height - 240 };
     rect_t center = { browser.x + browser.w + 10, 52, app->width * 32 / 100, app->height - 240 };
     rect_t right = { center.x + center.w + 10, 52, app->width - center.x - center.w - 20, app->height - 240 };
     rect_t bottom = { 10, app->height - 178, app->width - 20, 168 };
 
-    set_color(r, 0x101619);
-    SDL_RenderClear(r);
-    fill_rect(r, header, 0x1c2a30);
-    draw_text_clip(r, "OPENWARCRAFT3 TOOLBOX", 14, 12, 3, 0xffffff, 420);
-    draw_text_clip(r, "F5 RUN  F6 HELP  ENTER OPEN  BACKSPACE UP  D DRAG/COPY  ESC QUIT", 460, 15, 2, 0xa9bbb8, app->width - 470);
+    lowres_clear(lr, 0x101619);
+    lowres_fill_rect(lr, header, 0x1c2a30);
+    lowres_draw_text_clip(lr, "OPENWARCRAFT3 TOOLBOX", 14, 12, 3, 0xffffff, 420);
+    lowres_draw_text_clip(lr, "F5 RUN  F6 HELP  ENTER OPEN  BACKSPACE UP  D DRAG/COPY  ESC QUIT", 460, 15, 2, 0xa9bbb8, app->width - 470);
 
-    draw_panel_title(r, browser, "MPQ BROWSER");
-    draw_text_clip(r, app->browser_path[0] ? app->browser_path : "\\", browser.x + 8, browser.y + 34, 2, 0x8bd7ff, browser.w - 16);
+    draw_panel_title(lr, browser, "MPQ BROWSER");
+    lowres_draw_text_clip(lr, app->browser_path[0] ? app->browser_path : "\\", browser.x + 8, browser.y + 34, 2, 0x8bd7ff, browser.w - 16);
     int row_y = browser.y + 58;
     int rows = (browser.h - 64) / 20;
     for (int i = 0; i < rows && i + app->browser_scroll < app->entry_count; i++) {
         int idx = i + app->browser_scroll;
         rect_t row = { browser.x + 6, row_y + i * 20, browser.w - 12, 18 };
         if (idx == app->selected_entry) {
-            fill_rect(r, row, 0x315263);
+            lowres_fill_rect(lr, row, 0x315263);
         }
         char label[300];
         snprintf(label, sizeof(label), "%s%s", app->entries[idx].is_dir ? "[+] " : "    ", app->entries[idx].name);
-        draw_text_clip(r, label, row.x + 4, row.y + 3, 2, app->entries[idx].is_dir ? 0xf8d77e : 0xdde9e4, row.w - 8);
+        lowres_draw_text_clip(lr, label, row.x + 4, row.y + 3, 2, app->entries[idx].is_dir ? 0xf8d77e : 0xdde9e4, row.w - 8);
     }
 
-    draw_panel_title(r, center, "TOOLS AND FIELDS");
+    draw_panel_title(lr, center, "TOOLS AND FIELDS");
     int y = center.y + 36;
     for (int i = 0; i < MAX_TOOLS; i++) {
         rect_t row = { center.x + 8, y, center.w - 16, 30 };
-        draw_label(r, row, tools[i].name, i == app->selected_tool);
+        lowres_draw_label(lr, row, tools[i].name, i == app->selected_tool);
         y += 34;
     }
     y += 6;
     const char *field_names[MAX_FIELDS] = { "MPQ", "ARCHIVE PATH / FILE", "OUTPUT DIR", "EXTRA ARGS" };
     const char *field_values[MAX_FIELDS] = { app->mpq_path, app->archive_path, app->out_dir, app->extra_args };
     for (int i = 0; i < MAX_FIELDS; i++) {
-        draw_text_clip(r, field_names[i], center.x + 8, y, 2, 0x91a6a6, center.w - 16);
+        lowres_draw_text_clip(lr, field_names[i], center.x + 8, y, 2, 0x91a6a6, center.w - 16);
         y += 18;
         rect_t fr = { center.x + 8, y, center.w - 16, 28 };
-        draw_label(r, fr, field_values[i], i == app->selected_field);
+        lowres_draw_label(lr, fr, field_values[i], i == app->selected_field);
         y += 34;
     }
     build_command(app);
-    draw_text_clip(r, "COMMAND", center.x + 8, y, 2, 0x91a6a6, center.w - 16);
+    lowres_draw_text_clip(lr, "COMMAND", center.x + 8, y, 2, 0x91a6a6, center.w - 16);
     y += 18;
-    fill_rect(r, (rect_t){ center.x + 8, y, center.w - 16, 58 }, 0x0c1113);
-    stroke_rect(r, (rect_t){ center.x + 8, y, center.w - 16, 58 }, 0x4f6972);
-    draw_lines(r, app->command, (rect_t){ center.x + 8, y, center.w - 16, 58 }, 0, 0xdde9e4);
+    lowres_fill_rect(lr, (rect_t){ center.x + 8, y, center.w - 16, 58 }, 0x0c1113);
+    lowres_stroke_rect(lr, (rect_t){ center.x + 8, y, center.w - 16, 58 }, 0x4f6972);
+    draw_lines(lr, app->command, (rect_t){ center.x + 8, y, center.w - 16, 58 }, 0, 0xdde9e4);
 
-    draw_panel_title(r, right, "HELP / ACCEPTED SETTINGS");
-    draw_text_clip(r, tools[app->selected_tool].summary, right.x + 8, right.y + 34, 2, 0xdde9e4, right.w - 16);
-    draw_lines(r, app->tool_help, (rect_t){ right.x + 4, right.y + 58, right.w - 8, right.h - 64 }, app->output_scroll, 0xa9bbb8);
+    draw_panel_title(lr, right, "HELP / ACCEPTED SETTINGS");
+    lowres_draw_text_clip(lr, tools[app->selected_tool].summary, right.x + 8, right.y + 34, 2, 0xdde9e4, right.w - 16);
+    draw_lines(lr, app->tool_help, (rect_t){ right.x + 4, right.y + 58, right.w - 8, right.h - 64 }, app->output_scroll, 0xa9bbb8);
 
-    draw_panel_title(r, bottom, "OUTPUT AND RECENT COMMANDS");
+    draw_panel_title(lr, bottom, "OUTPUT AND RECENT COMMANDS");
     rect_t out = { bottom.x + 4, bottom.y + 32, bottom.w * 62 / 100, bottom.h - 38 };
     rect_t hist = { out.x + out.w + 8, out.y, bottom.w - out.w - 16, out.h };
-    fill_rect(r, out, 0x0c1113);
-    stroke_rect(r, out, 0x4f6972);
-    draw_lines(r, app->output[0] ? app->output : "No command run yet.", out, app->output_scroll, 0xdde9e4);
-    fill_rect(r, hist, 0x0c1113);
-    stroke_rect(r, hist, 0x4f6972);
+    lowres_fill_rect(lr, out, 0x0c1113);
+    lowres_stroke_rect(lr, out, 0x4f6972);
+    draw_lines(lr, app->output[0] ? app->output : "No command run yet.", out, app->output_scroll, 0xdde9e4);
+    lowres_fill_rect(lr, hist, 0x0c1113);
+    lowres_stroke_rect(lr, hist, 0x4f6972);
     int hy = hist.y + 8;
     int max_h = (hist.h - 16) / 18;
     int start = app->history_count - max_h - app->history_scroll;
     if (start < 0) start = 0;
     for (int i = start; i < app->history_count && hy + 18 <= hist.y + hist.h; i++) {
-        draw_text_clip(r, app->history[i], hist.x + 8, hy, 2, 0x9fd3a8, hist.w - 16);
+        lowres_draw_text_clip(lr, app->history[i], hist.x + 8, hy, 2, 0x9fd3a8, hist.w - 16);
         hy += 18;
     }
 
-    SDL_RenderPresent(r);
+    lowres_present(lr, app->renderer, app->width, app->height);
 }
 
 static int field_at(app_t *app, int mx, int my) {
@@ -776,6 +865,7 @@ static void backspace_field(app_t *app) {
 
 static void init_app(app_t *app, int argc, char **argv) {
     memset(app, 0, sizeof(*app));
+    app->lowres.scale = 2;
     app->width = 1280;
     app->height = 820;
     app->selected_entry = -1;
@@ -807,7 +897,7 @@ static void update_render_scale(app_t *app) {
     if (window_w > 0 && window_h > 0) {
         app->width = window_w;
         app->height = window_h;
-        SDL_RenderSetLogicalSize(app->renderer, app->width, app->height);
+        lowres_ensure_size(&app->lowres, app->renderer, app->width, app->height);
     }
 }
 
@@ -841,6 +931,15 @@ int main(int argc, char **argv) {
             SDL_Quit();
             return 1;
         }
+    }
+    app.lowres = lowres_create(app.renderer, app.width, app.height, app.lowres.scale);
+    if (!app.lowres.surf || !app.lowres.texture) {
+        fprintf(stderr, "lowres initialization failed: %s\n", SDL_GetError());
+        lowres_destroy(&app.lowres);
+        SDL_DestroyRenderer(app.renderer);
+        SDL_DestroyWindow(app.window);
+        SDL_Quit();
+        return 1;
     }
     update_render_scale(&app);
 
@@ -954,6 +1053,7 @@ int main(int argc, char **argv) {
 
     save_history(&app);
     SDL_StopTextInput();
+    lowres_destroy(&app.lowres);
     SDL_DestroyRenderer(app.renderer);
     SDL_DestroyWindow(app.window);
     SDL_Quit();

@@ -37,6 +37,7 @@ else
         else
             HOMEBREW_PREFIX := /usr/local
         endif
+				JPEG_PREFIX := $(shell brew --prefix jpeg 2>/dev/null)
         LIB_EXT   := .dylib
         LIB_FLAGS := -dynamiclib
         # Set the dylib install name to @rpath/<libname> so the executable
@@ -45,6 +46,10 @@ else
         RPATH     := -Wl,-rpath,@executable_path/../lib
 		CFLAGS    += -DGL_SILENCE_DEPRECATION -I$(HOMEBREW_PREFIX)/include -arch $(ARCH)
 		LDFLAGS   := -L$(LIB_DIR) -L$(HOMEBREW_PREFIX)/lib -arch $(ARCH)
+		ifneq ($(JPEG_PREFIX),)
+			CFLAGS  += -I$(JPEG_PREFIX)/include
+			LDFLAGS += -L$(JPEG_PREFIX)/lib
+		endif
 		LIBS      := -lSDL2 -ljpeg -framework AppKit -framework OpenGL
     else
         # Linux
@@ -62,15 +67,12 @@ SHARED_LIB   := $(LIB_DIR)/libshared$(LIB_EXT)
 RENDERER_LIB := $(LIB_DIR)/librenderer$(LIB_EXT)
 GAME_LIB     := $(LIB_DIR)/libgame$(LIB_EXT)
 BINARY       := $(BIN_DIR)/openwarcraft3$(EXE_EXT)
-MPQ_TOOL     := $(BIN_DIR)/mpqtool$(EXE_EXT)
-MDX_TOOL     := $(BIN_DIR)/mdxtool$(EXE_EXT)
-MAP_TOOL     := $(BIN_DIR)/maptool$(EXE_EXT)
-FDF_TOOL     := $(BIN_DIR)/fdftool$(EXE_EXT)
-MPQ_NC_TOOL  := $(BIN_DIR)/mpqnc$(EXE_EXT)
-BLP_TOOL         := $(BIN_DIR)/blpgen$(EXE_EXT)
-TOOLBOX_TOOL     := $(BIN_DIR)/toolbox$(EXE_EXT)
-MDX_GEN_TOOL     := $(BIN_DIR)/mdxgen$(EXE_EXT)
 MPQ_TEST         := $(BIN_DIR)/test_mpq_compat$(EXE_EXT)
+
+TOOL_SRCS := $(shell find tools -maxdepth 1 -name '*.c' ! -name '*_common.c' | sort)
+TOOL_NAMES := $(patsubst tools/%.c,%,$(TOOL_SRCS))
+TOOL_BINS := $(addprefix $(BIN_DIR)/,$(addsuffix $(EXE_EXT),$(TOOL_NAMES)))
+TOOL_HEADERS := tools/tool_common.h tools/tool_common.c tools/viewer_common.h tools/viewer_common.c
 
 # Unity-build helper: pipe all .c files in a directory tree as #include
 # directives to gcc's stdin so the whole module is one translation unit.
@@ -79,19 +81,13 @@ MPQ_TEST         := $(BIN_DIR)/test_mpq_compat$(EXE_EXT)
 UNITY = find $1 -name '*.c' $2 | sort | awk '{printf "\043include \"%s\"\n", $$0}'
 
 default: build
-build: shared renderer game openwarcraft3 mpqtool mdxtool maptool fdftool mpqnc blpgen toolbox mdxgen
+build: shared renderer game openwarcraft3 tools
 shared:      $(SHARED_LIB)
 renderer:    $(RENDERER_LIB)
 game:        $(GAME_LIB)
 openwarcraft3: $(BINARY)
-mpqtool:     $(MPQ_TOOL)
-mdxtool:     $(MDX_TOOL)
-maptool:     $(MAP_TOOL)
-fdftool:     $(FDF_TOOL)
-mpqnc:       $(MPQ_NC_TOOL)
-blpgen:      $(BLP_TOOL)
-toolbox:     $(TOOLBOX_TOOL)
-mdxgen:      $(MDX_GEN_TOOL)
+tools:       $(TOOL_BINS)
+$(TOOL_NAMES): %: $(BIN_DIR)/%$(EXE_EXT)
 run:
 	$(BINARY) -mpq=$(MPQ)
 
@@ -105,40 +101,10 @@ diag: clean
 	$(MAKE) DIAG_OUTPUT=1 build
 	$(MAKE) DIAG_OUTPUT=1 run
 
-$(MPQ_TOOL): tools/mpqtool.c tools/tool_common.c common/mpq.c common/mpq.h | $(BIN_DIR)
-	@echo "[mpqtool]"
-	$(CC) $(CFLAGS) -o $@ $< tools/tool_common.c common/mpq.c $(LDFLAGS) -lm -lz
-
-$(MDX_TOOL): tools/mdxtool.c tools/viewer_common.c tools/tool_common.c tools/viewer_common.h common/mpq.c common/sheet.c common/parser.c | $(BIN_DIR) $(SHARED_LIB) $(RENDERER_LIB)
-	@echo "[mdxtool]"
-	$(CC) $(CFLAGS) -o $@ $< tools/viewer_common.c tools/tool_common.c common/mpq.c common/sheet.c common/parser.c \
-		$(RPATH) $(LDFLAGS) -lshared -lrenderer $(LIBS) -lm -lz
-
-$(MAP_TOOL): tools/maptool.c tools/viewer_common.c tools/tool_common.c common/mpq.c common/sheet.c common/parser.c | $(BIN_DIR) $(SHARED_LIB) $(RENDERER_LIB)
-	@echo "[maptool]"
-	$(CC) $(CFLAGS) -o $@ $< tools/viewer_common.c tools/tool_common.c common/mpq.c common/sheet.c common/parser.c \
-		$(RPATH) $(LDFLAGS) -lshared -lrenderer $(LIBS) -lm -lz
-
-$(FDF_TOOL): tools/fdftool.c tools/viewer_common.c tools/tool_common.c common/mpq.c common/sheet.c common/parser.c common/msg.c game/parser.c game/ui/ui_fdf.c game/ui/ui_write.c | $(BIN_DIR) $(SHARED_LIB) $(RENDERER_LIB)
-	@echo "[fdftool]"
-	$(CC) $(CFLAGS) -o $@ $< tools/viewer_common.c tools/tool_common.c common/mpq.c common/sheet.c common/parser.c common/msg.c game/parser.c game/ui/ui_fdf.c game/ui/ui_write.c game/ui/ui_init.c \
-		$(RPATH) $(LDFLAGS) -lshared -lrenderer $(LIBS) -lm -lz
-
-$(MPQ_NC_TOOL): tools/mpqnc.c tools/tool_common.c common/mpq.c common/mpq.h | $(BIN_DIR)
-	@echo "[mpqnc]"
-	$(CC) $(CFLAGS) -o $@ $< tools/tool_common.c common/mpq.c $(LDFLAGS) -lm -lz
-
-$(BLP_TOOL): tools/blpgen.c | $(BIN_DIR)
-	@echo "[blpgen]"
-	$(CC) $(CFLAGS) -o $@ $< $(LDFLAGS) -lm
-
-$(TOOLBOX_TOOL): tools/toolbox.c | $(BIN_DIR)
-	@echo "[toolbox]"
-	$(CC) $(CFLAGS) -o $@ $< $(LDFLAGS) $(LIBS)
-
-$(MDX_GEN_TOOL): tools/mdxgen.c | $(BIN_DIR)
-	@echo "[mdxgen]"
-	$(CC) $(CFLAGS) -o $@ $< $(LDFLAGS) -lm
+$(BIN_DIR)/%$(EXE_EXT): tools/%.c $(TOOL_HEADERS) | $(BIN_DIR) $(SHARED_LIB) $(RENDERER_LIB) $(GAME_LIB)
+	@echo "[$*]"
+	$(CC) $(CFLAGS) -DTOOL_COMMON_IMPLEMENTATION -DVIEWER_COMMON_IMPLEMENTATION -o $@ $< \
+		$(RPATH) $(LDFLAGS) -lshared -lrenderer -lgame $(LIBS) -lm -lz
 
 $(MPQ_TEST): tests/test_mpq_compat.c common/mpq.c common/mpq.h | $(BIN_DIR)
 	@echo "[mpq-compat-test]"
@@ -287,18 +253,18 @@ TESTS_SRC_DIR := tests/resources-src
 test-assets: blpgen mdxgen mpqtool | $(TESTS_DIR)
 	@echo "[test-assets] generating textures"
 	@mkdir -p $(TESTS_RES_DIR)/TestUI/Textures
-	$(BLP_TOOL) solid        1  1  ffffffff  $(TESTS_RES_DIR)/TestUI/Textures/solid_white.blp
-	$(BLP_TOOL) checker      8  8  2         $(TESTS_RES_DIR)/TestUI/Textures/checker_8x8.blp
-	$(BLP_TOOL) alpha_ring   16 16           $(TESTS_RES_DIR)/TestUI/Textures/alpha_ring_16x16.blp
-	$(BLP_TOOL) panel_border 32 32 2         $(TESTS_RES_DIR)/TestUI/Textures/panel_border_32x32.blp
-	$(BLP_TOOL) paletted     8  8  2         $(TESTS_RES_DIR)/TestUI/Textures/paletted_checker_8x8.blp
+	$(BIN_DIR)/blpgen$(EXE_EXT) solid        1  1  ffffffff  $(TESTS_RES_DIR)/TestUI/Textures/solid_white.blp
+	$(BIN_DIR)/blpgen$(EXE_EXT) checker      8  8  2         $(TESTS_RES_DIR)/TestUI/Textures/checker_8x8.blp
+	$(BIN_DIR)/blpgen$(EXE_EXT) alpha_ring   16 16           $(TESTS_RES_DIR)/TestUI/Textures/alpha_ring_16x16.blp
+	$(BIN_DIR)/blpgen$(EXE_EXT) panel_border 32 32 2         $(TESTS_RES_DIR)/TestUI/Textures/panel_border_32x32.blp
+	$(BIN_DIR)/blpgen$(EXE_EXT) paletted     8  8  2         $(TESTS_RES_DIR)/TestUI/Textures/paletted_checker_8x8.blp
 	@echo "[test-assets] generating models"
 	@mkdir -p $(TESTS_RES_DIR)/TestUI/Models
-	$(MDX_GEN_TOOL) quad_sprite   TestUI/Textures/checker_8x8.blp       $(TESTS_RES_DIR)/TestUI/Models/quad_sprite.mdx
-	$(MDX_GEN_TOOL) panel_sprite  TestUI/Textures/solid_white.blp        $(TESTS_RES_DIR)/TestUI/Models/panel_sprite.mdx
-	$(MDX_GEN_TOOL) anim_pulse    TestUI/Textures/alpha_ring_16x16.blp   $(TESTS_RES_DIR)/TestUI/Models/anim_pulse.mdx
+	$(BIN_DIR)/mdxgen$(EXE_EXT) quad_sprite   TestUI/Textures/checker_8x8.blp       $(TESTS_RES_DIR)/TestUI/Models/quad_sprite.mdx
+	$(BIN_DIR)/mdxgen$(EXE_EXT) panel_sprite  TestUI/Textures/solid_white.blp        $(TESTS_RES_DIR)/TestUI/Models/panel_sprite.mdx
+	$(BIN_DIR)/mdxgen$(EXE_EXT) anim_pulse    TestUI/Textures/alpha_ring_16x16.blp   $(TESTS_RES_DIR)/TestUI/Models/anim_pulse.mdx
 	@echo "[test-assets] packing tests.mpq"
-	$(MPQ_TOOL) -mpq $(TESTS_MPQ) pack \
+	$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(TESTS_MPQ) pack \
 		$(TESTS_RES_DIR)/TestUI/Textures/solid_white.blp        TestUI/Textures/solid_white.blp \
 		$(TESTS_RES_DIR)/TestUI/Textures/checker_8x8.blp        TestUI/Textures/checker_8x8.blp \
 		$(TESTS_RES_DIR)/TestUI/Textures/alpha_ring_16x16.blp   TestUI/Textures/alpha_ring_16x16.blp \
@@ -312,12 +278,12 @@ test-assets: blpgen mdxgen mpqtool | $(TESTS_DIR)
 		$(TESTS_SRC_DIR)/TestUI/Frames/simple_sprite.fdf         TestUI/Frames/simple_sprite.fdf \
 		$(TESTS_SRC_DIR)/TestUI/Frames/animated_sprite.fdf       TestUI/Frames/animated_sprite.fdf
 	@echo "[test-assets] verifying archive"
-	@$(MPQ_TOOL) -mpq $(TESTS_MPQ) ls | grep -q "TestUI/" && echo "  ls OK"
-	@$(MPQ_TOOL) -mpq $(TESTS_MPQ) cat TestUI/Frames/basic_layout.fdf | grep -q "TestRootFrame" && echo "  cat FDF OK"
-	@$(MPQ_TOOL) -mpq $(TESTS_MPQ) cat TestUI/Textures/solid_white.blp | head -c4 | grep -q "BLP2" && echo "  cat BLP OK"
+	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(TESTS_MPQ) ls | grep -q "TestUI/" && echo "  ls OK"
+	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(TESTS_MPQ) cat TestUI/Frames/basic_layout.fdf | grep -q "TestRootFrame" && echo "  cat FDF OK"
+	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(TESTS_MPQ) cat TestUI/Textures/solid_white.blp | head -c4 | grep -q "BLP2" && echo "  cat BLP OK"
 	@echo "[test-assets] done — $(TESTS_MPQ)"
 
 $(TESTS_DIR):
 	@mkdir -p $@
 
-.PHONY: default build shared renderer game openwarcraft3 mpqtool mdxtool maptool fdftool mpqnc blpgen toolbox mdxgen run run-map diag clean download test test-ui test-mpq-compat test-assets
+.PHONY: default build shared renderer game openwarcraft3 tools $(TOOL_NAMES) run run-map diag clean download test test-ui test-mpq-compat test-assets
