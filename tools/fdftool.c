@@ -972,7 +972,7 @@ static void draw_scene(void) {
         LPCRECT rect = layout_rect(&scene_frames[i]);
         RECT pixel = {
             (rect->x - screen_rect.x) * window.width / screen_rect.w,
-            (screen_rect.y + screen_rect.h - rect->y - rect->h) * window.height / screen_rect.h,
+            (rect->y - screen_rect.y) * window.height / screen_rect.h,
             rect->w * window.width / screen_rect.w,
             rect->h * window.height / screen_rect.h,
         };
