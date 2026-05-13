@@ -143,6 +143,108 @@ void Matrix4_getLightMatrix(LPCVECTOR3 sunangles, LPCVECTOR3 target, float scale
     Matrix4_multiply(&proj, &view, output);
 }
 
+static bool
+R_GetModelCameraMatrix(mdxModel_t const *model, DWORD frame, float aspect, LPMATRIX4 output, LPVECTOR3 root)
+{
+    if (!model || !model->cameras) {
+        return false;
+    }
+
+    mdxCamera_t const *camera = model->cameras;
+    MATRIX4 projection, view;
+    VECTOR3 eye = camera->pivot;
+    VECTOR3 target = camera->targetPivot;
+    VECTOR3 dir;
+    VECTOR3 up = {0, 0, 1};
+    float fov_deg = camera->fieldOfView * (180.0f / (float)M_PI);
+    float near_clip = camera->nearClip;
+    float far_clip = camera->farClip;
+    float roll = 0.0f;
+
+    if (!isfinite(fov_deg) || fov_deg <= 1.0f || fov_deg >= 179.0f) {
+        fov_deg = 35.0f;
+    }
+    if (!isfinite(near_clip) || near_clip < 0.01f) {
+        near_clip = 1.0f;
+    }
+    if (!isfinite(far_clip) || far_clip <= near_clip + 1.0f) {
+        far_clip = near_clip + 5000.0f;
+    }
+    if (!isfinite(aspect) || aspect <= 0.0f) {
+        aspect = 1.0f;
+    }
+    if (camera->translation) {
+        VECTOR3 translation = {0, 0, 0};
+        MDLX_GetModelKeytrackValue(model, camera->translation, frame, &translation);
+        eye = Vector3_add(&eye, &translation);
+    }
+    if (camera->targetTranslation) {
+        VECTOR3 targetTranslation = {0, 0, 0};
+        MDLX_GetModelKeytrackValue(model, camera->targetTranslation, frame, &targetTranslation);
+        target = Vector3_add(&target, &targetTranslation);
+    }
+    dir = Vector3_sub(&target, &eye);
+    if (Vector3_len(&dir) < 0.001f) {
+        return false;
+    }
+    if (camera->roll) {
+        MDLX_GetModelKeytrackValue(model, camera->roll, frame, &roll);
+        if (isfinite(roll) && fabsf(roll) > 0.0001f) {
+            up = Vector3_rotateAroundAxis(&up, &dir, roll);
+        }
+    }
+    float const camera_aspect = 1.66f;
+    fov_deg = 2.0f * atanf(tanf(fov_deg * (float)M_PI / 360.0f) / camera_aspect) * 180.0f / (float)M_PI;
+    Matrix4_perspective(&projection, fov_deg, aspect, near_clip, far_clip);
+    Matrix4_lookAt(&view, &eye, &dir, &up);
+    Matrix4_multiply(&projection, &view, output);
+    *root = target;
+    return true;
+}
+
+void R_DrawPortrait(LPCMODEL model, LPCRECT viewport, LPCSTR anim) {
+    VECTOR3 root;
+    VECTOR3 lightAngles = { 10, 270, 0 };
+    renderEntity_t entity;
+    viewDef_t viewdef;
+    
+    if (!model || !model->mdx) {
+        return;
+    }
+    
+    mdxModel_t const *mdx = model->mdx;
+    mdxSequence_t const *seq = (anim && *anim) ? MDLX_FindSequenceByName(mdx, anim) : NULL;
+
+    float viewport_width = viewport->w * tr.drawableSize.width;
+    float viewport_height = viewport->h * tr.drawableSize.height;
+    float aspect = viewport_height > 0.0f ? viewport_width / viewport_height : 1.0f;
+
+    if (!seq && mdx->sequences && mdx->num_sequences > 0) {
+        seq = &mdx->sequences[0];
+    }
+
+    if (!R_InitUIModelView(model, &viewdef, &entity, seq)) {
+        return;
+    }
+
+    viewdef.viewport = *viewport;
+
+    if (!R_GetModelCameraMatrix(mdx, entity.frame, aspect, &viewdef.viewProjectionMatrix, &root)) {
+        return;
+    }
+
+    Matrix4_getLightMatrix(&lightAngles, &root, PORTRAIT_SHADOW_SIZE, &viewdef.lightMatrix);
+
+    R_Call(glActiveTexture, GL_TEXTURE2);
+    R_Call(glBindTexture, GL_TEXTURE_2D, tr.texture[TEX_WHITE]->texid);
+    R_Call(glActiveTexture, GL_TEXTURE0);
+
+    tr.viewDef = viewdef;
+
+    R_RenderShadowMap();
+    R_RenderView();
+}
+
 void R_DrawSprite(LPCMODEL model, LPCSTR anim, float x, float y) {
     renderEntity_t entity;
     viewDef_t viewdef;
@@ -167,90 +269,13 @@ void R_DrawSprite(LPCMODEL model, LPCSTR anim, float x, float y) {
 
     entity.flags |= RF_NO_FOGOFWAR | RF_NO_SHADOW | RF_NO_LIGHTING;
     // this only works for TOPLEFT/TOPRIGHT anchored sprites, but that's all we have for now
-    entity.origin = (VECTOR3){x+center.x, y/*+mdx->bounds.box.min.y*/, 0};
+    entity.origin = (VECTOR3){x+center.x, 1.2-y+mdx->bounds.box.min.y, 0};
     // entity.origin = (VECTOR3){x+mdx->bounds.box.min.x, y-center.y, 0};
-    printf("%f\n", y);
+    // printf("%f\n", y);
 
     RECT screen = R_UISceneRect();
     Matrix4_ortho(&viewdef.viewProjectionMatrix, screen.x, screen.x + screen.w, screen.y, screen.y + screen.h, 0.0f, 100.0f);
     Matrix4_scale(&viewdef.viewProjectionMatrix, &(VECTOR3){1, 1, 0});
-
-    tr.viewDef = viewdef;
-
-    R_RenderShadowMap();
-    R_RenderView();
-}
-
-static bool 
-R_GetModelCameraMatrix(mdxModel_t const *model, float aspect, LPMATRIX4 output, LPVECTOR3 root) 
-{
-    if (!model || !model->cameras) {
-        return false;
-    }
-
-    mdxCamera_t const *camera = model->cameras;
-    MATRIX4 projection, view;
-    VECTOR3 dir = Vector3_sub(&camera->targetPivot, &camera->pivot);
-    float fov_deg = camera->fieldOfView * (180.0f / (float)M_PI);
-    float near_clip = camera->nearClip;
-    float far_clip = camera->farClip;
-
-    if (!isfinite(fov_deg) || fov_deg <= 1.0f || fov_deg >= 179.0f) {
-        fov_deg = 35.0f;
-    }
-    if (!isfinite(near_clip) || near_clip < 0.01f) {
-        near_clip = 1.0f;
-    }
-    if (!isfinite(far_clip) || far_clip <= near_clip + 1.0f) {
-        far_clip = near_clip + 5000.0f;
-    }
-    if (!isfinite(aspect) || aspect <= 0.0f) {
-        aspect = 1.0f;
-    }
-    if (Vector3_len(&dir) < 0.001f) {
-        return false;
-    }
-
-    Matrix4_perspective(&projection, fov_deg, aspect, near_clip, far_clip);
-    Matrix4_lookAt(&view, &camera->pivot, &dir, &(VECTOR3){0,0,1});
-    Matrix4_multiply(&projection, &view, output);
-    *root = camera->targetPivot;
-    return true;
-}
-
-void R_DrawPortrait(LPCMODEL model, LPCRECT viewport, LPCSTR anim) {
-    VECTOR3 root;
-    VECTOR3 lightAngles = { 10, 270, 0 };
-    renderEntity_t entity;
-    viewDef_t viewdef;
-    
-    if (!model || !model->mdx) {
-        return;
-    }
-    
-    mdxModel_t const *mdx = model->mdx;
-    mdxSequence_t const *seq = (anim && *anim) ? MDLX_FindSequenceByName(mdx, anim) : NULL;
-    float aspect = viewport->h > 0.0f ? viewport->w / viewport->h : 1.0f;
-
-    if (!seq && mdx->sequences && mdx->num_sequences > 0) {
-        seq = &mdx->sequences[0];
-    }
-
-    if (!R_InitUIModelView(model, &viewdef, &entity, seq)) {
-        return;
-    }
-
-    viewdef.viewport = *viewport;
-
-    if (!R_GetModelCameraMatrix(mdx, aspect, &viewdef.viewProjectionMatrix, &root)) {
-        return;
-    }
-
-    Matrix4_getLightMatrix(&lightAngles, &root, PORTRAIT_SHADOW_SIZE, &viewdef.lightMatrix);
-
-    R_Call(glActiveTexture, GL_TEXTURE2);
-    R_Call(glBindTexture, GL_TEXTURE_2D, tr.texture[TEX_WHITE]->texid);
-    R_Call(glActiveTexture, GL_TEXTURE0);
 
     tr.viewDef = viewdef;
 

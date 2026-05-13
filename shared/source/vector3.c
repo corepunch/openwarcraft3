@@ -98,6 +98,24 @@ VECTOR3 Vector3_scale(LPCVECTOR3 v, float s) {
     };
 }
 
+VECTOR3 Vector3_rotateAroundAxis(LPCVECTOR3 v, LPCVECTOR3 axis, float radians) {
+    VECTOR3 n = *axis;
+    float c = cosf(radians);
+    float s = sinf(radians);
+    float d;
+    VECTOR3 cross;
+
+    Vector3_normalize(&n);
+    d = Vector3_dot(&n, v);
+    cross = Vector3_cross(&n, v);
+
+    return (VECTOR3) {
+        v->x * c + cross.x * s + n.x * d * (1.0f - c),
+        v->y * c + cross.y * s + n.y * d * (1.0f - c),
+        v->z * c + cross.z * s + n.z * d * (1.0f - c),
+    };
+}
+
 void Vector3_normalize(LPVECTOR3 v) {
     *v = Vector3_scale(v, 1 / Vector3_len(v));
 }
