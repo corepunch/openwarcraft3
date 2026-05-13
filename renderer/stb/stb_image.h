@@ -3972,8 +3972,12 @@ static stbi_uc *load_jpeg_image(stbi__jpeg *z, int *out_x, int *out_y, int *comp
                      out[2] = stbi__blinn_8x8(255 - out[2], m);
                      out += n;
                   }
-               } else { // YCbCr + alpha?  Ignore the fourth channel for now
+               } else { // YCbCr + alpha
                   z->YCbCr_to_RGB_kernel(out, y, coutput[1], coutput[2], z->s->img_x, n);
+                  if (n == 4) {
+                     for (i=0; i < z->s->img_x; ++i)
+                        output[n * z->s->img_x * j + i * n + 3] = coutput[3][i];
+                  }
                }
             } else
                for (i=0; i < z->s->img_x; ++i) {

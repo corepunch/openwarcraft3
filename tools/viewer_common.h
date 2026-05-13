@@ -17,20 +17,20 @@ typedef struct viewer_orbit_s {
     bool reverse_drag;
 } viewer_orbit_t;
 
-HANDLE Viewer_AddArchive(HANDLE *archives, size_t count, LPCSTR filename);
-HANDLE Viewer_OpenFile(HANDLE const *archives, size_t count, LPCSTR fileName);
-void Viewer_CloseFile(HANDLE file);
-bool Viewer_ExtractFile(HANDLE const *archives, size_t count, LPCSTR toExtract, LPCSTR extracted);
-bool Viewer_FileExists(HANDLE const *archives, size_t count, LPCSTR fileName);
-void Viewer_CloseArchives(HANDLE *archives, size_t count);
+static inline HANDLE Viewer_AddArchive(HANDLE *archives, size_t count, LPCSTR filename);
+static inline HANDLE Viewer_OpenFile(HANDLE const *archives, size_t count, LPCSTR fileName);
+static inline void Viewer_CloseFile(HANDLE file);
+static inline bool Viewer_ExtractFile(HANDLE const *archives, size_t count, LPCSTR toExtract, LPCSTR extracted);
+static inline bool Viewer_FileExists(HANDLE const *archives, size_t count, LPCSTR fileName);
+static inline void Viewer_CloseArchives(HANDLE *archives, size_t count);
 
-HANDLE Viewer_MemAlloc(long size);
-void Viewer_MemFree(HANDLE mem);
+static inline HANDLE Viewer_MemAlloc(long size);
+static inline void Viewer_MemFree(HANDLE mem);
 
-bool Viewer_OrbitHandleEvent(viewer_orbit_t *orbit, SDL_Event const *event);
-void Viewer_OrbitInit(viewer_orbit_t *orbit, VECTOR3 target, float distance, float yaw_deg, float pitch_deg);
-void Viewer_OrbitBuildCamera(viewer_orbit_t const *orbit, float aspect, float fov, float znear, float zfar, LPMATRIX4 output);
-void Viewer_OrbitBuildLight(viewer_orbit_t const *orbit, LPCVECTOR3 sunangles, float scale, LPMATRIX4 output);
+static inline bool Viewer_OrbitHandleEvent(viewer_orbit_t *orbit, SDL_Event const *event);
+static inline void Viewer_OrbitInit(viewer_orbit_t *orbit, VECTOR3 target, float distance, float yaw_deg, float pitch_deg);
+static inline void Viewer_OrbitBuildCamera(viewer_orbit_t const *orbit, float aspect, float fov, float znear, float zfar, LPMATRIX4 output);
+static inline void Viewer_OrbitBuildLight(viewer_orbit_t const *orbit, LPCVECTOR3 sunangles, float scale, LPMATRIX4 output);
 
 #include "../common/parser.c"
 #include "../common/sheet.c"
@@ -49,12 +49,12 @@ static VECTOR3 Viewer_OrbitEye(viewer_orbit_t const *orbit) {
     };
 }
 
-static void Viewer_OrbitClamp(viewer_orbit_t *orbit) {
+static inline void Viewer_OrbitClamp(viewer_orbit_t *orbit) {
     orbit->pitch_deg = MAX(-89.0f, MIN(89.0f, orbit->pitch_deg));
     orbit->distance = MAX(40.0f, MIN(20000.0f, orbit->distance));
 }
 
-bool Viewer_OrbitHandleEvent(viewer_orbit_t *orbit, SDL_Event const *event) {
+static inline bool Viewer_OrbitHandleEvent(viewer_orbit_t *orbit, SDL_Event const *event) {
     switch (event->type) {
         case SDL_MOUSEBUTTONDOWN:
             if (event->button.button == SDL_BUTTON_LEFT) {
@@ -89,7 +89,7 @@ bool Viewer_OrbitHandleEvent(viewer_orbit_t *orbit, SDL_Event const *event) {
     return false;
 }
 
-void Viewer_OrbitInit(viewer_orbit_t *orbit, VECTOR3 target, float distance, float yaw_deg, float pitch_deg) {
+static inline void Viewer_OrbitInit(viewer_orbit_t *orbit, VECTOR3 target, float distance, float yaw_deg, float pitch_deg) {
     *orbit = (viewer_orbit_t) {
         .target = target,
         .yaw_deg = yaw_deg,
@@ -101,7 +101,7 @@ void Viewer_OrbitInit(viewer_orbit_t *orbit, VECTOR3 target, float distance, flo
     Viewer_OrbitClamp(orbit);
 }
 
-void Viewer_OrbitBuildCamera(viewer_orbit_t const *orbit, float aspect, float fov, float znear, float zfar, LPMATRIX4 output) {
+static inline void Viewer_OrbitBuildCamera(viewer_orbit_t const *orbit, float aspect, float fov, float znear, float zfar, LPMATRIX4 output) {
     MATRIX4 proj, view;
     VECTOR3 eye = Viewer_OrbitEye(orbit);
     VECTOR3 dir = Vector3_sub(&orbit->target, &eye);
@@ -110,7 +110,7 @@ void Viewer_OrbitBuildCamera(viewer_orbit_t const *orbit, float aspect, float fo
     Matrix4_multiply(&proj, &view, output);
 }
 
-void Viewer_OrbitBuildLight(viewer_orbit_t const *orbit, LPCVECTOR3 sunangles, float scale, LPMATRIX4 output) {
+static inline void Viewer_OrbitBuildLight(viewer_orbit_t const *orbit, LPCVECTOR3 sunangles, float scale, LPMATRIX4 output) {
     MATRIX4 proj, view;
     VECTOR3 eye = Viewer_OrbitEye(orbit);
     VECTOR3 dir = Vector3_sub(&orbit->target, &eye);
@@ -120,35 +120,35 @@ void Viewer_OrbitBuildLight(viewer_orbit_t const *orbit, LPCVECTOR3 sunangles, f
     (void)sunangles;
 }
 
-HANDLE Viewer_AddArchive(HANDLE *archives, size_t count, LPCSTR filename) {
+static inline HANDLE Viewer_AddArchive(HANDLE *archives, size_t count, LPCSTR filename) {
     return Tool_AddArchive(archives, count, filename);
 }
 
-HANDLE Viewer_OpenFile(HANDLE const *archives, size_t count, LPCSTR fileName) {
+static inline HANDLE Viewer_OpenFile(HANDLE const *archives, size_t count, LPCSTR fileName) {
     return Tool_OpenFile(archives, count, fileName);
 }
 
-void Viewer_CloseFile(HANDLE file) {
+static inline void Viewer_CloseFile(HANDLE file) {
     Tool_CloseFile(file);
 }
 
-bool Viewer_ExtractFile(HANDLE const *archives, size_t count, LPCSTR toExtract, LPCSTR extracted) {
+static inline bool Viewer_ExtractFile(HANDLE const *archives, size_t count, LPCSTR toExtract, LPCSTR extracted) {
     return Tool_ExtractFile(archives, count, toExtract, extracted);
 }
 
-bool Viewer_FileExists(HANDLE const *archives, size_t count, LPCSTR fileName) {
+static inline bool Viewer_FileExists(HANDLE const *archives, size_t count, LPCSTR fileName) {
     return Tool_FileExists(archives, count, fileName);
 }
 
-void Viewer_CloseArchives(HANDLE *archives, size_t count) {
+static inline void Viewer_CloseArchives(HANDLE *archives, size_t count) {
     Tool_CloseArchives(archives, count);
 }
 
-HANDLE Viewer_MemAlloc(long size) {
+static inline HANDLE Viewer_MemAlloc(long size) {
     return Tool_MemAlloc(size);
 }
 
-void Viewer_MemFree(HANDLE mem) {
+static inline void Viewer_MemFree(HANDLE mem) {
     Tool_MemFree(mem);
 }
 

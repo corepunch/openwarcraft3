@@ -207,9 +207,9 @@ LPCOLOR32 blp1_convert_jpeg(BYTE* pSrc, struct tBLP1Infos* pInfos, DWORD dataSiz
     LPCOLOR32 pBuffer = ri.MemAlloc(sizeof(COLOR32) * width * height);
 
     for (DWORD p = 0; p < (DWORD)(width * height); ++p) {
-        pBuffer[p].r = image[p * 4 + 0];
-        pBuffer[p].g = image[p * 4 + 1];
-        pBuffer[p].b = image[p * 4 + 2];
+        pBuffer[p].r = image[p * 4 + 2];
+        pBuffer[p].g = image[p * 4 + 0];
+        pBuffer[p].b = 255-image[p * 4 + 1];
         pBuffer[p].a = image[p * 4 + 3];
     }
 
