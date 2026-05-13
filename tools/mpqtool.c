@@ -30,11 +30,13 @@ static void usage(void) {
     "  mpqtool -mpq <archive.mpq> create [max-files]\n"
     "  mpqtool -mpq <archive.mpq> pack <src> <archive-file> [<src> <archive-file> ...]\n"
         "\n"
+        "Notes:\n"
+        "  pack always creates a new archive, overwriting any existing file at the target path.\n"
+        "\n"
         "Examples:\n"
         "  mpqtool -mpq War3.mpq ls\n"
         "  mpqtool -mpq War3.mpq ls Units\n"
         "  mpqtool -mpq War3.mpq cat Units/UnitData.slk\n"
-    "  mpqtool -mpq tests.mpq create 32\n"
     "  mpqtool -mpq tests.mpq pack ./basic.fdf TestUI/Frames/basic.fdf ./checker.blp TestUI/Textures/checker.blp\n"
     "  mpqtool -mpq War3.mpq imginfo UI/Widgets/Glues/GlueScreen-Button1-Border.blp\n");
 }

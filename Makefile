@@ -298,7 +298,6 @@ test-assets: blpgen mdxgen mpqtool | $(TESTS_DIR)
 	$(MDX_GEN_TOOL) panel_sprite  TestUI/Textures/solid_white.blp        $(TESTS_RES_DIR)/TestUI/Models/panel_sprite.mdx
 	$(MDX_GEN_TOOL) anim_pulse    TestUI/Textures/alpha_ring_16x16.blp   $(TESTS_RES_DIR)/TestUI/Models/anim_pulse.mdx
 	@echo "[test-assets] packing tests.mpq"
-	$(MPQ_TOOL) -mpq $(TESTS_MPQ) create 64
 	$(MPQ_TOOL) -mpq $(TESTS_MPQ) pack \
 		$(TESTS_RES_DIR)/TestUI/Textures/solid_white.blp        TestUI/Textures/solid_white.blp \
 		$(TESTS_RES_DIR)/TestUI/Textures/checker_8x8.blp        TestUI/Textures/checker_8x8.blp \
