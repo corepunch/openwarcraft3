@@ -19,20 +19,20 @@ RECT R_UISceneRect(void) {
 
 void R_PrintSysText(LPCSTR string, DWORD x, DWORD y, COLOR32 color) {
     static VERTEX simp[256 * 6];
+    size2_t window = R_GetWindowSize();
     LPVERTEX it = simp;
     for (LPCSTR s = string; *s; s++) {
         DWORD ch = *s;
         float fx = ch % 16;
         float fy = ch / 16;
         it = R_AddQuad(it, &(RECT ) {
-            x + 10 * (s - string), y, 8, 16
+            x + 10 * (s - string), window.height - y - 16, 8, 16
         }, &(RECT ) {
-            fx/16,fy/8,1.f/16,1.f/8
+            fx/16,fy/8+1.f/8,1.f/16,-1.f/8
         }, color, 0);
     }
     
     DWORD num_vertices = (DWORD)(it - simp);
-    size2_t window = R_GetWindowSize();
     MATRIX4 ui_matrix;
     Matrix4_ortho(&ui_matrix, 0.0f, window.width, 0.0f, window.height, 0.0f, 100.0f);
     

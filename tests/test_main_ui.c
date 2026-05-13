@@ -14,6 +14,7 @@ int _tests_failed = 0;
 void run_ui_fdf_tests(void);
 void run_ui_serialize_tests(void);
 void run_ui_layout_tests(void);
+void run_ui_logo_layout_tests(void);
 void run_ui_e2e_tests(void);
 void run_ui_oracle_tests(void);
 void run_tool_common_tests(void);
@@ -31,6 +32,10 @@ int main(void) {
 
     printf("[UI layout solver]\n");
     run_ui_layout_tests();
+    printf("\n");
+
+    printf("[UI logo layout]\n");
+    run_ui_logo_layout_tests();
     printf("\n");
 
     printf("[UI end-to-end server->client]\n");

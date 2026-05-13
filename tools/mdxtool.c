@@ -1278,17 +1278,49 @@ int main(int argc, char **argv) {
     size2_t window = re.GetWindowSize();
     float const aspect = window.height ? (float)window.width / (float)window.height : 1.0f;
     VECTOR3 orbit_target = g_model_center;
-    float const orbit_distance = FitPreviewDistance(model->mdx, aspect, 35.0f) * g_preview_scale;
-        fprintf(stderr,
-            "mdxtool: preview mode=%s aspect=%.3f orbit_distance=%.3f\n",
-            g_use_model_camera ? "model-camera" : (g_use_front_ortho ? "front-ortho" : "orbit"),
-            aspect,
-            orbit_distance);
+#ifdef MDXTOOL_USE_OVERLAY_ORBIT_DISTANCE
+    float orbit_distance = g_overlay.orbit_distance;
+    if (orbit_distance < 1.0f) {
+        orbit_distance = FitPreviewDistance(model->mdx, aspect, 35.0f) * g_preview_scale;
+        g_overlay.orbit_distance = orbit_distance;
+    }
+#else
+    float orbit_distance = FitPreviewDistance(model->mdx, aspect, 35.0f) * g_preview_scale;
     g_overlay.orbit_distance = orbit_distance;
+#endif
+    fprintf(stderr,
+        "mdxtool: preview mode=%s aspect=%.3f orbit_distance=%.3f\n",
+        g_use_model_camera ? "model-camera" : (g_use_front_ortho ? "front-ortho" : "orbit"),
+        aspect,
+        orbit_distance);
     Viewer_OrbitInit(&orbit, orbit_target, orbit_distance, -45.0f, 20.0f);
     orbit.reverse_drag = true;
 
     if (g_dump_all) {
+        // Print high-level summary info
+        fprintf(stderr, "mdxtool --dump-all: model=%s\n", modelPath);
+        fprintf(stderr, "  version: %u\n", model->mdx->version);
+        fprintf(stderr, "  bounds: min=(%.3f %.3f %.3f) max=(%.3f %.3f %.3f) size=(%.3f %.3f %.3f) center=(%.3f %.3f %.3f) radius=%.3f\n",
+            model->mdx->bounds.box.min.x, model->mdx->bounds.box.min.y, model->mdx->bounds.box.min.z,
+            model->mdx->bounds.box.max.x, model->mdx->bounds.box.max.y, model->mdx->bounds.box.max.z,
+            fabsf(model->mdx->bounds.box.max.x - model->mdx->bounds.box.min.x),
+            fabsf(model->mdx->bounds.box.max.y - model->mdx->bounds.box.min.y),
+            fabsf(model->mdx->bounds.box.max.z - model->mdx->bounds.box.min.z),
+            g_model_center.x, g_model_center.y, g_model_center.z,
+            model->mdx->bounds.radius);
+        fprintf(stderr, "  preview_scale: %.3f\n", g_preview_scale);
+        fprintf(stderr, "  orbit_distance: %.3f\n", g_overlay.orbit_distance);
+        fprintf(stderr, "  sequences: %u\n", g_overlay.num_sequences);
+        fprintf(stderr, "  textures: %u\n", g_overlay.num_textures);
+        fprintf(stderr, "  geosets: %u\n", g_overlay.num_geosets);
+        fprintf(stderr, "  lights: %u\n", g_overlay.num_lights);
+        fprintf(stderr, "  emitters: %u\n", g_overlay.num_emitters);
+        fprintf(stderr, "  attachments: %u\n", g_overlay.num_attachments);
+        fprintf(stderr, "  helpers: %u\n", g_overlay.num_helpers);
+        fprintf(stderr, "  bones: %u\n", g_overlay.num_bones);
+        fprintf(stderr, "  collision_shapes: %u\n", g_overlay.num_collision_shapes);
+        fprintf(stderr, "  cameras: %u\n", g_overlay.num_cameras);
+        fprintf(stderr, "  pivots: %u\n", g_overlay.num_pivots);
         mdxSequence_t const *seq = PickSequence(model->mdx);
         DWORD sample_frame = 0;
         if (seq && seq->interval[1] > seq->interval[0]) {

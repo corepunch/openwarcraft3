@@ -6,31 +6,33 @@
 #include <stdlib.h>
 #include <string.h>
 
-HANDLE Tool_AddArchive(HANDLE *archives, size_t count, LPCSTR filename);
-HANDLE Tool_OpenFile(HANDLE const *archives, size_t count, LPCSTR fileName);
-void Tool_CloseFile(HANDLE file);
-bool Tool_ExtractFile(HANDLE const *archives, size_t count, LPCSTR toExtract, LPCSTR extracted);
-bool Tool_FileExists(HANDLE const *archives, size_t count, LPCSTR fileName);
-void Tool_CloseArchives(HANDLE *archives, size_t count);
+#ifndef TOOL_COMMON_NO_MPQ
+static inline HANDLE Tool_AddArchive(HANDLE *archives, size_t count, LPCSTR filename);
+static inline HANDLE Tool_OpenFile(HANDLE const *archives, size_t count, LPCSTR fileName);
+static inline void Tool_CloseFile(HANDLE file);
+static inline bool Tool_ExtractFile(HANDLE const *archives, size_t count, LPCSTR toExtract, LPCSTR extracted);
+static inline bool Tool_FileExists(HANDLE const *archives, size_t count, LPCSTR fileName);
+static inline void Tool_CloseArchives(HANDLE *archives, size_t count);
+#endif
 
-HANDLE Tool_MemAlloc(long size);
-void Tool_MemFree(HANDLE mem);
+static inline HANDLE Tool_MemAlloc(long size);
+static inline void Tool_MemFree(HANDLE mem);
 void *Tool_XMalloc(size_t size);
 void *Tool_XRealloc(void *ptr, size_t size);
-char *Tool_XStrdup(const char *s);
+static inline char *Tool_XStrdup(const char *s);
 
-void Tool_NormalizeSlashes(char *path, char slash);
-void Tool_TrimEdgeSlashes(char *path);
-char *Tool_PathJoin(const char *base, const char *name);
-char *Tool_PathParent(const char *path);
-const char *Tool_PathBasename(const char *path);
-const char *Tool_PathExt(const char *path);
+static inline void Tool_NormalizeSlashes(char *path, char slash);
+static inline void Tool_TrimEdgeSlashes(char *path);
+static inline char *Tool_PathJoin(const char *base, const char *name);
+static inline char *Tool_PathParent(const char *path);
+static inline const char *Tool_PathBasename(const char *path);
+static inline const char *Tool_PathExt(const char *path);
 
 #ifndef TOOL_COMMON_NO_MPQ
 #include "../common/mpq.h"
 #include "../common/mpq.c"
 
-HANDLE Tool_AddArchive(HANDLE *archives, size_t count, LPCSTR filename) {
+static inline HANDLE Tool_AddArchive(HANDLE *archives, size_t count, LPCSTR filename) {
     for (size_t i = 0; i < count; i++) {
         if (archives[i]) {
             continue;
@@ -45,7 +47,7 @@ HANDLE Tool_AddArchive(HANDLE *archives, size_t count, LPCSTR filename) {
     return NULL;
 }
 
-HANDLE Tool_OpenFile(HANDLE const *archives, size_t count, LPCSTR fileName) {
+static inline HANDLE Tool_OpenFile(HANDLE const *archives, size_t count, LPCSTR fileName) {
     if (!fileName || !*fileName) {
         return NULL;
     }
@@ -58,13 +60,13 @@ HANDLE Tool_OpenFile(HANDLE const *archives, size_t count, LPCSTR fileName) {
     return NULL;
 }
 
-void Tool_CloseFile(HANDLE file) {
+static inline void Tool_CloseFile(HANDLE file) {
     if (file) {
         SFileCloseFile(file);
     }
 }
 
-bool Tool_ExtractFile(HANDLE const *archives, size_t count, LPCSTR toExtract, LPCSTR extracted) {
+static inline bool Tool_ExtractFile(HANDLE const *archives, size_t count, LPCSTR toExtract, LPCSTR extracted) {
     for (size_t i = 0; i < count; i++) {
         if (archives[i] && SFileExtractFile(archives[i], toExtract, extracted, 0)) {
             return true;
@@ -73,7 +75,7 @@ bool Tool_ExtractFile(HANDLE const *archives, size_t count, LPCSTR toExtract, LP
     return false;
 }
 
-bool Tool_FileExists(HANDLE const *archives, size_t count, LPCSTR fileName) {
+static inline bool Tool_FileExists(HANDLE const *archives, size_t count, LPCSTR fileName) {
     HANDLE file = Tool_OpenFile(archives, count, fileName);
     if (!file) {
         return false;
@@ -82,7 +84,7 @@ bool Tool_FileExists(HANDLE const *archives, size_t count, LPCSTR fileName) {
     return true;
 }
 
-void Tool_CloseArchives(HANDLE *archives, size_t count) {
+static inline void Tool_CloseArchives(HANDLE *archives, size_t count) {
     for (size_t i = 0; i < count; i++) {
         if (archives[i]) {
             SFileCloseArchive(archives[i]);
@@ -92,7 +94,7 @@ void Tool_CloseArchives(HANDLE *archives, size_t count) {
 }
 #endif
 
-HANDLE Tool_MemAlloc(long size) {
+static inline HANDLE Tool_MemAlloc(long size) {
     void *mem = calloc(1, (size_t)size);
     if (!mem) {
         fprintf(stderr, "Out of memory allocating %ld bytes\n", size);
@@ -101,7 +103,7 @@ HANDLE Tool_MemAlloc(long size) {
     return mem;
 }
 
-void Tool_MemFree(HANDLE mem) {
+static inline void Tool_MemFree(HANDLE mem) {
     free(mem);
 }
 
@@ -123,7 +125,7 @@ void *Tool_XRealloc(void *ptr, size_t size) {
     return next;
 }
 
-char *Tool_XStrdup(const char *s) {
+static inline char *Tool_XStrdup(const char *s) {
     size_t len = s ? strlen(s) : 0;
     char *copy = Tool_XMalloc(len + 1);
     if (len) {
@@ -133,7 +135,7 @@ char *Tool_XStrdup(const char *s) {
     return copy;
 }
 
-void Tool_NormalizeSlashes(char *path, char slash) {
+static inline void Tool_NormalizeSlashes(char *path, char slash) {
     if (!path) {
         return;
     }
@@ -144,7 +146,7 @@ void Tool_NormalizeSlashes(char *path, char slash) {
     }
 }
 
-void Tool_TrimEdgeSlashes(char *path) {
+static inline void Tool_TrimEdgeSlashes(char *path) {
     size_t len;
 
     if (!path) {
@@ -160,7 +162,7 @@ void Tool_TrimEdgeSlashes(char *path) {
     }
 }
 
-char *Tool_PathJoin(const char *base, const char *name) {
+static inline char *Tool_PathJoin(const char *base, const char *name) {
     size_t base_len = base ? strlen(base) : 0;
     size_t name_len = name ? strlen(name) : 0;
     bool need_slash = base_len > 0 && name_len > 0;
@@ -176,7 +178,7 @@ char *Tool_PathJoin(const char *base, const char *name) {
     return out;
 }
 
-char *Tool_PathParent(const char *path) {
+static inline char *Tool_PathParent(const char *path) {
     char *copy = Tool_XStrdup(path ? path : "");
     char *slash;
 
@@ -190,7 +192,7 @@ char *Tool_PathParent(const char *path) {
     return copy;
 }
 
-const char *Tool_PathBasename(const char *path) {
+static inline const char *Tool_PathBasename(const char *path) {
     const char *slash;
     const char *back;
     const char *base;
@@ -208,7 +210,7 @@ const char *Tool_PathBasename(const char *path) {
     return base ? base + 1 : path;
 }
 
-const char *Tool_PathExt(const char *path) {
+static inline const char *Tool_PathExt(const char *path) {
     const char *base = Tool_PathBasename(path);
     const char *dot = strrchr(base, '.');
     return dot ? dot + 1 : "";
