@@ -26,7 +26,7 @@ ifeq ($(OS),Windows_NT)
     INSTALL_NAME =
     RPATH     :=
     LDFLAGS   := -L$(LIB_DIR)
-	LIBS      := -lSDL2main -lSDL2 -ljpeg -lm -lopengl32 -lgdi32
+	LIBS      := -lSDL2main -lSDL2 -lm -lopengl32 -lgdi32
 else
     UNAME_S := $(shell uname -s)
     EXE_EXT :=
@@ -37,7 +37,6 @@ else
         else
             HOMEBREW_PREFIX := /usr/local
         endif
-				JPEG_PREFIX := $(shell brew --prefix jpeg 2>/dev/null)
         LIB_EXT   := .dylib
         LIB_FLAGS := -dynamiclib
         # Set the dylib install name to @rpath/<libname> so the executable
@@ -46,11 +45,7 @@ else
         RPATH     := -Wl,-rpath,@executable_path/../lib
 		CFLAGS    += -DGL_SILENCE_DEPRECATION -I$(HOMEBREW_PREFIX)/include -arch $(ARCH)
 		LDFLAGS   := -L$(LIB_DIR) -L$(HOMEBREW_PREFIX)/lib -arch $(ARCH)
-		ifneq ($(JPEG_PREFIX),)
-			CFLAGS  += -I$(JPEG_PREFIX)/include
-			LDFLAGS += -L$(JPEG_PREFIX)/lib
-		endif
-		LIBS      := -lSDL2 -ljpeg -framework AppKit -framework OpenGL
+		LIBS      := -lSDL2 -framework AppKit -framework OpenGL
     else
         # Linux
         LIB_EXT   := .so
@@ -59,7 +54,7 @@ else
         RPATH     := -Wl,-rpath,'$$ORIGIN/../lib'
         CFLAGS    += -fPIC
         LDFLAGS   := -L$(LIB_DIR) -Wl,-z,defs
-		LIBS      := -lSDL2 -ljpeg -lEGL -lGL -lm
+		LIBS      := -lSDL2 -lEGL -lGL -lm
     endif
 endif
 
@@ -122,10 +117,7 @@ $(SHARED_LIB): $(shell find shared -name '*.c') | $(LIB_DIR)
 # renderer — depends on shared
 $(RENDERER_LIB): $(SHARED_LIB) $(shell find renderer -name '*.c') | $(LIB_DIR)
 	@echo "[renderer]"
-	@(echo '#define STB_TRUETYPE_IMPLEMENTATION'; \
-	  echo '#include "renderer/stb/stb_truetype.h"'; \
-	  echo '#undef STB_TRUETYPE_IMPLEMENTATION'; \
-	  $(call UNITY,renderer,! -path '*/stb/*.c')) | \
+	@$(call UNITY,renderer) | \
 		$(CC) $(CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - common/mpq.c $(LDFLAGS) -lshared $(LIBS) -lz
 
 # game — depends on shared

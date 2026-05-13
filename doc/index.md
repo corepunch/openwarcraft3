@@ -29,18 +29,18 @@ cd openwarcraft3
 
 ### 2. Install Dependencies
 
-The build requires **SDL2** and **libjpeg**. MPQ reading is handled by the in-tree `common/mpq.c` implementation.
+The build requires **SDL2**. MPQ reading is handled by the in-tree `common/mpq.c` implementation, and JPEG texture decoding uses the in-tree `renderer/stb/stb_image.h`.
 
 **macOS** (via [Homebrew](https://brew.sh/)):
 
 ```bash
-brew install sdl2 libjpeg
+brew install sdl2
 ```
 
 **Linux** (Ubuntu/Debian):
 
 ```bash
-sudo apt-get install libsdl2-dev libjpeg-dev
+sudo apt-get install libsdl2-dev
 ```
 
 ### 3. Build
@@ -103,7 +103,7 @@ See the [Network Architecture](architecture/network.md) page for the full design
 The project builds three shared libraries and one executable:
 
 1. **libshared** (`shared/`) — mathematics (vectors, matrices, quaternions, geometric primitives); no external dependencies
-2. **librenderer** (`renderer/`) — OpenGL rendering engine; depends on `libshared`, SDL2, libjpeg
+2. **librenderer** (`renderer/`) — OpenGL rendering engine; depends on `libshared`, SDL2
 3. **libgame** (`game/`) — server-side game logic; depends on `libshared`
 4. **openwarcraft3** — main executable linking all three libraries plus SDL2
 
@@ -113,7 +113,7 @@ The build is driven by a `Makefile` for Linux/macOS. Run `make test` to execute 
 
 - **MPQ layer** (`common/mpq.c`): in-tree Warcraft III MPQ reader; no StormLib dependency at build or run time. `mpqtool` CLI exposes `ls` and `cat` for archive inspection.
 - **SDL2**: windowing, input, and OpenGL context
-- **libjpeg**: JPEG texture decoding
+- **stb_image**: in-tree JPEG texture decoding
 - **OpenGL**: 3D rendering (system-provided)
 
 ## Current Status

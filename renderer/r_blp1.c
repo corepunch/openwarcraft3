@@ -1,8 +1,9 @@
 #include "r_local.h"
 #include "r_blp.h"
 
-#include <jpeglib.h>
-#include <jerror.h>
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb/stb_image.h"
+#undef STB_IMAGE_IMPLEMENTATION
 
 // Opaque type representing a BLP file
 typedef void* tBLPInfos;
@@ -180,63 +181,39 @@ LPTEXTURE R_LoadTextureBLP1(HANDLE data, DWORD filesize) {
     return pTexture;
 }
 
-struct jpeg_imageinfo {
-    int width;
-    int height;
-    int channels;
-    DWORD size;
-    int num_components;
-    BYTE *data;
-};
-
-static struct jpeg_imageinfo
-jpeg_readimage(HANDLE buf, DWORD size) {
-    struct jpeg_decompress_struct cinfo;
-    struct jpeg_error_mgr jerr;
-    cinfo.err = jpeg_std_error(&jerr);
-    jpeg_create_decompress(&cinfo);
-    jpeg_mem_src(&cinfo, buf, size);
-    jpeg_read_header(&cinfo, true);
-//    cinfo.out_color_space = JCS_YCCK;
-    jpeg_start_decompress(&cinfo);
-    struct jpeg_imageinfo image = (struct jpeg_imageinfo) {
-        .width = cinfo.output_width,
-        .height = cinfo.output_height,
-        .channels = cinfo.num_components,
-        .size = cinfo.output_width * cinfo.output_height * cinfo.num_components,
-        .num_components = cinfo.num_components,
-        .data = ri.MemAlloc(cinfo.output_width * cinfo.output_height * cinfo.num_components),
-    };
-    BYTE* p1 = image.data;
-    BYTE** p2 = &p1;
-    while (cinfo.output_scanline < image.height) {
-        unsigned long const numlines = jpeg_read_scanlines(&cinfo, p2, 1);
-        *p2 += numlines * image.channels * image.width;
-    }
-    jpeg_finish_decompress(&cinfo);
-    jpeg_destroy_decompress(&cinfo);
-    return image;
-}
-
 LPCOLOR32 blp1_convert_jpeg(BYTE* pSrc, struct tBLP1Infos* pInfos, DWORD dataSize) {
     BYTE* pSrcBuffer = ri.MemAlloc(pInfos->jpeg.headerSize + dataSize);
 
-    memcpy(pSrcBuffer, pInfos->jpeg.header, pInfos->jpeg.headerSize);
+    if (pInfos->jpeg.headerSize > 0) {
+        memcpy(pSrcBuffer, pInfos->jpeg.header, pInfos->jpeg.headerSize);
+    }
     memcpy(pSrcBuffer + pInfos->jpeg.headerSize, pSrc, dataSize);
 
-    struct jpeg_imageinfo const image = jpeg_readimage(pSrcBuffer, pInfos->jpeg.headerSize + dataSize);
+    int width;
+    int height;
+    BYTE* image = stbi_load_from_memory(
+        pSrcBuffer,
+        (int)(pInfos->jpeg.headerSize + dataSize),
+        &width,
+        &height,
+        NULL,
+        STBI_rgb_alpha);
 
-    LPCOLOR32 pBuffer = ri.MemAlloc(sizeof (COLOR32) * image.width * image.height);
-
-    for (DWORD p = 0; p < image.width * image.height; ++p){
-        LPCCOLOR32 c = (LPCCOLOR32)&image.data[p * image.num_components];
-        pBuffer[p] = *c;
-        if (image.num_components != 4) {
-            pBuffer[p].a = 0xff;
-        }
+    if (!image) {
+        ri.MemFree(pSrcBuffer);
+        return NULL;
     }
 
-    ri.MemFree(image.data);
+    LPCOLOR32 pBuffer = ri.MemAlloc(sizeof(COLOR32) * width * height);
+
+    for (DWORD p = 0; p < (DWORD)(width * height); ++p) {
+        pBuffer[p].r = image[p * 4 + 0];
+        pBuffer[p].g = image[p * 4 + 1];
+        pBuffer[p].b = image[p * 4 + 2];
+        pBuffer[p].a = image[p * 4 + 3];
+    }
+
+    stbi_image_free(image);
     ri.MemFree(pSrcBuffer);
 
     return pBuffer;
