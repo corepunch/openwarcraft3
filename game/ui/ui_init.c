@@ -202,7 +202,7 @@ static void UI_WriteMainMenuGlueBackground(void) {
     if (!center_model || !*center_model) {
         return;
     }
-    UI_InitFrame(&center, FT_SPRITE);
+    UI_InitFrame(&center, FT_PORTRAIT);
     strcpy(center.Name, "GlueSpriteLayerBackground");
     UI_SetAllPoints(&center);
     center.Portrait.model = gi.ModelIndex(center_model);
