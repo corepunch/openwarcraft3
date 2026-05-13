@@ -379,6 +379,289 @@ static void test_programmatic_setallpoints_sets_both_axes(void) {
     ASSERT_EQ_INT(frame.Points.y[FPP_MAX].used, 1);
 }
 
+/* --- SetPoint: coverage for each FRAMEPOINT position --- */
+
+static void test_setpoint_top_maps_mid_x_max_y(void) {
+    LPFRAMEDEF child;
+
+    reset_ui_state();
+    parse_fdf("setpoint_top.fdf",
+              "Frame \"FRAME\" \"Root\" {"
+              " Frame \"FRAME\" \"Child\" {"
+              "  SetPoint TOP, \"Root\", TOP, 0.03, -0.07,"
+              " }"
+              "}");
+
+    child = UI_FindFrame("Child");
+    if (!require_not_null(child)) return;
+
+    ASSERT_EQ_INT(child->Points.x[FPP_MID].used, 1);
+    ASSERT_EQ_INT(child->Points.x[FPP_MID].targetPos, FPP_MID);
+    ASSERT_FLOAT_EQ(child->Points.x[FPP_MID].offset, 0.03f);
+
+    ASSERT_EQ_INT(child->Points.y[FPP_MAX].used, 1);
+    ASSERT_EQ_INT(child->Points.y[FPP_MAX].targetPos, FPP_MAX);
+    ASSERT_FLOAT_EQ(child->Points.y[FPP_MAX].offset, -0.07f);
+}
+
+static void test_setpoint_topright_maps_max_x_max_y(void) {
+    LPFRAMEDEF child;
+
+    reset_ui_state();
+    parse_fdf("setpoint_topright.fdf",
+              "Frame \"FRAME\" \"Root\" {"
+              " Frame \"FRAME\" \"Child\" {"
+              "  SetPoint TOPRIGHT, \"Root\", TOPRIGHT, 0.05, -0.10,"
+              " }"
+              "}");
+
+    child = UI_FindFrame("Child");
+    if (!require_not_null(child)) return;
+
+    ASSERT_EQ_INT(child->Points.x[FPP_MAX].used, 1);
+    ASSERT_EQ_INT(child->Points.x[FPP_MAX].targetPos, FPP_MAX);
+    ASSERT_FLOAT_EQ(child->Points.x[FPP_MAX].offset, 0.05f);
+
+    ASSERT_EQ_INT(child->Points.y[FPP_MAX].used, 1);
+    ASSERT_EQ_INT(child->Points.y[FPP_MAX].targetPos, FPP_MAX);
+    ASSERT_FLOAT_EQ(child->Points.y[FPP_MAX].offset, -0.10f);
+}
+
+static void test_setpoint_left_maps_min_x_mid_y(void) {
+    LPFRAMEDEF child;
+
+    reset_ui_state();
+    parse_fdf("setpoint_left.fdf",
+              "Frame \"FRAME\" \"Root\" {"
+              " Frame \"FRAME\" \"Child\" {"
+              "  SetPoint LEFT, \"Root\", LEFT, 0.02, 0.04,"
+              " }"
+              "}");
+
+    child = UI_FindFrame("Child");
+    if (!require_not_null(child)) return;
+
+    ASSERT_EQ_INT(child->Points.x[FPP_MIN].used, 1);
+    ASSERT_EQ_INT(child->Points.x[FPP_MIN].targetPos, FPP_MIN);
+    ASSERT_FLOAT_EQ(child->Points.x[FPP_MIN].offset, 0.02f);
+
+    ASSERT_EQ_INT(child->Points.y[FPP_MID].used, 1);
+    ASSERT_EQ_INT(child->Points.y[FPP_MID].targetPos, FPP_MID);
+    ASSERT_FLOAT_EQ(child->Points.y[FPP_MID].offset, 0.04f);
+}
+
+static void test_setpoint_center_maps_mid_x_mid_y(void) {
+    LPFRAMEDEF child;
+
+    reset_ui_state();
+    parse_fdf("setpoint_center.fdf",
+              "Frame \"FRAME\" \"Root\" {"
+              " Frame \"FRAME\" \"Child\" {"
+              "  SetPoint CENTER, \"Root\", CENTER, 0.0, 0.0,"
+              " }"
+              "}");
+
+    child = UI_FindFrame("Child");
+    if (!require_not_null(child)) return;
+
+    ASSERT_EQ_INT(child->Points.x[FPP_MID].used, 1);
+    ASSERT_EQ_INT(child->Points.x[FPP_MID].targetPos, FPP_MID);
+    ASSERT_FLOAT_EQ(child->Points.x[FPP_MID].offset, 0.0f);
+
+    ASSERT_EQ_INT(child->Points.y[FPP_MID].used, 1);
+    ASSERT_EQ_INT(child->Points.y[FPP_MID].targetPos, FPP_MID);
+    ASSERT_FLOAT_EQ(child->Points.y[FPP_MID].offset, 0.0f);
+}
+
+static void test_setpoint_right_maps_max_x_mid_y(void) {
+    LPFRAMEDEF child;
+
+    reset_ui_state();
+    parse_fdf("setpoint_right.fdf",
+              "Frame \"FRAME\" \"Root\" {"
+              " Frame \"FRAME\" \"Child\" {"
+              "  SetPoint RIGHT, \"Root\", RIGHT, -0.06, 0.0,"
+              " }"
+              "}");
+
+    child = UI_FindFrame("Child");
+    if (!require_not_null(child)) return;
+
+    ASSERT_EQ_INT(child->Points.x[FPP_MAX].used, 1);
+    ASSERT_EQ_INT(child->Points.x[FPP_MAX].targetPos, FPP_MAX);
+    ASSERT_FLOAT_EQ(child->Points.x[FPP_MAX].offset, -0.06f);
+
+    ASSERT_EQ_INT(child->Points.y[FPP_MID].used, 1);
+    ASSERT_EQ_INT(child->Points.y[FPP_MID].targetPos, FPP_MID);
+    ASSERT_FLOAT_EQ(child->Points.y[FPP_MID].offset, 0.0f);
+}
+
+static void test_setpoint_bottomleft_maps_min_x_min_y(void) {
+    LPFRAMEDEF child;
+
+    reset_ui_state();
+    parse_fdf("setpoint_bottomleft.fdf",
+              "Frame \"FRAME\" \"Root\" {"
+              " Frame \"FRAME\" \"Child\" {"
+              "  SetPoint BOTTOMLEFT, \"Root\", BOTTOMLEFT, 0.01, 0.02,"
+              " }"
+              "}");
+
+    child = UI_FindFrame("Child");
+    if (!require_not_null(child)) return;
+
+    ASSERT_EQ_INT(child->Points.x[FPP_MIN].used, 1);
+    ASSERT_EQ_INT(child->Points.x[FPP_MIN].targetPos, FPP_MIN);
+    ASSERT_FLOAT_EQ(child->Points.x[FPP_MIN].offset, 0.01f);
+
+    ASSERT_EQ_INT(child->Points.y[FPP_MIN].used, 1);
+    ASSERT_EQ_INT(child->Points.y[FPP_MIN].targetPos, FPP_MIN);
+    ASSERT_FLOAT_EQ(child->Points.y[FPP_MIN].offset, 0.02f);
+}
+
+static void test_setpoint_bottom_maps_mid_x_min_y(void) {
+    LPFRAMEDEF child;
+
+    reset_ui_state();
+    parse_fdf("setpoint_bottom.fdf",
+              "Frame \"FRAME\" \"Root\" {"
+              " Frame \"FRAME\" \"Child\" {"
+              "  SetPoint BOTTOM, \"Root\", BOTTOM, 0.0, 0.08,"
+              " }"
+              "}");
+
+    child = UI_FindFrame("Child");
+    if (!require_not_null(child)) return;
+
+    ASSERT_EQ_INT(child->Points.x[FPP_MID].used, 1);
+    ASSERT_EQ_INT(child->Points.x[FPP_MID].targetPos, FPP_MID);
+    ASSERT_FLOAT_EQ(child->Points.x[FPP_MID].offset, 0.0f);
+
+    ASSERT_EQ_INT(child->Points.y[FPP_MIN].used, 1);
+    ASSERT_EQ_INT(child->Points.y[FPP_MIN].targetPos, FPP_MIN);
+    ASSERT_FLOAT_EQ(child->Points.y[FPP_MIN].offset, 0.08f);
+}
+
+static void test_setpoint_bottomright_maps_max_x_min_y(void) {
+    LPFRAMEDEF child;
+
+    reset_ui_state();
+    parse_fdf("setpoint_bottomright.fdf",
+              "Frame \"FRAME\" \"Root\" {"
+              " Frame \"FRAME\" \"Child\" {"
+              "  SetPoint BOTTOMRIGHT, \"Root\", BOTTOMRIGHT, -0.04, 0.05,"
+              " }"
+              "}");
+
+    child = UI_FindFrame("Child");
+    if (!require_not_null(child)) return;
+
+    ASSERT_EQ_INT(child->Points.x[FPP_MAX].used, 1);
+    ASSERT_EQ_INT(child->Points.x[FPP_MAX].targetPos, FPP_MAX);
+    ASSERT_FLOAT_EQ(child->Points.x[FPP_MAX].offset, -0.04f);
+
+    ASSERT_EQ_INT(child->Points.y[FPP_MIN].used, 1);
+    ASSERT_EQ_INT(child->Points.y[FPP_MIN].targetPos, FPP_MIN);
+    ASSERT_FLOAT_EQ(child->Points.y[FPP_MIN].offset, 0.05f);
+}
+
+/* --- SetPoint: center-mutex behavior --- */
+
+static void test_setpoint_edge_overrides_and_clears_center(void) {
+    FRAMEDEF frame;
+
+    reset_ui_state();
+    UI_InitFrame(&frame, FT_FRAME);
+
+    /* Set CENTER first — both mid slots occupied */
+    UI_SetPoint(&frame, FRAMEPOINT_CENTER, NULL, FRAMEPOINT_CENTER, 0.5f, 0.5f);
+    ASSERT_EQ_INT(frame.Points.x[FPP_MID].used, 1);
+    ASSERT_EQ_INT(frame.Points.y[FPP_MID].used, 1);
+
+    /* Set TOPLEFT — should clear x-mid and y-mid, then fill x-min and y-max */
+    UI_SetPoint(&frame, FRAMEPOINT_TOPLEFT, NULL, FRAMEPOINT_TOPLEFT, 0.0f, 0.0f);
+    ASSERT_EQ_INT(frame.Points.x[FPP_MID].used, 0);
+    ASSERT_EQ_INT(frame.Points.x[FPP_MIN].used, 1);
+    ASSERT_EQ_INT(frame.Points.y[FPP_MID].used, 0);
+    ASSERT_EQ_INT(frame.Points.y[FPP_MAX].used, 1);
+}
+
+static void test_setpoint_center_ignored_when_edges_set(void) {
+    FRAMEDEF frame;
+
+    reset_ui_state();
+    UI_InitFrame(&frame, FT_FRAME);
+
+    /* Anchor x and y edges via TOPLEFT + BOTTOMRIGHT */
+    UI_SetPoint(&frame, FRAMEPOINT_TOPLEFT, NULL, FRAMEPOINT_TOPLEFT, 0.0f, 0.0f);
+    UI_SetPoint(&frame, FRAMEPOINT_BOTTOMRIGHT, NULL, FRAMEPOINT_BOTTOMRIGHT, 0.0f, 0.0f);
+
+    /* Attempt to set CENTER — should be ignored on both axes */
+    UI_SetPoint(&frame, FRAMEPOINT_CENTER, NULL, FRAMEPOINT_CENTER, 0.5f, 0.5f);
+
+    ASSERT_EQ_INT(frame.Points.x[FPP_MID].used, 0);
+    ASSERT_EQ_INT(frame.Points.y[FPP_MID].used, 0);
+    /* Edges must still be intact */
+    ASSERT_EQ_INT(frame.Points.x[FPP_MIN].used, 1);
+    ASSERT_EQ_INT(frame.Points.x[FPP_MAX].used, 1);
+    ASSERT_EQ_INT(frame.Points.y[FPP_MIN].used, 1);
+    ASSERT_EQ_INT(frame.Points.y[FPP_MAX].used, 1);
+}
+
+/* --- SetAllPoints: detailed field verification --- */
+
+static void test_setallpoints_zero_offsets_and_target_positions(void) {
+    FRAMEDEF frame;
+
+    reset_ui_state();
+    UI_InitFrame(&frame, FT_FRAME);
+    UI_SetAllPoints(&frame);
+
+    /* TOPLEFT anchor: x[MIN] left->left, y[MAX] top->top */
+    ASSERT_FLOAT_EQ(frame.Points.x[FPP_MIN].offset, 0.0f);
+    ASSERT_EQ_INT(frame.Points.x[FPP_MIN].targetPos, FPP_MIN);
+    ASSERT_NULL(frame.Points.x[FPP_MIN].relativeTo);
+
+    ASSERT_FLOAT_EQ(frame.Points.y[FPP_MAX].offset, 0.0f);
+    ASSERT_EQ_INT(frame.Points.y[FPP_MAX].targetPos, FPP_MAX);
+    ASSERT_NULL(frame.Points.y[FPP_MAX].relativeTo);
+
+    /* BOTTOMRIGHT anchor: x[MAX] right->right, y[MIN] bottom->bottom */
+    ASSERT_FLOAT_EQ(frame.Points.x[FPP_MAX].offset, 0.0f);
+    ASSERT_EQ_INT(frame.Points.x[FPP_MAX].targetPos, FPP_MAX);
+    ASSERT_NULL(frame.Points.x[FPP_MAX].relativeTo);
+
+    ASSERT_FLOAT_EQ(frame.Points.y[FPP_MIN].offset, 0.0f);
+    ASSERT_EQ_INT(frame.Points.y[FPP_MIN].targetPos, FPP_MIN);
+    ASSERT_NULL(frame.Points.y[FPP_MIN].relativeTo);
+
+    /* Center slot must remain unused */
+    ASSERT_EQ_INT(frame.Points.x[FPP_MID].used, 0);
+    ASSERT_EQ_INT(frame.Points.y[FPP_MID].used, 0);
+}
+
+static void test_setallpoints_with_relative_frame_propagates_to_both_anchors(void) {
+    LPFRAMEDEF child;
+
+    reset_ui_state();
+    parse_fdf("setallpoints_rel.fdf",
+              "Frame \"FRAME\" \"Anchor\" { Width 0.8, Height 0.6, }"
+              "Frame \"FRAME\" \"Child\" { SetAllPoints, }");
+
+    child = UI_FindFrame("Child");
+    if (!require_not_null(child)) return;
+
+    /* SetAllPoints via FDF uses NULL relativeTo (resolved at layout time) */
+    ASSERT_EQ_INT(child->Points.x[FPP_MIN].used, 1);
+    ASSERT_EQ_INT(child->Points.x[FPP_MAX].used, 1);
+    ASSERT_EQ_INT(child->Points.y[FPP_MIN].used, 1);
+    ASSERT_EQ_INT(child->Points.y[FPP_MAX].used, 1);
+    ASSERT_FLOAT_EQ(child->Points.x[FPP_MIN].offset, 0.0f);
+    ASSERT_FLOAT_EQ(child->Points.x[FPP_MAX].offset, 0.0f);
+    ASSERT_FLOAT_EQ(child->Points.y[FPP_MIN].offset, 0.0f);
+    ASSERT_FLOAT_EQ(child->Points.y[FPP_MAX].offset, 0.0f);
+}
+
 static void test_text_uses_key_when_no_stringlist_entry_exists(void) {
     LPFRAMEDEF text;
 
@@ -436,6 +719,18 @@ BEGIN_SUITE(ui_fdf)
     RUN_TEST(test_find_child_frame_descends_recursively);
     RUN_TEST(test_programmatic_setpoint_maps_to_points);
     RUN_TEST(test_programmatic_setallpoints_sets_both_axes);
+    RUN_TEST(test_setpoint_top_maps_mid_x_max_y);
+    RUN_TEST(test_setpoint_topright_maps_max_x_max_y);
+    RUN_TEST(test_setpoint_left_maps_min_x_mid_y);
+    RUN_TEST(test_setpoint_center_maps_mid_x_mid_y);
+    RUN_TEST(test_setpoint_right_maps_max_x_mid_y);
+    RUN_TEST(test_setpoint_bottomleft_maps_min_x_min_y);
+    RUN_TEST(test_setpoint_bottom_maps_mid_x_min_y);
+    RUN_TEST(test_setpoint_bottomright_maps_max_x_min_y);
+    RUN_TEST(test_setpoint_edge_overrides_and_clears_center);
+    RUN_TEST(test_setpoint_center_ignored_when_edges_set);
+    RUN_TEST(test_setallpoints_zero_offsets_and_target_positions);
+    RUN_TEST(test_setallpoints_with_relative_frame_propagates_to_both_anchors);
     RUN_TEST(test_text_uses_key_when_no_stringlist_entry_exists);
     RUN_TEST(test_duplicate_name_prefers_first_template);
     RUN_TEST(test_unknown_token_does_not_crash_existing_definitions);
