@@ -372,6 +372,20 @@ static DWORD CountVariableSizeEntries(LPBYTE data, DWORD size) {
     return count;
 }
 
+static DWORD CountInclusiveSizeEntries(LPBYTE data, DWORD size) {
+    DWORD count = 0;
+    DWORD offset = 0;
+    while (offset + sizeof(DWORD) <= size) {
+        DWORD entrySize = *(DWORD *)(data + offset);
+        if (entrySize < sizeof(DWORD) || offset + entrySize > size) {
+            break;
+        }
+        count++;
+        offset += entrySize;
+    }
+    return count;
+}
+
 static void CopySequenceName(mdxSequence_t const *seq, char *out, size_t outSize) {
     size_t i;
 
@@ -566,7 +580,7 @@ static bool DumpModelInfoNoWindow(LPCSTR modelPath) {
                 fprintf(stderr, "  PIVT: count=%u\n", (unsigned)(chunkSize / sizeof(VECTOR3)));
                 break;
             case MAKEFOURCC('C', 'A', 'M', 'S'):
-                fprintf(stderr, "  CAMS: count=%u\n", (unsigned)CountVariableSizeEntries(chunk, chunkSize));
+                fprintf(stderr, "  CAMS: count=%u\n", (unsigned)CountInclusiveSizeEntries(chunk, chunkSize));
                 break;
             case MAKEFOURCC('G', 'E', 'O', 'S'):
                 fprintf(stderr, "  GEOS: count=%u\n", (unsigned)CountVariableSizeEntries(chunk, chunkSize));

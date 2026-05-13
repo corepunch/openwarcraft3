@@ -263,7 +263,7 @@ blockReadCode_t MSG_ReadBlock(LPSIZEBUF buffer, blockReader_t const *readers, vo
                 continue;
             if (br->read(&block, data) != BLOCKREAD_OK)
                 return BLOCKREAD_ERROR;
-            buffer->readcount += block.readcount;
+            buffer->readcount += block.cursize;
             goto next_block;
         }
         buffer->readcount += block.cursize;;
