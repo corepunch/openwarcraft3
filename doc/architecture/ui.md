@@ -2,6 +2,15 @@
 
 All UI logic in OpenWarcraft3 runs on the **server** inside the game library (`game/ui/`). The client is a dumb renderer: it stores a serialised UI blob and repaints it each frame without knowing anything about the frame hierarchy or layout rules.
 
+## Quick Navigation
+
+**Looking for a specific topic?**
+
+- **Complete end-to-end flow** (client click → server processing → UI generation → rendering): See [UI_FLOW.md](./UI_FLOW.md)
+- **Just the serialization format**: See the [Serialisation](#serialisation-ui_writelayout) section below
+- **How to add a new UI element**: See [Adding a New UI Element](#adding-a-new-ui-element) below
+- **FDF file syntax**: See [FDF File Format](../file-formats/fdf.md)
+
 ## Concepts
 
 | Term | Meaning |

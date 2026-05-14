@@ -14,7 +14,9 @@
 
 void test_client_stubs_init(void);
 void UI_ClearTemplates(void);
+void UI_Init(void);
 void UI_ParseFDF_Buffer(LPCSTR fileName, LPSTR buffer);
+void UI_ShowMainMenu(LPEDICT ent);
 void UI_ShowSinglePlayerMenu(LPEDICT ent);
 extern struct game_import gi;
 
@@ -71,12 +73,91 @@ static LPCSTR test_find_sheet_cell(sheetRow_t *sheet, LPCSTR row, LPCSTR column)
 }
 
 static void test_text_remove_comments(LPSTR buffer) {
-    (void)buffer;
+    BOOL in_single_line_comment = false;
+    BOOL in_block_comment = false;
+    DWORD num_quotes = 0;
+    char *src = buffer;
+    char *dest = buffer;
+    while (*src != '\0') {
+        if (!in_single_line_comment && !in_block_comment) {
+            if (*src == '"') {
+                num_quotes++;
+                *dest++ = *src++;
+            } else if (num_quotes & 1) {
+                *dest++ = *src++;
+            } else if (*src == '/' && *(src + 1) == '/') {
+                in_single_line_comment = true;
+                src += 2;
+            } else if (*src == '/' && *(src + 1) == '*') {
+                in_block_comment = true;
+                src += 2;
+            } else {
+                *dest++ = *src++;
+            }
+        } else if (in_single_line_comment && *src == '\n') {
+            in_single_line_comment = false;
+            *dest++ = *src++;
+        } else if (in_block_comment && *src == '*' && *(src + 1) == '/') {
+            in_block_comment = false;
+            src += 2;
+        } else {
+            src++;
+        }
+    }
+    *dest = '\0';
 }
 
 static BOMStatus test_text_remove_bom(LPSTR buffer) {
-    (void)buffer;
+    unsigned char utf8BOM[] = { 0xEF, 0xBB, 0xBF };
+    unsigned char utf16LEBOM[] = { 0xFF, 0xFE };
+    unsigned char utf16BEBOM[] = { 0xFE, 0xFF };
+    size_t length = strlen(buffer);
+
+    if (length >= 3 && memcmp(buffer, utf8BOM, 3) == 0) {
+        memmove(buffer, buffer + 3, length - 3);
+        return UTF8_BOM_FOUND;
+    } else if (length >= 2 && memcmp(buffer, utf16LEBOM, 2) == 0) {
+        memmove(buffer, buffer + 2, length - 2);
+        return UTF16LE_BOM_FOUND;
+    } else if (length >= 2 && memcmp(buffer, utf16BEBOM, 2) == 0) {
+        memmove(buffer, buffer + 2, length - 2);
+        return UTF16BE_BOM_FOUND;
+    }
     return NO_BOM;
+}
+
+static LPSTR test_read_fdf_file(LPCSTR filename) {
+    char path[512] = "data/fdf/";
+    size_t prefix_len = strlen(path);
+    size_t filename_len = strlen(filename);
+    if (prefix_len + filename_len + 1 >= sizeof(path)) {
+        return NULL;
+    }
+    for (size_t i = 0; i < filename_len; i++) {
+        path[prefix_len + i] = filename[i] == '\\' ? '/' : filename[i];
+    }
+    path[prefix_len + filename_len] = '\0';
+
+    FILE *fp = fopen(path, "rb");
+    if (!fp) {
+        return NULL;
+    }
+    fseek(fp, 0, SEEK_END);
+    long len = ftell(fp);
+    fseek(fp, 0, SEEK_SET);
+    if (len < 0) {
+        fclose(fp);
+        return NULL;
+    }
+    LPSTR buffer = MemAlloc((DWORD)len + 1);
+    if (!buffer) {
+        fclose(fp);
+        return NULL;
+    }
+    size_t read = fread(buffer, 1, (size_t)len, fp);
+    fclose(fp);
+    buffer[read] = '\0';
+    return buffer;
 }
 
 static void test_write_byte(LONG c) {
@@ -119,6 +200,7 @@ static void reset_test_gi(void) {
     gi.ImageIndex = test_image_index;
     gi.FontIndex = test_font_index;
     gi.FindSheetCell = test_find_sheet_cell;
+    gi.ReadFileIntoString = test_read_fdf_file;
     gi.TextRemoveComments = test_text_remove_comments;
     gi.TextRemoveBom = test_text_remove_bom;
     gi.WriteByte = test_write_byte;
@@ -144,6 +226,10 @@ static void setup_test_menu_frames(void) {
         " SetAllPoints,"
         " Frame \"FRAME\" \"ControlLayer\" {"
         "  SetAllPoints,"
+        "  Frame \"FRAME\" \"MainMenuOnlyFrame\" {"
+        "   Width 0.25,"
+        "   Height 0.03125,"
+        "  }"
         " }"
         "}"
         "Frame \"FRAME\" \"SinglePlayerMenu\" {"
@@ -167,6 +253,15 @@ static void test_client_command(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
     ASSERT_STR_EQ(argv[1], "singleplayer");
     test_menu_command_seen = true;
     UI_ShowSinglePlayerMenu(ent);
+}
+
+static bool decoded_layout_contains_onclick(LPCUIFRAME decoded, LPCSTR onclick) {
+    FOR_LOOP(i, MAX_LAYOUT_OBJECTS) {
+        if (decoded[i].onclick && !strcmp(decoded[i].onclick, onclick)) {
+            return true;
+        }
+    }
+    return false;
 }
 
 void SV_ParseClientMessage(LPSIZEBUF msg, LPCLIENT client) {
@@ -367,6 +462,7 @@ static void test_menu_command_updates_client_layout_after_server_response(void) 
     GAMECLIENT game_client = { 0 };
     edict_t client_edict = { 0 };
     LPCUIFRAME decoded;
+    bool found_mainmenu_frame = false;
     bool found_singleplayer_frame = false;
 
     NET_Shutdown();
@@ -390,6 +486,22 @@ static void test_menu_command_updates_client_layout_after_server_response(void) 
     client_edict.client = &game_client;
     svs.clients[0].edict = &client_edict;
 
+    UI_ShowMainMenu(&client_edict);
+    SV_WriteFrameToClient(&svs.clients[0]);
+    ASSERT(NET_GetPacket(NS_CLIENT, &from, &server_msg) > 0);
+    CL_ParseServerMessage(&server_msg);
+    ASSERT_NOT_NULL(cl.layout[TEST_LAYER_CONSOLE]);
+    decoded = SCR_Clear(cl.layout[TEST_LAYER_CONSOLE]);
+    FOR_LOOP(i, MAX_LAYOUT_OBJECTS) {
+        if (decoded[i].flags.type == FT_FRAME &&
+            decoded[i].size.width == 0.25f &&
+            decoded[i].size.height == 0.03125f) {
+            found_mainmenu_frame = true;
+            break;
+        }
+    }
+    ASSERT(found_mainmenu_frame);
+
     memset(&client_netchan, 0, sizeof(client_netchan));
     client_netchan.remote_address.type = NA_LOOPBACK;
     SZ_Init(&client_netchan.message, client_netchan.message_buf, MAX_MSGLEN);
@@ -397,7 +509,6 @@ static void test_menu_command_updates_client_layout_after_server_response(void) 
     MSG_WriteString(&client_netchan.message, "menu singleplayer");
     Netchan_Transmit(NS_CLIENT, &client_netchan);
 
-    ASSERT_NULL(cl.layout[TEST_LAYER_CONSOLE]);
     ASSERT(!test_menu_command_seen);
 
     SV_Frame(100);
@@ -407,15 +518,83 @@ static void test_menu_command_updates_client_layout_after_server_response(void) 
     CL_ParseServerMessage(&server_msg);
     ASSERT_NOT_NULL(cl.layout[TEST_LAYER_CONSOLE]);
     decoded = SCR_Clear(cl.layout[TEST_LAYER_CONSOLE]);
+    found_mainmenu_frame = false;
     FOR_LOOP(i, MAX_LAYOUT_OBJECTS) {
+        if (decoded[i].flags.type == FT_FRAME &&
+            decoded[i].size.width == 0.25f &&
+            decoded[i].size.height == 0.03125f) {
+            found_mainmenu_frame = true;
+        }
         if (decoded[i].flags.type == FT_FRAME &&
             decoded[i].size.width == 0.125f &&
             decoded[i].size.height == 0.0625f) {
             found_singleplayer_frame = true;
-            break;
         }
     }
+    ASSERT(!found_mainmenu_frame);
     ASSERT(found_singleplayer_frame);
+
+    SAFE_DELETE(cl.layout[TEST_LAYER_CONSOLE], MemFree);
+    NET_Shutdown();
+    Com_SetMenuMode(false);
+}
+
+static void test_menu_command_updates_client_layout_with_repo_fdf(void) {
+    struct netchan client_netchan;
+    BYTE server_packet[MAX_MSGLEN];
+    sizeBuf_t server_msg = { server_packet, MAX_MSGLEN, 0, 0 };
+    netadr_t from;
+    GAMECLIENT game_client = { 0 };
+    edict_t client_edict = { 0 };
+    LPCUIFRAME decoded;
+
+    NET_Shutdown();
+    reset_server_state(1);
+    test_client_stubs_init();
+    UI_Init();
+    Com_SetMenuMode(true);
+
+    sv.framenum = 1;
+    sv.time = 100;
+    svs.realtime = 100;
+    svs.num_clients = 1;
+    svs.clients[0].state = cs_spawned;
+    svs.clients[0].netchan.remote_address.type = NA_LOOPBACK;
+    SZ_Init(&svs.clients[0].netchan.message,
+            svs.clients[0].netchan.message_buf,
+            MAX_MSGLEN);
+
+    game_client.ps.number = 0;
+    client_edict.inuse = true;
+    client_edict.client = &game_client;
+    svs.clients[0].edict = &client_edict;
+
+    UI_ShowMainMenu(&client_edict);
+    SV_WriteFrameToClient(&svs.clients[0]);
+    ASSERT(NET_GetPacket(NS_CLIENT, &from, &server_msg) > 0);
+    CL_ParseServerMessage(&server_msg);
+    ASSERT_NOT_NULL(cl.layout[TEST_LAYER_CONSOLE]);
+    decoded = SCR_Clear(cl.layout[TEST_LAYER_CONSOLE]);
+    ASSERT(decoded_layout_contains_onclick(decoded, "menu singleplayer"));
+    ASSERT(!decoded_layout_contains_onclick(decoded, "menu mapselect campaign"));
+
+    memset(&client_netchan, 0, sizeof(client_netchan));
+    client_netchan.remote_address.type = NA_LOOPBACK;
+    SZ_Init(&client_netchan.message, client_netchan.message_buf, MAX_MSGLEN);
+    MSG_WriteByte(&client_netchan.message, clc_stringcmd);
+    MSG_WriteString(&client_netchan.message, "menu singleplayer");
+    Netchan_Transmit(NS_CLIENT, &client_netchan);
+
+    test_menu_command_seen = false;
+    SV_Frame(100);
+
+    ASSERT(test_menu_command_seen);
+    ASSERT(NET_GetPacket(NS_CLIENT, &from, &server_msg) > 0);
+    CL_ParseServerMessage(&server_msg);
+    decoded = SCR_Clear(cl.layout[TEST_LAYER_CONSOLE]);
+    ASSERT(!decoded_layout_contains_onclick(decoded, "menu singleplayer"));
+    ASSERT(decoded_layout_contains_onclick(decoded, "menu mapselect campaign"));
+    ASSERT(decoded_layout_contains_onclick(decoded, "menu main"));
 
     SAFE_DELETE(cl.layout[TEST_LAYER_CONSOLE], MemFree);
     NET_Shutdown();
@@ -426,8 +605,11 @@ void run_server_net_tests(void) {
     RUN_TEST(test_udp_multi_client_connects_register_distinct_slots);
     RUN_TEST(test_udp_connect_honors_ge_max_clients_limit);
     RUN_TEST(test_multicast_syncs_updates_to_all_connected_clients);
+    RUN_TEST(test_menu_command_updates_client_layout_after_server_response);
+    RUN_TEST(test_menu_command_updates_client_layout_with_repo_fdf);
 }
 
 void run_menu_loop_tests(void) {
     RUN_TEST(test_menu_command_updates_client_layout_after_server_response);
+    RUN_TEST(test_menu_command_updates_client_layout_with_repo_fdf);
 }

@@ -786,31 +786,6 @@ mdxModel_t *R_LoadModelMDLX(void *data, DWORD size) {
             geoset->geosetAnim = geosetAnim;
         }
     }
-#ifdef DIAG_OUTPUT
-    if (strstr(model->info.name, "MainMenu")) {
-        mdxMaterial_t *material = model->materials;
-        int materialID = 0;
-        while (material) {
-            for (int layerID = 0; layerID < material->num_layers; layerID++) {
-                mdxMaterialLayer_t *layer = &material->layers[layerID];
-                const char *texpath = "<none>";
-                if (layer->textureId >= 0 && layer->textureId < model->num_textures) {
-                    texpath = model->textures[layer->textureId].path;
-                }
-                DIAGF("MDLX_Load MainMenu3d: mat=%d layer=%d blend=%d flags=0x%x tex=%d path=%s static_alpha=%.3f\n",
-                      materialID,
-                      layerID,
-                      layer->blendMode,
-                      (unsigned)layer->flags,
-                      (int)layer->textureId,
-                      texpath,
-                      layer->staticAlpha);
-            }
-            material = material->next;
-            materialID++;
-        }
-    }
-#endif
     model->bounds = MDX_CalculateBounds(model);
     return model;
 }
