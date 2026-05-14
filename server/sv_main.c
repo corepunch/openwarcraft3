@@ -12,8 +12,6 @@
 
 //#define PRINT_ANIMATIONS
 
-#define MENU_DATAGRAM_INTERVAL 250
-
 struct game_export *ge;
 struct server sv;
 struct server_static svs;
@@ -46,13 +44,6 @@ static void SV_SendClientMessages(void) {
     FOR_LOOP(i, svs.num_clients) {
         LPCLIENT client = &svs.clients[i];
         if (client->state == cs_spawned) {
-            if (Com_InMenuMode()) {
-                DWORD elapsed = sv.time - client->last_menu_datagram_time;
-                if (client->last_menu_datagram_time && elapsed < MENU_DATAGRAM_INTERVAL) {
-                    continue;
-                }
-                client->last_menu_datagram_time = sv.time;
-            }
             SV_SendClientDatagram(client);
         }
     }

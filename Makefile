@@ -170,10 +170,13 @@ TEST_GAME_SRCS := \
 	game/skills/s_stop.c \
 	game/skills/s_train.c \
 	game/ui/ui_fdf.c \
+	game/ui/ui_init.c \
 	game/ui/ui_write.c \
+	client/cl_parse.c \
 	client/cl_scrn.c \
 	server/sv_init.c \
 	server/sv_send.c \
+	server/sv_main.c \
 	common/net.c \
 	common/msg.c
 
