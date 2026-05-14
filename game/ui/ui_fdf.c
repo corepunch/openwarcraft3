@@ -344,7 +344,7 @@ MAKE_PARSER(Text) {
     sscanf(token, UINAME_FMT, key);
     LPCSTR str = UI_GetString(key);
     memset(out, 0, sizeof(UINAME));
-    memcpy(out, str, strlen(str));
+    snprintf(out, sizeof(UINAME), "%s", str);
     frame->Text = out;
 }
 
@@ -923,16 +923,16 @@ void UI_SetText(LPFRAMEDEF frame, LPCSTR format, ...) {
     va_list argptr;
     static char text[1024];
     va_start(argptr, format);
-    vsprintf(text, format,argptr);
+    vsnprintf(text, sizeof(text), format, argptr);
     va_end(argptr);
-    strcpy(frame->TextStorage, UI_GetString(text));
+    snprintf(frame->TextStorage, sizeof(frame->TextStorage), "%s", UI_GetString(text));
     frame->Text = frame->TextStorage;
 }
 
 void UI_SetOnClick(LPFRAMEDEF frame, LPCSTR format, ...) {
     va_list argptr;
     va_start(argptr, format);
-    vsprintf(frame->OnClick, format,argptr);
+    vsnprintf(frame->OnClick, sizeof(frame->OnClick), format, argptr);
     va_end(argptr);
 }
 
