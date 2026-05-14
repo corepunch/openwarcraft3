@@ -18,6 +18,7 @@ void run_ui_logo_layout_tests(void);
 void run_ui_e2e_tests(void);
 void run_ui_oracle_tests(void);
 void run_tool_common_tests(void);
+void run_menu_loop_tests(void);
 
 int main(void) {
     printf("=== OpenWarcraft3 UI Test Gate ===\n\n");
@@ -40,6 +41,10 @@ int main(void) {
 
     printf("[UI end-to-end server->client]\n");
     run_ui_e2e_tests();
+    printf("\n");
+
+    printf("[Menu server/client loop]\n");
+    run_menu_loop_tests();
     printf("\n");
 
     printf("[UI tool-backed oracle]\n");

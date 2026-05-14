@@ -1,4 +1,5 @@
 #include <string.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
@@ -8,12 +9,16 @@
 
 #include "../common/shared.h"
 #include "../common/net.h"
+#include "../client/client.h"
 #include "../server/server.h"
 
-/* sv_init.c / sv_send.c globals (normally from sv_main.c). */
-struct game_export *ge;
-struct server sv;
-struct server_static svs;
+void test_client_stubs_init(void);
+void UI_ClearTemplates(void);
+void UI_ParseFDF_Buffer(LPCSTR fileName, LPSTR buffer);
+void UI_ShowSinglePlayerMenu(LPEDICT ent);
+extern struct game_import gi;
+
+#define TEST_LAYER_CONSOLE 3
 
 /* External symbols referenced by sv_init.c but unused in these tests. */
 void SV_InitGameProgs(void) {}
@@ -21,6 +26,163 @@ void SV_ClearWorld(void) {}
 bool CM_LoadMap(LPCSTR mapFilename) { (void)mapFilename; return true; }
 LPDOODAD CM_GetDoodads(void) { return NULL; }
 LPCMAPINFO CM_GetMapInfo(void) { return NULL; }
+struct cmodel *SV_LoadModel(LPCSTR filename) { (void)filename; return NULL; }
+
+static bool test_menu_mode = false;
+void Com_SetMenuMode(bool enabled) { test_menu_mode = enabled; }
+bool Com_InMenuMode(void) { return test_menu_mode; }
+
+static void test_run_frame(void) {
+}
+
+static LPCSTR test_theme_value(LPCSTR filename) {
+    return filename;
+}
+
+static HANDLE test_mem_alloc(long size) {
+    return MemAlloc(size);
+}
+
+static void test_mem_free(HANDLE mem) {
+    MemFree(mem);
+}
+
+static int test_model_index(LPCSTR name) {
+    (void)name;
+    return 0;
+}
+
+static int test_image_index(LPCSTR name) {
+    (void)name;
+    return 0;
+}
+
+static int test_font_index(LPCSTR name, DWORD fontSize) {
+    (void)name;
+    (void)fontSize;
+    return 0;
+}
+
+static LPCSTR test_find_sheet_cell(sheetRow_t *sheet, LPCSTR row, LPCSTR column) {
+    (void)sheet;
+    (void)row;
+    (void)column;
+    return NULL;
+}
+
+static void test_text_remove_comments(LPSTR buffer) {
+    (void)buffer;
+}
+
+static BOMStatus test_text_remove_bom(LPSTR buffer) {
+    (void)buffer;
+    return NO_BOM;
+}
+
+static void test_write_byte(LONG c) {
+    MSG_WriteByte(&sv.multicast, (int)c);
+}
+
+static void test_write_short(LONG c) {
+    MSG_WriteShort(&sv.multicast, (int)c);
+}
+
+static void test_write_long(LONG c) {
+    MSG_WriteLong(&sv.multicast, (int)c);
+}
+
+static void test_write_ui_frame(LPCUIFRAME frame) {
+    uiFrame_t empty = { 0 };
+    empty.tex.coord[1] = 0xff;
+    empty.tex.coord[3] = 0xff;
+    MSG_WriteDeltaUIFrame(&sv.multicast, &empty, frame, true);
+    MSG_WriteShort(&sv.multicast, frame->buffer.size);
+    MSG_Write(&sv.multicast, frame->buffer.data, frame->buffer.size);
+}
+
+static void test_unicast(edict_t *ent) {
+    FOR_LOOP(i, svs.num_clients) {
+        if (svs.clients[i].edict == ent) {
+            SZ_Write(&svs.clients[i].netchan.message, sv.multicast.data, sv.multicast.cursize);
+            SZ_Clear(&sv.multicast);
+            return;
+        }
+    }
+    SZ_Clear(&sv.multicast);
+}
+
+static void reset_test_gi(void) {
+    memset(&gi, 0, sizeof(gi));
+    gi.MemAlloc = test_mem_alloc;
+    gi.MemFree = test_mem_free;
+    gi.ModelIndex = test_model_index;
+    gi.ImageIndex = test_image_index;
+    gi.FontIndex = test_font_index;
+    gi.FindSheetCell = test_find_sheet_cell;
+    gi.TextRemoveComments = test_text_remove_comments;
+    gi.TextRemoveBom = test_text_remove_bom;
+    gi.WriteByte = test_write_byte;
+    gi.WriteShort = test_write_short;
+    gi.WriteLong = test_write_long;
+    gi.WriteUIFrame = test_write_ui_frame;
+    gi.unicast = test_unicast;
+}
+
+void SV_BuildClientFrame(LPCLIENT client) {
+    (void)client;
+}
+
+void SV_WriteFrameToClient(LPCLIENT client) {
+    Netchan_Transmit(NS_SERVER, &client->netchan);
+}
+
+static bool test_menu_command_seen = false;
+
+static void setup_test_menu_frames(void) {
+    static LPCSTR menu_fdf =
+        "Frame \"FRAME\" \"MainMenuFrame\" {"
+        " SetAllPoints,"
+        " Frame \"FRAME\" \"ControlLayer\" {"
+        "  SetAllPoints,"
+        " }"
+        "}"
+        "Frame \"FRAME\" \"SinglePlayerMenu\" {"
+        " SetAllPoints,"
+        " Frame \"FRAME\" \"SinglePlayerOnlyFrame\" {"
+        "  Width 0.125,"
+        "  Height 0.0625,"
+        " }"
+        "}";
+    LPSTR buffer = strdup(menu_fdf);
+    ASSERT_NOT_NULL(buffer);
+    UI_ClearTemplates();
+    UI_ParseFDF_Buffer("test_menu.fdf", buffer);
+    free(buffer);
+}
+
+static void test_client_command(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
+    ASSERT_NOT_NULL(ent);
+    ASSERT_EQ_INT(argc, 2);
+    ASSERT_STR_EQ(argv[0], "menu");
+    ASSERT_STR_EQ(argv[1], "singleplayer");
+    test_menu_command_seen = true;
+    UI_ShowSinglePlayerMenu(ent);
+}
+
+void SV_ParseClientMessage(LPSIZEBUF msg, LPCLIENT client) {
+    BYTE pack_id = 0;
+    while (MSG_Read(msg, &pack_id, 1)) {
+        ASSERT_EQ_INT(pack_id, clc_stringcmd);
+        if (pack_id != clc_stringcmd) {
+            return;
+        }
+
+        LPCSTR command = MSG_ReadString2(msg);
+        LPCSTR argv[] = { "menu", "singleplayer" };
+        ASSERT_STR_EQ(command, "menu singleplayer");
+        ge->ClientCommand(client->edict, 2, argv);
+    }
+}
 
 static struct game_export test_ge;
 
@@ -28,8 +190,17 @@ static void reset_server_state(int max_players) {
     memset(&sv, 0, sizeof(sv));
     memset(&svs, 0, sizeof(svs));
     memset(&test_ge, 0, sizeof(test_ge));
+    SZ_Init(&sv.multicast, sv.multicast_buf, sizeof(sv.multicast_buf));
     test_ge.max_clients = max_players;
+    test_ge.max_edicts = MAX_CLIENT_ENTITIES;
+    test_ge.edict_size = sizeof(edict_t);
+    test_ge.RunFrame = test_run_frame;
+    test_ge.GetThemeValue = test_theme_value;
+    test_ge.ClientCommand = test_client_command;
     ge = &test_ge;
+    test_menu_command_seen = false;
+    reset_test_gi();
+    Com_SetMenuMode(false);
 }
 
 static int open_client_socket(void) {
@@ -188,8 +359,75 @@ static void test_multicast_syncs_updates_to_all_connected_clients(void) {
     ASSERT_EQ_INT(sv.multicast.cursize, 0);
 }
 
+static void test_menu_command_updates_client_layout_after_server_response(void) {
+    struct netchan client_netchan;
+    BYTE server_packet[MAX_MSGLEN];
+    sizeBuf_t server_msg = { server_packet, MAX_MSGLEN, 0, 0 };
+    netadr_t from;
+    GAMECLIENT game_client = { 0 };
+    edict_t client_edict = { 0 };
+    LPCUIFRAME decoded;
+    bool found_singleplayer_frame = false;
+
+    NET_Shutdown();
+    reset_server_state(1);
+    test_client_stubs_init();
+    setup_test_menu_frames();
+    Com_SetMenuMode(true);
+
+    sv.framenum = 1;
+    sv.time = 100;
+    svs.realtime = 100;
+    svs.num_clients = 1;
+    svs.clients[0].state = cs_spawned;
+    svs.clients[0].netchan.remote_address.type = NA_LOOPBACK;
+    SZ_Init(&svs.clients[0].netchan.message,
+            svs.clients[0].netchan.message_buf,
+            MAX_MSGLEN);
+
+    game_client.ps.number = 0;
+    client_edict.inuse = true;
+    client_edict.client = &game_client;
+    svs.clients[0].edict = &client_edict;
+
+    memset(&client_netchan, 0, sizeof(client_netchan));
+    client_netchan.remote_address.type = NA_LOOPBACK;
+    SZ_Init(&client_netchan.message, client_netchan.message_buf, MAX_MSGLEN);
+    MSG_WriteByte(&client_netchan.message, clc_stringcmd);
+    MSG_WriteString(&client_netchan.message, "menu singleplayer");
+    Netchan_Transmit(NS_CLIENT, &client_netchan);
+
+    ASSERT_NULL(cl.layout[TEST_LAYER_CONSOLE]);
+    ASSERT(!test_menu_command_seen);
+
+    SV_Frame(100);
+
+    ASSERT(test_menu_command_seen);
+    ASSERT(NET_GetPacket(NS_CLIENT, &from, &server_msg) > 0);
+    CL_ParseServerMessage(&server_msg);
+    ASSERT_NOT_NULL(cl.layout[TEST_LAYER_CONSOLE]);
+    decoded = SCR_Clear(cl.layout[TEST_LAYER_CONSOLE]);
+    FOR_LOOP(i, MAX_LAYOUT_OBJECTS) {
+        if (decoded[i].flags.type == FT_FRAME &&
+            decoded[i].size.width == 0.125f &&
+            decoded[i].size.height == 0.0625f) {
+            found_singleplayer_frame = true;
+            break;
+        }
+    }
+    ASSERT(found_singleplayer_frame);
+
+    SAFE_DELETE(cl.layout[TEST_LAYER_CONSOLE], MemFree);
+    NET_Shutdown();
+    Com_SetMenuMode(false);
+}
+
 void run_server_net_tests(void) {
     RUN_TEST(test_udp_multi_client_connects_register_distinct_slots);
     RUN_TEST(test_udp_connect_honors_ge_max_clients_limit);
     RUN_TEST(test_multicast_syncs_updates_to_all_connected_clients);
+}
+
+void run_menu_loop_tests(void) {
+    RUN_TEST(test_menu_command_updates_client_layout_after_server_response);
 }

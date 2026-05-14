@@ -17,6 +17,10 @@ void V_RenderView(void) {
 void CON_DrawConsole(void) {
 }
 
+void CL_ParseTEnt(LPSIZEBUF msg) {
+    (void)msg;
+}
+
 void test_client_stubs_init(void) {
     memset(&cl, 0, sizeof(cl));
     memset(&cls, 0, sizeof(cls));
