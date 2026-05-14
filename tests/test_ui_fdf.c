@@ -676,6 +676,26 @@ static void test_text_uses_key_when_no_stringlist_entry_exists(void) {
     ASSERT_STR_EQ(text->Text, "TRIGSTR_999");
 }
 
+static void test_long_stringlist_text_is_bounded_to_frame_storage(void) {
+    LPFRAMEDEF text;
+
+    reset_ui_state();
+    parse_fdf("long_text.fdf",
+              "StringList { LONG_TEXT "
+              "\"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+              "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789\","
+              "}"
+              "Frame \"TEXT\" \"TextA\" {"
+              " Text \"LONG_TEXT\","
+              "}");
+
+    text = UI_FindFrame("TextA");
+    if (!require_not_null(text)) return;
+    ASSERT_EQ_INT(strlen(text->Text), sizeof(text->TextStorage) - 1);
+    ASSERT_NULL(text->Tip);
+    ASSERT_NULL(text->Ubertip);
+}
+
 static void test_duplicate_name_prefers_first_template(void) {
     LPFRAMEDEF found;
 
@@ -732,6 +752,7 @@ BEGIN_SUITE(ui_fdf)
     RUN_TEST(test_setallpoints_zero_offsets_and_target_positions);
     RUN_TEST(test_setallpoints_with_relative_frame_propagates_to_both_anchors);
     RUN_TEST(test_text_uses_key_when_no_stringlist_entry_exists);
+    RUN_TEST(test_long_stringlist_text_is_bounded_to_frame_storage);
     RUN_TEST(test_duplicate_name_prefers_first_template);
     RUN_TEST(test_unknown_token_does_not_crash_existing_definitions);
 END_SUITE()

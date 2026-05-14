@@ -113,7 +113,13 @@ void UI_CopyFrameBase(LPUIFRAME dest, LPCFRAMEDEF src) {
     }
     static char tooltip[1024];
     memset(tooltip, 0, sizeof(tooltip));
-    sprintf(tooltip, "%s\n%s", src->Tip, src->Ubertip);
+    if (src->Tip || src->Ubertip) {
+        snprintf(tooltip,
+                 sizeof(tooltip),
+                 "%s\n%s",
+                 src->Tip ? src->Tip : "",
+                 src->Ubertip ? src->Ubertip : "");
+    }
     CONVERT_UV(dest->tex.coord, src->Texture.TexCoord);
     dest->number = FindFrameNumber(src, 0);
     dest->parent = FindFrameNumber(src->Parent, 0);
@@ -127,7 +133,7 @@ void UI_CopyFrameBase(LPUIFRAME dest, LPCFRAMEDEF src) {
     dest->textLength = src->TextLength;
     dest->stat = src->Stat;
     dest->text = src->Text;
-    dest->tooltip = tooltip;
+    dest->tooltip = tooltip[0] ? tooltip : NULL;
     dest->onclick = src->OnClick;
 }
 
