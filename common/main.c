@@ -11,10 +11,12 @@
 "  openwarcraft3 -mpq=<path> -connect=<host>     (remote client, default port " \
                                                     __XSTR(PORT_SERVER) ")\n" \
 "  openwarcraft3 -mpq=<path> -connect=<host:port>\n" \
+"  openwarcraft3 -mpq=<path> -test=<name>        (run one integration test)\n" \
 "\n" \
 "Examples:\n" \
 "  openwarcraft3 -mpq=/home/user/War3.mpq -map=Maps\\\\Campaign\\\\Human02.w3m\n" \
 "  openwarcraft3 -mpq=/home/user/War3.mpq -connect=192.168.1.10\n" \
+"  openwarcraft3 -mpq=/home/user/War3.mpq -test=smoke\n" \
 "\n" \
 "Notes:\n" \
 "  - The MPQ path must be an absolute path on your filesystem.\n" \
@@ -36,6 +38,7 @@ void Sys_Quit(void) {
 int main(int argc, LPSTR argv[]) {
     LPCSTR map = NULL;
     LPCSTR connect_addr = NULL;
+    LPCSTR test_name = NULL;
     BOOL mpq = 0;
 
     for (int i = 0; i < argc; i++) {
@@ -52,6 +55,9 @@ int main(int argc, LPSTR argv[]) {
         if (!strncmp(argv[i], "-connect=", 9)) {
             connect_addr = argv[i] + 9;
         }
+        if (!strncmp(argv[i], "-test=", 6)) {
+            test_name = argv[i] + 6;
+        }
     }
 
     if (!mpq) {
@@ -61,8 +67,9 @@ int main(int argc, LPSTR argv[]) {
 
     bool menu_mode = !map && !connect_addr;
     Com_SetMenuMode(menu_mode);
-    fprintf(stderr, "main: mpq loaded, mode=%s\n",
-            connect_addr ? "connect" : (menu_mode ? "menu" : "map"));
+    fprintf(stderr, "main: mpq loaded, mode=%s%s\n",
+            connect_addr ? "connect" : (menu_mode ? "menu" : "map"),
+            test_name ? " (test)" : "");
 
     // Bind the UDP socket unless explicitly disabled for local diagnostics.
     // The current sandbox cannot create/bind UDP sockets, so this escape hatch
@@ -107,6 +114,23 @@ int main(int argc, LPSTR argv[]) {
     }
 
     DWORD startTime = SDL_GetTicks();
+    if (test_name) {
+        DWORD currentTime = SDL_GetTicks();
+        DWORD msec = currentTime - startTime;
+
+        if (strcmp(test_name, "smoke")) {
+            fprintf(stderr, "main: unknown test '%s' (supported: smoke)\n", test_name);
+            return 1;
+        }
+
+        if (!connect_addr) {
+            SV_Frame(msec);
+        }
+        CL_Frame(msec);
+        fprintf(stderr, "main: test '%s' passed\n", test_name);
+        return 0;
+    }
+
     fprintf(stderr, "main: entering frame loop\n");
     while (true) {
         DWORD currentTime = SDL_GetTicks();
