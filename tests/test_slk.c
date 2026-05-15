@@ -171,6 +171,37 @@ static void test_unit_collision_peasant(void) {
     ASSERT_EQ_INT(UNIT_COLLISION(UNIT_ID("hpea")), 16);
 }
 
+static void test_unit_field_accessors_known_ids(void) {
+    ASSERT_EQ_INT(UnitIntegerField(UnitsMetaData, UNIT_ID("hpea"), "ucol"), 16);
+    ASSERT_FLOAT_EQ(UnitRealField(UnitsMetaData, UNIT_ID("hfoo"), "umvs"), 270.0f);
+    ASSERT(UnitBooleanField(UnitsMetaData, UNIT_ID("hfoo"), "ubdg"));
+}
+
+static void test_unit_field_accessors_unknown_ids(void) {
+    ASSERT_EQ_INT(UnitIntegerField(UnitsMetaData, UNIT_ID("xxxx"), "ucol"), 0);
+    ASSERT_FLOAT_EQ(UnitRealField(UnitsMetaData, UNIT_ID("xxxx"), "umvs"), 0.0f);
+    ASSERT(!UnitBooleanField(UnitsMetaData, UNIT_ID("xxxx"), "ubdg"));
+}
+
+static void test_unit_field_accessors_unknown_metadata_id(void) {
+    ASSERT_EQ_INT(UnitIntegerField(UnitsMetaData, UNIT_ID("hpea"), "zzzz"), 0);
+    ASSERT_FLOAT_EQ(UnitRealField(UnitsMetaData, UNIT_ID("hpea"), "zzzz"), 0.0f);
+    ASSERT(!UnitBooleanField(UnitsMetaData, UNIT_ID("hpea"), "zzzz"));
+}
+
+static void test_unit_macro_boolean_wrappers(void) {
+    ASSERT(!UNIT_IS_BUILDING(UNIT_ID("hpea")));
+    ASSERT(UNIT_IS_BUILDING(UNIT_ID("hfoo")));
+    ASSERT(UNIT_HIDE_MINIMAP_DISPLAY(UNIT_ID("hfoo")));
+}
+
+static void test_unit_field_accessors_remapped_user_created_id(void) {
+    set_test_user_created_unit_remap(UNIT_ID("xpea"), UNIT_ID("hpea"));
+    ASSERT_EQ_INT(UnitIntegerField(UnitsMetaData, UNIT_ID("xpea"), "ucol"), 16);
+    ASSERT_FLOAT_EQ(UnitRealField(UnitsMetaData, UNIT_ID("xpea"), "uhpm"), 250.0f);
+    ASSERT_EQ_INT(UNIT_BUILD_TIME(UNIT_ID("xpea")), 45);
+}
+
 static void test_unit_unknown_id_returns_zero(void) {
     /* Unknown unit ID must not crash and must return 0 / 0.0. */
     ASSERT_FLOAT_EQ(UNIT_SPEED(UNIT_ID("xxxx")),      0.0f);
@@ -204,5 +235,10 @@ BEGIN_SUITE(slk)
     RUN_TEST(test_unit_build_time_peasant);
     RUN_TEST(test_unit_build_time_footman);
     RUN_TEST(test_unit_collision_peasant);
+    RUN_TEST(test_unit_field_accessors_known_ids);
+    RUN_TEST(test_unit_field_accessors_unknown_ids);
+    RUN_TEST(test_unit_field_accessors_unknown_metadata_id);
+    RUN_TEST(test_unit_macro_boolean_wrappers);
+    RUN_TEST(test_unit_field_accessors_remapped_user_created_id);
     RUN_TEST(test_unit_unknown_id_returns_zero);
 END_SUITE()

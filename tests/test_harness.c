@@ -213,6 +213,10 @@ static sheetField_t hpea_data_fields[2];
 static sheetField_t hfoo_data_fields[2];
 static sheetRow_t   test_data_rows[2];
 
+static sheetField_t hpea_ui_fields[2];
+static sheetField_t hfoo_ui_fields[2];
+static sheetRow_t   test_ui_rows[2];
+
 void setup_test_unit_data(void) {
     /* --- UnitBalance table (speed, HP, build time, gold/lumber cost) --- */
     hpea_balance_fields[0] = (sheetField_t){"spd",    "270", &hpea_balance_fields[1]};
@@ -240,20 +244,31 @@ void setup_test_unit_data(void) {
     test_data_rows[0] = (sheetRow_t){"hpea", hpea_data_fields, &test_data_rows[1]};
     test_data_rows[1] = (sheetRow_t){"hfoo", hfoo_data_fields, NULL};
 
+    /* --- UnitUI table (boolean flags) --- */
+    hpea_ui_fields[0] = (sheetField_t){"isbldg", "0", &hpea_ui_fields[1]};
+    hpea_ui_fields[1] = (sheetField_t){"hideOnMinimap", "0", NULL};
+
+    hfoo_ui_fields[0] = (sheetField_t){"isbldg", "1", &hfoo_ui_fields[1]};
+    hfoo_ui_fields[1] = (sheetField_t){"hideOnMinimap", "TRUE", NULL};
+
+    test_ui_rows[0] = (sheetRow_t){"hpea", hpea_ui_fields, &test_ui_rows[1]};
+    test_ui_rows[1] = (sheetRow_t){"hfoo", hfoo_ui_fields, NULL};
+
     G_SetConfigTable(UnitsMetaData, "UnitBalance", test_balance_rows);
     G_SetConfigTable(UnitsMetaData, "UnitData",    test_data_rows);
+    G_SetConfigTable(UnitsMetaData, "UnitUI",      test_ui_rows);
 }
 
 void set_test_user_created_unit_remap(DWORD new_id, DWORD original_id) {
-    DWORD slot = level.mapinfo->num_userCreatedUnits;
+    DWORD slot = _test_mapinfo.num_userCreatedUnits;
 
     if (slot >= MAX_PLAYERS) {
         return;
     }
 
-    level.mapinfo->userCreatedUnits[slot].newUnitID = new_id;
-    level.mapinfo->userCreatedUnits[slot].originalUnitID = original_id;
-    level.mapinfo->num_userCreatedUnits++;
+    _test_mapinfo.userCreatedUnits[slot].newUnitID = new_id;
+    _test_mapinfo.userCreatedUnits[slot].originalUnitID = original_id;
+    _test_mapinfo.num_userCreatedUnits++;
 }
 
 /* =======================================================================
@@ -328,8 +343,8 @@ void setup_game(void) {
     }
 
     /* Provide a minimal mapinfo so level.mapinfo is never NULL. */
+    _test_mapinfo.userCreatedUnits = _test_user_created_units;
     level.mapinfo = &_test_mapinfo;
-    level.mapinfo->userCreatedUnits = _test_user_created_units;
 
     /* Set up unit stats tables with test data. */
     setup_test_unit_data();
