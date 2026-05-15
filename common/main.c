@@ -115,10 +115,9 @@ int main(int argc, LPSTR argv[]) {
 
     DWORD startTime = SDL_GetTicks();
     if (test_name) {
-        DWORD currentTime = SDL_GetTicks();
-        DWORD msec = currentTime - startTime;
+        DWORD msec = 16;
 
-        if (strcmp(test_name, "smoke")) {
+        if (strcmp(test_name, "smoke") != 0) {
             fprintf(stderr, "main: unknown test '%s' (supported: smoke)\n", test_name);
             return 1;
         }
