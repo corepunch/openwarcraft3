@@ -511,6 +511,7 @@ typedef struct {
     RESOURCE Background;
     BOOL TileBackground:1;
     BOOL BlendAll:1;
+    BOOL Mirrored:1;
 } uiBackdrop_t;
 
 typedef struct {

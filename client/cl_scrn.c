@@ -405,7 +405,7 @@ void SCR_DrawBackdrop2(LPCUIFRAME frame, LPCRECT screen, uiBackdrop_t const *bac
                              .shader = SHADER_UI));
     }
 
-    RECT uv = { 0, 0, 1, 1};
+    RECT uv = { backdrop->Mirrored ? 1 : 0, 0, backdrop->Mirrored ? -1 : 1, 1};
     RECT background = *screen;
     background.x += backdrop->BackgroundInsets[BACKDROPINSET_LEFT];
     background.y += backdrop->BackgroundInsets[BACKDROPINSET_TOP];
@@ -415,6 +415,10 @@ void SCR_DrawBackdrop2(LPCUIFRAME frame, LPCRECT screen, uiBackdrop_t const *bac
     background.h -= backdrop->BackgroundInsets[BACKDROPINSET_BOTTOM];
     if (backdrop->TileBackground) {
         uv.w = background.w / (backSize.width / 1000.f);
+        if (backdrop->Mirrored) {
+            uv.x = uv.w;
+            uv.w = -uv.w;
+        }
         uv.h = background.h / (backSize.height / 1000.f);
     }
     re.DrawImageEx(&MAKE(DRAWIMAGE,
