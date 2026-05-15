@@ -262,12 +262,6 @@ static void UI_WriteMenuWithMainFrame(LPEDICT ent, LPCFRAMEDEF root) {
         UI_SetHidden(ControlLayer, root != MainMenuFrame);
     }
 
-    fprintf(stderr, "UI_WriteMenuWithMainFrame: root=%s main=%s control=%s logo=%s\n",
-            root ? root->Name : "<null>",
-            MainMenuFrame ? MainMenuFrame->Name : "<null>",
-            ControlLayer ? ControlLayer->Name : "<null>",
-            UI_FindFrame("WarCraftIIILogo") ? "yes" : "no");
-
     UI_WriteStart(LAYER_BACKGROUND);
     UI_WriteMainMenuGlueBackground();
     gi.WriteLong(0); // end of list
