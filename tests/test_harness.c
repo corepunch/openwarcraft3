@@ -37,6 +37,7 @@ struct edict_s     *g_edicts;
 static edict_t      _test_edicts[MAX_ENTITIES];
 static MAPINFO      _test_mapinfo;
 static struct client_s _test_clients[MAX_CLIENTS];
+static unitData_t   _test_user_created_units[MAX_PLAYERS];
 
 /* =======================================================================
  * Mock gi function implementations
@@ -243,6 +244,18 @@ void setup_test_unit_data(void) {
     G_SetConfigTable(UnitsMetaData, "UnitData",    test_data_rows);
 }
 
+void set_test_user_created_unit_remap(DWORD new_id, DWORD original_id) {
+    DWORD slot = level.mapinfo->num_userCreatedUnits;
+
+    if (slot >= MAX_PLAYERS) {
+        return;
+    }
+
+    level.mapinfo->userCreatedUnits[slot].newUnitID = new_id;
+    level.mapinfo->userCreatedUnits[slot].originalUnitID = original_id;
+    level.mapinfo->num_userCreatedUnits++;
+}
+
 /* =======================================================================
  * Harness lifecycle
  * ===================================================================== */
@@ -255,6 +268,7 @@ void setup_game(void) {
     memset(_test_edicts,  0, sizeof(_test_edicts));
     memset(&_test_mapinfo,0, sizeof(_test_mapinfo));
     memset(_test_clients, 0, sizeof(_test_clients));
+    memset(_test_user_created_units, 0, sizeof(_test_user_created_units));
 
     g_edicts = _test_edicts;
 
@@ -315,6 +329,7 @@ void setup_game(void) {
 
     /* Provide a minimal mapinfo so level.mapinfo is never NULL. */
     level.mapinfo = &_test_mapinfo;
+    level.mapinfo->userCreatedUnits = _test_user_created_units;
 
     /* Set up unit stats tables with test data. */
     setup_test_unit_data();

@@ -54,7 +54,7 @@ Expand SLK parser and metadata test coverage with larger and more detailed SLK f
 
 - [ ] **Phase 6** — Metadata integration tests.
   - [x] Break Phase 6 into commit-sized implementation checkpoints.
-  - [ ] Add harness support for user-created unit remap fixtures (`newUnitID` -> `originalUnitID`).
+  - [x] Add harness support for user-created unit remap fixtures (`newUnitID` -> `originalUnitID`).
   - [ ] Add direct tests for `UnitIntegerField`, `UnitRealField`, and `UnitBooleanField` with known IDs.
   - [ ] Add direct tests for unknown-unit fallback behavior on all metadata accessors.
   - [ ] Add remap tests validating that user-created IDs resolve through original-unit metadata rows.

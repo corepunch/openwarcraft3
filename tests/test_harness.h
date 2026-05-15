@@ -70,6 +70,9 @@ void reset_entities(void);
  */
 void setup_test_unit_data(void);
 
+/* Configure one user-created unit remap entry in level.mapinfo. */
+void set_test_user_created_unit_remap(DWORD new_id, DWORD original_id);
+
 /* -----------------------------------------------------------------------
  * Edict helpers
  * --------------------------------------------------------------------- */
