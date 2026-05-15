@@ -152,6 +152,7 @@ static uiBackdrop_t MakeBackdrop(LPCFRAMEDEF frame) {
         },
         .EdgeFile = frame->Backdrop.EdgeFile,
         .BlendAll = frame->Backdrop.BlendAll,
+        .Mirrored = frame->Backdrop.Mirrored,
     );
 }
 

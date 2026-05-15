@@ -458,6 +458,7 @@ MAKE_PARSERCALL(DecorateFileNames) {
 }
 
 MAKE_PARSERCALL(BackdropMirrored) {
+    frame->Backdrop.Mirrored = true;
 }
 
 MAKE_PARSERCALL(SliderLayoutHorizontal) {

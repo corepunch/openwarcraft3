@@ -412,6 +412,7 @@ struct uiFrameDef_s {
         FLOAT BackgroundInsets[4];// 0.01 0.01 0.01 0.01,
         DWORD EdgeFile;//  "EscMenuBorder",
         BOOL BlendAll;
+        BOOL Mirrored;
     } Backdrop;
     LPCFRAMEDEF DialogBackdrop;
     struct {
