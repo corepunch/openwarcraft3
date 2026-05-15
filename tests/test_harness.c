@@ -37,7 +37,6 @@ struct edict_s     *g_edicts;
 static edict_t      _test_edicts[MAX_ENTITIES];
 static MAPINFO      _test_mapinfo;
 static struct client_s _test_clients[MAX_CLIENTS];
-static unitData_t   _test_user_created_units[MAX_PLAYERS];
 
 /* =======================================================================
  * Mock gi function implementations
@@ -213,10 +212,6 @@ static sheetField_t hpea_data_fields[2];
 static sheetField_t hfoo_data_fields[2];
 static sheetRow_t   test_data_rows[2];
 
-static sheetField_t hpea_ui_fields[2];
-static sheetField_t hfoo_ui_fields[2];
-static sheetRow_t   test_ui_rows[2];
-
 void setup_test_unit_data(void) {
     /* --- UnitBalance table (speed, HP, build time, gold/lumber cost) --- */
     hpea_balance_fields[0] = (sheetField_t){"spd",    "270", &hpea_balance_fields[1]};
@@ -244,31 +239,8 @@ void setup_test_unit_data(void) {
     test_data_rows[0] = (sheetRow_t){"hpea", hpea_data_fields, &test_data_rows[1]};
     test_data_rows[1] = (sheetRow_t){"hfoo", hfoo_data_fields, NULL};
 
-    /* --- UnitUI table (boolean flags) --- */
-    hpea_ui_fields[0] = (sheetField_t){"isbldg", "0", &hpea_ui_fields[1]};
-    hpea_ui_fields[1] = (sheetField_t){"hideOnMinimap", "0", NULL};
-
-    hfoo_ui_fields[0] = (sheetField_t){"isbldg", "1", &hfoo_ui_fields[1]};
-    hfoo_ui_fields[1] = (sheetField_t){"hideOnMinimap", "TRUE", NULL};
-
-    test_ui_rows[0] = (sheetRow_t){"hpea", hpea_ui_fields, &test_ui_rows[1]};
-    test_ui_rows[1] = (sheetRow_t){"hfoo", hfoo_ui_fields, NULL};
-
     G_SetConfigTable(UnitsMetaData, "UnitBalance", test_balance_rows);
     G_SetConfigTable(UnitsMetaData, "UnitData",    test_data_rows);
-    G_SetConfigTable(UnitsMetaData, "UnitUI",      test_ui_rows);
-}
-
-void set_test_user_created_unit_remap(DWORD new_id, DWORD original_id) {
-    DWORD slot = _test_mapinfo.num_userCreatedUnits;
-
-    if (slot >= MAX_PLAYERS) {
-        return;
-    }
-
-    _test_mapinfo.userCreatedUnits[slot].newUnitID = new_id;
-    _test_mapinfo.userCreatedUnits[slot].originalUnitID = original_id;
-    _test_mapinfo.num_userCreatedUnits++;
 }
 
 /* =======================================================================
@@ -283,7 +255,6 @@ void setup_game(void) {
     memset(_test_edicts,  0, sizeof(_test_edicts));
     memset(&_test_mapinfo,0, sizeof(_test_mapinfo));
     memset(_test_clients, 0, sizeof(_test_clients));
-    memset(_test_user_created_units, 0, sizeof(_test_user_created_units));
 
     g_edicts = _test_edicts;
 
@@ -343,7 +314,6 @@ void setup_game(void) {
     }
 
     /* Provide a minimal mapinfo so level.mapinfo is never NULL. */
-    _test_mapinfo.userCreatedUnits = _test_user_created_units;
     level.mapinfo = &_test_mapinfo;
 
     /* Set up unit stats tables with test data. */

@@ -52,14 +52,9 @@ Expand SLK parser and metadata test coverage with larger and more detailed SLK f
     - Verify unit properties (collision, move type, stats) match SLK-loaded values
     - Run gameplay scenarios (movement, pathfinding, combat) using SLK-driven custom units
 
-- [x] **Phase 6** — Metadata integration tests.
-  - [x] Break Phase 6 into commit-sized implementation checkpoints.
-  - [x] Add harness support for user-created unit remap fixtures (`newUnitID` -> `originalUnitID`).
-  - [x] Add direct tests for `UnitIntegerField`, `UnitRealField`, and `UnitBooleanField` with known IDs.
-  - [x] Add direct tests for unknown-unit fallback behavior on all metadata accessors.
-  - [x] Add remap tests validating that user-created IDs resolve through original-unit metadata rows.
-  - [x] Add macro-wrapper coverage that exercises integer, real, and boolean metadata paths.
-  - [x] Keep metadata integration tests in `tests/test_slk.c` under the default `make test` suite.
+- [ ] **Phase 6** — Metadata integration tests.
+  - Add tests for `UnitIntegerField`, `UnitRealField`, `UnitBooleanField`, and macro wrappers in `game/g_unitdata.h`.
+  - Validate known IDs, unknown IDs, and remapped user-created unit IDs.
 
 - [ ] **Phase 7** — Parser hardening in `common/sheet.c`.
   - Implement fixes uncovered by new tests:
