@@ -88,6 +88,8 @@ struct shader_program {
     DWORD uBones;
     DWORD uUseDiscard;
     DWORD uUnshaded;
+    DWORD uMdxLightCount;
+    DWORD uMdxLights;
     DWORD uEyePosition;
     DWORD uActiveGlow;
 };

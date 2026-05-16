@@ -3,6 +3,12 @@
 
 extern bool is_rendering_lights;
 
+#define MDX_SHADER_MAX_LIGHTS 8
+
+typedef struct mdxShaderLight_s {
+    MATRIX4 matrix;
+} mdxShaderLight_t;
+
 #define GET_PARTICLE_ANIM_PARAM(MODEL, EMITTER, NAME) \
 float NAME = EMITTER->NAME; \
 if (EMITTER->keytracks.NAME) { \
@@ -191,6 +197,89 @@ static mdxMaterial_t *MDLX_GetMaterialAtIndex(mdxGeoset_t const *geoset, mdxMode
     return material;
 }
 
+static void MDLX_GetLightKeytrackValue(mdxModel_t const *model,
+                                       mdxKeyTrack_t const *keytrack,
+                                       DWORD frame,
+                                       void *value)
+{
+    if (keytrack) {
+        MDLX_GetModelKeytrackValue(model, keytrack, frame, value);
+    }
+}
+
+static int MDLX_CollectModelLights(mdxModel_t const *model,
+                                   LPCMATRIX4 modelMatrix,
+                                   DWORD frame,
+                                   mdxShaderLight_t *lights,
+                                   int maxLights)
+{
+    int count = 0;
+
+    FOR_EACH_LIST(mdxLight_t, light, model->lights) {
+        if (count >= maxLights) {
+            break;
+        }
+
+        float visibility = 1.0f;
+        VECTOR3 color = light->Color;
+        VECTOR3 ambient = light->AmbColor;
+        float intensity = light->Intensity;
+        float ambientIntensity = light->AmbIntensity;
+        float attenuationStart = light->AttenuationStart;
+        float attenuationEnd = light->AttenuationEnd;
+
+        MDLX_GetLightKeytrackValue(model, light->keytracks.Visibility, frame, &visibility);
+        if (visibility < EPSILON) {
+            continue;
+        }
+        MDLX_GetLightKeytrackValue(model, light->keytracks.Color, frame, &color);
+        MDLX_GetLightKeytrackValue(model, light->keytracks.Intensity, frame, &intensity);
+        MDLX_GetLightKeytrackValue(model, light->keytracks.AmbColor, frame, &ambient);
+        MDLX_GetLightKeytrackValue(model, light->keytracks.AmbIntensity, frame, &ambientIntensity);
+        MDLX_GetLightKeytrackValue(model, light->keytracks.AttenuationStart, frame, &attenuationStart);
+        MDLX_GetLightKeytrackValue(model, light->keytracks.AttenuationEnd, frame, &attenuationEnd);
+
+        VECTOR3 pivot = { 0, 0, 0 };
+        if (light->node.node_id < (DWORD)model->num_pivots) {
+            pivot = model->pivots[light->node.node_id];
+        }
+        VECTOR3 localPosition = pivot;
+        VECTOR3 localDirectionTarget = { pivot.x, pivot.y, pivot.z - 1.0f };
+        if (light->node.node_id < MDX_MAX_NODES && model->nodes[light->node.node_id]) {
+            localPosition = Matrix4_multiply_vector3(&node_matrices[light->node.node_id], &pivot);
+            localDirectionTarget = Matrix4_multiply_vector3(&node_matrices[light->node.node_id], &localDirectionTarget);
+        }
+
+        VECTOR3 worldPosition = Matrix4_multiply_vector3(modelMatrix, &localPosition);
+        VECTOR3 worldDirectionTarget = Matrix4_multiply_vector3(modelMatrix, &localDirectionTarget);
+        VECTOR3 worldDirection = Vector3_sub(&worldDirectionTarget, &worldPosition);
+        if (Vector3_lengthsq(&worldDirection) < EPSILON) {
+            worldDirection = (VECTOR3){ 0, 0, -1 };
+        } else {
+            Vector3_normalize(&worldDirection);
+        }
+
+        lights[count].matrix = (MATRIX4){ .v = {
+            worldPosition.x, worldPosition.y, worldPosition.z, (float)light->type,
+            worldDirection.x, worldDirection.y, worldDirection.z, attenuationStart,
+            color.x, color.y, color.z, intensity * visibility,
+            ambient.x, ambient.y, ambient.z, ambientIntensity * visibility,
+        }};
+        count++;
+    }
+
+    return count;
+}
+
+static void MDLX_BindShaderLights(mdxShaderLight_t const *lights, int numLights) {
+    LPSHADER shader = mdlx.shader;
+    numLights = MIN(numLights, MDX_SHADER_MAX_LIGHTS);
+    R_Call(glUniform1i, shader->uMdxLightCount, numLights);
+    if (numLights > 0) {
+        R_Call(glUniformMatrix4fv, shader->uMdxLights, numLights, GL_FALSE, lights[0].matrix.v);
+    }
+}
+
 static void MDLX_BindGeosetMatrixPalette(mdxModel_t const *model, mdxGeoset_t const *geoset) {
     MATRIX4 matrixPalette[MDX_MATRIX_PALETTE];
 
@@ -212,7 +301,10 @@ static void MDLX_RenderGeoset(mdxModel_t const *model,
                              mdxGeoset_t const *geoset,
                              DWORD team,
                              LPCMATRIX4 modelMatrix,
-                             LPCTEXTURE overrideTexture)
+                             LPCTEXTURE overrideTexture,
+                             BOOL forceUnshaded,
+                             mdxShaderLight_t const *lights,
+                             int numLights)
 {
     MATRIX3 mNormalMatrix;
     BOOL force_two_sided = model && !model->cameras;
@@ -225,10 +317,12 @@ static void MDLX_RenderGeoset(mdxModel_t const *model,
     R_Call(glUniformMatrix4fv, shader->uModelMatrix, 1, GL_FALSE, modelMatrix->v);
     R_Call(glUniformMatrix3fv, shader->uNormalMatrix, 1, GL_TRUE, mNormalMatrix.v);
     MDLX_BindGeosetMatrixPalette(model, geoset);
+    MDLX_BindShaderLights(lights, numLights);
 
     FOR_LOOP(layerID, material->num_layers) {
         mdxMaterialLayer_t const *layer = &material->layers[layerID];
         R_Call(glEnable, GL_DEPTH_TEST);
+        R_Call(glUniform1i, shader->uUseDiscard, 0);
         if (force_two_sided) {
             R_Call(glDisable, GL_CULL_FACE);
         } else {
@@ -239,6 +333,8 @@ static void MDLX_RenderGeoset(mdxModel_t const *model,
         if (!MDLX_SetBlendMode(layer, layerID))
             continue;
         MDLX_ApplyLayerFlags(layer);
+        BOOL unshaded = forceUnshaded || (layer->flags & MODEL_GEO_UNSHADED);
+        R_Call(glUniform1i, shader->uUnshaded, unshaded);
         mdxTexture_t const *modeltex = &model->textures[layer->textureId];
         LPCTEXTURE texture = MDLX_GetTexture(model, team, layer->textureId, modeltex->replaceableID, overrideTexture);
         R_BindTexture(texture, 0);
@@ -251,6 +347,7 @@ static void MDLX_RenderGeoset(mdxModel_t const *model,
     R_Call(glEnable, GL_CULL_FACE);
     R_Call(glCullFace, GL_BACK);
     R_Call(glDepthMask, GL_TRUE);
+    R_Call(glUniform1i, shader->uUnshaded, forceUnshaded);
 }
 
 mdxSequence_t const *MDLX_FindSequenceByName(mdxModel_t const *model, LPCSTR name) {
@@ -344,7 +441,13 @@ check_geometry:
     return false;
 }
 
-static void MDLX_RenderGeosets(const renderEntity_t *entity, const mdxModel_t *model, LPCMATRIX4 model_matrix) {
+static void MDLX_RenderGeosets(const renderEntity_t *entity,
+                               const mdxModel_t *model,
+                               LPCMATRIX4 model_matrix,
+                               mdxShaderLight_t const *lights,
+                               int numLights)
+{
+    BOOL forceUnshaded = (entity->flags & RF_NO_LIGHTING) != 0;
     FOR_EACH_LIST(mdxGeoset_t, geoset, model->geosets) {
         if (geoset->geosetAnim && geoset->geosetAnim->alphas) {
             float fAlpha = 1.f;
@@ -352,7 +455,7 @@ static void MDLX_RenderGeosets(const renderEntity_t *entity, const mdxModel_t *m
             if (fAlpha < EPSILON)
                 continue;
         }
-        MDLX_RenderGeoset(model, geoset, entity->team&TEAM_MASK, model_matrix, entity->skin);
+        MDLX_RenderGeoset(model, geoset, entity->team&TEAM_MASK, model_matrix, entity->skin, forceUnshaded, lights, numLights);
     }
 }
 
@@ -405,6 +508,8 @@ void MDX_RenderModel(renderEntity_t const *entity,
     R_Call(glUniform1i, shader->uUnshaded, (entity->flags & RF_NO_LIGHTING) != 0);
 
     MDLX_BindBoneMatrices(model, transform, entity->frame, entity->oldframe);
+    mdxShaderLight_t lights[MDX_SHADER_MAX_LIGHTS];
+    int numLights = MDLX_CollectModelLights(model, transform, entity->frame, lights, MDX_SHADER_MAX_LIGHTS);
 
     if (entity->flags & RF_NO_FOGOFWAR) {
         R_Call(glActiveTexture, GL_TEXTURE2);
@@ -412,7 +517,7 @@ void MDX_RenderModel(renderEntity_t const *entity,
         R_Call(glActiveTexture, GL_TEXTURE0);
     }
     
-    MDLX_RenderGeosets(entity, model, transform);
+    MDLX_RenderGeosets(entity, model, transform, lights, numLights);
     
     MDLX_RenderParticleEmitters(entity, model, transform);
 

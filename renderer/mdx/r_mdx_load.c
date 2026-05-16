@@ -573,13 +573,17 @@ void ReadLight(LPSIZEBUF buffer, mdxLight_t *light) {
     MSG_READ(buffer, light->AmbIntensity);
     while (MSG_Read(buffer, &header, 4)) {
         switch (header) {
-            case ID_KLAV: ReadKeyTrack(buffer, TDATA_FLOAT1, &light->keytracks.Visibility); break;
+            case ID_KLAV:
+                ReadKeyTrack(buffer, TDATA_FLOAT1, &light->keytracks.AmbIntensity);
+                break;
             case ID_KLAC: ReadKeyTrack(buffer, TDATA_FLOAT3, &light->keytracks.Color); break;
             case ID_KLAI: ReadKeyTrack(buffer, TDATA_FLOAT1, &light->keytracks.Intensity); break;
             case ID_KLBC: ReadKeyTrack(buffer, TDATA_FLOAT3, &light->keytracks.AmbColor); break;
-            case ID_KLBI: ReadKeyTrack(buffer, TDATA_FLOAT1, &light->keytracks.AmbIntensity); break;
-            case ID_KLAS: ReadKeyTrack(buffer, TDATA_INT1, &light->keytracks.AttenuationStart); break;
-            case ID_KLAE: ReadKeyTrack(buffer, TDATA_INT1, &light->keytracks.AttenuationEnd); break;
+            case ID_KLBI:
+                ReadKeyTrack(buffer, TDATA_FLOAT1, &light->keytracks.AmbIntensity);
+                break;
+            case ID_KLAS: ReadKeyTrack(buffer, TDATA_FLOAT1, &light->keytracks.AttenuationStart); break;
+            case ID_KLAE: ReadKeyTrack(buffer, TDATA_FLOAT1, &light->keytracks.AttenuationEnd); break;
             default:
                 PrintTag(header);
                 break;
