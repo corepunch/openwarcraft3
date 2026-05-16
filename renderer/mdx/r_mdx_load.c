@@ -111,6 +111,26 @@ DWORD R_ModelFindBiggestGroup(mdxGeoset_t const *geoset) {
     return biggest;
 }
 
+static BYTE R_AddGeosetMatrixPaletteEntry(mdxGeoset_t *geoset, int matrix_id) {
+    if (matrix_id < 0) {
+        matrix_id = 0;
+    }
+    FOR_LOOP(i, geoset->num_matrixPalette) {
+        if (geoset->matrixPalette[i] == matrix_id) {
+            return (BYTE)i;
+        }
+    }
+    if (geoset->num_matrixPalette >= MDX_MATRIX_PALETTE) {
+        fprintf(stderr,
+                "MDX geoset uses more than %d unique matrices; falling back to palette slot 0 for node %d\n",
+                MDX_MATRIX_PALETTE,
+                matrix_id);
+        return 0;
+    }
+    geoset->matrixPalette[geoset->num_matrixPalette] = matrix_id;
+    return (BYTE)geoset->num_matrixPalette++;
+}
+
 void R_SetupGeosetVertexBuffer(mdxGeoset_t *geoset) {
     DWORD biggestGeoset = R_ModelFindBiggestGroup(geoset);
     if (biggestGeoset > MAX_SKIN_BONES) {
@@ -125,11 +145,13 @@ void R_SetupGeosetVertexBuffer(mdxGeoset_t *geoset) {
         : 1;
     matrixGroup_t *matrixGroups = ri.MemAlloc(sizeof(matrixGroup_t) * matrixGroupCount);
     DWORD indexOffset = 0;
+    geoset->matrixPalette = ri.MemAlloc(sizeof(*geoset->matrixPalette) * MDX_MATRIX_PALETTE);
+    geoset->num_matrixPalette = 0;
 
     FOR_LOOP(matrixGroupIndex, matrixGroupCount) {
         memset(&matrixGroups[matrixGroupIndex], 0x00, sizeof(matrixGroup_t));
         if (matrixGroupCount == 1 && (!geoset->matrixGroupSizes || !geoset->matrices || geoset->num_matrixGroupSizes <= 0)) {
-            matrixGroups[matrixGroupIndex][0] = 0;
+            matrixGroups[matrixGroupIndex][0] = R_AddGeosetMatrixPaletteEntry(geoset, 0);
             continue;
         }
         DWORD groupSize = geoset->matrixGroupSizes[matrixGroupIndex];
@@ -143,13 +165,7 @@ void R_SetupGeosetVertexBuffer(mdxGeoset_t *geoset) {
         }
         FOR_LOOP(matrixIndex, groupSize) {
             int matrix_id = geoset->matrices[indexOffset++];
-            if (matrix_id < 0) {
-                matrix_id = 0;
-            }
-            if (matrix_id >= MDX_MATRIX_PALETTE) {
-                matrix_id = MDX_MATRIX_PALETTE - 1;
-            }
-            matrixGroups[matrixGroupIndex][matrixIndex] = (BYTE)matrix_id;
+            matrixGroups[matrixGroupIndex][matrixIndex] = R_AddGeosetMatrixPaletteEntry(geoset, matrix_id);
         }
     }
 
@@ -805,6 +821,7 @@ void MDLX_ReleaseModelGeoset(mdxGeoset_t *geoset) {
     SAFE_DELETE(geoset->normals, ri.MemFree);
     SAFE_DELETE(geoset->texcoord, ri.MemFree);
     SAFE_DELETE(geoset->matrices, ri.MemFree);
+    SAFE_DELETE(geoset->matrixPalette, ri.MemFree);
     SAFE_DELETE(geoset->primitiveTypes, ri.MemFree);
     SAFE_DELETE(geoset->primitiveCounts, ri.MemFree);
     SAFE_DELETE(geoset->triangles, ri.MemFree);

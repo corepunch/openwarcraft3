@@ -191,6 +191,23 @@ static mdxMaterial_t *MDLX_GetMaterialAtIndex(mdxGeoset_t const *geoset, mdxMode
     return material;
 }
 
+static void MDLX_BindGeosetMatrixPalette(mdxModel_t const *model, mdxGeoset_t const *geoset) {
+    MATRIX4 matrixPalette[MDX_MATRIX_PALETTE];
+
+    FOR_LOOP(i, MDX_MATRIX_PALETTE) {
+        Matrix4_identity(&matrixPalette[i]);
+        if (i >= geoset->num_matrixPalette) {
+            continue;
+        }
+        int node_id = geoset->matrixPalette[i];
+        if (node_id >= 0 && node_id < MDX_MAX_NODES && model->nodes[node_id]) {
+            matrixPalette[i] = node_matrices[node_id];
+        }
+    }
+
+    R_Call(glUniformMatrix4fv, mdlx.shader->uBones, MDX_MATRIX_PALETTE, GL_FALSE, matrixPalette->v);
+}
+
 static void MDLX_RenderGeoset(mdxModel_t const *model,
                              mdxGeoset_t const *geoset,
                              DWORD team,
@@ -207,6 +224,7 @@ static void MDLX_RenderGeoset(mdxModel_t const *model,
     R_Call(glUniform1i, shader->uUseDiscard, 0);
     R_Call(glUniformMatrix4fv, shader->uModelMatrix, 1, GL_FALSE, modelMatrix->v);
     R_Call(glUniformMatrix3fv, shader->uNormalMatrix, 1, GL_TRUE, mNormalMatrix.v);
+    MDLX_BindGeosetMatrixPalette(model, geoset);
 
     FOR_LOOP(layerID, material->num_layers) {
         mdxMaterialLayer_t const *layer = &material->layers[layerID];
@@ -404,4 +422,3 @@ void MDX_RenderModel(renderEntity_t const *entity,
         R_Call(glActiveTexture, GL_TEXTURE0);
     }
 }
-
