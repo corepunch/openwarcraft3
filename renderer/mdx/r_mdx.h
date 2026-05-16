@@ -301,6 +301,7 @@ typedef struct mdxGeoset_s {
     mdxGeosetAnim_t *geosetAnim;
 //    mdxVertexSkin_t *skinning;
     int *matrices;
+    int *matrixPalette;
     int *primitiveTypes;
     int *primitiveCounts;
     short *triangles;
@@ -313,6 +314,7 @@ typedef struct mdxGeoset_s {
     int num_normals;
     int num_texcoord;
     int num_matrices;
+    int num_matrixPalette;
     int num_primitiveTypes;
     int num_primitiveCounts;
     int num_triangles;
