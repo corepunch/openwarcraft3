@@ -813,6 +813,33 @@ static void DumpLoadedModel(mdxModel_t const *mdx, DWORD sample_frame) {
                 helper->node.name);
     }
 
+    FOR_EACH_LIST(mdxLight_t, light, mdx->lights) {
+        VECTOR3 pivot = { 0, 0, 0 };
+        if (light->node.node_id < (DWORD)mdx->num_pivots) {
+            pivot = mdx->pivots[light->node.node_id];
+        }
+        fprintf(stderr,
+                "  LITE: node_id=%u parent=%u type=%u pivot=(%.3f %.3f %.3f) atten=(%.3f %.3f) color=(%.3f %.3f %.3f) intensity=%.3f ambient=(%.3f %.3f %.3f) ambientIntensity=%.3f flags=0x%x name=%s\n",
+                (unsigned)light->node.node_id,
+                (unsigned)light->node.parent_id,
+                (unsigned)light->type,
+                pivot.x,
+                pivot.y,
+                pivot.z,
+                light->AttenuationStart,
+                light->AttenuationEnd,
+                light->Color.x,
+                light->Color.y,
+                light->Color.z,
+                light->Intensity,
+                light->AmbColor.x,
+                light->AmbColor.y,
+                light->AmbColor.z,
+                light->AmbIntensity,
+                (unsigned)light->node.flags,
+                light->node.name);
+    }
+
     FOR_EACH_LIST(mdxGeoset_t, geoset, mdx->geosets) {
         fprintf(stderr,
                 "  GEOS: material=%d group=%d selectable=%d vertices=%d triangles=%d matrix_groups=%d matrices=%d geoa=%p bounds=(%.3f %.3f %.3f)->(%.3f %.3f %.3f)\n",

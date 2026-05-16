@@ -197,6 +197,8 @@ LPSHADER R_InitShader(LPCSTR vs_default, LPCSTR fs_default){
     R_RegisterUniform(program, uBones);
     R_RegisterUniform(program, uUseDiscard);
     R_RegisterUniform(program, uUnshaded);
+    R_RegisterUniform(program, uMdxLightCount);
+    program->uMdxLights = glGetUniformLocation(program->progid, "uMdxLights[0]");
     R_RegisterUniform(program, uEyePosition);
     R_RegisterUniform(program, uActiveGlow);
     
