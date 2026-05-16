@@ -2,7 +2,9 @@
 #include "r_blp.h"
 
 #define STB_IMAGE_IMPLEMENTATION
+#define STBI_WARCRAFT3_BLP_JPEG_RGBA_BANDS
 #include "stb/stb_image.h"
+#undef STBI_WARCRAFT3_BLP_JPEG_RGBA_BANDS
 #undef STB_IMAGE_IMPLEMENTATION
 
 // Opaque type representing a BLP file
@@ -208,8 +210,8 @@ LPCOLOR32 blp1_convert_jpeg(BYTE* pSrc, struct tBLP1Infos* pInfos, DWORD dataSiz
 
     for (DWORD p = 0; p < (DWORD)(width * height); ++p) {
         pBuffer[p].r = image[p * 4 + 2];
-        pBuffer[p].g = image[p * 4 + 0];
-        pBuffer[p].b = 255-image[p * 4 + 1];
+        pBuffer[p].g = image[p * 4 + 1];
+        pBuffer[p].b = image[p * 4 + 0];
         pBuffer[p].a = image[p * 4 + 3];
     }
 
