@@ -115,7 +115,9 @@ void R_RenderOverlays(void) {
     }
 }
 
+#ifdef USE_SHADOWMAPS
 extern bool is_rendering_lights;
+#endif
 DWORD selCircles[NUM_SELECTION_CIRCLES] = { 100, 300, 100000 };
 
 static void R_RenderUberSplat(const renderEntity_t *entity, LPCVECTOR2 origin) {
@@ -147,8 +149,10 @@ void R_RenderModel(renderEntity_t const *entity) {
     if ((entity->flags & RF_HIDDEN) || !entity->model)
         return;
     
+#ifdef USE_SHADOWMAPS
     if (is_rendering_lights && (entity->flags & RF_NO_SHADOW))
         return;
+#endif
     
     switch (entity->model->modeltype) {
         case ID_MDLX:
@@ -159,8 +163,10 @@ void R_RenderModel(renderEntity_t const *entity) {
             break;
     }
     
+#ifdef USE_SHADOWMAPS
     if (is_rendering_lights)
         return;
+#endif
     
     R_RenderUberSplat(entity, (LPCVECTOR2)&entity->origin);
     R_RenderSelectedCircle(entity, (LPCVECTOR2)&entity->origin);

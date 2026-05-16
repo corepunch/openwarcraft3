@@ -12,7 +12,9 @@ struct render_globals tr;
 SDL_Window *window;
 SDL_GLContext context;
 
+#ifdef USE_SHADOWMAPS
 bool is_rendering_lights = false;
+#endif
 static bool renderer_shutdown = false;
 
 void M3_Init(void);
@@ -190,8 +192,14 @@ static void R_SetupGL(bool drawLight) {
     R_Call(glEnable, GL_CULL_FACE);
     R_Call(glCullFace, GL_BACK);
     
+    GLfloat const *viewProjectionMatrix =
+#ifdef USE_SHADOWMAPS
+        drawLight ? tr.viewDef.lightMatrix.v :
+#endif
+        tr.viewDef.viewProjectionMatrix.v;
+
     R_Call(glUseProgram, tr.shader[SHADER_DEFAULT]->progid);
-    R_Call(glUniformMatrix4fv, tr.shader[SHADER_DEFAULT]->uViewProjectionMatrix, 1, GL_FALSE, drawLight ? tr.viewDef.lightMatrix.v : tr.viewDef.viewProjectionMatrix.v);
+    R_Call(glUniformMatrix4fv, tr.shader[SHADER_DEFAULT]->uViewProjectionMatrix, 1, GL_FALSE, viewProjectionMatrix);
     R_Call(glUniformMatrix4fv, tr.shader[SHADER_DEFAULT]->uTextureMatrix, 1, GL_FALSE, tr.viewDef.textureMatrix.v);
     R_Call(glUniformMatrix4fv, tr.shader[SHADER_DEFAULT]->uModelMatrix, 1, GL_FALSE, model_matrix.v);
     R_Call(glUniformMatrix4fv, tr.shader[SHADER_DEFAULT]->uLightMatrix, 1, GL_FALSE, tr.viewDef.lightMatrix.v);
@@ -204,6 +212,7 @@ static void R_SetupGL(bool drawLight) {
     
     R_Call(glDepthFunc, GL_LEQUAL);
 
+#ifdef USE_SHADOWMAPS
     if (drawLight) {
         R_Call(glViewport, 0, 0, SHADOW_TEXSIZE, SHADOW_TEXSIZE);
         R_Call(glScissor, 0, 0, SHADOW_TEXSIZE, SHADOW_TEXSIZE);
@@ -215,6 +224,10 @@ static void R_SetupGL(bool drawLight) {
         R_Call(glActiveTexture, GL_TEXTURE1);
         R_Call(glBindTexture, GL_TEXTURE_2D, tr.rt[RT_DEPTHMAP]->texture);
     }
+#else
+    (void)drawLight;
+    R_Call(glBindFramebuffer, GL_FRAMEBUFFER, 0);
+#endif
 }
 
 LPCSTR selCirclesNames[NUM_SELECTION_CIRCLES] = {
@@ -298,7 +311,9 @@ void R_Init(DWORD width, DWORD height) {
     tr.texture[TEX_BLACK] = R_AllocateSinglePixelTexture(0xff000000);
     tr.texture[TEX_WATER] = R_LoadTexture("ReplaceableTextures\\Water\\Water12.blp");
     tr.texture[TEX_FONT] = R_MakeSysFontTexture();
+#ifdef USE_SHADOWMAPS
     tr.rt[RT_DEPTHMAP] = R_AllocateRenderTexture(SHADOW_TEXSIZE, SHADOW_TEXSIZE, GL_DEPTH_COMPONENT, GL_FLOAT, GL_DEPTH_ATTACHMENT);
+#endif
     R_Call(glDisable, GL_DEPTH_TEST);
     R_Call(glClearColor, 0.5, 0.5, 0.5, 1.0);
     R_Call(glViewport, 0, 0, tr.drawableSize.width, tr.drawableSize.height);
@@ -345,6 +360,7 @@ void R_RevertSettings(void) {
     R_SetupScissor(&(RECT){0,0,1,1});
 }
 
+#ifdef USE_SHADOWMAPS
 void R_RenderShadowMap(void) {
     is_rendering_lights = true;
     R_SetupGL(true);
@@ -352,9 +368,12 @@ void R_RenderShadowMap(void) {
     R_DrawWorld();
     R_DrawEntities();
 }
+#endif
 
 void R_RenderView(void) {
+#ifdef USE_SHADOWMAPS
     is_rendering_lights = false;
+#endif
     R_SetupViewport(&tr.viewDef.viewport);
     R_SetupScissor(&tr.viewDef.scissor);
     R_SetupGL(false);
@@ -380,7 +399,9 @@ void R_RenderFrame(viewDef_t const *viewDef) {
     Frustum_Calculate(&viewDef->viewProjectionMatrix, &tr.viewDef.frustum);
 
     R_RenderFogOfWar();
+#ifdef USE_SHADOWMAPS
     R_RenderShadowMap();
+#endif
     R_RenderView();
     R_RenderOverlays();
 }
