@@ -3954,6 +3954,19 @@ static stbi_uc *load_jpeg_image(stbi__jpeg *z, int *out_x, int *out_y, int *comp
                   z->YCbCr_to_RGB_kernel(out, y, coutput[1], coutput[2], z->s->img_x, n);
                }
             } else if (z->s->img_n == 4) {
+#ifdef STBI_WARCRAFT3_BLP_JPEG_RGBA_BANDS
+               if (n == 4) {
+                  // Warcraft III BLP JPEGs are decoded like DrSuperGood's
+                  // blp-iio-plugin: read raw JPEG raster bands {2, 1, 0, 3}.
+                  for (i=0; i < z->s->img_x; ++i) {
+                     out[0] = coutput[2][i];
+                     out[1] = coutput[1][i];
+                     out[2] = y[i];
+                     out[3] = coutput[3][i];
+                     out += n;
+                  }
+               } else
+#endif
                if (z->app14_color_transform == 0) { // CMYK
                   for (i=0; i < z->s->img_x; ++i) {
                      stbi_uc m = coutput[3][i];
