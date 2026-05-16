@@ -139,6 +139,11 @@ static void Init_MainMenu(void) {
     UI_FRAME(OptionsButton);
     UI_FRAME(CreditsButton);
     UI_FRAME(ExitButton);
+    UI_FRAME(WarCraftIIILogo);
+
+    if (WarCraftIIILogo) {
+        UI_SetPoint(WarCraftIIILogo, FRAMEPOINT_TOPLEFT, NULL, FRAMEPOINT_TOPLEFT, 0.13f, -0.08f);
+    }
 
     if (TopLeftPanel) {
         UI_SetHidden(TopLeftPanel, false);
