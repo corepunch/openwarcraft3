@@ -34,8 +34,10 @@
 }
 
 #define R_Call(func, ...) func(__VA_ARGS__); GetError();
+#ifdef USE_SHADOWMAPS
 #define SHADOW_TEXSIZE 1024
 #define SHADOW_SCALE 1500
+#endif
 #define MAX_TEAMS 16
 #define TEAM_MASK (MAX_TEAMS - 1)
 #define PORTRAIT_SHADOW_SIZE 50
@@ -83,11 +85,15 @@ struct shader_program {
     DWORD uNormalMatrix;
     DWORD uTextureMatrix;
     DWORD uTexture;
+#if defined(USE_SHADOWMAPS) || defined(DEBUG_PATHFINDING)
     DWORD uShadowmap;
+#endif
     DWORD uFogOfWar;
     DWORD uBones;
     DWORD uUseDiscard;
     DWORD uUnshaded;
+    DWORD uLayerAlpha;
+    DWORD uGeosetColor;
     DWORD uMdxLightCount;
     DWORD uMdxLights;
     DWORD uEyePosition;
@@ -115,7 +121,9 @@ typedef enum {
 } MODELKEYTRACKDATATYPE;
 
 enum {
+#ifdef USE_SHADOWMAPS
     TEX_SHADOWMAP,
+#endif
     TEX_WATER,
     TEX_FONT,
     TEX_WHITE,
@@ -127,7 +135,9 @@ enum {
 };
 
 enum {
+#ifdef USE_SHADOWMAPS
     RT_DEPTHMAP,
+#endif
     RT_COUNT,
 };
 
@@ -183,7 +193,9 @@ LPSHADER R_InitShader(LPCSTR vs_default, LPCSTR fs_default);
 void R_ReleaseShader(LPSHADER shader);
 
 // r_main.c
+#ifdef USE_SHADOWMAPS
 void R_RenderShadowMap(void);
+#endif
 void R_RenderView(void);
 
 // r_ents.c

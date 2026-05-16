@@ -1,7 +1,9 @@
 #include "r_mdx.h"
 #include "../r_local.h"
 
+#ifdef USE_SHADOWMAPS
 extern bool is_rendering_lights;
+#endif
 
 #define MDX_SHADER_MAX_LIGHTS 8
 
@@ -141,8 +143,10 @@ static bool MDLX_SetBlendMode(const mdxMaterialLayer_t *layer, DWORD layerID) {
             R_Call(glDepthMask, GL_TRUE);
             break;
         case BLEND_MODE_BLEND:
+#ifdef USE_SHADOWMAPS
             if (is_rendering_lights)
                 return false;
+#endif
             R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
             R_Call(glDepthMask, GL_FALSE);
             break;
@@ -151,20 +155,26 @@ static bool MDLX_SetBlendMode(const mdxMaterialLayer_t *layer, DWORD layerID) {
             return false;
 #else
         case BLEND_MODE_ADD:
+#ifdef USE_SHADOWMAPS
             if (is_rendering_lights)
                 return false;
+#endif
             R_Call(glBlendFunc, GL_ONE, GL_ONE);
             R_Call(glDepthMask, GL_FALSE);
             break;
         case BLEND_MODE_MODULATE:
+#ifdef USE_SHADOWMAPS
             if (is_rendering_lights)
                 return false;
+#endif
             R_Call(glBlendFunc, GL_DST_COLOR, GL_ZERO);
             R_Call(glDepthMask, GL_FALSE);
             break;
         case BLEND_MODE_MODULATE_2X:
+#ifdef USE_SHADOWMAPS
             if (is_rendering_lights)
                 return false;
+#endif
             R_Call(glBlendFunc, GL_DST_COLOR, GL_SRC_COLOR);
             R_Call(glDepthMask, GL_FALSE);
             break;
@@ -297,12 +307,77 @@ static void MDLX_BindGeosetMatrixPalette(mdxModel_t const *model, mdxGeoset_t co
     R_Call(glUniformMatrix4fv, mdlx.shader->uBones, MDX_MATRIX_PALETTE, GL_FALSE, matrixPalette->v);
 }
 
+static VECTOR4 MDLX_EvaluateGeosetColor(mdxModel_t const *model,
+                                        mdxGeoset_t const *geoset,
+                                        DWORD frame)
+{
+    VECTOR4 color = { 1.0f, 1.0f, 1.0f, 1.0f };
+
+    if (!geoset->geosetAnim) {
+        return color;
+    }
+    color.w = geoset->geosetAnim->staticAlpha;
+    if (!isfinite(color.w)) {
+        color.w = 1.0f;
+    }
+    if (geoset->geosetAnim->alphas) {
+        MDLX_GetModelKeytrackValue(model, geoset->geosetAnim->alphas, frame, &color.w);
+    }
+    if (geoset->geosetAnim->flags & 0x1) {
+        color.x = geoset->geosetAnim->staticColor.x;
+        color.y = geoset->geosetAnim->staticColor.y;
+        color.z = geoset->geosetAnim->staticColor.z;
+        if (geoset->geosetAnim->colors) {
+            VECTOR3 animated = geoset->geosetAnim->staticColor;
+            MDLX_GetModelKeytrackValue(model, geoset->geosetAnim->colors, frame, &animated);
+            color.x = animated.x;
+            color.y = animated.y;
+            color.z = animated.z;
+        }
+    }
+    color.x = MIN(MAX(color.x, 0.0f), 1.0f);
+    color.y = MIN(MAX(color.y, 0.0f), 1.0f);
+    color.z = MIN(MAX(color.z, 0.0f), 1.0f);
+    color.w = MIN(MAX(color.w, 0.0f), 1.0f);
+    return color;
+}
+
+static float MDLX_EvaluateLayerAlpha(mdxModel_t const *model,
+                                     mdxMaterial_t const *material,
+                                     mdxMaterialLayer_t const *layer,
+                                     DWORD frame)
+{
+    float alpha = layer->staticAlpha;
+
+    if (!isfinite(alpha)) {
+        alpha = 1.0f;
+    }
+    if (layer->alpha) {
+        MDLX_GetModelKeytrackValue(model, layer->alpha, frame, &alpha);
+    }
+    if (material->alpha) {
+        float materialAlpha = 1.0f;
+        MDLX_GetModelKeytrackValue(model, material->alpha, frame, &materialAlpha);
+        alpha *= materialAlpha;
+    }
+    if (!isfinite(alpha)) {
+        alpha = 1.0f;
+    }
+    if (alpha < 0.0f) {
+        alpha = 0.0f;
+    } else if (alpha > 1.0f) {
+        alpha = 1.0f;
+    }
+    return alpha;
+}
+
 static void MDLX_RenderGeoset(mdxModel_t const *model,
                              mdxGeoset_t const *geoset,
                              DWORD team,
                              LPCMATRIX4 modelMatrix,
                              LPCTEXTURE overrideTexture,
                              BOOL forceUnshaded,
+                             DWORD frame,
                              mdxShaderLight_t const *lights,
                              int numLights)
 {
@@ -311,6 +386,7 @@ static void MDLX_RenderGeoset(mdxModel_t const *model,
     LPSHADER shader = mdlx.shader;
     Matrix3_normal(&mNormalMatrix, modelMatrix);
     mdxMaterial_t const *material = MDLX_GetMaterialAtIndex(geoset, model);
+    VECTOR4 geosetColor = MDLX_EvaluateGeosetColor(model, geoset, frame);
 
     R_Call(glUseProgram, shader->progid);
     R_Call(glUniform1i, shader->uUseDiscard, 0);
@@ -318,9 +394,13 @@ static void MDLX_RenderGeoset(mdxModel_t const *model,
     R_Call(glUniformMatrix3fv, shader->uNormalMatrix, 1, GL_TRUE, mNormalMatrix.v);
     MDLX_BindGeosetMatrixPalette(model, geoset);
     MDLX_BindShaderLights(lights, numLights);
+    R_Call(glUniform1f, shader->uLayerAlpha, 1.0f);
+    R_Call(glUniform4f, shader->uGeosetColor, geosetColor.x, geosetColor.y, geosetColor.z, geosetColor.w);
 
     FOR_LOOP(layerID, material->num_layers) {
         mdxMaterialLayer_t const *layer = &material->layers[layerID];
+        float alpha;
+
         R_Call(glEnable, GL_DEPTH_TEST);
         R_Call(glUniform1i, shader->uUseDiscard, 0);
         if (force_two_sided) {
@@ -335,6 +415,10 @@ static void MDLX_RenderGeoset(mdxModel_t const *model,
         MDLX_ApplyLayerFlags(layer);
         BOOL unshaded = forceUnshaded || (layer->flags & MODEL_GEO_UNSHADED);
         R_Call(glUniform1i, shader->uUnshaded, unshaded);
+        alpha = MDLX_EvaluateLayerAlpha(model, material, layer, frame);
+        if (alpha < EPSILON)
+            continue;
+        R_Call(glUniform1f, shader->uLayerAlpha, alpha);
         mdxTexture_t const *modeltex = &model->textures[layer->textureId];
         LPCTEXTURE texture = MDLX_GetTexture(model, team, layer->textureId, modeltex->replaceableID, overrideTexture);
         R_BindTexture(texture, 0);
@@ -348,6 +432,8 @@ static void MDLX_RenderGeoset(mdxModel_t const *model,
     R_Call(glCullFace, GL_BACK);
     R_Call(glDepthMask, GL_TRUE);
     R_Call(glUniform1i, shader->uUnshaded, forceUnshaded);
+    R_Call(glUniform1f, shader->uLayerAlpha, 1.0f);
+    R_Call(glUniform4f, shader->uGeosetColor, 1.0f, 1.0f, 1.0f, 1.0f);
 }
 
 mdxSequence_t const *MDLX_FindSequenceByName(mdxModel_t const *model, LPCSTR name) {
@@ -449,13 +535,13 @@ static void MDLX_RenderGeosets(const renderEntity_t *entity,
 {
     BOOL forceUnshaded = (entity->flags & RF_NO_LIGHTING) != 0;
     FOR_EACH_LIST(mdxGeoset_t, geoset, model->geosets) {
-        if (geoset->geosetAnim && geoset->geosetAnim->alphas) {
-            float fAlpha = 1.f;
-            MDLX_GetModelKeytrackValue(model, geoset->geosetAnim->alphas, entity->frame, &fAlpha);
-            if (fAlpha < EPSILON)
+        if (geoset->geosetAnim) {
+            VECTOR4 geosetColor = MDLX_EvaluateGeosetColor(model, geoset, entity->frame);
+            if (geosetColor.w < EPSILON) {
                 continue;
+            }
         }
-        MDLX_RenderGeoset(model, geoset, entity->team&TEAM_MASK, model_matrix, entity->skin, forceUnshaded, lights, numLights);
+        MDLX_RenderGeoset(model, geoset, entity->team&TEAM_MASK, model_matrix, entity->skin, forceUnshaded, entity->frame, lights, numLights);
     }
 }
 
@@ -501,8 +587,13 @@ void MDX_RenderModel(renderEntity_t const *entity,
     }
     
     LPSHADER shader = mdlx.shader;
+    GLfloat const *viewProjectionMatrix =
+#ifdef USE_SHADOWMAPS
+        is_rendering_lights ? tr.viewDef.lightMatrix.v :
+#endif
+        tr.viewDef.viewProjectionMatrix.v;
     R_Call(glUseProgram, shader->progid);
-    R_Call(glUniformMatrix4fv, shader->uViewProjectionMatrix, 1, GL_FALSE, is_rendering_lights ? tr.viewDef.lightMatrix.v : tr.viewDef.viewProjectionMatrix.v);
+    R_Call(glUniformMatrix4fv, shader->uViewProjectionMatrix, 1, GL_FALSE, viewProjectionMatrix);
     R_Call(glUniformMatrix4fv, shader->uTextureMatrix, 1, GL_FALSE, tr.viewDef.textureMatrix.v);
     R_Call(glUniformMatrix4fv, shader->uLightMatrix, 1, GL_FALSE, tr.viewDef.lightMatrix.v);
     R_Call(glUniform1i, shader->uUnshaded, (entity->flags & RF_NO_LIGHTING) != 0);

@@ -54,7 +54,9 @@ static LPCSTR m3_vs =
 "in vec4 i_skin1;\n"
 "in vec4 i_boneWeight1;\n"
 "out vec4 v_color;\n"
+#ifdef USE_SHADOWMAPS
 "out vec4 v_shadow;\n"
+#endif
 "out vec2 v_texcoord;\n"
 "out vec2 v_texcoord2;\n"
 "out vec3 v_normal;\n"
@@ -83,7 +85,9 @@ static LPCSTR m3_vs =
 "    v_texcoord = i_texcoord / 2048.0;\n"
 "    v_texcoord2 = (uTextureMatrix * uModelMatrix * position).xy;\n"
 "    v_normal = normalize(uNormalMatrix * normal);\n"
+#ifdef USE_SHADOWMAPS
 "    v_shadow = uLightMatrix * uModelMatrix * position;\n"
+#endif
 "    v_lightDir = -normalize(vec3(uLightMatrix[0][2], uLightMatrix[1][2], uLightMatrix[2][2]))*1.2;\n"
 "    v_fragCoord = uViewProjectionMatrix * uModelMatrix * position;\n"
 "    gl_Position = v_fragCoord;\n"
@@ -94,7 +98,9 @@ static LPCSTR m3_fs =
 "#version 140\n"
 "in vec2 v_texcoord;\n"
 "in vec2 v_texcoord2;\n"
+#ifdef USE_SHADOWMAPS
 "in vec4 v_shadow;\n"
+#endif
 "in vec3 v_normal;\n"
 "in vec3 v_lightDir;\n"
 //"in vec4 v_fragCoord;\n"
@@ -105,7 +111,9 @@ static LPCSTR m3_fs =
 "uniform sampler2D uNormalMap;\n"
 
 "uniform sampler2D uTexture;\n"
+#ifdef USE_SHADOWMAPS
 "uniform sampler2D uShadowmap;\n"
+#endif
 "uniform sampler2D uFogOfWar;\n"
 
 "vec3 calculateSpecular(vec3 normal, vec3 viewDir, vec3 lightDir, vec3 specularColor) {\n"
@@ -122,13 +130,19 @@ static LPCSTR m3_fs =
 "    return dot(v_normal, v_lightDir);\n"
 "}\n"
 
+#ifdef USE_SHADOWMAPS
 "float get_shadow() {\n"
 "    float depth = texture(uShadowmap, vec2(v_shadow.x + 1.0, v_shadow.y + 1.0) * 0.5).r;\n"
 "    return depth < (v_shadow.z + 0.99) * 0.5 ? 0.0 : 1.0;\n"
 "}\n"
+#endif
 
 "float get_lighting() {\n"
+#ifdef USE_SHADOWMAPS
 "    return mix(0.35, 1.0, get_shadow() * get_light()) * 1.5;"
+#else
+"    return mix(0.35, 1.0, get_light()) * 1.5;"
+#endif
 "}\n"
 
 "float get_fogofwar() {\n"
@@ -680,12 +694,16 @@ void M3_RenderModel(renderEntity_t const *entity, m3Model_t const *model, LPCMAT
     R_Call(glEnable, GL_DEPTH_TEST);
     R_Call(glDepthMask, GL_TRUE);
     R_Call(glUseProgram, m3.shader->progid);
+#ifdef USE_SHADOWMAPS
     extern bool is_rendering_lights;
     if (is_rendering_lights) {
         R_Call(glUniformMatrix4fv, m3.shader->uViewProjectionMatrix, 1, GL_FALSE, tr.viewDef.lightMatrix.v);
     } else {
         R_Call(glUniformMatrix4fv, m3.shader->uViewProjectionMatrix, 1, GL_FALSE, tr.viewDef.viewProjectionMatrix.v);
     }
+#else
+    R_Call(glUniformMatrix4fv, m3.shader->uViewProjectionMatrix, 1, GL_FALSE, tr.viewDef.viewProjectionMatrix.v);
+#endif
     R_Call(glUniformMatrix4fv, m3.shader->uLightMatrix, 1, GL_FALSE, tr.viewDef.lightMatrix.v);
     R_Call(glUniformMatrix4fv, m3.shader->uTextureMatrix, 1, GL_FALSE, tr.viewDef.textureMatrix.v);
     R_Call(glUniformMatrix4fv, m3.shader->uModelMatrix, 1, GL_FALSE, mScaledMatrix.v);

@@ -13,6 +13,7 @@ void R_SetPathTexture(LPCCOLOR32 debugTexture) {
 }
 #endif
 
+#ifdef USE_SHADOWMAPS
 static void R_FileReadShadowMap(HANDLE hMpq, LPWAR3MAP  pWorld) {
     HANDLE file;
     SFileOpenFileEx(hMpq, "war3map.shd", SFILE_OPEN_FROM_MPQ, &file);
@@ -33,6 +34,7 @@ static void R_FileReadShadowMap(HANDLE hMpq, LPWAR3MAP  pWorld) {
 
     tr.texture[TEX_SHADOWMAP] = pShadowmap;
 }
+#endif
 
 static LPMAPSEGMENT R_BuildMapSegment(LPCWAR3MAP map, DWORD sx, DWORD sy) {
     LPMAPSEGMENT mapSegment = ri.MemAlloc(sizeof(MAPSEGMENT));
@@ -140,7 +142,9 @@ void R_RegisterMap(char const *mapFilename) {
     ri.FileExtract(mapFilename, TMP_MAP);
     SFileOpenArchive(TMP_MAP, 0, 0, &hMpq);
     map = FileReadWar3Map(hMpq);
+#ifdef USE_SHADOWMAPS
     R_FileReadShadowMap(hMpq, map);
+#endif
     SFileCloseArchive(hMpq);
     tr.world = map;
 

@@ -25,7 +25,9 @@ static LPCSTR mdx_vs =
 "in vec4 i_skin2;\n"
 #endif
 "out vec4 v_color;\n"
+#ifdef USE_SHADOWMAPS
 "out vec4 v_shadow;\n"
+#endif
 "out vec2 v_texcoord;\n"
 "out vec2 v_texcoord2;\n"
 "out vec3 v_lighting;\n"
@@ -92,7 +94,9 @@ static LPCSTR mdx_vs =
 "    vec3 worldNormal = normalize(uNormalMatrix * normal.xyz);\n"
 "    vec3 worldPosition = (uModelMatrix * position).xyz;\n"
 "    v_lighting = get_vertex_lighting(worldNormal, worldPosition);\n"
+#ifdef USE_SHADOWMAPS
 "    v_shadow = uLightMatrix * uModelMatrix * position;\n"
+#endif
 "    gl_Position = uViewProjectionMatrix * uModelMatrix * position;\n"
 "}\n";
 
@@ -100,20 +104,28 @@ static LPCSTR mdx_fs =
 "#version 140\n"
 "in vec2 v_texcoord;\n"
 "in vec2 v_texcoord2;\n"
+#ifdef USE_SHADOWMAPS
 "in vec4 v_shadow;\n"
+#endif
 "in vec3 v_lighting;\n"
 "out vec4 o_color;\n"
 "uniform sampler2D uTexture;\n"
+#ifdef USE_SHADOWMAPS
 "uniform sampler2D uShadowmap;\n"
+#endif
 "uniform sampler2D uFogOfWar;\n"
 "uniform mat4 uLightMatrix;\n"
 "uniform bool uUseDiscard;\n"
 "uniform bool uUnshaded;\n"
+"uniform float uLayerAlpha;\n"
+"uniform vec4 uGeosetColor;\n"
 "float get_fogofwar() {\n"
 "    return texture(uFogOfWar, v_texcoord2).r;\n"
 "}\n"
 "void main() {\n"
 "    vec4 col = texture(uTexture, v_texcoord);\n"
+"    col *= uGeosetColor;\n"
+"    col *= uLayerAlpha;\n"
 "    if (!uUnshaded) {\n"
 "        col.rgb *= get_fogofwar() * v_lighting;\n"
 "    }\n"
@@ -268,7 +280,9 @@ void R_DrawPortrait(LPCMODEL model, LPCRECT viewport, LPCSTR anim) {
 
     tr.viewDef = viewdef;
 
+#ifdef USE_SHADOWMAPS
     R_RenderShadowMap();
+#endif
     R_RenderView();
 }
 
@@ -301,7 +315,9 @@ void R_DrawSprite(LPCMODEL model, LPCSTR anim, float x, float y) {
 
     tr.viewDef = viewdef;
 
+#ifdef USE_SHADOWMAPS
     R_RenderShadowMap();
+#endif
     R_RenderView();
 }
 
