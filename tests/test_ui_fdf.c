@@ -198,6 +198,21 @@ static void test_backdrop_flags_and_insets_are_parsed(void) {
     ASSERT_FLOAT_EQ(frame->Backdrop.BackgroundInsets[3], 0.4f);
 }
 
+static void test_vector_parser_accepts_f_suffixes(void) {
+    LPFRAMEDEF frame;
+
+    reset_ui_state();
+    parse_fdf("vector_f_suffix.fdf",
+              "Frame \"TEXTBUTTON\" \"Button\" {"
+              " ButtonPushedTextOffset -0.002f -0.003f,"
+              "}");
+
+    frame = UI_FindFrame("Button");
+    if (!require_not_null(frame)) return;
+    ASSERT_FLOAT_EQ(frame->Button.PushedTextOffset.x, -0.002f);
+    ASSERT_FLOAT_EQ(frame->Button.PushedTextOffset.y, -0.003f);
+}
+
 static void test_backdrop_background_adds_blp_extension(void) {
     LPFRAMEDEF frame;
 
@@ -731,6 +746,7 @@ BEGIN_SUITE(ui_fdf)
     RUN_TEST(test_setallpoints_sets_min_and_max);
     RUN_TEST(test_anchor_translates_to_setpoint_state);
     RUN_TEST(test_backdrop_flags_and_insets_are_parsed);
+    RUN_TEST(test_vector_parser_accepts_f_suffixes);
     RUN_TEST(test_backdrop_background_adds_blp_extension);
     RUN_TEST(test_background_art_uses_model_index);
     RUN_TEST(test_collect_frame_tree_preorder_matches_writer_traversal);

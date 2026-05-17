@@ -390,27 +390,6 @@ void SCR_DrawBackdrop2(LPCUIFRAME frame, LPCRECT screen, uiBackdrop_t const *bac
     size2_t backSize = re.GetTextureSize(cl.pics[backdrop->Background]);
     size2_t edgeSize = re.GetTextureSize(cl.pics[backdrop->EdgeFile]);
 
-    FOR_LOOP(i, NUM_BACKDROP_CORNERS) {
-        if ((backdrop->CornerFlags & (1 << corners[i])) == 0)
-            continue;
-        FLOAT const k = 1.0 / NUM_BACKDROP_CORNERS;
-        FLOAT const h = edgeSize.height / 1000.f;
-        FLOAT const tile = backdrop_edge_tile(rects+corners[i], corners[i], h);
-        if (tile > 100) {
-            backdrop_edge_tile(rects+corners[i], corners[i], h);
-        }
-        BOOL const flip = backdrop_edge_flip(corners[i]);
-        RECT const rect = { i * k, 0, k, tile };
-        re.DrawImageEx(&MAKE(DRAWIMAGE,
-                             .texture = cl.pics[backdrop->EdgeFile],
-                             .alphamode = BLEND_MODE_BLEND,
-                             .screen = rects[corners[i]],
-                             .uv = rect,
-                             .color = frame->color,
-                             .rotate = flip,
-                             .shader = SHADER_UI));
-    }
-
     RECT uv = { backdrop->Mirrored ? 1 : 0, 0, backdrop->Mirrored ? -1 : 1, 1};
     RECT background = *screen;
     background.x += backdrop->BackgroundInsets[BACKDROPINSET_LEFT];
@@ -435,25 +414,58 @@ void SCR_DrawBackdrop2(LPCUIFRAME frame, LPCRECT screen, uiBackdrop_t const *bac
                          .color = frame->color,
                          .rotate = false,
                          .shader = SHADER_UI));
+
+    FOR_LOOP(i, NUM_BACKDROP_CORNERS) {
+        if ((backdrop->CornerFlags & (1 << corners[i])) == 0)
+            continue;
+        FLOAT const k = 1.0 / NUM_BACKDROP_CORNERS;
+        FLOAT const h = edgeSize.height / 1000.f;
+        FLOAT const tile = backdrop_edge_tile(rects+corners[i], corners[i], h);
+        if (tile > 100) {
+            backdrop_edge_tile(rects+corners[i], corners[i], h);
+        }
+        BOOL const flip = backdrop_edge_flip(corners[i]);
+        RECT const rect = { i * k, 0, k, tile };
+        re.DrawImageEx(&MAKE(DRAWIMAGE,
+                             .texture = cl.pics[backdrop->EdgeFile],
+                             .alphamode = BLEND_MODE_BLEND,
+                             .screen = rects[corners[i]],
+                             .uv = rect,
+                             .color = frame->color,
+                             .rotate = flip,
+                             .shader = SHADER_UI));
+    }
 }
 
 void SCR_DrawBackdrop(LPCUIFRAME frame, LPCRECT screen) {
     SCR_DrawBackdrop2(frame, screen, frame->buffer.data);
 }
 
+static BOOL SCR_GlueTextButtonIsPushed(LPCUIFRAME frame, LPCRECT screen) {
+    VECTOR2 const m = SCR_MouseToFdf();
+    return Rect_contains(screen, &m) && mouse.button == 1;
+}
+
 void SCR_GlueTextButton(LPCUIFRAME frame, LPCRECT screen) {
     uiGlueTextButton_t const *gluetextbutton = frame->buffer.data;
-    VECTOR2 const m = SCR_MouseToFdf();
-    BOOL const mouse_over = Rect_contains(screen, &m);
     BOOL const enabled = frame->onclick && *frame->onclick;
     uiBackdrop_t const *backdrop = &gluetextbutton->normal;
     if (!enabled) {
-        backdrop = mouse_over && mouse.button == 1 ? &gluetextbutton->disabledPushed : &gluetextbutton->disabled;
-    } else if (mouse_over && mouse.button == 1) {
+        backdrop = SCR_GlueTextButtonIsPushed(frame, screen) ? &gluetextbutton->disabledPushed : &gluetextbutton->disabled;
+    } else if (SCR_GlueTextButtonIsPushed(frame, screen)) {
         backdrop = &gluetextbutton->pushed;
     }
 
     SCR_DrawBackdrop2(frame, screen, backdrop);
+}
+
+static void SCR_DrawGlueTextButtonHighlight(LPCUIFRAME frame) {
+    uiGlueTextButton_t const *gluetextbutton = frame->buffer.data;
+    RECT const *screen = SCR_LayoutRect(frame);
+    VECTOR2 const m = SCR_MouseToFdf();
+    BOOL const enabled = frame->onclick && *frame->onclick;
+    BOOL const mouse_over = Rect_contains(screen, &m);
+
     if (enabled && mouse_over) {
         SCR_DrawHighlightData(&gluetextbutton->highlight, screen);
     }
@@ -574,11 +586,32 @@ void layout_text(LPCUIFRAME frame, LPCRECT screen, LPCSTR text) {
     re.DrawText(&drawtext);
 }
 
+static void SCR_ApplyPushedTextOffset(LPCUIFRAME frame, LPRECT screen) {
+    if (frame->parent >= num_frames) {
+        return;
+    }
+
+    LPCUIFRAME parent = frames + frame->parent;
+    if (parent->flags.type != FT_GLUETEXTBUTTON && parent->flags.type != FT_GLUEBUTTON) {
+        return;
+    }
+
+    LPCRECT parent_screen = SCR_LayoutRect(parent);
+    if (!SCR_GlueTextButtonIsPushed(parent, parent_screen)) {
+        return;
+    }
+
+    uiGlueTextButton_t const *button = parent->buffer.data;
+    screen->x += button->pushedTextOffset.x;
+    screen->y += button->pushedTextOffset.y;
+}
+
 void SCR_DrawString(LPCUIFRAME frame, LPCRECT screen) {
     uiLabel_t const *label = frame->buffer.data;
     RECT scr = *screen;
     scr.x += label->offsetx;
     scr.y += label->offsety;
+    SCR_ApplyPushedTextOffset(frame, &scr);
     layout_text(frame, &scr, SCR_GetStringValue(frame));
 }
 
@@ -763,6 +796,11 @@ void SCR_DrawOverlay(HANDLE _frames) {
     FOR_LOOP(i, num_frames) {
         if (frames[i].flags.type != FT_SPRITE) {
             SCR_DrawFrame(frames+i);
+        }
+    }
+    FOR_LOOP(i, num_frames) {
+        if (frames[i].flags.type == FT_GLUETEXTBUTTON || frames[i].flags.type == FT_GLUEBUTTON) {
+            SCR_DrawGlueTextButtonHighlight(frames+i);
         }
     }
 }

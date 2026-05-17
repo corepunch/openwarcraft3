@@ -258,7 +258,7 @@ static VECTOR2 process_text(LPCDRAWTEXT arg, BOOL draw) {
             continue;;
         }
         if (!strncmp(p, "|r", 2) || !strncmp(p, "|R", 2)) {
-            color = COLOR32_WHITE;
+            color = arg->color;
             p += 2;
             continue;
         }

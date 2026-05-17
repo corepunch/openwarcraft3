@@ -304,11 +304,26 @@ MAKE_PARSER(TYPE) { \
     } \
 }
 
+static void ParseFloatList(LPCSTR token, FLOAT *values, DWORD count) {
+    LPCSTR p = token;
+    for (DWORD i = 0; i < count; i++) {
+        char *endptr = NULL;
+        values[i] = strtof(p, &endptr);
+        if (endptr == p) {
+            break;
+        }
+        p = endptr;
+        while (*p == 'f' || *p == 'F' || *p == ',' || isspace(*p)) {
+            p++;
+        }
+    }
+}
+
 MAKE_PARSER(Float) { *((FLOAT *)out) = atof(token); }
 MAKE_PARSER(Integer) { *((LONG *)out) = atoi(token); }
-MAKE_PARSER(Vector2) { FLOAT *v = out; sscanf(token, "%f %f", v+0, v+1); }
-MAKE_PARSER(Vector3) { FLOAT *v = out; sscanf(token, "%f %f %f", v+0, v+1, v+2); }
-MAKE_PARSER(Vector4) { FLOAT *v = out; sscanf(token, "%f %f %f %f", v+0, v+1, v+2, v+3); }
+MAKE_PARSER(Vector2) { ParseFloatList(token, out, 2); }
+MAKE_PARSER(Vector3) { ParseFloatList(token, out, 3); }
+MAKE_PARSER(Vector4) { ParseFloatList(token, out, 4); }
 MAKE_PARSER(Color) {
     VECTOR4 vec4;
     vec4.w = 1;

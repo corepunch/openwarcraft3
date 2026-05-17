@@ -239,6 +239,7 @@ static void WriteGlueTextButton(LPCFRAMEDEF frame, sizeBuf_t *sb, LPSTR buffer) 
         .disabled = MakeBackdrop(DisabledBackdrop),
         .disabledPushed = MakeBackdrop(DisabledPushedBackdrop),
         .highlight = MakeHighlight(MouseOverBackdrop),
+        .pushedTextOffset = frame->Button.PushedTextOffset,
     };
     MSG_Write(sb, &data, sizeof(data));
 }
