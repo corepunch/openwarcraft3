@@ -30,6 +30,11 @@ static void CMD_MenuMain(LPEDICT ent) {
     ent->client->menu_screen = MENU_SCREEN_MAIN;
 }
 
+static void CMD_MenuRealmSelect(LPEDICT ent, BOOL visible) {
+    UI_ShowRealmSelect(ent, visible);
+    ent->client->menu_screen = MENU_SCREEN_MAIN;
+}
+
 static void CMD_MenuSinglePlayer(LPEDICT ent) {
     UI_ShowSinglePlayerMenu(ent);
     ent->client->menu_screen = MENU_SCREEN_SINGLEPLAYER;
@@ -165,6 +170,10 @@ CLIENTCOMMAND(Menu) {
     }
     if (!strcmp(argv[1], "main")) {
         CMD_MenuMain(clent);
+    } else if (!strcmp(argv[1], "realmselect")) {
+        CMD_MenuRealmSelect(clent, true);
+    } else if (!strcmp(argv[1], "realmok") || !strcmp(argv[1], "realmcancel")) {
+        CMD_MenuRealmSelect(clent, false);
     } else if (!strcmp(argv[1], "singleplayer")) {
         CMD_MenuSinglePlayer(clent);
     } else if (!strcmp(argv[1], "multiplayer")) {

@@ -841,6 +841,28 @@ LPFRAMEDEF UI_FindChildFrame(LPFRAMEDEF frame, LPCSTR name) {
     return NULL;
 }
 
+static BOOL UI_FrameNameEquals(LPCFRAMEDEF frame, LPCSTR name) {
+    return frame && name && *name && !strcmp(frame->Name, name);
+}
+
+static BOOL UI_IsEmbeddedControlPart(LPCFRAMEDEF parent, LPCFRAMEDEF child) {
+    if (!parent || !child) {
+        return false;
+    }
+    /* Control art children are serialized into their owning control's payload by
+     * ui_write.c. Emitting them again as standalone children draws duplicates. */
+    if (child->Type == FT_BACKDROP) {
+        return UI_FrameNameEquals(child, parent->Control.Backdrop.Normal) ||
+               UI_FrameNameEquals(child, parent->Control.Backdrop.Pushed) ||
+               UI_FrameNameEquals(child, parent->Control.Backdrop.Disabled) ||
+               UI_FrameNameEquals(child, parent->Control.Backdrop.DisabledPushed);
+    }
+    if (child->Type == FT_HIGHLIGHT) {
+        return UI_FrameNameEquals(child, parent->Control.Backdrop.MouseOver);
+    }
+    return false;
+}
+
 static DWORD UI_CollectFrameTreeRecursive(LPCFRAMEDEF frame, LPCFRAMEDEF *out, DWORD max) {
     DWORD total = 0;
 
@@ -855,7 +877,7 @@ static DWORD UI_CollectFrameTreeRecursive(LPCFRAMEDEF frame, LPCFRAMEDEF *out, D
 
     FOR_LOOP(i, MAX_UI_CLASSES) {
         LPCFRAMEDEF child = frames + i;
-        if (child->Parent == frame && !child->hidden) {
+        if (child->Parent == frame && !child->hidden && !UI_IsEmbeddedControlPart(frame, child)) {
             DWORD emitted = UI_CollectFrameTreeRecursive(child,
                                                          out ? out + total : NULL,
                                                          max > total ? max - total : 0);
@@ -929,7 +951,7 @@ void UI_WriteFrameWithChildren(LPCFRAMEDEF frame, LPCFRAMEDEF parent) {
     }
     FOR_LOOP(i, MAX_UI_CLASSES) {
         LPCFRAMEDEF it = frames+i;
-        if (it->Parent == frame && !it->hidden) {
+        if (it->Parent == frame && !it->hidden && !UI_IsEmbeddedControlPart(frame, it)) {
             UI_WriteFrameWithChildren(it, NULL);
         }
     }

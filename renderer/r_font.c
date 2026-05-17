@@ -218,19 +218,24 @@ static VECTOR2 process_text(LPCDRAWTEXT arg, BOOL draw) {
     VECTOR2 pos = draw ? get_position(arg) : MAKE(VECTOR2, 0, 0);
     COLOR32 color = arg->color;
     VECTOR2 cursor = pos;
-    FLOAT maxwidth = 0;
     FLOAT linesize = 0.5 * arg->font->size / 1000.f;
+    FLOAT line_advance = linesize * arg->lineHeight;
+    FLOAT max_cursor_x = pos.x;
+    FLOAT min_cursor_y = pos.y;
+    FLOAT max_cursor_y = pos.y;
     for (LPCSTR p = arg->text; *p;) {
         if (*p == '\n') {
             cursor.x = pos.x;
-            cursor.y += linesize * arg->lineHeight * 1.1;
+            cursor.y -= line_advance * 1.1;
+            min_cursor_y = MIN(min_cursor_y, cursor.y);
             p++;
             continue;
         }
         if (!strncmp(p, "|n", 2) || !strncmp(p, "|N", 2)) {
         // next_line:
             cursor.x = pos.x;
-            cursor.y += linesize * arg->lineHeight * 1.1;
+            cursor.y -= line_advance * 1.1;
+            min_cursor_y = MIN(min_cursor_y, cursor.y);
             p += 2;
             continue;
         }
@@ -274,7 +279,8 @@ static VECTOR2 process_text(LPCDRAWTEXT arg, BOOL draw) {
         }
         if (arg->wordWrap && cursor.x > pos.x && !will_word_fit(p, arg->textWidth - (cursor.x - pos.x), arg->font)) {
             cursor.x = pos.x;
-            cursor.y += linesize * arg->lineHeight;
+            cursor.y -= line_advance;
+            min_cursor_y = MIN(min_cursor_y, cursor.y);
         }
         unsigned codepoint;
         p = utf8_to_codepoint(p, &codepoint);
@@ -290,9 +296,12 @@ static VECTOR2 process_text(LPCDRAWTEXT arg, BOOL draw) {
             R_DrawImage(set->image, &screen, &uv_rect, color);
         }
         cursor.x += INV_SCALE(g->xadvance);
-        maxwidth = MAX(maxwidth, cursor.x);
+        max_cursor_x = MAX(max_cursor_x, cursor.x);
+        max_cursor_y = MAX(max_cursor_y, cursor.y);
     }
-    return MAKE(VECTOR2, maxwidth, cursor.y + R_GetFontHeight((LPFONT)arg->font));
+    return MAKE(VECTOR2,
+                max_cursor_x - pos.x,
+                (max_cursor_y - min_cursor_y) + R_GetFontHeight((LPFONT)arg->font));
 }
 
 

@@ -133,6 +133,7 @@ static void Init_MainMenu(void) {
     UI_FRAME(TopRightPanel);
     UI_FRAME(RealmSelect);
     UI_FRAME(ControlLayer);
+    UI_FRAME(RealmButton);
     UI_FRAME(SinglePlayerButton);
     UI_FRAME(BattleNetButton);
     UI_FRAME(LocalAreaNetworkButton);
@@ -140,6 +141,8 @@ static void Init_MainMenu(void) {
     UI_FRAME(CreditsButton);
     UI_FRAME(ExitButton);
     UI_FRAME(WarCraftIIILogo);
+    LPFRAMEDEF RealmSelectOKButton = RealmSelect ? UI_FindChildFrame(RealmSelect, "RealmSelectOKButton") : NULL;
+    LPFRAMEDEF RealmSelectCancelButton = RealmSelect ? UI_FindChildFrame(RealmSelect, "RealmSelectCancelButton") : NULL;
 
     if (WarCraftIIILogo) {
         UI_SetPoint(WarCraftIIILogo, FRAMEPOINT_TOPLEFT, NULL, FRAMEPOINT_TOPLEFT, 0.13f, -0.08f);
@@ -169,6 +172,16 @@ static void Init_MainMenu(void) {
     if (ControlLayer) {
         UI_SetParent(ControlLayer, MainMenuFrame);
     }
+    if (WarCraftIIILogo && ControlLayer) {
+        UI_SetParent(WarCraftIIILogo, ControlLayer);
+    }
+#ifndef OW3_NO_NETWORK
+    UI_SetOnClick(RealmButton, "menu realmselect");
+#else
+    (void)RealmButton;
+#endif
+    UI_SetOnClick(RealmSelectOKButton, "menu realmok");
+    UI_SetOnClick(RealmSelectCancelButton, "menu realmcancel");
     UI_SetOnClick(SinglePlayerButton, "menu singleplayer");
     UI_SetOnClick(BattleNetButton, "menu multiplayer");
     UI_SetOnClick(LocalAreaNetworkButton, "menu multiplayer");
@@ -246,7 +259,7 @@ typedef struct {
 static uiMenuPanelAnimation_t const menu_panel_animations[] = {
     { MENU_SCREEN_MAIN, "MainMenu" },
     { MENU_SCREEN_SINGLEPLAYER, "SinglePlayer" },
-    { MENU_SCREEN_MULTIPLAYER, "BattlenetWelcome" },
+    { MENU_SCREEN_MULTIPLAYER, "BattlenetCustom" },
     { MENU_SCREEN_MAPSELECT, "MainCancelPanel" },
     { MENU_SCREEN_OPTIONS, "Options" },
     { MENU_SCREEN_CREDITS, "MainMenu" },
@@ -481,6 +494,19 @@ void UI_Init(void) {
 
 void UI_ShowMainMenu(LPEDICT ent) {
     UI_FRAME(MainMenuFrame);
+    UI_FRAME(RealmSelect);
+    if (RealmSelect) {
+        UI_SetHidden(RealmSelect, true);
+    }
+    UI_WriteMenuWithMainFrame(ent, MainMenuFrame, MENU_SCREEN_MAIN);
+}
+
+void UI_ShowRealmSelect(LPEDICT ent, BOOL visible) {
+    UI_FRAME(MainMenuFrame);
+    UI_FRAME(RealmSelect);
+    if (RealmSelect) {
+        UI_SetHidden(RealmSelect, !visible);
+    }
     UI_WriteMenuWithMainFrame(ent, MainMenuFrame, MENU_SCREEN_MAIN);
 }
 

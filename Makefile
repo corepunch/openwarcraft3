@@ -15,6 +15,9 @@ CFLAGS  := -Wall -I. -Ishared -Ishared/types
 ifeq ($(DIAG_OUTPUT),1)
 	CFLAGS += -DDIAG_OUTPUT
 endif
+ifeq ($(NO_NETWORK),1)
+	CFLAGS += -DOW3_NO_NETWORK
+endif
 
 # ---------------------------------------------------------------------------
 # Platform detection

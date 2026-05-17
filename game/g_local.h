@@ -885,6 +885,7 @@ void UI_ShowInterface(LPEDICT, BOOL, FLOAT);
 void UI_ShowText(LPEDICT, LPCVECTOR2, LPCSTR, FLOAT);
 LPCSTR GetBuildCommand(unitRace_t);
 void UI_ShowMainMenu(LPEDICT);
+void UI_ShowRealmSelect(LPEDICT, BOOL);
 void UI_ShowSinglePlayerMenu(LPEDICT);
 void UI_ShowMultiplayerMenu(LPEDICT);
 void UI_ShowMapSelectMenu(LPEDICT, LPCSTR);

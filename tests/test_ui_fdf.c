@@ -313,6 +313,39 @@ static void test_collect_frame_tree_skips_hidden_children(void) {
     ASSERT(out[1] == visible);
 }
 
+static void test_collect_frame_tree_skips_button_control_art(void) {
+    LPCFRAMEDEF out[4];
+    DWORD count;
+    LPFRAMEDEF button;
+    LPFRAMEDEF text;
+
+    reset_ui_state();
+    parse_fdf("collect_button_art.fdf",
+              "Frame \"GLUETEXTBUTTON\" \"Button\" {"
+              " ControlBackdrop \"ButtonBackdrop\","
+              " ControlPushedBackdrop \"ButtonPushedBackdrop\","
+              " ControlDisabledBackdrop \"ButtonDisabledBackdrop\","
+              " ControlMouseOverHighlight \"ButtonHighlight\","
+              " Frame \"BACKDROP\" \"ButtonBackdrop\" { }"
+              " Frame \"BACKDROP\" \"ButtonPushedBackdrop\" { }"
+              " Frame \"BACKDROP\" \"ButtonDisabledBackdrop\" { }"
+              " Frame \"HIGHLIGHT\" \"ButtonHighlight\" { }"
+              " Frame \"TEXT\" \"ButtonText\" { Text \"x\", }"
+              "}");
+
+    button = UI_FindFrame("Button");
+    text = UI_FindFrame("ButtonText");
+    if (!require_not_null(button)) return;
+    if (!require_not_null(text)) return;
+
+    memset(out, 0, sizeof(out));
+    count = UI_CollectFrameTree(button, out, 4);
+
+    ASSERT_EQ_INT((int)count, 2);
+    ASSERT(out[0] == button);
+    ASSERT(out[1] == text);
+}
+
 static void test_collect_frame_tree_returns_total_when_truncated(void) {
     LPCFRAMEDEF out[2];
     DWORD count;
@@ -751,6 +784,7 @@ BEGIN_SUITE(ui_fdf)
     RUN_TEST(test_background_art_uses_model_index);
     RUN_TEST(test_collect_frame_tree_preorder_matches_writer_traversal);
     RUN_TEST(test_collect_frame_tree_skips_hidden_children);
+    RUN_TEST(test_collect_frame_tree_skips_button_control_art);
     RUN_TEST(test_collect_frame_tree_returns_total_when_truncated);
     RUN_TEST(test_find_child_frame_descends_recursively);
     RUN_TEST(test_programmatic_setpoint_maps_to_points);

@@ -18,6 +18,7 @@ void UI_Init(void);
 void UI_ParseFDF_Buffer(LPCSTR fileName, LPSTR buffer);
 void UI_ShowMainMenu(LPEDICT ent);
 void UI_ShowSinglePlayerMenu(LPEDICT ent);
+void UI_ShowMultiplayerMenu(LPEDICT ent);
 extern struct game_import gi;
 
 #define TEST_LAYER_CONSOLE 3
@@ -284,6 +285,16 @@ static DWORD decoded_layout_count_sprite_animation(LPCUIFRAME decoded, LPCSTR an
         if (decoded[i].flags.type == FT_SPRITE &&
             decoded[i].text &&
             !strcmp(decoded[i].text, animation)) {
+            count++;
+        }
+    }
+    return count;
+}
+
+static DWORD decoded_layout_count_type(LPCUIFRAME decoded, FRAMETYPE type) {
+    DWORD count = 0;
+    FOR_LOOP(i, MAX_LAYOUT_OBJECTS) {
+        if (decoded[i].flags.type == type) {
             count++;
         }
     }
@@ -605,9 +616,11 @@ static void test_menu_command_updates_client_layout_with_repo_fdf(void) {
     ASSERT_NOT_NULL(cl.layout[TEST_LAYER_CONSOLE]);
     decoded = SCR_Clear(cl.layout[TEST_LAYER_CONSOLE]);
     ASSERT(decoded_layout_contains_onclick(decoded, "menu singleplayer"));
+    ASSERT(decoded_layout_contains_onclick(decoded, "menu realmselect"));
     ASSERT(!decoded_layout_contains_onclick(decoded, "menu mapselect campaign"));
     ASSERT_EQ_INT(decoded_layout_count_sprite_animation(decoded, "MainMenu Stand"), 2);
     ASSERT_EQ_INT(decoded_layout_count_sprite_animation(decoded, "SinglePlayer Stand"), 0);
+    ASSERT_EQ_INT(decoded_layout_count_type(decoded, FT_SPRITE), 3);
 
     memset(&client_netchan, 0, sizeof(client_netchan));
     client_netchan.remote_address.type = NA_LOOPBACK;
@@ -628,6 +641,15 @@ static void test_menu_command_updates_client_layout_with_repo_fdf(void) {
     ASSERT(decoded_layout_contains_onclick(decoded, "menu main"));
     ASSERT_EQ_INT(decoded_layout_count_sprite_animation(decoded, "MainMenu Stand"), 0);
     ASSERT_EQ_INT(decoded_layout_count_sprite_animation(decoded, "SinglePlayer Stand"), 2);
+    ASSERT_EQ_INT(decoded_layout_count_type(decoded, FT_SPRITE), 2);
+
+    UI_ShowMultiplayerMenu(&client_edict);
+    SV_WriteFrameToClient(&svs.clients[0]);
+    ASSERT(NET_GetPacket(NS_CLIENT, &from, &server_msg) > 0);
+    CL_ParseServerMessage(&server_msg);
+    decoded = SCR_Clear(cl.layout[TEST_LAYER_CONSOLE]);
+    ASSERT_EQ_INT(decoded_layout_count_sprite_animation(decoded, "BattlenetCustom Stand"), 2);
+    ASSERT_EQ_INT(decoded_layout_count_sprite_animation(decoded, "BattlenetWelcome Stand"), 0);
 
     SAFE_DELETE(cl.layout[TEST_LAYER_CONSOLE], MemFree);
     NET_Shutdown();
