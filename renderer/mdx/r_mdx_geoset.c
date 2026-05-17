@@ -1,5 +1,6 @@
 #include "r_mdx.h"
 #include "../r_local.h"
+#include <stdlib.h>
 
 #ifdef USE_SHADOWMAPS
 extern bool is_rendering_lights;
@@ -219,12 +220,48 @@ static bool MDLX_IsBlendedLayer(mdxMaterialLayer_t const *layer) {
     return layer->blendMode >= BLEND_MODE_BLEND;
 }
 
+static VECTOR4 MDLX_EvaluateGeosetColor(mdxModel_t const *model,
+                                        mdxGeoset_t const *geoset,
+                                        DWORD frame);
+
+typedef struct mdxGeosetDrawOrder_s {
+    mdxGeoset_t const *geoset;
+    int priority;
+    DWORD order;
+} mdxGeosetDrawOrder_t;
+
 static mdxMaterial_t *MDLX_GetMaterialAtIndex(mdxGeoset_t const *geoset, mdxModel_t const *model) {
     mdxMaterial_t *material = model->materials;
     for (DWORD materialID = geoset->materialID; materialID > 0; materialID--) {
         material = material->next;
     }
     return material;
+}
+
+static int MDLX_CompareGeosetDrawOrder(const void *a, const void *b) {
+    mdxGeosetDrawOrder_t const *lhs = a;
+    mdxGeosetDrawOrder_t const *rhs = b;
+
+    if (lhs->priority != rhs->priority) {
+        return lhs->priority < rhs->priority ? -1 : 1;
+    }
+    if (lhs->order != rhs->order) {
+        return lhs->order < rhs->order ? -1 : 1;
+    }
+    return 0;
+}
+
+static bool MDLX_IsGeosetVisible(mdxModel_t const *model,
+                                 mdxGeoset_t const *geoset,
+                                 DWORD frame)
+{
+    if (geoset->geosetAnim) {
+        VECTOR4 geosetColor = MDLX_EvaluateGeosetColor(model, geoset, frame);
+        if (geosetColor.w < EPSILON) {
+            return false;
+        }
+    }
+    return true;
 }
 
 static mdxTextureAnim_t *MDLX_GetTextureAnimAtIndex(mdxModel_t const *model, DWORD textureAnimId) {
@@ -606,24 +643,53 @@ static void MDLX_RenderGeosets(const renderEntity_t *entity,
                                int numLights)
 {
     BOOL forceUnshaded = (entity->flags & RF_NO_LIGHTING) != 0;
+    DWORD geosetCount = 0;
+    DWORD drawCount = 0;
+    mdxGeosetDrawOrder_t *drawOrder;
+
     FOR_EACH_LIST(mdxGeoset_t, geoset, model->geosets) {
-        if (geoset->geosetAnim) {
-            VECTOR4 geosetColor = MDLX_EvaluateGeosetColor(model, geoset, entity->frame);
-            if (geosetColor.w < EPSILON) {
-                continue;
-            }
+        geosetCount++;
+        if (!MDLX_IsGeosetVisible(model, geoset, entity->frame)) {
+            continue;
         }
         MDLX_RenderGeoset(model, geoset, entity->team&TEAM_MASK, model_matrix, entity->skin, forceUnshaded, entity->frame, lights, numLights, false);
     }
-    FOR_EACH_LIST(mdxGeoset_t, geoset, model->geosets) {
-        if (geoset->geosetAnim) {
-            VECTOR4 geosetColor = MDLX_EvaluateGeosetColor(model, geoset, entity->frame);
-            if (geosetColor.w < EPSILON) {
-                continue;
+
+    if (geosetCount == 0) {
+        return;
+    }
+
+    drawOrder = ri.MemAlloc(sizeof(*drawOrder) * geosetCount);
+    if (!drawOrder) {
+        FOR_EACH_LIST(mdxGeoset_t, geoset, model->geosets) {
+            if (MDLX_IsGeosetVisible(model, geoset, entity->frame)) {
+                MDLX_RenderGeoset(model, geoset, entity->team&TEAM_MASK, model_matrix, entity->skin, forceUnshaded, entity->frame, lights, numLights, true);
             }
         }
+        return;
+    }
+    FOR_EACH_LIST(mdxGeoset_t, geoset, model->geosets) {
+        mdxMaterial_t const *material;
+        if (!MDLX_IsGeosetVisible(model, geoset, entity->frame)) {
+            continue;
+        }
+        material = MDLX_GetMaterialAtIndex(geoset, model);
+        drawOrder[drawCount] = (mdxGeosetDrawOrder_t) {
+            .geoset = geoset,
+            .priority = material ? material->priority : 0,
+            .order = drawCount,
+        };
+        drawCount++;
+    }
+
+    qsort(drawOrder, drawCount, sizeof(*drawOrder), MDLX_CompareGeosetDrawOrder);
+
+    FOR_LOOP(i, drawCount) {
+        mdxGeoset_t const *geoset = drawOrder[i].geoset;
         MDLX_RenderGeoset(model, geoset, entity->team&TEAM_MASK, model_matrix, entity->skin, forceUnshaded, entity->frame, lights, numLights, true);
     }
+
+    ri.MemFree(drawOrder);
 }
 
 static void MDLX_RenderParticleEmitters(const renderEntity_t *entity, const mdxModel_t *model, LPCMATRIX4 model_matrix) {
