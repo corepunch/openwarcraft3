@@ -447,11 +447,6 @@ void SCR_GlueTextButton(LPCUIFRAME frame, LPCRECT screen) {
     BOOL const mouse_over = Rect_contains(screen, &m);
     BOOL const enabled = frame->onclick && *frame->onclick;
     uiBackdrop_t const *backdrop = &gluetextbutton->normal;
-#ifdef DIAG_OUTPUT
-    (void)frame;
-    (void)screen;
-    (void)gluetextbutton;
-#endif
     if (!enabled) {
         backdrop = mouse_over && mouse.button == 1 ? &gluetextbutton->disabledPushed : &gluetextbutton->disabled;
     } else if (mouse_over && mouse.button == 1) {

@@ -789,6 +789,30 @@ LPFRAMEDEF UI_FindFrame(LPCSTR name) {
     return NULL;
 }
 
+LPFRAMEDEF UI_FindFrameNear(LPCFRAMEDEF anchor, LPCSTR name) {
+    if (!name || !*name) {
+        return NULL;
+    }
+    if (!anchor || anchor < frames || anchor >= frames + MAX_UI_CLASSES) {
+        return UI_FindFrame(name);
+    }
+
+    DWORD const anchor_index = (DWORD)(anchor - frames);
+    DWORD best_distance = MAX_UI_CLASSES;
+    LPFRAMEDEF best = NULL;
+
+    FOR_LOOP(i, MAX_UI_CLASSES) {
+        if (!strcmp(frames[i].Name, name)) {
+            DWORD const distance = i > anchor_index ? i - anchor_index : anchor_index - i;
+            if (!best || distance < best_distance) {
+                best = frames + i;
+                best_distance = distance;
+            }
+        }
+    }
+    return best;
+}
+
 LPFRAMEDEF UI_FindChildFrame(LPFRAMEDEF frame, LPCSTR name) {
     if (!strcmp(frame->Name, name))
         return frame;
