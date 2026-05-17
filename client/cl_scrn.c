@@ -292,8 +292,10 @@ void SCR_DrawTexture(LPCUIFRAME frame, LPCRECT screen) {
     re.DrawImage(cl.pics[frame->tex.index], screen, &suv, frame->color);
 }
 
-void SCR_DrawHighlight(LPCUIFRAME frame, LPCRECT screen) {
-    uiHighlight_t const *highlight = frame->buffer.data;
+static void SCR_DrawHighlightData(uiHighlight_t const *highlight, LPCRECT screen) {
+    if (!highlight || !highlight->alphaFile) {
+        return;
+    }
     re.DrawImageEx(&MAKE(DRAWIMAGE,
                          .texture = cl.pics[highlight->alphaFile],
                          .alphamode = highlight->alphaMode,
@@ -302,6 +304,10 @@ void SCR_DrawHighlight(LPCUIFRAME frame, LPCRECT screen) {
                          .color = COLOR32_WHITE,
                          .rotate = false,
                          .shader = SHADER_UI));
+}
+
+void SCR_DrawHighlight(LPCUIFRAME frame, LPCRECT screen) {
+    SCR_DrawHighlightData(frame->buffer.data, screen);
 }
 
 void SCR_SimpleButton(LPCUIFRAME frame, LPCRECT screen) {
@@ -437,12 +443,25 @@ void SCR_DrawBackdrop(LPCUIFRAME frame, LPCRECT screen) {
 
 void SCR_GlueTextButton(LPCUIFRAME frame, LPCRECT screen) {
     uiGlueTextButton_t const *gluetextbutton = frame->buffer.data;
+    VECTOR2 const m = SCR_MouseToFdf();
+    BOOL const mouse_over = Rect_contains(screen, &m);
+    BOOL const enabled = frame->onclick && *frame->onclick;
+    uiBackdrop_t const *backdrop = &gluetextbutton->normal;
 #ifdef DIAG_OUTPUT
     (void)frame;
     (void)screen;
     (void)gluetextbutton;
 #endif
-    SCR_DrawBackdrop2(frame, screen, &gluetextbutton->normal);
+    if (!enabled) {
+        backdrop = mouse_over && mouse.button == 1 ? &gluetextbutton->disabledPushed : &gluetextbutton->disabled;
+    } else if (mouse_over && mouse.button == 1) {
+        backdrop = &gluetextbutton->pushed;
+    }
+
+    SCR_DrawBackdrop2(frame, screen, backdrop);
+    if (enabled && mouse_over) {
+        SCR_DrawHighlightData(&gluetextbutton->highlight, screen);
+    }
 }
 
 void SCR_DrawBuildQueue(LPCUIFRAME frame, LPCRECT scrn) {
@@ -523,10 +542,10 @@ void SCR_DrawPortrait(LPCUIFRAME frame, LPCRECT screen) {
 }
 
 void SCR_DrawSprite(LPCUIFRAME frame, LPCRECT screen) {
-    LPCSTR s = cl.configstrings[CS_MODELS + frame->tex.index];
-    // printf("Model for sprite: %s\n", s);
-    if (strstr(s, "Panel")) {
-        re.DrawSprite(cl.models[frame->tex.index], "MainMenu Stand", screen->x, screen->y);
+    LPCSTR anim = frame->text;
+
+    if (anim && *anim) {
+        re.DrawSprite(cl.models[frame->tex.index], anim, screen->x, screen->y);
     } else {
         re.DrawSprite(cl.models[frame->tex.index], "Stand", screen->x, screen->y);
     }

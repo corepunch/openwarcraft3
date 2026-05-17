@@ -525,7 +525,7 @@ typedef struct {
     uiBackdrop_t pushed;
     uiBackdrop_t disabled;
     uiBackdrop_t disabledPushed;
-    uiBackdrop_t highlight;
+    uiHighlight_t highlight;
 } uiGlueTextButton_t;
 
 typedef struct sheetField_s {

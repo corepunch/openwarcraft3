@@ -138,6 +138,9 @@ void UI_CopyFrameBase(LPUIFRAME dest, LPCFRAMEDEF src) {
 }
 
 static uiBackdrop_t MakeBackdrop(LPCFRAMEDEF frame) {
+    if (!frame) {
+        return (uiBackdrop_t) { 0 };
+    }
     return MAKE(uiBackdrop_t,
         .CornerFlags = frame->Backdrop.CornerFlags,
         .TileBackground = frame->Backdrop.TileBackground,
@@ -154,6 +157,15 @@ static uiBackdrop_t MakeBackdrop(LPCFRAMEDEF frame) {
         .BlendAll = frame->Backdrop.BlendAll,
         .Mirrored = frame->Backdrop.Mirrored,
     );
+}
+
+static uiHighlight_t MakeHighlight(LPCFRAMEDEF frame) {
+    if (!frame) {
+        return (uiHighlight_t) { 0 };
+    }
+    return MAKE(uiHighlight_t,
+        .alphaFile = frame->Highlight.AlphaFile,
+        .alphaMode = frame->Highlight.AlphaMode);
 }
 
 static uiLabel_t MakeLabel(LPCFRAMEDEF frame) {
@@ -226,7 +238,7 @@ static void WriteGlueTextButton(LPCFRAMEDEF frame, sizeBuf_t *sb, LPSTR buffer) 
         .pushed = MakeBackdrop(PushedBackdrop),
         .disabled = MakeBackdrop(DisabledBackdrop),
         .disabledPushed = MakeBackdrop(DisabledPushedBackdrop),
-        .highlight = MakeBackdrop(MouseOverBackdrop),
+        .highlight = MakeHighlight(MouseOverBackdrop),
     };
     MSG_Write(sb, &data, sizeof(data));
 }

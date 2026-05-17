@@ -178,11 +178,16 @@ static void Init_MainMenu(void) {
 }
 
 static void Init_SinglePlayerMenu(void) {
-    UI_FRAME(CampaignButton);
-    UI_FRAME(LoadSavedButton);
-    UI_FRAME(ViewReplayButton);
-    UI_FRAME(SkirmishButton);
-    UI_FRAME(CancelButton);
+    UI_FRAME(SinglePlayerMenu);
+    UI_FRAME(ProfilePanel);
+    LPFRAMEDEF CampaignButton = UI_FindChildFrame(SinglePlayerMenu, "CampaignButton");
+    LPFRAMEDEF LoadSavedButton = UI_FindChildFrame(SinglePlayerMenu, "LoadSavedButton");
+    LPFRAMEDEF ViewReplayButton = UI_FindChildFrame(SinglePlayerMenu, "ViewReplayButton");
+    LPFRAMEDEF SkirmishButton = UI_FindChildFrame(SinglePlayerMenu, "SkirmishButton");
+    LPFRAMEDEF CancelButton = UI_FindChildFrame(SinglePlayerMenu, "CancelButton");
+    if (ProfilePanel) {
+        UI_SetHidden(ProfilePanel, true);
+    }
     UI_SetOnClick(CampaignButton, "menu mapselect campaign");
     UI_SetOnClick(LoadSavedButton, "menu mapselect loadsaved");
     UI_SetOnClick(ViewReplayButton, "menu mapselect replay");
@@ -198,9 +203,18 @@ static LPCSTR UI_ResolveThemeModel(LPCSTR key) {
     return model;
 }
 
-static void UI_WriteMainMenuGlueBackground(void) {
+static void UI_WriteMenuGlueBackground(LPCSTR model_name) {
     FRAMEDEF center;
-    LPCSTR center_model = UI_ResolveThemeModel("GlueSpriteLayerCenter");
+    LPCSTR center_model = model_name;
+    if (center_model && *center_model) {
+        LPCSTR resolved = UI_ResolveThemeModel(center_model);
+        if (resolved) {
+            center_model = resolved;
+        }
+    }
+    if (!center_model || !*center_model) {
+        center_model = UI_ResolveThemeModel("GlueSpriteLayerCenter");
+    }
     if (!center_model) {
         center_model = UI_ResolveThemeModel("GlueSpriteLayerBackground");
     }
@@ -220,7 +234,60 @@ static void UI_WriteMainMenuGlueBackground(void) {
     UI_WriteFrame(&center);
 }
 
-static void UI_WriteMainMenuGlueTopLayers(void) {
+static void UI_WriteMainMenuGlueBackground(void) {
+    UI_WriteMenuGlueBackground(NULL);
+}
+
+typedef struct {
+    menu_screen_t screen;
+    LPCSTR panel_animation;
+} uiMenuPanelAnimation_t;
+
+static uiMenuPanelAnimation_t const menu_panel_animations[] = {
+    { MENU_SCREEN_MAIN, "MainMenu" },
+    { MENU_SCREEN_SINGLEPLAYER, "SinglePlayer" },
+    { MENU_SCREEN_MULTIPLAYER, "BattlenetWelcome" },
+    { MENU_SCREEN_MAPSELECT, "MainCancelPanel" },
+    { MENU_SCREEN_OPTIONS, "Options" },
+    { MENU_SCREEN_CREDITS, "MainMenu" },
+};
+
+static LPCSTR UI_MenuPanelAnimationForScreen(menu_screen_t screen) {
+    FOR_LOOP(i, sizeof(menu_panel_animations) / sizeof(*menu_panel_animations)) {
+        if (menu_panel_animations[i].screen == screen) {
+            return menu_panel_animations[i].panel_animation;
+        }
+    }
+    return "MainMenu";
+}
+
+static LPCSTR UI_MenuPanelAnimationForMapCategory(LPCSTR category) {
+    if (category && !strcmp(category, "skirmish")) {
+        return "SinglePlayerSkirmish";
+    }
+    if (!category || !strcmp(category, "campaign")) {
+        return "Death";
+    }
+    return UI_MenuPanelAnimationForScreen(MENU_SCREEN_MAPSELECT);
+}
+
+static void UI_BuildMenuPanelAnimation(LPEDICT ent, LPCSTR target, LPSTR out, size_t out_size) {
+    (void)ent;
+    if (!out || out_size == 0) {
+        return;
+    }
+    out[0] = '\0';
+    if (!target || !*target) {
+        return;
+    }
+    if (strchr(target, ' ') || !strcmp(target, "Death") || !strcmp(target, "Birth") || !strcmp(target, "Stand")) {
+        snprintf(out, out_size, "%s", target);
+    } else {
+        snprintf(out, out_size, "%s Stand", target);
+    }
+}
+
+static void UI_WriteMainMenuGlueTopLayers(LPCSTR animation) {
     FRAMEDEF top_right;
     FRAMEDEF top_left;
     LPCSTR top_right_model = UI_ResolveThemeModel("GlueSpriteLayerTopRight");
@@ -231,6 +298,9 @@ static void UI_WriteMainMenuGlueTopLayers(void) {
         strcpy(top_right.Name, "GlueSpriteLayerTopRight");
         UI_SetAllPoints(&top_right);
         top_right.Portrait.model = gi.ModelIndex(top_right_model);
+        if (animation && *animation) {
+            UI_SetText(&top_right, "%s", animation);
+        }
 #ifdef DIAG_OUTPUT
         DIAGF("UI_WriteMainMenuGlueTopLayers: name=%s model=%s modelIndex=%u\n",
               top_right.Name,
@@ -245,6 +315,9 @@ static void UI_WriteMainMenuGlueTopLayers(void) {
         strcpy(top_left.Name, "GlueSpriteLayerTopLeft");
         UI_SetAllPoints(&top_left);
         top_left.Portrait.model = gi.ModelIndex(top_left_model);
+        if (animation && *animation) {
+            UI_SetText(&top_left, "%s", animation);
+        }
 #ifdef DIAG_OUTPUT
         DIAGF("UI_WriteMainMenuGlueTopLayers: name=%s model=%s modelIndex=%u\n",
               top_left.Name,
@@ -255,20 +328,29 @@ static void UI_WriteMainMenuGlueTopLayers(void) {
     }
 }
 
-static void UI_WriteMenuWithMainFrame(LPEDICT ent, LPCFRAMEDEF root) {
+static void UI_WriteMenuWithMainFrameAnimationAndBackground(LPEDICT ent,
+                                                           LPCFRAMEDEF root,
+                                                           LPCSTR panel_animation,
+                                                           LPCSTR background_model) {
     UI_FRAME(MainMenuFrame);
     UI_FRAME(ControlLayer);
+    UINAME animation;
 
     if (!MainMenuFrame || !root) {
         return;
     }
+    UI_BuildMenuPanelAnimation(ent, panel_animation, animation, sizeof(animation));
 
     if (ControlLayer) {
         UI_SetHidden(ControlLayer, root != MainMenuFrame);
     }
 
     UI_WriteStart(LAYER_BACKGROUND);
-    UI_WriteMainMenuGlueBackground();
+    if (background_model && *background_model) {
+        UI_WriteMenuGlueBackground(background_model);
+    } else {
+        UI_WriteMainMenuGlueBackground();
+    }
     gi.WriteLong(0); // end of list
     gi.unicast(ent);
 
@@ -277,11 +359,20 @@ static void UI_WriteMenuWithMainFrame(LPEDICT ent, LPCFRAMEDEF root) {
     if (root != MainMenuFrame) {
         UI_WriteFrameWithChildren(root, NULL);
     }
-    UI_WriteMainMenuGlueTopLayers();
+    UI_WriteMainMenuGlueTopLayers(animation);
     gi.WriteLong(0); // end of list
     gi.unicast(ent);
 }
+
+static void UI_WriteMenuWithMainFrameAnimation(LPEDICT ent, LPCFRAMEDEF root, LPCSTR panel_animation) {
+    UI_WriteMenuWithMainFrameAnimationAndBackground(ent, root, panel_animation, NULL);
+}
+
+static void UI_WriteMenuWithMainFrame(LPEDICT ent, LPCFRAMEDEF root, menu_screen_t screen) {
+    UI_WriteMenuWithMainFrameAnimation(ent, root, UI_MenuPanelAnimationForScreen(screen));
+}
 static void Init_MapSelectMenu(void) {
+    UI_FRAME(SlidingDoors);
     UI_FRAME(BackButton);
     UI_FRAME(Mission13Button);
     UI_FRAME(Mission12Button);
@@ -308,6 +399,9 @@ static void Init_MapSelectMenu(void) {
     (void)Mission1Button;
     (void)Mission0Button;
 
+    if (SlidingDoors) {
+        UI_SetHidden(SlidingDoors, true);
+    }
     UI_SetOnClick(BackButton, "menu singleplayer");
     UI_SetOnClick(Mission13Button, "menu load Maps\\Campaign\\Human02.w3m");
     UI_SetOnClick(Mission12Button, "menu load Maps\\Campaign\\Human01.w3m");
@@ -316,10 +410,11 @@ static void Init_MapSelectMenu(void) {
 }
 
 static void Init_MultiplayerJoinMenu(void) {
-    UI_FRAME(CreateButton);
-    UI_FRAME(LoadButton);
-    UI_FRAME(JoinButton);
-    UI_FRAME(CancelButton);
+    UI_FRAME(LocalMultiplayerJoin);
+    LPFRAMEDEF CreateButton = UI_FindChildFrame(LocalMultiplayerJoin, "CreateButton");
+    LPFRAMEDEF LoadButton = UI_FindChildFrame(LocalMultiplayerJoin, "LoadButton");
+    LPFRAMEDEF JoinButton = UI_FindChildFrame(LocalMultiplayerJoin, "JoinButton");
+    LPFRAMEDEF CancelButton = UI_FindChildFrame(LocalMultiplayerJoin, "CancelButton");
     UI_SetOnClick(CreateButton, "menu multiplayer create");
     UI_SetOnClick(LoadButton, "menu multiplayer join");
     UI_SetOnClick(JoinButton, "menu multiplayer join");
@@ -327,10 +422,11 @@ static void Init_MultiplayerJoinMenu(void) {
 }
 
 static void Init_MultiplayerCreateMenu(void) {
-    UI_FRAME(MapInfoButton);
-    UI_FRAME(AdvancedOptionsButton);
-    UI_FRAME(PlayButton);
-    UI_FRAME(CancelButton);
+    UI_FRAME(LocalMultiplayerCreate);
+    LPFRAMEDEF MapInfoButton = UI_FindChildFrame(LocalMultiplayerCreate, "MapInfoButton");
+    LPFRAMEDEF AdvancedOptionsButton = UI_FindChildFrame(LocalMultiplayerCreate, "AdvancedOptionsButton");
+    LPFRAMEDEF PlayButton = UI_FindChildFrame(LocalMultiplayerCreate, "PlayButton");
+    LPFRAMEDEF CancelButton = UI_FindChildFrame(LocalMultiplayerCreate, "CancelButton");
     UI_SetOnClick(MapInfoButton, "menu main");
     UI_SetOnClick(AdvancedOptionsButton, "menu main");
     UI_SetOnClick(PlayButton, "menu main");
@@ -385,31 +481,34 @@ void UI_Init(void) {
 
 void UI_ShowMainMenu(LPEDICT ent) {
     UI_FRAME(MainMenuFrame);
-    UI_WriteMenuWithMainFrame(ent, MainMenuFrame);
+    UI_WriteMenuWithMainFrame(ent, MainMenuFrame, MENU_SCREEN_MAIN);
 }
 
 void UI_ShowSinglePlayerMenu(LPEDICT ent) {
     UI_FRAME(SinglePlayerMenu);
-    UI_WriteMenuWithMainFrame(ent, SinglePlayerMenu);
+    UI_WriteMenuWithMainFrame(ent, SinglePlayerMenu, MENU_SCREEN_SINGLEPLAYER);
 }
 
 void UI_ShowMultiplayerMenu(LPEDICT ent) {
     UI_FRAME(LocalMultiplayerJoin);
-    UI_WriteLayout(ent, LocalMultiplayerJoin, LAYER_CONSOLE);
+    UI_WriteMenuWithMainFrame(ent, LocalMultiplayerJoin, MENU_SCREEN_MULTIPLAYER);
 }
 
 void UI_ShowMapSelectMenu(LPEDICT ent, LPCSTR category) {
     if (category && !strcmp(category, "skirmish")) {
         UI_FRAME(Skirmish);
-        UI_WriteMenuWithMainFrame(ent, Skirmish);
+        UI_WriteMenuWithMainFrameAnimation(ent, Skirmish, UI_MenuPanelAnimationForMapCategory(category));
     } else if (category && !strcmp(category, "loadsaved")) {
         UI_FRAME(LoadSavedGameScreen);
-        UI_WriteMenuWithMainFrame(ent, LoadSavedGameScreen);
+        UI_WriteMenuWithMainFrameAnimation(ent, LoadSavedGameScreen, UI_MenuPanelAnimationForMapCategory(category));
     } else if (category && !strcmp(category, "replay")) {
         UI_FRAME(ViewReplayScreen);
-        UI_WriteMenuWithMainFrame(ent, ViewReplayScreen);
+        UI_WriteMenuWithMainFrameAnimation(ent, ViewReplayScreen, UI_MenuPanelAnimationForMapCategory(category));
     } else {
         UI_FRAME(CampaignMenu);
-        UI_WriteMenuWithMainFrame(ent, CampaignMenu);
+        UI_WriteMenuWithMainFrameAnimationAndBackground(ent,
+                                                        CampaignMenu,
+                                                        UI_MenuPanelAnimationForMapCategory(category),
+                                                        "HumanBackdrop");
     }
 }

@@ -67,8 +67,17 @@ static int test_font_index(LPCSTR name, DWORD fontSize) {
 
 static LPCSTR test_find_sheet_cell(sheetRow_t *sheet, LPCSTR row, LPCSTR column) {
     (void)sheet;
-    (void)row;
-    (void)column;
+    if (row && column && !strcmp(row, "Default")) {
+        if (!strcmp(column, "GlueSpriteLayerTopRight")) {
+            return "UI\\Glues\\SpriteLayers\\TopRightPanel.mdl";
+        }
+        if (!strcmp(column, "GlueSpriteLayerTopLeft")) {
+            return "UI\\Glues\\SpriteLayers\\TopLeftPanel.mdl";
+        }
+        if (!strcmp(column, "GlueSpriteLayerBackground")) {
+            return "UI\\Glues\\MainMenu\\MainMenu3d\\MainMenu3d.mdl";
+        }
+    }
     return NULL;
 }
 
@@ -267,6 +276,18 @@ static bool decoded_layout_contains_onclick(LPCUIFRAME decoded, LPCSTR onclick) 
         }
     }
     return false;
+}
+
+static DWORD decoded_layout_count_sprite_animation(LPCUIFRAME decoded, LPCSTR animation) {
+    DWORD count = 0;
+    FOR_LOOP(i, MAX_LAYOUT_OBJECTS) {
+        if (decoded[i].flags.type == FT_SPRITE &&
+            decoded[i].text &&
+            !strcmp(decoded[i].text, animation)) {
+            count++;
+        }
+    }
+    return count;
 }
 
 void SV_ParseClientMessage(LPSIZEBUF msg, LPCLIENT client) {
@@ -585,6 +606,8 @@ static void test_menu_command_updates_client_layout_with_repo_fdf(void) {
     decoded = SCR_Clear(cl.layout[TEST_LAYER_CONSOLE]);
     ASSERT(decoded_layout_contains_onclick(decoded, "menu singleplayer"));
     ASSERT(!decoded_layout_contains_onclick(decoded, "menu mapselect campaign"));
+    ASSERT_EQ_INT(decoded_layout_count_sprite_animation(decoded, "MainMenu Stand"), 2);
+    ASSERT_EQ_INT(decoded_layout_count_sprite_animation(decoded, "SinglePlayer Stand"), 0);
 
     memset(&client_netchan, 0, sizeof(client_netchan));
     client_netchan.remote_address.type = NA_LOOPBACK;
@@ -603,6 +626,8 @@ static void test_menu_command_updates_client_layout_with_repo_fdf(void) {
     ASSERT(!decoded_layout_contains_onclick(decoded, "menu singleplayer"));
     ASSERT(decoded_layout_contains_onclick(decoded, "menu mapselect campaign"));
     ASSERT(decoded_layout_contains_onclick(decoded, "menu main"));
+    ASSERT_EQ_INT(decoded_layout_count_sprite_animation(decoded, "MainMenu Stand"), 0);
+    ASSERT_EQ_INT(decoded_layout_count_sprite_animation(decoded, "SinglePlayer Stand"), 2);
 
     SAFE_DELETE(cl.layout[TEST_LAYER_CONSOLE], MemFree);
     NET_Shutdown();
