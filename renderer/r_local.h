@@ -94,6 +94,9 @@ struct shader_program {
     DWORD uUnshaded;
     DWORD uLayerAlpha;
     DWORD uGeosetColor;
+    DWORD uUvTrans;
+    DWORD uUvRot;
+    DWORD uUvScale;
     DWORD uMdxLightCount;
     DWORD uMdxLights;
     DWORD uEyePosition;
@@ -180,6 +183,7 @@ LPTEXTURE R_AllocateTexture(DWORD width, DWORD height);
 LPTEXTURE R_MakeSysFontTexture(void);
 void R_LoadTextureMipLevel(LPCTEXTURE pTexture, DWORD level, LPCCOLOR32 pPixels, DWORD width, DWORD height);
 void R_BindTexture(LPCTEXTURE texture, DWORD unit);
+void R_SetTextureWrap(LPCTEXTURE texture, bool wrapS, bool wrapT);
 void R_RenderModel(renderEntity_t const *edict);
 bool MDLX_TraceModel(renderEntity_t const *edict, LPCLINE3 line);
 void R_ReleaseVertexArrayObject(LPBUFFER buffer);

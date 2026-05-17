@@ -119,7 +119,7 @@ typedef struct {
 
 typedef struct mdxGeosetAnim_s {
     float staticAlpha;        // 0 is transparent, 1 is opaque
-    DWORD flags;           // &1: color
+    DWORD flags;           // &2: color
     VECTOR3 staticColor;
     DWORD geosetId;        // GEOS index or 0xFFFFFFFF if none
     mdxKeyTrack_t *alphas; // float
@@ -233,6 +233,13 @@ typedef struct mdxMaterial_s {
     struct mdxMaterial_s *next;
 } mdxMaterial_t;
 
+typedef struct mdxTextureAnim_s {
+    mdxKeyTrack_t *translation; // vec3
+    mdxKeyTrack_t *rotation; // quat
+    mdxKeyTrack_t *scale; // vec3
+    struct mdxTextureAnim_s *next;
+} mdxTextureAnim_t;
+
 typedef struct mdxCamera_s {
     mdxObjectName_t name;
     VECTOR3 pivot;
@@ -336,6 +343,7 @@ typedef struct mdxModel_s {
     mdxSequence_t *sequences;
     mdxEvent_t *events;
     mdxMaterial_t *materials;
+    mdxTextureAnim_t *textureAnims;
     mdxBone_t *bones;
     mdxGeosetAnim_t *geosetAnims;
     mdxCollisionShape_t *collisionShapes;
