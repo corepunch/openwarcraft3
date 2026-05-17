@@ -28,13 +28,6 @@ LPTEXTURE R_LoadTextureBLP1(HANDLE data, DWORD filesize);
 LPTEXTURE R_LoadTextureBLP2(HANDLE data, DWORD filesize);
 LPTEXTURE R_LoadTextureDDS(HANDLE data, DWORD filesize);
 
-void R_Viewport(LPCRECT viewport) {
-    glViewport(viewport->x * tr.drawableSize.width / 800,
-               viewport->y * tr.drawableSize.height / 600,
-               viewport->w * tr.drawableSize.width / 800,
-               viewport->h * tr.drawableSize.height / 600);
-}
-
 LPTEXTURE R_AllocateSinglePixelTexture(int color) {
     LPTEXTURE texture = R_AllocateTexture(1, 1);
     R_LoadTextureMipLevel(texture, 0, (LPCCOLOR32)&color, 1, 1);

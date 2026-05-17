@@ -785,7 +785,7 @@ static void draw_backdrop(LPCUIFRAME frame, LPCRECT rect, uiBackdrop_t const *ba
     uv = MAKE(RECT, 0, 0, 1, 1);
     background = *rect;
     background.x += backdrop->BackgroundInsets[BACKDROPINSET_LEFT];
-    background.y += backdrop->BackgroundInsets[BACKDROPINSET_TOP];
+    background.y += backdrop->BackgroundInsets[BACKDROPINSET_BOTTOM];
     background.w -= backdrop->BackgroundInsets[BACKDROPINSET_LEFT];
     background.w -= backdrop->BackgroundInsets[BACKDROPINSET_RIGHT];
     background.h -= backdrop->BackgroundInsets[BACKDROPINSET_TOP];

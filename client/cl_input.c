@@ -14,6 +14,7 @@
 mouseEvent_t mouse;
 
 static DWORD mouse_flip_y(DWORD y) {
+    // SDL mouse events are top-left-origin; convert once at input boundary.
     size2_t const window = re.GetWindowSize();
     return window.height > 0 ? window.height - 1 - (DWORD)y : y;
 }
@@ -114,7 +115,7 @@ void CL_Input(void) {
                 switch (mouse.button) {
                     case 1:
                         cl.selection.rect.w = event.motion.x - cl.selection.rect.x;
-                        cl.selection.rect.h = mouse_flip_y(event.motion.y) - cl.selection.rect.y;
+                        cl.selection.rect.h = mouse.origin.y - cl.selection.rect.y;
                         break;
                     case 3:
                         pan_camera(-event.motion.xrel, event.motion.yrel, 5);

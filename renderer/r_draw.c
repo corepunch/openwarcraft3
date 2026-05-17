@@ -18,6 +18,8 @@ RECT R_UISceneRect(void) {
 }
 
 void R_PrintSysText(LPCSTR string, DWORD x, DWORD y, COLOR32 color) {
+    // Contract: this API takes top-left pixel coordinates for legacy debug callers.
+    // Internally we convert to the renderer's bottom-left orthographic space.
     static VERTEX simp[256 * 6];
     size2_t window = R_GetWindowSize();
     LPVERTEX it = simp;
@@ -71,6 +73,9 @@ void R_SetBlending(BLEND_MODE mode) {
 void R_DrawImageEx(LPCDRAWIMAGE drawImage) {
     VERTEX simp[6];
     
+    // UV contract:
+    // - Callers provide UVs in asset/top-left V orientation.
+    // - Renderer performs the single V-orientation adaptation here.
     if (drawImage->rotate) { // Some UI backdrops use 90-degree-rotated UVs
         R_AddQuad(simp, &drawImage->screen, &(RECT) {
             .x = drawImage->uv.x + drawImage->uv.w, 
