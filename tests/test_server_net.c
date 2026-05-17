@@ -160,6 +160,11 @@ static LPSTR test_read_fdf_file(LPCSTR filename) {
     return buffer;
 }
 
+static bool test_has_repo_fdf(void) {
+    char path[512] = "data/fdf/UI/FrameDef/Glue/MainMenu.fdf";
+    return access(path, R_OK) == 0;
+}
+
 static void test_write_byte(LONG c) {
     MSG_WriteByte(&sv.multicast, (int)c);
 }
@@ -551,6 +556,9 @@ static void test_menu_command_updates_client_layout_with_repo_fdf(void) {
     NET_Shutdown();
     reset_server_state(1);
     test_client_stubs_init();
+    if (!test_has_repo_fdf()) {
+        return;
+    }
     UI_Init();
     Com_SetMenuMode(true);
 

@@ -224,7 +224,7 @@ TESTS_MPQ     := $(TESTS_DIR)/tests.mpq
 TESTS_RES_DIR := $(TESTS_DIR)/resources
 TESTS_SRC_DIR := tests/resources-src
 
-test-assets: blpgen mdxgen mpqtool | $(TESTS_DIR)
+test-assets: blpgen mdxgen mpqtool mdxtool fdftool | $(TESTS_DIR)
 	@echo "[test-assets] generating textures"
 	@mkdir -p $(TESTS_RES_DIR)/TestUI/Textures
 	$(BIN_DIR)/blpgen$(EXE_EXT) solid        1  1  ffffffff  $(TESTS_RES_DIR)/TestUI/Textures/solid_white.blp
