@@ -50,6 +50,9 @@ enum {
     ID_KMTE = MAKEFOURCC('K','M','T','E'),
     ID_KMTA = MAKEFOURCC('K','M','T','A'),
     ID_KMTF = MAKEFOURCC('K','M','T','F'),
+    ID_KTAT = MAKEFOURCC('K','T','A','T'),
+    ID_KTAR = MAKEFOURCC('K','T','A','R'),
+    ID_KTAS = MAKEFOURCC('K','T','A','S'),
     ID_KP2V = MAKEFOURCC('K','P','2','V'),
     ID_KP2E = MAKEFOURCC('K','P','2','E'),
     ID_KP2W = MAKEFOURCC('K','P','2','W'),
@@ -414,6 +417,20 @@ void ReadMaterial(LPSIZEBUF buffer, mdxMaterial_t *material) {
     };
 }
 
+void ReadTextureAnim(LPSIZEBUF buffer, mdxTextureAnim_t *textureAnim) {
+    DWORD blockHeader;
+    while (MSG_Read(buffer, &blockHeader, 4)) {
+        switch (blockHeader) {
+            case ID_KTAT: ReadKeyTrack(buffer, TDATA_FLOAT3, &textureAnim->translation); break;
+            case ID_KTAR: ReadKeyTrack(buffer, TDATA_FLOAT4, &textureAnim->rotation); break;
+            case ID_KTAS: ReadKeyTrack(buffer, TDATA_FLOAT3, &textureAnim->scale); break;
+            default:
+                PrintTag(blockHeader);
+                break;
+        }
+    }
+}
+
 void ReadNode(LPSIZEBUF buffer, mdxNode_t *node, DWORD blockSize) {
     DWORD blockEnd = buffer->readcount + blockSize;
     MSG_Read(buffer, &node->name, sizeof(mdxObjectName_t));
@@ -574,7 +591,7 @@ void ReadLight(LPSIZEBUF buffer, mdxLight_t *light) {
     while (MSG_Read(buffer, &header, 4)) {
         switch (header) {
             case ID_KLAV:
-                ReadKeyTrack(buffer, TDATA_FLOAT1, &light->keytracks.AmbIntensity);
+                ReadKeyTrack(buffer, TDATA_FLOAT1, &light->keytracks.Visibility);
                 break;
             case ID_KLAC: ReadKeyTrack(buffer, TDATA_FLOAT3, &light->keytracks.Color); break;
             case ID_KLAI: ReadKeyTrack(buffer, TDATA_FLOAT1, &light->keytracks.Intensity); break;
@@ -652,6 +669,11 @@ blockReadCode_t MDLX_ReadMTLS(LPSIZEBUF sb, mdxModel_t *model) {
     return BLOCKREAD_OK;
 }
 
+blockReadCode_t MDLX_ReadTXAN(LPSIZEBUF sb, mdxModel_t *model) {
+    MODEL_READ_LIST(sb, TextureAnim, textureAnims);
+    return BLOCKREAD_OK;
+}
+
 blockReadCode_t MDLX_ReadBONE(LPSIZEBUF sb, mdxModel_t *model) {
     MODEL_READ_LIST(sb, Bone, bones);
     return BLOCKREAD_OK;
@@ -719,6 +741,7 @@ blockReader_t R_MDLX[] = {
     { "EVTS", (blockReaderFunc_t)MDLX_ReadEVTS },
     { "GEOS", (blockReaderFunc_t)MDLX_ReadGEOS },
     { "MTLS", (blockReaderFunc_t)MDLX_ReadMTLS },
+    { "TXAN", (blockReaderFunc_t)MDLX_ReadTXAN },
     { "BONE", (blockReaderFunc_t)MDLX_ReadBONE },
     { "GEOA", (blockReaderFunc_t)MDLX_ReadGEOA },
     { "HELP", (blockReaderFunc_t)MDLX_ReadHELP },
@@ -793,6 +816,8 @@ mdxModel_t *R_LoadModelMDLX(void *data, DWORD size) {
     FOR_LOOP(i, model->num_textures) {
         mdxTexture_t *tex = model->textures+i;
         tex->texid = R_RegisterTextureFile(tex->path);
+        LPCTEXTURE loaded = R_FindTextureByID(tex->texid);
+        R_SetTextureWrap(loaded, tex->nWrapping & 0x1, tex->nWrapping & 0x2);
     }
     FOR_EACH_LIST(mdxGeosetAnim_t, geosetAnim, model->geosetAnims) {
         mdxGeoset_t *geoset = model->geosets;
@@ -837,7 +862,25 @@ void MDLX_ReleaseModelGeoset(mdxGeoset_t *geoset) {
 
 void MDLX_ReleaseModelMaterial(mdxMaterial_t *material) {
     SAFE_DELETE(material->next, MDLX_ReleaseModelMaterial);
+    if (material->layers) {
+        FOR_LOOP(i, material->num_layers) {
+            SAFE_DELETE(material->layers[i].alpha, ri.MemFree);
+            SAFE_DELETE(material->layers[i].flipbook, ri.MemFree);
+        }
+        ri.MemFree(material->layers);
+    }
+    SAFE_DELETE(material->emission, ri.MemFree);
+    SAFE_DELETE(material->alpha, ri.MemFree);
+    SAFE_DELETE(material->flipbook, ri.MemFree);
     SAFE_DELETE(material, ri.MemFree);
+}
+
+void MDLX_ReleaseModelTextureAnim(mdxTextureAnim_t *textureAnim) {
+    SAFE_DELETE(textureAnim->next, MDLX_ReleaseModelTextureAnim);
+    SAFE_DELETE(textureAnim->translation, ri.MemFree);
+    SAFE_DELETE(textureAnim->rotation, ri.MemFree);
+    SAFE_DELETE(textureAnim->scale, ri.MemFree);
+    SAFE_DELETE(textureAnim, ri.MemFree);
 }
 
 void MDLX_ReleaseModelBone(mdxBone_t *bone) {
@@ -849,6 +892,7 @@ void MDLX_ReleaseModelBone(mdxBone_t *bone) {
 void MDLX_ReleaseModelGeosetAnim(mdxGeosetAnim_t *geosetAnim) {
     SAFE_DELETE(geosetAnim->next, MDLX_ReleaseModelGeosetAnim);
     SAFE_DELETE(geosetAnim->alphas, ri.MemFree);
+    SAFE_DELETE(geosetAnim->colors, ri.MemFree);
     SAFE_DELETE(geosetAnim, ri.MemFree);
 }
 
@@ -858,12 +902,27 @@ void MDLX_ReleaseModelHelper(mdxHelper_t *helper) {
     SAFE_DELETE(helper, ri.MemFree);
 }
 
+void MDLX_ReleaseModelLight(mdxLight_t *light) {
+    MDLX_ReleaseModelNode(&light->node);
+    SAFE_DELETE(light->next, MDLX_ReleaseModelLight);
+    SAFE_DELETE(light->keytracks.Visibility, ri.MemFree);
+    SAFE_DELETE(light->keytracks.Color, ri.MemFree);
+    SAFE_DELETE(light->keytracks.Intensity, ri.MemFree);
+    SAFE_DELETE(light->keytracks.AmbColor, ri.MemFree);
+    SAFE_DELETE(light->keytracks.AmbIntensity, ri.MemFree);
+    SAFE_DELETE(light->keytracks.AttenuationStart, ri.MemFree);
+    SAFE_DELETE(light->keytracks.AttenuationEnd, ri.MemFree);
+    SAFE_DELETE(light, ri.MemFree);
+}
+
 void MDLX_Release(mdxModel_t *model) {
     SAFE_DELETE(model->geosets, MDLX_ReleaseModelGeoset);
     SAFE_DELETE(model->materials, MDLX_ReleaseModelMaterial);
+    SAFE_DELETE(model->textureAnims, MDLX_ReleaseModelTextureAnim);
     SAFE_DELETE(model->bones, MDLX_ReleaseModelBone);
     SAFE_DELETE(model->geosetAnims, MDLX_ReleaseModelGeosetAnim);
     SAFE_DELETE(model->helpers, MDLX_ReleaseModelHelper);
+    SAFE_DELETE(model->lights, MDLX_ReleaseModelLight);
     SAFE_DELETE(model->textures, ri.MemFree);
     SAFE_DELETE(model->sequences, ri.MemFree);
     SAFE_DELETE(model->globalSequences, ri.MemFree);

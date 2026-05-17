@@ -130,6 +130,7 @@ static void MDLX_RenderEmitter(mdxModel_t const *model,
 static bool MDLX_SetBlendMode(const mdxMaterialLayer_t *layer, DWORD layerID) {
     switch (layer->blendMode) {
         case BLEND_MODE_NONE:
+            R_Call(glDisable, GL_BLEND);
             if (layerID == 0) {
                 R_Call(glBlendFunc, GL_ONE, GL_ZERO);
             } else {
@@ -138,6 +139,7 @@ static bool MDLX_SetBlendMode(const mdxMaterialLayer_t *layer, DWORD layerID) {
             R_Call(glDepthMask, GL_TRUE);
             break;
         case BLEND_MODE_ALPHAKEY:
+            R_Call(glDisable, GL_BLEND);
             R_Call(glUniform1i, mdlx.shader->uUseDiscard, 1);
             R_Call(glBlendFunc, GL_ONE, GL_ZERO);
             R_Call(glDepthMask, GL_TRUE);
@@ -147,6 +149,7 @@ static bool MDLX_SetBlendMode(const mdxMaterialLayer_t *layer, DWORD layerID) {
             if (is_rendering_lights)
                 return false;
 #endif
+            R_Call(glEnable, GL_BLEND);
             R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
             R_Call(glDepthMask, GL_FALSE);
             break;
@@ -159,7 +162,17 @@ static bool MDLX_SetBlendMode(const mdxMaterialLayer_t *layer, DWORD layerID) {
             if (is_rendering_lights)
                 return false;
 #endif
-            R_Call(glBlendFunc, GL_ONE, GL_ONE);
+            R_Call(glEnable, GL_BLEND);
+            R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE);
+            R_Call(glDepthMask, GL_FALSE);
+            break;
+        case BLEND_MODE_ADDALPHA:
+#ifdef USE_SHADOWMAPS
+            if (is_rendering_lights)
+                return false;
+#endif
+            R_Call(glEnable, GL_BLEND);
+            R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE);
             R_Call(glDepthMask, GL_FALSE);
             break;
         case BLEND_MODE_MODULATE:
@@ -167,6 +180,7 @@ static bool MDLX_SetBlendMode(const mdxMaterialLayer_t *layer, DWORD layerID) {
             if (is_rendering_lights)
                 return false;
 #endif
+            R_Call(glEnable, GL_BLEND);
             R_Call(glBlendFunc, GL_DST_COLOR, GL_ZERO);
             R_Call(glDepthMask, GL_FALSE);
             break;
@@ -175,10 +189,12 @@ static bool MDLX_SetBlendMode(const mdxMaterialLayer_t *layer, DWORD layerID) {
             if (is_rendering_lights)
                 return false;
 #endif
+            R_Call(glEnable, GL_BLEND);
             R_Call(glBlendFunc, GL_DST_COLOR, GL_SRC_COLOR);
             R_Call(glDepthMask, GL_FALSE);
             break;
         default:
+            R_Call(glDisable, GL_BLEND);
             R_Call(glBlendFunc, GL_ONE, GL_ZERO);
             R_Call(glDepthMask, GL_TRUE);
             break;
@@ -199,12 +215,63 @@ static void MDLX_ApplyLayerFlags(const mdxMaterialLayer_t *layer) {
     }
 }
 
+static bool MDLX_IsBlendedLayer(mdxMaterialLayer_t const *layer) {
+    return layer->blendMode >= BLEND_MODE_BLEND;
+}
+
 static mdxMaterial_t *MDLX_GetMaterialAtIndex(mdxGeoset_t const *geoset, mdxModel_t const *model) {
     mdxMaterial_t *material = model->materials;
     for (DWORD materialID = geoset->materialID; materialID > 0; materialID--) {
         material = material->next;
     }
     return material;
+}
+
+static mdxTextureAnim_t *MDLX_GetTextureAnimAtIndex(mdxModel_t const *model, DWORD textureAnimId) {
+    mdxTextureAnim_t *textureAnim = model->textureAnims;
+    if (textureAnimId == 0xFFFFFFFF) {
+        return NULL;
+    }
+    for (DWORD id = textureAnimId; textureAnim && id > 0; id--) {
+        textureAnim = textureAnim->next;
+    }
+    return textureAnim;
+}
+
+static void MDLX_BindLayerTextureAnimation(mdxModel_t const *model,
+                                           mdxMaterialLayer_t const *layer,
+                                           DWORD frame)
+{
+    VECTOR3 translation = { 0, 0, 0 };
+    QUATERNION rotation = { 0, 0, 0, 1 };
+    VECTOR3 scale = { 1, 1, 1 };
+    mdxTextureAnim_t const *textureAnim = MDLX_GetTextureAnimAtIndex(model, layer->transformId);
+
+    if (textureAnim) {
+        if (textureAnim->translation) {
+            MDLX_GetModelKeytrackValue(model, textureAnim->translation, frame, &translation);
+        }
+        if (textureAnim->rotation) {
+            MDLX_GetModelKeytrackValue(model, textureAnim->rotation, frame, &rotation);
+        }
+        if (textureAnim->scale) {
+            MDLX_GetModelKeytrackValue(model, textureAnim->scale, frame, &scale);
+        }
+    }
+
+    if (!isfinite(translation.x) || !isfinite(translation.y)) {
+        translation = (VECTOR3){ 0, 0, 0 };
+    }
+    if (!isfinite(rotation.z) || !isfinite(rotation.w)) {
+        rotation = (QUATERNION){ 0, 0, 0, 1 };
+    }
+    if (!isfinite(scale.x) || !isfinite(scale.y)) {
+        scale = (VECTOR3){ 1, 1, 1 };
+    }
+
+    R_Call(glUniform2f, mdlx.shader->uUvTrans, translation.x, translation.y);
+    R_Call(glUniform2f, mdlx.shader->uUvRot, rotation.z, rotation.w);
+    R_Call(glUniform2f, mdlx.shader->uUvScale, scale.x, scale.y);
 }
 
 static void MDLX_GetLightKeytrackValue(mdxModel_t const *model,
@@ -323,7 +390,7 @@ static VECTOR4 MDLX_EvaluateGeosetColor(mdxModel_t const *model,
     if (geoset->geosetAnim->alphas) {
         MDLX_GetModelKeytrackValue(model, geoset->geosetAnim->alphas, frame, &color.w);
     }
-    if (geoset->geosetAnim->flags & 0x1) {
+    if (geoset->geosetAnim->flags & 0x2) {
         color.x = geoset->geosetAnim->staticColor.x;
         color.y = geoset->geosetAnim->staticColor.y;
         color.z = geoset->geosetAnim->staticColor.z;
@@ -379,7 +446,8 @@ static void MDLX_RenderGeoset(mdxModel_t const *model,
                              BOOL forceUnshaded,
                              DWORD frame,
                              mdxShaderLight_t const *lights,
-                             int numLights)
+                             int numLights,
+                             bool blendedPass)
 {
     MATRIX3 mNormalMatrix;
     BOOL force_two_sided = model && !model->cameras;
@@ -401,6 +469,9 @@ static void MDLX_RenderGeoset(mdxModel_t const *model,
         mdxMaterialLayer_t const *layer = &material->layers[layerID];
         float alpha;
 
+        if (MDLX_IsBlendedLayer(layer) != blendedPass) {
+            continue;
+        }
         R_Call(glEnable, GL_DEPTH_TEST);
         R_Call(glUniform1i, shader->uUseDiscard, 0);
         if (force_two_sided) {
@@ -419,6 +490,7 @@ static void MDLX_RenderGeoset(mdxModel_t const *model,
         if (alpha < EPSILON)
             continue;
         R_Call(glUniform1f, shader->uLayerAlpha, alpha);
+        MDLX_BindLayerTextureAnimation(model, layer, frame);
         mdxTexture_t const *modeltex = &model->textures[layer->textureId];
         LPCTEXTURE texture = MDLX_GetTexture(model, team, layer->textureId, modeltex->replaceableID, overrideTexture);
         R_BindTexture(texture, 0);
@@ -541,7 +613,16 @@ static void MDLX_RenderGeosets(const renderEntity_t *entity,
                 continue;
             }
         }
-        MDLX_RenderGeoset(model, geoset, entity->team&TEAM_MASK, model_matrix, entity->skin, forceUnshaded, entity->frame, lights, numLights);
+        MDLX_RenderGeoset(model, geoset, entity->team&TEAM_MASK, model_matrix, entity->skin, forceUnshaded, entity->frame, lights, numLights, false);
+    }
+    FOR_EACH_LIST(mdxGeoset_t, geoset, model->geosets) {
+        if (geoset->geosetAnim) {
+            VECTOR4 geosetColor = MDLX_EvaluateGeosetColor(model, geoset, entity->frame);
+            if (geosetColor.w < EPSILON) {
+                continue;
+            }
+        }
+        MDLX_RenderGeoset(model, geoset, entity->team&TEAM_MASK, model_matrix, entity->skin, forceUnshaded, entity->frame, lights, numLights, true);
     }
 }
 

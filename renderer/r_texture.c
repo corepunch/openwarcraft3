@@ -25,6 +25,15 @@ void R_BindTexture(LPCTEXTURE texture, DWORD unit) {
     R_Call(glBindTexture, GL_TEXTURE_2D, texture ? texture->texid : tr.texture[TEX_WHITE]->texid);
 }
 
+void R_SetTextureWrap(LPCTEXTURE texture, bool wrapS, bool wrapT) {
+    if (!texture) {
+        return;
+    }
+    R_Call(glBindTexture, GL_TEXTURE_2D, texture->texid);
+    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrapS ? GL_REPEAT : GL_CLAMP_TO_EDGE);
+    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrapT ? GL_REPEAT : GL_CLAMP_TO_EDGE);
+}
+
 LPTEXTURE R_AllocateTexture(DWORD width, DWORD height) {
     LPTEXTURE texture = ri.MemAlloc(sizeof(TEXTURE));
     R_Call(glGenTextures, 1, &texture->texid);

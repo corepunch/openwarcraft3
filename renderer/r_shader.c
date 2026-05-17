@@ -215,6 +215,9 @@ LPSHADER R_InitShader(LPCSTR vs_default, LPCSTR fs_default){
     R_RegisterUniform(program, uUnshaded);
     R_RegisterUniform(program, uLayerAlpha);
     R_RegisterUniform(program, uGeosetColor);
+    R_RegisterUniform(program, uUvTrans);
+    R_RegisterUniform(program, uUvRot);
+    R_RegisterUniform(program, uUvScale);
     R_RegisterUniform(program, uMdxLightCount);
     program->uMdxLights = glGetUniformLocation(program->progid, "uMdxLights[0]");
     R_RegisterUniform(program, uEyePosition);
