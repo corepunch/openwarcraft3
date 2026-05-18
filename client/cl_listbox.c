@@ -49,28 +49,22 @@ static void CL_ListFetchClear(listFetchState_t *state) {
     }
     state->text[0] = '\0';
     state->selectedIndex = -1;
+    state->scrollOffset = 0;
 }
 
-static void CL_ListFetchAdd(listFetchState_t *state, LPCSTR text) {
-    DWORD len;
-    DWORD add;
+static DWORD CL_ListFetchCountRows(LPCSTR text) {
+    DWORD rows = 0;
 
-    if (!state) {
-        return;
+    if (!text || !*text) {
+        return 0;
     }
-    len = (DWORD)strlen(state->text);
-    add = text ? (DWORD)strlen(text) : 0;
-    if (len && len + 1 < sizeof(state->text)) {
-        state->text[len++] = '\n';
-        state->text[len] = '\0';
+    rows = 1;
+    for (LPCSTR p = text; *p; p++) {
+        if (*p == '\n') {
+            rows++;
+        }
     }
-    if (len + add >= sizeof(state->text)) {
-        add = (DWORD)sizeof(state->text) - len - 1;
-    }
-    if (add) {
-        memcpy(state->text + len, text, add);
-    }
-    state->text[len + add] = '\0';
+    return rows;
 }
 
 static void CL_ListFetchStart(listFetchState_t *state, uiListBox_t const *listbox) {
@@ -83,64 +77,35 @@ static void CL_ListFetchStart(listFetchState_t *state, uiListBox_t const *listbo
 
     snprintf(command,
              sizeof(command),
-             "listfetch %u %s",
+             "list %u %s",
              (unsigned)state->requestId,
              listbox->fetchCommand);
     MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
     MSG_WriteString(&cls.netchan.message, command);
 }
 
-static void CL_ReadListFetchString(LPSIZEBUF msg, LPSTR out, DWORD out_size) {
-    DWORD write = 0;
-
-    if (!msg) {
-        return;
-    }
-
-    for (;;) {
-        int c = MSG_ReadByte(msg);
-        if (c == 0) {
-            break;
-        }
-        if (out && out_size > 0 && write + 1 < out_size) {
-            out[write++] = (char)c;
-        }
-    }
-
-    if (out && out_size > 0) {
-        out[write] = '\0';
-    }
-}
-
 void CL_ParseListFetch(LPSIZEBUF msg) {
     DWORD requestId = (DWORD)MSG_ReadLong(msg);
-    listFetchOp_t op = (listFetchOp_t)MSG_ReadByte(msg);
     listFetchState_t *state = CL_FindFetchRequest(requestId);
     char text[MAX_LIST_FETCH_TEXT];
 
+    MSG_ReadString(msg, text);
     if (!state) {
-        if (op == listfetch_add) {
-            CL_ReadListFetchString(msg, text, sizeof(text));
-        }
         return;
     }
 
-    switch (op) {
-        case listfetch_clear:
-            state->numRows = 0;
-            CL_ListFetchClear(state);
-            break;
-        case listfetch_add:
-            CL_ReadListFetchString(msg, text, sizeof(text));
-            CL_ListFetchAdd(state, text);
-            state->numRows++;
-            break;
-        case listfetch_done:
-            state->loading = false;
-            break;
-        default:
-            break;
+    snprintf(state->text, sizeof(state->text), "%s", text);
+    state->numRows = CL_ListFetchCountRows(state->text);
+    state->selectedIndex = -1;
+    state->scrollOffset = 0;
+    state->loading = false;
+}
+
+static DWORD CL_ListBoxMaxScroll(listFetchState_t const *state, DWORD visibleRows) {
+    if (!state || state->numRows <= visibleRows) {
+        return 0;
     }
+    return state->numRows - visibleRows;
 }
 
 void CL_ListBoxApplyFetch(HANDLE layout,
@@ -148,7 +113,9 @@ void CL_ListBoxApplyFetch(HANDLE layout,
                           uiListBox_t const *listbox,
                           LPCSTR *text,
                           BOOL *loading,
-                          SHORT *selectedIndex)
+                          SHORT *selectedIndex,
+                          DWORD *scrollOffset,
+                          DWORD *numRows)
 {
     listFetchState_t *state;
 
@@ -164,17 +131,57 @@ void CL_ListBoxApplyFetch(HANDLE layout,
     *text = state->text;
     *loading = state->loading;
     *selectedIndex = state->selectedIndex;
+    if (scrollOffset) {
+        *scrollOffset = state->scrollOffset;
+    }
+    if (numRows) {
+        *numRows = state->numRows;
+    }
 }
 
-void CL_ListFetchResetLayout(HANDLE layout) {
-    if (!layout) {
+void CL_ListBoxScroll(HANDLE layout,
+                      LPCUIFRAME frame,
+                      uiListBox_t const *listbox,
+                      int delta,
+                      DWORD visibleRows)
+{
+    listFetchState_t *state;
+    DWORD maxScroll;
+
+    if (!layout || !frame || !listbox || !listbox->fetchCommand[0] || delta == 0) {
         return;
     }
 
-    FOR_LOOP(i, MAX_FETCH_LISTBOXES) {
-        listFetchState_t *state = &fetch_listboxes[i];
-        if (state->inuse && state->layout == layout) {
-            memset(state, 0, sizeof(*state));
-        }
+    state = CL_FindFetchListBox(layout, frame->number, listbox->fetchCommand);
+    maxScroll = CL_ListBoxMaxScroll(state, visibleRows);
+    if (delta < 0) {
+        DWORD amount = (DWORD)-delta;
+
+        state->scrollOffset = amount > state->scrollOffset ? 0 : state->scrollOffset - amount;
+    } else {
+        state->scrollOffset = MIN(state->scrollOffset + (DWORD)delta, maxScroll);
     }
+}
+
+void CL_ListBoxSelect(HANDLE layout,
+                      LPCUIFRAME frame,
+                      uiListBox_t const *listbox,
+                      DWORD rowIndex)
+{
+    listFetchState_t *state;
+    char command[CMDARG_LEN * 2];
+
+    if (!layout || !frame || !listbox || !listbox->fetchCommand[0]) {
+        return;
+    }
+
+    state = CL_FindFetchListBox(layout, frame->number, listbox->fetchCommand);
+    state->selectedIndex = (SHORT)rowIndex;
+    snprintf(command,
+             sizeof(command),
+             "listselect %s %u",
+             listbox->fetchCommand,
+             (unsigned)rowIndex);
+    MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
+    MSG_WriteString(&cls.netchan.message, command);
 }

@@ -81,6 +81,7 @@ struct serverListFetch_s {
     LPCLIENT client;
     DWORD deadline;
     DWORD numRows;
+    char text[MAX_LIST_FETCH_TEXT];
     char keys[MAX_LIST_FETCH_ROWS][64];
 };
 
@@ -132,9 +133,8 @@ void SV_ListFetch_f(LPCLIENT client, DWORD argc, LPCSTR *argv);
 void SV_ListFetchFrame(void);
 void SV_ListFetchInfoResponse(const netadr_t *from, LPCSTR status);
 serverListFetch_t *SV_ListFetchStates(DWORD *count);
-void SV_ListFetchClear(serverListFetch_t *state);
-void SV_ListFetchAdd(serverListFetch_t *state, LPCSTR text);
-void SV_ListFetchDone(serverListFetch_t *state);
+void SV_ListFetchAppendRow(serverListFetch_t *state, LPCSTR text);
+void SV_ListFetchSend(serverListFetch_t *state);
 serverListFetchProvider_t const *SV_ListFetchProviders(void);
 void SV_BuildClientFrame(LPCLIENT client);
 void SV_WriteFrameToClient(LPCLIENT client);

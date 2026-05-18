@@ -107,7 +107,7 @@ static void SV_FetchGamesStart(serverListFetch_t *state) {
 
 static void SV_FetchGamesFrame(serverListFetch_t *state) {
     if (state->loading && svs.realtime >= state->deadline) {
-        SV_ListFetchDone(state);
+        SV_ListFetchSend(state);
     }
 }
 
@@ -124,7 +124,7 @@ static void SV_FetchGamesInfo(const netadr_t *from, LPCSTR status) {
     FOR_LOOP(i, count) {
         BOOL duplicate = false;
         serverListFetch_t *state = &states[i];
-        if (!state->inuse || strcmp(state->command, "fetch-games") || !state->loading) {
+        if (!state->inuse || strcmp(state->command, "lan-games") || !state->loading) {
             continue;
         }
 
@@ -155,13 +155,13 @@ static void SV_FetchGamesInfo(const netadr_t *from, LPCSTR status) {
                  sizeof(state->keys[0]),
                  "%s",
                  address);
-        SV_ListFetchAdd(state, label);
+        SV_ListFetchAppendRow(state, label);
     }
 }
 
 serverListFetchProvider_t const *SV_ListFetchProviders(void) {
     static serverListFetchProvider_t const providers[] = {
-        { "fetch-games", SV_FetchGamesStart, SV_FetchGamesFrame, SV_FetchGamesInfo },
+        { "lan-games", SV_FetchGamesStart, SV_FetchGamesFrame, SV_FetchGamesInfo },
         { NULL, NULL, NULL, NULL },
     };
 

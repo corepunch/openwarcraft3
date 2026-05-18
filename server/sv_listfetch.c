@@ -27,6 +27,31 @@ static serverListFetchProvider_t const *SV_FindListFetchProvider(LPCSTR command)
     return NULL;
 }
 
+static void SV_ListFetchCommand(DWORD argc, LPCSTR *argv, LPSTR out, DWORD out_size) {
+    DWORD len = 0;
+
+    if (!out || out_size == 0) {
+        return;
+    }
+    out[0] = '\0';
+    for (DWORD i = 2; i < argc; i++) {
+        int written = snprintf(out + len,
+                               out_size - len,
+                               "%s%s",
+                               len ? " " : "",
+                               argv[i]);
+        if (written < 0) {
+            out[len] = '\0';
+            return;
+        }
+        if ((DWORD)written >= out_size - len) {
+            out[out_size - 1] = '\0';
+            return;
+        }
+        len += (DWORD)written;
+    }
+}
+
 static serverListFetch_t *SV_FindListFetch(LPCLIENT client, DWORD requestId) {
     serverListFetch_t *free_state = NULL;
 
@@ -41,7 +66,7 @@ static serverListFetch_t *SV_FindListFetch(LPCLIENT client, DWORD requestId) {
     }
 
     if (!free_state) {
-        return NULL;
+        free_state = &list_fetches[0];
     }
     memset(free_state, 0, sizeof(*free_state));
     free_state->inuse = true;
@@ -50,78 +75,74 @@ static serverListFetch_t *SV_FindListFetch(LPCLIENT client, DWORD requestId) {
     return free_state;
 }
 
-static void SV_ListFetchWriteToClient(LPCLIENT client, DWORD requestId, listFetchOp_t op, LPCSTR text) {
+static void SV_ListFetchWrite(LPCLIENT client, DWORD requestId, LPCSTR text) {
     if (!client) {
         return;
     }
-    MSG_WriteByte(&client->netchan.message, svc_listfetch);
+    MSG_WriteByte(&client->netchan.message, svc_list);
     MSG_WriteLong(&client->netchan.message, (int)requestId);
-    MSG_WriteByte(&client->netchan.message, op);
-    if (op == listfetch_add) {
-        MSG_WriteString(&client->netchan.message, text ? text : "");
-    }
+    MSG_WriteString(&client->netchan.message, text ? text : "");
     Netchan_Transmit(NS_SERVER, &client->netchan);
 }
 
-static void SV_ListFetchWrite(serverListFetch_t *state, listFetchOp_t op, LPCSTR text) {
-    if (!state) {
+void SV_ListFetchAppendRow(serverListFetch_t *state, LPCSTR text) {
+    DWORD len;
+    DWORD add;
+
+    if (!state || !text || state->numRows >= MAX_LIST_FETCH_ROWS) {
         return;
     }
-    SV_ListFetchWriteToClient(state->client, state->requestId, op, text);
+    len = (DWORD)strlen(state->text);
+    add = (DWORD)strlen(text);
+    if (len && len + 1 < sizeof(state->text)) {
+        state->text[len++] = '\n';
+        state->text[len] = '\0';
+    }
+    if (len + add >= sizeof(state->text)) {
+        add = (DWORD)sizeof(state->text) - len - 1;
+    }
+    if (add) {
+        memcpy(state->text + len, text, add);
+    }
+    state->text[len + add] = '\0';
+    state->numRows++;
 }
 
-void SV_ListFetchClear(serverListFetch_t *state) {
-    if (state) {
-        state->numRows = 0;
+void SV_ListFetchSend(serverListFetch_t *state) {
+    if (!state || !state->client) {
+        return;
     }
-    SV_ListFetchWrite(state, listfetch_clear, NULL);
-}
-
-void SV_ListFetchAdd(serverListFetch_t *state, LPCSTR text) {
-    if (state) {
-        state->numRows++;
-    }
-    SV_ListFetchWrite(state, listfetch_add, text);
-}
-
-void SV_ListFetchDone(serverListFetch_t *state) {
-    if (state) {
-        state->loading = false;
-    }
-    SV_ListFetchWrite(state, listfetch_done, NULL);
-    if (state) {
-        memset(state, 0, sizeof(*state));
-    }
+    SV_ListFetchWrite(state->client, state->requestId, state->text);
+    state->loading = false;
+    state->inuse = false;
 }
 
 void SV_ListFetch_f(LPCLIENT client, DWORD argc, LPCSTR *argv) {
     DWORD requestId;
     serverListFetch_t *state;
     serverListFetchProvider_t const *provider;
+    UINAME command;
 
     if (!client || argc < 3) {
         return;
     }
 
+    SV_ListFetchCommand(argc, argv, command, sizeof(command));
     requestId = (DWORD)strtoul(argv[1], NULL, 10);
-    provider = SV_FindListFetchProvider(argv[2]);
-    state = SV_FindListFetch(client, requestId);
-    if (!state) {
-        SV_ListFetchWriteToClient(client, requestId, listfetch_done, NULL);
-        return;
-    }
 
+    provider = SV_FindListFetchProvider(command);
     if (!provider) {
-        SV_ListFetchDone(state);
+        ge->ClientCommand(client->edict, argc, argv);
         return;
     }
 
+    state = SV_FindListFetch(client, requestId);
     memset(state, 0, sizeof(*state));
     state->inuse = true;
     state->client = client;
     state->requestId = requestId;
     state->loading = true;
-    snprintf(state->command, sizeof(state->command), "%s", argv[2]);
+    snprintf(state->command, sizeof(state->command), "%s", command);
 
     if (provider->start) {
         provider->start(state);

@@ -407,6 +407,44 @@ static void Init_MapSelectMenu(void) {
     UI_SetOnClick(Mission10Button, "menu /load Maps\\Campaign\\Undead01.w3m");
 }
 
+static void UI_EnsureFetchListBox(LPFRAMEDEF container,
+                                  LPFRAMEDEF label,
+                                  LPCSTR name,
+                                  LPCSTR backdropName,
+                                  LPCSTR fetchCommand)
+{
+    LPFRAMEDEF listbox;
+    LPFRAMEDEF backdrop;
+
+    if (!container || UI_FindChildFrame(container, name)) {
+        return;
+    }
+
+    listbox = UI_Spawn(FT_LISTBOX, container);
+    if (!listbox) {
+        return;
+    }
+    strcpy(listbox->Name, name);
+    UI_InheritFrom(listbox, "StandardListBoxTemplate");
+    listbox->Parent = container;
+
+    backdrop = UI_Spawn(FT_BACKDROP, listbox);
+    if (backdrop) {
+        strcpy(backdrop->Name, backdropName);
+        UI_InheritFrom(backdrop, "StandardEditBoxBackdropTemplate");
+        backdrop->Parent = listbox;
+        strcpy(listbox->Control.Backdrop.Normal, backdrop->Name);
+        UI_SetAllPoints(backdrop);
+    }
+
+    if (label) {
+        listbox->Font = label->Font;
+    }
+    strcpy(listbox->ListBox.FetchCommand, fetchCommand);
+    listbox->Color = COLOR32_WHITE;
+    UI_SetAllPoints(listbox);
+}
+
 static void Init_MultiplayerJoinMenu(void) {
     UI_FRAME(LocalMultiplayerJoin);
     LPFRAMEDEF PlayerNameEditBox = UI_FindChildFrame(LocalMultiplayerJoin, "PlayerNameEditBox");
@@ -434,30 +472,7 @@ static void Init_MultiplayerJoinMenu(void) {
         PlayerNameEditBox->Edit.MaxChars = 15;
         UI_SetText(PlayerNameEditBox, "Player");
     }
-    if (GameListContainer && !UI_FindChildFrame(GameListContainer, "GameListBox")) {
-        LPFRAMEDEF GameListBox = UI_Spawn(FT_LISTBOX, GameListContainer);
-        if (GameListBox) {
-            LPFRAMEDEF GameListBackdrop;
-
-            strcpy(GameListBox->Name, "GameListBox");
-            UI_InheritFrom(GameListBox, "StandardListBoxTemplate");
-            GameListBox->Parent = GameListContainer;
-            GameListBackdrop = UI_Spawn(FT_BACKDROP, GameListBox);
-            if (GameListBackdrop) {
-                strcpy(GameListBackdrop->Name, "GameListBackdrop");
-                UI_InheritFrom(GameListBackdrop, "StandardEditBoxBackdropTemplate");
-                GameListBackdrop->Parent = GameListBox;
-                strcpy(GameListBox->Control.Backdrop.Normal, GameListBackdrop->Name);
-                UI_SetAllPoints(GameListBackdrop);
-            }
-            if (GameListLabel) {
-                GameListBox->Font = GameListLabel->Font;
-            }
-            strcpy(GameListBox->ListBox.FetchCommand, "fetch-games");
-            GameListBox->Color = COLOR32_WHITE;
-            UI_SetAllPoints(GameListBox);
-        }
-    }
+    UI_EnsureFetchListBox(GameListContainer, GameListLabel, "GameListBox", "GameListBackdrop", "lan-games");
 
     UI_SetOnClick(CreateButton, "menu /lan/create");
     UI_SetOnClick(LoadButton, "menu /lan/refresh");
@@ -467,10 +482,13 @@ static void Init_MultiplayerJoinMenu(void) {
 
 static void Init_MultiplayerCreateMenu(void) {
     UI_FRAME(LocalMultiplayerCreate);
+    LPFRAMEDEF MapListLabel = UI_FindChildFrame(LocalMultiplayerCreate, "MapListLabel");
+    LPFRAMEDEF MapListContainer = UI_FindChildFrame(LocalMultiplayerCreate, "MapListContainer");
     LPFRAMEDEF MapInfoButton = UI_FindChildFrame(LocalMultiplayerCreate, "MapInfoButton");
     LPFRAMEDEF AdvancedOptionsButton = UI_FindChildFrame(LocalMultiplayerCreate, "AdvancedOptionsButton");
     LPFRAMEDEF PlayButton = UI_FindChildFrame(LocalMultiplayerCreate, "PlayButton");
     LPFRAMEDEF CancelButton = UI_FindChildFrame(LocalMultiplayerCreate, "CancelButton");
+    UI_EnsureFetchListBox(MapListContainer, MapListLabel, "MapListBox", "MapListBackdrop", "maps");
     UI_SetOnClick(MapInfoButton, "menu /main");
     UI_SetOnClick(AdvancedOptionsButton, "menu /main");
     UI_SetOnClick(PlayButton, "menu /main");
@@ -545,6 +563,12 @@ void UI_ShowMultiplayerMenu(LPEDICT ent) {
     UI_FRAME(LocalMultiplayerJoin);
     UI_PrepareMenuFrameState(LocalMultiplayerJoin, false);
     UI_WriteMenuWithMainFrameAnimation(ent, LocalMultiplayerJoin, "BattlenetCustom");
+}
+
+void UI_ShowMultiplayerCreateMenu(LPEDICT ent) {
+    UI_FRAME(LocalMultiplayerCreate);
+    UI_PrepareMenuFrameState(LocalMultiplayerCreate, false);
+    UI_WriteMenuWithMainFrameAnimation(ent, LocalMultiplayerCreate, "BattlenetCustomCreate");
 }
 
 void UI_ShowGameInterface(LPEDICT ent) {
@@ -625,9 +649,7 @@ void UI_RenderRoute(LPEDICT ent, LPCSTR route) {
         return;
     }
     if (UI_RouteEquals(route, "/lan/create") || UI_RouteEquals(route, "multiplayer/create")) {
-        UI_FRAME(LocalMultiplayerCreate);
-        UI_PrepareMenuFrameState(LocalMultiplayerCreate, false);
-        UI_WriteMenuWithMainFrameAnimation(ent, LocalMultiplayerCreate, "BattlenetCustomCreate");
+        UI_ShowMultiplayerCreateMenu(ent);
         return;
     }
     FOR_LOOP(i, sizeof(map_routes) / sizeof(*map_routes)) {

@@ -159,6 +159,7 @@ clean:
 TEST_GAME_SRCS := \
 	game/g_ai.c \
 	game/g_events.c \
+	game/g_listfetch.c \
 	game/g_metadata.c \
 	game/g_monster.c \
 	game/g_pathing.c \

@@ -19,6 +19,7 @@ void UI_ParseFDF_Buffer(LPCSTR fileName, LPSTR buffer);
 void UI_ShowMainMenu(LPEDICT ent);
 void UI_ShowSinglePlayerMenu(LPEDICT ent);
 void UI_ShowMultiplayerMenu(LPEDICT ent);
+void UI_ShowMultiplayerCreateMenu(LPEDICT ent);
 extern struct game_import gi;
 
 #define TEST_LAYER_CONSOLE 3
@@ -30,6 +31,20 @@ bool CM_LoadMap(LPCSTR mapFilename) { (void)mapFilename; return true; }
 LPDOODAD CM_GetDoodads(void) { return NULL; }
 LPCMAPINFO CM_GetMapInfo(void) { return NULL; }
 struct cmodel *SV_LoadModel(LPCSTR filename) { (void)filename; return NULL; }
+HANDLE FS_FindFirstFile(LPCSTR mask, SFILE_FIND_DATA *findData) {
+    (void)mask;
+    (void)findData;
+    return NULL;
+}
+BOOL FS_FindNextFile(HANDLE find, SFILE_FIND_DATA *findData) {
+    (void)find;
+    (void)findData;
+    return false;
+}
+BOOL FS_FindClose(HANDLE find) {
+    (void)find;
+    return true;
+}
 
 static void test_run_frame(void) {
 }
@@ -295,6 +310,22 @@ static DWORD decoded_layout_count_type(LPCUIFRAME decoded, FRAMETYPE type) {
         }
     }
     return count;
+}
+
+static bool decoded_layout_contains_listbox_fetch(LPCUIFRAME decoded, LPCSTR fetchCommand) {
+    FOR_LOOP(i, MAX_LAYOUT_OBJECTS) {
+        uiListBox_t const *listbox;
+        if (decoded[i].flags.type != FT_LISTBOX ||
+            decoded[i].buffer.size < sizeof(uiListBox_t) ||
+            !decoded[i].buffer.data) {
+            continue;
+        }
+        listbox = (uiListBox_t const *)decoded[i].buffer.data;
+        if (!strcmp(listbox->fetchCommand, fetchCommand)) {
+            return true;
+        }
+    }
+    return false;
 }
 
 void SV_ParseClientMessage(LPSIZEBUF msg, LPCLIENT client) {
@@ -651,6 +682,15 @@ static void test_menu_command_updates_client_layout_with_repo_fdf(void) {
     decoded = SCR_Clear(cl.layout[TEST_LAYER_CONSOLE]);
     ASSERT_EQ_INT(decoded_layout_count_sprite_animation(decoded, "BattlenetCustom Stand"), 2);
     ASSERT_EQ_INT(decoded_layout_count_sprite_animation(decoded, "BattlenetWelcome Stand"), 0);
+    ASSERT(decoded_layout_contains_listbox_fetch(decoded, "lan-games"));
+
+    UI_ShowMultiplayerCreateMenu(&client_edict);
+    SV_WriteFrameToClient(&svs.clients[0]);
+    ASSERT(NET_GetPacket(NS_CLIENT, &from, &server_msg) > 0);
+    CL_ParseServerMessage(&server_msg);
+    decoded = SCR_Clear(cl.layout[TEST_LAYER_CONSOLE]);
+    ASSERT_EQ_INT(decoded_layout_count_sprite_animation(decoded, "BattlenetCustomCreate Stand"), 2);
+    ASSERT(decoded_layout_contains_listbox_fetch(decoded, "maps"));
 
     SAFE_DELETE(cl.layout[TEST_LAYER_CONSOLE], MemFree);
     NET_Shutdown();

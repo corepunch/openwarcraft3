@@ -196,6 +196,7 @@ clientCommand_t clientCommands[] = {
     { "hidequests", CMD_HideQuests },
     { "quest", CMD_Quest },
     { "menu", CMD_Menu },
+    { "list", CMD_List },
     { NULL }
 };
 

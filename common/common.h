@@ -3,6 +3,7 @@
 
 #include "shared.h"
 #include "net.h"
+#include "mpq.h"
 
 #define MAP_VERTEX_SIZE 7
 #define MAX_SHEET_LINE 1024
@@ -12,8 +13,6 @@
 #define DECODE_HEIGHT(x) (((x) - 0x2000) / 4)
 #define CMDARG_LEN 64
 #define MAX_CMDARGS 64
-#define MAX_LIST_FETCH_TEXT 2048
-#define MAX_LIST_FETCH_ROWS 32
 #define UPDATE_BACKUP 16
 #define UPDATE_MASK (UPDATE_BACKUP-1)
 #define U_REMOVE 15
@@ -40,7 +39,7 @@ enum svc_ops {
     svc_layout,
     svc_playerinfo,
     svc_cursor,
-    svc_listfetch,
+    svc_list,
 
 // the rest are private to the client and server
 //    svc_nop,
@@ -60,12 +59,6 @@ enum svc_ops {
     svc_frame,
     svc_mirror
 };
-
-typedef enum {
-    listfetch_clear,
-    listfetch_add,
-    listfetch_done,
-} listFetchOp_t;
 
 // client to server
 enum clc_ops {
@@ -126,6 +119,9 @@ void FS_CloseFile(HANDLE file);
 bool FS_ExtractFile(LPCSTR toExtract, LPCSTR extracted);
 bool FS_FileExists(LPCSTR fileName);
 HANDLE FS_ReadFile(LPCSTR filename, LPDWORD size);
+HANDLE FS_FindFirstFile(LPCSTR mask, SFILE_FIND_DATA *findData);
+BOOL FS_FindNextFile(HANDLE find, SFILE_FIND_DATA *findData);
+BOOL FS_FindClose(HANDLE find);
 
 sheetRow_t *FS_ParseINI(LPCSTR fileName);
 sheetRow_t *FS_ParseSLK(LPCSTR fileName);

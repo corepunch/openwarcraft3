@@ -2,6 +2,7 @@
 #define game_h
 
 #include "../common/shared.h"
+#include "../common/mpq.h"
 
 #define SVF_NOCLIENT 0x00000001    // don't send entity to clients, even if it has effects
 #define SVF_DEADMONSTER 0x00000002    // treat as CONTENTS_DEADMONSTER for collision
@@ -38,6 +39,9 @@ struct game_import {
     FLOAT (*GetHeightAtPoint)(FLOAT x, FLOAT y);
     LPSTR (*ReadFileIntoString)(LPCSTR filename);
     HANDLE (*ReadFile)(LPCSTR filename, LPDWORD size);
+    HANDLE (*FindFirstFile)(LPCSTR mask, SFILE_FIND_DATA *findData);
+    BOOL (*FindNextFile)(HANDLE find, SFILE_FIND_DATA *findData);
+    BOOL (*FindClose)(HANDLE find);
     DWORD (*GetTime)(void);
     sheetRow_t *(*ReadSheet)(LPCSTR sheetFilename);
     sheetRow_t *(*ReadConfig)(LPCSTR configFilename);

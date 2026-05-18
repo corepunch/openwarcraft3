@@ -1,6 +1,7 @@
 #include "common.h"
 
 #include "mpq.h"
+#include <stdlib.h>
 
 #define MAXPRINTMSG 4096
 
@@ -115,6 +116,12 @@ static void ExtractStarCraft2(void) {
 static BOOL filelock = false;
 void PF_Sleep(DWORD msec);
 
+typedef struct fsFind_s {
+    DWORD archiveIndex;
+    HANDLE current;
+    PATHSTR mask;
+} fsFind_t;
+
 HANDLE FS_OpenFile(LPCSTR fileName) {
     while (filelock) {
         PF_Sleep(10);
@@ -147,6 +154,82 @@ bool FS_FileExists(LPCSTR fileName) {
 void FS_CloseFile(HANDLE file) {
     SFileCloseFile(file);
     filelock = false;
+}
+
+static BOOL FS_FindAdvance(fsFind_t *find, SFILE_FIND_DATA *findData) {
+    while (find && find->archiveIndex < MAX_ARCHIVES) {
+        if (find->current && SFileFindNextFile(find->current, findData)) {
+            return true;
+        }
+        if (find->current) {
+            SFileFindClose(find->current);
+            find->current = NULL;
+        }
+        find->archiveIndex++;
+        while (find->archiveIndex < MAX_ARCHIVES && !archives[find->archiveIndex]) {
+            find->archiveIndex++;
+        }
+        if (find->archiveIndex < MAX_ARCHIVES) {
+            find->current = SFileFindFirstFile(archives[find->archiveIndex], find->mask, findData, NULL);
+            if (find->current) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+HANDLE FS_FindFirstFile(LPCSTR mask, SFILE_FIND_DATA *findData) {
+    fsFind_t *find;
+
+    while (filelock) {
+        PF_Sleep(10);
+    }
+    filelock = true;
+    if (!mask || !*mask || !findData) {
+        filelock = false;
+        return NULL;
+    }
+
+    find = calloc(1, sizeof(*find));
+    if (!find) {
+        filelock = false;
+        return NULL;
+    }
+    snprintf(find->mask, sizeof(find->mask), "%s", mask);
+    find->archiveIndex = 0;
+    while (find->archiveIndex < MAX_ARCHIVES && !archives[find->archiveIndex]) {
+        find->archiveIndex++;
+    }
+    if (find->archiveIndex < MAX_ARCHIVES) {
+        find->current = SFileFindFirstFile(archives[find->archiveIndex], find->mask, findData, NULL);
+        if (find->current) {
+            return find;
+        }
+    }
+    if (FS_FindAdvance(find, findData)) {
+        return find;
+    }
+    free(find);
+    filelock = false;
+    return NULL;
+}
+
+BOOL FS_FindNextFile(HANDLE handle, SFILE_FIND_DATA *findData) {
+    return FS_FindAdvance(handle, findData);
+}
+
+BOOL FS_FindClose(HANDLE handle) {
+    fsFind_t *find = handle;
+
+    if (find) {
+        if (find->current) {
+            SFileFindClose(find->current);
+        }
+        free(find);
+    }
+    filelock = false;
+    return true;
 }
 
 bool FS_ExtractFile(LPCSTR toExtract, LPCSTR extracted) {

@@ -83,10 +83,10 @@ void SV_ExecuteUserCommand(LPSIZEBUF msg, LPCLIENT client) {
     if (argc == 0) {
         return;
     }
-    if (!strcmp(argv[0], "menu") && !client->edict) {
+    if ((!strcmp(argv[0], "menu") || !strcmp(argv[0], "list")) && !client->edict) {
         client->edict = SV_ClientRoutingEdict(client);
     }
-    if (!strcmp(argv[0], "listfetch")) {
+    if (!strcmp(argv[0], "list")) {
         SV_ListFetch_f(client, argc, argv);
         return;
     }

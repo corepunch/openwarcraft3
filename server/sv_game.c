@@ -432,6 +432,9 @@ void SV_InitGameProgs(void) {
     import.GetFlowDirection = get_flow_direction;
     import.ReadFileIntoString = FS_ReadFileIntoString;
     import.ReadFile = FS_ReadFile;
+    import.FindFirstFile = FS_FindFirstFile;
+    import.FindNextFile = FS_FindNextFile;
+    import.FindClose = FS_FindClose;
     import.ExtractFile = FS_ExtractFile;
     import.error = PF_error;
     import.LinkEntity = SV_LinkEntity;

@@ -526,7 +526,8 @@ void SCR_DrawEditBox(LPCUIFRAME frame, LPCRECT screen) {
 
 void SCR_DrawListBox(LPCUIFRAME frame, LPCRECT screen) {
     uiListBox_t const *listbox = frame->buffer.data;
-    RECT item_rect = Rect_inset(screen, listbox->border);
+    RECT list_rect = Rect_inset(screen, listbox->border);
+    FLOAT item_y = list_rect.y + list_rect.h;
     FLOAT item_height = listbox->itemHeight > 0 ? listbox->itemHeight : 0.018f;
     LPCSTR text = frame->text;
     BOOL loading = false;
@@ -540,7 +541,7 @@ void SCR_DrawListBox(LPCUIFRAME frame, LPCRECT screen) {
     CL_ListBoxApplyFetch(active_layout, frame, listbox, &text, &loading, &selectedIndex);
 
     if (loading) {
-        re.DrawLoadingIndicator(&item_rect, cl.time, frame->color);
+        re.DrawLoadingIndicator(&list_rect, cl.time, frame->color);
         return;
     }
 
@@ -550,9 +551,10 @@ void SCR_DrawListBox(LPCUIFRAME frame, LPCRECT screen) {
 
     snprintf(items, sizeof(items), "%s", text);
     line = strtok_r(items, "\n", &save);
-    while (line && item_rect.h > 0) {
-        RECT row = item_rect;
-        row.h = MIN(item_height, item_rect.h);
+    while (line && item_y > list_rect.y) {
+        RECT row = list_rect;
+        row.h = MIN(item_height, item_y - list_rect.y);
+        row.y = item_y - row.h;
         if (index == selectedIndex) {
             re.DrawImage(cl.pics[0], &row, &MAKE(RECT, 0, 0, 1, 1), MAKE(COLOR32, 32, 64, 180, 128));
         }
@@ -567,8 +569,7 @@ void SCR_DrawListBox(LPCUIFRAME frame, LPCRECT screen) {
                           .textWidth = row.w,
                           .rect = row,
                           .wordWrap = false));
-        item_rect.y -= item_height;
-        item_rect.h -= item_height;
+        item_y -= item_height;
         line = strtok_r(NULL, "\n", &save);
         index++;
     }

@@ -73,6 +73,7 @@ enum {
 #define svc_layout 2
 #define svc_playerinfo 3
 #define svc_cursor 4
+#define svc_list 5
 
 KNOWN_AS(uiFrameDef_s, FRAMEDEF);
 KNOWN_AS(jass_s, JASS);
@@ -882,6 +883,7 @@ void UI_ShowMainMenu(LPEDICT);
 void UI_ShowRealmSelect(LPEDICT, BOOL);
 void UI_ShowSinglePlayerMenu(LPEDICT);
 void UI_ShowMultiplayerMenu(LPEDICT);
+void UI_ShowMultiplayerCreateMenu(LPEDICT);
 void UI_ShowGameInterface(LPEDICT);
 void UI_ShowMapSelectMenu(LPEDICT, LPCSTR);
 
@@ -942,6 +944,7 @@ void G_SelectEntity(LPGAMECLIENT, LPEDICT);
 void G_DeselectEntity(LPGAMECLIENT, LPEDICT);
 BOOL G_IsEntitySelected(LPGAMECLIENT, LPEDICT);
 void G_ClientCommand(LPEDICT, DWORD, LPCSTR[]);
+void CMD_List(LPEDICT, DWORD, LPCSTR[]);
 void G_ClientPanCamera(LPEDICT, LPVECTOR2);
 
 //  s_skills.c
