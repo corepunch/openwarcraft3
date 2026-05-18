@@ -291,7 +291,6 @@ static void WriteListBox(LPCFRAMEDEF frame, sizeBuf_t *sb, uiFrame_t *tmp) {
         .selectedIndex = -1,
     };
     snprintf(data.fetchCommand, sizeof(data.fetchCommand), "%s", frame->ListBox.FetchCommand);
-    snprintf(data.selectionCommand, sizeof(data.selectionCommand), "%s", frame->ListBox.SelectionCommand);
     (void)tmp;
     MSG_Write(sb, &data, sizeof(data));
 }

@@ -483,7 +483,6 @@ struct uiFrameDef_s {
         FLOAT Border;
         UINAME ScrollBar;
         UINAME FetchCommand;
-        UINAME SelectionCommand;
     } ListBox;
     struct {
         FLOAT Border;

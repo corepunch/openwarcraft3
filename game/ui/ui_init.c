@@ -519,8 +519,7 @@ static void UI_EnsureFetchListBox(LPFRAMEDEF container,
                                   LPFRAMEDEF label,
                                   LPCSTR name,
                                   LPCSTR backdropName,
-                                  LPCSTR fetchCommand,
-                                  LPCSTR selectionCommand)
+                                  LPCSTR fetchCommand)
 {
     LPFRAMEDEF listbox;
     LPFRAMEDEF backdrop;
@@ -552,9 +551,6 @@ static void UI_EnsureFetchListBox(LPFRAMEDEF container,
         listbox->Font = label->Font;
     }
     strcpy(listbox->ListBox.FetchCommand, fetchCommand);
-    if (selectionCommand) {
-        strcpy(listbox->ListBox.SelectionCommand, selectionCommand);
-    }
     listbox->Color = COLOR32_WHITE;
     UI_SetAllPoints(listbox);
 
@@ -607,7 +603,7 @@ static void Init_MultiplayerJoinMenu(void) {
         PlayerNameEditBox->Edit.MaxChars = 15;
         UI_SetText(PlayerNameEditBox, "Player");
     }
-    UI_EnsureFetchListBox(GameListContainer, GameListLabel, "GameListBox", "GameListBackdrop", "lan-games", NULL);
+    UI_EnsureFetchListBox(GameListContainer, GameListLabel, "GameListBox", "GameListBackdrop", "lan-games");
 
     UI_SetOnClick(CreateButton, "menu /lan/create");
     UI_SetOnClick(LoadButton, "menu /lan/refresh");
@@ -623,7 +619,7 @@ static void Init_MultiplayerCreateMenu(void) {
     LPFRAMEDEF AdvancedOptionsButton = UI_FindChildFrame(LocalMultiplayerCreate, "AdvancedOptionsButton");
     LPFRAMEDEF PlayButton = UI_FindChildFrame(LocalMultiplayerCreate, "PlayButton");
     LPFRAMEDEF CancelButton = UI_FindChildFrame(LocalMultiplayerCreate, "CancelButton");
-    UI_EnsureFetchListBox(MapListContainer, MapListLabel, "MapListBox", "MapListBackdrop", "maps", "listselect maps");
+    UI_EnsureFetchListBox(MapListContainer, MapListLabel, "MapListBox", "MapListBackdrop", "maps");
     UI_SetOnClick(MapInfoButton, "menu /main");
     UI_SetOnClick(AdvancedOptionsButton, "menu /main");
     UI_SetOnClick(PlayButton, "menu /main");
