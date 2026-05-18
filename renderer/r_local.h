@@ -156,20 +156,9 @@ enum {
 };
 
 enum {
-    MESH_LOADING_INDICATOR,
-    MESH_COUNT,
-};
-
-enum {
     SHEET_TERRAIN,
     SHEET_CLIFF,
     SHEET_COUNT,
-};
-
-struct render_mesh {
-    LPBUFFER buffer;
-    DWORD numVertices;
-    GLenum primitive;
 };
 
 struct render_globals {
@@ -178,7 +167,6 @@ struct render_globals {
     LPTEXTURE texture[TEX_COUNT];
     LPSHADER shader[SHADER_COUNT];
     LPBUFFER buffer[RBUF_COUNT];
-    struct render_mesh mesh[MESH_COUNT];
     LPMODEL model[MODEL_COUNT];
     LPRENDERTARGET rt[RT_COUNT];
     sheetRow_t *sheet[SHEET_COUNT];
@@ -243,7 +231,6 @@ void R_DrawBuffer(LPCBUFFER buffer, DWORD num_vertices);
 void R_PrintSysText(LPCSTR string, DWORD x, DWORD y, COLOR32 color);
 void R_DrawImage(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv, COLOR32 color);
 void R_DrawImageEx(LPCDRAWIMAGE drawImage);
-struct render_mesh R_MakeLoadingIndicatorMesh(void);
 void R_DrawLoadingIndicator(LPCRECT rect, DWORD time, COLOR32 color);
 void R_DrawPic(LPCTEXTURE texture, float x, float y);
 void R_DrawSelectionRect(LPCRECT rect, COLOR32 color);

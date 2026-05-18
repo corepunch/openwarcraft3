@@ -90,6 +90,20 @@ void R_DrawImageEx(LPCDRAWIMAGE drawImage) {
             .h = -drawImage->uv.h
         }, drawImage->color, 0);
     }
+    if (drawImage->angle) {
+        FLOAT const cx = drawImage->screen.x + drawImage->screen.w * 0.5f;
+        FLOAT const cy = drawImage->screen.y + drawImage->screen.h * 0.5f;
+        FLOAT const radians = drawImage->angle * (FLOAT)(M_PI / 180.0);
+        FLOAT const c = cosf(radians);
+        FLOAT const s = sinf(radians);
+
+        FOR_LOOP(i, 6) {
+            FLOAT const x = simp[i].position.x - cx;
+            FLOAT const y = simp[i].position.y - cy;
+            simp[i].position.x = cx + x * c - y * s;
+            simp[i].position.y = cy + x * s + y * c;
+        }
+    }
 
     LPCSHADER shader = tr.shader[drawImage->shader];
     
@@ -144,64 +158,23 @@ void R_DrawPic(LPCTEXTURE texture, float x, float y) {
     R_DrawImage(texture, &screen, NULL, COLOR32_WHITE);
 }
 
-struct render_mesh R_MakeLoadingIndicatorMesh(void) {
-    enum { SEGMENTS = 64 };
-    VERTEX vertices[(SEGMENTS + 1) * 2] = { 0 };
-    struct render_mesh mesh = { 0 };
-
-    FOR_LOOP(i, SEGMENTS + 1) {
-        FLOAT const progress = (FLOAT)i / (FLOAT)SEGMENTS;
-        FLOAT const u = 1.0f - progress;
-        FLOAT const angle = progress * (FLOAT)(M_PI * 2.0);
-        FLOAT const x = cosf(angle);
-        FLOAT const y = sinf(angle);
-        VERTEX *outerVert = &vertices[i * 2];
-        VERTEX *innerVert = &vertices[i * 2 + 1];
-
-        outerVert->position = MAKE(VECTOR3, x * 0.5f, y * 0.5f, 0);
-        outerVert->texcoord = MAKE(VECTOR2, u, 0.5f);
-        outerVert->color = COLOR32_WHITE;
-        innerVert->position = MAKE(VECTOR3, x * 0.34f, y * 0.34f, 0);
-        innerVert->texcoord = MAKE(VECTOR2, u, 0.5f);
-        innerVert->color = COLOR32_WHITE;
-    }
-
-    mesh.buffer = R_MakeVertexArrayObject(vertices, (SEGMENTS + 1) * 2);
-    mesh.numVertices = (SEGMENTS + 1) * 2;
-    mesh.primitive = GL_TRIANGLE_STRIP;
-    return mesh;
-}
-
 void R_DrawLoadingIndicator(LPCRECT rect, DWORD time, COLOR32 color) {
-    struct render_mesh const *mesh = &tr.mesh[MESH_LOADING_INDICATOR];
     FLOAT const cx = rect->x + rect->w * 0.5f;
     FLOAT const cy = rect->y + rect->h * 0.5f;
     FLOAT const size = MAX(MIN(rect->w, rect->h) * 0.11f, 0.006f);
-    MATRIX4 ui_matrix, model_matrix;
-    RECT const scene = R_UISceneRect();
+    RECT const screen = { cx - size * 0.5f, cy - size * 0.5f, size, size };
 
     if (!color.a) {
         color = MAKE(COLOR32, 235, 220, 180, 255);
     }
 
-    Matrix4_ortho(&ui_matrix, scene.x, scene.x + scene.w, scene.y, scene.y + scene.h, 0.0f, 100.0f);
-    Matrix4_identity(&model_matrix);
-    Matrix4_translate(&model_matrix, &MAKE(VECTOR3, cx, cy, 0));
-    Matrix4_rotate(&model_matrix, &MAKE(VECTOR3, 0, 0, -360.0f * (FLOAT)(time % 900) / 900.0f), ROTATE_XYZ);
-    Matrix4_scale(&model_matrix, &MAKE(VECTOR3, size, size, 1));
-
-    R_Call(glDisable, GL_CULL_FACE);
-    R_Call(glUseProgram, tr.shader[SHADER_UI]->progid);
-    R_Call(glUniformMatrix4fv, tr.shader[SHADER_UI]->uViewProjectionMatrix, 1, GL_FALSE, ui_matrix.v);
-    R_Call(glUniformMatrix4fv, tr.shader[SHADER_UI]->uModelMatrix, 1, GL_FALSE, model_matrix.v);
-    R_Call(glBindVertexArray, mesh->buffer->vao);
-    R_Call(glBindBuffer, GL_ARRAY_BUFFER, mesh->buffer->vbo);
-    R_Call(glEnable, GL_BLEND);
-    R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    R_BindTexture(tr.texture[TEX_LOADING_INDICATOR], 0);
-    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    R_Call(glDrawArrays, mesh->primitive, 0, mesh->numVertices);
+    R_DrawImageEx(&MAKE(DRAWIMAGE,
+                        .texture = tr.texture[TEX_LOADING_INDICATOR],
+                        .screen = screen,
+                        .uv = MAKE(RECT, 0, 0, 1, 1),
+                        .color = color,
+                        .shader = SHADER_UI,
+                        .angle = -360.0f * (FLOAT)(time % 900) / 900.0f));
 }
 
 void R_DrawWireRect(LPCRECT rect, COLOR32 color) {

@@ -100,6 +100,7 @@ struct drawImage_s {
     RECT uv;
     COLOR32 color;
     BOOL rotate;
+    FLOAT angle;
     FLOAT uActiveGlow;
 };
 

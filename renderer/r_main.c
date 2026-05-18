@@ -41,16 +41,38 @@ LPTEXTURE R_AllocateSinglePixelTexture(int color) {
     return texture;
 }
 
-LPTEXTURE R_MakeLoadingIndicatorTexture(void) {
-    enum { GRADIENT_WIDTH = 256 };
-    COLOR32 pixels[GRADIENT_WIDTH];
-    LPTEXTURE texture = R_AllocateTexture(GRADIENT_WIDTH, 1);
+static FLOAT R_SmoothStep(FLOAT edge0, FLOAT edge1, FLOAT x) {
+    FLOAT t = (x - edge0) / (edge1 - edge0);
+    t = MAX(0.0f, MIN(1.0f, t));
+    return t * t * (3.0f - 2.0f * t);
+}
 
-    FOR_LOOP(i, GRADIENT_WIDTH) {
-        BYTE alpha = (BYTE)(255 * i / (GRADIENT_WIDTH - 1));
-        pixels[i] = MAKE(COLOR32, 255, 255, 255, alpha);
+LPTEXTURE R_MakeLoadingIndicatorTexture(void) {
+    enum { TEXTURE_SIZE = 128 };
+    COLOR32 pixels[TEXTURE_SIZE * TEXTURE_SIZE];
+    LPTEXTURE texture = R_AllocateTexture(TEXTURE_SIZE, TEXTURE_SIZE);
+
+    FOR_LOOP(y, TEXTURE_SIZE) {
+        FOR_LOOP(x, TEXTURE_SIZE) {
+            FLOAT const fx = ((FLOAT)x + 0.5f) / (FLOAT)TEXTURE_SIZE * 2.0f - 1.0f;
+            FLOAT const fy = ((FLOAT)y + 0.5f) / (FLOAT)TEXTURE_SIZE * 2.0f - 1.0f;
+            FLOAT const distance = sqrtf(fx * fx + fy * fy);
+            FLOAT angle = atan2f(fy, fx) / (FLOAT)(M_PI * 2.0);
+            FLOAT const outer = 0.92f;
+            FLOAT const inner = outer * 0.68f;
+            FLOAT const edge = 0.035f;
+            FLOAT const ring = R_SmoothStep(inner - edge, inner, distance) *
+                               (1.0f - R_SmoothStep(outer, outer + edge, distance));
+            BYTE alpha;
+
+            if (angle < 0.0f) {
+                angle += 1.0f;
+            }
+            alpha = (BYTE)(255.0f * ring * angle);
+            pixels[y * TEXTURE_SIZE + x] = MAKE(COLOR32, 255, 255, 255, alpha);
+        }
     }
-    R_LoadTextureMipLevel(texture, 0, pixels, GRADIENT_WIDTH, 1);
+    R_LoadTextureMipLevel(texture, 0, pixels, TEXTURE_SIZE, TEXTURE_SIZE);
     return texture;
 }
 
@@ -389,7 +411,6 @@ void R_Init(DWORD width, DWORD height) {
     fprintf(stderr, "Loading shaders succeeded.\n");
 
     tr.buffer[RBUF_TEMP1] = R_MakeVertexArrayObject(NULL, 0);
-    tr.mesh[MESH_LOADING_INDICATOR] = R_MakeLoadingIndicatorMesh();
     tr.texture[TEX_WHITE] = R_AllocateSinglePixelTexture(0xffffffff);
     tr.texture[TEX_BLACK] = R_AllocateSinglePixelTexture(0xff000000);
     tr.texture[TEX_LOADING_INDICATOR] = R_MakeLoadingIndicatorTexture();
