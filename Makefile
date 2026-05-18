@@ -177,9 +177,12 @@ TEST_GAME_SRCS := \
 	game/ui/ui_init.c \
 	game/ui/ui_write.c \
 	client/cl_menu.c \
+	client/cl_listbox.c \
 	client/cl_parse.c \
 	client/cl_scrn.c \
 	server/sv_init.c \
+	server/sv_lan.c \
+	server/sv_listfetch.c \
 	server/sv_send.c \
 	server/sv_main.c \
 	common/net.c \

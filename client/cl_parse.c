@@ -175,6 +175,9 @@ void CL_ParseServerMessage(LPSIZEBUF msg) {
             case svc_layout:
                 CL_ParseLayout(msg);
                 break;
+            case svc_listfetch:
+                CL_ParseListFetch(msg);
+                break;
             case svc_cursor:
                 CL_ParseCursor(msg);
                 break;

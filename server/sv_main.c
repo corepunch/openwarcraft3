@@ -49,6 +49,21 @@ static void SV_SendClientMessages(void) {
     }
 }
 
+static void SV_ProcessPacket(netadr_t *from, LPSIZEBUF net_message, int r) {
+    if (r >= 4) {
+        int hdr;
+        memcpy(&hdr, net_message->data, sizeof(hdr));
+        if (hdr == -1) {
+            SV_ConnectionlessPacket(from, net_message);
+            return;
+        }
+    }
+    LPCLIENT client = SV_FindClientByAddr(from);
+    if (client) {
+        SV_ParseClientMessage(net_message, client);
+    }
+}
+
 /* Read and dispatch all pending client messages from the network buffers. */
 static void SV_ReadPackets(void) {
     static BYTE net_message_buffer[MAX_MSGLEN];
@@ -60,24 +75,16 @@ static void SV_ReadPackets(void) {
     };
     netadr_t from;
     int r;
-    while ((r = NET_GetPacket(NS_SERVER, &from, &net_message)) != 0) {
-        // Out-of-band packets (first 4 bytes == -1) are connection requests.
-        // Validate that the payload starts with "connect" before allocating
-        // a client slot, to prevent trivial slot-filling / DoS.
-        if (r >= 4) {
-            int hdr;
-            memcpy(&hdr, net_message.data, sizeof(hdr));
-            if (hdr == -1) {
-                if (r >= 4 + 7 &&
-                    memcmp(net_message.data + 4, "connect", 7) == 0) {
-                    SV_DirectConnect(&from);
-                }
-                continue;
-            }
+    if (sv.state == ss_dead) {
+        while ((r = NET_GetLoopPacket(NS_SERVER, &from, &net_message)) != 0) {
+            SV_ProcessPacket(&from, &net_message, r);
         }
-        LPCLIENT client = SV_FindClientByAddr(&from);
-        if (client) {
-            SV_ParseClientMessage(&net_message, client);
+        while ((r = NET_GetPacket(NS_SERVER, &from, &net_message)) != 0) {
+            SV_ProcessPacket(&from, &net_message, r);
+        }
+    } else {
+        while ((r = NET_GetPacket(NS_SERVER, &from, &net_message)) != 0) {
+            SV_ProcessPacket(&from, &net_message, r);
         }
     }
 }
@@ -167,12 +174,13 @@ void SV_RunGameFrame(void) {
  * time for a new game frame so the caller can do other work. */
 void SV_Frame(DWORD msec) {
     svs.realtime += msec;
+    SV_ReadPackets();
     
     if (svs.realtime < sv.time) {
         return;
     }
 
-    SV_ReadPackets();
+    SV_ListFetchFrame();
 
     SV_RunGameFrame();
 

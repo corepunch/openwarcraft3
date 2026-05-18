@@ -90,18 +90,21 @@ void CL_Init(void) {
     }
 }
 
-void CL_ConnectionlessPacket(LPSIZEBUF msg) {
+void CL_ConnectionlessPacket(const netadr_t *from, LPSIZEBUF msg) {
+    char payload[1024] = { 0 };
     char command[256] = { 0 };
     DWORD length;
 
+    (void)from;
     if (msg->cursize <= 4) {
         return;
     }
     length = msg->cursize - 4;
-    if (length >= sizeof(command)) {
-        length = sizeof(command) - 1;
+    if (length >= sizeof(payload)) {
+        length = sizeof(payload) - 1;
     }
-    memcpy(command, msg->data + 4, length);
+    memcpy(payload, msg->data + 4, length);
+    sscanf(payload, "%255s", command);
     if (strcmp(command, "client_connect")) {
         return;
     }
@@ -123,14 +126,16 @@ void CL_ReadPackets(void) {
     };
     netadr_t from;
     int r;
-    while ((r = NET_GetPacket(NS_CLIENT, &from, &net_message)) != 0) {
+    while ((r = (cls.netchan.remote_address.type == NA_LOOPBACK
+                 ? NET_GetLoopPacket(NS_CLIENT, &from, &net_message)
+                 : NET_GetPacket(NS_CLIENT, &from, &net_message))) != 0) {
         // Guard: need at least 4 bytes for the OOB marker.
         // Read the header via memcpy to avoid strict-aliasing UB.
         if (r >= 4) {
             int hdr;
             memcpy(&hdr, net_message.data, sizeof(hdr));
             if (hdr == -1) {
-                CL_ConnectionlessPacket(&net_message);
+                CL_ConnectionlessPacket(&from, &net_message);
                 continue;
             }
         }

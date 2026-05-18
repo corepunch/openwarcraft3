@@ -103,6 +103,27 @@ void V_RenderView(void);
 void V_Shutdown(void);
 void CL_PrepRefresh(void);
 void CL_ParseServerMessage(LPSIZEBUF msg);
+
+typedef struct listFetchState_s {
+    BOOL inuse;
+    BOOL started;
+    DWORD requestId;
+    DWORD frameNumber;
+    HANDLE layout;
+    UINAME command;
+    char text[MAX_LIST_FETCH_TEXT];
+    SHORT selectedIndex;
+    BOOL loading;
+    DWORD numRows;
+} listFetchState_t;
+
+void CL_ParseListFetch(LPSIZEBUF msg);
+void CL_ListBoxApplyFetch(HANDLE layout,
+                          LPCUIFRAME frame,
+                          uiListBox_t const *listbox,
+                          LPCSTR *text,
+                          BOOL *loading,
+                          SHORT *selectedIndex);
 void CON_DrawConsole(void);
 void CON_printf(LPCSTR fmt, ...);
 

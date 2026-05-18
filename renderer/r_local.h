@@ -131,6 +131,7 @@ enum {
     TEX_FONT,
     TEX_WHITE,
     TEX_BLACK,
+    TEX_LOADING_INDICATOR,
     TEX_TEAM_GLOW,
     TEX_TEAM_COLOR = TEX_TEAM_GLOW + MAX_TEAMS,
     TEX_SELECTION_CIRCLE = TEX_TEAM_COLOR + MAX_TEAMS,
@@ -155,9 +156,20 @@ enum {
 };
 
 enum {
+    MESH_LOADING_INDICATOR,
+    MESH_COUNT,
+};
+
+enum {
     SHEET_TERRAIN,
     SHEET_CLIFF,
     SHEET_COUNT,
+};
+
+struct render_mesh {
+    LPBUFFER buffer;
+    DWORD numVertices;
+    GLenum primitive;
 };
 
 struct render_globals {
@@ -166,6 +178,7 @@ struct render_globals {
     LPTEXTURE texture[TEX_COUNT];
     LPSHADER shader[SHADER_COUNT];
     LPBUFFER buffer[RBUF_COUNT];
+    struct render_mesh mesh[MESH_COUNT];
     LPMODEL model[MODEL_COUNT];
     LPRENDERTARGET rt[RT_COUNT];
     sheetRow_t *sheet[SHEET_COUNT];
@@ -181,6 +194,7 @@ void R_DrawAlphaSurfaces(void);
 void R_RenderFrame(viewDef_t const *viewDef);
 LPTEXTURE R_AllocateTexture(DWORD width, DWORD height);
 LPTEXTURE R_MakeSysFontTexture(void);
+LPTEXTURE R_MakeLoadingIndicatorTexture(void);
 void R_LoadTextureMipLevel(LPCTEXTURE pTexture, DWORD level, LPCCOLOR32 pPixels, DWORD width, DWORD height);
 void R_BindTexture(LPCTEXTURE texture, DWORD unit);
 void R_SetTextureWrap(LPCTEXTURE texture, bool wrapS, bool wrapT);
@@ -229,6 +243,8 @@ void R_DrawBuffer(LPCBUFFER buffer, DWORD num_vertices);
 void R_PrintSysText(LPCSTR string, DWORD x, DWORD y, COLOR32 color);
 void R_DrawImage(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv, COLOR32 color);
 void R_DrawImageEx(LPCDRAWIMAGE drawImage);
+struct render_mesh R_MakeLoadingIndicatorMesh(void);
+void R_DrawLoadingIndicator(LPCRECT rect, DWORD time, COLOR32 color);
 void R_DrawPic(LPCTEXTURE texture, float x, float y);
 void R_DrawSelectionRect(LPCRECT rect, COLOR32 color);
 void R_DrawBoundingBox(LPCBOX3 box, LPCMATRIX4 modelMatrix, LPCMATRIX4 vpMatrix, COLOR32 color);

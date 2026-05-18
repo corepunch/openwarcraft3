@@ -183,8 +183,8 @@ static void Init_MainMenu(void) {
     UI_SetOnClick(RealmSelectOKButton, "menu /main");
     UI_SetOnClick(RealmSelectCancelButton, "menu /main");
     UI_SetOnClick(SinglePlayerButton, "menu /single-player");
-    UI_SetOnClick(BattleNetButton, "menu /lan");
-    UI_SetOnClick(LocalAreaNetworkButton, "menu /lan");
+    UI_SetOnClick(BattleNetButton, "menu /lan/refresh");
+    UI_SetOnClick(LocalAreaNetworkButton, "menu /lan/refresh");
     UI_SetOnClick(OptionsButton, "menu /options");
     UI_SetOnClick(CreditsButton, "menu /credits");
     UI_SetOnClick(ExitButton, "menu /quit");
@@ -453,13 +453,14 @@ static void Init_MultiplayerJoinMenu(void) {
             if (GameListLabel) {
                 GameListBox->Font = GameListLabel->Font;
             }
+            strcpy(GameListBox->ListBox.FetchCommand, "fetch-games");
             GameListBox->Color = COLOR32_WHITE;
             UI_SetAllPoints(GameListBox);
         }
     }
 
     UI_SetOnClick(CreateButton, "menu /lan/create");
-    UI_SetOnClick(LoadButton, "menu /lan");
+    UI_SetOnClick(LoadButton, "menu /lan/refresh");
     UI_SetOnClick(JoinButton, "menu /lan");
     UI_SetOnClick(CancelButton, "menu /main");
 }
@@ -616,6 +617,10 @@ void UI_RenderRoute(LPEDICT ent, LPCSTR route) {
         return;
     }
     if (UI_RouteEquals(route, "/lan") || UI_RouteEquals(route, "multiplayer") || UI_RouteEquals(route, "multiplayer/join")) {
+        UI_ShowMultiplayerMenu(ent);
+        return;
+    }
+    if (UI_RouteEquals(route, "/lan/refresh") || UI_RouteEquals(route, "multiplayer/refresh")) {
         UI_ShowMultiplayerMenu(ent);
         return;
     }

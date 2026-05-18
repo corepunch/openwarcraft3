@@ -29,6 +29,15 @@ typedef enum {
     cs_spawned      // client is fully in game
 } clientState_t;
 
+typedef struct serverListFetch_s serverListFetch_t;
+
+typedef struct {
+    LPCSTR name;
+    void (*start)(serverListFetch_t *state);
+    void (*frame)(serverListFetch_t *state);
+    void (*info)(const netadr_t *from, LPCSTR status);
+} serverListFetchProvider_t;
+
 struct client_s {
     PLAYER ps; // communicated by server to clients
     int ping;
@@ -62,6 +71,17 @@ struct client {
     clientState_t state;
     edict_t *edict; // EDICT_NUM(clientnum+1)
     DWORD lastframe;
+};
+
+struct serverListFetch_s {
+    BOOL inuse;
+    BOOL loading;
+    DWORD requestId;
+    UINAME command;
+    LPCLIENT client;
+    DWORD deadline;
+    DWORD numRows;
+    char keys[MAX_LIST_FETCH_ROWS][64];
 };
 
 extern struct server_static {
@@ -107,6 +127,15 @@ void SV_ClientConnect(void);
 void SV_InitGame(void);
 LPCLIENT SV_FindClientByAddr(const netadr_t *from);
 void SV_DirectConnect(const netadr_t *from);
+void SV_ConnectionlessPacket(const netadr_t *from, LPSIZEBUF msg);
+void SV_ListFetch_f(LPCLIENT client, DWORD argc, LPCSTR *argv);
+void SV_ListFetchFrame(void);
+void SV_ListFetchInfoResponse(const netadr_t *from, LPCSTR status);
+serverListFetch_t *SV_ListFetchStates(DWORD *count);
+void SV_ListFetchClear(serverListFetch_t *state);
+void SV_ListFetchAdd(serverListFetch_t *state, LPCSTR text);
+void SV_ListFetchDone(serverListFetch_t *state);
+serverListFetchProvider_t const *SV_ListFetchProviders(void);
 void SV_BuildClientFrame(LPCLIENT client);
 void SV_WriteFrameToClient(LPCLIENT client);
 void SV_ParseClientMessage(LPSIZEBUF msg, LPCLIENT client);

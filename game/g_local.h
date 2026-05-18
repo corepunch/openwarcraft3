@@ -385,6 +385,8 @@ struct uiFrameDef_s {
     BOOL hidden;
     DWORD TextLength;
     DWORD Stat;
+    LPSTR DynamicText;
+    DWORD DynamicTextCapacity;
     struct {
         FRAMEPOINT x[FPP_COUNT];
         FRAMEPOINT y[FPP_COUNT];
@@ -479,6 +481,7 @@ struct uiFrameDef_s {
     struct {
         FLOAT Border;
         UINAME ScrollBar;
+        UINAME FetchCommand;
     } ListBox;
     struct {
         FLOAT Border;

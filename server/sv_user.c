@@ -86,6 +86,10 @@ void SV_ExecuteUserCommand(LPSIZEBUF msg, LPCLIENT client) {
     if (!strcmp(argv[0], "menu") && !client->edict) {
         client->edict = SV_ClientRoutingEdict(client);
     }
+    if (!strcmp(argv[0], "listfetch")) {
+        SV_ListFetch_f(client, argc, argv);
+        return;
+    }
     for (ucmd_t *u = ucmds; u->name; u++) {
         if (!strcmp(argv[0], u->name)) {
             u->func(client);

@@ -5,9 +5,11 @@
 
 #define MAX_EDIT_STATES 32
 #define MAX_EDIT_TEXT 256
+#define MAX_LISTBOX_TEXT 2048
 
 static LPCSTR active_tooltip = NULL;
 static DWORD active_edit_number = 0;
+static HANDLE active_layout = NULL;
 
 static RECT Rect_inset(LPCRECT r, FLOAT inset);
 
@@ -526,23 +528,32 @@ void SCR_DrawListBox(LPCUIFRAME frame, LPCRECT screen) {
     uiListBox_t const *listbox = frame->buffer.data;
     RECT item_rect = Rect_inset(screen, listbox->border);
     FLOAT item_height = listbox->itemHeight > 0 ? listbox->itemHeight : 0.018f;
-    char items[MAX_EDIT_TEXT];
+    LPCSTR text = frame->text;
+    BOOL loading = false;
+    SHORT selectedIndex = listbox->selectedIndex;
+    char items[MAX_LISTBOX_TEXT];
     char *line = NULL;
     char *save = NULL;
     int index = 0;
 
     SCR_DrawBackdrop2(frame, screen, &listbox->background);
+    CL_ListBoxApplyFetch(active_layout, frame, listbox, &text, &loading, &selectedIndex);
 
-    if (!frame->text || !*frame->text) {
+    if (loading) {
+        re.DrawLoadingIndicator(&item_rect, cl.time, frame->color);
         return;
     }
 
-    snprintf(items, sizeof(items), "%s", frame->text);
+    if (!text || !*text) {
+        return;
+    }
+
+    snprintf(items, sizeof(items), "%s", text);
     line = strtok_r(items, "\n", &save);
     while (line && item_rect.h > 0) {
         RECT row = item_rect;
         row.h = MIN(item_height, item_rect.h);
-        if (index == listbox->selectedIndex) {
+        if (index == selectedIndex) {
             re.DrawImage(cl.pics[0], &row, &MAKE(RECT, 0, 0, 1, 1), MAKE(COLOR32, 32, 64, 180, 128));
         }
         re.DrawText(&MAKE(DRAWTEXT,
@@ -712,6 +723,7 @@ void SCR_DrawOverlays(void) {
             continue;
         HANDLE *layout = cl.layout[layer];
         if (layout) {
+            active_layout = layout;
             SCR_Clear(layout);
             SCR_UpdateTooltip(layout);
         }
@@ -722,6 +734,7 @@ void SCR_DrawOverlays(void) {
             continue;
         HANDLE *layout = cl.layout[layer];
         if (layout) {
+            active_layout = layout;
             SCR_Clear(layout);
             SCR_UpdateTooltip(layout);
             SCR_DrawOverlay(layout);

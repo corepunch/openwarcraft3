@@ -41,6 +41,19 @@ LPTEXTURE R_AllocateSinglePixelTexture(int color) {
     return texture;
 }
 
+LPTEXTURE R_MakeLoadingIndicatorTexture(void) {
+    enum { GRADIENT_WIDTH = 256 };
+    COLOR32 pixels[GRADIENT_WIDTH];
+    LPTEXTURE texture = R_AllocateTexture(GRADIENT_WIDTH, 1);
+
+    FOR_LOOP(i, GRADIENT_WIDTH) {
+        BYTE alpha = (BYTE)(255 * i / (GRADIENT_WIDTH - 1));
+        pixels[i] = MAKE(COLOR32, 255, 255, 255, alpha);
+    }
+    R_LoadTextureMipLevel(texture, 0, pixels, GRADIENT_WIDTH, 1);
+    return texture;
+}
+
 LPTEXTURE R_LoadTexture(LPCSTR textureFilename) {
     LPTEXTURE texture = NULL;
     HANDLE file = ri.FileOpen(textureFilename);
@@ -376,8 +389,10 @@ void R_Init(DWORD width, DWORD height) {
     fprintf(stderr, "Loading shaders succeeded.\n");
 
     tr.buffer[RBUF_TEMP1] = R_MakeVertexArrayObject(NULL, 0);
+    tr.mesh[MESH_LOADING_INDICATOR] = R_MakeLoadingIndicatorMesh();
     tr.texture[TEX_WHITE] = R_AllocateSinglePixelTexture(0xffffffff);
     tr.texture[TEX_BLACK] = R_AllocateSinglePixelTexture(0xff000000);
+    tr.texture[TEX_LOADING_INDICATOR] = R_MakeLoadingIndicatorTexture();
     tr.texture[TEX_WATER] = R_LoadTexture("ReplaceableTextures\\Water\\Water12.blp");
     tr.texture[TEX_FONT] = R_MakeSysFontTexture();
 #ifdef USE_SHADOWMAPS
@@ -663,6 +678,7 @@ refExport_t R_GetAPI(refImport_t imp) {
         .DrawPic = R_DrawPic,
         .DrawImage = R_DrawImage,
         .DrawImageEx = R_DrawImageEx,
+        .DrawLoadingIndicator = R_DrawLoadingIndicator,
         .DrawSelectionRect = R_DrawSelectionRect,
         .PrintSysText = R_PrintSysText,
         .GetWindowSize = R_GetWindowSize,

@@ -98,27 +98,15 @@ int main(int argc, LPSTR argv[]) {
     cls.key_dest = menu_mode ? key_menu : key_game;
     cls.state = ca_disconnected;
 
-    // Bind the UDP socket unless explicitly disabled for local diagnostics.
-    // The current sandbox cannot create/bind UDP sockets, so this escape hatch
-    // lets us exercise the map/UI startup path anyway.
-    if (!menu_mode) {
-        if (!getenv("OW3_SKIP_NET")) {
-            unsigned short udp_port = connect_addr ? 0 : PORT_SERVER;
-            if (!NET_Init(udp_port)) {
-                if (!connect_addr) {
-                    fprintf(stderr, "main: retrying NET_Init on ephemeral port for local smoke test\n");
-                    if (!NET_Init(0)) {
-                        fprintf(stderr, "NET_Init failed\n");
-                        return 1;
-                    }
-                } else {
-                    fprintf(stderr, "NET_Init failed\n");
-                    return 1;
-                }
-            }
-        } else {
-            fprintf(stderr, "main: OW3_SKIP_NET set, skipping NET_Init\n");
+    // Local client/server traffic uses the in-process loopback channel. Only a
+    // remote client needs a UDP socket here; local menu/map servers do not.
+    if (connect_addr && !getenv("OW3_SKIP_NET")) {
+        if (!NET_Init(0)) {
+            fprintf(stderr, "NET_Init failed\n");
+            return 1;
         }
+    } else if (getenv("OW3_SKIP_NET")) {
+        fprintf(stderr, "main: OW3_SKIP_NET set, skipping NET_Init\n");
     }
 
     Com_Init();

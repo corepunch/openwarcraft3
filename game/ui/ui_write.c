@@ -55,7 +55,6 @@ DEST[2] = SRC.min.y * 0xff; \
 DEST[3] = SRC.max.y * 0xff;
 
 #define MAX_FRAMES_WRITE 1024
-
 static LPCFRAMEDEF framesWritten[MAX_FRAMES_WRITE];
 LPCFRAMEDEF *frameptr = framesWritten;
 DWORD layoutBytesWritten = 0;
@@ -67,11 +66,17 @@ typedef struct sizeBuf_s {
     DWORD maxsize;
     DWORD cursize;
     DWORD readcount;
+    BOOL overflowed;
 } sizeBuf_t;
 
 static void MSG_Write(LPSIZEBUF buf, LPCVOID value, DWORD size) {
     if (buf->cursize + size > buf->maxsize) {
-        fprintf(stderr, "Write buffer overflow (ui)\n");
+        buf->overflowed = true;
+        fprintf(stderr,
+                "Write buffer overflow (ui): size=%u cursize=%u maxsize=%u\n",
+                (unsigned)size,
+                (unsigned)buf->cursize,
+                (unsigned)buf->maxsize);
         return;
     }
     memcpy(buf->data + buf->cursize, value, size);
@@ -285,6 +290,7 @@ static void WriteListBox(LPCFRAMEDEF frame, sizeBuf_t *sb, uiFrame_t *tmp) {
         .itemHeight = frame->Menu.Item.Height,
         .selectedIndex = -1,
     };
+    snprintf(data.fetchCommand, sizeof(data.fetchCommand), "%s", frame->ListBox.FetchCommand);
     (void)tmp;
     MSG_Write(sb, &data, sizeof(data));
 }
@@ -422,6 +428,11 @@ BOOL UI_BuildFrameForWrite(LPCFRAMEDEF frame,
             break;
     }
 
+    if (buf.overflowed) {
+        out->buffer.size = 0;
+        out->buffer.data = NULL;
+        return false;
+    }
     out->buffer.size = buf.cursize;
     out->buffer.data = buf.data;
     out->flags.type = frame->Type;

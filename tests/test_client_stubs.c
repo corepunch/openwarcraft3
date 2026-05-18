@@ -11,6 +11,12 @@ static size2_t mock_GetWindowSize(void) {
     return MAKE(size2_t, 1024, 768);
 }
 
+static void mock_DrawLoadingIndicator(LPCRECT rect, DWORD time, COLOR32 color) {
+    (void)rect;
+    (void)time;
+    (void)color;
+}
+
 void V_RenderView(void) {
 }
 
@@ -27,4 +33,5 @@ void test_client_stubs_init(void) {
     memset(&re, 0, sizeof(re));
     memset(&mouse, 0, sizeof(mouse));
     re.GetWindowSize = mock_GetWindowSize;
+    re.DrawLoadingIndicator = mock_DrawLoadingIndicator;
 }
