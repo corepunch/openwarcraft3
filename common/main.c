@@ -98,14 +98,10 @@ int main(int argc, LPSTR argv[]) {
     cls.key_dest = menu_mode ? key_menu : key_game;
     cls.state = ca_disconnected;
 
-    if (!getenv("OW3_SKIP_NET")) {
-        unsigned short port = connect_addr ? 0 : PORT_SERVER;
-        if (!NET_Init(port)) {
-            fprintf(stderr, "NET_Init failed\n");
-            return 1;
-        }
-    } else if (getenv("OW3_SKIP_NET")) {
-        fprintf(stderr, "main: OW3_SKIP_NET set, skipping NET_Init\n");
+    unsigned short port = connect_addr ? 0 : PORT_SERVER;
+    if (!NET_Init(port)) {
+        fprintf(stderr, "NET_Init failed\n");
+        return 1;
     }
 
     Com_Init();
