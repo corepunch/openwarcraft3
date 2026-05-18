@@ -106,25 +106,6 @@ Example:
 build/bin/maptool -mpq "data/Warcraft III/War3.mpq" -map "Maps\\Campaign\\Human02.w3m"
 ```
 
-## `mpqnc`
-
-Terminal browser for MPQ archives.
-
-Use it to browse archive contents interactively and launch the other tools on
-the selected files.
-
-Syntax:
-
-```bash
-build/bin/mpqnc -mpq "<archive.mpq>" [-path "<archive/path>"] [-mpqtool "<path>"] [-mdxtool "<path>"] [-fdftool "<path>"]
-```
-
-Example:
-
-```bash
-build/bin/mpqnc -mpq "data/Warcraft III/War3.mpq" -path "UI/FrameDef/Glue"
-```
-
 ## `toolbox`
 
 SDL tool manager for the command-line helpers in `build/bin`.

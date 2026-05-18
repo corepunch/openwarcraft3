@@ -12,7 +12,7 @@
 #define PATH_MAX 1024
 #endif
 
-#define MAX_TOOLS 6
+#define MAX_TOOLS 5
 #define MAX_FIELDS 4
 #define MAX_ENTRIES 512
 #define MAX_HISTORY 64
@@ -84,7 +84,6 @@ static const tool_t tools[MAX_TOOLS] = {
     { "fdftool", "fdftool", "Inspect FDF frame definitions.", "-mpq {mpq} -fdf {file} --info" },
     { "mdxtool", "mdxtool", "Inspect or preview MDX models.", "-mpq {mpq} -model {file} --info" },
     { "maptool", "maptool", "Open a Warcraft III map.", "-mpq {mpq} -map {file}" },
-    { "mpqnc", "mpqnc", "Terminal MPQ browser.", "-mpq {mpq} -path {path}" },
 };
 
 enum {
