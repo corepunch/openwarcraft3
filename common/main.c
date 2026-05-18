@@ -4,6 +4,32 @@
 #include <SDL2/SDL.h>
 #include <stdlib.h>
 
+#if defined(__APPLE__)
+#define OW3_PLATFORM "Darwin"
+#elif defined(_WIN32)
+#define OW3_PLATFORM "Windows"
+#elif defined(__linux__)
+#define OW3_PLATFORM "Linux"
+#else
+#define OW3_PLATFORM "Unknown"
+#endif
+
+#if defined(__aarch64__) || defined(_M_ARM64)
+#define OW3_ARCH "arm64"
+#elif defined(__x86_64__) || defined(_M_X64)
+#define OW3_ARCH "x86_64"
+#elif defined(__i386__) || defined(_M_IX86)
+#define OW3_ARCH "x86"
+#else
+#define OW3_ARCH "unknown"
+#endif
+
+#if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+#define OW3_BYTE_ORDER "big endian"
+#else
+#define OW3_BYTE_ORDER "little endian"
+#endif
+
 #define USAGE \
 "Usage:\n" \
 "  openwarcraft3 -mpq=<path> -map=<map>          (listen server + local client)\n" \
@@ -37,6 +63,15 @@ int main(int argc, LPSTR argv[]) {
     LPCSTR map = NULL;
     LPCSTR connect_addr = NULL;
     BOOL mpq = 0;
+
+    fprintf(stderr,
+            "\nOpenWarcraft3\n"
+            "Platform: %s\n"
+            "Architecture: %s\n"
+            "Byte ordering: %s\n\n",
+            OW3_PLATFORM,
+            OW3_ARCH,
+            OW3_BYTE_ORDER);
 
     for (int i = 0; i < argc; i++) {
         if (!strncmp(argv[i], "-mpq=", 5)) {
@@ -100,6 +135,8 @@ int main(int argc, LPSTR argv[]) {
         // Listen-server mode: load the map and spawn entities.
         SV_Map(map);
     }
+
+    fprintf(stderr, "OpenWarcraft3 initialized.\n\n");
 
     DWORD startTime = SDL_GetTicks();
     while (true) {

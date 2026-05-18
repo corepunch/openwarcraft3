@@ -80,6 +80,7 @@ void SV_DirectConnect(const netadr_t *from) {
 }
 
 void SV_Map(LPCSTR mapFilename) {
+    fprintf(stderr, "Server initialization.\n");
     SV_InitGame();
     memset(&sv, 0, sizeof(struct server));
     sv.state = ss_loading;
@@ -96,6 +97,7 @@ void SV_Map(LPCSTR mapFilename) {
     sv.state = ss_game;
     // Register slot 0 as the local (loopback) client now that the map is ready
     SV_ClientConnect();
+    fprintf(stderr, "Server initialized.\n\n");
 }
 
 void SV_InitGame(void) {

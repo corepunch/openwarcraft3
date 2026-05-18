@@ -77,6 +77,10 @@ static void InitConstants(void) {
 }
 
 static void G_InitGame(void) {
+    fprintf(stderr, "Game initialization.\n");
+    fprintf(stderr, "Game is starting up.\n");
+    fprintf(stderr, "Game is openwarcraft3 built on %s.\n", __DATE__);
+
     g_edicts = gi.MemAlloc(sizeof(edict_t) * MAX_ENTITIES);
     memset(g_edicts, 0, sizeof(edict_t) * MAX_ENTITIES);
     
@@ -98,6 +102,7 @@ static void G_InitGame(void) {
     InitConstants();
     InitUnitData();
     InitAbilities();
+    fprintf(stderr, "Game initialized.\n\n");
 }
 
 static void G_ShutdownGame(void) {

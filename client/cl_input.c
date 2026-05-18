@@ -226,6 +226,10 @@ void CL_ForwardToServer_f(void) {
 }
 
 void CL_InitInput(void) {
+    fprintf(stderr, "Input initialization.\n");
+    fprintf(stderr, "%d joysticks were found.\n", SDL_NumJoysticks());
+    fprintf(stderr, "Input initialized.\n\n");
+
     Cmd_AddCommand("+select", IN_SelectDown);
     Cmd_AddCommand("-select", IN_SelectUp);
     Cmd_AddCommand("cmd", CL_ForwardToServer_f);

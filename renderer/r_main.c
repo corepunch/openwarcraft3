@@ -247,8 +247,53 @@ LPCSTR modelNames[MODEL_COUNT] = {
 
 //#include "mdx/r_mdx.h"
 
+static LPCSTR R_GLString(GLenum name) {
+    GLubyte const *value = glGetString(name);
+    return value ? (LPCSTR)value : "unknown";
+}
+
+static void R_PrintGLExtensions(void) {
+    GLint num_extensions = 0;
+
+    glGetIntegerv(GL_NUM_EXTENSIONS, &num_extensions);
+    fprintf(stderr, "GL_EXTENSIONS:");
+    FOR_LOOP(i, num_extensions) {
+        GLubyte const *extension = glGetStringi(GL_EXTENSIONS, i);
+        if (extension) {
+            fprintf(stderr, " %s", extension);
+        }
+    }
+    fprintf(stderr, "\n\n");
+}
+
+static void R_PrintDisplayModes(void) {
+    int num_modes = SDL_GetNumDisplayModes(0);
+
+    fprintf(stderr, "SDL display modes:\n");
+    if (num_modes <= 0) {
+        fprintf(stderr, " - none reported\n");
+        return;
+    }
+
+    FOR_LOOP(i, num_modes) {
+        SDL_DisplayMode mode;
+        if (SDL_GetDisplayMode(0, i, &mode) != 0) {
+            continue;
+        }
+        fprintf(stderr,
+                " - Mode %2d: %dx%d@%d\n",
+                i,
+                mode.w,
+                mode.h,
+                mode.refresh_rate);
+    }
+}
+
 void R_Init(DWORD width, DWORD height) {
     renderer_shutdown = false;
+    BOOL gl_current = false;
+    SDL_version sdl_version;
+
     SDL_Init(SDL_INIT_VIDEO);
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
     SDL_GL_SetAttribute(SDL_GL_ACCELERATED_VISUAL, 1);
@@ -259,11 +304,39 @@ void R_Init(DWORD width, DWORD height) {
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+
+    fprintf(stderr, "Video initialization.\n");
+    SDL_GetVersion(&sdl_version);
+    fprintf(stderr,
+            "SDL version is: %d.%d.%d\n",
+            sdl_version.major,
+            sdl_version.minor,
+            sdl_version.patch);
+    fprintf(stderr, "SDL video driver is \"%s\".\n", SDL_GetCurrentVideoDriver());
+    R_PrintDisplayModes();
+    fprintf(stderr, "Video initialized.\n\n");
     
+    fprintf(stderr, "Refresher initialization.\n");
     window = SDL_CreateWindow("", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width, height, SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN | SDL_WINDOW_ALLOW_HIGHDPI);
     context = SDL_GL_CreateContext(window);
+    if (context && SDL_GL_MakeCurrent(window, context) == 0) {
+        gl_current = true;
+    } else {
+        fprintf(stderr, "ref_gl::R_Init() - could not make GL context current: %s\n", SDL_GetError());
+    }
     
     SDL_GL_GetDrawableSize(window, (int *)&tr.drawableSize.width, (int *)&tr.drawableSize.height);
+    fprintf(stderr, "Refresh: OpenWarcraft3 OpenGL Refresher\n");
+    fprintf(stderr, "Client: OpenWarcraft3\n\n");
+    fprintf(stderr, "Drawable size: %dx%d\n\n", tr.drawableSize.width, tr.drawableSize.height);
+    if (gl_current) {
+        fprintf(stderr, "OpenGL setting:\n");
+        fprintf(stderr, "GL_VENDOR: %s\n", R_GLString(GL_VENDOR));
+        fprintf(stderr, "GL_RENDERER: %s\n", R_GLString(GL_RENDERER));
+        fprintf(stderr, "GL_VERSION: %s\n", R_GLString(GL_VERSION));
+        fprintf(stderr, "GL_SHADING_LANGUAGE_VERSION: %s\n", R_GLString(GL_SHADING_LANGUAGE_VERSION));
+        R_PrintGLExtensions();
+    }
     
 //    m3 = R_LoadModel("Assets\\Units\\Terran\\SpecialOpsDropship\\SpecialOpsDropship.m3");
 //    R_LoadModel("Assets\\Units\\Terran\\MarineTychus\\MarineTychus.m3");
@@ -300,6 +373,7 @@ void R_Init(DWORD width, DWORD height) {
     tr.shader[SHADER_UI] = R_InitShader(vs_default, fs_ui);
     tr.shader[SHADER_SPLAT] = R_InitShader(vs_default, fs_splat);
     tr.shader[SHADER_COMMANDBUTTON] = R_InitShader(vs_default, fs_commandbutton);
+    fprintf(stderr, "Loading shaders succeeded.\n");
 
     tr.buffer[RBUF_TEMP1] = R_MakeVertexArrayObject(NULL, 0);
     tr.texture[TEX_WHITE] = R_AllocateSinglePixelTexture(0xffffffff);
@@ -310,11 +384,12 @@ void R_Init(DWORD width, DWORD height) {
     tr.rt[RT_DEPTHMAP] = R_AllocateRenderTexture(SHADOW_TEXSIZE, SHADOW_TEXSIZE, GL_DEPTH_COMPONENT, GL_FLOAT, GL_DEPTH_ATTACHMENT);
 #endif
     R_Call(glDisable, GL_DEPTH_TEST);
-    R_Call(glClearColor, 0.5, 0.5, 0.5, 1.0);
+    R_Call(glClearColor, 0.25, 0.25, 0.25, 1.0);
     R_Call(glViewport, 0, 0, tr.drawableSize.width, tr.drawableSize.height);
     R_InitParticles();
     M3_Init();
     MDLX_Init();
+    fprintf(stderr, "Refresher initialized.\n\n");
 }
 
 void R_Shutdown(void) {

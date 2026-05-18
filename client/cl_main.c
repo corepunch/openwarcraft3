@@ -59,6 +59,7 @@ void CL_ClearState(void) {
 
 void CL_Init(void) {
     CON_printf("OpenWarcraft3 v0.1");
+    fprintf(stderr, "Console initialized.\n");
 
     re = R_GetAPI((refImport_t) {
         .MemAlloc = MemAlloc,

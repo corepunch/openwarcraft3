@@ -478,6 +478,7 @@ static void Init_MultiplayerCreateMenu(void) {
 /* Parse all FDF assets and build the initial UI frame hierarchy.
  * Must be called once at game startup before any client connects. */
 void UI_Init(void) {
+    fprintf(stderr, "UI initialization.\n");
     UI_ClearTemplates();
 
     UI_ParseFDF("UI\\FrameDef\\GlobalStrings.fdf");
@@ -512,6 +513,7 @@ void UI_Init(void) {
     Init_MapSelectMenu();
     Init_MultiplayerJoinMenu();
     Init_MultiplayerCreateMenu();
+    fprintf(stderr, "UI initialized.\n\n");
 
 //    UI_PrintClasses();
 //    UI_FRAME(SimpleHeroLevelBar);
