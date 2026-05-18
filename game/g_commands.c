@@ -25,37 +25,16 @@ void CMD_CancelCommand(LPEDICT ent) {
     Get_Commands_f(ent);
 }
 
-static void CMD_MenuMain(LPEDICT ent) {
-    UI_ShowMainMenu(ent);
-    ent->client->menu_screen = MENU_SCREEN_MAIN;
-}
-
-static void CMD_MenuRealmSelect(LPEDICT ent, BOOL visible) {
-    UI_ShowRealmSelect(ent, visible);
-    ent->client->menu_screen = MENU_SCREEN_MAIN;
-}
-
-static void CMD_MenuSinglePlayer(LPEDICT ent) {
-    UI_ShowSinglePlayerMenu(ent);
-    ent->client->menu_screen = MENU_SCREEN_SINGLEPLAYER;
-}
-
-static void CMD_MenuMultiplayer(LPEDICT ent) {
-    UI_ShowMultiplayerMenu(ent);
-    ent->client->menu_screen = MENU_SCREEN_MULTIPLAYER;
-}
-
-static void CMD_MenuMapSelect(LPEDICT ent, LPCSTR category) {
-    UI_ShowMapSelectMenu(ent, category);
-    ent->client->menu_screen = MENU_SCREEN_MAPSELECT;
-}
-
 static void CMD_MenuLoad(LPEDICT ent, LPCSTR map) {
     (void)ent;
     if (!map || !*map) {
         return;
     }
     gi.MenuAction("load", map);
+}
+
+static void CMD_MenuRender(LPEDICT ent, LPCSTR route) {
+    UI_RenderRoute(ent, route && *route ? route : "/main");
 }
 
 CLIENTCOMMAND(Select) {
@@ -165,42 +144,28 @@ CLIENTCOMMAND(HideQuests) {
 
 CLIENTCOMMAND(Menu) {
     if (argc < 2) {
-        CMD_MenuMain(clent);
+        CMD_MenuRender(clent, "/main");
         return;
     }
-    if (!strcmp(argv[1], "main")) {
-        CMD_MenuMain(clent);
-    } else if (!strcmp(argv[1], "realmselect")) {
-        CMD_MenuRealmSelect(clent, true);
-    } else if (!strcmp(argv[1], "realmok") || !strcmp(argv[1], "realmcancel")) {
-        CMD_MenuRealmSelect(clent, false);
-    } else if (!strcmp(argv[1], "singleplayer")) {
-        CMD_MenuSinglePlayer(clent);
-    } else if (!strcmp(argv[1], "multiplayer")) {
-        CMD_MenuMultiplayer(clent);
-    } else if (!strcmp(argv[1], "mapselect")) {
-        CMD_MenuMapSelect(clent, argc > 2 ? argv[2] : "campaign");
-    } else if (!strcmp(argv[1], "load")) {
+
+    if (!strcmp(argv[1], "/load") || !strcmp(argv[1], "load")) {
         CMD_MenuLoad(clent, argc > 2 ? argv[2] : NULL);
-    } else if (!strcmp(argv[1], "quit")) {
+    } else if (!strcmp(argv[1], "/quit") || !strcmp(argv[1], "quit")) {
         gi.MenuAction("quit", NULL);
+    } else if (!strcmp(argv[1], "realmok") || !strcmp(argv[1], "realmcancel")) {
+        CMD_MenuRender(clent, "/main");
+    } else if (!strcmp(argv[1], "mapselect")) {
+        char route[256];
+        snprintf(route, sizeof(route), "mapselect/%s", argc > 2 ? argv[2] : "campaign");
+        CMD_MenuRender(clent, route);
+    } else if (!strcmp(argv[1], "multiplayer") && argc > 2) {
+        char route[256];
+        snprintf(route, sizeof(route), "multiplayer/%s", argv[2]);
+        CMD_MenuRender(clent, route);
     } else if (!strcmp(argv[1], "refresh")) {
-        switch (clent->client->menu_screen) {
-            case MENU_SCREEN_SINGLEPLAYER:
-                CMD_MenuSinglePlayer(clent);
-                break;
-            case MENU_SCREEN_MULTIPLAYER:
-                CMD_MenuMultiplayer(clent);
-                break;
-            case MENU_SCREEN_MAPSELECT:
-                CMD_MenuMapSelect(clent, argc > 2 ? argv[2] : "campaign");
-                break;
-            default:
-                CMD_MenuMain(clent);
-                break;
-        }
+        CMD_MenuRender(clent, argc > 2 ? argv[2] : "/main");
     } else {
-        CMD_MenuMain(clent);
+        CMD_MenuRender(clent, argv[1]);
     }
 }
 

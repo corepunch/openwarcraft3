@@ -104,9 +104,6 @@ KNOWN_AS(CliffInfo, CLIFFINFO);
 // common.c
 void Com_Init(void);
 void Com_Error(errorCode_t code, LPCSTR fmt, ...);
-void Com_SetMenuMode(bool enabled);
-bool Com_InMenuMode(void);
-
 void LoadMap(LPCSTR pFilename);
 
 void FS_Init(void);

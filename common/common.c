@@ -4,8 +4,6 @@
 
 #define MAXPRINTMSG 4096
 
-static bool com_menu_mode = false;
-
 const LPCSTR WarcraftSheets[] = {
     "Units\\unitUI.slk",
     "Units\\AbilityData.slk",
@@ -234,14 +232,6 @@ void MemFree(HANDLE mem) {
     free(mem);
 }
 
-void Com_SetMenuMode(bool enabled) {
-    com_menu_mode = enabled;
-}
-
-bool Com_InMenuMode(void) {
-    return com_menu_mode;
-}
-
 void Com_Quit(void) {
     CL_Shutdown();
     SV_Shutdown();
@@ -255,7 +245,6 @@ void MenuAction(LPCSTR action, LPCSTR arg) {
         if (!arg || !*arg) {
             return;
         }
-        Com_SetMenuMode(false);
         CL_SetGameplayBindings();
         SV_Map(arg);
     } else if (!strcmp(action, "quit")) {

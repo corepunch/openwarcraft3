@@ -140,6 +140,12 @@ void CL_MirrorMessage(LPSIZEBUF msg) {
     MSG_ReadString(msg, buf);
     MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
     MSG_WriteString(&cls.netchan.message, buf);
+    if (!strcmp(buf, "begin")) {
+        cls.state = *cl.configstrings[CS_WORLD] ? ca_active : ca_connected;
+        MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
+        MSG_WriteString(&cls.netchan.message,
+                        cls.state == ca_active ? "menu /game" : "menu /main");
+    }
 }
 
 /* Dispatch loop for a complete server message buffer.  Each iteration reads

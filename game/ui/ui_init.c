@@ -176,18 +176,18 @@ static void Init_MainMenu(void) {
         UI_SetParent(WarCraftIIILogo, ControlLayer);
     }
 #ifndef OW3_NO_NETWORK
-    UI_SetOnClick(RealmButton, "menu realmselect");
+    UI_SetOnClick(RealmButton, "menu /realm-select");
 #else
     (void)RealmButton;
 #endif
-    UI_SetOnClick(RealmSelectOKButton, "menu realmok");
-    UI_SetOnClick(RealmSelectCancelButton, "menu realmcancel");
-    UI_SetOnClick(SinglePlayerButton, "menu singleplayer");
-    UI_SetOnClick(BattleNetButton, "menu multiplayer");
-    UI_SetOnClick(LocalAreaNetworkButton, "menu multiplayer");
-    UI_SetOnClick(OptionsButton, "menu options");
-    UI_SetOnClick(CreditsButton, "menu credits");
-    UI_SetOnClick(ExitButton, "menu quit");
+    UI_SetOnClick(RealmSelectOKButton, "menu /main");
+    UI_SetOnClick(RealmSelectCancelButton, "menu /main");
+    UI_SetOnClick(SinglePlayerButton, "menu /single-player");
+    UI_SetOnClick(BattleNetButton, "menu /lan");
+    UI_SetOnClick(LocalAreaNetworkButton, "menu /lan");
+    UI_SetOnClick(OptionsButton, "menu /options");
+    UI_SetOnClick(CreditsButton, "menu /credits");
+    UI_SetOnClick(ExitButton, "menu /quit");
 }
 
 static void Init_SinglePlayerMenu(void) {
@@ -201,11 +201,11 @@ static void Init_SinglePlayerMenu(void) {
     if (ProfilePanel) {
         UI_SetHidden(ProfilePanel, true);
     }
-    UI_SetOnClick(CampaignButton, "menu mapselect campaign");
-    UI_SetOnClick(LoadSavedButton, "menu mapselect loadsaved");
-    UI_SetOnClick(ViewReplayButton, "menu mapselect replay");
-    UI_SetOnClick(SkirmishButton, "menu mapselect skirmish");
-    UI_SetOnClick(CancelButton, "menu main");
+    UI_SetOnClick(CampaignButton, "menu /single-player/campaign");
+    UI_SetOnClick(LoadSavedButton, "menu /single-player/load-saved");
+    UI_SetOnClick(ViewReplayButton, "menu /single-player/replays");
+    UI_SetOnClick(SkirmishButton, "menu /single-player/skirmish");
+    UI_SetOnClick(CancelButton, "menu /main");
 }
 
 static LPCSTR UI_ResolveThemeModel(LPCSTR key) {
@@ -251,29 +251,6 @@ static void UI_WriteMainMenuGlueBackground(void) {
     UI_WriteMenuGlueBackground(NULL);
 }
 
-typedef struct {
-    menu_screen_t screen;
-    LPCSTR panel_animation;
-} uiMenuPanelAnimation_t;
-
-static uiMenuPanelAnimation_t const menu_panel_animations[] = {
-    { MENU_SCREEN_MAIN, "MainMenu" },
-    { MENU_SCREEN_SINGLEPLAYER, "SinglePlayer" },
-    { MENU_SCREEN_MULTIPLAYER, "BattlenetCustom" },
-    { MENU_SCREEN_MAPSELECT, "MainCancelPanel" },
-    { MENU_SCREEN_OPTIONS, "Options" },
-    { MENU_SCREEN_CREDITS, "MainMenu" },
-};
-
-static LPCSTR UI_MenuPanelAnimationForScreen(menu_screen_t screen) {
-    FOR_LOOP(i, sizeof(menu_panel_animations) / sizeof(*menu_panel_animations)) {
-        if (menu_panel_animations[i].screen == screen) {
-            return menu_panel_animations[i].panel_animation;
-        }
-    }
-    return "MainMenu";
-}
-
 static LPCSTR UI_MenuPanelAnimationForMapCategory(LPCSTR category) {
     if (category && !strcmp(category, "skirmish")) {
         return "SinglePlayerSkirmish";
@@ -281,7 +258,7 @@ static LPCSTR UI_MenuPanelAnimationForMapCategory(LPCSTR category) {
     if (!category || !strcmp(category, "campaign")) {
         return "Death";
     }
-    return UI_MenuPanelAnimationForScreen(MENU_SCREEN_MAPSELECT);
+    return "MainCancelPanel";
 }
 
 static void UI_BuildMenuPanelAnimation(LPEDICT ent, LPCSTR target, LPSTR out, size_t out_size) {
@@ -341,22 +318,33 @@ static void UI_WriteMainMenuGlueTopLayers(LPCSTR animation) {
     }
 }
 
+static void UI_PrepareMenuFrameState(LPCFRAMEDEF root, BOOL realm_select_visible) {
+    UI_FRAME(MainMenuFrame);
+    UI_FRAME(ControlLayer);
+    UI_FRAME(RealmSelect);
+
+    if (!MainMenuFrame) {
+        return;
+    }
+    if (ControlLayer) {
+        UI_SetHidden(ControlLayer, root != MainMenuFrame);
+    }
+    if (RealmSelect) {
+        UI_SetHidden(RealmSelect, !realm_select_visible);
+    }
+}
+
 static void UI_WriteMenuWithMainFrameAnimationAndBackground(LPEDICT ent,
                                                            LPCFRAMEDEF root,
                                                            LPCSTR panel_animation,
                                                            LPCSTR background_model) {
     UI_FRAME(MainMenuFrame);
-    UI_FRAME(ControlLayer);
     UINAME animation;
 
     if (!MainMenuFrame || !root) {
         return;
     }
     UI_BuildMenuPanelAnimation(ent, panel_animation, animation, sizeof(animation));
-
-    if (ControlLayer) {
-        UI_SetHidden(ControlLayer, root != MainMenuFrame);
-    }
 
     UI_WriteStart(LAYER_BACKGROUND);
     if (background_model && *background_model) {
@@ -381,9 +369,6 @@ static void UI_WriteMenuWithMainFrameAnimation(LPEDICT ent, LPCFRAMEDEF root, LP
     UI_WriteMenuWithMainFrameAnimationAndBackground(ent, root, panel_animation, NULL);
 }
 
-static void UI_WriteMenuWithMainFrame(LPEDICT ent, LPCFRAMEDEF root, menu_screen_t screen) {
-    UI_WriteMenuWithMainFrameAnimation(ent, root, UI_MenuPanelAnimationForScreen(screen));
-}
 static void Init_MapSelectMenu(void) {
     UI_FRAME(SlidingDoors);
     UI_FRAME(BackButton);
@@ -415,11 +400,11 @@ static void Init_MapSelectMenu(void) {
     if (SlidingDoors) {
         UI_SetHidden(SlidingDoors, true);
     }
-    UI_SetOnClick(BackButton, "menu singleplayer");
-    UI_SetOnClick(Mission13Button, "menu load Maps\\Campaign\\Human02.w3m");
-    UI_SetOnClick(Mission12Button, "menu load Maps\\Campaign\\Human01.w3m");
-    UI_SetOnClick(Mission11Button, "menu load Maps\\Campaign\\Orc01.w3m");
-    UI_SetOnClick(Mission10Button, "menu load Maps\\Campaign\\Undead01.w3m");
+    UI_SetOnClick(BackButton, "menu /single-player");
+    UI_SetOnClick(Mission13Button, "menu /load Maps\\Campaign\\Human02.w3m");
+    UI_SetOnClick(Mission12Button, "menu /load Maps\\Campaign\\Human01.w3m");
+    UI_SetOnClick(Mission11Button, "menu /load Maps\\Campaign\\Orc01.w3m");
+    UI_SetOnClick(Mission10Button, "menu /load Maps\\Campaign\\Undead01.w3m");
 }
 
 static void Init_MultiplayerJoinMenu(void) {
@@ -428,10 +413,10 @@ static void Init_MultiplayerJoinMenu(void) {
     LPFRAMEDEF LoadButton = UI_FindChildFrame(LocalMultiplayerJoin, "LoadButton");
     LPFRAMEDEF JoinButton = UI_FindChildFrame(LocalMultiplayerJoin, "JoinButton");
     LPFRAMEDEF CancelButton = UI_FindChildFrame(LocalMultiplayerJoin, "CancelButton");
-    UI_SetOnClick(CreateButton, "menu multiplayer create");
-    UI_SetOnClick(LoadButton, "menu multiplayer join");
-    UI_SetOnClick(JoinButton, "menu multiplayer join");
-    UI_SetOnClick(CancelButton, "menu main");
+    UI_SetOnClick(CreateButton, "menu /lan/create");
+    UI_SetOnClick(LoadButton, "menu /lan");
+    UI_SetOnClick(JoinButton, "menu /lan");
+    UI_SetOnClick(CancelButton, "menu /main");
 }
 
 static void Init_MultiplayerCreateMenu(void) {
@@ -440,10 +425,10 @@ static void Init_MultiplayerCreateMenu(void) {
     LPFRAMEDEF AdvancedOptionsButton = UI_FindChildFrame(LocalMultiplayerCreate, "AdvancedOptionsButton");
     LPFRAMEDEF PlayButton = UI_FindChildFrame(LocalMultiplayerCreate, "PlayButton");
     LPFRAMEDEF CancelButton = UI_FindChildFrame(LocalMultiplayerCreate, "CancelButton");
-    UI_SetOnClick(MapInfoButton, "menu main");
-    UI_SetOnClick(AdvancedOptionsButton, "menu main");
-    UI_SetOnClick(PlayButton, "menu main");
-    UI_SetOnClick(CancelButton, "menu multiplayer join");
+    UI_SetOnClick(MapInfoButton, "menu /main");
+    UI_SetOnClick(AdvancedOptionsButton, "menu /main");
+    UI_SetOnClick(PlayButton, "menu /main");
+    UI_SetOnClick(CancelButton, "menu /lan");
 }
 /* Parse all FDF assets and build the initial UI frame hierarchy.
  * Must be called once at game startup before any client connects. */
@@ -494,47 +479,112 @@ void UI_Init(void) {
 
 void UI_ShowMainMenu(LPEDICT ent) {
     UI_FRAME(MainMenuFrame);
-    UI_FRAME(RealmSelect);
-    if (RealmSelect) {
-        UI_SetHidden(RealmSelect, true);
-    }
-    UI_WriteMenuWithMainFrame(ent, MainMenuFrame, MENU_SCREEN_MAIN);
+    UI_PrepareMenuFrameState(MainMenuFrame, false);
+    UI_WriteMenuWithMainFrameAnimation(ent, MainMenuFrame, "MainMenu");
 }
 
 void UI_ShowRealmSelect(LPEDICT ent, BOOL visible) {
     UI_FRAME(MainMenuFrame);
-    UI_FRAME(RealmSelect);
-    if (RealmSelect) {
-        UI_SetHidden(RealmSelect, !visible);
-    }
-    UI_WriteMenuWithMainFrame(ent, MainMenuFrame, MENU_SCREEN_MAIN);
+    UI_PrepareMenuFrameState(MainMenuFrame, visible);
+    UI_WriteMenuWithMainFrameAnimation(ent, MainMenuFrame, "MainMenu");
 }
 
 void UI_ShowSinglePlayerMenu(LPEDICT ent) {
     UI_FRAME(SinglePlayerMenu);
-    UI_WriteMenuWithMainFrame(ent, SinglePlayerMenu, MENU_SCREEN_SINGLEPLAYER);
+    UI_PrepareMenuFrameState(SinglePlayerMenu, false);
+    UI_WriteMenuWithMainFrameAnimation(ent, SinglePlayerMenu, "SinglePlayer");
 }
 
 void UI_ShowMultiplayerMenu(LPEDICT ent) {
     UI_FRAME(LocalMultiplayerJoin);
-    UI_WriteMenuWithMainFrame(ent, LocalMultiplayerJoin, MENU_SCREEN_MULTIPLAYER);
+    UI_PrepareMenuFrameState(LocalMultiplayerJoin, false);
+    UI_WriteMenuWithMainFrameAnimation(ent, LocalMultiplayerJoin, "BattlenetCustom");
+}
+
+void UI_ShowGameInterface(LPEDICT ent) {
+    UI_FRAME(ConsoleUI);
+    UI_FRAME(CinematicPanel);
+
+    UI_WriteLayout(ent, ConsoleUI, LAYER_CONSOLE);
+    UI_WriteLayout(ent, CinematicPanel, LAYER_CINEMATIC);
 }
 
 void UI_ShowMapSelectMenu(LPEDICT ent, LPCSTR category) {
     if (category && !strcmp(category, "skirmish")) {
         UI_FRAME(Skirmish);
+        UI_PrepareMenuFrameState(Skirmish, false);
         UI_WriteMenuWithMainFrameAnimation(ent, Skirmish, UI_MenuPanelAnimationForMapCategory(category));
-    } else if (category && !strcmp(category, "loadsaved")) {
+    } else if (category && (!strcmp(category, "loadsaved") || !strcmp(category, "load-saved"))) {
         UI_FRAME(LoadSavedGameScreen);
+        UI_PrepareMenuFrameState(LoadSavedGameScreen, false);
         UI_WriteMenuWithMainFrameAnimation(ent, LoadSavedGameScreen, UI_MenuPanelAnimationForMapCategory(category));
-    } else if (category && !strcmp(category, "replay")) {
+    } else if (category && (!strcmp(category, "replay") || !strcmp(category, "replays"))) {
         UI_FRAME(ViewReplayScreen);
+        UI_PrepareMenuFrameState(ViewReplayScreen, false);
         UI_WriteMenuWithMainFrameAnimation(ent, ViewReplayScreen, UI_MenuPanelAnimationForMapCategory(category));
     } else {
         UI_FRAME(CampaignMenu);
+        UI_PrepareMenuFrameState(CampaignMenu, false);
         UI_WriteMenuWithMainFrameAnimationAndBackground(ent,
                                                         CampaignMenu,
                                                         UI_MenuPanelAnimationForMapCategory(category),
                                                         "HumanBackdrop");
     }
+}
+
+typedef struct {
+    LPCSTR route;
+    LPCSTR category;
+} uiMapRoute_t;
+
+static uiMapRoute_t const map_routes[] = {
+    { "/single-player/campaign", "campaign" },
+    { "mapselect", "campaign" },
+    { "mapselect/campaign", "campaign" },
+    { "/single-player/load-saved", "load-saved" },
+    { "mapselect/loadsaved", "loadsaved" },
+    { "/single-player/replays", "replays" },
+    { "mapselect/replay", "replay" },
+    { "/single-player/skirmish", "skirmish" },
+    { "mapselect/skirmish", "skirmish" },
+};
+
+static BOOL UI_RouteEquals(LPCSTR route, LPCSTR expected) {
+    return route && expected && !strcmp(route, expected);
+}
+
+void UI_RenderRoute(LPEDICT ent, LPCSTR route) {
+    if (!route || !*route || UI_RouteEquals(route, "/main") || UI_RouteEquals(route, "main")) {
+        UI_ShowMainMenu(ent);
+        return;
+    }
+    if (UI_RouteEquals(route, "/game") || UI_RouteEquals(route, "game")) {
+        UI_ShowGameInterface(ent);
+        return;
+    }
+    if (UI_RouteEquals(route, "/realm-select") || UI_RouteEquals(route, "realmselect")) {
+        UI_ShowRealmSelect(ent, true);
+        return;
+    }
+    if (UI_RouteEquals(route, "/single-player") || UI_RouteEquals(route, "singleplayer")) {
+        UI_ShowSinglePlayerMenu(ent);
+        return;
+    }
+    if (UI_RouteEquals(route, "/lan") || UI_RouteEquals(route, "multiplayer") || UI_RouteEquals(route, "multiplayer/join")) {
+        UI_ShowMultiplayerMenu(ent);
+        return;
+    }
+    if (UI_RouteEquals(route, "/lan/create") || UI_RouteEquals(route, "multiplayer/create")) {
+        UI_FRAME(LocalMultiplayerCreate);
+        UI_PrepareMenuFrameState(LocalMultiplayerCreate, false);
+        UI_WriteMenuWithMainFrameAnimation(ent, LocalMultiplayerCreate, "BattlenetCustomCreate");
+        return;
+    }
+    FOR_LOOP(i, sizeof(map_routes) / sizeof(*map_routes)) {
+        if (UI_RouteEquals(route, map_routes[i].route)) {
+            UI_ShowMapSelectMenu(ent, map_routes[i].category);
+            return;
+        }
+    }
+    UI_ShowMainMenu(ent);
 }

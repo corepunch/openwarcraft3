@@ -197,8 +197,8 @@ static void CL_AddEntities(void) {
 void CL_PrepRefresh(void) {
     static bool map_registered = false;
     
-    if (!Com_InMenuMode() && cl.configstrings[CS_MODELS+1][0] && !map_registered) {
-        re.RegisterMap(cl.configstrings[CS_MODELS+1]);
+    if (*cl.configstrings[CS_WORLD] && !map_registered) {
+        re.RegisterMap(cl.configstrings[CS_WORLD]);
         map_registered = true;
         world_loaded = true;
     }
@@ -207,8 +207,7 @@ void CL_PrepRefresh(void) {
         cl.healthbar = re.LoadTexture(cl.configstrings[CS_HEALTHBAR]);
     }
 
-    DWORD model_start = Com_InMenuMode() ? 1 : 2;
-    for (DWORD i = model_start; i < MAX_MODELS && *cl.configstrings[CS_MODELS + i]; i++) {
+    for (DWORD i = 1; i < MAX_MODELS && *cl.configstrings[CS_MODELS + i]; i++) {
         if (cl.models[i])
             continue;
         LPCSTR filename = cl.configstrings[CS_MODELS + i];

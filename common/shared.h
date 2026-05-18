@@ -151,6 +151,7 @@ enum {
     CS_STATUSBAR = 5,        // display program string
     CS_HEALTHBAR = 6,
     CS_MANAHBAR = 6,
+    CS_WORLD = 7,
     CS_AIRACCEL = 29,        // air acceleration control
     CS_MAXCLIENTS = 30,
     CS_MAPCHECKSUM = 31,        // for catching cheater maps

@@ -133,14 +133,6 @@ HANDLE FS_ReadFile(LPCSTR filename, LPDWORD size);
 HANDLE MemAlloc(long size) { return Viewer_MemAlloc(size); }
 void MemFree(HANDLE mem) { Viewer_MemFree(mem); }
 
-bool Com_InMenuMode(void) {
-    return true;
-}
-
-void Com_SetMenuMode(bool enabled) {
-    (void)enabled;
-}
-
 void Sys_Quit(void) {
     exit(0);
 }
@@ -1233,7 +1225,6 @@ int main(int argc, char **argv) {
         .FileOpen = FS_OpenFile,
         .FileExtract = FS_ExtractFile,
         .FileClose = FS_CloseFile,
-        .InMenuMode = Com_InMenuMode,
         .MemAlloc = MemAlloc,
         .MemFree = MemFree,
         .ReadSheet = FS_ParseSLK,
@@ -1241,7 +1232,6 @@ int main(int argc, char **argv) {
         .error = errorf,
     });
 
-    Com_SetMenuMode(true);
     fprintf(stderr, "mdxtool: renderer init\n");
     re.Init(VIEWER_WINDOW_WIDTH, VIEWER_WINDOW_HEIGHT);
     fprintf(stderr, "mdxtool: renderer ready\n");

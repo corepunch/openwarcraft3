@@ -87,7 +87,7 @@ void SV_Map(LPCSTR mapFilename) {
     SV_InitGame();
     memset(&sv, 0, sizeof(struct server));
     sv.state = ss_loading;
-    strcpy(sv.configstrings[CS_MODELS+1], mapFilename);
+    strcpy(sv.configstrings[CS_WORLD], mapFilename);
     SZ_Init(&sv.multicast, sv.multicast_buf, MAX_MSGLEN);
     fprintf(stderr, "SV_Map: loading collision/map data\n");
     if (!CM_LoadMap(mapFilename)) {

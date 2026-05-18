@@ -66,8 +66,6 @@ bool FS_FileExists(LPCSTR fileName) {
 HANDLE MemAlloc(long size) { return Viewer_MemAlloc(size); }
 void MemFree(HANDLE mem) { Viewer_MemFree(mem); }
 
-bool Com_InMenuMode(void) { return false; }
-void Com_SetMenuMode(bool enabled) { (void)enabled; }
 void Sys_Quit(void) { exit(0); }
 
 static void Matrix4_fromViewAngles(LPCVECTOR3 target, LPCVECTOR3 angles, FLOAT distance, LPMATRIX4 output) {
@@ -165,7 +163,6 @@ int main(int argc, char **argv) {
         .FileOpen = FS_OpenFile,
         .FileExtract = FS_ExtractFile,
         .FileClose = FS_CloseFile,
-        .InMenuMode = Com_InMenuMode,
         .MemAlloc = MemAlloc,
         .MemFree = MemFree,
         .ReadSheet = FS_ParseSLK,

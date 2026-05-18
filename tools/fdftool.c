@@ -502,14 +502,6 @@ static int RegisterFont(LPCSTR fontName, DWORD fontSize) {
     return num_fonts++;
 }
 
-bool Com_InMenuMode(void) {
-    return true;
-}
-
-void Com_SetMenuMode(bool enabled) {
-    (void)enabled;
-}
-
 static LPCRECT layout_rect(LPCUIFRAME frame);
 
 static VECTOR2 rect_x_bounds(LPCRECT rect) {
@@ -1094,7 +1086,6 @@ int main(int argc, char **argv) {
             .LinkEntity = NULL,
             .UnlinkEntity = NULL,
             .BoxEdicts = NULL,
-            .InMenuMode = Com_InMenuMode,
             .MenuAction = NULL,
             .GetFlowDirection = NULL,
             .GetHeightAtPoint = NULL,
@@ -1135,7 +1126,6 @@ int main(int argc, char **argv) {
         .FileOpen = FS_OpenFile,
         .FileExtract = FS_ExtractFile,
         .FileClose = FS_CloseFile,
-        .InMenuMode = Com_InMenuMode,
         .MemAlloc = MemAlloc,
         .MemFree = MemFree,
         .ReadSheet = FS_ParseSLK,

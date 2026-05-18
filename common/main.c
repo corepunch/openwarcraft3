@@ -60,7 +60,8 @@ int main(int argc, LPSTR argv[]) {
     }
 
     bool menu_mode = !map && !connect_addr;
-    Com_SetMenuMode(menu_mode);
+    cls.key_dest = menu_mode ? key_menu : key_game;
+    cls.state = ca_disconnected;
     fprintf(stderr, "main: mpq loaded, mode=%s\n",
             connect_addr ? "connect" : (menu_mode ? "menu" : "map"));
 

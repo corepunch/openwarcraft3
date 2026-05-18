@@ -21,7 +21,6 @@ typedef struct {
     HANDLE (*FileOpen)(LPCSTR fileName);
     bool (*FileExtract)(LPCSTR toExtract, LPCSTR extracted);
     void (*FileClose)(HANDLE file);
-    bool (*InMenuMode)(void);
     
     HANDLE (*MemAlloc)(long size);
     void (*MemFree)(HANDLE);

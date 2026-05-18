@@ -31,10 +31,6 @@ LPDOODAD CM_GetDoodads(void) { return NULL; }
 LPCMAPINFO CM_GetMapInfo(void) { return NULL; }
 struct cmodel *SV_LoadModel(LPCSTR filename) { (void)filename; return NULL; }
 
-static bool test_menu_mode = false;
-void Com_SetMenuMode(bool enabled) { test_menu_mode = enabled; }
-bool Com_InMenuMode(void) { return test_menu_mode; }
-
 static void test_run_frame(void) {
 }
 
@@ -265,7 +261,7 @@ static void test_client_command(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
     ASSERT_NOT_NULL(ent);
     ASSERT_EQ_INT(argc, 2);
     ASSERT_STR_EQ(argv[0], "menu");
-    ASSERT_STR_EQ(argv[1], "singleplayer");
+    ASSERT_STR_EQ(argv[1], "/single-player");
     test_menu_command_seen = true;
     UI_ShowSinglePlayerMenu(ent);
 }
@@ -310,8 +306,8 @@ void SV_ParseClientMessage(LPSIZEBUF msg, LPCLIENT client) {
         }
 
         LPCSTR command = MSG_ReadString2(msg);
-        LPCSTR argv[] = { "menu", "singleplayer" };
-        ASSERT_STR_EQ(command, "menu singleplayer");
+        LPCSTR argv[] = { "menu", "/single-player" };
+        ASSERT_STR_EQ(command, "menu /single-player");
         ge->ClientCommand(client->edict, 2, argv);
     }
 }
@@ -332,7 +328,6 @@ static void reset_server_state(int max_players) {
     ge = &test_ge;
     test_menu_command_seen = false;
     reset_test_gi();
-    Com_SetMenuMode(false);
 }
 
 static int open_client_socket(void) {
@@ -403,16 +398,25 @@ static BOOL recv_client_connect_oob(int sock) {
 static void pump_server_connects(void) {
     enum {
         MAX_PACKETS_PER_PUMP = 64,
+        MAX_EMPTY_POLLS = 40,
+        RECV_POLL_DELAY_US = 5000,
         MIN_CONNECT_MSG_SIZE = 11 /* -1 marker (4) + "connect" (7) */
     };
     BYTE msg_buf[MAX_MSGLEN];
     sizeBuf_t msg = { msg_buf, MAX_MSGLEN, 0, 0 };
     netadr_t from;
+    DWORD empty_polls = 0;
     int r;
-    FOR_LOOP(i, MAX_PACKETS_PER_PUMP) {
+
+    for (DWORD packets = 0; packets < MAX_PACKETS_PER_PUMP && empty_polls < MAX_EMPTY_POLLS;) {
         r = NET_GetPacket(NS_SERVER, &from, &msg);
-        if (!r)
-            break;
+        if (!r) {
+            empty_polls++;
+            usleep(RECV_POLL_DELAY_US);
+            continue;
+        }
+        empty_polls = 0;
+        packets++;
         if (r >= MIN_CONNECT_MSG_SIZE) {
             int hdr = 0;
             memcpy(&hdr, msg.data, sizeof(hdr));
@@ -506,7 +510,6 @@ static void test_menu_command_updates_client_layout_after_server_response(void) 
     reset_server_state(1);
     test_client_stubs_init();
     setup_test_menu_frames();
-    Com_SetMenuMode(true);
 
     sv.framenum = 1;
     sv.time = 100;
@@ -543,7 +546,7 @@ static void test_menu_command_updates_client_layout_after_server_response(void) 
     client_netchan.remote_address.type = NA_LOOPBACK;
     SZ_Init(&client_netchan.message, client_netchan.message_buf, MAX_MSGLEN);
     MSG_WriteByte(&client_netchan.message, clc_stringcmd);
-    MSG_WriteString(&client_netchan.message, "menu singleplayer");
+    MSG_WriteString(&client_netchan.message, "menu /single-player");
     Netchan_Transmit(NS_CLIENT, &client_netchan);
 
     ASSERT(!test_menu_command_seen);
@@ -573,7 +576,6 @@ static void test_menu_command_updates_client_layout_after_server_response(void) 
 
     SAFE_DELETE(cl.layout[TEST_LAYER_CONSOLE], MemFree);
     NET_Shutdown();
-    Com_SetMenuMode(false);
 }
 
 static void test_menu_command_updates_client_layout_with_repo_fdf(void) {
@@ -592,7 +594,6 @@ static void test_menu_command_updates_client_layout_with_repo_fdf(void) {
         return;
     }
     UI_Init();
-    Com_SetMenuMode(true);
 
     sv.framenum = 1;
     sv.time = 100;
@@ -615,9 +616,9 @@ static void test_menu_command_updates_client_layout_with_repo_fdf(void) {
     CL_ParseServerMessage(&server_msg);
     ASSERT_NOT_NULL(cl.layout[TEST_LAYER_CONSOLE]);
     decoded = SCR_Clear(cl.layout[TEST_LAYER_CONSOLE]);
-    ASSERT(decoded_layout_contains_onclick(decoded, "menu singleplayer"));
-    ASSERT(decoded_layout_contains_onclick(decoded, "menu realmselect"));
-    ASSERT(!decoded_layout_contains_onclick(decoded, "menu mapselect campaign"));
+    ASSERT(decoded_layout_contains_onclick(decoded, "menu /single-player"));
+    ASSERT(decoded_layout_contains_onclick(decoded, "menu /realm-select"));
+    ASSERT(!decoded_layout_contains_onclick(decoded, "menu /single-player/campaign"));
     ASSERT_EQ_INT(decoded_layout_count_sprite_animation(decoded, "MainMenu Stand"), 2);
     ASSERT_EQ_INT(decoded_layout_count_sprite_animation(decoded, "SinglePlayer Stand"), 0);
     ASSERT_EQ_INT(decoded_layout_count_type(decoded, FT_SPRITE), 3);
@@ -626,7 +627,7 @@ static void test_menu_command_updates_client_layout_with_repo_fdf(void) {
     client_netchan.remote_address.type = NA_LOOPBACK;
     SZ_Init(&client_netchan.message, client_netchan.message_buf, MAX_MSGLEN);
     MSG_WriteByte(&client_netchan.message, clc_stringcmd);
-    MSG_WriteString(&client_netchan.message, "menu singleplayer");
+    MSG_WriteString(&client_netchan.message, "menu /single-player");
     Netchan_Transmit(NS_CLIENT, &client_netchan);
 
     test_menu_command_seen = false;
@@ -636,9 +637,9 @@ static void test_menu_command_updates_client_layout_with_repo_fdf(void) {
     ASSERT(NET_GetPacket(NS_CLIENT, &from, &server_msg) > 0);
     CL_ParseServerMessage(&server_msg);
     decoded = SCR_Clear(cl.layout[TEST_LAYER_CONSOLE]);
-    ASSERT(!decoded_layout_contains_onclick(decoded, "menu singleplayer"));
-    ASSERT(decoded_layout_contains_onclick(decoded, "menu mapselect campaign"));
-    ASSERT(decoded_layout_contains_onclick(decoded, "menu main"));
+    ASSERT(!decoded_layout_contains_onclick(decoded, "menu /single-player"));
+    ASSERT(decoded_layout_contains_onclick(decoded, "menu /single-player/campaign"));
+    ASSERT(decoded_layout_contains_onclick(decoded, "menu /main"));
     ASSERT_EQ_INT(decoded_layout_count_sprite_animation(decoded, "MainMenu Stand"), 0);
     ASSERT_EQ_INT(decoded_layout_count_sprite_animation(decoded, "SinglePlayer Stand"), 2);
     ASSERT_EQ_INT(decoded_layout_count_type(decoded, FT_SPRITE), 2);
@@ -653,7 +654,6 @@ static void test_menu_command_updates_client_layout_with_repo_fdf(void) {
 
     SAFE_DELETE(cl.layout[TEST_LAYER_CONSOLE], MemFree);
     NET_Shutdown();
-    Com_SetMenuMode(false);
 }
 
 void run_server_net_tests(void) {

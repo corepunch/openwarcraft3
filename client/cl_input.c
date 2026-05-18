@@ -67,7 +67,7 @@ void CL_Input(void) {
                 mouse.origin.x = event.button.x;
                 mouse.origin.y = mouse_flip_y(event.button.y);
                 mouse.button = event.button.button;
-                if (Com_InMenuMode()) {
+                if (cls.key_dest == key_menu) {
                     if (event.button.button == 1) {
                         mouse.event = UI_LEFT_MOUSE_DOWN;
                     } else if (event.button.button == 2) {
@@ -88,7 +88,7 @@ void CL_Input(void) {
                 mouse.origin.x = event.button.x;
                 mouse.origin.y = mouse_flip_y(event.button.y);
                 mouse.button = 0;
-                if (Com_InMenuMode()) {
+                if (cls.key_dest == key_menu) {
                     if (event.button.button == 1) {
                         mouse.event = UI_LEFT_MOUSE_UP;
                     } else if (event.button.button == 2) {
@@ -108,7 +108,7 @@ void CL_Input(void) {
             case SDL_MOUSEMOTION:
                 mouse.origin.x = event.motion.x;
                 mouse.origin.y = mouse_flip_y(event.motion.y);
-                if (Com_InMenuMode()) {
+                if (cls.key_dest == key_menu) {
                     break;
                 }
                 switch (mouse.button) {
@@ -135,10 +135,12 @@ void CL_Input(void) {
 }
 
 void CL_SetMenuBindings(void) {
+    cls.key_dest = key_menu;
     Key_SetBinding(K_ESCAPE, "quit");
 }
 
 void CL_SetGameplayBindings(void) {
+    cls.key_dest = key_game;
     cl.moveConfirmation = re.LoadModel("UI\\Feedback\\Confirmation\\Confirmation.mdx");
 
     cl.viewDef.camerastate[0].zfar = 5000;

@@ -1,5 +1,9 @@
 #include "server.h"
 
+static LPEDICT SV_ClientRoutingEdict(LPCLIENT cl) {
+    return EDICT_NUM((DWORD)(cl - svs.clients) + 1);
+}
+
 void SV_Configstrings_f(LPCLIENT cl) {
     FOR_LOOP(i, MAX_CONFIGSTRINGS) {
         if (!*sv.configstrings[i])
@@ -32,8 +36,8 @@ void SV_Begin_f(LPCLIENT cl) {
 }
 
 void SV_PlayerInfo_f(LPCLIENT cl) {
-    if (Com_InMenuMode() && !sv.configstrings[CS_MODELS+1][0]) {
-        cl->edict = EDICT_NUM(1);
+    if (sv.state != ss_game) {
+        cl->edict = SV_ClientRoutingEdict(cl);
     } else {
         cl->edict = EDICT_NUM(CM_GetLocalPlayerNumber());
     }
@@ -75,6 +79,12 @@ void SV_ExecuteUserCommand(LPSIZEBUF msg, LPCLIENT client) {
         strcpy(args[argc], tok);
         argv[argc] = args[argc];
         argc++;
+    }
+    if (argc == 0) {
+        return;
+    }
+    if (!strcmp(argv[0], "menu") && !client->edict) {
+        client->edict = SV_ClientRoutingEdict(client);
     }
     for (ucmd_t *u = ucmds; u->name; u++) {
         if (!strcmp(argv[0], u->name)) {

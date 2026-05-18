@@ -132,7 +132,7 @@ int SV_ModelIndex(LPCSTR name) {
 }
 
 void SV_LoadModels(void) {
-    for (DWORD i = 2; i < MAX_MODELS && *sv.configstrings[CS_MODELS + i]; i++) {
+    for (DWORD i = 1; i < MAX_MODELS && *sv.configstrings[CS_MODELS + i]; i++) {
         if (sv.models[i])
             continue;
 //        LPCSTR filename = sv.configstrings[CS_MODELS + i];

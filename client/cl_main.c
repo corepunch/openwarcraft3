@@ -19,7 +19,7 @@ struct client_static cls;
 struct client_state cl;
 
 void Cmd_ForwardToServer(LPCSTR text) {
-    if (/*cls.state <= ca_connected || */*text == '-' || *text == '+') {
+    if (cls.state <= ca_connected || *text == '-' || *text == '+') {
         fprintf(stderr, "Unknown command \"%s\"\n", text);
         return;
     }
@@ -67,7 +67,6 @@ void CL_Init(void) {
         .FileOpen = FS_OpenFile,
         .FileClose = FS_CloseFile,
         .FileExtract = FS_ExtractFile,
-        .InMenuMode = Com_InMenuMode,
         .ReadSheet = FS_ParseSLK,
         .FindSheetCell = FS_FindSheetCell,
         .error = CON_printf,
@@ -86,9 +85,10 @@ void CL_Init(void) {
 
     CL_InitInput();
 
-    if (Com_InMenuMode()) {
+    if (cls.key_dest == key_menu) {
         fprintf(stderr, "CL_Init: menu bindings\n");
         CL_SetMenuBindings();
+        cls.state = ca_connecting;
     } else {
         fprintf(stderr, "CL_Init: gameplay setup\n");
         CL_SetGameplayBindings();
@@ -96,9 +96,25 @@ void CL_Init(void) {
     fprintf(stderr, "CL_Init: complete\n");
 }
 
-void CL_ConnectionlessPacket(void) {
+void CL_ConnectionlessPacket(LPSIZEBUF msg) {
+    char command[256] = { 0 };
+    DWORD length;
+
+    if (msg->cursize <= 4) {
+        return;
+    }
+    length = msg->cursize - 4;
+    if (length >= sizeof(command)) {
+        length = sizeof(command) - 1;
+    }
+    memcpy(command, msg->data + 4, length);
+    if (strcmp(command, "client_connect")) {
+        return;
+    }
+
     MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
     MSG_WriteString(&cls.netchan.message, "new");
+    cls.state = ca_connected;
 }
 
 /* Read all available server packets from the network buffer and dispatch each
@@ -120,7 +136,7 @@ void CL_ReadPackets(void) {
             int hdr;
             memcpy(&hdr, net_message.data, sizeof(hdr));
             if (hdr == -1) {
-                CL_ConnectionlessPacket();
+                CL_ConnectionlessPacket(&net_message);
                 continue;
             }
         }
@@ -129,6 +145,9 @@ void CL_ReadPackets(void) {
 }
 
 void CL_SendCmd(void) {
+    if (cls.state == ca_disconnected || cls.state == ca_connecting) {
+        return;
+    }
     Netchan_Transmit(NS_CLIENT, &cls.netchan);
 }
 
@@ -143,6 +162,7 @@ void CL_Connect(LPCSTR host, unsigned short port) {
     }
     cls.netchan.remote_address = adr;
     SZ_Init(&cls.netchan.message, cls.netchan.message_buf, MAX_MSGLEN);
+    cls.state = ca_connecting;
     // Send an out-of-band "connect" request; the server will register this
     // client slot and reply with "client_connect".
     Netchan_OutOfBandPrint(NS_CLIENT, adr, "connect");

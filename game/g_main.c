@@ -234,27 +234,19 @@ LPCSTR G_LevelString(LPCSTR name) {
 }
 
 /* Called when a client finishes the connection handshake and is ready to play.
- * Serializes the top-level ConsoleUI and CinematicPanel frame trees and sends
- * them to the client as svc_layout messages so the client can render the HUD.
- * Also counts the player's initial food supply from pre-placed buildings. */
+ * UI is rendered by explicit client route requests; this binds the game client
+ * and initializes gameplay state when a map is loaded. */
 static void G_ClientBegin(LPEDICT edict) {
     LPGAMECLIENT client = edict->client ? edict->client : game.clients;
     if (!edict->client) {
         edict->client = client;
     }
-    if (gi.InMenuMode()) {
-        client->ps.origin = (VECTOR2){ 0, 0 };
-        UI_ShowMainMenu(edict);
-        client->menu_screen = MENU_SCREEN_MAIN;
+
+    client->ps.origin = (VECTOR2){ 0, 0 };
+    if (globals.num_edicts <= globals.max_clients) {
         return;
     }
 
-    UI_FRAME(ConsoleUI);
-    UI_FRAME(CinematicPanel);
-
-    UI_WriteLayout(edict, ConsoleUI, LAYER_CONSOLE);
-    UI_WriteLayout(edict, CinematicPanel, LAYER_CINEMATIC);
-    
     FILTER_EDICTS(ent, client->ps.number == ent->s.player) {
         client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] += UNIT_FOOD_MADE(ent->class_id);
         client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED] += UNIT_FOOD_USED(ent->class_id);

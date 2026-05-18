@@ -130,7 +130,7 @@ void PF_Unicast(edict_t *ent) {
     LPCLIENT client = NULL;
     if (p >= 1 && p <= ge->max_clients && p <= svs.num_clients) {
         client = svs.clients + (p - 1);
-    } else if (Com_InMenuMode() && svs.num_clients == 1) {
+    } else if (svs.num_clients == 1) {
         client = svs.clients;
     } else {
         SZ_Clear(&sv.multicast);
@@ -438,7 +438,6 @@ void SV_InitGameProgs(void) {
     import.LinkEntity = SV_LinkEntity;
     import.UnlinkEntity = SV_UnlinkEntity;
     import.BoxEdicts = SV_AreaEdicts;
-    import.InMenuMode = Com_InMenuMode;
     import.MenuAction = MenuAction;
     import.configstring = PF_Configstring;
     import.confignstring = PF_Confignstring;

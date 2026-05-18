@@ -40,6 +40,20 @@ typedef struct {
     VECTOR2 origin;
 } mouseEvent_t;
 
+typedef enum {
+    key_game,
+    key_console,
+    key_message,
+    key_menu,
+} keydest_t;
+
+typedef enum {
+    ca_disconnected,
+    ca_connecting,
+    ca_connected,
+    ca_active,
+} connstate_t;
+
 struct frame {
     int serverframe;
     int servertime;
@@ -73,6 +87,8 @@ struct client_state {
 
 struct client_static {
     struct netchan netchan;
+    keydest_t key_dest;
+    connstate_t state;
 };
 
 // cl_main.c

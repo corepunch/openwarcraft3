@@ -71,6 +71,7 @@ TOOL_SRCS := $(shell find tools -maxdepth 1 -name '*.c' | sort)
 TOOL_NAMES := $(patsubst tools/%.c,%,$(TOOL_SRCS))
 TOOL_BINS := $(addprefix $(BIN_DIR)/,$(addsuffix $(EXE_EXT),$(TOOL_NAMES)))
 TOOL_DEPS := $(shell find tools -maxdepth 1 -name '*.h' | sort)
+CLIENT_HEADERS := $(shell find client -name '*.h' | sort)
 
 # Unity-build helper: pipe all .c files in a directory tree as #include
 # directives to gcc's stdin so the whole module is one translation unit.
@@ -99,7 +100,7 @@ diag: clean
 	$(MAKE) DIAG_OUTPUT=1 build
 	$(MAKE) DIAG_OUTPUT=1 run
 
-$(BIN_DIR)/%$(EXE_EXT): tools/%.c $(TOOL_DEPS) | $(BIN_DIR) $(SHARED_LIB) $(RENDERER_LIB) $(GAME_LIB)
+$(BIN_DIR)/%$(EXE_EXT): tools/%.c $(TOOL_DEPS) $(CLIENT_HEADERS) | $(BIN_DIR) $(SHARED_LIB) $(RENDERER_LIB) $(GAME_LIB)
 	@echo "[$*]"
 	$(CC) $(CFLAGS) -o $@ $< \
 		$(RPATH) $(LDFLAGS) -lshared -lrenderer -lgame $(LIBS) -lm -lz
@@ -118,7 +119,7 @@ $(SHARED_LIB): $(shell find shared -name '*.c') | $(LIB_DIR)
 		$(CC) $(CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - $(LDFLAGS) -lm
 
 # renderer — depends on shared
-$(RENDERER_LIB): $(SHARED_LIB) $(shell find renderer -name '*.c') | $(LIB_DIR)
+$(RENDERER_LIB): $(SHARED_LIB) $(CLIENT_HEADERS) $(shell find renderer -name '*.c') | $(LIB_DIR)
 	@echo "[renderer]"
 	@$(call UNITY,renderer) | \
 		$(CC) $(CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - common/mpq.c $(LDFLAGS) -lshared $(LIBS) -lz
@@ -131,7 +132,7 @@ $(GAME_LIB): $(SHARED_LIB) $(shell find game -name '*.c') | $(LIB_DIR)
 
 # main binary — depends on all three libraries
 APP_SRCS := $(shell find client server common -name '*.c')
-$(BINARY): $(SHARED_LIB) $(GAME_LIB) $(RENDERER_LIB) $(APP_SRCS) | $(BIN_DIR)
+$(BINARY): $(SHARED_LIB) $(GAME_LIB) $(RENDERER_LIB) $(APP_SRCS) $(CLIENT_HEADERS) | $(BIN_DIR)
 	@echo "[openwarcraft3]"
 	@$(call UNITY,client server common) | \
 		$(CC) $(CFLAGS) -x c -o $@ - $(RPATH) $(LDFLAGS) \
