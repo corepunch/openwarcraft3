@@ -111,6 +111,11 @@ netField_t playerStateFields[] = {
     { NETF(PLAYER, stats[8]), NFT_LONG },
     { NETF(PLAYER, texts[0]), NFT_DUPTEXT },
     { NETF(PLAYER, texts[1]), NFT_DUPTEXT },
+    { NETF(PLAYER, texts[2]), NFT_DUPTEXT },
+    { NETF(PLAYER, texts[3]), NFT_DUPTEXT },
+    { NETF(PLAYER, texts[4]), NFT_DUPTEXT },
+    { NETF(PLAYER, texts[5]), NFT_DUPTEXT },
+    { NETF(PLAYER, texts[6]), NFT_DUPTEXT },
     { NULL }
 };
 //#include <pthread.h>

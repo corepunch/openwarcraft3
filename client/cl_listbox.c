@@ -185,3 +185,16 @@ void CL_ListBoxSelect(HANDLE layout,
     MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
     MSG_WriteString(&cls.netchan.message, command);
 }
+
+void CL_ListFetchResetLayout(HANDLE layout) {
+    if (!layout) {
+        return;
+    }
+
+    FOR_LOOP(i, MAX_FETCH_LISTBOXES) {
+        listFetchState_t *state = &fetch_listboxes[i];
+        if (state->inuse && state->layout == layout) {
+            memset(state, 0, sizeof(*state));
+        }
+    }
+}

@@ -182,10 +182,11 @@ static VECTOR2 get_position(LPCDRAWTEXT arg) {
         case FONT_JUSTIFYCENTER: pos.x = arg->rect.x + (arg->rect.w - size.x) / 2; break;
         case FONT_JUSTIFYLEFT: pos.x = arg->rect.x; break;
     }
+    FLOAT fontHeight = R_GetFontHeight((LPFONT)arg->font);
     switch (arg->valign) {
-        case FONT_JUSTIFYBOTTOM: pos.y = arg->rect.y + arg->rect.h - size.y; break;
-        case FONT_JUSTIFYMIDDLE: pos.y = arg->rect.y + (arg->rect.h - size.y) / 2; break;
-        case FONT_JUSTIFYTOP: pos.y = arg->rect.y; break;
+        case FONT_JUSTIFYBOTTOM: pos.y = arg->rect.y + size.y - fontHeight; break;
+        case FONT_JUSTIFYMIDDLE: pos.y = arg->rect.y + (arg->rect.h + size.y) / 2 - fontHeight; break;
+        case FONT_JUSTIFYTOP: pos.y = arg->rect.y + arg->rect.h - fontHeight; break;
     }
     return pos;
 }

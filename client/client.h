@@ -137,6 +137,7 @@ void CL_ListBoxSelect(HANDLE layout,
                       LPCUIFRAME frame,
                       uiListBox_t const *listbox,
                       DWORD rowIndex);
+void CL_ListFetchResetLayout(HANDLE layout);
 void CON_DrawConsole(void);
 void CON_printf(LPCSTR fmt, ...);
 

@@ -23,6 +23,8 @@
 #define FOV_ASPECT 1.7
 #define MAX_HERO_ABILITIES 4
 #define MAX_UNIT_STATUSES 8
+#define PLAYER_TEXT_BACKUP 16
+#define PLAYER_TEXT_MASK (PLAYER_TEXT_BACKUP - 1)
 
 #define FILTER_EDICTS(ENT, CONDITION) \
 for (LPEDICT ENT = globals.edicts; \
@@ -162,6 +164,12 @@ typedef enum {
 typedef enum {
     PLAYERTEXT_SPEAKER,
     PLAYERTEXT_DIALOGUE,
+    PLAYERTEXT_MAP_TITLE,
+    PLAYERTEXT_MAP_SUGGESTED_PLAYERS,
+    PLAYERTEXT_MAP_SIZE,
+    PLAYERTEXT_MAP_TILESET,
+    PLAYERTEXT_MAP_DESCRIPTION,
+    PLAYERTEXT_COUNT,
 } PLAYERTEXT;
 
 typedef enum {
@@ -558,6 +566,8 @@ struct gcamerasetup_s {
 
 struct client_s {
     PLAYER ps;
+    char playerTextStorage[PLAYERTEXT_COUNT][PLAYER_TEXT_BACKUP][512];
+    DWORD playerTextCursor[PLAYERTEXT_COUNT];
     LPCMAPPLAYER mapplayer;
     DWORD ping;
     BOOL no_control;
@@ -808,6 +818,7 @@ LPEDICT G_GetPlayerEntityByNumber(DWORD);
 LPGAMECLIENT G_GetPlayerClientByNumber(DWORD);
 TARGTYPE G_GetTargetType(LPCSTR);
 LPCSTR G_LevelString(LPCSTR);
+void G_SetPlayerText(LPGAMECLIENT, PLAYERTEXT, LPCSTR);
 GAMEEVENT *G_PublishEvent(LPEDICT, EVENTTYPE);
 
 // g_spawn.c
@@ -886,12 +897,7 @@ void UI_ShowMultiplayerMenu(LPEDICT);
 void UI_ShowMultiplayerCreateMenu(LPEDICT);
 void UI_ShowGameInterface(LPEDICT);
 void UI_ShowMapSelectMenu(LPEDICT, LPCSTR);
-void UI_ShowMultiplayerCreateMapInfo(LPEDICT,
-                                     LPCSTR,
-                                     LPCSTR,
-                                     LPCSTR,
-                                     LPCSTR,
-                                     LPCSTR);
+void UI_ShowMultiplayerCreateMapInfo(LPEDICT);
 
 // p_fdf.c
 void UI_PrintClasses(void);

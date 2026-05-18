@@ -1,5 +1,19 @@
 #include "g_local.h"
 
+void G_SetPlayerText(LPGAMECLIENT client, PLAYERTEXT index, LPCSTR text) {
+    DWORD cursor;
+
+    if (!client || index >= PLAYERTEXT_COUNT) {
+        return;
+    }
+    cursor = ++client->playerTextCursor[index] & PLAYER_TEXT_MASK;
+    snprintf(client->playerTextStorage[index][cursor],
+             sizeof(client->playerTextStorage[index][cursor]),
+             "%s",
+             text && *text ? text : " ");
+    client->ps.texts[index] = client->playerTextStorage[index][cursor];
+}
+
 void G_FreeEdict(LPEDICT ent) {
     gi.UnlinkEntity(ent);
     memset(ent, 0, sizeof(*ent));

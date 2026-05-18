@@ -652,16 +652,15 @@ void CMD_ListSelect(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
 
     rowIndex = (DWORD)strtoul(argv[2], NULL, 10);
     itemCount = G_CollectMapList(items, MAX_MAP_LIST_ITEMS);
-    if (rowIndex >= itemCount || rowIndex >= MAX_LIST_FETCH_ROWS) {
-        UI_ShowMultiplayerCreateMapInfo(ent, NULL, NULL, NULL, NULL, NULL);
-        return;
-    }
+    item = (rowIndex < itemCount && rowIndex < MAX_LIST_FETCH_ROWS) ? &items[rowIndex] : NULL;
 
-    item = &items[rowIndex];
-    UI_ShowMultiplayerCreateMapInfo(ent,
-                                    item->name,
-                                    item->suggestedPlayers,
-                                    item->mapSize,
-                                    item->tileset,
-                                    item->description);
+    G_SetPlayerText(ent->client, PLAYERTEXT_MAP_TITLE, item ? item->name : " ");
+    G_SetPlayerText(ent->client, PLAYERTEXT_MAP_SUGGESTED_PLAYERS,
+                    item ? item->suggestedPlayers : UI_GetString("UNKNOWNMAP_SUGGESTEDPLAYERS"));
+    G_SetPlayerText(ent->client, PLAYERTEXT_MAP_SIZE,
+                    item ? item->mapSize : UI_GetString("UNKNOWNMAP_MAPSIZE"));
+    G_SetPlayerText(ent->client, PLAYERTEXT_MAP_TILESET,
+                    item ? item->tileset : UI_GetString("UNKNOWNMAP_TILESET"));
+    G_SetPlayerText(ent->client, PLAYERTEXT_MAP_DESCRIPTION,
+                    item ? item->description : UI_GetString("UNKNOWNMAP_DESCRIPTION"));
 }

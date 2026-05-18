@@ -393,12 +393,15 @@ static void UI_InitMapInfoText(LPFRAMEDEF text,
     UI_SetText(text, "%s", value ? value : "");
 }
 
-void UI_ShowMultiplayerCreateMapInfo(LPEDICT ent,
-                                     LPCSTR name,
-                                     LPCSTR suggestedPlayers,
-                                     LPCSTR mapSize,
-                                     LPCSTR tileset,
-                                     LPCSTR description)
+static void UI_SetDefaultCreateMapInfoText(LPGAMECLIENT client) {
+    G_SetPlayerText(client, PLAYERTEXT_MAP_TITLE, " ");
+    G_SetPlayerText(client, PLAYERTEXT_MAP_SUGGESTED_PLAYERS, UI_GetString("UNKNOWNMAP_SUGGESTEDPLAYERS"));
+    G_SetPlayerText(client, PLAYERTEXT_MAP_SIZE, UI_GetString("UNKNOWNMAP_MAPSIZE"));
+    G_SetPlayerText(client, PLAYERTEXT_MAP_TILESET, UI_GetString("UNKNOWNMAP_TILESET"));
+    G_SetPlayerText(client, PLAYERTEXT_MAP_DESCRIPTION, UI_GetString("UNKNOWNMAP_DESCRIPTION"));
+}
+
+void UI_ShowMultiplayerCreateMapInfo(LPEDICT ent)
 {
     FRAMEDEF root;
     FRAMEDEF title;
@@ -416,50 +419,41 @@ void UI_ShowMultiplayerCreateMapInfo(LPEDICT ent,
     UI_SetSize(&root, 0.271875f, 0.323125f);
     UI_SetPoint(&root, FRAMEPOINT_TOP, NULL, FRAMEPOINT_TOPRIGHT, -0.180625f, -0.0375f);
 
-    UI_InitMapInfoText(&title,
-                       "CreateGameMapTitle",
-                       &root,
-                       "StandardTitleTextTemplate",
-                       FRAMEPOINT_TOP,
-                       &root,
-                       FRAMEPOINT_TOP,
-                       0.0f,
-                       -0.003f,
-                       0.245f,
-                       0.026f,
-                       name && *name ? name : " ");
+    UI_InitMapInfoText(&title, "CreateGameMapTitle", &root, "StandardTitleTextTemplate",
+                       FRAMEPOINT_TOP, &root, FRAMEPOINT_TOP, 0.0f, -0.003f, 0.245f, 0.026f, " ");
+    title.Stat = MAX_STATS + PLAYERTEXT_MAP_TITLE;
     title.Font.Justification.Horizontal = FONT_JUSTIFYCENTER;
 
     UI_InitMapInfoText(&suggestedLabel, "CreateGameSuggestedPlayersLabel", &root, "StandardLabelTextTemplate",
-                       FRAMEPOINT_TOPLEFT, &root, FRAMEPOINT_TOPLEFT, 0.012f, -0.145f, 0.112f, 0.016f,
+                       FRAMEPOINT_TOPLEFT, &root, FRAMEPOINT_TOPLEFT, 0.012f, -0.145f, 0.170f, 0.016f,
                        "COLON_SUGGESTED_PLAYERS");
     UI_InitMapInfoText(&suggestedValue, "CreateGameSuggestedPlayersValue", &root, "StandardValueTextTemplate",
-                       FRAMEPOINT_TOPRIGHT, &root, FRAMEPOINT_TOPRIGHT, -0.012f, -0.145f, 0.126f, 0.016f,
-                       suggestedPlayers && *suggestedPlayers ? suggestedPlayers : "UNKNOWNMAP_SUGGESTEDPLAYERS");
+                       FRAMEPOINT_TOPRIGHT, &root, FRAMEPOINT_TOPRIGHT, -0.012f, -0.145f, 0.126f, 0.016f, " ");
+    suggestedValue.Stat = MAX_STATS + PLAYERTEXT_MAP_SUGGESTED_PLAYERS;
     suggestedValue.Font.Justification.Horizontal = FONT_JUSTIFYRIGHT;
 
     UI_InitMapInfoText(&sizeLabel, "CreateGameMapSizeLabel", &root, "StandardLabelTextTemplate",
                        FRAMEPOINT_TOPLEFT, &suggestedLabel, FRAMEPOINT_BOTTOMLEFT, 0.0f, -0.002f, 0.112f, 0.016f,
                        "COLON_MAP_SIZE");
     UI_InitMapInfoText(&sizeValue, "CreateGameMapSizeValue", &root, "StandardValueTextTemplate",
-                       FRAMEPOINT_TOPRIGHT, &suggestedValue, FRAMEPOINT_BOTTOMRIGHT, 0.0f, -0.002f, 0.126f, 0.016f,
-                       mapSize && *mapSize ? mapSize : "UNKNOWNMAP_MAPSIZE");
+                       FRAMEPOINT_TOPRIGHT, &suggestedValue, FRAMEPOINT_BOTTOMRIGHT, 0.0f, -0.002f, 0.126f, 0.016f, " ");
+    sizeValue.Stat = MAX_STATS + PLAYERTEXT_MAP_SIZE;
     sizeValue.Font.Justification.Horizontal = FONT_JUSTIFYRIGHT;
 
     UI_InitMapInfoText(&tilesetLabel, "CreateGameTilesetLabel", &root, "StandardLabelTextTemplate",
                        FRAMEPOINT_TOPLEFT, &sizeLabel, FRAMEPOINT_BOTTOMLEFT, 0.0f, -0.002f, 0.112f, 0.016f,
                        "COLON_TILESET");
     UI_InitMapInfoText(&tilesetValue, "CreateGameTilesetValue", &root, "StandardValueTextTemplate",
-                       FRAMEPOINT_TOPRIGHT, &sizeValue, FRAMEPOINT_BOTTOMRIGHT, 0.0f, -0.002f, 0.126f, 0.016f,
-                       tileset && *tileset ? tileset : "UNKNOWNMAP_TILESET");
+                       FRAMEPOINT_TOPRIGHT, &sizeValue, FRAMEPOINT_BOTTOMRIGHT, 0.0f, -0.002f, 0.126f, 0.016f, " ");
+    tilesetValue.Stat = MAX_STATS + PLAYERTEXT_MAP_TILESET;
     tilesetValue.Font.Justification.Horizontal = FONT_JUSTIFYRIGHT;
 
     UI_InitMapInfoText(&descriptionLabel, "CreateGameMapDescriptionLabel", &root, "StandardLabelTextTemplate",
                        FRAMEPOINT_TOPLEFT, &tilesetLabel, FRAMEPOINT_BOTTOMLEFT, 0.0f, -0.018f, 0.20f, 0.016f,
                        "COLON_MAP_DESC");
     UI_InitMapInfoText(&descriptionValue, "CreateGameMapDescriptionValue", &root, "StandardSmallTextTemplate",
-                       FRAMEPOINT_TOPLEFT, &descriptionLabel, FRAMEPOINT_BOTTOMLEFT, 0.0f, -0.002f, 0.245f, 0.080f,
-                       description && *description ? description : "UNKNOWNMAP_DESCRIPTION");
+                       FRAMEPOINT_TOPLEFT, &descriptionLabel, FRAMEPOINT_BOTTOMLEFT, 0.0f, -0.002f, 0.245f, 0.080f, " ");
+    descriptionValue.Stat = MAX_STATS + PLAYERTEXT_MAP_DESCRIPTION;
     descriptionValue.Font.Justification.Vertical = FONT_JUSTIFYTOP;
 
     UI_WriteStart(LAYER_INFOPANEL);
@@ -699,8 +693,9 @@ void UI_ShowMultiplayerMenu(LPEDICT ent) {
 void UI_ShowMultiplayerCreateMenu(LPEDICT ent) {
     UI_FRAME(LocalMultiplayerCreate);
     UI_PrepareMenuFrameState(LocalMultiplayerCreate, false);
+    UI_SetDefaultCreateMapInfoText(ent ? ent->client : NULL);
     UI_WriteMenuWithMainFrameAnimation(ent, LocalMultiplayerCreate, "BattlenetCustomCreate");
-    UI_ShowMultiplayerCreateMapInfo(ent, NULL, NULL, NULL, NULL, NULL);
+    UI_ShowMultiplayerCreateMapInfo(ent);
 }
 
 void UI_ShowGameInterface(LPEDICT ent) {

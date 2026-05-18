@@ -244,6 +244,50 @@ static void test_delta_roundtrip_preserves_text_fields(void) {
     ASSERT_EQ_INT((int)typedata_size, (int)sizeof(uiLabel_t));
 }
 
+static void write_then_read_delta_player(const PLAYER *from,
+                                         const PLAYER *to,
+                                         PLAYER *decoded)
+{
+    BYTE msgdata[4096] = {0};
+    sizeBuf_t msg = {0};
+    sizeBuf_t rd = {0};
+    DWORD bits = 0;
+    int number = 0;
+
+    msg.data = msgdata;
+    msg.maxsize = sizeof(msgdata);
+
+    MSG_WriteDeltaPlayerState(&msg, from, to);
+
+    rd.data = msgdata;
+    rd.cursize = msg.cursize;
+
+    number = MSG_ReadEntityBits(&rd, &bits);
+    MSG_ReadDeltaPlayerState(&rd, decoded, number, bits);
+}
+
+static void test_player_text_delta_roundtrip_updates_dynamic_text(void) {
+    GAMECLIENT client;
+    PLAYER base;
+    PLAYER previous;
+    PLAYER decoded;
+
+    memset(&client, 0, sizeof(client));
+    memset(&base, 0, sizeof(base));
+    memset(&decoded, 0, sizeof(decoded));
+
+    G_SetPlayerText(&client, PLAYERTEXT_MAP_TITLE, "First Map");
+    write_then_read_delta_player(&base, &client.ps, &decoded);
+    ASSERT_STR_EQ(decoded.texts[PLAYERTEXT_MAP_TITLE], "First Map");
+
+    previous = client.ps;
+    G_SetPlayerText(&client, PLAYERTEXT_MAP_TITLE, "Second Map");
+    ASSERT(previous.texts[PLAYERTEXT_MAP_TITLE] != client.ps.texts[PLAYERTEXT_MAP_TITLE]);
+
+    write_then_read_delta_player(&previous, &client.ps, &decoded);
+    ASSERT_STR_EQ(decoded.texts[PLAYERTEXT_MAP_TITLE], "Second Map");
+}
+
 static void test_delta_roundtrip_preserves_backdrop_typedata(void) {
     FRAMEDEF frame;
     uiFrame_t base;
@@ -504,6 +548,7 @@ BEGIN_SUITE(ui_serialize)
     RUN_TEST(test_build_frame_preserves_type_specific_alpha_mode);
     RUN_TEST(test_build_frame_scales_offsets_to_ui_framepoint_int16);
     RUN_TEST(test_delta_roundtrip_preserves_text_fields);
+    RUN_TEST(test_player_text_delta_roundtrip_updates_dynamic_text);
     RUN_TEST(test_delta_roundtrip_preserves_backdrop_typedata);
     RUN_TEST(test_build_frame_sets_uv_bytes_from_texcoord);
     RUN_TEST(test_collect_tree_and_build_frame_numbering_is_stable);
