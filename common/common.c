@@ -3,6 +3,15 @@
 #include "mpq.h"
 #include <stdlib.h>
 
+#ifdef _WIN32
+#include <io.h>
+#else
+#include <dirent.h>
+#include <strings.h>
+#endif
+
+#include <sys/stat.h>
+
 #define MAXPRINTMSG 4096
 
 const LPCSTR WarcraftSheets[] = {
@@ -48,10 +57,23 @@ const LPCSTR WarcraftSheets[] = {
 };
 
 #define MAX_ARCHIVES 64
+#define MAX_GAME_DIRS 16
 
 static HANDLE archives[MAX_ARCHIVES] = { 0 };
+static PATHSTR archiveNames[MAX_ARCHIVES];
+static PATHSTR gameDirs[MAX_GAME_DIRS];
+
+typedef void (*fsDiskEntryFunc_t)(LPCSTR name, LPCSTR path, BOOL isDirectory, BOOL isFile, void *userData);
 
 HANDLE FS_AddArchive(LPCSTR filename) {
+    if (!filename || !*filename) {
+        return NULL;
+    }
+    FOR_LOOP(i, MAX_ARCHIVES) {
+        if (archives[i] && !strcasecmp(archiveNames[i], filename)) {
+            return archives[i];
+        }
+    }
     FOR_LOOP(i, MAX_ARCHIVES) {
         if (archives[i])
             continue;
@@ -59,11 +81,219 @@ HANDLE FS_AddArchive(LPCSTR filename) {
         if (!archives[i]) {
             fprintf(stderr, "Can't add archive %s\n", filename);
         } else {
+            snprintf(archiveNames[i], sizeof(archiveNames[i]), "%s", filename);
             fprintf(stderr, "Added archive '%s'.\n", filename);
         }
         return archives[i];
     }
     return NULL;
+}
+
+static BOOL FS_StatPath(LPCSTR filename, BOOL *isDirectory, BOOL *isFile) {
+#ifdef _WIN32
+    struct _stat st;
+
+    if (!filename || !*filename) {
+        return false;
+    }
+    if (_stat(filename, &st) != 0) {
+        return false;
+    }
+#else
+    struct stat st;
+
+    if (!filename || !*filename) {
+        return false;
+    }
+    if (stat(filename, &st) != 0) {
+        return false;
+    }
+#endif
+    if (isDirectory) {
+#ifdef _WIN32
+        *isDirectory = (st.st_mode & _S_IFDIR) != 0;
+#else
+        *isDirectory = S_ISDIR(st.st_mode);
+#endif
+    }
+    if (isFile) {
+#ifdef _WIN32
+        *isFile = (st.st_mode & _S_IFREG) != 0;
+#else
+        *isFile = S_ISREG(st.st_mode);
+#endif
+    }
+    return true;
+}
+
+static BOOL FS_DirectoryExists(LPCSTR filename) {
+    BOOL isDirectory = false;
+
+    return FS_StatPath(filename, &isDirectory, NULL) && isDirectory;
+}
+
+static BOOL FS_FileOnDiskExists(LPCSTR filename) {
+    BOOL isFile = false;
+
+    return FS_StatPath(filename, NULL, &isFile) && isFile;
+}
+
+static BOOL FS_HasExtension(LPCSTR filename, LPCSTR extension) {
+    size_t filenameLen;
+    size_t extensionLen;
+
+    if (!filename || !extension) {
+        return false;
+    }
+    filenameLen = strlen(filename);
+    extensionLen = strlen(extension);
+    if (filenameLen < extensionLen) {
+        return false;
+    }
+    return !strcasecmp(filename + filenameLen - extensionLen, extension);
+}
+
+static void FS_MakeDiskPath(LPCSTR root, LPCSTR filename, LPSTR out, DWORD out_size) {
+    DWORD len;
+
+    if (!out || out_size == 0) {
+        return;
+    }
+    out[0] = '\0';
+    if (!root || !filename) {
+        return;
+    }
+    snprintf(out, out_size, "%s/%s", root, filename);
+    len = (DWORD)strlen(root);
+    for (LPSTR p = out + len; *p; p++) {
+        if (*p == '\\') {
+            *p = '/';
+        }
+    }
+}
+
+static void FS_ForEachDiskEntry(LPCSTR dirname, fsDiskEntryFunc_t func, void *userData) {
+    if (!dirname || !*dirname || !func) {
+        return;
+    }
+
+#ifdef _WIN32
+    char pattern[MAX_PATHLEN * 2];
+    struct _finddata_t entry;
+    intptr_t handle;
+
+    snprintf(pattern, sizeof(pattern), "%s/*", dirname);
+    handle = _findfirst(pattern, &entry);
+    if (handle == -1) {
+        return;
+    }
+    do {
+        char path[MAX_PATHLEN * 2];
+        BOOL isDirectory;
+
+        if (!strcmp(entry.name, ".") || !strcmp(entry.name, "..")) {
+            continue;
+        }
+        FS_MakeDiskPath(dirname, entry.name, path, sizeof(path));
+        isDirectory = (entry.attrib & _A_SUBDIR) != 0;
+        func(entry.name, path, isDirectory, !isDirectory, userData);
+    } while (_findnext(handle, &entry) == 0);
+    _findclose(handle);
+#else
+    DIR *dir = opendir(dirname);
+    struct dirent *entry;
+
+    if (!dir) {
+        return;
+    }
+    while ((entry = readdir(dir)) != NULL) {
+        char path[MAX_PATHLEN * 2];
+        BOOL isDirectory = false;
+        BOOL isFile = false;
+
+        if (!strcmp(entry->d_name, ".") || !strcmp(entry->d_name, "..")) {
+            continue;
+        }
+        FS_MakeDiskPath(dirname, entry->d_name, path, sizeof(path));
+        if (!FS_StatPath(path, &isDirectory, &isFile)) {
+            continue;
+        }
+        func(entry->d_name, path, isDirectory, isFile, userData);
+    }
+    closedir(dir);
+#endif
+}
+
+static void FS_AddGameDirectory(LPCSTR dirname) {
+    char mapsDir[MAX_PATHLEN * 2];
+
+    if (!dirname || !*dirname) {
+        return;
+    }
+    snprintf(mapsDir, sizeof(mapsDir), "%s/Maps", dirname);
+    if (!FS_DirectoryExists(mapsDir)) {
+        return;
+    }
+    FOR_LOOP(i, MAX_GAME_DIRS) {
+        if (gameDirs[i][0] && !strcasecmp(gameDirs[i], dirname)) {
+            return;
+        }
+    }
+    FOR_LOOP(i, MAX_GAME_DIRS) {
+        if (gameDirs[i][0]) {
+            continue;
+        }
+        snprintf(gameDirs[i], sizeof(gameDirs[i]), "%s", dirname);
+        fprintf(stderr, "Added game directory '%s'.\n", dirname);
+        return;
+    }
+}
+
+static int FS_ComparePaths(const void *a, const void *b) {
+    PATHSTR const *pa = a;
+    PATHSTR const *pb = b;
+
+    return strcasecmp(*pa, *pb);
+}
+
+typedef struct {
+    PATHSTR *paths;
+    DWORD maxPaths;
+    DWORD count;
+} fsArchiveScan_t;
+
+static void FS_AddArchiveScanEntry(LPCSTR name, LPCSTR path, BOOL isDirectory, BOOL isFile, void *userData) {
+    fsArchiveScan_t *scan = userData;
+
+    (void)isDirectory;
+    if (!scan || !isFile || scan->count >= scan->maxPaths) {
+        return;
+    }
+    if (!FS_HasExtension(name, ".mpq")) {
+        return;
+    }
+    snprintf(scan->paths[scan->count++], sizeof(PATHSTR), "%s", path);
+}
+
+BOOL FS_AddDataDirectory(LPCSTR dirname) {
+    PATHSTR archivePaths[MAX_ARCHIVES];
+    fsArchiveScan_t scan = { archivePaths, MAX_ARCHIVES, 0 };
+    DWORD mountedCount = 0;
+
+    if (!FS_DirectoryExists(dirname)) {
+        return false;
+    }
+
+    FS_AddGameDirectory(dirname);
+    FS_ForEachDiskEntry(dirname, FS_AddArchiveScanEntry, &scan);
+
+    qsort(archivePaths, scan.count, sizeof(archivePaths[0]), FS_ComparePaths);
+    FOR_LOOP(i, scan.count) {
+        if (FS_AddArchive(archivePaths[i])) {
+            mountedCount++;
+        }
+    }
+    return mountedCount > 0;
 }
 
 #if 0
@@ -120,7 +350,78 @@ typedef struct fsFind_s {
     DWORD archiveIndex;
     HANDLE current;
     PATHSTR mask;
+    PATHSTR *looseFiles;
+    DWORD looseCount;
+    DWORD looseIndex;
 } fsFind_t;
+
+static BOOL FS_FindFilenameMatches(LPCSTR filename, LPCSTR mask) {
+    size_t mask_len;
+
+    if (!mask || !mask[0] || !strcmp(mask, "*")) {
+        return true;
+    }
+    mask_len = strlen(mask);
+    if (mask_len > 0 && mask[mask_len - 1] == '*') {
+        return !strncasecmp(filename, mask, mask_len - 1);
+    }
+    return !strcasecmp(filename, mask);
+}
+
+static BOOL FS_FindAppendLoose(fsFind_t *find, LPCSTR name) {
+    PATHSTR *next;
+
+    if (!find || !name || !*name) {
+        return false;
+    }
+    next = realloc(find->looseFiles, (find->looseCount + 1) * sizeof(*next));
+    if (!next) {
+        return false;
+    }
+    find->looseFiles = next;
+    snprintf(find->looseFiles[find->looseCount++], sizeof(PATHSTR), "%s", name);
+    return true;
+}
+
+typedef struct {
+    fsFind_t *find;
+    LPCSTR root;
+    LPCSTR rel;
+} fsLooseCollect_t;
+
+static void FS_FindCollectLooseDir(fsFind_t *find, LPCSTR root, LPCSTR rel);
+
+static void FS_FindCollectLooseEntry(LPCSTR name, LPCSTR path, BOOL isDirectory, BOOL isFile, void *userData) {
+    fsLooseCollect_t *collect = userData;
+    char childRel[MAX_PATHLEN * 2];
+
+    (void)path;
+    if (!collect || !collect->find || !name || !*name) {
+        return;
+    }
+    snprintf(childRel,
+             sizeof(childRel),
+             "%s%s%s",
+             collect->rel,
+             *collect->rel ? "\\" : "",
+             name);
+    if (isDirectory) {
+        FS_FindCollectLooseDir(collect->find, collect->root, childRel);
+    } else if (isFile && FS_FindFilenameMatches(childRel, collect->find->mask)) {
+        FS_FindAppendLoose(collect->find, childRel);
+    }
+}
+
+static void FS_FindCollectLooseDir(fsFind_t *find, LPCSTR root, LPCSTR rel) {
+    char path[MAX_PATHLEN * 2];
+    fsLooseCollect_t collect = { find, root, rel };
+
+    if (!find || !root || !rel) {
+        return;
+    }
+    FS_MakeDiskPath(root, rel, path, sizeof(path));
+    FS_ForEachDiskEntry(path, FS_FindCollectLooseEntry, &collect);
+}
 
 HANDLE FS_OpenFile(LPCSTR fileName) {
     while (filelock) {
@@ -146,9 +447,65 @@ bool FS_FileExists(LPCSTR fileName) {
     if (file) {
         FS_CloseFile(file);
         return true;
-    } else {
-        return false;
     }
+    FOR_LOOP(i, MAX_GAME_DIRS) {
+        char path[MAX_PATHLEN * 2];
+
+        if (!gameDirs[i][0]) {
+            continue;
+        }
+        FS_MakeDiskPath(gameDirs[i], fileName, path, sizeof(path));
+        if (FS_FileOnDiskExists(path)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+HANDLE FS_ReadLooseFile(LPCSTR filename, LPDWORD size, DWORD extraBytes) {
+    FOR_LOOP(i, MAX_GAME_DIRS) {
+        char path[MAX_PATHLEN * 2];
+        FILE *file;
+        long fileSize;
+        LPBYTE buffer;
+
+        if (!gameDirs[i][0]) {
+            continue;
+        }
+        FS_MakeDiskPath(gameDirs[i], filename, path, sizeof(path));
+        file = fopen(path, "rb");
+        if (!file) {
+            continue;
+        }
+        if (fseek(file, 0, SEEK_END) != 0) {
+            fclose(file);
+            continue;
+        }
+        fileSize = ftell(file);
+        if (fileSize < 0 || fseek(file, 0, SEEK_SET) != 0) {
+            fclose(file);
+            continue;
+        }
+        buffer = MemAlloc(fileSize + extraBytes);
+        if (!buffer) {
+            fclose(file);
+            return NULL;
+        }
+        if (fileSize > 0 && fread(buffer, 1, fileSize, file) != (size_t)fileSize) {
+            MemFree(buffer);
+            fclose(file);
+            return NULL;
+        }
+        fclose(file);
+        if (extraBytes > 0) {
+            memset(buffer + fileSize, 0, extraBytes);
+        }
+        if (size) {
+            *size = (DWORD)fileSize;
+        }
+        return buffer;
+    }
+    return NULL;
 }
 
 void FS_CloseFile(HANDLE file) {
@@ -157,6 +514,14 @@ void FS_CloseFile(HANDLE file) {
 }
 
 static BOOL FS_FindAdvance(fsFind_t *find, SFILE_FIND_DATA *findData) {
+    if (find && findData && find->looseIndex < find->looseCount) {
+        LPCSTR name = find->looseFiles[find->looseIndex++];
+
+        memset(findData, 0, sizeof(*findData));
+        snprintf(findData->cFileName, sizeof(findData->cFileName), "%s", name);
+        findData->szPlainName = findData->cFileName;
+        return true;
+    }
     while (find && find->archiveIndex < MAX_ARCHIVES) {
         if (find->current && SFileFindNextFile(find->current, findData)) {
             return true;
@@ -197,6 +562,12 @@ HANDLE FS_FindFirstFile(LPCSTR mask, SFILE_FIND_DATA *findData) {
         return NULL;
     }
     snprintf(find->mask, sizeof(find->mask), "%s", mask);
+    LPCSTR looseRoot = (!strncasecmp(mask, "Maps\\", 5) || !strncasecmp(mask, "Maps/", 5)) ? "Maps" : "";
+    FOR_LOOP(i, MAX_GAME_DIRS) {
+        if (gameDirs[i][0]) {
+            FS_FindCollectLooseDir(find, gameDirs[i], looseRoot);
+        }
+    }
     find->archiveIndex = 0;
     while (find->archiveIndex < MAX_ARCHIVES && !archives[find->archiveIndex]) {
         find->archiveIndex++;
@@ -226,6 +597,7 @@ BOOL FS_FindClose(HANDLE handle) {
         if (find->current) {
             SFileFindClose(find->current);
         }
+        free(find->looseFiles);
         free(find);
     }
     filelock = false;
@@ -302,6 +674,11 @@ void FS_Init(void) {
 void FS_Shutdown(void) {
     FOR_LOOP(i, MAX_ARCHIVES) {
         SFileCloseArchive(archives[i]);
+        archives[i] = NULL;
+        archiveNames[i][0] = '\0';
+    }
+    FOR_LOOP(i, MAX_GAME_DIRS) {
+        gameDirs[i][0] = '\0';
     }
 }
 

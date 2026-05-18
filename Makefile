@@ -1,6 +1,6 @@
-# MPQ      := /Users/igor/Documents/Warcraft3/war3.mpq
-MPQ      := data/Warcraft\ III/War3.mpq
-DEMO     := data/Warcraft3demo/war3.mpq
+WC3DATA  := data/Warcraft\ III
+DEMODATA := data/Warcraft3demo
+MPQ      := $(WC3DATA)/War3.mpq
 MAP      := Maps\\Campaign\\Human02.w3m
 
 ZIP_URL  := https://archive.org/download/warcraft-iii-installer-enus/Warcraft-III-1.29.2-enUS.zip
@@ -88,13 +88,13 @@ openwarcraft3: $(BINARY)
 tools:       $(TOOL_BINS)
 $(TOOL_NAMES): %: $(BIN_DIR)/%$(EXE_EXT)
 run:
-	$(BINARY) -mpq=$(MPQ)
+	$(BINARY) -data=$(WC3DATA)
 
 run-demo:
-	$(BINARY) -mpq=$(DEMO)
+	$(BINARY) -data=$(DEMODATA)
 
 run-map:
-	$(BINARY) -mpq=$(MPQ) -map=$(MAP)
+	$(BINARY) -data=$(WC3DATA) -map=$(MAP)
 
 diag: clean
 	$(MAKE) DIAG_OUTPUT=1 build

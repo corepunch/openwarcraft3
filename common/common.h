@@ -114,8 +114,11 @@ void FS_Shutdown(void);
 void Com_Quit(void);
 void Sys_Quit(void);
 
+HANDLE FS_AddArchive(LPCSTR filename);
+BOOL FS_AddDataDirectory(LPCSTR dirname);
 HANDLE FS_OpenFile(LPCSTR fileName);
 void FS_CloseFile(HANDLE file);
+HANDLE FS_ReadLooseFile(LPCSTR filename, LPDWORD size, DWORD extraBytes);
 bool FS_ExtractFile(LPCSTR toExtract, LPCSTR extracted);
 bool FS_FileExists(LPCSTR fileName);
 HANDLE FS_ReadFile(LPCSTR filename, LPDWORD size);

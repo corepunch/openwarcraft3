@@ -1,6 +1,8 @@
 #include "g_local.h"
 
+#ifndef _WIN32
 #include <strings.h>
+#endif
 
 typedef struct {
     PATHSTR path;
@@ -17,6 +19,8 @@ typedef struct {
 
 static void G_SanitizeListField(LPSTR text);
 
+#define MAX_MAP_LIST_ITEMS 256
+
 static BOOL G_IsMapFile(LPCSTR name) {
     size_t len;
 
@@ -29,6 +33,13 @@ static BOOL G_IsMapFile(LPCSTR name) {
     }
     return !strcasecmp(name + len - 4, ".w3m") ||
            !strcasecmp(name + len - 4, ".w3x");
+}
+
+static BOOL G_IsCampaignMap(LPCSTR name) {
+    return name && (!strncasecmp(name, "Maps\\Campaign\\", 14) ||
+                    !strncasecmp(name, "Maps/FrozenThrone/Campaign/", 26) ||
+                    !strncasecmp(name, "Maps\\FrozenThrone\\Campaign\\", 26) ||
+                    !strncasecmp(name, "Maps/Campaign/", 14));
 }
 
 static BOOL G_MapRead(mapReader_t *reader, void *out, DWORD size) {
@@ -298,7 +309,7 @@ static BOOL G_ReadArchiveFile(HANDLE archive, LPCSTR name, LPBYTE *out, LPDWORD 
     return true;
 }
 
-static BOOL G_ParseMapInfo(LPCSTR path, mapListItem_t *item) {
+static BOOL G_ParseMapInfo(mapListItem_t *item) {
     HANDLE mapData;
     DWORD mapSize = 0;
     HANDLE archive;
@@ -314,12 +325,12 @@ static BOOL G_ParseMapInfo(LPCSTR path, mapListItem_t *item) {
     DWORD version = 0;
     DWORD playerCount = 0;
 
-    if (!path || !item || !gi.ReadFile || !gi.MemFree ||
+    if (!item || !gi.ReadFile || !gi.MemFree ||
         !gi.OpenArchiveFromMemory || !gi.CloseArchive) {
         return false;
     }
 
-    mapData = gi.ReadFile(path, &mapSize);
+    mapData = gi.ReadFile(item->path, &mapSize);
     if (!mapData || mapSize == 0) {
         return false;
     }
@@ -450,10 +461,31 @@ static void G_ListAppendRow(LPSTR text, DWORD text_size, DWORD *numRows, LPCSTR 
     (*numRows)++;
 }
 
+static BOOL G_AddMapListItem(mapListItem_t *items,
+                             DWORD *itemCount,
+                             LPCSTR path)
+{
+    if (!items || !itemCount || !path || !*path || *itemCount >= MAX_MAP_LIST_ITEMS) {
+        return false;
+    }
+    FOR_LOOP(i, *itemCount) {
+        if (!strcasecmp(items[i].path, path)) {
+            return false;
+        }
+    }
+
+    mapListItem_t *item = &items[(*itemCount)++];
+    memset(item, 0, sizeof(*item));
+    snprintf(item->path, sizeof(item->path), "%s", path);
+    snprintf(item->name, sizeof(item->name), "%s", path);
+    return true;
+}
+
 static void G_ListMaps(LPSTR text, DWORD text_size) {
     SFILE_FIND_DATA find;
     HANDLE handle;
-    mapListItem_t items[MAX_LIST_FETCH_ROWS];
+    mapListItem_t items[MAX_MAP_LIST_ITEMS];
+    DWORD itemCount = 0;
     DWORD numRows = 0;
 
     if (!text || text_size == 0) {
@@ -463,22 +495,9 @@ static void G_ListMaps(LPSTR text, DWORD text_size) {
     text[0] = '\0';
     memset(items, 0, sizeof(items));
     handle = gi.FindFirstFile ? gi.FindFirstFile("Maps\\*", &find) : NULL;
-    while (handle && numRows < MAX_LIST_FETCH_ROWS) {
-        if (G_IsMapFile(find.cFileName)) {
-            BOOL duplicate = false;
-
-            FOR_LOOP(i, numRows) {
-                if (!strcmp(items[i].path, find.cFileName)) {
-                    duplicate = true;
-                    break;
-                }
-            }
-            if (!duplicate) {
-                mapListItem_t *item = &items[numRows++];
-
-                snprintf(item->path, sizeof(item->path), "%s", find.cFileName);
-                snprintf(item->name, sizeof(item->name), "%s", find.cFileName);
-            }
+    while (handle && itemCount < MAX_MAP_LIST_ITEMS) {
+        if (G_IsMapFile(find.cFileName) && !G_IsCampaignMap(find.cFileName)) {
+            G_AddMapListItem(items, &itemCount, find.cFileName);
         }
         if (!gi.FindNextFile || !gi.FindNextFile(handle, &find)) {
             break;
@@ -488,11 +507,19 @@ static void G_ListMaps(LPSTR text, DWORD text_size) {
         gi.FindClose(handle);
     }
 
-    DWORD itemCount = numRows;
-
+    DWORD parsedCount = 0;
     FOR_LOOP(i, itemCount) {
-        G_ParseMapInfo(items[i].path, &items[i]);
+        BOOL parsed = G_ParseMapInfo(&items[i]);
+
+        if (!parsed) {
+            continue;
+        }
+        if (parsedCount != i) {
+            items[parsedCount] = items[i];
+        }
+        parsedCount++;
     }
+    itemCount = parsedCount;
     qsort(items, itemCount, sizeof(items[0]), G_CompareMapListItems);
     numRows = 0;
     FOR_LOOP(i, itemCount) {

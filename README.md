@@ -1,6 +1,6 @@
 <img width="647" height="88" alt="OpenWarcraft3 logo" src="doc/images/logo.jpg" />
 
-**OpenWarcraft3** is an open-source implementation of Warcraft III that uses SDL2 and runs on Linux and macOS.
+**OpenWarcraft3** is an open-source implementation of Warcraft III that uses SDL2 and runs on Windows, Linux, and macOS.
 
 It was developed using War3.mpq from Warcraft III v1.0 as reference, with ongoing support for version 1.29b.
 
@@ -43,6 +43,10 @@ brew install sdl2
 sudo apt-get install libsdl2-dev
 ```
 
+**Windows**:
+
+Install SDL2 development libraries and build with a C compiler such as MSYS2/MinGW or Visual Studio. The codebase uses platform-specific directory iteration for Windows, Linux, and macOS when mounting data folders.
+
 ### 3. Build
 
 ```bash
@@ -62,7 +66,15 @@ Viewer tools are also built into `build/bin/`:
 make run
 ```
 
-Runs `openwarcraft3` from `build/bin/` using the MPQ path configured in the Makefile.
+Runs `openwarcraft3` from `build/bin/` using the data folder configured in the Makefile.
+
+The executable expects a Warcraft III data folder rather than a single archive:
+
+```bash
+build/bin/openwarcraft3 -data="data/Warcraft III"
+```
+
+The data folder is scanned for top-level `.mpq` archives and an optional loose `Maps/` directory. This lets newer installs expose multiplayer maps from the filesystem while older assets can still be loaded from MPQs.
 
 ### (Optional) Download Warcraft III 1.29b assets
 
@@ -70,7 +82,7 @@ Runs `openwarcraft3` from `build/bin/` using the MPQ path configured in the Make
 make download
 ```
 
-Downloads a ~1.2 GB installer from `archive.org` into the `data/` folder. Skip this step if you already have a `War3.mpq` and update the `MPQ` variable in the Makefile to point to it.
+Downloads a ~1.2 GB installer from `archive.org` into the `data/` folder. Skip this step if you already have a Warcraft III installation and update the `WC3DATA` variable in the Makefile to point to that data folder.
 
 ---
 

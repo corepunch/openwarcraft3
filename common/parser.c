@@ -26,8 +26,10 @@ void ParserError(parser_t *p) {
 
 LPSTR FS_ReadFileIntoString(LPCSTR fileName) {
     HANDLE fp = FS_OpenFile(fileName);
-    if (!fp)
-        return NULL;
+    if (!fp) {
+        DWORD fileSize = 0;
+        return FS_ReadLooseFile(fileName, &fileSize, 1);
+    }
     DWORD const fileSize = SFileGetFileSize(fp, NULL);
     LPSTR buffer = MemAlloc(fileSize + 1);
     SFileReadFile(fp, buffer, fileSize, NULL, NULL);
@@ -38,8 +40,9 @@ LPSTR FS_ReadFileIntoString(LPCSTR fileName) {
 
 HANDLE FS_ReadFile(LPCSTR filename, LPDWORD size) {
     HANDLE fp = FS_OpenFile(filename);
-    if (!fp)
-        return NULL;
+    if (!fp) {
+        return FS_ReadLooseFile(filename, size, 0);
+    }
     *size = SFileGetFileSize(fp, NULL);
     LPSTR buffer = MemAlloc(*size);
     SFileReadFile(fp, buffer, *size, NULL, NULL);

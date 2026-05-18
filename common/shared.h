@@ -11,6 +11,11 @@
 
 #include "../shared/shared.h"
 
+#ifdef _WIN32
+#define strcasecmp _stricmp
+#define strncasecmp _strnicmp
+#endif
+
 #define MAX_PATHLEN 256
 #define MAX_SELECTED_ENTITIES 64
 #define TOKEN_LEN 1024

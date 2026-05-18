@@ -32,28 +32,26 @@
 
 #define USAGE \
 "Usage:\n" \
-"  openwarcraft3 -mpq=<path> -map=<map>          (listen server + local client)\n" \
-"  openwarcraft3 -mpq=<path>                    (client menu)\n" \
-"  openwarcraft3 -mpq=<path> -connect=<host>     (remote client, default port " \
+"  openwarcraft3 -data=<folder> -map=<map>       (listen server + local client)\n" \
+"  openwarcraft3 -data=<folder>                 (client menu)\n" \
+"  openwarcraft3 -data=<folder> -connect=<host>  (remote client, default port " \
                                                     __XSTR(PORT_SERVER) ")\n" \
-"  openwarcraft3 -mpq=<path> -connect=<host:port>\n" \
+"  openwarcraft3 -data=<folder> -connect=<host:port>\n" \
 "\n" \
 "Examples:\n" \
-"  openwarcraft3 -mpq=/home/user/War3.mpq -map=Maps\\\\Campaign\\\\Human02.w3m\n" \
-"  openwarcraft3 -mpq=/home/user/War3.mpq -connect=192.168.1.10\n" \
+"  openwarcraft3 -data=/home/user/Warcraft3 -map=Maps\\\\Campaign\\\\Human02.w3m\n" \
+"  openwarcraft3 -data=/home/user/Warcraft3 -connect=192.168.1.10\n" \
 "\n" \
 "Notes:\n" \
-"  - The MPQ path must be an absolute path on your filesystem.\n" \
+"  - The data folder should contain Warcraft III MPQs and optionally Maps/.\n" \
 "  - The map path uses the internal MPQ path format.\n" \
-"  - Remote clients still need the MPQ for asset loading.\n"
+"  - Remote clients still need the game data for asset loading.\n"
 
 #define __XSTR(x) __STR(x)
 #define __STR(x) #x
 
 extern LPTEXTURE Texture;
 void UI_Init(void);
-
-HANDLE FS_AddArchive(LPCSTR);
 
 void Sys_Quit(void) {
     exit(0);
@@ -62,7 +60,7 @@ void Sys_Quit(void) {
 int main(int argc, LPSTR argv[]) {
     LPCSTR map = NULL;
     LPCSTR connect_addr = NULL;
-    BOOL mpq = 0;
+    BOOL data = 0;
 
     fprintf(stderr,
             "\nOpenWarcraft3\n"
@@ -74,12 +72,12 @@ int main(int argc, LPSTR argv[]) {
             OW3_BYTE_ORDER);
 
     for (int i = 0; i < argc; i++) {
-        if (!strncmp(argv[i], "-mpq=", 5)) {
-            if (!FS_AddArchive(argv[i] + 5)) {
-                fprintf(stderr, "Failed to open MPQ archive: %s\n", argv[i] + 5);
+        if (!strncmp(argv[i], "-data=", 6)) {
+            if (!FS_AddDataDirectory(argv[i] + 6)) {
+                fprintf(stderr, "Failed to add data directory: %s\n", argv[i] + 6);
                 return 1;
             }
-            mpq = 1;
+            data = 1;
         }
         if (!strncmp(argv[i], "-map=", 5)) {
             map = argv[i] + 5;
@@ -89,7 +87,7 @@ int main(int argc, LPSTR argv[]) {
         }
     }
 
-    if (!mpq) {
+    if (!data) {
         printf(USAGE);
         return 1;
     }
