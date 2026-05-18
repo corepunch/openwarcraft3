@@ -91,6 +91,7 @@ void CL_ParsePlayerInfo(LPSIZEBUF msg) {
 void CL_ParseLayout(LPSIZEBUF msg) {
     DWORD layer = MSG_ReadByte(msg);
     DWORD payload_size = 0;
+    CL_ListFetchResetLayout(cl.layout[layer]);
     SAFE_DELETE(cl.layout[layer], MemFree);
     DWORD start = msg->readcount;
     while (true) {

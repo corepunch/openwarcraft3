@@ -15,14 +15,40 @@ static DWORD SV_LanPlayerCount(void) {
     return count;
 }
 
+static void SV_LanSanitizeValue(LPCSTR in, LPSTR out, size_t out_size) {
+    size_t write = 0;
+
+    if (!out || out_size == 0) {
+        return;
+    }
+    out[0] = '\0';
+    if (!in) {
+        return;
+    }
+
+    for (; *in && write + 1 < out_size; in++) {
+        char c = *in;
+        if (c == '\\') {
+            c = '/';
+        } else if (c == '\n' || c == '\r') {
+            c = ' ';
+        }
+        out[write++] = c;
+    }
+    out[write] = '\0';
+}
+
 static void SV_LanInfo(const netadr_t *from) {
+    char mapname[80];
+
     if (sv.state != ss_game || !from) {
         return;
     }
+    SV_LanSanitizeValue(sv.configstrings[CS_WORLD], mapname, sizeof(mapname));
     Netchan_OutOfBandPrint(NS_SERVER,
                            *from,
                            "info\n\\hostname\\OpenWarcraft3\\mapname\\%s\\players\\%u\\maxplayers\\%u",
-                           sv.configstrings[CS_WORLD],
+                           mapname,
                            (unsigned)SV_LanPlayerCount(),
                            (unsigned)(ge ? ge->max_clients : MAX_CLIENTS));
 }

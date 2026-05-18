@@ -124,6 +124,7 @@ void CL_ListBoxApplyFetch(HANDLE layout,
                           LPCSTR *text,
                           BOOL *loading,
                           SHORT *selectedIndex);
+void CL_ListFetchResetLayout(HANDLE layout);
 void CON_DrawConsole(void);
 void CON_printf(LPCSTR fmt, ...);
 

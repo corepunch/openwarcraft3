@@ -90,6 +90,28 @@ static void CL_ListFetchStart(listFetchState_t *state, uiListBox_t const *listbo
     MSG_WriteString(&cls.netchan.message, command);
 }
 
+static void CL_ReadListFetchString(LPSIZEBUF msg, LPSTR out, DWORD out_size) {
+    DWORD write = 0;
+
+    if (!msg) {
+        return;
+    }
+
+    for (;;) {
+        int c = MSG_ReadByte(msg);
+        if (c == 0) {
+            break;
+        }
+        if (out && out_size > 0 && write + 1 < out_size) {
+            out[write++] = (char)c;
+        }
+    }
+
+    if (out && out_size > 0) {
+        out[write] = '\0';
+    }
+}
+
 void CL_ParseListFetch(LPSIZEBUF msg) {
     DWORD requestId = (DWORD)MSG_ReadLong(msg);
     listFetchOp_t op = (listFetchOp_t)MSG_ReadByte(msg);
@@ -98,7 +120,7 @@ void CL_ParseListFetch(LPSIZEBUF msg) {
 
     if (!state) {
         if (op == listfetch_add) {
-            MSG_ReadString(msg, text);
+            CL_ReadListFetchString(msg, text, sizeof(text));
         }
         return;
     }
@@ -109,7 +131,7 @@ void CL_ParseListFetch(LPSIZEBUF msg) {
             CL_ListFetchClear(state);
             break;
         case listfetch_add:
-            MSG_ReadString(msg, text);
+            CL_ReadListFetchString(msg, text, sizeof(text));
             CL_ListFetchAdd(state, text);
             state->numRows++;
             break;
@@ -142,4 +164,17 @@ void CL_ListBoxApplyFetch(HANDLE layout,
     *text = state->text;
     *loading = state->loading;
     *selectedIndex = state->selectedIndex;
+}
+
+void CL_ListFetchResetLayout(HANDLE layout) {
+    if (!layout) {
+        return;
+    }
+
+    FOR_LOOP(i, MAX_FETCH_LISTBOXES) {
+        listFetchState_t *state = &fetch_listboxes[i];
+        if (state->inuse && state->layout == layout) {
+            memset(state, 0, sizeof(*state));
+        }
+    }
 }

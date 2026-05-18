@@ -98,10 +98,9 @@ int main(int argc, LPSTR argv[]) {
     cls.key_dest = menu_mode ? key_menu : key_game;
     cls.state = ca_disconnected;
 
-    // Local client/server traffic uses the in-process loopback channel. Only a
-    // remote client needs a UDP socket here; local menu/map servers do not.
-    if (connect_addr && !getenv("OW3_SKIP_NET")) {
-        if (!NET_Init(0)) {
+    if (!getenv("OW3_SKIP_NET")) {
+        unsigned short port = connect_addr ? 0 : PORT_SERVER;
+        if (!NET_Init(port)) {
             fprintf(stderr, "NET_Init failed\n");
             return 1;
         }
