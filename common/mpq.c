@@ -1722,6 +1722,7 @@ BOOL SFileFindNextFile(HANDLE find, SFILE_FIND_DATA *findData)
 {
     MPQ_FIND *mpqfind = (MPQ_FIND *)find;
     const char *name;
+    DWORD block_index;
 
     if (!mpqfind || !findData) {
         return FALSE;
@@ -1736,6 +1737,19 @@ BOOL SFileFindNextFile(HANDLE find, SFILE_FIND_DATA *findData)
     strncpy(findData->cFileName, name, sizeof(findData->cFileName) - 1);
     findData->cFileName[sizeof(findData->cFileName) - 1] = '\0';
     findData->szPlainName = findData->cFileName;
+    if (LookupCachedBlock(mpqfind->archive, name, &block_index) ||
+        FindBlockIndex(mpqfind->archive,
+                       name,
+                       HashString(name, MPQ_HASH_NAME_A),
+                       HashString(name, MPQ_HASH_NAME_B),
+                       &block_index)) {
+        MPQ_BLOCK_ENTRY *block = &mpqfind->archive->blocktable[block_index];
+
+        findData->dwBlockIndex = block_index;
+        findData->dwFileSize = block->dwFileSize;
+        findData->dwCompSize = block->dwBlockSize;
+        findData->dwFileFlags = block->dwFlags;
+    }
     return TRUE;
 }
 

@@ -553,6 +553,12 @@ void SCR_DrawListBox(LPCUIFRAME frame, LPCRECT screen) {
     line = strtok_r(items, "\n", &save);
     while (line && item_y > list_rect.y) {
         RECT row = list_rect;
+        char *display = line;
+        char *hidden = strchr(display, '\t');
+
+        if (hidden) {
+            *hidden = '\0';
+        }
         row.h = MIN(item_height, item_y - list_rect.y);
         row.y = item_y - row.h;
         if (index == selectedIndex) {
@@ -560,7 +566,7 @@ void SCR_DrawListBox(LPCUIFRAME frame, LPCRECT screen) {
         }
         re.DrawText(&MAKE(DRAWTEXT,
                           .font = cl.fonts[listbox->text.font],
-                          .text = line,
+                          .text = display,
                           .color = frame->color.a ? frame->color : COLOR32_WHITE,
                           .halign = FONT_JUSTIFYLEFT,
                           .valign = FONT_JUSTIFYMIDDLE,

@@ -119,7 +119,7 @@ $(SHARED_LIB): $(shell find shared -name '*.c') | $(LIB_DIR)
 		$(CC) $(CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - $(LDFLAGS) -lm
 
 # renderer — depends on shared
-$(RENDERER_LIB): $(SHARED_LIB) $(CLIENT_HEADERS) $(shell find renderer -name '*.c') | $(LIB_DIR)
+$(RENDERER_LIB): $(SHARED_LIB) $(CLIENT_HEADERS) common/mpq.c common/mpq.h $(shell find renderer -name '*.c') | $(LIB_DIR)
 	@echo "[renderer]"
 	@$(call UNITY,renderer) | \
 		$(CC) $(CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - common/mpq.c $(LDFLAGS) -lshared $(LIBS) -lz

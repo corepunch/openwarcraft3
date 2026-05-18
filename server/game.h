@@ -42,6 +42,12 @@ struct game_import {
     HANDLE (*FindFirstFile)(LPCSTR mask, SFILE_FIND_DATA *findData);
     BOOL (*FindNextFile)(HANDLE find, SFILE_FIND_DATA *findData);
     BOOL (*FindClose)(HANDLE find);
+    BOOL (*OpenArchiveFromMemory)(const void *data, DWORD size, DWORD flags, HANDLE *archive);
+    BOOL (*CloseArchive)(HANDLE archive);
+    BOOL (*OpenFileEx)(HANDLE archive, LPCSTR fileName, DWORD searchScope, HANDLE *file);
+    BOOL (*CloseFile)(HANDLE file);
+    BOOL (*ReadArchiveFile)(HANDLE file, void *buffer, DWORD toRead, LPDWORD bytesRead, LPOVERLAPPED overlapped);
+    DWORD (*GetArchiveFileSize)(HANDLE file, LPDWORD highSize);
     DWORD (*GetTime)(void);
     sheetRow_t *(*ReadSheet)(LPCSTR sheetFilename);
     sheetRow_t *(*ReadConfig)(LPCSTR configFilename);

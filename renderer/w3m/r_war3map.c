@@ -138,14 +138,42 @@ LPWAR3MAP FileReadWar3Map(HANDLE archive) {
 
 void R_RegisterMap(char const *mapFilename) {
     HANDLE hMpq;
+    HANDLE file;
+    LPBYTE mapData;
+    DWORD mapSize;
+    DWORD bytesRead = 0;
     LPWAR3MAP map;
-    ri.FileExtract(mapFilename, TMP_MAP);
-    SFileOpenArchive(TMP_MAP, 0, 0, &hMpq);
+
+    file = ri.FileOpen(mapFilename);
+    if (!file) {
+        ri.error("R_RegisterMap: failed to open map %s\n", mapFilename);
+        return;
+    }
+    mapSize = SFileGetFileSize(file, NULL);
+    mapData = ri.MemAlloc(mapSize);
+    if (!mapData) {
+        ri.FileClose(file);
+        ri.error("R_RegisterMap: failed to allocate map %s\n", mapFilename);
+        return;
+    }
+    if (!SFileReadFile(file, mapData, mapSize, &bytesRead, NULL) || bytesRead != mapSize) {
+        ri.MemFree(mapData);
+        ri.FileClose(file);
+        ri.error("R_RegisterMap: failed to read map %s\n", mapFilename);
+        return;
+    }
+    ri.FileClose(file);
+    if (!SFileOpenArchiveFromMemory(mapData, mapSize, 0, &hMpq)) {
+        ri.MemFree(mapData);
+        ri.error("R_RegisterMap: failed to open map archive %s\n", mapFilename);
+        return;
+    }
     map = FileReadWar3Map(hMpq);
 #ifdef USE_SHADOWMAPS
     R_FileReadShadowMap(hMpq, map);
 #endif
     SFileCloseArchive(hMpq);
+    ri.MemFree(mapData);
     tr.world = map;
 
     R_LoadMapSegments(map);

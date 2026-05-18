@@ -26,6 +26,7 @@ static void usage(void) {
         "Usage:\n"
         "  mpqtool -mpq <archive.mpq> ls [path]\n"
         "  mpqtool -mpq <archive.mpq> cat <file>\n"
+        "  mpqtool -mpq <archive.mpq> info <file>\n"
         "  mpqtool -mpq <archive.mpq> imginfo <file>\n"
     "  mpqtool -mpq <archive.mpq> create [max-files]\n"
     "  mpqtool -mpq <archive.mpq> pack <src> <archive-file> [<src> <archive-file> ...]\n"
@@ -37,6 +38,7 @@ static void usage(void) {
         "  mpqtool -mpq War3.mpq ls\n"
         "  mpqtool -mpq War3.mpq ls Units\n"
         "  mpqtool -mpq War3.mpq cat Units/UnitData.slk\n"
+        "  mpqtool -mpq War3.mpq info Maps/Campaign/Human02.w3m\n"
     "  mpqtool -mpq tests.mpq pack ./basic.fdf TestUI/Frames/basic.fdf ./checker.blp TestUI/Textures/checker.blp\n"
     "  mpqtool -mpq War3.mpq imginfo UI/Widgets/Glues/GlueScreen-Button1-Border.blp\n");
 }
@@ -288,6 +290,29 @@ static int cmd_cat(HANDLE archive, const char *file_path) {
     return 0;
 }
 
+static int cmd_info(HANDLE archive, const char *file_path) {
+    SFILE_FIND_DATA fd;
+    HANDLE hfind;
+
+    hfind = SFileFindFirstFile(archive, file_path, &fd, NULL);
+    if (!hfind) {
+        fprintf(stderr, "Cannot find MPQ file: %s\n", file_path);
+        return 1;
+    }
+    SFileFindClose(hfind);
+
+    printf("file=%s\n", fd.cFileName);
+    printf("size=%u\n", (unsigned)fd.dwFileSize);
+    printf("compressed_size=%u\n", (unsigned)fd.dwCompSize);
+    printf("flags=0x%08x\n", (unsigned)fd.dwFileFlags);
+    printf("compressed=%s\n", (fd.dwFileFlags & 0x00000200u) ? "yes" : "no");
+    printf("imploded=%s\n", (fd.dwFileFlags & 0x00000100u) ? "yes" : "no");
+    printf("encrypted=%s\n", (fd.dwFileFlags & 0x00010000u) ? "yes" : "no");
+    printf("single_unit=%s\n", (fd.dwFileFlags & 0x01000000u) ? "yes" : "no");
+    printf("exists=%s\n", (fd.dwFileFlags & 0x80000000u) ? "yes" : "no");
+    return 0;
+}
+
 static int cmd_ls(HANDLE archive, const char *path) {
     SFILE_FIND_DATA fd;
     HANDLE hfind;
@@ -498,6 +523,18 @@ int main(int argc, char **argv) {
         Tool_NormalizeSlashes(path, '\\');
         Tool_TrimEdgeSlashes(path);
         rc = cmd_cat(archive, path);
+    } else if (strcmp(cmd, "info") == 0) {
+        char path[512];
+        if (!arg) {
+            usage();
+            SFileCloseArchive(archive);
+            return 1;
+        }
+        strncpy(path, arg, sizeof(path) - 1);
+        path[sizeof(path) - 1] = '\0';
+        Tool_NormalizeSlashes(path, '\\');
+        Tool_TrimEdgeSlashes(path);
+        rc = cmd_info(archive, path);
     } else if (strcmp(cmd, "imginfo") == 0) {
         char path[512];
         if (!arg) {

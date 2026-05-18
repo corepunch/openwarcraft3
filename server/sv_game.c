@@ -435,6 +435,12 @@ void SV_InitGameProgs(void) {
     import.FindFirstFile = FS_FindFirstFile;
     import.FindNextFile = FS_FindNextFile;
     import.FindClose = FS_FindClose;
+    import.OpenArchiveFromMemory = SFileOpenArchiveFromMemory;
+    import.CloseArchive = SFileCloseArchive;
+    import.OpenFileEx = SFileOpenFileEx;
+    import.CloseFile = SFileCloseFile;
+    import.ReadArchiveFile = SFileReadFile;
+    import.GetArchiveFileSize = SFileGetFileSize;
     import.ExtractFile = FS_ExtractFile;
     import.error = PF_error;
     import.LinkEntity = SV_LinkEntity;

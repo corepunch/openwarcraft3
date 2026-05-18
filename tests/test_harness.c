@@ -145,6 +145,12 @@ static void   mock_JoinThread(DWORD t)                  { (void)t; }
 static void   mock_Sleep(DWORD ms)                      { (void)ms; }
 static LPSTR  mock_ReadFileIntoString(LPCSTR f)         { (void)f; return NULL; }
 static HANDLE mock_ReadFile(LPCSTR f, LPDWORD s)        { (void)f; if (s) *s=0; return NULL; }
+static BOOL   mock_OpenArchiveFromMemory(const void *d, DWORD s, DWORD fl, HANDLE *a) { (void)d; (void)s; (void)fl; if (a) *a = NULL; return false; }
+static BOOL   mock_CloseArchive(HANDLE a)               { (void)a; return false; }
+static BOOL   mock_OpenFileEx(HANDLE a, LPCSTR n, DWORD sc, HANDLE *f) { (void)a; (void)n; (void)sc; if (f) *f = NULL; return false; }
+static BOOL   mock_CloseFile(HANDLE f)                  { (void)f; return false; }
+static BOOL   mock_ReadArchiveFile(HANDLE f, void *b, DWORD r, LPDWORD br, LPOVERLAPPED o) { (void)f; (void)b; (void)r; (void)o; if (br) *br = 0; return false; }
+static DWORD  mock_GetArchiveFileSize(HANDLE f, LPDWORD h) { (void)f; if (h) *h = 0; return 0; }
 static void   mock_TextRemoveComments(LPSTR buffer) {
     BOOL in_single_line_comment = false;
     BOOL in_block_comment = false;
@@ -278,6 +284,12 @@ void setup_game(void) {
     gi.GetHeightAtPoint    = mock_GetHeightAtPoint;
     gi.ReadFileIntoString  = mock_ReadFileIntoString;
     gi.ReadFile            = mock_ReadFile;
+    gi.OpenArchiveFromMemory = mock_OpenArchiveFromMemory;
+    gi.CloseArchive        = mock_CloseArchive;
+    gi.OpenFileEx          = mock_OpenFileEx;
+    gi.CloseFile           = mock_CloseFile;
+    gi.ReadArchiveFile     = mock_ReadArchiveFile;
+    gi.GetArchiveFileSize  = mock_GetArchiveFileSize;
     gi.GetTime             = mock_GetTime;
     gi.ReadSheet           = mock_ReadSheet;
     gi.ReadConfig          = mock_ReadConfig;
