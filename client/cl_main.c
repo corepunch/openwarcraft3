@@ -60,7 +60,6 @@ void CL_ClearState(void) {
 void CL_Init(void) {
     CON_printf("OpenWarcraft3 v0.1");
 
-    fprintf(stderr, "CL_Init: get renderer API\n");
     re = R_GetAPI((refImport_t) {
         .MemAlloc = MemAlloc,
         .MemFree = MemFree,
@@ -72,13 +71,10 @@ void CL_Init(void) {
         .error = CON_printf,
     });
     
-    fprintf(stderr, "CL_Init: renderer init\n");
     re.Init(WINDOW_WIDTH, WINDOW_HEIGHT);
 
-    fprintf(stderr, "CL_Init: netchan init\n");
     SZ_Init(&cls.netchan.message, cls.netchan.message_buf, MAX_MSGLEN);
     
-    fprintf(stderr, "CL_Init: clear state\n");
     CL_ClearState();
 
     Cmd_AddCommand("quit", Com_Quit);
@@ -86,14 +82,11 @@ void CL_Init(void) {
     CL_InitInput();
 
     if (cls.key_dest == key_menu) {
-        fprintf(stderr, "CL_Init: menu bindings\n");
         CL_SetMenuBindings();
         cls.state = ca_connecting;
     } else {
-        fprintf(stderr, "CL_Init: gameplay setup\n");
         CL_SetGameplayBindings();
     }
-    fprintf(stderr, "CL_Init: complete\n");
 }
 
 void CL_ConnectionlessPacket(LPSIZEBUF msg) {

@@ -77,35 +77,25 @@ void SV_DirectConnect(const netadr_t *from) {
     cl->netchan.remote_address = *from;
     SZ_Init(&cl->netchan.message, cl->netchan.message_buf, MAX_MSGLEN);
     Netchan_OutOfBandPrint(NS_SERVER, *from, "client_connect");
-    fprintf(stderr, "SV_DirectConnect: new client from %d.%d.%d.%d:%u\n",
-            from->ip[0], from->ip[1], from->ip[2], from->ip[3],
-            ntohs(from->port));
 }
 
 void SV_Map(LPCSTR mapFilename) {
-    fprintf(stderr, "SV_Map: begin %s\n", mapFilename);
     SV_InitGame();
     memset(&sv, 0, sizeof(struct server));
     sv.state = ss_loading;
     strcpy(sv.configstrings[CS_WORLD], mapFilename);
     SZ_Init(&sv.multicast, sv.multicast_buf, MAX_MSGLEN);
-    fprintf(stderr, "SV_Map: loading collision/map data\n");
     if (!CM_LoadMap(mapFilename)) {
         fprintf(stderr, "SV_Map: map load failed\n");
         sv.state = ss_dead;
         return;
     }
-    fprintf(stderr, "SV_Map: collision/map data loaded\n");
     SV_ClearWorld();
-    fprintf(stderr, "SV_Map: building baseline\n");
     SV_CreateBaseline();
-    fprintf(stderr, "SV_Map: spawning entities\n");
     ge->SpawnEntities(CM_GetMapInfo(), CM_GetDoodads());
-    fprintf(stderr, "SV_Map: spawn complete\n");
     sv.state = ss_game;
     // Register slot 0 as the local (loopback) client now that the map is ready
     SV_ClientConnect();
-    fprintf(stderr, "SV_Map: local client connected\n");
 }
 
 void SV_InitGame(void) {

@@ -249,9 +249,7 @@ LPCSTR modelNames[MODEL_COUNT] = {
 
 void R_Init(DWORD width, DWORD height) {
     renderer_shutdown = false;
-    fprintf(stderr, "R_Init: SDL_Init\n");
     SDL_Init(SDL_INIT_VIDEO);
-    fprintf(stderr, "R_Init: SDL attributes\n");
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
     SDL_GL_SetAttribute(SDL_GL_ACCELERATED_VISUAL, 1);
     SDL_GL_SetAttribute(SDL_GL_RED_SIZE, 8);
@@ -262,12 +260,9 @@ void R_Init(DWORD width, DWORD height) {
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
     
-    fprintf(stderr, "R_Init: SDL_CreateWindow\n");
     window = SDL_CreateWindow("", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width, height, SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN | SDL_WINDOW_ALLOW_HIGHDPI);
-    fprintf(stderr, "R_Init: SDL_GL_CreateContext\n");
     context = SDL_GL_CreateContext(window);
     
-    fprintf(stderr, "R_Init: SDL_GL_GetDrawableSize\n");
     SDL_GL_GetDrawableSize(window, (int *)&tr.drawableSize.width, (int *)&tr.drawableSize.height);
     
 //    m3 = R_LoadModel("Assets\\Units\\Terran\\SpecialOpsDropship\\SpecialOpsDropship.m3");

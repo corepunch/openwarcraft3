@@ -196,7 +196,6 @@ bool NET_Init(unsigned short port) {
     if (flags >= 0)
         fcntl(udp_socket, F_SETFL, flags | O_NONBLOCK);
 
-    fprintf(stderr, "NET_Init: UDP socket bound to port %u\n", port);
     return true;
 }
 
@@ -316,4 +315,3 @@ void Netchan_OutOfBandPrint(NETSOURCE netsrc, netadr_t adr, LPCSTR format, ...) 
     string[sizeof(string) - 1] = '\0';
     Netchan_OutOfBand(netsrc, adr, (DWORD)strlen(string), (BYTE *)string);
 }
-

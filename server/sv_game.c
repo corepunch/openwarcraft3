@@ -413,7 +413,6 @@ void PF_Sleep(DWORD msec) {
 void SV_InitGameProgs(void) {
     struct game_import import;
     
-    fprintf(stderr, "SV_InitGameProgs: build import table\n");
     import.multicast = SV_Multicast;
     import.unicast = PF_Unicast;
         
@@ -457,9 +456,6 @@ void SV_InitGameProgs(void) {
     import.TextRemoveComments = PF_TextRemoveComments;
     import.TextRemoveBom = PF_TextRemoveBom;
 
-    fprintf(stderr, "SV_InitGameProgs: GetGameAPI\n");
     ge = GetGameAPI(&import);
-    fprintf(stderr, "SV_InitGameProgs: ge->Init\n");
     ge->Init();
-    fprintf(stderr, "SV_InitGameProgs: complete\n");
 }

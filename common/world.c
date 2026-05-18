@@ -391,7 +391,6 @@ void CM_ReadMapScript(HANDLE archive) {
 bool CM_LoadMap(LPCSTR mapFilename) {
     HANDLE mapArchive;
     memset(&world, 0, sizeof(world));
-    fprintf(stderr, "CM_LoadMap: extract %s -> %s\n", mapFilename, TMP_MAP);
     if (!FS_ExtractFile(mapFilename, TMP_MAP)) {
         Com_Error(ERR_DROP, "CM_LoadMap: failed to extract map %s\n", mapFilename);
         return false;
@@ -400,7 +399,6 @@ bool CM_LoadMap(LPCSTR mapFilename) {
         Com_Error(ERR_DROP, "CM_LoadMap: failed to open extracted map %s\n", TMP_MAP);
         return false;
     }
-    fprintf(stderr, "CM_LoadMap: archive open ok\n");
     CM_ReadPathMap(mapArchive);
     CM_ReadDoodads(mapArchive);
     CM_ReadUnitDoodads(mapArchive);
@@ -409,7 +407,6 @@ bool CM_LoadMap(LPCSTR mapFilename) {
     CM_ReadUnits(mapArchive);
     CM_ReadStrings(mapArchive);
     CM_ReadMapScript(mapArchive);
-    fprintf(stderr, "CM_LoadMap: parse complete\n");
         
 //    SFileExtractFile(mapArchive, "war3map.wts", "/Users/igor/Desktop/war3map.wts", 0);
 //    HANDLE file;

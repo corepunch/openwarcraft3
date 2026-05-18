@@ -62,8 +62,6 @@ int main(int argc, LPSTR argv[]) {
     bool menu_mode = !map && !connect_addr;
     cls.key_dest = menu_mode ? key_menu : key_game;
     cls.state = ca_disconnected;
-    fprintf(stderr, "main: mpq loaded, mode=%s\n",
-            connect_addr ? "connect" : (menu_mode ? "menu" : "map"));
 
     // Bind the UDP socket unless explicitly disabled for local diagnostics.
     // The current sandbox cannot create/bind UDP sockets, so this escape hatch
@@ -86,29 +84,24 @@ int main(int argc, LPSTR argv[]) {
         } else {
             fprintf(stderr, "main: OW3_SKIP_NET set, skipping NET_Init\n");
         }
-    } else {
-        fprintf(stderr, "main: menu mode, skipping NET_Init\n");
     }
 
     Com_Init();
 
     if (connect_addr) {
         // Remote-client mode: skip the local server, connect over UDP.
-        fprintf(stderr, "main: connecting to %s\n", connect_addr);
         CL_Connect(connect_addr, PORT_SERVER);
     } else if (menu_mode) {
         // Menu mode still uses the local loopback server so the client can
         // consume server-authored UI layouts.
-        TRACE(UI_Init);
-        TRACE(SV_ClientConnect);
+        UI_Init();
+        SV_ClientConnect();
     } else if (!menu_mode) {
         // Listen-server mode: load the map and spawn entities.
-        TRACE(SV_Map, map);
-        fprintf(stderr, "main: map load complete\n");
+        SV_Map(map);
     }
 
     DWORD startTime = SDL_GetTicks();
-    fprintf(stderr, "main: entering frame loop\n");
     while (true) {
         DWORD currentTime = SDL_GetTicks();
         DWORD msec = currentTime - startTime;

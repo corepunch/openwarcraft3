@@ -7,6 +7,9 @@
 
 #define WINDOW_WIDTH 1024
 #define WINDOW_HEIGHT 768
+#define UI_BASE_WIDTH 0.8f
+#define UI_BASE_HEIGHT 0.6f
+#define UI_MIN_ASPECT (4.0f / 3.0f)
 #define MAX_CLIENT_ENTITIES 5000
 #define MAX_CONSOLE_MESSAGES 256
 #define MAX_CONSOLE_MESSAGE_LEN 1024
@@ -111,6 +114,8 @@ void V_AddEntity(renderEntity_t *ent);
 
 // cl_scrn.c
 LPCUIFRAME SCR_Clear(HANDLE data);
+DWORD SCR_NumFrames(void);
+LPUIFRAME SCR_Frame(DWORD number);
 LPCRECT SCR_LayoutRect(LPCUIFRAME frame);
 VECTOR2 SCR_MouseToFdf(void);
 VECTOR2 SCR_GetAxisBounds(LPCRECT rect, bool is_x_axis);
@@ -119,7 +124,13 @@ VECTOR2 SCR_SolveAxisPosition(LPCUIFRAME frame,
                               uiFramePoints_t const points,
                               FLOAT width,
                               bool is_x_axis);
+LPCSTR SCR_GetStringValue(LPCUIFRAME frame);
+DRAWTEXT SCR_GetDrawText(LPCUIFRAME frame,
+                         FLOAT avl_width,
+                         LPCSTR text,
+                         uiLabel_t const *label);
 void SCR_UpdateScreen(void);
+void SCR_DrawOverlays(void);
 void SCR_TextInput(LPCSTR text);
 BOOL SCR_EditKey(int key);
 

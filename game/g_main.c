@@ -77,7 +77,6 @@ static void InitConstants(void) {
 }
 
 static void G_InitGame(void) {
-    fprintf(stderr, "G_InitGame: begin\n");
     g_edicts = gi.MemAlloc(sizeof(edict_t) * MAX_ENTITIES);
     memset(g_edicts, 0, sizeof(edict_t) * MAX_ENTITIES);
     
@@ -91,16 +90,14 @@ static void G_InitGame(void) {
 
     game.max_clients = globals.max_clients;
     game.clients = gi.MemAlloc(game.max_clients * sizeof(GAMECLIENT));
-    fprintf(stderr, "%s: load theme/config sheets\n", __func__);
     game.config.theme = gi.ReadConfig("UI\\war3skins.txt");
     game.config.splats = gi.ReadSheet("Splats\\SplatData.slk");
     game.config.uberSplats = gi.ReadSheet("Splats\\UberSplatData.slk");
     game.config.abilities = gi.ReadSheet("Units\\AbilityData.slk");
     game.config.items = gi.ReadSheet("Units\\ItemData.slk");
-    TRACE(InitConstants);
-    TRACE(InitUnitData);
-    TRACE(InitAbilities);
-    fprintf(stderr, "G_InitGame: complete\n");
+    InitConstants();
+    InitUnitData();
+    InitAbilities();
 }
 
 static void G_ShutdownGame(void) {

@@ -253,12 +253,10 @@ void MenuAction(LPCSTR action, LPCSTR arg) {
 }
 
 void Com_Init(void) {
-    fprintf(stderr, "Com_Init: begin\n");
     Cbuf_Init();
-    TRACE(FS_Init);
-    TRACE(SV_Init);
-    TRACE(CL_Init);
-    fprintf(stderr, "Com_Init: complete\n");
+    FS_Init();
+    SV_Init();
+    CL_Init();
 }
 
 void Com_Error(errorCode_t code, LPCSTR fmt, ...) {
