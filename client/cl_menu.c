@@ -264,6 +264,52 @@ void SCR_DrawBackdrop(LPCUIFRAME frame, LPCRECT screen) {
     SCR_DrawBackdrop2(frame, screen, frame->buffer.data);
 }
 
+static BOOL SCR_BackdropHasArt(uiBackdrop_t const *backdrop) {
+    return backdrop && (backdrop->Background || backdrop->EdgeFile);
+}
+
+static void SCR_DrawBackdropPart(LPCUIFRAME frame, LPCRECT screen, uiBackdrop_t const *backdrop) {
+    if (SCR_BackdropHasArt(backdrop) && screen->w > 0 && screen->h > 0) {
+        SCR_DrawBackdrop2(frame, screen, backdrop);
+    }
+}
+
+void SCR_DrawScrollBar(LPCUIFRAME frame, LPCRECT screen) {
+    uiScrollBar_t const *scrollbar = frame->buffer.data;
+    FLOAT button_height;
+    RECT inc;
+    RECT dec;
+    RECT track;
+    RECT thumb;
+
+    if (!scrollbar || screen->w <= 0 || screen->h <= 0) {
+        return;
+    }
+
+    SCR_DrawBackdropPart(frame, screen, &scrollbar->background);
+
+    button_height = MIN(screen->w, screen->h * 0.5f);
+    inc = MAKE(RECT, screen->x, screen->y + screen->h - button_height, screen->w, button_height);
+    dec = MAKE(RECT, screen->x, screen->y, screen->w, button_height);
+    track = MAKE(RECT, screen->x, dec.y + dec.h, screen->w, inc.y - (dec.y + dec.h));
+    SCR_DrawBackdropPart(frame, &inc, &scrollbar->incButton);
+    SCR_DrawBackdropPart(frame, &dec, &scrollbar->decButton);
+
+    if (track.h <= 0) {
+        return;
+    }
+
+#ifdef UI_STRETCHED_SCROLLBAR_THUMB
+    thumb.h = MIN(MAX(button_height, track.h * 0.25f), track.h);
+#else
+    thumb.h = MIN(MIN(button_height, 0.010f), track.h);
+#endif
+    thumb.w = MIN(screen->w, 0.010f);
+    thumb.x = screen->x + (screen->w - thumb.w) * 0.5f;
+    thumb.y = track.y + track.h - thumb.h;
+    SCR_DrawBackdropPart(frame, &thumb, &scrollbar->thumbButton);
+}
+
 static BOOL SCR_GlueTextButtonIsPushed(LPCUIFRAME frame, LPCRECT screen) {
     VECTOR2 const m = SCR_MouseToFdf();
     return Rect_contains(screen, &m) && mouse.button == 1;
@@ -527,6 +573,7 @@ void SCR_DrawEditBox(LPCUIFRAME frame, LPCRECT screen) {
 void SCR_DrawListBox(LPCUIFRAME frame, LPCRECT screen) {
     uiListBox_t const *listbox = frame->buffer.data;
     RECT list_rect = Rect_inset(screen, listbox->border);
+    LPCUIFRAME scrollbar = NULL;
     FLOAT item_y = list_rect.y + list_rect.h;
     FLOAT item_height = listbox->itemHeight > 0 ? listbox->itemHeight : 0.018f;
     LPCSTR text = frame->text;
@@ -539,6 +586,22 @@ void SCR_DrawListBox(LPCUIFRAME frame, LPCRECT screen) {
 
     SCR_DrawBackdrop2(frame, screen, &listbox->background);
     CL_ListBoxApplyFetch(active_layout, frame, listbox, &text, &loading, &selectedIndex);
+
+    FOR_LOOP(i, SCR_NumFrames()) {
+        LPCUIFRAME child = SCR_Frame(i);
+        if (child && child->parent == frame->number && child->flags.type == FT_SCROLLBAR) {
+            scrollbar = child;
+            break;
+        }
+    }
+    if (scrollbar) {
+        LPCRECT scroll_rect = SCR_LayoutRect(scrollbar);
+        FLOAT scroll_inset = MAX(scroll_rect->w, 0.0f);
+
+        if (scroll_inset > 0 && scroll_inset < list_rect.w) {
+            list_rect.w -= scroll_inset;
+        }
+    }
 
     if (loading) {
         re.DrawLoadingIndicator(&list_rect, cl.time, frame->color);
@@ -636,6 +699,7 @@ static drawer_t drawers[] = {
     { FT_GLUEEDITBOX, SCR_DrawEditBox },
     { FT_SLASHCHATBOX, SCR_DrawEditBox },
     { FT_LISTBOX, SCR_DrawListBox },
+    { FT_SCROLLBAR, SCR_DrawScrollBar },
     { FT_TOOLTIPTEXT, SCR_DrawTooltip },
     { FT_MODEL, SCR_DrawPortrait },
     { FT_SPRITE, SCR_DrawSprite },

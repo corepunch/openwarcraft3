@@ -437,6 +437,62 @@ static void test_build_listbox_writes_control_payload(void) {
     ASSERT_EQ_INT(listbox->selectedIndex, -1);
 }
 
+static LPFRAMEDEF make_scrollbar_button(LPFRAMEDEF scrollbar,
+                                        LPCSTR buttonName,
+                                        LPCSTR backdropName,
+                                        DWORD background) {
+    LPFRAMEDEF button = UI_Spawn(FT_BUTTON, scrollbar);
+    LPFRAMEDEF backdrop = UI_Spawn(FT_BACKDROP, button);
+
+    ASSERT_NOT_NULL(button);
+    ASSERT_NOT_NULL(backdrop);
+    strcpy(button->Name, buttonName);
+    strcpy(backdrop->Name, backdropName);
+    strcpy(button->Control.Backdrop.Normal, backdropName);
+    backdrop->Backdrop.Background = background;
+    return button;
+}
+
+static void test_build_scrollbar_writes_control_payload(void) {
+    LPFRAMEDEF scrollbar;
+    LPFRAMEDEF track;
+    LPFRAMEDEF inc;
+    LPFRAMEDEF dec;
+    LPFRAMEDEF thumb;
+    uiFrame_t out;
+    BYTE typedata[512];
+    UINAME textbuf;
+    uiScrollBar_t *data;
+
+    reset_ui_ser_state();
+
+    scrollbar = UI_Spawn(FT_SCROLLBAR, NULL);
+    track = UI_Spawn(FT_BACKDROP, scrollbar);
+    ASSERT_NOT_NULL(scrollbar);
+    ASSERT_NOT_NULL(track);
+
+    strcpy(scrollbar->Name, "Scroll");
+    strcpy(track->Name, "ScrollTrack");
+    strcpy(scrollbar->Control.Backdrop.Normal, track->Name);
+    track->Backdrop.Background = 10;
+    inc = make_scrollbar_button(scrollbar, "IncButton", "IncBackdrop", 20);
+    dec = make_scrollbar_button(scrollbar, "DecButton", "DecBackdrop", 30);
+    thumb = make_scrollbar_button(scrollbar, "ThumbButton", "ThumbBackdrop", 40);
+    strcpy(scrollbar->Slider.IncButtonFrame, inc->Name);
+    strcpy(scrollbar->Slider.DecButtonFrame, dec->Name);
+    strcpy(scrollbar->Slider.ThumbButtonFrame, thumb->Name);
+
+    ASSERT(build_frame(scrollbar, &out, typedata, textbuf));
+    ASSERT_EQ_INT(out.flags.type, FT_SCROLLBAR);
+    ASSERT_EQ_INT((int)out.buffer.size, (int)sizeof(uiScrollBar_t));
+
+    data = (uiScrollBar_t *)out.buffer.data;
+    ASSERT_EQ_INT(data->background.Background, 10);
+    ASSERT_EQ_INT(data->incButton.Background, 20);
+    ASSERT_EQ_INT(data->decButton.Background, 30);
+    ASSERT_EQ_INT(data->thumbButton.Background, 40);
+}
+
 BEGIN_SUITE(ui_serialize)
     RUN_TEST(test_build_frame_rejects_null_arguments);
     RUN_TEST(test_build_text_frame_sets_label_payload_and_color);
@@ -453,4 +509,5 @@ BEGIN_SUITE(ui_serialize)
     RUN_TEST(test_build_editbox_writes_control_payload);
     RUN_TEST(test_build_editbox_uses_edit_text_frame_font_and_color);
     RUN_TEST(test_build_listbox_writes_control_payload);
+    RUN_TEST(test_build_scrollbar_writes_control_payload);
 END_SUITE()

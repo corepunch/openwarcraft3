@@ -295,6 +295,29 @@ static void WriteListBox(LPCFRAMEDEF frame, sizeBuf_t *sb, uiFrame_t *tmp) {
     MSG_Write(sb, &data, sizeof(data));
 }
 
+static uiBackdrop_t MakeControlBackdrop(LPCFRAMEDEF frame) {
+    LPCFRAMEDEF backdrop = NULL;
+
+    if (frame) {
+        backdrop = UI_FindFrameNear(frame, frame->Control.Backdrop.Normal);
+    }
+    return MakeBackdrop(backdrop);
+}
+
+static void WriteScrollBar(LPCFRAMEDEF frame, sizeBuf_t *sb) {
+    LPCFRAMEDEF incButton = UI_FindFrameNear(frame, frame->Slider.IncButtonFrame);
+    LPCFRAMEDEF decButton = UI_FindFrameNear(frame, frame->Slider.DecButtonFrame);
+    LPCFRAMEDEF thumbButton = UI_FindFrameNear(frame, frame->Slider.ThumbButtonFrame);
+    uiScrollBar_t data = {
+        .background = MakeControlBackdrop(frame),
+        .incButton = MakeControlBackdrop(incButton),
+        .decButton = MakeControlBackdrop(decButton),
+        .thumbButton = MakeControlBackdrop(thumbButton),
+    };
+
+    MSG_Write(sb, &data, sizeof(data));
+}
+
 static void WriteLabel(LPCFRAMEDEF frame, sizeBuf_t *sb, uiFrame_t *tmp) {
     uiLabel_t data = MakeLabel(frame);
     if(!tmp->points.x[FPP_MIN].used &&
@@ -418,6 +441,9 @@ BOOL UI_BuildFrameForWrite(LPCFRAMEDEF frame,
             break;
         case FT_LISTBOX:
             WriteListBox(frame, &buf, out);
+            break;
+        case FT_SCROLLBAR:
+            WriteScrollBar(frame, &buf);
             break;
         case FT_MODEL:
         case FT_SPRITE:

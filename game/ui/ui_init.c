@@ -57,6 +57,7 @@
 #define TOOLTIP_SIZE 0.2200, 0.1000
 #define TOOLTIP_POSITION 0.0, 0.1600
 #define QUEST_DIALOG_POSITION 0.0, -0.0230
+#define FETCH_LISTBOX_BORDER 0.012f
 
 static void Init_ResourceBar(LPFRAMEDEF ConsoleUI) {
     UI_FRAME(ResourceBarFrame);
@@ -415,6 +416,7 @@ static void UI_EnsureFetchListBox(LPFRAMEDEF container,
 {
     LPFRAMEDEF listbox;
     LPFRAMEDEF backdrop;
+    LPFRAMEDEF scrollbar;
 
     if (!container || UI_FindChildFrame(container, name)) {
         return;
@@ -427,6 +429,7 @@ static void UI_EnsureFetchListBox(LPFRAMEDEF container,
     strcpy(listbox->Name, name);
     UI_InheritFrom(listbox, "StandardListBoxTemplate");
     listbox->Parent = container;
+    listbox->ListBox.Border = FETCH_LISTBOX_BORDER;
 
     backdrop = UI_Spawn(FT_BACKDROP, listbox);
     if (backdrop) {
@@ -443,6 +446,27 @@ static void UI_EnsureFetchListBox(LPFRAMEDEF container,
     strcpy(listbox->ListBox.FetchCommand, fetchCommand);
     listbox->Color = COLOR32_WHITE;
     UI_SetAllPoints(listbox);
+
+    scrollbar = UI_Spawn(FT_SCROLLBAR, listbox);
+    if (scrollbar) {
+        snprintf(scrollbar->Name, sizeof(scrollbar->Name), "%sScrollBar", name);
+        UI_InheritFrom(scrollbar, listbox->ListBox.ScrollBar[0] ?
+                                  listbox->ListBox.ScrollBar :
+                                  "StandardScrollBarTemplate");
+        scrollbar->Parent = listbox;
+        UI_SetPoint(scrollbar,
+                    FRAMEPOINT_TOPRIGHT,
+                    listbox,
+                    FRAMEPOINT_TOPRIGHT,
+                    -listbox->ListBox.Border,
+                    -listbox->ListBox.Border);
+        UI_SetPoint(scrollbar,
+                    FRAMEPOINT_BOTTOMRIGHT,
+                    listbox,
+                    FRAMEPOINT_BOTTOMRIGHT,
+                    -listbox->ListBox.Border,
+                    listbox->ListBox.Border);
+    }
 }
 
 static void Init_MultiplayerJoinMenu(void) {

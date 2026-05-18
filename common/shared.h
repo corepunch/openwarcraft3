@@ -537,6 +537,13 @@ typedef struct {
 
 typedef struct {
     uiBackdrop_t background;
+    uiBackdrop_t incButton;
+    uiBackdrop_t decButton;
+    uiBackdrop_t thumbButton;
+} uiScrollBar_t;
+
+typedef struct {
+    uiBackdrop_t background;
     uiLabel_t text;
 } uiTooltip_t;
 
