@@ -40,6 +40,7 @@ typedef enum {
 typedef struct {
     mouseEventType_t event;
     DWORD button;
+    int wheel;
     VECTOR2 origin;
 } mouseEvent_t;
 
@@ -113,6 +114,7 @@ typedef struct listFetchState_s {
     UINAME command;
     char text[MAX_LIST_FETCH_TEXT];
     SHORT selectedIndex;
+    DWORD scrollOffset;
     BOOL loading;
     DWORD numRows;
 } listFetchState_t;
@@ -123,8 +125,18 @@ void CL_ListBoxApplyFetch(HANDLE layout,
                           uiListBox_t const *listbox,
                           LPCSTR *text,
                           BOOL *loading,
-                          SHORT *selectedIndex);
-void CL_ListFetchResetLayout(HANDLE layout);
+                          SHORT *selectedIndex,
+                          DWORD *scrollOffset,
+                          DWORD *numRows);
+void CL_ListBoxScroll(HANDLE layout,
+                      LPCUIFRAME frame,
+                      uiListBox_t const *listbox,
+                      int delta,
+                      DWORD visibleRows);
+void CL_ListBoxSelect(HANDLE layout,
+                      LPCUIFRAME frame,
+                      uiListBox_t const *listbox,
+                      DWORD rowIndex);
 void CON_DrawConsole(void);
 void CON_printf(LPCSTR fmt, ...);
 

@@ -29,6 +29,7 @@ static void pan_camera(float x, float y, float sensivity) {
 void CL_Input(void) {
     SDL_Event event;
     mouse.event = UI_EVENT_NONE;
+    mouse.wheel = 0;
     while(SDL_PollEvent(&event)) {
         switch(event.type) {
             case SDL_MOUSEBUTTONDOWN:
@@ -50,6 +51,17 @@ void CL_Input(void) {
             case SDL_MOUSEMOTION:
                 mouse.origin.x = event.motion.x;
                 mouse.origin.y = mouse_flip_y(event.motion.y);
+                break;
+            case SDL_MOUSEWHEEL:
+                {
+                    int x;
+                    int y;
+
+                    SDL_GetMouseState(&x, &y);
+                    mouse.origin.x = x;
+                    mouse.origin.y = mouse_flip_y(y);
+                    mouse.wheel += event.wheel.y;
+                }
                 break;
         }
         
@@ -128,6 +140,8 @@ void CL_Input(void) {
                         pan_camera(-event.motion.xrel, event.motion.yrel, 5);
                         break;
                 }
+                break;
+            case SDL_MOUSEWHEEL:
                 break;
             case SDL_WINDOWEVENT:
                 switch (event.window.event) {

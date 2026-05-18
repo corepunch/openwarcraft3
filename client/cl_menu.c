@@ -277,6 +277,7 @@ static void SCR_DrawBackdropPart(LPCUIFRAME frame, LPCRECT screen, uiBackdrop_t 
 void SCR_DrawScrollBar(LPCUIFRAME frame, LPCRECT screen) {
     uiScrollBar_t const *scrollbar = frame->buffer.data;
     FLOAT button_height;
+    VECTOR2 const m = SCR_MouseToFdf();
     RECT inc;
     RECT dec;
     RECT track;
@@ -295,6 +296,23 @@ void SCR_DrawScrollBar(LPCUIFRAME frame, LPCRECT screen) {
     SCR_DrawBackdropPart(frame, &inc, &scrollbar->incButton);
     SCR_DrawBackdropPart(frame, &dec, &scrollbar->decButton);
 
+    if (frame->parent < SCR_NumFrames() && mouse.event == UI_LEFT_MOUSE_DOWN) {
+        LPCUIFRAME listFrame = SCR_Frame(frame->parent);
+
+        if (listFrame && listFrame->flags.type == FT_LISTBOX && listFrame->buffer.data) {
+            uiListBox_t const *listbox = listFrame->buffer.data;
+            RECT list_rect = Rect_inset(SCR_LayoutRect(listFrame), listbox->border);
+            FLOAT item_height = listbox->itemHeight > 0 ? listbox->itemHeight : 0.018f;
+            DWORD visibleRows = MAX((DWORD)floorf(list_rect.h / item_height), 1);
+
+            if (Rect_contains(&inc, &m)) {
+                CL_ListBoxScroll(active_layout, listFrame, listbox, -1, visibleRows);
+            } else if (Rect_contains(&dec, &m)) {
+                CL_ListBoxScroll(active_layout, listFrame, listbox, 1, visibleRows);
+            }
+        }
+    }
+
     if (track.h <= 0) {
         return;
     }
@@ -306,7 +324,7 @@ void SCR_DrawScrollBar(LPCUIFRAME frame, LPCRECT screen) {
 #endif
     thumb.w = MIN(screen->w, 0.010f);
     thumb.x = screen->x + (screen->w - thumb.w) * 0.5f;
-    thumb.y = track.y + track.h - thumb.h;
+    thumb.y = track.y + track.h - thumb.h - (track.h - thumb.h) * MIN(MAX(frame->value, 0.0f), 1.0f);
     SCR_DrawBackdropPart(frame, &thumb, &scrollbar->thumbButton);
 }
 
@@ -579,13 +597,16 @@ void SCR_DrawListBox(LPCUIFRAME frame, LPCRECT screen) {
     LPCSTR text = frame->text;
     BOOL loading = false;
     SHORT selectedIndex = listbox->selectedIndex;
+    DWORD scrollOffset = 0;
+    DWORD numRows = 0;
+    DWORD visibleRows;
     char items[MAX_LISTBOX_TEXT];
     char *line = NULL;
     char *save = NULL;
     int index = 0;
 
     SCR_DrawBackdrop2(frame, screen, &listbox->background);
-    CL_ListBoxApplyFetch(active_layout, frame, listbox, &text, &loading, &selectedIndex);
+    CL_ListBoxApplyFetch(active_layout, frame, listbox, &text, &loading, &selectedIndex, &scrollOffset, &numRows);
 
     FOR_LOOP(i, SCR_NumFrames()) {
         LPCUIFRAME child = SCR_Frame(i);
@@ -602,6 +623,17 @@ void SCR_DrawListBox(LPCUIFRAME frame, LPCRECT screen) {
             list_rect.w -= scroll_inset;
         }
     }
+    visibleRows = MAX((DWORD)floorf(list_rect.h / item_height), 1);
+    VECTOR2 const mouse_pos = SCR_MouseToFdf();
+    if (mouse.wheel && Rect_contains(screen, &mouse_pos)) {
+        CL_ListBoxScroll(active_layout, frame, listbox, -mouse.wheel, visibleRows);
+        CL_ListBoxApplyFetch(active_layout, frame, listbox, &text, &loading, &selectedIndex, &scrollOffset, &numRows);
+    }
+    if (scrollbar) {
+        DWORD maxScroll = numRows > visibleRows ? numRows - visibleRows : 0;
+
+        ((LPUIFRAME)scrollbar)->value = maxScroll ? scrollOffset / (FLOAT)maxScroll : 0.0f;
+    }
 
     if (loading) {
         re.DrawLoadingIndicator(&list_rect, cl.time, frame->color);
@@ -614,17 +646,22 @@ void SCR_DrawListBox(LPCUIFRAME frame, LPCRECT screen) {
 
     snprintf(items, sizeof(items), "%s", text);
     line = strtok_r(items, "\n", &save);
+    while (line && index < (int)scrollOffset) {
+        line = strtok_r(NULL, "\n", &save);
+        index++;
+    }
     while (line && item_y > list_rect.y) {
         RECT row = list_rect;
         char *display = line;
         char *hidden = strchr(display, '\t');
+        int rowIndex = index;
 
         if (hidden) {
             *hidden = '\0';
         }
         row.h = MIN(item_height, item_y - list_rect.y);
         row.y = item_y - row.h;
-        if (index == selectedIndex) {
+        if (rowIndex == selectedIndex) {
             re.DrawImage(cl.pics[0], &row, &MAKE(RECT, 0, 0, 1, 1), MAKE(COLOR32, 32, 64, 180, 128));
         }
         re.DrawText(&MAKE(DRAWTEXT,
