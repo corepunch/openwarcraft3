@@ -73,6 +73,9 @@ struct mpq_cache_entry;
 
 typedef struct {
     FILE *fp;
+    const BYTE *memory;
+    DWORD memory_size;
+    DWORD memory_pos;
     char filename[256];
     DWORD base_offset;
     struct mpq_cache_entry **lookup_cache;
@@ -750,45 +753,89 @@ static BOOL TryInflateSector(const BYTE *compressed, DWORD compressed_size, DWOR
     return TRUE;
 }
 
-static BOOL MpqSeek(const MPQ_ARCHIVE *mpq, DWORD offset)
+static BOOL MpqSeek(MPQ_ARCHIVE *mpq, DWORD offset)
 {
-    return fseek(mpq->fp, mpq->base_offset + offset, SEEK_SET) == 0;
+    DWORD pos;
+
+    if (!mpq) {
+        return FALSE;
+    }
+    pos = mpq->base_offset + offset;
+    if (mpq->memory) {
+        if (pos > mpq->memory_size) {
+            return FALSE;
+        }
+        mpq->memory_pos = pos;
+        return TRUE;
+    }
+    return mpq->fp && fseek(mpq->fp, pos, SEEK_SET) == 0;
 }
 
-BOOL SFileOpenArchive(LPCSTR filename, DWORD priority, DWORD flags, HANDLE *archive)
+static size_t MpqRead(MPQ_ARCHIVE *mpq, void *buffer, size_t size)
 {
-    MPQ_ARCHIVE *mpq;
-    FILE *fp;
+    size_t available;
+
+    if (!mpq || !buffer || size == 0) {
+        return 0;
+    }
+    if (mpq->memory) {
+        if (mpq->memory_pos >= mpq->memory_size) {
+            return 0;
+        }
+        available = mpq->memory_size - mpq->memory_pos;
+        if (size > available) {
+            size = available;
+        }
+        memcpy(buffer, mpq->memory + mpq->memory_pos, size);
+        mpq->memory_pos += (DWORD)size;
+        return size;
+    }
+    return mpq->fp ? fread(buffer, 1, size, mpq->fp) : 0;
+}
+
+static void MpqFreeReadArchive(MPQ_ARCHIVE *mpq)
+{
+    if (!mpq) {
+        return;
+    }
+    if (mpq->lookup_cache) {
+        DWORD i;
+        for (i = 0; i < mpq->lookup_cache_size; i++) {
+            MPQ_CACHE_ENTRY *entry = mpq->lookup_cache[i];
+            while (entry) {
+                MPQ_CACHE_ENTRY *next = entry->next;
+                free(entry->name);
+                free(entry);
+                entry = next;
+            }
+        }
+        free(mpq->lookup_cache);
+    }
+    if (mpq->hashtable) free(mpq->hashtable);
+    if (mpq->blocktable) free(mpq->blocktable);
+    if (mpq->sector_buffer) free(mpq->sector_buffer);
+    if (mpq->fp) fclose(mpq->fp);
+    free(mpq);
+}
+
+static BOOL SFileOpenArchiveSource(MPQ_ARCHIVE *mpq, HANDLE *archive)
+{
     unsigned char probe[1024];
     size_t read;
     long archive_offset = -1;
     size_t i;
 
-    (void)priority;
-    (void)flags;
-
-    if (!filename || !archive) {
+    if (!mpq || !archive) {
         return FALSE;
     }
 
-    fp = fopen(filename, "rb");
-    if (!fp) {
-        return FALSE;
-    }
-
-    mpq = (MPQ_ARCHIVE *)malloc(sizeof(MPQ_ARCHIVE));
-    if (!mpq) {
-        fclose(fp);
-        return FALSE;
-    }
-
-    memset(mpq, 0, sizeof(MPQ_ARCHIVE));
-    mpq->fp = fp;
-    strncpy(mpq->filename, filename, sizeof(mpq->filename) - 1);
     mpq->lookup_cache_size = 4096;
     mpq->lookup_cache = (MPQ_CACHE_ENTRY **)calloc(mpq->lookup_cache_size, sizeof(MPQ_CACHE_ENTRY *));
+    if (!mpq->lookup_cache) {
+        goto fail;
+    }
 
-    read = fread(probe, 1, sizeof(probe), fp);
+    read = MpqRead(mpq, probe, sizeof(probe));
     for (i = 0; i + 4 <= read; i++) {
         if (probe[i] == 'M' && probe[i + 1] == 'P' && probe[i + 2] == 'Q' && probe[i + 3] == 0x1A) {
             archive_offset = (long)i;
@@ -800,12 +847,12 @@ BOOL SFileOpenArchive(LPCSTR filename, DWORD priority, DWORD flags, HANDLE *arch
     }
     mpq->base_offset = (DWORD)archive_offset;
 
-    if (fseek(fp, mpq->base_offset, SEEK_SET) != 0) {
+    if (!MpqSeek(mpq, 0)) {
         goto fail;
     }
 
     // Read MPQ header
-    if (fread(&mpq->header, sizeof(MPQ_HEADER_V1), 1, fp) != 1) {
+    if (MpqRead(mpq, &mpq->header, sizeof(MPQ_HEADER_V1)) != sizeof(MPQ_HEADER_V1)) {
         goto fail;
     }
 
@@ -835,8 +882,8 @@ BOOL SFileOpenArchive(LPCSTR filename, DWORD priority, DWORD flags, HANDLE *arch
     if (!MpqSeek(mpq, mpq->header.dwHashTablePos)) {
         goto fail;
     }
-    read = fread(mpq->hashtable, sizeof(MPQ_HASH_ENTRY), mpq->header.dwHashTableSize, fp);
-    if (read != mpq->header.dwHashTableSize) {
+    read = MpqRead(mpq, mpq->hashtable, mpq->header.dwHashTableSize * sizeof(MPQ_HASH_ENTRY));
+    if (read != mpq->header.dwHashTableSize * sizeof(MPQ_HASH_ENTRY)) {
         goto fail;
     }
 
@@ -853,8 +900,8 @@ BOOL SFileOpenArchive(LPCSTR filename, DWORD priority, DWORD flags, HANDLE *arch
     if (!MpqSeek(mpq, mpq->header.dwBlockTablePos)) {
         goto fail;
     }
-    read = fread(mpq->blocktable, sizeof(MPQ_BLOCK_ENTRY), mpq->header.dwBlockTableSize, fp);
-    if (read != mpq->header.dwBlockTableSize) {
+    read = MpqRead(mpq, mpq->blocktable, mpq->header.dwBlockTableSize * sizeof(MPQ_BLOCK_ENTRY));
+    if (read != mpq->header.dwBlockTableSize * sizeof(MPQ_BLOCK_ENTRY)) {
         goto fail;
     }
 
@@ -868,24 +915,57 @@ BOOL SFileOpenArchive(LPCSTR filename, DWORD priority, DWORD flags, HANDLE *arch
     return TRUE;
 
 fail:
-    if (mpq->lookup_cache) {
-        for (i = 0; i < mpq->lookup_cache_size; i++) {
-            MPQ_CACHE_ENTRY *entry = mpq->lookup_cache[i];
-            while (entry) {
-                MPQ_CACHE_ENTRY *next = entry->next;
-                free(entry->name);
-                free(entry);
-                entry = next;
-            }
-        }
-        free(mpq->lookup_cache);
-    }
-    if (mpq->hashtable) free(mpq->hashtable);
-    if (mpq->blocktable) free(mpq->blocktable);
-    if (mpq->sector_buffer) free(mpq->sector_buffer);
-    free(mpq);
-    fclose(fp);
+    MpqFreeReadArchive(mpq);
     return FALSE;
+}
+
+BOOL SFileOpenArchive(LPCSTR filename, DWORD priority, DWORD flags, HANDLE *archive)
+{
+    MPQ_ARCHIVE *mpq;
+    FILE *fp;
+
+    (void)priority;
+    (void)flags;
+
+    if (!filename || !archive) {
+        return FALSE;
+    }
+
+    fp = fopen(filename, "rb");
+    if (!fp) {
+        return FALSE;
+    }
+
+    mpq = (MPQ_ARCHIVE *)calloc(1, sizeof(MPQ_ARCHIVE));
+    if (!mpq) {
+        fclose(fp);
+        return FALSE;
+    }
+
+    mpq->fp = fp;
+    strncpy(mpq->filename, filename, sizeof(mpq->filename) - 1);
+    return SFileOpenArchiveSource(mpq, archive);
+}
+
+BOOL SFileOpenArchiveFromMemory(const void *data, DWORD size, DWORD flags, HANDLE *archive)
+{
+    MPQ_ARCHIVE *mpq;
+
+    (void)flags;
+
+    if (!data || size == 0 || !archive) {
+        return FALSE;
+    }
+
+    mpq = (MPQ_ARCHIVE *)calloc(1, sizeof(MPQ_ARCHIVE));
+    if (!mpq) {
+        return FALSE;
+    }
+
+    mpq->memory = (const BYTE *)data;
+    mpq->memory_size = size;
+    strncpy(mpq->filename, "<memory>", sizeof(mpq->filename) - 1);
+    return SFileOpenArchiveSource(mpq, archive);
 }
 
 BOOL SFileCreateArchive(LPCSTR filename, DWORD flags, DWORD maxFiles, HANDLE *archive)
@@ -981,24 +1061,7 @@ BOOL SFileCloseArchive(HANDLE archive)
         return ok;
     }
 
-    if (mpq->hashtable) free(mpq->hashtable);
-    if (mpq->blocktable) free(mpq->blocktable);
-    if (mpq->sector_buffer) free(mpq->sector_buffer);
-    if (mpq->lookup_cache) {
-        DWORD i;
-        for (i = 0; i < mpq->lookup_cache_size; i++) {
-            MPQ_CACHE_ENTRY *entry = mpq->lookup_cache[i];
-            while (entry) {
-                MPQ_CACHE_ENTRY *next = entry->next;
-                free(entry->name);
-                free(entry);
-                entry = next;
-            }
-        }
-        free(mpq->lookup_cache);
-    }
-    if (mpq->fp) fclose(mpq->fp);
-    free(mpq);
+    MpqFreeReadArchive(mpq);
 
     return TRUE;
 }
@@ -1067,7 +1130,7 @@ BOOL SFileOpenFileEx(HANDLE archive, LPCSTR fileName, DWORD searchScope, HANDLE 
         }
 
         MpqSeek(mpq, block->dwBlockOffset);
-        if (fread(mpqfile->sector_offsets, sizeof(DWORD), offset_count, mpq->fp) != offset_count) {
+        if (MpqRead(mpq, mpqfile->sector_offsets, offset_count * sizeof(DWORD)) != offset_count * sizeof(DWORD)) {
             free(mpqfile->sector_offsets);
             free(mpqfile);
             return FALSE;
@@ -1142,7 +1205,7 @@ BOOL SFileReadFile(HANDLE file, void *buffer, DWORD toRead, LPDWORD bytesRead, L
     if (!(block->dwFlags & MPQ_FILE_COMPRESS)) {
         // Uncompressed file
         MpqSeek(mpq, block->dwBlockOffset + file_offset);
-        DWORD actually_read = (DWORD)fread(dest, 1, toRead, mpq->fp);
+        DWORD actually_read = (DWORD)MpqRead(mpq, dest, toRead);
         if (actually_read > 0 && (mpqfile->flags & MPQ_FILE_ENCRYPTED)) {
             DecryptBlock(dest, actually_read, mpqfile->file_key);
         }
@@ -1189,7 +1252,7 @@ BOOL SFileReadFile(HANDLE file, void *buffer, DWORD toRead, LPDWORD bytesRead, L
         }
 
         MpqSeek(mpq, block->dwBlockOffset + sector_start_offset);
-        if (fread(compressed, 1, sector_compressed_size, mpq->fp) != sector_compressed_size) {
+        if (MpqRead(mpq, compressed, sector_compressed_size) != sector_compressed_size) {
             free(compressed);
             break;
         }

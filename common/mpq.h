@@ -40,6 +40,7 @@ typedef struct {
 } SFILE_FIND_DATA;
 
 BOOL SFileOpenArchive(LPCSTR filename, DWORD priority, DWORD flags, HANDLE *archive);
+BOOL SFileOpenArchiveFromMemory(const void *data, DWORD size, DWORD flags, HANDLE *archive);
 BOOL SFileCloseArchive(HANDLE archive);
 
 BOOL SFileCreateArchive(LPCSTR filename, DWORD flags, DWORD maxFiles, HANDLE *archive);

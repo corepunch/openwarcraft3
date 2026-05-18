@@ -39,6 +39,12 @@ int main(int argc, char **argv)
     LONG dist_hi;
     char out_path[] = "/tmp/openwarcraft3_mpq_extract.bin";
     struct stat st;
+    BYTE *map_buffer;
+    HANDLE map_file;
+    HANDLE map_archive;
+    HANDLE map_info;
+    DWORD map_size;
+    DWORD map_bytes_read;
 
     if (!SFileOpenArchive(mpq_path, 0, 0, &archive)) {
         fail("SFileOpenArchive failed");
@@ -97,6 +103,47 @@ int main(int argc, char **argv)
     }
 
     SFileFindClose(find);
+
+    if (!SFileOpenFileEx(archive, "Maps\\Campaign\\Human02.w3m", SFILE_OPEN_FROM_MPQ, &map_file)) {
+        SFileCloseArchive(archive);
+        fail("SFileOpenFileEx failed for nested map");
+    }
+    map_size = SFileGetFileSize(map_file, NULL);
+    map_buffer = (BYTE *)malloc(map_size);
+    if (!map_buffer) {
+        SFileCloseFile(map_file);
+        SFileCloseArchive(archive);
+        fail("malloc failed for nested map");
+    }
+    if (!SFileReadFile(map_file, map_buffer, map_size, &map_bytes_read, NULL) || map_bytes_read != map_size) {
+        free(map_buffer);
+        SFileCloseFile(map_file);
+        SFileCloseArchive(archive);
+        fail("SFileReadFile failed for nested map");
+    }
+    SFileCloseFile(map_file);
+
+    if (!SFileOpenArchiveFromMemory(map_buffer, map_size, 0, &map_archive)) {
+        free(map_buffer);
+        SFileCloseArchive(archive);
+        fail("SFileOpenArchiveFromMemory failed for nested map");
+    }
+    if (!SFileOpenFileEx(map_archive, "war3map.w3i", SFILE_OPEN_FROM_MPQ, &map_info)) {
+        SFileCloseArchive(map_archive);
+        free(map_buffer);
+        SFileCloseArchive(archive);
+        fail("SFileOpenFileEx failed for nested war3map.w3i");
+    }
+    if (SFileGetFileSize(map_info, NULL) < 32) {
+        SFileCloseFile(map_info);
+        SFileCloseArchive(map_archive);
+        free(map_buffer);
+        SFileCloseArchive(archive);
+        fail("nested war3map.w3i is unexpectedly small");
+    }
+    SFileCloseFile(map_info);
+    SFileCloseArchive(map_archive);
+    free(map_buffer);
     SFileCloseArchive(archive);
 
     printf("test_mpq_compat: ok (%s)\n", mpq_path);

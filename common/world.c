@@ -390,13 +390,18 @@ void CM_ReadMapScript(HANDLE archive) {
 
 bool CM_LoadMap(LPCSTR mapFilename) {
     HANDLE mapArchive;
+    HANDLE mapData;
+    DWORD mapSize = 0;
+
     memset(&world, 0, sizeof(world));
-    if (!FS_ExtractFile(mapFilename, TMP_MAP)) {
-        Com_Error(ERR_DROP, "CM_LoadMap: failed to extract map %s\n", mapFilename);
+    mapData = FS_ReadFile(mapFilename, &mapSize);
+    if (!mapData || mapSize == 0) {
+        Com_Error(ERR_DROP, "CM_LoadMap: failed to read map %s\n", mapFilename);
         return false;
     }
-    if (!SFileOpenArchive(TMP_MAP, 0, 0, &mapArchive)) {
-        Com_Error(ERR_DROP, "CM_LoadMap: failed to open extracted map %s\n", TMP_MAP);
+    if (!SFileOpenArchiveFromMemory(mapData, mapSize, 0, &mapArchive)) {
+        MemFree(mapData);
+        Com_Error(ERR_DROP, "CM_LoadMap: failed to open map archive %s\n", mapFilename);
         return false;
     }
     CM_ReadPathMap(mapArchive);
@@ -437,6 +442,7 @@ bool CM_LoadMap(LPCSTR mapFilename) {
 //     }
 
     SFileCloseArchive(mapArchive);
+    MemFree(mapData);
     return true;
 }
 
