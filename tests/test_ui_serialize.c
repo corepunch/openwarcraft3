@@ -349,6 +349,94 @@ static void test_build_frame_returns_true_for_supported_types(void) {
     ASSERT_EQ_INT((int)out.buffer.size, (int)sizeof(uiTextArea_t));
 }
 
+static void test_build_editbox_writes_control_payload(void) {
+    FRAMEDEF frame;
+    uiFrame_t out;
+    BYTE typedata[512];
+    UINAME textbuf;
+    uiEditBox_t *edit;
+
+    reset_ui_ser_state();
+
+    UI_InitFrame(&frame, FT_EDITBOX);
+    frame.Font.Index = 7;
+    frame.Edit.BorderSize = 0.009f;
+    frame.Edit.MaxChars = 15;
+    frame.Edit.CursorColor = (COLOR32){1, 2, 3, 4};
+    frame.Edit.TextColor = (COLOR32){5, 6, 7, 8};
+    UI_SetText(&frame, "Player");
+
+    ASSERT(build_frame(&frame, &out, typedata, textbuf));
+    ASSERT_EQ_INT(out.flags.type, FT_EDITBOX);
+    ASSERT_EQ_INT((int)out.buffer.size, (int)sizeof(uiEditBox_t));
+    ASSERT_STR_EQ(out.text, "Player");
+
+    edit = (uiEditBox_t *)out.buffer.data;
+    ASSERT_EQ_INT(edit->font, 7);
+    ASSERT_FLOAT_EQ(edit->borderSize, 0.009f);
+    ASSERT_EQ_INT(edit->maxChars, 15);
+    ASSERT_EQ_INT(edit->cursorColor.b, 3);
+    ASSERT_EQ_INT(edit->textColor.g, 6);
+}
+
+static void test_build_editbox_uses_edit_text_frame_font_and_color(void) {
+    LPFRAMEDEF frame;
+    LPFRAMEDEF text;
+    uiFrame_t out;
+    BYTE typedata[512];
+    UINAME textbuf;
+    uiEditBox_t *edit;
+
+    reset_ui_ser_state();
+
+    frame = UI_Spawn(FT_EDITBOX, NULL);
+    text = UI_Spawn(FT_TEXT, frame);
+    ASSERT_NOT_NULL(frame);
+    ASSERT_NOT_NULL(text);
+
+    strcpy(frame->Name, "Edit");
+    strcpy(text->Name, "EditText");
+    strcpy(frame->Edit.TextFrame, text->Name);
+    frame->Font.Index = 7;
+    frame->Font.Color = (COLOR32){240, 200, 18, 255};
+    text->Font.Index = 12;
+    text->Font.Color = COLOR32_WHITE;
+
+    ASSERT(build_frame(frame, &out, typedata, textbuf));
+
+    edit = (uiEditBox_t *)out.buffer.data;
+    ASSERT_EQ_INT(edit->font, 12);
+    ASSERT_EQ_INT(edit->textColor.r, 255);
+    ASSERT_EQ_INT(edit->textColor.g, 255);
+    ASSERT_EQ_INT(edit->textColor.b, 255);
+}
+
+static void test_build_listbox_writes_control_payload(void) {
+    FRAMEDEF frame;
+    uiFrame_t out;
+    BYTE typedata[512];
+    UINAME textbuf;
+    uiListBox_t *listbox;
+
+    reset_ui_ser_state();
+
+    UI_InitFrame(&frame, FT_LISTBOX);
+    frame.Font.Index = 11;
+    frame.Font.Justification.Horizontal = FONT_JUSTIFYLEFT;
+    frame.ListBox.Border = 0.01f;
+    frame.Menu.Item.Height = 0.02f;
+
+    ASSERT(build_frame(&frame, &out, typedata, textbuf));
+    ASSERT_EQ_INT(out.flags.type, FT_LISTBOX);
+    ASSERT_EQ_INT((int)out.buffer.size, (int)sizeof(uiListBox_t));
+
+    listbox = (uiListBox_t *)out.buffer.data;
+    ASSERT_EQ_INT(listbox->text.font, 11);
+    ASSERT_FLOAT_EQ(listbox->border, 0.01f);
+    ASSERT_FLOAT_EQ(listbox->itemHeight, 0.02f);
+    ASSERT_EQ_INT(listbox->selectedIndex, -1);
+}
+
 BEGIN_SUITE(ui_serialize)
     RUN_TEST(test_build_frame_rejects_null_arguments);
     RUN_TEST(test_build_text_frame_sets_label_payload_and_color);
@@ -362,4 +450,7 @@ BEGIN_SUITE(ui_serialize)
     RUN_TEST(test_build_frame_sets_uv_bytes_from_texcoord);
     RUN_TEST(test_collect_tree_and_build_frame_numbering_is_stable);
     RUN_TEST(test_build_frame_returns_true_for_supported_types);
+    RUN_TEST(test_build_editbox_writes_control_payload);
+    RUN_TEST(test_build_editbox_uses_edit_text_frame_font_and_color);
+    RUN_TEST(test_build_listbox_writes_control_payload);
 END_SUITE()

@@ -1,17 +1,31 @@
 #include <stdlib.h>
 
 #include "client.h"
+#include <SDL2/SDL.h>
 
 #define UI_BASE_WIDTH 0.8f
 #define UI_BASE_HEIGHT 0.6f
 #define UI_MIN_ASPECT (4.0f / 3.0f)
+#define MAX_EDIT_STATES 32
+#define MAX_EDIT_TEXT 256
 
 #define PLAYERSTATE_RESOURCE_FOOD_CAP 4
 #define PLAYERSTATE_RESOURCE_FOOD_USED 5
 
 static LPCSTR active_tooltip = NULL;
 static UIFRAME frames[MAX_LAYOUT_OBJECTS];
+static DWORD active_edit_number = 0;
 static DWORD num_frames = 0;
+
+typedef struct {
+    DWORD number;
+    BOOL inuse;
+    DWORD cursor;
+    DWORD maxChars;
+    char text[MAX_EDIT_TEXT];
+} editState_t;
+
+static editState_t edit_states[MAX_EDIT_STATES];
 
 struct {
     RECT rect;
@@ -19,6 +33,7 @@ struct {
 } runtimes[MAX_LAYOUT_OBJECTS];
 
 LPCRECT SCR_LayoutRect(LPCUIFRAME frame);
+RECT Rect_inset(LPCRECT r, FLOAT inset);
 
 static RECT SCR_GetUISceneRect(void) {
     size2_t window = re.GetWindowSize();
@@ -201,6 +216,40 @@ LPCSTR SCR_GetStringValue(LPCUIFRAME frame) {
         sprintf(text, "text %d", frame->number);
     }
     return text;
+}
+
+static BOOL SCR_IsEditBoxType(FRAMETYPE type) {
+    return type == FT_EDITBOX || type == FT_GLUEEDITBOX || type == FT_SLASHCHATBOX;
+}
+
+static editState_t *SCR_EditState(LPCUIFRAME frame, BOOL create) {
+    editState_t *free_state = NULL;
+    uiEditBox_t const *edit = frame->buffer.data;
+
+    FOR_LOOP(i, MAX_EDIT_STATES) {
+        editState_t *state = edit_states + i;
+        if (state->inuse && state->number == frame->number) {
+            state->maxChars = edit && edit->maxChars ? edit->maxChars : MAX_EDIT_TEXT - 1;
+            return state;
+        }
+        if (!state->inuse && !free_state) {
+            free_state = state;
+        }
+    }
+
+    if (!create || !free_state) {
+        return NULL;
+    }
+
+    memset(free_state, 0, sizeof(*free_state));
+    free_state->inuse = true;
+    free_state->number = frame->number;
+    free_state->maxChars = edit && edit->maxChars ? edit->maxChars : MAX_EDIT_TEXT - 1;
+    if (frame->text) {
+        snprintf(free_state->text, sizeof(free_state->text), "%s", frame->text);
+    }
+    free_state->cursor = (DWORD)strlen(free_state->text);
+    return free_state;
 }
 
 DRAWTEXT get_drawtext(LPCUIFRAME frame,
@@ -636,6 +685,103 @@ void SCR_DrawTextArea(LPCUIFRAME frame, LPCRECT screen) {
                       .wordWrap = true));
 }
 
+void SCR_DrawEditBox(LPCUIFRAME frame, LPCRECT screen) {
+    uiEditBox_t const *edit = frame->buffer.data;
+    editState_t *state = SCR_EditState(frame, true);
+    RECT text_rect = Rect_inset(screen, edit->borderSize);
+    char cursor_text[MAX_EDIT_TEXT + 2];
+    LPCSTR text = state ? state->text : "";
+
+    SCR_DrawBackdrop2(frame, screen, &edit->background);
+
+    re.DrawText(&MAKE(DRAWTEXT,
+                      .font = cl.fonts[edit->font],
+                      .text = text,
+                      .color = edit->textColor,
+                      .halign = FONT_JUSTIFYLEFT,
+                      .valign = FONT_JUSTIFYMIDDLE,
+                      .icons = cl.pics,
+                      .lineHeight = 1.33,
+                      .textWidth = text_rect.w,
+                      .rect = text_rect,
+                      .wordWrap = false));
+
+    if (active_edit_number == frame->number && state && (cl.time % 500) < 250) {
+        DWORD cursor = MIN(state->cursor, (DWORD)strlen(state->text));
+        DRAWTEXT measure;
+        VECTOR2 prefix_size;
+        RECT cursor_rect = text_rect;
+
+        snprintf(cursor_text, sizeof(cursor_text), "%.*s", (int)cursor, state->text);
+        measure = MAKE(DRAWTEXT,
+                       .font = cl.fonts[edit->font],
+                       .text = cursor_text,
+                       .color = edit->textColor,
+                       .halign = FONT_JUSTIFYLEFT,
+                       .valign = FONT_JUSTIFYMIDDLE,
+                       .icons = cl.pics,
+                       .lineHeight = 1.33,
+                       .textWidth = text_rect.w,
+                       .rect = text_rect,
+                       .wordWrap = false);
+        prefix_size = re.GetTextSize(&measure);
+        cursor_rect.x += prefix_size.x;
+        cursor_rect.w = MAX(cursor_rect.w - prefix_size.x, 0.0f);
+        re.DrawText(&MAKE(DRAWTEXT,
+                          .font = cl.fonts[edit->font],
+                          .text = "|",
+                          .color = edit->cursorColor,
+                          .halign = FONT_JUSTIFYLEFT,
+                          .valign = FONT_JUSTIFYMIDDLE,
+                          .icons = cl.pics,
+                          .lineHeight = 1.33,
+                          .textWidth = cursor_rect.w,
+                          .rect = cursor_rect,
+                          .wordWrap = false));
+    }
+}
+
+void SCR_DrawListBox(LPCUIFRAME frame, LPCRECT screen) {
+    uiListBox_t const *listbox = frame->buffer.data;
+    RECT item_rect = Rect_inset(screen, listbox->border);
+    FLOAT item_height = listbox->itemHeight > 0 ? listbox->itemHeight : 0.018f;
+    char items[MAX_EDIT_TEXT];
+    char *line = NULL;
+    char *save = NULL;
+    int index = 0;
+
+    SCR_DrawBackdrop2(frame, screen, &listbox->background);
+
+    if (!frame->text || !*frame->text) {
+        return;
+    }
+
+    snprintf(items, sizeof(items), "%s", frame->text);
+    line = strtok_r(items, "\n", &save);
+    while (line && item_rect.h > 0) {
+        RECT row = item_rect;
+        row.h = MIN(item_height, item_rect.h);
+        if (index == listbox->selectedIndex) {
+            re.DrawImage(cl.pics[0], &row, &MAKE(RECT, 0, 0, 1, 1), MAKE(COLOR32, 32, 64, 180, 128));
+        }
+        re.DrawText(&MAKE(DRAWTEXT,
+                          .font = cl.fonts[listbox->text.font],
+                          .text = line,
+                          .color = frame->color.a ? frame->color : COLOR32_WHITE,
+                          .halign = FONT_JUSTIFYLEFT,
+                          .valign = FONT_JUSTIFYMIDDLE,
+                          .icons = cl.pics,
+                          .lineHeight = 1.33,
+                          .textWidth = row.w,
+                          .rect = row,
+                          .wordWrap = false));
+        item_rect.y -= item_height;
+        item_rect.h -= item_height;
+        line = strtok_r(NULL, "\n", &save);
+        index++;
+    }
+}
+
 RECT Rect_inset(LPCRECT r, FLOAT inset) {
     return MAKE(RECT,r->x+inset,r->y+inset,r->w-inset*2,r->h-inset*2);
 }
@@ -741,6 +887,10 @@ static drawer_t drawers[] = {
     { FT_STRING, SCR_DrawString },
     { FT_TEXT, SCR_DrawString },
     { FT_TEXTAREA, SCR_DrawTextArea },
+    { FT_EDITBOX, SCR_DrawEditBox },
+    { FT_GLUEEDITBOX, SCR_DrawEditBox },
+    { FT_SLASHCHATBOX, SCR_DrawEditBox },
+    { FT_LISTBOX, SCR_DrawListBox },
     { FT_TOOLTIPTEXT, SCR_DrawTooltip },
     { FT_MODEL, SCR_DrawPortrait },
     { FT_SPRITE, SCR_DrawSprite },
@@ -756,6 +906,13 @@ static drawer_t drawers[] = {
 void SCR_DrawFrame(LPCUIFRAME frame) {
     VECTOR2 const m = SCR_MouseToFdf();
     RECT const *screen = SCR_LayoutRect(frame);
+    if (SCR_IsEditBoxType(frame->flags.type) &&
+        Rect_contains(screen, &m) &&
+        mouse.event == UI_LEFT_MOUSE_DOWN)
+    {
+        active_edit_number = frame->number;
+        SCR_EditState(frame, true);
+    }
     FOR_LOOP(j, sizeof(drawers)/sizeof(*drawers)) {
         if (drawers[j].type == frame->flags.type) {
             drawers[j].func(frame, screen);
@@ -788,6 +945,9 @@ void SCR_UpdateTooltip(HANDLE _frames) {
 }
 
 void SCR_DrawOverlay(HANDLE _frames) {
+    if (mouse.event == UI_LEFT_MOUSE_DOWN) {
+        active_edit_number = 0;
+    }
     FOR_LOOP(i, num_frames) {
         if (frames[i].flags.type == FT_SPRITE) {
             SCR_DrawFrame(frames+i);
@@ -834,6 +994,101 @@ void SCR_DrawOverlays(void) {
             SCR_DrawOverlay(layout);
         }
     }
+}
+
+static editState_t *SCR_ActiveEditState(void) {
+    FOR_LOOP(i, MAX_EDIT_STATES) {
+        if (edit_states[i].inuse && edit_states[i].number == active_edit_number) {
+            return edit_states + i;
+        }
+    }
+    return NULL;
+}
+
+void SCR_TextInput(LPCSTR text) {
+    editState_t *state = SCR_ActiveEditState();
+    size_t len;
+    size_t add_len;
+    DWORD cursor;
+
+    if (!state || !text || !*text) {
+        return;
+    }
+
+    len = strlen(state->text);
+    add_len = strlen(text);
+    cursor = MIN(state->cursor, (DWORD)len);
+    if (state->maxChars > 0 && len >= state->maxChars) {
+        return;
+    }
+    if (state->maxChars > 0 && len + add_len > state->maxChars) {
+        add_len = state->maxChars - len;
+    }
+    if (len + add_len >= sizeof(state->text)) {
+        add_len = sizeof(state->text) - len - 1;
+    }
+    if (add_len == 0) {
+        return;
+    }
+
+    memmove(state->text + cursor + add_len,
+            state->text + cursor,
+            len - cursor + 1);
+    memcpy(state->text + cursor, text, add_len);
+    state->cursor = cursor + (DWORD)add_len;
+}
+
+BOOL SCR_EditKey(int key) {
+    editState_t *state = SCR_ActiveEditState();
+    size_t len;
+    DWORD cursor;
+
+    if (!state) {
+        return false;
+    }
+
+    len = strlen(state->text);
+    cursor = MIN(state->cursor, (DWORD)len);
+    switch (key) {
+        case SDLK_BACKSPACE:
+            if (cursor > 0) {
+                memmove(state->text + cursor - 1,
+                        state->text + cursor,
+                        len - cursor + 1);
+                state->cursor = cursor - 1;
+            }
+            return true;
+        case SDLK_DELETE:
+            if (cursor < len) {
+                memmove(state->text + cursor,
+                        state->text + cursor + 1,
+                        len - cursor);
+            }
+            return true;
+        case SDLK_LEFT:
+            if (cursor > 0) {
+                state->cursor = cursor - 1;
+            }
+            return true;
+        case SDLK_RIGHT:
+            if (cursor < len) {
+                state->cursor = cursor + 1;
+            }
+            return true;
+        case SDLK_HOME:
+            state->cursor = 0;
+            return true;
+        case SDLK_END:
+            state->cursor = (DWORD)len;
+            return true;
+        case SDLK_RETURN:
+        case SDLK_KP_ENTER:
+            active_edit_number = 0;
+            return true;
+        default:
+            break;
+    }
+    return false;
 }
 
 void SCR_UpdateScreen(void) {

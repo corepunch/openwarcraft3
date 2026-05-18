@@ -252,6 +252,43 @@ static void WriteTextArea(LPCFRAMEDEF frame, sizeBuf_t *sb, uiFrame_t *tmp) {
     MSG_Write(sb, &data, sizeof(data));
 }
 
+static void WriteEditBox(LPCFRAMEDEF frame, sizeBuf_t *sb, uiFrame_t *tmp) {
+    LPCFRAMEDEF Backdrop = UI_FindFrameNear(frame, frame->Control.Backdrop.Normal);
+    LPCFRAMEDEF TextFrame = UI_FindFrameNear(frame, frame->Edit.TextFrame);
+    COLOR32 text_color = frame->Edit.TextColor.a ? frame->Edit.TextColor :
+                         TextFrame && TextFrame->Font.Color.a ? TextFrame->Font.Color :
+                         frame->Font.Color;
+    COLOR32 cursor_color = frame->Edit.CursorColor.a ? frame->Edit.CursorColor : COLOR32_WHITE;
+    uiEditBox_t data = {
+        .background = MakeBackdrop(Backdrop),
+        .font = TextFrame ? TextFrame->Font.Index : frame->Font.Index,
+        .borderSize = frame->Edit.BorderSize,
+        .textColor = text_color.a ? text_color : COLOR32_WHITE,
+        .cursorColor = cursor_color,
+        .maxChars = frame->Edit.MaxChars,
+    };
+
+    if (frame->Edit.Text[0]) {
+        tmp->text = frame->Edit.Text;
+    } else if (!tmp->text || !*tmp->text) {
+        tmp->text = "";
+    }
+    MSG_Write(sb, &data, sizeof(data));
+}
+
+static void WriteListBox(LPCFRAMEDEF frame, sizeBuf_t *sb, uiFrame_t *tmp) {
+    LPCFRAMEDEF Backdrop = UI_FindFrameNear(frame, frame->Control.Backdrop.Normal);
+    uiListBox_t data = {
+        .background = MakeBackdrop(Backdrop),
+        .text = MakeLabel(frame),
+        .border = frame->ListBox.Border,
+        .itemHeight = frame->Menu.Item.Height,
+        .selectedIndex = -1,
+    };
+    (void)tmp;
+    MSG_Write(sb, &data, sizeof(data));
+}
+
 static void WriteLabel(LPCFRAMEDEF frame, sizeBuf_t *sb, uiFrame_t *tmp) {
     uiLabel_t data = MakeLabel(frame);
     if(!tmp->points.x[FPP_MIN].used &&
@@ -367,6 +404,14 @@ BOOL UI_BuildFrameForWrite(LPCFRAMEDEF frame,
             break;
         case FT_TEXTAREA:
             WriteTextArea(frame, &buf, out);
+            break;
+        case FT_EDITBOX:
+        case FT_GLUEEDITBOX:
+        case FT_SLASHCHATBOX:
+            WriteEditBox(frame, &buf, out);
+            break;
+        case FT_LISTBOX:
+            WriteListBox(frame, &buf, out);
             break;
         case FT_MODEL:
         case FT_SPRITE:

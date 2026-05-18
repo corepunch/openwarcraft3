@@ -346,6 +346,28 @@ static void test_collect_frame_tree_skips_button_control_art(void) {
     ASSERT(out[1] == text);
 }
 
+static void test_collect_frame_tree_skips_editbox_text_frame(void) {
+    LPCFRAMEDEF out[4];
+    DWORD count;
+    LPFRAMEDEF editbox;
+
+    reset_ui_state();
+    parse_fdf("collect_editbox_text.fdf",
+              "Frame \"EDITBOX\" \"Edit\" {"
+              " EditTextFrame \"EditText\","
+              " Frame \"TEXT\" \"EditText\" { Text \"x\", }"
+              "}");
+
+    editbox = UI_FindFrame("Edit");
+    if (!require_not_null(editbox)) return;
+
+    memset(out, 0, sizeof(out));
+    count = UI_CollectFrameTree(editbox, out, 4);
+
+    ASSERT_EQ_INT((int)count, 1);
+    ASSERT(out[0] == editbox);
+}
+
 static void test_collect_frame_tree_returns_total_when_truncated(void) {
     LPCFRAMEDEF out[2];
     DWORD count;
@@ -785,6 +807,7 @@ BEGIN_SUITE(ui_fdf)
     RUN_TEST(test_collect_frame_tree_preorder_matches_writer_traversal);
     RUN_TEST(test_collect_frame_tree_skips_hidden_children);
     RUN_TEST(test_collect_frame_tree_skips_button_control_art);
+    RUN_TEST(test_collect_frame_tree_skips_editbox_text_frame);
     RUN_TEST(test_collect_frame_tree_returns_total_when_truncated);
     RUN_TEST(test_find_child_frame_descends_recursively);
     RUN_TEST(test_programmatic_setpoint_maps_to_points);

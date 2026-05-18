@@ -518,6 +518,23 @@ typedef struct {
 
 typedef struct {
     uiBackdrop_t background;
+    RESOURCE font;
+    FLOAT borderSize;
+    COLOR32 textColor;
+    COLOR32 cursorColor;
+    DWORD maxChars;
+} uiEditBox_t;
+
+typedef struct {
+    uiBackdrop_t background;
+    uiLabel_t text;
+    FLOAT border;
+    FLOAT itemHeight;
+    SHORT selectedIndex;
+} uiListBox_t;
+
+typedef struct {
+    uiBackdrop_t background;
     uiLabel_t text;
 } uiTooltip_t;
 

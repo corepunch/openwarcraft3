@@ -860,6 +860,9 @@ static BOOL UI_IsEmbeddedControlPart(LPCFRAMEDEF parent, LPCFRAMEDEF child) {
     if (child->Type == FT_HIGHLIGHT) {
         return UI_FrameNameEquals(child, parent->Control.Backdrop.MouseOver);
     }
+    if (child->Type == FT_TEXT) {
+        return UI_FrameNameEquals(child, parent->Edit.TextFrame);
+    }
     return false;
 }
 

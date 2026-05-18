@@ -409,10 +409,55 @@ static void Init_MapSelectMenu(void) {
 
 static void Init_MultiplayerJoinMenu(void) {
     UI_FRAME(LocalMultiplayerJoin);
+    LPFRAMEDEF PlayerNameEditBox = UI_FindChildFrame(LocalMultiplayerJoin, "PlayerNameEditBox");
+    LPFRAMEDEF GameListLabel = UI_FindChildFrame(LocalMultiplayerJoin, "GameListLabel");
+    LPFRAMEDEF GameListContainer = UI_FindChildFrame(LocalMultiplayerJoin, "GameListContainer");
     LPFRAMEDEF CreateButton = UI_FindChildFrame(LocalMultiplayerJoin, "CreateButton");
     LPFRAMEDEF LoadButton = UI_FindChildFrame(LocalMultiplayerJoin, "LoadButton");
     LPFRAMEDEF JoinButton = UI_FindChildFrame(LocalMultiplayerJoin, "JoinButton");
     LPFRAMEDEF CancelButton = UI_FindChildFrame(LocalMultiplayerJoin, "CancelButton");
+
+    if (PlayerNameEditBox) {
+        LPFRAMEDEF PlayerNameEditText = UI_FindChildFrame(PlayerNameEditBox, "PlayerNameEditBoxText");
+        if (!PlayerNameEditText) {
+            PlayerNameEditText = UI_Spawn(FT_TEXT, PlayerNameEditBox);
+            if (PlayerNameEditText) {
+                strcpy(PlayerNameEditText->Name, "PlayerNameEditBoxText");
+                UI_InheritFrom(PlayerNameEditText, "StandardEditBoxTextTemplate");
+                PlayerNameEditText->Parent = PlayerNameEditBox;
+                UI_SetAllPoints(PlayerNameEditText);
+            }
+        }
+        if (PlayerNameEditText) {
+            strcpy(PlayerNameEditBox->Edit.TextFrame, PlayerNameEditText->Name);
+        }
+        PlayerNameEditBox->Edit.MaxChars = 15;
+        UI_SetText(PlayerNameEditBox, "Player");
+    }
+    if (GameListContainer && !UI_FindChildFrame(GameListContainer, "GameListBox")) {
+        LPFRAMEDEF GameListBox = UI_Spawn(FT_LISTBOX, GameListContainer);
+        if (GameListBox) {
+            LPFRAMEDEF GameListBackdrop;
+
+            strcpy(GameListBox->Name, "GameListBox");
+            UI_InheritFrom(GameListBox, "StandardListBoxTemplate");
+            GameListBox->Parent = GameListContainer;
+            GameListBackdrop = UI_Spawn(FT_BACKDROP, GameListBox);
+            if (GameListBackdrop) {
+                strcpy(GameListBackdrop->Name, "GameListBackdrop");
+                UI_InheritFrom(GameListBackdrop, "StandardEditBoxBackdropTemplate");
+                GameListBackdrop->Parent = GameListBox;
+                strcpy(GameListBox->Control.Backdrop.Normal, GameListBackdrop->Name);
+                UI_SetAllPoints(GameListBackdrop);
+            }
+            if (GameListLabel) {
+                GameListBox->Font = GameListLabel->Font;
+            }
+            GameListBox->Color = COLOR32_WHITE;
+            UI_SetAllPoints(GameListBox);
+        }
+    }
+
     UI_SetOnClick(CreateButton, "menu /lan/create");
     UI_SetOnClick(LoadButton, "menu /lan");
     UI_SetOnClick(JoinButton, "menu /lan");

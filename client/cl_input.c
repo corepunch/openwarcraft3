@@ -54,7 +54,15 @@ void CL_Input(void) {
         }
         
         switch(event.type) {
+            case SDL_TEXTINPUT:
+                if (cls.key_dest == key_menu) {
+                    SCR_TextInput(event.text.text);
+                }
+                break;
             case SDL_KEYDOWN:
+                if (cls.key_dest == key_menu && SCR_EditKey(event.key.keysym.sym)) {
+                    break;
+                }
                 Key_Event(event.key.keysym.sym, true, event.key.timestamp);
                 break;
             case SDL_KEYUP:
@@ -136,11 +144,13 @@ void CL_Input(void) {
 
 void CL_SetMenuBindings(void) {
     cls.key_dest = key_menu;
+    SDL_StartTextInput();
     Key_SetBinding(K_ESCAPE, "quit");
 }
 
 void CL_SetGameplayBindings(void) {
     cls.key_dest = key_game;
+    SDL_StopTextInput();
     cl.moveConfirmation = re.LoadModel("UI\\Feedback\\Confirmation\\Confirmation.mdx");
 
     cl.viewDef.camerastate[0].zfar = 5000;

@@ -120,6 +120,8 @@ VECTOR2 SCR_SolveAxisPosition(LPCUIFRAME frame,
                               FLOAT width,
                               bool is_x_axis);
 void SCR_UpdateScreen(void);
+void SCR_TextInput(LPCSTR text);
+BOOL SCR_EditKey(int key);
 
 // cl_input.c
 void CL_Input(void);
