@@ -291,6 +291,7 @@ static void WriteListBox(LPCFRAMEDEF frame, sizeBuf_t *sb, uiFrame_t *tmp) {
         .selectedIndex = -1,
     };
     snprintf(data.fetchCommand, sizeof(data.fetchCommand), "%s", frame->ListBox.FetchCommand);
+    snprintf(data.selectionCommand, sizeof(data.selectionCommand), "%s", frame->ListBox.SelectionCommand);
     (void)tmp;
     MSG_Write(sb, &data, sizeof(data));
 }
@@ -486,6 +487,12 @@ void UI_WriteStart(DWORD layer) {
     gi.WriteByte(layer);
     frameptr = framesWritten;
     layoutBytesWritten = 0;
+}
+
+void UI_ClearLayer(LPEDICT ent, DWORD layer) {
+    UI_WriteStart(layer);
+    gi.WriteLong(0);
+    gi.unicast(ent);
 }
 
 /* Serialize the complete frame tree rooted at root and unicast the resulting

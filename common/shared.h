@@ -538,6 +538,7 @@ typedef struct {
     FLOAT itemHeight;
     SHORT selectedIndex;
     UINAME fetchCommand;
+    UINAME selectionCommand;
 } uiListBox_t;
 
 typedef struct {

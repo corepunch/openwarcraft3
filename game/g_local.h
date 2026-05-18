@@ -483,6 +483,7 @@ struct uiFrameDef_s {
         FLOAT Border;
         UINAME ScrollBar;
         UINAME FetchCommand;
+        UINAME SelectionCommand;
     } ListBox;
     struct {
         FLOAT Border;
@@ -886,6 +887,12 @@ void UI_ShowMultiplayerMenu(LPEDICT);
 void UI_ShowMultiplayerCreateMenu(LPEDICT);
 void UI_ShowGameInterface(LPEDICT);
 void UI_ShowMapSelectMenu(LPEDICT, LPCSTR);
+void UI_ShowMultiplayerCreateMapInfo(LPEDICT,
+                                     LPCSTR,
+                                     LPCSTR,
+                                     LPCSTR,
+                                     LPCSTR,
+                                     LPCSTR);
 
 // p_fdf.c
 void UI_PrintClasses(void);
@@ -902,6 +909,7 @@ void UI_SetTexture(LPFRAMEDEF, LPCSTR, BOOL);
 void UI_SetTexture2(LPFRAMEDEF, LPCSTR, BOOL);
 void UI_WriteLayout(LPEDICT, LPCFRAMEDEF, DWORD);
 void UI_WriteStart(DWORD);
+void UI_ClearLayer(LPEDICT, DWORD);
 void UI_WriteWithTriggers(LPEDICT, LPCFRAMEDEF, DWORD, uiTrigger_t const *);
 void UI_SetPoint(LPFRAMEDEF, UIFRAMEPOINT, LPCFRAMEDEF, UIFRAMEPOINT, FLOAT, FLOAT);
 void UI_InitFrame(LPFRAMEDEF, FRAMETYPE);
@@ -945,6 +953,7 @@ void G_DeselectEntity(LPGAMECLIENT, LPEDICT);
 BOOL G_IsEntitySelected(LPGAMECLIENT, LPEDICT);
 void G_ClientCommand(LPEDICT, DWORD, LPCSTR[]);
 void CMD_List(LPEDICT, DWORD, LPCSTR[]);
+void CMD_ListSelect(LPEDICT, DWORD, LPCSTR[]);
 void G_ClientPanCamera(LPEDICT, LPVECTOR2);
 
 //  s_skills.c

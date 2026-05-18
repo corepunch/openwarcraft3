@@ -7,6 +7,10 @@
 typedef struct {
     PATHSTR path;
     char name[128];
+    char description[512];
+    char suggestedPlayers[96];
+    char mapSize[32];
+    char tileset[64];
     DWORD players;
     DWORD flags;
 } mapListItem_t;
@@ -18,6 +22,7 @@ typedef struct {
 } mapReader_t;
 
 static void G_SanitizeListField(LPSTR text);
+static void G_SanitizeInfoText(LPSTR text);
 
 #define MAX_MAP_LIST_ITEMS 256
 
@@ -272,6 +277,56 @@ static void G_SanitizeListField(LPSTR text) {
     }
 }
 
+static void G_SanitizeInfoText(LPSTR text) {
+    if (!text) {
+        return;
+    }
+    for (LPSTR p = text; *p; p++) {
+        if (*p == '\t') {
+            *p = ' ';
+        }
+    }
+}
+
+static LPCSTR G_TilesetName(BYTE tileset) {
+    switch (tileset) {
+        case 'A': return "Ashenvale";
+        case 'B': return "Barrens";
+        case 'C': return "Felwood";
+        case 'D': return "Dungeon";
+        case 'F': return "Lordaeron Fall";
+        case 'G': return "Underground";
+        case 'I': return "Icecrown Glacier";
+        case 'J': return "Dalaran";
+        case 'K': return "Black Citadel";
+        case 'L': return "Lordaeron Summer";
+        case 'N': return "Northrend";
+        case 'O': return "Outland";
+        case 'Q': return "Village Fall";
+        case 'V': return "Village";
+        case 'W': return "Lordaeron Winter";
+        case 'X': return "Dalaran Ruins";
+        case 'Y': return "Cityscape";
+        case 'Z': return "Sunken Ruins";
+        default: return "UNKNOWNMAP_TILESET";
+    }
+}
+
+static LPCSTR G_MapSizeName(DWORD width, DWORD height) {
+    DWORD largest = MAX(width, height);
+
+    if (largest <= 96) {
+        return "Small";
+    }
+    if (largest <= 128) {
+        return "Medium";
+    }
+    if (largest <= 160) {
+        return "Large";
+    }
+    return "Huge";
+}
+
 static BOOL G_ReadArchiveFile(HANDLE archive, LPCSTR name, LPBYTE *out, LPDWORD out_size) {
     HANDLE file;
     DWORD size;
@@ -320,10 +375,14 @@ static BOOL G_ParseMapInfo(mapListItem_t *item) {
     mapReader_t reader;
     char rawName[128];
     char rawDescription[128];
+    char rawSuggestedPlayers[96];
     char rawLoadingTitle[64];
     char rawLoadingSubtitle[96];
     DWORD version = 0;
+    DWORD mapWidth = 0;
+    DWORD mapHeight = 0;
     DWORD playerCount = 0;
+    BYTE tileset = 0;
 
     if (!item || !gi.ReadFile || !gi.MemFree ||
         !gi.OpenArchiveFromMemory || !gi.CloseArchive) {
@@ -348,6 +407,7 @@ static BOOL G_ParseMapInfo(mapListItem_t *item) {
     reader = MAKE(mapReader_t, .data = w3i, .size = w3iSize, .pos = 0);
     rawName[0] = '\0';
     rawDescription[0] = '\0';
+    rawSuggestedPlayers[0] = '\0';
     rawLoadingTitle[0] = '\0';
     rawLoadingSubtitle[0] = '\0';
 
@@ -361,10 +421,14 @@ static BOOL G_ParseMapInfo(mapListItem_t *item) {
     if (!G_MapReadCString(&reader, rawName, sizeof(rawName)) ||
         !G_MapReadCString(&reader, NULL, 0) ||
         !G_MapReadCString(&reader, rawDescription, sizeof(rawDescription)) ||
-        !G_MapReadCString(&reader, NULL, 0) ||
-        !G_MapSkip(&reader, sizeof(FLOAT) * 8 + sizeof(DWORD) * 4 + sizeof(DWORD) * 2) ||
+        !G_MapReadCString(&reader, rawSuggestedPlayers, sizeof(rawSuggestedPlayers)) ||
+        !G_MapSkip(&reader, sizeof(FLOAT) * 8) ||
+        !G_MapSkip(&reader, sizeof(DWORD) * 4) ||
+        !G_MapReadU32(&reader, &mapWidth) ||
+        !G_MapReadU32(&reader, &mapHeight) ||
         !G_MapReadU32(&reader, &item->flags) ||
-        !G_MapSkip(&reader, sizeof(BYTE) + sizeof(DWORD))) {
+        !G_MapRead(&reader, &tileset, sizeof(tileset)) ||
+        !G_MapSkip(&reader, sizeof(DWORD))) {
         goto fail;
     }
     if (version > 24 && !G_MapReadCString(&reader, NULL, 0)) {
@@ -407,6 +471,12 @@ static BOOL G_ParseMapInfo(mapListItem_t *item) {
                         rawDescription,
                         rawLoadingTitle,
                         rawLoadingSubtitle);
+    G_ResolveTrigStr(rawDescription, (LPCSTR)wts, item->description, sizeof(item->description));
+    G_ResolveTrigStr(rawSuggestedPlayers, (LPCSTR)wts, item->suggestedPlayers, sizeof(item->suggestedPlayers));
+    G_SanitizeInfoText(item->description);
+    G_SanitizeInfoText(item->suggestedPlayers);
+    snprintf(item->mapSize, sizeof(item->mapSize), "%s", G_MapSizeName(mapWidth, mapHeight));
+    snprintf(item->tileset, sizeof(item->tileset), "%s", G_TilesetName(tileset));
     item->players = MIN(playerCount, MAX_PLAYERS);
     if (wts) {
         gi.MemFree(wts);
@@ -481,21 +551,17 @@ static BOOL G_AddMapListItem(mapListItem_t *items,
     return true;
 }
 
-static void G_ListMaps(LPSTR text, DWORD text_size) {
+static DWORD G_CollectMapList(mapListItem_t *items, DWORD maxItems) {
     SFILE_FIND_DATA find;
     HANDLE handle;
-    mapListItem_t items[MAX_MAP_LIST_ITEMS];
     DWORD itemCount = 0;
-    DWORD numRows = 0;
 
-    if (!text || text_size == 0) {
-        return;
+    if (!items || maxItems == 0) {
+        return 0;
     }
-
-    text[0] = '\0';
-    memset(items, 0, sizeof(items));
+    memset(items, 0, sizeof(mapListItem_t) * maxItems);
     handle = gi.FindFirstFile ? gi.FindFirstFile("Maps\\*", &find) : NULL;
-    while (handle && itemCount < MAX_MAP_LIST_ITEMS) {
+    while (handle && itemCount < maxItems) {
         if (G_IsMapFile(find.cFileName) && !G_IsCampaignMap(find.cFileName)) {
             G_AddMapListItem(items, &itemCount, find.cFileName);
         }
@@ -521,6 +587,20 @@ static void G_ListMaps(LPSTR text, DWORD text_size) {
     }
     itemCount = parsedCount;
     qsort(items, itemCount, sizeof(items[0]), G_CompareMapListItems);
+    return itemCount;
+}
+
+static void G_ListMaps(LPSTR text, DWORD text_size) {
+    mapListItem_t items[MAX_MAP_LIST_ITEMS];
+    DWORD itemCount;
+    DWORD numRows = 0;
+
+    if (!text || text_size == 0) {
+        return;
+    }
+
+    text[0] = '\0';
+    itemCount = G_CollectMapList(items, MAX_MAP_LIST_ITEMS);
     numRows = 0;
     FOR_LOOP(i, itemCount) {
         char row[256];
@@ -558,4 +638,30 @@ void CMD_List(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
         G_ListMaps(text, sizeof(text));
     }
     G_WriteListFetchResponse(ent, requestId, text);
+}
+
+void CMD_ListSelect(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
+    mapListItem_t items[MAX_MAP_LIST_ITEMS];
+    DWORD itemCount;
+    DWORD rowIndex;
+    mapListItem_t *item;
+
+    if (argc < 3 || strcmp(argv[1], "maps")) {
+        return;
+    }
+
+    rowIndex = (DWORD)strtoul(argv[2], NULL, 10);
+    itemCount = G_CollectMapList(items, MAX_MAP_LIST_ITEMS);
+    if (rowIndex >= itemCount || rowIndex >= MAX_LIST_FETCH_ROWS) {
+        UI_ShowMultiplayerCreateMapInfo(ent, NULL, NULL, NULL, NULL, NULL);
+        return;
+    }
+
+    item = &items[rowIndex];
+    UI_ShowMultiplayerCreateMapInfo(ent,
+                                    item->name,
+                                    item->suggestedPlayers,
+                                    item->mapSize,
+                                    item->tileset,
+                                    item->description);
 }

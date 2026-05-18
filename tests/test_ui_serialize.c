@@ -424,6 +424,8 @@ static void test_build_listbox_writes_control_payload(void) {
     frame.Font.Index = 11;
     frame.Font.Justification.Horizontal = FONT_JUSTIFYLEFT;
     frame.ListBox.Border = 0.01f;
+    strcpy(frame.ListBox.FetchCommand, "maps");
+    strcpy(frame.ListBox.SelectionCommand, "listselect maps");
     frame.Menu.Item.Height = 0.02f;
 
     ASSERT(build_frame(&frame, &out, typedata, textbuf));
@@ -435,6 +437,8 @@ static void test_build_listbox_writes_control_payload(void) {
     ASSERT_FLOAT_EQ(listbox->border, 0.01f);
     ASSERT_FLOAT_EQ(listbox->itemHeight, 0.02f);
     ASSERT_EQ_INT(listbox->selectedIndex, -1);
+    ASSERT_STR_EQ(listbox->fetchCommand, "maps");
+    ASSERT_STR_EQ(listbox->selectionCommand, "listselect maps");
 }
 
 static LPFRAMEDEF make_scrollbar_button(LPFRAMEDEF scrollbar,

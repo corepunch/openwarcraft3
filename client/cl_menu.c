@@ -664,6 +664,10 @@ void SCR_DrawListBox(LPCUIFRAME frame, LPCRECT screen) {
         if (rowIndex == selectedIndex) {
             re.DrawImage(cl.pics[0], &row, &MAKE(RECT, 0, 0, 1, 1), MAKE(COLOR32, 32, 64, 180, 128));
         }
+        if (mouse.event == UI_LEFT_MOUSE_UP && Rect_contains(&row, &mouse_pos)) {
+            CL_ListBoxSelect(active_layout, frame, listbox, (DWORD)rowIndex);
+            selectedIndex = (SHORT)rowIndex;
+        }
         re.DrawText(&MAKE(DRAWTEXT,
                           .font = cl.fonts[listbox->text.font],
                           .text = display,

@@ -197,6 +197,7 @@ clientCommand_t clientCommands[] = {
     { "quest", CMD_Quest },
     { "menu", CMD_Menu },
     { "list", CMD_List },
+    { "listselect", CMD_ListSelect },
     { NULL }
 };
 

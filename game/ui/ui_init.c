@@ -345,6 +345,7 @@ static void UI_WriteMenuWithMainFrameAnimationAndBackground(LPEDICT ent,
     if (!MainMenuFrame || !root) {
         return;
     }
+    UI_ClearLayer(ent, LAYER_INFOPANEL);
     UI_BuildMenuPanelAnimation(ent, panel_animation, animation, sizeof(animation));
 
     UI_WriteStart(LAYER_BACKGROUND);
@@ -368,6 +369,112 @@ static void UI_WriteMenuWithMainFrameAnimationAndBackground(LPEDICT ent,
 
 static void UI_WriteMenuWithMainFrameAnimation(LPEDICT ent, LPCFRAMEDEF root, LPCSTR panel_animation) {
     UI_WriteMenuWithMainFrameAnimationAndBackground(ent, root, panel_animation, NULL);
+}
+
+static void UI_InitMapInfoText(LPFRAMEDEF text,
+                               LPCSTR name,
+                               LPCFRAMEDEF parent,
+                               LPCSTR templateName,
+                               UIFRAMEPOINT point,
+                               LPCFRAMEDEF relative,
+                               UIFRAMEPOINT relativePoint,
+                               FLOAT x,
+                               FLOAT y,
+                               FLOAT width,
+                               FLOAT height,
+                               LPCSTR value)
+{
+    UI_InitFrame(text, FT_TEXT);
+    snprintf(text->Name, sizeof(text->Name), "%s", name);
+    UI_InheritFrom(text, templateName);
+    UI_SetParent(text, parent);
+    UI_SetSize(text, width, height);
+    UI_SetPoint(text, point, relative, relativePoint, x, y);
+    UI_SetText(text, "%s", value ? value : "");
+}
+
+void UI_ShowMultiplayerCreateMapInfo(LPEDICT ent,
+                                     LPCSTR name,
+                                     LPCSTR suggestedPlayers,
+                                     LPCSTR mapSize,
+                                     LPCSTR tileset,
+                                     LPCSTR description)
+{
+    FRAMEDEF root;
+    FRAMEDEF title;
+    FRAMEDEF suggestedLabel;
+    FRAMEDEF suggestedValue;
+    FRAMEDEF sizeLabel;
+    FRAMEDEF sizeValue;
+    FRAMEDEF tilesetLabel;
+    FRAMEDEF tilesetValue;
+    FRAMEDEF descriptionLabel;
+    FRAMEDEF descriptionValue;
+
+    UI_InitFrame(&root, FT_FRAME);
+    strcpy(root.Name, "CreateGameMapInfoOverlay");
+    UI_SetSize(&root, 0.271875f, 0.323125f);
+    UI_SetPoint(&root, FRAMEPOINT_TOP, NULL, FRAMEPOINT_TOPRIGHT, -0.180625f, -0.0375f);
+
+    UI_InitMapInfoText(&title,
+                       "CreateGameMapTitle",
+                       &root,
+                       "StandardTitleTextTemplate",
+                       FRAMEPOINT_TOP,
+                       &root,
+                       FRAMEPOINT_TOP,
+                       0.0f,
+                       -0.003f,
+                       0.245f,
+                       0.026f,
+                       name && *name ? name : " ");
+    title.Font.Justification.Horizontal = FONT_JUSTIFYCENTER;
+
+    UI_InitMapInfoText(&suggestedLabel, "CreateGameSuggestedPlayersLabel", &root, "StandardLabelTextTemplate",
+                       FRAMEPOINT_TOPLEFT, &root, FRAMEPOINT_TOPLEFT, 0.012f, -0.145f, 0.112f, 0.016f,
+                       "COLON_SUGGESTED_PLAYERS");
+    UI_InitMapInfoText(&suggestedValue, "CreateGameSuggestedPlayersValue", &root, "StandardValueTextTemplate",
+                       FRAMEPOINT_TOPRIGHT, &root, FRAMEPOINT_TOPRIGHT, -0.012f, -0.145f, 0.126f, 0.016f,
+                       suggestedPlayers && *suggestedPlayers ? suggestedPlayers : "UNKNOWNMAP_SUGGESTEDPLAYERS");
+    suggestedValue.Font.Justification.Horizontal = FONT_JUSTIFYRIGHT;
+
+    UI_InitMapInfoText(&sizeLabel, "CreateGameMapSizeLabel", &root, "StandardLabelTextTemplate",
+                       FRAMEPOINT_TOPLEFT, &suggestedLabel, FRAMEPOINT_BOTTOMLEFT, 0.0f, -0.002f, 0.112f, 0.016f,
+                       "COLON_MAP_SIZE");
+    UI_InitMapInfoText(&sizeValue, "CreateGameMapSizeValue", &root, "StandardValueTextTemplate",
+                       FRAMEPOINT_TOPRIGHT, &suggestedValue, FRAMEPOINT_BOTTOMRIGHT, 0.0f, -0.002f, 0.126f, 0.016f,
+                       mapSize && *mapSize ? mapSize : "UNKNOWNMAP_MAPSIZE");
+    sizeValue.Font.Justification.Horizontal = FONT_JUSTIFYRIGHT;
+
+    UI_InitMapInfoText(&tilesetLabel, "CreateGameTilesetLabel", &root, "StandardLabelTextTemplate",
+                       FRAMEPOINT_TOPLEFT, &sizeLabel, FRAMEPOINT_BOTTOMLEFT, 0.0f, -0.002f, 0.112f, 0.016f,
+                       "COLON_TILESET");
+    UI_InitMapInfoText(&tilesetValue, "CreateGameTilesetValue", &root, "StandardValueTextTemplate",
+                       FRAMEPOINT_TOPRIGHT, &sizeValue, FRAMEPOINT_BOTTOMRIGHT, 0.0f, -0.002f, 0.126f, 0.016f,
+                       tileset && *tileset ? tileset : "UNKNOWNMAP_TILESET");
+    tilesetValue.Font.Justification.Horizontal = FONT_JUSTIFYRIGHT;
+
+    UI_InitMapInfoText(&descriptionLabel, "CreateGameMapDescriptionLabel", &root, "StandardLabelTextTemplate",
+                       FRAMEPOINT_TOPLEFT, &tilesetLabel, FRAMEPOINT_BOTTOMLEFT, 0.0f, -0.018f, 0.20f, 0.016f,
+                       "COLON_MAP_DESC");
+    UI_InitMapInfoText(&descriptionValue, "CreateGameMapDescriptionValue", &root, "StandardSmallTextTemplate",
+                       FRAMEPOINT_TOPLEFT, &descriptionLabel, FRAMEPOINT_BOTTOMLEFT, 0.0f, -0.002f, 0.245f, 0.080f,
+                       description && *description ? description : "UNKNOWNMAP_DESCRIPTION");
+    descriptionValue.Font.Justification.Vertical = FONT_JUSTIFYTOP;
+
+    UI_WriteStart(LAYER_INFOPANEL);
+    UI_WriteFrameWithChildren(&root, NULL);
+    UI_WriteFrameWithChildren(&title, &root);
+    UI_WriteFrameWithChildren(&suggestedLabel, &root);
+    UI_WriteFrameWithChildren(&suggestedValue, &root);
+    UI_WriteFrameWithChildren(&sizeLabel, &root);
+    UI_WriteFrameWithChildren(&sizeValue, &root);
+    UI_WriteFrameWithChildren(&tilesetLabel, &root);
+    UI_WriteFrameWithChildren(&tilesetValue, &root);
+    UI_WriteFrameWithChildren(&descriptionLabel, &root);
+    UI_WriteFrameWithChildren(&descriptionValue, &root);
+    gi.WriteLong(0);
+    gi.unicast(ent);
 }
 
 static void Init_MapSelectMenu(void) {
@@ -412,7 +519,8 @@ static void UI_EnsureFetchListBox(LPFRAMEDEF container,
                                   LPFRAMEDEF label,
                                   LPCSTR name,
                                   LPCSTR backdropName,
-                                  LPCSTR fetchCommand)
+                                  LPCSTR fetchCommand,
+                                  LPCSTR selectionCommand)
 {
     LPFRAMEDEF listbox;
     LPFRAMEDEF backdrop;
@@ -444,6 +552,9 @@ static void UI_EnsureFetchListBox(LPFRAMEDEF container,
         listbox->Font = label->Font;
     }
     strcpy(listbox->ListBox.FetchCommand, fetchCommand);
+    if (selectionCommand) {
+        strcpy(listbox->ListBox.SelectionCommand, selectionCommand);
+    }
     listbox->Color = COLOR32_WHITE;
     UI_SetAllPoints(listbox);
 
@@ -496,7 +607,7 @@ static void Init_MultiplayerJoinMenu(void) {
         PlayerNameEditBox->Edit.MaxChars = 15;
         UI_SetText(PlayerNameEditBox, "Player");
     }
-    UI_EnsureFetchListBox(GameListContainer, GameListLabel, "GameListBox", "GameListBackdrop", "lan-games");
+    UI_EnsureFetchListBox(GameListContainer, GameListLabel, "GameListBox", "GameListBackdrop", "lan-games", NULL);
 
     UI_SetOnClick(CreateButton, "menu /lan/create");
     UI_SetOnClick(LoadButton, "menu /lan/refresh");
@@ -512,7 +623,7 @@ static void Init_MultiplayerCreateMenu(void) {
     LPFRAMEDEF AdvancedOptionsButton = UI_FindChildFrame(LocalMultiplayerCreate, "AdvancedOptionsButton");
     LPFRAMEDEF PlayButton = UI_FindChildFrame(LocalMultiplayerCreate, "PlayButton");
     LPFRAMEDEF CancelButton = UI_FindChildFrame(LocalMultiplayerCreate, "CancelButton");
-    UI_EnsureFetchListBox(MapListContainer, MapListLabel, "MapListBox", "MapListBackdrop", "maps");
+    UI_EnsureFetchListBox(MapListContainer, MapListLabel, "MapListBox", "MapListBackdrop", "maps", "listselect maps");
     UI_SetOnClick(MapInfoButton, "menu /main");
     UI_SetOnClick(AdvancedOptionsButton, "menu /main");
     UI_SetOnClick(PlayButton, "menu /main");
@@ -593,6 +704,7 @@ void UI_ShowMultiplayerCreateMenu(LPEDICT ent) {
     UI_FRAME(LocalMultiplayerCreate);
     UI_PrepareMenuFrameState(LocalMultiplayerCreate, false);
     UI_WriteMenuWithMainFrameAnimation(ent, LocalMultiplayerCreate, "BattlenetCustomCreate");
+    UI_ShowMultiplayerCreateMapInfo(ent, NULL, NULL, NULL, NULL, NULL);
 }
 
 void UI_ShowGameInterface(LPEDICT ent) {
