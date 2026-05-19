@@ -29,6 +29,7 @@ typedef struct uiFrameDef_s frameDef_t;
 typedef frameDef_t FRAMEDEF;  /* Also available as non-pointer type */
 typedef frameDef_t *LPFRAMEDEF;
 typedef frameDef_t const *LPCFRAMEDEF;
+typedef struct uiScreen_s uiScreen_t;  /* Defined in ui_screen.h */
 
 /* Frame point positioning */
 typedef enum {
@@ -293,40 +294,12 @@ FLOAT Theme_Float(LPCSTR, LPCSTR);
 /* ui_frame.c — Frame tree manipulation (to be created) */
 // Additional frame management functions will be declared here
 
-/* ui_router.c — Menu routing (to be created) */
+/* ui_router.c — Menu routing */
 void UI_Route(LPCSTR route);
+void UI_Push(LPCSTR path);
+void UI_Pop(void);
+uiScreen_t *UI_GetCurrentScreen(void);
 
-/* Screen controllers (to be created) */
-void MainMenu_Init(void);
-void MainMenu_Refresh(void);
-void MainMenu_Draw(void);
-void MainMenu_KeyEvent(int key, BOOL down);
-
-void SinglePlayerMenu_Init(void);
-void SinglePlayerMenu_Refresh(void);
-void SinglePlayerMenu_Draw(void);
-
-/* Screen stack for navigation history */
-#define MAX_SCREEN_STACK 16
-
-typedef struct {
-    void (*init)(void);
-    void (*refresh)(void);
-    void (*draw)(void);
-    void (*keyEvent)(int key, BOOL down);
-    char route[256];
-} uiScreen_t;
-
-/* Current UI state */
-typedef struct {
-    BOOL initialized;
-    BOOL active;
-    DWORD time;
-    uiScreen_t *currentScreen;
-    uiScreen_t screenStack[MAX_SCREEN_STACK];
-    DWORD screenStackDepth;
-} uiState_t;
-
-extern uiState_t ui_state;
+/* Screen stack for navigation history - moved to ui_screen.h */
 
 #endif
