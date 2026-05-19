@@ -25,25 +25,31 @@
 #include "../common/net.h"
 #include "../common/net_oob.h"
 
-#define MDNS_HOSTNAME_MAX   64
-#define MDNS_MAP_MAX        64
-#define MDNS_SERVICE_MAX    64
-#define MDNS_TXT_FIELD_MAX  128
+#define MDNS_HOSTNAME_MAX        64
+#define MDNS_MAP_MAX             64
+#define MDNS_SERVICE_MAX         64
+#define MDNS_TXT_FIELD_MAX       128
+/* Cap collision-rename retries so a hostile / saturated mDNS network
+ * cannot make us recurse without bound through alternative-name
+ * suggestions.  Avahi's alternative-name suffix grows numerically so
+ * a real collision is resolved well within this limit. */
+#define MDNS_MAX_NAME_RETRIES    16
 
 static AvahiSimplePoll  *sv_mdns_poll        = NULL;
 static AvahiClient      *sv_mdns_client      = NULL;
 static AvahiEntryGroup  *sv_mdns_group       = NULL;
 static unsigned short    sv_mdns_port        = 0;
 static char              sv_mdns_map[MDNS_MAP_MAX]                = "";
-static DWORD             sv_sv_mdns_clients     = 0;
+static DWORD             sv_mdns_clients     = 0;
 static DWORD             sv_mdns_maxclients  = 0;
 static char              sv_mdns_service_name[MDNS_SERVICE_MAX]   = "OpenWarcraft3";
+static int               sv_mdns_name_retries = 0;
 
 static void sv_mdns_create_service(AvahiClient *c);
 static void sv_mdns_entry_group_callback(AvahiEntryGroup *g,
                                       AvahiEntryGroupState state,
                                       void *userdata);
-static void sv_sv_mdns_client_callback(AvahiClient *c,
+static void sv_mdns_client_callback(AvahiClient *c,
                                  AvahiClientState state,
                                  void *userdata);
 
@@ -59,14 +65,24 @@ static void sv_mdns_basename(const char *path, char *out, size_t outlen) {
     out[outlen - 1] = '\0';
 }
 
+/* Cached at first use; gethostname doesn't change once the system is up. */
+static const char *sv_mdns_hostname(void) {
+    static char cached[MDNS_HOSTNAME_MAX];
+    static int  filled = 0;
+    if (!filled) {
+        if (gethostname(cached, sizeof(cached)) != 0) {
+            strncpy(cached, "owc3-server", sizeof(cached) - 1);
+        }
+        cached[sizeof(cached) - 1] = '\0';
+        filled = 1;
+    }
+    return cached;
+}
+
 /* Build the TXT-record string list reflecting current server info.
  * Caller owns the result and must free it with avahi_string_list_free. */
 static AvahiStringList *sv_mdns_build_txt_records(void) {
-    char hostname[MDNS_HOSTNAME_MAX];
-    if (gethostname(hostname, sizeof(hostname)) != 0) {
-        strncpy(hostname, "owc3-server", sizeof(hostname) - 1);
-    }
-    hostname[sizeof(hostname) - 1] = '\0';
+    const char *hostname = sv_mdns_hostname();
 
     char map_base[MDNS_MAP_MAX];
     sv_mdns_basename(sv_mdns_map, map_base, sizeof(map_base));
@@ -78,7 +94,7 @@ static AvahiStringList *sv_mdns_build_txt_records(void) {
     char f_protocol[MDNS_TXT_FIELD_MAX];
     snprintf(f_hostname,   sizeof(f_hostname),   "hostname=%s", hostname);
     snprintf(f_map,        sizeof(f_map),        "map=%s", map_base);
-    snprintf(f_clients,    sizeof(f_clients),    "clients=%u", sv_sv_mdns_clients);
+    snprintf(f_clients,    sizeof(f_clients),    "clients=%u", sv_mdns_clients);
     snprintf(f_maxclients, sizeof(f_maxclients), "maxclients=%u", sv_mdns_maxclients);
     snprintf(f_protocol,   sizeof(f_protocol),   "protocol=%d", PROTOCOL_VERSION);
 
@@ -113,6 +129,12 @@ static void sv_mdns_create_service(AvahiClient *c) {
 
     if (r < 0) {
         if (r == AVAHI_ERR_COLLISION) {
+            if (sv_mdns_name_retries >= MDNS_MAX_NAME_RETRIES) {
+                fprintf(stderr, "SV_MDNS: gave up after %d collision retries\n",
+                        sv_mdns_name_retries);
+                return;
+            }
+            sv_mdns_name_retries++;
             char *new_name = avahi_alternative_service_name(sv_mdns_service_name);
             if (new_name) {
                 strncpy(sv_mdns_service_name, new_name, sizeof(sv_mdns_service_name) - 1);
@@ -130,6 +152,11 @@ static void sv_mdns_create_service(AvahiClient *c) {
     r = avahi_entry_group_commit(sv_mdns_group);
     if (r < 0) {
         fprintf(stderr, "SV_MDNS: commit failed: %s\n", avahi_strerror(r));
+    } else {
+        /* Commit accepted: a future genuine collision can retry from
+         * zero rather than carrying over from the previous boot's
+         * attempts. */
+        sv_mdns_name_retries = 0;
     }
 }
 
@@ -139,6 +166,12 @@ static void sv_mdns_entry_group_callback(AvahiEntryGroup *g,
     (void)g;
     (void)userdata;
     if (state == AVAHI_ENTRY_GROUP_COLLISION) {
+        if (sv_mdns_name_retries >= MDNS_MAX_NAME_RETRIES) {
+            fprintf(stderr, "SV_MDNS: gave up after %d collision retries\n",
+                    sv_mdns_name_retries);
+            return;
+        }
+        sv_mdns_name_retries++;
         char *new_name = avahi_alternative_service_name(sv_mdns_service_name);
         if (new_name) {
             strncpy(sv_mdns_service_name, new_name, sizeof(sv_mdns_service_name) - 1);
@@ -155,7 +188,7 @@ static void sv_mdns_entry_group_callback(AvahiEntryGroup *g,
     }
 }
 
-static void sv_sv_mdns_client_callback(AvahiClient *c,
+static void sv_mdns_client_callback(AvahiClient *c,
                                  AvahiClientState state,
                                  void *userdata) {
     (void)userdata;
@@ -173,7 +206,15 @@ static void sv_sv_mdns_client_callback(AvahiClient *c,
 }
 
 void SV_MDNS_Init(unsigned short port) {
+    if (port == 0) {
+        /* Advertising port 0 is meaningless; the caller almost certainly
+         * meant PORT_SERVER. Refuse rather than silently publishing a
+         * useless record. */
+        fprintf(stderr, "SV_MDNS: refusing to advertise port 0\n");
+        return;
+    }
     sv_mdns_port = port;
+    sv_mdns_name_retries = 0;
     sv_mdns_poll = avahi_simple_poll_new();
     if (!sv_mdns_poll) {
         fprintf(stderr, "SV_MDNS: avahi_simple_poll_new failed\n");
@@ -181,7 +222,7 @@ void SV_MDNS_Init(unsigned short port) {
     }
     int error;
     sv_mdns_client = avahi_client_new(avahi_simple_poll_get(sv_mdns_poll), 0,
-                                    sv_sv_mdns_client_callback, NULL, &error);
+                                    sv_mdns_client_callback, NULL, &error);
     if (!sv_mdns_client) {
         fprintf(stderr, "SV_MDNS: avahi_client_new failed: %s\n",
                 avahi_strerror(error));
@@ -195,7 +236,7 @@ void SV_MDNS_UpdateInfo(const char *map_path, DWORD clients, DWORD maxclients) {
         strncpy(sv_mdns_map, map_path, sizeof(sv_mdns_map) - 1);
         sv_mdns_map[sizeof(sv_mdns_map) - 1] = '\0';
     }
-    sv_sv_mdns_clients    = clients;
+    sv_mdns_clients    = clients;
     sv_mdns_maxclients = maxclients;
 
     if (sv_mdns_group && !avahi_entry_group_is_empty(sv_mdns_group)) {

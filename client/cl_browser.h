@@ -48,6 +48,12 @@ void CL_BrowserHandleInfoResponse(const netadr_t *from,
 // (CL_BrowserHandleInfoResponse) and the mDNS path (cl_mdns.c).
 // Both discovery transports are parallel and equally untrusted; auth
 // happens at the connect handshake, not the discovery layer.
+//
+// Snapshot semantics: every call replaces all six fields for the given
+// address.  A NULL hostname / map argument is treated as the empty
+// string, overwriting any previous value.  Callers that mean to
+// "preserve previous fields if absent" should read the current entry
+// first via CL_BrowserList and pass through the unchanged values.
 void CL_BrowserUpsert(const netadr_t *from,
                       const char *hostname,
                       const char *map,

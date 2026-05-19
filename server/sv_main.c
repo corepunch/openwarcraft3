@@ -54,20 +54,30 @@ static void SV_SendClientMessages(void) {
     }
 }
 
+/* Cached at first use; gethostname is cheap but pointless to call on
+ * every getinfo / mDNS refresh.  Filled lazily so we don't need a
+ * separate init hook on the server-startup path. */
+static const char *SV_Hostname(void) {
+    static char cached[64];
+    static bool filled = false;
+    if (!filled) {
+        if (gethostname(cached, sizeof(cached)) != 0) {
+            strncpy(cached, "owc3-server", sizeof(cached) - 1);
+        }
+        cached[sizeof(cached) - 1] = '\0';
+        filled = true;
+    }
+    return cached;
+}
+
 /* Reply to a LAN server-browser getinfo probe with the current server's
  * advertised info.  Format follows Quake 3 / dpmaster: backslash-delimited
  * key/value blob built by SV_BuildInfoResponseString.  No authentication:
  * anyone on the network can solicit this info, by design. */
 static void SV_OOB_GetInfoResponse(const netadr_t *from) {
-    char hostname[64];
-    if (gethostname(hostname, sizeof(hostname)) != 0) {
-        strncpy(hostname, "owc3-server", sizeof(hostname) - 1);
-    }
-    hostname[sizeof(hostname) - 1] = '\0';
-
     char body[512];
     int len = SV_BuildInfoResponseString(body, sizeof(body),
-                                         hostname,
+                                         SV_Hostname(),
                                          sv.configstrings[CS_MODELS + 1],
                                          svs.num_clients,
                                          ge ? ge->max_clients : 0,
@@ -97,13 +107,10 @@ static void SV_ReadPackets(void) {
             if (hdr == -1) {
                 const char *oob_token = (const char *)net_message.data + 4;
                 int oob_token_max = r - 4;
-                if (oob_token_max >= (int)(sizeof(OOB_CONNECT) - 1) &&
-                    memcmp(oob_token, OOB_CONNECT,
-                           sizeof(OOB_CONNECT) - 1) == 0) {
+                if (OOB_TokenMatches(oob_token, oob_token_max, OOB_CONNECT)) {
                     SV_DirectConnect(&from);
-                } else if (oob_token_max >= (int)(sizeof(OOB_GETINFO) - 1) &&
-                           memcmp(oob_token, OOB_GETINFO,
-                                  sizeof(OOB_GETINFO) - 1) == 0) {
+                } else if (OOB_TokenMatches(oob_token, oob_token_max,
+                                            OOB_GETINFO)) {
                     SV_OOB_GetInfoResponse(&from);
                 }
                 continue;
@@ -187,6 +194,8 @@ void SV_RunGameFrame(void) {
     ge->RunFrame();
 }
 
+#define SV_MDNS_REFRESH_INTERVAL_MS 1000
+
 /* Main server tick called from the platform event loop with the elapsed
  * milliseconds since the last call.  Returns immediately if it is not yet
  * time for a new game frame so the caller can do other work. */
@@ -201,12 +210,16 @@ void SV_Frame(DWORD msec) {
         return;
     }
 
-    // Refresh TXT records once per second-ish.  Avahi only pushes deltas
-    // on the wire so calling this when nothing changed is essentially free.
-    if ((sv.framenum % 10) == 0) {
+    // Refresh TXT records on a wall-clock cadence, not a frame-count one,
+    // so SV_Map's reset of framenum doesn't shift the refresh phase.
+    // Avahi only emits a wire update when records actually change, so
+    // calling this when nothing changed is essentially free.
+    static DWORD sv_mdns_last_refresh_ms = 0;
+    if (svs.realtime - sv_mdns_last_refresh_ms >= SV_MDNS_REFRESH_INTERVAL_MS) {
         SV_MDNS_UpdateInfo(sv.configstrings[CS_MODELS + 1],
                            svs.num_clients,
                            ge ? ge->max_clients : 0);
+        sv_mdns_last_refresh_ms = svs.realtime;
     }
 
     SV_ReadPackets();

@@ -43,4 +43,16 @@
  * concatenates all .c files in a directory into a single TU. */
 #define MDNS_SERVICE_TYPE  "_openwarcraft3._udp"
 
+#include "shared.h"
+
+/* Test whether `payload[0 .. len-1]` begins with the OOB ASCII `token`
+ * AND that the byte immediately after the token is a word boundary
+ * (space, NUL, or end-of-payload).  This is the strict variant that
+ * prefix-match dispatch needs: it accepts "getinfo", "getinfo 1",
+ * "getinfo\0...", but rejects "getinfoXYZ" or "getinfomore".
+ *
+ * Returns false on any of: NULL payload, NULL token, len < strlen(token),
+ * bytes-mismatch, or non-boundary trailing byte. */
+bool OOB_TokenMatches(const char *payload, int len, const char *token);
+
 #endif /* net_oob_h */

@@ -42,6 +42,56 @@ static netadr_t make_addr(BYTE a, BYTE b, BYTE c, BYTE d,
 }
 
 /* -----------------------------------------------------------------------
+ * OOB_TokenMatches: strict-boundary token recognition
+ *
+ * Regression coverage for the prefix-match bug a v1 reviewer (me) would
+ * have caught: memcmp-only dispatch happily accepts "connectXYZ" as
+ * "connect", which becomes a security problem once Slice 2 adds
+ * getchallenge / challenge / disconnect tokens that share prefixes.
+ * --------------------------------------------------------------------- */
+
+static void test_oob_token_exact_match(void) {
+    ASSERT(OOB_TokenMatches("connect", 7, OOB_CONNECT));
+    ASSERT(OOB_TokenMatches("getinfo", 7, OOB_GETINFO));
+    ASSERT(OOB_TokenMatches("infoResponse", 12, OOB_INFORESPONSE));
+}
+
+static void test_oob_token_trailing_space_match(void) {
+    ASSERT(OOB_TokenMatches("connect ",   8,  OOB_CONNECT));
+    ASSERT(OOB_TokenMatches("getinfo 1",  9,  OOB_GETINFO));
+    ASSERT(OOB_TokenMatches("getinfo  ",  9,  OOB_GETINFO));
+}
+
+static void test_oob_token_trailing_nul_match(void) {
+    /* Some senders may include a NUL terminator inside the payload. */
+    ASSERT(OOB_TokenMatches("connect\0junk", 7, OOB_CONNECT));
+}
+
+static void test_oob_token_rejects_extra_word_chars(void) {
+    /* The bug this helper exists to prevent. */
+    ASSERT(!OOB_TokenMatches("connectXYZ",  10, OOB_CONNECT));
+    ASSERT(!OOB_TokenMatches("getinfoMORE", 11, OOB_GETINFO));
+    ASSERT(!OOB_TokenMatches("disconnect",  10, OOB_CONNECT));
+}
+
+static void test_oob_token_rejects_short_payload(void) {
+    ASSERT(!OOB_TokenMatches("conn",    4, OOB_CONNECT));
+    ASSERT(!OOB_TokenMatches("getinf",  6, OOB_GETINFO));
+    ASSERT(!OOB_TokenMatches("",        0, OOB_CONNECT));
+}
+
+static void test_oob_token_rejects_wrong_token(void) {
+    ASSERT(!OOB_TokenMatches("connect", 7, OOB_GETINFO));
+    ASSERT(!OOB_TokenMatches("getinfo", 7, OOB_CONNECT));
+}
+
+static void test_oob_token_handles_null_args(void) {
+    ASSERT(!OOB_TokenMatches(NULL, 7, OOB_CONNECT));
+    ASSERT(!OOB_TokenMatches("connect", 7, NULL));
+    ASSERT(!OOB_TokenMatches(NULL, 0, NULL));
+}
+
+/* -----------------------------------------------------------------------
  * SV_BuildInfoResponseString
  * --------------------------------------------------------------------- */
 
@@ -242,6 +292,13 @@ static void test_server_formatter_feeds_client_parser(void) {
  * --------------------------------------------------------------------- */
 
 void run_lan_discovery_tests(void) {
+    RUN_TEST(test_oob_token_exact_match);
+    RUN_TEST(test_oob_token_trailing_space_match);
+    RUN_TEST(test_oob_token_trailing_nul_match);
+    RUN_TEST(test_oob_token_rejects_extra_word_chars);
+    RUN_TEST(test_oob_token_rejects_short_payload);
+    RUN_TEST(test_oob_token_rejects_wrong_token);
+    RUN_TEST(test_oob_token_handles_null_args);
     RUN_TEST(test_buildinfo_includes_all_fields);
     RUN_TEST(test_buildinfo_strips_backslash_paths);
     RUN_TEST(test_buildinfo_strips_forward_slash_paths);

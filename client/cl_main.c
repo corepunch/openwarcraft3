@@ -128,13 +128,11 @@ void CL_ReadPackets(void) {
             if (hdr == -1) {
                 const char *oob_token = (const char *)net_message.data + 4;
                 int oob_token_max = r - 4;
-                if (oob_token_max >= (int)(sizeof(OOB_CLIENT_CONNECT) - 1) &&
-                    memcmp(oob_token, OOB_CLIENT_CONNECT,
-                           sizeof(OOB_CLIENT_CONNECT) - 1) == 0) {
+                if (OOB_TokenMatches(oob_token, oob_token_max,
+                                     OOB_CLIENT_CONNECT)) {
                     CL_ConnectionlessPacket();
-                } else if (oob_token_max >= (int)(sizeof(OOB_INFORESPONSE) - 1) &&
-                           memcmp(oob_token, OOB_INFORESPONSE,
-                                  sizeof(OOB_INFORESPONSE) - 1) == 0) {
+                } else if (OOB_TokenMatches(oob_token, oob_token_max,
+                                            OOB_INFORESPONSE)) {
                     int token_len = (int)(sizeof(OOB_INFORESPONSE) - 1);
                     CL_BrowserHandleInfoResponse(
                         &from,

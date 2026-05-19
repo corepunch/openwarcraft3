@@ -49,7 +49,11 @@ else
         RPATH     := -Wl,-rpath,'$$ORIGIN/../lib'
         CFLAGS    += -fPIC
         LDFLAGS   := -L$(LIB_DIR) -Wl,-z,defs
-        LIBS      := -lSDL2 -lstorm -ljpeg -lEGL -lGL -lavahi-client -lavahi-common -lm
+        # Prefer pkg-config for Avahi so non-Debian distros that put the
+        # libs in non-standard paths still link.  Fall back to plain
+        # -l flags if pkg-config isn't present.
+        AVAHI_LIBS := $(shell pkg-config --libs avahi-client 2>/dev/null || echo -lavahi-client -lavahi-common)
+        LIBS      := -lSDL2 -lstorm -ljpeg -lEGL -lGL $(AVAHI_LIBS) -lm
     endif
 endif
 
@@ -151,6 +155,7 @@ TEST_GAME_SRCS := \
 	server/sv_info.c \
 	client/cl_browser.c \
 	common/net.c \
+	common/net_oob.c \
 	common/msg.c
 
 TEST_SRCS := \

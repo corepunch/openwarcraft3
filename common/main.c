@@ -79,6 +79,11 @@ int main(int argc, LPSTR argv[]) {
         SV_MDNS_UpdateInfo(map,
                            svs.num_clients,
                            ge ? ge->max_clients : 0);
+        // atexit only fires on clean exit (not on signal-induced kill),
+        // so this is the unprivileged best-effort path.  The Avahi
+        // daemon will reap our group on socket close even if atexit
+        // doesn't fire.
+        atexit(SV_MDNS_Shutdown);
     }
 
     DWORD startTime = SDL_GetTicks();
