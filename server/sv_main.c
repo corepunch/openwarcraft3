@@ -9,6 +9,10 @@
  * Entry point called from the platform main loop: SV_Frame().
  */
 #include "server.h"
+#include "../common/net_oob.h"
+#include "sv_info.h"
+#include "sv_mdns.h"
+#include <unistd.h>     // gethostname
 
 //#define PRINT_ANIMATIONS
 
@@ -50,6 +54,27 @@ static void SV_SendClientMessages(void) {
     }
 }
 
+/* Reply to a LAN server-browser getinfo probe with the current server's
+ * advertised info.  Format follows Quake 3 / dpmaster: backslash-delimited
+ * key/value blob built by SV_BuildInfoResponseString.  No authentication:
+ * anyone on the network can solicit this info, by design. */
+static void SV_OOB_GetInfoResponse(const netadr_t *from) {
+    char hostname[64];
+    if (gethostname(hostname, sizeof(hostname)) != 0) {
+        strncpy(hostname, "owc3-server", sizeof(hostname) - 1);
+    }
+    hostname[sizeof(hostname) - 1] = '\0';
+
+    char body[512];
+    int len = SV_BuildInfoResponseString(body, sizeof(body),
+                                         hostname,
+                                         sv.configstrings[CS_MODELS + 1],
+                                         svs.num_clients,
+                                         ge ? ge->max_clients : 0,
+                                         PROTOCOL_VERSION);
+    Netchan_OutOfBand(NS_SERVER, *from, (DWORD)len, (BYTE *)body);
+}
+
 /* Read and dispatch all pending client messages from the network buffers. */
 static void SV_ReadPackets(void) {
     static BYTE net_message_buffer[MAX_MSGLEN];
@@ -62,16 +87,24 @@ static void SV_ReadPackets(void) {
     netadr_t from;
     int r;
     while ((r = NET_GetPacket(NS_SERVER, &from, &net_message)) != 0) {
-        // Out-of-band packets (first 4 bytes == -1) are connection requests.
-        // Validate that the payload starts with "connect" before allocating
-        // a client slot, to prevent trivial slot-filling / DoS.
+        // Out-of-band packets (first 4 bytes == -1) are stateless requests:
+        // connect handshake, server-browser getinfo, etc.  Dispatch by the
+        // ASCII token that follows the -1 marker.  No client slot is
+        // allocated by anything but the connect path.
         if (r >= 4) {
             int hdr;
             memcpy(&hdr, net_message.data, sizeof(hdr));
             if (hdr == -1) {
-                if (r >= 4 + 7 &&
-                    memcmp(net_message.data + 4, "connect", 7) == 0) {
+                const char *oob_token = (const char *)net_message.data + 4;
+                int oob_token_max = r - 4;
+                if (oob_token_max >= (int)(sizeof(OOB_CONNECT) - 1) &&
+                    memcmp(oob_token, OOB_CONNECT,
+                           sizeof(OOB_CONNECT) - 1) == 0) {
                     SV_DirectConnect(&from);
+                } else if (oob_token_max >= (int)(sizeof(OOB_GETINFO) - 1) &&
+                           memcmp(oob_token, OOB_GETINFO,
+                                  sizeof(OOB_GETINFO) - 1) == 0) {
+                    SV_OOB_GetInfoResponse(&from);
                 }
                 continue;
             }
@@ -159,9 +192,21 @@ void SV_RunGameFrame(void) {
  * time for a new game frame so the caller can do other work. */
 void SV_Frame(DWORD msec) {
     svs.realtime += msec;
-    
+
+    // mDNS housekeeping runs every host tick, not just every game tick,
+    // so service-discovery latency doesn't track FRAMETIME.
+    SV_MDNS_Tick();
+
     if (svs.realtime < sv.time) {
         return;
+    }
+
+    // Refresh TXT records once per second-ish.  Avahi only pushes deltas
+    // on the wire so calling this when nothing changed is essentially free.
+    if ((sv.framenum % 10) == 0) {
+        SV_MDNS_UpdateInfo(sv.configstrings[CS_MODELS + 1],
+                           svs.num_clients,
+                           ge ? ge->max_clients : 0);
     }
 
     SV_ReadPackets();

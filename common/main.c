@@ -1,5 +1,6 @@
 #include "../client/client.h"
 #include "../server/server.h"
+#include "../server/sv_mdns.h"
 
 #include <SDL2/SDL.h>
 
@@ -71,8 +72,13 @@ int main(int argc, LPSTR argv[]) {
         // Remote-client mode: skip the local server, connect over UDP.
         CL_Connect(connect_addr, PORT_SERVER);
     } else {
-        // Listen-server mode: load the map and spawn entities.
+        // Listen-server mode: load the map and spawn entities, then
+        // advertise on mDNS so LAN browsers can find us.
         SV_Map(map);
+        SV_MDNS_Init(PORT_SERVER);
+        SV_MDNS_UpdateInfo(map,
+                           svs.num_clients,
+                           ge ? ge->max_clients : 0);
     }
 
     DWORD startTime = SDL_GetTicks();

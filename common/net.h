@@ -5,6 +5,12 @@
 
 #define PORT_SERVER 27910
 
+// Wire protocol version reported in OOB infoResponse and (in a later
+// slice) checked by the connect handshake.  Bump on any wire-format
+// change.  Old/new clients with mismatched versions are filtered out
+// of server-browser results by the client, not the server.
+#define PROTOCOL_VERSION 1
+
 typedef void const *LPCVOID;
 typedef struct sizeBuf_s *LPSIZEBUF;
 typedef struct entityState_s entityState_t;

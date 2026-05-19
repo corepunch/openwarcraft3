@@ -10,7 +10,10 @@
  * CL_Init() sets up the renderer and input bindings at startup.
  */
 #include "client.h"
+#include "cl_browser.h"
+#include "cl_mdns.h"
 #include "renderer.h"
+#include "../common/net_oob.h"
 #include <arpa/inet.h>
 
 refExport_t re;
@@ -87,8 +90,10 @@ void CL_Init(void) {
     Key_SetBinding(K_MOUSE1, "+select");
     Key_SetBinding('q', "cmd quests");
     Key_SetBinding(K_ESCAPE, "cmd cancel");
-    
+
     CL_InitInput();
+    CL_BrowserInit();
+    CL_MDNS_Init();
 }
 
 void CL_ConnectionlessPacket(void) {
@@ -97,7 +102,13 @@ void CL_ConnectionlessPacket(void) {
 }
 
 /* Read all available server packets from the network buffer and dispatch each
- * message type to the appropriate CL_Parse* handler in cl_parse.c. */
+ * message type to the appropriate CL_Parse* handler in cl_parse.c.
+ *
+ * OOB packets are routed by the ASCII token that follows the -1 sequence
+ * marker.  Previously this function treated every OOB packet as a
+ * "client_connect" ack and unconditionally replied with "new"; that broke
+ * once any other OOB type (infoResponse from the server browser, future
+ * challenge replies) existed.  Unknown OOB tokens are logged and dropped. */
 void CL_ReadPackets(void) {
     static BYTE net_message_buffer[MAX_MSGLEN];
     static sizeBuf_t net_message = {
@@ -115,7 +126,25 @@ void CL_ReadPackets(void) {
             int hdr;
             memcpy(&hdr, net_message.data, sizeof(hdr));
             if (hdr == -1) {
-                CL_ConnectionlessPacket();
+                const char *oob_token = (const char *)net_message.data + 4;
+                int oob_token_max = r - 4;
+                if (oob_token_max >= (int)(sizeof(OOB_CLIENT_CONNECT) - 1) &&
+                    memcmp(oob_token, OOB_CLIENT_CONNECT,
+                           sizeof(OOB_CLIENT_CONNECT) - 1) == 0) {
+                    CL_ConnectionlessPacket();
+                } else if (oob_token_max >= (int)(sizeof(OOB_INFORESPONSE) - 1) &&
+                           memcmp(oob_token, OOB_INFORESPONSE,
+                                  sizeof(OOB_INFORESPONSE) - 1) == 0) {
+                    int token_len = (int)(sizeof(OOB_INFORESPONSE) - 1);
+                    CL_BrowserHandleInfoResponse(
+                        &from,
+                        oob_token + token_len,
+                        oob_token_max - token_len);
+                } else {
+                    fprintf(stderr,
+                            "CL_ReadPackets: unknown OOB token (%d bytes)\n",
+                            oob_token_max);
+                }
                 continue;
             }
         }
@@ -146,6 +175,7 @@ void CL_Connect(LPCSTR host, unsigned short port) {
 }
 
 void CL_Shutdown(void) {
+    CL_MDNS_Shutdown();
     FOR_LOOP(modelIndex, MAX_MODELS) {
         SAFE_DELETE(cl.models[modelIndex], re.ReleaseModel);
         SAFE_DELETE(cl.portraits[modelIndex], re.ReleaseModel);
@@ -166,6 +196,9 @@ void CL_Frame(DWORD msec) {
     cl.time += msec;
 
     CL_ReadPackets();
+
+    CL_MDNS_Tick();
+    CL_BrowserPurgeExpired();
 
     CL_Input();
 

@@ -49,7 +49,7 @@ else
         RPATH     := -Wl,-rpath,'$$ORIGIN/../lib'
         CFLAGS    += -fPIC
         LDFLAGS   := -L$(LIB_DIR) -Wl,-z,defs
-        LIBS      := -lSDL2 -lstorm -ljpeg -lEGL -lGL -lm
+        LIBS      := -lSDL2 -lstorm -ljpeg -lEGL -lGL -lavahi-client -lavahi-common -lm
     endif
 endif
 
@@ -148,6 +148,8 @@ TEST_GAME_SRCS := \
 	game/skills/s_train.c \
 	server/sv_init.c \
 	server/sv_send.c \
+	server/sv_info.c \
+	client/cl_browser.c \
 	common/net.c \
 	common/msg.c
 
@@ -163,7 +165,8 @@ TEST_SRCS := \
 	tests/test_api.c \
 	tests/test_game.c \
 	tests/test_combat.c \
-	tests/test_server_net.c
+	tests/test_server_net.c \
+	tests/test_lan_discovery.c
 
 TEST_CFLAGS := -Wall -Itests/stubs -Icmath3/types -Igame -Iserver -Icommon -Igame/skills
 

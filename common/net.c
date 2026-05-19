@@ -177,6 +177,9 @@ bool NET_Init(unsigned short port) {
 
     int flag = 1;
     setsockopt(udp_socket, SOL_SOCKET, SO_REUSEADDR, &flag, sizeof(flag));
+    // Required for sendto to 255.255.255.255 (limited broadcast) used by
+    // LAN server discovery in cl_browser.c.
+    setsockopt(udp_socket, SOL_SOCKET, SO_BROADCAST, &flag, sizeof(flag));
 
     struct sockaddr_in addr;
     memset(&addr, 0, sizeof(addr));
