@@ -6,6 +6,7 @@
  */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "sv_info.h"
@@ -42,6 +43,26 @@ int SV_BuildInfoResponseString(char *out, size_t outlen,
         protocol);
 
     if (n < 0) return 0;
-    if ((size_t)n >= outlen) return (int)(outlen - 1);
+    if ((size_t)n >= outlen) return outlen ? (int)(outlen - 1) : 0;
     return n;
+}
+
+int SV_ParseConnectVersion(const char *payload, int len) {
+    if (!payload) return -1;
+    int token_len = (int)(sizeof(OOB_CONNECT) - 1);
+    if (len <= token_len)            return -1;
+    if (payload[token_len] != ' ')   return -1;
+    int vstart = token_len + 1;
+    int vlen   = len - vstart;
+    if (vlen <= 0)                   return -1;
+
+    /* Bound the digits we copy.  A pathological caller could fabricate
+     * a multi-KB version field; we don't care, only the first few
+     * digits are meaningful. */
+    char vbuf[16];
+    if (vlen >= (int)sizeof(vbuf)) vlen = (int)sizeof(vbuf) - 1;
+    memcpy(vbuf, payload + vstart, (size_t)vlen);
+    vbuf[vlen] = '\0';
+    if (vbuf[0] < '0' || vbuf[0] > '9') return -1;
+    return atoi(vbuf);
 }

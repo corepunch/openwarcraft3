@@ -12,6 +12,7 @@
 #include "../common/net_oob.h"
 #include "sv_info.h"
 #include "sv_mdns.h"
+#include <arpa/inet.h>  // ntohs
 #include <unistd.h>     // gethostname
 
 //#define PRINT_ANIMATIONS
@@ -52,6 +53,27 @@ static void SV_SendClientMessages(void) {
             SV_SendClientDatagram(client);
         }
     }
+}
+
+/* Wire-level connect handler invoked by SV_ReadPackets.  Validates the
+ * protocol version embedded in the OOB connect payload before allocating
+ * a slot.  On any pre-slot rejection, send an OOB rejectMsg so the
+ * client can surface a real error instead of timing out. */
+static void SV_HandleConnectOOB(const char *payload, int len,
+                                const netadr_t *from) {
+    int requested = SV_ParseConnectVersion(payload, len);
+    if (requested != PROTOCOL_VERSION) {
+        Netchan_OutOfBandPrint(NS_SERVER, *from,
+                               OOB_REJECT_MSG " "
+                               OOB_REJECT_VERSION_MISMATCH);
+        fprintf(stderr,
+                "SV_HandleConnectOOB: rejecting %d.%d.%d.%d:%u "
+                "(version %d, expected %d)\n",
+                from->ip[0], from->ip[1], from->ip[2], from->ip[3],
+                ntohs(from->port), requested, PROTOCOL_VERSION);
+        return;
+    }
+    SV_DirectConnect(from);
 }
 
 /* Cached at first use; gethostname is cheap but pointless to call on
@@ -122,7 +144,7 @@ static void SV_ReadPackets(void) {
                 int oob_token_max = r - 4;
                 if (OOB_TOKEN_MATCHES_LITERAL(oob_token, oob_token_max,
                                               OOB_CONNECT)) {
-                    SV_DirectConnect(&from);
+                    SV_HandleConnectOOB(oob_token, oob_token_max, &from);
                 } else if (OOB_TOKEN_MATCHES_LITERAL(oob_token, oob_token_max,
                                                     OOB_GETINFO)) {
                     SV_OOB_GetInfoResponse(&from);

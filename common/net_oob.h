@@ -26,9 +26,15 @@
 #define OOB_CONNECT          "connect"
 #define OOB_CLIENT_CONNECT   "client_connect"
 #define OOB_DISCONNECT       "disconnect"
+#define OOB_REJECT_MSG       "rejectMsg"
 #define OOB_GETSERVERS       "getservers"
 #define OOB_GETINFO          "getinfo"
 #define OOB_INFORESPONSE     "infoResponse"
+
+/* Reason strings sent in OOB_REJECT_MSG replies.  Stable wire strings;
+ * clients may pattern-match on them for localized error display. */
+#define OOB_REJECT_VERSION_MISMATCH "protocol_version_mismatch"
+#define OOB_REJECT_SERVER_FULL      "server_full"
 
 /* Key names inside the infoResponse key/value blob. */
 #define OOB_KEY_HOSTNAME   "hostname"

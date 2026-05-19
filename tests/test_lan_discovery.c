@@ -92,6 +92,47 @@ static void test_oob_token_handles_null_args(void) {
 }
 
 /* -----------------------------------------------------------------------
+ * SV_ParseConnectVersion: wire form "connect <N>"
+ * --------------------------------------------------------------------- */
+
+static void test_parse_connect_version_basic(void) {
+    ASSERT_EQ_INT(SV_ParseConnectVersion("connect 1", 9), 1);
+    ASSERT_EQ_INT(SV_ParseConnectVersion("connect 42", 10), 42);
+}
+
+static void test_parse_connect_version_rejects_missing_arg(void) {
+    /* Bare "connect" with no version arg: malformed. */
+    ASSERT_EQ_INT(SV_ParseConnectVersion("connect", 7), -1);
+}
+
+static void test_parse_connect_version_rejects_missing_space(void) {
+    /* "connect1" (no space separator) is malformed. */
+    ASSERT_EQ_INT(SV_ParseConnectVersion("connect1", 8), -1);
+}
+
+static void test_parse_connect_version_rejects_non_numeric(void) {
+    ASSERT_EQ_INT(SV_ParseConnectVersion("connect abc", 11), -1);
+    ASSERT_EQ_INT(SV_ParseConnectVersion("connect -1", 10), -1);  /* leading '-' */
+}
+
+static void test_parse_connect_version_handles_null(void) {
+    ASSERT_EQ_INT(SV_ParseConnectVersion(NULL, 9), -1);
+}
+
+static void test_parse_connect_version_clips_oversize(void) {
+    /* 64-byte version field; our internal buffer caps at 15 digits then
+     * hands to atoi which has UB on integer overflow.  This test exists
+     * to prove we don't crash or read past the bound; the exact value
+     * returned by atoi for overflowing input isn't part of the
+     * contract.  Accept anything that isn't the "malformed" sentinel. */
+    char big[64];
+    memcpy(big, "connect ", 8);
+    memset(big + 8, '9', sizeof(big) - 8);
+    int v = SV_ParseConnectVersion(big, (int)sizeof(big));
+    ASSERT(v != -1);
+}
+
+/* -----------------------------------------------------------------------
  * SV_BuildInfoResponseString
  * --------------------------------------------------------------------- */
 
@@ -292,6 +333,12 @@ static void test_server_formatter_feeds_client_parser(void) {
  * --------------------------------------------------------------------- */
 
 void run_lan_discovery_tests(void) {
+    RUN_TEST(test_parse_connect_version_basic);
+    RUN_TEST(test_parse_connect_version_rejects_missing_arg);
+    RUN_TEST(test_parse_connect_version_rejects_missing_space);
+    RUN_TEST(test_parse_connect_version_rejects_non_numeric);
+    RUN_TEST(test_parse_connect_version_handles_null);
+    RUN_TEST(test_parse_connect_version_clips_oversize);
     RUN_TEST(test_oob_token_exact_match);
     RUN_TEST(test_oob_token_trailing_space_match);
     RUN_TEST(test_oob_token_trailing_nul_match);

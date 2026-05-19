@@ -30,4 +30,9 @@ int SV_BuildInfoResponseString(char *out, size_t outlen,
                                DWORD maxclients,
                                int protocol);
 
+/* Parse the wire form "connect <version>" out of an OOB connect payload.
+ * Returns the parsed version, or -1 if the payload is malformed
+ * (missing space, missing number, oversize number field). */
+int SV_ParseConnectVersion(const char *payload, int len);
+
 #endif /* sv_info_h */

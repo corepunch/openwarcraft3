@@ -132,6 +132,16 @@ void CL_ReadPackets(void) {
                                               OOB_CLIENT_CONNECT)) {
                     CL_ConnectionlessPacket();
                 } else if (OOB_TOKEN_MATCHES_LITERAL(oob_token, oob_token_max,
+                                                    OOB_REJECT_MSG)) {
+                    /* Server refused us before allocating a slot.
+                     * Surface the reason to stderr; a UI layer can
+                     * pattern-match the reason string later. */
+                    int rj_len = (int)(sizeof(OOB_REJECT_MSG) - 1);
+                    fprintf(stderr,
+                            "CL_ReadPackets: server rejected connection: %.*s\n",
+                            oob_token_max - rj_len,
+                            oob_token + rj_len + (oob_token_max > rj_len ? 1 : 0));
+                } else if (OOB_TOKEN_MATCHES_LITERAL(oob_token, oob_token_max,
                                                     OOB_INFORESPONSE)) {
                     int token_len = (int)(sizeof(OOB_INFORESPONSE) - 1);
                     CL_BrowserHandleInfoResponse(
@@ -165,9 +175,10 @@ void CL_Connect(LPCSTR host, unsigned short port) {
     }
     cls.netchan.remote_address = adr;
     SZ_Init(&cls.netchan.message, cls.netchan.message_buf, MAX_MSGLEN);
-    // Send an out-of-band "connect" request; the server will register this
-    // client slot and reply with "client_connect".
-    Netchan_OutOfBandPrint(NS_CLIENT, adr, "connect");
+    /* Wire form: "connect <PROTOCOL_VERSION>".  Servers that don't
+     * recognize the version reply with OOB "rejectMsg
+     * protocol_version_mismatch" rather than allocating a slot. */
+    Netchan_OutOfBandPrint(NS_CLIENT, adr, OOB_CONNECT " %d", PROTOCOL_VERSION);
     fprintf(stderr, "CL_Connect: connecting to %d.%d.%d.%d:%u\n",
             adr.ip[0], adr.ip[1], adr.ip[2], adr.ip[3], ntohs(adr.port));
 }
