@@ -5,15 +5,19 @@
  * cl_browser.h - LAN server browser model.
  *
  * Maintains an in-memory list of servers discovered via OOB getinfo
- * broadcast.  Entries are upserted on each infoResponse and expire
- * after SERVER_INFO_EXPIRY_MS without a refresh.  This module owns
- * neither networking nor UI; cl_main.c pumps it from the packet
- * dispatch loop and (eventually) a menu module reads CL_BrowserList
- * for display.
+ * broadcast and via mDNS.  Both transports feed CL_BrowserUpsert with
+ * a fully-populated server_info_t; the OOB transport additionally
+ * exposes CL_BrowserHandleInfoResponse as a wrapper that parses the
+ * kv blob first.
  *
  * Discovery surfaces *untrusted* candidates.  Anyone on the network
  * can advertise a server with any name.  Trust enforcement happens at
  * the connect handshake, not here.
+ *
+ * Time: CL_BrowserTick(now_ms) must be called once per main-loop
+ * iteration to advance the internal clock and run the rate-limited
+ * purge of expired entries.  Tests that don't care about expiry can
+ * skip Tick; CL_BrowserUpsert lazily backstops with clock_gettime.
  */
 
 #include "../common/shared.h"
@@ -23,6 +27,7 @@
 #define SERVER_BROWSE_HOSTNAME_LEN  64
 #define SERVER_BROWSE_MAP_LEN       64
 #define SERVER_BROWSE_EXPIRY_MS     5000
+#define SERVER_BROWSE_PURGE_PERIOD_MS 1000
 
 typedef struct {
     netadr_t address;
@@ -35,38 +40,40 @@ typedef struct {
 } server_info_t;
 
 void CL_BrowserInit(void);
+
+/* Send the OOB getinfo broadcast.  Replies arrive asynchronously via
+ * the OOB packet pump (CL_BrowserHandleInfoResponse). */
 void CL_RefreshServerList(void);
 
-// Called by the OOB packet dispatcher in cl_main.c with the payload
-// that follows the OOB_INFORESPONSE token.  Upserts the entry into
-// the in-memory list (keyed by address) and stamps its last-seen time.
+/* Per-frame housekeeping: caches `now_ms` so subsequent Upsert calls
+ * stamp entries with the same time, and runs the expired-entry sweep
+ * on a 1 Hz cadence (not every frame). */
+void CL_BrowserTick(DWORD now_ms);
+
+/* Parse an OOB infoResponse kv blob into a server_info_t (single pass)
+ * and Upsert.  The address is taken from the `from` argument, not from
+ * the blob. */
 void CL_BrowserHandleInfoResponse(const netadr_t *from,
                                   const char *payload,
                                   int len);
 
-// Shared upsert primitive used by both the OOB-broadcast path
-// (CL_BrowserHandleInfoResponse) and the mDNS path (cl_mdns.c).
-// Both discovery transports are parallel and equally untrusted; auth
-// happens at the connect handshake, not the discovery layer.
-//
-// Snapshot semantics: every call replaces all six fields for the given
-// address.  A NULL hostname / map argument is treated as the empty
-// string, overwriting any previous value.  Callers that mean to
-// "preserve previous fields if absent" should read the current entry
-// first via CL_BrowserList and pass through the unchanged values.
-void CL_BrowserUpsert(const netadr_t *from,
-                      const char *hostname,
-                      const char *map,
-                      DWORD clients,
-                      DWORD maxclients,
-                      int protocol);
+/* Shared upsert primitive used by both the OOB-broadcast path and the
+ * mDNS path (cl_mdns.c).  Caller passes a fully-populated server_info_t
+ * including the address field.  The list key is info->address (type,
+ * ip, port tuple).
+ *
+ * Snapshot semantics: every call replaces all fields.  Callers that
+ * mean "merge non-empty fields" should read the current entry first
+ * via CL_BrowserList and copy through unchanged values. */
+void CL_BrowserUpsert(const server_info_t *info);
 
-// Drop entries whose last_seen_ms is older than SERVER_BROWSE_EXPIRY_MS.
-// Safe to call every frame from CL_Frame.
+/* Drop entries whose last_seen_ms is older than SERVER_BROWSE_EXPIRY_MS.
+ * Normally driven from CL_BrowserTick on a rate-limited schedule; safe
+ * to call directly from tests. */
 void CL_BrowserPurgeExpired(void);
 
-// Return a pointer to the current list and its length.  Valid until
-// the next call to any other CL_Browser* function.
+/* Return a pointer to the current list and its length.  Valid until
+ * the next call to any other CL_Browser* function. */
 const server_info_t *CL_BrowserList(int *count);
 
 #endif /* cl_browser_h */

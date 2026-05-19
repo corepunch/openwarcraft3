@@ -128,11 +128,11 @@ void CL_ReadPackets(void) {
             if (hdr == -1) {
                 const char *oob_token = (const char *)net_message.data + 4;
                 int oob_token_max = r - 4;
-                if (OOB_TokenMatches(oob_token, oob_token_max,
-                                     OOB_CLIENT_CONNECT)) {
+                if (OOB_TOKEN_MATCHES_LITERAL(oob_token, oob_token_max,
+                                              OOB_CLIENT_CONNECT)) {
                     CL_ConnectionlessPacket();
-                } else if (OOB_TokenMatches(oob_token, oob_token_max,
-                                            OOB_INFORESPONSE)) {
+                } else if (OOB_TOKEN_MATCHES_LITERAL(oob_token, oob_token_max,
+                                                    OOB_INFORESPONSE)) {
                     int token_len = (int)(sizeof(OOB_INFORESPONSE) - 1);
                     CL_BrowserHandleInfoResponse(
                         &from,
@@ -196,7 +196,10 @@ void CL_Frame(DWORD msec) {
     CL_ReadPackets();
 
     CL_MDNS_Tick();
-    CL_BrowserPurgeExpired();
+    /* Tick advances the browser's cached now and rate-limits the
+     * expired-entry purge to 1 Hz so the frame-rate loop isn't paying
+     * for a full-list scan dozens of times per second. */
+    CL_BrowserTick(cl.time);
 
     CL_Input();
 

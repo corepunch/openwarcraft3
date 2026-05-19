@@ -232,12 +232,26 @@ void SV_MDNS_Init(unsigned short port) {
 }
 
 void SV_MDNS_UpdateInfo(const char *map_path, DWORD clients, DWORD maxclients) {
-    if (map_path) {
+    /* Compare to the cached state.  If nothing visible has changed,
+     * skip the Avahi serialize/push entirely.  Callers should be able
+     * to invoke this every frame without paying for it. */
+    bool changed = false;
+    if (map_path && strcmp(map_path, sv_mdns_map) != 0) {
         strncpy(sv_mdns_map, map_path, sizeof(sv_mdns_map) - 1);
         sv_mdns_map[sizeof(sv_mdns_map) - 1] = '\0';
+        changed = true;
     }
-    sv_mdns_clients    = clients;
-    sv_mdns_maxclients = maxclients;
+    if (clients != sv_mdns_clients) {
+        sv_mdns_clients = clients;
+        changed = true;
+    }
+    if (maxclients != sv_mdns_maxclients) {
+        sv_mdns_maxclients = maxclients;
+        changed = true;
+    }
+    if (!changed) {
+        return;
+    }
 
     if (sv_mdns_group && !avahi_entry_group_is_empty(sv_mdns_group)) {
         AvahiStringList *txt = sv_mdns_build_txt_records();

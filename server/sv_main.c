@@ -73,16 +73,26 @@ static const char *SV_Hostname(void) {
 /* Reply to a LAN server-browser getinfo probe with the current server's
  * advertised info.  Format follows Quake 3 / dpmaster: backslash-delimited
  * key/value blob built by SV_BuildInfoResponseString.  No authentication:
- * anyone on the network can solicit this info, by design. */
+ * anyone on the network can solicit this info, by design.
+ *
+ * The formatted body is cached and only rebuilt when
+ * sv_advertised_state_version moves, so a server browsed by N clients
+ * pays one snprintf per state change, not N. */
 static void SV_OOB_GetInfoResponse(const netadr_t *from) {
-    char body[512];
-    int len = SV_BuildInfoResponseString(body, sizeof(body),
-                                         SV_Hostname(),
-                                         sv.configstrings[CS_MODELS + 1],
-                                         svs.num_clients,
-                                         ge ? ge->max_clients : 0,
-                                         PROTOCOL_VERSION);
-    Netchan_OutOfBand(NS_SERVER, *from, (DWORD)len, (BYTE *)body);
+    static char body[512];
+    static int  body_len = 0;
+    static DWORD body_for_version = (DWORD)-1;
+
+    if (body_for_version != sv_advertised_state_version) {
+        body_len = SV_BuildInfoResponseString(body, sizeof(body),
+                                              SV_Hostname(),
+                                              sv.configstrings[CS_MODELS + 1],
+                                              svs.num_clients,
+                                              ge ? ge->max_clients : 0,
+                                              PROTOCOL_VERSION);
+        body_for_version = sv_advertised_state_version;
+    }
+    Netchan_OutOfBand(NS_SERVER, *from, (DWORD)body_len, (BYTE *)body);
 }
 
 /* Read and dispatch all pending client messages from the network buffers. */
@@ -107,10 +117,11 @@ static void SV_ReadPackets(void) {
             if (hdr == -1) {
                 const char *oob_token = (const char *)net_message.data + 4;
                 int oob_token_max = r - 4;
-                if (OOB_TokenMatches(oob_token, oob_token_max, OOB_CONNECT)) {
+                if (OOB_TOKEN_MATCHES_LITERAL(oob_token, oob_token_max,
+                                              OOB_CONNECT)) {
                     SV_DirectConnect(&from);
-                } else if (OOB_TokenMatches(oob_token, oob_token_max,
-                                            OOB_GETINFO)) {
+                } else if (OOB_TOKEN_MATCHES_LITERAL(oob_token, oob_token_max,
+                                                    OOB_GETINFO)) {
                     SV_OOB_GetInfoResponse(&from);
                 }
                 continue;
@@ -194,7 +205,7 @@ void SV_RunGameFrame(void) {
     ge->RunFrame();
 }
 
-#define SV_MDNS_REFRESH_INTERVAL_MS 1000
+#define SV_MDNS_POLL_INTERVAL_MS 10
 
 /* Main server tick called from the platform event loop with the elapsed
  * milliseconds since the last call.  Returns immediately if it is not yet
@@ -202,25 +213,26 @@ void SV_RunGameFrame(void) {
 void SV_Frame(DWORD msec) {
     svs.realtime += msec;
 
-    // mDNS housekeeping runs every host tick, not just every game tick,
-    // so service-discovery latency doesn't track FRAMETIME.
-    SV_MDNS_Tick();
+    // mDNS housekeeping at ~100 Hz max, not the host frame rate.  The
+    // syscall floor inside avahi_simple_poll_iterate(0) isn't worth
+    // paying at 200-1000 Hz on modern displays.
+    static DWORD sv_mdns_last_poll_ms = 0;
+    if (svs.realtime - sv_mdns_last_poll_ms >= SV_MDNS_POLL_INTERVAL_MS) {
+        SV_MDNS_Tick();
+        sv_mdns_last_poll_ms = svs.realtime;
+    }
 
     if (svs.realtime < sv.time) {
         return;
     }
 
-    // Refresh TXT records on a wall-clock cadence, not a frame-count one,
-    // so SV_Map's reset of framenum doesn't shift the refresh phase.
-    // Avahi only emits a wire update when records actually change, so
-    // calling this when nothing changed is essentially free.
-    static DWORD sv_mdns_last_refresh_ms = 0;
-    if (svs.realtime - sv_mdns_last_refresh_ms >= SV_MDNS_REFRESH_INTERVAL_MS) {
-        SV_MDNS_UpdateInfo(sv.configstrings[CS_MODELS + 1],
-                           svs.num_clients,
-                           ge ? ge->max_clients : 0);
-        sv_mdns_last_refresh_ms = svs.realtime;
-    }
+    // Push current state to mDNS unconditionally each game tick; the
+    // SV_MDNS_UpdateInfo implementation no-ops when
+    // sv_advertised_state_version hasn't moved, so this is essentially
+    // free when nothing has changed.
+    SV_MDNS_UpdateInfo(sv.configstrings[CS_MODELS + 1],
+                       svs.num_clients,
+                       ge ? ge->max_clients : 0);
 
     SV_ReadPackets();
 

@@ -101,6 +101,16 @@ extern struct server {
 
 extern struct game_export *ge;
 
+/* Monotonically incremented whenever an "advertised" property of the
+ * server changes (map, client count, max clients).  Consumed by:
+ *   - sv_main.c     SV_OOB_GetInfoResponse caches its formatted reply
+ *                   keyed on this counter.
+ *   - sv_mdns.c     SV_MDNS_UpdateInfo skips its TXT push if the
+ *                   counter hasn't moved since the last push.
+ * Callers that mutate the relevant state must bump this; see
+ * SV_ClientConnect, SV_DirectConnect, SV_Map. */
+extern DWORD sv_advertised_state_version;
+
 // sv_init.c
 void SV_Map(LPCSTR pFilename);
 void SV_InitGame(void);

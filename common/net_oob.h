@@ -55,4 +55,15 @@
  * bytes-mismatch, or non-boundary trailing byte. */
 bool OOB_TokenMatches(const char *payload, int len, const char *token);
 
+/* Compile-time-token variant: same semantics but resolves the token
+ * length via sizeof, avoiding strlen() in the hot dispatch loop.
+ * Only safe when TOKEN is a string literal (so sizeof is the buffer
+ * size including NUL). */
+#define OOB_TOKEN_MATCHES_LITERAL(payload, len, TOKEN) \
+    ( (payload) && (len) >= (int)(sizeof(TOKEN) - 1) && \
+      memcmp((payload), (TOKEN), sizeof(TOKEN) - 1) == 0 && \
+      ((int)(len) == (int)(sizeof(TOKEN) - 1) || \
+       (payload)[sizeof(TOKEN) - 1] == ' ' || \
+       (payload)[sizeof(TOKEN) - 1] == '\0') )
+
 #endif /* net_oob_h */

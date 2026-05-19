@@ -1,6 +1,10 @@
 #include "server.h"
 #include <arpa/inet.h>
 
+/* Defined here (not sv_main.c) so the test binary, which links sv_init.c
+ * but not sv_main.c, gets the symbol too. */
+DWORD sv_advertised_state_version = 0;
+
 void SV_CreateBaseline(void) {
     sv.baselines = MemAlloc(sizeof(entityState_t) * ge->max_edicts);
     FOR_LOOP(entnum, ge->num_edicts) {
@@ -26,6 +30,7 @@ void SV_ClientConnect(void) {
     }
     LPCLIENT cl = &svs.clients[svs.num_clients];
     svs.num_clients++;
+    sv_advertised_state_version++;
     cl->state = cs_connected;
     // Local client uses the in-process loopback path
     memset(&cl->netchan.remote_address, 0, sizeof(cl->netchan.remote_address));
@@ -64,6 +69,7 @@ void SV_DirectConnect(const netadr_t *from) {
     }
     LPCLIENT cl = &svs.clients[svs.num_clients];
     svs.num_clients++;
+    sv_advertised_state_version++;
     cl->state = cs_connected;
     cl->netchan.remote_address = *from;
     SZ_Init(&cl->netchan.message, cl->netchan.message_buf, MAX_MSGLEN);
@@ -84,6 +90,7 @@ void SV_Map(LPCSTR mapFilename) {
     SV_CreateBaseline();
     ge->SpawnEntities(CM_GetMapInfo(), CM_GetDoodads());
     sv.state = ss_game;
+    sv_advertised_state_version++;  /* map + (later) max_clients changed */
     // Register slot 0 as the local (loopback) client now that the map is ready
     SV_ClientConnect();
 }

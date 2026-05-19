@@ -66,45 +66,56 @@ static void cl_mdns_resolve_callback(AvahiServiceResolver *r,
         return;
     }
 
-    char hostname_v[64] = "";
-    char map_v[64]      = "";
-    DWORD clients_v     = 0;
-    DWORD maxclients_v  = 0;
-    int   protocol_v    = 0;
+    server_info_t info;
+    memset(&info, 0, sizeof(info));
+    info.address.type = NA_IP;
+    /* AvahiAddress.data.ipv4.address is in network byte order already. */
+    memcpy(info.address.ip, &address->data.ipv4.address, 4);
+    info.address.port = htons(port);
 
     for (AvahiStringList *cur = txt; cur; cur = avahi_string_list_get_next(cur)) {
         char  *key = NULL;
         char  *val = NULL;
         size_t vlen = 0;
-        if (avahi_string_list_get_pair(cur, &key, &val, &vlen) == 0) {
-            if (key && val) {
-                if (strcmp(key, "hostname") == 0) {
-                    strncpy(hostname_v, val, sizeof(hostname_v) - 1);
-                    hostname_v[sizeof(hostname_v) - 1] = '\0';
-                } else if (strcmp(key, "map") == 0) {
-                    strncpy(map_v, val, sizeof(map_v) - 1);
-                    map_v[sizeof(map_v) - 1] = '\0';
-                } else if (strcmp(key, "clients") == 0) {
-                    clients_v = (DWORD)strtoul(val, NULL, 10);
-                } else if (strcmp(key, "maxclients") == 0) {
-                    maxclients_v = (DWORD)strtoul(val, NULL, 10);
-                } else if (strcmp(key, "protocol") == 0) {
-                    protocol_v = (int)strtol(val, NULL, 10);
-                }
-            }
+        if (avahi_string_list_get_pair(cur, &key, &val, &vlen) != 0 ||
+            !key || !val) {
             avahi_free(key);
             avahi_free(val);
+            continue;
         }
+        /* First-char dispatch keeps the average case to one strcmp
+         * instead of five. */
+        switch (key[0]) {
+        case 'h':
+            if (strcmp(key, "hostname") == 0) {
+                strncpy(info.hostname, val, sizeof(info.hostname) - 1);
+                info.hostname[sizeof(info.hostname) - 1] = '\0';
+            }
+            break;
+        case 'm':
+            if (strcmp(key, "map") == 0) {
+                strncpy(info.map, val, sizeof(info.map) - 1);
+                info.map[sizeof(info.map) - 1] = '\0';
+            } else if (strcmp(key, "maxclients") == 0) {
+                info.maxclients = (DWORD)strtoul(val, NULL, 10);
+            }
+            break;
+        case 'c':
+            if (strcmp(key, "clients") == 0) {
+                info.clients = (DWORD)strtoul(val, NULL, 10);
+            }
+            break;
+        case 'p':
+            if (strcmp(key, "protocol") == 0) {
+                info.protocol = (int)strtol(val, NULL, 10);
+            }
+            break;
+        }
+        avahi_free(key);
+        avahi_free(val);
     }
 
-    netadr_t adr;
-    memset(&adr, 0, sizeof(adr));
-    adr.type = NA_IP;
-    /* AvahiAddress.data.ipv4.address is in network byte order already. */
-    memcpy(adr.ip, &address->data.ipv4.address, 4);
-    adr.port = htons(port);
-
-    CL_BrowserUpsert(&adr, hostname_v, map_v, clients_v, maxclients_v, protocol_v);
+    CL_BrowserUpsert(&info);
 
     avahi_service_resolver_free(r);
 }
