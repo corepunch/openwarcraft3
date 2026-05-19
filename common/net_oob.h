@@ -25,6 +25,7 @@
 
 #define OOB_CONNECT          "connect"
 #define OOB_CLIENT_CONNECT   "client_connect"
+#define OOB_DISCONNECT       "disconnect"
 #define OOB_GETSERVERS       "getservers"
 #define OOB_GETINFO          "getinfo"
 #define OOB_INFORESPONSE     "infoResponse"

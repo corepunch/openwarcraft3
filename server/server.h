@@ -62,7 +62,16 @@ struct client {
     clientState_t state;
     edict_t *edict; // EDICT_NUM(clientnum+1)
     DWORD lastframe;
+    DWORD drop_time;   // svs.realtime at SV_DropClient; used by SV_Frame
+                       // to transition cs_zombie -> cs_free after
+                       // ZOMBIE_TIME_MS.
 };
+
+/* Milliseconds a cs_zombie slot stays unreusable so an unintended
+ * reconnect from the same address doesn't immediately get the
+ * still-warm state.  Chosen to be longer than typical NAT rebind
+ * latency. */
+#define ZOMBIE_TIME_MS 2000
 
 extern struct server_static {
     struct client clients[MAX_CLIENTS];
@@ -116,6 +125,24 @@ void SV_Map(LPCSTR pFilename);
 void SV_InitGame(void);
 LPCLIENT SV_FindClientByAddr(const netadr_t *from);
 void SV_DirectConnect(const netadr_t *from);
+
+/* Transition `client` to cs_zombie, record drop_time, and bump
+ * sv_advertised_state_version.  The slot moves to cs_free after
+ * ZOMBIE_TIME_MS via the per-frame sweep in SV_Frame.
+ *
+ * Does NOT decrement svs.num_clients; cs_free slots within the
+ * existing range are reused by SV_DirectConnect before growing
+ * num_clients further. */
+void SV_DropClient(LPCLIENT client, LPCSTR reason);
+
+/* Count of currently live (cs_connected or cs_spawned) slots.  This
+ * is what advertised "clients" fields should report, not
+ * svs.num_clients, which counts all slots including cs_zombie / cs_free. */
+DWORD SV_NumLiveClients(void);
+
+/* Walk svs.clients and transition cs_zombie -> cs_free for slots whose
+ * grace period elapsed.  Called once per game tick from SV_Frame. */
+void SV_RunZombieExpiry(void);
 void SV_BuildClientFrame(LPCLIENT client);
 void SV_WriteFrameToClient(LPCLIENT client);
 void SV_ParseClientMessage(LPSIZEBUF msg, LPCLIENT client);

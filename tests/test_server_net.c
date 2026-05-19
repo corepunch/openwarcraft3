@@ -188,8 +188,158 @@ static void test_multicast_syncs_updates_to_all_connected_clients(void) {
     ASSERT_EQ_INT(sv.multicast.cursize, 0);
 }
 
+/* ----------------------------------------------------------------------
+ * Slot lifecycle (Slice 2 commit 1)
+ *
+ * SV_DropClient transitions cs_connected -> cs_zombie, records drop_time,
+ * bumps sv_advertised_state_version, sends an OOB disconnect to NA_IP
+ * peers, and is a no-op on cs_free / cs_zombie slots.
+ *
+ * After ZOMBIE_TIME_MS, SV_RunZombieExpiry transitions cs_zombie -> cs_free.
+ *
+ * SV_DirectConnect prefers a cs_free slot before growing num_clients.
+ * SV_FindClientByAddr skips cs_free slots, still matches cs_zombie
+ * (so a reconnect during grace is rejected).
+ * -------------------------------------------------------------------- */
+
+static netadr_t make_ip_addr(BYTE a, BYTE b, BYTE c, BYTE d,
+                             unsigned short host_port) {
+    netadr_t adr;
+    memset(&adr, 0, sizeof(adr));
+    adr.type  = NA_IP;
+    adr.ip[0] = a;
+    adr.ip[1] = b;
+    adr.ip[2] = c;
+    adr.ip[3] = d;
+    adr.port  = htons(host_port);
+    return adr;
+}
+
+static void test_drop_client_transitions_to_zombie(void) {
+    reset_server_state(4);
+    netadr_t from = make_ip_addr(10, 0, 0, 1, 50000);
+    SV_DirectConnect(&from);
+    ASSERT_EQ_INT(svs.num_clients, 1);
+    ASSERT_EQ_INT(svs.clients[0].state, cs_connected);
+
+    DWORD ver_before = sv_advertised_state_version;
+    svs.realtime = 12345;
+    SV_DropClient(&svs.clients[0], "test");
+
+    ASSERT_EQ_INT(svs.clients[0].state, cs_zombie);
+    ASSERT_EQ_INT(svs.clients[0].drop_time, 12345);
+    ASSERT(sv_advertised_state_version > ver_before);
+    /* num_clients is NOT decremented; slot stays "owned" during grace. */
+    ASSERT_EQ_INT(svs.num_clients, 1);
+}
+
+static void test_drop_client_is_idempotent(void) {
+    reset_server_state(4);
+    netadr_t from = make_ip_addr(10, 0, 0, 1, 50001);
+    SV_DirectConnect(&from);
+    SV_DropClient(&svs.clients[0], "test");
+    DWORD ver_after_first = sv_advertised_state_version;
+
+    /* Second drop on the same zombie slot is a no-op. */
+    SV_DropClient(&svs.clients[0], "test");
+    ASSERT_EQ_INT(svs.clients[0].state, cs_zombie);
+    ASSERT_EQ_INT(sv_advertised_state_version, ver_after_first);
+}
+
+static void test_num_live_clients_counts_only_active(void) {
+    reset_server_state(4);
+    netadr_t a = make_ip_addr(10, 0, 0, 1, 50010);
+    netadr_t b = make_ip_addr(10, 0, 0, 2, 50011);
+    netadr_t c = make_ip_addr(10, 0, 0, 3, 50012);
+    SV_DirectConnect(&a);
+    SV_DirectConnect(&b);
+    SV_DirectConnect(&c);
+    ASSERT_EQ_INT(SV_NumLiveClients(), 3);
+
+    SV_DropClient(&svs.clients[1], "test");
+    ASSERT_EQ_INT(SV_NumLiveClients(), 2);   /* zombie excluded */
+    ASSERT_EQ_INT(svs.num_clients, 3);       /* allocated count unchanged */
+}
+
+static void test_zombie_expires_after_grace_period(void) {
+    reset_server_state(4);
+    netadr_t from = make_ip_addr(10, 0, 0, 1, 50020);
+    SV_DirectConnect(&from);
+    svs.realtime = 1000;
+    SV_DropClient(&svs.clients[0], "test");
+
+    /* Within grace: still zombie. */
+    svs.realtime = 1000 + ZOMBIE_TIME_MS - 1;
+    SV_RunZombieExpiry();
+    ASSERT_EQ_INT(svs.clients[0].state, cs_zombie);
+
+    /* At exactly grace boundary: transitions. */
+    svs.realtime = 1000 + ZOMBIE_TIME_MS;
+    SV_RunZombieExpiry();
+    ASSERT_EQ_INT(svs.clients[0].state, cs_free);
+}
+
+static void test_find_client_by_addr_skips_free_slots(void) {
+    reset_server_state(4);
+    netadr_t from = make_ip_addr(10, 0, 0, 1, 50030);
+    SV_DirectConnect(&from);
+    SV_DropClient(&svs.clients[0], "test");
+
+    /* Still zombie: FindClientByAddr matches so reconnect is rejected. */
+    LPCLIENT zombie_match = SV_FindClientByAddr(&from);
+    ASSERT(zombie_match == &svs.clients[0]);
+
+    /* Force the slot to cs_free and re-query: must NOT match (stale addr). */
+    svs.clients[0].state = cs_free;
+    LPCLIENT free_match = SV_FindClientByAddr(&from);
+    ASSERT_NULL(free_match);
+}
+
+static void test_reconnect_during_zombie_grace_is_rejected(void) {
+    reset_server_state(4);
+    netadr_t from = make_ip_addr(10, 0, 0, 1, 50040);
+    SV_DirectConnect(&from);
+    SV_DropClient(&svs.clients[0], "test");
+
+    /* Same address connects again while slot is still cs_zombie.
+     * SV_DirectConnect's early-out via SV_FindClientByAddr blocks it,
+     * so num_clients should stay at 1 and no second slot allocated. */
+    SV_DirectConnect(&from);
+    ASSERT_EQ_INT(svs.num_clients, 1);
+    ASSERT_EQ_INT(svs.clients[0].state, cs_zombie);
+}
+
+static void test_direct_connect_reuses_free_slot(void) {
+    reset_server_state(4);
+    netadr_t a = make_ip_addr(10, 0, 0, 1, 50050);
+    netadr_t b = make_ip_addr(10, 0, 0, 2, 50051);
+    SV_DirectConnect(&a);
+    SV_DirectConnect(&b);
+    ASSERT_EQ_INT(svs.num_clients, 2);
+
+    /* Drop slot 0, expire its grace, then a fresh address connects.
+     * It should land in slot 0 (the cs_free hole) rather than slot 2. */
+    SV_DropClient(&svs.clients[0], "test");
+    svs.realtime += ZOMBIE_TIME_MS;
+    SV_RunZombieExpiry();
+    ASSERT_EQ_INT(svs.clients[0].state, cs_free);
+
+    netadr_t c = make_ip_addr(10, 0, 0, 3, 50052);
+    SV_DirectConnect(&c);
+    ASSERT_EQ_INT(svs.num_clients, 2);           /* no growth */
+    ASSERT_EQ_INT(svs.clients[0].state, cs_connected);
+    ASSERT(svs.clients[0].netchan.remote_address.ip[3] == 3);
+}
+
 void run_server_net_tests(void) {
     RUN_TEST(test_udp_multi_client_connects_register_distinct_slots);
     RUN_TEST(test_udp_connect_honors_ge_max_clients_limit);
     RUN_TEST(test_multicast_syncs_updates_to_all_connected_clients);
+    RUN_TEST(test_drop_client_transitions_to_zombie);
+    RUN_TEST(test_drop_client_is_idempotent);
+    RUN_TEST(test_num_live_clients_counts_only_active);
+    RUN_TEST(test_zombie_expires_after_grace_period);
+    RUN_TEST(test_find_client_by_addr_skips_free_slots);
+    RUN_TEST(test_reconnect_during_zombie_grace_is_rejected);
+    RUN_TEST(test_direct_connect_reuses_free_slot);
 }

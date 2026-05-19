@@ -77,7 +77,7 @@ int main(int argc, LPSTR argv[]) {
         SV_Map(map);
         SV_MDNS_Init(PORT_SERVER);
         SV_MDNS_UpdateInfo(map,
-                           svs.num_clients,
+                           SV_NumLiveClients(),
                            ge ? ge->max_clients : 0);
         // atexit only fires on clean exit (not on signal-induced kill),
         // so this is the unprivileged best-effort path.  The Avahi

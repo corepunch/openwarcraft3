@@ -1,4 +1,5 @@
 #include "server.h"
+#include "../common/net_oob.h"
 #include <arpa/inet.h>
 
 /* Defined here (not sv_main.c) so the test binary, which links sv_init.c
@@ -41,10 +42,17 @@ void SV_ClientConnect(void) {
 }
 
 /* Find the client slot whose netchan address matches from.  For loopback
- * addresses, slot 0 (the local client) is always returned. */
+ * addresses, slot 0 (the local client) is always returned.
+ *
+ * cs_free slots are skipped: their netchan.remote_address may be stale
+ * from a previous occupant and we must not match on that.  cs_zombie
+ * slots ARE matched so that a reconnect during the grace period is
+ * detected as "already registered" and rejected by SV_DirectConnect. */
 LPCLIENT SV_FindClientByAddr(const netadr_t *from) {
     FOR_LOOP(i, svs.num_clients) {
         LPCLIENT cl = &svs.clients[i];
+        if (cl->state == cs_free)
+            continue;
         if (from->type == NA_LOOPBACK &&
             cl->netchan.remote_address.type == NA_LOOPBACK)
             return cl;
@@ -57,18 +65,80 @@ LPCLIENT SV_FindClientByAddr(const netadr_t *from) {
     return NULL;
 }
 
-/* Register a new remote client that sent the first connection packet. */
+DWORD SV_NumLiveClients(void) {
+    DWORD count = 0;
+    FOR_LOOP(i, svs.num_clients) {
+        clientState_t s = svs.clients[i].state;
+        if (s == cs_connected || s == cs_spawned) count++;
+    }
+    return count;
+}
+
+void SV_DropClient(LPCLIENT client, LPCSTR reason) {
+    if (!client) return;
+    if (client->state == cs_free || client->state == cs_zombie) return;
+
+    /* Notify the peer if there's a real UDP socket on the other end.
+     * Loopback clients don't need an OOB notification; we own both
+     * sides of the conversation. */
+    if (client->netchan.remote_address.type == NA_IP) {
+        if (reason && *reason) {
+            Netchan_OutOfBandPrint(NS_SERVER, client->netchan.remote_address,
+                                   OOB_DISCONNECT " %s", reason);
+        } else {
+            Netchan_OutOfBandPrint(NS_SERVER, client->netchan.remote_address,
+                                   OOB_DISCONNECT);
+        }
+    }
+
+    client->state = cs_zombie;
+    client->drop_time = svs.realtime;
+    sv_advertised_state_version++;
+}
+
+/* Sweep called from SV_Frame: transition cs_zombie slots whose grace
+ * period has elapsed into cs_free.  The slot is not zeroed here; the
+ * next SV_DirectConnect that reuses it does a clean memset. */
+void SV_RunZombieExpiry(void) {
+    FOR_LOOP(i, svs.num_clients) {
+        LPCLIENT cl = &svs.clients[i];
+        if (cl->state == cs_zombie &&
+            svs.realtime - cl->drop_time >= ZOMBIE_TIME_MS) {
+            cl->state = cs_free;
+        }
+    }
+}
+
+/* Register a new remote client that sent the first connection packet.
+ *
+ * Slot allocation policy: reuse the lowest cs_free slot if any exists,
+ * otherwise grow svs.num_clients up to MAX_CLIENTS / ge->max_clients.
+ * A reconnect during a slot's cs_zombie grace period is rejected here
+ * via SV_FindClientByAddr (which still matches cs_zombie addresses). */
 void SV_DirectConnect(const netadr_t *from) {
-    // Ignore if address is already registered
     if (SV_FindClientByAddr(from))
         return;
-    if (svs.num_clients >= MAX_CLIENTS ||
-        svs.num_clients >= ge->max_clients) {
-        fprintf(stderr, "SV_DirectConnect: server full\n");
-        return;
+
+    LPCLIENT cl = NULL;
+    FOR_LOOP(i, svs.num_clients) {
+        if (svs.clients[i].state == cs_free) {
+            cl = &svs.clients[i];
+            break;
+        }
     }
-    LPCLIENT cl = &svs.clients[svs.num_clients];
-    svs.num_clients++;
+    if (!cl) {
+        if (svs.num_clients >= MAX_CLIENTS ||
+            svs.num_clients >= ge->max_clients) {
+            fprintf(stderr, "SV_DirectConnect: server full\n");
+            return;
+        }
+        cl = &svs.clients[svs.num_clients];
+        svs.num_clients++;
+    }
+
+    /* Reset on reuse so frames / lastframe / pings from the previous
+     * occupant of this slot don't leak into the new session. */
+    memset(cl, 0, sizeof(*cl));
     sv_advertised_state_version++;
     cl->state = cs_connected;
     cl->netchan.remote_address = *from;

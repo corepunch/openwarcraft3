@@ -84,10 +84,13 @@ static void SV_OOB_GetInfoResponse(const netadr_t *from) {
     static DWORD body_for_version = (DWORD)-1;
 
     if (body_for_version != sv_advertised_state_version) {
+        /* Report the live client count, not svs.num_clients, which
+         * also counts cs_zombie / cs_free slots that aren't really
+         * "in" the game. */
         body_len = SV_BuildInfoResponseString(body, sizeof(body),
                                               SV_Hostname(),
                                               sv.configstrings[CS_MODELS + 1],
-                                              svs.num_clients,
+                                              SV_NumLiveClients(),
                                               ge ? ge->max_clients : 0,
                                               PROTOCOL_VERSION);
         body_for_version = sv_advertised_state_version;
@@ -123,6 +126,14 @@ static void SV_ReadPackets(void) {
                 } else if (OOB_TOKEN_MATCHES_LITERAL(oob_token, oob_token_max,
                                                     OOB_GETINFO)) {
                     SV_OOB_GetInfoResponse(&from);
+                } else if (OOB_TOKEN_MATCHES_LITERAL(oob_token, oob_token_max,
+                                                    OOB_DISCONNECT)) {
+                    /* Peer-initiated disconnect.  cs_free addresses
+                     * don't match; cs_zombie ones match but
+                     * SV_DropClient no-ops on them, so a duplicate
+                     * disconnect is harmless. */
+                    LPCLIENT cl = SV_FindClientByAddr(&from);
+                    if (cl) SV_DropClient(cl, "peer_request");
                 }
                 continue;
             }
@@ -226,12 +237,16 @@ void SV_Frame(DWORD msec) {
         return;
     }
 
+    /* Zombie -> free transition for slots whose grace period elapsed.
+     * Cheap walk; bounded by svs.num_clients <= MAX_CLIENTS. */
+    SV_RunZombieExpiry();
+
     // Push current state to mDNS unconditionally each game tick; the
     // SV_MDNS_UpdateInfo implementation no-ops when
     // sv_advertised_state_version hasn't moved, so this is essentially
-    // free when nothing has changed.
+    // free when nothing has changed.  Live count, not allocated count.
     SV_MDNS_UpdateInfo(sv.configstrings[CS_MODELS + 1],
-                       svs.num_clients,
+                       SV_NumLiveClients(),
                        ge ? ge->max_clients : 0);
 
     SV_ReadPackets();
