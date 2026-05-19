@@ -109,6 +109,23 @@ void SV_RunZombieExpiry(void) {
     }
 }
 
+/* Sweep called from SV_Frame: drop non-loopback live clients that
+ * haven't sent a packet in CLIENT_TIMEOUT_MS.  Loopback clients are
+ * exempt because they don't generate real network packets; their
+ * lifecycle is tied to the listen-server's. */
+void SV_RunClientTimeouts(void) {
+    FOR_LOOP(i, svs.num_clients) {
+        LPCLIENT cl = &svs.clients[i];
+        if (cl->state != cs_connected && cl->state != cs_spawned)
+            continue;
+        if (cl->netchan.remote_address.type == NA_LOOPBACK)
+            continue;
+        if (svs.realtime - cl->last_packet_ms >= CLIENT_TIMEOUT_MS) {
+            SV_DropClient(cl, "timeout");
+        }
+    }
+}
+
 /* Register a new remote client that sent the first connection packet.
  *
  * Slot allocation policy: reuse the lowest cs_free slot if any exists,
@@ -142,6 +159,8 @@ void SV_DirectConnect(const netadr_t *from) {
     sv_advertised_state_version++;
     cl->state = cs_connected;
     cl->netchan.remote_address = *from;
+    cl->last_packet_ms = svs.realtime;  /* don't time them out before
+                                         * the first frame */
     SZ_Init(&cl->netchan.message, cl->netchan.message_buf, MAX_MSGLEN);
     Netchan_OutOfBandPrint(NS_SERVER, *from, "client_connect");
     fprintf(stderr, "SV_DirectConnect: new client from %d.%d.%d.%d:%u\n",

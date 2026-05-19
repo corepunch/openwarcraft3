@@ -331,6 +331,60 @@ static void test_direct_connect_reuses_free_slot(void) {
     ASSERT(svs.clients[0].netchan.remote_address.ip[3] == 3);
 }
 
+/* ----------------------------------------------------------------------
+ * Per-client read timeout (Slice 2)
+ * SV_RunClientTimeouts drops cs_connected / cs_spawned non-loopback
+ * clients that haven't sent a packet in CLIENT_TIMEOUT_MS.
+ * -------------------------------------------------------------------- */
+
+static void test_timeout_drops_silent_client(void) {
+    reset_server_state(4);
+    netadr_t from = make_ip_addr(10, 0, 0, 1, 50100);
+    svs.realtime = 1000;
+    SV_DirectConnect(&from);
+    ASSERT_EQ_INT(svs.clients[0].state, cs_connected);
+
+    /* Just shy of timeout: still alive. */
+    svs.realtime = 1000 + CLIENT_TIMEOUT_MS - 1;
+    SV_RunClientTimeouts();
+    ASSERT_EQ_INT(svs.clients[0].state, cs_connected);
+
+    /* At/past timeout: dropped to zombie. */
+    svs.realtime = 1000 + CLIENT_TIMEOUT_MS;
+    SV_RunClientTimeouts();
+    ASSERT_EQ_INT(svs.clients[0].state, cs_zombie);
+}
+
+static void test_timeout_resets_on_packet(void) {
+    reset_server_state(4);
+    netadr_t from = make_ip_addr(10, 0, 0, 1, 50101);
+    svs.realtime = 1000;
+    SV_DirectConnect(&from);
+
+    /* Simulate a packet arriving just before timeout would fire. */
+    svs.realtime = 1000 + CLIENT_TIMEOUT_MS - 1;
+    svs.clients[0].last_packet_ms = svs.realtime;
+
+    /* Advance another full timeout window: no timeout because the
+     * clock was reset by the packet. */
+    svs.realtime += CLIENT_TIMEOUT_MS - 1;
+    SV_RunClientTimeouts();
+    ASSERT_EQ_INT(svs.clients[0].state, cs_connected);
+}
+
+static void test_timeout_skips_loopback_client(void) {
+    reset_server_state(4);
+    /* Manually install a loopback client.  Loopback exempt from timeout. */
+    LPCLIENT cl = &svs.clients[0];
+    cl->state = cs_connected;
+    cl->netchan.remote_address.type = NA_LOOPBACK;
+    cl->last_packet_ms = 0;          /* "never" */
+    svs.num_clients = 1;
+    svs.realtime = 1000 + CLIENT_TIMEOUT_MS + 5000;
+    SV_RunClientTimeouts();
+    ASSERT_EQ_INT(cl->state, cs_connected);
+}
+
 void run_server_net_tests(void) {
     RUN_TEST(test_udp_multi_client_connects_register_distinct_slots);
     RUN_TEST(test_udp_connect_honors_ge_max_clients_limit);
@@ -342,4 +396,7 @@ void run_server_net_tests(void) {
     RUN_TEST(test_find_client_by_addr_skips_free_slots);
     RUN_TEST(test_reconnect_during_zombie_grace_is_rejected);
     RUN_TEST(test_direct_connect_reuses_free_slot);
+    RUN_TEST(test_timeout_drops_silent_client);
+    RUN_TEST(test_timeout_resets_on_packet);
+    RUN_TEST(test_timeout_skips_loopback_client);
 }

@@ -62,9 +62,12 @@ struct client {
     clientState_t state;
     edict_t *edict; // EDICT_NUM(clientnum+1)
     DWORD lastframe;
-    DWORD drop_time;   // svs.realtime at SV_DropClient; used by SV_Frame
-                       // to transition cs_zombie -> cs_free after
-                       // ZOMBIE_TIME_MS.
+    DWORD drop_time;       // svs.realtime at SV_DropClient; used by
+                           // SV_Frame to transition cs_zombie -> cs_free
+                           // after ZOMBIE_TIME_MS.
+    DWORD last_packet_ms;  // svs.realtime at last received packet from
+                           // this client.  Used by SV_RunClientTimeouts
+                           // to drop silent clients after CLIENT_TIMEOUT_MS.
 };
 
 /* Milliseconds a cs_zombie slot stays unreusable so an unintended
@@ -72,6 +75,11 @@ struct client {
  * still-warm state.  Chosen to be longer than typical NAT rebind
  * latency. */
 #define ZOMBIE_TIME_MS 2000
+
+/* Milliseconds without a packet from a non-loopback client before we
+ * drop them as timed out.  30s tolerates brief network blips while
+ * still reclaiming slots from genuinely-dead peers in bounded time. */
+#define CLIENT_TIMEOUT_MS 30000
 
 extern struct server_static {
     struct client clients[MAX_CLIENTS];
@@ -143,6 +151,11 @@ DWORD SV_NumLiveClients(void);
 /* Walk svs.clients and transition cs_zombie -> cs_free for slots whose
  * grace period elapsed.  Called once per game tick from SV_Frame. */
 void SV_RunZombieExpiry(void);
+
+/* Walk svs.clients and SV_DropClient any non-loopback cs_connected /
+ * cs_spawned slot that hasn't sent a packet in CLIENT_TIMEOUT_MS.
+ * Called once per game tick from SV_Frame. */
+void SV_RunClientTimeouts(void);
 void SV_BuildClientFrame(LPCLIENT client);
 void SV_WriteFrameToClient(LPCLIENT client);
 void SV_ParseClientMessage(LPSIZEBUF msg, LPCLIENT client);

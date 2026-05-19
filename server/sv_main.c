@@ -162,6 +162,9 @@ static void SV_ReadPackets(void) {
         }
         LPCLIENT client = SV_FindClientByAddr(&from);
         if (client) {
+            /* Refresh the per-client liveness clock so the timeout
+             * sweep doesn't drop them mid-conversation. */
+            client->last_packet_ms = svs.realtime;
             SV_ParseClientMessage(&net_message, client);
         }
     }
@@ -262,6 +265,11 @@ void SV_Frame(DWORD msec) {
     /* Zombie -> free transition for slots whose grace period elapsed.
      * Cheap walk; bounded by svs.num_clients <= MAX_CLIENTS. */
     SV_RunZombieExpiry();
+
+    /* Drop silent clients (no packet in CLIENT_TIMEOUT_MS).  Loopback
+     * clients are exempt.  This runs after the zombie sweep so a
+     * just-timed-out client transitions cleanly through cs_zombie. */
+    SV_RunClientTimeouts();
 
     // Push current state to mDNS unconditionally each game tick; the
     // SV_MDNS_UpdateInfo implementation no-ops when
