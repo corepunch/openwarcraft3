@@ -289,7 +289,7 @@ static void R_SetupGL(bool drawLight) {
     } else {
         Matrix4_identity(&tr.viewDef.textureMatrix);
     }
-    Matrix4_ortho(&ui_matrix, 0.0f, window.width, 0.0f, window.height, 0.0f, 100.0f);
+    Matrix4_ortho(&ui_matrix, 0.0f, window.width, window.height, 0.0f, 0.0f, 100.0f);
 
     Matrix3_normal(&normal_matrix, &model_matrix);
 

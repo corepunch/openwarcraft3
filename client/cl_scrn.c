@@ -67,8 +67,7 @@ VECTOR2 SCR_GetAxisBounds(LPCRECT rect, bool is_x_axis) {
 }
 
 FLOAT SCR_NormalizeAnchorOffset(uiFramePoint_t const *p, bool is_x_axis) {
-    SHORT offset = p->offset;
-    (void)is_x_axis;
+    SHORT offset = is_x_axis ? p->offset : -p->offset;
     return offset / UI_FRAMEPOINT_SCALE;
 }
 

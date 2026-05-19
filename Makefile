@@ -245,6 +245,7 @@ test-assets: blpgen mdxgen mpqtool mdxtool fdftool | $(TESTS_DIR)
 	@mkdir -p $(TESTS_RES_DIR)/TestUI/Models
 	$(BIN_DIR)/mdxgen$(EXE_EXT) quad_sprite   TestUI/Textures/checker_8x8.blp       $(TESTS_RES_DIR)/TestUI/Models/quad_sprite.mdx
 	$(BIN_DIR)/mdxgen$(EXE_EXT) panel_sprite  TestUI/Textures/solid_white.blp        $(TESTS_RES_DIR)/TestUI/Models/panel_sprite.mdx
+	$(BIN_DIR)/mdxgen$(EXE_EXT) ui_panel      TestUI/Textures/solid_white.blp        $(TESTS_RES_DIR)/TestUI/Models/ui_panel.mdx
 	$(BIN_DIR)/mdxgen$(EXE_EXT) anim_pulse    TestUI/Textures/alpha_ring_16x16.blp   $(TESTS_RES_DIR)/TestUI/Models/anim_pulse.mdx
 	@echo "[test-assets] packing tests.mpq"
 	$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(TESTS_MPQ) pack \
@@ -255,6 +256,7 @@ test-assets: blpgen mdxgen mpqtool mdxtool fdftool | $(TESTS_DIR)
 		$(TESTS_RES_DIR)/TestUI/Textures/paletted_checker_8x8.blp TestUI/Textures/paletted_checker_8x8.blp \
 		$(TESTS_RES_DIR)/TestUI/Models/quad_sprite.mdx           TestUI/Models/quad_sprite.mdx \
 		$(TESTS_RES_DIR)/TestUI/Models/panel_sprite.mdx          TestUI/Models/panel_sprite.mdx \
+		$(TESTS_RES_DIR)/TestUI/Models/ui_panel.mdx              TestUI/Models/ui_panel.mdx \
 		$(TESTS_RES_DIR)/TestUI/Models/anim_pulse.mdx            TestUI/Models/anim_pulse.mdx \
 		$(TESTS_SRC_DIR)/TestUI/Frames/basic_layout.fdf          TestUI/Frames/basic_layout.fdf \
 		$(TESTS_SRC_DIR)/TestUI/Frames/backdrop_variants.fdf     TestUI/Frames/backdrop_variants.fdf \

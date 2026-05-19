@@ -19,22 +19,22 @@ RECT R_UISceneRect(void) {
 
 void R_PrintSysText(LPCSTR string, DWORD x, DWORD y, COLOR32 color) {
     static VERTEX simp[256 * 6];
-    size2_t window = R_GetWindowSize();
     LPVERTEX it = simp;
     for (LPCSTR s = string; *s; s++) {
         DWORD ch = *s;
         float fx = ch % 16;
         float fy = ch / 16;
         it = R_AddQuad(it, &(RECT ) {
-            x + 10 * (s - string), window.height - y - 16, 8, 16
+            x + 10 * (s - string), y, 8, 16
         }, &(RECT ) {
-            fx/16,fy/8+1.f/8,1.f/16,-1.f/8
+            fx/16,fy/8,1.f/16,1.f/8
         }, color, 0);
     }
     
     DWORD num_vertices = (DWORD)(it - simp);
+    size2_t window = R_GetWindowSize();
     MATRIX4 ui_matrix;
-    Matrix4_ortho(&ui_matrix, 0.0f, window.width, 0.0f, window.height, 0.0f, 100.0f);
+    Matrix4_ortho(&ui_matrix, 0.0f, window.width, window.height, 0.0f, 0.0f, 100.0f);
     
     R_Call(glUseProgram, tr.shader[SHADER_UI]->progid);
     R_Call(glBindVertexArray, tr.buffer[RBUF_TEMP1]->vao);
@@ -70,25 +70,13 @@ void R_SetBlending(BLEND_MODE mode) {
 
 void R_DrawImageEx(LPCDRAWIMAGE drawImage) {
     VERTEX simp[6];
-    
-    if (drawImage->rotate) { // Some UI backdrops use 90-degree-rotated UVs
-        R_AddQuad(simp, &drawImage->screen, &(RECT) {
-            .x = drawImage->uv.x + drawImage->uv.w, 
-            .y = drawImage->uv.y, 
-            .w = -drawImage->uv.w, 
-            .h = drawImage->uv.h
-        }, drawImage->color, 0);
+    R_AddQuad(simp, &drawImage->screen, &drawImage->uv, drawImage->color, 0);
+
+    if (drawImage->rotate) {
         VECTOR2 tmp1 = simp[1].texcoord;
         VECTOR2 tmp2 = simp[5].texcoord;
         simp[1].texcoord = tmp2;
         simp[5].texcoord = tmp1;
-    } else {
-        R_AddQuad(simp, &drawImage->screen, &(RECT) {
-            .x = drawImage->uv.x, 
-            .y = drawImage->uv.y + drawImage->uv.h, 
-            .w = drawImage->uv.w, 
-            .h = -drawImage->uv.h
-        }, drawImage->color, 0);
     }
     if (drawImage->angle) {
         FLOAT const cx = drawImage->screen.x + drawImage->screen.w * 0.5f;
@@ -109,7 +97,7 @@ void R_DrawImageEx(LPCDRAWIMAGE drawImage) {
     
     MATRIX4 ui_matrix, model_matrix;
     RECT const scene = R_UISceneRect();
-    Matrix4_ortho(&ui_matrix, scene.x, scene.x + scene.w, scene.y, scene.y + scene.h, 0.0f, 100.0f);
+    Matrix4_ortho(&ui_matrix, scene.x, scene.x + scene.w, scene.y + scene.h, scene.y, 0.0f, 100.0f);
     Matrix4_identity(&model_matrix);
     
     R_Call(glDisable, GL_CULL_FACE);
@@ -183,7 +171,7 @@ void R_DrawWireRect(LPCRECT rect, COLOR32 color) {
 
     MATRIX4 ui_matrix;
     size2_t const window = R_GetWindowSize();
-    Matrix4_ortho(&ui_matrix, 0.0f, window.width, 0.0f, window.height, 0.0f, 100.0f);
+    Matrix4_ortho(&ui_matrix, 0.0f, window.width, window.height, 0.0f, 0.0f, 100.0f);
 
     R_Call(glUseProgram, tr.shader[SHADER_UI]->progid);
     R_Call(glUniformMatrix4fv, tr.shader[SHADER_UI]->uViewProjectionMatrix, 1, GL_FALSE, ui_matrix.v);

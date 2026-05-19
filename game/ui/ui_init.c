@@ -146,7 +146,7 @@ static void Init_MainMenu(void) {
     LPFRAMEDEF RealmSelectCancelButton = RealmSelect ? UI_FindChildFrame(RealmSelect, "RealmSelectCancelButton") : NULL;
 
     if (WarCraftIIILogo) {
-        UI_SetPoint(WarCraftIIILogo, FRAMEPOINT_TOPLEFT, NULL, FRAMEPOINT_TOPLEFT, 0.13f, -0.08f);
+        UI_SetPoint(WarCraftIIILogo, FRAMEPOINT_TOPLEFT, MainMenuFrame, FRAMEPOINT_TOPLEFT, 0.13f, -0.08f);
     }
 
     if (TopLeftPanel) {
@@ -287,7 +287,7 @@ static void UI_WriteMainMenuGlueTopLayers(LPCSTR animation) {
     if (top_right_model && *top_right_model) {
         UI_InitFrame(&top_right, FT_SPRITE);
         strcpy(top_right.Name, "GlueSpriteLayerTopRight");
-        UI_SetAllPoints(&top_right);
+        UI_SetPoint(&top_right, FRAMEPOINT_BOTTOMLEFT, NULL, FRAMEPOINT_BOTTOMLEFT, 0.0f, 0.0f);
         top_right.Portrait.model = gi.ModelIndex(top_right_model);
         if (animation && *animation) {
             UI_SetText(&top_right, "%s", animation);
@@ -304,7 +304,7 @@ static void UI_WriteMainMenuGlueTopLayers(LPCSTR animation) {
     if (top_left_model && *top_left_model) {
         UI_InitFrame(&top_left, FT_SPRITE);
         strcpy(top_left.Name, "GlueSpriteLayerTopLeft");
-        UI_SetAllPoints(&top_left);
+        UI_SetPoint(&top_left, FRAMEPOINT_BOTTOMLEFT, NULL, FRAMEPOINT_BOTTOMLEFT, 0.0f, 0.0f);
         top_left.Portrait.model = gi.ModelIndex(top_left_model);
         if (animation && *animation) {
             UI_SetText(&top_left, "%s", animation);

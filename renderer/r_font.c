@@ -182,11 +182,10 @@ static VECTOR2 get_position(LPCDRAWTEXT arg) {
         case FONT_JUSTIFYCENTER: pos.x = arg->rect.x + (arg->rect.w - size.x) / 2; break;
         case FONT_JUSTIFYLEFT: pos.x = arg->rect.x; break;
     }
-    FLOAT fontHeight = R_GetFontHeight((LPFONT)arg->font);
     switch (arg->valign) {
-        case FONT_JUSTIFYBOTTOM: pos.y = arg->rect.y + size.y - fontHeight; break;
-        case FONT_JUSTIFYMIDDLE: pos.y = arg->rect.y + (arg->rect.h + size.y) / 2 - fontHeight; break;
-        case FONT_JUSTIFYTOP: pos.y = arg->rect.y + arg->rect.h - fontHeight; break;
+        case FONT_JUSTIFYBOTTOM: pos.y = arg->rect.y + arg->rect.h - size.y; break;
+        case FONT_JUSTIFYMIDDLE: pos.y = arg->rect.y + (arg->rect.h - size.y) / 2; break;
+        case FONT_JUSTIFYTOP: pos.y = arg->rect.y; break;
     }
     return pos;
 }
@@ -202,12 +201,11 @@ static RECT get_uvrect(stbtt_bakedchar *g, FLOAT h, FLOAT w) {
 }
 
 static RECT get_screenrect(LPCVECTOR2 cursor, stbtt_bakedchar *g) {
-    FLOAT const glyph_h = INV_SCALE(g->y1 - g->y0);
     RECT const screen = {
         .x = cursor->x + INV_SCALE(g->xoff),
-        .y = cursor->y - INV_SCALE(g->yoff) - glyph_h,
+        .y = cursor->y + INV_SCALE(g->yoff),
         .w = INV_SCALE(g->x1 - g->x0),
-        .h = glyph_h,
+        .h = INV_SCALE(g->y1 - g->y0),
     };
     return screen;
 }
@@ -227,16 +225,16 @@ static VECTOR2 process_text(LPCDRAWTEXT arg, BOOL draw) {
     for (LPCSTR p = arg->text; *p;) {
         if (*p == '\n') {
             cursor.x = pos.x;
-            cursor.y -= line_advance * 1.1;
-            min_cursor_y = MIN(min_cursor_y, cursor.y);
+            cursor.y += line_advance * 1.1;
+            max_cursor_y = MAX(max_cursor_y, cursor.y);
             p++;
             continue;
         }
         if (!strncmp(p, "|n", 2) || !strncmp(p, "|N", 2)) {
         // next_line:
             cursor.x = pos.x;
-            cursor.y -= line_advance * 1.1;
-            min_cursor_y = MIN(min_cursor_y, cursor.y);
+            cursor.y += line_advance * 1.1;
+            max_cursor_y = MAX(max_cursor_y, cursor.y);
             p += 2;
             continue;
         }
@@ -280,8 +278,8 @@ static VECTOR2 process_text(LPCDRAWTEXT arg, BOOL draw) {
         }
         if (arg->wordWrap && cursor.x > pos.x && !will_word_fit(p, arg->textWidth - (cursor.x - pos.x), arg->font)) {
             cursor.x = pos.x;
-            cursor.y -= line_advance;
-            min_cursor_y = MIN(min_cursor_y, cursor.y);
+            cursor.y += line_advance;
+            max_cursor_y = MAX(max_cursor_y, cursor.y);
         }
         unsigned codepoint;
         p = utf8_to_codepoint(p, &codepoint);
@@ -290,10 +288,8 @@ static VECTOR2 process_text(LPCDRAWTEXT arg, BOOL draw) {
         if (draw) {
             FLOAT const w = set->image->width;
             FLOAT const h = set->image->height;
-            VECTOR2 const glyph_cursor = MAKE(VECTOR2, cursor.x,
-                                              cursor.y + R_GetFontHeight((LPFONT)arg->font));
             RECT const uv_rect = get_uvrect(g, h, w);
-            RECT const screen = get_screenrect(&glyph_cursor, g);
+            RECT const screen = get_screenrect(&cursor, g);
             R_DrawImage(set->image, &screen, &uv_rect, color);
         }
         cursor.x += INV_SCALE(g->xadvance);

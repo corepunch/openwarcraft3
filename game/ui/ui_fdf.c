@@ -424,14 +424,7 @@ MAKE_PARSERCALL(Font) {
 }
 
 static DWORD UI_DecodeFramePointY(DWORD framepoint) {
-    DWORD y = (framepoint >> 2) & 3;
-    if (y == FPP_MIN) {
-        return FPP_MAX;
-    }
-    if (y == FPP_MAX) {
-        return FPP_MIN;
-    }
-    return FPP_MID;
+    return (framepoint >> 2) & 3;
 }
 
 MAKE_PARSERCALL(SetPoint) {

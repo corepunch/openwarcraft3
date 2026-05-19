@@ -8,10 +8,12 @@
  * Usage:
  *   mdxgen quad_sprite   <tex_path> <out.mdx>
  *   mdxgen panel_sprite  <tex_path> <out.mdx>
+ *   mdxgen ui_panel      <tex_path> <out.mdx>
  *   mdxgen anim_pulse    <tex_path> <out.mdx>
  *
  * quad_sprite  - 1x1 unit flat quad in XY-plane, 1 sequence "Stand"
  * panel_sprite - 2x1.5 unit flat quad, suitable for orthographic UI panels, 1 sequence "Stand"
+ * ui_panel     - 0.6x0.4 unit flat quad from origin, matching Warcraft glue panels
  * anim_pulse   - 1x1 quad with 2 sequences "Stand" (0-1000) and "Birth" (1001-2000)
  *
  * All models include:
@@ -229,8 +231,8 @@ static void emit_MTLS(wbuf_t *b) {
     wb_patch_size(b, chunk_size_off);
 }
 
-/* Write a quad geoset (4 verts, 2 triangles, half_w x half_h footprint) */
-static void emit_GEOS(wbuf_t *b, float hw, float hh) {
+/* Write a quad geoset (4 verts, 2 triangles) */
+static void emit_GEOS_RECT(wbuf_t *b, float minx, float miny, float maxx, float maxy) {
     wb_tag(b, "GEOS");
     size_t chunk_size_off = wb_reserve_u32(b);
     {
@@ -239,10 +241,10 @@ static void emit_GEOS(wbuf_t *b, float hw, float hh) {
 
         /* VRTX: 4 vertices */
         wb_tag(b, "VRTX"); wb_u32(b, 4);
-        wb_vec3(b, -hw, -hh, 0.0f);
-        wb_vec3(b,  hw, -hh, 0.0f);
-        wb_vec3(b,  hw,  hh, 0.0f);
-        wb_vec3(b, -hw,  hh, 0.0f);
+        wb_vec3(b, minx, miny, 0.0f);
+        wb_vec3(b, maxx, miny, 0.0f);
+        wb_vec3(b, maxx, maxy, 0.0f);
+        wb_vec3(b, minx, maxy, 0.0f);
 
         /* NRMS: 4 normals (all pointing +Z) */
         wb_tag(b, "NRMS"); wb_u32(b, 4);
@@ -286,14 +288,19 @@ static void emit_GEOS(wbuf_t *b, float hw, float hh) {
         wb_u32(b, 0);              /* group = 0 */
         wb_u32(b, 0);              /* selectable = 0 */
         /* default_bounds */
-        wb_bounds(b, (hw > hh ? hw : hh),
-                  -hw, -hh, 0.0f,
-                   hw,  hh, 0.0f);
+        wb_bounds(b, fmaxf(fabsf(maxx - minx), fabsf(maxy - miny)),
+                  minx, miny, 0.0f,
+                  maxx, maxy, 0.0f);
         wb_u32(b, 0);              /* num_bounds (per-sequence) = 0 */
 
         wb_patch_size(b, geo_size_off);
     }
     wb_patch_size(b, chunk_size_off);
+}
+
+/* Write a centered quad geoset (4 verts, 2 triangles, half_w x half_h footprint) */
+static void emit_GEOS(wbuf_t *b, float hw, float hh) {
+    emit_GEOS_RECT(b, -hw, -hh, hw, hh);
 }
 
 /* BONE chunk: one static bone */
@@ -370,6 +377,46 @@ static int build_model(const char *tex_path, const char *out_path,
     return 1;
 }
 
+static int build_model_rect(const char *tex_path, const char *out_path,
+                            const char *model_name,
+                            float minx, float miny,
+                            float maxx, float maxy,
+                            const char **seq_names,
+                            const uint32_t *seq_starts,
+                            const uint32_t *seq_ends,
+                            int n_seqs)
+{
+    wbuf_t b = { 0 };
+
+    wb_tag(&b, MDX_MAGIC);
+
+    emit_VERS(&b);
+    emit_MODL(&b, model_name);
+    emit_SEQS(&b, seq_names, seq_starts, seq_ends, n_seqs);
+    emit_TEXS(&b, tex_path);
+    emit_MTLS(&b);
+    emit_GEOS_RECT(&b, minx, miny, maxx, maxy);
+    emit_BONE(&b);
+    emit_PIVT(&b);
+
+    FILE *f = fopen(out_path, "wb");
+    if (!f) {
+        fprintf(stderr, "mdxgen: failed to open output %s\n", out_path);
+        wb_free(&b);
+        return 0;
+    }
+    if (fwrite(b.data, 1, b.size, f) != b.size) {
+        fprintf(stderr, "mdxgen: short write %s\n", out_path);
+        fclose(f);
+        wb_free(&b);
+        return 0;
+    }
+    fclose(f);
+    fprintf(stderr, "mdxgen: wrote %s (%zu bytes)\n", out_path, b.size);
+    wb_free(&b);
+    return 1;
+}
+
 /* =========================================================================
  * Presets
  * =========================================================================*/
@@ -404,6 +451,22 @@ static int gen_panel_sprite(int argc, char **argv) {
                        names, starts, ends, 1) ? 0 : 1;
 }
 
+static int gen_ui_panel(int argc, char **argv) {
+    if (argc < 3) {
+        fprintf(stderr, "usage: mdxgen ui_panel <tex_path> <out.mdx>\n");
+        return 1;
+    }
+    const char *tex  = argv[1];
+    const char *out  = argv[2];
+    const char *names[]  = { "Stand" };
+    uint32_t starts[] = { 0 };
+    uint32_t ends[]   = { 1000 };
+    return build_model_rect(tex, out, "UIPanel",
+                            0.0f, 0.0f,
+                            0.6f, 0.4f,
+                            names, starts, ends, 1) ? 0 : 1;
+}
+
 static int gen_anim_pulse(int argc, char **argv) {
     if (argc < 3) {
         fprintf(stderr, "usage: mdxgen anim_pulse <tex_path> <out.mdx>\n");
@@ -429,11 +492,13 @@ static void usage(void) {
         "Usage:\n"
         "  mdxgen quad_sprite   <tex_path> <out.mdx>\n"
         "  mdxgen panel_sprite  <tex_path> <out.mdx>\n"
+        "  mdxgen ui_panel      <tex_path> <out.mdx>\n"
         "  mdxgen anim_pulse    <tex_path> <out.mdx>\n"
         "\n"
         "Examples:\n"
         "  mdxgen quad_sprite   TestUI/Textures/checker_8x8.blp  quad_sprite.mdx\n"
         "  mdxgen panel_sprite  TestUI/Textures/solid_white.blp  panel_sprite.mdx\n"
+        "  mdxgen ui_panel      TestUI/Textures/solid_white.blp  ui_panel.mdx\n"
         "  mdxgen anim_pulse    TestUI/Textures/alpha_ring_16x16.blp  anim_pulse.mdx\n"
     );
 }
@@ -447,6 +512,7 @@ int main(int argc, char **argv) {
 
     if (strcmp(cmd, "quad_sprite")  == 0) return gen_quad_sprite(sub_argc, sub_argv);
     if (strcmp(cmd, "panel_sprite") == 0) return gen_panel_sprite(sub_argc, sub_argv);
+    if (strcmp(cmd, "ui_panel")     == 0) return gen_ui_panel(sub_argc, sub_argv);
     if (strcmp(cmd, "anim_pulse")   == 0) return gen_anim_pulse(sub_argc, sub_argv);
 
     fprintf(stderr, "mdxgen: unknown command '%s'\n\n", cmd);

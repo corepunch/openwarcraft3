@@ -176,9 +176,9 @@ static void test_build_frame_scales_offsets_to_ui_framepoint_int16(void) {
 
     ASSERT(build_frame(&frame, &out, typedata, textbuf));
     ASSERT_EQ_INT(out.points.x[FPP_MIN].used, 1);
-    ASSERT_EQ_INT(out.points.y[FPP_MAX].used, 1);
+    ASSERT_EQ_INT(out.points.y[FPP_MIN].used, 1);
     ASSERT_EQ_INT((int)out.points.x[FPP_MIN].offset, (int)(0.25f * UI_FRAMEPOINT_SCALE));
-    ASSERT_EQ_INT((int)out.points.y[FPP_MAX].offset, (int)(-0.125f * UI_FRAMEPOINT_SCALE));
+    ASSERT_EQ_INT((int)out.points.y[FPP_MIN].offset, (int)(-0.125f * UI_FRAMEPOINT_SCALE));
 }
 
 static void write_then_read_delta_ui(const uiFrame_t *from,

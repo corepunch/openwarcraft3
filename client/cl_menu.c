@@ -232,12 +232,12 @@ void SCR_DrawBackdrop2(LPCUIFRAME frame, LPCRECT screen, uiBackdrop_t const *bac
     BACKDROPCORNER const corners[NUM_BACKDROP_CORNERS] = {
         BACKDROP_LEFT_EDGE,
         BACKDROP_RIGHT_EDGE,
-        BACKDROP_BOTTOM_EDGE,
         BACKDROP_TOP_EDGE,
-        BACKDROP_BOTTOM_LEFT_CORNER,
-        BACKDROP_BOTTOM_RIGHT_CORNER,
+        BACKDROP_BOTTOM_EDGE,
         BACKDROP_TOP_LEFT_CORNER,
         BACKDROP_TOP_RIGHT_CORNER,
+        BACKDROP_BOTTOM_LEFT_CORNER,
+        BACKDROP_BOTTOM_RIGHT_CORNER,
     };
     RECT rects[BACKDROP_SIZE];
     backdrop_rects(screen, rects, backdrop->CornerSize);
@@ -282,9 +282,6 @@ void SCR_DrawBackdrop2(LPCUIFRAME frame, LPCRECT screen, uiBackdrop_t const *bac
         FLOAT const k = 1.0 / NUM_BACKDROP_CORNERS;
         FLOAT const h = edgeSize.height / 1000.f;
         FLOAT const tile = backdrop_edge_tile(rects+corners[i], corners[i], h);
-        if (tile > 100) {
-            backdrop_edge_tile(rects+corners[i], corners[i], h);
-        }
         BOOL const flip = backdrop_edge_flip(corners[i]);
         RECT const rect = { i * k, 0, k, tile };
         re.DrawImageEx(&MAKE(DRAWIMAGE,
@@ -537,7 +534,7 @@ static void SCR_ApplyPushedTextOffset(LPCUIFRAME frame, LPRECT screen) {
 
     uiGlueTextButton_t const *button = parent->buffer.data;
     screen->x += button->pushedTextOffset.x;
-    screen->y += button->pushedTextOffset.y;
+    screen->y -= button->pushedTextOffset.y;
 }
 
 void SCR_DrawString(LPCUIFRAME frame, LPCRECT screen) {

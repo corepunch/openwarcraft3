@@ -530,8 +530,7 @@ static FLOAT get_anchor(LPCUIFRAME frame,
 {
     LPCRECT relative = relative_rect(frame, point);
     VECTOR2 base = get(relative);
-    FLOAT offset = point->offset / UI_FRAMEPOINT_SCALE;
-    (void)is_x;
+    FLOAT offset = (is_x ? point->offset : -point->offset) / UI_FRAMEPOINT_SCALE;
     if (point->targetPos == FPP_MID) {
         return (base.x + base.y) * 0.5f + offset;
     } else if (point->targetPos == FPP_MAX) {

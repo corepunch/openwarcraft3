@@ -17,7 +17,7 @@ VECTOR2 R_PointToScreenSpace(float x, float y) {
     size2_t window = R_GetWindowSize();
     VECTOR2 p = {
         .x = (x / window.width - 0.5) * 2,
-        .y = (y / window.height - 0.5) * 2,
+        .y = (0.5 - y / window.height) * 2,
     };
     return p;
 }

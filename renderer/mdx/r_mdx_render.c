@@ -319,9 +319,9 @@ void R_DrawSprite(LPCMODEL model, LPCSTR anim, float x, float y) {
     viewdef.viewport = (struct rect) {0,0,1,1};
 
     entity.flags |= RF_NO_FOGOFWAR | RF_NO_SHADOW | RF_NO_LIGHTING;
-    entity.origin = (VECTOR3){x, y, 0};
 
     RECT screen = R_UISceneRect();
+    entity.origin = (VECTOR3){x, screen.y + screen.h - y, 0};
     Matrix4_ortho(&viewdef.viewProjectionMatrix, screen.x, screen.x + screen.w, screen.y, screen.y + screen.h, 0.0f, 100.0f);
     Matrix4_scale(&viewdef.viewProjectionMatrix, &(VECTOR3){1, 1, 0});
 

@@ -136,10 +136,10 @@ static void test_setpoint_top_left_sets_top_y_anchor(void) {
     ASSERT_FLOAT_EQ(child->Points.x[FPP_MIN].offset, 0.01f);
     ASSERT(child->Points.x[FPP_MIN].relativeTo == root);
 
-    ASSERT_EQ_INT(child->Points.y[FPP_MAX].used, 1);
-    ASSERT_EQ_INT(child->Points.y[FPP_MAX].targetPos, FPP_MAX);
-    ASSERT_FLOAT_EQ(child->Points.y[FPP_MAX].offset, -0.02f);
-    ASSERT(child->Points.y[FPP_MAX].relativeTo == root);
+    ASSERT_EQ_INT(child->Points.y[FPP_MIN].used, 1);
+    ASSERT_EQ_INT(child->Points.y[FPP_MIN].targetPos, FPP_MIN);
+    ASSERT_FLOAT_EQ(child->Points.y[FPP_MIN].offset, -0.02f);
+    ASSERT(child->Points.y[FPP_MIN].relativeTo == root);
 }
 
 static void test_setallpoints_sets_min_and_max(void) {
@@ -170,9 +170,9 @@ static void test_anchor_translates_to_setpoint_state(void) {
     frame = UI_FindFrame("Root");
     if (!require_not_null(frame)) return;
     ASSERT_EQ_INT(frame->Points.x[FPP_MAX].used, 1);
-    ASSERT_EQ_INT(frame->Points.y[FPP_MIN].used, 1);
+    ASSERT_EQ_INT(frame->Points.y[FPP_MAX].used, 1);
     ASSERT_FLOAT_EQ(frame->Points.x[FPP_MAX].offset, -0.03f);
-    ASSERT_FLOAT_EQ(frame->Points.y[FPP_MIN].offset, 0.04f);
+    ASSERT_FLOAT_EQ(frame->Points.y[FPP_MAX].offset, 0.04f);
 }
 
 static void test_backdrop_flags_and_insets_are_parsed(void) {
@@ -429,7 +429,7 @@ static void test_programmatic_setpoint_maps_to_points(void) {
     ASSERT_EQ_INT(child.Points.x[FPP_MID].used, 1);
     ASSERT_EQ_INT(child.Points.y[FPP_MID].used, 1);
     ASSERT_EQ_INT(child.Points.x[FPP_MID].targetPos, FPP_MIN);
-    ASSERT_EQ_INT(child.Points.y[FPP_MID].targetPos, FPP_MAX);
+    ASSERT_EQ_INT(child.Points.y[FPP_MID].targetPos, FPP_MIN);
     ASSERT_FLOAT_EQ(child.Points.x[FPP_MID].offset, 0.11f);
     ASSERT_FLOAT_EQ(child.Points.y[FPP_MID].offset, -0.22f);
     ASSERT(child.Points.x[FPP_MID].relativeTo == &root);
@@ -469,9 +469,9 @@ static void test_setpoint_top_maps_mid_x_max_y(void) {
     ASSERT_EQ_INT(child->Points.x[FPP_MID].targetPos, FPP_MID);
     ASSERT_FLOAT_EQ(child->Points.x[FPP_MID].offset, 0.03f);
 
-    ASSERT_EQ_INT(child->Points.y[FPP_MAX].used, 1);
-    ASSERT_EQ_INT(child->Points.y[FPP_MAX].targetPos, FPP_MAX);
-    ASSERT_FLOAT_EQ(child->Points.y[FPP_MAX].offset, -0.07f);
+    ASSERT_EQ_INT(child->Points.y[FPP_MIN].used, 1);
+    ASSERT_EQ_INT(child->Points.y[FPP_MIN].targetPos, FPP_MIN);
+    ASSERT_FLOAT_EQ(child->Points.y[FPP_MIN].offset, -0.07f);
 }
 
 static void test_setpoint_topright_maps_max_x_max_y(void) {
@@ -492,9 +492,9 @@ static void test_setpoint_topright_maps_max_x_max_y(void) {
     ASSERT_EQ_INT(child->Points.x[FPP_MAX].targetPos, FPP_MAX);
     ASSERT_FLOAT_EQ(child->Points.x[FPP_MAX].offset, 0.05f);
 
-    ASSERT_EQ_INT(child->Points.y[FPP_MAX].used, 1);
-    ASSERT_EQ_INT(child->Points.y[FPP_MAX].targetPos, FPP_MAX);
-    ASSERT_FLOAT_EQ(child->Points.y[FPP_MAX].offset, -0.10f);
+    ASSERT_EQ_INT(child->Points.y[FPP_MIN].used, 1);
+    ASSERT_EQ_INT(child->Points.y[FPP_MIN].targetPos, FPP_MIN);
+    ASSERT_FLOAT_EQ(child->Points.y[FPP_MIN].offset, -0.10f);
 }
 
 static void test_setpoint_left_maps_min_x_mid_y(void) {
@@ -584,9 +584,9 @@ static void test_setpoint_bottomleft_maps_min_x_min_y(void) {
     ASSERT_EQ_INT(child->Points.x[FPP_MIN].targetPos, FPP_MIN);
     ASSERT_FLOAT_EQ(child->Points.x[FPP_MIN].offset, 0.01f);
 
-    ASSERT_EQ_INT(child->Points.y[FPP_MIN].used, 1);
-    ASSERT_EQ_INT(child->Points.y[FPP_MIN].targetPos, FPP_MIN);
-    ASSERT_FLOAT_EQ(child->Points.y[FPP_MIN].offset, 0.02f);
+    ASSERT_EQ_INT(child->Points.y[FPP_MAX].used, 1);
+    ASSERT_EQ_INT(child->Points.y[FPP_MAX].targetPos, FPP_MAX);
+    ASSERT_FLOAT_EQ(child->Points.y[FPP_MAX].offset, 0.02f);
 }
 
 static void test_setpoint_bottom_maps_mid_x_min_y(void) {
@@ -607,9 +607,9 @@ static void test_setpoint_bottom_maps_mid_x_min_y(void) {
     ASSERT_EQ_INT(child->Points.x[FPP_MID].targetPos, FPP_MID);
     ASSERT_FLOAT_EQ(child->Points.x[FPP_MID].offset, 0.0f);
 
-    ASSERT_EQ_INT(child->Points.y[FPP_MIN].used, 1);
-    ASSERT_EQ_INT(child->Points.y[FPP_MIN].targetPos, FPP_MIN);
-    ASSERT_FLOAT_EQ(child->Points.y[FPP_MIN].offset, 0.08f);
+    ASSERT_EQ_INT(child->Points.y[FPP_MAX].used, 1);
+    ASSERT_EQ_INT(child->Points.y[FPP_MAX].targetPos, FPP_MAX);
+    ASSERT_FLOAT_EQ(child->Points.y[FPP_MAX].offset, 0.08f);
 }
 
 static void test_setpoint_bottomright_maps_max_x_min_y(void) {
@@ -630,9 +630,9 @@ static void test_setpoint_bottomright_maps_max_x_min_y(void) {
     ASSERT_EQ_INT(child->Points.x[FPP_MAX].targetPos, FPP_MAX);
     ASSERT_FLOAT_EQ(child->Points.x[FPP_MAX].offset, -0.04f);
 
-    ASSERT_EQ_INT(child->Points.y[FPP_MIN].used, 1);
-    ASSERT_EQ_INT(child->Points.y[FPP_MIN].targetPos, FPP_MIN);
-    ASSERT_FLOAT_EQ(child->Points.y[FPP_MIN].offset, 0.05f);
+    ASSERT_EQ_INT(child->Points.y[FPP_MAX].used, 1);
+    ASSERT_EQ_INT(child->Points.y[FPP_MAX].targetPos, FPP_MAX);
+    ASSERT_FLOAT_EQ(child->Points.y[FPP_MAX].offset, 0.05f);
 }
 
 /* --- SetPoint: center-mutex behavior --- */
@@ -648,12 +648,12 @@ static void test_setpoint_edge_overrides_and_clears_center(void) {
     ASSERT_EQ_INT(frame.Points.x[FPP_MID].used, 1);
     ASSERT_EQ_INT(frame.Points.y[FPP_MID].used, 1);
 
-    /* Set TOPLEFT — should clear x-mid and y-mid, then fill x-min and y-max */
+    /* Set TOPLEFT — should clear x-mid and y-mid, then fill x-min and y-min */
     UI_SetPoint(&frame, FRAMEPOINT_TOPLEFT, NULL, FRAMEPOINT_TOPLEFT, 0.0f, 0.0f);
     ASSERT_EQ_INT(frame.Points.x[FPP_MID].used, 0);
     ASSERT_EQ_INT(frame.Points.x[FPP_MIN].used, 1);
     ASSERT_EQ_INT(frame.Points.y[FPP_MID].used, 0);
-    ASSERT_EQ_INT(frame.Points.y[FPP_MAX].used, 1);
+    ASSERT_EQ_INT(frame.Points.y[FPP_MIN].used, 1);
 }
 
 static void test_setpoint_center_ignored_when_edges_set(void) {
@@ -687,23 +687,23 @@ static void test_setallpoints_zero_offsets_and_target_positions(void) {
     UI_InitFrame(&frame, FT_FRAME);
     UI_SetAllPoints(&frame);
 
-    /* TOPLEFT anchor: x[MIN] left->left, y[MAX] top->top */
+    /* TOPLEFT anchor: x[MIN] left->left, y[MIN] top->top */
     ASSERT_FLOAT_EQ(frame.Points.x[FPP_MIN].offset, 0.0f);
     ASSERT_EQ_INT(frame.Points.x[FPP_MIN].targetPos, FPP_MIN);
     ASSERT_NULL(frame.Points.x[FPP_MIN].relativeTo);
 
-    ASSERT_FLOAT_EQ(frame.Points.y[FPP_MAX].offset, 0.0f);
-    ASSERT_EQ_INT(frame.Points.y[FPP_MAX].targetPos, FPP_MAX);
-    ASSERT_NULL(frame.Points.y[FPP_MAX].relativeTo);
+    ASSERT_FLOAT_EQ(frame.Points.y[FPP_MIN].offset, 0.0f);
+    ASSERT_EQ_INT(frame.Points.y[FPP_MIN].targetPos, FPP_MIN);
+    ASSERT_NULL(frame.Points.y[FPP_MIN].relativeTo);
 
-    /* BOTTOMRIGHT anchor: x[MAX] right->right, y[MIN] bottom->bottom */
+    /* BOTTOMRIGHT anchor: x[MAX] right->right, y[MAX] bottom->bottom */
     ASSERT_FLOAT_EQ(frame.Points.x[FPP_MAX].offset, 0.0f);
     ASSERT_EQ_INT(frame.Points.x[FPP_MAX].targetPos, FPP_MAX);
     ASSERT_NULL(frame.Points.x[FPP_MAX].relativeTo);
 
-    ASSERT_FLOAT_EQ(frame.Points.y[FPP_MIN].offset, 0.0f);
-    ASSERT_EQ_INT(frame.Points.y[FPP_MIN].targetPos, FPP_MIN);
-    ASSERT_NULL(frame.Points.y[FPP_MIN].relativeTo);
+    ASSERT_FLOAT_EQ(frame.Points.y[FPP_MAX].offset, 0.0f);
+    ASSERT_EQ_INT(frame.Points.y[FPP_MAX].targetPos, FPP_MAX);
+    ASSERT_NULL(frame.Points.y[FPP_MAX].relativeTo);
 
     /* Center slot must remain unused */
     ASSERT_EQ_INT(frame.Points.x[FPP_MID].used, 0);
