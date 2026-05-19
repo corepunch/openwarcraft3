@@ -145,6 +145,7 @@ enum {
 #define MAX_MODELS 256
 #define MAX_SOUNDS 256
 #define MAX_IMAGES 256
+#define MAX_DYNAMIC_IMAGES 32
 #define MAX_ITEMS 256
 #define MAX_GENERAL (MAX_CLIENTS*2)
 

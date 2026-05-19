@@ -23,8 +23,10 @@ typedef struct {
 
 static void G_SanitizeListField(LPSTR text);
 static void G_SanitizeInfoText(LPSTR text);
+static void G_SetMapPreviewPath(LPGAMECLIENT client, mapListItem_t const *item);
 
 #define MAX_MAP_LIST_ITEMS 256
+#define UNKNOWN_MAP_PREVIEW "ui\\widgets\\glues\\minimap-unknown.blp"
 
 static BOOL G_IsMapFile(LPCSTR name) {
     size_t len;
@@ -498,6 +500,61 @@ fail:
     return false;
 }
 
+static BOOL G_FindMapPreviewPath(mapListItem_t const *item, LPSTR out, DWORD out_size) {
+    static LPCSTR const previewFiles[] = {
+        "war3mapPreview.blp",
+        "war3mapPreview.tga",
+        "war3mapPreview.dds",
+        "war3mapMap.blp",
+        "war3mapMap.b00",
+        "war3mapMap.tga",
+        "war3mapMap.dds",
+        NULL
+    };
+    DWORD fileSize = 0;
+
+    if (!item || !out || out_size == 0 || !gi.ReadFile) {
+        return false;
+    }
+    if (item->flags & hide_minimap_in_preview_screens) {
+        snprintf(out, out_size, "%s", UNKNOWN_MAP_PREVIEW);
+        return false;
+    }
+
+    out[0] = '\0';
+    for (DWORD i = 0; previewFiles[i]; i++) {
+        HANDLE data;
+
+        snprintf(out, out_size, "%s/%s", item->path, previewFiles[i]);
+        data = gi.ReadFile(out, &fileSize);
+        if (data && fileSize > 0) {
+            gi.MemFree(data);
+            return true;
+        }
+        if (data) {
+            gi.MemFree(data);
+        }
+    }
+
+    out[0] = '\0';
+    snprintf(out, out_size, "%s", UNKNOWN_MAP_PREVIEW);
+    return false;
+}
+
+static void G_SetMapPreviewPath(LPGAMECLIENT client, mapListItem_t const *item) {
+    char previewPath[512] = { 0 };
+
+    if (!client) {
+        return;
+    }
+
+    if (!G_FindMapPreviewPath(item, previewPath, sizeof(previewPath)) && !previewPath[0]) {
+        G_SetPlayerText(client, PLAYERTEXT_MAP_PREVIEW, UNKNOWN_MAP_PREVIEW);
+        return;
+    }
+    G_SetPlayerText(client, PLAYERTEXT_MAP_PREVIEW, previewPath);
+}
+
 static int G_CompareMapListItems(const void *a, const void *b) {
     const mapListItem_t *ma = a;
     const mapListItem_t *mb = b;
@@ -663,4 +720,5 @@ void CMD_ListSelect(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
                     item ? item->tileset : UI_GetString("UNKNOWNMAP_TILESET"));
     G_SetPlayerText(ent->client, PLAYERTEXT_MAP_DESCRIPTION,
                     item ? item->description : UI_GetString("UNKNOWNMAP_DESCRIPTION"));
+    G_SetMapPreviewPath(ent->client, item);
 }

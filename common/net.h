@@ -77,6 +77,7 @@ void MSG_WriteDeltaEntity(LPSIZEBUF buf, LPCENTITYSTATE from, LPCENTITYSTATE to,
 void MSG_WriteDeltaUIFrame(LPSIZEBUF msg, LPCUIFRAME from, LPCUIFRAME to, bool force);
 void MSG_WriteDeltaPlayerState(LPSIZEBUF msg, LPCPLAYER from, LPCPLAYER to);
 void MSG_WriteEntityBits(LPSIZEBUF buf, DWORD bits, DWORD number);
+void MSG_WritePlayerBits(LPSIZEBUF buf, DWORD bits, DWORD number);
 void MSG_WritePos(LPSIZEBUF buf, LPCVECTOR3 pos);
 void MSG_WriteDir(LPSIZEBUF buf, LPCVECTOR3 dir);
 void MSG_WriteAngle(LPSIZEBUF buf, float f);
@@ -95,6 +96,7 @@ void MSG_ReadDeltaEntity(LPSIZEBUF buf, LPENTITYSTATE edict, int number, int bit
 void MSG_ReadDeltaUIFrame(LPSIZEBUF msg, LPUIFRAME edict, int number, int bits);
 void MSG_ReadDeltaPlayerState(LPSIZEBUF msg, LPPLAYER edict, int number, int bits);
 int MSG_ReadEntityBits(LPSIZEBUF msg, DWORD *bits);
+int MSG_ReadPlayerBits(LPSIZEBUF msg, DWORD *bits);
 
 HANDLE SZ_GetSpace(LPSIZEBUF buf, DWORD length);
 void SZ_Write(LPSIZEBUF buf, void const *data, DWORD length);

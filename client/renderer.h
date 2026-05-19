@@ -121,6 +121,7 @@ typedef struct {
     LPFONT (*LoadFont)(LPCSTR filename, DWORD size);
     size2_t (*GetWindowSize)(void);
     size2_t (*GetTextureSize)(LPCTEXTURE texture);
+    void (*ReleaseTexture)(LPTEXTURE texture);
     void (*ReleaseModel)(LPMODEL model);
     void (*BeginFrame)(void);
     void (*EndFrame)(void);

@@ -33,6 +33,36 @@ static RECT get_uvrect(uint8_t const *texcoord) {
     return uv;
 }
 
+static LPCTEXTURE CL_GetDynamicTexture(LPCSTR resource) {
+    DWORD slot = MAX_DYNAMIC_IMAGES;
+
+    if (!resource || !*resource || !strcmp(resource, " ")) {
+        return NULL;
+    }
+
+    FOR_LOOP(i, MAX_DYNAMIC_IMAGES) {
+        if (cl.dynamicPics[i] && !strcmp(cl.dynamicPicNames[i], resource)) {
+            return cl.dynamicPics[i];
+        }
+        if (!cl.dynamicPics[i] && slot == MAX_DYNAMIC_IMAGES) {
+            slot = i;
+        }
+    }
+
+    if (slot == MAX_DYNAMIC_IMAGES) {
+        slot = cl.dynamicPicCursor++ % MAX_DYNAMIC_IMAGES;
+        SAFE_DELETE(cl.dynamicPics[slot], re.ReleaseTexture);
+        cl.dynamicPicNames[slot][0] = '\0';
+    }
+
+    cl.dynamicPics[slot] = re.LoadTexture(resource);
+    if (!cl.dynamicPics[slot]) {
+        return NULL;
+    }
+    snprintf(cl.dynamicPicNames[slot], sizeof(cl.dynamicPicNames[slot]), "%s", resource);
+    return cl.dynamicPics[slot];
+}
+
 static RECT scale_rect(LPCRECT rect, FLOAT factor) {
     VECTOR2 diff = {
         rect->w * (1 - factor),
@@ -112,7 +142,15 @@ void SCR_DrawStatusbar(LPCUIFRAME frame, LPCRECT screen) {
 void SCR_DrawTexture(LPCUIFRAME frame, LPCRECT screen) {
     RECT const uv = get_uvrect(frame->tex.coord);
     RECT const suv = Rect_div(&uv, 0xff);
-    re.DrawImage(cl.pics[frame->tex.index], screen, &suv, frame->color);
+    LPCTEXTURE texture = cl.pics[frame->tex.index];
+    if (frame->stat >= MAX_STATS && frame->stat - MAX_STATS < MAX_STATS) {
+        LPCSTR resource = cl.playerstate.texts[frame->stat - MAX_STATS];
+        LPCTEXTURE dynamicTexture = CL_GetDynamicTexture(resource);
+        if (dynamicTexture) {
+            texture = dynamicTexture;
+        }
+    }
+    re.DrawImage(texture, screen, &suv, frame->color);
 }
 
 static void SCR_DrawHighlightData(uiHighlight_t const *highlight, LPCRECT screen) {

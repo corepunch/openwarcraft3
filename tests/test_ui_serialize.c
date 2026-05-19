@@ -262,7 +262,7 @@ static void write_then_read_delta_player(const PLAYER *from,
     rd.data = msgdata;
     rd.cursize = msg.cursize;
 
-    number = MSG_ReadEntityBits(&rd, &bits);
+    number = MSG_ReadPlayerBits(&rd, &bits);
     MSG_ReadDeltaPlayerState(&rd, decoded, number, bits);
 }
 
@@ -286,6 +286,11 @@ static void test_player_text_delta_roundtrip_updates_dynamic_text(void) {
 
     write_then_read_delta_player(&previous, &client.ps, &decoded);
     ASSERT_STR_EQ(decoded.texts[PLAYERTEXT_MAP_TITLE], "Second Map");
+
+    previous = client.ps;
+    G_SetPlayerText(&client, PLAYERTEXT_MAP_PREVIEW, "Maps\\Example.w3m/war3mapMap.blp");
+    write_then_read_delta_player(&previous, &client.ps, &decoded);
+    ASSERT_STR_EQ(decoded.texts[PLAYERTEXT_MAP_PREVIEW], "Maps\\Example.w3m/war3mapMap.blp");
 }
 
 static void test_delta_roundtrip_preserves_backdrop_typedata(void) {

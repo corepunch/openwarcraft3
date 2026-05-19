@@ -47,6 +47,7 @@ BOOL SFileCreateArchive(LPCSTR filename, DWORD flags, DWORD maxFiles, HANDLE *ar
 BOOL SFileAddFile(HANDLE archive, LPCSTR sourceFile, LPCSTR archivedName);
 
 BOOL SFileOpenFileEx(HANDLE archive, LPCSTR fileName, DWORD searchScope, HANDLE *file);
+BOOL SFileOpenFileFromArchiveMemory(BYTE *data, DWORD size, LPCSTR fileName, DWORD searchScope, HANDLE *file);
 BOOL SFileCloseFile(HANDLE file);
 
 BOOL SFileReadFile(HANDLE file, void *buffer, DWORD toRead, LPDWORD bytesRead, LPOVERLAPPED overlapped);

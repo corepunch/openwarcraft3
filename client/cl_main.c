@@ -174,6 +174,9 @@ void CL_Shutdown(void) {
         SAFE_DELETE(cl.models[modelIndex], re.ReleaseModel);
         SAFE_DELETE(cl.portraits[modelIndex], re.ReleaseModel);
     }
+    FOR_LOOP(imageIndex, MAX_DYNAMIC_IMAGES) {
+        SAFE_DELETE(cl.dynamicPics[imageIndex], re.ReleaseTexture);
+    }
     V_Shutdown();
     re.Shutdown();
 }

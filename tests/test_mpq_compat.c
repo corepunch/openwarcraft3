@@ -43,6 +43,8 @@ int main(int argc, char **argv)
     HANDLE map_file;
     HANDLE map_archive;
     HANDLE map_info;
+    HANDLE nested_map_info;
+    HANDLE owned_map_info;
     DWORD map_size;
     DWORD map_bytes_read;
 
@@ -104,6 +106,17 @@ int main(int argc, char **argv)
 
     SFileFindClose(find);
 
+    if (!SFileOpenFileEx(archive, "Maps\\Campaign\\Human02.w3m\\war3map.w3i", SFILE_OPEN_FROM_MPQ, &nested_map_info)) {
+        SFileCloseArchive(archive);
+        fail("SFileOpenFileEx failed for nested map path");
+    }
+    if (SFileGetFileSize(nested_map_info, NULL) < 32) {
+        SFileCloseFile(nested_map_info);
+        SFileCloseArchive(archive);
+        fail("nested path war3map.w3i is unexpectedly small");
+    }
+    SFileCloseFile(nested_map_info);
+
     if (!SFileOpenFileEx(archive, "Maps\\Campaign\\Human02.w3m", SFILE_OPEN_FROM_MPQ, &map_file)) {
         SFileCloseArchive(archive);
         fail("SFileOpenFileEx failed for nested map");
@@ -120,6 +133,36 @@ int main(int argc, char **argv)
         SFileCloseFile(map_file);
         SFileCloseArchive(archive);
         fail("SFileReadFile failed for nested map");
+    }
+    SFileCloseFile(map_file);
+
+    if (!SFileOpenFileFromArchiveMemory(map_buffer, map_size, "war3map.w3i", SFILE_OPEN_FROM_MPQ, &owned_map_info)) {
+        free(map_buffer);
+        SFileCloseArchive(archive);
+        fail("SFileOpenFileFromArchiveMemory failed for war3map.w3i");
+    }
+    if (SFileGetFileSize(owned_map_info, NULL) < 32) {
+        SFileCloseFile(owned_map_info);
+        SFileCloseArchive(archive);
+        fail("owned nested war3map.w3i is unexpectedly small");
+    }
+    SFileCloseFile(owned_map_info);
+
+    map_buffer = (BYTE *)malloc(map_size);
+    if (!map_buffer) {
+        SFileCloseArchive(archive);
+        fail("second malloc failed for nested map");
+    }
+    if (!SFileOpenFileEx(archive, "Maps\\Campaign\\Human02.w3m", SFILE_OPEN_FROM_MPQ, &map_file)) {
+        free(map_buffer);
+        SFileCloseArchive(archive);
+        fail("SFileOpenFileEx failed for second nested map");
+    }
+    if (!SFileReadFile(map_file, map_buffer, map_size, &map_bytes_read, NULL) || map_bytes_read != map_size) {
+        free(map_buffer);
+        SFileCloseFile(map_file);
+        SFileCloseArchive(archive);
+        fail("SFileReadFile failed for second nested map");
     }
     SFileCloseFile(map_file);
 

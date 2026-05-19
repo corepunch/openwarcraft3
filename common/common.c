@@ -153,6 +153,51 @@ static BOOL FS_HasExtension(LPCSTR filename, LPCSTR extension) {
     return !strcasecmp(filename + filenameLen - extensionLen, extension);
 }
 
+static BOOL FS_IsArchiveExtensionAt(LPCSTR path, size_t dot) {
+    static LPCSTR const extensions[] = { ".mpq", ".w3m", ".w3x", NULL };
+
+    if (!path || path[dot] != '.') {
+        return false;
+    }
+    for (DWORD i = 0; extensions[i]; i++) {
+        size_t len = strlen(extensions[i]);
+
+        if (strncasecmp(path + dot, extensions[i], len)) {
+            continue;
+        }
+        return path[dot + len] == '/' || path[dot + len] == '\\';
+    }
+    return false;
+}
+
+static BOOL FS_SplitNestedArchivePath(LPCSTR filename,
+                                      LPSTR outer,
+                                      DWORD outer_size,
+                                      LPCSTR *inner) {
+    if (!filename || !outer || outer_size == 0 || !inner) {
+        return false;
+    }
+    for (size_t i = 0; filename[i]; i++) {
+        size_t outerLen;
+
+        if (!FS_IsArchiveExtensionAt(filename, i)) {
+            continue;
+        }
+        outerLen = i + 4;
+        if (outerLen >= outer_size) {
+            return false;
+        }
+        memcpy(outer, filename, outerLen);
+        outer[outerLen] = '\0';
+        *inner = filename + outerLen + 1;
+        while (**inner == '/' || **inner == '\\') {
+            (*inner)++;
+        }
+        return **inner != '\0';
+    }
+    return false;
+}
+
 static void FS_MakeDiskPath(LPCSTR root, LPCSTR filename, LPSTR out, DWORD out_size) {
     DWORD len;
 
@@ -423,6 +468,8 @@ static void FS_FindCollectLooseDir(fsFind_t *find, LPCSTR root, LPCSTR rel) {
     FS_ForEachDiskEntry(path, FS_FindCollectLooseEntry, &collect);
 }
 
+static HANDLE FS_OpenNestedLooseFile(LPCSTR filename);
+
 HANDLE FS_OpenFile(LPCSTR fileName) {
     while (filelock) {
         PF_Sleep(10);
@@ -434,9 +481,16 @@ HANDLE FS_OpenFile(LPCSTR fileName) {
     }
     FOR_LOOP(i, MAX_ARCHIVES) {
         HANDLE file;
+        if (!archives[i]) {
+            continue;
+        }
         if (SFileOpenFileEx(archives[i], fileName, SFILE_OPEN_FROM_MPQ, &file)) {
             return file;
         }
+    }
+    HANDLE looseNestedFile = FS_OpenNestedLooseFile(fileName);
+    if (looseNestedFile) {
+        return looseNestedFile;
     }
     filelock = false;
     return NULL;
@@ -505,6 +559,33 @@ HANDLE FS_ReadLooseFile(LPCSTR filename, LPDWORD size, DWORD extraBytes) {
         }
         return buffer;
     }
+    return NULL;
+}
+
+static HANDLE FS_OpenNestedLooseFile(LPCSTR filename) {
+    char outer[MAX_PATHLEN * 2];
+    LPCSTR inner;
+    DWORD outerSize = 0;
+    BYTE *outerData;
+    HANDLE file;
+
+    if (!FS_SplitNestedArchivePath(filename, outer, sizeof(outer), &inner)) {
+        return NULL;
+    }
+
+    outerData = FS_ReadLooseFile(outer, &outerSize, 0);
+    if (!outerData || outerSize == 0) {
+        if (outerData) {
+            MemFree(outerData);
+        }
+        return NULL;
+    }
+
+    if (SFileOpenFileFromArchiveMemory(outerData, outerSize, inner, SFILE_OPEN_FROM_MPQ, &file)) {
+        return file;
+    }
+
+    MemFree(outerData);
     return NULL;
 }
 

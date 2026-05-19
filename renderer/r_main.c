@@ -1,5 +1,6 @@
 #include "r_local.h"
 #include "m3/r_m3.h"
+#include "stb/stb_image.h"
 
 #include <SDL2/SDL.h>
 #ifndef __APPLE__
@@ -27,6 +28,69 @@ void MDLX_Shutdown(void);
 LPTEXTURE R_LoadTextureBLP1(HANDLE data, DWORD filesize);
 LPTEXTURE R_LoadTextureBLP2(HANDLE data, DWORD filesize);
 LPTEXTURE R_LoadTextureDDS(HANDLE data, DWORD filesize);
+
+static BOOL R_PathHasExtension(LPCSTR path, LPCSTR extension) {
+    size_t pathLen;
+    size_t extLen;
+
+    if (!path || !extension) {
+        return false;
+    }
+    pathLen = strlen(path);
+    extLen = strlen(extension);
+    if (pathLen < extLen) {
+        return false;
+    }
+    for (size_t i = 0; i < extLen; i++) {
+        char a = path[pathLen - extLen + i];
+        char b = extension[i];
+
+        if (a >= 'A' && a <= 'Z') {
+            a = (char)(a + 0x20);
+        }
+        if (b >= 'A' && b <= 'Z') {
+            b = (char)(b + 0x20);
+        }
+        if (a != b) {
+            return false;
+        }
+    }
+    return true;
+}
+
+static LPTEXTURE R_LoadTextureSTB(HANDLE data, DWORD filesize) {
+    int width;
+    int height;
+    BYTE *image;
+    LPCOLOR32 pixels;
+    LPTEXTURE texture;
+
+    if (!data || filesize > INT32_MAX) {
+        return NULL;
+    }
+    image = stbi_load_from_memory((stbi_uc const *)data, (int)filesize, &width, &height, NULL, STBI_rgb_alpha);
+    if (!image || width <= 0 || height <= 0) {
+        return NULL;
+    }
+
+    pixels = ri.MemAlloc(sizeof(COLOR32) * width * height);
+    if (!pixels) {
+        stbi_image_free(image);
+        return NULL;
+    }
+    for (DWORD i = 0; i < (DWORD)(width * height); i++) {
+        pixels[i].r = image[i * 4 + 2];
+        pixels[i].g = image[i * 4 + 1];
+        pixels[i].b = image[i * 4 + 0];
+        pixels[i].a = image[i * 4 + 3];
+    }
+
+    texture = R_AllocateTexture((DWORD)width, (DWORD)height);
+    R_LoadTextureMipLevel(texture, 0, pixels, (DWORD)width, (DWORD)height);
+    ri.MemFree(pixels);
+    stbi_image_free(image);
+    return texture;
+}
 
 void R_Viewport(LPCRECT viewport) {
     glViewport(viewport->x * tr.drawableSize.width / 800,
@@ -96,7 +160,12 @@ LPTEXTURE R_LoadTexture(LPCSTR textureFilename) {
             texture = R_LoadTextureDDS(buffer, fileSize);
             break;
         default:
-            fprintf(stderr, "Unknown texture format %.4s in file %s\n", (LPSTR)buffer, textureFilename);
+            if (R_PathHasExtension(textureFilename, ".tga")) {
+                texture = R_LoadTextureSTB(buffer, fileSize);
+            }
+            if (!texture) {
+                fprintf(stderr, "Unknown texture format %.4s in file %s\n", (LPSTR)buffer, textureFilename);
+            }
             break;
     }
     ri.FileClose(file);
@@ -691,6 +760,7 @@ refExport_t R_GetAPI(refImport_t imp) {
         .LoadTexture = R_LoadTexture,
         .LoadModel = R_LoadModel,
         .LoadFont = R_LoadFont,
+        .ReleaseTexture = R_ReleaseTexture,
         .ReleaseModel = R_ReleaseModel,
         .RenderFrame = R_RenderFrame,
         .Shutdown = R_Shutdown,

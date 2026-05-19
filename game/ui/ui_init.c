@@ -399,12 +399,15 @@ static void UI_SetDefaultCreateMapInfoText(LPGAMECLIENT client) {
     G_SetPlayerText(client, PLAYERTEXT_MAP_SIZE, UI_GetString("UNKNOWNMAP_MAPSIZE"));
     G_SetPlayerText(client, PLAYERTEXT_MAP_TILESET, UI_GetString("UNKNOWNMAP_TILESET"));
     G_SetPlayerText(client, PLAYERTEXT_MAP_DESCRIPTION, UI_GetString("UNKNOWNMAP_DESCRIPTION"));
+    G_SetPlayerText(client, PLAYERTEXT_MAP_PREVIEW, " ");
 }
 
 void UI_ShowMultiplayerCreateMapInfo(LPEDICT ent)
 {
     FRAMEDEF root;
     FRAMEDEF title;
+    FRAMEDEF minimap;
+    FRAMEDEF minimapCover;
     FRAMEDEF suggestedLabel;
     FRAMEDEF suggestedValue;
     FRAMEDEF sizeLabel;
@@ -423,6 +426,23 @@ void UI_ShowMultiplayerCreateMapInfo(LPEDICT ent)
                        FRAMEPOINT_TOP, &root, FRAMEPOINT_TOP, 0.0f, -0.003f, 0.245f, 0.026f, " ");
     title.Stat = MAX_STATS + PLAYERTEXT_MAP_TITLE;
     title.Font.Justification.Horizontal = FONT_JUSTIFYCENTER;
+
+    UI_InitFrame(&minimapCover, FT_TEXTURE);
+    strcpy(minimapCover.Name, "CreateGameMapPreviewCover");
+    UI_SetParent(&minimapCover, &root);
+    UI_SetSize(&minimapCover, 0.105f, 0.105f);
+    UI_SetPoint(&minimapCover, FRAMEPOINT_TOP, &root, FRAMEPOINT_TOP, 0.0f, -0.035f);
+    UI_SetTexture(&minimapCover, "UI\\Widgets\\Glues\\SinglePlayerSkirmish-MinimapCover3.blp", false);
+    minimapCover.Color = COLOR32_WHITE;
+
+    UI_InitFrame(&minimap, FT_TEXTURE);
+    strcpy(minimap.Name, "CreateGameMapPreview");
+    UI_SetParent(&minimap, &root);
+    UI_SetSize(&minimap, 0.075f, 0.075f);
+    UI_SetPoint(&minimap, FRAMEPOINT_TOP, &root, FRAMEPOINT_TOP, 0.0f, -0.050f);
+    UI_SetTexture(&minimap, "UI\\Widgets\\Glues\\SinglePlayerSkirmish-MinimapCover3.blp", false);
+    minimap.Stat = MAX_STATS + PLAYERTEXT_MAP_PREVIEW;
+    minimap.Color = COLOR32_WHITE;
 
     UI_InitMapInfoText(&suggestedLabel, "CreateGameSuggestedPlayersLabel", &root, "StandardLabelTextTemplate",
                        FRAMEPOINT_TOPLEFT, &root, FRAMEPOINT_TOPLEFT, 0.012f, -0.145f, 0.170f, 0.016f,
@@ -459,6 +479,8 @@ void UI_ShowMultiplayerCreateMapInfo(LPEDICT ent)
     UI_WriteStart(LAYER_INFOPANEL);
     UI_WriteFrameWithChildren(&root, NULL);
     UI_WriteFrameWithChildren(&title, &root);
+    UI_WriteFrameWithChildren(&minimap, &root);
+    UI_WriteFrameWithChildren(&minimapCover, &root);
     UI_WriteFrameWithChildren(&suggestedLabel, &root);
     UI_WriteFrameWithChildren(&suggestedValue, &root);
     UI_WriteFrameWithChildren(&sizeLabel, &root);

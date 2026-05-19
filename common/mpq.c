@@ -94,6 +94,8 @@ typedef struct {
 
 typedef struct {
     MPQ_ARCHIVE *archive;
+    HANDLE owner_archive;
+    BYTE *owner_memory;
     DWORD block_index;
     DWORD file_size;
     DWORD current_pos;
@@ -308,6 +310,37 @@ static void CacheBlockLookup(MPQ_ARCHIVE *mpq, const char *fileName, DWORD block
     entry->block_index = block_index;
     entry->next = mpq->lookup_cache[hash & (mpq->lookup_cache_size - 1)];
     mpq->lookup_cache[hash & (mpq->lookup_cache_size - 1)] = entry;
+}
+
+static BOOL PathCharEquals(char a, char b)
+{
+    if (a >= 'A' && a <= 'Z') {
+        a = (char)(a + 0x20);
+    }
+    if (b >= 'A' && b <= 'Z') {
+        b = (char)(b + 0x20);
+    }
+    return a == b;
+}
+
+static BOOL HasArchiveExtensionAt(LPCSTR path, size_t dot)
+{
+    static LPCSTR const exts[] = { ".mpq", ".w3m", ".w3x", NULL };
+
+    for (DWORD i = 0; exts[i]; i++) {
+        BOOL match = TRUE;
+        for (DWORD j = 0; exts[i][j]; j++) {
+            if (!path[dot + j] || !PathCharEquals(path[dot + j], exts[i][j])) {
+                match = FALSE;
+                break;
+            }
+        }
+        if (match) {
+            char next = path[dot + strlen(exts[i])];
+            return next == '/' || next == '\\';
+        }
+    }
+    return FALSE;
 }
 
 static BOOL FindBlockIndex(MPQ_ARCHIVE *mpq, const char *fileName, DWORD hash1, DWORD hash2, DWORD *block_index)
@@ -1066,7 +1099,7 @@ BOOL SFileCloseArchive(HANDLE archive)
     return TRUE;
 }
 
-BOOL SFileOpenFileEx(HANDLE archive, LPCSTR fileName, DWORD searchScope, HANDLE *file)
+static BOOL SFileOpenFileDirect(HANDLE archive, LPCSTR fileName, DWORD searchScope, HANDLE *file)
 {
     MPQ_ARCHIVE *mpq = (MPQ_ARCHIVE *)archive;
     MPQ_FILE *mpqfile;
@@ -1154,14 +1187,121 @@ BOOL SFileOpenFileEx(HANDLE archive, LPCSTR fileName, DWORD searchScope, HANDLE 
     return TRUE;
 }
 
+static BOOL SFileOpenNestedFile(HANDLE archive, LPCSTR fileName, DWORD searchScope, HANDLE *file)
+{
+    char outerName[1024];
+    LPCSTR innerName;
+
+    if (!fileName) {
+        return FALSE;
+    }
+
+    for (size_t i = 0; fileName[i]; i++) {
+        HANDLE outerFile;
+        DWORD outerSize;
+        DWORD bytesRead = 0;
+        BYTE *outerData;
+        HANDLE nestedArchive;
+
+        if (fileName[i] != '.' || !HasArchiveExtensionAt(fileName, i)) {
+            continue;
+        }
+        if (i + 4 >= sizeof(outerName)) {
+            continue;
+        }
+
+        memcpy(outerName, fileName, i + 4);
+        outerName[i + 4] = '\0';
+        innerName = fileName + i + 5;
+        while (*innerName == '/' || *innerName == '\\') {
+            innerName++;
+        }
+        if (!*innerName) {
+            continue;
+        }
+
+        if (!SFileOpenFileDirect(archive, outerName, searchScope, &outerFile)) {
+            continue;
+        }
+
+        outerSize = SFileGetFileSize(outerFile, NULL);
+        outerData = (BYTE *)malloc(outerSize);
+        if (!outerData) {
+            SFileCloseFile(outerFile);
+            return FALSE;
+        }
+        if (!SFileReadFile(outerFile, outerData, outerSize, &bytesRead, NULL) || bytesRead != outerSize) {
+            free(outerData);
+            SFileCloseFile(outerFile);
+            continue;
+        }
+        SFileCloseFile(outerFile);
+
+        if (!SFileOpenArchiveFromMemory(outerData, outerSize, 0, &nestedArchive)) {
+            free(outerData);
+            continue;
+        }
+        if (SFileOpenFileDirect(nestedArchive, innerName, searchScope, file)) {
+            MPQ_FILE *mpqfile = (MPQ_FILE *)*file;
+            mpqfile->owner_archive = nestedArchive;
+            mpqfile->owner_memory = outerData;
+            return TRUE;
+        }
+
+        SFileCloseArchive(nestedArchive);
+        free(outerData);
+    }
+
+    return FALSE;
+}
+
+BOOL SFileOpenFileEx(HANDLE archive, LPCSTR fileName, DWORD searchScope, HANDLE *file)
+{
+    if (SFileOpenFileDirect(archive, fileName, searchScope, file)) {
+        return TRUE;
+    }
+    return SFileOpenNestedFile(archive, fileName, searchScope, file);
+}
+
+BOOL SFileOpenFileFromArchiveMemory(BYTE *data, DWORD size, LPCSTR fileName, DWORD searchScope, HANDLE *file)
+{
+    HANDLE nestedArchive;
+
+    if (!data || size == 0 || !fileName || !*fileName || !file ||
+        searchScope != SFILE_OPEN_FROM_MPQ) {
+        return FALSE;
+    }
+    if (!SFileOpenArchiveFromMemory(data, size, 0, &nestedArchive)) {
+        return FALSE;
+    }
+    if (SFileOpenFileDirect(nestedArchive, fileName, searchScope, file)) {
+        MPQ_FILE *mpqfile = (MPQ_FILE *)*file;
+
+        mpqfile->owner_archive = nestedArchive;
+        mpqfile->owner_memory = data;
+        return TRUE;
+    }
+    SFileCloseArchive(nestedArchive);
+    return FALSE;
+}
+
 BOOL SFileCloseFile(HANDLE file)
 {
     if (file) {
         MPQ_FILE *mpqfile = (MPQ_FILE *)file;
+        HANDLE owner_archive = mpqfile->owner_archive;
+        BYTE *owner_memory = mpqfile->owner_memory;
+
         if (mpqfile->sector_offsets) {
             free(mpqfile->sector_offsets);
         }
         free(file);
+        if (owner_archive) {
+            SFileCloseArchive(owner_archive);
+        }
+        if (owner_memory) {
+            free(owner_memory);
+        }
     }
     return TRUE;
 }

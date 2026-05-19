@@ -74,7 +74,7 @@ void CL_ParseFrame(LPSIZEBUF msg) {
 
 void CL_ParsePlayerInfo(LPSIZEBUF msg) {
     DWORD bits;
-    DWORD plnum = MSG_ReadEntityBits(msg, &bits);
+    DWORD plnum = MSG_ReadPlayerBits(msg, &bits);
     MSG_ReadDeltaPlayerState(msg, &cl.playerstate, plnum, bits);
     cl.viewDef.camerastate[1] = cl.viewDef.camerastate[0];
     cl.viewDef.camerastate[0].origin.x = cl.playerstate.origin.x;

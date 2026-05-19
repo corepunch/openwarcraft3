@@ -68,6 +68,9 @@ struct client_state {
     LPMODEL models[MAX_MODELS];
     LPMODEL portraits[MAX_MODELS];
     LPCTEXTURE pics[MAX_IMAGES];
+    LPTEXTURE dynamicPics[MAX_DYNAMIC_IMAGES];
+    char dynamicPicNames[MAX_DYNAMIC_IMAGES][512];
+    DWORD dynamicPicCursor;
     LPCFONT fonts[MAX_FONTSTYLES];
     PATHSTR configstrings[MAX_CONFIGSTRINGS];
     centity_t ents[MAX_CLIENT_ENTITIES];

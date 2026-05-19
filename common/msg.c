@@ -116,6 +116,7 @@ netField_t playerStateFields[] = {
     { NETF(PLAYER, texts[4]), NFT_DUPTEXT },
     { NETF(PLAYER, texts[5]), NFT_DUPTEXT },
     { NETF(PLAYER, texts[6]), NFT_DUPTEXT },
+    { NETF(PLAYER, texts[7]), NFT_DUPTEXT },
     { NULL }
 };
 //#include <pthread.h>
@@ -385,7 +386,7 @@ void MSG_WriteDeltaPlayerState(LPSIZEBUF msg,
                                LPCPLAYER to)
 {
     DWORD bits = MSG_GetBits(from, to, playerStateFields);
-    MSG_WriteEntityBits(msg, bits, to->number);
+    MSG_WritePlayerBits(msg, bits, to->number);
     MSG_WriteFields(msg, to, playerStateFields, bits);
 }
 
@@ -412,5 +413,15 @@ void MSG_WriteEntityBits(LPSIZEBUF buf, DWORD bits, DWORD number) {
 
 int MSG_ReadEntityBits(LPSIZEBUF buf, DWORD *bits) {
     *bits = MSG_ReadShort(buf);
+    return MSG_ReadShort(buf);
+}
+
+void MSG_WritePlayerBits(LPSIZEBUF buf, DWORD bits, DWORD number) {
+    MSG_WriteLong(buf, bits);
+    MSG_WriteShort(buf, number);
+}
+
+int MSG_ReadPlayerBits(LPSIZEBUF buf, DWORD *bits) {
+    *bits = MSG_ReadLong(buf);
     return MSG_ReadShort(buf);
 }
