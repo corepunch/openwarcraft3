@@ -1,0 +1,1064 @@
+/*
+ * ui_fdf.c — FDF parser and programmatic frame-definition API.
+ *
+ * This file provides two ways to create UI frames without loading an external
+ * .fdf file:
+ *
+ * 1. Parsing FDF text at runtime
+ *    UI_ParseFDF_Buffer() accepts a C string written in FDF syntax (see
+ *    ui_init.c for an inline example) and registers the resulting frameDef_t
+ *    templates in the global frame registry.  The string is mutated during
+ *    parsing, so always pass a writable copy (e.g. strdup()).
+ *
+ * 2. Programmatic C API
+ *    Individual frames can be created directly in C without any FDF text.
+ *    Initialise a FRAMEDEF struct with UI_InitFrame, set its properties via
+ *    the helper functions below, then emit it with UI_WriteFrame:
+ *
+ *      FRAMEDEF f;
+ *      UI_InitFrame(&f, FT_TEXT);
+ *      UI_SetPoint(&f, FRAMEPOINT_TOPLEFT, NULL, FRAMEPOINT_TOPLEFT, 0.05, -0.30);
+ *      UI_SetText(&f, "Hello, world!");
+ *      UI_WriteFrame(&f);
+ *
+ *    Helper functions:
+ *
+ *      UI_InitFrame(frame, type)
+ *          Zero-initialise and set the frame type (FT_TEXT, FT_BACKDROP,
+ *          FT_COMMANDBUTTON, …).
+ *
+ *      UI_SetPoint(frame, point, relativeTo, targetPoint, x, y)
+ *          Anchor one of the frame's nine points to another frame.
+ *
+ *      UI_SetSize(frame, width, height)
+ *          Set explicit width/height dimensions.
+ *
+ *      UI_SetText(frame, fmt, ...)
+ *          Printf-style text assignment for label/text frames.
+ *
+ *      UI_SetTexture(frame, name, decorate)
+ *          Assign a texture by skin-entry name.
+ *
+ *      UI_SetParent(frame, parent)
+ *          Attach the frame to a parent in the hierarchy.
+ *
+ *      UI_WriteFrame(frame)
+ *          Serialize one frame into the outgoing svc_layout message.
+ *
+ *      UI_WriteFrameWithChildren(frame, parent)
+ *          Serialize a frame and its entire sub-tree.
+ *
+ *    See src/game/hud/ui_log.c for a complete worked example using the
+ *    programmatic API.
+ */
+
+#include <stdlib.h>
+#include <ctype.h>
+#include "ui_local.h"
+#include "parser.h"
+
+#define UINAME_FMT "\"%79[^\"]\""
+#define PATHSTR_FMT "\"%255[^\"]\""
+
+LPCSTR FrameType[] = {
+    "",
+    "BACKDROP",
+    "BUTTON",
+    "CHATDISPLAY",
+    "CHECKBOX",
+    "CONTROL",
+    "DIALOG",
+    "EDITBOX",
+    "FRAME",
+    "GLUEBUTTON",
+    "GLUECHECKBOX",
+    "GLUEEDITBOX",
+    "GLUEPOPUPMENU",
+    "GLUETEXTBUTTON",
+    "HIGHLIGHT",
+    "LISTBOX",
+    "MENU",
+    "MODEL",
+    "POPUPMENU",
+    "SCROLLBAR",
+    "SIMPLEBUTTON",
+    "SIMPLECHECKBOX",
+    "SIMPLEFRAME",
+    "SIMPLESTATUSBAR",
+    "SLASHCHATBOX",
+    "SLIDER",
+    "SPRITE",
+    "TEXT",
+    "TEXTAREA",
+    "TEXTBUTTON",
+    "TIMERTEXT",
+    "TEXTURE",
+    "STRING",
+    "LAYER",
+    "SCREEN",
+    "COMMANDBUTTON",
+    "PORTRAIT",
+    "STRINGLIST",
+    "BUILDQUEUE",
+    "MULTISELECT",
+    "TOOLTIPTEXT",
+    NULL
+};
+LPCSTR HighlightType[] = {
+    "FILETEXTURE",
+    NULL
+};
+LPCSTR AlphaMode[] = {
+    "NONE",
+    "ALPHAKEY",
+    "BLEND",
+    "ADD",
+    "MODULATE",
+    "MODULATE2X",
+    NULL
+};
+LPCSTR FontJustificationH[] = {
+    "JUSTIFYCENTER",
+    "JUSTIFYLEFT",
+    "JUSTIFYRIGHT",
+    NULL
+};
+LPCSTR FontJustificationV[] = {
+    "JUSTIFYMIDDLE",
+    "JUSTIFYTOP",
+    "JUSTIFYBOTTOM",
+    NULL
+};
+LPCSTR FramePointType[] = {
+    "TOPLEFT",
+    "TOP",
+    "TOPRIGHT",
+    "<UNUSED>",
+    "LEFT",
+    "CENTER",
+    "RIGHT",
+    "<UNUSED>",
+    "BOTTOMLEFT",
+    "BOTTOM",
+    "BOTTOMRIGHT",
+    "<UNUSED>",
+    NULL
+};
+LPCSTR FontFlags[] = {
+    "FIXEDSIZE",
+    "PASSWORDFIELD",
+    NULL
+};
+LPCSTR ControlStyle[] = {
+    "AUTOTRACK",
+    "HIGHLIGHTONFOCUS",
+    "HIGHLIGHTONMOUSEOVER",
+    NULL
+};
+LPCSTR CornerFlags[] = {
+    "UL",
+    "T",
+    "UR",
+    "L",
+    "-",
+    "R",
+    "BL",
+    "B",
+    "BR",
+    NULL
+};
+
+/* MAX_UI_CLASSES already defined in ui_local.h */
+#define F(x, type) { #x,((uint8_t *)&((FRAMEDEF *)0)->x - (uint8_t *)NULL), Parse##type }
+#define ITEM(x) { #x, x }
+#define TARGET(TYPE) TYPE *target = (TYPE *)((uint8_t *)frame + arg->fofs);
+
+FRAMEDEF frames[MAX_UI_CLASSES] = { 0 };
+
+void FDF_ParseFrame(LPPARSER p, LPFRAMEDEF frame);
+
+void UI_ClearTemplates(void) {
+    memset(frames, 0, sizeof(frames));
+}
+
+void UI_InitFrame(LPFRAMEDEF frame, FRAMETYPE type) {
+    memset(frame, 0, sizeof(FRAMEDEF));
+    frame->inuse = true;
+    frame->Type = type;
+    frame->Color = COLOR32_WHITE;
+    frame->Text = frame->TextStorage;
+    switch (type) {
+        case FT_TEXTURE:
+        case FT_SIMPLESTATUSBAR:
+        case FT_COMMANDBUTTON:
+        case FT_BACKDROP:
+            frame->Texture.TexCoord.max.x = 1;
+            frame->Texture.TexCoord.max.y = 1;
+            break;
+        case FT_STRING:
+        case FT_TEXT:
+            frame->Font.Color = COLOR32_WHITE;
+            break;
+        default:
+            break;
+    }
+}
+
+LPFRAMEDEF UI_Spawn(FRAMETYPE type, LPFRAMEDEF parent) {
+    FOR_LOOP(i, MAX_UI_CLASSES) {
+        if (i==0) continue;
+        LPFRAMEDEF frame = &frames[i];
+        if (!frame->inuse) {
+            UI_InitFrame(frame, type);
+            frame->Parent = parent;
+            return frame;
+        }
+    }
+    return NULL;
+}
+
+typedef struct {
+    LPCSTR name;
+    DWORD fofs;
+    void (*func)(LPCSTR, LPFRAMEDEF frame, void *);
+} parseArg_t;
+
+typedef struct {
+    LPCSTR name;
+    parseArg_t args[16];
+    void (*func)(LPPARSER , LPFRAMEDEF);
+} parseItem_t;
+
+typedef struct {
+    LPCSTR name;
+    void (*func)(LPPARSER , LPFRAMEDEF);
+} fdf_parse_class_t;
+
+int ParseEnumString(LPCSTR token, LPCSTR const *values) {
+    for (int i = 0; *values; i++, values++) {
+        if (!strcmp(token, *values)) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+int ParseEnum(LPPARSER p, LPCSTR const *values) {
+    LPCSTR token = parse_token(p);
+    int value = ParseEnumString(token, values);
+    if (value == -1) {
+        parser_error(p);
+    }
+    return value;
+}
+
+LPCSTR Theme_String(LPCSTR entry, LPCSTR category) {
+    /* Theme support removed for client-side UI library */
+    LPCSTR filename = NULL; // gi.FindSheetCell(game.config.theme, category, entry);
+    char versioned[128];
+
+    if (filename) {
+        return filename;
+    }
+
+    snprintf(versioned, sizeof(versioned), "%s_V1", entry);
+    /* Theme support removed for client-side UI library */
+    filename = NULL; // gi.FindSheetCell(game.config.theme, category, versioned);
+    if (filename) {
+        return filename;
+    }
+    snprintf(versioned, sizeof(versioned), "%s_V0", entry);
+    /* Theme support removed for client-side UI library */
+    filename = NULL; // gi.FindSheetCell(game.config.theme, category, versioned);
+    if (filename) {
+        return filename;
+    }
+
+//    fprintf(stderr, "Can't find %s in skin\n", entry);
+    return entry;
+}
+
+FLOAT Theme_Float(LPCSTR entry, LPCSTR category) {
+    return atof(Theme_String(entry, category));
+}
+
+LPCSTR EnsureExtension(LPCSTR file, LPCSTR ext) {
+    static PATHSTR blp;
+    if (!strstr(file, ext)) {
+        sprintf(blp, "%s%s", file, ext);
+        return blp;
+    } else {
+        return file;
+    }
+}
+
+DWORD UI_LoadTexture(LPCSTR file, BOOL decorate) {
+    file = decorate ? Theme_String(file, "Default") : file;
+    file = EnsureExtension(file, ".blp");
+    return uiimport.ImageIndex(file);
+}
+
+#define MAKE_PARSER(TYPE) \
+void Parse##TYPE(LPCSTR token, LPFRAMEDEF frame, void *out)
+
+#define MAKE_PARSERCALL(TYPE) \
+void TYPE(LPPARSER parser, LPFRAMEDEF frame)
+
+#define MAKE_ENUMPARSER(TYPE) \
+MAKE_PARSER(TYPE) { \
+    UINAME fmt; \
+    if (*token == '"') sscanf(token, UINAME_FMT, fmt); \
+    else strcpy(fmt, token); \
+    *((DWORD *)out) = ParseEnumString(fmt, TYPE); \
+}
+
+#define MAKE_FLAGSPARSER(TYPE) \
+MAKE_PARSER(TYPE) { \
+    PATHSTR b; \
+    sscanf(token, PATHSTR_FMT, b); \
+    for (LPSTR s = b; *s; s++) *s = *s == '|' ? ',' : *s; \
+    PARSE_LIST(b, flag, parse_segment) { \
+        *((DWORD *)out) |= 1 << ParseEnumString(flag, TYPE); \
+    } \
+}
+
+static void ParseFloatList(LPCSTR token, FLOAT *values, DWORD count) {
+    LPCSTR p = token;
+    for (DWORD i = 0; i < count; i++) {
+        char *endptr = NULL;
+        values[i] = strtof(p, &endptr);
+        if (endptr == p) {
+            break;
+        }
+        p = endptr;
+        while (*p == 'f' || *p == 'F' || *p == ',' || isspace(*p)) {
+            p++;
+        }
+    }
+}
+
+MAKE_PARSER(Float) { *((FLOAT *)out) = atof(token); }
+MAKE_PARSER(Integer) { *((LONG *)out) = atoi(token); }
+MAKE_PARSER(Vector2) { ParseFloatList(token, out, 2); }
+MAKE_PARSER(Vector3) { ParseFloatList(token, out, 3); }
+MAKE_PARSER(Vector4) { ParseFloatList(token, out, 4); }
+MAKE_PARSER(Color) {
+    VECTOR4 vec4;
+    vec4.w = 1;
+    ParseVector4(token, frame, &vec4);
+    ((COLOR32 *)out)->r = vec4.x * 0xff;
+    ((COLOR32 *)out)->g = vec4.y * 0xff;
+    ((COLOR32 *)out)->b = vec4.z * 0xff;
+    ((COLOR32 *)out)->a = vec4.w * 0xff;
+}
+MAKE_PARSER(FramePtr) {
+    *(LPCFRAMEDEF *)out = NULL;
+    UINAME name = {0};
+    sscanf(token, UINAME_FMT, name);
+    FOR_LOOP(i, MAX_UI_CLASSES) {
+        if (labs(frames+i-frame) > labs(*((LPCFRAMEDEF *)out)-frame))
+            return;
+        if (!strcmp(frames[i].Name, name)) {
+            *(LPCFRAMEDEF *)out = frames+i;
+        }
+    }
+}
+MAKE_PARSER(Name) {
+    memset(out, 0, sizeof(UINAME));
+    sscanf(token, UINAME_FMT, (LPSTR)out);
+}
+MAKE_PARSER(ButtonText) {
+    BUTTONTEXT *bt = out;
+    memset(bt, 0, sizeof(BUTTONTEXT));
+    assert(sscanf(token, UINAME_FMT " " UINAME_FMT, bt->frame, bt->text) == 2);
+}
+MAKE_PARSER(Text) {
+    UINAME key = { 0 };
+    sscanf(token, UINAME_FMT, key);
+    LPCSTR str = UI_GetString(key);
+    memset(out, 0, sizeof(UINAME));
+    snprintf(out, sizeof(UINAME), "%s", str);
+    frame->Text = out;
+}
+
+typedef struct stringListItem_s {
+    struct stringListItem_s *next;
+    UINAME name;
+    LPSTR value;
+} stringListItem_t;
+
+stringListItem_t *strings = NULL;
+
+MAKE_PARSER(StringListItem) {
+    strings->value = strdup(token+1);
+    strings->value[strlen(strings->value)-1] = 0;
+}
+
+MAKE_ENUMPARSER(AlphaMode);
+MAKE_ENUMPARSER(FontJustificationH);
+MAKE_ENUMPARSER(FontJustificationV);
+MAKE_ENUMPARSER(HighlightType);
+MAKE_ENUMPARSER(FontFlags);
+MAKE_ENUMPARSER(FramePointType);
+MAKE_FLAGSPARSER(CornerFlags);
+MAKE_FLAGSPARSER(ControlStyle);
+
+MAKE_PARSER(TextureFile) {
+    PATHSTR path = { 0 };
+    DWORD image = 0;
+    sscanf(token, PATHSTR_FMT, path);
+//    BOOL decorate = frame->DecorateFileNames | (frame->Parent ? frame->Parent->DecorateFileNames : false);
+    image = path[0] ? UI_LoadTexture(path, true) : 0;
+    *((DWORD *)out) = image;
+#ifdef DIAG_OUTPUT
+    if (path[0] && image == 0) {
+        DIAGF("ParseTextureFile: frame=%s token=%s resolved image=0\n", frame->Name, path);
+    }
+#endif
+}
+
+MAKE_PARSER(ModelPath) {
+    PATHSTR path = { 0 };
+    BOOL decorate = frame->DecorateFileNames | (frame->Parent ? frame->Parent->DecorateFileNames : false);
+    LPCSTR model = NULL;
+    DWORD modelIndex = 0;
+    sscanf(token, PATHSTR_FMT, path);
+    model = decorate ? Theme_String(path, "Default") : path;
+    modelIndex = model[0] ? uiimport.ModelIndex(model) : 0;
+    *((DWORD *)out) = modelIndex;
+#ifdef DIAG_OUTPUT
+    if (decorate && path[0] && !strcmp(model, path)) {
+        DIAGF("ParseModelPath: unresolved skin key frame=%s token=%s\n", frame->Name, path);
+    }
+    if (path[0] && modelIndex == 0) {
+        DIAGF("ParseModelPath: frame=%s token=%s resolved=%s modelIndex=0\n", frame->Name, path, model);
+    }
+#endif
+}
+
+MAKE_PARSERCALL(Font) {
+    LPCSTR file = Theme_String(frame->Font.Name, "Default");
+    frame->Font.Index = uiimport.FontIndex(file, frame->Font.Size * 1000);
+}
+
+static DWORD UI_DecodeFramePointY(DWORD framepoint) {
+    return (framepoint >> 2) & 3;
+}
+
+MAKE_PARSERCALL(SetPoint) {
+    if (!frame->AnyPointsSet) { // clear any template points
+        memset(&frame->Points, 0, sizeof(frame->Points));
+        frame->AnyPointsSet = true;
+    }
+    DWORD const x = frame->SetPoint.type & 3;
+    FRAMEPOINT *xp = frame->Points.x;
+    if (x != FPP_MID || (!xp[FPP_MIN].used && !xp[FPP_MAX].used)) {
+        xp[FPP_MID].used = false;
+        xp[x].used = true;
+        xp[x].offset = frame->SetPoint.x;
+        xp[x].targetPos = frame->SetPoint.target & 3;
+        xp[x].relativeTo = frame->SetPoint.relativeTo;
+    }
+    DWORD y = UI_DecodeFramePointY(frame->SetPoint.type);
+    FRAMEPOINT *yp = frame->Points.y;
+    if (y != FPP_MID || (!yp[FPP_MIN].used && !yp[FPP_MAX].used)) {
+        yp[FPP_MID].used = false;
+        yp[y].used = true;
+        yp[y].offset = frame->SetPoint.y;
+        yp[y].targetPos = UI_DecodeFramePointY(frame->SetPoint.target);
+        yp[y].relativeTo = frame->SetPoint.relativeTo;
+    }
+}
+
+MAKE_PARSERCALL(Anchor) {
+    frame->SetPoint.type = frame->Anchor.corner;
+    frame->SetPoint.target = frame->Anchor.corner;
+    frame->SetPoint.relativeTo = NULL;
+    frame->SetPoint.x = frame->Anchor.x;
+    frame->SetPoint.y = frame->Anchor.y;
+    SetPoint(parser, frame);
+}
+
+MAKE_PARSERCALL(DecorateFileNames) {
+    frame->DecorateFileNames = true;
+}
+
+MAKE_PARSERCALL(BackdropMirrored) {
+    frame->Backdrop.Mirrored = true;
+}
+
+MAKE_PARSERCALL(SliderLayoutHorizontal) {
+    frame->Slider.Layout = LAYOUT_HORIZONTAL;
+}
+
+MAKE_PARSERCALL(SliderLayoutVertical) {
+    frame->Slider.Layout = LAYOUT_VERTICAL;
+}
+
+MAKE_PARSERCALL(BackdropTileBackground) {
+    frame->Backdrop.TileBackground = true;
+}
+
+MAKE_PARSERCALL(BackdropHalfSides) {
+    // Warcraft uses this for some button backdrops. We don't model the split
+    // edge geometry separately yet, but we can safely accept the token so the
+    // template file loads.
+}
+
+MAKE_PARSERCALL(UseActiveContext) {
+//    frame->Backdrop.TileBackground = true;
+}
+
+MAKE_PARSERCALL(TabFocusDefault) {
+    frame->Control.TabFocusDefault = true;
+}
+
+MAKE_PARSERCALL(TabFocusPush) {
+}
+
+MAKE_PARSERCALL(BackdropBlendAll) {
+    frame->Backdrop.BlendAll = true;
+}
+
+MAKE_PARSERCALL(SetAllPoints) {
+    UI_SetAllPoints(frame);
+}
+
+MAKE_PARSERCALL(Texture) {
+    FDF_ParseFrame(parser, UI_Spawn(FT_TEXTURE, frame));
+}
+
+MAKE_PARSERCALL(Layer) {
+    FDF_ParseFrame(parser, UI_Spawn(FT_LAYER, frame));
+}
+
+MAKE_PARSERCALL(String) {
+    FDF_ParseFrame(parser, UI_Spawn(FT_STRING, frame));
+}
+
+MAKE_PARSERCALL(Frame) {
+    LPCSTR stype = parse_token(parser);
+    FRAMETYPE type = ParseEnumString(stype, FrameType);
+    LPFRAMEDEF current = UI_Spawn(type, frame);
+    FDF_ParseFrame(parser, current);
+}
+
+MAKE_PARSERCALL(IncludeFile) {
+    LPCSTR filename = parse_token(parser);
+    UI_ParseFDF(filename);
+}
+
+MAKE_PARSERCALL(StringList) {
+    FRAMEDEF string_list;
+    memset(&string_list, 0, sizeof(FRAMEDEF));
+    string_list.Type = FT_STRINGLIST;
+    FDF_ParseFrame(parser, &string_list);
+}
+
+MAKE_PARSERCALL(EditHighlightInitial) {
+    frame->Edit.HighlightInitial = true;
+}
+
+MAKE_PARSERCALL(EditSetFocus) {
+    frame->Edit.Focus = true;
+}
+
+#define F_END { NULL }
+
+static fdf_parse_class_t classes[] = {
+    { "Frame", Frame },
+    { "Texture", Texture },
+    { "String", String },
+    { "Layer", Layer },
+    { "StringList", StringList },
+    { "IncludeFile", IncludeFile },
+    F_END,
+};
+
+static parseItem_t items[] = {
+    // Flags
+    { "DecorateFileNames", { F_END }, DecorateFileNames },
+    { "BackdropMirrored", { F_END }, BackdropMirrored },
+    { "SetAllPoints", { F_END }, SetAllPoints },
+    { "SetPoint", { F(SetPoint.type, FramePointType), F(SetPoint.relativeTo, FramePtr), F(SetPoint.target, FramePointType), F(SetPoint.x, Float), F(SetPoint.y, Float), F_END }, SetPoint },
+    { "UseActiveContext", { F_END }, UseActiveContext },
+    { "ControlShortcutKey", { F(Control.ShortcutKey, Name), F_END } },
+    { "ControlFocusHighlight", { F(Control.Backdrop.Focus, Name), F_END } },
+    { "TabFocusDefault", { F_END }, TabFocusDefault },
+    { "TabFocusPush", { F_END }, TabFocusPush },
+    { "TabFocusNext", { F(Control.TabFocusNext, Name), F_END } },
+    { "DialogBackdrop", { F(DialogBackdrop, FramePtr), F_END } },
+    // Fields
+    { "Width", { F(Width, Float), F_END } },
+    { "Height", { F(Height, Float), F_END } },
+    { "File", { F(Texture.Image, TextureFile), F_END } },
+    { "TexCoord", { F(Texture.TexCoord.min.x, Float), F(Texture.TexCoord.max.x, Float), F(Texture.TexCoord.min.y, Float), F(Texture.TexCoord.max.y, Float), F_END } },
+    { "BackgroundArt", { F(Portrait.model, ModelPath), F_END } },
+    { "AlphaMode", { F(AlphaMode, AlphaMode), F_END } },
+    { "Anchor", { F(Anchor.corner, FramePointType), F(Anchor.x, Float), F(Anchor.y, Float), F_END }, Anchor },
+    { "Font", { F(Font.Name, Name), F(Font.Size, Float), F_END }, Font },
+    { "Text", { F(TextStorage, Text), F_END } },
+    { "TextLength", { F(TextLength, Integer), F_END } },
+    { "FrameFont", { F(Font.Name, Name), F(Font.Size, Float), F(Font.Unknown, Name), F_END }, Font },
+    // Font
+    { "FontJustificationH", { F(Font.Justification.Horizontal, FontJustificationH), F_END } },
+    { "FontJustificationV", { F(Font.Justification.Vertical, FontJustificationV), F_END } },
+    { "FontJustificationOffset", { F(Font.Justification.Offset, Vector2), F_END } },
+    { "FontFlags", { F(Font.FontFlags, FontFlags), F_END } },
+    { "FontColor", { F(Font.Color, Color), F_END } },
+    { "FontHighlightColor", { F(Font.HighlightColor, Color), F_END } },
+    { "FontDisabledColor", { F(Font.DisabledColor, Color), F_END } },
+    { "FontShadowColor", { F(Font.ShadowColor, Color), F_END } },
+    { "FontShadowOffset", { F(Font.ShadowOffset, Vector2), F_END } },
+    // Backdrop
+    { "BackdropTileBackground", { F_END }, BackdropTileBackground },
+    { "BackdropHalfSides", { F_END }, BackdropHalfSides },
+    { "BackdropBackground", { F(Backdrop.Background, TextureFile), F_END } },
+    { "BackdropCornerFlags", { F(Backdrop.CornerFlags, CornerFlags), F_END } },
+    { "BackdropCornerFile", { F(Backdrop.EdgeFile, TextureFile), F_END } },
+    { "BackdropLeftFile", { F_END }, BackdropHalfSides },
+    { "BackdropRightFile", { F_END }, BackdropHalfSides },
+    { "BackdropTopFile", { F_END }, BackdropHalfSides },
+    { "BackdropBottomFile", { F_END }, BackdropHalfSides },
+    { "BackdropCornerSize", { F(Backdrop.CornerSize, Float), F_END } },
+    { "BackdropBackgroundSize", { F(Backdrop.BackgroundSize, Float), F_END } },
+    { "BackdropBackgroundInsets", { F(Backdrop.BackgroundInsets, Vector4), F_END } },
+    { "BackdropEdgeFile", { F(Backdrop.EdgeFile, TextureFile), F_END } },
+    { "BackdropBlendAll", { F_END }, BackdropBlendAll },
+    // Highlight
+    { "HighlightType", { F(Highlight.Type, HighlightType), F_END } },
+    { "HighlightAlphaFile", { F(Highlight.AlphaFile, TextureFile), F_END } },
+    { "HighlightAlphaMode", { F(Highlight.AlphaMode, AlphaMode), F_END } },
+    // Control
+    { "ControlStyle", { F(Control.Style, ControlStyle), F_END } },
+    { "ControlBackdrop", { F(Control.Backdrop.Normal, Name), F_END } },
+    { "ControlPushedBackdrop", { F(Control.Backdrop.Pushed, Name), F_END } },
+    { "ControlDisabledBackdrop", { F(Control.Backdrop.Disabled, Name), F_END } },
+    { "ControlMouseOverHighlight", { F(Control.Backdrop.MouseOver, Name), F_END } },
+    { "ControlDisabledPushedBackdrop", { F(Control.Backdrop.DisabledPushed, Name), F_END } },
+    // Slider
+    { "SliderInitialValue", { F(Slider.InitialValue, Float), F_END } },
+    { "SliderLayoutHorizontal", { F_END }, SliderLayoutHorizontal },
+    { "SliderLayoutVertical", { F_END }, SliderLayoutVertical },
+    { "SliderMaxValue", { F(Slider.MaxValue, Float), F_END } },
+    { "SliderMinValue", { F(Slider.MinValue, Float), F_END } },
+    { "SliderStepSize", { F(Slider.StepSize, Float), F_END } },
+    { "ScrollBarIncButtonFrame", { F(Slider.IncButtonFrame, Name), F_END } },
+    { "ScrollBarDecButtonFrame", { F(Slider.DecButtonFrame, Name), F_END } },
+    { "SliderThumbButtonFrame", { F(Slider.ThumbButtonFrame, Name), F_END } },
+    // Menu
+    { "ListBoxBorder", { F(ListBox.Border, Float), F_END } },
+    { "ListBoxScrollBar", { F(ListBox.ScrollBar, Name), F_END } },
+    { "MenuBorder", { F(Menu.Border, Float), F_END } },
+    { "MenuItem", { F(Menu.Item.Text, Name), F(Menu.Item.Value, Integer), F_END } },
+    { "MenuItemHeight", { F(Menu.Item.Height, Float), F_END } },
+    { "MenuTextHighlightColor", { F(Menu.TextHighlightColor, Color), F_END } },
+    // Edit
+    { "EditBorderSize", { F(Edit.BorderSize, Float), F_END } },
+    { "EditCursorColor", { F(Edit.CursorColor, Color), F_END } },
+    { "EditHighlightColor", { F(Edit.HighlightColor, Color), F_END } },
+    { "EditHighlightInitial", { F_END }, EditHighlightInitial },
+    { "EditMaxChars", { F(Edit.MaxChars, Integer), F_END } },
+    { "EditSetFocus", { F_END }, EditSetFocus },
+    { "EditText", { F(Edit.Text, Text), F_END } },
+    { "EditTextColor", { F(Edit.TextColor, Color), F_END } },
+    { "EditTextFrame", { F(Edit.TextFrame, Name), F_END } },
+    { "EditTextOffset", { F(Edit.TextOffset, Vector2), F_END } },
+    // Popup
+    { "PopupButtonInset", { F(Popup.ButtonInset, Float), F_END } },
+    { "PopupArrowFrame", { F(Popup.ArrowFrame, Name), F_END } },
+    { "PopupMenuFrame", { F(Popup.MenuFrame, Name), F_END } },
+    { "PopupTitleFrame", { F(Popup.TitleFrame, Name), F_END } },
+    // TextArea
+    { "TextAreaLineHeight", { F(TextArea.LineHeight, Float), F_END } },
+    { "TextAreaLineGap", { F(TextArea.LineGap, Float), F_END } },
+    { "TextAreaInset", { F(TextArea.Inset, Float), F_END } },
+    { "TextAreaScrollBar", { F(TextArea.ScrollBar, Name), F_END } },
+    { "TextAreaMaxLines", { F(TextArea.MaxLines, Integer), F_END } },
+    // CheckBox
+    { "CheckBoxCheckHighlight", { F(CheckBox.CheckHighlight, Name), F_END } },
+    { "CheckBoxDisabledCheckHighlight", { F(CheckBox.DisabledCheckHighlight, Name), F_END } },
+    // Button
+    { "ButtonText", { F(TextStorage, Text), F_END } },
+    { "ButtonPushedTextOffset", { F(Button.PushedTextOffset, Vector2), F_END } },
+    { "NormalTexture", { F(Button.NormalTexture, Name), F_END } },
+    { "PushedTexture", { F(Button.PushedTexture, Name), F_END } },
+    { "DisabledTexture", { F(Button.DisabledTexture, Name), F_END } },
+    { "NormalText", { F(Button.NormalText, ButtonText), F_END } },
+    { "DisabledText", { F(Button.DisabledText, ButtonText), F_END } },
+    { "HighlightText", { F(Button.HighlightText, ButtonText), F_END } },
+    { "UseHighlight", { F(Button.UseHighlight, Name), F_END } },
+    // End of list
+    F_END
+};
+
+LPCSTR parse_segment2(LPPARSER p);
+
+void parse_item(LPPARSER parser, LPFRAMEDEF frame, parseItem_t *item) {
+    for (parseArg_t *arg = item->args; arg->name; arg++) {
+        LPCSTR token = parse_segment2(parser);
+        arg->func(token, frame, (uint8_t *)frame + arg->fofs);
+    }
+    if (!item->args->name) { // eat trailing comma
+        parse_segment(parser);
+    }
+    if (item->func) {
+        item->func(parser, frame);
+    }
+}
+
+void parse_func(LPPARSER parser, LPFRAMEDEF frame) {
+    LPCSTR token = NULL;
+    while ((token = parse_token(parser)) && (*token != '}')) {
+        if (frame->Type == FT_STRINGLIST) {
+            static parseItem_t stringitem = { "", { F(Name, StringListItem), F_END } };
+            stringListItem_t *str = uiimport.MemAlloc(sizeof(stringListItem_t));
+            ADD_TO_LIST(str, strings);
+            strcpy(str->name, token);
+            parse_item(parser, frame, &stringitem);
+//            printf("%s %s\n", str->name, str->value);
+            goto parse_next;
+        } else {
+            for (parseItem_t *it = items; it->name; it++) {
+                if (!strcmp(it->name, token)) {
+                    parse_item(parser, frame, it);
+                    goto parse_next;
+                }
+            }
+            for (fdf_parse_class_t *it = classes; it->name; it++) {
+                if (!strcmp(it->name, token)) {
+                    it->func(parser, frame);
+                    goto parse_next;
+                }
+            }
+        }
+        fprintf(stderr, "Can't recognize token '%s'\n", token);
+        fprintf(stderr, "parse context: %.120s\n", parser->buffer);
+        parser->error = true;
+        return;
+    parse_next:;
+    }
+}
+
+LPFRAMEDEF FindFrameTemplate(LPCSTR str) {
+    FOR_LOOP(i, MAX_UI_CLASSES) {
+        LPFRAMEDEF tmp = frames+i;
+        if (!strcmp(tmp->Name, str))
+            return tmp;
+    }
+    return NULL;
+}
+
+static BOOL UI_FrameTypesCompatible(FRAMETYPE frameType, FRAMETYPE inheritType) {
+    if (frameType == inheritType) {
+        return true;
+    }
+    switch (frameType) {
+        case FT_GLUETEXTBUTTON: return inheritType == FT_TEXTBUTTON;
+        case FT_GLUEBUTTON: return inheritType == FT_BUTTON;
+        case FT_GLUECHECKBOX: return inheritType == FT_CHECKBOX;
+        case FT_GLUEEDITBOX: return inheritType == FT_EDITBOX;
+        case FT_GLUEPOPUPMENU: return inheritType == FT_POPUPMENU;
+        case FT_SLASHCHATBOX: return inheritType == FT_EDITBOX;
+        case FT_SIMPLEBUTTON: return inheritType == FT_BUTTON;
+        case FT_SIMPLECHECKBOX: return inheritType == FT_CHECKBOX;
+        case FT_SIMPLESTATUSBAR: return inheritType == FT_SIMPLESTATUSBAR;
+        default: return false;
+    }
+}
+
+void UI_InheritFrom(LPFRAMEDEF frame, LPCSTR inheritName) {
+    LPFRAMEDEF inherit = FindFrameTemplate(inheritName);
+    if (inherit && UI_FrameTypesCompatible(frame->Type, inherit->Type)) {
+        FRAMEDEF tmp;
+        FRAMETYPE requested_type = frame->Type;
+        memcpy(&tmp, frame, sizeof(FRAMEDEF));
+        memcpy(frame, inherit, sizeof(FRAMEDEF));
+        memcpy(frame->Name, tmp.Name, sizeof(UINAME));
+        frame->Parent = tmp.Parent;
+        frame->Type = requested_type;
+        frame->AnyPointsSet = false;
+    } else if (inherit) {
+        fprintf(stderr, "Can't inherit from different type %s\n", inheritName);
+    } else {
+        fprintf(stderr, "Can't find template %s\n", inheritName);
+    }
+}
+
+void FDF_ParseFrame(LPPARSER p, LPFRAMEDEF frame) {
+    DWORD state = 0;
+    LPCSTR tok;
+    while ((tok = parse_token(p)) && (*tok != '{')) {
+        if (!strcmp(tok, "INHERITS")) {
+            LPCSTR inheritName = parse_token(p);
+            if (!strcmp(inheritName, "WITHCHILDREN")) {
+                inheritName = parse_token(p);
+            }
+            UI_InheritFrom(frame, inheritName);
+            state++;
+        } else if (state == 0) {
+            strncpy(frame->Name, tok, sizeof(UINAME));
+            state++;
+        } else {
+            parser_error(p);
+            return;
+        }
+    }
+    parse_func(p, frame);
+}
+
+LPFRAMEDEF UI_FindFrame(LPCSTR name) {
+    FOR_LOOP(i, MAX_UI_CLASSES) {
+        if (!strcmp(frames[i].Name, name)) {
+            return frames+i;
+        }
+    }
+    return NULL;
+}
+
+LPFRAMEDEF UI_FindFrameNear(LPCFRAMEDEF anchor, LPCSTR name) {
+    if (!name || !*name) {
+        return NULL;
+    }
+    if (!anchor || anchor < frames || anchor >= frames + MAX_UI_CLASSES) {
+        return UI_FindFrame(name);
+    }
+
+    DWORD const anchor_index = (DWORD)(anchor - frames);
+    DWORD best_distance = MAX_UI_CLASSES;
+    LPFRAMEDEF best = NULL;
+
+    FOR_LOOP(i, MAX_UI_CLASSES) {
+        if (!strcmp(frames[i].Name, name)) {
+            DWORD const distance = i > anchor_index ? i - anchor_index : anchor_index - i;
+            if (!best || distance < best_distance) {
+                best = frames + i;
+                best_distance = distance;
+            }
+        }
+    }
+    return best;
+}
+
+LPFRAMEDEF UI_FindChildFrame(LPFRAMEDEF frame, LPCSTR name) {
+    if (!strcmp(frame->Name, name))
+        return frame;
+    FOR_LOOP(i, MAX_UI_CLASSES) {
+        if (frames[i].Parent != frame)
+            continue;
+        LPFRAMEDEF found = UI_FindChildFrame(frames+i, name);
+        if (found)
+            return found;
+    }
+    return NULL;
+}
+
+static BOOL UI_FrameNameEquals(LPCFRAMEDEF frame, LPCSTR name) {
+    return frame && name && *name && !strcmp(frame->Name, name);
+}
+
+static BOOL UI_IsEmbeddedControlPart(LPCFRAMEDEF parent, LPCFRAMEDEF child) {
+    if (!parent || !child) {
+        return false;
+    }
+    /* Control art children are serialized into their owning control's payload by
+     * ui_write.c. Emitting them again as standalone children draws duplicates. */
+    if (child->Type == FT_BACKDROP) {
+        return UI_FrameNameEquals(child, parent->Control.Backdrop.Normal) ||
+               UI_FrameNameEquals(child, parent->Control.Backdrop.Pushed) ||
+               UI_FrameNameEquals(child, parent->Control.Backdrop.Disabled) ||
+               UI_FrameNameEquals(child, parent->Control.Backdrop.DisabledPushed);
+    }
+    if (child->Type == FT_HIGHLIGHT) {
+        return UI_FrameNameEquals(child, parent->Control.Backdrop.MouseOver);
+    }
+    if (child->Type == FT_TEXT) {
+        return UI_FrameNameEquals(child, parent->Edit.TextFrame);
+    }
+    return false;
+}
+
+static DWORD UI_CollectFrameTreeRecursive(LPCFRAMEDEF frame, LPCFRAMEDEF *out, DWORD max) {
+    DWORD total = 0;
+
+    if (!frame) {
+        return 0;
+    }
+
+    if (out && total < max) {
+        out[total] = frame;
+    }
+    total++;
+
+    FOR_LOOP(i, MAX_UI_CLASSES) {
+        LPCFRAMEDEF child = frames + i;
+        if (child->Parent == frame && !child->hidden && !UI_IsEmbeddedControlPart(frame, child)) {
+            DWORD emitted = UI_CollectFrameTreeRecursive(child,
+                                                         out ? out + total : NULL,
+                                                         max > total ? max - total : 0);
+            total += emitted;
+        }
+    }
+
+    return total;
+}
+
+/* Collect the write-order frame graph rooted at root.
+ * The result order matches UI_WriteFrameWithChildren traversal:
+ *   node first, then visible children in template-slot order.
+ * Returns the total number of frames in the traversal, even if out is too
+ * small to hold all of them. */
+DWORD UI_CollectFrameTree(LPCFRAMEDEF root, LPCFRAMEDEF *out, DWORD max) {
+    return UI_CollectFrameTreeRecursive(root, out, max);
+}
+
+void FDF_ParseScene(LPPARSER parser) {
+    LPCSTR token = NULL;
+    LPFRAMEDEF frame = NULL;
+    while (*(token = parse_token(parser))) {
+        for (fdf_parse_class_t *it = classes; it->name; it++) {
+            if (!strcmp(it->name, token)) {
+                it->func(parser, frame);
+                goto parse_next;
+            }
+        }
+        fprintf(stderr, "Unknown token %s\n", token);
+        parser_error(parser);
+        return;
+    parse_next:;
+        while (*parser->buffer == ',') {
+            ++parser->buffer;
+        }
+    }
+}
+
+void UI_ParseFDF_Buffer(LPCSTR fileName, LPSTR buffer2) {
+    LPSTR buffer = buffer2;
+    /* Text preprocessing - simplified for client-side */
+    /* gi.TextRemoveComments(buffer); */
+    /* gi.TextRemoveBom(buffer); */
+    PARSER parser = {
+        .buffer = buffer,
+        .delimiters = ",;{}",
+        .eat_quotes = true,
+    };
+    FDF_ParseScene(&parser);
+    if (parser.error) {
+        fprintf(stderr, "Failed to parse %s\n", fileName);
+    }
+}
+
+void UI_ParseFDF(LPCSTR fileName) {
+    DWORD size = 0;
+    LPSTR buffer = (LPSTR)uiimport.LoadFile(fileName, &size);
+    if (buffer) {
+        UI_ParseFDF_Buffer(fileName, buffer);
+        uiimport.MemFree(buffer);
+    }
+}
+
+void UI_WriteFrameWithChildren(LPCFRAMEDEF frame, LPCFRAMEDEF parent) {
+    /* Stub - frame serialization not used in client-side UI library */
+    (void)frame;
+    (void)parent;
+}
+
+/* Stub function - not used in client-side UI */
+void UI_WriteFrame(LPCFRAMEDEF frame) {
+    (void)frame;
+}
+
+/* Stub function - not used in client-side UI */
+void UI_WriteStart(DWORD layer) {
+    (void)layer;
+}
+
+void UI_SetPoint(LPFRAMEDEF frame,
+                 UIFRAMEPOINT framePoint,
+                 LPCFRAMEDEF other,
+                 UIFRAMEPOINT otherPoint,
+                 FLOAT x,
+                 FLOAT y)
+{
+    frame->SetPoint.type = framePoint;
+    frame->SetPoint.relativeTo = other;
+    frame->SetPoint.target = otherPoint;
+    frame->SetPoint.x = x;
+    frame->SetPoint.y = y;
+    SetPoint(NULL, frame);
+}
+
+void UI_SetAllPoints(LPFRAMEDEF frame) {
+    UI_SetPoint(frame, FRAMEPOINT_TOPLEFT, NULL, FRAMEPOINT_TOPLEFT, 0, 0);
+    UI_SetPoint(frame, FRAMEPOINT_BOTTOMRIGHT, NULL, FRAMEPOINT_BOTTOMRIGHT, 0, 0);
+}
+
+void UI_SetParent(LPFRAMEDEF frame, LPCFRAMEDEF parent) {
+    frame->Parent = parent;
+}
+
+void UI_SetText(LPFRAMEDEF frame, LPCSTR format, ...) {
+    va_list argptr;
+    static char text[1024];
+    va_start(argptr, format);
+    vsnprintf(text, sizeof(text), format, argptr);
+    va_end(argptr);
+    snprintf(frame->TextStorage, sizeof(frame->TextStorage), "%s", UI_GetString(text));
+    frame->Text = frame->TextStorage;
+}
+
+void UI_SetOnClick(LPFRAMEDEF frame, LPCSTR format, ...) {
+    va_list argptr;
+    if (!frame || !format) {
+        return;
+    }
+    va_start(argptr, format);
+    vsnprintf(frame->OnClick, sizeof(frame->OnClick), format, argptr);
+    va_end(argptr);
+}
+
+void UI_SetTextPointer(LPFRAMEDEF frame, LPCSTR text) {
+    frame->Text = text;
+}
+
+void UI_SetSize(LPFRAMEDEF frame, FLOAT width, FLOAT height) {
+    frame->Width = width;
+    frame->Height = height;
+}
+
+LPCSTR UI_GetString(LPCSTR textID) {
+    FOR_EACH_LIST(stringListItem_t, it, strings) {
+        if (!strcmp(textID, it->name)) {
+            return it->value;
+        }
+    }
+    return textID;
+}
+
+void UI_SetTexture(LPFRAMEDEF frame, LPCSTR name, BOOL decorate) {
+    frame->Texture.Image = UI_LoadTexture(name, decorate);
+}
+
+void UI_SetTexture2(LPFRAMEDEF frame, LPCSTR name, BOOL decorate) {
+    frame->Texture.Image2 = UI_LoadTexture(name, decorate);
+}
+
+void UI_SetHidden(LPFRAMEDEF frame, BOOL value) {
+    frame->hidden = value;
+}
+
+void UI_WriteFrameWithChildrenWithTriggers(LPEDICT ent, LPCFRAMEDEF frame, LPCFRAMEDEF parent, uiTrigger_t const *triggers) {
+    /* Stub - not used in client-side UI library */
+    (void)ent;
+    (void)frame;
+    (void)parent;
+    (void)triggers;
+}
+
+void UI_WriteWithTriggers(LPEDICT ent, LPCFRAMEDEF root, DWORD layer, uiTrigger_t const *triggers) {
+    /* Stub - not used in client-side UI library */
+    (void)ent;
+    (void)root;
+    (void)layer;
+    (void)triggers;
+}

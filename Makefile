@@ -67,6 +67,7 @@ endif
 SHARED_LIB   := $(LIB_DIR)/libshared$(LIB_EXT)
 RENDERER_LIB := $(LIB_DIR)/librenderer$(LIB_EXT)
 GAME_LIB     := $(LIB_DIR)/libgame$(LIB_EXT)
+UI_LIB       := $(LIB_DIR)/libui$(LIB_EXT)
 BINARY       := $(BIN_DIR)/openwarcraft3$(EXE_EXT)
 MPQ_TEST         := $(BIN_DIR)/test_mpq_compat$(EXE_EXT)
 
@@ -83,10 +84,11 @@ CLIENT_HEADERS := $(shell find client -name '*.h' | sort)
 UNITY = find $1 -name '*.c' $2 | sort | awk '{printf "\043include \"%s\"\n", $$0}'
 
 default: build
-build: shared renderer game openwarcraft3 tools
+build: shared renderer game ui openwarcraft3 tools
 shared:      $(SHARED_LIB)
 renderer:    $(RENDERER_LIB)
 game:        $(GAME_LIB)
+ui:          $(UI_LIB)
 openwarcraft3: $(BINARY)
 tools:       $(TOOL_BINS)
 $(TOOL_NAMES): %: $(BIN_DIR)/%$(EXE_EXT)
@@ -103,10 +105,10 @@ diag: clean
 	$(MAKE) DIAG_OUTPUT=1 build
 	$(MAKE) DIAG_OUTPUT=1 run
 
-$(BIN_DIR)/%$(EXE_EXT): tools/%.c $(TOOL_DEPS) $(CLIENT_HEADERS) | $(BIN_DIR) $(SHARED_LIB) $(RENDERER_LIB) $(GAME_LIB)
+$(BIN_DIR)/%$(EXE_EXT): tools/%.c $(TOOL_DEPS) $(CLIENT_HEADERS) | $(BIN_DIR) $(SHARED_LIB) $(RENDERER_LIB) $(GAME_LIB) $(UI_LIB)
 	@echo "[$*]"
 	$(CC) $(CFLAGS) -o $@ $< \
-		$(RPATH) $(LDFLAGS) -lshared -lrenderer -lgame $(LIBS) -lm -lz
+		$(RPATH) $(LDFLAGS) -lshared -lrenderer -lgame -lui $(LIBS) -lm -lz
 
 $(MPQ_TEST): tests/test_mpq_compat.c common/mpq.c common/mpq.h | $(BIN_DIR)
 	@echo "[mpq-compat-test]"
@@ -133,13 +135,19 @@ $(GAME_LIB): $(SHARED_LIB) $(shell find game -name '*.c') | $(LIB_DIR)
 	@$(call UNITY,game) | \
 		$(CC) $(CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - $(LDFLAGS) -lshared -lm
 
-# main binary — depends on all three libraries
+# ui — depends on shared
+$(UI_LIB): $(SHARED_LIB) $(shell find ui -name '*.c') | $(LIB_DIR)
+	@echo "[ui]"
+	@$(call UNITY,ui) | \
+		$(CC) $(CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - $(LDFLAGS) -lshared -lm
+
+# main binary — depends on all libraries
 APP_SRCS := $(shell find client server common -name '*.c')
-$(BINARY): $(SHARED_LIB) $(GAME_LIB) $(RENDERER_LIB) $(APP_SRCS) $(CLIENT_HEADERS) | $(BIN_DIR)
+$(BINARY): $(SHARED_LIB) $(GAME_LIB) $(RENDERER_LIB) $(UI_LIB) $(APP_SRCS) $(CLIENT_HEADERS) | $(BIN_DIR)
 	@echo "[openwarcraft3]"
 	@$(call UNITY,client server common) | \
 		$(CC) $(CFLAGS) -x c -o $@ - $(RPATH) $(LDFLAGS) \
-		-lshared -lgame -lrenderer $(LIBS) -lz
+		-lshared -lgame -lrenderer -lui $(LIBS) -lz
 
 download: $(ZIP_FILE)
 	mkdir -p $(DATA_DIR)
@@ -274,4 +282,4 @@ test-assets: blpgen mdxgen mpqtool mdxtool fdftool | $(TESTS_DIR)
 $(TESTS_DIR):
 	@mkdir -p $@
 
-.PHONY: default build shared renderer game openwarcraft3 tools $(TOOL_NAMES) run run-map diag clean download test test-ui test-mpq-compat test-assets
+.PHONY: default build shared renderer game ui openwarcraft3 tools $(TOOL_NAMES) run run-map diag clean download test test-ui test-mpq-compat test-assets
