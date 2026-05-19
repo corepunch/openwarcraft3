@@ -896,9 +896,14 @@ void UI_ShowRealmSelect(LPEDICT, BOOL);
 void UI_ShowSinglePlayerMenu(LPEDICT);
 void UI_ShowMultiplayerMenu(LPEDICT);
 void UI_ShowMultiplayerCreateMenu(LPEDICT);
+void UI_ShowMultiplayerGameSetupMenu(LPEDICT, DWORD);
 void UI_ShowGameInterface(LPEDICT);
 void UI_ShowMapSelectMenu(LPEDICT, LPCSTR);
 void UI_ShowMultiplayerCreateMapInfo(LPEDICT);
+void UI_ClearCreateGameSlots(void);
+void UI_AddCreateGameSlot(DWORD, LPCSTR, LPCSTR, LPCSTR, DWORD);
+BOOL G_PopulateCreateMapScreen(LPEDICT, DWORD);
+BOOL G_SelectCreateMap(LPEDICT, DWORD);
 
 // p_fdf.c
 void UI_PrintClasses(void);

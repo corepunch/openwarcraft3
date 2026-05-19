@@ -252,12 +252,25 @@ int ParseEnum(LPPARSER p, LPCSTR const *values) {
 
 LPCSTR Theme_String(LPCSTR entry, LPCSTR category) {
     LPCSTR filename = gi.FindSheetCell(game.config.theme, category, entry);
+    char versioned[128];
+
     if (filename) {
         return filename;
-    } else {
-//        fprintf(stderr, "Can't find %s in skin\n", entry);
-        return entry;
     }
+
+    snprintf(versioned, sizeof(versioned), "%s_V1", entry);
+    filename = gi.FindSheetCell(game.config.theme, category, versioned);
+    if (filename) {
+        return filename;
+    }
+    snprintf(versioned, sizeof(versioned), "%s_V0", entry);
+    filename = gi.FindSheetCell(game.config.theme, category, versioned);
+    if (filename) {
+        return filename;
+    }
+
+//    fprintf(stderr, "Can't find %s in skin\n", entry);
+    return entry;
 }
 
 FLOAT Theme_Float(LPCSTR entry, LPCSTR category) {
@@ -741,6 +754,7 @@ static BOOL UI_FrameTypesCompatible(FRAMETYPE frameType, FRAMETYPE inheritType) 
         case FT_GLUECHECKBOX: return inheritType == FT_CHECKBOX;
         case FT_GLUEEDITBOX: return inheritType == FT_EDITBOX;
         case FT_GLUEPOPUPMENU: return inheritType == FT_POPUPMENU;
+        case FT_SLASHCHATBOX: return inheritType == FT_EDITBOX;
         case FT_SIMPLEBUTTON: return inheritType == FT_BUTTON;
         case FT_SIMPLECHECKBOX: return inheritType == FT_CHECKBOX;
         case FT_SIMPLESTATUSBAR: return inheritType == FT_SIMPLESTATUSBAR;
@@ -989,6 +1003,9 @@ void UI_SetText(LPFRAMEDEF frame, LPCSTR format, ...) {
 
 void UI_SetOnClick(LPFRAMEDEF frame, LPCSTR format, ...) {
     va_list argptr;
+    if (!frame || !format) {
+        return;
+    }
     va_start(argptr, format);
     vsnprintf(frame->OnClick, sizeof(frame->OnClick), format, argptr);
     va_end(argptr);

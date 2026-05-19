@@ -16,6 +16,26 @@ typedef struct {
 } mapListItem_t;
 
 typedef struct {
+    BOOL used;
+    playerType_t type;
+    playerRace_t race;
+    DWORD team;
+    char name[64];
+} mapSetupSlot_t;
+
+typedef struct {
+    DWORD playerMasks;
+    char name[64];
+} mapSetupForce_t;
+
+typedef struct {
+    DWORD numSlots;
+    DWORD numForces;
+    mapSetupSlot_t slots[MAX_PLAYERS];
+    mapSetupForce_t forces[MAX_PLAYERS];
+} mapSetupScratch_t;
+
+typedef struct {
     const BYTE *data;
     DWORD size;
     DWORD pos;
@@ -23,7 +43,7 @@ typedef struct {
 
 static void G_SanitizeListField(LPSTR text);
 static void G_SanitizeInfoText(LPSTR text);
-static void G_SetMapPreviewPath(LPGAMECLIENT client, mapListItem_t const *item);
+static void G_SetMapPreviewPath(LPGAMECLIENT client, LPCSTR path, DWORD flags);
 
 #define MAX_MAP_LIST_ITEMS 256
 #define UNKNOWN_MAP_PREVIEW "ui\\widgets\\glues\\minimap-unknown.blp"
@@ -366,7 +386,7 @@ static BOOL G_ReadArchiveFile(HANDLE archive, LPCSTR name, LPBYTE *out, LPDWORD 
     return true;
 }
 
-static BOOL G_ParseMapInfo(mapListItem_t *item) {
+static BOOL G_ParseMapInfo(mapListItem_t *item, mapSetupScratch_t *setup) {
     HANDLE mapData;
     DWORD mapSize = 0;
     HANDLE archive;
@@ -384,11 +404,15 @@ static BOOL G_ParseMapInfo(mapListItem_t *item) {
     DWORD mapWidth = 0;
     DWORD mapHeight = 0;
     DWORD playerCount = 0;
+    DWORD forceCount = 0;
     BYTE tileset = 0;
 
     if (!item || !gi.ReadFile || !gi.MemFree ||
         !gi.OpenArchiveFromMemory || !gi.CloseArchive) {
         return false;
+    }
+    if (setup) {
+        memset(setup, 0, sizeof(*setup));
     }
 
     mapData = gi.ReadFile(item->path, &mapSize);
@@ -466,6 +490,65 @@ static BOOL G_ParseMapInfo(mapListItem_t *item) {
     if (!G_MapReadU32(&reader, &playerCount)) {
         goto fail;
     }
+    FOR_LOOP(i, playerCount) {
+        DWORD playerNumber = 0;
+        DWORD playerType = 0;
+        DWORD playerRace = 0;
+        DWORD playerFlags = 0;
+        char rawPlayerName[96];
+
+        rawPlayerName[0] = '\0';
+        if (!G_MapReadU32(&reader, &playerNumber) ||
+            !G_MapReadU32(&reader, &playerType) ||
+            !G_MapReadU32(&reader, &playerRace) ||
+            !G_MapReadU32(&reader, &playerFlags) ||
+            !G_MapReadCString(&reader, rawPlayerName, sizeof(rawPlayerName)) ||
+            !G_MapSkip(&reader, sizeof(FLOAT) * 2) ||
+            !G_MapSkip(&reader, sizeof(DWORD) * 2)) {
+            goto fail;
+        }
+        if (setup && playerNumber < MAX_PLAYERS) {
+            mapSetupSlot_t *slot = &setup->slots[playerNumber];
+
+            slot->used = true;
+            slot->type = (playerType_t)playerType;
+            slot->race = (playerRace_t)playerRace;
+            slot->team = playerNumber;
+            G_ResolveTrigStr(rawPlayerName, (LPCSTR)wts, slot->name, sizeof(slot->name));
+            G_SanitizeListField(slot->name);
+            setup->numSlots = MAX(setup->numSlots, playerNumber + 1);
+        }
+    }
+    if (!G_MapReadU32(&reader, &forceCount)) {
+        goto fail;
+    }
+    if (setup) {
+        setup->numForces = MIN(forceCount, MAX_PLAYERS);
+    }
+    FOR_LOOP(i, forceCount) {
+        DWORD forceFlags = 0;
+        DWORD playerMasks = 0;
+        char rawForceName[96];
+
+        rawForceName[0] = '\0';
+        if (!G_MapReadU32(&reader, &forceFlags) ||
+            !G_MapReadU32(&reader, &playerMasks) ||
+            !G_MapReadCString(&reader, rawForceName, sizeof(rawForceName))) {
+            goto fail;
+        }
+        if (setup && i < MAX_PLAYERS) {
+            mapSetupForce_t *force = &setup->forces[i];
+
+            force->playerMasks = playerMasks;
+            G_ResolveTrigStr(rawForceName, (LPCSTR)wts, force->name, sizeof(force->name));
+            G_SanitizeListField(force->name);
+            FOR_LOOP(playerIndex, MAX_PLAYERS) {
+                if (playerMasks & (1u << playerIndex)) {
+                    setup->slots[playerIndex].team = i;
+                }
+            }
+        }
+    }
 
     G_SetMapDisplayName(item,
                         (LPCSTR)wts,
@@ -500,7 +583,7 @@ fail:
     return false;
 }
 
-static BOOL G_FindMapPreviewPath(mapListItem_t const *item, LPSTR out, DWORD out_size) {
+static BOOL G_FindMapPreviewPath(LPCSTR path, DWORD flags, LPSTR out, DWORD out_size) {
     static LPCSTR const previewFiles[] = {
         "war3mapPreview.blp",
         "war3mapPreview.tga",
@@ -513,10 +596,10 @@ static BOOL G_FindMapPreviewPath(mapListItem_t const *item, LPSTR out, DWORD out
     };
     DWORD fileSize = 0;
 
-    if (!item || !out || out_size == 0 || !gi.ReadFile) {
+    if (!path || !*path || !out || out_size == 0 || !gi.ReadFile) {
         return false;
     }
-    if (item->flags & hide_minimap_in_preview_screens) {
+    if (flags & hide_minimap_in_preview_screens) {
         snprintf(out, out_size, "%s", UNKNOWN_MAP_PREVIEW);
         return false;
     }
@@ -525,7 +608,7 @@ static BOOL G_FindMapPreviewPath(mapListItem_t const *item, LPSTR out, DWORD out
     for (DWORD i = 0; previewFiles[i]; i++) {
         HANDLE data;
 
-        snprintf(out, out_size, "%s/%s", item->path, previewFiles[i]);
+        snprintf(out, out_size, "%s/%s", path, previewFiles[i]);
         data = gi.ReadFile(out, &fileSize);
         if (data && fileSize > 0) {
             gi.MemFree(data);
@@ -541,18 +624,96 @@ static BOOL G_FindMapPreviewPath(mapListItem_t const *item, LPSTR out, DWORD out
     return false;
 }
 
-static void G_SetMapPreviewPath(LPGAMECLIENT client, mapListItem_t const *item) {
+static void G_SetMapPreviewPath(LPGAMECLIENT client, LPCSTR path, DWORD flags) {
     char previewPath[512] = { 0 };
 
     if (!client) {
         return;
     }
 
-    if (!G_FindMapPreviewPath(item, previewPath, sizeof(previewPath)) && !previewPath[0]) {
+    if (!G_FindMapPreviewPath(path, flags, previewPath, sizeof(previewPath)) && !previewPath[0]) {
         G_SetPlayerText(client, PLAYERTEXT_MAP_PREVIEW, UNKNOWN_MAP_PREVIEW);
         return;
     }
     G_SetPlayerText(client, PLAYERTEXT_MAP_PREVIEW, previewPath);
+}
+
+static void G_SetMapTextValues(LPGAMECLIENT client, mapListItem_t const *item) {
+    if (!client || !item) {
+        return;
+    }
+
+    G_SetPlayerText(client, PLAYERTEXT_MAP_TITLE, item->name[0] ? item->name : item->path);
+    G_SetPlayerText(client, PLAYERTEXT_MAP_SUGGESTED_PLAYERS, item->suggestedPlayers);
+    G_SetPlayerText(client, PLAYERTEXT_MAP_SIZE, item->mapSize);
+    G_SetPlayerText(client, PLAYERTEXT_MAP_TILESET, item->tileset);
+    G_SetPlayerText(client, PLAYERTEXT_MAP_DESCRIPTION, item->description);
+    G_SetMapPreviewPath(client, item->path, item->flags);
+}
+
+static LPCSTR G_CreateGameRaceName(playerRace_t race) {
+    switch (race) {
+        case kPlayerRaceHuman: return "Human";
+        case kPlayerRaceOrc: return "Orc";
+        case kPlayerRaceUndead: return "Undead";
+        case kPlayerRaceNightElf: return "Night Elf";
+        default: return "Random";
+    }
+}
+
+static LPCSTR G_CreateGameSlotName(mapSetupSlot_t const *slot, BOOL firstHuman) {
+    if (!slot) {
+        return "Open";
+    }
+    if (slot->type == kPlayerTypeComputer) {
+        return "Computer";
+    }
+    if (slot->type == kPlayerTypeHuman) {
+        if (firstHuman) {
+            return "Player";
+        }
+        return slot->name[0] ? slot->name : "Open";
+    }
+    return slot->name[0] ? slot->name : "Open";
+}
+
+static void G_PopulateCreateGameSlots(mapSetupScratch_t const *setup) {
+    DWORD visible = 0;
+    BOOL firstHuman = true;
+
+    UI_ClearCreateGameSlots();
+    if (!setup) {
+        return;
+    }
+
+    FOR_LOOP(i, setup->numSlots) {
+        mapSetupSlot_t const *slot = &setup->slots[i];
+        char team[96];
+        BOOL isFirstHuman;
+
+        if (!slot->used || slot->type == kPlayerTypeNone || slot->type == kPlayerTypeNeutral) {
+            continue;
+        }
+        if (visible >= MAX_PLAYERS) {
+            break;
+        }
+
+        isFirstHuman = slot->type == kPlayerTypeHuman && firstHuman;
+        if (isFirstHuman) {
+            firstHuman = false;
+        }
+        if (setup->numForces > slot->team && setup->forces[slot->team].name[0]) {
+            snprintf(team, sizeof(team), "%s", setup->forces[slot->team].name);
+        } else {
+            snprintf(team, sizeof(team), "Team %u", (unsigned)slot->team + 1);
+        }
+        UI_AddCreateGameSlot(visible,
+                             G_CreateGameSlotName(slot, isFirstHuman),
+                             G_CreateGameRaceName(slot->race),
+                             team,
+                             i);
+        visible++;
+    }
 }
 
 static int G_CompareMapListItems(const void *a, const void *b) {
@@ -632,7 +793,7 @@ static DWORD G_CollectMapList(mapListItem_t *items, DWORD maxItems) {
 
     DWORD parsedCount = 0;
     FOR_LOOP(i, itemCount) {
-        BOOL parsed = G_ParseMapInfo(&items[i]);
+        BOOL parsed = G_ParseMapInfo(&items[i], NULL);
 
         if (!parsed) {
             continue;
@@ -698,27 +859,38 @@ void CMD_List(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
 }
 
 void CMD_ListSelect(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
-    mapListItem_t items[MAX_MAP_LIST_ITEMS];
-    DWORD itemCount;
     DWORD rowIndex;
-    mapListItem_t *item;
 
     if (argc < 3 || strcmp(argv[1], "maps")) {
         return;
     }
 
     rowIndex = (DWORD)strtoul(argv[2], NULL, 10);
-    itemCount = G_CollectMapList(items, MAX_MAP_LIST_ITEMS);
-    item = (rowIndex < itemCount && rowIndex < MAX_LIST_FETCH_ROWS) ? &items[rowIndex] : NULL;
+    G_SelectCreateMap(ent, rowIndex);
+}
 
-    G_SetPlayerText(ent->client, PLAYERTEXT_MAP_TITLE, item ? item->name : " ");
-    G_SetPlayerText(ent->client, PLAYERTEXT_MAP_SUGGESTED_PLAYERS,
-                    item ? item->suggestedPlayers : UI_GetString("UNKNOWNMAP_SUGGESTEDPLAYERS"));
-    G_SetPlayerText(ent->client, PLAYERTEXT_MAP_SIZE,
-                    item ? item->mapSize : UI_GetString("UNKNOWNMAP_MAPSIZE"));
-    G_SetPlayerText(ent->client, PLAYERTEXT_MAP_TILESET,
-                    item ? item->tileset : UI_GetString("UNKNOWNMAP_TILESET"));
-    G_SetPlayerText(ent->client, PLAYERTEXT_MAP_DESCRIPTION,
-                    item ? item->description : UI_GetString("UNKNOWNMAP_DESCRIPTION"));
-    G_SetMapPreviewPath(ent->client, item);
+BOOL G_PopulateCreateMapScreen(LPEDICT ent, DWORD rowIndex) {
+    mapListItem_t items[MAX_MAP_LIST_ITEMS];
+    mapSetupScratch_t setup;
+    DWORD itemCount;
+
+    if (!ent || !ent->client || rowIndex >= MAX_LIST_FETCH_ROWS) {
+        return false;
+    }
+
+    itemCount = G_CollectMapList(items, MAX_MAP_LIST_ITEMS);
+    if (rowIndex >= itemCount) {
+        return false;
+    }
+    if (!G_ParseMapInfo(&items[rowIndex], &setup)) {
+        return false;
+    }
+
+    G_SetMapTextValues(ent->client, &items[rowIndex]);
+    G_PopulateCreateGameSlots(&setup);
+    return true;
+}
+
+BOOL G_SelectCreateMap(LPEDICT ent, DWORD rowIndex) {
+    return G_PopulateCreateMapScreen(ent, rowIndex);
 }

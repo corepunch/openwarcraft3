@@ -20,6 +20,7 @@ void UI_ShowMainMenu(LPEDICT ent);
 void UI_ShowSinglePlayerMenu(LPEDICT ent);
 void UI_ShowMultiplayerMenu(LPEDICT ent);
 void UI_ShowMultiplayerCreateMenu(LPEDICT ent);
+void UI_ShowMultiplayerGameSetupMenu(LPEDICT ent, DWORD mapIndex);
 extern struct game_import gi;
 
 #define TEST_LAYER_CONSOLE 3
@@ -691,6 +692,17 @@ static void test_menu_command_updates_client_layout_with_repo_fdf(void) {
     decoded = SCR_Clear(cl.layout[TEST_LAYER_CONSOLE]);
     ASSERT_EQ_INT(decoded_layout_count_sprite_animation(decoded, "BattlenetCustomCreate Stand"), 2);
     ASSERT(decoded_layout_contains_listbox_fetch(decoded, "maps"));
+    ASSERT(decoded_layout_contains_onclick(decoded, "menu /lan/setup?map={MapListBox}"));
+
+    UI_ShowMultiplayerGameSetupMenu(&client_edict, 0);
+    SV_WriteFrameToClient(&svs.clients[0]);
+    ASSERT(NET_GetPacket(NS_CLIENT, &from, &server_msg) > 0);
+    CL_ParseServerMessage(&server_msg);
+    decoded = SCR_Clear(cl.layout[TEST_LAYER_CONSOLE]);
+    ASSERT_EQ_INT(decoded_layout_count_sprite_animation(decoded, "BattlenetCustomCreate Stand"), 2);
+    ASSERT(decoded_layout_contains_onclick(decoded, "menu /game"));
+    ASSERT(decoded_layout_contains_onclick(decoded, "menu /lan/create"));
+    ASSERT(!decoded_layout_contains_listbox_fetch(decoded, "maps"));
 
     SAFE_DELETE(cl.layout[TEST_LAYER_CONSOLE], MemFree);
     NET_Shutdown();

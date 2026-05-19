@@ -138,6 +138,7 @@ static BOOL FS_FileOnDiskExists(LPCSTR filename) {
     return FS_StatPath(filename, NULL, &isFile) && isFile;
 }
 
+#ifdef OW3_LOAD_ALL_MPQS
 static BOOL FS_HasExtension(LPCSTR filename, LPCSTR extension) {
     size_t filenameLen;
     size_t extensionLen;
@@ -152,6 +153,7 @@ static BOOL FS_HasExtension(LPCSTR filename, LPCSTR extension) {
     }
     return !strcasecmp(filename + filenameLen - extensionLen, extension);
 }
+#endif
 
 static BOOL FS_IsArchiveExtensionAt(LPCSTR path, size_t dot) {
     static LPCSTR const extensions[] = { ".mpq", ".w3m", ".w3x", NULL };
@@ -294,6 +296,7 @@ static void FS_AddGameDirectory(LPCSTR dirname) {
     }
 }
 
+#ifdef OW3_LOAD_ALL_MPQS
 static int FS_ComparePaths(const void *a, const void *b) {
     PATHSTR const *pa = a;
     PATHSTR const *pb = b;
@@ -319,10 +322,13 @@ static void FS_AddArchiveScanEntry(LPCSTR name, LPCSTR path, BOOL isDirectory, B
     }
     snprintf(scan->paths[scan->count++], sizeof(PATHSTR), "%s", path);
 }
+#endif
 
 BOOL FS_AddDataDirectory(LPCSTR dirname) {
+#ifdef OW3_LOAD_ALL_MPQS
     PATHSTR archivePaths[MAX_ARCHIVES];
     fsArchiveScan_t scan = { archivePaths, MAX_ARCHIVES, 0 };
+#endif
     DWORD mountedCount = 0;
 
     if (!FS_DirectoryExists(dirname)) {
@@ -330,6 +336,7 @@ BOOL FS_AddDataDirectory(LPCSTR dirname) {
     }
 
     FS_AddGameDirectory(dirname);
+#ifdef OW3_LOAD_ALL_MPQS
     FS_ForEachDiskEntry(dirname, FS_AddArchiveScanEntry, &scan);
 
     qsort(archivePaths, scan.count, sizeof(archivePaths[0]), FS_ComparePaths);
@@ -338,6 +345,16 @@ BOOL FS_AddDataDirectory(LPCSTR dirname) {
             mountedCount++;
         }
     }
+#else
+    {
+        char archivePath[MAX_PATHLEN * 2];
+
+        FS_MakeDiskPath(dirname, "War3.mpq", archivePath, sizeof(archivePath));
+        if (FS_FileOnDiskExists(archivePath) && FS_AddArchive(archivePath)) {
+            mountedCount++;
+        }
+    }
+#endif
     return mountedCount > 0;
 }
 
@@ -479,7 +496,7 @@ HANDLE FS_OpenFile(LPCSTR fileName) {
         filelock = false;
         return NULL;
     }
-    FOR_LOOP(i, MAX_ARCHIVES) {
+    for (int i = MAX_ARCHIVES - 1; i >= 0; i--) {
         HANDLE file;
         if (!archives[i]) {
             continue;

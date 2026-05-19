@@ -59,6 +59,8 @@
 #define QUEST_DIALOG_POSITION 0.0, -0.0230
 #define FETCH_LISTBOX_BORDER 0.012f
 
+static LPCSTR UI_ResolveThemeModel(LPCSTR key);
+
 static void Init_ResourceBar(LPFRAMEDEF ConsoleUI) {
     UI_FRAME(ResourceBarFrame);
     UI_FRAME(ResourceBarGoldText);
@@ -146,6 +148,11 @@ static void Init_MainMenu(void) {
     LPFRAMEDEF RealmSelectCancelButton = RealmSelect ? UI_FindChildFrame(RealmSelect, "RealmSelectCancelButton") : NULL;
 
     if (WarCraftIIILogo) {
+        LPCSTR logo = UI_ResolveThemeModel("MainMenuLogo");
+
+        if (logo) {
+            WarCraftIIILogo->Portrait.model = gi.ModelIndex(logo);
+        }
         UI_SetPoint(WarCraftIIILogo, FRAMEPOINT_TOPLEFT, MainMenuFrame, FRAMEPOINT_TOPLEFT, 0.13f, -0.08f);
     }
 
@@ -226,11 +233,11 @@ static void UI_WriteMenuGlueBackground(LPCSTR model_name) {
             center_model = resolved;
         }
     }
-    if (!center_model || !*center_model) {
-        center_model = UI_ResolveThemeModel("GlueSpriteLayerCenter");
-    }
     if (!center_model) {
         center_model = UI_ResolveThemeModel("GlueSpriteLayerBackground");
+    }
+    if (!center_model || !*center_model) {
+        center_model = UI_ResolveThemeModel("GlueSpriteLayerCenter");
     }
     if (!center_model || !*center_model) {
         return;
@@ -400,6 +407,278 @@ static void UI_SetDefaultCreateMapInfoText(LPGAMECLIENT client) {
     G_SetPlayerText(client, PLAYERTEXT_MAP_TILESET, UI_GetString("UNKNOWNMAP_TILESET"));
     G_SetPlayerText(client, PLAYERTEXT_MAP_DESCRIPTION, UI_GetString("UNKNOWNMAP_DESCRIPTION"));
     G_SetPlayerText(client, PLAYERTEXT_MAP_PREVIEW, " ");
+}
+
+typedef struct createGameSlotRow_s {
+    LPFRAMEDEF row;
+    LPFRAMEDEF nameText;
+    LPFRAMEDEF raceText;
+    LPFRAMEDEF teamText;
+    LPFRAMEDEF colorValue;
+} createGameSlotRow_t;
+
+static createGameSlotRow_t createGameSlotRows[MAX_PLAYERS];
+
+static LPCFRAMEDEF UI_RemapClonedFrame(LPCFRAMEDEF frame,
+                                       LPCFRAMEDEF const *sources,
+                                       LPFRAMEDEF const *copies,
+                                       DWORD count)
+{
+    FOR_LOOP(i, count) {
+        if (sources[i] == frame) {
+            return copies[i];
+        }
+    }
+    return frame;
+}
+
+static void UI_RemapClonedPoint(FRAMEPOINT *point,
+                                LPCFRAMEDEF const *sources,
+                                LPFRAMEDEF const *copies,
+                                DWORD count)
+{
+    if (point && point->relativeTo) {
+        point->relativeTo = UI_RemapClonedFrame(point->relativeTo, sources, copies, count);
+    }
+}
+
+static void UI_RemapClonedFramePointers(LPFRAMEDEF frame,
+                                        LPFRAMEDEF parent,
+                                        LPCFRAMEDEF const *sources,
+                                        LPFRAMEDEF const *copies,
+                                        DWORD count)
+{
+    frame->Parent = UI_RemapClonedFrame(frame->Parent, sources, copies, count);
+    if (!frame->Parent && parent) {
+        frame->Parent = parent;
+    }
+    frame->DialogBackdrop = UI_RemapClonedFrame(frame->DialogBackdrop, sources, copies, count);
+    frame->SetPoint.relativeTo = UI_RemapClonedFrame(frame->SetPoint.relativeTo, sources, copies, count);
+    FOR_LOOP(i, FPP_COUNT) {
+        UI_RemapClonedPoint(&frame->Points.x[i], sources, copies, count);
+        UI_RemapClonedPoint(&frame->Points.y[i], sources, copies, count);
+    }
+}
+
+static LPFRAMEDEF UI_CloneFrameTree(LPCFRAMEDEF source, LPFRAMEDEF parent) {
+    enum { MAX_CLONED_SLOT_FRAMES = 96 };
+    LPCFRAMEDEF sources[MAX_CLONED_SLOT_FRAMES];
+    LPFRAMEDEF copies[MAX_CLONED_SLOT_FRAMES];
+    DWORD const count = source ? UI_CollectFrameTree(source, sources, MAX_CLONED_SLOT_FRAMES) : 0;
+
+    if (count == 0 || count > MAX_CLONED_SLOT_FRAMES) {
+        return NULL;
+    }
+
+    FOR_LOOP(i, count) {
+        copies[i] = UI_Spawn(sources[i]->Type, parent);
+        if (!copies[i]) {
+            return NULL;
+        }
+        *copies[i] = *sources[i];
+    }
+    FOR_LOOP(i, count) {
+        UI_RemapClonedFramePointers(copies[i], parent, sources, copies, count);
+    }
+    copies[0]->Parent = parent;
+    return copies[0];
+}
+
+static LPFRAMEDEF UI_FindPopupTitleText(LPFRAMEDEF popup) {
+    LPFRAMEDEF title;
+    LPFRAMEDEF text;
+
+    if (!popup) {
+        return NULL;
+    }
+    title = UI_FindChildFrame(popup, popup->Popup.TitleFrame);
+    text = title ? UI_FindChildFrame(title, "StandardPopupMenuTitleTextTemplate") : NULL;
+    return text ? text : title;
+}
+
+static void UI_PositionPopupMenuParts(LPFRAMEDEF popup) {
+    LPFRAMEDEF title;
+    LPFRAMEDEF arrow;
+    FLOAT const inset = popup ? popup->Popup.ButtonInset : 0.0f;
+    FLOAT arrowWidth;
+    FLOAT titleWidth;
+
+    if (!popup) {
+        return;
+    }
+    title = UI_FindChildFrame(popup, popup->Popup.TitleFrame);
+    arrow = UI_FindChildFrame(popup, popup->Popup.ArrowFrame);
+    arrowWidth = arrow && arrow->Width > 0.0f ? arrow->Width : 0.011f;
+    titleWidth = popup->Width - arrowWidth - inset * 2.0f;
+
+    if (title) {
+        UI_SetSize(title, MAX(0.0f, titleWidth), popup->Height);
+        UI_SetPoint(title, FRAMEPOINT_LEFT, popup, FRAMEPOINT_LEFT, inset, 0.0f);
+    }
+    if (arrow) {
+        UI_SetPoint(arrow, FRAMEPOINT_RIGHT, popup, FRAMEPOINT_RIGHT, -inset, 0.0f);
+    }
+}
+
+static void UI_EnableSlotControl(LPFRAMEDEF row, LPCSTR name) {
+    LPFRAMEDEF frame = row ? UI_FindChildFrame(row, name) : NULL;
+    if (frame) {
+        UI_SetOnClick(frame, "slot");
+    }
+}
+
+static void UI_HideSlotChild(LPFRAMEDEF row, LPCSTR name) {
+    LPFRAMEDEF frame = row ? UI_FindChildFrame(row, name) : NULL;
+    if (frame) {
+        UI_SetHidden(frame, true);
+    }
+}
+
+static void UI_FitCreateGameSlotRow(LPFRAMEDEF row) {
+    LPFRAMEDEF downloadValue;
+    LPFRAMEDEF nameMenu;
+    LPFRAMEDEF raceMenu;
+    LPFRAMEDEF teamButton;
+    LPFRAMEDEF colorButton;
+
+    if (!row) {
+        return;
+    }
+    downloadValue = UI_FindChildFrame(row, "DownloadValue");
+    nameMenu = UI_FindChildFrame(row, "NameMenu");
+    raceMenu = UI_FindChildFrame(row, "RaceMenu");
+    teamButton = UI_FindChildFrame(row, "TeamButton");
+    colorButton = UI_FindChildFrame(row, "ColorButton");
+
+    if (downloadValue) {
+        UI_SetHidden(downloadValue, true);
+    }
+    if (nameMenu) {
+        UI_SetSize(nameMenu, 0.168f, nameMenu->Height);
+        UI_SetPoint(nameMenu, FRAMEPOINT_LEFT, row, FRAMEPOINT_LEFT, 0.0f, 0.0f);
+    }
+    if (raceMenu && nameMenu) {
+        UI_SetSize(raceMenu, 0.085f, raceMenu->Height);
+        UI_SetPoint(raceMenu, FRAMEPOINT_LEFT, nameMenu, FRAMEPOINT_RIGHT, 0.0f, 0.0f);
+    }
+    if (teamButton && raceMenu) {
+        UI_SetSize(teamButton, 0.085f, teamButton->Height);
+        UI_SetPoint(teamButton, FRAMEPOINT_LEFT, raceMenu, FRAMEPOINT_RIGHT, 0.0f, 0.0f);
+    }
+    if (colorButton && teamButton) {
+        UI_SetSize(colorButton, 0.038f, colorButton->Height);
+        UI_SetPoint(colorButton, FRAMEPOINT_LEFT, teamButton, FRAMEPOINT_RIGHT, 0.0f, 0.0f);
+    }
+}
+
+static void UI_SetBackdropTexture(LPFRAMEDEF frame, LPCSTR name, BOOL decorate) {
+    if (frame) {
+        frame->Backdrop.Background = UI_LoadTexture(name, decorate);
+        frame->Backdrop.BlendAll = true;
+    }
+}
+
+static void UI_BindCreateGameSlotRow(createGameSlotRow_t *slot) {
+    LPFRAMEDEF nameMenu = UI_FindChildFrame(slot->row, "NameMenu");
+    LPFRAMEDEF raceMenu = UI_FindChildFrame(slot->row, "RaceMenu");
+    LPFRAMEDEF handicapMenu = UI_FindChildFrame(slot->row, "HandicapMenu");
+
+    UI_FitCreateGameSlotRow(slot->row);
+    slot->nameText = UI_FindPopupTitleText(nameMenu);
+    slot->raceText = UI_FindPopupTitleText(raceMenu);
+    slot->teamText = UI_FindChildFrame(slot->row, "TeamButtonTitle");
+    slot->colorValue = UI_FindChildFrame(slot->row, "ColorButtonValue");
+
+    UI_PositionPopupMenuParts(nameMenu);
+    UI_PositionPopupMenuParts(raceMenu);
+    UI_EnableSlotControl(slot->row, "NameMenu");
+    UI_EnableSlotControl(slot->row, "RaceMenu");
+    UI_EnableSlotControl(slot->row, "TeamButton");
+    UI_EnableSlotControl(slot->row, "ColorButton");
+    UI_HideSlotChild(slot->row, "NamePopupMenuMenu");
+    UI_HideSlotChild(slot->row, "RacePopupMenuMenu");
+    UI_HideSlotChild(slot->row, "HandicapPopupMenuMenu");
+    if (handicapMenu) {
+        UI_SetHidden(handicapMenu, true);
+    }
+}
+
+static void UI_InitCreateGameSlotRows(void) {
+    UI_FRAME(GameChatroom);
+    UI_FRAME(PlayerSlot);
+    LPFRAMEDEF TeamSetupContainer = UI_FindChildFrame(GameChatroom, "TeamSetupContainer");
+    LPFRAMEDEF previous = NULL;
+
+    if (!TeamSetupContainer || !PlayerSlot || createGameSlotRows[0].row) {
+        return;
+    }
+
+    FOR_LOOP(i, MAX_PLAYERS) {
+        createGameSlotRow_t *slot = &createGameSlotRows[i];
+
+        slot->row = UI_CloneFrameTree(PlayerSlot, TeamSetupContainer);
+        if (!slot->row) {
+            return;
+        }
+        snprintf(slot->row->Name, sizeof(slot->row->Name), "CreateGamePlayerSlot%u", (unsigned)i);
+        UI_SetSize(slot->row, 0.46375f, slot->row->Height ? slot->row->Height : 0.025f);
+        if (previous) {
+            UI_SetPoint(slot->row, FRAMEPOINT_TOPLEFT, previous, FRAMEPOINT_BOTTOMLEFT, 0.0f, 0.0f);
+        } else {
+            UI_SetPoint(slot->row,
+                        FRAMEPOINT_TOPLEFT,
+                        TeamSetupContainer,
+                        FRAMEPOINT_TOPLEFT,
+                        0.0f,
+                        0.0f);
+        }
+        previous = slot->row;
+        UI_BindCreateGameSlotRow(slot);
+        UI_SetHidden(slot->row, true);
+    }
+}
+
+void UI_ClearCreateGameSlots(void) {
+    FOR_LOOP(i, MAX_PLAYERS) {
+        if (createGameSlotRows[i].row) {
+            UI_SetHidden(createGameSlotRows[i].row, true);
+        }
+    }
+}
+
+void UI_AddCreateGameSlot(DWORD rowIndex,
+                          LPCSTR name,
+                          LPCSTR race,
+                          LPCSTR team,
+                          DWORD colorIndex)
+{
+    createGameSlotRow_t *row;
+    char colorPath[128];
+
+    if (rowIndex >= MAX_PLAYERS) {
+        return;
+    }
+    row = &createGameSlotRows[rowIndex];
+    if (!row->row) {
+        return;
+    }
+
+    if (row->nameText) {
+        UI_SetText(row->nameText, "%s", name ? name : "");
+    }
+    if (row->raceText) {
+        UI_SetText(row->raceText, "%s", race ? race : "");
+    }
+    if (row->teamText) {
+        UI_SetText(row->teamText, "%s", team ? team : "");
+    }
+    if (row->colorValue) {
+        snprintf(colorPath, sizeof(colorPath),
+                 "ReplaceableTextures\\TeamColor\\TeamColor%02u.blp",
+                 (unsigned)colorIndex);
+        UI_SetBackdropTexture(row->colorValue, colorPath, false);
+    }
+    UI_SetHidden(row->row, false);
 }
 
 void UI_ShowMultiplayerCreateMapInfo(LPEDICT ent)
@@ -638,8 +917,22 @@ static void Init_MultiplayerCreateMenu(void) {
     UI_EnsureFetchListBox(MapListContainer, MapListLabel, "MapListBox", "MapListBackdrop", "maps");
     UI_SetOnClick(MapInfoButton, "menu /main");
     UI_SetOnClick(AdvancedOptionsButton, "menu /main");
-    UI_SetOnClick(PlayButton, "menu /main");
+    UI_SetOnClick(PlayButton, "menu /lan/setup?map={MapListBox}");
     UI_SetOnClick(CancelButton, "menu /lan");
+}
+
+static void Init_MultiplayerGameSetupMenu(void) {
+    UI_FRAME(GameChatroom);
+    LPFRAMEDEF GameNameValue = UI_FindChildFrame(GameChatroom, "GameNameValue");
+    LPFRAMEDEF StartGameButton = UI_FindChildFrame(GameChatroom, "StartGameButton");
+    LPFRAMEDEF CancelButton = UI_FindChildFrame(GameChatroom, "CancelButton");
+
+    if (GameNameValue) {
+        GameNameValue->Stat = MAX_STATS + PLAYERTEXT_MAP_TITLE;
+    }
+    UI_InitCreateGameSlotRows();
+    UI_SetOnClick(StartGameButton, "menu /game");
+    UI_SetOnClick(CancelButton, "menu /lan/create");
 }
 /* Parse all FDF assets and build the initial UI frame hierarchy.
  * Must be called once at game startup before any client connects. */
@@ -663,6 +956,9 @@ void UI_Init(void) {
     UI_ParseFDF("UI\\FrameDef\\Glue\\Skirmish.fdf");
     UI_ParseFDF("UI\\FrameDef\\Glue\\LocalMultiplayerJoin.fdf");
     UI_ParseFDF("UI\\FrameDef\\Glue\\LocalMultiplayerCreate.fdf");
+    UI_ParseFDF("UI\\FrameDef\\Glue\\TeamSetup.fdf");
+    UI_ParseFDF("UI\\FrameDef\\Glue\\PlayerSlot.fdf");
+    UI_ParseFDF("UI\\FrameDef\\Glue\\GameChatroom.fdf");
 
     UI_FRAME(ConsoleUI);
     UI_SetAllPoints(ConsoleUI);
@@ -679,6 +975,7 @@ void UI_Init(void) {
     Init_MapSelectMenu();
     Init_MultiplayerJoinMenu();
     Init_MultiplayerCreateMenu();
+    Init_MultiplayerGameSetupMenu();
     fprintf(stderr, "UI initialized.\n\n");
 
 //    UI_PrintClasses();
@@ -717,6 +1014,20 @@ void UI_ShowMultiplayerCreateMenu(LPEDICT ent) {
     UI_PrepareMenuFrameState(LocalMultiplayerCreate, false);
     UI_SetDefaultCreateMapInfoText(ent ? ent->client : NULL);
     UI_WriteMenuWithMainFrameAnimation(ent, LocalMultiplayerCreate, "BattlenetCustomCreate");
+    UI_ShowMultiplayerCreateMapInfo(ent);
+}
+
+void UI_ShowMultiplayerGameSetupMenu(LPEDICT ent, DWORD mapIndex) {
+    UI_FRAME(GameChatroom);
+    BOOL haveMapInfo;
+
+    UI_PrepareMenuFrameState(GameChatroom, false);
+    UI_ClearCreateGameSlots();
+    haveMapInfo = G_PopulateCreateMapScreen(ent, mapIndex);
+    if (!haveMapInfo) {
+        UI_SetDefaultCreateMapInfoText(ent ? ent->client : NULL);
+    }
+    UI_WriteMenuWithMainFrameAnimation(ent, GameChatroom, "BattlenetCustomCreate");
     UI_ShowMultiplayerCreateMapInfo(ent);
 }
 
@@ -772,37 +1083,100 @@ static BOOL UI_RouteEquals(LPCSTR route, LPCSTR expected) {
     return route && expected && !strcmp(route, expected);
 }
 
+static void UI_SplitRoute(LPCSTR route, LPSTR path, DWORD path_size, LPSTR query, DWORD query_size) {
+    LPCSTR question;
+    DWORD path_len;
+
+    if (path && path_size > 0) {
+        path[0] = '\0';
+    }
+    if (query && query_size > 0) {
+        query[0] = '\0';
+    }
+    if (!route) {
+        return;
+    }
+
+    question = strchr(route, '?');
+    path_len = question ? (DWORD)(question - route) : (DWORD)strlen(route);
+    if (path && path_size > 0) {
+        DWORD copy = MIN(path_len, path_size - 1);
+        memcpy(path, route, copy);
+        path[copy] = '\0';
+    }
+    if (question && query && query_size > 0) {
+        snprintf(query, query_size, "%s", question + 1);
+    }
+}
+
+static BOOL UI_QueryUInt(LPCSTR query, LPCSTR key, DWORD *out) {
+    DWORD key_len;
+    LPCSTR cursor;
+
+    if (!query || !key || !out) {
+        return false;
+    }
+    key_len = (DWORD)strlen(key);
+    cursor = query;
+    while (*cursor) {
+        LPCSTR next = strchr(cursor, '&');
+        DWORD len = next ? (DWORD)(next - cursor) : (DWORD)strlen(cursor);
+
+        if (len > key_len + 1 &&
+            !strncmp(cursor, key, key_len) &&
+            cursor[key_len] == '=') {
+            *out = (DWORD)strtoul(cursor + key_len + 1, NULL, 10);
+            return true;
+        }
+        if (!next) {
+            break;
+        }
+        cursor = next + 1;
+    }
+    return false;
+}
+
 void UI_RenderRoute(LPEDICT ent, LPCSTR route) {
-    if (!route || !*route || UI_RouteEquals(route, "/main") || UI_RouteEquals(route, "main")) {
+    char path[256];
+    char query[256];
+    DWORD mapIndex = 0;
+
+    UI_SplitRoute(route, path, sizeof(path), query, sizeof(query));
+    if (!path[0] || UI_RouteEquals(path, "/main") || UI_RouteEquals(path, "main")) {
         UI_ShowMainMenu(ent);
         return;
     }
-    if (UI_RouteEquals(route, "/game") || UI_RouteEquals(route, "game")) {
+    if (UI_RouteEquals(path, "/game") || UI_RouteEquals(path, "game")) {
         UI_ShowGameInterface(ent);
         return;
     }
-    if (UI_RouteEquals(route, "/realm-select") || UI_RouteEquals(route, "realmselect")) {
+    if (UI_RouteEquals(path, "/realm-select") || UI_RouteEquals(path, "realmselect")) {
         UI_ShowRealmSelect(ent, true);
         return;
     }
-    if (UI_RouteEquals(route, "/single-player") || UI_RouteEquals(route, "singleplayer")) {
+    if (UI_RouteEquals(path, "/single-player") || UI_RouteEquals(path, "singleplayer")) {
         UI_ShowSinglePlayerMenu(ent);
         return;
     }
-    if (UI_RouteEquals(route, "/lan") || UI_RouteEquals(route, "multiplayer") || UI_RouteEquals(route, "multiplayer/join")) {
+    if (UI_RouteEquals(path, "/lan") || UI_RouteEquals(path, "multiplayer") || UI_RouteEquals(path, "multiplayer/join")) {
         UI_ShowMultiplayerMenu(ent);
         return;
     }
-    if (UI_RouteEquals(route, "/lan/refresh") || UI_RouteEquals(route, "multiplayer/refresh")) {
+    if (UI_RouteEquals(path, "/lan/refresh") || UI_RouteEquals(path, "multiplayer/refresh")) {
         UI_ShowMultiplayerMenu(ent);
         return;
     }
-    if (UI_RouteEquals(route, "/lan/create") || UI_RouteEquals(route, "multiplayer/create")) {
+    if (UI_RouteEquals(path, "/lan/create") || UI_RouteEquals(path, "multiplayer/create")) {
         UI_ShowMultiplayerCreateMenu(ent);
         return;
     }
+    if (UI_RouteEquals(path, "/lan/setup") || UI_RouteEquals(path, "multiplayer/setup")) {
+        UI_QueryUInt(query, "map", &mapIndex);
+        UI_ShowMultiplayerGameSetupMenu(ent, mapIndex);
+        return;
+    }
     FOR_LOOP(i, sizeof(map_routes) / sizeof(*map_routes)) {
-        if (UI_RouteEquals(route, map_routes[i].route)) {
+        if (UI_RouteEquals(path, map_routes[i].route)) {
             UI_ShowMapSelectMenu(ent, map_routes[i].category);
             return;
         }

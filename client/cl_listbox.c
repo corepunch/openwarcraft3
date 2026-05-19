@@ -5,7 +5,7 @@
 static listFetchState_t fetch_listboxes[MAX_FETCH_LISTBOXES];
 static DWORD next_listfetch_request_id = 0;
 
-static listFetchState_t *CL_FindFetchListBox(HANDLE layout, DWORD frameNumber, LPCSTR command) {
+static listFetchState_t *CL_FindFetchListBox(HANDLE layout, DWORD frameNumber, LPCSTR id, LPCSTR command) {
     listFetchState_t *free_state = NULL;
 
     FOR_LOOP(i, MAX_FETCH_LISTBOXES) {
@@ -13,6 +13,7 @@ static listFetchState_t *CL_FindFetchListBox(HANDLE layout, DWORD frameNumber, L
         if (state->inuse &&
             state->layout == layout &&
             state->frameNumber == frameNumber &&
+            !strcmp(state->id, id) &&
             !strcmp(state->command, command)) {
             return state;
         }
@@ -28,6 +29,7 @@ static listFetchState_t *CL_FindFetchListBox(HANDLE layout, DWORD frameNumber, L
     free_state->inuse = true;
     free_state->layout = layout;
     free_state->frameNumber = frameNumber;
+    snprintf(free_state->id, sizeof(free_state->id), "%s", id);
     snprintf(free_state->command, sizeof(free_state->command), "%s", command);
     free_state->selectedIndex = -1;
     return free_state;
@@ -123,7 +125,7 @@ void CL_ListBoxApplyFetch(HANDLE layout,
         return;
     }
 
-    state = CL_FindFetchListBox(layout, frame->number, listbox->fetchCommand);
+    state = CL_FindFetchListBox(layout, frame->number, listbox->id, listbox->fetchCommand);
     if (!state->started) {
         CL_ListFetchStart(state, listbox);
     }
@@ -152,7 +154,7 @@ void CL_ListBoxScroll(HANDLE layout,
         return;
     }
 
-    state = CL_FindFetchListBox(layout, frame->number, listbox->fetchCommand);
+    state = CL_FindFetchListBox(layout, frame->number, listbox->id, listbox->fetchCommand);
     maxScroll = CL_ListBoxMaxScroll(state, visibleRows);
     if (delta < 0) {
         DWORD amount = (DWORD)-delta;
@@ -175,7 +177,7 @@ void CL_ListBoxSelect(HANDLE layout,
         return;
     }
 
-    state = CL_FindFetchListBox(layout, frame->number, listbox->fetchCommand);
+    state = CL_FindFetchListBox(layout, frame->number, listbox->id, listbox->fetchCommand);
     state->selectedIndex = (SHORT)rowIndex;
     snprintf(command,
              sizeof(command),
@@ -184,6 +186,24 @@ void CL_ListBoxSelect(HANDLE layout,
              (unsigned)rowIndex);
     MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
     MSG_WriteString(&cls.netchan.message, command);
+}
+
+BOOL CL_ListBoxSelectedIndex(HANDLE layout, LPCSTR id, SHORT *selectedIndex) {
+    if (!layout || !id || !*id || !selectedIndex) {
+        return false;
+    }
+
+    FOR_LOOP(i, MAX_FETCH_LISTBOXES) {
+        listFetchState_t *state = &fetch_listboxes[i];
+        if (state->inuse &&
+            state->layout == layout &&
+            !strcmp(state->id, id) &&
+            state->selectedIndex >= 0) {
+            *selectedIndex = state->selectedIndex;
+            return true;
+        }
+    }
+    return false;
 }
 
 void CL_ListFetchResetLayout(HANDLE layout) {

@@ -470,6 +470,7 @@ static void test_build_listbox_writes_control_payload(void) {
     reset_ui_ser_state();
 
     UI_InitFrame(&frame, FT_LISTBOX);
+    strcpy(frame.Name, "MapListBox");
     frame.Font.Index = 11;
     frame.Font.Justification.Horizontal = FONT_JUSTIFYLEFT;
     frame.ListBox.Border = 0.01f;
@@ -485,6 +486,7 @@ static void test_build_listbox_writes_control_payload(void) {
     ASSERT_FLOAT_EQ(listbox->border, 0.01f);
     ASSERT_FLOAT_EQ(listbox->itemHeight, 0.02f);
     ASSERT_EQ_INT(listbox->selectedIndex, -1);
+    ASSERT_STR_EQ(listbox->id, "MapListBox");
     ASSERT_STR_EQ(listbox->fetchCommand, "maps");
 }
 

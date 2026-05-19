@@ -368,6 +368,45 @@ static BOOL SCR_GlueTextButtonIsPushed(LPCUIFRAME frame, LPCRECT screen) {
     return Rect_contains(screen, &m) && mouse.button == 1;
 }
 
+static void SCR_FormatOnClickCommand(LPCSTR source, LPSTR dest, DWORD dest_size) {
+    DWORD out = 0;
+
+    if (!dest || dest_size == 0) {
+        return;
+    }
+    dest[0] = '\0';
+    if (!source) {
+        return;
+    }
+
+    for (DWORD i = 0; source[i] && out + 1 < dest_size; i++) {
+        if (source[i] == '{') {
+            char name[80];
+            DWORD name_len = 0;
+            DWORD j = i + 1;
+
+            while (source[j] && source[j] != '}' && name_len + 1 < sizeof(name)) {
+                name[name_len++] = source[j++];
+            }
+            if (source[j] == '}') {
+                SHORT selectedIndex = 0;
+                char value[16];
+
+                name[name_len] = '\0';
+                CL_ListBoxSelectedIndex(active_layout, name, &selectedIndex);
+                snprintf(value, sizeof(value), "%d", selectedIndex);
+                for (DWORD k = 0; value[k] && out + 1 < dest_size; k++) {
+                    dest[out++] = value[k];
+                }
+                i = j;
+                continue;
+            }
+        }
+        dest[out++] = source[i];
+    }
+    dest[out] = '\0';
+}
+
 void SCR_GlueTextButton(LPCUIFRAME frame, LPCRECT screen) {
     uiGlueTextButton_t const *gluetextbutton = frame->buffer.data;
     BOOL const enabled = frame->onclick && *frame->onclick;
@@ -556,8 +595,8 @@ void SCR_DrawTextArea(LPCUIFRAME frame, LPCRECT screen) {
     };
     re.DrawText(&MAKE(DRAWTEXT,
                       .font = cl.fonts[textArea->font],
-                      .text = frame->text,
-                      .color = frame->color,
+                      .text = frame->text ? frame->text : "",
+                      .color = frame->color.a ? frame->color : COLOR32_WHITE,
                       .halign = FONT_JUSTIFYLEFT,
                       .valign = FONT_JUSTIFYTOP,
                       .icons = cl.pics,
@@ -783,6 +822,10 @@ static drawer_t drawers[] = {
     { FT_BUILDQUEUE, SCR_DrawBuildQueue },
     { FT_MULTISELECT, SCR_DrawMultiSelect },
     { FT_SIMPLEBUTTON, SCR_SimpleButton },
+    { FT_BUTTON, SCR_GlueTextButton },
+    { FT_TEXTBUTTON, SCR_GlueTextButton },
+    { FT_POPUPMENU, SCR_GlueTextButton },
+    { FT_GLUEPOPUPMENU, SCR_GlueTextButton },
     { FT_GLUETEXTBUTTON, SCR_GlueTextButton },
     { FT_GLUEBUTTON, SCR_GlueTextButton },
 //    { FT_NONE, NULL },
@@ -808,8 +851,11 @@ void SCR_DrawFrame(LPCUIFRAME frame) {
         mouse.event == UI_LEFT_MOUSE_UP &&
         frame->onclick)
     {
+        char command[CMDARG_LEN * 2];
+
+        SCR_FormatOnClickCommand(frame->onclick, command, sizeof(command));
         MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
-        MSG_WriteString(&cls.netchan.message, frame->onclick);
+        MSG_WriteString(&cls.netchan.message, command);
     }
 }
 

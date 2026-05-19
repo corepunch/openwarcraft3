@@ -114,6 +114,7 @@ typedef struct listFetchState_s {
     DWORD requestId;
     DWORD frameNumber;
     HANDLE layout;
+    UINAME id;
     UINAME command;
     char text[MAX_LIST_FETCH_TEXT];
     SHORT selectedIndex;
@@ -140,6 +141,7 @@ void CL_ListBoxSelect(HANDLE layout,
                       LPCUIFRAME frame,
                       uiListBox_t const *listbox,
                       DWORD rowIndex);
+BOOL CL_ListBoxSelectedIndex(HANDLE layout, LPCSTR id, SHORT *selectedIndex);
 void CL_ListFetchResetLayout(HANDLE layout);
 void CON_DrawConsole(void);
 void CON_printf(LPCSTR fmt, ...);

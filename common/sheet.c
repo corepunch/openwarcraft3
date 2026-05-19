@@ -35,6 +35,28 @@ static sheetField_t *current_field = fields;
 static sheet_cache_entry_t *sheet_cache = NULL;
 static sheetRow_t *last_parsed_sheet_tail = NULL;
 
+static LPSTR SheetStoreTextRange(LPCSTR text, size_t len) {
+    LPSTR out = current_text;
+    size_t remaining;
+
+    if (!text) {
+        text = "";
+        len = 0;
+    }
+
+    remaining = (size_t)((text_buffer + sizeof(text_buffer)) - current_text);
+    if (remaining == 0) {
+        return text_buffer + sizeof(text_buffer) - 1;
+    }
+    if (len >= remaining) {
+        len = remaining - 1;
+    }
+    memcpy(current_text, text, len);
+    current_text[len] = '\0';
+    current_text += len + 1;
+    return out;
+}
+
 static void NormalizeSheetKey(const char *src, char *dst, size_t dst_size)
 {
     size_t i = 0;
@@ -337,41 +359,49 @@ static sheetRow_t *FS_ParseINI_Buffer(LPCSTR buffer) {
         if (p[0] == '/' && p[1] == '/') {
             for (; *p != '\n' && *p != '\0'; p++);
         } else if (*p == '[') {
+            LPCSTR nameStart;
+            LPCSTR nameEnd;
+
             p++;
+            nameStart = p;
+            while (*p && *p != ']' && *p != '\n' && *p != '\r') {
+                p++;
+            }
+            nameEnd = p;
+            if (*p == ']') {
+                p++;
+            }
             if (section) {
                 section->next = current_row;
             }
             section = current_row++;
             section->next = NULL;
             section->fields = NULL;
-            section->name = current_text;
-            for (; *p != ']'; current_text++, p++) {
-                *current_text = *p;
-            }
-            *(current_text++) = '\0';
-            p++;
+            section->name = SheetStoreTextRange(nameStart, (size_t)(nameEnd - nameStart));
         } else {
-            char line[MAX_INI_LINE] = { 0 };
-            for (LPSTR w = line; *p != '\n' && *p != '\r' && *p != '\0'; p++, w++) {
-                *w = *p;
+            LPCSTR lineStart = p;
+            LPCSTR lineEnd;
+            LPCSTR eq;
+
+            while (*p != '\n' && *p != '\r' && *p != '\0') {
+                p++;
             }
-            LPSTR eq = strstr(line, "=");
+            lineEnd = p;
+            eq = memchr(lineStart, '=', (size_t)(lineEnd - lineStart));
             if (eq && section) {
-                *eq = '\0';
-                for (LPSTR s = eq; s > line; s--) {
-                    if (*s == ' ') *s = '\0';
-                    else break;
+                LPCSTR keyEnd = eq;
+                LPCSTR valueStart = eq + 1;
+
+                while (keyEnd > lineStart && keyEnd[-1] == ' ') {
+                    keyEnd--;
                 }
-                eq++;
-                for (; *eq == ' '; eq++);
+                while (valueStart < lineEnd && *valueStart == ' ') {
+                    valueStart++;
+                }
 //                printf("%s.%s %s\n", currentSec, line, eq);
                 sheetField_t *field = current_field++;
-                field->name = current_text;
-                strcpy(current_text, line);
-                current_text += strlen(line) + 1;
-                field->value = current_text;
-                strcpy(current_text, eq);
-                current_text += strlen(eq) + 1;
+                field->name = SheetStoreTextRange(lineStart, (size_t)(keyEnd - lineStart));
+                field->value = SheetStoreTextRange(valueStart, (size_t)(lineEnd - valueStart));
                 ADD_TO_LIST(field, section->fields);
             }
         }

@@ -18,6 +18,9 @@ endif
 ifeq ($(NO_NETWORK),1)
 	CFLAGS += -DOW3_NO_NETWORK
 endif
+ifeq ($(ALL_MPQS),1)
+	CFLAGS += -DOW3_LOAD_ALL_MPQS
+endif
 
 # ---------------------------------------------------------------------------
 # Platform detection

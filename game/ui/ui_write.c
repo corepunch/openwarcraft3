@@ -290,6 +290,7 @@ static void WriteListBox(LPCFRAMEDEF frame, sizeBuf_t *sb, uiFrame_t *tmp) {
         .itemHeight = frame->Menu.Item.Height,
         .selectedIndex = -1,
     };
+    snprintf(data.id, sizeof(data.id), "%s", frame->Name);
     snprintf(data.fetchCommand, sizeof(data.fetchCommand), "%s", frame->ListBox.FetchCommand);
     (void)tmp;
     MSG_Write(sb, &data, sizeof(data));
@@ -420,6 +421,10 @@ BOOL UI_BuildFrameForWrite(LPCFRAMEDEF frame,
             WriteMultiselect(frame, &buf);
             break;
         case FT_GLUEBUTTON:
+        case FT_BUTTON:
+        case FT_TEXTBUTTON:
+        case FT_POPUPMENU:
+        case FT_GLUEPOPUPMENU:
         case FT_GLUETEXTBUTTON:
             WriteGlueTextButton(frame, &buf, textbuf);
             out->text = textbuf;
