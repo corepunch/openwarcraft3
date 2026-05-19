@@ -118,7 +118,7 @@ LPTEXTURE R_MakeLoadingIndicatorTexture(void) {
 
     FOR_LOOP(y, TEXTURE_SIZE) {
         FOR_LOOP(x, TEXTURE_SIZE) {
-            FLOAT const fx = ((FLOAT)x + 0.5f) / (FLOAT)TEXTURE_SIZE * 2.0f - 1.0f;
+            FLOAT const fx = 1.0f - ((FLOAT)x + 0.5f) / (FLOAT)TEXTURE_SIZE * 2.0f;
             FLOAT const fy = ((FLOAT)y + 0.5f) / (FLOAT)TEXTURE_SIZE * 2.0f - 1.0f;
             FLOAT const distance = sqrtf(fx * fx + fy * fy);
             FLOAT angle = atan2f(fy, fx) / (FLOAT)(M_PI * 2.0);
