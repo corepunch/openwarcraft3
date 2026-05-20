@@ -173,6 +173,18 @@ void SV_InitGameProgs(void);
 // sv_main.c
 void SV_WriteConfigString(LPSIZEBUF msg, DWORD i);
 
+// sv_lan.c
+/* Central OOB packet dispatcher.  Called from SV_ReadPackets with the
+ * full netchan buffer (including the leading 4-byte -1 marker).  No-op
+ * if the packet is shorter than 4 bytes or doesn't carry the OOB
+ * sequence marker.
+ *
+ * Adopted from upstream feature/lan-games' abstraction (corepunch/
+ * openwarcraft3@634b82e).  We keep our Quake 3-flavored wire format
+ * (OOB_GETINFO / OOB_INFORESPONSE) inside the dispatcher; only the
+ * structural pattern is borrowed. */
+void SV_ConnectionlessPacket(const netadr_t *from, LPSIZEBUF msg);
+
 // sv_user.c
 void SV_ExecuteUserCommand(LPSIZEBUF msg, LPCLIENT client);
 

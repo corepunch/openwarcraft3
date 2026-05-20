@@ -153,6 +153,7 @@ TEST_GAME_SRCS := \
 	server/sv_init.c \
 	server/sv_send.c \
 	server/sv_info.c \
+	server/sv_lan.c \
 	client/cl_browser.c \
 	common/net.c \
 	common/net_oob.c \

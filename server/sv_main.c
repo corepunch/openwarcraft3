@@ -9,11 +9,7 @@
  * Entry point called from the platform main loop: SV_Frame().
  */
 #include "server.h"
-#include "../common/net_oob.h"
-#include "sv_info.h"
 #include "sv_mdns.h"
-#include <arpa/inet.h>  // ntohs
-#include <unistd.h>     // gethostname
 
 //#define PRINT_ANIMATIONS
 
@@ -55,71 +51,6 @@ static void SV_SendClientMessages(void) {
     }
 }
 
-/* Wire-level connect handler invoked by SV_ReadPackets.  Validates the
- * protocol version embedded in the OOB connect payload before allocating
- * a slot.  On any pre-slot rejection, send an OOB rejectMsg so the
- * client can surface a real error instead of timing out. */
-static void SV_HandleConnectOOB(const char *payload, int len,
-                                const netadr_t *from) {
-    int requested = SV_ParseConnectVersion(payload, len);
-    if (requested != PROTOCOL_VERSION) {
-        Netchan_OutOfBandPrint(NS_SERVER, *from,
-                               OOB_REJECT_MSG " "
-                               OOB_REJECT_VERSION_MISMATCH);
-        fprintf(stderr,
-                "SV_HandleConnectOOB: rejecting %d.%d.%d.%d:%u "
-                "(version %d, expected %d)\n",
-                from->ip[0], from->ip[1], from->ip[2], from->ip[3],
-                ntohs(from->port), requested, PROTOCOL_VERSION);
-        return;
-    }
-    SV_DirectConnect(from);
-}
-
-/* Cached at first use; gethostname is cheap but pointless to call on
- * every getinfo / mDNS refresh.  Filled lazily so we don't need a
- * separate init hook on the server-startup path. */
-static const char *SV_Hostname(void) {
-    static char cached[64];
-    static bool filled = false;
-    if (!filled) {
-        if (gethostname(cached, sizeof(cached)) != 0) {
-            strncpy(cached, "owc3-server", sizeof(cached) - 1);
-        }
-        cached[sizeof(cached) - 1] = '\0';
-        filled = true;
-    }
-    return cached;
-}
-
-/* Reply to a LAN server-browser getinfo probe with the current server's
- * advertised info.  Format follows Quake 3 / dpmaster: backslash-delimited
- * key/value blob built by SV_BuildInfoResponseString.  No authentication:
- * anyone on the network can solicit this info, by design.
- *
- * The formatted body is cached and only rebuilt when
- * sv_advertised_state_version moves, so a server browsed by N clients
- * pays one snprintf per state change, not N. */
-static void SV_OOB_GetInfoResponse(const netadr_t *from) {
-    static char body[512];
-    static int  body_len = 0;
-    static DWORD body_for_version = (DWORD)-1;
-
-    if (body_for_version != sv_advertised_state_version) {
-        /* Report the live client count, not svs.num_clients, which
-         * also counts cs_zombie / cs_free slots that aren't really
-         * "in" the game. */
-        body_len = SV_BuildInfoResponseString(body, sizeof(body),
-                                              SV_Hostname(),
-                                              sv.configstrings[CS_MODELS + 1],
-                                              SV_NumLiveClients(),
-                                              ge ? ge->max_clients : 0,
-                                              PROTOCOL_VERSION);
-        body_for_version = sv_advertised_state_version;
-    }
-    Netchan_OutOfBand(NS_SERVER, *from, (DWORD)body_len, (BYTE *)body);
-}
-
 /* Read and dispatch all pending client messages from the network buffers. */
 static void SV_ReadPackets(void) {
     static BYTE net_message_buffer[MAX_MSGLEN];
@@ -132,31 +63,14 @@ static void SV_ReadPackets(void) {
     netadr_t from;
     int r;
     while ((r = NET_GetPacket(NS_SERVER, &from, &net_message)) != 0) {
-        // Out-of-band packets (first 4 bytes == -1) are stateless requests:
-        // connect handshake, server-browser getinfo, etc.  Dispatch by the
-        // ASCII token that follows the -1 marker.  No client slot is
-        // allocated by anything but the connect path.
+        /* OOB packets (first 4 bytes == -1) route to the central
+         * dispatcher in sv_lan.c.  In-band packets go to the per-slot
+         * parser. */
         if (r >= 4) {
             int hdr;
             memcpy(&hdr, net_message.data, sizeof(hdr));
             if (hdr == -1) {
-                const char *oob_token = (const char *)net_message.data + 4;
-                int oob_token_max = r - 4;
-                if (OOB_TOKEN_MATCHES_LITERAL(oob_token, oob_token_max,
-                                              OOB_CONNECT)) {
-                    SV_HandleConnectOOB(oob_token, oob_token_max, &from);
-                } else if (OOB_TOKEN_MATCHES_LITERAL(oob_token, oob_token_max,
-                                                    OOB_GETINFO)) {
-                    SV_OOB_GetInfoResponse(&from);
-                } else if (OOB_TOKEN_MATCHES_LITERAL(oob_token, oob_token_max,
-                                                    OOB_DISCONNECT)) {
-                    /* Peer-initiated disconnect.  cs_free addresses
-                     * don't match; cs_zombie ones match but
-                     * SV_DropClient no-ops on them, so a duplicate
-                     * disconnect is harmless. */
-                    LPCLIENT cl = SV_FindClientByAddr(&from);
-                    if (cl) SV_DropClient(cl, "peer_request");
-                }
+                SV_ConnectionlessPacket(&from, &net_message);
                 continue;
             }
         }
