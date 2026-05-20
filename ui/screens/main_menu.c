@@ -24,9 +24,26 @@ static LPFRAMEDEF frame_TopLeftPanel = NULL;
 static LPFRAMEDEF frame_TopRightPanel = NULL;
 static LPFRAMEDEF frame_RealmSelect = NULL;
 static LPFRAMEDEF frame_Logo = NULL;
+static LPCMODEL main_menu_background = NULL;
 
 /* State */
 static BOOL show_realm_select = false;
+
+static void MainMenu_LoadBackground(void) {
+    LPRENDERER renderer = uiimport.GetRenderer ? uiimport.GetRenderer() : NULL;
+    LPCSTR model = Theme_String("GlueSpriteLayerBackground", "Default");
+
+    if (!renderer || !renderer->LoadModel) {
+        return;
+    }
+    if (!model || !*model || !strcmp(model, "GlueSpriteLayerBackground")) {
+        model = Theme_String("MainMenu", "Default");
+    }
+    if (!model || !*model || !strcmp(model, "MainMenu")) {
+        model = "UI\\Glues\\MainMenu\\MainMenu3d\\MainMenu3d.mdx";
+    }
+    main_menu_background = renderer->LoadModel(model);
+}
 
 static void MainMenu_InitFrames(void) {
     /* Find top-level frames */
@@ -60,8 +77,12 @@ static void MainMenu_InitFrames(void) {
         UI_SetHidden(frame_ControlLayer, false);
     }
     if (frame_Logo && frame_ControlLayer) {
+        DWORD logo_model;
         UI_SetParent(frame_Logo, frame_ControlLayer);
-        /* Logo model will be set by theme or hardcoded path */
+        logo_model = UI_LoadModel("MainMenuLogo", true);
+        if (logo_model) {
+            frame_Logo->Portrait.model = logo_model;
+        }
         UI_SetPoint(frame_Logo, FRAMEPOINT_TOPLEFT, frame_MainMenu, FRAMEPOINT_TOPLEFT, 0.13f, -0.08f);
     }
 
@@ -93,6 +114,7 @@ static void MainMenu_InitFrames(void) {
 
 static void MainMenu_Init(void) {
     uiimport.Printf("MainMenu_Init\n");
+    MainMenu_LoadBackground();
     MainMenu_InitFrames();
     show_realm_select = false;
 }
@@ -107,10 +129,15 @@ static void MainMenu_Refresh(int msec) {
 }
 
 static void MainMenu_Draw(void) {
+    LPRENDERER renderer = uiimport.GetRenderer ? uiimport.GetRenderer() : NULL;
+    if (renderer && renderer->DrawPortrait && main_menu_background) {
+        RECT viewport = { 0, 0, 1, 1 };
+        renderer->DrawPortrait(main_menu_background, &viewport, "Stand");
+    }
+
     /* Render main menu frame tree */
     if (frame_MainMenu) {
-        /* Draw root frame and children */
-        /* Actual rendering happens in renderer via uiexport.DrawFrame() */
+        UI_DrawFrame(frame_MainMenu);
     }
 }
 

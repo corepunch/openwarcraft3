@@ -63,6 +63,7 @@ static LPCPLAYER CL_UIGetPlayerState(void);
 static DWORD CL_UIGetNumEntities(void);
 static LPCENTITYSTATE CL_UIGetEntity(DWORD idx);
 static void CL_UIRequestUnitUI(DWORD num_selected, DWORD *entity_nums);
+static LPRENDERER CL_UIGetRenderer(void);
 
 /* UI library FS_ReadFile wrapper that converts to Quake 3 pattern */
 static int CL_UI_ReadFile(LPCSTR fileName, void **buf) {
@@ -90,6 +91,11 @@ static LPCENTITYSTATE CL_UIGetEntity(DWORD idx) {
         return NULL;
     }
     return &cl.ents[idx].current;
+}
+
+/* Renderer access callback for UI rendering */
+static LPRENDERER CL_UIGetRenderer(void) {
+    return &re;
 }
 
 /* Request unit UI data (command card, inventory, build queue) */
@@ -202,6 +208,7 @@ void CL_Init(void) {
         .GetNumEntities = CL_UIGetNumEntities,
         .GetEntity = CL_UIGetEntity,
         .RequestUnitUI = CL_UIRequestUnitUI,
+        .GetRenderer = CL_UIGetRenderer,
         .Error = CON_printf,
         .Printf = CON_printf,
     });

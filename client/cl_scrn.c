@@ -160,12 +160,12 @@ LPCSTR SCR_GetStringValue(LPCUIFRAME frame) {
     return text;
 }
 
-DRAWTEXT SCR_GetDrawText(LPCUIFRAME frame,
+drawText_t SCR_GetDrawText(LPCUIFRAME frame,
                       FLOAT avl_width,
                       LPCSTR text,
                       uiLabel_t const *label)
 {
-    return MAKE(DRAWTEXT,
+    return MAKE(drawText_t,
                 .font = cl.fonts[label->font],
                 .text = text,
                 .color = frame->color,
@@ -186,7 +186,7 @@ LPCRECT SCR_LayoutRect(LPCUIFRAME frame) {
     VECTOR2 elemsize;
     size2_t imagesize;
     FLOAT avl_space = runtimes[0].rect.w;
-    DRAWTEXT drawtext;
+    drawText_t drawtext;
     switch (frame->flags.type) {
         case FT_STRING:
         case FT_TEXT:

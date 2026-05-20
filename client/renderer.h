@@ -1,21 +1,11 @@
 #ifndef renderer_h
 #define renderer_h
 
-#include "../common/common.h"
+#include "../common/renderer_types.h"
 
-KNOWN_AS(drawText_s, DRAWTEXT);
-KNOWN_AS(drawImage_s, DRAWIMAGE);
 KNOWN_AS(modelInfo_s, MODELINFO);
 
 #define MODELINFO_MAX_TEXTURES 256
-
-typedef enum {
-    SHADER_DEFAULT,
-    SHADER_UI,
-    SHADER_SPLAT,
-    SHADER_COMMANDBUTTON,
-    SHADER_COUNT,
-} SHADERTYPE;
 
 typedef struct {
     // Quake 3-style file API: renderer is archive-agnostic
@@ -80,31 +70,6 @@ typedef struct {
     FRUSTUM3 frustum;
 } viewDef_t;
 
-struct drawText_s {
-    LPCFONT font;
-    LPCSTR text;
-    RECT rect;
-    COLOR32 color;
-    FLOAT textWidth;
-    FLOAT lineHeight;
-    BOOL wordWrap;
-    uiFontJustificationH_t halign;
-    uiFontJustificationV_t valign;
-    LPCTEXTURE *icons;
-};
-
-struct drawImage_s {
-    LPCTEXTURE texture;
-    SHADERTYPE shader;
-    BLEND_MODE alphamode;
-    RECT screen;
-    RECT uv;
-    COLOR32 color;
-    BOOL rotate;
-    FLOAT angle;
-    FLOAT uActiveGlow;
-};
-
 struct modelInfo_s {
     DWORD textureCount;
     LPCSTR texturePaths[MODELINFO_MAX_TEXTURES];
@@ -148,6 +113,9 @@ typedef struct {
     void (*SetPathTexture)(LPCCOLOR32 debugTexture);
 #endif
 } refExport_t;
+
+typedef refExport_t *LPRENDERER;
+typedef refExport_t const *LPCRENDERER;
 
 refExport_t R_GetAPI(refImport_t imp);
 

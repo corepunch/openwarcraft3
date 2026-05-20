@@ -174,11 +174,23 @@ LPCSTR CornerFlags[] = {
 #define TARGET(TYPE) TYPE *target = (TYPE *)((uint8_t *)frame + arg->fofs);
 
 FRAMEDEF frames[MAX_UI_CLASSES] = { 0 };
+static LPCTEXTURE ui_textures[MAX_IMAGES] = { 0 };
+static PATHSTR ui_texture_names[MAX_IMAGES] = { 0 };
+static LPCMODEL ui_models[MAX_MODELS] = { 0 };
+static PATHSTR ui_model_names[MAX_MODELS] = { 0 };
 
 void FDF_ParseFrame(LPPARSER p, LPFRAMEDEF frame);
+static char *UI_Trim(char *text);
+static void UI_CopyDisplayString(char *out, size_t out_size, LPCSTR in);
+static void UI_RemoveBom(LPSTR buffer);
 
 void UI_ClearTemplates(void) {
     memset(frames, 0, sizeof(frames));
+    memset(ui_textures, 0, sizeof(ui_textures));
+    memset(ui_texture_names, 0, sizeof(ui_texture_names));
+    memset(ui_models, 0, sizeof(ui_models));
+    memset(ui_model_names, 0, sizeof(ui_model_names));
+    UI_ClearTheme();
 }
 
 void UI_InitFrame(LPFRAMEDEF frame, FRAMETYPE type) {
@@ -252,34 +264,42 @@ int ParseEnum(LPPARSER p, LPCSTR const *values) {
     return value;
 }
 
-LPCSTR Theme_String(LPCSTR entry, LPCSTR category) {
-    /* Theme support removed for client-side UI library */
-    LPCSTR filename = NULL; // gi.FindSheetCell(game.config.theme, category, entry);
-    char versioned[128];
+static char *UI_Trim(char *text) {
+    char *end;
 
-    if (filename) {
-        return filename;
+    while (*text && isspace((unsigned char)*text)) {
+        text++;
     }
-
-    snprintf(versioned, sizeof(versioned), "%s_V1", entry);
-    /* Theme support removed for client-side UI library */
-    filename = NULL; // gi.FindSheetCell(game.config.theme, category, versioned);
-    if (filename) {
-        return filename;
+    end = text + strlen(text);
+    while (end > text && isspace((unsigned char)end[-1])) {
+        *--end = '\0';
     }
-    snprintf(versioned, sizeof(versioned), "%s_V0", entry);
-    /* Theme support removed for client-side UI library */
-    filename = NULL; // gi.FindSheetCell(game.config.theme, category, versioned);
-    if (filename) {
-        return filename;
-    }
-
-//    fprintf(stderr, "Can't find %s in skin\n", entry);
-    return entry;
+    return text;
 }
 
-FLOAT Theme_Float(LPCSTR entry, LPCSTR category) {
-    return atof(Theme_String(entry, category));
+static void UI_RemoveBom(LPSTR buffer) {
+    static unsigned char const utf8_bom[] = { 0xEF, 0xBB, 0xBF };
+    size_t length;
+
+    if (!buffer) {
+        return;
+    }
+    length = strlen(buffer);
+    if (length >= sizeof(utf8_bom) &&
+        memcmp((unsigned char *)buffer, utf8_bom, sizeof(utf8_bom)) == 0) {
+        memmove(buffer, buffer + sizeof(utf8_bom), length - sizeof(utf8_bom) + 1);
+    }
+}
+
+static void UI_CopyDisplayString(char *out, size_t out_size, LPCSTR in) {
+    if (!out || out_size == 0) {
+        return;
+    }
+    if (!in) {
+        out[0] = '\0';
+        return;
+    }
+    snprintf(out, out_size, "%s", in);
 }
 
 LPCSTR EnsureExtension(LPCSTR file, LPCSTR ext) {
@@ -293,9 +313,83 @@ LPCSTR EnsureExtension(LPCSTR file, LPCSTR ext) {
 }
 
 DWORD UI_LoadTexture(LPCSTR file, BOOL decorate) {
+    LPRENDERER renderer;
+    DWORD index;
+
     file = decorate ? Theme_String(file, "Default") : file;
     file = EnsureExtension(file, ".blp");
-    return uiimport.ImageIndex(file);
+
+    FOR_LOOP(i, MAX_IMAGES) {
+        if (ui_texture_names[i][0] && !strcmp(ui_texture_names[i], file)) {
+            return i;
+        }
+    }
+
+    index = 0;
+    for (DWORD i = 1; i < MAX_IMAGES; i++) {
+        if (!ui_texture_names[i][0]) {
+            index = i;
+            break;
+        }
+    }
+    if (!index || !uiimport.GetRenderer) {
+        return 0;
+    }
+
+    snprintf(ui_texture_names[index], sizeof(ui_texture_names[index]), "%s", file);
+    renderer = uiimport.GetRenderer();
+    if (renderer && renderer->LoadTexture && !ui_textures[index]) {
+        ui_textures[index] = renderer->LoadTexture(file);
+    }
+    return index;
+}
+
+LPCTEXTURE UI_GetTexture(DWORD index) {
+    if (!index || index >= MAX_IMAGES) {
+        return NULL;
+    }
+    return ui_textures[index];
+}
+
+LPCMODEL UI_GetModel(DWORD index) {
+    if (!index || index >= MAX_MODELS) {
+        return NULL;
+    }
+    return ui_models[index];
+}
+
+DWORD UI_LoadModel(LPCSTR file, BOOL decorate) {
+    LPRENDERER renderer = NULL;
+    DWORD modelIndex = 0;
+    LPCSTR model = file;
+
+    if (!model || !*model) {
+        return 0;
+    }
+
+    model = decorate ? Theme_String(model, "Default") : model;
+    FOR_LOOP(i, MAX_MODELS) {
+        if (ui_model_names[i][0] && !strcmp(ui_model_names[i], model)) {
+            return i;
+        }
+    }
+
+    for (DWORD i = 1; i < MAX_MODELS; i++) {
+        if (!ui_model_names[i][0]) {
+            modelIndex = i;
+            break;
+        }
+    }
+    if (!modelIndex || !uiimport.GetRenderer) {
+        return 0;
+    }
+
+    snprintf(ui_model_names[modelIndex], sizeof(ui_model_names[modelIndex]), "%s", model);
+    renderer = uiimport.GetRenderer();
+    if (renderer && renderer->LoadModel && !ui_models[modelIndex]) {
+        ui_models[modelIndex] = renderer->LoadModel(model);
+    }
+    return modelIndex;
 }
 
 #define MAKE_PARSER(TYPE) \
@@ -377,7 +471,7 @@ MAKE_PARSER(Text) {
     sscanf(token, UINAME_FMT, key);
     LPCSTR str = UI_GetString(key);
     memset(out, 0, sizeof(UINAME));
-    snprintf(out, sizeof(UINAME), "%s", str);
+    UI_CopyDisplayString(out, sizeof(UINAME), str);
     frame->Text = out;
 }
 
@@ -390,8 +484,23 @@ typedef struct stringListItem_s {
 stringListItem_t *strings = NULL;
 
 MAKE_PARSER(StringListItem) {
-    strings->value = strdup(token+1);
-    strings->value[strlen(strings->value)-1] = 0;
+    char value[1024];
+    char *start;
+    char *end;
+
+    snprintf(value, sizeof(value), "%s", token ? token : "");
+    start = UI_Trim(value);
+    if (*start == '"') {
+        start++;
+    }
+    end = start + strlen(start);
+    while (end > start && isspace((unsigned char)end[-1])) {
+        *--end = '\0';
+    }
+    if (end > start && end[-1] == '"') {
+        *--end = '\0';
+    }
+    strings->value = strdup(start);
 }
 
 MAKE_ENUMPARSER(AlphaMode);
@@ -420,13 +529,12 @@ MAKE_PARSER(TextureFile) {
 MAKE_PARSER(ModelPath) {
     PATHSTR path = { 0 };
     BOOL decorate = frame->DecorateFileNames | (frame->Parent ? frame->Parent->DecorateFileNames : false);
-    LPCSTR model = NULL;
     DWORD modelIndex = 0;
     sscanf(token, PATHSTR_FMT, path);
-    model = decorate ? Theme_String(path, "Default") : path;
-    modelIndex = model[0] ? uiimport.ModelIndex(model) : 0;
+    modelIndex = UI_LoadModel(path, decorate);
     *((DWORD *)out) = modelIndex;
 #ifdef DIAG_OUTPUT
+    LPCSTR model = decorate ? Theme_String(path, "Default") : path;
     if (decorate && path[0] && !strcmp(model, path)) {
         DIAGF("ParseModelPath: unresolved skin key frame=%s token=%s\n", frame->Name, path);
     }
@@ -857,6 +965,15 @@ static BOOL UI_FrameNameEquals(LPCFRAMEDEF frame, LPCSTR name) {
     return frame && name && *name && !strcmp(frame->Name, name);
 }
 
+static BOOL UI_IsButtonFrameType(FRAMETYPE type) {
+    return type == FT_BUTTON ||
+           type == FT_TEXTBUTTON ||
+           type == FT_GLUETEXTBUTTON ||
+           type == FT_GLUEBUTTON ||
+           type == FT_GLUEPOPUPMENU ||
+           type == FT_SIMPLEBUTTON;
+}
+
 static BOOL UI_IsEmbeddedControlPart(LPCFRAMEDEF parent, LPCFRAMEDEF child) {
     if (!parent || !child) {
         return false;
@@ -873,6 +990,11 @@ static BOOL UI_IsEmbeddedControlPart(LPCFRAMEDEF parent, LPCFRAMEDEF child) {
         return UI_FrameNameEquals(child, parent->Control.Backdrop.MouseOver);
     }
     if (child->Type == FT_TEXT) {
+        if (UI_IsButtonFrameType(parent->Type) &&
+            (UI_FrameNameEquals(child, parent->Text) ||
+             UI_FrameNameEquals(child, parent->Button.NormalText.frame))) {
+            return true;
+        }
         return UI_FrameNameEquals(child, parent->Edit.TextFrame);
     }
     return false;
@@ -936,7 +1058,7 @@ void UI_ParseFDF_Buffer(LPCSTR fileName, LPSTR buffer2) {
     LPSTR buffer = buffer2;
     /* Text preprocessing - simplified for client-side */
     /* gi.TextRemoveComments(buffer); */
-    /* gi.TextRemoveBom(buffer); */
+    UI_RemoveBom(buffer);
     PARSER parser = {
         .buffer = buffer,
         .delimiters = ",;{}",
@@ -952,7 +1074,13 @@ void UI_ParseFDF(LPCSTR fileName) {
     void *buffer = NULL;
     int size = uiimport.FS_ReadFile(fileName, &buffer);
     if (size >= 0 && buffer) {
-        UI_ParseFDF_Buffer(fileName, (LPSTR)buffer);
+        LPSTR text = uiimport.MemAlloc((DWORD)size + 1);
+        if (text) {
+            memcpy(text, buffer, (size_t)size);
+            text[size] = '\0';
+            UI_ParseFDF_Buffer(fileName, text);
+            uiimport.MemFree(text);
+        }
         uiimport.FS_FreeFile(buffer);
     }
 }
@@ -1003,7 +1131,7 @@ void UI_SetText(LPFRAMEDEF frame, LPCSTR format, ...) {
     va_start(argptr, format);
     vsnprintf(text, sizeof(text), format, argptr);
     va_end(argptr);
-    snprintf(frame->TextStorage, sizeof(frame->TextStorage), "%s", UI_GetString(text));
+    UI_CopyDisplayString(frame->TextStorage, sizeof(frame->TextStorage), UI_GetString(text));
     frame->Text = frame->TextStorage;
 }
 

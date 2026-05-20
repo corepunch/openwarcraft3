@@ -169,7 +169,7 @@ VECTOR2 SCR_SolveAxisPosition(LPCUIFRAME frame,
                               FLOAT width,
                               bool is_x_axis);
 LPCSTR SCR_GetStringValue(LPCUIFRAME frame);
-DRAWTEXT SCR_GetDrawText(LPCUIFRAME frame,
+drawText_t SCR_GetDrawText(LPCUIFRAME frame,
                          FLOAT avl_width,
                          LPCSTR text,
                          uiLabel_t const *label);

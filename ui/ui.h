@@ -17,7 +17,7 @@
 #ifndef ui_h
 #define ui_h
 
-#include "../common/common.h"
+#include "../client/renderer.h"
 
 /* Unit UI data structures (Phase 8) */
 #define MAX_COMMAND_BUTTONS 12
@@ -87,6 +87,9 @@ typedef struct {
     
     /* Unit UI data requests (for command card, inventory, build queue) */
     void (*RequestUnitUI)(DWORD num_selected, DWORD *entity_nums);
+    
+    /* Renderer access for frame drawing */
+    LPRENDERER (*GetRenderer)(void);
     
     /* Error reporting */
     void (*Error)(LPCSTR fmt, ...);

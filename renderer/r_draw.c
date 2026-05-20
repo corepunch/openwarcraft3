@@ -132,7 +132,7 @@ void R_DrawImageEx(LPCDRAWIMAGE drawImage) {
 }
 
 void R_DrawImage(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv, COLOR32 color) {
-    R_DrawImageEx(&MAKE(DRAWIMAGE,
+    R_DrawImageEx(&MAKE(drawImage_t,
                         .texture = texture,
                         .screen = *screen,
                         .uv = uv ? *uv : MAKE(RECT,0,0,1,1),
@@ -156,7 +156,7 @@ void R_DrawLoadingIndicator(LPCRECT rect, DWORD time, COLOR32 color) {
         color = MAKE(COLOR32, 235, 220, 180, 255);
     }
 
-    R_DrawImageEx(&MAKE(DRAWIMAGE,
+    R_DrawImageEx(&MAKE(drawImage_t,
                         .texture = tr.texture[TEX_LOADING_INDICATOR],
                         .screen = screen,
                         .uv = MAKE(RECT, 0, 0, 1, 1),

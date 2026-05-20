@@ -157,7 +157,7 @@ static void SCR_DrawHighlightData(uiHighlight_t const *highlight, LPCRECT screen
     if (!highlight || !highlight->alphaFile) {
         return;
     }
-    re.DrawImageEx(&MAKE(DRAWIMAGE,
+    re.DrawImageEx(&MAKE(drawImage_t,
                          .texture = cl.pics[highlight->alphaFile],
                          .alphamode = highlight->alphaMode,
                          .screen = *screen,
@@ -177,7 +177,7 @@ void SCR_SimpleButton(LPCUIFRAME frame, LPCRECT screen) {
     RECT const uv = get_uvrect((BYTE *)&button->normal.texcoord);
     RECT const suv = Rect_div(&uv, 0xff);
     re.DrawImage(cl.pics[button->normal.texture], screen, &suv, COLOR32_WHITE);
-    re.DrawText(&MAKE(DRAWTEXT,
+    re.DrawText(&MAKE(drawText_t,
                       .rect = *screen,
                       .font = cl.fonts[button->normal.font],
                       .text = label,
@@ -267,7 +267,7 @@ void SCR_DrawBackdrop2(LPCUIFRAME frame, LPCRECT screen, uiBackdrop_t const *bac
         }
         uv.h = background.h / (backSize.height / 1000.f);
     }
-    re.DrawImageEx(&MAKE(DRAWIMAGE,
+    re.DrawImageEx(&MAKE(drawImage_t,
                          .texture = cl.pics[backdrop->Background],
                          .alphamode = BLEND_MODE_BLEND,
                          .screen = background,
@@ -284,7 +284,7 @@ void SCR_DrawBackdrop2(LPCUIFRAME frame, LPCRECT screen, uiBackdrop_t const *bac
         FLOAT const tile = backdrop_edge_tile(rects+corners[i], corners[i], h);
         BOOL const flip = backdrop_edge_flip(corners[i]);
         RECT const rect = { i * k, 0, k, tile };
-        re.DrawImageEx(&MAKE(DRAWIMAGE,
+        re.DrawImageEx(&MAKE(drawImage_t,
                              .texture = cl.pics[backdrop->EdgeFile],
                              .alphamode = BLEND_MODE_BLEND,
                              .screen = rects[corners[i]],
@@ -536,7 +536,7 @@ void SCR_DrawCommandButton(LPCUIFRAME frame, LPCRECT screen) {
             scrn = scale_rect(screen, 0.875);
         }
     }
-    re.DrawImageEx(&MAKE(DRAWIMAGE,
+    re.DrawImageEx(&MAKE(drawImage_t,
                          .texture = cl.pics[frame->tex.index],
                          .screen = scrn,
                          .uv = suv,
@@ -547,7 +547,7 @@ void SCR_DrawCommandButton(LPCUIFRAME frame, LPCRECT screen) {
 }
 
 void layout_text(LPCUIFRAME frame, LPCRECT screen, LPCSTR text) {
-    DRAWTEXT drawtext = SCR_GetDrawText(frame, screen->w, text, frame->buffer.data);
+    drawText_t drawtext = SCR_GetDrawText(frame, screen->w, text, frame->buffer.data);
     drawtext.rect = *screen;
     drawtext.wordWrap = true;
     re.DrawText(&drawtext);
@@ -593,7 +593,7 @@ void SCR_DrawTextArea(LPCUIFRAME frame, LPCRECT screen) {
         screen->w - textArea->inset * 2,
         screen->h - textArea->inset * 2,
     };
-    re.DrawText(&MAKE(DRAWTEXT,
+    re.DrawText(&MAKE(drawText_t,
                       .font = cl.fonts[textArea->font],
                       .text = frame->text ? frame->text : "",
                       .color = frame->color.a ? frame->color : COLOR32_WHITE,
@@ -615,7 +615,7 @@ void SCR_DrawEditBox(LPCUIFRAME frame, LPCRECT screen) {
 
     SCR_DrawBackdrop2(frame, screen, &edit->background);
 
-    re.DrawText(&MAKE(DRAWTEXT,
+    re.DrawText(&MAKE(drawText_t,
                       .font = cl.fonts[edit->font],
                       .text = text,
                       .color = edit->textColor,
@@ -629,12 +629,12 @@ void SCR_DrawEditBox(LPCUIFRAME frame, LPCRECT screen) {
 
     if (active_edit_number == frame->number && state && (cl.time % 500) < 250) {
         DWORD cursor = MIN(state->cursor, (DWORD)strlen(state->text));
-        DRAWTEXT measure;
+        drawText_t measure;
         VECTOR2 prefix_size;
         RECT cursor_rect = text_rect;
 
         snprintf(cursor_text, sizeof(cursor_text), "%.*s", (int)cursor, state->text);
-        measure = MAKE(DRAWTEXT,
+        measure = MAKE(drawText_t,
                        .font = cl.fonts[edit->font],
                        .text = cursor_text,
                        .color = edit->textColor,
@@ -648,7 +648,7 @@ void SCR_DrawEditBox(LPCUIFRAME frame, LPCRECT screen) {
         prefix_size = re.GetTextSize(&measure);
         cursor_rect.x += prefix_size.x;
         cursor_rect.w = MAX(cursor_rect.w - prefix_size.x, 0.0f);
-        re.DrawText(&MAKE(DRAWTEXT,
+        re.DrawText(&MAKE(drawText_t,
                           .font = cl.fonts[edit->font],
                           .text = "|",
                           .color = edit->cursorColor,
@@ -742,7 +742,7 @@ void SCR_DrawListBox(LPCUIFRAME frame, LPCRECT screen) {
             CL_ListBoxSelect(active_layout, frame, listbox, (DWORD)rowIndex);
             selectedIndex = (SHORT)rowIndex;
         }
-        re.DrawText(&MAKE(DRAWTEXT,
+        re.DrawText(&MAKE(drawText_t,
                           .font = cl.fonts[listbox->text.font],
                           .text = display,
                           .color = frame->color.a ? frame->color : COLOR32_WHITE,
@@ -769,7 +769,7 @@ void SCR_DrawTooltip(LPCUIFRAME frame, LPCRECT scrn) {
         uiTooltip_t const *tooltip = frame->buffer.data;
         FLOAT const PADDING = 0.005;
         FLOAT const avlspace = screen.w - PADDING * 2;
-        DRAWTEXT drawtext = SCR_GetDrawText(frame, avlspace, active_tooltip, &tooltip->text);
+        drawText_t drawtext = SCR_GetDrawText(frame, avlspace, active_tooltip, &tooltip->text);
         drawtext.wordWrap = true;
         VECTOR2 textsize = re.GetTextSize(&drawtext);
         textsize.y += PADDING * 2;

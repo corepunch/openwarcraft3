@@ -7,6 +7,7 @@
 
 /* Global import table filled by UI_GetAPI */
 uiImport_t uiimport;
+uiMouseState_t ui_mouse;
 
 /* Internal state */
 typedef struct {
@@ -17,10 +18,54 @@ typedef struct {
 
 static uiState_t ui_state;
 
+VECTOR2 UI_MouseToFdf(void) {
+    LPRENDERER renderer = uiimport.GetRenderer ? uiimport.GetRenderer() : NULL;
+    size2_t window = renderer && renderer->GetWindowSize ? renderer->GetWindowSize() : MAKE(size2_t, 0, 0);
+    FLOAT window_aspect = UI_MIN_ASPECT;
+    FLOAT x_scale = 1.0f;
+    FLOAT y_scale = 1.0f;
+    RECT scene;
+    FLOAT nx = 0;
+    FLOAT ny = 0;
+
+    if (window.width > 0 && window.height > 0) {
+        window_aspect = (FLOAT)window.width / (FLOAT)window.height;
+        nx = (FLOAT)ui_mouse.x / (FLOAT)window.width;
+        ny = (FLOAT)ui_mouse.y / (FLOAT)window.height;
+    }
+    if (window_aspect > UI_MIN_ASPECT) {
+        x_scale = window_aspect / UI_MIN_ASPECT;
+    } else if (window_aspect < UI_MIN_ASPECT) {
+        y_scale = UI_MIN_ASPECT / window_aspect;
+    }
+
+    scene.w = UI_BASE_WIDTH * x_scale;
+    scene.h = UI_BASE_HEIGHT * y_scale;
+    scene.x = (UI_BASE_WIDTH - scene.w) * 0.5f;
+    scene.y = (UI_BASE_HEIGHT - scene.h) * 0.5f;
+
+    return MAKE(VECTOR2,
+                scene.x + nx * scene.w,
+                scene.y + ny * scene.h);
+}
+
+BOOL UI_MouseContains(LPCRECT rect) {
+    VECTOR2 const mouse = UI_MouseToFdf();
+    return Rect_contains(rect, &mouse);
+}
+
+void UI_ClearMouseTransient(void) {
+    ui_mouse.event = UI_MOUSE_EVENT_NONE;
+}
+
 void UI_InitLocal(void) {
     memset(&ui_state, 0, sizeof(ui_state));
+    memset(&ui_mouse, 0, sizeof(ui_mouse));
     
     uiimport.Printf("UI_InitLocal: loading FDF assets\n");
+
+    UI_LoadTheme("UI\\war3skins.txt");
+    UI_ParseFDF("UI\\FrameDef\\GlobalStrings.fdf");
     
     /* Load core menu FDF files */
     UI_ParseFDF("UI\\FrameDef\\UI\\EscMenuTemplates.fdf");
@@ -71,6 +116,7 @@ void UI_DrawFrameLocal(void) {
     if (screen && screen->draw) {
         screen->draw();
     }
+    UI_ClearMouseTransient();
 }
 
 void UI_KeyEventLocal(int key, BOOL down, DWORD time) {
@@ -87,9 +133,23 @@ void UI_KeyEventLocal(int key, BOOL down, DWORD time) {
 }
 
 void UI_MouseEventLocal(int x, int y, int button, BOOL down) {
-    (void)down;
     if (!ui_state.active) {
         return;
+    }
+
+    ui_mouse.x = x;
+    ui_mouse.y = y;
+    if (button) {
+        ui_mouse.button = button;
+        ui_mouse.down = down;
+        if (button == 1) {
+            ui_mouse.event = down ? UI_MOUSE_LEFT_DOWN : UI_MOUSE_LEFT_UP;
+        } else if (button == 2) {
+            ui_mouse.event = down ? UI_MOUSE_RIGHT_DOWN : UI_MOUSE_RIGHT_UP;
+        }
+        if (!down) {
+            ui_mouse.button = 0;
+        }
     }
     
     /* Delegate to current screen */

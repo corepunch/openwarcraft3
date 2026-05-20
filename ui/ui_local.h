@@ -22,8 +22,9 @@
 #define MAX_UI_CLASSES 2048
 #endif
 
-/* Global import callbacks (filled by UI_GetAPI) */
-extern uiImport_t uiimport;
+#define UI_BASE_WIDTH 0.8f
+#define UI_BASE_HEIGHT 0.6f
+#define UI_MIN_ASPECT (4.0f / 3.0f)
 
 /* Forward declarations */
 typedef struct uiFrameDef_s frameDef_t;
@@ -31,6 +32,9 @@ typedef frameDef_t FRAMEDEF;  /* Also available as non-pointer type */
 typedef frameDef_t *LPFRAMEDEF;
 typedef frameDef_t const *LPCFRAMEDEF;
 typedef struct uiScreen_s uiScreen_t;  /* Defined in ui_screen.h */
+
+/* Global import callbacks (filled by UI_GetAPI) */
+extern uiImport_t uiimport;
 
 /* Frame point positioning */
 typedef enum {
@@ -79,6 +83,26 @@ typedef struct {
     LPCFRAMEDEF relativeTo;
     FLOAT offset;
 } FRAMEPOINT;
+
+typedef FRAMEPOINT const *LPCFRAMEPOINT;
+
+typedef enum {
+    UI_MOUSE_EVENT_NONE,
+    UI_MOUSE_LEFT_DOWN,
+    UI_MOUSE_LEFT_UP,
+    UI_MOUSE_RIGHT_DOWN,
+    UI_MOUSE_RIGHT_UP,
+} uiMouseEvent_t;
+
+typedef struct {
+    int x;
+    int y;
+    int button;
+    BOOL down;
+    uiMouseEvent_t event;
+} uiMouseState_t;
+
+extern uiMouseState_t ui_mouse;
 
 /* Frame template definition (server-side/library-side only) */
 struct uiFrameDef_s {
@@ -249,6 +273,9 @@ struct uiFrameDef_s {
     } Multiselect;
 };
 
+/* Global parsed FDF frame table. */
+extern FRAMEDEF frames[MAX_UI_CLASSES];
+
 /* Stub types for server-side code compatibility (not used in client UI library) */
 typedef struct {} uiTrigger_t;
 typedef void *LPEDICT;
@@ -281,8 +308,18 @@ void UI_SetTexture(LPFRAMEDEF, LPCSTR, BOOL);
 void UI_SetTexture2(LPFRAMEDEF, LPCSTR, BOOL);
 void UI_SetHidden(LPFRAMEDEF, BOOL);
 void UI_InheritFrom(LPFRAMEDEF, LPCSTR);
+void UI_LoadTheme(LPCSTR fileName);
+void UI_ClearTheme(void);
+void UI_MenuCommandLocal(LPCSTR command);
+VECTOR2 UI_MouseToFdf(void);
+BOOL UI_MouseContains(LPCRECT rect);
+void UI_ClearMouseTransient(void);
 DWORD UI_FindFrameNumber(LPCSTR);
+DWORD UI_CollectFrameTree(LPCFRAMEDEF root, LPCFRAMEDEF *out, DWORD max);
 DWORD UI_LoadTexture(LPCSTR, BOOL);
+LPCTEXTURE UI_GetTexture(DWORD index);
+LPCMODEL UI_GetModel(DWORD index);
+DWORD UI_LoadModel(LPCSTR file, BOOL decorate);
 LPCSTR UI_GetString(LPCSTR);
 LPFRAMEDEF UI_Spawn(FRAMETYPE, LPFRAMEDEF);
 LPFRAMEDEF UI_FindFrame(LPCSTR);

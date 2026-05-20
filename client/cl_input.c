@@ -83,6 +83,9 @@ void CL_Input(void) {
                 mouse.origin.y = event.button.y;
                 mouse.button = event.button.button;
                 if (cls.key_dest == key_menu) {
+                    if (ui.MouseEvent) {
+                        ui.MouseEvent(event.button.x, event.button.y, event.button.button, true);
+                    }
                     if (event.button.button == 1) {
                         mouse.event = UI_LEFT_MOUSE_DOWN;
                     } else if (event.button.button == 2) {
@@ -104,6 +107,9 @@ void CL_Input(void) {
                 mouse.origin.y = event.button.y;
                 mouse.button = 0;
                 if (cls.key_dest == key_menu) {
+                    if (ui.MouseEvent) {
+                        ui.MouseEvent(event.button.x, event.button.y, event.button.button, false);
+                    }
                     if (event.button.button == 1) {
                         mouse.event = UI_LEFT_MOUSE_UP;
                     } else if (event.button.button == 2) {
@@ -124,6 +130,9 @@ void CL_Input(void) {
                 mouse.origin.x = event.motion.x;
                 mouse.origin.y = event.motion.y;
                 if (cls.key_dest == key_menu) {
+                    if (ui.MouseEvent) {
+                        ui.MouseEvent(event.motion.x, event.motion.y, 0, false);
+                    }
                     break;
                 }
                 switch (mouse.button) {
