@@ -3,6 +3,9 @@
 
 #include "server.h"
 
+/* UI layout byte tracking (legacy - now handled client-side) */
+DWORD layoutBytesWritten = 0;
+
 void PF_WriteByte(int c) { MSG_WriteByte(&sv.multicast, c); }
 void PF_WriteShort(int c) { MSG_WriteShort(&sv.multicast, c); }
 void PF_WriteLong(int c) { MSG_WriteLong(&sv.multicast, c); }

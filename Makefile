@@ -185,9 +185,6 @@ TEST_GAME_SRCS := \
 	game/skills/s_skills.c \
 	game/skills/s_stop.c \
 	game/skills/s_train.c \
-	game/ui/ui_fdf.c \
-	game/ui/ui_init.c \
-	game/ui/ui_write.c \
 	client/cl_menu.c \
 	client/cl_listbox.c \
 	client/cl_parse.c \
@@ -244,7 +241,7 @@ TESTS_MPQ     := $(TESTS_DIR)/tests.mpq
 TESTS_RES_DIR := $(TESTS_DIR)/resources
 TESTS_SRC_DIR := tests/resources-src
 
-test-assets: blpgen mdxgen mpqtool mdxtool fdftool | $(TESTS_DIR)
+test-assets: blpgen mdxgen mpqtool mdxtool | $(TESTS_DIR)
 	@echo "[test-assets] generating textures"
 	@mkdir -p $(TESTS_RES_DIR)/TestUI/Textures
 	$(BIN_DIR)/blpgen$(EXE_EXT) solid        1  1  ffffffff  $(TESTS_RES_DIR)/TestUI/Textures/solid_white.blp

@@ -32,6 +32,11 @@ void SV_ParseClientMessage(LPSIZEBUF msg, LPCLIENT client) {
                 SV_HandlePlayerListRequest(client);
                 break;
                 
+            // Phase 8: Unit UI data requests
+            case clc_request_unit_ui:
+                SV_HandleUnitUIRequest(client, msg);
+                break;
+                
             default:
                 fprintf(stderr, "Unknown message %d\n", pack_id);
                 return;

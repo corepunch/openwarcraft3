@@ -270,6 +270,9 @@ struct game_export *GetGameAPI(struct game_import *import) {
     globals.ClientPanCamera = G_ClientPanCamera;
     globals.ClientBegin = G_ClientBegin;
     globals.GetThemeValue = G_GetThemeValue;
+    globals.GetCommandButtons = G_GetCommandButtons;
+    globals.GetInventory = G_GetInventory;
+    globals.GetBuildQueue = G_GetBuildQueue;
     globals.edict_size = sizeof(struct edict_s);
     return &globals;
 }

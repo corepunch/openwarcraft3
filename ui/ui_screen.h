@@ -19,6 +19,7 @@ typedef struct uiScreen_s {
     void (*key_event)(int key, BOOL down);
     void (*mouse_event)(int x, int y, int buttons);
     void (*route)(LPCSTR path);  /* Handle sub-routes like /lan?join=192.168.1.1 */
+    void (*update_unit_ui)(DWORD num_units, uiUnitData_t *units);  /* Phase 8: receive unit UI data */
 } uiScreen_t;
 
 /* Screen implementations */
@@ -28,5 +29,6 @@ extern uiScreen_t mapSelectScreen;
 extern uiScreen_t lanJoinScreen;
 extern uiScreen_t lanCreateScreen;
 extern uiScreen_t gameSetupScreen;
+extern uiScreen_t console_ui_screen;
 
 #endif /* UI_SCREEN_H */

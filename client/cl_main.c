@@ -58,6 +58,14 @@ void CL_ClearState(void) {
     SZ_Clear (&cls.netchan.message);
 }
 
+/* Forward declarations for UI callbacks */
+static BOOL CL_FileExtractWrapper(LPCSTR toExtract, LPCSTR extracted);
+static HANDLE CL_LoadFileWrapper(LPCSTR fileName, LPDWORD size);
+static LPCPLAYER CL_UIGetPlayerState(void);
+static DWORD CL_UIGetNumEntities(void);
+static LPCENTITYSTATE CL_UIGetEntity(DWORD idx);
+static void CL_UIRequestUnitUI(DWORD num_selected, DWORD *entity_nums);
+
 /* UI library asset indexing wrappers */
 static BOOL CL_FileExtractWrapper(LPCSTR toExtract, LPCSTR extracted) {
     return (BOOL)FS_ExtractFile(toExtract, extracted);
@@ -70,6 +78,40 @@ static HANDLE CL_LoadFileWrapper(LPCSTR fileName, LPDWORD size) {
         *size = (DWORD)strlen(text);
     }
     return text;
+}
+
+/* Game state access callbacks for UI library */
+static LPCPLAYER CL_UIGetPlayerState(void) {
+    return &cl.playerstate;
+}
+
+static DWORD CL_UIGetNumEntities(void) {
+    return cl.num_entities;
+}
+
+static LPCENTITYSTATE CL_UIGetEntity(DWORD idx) {
+    if (idx >= MAX_CLIENT_ENTITIES) {
+        return NULL;
+    }
+    return &cl.ents[idx].current;
+}
+
+/* Request unit UI data (command card, inventory, build queue) */
+static void CL_UIRequestUnitUI(DWORD num_selected, DWORD *entity_nums) {
+    if (!entity_nums || num_selected == 0 || num_selected > 12) {
+        return;
+    }
+    
+    MSG_WriteByte(&cls.netchan.message, clc_request_unit_ui);
+    MSG_WriteByte(&cls.netchan.message, (BYTE)num_selected);
+    for (DWORD i = 0; i < num_selected; i++) {
+        MSG_WriteShort(&cls.netchan.message, (SHORT)entity_nums[i]);
+    }
+}
+
+/* Public wrapper for UI library and input system (Phase 8.6) */
+void CL_RequestUnitUI(DWORD num_selected, DWORD *entity_nums) {
+    CL_UIRequestUnitUI(num_selected, entity_nums);
 }
 
 int CL_ModelIndex(LPCSTR modelName) {
@@ -164,6 +206,10 @@ void CL_Init(void) {
         .RequestMapInfo = CL_RequestMapInfo,
         .RequestGameList = CL_RequestGameList,
         .RequestPlayerInfo = CL_RequestPlayerList,
+        .GetPlayerState = CL_UIGetPlayerState,
+        .GetNumEntities = CL_UIGetNumEntities,
+        .GetEntity = CL_UIGetEntity,
+        .RequestUnitUI = CL_UIRequestUnitUI,
         .Error = CON_printf,
         .Printf = CON_printf,
     });

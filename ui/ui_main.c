@@ -22,11 +22,18 @@ void UI_InitLocal(void) {
     
     uiimport.Printf("UI_InitLocal: loading FDF assets\n");
     
-    /* Load core FDF files */
+    /* Load core menu FDF files */
     UI_ParseFDF("UI\\FrameDef\\UI\\EscMenuTemplates.fdf");
     UI_ParseFDF("UI\\FrameDef\\UI\\EscMenuMainPanel.fdf");
     UI_ParseFDF("UI\\FrameDef\\Glue\\StandardTemplates.fdf");
     UI_ParseFDF("UI\\FrameDef\\Glue\\MainMenu.fdf");
+    
+    /* Load in-game HUD FDF files */
+    UI_ParseFDF("UI\\FrameDef\\UI\\ConsoleUI.fdf");
+    UI_ParseFDF("UI\\FrameDef\\UI\\ResourceBar.fdf");
+    UI_ParseFDF("UI\\FrameDef\\UI\\UpperButtonBar.fdf");
+    UI_ParseFDF("UI\\FrameDef\\UI\\SimpleInfoPanel.fdf");
+    UI_ParseFDF("UI\\FrameDef\\UI\\CinematicPanel.fdf");
     
     ui_state.initialized = true;
     ui_state.active = true;
@@ -126,6 +133,17 @@ void UI_UpdatePlayerInfoLocal(DWORD playerCount, LPCSTR *playerNames) {
     uiimport.Printf("UI_UpdatePlayerInfo: %d players\n", (int)playerCount);
 }
 
+/* Forward unit UI data to active screen (Phase 8) */
+void UI_UpdateUnitUILocal(DWORD num_units, uiUnitData_t *units) {
+    uiimport.Printf("UI_UpdateUnitUI: %d units\n", (int)num_units);
+    
+    /* Forward to current screen if it implements unit UI handling */
+    uiScreen_t *screen = UI_GetCurrentScreen();
+    if (screen && screen->update_unit_ui) {
+        screen->update_unit_ui(num_units, units);
+    }
+}
+
 /* Export function table */
 uiExport_t UI_GetAPI(uiImport_t import) {
     uiimport = import;
@@ -144,6 +162,7 @@ uiExport_t UI_GetAPI(uiImport_t import) {
     exp.UpdateMapInfo = UI_UpdateMapInfoLocal;
     exp.UpdateGameList = UI_UpdateGameListLocal;
     exp.UpdatePlayerInfo = UI_UpdatePlayerInfoLocal;
+    exp.UpdateUnitUI = UI_UpdateUnitUILocal;
     
     return exp;
 }

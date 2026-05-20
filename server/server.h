@@ -162,6 +162,9 @@ void SV_HandleMapInfoRequest(LPCLIENT client, LPSIZEBUF msg);
 void SV_HandleGameListRequest(LPCLIENT client);
 void SV_HandlePlayerListRequest(LPCLIENT client);
 
+/* Unit UI data requests (Phase 8) */
+void SV_HandleUnitUIRequest(LPCLIENT client, LPSIZEBUF msg);
+
 // sv_world.c
 void SV_LinkEntity(LPEDICT ent);
 void SV_UnlinkEntity(LPEDICT ent);

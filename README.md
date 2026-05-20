@@ -204,48 +204,63 @@ After all entities have moved, `G_SolveCollisions` (`game/g_phys.c`) iterates ov
 
 Animation is driven by `M_MoveFrame` (`game/g_monster.c`), which advances `edict->s.frame` each game tick according to the current animation interval. When an animation cycle completes, the `endfunc` of the current `umove_t` is called to transition to the next state (e.g. attack → cooldown → attack again).
 
-## UI System
+## UI System (Phase 8: Client-Side Architecture)
 
-All UI logic runs on the **server** inside the game library (`game/ui/`). The client receives serialized UI state and renders it; it has no knowledge of UI structure or layout rules.
+All UI logic runs **client-side** in the UI library (`ui/`). The server provides only game data (unit abilities, inventory, build queues) through a query protocol. This follows the Quake 3 Arena pattern where UI is a separate client-side library.
 
-### FDF Parsing and Frame Templates
+### Migration from Server-Side UI
 
-At startup, `UI_Init` (`game/ui/ui_init.c`) loads Warcraft III's `.fdf` (Frame Definition File) assets via `UI_ParseFDF`. These files describe the hierarchy of UI frames — their type (backdrop, button, label, etc.), textures, fonts, anchor points, and sizes. The parsed data is stored as `frameDef_t` templates in a global registry.
+Previously (Phase 1-7), UI logic ran on the server in `game/ui/` and `game/hud/`. This violated the game-agnostic principle and bloated the game library by ~107KB. Phase 8 (May 2026) moved all UI to the client, reducing `libgame.dylib` from 406K to 299K.
 
-### Writing UI to Clients
+### FDF Parsing and Frame Management
 
-When a client connects, `G_ClientBegin` (`game/g_main.c`) calls `UI_WriteLayout` to serialize the complete UI tree and send it to the client as an `svc_layout` message. `UI_WriteLayout` (`game/ui/ui_write.c`) traverses the frame tree depth-first; for each frame it calls `UI_WriteFrame`, which:
+The UI library (`ui/ui_main.c`) loads Warcraft III's `.fdf` (Frame Definition File) assets via `UI_ParseFDF` (`ui/ui_fdf.c`). These files describe the hierarchy of UI frames — their type (backdrop, button, label, etc.), textures, fonts, anchor points, and sizes. The UI library maintains the complete frame tree and handles all layout calculation and rendering client-side.
 
-1. Copies the frame's base properties (position anchors, size, texture, color) into a `uiFrame_t` struct
-2. Writes type-specific data (backdrop edges, button states, label font settings, etc.) into a small inline buffer
-3. Calls `gi.WriteUIFrame` to emit the frame as a delta-encoded message
+### Unit Data Query Protocol
 
-The client receives the `svc_layout` message in `CL_ParseLayout` (`client/cl_parse.c`) and stores the raw serialized layout blob. The renderer reads this blob each frame to draw the UI without the client needing to understand the frame hierarchy.
+When the player selects units, the client requests unit data from the server:
 
-### Wire Message Format
-
-All UI is generated on the server. Each frame is sent to the client as a compact, delta-encoded message — only changed fields are transmitted. Conceptually a frame message looks like:
-
-```
-x 655  y -655  pic 13  stat 1  text "Gold: 500"
-```
-
-Each field maps to the corresponding `uiFrame_t` member (`x`/`y` are integer anchor offsets scaled by `UI_FRAMEPOINT_SCALE` (32767), `pic` is `tex.index`, `stat` shows a live player stat). See `uiFrameFields[]` in `common/msg.c` for the full field list.
-
-Server-side example:
-
+**Client → Server:** `clc_request_unit_ui`
 ```c
-FRAMEDEF f;
-UI_InitFrame(&f, FT_TEXT);
-f.Text = "Gold: 500";
-f.Stat = PLAYERSTATE_RESOURCE_GOLD;     // live stat — updated automatically each frame
-UI_SetPoint(&f, FRAMEPOINT_TOPLEFT, NULL, FRAMEPOINT_TOPLEFT, 0.02, -0.02);
-UI_WriteFrame(&f);
+// client/cl_input.c — Selection complete
+MSG_WriteByte(&cls.netchan.message, clc_request_unit_ui);
+MSG_WriteByte(&cls.netchan.message, num_selected);
+for (i = 0; i < num_selected; i++)
+    MSG_WriteShort(&cls.netchan.message, entity_nums[i]);
 ```
 
-### Dynamic UI Updates
+**Server → Client:** `svc_unit_ui`
+```c
+// server/sv_unit_ui.c — Query game DLL and respond
+gameCommandButton_t buttons[12];
+BYTE num_buttons = ge->GetCommandButtons(ent, buttons, 12);
 
-During gameplay the server can push incremental UI updates for things like the command card (ability buttons shown for the selected unit). These updates follow the same `svc_layout` / delta-encoding path, replacing only the affected layer on the client.
+MSG_WriteByte(response, num_buttons);
+for (j = 0; j < num_buttons; j++) {
+    MSG_WriteString(response, buttons[j].art);
+    MSG_WriteString(response, buttons[j].tooltip);
+    MSG_WriteString(response, buttons[j].ubertip);
+    MSG_WriteString(response, buttons[j].command);
+    MSG_WriteByte(response, buttons[j].hotkey);
+}
+// ... repeat for inventory and build queue
+```
+
+**Client Storage:**
+```c
+// ui/screens/console_ui.c — Cache and render
+static uiUnitData_t cached_units[MAX_CACHED_UNITS];
+void ConsoleUI_UpdateUnitUI(DWORD num_units, uiUnitData_t *units) {
+    memcpy(cached_units, units, sizeof(uiUnitData_t) * num_units);
+    // Rendering uses cached_units[] to draw command card
+}
+```
+
+### Client-Side Rendering
+
+The UI library dispatches rendering to screen controllers (e.g., `ui/screens/console_ui.c` for in-game HUD, `ui/screens/main_menu.c` for menus). Each screen manages its own frame tree and updates frames based on game state. The renderer calls back into client import functions to draw quads, text, and models.
+
+No serialized UI blobs are transmitted over the network. The server is game-agnostic and provides only data.
 
 ---
 
@@ -270,7 +285,9 @@ UI tests are fully repo-owned and deterministic:
 
 `make test` now always runs `make test-assets` first, so the generated UI archive is part of the normal test flow.
 
-For UI-impacting changes (`game/ui/*`, `client/cl_scrn.c`, `renderer/r_draw.c`, sprite/model UI paths), run `make test-ui` before merging. This gate executes parser, serialization, layout, end-to-end, and tool-oracle UI suites.
+For UI-impacting changes (`ui/*`, `client/cl_scrn.c`, `renderer/r_draw.c`, sprite/model UI paths), run `make test-ui` before merging. This gate executes parser, layout, end-to-end, and tool-oracle UI suites.
+
+Note: `fdftool` was removed in Phase 8 as it depended on deleted server-side UI code (`game/ui/`).
 
 ## External Dependencies
 

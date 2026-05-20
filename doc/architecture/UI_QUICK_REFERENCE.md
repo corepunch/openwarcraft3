@@ -1,6 +1,6 @@
-# UI System Quick Reference
+# UI System Quick Reference (Phase 8+)
 
-A quick guide to understanding the UI codebase structure and key files.
+A quick guide to understanding the **client-side UI architecture** introduced in Phase 8 (May 2026).
 
 ## System Overview
 
@@ -18,46 +18,22 @@ A quick guide to understanding the UI codebase structure and key files.
                   │
                   ↓
      ┌───────────────────────────────────┐
-     │ client/cl_main.c                  │
-     │ CL_SendCommand() - Serialize      │
-     └────────────┬──────────────────────┘
-                  │
-         ┌────────┴────────┐
-         │ clc_stringcmd   │  (e.g., "menu SinglePlayerMenu")
-         └────────┬────────┘
-                  │ Network
-                  ↓
-     ┌───────────────────────────────────┐
-     │ game/g_commands.c                 │
-     │ G_ClientCommand() - Dispatch      │
+     │ ui/ui_router.c                    │
+     │ UI_HandleInput() - Route to       │
+     │ Active Screen                     │
      └────────────┬──────────────────────┘
                   │
                   ↓
      ┌───────────────────────────────────┐
-     │ game/ui/ui_init.c                 │
-     │ UI_ShowMenu() - Generate UI       │
+     │ ui/screens/*.c                    │
+     │ ConsoleUI_HandleInput()           │
+     │ MainMenu_HandleInput()            │
      └────────────┬──────────────────────┘
                   │
                   ↓
      ┌───────────────────────────────────┐
-     │ game/ui/ui_write.c                │
-     │ UI_WriteLayout() - Serialize      │
-     └────────────┬──────────────────────┘
-                  │
-         ┌────────┴────────┐
-         │ svc_layout      │  (Serialized frame tree)
-         └────────┬────────┘
-                  │ Network
-                  ↓
-     ┌───────────────────────────────────┐
-     │ client/cl_parse.c                 │
-     │ CL_ParseLayout() - Store Blob     │
-     └────────────┬──────────────────────┘
-                  │
-                  ↓
-     ┌───────────────────────────────────┐
-     │ client/cl_scrn.c                  │
-     │ SCR_DrawFrame() - Render & Detect │
+     │ ui/ui_render.c                    │
+     │ UI_Render() - Draw Frame Tree     │
      └────────────┬──────────────────────┘
                   │
                   ↓
@@ -67,137 +43,269 @@ A quick guide to understanding the UI codebase structure and key files.
 └─────────────────────────────────────────────────────────────┘
 ```
 
+### Unit Selection Flow (Client \u2194 Server)
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ USER SELECTS UNITS                                          │
+└────────────────────┬────────────────────────────────────────┘
+                     │
+                     ↓
+     ┌───────────────────────────────────┐
+     │ client/cl_input.c                 │
+     │ IN_SelectUp() - Store Selection   │
+     │ CL_RequestUnitUI()                │
+     └────────────┬──────────────────────┘
+                  │
+         ┌────────┴────────┐
+         │ clc_request_    │  [num_units] [entity_nums...]
+         │ unit_ui         │
+         └────────┬────────┘
+                  │ Network
+                  ↓
+     ┌───────────────────────────────────┐
+     │ server/sv_unit_ui.c               │
+     │ SV_HandleUnitUIRequest()          │
+     └────────────┬──────────────────────┘
+                  │
+                  ↓
+     ┌───────────────────────────────────┐
+     │ game/g_unit_ui.c                  │
+     │ G_GetCommandButtons()             │
+     │ G_GetInventory()                  │
+     │ G_GetBuildQueue()                 │
+     └────────────┬──────────────────────┘
+                  │
+         ┌────────┴────────┐
+         │ svc_unit_ui     │  [buttons] [inventory] [queue]
+         └────────┬────────┘
+                  │ Network
+                  ↓
+     ┌───────────────────────────────────┐
+     │ client/cl_unit_ui.c               │
+     │ CL_ParseUnitUI() - Store Data     │
+     └────────────┬──────────────────────┘
+                  │
+                  ↓
+     ┌───────────────────────────────────┐
+     │ ui/screens/console_ui.c           │
+     │ ConsoleUI_UpdateUnitUI()          │
+     │ Cache unit data                   │
+     └────────────┬──────────────────────┘
+                  │
+                  ↓
+┌─────────────────────────────────────────────────────────────┐
+│ COMMAND CARD RENDERED                                       │
+│ (Buttons, Inventory, Build Queue)                           │
+└─────────────────────────────────────────────────────────────┘
+```
+
 ---
 
 ## Core Files by Function
 
-### Server-Side UI Generation
+### Client-Side UI Library
 
 | File | Key Functions | Purpose |
 |------|---|---|
-| `game/ui/ui_init.c` | `UI_Init()`, `UI_ShowMainMenu()`, `UI_ShowSinglePlayerMenu()` | Initialize UI system, define menus, manage menu transitions |
-| `game/ui/ui_fdf.c` | `UI_ParseFDF_Buffer()`, `UI_InitFrame()`, `UI_SetPoint()`, `UI_SetText()` | Parse FDF files, programmatic frame API |
-| `game/ui/ui_write.c` | `UI_WriteLayout()`, `UI_WriteFrame()`, `UI_WriteFrameWithChildren()` | Serialize frame trees, emit svc_layout messages |
-| `game/hud/ui_console.c` | `ui_unit_commands()`, `ui_unit_info()` | In-game HUD definitions (command card, resource bar) |
-| `game/g_commands.c` | `G_ClientCommand()`, `CMD_Menu()`, `CMD_Button()` | Dispatch incoming client commands |
+| `ui/ui_main.c` | `UI_GetAPI()`, `UI_Init()`, `UI_Render()` | Library entry point, screen management |
+| `ui/ui_fdf.c` | `UI_ParseFDF_Buffer()`, `UI_InitFrame()`, `UI_SetPoint()`, `UI_SetText()` | Parse FDF files, programmatic frame API |
+| `ui/ui_render.c` | `UI_Render()`, type-specific renderers | Frame tree traversal and rendering |
+| `ui/ui_router.c` | `UI_HandleInput()`, `UI_SetScreen()` | Input routing, screen transitions |
+| `ui/screens/console_ui.c` | `ConsoleUI_Init()`, `ConsoleUI_Render()`, `ConsoleUI_UpdateUnitUI()` | In-game HUD (command card, resource bar) |
+| `ui/screens/main_menu.c` | `MainMenu_Init()`, `MainMenu_Render()` | Main menu, single player menu |
 
-### Client-Side Rendering
-
-| File | Key Functions | Purpose |
-|------|---|---|
-| `client/cl_input.c` | `CL_Input()` | Poll keyboard/mouse, record events |
-| `client/cl_main.c` | `CL_Frame()`, `CL_SendCommand()` | Main client loop, send commands to server |
-| `client/cl_parse.c` | `CL_ParseLayout()`, `MSG_ReadDeltaUIFrame()` | Receive and store serialized layouts |
-| `client/cl_scrn.c` | `SCR_DrawFrame()`, `SCR_LayoutRect()`, `SCR_Clear()` | Deserialize, render, hit-test frames |
-| `renderer/r_main.c` | `R_DrawUI()` | Frame dispatch to type-specific renderers |
-| `renderer/r_font.c` | `R_DrawText()` | Bitmap font rendering |
-
-### Network & Serialization
+### Client Integration
 
 | File | Key Functions | Purpose |
 |------|---|---|
-| `common/msg.c` | `MSG_WriteDeltaUIFrame()`, `MSG_ReadDeltaUIFrame()` | Delta encoding/decoding |
-| `server/sv_game.c` | `gi.WriteUIFrame()` | Server-side delta write |
-| `common/shared.h` | `uiFrame_t`, `FRAMEDEF` | Wire format definitions |
+| `client/cl_input.c` | `CL_Input()`, `IN_SelectUp()`, `CL_RequestUnitUI()` | Input handling, selection tracking |
+| `client/cl_unit_ui.c` | `CL_ParseUnitUI()` | Parse `svc_unit_ui` messages |
+| `client/cl_main.c` | `CL_Init()`, `CL_Frame()` | Initialize UI library, main loop |
+
+### Server-Side Data Providers
+
+| File | Key Functions | Purpose |
+|------|---|---|
+| `server/sv_unit_ui.c` | `SV_HandleUnitUIRequest()` | Handle `clc_request_unit_ui`, query game DLL |
+| `game/g_unit_ui.c` | `G_GetCommandButtons()`, `G_GetInventory()`, `G_GetBuildQueue()` | Provide unit data to server |
+| `game/g_ui_stubs.c` | `Get_Commands_f()`, `UI_Init()`, etc. | No-op stubs for legacy server-side UI functions |
+
+### Shared
+
+| File | Key Data | Purpose |
+|------|---|---|
+| `ui/ui.h` | `uiImport_t`, `uiExport_t`, `uiCommandButton_t`, `uiUnitData_t` | UI library interface |
+| `server/game.h` | `game_export` with `GetCommandButtons`, `GetInventory`, `GetBuildQueue` | Game DLL unit data callbacks |
+| `common/common.h` | `clc_request_unit_ui`, `svc_unit_ui` | Network protocol opcodes |
 
 ---
 
-## Data Flow: Click to Render
+## Data Flow: Selection to Render
 
-### 1. Client Input → Server Command
+### 1. Client Input \u2192 Unit Selection
 
 ```c
-// client/cl_input.c — Record mouse event
-mouse.event = UI_LEFT_MOUSE_UP;
-mouse.origin.x = 800;
-mouse.origin.y = 300;
-
-// client/cl_main.c — Send to server
-MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
-MSG_WriteString(&cls.netchan.message, "menu SinglePlayerMenu");
+// client/cl_input.c — Mouse drag complete
+void IN_SelectUp(void) {
+    // Collect entities in selection rectangle
+    DWORD entity_nums[MAX_SELECTED_ENTITIES];
+    DWORD num = CollectSelectedEntities(entity_nums);
+    
+    // Store selection locally
+    cl.selection.num_selected = num;
+    memcpy(cl.selection.entity_nums, entity_nums, sizeof(DWORD) * num);
+    
+    // Request unit data from server
+    CL_RequestUnitUI(num, entity_nums);
+}
 ```
 
-### 2. Server Command → UI Generation
+### 2. Client \u2192 Server: Query Unit Data
 
 ```c
-// game/g_commands.c — Dispatch command
-void G_ClientCommand(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
-    if (!strcmp(argv[0], "menu")) {
-        CMD_Menu(ent, argc, argv);  // argv[1] = "SinglePlayerMenu"
+// client/cl_main.c — Send request
+void CL_RequestUnitUI(DWORD num_selected, DWORD *entity_nums) {
+    MSG_WriteByte(&cls.netchan.message, clc_request_unit_ui);
+    MSG_WriteByte(&cls.netchan.message, num_selected);
+    for (i = 0; i < num_selected; i++) {
+        MSG_WriteShort(&cls.netchan.message, entity_nums[i]);
     }
 }
-
-// game/ui/ui_init.c — Generate UI
-void UI_ShowSinglePlayerMenu(LPEDICT ent) {
-    UI_WriteStart(LAYER_CONSOLE);
-    UI_WriteMenuWithMainFrame(ent->client, UI_FindFrame("SinglePlayerMenu"));
-    gi.WriteLong(0);  // End-of-list sentinel
-    gi.unicast(ent);  // Send to client
-}
 ```
 
-### 3. Serialization → Network Message
+### 3. Server: Query Game DLL
 
 ```c
-// game/ui/ui_write.c — Serialize frames
-void UI_WriteFrame(LPCFRAMEDEF frame) {
-    uiFrame_t tmp;
-    UI_CopyFrameBase(&tmp, frame);
+// server/sv_unit_ui.c — Handle request
+void SV_HandleUnitUIRequest(LPCLIENT client, LPSIZEBUF msg) {
+    BYTE num = MSG_ReadByte(msg);
     
-    // Type-specific buffer
-    switch (frame->Type) {
-        case FT_GLUETEXTBUTTON:
-            WriteGlueTextButton(frame, &buf, buffer);
-            break;
-        // ...
-    }
-    
-    // Delta-encode and write
-    gi.WriteUIFrame(&tmp);
-}
-
-// server/sv_game.c — Delta-encode
-gi.WriteUIFrame(&frame);  // Writes: bits | changed_fields
-```
-
-### 4. Client Reception → Storage
-
-```c
-// client/cl_parse.c — Receive layout
-void CL_ParseLayout(LPSIZEBUF msg) {
-    DWORD layer = MSG_ReadByte(msg);  // LAYER_CONSOLE
-    
-    while (true) {
-        int nument = MSG_ReadEntityBits(msg, &bits);
-        if (nument == 0 && bits == 0) break;
+    for (i = 0; i < num; i++) {
+        WORD ent_num = MSG_ReadShort(msg);
+        LPEDICT ent = &ge->edicts[ent_num];
         
-        LPUIFRAME ent = &frames[nument];
-        MSG_ReadDeltaUIFrame(msg, ent, nument, bits);
-        // ... read type-specific buffer
+        // Query game DLL
+        gameCommandButton_t buttons[12];
+        BYTE count = ge->GetCommandButtons(ent, buttons, 12);
+        
+        // Write response (svc_unit_ui)
+        MSG_WriteByte(response, count);
+        for (j = 0; j < count; j++) {
+            MSG_WriteString(response, buttons[j].art);
+            MSG_WriteString(response, buttons[j].tooltip);
+            // ...
+        }
     }
-    
-    // Store serialized blob
-    memcpy(cl.layout[layer], serialized_blob, size);
 }
 ```
 
-### 5. Rendering → Screen
+### 4. Server \u2192 Client: Send Data
 
 ```c
-// client/cl_scrn.c — Render loop
-void SCR_UpdateScreen(void) {
-    for (DWORD layer = 0; layer < MAX_LAYOUT_LAYERS; layer++) {
-        LPUIFRAME frames = SCR_Clear(layer);  // Deserialize blob
-        
-        for (DWORD i = 0; i < num_frames; i++) {
-            LPCRECT screen = SCR_LayoutRect(&frames[i]);
-            
-            // Hit-test for clicks
-            if (Rect_contains(screen, &mouse_fdf) && 
-                mouse.event == UI_LEFT_MOUSE_UP) {
-                // Send onclick command
-                if (frames[i].onclick) {
-                    MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
+// Game DLL provides data
+// game/g_unit_ui.c
+BYTE G_GetCommandButtons(LPEDICT ent, gameCommandButton_t *buttons, BYTE max) {
+    LPCSTR abilList = FindConfigValue(GetClassName(ent->class_id), \"abilList\");
+    // Parse abilities, populate buttons array
+    return count;
+}
+```
+
+### 5. Client: Store and Render
+
+```c
+// client/cl_unit_ui.c — Parse response
+void CL_ParseUnitUI(LPSIZEBUF msg) {
+    DWORD num_units = MSG_ReadByte(msg);
+    uiUnitData_t units[MAX_CACHED_UNITS];
+    
+    for (i = 0; i < num_units; i++) {
+        units[i].entity = MSG_ReadShort(msg);
+        units[i].num_buttons = MSG_ReadByte(msg);
+        for (j = 0; j < units[i].num_buttons; j++) {
+            MSG_ReadString(msg, units[i].buttons[j].art, 256);
+            MSG_ReadString(msg, units[i].buttons[j].tooltip, 256);
+            // ...
+        }
+    }
+    
+    // Forward to UI library
+    ui.UpdateUnitUI(num_units, units);
+}
+
+// ui/screens/console_ui.c — Cache and render
+static uiUnitData_t cached_units[MAX_CACHED_UNITS];
+static DWORD cached_unit_count = 0;
+
+void ConsoleUI_UpdateUnitUI(DWORD num_units, uiUnitData_t *units) {
+    cached_unit_count = num_units;
+    memcpy(cached_units, units, sizeof(uiUnitData_t) * num_units);
+}
+
+void ConsoleUI_Render(void) {
+    // Draw command buttons from cached_units[0].buttons[]
+    for (i = 0; i < cached_units[0].num_buttons; i++) {
+        DrawCommandButton(&cached_units[0].buttons[i]);
+    }
+}
+```
+
+---
+
+## Phase 8 Migration Notes
+
+### Removed Files
+
+- `game/ui/` directory (ui_fdf.c, ui_init.c, ui_write.c) — 🗑️ Deleted
+- `game/hud/` directory (ui_console.c, ui_log.c, ui_quests.c) — 🗑️ Deleted
+- `tools/fdftool.c` — 🗑️ Disabled (depended on deleted game/ui/)
+
+### New Files
+
+- `ui/` directory — ✅ Client-side UI library
+- `ui/screens/console_ui.c` — ✅ In-game HUD controller
+- `client/cl_unit_ui.c` — ✅ Unit data parser
+- `server/sv_unit_ui.c` — ✅ Unit data handler
+- `game/g_unit_ui.c` — ✅ Unit data providers
+- `game/g_ui_stubs.c` — ✅ Legacy function stubs
+
+### Protocol Changes
+
+- Added `clc_request_unit_ui` — Client requests unit data
+- Added `svc_unit_ui` — Server provides unit data
+- Removed `svc_layout` (obsolete, was for server-side UI)
+
+### Binary Size Changes
+
+- `libgame.dylib`: 406K → 299K (-107KB / -26%)
+- `libui.dylib`: New library, 108K
+- `openwarcraft3`: Unchanged, 208K
+
+---
+
+## Common Patterns
+
+### Adding a Screen
+
+1. Create `ui/screens/my_screen.c`
+2. Implement `MyScreen_Init()`, `MyScreen_Render()`, `MyScreen_HandleInput()`
+3. Register in `ui/ui_router.c`
+
+### Adding a Command Button
+
+Unit data comes from server via query protocol. To add a button:
+
+1. Add ability to unit's `abilList` in config file
+2. `G_GetCommandButtons()` will automatically include it
+3. Client renders from received data
+
+### Debugging UI Issues
+
+- Use `mdxtool --info` to verify model/texture assets
+- Check `ui/ui_fdf.c` FDF parser for layout issues
+- Trace `CL_ParseUnitUI()` for data reception issues
+- Check `cached_units[]` in `console_ui.c` for render issues
                     MSG_WriteString(&cls.netchan.message, frames[i].onclick);
                 }
                 mouse.event = UI_EVENT_NONE;

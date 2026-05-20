@@ -90,6 +90,8 @@ struct client_state {
     struct {
         RECT rect;
         bool in_progress;
+        DWORD entity_nums[MAX_SELECTED_ENTITIES];  /* Currently selected entity numbers */
+        DWORD num_selected;                         /* Number of currently selected entities */
     } selection;
 };
 
@@ -103,6 +105,7 @@ struct client_static {
 void CL_Connect(LPCSTR host, unsigned short port);
 void CL_SetMenuBindings(void);
 void CL_SetGameplayBindings(void);
+void CL_RequestUnitUI(DWORD num_selected, DWORD *entity_nums);
 
 void V_RenderView(void);
 void V_Shutdown(void);
@@ -195,6 +198,9 @@ void CL_RequestMapList(void);
 void CL_RequestMapInfo(int mapIndex);
 void CL_RequestGameList(void);
 void CL_RequestPlayerList(void);
+
+/* Unit UI data parsing (Phase 8) */
+void CL_ParseUnitUI(LPSIZEBUF msg);
 void CL_ParseMapList(LPSIZEBUF msg);
 void CL_ParseMapInfo(LPSIZEBUF msg);
 void CL_ParseGameList(LPSIZEBUF msg);

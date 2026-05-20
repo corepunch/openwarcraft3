@@ -63,7 +63,10 @@ enum svc_ops {
     svc_map_list,                // [short count] [count * string] map names
     svc_map_info,                // [short index] [string title] [string desc] [string preview]
     svc_game_list,               // [short count] [count * string] game names
-    svc_player_list              // [short count] [count * string] player names
+    svc_player_list,             // [short count] [count * string] player names
+    
+// Unit UI data (Phase 8: HUD migration)
+    svc_unit_ui                  // [byte num_units] for each unit: [short entity] [byte num_buttons] [buttons] [byte num_inventory] [inventory] [byte num_queue] [queue]
 };
 
 // client to server
@@ -78,7 +81,8 @@ enum clc_ops {
     clc_request_map_list,    // no parameters
     clc_request_map_info,    // [short] map index
     clc_request_game_list,   // no parameters
-    clc_request_player_list  // no parameters
+    clc_request_player_list, // no parameters
+    clc_request_unit_ui      // [byte num_selected] [num_selected * short entity_nums]
 };
 
 typedef enum t_attrib_id {

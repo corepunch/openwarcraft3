@@ -15,7 +15,7 @@
 
 #include "../common/msg.c"
 #include "../game/parser.c"
-#include "../game/ui/ui_fdf.c"
+#include "../ui/ui_fdf.c"
 
 #define sizeBuf_s uiWriteSizeBuf_s
 #define LPSIZEBUF UIWriteSizeBufPtr

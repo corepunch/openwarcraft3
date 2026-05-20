@@ -208,6 +208,11 @@ void IN_SelectUp(void) {
         if (re.TraceEntity(&cl.viewDef, r.x, r.y, &entnum)) {
             MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
             SZ_Printf(&cls.netchan.message, "select %d", entnum);
+            
+            /* Store selected entity and request UI data (Phase 8.6) */
+            cl.selection.num_selected = 1;
+            cl.selection.entity_nums[0] = entnum;
+            CL_RequestUnitUI(1, cl.selection.entity_nums);
         }
         if (re.TraceLocation(&cl.viewDef, r.x, r.y, &point)){
             MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
@@ -225,6 +230,11 @@ void IN_SelectUp(void) {
         }
         MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
         SZ_Printf(&cls.netchan.message, buffer);
+        
+        /* Store selected entities and request UI data (Phase 8.6) */
+        cl.selection.num_selected = num;
+        memcpy(cl.selection.entity_nums, selected, sizeof(DWORD) * num);
+        CL_RequestUnitUI(num, cl.selection.entity_nums);
     }
 }
 

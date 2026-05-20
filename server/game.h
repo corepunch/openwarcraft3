@@ -75,6 +75,27 @@ struct game_import {
 
 struct client;
 
+/* Unit UI query result (Phase 8) */
+typedef struct {
+    char art[256];
+    char tooltip[256];
+    char ubertip[512];
+    char command[256];
+    char hotkey;
+} gameCommandButton_t;
+
+typedef struct {
+    char art[256];
+    char tooltip[256];
+    char ubertip[512];
+    BYTE slot;
+} gameInventoryItem_t;
+
+typedef struct {
+    char art[256];
+    WORD entity;
+} gameQueueItem_t;
+
 struct game_export {
     void (*Init)(void);
     void (*Shutdown)(void);
@@ -84,6 +105,12 @@ struct game_export {
     void (*ClientCommand)(LPEDICT ent, DWORD argc, LPCSTR argv[]);
     void (*ClientPanCamera)(LPEDICT ent, LPVECTOR2 offset);
     void (*ClientBegin)(LPEDICT ent);
+    
+    /* Unit UI query (Phase 8) - fill arrays with unit UI data */
+    BYTE (*GetCommandButtons)(LPEDICT ent, gameCommandButton_t *buttons, BYTE max_buttons);
+    BYTE (*GetInventory)(LPEDICT ent, gameInventoryItem_t *items, BYTE max_items);
+    BYTE (*GetBuildQueue)(LPEDICT ent, gameQueueItem_t *queue, BYTE max_queue);
+    
     edict_t *edicts;
     int num_edicts;
     int max_edicts;

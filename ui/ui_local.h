@@ -13,6 +13,7 @@
 #define ui_local_h
 
 #include "ui.h"
+#include "../common/shared.h"  /* For PLAYERSTATE/PLAYERTEXT enums */
 
 /* Constants */
 #define MAX_BUILD_QUEUE 7
@@ -293,6 +294,9 @@ FLOAT Theme_Float(LPCSTR, LPCSTR);
 
 /* ui_frame.c — Frame tree manipulation (to be created) */
 // Additional frame management functions will be declared here
+
+/* ui_render.c — Frame rendering */
+void UI_DrawFrame(LPCFRAMEDEF frame);
 
 /* ui_router.c — Menu routing */
 void UI_Route(LPCSTR route);

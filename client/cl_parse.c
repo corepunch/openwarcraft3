@@ -145,7 +145,7 @@ void CL_MirrorMessage(LPSIZEBUF msg) {
         cls.state = *cl.configstrings[CS_WORLD] ? ca_active : ca_connected;
         MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
         MSG_WriteString(&cls.netchan.message,
-                        cls.state == ca_active ? "menu /game" : "menu /main");
+                        cls.state == ca_active ? "/console" : "/main");
     }
 }
 
@@ -200,6 +200,10 @@ void CL_ParseServerMessage(LPSIZEBUF msg) {
                 break;
             case svc_player_list:
                 CL_ParsePlayerList(msg);
+                break;
+            // Phase 8: Unit UI data
+            case svc_unit_ui:
+                CL_ParseUnitUI(msg);
                 break;
                             default:
                 fprintf(stderr, "Unknown message %d\n", pack_id);

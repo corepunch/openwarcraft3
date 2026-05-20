@@ -141,37 +141,6 @@ typedef enum {
     WPN_MLINE,
 } weaponType_t;
 
-typedef enum {
-    PLAYERSTATE_GAME_RESULT = 0,
-    PLAYERSTATE_RESOURCE_GOLD = 1,
-    PLAYERSTATE_RESOURCE_LUMBER = 2,
-    PLAYERSTATE_RESOURCE_HERO_TOKENS = 3,
-    PLAYERSTATE_RESOURCE_FOOD_CAP = 4,
-    PLAYERSTATE_RESOURCE_FOOD_USED = 5,
-    PLAYERSTATE_FOOD_CAP_CEILING = 6,
-    PLAYERSTATE_GIVES_BOUNTY = 7,
-    PLAYERSTATE_ALLIED_VICTORY = 8,
-    PLAYERSTATE_PLACED = 9,
-    PLAYERSTATE_OBSERVER_ON_DEATH = 10,
-    PLAYERSTATE_OBSERVER = 11,
-    PLAYERSTATE_UNFOLLOWABLE = 12,
-    PLAYERSTATE_GOLD_UPKEEP_RATE = 13,
-    PLAYERSTATE_LUMBER_UPKEEP_RATE = 14,
-    PLAYERSTATE_GOLD_GATHERED = 15,
-    PLAYERSTATE_LUMBER_GATHERED = 16,
-} PLAYERSTATE;
-
-typedef enum {
-    PLAYERTEXT_SPEAKER,
-    PLAYERTEXT_DIALOGUE,
-    PLAYERTEXT_MAP_TITLE,
-    PLAYERTEXT_MAP_SUGGESTED_PLAYERS,
-    PLAYERTEXT_MAP_SIZE,
-    PLAYERTEXT_MAP_TILESET,
-    PLAYERTEXT_MAP_DESCRIPTION,
-    PLAYERTEXT_MAP_PREVIEW,
-    PLAYERTEXT_COUNT,
-} PLAYERTEXT;
 
 typedef enum {
     ALLIANCE_PASSIVE = 0,
@@ -876,11 +845,16 @@ DWORD FindAbilityIndex(LPCSTR);
 void InitAbilities(void);
 void SetAbilityNames(void);
 
-// g_config.c
+// g_metadata.c
 LPCSTR FindConfigValue(LPCSTR, LPCSTR);
 LPCSTR GetClassName(DWORD);
 
-// p_hud.c
+// g_unit_ui.c (Phase 8)
+BYTE G_GetCommandButtons(LPEDICT ent, gameCommandButton_t *buttons, BYTE max_buttons);
+BYTE G_GetInventory(LPEDICT ent, gameInventoryItem_t *items, BYTE max_items);
+BYTE G_GetBuildQueue(LPEDICT ent, gameQueueItem_t *queue, BYTE max_queue);
+
+// g_ai.c
 LPEDICT G_GetMainSelectedUnit(LPGAMECLIENT);
 void Get_Commands_f(LPEDICT);
 void Get_Portrait_f(LPEDICT);

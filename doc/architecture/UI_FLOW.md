@@ -1,202 +1,304 @@
-# Complete UI Flow: From Client Request to Rendering
+# Complete UI Flow: From Client Input to Rendering (Phase 8+)
 
-This document traces the complete lifecycle of a UI interaction: from a mouse click on the client, through server-side command processing and UI generation, to final rendering.
+This document traces the complete lifecycle of UI interaction in the **client-side UI architecture** introduced in Phase 8 (May 2026).
 
 ## Table of Contents
 
 1. [Overview](#overview)
-2. [Phase 1: Client-Side Input](#phase-1-client-side-input)
-3. [Phase 2: Network Transmission to Server](#phase-2-network-transmission-to-server)
-4. [Phase 3: Server Command Processing](#phase-3-server-command-processing)
-5. [Phase 4: Server-Side UI Generation](#phase-4-server-side-ui-generation)
-6. [Phase 5: Serialization for Network](#phase-5-serialization-for-network)
-7. [Phase 6: Client Reception and Storage](#phase-6-client-reception-and-storage)
-8. [Phase 7: Client-Side Rendering](#phase-7-client-side-rendering)
-9. [Complete Example: SinglePlayer Menu Click](#complete-example-singleplayer-menu-click)
-10. [Key Architectural Decisions](#key-architectural-decisions)
+2. [Phase 8 Migration](#phase-8-migration)
+3. [Menu Navigation Flow](#menu-navigation-flow)
+4. [Unit Selection and Command Card Flow](#unit-selection-and-command-card-flow)
+5. [Key Architectural Decisions](#key-architectural-decisions)
 
 ## Overview
 
-The UI system follows a **server-authoritative** model:
+The UI system follows a **client-authoritative** model for rendering and layout:
 
 ```
-Client Input Event
+Client Input Event (Mouse/Keyboard)
     ↓
-Network Message (clc_stringcmd)
+UI Library Input Handler (ui/ui_router.c)
     ↓
-Server Command Handler (G_ClientCommand)
+Screen Controller (ui/screens/*.c)
     ↓
-Game Logic Updates + UI Generation
-    ↓
-Serialization (UI_WriteLayout)
-    ↓
-Network Message (svc_layout)
-    ↓
-Client Storage (cl.layout)
-    ↓
-Client Rendering (SCR_DrawFrame)
+Client Rendering (ui/ui_render.c)
     ↓
 Screen Output
 ```
 
-All UI logic and state live on the **server**. The client is a thin renderer that receives serialized frame trees and paints them without understanding the frame hierarchy or game context.
+For game state data (unit abilities, inventory, etc.), the client queries the server:
+
+```
+Client: Unit Selection
+    ↓
+Network Message (clc_request_unit_ui)
+    ↓
+Server Handler (sv_unit_ui.c)
+    ↓
+Game DLL Query (ge->GetCommandButtons)
+    ↓
+Network Response (svc_unit_ui)
+    ↓
+Client Parser (cl_unit_ui.c)
+    ↓
+UI Update (console_ui.c)
+    ↓
+Client Rendering
+    ↓
+Screen Output
+```
+
+All UI logic, FDF parsing, layout calculation, and rendering happen **client-side**. The server is game-agnostic and only provides data.
 
 ---
 
-## Phase 1: Client-Side Input
+## Phase 8 Migration
 
-### File: `client/cl_input.c`
+### Before (Phase 1-7): Server-Side UI
 
-The client's input system runs every frame in `CL_Input()`:
+- Game DLL (`game/ui/`, `game/hud/`) generated complete frame trees
+- Server serialized frames via `svc_layout` messages
+- Client was a "dumb renderer" that only displayed received blobs
+- **Problem**: Violated game-agnostic principle, bloated game.dll by ~107KB
+
+### After (Phase 8): Client-Side UI
+
+- UI library (`ui/`) handles all rendering and layout
+- Client parses FDF files locally
+- Server provides only **data** (unit stats, abilities) via query protocol
+- Game DLL shrunk from 406K to 299K (-107KB)
+
+---
+
+## Menu Navigation Flow
+
+### 1. Client Input \u2192 Screen Controller
 
 ```c
-void CL_Input(void) {
-    SDL_Event event;
-    mouse.event = UI_EVENT_NONE;
-    
-    // Poll SDL2 for keyboard and mouse events
-    while(SDL_PollEvent(&event)) {
-        switch(event.type) {
-            case SDL_MOUSEBUTTONDOWN:
-                mouse.origin.x = event.button.x;
-                mouse.origin.y = event.button.y;
-                
-                // Translate SDL mouse button to engine constant
-                DWORD mousevt = K_MOUSE1 + event.button.button - 1;
-                
-                // Record the event for later processing
-                // This will be handled in SCR_DrawFrame's hit-testing
-                break;
-                
-            case SDL_KEYDOWN:
-                // Handle keyboard input...
-                break;
+// ui/ui_router.c — Route input to active screen
+void UI_HandleInput(mouseEvent_t *event) {
+    if (active_screen && active_screen->handle_input) {
+        active_screen->handle_input(event);
+    }
+}
+
+// ui/screens/main_menu.c — Handle button click
+void MainMenu_HandleInput(mouseEvent_t *event) {
+    if (event->type == UI_LEFT_MOUSE_UP) {
+        LPFRAMEDEF btn = UI_HitTest(event->position);
+        if (btn && btn->onclick) {
+            // Execute onclick command (e.g., "show SinglePlayerMenu")
+            UI_ExecuteCommand(btn->onclick);
         }
     }
 }
 ```
 
-### Data: Mouse Events
+### 2. Screen Transition
 
 ```c
-typedef struct {
-    VECTOR2 origin;      // Window-space pixel coordinates
-    DWORD event;         // UI_EVENT_NONE, UI_LEFT_MOUSE_UP, etc.
-} mouseEvent_t;
-```
-
-The mouse position is converted from window pixel coordinates to FDF normalized coordinates (0.0–1.0) by `SCR_MouseToFdf()`:
-
-```c
-VECTOR2 SCR_MouseToFdf(void) {
-    size2_t window = re.GetWindowSize();
-    RECT scene = SCR_GetUISceneRect();  // Compute aspect-ratio adjusted scene bounds
-    
-    FLOAT nx = (FLOAT)mouse.origin.x / (FLOAT)window.width;
-    FLOAT ny = (FLOAT)mouse.origin.y / (FLOAT)window.height;
-    
-    return MAKE(VECTOR2,
-                scene.x + nx * scene.w,
-                scene.y + ny * scene.h);
-}
-```
-
----
-
-## Phase 2: Network Transmission to Server
-
-### File: `client/cl_main.c`
-
-Every frame, after collecting input, `CL_SendCommand()` is called to forward user commands to the server:
-
-```c
-void CL_SendCommand(void) {
-    CL_SendCmd();    // Send usercmd_t (camera movement)
-    Cbuf_Execute();  // Execute queued console commands
-}
-```
-
-### Sending UI Commands
-
-When the user clicks a UI button, the command is issued as a **console command** (not part of the regular movement packet). For menu buttons, this happens in the client's frame rendering loop (see Phase 7), where the command is extracted from the frame's `onclick` field.
-
-For example, clicking the "Single Player" button sends:
-
-```c
-MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
-MSG_WriteString(&cls.netchan.message, "menu SinglePlayerMenu");
-```
-
-The message is appended to `cls.netchan.message` (the outgoing network buffer) and will be flushed by the next `SV_ReadPackets` call on the server.
-
-### Network Message Format
-
-```c
-typedef enum {
-    clc_move,           // usercmd_t — camera pan, unit movement
-    clc_stringcmd,      // string — "menu X", "button Y", etc.
-    clc_ack,            // acknowledgement
-    // ...
-} clc_ops_e;
-```
-
----
-
-## Phase 3: Server Command Processing
-
-### File: `game/g_commands.c` and `game/g_main.c`
-
-The server's main loop calls `SV_ReadPackets()` to drain incoming client messages. Each `clc_stringcmd` is dispatched to `G_ClientCommand`:
-
-```c
-// From game/g_main.c
-void G_ClientCommand(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
-    if (argc < 1)
-        return;
-    
-    LPCSTR cmd = argv[0];
-    
-    if (!strcmp(cmd, "menu")) {
-        // Handle menu state change
-        CMD_Menu(ent, argc, argv);
-    } else if (!strcmp(cmd, "button")) {
-        // Handle ability button click
-        CMD_Button(ent, argc, argv);
+// ui/ui_router.c — Switch to new screen
+void UI_SetScreen(LPCSTR screenName) {
+    if (!strcmp(screenName, "SinglePlayerMenu")) {
+        active_screen = &singleplayer_menu_screen;
+        active_screen->init();  // Build frame tree
     }
-    // ... more command handlers
 }
 ```
 
-### Menu Command Handler
+### 3. Rendering
 
 ```c
-void CMD_Menu(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
-    if (argc < 2)
-        return;
-    
-    LPCSTR menu_name = argv[1];
-    
-    // In the "menu" command context:
-    // "menu MainMenu" → show the main menu
-    // "menu SinglePlayerMenu" → show single player menu with main menu background
-    // etc.
-    
-    // The game state records which menu is active
-    ent->client->menu.current_menu = FindMenuByName(menu_name);
-    
-    // Trigger UI update (see next phase)
-    UI_ShowMenu(ent, menu_name);
+// ui/ui_render.c — Render active screen
+void UI_Render(void) {
+    if (active_screen && active_screen->render) {
+        active_screen->render();
+    }
 }
 ```
 
-### Example: SinglePlayer Menu Command
+No network traffic for menu navigation — everything is client-side.
 
-When the user clicks the SinglePlayer button in the main menu:
+---
 
-1. Client receives frame with `onclick = "menu SinglePlayerMenu"`
-2. Client sends: `clc_stringcmd "menu SinglePlayerMenu"`
-3. Server's `G_ClientCommand` calls `CMD_Menu(ent, 2, ["menu", "SinglePlayerMenu"])`
-4. `CMD_Menu` updates game state and calls `UI_ShowMenu`
+## Unit Selection and Command Card Flow
+
+### 1. Client: Selection Input
+
+```c
+// client/cl_input.c — Mouse drag complete
+void IN_SelectUp(void) {
+    // Collect entities in selection rect
+    DWORD entity_nums[MAX_SELECTED_ENTITIES];
+    DWORD num = 0;
+    
+    for (i = 0; i < cl.frame.num_entities; i++) {
+        if (EntityInSelectionRect(&cl.frame.entities[i])) {
+            entity_nums[num++] = cl.frame.entities[i].number;
+        }
+    }
+    
+    // Store selection
+    cl.selection.num_selected = num;
+    memcpy(cl.selection.entity_nums, entity_nums, sizeof(DWORD) * num);
+    
+    // Request unit data from server
+    CL_RequestUnitUI(num, entity_nums);
+}
+```
+
+### 2. Client \u2192 Server: Request Unit Data
+
+```c
+// client/cl_main.c — Send query
+void CL_RequestUnitUI(DWORD num_selected, DWORD *entity_nums) {
+    MSG_WriteByte(&cls.netchan.message, clc_request_unit_ui);
+    MSG_WriteByte(&cls.netchan.message, num_selected);
+    for (i = 0; i < num_selected; i++) {
+        MSG_WriteShort(&cls.netchan.message, entity_nums[i]);
+    }
+}
+```
+
+### 3. Server: Query Game DLL
+
+```c
+// server/sv_unit_ui.c — Handle request
+void SV_HandleUnitUIRequest(LPCLIENT client, LPSIZEBUF msg) {
+    BYTE num_requested = MSG_ReadByte(msg);
+    
+    for (i = 0; i < num_requested; i++) {
+        WORD entity_num = MSG_ReadShort(msg);
+        LPEDICT ent = &ge->edicts[entity_num];
+        
+        // Query game DLL for unit data
+        gameCommandButton_t buttons[12];
+        BYTE num_buttons = ge->GetCommandButtons(ent, buttons, 12);
+        
+        // ... repeat for inventory and build queue
+    }
+}
+```
+
+### 4. Game DLL: Provide Data
+
+```c
+// game/g_unit_ui.c — Populate button data
+BYTE G_GetCommandButtons(LPEDICT ent, gameCommandButton_t *buttons, BYTE max_buttons) {
+    LPCSTR class_name = GetClassName(ent->class_id);
+    LPCSTR abilList = FindConfigValue(class_name, \"abilList\");
+    
+    BYTE count = 0;
+    PARSE_LIST(abilList, abil, parse_segment) {
+        if (count >= max_buttons) break;
+        
+        // Populate button data from config
+        strncpy(buttons[count].art, FindConfigValue(abil, \"Art\"), 255);
+        strncpy(buttons[count].tooltip, FindConfigValue(abil, \"Tip\"), 255);
+        // ...
+        count++;
+    }
+    
+    return count;
+}
+```
+
+### 5. Server \u2192 Client: Send Unit Data
+
+```c
+// server/sv_unit_ui.c — Write response
+MSG_WriteByte(response, svc_unit_ui);
+MSG_WriteByte(response, num_units);
+
+for (i = 0; i < num_units; i++) {
+    MSG_WriteShort(response, entity_nums[i]);
+    MSG_WriteByte(response, num_buttons);
+    
+    for (j = 0; j < num_buttons; j++) {
+        MSG_WriteString(response, buttons[j].art);
+        MSG_WriteString(response, buttons[j].tooltip);
+        MSG_WriteString(response, buttons[j].ubertip);
+        MSG_WriteString(response, buttons[j].command);
+        MSG_WriteByte(response, buttons[j].hotkey);
+    }
+    // ... repeat for inventory and build queue
+}
+```
+
+### 6. Client: Store Unit Data
+
+```c
+// client/cl_unit_ui.c — Parse response
+void CL_ParseUnitUI(LPSIZEBUF msg) {
+    DWORD num_units = MSG_ReadByte(msg);
+    uiUnitData_t *units = malloc(sizeof(uiUnitData_t) * num_units);
+    
+    for (i = 0; i < num_units; i++) {
+        units[i].entity = MSG_ReadShort(msg);
+        units[i].num_buttons = MSG_ReadByte(msg);
+        
+        for (j = 0; j < units[i].num_buttons; j++) {
+            MSG_ReadString(msg, units[i].buttons[j].art, 256);
+            MSG_ReadString(msg, units[i].buttons[j].tooltip, 256);
+            MSG_ReadString(msg, units[i].buttons[j].ubertip, 512);
+            MSG_ReadString(msg, units[i].buttons[j].command, 256);
+            units[i].buttons[j].hotkey = MSG_ReadByte(msg);
+        }
+        // ... repeat for inventory and build queue
+    }
+    
+    // Forward to UI library
+    ui.UpdateUnitUI(num_units, units);
+    free(units);
+}
+```
+
+### 7. UI: Cache and Render
+
+```c
+// ui/screens/console_ui.c — Store unit data
+static uiUnitData_t cached_units[MAX_CACHED_UNITS];
+static DWORD cached_unit_count = 0;
+
+void ConsoleUI_UpdateUnitUI(DWORD num_units, uiUnitData_t *units) {
+    cached_unit_count = num_units;
+    memcpy(cached_units, units, sizeof(uiUnitData_t) * num_units);
+}
+
+// Render loop uses cached_units[] to draw command buttons
+void ConsoleUI_Render(void) {
+    if (cached_unit_count == 0) return;
+    
+    uiUnitData_t *unit = &cached_units[0];  // Primary selection
+    
+    for (i = 0; i < unit->num_buttons; i++) {
+        LPFRAMEDEF btn = &command_buttons[i];
+        UI_SetTexture(btn, unit->buttons[i].art, true);
+        UI_SetTooltip(btn, unit->buttons[i].tooltip);
+        // ... render button
+    }
+}
+```
+
+---
+
+## Key Architectural Decisions
+
+### 1. Client-Side Rendering
+- **Benefit**: Instant UI updates, no network latency for menus
+- **Trade-off**: Client must load FDF files and maintain frame trees
+
+### 2. Server Query Protocol
+- **Benefit**: Server stays game-agnostic, no UI logic in game DLL
+- **Trade-off**: Network round-trip for unit data (mitigated by caching)
+
+### 3. Data-Only Server
+- **Benefit**: Clean separation, smaller game DLL, follows Quake 2/3 pattern
+- **Trade-off**: Cannot do server-side UI validation (not needed for RTS)
+
+### 4. Stub Migration
+- **Benefit**: Preserved API compatibility for legacy code
+- **Implementation**: `game/g_ui_stubs.c` provides no-op implementations
 
 ---
 
