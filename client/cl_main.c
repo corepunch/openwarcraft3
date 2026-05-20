@@ -200,6 +200,7 @@ void CL_Init(void) {
         .ImageIndex = CL_ImageIndex,
         .FontIndex = CL_FontIndex,
         .Cmd_ExecuteText = Cbuf_AddText,
+        .Cvar_String = Cvar_String,
         .RequestMapList = CL_RequestMapList,
         .RequestMapInfo = CL_RequestMapInfo,
         .RequestGameList = CL_RequestGameList,

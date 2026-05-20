@@ -103,6 +103,20 @@ struct font;
 
 typedef void (*xcommand_t)(void);
 
+typedef struct cvar_s {
+    struct cvar_s *next;
+    LPCSTR name;
+    LPSTR string;
+    FLOAT value;
+    int integer;
+    DWORD flags;
+    bool modified;
+} cvar_t;
+
+enum {
+    FLAG(CVAR_ARCHIVE, 0),
+};
+
 typedef struct model {
     unsigned int modeltype;
     struct mdxModel_s *mdx;
@@ -120,7 +134,7 @@ KNOWN_AS(CliffInfo, CLIFFINFO);
 #include "cmodel.h"
 
 // common.c
-void Com_Init(void);
+void Com_Init(int argc, LPCSTR *argv);
 void Com_Error(errorCode_t code, LPCSTR fmt, ...);
 void LoadMap(LPCSTR pFilename);
 
@@ -182,10 +196,27 @@ void ParserError(parser_t *p);
 void Cbuf_Init(void);
 void Cbuf_AddText(LPCSTR text);
 void Cbuf_Execute(void);
+int Cmd_Argc(void);
+LPCSTR Cmd_Argv(int arg);
+LPCSTR Cmd_ArgsFrom(int arg);
 void Cmd_AddCommand(LPCSTR cmd_name, xcommand_t function);
 void Cmd_RemoveCommand(LPCSTR cmd_name);
 bool Cmd_Exists(LPCSTR cmd_name);
 void Cmd_ExecuteString(LPCSTR text);
 void Cmd_ForwardToServer(LPCSTR text);
+
+// cvar.c
+void Cvar_Init(void);
+cvar_t *Cvar_Get(LPCSTR name, LPCSTR value, DWORD flags);
+cvar_t *Cvar_Set(LPCSTR name, LPCSTR value);
+cvar_t *Cvar_SetValue(LPCSTR name, FLOAT value);
+LPCSTR Cvar_String(LPCSTR name, LPCSTR fallback);
+int Cvar_Integer(LPCSTR name, int fallback);
+FLOAT Cvar_Value(LPCSTR name, FLOAT fallback);
+void Cvar_LoadConfig(LPCSTR filename);
+void Cvar_WriteConfig(LPCSTR filename);
+void Cvar_ApplyConfigCommandLine(int argc, LPCSTR *argv);
+void Cvar_ApplyCommandLine(int argc, LPCSTR *argv);
+bool Cvar_Command(void);
 
 #endif

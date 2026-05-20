@@ -810,6 +810,7 @@ void MemFree(HANDLE mem) {
 }
 
 void Com_Quit(void) {
+    Cvar_WriteConfig(Cvar_String("config", "share/config.cfg"));
     CL_Shutdown();
     SV_Shutdown();
     NET_Shutdown();
@@ -829,11 +830,19 @@ void MenuAction(LPCSTR action, LPCSTR arg) {
     }
 }
 
-void Com_Init(void) {
+void Com_Init(int argc, LPCSTR *argv) {
     Cbuf_Init();
+    Cvar_Init();
+    Cvar_ApplyConfigCommandLine(argc, argv);
     FS_Init();
-    SV_Init();
-    CL_Init();
+    Cvar_LoadConfig("share/default.cfg");
+    Cbuf_Execute();
+    Cvar_LoadConfig(Cvar_String("config", "share/config.cfg"));
+    Cbuf_Execute();
+    Cvar_LoadConfig("share/autoexec.cfg");
+    Cbuf_Execute();
+    Cvar_ApplyCommandLine(argc, argv);
+    Cbuf_Execute();
 }
 
 void Com_Error(errorCode_t code, LPCSTR fmt, ...) {

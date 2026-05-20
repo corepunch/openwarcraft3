@@ -44,6 +44,7 @@
 "\n" \
 "Notes:\n" \
 "  - The data folder should contain Warcraft III MPQs and optionally Maps/.\n" \
+"  - The data folder may also be saved as fs_data in share/config.cfg.\n" \
 "  - The map path uses the internal MPQ path format.\n" \
 "  - Remote clients still need the game data for asset loading.\n"
 
@@ -57,8 +58,6 @@ void Sys_Quit(void) {
 }
 
 int main(int argc, LPSTR argv[]) {
-    LPCSTR map = NULL;
-    LPCSTR connect_addr = NULL;
     BOOL data = 0;
 
     fprintf(stderr,
@@ -78,11 +77,19 @@ int main(int argc, LPSTR argv[]) {
             }
             data = 1;
         }
-        if (!strncmp(argv[i], "-map=", 5)) {
-            map = argv[i] + 5;
-        }
-        if (!strncmp(argv[i], "-connect=", 9)) {
-            connect_addr = argv[i] + 9;
+    }
+
+    Com_Init(argc, (LPCSTR *)argv);
+
+    if (!data) {
+        LPCSTR data_dir = Cvar_String("fs_data", "");
+
+        if (data_dir && *data_dir) {
+            if (!FS_AddDataDirectory(data_dir)) {
+                fprintf(stderr, "Failed to add data directory: %s\n", data_dir);
+                return 1;
+            }
+            data = 1;
         }
     }
 
@@ -91,19 +98,22 @@ int main(int argc, LPSTR argv[]) {
         return 1;
     }
 
-    bool menu_mode = !map && !connect_addr;
+    LPCSTR map = Cvar_String("map", "");
+    LPCSTR connect_addr = Cvar_String("connect", "");
+    bool menu_mode = (!map || !*map) && (!connect_addr || !*connect_addr);
     cls.key_dest = menu_mode ? key_menu : key_game;
     cls.state = ca_disconnected;
 
-    unsigned short port = connect_addr ? 0 : PORT_SERVER;
+    unsigned short port = connect_addr && *connect_addr ? 0 : PORT_SERVER;
     if (!NET_Init(port)) {
         fprintf(stderr, "NET_Init failed\n");
         return 1;
     }
 
-    Com_Init();
+    SV_Init();
+    CL_Init();
 
-    if (connect_addr) {
+    if (connect_addr && *connect_addr) {
         // Remote-client mode: skip the local server, connect over UDP.
         CL_Connect(connect_addr, PORT_SERVER);
     } else if (!menu_mode) {
@@ -118,7 +128,7 @@ int main(int argc, LPSTR argv[]) {
     while (true) {
         DWORD currentTime = SDL_GetTicks();
         DWORD msec = currentTime - startTime;
-        if (!connect_addr) {
+        if (!connect_addr || !*connect_addr) {
             SV_Frame(msec);
         }
         CL_Frame(msec);

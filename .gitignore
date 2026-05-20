@@ -9,3 +9,5 @@ StormLib-master/
 .DS_Store
 _codeql_detected_source_root
 War3.mpq
+/share/config.cfg
+/share/autoexec.cfg

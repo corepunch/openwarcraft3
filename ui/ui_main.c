@@ -83,8 +83,11 @@ void UI_InitLocal(void) {
     ui_state.initialized = true;
     ui_state.active = true;
     
-    /* Route to main menu */
-    UI_Route("/main");
+    /* Route to the configured first UI scene. */
+    LPCSTR start_route = uiimport.Cvar_String
+        ? uiimport.Cvar_String("ui_start_route", "/main")
+        : "/main";
+    UI_Route(start_route && *start_route ? start_route : "/main");
 }
 
 void UI_ShutdownLocal(void) {

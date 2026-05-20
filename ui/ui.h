@@ -73,6 +73,7 @@ typedef struct {
     /* Command execution (following Quake 3 pattern)
      * UI executes console commands; engine dispatcher handles routing */
     void (*Cmd_ExecuteText)(LPCSTR text);
+    LPCSTR (*Cvar_String)(LPCSTR name, LPCSTR fallback);
     
     /* Data requests (map lists, game lists, player info) */
     void (*RequestMapList)(void);
