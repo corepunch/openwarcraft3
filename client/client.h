@@ -4,6 +4,7 @@
 #include "../common/common.h"
 #include "renderer.h"
 #include "keys.h"
+#include "../ui/ui.h"
 
 #define WINDOW_WIDTH 1024
 #define WINDOW_HEIGHT 768
@@ -183,9 +184,16 @@ void CL_ParseTEnt(LPSIZEBUF msg);
 void CL_AddTEnts(void);
 void CL_ClearTEnts(void);
 
+// cl_main.c - UI integration
+int CL_ModelIndex(LPCSTR modelName);
+int CL_ImageIndex(LPCSTR imageName);
+int CL_FontIndex(LPCSTR fontName, DWORD fontSize);
+void CL_UIMenuCommand(LPCSTR route);
+
 extern struct client_state cl;
 extern struct client_static cls;
 extern refExport_t re;
+extern uiExport_t ui;
 extern mouseEvent_t mouse;
 
 #endif

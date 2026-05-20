@@ -14,6 +14,7 @@
 #include <arpa/inet.h>
 
 refExport_t re;
+uiExport_t ui;
 
 struct client_static cls;
 struct client_state cl;
@@ -57,6 +58,77 @@ void CL_ClearState(void) {
     SZ_Clear (&cls.netchan.message);
 }
 
+/* UI library asset indexing wrappers */
+static BOOL CL_FileExtractWrapper(LPCSTR toExtract, LPCSTR extracted) {
+    return (BOOL)FS_ExtractFile(toExtract, extracted);
+}
+
+static HANDLE CL_LoadFileWrapper(LPCSTR fileName, LPDWORD size) {
+    /* For text files like FDF, use the string-oriented loader */
+    LPSTR text = FS_ReadFileIntoString(fileName);
+    if (text && size) {
+        *size = (DWORD)strlen(text);
+    }
+    return text;
+}
+
+int CL_ModelIndex(LPCSTR modelName) {
+    /* Find or register model */
+    for (DWORD i = 1; i < MAX_MODELS; i++) {
+        if (cl.models[i] == NULL) {
+            cl.models[i] = re.LoadModel(modelName);
+            return (int)i;
+        }
+        /* Check if already loaded - compare configstring */
+        if (*cl.configstrings[CS_MODELS + i] && !strcmp(cl.configstrings[CS_MODELS + i], modelName)) {
+            return (int)i;
+        }
+    }
+    return 0;
+}
+
+int CL_ImageIndex(LPCSTR imageName) {
+    /* Find or register image */
+    for (DWORD i = 1; i < MAX_IMAGES; i++) {
+        if (cl.pics[i] == NULL) {
+            cl.pics[i] = re.LoadTexture(imageName);
+            return (int)i;
+        }
+        /* Check if already loaded */
+        if (*cl.configstrings[CS_IMAGES + i] && !strcmp(cl.configstrings[CS_IMAGES + i], imageName)) {
+            return (int)i;
+        }
+    }
+    return 0;
+}
+
+int CL_FontIndex(LPCSTR fontName, DWORD fontSize) {
+    /* Create font spec string */
+    char fontspec[256];
+    snprintf(fontspec, sizeof(fontspec), "%s,%u", fontName, fontSize);
+    
+    /* Find or register font */
+    for (DWORD i = 1; i < MAX_FONTSTYLES; i++) {
+        if (cl.fonts[i] == NULL) {
+            cl.fonts[i] = re.LoadFont(fontName, fontSize);
+            return (int)i;
+        }
+        /* Check if already loaded */
+        if (*cl.configstrings[CS_FONTS + i] && !strcmp(cl.configstrings[CS_FONTS + i], fontspec)) {
+            return (int)i;
+        }
+    }
+    return 0;
+}
+
+void CL_UIMenuCommand(LPCSTR route) {
+    CON_printf("CL_UIMenuCommand: %s\\n", route);
+    /* Forward menu commands to UI library */
+    if (ui.MenuCommand) {
+        ui.MenuCommand(route);
+    }
+}
+
 void CL_Init(void) {
     CON_printf("OpenWarcraft3 v0.1");
     fprintf(stderr, "Console initialized.\n");
@@ -73,6 +145,32 @@ void CL_Init(void) {
     });
     
     re.Init(WINDOW_WIDTH, WINDOW_HEIGHT);
+    
+    /* Initialize UI library */
+    ui = UI_GetAPI((uiImport_t) {
+        .FileOpen = FS_OpenFile,
+        .FileExtract = CL_FileExtractWrapper,
+        .FileClose = FS_CloseFile,
+        .LoadFile = CL_LoadFileWrapper,
+        .MemAlloc = MemAlloc,
+        .MemFree = MemFree,
+        .ModelIndex = CL_ModelIndex,
+        .ImageIndex = CL_ImageIndex,
+        .FontIndex = CL_FontIndex,
+        .GetString = NULL, /* TODO: implement string table */
+        .SendCommand = Cbuf_AddText,
+        .LocalCommand = Cbuf_AddText,
+        .RequestMapList = NULL, /* TODO: implement in Phase 5 */
+        .RequestMapInfo = NULL,
+        .RequestGameList = NULL,
+        .RequestPlayerInfo = NULL,
+        .Error = CON_printf,
+        .Printf = CON_printf,
+    });
+    
+    if (ui.Init) {
+        ui.Init();
+    }
 
     SZ_Init(&cls.netchan.message, cls.netchan.message_buf, MAX_MSGLEN);
     
@@ -170,6 +268,9 @@ void CL_Connect(LPCSTR host, unsigned short port) {
 }
 
 void CL_Shutdown(void) {
+    if (ui.Shutdown) {
+        ui.Shutdown();
+    }
     FOR_LOOP(modelIndex, MAX_MODELS) {
         SAFE_DELETE(cl.models[modelIndex], re.ReleaseModel);
         SAFE_DELETE(cl.portraits[modelIndex], re.ReleaseModel);
@@ -192,6 +293,11 @@ void CL_SendCommand(void) {
  * sends commands, and renders the current frame. */
 void CL_Frame(DWORD msec) {
     cl.time += msec;
+
+    /* Update UI library */
+    if (ui.Refresh) {
+        ui.Refresh(msec);
+    }
 
     CL_Input();
     CL_ReadPackets();

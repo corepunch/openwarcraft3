@@ -296,6 +296,11 @@ void SCR_UpdateScreen(void) {
     V_RenderView();
     
     SCR_DrawOverlays();
+    
+    /* Draw UI library frames */
+    if (ui.DrawFrame) {
+        ui.DrawFrame();
+    }
 
     CON_DrawConsole();
     

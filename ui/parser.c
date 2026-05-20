@@ -18,7 +18,34 @@ BOOL eat_token(LPPARSER p, LPCSTR value) {
 
 LPCSTR parse_token(LPPARSER p) {
     static char word[MAX_SEGMENT_SIZE];
-    while (isspace(*p->buffer)) ++p->buffer;
+    
+    /* Skip whitespace and comments */
+    for (;;) {
+        while (isspace(*p->buffer)) ++p->buffer;
+        
+        /* Skip single-line comments */
+        if (p->buffer[0] == '/' && p->buffer[1] == '/') {
+            p->buffer += 2;
+            while (*p->buffer && *p->buffer != '\n') ++p->buffer;
+            continue;
+        }
+        
+        /* Skip multi-line comments */
+        if (p->buffer[0] == '/' && p->buffer[1] == '*') {
+            p->buffer += 2;
+            while (*p->buffer) {
+                if (p->buffer[0] == '*' && p->buffer[1] == '/') {
+                    p->buffer += 2;
+                    break;
+                }
+                ++p->buffer;
+            }
+            continue;
+        }
+        
+        break;
+    }
+    
     if (*p->buffer == '\"') {
         LPCSTR closingQuote = strchr(p->buffer+1, '"');
         size_t stringLength = closingQuote-p->buffer+1;
