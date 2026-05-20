@@ -45,9 +45,9 @@ typedef struct {
     
     /* Data requests (map lists, game lists, player info) */
     void (*RequestMapList)(void);
-    void (*RequestMapInfo)(DWORD mapIndex);
+    void (*RequestMapInfo)(int mapIndex);
     void (*RequestGameList)(void);
-    void (*RequestPlayerInfo)(int slot);
+    void (*RequestPlayerInfo)(void);
     
     /* Error reporting */
     void (*Error)(LPCSTR fmt, ...);

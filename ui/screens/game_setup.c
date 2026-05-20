@@ -38,8 +38,8 @@ static void GameSetup_Init(void) {
     }
     
     /* Request player info from server */
-    for (int i = 0; i < MAX_PLAYER_SLOTS; i++) {
-        uiimport.RequestPlayerInfo(i);
+    if (uiimport.RequestPlayerInfo) {
+        uiimport.RequestPlayerInfo();
     }
 }
 

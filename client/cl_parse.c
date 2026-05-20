@@ -187,8 +187,21 @@ void CL_ParseServerMessage(LPSIZEBUF msg) {
                 break;
             case svc_temp_entity:
                 CL_ParseTEnt(msg);
+                break;                
+            // Phase 5: UI data responses
+            case svc_map_list:
+                CL_ParseMapList(msg);
                 break;
-            default:
+            case svc_map_info:
+                CL_ParseMapInfo(msg);
+                break;
+            case svc_game_list:
+                CL_ParseGameList(msg);
+                break;
+            case svc_player_list:
+                CL_ParsePlayerList(msg);
+                break;
+                            default:
                 fprintf(stderr, "Unknown message %d\n", pack_id);
                 return;
         }

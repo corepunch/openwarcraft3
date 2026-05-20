@@ -17,6 +17,21 @@ void SV_ParseClientMessage(LPSIZEBUF msg, LPCLIENT client) {
             case clc_stringcmd:
                 SV_ExecuteUserCommand(msg, client);
                 break;
+                
+            // Phase 5: UI data requests
+            case clc_request_map_list:
+                SV_HandleMapListRequest(client);
+                break;
+            case clc_request_map_info:
+                SV_HandleMapInfoRequest(client, msg);
+                break;
+            case clc_request_game_list:
+                SV_HandleGameListRequest(client);
+                break;
+            case clc_request_player_list:
+                SV_HandlePlayerListRequest(client);
+                break;
+                
             default:
                 fprintf(stderr, "Unknown message %d\n", pack_id);
                 return;

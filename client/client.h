@@ -190,6 +190,16 @@ int CL_ImageIndex(LPCSTR imageName);
 int CL_FontIndex(LPCSTR fontName, DWORD fontSize);
 void CL_UIMenuCommand(LPCSTR route);
 
+// cl_data.c - UI data requests (Phase 5)
+void CL_RequestMapList(void);
+void CL_RequestMapInfo(int mapIndex);
+void CL_RequestGameList(void);
+void CL_RequestPlayerList(void);
+void CL_ParseMapList(LPSIZEBUF msg);
+void CL_ParseMapInfo(LPSIZEBUF msg);
+void CL_ParseGameList(LPSIZEBUF msg);
+void CL_ParsePlayerList(LPSIZEBUF msg);
+
 extern struct client_state cl;
 extern struct client_static cls;
 extern refExport_t re;

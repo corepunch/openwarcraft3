@@ -57,7 +57,13 @@ enum svc_ops {
     svc_packetentities,            // [...]
 //    svc_deltapacketentities,    // [...]
     svc_frame,
-    svc_mirror
+    svc_mirror,
+    
+// UI data responses (Phase 5: client-side UI)
+    svc_map_list,                // [short count] [count * string] map names
+    svc_map_info,                // [short index] [string title] [string desc] [string preview]
+    svc_game_list,               // [short count] [count * string] game names
+    svc_player_list              // [short count] [count * string] player names
 };
 
 // client to server
@@ -66,7 +72,13 @@ enum clc_ops {
 //    clc_nop,
     clc_move,
 //    clc_userinfo,            // [[userinfo string]
-    clc_stringcmd            // [string] message
+    clc_stringcmd,           // [string] message
+    
+// UI data requests (Phase 5: client-side UI)
+    clc_request_map_list,    // no parameters
+    clc_request_map_info,    // [short] map index
+    clc_request_game_list,   // no parameters
+    clc_request_player_list  // no parameters
 };
 
 typedef enum t_attrib_id {

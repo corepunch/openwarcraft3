@@ -156,6 +156,12 @@ void SV_WriteConfigString(LPSIZEBUF msg, DWORD i);
 // sv_user.c
 void SV_ExecuteUserCommand(LPSIZEBUF msg, LPCLIENT client);
 
+// sv_data.c - UI data request handlers (Phase 5)
+void SV_HandleMapListRequest(LPCLIENT client);
+void SV_HandleMapInfoRequest(LPCLIENT client, LPSIZEBUF msg);
+void SV_HandleGameListRequest(LPCLIENT client);
+void SV_HandlePlayerListRequest(LPCLIENT client);
+
 // sv_world.c
 void SV_LinkEntity(LPEDICT ent);
 void SV_UnlinkEntity(LPEDICT ent);

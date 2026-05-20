@@ -160,10 +160,10 @@ void CL_Init(void) {
         .GetString = NULL, /* TODO: implement string table */
         .SendCommand = Cbuf_AddText,
         .LocalCommand = Cbuf_AddText,
-        .RequestMapList = NULL, /* TODO: implement in Phase 5 */
-        .RequestMapInfo = NULL,
-        .RequestGameList = NULL,
-        .RequestPlayerInfo = NULL,
+        .RequestMapList = CL_RequestMapList,
+        .RequestMapInfo = CL_RequestMapInfo,
+        .RequestGameList = CL_RequestGameList,
+        .RequestPlayerInfo = CL_RequestPlayerList,
         .Error = CON_printf,
         .Printf = CON_printf,
     });
