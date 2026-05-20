@@ -138,6 +138,10 @@ HANDLE FS_ReadLooseFile(LPCSTR filename, LPDWORD size, DWORD extraBytes);
 bool FS_ExtractFile(LPCSTR toExtract, LPCSTR extracted);
 bool FS_FileExists(LPCSTR fileName);
 HANDLE FS_ReadFile(LPCSTR filename, LPDWORD size);
+
+// Quake 3-style file API (returns file size, allocates buffer)
+int FS_ReadFileQ3(LPCSTR filename, void **buf);
+void FS_FreeFile(void *buf);
 HANDLE FS_FindFirstFile(LPCSTR mask, SFILE_FIND_DATA *findData);
 BOOL FS_FindNextFile(HANDLE find, SFILE_FIND_DATA *findData);
 BOOL FS_FindClose(HANDLE find);

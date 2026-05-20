@@ -124,10 +124,13 @@ $(SHARED_LIB): $(shell find shared -name '*.c') | $(LIB_DIR)
 		$(CC) $(CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - $(LDFLAGS) -lm
 
 # renderer — depends on shared
+# Uses FS_ReadFile (archive-agnostic) for initial file loads, but includes
+# common/mpq.c for nested .w3m archive handling (maps are MPQ archives containing
+# internal files like war3map.w3e, war3map.shd that must be read via StormLib)
 $(RENDERER_LIB): $(SHARED_LIB) $(CLIENT_HEADERS) common/mpq.c common/mpq.h $(shell find renderer -name '*.c') | $(LIB_DIR)
 	@echo "[renderer]"
 	@$(call UNITY,renderer) | \
-		$(CC) $(CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - common/mpq.c $(LDFLAGS) -lshared $(LIBS) -lz
+		$(CC) $(CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - common/mpq.c $(LDFLAGS) -lshared $(LIBS) -lz -lstorm
 
 # game — depends on shared
 $(GAME_LIB): $(SHARED_LIB) $(shell find game -name '*.c') | $(LIB_DIR)

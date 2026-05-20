@@ -138,33 +138,20 @@ LPWAR3MAP FileReadWar3Map(HANDLE archive) {
 
 void R_RegisterMap(char const *mapFilename) {
     HANDLE hMpq;
-    HANDLE file;
     LPBYTE mapData;
-    DWORD mapSize;
-    DWORD bytesRead = 0;
+    int mapSize;
     LPWAR3MAP map;
 
-    file = ri.FileOpen(mapFilename);
-    if (!file) {
+    /* Load .w3m file (which is itself an MPQ archive) */
+    mapSize = ri.FS_ReadFile(mapFilename, (void **)&mapData);
+    if (mapSize < 0 || !mapData) {
         ri.error("R_RegisterMap: failed to open map %s\n", mapFilename);
         return;
     }
-    mapSize = SFileGetFileSize(file, NULL);
-    mapData = ri.MemAlloc(mapSize);
-    if (!mapData) {
-        ri.FileClose(file);
-        ri.error("R_RegisterMap: failed to allocate map %s\n", mapFilename);
-        return;
-    }
-    if (!SFileReadFile(file, mapData, mapSize, &bytesRead, NULL) || bytesRead != mapSize) {
-        ri.MemFree(mapData);
-        ri.FileClose(file);
-        ri.error("R_RegisterMap: failed to read map %s\n", mapFilename);
-        return;
-    }
-    ri.FileClose(file);
-    if (!SFileOpenArchiveFromMemory(mapData, mapSize, 0, &hMpq)) {
-        ri.MemFree(mapData);
+    
+    /* Open the .w3m as a nested MPQ archive to read internal files */
+    if (!SFileOpenArchiveFromMemory(mapData, (DWORD)mapSize, 0, &hMpq)) {
+        ri.FS_FreeFile(mapData);
         ri.error("R_RegisterMap: failed to open map archive %s\n", mapFilename);
         return;
     }
@@ -173,7 +160,7 @@ void R_RegisterMap(char const *mapFilename) {
     R_FileReadShadowMap(hMpq, map);
 #endif
     SFileCloseArchive(hMpq);
-    ri.MemFree(mapData);
+    ri.FS_FreeFile(mapData);
     tr.world = map;
 
     R_LoadMapSegments(map);

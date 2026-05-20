@@ -611,6 +611,23 @@ void FS_CloseFile(HANDLE file) {
     filelock = false;
 }
 
+// Quake 3-style FS_ReadFile: returns size, allocates buffer via buf pointer
+int FS_ReadFileQ3(LPCSTR filename, void **buf) {
+    if (!buf) {
+        return -1;
+    }
+    DWORD size = 0;
+    *buf = FS_ReadFile(filename, &size);
+    if (!*buf) {
+        return -1;
+    }
+    return (int)size;
+}
+
+void FS_FreeFile(void *buf) {
+    MemFree(buf);
+}
+
 static BOOL FS_FindAdvance(fsFind_t *find, SFILE_FIND_DATA *findData) {
     if (find && findData && find->looseIndex < find->looseCount) {
         LPCSTR name = find->looseFiles[find->looseIndex++];

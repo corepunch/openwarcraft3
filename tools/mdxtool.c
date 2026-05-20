@@ -1222,9 +1222,8 @@ int main(int argc, char **argv) {
     }
 
     refExport_t re = R_GetAPI((refImport_t){
-        .FileOpen = FS_OpenFile,
-        .FileExtract = FS_ExtractFile,
-        .FileClose = FS_CloseFile,
+        .FS_ReadFile = Tool_FS_ReadFile,
+        .FS_FreeFile = Tool_FS_FreeFile,
         .MemAlloc = MemAlloc,
         .MemFree = MemFree,
         .ReadSheet = FS_ParseSLK,

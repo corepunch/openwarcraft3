@@ -216,4 +216,17 @@ static inline const char *Tool_PathExt(const char *path) {
     return dot ? dot + 1 : "";
 }
 
+/* Tool-specific FS_ReadFile wrapper for Quake 3 pattern */
+static inline int Tool_FS_ReadFile(LPCSTR filename, void **buf) {
+    if (!buf) return -1;
+    DWORD size = 0;
+    *buf = FS_ReadFile(filename, &size);
+    if (!*buf) return -1;
+    return (int)size;
+}
+
+static inline void Tool_FS_FreeFile(void *buf) {
+    MemFree(buf);
+}
+
 #endif

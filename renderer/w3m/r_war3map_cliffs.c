@@ -201,9 +201,9 @@ LPMAPLAYER R_BuildMapSegmentCliffs(LPCWAR3MAP map, DWORD sx, DWORD sy, DWORD cli
         .cliffModelDir = ri.FindSheetCell(tr.sheet[SHEET_CLIFF], cliffID_str, "cliffModelDir"),
     };
     sprintf(buffer, "%s\\%c_%s.blp", data.texDir, map->tileset, data.texFile);
-    HANDLE testfile = ri.FileOpen(buffer);
-    if (testfile) {
-        ri.FileClose(testfile);
+    void *testbuf = NULL;
+    if (ri.FS_ReadFile(buffer, &testbuf) >= 0) {
+        ri.FS_FreeFile(testbuf);
         mapLayer->texture = R_LoadTexture(buffer);
     } else {
         sprintf(buffer, "%s\\%s.blp", data.texDir, data.texFile);

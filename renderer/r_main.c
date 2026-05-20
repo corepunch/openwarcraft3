@@ -142,13 +142,11 @@ LPTEXTURE R_MakeLoadingIndicatorTexture(void) {
 
 LPTEXTURE R_LoadTexture(LPCSTR textureFilename) {
     LPTEXTURE texture = NULL;
-    HANDLE file = ri.FileOpen(textureFilename);
-    if (!file) {
+    void *buffer = NULL;
+    int fileSize = ri.FS_ReadFile(textureFilename, &buffer);
+    if (fileSize < 0 || !buffer) {
         return R_AllocateSinglePixelTexture(0xffffffff);
     }
-    DWORD fileSize = SFileGetFileSize(file, NULL);
-    HANDLE buffer = ri.MemAlloc(fileSize);
-    SFileReadFile(file, buffer, fileSize, NULL, NULL);
     switch (*(DWORD *)buffer) {
         case ID_BLP1:
             texture = R_LoadTextureBLP1(buffer, fileSize);
@@ -168,15 +166,16 @@ LPTEXTURE R_LoadTexture(LPCSTR textureFilename) {
             }
             break;
     }
-    ri.FileClose(file);
-    SAFE_DELETE(buffer, ri.MemFree);
+    ri.FS_FreeFile(buffer);
     return texture;
 }
 
 LPMODEL R_LoadModel(LPCSTR modelFilename) {
-    HANDLE file = ri.FileOpen(modelFilename);
+    void *buffer = NULL;
+    int fileSize = ri.FS_ReadFile(modelFilename, &buffer);
     LPMODEL model = NULL;
-    if (file == NULL) {
+    
+    if (fileSize < 0) {
         // Warcraft III FDF often refers to models as .mdl even when only the
         // .mdx file is present in the archive. Try that translation first so
         // classic menu assets like WarCraftIIILogo resolve correctly.
@@ -185,9 +184,9 @@ LPMODEL R_LoadModel(LPCSTR modelFilename) {
             LPSTR ext = strstr(modelFilename, ".mdl");
             strncpy(tempFileName, modelFilename, ext - modelFilename);
             strcpy(tempFileName + strlen(tempFileName), ".mdx");
-            file = ri.FileOpen(tempFileName);
+            fileSize = ri.FS_ReadFile(tempFileName, &buffer);
         }
-        if (!file) {
+        if (fileSize < 0) {
             // Try again without trailing sequence digits, e.g. *0.mdx.
             PATHSTR tempFileName = { 0 };
             LPCSTR end = modelFilename + strlen(modelFilename) - 4;
@@ -196,17 +195,13 @@ LPMODEL R_LoadModel(LPCSTR modelFilename) {
             }
             strncpy(tempFileName, modelFilename, end - modelFilename);
             strcpy(tempFileName + strlen(tempFileName), ".mdx");
-            file = ri.FileOpen(tempFileName);
+            fileSize = ri.FS_ReadFile(tempFileName, &buffer);
         }
-        if (!file) {
+        if (fileSize < 0 || !buffer) {
             fprintf(stderr, "Model not found: %s\n", modelFilename);
             return NULL;
         }
     }
-    DWORD fileSize = SFileGetFileSize(file, NULL);
-    void *buffer = ri.MemAlloc(fileSize);
-    SFileReadFile(file, buffer, fileSize, NULL, NULL);
-    ri.FileClose(file);
     switch (*(DWORD *)buffer) {
         case ID_MDLX:
             model = ri.MemAlloc(sizeof(model_t));
@@ -232,7 +227,7 @@ LPMODEL R_LoadModel(LPCSTR modelFilename) {
             fprintf(stderr, "Unknown model format %.4s in file %s\n", (LPSTR)buffer, modelFilename);
             break;
     }
-    ri.MemFree(buffer);
+    ri.FS_FreeFile(buffer);
     return model;
 }
 

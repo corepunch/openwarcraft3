@@ -101,14 +101,10 @@ LPFONT R_LoadFont(LPCSTR filename, DWORD size) {
     font->size = size * FONT_SCALE;
     
     /* load font into buffer */
-    HANDLE file = ri.FileOpen(filename);
-    if (!file) { return NULL; }
-    /* get size */
-    DWORD buf_size = SFileGetFileSize(file, NULL);
-    /* load */
-    font->data = ri.MemAlloc(buf_size);
-    SFileReadFile(file, font->data, buf_size, NULL, NULL);
-    ri.FileClose(file);
+    void *buffer = NULL;
+    int buf_size = ri.FS_ReadFile(filename, &buffer);
+    if (buf_size < 0 || !buffer) { return NULL; }
+    font->data = buffer;
     
     /* init stbfont */
     int ok = stbtt_InitFont(&font->stbfont, font->data, 0);

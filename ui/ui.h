@@ -57,11 +57,9 @@ typedef struct {
 /* Callbacks provided by the client to the UI library.
  * The UI imports file I/O, memory allocation, and command forwarding. */
 typedef struct {
-    /* File system operations (MPQ archive access) */
-    HANDLE (*FileOpen)(LPCSTR fileName);
-    BOOL (*FileExtract)(LPCSTR toExtract, LPCSTR extracted);
-    void (*FileClose)(HANDLE file);
-    HANDLE (*LoadFile)(LPCSTR fileName, LPDWORD size);
+    /* File system operations (archive-agnostic, Quake 3 pattern) */
+    int (*FS_ReadFile)(LPCSTR fileName, void **buf);  /* Returns file size, allocates buf */
+    void (*FS_FreeFile)(void *buf);
     
     /* Memory allocation */
     HANDLE (*MemAlloc)(long size);

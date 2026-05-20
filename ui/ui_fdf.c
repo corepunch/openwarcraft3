@@ -949,11 +949,11 @@ void UI_ParseFDF_Buffer(LPCSTR fileName, LPSTR buffer2) {
 }
 
 void UI_ParseFDF(LPCSTR fileName) {
-    DWORD size = 0;
-    LPSTR buffer = (LPSTR)uiimport.LoadFile(fileName, &size);
-    if (buffer) {
-        UI_ParseFDF_Buffer(fileName, buffer);
-        uiimport.MemFree(buffer);
+    void *buffer = NULL;
+    int size = uiimport.FS_ReadFile(fileName, &buffer);
+    if (size >= 0 && buffer) {
+        UI_ParseFDF_Buffer(fileName, (LPSTR)buffer);
+        uiimport.FS_FreeFile(buffer);
     }
 }
 

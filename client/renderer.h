@@ -18,9 +18,10 @@ typedef enum {
 } SHADERTYPE;
 
 typedef struct {
-    HANDLE (*FileOpen)(LPCSTR fileName);
+    // Quake 3-style file API: renderer is archive-agnostic
+    int (*FS_ReadFile)(LPCSTR name, void **buf);  // Returns file size, allocates buf
+    void (*FS_FreeFile)(void *buf);
     bool (*FileExtract)(LPCSTR toExtract, LPCSTR extracted);
-    void (*FileClose)(HANDLE file);
     
     HANDLE (*MemAlloc)(long size);
     void (*MemFree)(HANDLE);

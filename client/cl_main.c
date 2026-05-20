@@ -59,25 +59,21 @@ void CL_ClearState(void) {
 }
 
 /* Forward declarations for UI callbacks */
-static BOOL CL_FileExtractWrapper(LPCSTR toExtract, LPCSTR extracted);
-static HANDLE CL_LoadFileWrapper(LPCSTR fileName, LPDWORD size);
 static LPCPLAYER CL_UIGetPlayerState(void);
 static DWORD CL_UIGetNumEntities(void);
 static LPCENTITYSTATE CL_UIGetEntity(DWORD idx);
 static void CL_UIRequestUnitUI(DWORD num_selected, DWORD *entity_nums);
 
-/* UI library asset indexing wrappers */
-static BOOL CL_FileExtractWrapper(LPCSTR toExtract, LPCSTR extracted) {
-    return (BOOL)FS_ExtractFile(toExtract, extracted);
-}
-
-static HANDLE CL_LoadFileWrapper(LPCSTR fileName, LPDWORD size) {
-    /* For text files like FDF, use the string-oriented loader */
+/* UI library FS_ReadFile wrapper that converts to Quake 3 pattern */
+static int CL_UI_ReadFile(LPCSTR fileName, void **buf) {
+    if (!buf) return -1;
     LPSTR text = FS_ReadFileIntoString(fileName);
-    if (text && size) {
-        *size = (DWORD)strlen(text);
+    if (!text) {
+        *buf = NULL;
+        return -1;
     }
-    return text;
+    *buf = text;
+    return (int)strlen(text);
 }
 
 /* Game state access callbacks for UI library */
@@ -178,8 +174,8 @@ void CL_Init(void) {
     re = R_GetAPI((refImport_t) {
         .MemAlloc = MemAlloc,
         .MemFree = MemFree,
-        .FileOpen = FS_OpenFile,
-        .FileClose = FS_CloseFile,
+        .FS_ReadFile = FS_ReadFileQ3,
+        .FS_FreeFile = FS_FreeFile,
         .FileExtract = FS_ExtractFile,
         .ReadSheet = FS_ParseSLK,
         .FindSheetCell = FS_FindSheetCell,
@@ -190,10 +186,8 @@ void CL_Init(void) {
     
     /* Initialize UI library */
     ui = UI_GetAPI((uiImport_t) {
-        .FileOpen = FS_OpenFile,
-        .FileExtract = CL_FileExtractWrapper,
-        .FileClose = FS_CloseFile,
-        .LoadFile = CL_LoadFileWrapper,
+        .FS_ReadFile = CL_UI_ReadFile,
+        .FS_FreeFile = FS_FreeFile,
         .MemAlloc = MemAlloc,
         .MemFree = MemFree,
         .ModelIndex = CL_ModelIndex,
