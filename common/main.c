@@ -51,7 +51,6 @@
 #define __STR(x) #x
 
 extern LPTEXTURE Texture;
-void UI_Init(void);
 
 void Sys_Quit(void) {
     exit(0);
@@ -108,9 +107,7 @@ int main(int argc, LPSTR argv[]) {
         // Remote-client mode: skip the local server, connect over UDP.
         CL_Connect(connect_addr, PORT_SERVER);
     } else if (menu_mode) {
-        // Menu mode still uses the local loopback server so the client can
-        // consume server-authored UI layouts.
-        UI_Init();
+        // Menu mode: client-side UI library handles menu rendering (Phase 4)
         SV_ClientConnect();
     } else if (!menu_mode) {
         // Listen-server mode: load the map and spawn entities.

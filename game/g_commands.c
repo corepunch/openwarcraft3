@@ -25,18 +25,6 @@ void CMD_CancelCommand(LPEDICT ent) {
     Get_Commands_f(ent);
 }
 
-static void CMD_MenuLoad(LPEDICT ent, LPCSTR map) {
-    (void)ent;
-    if (!map || !*map) {
-        return;
-    }
-    gi.MenuAction("load", map);
-}
-
-static void CMD_MenuRender(LPEDICT ent, LPCSTR route) {
-    UI_RenderRoute(ent, route && *route ? route : "/main");
-}
-
 CLIENTCOMMAND(Select) {
     LPGAMECLIENT client = clent->client;
     if (client->menu.on_entity_selected) {
@@ -142,31 +130,14 @@ CLIENTCOMMAND(HideQuests) {
     UI_HideQuests(clent);
 }
 
+/* CMD_Menu: Stub for legacy menu commands.
+ * Menu rendering is now handled by client-side UI library (Phase 4).
+ * Server-side menu commands are deprecated. */
 CLIENTCOMMAND(Menu) {
-    if (argc < 2) {
-        CMD_MenuRender(clent, "/main");
-        return;
-    }
-
-    if (!strcmp(argv[1], "/load") || !strcmp(argv[1], "load")) {
-        CMD_MenuLoad(clent, argc > 2 ? argv[2] : NULL);
-    } else if (!strcmp(argv[1], "/quit") || !strcmp(argv[1], "quit")) {
-        gi.MenuAction("quit", NULL);
-    } else if (!strcmp(argv[1], "realmok") || !strcmp(argv[1], "realmcancel")) {
-        CMD_MenuRender(clent, "/main");
-    } else if (!strcmp(argv[1], "mapselect")) {
-        char route[256];
-        snprintf(route, sizeof(route), "mapselect/%s", argc > 2 ? argv[2] : "campaign");
-        CMD_MenuRender(clent, route);
-    } else if (!strcmp(argv[1], "multiplayer") && argc > 2) {
-        char route[256];
-        snprintf(route, sizeof(route), "multiplayer/%s", argv[2]);
-        CMD_MenuRender(clent, route);
-    } else if (!strcmp(argv[1], "refresh")) {
-        CMD_MenuRender(clent, argc > 2 ? argv[2] : "/main");
-    } else {
-        CMD_MenuRender(clent, argv[1]);
-    }
+    (void)clent;
+    (void)argc;
+    (void)argv;
+    /* Menu commands now handled by client UI library */
 }
 
 CLIENTCOMMAND(Quest) {
