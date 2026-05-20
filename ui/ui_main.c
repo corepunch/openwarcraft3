@@ -106,7 +106,7 @@ void UI_MenuCommandLocal(LPCSTR command) {
     if (!strncmp(command, "menu ", 5)) {
         UI_Route(command + 5);
     } else {
-        uiimport.SendCommand(command);
+        uiimport.Cmd_ExecuteText(command);
     }
 }
 

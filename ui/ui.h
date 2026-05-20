@@ -6,12 +6,13 @@
  * (server/game.h).
  *
  * The client fills uiImport_t with callbacks for file I/O, memory allocation,
- * and command forwarding, then calls UI_GetAPI() to receive the uiExport_t
+ * and command execution, then calls UI_GetAPI() to receive the uiExport_t
  * function table.
  *
  * The UI library loads FDF files, builds frame hierarchies, manages menu
- * navigation, and handles input events. It communicates with the server only
- * via data request commands (map lists, game lists, player info).
+ * navigation, and handles input events. It owns its string table (loaded from
+ * war3skins.txt) for localization. Commands are executed via Cmd_ExecuteText;
+ * the engine's command dispatcher handles routing (local vs server).
  */
 #ifndef ui_h
 #define ui_h
@@ -71,12 +72,9 @@ typedef struct {
     int (*ImageIndex)(LPCSTR imageName);
     int (*FontIndex)(LPCSTR fontName, DWORD fontSize);
     
-    /* String table access (for localization) */
-    LPCSTR (*GetString)(LPCSTR key);
-    
-    /* Command forwarding (send commands to server or execute locally) */
-    void (*SendCommand)(LPCSTR cmd);
-    void (*LocalCommand)(LPCSTR cmd);
+    /* Command execution (following Quake 3 pattern)
+     * UI executes console commands; engine dispatcher handles routing */
+    void (*Cmd_ExecuteText)(LPCSTR text);
     
     /* Data requests (map lists, game lists, player info) */
     void (*RequestMapList)(void);

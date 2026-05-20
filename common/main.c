@@ -106,13 +106,11 @@ int main(int argc, LPSTR argv[]) {
     if (connect_addr) {
         // Remote-client mode: skip the local server, connect over UDP.
         CL_Connect(connect_addr, PORT_SERVER);
-    } else if (menu_mode) {
-        // Menu mode: client-side UI library handles menu rendering (Phase 4)
-        SV_ClientConnect();
     } else if (!menu_mode) {
         // Listen-server mode: load the map and spawn entities.
         SV_Map(map);
     }
+    // Menu mode: UI runs client-side, no server connection needed (Quake 3 pattern)
 
     fprintf(stderr, "OpenWarcraft3 initialized.\n\n");
 

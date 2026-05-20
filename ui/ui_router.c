@@ -41,7 +41,7 @@ void UI_Route(LPCSTR path) {
 
     /* Handle special routes */
     if (!strcmp(path, "/quit")) {
-        uiimport.SendCommand("quit\n");
+        uiimport.Cmd_ExecuteText("quit\n");
         return;
     }
 

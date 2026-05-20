@@ -1,9 +1,5 @@
 #include "server.h"
 
-static LPEDICT SV_ClientRoutingEdict(LPCLIENT cl) {
-    return EDICT_NUM((DWORD)(cl - svs.clients) + 1);
-}
-
 void SV_Configstrings_f(LPCLIENT cl) {
     FOR_LOOP(i, MAX_CONFIGSTRINGS) {
         if (!*sv.configstrings[i])
@@ -36,11 +32,8 @@ void SV_Begin_f(LPCLIENT cl) {
 }
 
 void SV_PlayerInfo_f(LPCLIENT cl) {
-    if (sv.state != ss_game) {
-        cl->edict = SV_ClientRoutingEdict(cl);
-    } else {
-        cl->edict = EDICT_NUM(CM_GetLocalPlayerNumber());
-    }
+    /* Assign the client's game edict (Quake 2/3 pattern) */
+    cl->edict = EDICT_NUM(CM_GetLocalPlayerNumber());
     MSG_WriteByte(&cl->netchan.message, svc_mirror);
     MSG_WriteString(&cl->netchan.message, "begin");
     Netchan_Transmit(NS_SERVER, &cl->netchan);
@@ -82,9 +75,6 @@ void SV_ExecuteUserCommand(LPSIZEBUF msg, LPCLIENT client) {
     }
     if (argc == 0) {
         return;
-    }
-    if ((!strcmp(argv[0], "menu") || !strcmp(argv[0], "list") || !strcmp(argv[0], "listselect")) && !client->edict) {
-        client->edict = SV_ClientRoutingEdict(client);
     }
     if (!strcmp(argv[0], "list")) {
         SV_ListFetch_f(client, argc, argv);

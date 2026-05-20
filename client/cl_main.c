@@ -199,9 +199,7 @@ void CL_Init(void) {
         .ModelIndex = CL_ModelIndex,
         .ImageIndex = CL_ImageIndex,
         .FontIndex = CL_FontIndex,
-        .GetString = NULL, /* TODO: implement string table */
-        .SendCommand = Cbuf_AddText,
-        .LocalCommand = Cbuf_AddText,
+        .Cmd_ExecuteText = Cbuf_AddText,
         .RequestMapList = CL_RequestMapList,
         .RequestMapInfo = CL_RequestMapInfo,
         .RequestGameList = CL_RequestGameList,
