@@ -76,6 +76,9 @@ void UI_InitLocal(void) {
     UI_ParseFDF("UI\\FrameDef\\Glue\\MapListBox.fdf");
     UI_ParseFDF("UI\\FrameDef\\Glue\\MapInfoPane.fdf");
     UI_ParseFDF("UI\\FrameDef\\Glue\\LocalMultiplayerCreate.fdf");
+    UI_ParseFDF("UI\\FrameDef\\Glue\\TeamSetup.fdf");
+    UI_ParseFDF("UI\\FrameDef\\Glue\\PlayerSlot.fdf");
+    UI_ParseFDF("UI\\FrameDef\\Glue\\GameChatroom.fdf");
     
     /* Load in-game HUD FDF files */
     UI_ParseFDF("UI\\FrameDef\\UI\\ConsoleUI.fdf");

@@ -19,7 +19,7 @@
 #define MAX_BUILD_QUEUE 7
 /* MAX_SELECTED_ENTITIES is defined in common/shared.h */
 #ifndef MAX_UI_CLASSES
-#define MAX_UI_CLASSES 2048
+#define MAX_UI_CLASSES 4096
 #endif
 
 #define UI_BASE_WIDTH 0.8f

@@ -39,9 +39,17 @@ static uiScreen_t *UI_FindScreen(LPCSTR name) {
 void UI_Route(LPCSTR path) {
     uiimport.Printf("UI_Route: %s\n", path);
 
+    if (!path || !*path) {
+        return;
+    }
+
     /* Handle special routes */
     if (!strcmp(path, "/quit")) {
         uiimport.Cmd_ExecuteText("quit\n");
+        return;
+    }
+    if (!strcmp(path, "/back")) {
+        UI_Pop();
         return;
     }
 
@@ -104,18 +112,30 @@ void UI_Push(LPCSTR path) {
         uiimport.Printf("UI_Push: stack overflow\n");
         return;
     }
-    screen_stack[screen_stack_depth++] = current_screen;
+
+    if (current_screen) {
+        screen_stack[screen_stack_depth++] = current_screen;
+    }
     UI_Route(path);
 }
 
 void UI_Pop(void) {
+    uiScreen_t *screen;
+
     if (screen_stack_depth == 0) {
         uiimport.Printf("UI_Pop: stack underflow\n");
         return;
     }
-    uiScreen_t *prev = screen_stack[--screen_stack_depth];
-    if (prev) {
-        UI_Route(prev->name);
+
+    screen = screen_stack[--screen_stack_depth];
+    screen_stack[screen_stack_depth] = NULL;
+
+    if (current_screen && current_screen->shutdown) {
+        current_screen->shutdown();
+    }
+    current_screen = screen;
+    if (current_screen && current_screen->init) {
+        current_screen->init();
     }
 }
 

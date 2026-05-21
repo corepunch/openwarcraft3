@@ -31,4 +31,7 @@ extern uiScreen_t lanCreateScreen;
 extern uiScreen_t gameSetupScreen;
 extern uiScreen_t console_ui_screen;
 
+LPCSTR LAN_SelectedMapPath(void);
+LPCSTR LAN_SelectedMapName(void);
+
 #endif /* UI_SCREEN_H */

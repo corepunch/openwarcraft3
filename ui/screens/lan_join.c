@@ -428,17 +428,33 @@ static void LANJoin_MouseEvent(int x, int y, int buttons) {
     (void)buttons;
 }
 
-static void LAN_StartSelectedMap(void) {
-    char command[MAX_PATHLEN + 32];
-
+LPCSTR LAN_SelectedMapPath(void) {
     if (!lan.ready) {
-        return;
+        return NULL;
     }
     if (lan.maps.count == 0 || lan.maps.selected >= lan.maps.count) {
+        return NULL;
+    }
+    return lan.maps.items[lan.maps.selected].path;
+}
+
+LPCSTR LAN_SelectedMapName(void) {
+    if (!lan.ready) {
+        return NULL;
+    }
+    if (lan.maps.count == 0 || lan.maps.selected >= lan.maps.count) {
+        return NULL;
+    }
+    return lan.maps.items[lan.maps.selected].name[0]
+        ? lan.maps.items[lan.maps.selected].name
+        : lan.maps.items[lan.maps.selected].path;
+}
+
+static void LAN_StartSelectedMap(void) {
+    if (!LAN_SelectedMapPath()) {
         return;
     }
-    snprintf(command, sizeof(command), "load \"%s\"\n", lan.maps.items[lan.maps.selected].path);
-    uiimport.Cmd_ExecuteText(command);
+    UI_Push("/game-setup");
 }
 
 static void LAN_SelectMap(DWORD index) {

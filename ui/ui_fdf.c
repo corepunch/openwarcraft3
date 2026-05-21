@@ -1318,6 +1318,9 @@ void UI_SetTexture2(LPFRAMEDEF frame, LPCSTR name, BOOL decorate) {
 }
 
 void UI_SetHidden(LPFRAMEDEF frame, BOOL value) {
+    if (!frame) {
+        return;
+    }
     frame->hidden = value;
 }
 
