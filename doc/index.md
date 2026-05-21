@@ -49,7 +49,7 @@ sudo apt-get install libsdl2-dev
 make build
 ```
 
-Compiles all libraries (`shared`, `renderer`, `game`) and the `openwarcraft3` executable into `build/`.
+Compiles all runtime libraries (`shared`, `renderer`, `game`, `ui`) and the `openwarcraft3` executable into `build/`.
 
 ### 4. Run
 
@@ -57,7 +57,21 @@ Compiles all libraries (`shared`, `renderer`, `game`) and the `openwarcraft3` ex
 make run
 ```
 
-Runs `openwarcraft3` from `build/bin/` using the MPQ path configured in the Makefile.
+Runs `openwarcraft3` from `build/bin/` using the data folder configured in the Makefile.
+
+Useful run targets:
+
+- `make run` — start the client menu using `WC3DATA`
+- `make run-map` — start a listen-server game using `MAP`
+- `make run-ui-text` — render one UI frame through the stdout renderer
+
+For deterministic UI diagnostics without a window:
+
+```bash
+make run-ui-text UI_ROUTE=/main
+```
+
+This uses `r_module=stdout`, disables networking, runs the route from `ui_start_route`, prints renderer calls to stdout, and exits after one frame.
 
 ### (Optional) Download Warcraft III 1.29b assets
 
@@ -75,7 +89,7 @@ Downloads a ~1.2 GB installer from `archive.org` into the `data/` folder. Skip t
 
 OpenWarcraft3 uses a strict client-server separation where all game logic runs exclusively on the server and clients are responsible only for rendering and input.
 
-The **server** hosts the game library (`game/`), which is a shared library loaded at runtime. It maintains the authoritative game state: all entities, their positions, health, current animations, and AI state. The server processes player commands, runs the game simulation each frame, and sends the resulting state to clients.
+The **server** hosts the game library (`game/`), which is built as a runtime module with a Quake-style function table boundary. It maintains the authoritative game state: all entities, their positions, health, current animations, and AI state. The server processes player commands, runs the game simulation each frame, and sends the resulting state to clients.
 
 The **client** (`client/`) captures user input via SDL2, forwards commands to the server, receives the updated game state, and renders it using the renderer library (`renderer/`). The client never runs game logic directly — it is purely a display and input layer.
 
@@ -96,16 +110,32 @@ SDL2 Input  →  Client (cl_main.c)  →  UDP socket  →  Server (sv_main.c)
                     └─────────── UDP socket ←──────────────┘
 ```
 
-See the [Network Architecture](architecture/network.md) page for the full design, wire format, and CLI reference.
+See the [Network Architecture](architecture/network.md) page for the full design, wire format, and CLI reference. See [Runtime Modules and Cvars](architecture/runtime.md) for config files, module cvars, and stdout renderer diagnostics.
+
+### Runtime Configuration
+
+OpenWarcraft3 uses Quake-style cvars and config files. Defaults live in `share/default.cfg`; generated user settings are written to `share/config.cfg`; optional local overrides can be placed in `share/autoexec.cfg`.
+
+Important runtime cvars:
+
+| cvar | Default | Purpose |
+|------|---------|---------|
+| `r_module` | `renderer` | Renderer backend: `renderer` or `stdout` |
+| `ui_module` | `ui` | UI module name |
+| `g_module` | `game` | Game module name |
+| `ui_start_route` | `/main` | First client-side UI route |
+| `net_enabled` | `1` | Disable with `0` for isolated UI/render diagnostics |
+| `com_frame_limit` | `0` | Exit after N frames |
 
 ## Build System
 
-The project builds three shared libraries and one executable:
+The project builds four runtime libraries and one executable:
 
 1. **libshared** (`shared/`) — mathematics (vectors, matrices, quaternions, geometric primitives); no external dependencies
-2. **librenderer** (`renderer/`) — OpenGL rendering engine; depends on `libshared`, SDL2
+2. **librenderer** (`renderer/`) — renderer API implementations, including OpenGL and stdout diagnostics; depends on `libshared`, SDL2
 3. **libgame** (`game/`) — server-side game logic; depends on `libshared`
-4. **openwarcraft3** — main executable linking all three libraries plus SDL2
+4. **libui** (`ui/`) — client-side FDF parser, route controller, and UI renderer
+5. **openwarcraft3** — main executable linking the runtime libraries plus SDL2
 
 The build is driven by a `Makefile` for Linux/macOS. Run `make test` to execute the unit test suite.
 

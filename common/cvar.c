@@ -366,4 +366,6 @@ void Cvar_Init(void) {
     Cvar_Get("ui_module", "ui", CVAR_ARCHIVE);
     Cvar_Get("g_module", "game", CVAR_ARCHIVE);
     Cvar_Get("ui_start_route", "/main", CVAR_ARCHIVE);
+    Cvar_Get("net_enabled", "1", CVAR_ARCHIVE);
+    Cvar_Get("com_frame_limit", "0", 0);
 }

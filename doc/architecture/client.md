@@ -1,16 +1,29 @@
 # Client Architecture
 
-The client (`client/`) is the presentation layer of OpenWarcraft3. It owns the SDL2 window, the OpenGL context, the input system, and the connection to the server. It never runs game logic — all simulation takes place on the server.
+The client (`client/`) is the presentation layer of OpenWarcraft3. In the normal renderer path it owns the SDL2 window, the OpenGL context, the input system, and the connection to the server. It never runs game logic — all simulation takes place on the server.
 
 ## Startup
 
 The client is initialised by `CL_Init` in `cl_main.c`, which:
 
-1. Opens a connection to the server via `NET_OpenLoopback` (`common/net.c`).
-2. Registers client-side console commands.
-3. Sends a `clc_connect` message to the server.
+1. Chooses a renderer API from `r_module`.
+2. Initialises the selected renderer.
+3. Initialises the client-side UI library with `UI_GetAPI`.
+4. Registers client-side console commands.
+5. Installs menu or gameplay key bindings depending on startup mode.
 
-The server responds with `svc_serverdata` (map name, game parameters) followed by a stream of entity baselines and the initial UI layout.
+Startup mode is selected in `common/main.c` from the `map` and `connect` cvars:
+
+- no `map` and no `connect` — menu mode, client-side UI only
+- `map` set — listen-server mode
+- `connect` set — remote-client mode
+
+The initial menu route comes from `ui_start_route`, defaulting to `/main`.
+
+Renderer choices:
+
+- `r_module=renderer` — normal OpenGL renderer
+- `r_module=stdout` or `r_module=text` — text renderer for one-frame UI diagnostics
 
 ## Main Loop
 
@@ -19,25 +32,27 @@ The server responds with `svc_serverdata` (map name, game parameters) followed b
 ```c
 void CL_Frame(DWORD msec) {
     cl.time += msec;
-    CL_ReadPackets();   // 1. apply incoming server messages
+    ui.Refresh(msec);   // 1. update active client-side UI route
     CL_Input();         // 2. sample keyboard / mouse
-    CL_SendCommand();   // 3. forward commands to server
-    CL_PrepRefresh();   // 4. build scene for the renderer
-    SCR_UpdateScreen(); // 5. draw the frame
+    CL_ReadPackets();   // 3. apply incoming server messages
+    CL_SendCommand();   // 4. execute commands and forward to server
+    CL_PrepRefresh();   // 5. build scene for the renderer
+    SCR_UpdateScreen(); // 6. draw world, UI, and console
 }
 ```
 
 ### 1. CL_ReadPackets
 
-Drains the loopback receive buffer and dispatches each message by its `svc_*` opcode:
+Drains the loopback or UDP receive buffer and dispatches each message by its `svc_*` opcode:
 
 | Opcode | Handler | Effect |
 |--------|---------|--------|
-| `svc_serverdata` | `CL_ParseServerData` | Store map path, spawn player camera |
 | `svc_spawnbaseline` | `CL_ParseBaseline` | Initialise entity `s` field from delta |
 | `svc_packetentities` | `CL_ReadPacketEntities` | Apply per-frame entity delta |
-| `svc_layout` | `CL_ParseLayout` | Store serialised UI blob |
-| `svc_disconnect` | — | Reset client state |
+| `svc_configstring` | `CL_ParseConfigString` | Update model, image, and font configstrings |
+| `svc_frame` | `CL_ParseFrame` | Receive server frame timing |
+| `svc_unit_ui` | `CL_ParseUnitUI` | Forward selected-unit data to the UI library |
+| `svc_map_list`, `svc_map_info`, `svc_game_list`, `svc_player_list` | list handlers | Feed menu/list UI screens |
 
 ### 2. CL_Input
 
@@ -70,11 +85,19 @@ Builds the render scene:
 
 ### 5. SCR_UpdateScreen
 
-Calls into the renderer library:
+Calls into the renderer API:
+
 1. `R_BeginFrame` — clear colour/depth, update matrices.
 2. `R_RenderFrame` — draw all entities, terrain, water, particles.
-3. `R_DrawUI` — rasterise the cached UI layout blob.
-4. `R_EndFrame` — SDL2 `GL_SwapWindow`.
+3. `ui.DrawFrame` — draw the active client-side UI screen.
+4. Console overlay draws debug text.
+5. `R_EndFrame` — present the frame or flush the stdout renderer.
+
+With `r_module=stdout`, the same calls produce text lines such as `draw_image`, `draw_text`, and `draw_portrait` instead of pixels. This is useful for scriptable UI checks:
+
+```bash
+make run-ui-text UI_ROUTE=/main
+```
 
 ## Entity Interpolation
 
@@ -82,7 +105,7 @@ The client keeps two snapshots per entity: `prev` and `current`. `CL_PrepRefresh
 
 ## Console and HUD
 
-`cl_console.c` maintains an in-game console that can be toggled with the tilde key. `cl_scrn.c` overlays FPS, ping, and debug counters. Neither system communicates with the server.
+`cl_console.c` maintains an in-game console that can be toggled with the tilde key. `cl_scrn.c` coordinates frame presentation and the UI draw pass.
 
 ## Key Files
 
@@ -93,7 +116,8 @@ The client keeps two snapshots per entity: `prev` and `current`. `CL_PrepRefresh
 | `client/cl_parse.c` | Server message handlers |
 | `client/cl_view.c` | Camera, `CL_PrepRefresh`, `V_AddEntity` |
 | `client/cl_tent.c` | Temporary client-side effects |
-| `client/cl_scrn.c` | HUD / screen overlay |
+| `client/cl_scrn.c` | Screen update and UI draw pass |
 | `client/cl_console.c` | In-game console |
 | `client/keys.c` | Key event dispatch and binding table |
 | `common/net.c` | Loopback transport shared by client and server |
+| `renderer/r_stdout.c` | Text renderer backend for draw-call diagnostics |

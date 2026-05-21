@@ -53,12 +53,13 @@ Install SDL2 development libraries and build with a C compiler such as MSYS2/Min
 make build
 ```
 
-Compiles all libraries (`shared`, `renderer`, `game`) and the `openwarcraft3` executable into `build/`.
+Compiles all runtime libraries (`shared`, `renderer`, `game`, `ui`) and the `openwarcraft3` executable into `build/`.
 
 Viewer tools are also built into `build/bin/`:
 - `mdxtool` — model viewer
 - `maptool` — map viewer
-- `fdftool` — FDF scene viewer
+- `mpqtool` — archive inspection (`ls`, `cat`, `pack`)
+- `blp2jpg`, `blpgen`, `mdxgen` — asset conversion/generation helpers
 
 ### 4. Run
 
@@ -76,6 +77,52 @@ build/bin/openwarcraft3 -data="data/Warcraft III"
 
 The data folder is scanned for top-level `.mpq` archives and an optional loose `Maps/` directory. This lets newer installs expose multiplayer maps from the filesystem while older assets can still be loaded from MPQs.
 
+Useful run targets:
+
+- `make run` — start the client menu using `WC3DATA`
+- `make run-map` — start a listen-server game using `MAP`
+- `make run-ui-text` — render one UI frame through the stdout renderer
+
+The stdout UI renderer is meant for layout and draw-call debugging without opening a window or taking screenshots:
+
+```bash
+make run-ui-text UI_ROUTE=/main
+```
+
+That expands to:
+
+```bash
+build/bin/openwarcraft3 -data=data/Warcraft\ III -net_enabled=0 -r_module=stdout -ui_start_route=/main -com_frame_limit=1
+```
+
+It prints calls such as `draw_portrait`, `draw_sprite`, `draw_image`, `draw_text`, and `draw_sys_text`, then exits after one frame.
+
+### Configuration and cvars
+
+OpenWarcraft3 uses Quake-style cvars and config files. Defaults live in `share/default.cfg`; generated user settings are written to `share/config.cfg`; optional local overrides can be placed in `share/autoexec.cfg`.
+
+Config load order:
+
+1. Built-in cvar defaults
+2. `share/default.cfg`
+3. `share/config.cfg`
+4. `share/autoexec.cfg`
+5. Command-line cvars such as `-r_module=stdout` or `+set ui_start_route /main`
+
+Common runtime cvars:
+
+| cvar | Default | Purpose |
+|------|---------|---------|
+| `fs_data` | `""` | Saved Warcraft III data folder |
+| `map` | `""` | Internal map path for listen-server mode |
+| `connect` | `""` | Remote server address |
+| `r_module` | `"renderer"` | Renderer backend: `renderer` or `stdout` |
+| `ui_module` | `"ui"` | UI module name for the Quake-style module boundary |
+| `g_module` | `"game"` | Game module name for the server game boundary |
+| `ui_start_route` | `"/main"` | First client-side UI route |
+| `net_enabled` | `"1"` | Disable with `0` for isolated UI/render diagnostics |
+| `com_frame_limit` | `"0"` | Exit after N frames; useful with `r_module=stdout` |
+
 ### (Optional) Download Warcraft III 1.29b assets
 
 ```bash
@@ -92,9 +139,9 @@ Downloads a ~1.2 GB installer from `archive.org` into the `data/` folder. Skip t
 
 OpenWarcraft3 uses a strict client-server separation where all game logic runs exclusively on the server and clients are responsible only for rendering and input.
 
-The **server** hosts the game library (`game/`), which is a shared library loaded at runtime. It maintains the authoritative game state: all entities, their positions, health, current animations, and AI state. The server processes player commands, runs the game simulation each frame, and sends the resulting state to clients.
+The **server** hosts the game library (`game/`), which is built as a runtime module with a Quake-style function table boundary. It maintains the authoritative game state: all entities, their positions, health, current animations, and AI state. The server processes player commands, runs the game simulation each frame, and sends the resulting state to clients.
 
-The **client** (`client/`) captures user input via SDL2, forwards commands to the server, receives the updated game state, and renders it using the renderer library (`renderer/`). The client never runs game logic directly — it is purely a display and input layer.
+The **client** (`client/`) captures user input via SDL2, forwards commands to the server, receives the updated game state, and renders it using the renderer API (`renderer/`). The client never runs game logic directly — it is purely a display and input layer.
 
 Communication between the client and server happens through the network layer (`common/net.c`), which follows the Quake 2 runtime-dispatch model.  The routing decision is made at runtime on `netadr_t.type`:
 
@@ -113,7 +160,7 @@ SDL2 Input  →  Client (cl_main.c)  →  UDP socket  →  Server (sv_main.c)
                     └─────────── UDP socket ←──────────────┘
 ```
 
-See [Network Architecture](doc/architecture/network.md) for the full design, wire format, and CLI reference.
+See [Network Architecture](doc/architecture/network.md) for the full design, wire format, and CLI reference. See [Runtime Modules and Cvars](doc/architecture/runtime.md) for config files, module cvars, and stdout renderer diagnostics.
 
 ## Frame Syncing
 
@@ -262,16 +309,34 @@ The UI library dispatches rendering to screen controllers (e.g., `ui/screens/con
 
 No serialized UI blobs are transmitted over the network. The server is game-agnostic and provides only data.
 
+### Text Renderer Diagnostics
+
+For UI work, use the stdout renderer before reaching for screenshots:
+
+```bash
+make run-ui-text UI_ROUTE=/main
+```
+
+This runs the configured UI route for one frame, skips network socket binding, prints draw calls to stdout, and exits without writing `share/config.cfg`. It is useful for checking:
+
+- which textures, models, fonts, and routes were loaded
+- button/backdrop rects, UVs, colors, and blend modes
+- text content after FDF string translation and Warcraft color-code expansion
+- scene placement across routes such as `/main`, `/lan/refresh`, or `/single-player`
+
 ---
 
 ## Build System
 
-The project builds three shared libraries and one executable:
+The project builds four runtime libraries and one executable:
 
 1. **libshared** (`shared/`) — mathematics (vectors, matrices, quaternions, geometric primitives); no external dependencies
-2. **librenderer** (`renderer/`) — OpenGL rendering engine; depends on `libshared`, SDL2
+2. **librenderer** (`renderer/`) — renderer API implementations, including OpenGL and stdout diagnostics; depends on `libshared`, SDL2
 3. **libgame** (`game/`) — server-side game logic; depends on `libshared`
-4. **openwarcraft3** — main executable linking all three libraries plus SDL2
+4. **libui** (`ui/`) — client-side FDF parser, route controller, and UI renderer
+5. **openwarcraft3** — main executable linking the runtime libraries plus SDL2
+
+The module boundary follows the Quake 2/Quake 3 style: subsystems expose function tables (`R_GetAPI`, `UI_GetAPI`, game exports/imports) rather than sharing global implementation details. The cvars `r_module`, `ui_module`, and `g_module` name the active modules. Today `r_module=stdout` selects the text renderer backend; the cvar layout is also the path toward fully dynamic library selection.
 
 The build is driven by a `Makefile` for Linux/macOS. Run `make test` to execute the unit test suite.
 

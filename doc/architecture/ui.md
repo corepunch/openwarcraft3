@@ -12,8 +12,8 @@ Phase 8 removed all server-side UI code. The game library now only provides **da
 
 **Looking for a specific topic?**
 
-- **Complete end-to-end flow** (client click → server processing → UI generation → rendering): See [UI_FLOW.md](./UI_FLOW.md)
-- **Just the serialization format**: See the [Serialisation](#serialisation-ui_writelayout) section below
+- **Complete end-to-end flow** (client input → route/data update → rendering): See [UI_FLOW.md](./UI_FLOW.md)
+- **Runtime cvars and stdout renderer**: See [Runtime Modules and Cvars](./runtime.md)
 - **How to add a new UI element**: See [Adding a New UI Element](#adding-a-new-ui-element) below
 - **FDF file syntax**: See [FDF File Format](../file-formats/fdf.md)
 
@@ -22,9 +22,9 @@ Phase 8 removed all server-side UI code. The game library now only provides **da
 | Term | Meaning |
 |------|---------|
 | `frameDef_t` | A template parsed from an FDF file and stored in the registry |
-| `uiFrame_t` | A concrete frame instance with resolved position and current state |
 | `FRAMEDEF` | The alias used by the C API for a frame definition being constructed |
-| `svc_layout` | Network message opcode used to deliver UI data to clients |
+| `uiScreen_t` | A screen controller with init, refresh, draw, input, and route callbacks |
+| `ui_start_route` | Cvar selecting the first screen route, e.g. `/main` |
 
 ## Initialisation
 
@@ -33,8 +33,8 @@ Phase 8 removed all server-side UI code. The game library now only provides **da
 1. Loads UI library via `UI_GetAPI(uiImport_t)` function table.
 2. Client provides import functions: memory allocation, file I/O, MPQ access.
 3. UI library loads Warcraft III `.fdf` files from MPQ via `UI_ParseFDF` (`ui/ui_fdf.c`).
-4. Client sets active screen (main menu, console UI, etc.) via `ui.SetScreen(screenName)`.
-5. Screen controller manages frame lifecycle and user input routing.
+4. UI routes to `ui_start_route`, defaulting to `/main`.
+5. Screen controller manages frame lifecycle, drawing, and input routing.
 
 ## Frame Definition Files (FDF)
 
@@ -113,11 +113,39 @@ The UI library maintains the frame tree and recalculates layout when frames are 
 The UI library (`ui/`) handles all frame rendering:
 
 1. Screen controller (e.g., `console_ui.c`) updates frame states based on game data.
-2. `UI_Render` walks the frame tree and dispatches each frame to type-specific renderers.
+2. `UI_DrawFrame` walks the frame tree and dispatches each frame to type-specific renderers.
 3. Frame renderers call back into the client's renderer import functions to draw quads, text, and models.
 4. Resource stats (gold, lumber, food) update automatically from `cl.playerstate`.
 
 The client parses FDF files locally and maintains the complete frame hierarchy. No serialized UI blobs are transmitted over the network.
+
+## Routes
+
+UI screens are routed by path strings, closer to Quake 3's client-side UI module than the old server-authored layout path. The current route is managed in `ui/ui_router.c`.
+
+Examples:
+
+| Route | Purpose |
+|-------|---------|
+| `/main` | Main menu |
+| `/single-player` | Single-player menu |
+| `/lan/refresh` | LAN game list |
+| `/lan/create` | LAN create-game screen |
+| `/lan/join` | LAN join flow |
+
+The startup route is configurable:
+
+```bash
+build/bin/openwarcraft3 -data=data/Warcraft\ III -ui_start_route=/main
+```
+
+For isolated route diagnostics:
+
+```bash
+make run-ui-text UI_ROUTE=/main
+```
+
+That command uses `r_module=stdout`, `net_enabled=0`, and `com_frame_limit=1` to print one frame of draw calls and exit.
 
 ## Dynamic Updates
 
@@ -129,6 +157,18 @@ UI updates happen client-side in response to:
 - **Chat messages** — (future) append frames to chat panel.
 
 All rendering happens client-side; server only provides game data (unit stats, abilities, inventory).
+
+## Stdout Renderer Diagnostics
+
+The stdout renderer is the preferred first-pass diagnostic for UI rendering. It implements the same renderer API as the OpenGL renderer but writes draw calls to stdout:
+
+- `load_texture`, `load_model`, `load_font`
+- `draw_portrait`, `draw_sprite`
+- `draw_image` with texture name, screen rect, UV rect, color, blend mode, and rotation
+- `draw_text` with font, rect, measured size, color, and translated text
+- `draw_sys_text` for console overlay text
+
+Use it to check route composition, frame positions, backdrop tiling, missing assets, hover/pressed state changes, translated strings, and Warcraft color codes without taking screenshots.
 
 ## UI Test Asset Policy
 
@@ -147,7 +187,7 @@ For UI-impacting changes, use `make test-ui` as the required gate. It runs:
 - End-to-end client UI rendering suites
 - Tool-backed oracle suites (`mdxtool --info`)
 
-Note: `fdftool` was removed in Phase 8 as it depended on deleted server-side UI code.
+Note: `fdftool` was removed in Phase 8 as it depended on deleted server-side UI code. Use `make run-ui-text` for UI draw-call inspection and `mdxtool --info` for model data inspection.
 
 ## Adding a New UI Element
 
@@ -183,6 +223,8 @@ void ConsoleUI_UpdateUnitUI(DWORD num_units, uiUnitData_t *units) {
 
 ### Client-Side UI (Phase 8+)
 
+| File | Purpose |
+|------|---------|
 | `server/sv_unit_ui.c` | Handle `clc_request_unit_ui`, query game DLL |
 | `game/g_unit_ui.c` | `G_GetCommandButtons`, `G_GetInventory`, `G_GetBuildQueue` |
 | `game/g_ui_stubs.c` | No-op stubs for legacy server-side UI functions |
@@ -201,3 +243,6 @@ void ConsoleUI_UpdateUnitUI(DWORD num_units, uiUnitData_t *units) {
 
 | File | Purpose |
 |------|---------|
+| `game/g_unit_ui.c` | Converts selected entities into command card, inventory, and build queue data |
+| `server/sv_unit_ui.c` | Marshals unit UI data into `svc_unit_ui` messages |
+| `client/cl_unit_ui.c` | Receives `svc_unit_ui` and forwards decoded data to the UI library |

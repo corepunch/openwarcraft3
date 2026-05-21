@@ -65,6 +65,18 @@ static LPCENTITYSTATE CL_UIGetEntity(DWORD idx);
 static void CL_UIRequestUnitUI(DWORD num_selected, DWORD *entity_nums);
 static LPRENDERER CL_UIGetRenderer(void);
 
+static refExport_t CL_GetRendererAPI(refImport_t imp) {
+    LPCSTR module = Cvar_String("r_module", "renderer");
+
+    if (module && (!strcmp(module, "stdout") || !strcmp(module, "text"))) {
+        return R_StdoutGetAPI(imp);
+    }
+    if (module && *module && strcmp(module, "renderer")) {
+        fprintf(stderr, "Unknown renderer module \"%s\", using renderer\n", module);
+    }
+    return R_GetAPI(imp);
+}
+
 /* UI library FS_ReadFile wrapper that converts to Quake 3 pattern */
 static int CL_UI_ReadFile(LPCSTR fileName, void **buf) {
     if (!buf) return -1;
@@ -177,7 +189,7 @@ void CL_Init(void) {
     CON_printf("OpenWarcraft3 v0.1");
     fprintf(stderr, "Console initialized.\n");
 
-    re = R_GetAPI((refImport_t) {
+    re = CL_GetRendererAPI((refImport_t) {
         .MemAlloc = MemAlloc,
         .MemFree = MemFree,
         .FS_ReadFile = FS_ReadFileQ3,

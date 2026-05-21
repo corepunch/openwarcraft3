@@ -1,6 +1,6 @@
 # UI Frame Definition File (FDF)
 
-FDF (Frame Definition File) is a plain-text declarative format used by Warcraft III to describe the UI frame hierarchy — positions, sizes, textures, fonts, and child frames. OpenWarcraft3 parses FDF files on the server at startup to build the UI template registry.
+FDF (Frame Definition File) is a plain-text declarative format used by Warcraft III to describe the UI frame hierarchy — positions, sizes, textures, fonts, and child frames. OpenWarcraft3 parses FDF files client-side in the `ui/` runtime library.
 
 ## File Format
 
@@ -23,7 +23,7 @@ FrameType "FrameName" {
 
 ### Frame Types
 
-The following frame types are recognised by the parser (`game/ui/ui_fdf.c`):
+The following frame types are recognised by the parser (`ui/ui_fdf.c`):
 
 | Type | Purpose |
 |------|---------|
@@ -84,7 +84,7 @@ This aligns the frame's top-left corner 2% from the screen left edge and 2% from
 
 ## Frame Registry
 
-`UI_ParseFDF` (`game/ui/ui_fdf.c`) tokenises the FDF text, constructs `frameDef_t` structs, and stores them in the global frame registry keyed by name. The registry is queried at UI layout time to instantiate concrete `uiFrame_t` objects.
+`UI_ParseFDF` (`ui/ui_fdf.c`) tokenises the FDF text, constructs `frameDef_t` structs, and stores them in the global frame registry keyed by name. Screen controllers query the registry, parent frames into the active tree, and draw through `ui/ui_render.c`.
 
 ## Programmatic API
 
@@ -95,7 +95,6 @@ FRAMEDEF f;
 UI_InitFrame(&f, FT_TEXT);
 UI_SetPoint(&f, FRAMEPOINT_TOPLEFT, NULL, FRAMEPOINT_TOPLEFT, 0.05, -0.30);
 UI_SetText(&f, "Hello, world!");
-UI_WriteFrame(&f);
 ```
 
 Helper functions:
@@ -108,17 +107,21 @@ Helper functions:
 | `UI_SetText(frame, fmt, ...)` | Printf-style text assignment |
 | `UI_SetTexture(frame, name, decorate)` | Assign a texture by skin-entry name |
 | `UI_SetParent(frame, parent)` | Attach to a parent frame |
-| `UI_WriteFrame(frame)` | Emit one frame into the `svc_layout` message |
-| `UI_WriteFrameWithChildren(frame, parent)` | Emit a frame and its entire sub-tree |
+| `UI_DrawFrame(frame)` | Draw a frame and its descendants |
 
-See `game/hud/ui_log.c` for a worked example.
+For draw-call inspection, use the stdout renderer:
+
+```bash
+make run-ui-text UI_ROUTE=/main
+```
 
 ## Related Source Files
 
 | Source | Purpose |
 |--------|---------|
-| `game/ui/ui_fdf.c` | FDF text parser and programmatic frame API |
-| `game/ui/ui_init.c` | `UI_Init` — loads FDF assets and builds the initial layout |
-| `game/ui/ui_write.c` | `UI_WriteLayout` — serialises the frame tree to clients |
-| `client/cl_parse.c` | `CL_ParseLayout` — receives and stores serialised UI |
-| `common/msg.c` | `uiFrameFields[]` — delta-encoded wire field list |
+| `ui/ui_fdf.c` | FDF text parser and programmatic frame API |
+| `ui/ui_main.c` | Loads FDF/theme assets and routes to `ui_start_route` |
+| `ui/ui_render.c` | Layout solving and frame rendering |
+| `ui/ui_theme.c` | Warcraft theme file loading |
+| `ui/screens/*.c` | Screen controllers |
+| `renderer/r_stdout.c` | Text renderer for draw-call diagnostics |

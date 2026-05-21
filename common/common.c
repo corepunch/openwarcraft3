@@ -810,7 +810,9 @@ void MemFree(HANDLE mem) {
 }
 
 void Com_Quit(void) {
-    Cvar_WriteConfig(Cvar_String("config", "share/config.cfg"));
+    if (Cvar_Integer("com_frame_limit", 0) <= 0) {
+        Cvar_WriteConfig(Cvar_String("config", "share/config.cfg"));
+    }
     CL_Shutdown();
     SV_Shutdown();
     NET_Shutdown();

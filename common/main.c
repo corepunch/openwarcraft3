@@ -101,11 +101,16 @@ int main(int argc, LPSTR argv[]) {
     LPCSTR map = Cvar_String("map", "");
     LPCSTR connect_addr = Cvar_String("connect", "");
     bool menu_mode = (!map || !*map) && (!connect_addr || !*connect_addr);
+    bool net_enabled = Cvar_Integer("net_enabled", 1) != 0;
     cls.key_dest = menu_mode ? key_menu : key_game;
     cls.state = ca_disconnected;
 
     unsigned short port = connect_addr && *connect_addr ? 0 : PORT_SERVER;
-    if (!NET_Init(port)) {
+    if (connect_addr && *connect_addr && !net_enabled) {
+        fprintf(stderr, "Cannot connect with net_enabled disabled\n");
+        return 1;
+    }
+    if (net_enabled && !NET_Init(port)) {
         fprintf(stderr, "NET_Init failed\n");
         return 1;
     }
@@ -125,14 +130,20 @@ int main(int argc, LPSTR argv[]) {
     fprintf(stderr, "OpenWarcraft3 initialized.\n\n");
 
     DWORD startTime = SDL_GetTicks();
+    DWORD frameCount = 0;
     while (true) {
         DWORD currentTime = SDL_GetTicks();
         DWORD msec = currentTime - startTime;
-        if (!connect_addr || !*connect_addr) {
+        if (net_enabled && (!connect_addr || !*connect_addr)) {
             SV_Frame(msec);
         }
         CL_Frame(msec);
         startTime = currentTime;
+        frameCount++;
+        if (Cvar_Integer("com_frame_limit", 0) > 0 &&
+            frameCount >= (DWORD)Cvar_Integer("com_frame_limit", 0)) {
+            Com_Quit();
+        }
     }
 
     return 0;

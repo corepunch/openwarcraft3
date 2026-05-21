@@ -2,6 +2,7 @@ WC3DATA  := data/Warcraft\ III
 DEMODATA := data/Warcraft3demo
 MPQ      := $(WC3DATA)/War3.mpq
 MAP      := Maps\\Campaign\\Human02.w3m
+UI_ROUTE := /main
 
 ZIP_URL  := https://archive.org/download/warcraft-iii-installer-enus/Warcraft-III-1.29.2-enUS.zip
 ZIP_FILE := Warcraft-III-1.29.2-enUS.zip
@@ -100,6 +101,9 @@ run-demo:
 
 run-map:
 	$(BINARY) -data=$(WC3DATA) -map=$(MAP)
+
+run-ui-text:
+	$(BINARY) -data=$(WC3DATA) -net_enabled=0 -r_module=stdout -ui_start_route=$(UI_ROUTE) -com_frame_limit=1
 
 diag: clean
 	$(MAKE) DIAG_OUTPUT=1 build
@@ -282,4 +286,4 @@ test-assets: blpgen mdxgen mpqtool mdxtool | $(TESTS_DIR)
 $(TESTS_DIR):
 	@mkdir -p $@
 
-.PHONY: default build shared renderer game ui openwarcraft3 tools $(TOOL_NAMES) run run-map diag clean download test test-ui test-mpq-compat test-assets
+.PHONY: default build shared renderer game ui openwarcraft3 tools $(TOOL_NAMES) run run-demo run-map run-ui-text diag clean download test test-ui test-mpq-compat test-assets

@@ -17,6 +17,8 @@ This codebase is inspired by **Quake 2**. The developer working on this project 
 - Structure the project similarly to Quake 2: separate modules for rendering, game logic, input, sound, networking, etc.
 - Game state should be managed in a straightforward, imperative style consistent with Quake 2's `g_*.c` / `cl_*.c` / `r_*.c` file layout.
 - The engine and game code may be separated (similar to Quake 2's `game.dll` / `ref_gl` split) to allow modular replacement of subsystems.
+- Runtime modules communicate through function tables (`R_GetAPI`, `UI_GetAPI`, game imports/exports). Prefer this boundary over direct cross-module dependencies.
+- Use cvars for runtime choices: `r_module`, `ui_module`, `g_module`, `ui_start_route`, `net_enabled`, and `com_frame_limit`.
 
 ## Engine/Game Boundary (Strict)
 
@@ -90,20 +92,25 @@ Agent guidance:
 
 Use this output in bug reports/diagnostics so rendering issues can be triaged from data facts (camera/lights/particles/sequence availability) without requiring screenshots.
 
-## FDF Inspection Workflow (fdftool)
+## UI Text Renderer Workflow
 
-- Use `build/bin/fdftool` to load and inspect FDF-defined UI scenes and frame layout.
-- CLI synopsis:
-	- `build/bin/fdftool -mpq <archive.mpq> [-mpq <archive.mpq> ...] -fdf <file.fdf> [-fdf <file.fdf> ...] -root <FrameName>`
-- Main menu scene example:
-	- `build/bin/fdftool -mpq data/Warcraft\ III/War3.mpq -fdf UI\FrameDef\Glue\MainMenu.fdf -root MainMenuFrame`
-- Non-main-menu example:
-	- `build/bin/fdftool -mpq data/Warcraft\ III/War3.mpq -fdf UI\FrameDef\UI\ConsoleUI.fdf -fdf UI\FrameDef\UI\ResourceBar.fdf -root ConsoleUI`
+- Use `make run-ui-text` to inspect client-side UI rendering without opening a window or taking screenshots.
+- Default command:
+	- `make run-ui-text UI_ROUTE=/main`
+- Equivalent explicit command:
+	- `build/bin/openwarcraft3 -data=data/Warcraft\ III -net_enabled=0 -r_module=stdout -ui_start_route=/main -com_frame_limit=1`
+- `r_module=stdout` selects the text renderer.
+- `net_enabled=0` avoids binding the UDP port for menu-only diagnostics.
+- `com_frame_limit=1` exits after one frame and skips writing `share/config.cfg`.
 
-Main-menu roots and logo behavior:
-- For roots `MainMenuFrame`, `ControlLayer`, and `RealmSelect`, `fdftool` uses the in-game menu build path (`UI_ShowMainMenu`) rather than only parsing the listed FDF files.
-- Because of that path, the Warcraft logo sprite/model is part of the built main-menu scene when present in the active menu definition.
+Expected output includes:
+- `load_texture`, `load_model`, `load_font`
+- `draw_portrait`, `draw_sprite`
+- `draw_image` with texture name, screen rect, UV rect, blend mode, color, rotation
+- `draw_text` with font, rect, measured size, color, translated text
+- `draw_sys_text` for console overlay output
 
 Agent guidance:
-- Prefer `fdftool` when diagnosing UI frame anchoring, missing textures, missing portrait/model widgets, and root frame composition.
-- Prefer `mdxtool --info` + `fdftool` together when a UI model is missing: first verify model/chunks, then verify frame/root placement.
+- Prefer the stdout renderer first for UI layout, FDF translation, button state, backdrop tiling, UV, color-code, and route-composition bugs.
+- Use `mdxtool --info` first when a UI model itself may be missing or malformed.
+- `fdftool` is no longer the primary UI inspection path; Phase 8 moved UI rendering into the client-side UI library.
