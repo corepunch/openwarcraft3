@@ -18,14 +18,18 @@ RECT R_UISceneRect(void) {
 }
 
 void R_PrintSysText(LPCSTR string, DWORD x, DWORD y, COLOR32 color) {
+    const DWORD char_advance = 8;
     static VERTEX simp[256 * 6];
     LPVERTEX it = simp;
     for (LPCSTR s = string; *s; s++) {
-        DWORD ch = *s;
+        DWORD ch = (BYTE)*s;
+        if (ch >= 128) {
+            ch = '?';
+        }
         float fx = ch % 16;
         float fy = ch / 16;
         it = R_AddQuad(it, &(RECT ) {
-            x + 10 * (s - string), y, 8, 16
+            x + char_advance * (s - string), y, 8, 16
         }, &(RECT ) {
             fx/16,fy/8,1.f/16,1.f/8
         }, color, 0);
