@@ -92,6 +92,8 @@ typedef enum {
     UI_MOUSE_LEFT_UP,
     UI_MOUSE_RIGHT_DOWN,
     UI_MOUSE_RIGHT_UP,
+    UI_MOUSE_WHEEL_UP,
+    UI_MOUSE_WHEEL_DOWN,
 } uiMouseEvent_t;
 
 typedef struct {
@@ -103,6 +105,40 @@ typedef struct {
 } uiMouseState_t;
 
 extern uiMouseState_t ui_mouse;
+
+#define UI_MAX_MAP_LIST_ITEMS 1024
+
+typedef struct {
+    PATHSTR path;
+    char name[128];
+    char description[512];
+    char suggestedPlayers[96];
+    char mapSize[32];
+    char tileset[64];
+    DWORD players;
+    DWORD flags;
+} uiMapListItem_t;
+
+typedef struct {
+    uiMapListItem_t items[UI_MAX_MAP_LIST_ITEMS];
+    DWORD count;
+    DWORD selected;
+    DWORD scroll;
+    FLOAT visualScroll;
+} uiMapListState_t;
+
+typedef struct {
+    uiMapListState_t *State;
+    DWORD VisibleRows;
+    FLOAT RowHeight;
+    FLOAT InsetX;
+    FLOAT InsetY;
+    UINAME SelectRoute;
+    UINAME FontName;
+    FLOAT FontSize;
+    COLOR32 TextColor;
+    COLOR32 SelectedTextColor;
+} uiMapListControl_t;
 
 /* Frame template definition (server-side/library-side only) */
 struct uiFrameDef_s {
@@ -218,6 +254,7 @@ struct uiFrameDef_s {
         UINAME ScrollBar;
         UINAME FetchCommand;
     } ListBox;
+    uiMapListControl_t MapListControl;
     struct {
         FLOAT Border;
         struct {
@@ -281,7 +318,10 @@ typedef struct {} uiTrigger_t;
 typedef void *LPEDICT;
 
 /* Convenience macros for frame lookup */
-#define UI_FRAME(NAME) LPFRAMEDEF NAME = UI_FindFrame(#NAME);
+#define UI_FRAME_GLOBAL(NAME) LPFRAMEDEF NAME = UI_FindFrame(#NAME);
+#define UI_FRAME_CHILD(PARENT, NAME) LPFRAMEDEF NAME = UI_FindChildFrame(PARENT, #NAME);
+#define UI_FRAME_SELECT(_1, _2, NAME, ...) NAME
+#define UI_FRAME(...) UI_FRAME_SELECT(__VA_ARGS__, UI_FRAME_CHILD, UI_FRAME_GLOBAL)(__VA_ARGS__)
 #define UI_CHILD_FRAME(NAME, PARENT) LPFRAMEDEF NAME = UI_FindChildFrame(PARENT, #NAME);
 
 /* Internal function prototypes */
@@ -291,6 +331,11 @@ void UI_InitLocal(void);
 void UI_ShutdownLocal(void);
 void UI_RefreshLocal(DWORD msec);
 void UI_DrawFrameLocal(void);
+
+/* ui_glue_scene.c */
+void UI_ResetGlueSceneModels(void);
+void UI_PreloadGlueSceneModels(void);
+void UI_DrawGlueScene(LPCSTR panel_anim);
 
 /* ui_fdf.c — FDF parsing (moved from game/ui/ui_fdf.c) */
 void UI_ParseFDF(LPCSTR filename);
@@ -325,9 +370,19 @@ LPFRAMEDEF UI_Spawn(FRAMETYPE, LPFRAMEDEF);
 LPFRAMEDEF UI_FindFrame(LPCSTR);
 LPFRAMEDEF UI_FindFrameNear(LPCFRAMEDEF, LPCSTR);
 LPFRAMEDEF UI_FindChildFrame(LPFRAMEDEF, LPCSTR);
-DWORD UI_CollectFrameTree(LPCFRAMEDEF root, LPCFRAMEDEF *out, DWORD max);
+LPFRAMEDEF UI_CloneFrameTree(LPCFRAMEDEF source, LPFRAMEDEF parent);
+void UI_BindMapList(LPFRAMEDEF frame,
+                    uiMapListState_t *state,
+                    LPCFRAMEDEF label,
+                    DWORD visible_rows,
+                    LPCSTR select_route);
+void UI_LayoutMapInfoPane(LPFRAMEDEF frame);
 LPCSTR Theme_String(LPCSTR, LPCSTR);
 FLOAT Theme_Float(LPCSTR, LPCSTR);
+COLOR32 Theme_ListBoxSelectionColor(void);
+COLOR32 Theme_ListBoxTextColor(void);
+COLOR32 Theme_ListBoxSelectedTextColor(void);
+COLOR32 Theme_ListBoxIconTextColor(void);
 
 /* ui_frame.c — Frame tree manipulation (to be created) */
 // Additional frame management functions will be declared here

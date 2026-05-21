@@ -54,6 +54,9 @@
 
 #include <stdlib.h>
 #include <ctype.h>
+#ifndef _WIN32
+#include <strings.h>
+#endif
 #include "ui_local.h"
 #include "parser.h"
 
@@ -183,6 +186,7 @@ void FDF_ParseFrame(LPPARSER p, LPFRAMEDEF frame);
 static char *UI_Trim(char *text);
 static void UI_CopyDisplayString(char *out, size_t out_size, LPCSTR in);
 static void UI_RemoveBom(LPSTR buffer);
+static void UI_CloneTemplateChildren(LPCFRAMEDEF source, LPFRAMEDEF parent);
 
 void UI_ClearTemplates(void) {
     memset(frames, 0, sizeof(frames));
@@ -302,10 +306,18 @@ static void UI_CopyDisplayString(char *out, size_t out_size, LPCSTR in) {
     snprintf(out, out_size, "%s", in);
 }
 
+static BOOL UI_HasKnownTextureExtension(LPCSTR file) {
+    LPCSTR dot = file ? strrchr(file, '.') : NULL;
+
+    return dot && (!strcasecmp(dot, ".blp") ||
+                   !strcasecmp(dot, ".tga") ||
+                   !strcasecmp(dot, ".dds"));
+}
+
 LPCSTR EnsureExtension(LPCSTR file, LPCSTR ext) {
     static PATHSTR blp;
-    if (!strstr(file, ext)) {
-        sprintf(blp, "%s%s", file, ext);
+    if (!UI_HasKnownTextureExtension(file)) {
+        snprintf(blp, sizeof(blp), "%s%s", file, ext);
         return blp;
     } else {
         return file;
@@ -899,10 +911,15 @@ void FDF_ParseFrame(LPPARSER p, LPFRAMEDEF frame) {
     while ((tok = parse_token(p)) && (*tok != '{')) {
         if (!strcmp(tok, "INHERITS")) {
             LPCSTR inheritName = parse_token(p);
+            BOOL with_children = false;
             if (!strcmp(inheritName, "WITHCHILDREN")) {
+                with_children = true;
                 inheritName = parse_token(p);
             }
             UI_InheritFrom(frame, inheritName);
+            if (with_children) {
+                UI_CloneTemplateChildren(FindFrameTemplate(inheritName), frame);
+            }
             state++;
         } else if (state == 0) {
             strncpy(frame->Name, tok, sizeof(UINAME));
@@ -930,6 +947,11 @@ LPFRAMEDEF UI_FindFrameNear(LPCFRAMEDEF anchor, LPCSTR name) {
     }
     if (!anchor || anchor < frames || anchor >= frames + MAX_UI_CLASSES) {
         return UI_FindFrame(name);
+    }
+
+    LPFRAMEDEF child = UI_FindChildFrame((LPFRAMEDEF)anchor, name);
+    if (child) {
+        return child;
     }
 
     DWORD const anchor_index = (DWORD)(anchor - frames);
@@ -997,10 +1019,19 @@ static BOOL UI_IsEmbeddedControlPart(LPCFRAMEDEF parent, LPCFRAMEDEF child) {
         }
         return UI_FrameNameEquals(child, parent->Edit.TextFrame);
     }
+    if (parent->Type == FT_SLIDER && UI_IsButtonFrameType(child->Type)) {
+        return UI_FrameNameEquals(child, parent->Slider.ThumbButtonFrame) ||
+               UI_FrameNameEquals(child, parent->Slider.IncButtonFrame) ||
+               UI_FrameNameEquals(child, parent->Slider.DecButtonFrame);
+    }
     return false;
 }
 
-static DWORD UI_CollectFrameTreeRecursive(LPCFRAMEDEF frame, LPCFRAMEDEF *out, DWORD max) {
+static DWORD UI_CollectFrameTreeRecursiveEx(LPCFRAMEDEF frame,
+                                            LPCFRAMEDEF *out,
+                                            DWORD max,
+                                            BOOL include_embedded)
+{
     DWORD total = 0;
 
     if (!frame) {
@@ -1014,15 +1045,21 @@ static DWORD UI_CollectFrameTreeRecursive(LPCFRAMEDEF frame, LPCFRAMEDEF *out, D
 
     FOR_LOOP(i, MAX_UI_CLASSES) {
         LPCFRAMEDEF child = frames + i;
-        if (child->Parent == frame && !child->hidden && !UI_IsEmbeddedControlPart(frame, child)) {
-            DWORD emitted = UI_CollectFrameTreeRecursive(child,
-                                                         out ? out + total : NULL,
-                                                         max > total ? max - total : 0);
+        if (child->Parent == frame &&
+            (include_embedded || (!child->hidden && !UI_IsEmbeddedControlPart(frame, child)))) {
+            DWORD emitted = UI_CollectFrameTreeRecursiveEx(child,
+                                                           out ? out + total : NULL,
+                                                           max > total ? max - total : 0,
+                                                           include_embedded);
             total += emitted;
         }
     }
 
     return total;
+}
+
+static DWORD UI_CollectFrameTreeRecursive(LPCFRAMEDEF frame, LPCFRAMEDEF *out, DWORD max) {
+    return UI_CollectFrameTreeRecursiveEx(frame, out, max, false);
 }
 
 /* Collect the write-order frame graph rooted at root.
@@ -1032,6 +1069,115 @@ static DWORD UI_CollectFrameTreeRecursive(LPCFRAMEDEF frame, LPCFRAMEDEF *out, D
  * small to hold all of them. */
 DWORD UI_CollectFrameTree(LPCFRAMEDEF root, LPCFRAMEDEF *out, DWORD max) {
     return UI_CollectFrameTreeRecursive(root, out, max);
+}
+
+static LPCFRAMEDEF UI_RemapClonedFrame(LPCFRAMEDEF frame,
+                                       LPCFRAMEDEF const *sources,
+                                       LPFRAMEDEF const *copies,
+                                       DWORD count)
+{
+    FOR_LOOP(i, count) {
+        if (sources[i] == frame) {
+            return copies[i];
+        }
+    }
+    return frame;
+}
+
+static void UI_RemapClonedPoint(FRAMEPOINT *point,
+                                LPCFRAMEDEF const *sources,
+                                LPFRAMEDEF const *copies,
+                                DWORD count)
+{
+    if (point && point->relativeTo) {
+        point->relativeTo = UI_RemapClonedFrame(point->relativeTo, sources, copies, count);
+    }
+}
+
+static void UI_RemapClonedFramePointers(LPFRAMEDEF frame,
+                                        LPFRAMEDEF parent,
+                                        LPCFRAMEDEF const *sources,
+                                        LPFRAMEDEF const *copies,
+                                        DWORD count)
+{
+    frame->Parent = UI_RemapClonedFrame(frame->Parent, sources, copies, count);
+    if (!frame->Parent && parent) {
+        frame->Parent = parent;
+    }
+    frame->DialogBackdrop = UI_RemapClonedFrame(frame->DialogBackdrop, sources, copies, count);
+    frame->SetPoint.relativeTo = UI_RemapClonedFrame(frame->SetPoint.relativeTo, sources, copies, count);
+    FOR_LOOP(i, FPP_COUNT) {
+        UI_RemapClonedPoint(&frame->Points.x[i], sources, copies, count);
+        UI_RemapClonedPoint(&frame->Points.y[i], sources, copies, count);
+    }
+}
+
+LPFRAMEDEF UI_CloneFrameTree(LPCFRAMEDEF source, LPFRAMEDEF parent) {
+    enum { MAX_CLONED_FRAMES = 128 };
+    LPCFRAMEDEF sources[MAX_CLONED_FRAMES];
+    LPFRAMEDEF copies[MAX_CLONED_FRAMES];
+    DWORD const count = source ? UI_CollectFrameTreeRecursiveEx(source, sources, MAX_CLONED_FRAMES, true) : 0;
+
+    if (count == 0 || count > MAX_CLONED_FRAMES) {
+        return NULL;
+    }
+
+    FOR_LOOP(i, count) {
+        copies[i] = UI_Spawn(sources[i]->Type, parent);
+        if (!copies[i]) {
+            return NULL;
+        }
+        *copies[i] = *sources[i];
+    }
+    FOR_LOOP(i, count) {
+        UI_RemapClonedFramePointers(copies[i], parent, sources, copies, count);
+    }
+    copies[0]->Parent = parent;
+    return copies[0];
+}
+
+static void UI_CloneTemplateChildren(LPCFRAMEDEF source, LPFRAMEDEF parent) {
+    if (!source || !parent) {
+        return;
+    }
+
+    FOR_LOOP(i, MAX_UI_CLASSES) {
+        if (frames[i].Parent == source) {
+            UI_CloneFrameTree(frames + i, parent);
+        }
+    }
+}
+
+void UI_BindMapList(LPFRAMEDEF frame,
+                    uiMapListState_t *state,
+                    LPCFRAMEDEF label,
+                    DWORD visible_rows,
+                    LPCSTR select_route)
+{
+    uiMapListControl_t *control;
+
+    if (!frame) {
+        return;
+    }
+
+    control = &frame->MapListControl;
+    memset(control, 0, sizeof(*control));
+    control->State = state;
+    control->VisibleRows = visible_rows;
+    control->RowHeight = 0.019f;
+    control->InsetX = 0.008f;
+    control->InsetY = 0.007f;
+    snprintf(control->SelectRoute,
+             sizeof(control->SelectRoute),
+             "%s",
+             select_route ? select_route : "");
+    snprintf(control->FontName,
+             sizeof(control->FontName),
+             "%s",
+             label && label->Font.Name[0] ? label->Font.Name : "MasterFont");
+    control->FontSize = label && label->Font.Size > 0 ? label->Font.Size : 0.010f;
+    control->TextColor = Theme_ListBoxTextColor();
+    control->SelectedTextColor = Theme_ListBoxSelectedTextColor();
 }
 
 void FDF_ParseScene(LPPARSER parser) {

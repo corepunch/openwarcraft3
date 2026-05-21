@@ -75,7 +75,6 @@ enum {
 #define svc_layout 2
 #define svc_playerinfo 3
 #define svc_cursor 4
-#define svc_list 5
 
 KNOWN_AS(uiFrameDef_s, FRAMEDEF);
 KNOWN_AS(jass_s, JASS);
@@ -876,8 +875,6 @@ void UI_ShowMapSelectMenu(LPEDICT, LPCSTR);
 void UI_ShowMultiplayerCreateMapInfo(LPEDICT);
 void UI_ClearCreateGameSlots(void);
 void UI_AddCreateGameSlot(DWORD, LPCSTR, LPCSTR, LPCSTR, DWORD);
-BOOL G_PopulateCreateMapScreen(LPEDICT, DWORD);
-BOOL G_SelectCreateMap(LPEDICT, DWORD);
 
 // p_fdf.c
 void UI_PrintClasses(void);
@@ -937,8 +934,6 @@ void G_SelectEntity(LPGAMECLIENT, LPEDICT);
 void G_DeselectEntity(LPGAMECLIENT, LPEDICT);
 BOOL G_IsEntitySelected(LPGAMECLIENT, LPEDICT);
 void G_ClientCommand(LPEDICT, DWORD, LPCSTR[]);
-void CMD_List(LPEDICT, DWORD, LPCSTR[]);
-void CMD_ListSelect(LPEDICT, DWORD, LPCSTR[]);
 void G_ClientPanCamera(LPEDICT, LPVECTOR2);
 
 //  s_skills.c

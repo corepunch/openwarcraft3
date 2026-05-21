@@ -180,8 +180,6 @@ void SV_Frame(DWORD msec) {
         return;
     }
 
-    SV_ListFetchFrame();
-
     SV_RunGameFrame();
 
     SV_SendClientMessages();

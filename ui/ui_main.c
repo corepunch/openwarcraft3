@@ -61,6 +61,7 @@ void UI_ClearMouseTransient(void) {
 void UI_InitLocal(void) {
     memset(&ui_state, 0, sizeof(ui_state));
     memset(&ui_mouse, 0, sizeof(ui_mouse));
+    UI_ResetGlueSceneModels();
     
     uiimport.Printf("UI_InitLocal: loading FDF assets\n");
 
@@ -72,6 +73,9 @@ void UI_InitLocal(void) {
     UI_ParseFDF("UI\\FrameDef\\UI\\EscMenuMainPanel.fdf");
     UI_ParseFDF("UI\\FrameDef\\Glue\\StandardTemplates.fdf");
     UI_ParseFDF("UI\\FrameDef\\Glue\\MainMenu.fdf");
+    UI_ParseFDF("UI\\FrameDef\\Glue\\MapListBox.fdf");
+    UI_ParseFDF("UI\\FrameDef\\Glue\\MapInfoPane.fdf");
+    UI_ParseFDF("UI\\FrameDef\\Glue\\LocalMultiplayerCreate.fdf");
     
     /* Load in-game HUD FDF files */
     UI_ParseFDF("UI\\FrameDef\\UI\\ConsoleUI.fdf");
@@ -91,6 +95,7 @@ void UI_InitLocal(void) {
 }
 
 void UI_ShutdownLocal(void) {
+    UI_ResetGlueSceneModels();
     UI_ClearTemplates();
     memset(&ui_state, 0, sizeof(ui_state));
 }
@@ -149,6 +154,14 @@ void UI_MouseEventLocal(int x, int y, int button, BOOL down) {
             ui_mouse.event = down ? UI_MOUSE_LEFT_DOWN : UI_MOUSE_LEFT_UP;
         } else if (button == 2) {
             ui_mouse.event = down ? UI_MOUSE_RIGHT_DOWN : UI_MOUSE_RIGHT_UP;
+        } else if (button == 4) {
+            ui_mouse.event = UI_MOUSE_WHEEL_UP;
+            ui_mouse.button = 0;
+            ui_mouse.down = false;
+        } else if (button == 5) {
+            ui_mouse.event = UI_MOUSE_WHEEL_DOWN;
+            ui_mouse.button = 0;
+            ui_mouse.down = false;
         }
         if (!down) {
             ui_mouse.button = 0;
@@ -174,28 +187,6 @@ void UI_MenuCommandLocal(LPCSTR command) {
 }
 
 /* Stub callbacks for server data updates */
-void UI_UpdateMapListLocal(DWORD count, LPCSTR *names) {
-    (void)names;
-    uiimport.Printf("UI_UpdateMapList: %d maps\n", (int)count);
-}
-
-void UI_UpdateMapInfoLocal(DWORD index, LPCSTR title, LPCSTR description, LPCSTR preview) {
-    (void)title;
-    (void)description;
-    (void)preview;
-    uiimport.Printf("UI_UpdateMapInfo: index=%d\n", (int)index);
-}
-
-void UI_UpdateGameListLocal(DWORD count, LPCSTR *names) {
-    (void)names;
-    uiimport.Printf("UI_UpdateGameList: %d games\n", (int)count);
-}
-
-void UI_UpdatePlayerInfoLocal(DWORD playerCount, LPCSTR *playerNames) {
-    (void)playerNames;
-    uiimport.Printf("UI_UpdatePlayerInfo: %d players\n", (int)playerCount);
-}
-
 /* Forward unit UI data to active screen (Phase 8) */
 void UI_UpdateUnitUILocal(DWORD num_units, uiUnitData_t *units) {
     uiimport.Printf("UI_UpdateUnitUI: %d units\n", (int)num_units);
@@ -221,10 +212,6 @@ uiExport_t UI_GetAPI(uiImport_t import) {
     exp.KeyEvent = UI_KeyEventLocal;
     exp.MouseEvent = UI_MouseEventLocal;
     exp.MenuCommand = UI_MenuCommandLocal;
-    exp.UpdateMapList = UI_UpdateMapListLocal;
-    exp.UpdateMapInfo = UI_UpdateMapInfoLocal;
-    exp.UpdateGameList = UI_UpdateGameListLocal;
-    exp.UpdatePlayerInfo = UI_UpdatePlayerInfoLocal;
     exp.UpdateUnitUI = UI_UpdateUnitUILocal;
     
     return exp;

@@ -76,10 +76,6 @@ void SV_ExecuteUserCommand(LPSIZEBUF msg, LPCLIENT client) {
     if (argc == 0) {
         return;
     }
-    if (!strcmp(argv[0], "list")) {
-        SV_ListFetch_f(client, argc, argv);
-        return;
-    }
     for (ucmd_t *u = ucmds; u->name; u++) {
         if (!strcmp(argv[0], u->name)) {
             u->func(client);

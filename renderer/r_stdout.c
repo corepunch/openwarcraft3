@@ -1,4 +1,7 @@
 #include "r_local.h"
+#ifndef _WIN32
+#include <strings.h>
+#endif
 
 typedef struct stdout_name_s {
     struct stdout_name_s *next;
@@ -7,12 +10,14 @@ typedef struct stdout_name_s {
     DWORD size;
 } stdout_name_t;
 
-typedef struct {
+typedef struct stdout_font_s {
+    struct stdout_font_s *next;
     char name[512];
     DWORD size;
 } stdout_font_t;
 
 static stdout_name_t *stdout_names;
+static stdout_font_t *stdout_fonts;
 static DWORD stdout_next_texture_id = 1;
 static DWORD stdout_frame_number;
 static size2_t stdout_window = { 800, 600 };
@@ -120,6 +125,16 @@ static void RStd_Init(DWORD width, DWORD height) {
 }
 
 static void RStd_Shutdown(void) {
+    while (stdout_fonts) {
+        stdout_font_t *next = stdout_fonts->next;
+        ri.MemFree(stdout_fonts);
+        stdout_fonts = next;
+    }
+    while (stdout_names) {
+        stdout_name_t *next = stdout_names->next;
+        ri.MemFree(stdout_names);
+        stdout_names = next;
+    }
     printf("renderer_shutdown backend=\"stdout\"\n");
 }
 
@@ -165,10 +180,18 @@ static LPMODEL RStd_LoadModel(LPCSTR fileName) {
 }
 
 static LPFONT RStd_LoadFont(LPCSTR fileName, DWORD size) {
-    stdout_font_t *font = ri.MemAlloc(sizeof(*font));
+    stdout_font_t *font;
 
+    FOR_EACH_LIST(stdout_font_t, it, stdout_fonts) {
+        if (it->size == size && !strcasecmp(it->name, fileName ? fileName : "")) {
+            return (LPFONT)it;
+        }
+    }
+
+    font = ri.MemAlloc(sizeof(*font));
     snprintf(font->name, sizeof(font->name), "%s", fileName ? fileName : "");
     font->size = size;
+    ADD_TO_LIST(font, stdout_fonts);
     printf("load_font size=%u", size);
     RStd_PrintName("name", fileName);
     printf("\n");
@@ -252,6 +275,9 @@ static void RStd_DrawImageEx(LPCDRAWIMAGE drawImage) {
            drawImage->uActiveGlow);
     RStd_PrintRect("screen", &drawImage->screen);
     RStd_PrintRect("uv", &drawImage->uv);
+    if (drawImage->hasClip) {
+        RStd_PrintRect("clip", &drawImage->clip);
+    }
     RStd_PrintColor(drawImage->color);
     printf("\n");
 }
@@ -340,6 +366,9 @@ static void RStd_DrawText(LPCDRAWTEXT drawText) {
                drawText->valign,
                drawText->wordWrap);
         RStd_PrintRect("rect", &drawText->rect);
+        if (drawText->hasClip) {
+            RStd_PrintRect("clip", &drawText->clip);
+        }
         RStd_PrintColor(drawText->color);
         RStd_PrintName("text", drawText->text);
     }

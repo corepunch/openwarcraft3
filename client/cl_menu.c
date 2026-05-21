@@ -312,7 +312,6 @@ static void SCR_DrawBackdropPart(LPCUIFRAME frame, LPCRECT screen, uiBackdrop_t 
 void SCR_DrawScrollBar(LPCUIFRAME frame, LPCRECT screen) {
     uiScrollBar_t const *scrollbar = frame->buffer.data;
     FLOAT button_height;
-    VECTOR2 const m = SCR_MouseToFdf();
     RECT inc;
     RECT dec;
     RECT track;
@@ -330,23 +329,6 @@ void SCR_DrawScrollBar(LPCUIFRAME frame, LPCRECT screen) {
     track = MAKE(RECT, screen->x, dec.y + dec.h, screen->w, inc.y - (dec.y + dec.h));
     SCR_DrawBackdropPart(frame, &inc, &scrollbar->incButton);
     SCR_DrawBackdropPart(frame, &dec, &scrollbar->decButton);
-
-    if (frame->parent < SCR_NumFrames() && mouse.event == UI_LEFT_MOUSE_DOWN) {
-        LPCUIFRAME listFrame = SCR_Frame(frame->parent);
-
-        if (listFrame && listFrame->flags.type == FT_LISTBOX && listFrame->buffer.data) {
-            uiListBox_t const *listbox = listFrame->buffer.data;
-            RECT list_rect = Rect_inset(SCR_LayoutRect(listFrame), listbox->border);
-            FLOAT item_height = listbox->itemHeight > 0 ? listbox->itemHeight : 0.018f;
-            DWORD visibleRows = MAX((DWORD)floorf(list_rect.h / item_height), 1);
-
-            if (Rect_contains(&inc, &m)) {
-                CL_ListBoxScroll(active_layout, listFrame, listbox, -1, visibleRows);
-            } else if (Rect_contains(&dec, &m)) {
-                CL_ListBoxScroll(active_layout, listFrame, listbox, 1, visibleRows);
-            }
-        }
-    }
 
     if (track.h <= 0) {
         return;
@@ -389,12 +371,10 @@ static void SCR_FormatOnClickCommand(LPCSTR source, LPSTR dest, DWORD dest_size)
                 name[name_len++] = source[j++];
             }
             if (source[j] == '}') {
-                SHORT selectedIndex = 0;
                 char value[16];
 
                 name[name_len] = '\0';
-                CL_ListBoxSelectedIndex(active_layout, name, &selectedIndex);
-                snprintf(value, sizeof(value), "%d", selectedIndex);
+                snprintf(value, sizeof(value), "%d", 0);
                 for (DWORD k = 0; value[k] && out + 1 < dest_size; k++) {
                     dest[out++] = value[k];
                 }
@@ -669,7 +649,6 @@ void SCR_DrawListBox(LPCUIFRAME frame, LPCRECT screen) {
     FLOAT item_y = list_rect.y + list_rect.h;
     FLOAT item_height = listbox->itemHeight > 0 ? listbox->itemHeight : 0.018f;
     LPCSTR text = frame->text;
-    BOOL loading = false;
     SHORT selectedIndex = listbox->selectedIndex;
     DWORD scrollOffset = 0;
     DWORD numRows = 0;
@@ -680,7 +659,6 @@ void SCR_DrawListBox(LPCUIFRAME frame, LPCRECT screen) {
     int index = 0;
 
     SCR_DrawBackdrop2(frame, screen, &listbox->background);
-    CL_ListBoxApplyFetch(active_layout, frame, listbox, &text, &loading, &selectedIndex, &scrollOffset, &numRows);
 
     FOR_LOOP(i, SCR_NumFrames()) {
         LPCUIFRAME child = SCR_Frame(i);
@@ -698,20 +676,10 @@ void SCR_DrawListBox(LPCUIFRAME frame, LPCRECT screen) {
         }
     }
     visibleRows = MAX((DWORD)floorf(list_rect.h / item_height), 1);
-    VECTOR2 const mouse_pos = SCR_MouseToFdf();
-    if (mouse.wheel && Rect_contains(screen, &mouse_pos)) {
-        CL_ListBoxScroll(active_layout, frame, listbox, -mouse.wheel, visibleRows);
-        CL_ListBoxApplyFetch(active_layout, frame, listbox, &text, &loading, &selectedIndex, &scrollOffset, &numRows);
-    }
     if (scrollbar) {
         DWORD maxScroll = numRows > visibleRows ? numRows - visibleRows : 0;
 
         ((LPUIFRAME)scrollbar)->value = maxScroll ? scrollOffset / (FLOAT)maxScroll : 0.0f;
-    }
-
-    if (loading) {
-        re.DrawLoadingIndicator(&list_rect, cl.time, frame->color);
-        return;
     }
 
     if (!text || !*text) {
@@ -737,10 +705,6 @@ void SCR_DrawListBox(LPCUIFRAME frame, LPCRECT screen) {
         row.y = item_y - row.h;
         if (rowIndex == selectedIndex) {
             re.DrawImage(cl.pics[0], &row, &MAKE(RECT, 0, 0, 1, 1), MAKE(COLOR32, 32, 64, 180, 128));
-        }
-        if (mouse.event == UI_LEFT_MOUSE_UP && Rect_contains(&row, &mouse_pos)) {
-            CL_ListBoxSelect(active_layout, frame, listbox, (DWORD)rowIndex);
-            selectedIndex = (SHORT)rowIndex;
         }
         re.DrawText(&MAKE(drawText_t,
                           .font = cl.fonts[listbox->text.font],

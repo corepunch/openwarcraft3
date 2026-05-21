@@ -31,6 +31,8 @@ typedef struct drawText_s {
     uiFontJustificationH_t halign;
     uiFontJustificationV_t valign;
     LPCTEXTURE *icons;
+    BOOL hasClip;
+    RECT clip;
 } drawText_t;
 
 /* Image drawing parameters */
@@ -44,6 +46,8 @@ typedef struct drawImage_s {
     BOOL rotate;
     FLOAT angle;
     FLOAT uActiveGlow;
+    BOOL hasClip;
+    RECT clip;
 } drawImage_t;
 
 /* Standard pointer typedefs */

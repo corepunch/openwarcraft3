@@ -72,6 +72,30 @@ void R_SetBlending(BLEND_MODE mode) {
 //    }
 }
 
+static void R_SetUIClipScissor(LPCRECT clip) {
+    RECT const scene = R_UISceneRect();
+    FLOAT x = (clip->x - scene.x) / scene.w;
+    FLOAT y = 1.0f - ((clip->y + clip->h - scene.y) / scene.h);
+    FLOAT w = clip->w / scene.w;
+    FLOAT h = clip->h / scene.h;
+
+    x = MAX(0.0f, MIN(1.0f, x));
+    y = MAX(0.0f, MIN(1.0f, y));
+    w = MAX(0.0f, MIN(1.0f - x, w));
+    h = MAX(0.0f, MIN(1.0f - y, h));
+
+    R_Call(glEnable, GL_SCISSOR_TEST);
+    R_Call(glScissor,
+           x * tr.drawableSize.width,
+           y * tr.drawableSize.height,
+           w * tr.drawableSize.width,
+           h * tr.drawableSize.height);
+}
+
+static void R_ResetUIScissor(void) {
+    R_Call(glScissor, 0, 0, tr.drawableSize.width, tr.drawableSize.height);
+}
+
 void R_DrawImageEx(LPCDRAWIMAGE drawImage) {
     VERTEX simp[6];
     R_AddQuad(simp, &drawImage->screen, &drawImage->uv, drawImage->color, 0);
@@ -130,7 +154,13 @@ void R_DrawImageEx(LPCDRAWIMAGE drawImage) {
     R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     R_Call(glDisable, GL_CULL_FACE);
     R_Call(glEnable, GL_BLEND);
+    if (drawImage->hasClip) {
+        R_SetUIClipScissor(&drawImage->clip);
+    }
     R_Call(glDrawArrays, GL_TRIANGLES, 0, 6);
+    if (drawImage->hasClip) {
+        R_ResetUIScissor();
+    }
 
     R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 }

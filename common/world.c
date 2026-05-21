@@ -1,6 +1,10 @@
 #include "common.h"
 #include "mpq.h"
 
+#ifndef _WIN32
+#include <strings.h>
+#endif
+
 static struct {
     LPWAR3MAP map;
     MAPINFO info;
@@ -34,13 +38,42 @@ void SFileReadString(HANDLE file, LPSTR *lppString) {
     SFileReadFile(file, *lppString, stringLength, NULL, NULL);
 }
 
-static void CM_ReadInfo(HANDLE archive) {
-    LPMAPINFO info = &world.info;
+static void SFileSkipBytes(HANDLE file, DWORD size) {
+    SFileSetFilePointer(file, size, 0, FILE_CURRENT);
+}
+
+static DWORD SFileBytesRemaining(HANDLE file) {
+    DWORD position = SFileSetFilePointer(file, 0, 0, FILE_CURRENT);
+    DWORD size = SFileGetFileSize(file, NULL);
+
+    if (position >= size) {
+        return 0;
+    }
+    return size - position;
+}
+
+static void SFileSkipString(HANDLE file) {
+    LPSTR text = NULL;
+
+    SFileReadString(file, &text);
+    SAFE_DELETE(text, MemFree);
+}
+
+static BOOL CM_ReadInfoInto(HANDLE archive, LPMAPINFO info, BOOL setup_only) {
     HANDLE file;
-    SFileOpenFileEx(archive, "war3map.w3i", SFILE_OPEN_FROM_MPQ, &file);
+
+    if (!archive || !info) {
+        return false;
+    }
+    if (!SFileOpenFileEx(archive, "war3map.w3i", SFILE_OPEN_FROM_MPQ, &file)) {
+        return false;
+    }
     SFileReadFile(file, &info->fileFormat, 4, NULL, NULL);
     SFileReadFile(file, &info->numberOfSaves, sizeof(DWORD), NULL, NULL);
     SFileReadFile(file, &info->editorVersion, sizeof(DWORD), NULL, NULL);
+    if (info->fileFormat > 27) {
+        SFileSkipBytes(file, sizeof(DWORD) * 4);
+    }
     SFileReadString(file, &info->mapName);
     SFileReadString(file, &info->mapAuthor);
     SFileReadString(file, &info->mapDescription);
@@ -50,20 +83,40 @@ static void CM_ReadInfo(HANDLE archive) {
     SFileReadFile(file, &info->flags, sizeof(DWORD), NULL, NULL);
     SFileReadFile(file, &info->mainGroundType, sizeof(char), NULL, NULL);
     SFileReadFile(file, &info->campaignBackgroundNumber, sizeof(DWORD), NULL, NULL);
+    if (info->fileFormat > 24) {
+        SFileSkipString(file);
+    }
     SFileReadString(file, &info->loadingScreenText);
     SFileReadString(file, &info->loadingScreenTitle);
     SFileReadString(file, &info->loadingScreenSubtitle);
     SFileReadFile(file, &info->loadingScreenNumber, sizeof(DWORD), NULL, NULL);
+    if (info->fileFormat > 24) {
+        SFileSkipString(file);
+    }
     SFileReadString(file, &info->prologueScreenText);
     SFileReadString(file, &info->prologueScreenTitle);
     SFileReadString(file, &info->prologueScreenSubtitle);
+    if (info->fileFormat > 24) {
+        SFileSkipBytes(file, sizeof(DWORD) + sizeof(FLOAT) * 2 + sizeof(FLOAT) + sizeof(BYTE) * 4 + sizeof(DWORD));
+        SFileSkipString(file);
+        SFileSkipBytes(file, sizeof(BYTE) + sizeof(BYTE) * 4);
+    }
+    if (info->fileFormat > 27) {
+        SFileSkipBytes(file, sizeof(BYTE) * 4);
+    }
+    if (info->fileFormat > 30) {
+        SFileSkipBytes(file, sizeof(DWORD) * 2);
+    }
 
     DWORD num_players = 0;
     SFileReadFile(file, &num_players, sizeof(DWORD), NULL, NULL);
     FOR_LOOP(i, num_players) {
         DWORD playerNumber = 0;
+        mapPlayer_t scratch = { 0 };
+        mapPlayer_t *player;
+
         SFileReadFile(file, &playerNumber, sizeof(DWORD), NULL, NULL);
-        mapPlayer_t *player = info->players+playerNumber;
+        player = playerNumber < MAX_PLAYERS ? info->players + playerNumber : &scratch;
         player->used = true;
         SFileReadFile(file, &player->playerType, sizeof(playerType_t), NULL, NULL);
         SFileReadFile(file, &player->playerRace, sizeof(playerRace_t), NULL, NULL);
@@ -72,6 +125,7 @@ static void CM_ReadInfo(HANDLE archive) {
         SFileReadFile(file, &player->startingPosition, sizeof(VECTOR2), NULL, NULL);
         SFileReadFile(file, &player->allyLowPrioritiesFlags, sizeof(DWORD), NULL, NULL);
         SFileReadFile(file, &player->allyHighPrioritiesFlags, sizeof(DWORD), NULL, NULL);
+        SAFE_DELETE(scratch.playerName, MemFree);
     }
 
     SFileReadFile(file, &info->num_teams, sizeof(DWORD), NULL, NULL);
@@ -83,6 +137,10 @@ static void CM_ReadInfo(HANDLE archive) {
         SFileReadString(file, &force->name);
     }
 
+    if (setup_only || SFileBytesRemaining(file) <= 1) {
+        SFileCloseFile(file);
+        return true;
+    }
     SFileReadFile(file, &info->num_upgradeAvailabilities, sizeof(DWORD), NULL, NULL);
     info->upgradeAvailabilities = MemAlloc(sizeof(mapUpgradeAvailability_t) * info->num_upgradeAvailabilities);
     FOR_LOOP(i, info->num_upgradeAvailabilities) {
@@ -93,6 +151,10 @@ static void CM_ReadInfo(HANDLE archive) {
         SFileReadFile(file, &upgrade->availability, sizeof(upgradeAvailability_t), NULL, NULL);
     }
 
+    if (SFileBytesRemaining(file) <= 1) {
+        SFileCloseFile(file);
+        return true;
+    }
     SFileReadFile(file, &info->num_techAvailabilities, sizeof(DWORD), NULL, NULL);
     info->techAvailabilities = MemAlloc(sizeof(mapTechAvailability_t) * info->num_techAvailabilities);
     FOR_LOOP(i, info->num_techAvailabilities) {
@@ -101,6 +163,10 @@ static void CM_ReadInfo(HANDLE archive) {
         SFileReadFile(file, &tech->techID, sizeof(DWORD), NULL, NULL);
     }
 
+    if (SFileBytesRemaining(file) <= 1) {
+        SFileCloseFile(file);
+        return true;
+    }
     SFileReadFile(file, &info->num_randomUnits, sizeof(DWORD), NULL, NULL);
     info->randomUnits = MemAlloc(sizeof(mapRandomUnitTable_t) * info->num_randomUnits);
     FOR_LOOP(i, info->num_randomUnits) {
@@ -124,9 +190,19 @@ static void CM_ReadInfo(HANDLE archive) {
     }
 
     SFileCloseFile(file);
+    return true;
+}
+
+static void CM_ReadInfo(HANDLE archive) {
+    CM_ReadInfoInto(archive, &world.info, false);
 }
 
 static void MapInfo_Release(LPMAPINFO mapInfo) {
+    mapTrigStr_t *string = mapInfo ? mapInfo->strings : NULL;
+
+    if (!mapInfo) {
+        return;
+    }
     FOR_LOOP(i, MAX_PLAYERS) {
         SAFE_DELETE(mapInfo->players[i].playerName, MemFree);
     }
@@ -157,6 +233,20 @@ static void MapInfo_Release(LPMAPINFO mapInfo) {
     SAFE_DELETE(mapInfo->upgradeAvailabilities, MemFree);
     SAFE_DELETE(mapInfo->techAvailabilities, MemFree);
     SAFE_DELETE(mapInfo->randomUnits, MemFree);
+    while (string) {
+        mapTrigStr_t *next = string->next;
+        MemFree(string);
+        string = next;
+    }
+    SAFE_DELETE(mapInfo->mapscript, MemFree);
+}
+
+void CM_FreeMapInfo(LPMAPINFO mapInfo) {
+    if (!mapInfo) {
+        return;
+    }
+    MapInfo_Release(mapInfo);
+    memset(mapInfo, 0, sizeof(*mapInfo));
 }
 
 static void CM_ReadDoodads(HANDLE archive) {
@@ -348,7 +438,9 @@ void CM_ReadUnits(HANDLE archive) {
 
 LPSTR FS_ReadArchiveFileIntoString(HANDLE archive, LPCSTR filename) {
     HANDLE file;
-    SFileOpenFileEx(archive, filename, SFILE_OPEN_FROM_MPQ, &file);
+    if (!SFileOpenFileEx(archive, filename, SFILE_OPEN_FROM_MPQ, &file)) {
+        return NULL;
+    }
     DWORD fileSize = SFileGetFileSize(file, NULL);
     LPSTR buffer = MemAlloc(fileSize + 1);
     SFileReadFile(file, buffer, fileSize, NULL, NULL);
@@ -358,29 +450,315 @@ LPSTR FS_ReadArchiveFileIntoString(HANDLE archive, LPCSTR filename) {
 }
 
 void removeTrailingWhitespace(char *s) {
-    for (char *ch = s+strlen(s)-1; ch>=s && isspace(*ch); *(ch--)='\0');
+    size_t len;
+
+    if (!s) {
+        return;
+    }
+    len = strlen(s);
+    while (len > 0 && isspace((unsigned char)s[len - 1])) {
+        s[--len] = '\0';
+    }
+}
+
+static LPCSTR CM_SkipSpace(LPCSTR text) {
+    while (text && (*text == ' ' || *text == '\t' || *text == '\r')) {
+        text++;
+    }
+    return text;
+}
+
+static void CM_ReadLine(LPCSTR *cursor, LPSTR out, DWORD out_size) {
+    DWORD len = 0;
+    LPCSTR p;
+
+    if (!cursor || !*cursor || !out || out_size == 0) {
+        return;
+    }
+    p = *cursor;
+    while (*p && *p != '\n' && *p != '\r') {
+        if (len + 1 < out_size) {
+            out[len++] = *p;
+        }
+        p++;
+    }
+    out[len] = '\0';
+    while (*p == '\n' || *p == '\r') {
+        p++;
+    }
+    *cursor = p;
+}
+
+static void CM_AppendTrigStringText(mapTrigStr_t *entry, LPCSTR line) {
+    DWORD len;
+    DWORD add;
+
+    if (!entry || !line) {
+        return;
+    }
+    len = (DWORD)strlen(entry->text);
+    add = (DWORD)strlen(line);
+    if (len + add >= sizeof(entry->text)) {
+        add = sizeof(entry->text) - len - 1;
+    }
+    if (add) {
+        memcpy(entry->text + len, line, add);
+        entry->text[len + add] = '\0';
+    }
+}
+
+static void CM_ReadStringsInto(HANDLE archive, LPMAPINFO info) {
+    LPSTR buffer = FS_ReadArchiveFileIntoString(archive, "war3map.wts");
+    LPCSTR cursor;
+    mapTrigStr_t *entry = NULL;
+    BOOL reading_data = false;
+    char line[MAX_TRIGSTR_LENGTH];
+
+    if (!info) {
+        SAFE_DELETE(buffer, MemFree);
+        return;
+    }
+    if (!buffer) {
+        return;
+    }
+    PF_TextRemoveBom(buffer);
+    cursor = buffer;
+    while (*cursor) {
+        LPCSTR trimmed;
+
+        CM_ReadLine(&cursor, line, sizeof(line));
+        trimmed = CM_SkipSpace(line);
+        if (!reading_data) {
+            if (!strncmp(trimmed, "STRING ", strlen("STRING "))) {
+                SAFE_DELETE(entry, MemFree);
+                entry = MemAlloc(sizeof(*entry));
+                memset(entry, 0, sizeof(*entry));
+                sscanf(trimmed, "STRING %d", &entry->id);
+            } else if (entry && *trimmed == '{') {
+                reading_data = true;
+            }
+            continue;
+        }
+        if (*trimmed == '}') {
+            ADD_TO_LIST(entry, info->strings);
+            entry = NULL;
+            reading_data = false;
+            continue;
+        }
+        removeTrailingWhitespace(line);
+        CM_AppendTrigStringText(entry, line);
+    }
+    if (entry) {
+        if (reading_data) {
+            ADD_TO_LIST(entry, info->strings);
+        } else {
+            MemFree(entry);
+        }
+    }
+    MemFree(buffer);
 }
 
 void CM_ReadStrings(HANDLE archive) {
-    LPSTR buffer = FS_ReadArchiveFileIntoString(archive, "war3map.wts");
-    PF_TextRemoveBom(buffer);
-    LPSTR token = strtok(buffer, "\n");
-    while (token) {
-        if (strncmp(token, "STRING ", strlen("STRING ")) == 0) {
-            mapTrigStr_t *entry = MemAlloc(sizeof(mapTrigStr_t));
-            sscanf(token, "STRING %d", &entry->id);
-            token = strtok(NULL, "\n");
-            if (token && token[0] == '{') {
-                token = strtok(NULL, "\n");
-                removeTrailingWhitespace(token);
-                strcpy(entry->text, token);
-//                printf("ID: %d\nText: %s\n\n", entry->id, entry->text);
-                ADD_TO_LIST(entry, world.info.strings)
-            }
-        }
-        token = strtok(NULL, "\n");
+    CM_ReadStringsInto(archive, &world.info);
+}
+
+BOOL CM_ReadMapInfo(LPCSTR mapFilename, LPMAPINFO info) {
+    HANDLE mapArchive;
+    HANDLE mapData;
+    DWORD mapSize = 0;
+
+    if (!mapFilename || !info) {
+        return false;
     }
-    MemFree(buffer);
+
+    memset(info, 0, sizeof(*info));
+    mapData = FS_ReadFile(mapFilename, &mapSize);
+    if (!mapData || mapSize == 0) {
+        return false;
+    }
+    if (!SFileOpenArchiveFromMemory(mapData, mapSize, 0, &mapArchive)) {
+        MemFree(mapData);
+        return false;
+    }
+
+    if (!CM_ReadInfoInto(mapArchive, info, true)) {
+        SFileCloseArchive(mapArchive);
+        MemFree(mapData);
+        return false;
+    }
+    CM_ReadStringsInto(mapArchive, info);
+
+    SFileCloseArchive(mapArchive);
+    MemFree(mapData);
+    return true;
+}
+
+BOOL CM_FindMapPreviewTexture(LPCSTR mapFilename, LPSTR out, DWORD out_size) {
+    static LPCSTR candidates[] = {
+        "war3mapPreview.tga",
+        "war3mapMap.blp",
+        "war3mapMap.tga",
+        NULL,
+    };
+    HANDLE mapArchive;
+    HANDLE mapData;
+    DWORD mapSize = 0;
+    BOOL found = false;
+
+    if (!mapFilename || !out || out_size == 0) {
+        return false;
+    }
+    out[0] = '\0';
+
+    mapData = FS_ReadFile(mapFilename, &mapSize);
+    if (!mapData || mapSize == 0) {
+        return false;
+    }
+    if (!SFileOpenArchiveFromMemory(mapData, mapSize, 0, &mapArchive)) {
+        MemFree(mapData);
+        return false;
+    }
+
+    for (DWORD i = 0; candidates[i]; i++) {
+        HANDLE file;
+
+        if (!SFileOpenFileEx(mapArchive, candidates[i], SFILE_OPEN_FROM_MPQ, &file)) {
+            continue;
+        }
+        SFileCloseFile(file);
+        snprintf(out, out_size, "%s\\%s", mapFilename, candidates[i]);
+        found = true;
+        break;
+    }
+
+    SFileCloseArchive(mapArchive);
+    MemFree(mapData);
+    return found;
+}
+
+static LPCSTR CM_PathBaseFileName(LPCSTR path) {
+    LPCSTR base = path ? path : "";
+
+    for (LPCSTR p = base; *p; p++) {
+        if (*p == '\\' || *p == '/') {
+            base = p + 1;
+        }
+    }
+    return base;
+}
+
+void CM_DefaultMapName(LPCSTR path, LPSTR out, DWORD out_size) {
+    DWORD len;
+
+    if (!out || out_size == 0) {
+        return;
+    }
+    snprintf(out, out_size, "%s", CM_PathBaseFileName(path));
+    len = (DWORD)strlen(out);
+    if (len > 4 && out[len - 4] == '.') {
+        out[len - 4] = '\0';
+    }
+}
+
+void CM_ResolveMapInfoString(LPCMAPINFO info, LPCSTR text, LPSTR out, DWORD out_size) {
+    DWORD id;
+
+    if (!out || out_size == 0) {
+        return;
+    }
+    if (!text) {
+        out[0] = '\0';
+        return;
+    }
+    if (strncmp(text, "TRIGSTR_", 8)) {
+        snprintf(out, out_size, "%s", text);
+        return;
+    }
+    id = (DWORD)strtoul(text + 8, NULL, 10);
+    for (mapTrigStr_t const *string = info ? info->strings : NULL; string; string = string->next) {
+        if (string->id == id) {
+            snprintf(out, out_size, "%s", string->text);
+            return;
+        }
+    }
+    snprintf(out, out_size, "%s", text);
+}
+
+BOOL CM_MapNameMatchesFile(LPCSTR name, LPCSTR path) {
+    PATHSTR base;
+    size_t len;
+
+    if (!name || !path || !*name) {
+        return false;
+    }
+    snprintf(base, sizeof(base), "%s", CM_PathBaseFileName(path));
+    len = strlen(base);
+    if (len > 4 && (!strcasecmp(base + len - 4, ".w3m") ||
+                    !strcasecmp(base + len - 4, ".w3x"))) {
+        base[len - 4] = '\0';
+    }
+    return !strcasecmp(name, base);
+}
+
+LPCSTR CM_TilesetName(BYTE tileset) {
+    switch (tileset) {
+        case 'A': return "Ashenvale";
+        case 'B': return "Barrens";
+        case 'C': return "Felwood";
+        case 'D': return "Dungeon";
+        case 'F': return "Lordaeron Fall";
+        case 'G': return "Underground";
+        case 'I': return "Icecrown Glacier";
+        case 'J': return "Dalaran";
+        case 'K': return "Black Citadel";
+        case 'L': return "Lordaeron Summer";
+        case 'N': return "Northrend";
+        case 'O': return "Outland";
+        case 'Q': return "Village Fall";
+        case 'V': return "Village";
+        case 'W': return "Lordaeron Winter";
+        case 'X': return "Dalaran Ruins";
+        case 'Y': return "Cityscape";
+        case 'Z': return "Sunken Ruins";
+        default: return NULL;
+    }
+}
+
+LPCSTR CM_MapSizeName(DWORD width, DWORD height) {
+    DWORD largest = MAX(width, height);
+
+    if (largest <= 96) {
+        return "Small";
+    }
+    if (largest <= 128) {
+        return "Medium";
+    }
+    if (largest <= 160) {
+        return "Large";
+    }
+    return "Huge";
+}
+
+void CM_SanitizeMapListField(LPSTR text) {
+    if (!text) {
+        return;
+    }
+    for (LPSTR p = text; *p; p++) {
+        if (*p == '\n' || *p == '\r' || *p == '\t') {
+            *p = ' ';
+        }
+    }
+}
+
+void CM_SanitizeMapInfoText(LPSTR text) {
+    if (!text) {
+        return;
+    }
+    for (LPSTR p = text; *p; p++) {
+        if (*p == '\t') {
+            *p = ' ';
+        }
+    }
 }
 
 void CM_ReadMapScript(HANDLE archive) {

@@ -832,9 +832,18 @@ void MenuAction(LPCSTR action, LPCSTR arg) {
     }
 }
 
+static void Com_Load_f(void) {
+    if (Cmd_Argc() < 2) {
+        fprintf(stderr, "Usage: load <map>\n");
+        return;
+    }
+    MenuAction("load", Cmd_ArgsFrom(1));
+}
+
 void Com_Init(int argc, LPCSTR *argv) {
     Cbuf_Init();
     Cvar_Init();
+    Cmd_AddCommand("load", Com_Load_f);
     Cvar_ApplyConfigCommandLine(argc, argv);
     FS_Init();
     Cvar_LoadConfig("share/default.cfg");

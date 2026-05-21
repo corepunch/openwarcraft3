@@ -60,6 +60,17 @@ typedef struct {
     /* File system operations (archive-agnostic, Quake 3 pattern) */
     int (*FS_ReadFile)(LPCSTR fileName, void **buf);  /* Returns file size, allocates buf */
     void (*FS_FreeFile)(void *buf);
+    int (*FS_GetFileList)(LPCSTR path, LPCSTR extension, char *listbuf, int bufsize);
+    BOOL (*ReadMapInfo)(LPCSTR mapName, LPMAPINFO info);
+    BOOL (*FindMapPreviewTexture)(LPCSTR mapName, LPSTR out, DWORD out_size);
+    void (*FreeMapInfo)(LPMAPINFO info);
+    void (*DefaultMapName)(LPCSTR path, LPSTR out, DWORD out_size);
+    void (*ResolveMapInfoString)(LPCMAPINFO info, LPCSTR text, LPSTR out, DWORD out_size);
+    BOOL (*MapNameMatchesFile)(LPCSTR name, LPCSTR path);
+    LPCSTR (*MapTilesetName)(BYTE tileset);
+    LPCSTR (*MapSizeName)(DWORD width, DWORD height);
+    void (*SanitizeMapListField)(LPSTR text);
+    void (*SanitizeMapInfoText)(LPSTR text);
     
     /* Memory allocation */
     HANDLE (*MemAlloc)(long size);
@@ -74,12 +85,6 @@ typedef struct {
      * UI executes console commands; engine dispatcher handles routing */
     void (*Cmd_ExecuteText)(LPCSTR text);
     LPCSTR (*Cvar_String)(LPCSTR name, LPCSTR fallback);
-    
-    /* Data requests (map lists, game lists, player info) */
-    void (*RequestMapList)(void);
-    void (*RequestMapInfo)(int mapIndex);
-    void (*RequestGameList)(void);
-    void (*RequestPlayerInfo)(void);
     
     /* Game state access (for in-game HUD) */
     LPCPLAYER (*GetPlayerState)(void);          /* Access to cl.playerstate */
@@ -113,12 +118,6 @@ typedef struct {
     
     /* Menu navigation (called by client for button clicks, console commands) */
     void (*MenuCommand)(LPCSTR route);
-    
-    /* Data updates from server (called when server sends response messages) */
-    void (*UpdateMapList)(DWORD count, LPCSTR *names);
-    void (*UpdateMapInfo)(DWORD index, LPCSTR title, LPCSTR description, LPCSTR preview);
-    void (*UpdateGameList)(DWORD count, LPCSTR *names);
-    void (*UpdatePlayerInfo)(DWORD playerCount, LPCSTR *playerNames);
     
     /* Unit UI data updates (Phase 8: HUD migration) */
     void (*UpdateUnitUI)(DWORD num_units, uiUnitData_t *units);

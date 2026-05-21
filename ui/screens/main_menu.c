@@ -20,66 +20,37 @@
 /* Frame references */
 static LPFRAMEDEF frame_MainMenu = NULL;
 static LPFRAMEDEF frame_ControlLayer = NULL;
-static LPFRAMEDEF frame_TopLeftPanel = NULL;
-static LPFRAMEDEF frame_TopRightPanel = NULL;
 static LPFRAMEDEF frame_RealmSelect = NULL;
 static LPFRAMEDEF frame_Logo = NULL;
-static LPCMODEL main_menu_background = NULL;
 
 /* State */
 static BOOL show_realm_select = false;
 
-static void MainMenu_LoadBackground(void) {
-    LPRENDERER renderer = uiimport.GetRenderer ? uiimport.GetRenderer() : NULL;
-    LPCSTR model = Theme_String("GlueSpriteLayerBackground", "Default");
-
-    if (!renderer || !renderer->LoadModel) {
-        return;
-    }
-    if (!model || !*model || !strcmp(model, "GlueSpriteLayerBackground")) {
-        model = Theme_String("MainMenu", "Default");
-    }
-    if (!model || !*model || !strcmp(model, "MainMenu")) {
-        model = "UI\\Glues\\MainMenu\\MainMenu3d\\MainMenu3d.mdx";
-    }
-    main_menu_background = renderer->LoadModel(model);
-}
-
 static void MainMenu_InitFrames(void) {
     /* Find top-level frames */
-    frame_MainMenu = UI_FindFrame("MainMenuFrame");
-    frame_ControlLayer = UI_FindFrame("ControlLayer");
-    frame_TopLeftPanel = UI_FindFrame("TopLeftPanel");
-    frame_TopRightPanel = UI_FindFrame("TopRightPanel");
-    frame_RealmSelect = UI_FindFrame("RealmSelect");
-    frame_Logo = UI_FindFrame("WarCraftIIILogo");
+    UI_FRAME(MainMenuFrame);
+    UI_FRAME(ControlLayer);
+    UI_FRAME(RealmSelect);
+    UI_FRAME(WarCraftIIILogo);
+
+    frame_MainMenu = MainMenuFrame;
+    frame_ControlLayer = ControlLayer;
+    frame_RealmSelect = RealmSelect;
+    frame_Logo = WarCraftIIILogo;
 
     if (!frame_MainMenu) {
         uiimport.Printf("ERROR: MainMenuFrame not found\n");
         return;
     }
 
-    /* Set up hierarchy */
-    if (frame_TopLeftPanel) {
-        UI_SetParent(frame_TopLeftPanel, frame_MainMenu);
-        UI_SetHidden(frame_TopLeftPanel, false);
-    }
-    if (frame_TopRightPanel) {
-        UI_SetParent(frame_TopRightPanel, frame_MainMenu);
-        UI_SetHidden(frame_TopRightPanel, false);
-    }
     if (frame_RealmSelect) {
-        UI_SetParent(frame_RealmSelect, frame_MainMenu);
         UI_SetHidden(frame_RealmSelect, true);
     }
     if (frame_ControlLayer) {
-        UI_SetParent(frame_ControlLayer, frame_MainMenu);
         UI_SetHidden(frame_ControlLayer, false);
     }
-    if (frame_Logo && frame_ControlLayer) {
-        DWORD logo_model;
-        UI_SetParent(frame_Logo, frame_ControlLayer);
-        logo_model = UI_LoadModel("MainMenuLogo", true);
+    if (frame_Logo) {
+        DWORD logo_model = UI_LoadModel("MainMenuLogo", true);
         if (logo_model) {
             frame_Logo->Portrait.model = logo_model;
         }
@@ -87,34 +58,34 @@ static void MainMenu_InitFrames(void) {
     }
 
     /* Wire button callbacks */
-    LPFRAMEDEF RealmButton = UI_FindFrame("RealmButton");
-    LPFRAMEDEF SinglePlayerButton = UI_FindFrame("SinglePlayerButton");
-    LPFRAMEDEF BattleNetButton = UI_FindFrame("BattleNetButton");
-    LPFRAMEDEF LANButton = UI_FindFrame("LocalAreaNetworkButton");
-    LPFRAMEDEF OptionsButton = UI_FindFrame("OptionsButton");
-    LPFRAMEDEF CreditsButton = UI_FindFrame("CreditsButton");
-    LPFRAMEDEF ExitButton = UI_FindFrame("ExitButton");
+    UI_FRAME(RealmButton);
+    UI_FRAME(SinglePlayerButton);
+    UI_FRAME(BattleNetButton);
+    UI_FRAME(LocalAreaNetworkButton);
+    UI_FRAME(OptionsButton);
+    UI_FRAME(CreditsButton);
+    UI_FRAME(ExitButton);
 
     UI_SetOnClick(RealmButton, "menu /realm-select");
     UI_SetOnClick(SinglePlayerButton, "menu /single-player");
-    UI_SetOnClick(BattleNetButton, "menu /lan/refresh");
-    UI_SetOnClick(LANButton, "menu /lan/refresh");
+    UI_SetOnClick(BattleNetButton, "menu /lan/create");
+    UI_SetOnClick(LocalAreaNetworkButton, "menu /lan/create");
     UI_SetOnClick(OptionsButton, "menu /options");
     UI_SetOnClick(CreditsButton, "menu /credits");
     UI_SetOnClick(ExitButton, "menu /quit");
 
     /* Realm select buttons */
     if (frame_RealmSelect) {
-        LPFRAMEDEF OKButton = UI_FindChildFrame(frame_RealmSelect, "RealmSelectOKButton");
-        LPFRAMEDEF CancelButton = UI_FindChildFrame(frame_RealmSelect, "RealmSelectCancelButton");
-        UI_SetOnClick(OKButton, "menu /main");
-        UI_SetOnClick(CancelButton, "menu /main");
+        LPFRAMEDEF RealmSelectOKButton = UI_FindChildFrame(frame_RealmSelect, "RealmSelectOKButton");
+        LPFRAMEDEF RealmSelectCancelButton = UI_FindChildFrame(frame_RealmSelect, "RealmSelectCancelButton");
+        UI_SetOnClick(RealmSelectOKButton, "menu /main");
+        UI_SetOnClick(RealmSelectCancelButton, "menu /main");
     }
 }
 
 static void MainMenu_Init(void) {
     uiimport.Printf("MainMenu_Init\n");
-    MainMenu_LoadBackground();
+    UI_PreloadGlueSceneModels();
     MainMenu_InitFrames();
     show_realm_select = false;
 }
@@ -129,11 +100,7 @@ static void MainMenu_Refresh(int msec) {
 }
 
 static void MainMenu_Draw(void) {
-    LPRENDERER renderer = uiimport.GetRenderer ? uiimport.GetRenderer() : NULL;
-    if (renderer && renderer->DrawPortrait && main_menu_background) {
-        RECT viewport = { 0, 0, 1, 1 };
-        renderer->DrawPortrait(main_menu_background, &viewport, "Stand");
-    }
+    UI_DrawGlueScene("MainMenu Stand");
 
     /* Render main menu frame tree */
     if (frame_MainMenu) {

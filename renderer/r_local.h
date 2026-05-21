@@ -241,6 +241,7 @@ RECT R_UISceneRect(void);
 
 // r_font.c
 LPFONT R_LoadFont(LPCSTR filename, DWORD size);
+void R_ShutdownFonts(void);
 VECTOR2 R_GetTextSize(LPCDRAWTEXT drawText);
 void R_DrawText(LPCDRAWTEXT drawText);
 

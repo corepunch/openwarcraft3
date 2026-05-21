@@ -177,7 +177,6 @@ clean:
 TEST_GAME_SRCS := \
 	game/g_ai.c \
 	game/g_events.c \
-	game/g_listfetch.c \
 	game/g_metadata.c \
 	game/g_monster.c \
 	game/g_pathing.c \
@@ -193,12 +192,10 @@ TEST_GAME_SRCS := \
 	game/skills/s_stop.c \
 	game/skills/s_train.c \
 	client/cl_menu.c \
-	client/cl_listbox.c \
 	client/cl_parse.c \
 	client/cl_scrn.c \
 	server/sv_init.c \
 	server/sv_lan.c \
-	server/sv_listfetch.c \
 	server/sv_send.c \
 	server/sv_main.c \
 	common/net.c \

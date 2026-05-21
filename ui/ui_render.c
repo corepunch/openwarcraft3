@@ -28,6 +28,7 @@ typedef struct {
 static frameRuntime_t runtimes[MAX_UI_CLASSES];
 static RECT scene_rect;
 static BOOL scene_rect_valid = FALSE;
+static LPCFRAMEDEF active_slider = NULL;
 
 static LPRENDERER UI_GetRenderer(void) {
     if (!uiimport.GetRenderer) {
@@ -42,6 +43,14 @@ static BOOL UI_FrameIndex(LPCFRAMEDEF frame, DWORD *index) {
     }
     *index = (DWORD)(frame - frames);
     return TRUE;
+}
+
+static LPCSTR UI_FontFile(LPCSTR name) {
+    return Theme_String(name && *name ? name : "MasterFont", "Default");
+}
+
+static DWORD UI_FontPixelSize(FLOAT size) {
+    return size > 0 ? (DWORD)(size * 1000.0f + 0.5f) : 13;
 }
 
 typedef enum {
@@ -216,7 +225,8 @@ static LPCRECT UI_LayoutRect(LPCFRAMEDEF frame) {
                 if (frame->Text && frame->Font.Index) {
                     LPRENDERER renderer = UI_GetRenderer();
                     drawText_t dt = {
-                        .font = renderer ? renderer->LoadFont(frame->Font.Name, (DWORD)frame->Font.Size) : NULL,
+                        .font = renderer ? renderer->LoadFont(UI_FontFile(frame->Font.Name),
+                                                              UI_FontPixelSize(frame->Font.Size)) : NULL,
                         .text = frame->Text,
                         .textWidth = intrinsic_w > 0 ? intrinsic_w : 0.2f,
                         .lineHeight = 1.33f,
@@ -459,8 +469,8 @@ static void UI_DrawText(LPCFRAMEDEF frame, LPCRECT rect) {
         return;
     }
 
-    font_name = Theme_String(frame->Font.Name, "Default");
-    font_size = frame->Font.Size > 0 ? (DWORD)(frame->Font.Size * 1000.0f) : 13;
+    font_name = UI_FontFile(frame->Font.Name);
+    font_size = UI_FontPixelSize(frame->Font.Size);
     LPCFONT font = renderer->LoadFont(font_name, font_size);
     if (!font) {
         return;
@@ -482,6 +492,180 @@ static void UI_DrawText(LPCFRAMEDEF frame, LPCRECT rect) {
     };
     
     renderer->DrawText((LPCDRAWTEXT)&dt);
+}
+
+static void UI_DrawMapListControl(LPCFRAMEDEF frame, LPCRECT rect) {
+    LPRENDERER renderer = UI_GetRenderer();
+    uiMapListControl_t const *control;
+    uiMapListState_t *state;
+    LPCFONT font;
+    DWORD visible_rows;
+    FLOAT row_height;
+    DWORD first_row;
+    FLOAT visual_scroll;
+    FLOAT row_offset;
+    RECT content;
+    RECT clip;
+    VECTOR2 mouse;
+
+    if (!frame || !rect) {
+        return;
+    }
+
+    control = &frame->MapListControl;
+    state = control->State;
+    if (!state || !renderer || !renderer->LoadFont || !renderer->DrawText) {
+        return;
+    }
+
+    row_height = control->RowHeight > 0 ? control->RowHeight : 0.019f;
+    visible_rows = control->VisibleRows ? control->VisibleRows : (DWORD)((rect->h - control->InsetY * 2.0f) / row_height);
+    content = MAKE(RECT,
+                   rect->x + control->InsetX,
+                   rect->y + control->InsetY,
+                   rect->w - control->InsetX * 2.0f,
+                   row_height);
+    clip = MAKE(RECT,
+                content.x,
+                content.y,
+                content.w,
+                row_height * (FLOAT)visible_rows);
+
+    if (UI_MouseContains(rect) && ui_mouse.event == UI_MOUSE_LEFT_UP && visible_rows > 0) {
+        FLOAT row;
+        DWORD index;
+        mouse = UI_MouseToFdf();
+        row = (mouse.y - content.y) / row_height;
+        index = (DWORD)floorf(state->visualScroll + row);
+        if (row >= 0.0f && row < (FLOAT)visible_rows && index < state->count) {
+            char command[128];
+            snprintf(command,
+                     sizeof(command),
+                     control->SelectRoute[0] ? control->SelectRoute : "menu /lan/select/%u",
+                     (unsigned)index);
+            UI_MenuCommandLocal(command);
+        }
+    }
+    if (UI_MouseContains(rect) &&
+        (ui_mouse.event == UI_MOUSE_WHEEL_UP || ui_mouse.event == UI_MOUSE_WHEEL_DOWN) &&
+        visible_rows > 0 && state->count > visible_rows) {
+        DWORD const max_scroll = state->count - visible_rows;
+
+        if (ui_mouse.event == UI_MOUSE_WHEEL_UP) {
+            state->scroll = state->scroll > 0 ? state->scroll - 1 : 0;
+        } else if (state->scroll < max_scroll) {
+            state->scroll++;
+        }
+    }
+
+    font = renderer->LoadFont(UI_FontFile(control->FontName), UI_FontPixelSize(control->FontSize));
+    if (!font) {
+        return;
+    }
+
+    visual_scroll = state->visualScroll;
+    if (visual_scroll < 0.0f) {
+        visual_scroll = 0.0f;
+    }
+    first_row = (DWORD)floorf(visual_scroll);
+    row_offset = (visual_scroll - (FLOAT)first_row) * row_height;
+
+    for (DWORD row = 0; row <= visible_rows; row++) {
+        DWORD const index = first_row + row;
+        uiMapListItem_t const *item;
+        char text[256];
+        BOOL selected;
+        RECT row_rect = content;
+        RECT icon_rect;
+        RECT text_rect;
+
+        if (index >= state->count) {
+            break;
+        }
+
+        item = &state->items[index];
+        selected = index == state->selected;
+        row_rect.y += row_height * (FLOAT)row - row_offset;
+        if (row_rect.y + row_rect.h <= clip.y || row_rect.y >= clip.y + clip.h) {
+            continue;
+        }
+        if (selected && renderer->DrawImageEx) {
+            RECT selection = row_rect;
+            selection.x += 0.0025f;
+            selection.y += 0.002f;
+            selection.w -= 0.005f;
+            selection.h -= 0.004f;
+            renderer->DrawImageEx(&MAKE(drawImage_t,
+                                        .texture = NULL,
+                                        .shader = SHADER_UI,
+                                        .alphamode = BLEND_MODE_BLEND,
+                                        .screen = selection,
+                                        .uv = MAKE(RECT, 0, 0, 1, 1),
+                                        .color = Theme_ListBoxSelectionColor(),
+                                        .hasClip = TRUE,
+                                        .clip = clip));
+        }
+        snprintf(text,
+                 sizeof(text),
+                 "%s",
+                 item->name[0] ? item->name : item->path);
+        icon_rect = row_rect;
+        icon_rect.x += 0.004f;
+        icon_rect.y += 0.001f;
+        icon_rect.w = row_height - 0.002f;
+        icon_rect.h = row_height - 0.002f;
+        if (renderer->DrawImageEx) {
+            DWORD const icon = UI_LoadTexture("ui\\widgets\\glues\\icon-file-melee.blp", false);
+            LPCTEXTURE icon_texture = UI_GetTexture(icon);
+
+            if (icon_texture) {
+                renderer->DrawImageEx(&MAKE(drawImage_t,
+                                            .texture = icon_texture,
+                                            .shader = SHADER_UI,
+                                            .alphamode = BLEND_MODE_BLEND,
+                                            .screen = icon_rect,
+                                            .uv = MAKE(RECT, 0, 0, 1, 1),
+                                            .color = COLOR32_WHITE,
+                                            .hasClip = TRUE,
+                                            .clip = clip));
+            }
+        }
+        if (item->players > 0) {
+            char players[8];
+            LPCFONT small_font = renderer->LoadFont(UI_FontFile(control->FontName), 9);
+
+            snprintf(players, sizeof(players), "%u", (unsigned)item->players);
+            if (small_font) {
+                renderer->DrawText(&MAKE(drawText_t,
+                                         .font = small_font,
+                                         .text = players,
+                                         .rect = icon_rect,
+                                         .color = Theme_ListBoxIconTextColor(),
+                                         .textWidth = icon_rect.w,
+                                         .lineHeight = 1.0f,
+                                         .wordWrap = FALSE,
+                                         .halign = FONT_JUSTIFYCENTER,
+                                         .valign = FONT_JUSTIFYMIDDLE,
+                                         .hasClip = TRUE,
+                                         .clip = clip));
+            }
+        }
+        text_rect = row_rect;
+        text_rect.x += 0.026f;
+        text_rect.w -= 0.028f;
+        renderer->DrawText(&MAKE(drawText_t,
+                                 .font = font,
+                                 .text = text,
+                                 .rect = text_rect,
+                                 .color = selected ? control->SelectedTextColor : control->TextColor,
+                                 .textWidth = text_rect.w,
+                                 .lineHeight = 1.0f,
+                                 .wordWrap = FALSE,
+                                 .halign = FONT_JUSTIFYLEFT,
+                                 .valign = FONT_JUSTIFYMIDDLE,
+                                 .hasClip = TRUE,
+                                 .clip = clip));
+    }
 }
 
 static void UI_DrawButtonText(LPCFRAMEDEF frame, LPCRECT rect) {
@@ -523,6 +707,113 @@ static LPCFRAMEDEF UI_ButtonBackdrop(LPCFRAMEDEF frame, LPCRECT rect) {
         backdrop = UI_FindFrameNear(frame, frame->Button.NormalTexture);
     }
     return backdrop;
+}
+
+static FLOAT UI_SliderFraction(LPCFRAMEDEF frame) {
+    FLOAT min_value = frame->Slider.MinValue;
+    FLOAT max_value = frame->Slider.MaxValue;
+    FLOAT value = frame->Slider.InitialValue;
+
+    if (max_value <= min_value) {
+        return 0.0f;
+    }
+    value = MAX(min_value, MIN(max_value, value));
+    return (value - min_value) / (max_value - min_value);
+}
+
+static RECT UI_SliderThumbRect(LPCFRAMEDEF slider, LPCRECT slider_rect, LPCFRAMEDEF thumb) {
+    FLOAT const fraction = UI_SliderFraction(slider);
+    FLOAT const thumb_w = thumb && thumb->Width > 0 ? thumb->Width : slider_rect->h;
+    FLOAT const thumb_h = thumb && thumb->Height > 0 ? thumb->Height : slider_rect->h;
+    FLOAT const travel_w = MAX(0.0f, slider_rect->w - thumb_w);
+    FLOAT const travel_h = MAX(0.0f, slider_rect->h - thumb_h);
+    RECT rect = {
+        .x = slider_rect->x + (slider_rect->w - thumb_w) * 0.5f,
+        .y = slider_rect->y + (slider_rect->h - thumb_h) * 0.5f,
+        .w = thumb_w,
+        .h = thumb_h,
+    };
+
+    if (slider->Slider.Layout == LAYOUT_VERTICAL) {
+        rect.y = slider_rect->y + travel_h * (1.0f - fraction);
+    } else {
+        rect.x = slider_rect->x + travel_w * fraction;
+    }
+    return rect;
+}
+
+static FLOAT UI_SliderValueFromMouse(LPCFRAMEDEF slider, LPCRECT slider_rect, LPCFRAMEDEF thumb) {
+    VECTOR2 const mouse = UI_MouseToFdf();
+    FLOAT const min_value = slider->Slider.MinValue;
+    FLOAT const max_value = slider->Slider.MaxValue;
+    FLOAT value_range = max_value - min_value;
+    FLOAT fraction;
+    FLOAT value;
+
+    if (value_range <= 0.0f) {
+        return min_value;
+    }
+
+    if (slider->Slider.Layout == LAYOUT_VERTICAL) {
+        FLOAT const thumb_h = thumb && thumb->Height > 0 ? thumb->Height : slider_rect->h;
+        FLOAT const travel_h = MAX(0.0f, slider_rect->h - thumb_h);
+        FLOAT const local = mouse.y - slider_rect->y - thumb_h * 0.5f;
+        fraction = travel_h > 0.0f ? 1.0f - (local / travel_h) : 0.0f;
+    } else {
+        FLOAT const thumb_w = thumb && thumb->Width > 0 ? thumb->Width : slider_rect->h;
+        FLOAT const travel_w = MAX(0.0f, slider_rect->w - thumb_w);
+        FLOAT const local = mouse.x - slider_rect->x - thumb_w * 0.5f;
+        fraction = travel_w > 0.0f ? local / travel_w : 0.0f;
+    }
+
+    fraction = MAX(0.0f, MIN(1.0f, fraction));
+    value = min_value + fraction * value_range;
+    if (slider->Slider.StepSize > 0.0f) {
+        value = min_value + roundf((value - min_value) / slider->Slider.StepSize) * slider->Slider.StepSize;
+    }
+    return MAX(min_value, MIN(max_value, value));
+}
+
+static void UI_UpdateSliderInteraction(LPCFRAMEDEF frame, LPCRECT rect, LPCFRAMEDEF thumb) {
+    RECT thumb_rect = UI_SliderThumbRect(frame, rect, thumb);
+    BOOL const can_start = ui_mouse.event == UI_MOUSE_LEFT_DOWN &&
+                           (UI_MouseContains(rect) || UI_MouseContains(&thumb_rect));
+
+    if (can_start) {
+        active_slider = frame;
+    }
+    if (active_slider == frame && ui_mouse.down) {
+        ((LPFRAMEDEF)frame)->Slider.InitialValue = UI_SliderValueFromMouse(frame, rect, thumb);
+    }
+    if (active_slider == frame && ui_mouse.event == UI_MOUSE_LEFT_UP) {
+        ((LPFRAMEDEF)frame)->Slider.InitialValue = UI_SliderValueFromMouse(frame, rect, thumb);
+        active_slider = NULL;
+    }
+    if (!ui_mouse.down && active_slider == frame) {
+        active_slider = NULL;
+    }
+}
+
+static void UI_DrawSlider(LPCFRAMEDEF frame, LPCRECT rect) {
+    LPCFRAMEDEF backdrop;
+    LPCFRAMEDEF thumb;
+
+    if (frame->Control.Backdrop.Normal[0]) {
+        backdrop = UI_FindFrameNear(frame, frame->Control.Backdrop.Normal);
+        UI_DrawBackdropWithColor(backdrop, rect, frame->Color);
+    }
+
+    thumb = UI_FindFrameNear(frame, frame->Slider.ThumbButtonFrame);
+    if (thumb) {
+        UI_UpdateSliderInteraction(frame, rect, thumb);
+        RECT thumb_rect = UI_SliderThumbRect(frame, rect, thumb);
+        LPCFRAMEDEF thumb_backdrop = UI_FindFrameNear(thumb, thumb->Control.Backdrop.Normal);
+        if (!thumb_backdrop) {
+            thumb_backdrop = UI_ButtonBackdrop(thumb, &thumb_rect);
+        }
+        UI_DrawBackdropWithColor(thumb_backdrop, &thumb_rect, thumb->Color);
+        UI_DrawTexture(thumb, &thumb_rect);
+    }
 }
 
 static void UI_DrawHighlightFrame(LPCFRAMEDEF frame, LPCRECT rect) {
@@ -600,6 +891,11 @@ static void UI_DrawPortrait(LPCFRAMEDEF frame, LPCRECT rect) {
 static void UI_DrawSprite(LPCFRAMEDEF frame, LPCRECT rect) {
     LPRENDERER renderer = UI_GetRenderer();
 
+    if (frame->Texture.Image) {
+        UI_DrawTexture(frame, rect);
+        return;
+    }
+
     if (!frame->Portrait.model) {
         return;
     }
@@ -638,6 +934,14 @@ static void UI_DrawFrameOne(LPCFRAMEDEF frame) {
         case FT_FRAME:
         case FT_SIMPLEFRAME:
             /* Container frames have no visual representation */
+            break;
+
+        case FT_CONTROL:
+            if (frame->Control.Backdrop.Normal[0]) {
+                LPCFRAMEDEF backdrop = UI_FindFrameNear(frame, frame->Control.Backdrop.Normal);
+                UI_DrawBackdropWithColor(backdrop, rect, frame->Color);
+            }
+            UI_DrawMapListControl(frame, rect);
             break;
             
         case FT_BACKDROP:
@@ -683,6 +987,9 @@ static void UI_DrawFrameOne(LPCFRAMEDEF frame) {
             break;
             
         case FT_SLIDER:
+            UI_DrawSlider(frame, rect);
+            break;
+
         case FT_MENU:
         case FT_LISTBOX:
         case FT_CHECKBOX:

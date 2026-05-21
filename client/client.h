@@ -112,41 +112,6 @@ void V_Shutdown(void);
 void CL_PrepRefresh(void);
 void CL_ParseServerMessage(LPSIZEBUF msg);
 
-typedef struct listFetchState_s {
-    BOOL inuse;
-    BOOL started;
-    DWORD requestId;
-    DWORD frameNumber;
-    HANDLE layout;
-    UINAME id;
-    UINAME command;
-    char text[MAX_LIST_FETCH_TEXT];
-    SHORT selectedIndex;
-    DWORD scrollOffset;
-    BOOL loading;
-    DWORD numRows;
-} listFetchState_t;
-
-void CL_ParseListFetch(LPSIZEBUF msg);
-void CL_ListBoxApplyFetch(HANDLE layout,
-                          LPCUIFRAME frame,
-                          uiListBox_t const *listbox,
-                          LPCSTR *text,
-                          BOOL *loading,
-                          SHORT *selectedIndex,
-                          DWORD *scrollOffset,
-                          DWORD *numRows);
-void CL_ListBoxScroll(HANDLE layout,
-                      LPCUIFRAME frame,
-                      uiListBox_t const *listbox,
-                      int delta,
-                      DWORD visibleRows);
-void CL_ListBoxSelect(HANDLE layout,
-                      LPCUIFRAME frame,
-                      uiListBox_t const *listbox,
-                      DWORD rowIndex);
-BOOL CL_ListBoxSelectedIndex(HANDLE layout, LPCSTR id, SHORT *selectedIndex);
-void CL_ListFetchResetLayout(HANDLE layout);
 void CON_DrawConsole(void);
 void CON_printf(LPCSTR fmt, ...);
 
@@ -173,7 +138,7 @@ drawText_t SCR_GetDrawText(LPCUIFRAME frame,
                          FLOAT avl_width,
                          LPCSTR text,
                          uiLabel_t const *label);
-void SCR_UpdateScreen(void);
+void SCR_UpdateScreen(DWORD msec);
 void SCR_DrawOverlays(void);
 void SCR_TextInput(LPCSTR text);
 BOOL SCR_EditKey(int key);
@@ -193,18 +158,8 @@ int CL_ImageIndex(LPCSTR imageName);
 int CL_FontIndex(LPCSTR fontName, DWORD fontSize);
 void CL_UIMenuCommand(LPCSTR route);
 
-// cl_data.c - UI data requests (Phase 5)
-void CL_RequestMapList(void);
-void CL_RequestMapInfo(int mapIndex);
-void CL_RequestGameList(void);
-void CL_RequestPlayerList(void);
-
 /* Unit UI data parsing (Phase 8) */
 void CL_ParseUnitUI(LPSIZEBUF msg);
-void CL_ParseMapList(LPSIZEBUF msg);
-void CL_ParseMapInfo(LPSIZEBUF msg);
-void CL_ParseGameList(LPSIZEBUF msg);
-void CL_ParsePlayerList(LPSIZEBUF msg);
 
 extern struct client_state cl;
 extern struct client_static cls;

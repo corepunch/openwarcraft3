@@ -39,7 +39,6 @@ enum svc_ops {
     svc_layout,
     svc_playerinfo,
     svc_cursor,
-    svc_list,
 
 // the rest are private to the client and server
 //    svc_nop,
@@ -59,12 +58,6 @@ enum svc_ops {
     svc_frame,
     svc_mirror,
     
-// UI data responses (Phase 5: client-side UI)
-    svc_map_list,                // [short count] [count * string] map names
-    svc_map_info,                // [short index] [string title] [string desc] [string preview]
-    svc_game_list,               // [short count] [count * string] game names
-    svc_player_list,             // [short count] [count * string] player names
-    
 // Unit UI data (Phase 8: HUD migration)
     svc_unit_ui                  // [byte num_units] for each unit: [short entity] [byte num_buttons] [buttons] [byte num_inventory] [inventory] [byte num_queue] [queue]
 };
@@ -76,12 +69,7 @@ enum clc_ops {
     clc_move,
 //    clc_userinfo,            // [[userinfo string]
     clc_stringcmd,           // [string] message
-    
-// UI data requests (Phase 5: client-side UI)
-    clc_request_map_list,    // no parameters
-    clc_request_map_info,    // [short] map index
-    clc_request_game_list,   // no parameters
-    clc_request_player_list, // no parameters
+
     clc_request_unit_ui      // [byte num_selected] [num_selected * short entity_nums]
 };
 

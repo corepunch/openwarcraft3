@@ -131,3 +131,19 @@ LPCSTR Theme_String(LPCSTR entry, LPCSTR category) {
 FLOAT Theme_Float(LPCSTR entry, LPCSTR category) {
     return atof(Theme_String(entry, category));
 }
+
+COLOR32 Theme_ListBoxSelectionColor(void) {
+    return MAKE(COLOR32, 0, 0, 255, 255);
+}
+
+COLOR32 Theme_ListBoxTextColor(void) {
+    return COLOR32_WHITE;
+}
+
+COLOR32 Theme_ListBoxSelectedTextColor(void) {
+    return MAKE(COLOR32, 252, 210, 17, 255);
+}
+
+COLOR32 Theme_ListBoxIconTextColor(void) {
+    return MAKE(COLOR32, 252, 210, 17, 255);
+}

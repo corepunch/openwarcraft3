@@ -146,6 +146,19 @@ void CL_Input(void) {
                 }
                 break;
             case SDL_MOUSEWHEEL:
+                if (cls.key_dest == key_menu && ui.MouseEvent) {
+                    int x;
+                    int y;
+                    int steps = event.wheel.y;
+
+                    SDL_GetMouseState(&x, &y);
+                    if (steps < 0) {
+                        steps = -steps;
+                    }
+                    for (int i = 0; i < steps; i++) {
+                        ui.MouseEvent(x, y, event.wheel.y > 0 ? 4 : 5, true);
+                    }
+                }
                 break;
             case SDL_WINDOWEVENT:
                 switch (event.window.event) {

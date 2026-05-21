@@ -91,7 +91,6 @@ void CL_ParsePlayerInfo(LPSIZEBUF msg) {
 void CL_ParseLayout(LPSIZEBUF msg) {
     DWORD layer = MSG_ReadByte(msg);
     DWORD payload_size = 0;
-    CL_ListFetchResetLayout(cl.layout[layer]);
     SAFE_DELETE(cl.layout[layer], MemFree);
     DWORD start = msg->readcount;
     while (true) {
@@ -176,9 +175,6 @@ void CL_ParseServerMessage(LPSIZEBUF msg) {
             case svc_layout:
                 CL_ParseLayout(msg);
                 break;
-            case svc_list:
-                CL_ParseListFetch(msg);
-                break;
             case svc_cursor:
                 CL_ParseCursor(msg);
                 break;
@@ -188,19 +184,6 @@ void CL_ParseServerMessage(LPSIZEBUF msg) {
             case svc_temp_entity:
                 CL_ParseTEnt(msg);
                 break;                
-            // Phase 5: UI data responses
-            case svc_map_list:
-                CL_ParseMapList(msg);
-                break;
-            case svc_map_info:
-                CL_ParseMapInfo(msg);
-                break;
-            case svc_game_list:
-                CL_ParseGameList(msg);
-                break;
-            case svc_player_list:
-                CL_ParsePlayerList(msg);
-                break;
             // Phase 8: Unit UI data
             case svc_unit_ui:
                 CL_ParseUnitUI(msg);

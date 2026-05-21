@@ -499,6 +499,7 @@ void R_Shutdown(void) {
     renderer_shutdown = true;
     M3_Shutdown();
     MDLX_Shutdown();
+    R_ShutdownFonts();
     
     R_ShutdownFogOfWar();
     R_ShutdownParticles();

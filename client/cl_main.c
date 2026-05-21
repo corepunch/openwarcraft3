@@ -79,14 +79,80 @@ static refExport_t CL_GetRendererAPI(refImport_t imp) {
 
 /* UI library FS_ReadFile wrapper that converts to Quake 3 pattern */
 static int CL_UI_ReadFile(LPCSTR fileName, void **buf) {
-    if (!buf) return -1;
-    LPSTR text = FS_ReadFileIntoString(fileName);
-    if (!text) {
-        *buf = NULL;
-        return -1;
+    return FS_ReadFileQ3(fileName, buf);
+}
+
+static BOOL CL_UI_HasExtension(LPCSTR name, LPCSTR extension) {
+    LPCSTR dot;
+
+    if (!extension || !*extension) {
+        return true;
     }
-    *buf = text;
-    return (int)strlen(text);
+    dot = strrchr(name, '.');
+    return dot && !strcasecmp(dot, extension);
+}
+
+static int CL_UI_CompareFileNames(const void *a, const void *b) {
+    return strcasecmp((LPCSTR)a, (LPCSTR)b);
+}
+
+static BOOL CL_UI_ListHasFile(PATHSTR *files, int count, LPCSTR name) {
+    for (int i = 0; i < count; i++) {
+        if (!strcasecmp(files[i], name)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static int CL_UI_GetFileList(LPCSTR path, LPCSTR extension, char *listbuf, int bufsize) {
+    enum { MAX_UI_FILELIST = 1024 };
+    PATHSTR files[MAX_UI_FILELIST];
+    char mask[MAX_PATHLEN * 2];
+    SFILE_FIND_DATA find;
+    HANDLE handle;
+    int count = 0;
+    int used = 0;
+
+    if (!path || !*path || !listbuf || bufsize <= 0) {
+        return 0;
+    }
+    listbuf[0] = '\0';
+    snprintf(mask, sizeof(mask), "%s\\*", path);
+
+    handle = FS_FindFirstFile(mask, &find);
+    while (handle && count < MAX_UI_FILELIST) {
+        if (CL_UI_HasExtension(find.cFileName, extension) &&
+            !CL_UI_ListHasFile(files, count, find.cFileName)) {
+            snprintf(files[count], sizeof(files[count]), "%s", find.cFileName);
+            for (char *p = files[count]; *p; p++) {
+                if (*p == '/') {
+                    *p = '\\';
+                }
+            }
+            count++;
+        }
+        if (!FS_FindNextFile(handle, &find)) {
+            break;
+        }
+    }
+    if (handle) {
+        FS_FindClose(handle);
+    }
+
+    qsort(files, count, sizeof(files[0]), CL_UI_CompareFileNames);
+    for (int i = 0; i < count; i++) {
+        int len = (int)strlen(files[i]) + 1;
+        if (used + len >= bufsize) {
+            break;
+        }
+        memcpy(listbuf + used, files[i], len);
+        used += len;
+    }
+    if (used < bufsize) {
+        listbuf[used] = '\0';
+    }
+    return count;
 }
 
 /* Game state access callbacks for UI library */
@@ -206,6 +272,17 @@ void CL_Init(void) {
     ui = UI_GetAPI((uiImport_t) {
         .FS_ReadFile = CL_UI_ReadFile,
         .FS_FreeFile = FS_FreeFile,
+        .FS_GetFileList = CL_UI_GetFileList,
+        .ReadMapInfo = CM_ReadMapInfo,
+        .FindMapPreviewTexture = CM_FindMapPreviewTexture,
+        .FreeMapInfo = CM_FreeMapInfo,
+        .DefaultMapName = CM_DefaultMapName,
+        .ResolveMapInfoString = CM_ResolveMapInfoString,
+        .MapNameMatchesFile = CM_MapNameMatchesFile,
+        .MapTilesetName = CM_TilesetName,
+        .MapSizeName = CM_MapSizeName,
+        .SanitizeMapListField = CM_SanitizeMapListField,
+        .SanitizeMapInfoText = CM_SanitizeMapInfoText,
         .MemAlloc = MemAlloc,
         .MemFree = MemFree,
         .ModelIndex = CL_ModelIndex,
@@ -213,10 +290,6 @@ void CL_Init(void) {
         .FontIndex = CL_FontIndex,
         .Cmd_ExecuteText = Cbuf_AddText,
         .Cvar_String = Cvar_String,
-        .RequestMapList = CL_RequestMapList,
-        .RequestMapInfo = CL_RequestMapInfo,
-        .RequestGameList = CL_RequestGameList,
-        .RequestPlayerInfo = CL_RequestPlayerList,
         .GetPlayerState = CL_UIGetPlayerState,
         .GetNumEntities = CL_UIGetNumEntities,
         .GetEntity = CL_UIGetEntity,
@@ -361,5 +434,5 @@ void CL_Frame(DWORD msec) {
     CL_ReadPackets();
     CL_SendCommand();
     CL_PrepRefresh();
-    SCR_UpdateScreen();
+    SCR_UpdateScreen(msec);
 }

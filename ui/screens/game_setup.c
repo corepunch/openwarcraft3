@@ -36,11 +36,6 @@ static void GameSetup_Init(void) {
         slots[i].race = 0; /* Random */
         slots[i].team = 0;
     }
-    
-    /* Request player info from server */
-    if (uiimport.RequestPlayerInfo) {
-        uiimport.RequestPlayerInfo();
-    }
 }
 
 static void GameSetup_Shutdown(void) {

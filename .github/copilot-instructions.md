@@ -114,3 +114,11 @@ Agent guidance:
 - Prefer the stdout renderer first for UI layout, FDF translation, button state, backdrop tiling, UV, color-code, and route-composition bugs.
 - Use `mdxtool --info` first when a UI model itself may be missing or malformed.
 - `fdftool` is no longer the primary UI inspection path; Phase 8 moved UI rendering into the client-side UI library.
+
+## UI Screen Authoring Conventions
+
+- In `ui/screens/*.c`, prefer `UI_FRAME(...)` and `UI_CHILD_FRAME(...)` for readability and FDF-name coupling.
+- Use `UI_FindChildFrame(...)` when it is clearly shorter or cleaner than introducing temporary macro-bound locals.
+- Avoid excessive pointer null-check noise in screen controllers. Prefer one scene-level readiness gate (early return) over repeated per-widget checks.
+- If a required root frame is missing, fail fast for that screen and skip further scene setup/update work.
+- Keep frame names data-driven by FDF and avoid hardcoded lookup strings when macro-based lookup can use the frame identifier directly.
