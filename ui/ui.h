@@ -114,6 +114,7 @@ typedef struct {
     
     /* Input event handling */
     void (*KeyEvent)(int key, BOOL down, DWORD time);
+    void (*TextInput)(LPCSTR text);
     void (*MouseEvent)(int x, int y, int button, BOOL down);
     
     /* Menu navigation (called by client for button clicks, console commands) */

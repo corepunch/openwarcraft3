@@ -135,6 +135,10 @@ void UI_KeyEventLocal(int key, BOOL down, DWORD time) {
     if (!ui_state.active) {
         return;
     }
+
+    if (down && UI_EditKey(key)) {
+        return;
+    }
     
     /* Delegate to current screen */
     uiScreen_t *screen = UI_GetCurrentScreen();
@@ -213,6 +217,7 @@ uiExport_t UI_GetAPI(uiImport_t import) {
     exp.Refresh = UI_RefreshLocal;
     exp.DrawFrame = UI_DrawFrameLocal;
     exp.KeyEvent = UI_KeyEventLocal;
+    exp.TextInput = UI_TextInputLocal;
     exp.MouseEvent = UI_MouseEventLocal;
     exp.MenuCommand = UI_MenuCommandLocal;
     exp.UpdateUnitUI = UI_UpdateUnitUILocal;

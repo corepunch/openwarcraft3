@@ -683,6 +683,24 @@ MAKE_PARSERCALL(EditSetFocus) {
     frame->Edit.Focus = true;
 }
 
+MAKE_PARSERCALL(MenuItem) {
+    LPCSTR text = parse_segment2(parser);
+    LPCSTR value = parse_segment2(parser);
+    UINAME key = { 0 };
+    LONG item_value = 0;
+
+    if (!frame || !text || !value) {
+        return;
+    }
+    if (*text == '"') {
+        sscanf(text, UINAME_FMT, key);
+    } else {
+        snprintf(key, sizeof(key), "%s", text);
+    }
+    item_value = atoi(value);
+    UI_MenuAddItem(frame, UI_GetString(key), item_value);
+}
+
 #define F_END { NULL }
 
 static fdf_parse_class_t classes[] = {
@@ -770,7 +788,7 @@ static parseItem_t items[] = {
     { "ListBoxBorder", { F(ListBox.Border, Float), F_END } },
     { "ListBoxScrollBar", { F(ListBox.ScrollBar, Name), F_END } },
     { "MenuBorder", { F(Menu.Border, Float), F_END } },
-    { "MenuItem", { F(Menu.Item.Text, Name), F(Menu.Item.Value, Integer), F_END } },
+    { "MenuItem", { F_END }, MenuItem },
     { "MenuItemHeight", { F(Menu.Item.Height, Float), F_END } },
     { "MenuTextHighlightColor", { F(Menu.TextHighlightColor, Color), F_END } },
     // Edit
@@ -819,7 +837,7 @@ void parse_item(LPPARSER parser, LPFRAMEDEF frame, parseItem_t *item) {
         LPCSTR token = parse_segment2(parser);
         arg->func(token, frame, (uint8_t *)frame + arg->fofs);
     }
-    if (!item->args->name) { // eat trailing comma
+    if (!item->args->name && item->func != MenuItem) { // eat trailing comma
         parse_segment(parser);
     }
     if (item->func) {
@@ -1178,6 +1196,27 @@ void UI_BindMapList(LPFRAMEDEF frame,
     control->FontSize = label && label->Font.Size > 0 ? label->Font.Size : 0.010f;
     control->TextColor = Theme_ListBoxTextColor();
     control->SelectedTextColor = Theme_ListBoxSelectedTextColor();
+}
+
+void UI_MenuClearItems(LPFRAMEDEF frame) {
+    if (!frame) {
+        return;
+    }
+    frame->Menu.ItemCount = 0;
+    memset(frame->Menu.Items, 0, sizeof(frame->Menu.Items));
+}
+
+void UI_MenuAddItem(LPFRAMEDEF frame, LPCSTR text, LONG value) {
+    uiMenuItem_t *item;
+
+    if (!frame || frame->Menu.ItemCount >= UI_MAX_MENU_ITEMS) {
+        return;
+    }
+    item = &frame->Menu.Items[frame->Menu.ItemCount++];
+    snprintf(item->text, sizeof(item->text), "%s", text ? text : "");
+    item->value = value;
+    snprintf(frame->Menu.Item.Text, sizeof(frame->Menu.Item.Text), "%s", item->text);
+    frame->Menu.Item.Value = (DWORD)value;
 }
 
 void FDF_ParseScene(LPPARSER parser) {

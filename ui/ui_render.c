@@ -10,6 +10,23 @@
  */
 
 #include "ui_local.h"
+#if defined(__has_include)
+#if __has_include(<SDL2/SDL_keycode.h>)
+#include <SDL2/SDL_keycode.h>
+#endif
+#endif
+
+#ifndef SDLK_BACKSPACE
+#define SDLK_BACKSPACE 8
+#define SDLK_DELETE 127
+#define SDLK_LEFT 1073741904
+#define SDLK_RIGHT 1073741903
+#define SDLK_HOME 1073741898
+#define SDLK_END 1073741901
+#define SDLK_RETURN 13
+#define SDLK_KP_ENTER 1073741912
+#define SDLK_ESCAPE 27
+#endif
 
 #define MAX_FRAME_DEPTH 64
 #define NUM_BACKDROP_CORNERS 8
@@ -29,6 +46,9 @@ static frameRuntime_t runtimes[MAX_UI_CLASSES];
 static RECT scene_rect;
 static BOOL scene_rect_valid = FALSE;
 static LPCFRAMEDEF active_slider = NULL;
+static LPCFRAMEDEF active_popup = NULL;
+static LPFRAMEDEF active_edit = NULL;
+static DWORD active_edit_cursor = 0;
 
 static LPRENDERER UI_GetRenderer(void) {
     if (!uiimport.GetRenderer) {
@@ -52,13 +72,6 @@ static LPCSTR UI_FontFile(LPCSTR name) {
 static DWORD UI_FontPixelSize(FLOAT size) {
     return size > 0 ? (DWORD)(size * 1000.0f + 0.5f) : 13;
 }
-
-typedef enum {
-    BACKDROPINSET_RIGHT,
-    BACKDROPINSET_TOP,
-    BACKDROPINSET_BOTTOM,
-    BACKDROPINSET_LEFT,
-} BACKDROPINSET;
 
 /* Forward declarations */
 static LPCRECT UI_LayoutRect(LPCFRAMEDEF frame);
@@ -273,135 +286,6 @@ static LPCRECT UI_LayoutRect(LPCFRAMEDEF frame) {
  * FRAME RENDERING
  * ======================================================================== */
 
-static BOOL UI_BackdropHasArt(LPCFRAMEDEF frame) {
-    return frame && (frame->Backdrop.Background || frame->Backdrop.EdgeFile);
-}
-
-static void UI_BackdropRects(LPCRECT screen, LPRECT rects, FLOAT corner_size) {
-    FLOAT x[] = { 0, corner_size, screen->w - corner_size, screen->w };
-    FLOAT y[] = { 0, corner_size, screen->h - corner_size, screen->h };
-    FOR_LOOP(i, BACKDROP_SIZE) {
-        rects[i].x = screen->x + x[i % 3];
-        rects[i].y = screen->y + y[i / 3];
-        rects[i].w = x[(i % 3) + 1] - x[i % 3];
-        rects[i].h = y[(i / 3) + 1] - y[i / 3];
-    }
-}
-
-static FLOAT UI_BackdropEdgeTile(LPCRECT rect, BACKDROPCORNER edge, FLOAT image_size) {
-    if (image_size <= 0) {
-        return 1;
-    }
-    switch (edge) {
-        case BACKDROP_LEFT_EDGE:
-        case BACKDROP_RIGHT_EDGE:
-            return ceilf(rect->h / image_size);
-        case BACKDROP_TOP_EDGE:
-        case BACKDROP_BOTTOM_EDGE:
-            return ceilf(rect->w / image_size);
-        default:
-            return 1;
-    }
-}
-
-static BOOL UI_BackdropEdgeFlip(BACKDROPCORNER edge) {
-    switch (edge) {
-        case BACKDROP_TOP_EDGE:
-        case BACKDROP_BOTTOM_EDGE:
-            return true;
-        default:
-            return false;
-    }
-}
-
-static void UI_DrawBackdropWithColor(LPCFRAMEDEF frame, LPCRECT rect, COLOR32 color) {
-    LPRENDERER renderer = UI_GetRenderer();
-    BACKDROPCORNER const corners[NUM_BACKDROP_CORNERS] = {
-        BACKDROP_LEFT_EDGE,
-        BACKDROP_RIGHT_EDGE,
-        BACKDROP_TOP_EDGE,
-        BACKDROP_BOTTOM_EDGE,
-        BACKDROP_TOP_LEFT_CORNER,
-        BACKDROP_TOP_RIGHT_CORNER,
-        BACKDROP_BOTTOM_LEFT_CORNER,
-        BACKDROP_BOTTOM_RIGHT_CORNER,
-    };
-    RECT rects[BACKDROP_SIZE];
-
-    if (!UI_BackdropHasArt(frame)) {
-        return;
-    }
-
-    if (!renderer || !renderer->DrawImageEx) {
-        return;
-    }
-
-    if (frame->Backdrop.Background) {
-        LPCTEXTURE tex = UI_GetTexture(frame->Backdrop.Background);
-        if (tex) {
-            size2_t back_size = renderer->GetTextureSize ? renderer->GetTextureSize(tex) : MAKE(size2_t, 0, 0);
-            RECT uv = { frame->Backdrop.Mirrored ? 1 : 0, 0, frame->Backdrop.Mirrored ? -1 : 1, 1 };
-            RECT background = *rect;
-            background.x += frame->Backdrop.BackgroundInsets[BACKDROPINSET_LEFT];
-            background.y += frame->Backdrop.BackgroundInsets[BACKDROPINSET_TOP];
-            background.w -= frame->Backdrop.BackgroundInsets[BACKDROPINSET_LEFT];
-            background.w -= frame->Backdrop.BackgroundInsets[BACKDROPINSET_RIGHT];
-            background.h -= frame->Backdrop.BackgroundInsets[BACKDROPINSET_TOP];
-            background.h -= frame->Backdrop.BackgroundInsets[BACKDROPINSET_BOTTOM];
-            if (frame->Backdrop.TileBackground && back_size.width > 0 && back_size.height > 0) {
-                uv.w = background.w / (back_size.width / 1000.0f);
-                if (frame->Backdrop.Mirrored) {
-                    uv.x = uv.w;
-                    uv.w = -uv.w;
-                }
-                uv.h = background.h / (back_size.height / 1000.0f);
-            }
-            renderer->DrawImageEx(&MAKE(drawImage_t,
-                                        .texture = tex,
-                                        .shader = SHADER_UI,
-                                        .alphamode = BLEND_MODE_BLEND,
-                                        .screen = background,
-                                        .uv = uv,
-                                        .color = color,
-                                        .rotate = FALSE));
-        }
-    }
-
-    if (!frame->Backdrop.EdgeFile || !frame->Backdrop.CornerFlags) {
-        return;
-    }
-
-    LPCTEXTURE edge_tex = UI_GetTexture(frame->Backdrop.EdgeFile);
-    if (!edge_tex) {
-        return;
-    }
-
-    size2_t edge_size = renderer->GetTextureSize ? renderer->GetTextureSize(edge_tex) : MAKE(size2_t, 0, 0);
-    FLOAT const edge_image_height = edge_size.height / 1000.0f;
-    UI_BackdropRects(rect, rects, frame->Backdrop.CornerSize);
-    FOR_LOOP(i, NUM_BACKDROP_CORNERS) {
-        if ((frame->Backdrop.CornerFlags & (1 << corners[i])) == 0) {
-            continue;
-        }
-        FLOAT const k = 1.0f / NUM_BACKDROP_CORNERS;
-        FLOAT const tile = UI_BackdropEdgeTile(rects + corners[i], corners[i], edge_image_height);
-        BOOL const flip = UI_BackdropEdgeFlip(corners[i]);
-        RECT const uv = { i * k, 0, k, tile };
-        renderer->DrawImageEx(&MAKE(drawImage_t,
-                                    .texture = edge_tex,
-                                    .shader = SHADER_UI,
-                                    .alphamode = BLEND_MODE_BLEND,
-                                    .screen = rects[corners[i]],
-                                    .uv = uv,
-                                    .color = color,
-                                    .rotate = flip));
-    }
-}
-
-static void UI_DrawBackdrop(LPCFRAMEDEF frame, LPCRECT rect) {
-    UI_DrawBackdropWithColor(frame, rect, frame->Color);
-}
-
 static void UI_DrawTexture(LPCFRAMEDEF frame, LPCRECT rect) {
     LPRENDERER renderer = UI_GetRenderer();
 
@@ -446,15 +330,6 @@ static void UI_DrawTexture(LPCFRAMEDEF frame, LPCRECT rect) {
     renderer->DrawImageEx((LPCDRAWIMAGE)&di);
 }
 
-static BOOL UI_ButtonEnabled(LPCFRAMEDEF frame) {
-    return frame && frame->OnClick[0];
-}
-
-static BOOL UI_ButtonIsPushed(LPCFRAMEDEF frame, LPCRECT rect) {
-    (void)frame;
-    return UI_MouseContains(rect) && ui_mouse.button == 1 && ui_mouse.down;
-}
-
 static void UI_DrawText(LPCFRAMEDEF frame, LPCRECT rect) {
     LPRENDERER renderer = UI_GetRenderer();
     LPCSTR font_name;
@@ -494,325 +369,42 @@ static void UI_DrawText(LPCFRAMEDEF frame, LPCRECT rect) {
     renderer->DrawText((LPCDRAWTEXT)&dt);
 }
 
-static void UI_DrawMapListControl(LPCFRAMEDEF frame, LPCRECT rect) {
-    LPRENDERER renderer = UI_GetRenderer();
-    uiMapListControl_t const *control;
-    uiMapListState_t *state;
-    LPCFONT font;
-    DWORD visible_rows;
-    FLOAT row_height;
-    DWORD first_row;
-    FLOAT visual_scroll;
-    FLOAT row_offset;
-    RECT content;
-    RECT clip;
-    VECTOR2 mouse;
+#include "controls/ui_control_backdrop.h"
+#include "controls/ui_control_popup_menu.h"
+#include "controls/ui_control_button.h"
+#include "controls/ui_control_editbox.h"
+#include "controls/ui_control_map_list.h"
+#include "controls/ui_control_slider.h"
 
-    if (!frame || !rect) {
+static BOOL UI_FrameWithinRoot(LPCFRAMEDEF root, LPCFRAMEDEF frame) {
+    LPCFRAMEDEF cursor = frame;
+
+    while (cursor) {
+        if (cursor == root) {
+            return TRUE;
+        }
+        cursor = cursor->Parent;
+    }
+
+    return FALSE;
+}
+
+static void UI_SanitizeInteractionState(LPCFRAMEDEF root) {
+    if (!root) {
+        active_popup = NULL;
+        active_slider = NULL;
+        UI_FocusEdit(NULL);
         return;
     }
 
-    control = &frame->MapListControl;
-    state = control->State;
-    if (!state || !renderer || !renderer->LoadFont || !renderer->DrawText) {
-        return;
+    if (active_popup && !UI_FrameWithinRoot(root, active_popup)) {
+        active_popup = NULL;
     }
-
-    row_height = control->RowHeight > 0 ? control->RowHeight : 0.019f;
-    visible_rows = control->VisibleRows ? control->VisibleRows : (DWORD)((rect->h - control->InsetY * 2.0f) / row_height);
-    content = MAKE(RECT,
-                   rect->x + control->InsetX,
-                   rect->y + control->InsetY,
-                   rect->w - control->InsetX * 2.0f,
-                   row_height);
-    clip = MAKE(RECT,
-                content.x,
-                content.y,
-                content.w,
-                row_height * (FLOAT)visible_rows);
-
-    if (UI_MouseContains(rect) && ui_mouse.event == UI_MOUSE_LEFT_UP && visible_rows > 0) {
-        FLOAT row;
-        DWORD index;
-        mouse = UI_MouseToFdf();
-        row = (mouse.y - content.y) / row_height;
-        index = (DWORD)floorf(state->visualScroll + row);
-        if (row >= 0.0f && row < (FLOAT)visible_rows && index < state->count) {
-            char command[128];
-            snprintf(command,
-                     sizeof(command),
-                     control->SelectRoute[0] ? control->SelectRoute : "menu /lan/select/%u",
-                     (unsigned)index);
-            UI_MenuCommandLocal(command);
-        }
-    }
-    if (UI_MouseContains(rect) &&
-        (ui_mouse.event == UI_MOUSE_WHEEL_UP || ui_mouse.event == UI_MOUSE_WHEEL_DOWN) &&
-        visible_rows > 0 && state->count > visible_rows) {
-        DWORD const max_scroll = state->count - visible_rows;
-
-        if (ui_mouse.event == UI_MOUSE_WHEEL_UP) {
-            state->scroll = state->scroll > 0 ? state->scroll - 1 : 0;
-        } else if (state->scroll < max_scroll) {
-            state->scroll++;
-        }
-    }
-
-    font = renderer->LoadFont(UI_FontFile(control->FontName), UI_FontPixelSize(control->FontSize));
-    if (!font) {
-        return;
-    }
-
-    visual_scroll = state->visualScroll;
-    if (visual_scroll < 0.0f) {
-        visual_scroll = 0.0f;
-    }
-    first_row = (DWORD)floorf(visual_scroll);
-    row_offset = (visual_scroll - (FLOAT)first_row) * row_height;
-
-    for (DWORD row = 0; row <= visible_rows; row++) {
-        DWORD const index = first_row + row;
-        uiMapListItem_t const *item;
-        char text[256];
-        BOOL selected;
-        RECT row_rect = content;
-        RECT icon_rect;
-        RECT text_rect;
-
-        if (index >= state->count) {
-            break;
-        }
-
-        item = &state->items[index];
-        selected = index == state->selected;
-        row_rect.y += row_height * (FLOAT)row - row_offset;
-        if (row_rect.y + row_rect.h <= clip.y || row_rect.y >= clip.y + clip.h) {
-            continue;
-        }
-        if (selected && renderer->DrawImageEx) {
-            RECT selection = row_rect;
-            selection.x += 0.0025f;
-            selection.y += 0.002f;
-            selection.w -= 0.005f;
-            selection.h -= 0.004f;
-            renderer->DrawImageEx(&MAKE(drawImage_t,
-                                        .texture = NULL,
-                                        .shader = SHADER_UI,
-                                        .alphamode = BLEND_MODE_BLEND,
-                                        .screen = selection,
-                                        .uv = MAKE(RECT, 0, 0, 1, 1),
-                                        .color = Theme_ListBoxSelectionColor(),
-                                        .hasClip = TRUE,
-                                        .clip = clip));
-        }
-        snprintf(text,
-                 sizeof(text),
-                 "%s",
-                 item->name[0] ? item->name : item->path);
-        icon_rect = row_rect;
-        icon_rect.x += 0.004f;
-        icon_rect.y += 0.001f;
-        icon_rect.w = row_height - 0.002f;
-        icon_rect.h = row_height - 0.002f;
-        if (renderer->DrawImageEx) {
-            DWORD const icon = UI_LoadTexture("ui\\widgets\\glues\\icon-file-melee.blp", false);
-            LPCTEXTURE icon_texture = UI_GetTexture(icon);
-
-            if (icon_texture) {
-                renderer->DrawImageEx(&MAKE(drawImage_t,
-                                            .texture = icon_texture,
-                                            .shader = SHADER_UI,
-                                            .alphamode = BLEND_MODE_BLEND,
-                                            .screen = icon_rect,
-                                            .uv = MAKE(RECT, 0, 0, 1, 1),
-                                            .color = COLOR32_WHITE,
-                                            .hasClip = TRUE,
-                                            .clip = clip));
-            }
-        }
-        if (item->players > 0) {
-            char players[8];
-            LPCFONT small_font = renderer->LoadFont(UI_FontFile(control->FontName), 9);
-
-            snprintf(players, sizeof(players), "%u", (unsigned)item->players);
-            if (small_font) {
-                renderer->DrawText(&MAKE(drawText_t,
-                                         .font = small_font,
-                                         .text = players,
-                                         .rect = icon_rect,
-                                         .color = Theme_ListBoxIconTextColor(),
-                                         .textWidth = icon_rect.w,
-                                         .lineHeight = 1.0f,
-                                         .wordWrap = FALSE,
-                                         .halign = FONT_JUSTIFYCENTER,
-                                         .valign = FONT_JUSTIFYMIDDLE,
-                                         .hasClip = TRUE,
-                                         .clip = clip));
-            }
-        }
-        text_rect = row_rect;
-        text_rect.x += 0.026f;
-        text_rect.w -= 0.028f;
-        renderer->DrawText(&MAKE(drawText_t,
-                                 .font = font,
-                                 .text = text,
-                                 .rect = text_rect,
-                                 .color = selected ? control->SelectedTextColor : control->TextColor,
-                                 .textWidth = text_rect.w,
-                                 .lineHeight = 1.0f,
-                                 .wordWrap = FALSE,
-                                 .halign = FONT_JUSTIFYLEFT,
-                                 .valign = FONT_JUSTIFYMIDDLE,
-                                 .hasClip = TRUE,
-                                 .clip = clip));
-    }
-}
-
-static void UI_DrawButtonText(LPCFRAMEDEF frame, LPCRECT rect) {
-    LPCFRAMEDEF text_frame = NULL;
-    RECT text_rect = *rect;
-
-    if (frame->Text && *frame->Text) {
-        text_frame = UI_FindChildFrame((LPFRAMEDEF)frame, frame->Text);
-    }
-    if (!text_frame && frame->Button.NormalText.frame[0]) {
-        text_frame = UI_FindChildFrame((LPFRAMEDEF)frame, frame->Button.NormalText.frame);
-    }
-    if (!text_frame) {
-        return;
-    }
-
-    if (UI_ButtonIsPushed(frame, rect)) {
-        text_rect.x += frame->Button.PushedTextOffset.x;
-        text_rect.y -= frame->Button.PushedTextOffset.y;
-    }
-
-    UI_DrawText(text_frame, &text_rect);
-}
-
-static LPCFRAMEDEF UI_ButtonBackdrop(LPCFRAMEDEF frame, LPCRECT rect) {
-    LPCSTR backdrop_name = frame->Control.Backdrop.Normal;
-    BOOL const pushed = UI_ButtonIsPushed(frame, rect);
-
-    if (!UI_ButtonEnabled(frame)) {
-        backdrop_name = pushed && frame->Control.Backdrop.DisabledPushed[0]
-                        ? frame->Control.Backdrop.DisabledPushed
-                        : frame->Control.Backdrop.Disabled;
-    } else if (pushed && frame->Control.Backdrop.Pushed[0]) {
-        backdrop_name = frame->Control.Backdrop.Pushed;
-    }
-
-    LPCFRAMEDEF backdrop = UI_FindFrameNear(frame, backdrop_name);
-    if (!backdrop && frame->Button.NormalTexture[0]) {
-        backdrop = UI_FindFrameNear(frame, frame->Button.NormalTexture);
-    }
-    return backdrop;
-}
-
-static FLOAT UI_SliderFraction(LPCFRAMEDEF frame) {
-    FLOAT min_value = frame->Slider.MinValue;
-    FLOAT max_value = frame->Slider.MaxValue;
-    FLOAT value = frame->Slider.InitialValue;
-
-    if (max_value <= min_value) {
-        return 0.0f;
-    }
-    value = MAX(min_value, MIN(max_value, value));
-    return (value - min_value) / (max_value - min_value);
-}
-
-static RECT UI_SliderThumbRect(LPCFRAMEDEF slider, LPCRECT slider_rect, LPCFRAMEDEF thumb) {
-    FLOAT const fraction = UI_SliderFraction(slider);
-    FLOAT const thumb_w = thumb && thumb->Width > 0 ? thumb->Width : slider_rect->h;
-    FLOAT const thumb_h = thumb && thumb->Height > 0 ? thumb->Height : slider_rect->h;
-    FLOAT const travel_w = MAX(0.0f, slider_rect->w - thumb_w);
-    FLOAT const travel_h = MAX(0.0f, slider_rect->h - thumb_h);
-    RECT rect = {
-        .x = slider_rect->x + (slider_rect->w - thumb_w) * 0.5f,
-        .y = slider_rect->y + (slider_rect->h - thumb_h) * 0.5f,
-        .w = thumb_w,
-        .h = thumb_h,
-    };
-
-    if (slider->Slider.Layout == LAYOUT_VERTICAL) {
-        rect.y = slider_rect->y + travel_h * (1.0f - fraction);
-    } else {
-        rect.x = slider_rect->x + travel_w * fraction;
-    }
-    return rect;
-}
-
-static FLOAT UI_SliderValueFromMouse(LPCFRAMEDEF slider, LPCRECT slider_rect, LPCFRAMEDEF thumb) {
-    VECTOR2 const mouse = UI_MouseToFdf();
-    FLOAT const min_value = slider->Slider.MinValue;
-    FLOAT const max_value = slider->Slider.MaxValue;
-    FLOAT value_range = max_value - min_value;
-    FLOAT fraction;
-    FLOAT value;
-
-    if (value_range <= 0.0f) {
-        return min_value;
-    }
-
-    if (slider->Slider.Layout == LAYOUT_VERTICAL) {
-        FLOAT const thumb_h = thumb && thumb->Height > 0 ? thumb->Height : slider_rect->h;
-        FLOAT const travel_h = MAX(0.0f, slider_rect->h - thumb_h);
-        FLOAT const local = mouse.y - slider_rect->y - thumb_h * 0.5f;
-        fraction = travel_h > 0.0f ? 1.0f - (local / travel_h) : 0.0f;
-    } else {
-        FLOAT const thumb_w = thumb && thumb->Width > 0 ? thumb->Width : slider_rect->h;
-        FLOAT const travel_w = MAX(0.0f, slider_rect->w - thumb_w);
-        FLOAT const local = mouse.x - slider_rect->x - thumb_w * 0.5f;
-        fraction = travel_w > 0.0f ? local / travel_w : 0.0f;
-    }
-
-    fraction = MAX(0.0f, MIN(1.0f, fraction));
-    value = min_value + fraction * value_range;
-    if (slider->Slider.StepSize > 0.0f) {
-        value = min_value + roundf((value - min_value) / slider->Slider.StepSize) * slider->Slider.StepSize;
-    }
-    return MAX(min_value, MIN(max_value, value));
-}
-
-static void UI_UpdateSliderInteraction(LPCFRAMEDEF frame, LPCRECT rect, LPCFRAMEDEF thumb) {
-    RECT thumb_rect = UI_SliderThumbRect(frame, rect, thumb);
-    BOOL const can_start = ui_mouse.event == UI_MOUSE_LEFT_DOWN &&
-                           (UI_MouseContains(rect) || UI_MouseContains(&thumb_rect));
-
-    if (can_start) {
-        active_slider = frame;
-    }
-    if (active_slider == frame && ui_mouse.down) {
-        ((LPFRAMEDEF)frame)->Slider.InitialValue = UI_SliderValueFromMouse(frame, rect, thumb);
-    }
-    if (active_slider == frame && ui_mouse.event == UI_MOUSE_LEFT_UP) {
-        ((LPFRAMEDEF)frame)->Slider.InitialValue = UI_SliderValueFromMouse(frame, rect, thumb);
+    if (active_slider && !UI_FrameWithinRoot(root, active_slider)) {
         active_slider = NULL;
     }
-    if (!ui_mouse.down && active_slider == frame) {
-        active_slider = NULL;
-    }
-}
-
-static void UI_DrawSlider(LPCFRAMEDEF frame, LPCRECT rect) {
-    LPCFRAMEDEF backdrop;
-    LPCFRAMEDEF thumb;
-
-    if (frame->Control.Backdrop.Normal[0]) {
-        backdrop = UI_FindFrameNear(frame, frame->Control.Backdrop.Normal);
-        UI_DrawBackdropWithColor(backdrop, rect, frame->Color);
-    }
-
-    thumb = UI_FindFrameNear(frame, frame->Slider.ThumbButtonFrame);
-    if (thumb) {
-        UI_UpdateSliderInteraction(frame, rect, thumb);
-        RECT thumb_rect = UI_SliderThumbRect(frame, rect, thumb);
-        LPCFRAMEDEF thumb_backdrop = UI_FindFrameNear(thumb, thumb->Control.Backdrop.Normal);
-        if (!thumb_backdrop) {
-            thumb_backdrop = UI_ButtonBackdrop(thumb, &thumb_rect);
-        }
-        UI_DrawBackdropWithColor(thumb_backdrop, &thumb_rect, thumb->Color);
-        UI_DrawTexture(thumb, &thumb_rect);
+    if (active_edit && !UI_FrameWithinRoot(root, active_edit)) {
+        UI_FocusEdit(NULL);
     }
 }
 
@@ -971,10 +563,17 @@ static void UI_DrawFrameOne(LPCFRAMEDEF frame) {
             }
             UI_DrawTexture(frame, rect);
             UI_DrawButtonText(frame, rect);
-            if (UI_MouseContains(rect) &&
+            if (!UI_PointerBlockedByPopup(frame) &&
+                UI_MouseContains(rect) &&
                 ui_mouse.event == UI_MOUSE_LEFT_UP &&
                 frame->OnClick[0]) {
                 UI_MenuCommandLocal(frame->OnClick);
+            }
+            if (UI_IsPopupFrameType(frame->Type) &&
+                !UI_PointerBlockedByPopup(frame) &&
+                UI_MouseContains(rect) &&
+                ui_mouse.event == UI_MOUSE_LEFT_UP) {
+                active_popup = active_popup == frame ? NULL : frame;
             }
             break;
             
@@ -990,10 +589,22 @@ static void UI_DrawFrameOne(LPCFRAMEDEF frame) {
             UI_DrawSlider(frame, rect);
             break;
 
+        case FT_EDITBOX:
+        case FT_GLUEEDITBOX:
+        case FT_SLASHCHATBOX:
+            if (!UI_PointerBlockedByPopup(frame) &&
+                UI_MouseContains(rect) && ui_mouse.event == UI_MOUSE_LEFT_DOWN) {
+                UI_FocusEdit((LPFRAMEDEF)frame);
+            }
+            UI_DrawEditBox(frame, rect);
+            break;
+
         case FT_MENU:
+            UI_DrawMenu(frame, rect);
+            break;
+
         case FT_LISTBOX:
         case FT_CHECKBOX:
-        case FT_EDITBOX:
         case FT_TEXTAREA:
             /* TODO: Implement complex control rendering */
             break;
@@ -1009,6 +620,11 @@ static void UI_DrawFrameOne(LPCFRAMEDEF frame) {
  * ======================================================================== */
 
 void UI_DrawFrame(LPCFRAMEDEF frame) {
+    LPCFRAMEDEF draw_order[MAX_UI_CLASSES];
+    DWORD total;
+    DWORD count;
+    LPFRAMEDEF popup_menu;
+
     if (!frame) {
         return;
     }
@@ -1019,26 +635,36 @@ void UI_DrawFrame(LPCFRAMEDEF frame) {
     
     /* Initialize scene rect */
     scene_rect = UI_GetSceneRect();
-    
-    LPCFRAMEDEF draw_order[MAX_UI_CLASSES];
-    DWORD const total = UI_CollectFrameTree(frame, draw_order, MAX_UI_CLASSES);
-    DWORD const count = MIN(total, MAX_UI_CLASSES);
+    total = UI_CollectFrameTree(frame, draw_order, MAX_UI_CLASSES);
+    count = MIN(total, MAX_UI_CLASSES);
+    UI_SanitizeInteractionState(frame);
+    UI_ClosePopupIfClickedOutside();
+    UI_ClearEditFocusIfClickedOutside();
+    UI_UpdatePopupVisibility(draw_order, count);
 
     /* Match the old client overlay pass: animated/model sprites first, then
      * regular UI controls above them. */
     FOR_LOOP(i, count) {
-        if (draw_order[i]->Type == FT_SPRITE) {
+        if (draw_order[i]->Type == FT_SPRITE &&
+            !UI_IsActivePopupMenu(draw_order[i])) {
             UI_DrawFrameOne(draw_order[i]);
         }
     }
     FOR_LOOP(i, count) {
-        if (draw_order[i]->Type != FT_SPRITE) {
+        if (draw_order[i]->Type != FT_SPRITE &&
+            !UI_IsActivePopupMenu(draw_order[i])) {
             UI_DrawFrameOne(draw_order[i]);
         }
     }
     FOR_LOOP(i, count) {
-        if (UI_RenderIsButtonFrameType(draw_order[i]->Type)) {
+        if (UI_RenderIsButtonFrameType(draw_order[i]->Type) &&
+            !UI_IsActivePopupMenu(draw_order[i])) {
             UI_DrawButtonHighlight(draw_order[i]);
         }
+    }
+
+    popup_menu = active_popup ? UI_PopupMenuFrame(active_popup) : NULL;
+    if (popup_menu && !popup_menu->hidden) {
+        UI_DrawFrameOne(popup_menu);
     }
 }

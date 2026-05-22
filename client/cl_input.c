@@ -63,6 +63,9 @@ void CL_Input(void) {
         switch(event.type) {
             case SDL_TEXTINPUT:
                 if (cls.key_dest == key_menu) {
+                    if (ui.TextInput) {
+                        ui.TextInput(event.text.text);
+                    }
                     SCR_TextInput(event.text.text);
                 }
                 break;

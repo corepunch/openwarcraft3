@@ -107,6 +107,12 @@ typedef struct {
 extern uiMouseState_t ui_mouse;
 
 #define UI_MAX_MAP_LIST_ITEMS 1024
+#define UI_MAX_MENU_ITEMS 32
+
+typedef struct {
+    UINAME text;
+    LONG value;
+} uiMenuItem_t;
 
 typedef struct {
     PATHSTR path;
@@ -262,6 +268,8 @@ struct uiFrameDef_s {
             DWORD Value;
             FLOAT Height;
         } Item;
+        DWORD ItemCount;
+        uiMenuItem_t Items[UI_MAX_MENU_ITEMS];
         COLOR32 TextHighlightColor;
     } Menu;
     struct {
@@ -376,6 +384,8 @@ void UI_BindMapList(LPFRAMEDEF frame,
                     LPCFRAMEDEF label,
                     DWORD visible_rows,
                     LPCSTR select_route);
+void UI_MenuClearItems(LPFRAMEDEF frame);
+void UI_MenuAddItem(LPFRAMEDEF frame, LPCSTR text, LONG value);
 void UI_LayoutMapInfoPane(LPFRAMEDEF frame);
 LPCSTR Theme_String(LPCSTR, LPCSTR);
 FLOAT Theme_Float(LPCSTR, LPCSTR);
@@ -389,6 +399,8 @@ COLOR32 Theme_ListBoxIconTextColor(void);
 
 /* ui_render.c — Frame rendering */
 void UI_DrawFrame(LPCFRAMEDEF frame);
+BOOL UI_EditKey(int key);
+void UI_TextInputLocal(LPCSTR text);
 
 /* ui_router.c — Menu routing */
 void UI_Route(LPCSTR route);
