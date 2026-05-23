@@ -13,10 +13,116 @@ uiMouseState_t ui_mouse;
 typedef struct {
     BOOL initialized;
     BOOL active;
+    BOOL game_mode;
     DWORD time;
 } uiState_t;
 
 static uiState_t ui_state;
+static LPFRAMEDEF resource_bar_frame;
+static LPFRAMEDEF resource_bar_gold_text;
+static LPFRAMEDEF resource_bar_lumber_text;
+static LPFRAMEDEF resource_bar_supply_text;
+static LPFRAMEDEF resource_bar_upkeep_text;
+
+typedef struct {
+    LPCSTR texture;
+    BOOL decorate;
+    RECT screen;
+    RECT uv;
+} uiConsoleBackdropPart_t;
+
+static void UI_DrawImagePart(LPCSTR texture_name, BOOL decorate, LPCRECT screen, LPCRECT uv) {
+    LPRENDERER renderer = uiimport.GetRenderer ? uiimport.GetRenderer() : NULL;
+    DWORD texture_id;
+    LPCTEXTURE texture;
+
+    if (!renderer || !renderer->DrawImageEx || !texture_name || !*texture_name) {
+        return;
+    }
+
+    texture_id = UI_LoadTexture(texture_name, decorate);
+    texture = UI_GetTexture(texture_id);
+    if (!texture) {
+        return;
+    }
+
+    renderer->DrawImageEx(&MAKE(drawImage_t,
+                                .texture = texture,
+                                .shader = SHADER_UI,
+                                .alphamode = BLEND_MODE_ALPHAKEY,
+                                .screen = *screen,
+                                .uv = *uv,
+                                .color = COLOR32_WHITE,
+                                .rotate = false));
+}
+
+static void UI_DrawConsoleBackdropPart(uiConsoleBackdropPart_t const *part) {
+    if (!part) {
+        return;
+    }
+    UI_DrawImagePart(part->texture, part->decorate, &part->screen, &part->uv);
+}
+
+static void UI_DrawConsoleBackdropOnly(void) {
+    static uiConsoleBackdropPart_t const parts[] = {
+        { "ConsoleTexture01", true, { 0.000f, 0.000f, 0.256f, 0.032f }, { 0.00000000f, 0.000000f, 1.00000000f, 0.125000f } },
+        { "ConsoleTexture02", true, { 0.256f, 0.000f, 0.087f, 0.032f }, { 0.00000000f, 0.000000f, 0.33984375f, 0.125000f } },
+        { "ConsoleTexture02", true, { 0.459f, 0.000f, 0.053f, 0.032f }, { 0.79296875f, 0.000000f, 0.20703125f, 0.125000f } },
+        { "ConsoleTexture03", true, { 0.512f, 0.000f, 0.256f, 0.032f }, { 0.00000000f, 0.000000f, 1.00000000f, 0.125000f } },
+        { "ConsoleTexture04", true, { 0.768f, 0.000f, 0.032f, 0.032f }, { 0.00000000f, 0.000000f, 1.00000000f, 0.125000f } },
+        { "ConsoleTexture01", true, { 0.000f, 0.424f, 0.256f, 0.176f }, { 0.00000000f, 0.312500f, 1.00000000f, 0.687500f } },
+        { "ConsoleTexture02", true, { 0.256f, 0.450f, 0.256f, 0.150f }, { 0.00000000f, 0.414062f, 1.00000000f, 0.585938f } },
+        { "ConsoleTexture03", true, { 0.512f, 0.424f, 0.256f, 0.176f }, { 0.00000000f, 0.312500f, 1.00000000f, 0.687500f } },
+        { "ConsoleTexture04", true, { 0.768f, 0.424f, 0.032f, 0.176f }, { 0.00000000f, 0.312500f, 1.00000000f, 0.687500f } },
+    };
+
+    FOR_LOOP(i, sizeof(parts) / sizeof(parts[0])) {
+        UI_DrawConsoleBackdropPart(&parts[i]);
+    }
+}
+
+static void UI_InitGameResourceBar(void) {
+    resource_bar_frame = UI_FindFrame("ResourceBarFrame");
+    resource_bar_gold_text = UI_FindFrame("ResourceBarGoldText");
+    resource_bar_lumber_text = UI_FindFrame("ResourceBarLumberText");
+    resource_bar_supply_text = UI_FindFrame("ResourceBarSupplyText");
+    resource_bar_upkeep_text = UI_FindFrame("ResourceBarUpkeepText");
+
+    if (resource_bar_frame) {
+        UI_SetPoint(resource_bar_frame,
+                    FRAMEPOINT_TOPRIGHT,
+                    NULL,
+                    FRAMEPOINT_TOPRIGHT,
+                    0.0f,
+                    0.0f);
+    }
+}
+
+static void UI_DrawResourceBar(void) {
+    LPCPLAYER ps = uiimport.GetPlayerState ? uiimport.GetPlayerState() : NULL;
+
+    if (!ps || !resource_bar_frame) {
+        return;
+    }
+
+    if (resource_bar_gold_text) {
+        UI_SetText(resource_bar_gold_text, "%u", (unsigned)ps->stats[PLAYERSTATE_RESOURCE_GOLD]);
+    }
+    if (resource_bar_lumber_text) {
+        UI_SetText(resource_bar_lumber_text, "%u", (unsigned)ps->stats[PLAYERSTATE_RESOURCE_LUMBER]);
+    }
+    if (resource_bar_supply_text) {
+        UI_SetText(resource_bar_supply_text,
+                   "%u/%u",
+                   (unsigned)ps->stats[PLAYERSTATE_RESOURCE_FOOD_USED],
+                   (unsigned)ps->stats[PLAYERSTATE_RESOURCE_FOOD_CAP]);
+    }
+    if (resource_bar_upkeep_text) {
+        UI_SetText(resource_bar_upkeep_text, "UPKEEP_NONE");
+    }
+
+    UI_DrawFrame(resource_bar_frame);
+}
 
 VECTOR2 UI_MouseToFdf(void) {
     LPRENDERER renderer = uiimport.GetRenderer ? uiimport.GetRenderer() : NULL;
@@ -79,18 +185,25 @@ void UI_InitLocal(void) {
     UI_ParseFDF("UI\\FrameDef\\Glue\\TeamSetup.fdf");
     UI_ParseFDF("UI\\FrameDef\\Glue\\PlayerSlot.fdf");
     UI_ParseFDF("UI\\FrameDef\\Glue\\GameChatroom.fdf");
-    
-    /* Load in-game HUD FDF files */
-    UI_ParseFDF("UI\\FrameDef\\UI\\ConsoleUI.fdf");
     UI_ParseFDF("UI\\FrameDef\\UI\\ResourceBar.fdf");
-    UI_ParseFDF("UI\\FrameDef\\UI\\UpperButtonBar.fdf");
-    UI_ParseFDF("UI\\FrameDef\\UI\\SimpleInfoPanel.fdf");
-    UI_ParseFDF("UI\\FrameDef\\UI\\CinematicPanel.fdf");
+    UI_InitGameResourceBar();
     
     ui_state.initialized = true;
     ui_state.active = true;
     
-    /* Route to the configured first UI scene. */
+    /*
+     * Map launches use the server-authored in-game HUD via svc_layout.  Leave
+     * the client menu router idle there so no glue screen covers the game.
+     */
+    LPCSTR map = uiimport.Cvar_String
+        ? uiimport.Cvar_String("map", "")
+        : "";
+    if (map && *map) {
+        ui_state.game_mode = true;
+        return;
+    }
+
+    /* Route to the configured first menu scene. */
     LPCSTR start_route = uiimport.Cvar_String
         ? uiimport.Cvar_String("ui_start_route", "/main")
         : "/main";
@@ -123,9 +236,14 @@ void UI_DrawFrameLocal(void) {
     }
     
     /* Call current screen draw */
-    uiScreen_t *screen = UI_GetCurrentScreen();
-    if (screen && screen->draw) {
-        screen->draw();
+    if (ui_state.game_mode) {
+        UI_DrawConsoleBackdropOnly();
+        UI_DrawResourceBar();
+    } else {
+        uiScreen_t *screen = UI_GetCurrentScreen();
+        if (screen && screen->draw) {
+            screen->draw();
+        }
     }
     UI_ClearMouseTransient();
 }

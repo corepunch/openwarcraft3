@@ -59,6 +59,8 @@ void SV_Physics_Link(LPEDICT ent) {
  * then calls the entity's think function, and finally compresses health/mana
  * into the 8-bit stat fields that are sent to clients. */
 void G_RunEntity(LPEDICT ent) {
+    DWORD queue_count = 0;
+
     SAFE_CALL(ent->prethink, ent);
     switch (ent->movetype) {
         case MOVETYPE_STEP:
@@ -81,6 +83,20 @@ void G_RunEntity(LPEDICT ent) {
         ent->s.ability = GetAbilityIndex(ent->currentmove->ability);
     } else {
         ent->s.ability = 0;
+    }
+    ent->s.class_id = ent->class_id;
+    memset(ent->s.inventory, 0, sizeof(ent->s.inventory));
+    memset(ent->s.build_queue, 0, sizeof(ent->s.build_queue));
+    FOR_LOOP(i, MAX_ENTITY_INVENTORY) {
+        if (ent->inventory[i]) {
+            ent->s.inventory[i] = ent->inventory[i]->class_id;
+        }
+    }
+    for (LPEDICT build = ent->build; build && queue_count < MAX_ENTITY_BUILD_QUEUE; build = build->build) {
+        ent->s.build_queue[queue_count++] = build->s.number;
+        if (build->build == build) {
+            break;
+        }
     }
 }
 

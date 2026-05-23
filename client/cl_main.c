@@ -62,7 +62,10 @@ void CL_ClearState(void) {
 static LPCPLAYER CL_UIGetPlayerState(void);
 static DWORD CL_UIGetNumEntities(void);
 static LPCENTITYSTATE CL_UIGetEntity(DWORD idx);
+static void CL_UIServerCommand(LPCSTR text);
 static void CL_UIRequestUnitUI(DWORD num_selected, DWORD *entity_nums);
+static LPCMODEL CL_UIGetModel(DWORD idx);
+static LPCMODEL CL_UIGetPortrait(DWORD idx);
 static LPRENDERER CL_UIGetRenderer(void);
 
 static refExport_t CL_GetRendererAPI(refImport_t imp) {
@@ -171,6 +174,28 @@ static LPCENTITYSTATE CL_UIGetEntity(DWORD idx) {
     return &cl.ents[idx].current;
 }
 
+static void CL_UIServerCommand(LPCSTR text) {
+    if (!text || !*text || *text == '-' || *text == '+') {
+        return;
+    }
+    MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
+    SZ_Printf(&cls.netchan.message, "%s", text);
+}
+
+static LPCMODEL CL_UIGetModel(DWORD idx) {
+    if (idx >= MAX_MODELS) {
+        return NULL;
+    }
+    return cl.models[idx];
+}
+
+static LPCMODEL CL_UIGetPortrait(DWORD idx) {
+    if (idx >= MAX_MODELS) {
+        return NULL;
+    }
+    return cl.portraits[idx];
+}
+
 /* Renderer access callback for UI rendering */
 static LPRENDERER CL_UIGetRenderer(void) {
     return &re;
@@ -178,14 +203,10 @@ static LPRENDERER CL_UIGetRenderer(void) {
 
 /* Request unit UI data (command card, inventory, build queue) */
 static void CL_UIRequestUnitUI(DWORD num_selected, DWORD *entity_nums) {
-    if (!entity_nums || num_selected == 0 || num_selected > 12) {
-        return;
-    }
-    
-    MSG_WriteByte(&cls.netchan.message, clc_request_unit_ui);
-    MSG_WriteByte(&cls.netchan.message, (BYTE)num_selected);
-    for (DWORD i = 0; i < num_selected; i++) {
-        MSG_WriteShort(&cls.netchan.message, (SHORT)entity_nums[i]);
+    (void)num_selected;
+    (void)entity_nums;
+    if (ui.UpdateUnitUI) {
+        ui.UpdateUnitUI(0, NULL);
     }
 }
 
@@ -288,11 +309,17 @@ void CL_Init(void) {
         .ModelIndex = CL_ModelIndex,
         .ImageIndex = CL_ImageIndex,
         .FontIndex = CL_FontIndex,
+        .ReadSheet = FS_ParseSLK,
+        .ReadConfig = FS_ParseINI,
+        .FindSheetCell = FS_FindSheetCell,
         .Cmd_ExecuteText = Cbuf_AddText,
+        .ServerCommand = CL_UIServerCommand,
         .Cvar_String = Cvar_String,
         .GetPlayerState = CL_UIGetPlayerState,
         .GetNumEntities = CL_UIGetNumEntities,
         .GetEntity = CL_UIGetEntity,
+        .GetModel = CL_UIGetModel,
+        .GetPortrait = CL_UIGetPortrait,
         .RequestUnitUI = CL_UIRequestUnitUI,
         .GetRenderer = CL_UIGetRenderer,
         .Error = CON_printf,

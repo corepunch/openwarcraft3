@@ -184,6 +184,7 @@ void CL_SetMenuBindings(void) {
 
 void CL_SetGameplayBindings(void) {
     cls.key_dest = key_game;
+    cls.netchan.remote_address.type = NA_LOOPBACK;
     SDL_StopTextInput();
     cl.moveConfirmation = re.LoadModel("UI\\Feedback\\Confirmation\\Confirmation.mdx");
 
@@ -242,6 +243,9 @@ void IN_SelectUp(void) {
         if (re.TraceLocation(&cl.viewDef, r.x, r.y, &point)){
             MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
             SZ_Printf(&cls.netchan.message, "point %d %d", (int)point.x, (int)point.y);
+            if (cl.selection.num_selected) {
+                CL_RequestUnitUI(cl.selection.num_selected, cl.selection.entity_nums);
+            }
         }
     } else {
         DWORD selected[MAX_SELECTED_ENTITIES] = { 0 };
@@ -249,9 +253,13 @@ void IN_SelectUp(void) {
         char buffer[1024] = { 0 };
         if (num == 0)
             return;
+        if (num > MAX_SELECTED_ENTITIES) {
+            num = MAX_SELECTED_ENTITIES;
+        }
         strcpy(buffer, "select");
         FOR_LOOP(i, num) {
-            sprintf(buffer+strlen(buffer), " %d", selected[i]);
+            size_t used = strlen(buffer);
+            snprintf(buffer + used, sizeof(buffer) - used, " %d", selected[i]);
         }
         MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
         SZ_Printf(&cls.netchan.message, buffer);

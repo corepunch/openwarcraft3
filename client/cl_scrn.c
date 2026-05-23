@@ -251,7 +251,7 @@ LPCUIFRAME SCR_Clear(HANDLE data) {
     };
     while (true) {
         DWORD bits = 0;
-        if (msg.readcount + sizeof(WORD) * 2 > msg.cursize) {
+        if (msg.readcount + sizeof(DWORD) + sizeof(WORD) > msg.cursize) {
             break;
         }
         DWORD nument = MSG_ReadEntityBits(&msg, &bits);
@@ -321,13 +321,14 @@ void SCR_UpdateScreen(DWORD msec) {
     re.BeginFrame();
     
     V_RenderView();
-    
-    SCR_DrawOverlays();
-    
-    /* Draw UI library frames */
+
+    /* Draw client FDF shell/menus first; server-authored gameplay HUD
+     * layers sit on top via svc_layout. */
     if (ui.DrawFrame) {
         ui.DrawFrame();
     }
+
+    SCR_DrawOverlays();
 
     CON_DrawConsole();
     SCR_DrawFPS(msec);

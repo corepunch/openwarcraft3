@@ -236,8 +236,8 @@ LPCSTR G_LevelString(LPCSTR name) {
 }
 
 /* Called when a client finishes the connection handshake and is ready to play.
- * UI is rendered by explicit client route requests; this binds the game client
- * and initializes gameplay state when a map is loaded. */
+ * The in-game HUD is server-authored through svc_layout; this binds the game
+ * client and initializes gameplay state when a map is loaded. */
 static void G_ClientBegin(LPEDICT edict) {
     LPGAMECLIENT client = edict->client ? edict->client : game.clients;
     if (!edict->client) {
@@ -248,6 +248,8 @@ static void G_ClientBegin(LPEDICT edict) {
     if (globals.num_edicts <= globals.max_clients) {
         return;
     }
+
+    UI_ShowGameInterface(edict);
 
     FILTER_EDICTS(ent, client->ps.number == ent->s.player) {
         client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] += UNIT_FOOD_MADE(ent->class_id);
@@ -270,9 +272,6 @@ struct game_export *GetGameAPI(struct game_import *import) {
     globals.ClientPanCamera = G_ClientPanCamera;
     globals.ClientBegin = G_ClientBegin;
     globals.GetThemeValue = G_GetThemeValue;
-    globals.GetCommandButtons = G_GetCommandButtons;
-    globals.GetInventory = G_GetInventory;
-    globals.GetBuildQueue = G_GetBuildQueue;
     globals.edict_size = sizeof(struct edict_s);
     return &globals;
 }

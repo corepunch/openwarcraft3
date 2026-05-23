@@ -15,13 +15,33 @@
  * sends only the fields that changed since the previous frame.  A U_REMOVE
  * flag signals that an entity should be removed from the local table. */
 static void CL_ReadPacketEntities(LPSIZEBUF msg) {
+    int count = 0;
+    int previous = 0;
     while (true) {
         DWORD bits = 0;
+        if (msg->readcount + sizeof(DWORD) + sizeof(WORD) > msg->cursize) {
+            break;
+        }
         int nument = MSG_ReadEntityBits(msg, &bits);
         if (nument == 0 && bits == 0)
             break;
+        if (nument < 0 || nument >= MAX_CLIENT_ENTITIES) {
+            fprintf(stderr,
+                    "CL_ReadPacketEntities: bad entity %d bits=0x%x count=%d previous=%d read=%u size=%u frame=%d\n",
+                    nument,
+                    (unsigned)bits,
+                    count,
+                    previous,
+                    (unsigned)msg->readcount,
+                    (unsigned)msg->cursize,
+                    cl.frame.serverframe);
+            msg->readcount = msg->cursize;
+            break;
+        }
+        previous = nument;
+        count++;
         centity_t *ent = &cl.ents[nument];
-        if (bits & (1 << U_REMOVE)) {
+        if (bits & (1u << U_REMOVE)) {
             memset(ent, 0, sizeof(centity_t));
             continue;
         }
@@ -48,6 +68,11 @@ static void CL_ParseConfigString(LPSIZEBUF msg) {
 static void CL_ParseBaseline(LPSIZEBUF msg) {
     DWORD bits = 0;
     DWORD index = MSG_ReadEntityBits(msg, &bits);
+    if (index >= MAX_CLIENT_ENTITIES) {
+        fprintf(stderr, "CL_ParseBaseline: bad entity %u\n", (unsigned)index);
+        msg->readcount = msg->cursize;
+        return;
+    }
     centity_t *cent = &cl.ents[index];
     memset(&cent->baseline, 0, sizeof(entityState_t));
     MSG_ReadDeltaEntity(msg, &cent->baseline, index, bits);
@@ -91,17 +116,27 @@ void CL_ParsePlayerInfo(LPSIZEBUF msg) {
 void CL_ParseLayout(LPSIZEBUF msg) {
     DWORD layer = MSG_ReadByte(msg);
     DWORD payload_size = 0;
+    BOOL terminated = false;
+
+    if (layer >= MAX_LAYOUT_LAYERS) {
+        fprintf(stderr, "CL_ParseLayout: bad layer %u\n", (unsigned)layer);
+        msg->readcount = msg->cursize;
+        return;
+    }
+
     SAFE_DELETE(cl.layout[layer], MemFree);
     DWORD start = msg->readcount;
     while (true) {
         UIFRAME ent = { 0 };
         DWORD bits = 0;
-        if (msg->readcount + sizeof(WORD) * 2 > msg->cursize) {
+        if (msg->readcount + sizeof(DWORD) + sizeof(WORD) > msg->cursize) {
             break;
         }
         DWORD nument = MSG_ReadEntityBits(msg, &bits);
-        if (nument == 0 && bits == 0)
+        if (nument == 0 && bits == 0) {
+            terminated = true;
             break;
+        }
         MSG_ReadDeltaUIFrame(msg, &ent, nument, bits);
         if (msg->readcount + sizeof(WORD) > msg->cursize) {
             break;
@@ -114,8 +149,14 @@ void CL_ParseLayout(LPSIZEBUF msg) {
 
         msg->readcount += ent.buffer.size;
     }
+    if (!terminated) {
+        fprintf(stderr, "CL_ParseLayout: malformed layer %u\n", (unsigned)layer);
+        msg->readcount = msg->cursize;
+        return;
+    }
     if (start > msg->cursize || msg->readcount > msg->cursize ||
         msg->readcount < start) { /* guard against malformed data and wraparound */
+        msg->readcount = msg->cursize;
         return;
     }
     payload_size = msg->readcount - start;
@@ -142,9 +183,6 @@ void CL_MirrorMessage(LPSIZEBUF msg) {
     MSG_WriteString(&cls.netchan.message, buf);
     if (!strcmp(buf, "begin")) {
         cls.state = *cl.configstrings[CS_WORLD] ? ca_active : ca_connected;
-        MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
-        MSG_WriteString(&cls.netchan.message,
-                        cls.state == ca_active ? "/console" : "/main");
     }
 }
 

@@ -487,7 +487,7 @@ void SCR_DrawMultiSelect(LPCUIFRAME frame, LPCRECT scrn) {
 void SCR_DrawPortrait(LPCUIFRAME frame, LPCRECT screen) {
     RECT const viewport = {
         screen->x / UI_BASE_WIDTH,
-        screen->y / UI_BASE_HEIGHT,
+        (UI_BASE_HEIGHT - screen->y - screen->h) / UI_BASE_HEIGHT,
         screen->w / UI_BASE_WIDTH,
         screen->h / UI_BASE_HEIGHT
     };

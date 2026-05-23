@@ -26,6 +26,7 @@ typedef struct {
 } netField_t;
 
 netField_t entityStateFields[] = {
+    { NETF(entityState_t, class_id), NFT_LONG },
     { NETF(entityState_t, origin), NFT_VECTOR3 },
     { NETF(entityState_t, angle), NFT_ANGLE },
     { NETF(entityState_t, scale), NFT_PACKED_FLOAT },
@@ -38,6 +39,19 @@ netField_t entityStateFields[] = {
     { NETF(entityState_t, radius), NFT_ROUND },
     { NETF(entityState_t, splat), NFT_LONG },
     { NETF(entityState_t, stats), NFT_LONG },
+    { NETF(entityState_t, inventory[0]), NFT_LONG },
+    { NETF(entityState_t, inventory[1]), NFT_LONG },
+    { NETF(entityState_t, inventory[2]), NFT_LONG },
+    { NETF(entityState_t, inventory[3]), NFT_LONG },
+    { NETF(entityState_t, inventory[4]), NFT_LONG },
+    { NETF(entityState_t, inventory[5]), NFT_LONG },
+    { NETF(entityState_t, build_queue[0]), NFT_LONG },
+    { NETF(entityState_t, build_queue[1]), NFT_LONG },
+    { NETF(entityState_t, build_queue[2]), NFT_LONG },
+    { NETF(entityState_t, build_queue[3]), NFT_LONG },
+    { NETF(entityState_t, build_queue[4]), NFT_LONG },
+    { NETF(entityState_t, build_queue[5]), NFT_LONG },
+    { NETF(entityState_t, build_queue[6]), NFT_LONG },
     { NULL }
 };
 
@@ -407,12 +421,12 @@ void SZ_Printf(LPSIZEBUF msg, LPCSTR fmt, ...) {
 }
 
 void MSG_WriteEntityBits(LPSIZEBUF buf, DWORD bits, DWORD number) {
-    MSG_WriteShort(buf, bits);
+    MSG_WriteLong(buf, bits);
     MSG_WriteShort(buf, number);
 }
 
 int MSG_ReadEntityBits(LPSIZEBUF buf, DWORD *bits) {
-    *bits = MSG_ReadShort(buf);
+    *bits = MSG_ReadLong(buf);
     return MSG_ReadShort(buf);
 }
 

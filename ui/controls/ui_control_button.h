@@ -23,6 +23,12 @@ static void UI_DrawButtonText(LPCFRAMEDEF frame, LPCRECT rect) {
     if (!text_frame && frame->Button.NormalText.frame[0]) {
         text_frame = UI_FindChildFrame((LPFRAMEDEF)frame, frame->Button.NormalText.frame);
     }
+    if (!text_frame && frame->Button.NormalText.frame[0]) {
+        text_frame = UI_FindFrameNear(frame, frame->Button.NormalText.frame);
+        if (text_frame && frame->Button.NormalText.text[0]) {
+            UI_SetText((LPFRAMEDEF)text_frame, "%s", frame->Button.NormalText.text);
+        }
+    }
     if (!text_frame) {
         return;
     }

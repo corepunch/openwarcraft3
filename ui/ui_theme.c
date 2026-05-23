@@ -8,6 +8,7 @@
 #define MAX_THEME_ENTRIES 1024
 
 typedef struct {
+    UINAME category;
     UINAME key;
     PATHSTR value;
 } themeEntry_t;
@@ -38,6 +39,7 @@ void UI_LoadTheme(LPCSTR fileName) {
     int size = uiimport.FS_ReadFile(fileName, &buffer);
     LPSTR text;
     char *cursor;
+    UINAME category = "Default";
 
     UI_ClearTheme();
 
@@ -72,7 +74,15 @@ void UI_LoadTheme(LPCSTR fileName) {
         }
 
         key = UI_ThemeTrim(line);
-        if (!*key || *key == '[' || *key == '/' || *key == '#') {
+        if (!*key || *key == '/' || *key == '#') {
+            continue;
+        }
+        if (*key == '[') {
+            char *end = strchr(key + 1, ']');
+            if (end) {
+                *end = '\0';
+                snprintf(category, sizeof(category), "%s", UI_ThemeTrim(key + 1));
+            }
             continue;
         }
         eq = strchr(key, '=');
@@ -86,6 +96,7 @@ void UI_LoadTheme(LPCSTR fileName) {
             continue;
         }
 
+        snprintf(theme_entries[theme_count].category, sizeof(theme_entries[theme_count].category), "%s", category);
         snprintf(theme_entries[theme_count].key, sizeof(theme_entries[theme_count].key), "%s", key);
         snprintf(theme_entries[theme_count].value, sizeof(theme_entries[theme_count].value), "%s", value);
         theme_count++;
@@ -94,9 +105,10 @@ void UI_LoadTheme(LPCSTR fileName) {
     uiimport.MemFree(text);
 }
 
-static LPCSTR UI_FindThemeValue(LPCSTR entry) {
+static LPCSTR UI_FindThemeValue(LPCSTR entry, LPCSTR category) {
     FOR_LOOP(i, theme_count) {
-        if (!strcmp(theme_entries[i].key, entry)) {
+        if (!strcmp(theme_entries[i].key, entry) &&
+            (!category || !strcmp(theme_entries[i].category, category))) {
             return theme_entries[i].value;
         }
     }
@@ -104,23 +116,37 @@ static LPCSTR UI_FindThemeValue(LPCSTR entry) {
 }
 
 LPCSTR Theme_String(LPCSTR entry, LPCSTR category) {
-    LPCSTR filename = UI_FindThemeValue(entry);
+    LPCSTR filename = NULL;
     char versioned[128];
+    LPCSTR fallback = "Default";
 
-    (void)category;
+    if (!category || !*category) {
+        category = fallback;
+    }
+
+    filename = UI_FindThemeValue(entry, category);
+    if (!filename && strcmp(category, fallback)) {
+        filename = UI_FindThemeValue(entry, fallback);
+    }
 
     if (filename) {
         return filename;
     }
 
     snprintf(versioned, sizeof(versioned), "%s_V1", entry);
-    filename = UI_FindThemeValue(versioned);
+    filename = UI_FindThemeValue(versioned, category);
+    if (!filename && strcmp(category, fallback)) {
+        filename = UI_FindThemeValue(versioned, fallback);
+    }
     if (filename) {
         return filename;
     }
 
     snprintf(versioned, sizeof(versioned), "%s_V0", entry);
-    filename = UI_FindThemeValue(versioned);
+    filename = UI_FindThemeValue(versioned, category);
+    if (!filename && strcmp(category, fallback)) {
+        filename = UI_FindThemeValue(versioned, fallback);
+    }
     if (filename) {
         return filename;
     }

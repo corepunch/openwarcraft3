@@ -82,6 +82,10 @@ typedef struct {
     char ubertip[512];
     char command[256];
     char hotkey;
+    BYTE x;
+    BYTE y;
+    BYTE research;
+    BYTE active;
 } gameCommandButton_t;
 
 typedef struct {
@@ -105,11 +109,6 @@ struct game_export {
     void (*ClientCommand)(LPEDICT ent, DWORD argc, LPCSTR argv[]);
     void (*ClientPanCamera)(LPEDICT ent, LPVECTOR2 offset);
     void (*ClientBegin)(LPEDICT ent);
-    
-    /* Unit UI query (Phase 8) - fill arrays with unit UI data */
-    BYTE (*GetCommandButtons)(LPEDICT ent, gameCommandButton_t *buttons, BYTE max_buttons);
-    BYTE (*GetInventory)(LPEDICT ent, gameInventoryItem_t *items, BYTE max_items);
-    BYTE (*GetBuildQueue)(LPEDICT ent, gameQueueItem_t *queue, BYTE max_queue);
     
     edict_t *edicts;
     int num_edicts;

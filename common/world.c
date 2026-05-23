@@ -429,7 +429,13 @@ unitData_t *CM_ReadUnitsOverrides(HANDLE file, DWORD *numUnits) {
 void CM_ReadUnits(HANDLE archive) {
     DWORD version;
     HANDLE file;
-    SFileOpenFileEx(archive, "war3map.w3u", SFILE_OPEN_FROM_MPQ, &file);
+    if (!SFileOpenFileEx(archive, "war3map.w3u", SFILE_OPEN_FROM_MPQ, &file)) {
+        world.info.num_originalUnits = 0;
+        world.info.num_userCreatedUnits = 0;
+        world.info.originalUnits = NULL;
+        world.info.userCreatedUnits = NULL;
+        return;
+    }
     SFileReadFile(file, &version, 4, NULL, NULL);
     world.info.originalUnits = CM_ReadUnitsOverrides(file, &world.info.num_originalUnits);
     world.info.userCreatedUnits = CM_ReadUnitsOverrides(file, &world.info.num_userCreatedUnits);

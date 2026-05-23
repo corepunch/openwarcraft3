@@ -35,6 +35,7 @@ static void FillUnitData(LPENTITYSTATE ent, DWORD unit_id, LPCSTR anim) {
         return;
     sprintf(buffer, "%s.mdx", model_filename);
     memset(ent, 0, sizeof(entityState_t));
+    ent->class_id = unit_id;
     ent->model = gi.ModelIndex(buffer);
     ent->scale = UNIT_SCALING_VALUE(unit_id);
     ent->angle = -M_PI / 2;

@@ -60,6 +60,9 @@ DWORD R_EntitiesInRect(viewDef_t const *viewdef, LPCRECT rect, DWORD max, LPDWOR
         renderEntity_t const *ent = &viewdef->entities[i];
         VECTOR3 const org = Matrix4_multiply_vector3(&viewdef->viewProjectionMatrix, &ent->origin);
         if (ent->number != 0 && Rect_contains(&screen, (LPVECTOR2)&org)) {
+            if (count >= max) {
+                break;
+            }
             array[count++] = ent->number;
         }
     }

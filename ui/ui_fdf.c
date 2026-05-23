@@ -449,13 +449,12 @@ MAKE_PARSER(Vector2) { ParseFloatList(token, out, 2); }
 MAKE_PARSER(Vector3) { ParseFloatList(token, out, 3); }
 MAKE_PARSER(Vector4) { ParseFloatList(token, out, 4); }
 MAKE_PARSER(Color) {
-    VECTOR4 vec4;
-    vec4.w = 1;
-    ParseVector4(token, frame, &vec4);
-    ((COLOR32 *)out)->r = vec4.x * 0xff;
-    ((COLOR32 *)out)->g = vec4.y * 0xff;
-    ((COLOR32 *)out)->b = vec4.z * 0xff;
-    ((COLOR32 *)out)->a = vec4.w * 0xff;
+    FLOAT values[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
+    ParseFloatList(token, values, 4);
+    ((COLOR32 *)out)->r = values[0] * 0xff;
+    ((COLOR32 *)out)->g = values[1] * 0xff;
+    ((COLOR32 *)out)->b = values[2] * 0xff;
+    ((COLOR32 *)out)->a = values[3] * 0xff;
 }
 MAKE_PARSER(FramePtr) {
     *(LPCFRAMEDEF *)out = NULL;
@@ -593,7 +592,7 @@ MAKE_PARSERCALL(SetPoint) {
 MAKE_PARSERCALL(Anchor) {
     frame->SetPoint.type = frame->Anchor.corner;
     frame->SetPoint.target = frame->Anchor.corner;
-    frame->SetPoint.relativeTo = NULL;
+    frame->SetPoint.relativeTo = frame->Parent;
     frame->SetPoint.x = frame->Anchor.x;
     frame->SetPoint.y = frame->Anchor.y;
     SetPoint(parser, frame);

@@ -46,10 +46,13 @@ if (NAME) { \
 }
 
 #define UI_WRITE_LAYER(ent, BuildUI, layer, ...) \
+    UI_SetCurrentClient(ent->client); \
     UI_WriteStart(layer); \
     BuildUI(ent->client, ##__VA_ARGS__); \
     gi.WriteLong(0); \
-    gi.unicast(ent);
+    gi.WriteShort(0); \
+    gi.unicast(ent); \
+    UI_SetCurrentClient(NULL);
 
 
 #define FOR_SELECTED_UNITS(CLIENT, ENT) \
@@ -850,6 +853,7 @@ LPCSTR GetClassName(DWORD);
 
 // g_unit_ui.c (Phase 8)
 BYTE G_GetCommandButtons(LPEDICT ent, gameCommandButton_t *buttons, BYTE max_buttons);
+BOOL G_BuildCommandButton(LPEDICT ent, LPCSTR code, BOOL research, DWORD level, gameCommandButton_t *button);
 BYTE G_GetInventory(LPEDICT ent, gameInventoryItem_t *items, BYTE max_items);
 BYTE G_GetBuildQueue(LPEDICT ent, gameQueueItem_t *queue, BYTE max_queue);
 
@@ -860,6 +864,7 @@ void Get_Portrait_f(LPEDICT);
 void UI_AddCancelButton(LPEDICT);
 void UI_AddCommandButton(LPCSTR);
 void UI_AddCommandButtonExtended(LPCSTR code, BOOL research, DWORD level);
+void UI_SetCurrentClient(LPGAMECLIENT client);
 void UI_ShowInterface(LPEDICT, BOOL, FLOAT);
 void UI_ShowText(LPEDICT, LPCVECTOR2, LPCSTR, FLOAT);
 LPCSTR GetBuildCommand(unitRace_t);

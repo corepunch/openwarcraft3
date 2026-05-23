@@ -18,6 +18,8 @@
 
 #define MAX_PATHLEN 256
 #define MAX_SELECTED_ENTITIES 64
+#define MAX_ENTITY_INVENTORY 6
+#define MAX_ENTITY_BUILD_QUEUE 7
 #define TOKEN_LEN 1024
 #define FRAMETIME 100
 #define MAX_LAYOUT_OBJECTS 0xffff
@@ -323,6 +325,7 @@ struct playerState_s {
 
 typedef struct entityState_s {
     DWORD number; // edict index
+    DWORD class_id;
     union {
         VECTOR3 origin;
         struct { VECTOR2 origin2; FLOAT z; };
@@ -342,6 +345,8 @@ typedef struct entityState_s {
     BYTE renderfx;
     BYTE ability;
     DWORD splat;
+    DWORD inventory[MAX_ENTITY_INVENTORY];
+    DWORD build_queue[MAX_ENTITY_BUILD_QUEUE];
 } entityState_t;
 
 typedef struct animation_s {

@@ -30,6 +30,10 @@ typedef struct {
     char ubertip[512];    /* Extended tooltip */
     char command[256];    /* Command to execute on click */
     char hotkey;          /* Keyboard hotkey */
+    BYTE x;               /* Warcraft command grid column */
+    BYTE y;               /* Warcraft command grid row */
+    BYTE research;        /* Uses research command */
+    BYTE active;          /* Current selected entity is using this ability */
 } uiCommandButton_t;
 
 typedef struct {
@@ -46,6 +50,28 @@ typedef struct {
 
 typedef struct {
     WORD entity_num;                              /* Entity number */
+    DWORD class_id;
+    DWORD model;
+    char name[128];
+    char class_text[128];
+    char icon_art[256];
+    BYTE is_building;
+    BYTE is_hero;
+    BYTE is_constructing;
+    BYTE health;
+    BYTE mana;
+    BYTE ability;
+    WORD level;
+    SHORT damage_min;
+    SHORT damage_max;
+    SHORT armor;
+    SHORT food_used;
+    SHORT food_made;
+    SHORT gold_cost;
+    SHORT lumber_cost;
+    SHORT hero_strength;
+    SHORT hero_agility;
+    SHORT hero_intelligence;
     BYTE num_buttons;                             /* Number of command buttons */
     uiCommandButton_t buttons[MAX_COMMAND_BUTTONS];
     BYTE num_inventory;                           /* Number of inventory items */
@@ -80,16 +106,22 @@ typedef struct {
     int (*ModelIndex)(LPCSTR modelName);
     int (*ImageIndex)(LPCSTR imageName);
     int (*FontIndex)(LPCSTR fontName, DWORD fontSize);
+    sheetRow_t *(*ReadSheet)(LPCSTR sheetFilename);
+    sheetRow_t *(*ReadConfig)(LPCSTR configFilename);
+    LPCSTR (*FindSheetCell)(sheetRow_t *sheet, LPCSTR row, LPCSTR column);
     
     /* Command execution (following Quake 3 pattern)
      * UI executes console commands; engine dispatcher handles routing */
     void (*Cmd_ExecuteText)(LPCSTR text);
+    void (*ServerCommand)(LPCSTR text);
     LPCSTR (*Cvar_String)(LPCSTR name, LPCSTR fallback);
     
     /* Game state access (for in-game HUD) */
     LPCPLAYER (*GetPlayerState)(void);          /* Access to cl.playerstate */
     DWORD (*GetNumEntities)(void);              /* cl.num_entities */
     LPCENTITYSTATE (*GetEntity)(DWORD idx);     /* &cl.ents[idx].current */
+    LPCMODEL (*GetModel)(DWORD idx);            /* cl.models[idx] */
+    LPCMODEL (*GetPortrait)(DWORD idx);         /* cl.portraits[idx] */
     
     /* Unit UI data requests (for command card, inventory, build queue) */
     void (*RequestUnitUI)(DWORD num_selected, DWORD *entity_nums);

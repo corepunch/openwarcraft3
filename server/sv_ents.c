@@ -111,13 +111,13 @@ void SV_EmitPacketEntities(LPCCLIENTFRAME from, LPCCLIENTFRAME to, LPSIZEBUF msg
             continue;
         }
         if (newnum > oldnum) { // the old entity isn't present in the new message
-            MSG_WriteShort(msg, 1 << U_REMOVE);
+            MSG_WriteLong(msg, 1u << U_REMOVE);
             MSG_WriteShort(msg, oldnum);
             oldindex++;
             continue;
         }
     }
-    MSG_WriteLong(msg, 0);    // end of packetentities
+    MSG_WriteEntityBits(msg, 0, 0);    // end of packetentities
 }
 
 void SV_WritePlayerstateToClient(LPCCLIENTFRAME from, LPCCLIENTFRAME to, LPSIZEBUF msg) {

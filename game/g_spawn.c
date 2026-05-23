@@ -128,6 +128,7 @@ sheetRow_t *find_row(LPCSTR dood_id) {
 void SP_CallSpawn(LPEDICT edict) {
     if (!edict->class_id)
         return;
+    edict->s.class_id = edict->class_id;
     if (find_row(GetClassName(edict->class_id))) {
         SP_SpawnDoodad(edict);
     } else if (DESTRUCTABLE_FILE(edict->class_id)) {
@@ -216,6 +217,7 @@ void G_SpawnEntities(LPCMAPINFO mapinfo, LPCDOODAD entities) {
 LPEDICT SP_SpawnAtLocation(DWORD class_id, DWORD player, LPCVECTOR2 location) {
     LPEDICT ent = G_Spawn();
     ent->class_id = class_id;
+    ent->s.class_id = class_id;
     ent->spawn_time = gi.GetTime();
     ent->s.origin.x = location->x;
     ent->s.origin.y = location->y;

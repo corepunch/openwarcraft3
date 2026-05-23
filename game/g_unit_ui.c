@@ -1,120 +1,222 @@
 /*
- * g_unit_ui.c — Game-side unit UI data collection (Phase 8)
- *
- * Provides unit command buttons, inventory, and build queue data to server.
+ * g_unit_ui.c — Server-side unit HUD data helpers.
  */
 
 #include "g_local.h"
 #include "g_metadata.h"
 
-/* Get command buttons for an entity */
+static void G_CopyString(LPSTR out, DWORD out_size, LPCSTR text) {
+    if (!out || out_size == 0) {
+        return;
+    }
+    snprintf(out, out_size, "%s", text ? text : "");
+}
+
+static LPCSTR G_ResearchField(LPCSTR field, BOOL research) {
+    static char buffer[64];
+
+    if (!research) {
+        return field;
+    }
+    snprintf(buffer, sizeof(buffer), "Research%s", field);
+    return buffer;
+}
+
+static unitRace_t G_RaceFromString(LPCSTR race) {
+    if (!race) return RACE_UNKNOWN;
+    if (!strcmp(race, STR_HUMAN)) return RACE_HUMAN;
+    if (!strcmp(race, STR_ORC)) return RACE_ORC;
+    if (!strcmp(race, STR_UNDEAD)) return RACE_UNDEAD;
+    if (!strcmp(race, STR_NIGHTELF)) return RACE_NIGHTELF;
+    return RACE_UNKNOWN;
+}
+
+LPCSTR GetBuildCommand(unitRace_t race) {
+    switch (race) {
+        case RACE_HUMAN: return STR_CmdBuildHuman;
+        case RACE_ORC: return STR_CmdBuildOrc;
+        case RACE_UNDEAD: return STR_CmdBuildUndead;
+        case RACE_NIGHTELF: return STR_CmdBuildNightElf;
+        default: return STR_CmdBuild;
+    }
+}
+
+static LPCSTR G_CommandArtCode(LPEDICT ent, LPCSTR code) {
+    if (!strcmp(code, STR_CmdBuild)) {
+        return GetBuildCommand(G_RaceFromString(UnitStringField(UnitsMetaData, ent->class_id, "urac")));
+    }
+    return code;
+}
+
+static LPCSTR G_RemoveQuotes(LPCSTR text) {
+    static char buffers[4][1024];
+    static DWORD cursor;
+    LPSTR out = buffers[cursor++ & 3];
+    size_t len;
+
+    out[0] = '\0';
+    if (!text) {
+        return out;
+    }
+    len = strlen(text);
+    if (len >= 2 && text[0] == '"' && text[len - 1] == '"') {
+        snprintf(out, sizeof(buffers[0]), "%.*s", (int)(len - 2), text + 1);
+    } else {
+        snprintf(out, sizeof(buffers[0]), "%s", text);
+    }
+    return out;
+}
+
+BOOL G_BuildCommandButton(LPEDICT ent, LPCSTR code, BOOL research, DWORD level, gameCommandButton_t *button) {
+    LPCSTR art_code;
+    LPCSTR art;
+    LPCSTR buttonpos;
+    LPCSTR tip;
+    LPCSTR ubertip;
+    LPCSTR hotkey;
+    DWORD x = UINT_MAX;
+    DWORD y = UINT_MAX;
+
+    (void)level;
+    if (!ent || !code || !*code || !button) {
+        return false;
+    }
+
+    memset(button, 0, sizeof(*button));
+    art_code = G_CommandArtCode(ent, code);
+    art = FindConfigValue(art_code, G_ResearchField(STR_ART, research));
+    buttonpos = FindConfigValue(art_code, G_ResearchField(STR_BUTTONPOS, research));
+    tip = FindConfigValue(art_code, G_ResearchField(STR_TIP, research));
+    ubertip = FindConfigValue(art_code, G_ResearchField(STR_UBERTIP, research));
+    hotkey = FindConfigValue(art_code, STR_HOTKEY);
+
+    if (buttonpos && *buttonpos) {
+        sscanf(buttonpos, "%u,%u", &x, &y);
+    }
+
+    G_CopyString(button->art, sizeof(button->art), art);
+    G_CopyString(button->tooltip, sizeof(button->tooltip), G_RemoveQuotes(tip));
+    G_CopyString(button->ubertip, sizeof(button->ubertip), G_RemoveQuotes(ubertip));
+    G_CopyString(button->command, sizeof(button->command), code);
+    button->hotkey = hotkey && *hotkey ? *hotkey : '\0';
+    button->x = x == UINT_MAX ? 255 : (BYTE)MIN(x, 3);
+    button->y = y == UINT_MAX ? 255 : (BYTE)MIN(y, 2);
+    button->research = research ? 1 : 0;
+    button->active = (BYTE)FindAbilityIndex(code);
+    return true;
+}
+
+static void G_AddCommandButton(LPEDICT ent,
+                               gameCommandButton_t *buttons,
+                               BYTE max_buttons,
+                               BYTE *count,
+                               LPCSTR code,
+                               BOOL research,
+                               DWORD level) {
+    if (!buttons || !count || *count >= max_buttons) {
+        return;
+    }
+    if (G_BuildCommandButton(ent, code, research, level, &buttons[*count])) {
+        if (buttons[*count].x == 255 || buttons[*count].y == 255) {
+            buttons[*count].x = *count % 4;
+            buttons[*count].y = *count / 4;
+        }
+        (*count)++;
+    }
+}
+
+static BOOL G_IsImplementedAbility(LPCSTR code) {
+    return FindAbilityByClassname(code) != NULL;
+}
+
 BYTE G_GetCommandButtons(LPEDICT ent, gameCommandButton_t *buttons, BYTE max_buttons) {
+    BYTE count = 0;
+
     if (!ent || !ent->class_id || !buttons) {
         return 0;
     }
-    
-    LPCSTR class_name = GetClassName(ent->class_id);
-    if (!class_name) {
+    memset(buttons, 0, sizeof(*buttons) * max_buttons);
+
+    if (ent->currentmove && ent->currentmove->think == ai_birth) {
         return 0;
     }
-    
-    BYTE count = 0;
-    LPCSTR abilities = FindConfigValue(class_name, "abilList");
-    
-    /* Parse abilities list */
-    if (abilities && *abilities) {
-        char ability_buf[256];
-        strncpy(ability_buf, abilities, sizeof(ability_buf) - 1);
-        ability_buf[sizeof(ability_buf) - 1] = '\0';
-        
-        char *token = strtok(ability_buf, ",");
-        while (token && count < max_buttons) {
-            /* Trim whitespace */
-            while (*token == ' ') token++;
-            
-            if (*token) {
-                LPCSTR art = FindConfigValue(token, "Art");
-                LPCSTR tooltip = FindConfigValue(token, "Tip");
-                LPCSTR ubertip = FindConfigValue(token, "Ubertip");
-                LPCSTR hotkey = FindConfigValue(token, "Hotkey");
-                
-                strncpy(buttons[count].art, art ? art : "", sizeof(buttons[count].art) - 1);
-                strncpy(buttons[count].tooltip, tooltip ? tooltip : "", sizeof(buttons[count].tooltip) - 1);
-                strncpy(buttons[count].ubertip, ubertip ? ubertip : "", sizeof(buttons[count].ubertip) - 1);
-                strncpy(buttons[count].command, token, sizeof(buttons[count].command) - 1);
-                buttons[count].hotkey = (hotkey && *hotkey) ? *hotkey : '\0';
-                
-                count++;
+
+    if (UNIT_SPEED(ent->class_id) > 0) {
+        G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdMove, false, 0);
+        G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdHoldPos, false, 0);
+        G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdPatrol, false, 0);
+        G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdStop, false, 0);
+    }
+    if (UNIT_ATTACK1_DAMAGE_NUMBER_OF_DICE(ent->class_id) != 0) {
+        G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdAttack, false, 0);
+    }
+    if (UNIT_BUILDS(ent->class_id)) {
+        G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdBuild, false, 0);
+    }
+    if (UNIT_ABILITIES_HERO(ent->class_id)) {
+        G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdSelectSkill, false, 0);
+    } else if (UNIT_ABILITIES_NORMAL(ent->class_id)) {
+        PARSE_LIST(UNIT_ABILITIES_NORMAL(ent->class_id), abil, parse_segment) {
+            LPCSTR code = game.config.abilities ? gi.FindSheetCell(game.config.abilities, abil, "code") : NULL;
+            if (code && G_IsImplementedAbility(code)) {
+                G_AddCommandButton(ent, buttons, max_buttons, &count, code, false, 0);
             }
-            
-            token = strtok(NULL, ",");
         }
     }
-    
+    FOR_LOOP(i, MAX_HERO_ABILITIES) {
+        heroability_t const *ha = ent->heroabilities + i;
+        if (ha->level > 0) {
+            G_AddCommandButton(ent, buttons, max_buttons, &count, GetClassName(ha->code), false, ha->level);
+        }
+    }
+    if (UNIT_TRAINS(ent->class_id)) {
+        PARSE_LIST(UNIT_TRAINS(ent->class_id), unit, parse_segment) {
+            G_AddCommandButton(ent, buttons, max_buttons, &count, unit, false, 0);
+        }
+    }
+
     return count;
 }
 
-/* Get inventory for an entity */
 BYTE G_GetInventory(LPEDICT ent, gameInventoryItem_t *items, BYTE max_items) {
+    BYTE count = 0;
+
     if (!ent || !items) {
         return 0;
     }
-    
-    /* Check if entity is a hero (has non-zero hero level) */
-    if (ent->hero.level == 0) {
-        return 0;
-    }
-    
-    BYTE count = 0;
+    memset(items, 0, sizeof(*items) * max_items);
+
     for (BYTE slot = 0; slot < MAX_INVENTORY && count < max_items; slot++) {
         LPEDICT item = ent->inventory[slot];
-        if (item && item->class_id) {
-            LPCSTR item_name = GetClassName(item->class_id);
-            if (!item_name) {
-                continue;
-            }
-            
-            LPCSTR art = FindConfigValue(item_name, "Art");
-            LPCSTR name = FindConfigValue(item_name, "Name");
-            LPCSTR desc = FindConfigValue(item_name, "Description");
-            
-            strncpy(items[count].art, art ? art : "", sizeof(items[count].art) - 1);
-            strncpy(items[count].tooltip, name ? name : "", sizeof(items[count].tooltip) - 1);
-            strncpy(items[count].ubertip, desc ? desc : "", sizeof(items[count].ubertip) - 1);
-            items[count].slot = slot;
-            
-            count++;
+        if (!item || !item->class_id) {
+            continue;
         }
+        LPCSTR item_name = GetClassName(item->class_id);
+        G_CopyString(items[count].art, sizeof(items[count].art), FindConfigValue(item_name, STR_ART));
+        G_CopyString(items[count].tooltip, sizeof(items[count].tooltip), FindConfigValue(item_name, STR_TIP));
+        G_CopyString(items[count].ubertip, sizeof(items[count].ubertip), FindConfigValue(item_name, STR_UBERTIP));
+        items[count].slot = slot;
+        count++;
     }
-    
+
     return count;
 }
 
-/* Get build queue for an entity */
 BYTE G_GetBuildQueue(LPEDICT ent, gameQueueItem_t *queue, BYTE max_queue) {
+    BYTE count = 0;
+
     if (!ent || !queue) {
         return 0;
     }
-    
-    /* Build queue is currently represented by a single building entity (ent->build) */
-    /* For Phase 8, we'll return 0-1 items. Full queue support comes later. */
-    if (!ent->build || !ent->build->class_id) {
-        return 0;
+    memset(queue, 0, sizeof(*queue) * max_queue);
+    for (LPEDICT build = ent->build; build && count < max_queue; build = build->build) {
+        LPCSTR build_name = GetClassName(build->class_id);
+        G_CopyString(queue[count].art, sizeof(queue[count].art), FindConfigValue(build_name, STR_ART));
+        queue[count].entity = (WORD)build->s.number;
+        count++;
+        if (build->build == build) {
+            break;
+        }
     }
-    
-    if (max_queue < 1) {
-        return 0;
-    }
-    
-    LPCSTR build_name = GetClassName(ent->build->class_id);
-    if (!build_name) {
-        return 0;
-    }
-    
-    LPCSTR art = FindConfigValue(build_name, "Art");
-    
-    strncpy(queue[0].art, art ? art : "", sizeof(queue[0].art) - 1);
-    queue[0].entity = (WORD)ent->build->s.number;
-    
-    return 1;
+    return count;
 }

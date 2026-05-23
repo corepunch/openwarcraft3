@@ -354,11 +354,16 @@ static void UI_DrawText(LPCFRAMEDEF frame, LPCRECT rect) {
     text_rect.x += frame->Font.Justification.Offset.x;
     text_rect.y += frame->Font.Justification.Offset.y;
 
+    COLOR32 color = frame->Font.Color;
+    if (color.a == 0 && (color.r || color.g || color.b)) {
+        color.a = 255;
+    }
+
     drawText_t dt = {
         .font = font,
         .text = frame->Text,
         .rect = text_rect,
-        .color = frame->Font.Color,
+        .color = color,
         .textWidth = text_rect.w,
         .lineHeight = 1.33f,
         .wordWrap = TRUE,
@@ -559,7 +564,11 @@ static void UI_DrawFrameOne(LPCFRAMEDEF frame) {
             /* Draw button background */
             {
                 LPCFRAMEDEF backdrop = UI_ButtonBackdrop(frame, rect);
-                UI_DrawBackdropWithColor(backdrop, rect, frame->Color);
+                if (backdrop && backdrop->Type == FT_TEXTURE) {
+                    UI_DrawTexture(backdrop, rect);
+                } else {
+                    UI_DrawBackdropWithColor(backdrop, rect, frame->Color);
+                }
             }
             UI_DrawTexture(frame, rect);
             UI_DrawButtonText(frame, rect);

@@ -1,7 +1,7 @@
 WC3DATA  := data/Warcraft\ III
 DEMODATA := data/Warcraft3demo
 MPQ      := $(WC3DATA)/War3.mpq
-MAP      := Maps\\Campaign\\Human02.w3m
+MAP      := Maps/Campaign/Human02.w3m
 UI_ROUTE := /main
 
 ZIP_URL  := https://archive.org/download/warcraft-iii-installer-enus/Warcraft-III-1.29.2-enUS.zip
@@ -77,6 +77,7 @@ TOOL_NAMES := $(patsubst tools/%.c,%,$(TOOL_SRCS))
 TOOL_BINS := $(addprefix $(BIN_DIR)/,$(addsuffix $(EXE_EXT),$(TOOL_NAMES)))
 TOOL_DEPS := $(shell find tools -maxdepth 1 -name '*.h' | sort)
 CLIENT_HEADERS := $(shell find client -name '*.h' | sort)
+UI_HEADERS := $(shell find ui -name '*.h' | sort)
 
 # Unity-build helper: pipe all .c files in a directory tree as #include
 # directives to gcc's stdin so the whole module is one translation unit.
@@ -93,16 +94,16 @@ ui:          $(UI_LIB)
 openwarcraft3: $(BINARY)
 tools:       $(TOOL_BINS)
 $(TOOL_NAMES): %: $(BIN_DIR)/%$(EXE_EXT)
-run:
+run: $(BINARY)
 	$(BINARY) -data=$(WC3DATA)
 
-run-demo:
+run-demo: $(BINARY)
 	$(BINARY) -data=$(DEMODATA)
 
-run-map:
-	$(BINARY) -data=$(WC3DATA) -map=$(MAP)
+run-map: $(BINARY)
+	$(BINARY) -data=$(WC3DATA) -net_enabled=1 -map=$(MAP)
 
-run-ui-text:
+run-ui-text: $(BINARY)
 	$(BINARY) -data=$(WC3DATA) -net_enabled=0 -r_module=stdout -ui_start_route=$(UI_ROUTE) -com_frame_limit=1
 
 diag: clean
@@ -143,7 +144,7 @@ $(GAME_LIB): $(SHARED_LIB) $(shell find game -name '*.c') | $(LIB_DIR)
 		$(CC) $(CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - $(LDFLAGS) -lshared -lm
 
 # ui — depends on shared
-$(UI_LIB): $(SHARED_LIB) $(shell find ui -name '*.c') | $(LIB_DIR)
+$(UI_LIB): $(SHARED_LIB) $(UI_HEADERS) $(shell find ui -name '*.c') | $(LIB_DIR)
 	@echo "[ui]"
 	@$(call UNITY,ui) | \
 		$(CC) $(CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - $(LDFLAGS) -lshared -lm

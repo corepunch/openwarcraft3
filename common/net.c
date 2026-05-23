@@ -32,7 +32,7 @@
 
 #include "common.h"
 
-#define LOOPBACK_SIZE (1024 * 256)
+#define LOOPBACK_SIZE (1024 * 1024 * 8)
 
 /* ---------------------------------------------------------------------------
  * Loopback ring buffers
@@ -51,6 +51,17 @@ static struct loopback loopbufs[2];
 
 static void NET_SendLoopPacket(NETSOURCE netsrc, int length, const void *data) {
     struct loopback *buf = &loopbufs[netsrc];
+    int const packet_size = length + 4;
+
+    if (length <= 0 || packet_size > LOOPBACK_SIZE) {
+        fprintf(stderr, "NET_SendLoopPacket: bad packet length %d\n", length);
+        return;
+    }
+    if (buf->write - buf->read + packet_size > LOOPBACK_SIZE) {
+        fprintf(stderr, "NET_SendLoopPacket: loopback overflow, dropping queued packets\n");
+        buf->read = buf->write;
+    }
+
     DWORD len = (DWORD)length;
     FOR_LOOP(i, 4) {
         buf->buffer[(buf->write++) % LOOPBACK_SIZE] = ((char *)&len)[i];
