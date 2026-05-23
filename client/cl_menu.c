@@ -63,6 +63,24 @@ static LPCTEXTURE CL_GetDynamicTexture(LPCSTR resource) {
     return cl.dynamicPics[slot];
 }
 
+static BOOL SCR_ShouldSkipLayoutLayer(DWORD layer) {
+    if (cl.playerstate.client_ui_state != CLIENT_UI_CINEMATIC &&
+        cl.playerstate.client_ui_state != CLIENT_UI_LOADING) {
+        return false;
+    }
+
+    switch (layer) {
+        case LAYER_PORTRAIT:
+        case LAYER_CONSOLE:
+        case LAYER_COMMANDBAR:
+        case LAYER_INFOPANEL:
+        case LAYER_INVENTORY:
+            return true;
+        default:
+            return false;
+    }
+}
+
 static RECT scale_rect(LPCRECT rect, FLOAT factor) {
     VECTOR2 diff = {
         rect->w * (1 - factor),
@@ -878,6 +896,8 @@ void SCR_DrawOverlays(void) {
     FOR_LOOP(layer, MAX_LAYOUT_LAYERS) {
         if ((1 << layer) & cl.playerstate.uiflags)
             continue;
+        if (SCR_ShouldSkipLayoutLayer(layer))
+            continue;
         HANDLE *layout = cl.layout[layer];
         if (layout) {
             active_layout = layout;
@@ -888,6 +908,8 @@ void SCR_DrawOverlays(void) {
     
     FOR_LOOP(layer, MAX_LAYOUT_LAYERS) {
         if ((1 << layer) & cl.playerstate.uiflags)
+            continue;
+        if (SCR_ShouldSkipLayoutLayer(layer))
             continue;
         HANDLE *layout = cl.layout[layer];
         if (layout) {

@@ -108,6 +108,9 @@ void CL_ParsePlayerInfo(LPSIZEBUF msg) {
     cl.viewDef.camerastate[0].viewquat = cl.playerstate.viewquat;
     cl.viewDef.camerastate[0].distance = cl.playerstate.distance;
     cl.viewDef.camerastate[0].fov = cl.playerstate.fov;
+    if (cl.playerstate.client_ui_state == CLIENT_UI_LOADING && cls.state == ca_active) {
+        cl.playerstate.client_ui_state = CLIENT_UI_GAME;
+    }
 }
 
 /* Receive an svc_layout message from the server.  The server serializes the

@@ -56,6 +56,7 @@ typedef enum {
     ca_disconnected,
     ca_connecting,
     ca_connected,
+    ca_loading,
     ca_active,
 } connstate_t;
 
@@ -74,6 +75,7 @@ struct client_state {
     DWORD dynamicPicCursor;
     LPCFONT fonts[MAX_FONTSTYLES];
     PATHSTR configstrings[MAX_CONFIGSTRINGS];
+    PATHSTR loading_map;
     centity_t ents[MAX_CLIENT_ENTITIES];
     HANDLE layout[MAX_LAYOUT_LAYERS];
     
@@ -105,6 +107,7 @@ struct client_static {
 void CL_Connect(LPCSTR host, unsigned short port);
 void CL_SetMenuBindings(void);
 void CL_SetGameplayBindings(void);
+void CL_BeginLoadingMap(LPCSTR mapName);
 void CL_RequestUnitUI(DWORD num_selected, DWORD *entity_nums);
 
 void V_RenderView(void);

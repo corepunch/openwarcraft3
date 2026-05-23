@@ -220,6 +220,7 @@ struct uiFrameDef_s {
         HIGHLIGHTTYPE Type;
         DWORD AlphaFile;
         BLEND_MODE AlphaMode;
+        COLOR32 Color;
     } Highlight;
     struct {
         VECTOR2 PushedTextOffset;

@@ -115,6 +115,7 @@ typedef struct {
     void (*Cmd_ExecuteText)(LPCSTR text);
     void (*ServerCommand)(LPCSTR text);
     LPCSTR (*Cvar_String)(LPCSTR name, LPCSTR fallback);
+    LPCSTR (*GetLoadingMap)(void);
     
     /* Game state access (for in-game HUD) */
     LPCPLAYER (*GetPlayerState)(void);          /* Access to cl.playerstate */

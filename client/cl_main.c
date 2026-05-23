@@ -64,6 +64,7 @@ static DWORD CL_UIGetNumEntities(void);
 static LPCENTITYSTATE CL_UIGetEntity(DWORD idx);
 static void CL_UIServerCommand(LPCSTR text);
 static void CL_UIRequestUnitUI(DWORD num_selected, DWORD *entity_nums);
+static LPCSTR CL_UIGetLoadingMap(void);
 static LPCMODEL CL_UIGetModel(DWORD idx);
 static LPCMODEL CL_UIGetPortrait(DWORD idx);
 static LPRENDERER CL_UIGetRenderer(void);
@@ -210,6 +211,16 @@ static void CL_UIRequestUnitUI(DWORD num_selected, DWORD *entity_nums) {
     }
 }
 
+static LPCSTR CL_UIGetLoadingMap(void) {
+    return cl.loading_map;
+}
+
+void CL_BeginLoadingMap(LPCSTR mapName) {
+    snprintf(cl.loading_map, sizeof(cl.loading_map), "%s", mapName ? mapName : "");
+    cl.playerstate.client_ui_state = CLIENT_UI_LOADING;
+    cls.state = ca_loading;
+}
+
 /* Public wrapper for UI library and input system (Phase 8.6) */
 void CL_RequestUnitUI(DWORD num_selected, DWORD *entity_nums) {
     CL_UIRequestUnitUI(num_selected, entity_nums);
@@ -315,6 +326,7 @@ void CL_Init(void) {
         .Cmd_ExecuteText = Cbuf_AddText,
         .ServerCommand = CL_UIServerCommand,
         .Cvar_String = Cvar_String,
+        .GetLoadingMap = CL_UIGetLoadingMap,
         .GetPlayerState = CL_UIGetPlayerState,
         .GetNumEntities = CL_UIGetNumEntities,
         .GetEntity = CL_UIGetEntity,

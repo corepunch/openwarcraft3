@@ -58,18 +58,6 @@ if (NAME) { \
 #define FOR_SELECTED_UNITS(CLIENT, ENT) \
 FILTER_EDICTS(ENT, G_IsEntitySelected(CLIENT, ENT))
 
-enum {
-    LAYER_BACKGROUND,
-    LAYER_PORTRAIT,
-    LAYER_CINEMATIC,
-    LAYER_CONSOLE,
-    LAYER_COMMANDBAR,
-    LAYER_INFOPANEL,
-    LAYER_INVENTORY,
-    LAYER_MESSAGE,
-    LAYER_QUESTDIALOG,
-};
-
 #define svc_bad 0
 // these ops are known to the game dll
 //    svc_muzzleflash,

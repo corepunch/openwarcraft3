@@ -306,6 +306,24 @@ typedef enum {
     PLAYERTEXT_COUNT,
 } PLAYERTEXT;
 
+typedef enum {
+    LAYER_BACKGROUND,
+    LAYER_PORTRAIT,
+    LAYER_CINEMATIC,
+    LAYER_CONSOLE,
+    LAYER_COMMANDBAR,
+    LAYER_INFOPANEL,
+    LAYER_INVENTORY,
+    LAYER_MESSAGE,
+    LAYER_QUESTDIALOG,
+} UILAYOUTLAYER;
+
+typedef enum {
+    CLIENT_UI_GAME,
+    CLIENT_UI_LOADING,
+    CLIENT_UI_CINEMATIC,
+} CLIENTUISTATE;
+
 struct playerState_s {
     DWORD number;
     QUATERNION viewquat;
@@ -314,6 +332,7 @@ struct playerState_s {
     DWORD fov;
     DWORD rdflags;
     DWORD uiflags;
+    DWORD client_ui_state;
     DWORD team;
     DWORD color;    // player color index (0 = red, 1 = blue, … see PLAYER_COLOR_*)
     LPSTR name;     // player display name (set from mapplayer or by script)

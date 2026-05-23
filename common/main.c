@@ -122,7 +122,10 @@ int main(int argc, LPSTR argv[]) {
         // Remote-client mode: skip the local server, connect over UDP.
         CL_Connect(connect_addr, PORT_SERVER);
     } else if (!menu_mode) {
-        // Listen-server mode: load the map and spawn entities.
+        // Listen-server mode: show the client loading screen before the
+        // synchronous server map load, mirroring Quake's loading plaque flow.
+        CL_BeginLoadingMap(map);
+        SCR_UpdateScreen(0);
         SV_Map(map);
     }
     // Menu mode: UI runs client-side, no server connection needed (Quake 3 pattern)

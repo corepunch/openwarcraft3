@@ -766,6 +766,7 @@ static parseItem_t items[] = {
     { "HighlightType", { F(Highlight.Type, HighlightType), F_END } },
     { "HighlightAlphaFile", { F(Highlight.AlphaFile, TextureFile), F_END } },
     { "HighlightAlphaMode", { F(Highlight.AlphaMode, AlphaMode), F_END } },
+    { "HighlightColor", { F(Highlight.Color, Color), F_END } },
     // Control
     { "ControlStyle", { F(Control.Style, ControlStyle), F_END } },
     { "ControlBackdrop", { F(Control.Backdrop.Normal, Name), F_END } },
@@ -846,7 +847,9 @@ void parse_item(LPPARSER parser, LPFRAMEDEF frame, parseItem_t *item) {
 
 void parse_func(LPPARSER parser, LPFRAMEDEF frame) {
     LPCSTR token = NULL;
-    while ((token = parse_token(parser)) && (*token != '}')) {
+    /* Some shipped FDF files end while a frame is still open. Treat EOF like
+     * an implicit close so we can consume the original assets verbatim. */
+    while ((token = parse_token(parser)) && *token && (*token != '}')) {
         if (frame->Type == FT_STRINGLIST) {
             static parseItem_t stringitem = { "", { F(Name, StringListItem), F_END } };
             stringListItem_t *str = uiimport.MemAlloc(sizeof(stringListItem_t));

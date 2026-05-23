@@ -253,6 +253,33 @@ R_GetModelCameraMatrix(mdxModel_t const *model, DWORD frame, float aspect, LPMAT
     return true;
 }
 
+static mdxSequence_t const *R_SelectUISequence(mdxModel_t const *mdx, LPCSTR anim) {
+    mdxSequence_t const *seq = NULL;
+    LPCSTR sequence = anim;
+
+    if (!mdx) {
+        return NULL;
+    }
+    if (sequence && sequence[0] == '#' && sequence[1] == '!') {
+        sequence += 2;
+    } else if (sequence && sequence[0] == '#') {
+        sequence++;
+    }
+    if (anim && anim[0] == '#') {
+        char *end = NULL;
+        unsigned long index = strtoul(sequence, &end, 10);
+        if (end && *end == '\0' && index < (unsigned long)mdx->num_sequences) {
+            seq = &mdx->sequences[index];
+        }
+    } else if (anim && *anim) {
+        seq = MDLX_FindSequenceByName(mdx, anim);
+    }
+    if (!seq && mdx->sequences && mdx->num_sequences > 0) {
+        seq = &mdx->sequences[0];
+    }
+    return seq;
+}
+
 void R_DrawPortrait(LPCMODEL model, LPCRECT viewport, LPCSTR anim) {
     VECTOR3 root;
     VECTOR3 lightAngles = { 10, 270, 0 };
@@ -264,15 +291,11 @@ void R_DrawPortrait(LPCMODEL model, LPCRECT viewport, LPCSTR anim) {
     }
     
     mdxModel_t const *mdx = model->mdx;
-    mdxSequence_t const *seq = (anim && *anim) ? MDLX_FindSequenceByName(mdx, anim) : NULL;
+    mdxSequence_t const *seq = R_SelectUISequence(mdx, anim);
 
     float viewport_width = viewport->w * tr.drawableSize.width;
     float viewport_height = viewport->h * tr.drawableSize.height;
     float aspect = viewport_height > 0.0f ? viewport_width / viewport_height : 1.0f;
-
-    if (!seq && mdx->sequences && mdx->num_sequences > 0) {
-        seq = &mdx->sequences[0];
-    }
 
     if (!R_InitUIModelView(model, &viewdef, &entity, seq)) {
         return;
@@ -301,16 +324,13 @@ void R_DrawPortrait(LPCMODEL model, LPCRECT viewport, LPCSTR anim) {
 void R_DrawSprite(LPCMODEL model, LPCSTR anim, float x, float y) {
     renderEntity_t entity;
     viewDef_t viewdef;
+    bool const fdf_sprite_coords = anim && anim[0] == '#' && anim[1] == '!';
 
     if (!model || !model->mdx) {
         return;
     }
     mdxModel_t const *mdx = model->mdx;
-    mdxSequence_t const *seq = (anim && *anim) ? MDLX_FindSequenceByName(mdx, anim) : NULL;
-
-    if (!seq && mdx->sequences && mdx->num_sequences > 0) {
-        seq = &mdx->sequences[0];
-    }
+    mdxSequence_t const *seq = R_SelectUISequence(mdx, anim);
 
     if (!R_InitUIModelView(model, &viewdef, &entity, seq)) {
         return;
@@ -321,7 +341,9 @@ void R_DrawSprite(LPCMODEL model, LPCSTR anim, float x, float y) {
     entity.flags |= RF_NO_FOGOFWAR | RF_NO_SHADOW | RF_NO_LIGHTING;
 
     RECT screen = R_UISceneRect();
-    entity.origin = (VECTOR3){x, screen.y + screen.h - y, 0};
+    entity.origin = fdf_sprite_coords
+        ? (VECTOR3){x, y, 0}
+        : (VECTOR3){x, screen.y + screen.h - y, 0};
     Matrix4_ortho(&viewdef.viewProjectionMatrix, screen.x, screen.x + screen.w, screen.y, screen.y + screen.h, 0.0f, 100.0f);
     Matrix4_scale(&viewdef.viewProjectionMatrix, &(VECTOR3){1, 1, 0});
 

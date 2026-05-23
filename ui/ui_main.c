@@ -23,6 +23,29 @@ static LPFRAMEDEF resource_bar_gold_text;
 static LPFRAMEDEF resource_bar_lumber_text;
 static LPFRAMEDEF resource_bar_supply_text;
 static LPFRAMEDEF resource_bar_upkeep_text;
+static LPFRAMEDEF cinematic_panel_frame;
+static LPFRAMEDEF cinematic_speaker_text;
+static LPFRAMEDEF cinematic_dialogue_text;
+static LPFRAMEDEF loading_frame;
+static LPFRAMEDEF loading_custom_panel;
+static LPFRAMEDEF loading_melee_panel;
+static LPFRAMEDEF loading_background;
+static LPFRAMEDEF loading_bar;
+static LPFRAMEDEF loading_title_text;
+static LPFRAMEDEF loading_subtitle_text;
+static LPFRAMEDEF loading_text;
+
+typedef struct {
+    PATHSTR map;
+    char title[256];
+    char subtitle[256];
+    char text[1024];
+    DWORD background_model;
+    DWORD background_sequence;
+    DWORD progress_model;
+} uiLoadingState_t;
+
+static uiLoadingState_t loading_state;
 
 typedef struct {
     LPCSTR texture;
@@ -124,6 +147,189 @@ static void UI_DrawResourceBar(void) {
     UI_DrawFrame(resource_bar_frame);
 }
 
+static BOOL UI_CinematicActive(LPCPLAYER ps) {
+    return ps && ps->client_ui_state == CLIENT_UI_CINEMATIC;
+}
+
+static BOOL UI_LoadingActive(LPCPLAYER ps) {
+    return ps && ps->client_ui_state == CLIENT_UI_LOADING;
+}
+
+static void UI_InitCinematicPanel(void) {
+    cinematic_panel_frame = UI_FindFrame("CinematicPanel");
+    cinematic_speaker_text = UI_FindFrame("CinematicSpeakerText");
+    cinematic_dialogue_text = UI_FindFrame("CinematicDialogueText");
+}
+
+static void UI_DrawCinematicPanel(LPCPLAYER ps) {
+    if (!ps || !cinematic_panel_frame) {
+        return;
+    }
+
+    if (cinematic_speaker_text) {
+        UI_SetTextPointer(cinematic_speaker_text, ps->texts[PLAYERTEXT_SPEAKER] ? ps->texts[PLAYERTEXT_SPEAKER] : "");
+    }
+    if (cinematic_dialogue_text) {
+        UI_SetTextPointer(cinematic_dialogue_text, ps->texts[PLAYERTEXT_DIALOGUE] ? ps->texts[PLAYERTEXT_DIALOGUE] : "");
+    }
+
+    UI_DrawFrame(cinematic_panel_frame);
+}
+
+static LPCSTR UI_CsvField(LPCSTR text, DWORD index, LPSTR out, DWORD out_size) {
+    DWORD field = 0;
+    DWORD len = 0;
+    LPCSTR p = text;
+
+    if (!out || out_size == 0) {
+        return "";
+    }
+    out[0] = '\0';
+    if (!text) {
+        return out;
+    }
+
+    while (*p && field < index) {
+        if (*p++ == ',') {
+            field++;
+        }
+    }
+    while (p[len] && p[len] != ',' && len + 1 < out_size) {
+        len++;
+    }
+    memcpy(out, p, len);
+    out[len] = '\0';
+    return out;
+}
+
+static LPCSTR UI_LoadingMapPath(void) {
+    LPCSTR path = uiimport.GetLoadingMap ? uiimport.GetLoadingMap() : NULL;
+
+    if (path && *path) {
+        return path;
+    }
+    return uiimport.Cvar_String ? uiimport.Cvar_String("map", "") : "";
+}
+
+static DWORD UI_LoadCampaignLoadingModel(DWORD campaign_background, DWORD *sequence_index) {
+    sheetRow_t *world_edit_data;
+    char key[8];
+    char sequence[16];
+    char model[MAX_PATHLEN];
+    LPCSTR row;
+
+    if (sequence_index) {
+        *sequence_index = 0;
+    }
+    if (!uiimport.ReadConfig || !uiimport.FindSheetCell) {
+        return 0;
+    }
+
+    world_edit_data = uiimport.ReadConfig("UI\\WorldEditData.txt");
+    snprintf(key, sizeof(key), "%02u", (unsigned)campaign_background);
+    row = uiimport.FindSheetCell(world_edit_data, "LoadingScreens", key);
+    UI_CsvField(row, 1, sequence, sizeof(sequence));
+    UI_CsvField(row, 2, model, sizeof(model));
+    if (sequence_index && sequence[0]) {
+        *sequence_index = (DWORD)atoi(sequence);
+    }
+    return model[0] ? UI_LoadModel(model, false) : 0;
+}
+
+static DWORD UI_DefaultLoadingModel(void) {
+    return UI_LoadModel("LoadingMeleeBackground", true);
+}
+
+static void UI_UpdateLoadingMapInfo(void) {
+    MAPINFO info;
+    LPCSTR map_path = UI_LoadingMapPath();
+    DWORD background_model = 0;
+    DWORD background_sequence = 0;
+
+    if (!map_path || !*map_path || !strcmp(loading_state.map, map_path)) {
+        return;
+    }
+
+    memset(&info, 0, sizeof(info));
+    memset(&loading_state, 0, sizeof(loading_state));
+    snprintf(loading_state.map, sizeof(loading_state.map), "%s", map_path);
+
+    if (uiimport.ReadMapInfo && uiimport.ReadMapInfo(map_path, &info)) {
+        if (uiimport.ResolveMapInfoString) {
+            uiimport.ResolveMapInfoString(&info, info.loadingScreenTitle, loading_state.title, sizeof(loading_state.title));
+            uiimport.ResolveMapInfoString(&info, info.loadingScreenSubtitle, loading_state.subtitle, sizeof(loading_state.subtitle));
+            uiimport.ResolveMapInfoString(&info, info.loadingScreenText, loading_state.text, sizeof(loading_state.text));
+        }
+        if (uiimport.SanitizeMapInfoText) {
+            uiimport.SanitizeMapInfoText(loading_state.title);
+            uiimport.SanitizeMapInfoText(loading_state.subtitle);
+            uiimport.SanitizeMapInfoText(loading_state.text);
+        }
+        if (info.campaignBackgroundNumber != (DWORD)-1) {
+            background_model = UI_LoadCampaignLoadingModel(info.campaignBackgroundNumber, &background_sequence);
+        }
+        if (uiimport.FreeMapInfo) {
+            uiimport.FreeMapInfo(&info);
+        }
+    }
+
+    if (!loading_state.title[0] && uiimport.DefaultMapName) {
+        uiimport.DefaultMapName(map_path, loading_state.title, sizeof(loading_state.title));
+    }
+
+    loading_state.background_model = background_model ? background_model : UI_DefaultLoadingModel();
+    loading_state.background_sequence = background_sequence;
+    loading_state.progress_model = UI_LoadModel("LoadingProgressBar", true);
+}
+
+static void UI_InitLoadingScreen(void) {
+    loading_frame = UI_FindFrame("Loading");
+    loading_custom_panel = UI_FindFrame("LoadingCustomPanel");
+    loading_melee_panel = UI_FindFrame("LoadingMeleePanel");
+    loading_background = UI_FindFrame("LoadingBackground");
+    loading_bar = UI_FindFrame("LoadingBar");
+    loading_title_text = UI_FindFrame("LoadingTitleText");
+    loading_subtitle_text = UI_FindFrame("LoadingSubtitleText");
+    loading_text = UI_FindFrame("LoadingText");
+
+    if (loading_custom_panel) {
+        UI_SetHidden(loading_custom_panel, false);
+    }
+    if (loading_melee_panel) {
+        UI_SetHidden(loading_melee_panel, true);
+    }
+}
+
+static void UI_DrawLoadingScreen(void) {
+    UI_UpdateLoadingMapInfo();
+
+    if (!loading_frame) {
+        return;
+    }
+    if (loading_background) {
+        snprintf(loading_background->TextStorage, sizeof(loading_background->TextStorage), "#!%u",
+                 (unsigned)loading_state.background_sequence);
+        loading_background->Text = loading_background->TextStorage;
+        loading_background->Portrait.model = loading_state.background_model;
+    }
+    if (loading_bar) {
+        snprintf(loading_bar->TextStorage, sizeof(loading_bar->TextStorage), "#0");
+        loading_bar->Text = loading_bar->TextStorage;
+        loading_bar->Portrait.model = loading_state.progress_model;
+    }
+    if (loading_title_text) {
+        UI_SetTextPointer(loading_title_text, loading_state.title);
+    }
+    if (loading_subtitle_text) {
+        UI_SetTextPointer(loading_subtitle_text, loading_state.subtitle);
+    }
+    if (loading_text) {
+        UI_SetTextPointer(loading_text, loading_state.text);
+    }
+
+    UI_DrawFrame(loading_frame);
+}
+
 VECTOR2 UI_MouseToFdf(void) {
     LPRENDERER renderer = uiimport.GetRenderer ? uiimport.GetRenderer() : NULL;
     size2_t window = renderer && renderer->GetWindowSize ? renderer->GetWindowSize() : MAKE(size2_t, 0, 0);
@@ -185,8 +391,12 @@ void UI_InitLocal(void) {
     UI_ParseFDF("UI\\FrameDef\\Glue\\TeamSetup.fdf");
     UI_ParseFDF("UI\\FrameDef\\Glue\\PlayerSlot.fdf");
     UI_ParseFDF("UI\\FrameDef\\Glue\\GameChatroom.fdf");
+    UI_ParseFDF("UI\\FrameDef\\Glue\\Loading.fdf");
     UI_ParseFDF("UI\\FrameDef\\UI\\ResourceBar.fdf");
+    UI_ParseFDF("UI\\FrameDef\\UI\\CinematicPanel.fdf");
+    UI_InitLoadingScreen();
     UI_InitGameResourceBar();
+    UI_InitCinematicPanel();
     
     ui_state.initialized = true;
     ui_state.active = true;
@@ -237,8 +447,16 @@ void UI_DrawFrameLocal(void) {
     
     /* Call current screen draw */
     if (ui_state.game_mode) {
-        UI_DrawConsoleBackdropOnly();
-        UI_DrawResourceBar();
+        LPCPLAYER ps = uiimport.GetPlayerState ? uiimport.GetPlayerState() : NULL;
+
+        if (UI_LoadingActive(ps)) {
+            UI_DrawLoadingScreen();
+        } else if (UI_CinematicActive(ps)) {
+            UI_DrawCinematicPanel(ps);
+        } else {
+            UI_DrawConsoleBackdropOnly();
+            UI_DrawResourceBar();
+        }
     } else {
         uiScreen_t *screen = UI_GetCurrentScreen();
         if (screen && screen->draw) {
