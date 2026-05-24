@@ -364,9 +364,42 @@ typedef struct entityState_s {
     BYTE renderfx;
     BYTE ability;
     DWORD splat;
+    DWORD shadow;
+    DWORD shadow_rect;
     DWORD inventory[MAX_ENTITY_INVENTORY];
     DWORD build_queue[MAX_ENTITY_BUILD_QUEUE];
 } entityState_t;
+
+#define SHADOW_RECT_STEP 4.0f
+
+static inline BYTE ShadowPackRectComponent(FLOAT value) {
+    if (value <= 0) {
+        return 0;
+    }
+    DWORD packed = (DWORD)((value + SHADOW_RECT_STEP * 0.5f) / SHADOW_RECT_STEP);
+    if (packed > 0xff) {
+        packed = 0xff;
+    }
+    return (BYTE)packed;
+}
+
+static inline FLOAT ShadowUnpackRectComponent(BYTE packed) {
+    return (FLOAT)packed * SHADOW_RECT_STEP;
+}
+
+static inline DWORD ShadowPackRect(FLOAT x, FLOAT y, FLOAT w, FLOAT h) {
+    return (DWORD)ShadowPackRectComponent(x) |
+           ((DWORD)ShadowPackRectComponent(y) << 8) |
+           ((DWORD)ShadowPackRectComponent(w) << 16) |
+           ((DWORD)ShadowPackRectComponent(h) << 24);
+}
+
+static inline void ShadowUnpackRect(DWORD packed, LPFLOAT x, LPFLOAT y, LPFLOAT w, LPFLOAT h) {
+    if (x) *x = ShadowUnpackRectComponent((BYTE)(packed & 0xff));
+    if (y) *y = ShadowUnpackRectComponent((BYTE)((packed >> 8) & 0xff));
+    if (w) *w = ShadowUnpackRectComponent((BYTE)((packed >> 16) & 0xff));
+    if (h) *h = ShadowUnpackRectComponent((BYTE)((packed >> 24) & 0xff));
+}
 
 typedef struct animation_s {
     char name[80];

@@ -269,7 +269,7 @@ struct game_export *GetGameAPI(struct game_import *import) {
     globals.SpawnEntities = G_SpawnEntities;
     globals.RunFrame = G_RunFrame;
     globals.ClientCommand = G_ClientCommand;
-    globals.ClientPanCamera = G_ClientPanCamera;
+    globals.ClientSetCameraPosition = G_ClientSetCameraPosition;
     globals.ClientBegin = G_ClientBegin;
     globals.GetThemeValue = G_GetThemeValue;
     globals.edict_size = sizeof(struct edict_s);

@@ -66,7 +66,7 @@ enum svc_ops {
 enum clc_ops {
     clc_bad,
 //    clc_nop,
-    clc_move,
+    clc_camera_position,
 //    clc_userinfo,            // [[userinfo string]
     clc_stringcmd,           // [string] message
 

@@ -132,6 +132,7 @@ enum {
     TEX_WHITE,
     TEX_BLACK,
     TEX_LOADING_INDICATOR,
+    TEX_TERRAIN_SHADOW,
     TEX_TEAM_GLOW,
     TEX_TEAM_COLOR = TEX_TEAM_GLOW + MAX_TEAMS,
     TEX_SELECTION_CIRCLE = TEX_TEAM_COLOR + MAX_TEAMS,
@@ -187,12 +188,14 @@ void R_LoadTextureMipLevel(LPCTEXTURE pTexture, DWORD level, LPCCOLOR32 pPixels,
 void R_BindTexture(LPCTEXTURE texture, DWORD unit);
 void R_SetTextureWrap(LPCTEXTURE texture, bool wrapS, bool wrapT);
 void R_RenderModel(renderEntity_t const *edict);
+void R_DrawTerrainShadows(void);
 bool MDLX_TraceModel(renderEntity_t const *edict, LPCLINE3 line);
 void R_ReleaseVertexArrayObject(LPBUFFER buffer);
 LPCTEXTURE R_FindTextureByID(DWORD textureID);
 void R_DrawPortrait(LPCMODEL model, LPCRECT viewport, LPCSTR anim);
 void R_DrawSprite(LPCMODEL model, LPCSTR anim, float x, float y);
 void R_RenderSplat(LPCVECTOR2 position, float radius, LPCTEXTURE texture, LPCSHADER shader, COLOR32 color);
+void R_RenderRectSplat(LPCVECTOR2 mins, LPCVECTOR2 maxs, LPCTEXTURE texture, LPCSHADER shader, COLOR32 color);
 
 // r_shader.c
 LPSHADER R_InitShader(LPCSTR vs_default, LPCSTR fs_default);

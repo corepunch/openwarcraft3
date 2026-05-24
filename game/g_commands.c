@@ -179,9 +179,8 @@ void G_ClientCommand(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
     }
 }
 
-void G_ClientPanCamera(LPEDICT ent, LPVECTOR2 offset) {
+void G_ClientSetCameraPosition(LPEDICT ent, LPCVECTOR2 position) {
     if (ent->client->no_control)
         return;
-    ent->client->camera.state.position.x += offset->x;
-    ent->client->camera.state.position.y += offset->y;
+    ent->client->camera.state.position = *position;
 }

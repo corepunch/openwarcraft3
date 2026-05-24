@@ -111,6 +111,8 @@ static void SP_SpawnDestructable(LPEDICT edict) {
     edict->s.model = gi.ModelIndex(buffer);
     edict->s.radius = 50;//destr->radius;
     edict->collision = 50;
+    edict->s.shadow = G_LoadShadowTexture(DESTRUCTABLE_SHADOW(edict->class_id), false);
+    edict->s.shadow_rect = 0;
     edict->health.value = DESTRUCTABLE_HIT_POINT_MAXIMUM(edict->class_id);
     edict->health.max_value = DESTRUCTABLE_HIT_POINT_MAXIMUM(edict->class_id);
     edict->targtype = G_GetTargetType(DESTRUCTABLE_TARGETED_AS(edict->class_id));

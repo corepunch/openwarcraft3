@@ -448,6 +448,7 @@ void R_Init(DWORD width, DWORD height) {
     extern LPCSTR fs_default;
     extern LPCSTR fs_ui;
     extern LPCSTR fs_splat;
+    extern LPCSTR fs_shadow_splat;
     extern LPCSTR fs_alphatest;
     extern LPCSTR fs_commandbutton;
     
@@ -473,6 +474,7 @@ void R_Init(DWORD width, DWORD height) {
     tr.shader[SHADER_DEFAULT] = R_InitShader(vs_default, fs_default);
     tr.shader[SHADER_UI] = R_InitShader(vs_default, fs_ui);
     tr.shader[SHADER_SPLAT] = R_InitShader(vs_default, fs_splat);
+    tr.shader[SHADER_SHADOWSPLAT] = R_InitShader(vs_default, fs_shadow_splat);
     tr.shader[SHADER_COMMANDBUTTON] = R_InitShader(vs_default, fs_commandbutton);
     fprintf(stderr, "Loading shaders succeeded.\n");
 
@@ -539,6 +541,7 @@ void R_RenderShadowMap(void) {
     R_SetupGL(true);
     R_BindTexture(tr.texture[TEX_SHADOWMAP], 1);
     R_DrawWorld();
+    R_DrawTerrainShadows();
     R_DrawEntities();
 }
 #endif

@@ -13,16 +13,44 @@
 
 mouseEvent_t mouse;
 
-static void pan_camera(float x, float y, float sensivity) {
-    cl.viewDef.camerastate->origin.x += x * sensivity;
-    cl.viewDef.camerastate->origin.y += y * sensivity;
-    MSG_WriteByte(&cls.netchan.message, clc_move);
-    MSG_WriteShort(&cls.netchan.message, x * sensivity);
-    MSG_WriteShort(&cls.netchan.message, y * sensivity);
+static struct {
+    BOOL active;
+    VECTOR3 anchor;
+} camera_drag;
+
+static void CL_BeginCameraDrag(float x, float y) {
+    camera_drag.active = re.TraceLocation(&cl.viewDef, x, y, &camera_drag.anchor);
+}
+
+static void CL_UpdateCameraDrag(float x, float y) {
+    VECTOR3 point;
+    VECTOR2 position;
+
+    if (!camera_drag.active) {
+        CL_BeginCameraDrag(x, y);
+        return;
+    }
+    if (!re.TraceLocation(&cl.viewDef, x, y, &point)) {
+        return;
+    }
+
+    position.x = cl.viewDef.camerastate[0].origin.x + camera_drag.anchor.x - point.x;
+    position.y = cl.viewDef.camerastate[0].origin.y + camera_drag.anchor.y - point.y;
+
+    MSG_WriteByte(&cls.netchan.message, clc_camera_position);
+    MSG_WriteFloat(&cls.netchan.message, position.x);
+    MSG_WriteFloat(&cls.netchan.message, position.y);
+}
+
+static void CL_EndCameraDrag(void) {
+    camera_drag.active = false;
 }
 
 void CL_Input(void) {
     SDL_Event event;
+    BOOL camera_drag_pending = false;
+    VECTOR2 camera_drag_mouse = { 0 };
+
     mouse.event = UI_EVENT_NONE;
     mouse.wheel = 0;
     while(SDL_PollEvent(&event)) {
@@ -89,19 +117,20 @@ void CL_Input(void) {
                     if (ui.MouseEvent) {
                         ui.MouseEvent(event.button.x, event.button.y, event.button.button, true);
                     }
-                    if (event.button.button == 1) {
+                    if (event.button.button == SDL_BUTTON_LEFT) {
                         mouse.event = UI_LEFT_MOUSE_DOWN;
-                    } else if (event.button.button == 2) {
+                    } else if (event.button.button == SDL_BUTTON_RIGHT) {
                         mouse.event = UI_RIGHT_MOUSE_DOWN;
                     }
                     break;
                 }
                 switch (event.button.button) {
-                    case 1:
+                    case SDL_BUTTON_LEFT:
                         mouse.event = UI_LEFT_MOUSE_DOWN;
                         break;
-                    case 2:
+                    case SDL_BUTTON_RIGHT:
                         mouse.event = UI_RIGHT_MOUSE_DOWN;
+                        CL_BeginCameraDrag(event.button.x, event.button.y);
                         break;
                 }
                 break;
@@ -113,19 +142,20 @@ void CL_Input(void) {
                     if (ui.MouseEvent) {
                         ui.MouseEvent(event.button.x, event.button.y, event.button.button, false);
                     }
-                    if (event.button.button == 1) {
+                    if (event.button.button == SDL_BUTTON_LEFT) {
                         mouse.event = UI_LEFT_MOUSE_UP;
-                    } else if (event.button.button == 2) {
+                    } else if (event.button.button == SDL_BUTTON_RIGHT) {
                         mouse.event = UI_RIGHT_MOUSE_UP;
                     }
                     break;
                 }
                 switch (event.button.button) {
-                    case 1:
+                    case SDL_BUTTON_LEFT:
                         mouse.event = UI_LEFT_MOUSE_UP;
                         break;
-                    case 2:
+                    case SDL_BUTTON_RIGHT:
                         mouse.event = UI_RIGHT_MOUSE_UP;
+                        CL_EndCameraDrag();
                         break;
                 }
                 break;
@@ -139,12 +169,14 @@ void CL_Input(void) {
                     break;
                 }
                 switch (mouse.button) {
-                    case 1:
+                    case SDL_BUTTON_LEFT:
                         cl.selection.rect.w = event.motion.x - cl.selection.rect.x;
                         cl.selection.rect.h = event.motion.y - cl.selection.rect.y;
                         break;
-                    case 3:
-                        pan_camera(-event.motion.xrel, event.motion.yrel, 5);
+                    case SDL_BUTTON_RIGHT:
+                        camera_drag_mouse.x = event.motion.x;
+                        camera_drag_mouse.y = event.motion.y;
+                        camera_drag_pending = true;
                         break;
                 }
                 break;
@@ -172,6 +204,9 @@ void CL_Input(void) {
                 }
                 break;
         }
+    }
+    if (camera_drag_pending) {
+        CL_UpdateCameraDrag(camera_drag_mouse.x, camera_drag_mouse.y);
     }
 //    cl.viewDef.camera.origin.z = CM_GetHeightAtPoint(cl.viewDef.camera.origin.x, cl.viewDef.camera.origin.y);
 }

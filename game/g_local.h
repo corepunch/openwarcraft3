@@ -814,6 +814,7 @@ void SP_SpawnUnit(LPEDICT);
 void SP_TrainUnit(LPEDICT, DWORD);
 BOOL player_pay(LPPLAYER, DWORD);
 BYTE compress_stat(EDICTSTAT const *);
+DWORD G_LoadShadowTexture(LPCSTR, BOOL);
 
 // g_pathing.c
 pathTex_t *LoadTGA(BYTE const*, size_t);
@@ -927,7 +928,7 @@ void G_SelectEntity(LPGAMECLIENT, LPEDICT);
 void G_DeselectEntity(LPGAMECLIENT, LPEDICT);
 BOOL G_IsEntitySelected(LPGAMECLIENT, LPEDICT);
 void G_ClientCommand(LPEDICT, DWORD, LPCSTR[]);
-void G_ClientPanCamera(LPEDICT, LPVECTOR2);
+void G_ClientSetCameraPosition(LPEDICT, LPCVECTOR2);
 
 //  s_skills.c
 FLOAT AB_Number(LPCSTR, LPCSTR);

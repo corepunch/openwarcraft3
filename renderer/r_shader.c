@@ -110,6 +110,20 @@ LPCSTR fs_splat =
 "    o_color.a *= crop_edges(v_texcoord);\n"
 "}\n";
 
+LPCSTR fs_shadow_splat =
+"#version 140\n"
+"in vec4 v_color;\n"
+"in vec2 v_texcoord;\n"
+"out vec4 o_color;\n"
+"uniform sampler2D uTexture;\n"
+"float crop_edges(vec2 tc) {\n"
+"   return step(abs(tc.x - 0.5), 0.5) * step(abs(tc.y - 0.5), 0.5);\n"
+"}\n"
+"void main() {\n"
+"    vec4 tex = texture(uTexture, v_texcoord);\n"
+"    o_color = vec4(0.0, 0.0, 0.0, tex.a * v_color.a * crop_edges(v_texcoord));\n"
+"}\n";
+
 LPCSTR fs_commandbutton =
 "#version 140\n"
 "in vec4 v_color;\n"

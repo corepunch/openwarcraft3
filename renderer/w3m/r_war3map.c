@@ -13,28 +13,35 @@ void R_SetPathTexture(LPCCOLOR32 debugTexture) {
 }
 #endif
 
-#ifdef USE_SHADOWMAPS
 static void R_FileReadShadowMap(HANDLE hMpq, LPWAR3MAP  pWorld) {
     HANDLE file;
-    SFileOpenFileEx(hMpq, "war3map.shd", SFILE_OPEN_FROM_MPQ, &file);
+    if (!SFileOpenFileEx(hMpq, "war3map.shd", SFILE_OPEN_FROM_MPQ, &file)) {
+        return;
+    }
     int const w = (pWorld->width - 1) * 4;
     int const h = (pWorld->height - 1) * 4;
     LPSTR shadows = ri.MemAlloc(w * h);
-    SFileReadFile(file, shadows, w * h, NULL, NULL);
+    if (!SFileReadFile(file, shadows, w * h, NULL, NULL)) {
+        ri.MemFree(shadows);
+        SFileCloseFile(file);
+        return;
+    }
     LPTEXTURE pShadowmap = R_AllocateTexture(w, h);
     LPCOLOR32 pixels = ri.MemAlloc(w * h * sizeof(struct color32));
     FOR_LOOP(i, w * h) {
-        pixels[i].r = 255-shadows[i];
-        pixels[i].g = 255-shadows[i];
-        pixels[i].b = 255-shadows[i];
-        pixels[i].a = 255;
+        BYTE shadow = (BYTE)shadows[i];
+        pixels[i].r = 0;
+        pixels[i].g = 0;
+        pixels[i].b = 0;
+        pixels[i].a = shadow / 2;
     }
     R_LoadTextureMipLevel(pShadowmap, 0, pixels, w, h);
     SFileCloseFile(file);
+    ri.MemFree(shadows);
+    ri.MemFree(pixels);
 
-    tr.texture[TEX_SHADOWMAP] = pShadowmap;
+    tr.texture[TEX_TERRAIN_SHADOW] = pShadowmap;
 }
-#endif
 
 static LPMAPSEGMENT R_BuildMapSegment(LPCWAR3MAP map, DWORD sx, DWORD sy) {
     LPMAPSEGMENT mapSegment = ri.MemAlloc(sizeof(MAPSEGMENT));
@@ -156,14 +163,28 @@ void R_RegisterMap(char const *mapFilename) {
         return;
     }
     map = FileReadWar3Map(hMpq);
-#ifdef USE_SHADOWMAPS
     R_FileReadShadowMap(hMpq, map);
-#endif
     SFileCloseArchive(hMpq);
     ri.FS_FreeFile(mapData);
     tr.world = map;
 
     R_LoadMapSegments(map);
+}
+
+void R_DrawTerrainShadows(void) {
+    if (!tr.world || !tr.texture[TEX_TERRAIN_SHADOW] || (tr.viewDef.rdflags & RDF_NOWORLDMODEL)) {
+        return;
+    }
+
+    VECTOR2 size = GetWar3MapSize(tr.world);
+    VECTOR2 mins = tr.world->center;
+    VECTOR2 maxs = {
+        .x = tr.world->center.x + size.x,
+        .y = tr.world->center.y + size.y,
+    };
+    COLOR32 shadowColor = {0, 0, 0, 255};
+
+    R_RenderRectSplat(&mins, &maxs, tr.texture[TEX_TERRAIN_SHADOW], tr.shader[SHADER_SHADOWSPLAT], shadowColor);
 }
 
 static void R_DrawSegment(LPCMAPSEGMENT segment, DWORD mask) {

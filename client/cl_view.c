@@ -163,6 +163,8 @@ static void V_AddClientEntity(centity_t const *ent) {
     re.number = ent->current.number;
     re.splat = cl.pics[ent->current.splat & 0xffff];
     re.splatsize = ent->current.splat >> 16;
+    re.shadow = cl.pics[ent->current.shadow];
+    ShadowUnpackRect(ent->current.shadow_rect, &re.shadow_x, &re.shadow_y, &re.shadow_w, &re.shadow_h);
     re.health = BYTE2FLOAT(ent->current.stats[ENT_HEALTH]);
     re.healthbar = cl.healthbar;
 
@@ -394,6 +396,7 @@ void V_RenderView(void) {
     }
 
     cl.viewDef.lerpfrac = (FLOAT)(cl.time - cl.frame.servertime) / FRAMETIME;
+    cl.viewDef.lerpfrac = MAX(0.0f, MIN(1.0f, cl.viewDef.lerpfrac));
     cl.viewDef.viewport = (RECT) { 0, 0, 1, 1 };
     cl.viewDef.scissor = (RECT) { 0, 0.22, 1, 0.76 };
     cl.viewDef.time = cl.time;

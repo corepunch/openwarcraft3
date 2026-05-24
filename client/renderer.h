@@ -40,6 +40,7 @@ typedef struct {
     LPCMODEL model;
     LPCTEXTURE skin;
     LPCTEXTURE splat;
+    LPCTEXTURE shadow;
     LPCTEXTURE healthbar;
     LPCTEXTURE manabar;
     DWORD number;
@@ -51,6 +52,10 @@ typedef struct {
     float scale;
     float radius;
     float splatsize;
+    float shadow_x;
+    float shadow_y;
+    float shadow_w;
+    float shadow_h;
     float health;
 } renderEntity_t;
 

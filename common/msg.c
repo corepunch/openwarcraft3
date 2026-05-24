@@ -38,6 +38,8 @@ netField_t entityStateFields[] = {
     { NETF(entityState_t, flags), NFT_LONG },
     { NETF(entityState_t, radius), NFT_ROUND },
     { NETF(entityState_t, splat), NFT_LONG },
+    { NETF(entityState_t, shadow), NFT_SHORT },
+    { NETF(entityState_t, shadow_rect), NFT_LONG },
     { NETF(entityState_t, stats), NFT_LONG },
     { NETF(entityState_t, inventory[0]), NFT_LONG },
     { NETF(entityState_t, inventory[1]), NFT_LONG },

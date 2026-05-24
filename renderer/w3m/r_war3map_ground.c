@@ -134,22 +134,24 @@ LPMAPLAYER R_BuildMapSegmentLayer(LPCWAR3MAP map, DWORD sx, DWORD sy, DWORD laye
     return mapLayer;
 }
 
-void R_RenderSplat(LPCVECTOR2 position,
-                   FLOAT radius,
-                   LPCTEXTURE texture,
-                   LPCSHADER shader,
-                   COLOR32 color)
+void R_RenderRectSplat(LPCVECTOR2 mins,
+                       LPCVECTOR2 maxs,
+                       LPCTEXTURE texture,
+                       LPCSHADER shader,
+                       COLOR32 color)
 {
     MATRIX4 mModelMatrix;
 
     Matrix4_identity(&mModelMatrix);
     
-    FLOAT const splatSize = radius * 2;
-    FLOAT const sx = position->x;
-    FLOAT const sy = position->y;
+    FLOAT const width = maxs->x - mins->x;
+    FLOAT const height = maxs->y - mins->y;
+    if (!texture || width <= 0 || height <= 0) {
+        return;
+    }
     
-    VECTOR2 tmin = GetWar3MapPosition(tr.world, sx - radius, sy - radius);
-    VECTOR2 tmax = GetWar3MapPosition(tr.world, sx + radius, sy + radius);
+    VECTOR2 tmin = GetWar3MapPosition(tr.world, mins->x, mins->y);
+    VECTOR2 tmax = GetWar3MapPosition(tr.world, maxs->x, maxs->y);
 
     ground_current_vertex = ground_vertex_buffer;
 
@@ -168,8 +170,8 @@ void R_RenderSplat(LPCVECTOR2 position,
     
     FOR_LOOP(i, num_vertices){
         LPVERTEX v = &ground_vertex_buffer[i];
-        v->texcoord.x = (v->position.x + radius - sx) / splatSize;
-        v->texcoord.y = 1 - (v->position.y + radius - sy) / splatSize;
+        v->texcoord.x = (v->position.x - mins->x) / width;
+        v->texcoord.y = 1 - (v->position.y - mins->y) / height;
         v->color = color;
     }
 
@@ -180,10 +182,30 @@ void R_RenderSplat(LPCVECTOR2 position,
 
     R_Call(glEnable, GL_BLEND);
     R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    R_Call(glDepthMask, GL_FALSE);
     R_Call(glBindVertexArray, tr.buffer[RBUF_TEMP1]->vao);
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, tr.buffer[RBUF_TEMP1]->vbo);
     R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(VERTEX) * num_vertices, ground_vertex_buffer, GL_STATIC_DRAW);
     R_Call(glDrawArrays, GL_TRIANGLES, 0, num_vertices);
+    R_Call(glDepthMask, GL_TRUE);
+}
+
+void R_RenderSplat(LPCVECTOR2 position,
+                   FLOAT radius,
+                   LPCTEXTURE texture,
+                   LPCSHADER shader,
+                   COLOR32 color)
+{
+    VECTOR2 mins = {
+        .x = position->x - radius,
+        .y = position->y - radius,
+    };
+    VECTOR2 maxs = {
+        .x = position->x + radius,
+        .y = position->y + radius,
+    };
+
+    R_RenderRectSplat(&mins, &maxs, texture, shader, color);
 }
 
 VECTOR3 CM_PointIntoHeightmap(LPCVECTOR3 point) {

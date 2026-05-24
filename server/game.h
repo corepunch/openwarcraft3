@@ -107,7 +107,7 @@ struct game_export {
     void (*RunFrame)(void);
     LPCSTR (*GetThemeValue)(LPCSTR filename);
     void (*ClientCommand)(LPEDICT ent, DWORD argc, LPCSTR argv[]);
-    void (*ClientPanCamera)(LPEDICT ent, LPVECTOR2 offset);
+    void (*ClientSetCameraPosition)(LPEDICT ent, LPCVECTOR2 position);
     void (*ClientBegin)(LPEDICT ent);
     
     edict_t *edicts;

@@ -91,6 +91,7 @@
 #define UNIT_NAME(UNIT) UnitStringField(UnitsMetaData, UNIT, "unam")
 #define UNIT_PROPER_NAMES(UNIT) UnitStringField(UnitsMetaData, UNIT, "upro")
 #define UNIT_GROUND_TEXTURE(UNIT) UnitStringField(UnitsMetaData, UNIT, "uubs")
+#define UNIT_BUILDING_SHADOW(UNIT) UnitStringField(UnitsMetaData, UNIT, "ushb")
 #define UNIT_SHADOW_IMAGE_UNIT(UNIT) UnitStringField(UnitsMetaData, UNIT, "ushu")
 #define UNIT_ABILITIES_NORMAL(UNIT) UnitStringField(UnitsMetaData, UNIT, "uabi")
 #define UNIT_ABILITIES_HERO(UNIT) UnitStringField(UnitsMetaData, UNIT, "uhab")
@@ -174,6 +175,7 @@ sheetRow_t *G_SheetTail(sheetRow_t *rows);
 #define DESTRUCTABLE_TEXTURE(UNIT) UnitStringField(DestructableMetaData, UNIT, "btxf")
 #define DESTRUCTABLE_FILE(UNIT) UnitStringField(DestructableMetaData, UNIT, "bfil")
 #define DESTRUCTABLE_DIRECTORY(UNIT) UnitStringField(DestructableMetaData, UNIT, "bdir")
+#define DESTRUCTABLE_SHADOW(UNIT) UnitStringField(DestructableMetaData, UNIT, "bshd")
 
 #define ITEM_NAME(UNIT) UnitStringField(ItemsMetaData, UNIT, "inam")
 #define ITEM_FILE(UNIT) UnitStringField(ItemsMetaData, UNIT, "ifil")

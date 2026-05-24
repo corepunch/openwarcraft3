@@ -129,6 +129,31 @@ static void R_RenderUberSplat(const renderEntity_t *entity, LPCVECTOR2 origin) {
     }
 }
 
+static void R_RenderShadow(const renderEntity_t *entity, LPCVECTOR2 origin) {
+    if (!entity->shadow || (entity->flags & RF_NO_SHADOW) || !tr.world) {
+        return;
+    }
+
+    VECTOR2 mins;
+    VECTOR2 maxs;
+    if (entity->shadow_w > 0 && entity->shadow_h > 0) {
+        mins.x = origin->x - entity->shadow_x;
+        mins.y = origin->y - entity->shadow_y;
+        maxs.x = mins.x + entity->shadow_w;
+        maxs.y = mins.y + entity->shadow_h;
+    } else {
+        float width = entity->shadow->width * 32.0f;
+        float height = entity->shadow->height * 32.0f;
+        mins.x = origin->x - width * 0.3f;
+        mins.y = origin->y - height * 0.3f;
+        maxs.x = origin->x + width * 0.7f;
+        maxs.y = origin->y + height * 0.7f;
+    }
+
+    COLOR32 shadowColor = {0, 0, 0, 128};
+    R_RenderRectSplat(&mins, &maxs, entity->shadow, tr.shader[SHADER_SHADOWSPLAT], shadowColor);
+}
+
 static void R_RenderSelectedCircle(const renderEntity_t *entity, LPCVECTOR2 origin) {
     if (entity->flags & RF_SELECTED) {
         COLOR32 color = { 0, 255, 0, 255 };
@@ -156,6 +181,15 @@ void R_RenderModel(renderEntity_t const *entity) {
     if (is_rendering_lights && (entity->flags & RF_NO_SHADOW))
         return;
 #endif
+
+#ifdef USE_SHADOWMAPS
+    if (!is_rendering_lights)
+#endif
+        R_RenderUberSplat(entity, (LPCVECTOR2)&entity->origin);
+#ifdef USE_SHADOWMAPS
+    if (!is_rendering_lights)
+#endif
+        R_RenderShadow(entity, (LPCVECTOR2)&entity->origin);
     
     switch (entity->model->modeltype) {
         case ID_MDLX:
@@ -170,7 +204,6 @@ void R_RenderModel(renderEntity_t const *entity) {
     if (is_rendering_lights)
         return;
 #endif
-    
-    R_RenderUberSplat(entity, (LPCVECTOR2)&entity->origin);
+
     R_RenderSelectedCircle(entity, (LPCVECTOR2)&entity->origin);
 }
