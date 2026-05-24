@@ -5,6 +5,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
+#include <errno.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 
 #ifndef PATHSTR
 #define PATHSTR char[512]
@@ -30,16 +33,18 @@ static void usage(void) {
         "  mpqtool -mpq <archive.mpq> imginfo <file>\n"
     "  mpqtool -mpq <archive.mpq> create [max-files]\n"
     "  mpqtool -mpq <archive.mpq> pack <src> <archive-file> [<src> <archive-file> ...]\n"
+    "  mpqtool wow-install <output-dir> <disc1.mpq> <disc2.mpq> <disc3.mpq> <disc4.mpq>\n"
         "\n"
         "Notes:\n"
-        "  pack always creates a new archive, overwriting any existing file at the target path.\n"
+        "  create, pack, and wow-install create new archives, overwriting existing targets.\n"
         "\n"
         "Examples:\n"
         "  mpqtool -mpq War3.mpq ls\n"
         "  mpqtool -mpq War3.mpq ls Units\n"
         "  mpqtool -mpq War3.mpq cat Units/UnitData.slk\n"
-        "  mpqtool -mpq War3.mpq info Maps/Campaign/Human02.w3m\n"
+    "  mpqtool -mpq War3.mpq info Maps/Campaign/Human02.w3m\n"
     "  mpqtool -mpq tests.mpq pack ./basic.fdf TestUI/Frames/basic.fdf ./checker.blp TestUI/Textures/checker.blp\n"
+    "  mpqtool wow-install data/world-of-warcraft/installed data/world-of-warcraft/WoWDisc1.mpq data/world-of-warcraft/WoWDisc2.mpq data/world-of-warcraft/WoWDisc3.mpq data/world-of-warcraft/WoWDisc4.mpq\n"
     "  mpqtool -mpq War3.mpq imginfo UI/Widgets/Glues/GlueScreen-Button1-Border.blp\n");
 }
 
@@ -445,6 +450,353 @@ static int cmd_pack(const char *mpq_path, int pair_count, char **pairs)
     return 0;
 }
 
+typedef struct {
+    char container[256];
+    char path[512];
+    HANDLE archive;
+    unsigned int files;
+} wow_target_t;
+
+static void xml_unescape(char *s)
+{
+    char *out = s;
+
+    while (*s) {
+        if (strncmp(s, "&amp;", 5) == 0) {
+            *out++ = '&';
+            s += 5;
+        } else if (strncmp(s, "&quot;", 6) == 0) {
+            *out++ = '"';
+            s += 6;
+        } else if (strncmp(s, "&apos;", 6) == 0) {
+            *out++ = '\'';
+            s += 6;
+        } else if (strncmp(s, "&lt;", 4) == 0) {
+            *out++ = '<';
+            s += 4;
+        } else if (strncmp(s, "&gt;", 4) == 0) {
+            *out++ = '>';
+            s += 4;
+        } else {
+            *out++ = *s++;
+        }
+    }
+    *out = '\0';
+}
+
+static bool xml_attr(const char *line, const char *attr, char *out, size_t out_size)
+{
+    char pattern[64];
+    const char *p;
+    const char *end;
+    size_t len;
+
+    snprintf(pattern, sizeof(pattern), "%s=\"", attr);
+    p = strstr(line, pattern);
+    if (!p) {
+        return false;
+    }
+    p += strlen(pattern);
+    end = strchr(p, '"');
+    if (!end) {
+        return false;
+    }
+    len = (size_t)(end - p);
+    if (len >= out_size) {
+        len = out_size - 1;
+    }
+    memcpy(out, p, len);
+    out[len] = '\0';
+    xml_unescape(out);
+    return true;
+}
+
+static int mkpath(const char *path)
+{
+    char tmp[512];
+    size_t len;
+
+    if (!path || !*path) {
+        return 0;
+    }
+
+    strncpy(tmp, path, sizeof(tmp) - 1);
+    tmp[sizeof(tmp) - 1] = '\0';
+    len = strlen(tmp);
+    while (len > 1 && tmp[len - 1] == '/') {
+        tmp[--len] = '\0';
+    }
+
+    for (char *p = tmp + 1; *p; p++) {
+        if (*p == '/') {
+            *p = '\0';
+            if (mkdir(tmp, 0777) != 0 && errno != EEXIST) {
+                return 1;
+            }
+            *p = '/';
+        }
+    }
+
+    if (mkdir(tmp, 0777) != 0 && errno != EEXIST) {
+        return 1;
+    }
+    return 0;
+}
+
+static int ensure_parent_dir(const char *path)
+{
+    char tmp[512];
+    char *slash;
+
+    strncpy(tmp, path, sizeof(tmp) - 1);
+    tmp[sizeof(tmp) - 1] = '\0';
+    slash = strrchr(tmp, '/');
+    if (!slash) {
+        return 0;
+    }
+    *slash = '\0';
+    return mkpath(tmp);
+}
+
+static bool read_archive_file(HANDLE archive, const char *path, BYTE **out_data, DWORD *out_size)
+{
+    HANDLE file;
+    DWORD size;
+    DWORD total = 0;
+    BYTE *data;
+
+    if (!SFileOpenFileEx(archive, path, SFILE_OPEN_FROM_MPQ, &file)) {
+        return false;
+    }
+
+    size = SFileGetFileSize(file, NULL);
+    data = (BYTE *)malloc(size ? size : 1);
+    if (!data) {
+        SFileCloseFile(file);
+        return false;
+    }
+
+    while (total < size) {
+        DWORD read_bytes = 0;
+        DWORD chunk = size - total;
+        if (!SFileReadFile(file, data + total, chunk, &read_bytes, NULL) || read_bytes == 0) {
+            free(data);
+            SFileCloseFile(file);
+            return false;
+        }
+        total += read_bytes;
+    }
+
+    SFileCloseFile(file);
+    *out_data = data;
+    *out_size = size;
+    return true;
+}
+
+static void archive_path_join(char *out, size_t out_size, const char *base, const char *from)
+{
+    snprintf(out, out_size, "%s%s", base ? base : "", from ? from : "");
+    Tool_NormalizeSlashes(out, '\\');
+    Tool_TrimEdgeSlashes(out);
+}
+
+static void output_path_for_container(char *out, size_t out_size, const char *out_dir, const char *container)
+{
+    char converted[256];
+
+    strncpy(converted, container, sizeof(converted) - 1);
+    converted[sizeof(converted) - 1] = '\0';
+    Tool_NormalizeSlashes(converted, '/');
+    Tool_TrimEdgeSlashes(converted);
+    snprintf(out, out_size, "%s/%s", out_dir, converted);
+}
+
+static wow_target_t *get_wow_target(wow_target_t *targets, size_t *count, const char *out_dir, const char *container)
+{
+    size_t i;
+
+    for (i = 0; i < *count; i++) {
+        if (strcmp(targets[i].container, container) == 0) {
+            return &targets[i];
+        }
+    }
+
+    if (*count >= 32) {
+        return NULL;
+    }
+
+    wow_target_t *target = &targets[(*count)++];
+    memset(target, 0, sizeof(*target));
+    strncpy(target->container, container, sizeof(target->container) - 1);
+    output_path_for_container(target->path, sizeof(target->path), out_dir, container);
+    if (ensure_parent_dir(target->path) != 0) {
+        fprintf(stderr, "Cannot create output directory for %s\n", target->path);
+        return NULL;
+    }
+    if (!SFileCreateArchive(target->path, 0, 65535, &target->archive)) {
+        fprintf(stderr, "Cannot create archive: %s\n", target->path);
+        return NULL;
+    }
+    fprintf(stderr, "creating %s\n", target->path);
+    return target;
+}
+
+static int close_wow_targets(wow_target_t *targets, size_t count)
+{
+    int rc = 0;
+    size_t i;
+
+    for (i = 0; i < count; i++) {
+        if (!targets[i].archive) {
+            continue;
+        }
+        if (!SFileCloseArchive(targets[i].archive)) {
+            fprintf(stderr, "Cannot finalize archive: %s\n", targets[i].path);
+            rc = 1;
+        } else {
+            fprintf(stderr, "finalized %s (%u files)\n", targets[i].path, targets[i].files);
+        }
+        targets[i].archive = NULL;
+    }
+    return rc;
+}
+
+static int cmd_wow_install(const char *out_dir, const char **disc_paths)
+{
+    HANDLE discs[4] = { 0 };
+    BYTE *manifest = NULL;
+    DWORD manifest_size = 0;
+    wow_target_t targets[32];
+    size_t target_count = 0;
+    char current_container[256] = "";
+    char current_base[512] = "";
+    int current_disc = 0;
+    unsigned int added = 0;
+    int rc = 1;
+
+    memset(targets, 0, sizeof(targets));
+    if (mkpath(out_dir) != 0) {
+        fprintf(stderr, "Cannot create output directory: %s\n", out_dir);
+        goto done;
+    }
+
+    for (int i = 0; i < 4; i++) {
+        if (!SFileOpenArchive(disc_paths[i], 0, 0, &discs[i])) {
+            fprintf(stderr, "Cannot open disc archive: %s\n", disc_paths[i]);
+            goto done;
+        }
+    }
+
+    if (!read_archive_file(discs[0], "InstallCD\\InstallerFileList\\InstallerFileList.xml", &manifest, &manifest_size)) {
+        fprintf(stderr, "Cannot read installer manifest from disc 1\n");
+        goto done;
+    }
+
+    {
+        BYTE *resized = (BYTE *)realloc(manifest, (size_t)manifest_size + 1);
+        if (!resized) {
+            fprintf(stderr, "Out of memory\n");
+            goto done;
+        }
+        manifest = resized;
+        manifest[manifest_size] = '\0';
+    }
+
+    for (char *line = strtok((char *)manifest, "\n"); line; line = strtok(NULL, "\n")) {
+        char value[512];
+
+        if (strstr(line, "<disc") && xml_attr(line, "with_file", value, sizeof(value))) {
+            if (strcmp(value, "{Tome1}") == 0) current_disc = 1;
+            else if (strcmp(value, "{Tome2}") == 0) current_disc = 2;
+            else if (strcmp(value, "{Tome3}") == 0) current_disc = 3;
+            else if (strcmp(value, "{Tome4}") == 0) current_disc = 4;
+            else current_disc = 0;
+            current_container[0] = '\0';
+            current_base[0] = '\0';
+            continue;
+        }
+
+        if (strstr(line, "<repack_into")) {
+            char type[32];
+            if (xml_attr(line, "type", type, sizeof(type)) &&
+                strcmp(type, "mpq") == 0 &&
+                xml_attr(line, "container", current_container, sizeof(current_container))) {
+                Tool_NormalizeSlashes(current_container, '\\');
+                Tool_TrimEdgeSlashes(current_container);
+                current_base[0] = '\0';
+            } else {
+                current_container[0] = '\0';
+                current_base[0] = '\0';
+            }
+            continue;
+        }
+
+        if (strstr(line, "</repack_into>")) {
+            current_container[0] = '\0';
+            current_base[0] = '\0';
+            continue;
+        }
+
+        if (!current_disc || !current_container[0]) {
+            continue;
+        }
+
+        if (strstr(line, "<base") && xml_attr(line, "path", current_base, sizeof(current_base))) {
+            Tool_NormalizeSlashes(current_base, '\\');
+            continue;
+        }
+
+        if (strstr(line, "<repack") && xml_attr(line, "from", value, sizeof(value))) {
+            char source_path[1024];
+            char dest_path[512];
+            BYTE *data = NULL;
+            DWORD size = 0;
+            wow_target_t *target;
+
+            archive_path_join(source_path, sizeof(source_path), current_base, value);
+            if (!xml_attr(line, "to", dest_path, sizeof(dest_path))) {
+                strncpy(dest_path, value, sizeof(dest_path) - 1);
+                dest_path[sizeof(dest_path) - 1] = '\0';
+            }
+            Tool_NormalizeSlashes(dest_path, '\\');
+            Tool_TrimEdgeSlashes(dest_path);
+
+            if (!read_archive_file(discs[current_disc - 1], source_path, &data, &size)) {
+                fprintf(stderr, "Cannot read disc %d source: %s\n", current_disc, source_path);
+                goto done;
+            }
+
+            target = get_wow_target(targets, &target_count, out_dir, current_container);
+            if (!target || !SFileAddFileFromBuffer(target->archive, dest_path, data, size)) {
+                fprintf(stderr, "Cannot add %s to %s as %s\n", source_path, current_container, dest_path);
+                free(data);
+                goto done;
+            }
+            free(data);
+            target->files++;
+            added++;
+            if ((added % 1000) == 0) {
+                fprintf(stderr, "repacked %u files\n", added);
+            }
+        }
+    }
+
+    fprintf(stderr, "repacked %u files total\n", added);
+    rc = close_wow_targets(targets, target_count);
+
+done:
+    if (rc != 0) {
+        close_wow_targets(targets, target_count);
+    }
+    for (int i = 0; i < 4; i++) {
+        if (discs[i]) {
+            SFileCloseArchive(discs[i]);
+        }
+    }
+    free(manifest);
+    return rc;
+}
+
 int main(int argc, char **argv) {
     const char *mpq = NULL;
     const char *cmd = NULL;
@@ -453,6 +805,11 @@ int main(int argc, char **argv) {
     int extra_count = 0;
     HANDLE archive;
     int rc;
+
+    if (argc >= 7 && strcmp(argv[1], "wow-install") == 0) {
+        const char *disc_paths[4] = { argv[3], argv[4], argv[5], argv[6] };
+        return cmd_wow_install(argv[2], disc_paths);
+    }
 
     if (argc < 4) {
         usage();

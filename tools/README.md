@@ -23,6 +23,7 @@ Commands:
 - `imginfo <file>` inspect texture metadata
 - `create [max-files]` create a new archive
 - `pack <src> <archive-file> [<src> <archive-file> ...]` add files to an archive
+- `wow-install <output-dir> <disc1.mpq> <disc2.mpq> <disc3.mpq> <disc4.mpq>` rebuild vanilla WoW installed `Data/*.MPQ` archives from installer tomes
 
 Examples:
 
@@ -30,6 +31,7 @@ Examples:
 build/bin/mpqtool -mpq "data/Warcraft III/War3.mpq" ls UI/FrameDef
 build/bin/mpqtool -mpq "data/Warcraft III/War3.mpq" cat UI/FrameDef/Glue/MainMenu.fdf
 build/bin/mpqtool -mpq "data/Warcraft III/War3.mpq" imginfo UI/Widgets/Glues/GlueScreen-Button1-Border.blp
+build/bin/mpqtool wow-install "data/world-of-warcraft/installed" "data/world-of-warcraft/WoWDisc1.mpq" "data/world-of-warcraft/WoWDisc2.mpq" "data/world-of-warcraft/WoWDisc3.mpq" "data/world-of-warcraft/WoWDisc4.mpq"
 ```
 
 ## `fdftool`

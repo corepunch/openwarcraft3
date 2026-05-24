@@ -38,6 +38,7 @@
 #define MPQ_FILE_IMPLODE 0x00000100
 #define MPQ_FILE_ENCRYPTED 0x00010000
 #define MPQ_FILE_KEY_V2 0x00020000
+#define MPQ_FILE_SINGLE_UNIT 0x01000000
 #define MPQ_COMPRESSION_ZLIB 0x02
 #define MPQ_FILE_EXISTS 0x80000000u
 
@@ -122,8 +123,10 @@ typedef struct mpq_cache_entry {
 
 typedef struct mpq_write_entry {
     char *name;
-    BYTE *data;
-    DWORD size;
+    DWORD offset;
+    DWORD block_size;
+    DWORD file_size;
+    DWORD flags;
 } MPQ_WRITE_ENTRY;
 
 typedef struct {
@@ -499,7 +502,6 @@ static void FreeWriterEntries(MPQ_ARCHIVE *mpq)
 
     for (i = 0; i < mpq->write_count; i++) {
         free(mpq->write_entries[i].name);
-        free(mpq->write_entries[i].data);
     }
 
     free(mpq->write_entries);
@@ -529,9 +531,54 @@ static BOOL WriterHasEntry(MPQ_ARCHIVE *mpq, const char *fileName)
     return FALSE;
 }
 
+static BOOL WriterCompressData(const BYTE *data, DWORD size, BYTE **out_data, DWORD *out_size, DWORD *out_flags)
+{
+    BYTE *compressed;
+    uLongf compressed_bound;
+
+    if (!out_data || !out_size || !out_flags) {
+        return FALSE;
+    }
+
+    *out_data = NULL;
+    *out_size = size;
+    *out_flags = MPQ_FILE_EXISTS;
+
+    if (!data || size == 0) {
+        return TRUE;
+    }
+
+    compressed_bound = compressBound(size);
+    if (compressed_bound + 1 > 0xFFFFFFFFu) {
+        return TRUE;
+    }
+
+    compressed = (BYTE *)malloc((size_t)compressed_bound + 1);
+    if (!compressed) {
+        return FALSE;
+    }
+    compressed[0] = MPQ_COMPRESSION_ZLIB;
+
+    if (compress2(compressed + 1, &compressed_bound, data, size, Z_DEFAULT_COMPRESSION) != Z_OK ||
+        compressed_bound + 1 >= size) {
+        free(compressed);
+        return TRUE;
+    }
+
+    *out_data = compressed;
+    *out_size = (DWORD)(compressed_bound + 1);
+    *out_flags = MPQ_FILE_EXISTS | MPQ_FILE_COMPRESS | MPQ_FILE_SINGLE_UNIT;
+    return TRUE;
+}
+
 static BOOL WriterAddData(MPQ_ARCHIVE *mpq, const char *archivedName, const BYTE *data, DWORD size)
 {
     MPQ_WRITE_ENTRY *entry;
+    BYTE *compressed = NULL;
+    const BYTE *to_write = data;
+    DWORD write_size = size;
+    DWORD flags = MPQ_FILE_EXISTS;
+    long pos;
     char path[1024];
 
     if (!mpq || !mpq->write_mode || !archivedName || !*archivedName) {
@@ -545,6 +592,28 @@ static BOOL WriterAddData(MPQ_ARCHIVE *mpq, const char *archivedName, const BYTE
     if (*path == '\0' || WriterHasEntry(mpq, path)) {
         return FALSE;
     }
+
+    if (!WriterCompressData(data, size, &compressed, &write_size, &flags)) {
+        return FALSE;
+    }
+    if (compressed) {
+        to_write = compressed;
+    }
+
+    if (fseek(mpq->fp, 0, SEEK_END) != 0) {
+        free(compressed);
+        return FALSE;
+    }
+    pos = ftell(mpq->fp);
+    if (pos < 0 || (unsigned long)pos > 0xFFFFFFFFu) {
+        free(compressed);
+        return FALSE;
+    }
+    if (write_size > 0 && (!to_write || fwrite(to_write, 1, write_size, mpq->fp) != write_size)) {
+        free(compressed);
+        return FALSE;
+    }
+    free(compressed);
 
     if (mpq->write_count == mpq->write_capacity) {
         DWORD next = mpq->write_capacity ? mpq->write_capacity * 2 : 16;
@@ -564,19 +633,10 @@ static BOOL WriterAddData(MPQ_ARCHIVE *mpq, const char *archivedName, const BYTE
         return FALSE;
     }
     strcpy(entry->name, path);
-
-    if (size > 0) {
-        entry->data = (BYTE *)malloc(size);
-        if (!entry->data) {
-            free(entry->name);
-            memset(entry, 0, sizeof(*entry));
-            mpq->write_count--;
-            return FALSE;
-        }
-        memcpy(entry->data, data, size);
-    }
-
-    entry->size = size;
+    entry->offset = (DWORD)pos;
+    entry->block_size = write_size;
+    entry->file_size = size;
+    entry->flags = flags;
     return TRUE;
 }
 
@@ -585,11 +645,11 @@ static BOOL FinalizeCreatedArchive(MPQ_ARCHIVE *mpq)
     MPQ_HEADER_V1 header;
     MPQ_HASH_ENTRY *hash_table = NULL;
     MPQ_BLOCK_ENTRY *block_table = NULL;
-    MPQ_WRITE_ENTRY listfile = { 0 };
     DWORD total_entries;
     DWORD hash_size;
     DWORD block_size = 0;
     DWORD offset;
+    long table_pos;
     DWORD i;
     BOOL ok = FALSE;
 
@@ -597,33 +657,48 @@ static BOOL FinalizeCreatedArchive(MPQ_ARCHIVE *mpq)
         return FALSE;
     }
 
-    total_entries = mpq->write_count + 1;
+    for (i = 0; i < mpq->write_count; i++) {
+        block_size += (DWORD)strlen(mpq->write_entries[i].name) + 1;
+    }
+    block_size += (DWORD)strlen("(listfile)") + 1;
+
+    {
+        BYTE *listfile_data = (BYTE *)malloc(block_size ? block_size : 1);
+        if (!listfile_data) {
+            goto done;
+        }
+
+        offset = 0;
+        for (i = 0; i < mpq->write_count; i++) {
+            size_t len = strlen(mpq->write_entries[i].name);
+            memcpy(listfile_data + offset, mpq->write_entries[i].name, len);
+            offset += (DWORD)len;
+            listfile_data[offset++] = '\n';
+        }
+        memcpy(listfile_data + offset, "(listfile)", strlen("(listfile)"));
+        offset += (DWORD)strlen("(listfile)");
+        listfile_data[offset++] = '\n';
+
+        if (!WriterAddData(mpq, "(listfile)", listfile_data, offset)) {
+            free(listfile_data);
+            goto done;
+        }
+        free(listfile_data);
+    }
+
+    total_entries = mpq->write_count;
     hash_size = NextPowerOfTwo(MAX(mpq->write_hash_table_size, total_entries * 2));
     if (hash_size < 16) {
         hash_size = 16;
     }
 
-    listfile.name = "(listfile)";
-    for (i = 0; i < mpq->write_count; i++) {
-        block_size += (DWORD)strlen(mpq->write_entries[i].name) + 1;
-    }
-    block_size += (DWORD)strlen(listfile.name) + 1;
-    listfile.data = (BYTE *)malloc(block_size ? block_size : 1);
-    if (!listfile.data) {
+    if (fseek(mpq->fp, 0, SEEK_END) != 0) {
         goto done;
     }
-
-    offset = 0;
-    for (i = 0; i < mpq->write_count; i++) {
-        size_t len = strlen(mpq->write_entries[i].name);
-        memcpy(listfile.data + offset, mpq->write_entries[i].name, len);
-        offset += (DWORD)len;
-        listfile.data[offset++] = '\n';
+    table_pos = ftell(mpq->fp);
+    if (table_pos < 0 || (unsigned long)table_pos > 0xFFFFFFFFu) {
+        goto done;
     }
-    memcpy(listfile.data + offset, listfile.name, strlen(listfile.name));
-    offset += (DWORD)strlen(listfile.name);
-    listfile.data[offset++] = '\n';
-    listfile.size = offset;
 
     hash_table = (MPQ_HASH_ENTRY *)malloc(hash_size * sizeof(*hash_table));
     block_table = (MPQ_BLOCK_ENTRY *)malloc(total_entries * sizeof(*block_table));
@@ -650,16 +725,15 @@ static BOOL FinalizeCreatedArchive(MPQ_ARCHIVE *mpq)
     header.dwHashTableSize = hash_size;
     header.dwBlockTableSize = total_entries;
 
-    offset = sizeof(header);
+    offset = (DWORD)table_pos;
     for (i = 0; i < total_entries; i++) {
-        MPQ_WRITE_ENTRY *entry = (i < mpq->write_count) ? &mpq->write_entries[i] : &listfile;
+        MPQ_WRITE_ENTRY *entry = &mpq->write_entries[i];
         DWORD slot = HashString(entry->name, MPQ_HASH_NAME_A) & (hash_size - 1);
 
-        block_table[i].dwBlockOffset = offset;
-        block_table[i].dwBlockSize = entry->size;
-        block_table[i].dwFileSize = entry->size;
-        block_table[i].dwFlags = MPQ_FILE_EXISTS;
-        offset += entry->size;
+        block_table[i].dwBlockOffset = entry->offset;
+        block_table[i].dwBlockSize = entry->block_size;
+        block_table[i].dwFileSize = entry->file_size;
+        block_table[i].dwFlags = entry->flags;
 
         while (hash_table[slot].dwBlockIndex != MPQ_HASH_ENTRY_FREE) {
             slot = (slot + 1) & (hash_size - 1);
@@ -679,20 +753,6 @@ static BOOL FinalizeCreatedArchive(MPQ_ARCHIVE *mpq)
     offset += total_entries * sizeof(*block_table);
     header.dwArchiveSize = offset;
 
-    if (fseek(mpq->fp, 0, SEEK_SET) != 0) {
-        goto done;
-    }
-    if (fwrite(&header, sizeof(header), 1, mpq->fp) != 1) {
-        goto done;
-    }
-
-    for (i = 0; i < total_entries; i++) {
-        MPQ_WRITE_ENTRY *entry = (i < mpq->write_count) ? &mpq->write_entries[i] : &listfile;
-        if (entry->size > 0 && fwrite(entry->data, 1, entry->size, mpq->fp) != entry->size) {
-            goto done;
-        }
-    }
-
     EncryptBlock((LPBYTE)hash_table, hash_size * sizeof(*hash_table), MPQ_KEY_HASH_TABLE);
     EncryptBlock((LPBYTE)block_table, total_entries * sizeof(*block_table), MPQ_KEY_BLOCK_TABLE);
 
@@ -702,6 +762,12 @@ static BOOL FinalizeCreatedArchive(MPQ_ARCHIVE *mpq)
     if (fwrite(block_table, sizeof(*block_table), total_entries, mpq->fp) != total_entries) {
         goto done;
     }
+    if (fseek(mpq->fp, 0, SEEK_SET) != 0) {
+        goto done;
+    }
+    if (fwrite(&header, sizeof(header), 1, mpq->fp) != 1) {
+        goto done;
+    }
     if (fflush(mpq->fp) != 0) {
         goto done;
     }
@@ -709,7 +775,6 @@ static BOOL FinalizeCreatedArchive(MPQ_ARCHIVE *mpq)
     ok = TRUE;
 
 done:
-    free(listfile.data);
     free(hash_table);
     free(block_table);
     return ok;
@@ -1004,6 +1069,7 @@ BOOL SFileOpenArchiveFromMemory(const void *data, DWORD size, DWORD flags, HANDL
 BOOL SFileCreateArchive(LPCSTR filename, DWORD flags, DWORD maxFiles, HANDLE *archive)
 {
     MPQ_ARCHIVE *mpq;
+    MPQ_HEADER_V1 header;
     FILE *fp;
 
     (void)flags;
@@ -1019,6 +1085,13 @@ BOOL SFileCreateArchive(LPCSTR filename, DWORD flags, DWORD maxFiles, HANDLE *ar
 
     mpq = (MPQ_ARCHIVE *)calloc(1, sizeof(*mpq));
     if (!mpq) {
+        fclose(fp);
+        return FALSE;
+    }
+
+    memset(&header, 0, sizeof(header));
+    if (fwrite(&header, sizeof(header), 1, fp) != 1) {
+        free(mpq);
         fclose(fp);
         return FALSE;
     }
@@ -1076,6 +1149,17 @@ BOOL SFileAddFile(HANDLE archive, LPCSTR sourceFile, LPCSTR archivedName)
     ok = WriterAddData(mpq, name, buffer, (DWORD)size);
     free(buffer);
     return ok;
+}
+
+BOOL SFileAddFileFromBuffer(HANDLE archive, LPCSTR archivedName, const void *data, DWORD size)
+{
+    MPQ_ARCHIVE *mpq = (MPQ_ARCHIVE *)archive;
+
+    if (!mpq || !mpq->write_mode || !archivedName || (size > 0 && !data)) {
+        return FALSE;
+    }
+
+    return WriterAddData(mpq, archivedName, (const BYTE *)data, size);
 }
 
 BOOL SFileCloseArchive(HANDLE archive)
@@ -1147,7 +1231,7 @@ static BOOL SFileOpenFileDirect(HANDLE archive, LPCSTR fileName, DWORD searchSco
         }
     }
 
-    if (mpqfile->flags & MPQ_FILE_COMPRESS) {
+    if ((mpqfile->flags & MPQ_FILE_COMPRESS) && !(mpqfile->flags & MPQ_FILE_SINGLE_UNIT)) {
         DWORD sector_count;
         DWORD offset_count;
         MPQ_BLOCK_ENTRY *block;
@@ -1352,6 +1436,59 @@ BOOL SFileReadFile(HANDLE file, void *buffer, DWORD toRead, LPDWORD bytesRead, L
         mpqfile->current_pos += actually_read;
         if (bytesRead) *bytesRead = actually_read;
         return actually_read > 0;
+    }
+
+    if (block->dwFlags & MPQ_FILE_SINGLE_UNIT) {
+        BYTE *compressed;
+        BYTE *whole_file;
+        DWORD bytes_in_file = 0;
+        BOOL ok;
+
+        compressed = (BYTE *)malloc(block->dwBlockSize ? block->dwBlockSize : 1);
+        whole_file = (BYTE *)malloc(mpqfile->file_size ? mpqfile->file_size : 1);
+        if (!compressed || !whole_file) {
+            free(compressed);
+            free(whole_file);
+            if (bytesRead) *bytesRead = 0;
+            return FALSE;
+        }
+
+        MpqSeek(mpq, block->dwBlockOffset);
+        if (MpqRead(mpq, compressed, block->dwBlockSize) != block->dwBlockSize) {
+            free(compressed);
+            free(whole_file);
+            if (bytesRead) *bytesRead = 0;
+            return FALSE;
+        }
+
+        ok = TryInflateSector(compressed, block->dwBlockSize, mpqfile->file_size, whole_file, &bytes_in_file);
+        if (!ok && (mpqfile->flags & MPQ_FILE_ENCRYPTED)) {
+            DecryptBlock(compressed, block->dwBlockSize, mpqfile->file_key);
+            ok = TryInflateSector(compressed, block->dwBlockSize, mpqfile->file_size, whole_file, &bytes_in_file);
+        }
+        if (!ok && block->dwBlockSize >= mpqfile->file_size) {
+            memcpy(whole_file, compressed, mpqfile->file_size);
+            bytes_in_file = mpqfile->file_size;
+            ok = TRUE;
+        }
+
+        if (!ok || file_offset >= bytes_in_file) {
+            free(compressed);
+            free(whole_file);
+            if (bytesRead) *bytesRead = 0;
+            return FALSE;
+        }
+
+        if (toRead > bytes_in_file - file_offset) {
+            toRead = bytes_in_file - file_offset;
+        }
+        memcpy(dest, whole_file + file_offset, toRead);
+        mpqfile->current_pos += toRead;
+        if (bytesRead) *bytesRead = toRead;
+
+        free(compressed);
+        free(whole_file);
+        return TRUE;
     }
 
     // File is compressed - read through the sector offset table.

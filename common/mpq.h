@@ -45,6 +45,7 @@ BOOL SFileCloseArchive(HANDLE archive);
 
 BOOL SFileCreateArchive(LPCSTR filename, DWORD flags, DWORD maxFiles, HANDLE *archive);
 BOOL SFileAddFile(HANDLE archive, LPCSTR sourceFile, LPCSTR archivedName);
+BOOL SFileAddFileFromBuffer(HANDLE archive, LPCSTR archivedName, const void *data, DWORD size);
 
 BOOL SFileOpenFileEx(HANDLE archive, LPCSTR fileName, DWORD searchScope, HANDLE *file);
 BOOL SFileOpenFileFromArchiveMemory(BYTE *data, DWORD size, LPCSTR fileName, DWORD searchScope, HANDLE *file);
