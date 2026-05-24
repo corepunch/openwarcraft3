@@ -183,4 +183,5 @@ void G_ClientSetCameraPosition(LPEDICT ent, LPCVECTOR2 position) {
     if (ent->client->no_control)
         return;
     ent->client->camera.state.position = *position;
+    ent->client->camera.end_time = ent->client->camera.start_time;
 }

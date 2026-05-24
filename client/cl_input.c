@@ -36,6 +36,12 @@ static void CL_UpdateCameraDrag(float x, float y) {
 
     position.x = cl.viewDef.camerastate[0].origin.x + camera_drag.anchor.x - point.x;
     position.y = cl.viewDef.camerastate[0].origin.y + camera_drag.anchor.y - point.y;
+    cl.viewDef.camerastate[0].origin.x = position.x;
+    cl.viewDef.camerastate[0].origin.y = position.y;
+    cl.viewDef.camerastate[1].origin.x = position.x;
+    cl.viewDef.camerastate[1].origin.y = position.y;
+    cl.camera_prediction.active = true;
+    cl.camera_prediction.origin = position;
 
     MSG_WriteByte(&cls.netchan.message, clc_camera_position);
     MSG_WriteFloat(&cls.netchan.message, position.x);

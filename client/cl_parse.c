@@ -101,13 +101,27 @@ void CL_ParsePlayerInfo(LPSIZEBUF msg) {
     DWORD bits;
     DWORD plnum = MSG_ReadPlayerBits(msg, &bits);
     MSG_ReadDeltaPlayerState(msg, &cl.playerstate, plnum, bits);
+    VECTOR2 server_origin = cl.playerstate.origin;
+
     cl.viewDef.camerastate[1] = cl.viewDef.camerastate[0];
-    cl.viewDef.camerastate[0].origin.x = cl.playerstate.origin.x;
-    cl.viewDef.camerastate[0].origin.y = cl.playerstate.origin.y;
+    cl.viewDef.camerastate[0].origin.x = server_origin.x;
+    cl.viewDef.camerastate[0].origin.y = server_origin.y;
     cl.viewDef.camerastate[0].origin.z = 0;
     cl.viewDef.camerastate[0].viewquat = cl.playerstate.viewquat;
     cl.viewDef.camerastate[0].distance = cl.playerstate.distance;
     cl.viewDef.camerastate[0].fov = cl.playerstate.fov;
+
+    if (cl.camera_prediction.active) {
+        if (server_origin.x == cl.camera_prediction.origin.x &&
+            server_origin.y == cl.camera_prediction.origin.y) {
+            cl.camera_prediction.active = false;
+        } else {
+            cl.viewDef.camerastate[0].origin.x = cl.camera_prediction.origin.x;
+            cl.viewDef.camerastate[0].origin.y = cl.camera_prediction.origin.y;
+            cl.viewDef.camerastate[1].origin.x = cl.camera_prediction.origin.x;
+            cl.viewDef.camerastate[1].origin.y = cl.camera_prediction.origin.y;
+        }
+    }
 }
 
 /* Receive an svc_layout message from the server.  The server serializes the

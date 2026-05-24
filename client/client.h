@@ -88,6 +88,10 @@ struct client_state {
     struct frame frame;
     VECTOR2 startingPosition;
     PLAYER playerstate;
+    struct {
+        BOOL active;
+        VECTOR2 origin;
+    } camera_prediction;
     LPENTITYSTATE cursorEntity;
     LPCMODEL moveConfirmation;
     DWORD num_entities;

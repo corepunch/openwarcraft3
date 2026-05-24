@@ -20,6 +20,10 @@ This codebase is inspired by **Quake 2**. The developer working on this project 
 - Runtime modules communicate through function tables (`R_GetAPI`, `UI_GetAPI`, game imports/exports). Prefer this boundary over direct cross-module dependencies.
 - Use cvars for runtime choices: `r_module`, `ui_module`, `g_module`, `ui_start_route`, `net_enabled`, and `com_frame_limit`.
 
+## Network State Contracts
+
+- Do not casually add fields to `entityState_t`. It is a network snapshot/delta contract, so every new field increases protocol surface, bandwidth, baseline/delta behavior, save/load assumptions, and renderer/client coupling. Adding a field must be extremely well justified and should only happen after considering narrower alternatives such as existing state fields, configstrings, typed UI payloads, game-side state, or explicit commands.
+
 ## Engine/Game Boundary (Strict)
 
 - Engine modules (`renderer/`, `client/`, `common/`, `server/` core paths) must remain game-agnostic.
