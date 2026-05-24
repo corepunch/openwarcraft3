@@ -215,10 +215,32 @@ static LPCSTR CL_UIGetLoadingMap(void) {
     return cl.loading_map;
 }
 
+static LPCSTR CL_UIGetLoadingStatus(void) {
+    return cl.loading_status;
+}
+
+static FLOAT CL_UIGetLoadingProgress(void) {
+    return cl.loading_progress;
+}
+
 void CL_BeginLoadingMap(LPCSTR mapName) {
     snprintf(cl.loading_map, sizeof(cl.loading_map), "%s", mapName ? mapName : "");
+    cl.loading_status[0] = '\0';
+    cl.loading_progress = 0.0f;
     cl.playerstate.client_ui_state = CLIENT_UI_LOADING;
     cls.state = ca_loading;
+}
+
+void CL_LoadingUpdate(LPCSTR status, FLOAT progress) {
+    if (status && *status) {
+        snprintf(cl.loading_status, sizeof(cl.loading_status), "%s", status);
+    }
+    if (progress < 0.0f) {
+        progress = 0.0f;
+    } else if (progress > 1.0f) {
+        progress = 1.0f;
+    }
+    cl.loading_progress = progress;
 }
 
 /* Public wrapper for UI library and input system (Phase 8.6) */
@@ -327,6 +349,8 @@ void CL_Init(void) {
         .ServerCommand = CL_UIServerCommand,
         .Cvar_String = Cvar_String,
         .GetLoadingMap = CL_UIGetLoadingMap,
+        .GetLoadingStatus = CL_UIGetLoadingStatus,
+        .GetLoadingProgress = CL_UIGetLoadingProgress,
         .GetPlayerState = CL_UIGetPlayerState,
         .GetNumEntities = CL_UIGetNumEntities,
         .GetEntity = CL_UIGetEntity,

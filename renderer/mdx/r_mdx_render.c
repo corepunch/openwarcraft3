@@ -148,7 +148,8 @@ static LPCSTR mdx_fs =
 static bool R_InitUIModelView(LPCMODEL model,
                               viewDef_t *viewdef,
                               renderEntity_t *entity,
-                              mdxSequence_t const *seq) {
+                              mdxSequence_t const *seq,
+                              FLOAT frame_ratio) {
     if (!model || !model->mdx) {
         return false;
     }
@@ -162,7 +163,21 @@ static bool R_InitUIModelView(LPCMODEL model,
         return false;
     }
 
-    {
+    if (frame_ratio >= 0.0f) {
+        DWORD seq_len = seq->interval[1] - seq->interval[0];
+
+        if (seq_len == 0) {
+            seq_len = 1;
+        }
+        if (frame_ratio > 1.0f) {
+            frame_ratio = 1.0f;
+        }
+        entity->frame = seq->interval[0] + (DWORD)((FLOAT)(seq_len - 1) * frame_ratio);
+        if (entity->frame >= seq->interval[1]) {
+            entity->frame = seq->interval[1] - 1;
+        }
+        entity->oldframe = entity->frame;
+    } else {
         DWORD seq_len = seq->interval[1] - seq->interval[0];
         if (seq_len == 0) {
             seq_len = 1;
@@ -268,7 +283,7 @@ static mdxSequence_t const *R_SelectUISequence(mdxModel_t const *mdx, LPCSTR ani
     if (anim && anim[0] == '#') {
         char *end = NULL;
         unsigned long index = strtoul(sequence, &end, 10);
-        if (end && *end == '\0' && index < (unsigned long)mdx->num_sequences) {
+        if (end && (*end == '\0' || *end == '@') && index < (unsigned long)mdx->num_sequences) {
             seq = &mdx->sequences[index];
         }
     } else if (anim && *anim) {
@@ -278,6 +293,31 @@ static mdxSequence_t const *R_SelectUISequence(mdxModel_t const *mdx, LPCSTR ani
         seq = &mdx->sequences[0];
     }
     return seq;
+}
+
+static FLOAT R_UISequenceFrameRatio(LPCSTR anim) {
+    LPCSTR ratio;
+    char *end = NULL;
+    FLOAT value;
+
+    if (!anim) {
+        return -1.0f;
+    }
+    ratio = strchr(anim, '@');
+    if (!ratio) {
+        return -1.0f;
+    }
+    value = strtof(ratio + 1, &end);
+    if (end == ratio + 1) {
+        return -1.0f;
+    }
+    if (value < 0.0f) {
+        return 0.0f;
+    }
+    if (value > 1.0f) {
+        return 1.0f;
+    }
+    return value;
 }
 
 void R_DrawPortrait(LPCMODEL model, LPCRECT viewport, LPCSTR anim) {
@@ -297,7 +337,7 @@ void R_DrawPortrait(LPCMODEL model, LPCRECT viewport, LPCSTR anim) {
     float viewport_height = viewport->h * tr.drawableSize.height;
     float aspect = viewport_height > 0.0f ? viewport_width / viewport_height : 1.0f;
 
-    if (!R_InitUIModelView(model, &viewdef, &entity, seq)) {
+    if (!R_InitUIModelView(model, &viewdef, &entity, seq, R_UISequenceFrameRatio(anim))) {
         return;
     }
 
@@ -332,7 +372,7 @@ void R_DrawSprite(LPCMODEL model, LPCSTR anim, float x, float y) {
     mdxModel_t const *mdx = model->mdx;
     mdxSequence_t const *seq = R_SelectUISequence(mdx, anim);
 
-    if (!R_InitUIModelView(model, &viewdef, &entity, seq)) {
+    if (!R_InitUIModelView(model, &viewdef, &entity, seq, R_UISequenceFrameRatio(anim))) {
         return;
     }
 

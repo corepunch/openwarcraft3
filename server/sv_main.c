@@ -16,6 +16,15 @@ struct game_export *ge;
 struct server sv;
 struct server_static svs;
 
+static BOOL SV_HasSpawnedClient(void) {
+    FOR_LOOP(i, svs.num_clients) {
+        if (svs.clients[i].state == cs_spawned) {
+            return true;
+        }
+    }
+    return false;
+}
+
 void SV_WriteConfigString(LPSIZEBUF msg, DWORD i) {
     MSG_WriteByte(msg, svc_configstring);
     MSG_WriteShort(msg, i);
@@ -123,9 +132,6 @@ int SV_ModelIndex(LPCSTR name) {
         strcpy(mdl, ".mdx");
     }
     int modelindex = SV_FindIndex(model_filename, CS_MODELS, MAX_MODELS, true);
-    if (!sv.models[modelindex]) {
-        sv.models[modelindex] = SV_LoadModel(sv.configstrings[CS_MODELS + modelindex]);
-    }
 #if 0
     if (!strstr(name, "Doodads\\")) {
         printf("%s\n", name);
@@ -177,6 +183,10 @@ void SV_Frame(DWORD msec) {
     SV_ReadPackets();
     
     if (svs.realtime < sv.time) {
+        return;
+    }
+
+    if (!SV_HasSpawnedClient()) {
         return;
     }
 

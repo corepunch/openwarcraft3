@@ -360,8 +360,18 @@ struct cmodel *SV_LoadModel(LPCSTR filename) {
 
 LPCANIMATION SV_GetAnimation(DWORD modelindex, LPCSTR animname) {
     struct cmodel *model = sv.models[modelindex];
-    if (!model)
+    if (sv.state == ss_loading) {
         return NULL;
+    }
+    if (!model) {
+        if (modelindex >= MAX_MODELS || !*sv.configstrings[CS_MODELS + modelindex]) {
+            return NULL;
+        }
+        model = sv.models[modelindex] = SV_LoadModel(sv.configstrings[CS_MODELS + modelindex]);
+        if (!model) {
+            return NULL;
+        }
+    }
     DWORD hash = fnv1a32(animname);
     FOR_LOOP(i, model->num_animations) {
         LPANIMATION anim = model->animations+i;

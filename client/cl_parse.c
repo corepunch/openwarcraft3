@@ -108,9 +108,6 @@ void CL_ParsePlayerInfo(LPSIZEBUF msg) {
     cl.viewDef.camerastate[0].viewquat = cl.playerstate.viewquat;
     cl.viewDef.camerastate[0].distance = cl.playerstate.distance;
     cl.viewDef.camerastate[0].fov = cl.playerstate.fov;
-    if (cl.playerstate.client_ui_state == CLIENT_UI_LOADING && cls.state == ca_active) {
-        cl.playerstate.client_ui_state = CLIENT_UI_GAME;
-    }
 }
 
 /* Receive an svc_layout message from the server.  The server serializes the
@@ -182,11 +179,13 @@ void CL_ParseCursor(LPSIZEBUF msg) {
 void CL_MirrorMessage(LPSIZEBUF msg) {
     char buf[256] = { 0 };
     MSG_ReadString(msg, buf);
-    MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
-    MSG_WriteString(&cls.netchan.message, buf);
     if (!strcmp(buf, "begin")) {
         cls.state = *cl.configstrings[CS_WORLD] ? ca_active : ca_connected;
+        cl.pending_begin = true;
+        return;
     }
+    MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
+    MSG_WriteString(&cls.netchan.message, buf);
 }
 
 /* Dispatch loop for a complete server message buffer.  Each iteration reads

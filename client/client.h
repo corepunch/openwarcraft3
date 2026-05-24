@@ -76,6 +76,9 @@ struct client_state {
     LPCFONT fonts[MAX_FONTSTYLES];
     PATHSTR configstrings[MAX_CONFIGSTRINGS];
     PATHSTR loading_map;
+    char loading_status[128];
+    FLOAT loading_progress;
+    BOOL pending_begin;
     centity_t ents[MAX_CLIENT_ENTITIES];
     HANDLE layout[MAX_LAYOUT_LAYERS];
     
@@ -108,6 +111,7 @@ void CL_Connect(LPCSTR host, unsigned short port);
 void CL_SetMenuBindings(void);
 void CL_SetGameplayBindings(void);
 void CL_BeginLoadingMap(LPCSTR mapName);
+void CL_LoadingUpdate(LPCSTR status, FLOAT progress);
 void CL_RequestUnitUI(DWORD num_selected, DWORD *entity_nums);
 
 void V_RenderView(void);

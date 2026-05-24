@@ -301,6 +301,8 @@ static void UI_InitLoadingScreen(void) {
 }
 
 static void UI_DrawLoadingScreen(void) {
+    FLOAT loading_progress = uiimport.GetLoadingProgress ? uiimport.GetLoadingProgress() : 0.0f;
+
     UI_UpdateLoadingMapInfo();
 
     if (!loading_frame) {
@@ -313,7 +315,7 @@ static void UI_DrawLoadingScreen(void) {
         loading_background->Portrait.model = loading_state.background_model;
     }
     if (loading_bar) {
-        snprintf(loading_bar->TextStorage, sizeof(loading_bar->TextStorage), "#0");
+        snprintf(loading_bar->TextStorage, sizeof(loading_bar->TextStorage), "#0@%.4f", loading_progress);
         loading_bar->Text = loading_bar->TextStorage;
         loading_bar->Portrait.model = loading_state.progress_model;
     }
