@@ -309,6 +309,8 @@ static void R_SetupGL(bool drawLight) {
     R_Call(glUniformMatrix4fv, tr.shader[SHADER_UI]->uViewProjectionMatrix, 1, GL_FALSE, ui_matrix.v);
     R_Call(glUniformMatrix4fv, tr.shader[SHADER_UI]->uModelMatrix, 1, GL_FALSE, model_matrix.v);
     
+    R_Call(glEnable, GL_DEPTH_TEST);
+    R_Call(glDepthMask, GL_TRUE);
     R_Call(glDepthFunc, GL_LEQUAL);
 
 #ifdef USE_SHADOWMAPS

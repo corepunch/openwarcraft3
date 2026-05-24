@@ -188,6 +188,9 @@ void R_DrawWorld(void) {
         return;
 
     R_Call(glUseProgram, tr.shader[SHADER_DEFAULT]->progid);
+    R_Call(glEnable, GL_DEPTH_TEST);
+    R_Call(glDepthMask, GL_TRUE);
+    R_Call(glDepthFunc, GL_LEQUAL);
     
 #ifdef DEBUG_PATHFINDING
     R_BindTexture(pathTexture, 1);
@@ -210,4 +213,5 @@ void R_DrawAlphaSurfaces(void) {
     FOR_EACH_LIST(MAPSEGMENT, segment, g_mapSegments) {
         R_DrawSegment(segment, (1 << MAPLAYERTYPE_WATER));
     }
+    R_Call(glDepthMask, GL_TRUE);
 }

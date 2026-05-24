@@ -102,8 +102,13 @@ void M_MoveFrame(LPEDICT self) {
         return;
     umove_t const *move = self->currentmove;
     LPCANIMATION anim = self->animation;
-    if (!anim)
-        return;
+    if (!anim) {
+        unit_setmove(self, self->currentmove);
+        anim = self->animation;
+        if (!anim) {
+            return;
+        }
+    }
     DWORD next_frame = self->s.frame + FRAMETIME;
     if (!strcmp(anim->name, "birth")) {
         DWORD anim_len = anim->interval[1] - anim->interval[0];
