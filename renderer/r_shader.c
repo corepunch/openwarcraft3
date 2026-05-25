@@ -82,8 +82,12 @@ LPCSTR fs_default =
 "    return;\n"
 #endif
 "    vec4 col = texture(uTexture, v_texcoord) * v_color;\n"
+#ifdef WOW
+"    o_color = col;\n"
+#else
 "    col.rgb *= get_fogofwar() * get_lighting();\n"
 "    o_color = col;\n"
+#endif
 "}\n";
 
 LPCSTR fs_ui =

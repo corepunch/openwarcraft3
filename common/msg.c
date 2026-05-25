@@ -29,6 +29,7 @@ netField_t entityStateFields[] = {
     { NETF(entityState_t, class_id), NFT_LONG },
     { NETF(entityState_t, origin), NFT_VECTOR3 },
     { NETF(entityState_t, angle), NFT_ANGLE },
+    { NETF(entityState_t, rotation), NFT_VECTOR3 },
     { NETF(entityState_t, scale), NFT_PACKED_FLOAT },
     { NETF(entityState_t, frame), NFT_LONG },
     { NETF(entityState_t, model), NFT_SHORT },
@@ -144,6 +145,7 @@ void MSG_Write(LPSIZEBUF buf, LPCVOID value, DWORD size) {
                 (unsigned)size,
                 (unsigned)buf->cursize,
                 (unsigned)buf->maxsize);
+        buf->overflowed = true;
         return;
     }
     memcpy(buf->data + buf->cursize, value, size);

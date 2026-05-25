@@ -27,6 +27,7 @@ typedef struct sizeBuf_s {
     DWORD maxsize;
     DWORD cursize;
     DWORD readcount;
+    BOOL overflowed;
 } sizeBuf_t;
 
 typedef struct {

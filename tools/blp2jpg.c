@@ -96,6 +96,150 @@ static uint8_t blp_alpha_at(uint8_t const *alpha, uint32_t i, uint32_t alpha_bit
     }
 }
 
+static rgba8_t dxt_color_565_to_rgba(uint16_t color, uint8_t alpha) {
+    uint8_t r = (uint8_t)(((color >> 11) & 0x1f) * 255 / 31);
+    uint8_t g = (uint8_t)(((color >> 5) & 0x3f) * 255 / 63);
+    uint8_t b = (uint8_t)((color & 0x1f) * 255 / 31);
+    return (rgba8_t) { r, g, b, alpha };
+}
+
+static void dxt_decode_color_block(uint8_t const *block, rgba8_t colors[4], bool four_color) {
+    uint16_t c0 = (uint16_t)(block[0] | (block[1] << 8));
+    uint16_t c1 = (uint16_t)(block[2] | (block[3] << 8));
+
+    colors[0] = dxt_color_565_to_rgba(c0, 255);
+    colors[1] = dxt_color_565_to_rgba(c1, 255);
+
+    if (four_color || c0 > c1) {
+        colors[2] = (rgba8_t){
+            (uint8_t)((2 * colors[0].r + colors[1].r) / 3),
+            (uint8_t)((2 * colors[0].g + colors[1].g) / 3),
+            (uint8_t)((2 * colors[0].b + colors[1].b) / 3),
+            255
+        };
+        colors[3] = (rgba8_t){
+            (uint8_t)((colors[0].r + 2 * colors[1].r) / 3),
+            (uint8_t)((colors[0].g + 2 * colors[1].g) / 3),
+            (uint8_t)((colors[0].b + 2 * colors[1].b) / 3),
+            255
+        };
+    } else {
+        colors[2] = (rgba8_t){
+            (uint8_t)((colors[0].r + colors[1].r) / 2),
+            (uint8_t)((colors[0].g + colors[1].g) / 2),
+            (uint8_t)((colors[0].b + colors[1].b) / 2),
+            255
+        };
+        colors[3] = (rgba8_t){ 0, 0, 0, 0 };
+    }
+}
+
+static void dxt_decode_alpha_dxt3(uint8_t const *block, uint8_t alpha[16]) {
+    for (uint32_t i = 0; i < 16; i++) {
+        uint8_t value = (uint8_t)((block[i / 2] >> ((i & 1) * 4)) & 0x0f);
+        alpha[i] = (uint8_t)((value << 4) | value);
+    }
+}
+
+static void dxt_decode_alpha_dxt5(uint8_t const *block, uint8_t alpha[16]) {
+    uint8_t table[8];
+    uint64_t bits = 0;
+
+    table[0] = block[0];
+    table[1] = block[1];
+    if (table[0] > table[1]) {
+        table[2] = (uint8_t)((6 * table[0] + 1 * table[1]) / 7);
+        table[3] = (uint8_t)((5 * table[0] + 2 * table[1]) / 7);
+        table[4] = (uint8_t)((4 * table[0] + 3 * table[1]) / 7);
+        table[5] = (uint8_t)((3 * table[0] + 4 * table[1]) / 7);
+        table[6] = (uint8_t)((2 * table[0] + 5 * table[1]) / 7);
+        table[7] = (uint8_t)((1 * table[0] + 6 * table[1]) / 7);
+    } else {
+        table[2] = (uint8_t)((4 * table[0] + 1 * table[1]) / 5);
+        table[3] = (uint8_t)((3 * table[0] + 2 * table[1]) / 5);
+        table[4] = (uint8_t)((2 * table[0] + 3 * table[1]) / 5);
+        table[5] = (uint8_t)((1 * table[0] + 4 * table[1]) / 5);
+        table[6] = 0;
+        table[7] = 255;
+    }
+
+    for (uint32_t i = 0; i < 6; i++) {
+        bits |= ((uint64_t)block[2 + i]) << (8 * i);
+    }
+    for (uint32_t i = 0; i < 16; i++) {
+        alpha[i] = table[(bits >> (3 * i)) & 7u];
+    }
+}
+
+static bool decode_blp2_dxt(blp2_header_t const *header, uint8_t const *payload, image_t *out) {
+    uint32_t blocks_x;
+    uint32_t blocks_y;
+    uint8_t const *src = payload;
+    uint8_t const *src_end = payload + header->lengths[0];
+
+    blocks_x = (header->width + 3) / 4;
+    blocks_y = (header->height + 3) / 4;
+
+    for (uint32_t by = 0; by < blocks_y; by++) {
+        for (uint32_t bx = 0; bx < blocks_x; bx++) {
+            uint8_t alpha[16];
+            rgba8_t colors[4];
+            uint8_t const *color_block;
+            uint32_t indices;
+            uint32_t block_size;
+
+            memset(alpha, 255, sizeof(alpha));
+            if (header->alpha_encoding == 1) {
+                block_size = 16;
+                if ((size_t)(src_end - src) < block_size) {
+                    fprintf(stderr, "BLP2 DXT3 block truncated\n");
+                    return false;
+                }
+                dxt_decode_alpha_dxt3(src, alpha);
+                color_block = src + 8;
+            } else if (header->alpha_encoding == 7) {
+                block_size = 16;
+                if ((size_t)(src_end - src) < block_size) {
+                    fprintf(stderr, "BLP2 DXT5 block truncated\n");
+                    return false;
+                }
+                dxt_decode_alpha_dxt5(src, alpha);
+                color_block = src + 8;
+            } else {
+                block_size = 8;
+                if ((size_t)(src_end - src) < block_size) {
+                    fprintf(stderr, "BLP2 DXT1 block truncated\n");
+                    return false;
+                }
+                color_block = src;
+            }
+            src += block_size;
+
+            dxt_decode_color_block(color_block, colors, header->alpha_encoding != 0);
+            indices = (uint32_t)(color_block[4] |
+                                 (color_block[5] << 8) |
+                                 (color_block[6] << 16) |
+                                 (color_block[7] << 24));
+
+            for (uint32_t py = 0; py < 4; py++) {
+                for (uint32_t px = 0; px < 4; px++) {
+                    uint32_t i = py * 4 + px;
+                    uint32_t x = bx * 4 + px;
+                    uint32_t y = by * 4 + py;
+                    rgba8_t color;
+                    if (x >= header->width || y >= header->height) {
+                        continue;
+                    }
+                    color = colors[(indices >> (2 * i)) & 3u];
+                    color.a = alpha[i];
+                    out->pixels[y * header->width + x] = color;
+                }
+            }
+        }
+    }
+    return true;
+}
+
 static bool decode_blp1_paletted(uint8_t const *data, size_t size, image_t *out) {
     blp1_header_t header;
     uint8_t const *palette;
@@ -198,6 +342,16 @@ static bool decode_blp2(uint8_t const *data, size_t size, image_t *out) {
             out->pixels[i] = (rgba8_t) { p[2], p[1], p[0], p[3] };
         }
         return true;
+    }
+
+    if (header.encoding == 2) {
+        bool ok;
+        ok = decode_blp2_dxt(&header, payload, out);
+        if (!ok) {
+            free(out->pixels);
+            out->pixels = NULL;
+        }
+        return ok;
     }
 
     fprintf(stderr, "Unsupported BLP2 encoding %u\n", header.encoding);

@@ -227,12 +227,21 @@ void CL_SetGameplayBindings(void) {
     cls.key_dest = key_game;
     cls.netchan.remote_address.type = NA_LOOPBACK;
     SDL_StopTextInput();
+#ifndef WOW
     cl.moveConfirmation = re.LoadModel("UI\\Feedback\\Confirmation\\Confirmation.mdx");
+#endif
 
+#ifdef WOW
+    cl.viewDef.camerastate[0].zfar = 16000;
+    cl.viewDef.camerastate[0].znear = 1;
+    cl.viewDef.camerastate[1].zfar = 16000;
+    cl.viewDef.camerastate[1].znear = 1;
+#else
     cl.viewDef.camerastate[0].zfar = 5000;
     cl.viewDef.camerastate[0].znear = 100;
     cl.viewDef.camerastate[1].zfar = 5000;
     cl.viewDef.camerastate[1].znear = 100;
+#endif
 
     Key_SetBinding(K_MOUSE1, "+select");
     Key_SetBinding('q', "cmd quests");

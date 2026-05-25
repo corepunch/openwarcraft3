@@ -312,14 +312,21 @@ void SZ_Init(LPSIZEBUF buf, BYTE *data, DWORD length) {
 
 void SZ_Clear(LPSIZEBUF buf) {
     buf->cursize = 0;
+    buf->overflowed = false;
 }
 
 HANDLE SZ_GetSpace(LPSIZEBUF buf, DWORD length) {
     if (buf->cursize + length > buf->maxsize) {
 //        if (length > buf->maxsize)
 //            Com_Error (ERR_FATAL, "SZ_GetSpace: %i is > full buffer size", length);
-        fprintf(stderr, "SZ_GetSpace: overflow\n");
+        fprintf(stderr,
+                "SZ_GetSpace: overflow length=%u cursize=%u maxsize=%u\n",
+                (unsigned)length,
+                (unsigned)buf->cursize,
+                (unsigned)buf->maxsize);
+        buf->overflowed = true;
         SZ_Clear(buf);
+        buf->overflowed = true;
     }
     HANDLE data = buf->data + buf->cursize;
     buf->cursize += length;

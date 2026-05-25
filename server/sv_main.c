@@ -84,10 +84,10 @@ static void SV_ReadPackets(void) {
     };
     netadr_t from;
     int r;
+    while ((r = NET_GetLoopPacket(NS_SERVER, &from, &net_message)) != 0) {
+        SV_ProcessPacket(&from, &net_message, r);
+    }
     if (sv.state == ss_dead) {
-        while ((r = NET_GetLoopPacket(NS_SERVER, &from, &net_message)) != 0) {
-            SV_ProcessPacket(&from, &net_message, r);
-        }
         while ((r = NET_GetPacket(NS_SERVER, &from, &net_message)) != 0) {
             SV_ProcessPacket(&from, &net_message, r);
         }
@@ -126,7 +126,11 @@ int SV_ModelIndex(LPCSTR name) {
 //    }
     PATHSTR model_filename = { 0 };
     strcpy(model_filename, name);
-    if (!strstr(model_filename, ".mdx")) {
+    if (!strstr(model_filename, ".mdx")
+#ifdef WOW
+        && !strstr(model_filename, ".m2")
+#endif
+    ) {
         LPSTR mdl = strstr(model_filename, ".mdl");
         mdl = mdl ? mdl : (model_filename + strlen(model_filename));
         strcpy(mdl, ".mdx");

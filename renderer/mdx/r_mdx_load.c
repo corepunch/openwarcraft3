@@ -254,6 +254,8 @@ void R_ReleaseModelNode(mdxNode_t *node) {
 void R_ReleaseModel(LPMODEL model) {
     if (model->modeltype == ID_MDLX) {
         MDLX_Release(model->mdx);
+    } else if (model->modeltype == ID_MD20) {
+        M2_Release(model->m2);
     }
     ri.MemFree(model);
 }

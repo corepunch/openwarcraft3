@@ -10,6 +10,12 @@ static struct {
 
 static bool world_loaded = false;
 
+#ifdef WOW
+#define CL_MODEL_LOADS_PER_FRAME 32
+#else
+#define CL_MODEL_LOADS_PER_FRAME 1
+#endif
+
 VECTOR3 lightAngles = {-40,0,60};
 
 static DWORD CL_CountConfigstrings(DWORD start, DWORD max) {
@@ -119,7 +125,11 @@ void Matrix4_getCameraMatrix(LPMATRIX4 output) {
     FLOAT znear = LerpNumber(a->znear, b->znear, cl.viewDef.lerpfrac);
     FLOAT zfar = LerpNumber(a->zfar, b->zfar, cl.viewDef.lerpfrac);
     
+#ifdef WOW
+    origin.z = CM_GetHeightAtPoint(origin.x, origin.y) + 1.6f;
+#else
     origin.z = CM_GetHeightAtPoint(origin.x, origin.y) - 128;
+#endif
 
     Matrix4_perspective(&proj, fov, aspect, znear, zfar);
     Matrix4_fromViewQuat(&origin, &quat, distance, &view);
@@ -152,6 +162,7 @@ static void V_AddClientEntity(centity_t const *ent) {
     
     re.origin = Vector3_lerp(&ent->prev.origin, &ent->current.origin, cl.viewDef.lerpfrac);
     re.angle = LerpRotation(ent->prev.angle, ent->current.angle, cl.viewDef.lerpfrac);
+    re.rotation = Vector3_lerp(&ent->prev.rotation, &ent->current.rotation, cl.viewDef.lerpfrac);
     re.scale = LerpNumber(ent->prev.scale, ent->current.scale, cl.viewDef.lerpfrac);
     re.frame = ent->current.frame;
     re.oldframe = ent->prev.frame;
@@ -258,6 +269,7 @@ void CL_PrepRefresh(void) {
         loading_settle_frames = 0;
         world_loaded = false;
         snprintf(registered_map, sizeof(registered_map), "%s", cl.configstrings[CS_WORLD]);
+        fprintf(stderr, "CL_PrepRefresh: new world configstring %s\n", registered_map);
     }
 
     total_assets = 1 +
@@ -278,10 +290,17 @@ void CL_PrepRefresh(void) {
     
     if (!map_registered) {
         if (!map_load_announced) {
+            fprintf(stderr,
+                    "CL_PrepRefresh: loading world assets total=%u models=%u images=%u fonts=%u\n",
+                    (unsigned)total_assets,
+                    (unsigned)CL_CountConfigstrings(CS_MODELS, MAX_MODELS),
+                    (unsigned)CL_CountConfigstrings(CS_IMAGES, MAX_IMAGES),
+                    (unsigned)CL_CountConfigstrings(CS_FONTS, MAX_FONTSTYLES));
             CL_UpdateAssetLoadingProgress("Loading world", loaded_assets, total_assets);
             map_load_announced = true;
             return;
         }
+        fprintf(stderr, "CL_PrepRefresh: registering world %s\n", cl.configstrings[CS_WORLD]);
         re.RegisterMap(cl.configstrings[CS_WORLD]);
         map_registered = true;
         world_loaded = true;
@@ -295,6 +314,7 @@ void CL_PrepRefresh(void) {
         return;
     }
 
+    DWORD loaded_models_this_frame = 0;
     for (DWORD i = 1; i < MAX_MODELS; i++) {
         if (!*cl.configstrings[CS_MODELS + i])
             continue;
@@ -308,10 +328,30 @@ void CL_PrepRefresh(void) {
             sprintf(portrait + strlen(portrait), "_Portrait%s", ext);
         }
         cl.models[i] = re.LoadModel(filename);
+        if (!cl.models[i]) {
+            fprintf(stderr,
+                    "CL_PrepRefresh: model configstring %u failed to load: %s\n",
+                    (unsigned)i,
+                    filename);
+        } else if ((i % 25) == 0) {
+            fprintf(stderr,
+                    "CL_PrepRefresh: loaded model %u/%u: %s\n",
+                    (unsigned)CL_CountLoadedConfigstrings(CS_MODELS, MAX_MODELS, (HANDLE const *)cl.models),
+                    (unsigned)CL_CountConfigstrings(CS_MODELS, MAX_MODELS),
+                    filename);
+        }
         if (portrait[0] && FS_FileExists(portrait)) {
             cl.portraits[i] = re.LoadModel(portrait);
         }
-        CL_UpdateAssetLoadingProgress("Loading models", loaded_assets + 1, total_assets);
+        loaded_assets++;
+        loaded_models_this_frame++;
+        if (loaded_models_this_frame >= CL_MODEL_LOADS_PER_FRAME) {
+            CL_UpdateAssetLoadingProgress("Loading models", loaded_assets, total_assets);
+            return;
+        }
+    }
+    if (loaded_models_this_frame > 0) {
+        CL_UpdateAssetLoadingProgress("Loading models", loaded_assets, total_assets);
         return;
     }
     
@@ -398,7 +438,11 @@ void V_RenderView(void) {
     cl.viewDef.lerpfrac = (FLOAT)(cl.time - cl.frame.servertime) / FRAMETIME;
     cl.viewDef.lerpfrac = MAX(0.0f, MIN(1.0f, cl.viewDef.lerpfrac));
     cl.viewDef.viewport = (RECT) { 0, 0, 1, 1 };
+#ifdef WOW
+    cl.viewDef.scissor = (RECT) { 0, 0, 1, 1 };
+#else
     cl.viewDef.scissor = (RECT) { 0, 0.22, 1, 0.76 };
+#endif
     cl.viewDef.time = cl.time;
     cl.viewDef.deltaTime = cl.time - lastTime;
     cl.viewDef.rdflags = cl.playerstate.rdflags;

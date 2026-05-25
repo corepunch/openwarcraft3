@@ -198,6 +198,27 @@ LPMODEL R_LoadModel(LPCSTR modelFilename) {
             fileSize = ri.FS_ReadFile(tempFileName, &buffer);
         }
         if (fileSize < 0 || !buffer) {
+#ifdef WOW
+            if (R_PathHasExtension(modelFilename, ".mdx")) {
+                PATHSTR tempFileName = { 0 };
+                LPSTR ext = strstr(modelFilename, ".mdx");
+                strncpy(tempFileName, modelFilename, ext - modelFilename);
+                strcpy(tempFileName + strlen(tempFileName), ".m2");
+                fileSize = ri.FS_ReadFile(tempFileName, &buffer);
+            }
+#endif
+        }
+        if (fileSize < 0 || !buffer) {
+#ifdef WOW
+            if (R_PathHasExtension(modelFilename, ".m2") || R_PathHasExtension(modelFilename, ".mdx")) {
+                fprintf(stderr, "R_LoadModel: missing WoW model %s, using fallback\n", modelFilename);
+                model = ri.MemAlloc(sizeof(model_t));
+                memset(model, 0, sizeof(*model));
+                model->m2 = R_LoadModelM2(modelFilename, NULL, 0);
+                model->modeltype = ID_MD20;
+                return model;
+            }
+#endif
             fprintf(stderr, "Model not found: %s\n", modelFilename);
             return NULL;
         }
@@ -212,6 +233,17 @@ LPMODEL R_LoadModel(LPCSTR modelFilename) {
             model = ri.MemAlloc(sizeof(model_t));
             model->m3 = R_LoadModelM3(buffer, fileSize);
             model->modeltype = ID_43DM;
+            break;
+        case ID_MD20:
+        case ID_MD21:
+        case ID_12DM:
+            model = ri.MemAlloc(sizeof(model_t));
+            model->m2 = R_LoadModelM2(modelFilename, buffer, fileSize);
+            model->modeltype = ID_MD20;
+            if (!model->m2) {
+                ri.MemFree(model);
+                model = NULL;
+            }
             break;
         default:
             if (strstr(modelFilename, ".mdl")) {
@@ -452,6 +484,7 @@ void R_Init(DWORD width, DWORD height) {
     extern LPCSTR fs_alphatest;
     extern LPCSTR fs_commandbutton;
     
+#ifndef WOW
     FOR_LOOP(i, MODEL_COUNT) {
         tr.model[i] = R_LoadModel(modelNames[i]);
     }
@@ -470,6 +503,7 @@ void R_Init(DWORD width, DWORD height) {
         tr.texture[TEX_TEAM_GLOW + team] = R_LoadTexture(glowFilename);
         tr.texture[TEX_TEAM_COLOR + team] = R_LoadTexture(colorFilename);
     }
+#endif
 
     tr.shader[SHADER_DEFAULT] = R_InitShader(vs_default, fs_default);
     tr.shader[SHADER_UI] = R_InitShader(vs_default, fs_ui);
@@ -482,7 +516,9 @@ void R_Init(DWORD width, DWORD height) {
     tr.texture[TEX_WHITE] = R_AllocateSinglePixelTexture(0xffffffff);
     tr.texture[TEX_BLACK] = R_AllocateSinglePixelTexture(0xff000000);
     tr.texture[TEX_LOADING_INDICATOR] = R_MakeLoadingIndicatorTexture();
+#ifndef WOW
     tr.texture[TEX_WATER] = R_LoadTexture("ReplaceableTextures\\Water\\Water12.blp");
+#endif
     tr.texture[TEX_FONT] = R_MakeSysFontTexture();
 #ifdef USE_SHADOWMAPS
     tr.rt[RT_DEPTHMAP] = R_AllocateRenderTexture(SHADOW_TEXSIZE, SHADOW_TEXSIZE, GL_DEPTH_COMPONENT, GL_FLOAT, GL_DEPTH_ATTACHMENT);

@@ -3,7 +3,30 @@
 void R_GetEntityMatrix(renderEntity_t const *entity, LPMATRIX4 matrix) {
     Matrix4_identity(matrix);
     Matrix4_translate(matrix, &entity->origin);
-    Matrix4_rotate(matrix, &(VECTOR3){0, 0, entity->angle * 180 / M_PI}, ROTATE_XYZ);
+    if (entity->model && entity->model->modeltype == ID_MD20) {
+        MATRIX4 adt_to_world_basis;
+        MATRIX4 tmp;
+
+        Matrix4_identity(&adt_to_world_basis);
+        adt_to_world_basis.v[0] = 0.0f;
+        adt_to_world_basis.v[1] = -1.0f;
+        adt_to_world_basis.v[2] = 0.0f;
+        adt_to_world_basis.v[4] = 0.0f;
+        adt_to_world_basis.v[5] = 0.0f;
+        adt_to_world_basis.v[6] = 1.0f;
+        adt_to_world_basis.v[8] = -1.0f;
+        adt_to_world_basis.v[9] = 0.0f;
+        adt_to_world_basis.v[10] = 0.0f;
+        Matrix4_multiply(matrix, &adt_to_world_basis, &tmp);
+        *matrix = tmp;
+
+        Matrix4_scale(matrix, &(VECTOR3){ -1.0f, 1.0f, -1.0f });
+        Matrix4_rotate(matrix, &(VECTOR3){ 0.0f, entity->rotation.y - 270.0f, 0.0f }, ROTATE_XYZ);
+        Matrix4_rotate(matrix, &(VECTOR3){ 0.0f, 0.0f, -entity->rotation.x }, ROTATE_XYZ);
+        Matrix4_rotate(matrix, &(VECTOR3){ entity->rotation.z - 90.0f, 0.0f, 0.0f }, ROTATE_XYZ);
+    } else {
+        Matrix4_rotate(matrix, &(VECTOR3){0, 0, entity->angle * 180 / M_PI}, ROTATE_XYZ);
+    }
     Matrix4_scale(matrix, &(VECTOR3){entity->scale, entity->scale, entity->scale});
 }
 
@@ -197,6 +220,9 @@ void R_RenderModel(renderEntity_t const *entity) {
             break;
         case ID_43DM:
             M3_RenderModel(entity, entity->model->m3, &transform);
+            break;
+        case ID_MD20:
+            M2_RenderModel(entity, entity->model->m2, &transform);
             break;
     }
     

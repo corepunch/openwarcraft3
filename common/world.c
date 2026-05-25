@@ -773,6 +773,19 @@ void CM_ReadMapScript(HANDLE archive) {
 }
 
 bool CM_LoadMap(LPCSTR mapFilename) {
+#ifdef WOW
+    memset(&world, 0, sizeof(world));
+    if (mapFilename) {
+        size_t len = strlen(mapFilename);
+        world.info.mapName = MemAlloc(len + 1);
+        memcpy(world.info.mapName, mapFilename, len + 1);
+    }
+    world.info.players[0].used = true;
+    world.info.players[0].playerType = kPlayerTypeHuman;
+    world.info.players[0].startingPosition = (VECTOR2){ WOW_START_POSITION_X, WOW_START_POSITION_Y };
+    (void)mapFilename;
+    return true;
+#else
     HANDLE mapArchive;
     HANDLE mapData;
     DWORD mapSize = 0;
@@ -828,6 +841,7 @@ bool CM_LoadMap(LPCSTR mapFilename) {
     SFileCloseArchive(mapArchive);
     MemFree(mapData);
     return true;
+#endif
 }
 
 static LPCWAR3MAPVERTEX CM_GetWar3MapVertex(DWORD x, DWORD y) {
@@ -841,6 +855,11 @@ static FLOAT CM_GetWar3MapVertexHeight(LPCWAR3MAPVERTEX vert) {
 }
 
 FLOAT CM_GetHeightAtPoint(FLOAT sx, FLOAT sy) {
+#ifdef WOW
+    (void)sx;
+    (void)sy;
+    return WOW_START_POSITION_Z;
+#else
     FLOAT x = (sx - world.map->center.x) / TILE_SIZE;
     FLOAT y = (sy - world.map->center.y) / TILE_SIZE;
     FLOAT fx = floorf(x);
@@ -852,6 +871,7 @@ FLOAT CM_GetHeightAtPoint(FLOAT sx, FLOAT sy) {
     FLOAT ab = LerpNumber(a, b, x - fx);
     FLOAT cd = LerpNumber(c, d, x - fx);
     return LerpNumber(ab, cd, y - fy);
+#endif
 }
 
 LPDOODAD CM_GetDoodads(void) {
@@ -877,15 +897,23 @@ LPCMAPINFO CM_GetMapInfo(void) {
 }
 
 VECTOR2 CM_GetNormalizedMapPosition(FLOAT x, FLOAT y) {
+#ifdef WOW
+    return (VECTOR2){ x, y };
+#else
     FLOAT _x = (x - world.map->center.x) / ((world.map->width-1) * TILE_SIZE);
     FLOAT _y = (y - world.map->center.y) / ((world.map->height-1) * TILE_SIZE);
     return (VECTOR2) { _x, _y };
+#endif
 }
 
 VECTOR2 CM_GetDenormalizedMapPosition(FLOAT x, FLOAT y) {
+#ifdef WOW
+    return (VECTOR2){ x, y };
+#else
     FLOAT _x = x * (world.map->width-1) * TILE_SIZE + world.map->center.x;
     FLOAT _y = y * (world.map->height-1) * TILE_SIZE + world.map->center.y;
     return (VECTOR2) { _x, _y };
+#endif
 }
 
 void CM_ReleaseModel(void) {
@@ -893,10 +921,18 @@ void CM_ReleaseModel(void) {
 }
 
 BOX2 CM_GetWorldBounds(void) {
+#ifdef WOW
+    float const half = 32.0f * WOW_TILE_SIZE;
+    return (BOX2){
+        .min = { -half, -half },
+        .max = { half, half },
+    };
+#else
     return MAKE(BOX2,
                 .min = world.map->center,
                 .max = {
                     .x = (world.map->width-1) *  TILE_SIZE + world.map->center.x,
                     .y = (world.map->height-1) * TILE_SIZE + world.map->center.y,
                 });
+#endif
 }

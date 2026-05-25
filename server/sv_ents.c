@@ -19,6 +19,11 @@
  * Always true for the client's own player-owned entities; otherwise based
  * on a simple distance check against the client's camera position. */
 static bool SV_CanClientSeeEntity(LPCCLIENT client, LPCENTITYSTATE edict) {
+#ifdef WOW
+    (void)client;
+    (void)edict;
+    return true;
+#else
     edict_t *clent = client->edict;
     if (edict->player == clent->client->ps.number)
         return true;
@@ -27,6 +32,7 @@ static bool SV_CanClientSeeEntity(LPCCLIENT client, LPCENTITYSTATE edict) {
     if (fabs(edict->origin.y - clent->client->ps.origin.y) > VISUAL_DISTANCE)
         return false;
     return true;
+#endif
 }
 
 LPENTITYSTATE SV_NextClientEntity(void) {
@@ -57,6 +63,14 @@ void SV_BuildClientFrame(LPCLIENT client) {
             continue;
         if (!SV_CanClientSeeEntity(client, &edict->s) && index > ge->max_clients)
             continue;
+        if (frame->num_entities >= MAX_PACKET_ENTITIES) {
+#ifdef WOW
+            fprintf(stderr,
+                    "SV_BuildClientFrame: hit WOW MAX_PACKET_ENTITIES=%u; remaining entities will be dropped from this frame\n",
+                    (unsigned)MAX_PACKET_ENTITIES);
+#endif
+            break;
+        }
         LPENTITYSTATE state = SV_NextClientEntity();
         *state = edict->s;
         if (edict->selected & (1 << clent->client->ps.number)) {
@@ -140,6 +154,7 @@ void SV_WritePlayerstateToClient(LPCCLIENTFRAME from, LPCCLIENTFRAME to, LPSIZEB
 void SV_WriteFrameToClient(LPCLIENT client) {
     LPCLIENTFRAME frame = &client->frames[sv.framenum & UPDATE_MASK];
     LPCLIENTFRAME oldframe = &client->frames[client->lastframe & UPDATE_MASK];
+    DWORD start_size = client->netchan.message.cursize;
 
     MSG_WriteByte(&client->netchan.message, svc_frame);
     MSG_WriteLong(&client->netchan.message, sv.framenum);
@@ -151,5 +166,17 @@ void SV_WriteFrameToClient(LPCLIENT client) {
 
     client->lastframe = sv.framenum;
 
+    if (client->netchan.message.overflowed ||
+        client->netchan.message.cursize + 1024 >= client->netchan.message.maxsize) {
+        fprintf(stderr,
+                "SV_WriteFrameToClient: frame=%u entities=%u old_entities=%u bytes=%u start=%u max=%u overflow=%d\n",
+                (unsigned)sv.framenum,
+                (unsigned)frame->num_entities,
+                (unsigned)oldframe->num_entities,
+                (unsigned)client->netchan.message.cursize,
+                (unsigned)start_size,
+                (unsigned)client->netchan.message.maxsize,
+                client->netchan.message.overflowed ? 1 : 0);
+    }
     Netchan_Transmit(NS_SERVER, &client->netchan);
 }

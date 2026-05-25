@@ -88,6 +88,7 @@ typedef enum t_attrib_id {
 
 struct texture;
 struct font;
+struct m2Model_s;
 
 typedef void (*xcommand_t)(void);
 
@@ -109,6 +110,7 @@ typedef struct model {
     unsigned int modeltype;
     struct mdxModel_s *mdx;
     struct m3Model_s *m3;
+    struct m2Model_s *m2;
 } model_t;
 
 KNOWN_AS(model, MODEL);

@@ -30,6 +30,16 @@
 
 #define BYTE2FLOAT(x) ((x)/255.f)
 
+#define WOW_TILE_SIZE 533.333313f
+#define WOW_CHUNK_SIZE (WOW_TILE_SIZE / 16.0f)
+#define WOW_UNIT_SIZE (WOW_CHUNK_SIZE / 8.0f)
+#define WOW_START_TILE_X 32
+#define WOW_START_TILE_Y 48
+/* Human playercreateinfo start: map 0, zone 12 (Northshire Valley). */
+#define WOW_START_POSITION_X (-8949.95f + WOW_TILE_SIZE * 0.5f)
+#define WOW_START_POSITION_Y (-132.493f + WOW_TILE_SIZE * 0.5f)
+#define WOW_START_POSITION_Z 83.5312f
+
 #define IS_FOURCC(STRING) (STRING && strlen(STRING) == 4)
 
 #define MAKE(TYPE,...)(TYPE){__VA_ARGS__}
@@ -143,8 +153,8 @@ enum {
 
 #define MAX_PACKET_ENTITIES 64
 #define MAX_CLIENTS 24
-#define MAX_FONTSTYLES 256
 #define MAX_MODELS 256
+#define MAX_FONTSTYLES 256
 #define MAX_SOUNDS 256
 #define MAX_IMAGES 256
 #define MAX_DYNAMIC_IMAGES 32
@@ -176,12 +186,16 @@ enum {
 
 #define ID_MDLX MAKEFOURCC('M','D','L','X')
 #define ID_43DM MAKEFOURCC('4','3','D','M')
+#define ID_MD20 MAKEFOURCC('M','D','2','0')
+#define ID_MD21 MAKEFOURCC('M','D','2','1')
+#define ID_12DM MAKEFOURCC('1','2','D','M')
 #define ID_BLP1 MAKEFOURCC('B','L','P','1')
 #define ID_BLP2 MAKEFOURCC('B','L','P','2')
 #define ID_DDS  MAKEFOURCC('D','D','S','\40')
 
 typedef struct m3Model_s m3Model_t;
 typedef struct mdxModel_s mdxModel_t;
+typedef struct m2Model_s m2Model_t;
 
 // Typedefs for ANSI C
 typedef unsigned char  BYTE;
@@ -350,6 +364,7 @@ typedef struct entityState_s {
         struct { VECTOR2 origin2; FLOAT z; };
     };
     FLOAT angle;
+    VECTOR3 rotation;
     FLOAT scale;
     FLOAT radius;
     BYTE stats[ENT_STAT_COUNT];

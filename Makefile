@@ -69,8 +69,13 @@ SHARED_LIB   := $(LIB_DIR)/libshared$(LIB_EXT)
 RENDERER_LIB := $(LIB_DIR)/librenderer$(LIB_EXT)
 GAME_LIB     := $(LIB_DIR)/libgame$(LIB_EXT)
 UI_LIB       := $(LIB_DIR)/libui$(LIB_EXT)
+RENDERER_WOW_LIB := $(LIB_DIR)/librenderer-wow$(LIB_EXT)
+GAME_WOW_LIB     := $(LIB_DIR)/libgame-wow$(LIB_EXT)
+UI_WOW_LIB       := $(LIB_DIR)/libui-wow$(LIB_EXT)
 BINARY       := $(BIN_DIR)/openwarcraft3$(EXE_EXT)
+WOW_BINARY   := $(BIN_DIR)/openwow$(EXE_EXT)
 MPQ_TEST         := $(BIN_DIR)/test_mpq_compat$(EXE_EXT)
+WOW_CFLAGS   := $(CFLAGS) -DWOW -DOW3_LOAD_ALL_MPQS -Wno-unused-function
 
 TOOL_SRCS := $(shell find tools -maxdepth 1 -name '*.c' | sort)
 TOOL_NAMES := $(patsubst tools/%.c,%,$(TOOL_SRCS))
@@ -92,6 +97,10 @@ renderer:    $(RENDERER_LIB)
 game:        $(GAME_LIB)
 ui:          $(UI_LIB)
 openwarcraft3: $(BINARY)
+renderer-wow: $(RENDERER_WOW_LIB)
+game-wow:     $(GAME_WOW_LIB)
+ui-wow:       $(UI_WOW_LIB)
+openwow:      $(WOW_BINARY)
 tools:       $(TOOL_BINS)
 $(TOOL_NAMES): %: $(BIN_DIR)/%$(EXE_EXT)
 run: $(BINARY)
@@ -102,6 +111,12 @@ run-demo: $(BINARY)
 
 run-map: $(BINARY)
 	$(BINARY) -data=$(WC3DATA) -net_enabled=1 -map=$(MAP)
+
+run-wow: $(WOW_BINARY)
+	$(WOW_BINARY) -data=data/world-of-warcraft/installed/Data -net_enabled=1 -map=World/Maps/Azeroth/Azeroth.wdt
+
+build-run-wow: openwow
+	$(WOW_BINARY) -data=data/world-of-warcraft/installed/Data -net_enabled=1 -map=World/Maps/Azeroth/Azeroth.wdt
 
 run-ui-text: $(BINARY)
 	$(BINARY) -data=$(WC3DATA) -net_enabled=0 -r_module=stdout -ui_start_route=$(UI_ROUTE) -com_frame_limit=1
@@ -134,8 +149,13 @@ $(SHARED_LIB): $(shell find shared -name '*.c') | $(LIB_DIR)
 # internal files like war3map.w3e, war3map.shd that must be read via StormLib)
 $(RENDERER_LIB): $(SHARED_LIB) $(CLIENT_HEADERS) common/mpq.c common/mpq.h $(shell find renderer -name '*.c') | $(LIB_DIR)
 	@echo "[renderer]"
-	@$(call UNITY,renderer) | \
+	@$(call UNITY,renderer,! -path 'renderer/wow/*') | \
 		$(CC) $(CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - common/mpq.c $(LDFLAGS) -lshared $(LIBS) -lz -lstorm
+
+$(RENDERER_WOW_LIB): $(SHARED_LIB) $(CLIENT_HEADERS) common/mpq.c common/mpq.h $(shell find renderer -name '*.c') | $(LIB_DIR)
+	@echo "[renderer-wow]"
+	@$(call UNITY,renderer,! -path 'renderer/w3m/*') | \
+		$(CC) $(WOW_CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - common/mpq.c $(LDFLAGS) -lshared $(LIBS) -lz -lstorm
 
 # game — depends on shared
 $(GAME_LIB): $(SHARED_LIB) $(shell find game -name '*.c') | $(LIB_DIR)
@@ -143,11 +163,21 @@ $(GAME_LIB): $(SHARED_LIB) $(shell find game -name '*.c') | $(LIB_DIR)
 	@$(call UNITY,game) | \
 		$(CC) $(CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - $(LDFLAGS) -lshared -lm
 
+$(GAME_WOW_LIB): $(SHARED_LIB) $(shell find game-wow -name '*.c') | $(LIB_DIR)
+	@echo "[game-wow]"
+	@$(call UNITY,game-wow) | \
+		$(CC) $(WOW_CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - $(LDFLAGS) -lshared -lm
+
 # ui — depends on shared
 $(UI_LIB): $(SHARED_LIB) $(UI_HEADERS) $(shell find ui -name '*.c') | $(LIB_DIR)
 	@echo "[ui]"
 	@$(call UNITY,ui) | \
 		$(CC) $(CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - $(LDFLAGS) -lshared -lm
+
+$(UI_WOW_LIB): $(SHARED_LIB) $(UI_HEADERS) $(shell find ui-wow -name '*.c') | $(LIB_DIR)
+	@echo "[ui-wow]"
+	@$(call UNITY,ui-wow) | \
+		$(CC) $(WOW_CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - $(LDFLAGS) -lshared -lm
 
 # main binary — depends on all libraries
 APP_SRCS := $(shell find client server common -name '*.c')
@@ -156,6 +186,12 @@ $(BINARY): $(SHARED_LIB) $(GAME_LIB) $(RENDERER_LIB) $(UI_LIB) $(APP_SRCS) $(CLI
 	@$(call UNITY,client server common) | \
 		$(CC) $(CFLAGS) -x c -o $@ - $(RPATH) $(LDFLAGS) \
 		-lshared -lgame -lrenderer -lui $(LIBS) -lz
+
+$(WOW_BINARY): $(SHARED_LIB) $(GAME_WOW_LIB) $(RENDERER_WOW_LIB) $(UI_WOW_LIB) $(APP_SRCS) $(CLIENT_HEADERS) | $(BIN_DIR)
+	@echo "[openwow]"
+	@$(call UNITY,client server common) | \
+		$(CC) $(WOW_CFLAGS) -x c -o $@ - $(RPATH) $(LDFLAGS) \
+		-lshared -lgame-wow -lrenderer-wow -lui-wow $(LIBS) -lz
 
 download: $(ZIP_FILE)
 	mkdir -p $(DATA_DIR)

@@ -335,7 +335,17 @@ struct cmodel *SV_LoadModel(LPCSTR filename) {
         PATHSTR path;
         strcpy(path, filename);
         path[strlen(path)-1] = 'x';
-        if (!(file = FS_OpenFile(path)))
+        file = FS_OpenFile(path);
+#ifdef WOW
+        if (!file && strstr(filename, ".mdx")) {
+            LPSTR ext;
+            strcpy(path, filename);
+            ext = strstr(path, ".mdx");
+            strcpy(ext, ".m2");
+            file = FS_OpenFile(path);
+        }
+#endif
+        if (!file)
             return NULL;
     }
 #ifdef PRINT_ANIMATIONS
@@ -349,6 +359,12 @@ struct cmodel *SV_LoadModel(LPCSTR filename) {
             break;
         case ID_43DM:
             model = SV_LoadModelMD34(file);
+            break;
+        case ID_MD20:
+        case ID_MD21:
+        case ID_12DM:
+            model = MemAlloc(sizeof(*model));
+            memset(model, 0, sizeof(*model));
             break;
         default:
             fprintf(stderr, "Unknown model format %.5s in file %s\n", (LPSTR)&fileheader, filename);

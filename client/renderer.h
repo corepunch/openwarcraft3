@@ -49,6 +49,7 @@ typedef struct {
     DWORD oldframe;
     DWORD flags;
     float angle;
+    VECTOR3 rotation;
     float scale;
     float radius;
     float splatsize;
