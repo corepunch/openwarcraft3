@@ -1,11 +1,25 @@
 #include "r_local.h"
 
 void R_GetEntityMatrix(renderEntity_t const *entity, LPMATRIX4 matrix) {
+    VECTOR3 origin = entity->origin;
+
+    if ((entity->flags & RF_GROUND_ANCHOR) &&
+        entity->model &&
+        entity->model->modeltype == ID_MD20) {
+        origin.z += M2_GroundOffset(entity->model->m2) * entity->scale;
+    }
+
     Matrix4_identity(matrix);
-    Matrix4_translate(matrix, &entity->origin);
+    Matrix4_translate(matrix, &origin);
     if (entity->model && entity->model->modeltype == ID_MD20) {
         MATRIX4 adt_to_world_basis;
         MATRIX4 tmp;
+
+#ifdef WOW
+        if (entity->flags & RF_GROUND_ANCHOR) {
+            Matrix4_rotate(matrix, &(VECTOR3){ 0.0f, 0.0f, entity->rotation.x + 180.0f }, ROTATE_XYZ);
+        }
+#endif
 
         Matrix4_identity(&adt_to_world_basis);
         adt_to_world_basis.v[0] = 0.0f;
@@ -22,7 +36,13 @@ void R_GetEntityMatrix(renderEntity_t const *entity, LPMATRIX4 matrix) {
 
         Matrix4_scale(matrix, &(VECTOR3){ -1.0f, 1.0f, -1.0f });
         Matrix4_rotate(matrix, &(VECTOR3){ 0.0f, entity->rotation.y - 270.0f, 0.0f }, ROTATE_XYZ);
+#if defined(WOW)
+        if (!(entity->flags & RF_GROUND_ANCHOR)) {
+            Matrix4_rotate(matrix, &(VECTOR3){ 0.0f, 0.0f, -entity->rotation.x }, ROTATE_XYZ);
+        }
+#else
         Matrix4_rotate(matrix, &(VECTOR3){ 0.0f, 0.0f, -entity->rotation.x }, ROTATE_XYZ);
+#endif
         Matrix4_rotate(matrix, &(VECTOR3){ entity->rotation.z - 90.0f, 0.0f, 0.0f }, ROTATE_XYZ);
     } else {
         Matrix4_rotate(matrix, &(VECTOR3){0, 0, entity->angle * 180 / M_PI}, ROTATE_XYZ);

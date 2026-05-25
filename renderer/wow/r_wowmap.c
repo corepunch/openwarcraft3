@@ -1,10 +1,14 @@
 #include "../r_local.h"
 #include <strings.h>
 #include <stdlib.h>
+#include <float.h>
 
 #define WOW_WDT_TILES 64
 #define WOW_MCVT_COUNT (9 * 9 + 8 * 8)
 #define WOW_ADT_RADIUS 1
+#define WOW_ADT_SIZE 533.333313f
+#define WOW_ADT_CHUNK_SIZE (WOW_ADT_SIZE / 16.0f)
+#define WOW_ADT_UNIT_SIZE (WOW_ADT_CHUNK_SIZE / 8.0f)
 #define WOW_ALPHA_TEXELS (64 * 64)
 #define WOW_ALPHA_CHUNK_SIZE 64
 #define WOW_ALPHA_ATLAS_CHUNKS ((WOW_ADT_RADIUS * 2 + 1) * 16)
@@ -12,7 +16,7 @@
 #define WOW_IGNORE_TERRAIN_HOLES 1
 #define WOW_DEBUG_OBJECT_MARKERS 0
 #define WOW_DEBUG_DOODAD_ERROR_MESHES 0
-#define WOW_M2_BOUNDING_RADIUS_OFFSET 184
+#define WOW_DOODAD_DRAW_DISTANCE 450.0f
 
 typedef struct wowWdtTile_s {
     BOOL present;
@@ -29,6 +33,11 @@ typedef struct wowM2BoundsCache_s {
     float radius;
     struct wowM2BoundsCache_s *next;
 } wowM2BoundsCache_t;
+
+typedef struct wowM2Array_s {
+    int32_t count;
+    int32_t offset;
+} wowM2Array_t;
 
 typedef struct wowDoodadModel_s {
     PATHSTR path;
@@ -50,6 +59,8 @@ typedef struct wowWmoBatch_s {
 
 typedef struct wowWmoGroup_s {
     wowWmoBatch_t *batches;
+    BOX3 bounds;
+    BOOL has_bounds;
 } wowWmoGroup_t;
 
 typedef struct wowWmoModel_s {
@@ -103,7 +114,12 @@ typedef struct wowMap_s {
     DWORD num_missing_wmos;
     DWORD wdt_flags;
     BOOL use_weighted_blend;
+    BOOL has_adt_window;
+    int adt_center_x;
+    int adt_center_y;
     DWORD layer_histogram[5];
+    int alpha_origin_x;
+    int alpha_origin_y;
     PATHSTR map_dir;
     char map_name[128];
 } wowMap_t;
@@ -304,10 +320,34 @@ static void Wow_FreeWmoInstances(void) {
     wow_world.wmos = NULL;
 }
 
+static void Wow_FreeDoodadInstances(void) {
+    wowDoodadInstance_t *doodad = wow_world.doodads;
+    while (doodad) {
+        wowDoodadInstance_t *next = doodad->next;
+        ri.MemFree(doodad);
+        doodad = next;
+    }
+    wow_world.doodads = NULL;
+}
+
+static void Wow_ClearLoadedAdts(void) {
+    Wow_FreeChunks();
+    Wow_FreeWmoInstances();
+    Wow_FreeWmoModels();
+    Wow_FreeDoodadInstances();
+    wow_world.num_adts = 0;
+    wow_world.num_chunks = 0;
+    wow_world.num_doodads = 0;
+    wow_world.num_doodad_instances = 0;
+    wow_world.num_wmos = 0;
+    wow_world.num_wmo_models = 0;
+    wow_world.num_wmo_batches = 0;
+    wow_world.num_missing_wmos = 0;
+}
+
 static void Wow_FreeWorld(void) {
     wowM2BoundsCache_t *bounds;
     wowDoodadModel_t *doodad_model;
-    wowDoodadInstance_t *doodad;
 
     Wow_FreeChunks();
     Wow_FreeWmoInstances();
@@ -332,12 +372,7 @@ static void Wow_FreeWorld(void) {
         ri.MemFree(doodad_model);
         doodad_model = next;
     }
-    doodad = wow_world.doodads;
-    while (doodad) {
-        wowDoodadInstance_t *next = doodad->next;
-        ri.MemFree(doodad);
-        doodad = next;
-    }
+    Wow_FreeDoodadInstances();
     memset(&wow_world, 0, sizeof(wow_world));
 }
 
@@ -370,9 +405,11 @@ static LPTEXTURE Wow_LoadTexture(LPCSTR path) {
 static BOOL Wow_ReadM2RadiusFromPath(LPCSTR path, float *radius) {
     LPBYTE data = NULL;
     int size;
+    DWORD version;
+    DWORD radius_offset;
 
     size = ri.FS_ReadFile(path, (void **)&data);
-    if (size < WOW_M2_BOUNDING_RADIUS_OFFSET + (int)sizeof(float) || !data) {
+    if (size < (int)(sizeof(DWORD) * 2) || !data) {
         if (data) {
             ri.FS_FreeFile(data);
         }
@@ -384,7 +421,28 @@ static BOOL Wow_ReadM2RadiusFromPath(LPCSTR path, float *radius) {
         return false;
     }
 
-    memcpy(radius, data + WOW_M2_BOUNDING_RADIUS_OFFSET, sizeof(*radius));
+    memcpy(&version, data + sizeof(DWORD), sizeof(version));
+    radius_offset = 8;
+    radius_offset += sizeof(wowM2Array_t);
+    radius_offset += sizeof(DWORD);
+    radius_offset += sizeof(wowM2Array_t) * 3;
+    if (version <= 263) {
+        radius_offset += sizeof(wowM2Array_t);
+    }
+    radius_offset += sizeof(wowM2Array_t) * 3;
+    radius_offset += version <= 263 ? sizeof(wowM2Array_t) : sizeof(DWORD);
+    radius_offset += sizeof(wowM2Array_t) * 3;
+    if (version <= 263) {
+        radius_offset += sizeof(wowM2Array_t);
+    }
+    radius_offset += sizeof(wowM2Array_t) * 8;
+    radius_offset += sizeof(float) * 6;
+    if ((DWORD)size < radius_offset + sizeof(*radius)) {
+        ri.FS_FreeFile(data);
+        return false;
+    }
+
+    memcpy(radius, data + radius_offset, sizeof(*radius));
     ri.FS_FreeFile(data);
     return true;
 }
@@ -619,10 +677,17 @@ static void Wow_AddBoundsPoint(LPBOX3 bounds, LPCVECTOR3 p) {
     bounds->max.z = MAX(bounds->max.z, p->z);
 }
 
-static VECTOR3 Wow_ScalePoint(float x, float y, float z) {
+static BOX3 Wow_EmptyBounds(void) {
+    return (BOX3){
+        .min = { FLT_MAX, FLT_MAX, FLT_MAX },
+        .max = { -FLT_MAX, -FLT_MAX, -FLT_MAX },
+    };
+}
+
+static VECTOR3 Wow_WorldPoint(float x, float y, float z) {
     return (VECTOR3){
-        x + WOW_TILE_SIZE * 0.5f,
-        y + WOW_TILE_SIZE * 0.5f,
+        x,
+        y,
         z,
     };
 }
@@ -633,11 +698,11 @@ static VECTOR2 Wow_McvtCoords(int index) {
     VECTOR2 coords;
 
     if (col < 9) {
-        coords.x = col * WOW_UNIT_SIZE;
-        coords.y = row * WOW_UNIT_SIZE;
+        coords.x = col * WOW_ADT_UNIT_SIZE;
+        coords.y = row * WOW_ADT_UNIT_SIZE;
     } else {
-        coords.x = (col - 8.5f) * WOW_UNIT_SIZE;
-        coords.y = (row + 0.5f) * WOW_UNIT_SIZE;
+        coords.x = (col - 8.5f) * WOW_ADT_UNIT_SIZE;
+        coords.y = (row + 0.5f) * WOW_ADT_UNIT_SIZE;
     }
     return coords;
 }
@@ -645,7 +710,7 @@ static VECTOR2 Wow_McvtCoords(int index) {
 static VECTOR3 Wow_McvtPoint(wowVec3_t pos, float const *heights, int index) {
     VECTOR2 coords = Wow_McvtCoords(index);
 
-    return Wow_ScalePoint(
+    return Wow_WorldPoint(
         pos.x - coords.y,
         pos.y - coords.x,
         pos.z + heights[index]);
@@ -671,8 +736,8 @@ static void Wow_PushTerrainVertex(VERTEX *vertices,
                                   COLOR32 color) {
     VECTOR3 p = Wow_McvtPoint(pos, heights, height_index);
     VECTOR2 coords = Wow_McvtCoords(height_index);
-    float u = coords.x / WOW_UNIT_SIZE;
-    float v = coords.y / WOW_UNIT_SIZE;
+    float u = coords.x / WOW_ADT_UNIT_SIZE;
+    float v = coords.y / WOW_ADT_UNIT_SIZE;
     VERTEX vertex = Wow_Vertex(p.x, p.y, p.z, u, v, color);
     vertex.normal = Wow_NormalAtHeightIndex(normals, height_index);
     vertices[(*index)++] = vertex;
@@ -996,9 +1061,9 @@ static LPCSTR Wow_StringRefFromOffsets(BYTE const *blob, DWORD blob_size, DWORD 
 }
 
 static VECTOR3 Wow_ObjectPoint(wowVec3_t p) {
-    return Wow_ScalePoint(
-        32.0f * WOW_TILE_SIZE - p.z,
-        32.0f * WOW_TILE_SIZE - p.x,
+    return Wow_WorldPoint(
+        32.0f * WOW_ADT_SIZE - p.z,
+        32.0f * WOW_ADT_SIZE - p.x,
         p.y);
 }
 
@@ -1071,6 +1136,8 @@ static BOOL Wow_LoadWmoGroup(wowWmoModel_t *model,
     DWORD uv_count = 0;
     wowWmoBatchDef_t const *batches = NULL;
     DWORD batch_count = 0;
+    BOX3 group_bounds = Wow_EmptyBounds();
+    BOOL group_has_bounds = false;
 
     Wow_GroupPath(model->path, group_index, group_path, sizeof(group_path));
     size = ri.FS_ReadFile(group_path, (void **)&data);
@@ -1154,7 +1221,10 @@ static BOOL Wow_LoadWmoGroup(wowWmoModel_t *model,
                 if (uvs && vertex_index < uv_count) {
                     uv = uvs[vertex_index];
                 }
-                out_vertices[out_count++] = Wow_Vertex(p.x, p.y, p.z, uv.u, uv.v, COLOR32_WHITE);
+                out_vertices[out_count] = Wow_Vertex(p.x, p.y, p.z, uv.u, uv.v, COLOR32_WHITE);
+                Wow_AddBoundsPoint(&group_bounds, &out_vertices[out_count].position);
+                group_has_bounds = true;
+                out_count++;
             }
             if (!out_count) {
                 ri.MemFree(out_vertices);
@@ -1190,7 +1260,10 @@ static BOOL Wow_LoadWmoGroup(wowWmoModel_t *model,
             if (uvs && vertex_index < uv_count) {
                 uv = uvs[vertex_index];
             }
-            out_vertices[out_count++] = Wow_Vertex(p.x, p.y, p.z, uv.u, uv.v, COLOR32_WHITE);
+            out_vertices[out_count] = Wow_Vertex(p.x, p.y, p.z, uv.u, uv.v, COLOR32_WHITE);
+            Wow_AddBoundsPoint(&group_bounds, &out_vertices[out_count].position);
+            group_has_bounds = true;
+            out_count++;
             if ((i % 3) == 2) {
                 wowWmoBatch_t *out_batch = ri.MemAlloc(sizeof(*out_batch));
                 memset(out_batch, 0, sizeof(*out_batch));
@@ -1205,6 +1278,8 @@ static BOOL Wow_LoadWmoGroup(wowWmoModel_t *model,
         ri.MemFree(out_vertices);
     }
 
+    model->groups[group_index].bounds = group_bounds;
+    model->groups[group_index].has_bounds = group_has_bounds;
     ri.FS_FreeFile(data);
     return true;
 }
@@ -1623,8 +1698,8 @@ static void Wow_LoadAdt(BYTE const *data, DWORD size, DWORD tile_x, DWORD tile_y
             }
 
             if (has_heights) {
-                DWORD atlas_index_x = (tile_x - (WOW_START_TILE_X - WOW_ADT_RADIUS)) * 16 + index_x;
-                DWORD atlas_index_y = (tile_y - (WOW_START_TILE_Y - WOW_ADT_RADIUS)) * 16 + index_y;
+                DWORD atlas_index_x = (tile_x - wow_world.alpha_origin_x) * 16 + index_x;
+                DWORD atlas_index_y = (tile_y - wow_world.alpha_origin_y) * 16 + index_y;
                 (void)pred_tex;
                 Wow_DecodeAlphaMaps(mcal, mcal_size, layers, layer_count, chunk_flags, alpha);
                 Wow_UploadAlphaAtlasChunk(atlas_index_x, atlas_index_y, alpha);
@@ -1747,6 +1822,10 @@ static LPCSTR Wow_DbcString(BYTE const *string_block, DWORD string_size, DWORD o
     return (LPCSTR)(string_block + offset);
 }
 
+static int Wow_AdtIndexForWorldCoord(float coord) {
+    return (int)floorf(32.0f - coord / WOW_ADT_SIZE);
+}
+
 static void Wow_LoadMapDbcFlags(void) {
     LPBYTE data = NULL;
     int size = ri.FS_ReadFile("DBFilesClient\\Map.dbc", (void **)&data);
@@ -1803,9 +1882,23 @@ static void Wow_LoadMapDbcFlags(void) {
     ri.FS_FreeFile(data);
 }
 
-static void Wow_LoadNearbyAdts(void) {
-    int center_x = WOW_START_TILE_X;
-    int center_y = WOW_START_TILE_Y;
+static void Wow_LoadNearbyAdts(int center_x, int center_y) {
+    if (wow_world.has_adt_window) {
+        if (center_x >= wow_world.adt_center_x - WOW_ADT_RADIUS &&
+            center_x <= wow_world.adt_center_x + WOW_ADT_RADIUS &&
+            center_y >= wow_world.adt_center_y - WOW_ADT_RADIUS &&
+            center_y <= wow_world.adt_center_y + WOW_ADT_RADIUS) {
+            return;
+        }
+        Wow_ClearLoadedAdts();
+    }
+
+    wow_world.alpha_origin_x = center_x - WOW_ADT_RADIUS;
+    wow_world.alpha_origin_y = center_y - WOW_ADT_RADIUS;
+    wow_world.adt_center_x = center_x;
+    wow_world.adt_center_y = center_y;
+    wow_world.has_adt_window = true;
+
     for (int y = center_y - WOW_ADT_RADIUS; y <= center_y + WOW_ADT_RADIUS; y++) {
         for (int x = center_x - WOW_ADT_RADIUS; x <= center_x + WOW_ADT_RADIUS; x++) {
             if (x < 0 || x >= WOW_WDT_TILES || y < 0 || y >= WOW_WDT_TILES) {
@@ -1816,6 +1909,88 @@ static void Wow_LoadNearbyAdts(void) {
             }
         }
     }
+    fprintf(stderr,
+            "R_DrawWorld: WoW ADT window centered on camera tile %d,%d radius=%d chunks=%u doodads=%u rendered_doodads=%u wmos=%u wmo_batches=%u\n",
+            center_x,
+            center_y,
+            WOW_ADT_RADIUS,
+            (unsigned)wow_world.num_chunks,
+            (unsigned)wow_world.num_doodads,
+            (unsigned)wow_world.num_doodad_instances,
+            (unsigned)wow_world.num_wmos,
+            (unsigned)wow_world.num_wmo_batches);
+}
+
+static void Wow_LoadCameraAdts(void) {
+    int center_x = Wow_AdtIndexForWorldCoord(tr.viewDef.camerastate[0].origin.y);
+    int center_y = Wow_AdtIndexForWorldCoord(tr.viewDef.camerastate[0].origin.x);
+
+    if (center_x < 0 || center_x >= WOW_WDT_TILES || center_y < 0 || center_y >= WOW_WDT_TILES) {
+        static BOOL logged_outside = false;
+        if (!logged_outside) {
+            fprintf(stderr,
+                    "R_DrawWorld: camera native position %.3f %.3f is outside WoW ADT range -> tile %d,%d\n",
+                    tr.viewDef.camerastate[0].origin.x,
+                    tr.viewDef.camerastate[0].origin.y,
+                    center_x,
+                    center_y);
+            logged_outside = true;
+        }
+        return;
+    }
+
+    Wow_LoadNearbyAdts(center_x, center_y);
+}
+
+static BOOL Wow_EntityInView(renderEntity_t const *entity) {
+    VECTOR3 camera_origin;
+    VECTOR3 delta;
+    float radius;
+
+    if (!entity) {
+        return false;
+    }
+
+    camera_origin = tr.viewDef.camerastate[0].origin;
+    delta = Vector3_sub(&entity->origin, &camera_origin);
+    if (Vector3_len(&delta) > WOW_DOODAD_DRAW_DISTANCE) {
+        return false;
+    }
+
+    radius = MAX(entity->radius * MAX(entity->scale, 1.0f), 16.0f);
+    return Frustum_ContainsSphere(&tr.viewDef.frustum, &(SPHERE3){
+        .center = entity->origin,
+        .radius = radius,
+    });
+}
+
+static BOOL Wow_WmoGroupInView(wowWmoGroup_t const *group, LPCMATRIX4 matrix) {
+    VECTOR3 center;
+    VECTOR3 extents;
+    VECTOR3 world_center;
+    float radius;
+
+    if (!group || !matrix || !group->has_bounds) {
+        return true;
+    }
+
+    center = (VECTOR3){
+        (group->bounds.min.x + group->bounds.max.x) * 0.5f,
+        (group->bounds.min.y + group->bounds.max.y) * 0.5f,
+        (group->bounds.min.z + group->bounds.max.z) * 0.5f,
+    };
+    extents = (VECTOR3){
+        group->bounds.max.x - center.x,
+        group->bounds.max.y - center.y,
+        group->bounds.max.z - center.z,
+    };
+    world_center = Matrix4_multiply_vector3(matrix, &center);
+    radius = Vector3_len(&extents) * 2.0f;
+
+    return Frustum_ContainsSphere(&tr.viewDef.frustum, &(SPHERE3){
+        .center = world_center,
+        .radius = MAX(radius, 16.0f),
+    });
 }
 
 void R_RegisterMap(LPCSTR mapFileName) {
@@ -1840,7 +2015,6 @@ void R_RegisterMap(LPCSTR mapFileName) {
         return;
     }
 
-    Wow_LoadNearbyAdts();
     fprintf(stderr,
             "R_RegisterMap: WoW map %s loaded chunks=%u doodads=%u rendered_doodads=%u doodad_models=%u missing_doodad_models=%u wmos=%u wmo_models=%u wmo_batches=%u missing_wmos=%u weighted_blend=%d doodad_error_meshes=%d\n",
             path,
@@ -1866,10 +2040,15 @@ void R_DrawWorld(void) {
         0.0f, 0.0f, 0.0f, 1.0f,
     };
     wowAdtChunk_t *chunk;
+    DWORD drawn_doodads = 0;
+    DWORD drawn_wmo_groups = 0;
+    DWORD drawn_wmo_batches = 0;
 
     if (tr.viewDef.rdflags & RDF_NOWORLDMODEL) {
         return;
     }
+
+    Wow_LoadCameraAdts();
 
     if (!wow_world.chunks) {
         static BOOL logged_no_chunks = false;
@@ -1921,7 +2100,12 @@ void R_DrawWorld(void) {
         R_Call(glUniform1i, wow_uUseWeightedBlend, 0);
         R_Call(glUniform2f, wow_uAlphaOrigin, 0.0f, 0.0f);
         FOR_LOOP(group_index, wmo->model->num_groups) {
-            for (wowWmoBatch_t *batch = wmo->model->groups[group_index].batches; batch; batch = batch->next) {
+            wowWmoGroup_t *group = &wmo->model->groups[group_index];
+            if (!Wow_WmoGroupInView(group, &wmo->matrix)) {
+                continue;
+            }
+            drawn_wmo_groups++;
+            for (wowWmoBatch_t *batch = group->batches; batch; batch = batch->next) {
                 if (!batch->buffer || !batch->num_vertices) {
                     continue;
                 }
@@ -1931,6 +2115,7 @@ void R_DrawWorld(void) {
                 R_BindTexture(batch->texture ? batch->texture : tr.texture[TEX_WHITE], 3);
                 R_BindTexture(tr.texture[TEX_WHITE], 4);
                 R_DrawBuffer(batch->buffer, batch->num_vertices);
+                drawn_wmo_batches++;
             }
         }
     }
@@ -1938,7 +2123,29 @@ void R_DrawWorld(void) {
     R_Call(glUniform1i, wow_uUseWeightedBlend, wow_world.use_weighted_blend ? 1 : 0);
 
     for (wowDoodadInstance_t *doodad = wow_world.doodads; doodad; doodad = doodad->next) {
-        R_RenderModel(&doodad->entity);
+        if (Wow_EntityInView(&doodad->entity)) {
+            R_RenderModel(&doodad->entity);
+            drawn_doodads++;
+        }
+    }
+
+    {
+        static int logged_x = -1;
+        static int logged_y = -1;
+        if (logged_x != wow_world.adt_center_x || logged_y != wow_world.adt_center_y) {
+            logged_x = wow_world.adt_center_x;
+            logged_y = wow_world.adt_center_y;
+            fprintf(stderr,
+                    "R_DrawWorld: visible camera window doodads=%u/%u draw_distance=%.0f\n",
+                    (unsigned)drawn_doodads,
+                    (unsigned)wow_world.num_doodad_instances,
+                    (double)WOW_DOODAD_DRAW_DISTANCE);
+            fprintf(stderr,
+                    "R_DrawWorld: visible WMO groups=%u batches=%u of total batches=%u\n",
+                    (unsigned)drawn_wmo_groups,
+                    (unsigned)drawn_wmo_batches,
+                    (unsigned)wow_world.num_wmo_batches);
+        }
     }
 
     R_Call(glDepthMask, GL_TRUE);

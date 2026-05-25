@@ -14,6 +14,7 @@ typedef enum {
     NFT_QUATERNION,
     NFT_VECTOR2,
     NFT_VECTOR3,
+    NFT_VECTOR3_FLOAT,
     NFT_ANGLE,
     NFT_TEXT,
     NFT_DUPTEXT,
@@ -27,7 +28,11 @@ typedef struct {
 
 netField_t entityStateFields[] = {
     { NETF(entityState_t, class_id), NFT_LONG },
+#ifdef WOW
+    { NETF(entityState_t, origin), NFT_VECTOR3_FLOAT },
+#else
     { NETF(entityState_t, origin), NFT_VECTOR3 },
+#endif
     { NETF(entityState_t, angle), NFT_ANGLE },
     { NETF(entityState_t, rotation), NFT_VECTOR3 },
     { NETF(entityState_t, scale), NFT_PACKED_FLOAT },
@@ -115,6 +120,9 @@ netField_t uiFrameFields[] = {
 
 netField_t playerStateFields[] = {
     { NETF(PLAYER, viewquat), NFT_QUATERNION },
+#ifdef WOW
+    { NETF(PLAYER, viewangles), NFT_VECTOR3_FLOAT },
+#endif
     { NETF(PLAYER, origin), NFT_VECTOR2 },
     { NETF(PLAYER, fov), NFT_BYTE },
     { NETF(PLAYER, distance), NFT_ROUND },
@@ -275,6 +283,7 @@ static DWORD MSG_GetBits(void const *from,
                 if (memcmp(fromF, toF, sizeof(VECTOR2))!=0) bits |= 1 << (field - fields);
                 break;
             case NFT_VECTOR3:
+            case NFT_VECTOR3_FLOAT:
                 if (memcmp(fromF, toF, sizeof(VECTOR3))!=0) bits |= 1 << (field - fields);
                 break;
             case NFT_QUATERNION:
@@ -315,6 +324,7 @@ static void MSG_WriteFields(LPSIZEBUF msg,
             case NFT_DUPTEXT: MSG_WriteString(msg, *(LPCSTR *)toF); break;
             case NFT_VECTOR2: FOR_LOOP(i, 2) MSG_WriteFloat(msg, _float[i]); break;
             case NFT_VECTOR3: FOR_LOOP(i, 3) MSG_WriteShort(msg, _float[i]); break;
+            case NFT_VECTOR3_FLOAT: FOR_LOOP(i, 3) MSG_WriteFloat(msg, _float[i]); break;
             case NFT_QUATERNION: FOR_LOOP(i, 4) MSG_WriteShort(msg, _float[i] * 32767); break;
         }
     }
@@ -351,6 +361,7 @@ static void MSG_ReadFields(LPSIZEBUF msg,
                 break;
             case NFT_VECTOR2: FOR_LOOP(i, 2) _float[i] = MSG_ReadFloat(msg); break;
             case NFT_VECTOR3: FOR_LOOP(i, 3) _float[i] = MSG_ReadShort(msg); break;
+            case NFT_VECTOR3_FLOAT: FOR_LOOP(i, 3) _float[i] = MSG_ReadFloat(msg); break;
             case NFT_QUATERNION:
                 FOR_LOOP(i, 4) _float[i] = ((float)MSG_ReadShort(msg)) / 32767;
                 break;

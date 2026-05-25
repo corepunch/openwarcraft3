@@ -75,6 +75,48 @@ void Matrix4_fromViewQuat(LPCVECTOR3 target, LPCQUATERNION quat, FLOAT distance,
     Matrix4_translate(output, &vieworg);
 }
 
+#ifdef WOW
+static FLOAT LerpDegrees(FLOAT a, FLOAT b, FLOAT t) {
+    FLOAT delta = fmodf(b - a, 360.0f);
+    if (delta > 180.0f) {
+        delta -= 360.0f;
+    } else if (delta < -180.0f) {
+        delta += 360.0f;
+    }
+    return a + delta * t;
+}
+
+static void Wow_AngleVectors(LPCVECTOR3 angles, LPVECTOR3 forward, LPVECTOR3 right, LPVECTOR3 up) {
+    FLOAT yaw = (FLOAT)DEG2RAD(angles->y);
+    FLOAT pitch = (FLOAT)DEG2RAD(angles->x);
+    FLOAT roll = (FLOAT)DEG2RAD(angles->z);
+    FLOAT sy = sinf(yaw);
+    FLOAT cy = cosf(yaw);
+    FLOAT sp = sinf(pitch);
+    FLOAT cp = cosf(pitch);
+    FLOAT sr = sinf(roll);
+    FLOAT cr = cosf(roll);
+
+    if (forward) {
+        *forward = (VECTOR3){ cp * cy, cp * sy, -sp };
+    }
+    if (right) {
+        *right = (VECTOR3){
+            -sr * sp * cy + cr * sy,
+            -sr * sp * sy - cr * cy,
+            -sr * cp,
+        };
+    }
+    if (up) {
+        *up = (VECTOR3){
+            cr * sp * cy + sr * sy,
+            cr * sp * sy - sr * cy,
+            cr * cp,
+        };
+    }
+}
+#endif
+
 void Matrix4_getLightMatrix(LPCVECTOR3 sunangles, FLOAT scale, LPMATRIX4 output) {
     MATRIX4 proj, view, tmp1, tmp2;
     viewCamera_t const *a = cl.viewDef.camerastate+1;
@@ -118,7 +160,9 @@ void Matrix4_getCameraMatrix(LPMATRIX4 output) {
     viewCamera_t *a = cl.viewDef.camerastate+1;
     viewCamera_t *b = cl.viewDef.camerastate+0;
     VECTOR3 origin = Vector3_lerp(&a->origin, &b->origin, cl.viewDef.lerpfrac);
+#ifndef WOW
     QUATERNION quat = Quaternion_slerp(&a->viewquat, &b->viewquat, cl.viewDef.lerpfrac);
+#endif
     FLOAT distance = LerpNumber(a->distance, b->distance, cl.viewDef.lerpfrac);
     FLOAT fov = LerpNumber(a->fov, b->fov, cl.viewDef.lerpfrac);
     FLOAT aspect = (FLOAT)windowSize.width / (FLOAT)windowSize.height;
@@ -126,13 +170,28 @@ void Matrix4_getCameraMatrix(LPMATRIX4 output) {
     FLOAT zfar = LerpNumber(a->zfar, b->zfar, cl.viewDef.lerpfrac);
     
 #ifdef WOW
+    VECTOR3 angles = {
+        LerpDegrees(a->viewangles.x, b->viewangles.x, cl.viewDef.lerpfrac),
+        LerpDegrees(a->viewangles.y, b->viewangles.y, cl.viewDef.lerpfrac),
+        LerpDegrees(a->viewangles.z, b->viewangles.z, cl.viewDef.lerpfrac),
+    };
+    VECTOR3 forward;
+    VECTOR3 offset;
+    VECTOR3 eye;
+
     origin.z = CM_GetHeightAtPoint(origin.x, origin.y) + 1.6f;
+    Wow_AngleVectors(&angles, &forward, NULL, NULL);
+    offset = Vector3_scale(&forward, -distance);
+    eye = Vector3_add(&origin, &offset);
+
+    Matrix4_perspective(&proj, fov, aspect, znear, zfar);
+    Matrix4_lookAt(&view, &eye, &forward, &(VECTOR3){ 0.0f, 0.0f, 1.0f });
 #else
     origin.z = CM_GetHeightAtPoint(origin.x, origin.y) - 128;
-#endif
 
     Matrix4_perspective(&proj, fov, aspect, znear, zfar);
     Matrix4_fromViewQuat(&origin, &quat, distance, &view);
+#endif
     Matrix4_multiply(&proj, &view, output);
 }
 
@@ -170,6 +229,9 @@ static void V_AddClientEntity(centity_t const *ent) {
     re.skin = cl.pics[ent->current.image];
     re.team = ent->current.player;
     re.flags = ent->current.renderfx;
+    if (ent->current.flags & EF_GROUND_ANCHOR) {
+        re.flags |= RF_GROUND_ANCHOR;
+    }
     re.radius = ent->current.radius;
     re.number = ent->current.number;
     re.splat = cl.pics[ent->current.splat & 0xffff];

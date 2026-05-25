@@ -29,6 +29,7 @@ typedef struct {
     VECTOR3 origin;
     VECTOR3 eye;
     QUATERNION viewquat;
+    VECTOR3 viewangles;
     float distance;
     float fov;
     float znear;

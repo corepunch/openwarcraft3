@@ -90,6 +90,31 @@ build/bin/mdxtool -mpq "data/Warcraft III/War3.mpq" -model "UI\\Glues\\MainMenu\
 build/bin/mdxtool -mpq "data/Warcraft III/War3.mpq" -model "units\\orc\\Peon\\Peon.mdx" --use-model-camera
 ```
 
+## `m2tool`
+
+M2 model inspector for World of Warcraft assets.
+
+Use it to inspect M2 headers, array offsets, bounds, vertex bounds, texture
+references, embedded/external skin counts, and animation rows.
+
+Syntax:
+
+```bash
+build/bin/m2tool -mpq "<archive.mpq>" -model "<file.m2>" [options]
+```
+
+Useful options:
+
+- `--info` print model metadata and exit (default)
+- `--dump-all` include animation rows
+- `--skin "<file00.skin>"` inspect an explicit skin file instead of the derived path
+
+Example:
+
+```bash
+build/bin/m2tool -mpq "data/world-of-warcraft/installed/Data/model.MPQ" -model "Character\\Orc\\Male\\OrcMale.m2" --dump-all
+```
+
 ## `maptool`
 
 Map viewer for Warcraft III world maps.

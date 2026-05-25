@@ -18,6 +18,120 @@ static struct {
     VECTOR3 anchor;
 } camera_drag;
 
+#ifdef WOW
+#define WOW_MOVE_FORWARD 1
+#define WOW_MOVE_BACK 2
+#define WOW_MOVE_LEFT 4
+#define WOW_MOVE_RIGHT 8
+#define WOW_CAMERA_MIN_PITCH 300.0f
+#define WOW_CAMERA_MAX_PITCH 350.0f
+#define WOW_CAMERA_MIN_DISTANCE 3.0f
+#define WOW_CAMERA_MAX_DISTANCE 35.0f
+#define WOW_CAMERA_TURN_SPEED 135.0f
+#define WOW_MOUSE_TURN_SPEED 0.18f
+
+static struct {
+    BOOL initialized;
+    BOOL right_mouse;
+    BOOL left_mouse;
+    DWORD last_time;
+    FLOAT yaw;
+    FLOAT pitch;
+    FLOAT distance;
+} wow_input = {
+    .pitch = 328.0f,
+    .distance = 8.5f,
+};
+
+static FLOAT CL_WowClamp(FLOAT value, FLOAT min_value, FLOAT max_value) {
+    return MAX(min_value, MIN(value, max_value));
+}
+
+static void CL_WowInitInputState(void) {
+    if (wow_input.initialized) {
+        return;
+    }
+    wow_input.initialized = true;
+    wow_input.last_time = SDL_GetTicks();
+    wow_input.pitch = 328.0f;
+    wow_input.distance = 8.5f;
+}
+
+static void CL_WowMouseMotion(SDL_MouseMotionEvent const *motion) {
+    if (!wow_input.right_mouse || !motion) {
+        return;
+    }
+    wow_input.yaw -= motion->xrel * WOW_MOUSE_TURN_SPEED;
+    wow_input.pitch = CL_WowClamp(wow_input.pitch - motion->yrel * WOW_MOUSE_TURN_SPEED,
+                                  WOW_CAMERA_MIN_PITCH,
+                                  WOW_CAMERA_MAX_PITCH);
+}
+
+static void CL_WowMouseWheel(SDL_MouseWheelEvent const *wheel) {
+    if (!wheel) {
+        return;
+    }
+    wow_input.distance = CL_WowClamp(wow_input.distance - wheel->y * 1.0f,
+                                     WOW_CAMERA_MIN_DISTANCE,
+                                     WOW_CAMERA_MAX_DISTANCE);
+}
+
+static void CL_WowSendMoveCommand(void) {
+    Uint8 const *keys;
+    DWORD now;
+    FLOAT dt;
+    DWORD flags = 0;
+    BOOL left;
+    BOOL right;
+
+    CL_WowInitInputState();
+    if (cls.key_dest != key_game || cls.state != ca_active) {
+        return;
+    }
+
+    now = SDL_GetTicks();
+    dt = (FLOAT)(now - wow_input.last_time) / 1000.0f;
+    if (dt < 0.0f || dt > 0.25f) {
+        dt = 0.0f;
+    }
+    wow_input.last_time = now;
+
+    keys = SDL_GetKeyboardState(NULL);
+    if (keys[SDL_SCANCODE_W] || (wow_input.left_mouse && wow_input.right_mouse)) {
+        flags |= WOW_MOVE_FORWARD;
+    }
+    if (keys[SDL_SCANCODE_S]) {
+        flags |= WOW_MOVE_BACK;
+    }
+
+    left = keys[SDL_SCANCODE_A] != 0;
+    right = keys[SDL_SCANCODE_D] != 0;
+    if (wow_input.right_mouse) {
+        if (left) {
+            flags |= WOW_MOVE_LEFT;
+        }
+        if (right) {
+            flags |= WOW_MOVE_RIGHT;
+        }
+    } else {
+        if (left) {
+            wow_input.yaw += WOW_CAMERA_TURN_SPEED * dt;
+        }
+        if (right) {
+            wow_input.yaw -= WOW_CAMERA_TURN_SPEED * dt;
+        }
+    }
+
+    MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
+    SZ_Printf(&cls.netchan.message,
+              "wowmove %u %.3f %.3f %.3f",
+              (unsigned)flags,
+              (double)wow_input.yaw,
+              (double)wow_input.pitch,
+              (double)wow_input.distance);
+}
+#endif
+
 static void CL_BeginCameraDrag(float x, float y) {
     camera_drag.active = re.TraceLocation(&cl.viewDef, x, y, &camera_drag.anchor);
 }
@@ -133,10 +247,19 @@ void CL_Input(void) {
                 switch (event.button.button) {
                     case SDL_BUTTON_LEFT:
                         mouse.event = UI_LEFT_MOUSE_DOWN;
+#ifdef WOW
+                        wow_input.left_mouse = true;
+#endif
                         break;
                     case SDL_BUTTON_RIGHT:
                         mouse.event = UI_RIGHT_MOUSE_DOWN;
+#ifdef WOW
+                        wow_input.right_mouse = true;
+                        CL_WowInitInputState();
+                        SDL_SetRelativeMouseMode(SDL_TRUE);
+#else
                         CL_BeginCameraDrag(event.button.x, event.button.y);
+#endif
                         break;
                 }
                 break;
@@ -158,10 +281,18 @@ void CL_Input(void) {
                 switch (event.button.button) {
                     case SDL_BUTTON_LEFT:
                         mouse.event = UI_LEFT_MOUSE_UP;
+#ifdef WOW
+                        wow_input.left_mouse = false;
+#endif
                         break;
                     case SDL_BUTTON_RIGHT:
                         mouse.event = UI_RIGHT_MOUSE_UP;
+#ifdef WOW
+                        wow_input.right_mouse = false;
+                        SDL_SetRelativeMouseMode(SDL_FALSE);
+#else
                         CL_EndCameraDrag();
+#endif
                         break;
                 }
                 break;
@@ -174,19 +305,32 @@ void CL_Input(void) {
                     }
                     break;
                 }
+#ifdef WOW
+                CL_WowMouseMotion(&event.motion);
+#endif
                 switch (mouse.button) {
                     case SDL_BUTTON_LEFT:
+#ifndef WOW
                         cl.selection.rect.w = event.motion.x - cl.selection.rect.x;
                         cl.selection.rect.h = event.motion.y - cl.selection.rect.y;
+#endif
                         break;
                     case SDL_BUTTON_RIGHT:
+#ifndef WOW
                         camera_drag_mouse.x = event.motion.x;
                         camera_drag_mouse.y = event.motion.y;
                         camera_drag_pending = true;
+#endif
                         break;
                 }
                 break;
             case SDL_MOUSEWHEEL:
+#ifdef WOW
+                if (cls.key_dest == key_game) {
+                    CL_WowMouseWheel(&event.wheel);
+                    break;
+                }
+#endif
                 if (cls.key_dest == key_menu && ui.MouseEvent) {
                     int x;
                     int y;
@@ -214,6 +358,9 @@ void CL_Input(void) {
     if (camera_drag_pending) {
         CL_UpdateCameraDrag(camera_drag_mouse.x, camera_drag_mouse.y);
     }
+#ifdef WOW
+    CL_WowSendMoveCommand();
+#endif
 //    cl.viewDef.camera.origin.z = CM_GetHeightAtPoint(cl.viewDef.camera.origin.x, cl.viewDef.camera.origin.y);
 }
 
@@ -243,7 +390,9 @@ void CL_SetGameplayBindings(void) {
     cl.viewDef.camerastate[1].znear = 100;
 #endif
 
+#ifndef WOW
     Key_SetBinding(K_MOUSE1, "+select");
+#endif
     Key_SetBinding('q', "cmd quests");
     Key_SetBinding(K_ESCAPE, "cmd cancel");
 }

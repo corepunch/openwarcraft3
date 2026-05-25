@@ -30,16 +30,6 @@
 
 #define BYTE2FLOAT(x) ((x)/255.f)
 
-#define WOW_TILE_SIZE 533.333313f
-#define WOW_CHUNK_SIZE (WOW_TILE_SIZE / 16.0f)
-#define WOW_UNIT_SIZE (WOW_CHUNK_SIZE / 8.0f)
-#define WOW_START_TILE_X 32
-#define WOW_START_TILE_Y 48
-/* Human playercreateinfo start: map 0, zone 12 (Northshire Valley). */
-#define WOW_START_POSITION_X (-8949.95f + WOW_TILE_SIZE * 0.5f)
-#define WOW_START_POSITION_Y (-132.493f + WOW_TILE_SIZE * 0.5f)
-#define WOW_START_POSITION_Z 83.5312f
-
 #define IS_FOURCC(STRING) (STRING && strlen(STRING) == 4)
 
 #define MAKE(TYPE,...)(TYPE){__VA_ARGS__}
@@ -139,6 +129,11 @@ enum {
     FLAG(RF_NO_SHADOW, 6),
     FLAG(RF_ATTACH_OVERHEAD, 7),
     FLAG(RF_NO_LIGHTING, 8),
+    FLAG(RF_GROUND_ANCHOR, 9),
+};
+
+enum {
+    FLAG(EF_GROUND_ANCHOR, 0),
 };
 
 enum {
@@ -341,6 +336,7 @@ typedef enum {
 struct playerState_s {
     DWORD number;
     QUATERNION viewquat;
+    VECTOR3 viewangles;
     VECTOR2 origin;
     FLOAT distance;
     DWORD fov;

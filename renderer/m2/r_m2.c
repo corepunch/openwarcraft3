@@ -156,6 +156,8 @@ struct m2Model_s {
     m2ModelBatch_t *batches;
     DWORD num_batches;
     BOX3 bounds;
+    BOX3 geometry_bounds;
+    BOOL has_geometry_bounds;
 };
 
 typedef struct {
@@ -215,6 +217,8 @@ static m2Model_t *M2_CreateFallbackModel(LPCSTR modelFilename, LPCSTR reason) {
         .min = { -14.0f, -14.0f, 0.0f },
         .max = { 14.0f, 14.0f, 42.0f },
     };
+    model->geometry_bounds = model->bounds;
+    model->has_geometry_bounds = true;
     batch = ri.MemAlloc(sizeof(*batch));
     memset(batch, 0, sizeof(*batch));
     batch->buffer = R_MakeVertexArrayObject(vertices, 12);
@@ -460,6 +464,25 @@ static VERTEX M2_MakeVertex(m2VertexDisk_t const *src) {
     memcpy(out.skin, src->bone_indices, sizeof(src->bone_indices));
     memcpy(out.boneWeight, src->bone_weights, sizeof(src->bone_weights));
     return out;
+}
+
+static BOOL M2_CalculateGeometryBounds(m2VertexDisk_t const *vertices, DWORD num_vertices, BOX3 *bounds) {
+    if (!vertices || !num_vertices || !bounds) {
+        return false;
+    }
+
+    bounds->min = vertices[0].pos;
+    bounds->max = vertices[0].pos;
+    for (DWORD i = 1; i < num_vertices; i++) {
+        VECTOR3 p = vertices[i].pos;
+        bounds->min.x = MIN(bounds->min.x, p.x);
+        bounds->min.y = MIN(bounds->min.y, p.y);
+        bounds->min.z = MIN(bounds->min.z, p.z);
+        bounds->max.x = MAX(bounds->max.x, p.x);
+        bounds->max.y = MAX(bounds->max.y, p.y);
+        bounds->max.z = MAX(bounds->max.z, p.z);
+    }
+    return true;
 }
 
 static void M2_AddBatch(m2Model_t *model,
@@ -721,6 +744,9 @@ m2Model_t *R_LoadModelM2(LPCSTR modelFilename, void *buffer, DWORD size) {
     model = ri.MemAlloc(sizeof(*model));
     memset(model, 0, sizeof(*model));
     model->bounds = (BOX3){ geom.bounding_box.min, geom.bounding_box.max };
+    model->has_geometry_bounds = M2_CalculateGeometryBounds(m2_vertices,
+                                                            (DWORD)geom.vertices.size,
+                                                            &model->geometry_bounds);
 
     FOR_LOOP(i, batch_count) {
         m2Batch_t const *batch = &batches[i];
@@ -786,6 +812,13 @@ void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, LPCMAT
         R_BindTexture(batch->texture ? batch->texture : tr.texture[TEX_WHITE], 0);
         R_DrawBuffer(batch->buffer, batch->num_vertices);
     }
+}
+
+FLOAT M2_GroundOffset(m2Model_t const *model) {
+    if (!model || !model->has_geometry_bounds || model->geometry_bounds.min.z >= 0.0f) {
+        return 0.0f;
+    }
+    return -model->geometry_bounds.min.z;
 }
 
 void M2_Release(m2Model_t *model) {

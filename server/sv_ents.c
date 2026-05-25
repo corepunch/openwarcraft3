@@ -46,6 +46,12 @@ LPENTITYSTATE SV_NextClientEntity(void) {
 void SV_BuildClientFrame(LPCLIENT client) {
     edict_t *clent = client->edict;
     LPCLIENTFRAME frame = &client->frames[sv.framenum & UPDATE_MASK];
+#ifdef WOW
+    int first_entity = 0;
+#else
+    int first_entity = 1;
+#endif
+
     frame->ps = clent->client->ps;
     frame->num_entities = 0;
     if (!svs.client_entities || svs.num_client_entities == 0) {
@@ -53,7 +59,7 @@ void SV_BuildClientFrame(LPCLIENT client) {
         return;
     }
     frame->first_entity = svs.next_client_entities;
-    for (int index = 1; index < ge->num_edicts; index++) {
+    for (int index = first_entity; index < ge->num_edicts; index++) {
         edict_t *edict = EDICT_NUM(index);
         if (!edict->inuse)
             continue;

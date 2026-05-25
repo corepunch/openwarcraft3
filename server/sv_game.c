@@ -328,6 +328,190 @@ static struct cmodel *SV_LoadModelMDLX(HANDLE file) {
     return model;
 }
 
+#ifdef WOW
+typedef struct {
+    int32_t size;
+    int32_t offset;
+} svM2Array_t;
+
+typedef struct {
+    DWORD magic;
+    DWORD version;
+    svM2Array_t name;
+    DWORD flags;
+    svM2Array_t global_loops;
+    svM2Array_t sequences;
+} svM2Header_t;
+
+typedef struct {
+    WORD animation_id;
+    WORD sub_animation_id;
+    DWORD length;
+    FLOAT movement_speed;
+    DWORD flags;
+    SHORT probability;
+    WORD padding;
+    DWORD minimum_repetitions;
+    DWORD maximum_repetitions;
+    DWORD blend_time;
+    VECTOR3 min;
+    VECTOR3 max;
+    FLOAT radius;
+    SHORT next_animation;
+    WORD alias_next;
+} svM2Sequence_t;
+
+static BOOL SV_M2ArrayRange(svM2Array_t array, DWORD elem_size, DWORD file_size, DWORD *offset, DWORD *bytes) {
+    if (array.size <= 0 || array.offset < 0 || elem_size == 0) {
+        return false;
+    }
+    if ((DWORD)array.size > (((DWORD)~0u) / elem_size)) {
+        return false;
+    }
+    *offset = (DWORD)array.offset;
+    *bytes = (DWORD)array.size * elem_size;
+    return *offset <= file_size && *bytes <= file_size - *offset;
+}
+
+static BOOL SV_M2FindPayload(BYTE const *data, DWORD size, BYTE const **payload, DWORD *payload_size) {
+    BYTE const *ptr;
+    BYTE const *end;
+
+    if (!data || size < sizeof(DWORD)) {
+        return false;
+    }
+    if (*(DWORD const *)data == ID_MD20) {
+        *payload = data;
+        *payload_size = size;
+        return true;
+    }
+    if (*(DWORD const *)data != ID_MD21 && *(DWORD const *)data != ID_12DM) {
+        return false;
+    }
+
+    ptr = data;
+    end = data + size;
+    while (ptr + 8 <= end) {
+        DWORD tag;
+        DWORD chunk_size;
+        memcpy(&tag, ptr, sizeof(tag));
+        memcpy(&chunk_size, ptr + 4, sizeof(chunk_size));
+        ptr += 8;
+        if (chunk_size > (DWORD)(end - ptr)) {
+            return false;
+        }
+        if (tag == ID_MD20 ||
+            ((tag == ID_MD21 || tag == ID_12DM) && chunk_size >= sizeof(DWORD) && *(DWORD const *)ptr == ID_MD20)) {
+            *payload = ptr;
+            *payload_size = chunk_size;
+            return true;
+        }
+        ptr += chunk_size;
+    }
+    return false;
+}
+
+static void SV_M2AnimationName(WORD id, LPSTR out, DWORD out_size) {
+    LPCSTR name = NULL;
+
+    switch (id) {
+        case 0: name = "Stand"; break;
+        case 1: name = "Death"; break;
+        case 2: name = "Spell"; break;
+        case 3: name = "Stop"; break;
+        case 4: name = "Walk"; break;
+        case 5: name = "Run"; break;
+        case 6: name = "Dead"; break;
+        case 7: name = "Rise"; break;
+        case 8: name = "StandWound"; break;
+        case 9: name = "CombatWound"; break;
+        case 10: name = "CombatCritical"; break;
+        case 11: name = "ShuffleLeft"; break;
+        case 12: name = "ShuffleRight"; break;
+        case 13: name = "WalkBackwards"; break;
+        case 14: name = "Stun"; break;
+        case 15: name = "HandsClosed"; break;
+        case 16: name = "AttackUnarmed"; break;
+        case 17: name = "Attack1H"; break;
+        case 18: name = "Attack2H"; break;
+        case 26: name = "ReadyUnarmed"; break;
+        case 27: name = "Ready1H"; break;
+        case 28: name = "Ready2H"; break;
+        case 37: name = "JumpStart"; break;
+        case 38: name = "Jump"; break;
+        case 39: name = "JumpEnd"; break;
+        case 40: name = "Fall"; break;
+        case 41: name = "SwimIdle"; break;
+        case 42: name = "Swim"; break;
+        default: break;
+    }
+
+    if (name) {
+        snprintf(out, out_size, "%s", name);
+    } else {
+        snprintf(out, out_size, "Animation%u", (unsigned)id);
+    }
+}
+
+static struct cmodel *SV_LoadModelM2(HANDLE file) {
+    struct cmodel *model = MemAlloc(sizeof(struct cmodel));
+    DWORD file_size = SFileGetFileSize(file, NULL);
+    DWORD read_size = 0;
+    BYTE *data = NULL;
+    BYTE const *payload = NULL;
+    DWORD payload_size = 0;
+    svM2Header_t const *header;
+    DWORD sequences_offset;
+    DWORD sequences_bytes;
+    svM2Sequence_t const *sequences;
+
+    memset(model, 0, sizeof(*model));
+    if (file_size < sizeof(DWORD)) {
+        return model;
+    }
+
+    data = MemAlloc(file_size);
+    SFileSetFilePointer(file, 0, NULL, FILE_BEGIN);
+    SFileReadFile(file, data, file_size, &read_size, NULL);
+    if (read_size < sizeof(svM2Header_t) ||
+        !SV_M2FindPayload(data, read_size, &payload, &payload_size) ||
+        payload_size < sizeof(svM2Header_t)) {
+        MemFree(data);
+        return model;
+    }
+
+    header = (svM2Header_t const *)payload;
+    if (!SV_M2ArrayRange(header->sequences, sizeof(*sequences), payload_size, &sequences_offset, &sequences_bytes)) {
+        MemFree(data);
+        return model;
+    }
+
+    sequences = (svM2Sequence_t const *)(payload + sequences_offset);
+    model->num_animations = sequences_bytes / sizeof(*sequences);
+    model->animations = MemAlloc(sizeof(animation_t) * model->num_animations);
+    memset(model->animations, 0, sizeof(animation_t) * model->num_animations);
+
+    FOR_LOOP(i, model->num_animations) {
+        svM2Sequence_t const *src = sequences + i;
+        LPANIMATION dest = model->animations + i;
+        SV_M2AnimationName(src->animation_id, dest->name, sizeof(dest->name));
+        dest->interval[0] = 0;
+        dest->interval[1] = MAX(src->length, 1);
+        dest->movespeed = src->movement_speed;
+        dest->flags = src->flags;
+        dest->rarity = src->probability;
+        dest->syncpoint = fnv1a32(dest->name);
+        dest->radius = src->radius;
+        dest->min = src->min;
+        dest->max = src->max;
+    }
+
+    qsort(model->animations, model->num_animations, sizeof(animation_t), compare_animation_name);
+    MemFree(data);
+    return model;
+}
+#endif
+
 struct cmodel *SV_LoadModel(LPCSTR filename) {
     DWORD fileheader;
     HANDLE file = FS_OpenFile(filename);
@@ -363,8 +547,12 @@ struct cmodel *SV_LoadModel(LPCSTR filename) {
         case ID_MD20:
         case ID_MD21:
         case ID_12DM:
+#ifdef WOW
+            model = SV_LoadModelM2(file);
+#else
             model = MemAlloc(sizeof(*model));
             memset(model, 0, sizeof(*model));
+#endif
             break;
         default:
             fprintf(stderr, "Unknown model format %.5s in file %s\n", (LPSTR)&fileheader, filename);
