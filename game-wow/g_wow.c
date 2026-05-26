@@ -1,31 +1,16 @@
-#include "../server/server.h"
+#include "g_wow_local.h"
 #include <math.h>
 #include <stdlib.h>
 #include <strings.h>
 
-#define WOW_MAX_CLIENTS 1
-#define WOW_MAX_EDICTS WOW_MAX_CLIENTS
-#define WOW_PLAYER_MODEL "Character\\Orc\\Male\\OrcMale.m2"
-#define WOW_PLAYER_WEAPON_MODEL "Item\\ObjectComponents\\Weapon\\Axe_1H_Horde_A_01.m2"
-#define WOW_CLASS_WARRIOR 1
-#define WOW_MOVE_FORWARD 1
-#define WOW_MOVE_BACK 2
-#define WOW_MOVE_LEFT 4
-#define WOW_MOVE_RIGHT 8
-#define WOW_WALK_SPEED 7.0f
-#define WOW_CAMERA_MIN_PITCH 300.0f
-#define WOW_CAMERA_MAX_PITCH 350.0f
-#define WOW_CAMERA_MIN_DISTANCE 3.0f
-#define WOW_CAMERA_MAX_DISTANCE 35.0f
-
-static struct game_import gi;
-static struct game_export globals;
-static edict_t wow_edicts[WOW_MAX_EDICTS];
+struct game_import gi;
+struct game_export globals;
+edict_t wow_edicts[WOW_MAX_EDICTS];
+wowEntityLocal_t wow_entity_locals[WOW_MAX_EDICTS];
 static struct client_s wow_clients[WOW_MAX_CLIENTS];
 static VECTOR2 wow_spawn_origin = { 0.0f, 0.0f };
 static char wow_loading_texture[MAX_PATHLEN] = "Interface\\Glues\\LoadingScreens\\LoadScreenEnviroment.blp";
 static char wow_loading_title[128] = "World of Warcraft";
-static LPCANIMATION wow_player_animation;
 static struct {
     DWORD flags;
     FLOAT yaw;
@@ -36,27 +21,33 @@ static struct {
     .distance = 8.5f,
 };
 
-static FLOAT Wow_Clamp(FLOAT value, FLOAT min_value, FLOAT max_value) {
+FLOAT Wow_Clamp(FLOAT value, FLOAT min_value, FLOAT max_value) {
     return MAX(min_value, MIN(value, max_value));
 }
 
-static DWORD Wow_Read32(BYTE const *p) {
+DWORD Wow_Read32(BYTE const *p) {
     return ((DWORD)p[0]) | ((DWORD)p[1] << 8) | ((DWORD)p[2] << 16) | ((DWORD)p[3] << 24);
 }
 
-static LPCSTR Wow_DbcString(BYTE const *string_block, DWORD string_size, DWORD offset) {
+FLOAT Wow_ReadFloat(BYTE const *p) {
+    FLOAT value;
+    memcpy(&value, p, sizeof(value));
+    return value;
+}
+
+LPCSTR Wow_DbcString(BYTE const *string_block, DWORD string_size, DWORD offset) {
     if (offset >= string_size) {
         return NULL;
     }
     return (LPCSTR)(string_block + offset);
 }
 
-static BOOL Wow_ValidDbc(BYTE const *data,
-                         DWORD size,
-                         DWORD *records,
-                         DWORD *fields,
-                         DWORD *record_size,
-                         DWORD *string_size) {
+BOOL Wow_ValidDbc(BYTE const *data,
+                  DWORD size,
+                  DWORD *records,
+                  DWORD *fields,
+                  DWORD *record_size,
+                  DWORD *string_size) {
     if (!data || size <= 20 || memcmp(data, "WDBC", 4) != 0) {
         return false;
     }
@@ -71,6 +62,54 @@ static BOOL Wow_ValidDbc(BYTE const *data,
         return false;
     }
     return true;
+}
+
+BOOL Wow_FindDbcRecord(LPCSTR filename,
+                       DWORD wanted_id,
+                       LPBYTE *data_out,
+                       DWORD *fields_out,
+                       DWORD *record_size_out,
+                       BYTE const **record_out,
+                       BYTE const **strings_out,
+                       DWORD *string_size_out) {
+    LPBYTE data;
+    DWORD size = 0;
+    DWORD records;
+    DWORD fields;
+    DWORD record_size;
+    DWORD string_size;
+    BYTE const *records_base;
+
+    if (!filename || !data_out || !fields_out || !record_size_out ||
+        !record_out || !strings_out || !string_size_out) {
+        return false;
+    }
+
+    data = gi.ReadFile ? gi.ReadFile(filename, &size) : NULL;
+    if (!Wow_ValidDbc(data, size, &records, &fields, &record_size, &string_size) ||
+        fields < 1 || record_size < fields * sizeof(DWORD)) {
+        SAFE_DELETE(data, gi.MemFree);
+        return false;
+    }
+
+    records_base = data + 20;
+    FOR_LOOP(record_index, records) {
+        BYTE const *record = records_base + record_index * record_size;
+        DWORD id = Wow_Read32(record);
+
+        if (id == wanted_id) {
+            *data_out = data;
+            *fields_out = fields;
+            *record_size_out = record_size;
+            *record_out = record;
+            *strings_out = records_base + records * record_size;
+            *string_size_out = string_size;
+            return true;
+        }
+    }
+
+    gi.MemFree(data);
+    return false;
 }
 
 static LPCSTR Wow_PathBasename(LPCSTR path) {
@@ -234,7 +273,7 @@ static void Wow_SelectLoadingScreen(LPCSTR map_path) {
     gi.MemFree(data);
 }
 
-static FLOAT Wow_TerrainHeight(FLOAT x, FLOAT y) {
+FLOAT Wow_TerrainHeight(FLOAT x, FLOAT y) {
     return gi.GetHeightAtPoint ? gi.GetHeightAtPoint(x, y) : 0.0f;
 }
 
@@ -257,6 +296,61 @@ static void Wow_AngleVectors(FLOAT yaw, LPVECTOR2 forward, LPVECTOR2 right) {
     }
 }
 
+DWORD Wow_EntityIndex(LPCEDICT ent) {
+    if (!ent || ent < wow_edicts || ent >= wow_edicts + WOW_MAX_EDICTS) {
+        return WOW_MAX_EDICTS;
+    }
+    return (DWORD)(ent - wow_edicts);
+}
+
+wowEntityLocal_t *Wow_EntityLocal(LPCEDICT ent) {
+    DWORD index = Wow_EntityIndex(ent);
+
+    if (index >= WOW_MAX_EDICTS) {
+        return NULL;
+    }
+    return &wow_entity_locals[index];
+}
+
+LPCANIMATION Wow_SetEntityAnimation(LPEDICT ent, LPCSTR animation_name) {
+    wowEntityLocal_t *local = Wow_EntityLocal(ent);
+    LPCANIMATION anim;
+
+    if (!ent || !local || !gi.GetAnimation || !animation_name || ent->s.model == 0) {
+        if (local) {
+            local->animation = NULL;
+        }
+        return NULL;
+    }
+    anim = gi.GetAnimation(ent->s.model, animation_name);
+    if (!anim || anim->interval[1] <= anim->interval[0]) {
+        local->animation = NULL;
+        return NULL;
+    }
+    if (local->animation != anim) {
+        ent->s.frame = anim->interval[0];
+        local->animation = anim;
+    }
+    return local->animation;
+}
+
+void Wow_AdvanceEntityFrame(LPEDICT ent) {
+    wowEntityLocal_t *local = Wow_EntityLocal(ent);
+    DWORD next_frame;
+
+    if (!ent || !local || !local->animation) {
+        return;
+    }
+    next_frame = ent->s.frame + FRAMETIME;
+    if (ent->s.frame < local->animation->interval[0] ||
+        ent->s.frame >= local->animation->interval[1] ||
+        next_frame >= local->animation->interval[1]) {
+        ent->s.frame = local->animation->interval[0];
+    } else {
+        ent->s.frame = next_frame;
+    }
+}
+
 static void Wow_UpdateCamera(LPEDICT ent) {
     if (!ent || !ent->client) {
         return;
@@ -269,45 +363,62 @@ static void Wow_UpdateCamera(LPEDICT ent) {
 }
 
 static LPCANIMATION Wow_SetPlayerAnimation(LPEDICT ent, LPCSTR animation_name) {
-    LPCANIMATION anim;
-
-    if (!ent || !gi.GetAnimation || !animation_name || ent->s.model == 0) {
-        wow_player_animation = NULL;
-        return NULL;
-    }
-    anim = gi.GetAnimation(ent->s.model, animation_name);
-    if (!anim || anim->interval[1] <= anim->interval[0]) {
-        wow_player_animation = NULL;
-        return NULL;
-    }
-    if (wow_player_animation != anim) {
-        ent->s.frame = anim->interval[0];
-        wow_player_animation = anim;
-    }
-    return wow_player_animation;
+    return Wow_SetEntityAnimation(ent, animation_name);
 }
 
 static void Wow_MovePlayerFrame(LPEDICT ent) {
-    DWORD next_frame;
+    Wow_AdvanceEntityFrame(ent);
+}
 
-    if (!ent || !wow_player_animation) {
-        return;
+static LPEDICT Wow_EdictByNumber(DWORD number) {
+    if (number >= (DWORD)globals.num_edicts || number >= WOW_MAX_EDICTS) {
+        return NULL;
     }
-    next_frame = ent->s.frame + FRAMETIME;
-    if (ent->s.frame < wow_player_animation->interval[0] ||
-        ent->s.frame >= wow_player_animation->interval[1] ||
-        next_frame >= wow_player_animation->interval[1]) {
-        ent->s.frame = wow_player_animation->interval[0];
+    if (!wow_edicts[number].inuse) {
+        return NULL;
+    }
+    return &wow_edicts[number];
+}
+
+LPEDICT Wow_Spawn(void) {
+    LPEDICT ent = NULL;
+    DWORD index;
+
+    if (globals.num_edicts < globals.max_edicts) {
+        index = globals.num_edicts++;
+        ent = &wow_edicts[index];
     } else {
-        ent->s.frame = next_frame;
+        for (index = WOW_MAX_CLIENTS; index < WOW_MAX_EDICTS; index++) {
+            if (!wow_edicts[index].inuse) {
+                ent = &wow_edicts[index];
+                break;
+            }
+        }
     }
+    if (!ent) {
+        return NULL;
+    }
+
+    memset(ent, 0, sizeof(*ent));
+    memset(&wow_entity_locals[index], 0, sizeof(wow_entity_locals[index]));
+    ent->inuse = true;
+    ent->s.number = index;
+    return ent;
 }
 
 static void Wow_InitPlayer(LPEDICT ent) {
     LPPLAYER ps;
+    wowEntityLocal_t *local = Wow_EntityLocal(ent);
     FLOAT height = Wow_TerrainHeight(wow_spawn_origin.x, wow_spawn_origin.y);
 
     memset(ent, 0, sizeof(*ent));
+    if (local) {
+        memset(local, 0, sizeof(*local));
+        local->kind = WOW_ENTITY_PLAYER;
+        local->home = wow_spawn_origin;
+        local->yaw = wow_move.yaw;
+        local->health = 100;
+    }
     ent->client = &wow_clients[0];
     ent->inuse = true;
     ent->s.number = 0;
@@ -322,7 +433,11 @@ static void Wow_InitPlayer(LPEDICT ent) {
     ent->s.radius = 1.0f;
     ent->s.renderfx = RF_NO_SHADOW;
     ent->s.flags = EF_GROUND_ANCHOR;
-    wow_player_animation = NULL;
+    ent->idle = Wow_AIIdle;
+    ent->move = NULL;
+    ent->run = NULL;
+    ent->attack = Wow_AIAttack;
+    ent->pain = Wow_AIPain;
     Wow_SetPlayerAnimation(ent, "Stand");
 
     ps = &ent->client->ps;
@@ -347,6 +462,7 @@ static void Wow_InitPlayer(LPEDICT ent) {
 
 static void Wow_Init(void) {
     memset(wow_edicts, 0, sizeof(wow_edicts));
+    memset(wow_entity_locals, 0, sizeof(wow_entity_locals));
     memset(wow_clients, 0, sizeof(wow_clients));
 
     globals.edicts = wow_edicts;
@@ -375,6 +491,7 @@ static void Wow_SpawnEntities(LPCMAPINFO mapinfo, LPCDOODAD doodads) {
     wow_move.distance = 8.5f;
     Wow_InitPlayer(&wow_edicts[0]);
     globals.num_edicts = WOW_MAX_CLIENTS;
+    Wow_SpawnAmbientCreatures(&wow_spawn_origin);
     fprintf(stderr, "WoW doodads: static ADT doodads are renderer-owned and not synced as entities\n");
 }
 
@@ -385,6 +502,7 @@ static void Wow_RunFrame(void) {
     VECTOR2 dir = { 0.0f, 0.0f };
     FLOAT len;
     BOOL moving;
+    BOOL locked;
 
     if (!ent->inuse || !ent->client) {
         return;
@@ -418,11 +536,23 @@ static void Wow_RunFrame(void) {
         ent->s.origin.y += dir.y * step;
     }
     ent->s.origin.z = Wow_TerrainHeight(ent->s.origin.x, ent->s.origin.y);
-    ent->s.rotation = (VECTOR3){ wow_move.yaw, 0.0f, 0.0f };
-    if (Wow_SetPlayerAnimation(ent, moving ? "Run" : "Stand")) {
+    locked = Wow_AIAdvanceLockedFrame(ent);
+    if (locked) {
+        Wow_UpdateCamera(ent);
+    } else if (Wow_SetPlayerAnimation(ent, moving ? "Run" : "Stand")) {
+        ent->s.rotation = (VECTOR3){ wow_move.yaw, 0.0f, 0.0f };
         Wow_MovePlayerFrame(ent);
+        Wow_UpdateCamera(ent);
+    } else {
+        ent->s.rotation = (VECTOR3){ wow_move.yaw, 0.0f, 0.0f };
+        Wow_UpdateCamera(ent);
     }
-    Wow_UpdateCamera(ent);
+
+    for (DWORD i = WOW_MAX_CLIENTS; i < (DWORD)globals.num_edicts; i++) {
+        if (wow_edicts[i].inuse) {
+            Wow_RunCreatureFrame(&wow_edicts[i]);
+        }
+    }
 }
 
 static LPCSTR Wow_GetThemeValue(LPCSTR filename) {
@@ -430,12 +560,21 @@ static LPCSTR Wow_GetThemeValue(LPCSTR filename) {
 }
 
 static void Wow_ClientCommand(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
-    (void)ent;
     if (argc >= 5 && !strcasecmp(argv[0], "wowmove")) {
         wow_move.flags = (DWORD)strtoul(argv[1], NULL, 10);
         wow_move.yaw = (FLOAT)atof(argv[2]);
         wow_move.pitch = Wow_Clamp((FLOAT)atof(argv[3]), WOW_CAMERA_MIN_PITCH, WOW_CAMERA_MAX_PITCH);
         wow_move.distance = Wow_Clamp((FLOAT)atof(argv[4]), WOW_CAMERA_MIN_DISTANCE, WOW_CAMERA_MAX_DISTANCE);
+    } else if (argc >= 2 && !strcasecmp(argv[0], "wowattack")) {
+        DWORD target_number = (DWORD)strtoul(argv[1], NULL, 10);
+        LPEDICT target = Wow_EdictByNumber(target_number);
+        wowEntityLocal_t *local = Wow_EntityLocal(ent);
+
+        if (!ent || !target || target == ent || !local || !ent->attack) {
+            return;
+        }
+        local->enemy = target;
+        ent->attack(ent);
     }
 }
 

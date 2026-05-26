@@ -1,4 +1,5 @@
 #include "r_local.h"
+#include <float.h>
 
 void R_GetEntityMatrix(renderEntity_t const *entity, LPMATRIX4 matrix) {
     VECTOR3 origin = entity->origin;
@@ -78,13 +79,54 @@ LINE3 R_LineForScreenPoint(viewDef_t const *viewdef, float x, float y) {
 
 bool R_TraceEntity(viewDef_t const *viewdef, float x, float y, LPDWORD number) {
     LINE3 const line = R_LineForScreenPoint(viewdef, x, y);
+#ifdef WOW
+    FLOAT best = FLT_MAX;
+    DWORD best_number = 0;
+#endif
+
     FOR_LOOP(i, viewdef->num_entities) {
         renderEntity_t *ent = &viewdef->entities[i];
         if (MDLX_TraceModel(ent, &line)) {
             *number = ent->number;
             return true;
         }
+#ifdef WOW
+        VECTOR3 ab = Vector3_sub(&line.b, &line.a);
+        VECTOR3 ac;
+        VECTOR3 center = ent->origin;
+        FLOAT radius = MAX(1.5f, ent->radius * MAX(1.0f, ent->scale));
+        FLOAT denom = Vector3_dot(&ab, &ab);
+        FLOAT t;
+        VECTOR3 closest;
+        VECTOR3 delta;
+        FLOAT dist2;
+
+        if (!ent->number || !ent->model || denom <= 0.0001f) {
+            continue;
+        }
+        center.z += radius;
+        ac = Vector3_sub(&center, &line.a);
+        t = Vector3_dot(&ac, &ab) / denom;
+        t = MAX(0.0f, MIN(1.0f, t));
+        closest = (VECTOR3){
+            line.a.x + ab.x * t,
+            line.a.y + ab.y * t,
+            line.a.z + ab.z * t,
+        };
+        delta = Vector3_sub(&center, &closest);
+        dist2 = Vector3_dot(&delta, &delta);
+        if (dist2 <= radius * radius && t < best) {
+            best = t;
+            best_number = ent->number;
+        }
+#endif
     }
+#ifdef WOW
+    if (best_number) {
+        *number = best_number;
+        return true;
+    }
+#endif
     return false;
 }
 

@@ -51,6 +51,35 @@ static void IN_WowLeftUp(void) {
     wow_input.left_mouse = false;
 }
 
+static void CL_WowSendAttack(void) {
+    DWORD entnum;
+
+    if (cls.key_dest != key_game || cls.state != ca_active || CL_MouseOverGameplayUI()) {
+        return;
+    }
+    if (wow_input.right_mouse) {
+        return;
+    }
+    if (!re.TraceEntity || !re.TraceEntity(&cl.viewDef, mouse.origin.x, mouse.origin.y, &entnum)) {
+        return;
+    }
+    if (entnum == cl.playerstate.number) {
+        return;
+    }
+
+    MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
+    SZ_Printf(&cls.netchan.message, "wowattack %u", (unsigned)entnum);
+}
+
+static void IN_WowAttackDown(void) {
+    wow_input.left_mouse = true;
+    CL_WowSendAttack();
+}
+
+static void IN_WowAttackUp(void) {
+    wow_input.left_mouse = false;
+}
+
 static void IN_LookDown(void) {
     wow_input.right_mouse = true;
     CL_WowInitInputState();
@@ -97,6 +126,8 @@ static void IN_MoveRightUp(void) {
 void CL_InputModeInit(void) {
     Cmd_AddCommand("+wowleft", IN_WowLeftDown);
     Cmd_AddCommand("-wowleft", IN_WowLeftUp);
+    Cmd_AddCommand("+wowattack", IN_WowAttackDown);
+    Cmd_AddCommand("-wowattack", IN_WowAttackUp);
     Cmd_AddCommand("+look", IN_LookDown);
     Cmd_AddCommand("-look", IN_LookUp);
     Cmd_AddCommand("+forward", IN_ForwardDown);

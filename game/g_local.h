@@ -641,6 +641,11 @@ struct edict_s {
     LINK area;
     BOOL inuse;
     BOX2 areabounds;
+    void (*idle)(LPEDICT);
+    void (*move)(LPEDICT);
+    void (*run)(LPEDICT);
+    void (*attack)(LPEDICT);
+    void (*pain)(LPEDICT);
 
     // keep above in sync with server.h
     DWORD class_id;
@@ -686,7 +691,6 @@ struct edict_s {
     void (*birth)(LPEDICT);
     void (*prethink)(LPEDICT);
     void (*think)(LPEDICT);
-    void (*pain)(LPEDICT);
     void (*die)(LPEDICT, LPEDICT);
 };
 

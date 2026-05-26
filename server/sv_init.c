@@ -3,6 +3,7 @@
 
 void SV_CreateBaseline(void) {
     sv.baselines = MemAlloc(sizeof(entityState_t) * ge->max_edicts);
+    memset(sv.baselines, 0, sizeof(entityState_t) * ge->max_edicts);
     FOR_LOOP(entnum, ge->num_edicts) {
         edict_t *svent = EDICT_NUM(entnum);
         sv.baselines[entnum] = svent->s;

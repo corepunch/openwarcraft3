@@ -48,6 +48,11 @@ struct edict_s {
     LINK area;
     BOOL inuse;
     BOX2 areabounds;
+    void (*idle)(LPEDICT);
+    void (*move)(LPEDICT);
+    void (*run)(LPEDICT);
+    void (*attack)(LPEDICT);
+    void (*pain)(LPEDICT);
 };
 
 struct client_frame {
