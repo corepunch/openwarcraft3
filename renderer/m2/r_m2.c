@@ -79,8 +79,8 @@ typedef struct {
 } m2CompQuat_t;
 
 typedef struct {
-    WORD end;
-    WORD start;
+    DWORD start;
+    DWORD end;
 } m2Range_t;
 
 typedef struct {
@@ -280,8 +280,6 @@ struct m2Model_s {
     DWORD sequence_count;
     DWORD bone_lookup_count;
     MATRIX4 *bone_matrices;
-    BOOL debug_animation;
-    DWORD debug_animation_logs;
 };
 
 typedef struct {
@@ -664,45 +662,66 @@ static DWORD M2_SequenceDuration(m2Model_t const *model, DWORD sequence_index) {
     }
 }
 
+static DWORD M2_SequenceFlags(m2Model_t const *model, DWORD sequence_index) {
+    if (!model || !model->sequences || sequence_index >= model->sequence_count) {
+        return 0;
+    }
+    if (model->classic_sequences) {
+        m2SequenceClassic_t const *sequence = (m2SequenceClassic_t const *)(model->sequences + sequence_index * model->sequence_stride);
+        return sequence->flags;
+    } else {
+        m2SequenceModern_t const *sequence = (m2SequenceModern_t const *)(model->sequences + sequence_index * model->sequence_stride);
+        return sequence->flags;
+    }
+}
+
 static DWORD M2_AnimationTime(m2Model_t const *model, renderEntity_t const *entity, DWORD *sequence_index) {
-    DWORD time = entity ? entity->frame : tr.viewDef.time;
-    DWORD clock = tr.viewDef.time;
+    DWORD frame = entity ? entity->frame : tr.viewDef.time;
     DWORD range_start = 0;
 
     if (sequence_index) {
         *sequence_index = 0;
     }
     if (!model || !model->sequences || model->sequence_count == 0) {
-        return time;
+        return frame;
     }
 
     FOR_LOOP(i, model->sequence_count) {
         DWORD duration = M2_SequenceDuration(model, i);
         DWORD range_length = MAX(duration, 1);
 
-        if (time >= range_start && time < range_start + range_length) {
+        if (frame >= range_start && frame < range_start + range_length) {
+            DWORD local_time = frame - range_start;
+
+            if (entity && entity->oldframe >= range_start && entity->oldframe < range_start + range_length) {
+                DWORD old_time = entity->oldframe - range_start;
+                FLOAT end_time = (FLOAT)local_time;
+                FLOAT lerped;
+
+                if (duration > 0 && old_time > local_time && !(M2_SequenceFlags(model, i) & 0x1)) {
+                    end_time += (FLOAT)duration;
+                }
+                lerped = LerpNumber((FLOAT)old_time, end_time, tr.viewDef.lerpfrac);
+                if (duration > 0 && lerped >= (FLOAT)duration) {
+                    lerped -= (FLOAT)duration * floorf(lerped / (FLOAT)duration);
+                }
+                local_time = (DWORD)MAX(0.0f, lerped);
+            }
             if (sequence_index) {
                 *sequence_index = i;
             }
-            if (model->classic_sequences) {
-                return clock;
-            }
-            return duration ? M2_SequenceStart(model, i) + (clock % duration) : M2_SequenceStart(model, i);
+            return duration ? M2_SequenceStart(model, i) + (local_time % duration) : M2_SequenceStart(model, i);
         }
         range_start += range_length;
     }
 
-    FOR_LOOP(i, model->sequence_count) {
-        DWORD duration = M2_SequenceDuration(model, i);
-        if (sequence_index) {
-            *sequence_index = i;
+    if (model->sequence_count > 0) {
+        DWORD duration = M2_SequenceDuration(model, 0);
+        if (!entity && duration > 0) {
+            return M2_SequenceStart(model, 0) + (tr.viewDef.time % duration);
         }
-        if (model->classic_sequences) {
-            return clock;
-        }
-        return duration ? M2_SequenceStart(model, i) + (time % duration) : M2_SequenceStart(model, i);
     }
-    return time;
+    return frame;
 }
 
 static DWORD M2_TrackTime(m2Model_t const *model,
@@ -759,21 +778,18 @@ static BOOL M2_FindTrackKeys(m2Model_t const *model,
         times = M2_ModelArrayPtr(model, track->sequence_times, sizeof(DWORD));
         keys = M2_ModelArrayPtr(model, track->sequence_keys, elem_size);
         if (!times || !keys ||
-            range.start >= (WORD)track->sequence_times.size ||
-            range.start >= (WORD)track->sequence_keys.size) {
+            range.start >= (DWORD)track->sequence_times.size ||
+            range.start >= (DWORD)track->sequence_keys.size) {
             return false;
         }
 
-        count = (DWORD)range.end - (DWORD)range.start + 1;
+        count = range.end - range.start + 1;
         count = MIN(count, (DWORD)track->sequence_times.size - range.start);
         count = MIN(count, (DWORD)track->sequence_keys.size - range.start);
         times += range.start;
-        keys += (DWORD)range.start * elem_size;
+        keys += range.start * elem_size;
         if (count == 0) {
             return false;
-        }
-        if (count > 1 && times[count - 1] > times[0]) {
-            sequence_time = times[0] + (sequence_time % (times[count - 1] - times[0]));
         }
     } else {
         m2SequenceTimes_t const *sequence_times = M2_ModelArrayPtr(model, track->sequence_times, sizeof(*sequence_times));
@@ -1019,22 +1035,13 @@ static void M2_CalculateBoneMatrices(m2Model_t const *model, renderEntity_t cons
     MATRIX4 identity;
     DWORD sequence_index;
     DWORD sequence_time;
-    BOOL debug;
-    DWORD keyed_bones = 0;
-    DWORD changed_bones = 0;
-    VECTOR3 debug_translation = { 0.0f, 0.0f, 0.0f };
-    QUATERNION debug_rotation = { 0.0f, 0.0f, 0.0f, 1.0f };
-    VECTOR3 debug_scale = { 1.0f, 1.0f, 1.0f };
-    MATRIX4 debug_matrix;
 
     if (!model || !model->bone_matrices || !model->bones) {
         return;
     }
 
     Matrix4_identity(&identity);
-    Matrix4_identity(&debug_matrix);
     sequence_time = M2_AnimationTime(model, entity, &sequence_index);
-    debug = model->debug_animation && model->debug_animation_logs < 24;
 
     FOR_LOOP(i, model->bone_count) {
         WORD parent_index = M2_BoneParentIndex(model, i);
@@ -1076,39 +1083,9 @@ static void M2_CalculateBoneMatrices(m2Model_t const *model, renderEntity_t cons
                                                            &scale,
                                                            &pivot);
             Matrix4_multiply(parent, &local, &model->bone_matrices[i]);
-            if (has_keys) {
-                keyed_bones++;
-            }
-            if (translation.x * translation.x + translation.y * translation.y + translation.z * translation.z > 0.000001f ||
-                rotation.x * rotation.x + rotation.y * rotation.y + rotation.z * rotation.z + (rotation.w - 1.0f) * (rotation.w - 1.0f) > 0.000001f ||
-                (scale.x - 1.0f) * (scale.x - 1.0f) + (scale.y - 1.0f) * (scale.y - 1.0f) + (scale.z - 1.0f) * (scale.z - 1.0f) > 0.000001f) {
-                changed_bones++;
-            }
-            if (debug && i == 22) {
-                debug_translation = translation;
-                debug_rotation = rotation;
-                debug_scale = scale;
-                debug_matrix = model->bone_matrices[i];
-            }
         } else {
             model->bone_matrices[i] = *parent;
         }
-    }
-    if (debug) {
-        fprintf(stderr,
-                "M2DBG frame=%u clock=%u seq=%u start=%u dur=%u keyed=%u changed=%u bone22_t=(%.3f %.3f %.3f) bone22_q=(%.4f %.4f %.4f %.4f) bone22_s=(%.3f %.3f %.3f) bone22_mpos=(%.3f %.3f %.3f)\n",
-                entity ? (unsigned)entity->frame : 0u,
-                (unsigned)tr.viewDef.time,
-                (unsigned)sequence_index,
-                (unsigned)M2_SequenceStart(model, sequence_index),
-                (unsigned)M2_SequenceDuration(model, sequence_index),
-                (unsigned)keyed_bones,
-                (unsigned)changed_bones,
-                debug_translation.x, debug_translation.y, debug_translation.z,
-                debug_rotation.x, debug_rotation.y, debug_rotation.z, debug_rotation.w,
-                debug_scale.x, debug_scale.y, debug_scale.z,
-                debug_matrix.v[12], debug_matrix.v[13], debug_matrix.v[14]);
-        ((m2Model_t *)model)->debug_animation_logs++;
     }
 }
 
@@ -1574,20 +1551,6 @@ m2Model_t *R_LoadModelM2(LPCSTR modelFilename, void *buffer, DWORD size) {
         M2_FreeModelData(model);
         ri.MemFree(model);
         return M2_CreateFallbackModel(modelFilename, "failed to copy animation data");
-    }
-    model->debug_animation = modelFilename && strstr(modelFilename, "OrcMale");
-    if (model->debug_animation) {
-        fprintf(stderr,
-                "M2DBG load model=%s version=%u classic_seq=%d classic_bones=%d bones=%u bone_stride=%u seqs=%u seq_stride=%u lookup=%u\n",
-                modelFilename,
-                (unsigned)model->header->version,
-                model->classic_sequences,
-                model->classic_bones,
-                (unsigned)model->bone_count,
-                (unsigned)model->bone_stride,
-                (unsigned)model->sequence_count,
-                (unsigned)model->sequence_stride,
-                (unsigned)model->bone_lookup_count);
     }
 
     FOR_LOOP(i, batch_count) {

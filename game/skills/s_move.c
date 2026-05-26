@@ -6,7 +6,7 @@
  * calls order_move() for each selected unit.
  *
  * order_move() sets the unit's goalentity to the waypoint and switches to the
- * walk state.  Each game frame, ai_walk() checks the remaining distance: if
+ * movement state.  Each game frame, ai_move_walk() checks the remaining distance: if
  * the unit has arrived it switches to the stand (idle) state; otherwise it
  * rotates toward the goal and advances by one frame's worth of movement.
  *
@@ -26,7 +26,7 @@ static void ai_move_walk(LPEDICT ent) {
     }
 }
 
-static umove_t move_move_walk = { "walk", ai_move_walk, NULL, &a_move };
+static umove_t move_move_walk = { "run", ai_move_walk, NULL, &a_move };
 
 /* Set the unit's move target and begin walking.
  * goalentity must be a waypoint or any entity whose origin is the destination. */

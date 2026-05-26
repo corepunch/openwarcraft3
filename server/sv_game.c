@@ -523,6 +523,27 @@ static FLOAT SV_M2SequenceRadius(BYTE const *sequence, BOOL classic) {
         : ((svM2SequenceModern_t const *)sequence)->radius;
 }
 
+static BOOL SV_M2AnimationNameExists(LPCANIMATION animations, DWORD count, LPCSTR name) {
+    FOR_LOOP(i, count) {
+        if (!strcasecmp(animations[i].name, name)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static DWORD SV_M2AnimationSyncPoint(LPCSTR name) {
+    char buffer[80];
+    DWORD i;
+
+    memset(buffer, 0, sizeof(buffer));
+    strncpy(buffer, name, sizeof(buffer) - 1);
+    for (i = 0; buffer[i]; i++) {
+        buffer[i] = (char)tolower(buffer[i]);
+    }
+    return fnv1a32(buffer);
+}
+
 static struct cmodel *SV_LoadModelM2(HANDLE file) {
     struct cmodel *model = MemAlloc(sizeof(struct cmodel));
     DWORD file_size = SFileGetFileSize(file, NULL);
@@ -536,6 +557,7 @@ static struct cmodel *SV_LoadModelM2(HANDLE file) {
     BYTE const *sequences;
     DWORD sequence_stride;
     BOOL classic_sequences;
+    DWORD sequence_count;
 
     memset(model, 0, sizeof(*model));
     if (file_size < sizeof(DWORD)) {
@@ -561,30 +583,37 @@ static struct cmodel *SV_LoadModelM2(HANDLE file) {
     }
 
     sequences = payload + sequences_offset;
-    model->num_animations = sequences_bytes / sequence_stride;
-    model->animations = MemAlloc(sizeof(animation_t) * model->num_animations);
-    memset(model->animations, 0, sizeof(animation_t) * model->num_animations);
+    sequence_count = sequences_bytes / sequence_stride;
+    model->animations = MemAlloc(sizeof(animation_t) * sequence_count);
+    memset(model->animations, 0, sizeof(animation_t) * sequence_count);
 
     DWORD frame_base = 0;
-    FOR_LOOP(i, model->num_animations) {
+    FOR_LOOP(i, sequence_count) {
         BYTE const *src = sequences + i * sequence_stride;
-        LPANIMATION dest = model->animations + i;
+        char name[80];
         DWORD length = MAX(SV_M2SequenceLength(src, classic_sequences), 1);
 
-        SV_M2AnimationName(SV_M2SequenceAnimationId(src, classic_sequences), dest->name, sizeof(dest->name));
-        dest->interval[0] = frame_base;
-        dest->interval[1] = frame_base + length;
-        dest->movespeed = SV_M2SequenceMoveSpeed(src, classic_sequences);
-        dest->flags = SV_M2SequenceFlags(src, classic_sequences);
-        dest->rarity = SV_M2SequenceRarity(src, classic_sequences);
-        dest->syncpoint = fnv1a32(dest->name);
-        dest->radius = SV_M2SequenceRadius(src, classic_sequences);
-        dest->min = SV_M2SequenceMin(src, classic_sequences);
-        dest->max = SV_M2SequenceMax(src, classic_sequences);
+        SV_M2AnimationName(SV_M2SequenceAnimationId(src, classic_sequences), name, sizeof(name));
+        if (!SV_M2AnimationNameExists(model->animations, model->num_animations, name)) {
+            LPANIMATION dest = model->animations + model->num_animations++;
+
+            strncpy(dest->name, name, sizeof(dest->name) - 1);
+            dest->interval[0] = frame_base;
+            dest->interval[1] = frame_base + length;
+            dest->movespeed = SV_M2SequenceMoveSpeed(src, classic_sequences);
+            dest->flags = SV_M2SequenceFlags(src, classic_sequences);
+            dest->rarity = SV_M2SequenceRarity(src, classic_sequences);
+            dest->syncpoint = SV_M2AnimationSyncPoint(dest->name);
+            dest->radius = SV_M2SequenceRadius(src, classic_sequences);
+            dest->min = SV_M2SequenceMin(src, classic_sequences);
+            dest->max = SV_M2SequenceMax(src, classic_sequences);
+        }
         frame_base += length;
     }
 
-    qsort(model->animations, model->num_animations, sizeof(animation_t), compare_animation_name);
+    if (model->num_animations > 1) {
+        qsort(model->animations, model->num_animations, sizeof(animation_t), compare_animation_name);
+    }
     MemFree(data);
     return model;
 }

@@ -118,8 +118,8 @@ typedef struct {
 } m2TrackClassic_t;
 
 typedef struct {
-    WORD end;
-    WORD start;
+    DWORD start;
+    DWORD end;
 } m2Range_t;
 
 typedef struct {
@@ -725,11 +725,11 @@ static DWORD ClassicTrackKeyRange(BYTE const *data,
     times = ArrayPtr(data, size, track->times, sizeof(*times));
     keys = ArrayPtr(data, size, track->keys, elem_size);
     if (!times || !keys ||
-        range.start >= (WORD)track->times.count ||
-        range.start >= (WORD)track->keys.count) {
+        range.start >= (DWORD)track->times.count ||
+        range.start >= (DWORD)track->keys.count) {
         return 0;
     }
-    count = (DWORD)range.end - (DWORD)range.start + 1;
+    count = range.end - range.start + 1;
     count = MIN(count, (DWORD)track->times.count - range.start);
     count = MIN(count, (DWORD)track->keys.count - range.start);
     if (count == 0) {
@@ -737,7 +737,7 @@ static DWORD ClassicTrackKeyRange(BYTE const *data,
     }
     *out_range = range;
     *out_times = times + range.start;
-    *out_keys = keys + (DWORD)range.start * elem_size;
+    *out_keys = keys + range.start * elem_size;
     return count;
 }
 
