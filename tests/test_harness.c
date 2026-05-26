@@ -114,6 +114,19 @@ static DWORD mock_BuildHeatmap(LPEDICT goalentity) {
     return 0;
 }
 
+static BOOL mock_ClosestPathablePointForRadius(LPCVECTOR2 location, FLOAT radius, LPVECTOR2 out) {
+    (void)radius;
+    if (!location || !out) {
+        return false;
+    }
+    *out = *location;
+    return true;
+}
+
+static BOOL mock_ClosestPathablePoint(LPCVECTOR2 location, LPVECTOR2 out) {
+    return mock_ClosestPathablePointForRadius(location, 0, out);
+}
+
 static sheetRow_t *mock_ReadSheet(LPCSTR filename) {
     (void)filename;
     return NULL;
@@ -274,6 +287,8 @@ void setup_game(void) {
     gi.ExtractFile         = mock_ExtractFile;
     gi.GetAnimation        = mock_GetAnimation;
     gi.BuildHeatmap        = mock_BuildHeatmap;
+    gi.ClosestPathablePoint = mock_ClosestPathablePoint;
+    gi.ClosestPathablePointForRadius = mock_ClosestPathablePointForRadius;
     gi.CreateThread        = mock_CreateThread;
     gi.JoinThread          = mock_JoinThread;
     gi.Sleep               = mock_Sleep;

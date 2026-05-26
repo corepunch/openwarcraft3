@@ -753,6 +753,8 @@ void SV_InitGameProgs(void) {
     import.GetAnimation = SV_GetAnimation;
     import.GetHeightAtPoint = CM_GetHeightAtPoint;
     import.BuildHeatmap = CM_BuildHeatmap;
+    import.ClosestPathablePoint = CM_ClosestPathablePoint;
+    import.ClosestPathablePointForRadius = CM_ClosestPathablePointForRadius;
     import.GetFlowDirection = get_flow_direction;
     import.ReadFileIntoString = FS_ReadFileIntoString;
     import.ReadFile = FS_ReadFile;

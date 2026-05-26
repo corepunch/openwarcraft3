@@ -69,6 +69,8 @@ LPEDICT Waypoint_add(LPCVECTOR2 spot) {
     LPEDICT waypoint = &waypoints[current_waypoint++ % MAX_WAYPOINTS];
     waypoint->s.origin.x = spot->x;
     waypoint->s.origin.y = spot->y;
+    waypoint->heatmap2 = 0;
+    waypoint->collision = 0;
     M_CheckGround(waypoint);
     return waypoint;
 }

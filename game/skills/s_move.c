@@ -40,13 +40,22 @@ void order_move(LPEDICT self, LPEDICT target) {
  * to all currently selected units, and sends a move-confirmation effect back
  * to the commanding client (svc_temp_entity / TE_MOVE_CONFIRMATION). */
 BOOL move_selectlocation(LPEDICT clent, LPCVECTOR2 location) {
-    LPEDICT waypoint = Waypoint_add(location);
+    VECTOR2 confirmation = *location;
+    BOOL have_confirmation = false;
+
     FOR_SELECTED_UNITS(clent->client, ent) {
+        VECTOR2 target = *location;
+        gi.ClosestPathablePointForRadius(location, ent->collision, &target);
+        LPEDICT waypoint = Waypoint_add(&target);
+        if (!have_confirmation) {
+            confirmation = target;
+            have_confirmation = true;
+        }
         order_move(ent, waypoint);
     }
     gi.WriteByte(svc_temp_entity);
     gi.WriteByte(TE_MOVE_CONFIRMATION);
-    gi.WritePosition(&waypoint->s.origin);
+    gi.WritePosition(&MAKE(VECTOR3, confirmation.x, confirmation.y, 0));
     gi.unicast(clent);
     return true;
 }

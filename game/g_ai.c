@@ -1,13 +1,10 @@
 #include "g_local.h"
 
-#define NAVI_THRESHOLD 50
-
 void unit_changeangle(LPEDICT self) {
-    VECTOR2 dir;
-    if (M_DistanceToGoal(self) > NAVI_THRESHOLD) {
-        DWORD heatmap = M_RefreshHeatmap(self->goalentity);
-        dir = gi.GetFlowDirection(heatmap, self->s.origin.x, self->s.origin.y);
-    } else {
+    DWORD heatmap = M_RefreshHeatmap(self->goalentity);
+    VECTOR2 dir = gi.GetFlowDirection(heatmap, self->s.origin.x, self->s.origin.y);
+
+    if (Vector2_len(&dir) <= 0.001f) {
         dir = Vector2_sub(&self->goalentity->s.origin2, &self->s.origin2);
     }
     self->s.angle = atan2(dir.y, dir.x);
