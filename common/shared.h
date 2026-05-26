@@ -18,8 +18,6 @@
 
 #define MAX_PATHLEN 256
 #define MAX_SELECTED_ENTITIES 64
-#define MAX_ENTITY_INVENTORY 6
-#define MAX_ENTITY_BUILD_QUEUE 7
 #define TOKEN_LEN 1024
 #define FRAMETIME 100
 #define MAX_LAYOUT_OBJECTS 0xffff
@@ -377,8 +375,6 @@ typedef struct entityState_s {
     DWORD splat;
     DWORD shadow;
     DWORD shadow_rect;
-    DWORD inventory[MAX_ENTITY_INVENTORY];
-    DWORD build_queue[MAX_ENTITY_BUILD_QUEUE];
 } entityState_t;
 
 #define SHADOW_RECT_STEP 4.0f
@@ -559,8 +555,14 @@ typedef USHORT RESOURCE;
 
 typedef struct {
     USHORT image;
-    USHORT entity;
+    DWORD starttime;
+    DWORD endtime;
 } uiBuildQueueItem_t;
+
+typedef struct {
+    USHORT image;
+    USHORT entity;
+} uiMultiselectItem_t;
 
 typedef struct {
     USHORT firstitem;
@@ -576,7 +578,7 @@ typedef struct {
     VECTOR2 offset;
     USHORT numcolumns;
     USHORT numitems;
-    uiBuildQueueItem_t items[];
+    uiMultiselectItem_t items[];
 } uiMultiselect_t;
 
 typedef struct {

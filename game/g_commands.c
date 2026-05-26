@@ -114,6 +114,50 @@ CLIENTCOMMAND(Research) {
     Get_Commands_f(clent);
 }
 
+CLIENTCOMMAND(Inventory) {
+    LPGAMECLIENT client = clent->client;
+    LPEDICT ent;
+    LPEDICT item;
+    LONG slot;
+    LPCSTR abilities;
+    BOOL handled = false;
+
+    if (argc < 2) {
+        return;
+    }
+
+    ent = G_GetMainSelectedUnit(client);
+    slot = atoi(argv[1]);
+    if (!ent || slot < 0 || slot >= MAX_INVENTORY) {
+        return;
+    }
+
+    item = ent->inventory[slot];
+    if (!item || !item->class_id) {
+        return;
+    }
+
+    G_PublishEvent(ent, EVENT_PLAYER_UNIT_USE_ITEM);
+    G_PublishEvent(ent, EVENT_UNIT_USE_ITEM);
+
+    abilities = FindConfigValue(GetClassName(item->class_id), "abilList");
+    if (abilities && *abilities) {
+        PARSE_LIST(abilities, ability_name, parse_segment) {
+            ability_t const *ability = FindAbilityByClassname(ability_name);
+            if (ability && ability->cmd) {
+                ability->cmd(clent);
+                handled = true;
+                break;
+            }
+        }
+    }
+
+    Get_Portrait_f(clent);
+    if (!handled) {
+        Get_Commands_f(clent);
+    }
+}
+
 CLIENTCOMMAND(Cancel) {
     G_PublishEvent(clent, EVENT_PLAYER_END_CINEMATIC);
 }
@@ -160,6 +204,7 @@ typedef struct {
 clientCommand_t clientCommands[] = {
     { "button", CMD_Button },
     { "research", CMD_Research },
+    { "inventory", CMD_Inventory },
     { "select", CMD_Select },
     { "point", CMD_Point },
     { "cancel", CMD_Cancel },

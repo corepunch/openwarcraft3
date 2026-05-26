@@ -18,10 +18,13 @@ static void ai_build(LPEDICT ent) {
     EDICTSTAT *hp = &ent->build->health;
     hp->value += hp->max_value * k;
     if (hp->value >= hp->max_value) {
+        LPEDICT clent = G_GetPlayerEntityByNumber(ent->s.player);
+
         hp->value = hp->max_value;
         G_PublishEvent(ent->build, EVENT_PLAYER_UNIT_CONSTRUCT_FINISH);
         ent->build->stand(ent->build);
         ent->stand(ent);
+        Get_Portrait_f(clent);
     }
 }
 
@@ -60,6 +63,7 @@ void build_build(LPEDICT ent) {
         building->health.value = 0;
         building->build = building;
         G_PublishEvent(building, EVENT_PLAYER_UNIT_CONSTRUCT_START);
+        Get_Portrait_f(G_GetPlayerEntityByNumber(ent->s.player));
     } else {
         ent->stand(ent);
     }

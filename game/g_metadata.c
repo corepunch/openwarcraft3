@@ -110,6 +110,8 @@ static sheetRow_t *abilityConfigs = NULL;
 static sheetRow_t *abilityConfigsTail = NULL;
 static sheetRow_t *commandFuncConfig = NULL;
 static sheetRow_t *commandStringsConfig = NULL;
+static sheetRow_t *abilityConfigTables[64];
+static DWORD abilityConfigTableCount = 0;
 
 sheetRow_t *Doodads = NULL;
 
@@ -188,11 +190,15 @@ void InitUnitData(void) {
     abilityConfigsTail = NULL;
     commandFuncConfig = NULL;
     commandStringsConfig = NULL;
+    abilityConfigTableCount = 0;
     Doodads = NULL;
     
     for (LPCSTR *config = config_files; *config; config++) {
         sheetRow_t *current = gi.ReadConfig(*config);
         if (current) {
+            if (abilityConfigTableCount < sizeof(abilityConfigTables) / sizeof(*abilityConfigTables)) {
+                abilityConfigTables[abilityConfigTableCount++] = current;
+            }
             AppendSheetRows(&abilityConfigs, &abilityConfigsTail, current);
             if (!strcmp(*config, "Units\\CommandFunc.txt")) {
                 commandFuncConfig = current;
@@ -224,25 +230,45 @@ void InitUnitData(void) {
 void ShutdownUnitData(void) {
 }
 
+static LPCSTR FindConfigField(sheetRow_t *sheet, LPCSTR row, LPCSTR column) {
+    FOR_EACH_LIST(sheetRow_t const, srow, sheet) {
+        if (strcmp(srow->name, row)) {
+            continue;
+        }
+        FOR_EACH_LIST(sheetField_t const, scolumn, srow->fields) {
+            if (!strcasecmp(scolumn->name, column)) {
+                return scolumn->value;
+            }
+        }
+    }
+    return NULL;
+}
+
 LPCSTR FindConfigValue(LPCSTR category, LPCSTR field) {
     LPCSTR value;
 
     if (!strncmp(category, "Cmd", 3)) {
         if (commandFuncConfig) {
-            value = gi.FindSheetCell(commandFuncConfig, category, field);
+            value = FindConfigField(commandFuncConfig, category, field);
             if (value) {
                 return value;
             }
         }
         if (commandStringsConfig) {
-            value = gi.FindSheetCell(commandStringsConfig, category, field);
+            value = FindConfigField(commandStringsConfig, category, field);
             if (value) {
                 return value;
             }
         }
     }
 
-    return gi.FindSheetCell(abilityConfigs, category, field);
+    FOR_LOOP(i, abilityConfigTableCount) {
+        value = FindConfigField(abilityConfigTables[i], category, field);
+        if (value) {
+            return value;
+        }
+    }
+    return NULL;
 }
 
 LPCSTR GetClassName(DWORD class_id) {

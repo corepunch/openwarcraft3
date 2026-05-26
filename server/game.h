@@ -97,7 +97,8 @@ typedef struct {
 
 typedef struct {
     char art[256];
-    WORD entity;
+    DWORD starttime;
+    DWORD endtime;
 } gameQueueItem_t;
 
 struct game_export {

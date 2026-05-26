@@ -17,6 +17,27 @@
 #define INFO_PANEL_Y 0.486f
 #define INFO_PANEL_W 0.180f
 #define INFO_PANEL_H 0.105f
+#define BUILDQUEUE_OFFSET 0.0281f
+#define BUILDQUEUE_BACKDROP_X INFO_PANEL_X
+#define BUILDQUEUE_BACKDROP_Y (INFO_PANEL_Y + INFO_PANEL_H - 0.1000f)
+#define BUILDQUEUE_BACKDROP_W INFO_PANEL_W
+#define BUILDQUEUE_BACKDROP_H 0.1000f
+#define BUILDQUEUE_FIRST_X (INFO_PANEL_X + 0.0100f)
+#define BUILDQUEUE_FIRST_Y (INFO_PANEL_Y + 0.0390f)
+#define BUILDQUEUE_FIRST_W 0.0280f
+#define BUILDQUEUE_FIRST_H 0.0310f
+#define BUILDQUEUE_LIST_X (INFO_PANEL_X + 0.0095f)
+#define BUILDQUEUE_LIST_Y (INFO_PANEL_Y + 0.0800f)
+#define BUILDQUEUE_ITEM_W 0.0200f
+#define BUILDQUEUE_ITEM_H 0.0215f
+#define BUILDQUEUE_TIMER_X (INFO_PANEL_X + 0.061250f)
+#define BUILDQUEUE_TIMER_Y (INFO_PANEL_Y + 0.038125f)
+#define BUILDQUEUE_TIMER_W 0.1450f
+#define BUILDQUEUE_TIMER_H 0.0120f
+#define BUILDQUEUE_ACTION_X (INFO_PANEL_X + 0.061250f)
+#define BUILDQUEUE_ACTION_Y (INFO_PANEL_Y + 0.022875f)
+#define BUILDQUEUE_ACTION_W 0.1050f
+#define BUILDQUEUE_ACTION_H 0.0140f
 #define PORTRAIT_X 0.215f
 #define PORTRAIT_Y 0.490f
 #define PORTRAIT_SIZE 0.080f
@@ -76,20 +97,6 @@ static void UI_WriteTextFrame(FLOAT x, FLOAT y, FLOAT w, FLOAT h, LPCSTR text, C
     label.textaligny = FONT_JUSTIFYTOP;
     UI_SetFrameRect(&frame, x, y, w, h);
     UI_WriteProxyFrame(&frame, &label, sizeof(label));
-}
-
-static void UI_WriteTextureFrame(FLOAT x, FLOAT y, FLOAT w, FLOAT h, LPCSTR art) {
-    uiFrame_t frame;
-
-    if (!art || !*art) {
-        return;
-    }
-    memset(&frame, 0, sizeof(frame));
-    frame.flags.type = FT_TEXTURE;
-    frame.color = COLOR32_WHITE;
-    frame.tex.index = gi.ImageIndex(art);
-    UI_SetFrameRect(&frame, x, y, w, h);
-    UI_WriteProxyFrame(&frame, NULL, 0);
 }
 
 static void UI_WriteServerConsoleShell(LPEDICT ent) {
@@ -224,17 +231,108 @@ static void UI_WriteSingleInfo(LPEDICT ent) {
 }
 
 static void UI_WriteInventory(LPEDICT ent) {
-    FOR_LOOP(slot, MAX_INVENTORY) {
-        LPEDICT item = ent->inventory[slot];
-        if (item && item->class_id) {
-            RECT rect = UI_InventoryButtonRect((BYTE)slot);
-            UI_WriteTextureFrame(rect.x, rect.y, rect.w, rect.h, FindConfigValue(GetClassName(item->class_id), STR_ART));
-        }
+    gameInventoryItem_t items[MAX_INVENTORY];
+    BYTE count = G_GetInventory(ent, items, MAX_INVENTORY);
+
+    FOR_LOOP(i, count) {
+        RECT rect = UI_InventoryButtonRect(items[i].slot);
+        uiFrame_t frame;
+        char onclick[128];
+
+        memset(&frame, 0, sizeof(frame));
+        frame.flags.type = FT_COMMANDBUTTON;
+        frame.color = COLOR32_WHITE;
+        frame.tex.index = gi.ImageIndex(items[i].art);
+        frame.tooltip = items[i].ubertip[0] ? items[i].ubertip : items[i].tooltip;
+        snprintf(onclick, sizeof(onclick), "inventory %u", (unsigned)items[i].slot);
+        frame.onclick = onclick;
+        UI_SetFrameRect(&frame, rect.x, rect.y, rect.w, rect.h);
+        UI_WriteProxyFrame(&frame, NULL, 0);
     }
 }
 
+static void UI_WriteBuildQueue(LPEDICT ent) {
+    gameQueueItem_t queue[MAX_BUILD_QUEUE];
+    BYTE count = G_GetBuildQueue(ent, queue, MAX_BUILD_QUEUE);
+    DWORD size;
+    LPBYTE buffer;
+    uiBuildQueue_t *buildqueue;
+    uiFrame_t backdrop;
+    uiFrame_t firstitem;
+    uiFrame_t buildtimer;
+    uiFrame_t list;
+
+    if (!count) {
+        return;
+    }
+
+    UI_WriteTextFrame(INFO_PANEL_X,
+                      INFO_PANEL_Y,
+                      INFO_PANEL_W,
+                      0.018f,
+                      UNIT_NAME(ent->class_id) ? UNIT_NAME(ent->class_id) : GetClassName(ent->class_id),
+                      COLOR32_WHITE,
+                      FONT_JUSTIFYCENTER);
+    UI_WriteTextFrame(BUILDQUEUE_ACTION_X,
+                      BUILDQUEUE_ACTION_Y,
+                      BUILDQUEUE_ACTION_W,
+                      BUILDQUEUE_ACTION_H,
+                      ent->currentmove && ent->currentmove->think == ai_birth ? "Constructing" : "Training",
+                      MAKE(COLOR32, 252, 210, 18, 255),
+                      FONT_JUSTIFYCENTER);
+
+    if (!ent->currentmove || ent->currentmove->think != ai_birth) {
+        memset(&backdrop, 0, sizeof(backdrop));
+        backdrop.flags.type = FT_TEXTURE;
+        backdrop.color = COLOR32_WHITE;
+        backdrop.tex.index = gi.ImageIndex("BuildQueueBackdrop");
+        UI_SetFrameRect(&backdrop,
+                        BUILDQUEUE_BACKDROP_X,
+                        BUILDQUEUE_BACKDROP_Y,
+                        BUILDQUEUE_BACKDROP_W,
+                        BUILDQUEUE_BACKDROP_H);
+        UI_WriteProxyFrame(&backdrop, NULL, 0);
+    }
+
+    memset(&firstitem, 0, sizeof(firstitem));
+    firstitem.flags.type = FT_TEXTURE;
+    firstitem.color = COLOR32_WHITE;
+    firstitem.tex.index = gi.ImageIndex(queue[0].art);
+    UI_SetFrameRect(&firstitem, BUILDQUEUE_FIRST_X, BUILDQUEUE_FIRST_Y, BUILDQUEUE_FIRST_W, BUILDQUEUE_FIRST_H);
+    UI_WriteProxyFrame(&firstitem, NULL, 0);
+
+    memset(&buildtimer, 0, sizeof(buildtimer));
+    buildtimer.flags.type = FT_SIMPLESTATUSBAR;
+    buildtimer.color = MAKE(COLOR32, 160, 0, 160, 255);
+    buildtimer.tex.index = gi.ImageIndex("SimpleBuildTimeIndicator");
+    buildtimer.tex.index2 = gi.ImageIndex("SimpleBuildTimeIndicatorBorder");
+    UI_SetFrameRect(&buildtimer, BUILDQUEUE_TIMER_X, BUILDQUEUE_TIMER_Y, BUILDQUEUE_TIMER_W, BUILDQUEUE_TIMER_H);
+    UI_WriteProxyFrame(&buildtimer, NULL, 0);
+
+    size = sizeof(uiBuildQueue_t) + sizeof(uiBuildQueueItem_t) * count;
+    buffer = gi.MemAlloc(size);
+    memset(buffer, 0, size);
+    buildqueue = (uiBuildQueue_t *)buffer;
+    buildqueue->firstitem = (USHORT)firstitem.number;
+    buildqueue->buildtimer = (USHORT)buildtimer.number;
+    buildqueue->itemoffset = BUILDQUEUE_OFFSET;
+    buildqueue->numitems = count;
+    FOR_LOOP(i, count) {
+        buildqueue->items[i].image = (USHORT)gi.ImageIndex(queue[i].art);
+        buildqueue->items[i].starttime = queue[i].starttime;
+        buildqueue->items[i].endtime = queue[i].endtime;
+    }
+
+    memset(&list, 0, sizeof(list));
+    list.flags.type = FT_BUILDQUEUE;
+    list.color = COLOR32_WHITE;
+    UI_SetFrameRect(&list, BUILDQUEUE_LIST_X, BUILDQUEUE_LIST_Y, BUILDQUEUE_ITEM_W, BUILDQUEUE_ITEM_H);
+    UI_WriteProxyFrame(&list, buffer, size);
+    gi.MemFree(buffer);
+}
+
 static void UI_WriteMultiselect(LPEDICT *ents, DWORD count) {
-    DWORD size = sizeof(uiMultiselect_t) + sizeof(uiBuildQueueItem_t) * count;
+    DWORD size = sizeof(uiMultiselect_t) + sizeof(uiMultiselectItem_t) * count;
     LPBYTE buffer = gi.MemAlloc(size);
     uiMultiselect_t *multi = (uiMultiselect_t *)buffer;
     uiFrame_t frame;
@@ -318,7 +416,11 @@ void Get_Portrait_f(LPEDICT ent) {
     gi.WriteByte(LAYER_INFOPANEL);
     ui_next_frame_number = 1;
     if (count == 1) {
-        UI_WriteSingleInfo(selected[0]);
+        if (selected[0]->build) {
+            UI_WriteBuildQueue(selected[0]);
+        } else {
+            UI_WriteSingleInfo(selected[0]);
+        }
     } else if (count > 1) {
         UI_WriteMultiselect(selected, count);
     }

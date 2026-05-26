@@ -67,9 +67,17 @@ static LPCSTR G_RemoveQuotes(LPCSTR text) {
     return out;
 }
 
+static LPCSTR G_CommandArtPath(LPCSTR art) {
+    if (!art || !*art) {
+        return art;
+    }
+    return Theme_String(art, art);
+}
+
 BOOL G_BuildCommandButton(LPEDICT ent, LPCSTR code, BOOL research, DWORD level, gameCommandButton_t *button) {
     LPCSTR art_code;
     LPCSTR art;
+    LPCSTR art_path;
     LPCSTR buttonpos;
     LPCSTR tip;
     LPCSTR ubertip;
@@ -89,12 +97,13 @@ BOOL G_BuildCommandButton(LPEDICT ent, LPCSTR code, BOOL research, DWORD level, 
     tip = FindConfigValue(art_code, G_ResearchField(STR_TIP, research));
     ubertip = FindConfigValue(art_code, G_ResearchField(STR_UBERTIP, research));
     hotkey = FindConfigValue(art_code, STR_HOTKEY);
+    art_path = G_CommandArtPath(art);
 
     if (buttonpos && *buttonpos) {
         sscanf(buttonpos, "%u,%u", &x, &y);
     }
 
-    G_CopyString(button->art, sizeof(button->art), art);
+    G_CopyString(button->art, sizeof(button->art), art_path);
     G_CopyString(button->tooltip, sizeof(button->tooltip), G_RemoveQuotes(tip));
     G_CopyString(button->ubertip, sizeof(button->ubertip), G_RemoveQuotes(ubertip));
     G_CopyString(button->command, sizeof(button->command), code);
@@ -103,6 +112,14 @@ BOOL G_BuildCommandButton(LPEDICT ent, LPCSTR code, BOOL research, DWORD level, 
     button->y = y == UINT_MAX ? 255 : (BYTE)MIN(y, 2);
     button->research = research ? 1 : 0;
     button->active = (BYTE)FindAbilityIndex(code);
+    if (!button->art[0]) {
+        fprintf(stderr,
+                "G_BuildCommandButton: missing art unit=%.4s code=%s art_code=%s raw_art=%s\n",
+                (char *)&ent->class_id,
+                code,
+                art_code ? art_code : "",
+                art ? art : "");
+    }
     return true;
 }
 
@@ -204,6 +221,7 @@ BYTE G_GetInventory(LPEDICT ent, gameInventoryItem_t *items, BYTE max_items) {
 
 BYTE G_GetBuildQueue(LPEDICT ent, gameQueueItem_t *queue, BYTE max_queue) {
     BYTE count = 0;
+    DWORD cursor = gi.GetTime();
 
     if (!ent || !queue) {
         return 0;
@@ -211,8 +229,23 @@ BYTE G_GetBuildQueue(LPEDICT ent, gameQueueItem_t *queue, BYTE max_queue) {
     memset(queue, 0, sizeof(*queue) * max_queue);
     for (LPEDICT build = ent->build; build && count < max_queue; build = build->build) {
         LPCSTR build_name = GetClassName(build->class_id);
+        DWORD duration = UNIT_BUILD_TIME_MSEC(build->class_id);
+        FLOAT progress = 0;
+
+        if (count == 0 && build->health.max_value > 0) {
+            progress = build->health.value / build->health.max_value;
+            progress = MAX(0, MIN(progress, 1));
+        }
         G_CopyString(queue[count].art, sizeof(queue[count].art), FindConfigValue(build_name, STR_ART));
-        queue[count].entity = (WORD)build->s.number;
+        if (duration > 0) {
+            DWORD elapsed = (DWORD)(duration * progress);
+            queue[count].starttime = count == 0 && elapsed <= cursor ? cursor - elapsed : cursor;
+            queue[count].endtime = queue[count].starttime + duration;
+            cursor = queue[count].endtime;
+        } else {
+            queue[count].starttime = cursor;
+            queue[count].endtime = cursor;
+        }
         count++;
         if (build->build == build) {
             break;

@@ -15,12 +15,15 @@ void ai_train_build(LPEDICT ent) {
     EDICTSTAT *hp = &ent->build->health;
     hp->value += hp->max_value * k;
     if (hp->value >= hp->max_value) {
+        LPEDICT clent = G_GetPlayerEntityByNumber(ent->s.player);
+
         hp->value = hp->max_value;
         ShowTrainedUnit(ent, ent->build);
         G_PublishEvent(ent->build, EVENT_PLAYER_UNIT_TRAIN_FINISH);
         if (!(ent->build = ent->build->build)) {
             ent->stand(ent);
         }
+        Get_Portrait_f(clent);
     }
 }
 
@@ -50,6 +53,7 @@ void SP_TrainUnit(LPEDICT townhall, DWORD class_id) {
     LPPLAYER player = G_GetPlayerByNumber(townhall->s.player);
     if (player_pay(player, class_id)) {
         unit_build(townhall, class_id);
+        Get_Portrait_f(clent);
         Get_Commands_f(clent);
     } else {
         fprintf(stdout, "Not enough resources\n");

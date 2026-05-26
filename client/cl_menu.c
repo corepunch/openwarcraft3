@@ -433,36 +433,41 @@ static void SCR_DrawGlueTextButtonHighlight(LPCUIFRAME frame) {
 void SCR_DrawBuildQueue(LPCUIFRAME frame, LPCRECT scrn) {
     RECT screen = *scrn;
     RECT const uv = { 0, 0, 1, 1 };
-    bool first_item = true;
     uiBuildQueue_t const *queue = frame->buffer.data;
+    DWORD active = queue->numitems;
+
     FOR_LOOP(i, queue->numitems) {
-        LPENTITYSTATE ent = &cl.ents[queue->items[i].entity].current;
-        if (ent->stats[ENT_HEALTH] == 255) {
-            continue;
-        } else if (!first_item) {
+        if (cl.time < queue->items[i].endtime) {
+            active = i;
+            break;
+        }
+    }
+    for (DWORD i = active + 1; i < queue->numitems; i++) {
+        if (cl.time < queue->items[i].endtime) {
             re.DrawImage(cl.pics[queue->items[i].image], &screen, &uv, frame->color);
             screen.x += queue->itemoffset;
         }
-        first_item = false;
     }
 }
 
 void SCR_UpdateBuildQueue(LPCUIFRAME frame, LPCRECT screen) {
     uiBuildQueue_t const *queue = frame->buffer.data;
+    LPUIFRAME buildtimer = SCR_Frame(queue->buildtimer);
+    LPUIFRAME firstitem = SCR_Frame(queue->firstitem);
+
     FOR_LOOP(i, queue->numitems) {
-        LPENTITYSTATE ent = &cl.ents[queue->items[i].entity].current;
-        if (ent->stats[ENT_HEALTH] != 255) {
-            LPUIFRAME buildtimer = SCR_Frame(queue->buildtimer);
-            LPUIFRAME firstitem = SCR_Frame(queue->firstitem);
-            if (buildtimer) {
-                buildtimer->value = BYTE2FLOAT(ent->stats[ENT_HEALTH]);
-            }
-            if (firstitem) {
-                firstitem->tex.index = queue->items[i].image;
-            }
+        uiBuildQueueItem_t const *item = &queue->items[i];
+        if (cl.time < item->endtime) {
+            FLOAT duration = item->endtime - item->starttime;
+            FLOAT elapsed = cl.time > item->starttime ? (FLOAT)(cl.time - item->starttime) : 0;
+            FLOAT progress = duration > 0 ? elapsed / duration : 1;
+            progress = MAX(0, MIN(progress, 1));
+            if (buildtimer) buildtimer->value = progress;
+            if (firstitem) firstitem->tex.index = item->image;
             break;
         }
     }
+    (void)screen;
 }
 
 #define HP_BAR_HEIGHT_RATIO 0.175f
@@ -474,7 +479,7 @@ void SCR_DrawMultiSelect(LPCUIFRAME frame, LPCRECT scrn) {
     DWORD column = 0;
     FOR_LOOP(i, multiselect->numitems) {
         RECT uv = { 0, 0, 1, 1 };
-        uiBuildQueueItem_t const *item = &multiselect->items[i];
+        uiMultiselectItem_t const *item = &multiselect->items[i];
         re.DrawImage(cl.pics[item->image], &screen, &uv, frame->color);
         if (item->entity < MAX_CLIENT_ENTITIES) {
             FLOAT health = BYTE2FLOAT(cl.ents[item->entity].current.stats[ENT_HEALTH]);

@@ -315,7 +315,7 @@ struct uiFrameDef_s {
         VECTOR2 Offset;
         DWORD NumColumns;
         DWORD NumItems;
-        uiBuildQueueItem_t Items[MAX_SELECTED_ENTITIES];
+        uiMultiselectItem_t Items[MAX_SELECTED_ENTITIES];
     } Multiselect;
 };
 

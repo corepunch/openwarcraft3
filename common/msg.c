@@ -47,19 +47,6 @@ netField_t entityStateFields[] = {
     { NETF(entityState_t, shadow), NFT_SHORT },
     { NETF(entityState_t, shadow_rect), NFT_LONG },
     { NETF(entityState_t, stats), NFT_LONG },
-    { NETF(entityState_t, inventory[0]), NFT_LONG },
-    { NETF(entityState_t, inventory[1]), NFT_LONG },
-    { NETF(entityState_t, inventory[2]), NFT_LONG },
-    { NETF(entityState_t, inventory[3]), NFT_LONG },
-    { NETF(entityState_t, inventory[4]), NFT_LONG },
-    { NETF(entityState_t, inventory[5]), NFT_LONG },
-    { NETF(entityState_t, build_queue[0]), NFT_LONG },
-    { NETF(entityState_t, build_queue[1]), NFT_LONG },
-    { NETF(entityState_t, build_queue[2]), NFT_LONG },
-    { NETF(entityState_t, build_queue[3]), NFT_LONG },
-    { NETF(entityState_t, build_queue[4]), NFT_LONG },
-    { NETF(entityState_t, build_queue[5]), NFT_LONG },
-    { NETF(entityState_t, build_queue[6]), NFT_LONG },
     { NULL }
 };
 

@@ -350,6 +350,7 @@ DWORD UnitAddItem(LPJASS j) {
     if (unit_additem(whichUnit, whichItem)) {
         /* Item is now tracked in inventory — remove from world but keep alive. */
         gi.UnlinkEntity(whichItem);
+        Get_Portrait_f(G_GetPlayerEntityByNumber(whichUnit->s.player));
         return jass_pushboolean(j, true);
     } else {
         return jass_pushboolean(j, false);
@@ -362,6 +363,7 @@ DWORD UnitAddItemById(LPJASS j) {
     LPEDICT item = SP_SpawnAtLocation(itemId, 0, &whichUnit->s.origin2);
     if (item && unit_additem(whichUnit, item)) {
         gi.UnlinkEntity(item);
+        Get_Portrait_f(G_GetPlayerEntityByNumber(whichUnit->s.player));
         return jass_pushlighthandle(j, item, "item");
     } else {
         if (item) G_FreeEdict(item);
@@ -376,6 +378,7 @@ DWORD UnitAddItemToSlotById(LPJASS j) {
     LPEDICT item = SP_SpawnAtLocation(itemId, 0, &whichUnit->s.origin2);
     if (item && unit_additemtoslot(whichUnit, item, (DWORD)itemSlot)) {
         gi.UnlinkEntity(item);
+        Get_Portrait_f(G_GetPlayerEntityByNumber(whichUnit->s.player));
         return jass_pushboolean(j, true);
     } else {
         if (item) G_FreeEdict(item);
@@ -401,6 +404,7 @@ DWORD UnitRemoveItemFromSlot(LPJASS j) {
     item->s.origin.y = whichUnit->s.origin.y;
     item->s.origin2  = whichUnit->s.origin2;
     gi.LinkEntity(item);
+    Get_Portrait_f(G_GetPlayerEntityByNumber(whichUnit->s.player));
     return jass_pushlighthandle(j, item, "item");
 }
 DWORD UnitHasItem(LPJASS j) {
