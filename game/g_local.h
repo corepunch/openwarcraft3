@@ -23,6 +23,8 @@
 #define FOV_ASPECT 1.7
 #define MAX_HERO_ABILITIES 4
 #define MAX_UNIT_STATUSES 8
+#define PLAYER_TEXT_BACKUP 16
+#define PLAYER_TEXT_MASK (PLAYER_TEXT_BACKUP - 1)
 
 #define FILTER_EDICTS(ENT, CONDITION) \
 for (LPEDICT ENT = globals.edicts; \
@@ -44,25 +46,17 @@ if (NAME) { \
 }
 
 #define UI_WRITE_LAYER(ent, BuildUI, layer, ...) \
+    UI_SetCurrentClient(ent->client); \
     UI_WriteStart(layer); \
     BuildUI(ent->client, ##__VA_ARGS__); \
     gi.WriteLong(0); \
-    gi.unicast(ent);
+    gi.WriteShort(0); \
+    gi.unicast(ent); \
+    UI_SetCurrentClient(NULL);
 
 
 #define FOR_SELECTED_UNITS(CLIENT, ENT) \
 FILTER_EDICTS(ENT, G_IsEntitySelected(CLIENT, ENT))
-
-enum {
-    LAYER_PORTRAIT,
-    LAYER_CINEMATIC,
-    LAYER_CONSOLE,
-    LAYER_COMMANDBAR,
-    LAYER_INFOPANEL,
-    LAYER_INVENTORY,
-    LAYER_MESSAGE,
-    LAYER_QUESTDIALOG,
-};
 
 #define svc_bad 0
 // these ops are known to the game dll
@@ -137,30 +131,6 @@ typedef enum {
     WPN_MLINE,
 } weaponType_t;
 
-typedef enum {
-    PLAYERSTATE_GAME_RESULT = 0,
-    PLAYERSTATE_RESOURCE_GOLD = 1,
-    PLAYERSTATE_RESOURCE_LUMBER = 2,
-    PLAYERSTATE_RESOURCE_HERO_TOKENS = 3,
-    PLAYERSTATE_RESOURCE_FOOD_CAP = 4,
-    PLAYERSTATE_RESOURCE_FOOD_USED = 5,
-    PLAYERSTATE_FOOD_CAP_CEILING = 6,
-    PLAYERSTATE_GIVES_BOUNTY = 7,
-    PLAYERSTATE_ALLIED_VICTORY = 8,
-    PLAYERSTATE_PLACED = 9,
-    PLAYERSTATE_OBSERVER_ON_DEATH = 10,
-    PLAYERSTATE_OBSERVER = 11,
-    PLAYERSTATE_UNFOLLOWABLE = 12,
-    PLAYERSTATE_GOLD_UPKEEP_RATE = 13,
-    PLAYERSTATE_LUMBER_UPKEEP_RATE = 14,
-    PLAYERSTATE_GOLD_GATHERED = 15,
-    PLAYERSTATE_LUMBER_GATHERED = 16,
-} PLAYERSTATE;
-
-typedef enum {
-    PLAYERTEXT_SPEAKER,
-    PLAYERTEXT_DIALOGUE,
-} PLAYERTEXT;
 
 typedef enum {
     ALLIANCE_PASSIVE = 0,
@@ -384,6 +354,8 @@ struct uiFrameDef_s {
     BOOL hidden;
     DWORD TextLength;
     DWORD Stat;
+    LPSTR DynamicText;
+    DWORD DynamicTextCapacity;
     struct {
         FRAMEPOINT x[FPP_COUNT];
         FRAMEPOINT y[FPP_COUNT];
@@ -402,6 +374,7 @@ struct uiFrameDef_s {
         FLOAT BackgroundInsets[4];// 0.01 0.01 0.01 0.01,
         DWORD EdgeFile;//  "EscMenuBorder",
         BOOL BlendAll;
+        BOOL Mirrored;
     } Backdrop;
     LPCFRAMEDEF DialogBackdrop;
     struct {
@@ -458,7 +431,11 @@ struct uiFrameDef_s {
             UINAME Disabled;
             UINAME MouseOver;
             UINAME DisabledPushed;
+            UINAME Focus;
         } Backdrop;
+        UINAME ShortcutKey;
+        UINAME TabFocusNext;
+        BOOL TabFocusDefault;
     } Control;
     struct {
         FLOAT InitialValue;
@@ -467,7 +444,14 @@ struct uiFrameDef_s {
         FLOAT MinValue;
         FLOAT StepSize;
         UINAME ThumbButtonFrame;
+        UINAME IncButtonFrame;
+        UINAME DecButtonFrame;
     } Slider;
+    struct {
+        FLOAT Border;
+        UINAME ScrollBar;
+        UINAME FetchCommand;
+    } ListBox;
     struct {
         FLOAT Border;
         struct {
@@ -542,6 +526,8 @@ struct gcamerasetup_s {
 
 struct client_s {
     PLAYER ps;
+    char playerTextStorage[PLAYERTEXT_COUNT][PLAYER_TEXT_BACKUP][512];
+    DWORD playerTextCursor[PLAYERTEXT_COUNT];
     LPCMAPPLAYER mapplayer;
     DWORD ping;
     BOOL no_control;
@@ -792,6 +778,7 @@ LPEDICT G_GetPlayerEntityByNumber(DWORD);
 LPGAMECLIENT G_GetPlayerClientByNumber(DWORD);
 TARGTYPE G_GetTargetType(LPCSTR);
 LPCSTR G_LevelString(LPCSTR);
+void G_SetPlayerText(LPGAMECLIENT, PLAYERTEXT, LPCSTR);
 GAMEEVENT *G_PublishEvent(LPEDICT, EVENTTYPE);
 
 // g_spawn.c
@@ -827,6 +814,7 @@ void SP_SpawnUnit(LPEDICT);
 void SP_TrainUnit(LPEDICT, DWORD);
 BOOL player_pay(LPPLAYER, DWORD);
 BYTE compress_stat(EDICTSTAT const *);
+DWORD G_LoadShadowTexture(LPCSTR, BOOL);
 
 // g_pathing.c
 pathTex_t *LoadTGA(BYTE const*, size_t);
@@ -848,20 +836,39 @@ DWORD FindAbilityIndex(LPCSTR);
 void InitAbilities(void);
 void SetAbilityNames(void);
 
-// g_config.c
+// g_metadata.c
 LPCSTR FindConfigValue(LPCSTR, LPCSTR);
 LPCSTR GetClassName(DWORD);
 
-// p_hud.c
+// g_unit_ui.c (Phase 8)
+BYTE G_GetCommandButtons(LPEDICT ent, gameCommandButton_t *buttons, BYTE max_buttons);
+BOOL G_BuildCommandButton(LPEDICT ent, LPCSTR code, BOOL research, DWORD level, gameCommandButton_t *button);
+BYTE G_GetInventory(LPEDICT ent, gameInventoryItem_t *items, BYTE max_items);
+BYTE G_GetBuildQueue(LPEDICT ent, gameQueueItem_t *queue, BYTE max_queue);
+
+// g_ai.c
 LPEDICT G_GetMainSelectedUnit(LPGAMECLIENT);
 void Get_Commands_f(LPEDICT);
 void Get_Portrait_f(LPEDICT);
 void UI_AddCancelButton(LPEDICT);
 void UI_AddCommandButton(LPCSTR);
 void UI_AddCommandButtonExtended(LPCSTR code, BOOL research, DWORD level);
+void UI_SetCurrentClient(LPGAMECLIENT client);
 void UI_ShowInterface(LPEDICT, BOOL, FLOAT);
 void UI_ShowText(LPEDICT, LPCVECTOR2, LPCSTR, FLOAT);
 LPCSTR GetBuildCommand(unitRace_t);
+void UI_RenderRoute(LPEDICT, LPCSTR);
+void UI_ShowMainMenu(LPEDICT);
+void UI_ShowRealmSelect(LPEDICT, BOOL);
+void UI_ShowSinglePlayerMenu(LPEDICT);
+void UI_ShowMultiplayerMenu(LPEDICT);
+void UI_ShowMultiplayerCreateMenu(LPEDICT);
+void UI_ShowMultiplayerGameSetupMenu(LPEDICT, DWORD);
+void UI_ShowGameInterface(LPEDICT);
+void UI_ShowMapSelectMenu(LPEDICT, LPCSTR);
+void UI_ShowMultiplayerCreateMapInfo(LPEDICT);
+void UI_ClearCreateGameSlots(void);
+void UI_AddCreateGameSlot(DWORD, LPCSTR, LPCSTR, LPCSTR, DWORD);
 
 // p_fdf.c
 void UI_PrintClasses(void);
@@ -878,15 +885,18 @@ void UI_SetTexture(LPFRAMEDEF, LPCSTR, BOOL);
 void UI_SetTexture2(LPFRAMEDEF, LPCSTR, BOOL);
 void UI_WriteLayout(LPEDICT, LPCFRAMEDEF, DWORD);
 void UI_WriteStart(DWORD);
+void UI_ClearLayer(LPEDICT, DWORD);
 void UI_WriteWithTriggers(LPEDICT, LPCFRAMEDEF, DWORD, uiTrigger_t const *);
 void UI_SetPoint(LPFRAMEDEF, UIFRAMEPOINT, LPCFRAMEDEF, UIFRAMEPOINT, FLOAT, FLOAT);
 void UI_InitFrame(LPFRAMEDEF, FRAMETYPE);
 void UI_SetHidden(LPFRAMEDEF, BOOL);
+void UI_InheritFrom(LPFRAMEDEF, LPCSTR);
 DWORD UI_FindFrameNumber(LPCSTR);
 DWORD UI_LoadTexture(LPCSTR, BOOL);
 LPCSTR UI_GetString(LPCSTR);
 LPFRAMEDEF UI_Spawn(FRAMETYPE, LPFRAMEDEF);
 LPFRAMEDEF UI_FindFrame(LPCSTR);
+LPFRAMEDEF UI_FindFrameNear(LPCFRAMEDEF, LPCSTR);
 LPFRAMEDEF UI_FindChildFrame(LPFRAMEDEF, LPCSTR);
 
 LPCSTR Theme_String(LPCSTR, LPCSTR);
@@ -896,6 +906,13 @@ FLOAT Theme_Float(LPCSTR, LPCSTR);
 void UI_WriteFrame(LPCFRAMEDEF);
 void UI_WriteFrameWithChildren(LPCFRAMEDEF, LPCFRAMEDEF);
 void UI_WriteFrameWithChildrenWithTriggers(LPEDICT, LPCFRAMEDEF, LPCFRAMEDEF, uiTrigger_t const *);
+DWORD UI_CollectFrameTree(LPCFRAMEDEF root, LPCFRAMEDEF *out, DWORD max);
+BOOL UI_BuildFrameForWrite(LPCFRAMEDEF frame,
+                           LPUIFRAME out,
+                           LPBYTE typedata,
+                           DWORD typedata_max,
+                           LPSTR textbuf,
+                           DWORD textbuf_max);
 
 // g_metadata.c
 LPCSTR UnitStringField(sheetMetaData_t *, DWORD, LPCSTR);
@@ -911,7 +928,7 @@ void G_SelectEntity(LPGAMECLIENT, LPEDICT);
 void G_DeselectEntity(LPGAMECLIENT, LPEDICT);
 BOOL G_IsEntitySelected(LPGAMECLIENT, LPEDICT);
 void G_ClientCommand(LPEDICT, DWORD, LPCSTR[]);
-void G_ClientPanCamera(LPEDICT, LPVECTOR2);
+void G_ClientSetCameraPosition(LPEDICT, LPCVECTOR2);
 
 //  s_skills.c
 FLOAT AB_Number(LPCSTR, LPCSTR);

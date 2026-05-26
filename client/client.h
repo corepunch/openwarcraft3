@@ -4,9 +4,18 @@
 #include "../common/common.h"
 #include "renderer.h"
 #include "keys.h"
+#include "../ui/ui.h"
 
 #define WINDOW_WIDTH 1024
 #define WINDOW_HEIGHT 768
+#ifdef WOW
+#define UI_BASE_WIDTH 1.0f
+#define UI_BASE_HEIGHT 1.0f
+#else
+#define UI_BASE_WIDTH 0.8f
+#define UI_BASE_HEIGHT 0.6f
+#endif
+#define UI_MIN_ASPECT (4.0f / 3.0f)
 #define MAX_CLIENT_ENTITIES 5000
 #define MAX_CONSOLE_MESSAGES 256
 #define MAX_CONSOLE_MESSAGE_LEN 1024
@@ -37,8 +46,24 @@ typedef enum {
 typedef struct {
     mouseEventType_t event;
     DWORD button;
+    int wheel;
     VECTOR2 origin;
 } mouseEvent_t;
+
+typedef enum {
+    key_game,
+    key_console,
+    key_message,
+    key_menu,
+} keydest_t;
+
+typedef enum {
+    ca_disconnected,
+    ca_connecting,
+    ca_connected,
+    ca_loading,
+    ca_active,
+} connstate_t;
 
 struct frame {
     int serverframe;
@@ -50,8 +75,15 @@ struct client_state {
     LPMODEL models[MAX_MODELS];
     LPMODEL portraits[MAX_MODELS];
     LPCTEXTURE pics[MAX_IMAGES];
+    LPTEXTURE dynamicPics[MAX_DYNAMIC_IMAGES];
+    char dynamicPicNames[MAX_DYNAMIC_IMAGES][512];
+    DWORD dynamicPicCursor;
     LPCFONT fonts[MAX_FONTSTYLES];
     PATHSTR configstrings[MAX_CONFIGSTRINGS];
+    PATHSTR loading_map;
+    char loading_status[128];
+    FLOAT loading_progress;
+    BOOL pending_begin;
     centity_t ents[MAX_CLIENT_ENTITIES];
     HANDLE layout[MAX_LAYOUT_LAYERS];
     
@@ -61,6 +93,10 @@ struct client_state {
     struct frame frame;
     VECTOR2 startingPosition;
     PLAYER playerstate;
+    struct {
+        BOOL active;
+        VECTOR2 origin;
+    } camera_prediction;
     LPENTITYSTATE cursorEntity;
     LPCMODEL moveConfirmation;
     DWORD num_entities;
@@ -68,19 +104,30 @@ struct client_state {
     struct {
         RECT rect;
         bool in_progress;
+        DWORD entity_nums[MAX_SELECTED_ENTITIES];  /* Currently selected entity numbers */
+        DWORD num_selected;                         /* Number of currently selected entities */
     } selection;
 };
 
 struct client_static {
     struct netchan netchan;
+    keydest_t key_dest;
+    connstate_t state;
 };
 
 // cl_main.c
 void CL_Connect(LPCSTR host, unsigned short port);
+void CL_SetMenuBindings(void);
+void CL_SetGameplayBindings(void);
+void CL_BeginLoadingMap(LPCSTR mapName);
+void CL_LoadingUpdate(LPCSTR status, FLOAT progress);
+void CL_RequestUnitUI(DWORD num_selected, DWORD *entity_nums);
 
 void V_RenderView(void);
+void V_Shutdown(void);
 void CL_PrepRefresh(void);
 void CL_ParseServerMessage(LPSIZEBUF msg);
+
 void CON_DrawConsole(void);
 void CON_printf(LPCSTR fmt, ...);
 
@@ -92,8 +139,25 @@ void V_AddEntity(renderEntity_t *ent);
 
 // cl_scrn.c
 LPCUIFRAME SCR_Clear(HANDLE data);
+DWORD SCR_NumFrames(void);
+LPUIFRAME SCR_Frame(DWORD number);
 LPCRECT SCR_LayoutRect(LPCUIFRAME frame);
-void SCR_UpdateScreen(void);
+VECTOR2 SCR_MouseToFdf(void);
+VECTOR2 SCR_GetAxisBounds(LPCRECT rect, bool is_x_axis);
+FLOAT SCR_NormalizeAnchorOffset(uiFramePoint_t const *p, bool is_x_axis);
+VECTOR2 SCR_SolveAxisPosition(LPCUIFRAME frame,
+                              uiFramePoints_t const points,
+                              FLOAT width,
+                              bool is_x_axis);
+LPCSTR SCR_GetStringValue(LPCUIFRAME frame);
+drawText_t SCR_GetDrawText(LPCUIFRAME frame,
+                         FLOAT avl_width,
+                         LPCSTR text,
+                         uiLabel_t const *label);
+void SCR_UpdateScreen(DWORD msec);
+void SCR_DrawOverlays(void);
+void SCR_TextInput(LPCSTR text);
+BOOL SCR_EditKey(int key);
 
 // cl_input.c
 void CL_Input(void);
@@ -104,9 +168,19 @@ void CL_ParseTEnt(LPSIZEBUF msg);
 void CL_AddTEnts(void);
 void CL_ClearTEnts(void);
 
+// cl_main.c - UI integration
+int CL_ModelIndex(LPCSTR modelName);
+int CL_ImageIndex(LPCSTR imageName);
+int CL_FontIndex(LPCSTR fontName, DWORD fontSize);
+void CL_UIMenuCommand(LPCSTR route);
+
+/* Unit UI data parsing (Phase 8) */
+void CL_ParseUnitUI(LPSIZEBUF msg);
+
 extern struct client_state cl;
 extern struct client_static cls;
 extern refExport_t re;
+extern uiExport_t ui;
 extern mouseEvent_t mouse;
 
 #endif

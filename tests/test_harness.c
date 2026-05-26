@@ -5,7 +5,7 @@
  * This file owns every global variable that g_main.c normally defines
  * (gi, globals, game, level, g_edicts) so the test binary does not link
  * against that module.  All gi function-pointers are set to lightweight
- * stubs that are safe to call without StormLib, SDL2, or OpenGL.
+ * stubs that are safe to call without the archive backend, SDL2, or OpenGL.
  *
  * Stubs for symbols defined in game source files that we do not compile
  * into the test binary (g_spawn.c, hud/, s_attack.c, etc.) are also
@@ -18,6 +18,8 @@
 #include <ctype.h>
 
 #include "test_harness.h"
+
+void test_client_stubs_init(void);
 
 /* Forward-declare functions defined in game .c files but not in any header. */
 void G_SetConfigTable(sheetMetaData_t *metadatas, LPCSTR slk, sheetRow_t *table);
@@ -143,7 +145,46 @@ static void   mock_JoinThread(DWORD t)                  { (void)t; }
 static void   mock_Sleep(DWORD ms)                      { (void)ms; }
 static LPSTR  mock_ReadFileIntoString(LPCSTR f)         { (void)f; return NULL; }
 static HANDLE mock_ReadFile(LPCSTR f, LPDWORD s)        { (void)f; if (s) *s=0; return NULL; }
-static void   mock_TextRemoveComments(LPSTR b)          { (void)b; }
+static BOOL   mock_OpenArchiveFromMemory(const void *d, DWORD s, DWORD fl, HANDLE *a) { (void)d; (void)s; (void)fl; if (a) *a = NULL; return false; }
+static BOOL   mock_CloseArchive(HANDLE a)               { (void)a; return false; }
+static BOOL   mock_OpenFileEx(HANDLE a, LPCSTR n, DWORD sc, HANDLE *f) { (void)a; (void)n; (void)sc; if (f) *f = NULL; return false; }
+static BOOL   mock_CloseFile(HANDLE f)                  { (void)f; return false; }
+static BOOL   mock_ReadArchiveFile(HANDLE f, void *b, DWORD r, LPDWORD br, LPOVERLAPPED o) { (void)f; (void)b; (void)r; (void)o; if (br) *br = 0; return false; }
+static DWORD  mock_GetArchiveFileSize(HANDLE f, LPDWORD h) { (void)f; if (h) *h = 0; return 0; }
+static void   mock_TextRemoveComments(LPSTR buffer) {
+    BOOL in_single_line_comment = false;
+    BOOL in_block_comment = false;
+    DWORD num_quotes = 0;
+    char *src = buffer;
+    char *dest = buffer;
+    while (*src != '\0') {
+        if (!in_single_line_comment && !in_block_comment) {
+            if (*src == '"') {
+                num_quotes++;
+                *dest++ = *src++;
+            } else if (num_quotes&1) {
+                *dest++ = *src++;
+            } else if (*src == '/' && *(src + 1) == '/') {
+                in_single_line_comment = true;
+                src += 2;
+            } else if (*src == '/' && *(src + 1) == '*') {
+                in_block_comment = true;
+                src += 2;
+            } else {
+                *dest++ = *src++;
+            }
+        } else if (in_single_line_comment && *src == '\n') {
+            in_single_line_comment = false;
+            *dest++ = *src++;
+        } else if (in_block_comment && *src == '*' && *(src + 1) == '/') {
+            in_block_comment = false;
+            src += 2;
+        } else {
+            src++;
+        }
+    }
+    *dest = '\0';
+}
 static BOMStatus mock_TextRemoveBom(LPSTR b)            { (void)b; return NO_BOM; }
 static void   mock_multicast(LPCVECTOR3 o, multicast_t t) { (void)o; (void)t; }
 static void   mock_unicast(edict_t *e)                  { (void)e; }
@@ -243,6 +284,12 @@ void setup_game(void) {
     gi.GetHeightAtPoint    = mock_GetHeightAtPoint;
     gi.ReadFileIntoString  = mock_ReadFileIntoString;
     gi.ReadFile            = mock_ReadFile;
+    gi.OpenArchiveFromMemory = mock_OpenArchiveFromMemory;
+    gi.CloseArchive        = mock_CloseArchive;
+    gi.OpenFileEx          = mock_OpenFileEx;
+    gi.CloseFile           = mock_CloseFile;
+    gi.ReadArchiveFile     = mock_ReadArchiveFile;
+    gi.GetArchiveFileSize  = mock_GetArchiveFileSize;
     gi.GetTime             = mock_GetTime;
     gi.ReadSheet           = mock_ReadSheet;
     gi.ReadConfig          = mock_ReadConfig;
@@ -264,6 +311,7 @@ void setup_game(void) {
     gi.configstring        = mock_configstring;
     gi.confignstring       = mock_confignstring;
     gi.error               = mock_error;
+    test_client_stubs_init();
 
     /* Initialise game-export fields. */
     globals.edicts      = g_edicts;
@@ -327,7 +375,7 @@ LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y) {
 }
 
 /* =======================================================================
- * FS_FindSheetCell — pure-C SLK cell lookup (no StormLib)
+ * FS_FindSheetCell — pure-C SLK cell lookup (no archive backend)
  * ===================================================================== */
 
 LPCSTR FS_FindSheetCell(sheetRow_t *sheet, LPCSTR row, LPCSTR column) {

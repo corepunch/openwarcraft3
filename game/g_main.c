@@ -45,10 +45,19 @@ static void InitMiscValue(LPCSTR name, FLOAT *dest) {
 }
 
 static void InitConstants(void) {
+    sheetRow_t *miscTail = NULL;
+
     for (LPCSTR *config = miscdata_files; *config; config++) {
         sheetRow_t *current = gi.ReadConfig(*config);
         if (current) {
-            PUSH_BACK(sheetRow_t, current, game.config.misc);
+            sheetRow_t *currentTail = G_SheetTail(current);
+
+            if (miscTail) {
+                miscTail->next = current;
+            } else {
+                game.config.misc = current;
+            }
+            miscTail = currentTail;
         }
     }
     InitMiscValue("AttackHalfAngle", &game.constants.attackHalfAngle);
@@ -68,12 +77,20 @@ static void InitConstants(void) {
 }
 
 static void G_InitGame(void) {
+    fprintf(stderr, "Game initialization.\n");
+    fprintf(stderr, "Game is starting up.\n");
+    fprintf(stderr, "Game is openwarcraft3 built on %s.\n", __DATE__);
+
     g_edicts = gi.MemAlloc(sizeof(edict_t) * MAX_ENTITIES);
+    memset(g_edicts, 0, sizeof(edict_t) * MAX_ENTITIES);
     
     globals.edicts = g_edicts;
-    globals.num_edicts = 0;
     globals.max_edicts = MAX_ENTITIES;
     globals.max_clients = MAX_CLIENTS;
+    globals.num_edicts = globals.max_clients;
+    FOR_LOOP(i, globals.max_clients) {
+        g_edicts[i].s.number = i;
+    }
 
     game.max_clients = globals.max_clients;
     game.clients = gi.MemAlloc(game.max_clients * sizeof(GAMECLIENT));
@@ -82,16 +99,26 @@ static void G_InitGame(void) {
     game.config.uberSplats = gi.ReadSheet("Splats\\UberSplatData.slk");
     game.config.abilities = gi.ReadSheet("Units\\AbilityData.slk");
     game.config.items = gi.ReadSheet("Units\\ItemData.slk");
-    
     InitConstants();
     InitUnitData();
     InitAbilities();
+    fprintf(stderr, "Game initialized.\n\n");
 }
 
 static void G_ShutdownGame(void) {
+    if (g_edicts == NULL) {
+        return;
+    }
     gi.MemFree(g_edicts);
+    g_edicts = NULL;
+    globals.edicts = NULL;
+    globals.num_edicts = 0;
 
     ShutdownUnitData();
+    if (game.clients) {
+        gi.MemFree(game.clients);
+        game.clients = NULL;
+    }
 }
 
 FLOAT G_Cinefade(void) {
@@ -209,19 +236,24 @@ LPCSTR G_LevelString(LPCSTR name) {
 }
 
 /* Called when a client finishes the connection handshake and is ready to play.
- * Serializes the top-level ConsoleUI and CinematicPanel frame trees and sends
- * them to the client as svc_layout messages so the client can render the HUD.
- * Also counts the player's initial food supply from pre-placed buildings. */
+ * The in-game HUD is server-authored through svc_layout; this binds the game
+ * client and initializes gameplay state when a map is loaded. */
 static void G_ClientBegin(LPEDICT edict) {
-    UI_FRAME(ConsoleUI);
-    UI_FRAME(CinematicPanel);
+    LPGAMECLIENT client = edict->client ? edict->client : game.clients;
+    if (!edict->client) {
+        edict->client = client;
+    }
 
-    UI_WriteLayout(edict, ConsoleUI, LAYER_CONSOLE);
-    UI_WriteLayout(edict, CinematicPanel, LAYER_CINEMATIC);
-    
-    FILTER_EDICTS(ent, edict->client->ps.number == ent->s.player) {
-        edict->client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] += UNIT_FOOD_MADE(ent->class_id);
-        edict->client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED] += UNIT_FOOD_USED(ent->class_id);
+    client->ps.origin = (VECTOR2){ 0, 0 };
+    if (globals.num_edicts <= globals.max_clients) {
+        return;
+    }
+
+    UI_ShowGameInterface(edict);
+
+    FILTER_EDICTS(ent, client->ps.number == ent->s.player) {
+        client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] += UNIT_FOOD_MADE(ent->class_id);
+        client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED] += UNIT_FOOD_USED(ent->class_id);
     }
     
     level.started = true;
@@ -237,7 +269,7 @@ struct game_export *GetGameAPI(struct game_import *import) {
     globals.SpawnEntities = G_SpawnEntities;
     globals.RunFrame = G_RunFrame;
     globals.ClientCommand = G_ClientCommand;
-    globals.ClientPanCamera = G_ClientPanCamera;
+    globals.ClientSetCameraPosition = G_ClientSetCameraPosition;
     globals.ClientBegin = G_ClientBegin;
     globals.GetThemeValue = G_GetThemeValue;
     globals.edict_size = sizeof(struct edict_s);

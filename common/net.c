@@ -32,7 +32,7 @@
 
 #include "common.h"
 
-#define LOOPBACK_SIZE (1024 * 256)
+#define LOOPBACK_SIZE (1024 * 1024 * 8)
 
 /* ---------------------------------------------------------------------------
  * Loopback ring buffers
@@ -51,6 +51,17 @@ static struct loopback loopbufs[2];
 
 static void NET_SendLoopPacket(NETSOURCE netsrc, int length, const void *data) {
     struct loopback *buf = &loopbufs[netsrc];
+    int const packet_size = length + 4;
+
+    if (length <= 0 || packet_size > LOOPBACK_SIZE) {
+        fprintf(stderr, "NET_SendLoopPacket: bad packet length %d\n", length);
+        return;
+    }
+    if (buf->write - buf->read + packet_size > LOOPBACK_SIZE) {
+        fprintf(stderr, "NET_SendLoopPacket: loopback overflow, dropping queued packets\n");
+        buf->read = buf->write;
+    }
+
     DWORD len = (DWORD)length;
     FOR_LOOP(i, 4) {
         buf->buffer[(buf->write++) % LOOPBACK_SIZE] = ((char *)&len)[i];
@@ -60,7 +71,7 @@ static void NET_SendLoopPacket(NETSOURCE netsrc, int length, const void *data) {
     }
 }
 
-static int NET_GetLoopPacket(NETSOURCE netsrc, netadr_t *from, LPSIZEBUF msg) {
+int NET_GetLoopPacket(NETSOURCE netsrc, netadr_t *from, LPSIZEBUF msg) {
     struct loopback *buf = &loopbufs[!netsrc];
     if (buf->read == buf->write)
         return 0;
@@ -110,7 +121,11 @@ static void NET_SendUDPPacket(int length, const void *data, netadr_t to) {
     struct sockaddr_in addr;
     memset(&addr, 0, sizeof(addr));
     addr.sin_family = AF_INET;
-    memcpy(&addr.sin_addr, to.ip, 4);
+    if (to.type == NA_BROADCAST) {
+        addr.sin_addr.s_addr = INADDR_BROADCAST;
+    } else {
+        memcpy(&addr.sin_addr, to.ip, 4);
+    }
     addr.sin_port = to.port;    // already in network byte order
 
     if (sendto(udp_socket, sendbuf, length + 4, 0,
@@ -177,6 +192,7 @@ bool NET_Init(unsigned short port) {
 
     int flag = 1;
     setsockopt(udp_socket, SOL_SOCKET, SO_REUSEADDR, &flag, sizeof(flag));
+    setsockopt(udp_socket, SOL_SOCKET, SO_BROADCAST, &flag, sizeof(flag));
 
     struct sockaddr_in addr;
     memset(&addr, 0, sizeof(addr));
@@ -196,7 +212,6 @@ bool NET_Init(unsigned short port) {
     if (flags >= 0)
         fcntl(udp_socket, F_SETFL, flags | O_NONBLOCK);
 
-    fprintf(stderr, "NET_Init: UDP socket bound to port %u\n", port);
     return true;
 }
 
@@ -235,6 +250,25 @@ bool NET_StringToAdr(LPCSTR s, unsigned short default_port, netadr_t *adr) {
     }
     memcpy(adr->ip, he->h_addr_list[0], 4);
     return true;
+}
+
+LPCSTR NET_AdrToString(const netadr_t *adr) {
+    static char buffers[4][64];
+    static DWORD index;
+    char host[INET_ADDRSTRLEN] = "0.0.0.0";
+    char *out = buffers[index++ & 3];
+
+    if (!adr) {
+        snprintf(out, sizeof(buffers[0]), "0.0.0.0:0");
+        return out;
+    }
+    if (adr->type == NA_LOOPBACK) {
+        snprintf(out, sizeof(buffers[0]), "loopback");
+        return out;
+    }
+    inet_ntop(AF_INET, adr->ip, host, sizeof(host));
+    snprintf(out, sizeof(buffers[0]), "%s:%u", host, ntohs(adr->port));
+    return out;
 }
 
 // Route a packet to the loopback buffer or the UDP socket depending on
@@ -278,14 +312,21 @@ void SZ_Init(LPSIZEBUF buf, BYTE *data, DWORD length) {
 
 void SZ_Clear(LPSIZEBUF buf) {
     buf->cursize = 0;
+    buf->overflowed = false;
 }
 
 HANDLE SZ_GetSpace(LPSIZEBUF buf, DWORD length) {
     if (buf->cursize + length > buf->maxsize) {
 //        if (length > buf->maxsize)
 //            Com_Error (ERR_FATAL, "SZ_GetSpace: %i is > full buffer size", length);
-        fprintf(stderr, "SZ_GetSpace: overflow\n");
+        fprintf(stderr,
+                "SZ_GetSpace: overflow length=%u cursize=%u maxsize=%u\n",
+                (unsigned)length,
+                (unsigned)buf->cursize,
+                (unsigned)buf->maxsize);
+        buf->overflowed = true;
         SZ_Clear(buf);
+        buf->overflowed = true;
     }
     HANDLE data = buf->data + buf->cursize;
     buf->cursize += length;
@@ -316,4 +357,3 @@ void Netchan_OutOfBandPrint(NETSOURCE netsrc, netadr_t adr, LPCSTR format, ...) 
     string[sizeof(string) - 1] = '\0';
     Netchan_OutOfBand(netsrc, adr, (DWORD)strlen(string), (BYTE *)string);
 }
-

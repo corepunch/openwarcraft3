@@ -1,6 +1,46 @@
 #include "g_local.h"
 #include "g_metadata.h"
 
+typedef struct sheet_tail_cache_entry_s {
+    sheetRow_t *rows;
+    sheetRow_t *tail;
+    struct sheet_tail_cache_entry_s *next;
+} sheet_tail_cache_entry_t;
+
+static sheet_tail_cache_entry_t *sheet_tail_cache = NULL;
+
+sheetRow_t *G_SheetTail(sheetRow_t *rows)
+{
+    sheet_tail_cache_entry_t *entry;
+    sheet_tail_cache_entry_t *new_entry;
+    sheetRow_t *tail;
+
+    if (!rows) {
+        return NULL;
+    }
+
+    for (entry = sheet_tail_cache; entry; entry = entry->next) {
+        if (entry->rows == rows) {
+            return entry->tail;
+        }
+    }
+
+    tail = rows;
+    while (tail->next) {
+        tail = tail->next;
+    }
+
+    new_entry = (sheet_tail_cache_entry_t *)malloc(sizeof(*new_entry));
+    if (!new_entry) {
+        return tail;
+    }
+    new_entry->rows = rows;
+    new_entry->tail = tail;
+    new_entry->next = sheet_tail_cache;
+    sheet_tail_cache = new_entry;
+    return tail;
+}
+
 LPCSTR config_files[] = {
     "Units\\OrcAbilityStrings.txt",
     "Units\\HumanUnitFunc.txt",
@@ -67,8 +107,29 @@ LPCSTR profile_files[] = {
 };
 
 static sheetRow_t *abilityConfigs = NULL;
+static sheetRow_t *abilityConfigsTail = NULL;
+static sheetRow_t *commandFuncConfig = NULL;
+static sheetRow_t *commandStringsConfig = NULL;
 
 sheetRow_t *Doodads = NULL;
+
+static void AppendSheetRows(sheetRow_t **head, sheetRow_t **tail, sheetRow_t *rows)
+{
+    sheetRow_t *rows_tail;
+
+    if (!rows) {
+        return;
+    }
+
+    rows_tail = G_SheetTail(rows);
+
+    if (*tail) {
+        (*tail)->next = rows;
+    } else {
+        *head = rows;
+    }
+    *tail = rows_tail;
+}
 
 void G_SetConfigTable(sheetMetaData_t *metadatas, LPCSTR slk, sheetRow_t *table) {
     for (sheetMetaData_t *d = metadatas; d->id; d++) {
@@ -121,24 +182,33 @@ FLOAT UnitRealField(sheetMetaData_t *metadatas, DWORD unit_id, LPCSTR name) {
 
 void InitUnitData(void) {
     sheetRow_t *Profile = NULL;
+    sheetRow_t *profileTail = NULL;
+
+    abilityConfigs = NULL;
+    abilityConfigsTail = NULL;
+    commandFuncConfig = NULL;
+    commandStringsConfig = NULL;
+    Doodads = NULL;
     
     for (LPCSTR *config = config_files; *config; config++) {
         sheetRow_t *current = gi.ReadConfig(*config);
         if (current) {
-            PUSH_BACK(sheetRow_t, current, abilityConfigs);
+            AppendSheetRows(&abilityConfigs, &abilityConfigsTail, current);
+            if (!strcmp(*config, "Units\\CommandFunc.txt")) {
+                commandFuncConfig = current;
+            } else if (!strcmp(*config, "Units\\CommandStrings.txt")) {
+                commandStringsConfig = current;
+            }
         }
     }
-    
     for (LPCSTR *config = profile_files; *config; config++) {
         sheetRow_t *current = gi.ReadConfig(*config);
         if (current) {
-            PUSH_BACK(sheetRow_t, current, Profile);
+            AppendSheetRows(&Profile, &profileTail, current);
         }
     }
-    
     sheetRow_t *DestructableData = gi.ReadSheet("Units\\DestructableData.slk");
     Doodads = gi.ReadSheet("Doodads\\Doodads.slk");
-    
     G_SetConfigTable(UnitsMetaData, "Profile", Profile);
     G_SetConfigTable(UnitsMetaData, "UnitAbilities", gi.ReadSheet("Units\\UnitAbilities.slk"));
     G_SetConfigTable(UnitsMetaData, "UnitBalance", gi.ReadSheet("Units\\UnitBalance.slk"));
@@ -155,6 +225,23 @@ void ShutdownUnitData(void) {
 }
 
 LPCSTR FindConfigValue(LPCSTR category, LPCSTR field) {
+    LPCSTR value;
+
+    if (!strncmp(category, "Cmd", 3)) {
+        if (commandFuncConfig) {
+            value = gi.FindSheetCell(commandFuncConfig, category, field);
+            if (value) {
+                return value;
+            }
+        }
+        if (commandStringsConfig) {
+            value = gi.FindSheetCell(commandStringsConfig, category, field);
+            if (value) {
+                return value;
+            }
+        }
+    }
+
     return gi.FindSheetCell(abilityConfigs, category, field);
 }
 

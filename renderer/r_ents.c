@@ -1,9 +1,52 @@
 #include "r_local.h"
 
 void R_GetEntityMatrix(renderEntity_t const *entity, LPMATRIX4 matrix) {
+    VECTOR3 origin = entity->origin;
+
+    if ((entity->flags & RF_GROUND_ANCHOR) &&
+        entity->model &&
+        entity->model->modeltype == ID_MD20) {
+        origin.z += M2_GroundOffset(entity->model->m2) * entity->scale;
+    }
+
     Matrix4_identity(matrix);
-    Matrix4_translate(matrix, &entity->origin);
-    Matrix4_rotate(matrix, &(VECTOR3){0, 0, entity->angle * 180 / M_PI}, ROTATE_XYZ);
+    Matrix4_translate(matrix, &origin);
+    if (entity->model && entity->model->modeltype == ID_MD20) {
+        MATRIX4 adt_to_world_basis;
+        MATRIX4 tmp;
+
+#ifdef WOW
+        if (entity->flags & RF_GROUND_ANCHOR) {
+            Matrix4_rotate(matrix, &(VECTOR3){ 0.0f, 0.0f, entity->rotation.x + 180.0f }, ROTATE_XYZ);
+        }
+#endif
+
+        Matrix4_identity(&adt_to_world_basis);
+        adt_to_world_basis.v[0] = 0.0f;
+        adt_to_world_basis.v[1] = -1.0f;
+        adt_to_world_basis.v[2] = 0.0f;
+        adt_to_world_basis.v[4] = 0.0f;
+        adt_to_world_basis.v[5] = 0.0f;
+        adt_to_world_basis.v[6] = 1.0f;
+        adt_to_world_basis.v[8] = -1.0f;
+        adt_to_world_basis.v[9] = 0.0f;
+        adt_to_world_basis.v[10] = 0.0f;
+        Matrix4_multiply(matrix, &adt_to_world_basis, &tmp);
+        *matrix = tmp;
+
+        Matrix4_scale(matrix, &(VECTOR3){ -1.0f, 1.0f, -1.0f });
+        Matrix4_rotate(matrix, &(VECTOR3){ 0.0f, entity->rotation.y - 270.0f, 0.0f }, ROTATE_XYZ);
+#if defined(WOW)
+        if (!(entity->flags & RF_GROUND_ANCHOR)) {
+            Matrix4_rotate(matrix, &(VECTOR3){ 0.0f, 0.0f, -entity->rotation.x }, ROTATE_XYZ);
+        }
+#else
+        Matrix4_rotate(matrix, &(VECTOR3){ 0.0f, 0.0f, -entity->rotation.x }, ROTATE_XYZ);
+#endif
+        Matrix4_rotate(matrix, &(VECTOR3){ entity->rotation.z - 90.0f, 0.0f, 0.0f }, ROTATE_XYZ);
+    } else {
+        Matrix4_rotate(matrix, &(VECTOR3){0, 0, entity->angle * 180 / M_PI}, ROTATE_XYZ);
+    }
     Matrix4_scale(matrix, &(VECTOR3){entity->scale, entity->scale, entity->scale});
 }
 
@@ -60,6 +103,9 @@ DWORD R_EntitiesInRect(viewDef_t const *viewdef, LPCRECT rect, DWORD max, LPDWOR
         renderEntity_t const *ent = &viewdef->entities[i];
         VECTOR3 const org = Matrix4_multiply_vector3(&viewdef->viewProjectionMatrix, &ent->origin);
         if (ent->number != 0 && Rect_contains(&screen, (LPVECTOR2)&org)) {
+            if (count >= max) {
+                break;
+            }
             array[count++] = ent->number;
         }
     }
@@ -115,13 +161,40 @@ void R_RenderOverlays(void) {
     }
 }
 
+#ifdef USE_SHADOWMAPS
 extern bool is_rendering_lights;
+#endif
 DWORD selCircles[NUM_SELECTION_CIRCLES] = { 100, 300, 100000 };
 
 static void R_RenderUberSplat(const renderEntity_t *entity, LPCVECTOR2 origin) {
     if (entity->splat && !(entity->flags & RF_NO_UBERSPLAT)) {
         R_RenderSplat(origin, entity->splatsize, entity->splat, tr.shader[SHADER_DEFAULT], COLOR32_WHITE);
     }
+}
+
+static void R_RenderShadow(const renderEntity_t *entity, LPCVECTOR2 origin) {
+    if (!entity->shadow || (entity->flags & RF_NO_SHADOW) || !tr.world) {
+        return;
+    }
+
+    VECTOR2 mins;
+    VECTOR2 maxs;
+    if (entity->shadow_w > 0 && entity->shadow_h > 0) {
+        mins.x = origin->x - entity->shadow_x;
+        mins.y = origin->y - entity->shadow_y;
+        maxs.x = mins.x + entity->shadow_w;
+        maxs.y = mins.y + entity->shadow_h;
+    } else {
+        float width = entity->shadow->width * 32.0f;
+        float height = entity->shadow->height * 32.0f;
+        mins.x = origin->x - width * 0.3f;
+        mins.y = origin->y - height * 0.3f;
+        maxs.x = origin->x + width * 0.7f;
+        maxs.y = origin->y + height * 0.7f;
+    }
+
+    COLOR32 shadowColor = {0, 0, 0, 128};
+    R_RenderRectSplat(&mins, &maxs, entity->shadow, tr.shader[SHADER_SHADOWSPLAT], shadowColor);
 }
 
 static void R_RenderSelectedCircle(const renderEntity_t *entity, LPCVECTOR2 origin) {
@@ -142,13 +215,28 @@ void M3_RenderModel(renderEntity_t const *, m3Model_t const *, LPCMATRIX4);
 
 void R_RenderModel(renderEntity_t const *entity) {
     MATRIX4 transform;
+#ifdef WOW
+    MATRIX4 attached_transform;
+    renderEntity_t attached_entity;
+#endif
     R_GetEntityMatrix(entity, &transform);
     
     if ((entity->flags & RF_HIDDEN) || !entity->model)
         return;
     
+#ifdef USE_SHADOWMAPS
     if (is_rendering_lights && (entity->flags & RF_NO_SHADOW))
         return;
+#endif
+
+#ifdef USE_SHADOWMAPS
+    if (!is_rendering_lights)
+#endif
+        R_RenderUberSplat(entity, (LPCVECTOR2)&entity->origin);
+#ifdef USE_SHADOWMAPS
+    if (!is_rendering_lights)
+#endif
+        R_RenderShadow(entity, (LPCVECTOR2)&entity->origin);
     
     switch (entity->model->modeltype) {
         case ID_MDLX:
@@ -157,11 +245,32 @@ void R_RenderModel(renderEntity_t const *entity) {
         case ID_43DM:
             M3_RenderModel(entity, entity->model->m3, &transform);
             break;
+        case ID_MD20:
+            M2_RenderModel(entity, entity->model->m2, &transform);
+#ifdef WOW
+            if (entity->attached_model &&
+                entity->attached_model->modeltype == ID_MD20 &&
+#ifdef USE_SHADOWMAPS
+                !is_rendering_lights &&
+#endif
+                M2_AttachmentMatrix(entity->model->m2, 1, &transform, &attached_transform)) {
+                attached_entity = *entity;
+                attached_entity.model = entity->attached_model;
+                attached_entity.attached_model = NULL;
+                attached_entity.frame = 0;
+                attached_entity.oldframe = 0;
+                attached_entity.flags &= ~RF_GROUND_ANCHOR;
+                attached_entity.flags |= RF_NO_SHADOW;
+                M2_RenderModel(&attached_entity, attached_entity.model->m2, &attached_transform);
+            }
+#endif
+            break;
     }
     
+#ifdef USE_SHADOWMAPS
     if (is_rendering_lights)
         return;
-    
-    R_RenderUberSplat(entity, (LPCVECTOR2)&entity->origin);
+#endif
+
     R_RenderSelectedCircle(entity, (LPCVECTOR2)&entity->origin);
 }

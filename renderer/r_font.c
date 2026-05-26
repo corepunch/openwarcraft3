@@ -1,7 +1,13 @@
 #include "r_local.h"
+#ifndef _WIN32
+#include <strings.h>
+#endif
+#define STB_TRUETYPE_IMPLEMENTATION
 #include "stb/stb_truetype.h"
+#undef STB_TRUETYPE_IMPLEMENTATION
 
 #define MAX_GLYPHSET 256
+#define MAX_CACHED_FONTS 64
 #define FONT_SCALE 2
 #define INV_SCALE(x) ((x) / (FONT_SCALE * 1000.f))
 
@@ -11,12 +17,18 @@ typedef struct {
 } glyphSet_t;
 
 typedef struct  font {
+    struct font *next;
+    char filename[MAX_PATHLEN];
+    DWORD requested_size;
     void *data;
     stbtt_fontinfo stbfont;
     glyphSet_t *sets[MAX_GLYPHSET];
     FLOAT size;
     int height;
 } font_t;
+
+static font_t *r_fonts;
+static DWORD r_num_fonts;
 
 static const char* utf8_to_codepoint(const char *p, unsigned *dst) {
     unsigned res, n;
@@ -79,6 +91,8 @@ retry:
     set->image = R_AllocateTexture(width, height);
     
     R_LoadTextureMipLevel(set->image, 0, pixels, width, height);
+    ri.MemFree(pixels);
+    ri.MemFree(fontimage);
     
     return set;
 }
@@ -94,19 +108,32 @@ static glyphSet_t* R_GetGlyphSet(font_t *font, int codepoint) {
 
 
 LPFONT R_LoadFont(LPCSTR filename, DWORD size) {
+    if (!filename || !*filename) {
+        return NULL;
+    }
+
     size = MAX(9, size);
+    for (font_t *cached = r_fonts; cached; cached = cached->next) {
+        if (cached->requested_size == size && !strcasecmp(cached->filename, filename)) {
+            return cached;
+        }
+    }
+
+    if (r_num_fonts >= MAX_CACHED_FONTS) {
+        return NULL;
+    }
+
     font_t *font = ri.MemAlloc(sizeof(font_t));
+    memset(font, 0, sizeof(*font));
+    snprintf(font->filename, sizeof(font->filename), "%s", filename);
+    font->requested_size = size;
     font->size = size * FONT_SCALE;
     
     /* load font into buffer */
-    HANDLE file = ri.FileOpen(filename);
-    if (!file) { return NULL; }
-    /* get size */
-    DWORD buf_size = SFileGetFileSize(file, NULL);
-    /* load */
-    font->data = ri.MemAlloc(buf_size);
-    SFileReadFile(file, font->data, buf_size, NULL, NULL);
-    ri.FileClose(file);
+    void *buffer = NULL;
+    int buf_size = ri.FS_ReadFile(filename, &buffer);
+    if (buf_size < 0 || !buffer) { goto fail; }
+    font->data = buffer;
     
     /* init stbfont */
     int ok = stbtt_InitFont(&font->stbfont, font->data, 0);
@@ -123,6 +150,9 @@ LPFONT R_LoadFont(LPCSTR filename, DWORD size) {
     g['\t'].x1 = g['\t'].x0;
     g['\n'].x1 = g['\n'].x0;
     
+    font->next = r_fonts;
+    r_fonts = font;
+    r_num_fonts++;
     return font;
     
 fail:
@@ -132,6 +162,15 @@ fail:
 }
 
 void R_ReleaseFont(LPFONT font) {
+    font_t **link = &r_fonts;
+    while (*link) {
+        if (*link == font) {
+            *link = font->next;
+            r_num_fonts--;
+            break;
+        }
+        link = &(*link)->next;
+    }
     for (int i = 0; i < MAX_GLYPHSET; i++) {
         glyphSet_t *set = font->sets[i];
         if (set) {
@@ -141,6 +180,12 @@ void R_ReleaseFont(LPFONT font) {
     }
     ri.MemFree(font->data);
     ri.MemFree(font);
+}
+
+void R_ShutdownFonts(void) {
+    while (r_fonts) {
+        R_ReleaseFont(r_fonts);
+    }
 }
 
 FLOAT R_GetFontWidth(LPFONT font, LPCSTR text) {
@@ -215,40 +260,57 @@ static VECTOR2 process_text(LPCDRAWTEXT arg, BOOL draw) {
     VECTOR2 pos = draw ? get_position(arg) : MAKE(VECTOR2, 0, 0);
     COLOR32 color = arg->color;
     VECTOR2 cursor = pos;
-    FLOAT maxwidth = 0;
     FLOAT linesize = 0.5 * arg->font->size / 1000.f;
+    FLOAT line_advance = linesize * arg->lineHeight;
+    FLOAT max_cursor_x = pos.x;
+    FLOAT min_cursor_y = pos.y;
+    FLOAT max_cursor_y = pos.y;
     for (LPCSTR p = arg->text; *p;) {
         if (*p == '\n') {
             cursor.x = pos.x;
-            cursor.y += linesize * arg->lineHeight * 1.1;
+            cursor.y += line_advance * 1.1;
+            max_cursor_y = MAX(max_cursor_y, cursor.y);
             p++;
             continue;
         }
         if (!strncmp(p, "|n", 2) || !strncmp(p, "|N", 2)) {
         // next_line:
             cursor.x = pos.x;
-            cursor.y += linesize * arg->lineHeight * 1.1;
+            cursor.y += line_advance * 1.1;
+            max_cursor_y = MAX(max_cursor_y, cursor.y);
             p += 2;
             continue;
         }
         if (*p == '<') {
-            DWORD icon = atoi(p+6);
+            LPCSTR end = strchr(p + 1, '>');
+            DWORD icon = 0;
+            if (!end) {
+                break;
+            }
+            if (end > p + 6) {
+                icon = (DWORD)atoi(p + 6);
+            }
             switch (*(DWORD*)(p+1)) {
                 case MAKEFOURCC('I', 'c', 'o', 'n'):
-                    if (draw && arg->icons[icon]) {
-                        R_DrawImage(arg->icons[icon],
-                                    &MAKE(RECT, cursor.x, cursor.y + linesize * 0.1, linesize, linesize),
-                                    &MAKE(RECT, 0, 0, 1, 1),
-                                    COLOR32_WHITE);
+                    if (draw && arg->icons && icon < MAX_IMAGES && arg->icons[icon]) {
+                        R_DrawImageEx(&MAKE(drawImage_t,
+                                            .texture = arg->icons[icon],
+                                            .shader = SHADER_UI,
+                                            .alphamode = BLEND_MODE_BLEND,
+                                            .screen = MAKE(RECT, cursor.x, cursor.y + linesize * 0.1, linesize, linesize),
+                                            .uv = MAKE(RECT, 0, 0, 1, 1),
+                                            .color = COLOR32_WHITE,
+                                            .hasClip = arg->hasClip,
+                                            .clip = arg->clip));
                     }
                     cursor.x += linesize;
                     break;
             }
-            p = strchr(p + 1, '>') + 1;
+            p = end + 1;
             continue;;
         }
         if (!strncmp(p, "|r", 2) || !strncmp(p, "|R", 2)) {
-            color = COLOR32_WHITE;
+            color = arg->color;
             p += 2;
             continue;
         }
@@ -264,7 +326,8 @@ static VECTOR2 process_text(LPCDRAWTEXT arg, BOOL draw) {
         }
         if (arg->wordWrap && cursor.x > pos.x && !will_word_fit(p, arg->textWidth - (cursor.x - pos.x), arg->font)) {
             cursor.x = pos.x;
-            cursor.y += linesize * arg->lineHeight;
+            cursor.y += line_advance;
+            max_cursor_y = MAX(max_cursor_y, cursor.y);
         }
         unsigned codepoint;
         p = utf8_to_codepoint(p, &codepoint);
@@ -275,12 +338,23 @@ static VECTOR2 process_text(LPCDRAWTEXT arg, BOOL draw) {
             FLOAT const h = set->image->height;
             RECT const uv_rect = get_uvrect(g, h, w);
             RECT const screen = get_screenrect(&cursor, g);
-            R_DrawImage(set->image, &screen, &uv_rect, color);
+            R_DrawImageEx(&MAKE(drawImage_t,
+                                .texture = set->image,
+                                .shader = SHADER_UI,
+                                .alphamode = BLEND_MODE_BLEND,
+                                .screen = screen,
+                                .uv = uv_rect,
+                                .color = color,
+                                .hasClip = arg->hasClip,
+                                .clip = arg->clip));
         }
         cursor.x += INV_SCALE(g->xadvance);
-        maxwidth = MAX(maxwidth, cursor.x);
+        max_cursor_x = MAX(max_cursor_x, cursor.x);
+        max_cursor_y = MAX(max_cursor_y, cursor.y);
     }
-    return MAKE(VECTOR2, maxwidth, cursor.y + R_GetFontHeight((LPFONT)arg->font));
+    return MAKE(VECTOR2,
+                max_cursor_x - pos.x,
+                (max_cursor_y - min_cursor_y) + R_GetFontHeight((LPFONT)arg->font));
 }
 
 

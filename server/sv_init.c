@@ -10,12 +10,19 @@ void SV_CreateBaseline(void) {
     }
 }
 
+static void SV_InitMulticast(void) {
+    if (sv.multicast.maxsize == 0) {
+        SZ_Init(&sv.multicast, sv.multicast_buf, MAX_MSGLEN);
+    }
+}
+
 void SV_ClientConnect(void) {
     // Reuse slot 0 if it already holds a loopback client (e.g. repeated SV_Map
     // calls without a full SV_Shutdown in between).
     if (svs.num_clients > 0 &&
         svs.clients[0].netchan.remote_address.type == NA_LOOPBACK) {
         netadr_t adr = { NA_LOOPBACK };
+        SV_InitMulticast();
         Netchan_OutOfBandPrint(NS_SERVER, adr, "client_connect");
         return;
     }
@@ -27,6 +34,7 @@ void SV_ClientConnect(void) {
     LPCLIENT cl = &svs.clients[svs.num_clients];
     svs.num_clients++;
     cl->state = cs_connected;
+    SV_InitMulticast();
     // Local client uses the in-process loopback path
     memset(&cl->netchan.remote_address, 0, sizeof(cl->netchan.remote_address));
     cl->netchan.remote_address.type = NA_LOOPBACK;
@@ -65,35 +73,55 @@ void SV_DirectConnect(const netadr_t *from) {
     LPCLIENT cl = &svs.clients[svs.num_clients];
     svs.num_clients++;
     cl->state = cs_connected;
+    SV_InitMulticast();
     cl->netchan.remote_address = *from;
     SZ_Init(&cl->netchan.message, cl->netchan.message_buf, MAX_MSGLEN);
     Netchan_OutOfBandPrint(NS_SERVER, *from, "client_connect");
-    fprintf(stderr, "SV_DirectConnect: new client from %d.%d.%d.%d:%u\n",
-            from->ip[0], from->ip[1], from->ip[2], from->ip[3],
-            ntohs(from->port));
 }
 
 void SV_Map(LPCSTR mapFilename) {
+    fprintf(stderr, "Server initialization.\n");
     SV_InitGame();
     memset(&sv, 0, sizeof(struct server));
     sv.state = ss_loading;
-    strcpy(sv.configstrings[CS_MODELS+1], mapFilename);
+    strcpy(sv.configstrings[CS_WORLD], mapFilename);
     SZ_Init(&sv.multicast, sv.multicast_buf, MAX_MSGLEN);
-    CM_LoadMap(mapFilename);
+    if (!CM_LoadMap(mapFilename)) {
+        fprintf(stderr, "SV_Map: map load failed\n");
+        sv.state = ss_dead;
+        return;
+    }
     SV_ClearWorld();
     SV_CreateBaseline();
     ge->SpawnEntities(CM_GetMapInfo(), CM_GetDoodads());
     sv.state = ss_game;
     // Register slot 0 as the local (loopback) client now that the map is ready
     SV_ClientConnect();
+    fprintf(stderr, "Server initialized.\n\n");
 }
 
 void SV_InitGame(void) {
+    if (!ge) {
+        fprintf(stderr, "SV_InitGame: game API not initialized\n");
+        return;
+    }
+
     if (svs.initialized) {
         SV_Shutdown();
     }
+
+    // SV_Shutdown tears down game state (including ge->edicts), so make sure
+    // the game side is initialized before using EDICT_NUM.
+    if (!ge->edicts) {
+        if (!ge->Init) {
+            fprintf(stderr, "SV_InitGame: missing ge->Init callback\n");
+            return;
+        }
+        ge->Init();
+    }
+
     svs.initialized = true;
-    svs.num_client_entities = UPDATE_BACKUP * MAX_CLIENTS * MAX_PACKET_ENTITIES;
+    svs.num_client_entities = UPDATE_BACKUP * ge->max_clients * MAX_PACKET_ENTITIES;
     svs.client_entities = MemAlloc(sizeof(entityState_t) * svs.num_client_entities);
     
     FOR_LOOP(i, ge->max_clients) {
@@ -104,11 +132,16 @@ void SV_InitGame(void) {
 }
 
 void SV_Shutdown(void) {
+    if (!svs.initialized) {
+        return;
+    }
     SAFE_DELETE(sv.baselines, MemFree);
     SAFE_DELETE(svs.client_entities, MemFree);
     svs.num_clients = 0;
     svs.initialized = false;
-    ge->Shutdown();
+    if (ge && ge->Shutdown) {
+        ge->Shutdown();
+    }
 }
 
 void SV_Init(void) {
@@ -116,4 +149,5 @@ void SV_Init(void) {
     memset(&sv, 0, sizeof(struct server));
 
     SV_InitGameProgs();
+    SV_InitGame();
 }

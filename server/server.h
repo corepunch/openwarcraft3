@@ -4,7 +4,7 @@
 #include "../common/common.h"
 #include "game.h"
 
-#include <StormLib.h>
+#include "../common/mpq.h"
 
 #define EDICT_NUM(n) ((edict_t *)((LPSTR)ge->edicts + ge->edict_size*(n)))
 #define NUM_FOR_EDICT(e) (DWORD)(((LPSTR)(e)-(LPSTR)ge->edicts) / ge->edict_size)
@@ -103,9 +103,11 @@ extern struct game_export *ge;
 
 // sv_init.c
 void SV_Map(LPCSTR pFilename);
+void SV_ClientConnect(void);
 void SV_InitGame(void);
 LPCLIENT SV_FindClientByAddr(const netadr_t *from);
 void SV_DirectConnect(const netadr_t *from);
+void SV_ConnectionlessPacket(const netadr_t *from, LPSIZEBUF msg);
 void SV_BuildClientFrame(LPCLIENT client);
 void SV_WriteFrameToClient(LPCLIENT client);
 void SV_ParseClientMessage(LPSIZEBUF msg, LPCLIENT client);
@@ -125,6 +127,9 @@ void SV_WriteConfigString(LPSIZEBUF msg, DWORD i);
 
 // sv_user.c
 void SV_ExecuteUserCommand(LPSIZEBUF msg, LPCLIENT client);
+
+/* Unit UI data requests (Phase 8) */
+void SV_HandleUnitUIRequest(LPCLIENT client, LPSIZEBUF msg);
 
 // sv_world.c
 void SV_LinkEntity(LPEDICT ent);

@@ -4,7 +4,7 @@
 #include "../r_local.h"
 
 #define MODEL_ATTACHMENT_PATH_LENGTH 0x100
-#define MDX_MAX_NODES 256
+#define MDX_MAX_NODES 1024
 #define MDX_MATRIX_PALETTE 128
 
 typedef char mdxObjectName_t[80];
@@ -119,7 +119,7 @@ typedef struct {
 
 typedef struct mdxGeosetAnim_s {
     float staticAlpha;        // 0 is transparent, 1 is opaque
-    DWORD flags;           // &1: color
+    DWORD flags;           // &2: color
     VECTOR3 staticColor;
     DWORD geosetId;        // GEOS index or 0xFFFFFFFF if none
     mdxKeyTrack_t *alphas; // float
@@ -233,6 +233,13 @@ typedef struct mdxMaterial_s {
     struct mdxMaterial_s *next;
 } mdxMaterial_t;
 
+typedef struct mdxTextureAnim_s {
+    mdxKeyTrack_t *translation; // vec3
+    mdxKeyTrack_t *rotation; // quat
+    mdxKeyTrack_t *scale; // vec3
+    struct mdxTextureAnim_s *next;
+} mdxTextureAnim_t;
+
 typedef struct mdxCamera_s {
     mdxObjectName_t name;
     VECTOR3 pivot;
@@ -301,6 +308,7 @@ typedef struct mdxGeoset_s {
     mdxGeosetAnim_t *geosetAnim;
 //    mdxVertexSkin_t *skinning;
     int *matrices;
+    int *matrixPalette;
     int *primitiveTypes;
     int *primitiveCounts;
     short *triangles;
@@ -313,6 +321,7 @@ typedef struct mdxGeoset_s {
     int num_normals;
     int num_texcoord;
     int num_matrices;
+    int num_matrixPalette;
     int num_primitiveTypes;
     int num_primitiveCounts;
     int num_triangles;
@@ -334,6 +343,7 @@ typedef struct mdxModel_s {
     mdxSequence_t *sequences;
     mdxEvent_t *events;
     mdxMaterial_t *materials;
+    mdxTextureAnim_t *textureAnims;
     mdxBone_t *bones;
     mdxGeosetAnim_t *geosetAnims;
     mdxCollisionShape_t *collisionShapes;
@@ -350,6 +360,17 @@ typedef struct mdxModel_s {
     int num_globalSequences;
     int num_pivots;
 } mdxModel_t;
+
+typedef struct {
+    LPSHADER shader;
+} mdlx_state_t;
+
+extern mdlx_state_t mdlx;
+extern MATRIX4 node_matrices[MDX_MAX_NODES];
+
+mdxSequence_t const *R_FindSequenceAtTime(mdxModel_t const *model, DWORD time);
+void MDLX_GetModelKeytrackValue(mdxModel_t const *model, mdxKeyTrack_t const *keytrack, DWORD time, HANDLE output);
+mdxSequence_t const *MDLX_FindSequenceByName(mdxModel_t const *model, LPCSTR name);
 
 mdxModel_t *R_LoadModelMDLX(void *buffer, DWORD size);
 void MDLX_Release(mdxModel_t *model);

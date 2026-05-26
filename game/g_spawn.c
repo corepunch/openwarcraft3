@@ -111,6 +111,8 @@ static void SP_SpawnDestructable(LPEDICT edict) {
     edict->s.model = gi.ModelIndex(buffer);
     edict->s.radius = 50;//destr->radius;
     edict->collision = 50;
+    edict->s.shadow = G_LoadShadowTexture(DESTRUCTABLE_SHADOW(edict->class_id), false);
+    edict->s.shadow_rect = 0;
     edict->health.value = DESTRUCTABLE_HIT_POINT_MAXIMUM(edict->class_id);
     edict->health.max_value = DESTRUCTABLE_HIT_POINT_MAXIMUM(edict->class_id);
     edict->targtype = G_GetTargetType(DESTRUCTABLE_TARGETED_AS(edict->class_id));
@@ -128,6 +130,7 @@ sheetRow_t *find_row(LPCSTR dood_id) {
 void SP_CallSpawn(LPEDICT edict) {
     if (!edict->class_id)
         return;
+    edict->s.class_id = edict->class_id;
     if (find_row(GetClassName(edict->class_id))) {
         SP_SpawnDoodad(edict);
     } else if (DESTRUCTABLE_FILE(edict->class_id)) {
@@ -216,6 +219,7 @@ void G_SpawnEntities(LPCMAPINFO mapinfo, LPCDOODAD entities) {
 LPEDICT SP_SpawnAtLocation(DWORD class_id, DWORD player, LPCVECTOR2 location) {
     LPEDICT ent = G_Spawn();
     ent->class_id = class_id;
+    ent->s.class_id = class_id;
     ent->spawn_time = gi.GetTime();
     ent->s.origin.x = location->x;
     ent->s.origin.y = location->y;

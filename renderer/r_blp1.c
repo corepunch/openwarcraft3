@@ -1,8 +1,11 @@
 #include "r_local.h"
 #include "r_blp.h"
 
-#include <jpeglib.h>
-#include <jerror.h>
+#define STB_IMAGE_IMPLEMENTATION
+#define STBI_WARCRAFT3_BLP_JPEG_RGBA_BANDS
+#include "stb/stb_image.h"
+#undef STBI_WARCRAFT3_BLP_JPEG_RGBA_BANDS
+#undef STB_IMAGE_IMPLEMENTATION
 
 // Opaque type representing a BLP file
 typedef void* tBLPInfos;
@@ -12,11 +15,11 @@ struct tBLP1Header
 {
     DWORD    magic;
     DWORD    type;           // 0: JPEG, 1: palette
-    DWORD    flags;          // 8: Alpha
+    DWORD    alphaBits;      // 0, 1, 4 or 8 bits
     DWORD    width;          // In pixels, power-of-two
     DWORD    height;
-    DWORD    alphaEncoding;  // 3, 4: Alpha list, 5: Alpha from palette
-    DWORD    flags2;         // Unused
+    DWORD    extra;          // Usually 4 or 5, unknown purpose
+    DWORD    hasMipmaps;     // 0 or non-zero
     DWORD    offsets[16];
     DWORD    lengths[16];
 };
@@ -45,9 +48,10 @@ struct tInternalBLPInfos {
 };
 
 LPCOLOR32 blp1_convert_jpeg(BYTE* pSrc, struct tBLP1Infos* pInfos, DWORD size);
-LPCOLOR32 blp1_convert_paletted_alpha(BYTE* pSrc, struct tBLP1Infos* pInfos, DWORD width, DWORD height);
 LPCOLOR32 blp1_convert_paletted_no_alpha(BYTE* pSrc, struct tBLP1Infos* pInfos, DWORD width, DWORD height);
 LPCOLOR32 blp1_convert_paletted_separated_alpha(BYTE* pSrc, struct tBLP1Infos* pInfos, DWORD width, DWORD height);
+LPCOLOR32 blp1_convert_paletted_alpha1(BYTE* pSrc, struct tBLP1Infos* pInfos, DWORD width, DWORD height);
+LPCOLOR32 blp1_convert_paletted_alpha4(BYTE* pSrc, struct tBLP1Infos* pInfos, DWORD width, DWORD height);
 
 //struct tInternalBLPInfos *blp_processFile(FILE* pFile);
 //void blp_release(tBLPInfos binfos);
@@ -71,9 +75,17 @@ void blp1_release(struct tInternalBLPInfos* pBLPInfos) {
 enum tBLPFormat blp1_format(struct tInternalBLPInfos* pBLPInfos) {
     if (pBLPInfos->header.type == 0)
         return BLP_FORMAT_JPEG;
-    if ((pBLPInfos->header.flags & 0x8) != 0)
-        return BLP_FORMAT_PALETTED_ALPHA_8;
-    return BLP_FORMAT_PALETTED_NO_ALPHA;
+    switch (pBLPInfos->header.alphaBits) {
+        case BLP_ALPHA_DEPTH_8:
+            return BLP_FORMAT_PALETTED_ALPHA_8;
+        case BLP_ALPHA_DEPTH_4:
+            return BLP_FORMAT_PALETTED_ALPHA_4;
+        case BLP_ALPHA_DEPTH_1:
+            return BLP_FORMAT_PALETTED_ALPHA_1;
+        case BLP_ALPHA_DEPTH_0:
+        default:
+            return BLP_FORMAT_PALETTED_NO_ALPHA;
+    }
 }
 
 
@@ -116,12 +128,14 @@ LPCOLOR32 blp1_convert(HANDLE buffer, DWORD filesize, struct tInternalBLPInfos* 
         case BLP_FORMAT_PALETTED_NO_ALPHA:
             pDst = blp1_convert_paletted_no_alpha(pSrc, &pBLPInfos->infos, width, height);
             break;
+        case BLP_FORMAT_PALETTED_ALPHA_1:
+            pDst = blp1_convert_paletted_alpha1(pSrc, &pBLPInfos->infos, width, height);
+            break;
+        case BLP_FORMAT_PALETTED_ALPHA_4:
+            pDst = blp1_convert_paletted_alpha4(pSrc, &pBLPInfos->infos, width, height);
+            break;
         case BLP_FORMAT_PALETTED_ALPHA_8:
-            if (pBLPInfos->header.alphaEncoding == 5) {
-                pDst = blp1_convert_paletted_alpha(pSrc, &pBLPInfos->infos, width, height);
-            } else {
-                pDst = blp1_convert_paletted_separated_alpha(pSrc, &pBLPInfos->infos, width, height);
-            }
+            pDst = blp1_convert_paletted_separated_alpha(pSrc, &pBLPInfos->infos, width, height);
             break;
         default:
             assert(0);
@@ -169,63 +183,39 @@ LPTEXTURE R_LoadTextureBLP1(HANDLE data, DWORD filesize) {
     return pTexture;
 }
 
-struct jpeg_imageinfo {
-    int width;
-    int height;
-    int channels;
-    DWORD size;
-    int num_components;
-    BYTE *data;
-};
-
-static struct jpeg_imageinfo
-jpeg_readimage(HANDLE buf, DWORD size) {
-    struct jpeg_decompress_struct cinfo;
-    struct jpeg_error_mgr jerr;
-    cinfo.err = jpeg_std_error(&jerr);
-    jpeg_create_decompress(&cinfo);
-    jpeg_mem_src(&cinfo, buf, size);
-    jpeg_read_header(&cinfo, true);
-//    cinfo.out_color_space = JCS_YCCK;
-    jpeg_start_decompress(&cinfo);
-    struct jpeg_imageinfo image = (struct jpeg_imageinfo) {
-        .width = cinfo.output_width,
-        .height = cinfo.output_height,
-        .channels = cinfo.num_components,
-        .size = cinfo.output_width * cinfo.output_height * cinfo.num_components,
-        .num_components = cinfo.num_components,
-        .data = ri.MemAlloc(cinfo.output_width * cinfo.output_height * cinfo.num_components),
-    };
-    BYTE* p1 = image.data;
-    BYTE** p2 = &p1;
-    while (cinfo.output_scanline < image.height) {
-        unsigned long const numlines = jpeg_read_scanlines(&cinfo, p2, 1);
-        *p2 += numlines * image.channels * image.width;
-    }
-    jpeg_finish_decompress(&cinfo);
-    jpeg_destroy_decompress(&cinfo);
-    return image;
-}
-
 LPCOLOR32 blp1_convert_jpeg(BYTE* pSrc, struct tBLP1Infos* pInfos, DWORD dataSize) {
     BYTE* pSrcBuffer = ri.MemAlloc(pInfos->jpeg.headerSize + dataSize);
 
-    memcpy(pSrcBuffer, pInfos->jpeg.header, pInfos->jpeg.headerSize);
+    if (pInfos->jpeg.headerSize > 0) {
+        memcpy(pSrcBuffer, pInfos->jpeg.header, pInfos->jpeg.headerSize);
+    }
     memcpy(pSrcBuffer + pInfos->jpeg.headerSize, pSrc, dataSize);
 
-    struct jpeg_imageinfo const image = jpeg_readimage(pSrcBuffer, pInfos->jpeg.headerSize + dataSize);
+    int width;
+    int height;
+    BYTE* image = stbi_load_from_memory(
+        pSrcBuffer,
+        (int)(pInfos->jpeg.headerSize + dataSize),
+        &width,
+        &height,
+        NULL,
+        STBI_rgb_alpha);
 
-    LPCOLOR32 pBuffer = ri.MemAlloc(sizeof (COLOR32) * image.width * image.height);
-
-    for (DWORD p = 0; p < image.width * image.height; ++p){
-        LPCCOLOR32 c = (LPCCOLOR32)&image.data[p * image.num_components];
-        pBuffer[p] = *c;
-        if (image.num_components != 4) {
-            pBuffer[p].a = 0xff;
-        }
+    if (!image) {
+        ri.MemFree(pSrcBuffer);
+        return NULL;
     }
 
-    ri.MemFree(image.data);
+    LPCOLOR32 pBuffer = ri.MemAlloc(sizeof(COLOR32) * width * height);
+
+    for (DWORD p = 0; p < (DWORD)(width * height); ++p) {
+        pBuffer[p].r = image[p * 4 + 2];
+        pBuffer[p].g = image[p * 4 + 1];
+        pBuffer[p].b = image[p * 4 + 0];
+        pBuffer[p].a = image[p * 4 + 3];
+    }
+
+    stbi_image_free(image);
     ri.MemFree(pSrcBuffer);
 
     return pBuffer;
@@ -248,16 +238,47 @@ LPCOLOR32 blp1_convert_paletted_separated_alpha(BYTE* pSrc, struct tBLP1Infos* p
     return pBuffer;
 }
 
-LPCOLOR32 blp1_convert_paletted_alpha(BYTE* pSrc, struct tBLP1Infos* pInfos, DWORD width, DWORD height) {
+LPCOLOR32 blp1_convert_paletted_alpha1(BYTE* pSrc, struct tBLP1Infos* pInfos, DWORD width, DWORD height) {
     LPCOLOR32 pBuffer = ri.MemAlloc(sizeof(COLOR32) * width * height);
     LPCOLOR32 pDst = pBuffer;
     BYTE* pIndices = pSrc;
+    BYTE* pAlpha = pSrc + width * height;
+    BYTE counter = 0;
     FOR_LOOP(y, height) {
         FOR_LOOP(x, width) {
             *pDst = pInfos->palette[*pIndices];
-            pDst->a = 0xFF - pDst->a;
+            pDst->a = (*pAlpha & (1 << counter) ? 0xFF : 0x00);
             ++pIndices;
             ++pDst;
+            ++counter;
+            if (counter == 8) {
+                ++pAlpha;
+                counter = 0;
+            }
+        }
+    }
+    return pBuffer;
+}
+
+LPCOLOR32 blp1_convert_paletted_alpha4(BYTE* pSrc, struct tBLP1Infos* pInfos, DWORD width, DWORD height) {
+    LPCOLOR32 pBuffer = ri.MemAlloc(sizeof(COLOR32) * width * height);
+    LPCOLOR32 pDst = pBuffer;
+    BYTE* pIndices = pSrc;
+    BYTE* pAlpha = pSrc + width * height;
+    BYTE counter = 0;
+    FOR_LOOP(y, height) {
+        FOR_LOOP(x, width) {
+            BYTE a;
+            *pDst = pInfos->palette[*pIndices];
+            a = (BYTE)((*pAlpha >> counter) & 0xF);
+            pDst->a = (BYTE)((a << 4) | a);
+            ++pIndices;
+            ++pDst;
+            counter += 4;
+            if (counter == 8) {
+                ++pAlpha;
+                counter = 0;
+            }
         }
     }
     return pBuffer;

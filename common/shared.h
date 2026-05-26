@@ -9,14 +9,22 @@
 #include <stdarg.h>
 #include <stdint.h>
 
-#include "../cmath3/cmath3.h"
+#include "../shared/shared.h"
 
-#define TMP_MAP "/tmp/map.w3m"
+#ifdef _WIN32
+#define strcasecmp _stricmp
+#define strncasecmp _strnicmp
+#endif
+
 #define MAX_PATHLEN 256
 #define MAX_SELECTED_ENTITIES 64
+#define MAX_ENTITY_INVENTORY 6
+#define MAX_ENTITY_BUILD_QUEUE 7
 #define TOKEN_LEN 1024
 #define FRAMETIME 100
 #define MAX_LAYOUT_OBJECTS 0xffff
+#define MAX_LIST_FETCH_TEXT 2048
+#define MAX_LIST_FETCH_ROWS 32
 #define MIN(x, y) (((x)<(y))?(x):(y))
 #define MAX(x, y) (((x)>(y))?(x):(y))
 
@@ -30,9 +38,7 @@
 #define COLOR32_BLACK MAKE(COLOR32,0,0,0,255)
 
 #ifndef __cplusplus
-  #define bool char
-  #define true 1
-  #define false 0
+  #include <stdbool.h>
 #endif
 
 #define KNOWN_AS(STRUCT, TYPE) \
@@ -43,11 +49,7 @@ typedef struct STRUCT const *LPC##TYPE;
 #define FOR_LOOP(property, max) \
 for (DWORD property = 0, end = max; property < end; ++property)
 
-#define PrintTag(tag) \
-do { \
-LPSTR ch = (char*)&tag; \
-printf("%c%c%c%c\n", ch[0], ch[1], ch[2], ch[3]); \
-} while(false);
+#define PrintTag(tag) do { (void)(tag); } while(false)
 
 #define FOR_EACH_LIST(type, property, list) \
 for (type *property = list, *next = list ? (list)->next : NULL; \
@@ -101,6 +103,19 @@ for (TYPE *it = LIST; it;) { \
 PARSER parser = { .buffer = LIST, .delimiters = "" }; \
 for (LPCSTR ITEM = PARSEFUNC(&parser); ITEM; ITEM = PARSEFUNC(&parser))
 
+#define TRACE_CALL(FUNC, ...) FUNC(__VA_ARGS__)
+#define TRACE(FUNC, ...) \
+do { \
+    fprintf(stderr, "%s: %s\n", __func__, #FUNC); \
+    TRACE_CALL(FUNC, ##__VA_ARGS__); \
+} while (0)
+
+#ifdef DIAG_OUTPUT
+#define DIAGF(...) fprintf(stderr, __VA_ARGS__)
+#else
+#define DIAGF(...) ((void)0)
+#endif
+
 
 #define FLAG(NAME, X) NAME = (1 << X)
 
@@ -113,6 +128,12 @@ enum {
     FLAG(RF_NO_FOGOFWAR, 5),
     FLAG(RF_NO_SHADOW, 6),
     FLAG(RF_ATTACH_OVERHEAD, 7),
+    FLAG(RF_NO_LIGHTING, 8),
+    FLAG(RF_GROUND_ANCHOR, 9),
+};
+
+enum {
+    FLAG(EF_GROUND_ANCHOR, 0),
 };
 
 enum {
@@ -127,10 +148,11 @@ enum {
 
 #define MAX_PACKET_ENTITIES 64
 #define MAX_CLIENTS 24
-#define MAX_FONTSTYLES 256
 #define MAX_MODELS 256
+#define MAX_FONTSTYLES 256
 #define MAX_SOUNDS 256
 #define MAX_IMAGES 256
+#define MAX_DYNAMIC_IMAGES 32
 #define MAX_ITEMS 256
 #define MAX_GENERAL (MAX_CLIENTS*2)
 
@@ -143,6 +165,7 @@ enum {
     CS_STATUSBAR = 5,        // display program string
     CS_HEALTHBAR = 6,
     CS_MANAHBAR = 6,
+    CS_WORLD = 7,
     CS_AIRACCEL = 29,        // air acceleration control
     CS_MAXCLIENTS = 30,
     CS_MAPCHECKSUM = 31,        // for catching cheater maps
@@ -158,12 +181,16 @@ enum {
 
 #define ID_MDLX MAKEFOURCC('M','D','L','X')
 #define ID_43DM MAKEFOURCC('4','3','D','M')
+#define ID_MD20 MAKEFOURCC('M','D','2','0')
+#define ID_MD21 MAKEFOURCC('M','D','2','1')
+#define ID_12DM MAKEFOURCC('1','2','D','M')
 #define ID_BLP1 MAKEFOURCC('B','L','P','1')
 #define ID_BLP2 MAKEFOURCC('B','L','P','2')
 #define ID_DDS  MAKEFOURCC('D','D','S','\40')
 
 typedef struct m3Model_s m3Model_t;
 typedef struct mdxModel_s mdxModel_t;
+typedef struct m2Model_s m2Model_t;
 
 // Typedefs for ANSI C
 typedef unsigned char  BYTE;
@@ -236,6 +263,7 @@ typedef enum {
     BLEND_MODE_ALPHAKEY,
     BLEND_MODE_BLEND,
     BLEND_MODE_ADD,
+    BLEND_MODE_ADDALPHA,
     BLEND_MODE_MODULATE,
     BLEND_MODE_MODULATE_2X,
 } BLEND_MODE;
@@ -255,14 +283,66 @@ enum {
     ENT_STAT_COUNT,
 };
 
+typedef enum {
+    PLAYERSTATE_GAME_RESULT = 0,
+    PLAYERSTATE_RESOURCE_GOLD = 1,
+    PLAYERSTATE_RESOURCE_LUMBER = 2,
+    PLAYERSTATE_RESOURCE_HERO_TOKENS = 3,
+    PLAYERSTATE_RESOURCE_FOOD_CAP = 4,
+    PLAYERSTATE_RESOURCE_FOOD_USED = 5,
+    PLAYERSTATE_FOOD_CAP_CEILING = 6,
+    PLAYERSTATE_GIVES_BOUNTY = 7,
+    PLAYERSTATE_ALLIED_VICTORY = 8,
+    PLAYERSTATE_PLACED = 9,
+    PLAYERSTATE_OBSERVER_ON_DEATH = 10,
+    PLAYERSTATE_OBSERVER = 11,
+    PLAYERSTATE_UNFOLLOWABLE = 12,
+    PLAYERSTATE_GOLD_UPKEEP_RATE = 13,
+    PLAYERSTATE_LUMBER_UPKEEP_RATE = 14,
+    PLAYERSTATE_GOLD_GATHERED = 15,
+    PLAYERSTATE_LUMBER_GATHERED = 16,
+} PLAYERSTATE;
+
+typedef enum {
+    PLAYERTEXT_SPEAKER,
+    PLAYERTEXT_DIALOGUE,
+    PLAYERTEXT_MAP_TITLE,
+    PLAYERTEXT_MAP_SUGGESTED_PLAYERS,
+    PLAYERTEXT_MAP_SIZE,
+    PLAYERTEXT_MAP_TILESET,
+    PLAYERTEXT_MAP_DESCRIPTION,
+    PLAYERTEXT_MAP_PREVIEW,
+    PLAYERTEXT_COUNT,
+} PLAYERTEXT;
+
+typedef enum {
+    LAYER_BACKGROUND,
+    LAYER_PORTRAIT,
+    LAYER_CINEMATIC,
+    LAYER_CONSOLE,
+    LAYER_COMMANDBAR,
+    LAYER_INFOPANEL,
+    LAYER_INVENTORY,
+    LAYER_MESSAGE,
+    LAYER_QUESTDIALOG,
+} UILAYOUTLAYER;
+
+typedef enum {
+    CLIENT_UI_GAME,
+    CLIENT_UI_LOADING,
+    CLIENT_UI_CINEMATIC,
+} CLIENTUISTATE;
+
 struct playerState_s {
     DWORD number;
     QUATERNION viewquat;
+    VECTOR3 viewangles;
     VECTOR2 origin;
     FLOAT distance;
     DWORD fov;
     DWORD rdflags;
     DWORD uiflags;
+    DWORD client_ui_state;
     DWORD team;
     DWORD color;    // player color index (0 = red, 1 = blue, … see PLAYER_COLOR_*)
     LPSTR name;     // player display name (set from mapplayer or by script)
@@ -274,11 +354,13 @@ struct playerState_s {
 
 typedef struct entityState_s {
     DWORD number; // edict index
+    DWORD class_id;
     union {
         VECTOR3 origin;
         struct { VECTOR2 origin2; FLOAT z; };
     };
     FLOAT angle;
+    VECTOR3 rotation;
     FLOAT scale;
     FLOAT radius;
     BYTE stats[ENT_STAT_COUNT];
@@ -293,7 +375,42 @@ typedef struct entityState_s {
     BYTE renderfx;
     BYTE ability;
     DWORD splat;
+    DWORD shadow;
+    DWORD shadow_rect;
+    DWORD inventory[MAX_ENTITY_INVENTORY];
+    DWORD build_queue[MAX_ENTITY_BUILD_QUEUE];
 } entityState_t;
+
+#define SHADOW_RECT_STEP 4.0f
+
+static inline BYTE ShadowPackRectComponent(FLOAT value) {
+    if (value <= 0) {
+        return 0;
+    }
+    DWORD packed = (DWORD)((value + SHADOW_RECT_STEP * 0.5f) / SHADOW_RECT_STEP);
+    if (packed > 0xff) {
+        packed = 0xff;
+    }
+    return (BYTE)packed;
+}
+
+static inline FLOAT ShadowUnpackRectComponent(BYTE packed) {
+    return (FLOAT)packed * SHADOW_RECT_STEP;
+}
+
+static inline DWORD ShadowPackRect(FLOAT x, FLOAT y, FLOAT w, FLOAT h) {
+    return (DWORD)ShadowPackRectComponent(x) |
+           ((DWORD)ShadowPackRectComponent(y) << 8) |
+           ((DWORD)ShadowPackRectComponent(w) << 16) |
+           ((DWORD)ShadowPackRectComponent(h) << 24);
+}
+
+static inline void ShadowUnpackRect(DWORD packed, LPFLOAT x, LPFLOAT y, LPFLOAT w, LPFLOAT h) {
+    if (x) *x = ShadowUnpackRectComponent((BYTE)(packed & 0xff));
+    if (y) *y = ShadowUnpackRectComponent((BYTE)((packed >> 8) & 0xff));
+    if (w) *w = ShadowUnpackRectComponent((BYTE)((packed >> 16) & 0xff));
+    if (h) *h = ShadowUnpackRectComponent((BYTE)((packed >> 24) & 0xff));
+}
 
 typedef struct animation_s {
     char name[80];
@@ -503,7 +620,34 @@ typedef struct {
     RESOURCE Background;
     BOOL TileBackground:1;
     BOOL BlendAll:1;
+    BOOL Mirrored:1;
 } uiBackdrop_t;
+
+typedef struct {
+    uiBackdrop_t background;
+    RESOURCE font;
+    FLOAT borderSize;
+    COLOR32 textColor;
+    COLOR32 cursorColor;
+    DWORD maxChars;
+} uiEditBox_t;
+
+typedef struct {
+    uiBackdrop_t background;
+    uiLabel_t text;
+    FLOAT border;
+    FLOAT itemHeight;
+    SHORT selectedIndex;
+    UINAME id;
+    UINAME fetchCommand;
+} uiListBox_t;
+
+typedef struct {
+    uiBackdrop_t background;
+    uiBackdrop_t incButton;
+    uiBackdrop_t decButton;
+    uiBackdrop_t thumbButton;
+} uiScrollBar_t;
 
 typedef struct {
     uiBackdrop_t background;
@@ -515,7 +659,8 @@ typedef struct {
     uiBackdrop_t pushed;
     uiBackdrop_t disabled;
     uiBackdrop_t disabledPushed;
-    uiBackdrop_t highlight;
+    uiHighlight_t highlight;
+    VECTOR2 pushedTextOffset;
 } uiGlueTextButton_t;
 
 typedef struct sheetField_s {

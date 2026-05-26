@@ -1,23 +1,17 @@
 #ifndef renderer_h
 #define renderer_h
 
-#include "../common/common.h"
+#include "../common/renderer_types.h"
 
-KNOWN_AS(drawText_s, DRAWTEXT);
-KNOWN_AS(drawImage_s, DRAWIMAGE);
+KNOWN_AS(modelInfo_s, MODELINFO);
 
-typedef enum {
-    SHADER_DEFAULT,
-    SHADER_UI,
-    SHADER_SPLAT,
-    SHADER_COMMANDBUTTON,
-    SHADER_COUNT,
-} SHADERTYPE;
+#define MODELINFO_MAX_TEXTURES 256
 
 typedef struct {
-    HANDLE (*FileOpen)(LPCSTR fileName);
+    // Quake 3-style file API: renderer is archive-agnostic
+    int (*FS_ReadFile)(LPCSTR name, void **buf);  // Returns file size, allocates buf
+    void (*FS_FreeFile)(void *buf);
     bool (*FileExtract)(LPCSTR toExtract, LPCSTR extracted);
-    void (*FileClose)(HANDLE file);
     
     HANDLE (*MemAlloc)(long size);
     void (*MemFree)(HANDLE);
@@ -35,6 +29,7 @@ typedef struct {
     VECTOR3 origin;
     VECTOR3 eye;
     QUATERNION viewquat;
+    VECTOR3 viewangles;
     float distance;
     float fov;
     float znear;
@@ -44,8 +39,10 @@ typedef struct {
 typedef struct {
     VECTOR3 origin;
     LPCMODEL model;
+    LPCMODEL attached_model;
     LPCTEXTURE skin;
     LPCTEXTURE splat;
+    LPCTEXTURE shadow;
     LPCTEXTURE healthbar;
     LPCTEXTURE manabar;
     DWORD number;
@@ -54,9 +51,14 @@ typedef struct {
     DWORD oldframe;
     DWORD flags;
     float angle;
+    VECTOR3 rotation;
     float scale;
     float radius;
     float splatsize;
+    float shadow_x;
+    float shadow_y;
+    float shadow_w;
+    float shadow_h;
     float health;
 } renderEntity_t;
 
@@ -76,28 +78,11 @@ typedef struct {
     FRUSTUM3 frustum;
 } viewDef_t;
 
-struct drawText_s {
-    LPCFONT font;
-    LPCSTR text;
-    RECT rect;
-    COLOR32 color;
-    FLOAT textWidth;
-    FLOAT lineHeight;
-    BOOL wordWrap;
-    uiFontJustificationH_t halign;
-    uiFontJustificationV_t valign;
-    LPCTEXTURE *icons;
-};
-
-struct drawImage_s {
-    LPCTEXTURE texture;
-    SHADERTYPE shader;
-    BLEND_MODE alphamode;
-    RECT screen;
-    RECT uv;
-    COLOR32 color;
-    BOOL rotate;
-    FLOAT uActiveGlow;
+struct modelInfo_s {
+    DWORD textureCount;
+    LPCSTR texturePaths[MODELINFO_MAX_TEXTURES];
+    RECT textureUVRect;
+    BOOL hasTextureUVRect;
 };
 
 typedef struct {
@@ -110,6 +95,7 @@ typedef struct {
     LPFONT (*LoadFont)(LPCSTR filename, DWORD size);
     size2_t (*GetWindowSize)(void);
     size2_t (*GetTextureSize)(LPCTEXTURE texture);
+    void (*ReleaseTexture)(LPTEXTURE texture);
     void (*ReleaseModel)(LPMODEL model);
     void (*BeginFrame)(void);
     void (*EndFrame)(void);
@@ -118,10 +104,14 @@ typedef struct {
     void (*DrawPic)(LPCTEXTURE texture, float x, float y);
     void (*DrawImage)(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv, COLOR32 color);
     void (*DrawImageEx)(LPCDRAWIMAGE drawImage);
-    void (*DrawPortrait)(LPCMODEL model, LPCRECT viewport);
+    void (*DrawLoadingIndicator)(LPCRECT rect, DWORD time, COLOR32 color);
+    void (*DrawPortrait)(LPCMODEL model, LPCRECT viewport, LPCSTR anim);
+    void (*DrawSprite)(LPCMODEL model, LPCSTR anim, float x, float y);
     void (*DrawText)(LPCDRAWTEXT drawText);
     VECTOR2 (*GetTextSize)(LPCDRAWTEXT drawText);
+    bool (*GetModelInfo)(LPMODEL model, LPMODELINFO info);
 
+    void (*DrawBoundingBox)(LPCBOX3 box, LPCMATRIX4 modelMatrix, LPCMATRIX4 vpMatrix, COLOR32 color);
     FLOAT (*GetHeightAtPoint)(float x, float y);
     bool (*TraceEntity)(viewDef_t const *viewdef, float x, float y, LPDWORD number);
     bool (*TraceLocation)(viewDef_t const *viewdef, float x, float y, LPVECTOR3 point);
@@ -132,6 +122,10 @@ typedef struct {
 #endif
 } refExport_t;
 
+typedef refExport_t *LPRENDERER;
+typedef refExport_t const *LPCRENDERER;
+
 refExport_t R_GetAPI(refImport_t imp);
+refExport_t R_StdoutGetAPI(refImport_t imp);
 
 #endif

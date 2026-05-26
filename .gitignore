@@ -1,6 +1,7 @@
 build/
 data/
 src/DerivedData/
+StormLib-master/
 *xcuserdata*
 *.user
 *.xcuserstate
@@ -8,3 +9,5 @@ src/DerivedData/
 .DS_Store
 _codeql_detected_source_root
 War3.mpq
+/share/config.cfg
+/share/autoexec.cfg

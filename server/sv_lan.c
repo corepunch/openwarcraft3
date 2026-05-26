@@ -1,0 +1,81 @@
+#include "server.h"
+
+#include <arpa/inet.h>
+#include <stdlib.h>
+
+static DWORD SV_LanPlayerCount(void) {
+    DWORD count = 0;
+    FOR_LOOP(i, svs.num_clients) {
+        if (svs.clients[i].state == cs_connected || svs.clients[i].state == cs_spawned) {
+            count++;
+        }
+    }
+    return count;
+}
+
+static void SV_LanSanitizeValue(LPCSTR in, LPSTR out, size_t out_size) {
+    size_t write = 0;
+
+    if (!out || out_size == 0) {
+        return;
+    }
+    out[0] = '\0';
+    if (!in) {
+        return;
+    }
+
+    for (; *in && write + 1 < out_size; in++) {
+        char c = *in;
+        if (c == '\\') {
+            c = '/';
+        } else if (c == '\n' || c == '\r') {
+            c = ' ';
+        }
+        out[write++] = c;
+    }
+    out[write] = '\0';
+}
+
+static void SV_LanInfo(const netadr_t *from) {
+    char mapname[80];
+
+    if (sv.state != ss_game || !from) {
+        return;
+    }
+    SV_LanSanitizeValue(sv.configstrings[CS_WORLD], mapname, sizeof(mapname));
+    Netchan_OutOfBandPrint(NS_SERVER,
+                           *from,
+                           "info\n\\hostname\\OpenWarcraft3\\mapname\\%s\\players\\%u\\maxplayers\\%u",
+                           mapname,
+                           (unsigned)SV_LanPlayerCount(),
+                           (unsigned)(ge ? ge->max_clients : MAX_CLIENTS));
+}
+
+void SV_ConnectionlessPacket(const netadr_t *from, LPSIZEBUF msg) {
+    char payload[256];
+    char command[32] = { 0 };
+    char *status;
+    DWORD length;
+
+    if (!msg || msg->cursize <= 4) {
+        return;
+    }
+
+    length = msg->cursize - 4;
+    if (length >= sizeof(payload)) {
+        length = sizeof(payload) - 1;
+    }
+    memcpy(payload, msg->data + 4, length);
+    payload[length] = '\0';
+
+    status = strchr(payload, '\n');
+    if (status) {
+        *status++ = '\0';
+    }
+    sscanf(payload, "%31s", command);
+    if (!strcmp(command, "connect")) {
+        SV_DirectConnect(from);
+    } else if (!strcmp(command, "info")) {
+        SV_LanInfo(from);
+    }
+}

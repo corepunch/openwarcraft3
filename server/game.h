@@ -2,6 +2,7 @@
 #define game_h
 
 #include "../common/shared.h"
+#include "../common/mpq.h"
 
 #define SVF_NOCLIENT 0x00000001    // don't send entity to clients, even if it has effects
 #define SVF_DEADMONSTER 0x00000002    // treat as CONTENTS_DEADMONSTER for collision
@@ -33,10 +34,20 @@ struct game_import {
     void (*LinkEntity)(LPEDICT ent);
     void (*UnlinkEntity)(LPEDICT ent);
     DWORD (*BoxEdicts)(LPCBOX2 area, LPEDICT *list, DWORD maxcount, BOOL (*pred)(LPCEDICT));
+    void (*MenuAction)(LPCSTR action, LPCSTR arg);
     VECTOR2 (*GetFlowDirection)(DWORD heatmapindex, FLOAT fx, FLOAT fy);
     FLOAT (*GetHeightAtPoint)(FLOAT x, FLOAT y);
     LPSTR (*ReadFileIntoString)(LPCSTR filename);
     HANDLE (*ReadFile)(LPCSTR filename, LPDWORD size);
+    HANDLE (*FindFirstFile)(LPCSTR mask, SFILE_FIND_DATA *findData);
+    BOOL (*FindNextFile)(HANDLE find, SFILE_FIND_DATA *findData);
+    BOOL (*FindClose)(HANDLE find);
+    BOOL (*OpenArchiveFromMemory)(const void *data, DWORD size, DWORD flags, HANDLE *archive);
+    BOOL (*CloseArchive)(HANDLE archive);
+    BOOL (*OpenFileEx)(HANDLE archive, LPCSTR fileName, DWORD searchScope, HANDLE *file);
+    BOOL (*CloseFile)(HANDLE file);
+    BOOL (*ReadArchiveFile)(HANDLE file, void *buffer, DWORD toRead, LPDWORD bytesRead, LPOVERLAPPED overlapped);
+    DWORD (*GetArchiveFileSize)(HANDLE file, LPDWORD highSize);
     DWORD (*GetTime)(void);
     sheetRow_t *(*ReadSheet)(LPCSTR sheetFilename);
     sheetRow_t *(*ReadConfig)(LPCSTR configFilename);
@@ -64,6 +75,31 @@ struct game_import {
 
 struct client;
 
+/* Unit UI query result (Phase 8) */
+typedef struct {
+    char art[256];
+    char tooltip[256];
+    char ubertip[512];
+    char command[256];
+    char hotkey;
+    BYTE x;
+    BYTE y;
+    BYTE research;
+    BYTE active;
+} gameCommandButton_t;
+
+typedef struct {
+    char art[256];
+    char tooltip[256];
+    char ubertip[512];
+    BYTE slot;
+} gameInventoryItem_t;
+
+typedef struct {
+    char art[256];
+    WORD entity;
+} gameQueueItem_t;
+
 struct game_export {
     void (*Init)(void);
     void (*Shutdown)(void);
@@ -71,8 +107,9 @@ struct game_export {
     void (*RunFrame)(void);
     LPCSTR (*GetThemeValue)(LPCSTR filename);
     void (*ClientCommand)(LPEDICT ent, DWORD argc, LPCSTR argv[]);
-    void (*ClientPanCamera)(LPEDICT ent, LPVECTOR2 offset);
+    void (*ClientSetCameraPosition)(LPEDICT ent, LPCVECTOR2 position);
     void (*ClientBegin)(LPEDICT ent);
+    
     edict_t *edicts;
     int num_edicts;
     int max_edicts;

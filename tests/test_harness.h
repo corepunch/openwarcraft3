@@ -97,7 +97,7 @@ LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y);
 
 /*
  * Pure-C implementation of the SLK cell-lookup from sheet.c, reproduced
- * here so the test binary does not need to link against StormLib.
+ * here so the test binary does not need to link against the archive backend.
  */
 LPCSTR FS_FindSheetCell(sheetRow_t *sheet, LPCSTR row, LPCSTR column);
 

@@ -19,6 +19,11 @@
  * Always true for the client's own player-owned entities; otherwise based
  * on a simple distance check against the client's camera position. */
 static bool SV_CanClientSeeEntity(LPCCLIENT client, LPCENTITYSTATE edict) {
+#ifdef WOW
+    (void)client;
+    (void)edict;
+    return true;
+#else
     edict_t *clent = client->edict;
     if (edict->player == clent->client->ps.number)
         return true;
@@ -27,6 +32,7 @@ static bool SV_CanClientSeeEntity(LPCCLIENT client, LPCENTITYSTATE edict) {
     if (fabs(edict->origin.y - clent->client->ps.origin.y) > VISUAL_DISTANCE)
         return false;
     return true;
+#endif
 }
 
 LPENTITYSTATE SV_NextClientEntity(void) {
@@ -40,17 +46,37 @@ LPENTITYSTATE SV_NextClientEntity(void) {
 void SV_BuildClientFrame(LPCLIENT client) {
     edict_t *clent = client->edict;
     LPCLIENTFRAME frame = &client->frames[sv.framenum & UPDATE_MASK];
+#ifdef WOW
+    int first_entity = 0;
+#else
+    int first_entity = 1;
+#endif
+
     frame->ps = clent->client->ps;
     frame->num_entities = 0;
+    if (!svs.client_entities || svs.num_client_entities == 0) {
+        frame->first_entity = 0;
+        return;
+    }
     frame->first_entity = svs.next_client_entities;
-    for (int index = 1; index < ge->num_edicts; index++) {
+    for (int index = first_entity; index < ge->num_edicts; index++) {
         edict_t *edict = EDICT_NUM(index);
+        if (!edict->inuse)
+            continue;
         if (edict->svflags & SVF_NOCLIENT)
             continue;
         if (!edict->s.model && !edict->s.sound && !edict->s.event)
             continue;
         if (!SV_CanClientSeeEntity(client, &edict->s) && index > ge->max_clients)
             continue;
+        if (frame->num_entities >= MAX_PACKET_ENTITIES) {
+#ifdef WOW
+            fprintf(stderr,
+                    "SV_BuildClientFrame: hit WOW MAX_PACKET_ENTITIES=%u; remaining entities will be dropped from this frame\n",
+                    (unsigned)MAX_PACKET_ENTITIES);
+#endif
+            break;
+        }
         LPENTITYSTATE state = SV_NextClientEntity();
         *state = edict->s;
         if (edict->selected & (1 << clent->client->ps.number)) {
@@ -66,6 +92,7 @@ void SV_BuildClientFrame(LPCLIENT client) {
  * Entities removed since the last frame receive a U_REMOVE flag. */
 void SV_EmitPacketEntities(LPCCLIENTFRAME from, LPCCLIENTFRAME to, LPSIZEBUF msg) {
     int const from_num_entities = from ? from->num_entities : 0;
+    entityState_t nullstate = { 0 };
 
     MSG_WriteByte (msg, svc_packetentities);
 
@@ -95,18 +122,22 @@ void SV_EmitPacketEntities(LPCCLIENTFRAME from, LPCCLIENTFRAME to, LPSIZEBUF msg
             continue;
         }
         if (newnum < oldnum) { // this is a new entity, send it from the baseline
-            MSG_WriteDeltaEntity(msg, &sv.baselines[newnum], newent, false);
+            LPCENTITYSTATE base = &nullstate;
+            if (sv.baselines && newnum >= 0 && newnum < ge->max_edicts) {
+                base = &sv.baselines[newnum];
+            }
+            MSG_WriteDeltaEntity(msg, base, newent, false);
             newindex++;
             continue;
         }
         if (newnum > oldnum) { // the old entity isn't present in the new message
-            MSG_WriteShort(msg, 1 << U_REMOVE);
+            MSG_WriteLong(msg, 1u << U_REMOVE);
             MSG_WriteShort(msg, oldnum);
             oldindex++;
             continue;
         }
     }
-    MSG_WriteLong(msg, 0);    // end of packetentities
+    MSG_WriteEntityBits(msg, 0, 0);    // end of packetentities
 }
 
 void SV_WritePlayerstateToClient(LPCCLIENTFRAME from, LPCCLIENTFRAME to, LPSIZEBUF msg) {
@@ -129,6 +160,7 @@ void SV_WritePlayerstateToClient(LPCCLIENTFRAME from, LPCCLIENTFRAME to, LPSIZEB
 void SV_WriteFrameToClient(LPCLIENT client) {
     LPCLIENTFRAME frame = &client->frames[sv.framenum & UPDATE_MASK];
     LPCLIENTFRAME oldframe = &client->frames[client->lastframe & UPDATE_MASK];
+    DWORD start_size = client->netchan.message.cursize;
 
     MSG_WriteByte(&client->netchan.message, svc_frame);
     MSG_WriteLong(&client->netchan.message, sv.framenum);
@@ -140,5 +172,17 @@ void SV_WriteFrameToClient(LPCLIENT client) {
 
     client->lastframe = sv.framenum;
 
+    if (client->netchan.message.overflowed ||
+        client->netchan.message.cursize + 1024 >= client->netchan.message.maxsize) {
+        fprintf(stderr,
+                "SV_WriteFrameToClient: frame=%u entities=%u old_entities=%u bytes=%u start=%u max=%u overflow=%d\n",
+                (unsigned)sv.framenum,
+                (unsigned)frame->num_entities,
+                (unsigned)oldframe->num_entities,
+                (unsigned)client->netchan.message.cursize,
+                (unsigned)start_size,
+                (unsigned)client->netchan.message.maxsize,
+                client->netchan.message.overflowed ? 1 : 0);
+    }
     Netchan_Transmit(NS_SERVER, &client->netchan);
 }

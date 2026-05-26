@@ -20,8 +20,18 @@ void Key_SetBinding(keyCode_t key, LPCSTR binding) {
 }
 
 void Key_Event(keyCode_t key, bool down, DWORD time) {
+    /* Forward to UI library if in menu mode */
+    if (cls.key_dest == key_menu && ui.KeyEvent) {
+        ui.KeyEvent(key, down, time);
+        return;
+    }
+    
     LPCSTR kb = keybindings[key];
     char cmd[1024];
+
+    if (!kb || !*kb) {
+        return;
+    }
     
     if (!down) {
         if (*kb == '+') {

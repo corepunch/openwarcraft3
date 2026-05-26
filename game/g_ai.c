@@ -33,6 +33,8 @@ void unit_setmove(LPEDICT self, umove_t *move) {
     self->animation = gi.GetAnimation(self->s.model, move->animation);
     if (self->animation) {
         // skip
+    } else if (strstr(move->animation, "run")) {
+        self->animation = gi.GetAnimation(self->s.model, "walk");
     } else if (strstr(move->animation, "stand ")) {
         self->animation = gi.GetAnimation(self->s.model, "stand");
     } else if (strstr(move->animation, "attack ")) {

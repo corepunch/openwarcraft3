@@ -1,6 +1,6 @@
 <img width="647" height="88" alt="OpenWarcraft3 logo" src="doc/images/logo.jpg" />
 
-**OpenWarcraft3** is an open-source implementation of Warcraft III that uses SDL2 and runs on Linux and macOS.
+**OpenWarcraft3** is an open-source implementation of Warcraft III that uses SDL2 and runs on Windows, Linux, and macOS.
 
 It was developed using War3.mpq from Warcraft III v1.0 as reference, with ongoing support for version 1.29b.
 
@@ -29,19 +29,23 @@ cd openwarcraft3
 
 ### 2. Install Dependencies
 
-The build requires **StormLib**, **SDL2**, and **libjpeg**.
+The build requires **SDL2**. MPQ reading is handled by the in-tree `common/mpq.c` implementation, and JPEG texture decoding uses the in-tree `renderer/stb/stb_image.h`.
 
 **macOS** (via [Homebrew](https://brew.sh/)):
 
 ```bash
-brew install sdl2 libjpeg stormlib
+brew install sdl2
 ```
 
 **Linux** (Ubuntu/Debian):
 
 ```bash
-sudo apt-get install libsdl2-dev libjpeg-dev libstorm-dev
+sudo apt-get install libsdl2-dev
 ```
+
+**Windows**:
+
+Install SDL2 development libraries and build with a C compiler such as MSYS2/MinGW or Visual Studio. The codebase uses platform-specific directory iteration for Windows, Linux, and macOS when mounting data folders.
 
 ### 3. Build
 
@@ -49,7 +53,13 @@ sudo apt-get install libsdl2-dev libjpeg-dev libstorm-dev
 make build
 ```
 
-Compiles all libraries (`cmath3`, `renderer`, `game`) and the `openwarcraft3` executable into `build/`.
+Compiles all runtime libraries (`shared`, `renderer`, `game`, `ui`) and the `openwarcraft3` executable into `build/`.
+
+Viewer tools are also built into `build/bin/`:
+- `mdxtool` — model viewer
+- `maptool` — map viewer
+- `mpqtool` — archive inspection (`ls`, `cat`, `pack`)
+- `blp2jpg`, `blpgen`, `mdxgen` — asset conversion/generation helpers
 
 ### 4. Run
 
@@ -57,7 +67,61 @@ Compiles all libraries (`cmath3`, `renderer`, `game`) and the `openwarcraft3` ex
 make run
 ```
 
-Runs `openwarcraft3` from `build/bin/` using the MPQ path configured in the Makefile.
+Runs `openwarcraft3` from `build/bin/` using the data folder configured in the Makefile.
+
+The executable expects a Warcraft III data folder rather than a single archive:
+
+```bash
+build/bin/openwarcraft3 -data="data/Warcraft III"
+```
+
+The data folder is scanned for top-level `.mpq` archives and an optional loose `Maps/` directory. This lets newer installs expose multiplayer maps from the filesystem while older assets can still be loaded from MPQs.
+
+Useful run targets:
+
+- `make run` — start the client menu using `WC3DATA`
+- `make run-map` — start a listen-server game using `MAP`
+- `make run-ui-text` — render one UI frame through the stdout renderer
+
+The stdout UI renderer is meant for layout and draw-call debugging without opening a window or taking screenshots:
+
+```bash
+make run-ui-text UI_ROUTE=/main
+```
+
+That expands to:
+
+```bash
+build/bin/openwarcraft3 -data=data/Warcraft\ III -net_enabled=0 -r_module=stdout -ui_start_route=/main -com_frame_limit=1
+```
+
+It prints calls such as `draw_portrait`, `draw_sprite`, `draw_image`, `draw_text`, and `draw_sys_text`, then exits after one frame.
+
+### Configuration and cvars
+
+OpenWarcraft3 uses Quake-style cvars and config files. Defaults live in `share/default.cfg`; generated user settings are written to `share/config.cfg`; optional local overrides can be placed in `share/autoexec.cfg`.
+
+Config load order:
+
+1. Built-in cvar defaults
+2. `share/default.cfg`
+3. `share/config.cfg`
+4. `share/autoexec.cfg`
+5. Command-line cvars such as `-r_module=stdout` or `+set ui_start_route /main`
+
+Common runtime cvars:
+
+| cvar | Default | Purpose |
+|------|---------|---------|
+| `fs_data` | `""` | Saved Warcraft III data folder |
+| `map` | `""` | Internal map path for listen-server mode |
+| `connect` | `""` | Remote server address |
+| `r_module` | `"renderer"` | Renderer backend: `renderer` or `stdout` |
+| `ui_module` | `"ui"` | UI module name for the Quake-style module boundary |
+| `g_module` | `"game"` | Game module name for the server game boundary |
+| `ui_start_route` | `"/main"` | First client-side UI route |
+| `net_enabled` | `"1"` | Disable with `0` for isolated UI/render diagnostics |
+| `com_frame_limit` | `"0"` | Exit after N frames; useful with `r_module=stdout` |
 
 ### (Optional) Download Warcraft III 1.29b assets
 
@@ -65,7 +129,7 @@ Runs `openwarcraft3` from `build/bin/` using the MPQ path configured in the Make
 make download
 ```
 
-Downloads a ~1.2 GB installer from `archive.org` into the `data/` folder. Skip this step if you already have a `War3.mpq` and update the `MPQ` variable in the Makefile to point to it.
+Downloads a ~1.2 GB installer from `archive.org` into the `data/` folder. Skip this step if you already have a Warcraft III installation and update the `WC3DATA` variable in the Makefile to point to that data folder.
 
 ---
 
@@ -75,9 +139,9 @@ Downloads a ~1.2 GB installer from `archive.org` into the `data/` folder. Skip t
 
 OpenWarcraft3 uses a strict client-server separation where all game logic runs exclusively on the server and clients are responsible only for rendering and input.
 
-The **server** hosts the game library (`game/`), which is a shared library loaded at runtime. It maintains the authoritative game state: all entities, their positions, health, current animations, and AI state. The server processes player commands, runs the game simulation each frame, and sends the resulting state to clients.
+The **server** hosts the game library (`game/`), which is built as a runtime module with a Quake-style function table boundary. It maintains the authoritative game state: all entities, their positions, health, current animations, and AI state. The server processes player commands, runs the game simulation each frame, and sends the resulting state to clients.
 
-The **client** (`client/`) captures user input via SDL2, forwards commands to the server, receives the updated game state, and renders it using the renderer library (`renderer/`). The client never runs game logic directly — it is purely a display and input layer.
+The **client** (`client/`) captures user input via SDL2, forwards commands to the server, receives the updated game state, and renders it using the renderer API (`renderer/`). The client never runs game logic directly — it is purely a display and input layer.
 
 Communication between the client and server happens through the network layer (`common/net.c`), which follows the Quake 2 runtime-dispatch model.  The routing decision is made at runtime on `netadr_t.type`:
 
@@ -96,7 +160,7 @@ SDL2 Input  →  Client (cl_main.c)  →  UDP socket  →  Server (sv_main.c)
                     └─────────── UDP socket ←──────────────┘
 ```
 
-See [Network Architecture](doc/architecture/network.md) for the full design, wire format, and CLI reference.
+See [Network Architecture](doc/architecture/network.md) for the full design, wire format, and CLI reference. See [Runtime Modules and Cvars](doc/architecture/runtime.md) for config files, module cvars, and stdout renderer diagnostics.
 
 ## Frame Syncing
 
@@ -187,67 +251,114 @@ After all entities have moved, `G_SolveCollisions` (`game/g_phys.c`) iterates ov
 
 Animation is driven by `M_MoveFrame` (`game/g_monster.c`), which advances `edict->s.frame` each game tick according to the current animation interval. When an animation cycle completes, the `endfunc` of the current `umove_t` is called to transition to the next state (e.g. attack → cooldown → attack again).
 
-## UI System
+## UI System (Phase 8: Client-Side Architecture)
 
-All UI logic runs on the **server** inside the game library (`game/ui/`). The client receives serialized UI state and renders it; it has no knowledge of UI structure or layout rules.
+All UI logic runs **client-side** in the UI library (`ui/`). The server provides only game data (unit abilities, inventory, build queues) through a query protocol. This follows the Quake 3 Arena pattern where UI is a separate client-side library.
 
-### FDF Parsing and Frame Templates
+### Migration from Server-Side UI
 
-At startup, `UI_Init` (`game/ui/ui_init.c`) loads Warcraft III's `.fdf` (Frame Definition File) assets via `UI_ParseFDF`. These files describe the hierarchy of UI frames — their type (backdrop, button, label, etc.), textures, fonts, anchor points, and sizes. The parsed data is stored as `frameDef_t` templates in a global registry.
+Previously (Phase 1-7), UI logic ran on the server in `game/ui/` and `game/hud/`. This violated the game-agnostic principle and bloated the game library by ~107KB. Phase 8 (May 2026) moved all UI to the client, reducing `libgame.dylib` from 406K to 299K.
 
-### Writing UI to Clients
+### FDF Parsing and Frame Management
 
-When a client connects, `G_ClientBegin` (`game/g_main.c`) calls `UI_WriteLayout` to serialize the complete UI tree and send it to the client as an `svc_layout` message. `UI_WriteLayout` (`game/ui/ui_write.c`) traverses the frame tree depth-first; for each frame it calls `UI_WriteFrame`, which:
+The UI library (`ui/ui_main.c`) loads Warcraft III's `.fdf` (Frame Definition File) assets via `UI_ParseFDF` (`ui/ui_fdf.c`). These files describe the hierarchy of UI frames — their type (backdrop, button, label, etc.), textures, fonts, anchor points, and sizes. The UI library maintains the complete frame tree and handles all layout calculation and rendering client-side.
 
-1. Copies the frame's base properties (position anchors, size, texture, color) into a `uiFrame_t` struct
-2. Writes type-specific data (backdrop edges, button states, label font settings, etc.) into a small inline buffer
-3. Calls `gi.WriteUIFrame` to emit the frame as a delta-encoded message
+### Unit Data Query Protocol
 
-The client receives the `svc_layout` message in `CL_ParseLayout` (`client/cl_parse.c`) and stores the raw serialized layout blob. The renderer reads this blob each frame to draw the UI without the client needing to understand the frame hierarchy.
+When the player selects units, the client requests unit data from the server:
 
-### Wire Message Format
-
-All UI is generated on the server. Each frame is sent to the client as a compact, delta-encoded message — only changed fields are transmitted. Conceptually a frame message looks like:
-
-```
-x 655  y -655  pic 13  stat 1  text "Gold: 500"
-```
-
-Each field maps to the corresponding `uiFrame_t` member (`x`/`y` are integer anchor offsets scaled by `UI_FRAMEPOINT_SCALE` (32767), `pic` is `tex.index`, `stat` shows a live player stat). See `uiFrameFields[]` in `common/msg.c` for the full field list.
-
-Server-side example:
-
+**Client → Server:** `clc_request_unit_ui`
 ```c
-FRAMEDEF f;
-UI_InitFrame(&f, FT_TEXT);
-f.Text = "Gold: 500";
-f.Stat = PLAYERSTATE_RESOURCE_GOLD;     // live stat — updated automatically each frame
-UI_SetPoint(&f, FRAMEPOINT_TOPLEFT, NULL, FRAMEPOINT_TOPLEFT, 0.02, -0.02);
-UI_WriteFrame(&f);
+// client/cl_input.c — Selection complete
+MSG_WriteByte(&cls.netchan.message, clc_request_unit_ui);
+MSG_WriteByte(&cls.netchan.message, num_selected);
+for (i = 0; i < num_selected; i++)
+    MSG_WriteShort(&cls.netchan.message, entity_nums[i]);
 ```
 
-### Dynamic UI Updates
+**Server → Client:** `svc_unit_ui`
+```c
+// server/sv_unit_ui.c — Query game DLL and respond
+gameCommandButton_t buttons[12];
+BYTE num_buttons = ge->GetCommandButtons(ent, buttons, 12);
 
-During gameplay the server can push incremental UI updates for things like the command card (ability buttons shown for the selected unit). These updates follow the same `svc_layout` / delta-encoding path, replacing only the affected layer on the client.
+MSG_WriteByte(response, num_buttons);
+for (j = 0; j < num_buttons; j++) {
+    MSG_WriteString(response, buttons[j].art);
+    MSG_WriteString(response, buttons[j].tooltip);
+    MSG_WriteString(response, buttons[j].ubertip);
+    MSG_WriteString(response, buttons[j].command);
+    MSG_WriteByte(response, buttons[j].hotkey);
+}
+// ... repeat for inventory and build queue
+```
+
+**Client Storage:**
+```c
+// ui/screens/console_ui.c — Cache and render
+static uiUnitData_t cached_units[MAX_CACHED_UNITS];
+void ConsoleUI_UpdateUnitUI(DWORD num_units, uiUnitData_t *units) {
+    memcpy(cached_units, units, sizeof(uiUnitData_t) * num_units);
+    // Rendering uses cached_units[] to draw command card
+}
+```
+
+### Client-Side Rendering
+
+The UI library dispatches rendering to screen controllers (e.g., `ui/screens/console_ui.c` for in-game HUD, `ui/screens/main_menu.c` for menus). Each screen manages its own frame tree and updates frames based on game state. The renderer calls back into client import functions to draw quads, text, and models.
+
+No serialized UI blobs are transmitted over the network. The server is game-agnostic and provides only data.
+
+### Text Renderer Diagnostics
+
+For UI work, use the stdout renderer before reaching for screenshots:
+
+```bash
+make run-ui-text UI_ROUTE=/main
+```
+
+This runs the configured UI route for one frame, skips network socket binding, prints draw calls to stdout, and exits without writing `share/config.cfg`. It is useful for checking:
+
+- which textures, models, fonts, and routes were loaded
+- button/backdrop rects, UVs, colors, and blend modes
+- text content after FDF string translation and Warcraft color-code expansion
+- scene placement across routes such as `/main`, `/lan/refresh`, or `/single-player`
 
 ---
 
 ## Build System
 
-The project builds three shared libraries and one executable:
+The project builds four runtime libraries and one executable:
 
-1. **libcmath3** — mathematics (vectors, matrices, quaternions, geometric primitives); no external dependencies
-2. **librenderer** — OpenGL rendering engine; depends on `libcmath3`, SDL2, StormLib, libjpeg
-3. **libgame** — server-side game logic; depends on `libcmath3`
-4. **openwarcraft3** — main executable linking all three libraries plus SDL2 and StormLib
+1. **libshared** (`shared/`) — mathematics (vectors, matrices, quaternions, geometric primitives); no external dependencies
+2. **librenderer** (`renderer/`) — renderer API implementations, including OpenGL and stdout diagnostics; depends on `libshared`, SDL2
+3. **libgame** (`game/`) — server-side game logic; depends on `libshared`
+4. **libui** (`ui/`) — client-side FDF parser, route controller, and UI renderer
+5. **openwarcraft3** — main executable linking the runtime libraries plus SDL2
 
-The build is driven by a `Makefile` for Linux/macOS.
+The module boundary follows the Quake 2/Quake 3 style: subsystems expose function tables (`R_GetAPI`, `UI_GetAPI`, game exports/imports) rather than sharing global implementation details. The cvars `r_module`, `ui_module`, and `g_module` name the active modules. Today `r_module=stdout` selects the text renderer backend; the cvar layout is also the path toward fully dynamic library selection.
+
+The build is driven by a `Makefile` for Linux/macOS. Run `make test` to execute the unit test suite.
+
+### UI Test Enforcement
+
+UI tests are fully repo-owned and deterministic:
+
+1. Source fixtures live under `tests/resources-src/`.
+2. Generated test assets are built into `build/tests/resources/`.
+3. The packed archive is `build/tests/tests.mpq` (generated, never committed).
+
+`make test` now always runs `make test-assets` first, so the generated UI archive is part of the normal test flow.
+
+For UI-impacting changes (`ui/*`, `client/cl_scrn.c`, `renderer/r_draw.c`, sprite/model UI paths), run `make test-ui` before merging. This gate executes parser, layout, end-to-end, and tool-oracle UI suites.
+
+Note: `fdftool` was removed in Phase 8 as it depended on deleted server-side UI code (`game/ui/`).
 
 ## External Dependencies
 
-- **StormLib**: reads Warcraft III MPQ archives
+- **MPQ layer** (`common/mpq.c`): in-tree Warcraft III MPQ reader; no StormLib dependency at build or run time. `mpqtool` CLI exposes `ls` and `cat` for archive inspection.
 - **SDL2**: windowing, input, and OpenGL context
-- **libjpeg**: JPEG texture decoding
+- **stb_image**: in-tree JPEG texture decoding
 - **OpenGL**: 3D rendering (system-provided)
 
 ## Current Status

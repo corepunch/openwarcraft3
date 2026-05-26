@@ -16,6 +16,15 @@ struct game_export *ge;
 struct server sv;
 struct server_static svs;
 
+static BOOL SV_HasSpawnedClient(void) {
+    FOR_LOOP(i, svs.num_clients) {
+        if (svs.clients[i].state == cs_spawned) {
+            return true;
+        }
+    }
+    return false;
+}
+
 void SV_WriteConfigString(LPSIZEBUF msg, DWORD i) {
     MSG_WriteByte(msg, svc_configstring);
     MSG_WriteShort(msg, i);
@@ -30,7 +39,6 @@ void SV_WriteConfigString(LPSIZEBUF msg, DWORD i) {
 static void SV_SendClientDatagram(LPCLIENT client) {
     SV_BuildClientFrame(client);
     SV_WriteFrameToClient(client);
-    Netchan_Transmit(NS_SERVER, &client->netchan);
 }
 
 /* Flush any un-synced config strings to all clients, then send a per-frame
@@ -50,6 +58,21 @@ static void SV_SendClientMessages(void) {
     }
 }
 
+static void SV_ProcessPacket(netadr_t *from, LPSIZEBUF net_message, int r) {
+    if (r >= 4) {
+        int hdr;
+        memcpy(&hdr, net_message->data, sizeof(hdr));
+        if (hdr == -1) {
+            SV_ConnectionlessPacket(from, net_message);
+            return;
+        }
+    }
+    LPCLIENT client = SV_FindClientByAddr(from);
+    if (client) {
+        SV_ParseClientMessage(net_message, client);
+    }
+}
+
 /* Read and dispatch all pending client messages from the network buffers. */
 static void SV_ReadPackets(void) {
     static BYTE net_message_buffer[MAX_MSGLEN];
@@ -61,24 +84,16 @@ static void SV_ReadPackets(void) {
     };
     netadr_t from;
     int r;
-    while ((r = NET_GetPacket(NS_SERVER, &from, &net_message)) != 0) {
-        // Out-of-band packets (first 4 bytes == -1) are connection requests.
-        // Validate that the payload starts with "connect" before allocating
-        // a client slot, to prevent trivial slot-filling / DoS.
-        if (r >= 4) {
-            int hdr;
-            memcpy(&hdr, net_message.data, sizeof(hdr));
-            if (hdr == -1) {
-                if (r >= 4 + 7 &&
-                    memcmp(net_message.data + 4, "connect", 7) == 0) {
-                    SV_DirectConnect(&from);
-                }
-                continue;
-            }
+    while ((r = NET_GetLoopPacket(NS_SERVER, &from, &net_message)) != 0) {
+        SV_ProcessPacket(&from, &net_message, r);
+    }
+    if (sv.state == ss_dead) {
+        while ((r = NET_GetPacket(NS_SERVER, &from, &net_message)) != 0) {
+            SV_ProcessPacket(&from, &net_message, r);
         }
-        LPCLIENT client = SV_FindClientByAddr(&from);
-        if (client) {
-            SV_ParseClientMessage(&net_message, client);
+    } else {
+        while ((r = NET_GetPacket(NS_SERVER, &from, &net_message)) != 0) {
+            SV_ProcessPacket(&from, &net_message, r);
         }
     }
 }
@@ -92,7 +107,16 @@ static int SV_FindIndex(LPCSTR name, int start, int max, bool create) {
             return i;
     if (!create)
         return 0;
-    strncpy(sv.configstrings[start+i], name, sizeof(*sv.configstrings));
+    if (i >= max) {
+        fprintf(stderr,
+                "SV_FindIndex: pool full start=%d max=%d name=%s\n",
+                start,
+                max,
+                name);
+        return 0;
+    }
+    strncpy(sv.configstrings[start+i], name, sizeof(*sv.configstrings) - 1);
+    sv.configstrings[start+i][sizeof(*sv.configstrings) - 1] = '\0';
     return i;
 }
 
@@ -102,15 +126,16 @@ int SV_ModelIndex(LPCSTR name) {
 //    }
     PATHSTR model_filename = { 0 };
     strcpy(model_filename, name);
-    if (!strstr(model_filename, ".mdx")) {
+    if (!strstr(model_filename, ".mdx")
+#ifdef WOW
+        && !strstr(model_filename, ".m2")
+#endif
+    ) {
         LPSTR mdl = strstr(model_filename, ".mdl");
         mdl = mdl ? mdl : (model_filename + strlen(model_filename));
         strcpy(mdl, ".mdx");
     }
     int modelindex = SV_FindIndex(model_filename, CS_MODELS, MAX_MODELS, true);
-    if (!sv.models[modelindex]) {
-        sv.models[modelindex] = SV_LoadModel(sv.configstrings[CS_MODELS + modelindex]);
-    }
 #if 0
     if (!strstr(name, "Doodads\\")) {
         printf("%s\n", name);
@@ -124,7 +149,7 @@ int SV_ModelIndex(LPCSTR name) {
 }
 
 void SV_LoadModels(void) {
-    for (DWORD i = 2; i < MAX_MODELS && *sv.configstrings[CS_MODELS + i]; i++) {
+    for (DWORD i = 1; i < MAX_MODELS && *sv.configstrings[CS_MODELS + i]; i++) {
         if (sv.models[i])
             continue;
 //        LPCSTR filename = sv.configstrings[CS_MODELS + i];
@@ -159,12 +184,15 @@ void SV_RunGameFrame(void) {
  * time for a new game frame so the caller can do other work. */
 void SV_Frame(DWORD msec) {
     svs.realtime += msec;
+    SV_ReadPackets();
     
     if (svs.realtime < sv.time) {
         return;
     }
 
-    SV_ReadPackets();
+    if (!SV_HasSpawnedClient()) {
+        return;
+    }
 
     SV_RunGameFrame();
 

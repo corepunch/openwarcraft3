@@ -50,6 +50,9 @@ enum {
     ID_KMTE = MAKEFOURCC('K','M','T','E'),
     ID_KMTA = MAKEFOURCC('K','M','T','A'),
     ID_KMTF = MAKEFOURCC('K','M','T','F'),
+    ID_KTAT = MAKEFOURCC('K','T','A','T'),
+    ID_KTAR = MAKEFOURCC('K','T','A','R'),
+    ID_KTAS = MAKEFOURCC('K','T','A','S'),
     ID_KP2V = MAKEFOURCC('K','P','2','V'),
     ID_KP2E = MAKEFOURCC('K','P','2','E'),
     ID_KP2W = MAKEFOURCC('K','P','2','W'),
@@ -101,11 +104,34 @@ DWORD GetModelKeyFrameSize(MODELKEYTRACKDATATYPE dataType,
 }
 
 DWORD R_ModelFindBiggestGroup(mdxGeoset_t const *geoset) {
+    if (!geoset || !geoset->matrixGroupSizes || geoset->num_matrixGroupSizes <= 0) {
+        return 0;
+    }
     DWORD biggest = 0;
     FOR_LOOP(i, geoset->num_matrixGroupSizes) {
         biggest = MAX(geoset->matrixGroupSizes[i], biggest);
     }
     return biggest;
+}
+
+static BYTE R_AddGeosetMatrixPaletteEntry(mdxGeoset_t *geoset, int matrix_id) {
+    if (matrix_id < 0) {
+        matrix_id = 0;
+    }
+    FOR_LOOP(i, geoset->num_matrixPalette) {
+        if (geoset->matrixPalette[i] == matrix_id) {
+            return (BYTE)i;
+        }
+    }
+    if (geoset->num_matrixPalette >= MDX_MATRIX_PALETTE) {
+        fprintf(stderr,
+                "MDX geoset uses more than %d unique matrices; falling back to palette slot 0 for node %d\n",
+                MDX_MATRIX_PALETTE,
+                matrix_id);
+        return 0;
+    }
+    geoset->matrixPalette[geoset->num_matrixPalette] = matrix_id;
+    return (BYTE)geoset->num_matrixPalette++;
 }
 
 void R_SetupGeosetVertexBuffer(mdxGeoset_t *geoset) {
@@ -117,37 +143,71 @@ void R_SetupGeosetVertexBuffer(mdxGeoset_t *geoset) {
     
     typedef BYTE matrixGroup_t[MAX_SKIN_BONES];
     mdxVertexSkin_t *vertices = ri.MemAlloc(sizeof(mdxVertexSkin_t) * geoset->num_vertices);
-    matrixGroup_t *matrixGroups = ri.MemAlloc(sizeof(matrixGroup_t) * geoset->num_matrixGroupSizes);
+    DWORD matrixGroupCount = geoset->num_matrixGroupSizes > 0 && geoset->matrixGroupSizes && geoset->matrices
+        ? (DWORD)geoset->num_matrixGroupSizes
+        : 1;
+    matrixGroup_t *matrixGroups = ri.MemAlloc(sizeof(matrixGroup_t) * matrixGroupCount);
     DWORD indexOffset = 0;
+    geoset->matrixPalette = ri.MemAlloc(sizeof(*geoset->matrixPalette) * MDX_MATRIX_PALETTE);
+    geoset->num_matrixPalette = 0;
 
-    FOR_LOOP(matrixGroupIndex, geoset->num_matrixGroupSizes) {
-        memset(&matrixGroups[matrixGroupIndex], 0xff, sizeof(matrixGroup_t));
-        FOR_LOOP(matrixIndex, geoset->matrixGroupSizes[matrixGroupIndex]) {
-            matrixGroups[matrixGroupIndex][matrixIndex] = geoset->matrices[indexOffset++];
+    FOR_LOOP(matrixGroupIndex, matrixGroupCount) {
+        memset(&matrixGroups[matrixGroupIndex], 0x00, sizeof(matrixGroup_t));
+        if (matrixGroupCount == 1 && (!geoset->matrixGroupSizes || !geoset->matrices || geoset->num_matrixGroupSizes <= 0)) {
+            matrixGroups[matrixGroupIndex][0] = R_AddGeosetMatrixPaletteEntry(geoset, 0);
+            continue;
+        }
+        DWORD groupSize = geoset->matrixGroupSizes[matrixGroupIndex];
+        if (groupSize > MAX_SKIN_BONES) {
+            groupSize = MAX_SKIN_BONES;
+        }
+        if (indexOffset >= (DWORD)geoset->num_matrices) {
+            groupSize = 0;
+        } else if (indexOffset + groupSize > (DWORD)geoset->num_matrices) {
+            groupSize = (DWORD)geoset->num_matrices - indexOffset;
+        }
+        FOR_LOOP(matrixIndex, groupSize) {
+            int matrix_id = geoset->matrices[indexOffset++];
+            matrixGroups[matrixGroupIndex][matrixIndex] = R_AddGeosetMatrixPaletteEntry(geoset, matrix_id);
         }
     }
-    
+
     FOR_LOOP(vertex, geoset->num_vertices) {
-        DWORD matrixGroupIndex = geoset->vertexGroups[vertex];
-        DWORD matrixGroupSize = MAX(1, geoset->matrixGroupSizes[matrixGroupIndex]);
+        DWORD matrixGroupIndex = 0;
+        DWORD matrixGroupSize = 1;
         BYTE leftover = 0xff;
-        BYTE leftoversize = matrixGroupSize;
+        BYTE leftoversize = 1;
+        if (geoset->vertexGroups && geoset->matrixGroupSizes && geoset->num_matrixGroupSizes > 0) {
+            matrixGroupIndex = (BYTE)geoset->vertexGroups[vertex];
+            if (matrixGroupIndex >= matrixGroupCount) {
+                matrixGroupIndex = matrixGroupCount - 1;
+            }
+            matrixGroupSize = MAX(1, geoset->matrixGroupSizes[matrixGroupIndex]);
+            if (matrixGroupSize > MAX_SKIN_BONES) {
+                matrixGroupSize = MAX_SKIN_BONES;
+            }
+            if (matrixGroupSize > geoset->num_matrices) {
+                matrixGroupSize = geoset->num_matrices;
+            }
+            leftoversize = matrixGroupSize;
+        }
         BYTE *matrixGroup = matrixGroups[matrixGroupIndex];
         memcpy(vertices[vertex].skin, matrixGroup, sizeof(matrixGroup_t));
         memset(vertices[vertex].boneWeight, 0, sizeof(matrixGroup_t));
-        FOR_LOOP(matrixIndex, matrixGroupSize) {
-            BYTE value = (float)leftover / (float)leftoversize;
-            vertices[vertex].boneWeight[matrixIndex] = value;
-            leftover = MAX(0, leftover - value);
-            leftoversize = MAX(1, leftoversize - 1);
+        if (matrixGroupCount == 1 && matrixGroup[0] == 0) {
+            vertices[vertex].boneWeight[0] = 255;
+        } else {
+            FOR_LOOP(matrixIndex, matrixGroupSize) {
+                BYTE value = (float)leftover / (float)leftoversize;
+                vertices[vertex].boneWeight[matrixIndex] = value;
+                leftover = MAX(0, leftover - value);
+                leftoversize = MAX(1, leftoversize - 1);
+            }
         }
     }
-
     R_Call(glGenVertexArrays, 1, &geoset->vertexArrayBuffer);
     R_Call(glBindVertexArray, geoset->vertexArrayBuffer);
-
     R_Call(glGenBuffers, MAX_MDLX_BUFFERS, geoset->buffer);
-
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, geoset->buffer[1]);
     R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(VECTOR3) * geoset->num_vertices, geoset->vertices, GL_STATIC_DRAW);
     R_Call(glVertexAttribPointer, attrib_position, 3, GL_FLOAT, GL_FALSE, 0, 0);
@@ -194,6 +254,8 @@ void R_ReleaseModelNode(mdxNode_t *node) {
 void R_ReleaseModel(LPMODEL model) {
     if (model->modeltype == ID_MDLX) {
         MDLX_Release(model->mdx);
+    } else if (model->modeltype == ID_MD20) {
+        M2_Release(model->m2);
     }
     ri.MemFree(model);
 }
@@ -222,7 +284,7 @@ blockReadCode_t MSG_ReadBlock(LPSIZEBUF buffer, blockReader_t const *readers, vo
                 continue;
             if (br->read(&block, data) != BLOCKREAD_OK)
                 return BLOCKREAD_ERROR;
-            buffer->readcount += block.readcount;
+            buffer->readcount += block.cursize;
             goto next_block;
         }
         buffer->readcount += block.cursize;;
@@ -355,6 +417,20 @@ void ReadMaterial(LPSIZEBUF buffer, mdxMaterial_t *material) {
                 return;
         }
     };
+}
+
+void ReadTextureAnim(LPSIZEBUF buffer, mdxTextureAnim_t *textureAnim) {
+    DWORD blockHeader;
+    while (MSG_Read(buffer, &blockHeader, 4)) {
+        switch (blockHeader) {
+            case ID_KTAT: ReadKeyTrack(buffer, TDATA_FLOAT3, &textureAnim->translation); break;
+            case ID_KTAR: ReadKeyTrack(buffer, TDATA_FLOAT4, &textureAnim->rotation); break;
+            case ID_KTAS: ReadKeyTrack(buffer, TDATA_FLOAT3, &textureAnim->scale); break;
+            default:
+                PrintTag(blockHeader);
+                break;
+        }
+    }
 }
 
 void ReadNode(LPSIZEBUF buffer, mdxNode_t *node, DWORD blockSize) {
@@ -516,13 +592,17 @@ void ReadLight(LPSIZEBUF buffer, mdxLight_t *light) {
     MSG_READ(buffer, light->AmbIntensity);
     while (MSG_Read(buffer, &header, 4)) {
         switch (header) {
-            case ID_KLAV: ReadKeyTrack(buffer, TDATA_FLOAT1, &light->keytracks.Visibility); break;
+            case ID_KLAV:
+                ReadKeyTrack(buffer, TDATA_FLOAT1, &light->keytracks.Visibility);
+                break;
             case ID_KLAC: ReadKeyTrack(buffer, TDATA_FLOAT3, &light->keytracks.Color); break;
             case ID_KLAI: ReadKeyTrack(buffer, TDATA_FLOAT1, &light->keytracks.Intensity); break;
             case ID_KLBC: ReadKeyTrack(buffer, TDATA_FLOAT3, &light->keytracks.AmbColor); break;
-            case ID_KLBI: ReadKeyTrack(buffer, TDATA_FLOAT1, &light->keytracks.AmbIntensity); break;
-            case ID_KLAS: ReadKeyTrack(buffer, TDATA_INT1, &light->keytracks.AttenuationStart); break;
-            case ID_KLAE: ReadKeyTrack(buffer, TDATA_INT1, &light->keytracks.AttenuationEnd); break;
+            case ID_KLBI:
+                ReadKeyTrack(buffer, TDATA_FLOAT1, &light->keytracks.AmbIntensity);
+                break;
+            case ID_KLAS: ReadKeyTrack(buffer, TDATA_FLOAT1, &light->keytracks.AttenuationStart); break;
+            case ID_KLAE: ReadKeyTrack(buffer, TDATA_FLOAT1, &light->keytracks.AttenuationEnd); break;
             default:
                 PrintTag(header);
                 break;
@@ -588,6 +668,11 @@ blockReadCode_t MDLX_ReadGEOS(LPSIZEBUF sb, mdxModel_t *model) {
 
 blockReadCode_t MDLX_ReadMTLS(LPSIZEBUF sb, mdxModel_t *model) {
     MODEL_READ_LIST(sb, Material, materials);
+    return BLOCKREAD_OK;
+}
+
+blockReadCode_t MDLX_ReadTXAN(LPSIZEBUF sb, mdxModel_t *model) {
+    MODEL_READ_LIST(sb, TextureAnim, textureAnims);
     return BLOCKREAD_OK;
 }
 
@@ -658,6 +743,7 @@ blockReader_t R_MDLX[] = {
     { "EVTS", (blockReaderFunc_t)MDLX_ReadEVTS },
     { "GEOS", (blockReaderFunc_t)MDLX_ReadGEOS },
     { "MTLS", (blockReaderFunc_t)MDLX_ReadMTLS },
+    { "TXAN", (blockReaderFunc_t)MDLX_ReadTXAN },
     { "BONE", (blockReaderFunc_t)MDLX_ReadBONE },
     { "GEOA", (blockReaderFunc_t)MDLX_ReadGEOA },
     { "HELP", (blockReaderFunc_t)MDLX_ReadHELP },
@@ -700,26 +786,40 @@ mdxModel_t *R_LoadModelMDLX(void *data, DWORD size) {
         return NULL;
     }
     FOR_EACH_LIST(mdxBone_t, bone, model->bones) {
-        model->nodes[bone->node.node_id] = &bone->node;
+        if (bone->node.node_id < MDX_MAX_NODES) {
+            model->nodes[bone->node.node_id] = &bone->node;
+        }
     }
     FOR_EACH_LIST(mdxHelper_t, helper, model->helpers) {
-        model->nodes[helper->node.node_id] = &helper->node;
+        if (helper->node.node_id < MDX_MAX_NODES) {
+            model->nodes[helper->node.node_id] = &helper->node;
+        }
     }
     FOR_EACH_LIST(mdxCollisionShape_t, shape, model->collisionShapes) {
-        model->nodes[shape->node.node_id] = &shape->node;
+        if (shape->node.node_id < MDX_MAX_NODES) {
+            model->nodes[shape->node.node_id] = &shape->node;
+        }
     }
     FOR_EACH_LIST(mdxParticleEmitter_t, emitter, model->emitters) {
-        model->nodes[emitter->node.node_id] = &emitter->node;
+        if (emitter->node.node_id < MDX_MAX_NODES) {
+            model->nodes[emitter->node.node_id] = &emitter->node;
+        }
     }
     FOR_EACH_LIST(mdxAttachment_t, attachment, model->attachments) {
-        model->nodes[attachment->node.node_id] = &attachment->node;
+        if (attachment->node.node_id < MDX_MAX_NODES) {
+            model->nodes[attachment->node.node_id] = &attachment->node;
+        }
     }
     FOR_EACH_LIST(mdxLight_t, light, model->lights) {
-        model->nodes[light->node.node_id] = &light->node;
+        if (light->node.node_id < MDX_MAX_NODES) {
+            model->nodes[light->node.node_id] = &light->node;
+        }
     }
     FOR_LOOP(i, model->num_textures) {
         mdxTexture_t *tex = model->textures+i;
         tex->texid = R_RegisterTextureFile(tex->path);
+        LPCTEXTURE loaded = R_FindTextureByID(tex->texid);
+        R_SetTextureWrap(loaded, tex->nWrapping & 0x1, tex->nWrapping & 0x2);
     }
     FOR_EACH_LIST(mdxGeosetAnim_t, geosetAnim, model->geosetAnims) {
         mdxGeoset_t *geoset = model->geosets;
@@ -752,6 +852,7 @@ void MDLX_ReleaseModelGeoset(mdxGeoset_t *geoset) {
     SAFE_DELETE(geoset->normals, ri.MemFree);
     SAFE_DELETE(geoset->texcoord, ri.MemFree);
     SAFE_DELETE(geoset->matrices, ri.MemFree);
+    SAFE_DELETE(geoset->matrixPalette, ri.MemFree);
     SAFE_DELETE(geoset->primitiveTypes, ri.MemFree);
     SAFE_DELETE(geoset->primitiveCounts, ri.MemFree);
     SAFE_DELETE(geoset->triangles, ri.MemFree);
@@ -763,7 +864,25 @@ void MDLX_ReleaseModelGeoset(mdxGeoset_t *geoset) {
 
 void MDLX_ReleaseModelMaterial(mdxMaterial_t *material) {
     SAFE_DELETE(material->next, MDLX_ReleaseModelMaterial);
+    if (material->layers) {
+        FOR_LOOP(i, material->num_layers) {
+            SAFE_DELETE(material->layers[i].alpha, ri.MemFree);
+            SAFE_DELETE(material->layers[i].flipbook, ri.MemFree);
+        }
+        ri.MemFree(material->layers);
+    }
+    SAFE_DELETE(material->emission, ri.MemFree);
+    SAFE_DELETE(material->alpha, ri.MemFree);
+    SAFE_DELETE(material->flipbook, ri.MemFree);
     SAFE_DELETE(material, ri.MemFree);
+}
+
+void MDLX_ReleaseModelTextureAnim(mdxTextureAnim_t *textureAnim) {
+    SAFE_DELETE(textureAnim->next, MDLX_ReleaseModelTextureAnim);
+    SAFE_DELETE(textureAnim->translation, ri.MemFree);
+    SAFE_DELETE(textureAnim->rotation, ri.MemFree);
+    SAFE_DELETE(textureAnim->scale, ri.MemFree);
+    SAFE_DELETE(textureAnim, ri.MemFree);
 }
 
 void MDLX_ReleaseModelBone(mdxBone_t *bone) {
@@ -775,6 +894,7 @@ void MDLX_ReleaseModelBone(mdxBone_t *bone) {
 void MDLX_ReleaseModelGeosetAnim(mdxGeosetAnim_t *geosetAnim) {
     SAFE_DELETE(geosetAnim->next, MDLX_ReleaseModelGeosetAnim);
     SAFE_DELETE(geosetAnim->alphas, ri.MemFree);
+    SAFE_DELETE(geosetAnim->colors, ri.MemFree);
     SAFE_DELETE(geosetAnim, ri.MemFree);
 }
 
@@ -784,15 +904,29 @@ void MDLX_ReleaseModelHelper(mdxHelper_t *helper) {
     SAFE_DELETE(helper, ri.MemFree);
 }
 
+void MDLX_ReleaseModelLight(mdxLight_t *light) {
+    MDLX_ReleaseModelNode(&light->node);
+    SAFE_DELETE(light->next, MDLX_ReleaseModelLight);
+    SAFE_DELETE(light->keytracks.Visibility, ri.MemFree);
+    SAFE_DELETE(light->keytracks.Color, ri.MemFree);
+    SAFE_DELETE(light->keytracks.Intensity, ri.MemFree);
+    SAFE_DELETE(light->keytracks.AmbColor, ri.MemFree);
+    SAFE_DELETE(light->keytracks.AmbIntensity, ri.MemFree);
+    SAFE_DELETE(light->keytracks.AttenuationStart, ri.MemFree);
+    SAFE_DELETE(light->keytracks.AttenuationEnd, ri.MemFree);
+    SAFE_DELETE(light, ri.MemFree);
+}
+
 void MDLX_Release(mdxModel_t *model) {
     SAFE_DELETE(model->geosets, MDLX_ReleaseModelGeoset);
     SAFE_DELETE(model->materials, MDLX_ReleaseModelMaterial);
+    SAFE_DELETE(model->textureAnims, MDLX_ReleaseModelTextureAnim);
     SAFE_DELETE(model->bones, MDLX_ReleaseModelBone);
     SAFE_DELETE(model->geosetAnims, MDLX_ReleaseModelGeosetAnim);
     SAFE_DELETE(model->helpers, MDLX_ReleaseModelHelper);
+    SAFE_DELETE(model->lights, MDLX_ReleaseModelLight);
     SAFE_DELETE(model->textures, ri.MemFree);
     SAFE_DELETE(model->sequences, ri.MemFree);
     SAFE_DELETE(model->globalSequences, ri.MemFree);
     SAFE_DELETE(model->pivots, ri.MemFree);
 }
-

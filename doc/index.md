@@ -29,18 +29,18 @@ cd openwarcraft3
 
 ### 2. Install Dependencies
 
-The build requires **StormLib**, **SDL2**, and **libjpeg**.
+The build requires **SDL2**. MPQ reading is handled by the in-tree `common/mpq.c` implementation, and JPEG texture decoding uses the in-tree `renderer/stb/stb_image.h`.
 
 **macOS** (via [Homebrew](https://brew.sh/)):
 
 ```bash
-brew install sdl2 libjpeg stormlib
+brew install sdl2
 ```
 
 **Linux** (Ubuntu/Debian):
 
 ```bash
-sudo apt-get install libsdl2-dev libjpeg-dev libstorm-dev
+sudo apt-get install libsdl2-dev
 ```
 
 ### 3. Build
@@ -49,7 +49,7 @@ sudo apt-get install libsdl2-dev libjpeg-dev libstorm-dev
 make build
 ```
 
-Compiles all libraries (`cmath3`, `renderer`, `game`) and the `openwarcraft3` executable into `build/`.
+Compiles all runtime libraries (`shared`, `renderer`, `game`, `ui`) and the `openwarcraft3` executable into `build/`.
 
 ### 4. Run
 
@@ -57,7 +57,21 @@ Compiles all libraries (`cmath3`, `renderer`, `game`) and the `openwarcraft3` ex
 make run
 ```
 
-Runs `openwarcraft3` from `build/bin/` using the MPQ path configured in the Makefile.
+Runs `openwarcraft3` from `build/bin/` using the data folder configured in the Makefile.
+
+Useful run targets:
+
+- `make run` — start the client menu using `WC3DATA`
+- `make run-map` — start a listen-server game using `MAP`
+- `make run-ui-text` — render one UI frame through the stdout renderer
+
+For deterministic UI diagnostics without a window:
+
+```bash
+make run-ui-text UI_ROUTE=/main
+```
+
+This uses `r_module=stdout`, disables networking, runs the route from `ui_start_route`, prints renderer calls to stdout, and exits after one frame.
 
 ### (Optional) Download Warcraft III 1.29b assets
 
@@ -75,7 +89,7 @@ Downloads a ~1.2 GB installer from `archive.org` into the `data/` folder. Skip t
 
 OpenWarcraft3 uses a strict client-server separation where all game logic runs exclusively on the server and clients are responsible only for rendering and input.
 
-The **server** hosts the game library (`game/`), which is a shared library loaded at runtime. It maintains the authoritative game state: all entities, their positions, health, current animations, and AI state. The server processes player commands, runs the game simulation each frame, and sends the resulting state to clients.
+The **server** hosts the game library (`game/`), which is built as a runtime module with a Quake-style function table boundary. It maintains the authoritative game state: all entities, their positions, health, current animations, and AI state. The server processes player commands, runs the game simulation each frame, and sends the resulting state to clients.
 
 The **client** (`client/`) captures user input via SDL2, forwards commands to the server, receives the updated game state, and renders it using the renderer library (`renderer/`). The client never runs game logic directly — it is purely a display and input layer.
 
@@ -96,24 +110,40 @@ SDL2 Input  →  Client (cl_main.c)  →  UDP socket  →  Server (sv_main.c)
                     └─────────── UDP socket ←──────────────┘
 ```
 
-See the [Network Architecture](architecture/network.md) page for the full design, wire format, and CLI reference.
+See the [Network Architecture](architecture/network.md) page for the full design, wire format, and CLI reference. See [Runtime Modules and Cvars](architecture/runtime.md) for config files, module cvars, and stdout renderer diagnostics.
+
+### Runtime Configuration
+
+OpenWarcraft3 uses Quake-style cvars and config files. Defaults live in `share/default.cfg`; generated user settings are written to `share/config.cfg`; optional local overrides can be placed in `share/autoexec.cfg`.
+
+Important runtime cvars:
+
+| cvar | Default | Purpose |
+|------|---------|---------|
+| `r_module` | `renderer` | Renderer backend: `renderer` or `stdout` |
+| `ui_module` | `ui` | UI module name |
+| `g_module` | `game` | Game module name |
+| `ui_start_route` | `/main` | First client-side UI route |
+| `net_enabled` | `1` | Disable with `0` for isolated UI/render diagnostics |
+| `com_frame_limit` | `0` | Exit after N frames |
 
 ## Build System
 
-The project builds three shared libraries and one executable:
+The project builds four runtime libraries and one executable:
 
-1. **libcmath3** — mathematics (vectors, matrices, quaternions, geometric primitives); no external dependencies
-2. **librenderer** — OpenGL rendering engine; depends on `libcmath3`, SDL2, StormLib, libjpeg
-3. **libgame** — server-side game logic; depends on `libcmath3`
-4. **openwarcraft3** — main executable linking all three libraries plus SDL2 and StormLib
+1. **libshared** (`shared/`) — mathematics (vectors, matrices, quaternions, geometric primitives); no external dependencies
+2. **librenderer** (`renderer/`) — renderer API implementations, including OpenGL and stdout diagnostics; depends on `libshared`, SDL2
+3. **libgame** (`game/`) — server-side game logic; depends on `libshared`
+4. **libui** (`ui/`) — client-side FDF parser, route controller, and UI renderer
+5. **openwarcraft3** — main executable linking the runtime libraries plus SDL2
 
-The build is driven by a `Makefile` for Linux/macOS.
+The build is driven by a `Makefile` for Linux/macOS. Run `make test` to execute the unit test suite.
 
 ## External Dependencies
 
-- **StormLib**: reads Warcraft III MPQ archives
+- **MPQ layer** (`common/mpq.c`): in-tree Warcraft III MPQ reader; no StormLib dependency at build or run time. `mpqtool` CLI exposes `ls` and `cat` for archive inspection.
 - **SDL2**: windowing, input, and OpenGL context
-- **libjpeg**: JPEG texture decoding
+- **stb_image**: in-tree JPEG texture decoding
 - **OpenGL**: 3D rendering (system-provided)
 
 ## Current Status

@@ -1,3 +1,6 @@
+#ifndef g_metadata_h
+#define g_metadata_h
+
 #include "g_local.h"
 
 sheetMetaData_t DestructableMetaData[] = {
@@ -334,3 +337,4 @@ sheetMetaData_t ItemsMetaData[] = {
     { "ifil", "file", "ItemData" },
     { NULL }
 };
+#endif

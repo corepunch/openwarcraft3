@@ -130,6 +130,16 @@ CLIENTCOMMAND(HideQuests) {
     UI_HideQuests(clent);
 }
 
+/* CMD_Menu: Stub for legacy menu commands.
+ * Menu rendering is now handled by client-side UI library (Phase 4).
+ * Server-side menu commands are deprecated. */
+CLIENTCOMMAND(Menu) {
+    (void)clent;
+    (void)argc;
+    (void)argv;
+    /* Menu commands now handled by client UI library */
+}
+
 CLIENTCOMMAND(Quest) {
     DWORD index = atoi(argv[1]);
     FOR_EACH_LIST(QUEST, q, level.quests) {
@@ -156,6 +166,7 @@ clientCommand_t clientCommands[] = {
     { "quests", CMD_Quests },
     { "hidequests", CMD_HideQuests },
     { "quest", CMD_Quest },
+    { "menu", CMD_Menu },
     { NULL }
 };
 
@@ -168,9 +179,9 @@ void G_ClientCommand(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
     }
 }
 
-void G_ClientPanCamera(LPEDICT ent, LPVECTOR2 offset) {
+void G_ClientSetCameraPosition(LPEDICT ent, LPCVECTOR2 position) {
     if (ent->client->no_control)
         return;
-    ent->client->camera.state.position.x += offset->x;
-    ent->client->camera.state.position.y += offset->y;
+    ent->client->camera.state.position = *position;
+    ent->client->camera.end_time = ent->client->camera.start_time;
 }

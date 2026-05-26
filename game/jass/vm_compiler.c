@@ -250,11 +250,6 @@ VMPROGRAM VM_Compile(LPCTOKEN t) {
         }
     };
     write_TOKENS(&w, t);
-    printf("%s", vmBuffers[0]);
-    printf("%s", vmBuffers[1]);
-    printf("%s", vmBuffers[2]);
-    printf("_init:\n");
-    printf("%s", vmBuffers[3]);
     VMPROGRAM program = { vmBuffers[0], 0 };
     return program;
 }

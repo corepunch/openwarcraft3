@@ -4,6 +4,7 @@
 #define MAX_MSGLEN 256 * 1024
 
 #define PORT_SERVER 27910
+#define OW3_PROTOCOL_VERSION 1
 
 typedef void const *LPCVOID;
 typedef struct sizeBuf_s *LPSIZEBUF;
@@ -26,6 +27,7 @@ typedef struct sizeBuf_s {
     DWORD maxsize;
     DWORD cursize;
     DWORD readcount;
+    BOOL overflowed;
 } sizeBuf_t;
 
 typedef struct {
@@ -49,6 +51,7 @@ void NET_Shutdown(void);
 // Parse "host" or "host:port" into a netadr_t.  default_port is used
 // when no port is present in the string.  Returns true on success.
 bool NET_StringToAdr(LPCSTR s, unsigned short default_port, netadr_t *adr);
+LPCSTR NET_AdrToString(const netadr_t *adr);
 
 // Send a packet.  Routes to the loopback buffer (NA_LOOPBACK) or the
 // UDP socket (NA_IP / NA_BROADCAST) based on to.type.
@@ -58,6 +61,7 @@ void NET_SendPacket(NETSOURCE netsrc, int length, const void *data, netadr_t to)
 // socket.  Fills *from with the sender's address.  Returns packet size
 // (> 0) on success, 0 when no packet is available.
 int NET_GetPacket(NETSOURCE netsrc, netadr_t *from, LPSIZEBUF msg);
+int NET_GetLoopPacket(NETSOURCE netsrc, netadr_t *from, LPSIZEBUF msg);
 
 void Netchan_Transmit(NETSOURCE netsrc, struct netchan *netchan);
 void Netchan_OutOfBand(NETSOURCE netsrc, netadr_t adr, DWORD length, BYTE *data);
@@ -74,6 +78,7 @@ void MSG_WriteDeltaEntity(LPSIZEBUF buf, LPCENTITYSTATE from, LPCENTITYSTATE to,
 void MSG_WriteDeltaUIFrame(LPSIZEBUF msg, LPCUIFRAME from, LPCUIFRAME to, bool force);
 void MSG_WriteDeltaPlayerState(LPSIZEBUF msg, LPCPLAYER from, LPCPLAYER to);
 void MSG_WriteEntityBits(LPSIZEBUF buf, DWORD bits, DWORD number);
+void MSG_WritePlayerBits(LPSIZEBUF buf, DWORD bits, DWORD number);
 void MSG_WritePos(LPSIZEBUF buf, LPCVECTOR3 pos);
 void MSG_WriteDir(LPSIZEBUF buf, LPCVECTOR3 dir);
 void MSG_WriteAngle(LPSIZEBUF buf, float f);
@@ -92,6 +97,7 @@ void MSG_ReadDeltaEntity(LPSIZEBUF buf, LPENTITYSTATE edict, int number, int bit
 void MSG_ReadDeltaUIFrame(LPSIZEBUF msg, LPUIFRAME edict, int number, int bits);
 void MSG_ReadDeltaPlayerState(LPSIZEBUF msg, LPPLAYER edict, int number, int bits);
 int MSG_ReadEntityBits(LPSIZEBUF msg, DWORD *bits);
+int MSG_ReadPlayerBits(LPSIZEBUF msg, DWORD *bits);
 
 HANDLE SZ_GetSpace(LPSIZEBUF buf, DWORD length);
 void SZ_Write(LPSIZEBUF buf, void const *data, DWORD length);

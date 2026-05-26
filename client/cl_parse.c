@@ -15,13 +15,33 @@
  * sends only the fields that changed since the previous frame.  A U_REMOVE
  * flag signals that an entity should be removed from the local table. */
 static void CL_ReadPacketEntities(LPSIZEBUF msg) {
+    int count = 0;
+    int previous = 0;
     while (true) {
         DWORD bits = 0;
+        if (msg->readcount + sizeof(DWORD) + sizeof(WORD) > msg->cursize) {
+            break;
+        }
         int nument = MSG_ReadEntityBits(msg, &bits);
         if (nument == 0 && bits == 0)
             break;
+        if (nument < 0 || nument >= MAX_CLIENT_ENTITIES) {
+            fprintf(stderr,
+                    "CL_ReadPacketEntities: bad entity %d bits=0x%x count=%d previous=%d read=%u size=%u frame=%d\n",
+                    nument,
+                    (unsigned)bits,
+                    count,
+                    previous,
+                    (unsigned)msg->readcount,
+                    (unsigned)msg->cursize,
+                    cl.frame.serverframe);
+            msg->readcount = msg->cursize;
+            break;
+        }
+        previous = nument;
+        count++;
         centity_t *ent = &cl.ents[nument];
-        if (bits & (1 << U_REMOVE)) {
+        if (bits & (1u << U_REMOVE)) {
             memset(ent, 0, sizeof(centity_t));
             continue;
         }
@@ -48,6 +68,11 @@ static void CL_ParseConfigString(LPSIZEBUF msg) {
 static void CL_ParseBaseline(LPSIZEBUF msg) {
     DWORD bits = 0;
     DWORD index = MSG_ReadEntityBits(msg, &bits);
+    if (index >= MAX_CLIENT_ENTITIES) {
+        fprintf(stderr, "CL_ParseBaseline: bad entity %u\n", (unsigned)index);
+        msg->readcount = msg->cursize;
+        return;
+    }
     centity_t *cent = &cl.ents[index];
     memset(&cent->baseline, 0, sizeof(entityState_t));
     MSG_ReadDeltaEntity(msg, &cent->baseline, index, bits);
@@ -74,15 +99,30 @@ void CL_ParseFrame(LPSIZEBUF msg) {
 
 void CL_ParsePlayerInfo(LPSIZEBUF msg) {
     DWORD bits;
-    DWORD plnum = MSG_ReadEntityBits(msg, &bits);
+    DWORD plnum = MSG_ReadPlayerBits(msg, &bits);
     MSG_ReadDeltaPlayerState(msg, &cl.playerstate, plnum, bits);
+    VECTOR2 server_origin = cl.playerstate.origin;
+
     cl.viewDef.camerastate[1] = cl.viewDef.camerastate[0];
-    cl.viewDef.camerastate[0].origin.x = cl.playerstate.origin.x;
-    cl.viewDef.camerastate[0].origin.y = cl.playerstate.origin.y;
+    cl.viewDef.camerastate[0].origin.x = server_origin.x;
+    cl.viewDef.camerastate[0].origin.y = server_origin.y;
     cl.viewDef.camerastate[0].origin.z = 0;
     cl.viewDef.camerastate[0].viewquat = cl.playerstate.viewquat;
+    cl.viewDef.camerastate[0].viewangles = cl.playerstate.viewangles;
     cl.viewDef.camerastate[0].distance = cl.playerstate.distance;
     cl.viewDef.camerastate[0].fov = cl.playerstate.fov;
+
+    if (cl.camera_prediction.active) {
+        if (server_origin.x == cl.camera_prediction.origin.x &&
+            server_origin.y == cl.camera_prediction.origin.y) {
+            cl.camera_prediction.active = false;
+        } else {
+            cl.viewDef.camerastate[0].origin.x = cl.camera_prediction.origin.x;
+            cl.viewDef.camerastate[0].origin.y = cl.camera_prediction.origin.y;
+            cl.viewDef.camerastate[1].origin.x = cl.camera_prediction.origin.x;
+            cl.viewDef.camerastate[1].origin.y = cl.camera_prediction.origin.y;
+        }
+    }
 }
 
 /* Receive an svc_layout message from the server.  The server serializes the
@@ -90,20 +130,54 @@ void CL_ParsePlayerInfo(LPSIZEBUF msg) {
  * passes it to the renderer each frame without interpreting the contents. */
 void CL_ParseLayout(LPSIZEBUF msg) {
     DWORD layer = MSG_ReadByte(msg);
+    DWORD payload_size = 0;
+    BOOL terminated = false;
+
+    if (layer >= MAX_LAYOUT_LAYERS) {
+        fprintf(stderr, "CL_ParseLayout: bad layer %u\n", (unsigned)layer);
+        msg->readcount = msg->cursize;
+        return;
+    }
+
     SAFE_DELETE(cl.layout[layer], MemFree);
     DWORD start = msg->readcount;
     while (true) {
         UIFRAME ent = { 0 };
         DWORD bits = 0;
-        DWORD nument = MSG_ReadEntityBits(msg, &bits);
-        if (nument == 0 && bits == 0)
+        if (msg->readcount + sizeof(DWORD) + sizeof(WORD) > msg->cursize) {
             break;
+        }
+        DWORD nument = MSG_ReadEntityBits(msg, &bits);
+        if (nument == 0 && bits == 0) {
+            terminated = true;
+            break;
+        }
         MSG_ReadDeltaUIFrame(msg, &ent, nument, bits);
-        ent.buffer.size = MSG_ReadByte(msg);
+        if (msg->readcount + sizeof(WORD) > msg->cursize) {
+            break;
+        }
+        ent.buffer.size = MSG_ReadShort(msg);
+        if (msg->readcount > msg->cursize ||
+            ent.buffer.size > msg->cursize - msg->readcount) {
+            break;
+        }
+
         msg->readcount += ent.buffer.size;
     }
-    cl.layout[layer] = MemAlloc(msg->readcount-start);
-    memcpy(cl.layout[layer], msg->data+start, msg->readcount-start);
+    if (!terminated) {
+        fprintf(stderr, "CL_ParseLayout: malformed layer %u\n", (unsigned)layer);
+        msg->readcount = msg->cursize;
+        return;
+    }
+    if (start > msg->cursize || msg->readcount > msg->cursize ||
+        msg->readcount < start) { /* guard against malformed data and wraparound */
+        msg->readcount = msg->cursize;
+        return;
+    }
+    payload_size = msg->readcount - start;
+    cl.layout[layer] = MemAlloc(sizeof(DWORD) + payload_size);
+    memcpy(cl.layout[layer], &payload_size, sizeof(payload_size));
+    memcpy((LPBYTE)cl.layout[layer] + sizeof(payload_size), msg->data + start, payload_size);
 }
 
 void CL_ParseCursor(LPSIZEBUF msg) {
@@ -120,6 +194,11 @@ void CL_ParseCursor(LPSIZEBUF msg) {
 void CL_MirrorMessage(LPSIZEBUF msg) {
     char buf[256] = { 0 };
     MSG_ReadString(msg, buf);
+    if (!strcmp(buf, "begin")) {
+        cls.state = *cl.configstrings[CS_WORLD] ? ca_active : ca_connected;
+        cl.pending_begin = true;
+        return;
+    }
     MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
     MSG_WriteString(&cls.netchan.message, buf);
 }
@@ -131,6 +210,8 @@ void CL_ParseServerMessage(LPSIZEBUF msg) {
     BYTE pack_id = 0;
     while (MSG_Read(msg, &pack_id, 1)) {
         switch (pack_id) {
+            case svc_bad:
+                return;
             case svc_playerinfo:
                 CL_ParsePlayerInfo(msg);
                 break;
@@ -157,8 +238,12 @@ void CL_ParseServerMessage(LPSIZEBUF msg) {
                 break;
             case svc_temp_entity:
                 CL_ParseTEnt(msg);
+                break;                
+            // Phase 8: Unit UI data
+            case svc_unit_ui:
+                CL_ParseUnitUI(msg);
                 break;
-            default:
+                            default:
                 fprintf(stderr, "Unknown message %d\n", pack_id);
                 return;
         }

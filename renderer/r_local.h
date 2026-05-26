@@ -2,7 +2,7 @@
 #define r_local_h
 
 #include <SDL2/SDL.h>
-#include <StormLib.h>
+#include "../common/mpq.h"
 
 // TODO: M1 doesn't link without these includes
 
@@ -34,8 +34,10 @@
 }
 
 #define R_Call(func, ...) func(__VA_ARGS__); GetError();
+#ifdef USE_SHADOWMAPS
 #define SHADOW_TEXSIZE 1024
 #define SHADOW_SCALE 1500
+#endif
 #define MAX_TEAMS 16
 #define TEAM_MASK (MAX_TEAMS - 1)
 #define PORTRAIT_SHADOW_SIZE 50
@@ -47,6 +49,7 @@
 #include "../client/renderer.h"
 
 extern refImport_t ri;
+
 
 KNOWN_AS(shader_program, SHADER);
 KNOWN_AS(render_buffer, BUFFER);
@@ -82,10 +85,20 @@ struct shader_program {
     DWORD uNormalMatrix;
     DWORD uTextureMatrix;
     DWORD uTexture;
+#if defined(USE_SHADOWMAPS) || defined(DEBUG_PATHFINDING)
     DWORD uShadowmap;
+#endif
     DWORD uFogOfWar;
     DWORD uBones;
     DWORD uUseDiscard;
+    DWORD uUnshaded;
+    DWORD uLayerAlpha;
+    DWORD uGeosetColor;
+    DWORD uUvTrans;
+    DWORD uUvRot;
+    DWORD uUvScale;
+    DWORD uMdxLightCount;
+    DWORD uMdxLights;
     DWORD uEyePosition;
     DWORD uActiveGlow;
 };
@@ -111,11 +124,15 @@ typedef enum {
 } MODELKEYTRACKDATATYPE;
 
 enum {
+#ifdef USE_SHADOWMAPS
     TEX_SHADOWMAP,
+#endif
     TEX_WATER,
     TEX_FONT,
     TEX_WHITE,
     TEX_BLACK,
+    TEX_LOADING_INDICATOR,
+    TEX_TERRAIN_SHADOW,
     TEX_TEAM_GLOW,
     TEX_TEAM_COLOR = TEX_TEAM_GLOW + MAX_TEAMS,
     TEX_SELECTION_CIRCLE = TEX_TEAM_COLOR + MAX_TEAMS,
@@ -123,7 +140,9 @@ enum {
 };
 
 enum {
+#ifdef USE_SHADOWMAPS
     RT_DEPTHMAP,
+#endif
     RT_COUNT,
 };
 
@@ -164,21 +183,28 @@ void R_DrawAlphaSurfaces(void);
 void R_RenderFrame(viewDef_t const *viewDef);
 LPTEXTURE R_AllocateTexture(DWORD width, DWORD height);
 LPTEXTURE R_MakeSysFontTexture(void);
+LPTEXTURE R_MakeLoadingIndicatorTexture(void);
 void R_LoadTextureMipLevel(LPCTEXTURE pTexture, DWORD level, LPCCOLOR32 pPixels, DWORD width, DWORD height);
 void R_BindTexture(LPCTEXTURE texture, DWORD unit);
+void R_SetTextureWrap(LPCTEXTURE texture, bool wrapS, bool wrapT);
 void R_RenderModel(renderEntity_t const *edict);
+void R_DrawTerrainShadows(void);
 bool MDLX_TraceModel(renderEntity_t const *edict, LPCLINE3 line);
 void R_ReleaseVertexArrayObject(LPBUFFER buffer);
 LPCTEXTURE R_FindTextureByID(DWORD textureID);
-void R_DrawPortrait(LPCMODEL model, LPCRECT viewport);
+void R_DrawPortrait(LPCMODEL model, LPCRECT viewport, LPCSTR anim);
+void R_DrawSprite(LPCMODEL model, LPCSTR anim, float x, float y);
 void R_RenderSplat(LPCVECTOR2 position, float radius, LPCTEXTURE texture, LPCSHADER shader, COLOR32 color);
+void R_RenderRectSplat(LPCVECTOR2 mins, LPCVECTOR2 maxs, LPCTEXTURE texture, LPCSHADER shader, COLOR32 color);
 
 // r_shader.c
 LPSHADER R_InitShader(LPCSTR vs_default, LPCSTR fs_default);
 void R_ReleaseShader(LPSHADER shader);
 
 // r_main.c
+#ifdef USE_SHADOWMAPS
 void R_RenderShadowMap(void);
+#endif
 void R_RenderView(void);
 
 // r_ents.c
@@ -208,13 +234,17 @@ void R_DrawBuffer(LPCBUFFER buffer, DWORD num_vertices);
 void R_PrintSysText(LPCSTR string, DWORD x, DWORD y, COLOR32 color);
 void R_DrawImage(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv, COLOR32 color);
 void R_DrawImageEx(LPCDRAWIMAGE drawImage);
+void R_DrawLoadingIndicator(LPCRECT rect, DWORD time, COLOR32 color);
 void R_DrawPic(LPCTEXTURE texture, float x, float y);
 void R_DrawSelectionRect(LPCRECT rect, COLOR32 color);
-void R_DrawBoundingBox(LPCBOX3 box, LPCMATRIX4 matrix, COLOR32 color);
+void R_DrawBoundingBox(LPCBOX3 box, LPCMATRIX4 modelMatrix, LPCMATRIX4 vpMatrix, COLOR32 color);
 void R_DrawWireRect(LPCRECT rect, COLOR32 color);
+bool R_GetModelInfo(LPMODEL model, LPMODELINFO info);
+RECT R_UISceneRect(void);
 
 // r_font.c
 LPFONT R_LoadFont(LPCSTR filename, DWORD size);
+void R_ShutdownFonts(void);
 VECTOR2 R_GetTextSize(LPCDRAWTEXT drawText);
 void R_DrawText(LPCDRAWTEXT drawText);
 
@@ -241,6 +271,11 @@ VECTOR2 GetWar3MapSize(LPCWAR3MAP war3Map);
 // loaders
 mdxModel_t *R_LoadModelMDLX(void *buffer, DWORD size);
 m3Model_t *R_LoadModelM3(void *buffer, DWORD size);
+m2Model_t *R_LoadModelM2(LPCSTR modelFilename, void *buffer, DWORD size);
+void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, LPCMATRIX4 transform);
+BOOL M2_AttachmentMatrix(m2Model_t const *model, DWORD attachment_id, LPCMATRIX4 model_matrix, LPMATRIX4 out);
+FLOAT M2_GroundOffset(m2Model_t const *model);
+void M2_Release(m2Model_t *model);
 
 extern struct render_globals tr;
 

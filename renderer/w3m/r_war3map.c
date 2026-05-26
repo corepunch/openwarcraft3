@@ -15,23 +15,32 @@ void R_SetPathTexture(LPCCOLOR32 debugTexture) {
 
 static void R_FileReadShadowMap(HANDLE hMpq, LPWAR3MAP  pWorld) {
     HANDLE file;
-    SFileOpenFileEx(hMpq, "war3map.shd", SFILE_OPEN_FROM_MPQ, &file);
+    if (!SFileOpenFileEx(hMpq, "war3map.shd", SFILE_OPEN_FROM_MPQ, &file)) {
+        return;
+    }
     int const w = (pWorld->width - 1) * 4;
     int const h = (pWorld->height - 1) * 4;
     LPSTR shadows = ri.MemAlloc(w * h);
-    SFileReadFile(file, shadows, w * h, NULL, NULL);
+    if (!SFileReadFile(file, shadows, w * h, NULL, NULL)) {
+        ri.MemFree(shadows);
+        SFileCloseFile(file);
+        return;
+    }
     LPTEXTURE pShadowmap = R_AllocateTexture(w, h);
     LPCOLOR32 pixels = ri.MemAlloc(w * h * sizeof(struct color32));
     FOR_LOOP(i, w * h) {
-        pixels[i].r = 255-shadows[i];
-        pixels[i].g = 255-shadows[i];
-        pixels[i].b = 255-shadows[i];
-        pixels[i].a = 255;
+        BYTE shadow = (BYTE)shadows[i];
+        pixels[i].r = 0;
+        pixels[i].g = 0;
+        pixels[i].b = 0;
+        pixels[i].a = shadow / 2;
     }
     R_LoadTextureMipLevel(pShadowmap, 0, pixels, w, h);
     SFileCloseFile(file);
+    ri.MemFree(shadows);
+    ri.MemFree(pixels);
 
-    tr.texture[TEX_SHADOWMAP] = pShadowmap;
+    tr.texture[TEX_TERRAIN_SHADOW] = pShadowmap;
 }
 
 static LPMAPSEGMENT R_BuildMapSegment(LPCWAR3MAP map, DWORD sx, DWORD sy) {
@@ -136,15 +145,46 @@ LPWAR3MAP FileReadWar3Map(HANDLE archive) {
 
 void R_RegisterMap(char const *mapFilename) {
     HANDLE hMpq;
+    LPBYTE mapData;
+    int mapSize;
     LPWAR3MAP map;
-    ri.FileExtract(mapFilename, TMP_MAP);
-    SFileOpenArchive(TMP_MAP, 0, 0, &hMpq);
+
+    /* Load .w3m file (which is itself an MPQ archive) */
+    mapSize = ri.FS_ReadFile(mapFilename, (void **)&mapData);
+    if (mapSize < 0 || !mapData) {
+        ri.error("R_RegisterMap: failed to open map %s\n", mapFilename);
+        return;
+    }
+    
+    /* Open the .w3m as a nested MPQ archive to read internal files */
+    if (!SFileOpenArchiveFromMemory(mapData, (DWORD)mapSize, 0, &hMpq)) {
+        ri.FS_FreeFile(mapData);
+        ri.error("R_RegisterMap: failed to open map archive %s\n", mapFilename);
+        return;
+    }
     map = FileReadWar3Map(hMpq);
     R_FileReadShadowMap(hMpq, map);
     SFileCloseArchive(hMpq);
+    ri.FS_FreeFile(mapData);
     tr.world = map;
 
     R_LoadMapSegments(map);
+}
+
+void R_DrawTerrainShadows(void) {
+    if (!tr.world || !tr.texture[TEX_TERRAIN_SHADOW] || (tr.viewDef.rdflags & RDF_NOWORLDMODEL)) {
+        return;
+    }
+
+    VECTOR2 size = GetWar3MapSize(tr.world);
+    VECTOR2 mins = tr.world->center;
+    VECTOR2 maxs = {
+        .x = tr.world->center.x + size.x,
+        .y = tr.world->center.y + size.y,
+    };
+    COLOR32 shadowColor = {0, 0, 0, 255};
+
+    R_RenderRectSplat(&mins, &maxs, tr.texture[TEX_TERRAIN_SHADOW], tr.shader[SHADER_SHADOWSPLAT], shadowColor);
 }
 
 static void R_DrawSegment(LPCMAPSEGMENT segment, DWORD mask) {
@@ -169,6 +209,9 @@ void R_DrawWorld(void) {
         return;
 
     R_Call(glUseProgram, tr.shader[SHADER_DEFAULT]->progid);
+    R_Call(glEnable, GL_DEPTH_TEST);
+    R_Call(glDepthMask, GL_TRUE);
+    R_Call(glDepthFunc, GL_LEQUAL);
     
 #ifdef DEBUG_PATHFINDING
     R_BindTexture(pathTexture, 1);
@@ -191,4 +234,5 @@ void R_DrawAlphaSurfaces(void) {
     FOR_EACH_LIST(MAPSEGMENT, segment, g_mapSegments) {
         R_DrawSegment(segment, (1 << MAPLAYERTYPE_WATER));
     }
+    R_Call(glDepthMask, GL_TRUE);
 }

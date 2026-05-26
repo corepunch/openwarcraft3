@@ -914,8 +914,13 @@ DWORD ShowInterface(LPJASS j) {
     BOOL flag = jass_checkboolean(j, 1);
     FLOAT fadeDuration = jass_checknumber(j, 2);
     LPPLAYER player = currentplayer;
+    (void)fadeDuration;
     if (player) {
-        UI_ShowInterface(PLAYER_ENT(player), flag, fadeDuration);
+        LPGAMECLIENT client = PLAYER_CLIENT(player);
+
+        if (client) {
+            client->ps.client_ui_state = flag ? CLIENT_UI_GAME : CLIENT_UI_CINEMATIC;
+        }
     }
     return 0;
 }

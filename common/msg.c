@@ -14,6 +14,7 @@ typedef enum {
     NFT_QUATERNION,
     NFT_VECTOR2,
     NFT_VECTOR3,
+    NFT_VECTOR3_FLOAT,
     NFT_ANGLE,
     NFT_TEXT,
     NFT_DUPTEXT,
@@ -26,8 +27,14 @@ typedef struct {
 } netField_t;
 
 netField_t entityStateFields[] = {
+    { NETF(entityState_t, class_id), NFT_LONG },
+#ifdef WOW
+    { NETF(entityState_t, origin), NFT_VECTOR3_FLOAT },
+#else
     { NETF(entityState_t, origin), NFT_VECTOR3 },
+#endif
     { NETF(entityState_t, angle), NFT_ANGLE },
+    { NETF(entityState_t, rotation), NFT_VECTOR3 },
     { NETF(entityState_t, scale), NFT_PACKED_FLOAT },
     { NETF(entityState_t, frame), NFT_LONG },
     { NETF(entityState_t, model), NFT_SHORT },
@@ -37,7 +44,22 @@ netField_t entityStateFields[] = {
     { NETF(entityState_t, flags), NFT_LONG },
     { NETF(entityState_t, radius), NFT_ROUND },
     { NETF(entityState_t, splat), NFT_LONG },
+    { NETF(entityState_t, shadow), NFT_SHORT },
+    { NETF(entityState_t, shadow_rect), NFT_LONG },
     { NETF(entityState_t, stats), NFT_LONG },
+    { NETF(entityState_t, inventory[0]), NFT_LONG },
+    { NETF(entityState_t, inventory[1]), NFT_LONG },
+    { NETF(entityState_t, inventory[2]), NFT_LONG },
+    { NETF(entityState_t, inventory[3]), NFT_LONG },
+    { NETF(entityState_t, inventory[4]), NFT_LONG },
+    { NETF(entityState_t, inventory[5]), NFT_LONG },
+    { NETF(entityState_t, build_queue[0]), NFT_LONG },
+    { NETF(entityState_t, build_queue[1]), NFT_LONG },
+    { NETF(entityState_t, build_queue[2]), NFT_LONG },
+    { NETF(entityState_t, build_queue[3]), NFT_LONG },
+    { NETF(entityState_t, build_queue[4]), NFT_LONG },
+    { NETF(entityState_t, build_queue[5]), NFT_LONG },
+    { NETF(entityState_t, build_queue[6]), NFT_LONG },
     { NULL }
 };
 
@@ -98,11 +120,15 @@ netField_t uiFrameFields[] = {
 
 netField_t playerStateFields[] = {
     { NETF(PLAYER, viewquat), NFT_QUATERNION },
+#ifdef WOW
+    { NETF(PLAYER, viewangles), NFT_VECTOR3_FLOAT },
+#endif
     { NETF(PLAYER, origin), NFT_VECTOR2 },
     { NETF(PLAYER, fov), NFT_BYTE },
     { NETF(PLAYER, distance), NFT_ROUND },
     { NETF(PLAYER, rdflags), NFT_LONG },
     { NETF(PLAYER, uiflags), NFT_LONG },
+    { NETF(PLAYER, client_ui_state), NFT_LONG },
     { NETF(PLAYER, cinefade), NFT_FLOAT },
     { NETF(PLAYER, stats[0]), NFT_LONG },
     { NETF(PLAYER, stats[2]), NFT_LONG },
@@ -111,12 +137,23 @@ netField_t playerStateFields[] = {
     { NETF(PLAYER, stats[8]), NFT_LONG },
     { NETF(PLAYER, texts[0]), NFT_DUPTEXT },
     { NETF(PLAYER, texts[1]), NFT_DUPTEXT },
+    { NETF(PLAYER, texts[2]), NFT_DUPTEXT },
+    { NETF(PLAYER, texts[3]), NFT_DUPTEXT },
+    { NETF(PLAYER, texts[4]), NFT_DUPTEXT },
+    { NETF(PLAYER, texts[5]), NFT_DUPTEXT },
+    { NETF(PLAYER, texts[6]), NFT_DUPTEXT },
+    { NETF(PLAYER, texts[7]), NFT_DUPTEXT },
     { NULL }
 };
 //#include <pthread.h>
 void MSG_Write(LPSIZEBUF buf, LPCVOID value, DWORD size) {
     if (buf->cursize + size > buf->maxsize) {
-        fprintf(stderr, "Write buffer overflow\n");
+        fprintf(stderr,
+                "Write buffer overflow (msg): size=%u cursize=%u maxsize=%u\n",
+                (unsigned)size,
+                (unsigned)buf->cursize,
+                (unsigned)buf->maxsize);
+        buf->overflowed = true;
         return;
     }
     memcpy(buf->data + buf->cursize, value, size);
@@ -246,6 +283,7 @@ static DWORD MSG_GetBits(void const *from,
                 if (memcmp(fromF, toF, sizeof(VECTOR2))!=0) bits |= 1 << (field - fields);
                 break;
             case NFT_VECTOR3:
+            case NFT_VECTOR3_FLOAT:
                 if (memcmp(fromF, toF, sizeof(VECTOR3))!=0) bits |= 1 << (field - fields);
                 break;
             case NFT_QUATERNION:
@@ -286,6 +324,7 @@ static void MSG_WriteFields(LPSIZEBUF msg,
             case NFT_DUPTEXT: MSG_WriteString(msg, *(LPCSTR *)toF); break;
             case NFT_VECTOR2: FOR_LOOP(i, 2) MSG_WriteFloat(msg, _float[i]); break;
             case NFT_VECTOR3: FOR_LOOP(i, 3) MSG_WriteShort(msg, _float[i]); break;
+            case NFT_VECTOR3_FLOAT: FOR_LOOP(i, 3) MSG_WriteFloat(msg, _float[i]); break;
             case NFT_QUATERNION: FOR_LOOP(i, 4) MSG_WriteShort(msg, _float[i] * 32767); break;
         }
     }
@@ -322,6 +361,7 @@ static void MSG_ReadFields(LPSIZEBUF msg,
                 break;
             case NFT_VECTOR2: FOR_LOOP(i, 2) _float[i] = MSG_ReadFloat(msg); break;
             case NFT_VECTOR3: FOR_LOOP(i, 3) _float[i] = MSG_ReadShort(msg); break;
+            case NFT_VECTOR3_FLOAT: FOR_LOOP(i, 3) _float[i] = MSG_ReadFloat(msg); break;
             case NFT_QUATERNION:
                 FOR_LOOP(i, 4) _float[i] = ((float)MSG_ReadShort(msg)) / 32767;
                 break;
@@ -376,7 +416,7 @@ void MSG_WriteDeltaPlayerState(LPSIZEBUF msg,
                                LPCPLAYER to)
 {
     DWORD bits = MSG_GetBits(from, to, playerStateFields);
-    MSG_WriteEntityBits(msg, bits, to->number);
+    MSG_WritePlayerBits(msg, bits, to->number);
     MSG_WriteFields(msg, to, playerStateFields, bits);
 }
 
@@ -397,11 +437,21 @@ void SZ_Printf(LPSIZEBUF msg, LPCSTR fmt, ...) {
 }
 
 void MSG_WriteEntityBits(LPSIZEBUF buf, DWORD bits, DWORD number) {
-    MSG_WriteShort(buf, bits);
+    MSG_WriteLong(buf, bits);
     MSG_WriteShort(buf, number);
 }
 
 int MSG_ReadEntityBits(LPSIZEBUF buf, DWORD *bits) {
-    *bits = MSG_ReadShort(buf);
+    *bits = MSG_ReadLong(buf);
+    return MSG_ReadShort(buf);
+}
+
+void MSG_WritePlayerBits(LPSIZEBUF buf, DWORD bits, DWORD number) {
+    MSG_WriteLong(buf, bits);
+    MSG_WriteShort(buf, number);
+}
+
+int MSG_ReadPlayerBits(LPSIZEBUF buf, DWORD *bits) {
+    *bits = MSG_ReadLong(buf);
     return MSG_ReadShort(buf);
 }
