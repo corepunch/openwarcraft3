@@ -182,6 +182,52 @@ typedef struct {
     DWORD bone_count_max;
 } m2EmbeddedView_t;
 
+typedef struct {
+    WORD skin_section_id;
+    WORD level;
+    WORD vertex_start;
+    WORD vertex_count;
+    WORD index_start;
+    WORD index_count;
+    WORD bone_count;
+    WORD bone_combo_index;
+    WORD bone_influences;
+    WORD center_bone_index;
+    VECTOR3 center_position;
+    VECTOR3 sort_center_position;
+    float sort_radius;
+} m2SkinSection_t;
+
+typedef struct {
+    WORD skin_section_id;
+    WORD level;
+    WORD vertex_start;
+    WORD vertex_count;
+    WORD index_start;
+    WORD index_count;
+    WORD bone_count;
+    WORD bone_combo_index;
+    WORD bone_influences;
+    WORD center_bone_index;
+    VECTOR3 center_position;
+} m2SkinSectionLegacy_t;
+
+typedef struct {
+    BYTE flags;
+    signed char priority_plane;
+    WORD shader_id;
+    WORD skin_section_index;
+    WORD geoset_index;
+    SHORT color_index;
+    WORD material_index;
+    WORD material_layer;
+    WORD texture_count;
+    WORD texture_combo_index;
+    WORD texture_coord_combo_index;
+    WORD texture_weight_combo_index;
+    WORD texture_transform_combo_index;
+} m2Batch_t;
+
 static HANDLE archives[64] = { 0 };
 static LPCSTR g_model_path = NULL;
 static LPCSTR g_skin_path = NULL;
@@ -1019,6 +1065,94 @@ static void PrintTextures(BYTE const *data, DWORD size, m2HeaderInfo_t const *he
     }
 }
 
+static void PrintTextureLookup(BYTE const *data, DWORD size, m2HeaderInfo_t const *header) {
+    SHORT const *texture_lookup;
+
+    if (!header || !g_dump_all || header->texture_lookup_table.count <= 0) {
+        return;
+    }
+
+    texture_lookup = ArrayPtr(data, size, header->texture_lookup_table, sizeof(*texture_lookup));
+    if (!texture_lookup) {
+        printf("texture_lookup_table: unavailable\n");
+        return;
+    }
+
+    printf("texture_lookup_table values:");
+    FOR_LOOP(i, (DWORD)header->texture_lookup_table.count) {
+        printf(" %d", (int)texture_lookup[i]);
+    }
+    printf("\n");
+}
+
+static void PrintBatches(BYTE const *m2_data,
+                         DWORD m2_size,
+                         m2HeaderInfo_t const *header,
+                         BYTE const *skin_data,
+                         DWORD skin_size,
+                         m2Array_t sections_array,
+                         m2Array_t batches_array,
+                         BOOL legacy_sections,
+                         LPCSTR label) {
+    m2Batch_t const *batches;
+    SHORT const *texture_lookup;
+
+    if (!g_dump_all || !header || batches_array.count <= 0) {
+        return;
+    }
+
+    batches = ArrayPtr(skin_data, skin_size, batches_array, sizeof(*batches));
+    if (!batches) {
+        printf("%s.batches: unavailable\n", label);
+        return;
+    }
+
+    texture_lookup = ArrayPtr(m2_data, m2_size, header->texture_lookup_table, sizeof(*texture_lookup));
+    printf("%s.batches detail:\n", label);
+    FOR_LOOP(i, (DWORD)batches_array.count) {
+        m2Batch_t const *batch = batches + i;
+        SHORT texture_index = -1;
+        WORD skin_section_id = 0xffff;
+        if (texture_lookup && batch->texture_combo_index < (WORD)header->texture_lookup_table.count) {
+            texture_index = texture_lookup[batch->texture_combo_index];
+        }
+        if (batch->skin_section_index < (WORD)sections_array.count) {
+            if (legacy_sections) {
+                m2SkinSectionLegacy_t const *sections = ArrayPtr(skin_data,
+                                                                 skin_size,
+                                                                 sections_array,
+                                                                 sizeof(*sections));
+                if (sections) {
+                    skin_section_id = sections[batch->skin_section_index].skin_section_id;
+                }
+            } else {
+                m2SkinSection_t const *sections = ArrayPtr(skin_data,
+                                                          skin_size,
+                                                          sections_array,
+                                                          sizeof(*sections));
+                if (sections) {
+                    skin_section_id = sections[batch->skin_section_index].skin_section_id;
+                }
+            }
+        }
+        printf("  [%03u] section=%u section_id=%u geoset=%u material=%u layer=%u tex_count=%u tex_combo=%u tex_index=%d coord=%u weight=%u transform=%u flags=0x%02x shader=0x%04x\n",
+               (unsigned)i,
+               (unsigned)batch->skin_section_index,
+               (unsigned)skin_section_id,
+               (unsigned)batch->geoset_index,
+               (unsigned)batch->material_index,
+               (unsigned)batch->material_layer,
+               (unsigned)batch->texture_count,
+               (unsigned)batch->texture_combo_index,
+               (int)texture_index,
+               (unsigned)batch->texture_coord_combo_index,
+               (unsigned)batch->texture_weight_combo_index,
+               (unsigned)batch->texture_transform_combo_index,
+               (unsigned)batch->flags,
+               (unsigned)batch->shader_id);
+    }
+}
+
 static BOOL DefaultSkinPath(LPCSTR model_path, LPSTR out, DWORD out_size) {
     return CopyWithExtension(model_path, "00.skin", out, out_size);
 }
@@ -1044,6 +1178,7 @@ static void PrintEmbeddedSkinInfo(BYTE const *data, DWORD size, m2HeaderInfo_t c
         PrintArray("view.sections", view->sections, false);
         PrintArray("view.batches", view->batches, false);
         printf("  %-28s %u\n", "view.bone_count_max", (unsigned)view->bone_count_max);
+        PrintBatches(data, size, header, data, size, view->sections, view->batches, true, "view");
     }
 }
 
@@ -1081,6 +1216,7 @@ static void PrintSkinInfo(LPCSTR model_path, BYTE const *m2_data, DWORD m2_size,
         PrintArray("skin.sections", skin->sections, false);
         PrintArray("skin.batches", skin->batches, false);
         printf("  %-28s %u\n", "bone_count_max", (unsigned)skin->bone_count_max);
+        PrintBatches(m2_data, m2_size, header, data, size, skin->sections, skin->batches, false, "skin");
     } else {
         printf("skin: %s has unexpected magic %.4s\n", resolved, (char const *)&skin->magic);
     }
@@ -1209,6 +1345,7 @@ static void InspectModel(void) {
 
     PrintHeaderArrays(&header);
     PrintTextures(payload, payload_size, &header);
+    PrintTextureLookup(payload, payload_size, &header);
     PrintSkinInfo(resolved, payload, payload_size, &header);
     if (g_dump_all) {
         PrintAnimations(payload, payload_size, &header);

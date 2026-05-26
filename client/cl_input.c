@@ -62,7 +62,7 @@ static void CL_WowMouseMotion(SDL_MouseMotionEvent const *motion) {
         return;
     }
     wow_input.yaw -= motion->xrel * WOW_MOUSE_TURN_SPEED;
-    wow_input.pitch = CL_WowClamp(wow_input.pitch - motion->yrel * WOW_MOUSE_TURN_SPEED,
+    wow_input.pitch = CL_WowClamp(wow_input.pitch + motion->yrel * WOW_MOUSE_TURN_SPEED,
                                   WOW_CAMERA_MIN_PITCH,
                                   WOW_CAMERA_MAX_PITCH);
 }

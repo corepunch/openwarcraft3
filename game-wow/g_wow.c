@@ -414,7 +414,7 @@ static void Wow_RunFrame(void) {
     }
     ent->s.origin.z = Wow_TerrainHeight(ent->s.origin.x, ent->s.origin.y);
     ent->s.rotation = (VECTOR3){ wow_move.yaw, 0.0f, 0.0f };
-    if (Wow_SetPlayerAnimation(ent, moving ? "Walk" : "Stand")) {
+    if (Wow_SetPlayerAnimation(ent, moving ? "Run" : "Stand")) {
         Wow_MovePlayerFrame(ent);
     }
     Wow_UpdateCamera(ent);

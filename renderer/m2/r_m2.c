@@ -675,15 +675,20 @@ static DWORD M2_SequenceFlags(m2Model_t const *model, DWORD sequence_index) {
     }
 }
 
-static DWORD M2_AnimationTime(m2Model_t const *model, renderEntity_t const *entity, DWORD *sequence_index) {
-    DWORD frame = entity ? entity->frame : tr.viewDef.time;
+typedef struct {
+    DWORD sequence_index;
+    DWORD sequence_time;
+} m2PoseTime_t;
+
+static BOOL M2_FrameToPoseTime(m2Model_t const *model, DWORD frame, m2PoseTime_t *pose) {
     DWORD range_start = 0;
 
-    if (sequence_index) {
-        *sequence_index = 0;
+    if (pose) {
+        pose->sequence_index = 0;
+        pose->sequence_time = frame;
     }
-    if (!model || !model->sequences || model->sequence_count == 0) {
-        return frame;
+    if (!model || !model->sequences || model->sequence_count == 0 || !pose) {
+        return false;
     }
 
     FOR_LOOP(i, model->sequence_count) {
@@ -693,35 +698,63 @@ static DWORD M2_AnimationTime(m2Model_t const *model, renderEntity_t const *enti
         if (frame >= range_start && frame < range_start + range_length) {
             DWORD local_time = frame - range_start;
 
-            if (entity && entity->oldframe >= range_start && entity->oldframe < range_start + range_length) {
-                DWORD old_time = entity->oldframe - range_start;
-                FLOAT end_time = (FLOAT)local_time;
-                FLOAT lerped;
-
-                if (duration > 0 && old_time > local_time && !(M2_SequenceFlags(model, i) & 0x1)) {
-                    end_time += (FLOAT)duration;
-                }
-                lerped = LerpNumber((FLOAT)old_time, end_time, tr.viewDef.lerpfrac);
-                if (duration > 0 && lerped >= (FLOAT)duration) {
-                    lerped -= (FLOAT)duration * floorf(lerped / (FLOAT)duration);
-                }
-                local_time = (DWORD)MAX(0.0f, lerped);
-            }
-            if (sequence_index) {
-                *sequence_index = i;
-            }
-            return duration ? M2_SequenceStart(model, i) + (local_time % duration) : M2_SequenceStart(model, i);
+            pose->sequence_index = i;
+            pose->sequence_time = duration
+                ? M2_SequenceStart(model, i) + (local_time % duration)
+                : M2_SequenceStart(model, i);
+            return true;
         }
         range_start += range_length;
     }
 
     if (model->sequence_count > 0) {
         DWORD duration = M2_SequenceDuration(model, 0);
-        if (!entity && duration > 0) {
-            return M2_SequenceStart(model, 0) + (tr.viewDef.time % duration);
-        }
+
+        pose->sequence_index = 0;
+        pose->sequence_time = duration
+            ? M2_SequenceStart(model, 0) + (frame % duration)
+            : M2_SequenceStart(model, 0);
+        return true;
     }
-    return frame;
+    return false;
+}
+
+static DWORD M2_AnimationTime(m2Model_t const *model, renderEntity_t const *entity, DWORD *sequence_index) {
+    DWORD frame = entity ? entity->frame : tr.viewDef.time;
+    m2PoseTime_t pose;
+    m2PoseTime_t old_pose;
+
+    if (sequence_index) {
+        *sequence_index = 0;
+    }
+    if (!M2_FrameToPoseTime(model, frame, &pose)) {
+        return frame;
+    }
+
+    if (entity &&
+        M2_FrameToPoseTime(model, entity->oldframe, &old_pose) &&
+        old_pose.sequence_index == pose.sequence_index) {
+        DWORD duration = M2_SequenceDuration(model, pose.sequence_index);
+        DWORD start_time = M2_SequenceStart(model, pose.sequence_index);
+        DWORD old_time = old_pose.sequence_time - start_time;
+        DWORD local_time = pose.sequence_time - start_time;
+        FLOAT end_time = (FLOAT)local_time;
+        FLOAT lerped;
+
+        if (duration > 0 && old_time > local_time && !(M2_SequenceFlags(model, pose.sequence_index) & 0x1)) {
+            end_time += (FLOAT)duration;
+        }
+        lerped = LerpNumber((FLOAT)old_time, end_time, tr.viewDef.lerpfrac);
+        if (duration > 0 && lerped >= (FLOAT)duration) {
+            lerped -= (FLOAT)duration * floorf(lerped / (FLOAT)duration);
+        }
+        pose.sequence_time = start_time + (DWORD)MAX(0.0f, lerped);
+    }
+
+    if (sequence_index) {
+        *sequence_index = pose.sequence_index;
+    }
+    return pose.sequence_time;
 }
 
 static DWORD M2_TrackTime(m2Model_t const *model,
@@ -1033,15 +1066,26 @@ static m2TrackView_t M2_BoneScaleTrack(m2Model_t const *model, DWORD bone_index)
 
 static void M2_CalculateBoneMatrices(m2Model_t const *model, renderEntity_t const *entity) {
     MATRIX4 identity;
-    DWORD sequence_index;
-    DWORD sequence_time;
+    m2PoseTime_t current_pose;
+    m2PoseTime_t old_pose;
+    FLOAT pose_lerp = 1.0f;
 
     if (!model || !model->bone_matrices || !model->bones) {
         return;
     }
 
     Matrix4_identity(&identity);
-    sequence_time = M2_AnimationTime(model, entity, &sequence_index);
+    M2_FrameToPoseTime(model, entity ? entity->frame : tr.viewDef.time, &current_pose);
+    old_pose = current_pose;
+    if (entity &&
+        entity->oldframe != entity->frame &&
+        M2_FrameToPoseTime(model, entity->oldframe, &old_pose) &&
+        old_pose.sequence_index != current_pose.sequence_index) {
+        pose_lerp = MAX(0.0f, MIN(1.0f, tr.viewDef.lerpfrac));
+    } else {
+        current_pose.sequence_time = M2_AnimationTime(model, entity, &current_pose.sequence_index);
+        old_pose = current_pose;
+    }
 
     FOR_LOOP(i, model->bone_count) {
         WORD parent_index = M2_BoneParentIndex(model, i);
@@ -1063,19 +1107,41 @@ static void M2_CalculateBoneMatrices(m2Model_t const *model, renderEntity_t cons
             MATRIX4 local;
             VECTOR3 translation = M2_EvaluateVectorTrack(model,
                                                          &translation_track,
-                                                         sequence_index,
-                                                         sequence_time,
+                                                         current_pose.sequence_index,
+                                                         current_pose.sequence_time,
                                                          (VECTOR3){ 0.0f, 0.0f, 0.0f });
             QUATERNION rotation = M2_EvaluateRotationTrack(model,
                                                            &rotation_track,
-                                                           sequence_index,
-                                                           sequence_time,
+                                                           current_pose.sequence_index,
+                                                           current_pose.sequence_time,
                                                            (QUATERNION){ 0.0f, 0.0f, 0.0f, 1.0f });
             VECTOR3 scale = M2_EvaluateVectorTrack(model,
                                                    &scale_track,
-                                                   sequence_index,
-                                                   sequence_time,
+                                                   current_pose.sequence_index,
+                                                   current_pose.sequence_time,
                                                    (VECTOR3){ 1.0f, 1.0f, 1.0f });
+
+            if (pose_lerp < 1.0f) {
+                VECTOR3 old_translation = M2_EvaluateVectorTrack(model,
+                                                                 &translation_track,
+                                                                 old_pose.sequence_index,
+                                                                 old_pose.sequence_time,
+                                                                 (VECTOR3){ 0.0f, 0.0f, 0.0f });
+                QUATERNION old_rotation = M2_EvaluateRotationTrack(model,
+                                                                   &rotation_track,
+                                                                   old_pose.sequence_index,
+                                                                   old_pose.sequence_time,
+                                                                   (QUATERNION){ 0.0f, 0.0f, 0.0f, 1.0f });
+                VECTOR3 old_scale = M2_EvaluateVectorTrack(model,
+                                                           &scale_track,
+                                                           old_pose.sequence_index,
+                                                           old_pose.sequence_time,
+                                                           (VECTOR3){ 1.0f, 1.0f, 1.0f });
+
+                translation = Vector3_lerp(&old_translation, &translation, pose_lerp);
+                rotation = Quaternion_slerp(&old_rotation, &rotation, pose_lerp);
+                scale = Vector3_lerp(&old_scale, &scale, pose_lerp);
+            }
 
             Matrix4_from_rotation_translation_scale_origin(&local,
                                                            &rotation,
@@ -1335,6 +1401,7 @@ static BOOL M2_GetSectionRange(void const *sections,
                                BOOL legacy_sections,
                                DWORD section_count,
                                WORD section_index,
+                               WORD *section_id,
                                DWORD *index_start,
                                DWORD *index_count,
                                WORD *bone_count,
@@ -1344,18 +1411,85 @@ static BOOL M2_GetSectionRange(void const *sections,
     }
     if (legacy_sections) {
         m2SkinSectionLegacy_t const *section = &((m2SkinSectionLegacy_t const *)sections)[section_index];
+        if (section_id) {
+            *section_id = section->skin_section_id;
+        }
         *index_start = section->index_start;
         *index_count = section->index_count;
         *bone_count = section->bone_count;
         *bone_combo_index = section->bone_combo_index;
     } else {
         m2SkinSection_t const *section = &((m2SkinSection_t const *)sections)[section_index];
+        if (section_id) {
+            *section_id = section->skin_section_id;
+        }
         *index_start = section->index_start;
         *index_count = section->index_count;
         *bone_count = section->bone_count;
         *bone_combo_index = section->bone_combo_index;
     }
     return true;
+}
+
+static BOOL M2_IsCharacterModelPath(LPCSTR model_path) {
+    LPCSTR character;
+    LPCSTR race_end;
+    LPCSTR gender;
+    size_t gender_len;
+
+    if (!model_path) {
+        return false;
+    }
+
+    character = strcasestr(model_path, "Character\\");
+    if (!character) {
+        character = strcasestr(model_path, "Character/");
+    }
+    if (!character) {
+        return false;
+    }
+
+    race_end = strpbrk(character + strlen("Character\\"), "\\/");
+    if (!race_end || !race_end[1]) {
+        return false;
+    }
+
+    gender = race_end + 1;
+    gender_len = strcspn(gender, "\\/.");
+    return (gender_len == 4 && !strncasecmp(gender, "Male", 4)) ||
+           (gender_len == 6 && !strncasecmp(gender, "Female", 6));
+}
+
+static BOOL M2_DefaultCharacterGeosetVisible(WORD section_id) {
+    static WORD const defaults[] = {
+        0,
+        401,
+        501,
+        601,
+        702,
+        801,
+        901,
+        1001,
+        1101,
+        1201,
+        1301,
+        1401,
+        1501,
+        1601,
+        1701,
+        1801
+    };
+
+    if (section_id < 400) {
+        return true;
+    }
+
+    FOR_LOOP(i, sizeof(defaults) / sizeof(defaults[0])) {
+        if (section_id == defaults[i]) {
+            return true;
+        }
+    }
+    return false;
 }
 
 static void M2_FreeModelData(m2Model_t *model) {
@@ -1449,6 +1583,7 @@ m2Model_t *R_LoadModelM2(LPCSTR modelFilename, void *buffer, DWORD size) {
     DWORD skin_vertex_count;
     DWORD skin_index_count;
     BOOL using_legacy_view = false;
+    BOOL filter_character_geosets;
 
     if (!buffer || size < sizeof(DWORD)) {
         return M2_CreateFallbackModel(modelFilename, "missing model data");
@@ -1544,6 +1679,7 @@ m2Model_t *R_LoadModelM2(LPCSTR modelFilename, void *buffer, DWORD size) {
     model->has_geometry_bounds = M2_CalculateGeometryBounds(m2_vertices,
                                                             (DWORD)geom.vertices.size,
                                                             &model->geometry_bounds);
+    filter_character_geosets = M2_IsCharacterModelPath(modelFilename);
     if (!M2_CopyModelData(model, m2_base, m2_size, using_legacy_view)) {
         if (skin_data) {
             ri.FS_FreeFile(skin_data);
@@ -1559,14 +1695,19 @@ m2Model_t *R_LoadModelM2(LPCSTR modelFilename, void *buffer, DWORD size) {
         DWORD index_count;
         WORD bone_count;
         WORD bone_combo_index;
+        WORD section_id = 0;
         if (!M2_GetSectionRange(sections,
                                 using_legacy_view,
                                 section_count,
                                 batch->skin_section_index,
+                                &section_id,
                                 &index_start,
                                 &index_count,
                                 &bone_count,
                                 &bone_combo_index)) {
+            continue;
+        }
+        if (filter_character_geosets && !M2_DefaultCharacterGeosetVisible(section_id)) {
             continue;
         }
         M2_AddBatch(model,
@@ -1585,7 +1726,7 @@ m2Model_t *R_LoadModelM2(LPCSTR modelFilename, void *buffer, DWORD size) {
                     bone_combo_index,
                     batch,
                     modelFilename,
-                    !using_legacy_view);
+                    true);
     }
 
     if (skin_data) {
