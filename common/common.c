@@ -12,6 +12,8 @@
 
 #include <sys/stat.h>
 
+extern void Key_Init(void);
+
 #define MAXPRINTMSG 4096
 
 const LPCSTR WarcraftSheets[] = {
@@ -811,7 +813,7 @@ void MemFree(HANDLE mem) {
 
 void Com_Quit(void) {
     if (Cvar_Integer("com_frame_limit", 0) <= 0) {
-        Cvar_WriteConfig(Cvar_String("config", "share/config.cfg"));
+        Cvar_WriteConfig(Cvar_String("config", ""));
     }
     CL_Shutdown();
     SV_Shutdown();
@@ -844,12 +846,19 @@ static void Com_Map_f(void) {
 void Com_Init(int argc, LPCSTR *argv) {
     Cbuf_Init();
     Cvar_Init();
+    Key_Init();
     Cmd_AddCommand("map", Com_Map_f);
     Cvar_ApplyConfigCommandLine(argc, argv);
     FS_Init();
     Cvar_LoadConfig("share/default.cfg");
     Cbuf_Execute();
-    Cvar_LoadConfig(Cvar_String("config", "share/config.cfg"));
+#ifdef WOW
+    Cvar_LoadConfig("share/openwow.cfg");
+#else
+    Cvar_LoadConfig("share/openwarcraft3.cfg");
+#endif
+    Cbuf_Execute();
+    Cvar_LoadConfig(Cvar_String("config", ""));
     Cbuf_Execute();
     Cvar_LoadConfig("share/autoexec.cfg");
     Cbuf_Execute();

@@ -3,6 +3,8 @@
 #include <ctype.h>
 #include <stdlib.h>
 
+extern void Key_WriteBindings(FILE *file);
+
 static cvar_t *cvar_vars;
 
 static LPSTR Cvar_CopyString(LPCSTR in) {
@@ -239,7 +241,7 @@ void Cvar_WriteConfig(LPCSTR filename) {
     DWORD count = 0;
 
     if (!filename || !*filename) {
-        filename = Cvar_String("config", "share/config.cfg");
+        filename = Cvar_String("config", "");
     }
     file = fopen(filename, "wb");
     if (!file) {
@@ -247,7 +249,9 @@ void Cvar_WriteConfig(LPCSTR filename) {
         return;
     }
     fprintf(file, "// OpenWarcraft3 generated config\n");
-    fprintf(file, "// Loaded after share/default.cfg and before share/autoexec.cfg\n\n");
+    fprintf(file, "// Loaded after share/default.cfg and the build-specific defaults.\n\n");
+    Key_WriteBindings(file);
+    fprintf(file, "\n");
     FOR_EACH_LIST(cvar_t, var, cvar_vars) {
         if (!(var->flags & CVAR_ARCHIVE) || Cvar_IsSessionOnly(var->name)) {
             continue;
@@ -262,7 +266,7 @@ void Cvar_WriteConfig(LPCSTR filename) {
 }
 
 static void Cvar_WriteConfig_f(void) {
-    Cvar_WriteConfig(Cmd_Argc() > 1 ? Cmd_Argv(1) : Cvar_String("config", "share/config.cfg"));
+    Cvar_WriteConfig(Cmd_Argc() > 1 ? Cmd_Argv(1) : Cvar_String("config", ""));
 }
 
 static void Cvar_Exec_f(void) {
@@ -367,7 +371,11 @@ void Cvar_Init(void) {
     Cmd_AddCommand("exec", Cvar_Exec_f);
     Cmd_AddCommand("writeconfig", Cvar_WriteConfig_f);
 
-    Cvar_Get("config", "share/config.cfg", CVAR_ARCHIVE);
+#ifdef WOW
+    Cvar_Get("config", "share/openwow-config.cfg", CVAR_ARCHIVE);
+#else
+    Cvar_Get("config", "share/openwarcraft3-config.cfg", CVAR_ARCHIVE);
+#endif
     Cvar_Get("fs_data", "", CVAR_ARCHIVE);
     Cvar_Get("map", "", 0);
     Cvar_Get("connect", "", 0);

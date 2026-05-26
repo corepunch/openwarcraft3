@@ -14,9 +14,15 @@ enum {
     K_MOUSE1 = 200,
     K_MOUSE2 = 201,
     K_MOUSE3 = 202,
+    K_ALT_MOUSE1 = 210,
+    K_ALT_MOUSE2 = 211,
+    K_ALT_MOUSE3 = 212,
 };
 
+void Key_Init(void);
 void Key_SetBinding(keyCode_t key, LPCSTR binding);
+LPCSTR Key_GetBinding(keyCode_t key);
 void Key_Event(keyCode_t key, bool down, DWORD time);
+void Key_WriteBindings(FILE *file);
 
 #endif

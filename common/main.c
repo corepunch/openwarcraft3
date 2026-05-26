@@ -44,7 +44,7 @@
 "\n" \
 "Notes:\n" \
 "  - The data folder should contain Warcraft III MPQs and optionally Maps/.\n" \
-"  - The data folder may also be saved as fs_data in share/config.cfg.\n" \
+"  - The data folder may also be saved as fs_data in the generated per-build config.\n" \
 "  - The map path uses the internal MPQ path format; -map=<map> remains accepted.\n" \
 "  - Remote clients still need the game data for asset loading.\n"
 
