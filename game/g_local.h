@@ -959,6 +959,10 @@ void unit_learnability(LPEDICT, DWORD);
 void order_attack(LPEDICT, LPEDICT);
 void order_move(LPEDICT, LPEDICT);
 void order_stop(LPEDICT);
+BOOL G_ActorHasSkill(LPEDICT, LPCSTR);
+void harvest_start(LPEDICT, LPEDICT);
+void harvest_gold_start(LPEDICT, LPEDICT);
+BOOL move_selectlocation(LPEDICT, LPCVECTOR2);
 
 // p_jass.c
 LPJASS jass_newstate(void);

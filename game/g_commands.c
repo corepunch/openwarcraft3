@@ -78,6 +78,40 @@ CLIENTCOMMAND(Point) {
     }
 }
 
+CLIENTCOMMAND(Smart) {
+    LPGAMECLIENT client = clent->client;
+    BOOL issued = false;
+    DWORD number;
+    LPEDICT target;
+
+    if (argc < 2) {
+        return;
+    }
+    number = atoi(argv[1]);
+    if (number >= globals.num_edicts) {
+        return;
+    }
+    target = &globals.edicts[number];
+    FOR_SELECTED_UNITS(client, ent) {
+        if (unit_issuetargetorder(ent, "smart", target)) {
+            issued = true;
+        }
+    }
+    if (issued) {
+        Get_Commands_f(clent);
+    }
+}
+
+CLIENTCOMMAND(SmartPoint) {
+    VECTOR2 loc;
+
+    if (argc < 3) {
+        return;
+    }
+    loc = (VECTOR2){ atoi(argv[1]), atoi(argv[2]) };
+    move_selectlocation(clent, &loc);
+}
+
 CLIENTCOMMAND(Button) {
     LPCSTR classname = argv[1];
     LPGAMECLIENT client = clent->client;
@@ -207,6 +241,8 @@ clientCommand_t clientCommands[] = {
     { "inventory", CMD_Inventory },
     { "select", CMD_Select },
     { "point", CMD_Point },
+    { "smart", CMD_Smart },
+    { "smartpoint", CMD_SmartPoint },
     { "cancel", CMD_Cancel },
     { "quests", CMD_Quests },
     { "hidequests", CMD_HideQuests },

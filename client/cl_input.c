@@ -18,6 +18,26 @@ static struct {
     VECTOR3 anchor;
 } camera_drag;
 
+static BOOL camera_drag_left_alt;
+
+static BOOL CL_AltModifierDown(void) {
+    SDL_Keymod const mod = SDL_GetModState();
+    return (mod & (KMOD_LALT | KMOD_RALT)) != 0;
+}
+
+static BOOL CL_BypassBoundMouseCommand(SDL_Event const *event) {
+    if (cls.key_dest != key_game || event->button.button != SDL_BUTTON_LEFT) {
+        return false;
+    }
+    if (event->type == SDL_MOUSEBUTTONDOWN) {
+        return CL_AltModifierDown();
+    }
+    if (event->type == SDL_MOUSEBUTTONUP) {
+        return camera_drag_left_alt;
+    }
+    return false;
+}
+
 #ifdef WOW
 #define WOW_MOVE_FORWARD 1
 #define WOW_MOVE_BACK 2
@@ -166,6 +186,48 @@ static void CL_EndCameraDrag(void) {
     camera_drag.active = false;
 }
 
+static BOOL CL_MouseOverGameplayUI(void) {
+    VECTOR2 const m = SCR_MouseToFdf();
+
+    FOR_LOOP(layer_id, MAX_LAYOUT_LAYERS) {
+        if (cl.layout[layer_id] == NULL) {
+            continue;
+        }
+        LPCUIFRAME frames = SCR_Clear(cl.layout[layer_id]);
+        FOR_LOOP(object_id, MAX_LAYOUT_OBJECTS) {
+            LPCUIFRAME frame = frames+object_id;
+            if (frame->flags.type != FT_TEXTURE) {
+                continue;
+            }
+            RECT const screen = *SCR_LayoutRect(frame);
+            if (Rect_contains(&screen, &m)) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+static void CL_SendSmartCommand(float x, float y) {
+    DWORD entnum;
+    VECTOR3 point;
+
+    if (CL_MouseOverGameplayUI()) {
+        return;
+    }
+    if (re.TraceEntity(&cl.viewDef, x, y, &entnum)) {
+        MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
+        SZ_Printf(&cls.netchan.message, "smart %d", entnum);
+    } else if (re.TraceLocation(&cl.viewDef, x, y, &point)) {
+        MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
+        SZ_Printf(&cls.netchan.message, "smartpoint %d %d", (int)point.x, (int)point.y);
+    }
+
+    if (cl.selection.num_selected) {
+        CL_RequestUnitUI(cl.selection.num_selected, cl.selection.entity_nums);
+    }
+}
+
 void CL_Input(void) {
     SDL_Event event;
     BOOL camera_drag_pending = false;
@@ -180,7 +242,9 @@ void CL_Input(void) {
                     DWORD mousevt = K_MOUSE1 + event.button.button - 1;
                 mouse.origin.x = event.button.x;
                 mouse.origin.y = event.button.y;
-                Key_Event(mousevt, true, event.button.timestamp);
+                if (!CL_BypassBoundMouseCommand(&event)) {
+                    Key_Event(mousevt, true, event.button.timestamp);
+                }
                 }
                 break;
             case SDL_MOUSEBUTTONUP:
@@ -188,7 +252,9 @@ void CL_Input(void) {
                     DWORD mousevt = K_MOUSE1 + event.button.button - 1;
                 mouse.origin.x = event.button.x;
                 mouse.origin.y = event.button.y;
-                Key_Event(mousevt, false, event.button.timestamp);
+                if (!CL_BypassBoundMouseCommand(&event)) {
+                    Key_Event(mousevt, false, event.button.timestamp);
+                }
                 }
                 break;
             case SDL_MOUSEMOTION:
@@ -247,6 +313,12 @@ void CL_Input(void) {
                 switch (event.button.button) {
                     case SDL_BUTTON_LEFT:
                         mouse.event = UI_LEFT_MOUSE_DOWN;
+                        if (CL_AltModifierDown()) {
+                            camera_drag_left_alt = true;
+#ifndef WOW
+                            CL_BeginCameraDrag(event.button.x, event.button.y);
+#endif
+                        }
 #ifdef WOW
                         wow_input.left_mouse = true;
 #endif
@@ -257,7 +329,10 @@ void CL_Input(void) {
                         wow_input.right_mouse = true;
                         CL_WowInitInputState();
                         SDL_SetRelativeMouseMode(SDL_TRUE);
-#else
+#endif
+                        break;
+                    case SDL_BUTTON_MIDDLE:
+#ifndef WOW
                         CL_BeginCameraDrag(event.button.x, event.button.y);
 #endif
                         break;
@@ -281,6 +356,13 @@ void CL_Input(void) {
                 switch (event.button.button) {
                     case SDL_BUTTON_LEFT:
                         mouse.event = UI_LEFT_MOUSE_UP;
+                        if (camera_drag_left_alt) {
+                            camera_drag_left_alt = false;
+#ifndef WOW
+                            CL_EndCameraDrag();
+#endif
+                            break;
+                        }
 #ifdef WOW
                         wow_input.left_mouse = false;
 #endif
@@ -291,6 +373,11 @@ void CL_Input(void) {
                         wow_input.right_mouse = false;
                         SDL_SetRelativeMouseMode(SDL_FALSE);
 #else
+                        CL_SendSmartCommand(event.button.x, event.button.y);
+#endif
+                        break;
+                    case SDL_BUTTON_MIDDLE:
+#ifndef WOW
                         CL_EndCameraDrag();
 #endif
                         break;
@@ -311,11 +398,17 @@ void CL_Input(void) {
                 switch (mouse.button) {
                     case SDL_BUTTON_LEFT:
 #ifndef WOW
-                        cl.selection.rect.w = event.motion.x - cl.selection.rect.x;
-                        cl.selection.rect.h = event.motion.y - cl.selection.rect.y;
+                        if (camera_drag_left_alt) {
+                            camera_drag_mouse.x = event.motion.x;
+                            camera_drag_mouse.y = event.motion.y;
+                            camera_drag_pending = true;
+                        } else {
+                            cl.selection.rect.w = event.motion.x - cl.selection.rect.x;
+                            cl.selection.rect.h = event.motion.y - cl.selection.rect.y;
+                        }
 #endif
                         break;
-                    case SDL_BUTTON_RIGHT:
+                    case SDL_BUTTON_MIDDLE:
 #ifndef WOW
                         camera_drag_mouse.x = event.motion.x;
                         camera_drag_mouse.y = event.motion.y;
@@ -404,21 +497,8 @@ void IN_SelectDown(void) {
     cl.selection.rect.w = 0;
     cl.selection.rect.h = 0;
 
-    VECTOR2 const m = SCR_MouseToFdf();
-    
-    FOR_LOOP(layer_id, MAX_LAYOUT_LAYERS) {
-        if (cl.layout[layer_id] == NULL)
-            continue;
-        LPCUIFRAME frames = SCR_Clear(cl.layout[layer_id]);
-        FOR_LOOP(object_id, MAX_LAYOUT_OBJECTS) {
-            LPCUIFRAME frame = frames+object_id;
-            if (frame->flags.type != FT_TEXTURE)
-                continue;
-            RECT const screen = *SCR_LayoutRect(frame);
-            if (Rect_contains(&screen, &m)) {
-                cl.selection.in_progress = false;
-            }
-        }
+    if (CL_MouseOverGameplayUI()) {
+        cl.selection.in_progress = false;
     }
 }
 

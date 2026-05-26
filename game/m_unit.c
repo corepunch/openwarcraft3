@@ -48,7 +48,37 @@ void unit_birth(LPEDICT self) {
     self->s.renderfx |= RF_NO_UBERSPLAT;
 }
 
+static BOOL unit_smart_target_is_enemy(LPEDICT self, LPEDICT target) {
+    if (!self || !target || target->s.player == self->s.player || target->s.player >= MAX_PLAYERS) {
+        return false;
+    }
+    if (level.mapinfo) {
+        playerType_t type = level.mapinfo->players[target->s.player].playerType;
+        if (type == kPlayerTypeNone || type == kPlayerTypeNeutral) {
+            return false;
+        }
+    }
+    return true;
+}
+
 BOOL unit_issuetargetorder(LPEDICT self, LPCSTR order, LPEDICT target) {
+    if (!strcmp(order, "smart")) {
+        if (G_ActorHasSkill(self, "Ahar")) {
+            if (G_ActorHasSkill(target, "Agld")) {
+                harvest_gold_start(self, target);
+                return true;
+            }
+            if (target->targtype == TARG_TREE) {
+                harvest_start(self, target);
+                return true;
+            }
+        }
+        if (unit_smart_target_is_enemy(self, target)) {
+            order_attack(self, target);
+            return true;
+        }
+        return unit_issueorder(self, "move", &target->s.origin2);
+    }
     if (!strcmp(order, "attack")) {
         order_attack(self, target);
         return true;
