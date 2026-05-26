@@ -230,6 +230,10 @@ static void Cvar_WriteEscaped(FILE *file, LPCSTR text) {
     }
 }
 
+static bool Cvar_IsSessionOnly(LPCSTR name) {
+    return name && (!strcmp(name, "map") || !strcmp(name, "connect"));
+}
+
 void Cvar_WriteConfig(LPCSTR filename) {
     FILE *file;
     DWORD count = 0;
@@ -245,7 +249,7 @@ void Cvar_WriteConfig(LPCSTR filename) {
     fprintf(file, "// OpenWarcraft3 generated config\n");
     fprintf(file, "// Loaded after share/default.cfg and before share/autoexec.cfg\n\n");
     FOR_EACH_LIST(cvar_t, var, cvar_vars) {
-        if (!(var->flags & CVAR_ARCHIVE)) {
+        if (!(var->flags & CVAR_ARCHIVE) || Cvar_IsSessionOnly(var->name)) {
             continue;
         }
         fprintf(file, "seta %s \"", var->name);
@@ -328,6 +332,11 @@ void Cvar_ApplyCommandLine(int argc, LPCSTR *argv) {
             i += 2;
             continue;
         }
+        if (!strcmp(arg, "+map") && i + 1 < argc) {
+            Cvar_Set("map", argv[i + 1]);
+            i += 1;
+            continue;
+        }
         if (Cvar_IsSwitch(arg, '+')) {
             char line[1024];
             DWORD used;
@@ -360,8 +369,8 @@ void Cvar_Init(void) {
 
     Cvar_Get("config", "share/config.cfg", CVAR_ARCHIVE);
     Cvar_Get("fs_data", "", CVAR_ARCHIVE);
-    Cvar_Get("map", "", CVAR_ARCHIVE);
-    Cvar_Get("connect", "", CVAR_ARCHIVE);
+    Cvar_Get("map", "", 0);
+    Cvar_Get("connect", "", 0);
     Cvar_Get("r_module", "renderer", CVAR_ARCHIVE);
     Cvar_Get("ui_module", "ui", CVAR_ARCHIVE);
     Cvar_Get("g_module", "game", CVAR_ARCHIVE);

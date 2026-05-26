@@ -821,29 +821,30 @@ void Com_Quit(void) {
 }
 
 void MenuAction(LPCSTR action, LPCSTR arg) {
-    if (!strcmp(action, "load")) {
+    if (!strcmp(action, "map")) {
         if (!arg || !*arg) {
             return;
         }
         CL_SetGameplayBindings();
+        CL_BeginLoadingMap(arg);
         SV_Map(arg);
     } else if (!strcmp(action, "quit")) {
         Com_Quit();
     }
 }
 
-static void Com_Load_f(void) {
+static void Com_Map_f(void) {
     if (Cmd_Argc() < 2) {
-        fprintf(stderr, "Usage: load <map>\n");
+        fprintf(stderr, "Usage: map <map>\n");
         return;
     }
-    MenuAction("load", Cmd_ArgsFrom(1));
+    MenuAction("map", Cmd_ArgsFrom(1));
 }
 
 void Com_Init(int argc, LPCSTR *argv) {
     Cbuf_Init();
     Cvar_Init();
-    Cmd_AddCommand("load", Com_Load_f);
+    Cmd_AddCommand("map", Com_Map_f);
     Cvar_ApplyConfigCommandLine(argc, argv);
     FS_Init();
     Cvar_LoadConfig("share/default.cfg");
@@ -852,6 +853,8 @@ void Com_Init(int argc, LPCSTR *argv) {
     Cbuf_Execute();
     Cvar_LoadConfig("share/autoexec.cfg");
     Cbuf_Execute();
+    Cvar_Set("map", "");
+    Cvar_Set("connect", "");
     Cvar_ApplyCommandLine(argc, argv);
     Cbuf_Execute();
 }

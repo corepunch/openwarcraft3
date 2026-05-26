@@ -704,7 +704,7 @@ static void GameSetup_StartGame(void) {
     if (!setup.map_path[0]) {
         return;
     }
-    snprintf(command, sizeof(command), "load \"%s\"\n", setup.map_path);
+    snprintf(command, sizeof(command), "map \"%s\"\n", setup.map_path);
     uiimport.Cmd_ExecuteText(command);
 }
 

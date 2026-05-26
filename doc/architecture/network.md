@@ -28,7 +28,7 @@ inspected when `type` is `NA_IP` or `NA_BROADCAST`.
 
 ## Loopback (listen-server / single-process)
 
-When the executable starts with `-map=` it runs both the server and the local
+When the executable starts with `+map` it runs both the server and the local
 client in the same process.  The local client slot is assigned address type
 `NA_LOOPBACK`; no socket is involved.
 
@@ -94,7 +94,7 @@ code runs:
 
 | Mode | Port argument | Effect |
 |------|--------------|--------|
-| Listen server (`-map=`) | `PORT_SERVER` (27910) | Bind UDP socket to 27910 so remote clients can find it |
+| Listen server (`+map`) | `PORT_SERVER` (27910) | Bind UDP socket to 27910 so remote clients can find it |
 | Remote client (`-connect=`) | `0` | Bind UDP socket to OS-assigned ephemeral port |
 
 If socket creation fails, `NET_Init` returns `0` and the process exits.
@@ -125,23 +125,24 @@ If socket creation fails, `NET_Init` returns `0` and the process exits.
 
 ```sh
 # Listen server + local client (loopback; no real socket traffic)
-openwarcraft3 -mpq=/path/to/War3.mpq -map=Maps\Campaign\Human02.w3m
+openwarcraft3 -data=/path/to/Warcraft3 +map Maps\Campaign\Human02.w3m
 
 # Remote client, default port (PORT_SERVER = 27910)
-openwarcraft3 -mpq=/path/to/War3.mpq -connect=192.168.1.10
+openwarcraft3 -data=/path/to/Warcraft3 -connect=192.168.1.10
 
 # Remote client, explicit port
-openwarcraft3 -mpq=/path/to/War3.mpq -connect=192.168.1.10:27910
+openwarcraft3 -data=/path/to/Warcraft3 -connect=192.168.1.10:27910
 ```
 
 | Argument | Description |
 |----------|-------------|
-| `-mpq=<path>` | Absolute path to `War3.mpq` (required for asset loading in both modes) |
-| `-map=<path>` | Internal MPQ path of the map to load; starts a listen server |
+| `-data=<folder>` | Warcraft III data folder containing MPQs and optional loose maps |
+| `+map <path>` | Internal MPQ path of the map to load; starts a listen server |
+| `-map=<path>` | Compatibility form for `+map <path>` |
 | `-connect=<host[:port]>` | Hostname or IP of the server to join; starts a remote-client session |
 
-`-map` and `-connect` are mutually exclusive.  Omitting both (with a valid
-`-mpq`) prints the usage message.
+`+map` and `-connect` are mutually exclusive.  Omitting both (with a valid
+`-data`) starts the client menu.
 
 ## Key files
 

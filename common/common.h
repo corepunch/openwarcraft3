@@ -161,6 +161,7 @@ void CL_Shutdown(void);
 void CL_Connect(LPCSTR host, unsigned short port);
 void CL_SetMenuBindings(void);
 void CL_SetGameplayBindings(void);
+void CL_BeginLoadingMap(LPCSTR mapName);
 
 void SV_Init(void);
 void SV_Frame(DWORD msec);

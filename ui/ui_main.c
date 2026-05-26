@@ -35,6 +35,24 @@ static LPFRAMEDEF loading_title_text;
 static LPFRAMEDEF loading_subtitle_text;
 static LPFRAMEDEF loading_text;
 
+static BOOL UI_IsMapCommand(LPCSTR command) {
+    if (!command) {
+        return false;
+    }
+    while (*command == ' ' || *command == '\t' || *command == '\r' || *command == '\n') {
+        command++;
+    }
+    if (strncmp(command, "map", 3) ||
+        (command[3] != ' ' && command[3] != '\t')) {
+        return false;
+    }
+    command += 4;
+    while (*command == ' ' || *command == '\t') {
+        command++;
+    }
+    return *command != '\0';
+}
+
 typedef struct {
     PATHSTR map;
     char title[256];
@@ -527,6 +545,9 @@ void UI_MenuCommandLocal(LPCSTR command) {
     if (!strncmp(command, "menu ", 5)) {
         UI_Route(command + 5);
     } else {
+        if (UI_IsMapCommand(command)) {
+            ui_state.game_mode = true;
+        }
         uiimport.Cmd_ExecuteText(command);
     }
 }

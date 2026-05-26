@@ -67,7 +67,7 @@ static void MainMenu_InitFrames(void) {
     UI_FRAME(ExitButton);
 
     UI_SetOnClick(RealmButton, "menu /realm-select");
-    UI_SetOnClick(SinglePlayerButton, "menu /single-player");
+    UI_SetOnClick(SinglePlayerButton, "map \"Maps\\Campaign\\Human02.w3m\"");
     UI_SetOnClick(BattleNetButton, "menu /lan/create");
     UI_SetOnClick(LocalAreaNetworkButton, "menu /lan/create");
     UI_SetOnClick(OptionsButton, "menu /options");

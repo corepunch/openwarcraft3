@@ -95,7 +95,7 @@ The **client** (`client/`) captures user input via SDL2, forwards commands to th
 
 Communication between the client and server happens through the network layer (`common/net.c`), which follows the Quake 2 runtime-dispatch model.  The routing decision is made at runtime on `netadr_t.type`:
 
-- **Loopback** (`NA_LOOPBACK`) — when both server and client run in the same process (started with `-map=`), two 256 KiB ring buffers carry traffic in each direction with zero latency and no socket overhead.
+- **Loopback** (`NA_LOOPBACK`) — when both server and client run in the same process (started with `+map`; `-map=` is still accepted), two 256 KiB ring buffers carry traffic in each direction with zero latency and no socket overhead.
 - **UDP** (`NA_IP`) — when the executable is started with `-connect=<host>`, it binds a non-blocking UDP socket and communicates with a remote listen server over the network.
 
 ```

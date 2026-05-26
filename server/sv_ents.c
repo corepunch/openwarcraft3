@@ -10,10 +10,18 @@
  * applies these deltas in cl_parse.c to keep its local entity table up to
  * date.
  */
+#include <stdlib.h>
+
 #include "server.h"
 
 #define VISUAL_DISTANCE 1500
 #define HIGH_NUMBER 9999
+#define OWNED_ENTITY_SCORE_BIAS 1000000000.0f
+
+typedef struct {
+    edict_t *edict;
+    FLOAT score;
+} visibleEntityCandidate_t;
 
 /* Determine whether a client should receive updates for the given entity.
  * Always true for the client's own player-owned entities; otherwise based
@@ -35,6 +43,54 @@ static bool SV_CanClientSeeEntity(LPCCLIENT client, LPCENTITYSTATE edict) {
 #endif
 }
 
+static FLOAT SV_ClientEntityVisibilityScore(LPCCLIENT client, LPCEDICT edict) {
+#ifdef WOW
+    (void)client;
+    (void)edict;
+    return 0.0f;
+#else
+    edict_t *clent = client->edict;
+    FLOAT dx = edict->s.origin.x - clent->client->ps.origin.x;
+    FLOAT dy = edict->s.origin.y - clent->client->ps.origin.y;
+    FLOAT score = dx * dx + dy * dy;
+
+    if (edict->s.player == clent->client->ps.number) {
+        score -= OWNED_ENTITY_SCORE_BIAS;
+    }
+    return score;
+#endif
+}
+
+static int SV_CompareCandidateByNumber(const void *a, const void *b) {
+    visibleEntityCandidate_t const *ea = a;
+    visibleEntityCandidate_t const *eb = b;
+    return ea->edict->s.number - eb->edict->s.number;
+}
+
+static void SV_AddVisibleEntityCandidate(visibleEntityCandidate_t *candidates,
+                                         int *num_candidates,
+                                         edict_t *edict,
+                                         FLOAT score)
+{
+    int worst = 0;
+
+    if (*num_candidates < MAX_PACKET_ENTITIES) {
+        candidates[*num_candidates] = (visibleEntityCandidate_t){ edict, score };
+        (*num_candidates)++;
+        return;
+    }
+
+    for (int i = 1; i < *num_candidates; i++) {
+        if (candidates[i].score > candidates[worst].score) {
+            worst = i;
+        }
+    }
+    if (score >= candidates[worst].score) {
+        return;
+    }
+    candidates[worst] = (visibleEntityCandidate_t){ edict, score };
+}
+
 LPENTITYSTATE SV_NextClientEntity(void) {
     int index = svs.next_client_entities++ % svs.num_client_entities;
     return &svs.client_entities[index];
@@ -46,6 +102,8 @@ LPENTITYSTATE SV_NextClientEntity(void) {
 void SV_BuildClientFrame(LPCLIENT client) {
     edict_t *clent = client->edict;
     LPCLIENTFRAME frame = &client->frames[sv.framenum & UPDATE_MASK];
+    visibleEntityCandidate_t candidates[MAX_PACKET_ENTITIES];
+    int num_candidates = 0;
 #ifdef WOW
     int first_entity = 0;
 #else
@@ -69,14 +127,19 @@ void SV_BuildClientFrame(LPCLIENT client) {
             continue;
         if (!SV_CanClientSeeEntity(client, &edict->s) && index > ge->max_clients)
             continue;
-        if (frame->num_entities >= MAX_PACKET_ENTITIES) {
-#ifdef WOW
-            fprintf(stderr,
-                    "SV_BuildClientFrame: hit WOW MAX_PACKET_ENTITIES=%u; remaining entities will be dropped from this frame\n",
-                    (unsigned)MAX_PACKET_ENTITIES);
-#endif
-            break;
-        }
+        SV_AddVisibleEntityCandidate(candidates,
+                                     &num_candidates,
+                                     edict,
+                                     SV_ClientEntityVisibilityScore(client, edict));
+    }
+
+    qsort(candidates,
+          (size_t)num_candidates,
+          sizeof(candidates[0]),
+          SV_CompareCandidateByNumber);
+
+    for (int index = 0; index < num_candidates; index++) {
+        edict_t *edict = candidates[index].edict;
         LPENTITYSTATE state = SV_NextClientEntity();
         *state = edict->s;
         if (edict->selected & (1 << clent->client->ps.number)) {

@@ -32,20 +32,20 @@
 
 #define USAGE \
 "Usage:\n" \
-"  openwarcraft3 -data=<folder> -map=<map>       (listen server + local client)\n" \
+"  openwarcraft3 -data=<folder> +map <map>       (listen server + local client)\n" \
 "  openwarcraft3 -data=<folder>                 (client menu)\n" \
 "  openwarcraft3 -data=<folder> -connect=<host>  (remote client, default port " \
                                                     __XSTR(PORT_SERVER) ")\n" \
 "  openwarcraft3 -data=<folder> -connect=<host:port>\n" \
 "\n" \
 "Examples:\n" \
-"  openwarcraft3 -data=/home/user/Warcraft3 -map=Maps\\\\Campaign\\\\Human02.w3m\n" \
+"  openwarcraft3 -data=/home/user/Warcraft3 +map Maps\\\\Campaign\\\\Human02.w3m\n" \
 "  openwarcraft3 -data=/home/user/Warcraft3 -connect=192.168.1.10\n" \
 "\n" \
 "Notes:\n" \
 "  - The data folder should contain Warcraft III MPQs and optionally Maps/.\n" \
 "  - The data folder may also be saved as fs_data in share/config.cfg.\n" \
-"  - The map path uses the internal MPQ path format.\n" \
+"  - The map path uses the internal MPQ path format; -map=<map> remains accepted.\n" \
 "  - Remote clients still need the game data for asset loading.\n"
 
 #define __XSTR(x) __STR(x)
