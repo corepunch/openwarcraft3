@@ -215,6 +215,10 @@ void M3_RenderModel(renderEntity_t const *, m3Model_t const *, LPCMATRIX4);
 
 void R_RenderModel(renderEntity_t const *entity) {
     MATRIX4 transform;
+#ifdef WOW
+    MATRIX4 attached_transform;
+    renderEntity_t attached_entity;
+#endif
     R_GetEntityMatrix(entity, &transform);
     
     if ((entity->flags & RF_HIDDEN) || !entity->model)
@@ -243,6 +247,23 @@ void R_RenderModel(renderEntity_t const *entity) {
             break;
         case ID_MD20:
             M2_RenderModel(entity, entity->model->m2, &transform);
+#ifdef WOW
+            if (entity->attached_model &&
+                entity->attached_model->modeltype == ID_MD20 &&
+#ifdef USE_SHADOWMAPS
+                !is_rendering_lights &&
+#endif
+                M2_AttachmentMatrix(entity->model->m2, 1, &transform, &attached_transform)) {
+                attached_entity = *entity;
+                attached_entity.model = entity->attached_model;
+                attached_entity.attached_model = NULL;
+                attached_entity.frame = 0;
+                attached_entity.oldframe = 0;
+                attached_entity.flags &= ~RF_GROUND_ANCHOR;
+                attached_entity.flags |= RF_NO_SHADOW;
+                M2_RenderModel(&attached_entity, attached_entity.model->m2, &attached_transform);
+            }
+#endif
             break;
     }
     

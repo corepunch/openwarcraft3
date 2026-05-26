@@ -241,9 +241,22 @@ static void V_AddClientEntity(centity_t const *ent) {
     re.health = BYTE2FLOAT(ent->current.stats[ENT_HEALTH]);
     re.healthbar = cl.healthbar;
 
+#ifdef WOW
+    if (ent->current.model2 > 0 &&
+        ent->current.model2 < MAX_MODELS &&
+        !(ent->current.renderfx & RF_ATTACH_OVERHEAD)) {
+        re.attached_model = cl.models[ent->current.model2];
+    }
+#endif
+
     view_state.entities[view_state.num_entities++] = re;
     
     if (ent->current.model2 > 0) {
+#ifdef WOW
+        if (re.attached_model && !(ent->current.renderfx & RF_ATTACH_OVERHEAD)) {
+            return;
+        }
+#endif
         if (ent->current.model2 >= MAX_MODELS) {
             return;
         }

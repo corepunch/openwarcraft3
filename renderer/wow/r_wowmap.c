@@ -577,21 +577,31 @@ static void Wow_InitTerrainShader(void) {
     static LPCSTR vs_wow_terrain =
     "#version 140\n"
     "in vec3 i_position;\n"
+    "in vec3 i_normal;\n"
     "in vec2 i_texcoord;\n"
     "in vec4 i_color;\n"
     "out vec2 v_texcoord;\n"
+    "out vec3 v_normal;\n"
     "out vec4 v_color;\n"
+    "out vec3 v_lightDir;\n"
     "uniform mat4 uViewProjectionMatrix;\n"
     "uniform mat4 uModelMatrix;\n"
+    "uniform mat4 uLightMatrix;\n"
+    "uniform mat3 uNormalMatrix;\n"
     "void main() {\n"
+    "    vec4 pos = uModelMatrix * vec4(i_position, 1.0);\n"
     "    v_texcoord = i_texcoord;\n"
+    "    v_normal = normalize(uNormalMatrix * i_normal);\n"
     "    v_color = i_color;\n"
-    "    gl_Position = uViewProjectionMatrix * uModelMatrix * vec4(i_position, 1.0);\n"
+    "    v_lightDir = -normalize(vec3(uLightMatrix[0][2], uLightMatrix[1][2], uLightMatrix[2][2])) * 1.2;\n"
+    "    gl_Position = uViewProjectionMatrix * pos;\n"
     "}\n";
     static LPCSTR fs_wow_terrain =
     "#version 140\n"
     "in vec2 v_texcoord;\n"
+    "in vec3 v_normal;\n"
     "in vec4 v_color;\n"
+    "in vec3 v_lightDir;\n"
     "out vec4 o_color;\n"
     "uniform sampler2D uTexture0;\n"
     "uniform sampler2D uTexture1;\n"
@@ -608,6 +618,10 @@ static void Wow_InitTerrainShader(void) {
     "    vec2 atlasTexel = uAlphaOrigin * alphaTexelsPerChunk + chunkCoord * (alphaTexelsPerChunk - 1.0) + vec2(0.5);\n"
     "    return atlasTexel / alphaAtlasSize;\n"
     "}\n"
+    "float get_lighting() {\n"
+    "    float light = clamp(dot(v_normal, v_lightDir), 0.0, 1.0);\n"
+    "    return mix(0.5, 1.0, light);\n"
+    "}\n"
     "void main() {\n"
     "    vec2 alphaCoord = adtAlphaCoord(v_texcoord * 0.125);\n"
     "    vec3 alphaBlend = texture(uAlphaTexture, alphaCoord).gba;\n"
@@ -623,7 +637,7 @@ static void Wow_InitTerrainShader(void) {
     "    } else {\n"
     "        color = mix(mix(mix(tex1, tex2, alphaBlend.r), tex3, alphaBlend.g), tex4, alphaBlend.b);\n"
     "    }\n"
-    "    color.rgb *= 2.0 * v_color.rgb;\n"
+    "    color.rgb *= 2.0 * v_color.rgb * get_lighting();\n"
     "    color.a = 1.0;\n"
     "    o_color = color;\n"
     "}\n";
@@ -716,22 +730,60 @@ static VECTOR3 Wow_McvtPoint(wowVec3_t pos, float const *heights, int index) {
         pos.z + heights[index]);
 }
 
-static VECTOR3 Wow_NormalAtHeightIndex(BYTE const *normals, int height_index) {
-    if (!normals) {
+static VECTOR3 Wow_TerrainFaceNormal(LPCVECTOR3 a, LPCVECTOR3 b, LPCVECTOR3 c) {
+    VECTOR3 ab = Vector3_sub(b, a);
+    VECTOR3 ac = Vector3_sub(c, a);
+    VECTOR3 normal = Vector3_cross(&ab, &ac);
+
+    if (Vector3_lengthsq(&normal) <= 0.000001f) {
         return (VECTOR3){ 0.0f, 0.0f, 1.0f };
     }
-    return (VECTOR3){
-        ((signed char const *)normals)[height_index * 3 + 0] / 127.0f,
-        ((signed char const *)normals)[height_index * 3 + 2] / 127.0f,
-        ((signed char const *)normals)[height_index * 3 + 1] / 127.0f,
-    };
+
+    Vector3_normalize(&normal);
+    if (normal.z < 0.0f) {
+        normal = Vector3_scale(&normal, -1.0f);
+    }
+    return normal;
+}
+
+static void Wow_AccumulateTerrainCellNormals(VECTOR3 normals[WOW_MCVT_COUNT],
+                                             wowVec3_t pos,
+                                             float const *heights,
+                                             int x,
+                                             int y) {
+    static BYTE const tri[] = { 9, 0, 17, 9, 1, 0, 9, 18, 1, 9, 17, 18 };
+    int base = y * 17 + x;
+
+    for (DWORD i = 0; i < sizeof(tri) / sizeof(tri[0]); i += 3) {
+        int i0 = base + tri[i + 0];
+        int i1 = base + tri[i + 1];
+        int i2 = base + tri[i + 2];
+        VECTOR3 p0 = Wow_McvtPoint(pos, heights, i0);
+        VECTOR3 p1 = Wow_McvtPoint(pos, heights, i1);
+        VECTOR3 p2 = Wow_McvtPoint(pos, heights, i2);
+        VECTOR3 normal = Wow_TerrainFaceNormal(&p0, &p1, &p2);
+
+        normals[i0] = Vector3_add(&normals[i0], &normal);
+        normals[i1] = Vector3_add(&normals[i1], &normal);
+        normals[i2] = Vector3_add(&normals[i2], &normal);
+    }
+}
+
+static void Wow_NormalizeTerrainNormals(VECTOR3 normals[WOW_MCVT_COUNT]) {
+    FOR_LOOP(i, WOW_MCVT_COUNT) {
+        if (Vector3_lengthsq(&normals[i]) <= 0.000001f) {
+            normals[i] = (VECTOR3){ 0.0f, 0.0f, 1.0f };
+            continue;
+        }
+        Vector3_normalize(&normals[i]);
+    }
 }
 
 static void Wow_PushTerrainVertex(VERTEX *vertices,
                                   LPDWORD index,
                                   wowVec3_t pos,
                                   float const *heights,
-                                  BYTE const *normals,
+                                  LPCVECTOR3 normal,
                                   int height_index,
                                   COLOR32 color) {
     VECTOR3 p = Wow_McvtPoint(pos, heights, height_index);
@@ -739,7 +791,7 @@ static void Wow_PushTerrainVertex(VERTEX *vertices,
     float u = coords.x / WOW_ADT_UNIT_SIZE;
     float v = coords.y / WOW_ADT_UNIT_SIZE;
     VERTEX vertex = Wow_Vertex(p.x, p.y, p.z, u, v, color);
-    vertex.normal = Wow_NormalAtHeightIndex(normals, height_index);
+    vertex.normal = *normal;
     vertices[(*index)++] = vertex;
 }
 
@@ -755,14 +807,15 @@ static void Wow_AddTerrainCell(VERTEX *vertices,
                                LPDWORD index,
                                wowVec3_t pos,
                                float const *heights,
-                               BYTE const *normals,
+                               VECTOR3 const normals[WOW_MCVT_COUNT],
                                int x,
                                int y,
                                COLOR32 color) {
     static BYTE const tri[] = { 9, 0, 17, 9, 1, 0, 9, 18, 1, 9, 17, 18 };
     int base = y * 17 + x;
     FOR_LOOP(i, sizeof(tri) / sizeof(tri[0])) {
-        Wow_PushTerrainVertex(vertices, index, pos, heights, normals, base + tri[i], color);
+        int height_index = base + tri[i];
+        Wow_PushTerrainVertex(vertices, index, pos, heights, &normals[height_index], height_index, color);
     }
 }
 
@@ -949,6 +1002,7 @@ static void Wow_AddAdtChunk(wowVec3_t pos,
     DWORD slot_texture_ids[4] = { 0, 0, 0, 0 };
     DWORD unique_layer_count = Wow_BuildUniqueTextureSlots(layers, layer_count, slot_texture_ids);
     DWORD effective_layers = MAX(1, MIN(unique_layer_count ? unique_layer_count : layer_count, 4));
+    VECTOR3 derived_normals[WOW_MCVT_COUNT];
     VERTEX *vertices;
     DWORD num_vertices = 0;
     wowAdtChunk_t *chunk;
@@ -956,16 +1010,27 @@ static void Wow_AddAdtChunk(wowVec3_t pos,
     if (!heights) {
         return;
     }
+    (void)normals;
 
     vertices = ri.MemAlloc(sizeof(VERTEX) * MAX_VERTICES);
     if (!vertices) {
         return;
     }
 
+    memset(derived_normals, 0, sizeof(derived_normals));
     FOR_LOOP(y, 8) {
         FOR_LOOP(x, 8) {
             if (WOW_IGNORE_TERRAIN_HOLES || !Wow_IsHole(holes, x, y)) {
-                Wow_AddTerrainCell(vertices, &num_vertices, pos, heights, normals, x, y, color);
+                Wow_AccumulateTerrainCellNormals(derived_normals, pos, heights, x, y);
+            }
+        }
+    }
+    Wow_NormalizeTerrainNormals(derived_normals);
+
+    FOR_LOOP(y, 8) {
+        FOR_LOOP(x, 8) {
+            if (WOW_IGNORE_TERRAIN_HOLES || !Wow_IsHole(holes, x, y)) {
+                Wow_AddTerrainCell(vertices, &num_vertices, pos, heights, derived_normals, x, y, color);
             }
         }
     }
@@ -2033,12 +2098,15 @@ void R_RegisterMap(LPCSTR mapFileName) {
 }
 
 void R_DrawWorld(void) {
-    static GLfloat const identity[16] = {
-        1.0f, 0.0f, 0.0f, 0.0f,
-        0.0f, 1.0f, 0.0f, 0.0f,
-        0.0f, 0.0f, 1.0f, 0.0f,
-        0.0f, 0.0f, 0.0f, 1.0f,
+    static MATRIX4 const identity = {
+        .v = {
+            1.0f, 0.0f, 0.0f, 0.0f,
+            0.0f, 1.0f, 0.0f, 0.0f,
+            0.0f, 0.0f, 1.0f, 0.0f,
+            0.0f, 0.0f, 0.0f, 1.0f,
+        },
     };
+    MATRIX3 normal_matrix;
     wowAdtChunk_t *chunk;
     DWORD drawn_doodads = 0;
     DWORD drawn_wmo_groups = 0;
@@ -2070,8 +2138,11 @@ void R_DrawWorld(void) {
     }
 
     R_Call(glUseProgram, wow_terrain_shader->progid);
+    Matrix3_normal(&normal_matrix, &identity);
     R_Call(glUniformMatrix4fv, wow_terrain_shader->uViewProjectionMatrix, 1, GL_FALSE, tr.viewDef.viewProjectionMatrix.v);
-    R_Call(glUniformMatrix4fv, wow_terrain_shader->uModelMatrix, 1, GL_FALSE, identity);
+    R_Call(glUniformMatrix4fv, wow_terrain_shader->uModelMatrix, 1, GL_FALSE, identity.v);
+    R_Call(glUniformMatrix4fv, wow_terrain_shader->uLightMatrix, 1, GL_FALSE, tr.viewDef.lightMatrix.v);
+    R_Call(glUniformMatrix3fv, wow_terrain_shader->uNormalMatrix, 1, GL_TRUE, normal_matrix.v);
     R_Call(glUniform1i, wow_uUseWeightedBlend, wow_world.use_weighted_blend ? 1 : 0);
     R_Call(glEnable, GL_DEPTH_TEST);
     R_Call(glDepthMask, GL_TRUE);
@@ -2096,7 +2167,9 @@ void R_DrawWorld(void) {
         if (!wmo->model || !wmo->model->groups) {
             continue;
         }
+        Matrix3_normal(&normal_matrix, &wmo->matrix);
         R_Call(glUniformMatrix4fv, wow_terrain_shader->uModelMatrix, 1, GL_FALSE, wmo->matrix.v);
+        R_Call(glUniformMatrix3fv, wow_terrain_shader->uNormalMatrix, 1, GL_TRUE, normal_matrix.v);
         R_Call(glUniform1i, wow_uUseWeightedBlend, 0);
         R_Call(glUniform2f, wow_uAlphaOrigin, 0.0f, 0.0f);
         FOR_LOOP(group_index, wmo->model->num_groups) {
@@ -2119,7 +2192,9 @@ void R_DrawWorld(void) {
             }
         }
     }
-    R_Call(glUniformMatrix4fv, wow_terrain_shader->uModelMatrix, 1, GL_FALSE, identity);
+    Matrix3_normal(&normal_matrix, &identity);
+    R_Call(glUniformMatrix4fv, wow_terrain_shader->uModelMatrix, 1, GL_FALSE, identity.v);
+    R_Call(glUniformMatrix3fv, wow_terrain_shader->uNormalMatrix, 1, GL_TRUE, normal_matrix.v);
     R_Call(glUniform1i, wow_uUseWeightedBlend, wow_world.use_weighted_blend ? 1 : 0);
 
     for (wowDoodadInstance_t *doodad = wow_world.doodads; doodad; doodad = doodad->next) {

@@ -39,6 +39,7 @@ typedef struct {
 typedef struct {
     VECTOR3 origin;
     LPCMODEL model;
+    LPCMODEL attached_model;
     LPCTEXTURE skin;
     LPCTEXTURE splat;
     LPCTEXTURE shadow;

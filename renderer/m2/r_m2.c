@@ -84,6 +84,13 @@ typedef struct {
 } m2Range_t;
 
 typedef struct {
+    DWORD attachment_id;
+    WORD bone_index;
+    VECTOR3 position;
+    m2Track_t visibility_track;
+} m2Attachment_t;
+
+typedef struct {
     DWORD bone_id;
     DWORD flags;
     WORD parent_index;
@@ -140,6 +147,13 @@ typedef struct {
     m2Array_t texture_transforms_lookup_table;
     m2Box_t bounding_box;
     float bounding_sphere_radius;
+    m2Box_t collision_box;
+    float collision_sphere_radius;
+    m2Array_t collision_indices;
+    m2Array_t collision_positions;
+    m2Array_t collision_normals;
+    m2Array_t attachments;
+    m2Array_t attachment_lookup;
 } m2Header_t;
 
 typedef struct {
@@ -169,6 +183,13 @@ typedef struct {
     m2Array_t texture_transforms_lookup_table;
     m2Box_t bounding_box;
     float bounding_sphere_radius;
+    m2Box_t collision_box;
+    float collision_sphere_radius;
+    m2Array_t collision_indices;
+    m2Array_t collision_positions;
+    m2Array_t collision_normals;
+    m2Array_t attachments;
+    m2Array_t attachment_lookup;
 } m2HeaderLegacy_t;
 
 typedef struct {
@@ -279,6 +300,8 @@ struct m2Model_s {
     DWORD bone_count;
     DWORD sequence_count;
     DWORD bone_lookup_count;
+    m2Array_t attachments;
+    m2Array_t attachment_lookup;
     MATRIX4 *bone_matrices;
 };
 
@@ -362,7 +385,7 @@ static LPCSTR m2_fs =
 #endif
 "uniform sampler2D uFogOfWar;\n"
 "float get_light() {\n"
-"    return dot(v_normal, v_lightDir);\n"
+"    return clamp(dot(v_normal, v_lightDir), 0.0, 1.0);\n"
 "}\n"
 #ifdef USE_SHADOWMAPS
 "float get_shadow() {\n"
@@ -372,9 +395,9 @@ static LPCSTR m2_fs =
 #endif
 "float get_lighting() {\n"
 #ifdef USE_SHADOWMAPS
-"    return min(1.0, mix(0.35, 1.0, get_shadow() * get_light()) * 1.1);"
+"    return mix(0.5, 1.0, get_shadow() * get_light());"
 #else
-"    return min(1.0, mix(0.35, 1.0, get_light()) * 1.1);"
+"    return mix(0.5, 1.0, get_light());"
 #endif
 "}\n"
 "float get_fogofwar() {\n"
@@ -382,6 +405,7 @@ static LPCSTR m2_fs =
 "}\n"
 "void main() {\n"
 "    vec4 col = texture(uTexture, v_texcoord) * v_color;\n"
+"    if (col.a < 0.5) discard;\n"
 "    col.rgb *= get_fogofwar() * get_lighting();\n"
 "    o_color = col;\n"
 "}\n";
@@ -592,6 +616,41 @@ static BOOL M2_DefaultCharacterTexturePath(LPCSTR model_path,
         default:
             return false;
     }
+}
+
+static BOOL M2_DefaultObjectComponentTexturePath(LPCSTR model_path,
+                                                 DWORD texture_type,
+                                                 LPSTR out,
+                                                 DWORD out_size) {
+    LPCSTR filename;
+    size_t stem_len;
+
+    if (!model_path || !out || out_size == 0 || texture_type != 2) {
+        return false;
+    }
+    if (!strcasestr(model_path, "Item\\ObjectComponents\\Weapon\\") &&
+        !strcasestr(model_path, "Item/ObjectComponents/Weapon/")) {
+        return false;
+    }
+
+    filename = strrchr(model_path, '\\');
+    if (!filename) {
+        filename = strrchr(model_path, '/');
+    }
+    filename = filename ? filename + 1 : model_path;
+    stem_len = strcspn(filename, ".");
+
+    if (stem_len == strlen("Axe_1H_Horde_A_01") &&
+        !strncasecmp(filename, "Axe_1H_Horde_A_01", stem_len)) {
+        snprintf(out, out_size, "Item\\ObjectComponents\\Weapon\\Axe_1H_Horde_A_01Gray.blp");
+        return true;
+    }
+    if (stem_len == 0 || stem_len + strlen("Item\\ObjectComponents\\Weapon\\.blp") + 1 > out_size) {
+        return false;
+    }
+
+    snprintf(out, out_size, "Item\\ObjectComponents\\Weapon\\%.*s.blp", (int)stem_len, filename);
+    return true;
 }
 
 static BOOL M2_ArrayRange(m2Array_t array, DWORD elem_size, DWORD file_size, DWORD *offset, DWORD *bytes) {
@@ -1178,11 +1237,14 @@ static void M2_UploadBatchBones(m2Model_t const *model, m2ModelBatch_t const *ba
     R_Call(glUniformMatrix4fv, shader->uBones, M2_MAX_BONES_PER_BATCH, GL_FALSE, palette[0].v);
 }
 
+static BOOL M2_CommonOrcMaleSectionTexture(WORD section_id, LPSTR out, DWORD out_size);
+
 static LPTEXTURE M2_TextureForBatch(BYTE const *m2_data,
                                     DWORD m2_size,
                                     m2GeometryInfo_t const *geom,
                                     m2Batch_t const *batch,
                                     LPCSTR modelFilename,
+                                    WORD section_id,
                                     BOOL use_texture_lookup) {
     SHORT const *texture_lookup;
     m2TextureDisk_t const *texture;
@@ -1192,6 +1254,10 @@ static LPTEXTURE M2_TextureForBatch(BYTE const *m2_data,
 
     if (!geom || !batch || batch->texture_count == 0) {
         return tr.texture[TEX_WHITE];
+    }
+
+    if (M2_CommonOrcMaleSectionTexture(section_id, replacement_path, sizeof(replacement_path))) {
+        return R_LoadTexture(replacement_path);
     }
 
     if (use_texture_lookup) {
@@ -1217,9 +1283,57 @@ static LPTEXTURE M2_TextureForBatch(BYTE const *m2_data,
         if (M2_DefaultCharacterTexturePath(modelFilename, texture[texture_index].type, replacement_path, sizeof(replacement_path))) {
             return R_LoadTexture(replacement_path);
         }
+        if (M2_DefaultObjectComponentTexturePath(modelFilename, texture[texture_index].type, replacement_path, sizeof(replacement_path))) {
+            return R_LoadTexture(replacement_path);
+        }
         return tr.texture[TEX_WHITE];
     }
     return R_LoadTexture(texture_path);
+}
+
+static BOOL M2_CommonOrcMaleSectionTexture(WORD section_id, LPSTR out, DWORD out_size) {
+    LPCSTR texture_path = NULL;
+
+    switch (section_id) {
+        case 401:
+        case 402:
+        case 403:
+        case 404:
+            texture_path = "Item\\TextureComponents\\HandTexture\\Cloth_A_01Brown_Glove_HA_U.blp";
+            break;
+        case 501:
+        case 502:
+        case 503:
+        case 504:
+            texture_path = "Item\\TextureComponents\\FootTexture\\Cloth_A_01Brown_Boot_FO_M.blp";
+            break;
+        case 802:
+        case 803:
+            texture_path = "Item\\TextureComponents\\ArmLowerTexture\\Cloth_A_01Brown_Sleeve_AL_U.blp";
+            break;
+        case 902:
+        case 903:
+            texture_path = "Item\\TextureComponents\\LegLowerTexture\\Cloth_A_01Brown_Pant_LL_M.blp";
+            break;
+        case 1002:
+            texture_path = "Item\\TextureComponents\\TorsoUpperTexture\\Cloth_A_01Brown_Chest_TU_M.blp";
+            break;
+        case 1102:
+        case 1202:
+            texture_path = "Item\\TextureComponents\\TorsoLowerTexture\\Cloth_A_01Brown_Chest_TL_M.blp";
+            break;
+        case 1302:
+            texture_path = "Item\\TextureComponents\\LegUpperTexture\\Cloth_A_01Brown_Pant_LU_M.blp";
+            break;
+        default:
+            break;
+    }
+
+    if (!texture_path || !out || out_size == 0) {
+        return false;
+    }
+    snprintf(out, out_size, "%s", texture_path);
+    return true;
 }
 
 static BOOL M2_SkinPath(LPCSTR model_path, LPSTR out, DWORD out_size) {
@@ -1275,6 +1389,7 @@ static void M2_AddBatch(m2Model_t *model,
                         WORD bone_count,
                         WORD bone_combo_index,
                         m2Batch_t const *batch,
+                        WORD section_id,
                         LPCSTR modelFilename,
                         BOOL use_texture_lookup) {
     VERTEX *vertices;
@@ -1320,7 +1435,7 @@ static void M2_AddBatch(m2Model_t *model,
     render_batch = ri.MemAlloc(sizeof(*render_batch));
     memset(render_batch, 0, sizeof(*render_batch));
     render_batch->buffer = R_MakeVertexArrayObject(vertices, index_count);
-    render_batch->texture = M2_TextureForBatch(m2_data, m2_size, geom, batch, modelFilename, use_texture_lookup);
+    render_batch->texture = M2_TextureForBatch(m2_data, m2_size, geom, batch, modelFilename, section_id, use_texture_lookup);
     render_batch->num_vertices = index_count;
     render_batch->bone_count = bone_count;
     render_batch->bone_combo_index = bone_combo_index;
@@ -1461,31 +1576,26 @@ static BOOL M2_IsCharacterModelPath(LPCSTR model_path) {
 }
 
 static BOOL M2_DefaultCharacterGeosetVisible(WORD section_id) {
-    static WORD const defaults[] = {
-        0,
-        401,
-        501,
-        601,
-        702,
-        801,
-        901,
-        1001,
-        1101,
-        1201,
-        1301,
-        1401,
-        1501,
-        1601,
-        1701,
-        1801
+    static WORD const common_orc_male_outfit[] = {
+        0,    /* base body */
+        401,  /* simple gloves */
+        501,  /* simple boots */
+        702,  /* ears */
+        802,  /* bracers */
+        902,  /* lower-leg clothing */
+        1002, /* chest */
+        1102, /* lower chest */
+        1202, /* shirt/tabard layer */
+        1302, /* belt/upper-leg layer */
+        1501  /* normal pelvis shape */
     };
 
     if (section_id < 400) {
         return true;
     }
 
-    FOR_LOOP(i, sizeof(defaults) / sizeof(defaults[0])) {
-        if (section_id == defaults[i]) {
+    FOR_LOOP(i, sizeof(common_orc_male_outfit) / sizeof(common_orc_male_outfit[0])) {
+        if (section_id == common_orc_male_outfit[i]) {
             return true;
         }
     }
@@ -1533,11 +1643,15 @@ static BOOL M2_CopyModelData(m2Model_t *model, BYTE const *m2_base, DWORD m2_siz
         bones = legacy->bones;
         sequences = legacy->sequences;
         bone_lookup_table = legacy->bone_lookup_table;
+        model->attachments = legacy->attachments;
+        model->attachment_lookup = legacy->attachment_lookup;
     } else {
         model->global_loops = model->header->global_loops;
         bones = model->header->bones;
         sequences = model->header->sequences;
         bone_lookup_table = model->header->bone_lookup_table;
+        model->attachments = model->header->attachments;
+        model->attachment_lookup = model->header->attachment_lookup;
     }
 
     model->bones = M2_ModelArrayPtr(model, bones, model->bone_stride);
@@ -1725,6 +1839,7 @@ m2Model_t *R_LoadModelM2(LPCSTR modelFilename, void *buffer, DWORD size) {
                     bone_count,
                     bone_combo_index,
                     batch,
+                    section_id,
                     modelFilename,
                     true);
     }
@@ -1774,6 +1889,52 @@ void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, LPCMAT
         R_BindTexture(tr.texture[TEX_WHITE], 2);
         R_DrawBuffer(batch->buffer, batch->num_vertices);
     }
+}
+
+BOOL M2_AttachmentMatrix(m2Model_t const *model,
+                         DWORD attachment_id,
+                         LPCMATRIX4 model_matrix,
+                         LPMATRIX4 out) {
+    m2Attachment_t const *attachments;
+    WORD const *lookup;
+    DWORD attachment_index = 0xFFFFu;
+    m2Attachment_t const *attachment;
+    MATRIX4 local;
+
+    if (!model || !model_matrix || !out || !model->bone_matrices || !model->bones) {
+        return false;
+    }
+
+    attachments = M2_ModelArrayPtr(model, model->attachments, sizeof(*attachments));
+    if (!attachments || model->attachments.size <= 0) {
+        return false;
+    }
+
+    lookup = M2_ModelArrayPtr(model, model->attachment_lookup, sizeof(*lookup));
+    if (lookup && attachment_id < (DWORD)model->attachment_lookup.size) {
+        attachment_index = lookup[attachment_id];
+    }
+    if (attachment_index >= (DWORD)model->attachments.size) {
+        FOR_LOOP(i, (DWORD)model->attachments.size) {
+            if (attachments[i].attachment_id == attachment_id) {
+                attachment_index = i;
+                break;
+            }
+        }
+    }
+    if (attachment_index >= (DWORD)model->attachments.size) {
+        return false;
+    }
+
+    attachment = &attachments[attachment_index];
+    if (attachment->bone_index >= model->bone_count) {
+        return false;
+    }
+
+    local = model->bone_matrices[attachment->bone_index];
+    Matrix4_translate(&local, &attachment->position);
+    Matrix4_multiply(model_matrix, &local, out);
+    return true;
 }
 
 FLOAT M2_GroundOffset(m2Model_t const *model) {
