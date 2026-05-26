@@ -67,6 +67,55 @@ static LPCSTR G_RemoveQuotes(LPCSTR text) {
     return out;
 }
 
+static LPCSTR G_AbilityString(LPCSTR classname, LPCSTR field) {
+    return game.config.abilities ? gi.FindSheetCell(game.config.abilities, classname, field) : NULL;
+}
+
+static LPCSTR G_ProcessTooltipString(LPCSTR input) {
+    static char buffers[4][1024];
+    static DWORD cursor;
+    LPSTR out = buffers[cursor++ & 3];
+
+    out[0] = '\0';
+    if (!input) {
+        return out;
+    }
+    for (LPCSTR p = input; *p && strlen(out) < sizeof(buffers[0]) - 1; p++) {
+        if (*p == '<') {
+            char classname[16];
+            char field[16];
+            LPCSTR replacement;
+            int matched = sscanf(p, "<%15[^,],%15[^>]>", classname, field);
+
+            if (matched == 2 && (replacement = G_AbilityString(classname, field))) {
+                strncat(out, replacement, sizeof(buffers[0]) - strlen(out) - 1);
+                p += strlen(classname) + strlen(field) + 2;
+                continue;
+            }
+        }
+        strncat(out, p, 1);
+    }
+    return out;
+}
+
+static LPCSTR G_StringForLevel(LPCSTR text, DWORD level) {
+    if (!text || level == 0) {
+        return text;
+    }
+    PARSE_LIST(text, perlevel, parse_segment) {
+        if (level > 1) {
+            level--;
+        } else {
+            return perlevel;
+        }
+    }
+    return text;
+}
+
+static LPCSTR G_CleanTooltipString(LPCSTR text, DWORD level) {
+    return G_RemoveQuotes(G_ProcessTooltipString(G_StringForLevel(text, level)));
+}
+
 static LPCSTR G_CommandArtPath(LPCSTR art) {
     if (!art || !*art) {
         return art;
@@ -104,8 +153,8 @@ BOOL G_BuildCommandButton(LPEDICT ent, LPCSTR code, BOOL research, DWORD level, 
     }
 
     G_CopyString(button->art, sizeof(button->art), art_path);
-    G_CopyString(button->tooltip, sizeof(button->tooltip), G_RemoveQuotes(tip));
-    G_CopyString(button->ubertip, sizeof(button->ubertip), G_RemoveQuotes(ubertip));
+    G_CopyString(button->tooltip, sizeof(button->tooltip), G_CleanTooltipString(tip, level));
+    G_CopyString(button->ubertip, sizeof(button->ubertip), G_CleanTooltipString(ubertip, level));
     G_CopyString(button->command, sizeof(button->command), code);
     button->hotkey = hotkey && *hotkey ? *hotkey : '\0';
     button->x = x == UINT_MAX ? 255 : (BYTE)MIN(x, 3);
@@ -210,8 +259,10 @@ BYTE G_GetInventory(LPEDICT ent, gameInventoryItem_t *items, BYTE max_items) {
         }
         LPCSTR item_name = GetClassName(item->class_id);
         G_CopyString(items[count].art, sizeof(items[count].art), FindConfigValue(item_name, STR_ART));
-        G_CopyString(items[count].tooltip, sizeof(items[count].tooltip), FindConfigValue(item_name, STR_TIP));
-        G_CopyString(items[count].ubertip, sizeof(items[count].ubertip), FindConfigValue(item_name, STR_UBERTIP));
+        G_CopyString(items[count].tooltip, sizeof(items[count].tooltip),
+                     G_RemoveQuotes(FindConfigValue(item_name, STR_TIP)));
+        G_CopyString(items[count].ubertip, sizeof(items[count].ubertip),
+                     G_RemoveQuotes(FindConfigValue(item_name, STR_UBERTIP)));
         items[count].slot = slot;
         count++;
     }

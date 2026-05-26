@@ -155,9 +155,6 @@ drawText_t SCR_GetDrawText(LPCUIFRAME frame,
                          LPCSTR text,
                          uiLabel_t const *label);
 void SCR_UpdateScreen(DWORD msec);
-void SCR_DrawOverlays(void);
-void SCR_TextInput(LPCSTR text);
-BOOL SCR_EditKey(int key);
 
 // cl_input.c
 void CL_Input(void);

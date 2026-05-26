@@ -23,6 +23,17 @@
 #define MAX_COMMAND_BUTTONS 12
 #define MAX_INVENTORY_SLOTS 6
 #define MAX_BUILD_QUEUE_ITEMS 7
+#define MAX_LAYOUT_LAYERS 16
+
+typedef enum {
+    UI_CLIENT_MOUSE_NONE,
+    UI_CLIENT_MOUSE_LEFT_DOWN,
+    UI_CLIENT_MOUSE_LEFT_UP,
+    UI_CLIENT_MOUSE_LEFT_DRAGGED,
+    UI_CLIENT_MOUSE_RIGHT_DOWN,
+    UI_CLIENT_MOUSE_RIGHT_UP,
+    UI_CLIENT_MOUSE_RIGHT_DRAGGED,
+} uiClientMouseEvent_t;
 
 typedef struct {
     char art[256];        /* Button icon path */
@@ -125,6 +136,22 @@ typedef struct {
     LPCENTITYSTATE (*GetEntity)(DWORD idx);     /* &cl.ents[idx].current */
     LPCMODEL (*GetModel)(DWORD idx);            /* cl.models[idx] */
     LPCMODEL (*GetPortrait)(DWORD idx);         /* cl.portraits[idx] */
+    LPCTEXTURE (*GetTexture)(DWORD idx);        /* cl.pics[idx] */
+    LPCTEXTURE *(*GetTextures)(void);           /* cl.pics, for inline text icons */
+    LPCFONT (*GetFont)(DWORD idx);              /* cl.fonts[idx] */
+    DWORD (*GetClientTime)(void);               /* cl.time */
+    VECTOR2 (*GetMouseFdf)(void);               /* current mouse in Warcraft UI coords */
+    DWORD (*GetMouseButton)(void);
+    uiClientMouseEvent_t (*GetMouseEvent)(void);
+    LPCUIFRAME (*LayoutClear)(HANDLE data);
+    DWORD (*LayoutNumFrames)(void);
+    LPUIFRAME (*LayoutFrame)(DWORD number);
+    LPCRECT (*LayoutRect)(LPCUIFRAME frame);
+    LPCSTR (*LayoutStringValue)(LPCUIFRAME frame);
+    drawText_t (*LayoutDrawText)(LPCUIFRAME frame,
+                                 FLOAT avl_width,
+                                 LPCSTR text,
+                                 uiLabel_t const *label);
     
     /* Unit UI data requests (for command card, inventory, build queue) */
     void (*RequestUnitUI)(DWORD num_selected, DWORD *entity_nums);
@@ -157,6 +184,11 @@ typedef struct {
     
     /* Unit UI data updates (Phase 8: HUD migration) */
     void (*UpdateUnitUI)(DWORD num_units, uiUnitData_t *units);
+
+    /* Server-authored layout layers decoded by the generic client. */
+    void (*SetLayoutLayer)(DWORD layer, HANDLE data);
+    void (*ClearLayoutLayer)(DWORD layer);
+    BOOL (*HitTestLayout)(int x, int y);
 } uiExport_t;
 
 /* Entry point called by the client to get the UI function table.

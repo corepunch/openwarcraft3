@@ -142,6 +142,8 @@ void UI_TextInputLocal(LPCSTR text) {
     char filtered[256];
     DWORD out = 0;
 
+    UI_LayoutTextInput(text);
+
     if (!active_edit || !text) {
         return;
     }

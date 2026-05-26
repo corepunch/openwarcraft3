@@ -10,6 +10,8 @@
 #include "g_local.h"
 
 #define HUD_FONT_SIZE 10
+#define HUD_SMALL_FONT_SIZE 8
+#define HUD_TITLE_FONT_SIZE 12
 #define UI_BASE_WIDTH 0.8f
 #define UI_BASE_HEIGHT 0.6f
 
@@ -50,8 +52,36 @@
 #define MULTISELECT_X 0.314f
 #define MULTISELECT_Y 0.500f
 #define MULTISELECT_SIZE 0.025f
+#define TOOLTIP_X 0.5800f
+#define TOOLTIP_Y 0.3400f
+#define TOOLTIP_W 0.2200f
+#define TOOLTIP_H 0.1000f
+#define QUEST_X 0.1500f
+#define QUEST_Y 0.0700f
+#define QUEST_W 0.5000f
+#define QUEST_H 0.4050f
+#define QUEST_LIST_X (QUEST_X + 0.0200f)
+#define QUEST_LIST_Y (QUEST_Y + 0.0950f)
+#define QUEST_LIST_W 0.1800f
+#define QUEST_ROW_H 0.0180f
+#define QUEST_DETAIL_X (QUEST_X + 0.2250f)
+#define QUEST_DETAIL_Y (QUEST_Y + 0.0950f)
+#define QUEST_DETAIL_W 0.2500f
+#define QUEST_MESSAGE_X 0.0500f
+#define QUEST_MESSAGE_Y 0.3000f
+#define QUEST_MESSAGE_W 0.3000f
+#define QUEST_MESSAGE_H 0.1450f
 static DWORD ui_next_frame_number;
 static LPGAMECLIENT ui_current_client;
+
+static void UI_WriteCommandButtonFrame(gameCommandButton_t const *button);
+
+static LPCSTR UI_LevelStringSafe(LPCSTR text) {
+    if (!text || !*text) {
+        return " ";
+    }
+    return G_LevelString(text);
+}
 
 void UI_SetCurrentClient(LPGAMECLIENT client) {
     ui_current_client = client;
@@ -99,6 +129,158 @@ static void UI_WriteTextFrame(FLOAT x, FLOAT y, FLOAT w, FLOAT h, LPCSTR text, C
     UI_WriteProxyFrame(&frame, &label, sizeof(label));
 }
 
+static void UI_WriteTextFrameSized(FLOAT x, FLOAT y, FLOAT w, FLOAT h, LPCSTR text, COLOR32 color,
+                                   uiFontJustificationH_t align, DWORD font_size) {
+    uiFrame_t frame;
+    uiLabel_t label;
+
+    memset(&frame, 0, sizeof(frame));
+    memset(&label, 0, sizeof(label));
+    frame.flags.type = FT_STRING;
+    frame.text = text && *text ? text : " ";
+    frame.color = color;
+    label.font = gi.FontIndex("Fonts\\FRIZQT__.TTF", font_size);
+    label.textalignx = align;
+    label.textaligny = FONT_JUSTIFYTOP;
+    UI_SetFrameRect(&frame, x, y, w, h);
+    UI_WriteProxyFrame(&frame, &label, sizeof(label));
+}
+
+static void UI_WriteCommandTextFrame(FLOAT x, FLOAT y, FLOAT w, FLOAT h, LPCSTR text, LPCSTR command,
+                                     COLOR32 color, uiFontJustificationH_t align, DWORD font_size) {
+    uiFrame_t frame;
+    uiLabel_t label;
+
+    memset(&frame, 0, sizeof(frame));
+    memset(&label, 0, sizeof(label));
+    frame.flags.type = FT_STRING;
+    frame.text = text && *text ? text : " ";
+    frame.onclick = command;
+    frame.color = color;
+    label.font = gi.FontIndex("Fonts\\FRIZQT__.TTF", font_size);
+    label.textalignx = align;
+    label.textaligny = FONT_JUSTIFYTOP;
+    UI_SetFrameRect(&frame, x, y, w, h);
+    UI_WriteProxyFrame(&frame, &label, sizeof(label));
+}
+
+static void UI_WriteBackdropFrame(FLOAT x, FLOAT y, FLOAT w, FLOAT h, LPCSTR background, LPCSTR edge) {
+    uiFrame_t frame;
+    uiBackdrop_t backdrop;
+
+    memset(&frame, 0, sizeof(frame));
+    memset(&backdrop, 0, sizeof(backdrop));
+    frame.flags.type = FT_BACKDROP;
+    frame.color = MAKE(COLOR32, 255, 255, 255, 235);
+    backdrop.Background = gi.ImageIndex(Theme_String(background, background));
+    backdrop.EdgeFile = gi.ImageIndex(Theme_String(edge, edge));
+    backdrop.CornerFlags = 0x1ff;
+    backdrop.CornerSize = 0.008f;
+    backdrop.BackgroundSize = 0.036f;
+    backdrop.BackgroundInsets[0] = 0.0025f;
+    backdrop.BackgroundInsets[1] = 0.0025f;
+    backdrop.BackgroundInsets[2] = 0.0025f;
+    backdrop.BackgroundInsets[3] = 0.0025f;
+    backdrop.TileBackground = true;
+    backdrop.BlendAll = true;
+    UI_SetFrameRect(&frame, x, y, w, h);
+    UI_WriteProxyFrame(&frame, &backdrop, sizeof(backdrop));
+}
+
+static void UI_WriteTextAreaFrame(FLOAT x, FLOAT y, FLOAT w, FLOAT h, LPCSTR text, COLOR32 color,
+                                  DWORD font_size, FLOAT inset) {
+    uiFrame_t frame;
+    uiTextArea_t textarea;
+
+    memset(&frame, 0, sizeof(frame));
+    memset(&textarea, 0, sizeof(textarea));
+    frame.flags.type = FT_TEXTAREA;
+    frame.text = text && *text ? text : " ";
+    frame.color = color;
+    textarea.font = gi.FontIndex(Theme_String("MessageFont", "Fonts\\FRIZQT__.TTF"), font_size);
+    textarea.inset = inset;
+    UI_SetFrameRect(&frame, x, y, w, h);
+    UI_WriteProxyFrame(&frame, &textarea, sizeof(textarea));
+}
+
+static void UI_WriteTooltipFrame(void) {
+    uiFrame_t frame;
+    uiTooltip_t tooltip;
+
+    memset(&frame, 0, sizeof(frame));
+    memset(&tooltip, 0, sizeof(tooltip));
+    frame.flags.type = FT_TOOLTIPTEXT;
+    frame.color = COLOR32_WHITE;
+    tooltip.background.Background = gi.ImageIndex(Theme_String("ToolTipBackground", "ToolTipBackground"));
+    tooltip.background.EdgeFile = gi.ImageIndex(Theme_String("ToolTipBorder", "ToolTipBorder"));
+    tooltip.background.CornerFlags = 0x1ff;
+    tooltip.background.CornerSize = 0.008f;
+    tooltip.background.BackgroundSize = 0.036f;
+    tooltip.background.BackgroundInsets[0] = 0.0025f;
+    tooltip.background.BackgroundInsets[1] = 0.0025f;
+    tooltip.background.BackgroundInsets[2] = 0.0025f;
+    tooltip.background.BackgroundInsets[3] = 0.0025f;
+    tooltip.background.TileBackground = true;
+    tooltip.background.BlendAll = true;
+    tooltip.text.font = gi.FontIndex(Theme_String("MasterFont", "Fonts\\FRIZQT__.TTF"), HUD_FONT_SIZE);
+    tooltip.text.textalignx = FONT_JUSTIFYLEFT;
+    tooltip.text.textaligny = FONT_JUSTIFYTOP;
+    UI_SetFrameRect(&frame, TOOLTIP_X, TOOLTIP_Y, TOOLTIP_W, TOOLTIP_H);
+    UI_WriteProxyFrame(&frame, &tooltip, sizeof(tooltip));
+}
+
+static void UI_AppendMessageText(LPSTR out, DWORD out_size, LPCSTR text) {
+    if (!out || out_size == 0 || !text) {
+        return;
+    }
+    strncat(out, text, out_size - strlen(out) - 1);
+}
+
+static LPCSTR UI_FormatMessageText(LPCSTR text) {
+    static char buffers[4][1024];
+    static DWORD cursor;
+    char temp[1024];
+    LPSTR out = buffers[cursor++ & 3];
+    LPCSTR source = text && *text ? text : " ";
+    BOOL quest_message = strstr(source, "MAIN QUEST") || strstr(source, "OPTIONAL QUEST");
+    BOOL inserted_heading_break = false;
+    LPCSTR heading = quest_message ? strstr(source, "QUEST") : NULL;
+
+    temp[0] = '\0';
+    out[0] = '\0';
+
+    for (LPCSTR p = source; *p && strlen(temp) < sizeof(temp) - 1;) {
+        if (quest_message && p[0] == ' ' && p[1] == '-' && p[2] == ' ') {
+            UI_AppendMessageText(temp, sizeof(temp), "|n- ");
+            p += 3;
+            continue;
+        }
+        strncat(temp, p, 1);
+        p++;
+    }
+
+    source = temp;
+    heading = quest_message ? strstr(source, "QUEST") : NULL;
+    for (LPCSTR p = source; *p && strlen(out) < sizeof(buffers[0]) - 1;) {
+        if (quest_message && !inserted_heading_break && heading &&
+            (p == heading + 5 || (!strncmp(p, "|r", 2) && p > heading))) {
+            if (!strncmp(p, "|r", 2)) {
+                UI_AppendMessageText(out, sizeof(buffers[0]), "|r");
+                p += 2;
+            }
+            if (strncmp(p, "|n", 2) && *p != '\n') {
+                UI_AppendMessageText(out, sizeof(buffers[0]), "|n");
+            }
+            inserted_heading_break = true;
+            continue;
+        }
+        strncat(out, p, 1);
+        p++;
+    }
+
+    return out;
+}
+
 static void UI_WriteServerConsoleShell(LPEDICT ent) {
     if (!ent) {
         return;
@@ -108,10 +290,13 @@ static void UI_WriteServerConsoleShell(LPEDICT ent) {
     gi.WriteByte(LAYER_CONSOLE);
     ui_next_frame_number = 1;
 
-    UI_WriteTextFrame(0.004f, 0.006f, 0.085f, 0.014f, "Quests (F9)", COLOR32_WHITE, FONT_JUSTIFYCENTER);
-    UI_WriteTextFrame(0.089f, 0.006f, 0.085f, 0.014f, "Menu (F10)", COLOR32_WHITE, FONT_JUSTIFYCENTER);
+    UI_WriteCommandTextFrame(0.004f, 0.006f, 0.085f, 0.014f, "Quests (F9)", "quests",
+                             COLOR32_WHITE, FONT_JUSTIFYCENTER, HUD_FONT_SIZE);
+    UI_WriteCommandTextFrame(0.089f, 0.006f, 0.085f, 0.014f, "Menu (F10)", "menu",
+                             COLOR32_WHITE, FONT_JUSTIFYCENTER, HUD_FONT_SIZE);
     UI_WriteTextFrame(0.174f, 0.006f, 0.085f, 0.014f, "Allies (F11)", COLOR32_WHITE, FONT_JUSTIFYCENTER);
     UI_WriteTextFrame(0.259f, 0.006f, 0.085f, 0.014f, "Chat (F12)", COLOR32_WHITE, FONT_JUSTIFYCENTER);
+    UI_WriteTooltipFrame();
 
     gi.WriteLong(0);
     gi.WriteShort(0);
@@ -150,10 +335,6 @@ static RECT UI_InventoryButtonRect(BYTE slot) {
 
 static void UI_WriteCommandButton(LPCSTR code, BOOL research, DWORD level) {
     gameCommandButton_t buttons[1];
-    uiFrame_t frame;
-    RECT rect;
-    char onclick[128];
-    LPCSTR command = code;
     LPEDICT ent = G_GetMainSelectedUnit(ui_current_client);
 
     if (!ent || !code || !*code) {
@@ -163,17 +344,57 @@ static void UI_WriteCommandButton(LPCSTR code, BOOL research, DWORD level) {
         return;
     }
 
-    rect = UI_CommandButtonRect(buttons[0].x, buttons[0].y);
-    memset(&frame, 0, sizeof(frame));
-    frame.flags.type = FT_COMMANDBUTTON;
-    frame.color = COLOR32_WHITE;
-    frame.tex.index = gi.ImageIndex(buttons[0].art);
-    frame.stat = buttons[0].active;
-    frame.tooltip = buttons[0].ubertip[0] ? buttons[0].ubertip : buttons[0].tooltip;
-    snprintf(onclick, sizeof(onclick), "%s %s", research ? "research" : "button", command);
-    frame.onclick = onclick;
-    UI_SetFrameRect(&frame, rect.x, rect.y, rect.w, rect.h);
-    UI_WriteProxyFrame(&frame, NULL, 0);
+    UI_WriteCommandButtonFrame(buttons);
+}
+
+static DWORD UI_ClassIdFromCode(LPCSTR code) {
+    DWORD class_id = 0;
+
+    if (IS_FOURCC(code)) {
+        memcpy(&class_id, code, sizeof(class_id));
+    }
+    return class_id;
+}
+
+static void UI_FormatTooltip(LPCSTR code,
+                             LPCSTR tip,
+                             LPCSTR ubertip,
+                             LPSTR out,
+                             DWORD out_size) {
+    DWORD class_id = UI_ClassIdFromCode(code);
+    DWORD gold_cost = class_id ? UNIT_GOLD_COST(class_id) : 0;
+    DWORD lumber_cost = class_id ? UNIT_LUMBER_COST(class_id) : 0;
+    DWORD food_cost = class_id ? UNIT_FOOD_USED(class_id) : 0;
+    DWORD gold_icon = 0;
+    DWORD lumber_icon = 0;
+    DWORD supply_icon = 0;
+
+    if (!out || out_size == 0) {
+        return;
+    }
+    out[0] = '\0';
+    snprintf(out, out_size, "%s", tip && *tip ? tip : " ");
+    if (gold_cost || lumber_cost || food_cost) {
+        gold_icon = gi.ImageIndex(Theme_String("ToolTipGoldIcon", "ToolTipGoldIcon"));
+        lumber_icon = gi.ImageIndex(Theme_String("ToolTipLumberIcon", "ToolTipLumberIcon"));
+        supply_icon = gi.ImageIndex(Theme_String("ToolTipSupplyIcon", "ToolTipSupplyIcon"));
+        snprintf(out + strlen(out), out_size - strlen(out), "|n");
+        if (gold_cost) {
+            snprintf(out + strlen(out), out_size - strlen(out), "<Icon,%u> %u   ",
+                     (unsigned)gold_icon, (unsigned)gold_cost);
+        }
+        if (lumber_cost) {
+            snprintf(out + strlen(out), out_size - strlen(out), "<Icon,%u> %u   ",
+                     (unsigned)lumber_icon, (unsigned)lumber_cost);
+        }
+        if (food_cost) {
+            snprintf(out + strlen(out), out_size - strlen(out), "<Icon,%u> %u   ",
+                     (unsigned)supply_icon, (unsigned)food_cost);
+        }
+    }
+    if (ubertip && *ubertip) {
+        snprintf(out + strlen(out), out_size - strlen(out), "|n%s", ubertip);
+    }
 }
 
 void UI_ClearLayer(LPEDICT ent, DWORD layer) {
@@ -249,6 +470,33 @@ static void UI_WriteInventory(LPEDICT ent) {
         UI_SetFrameRect(&frame, rect.x, rect.y, rect.w, rect.h);
         UI_WriteProxyFrame(&frame, NULL, 0);
     }
+}
+
+static void UI_WriteCommandButtonFrame(gameCommandButton_t const *button) {
+    uiFrame_t frame;
+    RECT rect;
+    char onclick[128];
+    char tooltip[1024];
+
+    if (!button) {
+        return;
+    }
+    rect = UI_CommandButtonRect(button->x, button->y);
+    memset(&frame, 0, sizeof(frame));
+    frame.flags.type = FT_COMMANDBUTTON;
+    frame.color = COLOR32_WHITE;
+    frame.tex.index = gi.ImageIndex(button->art);
+    frame.stat = button->active;
+    UI_FormatTooltip(button->command,
+                     button->tooltip,
+                     button->ubertip,
+                     tooltip,
+                     sizeof(tooltip));
+    frame.tooltip = tooltip;
+    snprintf(onclick, sizeof(onclick), "%s %s", button->research ? "research" : "button", button->command);
+    frame.onclick = onclick;
+    UI_SetFrameRect(&frame, rect.x, rect.y, rect.w, rect.h);
+    UI_WriteProxyFrame(&frame, NULL, 0);
 }
 
 static void UI_WriteBuildQueue(LPEDICT ent) {
@@ -372,20 +620,7 @@ void Get_Commands_f(LPEDICT ent) {
     ui_next_frame_number = 1;
     count = G_GetCommandButtons(selected, buttons, 12);
     FOR_LOOP(i, count) {
-        RECT rect = UI_CommandButtonRect(buttons[i].x, buttons[i].y);
-        uiFrame_t frame;
-        char onclick[128];
-
-        memset(&frame, 0, sizeof(frame));
-        frame.flags.type = FT_COMMANDBUTTON;
-        frame.color = COLOR32_WHITE;
-        frame.tex.index = gi.ImageIndex(buttons[i].art);
-        frame.stat = buttons[i].active;
-        frame.tooltip = buttons[i].ubertip[0] ? buttons[i].ubertip : buttons[i].tooltip;
-        snprintf(onclick, sizeof(onclick), "%s %s", buttons[i].research ? "research" : "button", buttons[i].command);
-        frame.onclick = onclick;
-        UI_SetFrameRect(&frame, rect.x, rect.y, rect.w, rect.h);
-        UI_WriteProxyFrame(&frame, NULL, 0);
+        UI_WriteCommandButtonFrame(&buttons[i]);
     }
     gi.WriteLong(0);
     gi.WriteShort(0);
@@ -439,17 +674,225 @@ void Get_Portrait_f(LPEDICT ent) {
     gi.unicast(ent);
 }
 
-/* Legacy quest/menu hooks not yet ported to generated proxy frames. */
-void UI_ShowQuests(LPEDICT ent) { (void)ent; }
-void UI_ShowQuest(LPEDICT ent, LPCQUEST quest) { (void)ent; (void)quest; }
-void UI_HideQuests(LPEDICT ent) { (void)ent; }
+static DWORD UI_QuestIndex(LPCQUEST quest) {
+    DWORD index = 0;
+
+    FOR_EACH_LIST(QUEST, q, level.quests) {
+        if (q == quest) {
+            return index;
+        }
+        index++;
+    }
+    return index;
+}
+
+static DWORD UI_WriteQuestList(BOOL required, LPCQUEST selected, FLOAT x, FLOAT y) {
+    DWORD row = 0;
+
+    FOR_EACH_LIST(QUEST, quest, level.quests) {
+        char text[256];
+        char command[64];
+        COLOR32 color;
+
+        if (quest->required != required) {
+            continue;
+        }
+        if (quest->discovered) {
+            snprintf(text, sizeof(text), "%s%s",
+                     quest == selected ? "> " : "  ",
+                     UI_LevelStringSafe(quest->title));
+        } else {
+            snprintf(text, sizeof(text), "%sUndiscovered Quest", quest == selected ? "> " : "  ");
+        }
+        color = quest == selected ? MAKE(COLOR32, 252, 210, 18, 255) : COLOR32_WHITE;
+        snprintf(command, sizeof(command), "quest %u", (unsigned)UI_QuestIndex(quest));
+        UI_WriteCommandTextFrame(x,
+                                 y + row * QUEST_ROW_H,
+                                 QUEST_LIST_W,
+                                 QUEST_ROW_H,
+                                 text,
+                                 command,
+                                 color,
+                                 FONT_JUSTIFYLEFT,
+                                 HUD_SMALL_FONT_SIZE);
+        row++;
+    }
+    return row;
+}
+
+static void UI_WriteQuestItems(LPCQUEST quest, FLOAT x, FLOAT y) {
+    DWORD row = 0;
+
+    if (!quest) {
+        return;
+    }
+    FOR_EACH_LIST(QUESTITEM, item, quest->items) {
+        char text[512];
+
+        snprintf(text, sizeof(text), "%s %s",
+                 item->completed ? "- |cff80ff80" : "-",
+                 UI_LevelStringSafe(item->description));
+        UI_WriteTextFrameSized(x,
+                               y + row * QUEST_ROW_H,
+                               QUEST_DETAIL_W,
+                               QUEST_ROW_H,
+                               text,
+                               COLOR32_WHITE,
+                               FONT_JUSTIFYLEFT,
+                               HUD_SMALL_FONT_SIZE);
+        row++;
+    }
+}
+
+void UI_ShowQuest(LPEDICT ent, LPCQUEST quest) {
+    char title[256];
+    LPCSTR subtitle;
+
+    if (!ent || !quest || !quest->discovered) {
+        return;
+    }
+
+    gi.WriteByte(svc_layout);
+    gi.WriteByte(LAYER_QUESTDIALOG);
+    ui_next_frame_number = 1;
+
+    UI_WriteBackdropFrame(QUEST_X, QUEST_Y, QUEST_W, QUEST_H, "ToolTipBackground", "ToolTipBorder");
+
+    title[0] = '\0';
+    if (level.mapinfo && level.mapinfo->loadingScreenTitle && *level.mapinfo->loadingScreenTitle) {
+        snprintf(title, sizeof(title), "%s", UI_LevelStringSafe(level.mapinfo->loadingScreenTitle));
+    } else {
+        snprintf(title, sizeof(title), "Quests");
+    }
+    subtitle = level.mapinfo && level.mapinfo->loadingScreenSubtitle && *level.mapinfo->loadingScreenSubtitle
+             ? UI_LevelStringSafe(level.mapinfo->loadingScreenSubtitle)
+             : "Quest Log";
+
+    UI_WriteTextFrameSized(QUEST_X,
+                           QUEST_Y + 0.020f,
+                           QUEST_W,
+                           0.024f,
+                           title,
+                           MAKE(COLOR32, 252, 210, 18, 255),
+                           FONT_JUSTIFYCENTER,
+                           HUD_TITLE_FONT_SIZE);
+    UI_WriteTextFrameSized(QUEST_X,
+                           QUEST_Y + 0.046f,
+                           QUEST_W,
+                           0.018f,
+                           subtitle,
+                           COLOR32_WHITE,
+                           FONT_JUSTIFYCENTER,
+                           HUD_FONT_SIZE);
+
+    UI_WriteTextFrameSized(QUEST_LIST_X,
+                           QUEST_Y + 0.073f,
+                           QUEST_LIST_W,
+                           0.018f,
+                           "Required",
+                           MAKE(COLOR32, 252, 210, 18, 255),
+                           FONT_JUSTIFYLEFT,
+                           HUD_FONT_SIZE);
+    UI_WriteQuestList(true, quest, QUEST_LIST_X, QUEST_LIST_Y);
+    UI_WriteTextFrameSized(QUEST_LIST_X,
+                           QUEST_LIST_Y + 0.150f,
+                           QUEST_LIST_W,
+                           0.018f,
+                           "Optional",
+                           MAKE(COLOR32, 252, 210, 18, 255),
+                           FONT_JUSTIFYLEFT,
+                           HUD_FONT_SIZE);
+    UI_WriteQuestList(false, quest, QUEST_LIST_X, QUEST_LIST_Y + 0.172f);
+
+    UI_WriteTextFrameSized(QUEST_DETAIL_X,
+                           QUEST_DETAIL_Y,
+                           QUEST_DETAIL_W,
+                           0.022f,
+                           UI_LevelStringSafe(quest->title),
+                           MAKE(COLOR32, 252, 210, 18, 255),
+                           FONT_JUSTIFYLEFT,
+                           HUD_FONT_SIZE);
+    UI_WriteTextFrameSized(QUEST_DETAIL_X,
+                           QUEST_DETAIL_Y + 0.030f,
+                           QUEST_DETAIL_W,
+                           0.135f,
+                           UI_LevelStringSafe(quest->description),
+                           COLOR32_WHITE,
+                           FONT_JUSTIFYLEFT,
+                           HUD_SMALL_FONT_SIZE);
+    UI_WriteQuestItems(quest, QUEST_DETAIL_X, QUEST_DETAIL_Y + 0.185f);
+    UI_WriteCommandTextFrame(QUEST_X + QUEST_W - 0.095f,
+                             QUEST_Y + QUEST_H - 0.036f,
+                             0.070f,
+                             0.020f,
+                             "Close",
+                             "hidequests",
+                             MAKE(COLOR32, 252, 210, 18, 255),
+                             FONT_JUSTIFYCENTER,
+                             HUD_FONT_SIZE);
+
+    gi.WriteLong(0);
+    gi.WriteShort(0);
+    gi.unicast(ent);
+}
+
+void UI_ShowQuests(LPEDICT ent) {
+    LPCQUEST fallback = NULL;
+
+    FOR_EACH_LIST(QUEST, q, level.quests) {
+        if (!q->discovered) {
+            continue;
+        }
+        if (!fallback) {
+            fallback = q;
+        }
+        if (q->required) {
+            UI_ShowQuest(ent, q);
+            return;
+        }
+    }
+    if (fallback) {
+        UI_ShowQuest(ent, fallback);
+    }
+}
+
+void UI_HideQuests(LPEDICT ent) {
+    UI_ClearLayer(ent, LAYER_QUESTDIALOG);
+}
 void UI_Init(void) {}
 void UI_ShowInterface(LPEDICT ent, BOOL show, FLOAT duration) { (void)ent; (void)show; (void)duration; }
 void UI_ShowMainMenu(LPEDICT ent) { (void)ent; }
 void UI_ShowGameInterface(LPEDICT ent) {
     UI_WriteServerConsoleShell(ent);
 }
-void UI_ShowText(LPEDICT ent, LPCVECTOR2 pos, LPCSTR text, FLOAT duration) { (void)ent; (void)pos; (void)text; (void)duration; }
+void UI_ShowText(LPEDICT ent, LPCVECTOR2 pos, LPCSTR text, FLOAT duration) {
+    FLOAT x = pos ? pos->x : 0.0500f;
+    FLOAT y = QUEST_MESSAGE_Y;
+    LPCSTR message = NULL;
+
+    (void)duration;
+    if (!ent) {
+        return;
+    }
+    if (x < 0.0f || x > UI_BASE_WIDTH) {
+        x = 0.0500f;
+    }
+    gi.WriteByte(svc_layout);
+    gi.WriteByte(LAYER_MESSAGE);
+    ui_next_frame_number = 1;
+    message = UI_FormatMessageText(UI_LevelStringSafe(text));
+    UI_WriteTextAreaFrame(x,
+                          y,
+                          QUEST_MESSAGE_W,
+                          QUEST_MESSAGE_H,
+                          message,
+                          COLOR32_WHITE,
+                          HUD_FONT_SIZE,
+                          0.0f);
+    gi.WriteLong(0);
+    gi.WriteShort(0);
+    gi.unicast(ent);
+}
 
 void UI_AddCancelButton(LPEDICT ent) {
     UI_SetCurrentClient(ent ? ent->client : NULL);

@@ -43,25 +43,7 @@ static keyCode_t CL_MouseButtonKey(SDL_MouseButtonEvent const *button) {
 }
 
 BOOL CL_MouseOverGameplayUI(void) {
-    VECTOR2 const m = SCR_MouseToFdf();
-
-    FOR_LOOP(layer_id, MAX_LAYOUT_LAYERS) {
-        if (cl.layout[layer_id] == NULL) {
-            continue;
-        }
-        LPCUIFRAME frames = SCR_Clear(cl.layout[layer_id]);
-        FOR_LOOP(object_id, MAX_LAYOUT_OBJECTS) {
-            LPCUIFRAME frame = frames+object_id;
-            if (frame->flags.type != FT_TEXTURE) {
-                continue;
-            }
-            RECT const screen = *SCR_LayoutRect(frame);
-            if (Rect_contains(&screen, &m)) {
-                return true;
-            }
-        }
-    }
-    return false;
+    return ui.HitTestLayout ? ui.HitTestLayout((int)mouse.origin.x, (int)mouse.origin.y) : false;
 }
 
 void CL_Input(void) {
@@ -118,13 +100,9 @@ void CL_Input(void) {
                     if (ui.TextInput) {
                         ui.TextInput(event.text.text);
                     }
-                    SCR_TextInput(event.text.text);
                 }
                 break;
             case SDL_KEYDOWN:
-                if (cls.key_dest == key_menu && SCR_EditKey(event.key.keysym.sym)) {
-                    break;
-                }
                 Key_Event(event.key.keysym.sym, true, event.key.timestamp);
                 break;
             case SDL_KEYUP:

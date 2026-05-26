@@ -228,7 +228,7 @@ TEST_GAME_SRCS := \
 	game/skills/s_skills.c \
 	game/skills/s_stop.c \
 	game/skills/s_train.c \
-	client/cl_menu.c \
+	client/cl_layout.c \
 	client/cl_parse.c \
 	client/cl_scrn.c \
 	server/sv_init.c \

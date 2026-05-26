@@ -41,7 +41,21 @@ LPCENTITYSTATE CL_GetEntityByIndex(DWORD number) {
 }
 
 LPCTEXTURE CL_GetTextureByIndex(DWORD index) {
-    return cl.pics[index];
+    if (index < MAX_IMAGES) {
+        return cl.pics[index];
+    }
+    return NULL;
+}
+
+static LPCTEXTURE *CL_UIGetTextures(void) {
+    return cl.pics;
+}
+
+static LPCFONT CL_UIGetFont(DWORD index) {
+    if (index < MAX_FONTSTYLES) {
+        return cl.fonts[index];
+    }
+    return NULL;
 }
 
 void CL_ClientCommand(LPCSTR cmd) {
@@ -52,6 +66,12 @@ void CL_ClientCommand(LPCSTR cmd) {
 
 void CL_ClearState(void) {
     CL_ClearTEnts ();
+
+    if (ui.ClearLayoutLayer) {
+        FOR_LOOP(layer, MAX_LAYOUT_LAYERS) {
+            ui.ClearLayoutLayer(layer);
+        }
+    }
 
     memset(&cl, 0, sizeof(struct client_state));
 
@@ -68,6 +88,10 @@ static LPCSTR CL_UIGetLoadingMap(void);
 static LPCMODEL CL_UIGetModel(DWORD idx);
 static LPCMODEL CL_UIGetPortrait(DWORD idx);
 static LPRENDERER CL_UIGetRenderer(void);
+static DWORD CL_UIGetClientTime(void);
+static VECTOR2 CL_UIGetMouseFdf(void);
+static DWORD CL_UIGetMouseButton(void);
+static uiClientMouseEvent_t CL_UIGetMouseEvent(void);
 
 static refExport_t CL_GetRendererAPI(refImport_t imp) {
     LPCSTR module = Cvar_String("r_module", "renderer");
@@ -200,6 +224,30 @@ static LPCMODEL CL_UIGetPortrait(DWORD idx) {
 /* Renderer access callback for UI rendering */
 static LPRENDERER CL_UIGetRenderer(void) {
     return &re;
+}
+
+static DWORD CL_UIGetClientTime(void) {
+    return cl.time;
+}
+
+static VECTOR2 CL_UIGetMouseFdf(void) {
+    return SCR_MouseToFdf();
+}
+
+static DWORD CL_UIGetMouseButton(void) {
+    return mouse.button;
+}
+
+static uiClientMouseEvent_t CL_UIGetMouseEvent(void) {
+    switch (mouse.event) {
+        case UI_LEFT_MOUSE_DOWN: return UI_CLIENT_MOUSE_LEFT_DOWN;
+        case UI_LEFT_MOUSE_UP: return UI_CLIENT_MOUSE_LEFT_UP;
+        case UI_LEFT_MOUSE_DRAGGED: return UI_CLIENT_MOUSE_LEFT_DRAGGED;
+        case UI_RIGHT_MOUSE_DOWN: return UI_CLIENT_MOUSE_RIGHT_DOWN;
+        case UI_RIGHT_MOUSE_UP: return UI_CLIENT_MOUSE_RIGHT_UP;
+        case UI_RIGHT_MOUSE_DRAGGED: return UI_CLIENT_MOUSE_RIGHT_DRAGGED;
+        default: return UI_CLIENT_MOUSE_NONE;
+    }
 }
 
 /* Request unit UI data (command card, inventory, build queue) */
@@ -356,6 +404,19 @@ void CL_Init(void) {
         .GetEntity = CL_UIGetEntity,
         .GetModel = CL_UIGetModel,
         .GetPortrait = CL_UIGetPortrait,
+        .GetTexture = CL_GetTextureByIndex,
+        .GetTextures = CL_UIGetTextures,
+        .GetFont = CL_UIGetFont,
+        .GetClientTime = CL_UIGetClientTime,
+        .GetMouseFdf = CL_UIGetMouseFdf,
+        .GetMouseButton = CL_UIGetMouseButton,
+        .GetMouseEvent = CL_UIGetMouseEvent,
+        .LayoutClear = SCR_Clear,
+        .LayoutNumFrames = SCR_NumFrames,
+        .LayoutFrame = SCR_Frame,
+        .LayoutRect = SCR_LayoutRect,
+        .LayoutStringValue = SCR_GetStringValue,
+        .LayoutDrawText = SCR_GetDrawText,
         .RequestUnitUI = CL_UIRequestUnitUI,
         .GetRenderer = CL_UIGetRenderer,
         .Error = CON_printf,

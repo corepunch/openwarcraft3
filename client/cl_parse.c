@@ -139,6 +139,9 @@ void CL_ParseLayout(LPSIZEBUF msg) {
         return;
     }
 
+    if (ui.ClearLayoutLayer) {
+        ui.ClearLayoutLayer(layer);
+    }
     SAFE_DELETE(cl.layout[layer], MemFree);
     DWORD start = msg->readcount;
     while (true) {
@@ -178,6 +181,9 @@ void CL_ParseLayout(LPSIZEBUF msg) {
     cl.layout[layer] = MemAlloc(sizeof(DWORD) + payload_size);
     memcpy(cl.layout[layer], &payload_size, sizeof(payload_size));
     memcpy((LPBYTE)cl.layout[layer] + sizeof(payload_size), msg->data + start, payload_size);
+    if (ui.SetLayoutLayer) {
+        ui.SetLayoutLayer(layer, cl.layout[layer]);
+    }
 }
 
 void CL_ParseCursor(LPSIZEBUF msg) {

@@ -483,6 +483,7 @@ void UI_DrawFrameLocal(void) {
             screen->draw();
         }
     }
+    UI_LayoutDrawOverlays();
     UI_ClearMouseTransient();
 }
 
@@ -492,6 +493,9 @@ void UI_KeyEventLocal(int key, BOOL down, DWORD time) {
         return;
     }
 
+    if (down && UI_LayoutEditKey(key)) {
+        return;
+    }
     if (down && UI_EditKey(key)) {
         return;
     }
@@ -580,6 +584,9 @@ uiExport_t UI_GetAPI(uiImport_t import) {
     exp.MouseEvent = UI_MouseEventLocal;
     exp.MenuCommand = UI_MenuCommandLocal;
     exp.UpdateUnitUI = UI_UpdateUnitUILocal;
+    exp.SetLayoutLayer = UI_LayoutSetLayer;
+    exp.ClearLayoutLayer = UI_LayoutClearLayer;
+    exp.HitTestLayout = UI_LayoutHitTest;
     
     return exp;
 }
