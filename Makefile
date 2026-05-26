@@ -240,7 +240,8 @@ TEST_GAME_SRCS := \
 
 TEST_SRCS := $(shell find tests -maxdepth 1 -name 'test_*.c' \
 	! -name 'test_main_ui.c' \
-	! -name 'test_mpq_compat.c' | sort)
+	! -name 'test_mpq_compat.c' \
+	! -name 'test_wow_appearance.c' | sort)
 
 TEST_CFLAGS := -Wall -DTOOL_COMMON_NO_MPQ -Itests/stubs -Ishared/types -Igame -Iserver -Icommon -Iclient -Igame/skills
 
@@ -258,6 +259,13 @@ test: test-assets | $(BIN_DIR)
 		$(TEST_SRCS) $(TEST_GAME_SRCS) \
 		$(shell find shared -name '*.c') -lm
 	$(BIN_DIR)/test_openwarcraft3$(EXE_EXT)
+	$(MAKE) test-wow-appearance
+
+test-wow-appearance: | $(BIN_DIR)
+	$(CC) $(TEST_CFLAGS) -DWOW -o $(BIN_DIR)/test_wow_appearance$(EXE_EXT) \
+		tests/test_wow_appearance.c common/msg.c common/net.c \
+		$(shell find shared -name '*.c') -lm
+	$(BIN_DIR)/test_wow_appearance$(EXE_EXT)
 
 test-ui: test-assets | $(BIN_DIR)
 	$(CC) $(TEST_CFLAGS) -o $(BIN_DIR)/test_openwarcraft3_ui$(EXE_EXT) \
@@ -320,4 +328,4 @@ test-assets: blpgen mdxgen mpqtool mdxtool | $(TESTS_DIR)
 $(TESTS_DIR):
 	@mkdir -p $@
 
-.PHONY: default build shared renderer game ui openwarcraft3 tools $(TOOL_NAMES) run run-demo run-map run-ui-text diag clean download test test-ui test-mpq-compat test-assets
+.PHONY: default build shared renderer game ui openwarcraft3 tools $(TOOL_NAMES) run run-demo run-map run-ui-text diag clean download test test-wow-appearance test-ui test-mpq-compat test-assets

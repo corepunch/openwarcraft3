@@ -47,6 +47,10 @@ typedef struct {
     LPCTEXTURE manabar;
     DWORD number;
     DWORD team;
+#ifdef WOW
+    DWORD appearance;
+    DWORD equipment;
+#endif
     DWORD frame;
     DWORD oldframe;
     DWORD flags;

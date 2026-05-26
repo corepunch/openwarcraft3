@@ -228,6 +228,10 @@ static void V_AddClientEntity(centity_t const *ent) {
     re.model = cl.models[ent->current.model];
     re.skin = cl.pics[ent->current.image];
     re.team = ent->current.player;
+#ifdef WOW
+    re.appearance = ent->current.appearance;
+    re.equipment = ent->current.equipment;
+#endif
     re.flags = ent->current.renderfx;
     if (ent->current.flags & EF_GROUND_ANCHOR) {
         re.flags |= RF_GROUND_ANCHOR;

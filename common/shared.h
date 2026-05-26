@@ -365,6 +365,10 @@ typedef struct entityState_s {
     DWORD player;
     DWORD model;
     DWORD model2;
+#ifdef WOW
+    DWORD appearance;
+    DWORD equipment;
+#endif
     DWORD image;
     DWORD sound;
     DWORD frame;
@@ -376,6 +380,74 @@ typedef struct entityState_s {
     DWORD shadow;
     DWORD shadow_rect;
 } entityState_t;
+
+#ifdef WOW
+typedef struct wowAppearance_s {
+    BYTE skinColorID;
+    BYTE faceID;
+    BYTE hairStyleID;
+    BYTE hairColorID;
+    BYTE facialHairStyleID;
+    BYTE classID;
+    BYTE flags;
+} wowAppearance_t;
+
+typedef struct wowEquipment_s {
+    BYTE upperBodyKit;
+    BYTE lowerBodyKit;
+    BYTE extremityKit;
+    BYTE extraKit;
+} wowEquipment_t;
+
+static inline DWORD Wow_PackAppearance(BYTE skinColorID,
+                                       BYTE faceID,
+                                       BYTE hairStyleID,
+                                       BYTE hairColorID,
+                                       BYTE facialHairStyleID,
+                                       BYTE classID,
+                                       BYTE flags) {
+    return ((DWORD)(skinColorID & 0x1f)) |
+           ((DWORD)(faceID & 0x1f) << 5) |
+           ((DWORD)(hairStyleID & 0x1f) << 10) |
+           ((DWORD)(hairColorID & 0x0f) << 15) |
+           ((DWORD)(facialHairStyleID & 0x0f) << 19) |
+           ((DWORD)(classID & 0x0f) << 23) |
+           ((DWORD)(flags & 0x1f) << 27);
+}
+
+static inline wowAppearance_t Wow_UnpackAppearance(DWORD appearance) {
+    wowAppearance_t unpacked = {
+        .skinColorID = (BYTE)(appearance & 0x1f),
+        .faceID = (BYTE)((appearance >> 5) & 0x1f),
+        .hairStyleID = (BYTE)((appearance >> 10) & 0x1f),
+        .hairColorID = (BYTE)((appearance >> 15) & 0x0f),
+        .facialHairStyleID = (BYTE)((appearance >> 19) & 0x0f),
+        .classID = (BYTE)((appearance >> 23) & 0x0f),
+        .flags = (BYTE)((appearance >> 27) & 0x1f),
+    };
+    return unpacked;
+}
+
+static inline DWORD Wow_PackEquipment(BYTE upperBodyKit,
+                                      BYTE lowerBodyKit,
+                                      BYTE extremityKit,
+                                      BYTE extraKit) {
+    return ((DWORD)upperBodyKit) |
+           ((DWORD)lowerBodyKit << 8) |
+           ((DWORD)extremityKit << 16) |
+           ((DWORD)extraKit << 24);
+}
+
+static inline wowEquipment_t Wow_UnpackEquipment(DWORD equipment) {
+    wowEquipment_t unpacked = {
+        .upperBodyKit = (BYTE)(equipment & 0xff),
+        .lowerBodyKit = (BYTE)((equipment >> 8) & 0xff),
+        .extremityKit = (BYTE)((equipment >> 16) & 0xff),
+        .extraKit = (BYTE)((equipment >> 24) & 0xff),
+    };
+    return unpacked;
+}
+#endif
 
 #define SHADOW_RECT_STEP 4.0f
 

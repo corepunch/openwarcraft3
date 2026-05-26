@@ -7,6 +7,7 @@
 #define WOW_MAX_EDICTS WOW_MAX_CLIENTS
 #define WOW_PLAYER_MODEL "Character\\Orc\\Male\\OrcMale.m2"
 #define WOW_PLAYER_WEAPON_MODEL "Item\\ObjectComponents\\Weapon\\Axe_1H_Horde_A_01.m2"
+#define WOW_CLASS_WARRIOR 1
 #define WOW_MOVE_FORWARD 1
 #define WOW_MOVE_BACK 2
 #define WOW_MOVE_LEFT 4
@@ -312,6 +313,8 @@ static void Wow_InitPlayer(LPEDICT ent) {
     ent->s.number = 0;
     ent->s.model = gi.ModelIndex ? gi.ModelIndex(WOW_PLAYER_MODEL) : 0;
     ent->s.model2 = gi.ModelIndex ? gi.ModelIndex(WOW_PLAYER_WEAPON_MODEL) : 0;
+    ent->s.appearance = Wow_PackAppearance(0, 0, 0, 0, 0, WOW_CLASS_WARRIOR, 0);
+    ent->s.equipment = Wow_PackEquipment(0, 0, 0, 0);
     ent->s.origin = (VECTOR3){ wow_spawn_origin.x, wow_spawn_origin.y, height };
     ent->s.origin2 = (VECTOR2){ ent->s.origin.x, ent->s.origin.y };
     ent->s.rotation = (VECTOR3){ wow_move.yaw, 0.0f, 0.0f };
