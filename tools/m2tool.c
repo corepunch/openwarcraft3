@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 
 typedef struct {
     int32_t count;
@@ -94,6 +95,61 @@ typedef struct {
 } m2SequenceModern_t;
 
 typedef struct {
+    uint16_t track_type;
+    uint16_t loop_index;
+    m2Array_t sequence_times;
+    m2Array_t sequence_keys;
+} m2Track_t;
+
+typedef struct {
+    m2Array_t times;
+} m2SequenceTimes_t;
+
+typedef struct {
+    m2Array_t keys;
+} m2SequenceKeys_t;
+
+typedef struct {
+    uint16_t track_type;
+    uint16_t loop_index;
+    m2Array_t ranges;
+    m2Array_t times;
+    m2Array_t keys;
+} m2TrackClassic_t;
+
+typedef struct {
+    WORD end;
+    WORD start;
+} m2Range_t;
+
+typedef struct {
+    DWORD auCompQ[2];
+} m2CompQuat_t;
+
+typedef struct {
+    DWORD bone_id;
+    DWORD flags;
+    WORD parent_index;
+    WORD dist_to_parent;
+    DWORD union_data;
+    m2Track_t translation_track;
+    m2Track_t rotation_track;
+    m2Track_t scale_track;
+    VECTOR3 pivot;
+} m2CompBoneModern_t;
+
+typedef struct {
+    DWORD bone_id;
+    DWORD flags;
+    WORD parent_index;
+    WORD submesh_id;
+    m2TrackClassic_t translation_track;
+    m2TrackClassic_t rotation_track;
+    m2TrackClassic_t scale_track;
+    VECTOR3 pivot;
+} m2CompBoneClassic_t;
+
+typedef struct {
     VECTOR3 pos;
     BYTE bone_weights[4];
     BYTE bone_indices[4];
@@ -129,12 +185,13 @@ typedef struct {
 static HANDLE archives[64] = { 0 };
 static LPCSTR g_model_path = NULL;
 static LPCSTR g_skin_path = NULL;
+static LPCSTR g_anim_check = NULL;
 static bool g_dump_all = false;
 
 static void usage(void) {
     fprintf(stderr,
             "Usage:\n"
-            "  m2tool -mpq <archive.mpq> -model <file.m2|file.mdx> [--skin <file00.skin>] [--info] [--dump-all]\n"
+            "  m2tool -mpq <archive.mpq> -model <file.m2|file.mdx> [--skin <file00.skin>] [--info] [--dump-all] [--anim <name|index>]\n"
             "\n"
             "Examples:\n"
             "  m2tool -mpq data/world-of-warcraft/installed/Data/model.MPQ -model \"Character\\\\Orc\\\\Male\\\\OrcMale.m2\"\n"
@@ -142,7 +199,8 @@ static void usage(void) {
             "\n"
             "Notes:\n"
             "  --info is the default; it prints header arrays, bounds, vertex bounds, textures, and skin counts.\n"
-            "  --dump-all additionally prints animation rows and texture rows.\n");
+            "  --dump-all additionally prints animation rows and texture rows.\n"
+            "  --anim prints per-sequence bone track diagnostics for a named or numeric animation.\n");
 }
 
 static void errorf(LPCSTR fmt, ...) {
@@ -583,6 +641,352 @@ static void PrintAnimations(BYTE const *data, DWORD size, m2HeaderInfo_t const *
     }
 }
 
+static DWORD SequenceStart(BYTE const *sequence, BOOL classic) {
+    return classic ? ((m2SequenceClassic_t const *)sequence)->start_timestamp : 0;
+}
+
+static DWORD SequenceDuration(BYTE const *sequence, BOOL classic) {
+    if (classic) {
+        m2SequenceClassic_t const *seq = (m2SequenceClassic_t const *)sequence;
+        return seq->end_timestamp > seq->start_timestamp ? seq->end_timestamp - seq->start_timestamp : 0;
+    }
+    return ((m2SequenceModern_t const *)sequence)->length;
+}
+
+static WORD SequenceAnimationId(BYTE const *sequence, BOOL classic) {
+    return classic
+        ? ((m2SequenceClassic_t const *)sequence)->animation_id
+        : ((m2SequenceModern_t const *)sequence)->animation_id;
+}
+
+static BOOL ParseSequenceSelector(LPCSTR selector, DWORD max_count, DWORD *out_index) {
+    char *end = NULL;
+    unsigned long value;
+
+    if (!selector || !*selector || !out_index) {
+        return false;
+    }
+    value = strtoul(selector, &end, 10);
+    if (end && *end == '\0' && value < max_count) {
+        *out_index = (DWORD)value;
+        return true;
+    }
+    return false;
+}
+
+static BOOL FindSequenceByName(BYTE const *sequences,
+                               DWORD sequence_count,
+                               DWORD sequence_stride,
+                               BOOL classic,
+                               LPCSTR selector,
+                               DWORD *out_index) {
+    if (ParseSequenceSelector(selector, sequence_count, out_index)) {
+        return true;
+    }
+    FOR_LOOP(i, sequence_count) {
+        BYTE const *sequence = sequences + i * sequence_stride;
+        LPCSTR name = AnimationName(SequenceAnimationId(sequence, classic));
+        if (name && !strcasecmp(name, selector)) {
+            *out_index = i;
+            return true;
+        }
+    }
+    return false;
+}
+
+static DWORD ClassicTrackKeyRange(BYTE const *data,
+                                  DWORD size,
+                                  m2TrackClassic_t const *track,
+                                  DWORD sequence_index,
+                                  DWORD elem_size,
+                                  m2Range_t *out_range,
+                                  DWORD const **out_times,
+                                  BYTE const **out_keys) {
+    m2Range_t const *ranges;
+    m2Range_t range;
+    DWORD const *times;
+    BYTE const *keys;
+    DWORD count;
+
+    if (!track || !out_range || !out_times || !out_keys) {
+        return 0;
+    }
+    ranges = ArrayPtr(data, size, track->ranges, sizeof(*ranges));
+    if (!ranges || track->ranges.count <= 0) {
+        return 0;
+    }
+    if (sequence_index >= (DWORD)track->ranges.count) {
+        sequence_index = 0;
+    }
+    range = ranges[sequence_index];
+    if (range.end < range.start) {
+        return 0;
+    }
+    times = ArrayPtr(data, size, track->times, sizeof(*times));
+    keys = ArrayPtr(data, size, track->keys, elem_size);
+    if (!times || !keys ||
+        range.start >= (WORD)track->times.count ||
+        range.start >= (WORD)track->keys.count) {
+        return 0;
+    }
+    count = (DWORD)range.end - (DWORD)range.start + 1;
+    count = MIN(count, (DWORD)track->times.count - range.start);
+    count = MIN(count, (DWORD)track->keys.count - range.start);
+    if (count == 0) {
+        return 0;
+    }
+    *out_range = range;
+    *out_times = times + range.start;
+    *out_keys = keys + (DWORD)range.start * elem_size;
+    return count;
+}
+
+static DWORD ModernTrackKeyRange(BYTE const *data,
+                                 DWORD size,
+                                 m2Track_t const *track,
+                                 DWORD sequence_index,
+                                 DWORD elem_size,
+                                 DWORD const **out_times,
+                                 BYTE const **out_keys) {
+    m2SequenceTimes_t const *sequence_times;
+    m2SequenceKeys_t const *sequence_keys;
+    DWORD const *times;
+    BYTE const *keys;
+
+    if (!track || !out_times || !out_keys) {
+        return 0;
+    }
+    sequence_times = ArrayPtr(data, size, track->sequence_times, sizeof(*sequence_times));
+    sequence_keys = ArrayPtr(data, size, track->sequence_keys, sizeof(*sequence_keys));
+    if (!sequence_times || !sequence_keys ||
+        track->sequence_times.count <= 0 ||
+        track->sequence_keys.count <= 0) {
+        return 0;
+    }
+    if (sequence_index >= (DWORD)track->sequence_times.count ||
+        sequence_index >= (DWORD)track->sequence_keys.count) {
+        sequence_index = 0;
+    }
+    times = ArrayPtr(data, size, sequence_times[sequence_index].times, sizeof(*times));
+    keys = ArrayPtr(data, size, sequence_keys[sequence_index].keys, elem_size);
+    if (!times || !keys) {
+        return 0;
+    }
+    *out_times = times;
+    *out_keys = keys;
+    return MIN((DWORD)sequence_times[sequence_index].times.count,
+               (DWORD)sequence_keys[sequence_index].keys.count);
+}
+
+static VECTOR3 KeyVec3(BYTE const *keys, DWORD index) {
+    return *(VECTOR3 const *)(keys + index * sizeof(VECTOR3));
+}
+
+static void PrintTrackLine(LPCSTR label,
+                           DWORD bone_index,
+                           DWORD flags,
+                           WORD parent_index,
+                           VECTOR3 pivot,
+                           DWORD count,
+                           m2Range_t range,
+                           DWORD const *times,
+                           BYTE const *keys,
+                           DWORD elem_size,
+                           BOOL classic,
+                           BOOL vector_keys) {
+    printf("  bone[%03u] %-5s flags=0x%08x parent=%u pivot=(%.3f %.3f %.3f) keys=%u",
+           (unsigned)bone_index,
+           label,
+           (unsigned)flags,
+           (unsigned)parent_index,
+           pivot.x, pivot.y, pivot.z,
+           (unsigned)count);
+    if (classic) {
+        printf(" range=%u..%u", (unsigned)range.start, (unsigned)range.end);
+    }
+    if (count && times) {
+        printf(" time=%u..%u", (unsigned)times[0], (unsigned)times[count - 1]);
+    }
+    if (count && keys) {
+        if (vector_keys) {
+            VECTOR3 first = KeyVec3(keys, 0);
+            VECTOR3 mid = KeyVec3(keys, count / 2);
+            VECTOR3 last = KeyVec3(keys, count - 1);
+            printf(" first=(%.3f %.3f %.3f) mid=(%.3f %.3f %.3f) last=(%.3f %.3f %.3f)",
+                   first.x, first.y, first.z,
+                   mid.x, mid.y, mid.z,
+                   last.x, last.y, last.z);
+        } else if (elem_size == sizeof(QUATERNION)) {
+            QUATERNION const *first = (QUATERNION const *)keys;
+            QUATERNION const *mid = (QUATERNION const *)(keys + (count / 2) * elem_size);
+            QUATERNION const *last = (QUATERNION const *)(keys + (count - 1) * elem_size);
+            printf(" firstQuat=(%.6f %.6f %.6f %.6f) midQuat=(%.6f %.6f %.6f %.6f) lastQuat=(%.6f %.6f %.6f %.6f)",
+                   first->x, first->y, first->z, first->w,
+                   mid->x, mid->y, mid->z, mid->w,
+                   last->x, last->y, last->z, last->w);
+        } else if (elem_size == sizeof(m2CompQuat_t)) {
+            m2CompQuat_t const *first = (m2CompQuat_t const *)keys;
+            m2CompQuat_t const *last = (m2CompQuat_t const *)(keys + (count - 1) * elem_size);
+            printf(" firstQuatRaw=(%08x %08x) lastQuatRaw=(%08x %08x)",
+                   (unsigned)first->auCompQ[0],
+                   (unsigned)first->auCompQ[1],
+                   (unsigned)last->auCompQ[0],
+                   (unsigned)last->auCompQ[1]);
+        }
+    }
+    printf("\n");
+}
+
+static void PrintAnimationDiagnostics(BYTE const *data, DWORD size, m2HeaderInfo_t const *header, LPCSTR selector) {
+    DWORD sequence_offset;
+    DWORD sequence_bytes;
+    BYTE const *sequences;
+    BYTE const *sequence;
+    DWORD sequence_stride;
+    DWORD sequence_index;
+    BOOL classic = header->version <= 263;
+    DWORD bone_stride = classic ? sizeof(m2CompBoneClassic_t) : sizeof(m2CompBoneModern_t);
+    BYTE const *bones;
+    DWORD bones_offset;
+    DWORD bones_bytes;
+    DWORD sequence_count;
+    DWORD trans_bones = 0;
+    DWORD rot_bones = 0;
+    DWORD scale_bones = 0;
+    DWORD printed = 0;
+
+    sequence_stride = classic ? sizeof(m2SequenceClassic_t) : sizeof(m2SequenceModern_t);
+    if (!ArrayRange(header->animations, sequence_stride, size, &sequence_offset, &sequence_bytes)) {
+        printf("anim_debug: animations unavailable\n");
+        return;
+    }
+    if (!ArrayRange(header->bones, bone_stride, size, &bones_offset, &bones_bytes)) {
+        printf("anim_debug: bones unavailable for stride=%u\n", (unsigned)bone_stride);
+        return;
+    }
+    sequences = data + sequence_offset;
+    bones = data + bones_offset;
+    sequence_count = sequence_bytes / sequence_stride;
+    if (!FindSequenceByName(sequences, sequence_count, sequence_stride, classic, selector, &sequence_index)) {
+        printf("anim_debug: sequence '%s' not found\n", selector);
+        return;
+    }
+    sequence = sequences + sequence_index * sequence_stride;
+    printf("anim_debug: selector=%s seq=%u id=%u%s%s layout=%s start=%u duration=%u bones=%d bone_stride=%u\n",
+           selector,
+           (unsigned)sequence_index,
+           (unsigned)SequenceAnimationId(sequence, classic),
+           AnimationName(SequenceAnimationId(sequence, classic)) ? " " : "",
+           AnimationName(SequenceAnimationId(sequence, classic)) ? AnimationName(SequenceAnimationId(sequence, classic)) : "",
+           classic ? "classic" : "modern",
+           (unsigned)SequenceStart(sequence, classic),
+           (unsigned)SequenceDuration(sequence, classic),
+           header->bones.count,
+           (unsigned)bone_stride);
+
+    FOR_LOOP(i, (DWORD)header->bones.count) {
+        DWORD const *times = NULL;
+        BYTE const *keys = NULL;
+        DWORD trans_count = 0;
+        DWORD rot_count = 0;
+        DWORD scale_count = 0;
+        m2Range_t trans_range = { 0, 0 };
+        m2Range_t rot_range = { 0, 0 };
+        m2Range_t scale_range = { 0, 0 };
+        DWORD flags;
+        WORD parent_index;
+        VECTOR3 pivot;
+
+        if (classic) {
+            m2CompBoneClassic_t const *bone = (m2CompBoneClassic_t const *)(bones + i * bone_stride);
+            flags = bone->flags;
+            parent_index = bone->parent_index;
+            pivot = bone->pivot;
+            trans_count = ClassicTrackKeyRange(data, size, &bone->translation_track, sequence_index, sizeof(VECTOR3), &trans_range, &times, &keys);
+            if (trans_count) {
+                trans_bones++;
+            }
+            times = NULL;
+            keys = NULL;
+            rot_count = ClassicTrackKeyRange(data, size, &bone->rotation_track, sequence_index, sizeof(QUATERNION), &rot_range, &times, &keys);
+            if (rot_count) {
+                rot_bones++;
+            }
+            times = NULL;
+            keys = NULL;
+            scale_count = ClassicTrackKeyRange(data, size, &bone->scale_track, sequence_index, sizeof(VECTOR3), &scale_range, &times, &keys);
+            if (scale_count) {
+                scale_bones++;
+            }
+        } else {
+            m2CompBoneModern_t const *bone = (m2CompBoneModern_t const *)(bones + i * bone_stride);
+            flags = bone->flags;
+            parent_index = bone->parent_index;
+            pivot = bone->pivot;
+            trans_count = ModernTrackKeyRange(data, size, &bone->translation_track, sequence_index, sizeof(VECTOR3), &times, &keys);
+            if (trans_count) {
+                trans_bones++;
+            }
+            times = NULL;
+            keys = NULL;
+            rot_count = ModernTrackKeyRange(data, size, &bone->rotation_track, sequence_index, sizeof(m2CompQuat_t), &times, &keys);
+            if (rot_count) {
+                rot_bones++;
+            }
+            times = NULL;
+            keys = NULL;
+            scale_count = ModernTrackKeyRange(data, size, &bone->scale_track, sequence_index, sizeof(VECTOR3), &times, &keys);
+            if (scale_count) {
+                scale_bones++;
+            }
+        }
+
+        if (printed < 16 && (trans_count || rot_count || scale_count || i == 0 || i == 22)) {
+            if (classic) {
+                m2CompBoneClassic_t const *bone = (m2CompBoneClassic_t const *)(bones + i * bone_stride);
+                if (trans_count) {
+                    trans_count = ClassicTrackKeyRange(data, size, &bone->translation_track, sequence_index, sizeof(VECTOR3), &trans_range, &times, &keys);
+                    PrintTrackLine("trans", i, flags, parent_index, pivot, trans_count, trans_range, times, keys, sizeof(VECTOR3), true, true);
+                }
+                if (rot_count) {
+                    rot_count = ClassicTrackKeyRange(data, size, &bone->rotation_track, sequence_index, sizeof(QUATERNION), &rot_range, &times, &keys);
+                    PrintTrackLine("rot", i, flags, parent_index, pivot, rot_count, rot_range, times, keys, sizeof(QUATERNION), true, false);
+                }
+                if (scale_count) {
+                    scale_count = ClassicTrackKeyRange(data, size, &bone->scale_track, sequence_index, sizeof(VECTOR3), &scale_range, &times, &keys);
+                    PrintTrackLine("scale", i, flags, parent_index, pivot, scale_count, scale_range, times, keys, sizeof(VECTOR3), true, true);
+                }
+            } else {
+                m2CompBoneModern_t const *bone = (m2CompBoneModern_t const *)(bones + i * bone_stride);
+                if (trans_count) {
+                    trans_count = ModernTrackKeyRange(data, size, &bone->translation_track, sequence_index, sizeof(VECTOR3), &times, &keys);
+                    PrintTrackLine("trans", i, flags, parent_index, pivot, trans_count, trans_range, times, keys, sizeof(VECTOR3), false, true);
+                }
+                if (rot_count) {
+                    rot_count = ModernTrackKeyRange(data, size, &bone->rotation_track, sequence_index, sizeof(m2CompQuat_t), &times, &keys);
+                    PrintTrackLine("rot", i, flags, parent_index, pivot, rot_count, rot_range, times, keys, sizeof(m2CompQuat_t), false, false);
+                }
+                if (scale_count) {
+                    scale_count = ModernTrackKeyRange(data, size, &bone->scale_track, sequence_index, sizeof(VECTOR3), &times, &keys);
+                    PrintTrackLine("scale", i, flags, parent_index, pivot, scale_count, scale_range, times, keys, sizeof(VECTOR3), false, true);
+                }
+            }
+            if (!trans_count && !rot_count && !scale_count) {
+                printf("  bone[%03u] none  flags=0x%08x parent=%u pivot=(%.3f %.3f %.3f) keys=0\n",
+                       (unsigned)i,
+                       (unsigned)flags,
+                       (unsigned)parent_index,
+                       pivot.x, pivot.y, pivot.z);
+            }
+            printed++;
+        }
+    }
+    printf("anim_debug_summary: trans_bones=%u rot_bones=%u scale_bones=%u\n",
+           (unsigned)trans_bones,
+           (unsigned)rot_bones,
+           (unsigned)scale_bones);
+}
+
 static LPCSTR TextureTypeName(DWORD type) {
     switch (type) {
         case 0: return "hardcoded";
@@ -809,6 +1213,9 @@ static void InspectModel(void) {
     if (g_dump_all) {
         PrintAnimations(payload, payload_size, &header);
     }
+    if (g_anim_check) {
+        PrintAnimationDiagnostics(payload, payload_size, &header, g_anim_check);
+    }
 
     Tool_MemFree(file_data);
 }
@@ -836,6 +1243,8 @@ int main(int argc, char **argv) {
             g_model_path = argv[++i];
         } else if (!strcmp(argv[i], "--skin") && i + 1 < argc) {
             g_skin_path = argv[++i];
+        } else if (!strcmp(argv[i], "--anim") && i + 1 < argc) {
+            g_anim_check = argv[++i];
         } else if (!strcmp(argv[i], "--info")) {
             /* Default mode. */
         } else if (!strcmp(argv[i], "--dump-all")) {

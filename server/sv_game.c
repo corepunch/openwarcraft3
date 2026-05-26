@@ -346,7 +346,8 @@ typedef struct {
 typedef struct {
     WORD animation_id;
     WORD sub_animation_id;
-    DWORD length;
+    DWORD start_timestamp;
+    DWORD end_timestamp;
     FLOAT movement_speed;
     DWORD flags;
     SHORT probability;
@@ -359,7 +360,24 @@ typedef struct {
     FLOAT radius;
     SHORT next_animation;
     WORD alias_next;
-} svM2Sequence_t;
+} svM2SequenceClassic_t;
+
+typedef struct {
+    WORD animation_id;
+    WORD sub_animation_id;
+    DWORD length;
+    FLOAT movement_speed;
+    DWORD flags;
+    DWORD frequency;
+    DWORD minimum_repetitions;
+    DWORD maximum_repetitions;
+    DWORD blend_time;
+    VECTOR3 min;
+    VECTOR3 max;
+    FLOAT radius;
+    SHORT next_animation;
+    WORD alias_next;
+} svM2SequenceModern_t;
 
 static BOOL SV_M2ArrayRange(svM2Array_t array, DWORD elem_size, DWORD file_size, DWORD *offset, DWORD *bytes) {
     if (array.size <= 0 || array.offset < 0 || elem_size == 0) {
@@ -453,6 +471,58 @@ static void SV_M2AnimationName(WORD id, LPSTR out, DWORD out_size) {
     }
 }
 
+static WORD SV_M2SequenceAnimationId(BYTE const *sequence, BOOL classic) {
+    return classic
+        ? ((svM2SequenceClassic_t const *)sequence)->animation_id
+        : ((svM2SequenceModern_t const *)sequence)->animation_id;
+}
+
+static DWORD SV_M2SequenceLength(BYTE const *sequence, BOOL classic) {
+    if (classic) {
+        svM2SequenceClassic_t const *classic_sequence = (svM2SequenceClassic_t const *)sequence;
+        return classic_sequence->end_timestamp > classic_sequence->start_timestamp
+            ? classic_sequence->end_timestamp - classic_sequence->start_timestamp
+            : 0;
+    }
+    return ((svM2SequenceModern_t const *)sequence)->length;
+}
+
+static FLOAT SV_M2SequenceMoveSpeed(BYTE const *sequence, BOOL classic) {
+    return classic
+        ? ((svM2SequenceClassic_t const *)sequence)->movement_speed
+        : ((svM2SequenceModern_t const *)sequence)->movement_speed;
+}
+
+static DWORD SV_M2SequenceFlags(BYTE const *sequence, BOOL classic) {
+    return classic
+        ? ((svM2SequenceClassic_t const *)sequence)->flags
+        : ((svM2SequenceModern_t const *)sequence)->flags;
+}
+
+static SHORT SV_M2SequenceRarity(BYTE const *sequence, BOOL classic) {
+    return classic
+        ? ((svM2SequenceClassic_t const *)sequence)->probability
+        : (SHORT)((svM2SequenceModern_t const *)sequence)->frequency;
+}
+
+static VECTOR3 SV_M2SequenceMin(BYTE const *sequence, BOOL classic) {
+    return classic
+        ? ((svM2SequenceClassic_t const *)sequence)->min
+        : ((svM2SequenceModern_t const *)sequence)->min;
+}
+
+static VECTOR3 SV_M2SequenceMax(BYTE const *sequence, BOOL classic) {
+    return classic
+        ? ((svM2SequenceClassic_t const *)sequence)->max
+        : ((svM2SequenceModern_t const *)sequence)->max;
+}
+
+static FLOAT SV_M2SequenceRadius(BYTE const *sequence, BOOL classic) {
+    return classic
+        ? ((svM2SequenceClassic_t const *)sequence)->radius
+        : ((svM2SequenceModern_t const *)sequence)->radius;
+}
+
 static struct cmodel *SV_LoadModelM2(HANDLE file) {
     struct cmodel *model = MemAlloc(sizeof(struct cmodel));
     DWORD file_size = SFileGetFileSize(file, NULL);
@@ -463,7 +533,9 @@ static struct cmodel *SV_LoadModelM2(HANDLE file) {
     svM2Header_t const *header;
     DWORD sequences_offset;
     DWORD sequences_bytes;
-    svM2Sequence_t const *sequences;
+    BYTE const *sequences;
+    DWORD sequence_stride;
+    BOOL classic_sequences;
 
     memset(model, 0, sizeof(*model));
     if (file_size < sizeof(DWORD)) {
@@ -481,29 +553,35 @@ static struct cmodel *SV_LoadModelM2(HANDLE file) {
     }
 
     header = (svM2Header_t const *)payload;
-    if (!SV_M2ArrayRange(header->sequences, sizeof(*sequences), payload_size, &sequences_offset, &sequences_bytes)) {
+    classic_sequences = header->version <= 263;
+    sequence_stride = classic_sequences ? sizeof(svM2SequenceClassic_t) : sizeof(svM2SequenceModern_t);
+    if (!SV_M2ArrayRange(header->sequences, sequence_stride, payload_size, &sequences_offset, &sequences_bytes)) {
         MemFree(data);
         return model;
     }
 
-    sequences = (svM2Sequence_t const *)(payload + sequences_offset);
-    model->num_animations = sequences_bytes / sizeof(*sequences);
+    sequences = payload + sequences_offset;
+    model->num_animations = sequences_bytes / sequence_stride;
     model->animations = MemAlloc(sizeof(animation_t) * model->num_animations);
     memset(model->animations, 0, sizeof(animation_t) * model->num_animations);
 
+    DWORD frame_base = 0;
     FOR_LOOP(i, model->num_animations) {
-        svM2Sequence_t const *src = sequences + i;
+        BYTE const *src = sequences + i * sequence_stride;
         LPANIMATION dest = model->animations + i;
-        SV_M2AnimationName(src->animation_id, dest->name, sizeof(dest->name));
-        dest->interval[0] = 0;
-        dest->interval[1] = MAX(src->length, 1);
-        dest->movespeed = src->movement_speed;
-        dest->flags = src->flags;
-        dest->rarity = src->probability;
+        DWORD length = MAX(SV_M2SequenceLength(src, classic_sequences), 1);
+
+        SV_M2AnimationName(SV_M2SequenceAnimationId(src, classic_sequences), dest->name, sizeof(dest->name));
+        dest->interval[0] = frame_base;
+        dest->interval[1] = frame_base + length;
+        dest->movespeed = SV_M2SequenceMoveSpeed(src, classic_sequences);
+        dest->flags = SV_M2SequenceFlags(src, classic_sequences);
+        dest->rarity = SV_M2SequenceRarity(src, classic_sequences);
         dest->syncpoint = fnv1a32(dest->name);
-        dest->radius = src->radius;
-        dest->min = src->min;
-        dest->max = src->max;
+        dest->radius = SV_M2SequenceRadius(src, classic_sequences);
+        dest->min = SV_M2SequenceMin(src, classic_sequences);
+        dest->max = SV_M2SequenceMax(src, classic_sequences);
+        frame_base += length;
     }
 
     qsort(model->animations, model->num_animations, sizeof(animation_t), compare_animation_name);
