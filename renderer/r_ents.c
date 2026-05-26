@@ -166,6 +166,8 @@ extern bool is_rendering_lights;
 #endif
 DWORD selCircles[NUM_SELECTION_CIRCLES] = { 100, 300, 100000 };
 
+#define FLAT_SHADOW_Z_BIAS 16.0f
+
 static void R_RenderUberSplat(const renderEntity_t *entity, LPCVECTOR2 origin) {
     if (entity->splat && !(entity->flags & RF_NO_UBERSPLAT)) {
         R_RenderSplat(origin, entity->splatsize, entity->splat, tr.shader[SHADER_DEFAULT], COLOR32_WHITE);
@@ -194,7 +196,18 @@ static void R_RenderShadow(const renderEntity_t *entity, LPCVECTOR2 origin) {
     }
 
     COLOR32 shadowColor = {0, 0, 0, 128};
-    R_RenderRectSplat(&mins, &maxs, entity->shadow, tr.shader[SHADER_SHADOWSPLAT], shadowColor);
+#ifndef WOW
+    if (!(tr.viewDef.rdflags & RDF_NOFRUSTUMCULL)) {
+        BOX3 bounds = {
+            .min = { mins.x, mins.y, entity->origin.z - 32.0f },
+            .max = { maxs.x, maxs.y, entity->origin.z + 32.0f },
+        };
+        if (!Frustum_ContainsAABox(&tr.viewDef.frustum, &bounds)) {
+            return;
+        }
+    }
+#endif
+    R_RenderFlatRectSplat(&mins, &maxs, entity->origin.z + FLAT_SHADOW_Z_BIAS, entity->shadow, tr.shader[SHADER_SHADOWSPLAT], shadowColor);
 }
 
 static void R_RenderSelectedCircle(const renderEntity_t *entity, LPCVECTOR2 origin) {

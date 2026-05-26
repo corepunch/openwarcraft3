@@ -196,6 +196,7 @@ void R_DrawPortrait(LPCMODEL model, LPCRECT viewport, LPCSTR anim);
 void R_DrawSprite(LPCMODEL model, LPCSTR anim, float x, float y);
 void R_RenderSplat(LPCVECTOR2 position, float radius, LPCTEXTURE texture, LPCSHADER shader, COLOR32 color);
 void R_RenderRectSplat(LPCVECTOR2 mins, LPCVECTOR2 maxs, LPCTEXTURE texture, LPCSHADER shader, COLOR32 color);
+void R_RenderFlatRectSplat(LPCVECTOR2 mins, LPCVECTOR2 maxs, FLOAT z, LPCTEXTURE texture, LPCSHADER shader, COLOR32 color);
 
 // r_shader.c
 LPSHADER R_InitShader(LPCSTR vs_default, LPCSTR fs_default);

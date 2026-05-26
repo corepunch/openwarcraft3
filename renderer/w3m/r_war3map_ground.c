@@ -190,6 +190,46 @@ void R_RenderRectSplat(LPCVECTOR2 mins,
     R_Call(glDepthMask, GL_TRUE);
 }
 
+void R_RenderFlatRectSplat(LPCVECTOR2 mins,
+                           LPCVECTOR2 maxs,
+                           FLOAT z,
+                           LPCTEXTURE texture,
+                           LPCSHADER shader,
+                           COLOR32 color)
+{
+    MATRIX4 model_matrix;
+    FLOAT const width = maxs->x - mins->x;
+    FLOAT const height = maxs->y - mins->y;
+    if (!texture || width <= 0 || height <= 0) {
+        return;
+    }
+
+    VERTEX vertices[6] = {
+        { .position = { mins->x, mins->y, z }, .texcoord = { 0, 1 }, .normal = { 0, 0, 1 }, .color = color },
+        { .position = { maxs->x, mins->y, z }, .texcoord = { 1, 1 }, .normal = { 0, 0, 1 }, .color = color },
+        { .position = { maxs->x, maxs->y, z }, .texcoord = { 1, 0 }, .normal = { 0, 0, 1 }, .color = color },
+        { .position = { mins->x, mins->y, z }, .texcoord = { 0, 1 }, .normal = { 0, 0, 1 }, .color = color },
+        { .position = { maxs->x, maxs->y, z }, .texcoord = { 1, 0 }, .normal = { 0, 0, 1 }, .color = color },
+        { .position = { mins->x, maxs->y, z }, .texcoord = { 0, 0 }, .normal = { 0, 0, 1 }, .color = color },
+    };
+
+    Matrix4_identity(&model_matrix);
+
+    R_BindTexture(texture, 0);
+    R_Call(glUseProgram, shader->progid);
+    R_Call(glUniformMatrix4fv, shader->uViewProjectionMatrix, 1, GL_FALSE, tr.viewDef.viewProjectionMatrix.v);
+    R_Call(glUniformMatrix4fv, shader->uModelMatrix, 1, GL_FALSE, model_matrix.v);
+
+    R_Call(glEnable, GL_BLEND);
+    R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    R_Call(glDepthMask, GL_FALSE);
+    R_Call(glBindVertexArray, tr.buffer[RBUF_TEMP1]->vao);
+    R_Call(glBindBuffer, GL_ARRAY_BUFFER, tr.buffer[RBUF_TEMP1]->vbo);
+    R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STREAM_DRAW);
+    R_Call(glDrawArrays, GL_TRIANGLES, 0, sizeof(vertices) / sizeof(vertices[0]));
+    R_Call(glDepthMask, GL_TRUE);
+}
+
 void R_RenderSplat(LPCVECTOR2 position,
                    FLOAT radius,
                    LPCTEXTURE texture,

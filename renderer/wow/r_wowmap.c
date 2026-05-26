@@ -2247,6 +2247,15 @@ void R_RenderRectSplat(LPCVECTOR2 mins, LPCVECTOR2 maxs, LPCTEXTURE texture, LPC
     (void)color;
 }
 
+void R_RenderFlatRectSplat(LPCVECTOR2 mins, LPCVECTOR2 maxs, FLOAT z, LPCTEXTURE texture, LPCSHADER shader, COLOR32 color) {
+    (void)mins;
+    (void)maxs;
+    (void)z;
+    (void)texture;
+    (void)shader;
+    (void)color;
+}
+
 void R_RenderSplat(LPCVECTOR2 position, float radius, LPCTEXTURE texture, LPCSHADER shader, COLOR32 color) {
     (void)position;
     (void)radius;
