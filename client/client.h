@@ -8,8 +8,13 @@
 
 #define WINDOW_WIDTH 1024
 #define WINDOW_HEIGHT 768
+#ifdef WOW
+#define UI_BASE_WIDTH 1.0f
+#define UI_BASE_HEIGHT 1.0f
+#else
 #define UI_BASE_WIDTH 0.8f
 #define UI_BASE_HEIGHT 0.6f
+#endif
 #define UI_MIN_ASPECT (4.0f / 3.0f)
 #define MAX_CLIENT_ENTITIES 5000
 #define MAX_CONSOLE_MESSAGES 256

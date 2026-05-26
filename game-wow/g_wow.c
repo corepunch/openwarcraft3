@@ -21,6 +21,9 @@ static struct game_export globals;
 static edict_t wow_edicts[WOW_MAX_EDICTS];
 static struct client_s wow_clients[WOW_MAX_CLIENTS];
 static VECTOR2 wow_spawn_origin = { 0.0f, 0.0f };
+static char wow_loading_texture[MAX_PATHLEN] = "Interface\\Glues\\LoadingScreens\\LoadScreenEnviroment.blp";
+static char wow_loading_title[128] = "World of Warcraft";
+static LPCANIMATION wow_player_animation;
 static struct {
     DWORD flags;
     FLOAT yaw;
@@ -33,6 +36,200 @@ static struct {
 
 static FLOAT Wow_Clamp(FLOAT value, FLOAT min_value, FLOAT max_value) {
     return MAX(min_value, MIN(value, max_value));
+}
+
+static DWORD Wow_Read32(BYTE const *p) {
+    return ((DWORD)p[0]) | ((DWORD)p[1] << 8) | ((DWORD)p[2] << 16) | ((DWORD)p[3] << 24);
+}
+
+static LPCSTR Wow_DbcString(BYTE const *string_block, DWORD string_size, DWORD offset) {
+    if (offset >= string_size) {
+        return NULL;
+    }
+    return (LPCSTR)(string_block + offset);
+}
+
+static BOOL Wow_ValidDbc(BYTE const *data,
+                         DWORD size,
+                         DWORD *records,
+                         DWORD *fields,
+                         DWORD *record_size,
+                         DWORD *string_size) {
+    if (!data || size <= 20 || memcmp(data, "WDBC", 4) != 0) {
+        return false;
+    }
+
+    *records = Wow_Read32(data + 4);
+    *fields = Wow_Read32(data + 8);
+    *record_size = Wow_Read32(data + 12);
+    *string_size = Wow_Read32(data + 16);
+
+    if (*fields == 0 || *record_size < *fields * sizeof(DWORD) ||
+        20 + *records * *record_size + *string_size > size) {
+        return false;
+    }
+    return true;
+}
+
+static LPCSTR Wow_PathBasename(LPCSTR path) {
+    LPCSTR slash = strrchr(path, '/');
+    LPCSTR backslash = strrchr(path, '\\');
+
+    if (slash && backslash) {
+        return MAX(slash, backslash) + 1;
+    }
+    if (slash) {
+        return slash + 1;
+    }
+    if (backslash) {
+        return backslash + 1;
+    }
+    return path;
+}
+
+static void Wow_MapNameFromPath(LPCSTR path, LPSTR out, DWORD out_size) {
+    LPCSTR base;
+    size_t len;
+
+    if (!out || out_size == 0) {
+        return;
+    }
+    out[0] = '\0';
+    if (!path || !*path) {
+        return;
+    }
+
+    base = Wow_PathBasename(path);
+    len = strlen(base);
+    if (len > 4 && !strcasecmp(base + len - 4, ".wdt")) {
+        len -= 4;
+    }
+    if (len >= out_size) {
+        len = out_size - 1;
+    }
+    memcpy(out, base, len);
+    out[len] = '\0';
+}
+
+static BOOL Wow_ResolveLoadingScreenById(DWORD loading_screen_id, LPSTR out, DWORD out_size) {
+    LPBYTE data;
+    DWORD size = 0;
+    DWORD records;
+    DWORD fields;
+    DWORD record_size;
+    DWORD string_size;
+    BYTE const *records_base;
+    BYTE const *strings_base;
+
+    if (!out || out_size == 0) {
+        return false;
+    }
+
+    data = gi.ReadFile ? gi.ReadFile("DBFilesClient\\LoadingScreens.dbc", &size) : NULL;
+    if (!Wow_ValidDbc(data, size, &records, &fields, &record_size, &string_size) ||
+        fields < 3 || record_size < 3 * sizeof(DWORD)) {
+        SAFE_DELETE(data, gi.MemFree);
+        return false;
+    }
+
+    records_base = data + 20;
+    strings_base = records_base + records * record_size;
+    FOR_LOOP(record_index, records) {
+        BYTE const *record = records_base + record_index * record_size;
+        DWORD id = Wow_Read32(record);
+
+        if (id == loading_screen_id) {
+            DWORD path_offset = Wow_Read32(record + 2 * sizeof(DWORD));
+            LPCSTR path = Wow_DbcString(strings_base, string_size, path_offset);
+
+            if (path && *path) {
+                snprintf(out, out_size, "%s", path);
+                gi.MemFree(data);
+                return true;
+            }
+            break;
+        }
+    }
+
+    gi.MemFree(data);
+    return false;
+}
+
+static void Wow_SelectLoadingScreen(LPCSTR map_path) {
+    LPBYTE data;
+    DWORD size = 0;
+    DWORD records;
+    DWORD fields;
+    DWORD record_size;
+    DWORD string_size;
+    BYTE const *records_base;
+    BYTE const *strings_base;
+    char map_name[128] = { 0 };
+
+    snprintf(wow_loading_texture,
+             sizeof(wow_loading_texture),
+             "%s",
+             "Interface\\Glues\\LoadingScreens\\LoadScreenEnviroment.blp");
+    snprintf(wow_loading_title, sizeof(wow_loading_title), "%s", "World of Warcraft");
+
+    if (!map_path || !*map_path) {
+        return;
+    }
+
+    Wow_MapNameFromPath(map_path, map_name, sizeof(map_name));
+    if (!map_name[0]) {
+        return;
+    }
+
+    data = gi.ReadFile ? gi.ReadFile("DBFilesClient\\Map.dbc", &size) : NULL;
+    if (!Wow_ValidDbc(data, size, &records, &fields, &record_size, &string_size) ||
+        fields < 4 || record_size < fields * sizeof(DWORD)) {
+        SAFE_DELETE(data, gi.MemFree);
+        return;
+    }
+
+    records_base = data + 20;
+    strings_base = records_base + records * record_size;
+    FOR_LOOP(record_index, records) {
+        BYTE const *record = records_base + record_index * record_size;
+        DWORD map_dir_offset = Wow_Read32(record + sizeof(DWORD));
+        LPCSTR map_dir = Wow_DbcString(strings_base, string_size, map_dir_offset);
+
+        if (!map_dir || strcasecmp(map_dir, map_name)) {
+            continue;
+        }
+
+        DWORD map_title_offset = Wow_Read32(record + 3 * sizeof(DWORD));
+        DWORD loading_screen_id = Wow_Read32(record + (fields - 1) * sizeof(DWORD));
+        LPCSTR map_title = Wow_DbcString(strings_base, string_size, map_title_offset);
+
+        if (map_title && *map_title) {
+            snprintf(wow_loading_title, sizeof(wow_loading_title), "%s", map_title);
+        } else {
+            snprintf(wow_loading_title, sizeof(wow_loading_title), "%s", map_name);
+        }
+
+        if (!Wow_ResolveLoadingScreenById(loading_screen_id,
+                                          wow_loading_texture,
+                                          sizeof(wow_loading_texture))) {
+            snprintf(wow_loading_texture,
+                     sizeof(wow_loading_texture),
+                     "%s",
+                     "Interface\\Glues\\LoadingScreens\\LoadScreenEnviroment.blp");
+        }
+
+        if (gi.error) {
+            gi.error("Wow_SelectLoadingScreen: map=%s title=%s loadingId=%u texture=%s\n",
+                     map_name,
+                     wow_loading_title,
+                     (unsigned)loading_screen_id,
+                     wow_loading_texture);
+        }
+        gi.MemFree(data);
+        return;
+    }
+
+    gi.MemFree(data);
 }
 
 static FLOAT Wow_TerrainHeight(FLOAT x, FLOAT y) {
@@ -69,25 +266,39 @@ static void Wow_UpdateCamera(LPEDICT ent) {
     ent->client->ps.distance = wow_move.distance;
 }
 
-static DWORD Wow_FrameForAnimation(LPEDICT ent, LPCSTR animation_name) {
+static LPCANIMATION Wow_SetPlayerAnimation(LPEDICT ent, LPCSTR animation_name) {
     LPCANIMATION anim;
-    DWORD length;
 
     if (!ent || !gi.GetAnimation || !animation_name || ent->s.model == 0) {
-        return 0;
+        wow_player_animation = NULL;
+        return NULL;
     }
     anim = gi.GetAnimation(ent->s.model, animation_name);
     if (!anim || anim->interval[1] <= anim->interval[0]) {
-        return 0;
+        wow_player_animation = NULL;
+        return NULL;
     }
-    length = anim->interval[1] - anim->interval[0];
-    if (length <= 1) {
-        return anim->interval[0];
+    if (wow_player_animation != anim) {
+        ent->s.frame = anim->interval[0];
+        wow_player_animation = anim;
     }
-    if (anim->flags & 1) {
-        return MIN(anim->interval[0] + gi.GetTime(), anim->interval[1] - 1);
+    return wow_player_animation;
+}
+
+static void Wow_MovePlayerFrame(LPEDICT ent) {
+    DWORD next_frame;
+
+    if (!ent || !wow_player_animation) {
+        return;
     }
-    return anim->interval[0] + (gi.GetTime() % length);
+    next_frame = ent->s.frame + FRAMETIME;
+    if (ent->s.frame < wow_player_animation->interval[0] ||
+        ent->s.frame >= wow_player_animation->interval[1] ||
+        next_frame >= wow_player_animation->interval[1]) {
+        ent->s.frame = wow_player_animation->interval[0];
+    } else {
+        ent->s.frame = next_frame;
+    }
 }
 
 static void Wow_InitPlayer(LPEDICT ent) {
@@ -106,7 +317,8 @@ static void Wow_InitPlayer(LPEDICT ent) {
     ent->s.radius = 1.0f;
     ent->s.renderfx = RF_NO_SHADOW;
     ent->s.flags = EF_GROUND_ANCHOR;
-    ent->s.frame = Wow_FrameForAnimation(ent, "Stand");
+    wow_player_animation = NULL;
+    Wow_SetPlayerAnimation(ent, "Stand");
 
     ps = &ent->client->ps;
     memset(ps, 0, sizeof(*ps));
@@ -124,6 +336,8 @@ static void Wow_InitPlayer(LPEDICT ent) {
     ps->distance = 250.0f;
 #endif
     ps->client_ui_state = CLIENT_UI_GAME;
+    ps->texts[PLAYERTEXT_MAP_TITLE] = wow_loading_title;
+    ps->texts[PLAYERTEXT_MAP_PREVIEW] = wow_loading_texture;
 }
 
 static void Wow_Init(void) {
@@ -149,6 +363,7 @@ static void Wow_SpawnEntities(LPCMAPINFO mapinfo, LPCDOODAD doodads) {
     if (mapinfo && mapinfo->players[0].used) {
         wow_spawn_origin = mapinfo->players[0].startingPosition;
     }
+    Wow_SelectLoadingScreen(mapinfo ? mapinfo->mapName : NULL);
     wow_move.flags = 0;
     wow_move.yaw = 0.0f;
     wow_move.pitch = 328.0f;
@@ -199,7 +414,9 @@ static void Wow_RunFrame(void) {
     }
     ent->s.origin.z = Wow_TerrainHeight(ent->s.origin.x, ent->s.origin.y);
     ent->s.rotation = (VECTOR3){ wow_move.yaw, 0.0f, 0.0f };
-    ent->s.frame = Wow_FrameForAnimation(ent, moving ? "Walk" : "Stand");
+    if (Wow_SetPlayerAnimation(ent, moving ? "Walk" : "Stand")) {
+        Wow_MovePlayerFrame(ent);
+    }
     Wow_UpdateCamera(ent);
 }
 

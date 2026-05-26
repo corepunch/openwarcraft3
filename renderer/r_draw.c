@@ -1,7 +1,12 @@
 #include "r_local.h"
 
+#ifdef WOW
+#define R_UI_BASE_WIDTH  1.0f
+#define R_UI_BASE_HEIGHT 1.0f
+#else
 #define R_UI_BASE_WIDTH  0.8f
 #define R_UI_BASE_HEIGHT 0.6f
+#endif
 #define R_UI_MIN_ASPECT  (4.0f / 3.0f)
 
 RECT R_UISceneRect(void) {
