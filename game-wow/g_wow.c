@@ -1,6 +1,7 @@
 #include "g_wow_local.h"
 #include <math.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <strings.h>
 
 struct game_import gi;
@@ -20,6 +21,49 @@ static struct {
     .pitch = 328.0f,
     .distance = 8.5f,
 };
+
+#define WOW_MISSING_ANIMATION_LOG_SLOTS 128
+
+typedef struct {
+    DWORD model;
+    char name[64];
+} wowMissingAnimationLog_t;
+
+static wowMissingAnimationLog_t wow_missing_animation_log[WOW_MISSING_ANIMATION_LOG_SLOTS];
+
+static void Wow_LogMissingAnimation(LPEDICT ent, LPCSTR animation_name, BOOL invalid_interval) {
+    DWORD model;
+
+    if (!ent || !animation_name || !*animation_name) {
+        return;
+    }
+    model = ent->s.model;
+    FOR_LOOP(i, WOW_MISSING_ANIMATION_LOG_SLOTS) {
+        wowMissingAnimationLog_t *entry = &wow_missing_animation_log[i];
+
+        if (entry->model == model && !strcasecmp(entry->name, animation_name)) {
+            return;
+        }
+        if (entry->model == 0) {
+            entry->model = model;
+            strncpy(entry->name, animation_name, sizeof(entry->name) - 1);
+            fprintf(stderr,
+                    "WoW missing animation: entity=%u model=%u animation=%s%s\n",
+                    (unsigned)ent->s.number,
+                    (unsigned)model,
+                    animation_name,
+                    invalid_interval ? " invalid-interval" : "");
+            return;
+        }
+    }
+
+    fprintf(stderr,
+            "WoW missing animation: entity=%u model=%u animation=%s%s\n",
+            (unsigned)ent->s.number,
+            (unsigned)model,
+            animation_name,
+            invalid_interval ? " invalid-interval" : "");
+}
 
 FLOAT Wow_Clamp(FLOAT value, FLOAT min_value, FLOAT max_value) {
     return MAX(min_value, MIN(value, max_value));
@@ -324,6 +368,7 @@ LPCANIMATION Wow_SetEntityAnimation(LPEDICT ent, LPCSTR animation_name) {
     }
     anim = gi.GetAnimation(ent->s.model, animation_name);
     if (!anim || anim->interval[1] <= anim->interval[0]) {
+        Wow_LogMissingAnimation(ent, animation_name, anim != NULL);
         local->animation = NULL;
         return NULL;
     }
