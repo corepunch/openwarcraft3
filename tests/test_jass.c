@@ -54,7 +54,8 @@ static DWORD native_NewThread(LPJASS j) {
 }
 
 static DWORD native_ExecuteFunc(LPJASS j) {
-    return jass_startcoroutinebyname(j, jass_checkstring(j, 1)) ? 0 : 0;
+    (void)jass_startcoroutinebyname(j, jass_checkstring(j, 1));
+    return 0;
 }
 
 extern LPPLAYER currentplayer;
@@ -719,6 +720,48 @@ static void test_coroutine_sleep_resumes_after_timeout(void) {
     jass_close(j);
 }
 
+static void test_explicit_coroutine_resume_api(void) {
+    const char *src =
+        "native NativeSleep takes integer timeout returns nothing\n"
+        "globals\n"
+        "  integer g_stage = 0\n"
+        "endglobals\n"
+        "function Worker takes nothing returns nothing\n"
+        "  set g_stage = 1\n"
+        "  call NativeSleep(100)\n"
+        "  set g_stage = 2\n"
+        "endfunction\n"
+        "function GetStage takes nothing returns integer\n"
+        "  return g_stage\n"
+        "endfunction\n";
+    LPJASS j = run(src);
+    level.time = 0;
+
+    LPJASSCOROUTINE co = jass_startcoroutinebyname(j, "Worker");
+    ASSERT_NOT_NULL(co);
+    ASSERT(jass_resume(j, co));
+    jass_callbyname(j, "GetStage", false);
+    ASSERT_EQ_INT(jass_checkinteger(j, -1), 1);
+
+    level.time = 99;
+    ASSERT(!jass_resume(j, co));
+    jass_callbyname(j, "GetStage", false);
+    ASSERT_EQ_INT(jass_checkinteger(j, -1), 1);
+
+    level.time = 100;
+    ASSERT(jass_resume(j, co));
+    ASSERT(jass_coroutinedone(co));
+    jass_callbyname(j, "GetStage", false);
+    ASSERT_EQ_INT(jass_checkinteger(j, -1), 2);
+    jass_close(j);
+}
+
+static void test_start_coroutine_by_missing_name_returns_null(void) {
+    LPJASS j = run("");
+    ASSERT_NULL(jass_startcoroutinebyname(j, "MissingWorker"));
+    jass_close(j);
+}
+
 static void test_sleeping_coroutine_does_not_block_ready_coroutine(void) {
     const char *src =
         "native NativeSleep takes integer timeout returns nothing\n"
@@ -1233,6 +1276,8 @@ BEGIN_SUITE(jass)
     /* Coroutines */
     RUN_TEST(test_async_call_runs_from_event_pump);
     RUN_TEST(test_coroutine_sleep_resumes_after_timeout);
+    RUN_TEST(test_explicit_coroutine_resume_api);
+    RUN_TEST(test_start_coroutine_by_missing_name_returns_null);
     RUN_TEST(test_sleeping_coroutine_does_not_block_ready_coroutine);
     RUN_TEST(test_newthread_native_starts_coroutine);
     RUN_TEST(test_coroutine_spawned_during_pump_is_not_dropped);
