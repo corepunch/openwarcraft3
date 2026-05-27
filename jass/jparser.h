@@ -1,7 +1,7 @@
-#ifndef jass_parser_h
-#define jass_parser_h
+#ifndef jparser_h
+#define jparser_h
 
-#include "parser.h"
+#include "jlex.h"
 
 KNOWN_AS(token, TOKEN);
 

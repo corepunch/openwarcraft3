@@ -127,8 +127,45 @@ void R_RenderRectSplat(LPCVECTOR2 mins, LPCVECTOR2 maxs, LPCTEXTURE texture, LPC
 }
 
 void R_RenderFlatRectSplat(LPCVECTOR2 mins, LPCVECTOR2 maxs, FLOAT z, LPCTEXTURE texture, LPCSHADER shader, COLOR32 color) {
-    (void)z;
-    R_RenderRectSplat(mins, maxs, texture, shader, color);
+    MATRIX4 model_matrix;
+    float width;
+    float height;
+    VERTEX vertices[6];
+
+    if (!mins || !maxs || !texture || !shader) {
+        return;
+    }
+
+    width = maxs->x - mins->x;
+    height = maxs->y - mins->y;
+    if (width <= 0.0f || height <= 0.0f) {
+        return;
+    }
+
+    vertices[0] = Wow_Vertex(mins->x, mins->y, z, 0.0f, 1.0f, color);
+    vertices[1] = Wow_Vertex(maxs->x, mins->y, z, 1.0f, 1.0f, color);
+    vertices[2] = Wow_Vertex(maxs->x, maxs->y, z, 1.0f, 0.0f, color);
+    vertices[3] = Wow_Vertex(mins->x, mins->y, z, 0.0f, 1.0f, color);
+    vertices[4] = Wow_Vertex(maxs->x, maxs->y, z, 1.0f, 0.0f, color);
+    vertices[5] = Wow_Vertex(mins->x, maxs->y, z, 0.0f, 0.0f, color);
+
+    Matrix4_identity(&model_matrix);
+    R_BindTexture(texture, 0);
+    R_Call(glUseProgram, shader->progid);
+    R_Call(glUniformMatrix4fv, shader->uViewProjectionMatrix, 1, GL_FALSE, tr.viewDef.viewProjectionMatrix.v);
+    R_Call(glUniformMatrix4fv, shader->uModelMatrix, 1, GL_FALSE, model_matrix.v);
+
+    R_Call(glEnable, GL_BLEND);
+    R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    R_Call(glDepthMask, GL_FALSE);
+    R_Call(glEnable, GL_POLYGON_OFFSET_FILL);
+    R_Call(glPolygonOffset, -1.0f, -1.0f);
+    R_Call(glBindVertexArray, tr.buffer[RBUF_TEMP1]->vao);
+    R_Call(glBindBuffer, GL_ARRAY_BUFFER, tr.buffer[RBUF_TEMP1]->vbo);
+    R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STREAM_DRAW);
+    R_Call(glDrawArrays, GL_TRIANGLES, 0, 6);
+    R_Call(glDisable, GL_POLYGON_OFFSET_FILL);
+    R_Call(glDepthMask, GL_TRUE);
 }
 
 void R_RenderSplat(LPCVECTOR2 position, float radius, LPCTEXTURE texture, LPCSHADER shader, COLOR32 color) {

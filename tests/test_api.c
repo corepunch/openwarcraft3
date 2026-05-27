@@ -17,7 +17,7 @@
 #include "test_framework.h"
 #include "test_harness.h"
 
-#include "../jass/vm_public.h"
+#include "../jass/jass.h"
 
 #include <stdlib.h>
 #include <string.h>

@@ -78,6 +78,38 @@ VECTOR3 Wow_TerrainFaceNormal(LPCVECTOR3 a, LPCVECTOR3 b, LPCVECTOR3 c) {
     return normal;
 }
 
+static VECTOR3 Wow_DecodeTerrainNormal(BYTE const *normals, int index) {
+    int base = index * 3;
+    signed char nx;
+    signed char ny;
+    signed char nz;
+    VECTOR3 normal;
+
+    if (!normals) {
+        return (VECTOR3){ 0.0f, 0.0f, 1.0f };
+    }
+
+    nx = (signed char)normals[base + 0];
+    ny = (signed char)normals[base + 1];
+    nz = (signed char)normals[base + 2];
+
+    /* ADT local axes map into world axes as x=-y_local, y=-x_local, z=z_local. */
+    normal = (VECTOR3){
+        -(float)ny / 127.0f,
+        -(float)nx / 127.0f,
+        (float)nz / 127.0f,
+    };
+
+    if (Vector3_lengthsq(&normal) <= 0.000001f) {
+        return (VECTOR3){ 0.0f, 0.0f, 1.0f };
+    }
+    Vector3_normalize(&normal);
+    if (normal.z < 0.0f) {
+        normal = Vector3_scale(&normal, -1.0f);
+    }
+    return normal;
+}
+
 void Wow_AccumulateTerrainCellNormals(VECTOR3 normals[WOW_MCVT_COUNT],
                                              wowVec3_t pos,
                                              float const *heights,
@@ -270,15 +302,21 @@ void Wow_AddAdtChunk(wowVec3_t pos,
         return;
     }
 
-    memset(derived_normals, 0, sizeof(derived_normals));
-    FOR_LOOP(y, 8) {
-        FOR_LOOP(x, 8) {
-            if (WOW_IGNORE_TERRAIN_HOLES || !Wow_IsHole(holes, x, y)) {
-                Wow_AccumulateTerrainCellNormals(derived_normals, pos, heights, x, y);
+    if (normals) {
+        FOR_LOOP(i, WOW_MCVT_COUNT) {
+            derived_normals[i] = Wow_DecodeTerrainNormal(normals, i);
+        }
+    } else {
+        memset(derived_normals, 0, sizeof(derived_normals));
+        FOR_LOOP(y, 8) {
+            FOR_LOOP(x, 8) {
+                if (WOW_IGNORE_TERRAIN_HOLES || !Wow_IsHole(holes, x, y)) {
+                    Wow_AccumulateTerrainCellNormals(derived_normals, pos, heights, x, y);
+                }
             }
         }
+        Wow_NormalizeTerrainNormals(derived_normals);
     }
-    Wow_NormalizeTerrainNormals(derived_normals);
 
     FOR_LOOP(y, 8) {
         FOR_LOOP(x, 8) {

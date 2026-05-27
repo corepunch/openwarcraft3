@@ -1,5 +1,5 @@
-#include "jass_parser.h"
-#include "vm_public.h"
+#include "jparser.h"
+#include "jass.h"
 #include <setjmp.h>
 
 #define ALLOC(type) jass_alloc(sizeof(type))

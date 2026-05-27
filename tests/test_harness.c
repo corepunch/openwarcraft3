@@ -553,7 +553,7 @@ GAMEEVENT *G_PublishEvent(LPEDICT edict, EVENTTYPE type) {
     return evt;
 }
 
-/* g_main.c — Player lookup helpers used by vm_main.c and g_utils.c. */
+/* g_main.c — Player lookup helpers used by jdo.c and g_utils.c. */
 LPPLAYER G_GetPlayerByNumber(DWORD number) {
     FOR_LOOP(i, game.max_clients) {
         if (game.clients[i].ps.number == number) {

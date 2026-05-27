@@ -192,10 +192,17 @@ static void R_RenderUberSplat(const renderEntity_t *entity, LPCVECTOR2 origin) {
 
 static void R_RenderShadow(const renderEntity_t *entity, LPCVECTOR2 origin) {
     LPCTEXTURE shadow = entity->shadow;
+    BOX3 bounds;
 #ifdef WOW
+    BOOL use_fast_blob = false;
+    float shadow_z = entity->origin.z + WOW_SPLAT_Z_BIAS;
+
     if (!shadow) {
         shadow = tr.texture[TEX_BLOB_SHADOW];
     }
+    use_fast_blob = shadow == tr.texture[TEX_BLOB_SHADOW] &&
+                    entity->shadow_w <= 0 &&
+                    entity->shadow_h <= 0;
 #endif
     if (!shadow || (entity->flags & RF_NO_SHADOW)
 #ifndef WOW
@@ -234,9 +241,25 @@ static void R_RenderShadow(const renderEntity_t *entity, LPCVECTOR2 origin) {
     }
 
     COLOR32 shadowColor = {0, 0, 0, 128};
-#ifndef WOW
+#ifdef WOW
+    if (use_fast_blob) {
+        shadow_z = R_GetHeightAtPoint(origin->x, origin->y) + WOW_SPLAT_Z_BIAS;
+    }
+    bounds = (BOX3){
+        .min = { mins.x, mins.y, shadow_z - 16.0f },
+        .max = { maxs.x, maxs.y, shadow_z + 16.0f },
+    };
+    if (!(tr.viewDef.rdflags & RDF_NOFRUSTUMCULL) &&
+        !Frustum_ContainsAABox(&tr.viewDef.frustum, &bounds)) {
+        return;
+    }
+    if (use_fast_blob) {
+        R_RenderFlatRectSplat(&mins, &maxs, shadow_z, shadow, tr.shader[SHADER_SHADOWSPLAT], shadowColor);
+        return;
+    }
+#else
     if (!(tr.viewDef.rdflags & RDF_NOFRUSTUMCULL)) {
-        BOX3 bounds = {
+        bounds = (BOX3){
             .min = { mins.x, mins.y, entity->origin.z - 32.0f },
             .max = { maxs.x, maxs.y, entity->origin.z + 32.0f },
         };
