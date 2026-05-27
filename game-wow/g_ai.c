@@ -63,8 +63,6 @@ BOOL Wow_SetCombatReadyAnimation(LPEDICT ent) {
         "ReadyUnarmed",
         "Ready2H",
         "Ready2HL",
-        "Ready",
-        "Stand",
         NULL,
     };
     static LPCSTR const unarmed_ready_animations[] = {
@@ -72,14 +70,15 @@ BOOL Wow_SetCombatReadyAnimation(LPEDICT ent) {
         "Ready1H",
         "Ready2H",
         "Ready2HL",
-        "Ready",
-        "Stand",
         NULL,
     };
 
-    return Wow_SetEntityMoveFirstAnimation(ent,
+    if (Wow_SetEntityMoveFirstAnimation(ent,
         &wow_move_ready,
-        ent && ent->s.model2 ? weapon_ready_animations : unarmed_ready_animations);
+        ent && ent->s.model2 ? weapon_ready_animations : unarmed_ready_animations)) {
+        return true;
+    }
+    return Wow_SetStandMove(ent);
 }
 
 void Wow_AIIdle(LPEDICT ent) {
@@ -170,6 +169,7 @@ void Wow_AIPain(LPEDICT ent) {
 BOOL Wow_AIAdvanceLockedFrame(LPEDICT ent) {
     wowEntityLocal_t *local = Wow_EntityLocal(ent);
     DWORD *timer = NULL;
+    BOOL finished;
 
     if (!ent || !local) {
         return false;
@@ -184,12 +184,20 @@ BOOL Wow_AIAdvanceLockedFrame(LPEDICT ent) {
         return false;
     }
 
+    finished = *timer <= FRAMETIME;
     if (*timer > FRAMETIME) {
         *timer -= FRAMETIME;
     } else {
         *timer = 0;
     }
     Wow_AdvanceEntityFrame(ent);
+    if (finished) {
+        if (Wow_EntityAffectingCombat(ent)) {
+            Wow_SetCombatReadyAnimation(ent);
+        } else {
+            Wow_SetStandMove(ent);
+        }
+    }
     return true;
 }
 
