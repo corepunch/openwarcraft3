@@ -603,14 +603,13 @@ void R_RenderView(void) {
 }
 
 void R_RenderFrame(viewDef_t const *viewDef) {
-    R_Call(glActiveTexture, GL_TEXTURE2);
-    R_Call(glBindTexture, GL_TEXTURE_2D, R_GetFogOfWarTexture());
-    R_Call(glActiveTexture, GL_TEXTURE0);
-
     tr.viewDef = *viewDef;
     Frustum_Calculate(&viewDef->viewProjectionMatrix, &tr.viewDef.frustum);
 
     R_RenderFogOfWar();
+    R_Call(glActiveTexture, GL_TEXTURE2);
+    R_Call(glBindTexture, GL_TEXTURE_2D, R_GetFogOfWarTexture());
+    R_Call(glActiveTexture, GL_TEXTURE0);
 #ifdef USE_SHADOWMAPS
     R_RenderShadowMap();
 #endif

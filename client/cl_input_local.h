@@ -6,6 +6,7 @@
 #include <SDL2/SDL.h>
 
 BOOL CL_MouseOverGameplayUI(void);
+BOOL CL_GameplayInputReady(void);
 
 void CL_InputModeInit(void);
 void CL_InputModeSetGameplay(void);

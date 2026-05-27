@@ -116,6 +116,9 @@ static void SP_SpawnDestructable(LPEDICT edict) {
     edict->health.value = DESTRUCTABLE_HIT_POINT_MAXIMUM(edict->class_id);
     edict->health.max_value = DESTRUCTABLE_HIT_POINT_MAXIMUM(edict->class_id);
     edict->targtype = G_GetTargetType(DESTRUCTABLE_TARGETED_AS(edict->class_id));
+    if (DESTRUCTABLE_OCCLUDER_HEIGHT(edict->class_id) > 0 || edict->targtype == TARG_TREE) {
+        edict->s.flags |= EF_FOW_BLOCKER;
+    }
     edict->movetype = MOVETYPE_NONE;
 }
 
@@ -199,7 +202,7 @@ void G_SpawnEntities(LPCMAPINFO mapinfo, LPCDOODAD entities) {
         ent->class_id = doodad->doodID;
         ent->variation = doodad->variation;
         ent->hero = doodad->hero;
-        ent->s.player = doodad->player & 7;
+        ent->s.player = doodad->player < MAX_PLAYERS ? doodad->player : MAX_PLAYERS - 1;
         ent->s.origin = doodad->position;
         ent->s.angle = doodad->angle;
         ent->s.scale = doodad->scale.x;

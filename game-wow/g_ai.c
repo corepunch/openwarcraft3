@@ -77,13 +77,15 @@ void Wow_AIAttack(LPEDICT ent) {
     target = local->enemy;
     if (!target || !target->inuse || target == ent) {
         local->enemy = NULL;
-        return;
+        target = NULL;
     }
 
-    Wow_FaceTarget(ent, target);
+    if (target) {
+        Wow_FaceTarget(ent, target);
+    }
     local->attack_time = 700;
     Wow_SetFirstAnimation(ent, attack_animations);
-    if (target->pain) {
+    if (target && target->pain) {
         target->pain(target);
     }
 }
@@ -155,7 +157,6 @@ void Wow_AIRunFrame(LPEDICT ent) {
         ent->idle(ent);
     }
 
-    ent->s.origin.z = Wow_TerrainHeight(ent->s.origin.x, ent->s.origin.y);
     Wow_AdvanceEntityFrame(ent);
 }
 

@@ -86,9 +86,18 @@ typedef struct {
 typedef struct {
     DWORD attachment_id;
     WORD bone_index;
+    WORD padding;
     VECTOR3 position;
     m2Track_t visibility_track;
-} m2Attachment_t;
+} m2AttachmentModern_t;
+
+typedef struct {
+    DWORD attachment_id;
+    WORD bone_index;
+    WORD padding;
+    VECTOR3 position;
+    m2TrackClassic_t visibility_track;
+} m2AttachmentClassic_t;
 
 typedef struct {
     DWORD bone_id;
@@ -302,6 +311,8 @@ struct m2Model_s {
     DWORD bone_lookup_count;
     m2Array_t attachments;
     m2Array_t attachment_lookup;
+    DWORD attachment_stride;
+    BOOL classic_attachments;
     MATRIX4 *bone_matrices;
 };
 
@@ -651,6 +662,42 @@ static BOOL M2_DefaultObjectComponentTexturePath(LPCSTR model_path,
 
     snprintf(out, out_size, "Item\\ObjectComponents\\Weapon\\%.*s.blp", (int)stem_len, filename);
     return true;
+}
+
+static BOOL M2_DefaultCreatureTexturePath(LPCSTR model_path,
+                                          DWORD texture_type,
+                                          LPSTR out,
+                                          DWORD out_size) {
+    typedef struct {
+        LPCSTR model;
+        DWORD texture_type;
+        LPCSTR texture;
+    } defaultCreatureTexture_t;
+    static defaultCreatureTexture_t const defaults[] = {
+        { "Creature\\Wolf\\Wolf.mdx",     11, "Creature\\Wolf\\WolfSkinCoyote.blp" },
+        { "Creature\\Wolf\\Wolf.m2",      11, "Creature\\Wolf\\WolfSkinCoyote.blp" },
+        { "Creature\\Wolf\\Wolf.mdx",     12, "Creature\\Wolf\\WolfSkinCoyoteAlpha.blp" },
+        { "Creature\\Wolf\\Wolf.m2",      12, "Creature\\Wolf\\WolfSkinCoyoteAlpha.blp" },
+        { "Creature\\Boar\\Boar.mdx",     11, "Creature\\Boar\\BoarSkinIvory.blp" },
+        { "Creature\\Boar\\Boar.m2",      11, "Creature\\Boar\\BoarSkinIvory.blp" },
+        { "Creature\\Kobold\\Kobold.mdx", 11, "Creature\\Kobold\\koboldskinAlbino.blp" },
+        { "Creature\\Kobold\\Kobold.m2",  11, "Creature\\Kobold\\koboldskinAlbino.blp" },
+        { "Creature\\Murloc\\Murloc.mdx", 11, "Creature\\Murloc\\SahauginskinBlue.blp" },
+        { "Creature\\Murloc\\Murloc.m2",  11, "Creature\\Murloc\\SahauginskinBlue.blp" },
+    };
+
+    if (!model_path || !out || out_size == 0) {
+        return false;
+    }
+
+    FOR_LOOP(i, sizeof(defaults) / sizeof(defaults[0])) {
+        if (texture_type == defaults[i].texture_type &&
+            !strcasecmp(model_path, defaults[i].model)) {
+            snprintf(out, out_size, "%s", defaults[i].texture);
+            return true;
+        }
+    }
+    return false;
 }
 
 static BOOL M2_ArrayRange(m2Array_t array, DWORD elem_size, DWORD file_size, DWORD *offset, DWORD *bytes) {
@@ -1286,6 +1333,9 @@ static LPTEXTURE M2_TextureForBatch(BYTE const *m2_data,
         if (M2_DefaultObjectComponentTexturePath(modelFilename, texture[texture_index].type, replacement_path, sizeof(replacement_path))) {
             return R_LoadTexture(replacement_path);
         }
+        if (M2_DefaultCreatureTexturePath(modelFilename, texture[texture_index].type, replacement_path, sizeof(replacement_path))) {
+            return R_LoadTexture(replacement_path);
+        }
         return tr.texture[TEX_WHITE];
     }
     return R_LoadTexture(texture_path);
@@ -1636,6 +1686,8 @@ static BOOL M2_CopyModelData(m2Model_t *model, BYTE const *m2_base, DWORD m2_siz
     model->sequence_stride = model->classic_sequences ? sizeof(m2SequenceClassic_t) : sizeof(m2SequenceModern_t);
     model->classic_bones = model->header->version <= 263;
     model->bone_stride = model->classic_bones ? sizeof(m2CompBoneClassic_t) : sizeof(m2CompBoneModern_t);
+    model->classic_attachments = model->header->version <= 263;
+    model->attachment_stride = model->classic_attachments ? sizeof(m2AttachmentClassic_t) : sizeof(m2AttachmentModern_t);
 
     if (legacy_header) {
         m2HeaderLegacy_t *legacy = (m2HeaderLegacy_t *)model->data;
@@ -1895,17 +1947,18 @@ BOOL M2_AttachmentMatrix(m2Model_t const *model,
                          DWORD attachment_id,
                          LPCMATRIX4 model_matrix,
                          LPMATRIX4 out) {
-    m2Attachment_t const *attachments;
+    BYTE const *attachments;
     WORD const *lookup;
     DWORD attachment_index = 0xFFFFu;
-    m2Attachment_t const *attachment;
+    WORD bone_index;
+    VECTOR3 position;
     MATRIX4 local;
 
     if (!model || !model_matrix || !out || !model->bone_matrices || !model->bones) {
         return false;
     }
 
-    attachments = M2_ModelArrayPtr(model, model->attachments, sizeof(*attachments));
+    attachments = M2_ModelArrayPtr(model, model->attachments, model->attachment_stride);
     if (!attachments || model->attachments.size <= 0) {
         return false;
     }
@@ -1916,7 +1969,10 @@ BOOL M2_AttachmentMatrix(m2Model_t const *model,
     }
     if (attachment_index >= (DWORD)model->attachments.size) {
         FOR_LOOP(i, (DWORD)model->attachments.size) {
-            if (attachments[i].attachment_id == attachment_id) {
+            DWORD id = model->classic_attachments
+                ? ((m2AttachmentClassic_t const *)(attachments + i * model->attachment_stride))->attachment_id
+                : ((m2AttachmentModern_t const *)(attachments + i * model->attachment_stride))->attachment_id;
+            if (id == attachment_id) {
                 attachment_index = i;
                 break;
             }
@@ -1926,13 +1982,22 @@ BOOL M2_AttachmentMatrix(m2Model_t const *model,
         return false;
     }
 
-    attachment = &attachments[attachment_index];
-    if (attachment->bone_index >= model->bone_count) {
+    if (model->classic_attachments) {
+        m2AttachmentClassic_t const *attachment = (m2AttachmentClassic_t const *)(attachments + attachment_index * model->attachment_stride);
+        bone_index = attachment->bone_index;
+        position = attachment->position;
+    } else {
+        m2AttachmentModern_t const *attachment = (m2AttachmentModern_t const *)(attachments + attachment_index * model->attachment_stride);
+        bone_index = attachment->bone_index;
+        position = attachment->position;
+    }
+
+    if (bone_index >= model->bone_count) {
         return false;
     }
 
-    local = model->bone_matrices[attachment->bone_index];
-    Matrix4_translate(&local, &attachment->position);
+    local = model->bone_matrices[bone_index];
+    Matrix4_translate(&local, &position);
     Matrix4_multiply(model_matrix, &local, out);
     return true;
 }

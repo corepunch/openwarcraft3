@@ -127,6 +127,22 @@ typedef struct {
 } m2CompQuat_t;
 
 typedef struct {
+    DWORD attachment_id;
+    WORD bone_index;
+    WORD padding;
+    VECTOR3 position;
+    m2Track_t visibility_track;
+} m2AttachmentModern_t;
+
+typedef struct {
+    DWORD attachment_id;
+    WORD bone_index;
+    WORD padding;
+    VECTOR3 position;
+    m2TrackClassic_t visibility_track;
+} m2AttachmentClassic_t;
+
+typedef struct {
     DWORD bone_id;
     DWORD flags;
     WORD parent_index;
@@ -558,6 +574,55 @@ static void PrintArray(LPCSTR label, m2Array_t array, BOOL count_only) {
         printf("  %-28s count=%d\n", label, array.count);
     } else {
         printf("  %-28s count=%d offset=%d\n", label, array.count, array.offset);
+    }
+}
+
+static void PrintAttachments(BYTE const *data, DWORD size, m2HeaderInfo_t const *header) {
+    BYTE const *attachments;
+    WORD const *lookup;
+    BOOL legacy = header->version <= 263;
+    DWORD stride = legacy ? sizeof(m2AttachmentClassic_t) : sizeof(m2AttachmentModern_t);
+
+    attachments = ArrayPtr(data, size, header->attachments, stride);
+    if (!attachments || header->attachments.count <= 0) {
+        return;
+    }
+
+    printf("attachments:\n");
+    FOR_LOOP(i, (DWORD)header->attachments.count) {
+        DWORD attachment_id;
+        WORD bone_index;
+        VECTOR3 position;
+
+        if (legacy) {
+            m2AttachmentClassic_t const *attachment = (m2AttachmentClassic_t const *)(attachments + i * stride);
+            attachment_id = attachment->attachment_id;
+            bone_index = attachment->bone_index;
+            position = attachment->position;
+        } else {
+            m2AttachmentModern_t const *attachment = (m2AttachmentModern_t const *)(attachments + i * stride);
+            attachment_id = attachment->attachment_id;
+            bone_index = attachment->bone_index;
+            position = attachment->position;
+        }
+
+        printf("  [%03u] id=%u bone=%u pos=%.6f %.6f %.6f\n",
+               (unsigned)i,
+               (unsigned)attachment_id,
+               (unsigned)bone_index,
+               position.x,
+               position.y,
+               position.z);
+    }
+
+    lookup = ArrayPtr(data, size, header->attachment_lookup, sizeof(*lookup));
+    if (!lookup || header->attachment_lookup.count <= 0) {
+        return;
+    }
+
+    printf("attachment_lookup:\n");
+    FOR_LOOP(i, (DWORD)header->attachment_lookup.count) {
+        printf("  [%03u] -> %u\n", (unsigned)i, (unsigned)lookup[i]);
     }
 }
 
@@ -1344,6 +1409,7 @@ static void InspectModel(void) {
     }
 
     PrintHeaderArrays(&header);
+    PrintAttachments(payload, payload_size, &header);
     PrintTextures(payload, payload_size, &header);
     PrintTextureLookup(payload, payload_size, &header);
     PrintSkinInfo(resolved, payload, payload_size, &header);

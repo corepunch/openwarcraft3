@@ -13,7 +13,7 @@ static bool world_loaded = false;
 #ifdef WOW
 #define CL_MODEL_LOADS_PER_FRAME 32
 #else
-#define CL_MODEL_LOADS_PER_FRAME 1
+#define CL_MODEL_LOADS_PER_FRAME 8
 #endif
 
 VECTOR3 lightAngles = {-40,0,60};
@@ -235,6 +235,9 @@ static void V_AddClientEntity(centity_t const *ent) {
     re.flags = ent->current.renderfx;
     if (ent->current.flags & EF_GROUND_ANCHOR) {
         re.flags |= RF_GROUND_ANCHOR;
+    }
+    if (ent->current.flags & EF_FOW_BLOCKER) {
+        re.flags |= RF_FOW_BLOCKER;
     }
     re.radius = ent->current.radius;
     re.number = ent->current.number;
@@ -487,6 +490,7 @@ void CL_PrepRefresh(void) {
 }
 
 void V_RenderView(void) {
+    BOOL loading_screen = cl.playerstate.client_ui_state == CLIENT_UI_LOADING;
 
 #ifdef DEBUG_PATHFINDING
     extern LPCOLOR32 pathDebug;
@@ -495,14 +499,15 @@ void V_RenderView(void) {
 #endif
     
     static DWORD lastTime = 0;
-    if (!world_loaded) {
+    if (!world_loaded || loading_screen) {
         VECTOR3 target = { 0, 0, 90 };
 
         cl.viewDef.viewport = (RECT) { 0, 0, 1, 1 };
         cl.viewDef.scissor = (RECT) { 0, 0, 1, 1 };
         cl.viewDef.time = cl.time;
         cl.viewDef.deltaTime = cl.time - lastTime;
-        cl.viewDef.rdflags = RDF_NOWORLDMODEL | RDF_NOFRUSTUMCULL;
+        cl.viewDef.rdflags = RDF_NOWORLDMODEL | RDF_NOFRUSTUMCULL | RDF_NOFOG;
+        cl.viewDef.player = cl.playerstate.number;
 
         V_ClearScene();
         Matrix4_getPreviewCameraMatrix(&target, &cl.viewDef.viewProjectionMatrix);
@@ -525,6 +530,7 @@ void V_RenderView(void) {
     cl.viewDef.time = cl.time;
     cl.viewDef.deltaTime = cl.time - lastTime;
     cl.viewDef.rdflags = cl.playerstate.rdflags;
+    cl.viewDef.player = cl.playerstate.number;
     
     Matrix4_getCameraMatrix(&cl.viewDef.viewProjectionMatrix);
     Matrix4_getLightMatrix(&lightAngles, VIEW_SHADOW_SIZE, &cl.viewDef.lightMatrix);

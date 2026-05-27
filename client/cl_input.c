@@ -46,6 +46,12 @@ BOOL CL_MouseOverGameplayUI(void) {
     return ui.HitTestLayout ? ui.HitTestLayout((int)mouse.origin.x, (int)mouse.origin.y) : false;
 }
 
+BOOL CL_GameplayInputReady(void) {
+    return cls.key_dest == key_game &&
+           cls.state == ca_active &&
+           cl.playerstate.client_ui_state == CLIENT_UI_GAME;
+}
+
 void CL_Input(void) {
     SDL_Event event;
 
@@ -209,6 +215,10 @@ void CL_SetGameplayBindings(void) {
 }
 
 void IN_SelectDown(void) {
+    if (!CL_GameplayInputReady()) {
+        cl.selection.in_progress = false;
+        return;
+    }
     cl.selection.in_progress = true;
     cl.selection.rect.x = mouse.origin.x;
     cl.selection.rect.y = mouse.origin.y;
@@ -221,6 +231,10 @@ void IN_SelectDown(void) {
 }
 
 void IN_SelectUp(void) {
+    if (!CL_GameplayInputReady()) {
+        cl.selection.in_progress = false;
+        return;
+    }
     if (!cl.selection.in_progress)
         return;
     RECT const r = cl.selection.rect;

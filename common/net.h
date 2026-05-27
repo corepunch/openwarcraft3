@@ -3,7 +3,11 @@
 
 #define MAX_MSGLEN 256 * 1024
 
+#ifdef WOW
+#define PORT_SERVER 27911
+#else
 #define PORT_SERVER 27910
+#endif
 #define OW3_PROTOCOL_VERSION 1
 
 typedef void const *LPCVOID;

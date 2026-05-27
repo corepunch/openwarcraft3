@@ -2,7 +2,9 @@
 
 #define SIGHT_SIZE 64
 #define SIGHT_DISTANCE 2000
+#define FOW_UPDATE_INTERVAL_MS 100
 #define MAX_FOGOFWAR_CASTERS 20000
+#define MAX_FOGOFWAR_REVEALERS MAX_FOGOFWAR_CASTERS
 #define NUM_SIGHT_SECIONS 5
 
 LPCSTR vs_shadow =
@@ -61,6 +63,7 @@ static struct {
     LPRENDERTARGET rt[FOW_RT_COUNT];
     LPBUFFER casters;
     LPTEXTURE sight;
+    DWORD last_update_time;
 } fow_resources = { 0 };
 
 typedef struct caster_vertex {
@@ -68,7 +71,8 @@ typedef struct caster_vertex {
     struct { BYTE x, y; } texcoord;
 } castervertex_t;
 
-castervertex_t casters[MAX_FOGOFWAR_CASTERS * NUM_SIGHT_SECIONS];
+static castervertex_t casters[MAX_FOGOFWAR_CASTERS * NUM_SIGHT_SECIONS * NUM_RECT_VERTICES];
+static renderEntity_t const *revealers[MAX_FOGOFWAR_REVEALERS];
 
 LPTEXTURE R_AllocateSightTexture(void) {
     LPTEXTURE texture = R_AllocateTexture(SIGHT_SIZE, SIGHT_SIZE);
@@ -90,7 +94,7 @@ LPTEXTURE R_AllocateSightTexture(void) {
     return texture;
 }
 
-static void R_MakeSightMatrix(renderEntity_t *ent, LPMATRIX4 model_matrix) {
+static void R_MakeSightMatrix(renderEntity_t const *ent, LPMATRIX4 model_matrix) {
     Matrix4_identity(model_matrix);
     Matrix4_translate(model_matrix, &(VECTOR3) {
         ent->origin.x - tr.world->center.x - SIGHT_DISTANCE / 2,
@@ -106,16 +110,71 @@ static void R_MakeSightMatrix(renderEntity_t *ent, LPMATRIX4 model_matrix) {
     R_Call(glUniformMatrix4fv, tr.shader[SHADER_UI]->uModelMatrix, 1, GL_FALSE, model_matrix->v);
 }
 
-static DWORD R_AddCastersToBuffer(LPCBUFFER buffer) {
+static DWORD R_CollectRevealers(renderEntity_t const **out, DWORD max_revealers) {
+    DWORD count = 0;
+
+    FOR_LOOP(i, tr.viewDef.num_entities) {
+        renderEntity_t const *ent = &tr.viewDef.entities[i];
+
+        if (ent->team != tr.viewDef.player) {
+            continue;
+        }
+        if (ent->flags & RF_HIDDEN) {
+            continue;
+        }
+        if (count >= max_revealers) {
+            break;
+        }
+        out[count++] = ent;
+    }
+    return count;
+}
+
+static BOOL R_CasterNearRevealers(renderEntity_t const *caster,
+                                  renderEntity_t const **revealer_list,
+                                  DWORD num_revealers)
+{
+    FLOAT const range = SIGHT_DISTANCE + caster->radius + 100.0f;
+    FLOAT const range_sq = range * range;
+
+    FOR_LOOP(i, num_revealers) {
+        renderEntity_t const *revealer = revealer_list[i];
+        FLOAT const dx = caster->origin.x - revealer->origin.x;
+        FLOAT const dy = caster->origin.y - revealer->origin.y;
+
+        if (caster == revealer) {
+            continue;
+        }
+        if (dx * dx + dy * dy <= range_sq) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static DWORD R_AddCastersToBuffer(LPCBUFFER buffer,
+                                  renderEntity_t const **revealer_list,
+                                  DWORD num_revealers)
+{
     castervertex_t *caster_writer = casters;
+    castervertex_t *caster_end = casters + sizeof(casters) / sizeof(*casters);
     COLOR32 white = {255,255,255,255};
     VERTEX rect[NUM_RECT_VERTICES];
+
     FOR_LOOP(i, tr.viewDef.num_entities) {
         renderEntity_t *ent = &tr.viewDef.entities[i];
-        if (ent->radius < 10)
+
+        if (!(ent->flags & RF_FOW_BLOCKER) || ent->radius < 10) {
             continue;
+        }
+        if (!R_CasterNearRevealers(ent, revealer_list, num_revealers)) {
+            continue;
+        }
         RECT screen = { ent->origin.x, ent->origin.y, 0, 0, };
         FOR_LOOP(j, NUM_SIGHT_SECIONS) {
+            if (caster_writer + NUM_RECT_VERTICES > caster_end) {
+                goto upload;
+            }
             RECT uv = {((float)j)/NUM_SIGHT_SECIONS,0,1.0/NUM_SIGHT_SECIONS,1};
             LPCVERTEX end = R_AddQuad(rect, &screen, &uv, white, ent->radius);
             for (LPCVERTEX v = rect; v != end; v++) {
@@ -128,6 +187,8 @@ static DWORD R_AddCastersToBuffer(LPCBUFFER buffer) {
             }
         }
     }
+
+upload:
     R_Call(glBindVertexArray, buffer->vao);
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, buffer->vbo);
     R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(castervertex_t) * (caster_writer - casters), casters, GL_STATIC_DRAW);
@@ -163,11 +224,25 @@ static void R_BlitTexture(GLuint texid, float alpha) {
 }
 
 void R_RenderFogOfWar(void) {
-    if (!tr.world)
+    if (!tr.world ||
+        (tr.viewDef.rdflags & (RDF_NOFOG | RDF_NOWORLDMODEL)) ||
+        !fow_resources.rt[FOW_RT_IMMEDIATE] ||
+        !fow_resources.rt[FOW_RT_HISTORY] ||
+        !fow_resources.rt[FOW_RT_RESULT])
+    {
         return;
+    }
+
+    if (fow_resources.last_update_time &&
+        tr.viewDef.time - fow_resources.last_update_time < FOW_UPDATE_INTERVAL_MS)
+    {
+        return;
+    }
+    fow_resources.last_update_time = tr.viewDef.time;
     
     DWORD const texture_width = (tr.world->width - 1) * 4;
     DWORD const texture_height = (tr.world->height - 1) * 4;
+    DWORD const num_revealers = R_CollectRevealers(revealers, MAX_FOGOFWAR_REVEALERS);
 
     MATRIX4 model_matrix;
     MATRIX4 proj_matrix;
@@ -177,12 +252,16 @@ void R_RenderFogOfWar(void) {
     Matrix4_translate(&model_matrix, &(VECTOR3) { -tr.world->center.x, -tr.world->center.y, 0 });
     Matrix4_ortho(&proj_matrix, 0.0f, mapsize.x, 0.0f, mapsize.y, 0.0f, 100.0f);
 
-    DWORD num_casters = R_AddCastersToBuffer(fow_resources.casters);
     R_PushRectToBuffer(RBUF_TEMP1, &(RECT const){0,0,1,1}, 1);
 
-    R_Call(glUseProgram, fow_resources.shader[FOW_SHADER_RAYCAST]->progid);
-    R_Call(glUniformMatrix4fv, fow_resources.shader[FOW_SHADER_RAYCAST]->uViewProjectionMatrix, 1, GL_FALSE, proj_matrix.v);
-    R_Call(glUniformMatrix4fv, fow_resources.shader[FOW_SHADER_RAYCAST]->uModelMatrix, 1, GL_FALSE, model_matrix.v);
+    DWORD num_casters = 0;
+    if (num_revealers > 0) {
+        num_casters = R_AddCastersToBuffer(fow_resources.casters, revealers, num_revealers);
+
+        R_Call(glUseProgram, fow_resources.shader[FOW_SHADER_RAYCAST]->progid);
+        R_Call(glUniformMatrix4fv, fow_resources.shader[FOW_SHADER_RAYCAST]->uViewProjectionMatrix, 1, GL_FALSE, proj_matrix.v);
+        R_Call(glUniformMatrix4fv, fow_resources.shader[FOW_SHADER_RAYCAST]->uModelMatrix, 1, GL_FALSE, model_matrix.v);
+    }
 
     R_Call(glUseProgram, tr.shader[SHADER_UI]->progid);
     R_Call(glUniformMatrix4fv, tr.shader[SHADER_UI]->uViewProjectionMatrix, 1, GL_FALSE, proj_matrix.v);
@@ -200,11 +279,8 @@ void R_RenderFogOfWar(void) {
     R_Call(glActiveTexture, GL_TEXTURE0);
     R_Call(glBindTexture, GL_TEXTURE_2D, fow_resources.sight->texid);
 
-    FOR_LOOP(p, tr.viewDef.num_entities) {
-        renderEntity_t *ent = tr.viewDef.entities+p;
-
-        if (ent->team != 1)
-            continue;
+    FOR_LOOP(p, num_revealers) {
+        renderEntity_t const *ent = revealers[p];
         
         R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         R_Call(glColorMask, GL_FALSE, GL_FALSE, GL_FALSE, GL_TRUE);
@@ -253,7 +329,11 @@ void R_RenderFogOfWar(void) {
     R_Call(glBlendEquation, GL_FUNC_ADD);
     R_Call(glBlendFunc, GL_ONE, GL_ZERO);
     R_Call(glBindFramebuffer, GL_FRAMEBUFFER, fow_resources.rt[FOW_RT_RESULT]->buffer);
-    R_BlitTexture(fow_resources.rt[FOW_RT_HISTORY]->texture, 0.5);
+    if (tr.viewDef.rdflags & RDF_NOFOGMASK) {
+        R_BlitTexture(tr.texture[TEX_WHITE]->texid, 0.5);
+    } else {
+        R_BlitTexture(fow_resources.rt[FOW_RT_HISTORY]->texture, 0.5);
+    }
     R_Call(glBlendFunc, GL_ONE, GL_ONE);
     R_BlitTexture(fow_resources.rt[FOW_RT_IMMEDIATE]->texture, 0.5);
 
@@ -288,6 +368,7 @@ void R_InitFogOfWar(DWORD width, DWORD height) {
     fow_resources.shader[FOW_SHADER_RAYCAST] = R_InitShader(vs_shadow, fs_shadow);
     fow_resources.casters = R_MakeCastersVertexArrayObject();
     fow_resources.sight = R_AllocateSightTexture();
+    fow_resources.last_update_time = 0;
 }
 
 void R_ShutdownFogOfWar(void) {
@@ -303,12 +384,13 @@ void R_ShutdownFogOfWar(void) {
     fow_resources.casters = NULL;
     R_ReleaseTexture(fow_resources.sight);
     fow_resources.sight = NULL;
+    fow_resources.last_update_time = 0;
 }
 
 DWORD R_GetFogOfWarTexture(void) {
-//    if (fow_resources.rt[FOW_RT_RESULT] && !(tr.viewDef.rdflags & RDF_NOFOG)) {
-//        return fow_resources.rt[FOW_RT_RESULT]->texture;
-//    } else {
-        return tr.texture[TEX_WHITE]->texid;
-//    }
+    if (fow_resources.rt[FOW_RT_RESULT] &&
+        !(tr.viewDef.rdflags & (RDF_NOFOG | RDF_NOWORLDMODEL))) {
+        return fow_resources.rt[FOW_RT_RESULT]->texture;
+    }
+    return tr.texture[TEX_WHITE]->texid;
 }

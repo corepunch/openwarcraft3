@@ -6,7 +6,9 @@ MakeColor(color[INDEX], LerpNumber(color[INDEX], 1, 0.25f), LerpNumber(color[IND
 
 LPCTEXTURE g_groundTextures[MAX_MAP_LAYERS] = { NULL };
 
-static VERTEX ground_vertex_buffer[(SEGMENT_SIZE+1)*(SEGMENT_SIZE+1)*6];
+#define GROUND_VERTEX_BUFFER_CAPACITY 4096
+
+static VERTEX ground_vertex_buffer[GROUND_VERTEX_BUFFER_CAPACITY];
 static LPVERTEX ground_current_vertex = NULL;
 
 VECTOR3 R_GetVertexPosition(LPCWAR3MAP map, DWORD x, DWORD y, BOOL useLevel) {
@@ -106,6 +108,71 @@ static void R_MakeTile(LPCWAR3MAP map, DWORD x, DWORD y, DWORD ground, LPCTEXTUR
     ground_current_vertex += sizeof(geom) / sizeof(VERTEX);
 }
 
+static BOOL R_TileAcceptsSplat(LPCWAR3MAP map, DWORD x, DWORD y) {
+    struct War3MapVertex tile[4];
+    int ground;
+    int ramps;
+
+    GetTileVertices(x, y, map, tile);
+    ground = GetTile(tile, 0);
+    ramps = GetTileRamps(tile);
+
+    if (ground == 0) {
+        return false;
+    }
+    if (IsTileCliff(tile) && ramps < 4) {
+        return false;
+    }
+    if (ramps == 2 && IsMidRamp(tile) == 1) {
+        return false;
+    }
+    return true;
+}
+
+static void R_MakeSplatTile(LPCWAR3MAP map,
+                            DWORD x,
+                            DWORD y,
+                            LPCVECTOR2 mins,
+                            FLOAT width,
+                            FLOAT height,
+                            COLOR32 color) {
+    VECTOR3 const p[] = {
+        R_GetVertexPosition(map, x, y, true),
+        R_GetVertexPosition(map, x + 1, y, true),
+        R_GetVertexPosition(map, x + 1, y + 1, true),
+        R_GetVertexPosition(map, x, y + 1, true),
+    };
+    VECTOR2 const uv[] = {
+        { (p[0].x - mins->x) / width, 1 - (p[0].y - mins->y) / height },
+        { (p[1].x - mins->x) / width, 1 - (p[1].y - mins->y) / height },
+        { (p[2].x - mins->x) / width, 1 - (p[2].y - mins->y) / height },
+        { (p[3].x - mins->x) / width, 1 - (p[3].y - mins->y) / height },
+    };
+    VECTOR3 const normal = { 0, 0, 1 };
+    VERTEX const geom[] = {
+        { .position = p[0], .texcoord = uv[0], .normal = normal, .color = color },
+        { .position = p[1], .texcoord = uv[1], .normal = normal, .color = color },
+        { .position = p[2], .texcoord = uv[2], .normal = normal, .color = color },
+        { .position = p[0], .texcoord = uv[0], .normal = normal, .color = color },
+        { .position = p[2], .texcoord = uv[2], .normal = normal, .color = color },
+        { .position = p[3], .texcoord = uv[3], .normal = normal, .color = color },
+    };
+
+    memcpy(ground_current_vertex, geom, sizeof(geom));
+    ground_current_vertex += sizeof(geom) / sizeof(VERTEX);
+}
+
+static void R_FlushSplatBatch(void) {
+    DWORD num_vertices = (DWORD)(ground_current_vertex - ground_vertex_buffer);
+    if (num_vertices == 0) {
+        return;
+    }
+
+    R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(VERTEX) * num_vertices, ground_vertex_buffer, GL_STREAM_DRAW);
+    R_Call(glDrawArrays, GL_TRIANGLES, 0, num_vertices);
+    ground_current_vertex = ground_vertex_buffer;
+}
+
 LPMAPLAYER R_BuildMapSegmentLayer(LPCWAR3MAP map, DWORD sx, DWORD sy, DWORD layer) {
     LPMAPLAYER mapLayer = ri.MemAlloc(sizeof(MAPLAYER));
     PATHSTR zBuffer;
@@ -141,38 +208,24 @@ void R_RenderRectSplat(LPCVECTOR2 mins,
                        COLOR32 color)
 {
     MATRIX4 mModelMatrix;
+    int x_start, x_end;
+    int y_start, y_end;
 
     Matrix4_identity(&mModelMatrix);
     
     FLOAT const width = maxs->x - mins->x;
     FLOAT const height = maxs->y - mins->y;
-    if (!texture || width <= 0 || height <= 0) {
+    if (!tr.world || !texture || width <= 0 || height <= 0) {
         return;
     }
-    
-    VECTOR2 tmin = GetWar3MapPosition(tr.world, mins->x, mins->y);
-    VECTOR2 tmax = GetWar3MapPosition(tr.world, maxs->x, maxs->y);
 
-    ground_current_vertex = ground_vertex_buffer;
+    x_start = MAX(0, (int)floor((mins->x - tr.world->center.x) / TILE_SIZE));
+    y_start = MAX(0, (int)floor((mins->y - tr.world->center.y) / TILE_SIZE));
+    x_end = MIN((int)tr.world->width - 1, (int)ceil((maxs->x - tr.world->center.x) / TILE_SIZE));
+    y_end = MIN((int)tr.world->height - 1, (int)ceil((maxs->y - tr.world->center.y) / TILE_SIZE));
 
-    for (DWORD x = MAX(0, floor(tmin.x*tr.world->width)-1);
-         x < MIN(tr.world->width, ceil(tmax.x*tr.world->width));
-         x++)
-    {
-        for (DWORD y = MAX(0, floor(tmin.y*tr.world->height)-1);
-             y < MIN(tr.world->height, ceil(tmax.y*tr.world->height));
-             y++)
-        {
-            R_MakeTile(tr.world, x, y, 0, NULL);
-        }
-    }
-    int num_vertices = (DWORD)(ground_current_vertex - ground_vertex_buffer);
-    
-    FOR_LOOP(i, num_vertices){
-        LPVERTEX v = &ground_vertex_buffer[i];
-        v->texcoord.x = (v->position.x - mins->x) / width;
-        v->texcoord.y = 1 - (v->position.y - mins->y) / height;
-        v->color = color;
+    if (x_start >= x_end || y_start >= y_end) {
+        return;
     }
 
     R_BindTexture(texture, 0);
@@ -185,8 +238,20 @@ void R_RenderRectSplat(LPCVECTOR2 mins,
     R_Call(glDepthMask, GL_FALSE);
     R_Call(glBindVertexArray, tr.buffer[RBUF_TEMP1]->vao);
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, tr.buffer[RBUF_TEMP1]->vbo);
-    R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(VERTEX) * num_vertices, ground_vertex_buffer, GL_STATIC_DRAW);
-    R_Call(glDrawArrays, GL_TRIANGLES, 0, num_vertices);
+
+    ground_current_vertex = ground_vertex_buffer;
+    for (int x = x_start; x < x_end; x++) {
+        for (int y = y_start; y < y_end; y++) {
+            if (!R_TileAcceptsSplat(tr.world, (DWORD)x, (DWORD)y)) {
+                continue;
+            }
+            if ((ground_current_vertex - ground_vertex_buffer) + 6 > GROUND_VERTEX_BUFFER_CAPACITY) {
+                R_FlushSplatBatch();
+            }
+            R_MakeSplatTile(tr.world, (DWORD)x, (DWORD)y, mins, width, height, color);
+        }
+    }
+    R_FlushSplatBatch();
     R_Call(glDepthMask, GL_TRUE);
 }
 
@@ -249,6 +314,9 @@ void R_RenderSplat(LPCVECTOR2 position,
 }
 
 VECTOR3 CM_PointIntoHeightmap(LPCVECTOR3 point) {
+    if (!point || !tr.world) {
+        return (VECTOR3){0};
+    }
     return (VECTOR3) {
         .x = (point->x - tr.world->center.x) / TILE_SIZE,
         .y = (point->y - tr.world->center.y) / TILE_SIZE,
@@ -269,6 +337,9 @@ VECTOR3 R_PointFromHeightmap(LPCVECTOR3 point) {
 }
 
 bool R_TraceLocation(viewDef_t const *viewdef, FLOAT x, FLOAT y, LPVECTOR3 output) {
+    if (!viewdef || !output || !tr.world) {
+        return false;
+    }
     LINE3 const gline = R_LineForScreenPoint(viewdef, x, y);
     LINE3 line = {
         .a = CM_PointIntoHeightmap(&gline.a),

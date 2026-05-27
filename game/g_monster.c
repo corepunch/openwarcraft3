@@ -299,6 +299,9 @@ void SP_SpawnUnit(LPEDICT self) {
     self->collision = self->s.radius;//UNIT_COLLISION(self->class_id);
 //    printf("%.4s\n", &self->class_id);
     self->targtype = G_GetTargetType(UNIT_TARGETED_AS(self->class_id));
+    if (UNIT_OCCLUDER_HEIGHT(self->class_id) > 0) {
+        self->s.flags |= EF_FOW_BLOCKER;
+    }
     self->mana.value = UNIT_MANA(self->class_id);
     self->mana.max_value = UNIT_MANA(self->class_id);
     self->health.value = UNIT_HP(self->class_id);

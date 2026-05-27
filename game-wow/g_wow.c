@@ -380,6 +380,34 @@ static LPEDICT Wow_EdictByNumber(DWORD number) {
     return &wow_edicts[number];
 }
 
+static LPEDICT Wow_FindNearestAttackTarget(LPEDICT ent) {
+    LPEDICT best = NULL;
+    FLOAT best_dist2 = 6.0f * 6.0f;
+
+    if (!ent) {
+        return NULL;
+    }
+
+    for (DWORD i = WOW_MAX_CLIENTS; i < (DWORD)globals.num_edicts && i < WOW_MAX_EDICTS; i++) {
+        LPEDICT candidate = &wow_edicts[i];
+        VECTOR2 delta;
+        FLOAT dist2;
+
+        if (!candidate->inuse || candidate == ent || !(candidate->svflags & SVF_MONSTER)) {
+            continue;
+        }
+
+        delta = Vector2_sub(&candidate->s.origin2, &ent->s.origin2);
+        dist2 = delta.x * delta.x + delta.y * delta.y;
+        if (dist2 < best_dist2) {
+            best_dist2 = dist2;
+            best = candidate;
+        }
+    }
+
+    return best;
+}
+
 LPEDICT Wow_Spawn(void) {
     LPEDICT ent = NULL;
     DWORD index;
@@ -560,20 +588,21 @@ static LPCSTR Wow_GetThemeValue(LPCSTR filename) {
 }
 
 static void Wow_ClientCommand(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
-    if (argc >= 5 && !strcasecmp(argv[0], "wowmove")) {
+    if (argc >= 5 && (!strcasecmp(argv[0], "move") || !strcasecmp(argv[0], "wowmove"))) {
         wow_move.flags = (DWORD)strtoul(argv[1], NULL, 10);
         wow_move.yaw = (FLOAT)atof(argv[2]);
         wow_move.pitch = Wow_Clamp((FLOAT)atof(argv[3]), WOW_CAMERA_MIN_PITCH, WOW_CAMERA_MAX_PITCH);
         wow_move.distance = Wow_Clamp((FLOAT)atof(argv[4]), WOW_CAMERA_MIN_DISTANCE, WOW_CAMERA_MAX_DISTANCE);
-    } else if (argc >= 2 && !strcasecmp(argv[0], "wowattack")) {
-        DWORD target_number = (DWORD)strtoul(argv[1], NULL, 10);
-        LPEDICT target = Wow_EdictByNumber(target_number);
+    } else if (argc >= 1 && (!strcasecmp(argv[0], "attack") || !strcasecmp(argv[0], "wowattack"))) {
+        LPEDICT target = argc >= 2
+            ? Wow_EdictByNumber((DWORD)strtoul(argv[1], NULL, 10))
+            : Wow_FindNearestAttackTarget(ent);
         wowEntityLocal_t *local = Wow_EntityLocal(ent);
 
-        if (!ent || !target || target == ent || !local || !ent->attack) {
+        if (!ent || !local || !ent->attack) {
             return;
         }
-        local->enemy = target;
+        local->enemy = target && target != ent ? target : NULL;
         ent->attack(ent);
     }
 }

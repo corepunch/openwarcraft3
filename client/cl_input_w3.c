@@ -9,6 +9,10 @@ static struct {
 static BOOL smart_click_active;
 
 static void CL_BeginPan(float x, float y) {
+    if (!CL_GameplayInputReady()) {
+        camera_drag.active = false;
+        return;
+    }
     camera_drag.active = re.TraceLocation(&cl.viewDef, x, y, &camera_drag.anchor);
 }
 
@@ -16,6 +20,10 @@ static void CL_UpdatePan(float x, float y) {
     VECTOR3 point;
     VECTOR2 position;
 
+    if (!CL_GameplayInputReady()) {
+        camera_drag.active = false;
+        return;
+    }
     if (!camera_drag.active) {
         CL_BeginPan(x, y);
         return;
@@ -46,6 +54,9 @@ static void CL_SendSmartCommand(float x, float y) {
     DWORD entnum;
     VECTOR3 point;
 
+    if (!CL_GameplayInputReady()) {
+        return;
+    }
     if (CL_MouseOverGameplayUI()) {
         return;
     }
@@ -71,10 +82,18 @@ static void IN_PanUp(void) {
 }
 
 static void IN_SmartDown(void) {
+    if (!CL_GameplayInputReady()) {
+        smart_click_active = false;
+        return;
+    }
     smart_click_active = true;
 }
 
 static void IN_SmartUp(void) {
+    if (!CL_GameplayInputReady()) {
+        smart_click_active = false;
+        return;
+    }
     if (!smart_click_active) {
         return;
     }

@@ -78,6 +78,7 @@ typedef struct {
     MATRIX4 viewProjectionMatrix;
     MATRIX4 lightMatrix;
     MATRIX4 textureMatrix;
+    DWORD player;
     DWORD rdflags;
     FRUSTUM3 frustum;
 } viewDef_t;

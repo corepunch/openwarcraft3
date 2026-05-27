@@ -128,10 +128,12 @@ enum {
     FLAG(RF_ATTACH_OVERHEAD, 7),
     FLAG(RF_NO_LIGHTING, 8),
     FLAG(RF_GROUND_ANCHOR, 9),
+    FLAG(RF_FOW_BLOCKER, 10),
 };
 
 enum {
     FLAG(EF_GROUND_ANCHOR, 0),
+    FLAG(EF_FOW_BLOCKER, 1),
 };
 
 enum {

@@ -2,6 +2,7 @@
 #include <strings.h>
 #include <stdlib.h>
 #include <float.h>
+#include <math.h>
 
 #define WOW_WDT_TILES 64
 #define WOW_MCVT_COUNT (9 * 9 + 8 * 8)
@@ -17,6 +18,10 @@
 #define WOW_DEBUG_OBJECT_MARKERS 0
 #define WOW_DEBUG_DOODAD_ERROR_MESHES 0
 #define WOW_DOODAD_DRAW_DISTANCE 450.0f
+#define WOW_TERRAIN_DRAW_DISTANCE 700.0f
+#define WOW_DOODAD_BUCKET_SIZE 128.0f
+#define WOW_DOODAD_BUCKETS 272
+#define WOW_WORLD_COORD_OFFSET (32.0f * WOW_ADT_SIZE)
 
 typedef struct wowWdtTile_s {
     BOOL present;
@@ -48,6 +53,7 @@ typedef struct wowDoodadModel_s {
 typedef struct wowDoodadInstance_s {
     renderEntity_t entity;
     struct wowDoodadInstance_s *next;
+    struct wowDoodadInstance_s *bucket_next;
 } wowDoodadInstance_t;
 
 typedef struct wowWmoBatch_s {
@@ -96,6 +102,7 @@ typedef struct wowMap_s {
     wowM2BoundsCache_t *m2_bounds;
     wowDoodadModel_t *doodad_models;
     wowDoodadInstance_t *doodads;
+    wowDoodadInstance_t *doodad_buckets[WOW_DOODAD_BUCKETS][WOW_DOODAD_BUCKETS];
     wowWmoModel_t *wmo_models;
     wowWmoInstance_t *wmos;
     LPTEXTURE alpha_atlas_texture;
@@ -328,6 +335,7 @@ static void Wow_FreeDoodadInstances(void) {
         doodad = next;
     }
     wow_world.doodads = NULL;
+    memset(wow_world.doodad_buckets, 0, sizeof(wow_world.doodad_buckets));
 }
 
 static void Wow_ClearLoadedAdts(void) {
@@ -1484,6 +1492,31 @@ static LPMODEL Wow_LoadDoodadModel(LPCSTR path) {
     return entry->model;
 }
 
+static int Wow_DoodadBucketIndex(float coord) {
+    int index = (int)floorf((coord + WOW_WORLD_COORD_OFFSET) / WOW_DOODAD_BUCKET_SIZE);
+    if (index < 0) {
+        return 0;
+    }
+    if (index >= WOW_DOODAD_BUCKETS) {
+        return WOW_DOODAD_BUCKETS - 1;
+    }
+    return index;
+}
+
+static void Wow_BucketDoodadInstance(wowDoodadInstance_t *instance) {
+    int bucket_x;
+    int bucket_y;
+
+    if (!instance) {
+        return;
+    }
+
+    bucket_x = Wow_DoodadBucketIndex(instance->entity.origin.x);
+    bucket_y = Wow_DoodadBucketIndex(instance->entity.origin.y);
+    instance->bucket_next = wow_world.doodad_buckets[bucket_y][bucket_x];
+    wow_world.doodad_buckets[bucket_y][bucket_x] = instance;
+}
+
 static void Wow_AddDoodadInstance(LPCSTR model_path, wowDoodadDef_t const *def) {
     wowDoodadInstance_t *instance;
     LPMODEL model;
@@ -1512,6 +1545,7 @@ static void Wow_AddDoodadInstance(LPCSTR model_path, wowDoodadDef_t const *def) 
     instance->entity.flags = RF_NO_SHADOW;
     instance->next = wow_world.doodads;
     wow_world.doodads = instance;
+    Wow_BucketDoodadInstance(instance);
     wow_world.num_doodad_instances++;
 }
 
@@ -2029,6 +2063,32 @@ static BOOL Wow_EntityInView(renderEntity_t const *entity) {
     });
 }
 
+static BOOL Wow_TerrainChunkInRange(wowAdtChunk_t const *chunk) {
+    VECTOR3 camera_origin;
+    float dx = 0.0f;
+    float dy = 0.0f;
+    float max_distance_sq;
+
+    if (!chunk) {
+        return false;
+    }
+
+    camera_origin = tr.viewDef.camerastate[0].origin;
+    if (camera_origin.x < chunk->bounds.min.x) {
+        dx = chunk->bounds.min.x - camera_origin.x;
+    } else if (camera_origin.x > chunk->bounds.max.x) {
+        dx = camera_origin.x - chunk->bounds.max.x;
+    }
+    if (camera_origin.y < chunk->bounds.min.y) {
+        dy = chunk->bounds.min.y - camera_origin.y;
+    } else if (camera_origin.y > chunk->bounds.max.y) {
+        dy = camera_origin.y - chunk->bounds.max.y;
+    }
+
+    max_distance_sq = WOW_TERRAIN_DRAW_DISTANCE * WOW_TERRAIN_DRAW_DISTANCE;
+    return dx * dx + dy * dy <= max_distance_sq;
+}
+
 static BOOL Wow_WmoGroupInView(wowWmoGroup_t const *group, LPCMATRIX4 matrix) {
     VECTOR3 center;
     VECTOR3 extents;
@@ -2056,6 +2116,18 @@ static BOOL Wow_WmoGroupInView(wowWmoGroup_t const *group, LPCMATRIX4 matrix) {
         .center = world_center,
         .radius = MAX(radius, 16.0f),
     });
+}
+
+static void Wow_BindWorldTexture(LPCTEXTURE texture, DWORD unit, LPCTEXTURE bound[5], LPDWORD binds) {
+    texture = texture ? texture : tr.texture[TEX_WHITE];
+    if (unit >= 5 || bound[unit] == texture) {
+        return;
+    }
+    R_BindTexture(texture, unit);
+    bound[unit] = texture;
+    if (binds) {
+        (*binds)++;
+    }
 }
 
 void R_RegisterMap(LPCSTR mapFileName) {
@@ -2108,6 +2180,13 @@ void R_DrawWorld(void) {
     };
     MATRIX3 normal_matrix;
     wowAdtChunk_t *chunk;
+    LPCTEXTURE bound_textures[5] = { NULL, NULL, NULL, NULL, NULL };
+    DWORD texture_binds = 0;
+    DWORD terrain_considered = 0;
+    DWORD drawn_chunks = 0;
+    DWORD terrain_vertices = 0;
+    DWORD doodad_bucket_count = 0;
+    DWORD doodad_candidates = 0;
     DWORD drawn_doodads = 0;
     DWORD drawn_wmo_groups = 0;
     DWORD drawn_wmo_batches = 0;
@@ -2154,13 +2233,19 @@ void R_DrawWorld(void) {
         if (!chunk->buffer || !chunk->num_vertices) {
             continue;
         }
-        R_BindTexture(chunk->textures[0] ? chunk->textures[0] : tr.texture[TEX_WHITE], 0);
-        R_BindTexture(chunk->textures[1] ? chunk->textures[1] : chunk->textures[0], 1);
-        R_BindTexture(chunk->textures[2] ? chunk->textures[2] : chunk->textures[0], 2);
-        R_BindTexture(chunk->textures[3] ? chunk->textures[3] : chunk->textures[0], 3);
-        R_BindTexture(chunk->alpha_texture ? chunk->alpha_texture : tr.texture[TEX_WHITE], 4);
+        terrain_considered++;
+        if (!Wow_TerrainChunkInRange(chunk)) {
+            continue;
+        }
+        Wow_BindWorldTexture(chunk->textures[0] ? chunk->textures[0] : tr.texture[TEX_WHITE], 0, bound_textures, &texture_binds);
+        Wow_BindWorldTexture(chunk->textures[1] ? chunk->textures[1] : chunk->textures[0], 1, bound_textures, &texture_binds);
+        Wow_BindWorldTexture(chunk->textures[2] ? chunk->textures[2] : chunk->textures[0], 2, bound_textures, &texture_binds);
+        Wow_BindWorldTexture(chunk->textures[3] ? chunk->textures[3] : chunk->textures[0], 3, bound_textures, &texture_binds);
+        Wow_BindWorldTexture(chunk->alpha_texture ? chunk->alpha_texture : tr.texture[TEX_WHITE], 4, bound_textures, &texture_binds);
         R_Call(glUniform2f, wow_uAlphaOrigin, (GLfloat)chunk->alpha_index_x, (GLfloat)chunk->alpha_index_y);
         R_DrawBuffer(chunk->buffer, chunk->num_vertices);
+        drawn_chunks++;
+        terrain_vertices += chunk->num_vertices;
     }
 
     for (wowWmoInstance_t *wmo = wow_world.wmos; wmo; wmo = wmo->next) {
@@ -2182,11 +2267,11 @@ void R_DrawWorld(void) {
                 if (!batch->buffer || !batch->num_vertices) {
                     continue;
                 }
-                R_BindTexture(batch->texture ? batch->texture : tr.texture[TEX_WHITE], 0);
-                R_BindTexture(batch->texture ? batch->texture : tr.texture[TEX_WHITE], 1);
-                R_BindTexture(batch->texture ? batch->texture : tr.texture[TEX_WHITE], 2);
-                R_BindTexture(batch->texture ? batch->texture : tr.texture[TEX_WHITE], 3);
-                R_BindTexture(tr.texture[TEX_WHITE], 4);
+                Wow_BindWorldTexture(batch->texture ? batch->texture : tr.texture[TEX_WHITE], 0, bound_textures, &texture_binds);
+                Wow_BindWorldTexture(batch->texture ? batch->texture : tr.texture[TEX_WHITE], 1, bound_textures, &texture_binds);
+                Wow_BindWorldTexture(batch->texture ? batch->texture : tr.texture[TEX_WHITE], 2, bound_textures, &texture_binds);
+                Wow_BindWorldTexture(batch->texture ? batch->texture : tr.texture[TEX_WHITE], 3, bound_textures, &texture_binds);
+                Wow_BindWorldTexture(tr.texture[TEX_WHITE], 4, bound_textures, &texture_binds);
                 R_DrawBuffer(batch->buffer, batch->num_vertices);
                 drawn_wmo_batches++;
             }
@@ -2197,10 +2282,29 @@ void R_DrawWorld(void) {
     R_Call(glUniformMatrix3fv, wow_terrain_shader->uNormalMatrix, 1, GL_TRUE, normal_matrix.v);
     R_Call(glUniform1i, wow_uUseWeightedBlend, wow_world.use_weighted_blend ? 1 : 0);
 
-    for (wowDoodadInstance_t *doodad = wow_world.doodads; doodad; doodad = doodad->next) {
-        if (Wow_EntityInView(&doodad->entity)) {
-            R_RenderModel(&doodad->entity);
-            drawn_doodads++;
+    {
+        VECTOR3 camera_origin = tr.viewDef.camerastate[0].origin;
+        int center_x = Wow_DoodadBucketIndex(camera_origin.x);
+        int center_y = Wow_DoodadBucketIndex(camera_origin.y);
+        int radius = (int)ceilf(WOW_DOODAD_DRAW_DISTANCE / WOW_DOODAD_BUCKET_SIZE) + 1;
+        int min_x = MAX(0, center_x - radius);
+        int max_x = MIN(WOW_DOODAD_BUCKETS - 1, center_x + radius);
+        int min_y = MAX(0, center_y - radius);
+        int max_y = MIN(WOW_DOODAD_BUCKETS - 1, center_y + radius);
+
+        for (int bucket_y = min_y; bucket_y <= max_y; bucket_y++) {
+            for (int bucket_x = min_x; bucket_x <= max_x; bucket_x++) {
+                doodad_bucket_count++;
+                for (wowDoodadInstance_t *doodad = wow_world.doodad_buckets[bucket_y][bucket_x];
+                     doodad;
+                     doodad = doodad->bucket_next) {
+                    doodad_candidates++;
+                    if (Wow_EntityInView(&doodad->entity)) {
+                        R_RenderModel(&doodad->entity);
+                        drawn_doodads++;
+                    }
+                }
+            }
         }
     }
 
@@ -2211,7 +2315,16 @@ void R_DrawWorld(void) {
             logged_x = wow_world.adt_center_x;
             logged_y = wow_world.adt_center_y;
             fprintf(stderr,
-                    "R_DrawWorld: visible camera window doodads=%u/%u draw_distance=%.0f\n",
+                    "R_DrawWorld: terrain chunks=%u/%u considered=%u vertices=%u texture_binds=%u\n",
+                    (unsigned)drawn_chunks,
+                    (unsigned)wow_world.num_chunks,
+                    (unsigned)terrain_considered,
+                    (unsigned)terrain_vertices,
+                    (unsigned)texture_binds);
+            fprintf(stderr,
+                    "R_DrawWorld: doodads buckets=%u candidates=%u visible=%u/%u draw_distance=%.0f\n",
+                    (unsigned)doodad_bucket_count,
+                    (unsigned)doodad_candidates,
                     (unsigned)drawn_doodads,
                     (unsigned)wow_world.num_doodad_instances,
                     (double)WOW_DOODAD_DRAW_DISTANCE);

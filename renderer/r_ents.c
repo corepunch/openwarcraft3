@@ -51,9 +51,28 @@ void R_GetEntityMatrix(renderEntity_t const *entity, LPMATRIX4 matrix) {
     Matrix4_scale(matrix, &(VECTOR3){entity->scale, entity->scale, entity->scale});
 }
 
+static BOOL R_EntityInView(renderEntity_t const *entity) {
+    float radius;
+
+    if (!entity || (entity->flags & RF_HIDDEN) || !entity->model) {
+        return false;
+    }
+    if (tr.viewDef.rdflags & RDF_NOFRUSTUMCULL) {
+        return true;
+    }
+
+    radius = MAX(entity->radius * MAX(entity->scale, 1.0f), 16.0f);
+    return Frustum_ContainsSphere(&tr.viewDef.frustum, &(SPHERE3){
+        .center = entity->origin,
+        .radius = radius,
+    });
+}
+
 void R_DrawEntities(void) {
     FOR_LOOP(i, tr.viewDef.num_entities) {
-        R_RenderModel(tr.viewDef.entities+i);
+        if (R_EntityInView(tr.viewDef.entities+i)) {
+            R_RenderModel(tr.viewDef.entities+i);
+        }
     }
 }
 
@@ -78,6 +97,9 @@ LINE3 R_LineForScreenPoint(viewDef_t const *viewdef, float x, float y) {
 }
 
 bool R_TraceEntity(viewDef_t const *viewdef, float x, float y, LPDWORD number) {
+    if (!viewdef || !number) {
+        return false;
+    }
     LINE3 const line = R_LineForScreenPoint(viewdef, x, y);
 #ifdef WOW
     FLOAT best = FLT_MAX;
@@ -131,6 +153,9 @@ bool R_TraceEntity(viewDef_t const *viewdef, float x, float y, LPDWORD number) {
 }
 
 DWORD R_EntitiesInRect(viewDef_t const *viewdef, LPCRECT rect, DWORD max, LPDWORD array) {
+    if (!viewdef || !rect || !array || max == 0) {
+        return 0;
+    }
     tr.viewDef = *viewdef;
     VECTOR2 const a = R_PointToScreenSpace(rect->x, rect->y);
     VECTOR2 const b = R_PointToScreenSpace(rect->x+rect->w, rect->y+rect->h);
@@ -208,8 +233,6 @@ extern bool is_rendering_lights;
 #endif
 DWORD selCircles[NUM_SELECTION_CIRCLES] = { 100, 300, 100000 };
 
-#define FLAT_SHADOW_Z_BIAS 16.0f
-
 static void R_RenderUberSplat(const renderEntity_t *entity, LPCVECTOR2 origin) {
     if (entity->splat && !(entity->flags & RF_NO_UBERSPLAT)) {
         R_RenderSplat(origin, entity->splatsize, entity->splat, tr.shader[SHADER_DEFAULT], COLOR32_WHITE);
@@ -229,12 +252,14 @@ static void R_RenderShadow(const renderEntity_t *entity, LPCVECTOR2 origin) {
         maxs.x = mins.x + entity->shadow_w;
         maxs.y = mins.y + entity->shadow_h;
     } else {
+        int pivot_x = (int)(entity->shadow->width * 0.3f + 0.5f);
+        int pivot_y = (int)(entity->shadow->height * 0.7f + 0.5f);
         float width = entity->shadow->width * 32.0f;
         float height = entity->shadow->height * 32.0f;
-        mins.x = origin->x - width * 0.3f;
-        mins.y = origin->y - height * 0.3f;
-        maxs.x = origin->x + width * 0.7f;
-        maxs.y = origin->y + height * 0.7f;
+        mins.x = origin->x - pivot_x * 32.0f;
+        mins.y = origin->y - (entity->shadow->height - pivot_y) * 32.0f;
+        maxs.x = mins.x + width;
+        maxs.y = mins.y + height;
     }
 
     COLOR32 shadowColor = {0, 0, 0, 128};
@@ -249,7 +274,7 @@ static void R_RenderShadow(const renderEntity_t *entity, LPCVECTOR2 origin) {
         }
     }
 #endif
-    R_RenderFlatRectSplat(&mins, &maxs, entity->origin.z + FLAT_SHADOW_Z_BIAS, entity->shadow, tr.shader[SHADER_SHADOWSPLAT], shadowColor);
+    R_RenderRectSplat(&mins, &maxs, entity->shadow, tr.shader[SHADER_SHADOWSPLAT], shadowColor);
 }
 
 static void R_RenderSelectedCircle(const renderEntity_t *entity, LPCVECTOR2 origin) {

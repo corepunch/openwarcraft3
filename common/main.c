@@ -100,17 +100,21 @@ int main(int argc, LPSTR argv[]) {
 
     LPCSTR map = Cvar_String("map", "");
     LPCSTR connect_addr = Cvar_String("connect", "");
-    bool menu_mode = (!map || !*map) && (!connect_addr || !*connect_addr);
+    bool has_map = map && *map;
+    bool has_connect_addr = connect_addr && *connect_addr;
+    bool menu_mode = !has_map && !has_connect_addr;
+    bool listen_server_mode = has_map && !has_connect_addr;
     bool net_enabled = Cvar_Integer("net_enabled", 1) != 0;
     cls.key_dest = menu_mode ? key_menu : key_game;
     cls.state = ca_disconnected;
 
-    unsigned short port = connect_addr && *connect_addr ? 0 : PORT_SERVER;
-    if (connect_addr && *connect_addr && !net_enabled) {
+    unsigned short port = has_connect_addr ? 0 : PORT_SERVER;
+    if (has_connect_addr && !net_enabled) {
         fprintf(stderr, "Cannot connect with net_enabled disabled\n");
         return 1;
     }
-    if (net_enabled && !NET_Init(port)) {
+    bool net_active = net_enabled && !menu_mode;
+    if (net_active && !NET_Init(port)) {
         fprintf(stderr, "NET_Init failed\n");
         return 1;
     }
@@ -118,10 +122,10 @@ int main(int argc, LPSTR argv[]) {
     SV_Init();
     CL_Init();
 
-    if (connect_addr && *connect_addr) {
+    if (has_connect_addr) {
         // Remote-client mode: skip the local server, connect over UDP.
         CL_Connect(connect_addr, PORT_SERVER);
-    } else if (!menu_mode) {
+    } else if (listen_server_mode) {
         // Listen-server mode: show the client loading screen before the
         // synchronous server map load, mirroring Quake's loading plaque flow.
         CL_BeginLoadingMap(map);
@@ -137,7 +141,7 @@ int main(int argc, LPSTR argv[]) {
     while (true) {
         DWORD currentTime = SDL_GetTicks();
         DWORD msec = currentTime - startTime;
-        if (net_enabled && (!connect_addr || !*connect_addr)) {
+        if (!has_connect_addr && sv.state == ss_game) {
             SV_Frame(msec);
         }
         CL_Frame(msec);

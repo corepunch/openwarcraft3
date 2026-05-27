@@ -182,12 +182,12 @@ static void Wow_MonsterStart(LPEDICT ent,
     ent->s.flags = EF_GROUND_ANCHOR;
     ent->s.renderfx = RF_NO_SHADOW;
     ent->s.rotation = (VECTOR3){ yaw, 0.0f, 0.0f };
-    ent->s.origin.z = Wow_TerrainHeight(ent->s.origin.x, ent->s.origin.y);
     Wow_SetEntityAnimation(ent, patrol_radius > 0.0f ? "Walk" : "Stand");
 }
 
 static LPEDICT Wow_SpawnCreature(DWORD display_id,
                                  LPCVECTOR2 origin,
+                                 FLOAT ground_z,
                                  FLOAT yaw,
                                  FLOAT patrol_radius,
                                  FLOAT walk_speed) {
@@ -214,7 +214,7 @@ static LPEDICT Wow_SpawnCreature(DWORD display_id,
                 model_path);
         return NULL;
     }
-    ent->s.origin = (VECTOR3){ origin->x, origin->y, Wow_TerrainHeight(origin->x, origin->y) };
+    ent->s.origin = (VECTOR3){ origin->x, origin->y, ground_z };
     ent->s.origin2 = *origin;
     ent->s.scale = scale;
     ent->s.radius = radius;
@@ -226,10 +226,13 @@ static LPEDICT Wow_SpawnCreature(DWORD display_id,
 void Wow_SpawnAmbientCreatures(LPCVECTOR2 origin) {
     VECTOR2 creature_origin;
     DWORD spawned = 0;
+    FLOAT ground_z;
 
     if (!origin) {
         return;
     }
+
+    ground_z = Wow_TerrainHeight(origin->x, origin->y);
 
     FOR_LOOP(i, sizeof(wow_creature_model_cache) / sizeof(wow_creature_model_cache[0])) {
         memset(&wow_creature_model_cache[i], 0, sizeof(wow_creature_model_cache[i]));
@@ -248,6 +251,7 @@ void Wow_SpawnAmbientCreatures(LPCVECTOR2 origin) {
         };
         if (Wow_SpawnCreature(type->display_id,
                               &creature_origin,
+                              ground_z,
                               (FLOAT)RAD2DEG(angle) + 180.0f,
                               patrol_radius,
                               type->walk_speed)) {
