@@ -8,7 +8,7 @@
 #include "../server/game.h"
 #include "g_shared.h"
 #include "g_unitdata.h"
-#include "jass/parser.h"
+#include "../jass/parser.h"
 
 #define EDICTFIELD(x, type) { #x, FOFS(edict_s, x)-(HANDLE)NULL, type }
 

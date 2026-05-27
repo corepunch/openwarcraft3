@@ -146,9 +146,9 @@ $(SHARED_LIB): $(shell find shared -name '*.c') | $(LIB_DIR)
 		$(CC) $(CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - $(LDFLAGS) -lm
 
 # jass — Warcraft III script VM
-$(JASS_LIB): $(SHARED_LIB) $(shell find game/jass -name '*.c' -o -name '*.h') | $(LIB_DIR)
+$(JASS_LIB): $(SHARED_LIB) $(shell find jass -name '*.c' -o -name '*.h') | $(LIB_DIR)
 	@echo "[jass]"
-	@$(call UNITY,game/jass) | \
+	@$(call UNITY,jass) | \
 		$(CC) $(CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - $(LDFLAGS) -lshared -lm
 
 # renderer — depends on shared
@@ -168,7 +168,7 @@ $(RENDERER_WOW_LIB): $(SHARED_LIB) $(CLIENT_HEADERS) common/mpq.c common/mpq.h $
 # game — depends on shared and jass
 $(GAME_LIB): $(SHARED_LIB) $(JASS_LIB) $(shell find game -name '*.c') | $(LIB_DIR)
 	@echo "[game]"
-	@$(call UNITY,game,! -path 'game/jass/*') | \
+	@$(call UNITY,game) | \
 		$(CC) $(CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - $(LDFLAGS) -lshared -ljass -lm
 
 $(GAME_WOW_LIB): $(SHARED_LIB) $(shell find game-wow -name '*.c') | $(LIB_DIR)

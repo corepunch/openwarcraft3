@@ -1,5 +1,5 @@
 #include "g_local.h"
-#include "jass/vm_public.h"
+#include "../jass/vm_public.h"
 
 #define MAX_SPAWN_ITERATIONS 10
 

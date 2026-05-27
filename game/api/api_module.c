@@ -1,4 +1,4 @@
-#include "../jass/vm_public.h"
+#include "../../jass/vm_public.h"
 
 #include "api_unit.h"
 #include "api_effect.h"

@@ -1,8 +1,8 @@
 #ifndef vm_public_h
 #define vm_public_h
 
-#include "../g_local.h"
-#include "../api/api_macros.h"
+#include "../game/g_local.h"
+#include "../game/api/api_macros.h"
 
 #define MAX_GROUP_SIZE 256
 
