@@ -8,7 +8,7 @@
 #include "../server/game.h"
 #include "g_shared.h"
 #include "g_unitdata.h"
-#include "parser.h"
+#include "jass/parser.h"
 
 #define EDICTFIELD(x, type) { #x, FOFS(edict_s, x)-(HANDLE)NULL, type }
 
@@ -991,8 +991,6 @@ void G_RunEvents(void);
 
 // g_items.c
 void SP_SpawnItem(LPEDICT);
-
-void *find_in_array(void *array, long, LPCSTR);
 
 // ui_init
 void UI_Init(void);

@@ -50,6 +50,17 @@ struct jass_module {
     LPJASSCFUNCTION func;
 };
 
+typedef struct {
+    HANDLE (*MemAlloc)(long size);
+    void (*MemFree)(HANDLE ptr);
+    DWORD (*GetTime)(void);
+    LPSTR (*ReadFileIntoString)(LPCSTR filename);
+    void (*TextRemoveComments)(LPSTR buffer);
+    BOMStatus (*TextRemoveBom)(LPSTR buffer);
+    LPCJASSMODULE natives;
+    LPPLAYER (*GetPlayerByNumber)(DWORD number);
+} JASSHOST;
+
 typedef struct gtriggeraction_s {
     LPCJASSFUNC func;
     struct gtriggeraction_s *next;
@@ -105,6 +116,7 @@ LPCJASSFUNC jass_checkcode(LPJASS j, int index);
 HANDLE jass_checkhandle(LPJASS j, int index, LPCSTR type);
 BOOL jass_toboolean(LPJASS j, int index);
 DWORD jass_call(LPJASS j, DWORD args);
+void jass_sethost(JASSHOST const *host);
 LPJASSCOROUTINE jass_startcoroutine(LPJASS j, LPCJASSCONTEXT context);
 LPJASSCOROUTINE jass_startcoroutinebyname(LPJASS j, LPCSTR name);
 BOOL jass_resume(LPJASS j, LPJASSCOROUTINE co);
@@ -125,6 +137,8 @@ DWORD jass_pushstringlen(LPJASS j, LPCSTR value, DWORD len);
 DWORD jass_pushfunction(LPJASS j, LPCJASSFUNC func);
 DWORD jass_pushnullhandle(LPJASS j, LPCSTR type);
 HANDLE jass_newhandle(LPJASS j, DWORD size, LPCSTR type);
+HANDLE jass_alloc(long size);
+void jass_free(HANDLE ptr);
 LPCJASSCONTEXT jass_getcontext(LPJASS j);
 BOOL jass_calltrigger(LPJASS j, LPTRIGGER trigger, LPEDICT unit);
 BOOL jass_popboolean(LPJASS j);
