@@ -383,7 +383,7 @@ static LPJASSDICT jass_coroutine_buildlocals(LPJASS j, LPCJASSFUNC func, LPCTOKE
     return locals;
 }
 
-void jass_startcoroutine(LPJASS j, LPCJASSCONTEXT context) {
+LPJASSCOROUTINE jass_startcoroutine(LPJASS j, LPCJASSCONTEXT context) {
     LPJASS root = jass_root(j);
     LPJASS co_state = JASSALLOC(JASS);
     memcpy(co_state, root, sizeof(JASS));
@@ -423,19 +423,19 @@ void jass_startcoroutine(LPJASS j, LPCJASSCONTEXT context) {
             co_state->context.playerState ? (int)co_state->context.playerState->number : -1,
             (void *)co_state->context.unit,
             (unsigned)gi.GetTime());
+    return co;
 }
 
-BOOL jass_startcoroutinebyname(LPJASS j, LPCSTR name) {
+LPJASSCOROUTINE jass_startcoroutinebyname(LPJASS j, LPCSTR name) {
     LPCJASSFUNC func = find_function(jass_root(j), name);
     JASSCONTEXT context = *jass_getcontext(j);
 
     if (!func) {
         fprintf(stderr, "Function not found %s\n", name);
-        return false;
+        return NULL;
     }
     context.func = func;
-    jass_startcoroutine(j, &context);
-    return true;
+    return jass_startcoroutine(j, &context);
 }
 
 LPCSTR jass_functionname(LPCJASSFUNC func) {
@@ -636,6 +636,38 @@ static void jass_resumecoroutine(LPJASSCOROUTINE co) {
     }
 }
 
+BOOL jass_coroutinedone(LPCJASSCOROUTINE co) {
+    return !co || co->done;
+}
+
+BOOL jass_resume(LPJASS j, LPJASSCOROUTINE co) {
+    LPJASS root = jass_root(j);
+    DWORD now = gi.GetTime();
+
+    if (!co || co->done || co->wake_time > now) {
+        return false;
+    }
+
+    LPPLAYER previous_player = currentplayer;
+    LPEDICT previous_unit = currentunit;
+
+    fprintf(stderr,
+            "JASS coroutine resume: func=%s now=%u wake=%u player=%d\n",
+            co->state->context.func ? co->state->context.func->name : "<unknown>",
+            (unsigned)now,
+            (unsigned)co->wake_time,
+            co->state->context.playerState ? (int)co->state->context.playerState->number : -1);
+    root->current_coroutine = co;
+    currentplayer = co->state->context.playerState;
+    currentunit = co->state->context.unit;
+    jass_resumecoroutine(co);
+    currentunit = previous_unit;
+    currentplayer = previous_player;
+    root->current_coroutine = NULL;
+
+    return true;
+}
+
 void jass_runevents(LPJASS j) {
     LPJASS root = jass_root(j);
     LPJASSCOROUTINE prev = NULL;
@@ -644,24 +676,7 @@ void jass_runevents(LPJASS j) {
 
     while (co) {
         LPJASSCOROUTINE next;
-        if (!co->done && co->wake_time <= now) {
-            LPPLAYER previous_player = currentplayer;
-            LPEDICT previous_unit = currentunit;
-
-            fprintf(stderr,
-                    "JASS coroutine resume: func=%s now=%u wake=%u player=%d\n",
-                    co->state->context.func ? co->state->context.func->name : "<unknown>",
-                    (unsigned)now,
-                    (unsigned)co->wake_time,
-                    co->state->context.playerState ? (int)co->state->context.playerState->number : -1);
-            root->current_coroutine = co;
-            currentplayer = co->state->context.playerState;
-            currentunit = co->state->context.unit;
-            jass_resumecoroutine(co);
-            currentunit = previous_unit;
-            currentplayer = previous_player;
-            root->current_coroutine = NULL;
-        }
+        jass_resume(root, co);
 
         next = co->next;
         if (co->done) {
@@ -1561,7 +1576,7 @@ void jass_callbyname(LPJASS j, LPCSTR name, BOOL async) {
         return;
     }
     if (async) {
-        jass_startcoroutinebyname(j, name);
+        (void)jass_startcoroutinebyname(j, name);
     } else {
         jass_pushfunction(j, func);
         jass_call(j, 0);

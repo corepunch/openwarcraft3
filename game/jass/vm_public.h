@@ -13,6 +13,7 @@ KNOWN_AS(jass_type, JASSTYPE);
 KNOWN_AS(jass_var, JASSVAR);
 KNOWN_AS(jass_module, JASSMODULE);
 KNOWN_AS(jass_context, JASSCONTEXT);
+KNOWN_AS(jass_coroutine, JASSCOROUTINE);
 KNOWN_AS(vm_program, VMPROGRAM);
 
 typedef enum {
@@ -104,8 +105,10 @@ LPCJASSFUNC jass_checkcode(LPJASS j, int index);
 HANDLE jass_checkhandle(LPJASS j, int index, LPCSTR type);
 BOOL jass_toboolean(LPJASS j, int index);
 DWORD jass_call(LPJASS j, DWORD args);
-void jass_startcoroutine(LPJASS j, LPCJASSCONTEXT context);
-BOOL jass_startcoroutinebyname(LPJASS j, LPCSTR name);
+LPJASSCOROUTINE jass_startcoroutine(LPJASS j, LPCJASSCONTEXT context);
+LPJASSCOROUTINE jass_startcoroutinebyname(LPJASS j, LPCSTR name);
+BOOL jass_resume(LPJASS j, LPJASSCOROUTINE co);
+BOOL jass_coroutinedone(LPCJASSCOROUTINE co);
 void jass_runevents(LPJASS j);
 void jass_sleep(LPJASS j, DWORD msec);
 LPCSTR jass_functionname(LPCJASSFUNC func);

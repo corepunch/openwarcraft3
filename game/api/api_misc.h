@@ -380,7 +380,7 @@ DWORD GetEnumPlayer(LPJASS j) {
 }
 DWORD ExecuteFunc(LPJASS j) {
     LPCSTR funcName = jass_checkstring(j, 1);
-    jass_startcoroutinebyname(j, funcName);
+    (void)jass_startcoroutinebyname(j, funcName);
     return 0;
 }
 DWORD newthread(LPJASS j) {
