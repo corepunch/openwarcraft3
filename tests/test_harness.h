@@ -21,6 +21,9 @@
 void unit_stand(LPEDICT self);
 void unit_birth(LPEDICT self);
 void unit_die(LPEDICT self, LPEDICT attacker);
+void unit_entercombat(LPEDICT self, LPEDICT target);
+void unit_leavecombat(LPEDICT self);
+BOOL unit_affectingcombat(LPEDICT self);
 BOOL unit_issueorder(LPEDICT self, LPCSTR order, LPCVECTOR2 point);
 BOOL unit_issueimmediateorder(LPEDICT self, LPCSTR order);
 BOOL unit_issuetargetorder(LPEDICT self, LPCSTR order, LPEDICT target);

@@ -99,6 +99,8 @@ struct shader_program {
     DWORD uUvScale;
     DWORD uMdxLightCount;
     DWORD uMdxLights;
+    DWORD uMdxFallbackLighting;
+    DWORD uMdxLightFill;
     DWORD uEyePosition;
     DWORD uActiveGlow;
 };
@@ -131,6 +133,7 @@ enum {
     TEX_FONT,
     TEX_WHITE,
     TEX_BLACK,
+    TEX_BLOB_SHADOW,
     TEX_LOADING_INDICATOR,
     TEX_TERRAIN_SHADOW,
     TEX_TEAM_GLOW,
@@ -172,6 +175,7 @@ struct render_globals {
     LPRENDERTARGET rt[RT_COUNT];
     sheetRow_t *sheet[SHEET_COUNT];
     size2_t drawableSize;
+    LPTEXTURE minimap;
 };
 
 void R_RegisterMap(LPCSTR mapFileName);
@@ -215,7 +219,6 @@ void R_GetEntityMatrix(renderEntity_t const *entity, LPMATRIX4 matrix);
 LINE3 R_LineForScreenPoint(viewDef_t const *viewdef, float x, float y);
 DWORD R_EntitiesInRect(viewDef_t const *viewdef, LPCRECT rect, DWORD max, LPDWORD array);
 void R_DrawEntities(void);
-void R_RenderOverlays(void);
 FLOAT R_GetHeightAtPoint(FLOAT x, FLOAT y);
 
 // r_mdx.c
@@ -235,6 +238,7 @@ void R_DrawBuffer(LPCBUFFER buffer, DWORD num_vertices);
 void R_PrintSysText(LPCSTR string, DWORD x, DWORD y, COLOR32 color);
 void R_DrawImage(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv, COLOR32 color);
 void R_DrawImageEx(LPCDRAWIMAGE drawImage);
+void R_DrawMinimap(LPCRECT screen);
 void R_DrawLoadingIndicator(LPCRECT rect, DWORD time, COLOR32 color);
 void R_DrawPic(LPCTEXTURE texture, float x, float y);
 void R_DrawSelectionRect(LPCRECT rect, COLOR32 color);

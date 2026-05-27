@@ -146,6 +146,18 @@ LPCSTR fs_commandbutton =
 "    o_color.a *= crop_edges(v_texcoord);\n"
 "}\n";
 
+LPCSTR fs_minimap_fog =
+"#version 140\n"
+"in vec4 v_color;\n"
+"in vec2 v_texcoord;\n"
+"out vec4 o_color;\n"
+"uniform sampler2D uTexture;\n"
+"void main() {\n"
+"    float visibility = texture(uTexture, vec2(v_texcoord.x, 1.0 - v_texcoord.y)).r;\n"
+"    float alpha = clamp(1.0 - visibility, 0.0, 1.0) * v_color.a;\n"
+"    o_color = vec4(v_color.rgb, alpha);\n"
+"}\n";
+
 LPSHADER R_InitShader(LPCSTR vs_default, LPCSTR fs_default){
     GLuint vs = R_Call(glCreateShader, GL_VERTEX_SHADER);
     GLuint fs = R_Call(glCreateShader, GL_FRAGMENT_SHADER);
@@ -238,6 +250,8 @@ LPSHADER R_InitShader(LPCSTR vs_default, LPCSTR fs_default){
     R_RegisterUniform(program, uUvScale);
     R_RegisterUniform(program, uMdxLightCount);
     program->uMdxLights = glGetUniformLocation(program->progid, "uMdxLights[0]");
+    R_RegisterUniform(program, uMdxFallbackLighting);
+    R_RegisterUniform(program, uMdxLightFill);
     R_RegisterUniform(program, uEyePosition);
     R_RegisterUniform(program, uActiveGlow);
     

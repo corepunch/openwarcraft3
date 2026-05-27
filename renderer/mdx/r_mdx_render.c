@@ -39,15 +39,17 @@ static LPCSTR mdx_vs =
 "uniform mat4 uLightMatrix;\n"
 "uniform mat3 uNormalMatrix;\n"
 "uniform int uMdxLightCount;\n"
+"uniform vec2 uMdxFallbackLighting;\n"
+"uniform float uMdxLightFill;\n"
 "const int MDX_LIGHT_OMNI = 0;\n"
 "const int MDX_LIGHT_DIRECT = 1;\n"
 "const int MDX_LIGHT_AMBIENT = 2;\n"
 "vec3 get_vertex_lighting(vec3 normal, vec3 worldPosition) {\n"
 "    if (uMdxLightCount == 0) {\n"
 "        vec3 fallbackDir = -normalize(vec3(uLightMatrix[0][2], uLightMatrix[1][2], uLightMatrix[2][2]));\n"
-"        return vec3(0.35) + vec3(0.75) * max(dot(normal, fallbackDir), 0.0);\n"
+"        return vec3(uMdxFallbackLighting.x) + vec3(uMdxFallbackLighting.y) * max(dot(normal, fallbackDir), 0.0);\n"
 "    }\n"
-"    vec3 lighting = vec3(0.0);\n"
+"    vec3 lighting = vec3(uMdxLightFill);\n"
 "    for (int i = 0; i < 8; ++i) {\n"
 "        if (i >= uMdxLightCount) break;\n"
 "        mat4 light = uMdxLights[i];\n"
@@ -289,6 +291,16 @@ static mdxSequence_t const *R_SelectUISequence(mdxModel_t const *mdx, LPCSTR ani
     } else if (anim && *anim) {
         seq = MDLX_FindSequenceByName(mdx, anim);
     }
+    if (!seq && mdx->cameras && anim && (!strcmp(anim, "Stand") || !strcmp(anim, "Portrait"))) {
+        FOR_LOOP(i, mdx->num_sequences) {
+            LPCSTR name = mdx->sequences[i].name;
+            size_t len = strlen("Portrait");
+            if (!strncmp(name, "Portrait", len) && (name[len] == '\0' || name[len] == ' ' || name[len] == '-')) {
+                seq = &mdx->sequences[i];
+                break;
+            }
+        }
+    }
     if (!seq && mdx->sequences && mdx->num_sequences > 0) {
         seq = &mdx->sequences[0];
     }
@@ -341,6 +353,7 @@ void R_DrawPortrait(LPCMODEL model, LPCRECT viewport, LPCSTR anim) {
         return;
     }
 
+    entity.flags |= RF_NO_FOGOFWAR | RF_NO_SHADOW | RF_PORTRAIT_LIGHTING;
     viewdef.viewport = *viewport;
 
     if (!R_GetModelCameraMatrix(mdx, entity.frame, aspect, &viewdef.viewProjectionMatrix, &root)) {

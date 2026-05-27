@@ -169,12 +169,12 @@ $(GAME_WOW_LIB): $(SHARED_LIB) $(shell find game-wow -name '*.c') | $(LIB_DIR)
 		$(CC) $(WOW_CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - $(LDFLAGS) -lshared -lm
 
 # ui — depends on shared
-$(UI_LIB): $(SHARED_LIB) $(UI_HEADERS) $(shell find ui -name '*.c') | $(LIB_DIR)
+$(UI_LIB): $(SHARED_LIB) $(CLIENT_HEADERS) $(UI_HEADERS) $(shell find ui -name '*.c') | $(LIB_DIR)
 	@echo "[ui]"
 	@$(call UNITY,ui) | \
 		$(CC) $(CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - $(LDFLAGS) -lshared -lm
 
-$(UI_WOW_LIB): $(SHARED_LIB) $(UI_HEADERS) $(shell find ui-wow -name '*.c') | $(LIB_DIR)
+$(UI_WOW_LIB): $(SHARED_LIB) $(CLIENT_HEADERS) $(UI_HEADERS) $(shell find ui-wow -name '*.c') | $(LIB_DIR)
 	@echo "[ui-wow]"
 	@$(call UNITY,ui-wow) | \
 		$(CC) $(WOW_CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - $(LDFLAGS) -lshared -lm

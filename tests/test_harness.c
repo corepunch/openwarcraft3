@@ -632,8 +632,7 @@ void UI_AddCancelButton(LPEDICT ent) { (void)ent; }
 
 /* g_main.c — selection helper used by FOR_SELECTED_UNITS macro */
 BOOL G_IsEntitySelected(LPGAMECLIENT client, LPEDICT ent) {
-    (void)client; (void)ent;
-    return false;
+    return client && ent && (ent->selected & (1 << client->ps.number));
 }
 
 /* Stubs for abilities defined in skill files not included in the test binary.

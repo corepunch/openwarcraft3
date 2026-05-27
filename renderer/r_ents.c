@@ -179,55 +179,6 @@ DWORD R_EntitiesInRect(viewDef_t const *viewdef, LPCRECT rect, DWORD max, LPDWOR
     return count;
 }
 
-static void DrawEntityOverlay(renderEntity_t const *ent) {
-    VERTEX simp[6];
-    RECT full = {0,0,1,1};
-    COLOR32 black = {0,0,0,255};
-    COLOR32 green = {0,255,0,255};
-    VECTOR3 pos = Vector3_add(&ent->origin, &(VECTOR3){0,0,150});
-    MATRIX4 const *proj = &tr.viewDef.viewProjectionMatrix;
-    VECTOR3 p = Matrix4_multiply_vector3(proj, &pos);
-    RECT screen = {p.x-0.035,p.y,0.07,0.015};
-
-    R_AddQuad(simp, &screen, &full, black, 0);
-    R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(VERTEX) * 6, simp, GL_STATIC_DRAW);
-    R_Call(glDrawArrays, GL_TRIANGLES, 0, 6);
-
-    screen.w *= ent->health;
-
-    R_AddQuad(simp, &screen, &full, green, 0);
-    R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(VERTEX) * 6, simp, GL_STATIC_DRAW);
-    R_Call(glDrawArrays, GL_TRIANGLES, 0, 6);
-}
-
-void R_RenderOverlays(void) {
-    MATRIX4 ui_matrix;
-    Matrix4_identity(&ui_matrix);
-    
-    R_Call(glDisable, GL_CULL_FACE);
-    R_Call(glUseProgram, tr.shader[SHADER_UI]->progid);
-    R_Call(glUniformMatrix4fv, tr.shader[SHADER_UI]->uViewProjectionMatrix, 1, GL_FALSE, ui_matrix.v);
-    R_Call(glUniformMatrix4fv, tr.shader[SHADER_UI]->uModelMatrix, 1, GL_FALSE, ui_matrix.v);
-    R_Call(glBindVertexArray, tr.buffer[RBUF_TEMP1]->vao);
-    R_Call(glBindBuffer, GL_ARRAY_BUFFER, tr.buffer[RBUF_TEMP1]->vbo);
-    
-//    R_BindTexture(tr.texture[TEX_WHITE], 0);
-    
-    R_Call(glDisable, GL_CULL_FACE);
-    R_Call(glEnable, GL_BLEND);
-    R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    
-    FOR_LOOP(i, tr.viewDef.num_entities) {
-        renderEntity_t const *ent = &tr.viewDef.entities[i];
-        if (!(ent->flags & RF_SELECTED))
-            continue;
-        if (ent->flags & RF_HIDDEN)
-            return;
-        R_BindTexture(ent->healthbar, 0);
-        DrawEntityOverlay(ent);
-    }
-}
-
 #ifdef USE_SHADOWMAPS
 extern bool is_rendering_lights;
 #endif
@@ -240,7 +191,17 @@ static void R_RenderUberSplat(const renderEntity_t *entity, LPCVECTOR2 origin) {
 }
 
 static void R_RenderShadow(const renderEntity_t *entity, LPCVECTOR2 origin) {
-    if (!entity->shadow || (entity->flags & RF_NO_SHADOW) || !tr.world) {
+    LPCTEXTURE shadow = entity->shadow;
+#ifdef WOW
+    if (!shadow) {
+        shadow = tr.texture[TEX_BLOB_SHADOW];
+    }
+#endif
+    if (!shadow || (entity->flags & RF_NO_SHADOW)
+#ifndef WOW
+        || !tr.world
+#endif
+    ) {
         return;
     }
 
@@ -252,14 +213,24 @@ static void R_RenderShadow(const renderEntity_t *entity, LPCVECTOR2 origin) {
         maxs.x = mins.x + entity->shadow_w;
         maxs.y = mins.y + entity->shadow_h;
     } else {
-        int pivot_x = (int)(entity->shadow->width * 0.3f + 0.5f);
-        int pivot_y = (int)(entity->shadow->height * 0.7f + 0.5f);
-        float width = entity->shadow->width * 32.0f;
-        float height = entity->shadow->height * 32.0f;
-        mins.x = origin->x - pivot_x * 32.0f;
-        mins.y = origin->y - (entity->shadow->height - pivot_y) * 32.0f;
+#ifdef WOW
+        float radius = MAX(entity->radius * MAX(entity->scale, 1.0f), 1.0f);
+        float width = MAX(radius * 2.4f, 2.0f);
+        float height = MAX(radius * 1.6f, 1.5f);
+        mins.x = origin->x - width * 0.5f;
+        mins.y = origin->y - height * 0.5f;
         maxs.x = mins.x + width;
         maxs.y = mins.y + height;
+#else
+        int pivot_x = (int)(shadow->width * 0.3f + 0.5f);
+        int pivot_y = (int)(shadow->height * 0.7f + 0.5f);
+        float width = shadow->width * 32.0f;
+        float height = shadow->height * 32.0f;
+        mins.x = origin->x - pivot_x * 32.0f;
+        mins.y = origin->y - (shadow->height - pivot_y) * 32.0f;
+        maxs.x = mins.x + width;
+        maxs.y = mins.y + height;
+#endif
     }
 
     COLOR32 shadowColor = {0, 0, 0, 128};
@@ -274,7 +245,7 @@ static void R_RenderShadow(const renderEntity_t *entity, LPCVECTOR2 origin) {
         }
     }
 #endif
-    R_RenderRectSplat(&mins, &maxs, entity->shadow, tr.shader[SHADER_SHADOWSPLAT], shadowColor);
+    R_RenderRectSplat(&mins, &maxs, shadow, tr.shader[SHADER_SHADOWSPLAT], shadowColor);
 }
 
 static void R_RenderSelectedCircle(const renderEntity_t *entity, LPCVECTOR2 origin) {

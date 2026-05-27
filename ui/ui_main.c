@@ -122,6 +122,16 @@ static void UI_DrawConsoleBackdropOnly(void) {
     }
 }
 
+static void UI_DrawConsoleMinimap(void) {
+    LPRENDERER renderer = uiimport.GetRenderer ? uiimport.GetRenderer() : NULL;
+    RECT const rect = { 0.0070f, 0.4525f, 0.1395f, 0.1395f };
+
+    if (!renderer || !renderer->DrawMinimap) {
+        return;
+    }
+    renderer->DrawMinimap(&rect);
+}
+
 static void UI_InitGameResourceBar(void) {
     resource_bar_frame = UI_FindFrame("ResourceBarFrame");
     resource_bar_gold_text = UI_FindFrame("ResourceBarGoldText");
@@ -475,6 +485,7 @@ void UI_DrawFrameLocal(void) {
             UI_DrawCinematicPanel(ps);
         } else {
             UI_DrawConsoleBackdropOnly();
+            UI_DrawConsoleMinimap();
             UI_DrawResourceBar();
         }
     } else {

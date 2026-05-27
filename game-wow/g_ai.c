@@ -1,14 +1,12 @@
 #include "g_wow_local.h"
 #include <math.h>
 
-static BOOL Wow_SetFirstAnimation(LPEDICT ent, LPCSTR const *names) {
-    for (LPCSTR const *name = names; name && *name; name++) {
-        if (Wow_SetEntityAnimation(ent, *name)) {
-            return true;
-        }
-    }
-    return false;
-}
+static wowMove_t wow_move_stand = { "Stand", NULL, NULL };
+static wowMove_t wow_move_ready = { "Ready", NULL, NULL };
+static wowMove_t wow_move_walk = { "Walk", NULL, NULL };
+static wowMove_t wow_move_run = { "Run", NULL, NULL };
+static wowMove_t wow_move_attack = { "Attack", NULL, NULL };
+static wowMove_t wow_move_pain = { "Pain", NULL, NULL };
 
 static void Wow_FaceTarget(LPEDICT ent, LPEDICT target) {
     wowEntityLocal_t *local = Wow_EntityLocal(ent);
@@ -26,8 +24,70 @@ static void Wow_FaceTarget(LPEDICT ent, LPEDICT target) {
     ent->s.rotation = (VECTOR3){ local->yaw, 0.0f, 0.0f };
 }
 
+BOOL Wow_EntityAffectingCombat(LPEDICT ent) {
+    wowEntityLocal_t *local = Wow_EntityLocal(ent);
+    wowEntityLocal_t *target_local;
+    LPEDICT target;
+
+    if (!ent || !local) {
+        return false;
+    }
+    target = local->enemy;
+    if (!target || !target->inuse || target == ent) {
+        local->enemy = NULL;
+        return false;
+    }
+    target_local = Wow_EntityLocal(target);
+    if ((local->health == 0) || (target_local && target_local->health == 0)) {
+        local->enemy = NULL;
+        return false;
+    }
+    return true;
+}
+
+BOOL Wow_SetStandMove(LPEDICT ent) {
+    return Wow_SetEntityMove(ent, &wow_move_stand);
+}
+
+BOOL Wow_SetRunMove(LPEDICT ent) {
+    return Wow_SetEntityMove(ent, &wow_move_run);
+}
+
+BOOL Wow_SetWalkMove(LPEDICT ent) {
+    return Wow_SetEntityMove(ent, &wow_move_walk);
+}
+
+BOOL Wow_SetCombatReadyAnimation(LPEDICT ent) {
+    static LPCSTR const weapon_ready_animations[] = {
+        "Ready1H",
+        "ReadyUnarmed",
+        "Ready2H",
+        "Ready2HL",
+        "Ready",
+        "Stand",
+        NULL,
+    };
+    static LPCSTR const unarmed_ready_animations[] = {
+        "ReadyUnarmed",
+        "Ready1H",
+        "Ready2H",
+        "Ready2HL",
+        "Ready",
+        "Stand",
+        NULL,
+    };
+
+    return Wow_SetEntityMoveFirstAnimation(ent,
+        &wow_move_ready,
+        ent && ent->s.model2 ? weapon_ready_animations : unarmed_ready_animations);
+}
+
 void Wow_AIIdle(LPEDICT ent) {
-    Wow_SetEntityAnimation(ent, "Stand");
+    if (Wow_EntityAffectingCombat(ent)) {
+        Wow_SetCombatReadyAnimation(ent);
+    } else {
+        Wow_SetStandMove(ent);
+    }
 }
 
 void Wow_AIMove(LPEDICT ent) {
@@ -54,9 +114,10 @@ void Wow_AIMove(LPEDICT ent) {
     step = MIN(local->walk_speed * ((FLOAT)FRAMETIME / 1000.0f), len);
     ent->s.origin.x += delta.x * step / len;
     ent->s.origin.y += delta.y * step / len;
+    ent->s.origin2 = (VECTOR2){ ent->s.origin.x, ent->s.origin.y };
     local->yaw = (FLOAT)RAD2DEG(atan2f(delta.y, delta.x));
     ent->s.rotation = (VECTOR3){ local->yaw, 0.0f, 0.0f };
-    Wow_SetEntityAnimation(ent, "Walk");
+    Wow_SetWalkMove(ent);
 }
 
 void Wow_AIAttack(LPEDICT ent) {
@@ -74,17 +135,13 @@ void Wow_AIAttack(LPEDICT ent) {
         return;
     }
 
-    target = local->enemy;
-    if (!target || !target->inuse || target == ent) {
-        local->enemy = NULL;
-        target = NULL;
-    }
+    target = Wow_EntityAffectingCombat(ent) ? local->enemy : NULL;
 
     if (target) {
         Wow_FaceTarget(ent, target);
     }
     local->attack_time = 700;
-    Wow_SetFirstAnimation(ent, attack_animations);
+    Wow_SetEntityMoveFirstAnimation(ent, &wow_move_attack, attack_animations);
     if (target && target->pain) {
         target->pain(target);
     }
@@ -107,7 +164,7 @@ void Wow_AIPain(LPEDICT ent) {
         local->health--;
     }
     local->pain_time = 450;
-    Wow_SetFirstAnimation(ent, pain_animations);
+    Wow_SetEntityMoveFirstAnimation(ent, &wow_move_pain, pain_animations);
 }
 
 BOOL Wow_AIAdvanceLockedFrame(LPEDICT ent) {
@@ -147,7 +204,6 @@ void Wow_AIRunFrame(LPEDICT ent) {
         return;
     }
 
-    ent->s.origin2 = (VECTOR2){ ent->s.origin.x, ent->s.origin.y };
     if (local->patrol_radius > 0.0f && local->walk_speed > 0.0f) {
         local->patrol_phase += ((FLOAT)FRAMETIME / 1000.0f) * 0.6f;
         if (ent->move) {

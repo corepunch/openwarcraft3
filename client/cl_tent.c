@@ -73,11 +73,12 @@ static void CL_AddConfirmationObject(moveConfirmation_t const *mc) {
     renderEntity_t ent;
     memset(&ent, 0, sizeof(ent));
     ent.origin = mc->origin;
+    ent.origin.z = CM_GetHeightAtPoint(ent.origin.x, ent.origin.y) + 8.0f;
     ent.scale = 1;
     ent.frame = cl.time - mc->timespamp;
     ent.oldframe = cl.time - mc->timespamp;
     ent.model = cl.moveConfirmation;
-    ent.flags |= RF_NO_FOGOFWAR;
+    ent.flags |= RF_NO_FOGOFWAR | RF_NO_SHADOW | RF_NO_LIGHTING;
     V_AddEntity(&ent);
 }
 

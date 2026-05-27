@@ -97,6 +97,32 @@ void R_AllocateFogOfWar(LPWAR3MAP map) {
     R_InitFogOfWar((map->width - 1) * 4, (map->height - 1) * 4);
 }
 
+static void R_LoadMapMinimap(HANDLE hMpq, LPCSTR mapFilename) {
+    static LPCSTR const candidates[] = {
+        "war3mapMap.blp",
+        "war3mapMap.tga",
+        NULL,
+    };
+
+    SAFE_DELETE(tr.minimap, R_ReleaseTexture);
+
+    FOR_LOOP(i, sizeof(candidates) / sizeof(candidates[0])) {
+        HANDLE file;
+        PATHSTR path;
+
+        if (!candidates[i]) {
+            break;
+        }
+        if (!SFileOpenFileEx(hMpq, candidates[i], SFILE_OPEN_FROM_MPQ, &file)) {
+            continue;
+        }
+        SFileCloseFile(file);
+        snprintf(path, sizeof(path), "%s\\%s", mapFilename, candidates[i]);
+        tr.minimap = R_LoadTexture(path);
+        return;
+    }
+}
+
 LPWAR3MAP FileReadWar3Map(HANDLE archive) {
     LPWAR3MAP map = ri.MemAlloc(sizeof(WAR3MAP));
     HANDLE file;
@@ -164,6 +190,7 @@ void R_RegisterMap(char const *mapFilename) {
     }
     map = FileReadWar3Map(hMpq);
     R_FileReadShadowMap(hMpq, map);
+    R_LoadMapMinimap(hMpq, mapFilename);
     SFileCloseArchive(hMpq);
     ri.FS_FreeFile(mapData);
     tr.world = map;

@@ -334,6 +334,36 @@ LPCANIMATION Wow_SetEntityAnimation(LPEDICT ent, LPCSTR animation_name) {
     return local->animation;
 }
 
+BOOL Wow_SetEntityMoveFirstAnimation(LPEDICT ent, LPWOWMOVE move, LPCSTR const *animation_names) {
+    wowEntityLocal_t *local = Wow_EntityLocal(ent);
+
+    if (!ent || !local || !move) {
+        return false;
+    }
+    if (local->currentmove == move && local->animation) {
+        return true;
+    }
+    for (LPCSTR const *name = animation_names; name && *name; name++) {
+        if (Wow_SetEntityAnimation(ent, *name)) {
+            local->currentmove = move;
+            return true;
+        }
+    }
+    local->currentmove = NULL;
+    return false;
+}
+
+BOOL Wow_SetEntityMove(LPEDICT ent, LPWOWMOVE move) {
+    LPCSTR names[2];
+
+    if (!move || !move->animation) {
+        return false;
+    }
+    names[0] = move->animation;
+    names[1] = NULL;
+    return Wow_SetEntityMoveFirstAnimation(ent, move, names);
+}
+
 void Wow_AdvanceEntityFrame(LPEDICT ent) {
     wowEntityLocal_t *local = Wow_EntityLocal(ent);
     DWORD next_frame;
@@ -360,10 +390,6 @@ static void Wow_UpdateCamera(LPEDICT ent) {
     ent->client->ps.viewquat = Quaternion_fromEuler(&MAKE(VECTOR3, wow_move.pitch, 0.0f, wow_move.yaw), ROTATE_ZYX);
     ent->client->ps.fov = 45.0f;
     ent->client->ps.distance = wow_move.distance;
-}
-
-static LPCANIMATION Wow_SetPlayerAnimation(LPEDICT ent, LPCSTR animation_name) {
-    return Wow_SetEntityAnimation(ent, animation_name);
 }
 
 static void Wow_MovePlayerFrame(LPEDICT ent) {
@@ -459,14 +485,13 @@ static void Wow_InitPlayer(LPEDICT ent) {
     ent->s.rotation = (VECTOR3){ wow_move.yaw, 0.0f, 0.0f };
     ent->s.scale = 1.0f;
     ent->s.radius = 1.0f;
-    ent->s.renderfx = RF_NO_SHADOW;
     ent->s.flags = EF_GROUND_ANCHOR;
     ent->idle = Wow_AIIdle;
     ent->move = NULL;
     ent->run = NULL;
     ent->attack = Wow_AIAttack;
     ent->pain = Wow_AIPain;
-    Wow_SetPlayerAnimation(ent, "Stand");
+    Wow_SetStandMove(ent);
 
     ps = &ent->client->ps;
     memset(ps, 0, sizeof(*ps));
@@ -567,7 +592,11 @@ static void Wow_RunFrame(void) {
     locked = Wow_AIAdvanceLockedFrame(ent);
     if (locked) {
         Wow_UpdateCamera(ent);
-    } else if (Wow_SetPlayerAnimation(ent, moving ? "Run" : "Stand")) {
+    } else if (moving
+        ? Wow_SetRunMove(ent)
+        : (Wow_EntityAffectingCombat(ent)
+            ? Wow_SetCombatReadyAnimation(ent)
+            : Wow_SetStandMove(ent))) {
         ent->s.rotation = (VECTOR3){ wow_move.yaw, 0.0f, 0.0f };
         Wow_MovePlayerFrame(ent);
         Wow_UpdateCamera(ent);
@@ -604,6 +633,15 @@ static void Wow_ClientCommand(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
         }
         local->enemy = target && target != ent ? target : NULL;
         ent->attack(ent);
+    } else if (argc >= 1 && (!strcasecmp(argv[0], "stopattack") || !strcasecmp(argv[0], "wowstopattack"))) {
+        wowEntityLocal_t *local = Wow_EntityLocal(ent);
+
+        if (local) {
+            local->enemy = NULL;
+            local->attack_time = 0;
+            local->pain_time = 0;
+        }
+        Wow_SetStandMove(ent);
     }
 }
 

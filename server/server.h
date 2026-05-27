@@ -115,6 +115,7 @@ void SV_DirectConnect(const netadr_t *from);
 void SV_ConnectionlessPacket(const netadr_t *from, LPSIZEBUF msg);
 void SV_BuildClientFrame(LPCLIENT client);
 void SV_WriteFrameToClient(LPCLIENT client);
+void SV_FlushDeferredGameMessages(void);
 void SV_ParseClientMessage(LPSIZEBUF msg, LPCLIENT client);
 int SV_ModelIndex(LPCSTR name);
 int SV_SoundIndex(LPCSTR name);

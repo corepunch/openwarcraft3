@@ -744,6 +744,13 @@ void MDX_RenderModel(renderEntity_t const *entity,
     R_Call(glUniformMatrix4fv, shader->uTextureMatrix, 1, GL_FALSE, tr.viewDef.textureMatrix.v);
     R_Call(glUniformMatrix4fv, shader->uLightMatrix, 1, GL_FALSE, tr.viewDef.lightMatrix.v);
     R_Call(glUniform1i, shader->uUnshaded, (entity->flags & RF_NO_LIGHTING) != 0);
+    if (entity->flags & RF_PORTRAIT_LIGHTING) {
+        R_Call(glUniform2f, shader->uMdxFallbackLighting, 0.58f, 0.62f);
+        R_Call(glUniform1f, shader->uMdxLightFill, 0.22f);
+    } else {
+        R_Call(glUniform2f, shader->uMdxFallbackLighting, 0.35f, 0.75f);
+        R_Call(glUniform1f, shader->uMdxLightFill, 0.0f);
+    }
 
     MDLX_BindBoneMatrices(model, transform, entity->frame, entity->oldframe);
     mdxShaderLight_t lights[MDX_SHADER_MAX_LIGHTS];

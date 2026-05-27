@@ -292,6 +292,12 @@ static void RStd_DrawImage(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv, COLOR
                            .color = color));
 }
 
+static void RStd_DrawMinimap(LPCRECT screen) {
+    printf("draw_minimap");
+    RStd_PrintRect("screen", screen);
+    printf("\n");
+}
+
 static void RStd_DrawLoadingIndicator(LPCRECT rect, DWORD time, COLOR32 color) {
     printf("draw_loading_indicator time=%u", time);
     RStd_PrintRect("screen", rect);
@@ -445,6 +451,7 @@ refExport_t R_StdoutGetAPI(refImport_t imp) {
         .DrawPic = RStd_DrawPic,
         .DrawImage = RStd_DrawImage,
         .DrawImageEx = RStd_DrawImageEx,
+        .DrawMinimap = RStd_DrawMinimap,
         .DrawLoadingIndicator = RStd_DrawLoadingIndicator,
         .DrawPortrait = RStd_DrawPortrait,
         .DrawSprite = RStd_DrawSprite,

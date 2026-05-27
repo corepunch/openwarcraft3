@@ -98,8 +98,13 @@ static BOOL can_attack(LPCEDICT ent) {
  * attacker returns to its stand (idle) state.  Otherwise, if the target is
  * able to attack back it issues an automatic counter-attack order. */
 void T_Damage(LPEDICT target, LPEDICT attacker, int damage) {
+    unit_entercombat(attacker, target);
+    unit_entercombat(target, attacker);
+
     if (target->health.value <= damage) {
         target->health.value = 0;
+        unit_leavecombat(target);
+        unit_leavecombat(attacker);
         target->die(target, attacker);
         attacker->stand(attacker);
         return;
@@ -192,6 +197,7 @@ void attack_walk(LPEDICT self) {
 
 /* Set the attack target and start walking toward attack range. */
 void order_attack(LPEDICT self, LPEDICT target) {
+    unit_entercombat(self, target);
     self->goalentity = target;
     attack_walk(self);
 }

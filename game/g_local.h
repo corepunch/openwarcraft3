@@ -670,11 +670,15 @@ struct edict_s {
     BOOL no_pathing;    // pathfinding disabled when true
     DWORD unit_color;   // explicit per-unit color override (0 = use owner color)
     VECTOR2 old_origin;
+    VECTOR2 move_last_origin;
+    FLOAT move_last_distance;
+    DWORD move_blocked_frames;
     EDICTSTAT health;
     EDICTSTAT mana;
     MOVETYPE movetype;
     TARGTYPE targtype;
     LPEDICT goalentity;
+    LPEDICT combatentity;
     LPEDICT secondarygoal;
     LPEDICT owner;
     LPEDICT build;
@@ -802,6 +806,9 @@ void ai_stand(LPEDICT);
 void ai_pain(LPEDICT);
 void ai_idle(LPEDICT);
 void unit_runwait(LPEDICT, void (*callback)(LPEDICT ));
+void unit_entercombat(LPEDICT, LPEDICT);
+void unit_leavecombat(LPEDICT);
+BOOL unit_affectingcombat(LPEDICT);
 
 // g_monster.c
 void unit_moveindirection(LPEDICT);

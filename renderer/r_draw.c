@@ -141,6 +141,8 @@ void R_DrawImageEx(LPCDRAWIMAGE drawImage) {
     R_Call(glBindVertexArray, tr.buffer[RBUF_TEMP1]->vao);
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, tr.buffer[RBUF_TEMP1]->vbo);
     R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(VERTEX) * 6, simp, GL_STATIC_DRAW);
+    R_Call(glDisable, GL_DEPTH_TEST);
+    R_Call(glDepthMask, GL_FALSE);
     R_Call(glEnable, GL_BLEND);
     
     R_SetBlending(drawImage->alphamode);
@@ -178,6 +180,129 @@ void R_DrawImage(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv, COLOR32 color) 
                         .color = color,
                         .rotate = false,
                         .shader = SHADER_UI));
+}
+
+static BOOL R_MinimapPointForWorld(LPCVECTOR3 world, LPCRECT screen, LPVECTOR2 out) {
+    VECTOR2 map_size;
+    FLOAT nx;
+    FLOAT ny;
+
+    if (!tr.world || !world || !screen || !out) {
+        return false;
+    }
+
+    map_size = GetWar3MapSize(tr.world);
+    if (map_size.x <= 0.0f || map_size.y <= 0.0f) {
+        return false;
+    }
+
+    nx = (world->x - tr.world->center.x) / map_size.x;
+    ny = (world->y - tr.world->center.y) / map_size.y;
+    nx = MAX(0.0f, MIN(1.0f, nx));
+    ny = MAX(0.0f, MIN(1.0f, ny));
+
+    out->x = screen->x + nx * screen->w;
+    out->y = screen->y + (1.0f - ny) * screen->h;
+    return true;
+}
+
+static BOOL R_TraceViewportCornerToMinimap(FLOAT x, FLOAT y, LPCRECT screen, LPVECTOR2 out) {
+    VECTOR3 world;
+    LINE3 line;
+    PLANE3 ground = {
+        .normal = { 0.0f, 0.0f, 1.0f },
+        .distance = 0.0f,
+    };
+
+    line = R_LineForScreenPoint(&tr.viewDef, x, y);
+    if (!Line3_intersect_plane3(&line, &ground, &world)) {
+        return false;
+    }
+    return R_MinimapPointForWorld(&world, screen, out);
+}
+
+static void R_DrawMinimapCameraRect(LPCRECT screen) {
+    size2_t window = R_GetWindowSize();
+    FLOAT left = tr.viewDef.scissor.x * window.width;
+    FLOAT right = (tr.viewDef.scissor.x + tr.viewDef.scissor.w) * window.width;
+    FLOAT top = (1.0f - (tr.viewDef.scissor.y + tr.viewDef.scissor.h)) * window.height;
+    FLOAT bottom = (1.0f - tr.viewDef.scissor.y) * window.height;
+    VECTOR2 corners[4];
+    VERTEX vertices[5];
+    COLOR32 color = MAKE(COLOR32, 255, 255, 255, 220);
+    RECT uv = { 0, 0, 1, 1 };
+    MATRIX4 ui_matrix;
+    MATRIX4 model_matrix;
+
+    if (!tr.world || !screen ||
+        (tr.viewDef.rdflags & (RDF_NOWORLDMODEL | RDF_NOFRUSTUMCULL)) ||
+        window.width == 0 ||
+        window.height == 0) {
+        return;
+    }
+
+    if (!R_TraceViewportCornerToMinimap(left, top, screen, &corners[0]) ||
+        !R_TraceViewportCornerToMinimap(right, top, screen, &corners[1]) ||
+        !R_TraceViewportCornerToMinimap(right, bottom, screen, &corners[2]) ||
+        !R_TraceViewportCornerToMinimap(left, bottom, screen, &corners[3])) {
+        return;
+    }
+
+    FOR_LOOP(i, 5) {
+        VECTOR2 const *corner = &corners[i % 4];
+        vertices[i] = (VERTEX){
+            .position = { corner->x, corner->y, 0 },
+            .texcoord = { uv.x, uv.y },
+            .color = color,
+        };
+    }
+
+    RECT const scene = R_UISceneRect();
+    Matrix4_ortho(&ui_matrix, scene.x, scene.x + scene.w, scene.y + scene.h, scene.y, 0.0f, 100.0f);
+    Matrix4_identity(&model_matrix);
+
+    R_Call(glDisable, GL_DEPTH_TEST);
+    R_Call(glDepthMask, GL_FALSE);
+    R_Call(glDisable, GL_CULL_FACE);
+    R_Call(glEnable, GL_BLEND);
+    R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    R_Call(glUseProgram, tr.shader[SHADER_UI]->progid);
+    R_Call(glUniformMatrix4fv, tr.shader[SHADER_UI]->uViewProjectionMatrix, 1, GL_FALSE, ui_matrix.v);
+    R_Call(glUniformMatrix4fv, tr.shader[SHADER_UI]->uModelMatrix, 1, GL_FALSE, model_matrix.v);
+    R_BindTexture(tr.texture[TEX_WHITE], 0);
+    R_Call(glBindVertexArray, tr.buffer[RBUF_TEMP1]->vao);
+    R_Call(glBindBuffer, GL_ARRAY_BUFFER, tr.buffer[RBUF_TEMP1]->vbo);
+    R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    R_Call(glDrawArrays, GL_LINE_STRIP, 0, 5);
+}
+
+void R_DrawMinimap(LPCRECT screen) {
+    if (!tr.minimap || !screen) {
+        return;
+    }
+
+    R_DrawImage(tr.minimap, screen, &MAKE(RECT, 0, 0, 1, 1), COLOR32_WHITE);
+
+    if (tr.world && tr.shader[SHADER_MINIMAP_FOG]) {
+        DWORD const fow_texid = R_GetFogOfWarTexture();
+        if (fow_texid && (!tr.texture[TEX_WHITE] || fow_texid != tr.texture[TEX_WHITE]->texid)) {
+            TEXTURE fog_texture = {
+                .texid = fow_texid,
+                .width = (tr.world->width - 1) * 4,
+                .height = (tr.world->height - 1) * 4,
+            };
+
+            R_DrawImageEx(&MAKE(drawImage_t,
+                                .texture = &fog_texture,
+                                .screen = *screen,
+                                .uv = MAKE(RECT, 0, 0, 1, 1),
+                                .color = MAKE(COLOR32, 0, 0, 0, 230),
+                                .shader = SHADER_MINIMAP_FOG,
+                                .alphamode = BLEND_MODE_BLEND));
+        }
+    }
+
+    R_DrawMinimapCameraRect(screen);
 }
 
 void R_DrawPic(LPCTEXTURE texture, float x, float y) {

@@ -43,8 +43,6 @@ typedef struct {
     LPCTEXTURE skin;
     LPCTEXTURE splat;
     LPCTEXTURE shadow;
-    LPCTEXTURE healthbar;
-    LPCTEXTURE manabar;
     DWORD number;
     DWORD team;
 #ifdef WOW
@@ -63,7 +61,6 @@ typedef struct {
     float shadow_y;
     float shadow_w;
     float shadow_h;
-    float health;
 } renderEntity_t;
 
 typedef struct {
@@ -109,6 +106,7 @@ typedef struct {
     void (*DrawPic)(LPCTEXTURE texture, float x, float y);
     void (*DrawImage)(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv, COLOR32 color);
     void (*DrawImageEx)(LPCDRAWIMAGE drawImage);
+    void (*DrawMinimap)(LPCRECT screen);
     void (*DrawLoadingIndicator)(LPCRECT rect, DWORD time, COLOR32 color);
     void (*DrawPortrait)(LPCMODEL model, LPCRECT viewport, LPCSTR anim);
     void (*DrawSprite)(LPCMODEL model, LPCSTR anim, float x, float y);

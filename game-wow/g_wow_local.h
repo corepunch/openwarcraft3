@@ -24,10 +24,17 @@ typedef enum {
     WOW_ENTITY_CREATURE,
 } wowEntityKind_t;
 
+typedef struct wowMove_s {
+    LPCSTR animation;
+    void (*think)(LPEDICT ent);
+    void (*endfunc)(LPEDICT ent);
+} wowMove_t, *LPWOWMOVE;
+
 typedef struct {
     wowEntityKind_t kind;
     DWORD display_id;
     LPCANIMATION animation;
+    LPWOWMOVE currentmove;
     VECTOR2 home;
     FLOAT yaw;
     FLOAT patrol_radius;
@@ -66,6 +73,8 @@ FLOAT Wow_TerrainHeight(FLOAT x, FLOAT y);
 DWORD Wow_EntityIndex(LPCEDICT ent);
 wowEntityLocal_t *Wow_EntityLocal(LPCEDICT ent);
 LPCANIMATION Wow_SetEntityAnimation(LPEDICT ent, LPCSTR animation_name);
+BOOL Wow_SetEntityMove(LPEDICT ent, LPWOWMOVE move);
+BOOL Wow_SetEntityMoveFirstAnimation(LPEDICT ent, LPWOWMOVE move, LPCSTR const *animation_names);
 void Wow_AdvanceEntityFrame(LPEDICT ent);
 LPEDICT Wow_Spawn(void);
 void Wow_AIIdle(LPEDICT ent);
@@ -73,6 +82,11 @@ void Wow_AIMove(LPEDICT ent);
 void Wow_AIAttack(LPEDICT ent);
 void Wow_AIPain(LPEDICT ent);
 BOOL Wow_AIAdvanceLockedFrame(LPEDICT ent);
+BOOL Wow_EntityAffectingCombat(LPEDICT ent);
+BOOL Wow_SetStandMove(LPEDICT ent);
+BOOL Wow_SetRunMove(LPEDICT ent);
+BOOL Wow_SetWalkMove(LPEDICT ent);
+BOOL Wow_SetCombatReadyAnimation(LPEDICT ent);
 void Wow_AIRunFrame(LPEDICT ent);
 void Wow_SpawnAmbientCreatures(LPCVECTOR2 origin);
 void Wow_RunCreatureFrame(LPEDICT ent);

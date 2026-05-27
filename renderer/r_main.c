@@ -140,6 +140,26 @@ LPTEXTURE R_MakeLoadingIndicatorTexture(void) {
     return texture;
 }
 
+static LPTEXTURE R_MakeBlobShadowTexture(void) {
+    enum { TEXTURE_SIZE = 64 };
+    COLOR32 pixels[TEXTURE_SIZE * TEXTURE_SIZE];
+    LPTEXTURE texture = R_AllocateTexture(TEXTURE_SIZE, TEXTURE_SIZE);
+
+    FOR_LOOP(y, TEXTURE_SIZE) {
+        FOR_LOOP(x, TEXTURE_SIZE) {
+            FLOAT const fx = ((FLOAT)x + 0.5f) / (FLOAT)TEXTURE_SIZE * 2.0f - 1.0f;
+            FLOAT const fy = ((FLOAT)y + 0.5f) / (FLOAT)TEXTURE_SIZE * 2.0f - 1.0f;
+            FLOAT const distance = sqrtf(fx * fx + fy * fy);
+            FLOAT const alpha = 1.0f - R_SmoothStep(0.25f, 1.0f, distance);
+
+            pixels[y * TEXTURE_SIZE + x] = MAKE(COLOR32, 255, 255, 255, (BYTE)(alpha * 255.0f));
+        }
+    }
+
+    R_LoadTextureMipLevel(texture, 0, pixels, TEXTURE_SIZE, TEXTURE_SIZE);
+    return texture;
+}
+
 LPTEXTURE R_LoadTexture(LPCSTR textureFilename) {
     LPTEXTURE texture = NULL;
     void *buffer = NULL;
@@ -483,6 +503,7 @@ void R_Init(DWORD width, DWORD height) {
     extern LPCSTR fs_shadow_splat;
     extern LPCSTR fs_alphatest;
     extern LPCSTR fs_commandbutton;
+    extern LPCSTR fs_minimap_fog;
     
 #ifndef WOW
     FOR_LOOP(i, MODEL_COUNT) {
@@ -510,11 +531,13 @@ void R_Init(DWORD width, DWORD height) {
     tr.shader[SHADER_SPLAT] = R_InitShader(vs_default, fs_splat);
     tr.shader[SHADER_SHADOWSPLAT] = R_InitShader(vs_default, fs_shadow_splat);
     tr.shader[SHADER_COMMANDBUTTON] = R_InitShader(vs_default, fs_commandbutton);
+    tr.shader[SHADER_MINIMAP_FOG] = R_InitShader(vs_default, fs_minimap_fog);
     fprintf(stderr, "Loading shaders succeeded.\n");
 
     tr.buffer[RBUF_TEMP1] = R_MakeVertexArrayObject(NULL, 0);
     tr.texture[TEX_WHITE] = R_AllocateSinglePixelTexture(0xffffffff);
     tr.texture[TEX_BLACK] = R_AllocateSinglePixelTexture(0xff000000);
+    tr.texture[TEX_BLOB_SHADOW] = R_MakeBlobShadowTexture();
     tr.texture[TEX_LOADING_INDICATOR] = R_MakeLoadingIndicatorTexture();
 #ifndef WOW
     tr.texture[TEX_WATER] = R_LoadTexture("ReplaceableTextures\\Water\\Water12.blp");
@@ -543,6 +566,7 @@ void R_Shutdown(void) {
     
     R_ShutdownFogOfWar();
     R_ShutdownParticles();
+    SAFE_DELETE(tr.minimap, R_ReleaseTexture);
     
     SDL_GL_DeleteContext(context);
     SDL_DestroyWindow(window);
@@ -614,7 +638,6 @@ void R_RenderFrame(viewDef_t const *viewDef) {
     R_RenderShadowMap();
 #endif
     R_RenderView();
-    R_RenderOverlays();
 }
 
 void R_DrawBuffer(LPCBUFFER buffer, DWORD num_vertices) {
@@ -805,6 +828,7 @@ refExport_t R_GetAPI(refImport_t imp) {
         .DrawPic = R_DrawPic,
         .DrawImage = R_DrawImage,
         .DrawImageEx = R_DrawImageEx,
+        .DrawMinimap = R_DrawMinimap,
         .DrawLoadingIndicator = R_DrawLoadingIndicator,
         .DrawSelectionRect = R_DrawSelectionRect,
         .PrintSysText = R_PrintSysText,

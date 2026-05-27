@@ -7,5 +7,6 @@ ability_t a_stop = {
 };
 
 void order_stop(LPEDICT ent) {
+    unit_leavecombat(ent);
     ent->stand(ent);
 }

@@ -14,6 +14,7 @@ void ai_birth2(LPEDICT self) {
 //static mmove_t unit_move_decay1 = { "Decay Flesh", NULL, unit_decay2 };
 static umove_t unit_move_birth = { "birth", ai_birth, unit_stand };
 static umove_t unit_move_stand = { "stand", ai_stand, unit_stand };
+static umove_t unit_move_stand_ready = { "stand ready", ai_stand, unit_stand };
 static umove_t unit_move_death = { "death", NULL, unit_decay1 };
 
 //void unit_die(LPEDICT self) {
@@ -28,15 +29,46 @@ void unit_decay1(LPEDICT self) {
     self->aiflags |= AI_HOLD_FRAME;
 }
 
+void unit_entercombat(LPEDICT self, LPEDICT target) {
+    if (!self || !target || target == self || M_IsDead(self) || M_IsDead(target)) {
+        return;
+    }
+    self->combatentity = target;
+}
+
+void unit_leavecombat(LPEDICT self) {
+    if (self) {
+        self->combatentity = NULL;
+    }
+}
+
+BOOL unit_affectingcombat(LPEDICT self) {
+    if (!self || M_IsDead(self)) {
+        return false;
+    }
+    if (!self->combatentity ||
+        !self->combatentity->inuse ||
+        M_IsDead(self->combatentity)) {
+        self->combatentity = NULL;
+        return false;
+    }
+    return true;
+}
+
 void unit_stand(LPEDICT self) {
-    unit_setmove(self, &unit_move_stand);
+    unit_setmove(self, unit_affectingcombat(self)
+        ? &unit_move_stand_ready
+        : &unit_move_stand);
     self->build = NULL;
     self->s.renderfx &= ~RF_NO_UBERSPLAT;
     self->s.ability = 0;
+    self->move_last_distance = 0;
+    self->move_blocked_frames = 0;
     
 }
 
 void unit_die(LPEDICT self, LPEDICT attacker) {
+    unit_leavecombat(self);
     unit_setmove(self, &unit_move_death);
     G_PublishEvent(self, EVENT_UNIT_DEATH);
     self->svflags |= SVF_DEADMONSTER;

@@ -79,6 +79,37 @@ static void test_unit_stand_sets_stand_animation(void) {
     ASSERT_ANIM(ent, "stand");
 }
 
+static void test_unit_stand_uses_ready_animation_in_combat(void) {
+    LPEDICT ent = make_unit(0, 0);
+    LPEDICT target = alloc_test_unit(UNIT_ID("hfoo"), 50, 0);
+    target->inuse = true;
+    target->health.value = 100.0f;
+    target->health.max_value = 100.0f;
+
+    unit_entercombat(ent, target);
+    unit_stand(ent);
+
+    ASSERT(unit_affectingcombat(ent));
+    ASSERT_ANIM(ent, "stand ready");
+}
+
+static void test_unit_stop_exits_ready_animation(void) {
+    LPEDICT ent = make_unit(0, 0);
+    LPEDICT target = alloc_test_unit(UNIT_ID("hfoo"), 50, 0);
+    target->inuse = true;
+    target->health.value = 100.0f;
+    target->health.max_value = 100.0f;
+
+    unit_entercombat(ent, target);
+    unit_stand(ent);
+    ASSERT_ANIM(ent, "stand ready");
+
+    unit_issueimmediateorder(ent, "stop");
+
+    ASSERT(!unit_affectingcombat(ent));
+    ASSERT_ANIM(ent, "stand");
+}
+
 static void test_unit_stand_clears_build_pointer(void) {
     LPEDICT ent   = make_unit(0, 0);
     /* Pretend the unit was building something. */
@@ -146,6 +177,21 @@ static void test_issueorder_move_sets_walk_animation(void) {
     VECTOR2 dest = {100.0f, 0.0f};
     unit_issueorder(ent, "move", &dest);
     ASSERT_NOT_NULL(ent->currentmove);
+    ASSERT_ANIM(ent, "walk");
+}
+
+static void test_issueorder_move_preserves_combat_state(void) {
+    LPEDICT ent = make_unit(0, 0);
+    LPEDICT target = alloc_test_unit(UNIT_ID("hfoo"), 50, 0);
+    VECTOR2 dest = {100.0f, 0.0f};
+    target->inuse = true;
+    target->health.value = 100.0f;
+    target->health.max_value = 100.0f;
+
+    unit_entercombat(ent, target);
+    unit_issueorder(ent, "move", &dest);
+
+    ASSERT(unit_affectingcombat(ent));
     ASSERT_ANIM(ent, "walk");
 }
 
@@ -226,6 +272,8 @@ BEGIN_SUITE(unit)
     RUN_TEST(test_unit_birth_sets_no_ubersplat_flag);
 
     RUN_TEST(test_unit_stand_sets_stand_animation);
+    RUN_TEST(test_unit_stand_uses_ready_animation_in_combat);
+    RUN_TEST(test_unit_stop_exits_ready_animation);
     RUN_TEST(test_unit_stand_clears_build_pointer);
     RUN_TEST(test_unit_stand_clears_no_ubersplat_flag);
 
@@ -235,6 +283,7 @@ BEGIN_SUITE(unit)
 
     RUN_TEST(test_issueorder_move_creates_waypoint);
     RUN_TEST(test_issueorder_move_sets_walk_animation);
+    RUN_TEST(test_issueorder_move_preserves_combat_state);
     RUN_TEST(test_issueorder_unknown_returns_false);
     RUN_TEST(test_issueimmediateorder_stop);
     RUN_TEST(test_issueimmediateorder_unknown_returns_false);

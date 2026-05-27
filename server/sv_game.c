@@ -1,19 +1,105 @@
 #include <stdarg.h>
 #include <pthread.h>
+#include <unistd.h>
 
 #include "server.h"
 
 /* UI layout byte tracking (legacy - now handled client-side) */
 DWORD layoutBytesWritten = 0;
 
-void PF_WriteByte(int c) { MSG_WriteByte(&sv.multicast, c); }
-void PF_WriteShort(int c) { MSG_WriteShort(&sv.multicast, c); }
-void PF_WriteLong(int c) { MSG_WriteLong(&sv.multicast, c); }
-void PF_WriteFloat(float f) { MSG_WriteFloat(&sv.multicast, f); }
-void PF_WriteString(LPCSTR s) { MSG_WriteString(&sv.multicast, s); }
-void PF_WritePos(LPCVECTOR3 pos) { MSG_WritePos(&sv.multicast, pos); }
-void PF_WriteDir(LPCVECTOR3 dir) { MSG_WriteDir(&sv.multicast, dir); }
-void PF_WriteAngle(float f) { MSG_WriteAngle(&sv.multicast, f); }
+typedef struct svDeferredGameMessage_s {
+    struct svDeferredGameMessage_s *next;
+    int client_index; /* -1 means multicast/all clients */
+    DWORD cursize;
+    BYTE data[];
+} svDeferredGameMessage_t;
+
+typedef struct {
+    HANDLE (*func)(HANDLE);
+    HANDLE args;
+    DWORD thread_index;
+    sizeBuf_t message;
+    BYTE message_buf[MAX_MSGLEN];
+} svGameThreadContext_t;
+
+static pthread_key_t sv_game_thread_key;
+static pthread_once_t sv_game_thread_key_once = PTHREAD_ONCE_INIT;
+static pthread_mutex_t sv_deferred_game_messages_mutex = PTHREAD_MUTEX_INITIALIZER;
+static svDeferredGameMessage_t *sv_deferred_game_messages_head;
+static svDeferredGameMessage_t *sv_deferred_game_messages_tail;
+
+static void SV_CreateGameThreadKey(void) {
+    pthread_key_create(&sv_game_thread_key, NULL);
+}
+
+static svGameThreadContext_t *SV_CurrentGameThreadContext(void) {
+    pthread_once(&sv_game_thread_key_once, SV_CreateGameThreadKey);
+    return pthread_getspecific(sv_game_thread_key);
+}
+
+static LPSIZEBUF PF_GameMessage(void) {
+    svGameThreadContext_t *ctx = SV_CurrentGameThreadContext();
+    return ctx ? &ctx->message : &sv.multicast;
+}
+
+static void SV_QueueDeferredGameMessage(LPSIZEBUF msg, int client_index) {
+    if (!msg || msg->cursize == 0) {
+        return;
+    }
+
+    svDeferredGameMessage_t *deferred = MemAlloc(sizeof(*deferred) + msg->cursize);
+    deferred->client_index = client_index;
+    deferred->cursize = msg->cursize;
+    memcpy(deferred->data, msg->data, msg->cursize);
+
+    pthread_mutex_lock(&sv_deferred_game_messages_mutex);
+    if (sv_deferred_game_messages_tail) {
+        sv_deferred_game_messages_tail->next = deferred;
+    } else {
+        sv_deferred_game_messages_head = deferred;
+    }
+    sv_deferred_game_messages_tail = deferred;
+    pthread_mutex_unlock(&sv_deferred_game_messages_mutex);
+
+    SZ_Clear(msg);
+}
+
+void SV_FlushDeferredGameMessages(void) {
+    pthread_mutex_lock(&sv_deferred_game_messages_mutex);
+    svDeferredGameMessage_t *messages = sv_deferred_game_messages_head;
+    sv_deferred_game_messages_head = NULL;
+    sv_deferred_game_messages_tail = NULL;
+    pthread_mutex_unlock(&sv_deferred_game_messages_mutex);
+
+    while (messages) {
+        svDeferredGameMessage_t *next = messages->next;
+        if (messages->client_index >= 0) {
+            DWORD index = (DWORD)messages->client_index;
+            if (index < svs.num_clients) {
+                SZ_Write(&svs.clients[index].netchan.message,
+                         messages->data,
+                         messages->cursize);
+            }
+        } else {
+            FOR_LOOP(i, svs.num_clients) {
+                SZ_Write(&svs.clients[i].netchan.message,
+                         messages->data,
+                         messages->cursize);
+            }
+        }
+        MemFree(messages);
+        messages = next;
+    }
+}
+
+void PF_WriteByte(int c) { MSG_WriteByte(PF_GameMessage(), c); }
+void PF_WriteShort(int c) { MSG_WriteShort(PF_GameMessage(), c); }
+void PF_WriteLong(int c) { MSG_WriteLong(PF_GameMessage(), c); }
+void PF_WriteFloat(float f) { MSG_WriteFloat(PF_GameMessage(), f); }
+void PF_WriteString(LPCSTR s) { MSG_WriteString(PF_GameMessage(), s); }
+void PF_WritePos(LPCVECTOR3 pos) { MSG_WritePos(PF_GameMessage(), pos); }
+void PF_WriteDir(LPCVECTOR3 dir) { MSG_WriteDir(PF_GameMessage(), dir); }
+void PF_WriteAngle(float f) { MSG_WriteAngle(PF_GameMessage(), f); }
 
 void PF_TextRemoveComments(LPSTR buffer) {
     BOOL in_single_line_comment = false;
@@ -71,23 +157,25 @@ BOMStatus PF_TextRemoveBom(LPSTR buffer) {
 }
 
 void PF_WriteEntity(LPCENTITYSTATE ent) {
+    LPSIZEBUF msg = PF_GameMessage();
     entityState_t empty;
     memset(&empty, 0, sizeof(entityState_t));
-    MSG_WriteDeltaEntity(&sv.multicast, &empty, ent, true);
+    MSG_WriteDeltaEntity(msg, &empty, ent, true);
 }
 
 void PF_WriteUIFrame(LPCUIFRAME frame) {
-    DWORD before = sv.multicast.cursize;
+    LPSIZEBUF msg = PF_GameMessage();
+    DWORD before = msg->cursize;
     uiFrame_t empty;
     memset(&empty, 0, sizeof(uiFrame_t));
     empty.tex.coord[1] = 0xff;
     empty.tex.coord[3] = 0xff;
-    MSG_WriteDeltaUIFrame(&sv.multicast, &empty, frame, true);
-    MSG_WriteShort(&sv.multicast, frame->buffer.size);
-    MSG_Write(&sv.multicast, frame->buffer.data, frame->buffer.size);
-    if (sv.multicast.cursize >= before) {
+    MSG_WriteDeltaUIFrame(msg, &empty, frame, true);
+    MSG_WriteShort(msg, frame->buffer.size);
+    MSG_Write(msg, frame->buffer.data, frame->buffer.size);
+    if (msg->cursize >= before) {
         extern DWORD layoutBytesWritten;
-        layoutBytesWritten += sv.multicast.cursize - before;
+        layoutBytesWritten += msg->cursize - before;
     }
 }
 
@@ -124,9 +212,19 @@ DWORD SV_GetTime(void) {
     return sv.time;
 }
 
+void PF_Multicast(LPCVECTOR3 origin, multicast_t to) {
+    LPSIZEBUF msg = PF_GameMessage();
+    if (msg == &sv.multicast) {
+        SV_Multicast(origin, to);
+        return;
+    }
+    SV_QueueDeferredGameMessage(msg, -1);
+}
+
 void PF_Unicast(edict_t *ent) {
+    LPSIZEBUF msg = PF_GameMessage();
     if (!ent) {
-        SZ_Clear(&sv.multicast);
+        SZ_Clear(msg);
         return;
     }
     DWORD p = NUM_FOR_EDICT(ent);
@@ -136,11 +234,15 @@ void PF_Unicast(edict_t *ent) {
     } else if (svs.num_clients == 1) {
         client = svs.clients;
     } else {
-        SZ_Clear(&sv.multicast);
+        SZ_Clear(msg);
         return;
     }
-    SZ_Write(&client->netchan.message, sv.multicast.data, sv.multicast.cursize);
-    SZ_Clear(&sv.multicast);
+    if (msg != &sv.multicast) {
+        SV_QueueDeferredGameMessage(msg, (int)(client - svs.clients));
+        return;
+    }
+    SZ_Write(&client->netchan.message, msg->data, msg->cursize);
+    SZ_Clear(msg);
     Netchan_Transmit(NS_SERVER, &client->netchan);
 }
 
@@ -702,32 +804,75 @@ LPCANIMATION SV_GetAnimation(DWORD modelindex, LPCSTR animname) {
 
 
 VECTOR2 get_flow_direction(DWORD heatmapindex, float fx, float fy);
+
 struct thread {
     pthread_t thread;
     BOOL used;
 };
 
-struct thread threads[NUM_THREADS] = { 0 };
+static struct thread threads[NUM_THREADS] = { 0 };
+static pthread_mutex_t sv_game_threads_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+static void *SV_GameThreadMain(void *arg) {
+    svGameThreadContext_t *ctx = arg;
+    HANDLE (*func)(HANDLE) = ctx->func;
+    HANDLE func_args = ctx->args;
+    DWORD thread_index = ctx->thread_index;
+
+    SZ_Init(&ctx->message, ctx->message_buf, sizeof(ctx->message_buf));
+    pthread_once(&sv_game_thread_key_once, SV_CreateGameThreadKey);
+    pthread_setspecific(sv_game_thread_key, ctx);
+
+    func(func_args);
+
+    pthread_setspecific(sv_game_thread_key, NULL);
+    SZ_Clear(&ctx->message);
+    pthread_mutex_lock(&sv_game_threads_mutex);
+    if (thread_index < NUM_THREADS) {
+        threads[thread_index].used = false;
+    }
+    pthread_mutex_unlock(&sv_game_threads_mutex);
+    MemFree(ctx);
+    return NULL;
+}
 
 DWORD PF_CreateThread(HANDLE (func)(HANDLE), HANDLE args) {
+    svGameThreadContext_t *ctx = MemAlloc(sizeof(*ctx));
+    DWORD index = NUM_THREADS;
+
+    pthread_mutex_lock(&sv_game_threads_mutex);
     FOR_LOOP(i, NUM_THREADS) {
         if (!threads[i].used) {
-            if (pthread_create(&threads[i].thread, NULL, func, args) != 0) {
-                fprintf(stderr, "Error creating thread\n");
-                exit(EXIT_FAILURE);
-            } else {
-                return i;
-            }
+            threads[i].used = true;
+            index = i;
+            break;
         }
     }
-    return -1;
+    pthread_mutex_unlock(&sv_game_threads_mutex);
+
+    if (index == NUM_THREADS) {
+        MemFree(ctx);
+        return -1;
+    }
+
+    ctx->func = func;
+    ctx->args = args;
+    ctx->thread_index = index;
+
+    if (pthread_create(&threads[index].thread, NULL, SV_GameThreadMain, ctx) != 0) {
+        pthread_mutex_lock(&sv_game_threads_mutex);
+        threads[index].used = false;
+        pthread_mutex_unlock(&sv_game_threads_mutex);
+        MemFree(ctx);
+        fprintf(stderr, "Error creating thread\n");
+        exit(EXIT_FAILURE);
+    }
+    pthread_detach(threads[index].thread);
+    return index;
 }
 
 void PF_JoinThread(DWORD thread) {
-    if (pthread_join(threads[thread].thread, NULL) != 0) {
-        fprintf(stderr, "Error joining thread %d\n", thread);
-        exit(EXIT_FAILURE);
-    }
+    (void)thread;
 }
 
 void PF_Sleep(DWORD msec) {
@@ -737,7 +882,7 @@ void PF_Sleep(DWORD msec) {
 void SV_InitGameProgs(void) {
     struct game_import import;
     
-    import.multicast = SV_Multicast;
+    import.multicast = PF_Multicast;
     import.unicast = PF_Unicast;
         
     import.MemAlloc = MemAlloc;

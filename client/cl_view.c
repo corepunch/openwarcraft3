@@ -245,9 +245,6 @@ static void V_AddClientEntity(centity_t const *ent) {
     re.splatsize = ent->current.splat >> 16;
     re.shadow = cl.pics[ent->current.shadow];
     ShadowUnpackRect(ent->current.shadow_rect, &re.shadow_x, &re.shadow_y, &re.shadow_w, &re.shadow_h);
-    re.health = BYTE2FLOAT(ent->current.stats[ENT_HEALTH]);
-    re.healthbar = cl.healthbar;
-
 #ifdef WOW
     if (ent->current.model2 > 0 &&
         ent->current.model2 < MAX_MODELS &&
@@ -355,12 +352,10 @@ void CL_PrepRefresh(void) {
     }
 
     total_assets = 1 +
-                   (*cl.configstrings[CS_HEALTHBAR] ? 1 : 0) +
                    CL_CountConfigstrings(CS_MODELS, MAX_MODELS) +
                    CL_CountConfigstrings(CS_IMAGES, MAX_IMAGES) +
                    CL_CountConfigstrings(CS_FONTS, MAX_FONTSTYLES);
     loaded_assets = (map_registered ? 1 : 0) +
-                    (cl.healthbar ? 1 : 0) +
                     CL_CountLoadedConfigstrings(CS_MODELS, MAX_MODELS, (HANDLE const *)cl.models) +
                     CL_CountLoadedConfigstrings(CS_IMAGES, MAX_IMAGES, (HANDLE const *)cl.pics) +
                     CL_CountLoadedConfigstrings(CS_FONTS, MAX_FONTSTYLES, (HANDLE const *)cl.fonts);
@@ -390,12 +385,6 @@ void CL_PrepRefresh(void) {
         return;
     }
     
-    if (*cl.configstrings[CS_HEALTHBAR] && !cl.healthbar) {
-        cl.healthbar = re.LoadTexture(cl.configstrings[CS_HEALTHBAR]);
-        CL_UpdateAssetLoadingProgress("Loading health bars", loaded_assets + 1, total_assets);
-        return;
-    }
-
     DWORD loaded_models_this_frame = 0;
     for (DWORD i = 1; i < MAX_MODELS; i++) {
         if (!*cl.configstrings[CS_MODELS + i])

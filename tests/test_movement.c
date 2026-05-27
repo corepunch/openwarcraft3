@@ -191,6 +191,74 @@ static void test_unit_does_not_overshoot_goal(void) {
     ASSERT(dist <= move_dist + 1.0f);
 }
 
+static void test_group_move_assigns_distinct_reserved_destinations(void) {
+    reset_entities();
+    LPEDICT clent = alloc_test_unit(0, 0.0f, 0.0f);
+    clent->client = &game.clients[0];
+
+    LPEDICT a = alloc_test_unit(UNIT_ID("hpea"), 0.0f, 0.0f);
+    LPEDICT b = alloc_test_unit(UNIT_ID("hpea"), 20.0f, 0.0f);
+    LPEDICT c = alloc_test_unit(UNIT_ID("hpea"), 0.0f, 20.0f);
+    LPEDICT units[] = { a, b, c };
+
+    FOR_LOOP(i, 3) {
+        units[i]->collision = 16.0f;
+        units[i]->selected = 1 << clent->client->ps.number;
+        units[i]->stand = unit_stand;
+        unit_stand(units[i]);
+    }
+
+    VECTOR2 dest = {100.0f, 100.0f};
+    ASSERT(move_selectlocation(clent, &dest));
+
+    ASSERT_NOT_NULL(a->goalentity);
+    ASSERT_NOT_NULL(b->goalentity);
+    ASSERT_NOT_NULL(c->goalentity);
+    ASSERT(Vector2_distance(&a->goalentity->s.origin2, &b->goalentity->s.origin2) >= 32.0f);
+    ASSERT(Vector2_distance(&a->goalentity->s.origin2, &c->goalentity->s.origin2) >= 32.0f);
+    ASSERT(Vector2_distance(&b->goalentity->s.origin2, &c->goalentity->s.origin2) >= 32.0f);
+}
+
+static void test_blocked_move_stops_instead_of_walking_forever(void) {
+    LPEDICT unit = make_moving_unit(0.0f, 0.0f);
+    VECTOR2 origin = unit->s.origin2;
+    VECTOR2 dest = {400.0f, 0.0f};
+    unit_issueorder(unit, "move", &dest);
+
+    for (int i = 0; i < 16; i++) {
+        if (!unit->currentmove || strcmp(unit->currentmove->animation, "walk") != 0) {
+            break;
+        }
+        unit->currentmove->think(unit);
+        unit->s.origin2 = origin;
+        unit->s.origin.x = origin.x;
+        unit->s.origin.y = origin.y;
+        gi.LinkEntity(unit);
+    }
+
+    ASSERT_ANIM(unit, "stand");
+}
+
+static void test_near_goal_jitter_settles_to_stand(void) {
+    LPEDICT unit = make_moving_unit(65.0f, 0.0f);
+    VECTOR2 jitter = unit->s.origin2;
+    VECTOR2 dest = {100.0f, 0.0f};
+    unit_issueorder(unit, "move", &dest);
+
+    for (int i = 0; i < 10; i++) {
+        if (!unit->currentmove || strcmp(unit->currentmove->animation, "walk") != 0) {
+            break;
+        }
+        unit->currentmove->think(unit);
+        unit->s.origin2 = jitter;
+        unit->s.origin.x = jitter.x;
+        unit->s.origin.y = jitter.y;
+        gi.LinkEntity(unit);
+    }
+
+    ASSERT_ANIM(unit, "stand");
+}
+
 /* -----------------------------------------------------------------------
  * Suite runner
  * --------------------------------------------------------------------- */
@@ -207,4 +275,7 @@ BEGIN_SUITE(movement)
     RUN_TEST(test_unit_reaches_goal_and_transitions_to_stand);
     RUN_TEST(test_unit_position_changes_after_move_frame);
     RUN_TEST(test_unit_does_not_overshoot_goal);
+    RUN_TEST(test_group_move_assigns_distinct_reserved_destinations);
+    RUN_TEST(test_blocked_move_stops_instead_of_walking_forever);
+    RUN_TEST(test_near_goal_jitter_settles_to_stand);
 END_SUITE()
