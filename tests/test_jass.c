@@ -35,15 +35,53 @@ static DWORD native_Negate(LPJASS j) {
     return jass_pushinteger(j, -jass_checkinteger(j, 1));
 }
 
-/* jass_runevents is declared in vm_public.h but not yet implemented in the
- * game source — provide a no-op stub here as a temporary workaround for
- * the test binary. */
-void jass_runevents(LPJASS j) { (void)j; }
+static DWORD native_Sleep(LPJASS j) {
+    jass_sleep(j, (DWORD)jass_checkinteger(j, 1));
+    return 0;
+}
+
+static DWORD native_TriggerSleepAction(LPJASS j) {
+    jass_sleep(j, (DWORD)(jass_checknumber(j, 1) * 1000));
+    return 0;
+}
+
+static DWORD native_NewThread(LPJASS j) {
+    LPCJASSFUNC func = jass_checkcode(j, 1);
+    JASSCONTEXT context = *jass_getcontext(j);
+    context.func = func;
+    jass_startcoroutine(j, &context);
+    return 0;
+}
+
+static DWORD native_ExecuteFunc(LPJASS j) {
+    return jass_startcoroutinebyname(j, jass_checkstring(j, 1)) ? 0 : 0;
+}
+
+extern LPPLAYER currentplayer;
+
+static DWORD native_Player(LPJASS j) {
+    return jass_pushlighthandle(j, G_GetPlayerByNumber((DWORD)jass_checkinteger(j, 1)), "player");
+}
+
+static DWORD native_GetLocalPlayer(LPJASS j) {
+    return jass_pushlighthandle(j, currentplayer, "player");
+}
+
+static DWORD native_CurrentPlayerNumber(LPJASS j) {
+    return jass_pushinteger(j, currentplayer ? (LONG)currentplayer->number : -1);
+}
 
 JASSMODULE jass_funcs[] = {
     { "NativeAdd",    native_Add    },
     { "NativeMul",    native_Mul    },
     { "NativeNegate", native_Negate },
+    { "NativeSleep",  native_Sleep  },
+    { "TriggerSleepAction", native_TriggerSleepAction },
+    { "newthread",    native_NewThread },
+    { "ExecuteFunc",  native_ExecuteFunc },
+    { "Player",       native_Player },
+    { "GetLocalPlayer", native_GetLocalPlayer },
+    { "CurrentPlayerNumber", native_CurrentPlayerNumber },
     { NULL }
 };
 
@@ -620,6 +658,438 @@ static void test_typedef(void) {
 }
 
 /* =========================================================================
+ * Coroutines
+ * ========================================================================= */
+
+static void test_async_call_runs_from_event_pump(void) {
+    const char *src =
+        "globals\n"
+        "  integer g_async = 0\n"
+        "endglobals\n"
+        "function Worker takes nothing returns nothing\n"
+        "  set g_async = 7\n"
+        "endfunction\n"
+        "function GetAsync takes nothing returns integer\n"
+        "  return g_async\n"
+        "endfunction\n";
+    LPJASS j = run(src);
+    level.time = 0;
+
+    jass_callbyname(j, "Worker", true);
+    jass_callbyname(j, "GetAsync", false);
+    ASSERT_EQ_INT(jass_checkinteger(j, -1), 0);
+
+    jass_runevents(j);
+    jass_callbyname(j, "GetAsync", false);
+    ASSERT_EQ_INT(jass_checkinteger(j, -1), 7);
+    jass_close(j);
+}
+
+static void test_coroutine_sleep_resumes_after_timeout(void) {
+    const char *src =
+        "native NativeSleep takes integer timeout returns nothing\n"
+        "globals\n"
+        "  integer g_stage = 0\n"
+        "endglobals\n"
+        "function Worker takes nothing returns nothing\n"
+        "  set g_stage = 1\n"
+        "  call NativeSleep(100)\n"
+        "  set g_stage = 2\n"
+        "endfunction\n"
+        "function GetStage takes nothing returns integer\n"
+        "  return g_stage\n"
+        "endfunction\n";
+    LPJASS j = run(src);
+    level.time = 0;
+
+    jass_callbyname(j, "Worker", true);
+    jass_runevents(j);
+    jass_callbyname(j, "GetStage", false);
+    ASSERT_EQ_INT(jass_checkinteger(j, -1), 1);
+
+    level.time = 99;
+    jass_runevents(j);
+    jass_callbyname(j, "GetStage", false);
+    ASSERT_EQ_INT(jass_checkinteger(j, -1), 1);
+
+    level.time = 100;
+    jass_runevents(j);
+    jass_callbyname(j, "GetStage", false);
+    ASSERT_EQ_INT(jass_checkinteger(j, -1), 2);
+    jass_close(j);
+}
+
+static void test_sleeping_coroutine_does_not_block_ready_coroutine(void) {
+    const char *src =
+        "native NativeSleep takes integer timeout returns nothing\n"
+        "globals\n"
+        "  integer g_order = 0\n"
+        "endglobals\n"
+        "function Slow takes nothing returns nothing\n"
+        "  set g_order = g_order + 1\n"
+        "  call NativeSleep(100)\n"
+        "  set g_order = g_order + 10\n"
+        "endfunction\n"
+        "function Fast takes nothing returns nothing\n"
+        "  set g_order = g_order + 100\n"
+        "endfunction\n"
+        "function GetOrder takes nothing returns integer\n"
+        "  return g_order\n"
+        "endfunction\n";
+    LPJASS j = run(src);
+    level.time = 0;
+
+    jass_callbyname(j, "Slow", true);
+    jass_callbyname(j, "Fast", true);
+    jass_runevents(j);
+    jass_callbyname(j, "GetOrder", false);
+    ASSERT_EQ_INT(jass_checkinteger(j, -1), 101);
+
+    level.time = 100;
+    jass_runevents(j);
+    jass_callbyname(j, "GetOrder", false);
+    ASSERT_EQ_INT(jass_checkinteger(j, -1), 111);
+    jass_close(j);
+}
+
+static void test_newthread_native_starts_coroutine(void) {
+    const char *src =
+        "native newthread takes code func returns nothing\n"
+        "globals\n"
+        "  integer g_threaded = 0\n"
+        "endglobals\n"
+        "function Worker takes nothing returns nothing\n"
+        "  set g_threaded = 9\n"
+        "endfunction\n"
+        "function Launch takes nothing returns nothing\n"
+        "  call newthread(function Worker)\n"
+        "endfunction\n"
+        "function GetThreaded takes nothing returns integer\n"
+        "  return g_threaded\n"
+        "endfunction\n";
+    LPJASS j = run(src);
+    level.time = 0;
+
+    jass_callbyname(j, "Launch", false);
+    jass_callbyname(j, "GetThreaded", false);
+    ASSERT_EQ_INT(jass_checkinteger(j, -1), 0);
+
+    jass_runevents(j);
+    jass_callbyname(j, "GetThreaded", false);
+    ASSERT_EQ_INT(jass_checkinteger(j, -1), 9);
+    jass_close(j);
+}
+
+static void test_coroutine_spawned_during_pump_is_not_dropped(void) {
+    const char *src =
+        "native newthread takes code func returns nothing\n"
+        "globals\n"
+        "  integer g_spawned = 0\n"
+        "endglobals\n"
+        "function Child takes nothing returns nothing\n"
+        "  set g_spawned = g_spawned + 10\n"
+        "endfunction\n"
+        "function Parent takes nothing returns nothing\n"
+        "  set g_spawned = 1\n"
+        "  call newthread(function Child)\n"
+        "endfunction\n"
+        "function GetSpawned takes nothing returns integer\n"
+        "  return g_spawned\n"
+        "endfunction\n";
+    LPJASS j = run(src);
+    level.time = 0;
+
+    jass_callbyname(j, "Parent", true);
+    jass_runevents(j);
+    jass_callbyname(j, "GetSpawned", false);
+    ASSERT_EQ_INT(jass_checkinteger(j, -1), 11);
+    jass_close(j);
+}
+
+static void test_execute_func_starts_named_coroutine(void) {
+    const char *src =
+        "native ExecuteFunc takes string funcName returns nothing\n"
+        "globals\n"
+        "  integer g_named = 0\n"
+        "endglobals\n"
+        "function NamedWorker takes nothing returns nothing\n"
+        "  set g_named = 11\n"
+        "endfunction\n"
+        "function Launch takes nothing returns nothing\n"
+        "  call ExecuteFunc(\"NamedWorker\")\n"
+        "endfunction\n"
+        "function GetNamed takes nothing returns integer\n"
+        "  return g_named\n"
+        "endfunction\n";
+    LPJASS j = run(src);
+    level.time = 0;
+
+    jass_callbyname(j, "Launch", false);
+    jass_callbyname(j, "GetNamed", false);
+    ASSERT_EQ_INT(jass_checkinteger(j, -1), 0);
+
+    jass_runevents(j);
+    jass_callbyname(j, "GetNamed", false);
+    ASSERT_EQ_INT(jass_checkinteger(j, -1), 11);
+    jass_close(j);
+}
+
+static void test_coroutine_preserves_local_player_context_after_sleep(void) {
+    const char *src =
+        "type player extends handle\n"
+        "native Player takes integer number returns player\n"
+        "native GetLocalPlayer takes nothing returns player\n"
+        "native CurrentPlayerNumber takes nothing returns integer\n"
+        "native NativeSleep takes integer timeout returns nothing\n"
+        "native newthread takes code func returns nothing\n"
+        "globals\n"
+        "  integer g_player = -2\n"
+        "endglobals\n"
+        "function Worker takes nothing returns nothing\n"
+        "  call NativeSleep(100)\n"
+        "  set g_player = CurrentPlayerNumber()\n"
+        "endfunction\n"
+        "function Launch takes nothing returns nothing\n"
+        "  if GetLocalPlayer() == Player(0) then\n"
+        "    call newthread(function Worker)\n"
+        "  endif\n"
+        "endfunction\n"
+        "function GetPlayerResult takes nothing returns integer\n"
+        "  return g_player\n"
+        "endfunction\n";
+    LPJASS j = run(src);
+    level.time = 0;
+
+    jass_callbyname(j, "Launch", false);
+    jass_runevents(j);
+    level.time = 100;
+    jass_runevents(j);
+    jass_callbyname(j, "GetPlayerResult", false);
+    ASSERT_EQ_INT(jass_checkinteger(j, -1), 0);
+    jass_close(j);
+}
+
+static void test_coroutine_root_local_player_branch_runs_per_player(void) {
+    const char *src =
+        "type player extends handle\n"
+        "native Player takes integer number returns player\n"
+        "native GetLocalPlayer takes nothing returns player\n"
+        "globals\n"
+        "  integer g_local_branch = 0\n"
+        "endglobals\n"
+        "function Worker takes nothing returns nothing\n"
+        "  if GetLocalPlayer() == Player(1) then\n"
+        "    set g_local_branch = 17\n"
+        "  endif\n"
+        "endfunction\n"
+        "function GetLocalBranch takes nothing returns integer\n"
+        "  return g_local_branch\n"
+        "endfunction\n";
+    LPJASS j = run(src);
+    level.time = 0;
+
+    jass_callbyname(j, "Worker", true);
+    jass_runevents(j);
+    jass_callbyname(j, "GetLocalBranch", false);
+    ASSERT_EQ_INT(jass_checkinteger(j, -1), 17);
+    jass_close(j);
+}
+
+static void test_coroutine_sleep_inside_helper_function_resumes_helper(void) {
+    const char *src =
+        "native NativeSleep takes integer timeout returns nothing\n"
+        "globals\n"
+        "  integer g_nested = 0\n"
+        "endglobals\n"
+        "function Helper takes nothing returns nothing\n"
+        "  set g_nested = 2\n"
+        "  call NativeSleep(100)\n"
+        "  set g_nested = 3\n"
+        "endfunction\n"
+        "function Worker takes nothing returns nothing\n"
+        "  set g_nested = 1\n"
+        "  call Helper()\n"
+        "  set g_nested = g_nested + 10\n"
+        "endfunction\n"
+        "function GetNested takes nothing returns integer\n"
+        "  return g_nested\n"
+        "endfunction\n";
+    LPJASS j = run(src);
+    level.time = 0;
+
+    jass_callbyname(j, "Worker", true);
+    jass_runevents(j);
+    jass_callbyname(j, "GetNested", false);
+    ASSERT_EQ_INT(jass_checkinteger(j, -1), 2);
+
+    level.time = 100;
+    jass_runevents(j);
+    jass_callbyname(j, "GetNested", false);
+    ASSERT_EQ_INT(jass_checkinteger(j, -1), 13);
+    jass_close(j);
+}
+
+static void test_coroutine_sleep_inside_if_resumes_after_if(void) {
+    const char *src =
+        "native NativeSleep takes integer timeout returns nothing\n"
+        "globals\n"
+        "  integer g_if_sleep = 0\n"
+        "endglobals\n"
+        "function Worker takes nothing returns nothing\n"
+        "  if true then\n"
+        "    set g_if_sleep = 1\n"
+        "    call NativeSleep(100)\n"
+        "    set g_if_sleep = g_if_sleep + 10\n"
+        "  endif\n"
+        "  set g_if_sleep = g_if_sleep + 100\n"
+        "endfunction\n"
+        "function GetIfSleep takes nothing returns integer\n"
+        "  return g_if_sleep\n"
+        "endfunction\n";
+    LPJASS j = run(src);
+    level.time = 0;
+
+    jass_callbyname(j, "Worker", true);
+    jass_runevents(j);
+    jass_callbyname(j, "GetIfSleep", false);
+    ASSERT_EQ_INT(jass_checkinteger(j, -1), 1);
+
+    level.time = 100;
+    jass_runevents(j);
+    jass_callbyname(j, "GetIfSleep", false);
+    ASSERT_EQ_INT(jass_checkinteger(j, -1), 111);
+    jass_close(j);
+}
+
+static void test_coroutine_loop_wait_resumes_each_iteration(void) {
+    const char *src =
+        "native NativeSleep takes integer timeout returns nothing\n"
+        "globals\n"
+        "  integer g_loop_wait = 0\n"
+        "endglobals\n"
+        "function Worker takes nothing returns nothing\n"
+        "  loop\n"
+        "    exitwhen g_loop_wait >= 3\n"
+        "    set g_loop_wait = g_loop_wait + 1\n"
+        "    call NativeSleep(100)\n"
+        "  endloop\n"
+        "  set g_loop_wait = 9\n"
+        "endfunction\n"
+        "function GetLoopWait takes nothing returns integer\n"
+        "  return g_loop_wait\n"
+        "endfunction\n";
+    LPJASS j = run(src);
+    level.time = 0;
+
+    jass_callbyname(j, "Worker", true);
+    jass_runevents(j);
+    jass_callbyname(j, "GetLoopWait", false);
+    ASSERT_EQ_INT(jass_checkinteger(j, -1), 1);
+
+    level.time = 100;
+    jass_runevents(j);
+    jass_callbyname(j, "GetLoopWait", false);
+    ASSERT_EQ_INT(jass_checkinteger(j, -1), 2);
+
+    level.time = 200;
+    jass_runevents(j);
+    jass_callbyname(j, "GetLoopWait", false);
+    ASSERT_EQ_INT(jass_checkinteger(j, -1), 3);
+
+    level.time = 300;
+    jass_runevents(j);
+    jass_callbyname(j, "GetLoopWait", false);
+    ASSERT_EQ_INT(jass_checkinteger(j, -1), 9);
+    jass_close(j);
+}
+
+static void test_coroutine_polled_wait_helper_uses_trigger_sleep(void) {
+    const char *src =
+        "native TriggerSleepAction takes real timeout returns nothing\n"
+        "globals\n"
+        "  integer g_polled_wait = 0\n"
+        "endglobals\n"
+        "function PolledWait takes real duration returns nothing\n"
+        "  local real elapsed = 0.0\n"
+        "  loop\n"
+        "    exitwhen elapsed >= duration\n"
+        "    call TriggerSleepAction(0.1)\n"
+        "    set elapsed = elapsed + 0.1\n"
+        "  endloop\n"
+        "endfunction\n"
+        "function Worker takes nothing returns nothing\n"
+        "  set g_polled_wait = 1\n"
+        "  call PolledWait(0.3)\n"
+        "  set g_polled_wait = 9\n"
+        "endfunction\n"
+        "function GetPolledWait takes nothing returns integer\n"
+        "  return g_polled_wait\n"
+        "endfunction\n";
+    LPJASS j = run(src);
+    level.time = 0;
+
+    jass_callbyname(j, "Worker", true);
+    jass_runevents(j);
+    jass_callbyname(j, "GetPolledWait", false);
+    ASSERT_EQ_INT(jass_checkinteger(j, -1), 1);
+
+    level.time = 100;
+    jass_runevents(j);
+    jass_callbyname(j, "GetPolledWait", false);
+    ASSERT_EQ_INT(jass_checkinteger(j, -1), 1);
+
+    level.time = 200;
+    jass_runevents(j);
+    jass_callbyname(j, "GetPolledWait", false);
+    ASSERT_EQ_INT(jass_checkinteger(j, -1), 1);
+
+    level.time = 300;
+    jass_runevents(j);
+    jass_callbyname(j, "GetPolledWait", false);
+    ASSERT_EQ_INT(jass_checkinteger(j, -1), 9);
+    jass_close(j);
+}
+
+static void test_trigger_coroutine_uses_client_player_for_player_entity(void) {
+    const char *src =
+        "native CurrentPlayerNumber takes nothing returns integer\n"
+        "globals\n"
+        "  integer g_trigger_player = -1\n"
+        "endglobals\n"
+        "function TriggerAction takes nothing returns nothing\n"
+        "  set g_trigger_player = CurrentPlayerNumber()\n"
+        "endfunction\n"
+        "function GetTriggerAction takes nothing returns code\n"
+        "  return function TriggerAction\n"
+        "endfunction\n"
+        "function GetTriggerPlayerResult takes nothing returns integer\n"
+        "  return g_trigger_player\n"
+        "endfunction\n";
+    LPJASS j = run(src);
+    TRIGGER trigger = { 0 };
+    TRIGGERACTION action = { 0 };
+    edict_t player_entity = { 0 };
+    GAMECLIENT client = { 0 };
+
+    client.ps.number = 1;
+    player_entity.client = &client;
+    player_entity.s.player = 0;
+
+    jass_callbyname(j, "GetTriggerAction", false);
+    action.func = jass_checkcode(j, -1);
+    jass_pop(j, 1);
+    trigger.actions = &action;
+
+    level.time = 0;
+    jass_calltrigger(j, &trigger, &player_entity);
+    jass_runevents(j);
+
+    jass_callbyname(j, "GetTriggerPlayerResult", false);
+    ASSERT_EQ_INT(jass_checkinteger(j, -1), 1);
+    jass_close(j);
+}
+
+/* =========================================================================
  * Stack: push / check / pop primitives
  * ========================================================================= */
 
@@ -760,4 +1230,18 @@ BEGIN_SUITE(jass)
     RUN_TEST(test_native_call_chain);
     /* Types */
     RUN_TEST(test_typedef);
+    /* Coroutines */
+    RUN_TEST(test_async_call_runs_from_event_pump);
+    RUN_TEST(test_coroutine_sleep_resumes_after_timeout);
+    RUN_TEST(test_sleeping_coroutine_does_not_block_ready_coroutine);
+    RUN_TEST(test_newthread_native_starts_coroutine);
+    RUN_TEST(test_coroutine_spawned_during_pump_is_not_dropped);
+    RUN_TEST(test_execute_func_starts_named_coroutine);
+    RUN_TEST(test_coroutine_preserves_local_player_context_after_sleep);
+    RUN_TEST(test_coroutine_root_local_player_branch_runs_per_player);
+    RUN_TEST(test_coroutine_sleep_inside_helper_function_resumes_helper);
+    RUN_TEST(test_coroutine_sleep_inside_if_resumes_after_if);
+    RUN_TEST(test_coroutine_loop_wait_resumes_each_iteration);
+    RUN_TEST(test_coroutine_polled_wait_helper_uses_trigger_sleep);
+    RUN_TEST(test_trigger_coroutine_uses_client_player_for_player_entity);
 END_SUITE()

@@ -30,9 +30,6 @@ struct game_import {
     DWORD (*BuildHeatmap)(LPEDICT goalentity);
     BOOL (*ClosestPathablePoint)(LPCVECTOR2 location, LPVECTOR2 out);
     BOOL (*ClosestPathablePointForRadius)(LPCVECTOR2 location, FLOAT radius, LPVECTOR2 out);
-    DWORD (*CreateThread)(HANDLE (func)(HANDLE), HANDLE args);
-    void (*JoinThread)(DWORD thread);
-    void (*Sleep)(DWORD msec);
     void (*LinkEntity)(LPEDICT ent);
     void (*UnlinkEntity)(LPEDICT ent);
     DWORD (*BoxEdicts)(LPCBOX2 area, LPEDICT *list, DWORD maxcount, BOOL (*pred)(LPCEDICT));

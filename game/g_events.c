@@ -1,6 +1,7 @@
 #include "g_local.h"
 
 BOOL jass_calltrigger(LPJASS j, LPTRIGGER trigger, LPEDICT unit);
+BOOL jass_triggerdisabled(LPTRIGGER trigger);
 
 static void G_ExecuteEvent(GAMEEVENT *evt) {
     LPEDICT subject = evt->edict;
@@ -41,6 +42,13 @@ static void G_ExecuteEvent(GAMEEVENT *evt) {
                 break;
             default:
                 if (e->subject == subject && e->type == evt->type) {
+                    fprintf(stderr,
+                            "Game event matched: type=%u subject=%p trigger=%p disabled=%d time=%u\n",
+                            (unsigned)evt->type,
+                            (void *)subject,
+                            (void *)e->trigger,
+                            e->trigger ? jass_triggerdisabled(e->trigger) : -1,
+                            (unsigned)gi.GetTime());
                     jass_calltrigger(level.vm, e->trigger, subject);
                 }
                 break;

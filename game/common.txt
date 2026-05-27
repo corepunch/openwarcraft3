@@ -2468,6 +2468,7 @@ constant native GetTriggerEvalCount     takes trigger whichTrigger returns integ
 constant native GetTriggerExecCount     takes trigger whichTrigger returns integer
 
 native ExecuteFunc          takes string funcName returns nothing
+native newthread            takes code func returns nothing
 
 //============================================================================
 // Boolean Expr API ( for compositing trigger conditions and unit filter funcs...)

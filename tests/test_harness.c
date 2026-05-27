@@ -153,9 +153,6 @@ static int    mock_SoundIndex(LPCSTR name)              { (void)name; return 0; 
 static int    mock_ImageIndex(LPCSTR name)              { (void)name; return 0; }
 static int    mock_FontIndex(LPCSTR n, DWORD s)         { (void)n; (void)s; return 0; }
 static bool   mock_ExtractFile(LPCSTR a, LPCSTR b)      { (void)a; (void)b; return false; }
-static DWORD  mock_CreateThread(HANDLE (*f)(HANDLE), HANDLE a) { (void)f; (void)a; return 0; }
-static void   mock_JoinThread(DWORD t)                  { (void)t; }
-static void   mock_Sleep(DWORD ms)                      { (void)ms; }
 static LPSTR  mock_ReadFileIntoString(LPCSTR f)         { (void)f; return NULL; }
 static HANDLE mock_ReadFile(LPCSTR f, LPDWORD s)        { (void)f; if (s) *s=0; return NULL; }
 static BOOL   mock_OpenArchiveFromMemory(const void *d, DWORD s, DWORD fl, HANDLE *a) { (void)d; (void)s; (void)fl; if (a) *a = NULL; return false; }
@@ -289,9 +286,6 @@ void setup_game(void) {
     gi.BuildHeatmap        = mock_BuildHeatmap;
     gi.ClosestPathablePoint = mock_ClosestPathablePoint;
     gi.ClosestPathablePointForRadius = mock_ClosestPathablePointForRadius;
-    gi.CreateThread        = mock_CreateThread;
-    gi.JoinThread          = mock_JoinThread;
-    gi.Sleep               = mock_Sleep;
     gi.LinkEntity          = mock_LinkEntity;
     gi.UnlinkEntity        = mock_UnlinkEntity;
     gi.BoxEdicts           = mock_BoxEdicts;

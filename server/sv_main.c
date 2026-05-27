@@ -196,6 +196,5 @@ void SV_Frame(DWORD msec) {
 
     SV_RunGameFrame();
 
-    SV_FlushDeferredGameMessages();
     SV_SendClientMessages();
 }

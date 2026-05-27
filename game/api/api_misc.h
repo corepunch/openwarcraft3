@@ -379,7 +379,15 @@ DWORD GetEnumPlayer(LPJASS j) {
     return jass_pushnullhandle(j, "player");
 }
 DWORD ExecuteFunc(LPJASS j) {
-    //LPCSTR funcName = jass_checkstring(j, 1);
+    LPCSTR funcName = jass_checkstring(j, 1);
+    jass_startcoroutinebyname(j, funcName);
+    return 0;
+}
+DWORD newthread(LPJASS j) {
+    LPCJASSFUNC func = jass_checkcode(j, 1);
+    JASSCONTEXT context = *jass_getcontext(j);
+    context.func = func;
+    jass_startcoroutine(j, &context);
     return 0;
 }
 DWORD And(LPJASS j) {
@@ -896,7 +904,14 @@ DWORD SetSkyModel(LPJASS j) {
 }
 DWORD EnableUserControl(LPJASS j) {
     BOOL b = jass_checkboolean(j, 1);
-    PLAYER_CLIENT(currentplayer)->no_control = !b;
+    if (currentplayer) {
+        PLAYER_CLIENT(currentplayer)->no_control = !b;
+        fprintf(stderr,
+                "EnableUserControl: player=%u enabled=%d time=%u\n",
+                (unsigned)PLAYER_NUM(currentplayer),
+                b,
+                (unsigned)gi.GetTime());
+    }
     return 0;
 }
 DWORD SuspendTimeOfDay(LPJASS j) {
@@ -914,12 +929,18 @@ DWORD ShowInterface(LPJASS j) {
     BOOL flag = jass_checkboolean(j, 1);
     FLOAT fadeDuration = jass_checknumber(j, 2);
     LPPLAYER player = currentplayer;
-    (void)fadeDuration;
     if (player) {
         LPGAMECLIENT client = PLAYER_CLIENT(player);
 
         if (client) {
             client->ps.client_ui_state = flag ? CLIENT_UI_GAME : CLIENT_UI_CINEMATIC;
+            fprintf(stderr,
+                    "ShowInterface: player=%u show=%d duration=%.3f ui=%u time=%u\n",
+                    (unsigned)PLAYER_NUM(player),
+                    flag,
+                    fadeDuration,
+                    (unsigned)client->ps.client_ui_state,
+                    (unsigned)gi.GetTime());
         }
     }
     return 0;
@@ -1029,14 +1050,25 @@ DWORD SetCinematicScene(LPJASS j) {
     LPCSTR text = jass_checkstring(j, 4);
     //FLOAT sceneDuration = jass_checknumber(j, 5);
     //FLOAT voiceoverDuration = jass_checknumber(j, 6);
-    currentplayer->texts[PLAYERTEXT_SPEAKER] = G_LevelString(speakerTitle);
-    currentplayer->texts[PLAYERTEXT_DIALOGUE] = G_LevelString(text);
+    if (currentplayer) {
+        currentplayer->texts[PLAYERTEXT_SPEAKER] = G_LevelString(speakerTitle);
+        currentplayer->texts[PLAYERTEXT_DIALOGUE] = G_LevelString(text);
+        fprintf(stderr,
+                "SetCinematicScene: player=%u speaker=%s time=%u\n",
+                (unsigned)PLAYER_NUM(currentplayer),
+                speakerTitle,
+                (unsigned)gi.GetTime());
+    }
     return 0;
 }
 DWORD EndCinematicScene(LPJASS j) {
     if (currentplayer) {
         currentplayer->texts[PLAYERTEXT_SPEAKER] = "";
         currentplayer->texts[PLAYERTEXT_DIALOGUE] = "";
+        fprintf(stderr,
+                "EndCinematicScene: player=%u time=%u\n",
+                (unsigned)PLAYER_NUM(currentplayer),
+                (unsigned)gi.GetTime());
     }
     return 0;
 }

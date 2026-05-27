@@ -187,7 +187,11 @@ static void ai_move_walk(LPEDICT ent) {
     FLOAT distance = M_DistanceToGoal(ent);
     FLOAT move_distance = unit_movedistance(ent);
 
-    if (distance <= move_distance || move_is_blocked(ent, distance, move_distance)) {
+    if (distance <= move_distance) {
+        ent->s.origin2 = ent->goalentity->s.origin2;
+        gi.LinkEntity(ent);
+        ent->stand(ent);
+    } else if (move_is_blocked(ent, distance, move_distance)) {
         ent->stand(ent);
     } else {
         unit_changeangle(ent);

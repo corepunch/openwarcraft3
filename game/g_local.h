@@ -786,6 +786,7 @@ LPEDICT G_GetPlayerEntityByNumber(DWORD);
 LPGAMECLIENT G_GetPlayerClientByNumber(DWORD);
 TARGTYPE G_GetTargetType(LPCSTR);
 LPCSTR G_LevelString(LPCSTR);
+FLOAT G_Cinefade(void);
 void G_SetPlayerText(LPGAMECLIENT, PLAYERTEXT, LPCSTR);
 GAMEEVENT *G_PublishEvent(LPEDICT, EVENTTYPE);
 
@@ -982,6 +983,7 @@ BOOL jass_dofile(LPJASS, LPCSTR);
 BOOL jass_dofilenative(LPJASS, LPCSTR);
 void jass_callbyname(LPJASS, LPCSTR, BOOL);
 BOOL jass_dobuffer(LPJASS, LPSTR);
+void jass_runevents(LPJASS);
 
 // g_events.c
 void G_RunEntities(void);
