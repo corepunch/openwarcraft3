@@ -66,6 +66,7 @@ else
 endif
 
 SHARED_LIB   := $(LIB_DIR)/libshared$(LIB_EXT)
+JASS_LIB     := $(LIB_DIR)/libjass$(LIB_EXT)
 RENDERER_LIB := $(LIB_DIR)/librenderer$(LIB_EXT)
 GAME_LIB     := $(LIB_DIR)/libgame$(LIB_EXT)
 UI_LIB       := $(LIB_DIR)/libui$(LIB_EXT)
@@ -91,8 +92,9 @@ UI_HEADERS := $(shell find ui -name '*.h' | sort)
 UNITY = find $1 -name '*.c' $2 | sort | awk '{printf "\043include \"%s\"\n", $$0}'
 
 default: build
-build: shared renderer game ui openwarcraft3 tools
+build: shared jass renderer game ui openwarcraft3 tools
 shared:      $(SHARED_LIB)
+jass:        $(JASS_LIB)
 renderer:    $(RENDERER_LIB)
 game:        $(GAME_LIB)
 ui:          $(UI_LIB)
@@ -125,10 +127,10 @@ diag: clean
 	$(MAKE) DIAG_OUTPUT=1 build
 	$(MAKE) DIAG_OUTPUT=1 run
 
-$(BIN_DIR)/%$(EXE_EXT): tools/%.c $(TOOL_DEPS) $(CLIENT_HEADERS) | $(BIN_DIR) $(SHARED_LIB) $(RENDERER_LIB) $(GAME_LIB) $(UI_LIB)
+$(BIN_DIR)/%$(EXE_EXT): tools/%.c $(TOOL_DEPS) $(CLIENT_HEADERS) | $(BIN_DIR) $(SHARED_LIB) $(JASS_LIB) $(RENDERER_LIB) $(GAME_LIB) $(UI_LIB)
 	@echo "[$*]"
 	$(CC) $(CFLAGS) -o $@ $< \
-		$(RPATH) $(LDFLAGS) -lshared -lrenderer -lgame -lui $(LIBS) -lm -lz
+		$(RPATH) $(LDFLAGS) -lshared -ljass -lrenderer -lgame -lui $(LIBS) -lm -lz
 
 $(MPQ_TEST): tests/test_mpq_compat.c common/mpq.c common/mpq.h | $(BIN_DIR)
 	@echo "[mpq-compat-test]"
@@ -142,6 +144,12 @@ $(SHARED_LIB): $(shell find shared -name '*.c') | $(LIB_DIR)
 	@echo "[shared]"
 	@$(call UNITY,shared) | \
 		$(CC) $(CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - $(LDFLAGS) -lm
+
+# jass — Warcraft III script VM
+$(JASS_LIB): $(SHARED_LIB) $(shell find game/jass -name '*.c' -o -name '*.h') | $(LIB_DIR)
+	@echo "[jass]"
+	@$(call UNITY,game/jass) | \
+		$(CC) $(CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - $(LDFLAGS) -lshared -lm
 
 # renderer — depends on shared
 # Uses FS_ReadFile (archive-agnostic) for initial file loads, but includes
@@ -157,11 +165,11 @@ $(RENDERER_WOW_LIB): $(SHARED_LIB) $(CLIENT_HEADERS) common/mpq.c common/mpq.h $
 	@$(call UNITY,renderer,! -path 'renderer/w3m/*') | \
 		$(CC) $(WOW_CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - common/mpq.c $(LDFLAGS) -lshared $(LIBS) -lz -lstorm
 
-# game — depends on shared
-$(GAME_LIB): $(SHARED_LIB) $(shell find game -name '*.c') | $(LIB_DIR)
+# game — depends on shared and jass
+$(GAME_LIB): $(SHARED_LIB) $(JASS_LIB) $(shell find game -name '*.c') | $(LIB_DIR)
 	@echo "[game]"
-	@$(call UNITY,game) | \
-		$(CC) $(CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - $(LDFLAGS) -lshared -lm
+	@$(call UNITY,game,! -path 'game/jass/*') | \
+		$(CC) $(CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - $(LDFLAGS) -lshared -ljass -lm
 
 $(GAME_WOW_LIB): $(SHARED_LIB) $(shell find game-wow -name '*.c') | $(LIB_DIR)
 	@echo "[game-wow]"
@@ -181,11 +189,11 @@ $(UI_WOW_LIB): $(SHARED_LIB) $(CLIENT_HEADERS) $(UI_HEADERS) $(shell find ui-wow
 
 # main binary — depends on all libraries
 APP_SRCS := $(shell find client server common -name '*.c')
-$(BINARY): $(SHARED_LIB) $(GAME_LIB) $(RENDERER_LIB) $(UI_LIB) $(APP_SRCS) $(CLIENT_HEADERS) | $(BIN_DIR)
+$(BINARY): $(SHARED_LIB) $(JASS_LIB) $(GAME_LIB) $(RENDERER_LIB) $(UI_LIB) $(APP_SRCS) $(CLIENT_HEADERS) | $(BIN_DIR)
 	@echo "[openwarcraft3]"
 	@$(call UNITY,client server common) | \
 		$(CC) $(CFLAGS) -x c -o $@ - $(RPATH) $(LDFLAGS) \
-		-lshared -lgame -lrenderer -lui $(LIBS) -lz
+		-lshared -ljass -lgame -lrenderer -lui $(LIBS) -lz
 
 $(WOW_BINARY): $(SHARED_LIB) $(GAME_WOW_LIB) $(RENDERER_WOW_LIB) $(UI_WOW_LIB) $(APP_SRCS) $(CLIENT_HEADERS) | $(BIN_DIR)
 	@echo "[openwow]"
@@ -220,9 +228,6 @@ TEST_GAME_SRCS := \
 	game/g_phys.c \
 	game/g_utils.c \
 	game/m_unit.c \
-	game/parser.c \
-	game/jass/vm_main.c \
-	game/jass/jass_parser.c \
 	game/skills/s_attack.c \
 	game/skills/s_move.c \
 	game/skills/s_skills.c \
@@ -239,6 +244,7 @@ TEST_GAME_SRCS := \
 	common/msg.c
 
 TEST_SRCS := $(shell find tests -maxdepth 1 -name 'test_*.c' \
+	! -name 'test_jass_main.c' \
 	! -name 'test_main_ui.c' \
 	! -name 'test_mpq_compat.c' \
 	! -name 'test_wow_appearance.c' | sort)
@@ -254,12 +260,19 @@ TEST_UI_SRCS := \
 	tests/test_tool_common.c \
 	$(shell find tests -maxdepth 1 -name 'test_ui_*.c' | sort)
 
-test: test-assets | $(BIN_DIR)
+test: test-assets $(SHARED_LIB) $(JASS_LIB) | $(BIN_DIR)
 	$(CC) $(TEST_CFLAGS) -o $(BIN_DIR)/test_openwarcraft3$(EXE_EXT) \
 		$(TEST_SRCS) $(TEST_GAME_SRCS) \
-		$(shell find shared -name '*.c') -lm
+		$(RPATH) $(LDFLAGS) -lshared -ljass -lm
 	$(BIN_DIR)/test_openwarcraft3$(EXE_EXT)
 	$(MAKE) test-wow-appearance
+
+test-jass: $(SHARED_LIB) $(JASS_LIB) | $(BIN_DIR)
+	$(CC) $(TEST_CFLAGS) -o $(BIN_DIR)/test_jass$(EXE_EXT) \
+		tests/test_jass_main.c tests/test_jass.c tests/test_harness.c tests/test_client_stubs.c \
+		game/g_metadata.c common/msg.c \
+		$(RPATH) $(LDFLAGS) -lshared -ljass -lm
+	$(BIN_DIR)/test_jass$(EXE_EXT)
 
 test-wow-appearance: | $(BIN_DIR)
 	$(CC) $(TEST_CFLAGS) -DWOW -o $(BIN_DIR)/test_wow_appearance$(EXE_EXT) \
@@ -267,10 +280,10 @@ test-wow-appearance: | $(BIN_DIR)
 		$(shell find shared -name '*.c') -lm
 	$(BIN_DIR)/test_wow_appearance$(EXE_EXT)
 
-test-ui: test-assets | $(BIN_DIR)
+test-ui: test-assets $(SHARED_LIB) $(JASS_LIB) | $(BIN_DIR)
 	$(CC) $(TEST_CFLAGS) -o $(BIN_DIR)/test_openwarcraft3_ui$(EXE_EXT) \
 		$(TEST_UI_SRCS) $(TEST_GAME_SRCS) \
-		$(shell find shared -name '*.c') -lm
+		$(RPATH) $(LDFLAGS) -lshared -ljass -lm
 	$(BIN_DIR)/test_openwarcraft3_ui$(EXE_EXT)
 
 test-mpq-compat: mpqtool $(MPQ_TEST)
@@ -328,4 +341,4 @@ test-assets: blpgen mdxgen mpqtool mdxtool | $(TESTS_DIR)
 $(TESTS_DIR):
 	@mkdir -p $@
 
-.PHONY: default build shared renderer game ui openwarcraft3 tools $(TOOL_NAMES) run run-demo run-map run-ui-text diag clean download test test-wow-appearance test-ui test-mpq-compat test-assets
+.PHONY: default build shared jass renderer game ui openwarcraft3 tools $(TOOL_NAMES) run run-demo run-map run-ui-text diag clean download test test-jass test-wow-appearance test-ui test-mpq-compat test-assets

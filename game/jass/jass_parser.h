@@ -1,7 +1,7 @@
 #ifndef jass_parser_h
 #define jass_parser_h
 
-#include "../g_local.h"
+#include "parser.h"
 
 KNOWN_AS(token, TOKEN);
 

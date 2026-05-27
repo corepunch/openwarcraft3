@@ -1,8 +1,9 @@
 #include "jass_parser.h"
+#include "vm_public.h"
 #include <setjmp.h>
 
-#define ALLOC(type) gi.MemAlloc(sizeof(type))
-#define FREE(val) SAFE_DELETE(val, gi.MemFree)
+#define ALLOC(type) jass_alloc(sizeof(type))
+#define FREE(val) SAFE_DELETE(val, jass_free)
 #define PARSER(NAME, ...) static LPTOKEN NAME(LPPARSER p, ##__VA_ARGS__)
 
 #define PARSER_THROW(...) \

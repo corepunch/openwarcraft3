@@ -1,6 +1,5 @@
 #include "vm_public.h"
 #include "jass_parser.h"
-#include "../parser.h"
 
 //#define DEBUG_JASS
 
@@ -18,7 +17,7 @@
 #define INF_LOOP_PROTECTION 1024
 
 #define assert_type(var, type) assert(jass_checktype(var, type))
-#define JASSALLOC(type) gi.MemAlloc(sizeof(type))
+#define JASSALLOC(type) jass_alloc(sizeof(type))
 
 #define JASS_ADD_STACK(j, VAR, TYPE) \
 LPJASSVAR VAR = &j->stack[j->num_stack++]; \
@@ -28,7 +27,7 @@ VAR->type = &jass_types[TYPE];
 #define JASS_SET_VALUE(VAR, VALUE, SIZE) \
 jass_setnull(VAR); \
 if (VALUE) { \
-  (VAR)->value = gi.MemAlloc(SIZE); \
+  (VAR)->value = jass_alloc(SIZE); \
   memcpy((VAR)->value, VALUE, SIZE); \
 }
 
@@ -61,7 +60,7 @@ LPCSTR keywords[] = {
     "elseif", "else", "endif", "set", "endfunction", "local", "then", NULL
 };
 
-extern JASSMODULE jass_funcs[];
+static JASSHOST jass_host;
 
 typedef struct {
     LPCSTR name;
@@ -179,6 +178,26 @@ BOOL uses_localplayer(LPCTOKEN token);
 
 BOOL atob(LPCSTR str) {
     return !strcmp(str, "true");
+}
+
+void jass_sethost(JASSHOST const *host) {
+    jass_host = *host;
+}
+
+HANDLE jass_alloc(long size) {
+    return jass_host.MemAlloc(size);
+}
+
+void jass_free(HANDLE ptr) {
+    jass_host.MemFree(ptr);
+}
+
+static DWORD jass_gettime(void) {
+    return jass_host.GetTime ? jass_host.GetTime() : 0;
+}
+
+static LPPLAYER jass_getplayerbyindex(DWORD number) {
+    return jass_host.GetPlayerByNumber ? jass_host.GetPlayerByNumber(number) : NULL;
 }
 
 DWORD __unm(LPJASS j) {
@@ -317,11 +336,11 @@ static LPJASS jass_root(LPJASS j) {
 }
 
 static void jass_free_coroutine(LPJASSCOROUTINE co) {
-    DELETE_LIST(JASSCOROUTINEFRAME, co->frames, gi.MemFree);
+    DELETE_LIST(JASSCOROUTINEFRAME, co->frames, jass_free);
     if (co->state) {
-        gi.MemFree(co->state);
+        jass_free(co->state);
     }
-    gi.MemFree(co);
+    jass_free(co);
 }
 
 static LPJASSCOROUTINEFRAME jass_coroutine_pushframe(LPJASSCOROUTINE co,
@@ -344,7 +363,7 @@ static void jass_coroutine_popframe(LPJASSCOROUTINE co) {
     LPJASSCOROUTINEFRAME frame = co->frames;
     if (frame) {
         co->frames = frame->next;
-        gi.MemFree(frame);
+        jass_free(frame);
     }
 }
 
@@ -404,7 +423,7 @@ LPJASSCOROUTINE jass_startcoroutine(LPJASS j, LPCJASSCONTEXT context) {
     LPJASSCOROUTINE co = JASSALLOC(JASSCOROUTINE);
     co->state = co_state;
     co->frames = NULL;
-    co->wake_time = gi.GetTime();
+    co->wake_time = jass_gettime();
     co->yielded = false;
     co->done = false;
     co->next = NULL;
@@ -422,7 +441,7 @@ LPJASSCOROUTINE jass_startcoroutine(LPJASS j, LPCJASSCONTEXT context) {
             context->func ? context->func->name : "<null>",
             co_state->context.playerState ? (int)co_state->context.playerState->number : -1,
             (void *)co_state->context.unit,
-            (unsigned)gi.GetTime());
+            (unsigned)jass_gettime());
     return co;
 }
 
@@ -452,14 +471,14 @@ void jass_sleep(LPJASS j, DWORD msec) {
     if (!co) {
         return;
     }
-    co->wake_time = gi.GetTime() + msec;
+    co->wake_time = jass_gettime() + msec;
     co->yielded = true;
     fprintf(stderr,
             "JASS coroutine sleep: func=%s msec=%u wake=%u now=%u\n",
             co->state->context.func ? co->state->context.func->name : "<unknown>",
             (unsigned)msec,
             (unsigned)co->wake_time,
-            (unsigned)gi.GetTime());
+            (unsigned)jass_gettime());
 }
 
 static BOOL jass_yielded(LPJASS j) {
@@ -475,7 +494,7 @@ static LPPLAYER jass_eventplayer(LPEDICT unit) {
     if (unit->client) {
         return &unit->client->ps;
     }
-    return G_GetPlayerByNumber(unit->s.player);
+    return jass_getplayerbyindex(unit->s.player);
 }
 
 static BOOL jass_coroutine_callstatement(LPJASS j, LPJASSCOROUTINE co, LPCTOKEN token) {
@@ -523,14 +542,14 @@ static BOOL jass_coroutine_runlocalplayerif(LPJASS j, LPJASSCOROUTINE co, LPCTOK
 
     previous_player = currentplayer;
     FOR_LOOP(i, MAX_PLAYERS) {
-        currentplayer = G_GetPlayerByNumber(i);
+        currentplayer = jass_getplayerbyindex(i);
         jass_dotoken(j, token->condition);
         if (jass_popboolean(j)) {
             fprintf(stderr,
                     "JASS coroutine localplayer branch: func=%s player=%u time=%u\n",
                     co->state->context.func ? co->state->context.func->name : "<unknown>",
                     (unsigned)i,
-                    (unsigned)gi.GetTime());
+                    (unsigned)jass_gettime());
             eval_TOKENS(j, token->body);
             if (jass_yielded(j)) {
                 fprintf(stderr,
@@ -642,7 +661,7 @@ BOOL jass_coroutinedone(LPCJASSCOROUTINE co) {
 
 BOOL jass_resume(LPJASS j, LPJASSCOROUTINE co) {
     LPJASS root = jass_root(j);
-    DWORD now = gi.GetTime();
+    DWORD now = jass_gettime();
 
     if (!co || co->done || co->wake_time > now) {
         return false;
@@ -672,7 +691,7 @@ void jass_runevents(LPJASS j) {
     LPJASS root = jass_root(j);
     LPJASSCOROUTINE prev = NULL;
     LPJASSCOROUTINE co = root->coroutines;
-    DWORD now = gi.GetTime();
+    DWORD now = jass_gettime();
 
     while (co) {
         LPJASSCOROUTINE next;
@@ -705,7 +724,7 @@ BOOL jass_evaluatetrigger(LPJASS j, LPTRIGGER trigger, LPEDICT unit) {
                 "JASS trigger skipped: trigger=%p disabled=1 unit=%p time=%u\n",
                 (void *)trigger,
                 (void *)unit,
-                (unsigned)gi.GetTime());
+                (unsigned)jass_gettime());
         return false;
     }
     JASS tmp_state;
@@ -847,7 +866,7 @@ static void jass_setnull(LPJASSVAR var);
 static void jass_deletedict(LPJASSDICT dict) {
     SAFE_DELETE(dict->next, jass_deletedict);
     jass_setnull(&dict->value);
-    gi.MemFree(dict);
+    jass_free(dict);
 }
 
 void jass_setnull(LPJASSVAR var) {
@@ -859,8 +878,8 @@ void jass_setnull(LPJASSVAR var) {
                 var->value = NULL;
                 var->refcount = NULL;
             } else {
-                SAFE_DELETE(var->value, gi.MemFree);
-                SAFE_DELETE(var->refcount, gi.MemFree);
+                SAFE_DELETE(var->value, jass_free);
+                SAFE_DELETE(var->refcount, jass_free);
             }
             break;
         case jasstype_code:
@@ -868,7 +887,7 @@ void jass_setnull(LPJASSVAR var) {
             // skip
             break;
         default:
-            SAFE_DELETE(var->value, gi.MemFree);
+            SAFE_DELETE(var->value, jass_free);
             break;
     }
 }
@@ -971,7 +990,7 @@ DWORD jass_pushhandle(LPJASS j, HANDLE value, LPCSTR type) {
     var->type = find_type(j, type);
     if (value) {
         var->value = value;
-        var->refcount = gi.MemAlloc(sizeof(DWORD));
+        var->refcount = jass_alloc(sizeof(DWORD));
     }
     return 1;
 }
@@ -981,7 +1000,7 @@ DWORD jass_pushnullhandle(LPJASS j, LPCSTR type) {
 }
 
 HANDLE jass_newhandle(LPJASS j, DWORD size, LPCSTR type) {
-    HANDLE data = size ? gi.MemAlloc(size) : NULL;
+    HANDLE data = size ? jass_alloc(size) : NULL;
     jass_pushhandle(j, data, type);
     return data;
 }
@@ -991,7 +1010,7 @@ DWORD jass_pushlighthandle(LPJASS j, HANDLE value, LPCSTR type) {
     jass_setnull(var);
     var->type = find_type(j, type);
     var->value = value;
-    var->refcount = gi.MemAlloc(sizeof(DWORD));
+    var->refcount = jass_alloc(sizeof(DWORD));
     *var->refcount = 1; // so that runtime won't ever delete it
     return 1;
 }
@@ -1292,7 +1311,7 @@ BOOL uses_localplayer(LPCTOKEN token) {
 TOKENFUNC(IF) {
     if (uses_localplayer(token->condition)) {
         FOR_LOOP(i, MAX_PLAYERS) {
-            currentplayer = G_GetPlayerByNumber(i);
+            currentplayer = jass_getplayerbyindex(i);
             jass_dotoken(j, token->condition);
             if (jass_popboolean(j)) {
                 eval_TOKENS(j, token->body);
@@ -1355,7 +1374,7 @@ TOKENFUNC(FUNCTION) {
         PUSH_BACK(JASSARG, jarg, func->args);
     }
     if (token->flags & TF_NATIVE) {
-        LPJASSMODULE mod = find_in_array(jass_funcs, sizeof(JASSMODULE), func->name);
+        LPCJASSMODULE mod = find_in_array(jass_host.natives, sizeof(JASSMODULE), func->name);
         if (mod) {
             func->nativefunc = mod->func;
         }
@@ -1436,8 +1455,8 @@ TOKENFUNC(TOKENS) {
 
 BOOL jass_dobuffer(LPJASS j, LPSTR buffer2) {
     LPSTR buffer = buffer2;
-    gi.TextRemoveComments(buffer);
-    gi.TextRemoveBom(buffer);
+    jass_host.TextRemoveComments(buffer);
+    jass_host.TextRemoveBom(buffer);
     LPTOKEN program = JASS_ParseTokens(&MAKE(PARSER, .buffer = buffer, .delimiters = JASS_DELIM));
 //    VM_Compile(program);
     eval_TOKENS(j, program);
@@ -1459,15 +1478,15 @@ void jass_close(LPJASS j) {
         jass_free_coroutine(co);
         co = next;
     }
-    gi.MemFree(j);
+    jass_free(j);
 }
 
 BOOL jass_dofile(LPJASS j, LPCSTR fileName) {
-    LPSTR buffer = gi.ReadFileIntoString(fileName);
+    LPSTR buffer = jass_host.ReadFileIntoString(fileName);
     if (buffer) {
 //        fprintf(stdout, "jass_dofile: %s\n", fileName);
         BOOL success = jass_dobuffer(j, buffer);
-        gi.MemFree(buffer);
+        jass_free(buffer);
         return success;
     } else {
         return false;
@@ -1483,7 +1502,7 @@ BOOL jass_dofile(LPJASS j, LPCSTR fileName) {
 //    fseek(file, 0, SEEK_END);
 //    long file_size = ftell(file);
 //    fseek(file, 0, SEEK_SET);
-//    LPSTR buffer = gi.MemAlloc(file_size + 1); // +1 for null-terminator
+//    LPSTR buffer = jass_alloc(file_size + 1); // +1 for null-terminator
 //    if (buffer == NULL) {
 //        fprintf(stderr, "Memory allocation failed.\n");
 //        fclose(file);
@@ -1497,7 +1516,7 @@ BOOL jass_dofile(LPJASS j, LPCSTR fileName) {
 //    BOOL success = jass_dobuffer(j, fileName, buffer);
 //
 //    // Free the buffer memory
-//    gi.MemFree(buffer);
+//    jass_free(buffer);
 //
 //    return success;
 //}
@@ -1519,9 +1538,9 @@ DWORD jass_call(LPJASS j, DWORD args) {
     if (jass_getvarbasetype(root) == jasstype_cfunction) {
         LPJASSCFUNCTION func = *(LPJASSCFUNCTION *)root->value;
 #ifdef DEBUG_JASS
-        for (DWORD i = 0; jass_funcs[i].name; i++) {
-            if (jass_funcs[i].func == func) {
-                printf("%s (native)", jass_funcs[i].name);
+        for (DWORD i = 0; jass_host.natives[i].name; i++) {
+            if (jass_host.natives[i].func == func) {
+                printf("%s (native)", jass_host.natives[i].name);
                 break;
             }
         }

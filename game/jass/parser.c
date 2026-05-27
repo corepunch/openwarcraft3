@@ -1,4 +1,5 @@
-#include "g_local.h"
+#include "parser.h"
+#include <ctype.h>
 
 #define MAX_SEGMENT_SIZE 1024
 
@@ -105,8 +106,8 @@ void parser_error(LPPARSER parser) {
     parser->error = true;
 }
 
-void *find_in_array(void *array, long sizeofelem, LPCSTR name) {
-    LPSTR str = array;
+void *find_in_array(void const *array, long sizeofelem, LPCSTR name) {
+    LPSTR str = (LPSTR)array;
     while (*(LPCSTR *)str) {
         LPCSTR value = *(LPCSTR *)str;
         if (!strcmp(value, name)) {
@@ -116,4 +117,3 @@ void *find_in_array(void *array, long sizeofelem, LPCSTR name) {
     }
     return NULL;
 }
-

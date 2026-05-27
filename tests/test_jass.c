@@ -99,6 +99,16 @@ JASSMODULE jass_funcs[] = {
  * ========================================================================= */
 
 static LPJASS make_jass(void) {
+    jass_sethost(&MAKE(JASSHOST,
+        .MemAlloc = gi.MemAlloc,
+        .MemFree = gi.MemFree,
+        .GetTime = gi.GetTime,
+        .ReadFileIntoString = gi.ReadFileIntoString,
+        .TextRemoveComments = gi.TextRemoveComments,
+        .TextRemoveBom = gi.TextRemoveBom,
+        .natives = jass_funcs,
+        .GetPlayerByNumber = G_GetPlayerByNumber,
+    ));
     return jass_newstate();
 }
 
