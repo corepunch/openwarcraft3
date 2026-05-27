@@ -1,7 +1,7 @@
 #ifndef parser_h
 #define parser_h
 
-#include "../../common/shared.h"
+#include "../common/shared.h"
 
 KNOWN_AS(word_extractor, PARSER);
 
