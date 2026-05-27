@@ -11,7 +11,9 @@ void unit_changeangle(LPEDICT self) {
 }
 
 FLOAT unit_movedistance(LPEDICT self) {
-    FLOAT speed = UNIT_SPEED(self->class_id);
+    FLOAT speed = self->unitinfo.MoveSpeed > 0
+        ? self->unitinfo.MoveSpeed
+        : UNIT_SPEED(self->class_id);
     return 10 * speed / FRAMETIME;
 }
 

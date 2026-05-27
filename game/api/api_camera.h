@@ -171,11 +171,33 @@ DWORD CameraSetupApplyForceDuration(LPJASS j) {
     LPCAMERASETUP whichSetup = jass_checkhandle(j, 1, "camerasetup");
     BOOL doPan = jass_checkboolean(j, 2);
     FLOAT forceDuration = jass_checknumber(j, 3);
+    if (!currentplayer) {
+        fprintf(stderr,
+                "CameraSetupApplyForceDuration skipped: no currentplayer pos=(%.1f,%.1f) duration=%.3f time=%u\n",
+                whichSetup->position.x,
+                whichSetup->position.y,
+                forceDuration,
+                (unsigned)gi.GetTime());
+        return 0;
+    }
     LPGAMECLIENT gc = G_GetPlayerClientByNumber(PLAYER_NUM(currentplayer));
     gc->camera.old_state = gc->camera.state;
     gc->camera.state = *whichSetup;
     gc->camera.start_time = gi.GetTime();
     gc->camera.end_time = gc->camera.start_time + (doPan ? forceDuration * 1000 : 0);
+    fprintf(stderr,
+            "CameraSetupApplyForceDuration: player=%u pos=(%.1f,%.1f) angles=(%.1f,%.1f,%.1f) fov=%.1f dist=%.1f duration=%.3f start=%u end=%u\n",
+            (unsigned)PLAYER_NUM(currentplayer),
+            whichSetup->position.x,
+            whichSetup->position.y,
+            whichSetup->viewangles.x,
+            whichSetup->viewangles.y,
+            whichSetup->viewangles.z,
+            whichSetup->fov,
+            whichSetup->target_distance,
+            forceDuration,
+            (unsigned)gc->camera.start_time,
+            (unsigned)gc->camera.end_time);
     return 0;
 }
 DWORD CameraSetupApplyForceDurationWithZ(LPJASS j) {

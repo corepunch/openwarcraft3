@@ -176,6 +176,11 @@ static void G_InitMapPlayer(LPEDICT clent, LPCMAPPLAYER player, DWORD playernum)
     ps->viewquat = Quaternion_fromEuler(&MAKE(VECTOR3, 326, 0, 0), ROTATE_ZYX);
     ps->fov = 50;
     ps->distance = 1650;
+    clent->client->camera.state.position = ps->origin;
+    clent->client->camera.state.viewangles = (VECTOR3){ 326, 0, 0 };
+    clent->client->camera.state.fov = 50 * FOV_ASPECT;
+    clent->client->camera.state.target_distance = 1650;
+    clent->client->camera.old_state = clent->client->camera.state;
     clent->client->mapplayer = player;
 }
 

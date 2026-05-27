@@ -94,6 +94,14 @@ static void test_unit_movedistance_matches_formula(void) {
     ASSERT_FLOAT_EQ(unit_movedistance(unit), expected);
 }
 
+static void test_unit_movedistance_uses_scripted_move_speed(void) {
+    LPEDICT unit = make_moving_unit(0.0f, 0.0f);
+    unit->unitinfo.MoveSpeed = 300.0f;
+
+    FLOAT expected = 10.0f * 300.0f / (FLOAT)FRAMETIME;
+    ASSERT_FLOAT_EQ(unit_movedistance(unit), expected);
+}
+
 /* -----------------------------------------------------------------------
  * M_DistanceToGoal tests
  * --------------------------------------------------------------------- */
@@ -184,11 +192,10 @@ static void test_unit_does_not_overshoot_goal(void) {
         unit->currentmove->think(unit);
     }
 
-    /* After reaching the goal the unit should be roughly at the waypoint,
-     * not far past it. */
+    /* After reaching the goal the unit should be exactly at the waypoint,
+     * which keeps scripted cutscene units from visibly stopping short. */
     FLOAT dist = M_DistanceToGoal(unit);
-    FLOAT move_dist = unit_movedistance(unit);
-    ASSERT(dist <= move_dist + 1.0f);
+    ASSERT_EQ_FLOAT(dist, 0.0f, 0.01f);
 }
 
 static void test_group_move_assigns_distinct_reserved_destinations(void) {
@@ -268,6 +275,7 @@ BEGIN_SUITE(movement)
     RUN_TEST(test_order_move_sets_walk_animation);
     RUN_TEST(test_waypoint_add_sets_origin);
     RUN_TEST(test_unit_movedistance_matches_formula);
+    RUN_TEST(test_unit_movedistance_uses_scripted_move_speed);
     RUN_TEST(test_distance_to_goal_along_x_axis);
     RUN_TEST(test_distance_to_goal_diagonal);
     RUN_TEST(test_distance_to_goal_zero_when_at_goal);

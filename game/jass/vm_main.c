@@ -50,6 +50,8 @@ KNOWN_AS(jass_array, JASSARRAY);
 KNOWN_AS(jass_dict, JASSDICT);
 KNOWN_AS(jass_arg, JASSARG);
 KNOWN_AS(jass_env, JASSENV);
+KNOWN_AS(jass_coroutine, JASSCOROUTINE);
+KNOWN_AS(jass_coroutine_frame, JASSCOROUTINEFRAME);
 
 VMPROGRAM VM_Compile(LPCTOKEN token);
 LPPLAYER currentplayer = NULL;
@@ -114,6 +116,31 @@ struct jass_dict {
     JASSVAR value;
 };
 
+typedef enum {
+    JASS_FRAME_FUNCTION,
+    JASS_FRAME_BLOCK,
+    JASS_FRAME_LOOP,
+} JASSFRAMETYPE;
+
+struct jass_coroutine_frame {
+    LPJASSCOROUTINEFRAME next;
+    JASSFRAMETYPE type;
+    LPCJASSFUNC func;
+    LPCTOKEN body;
+    LPCTOKEN pc;
+    LPJASSDICT locals;
+    DWORD loop_count;
+};
+
+struct jass_coroutine {
+    LPJASSCOROUTINE next;
+    LPJASS state;
+    LPJASSCOROUTINEFRAME frames;
+    DWORD wake_time;
+    BOOL yielded;
+    BOOL done;
+};
+
 struct jass_s {
     LPJASSDICT globals;
     LPJASSTYPE types;
@@ -122,6 +149,9 @@ struct jass_s {
     DWORD num_stack;
     LPJASSVAR stack_pointer;
     JASSCONTEXT context;
+    LPJASS root;
+    LPJASSCOROUTINE coroutines;
+    LPJASSCOROUTINE current_coroutine;
 };
 
 JASSTYPE jass_types[] = {
@@ -135,8 +165,17 @@ JASSTYPE jass_types[] = {
 };
 
 static LPJASSVAR jass_stackvalue(LPJASS j, int index);
+static LPJASSVAR jass_topvalue(LPJASS j);
 static JASSTYPEID jass_getvarbasetype(LPCJASSVAR var);
 static DWORD jass_dotoken(LPJASS j, LPCTOKEN token);
+static LPCJASSFUNC find_function(LPCJASS j, LPCSTR name);
+static void eval_SINGLETOKEN(LPJASS j, LPCTOKEN token);
+static void eval_VARDECL(LPJASS j, LPCTOKEN token);
+void eval_TOKENS(LPJASS j, LPCTOKEN token);
+static void jass_copy(LPJASS j, LPJASSVAR var, LPCJASSVAR other);
+void jass_setreturn(LPJASS j);
+BOOL jass_mustreturn(LPJASS j);
+BOOL uses_localplayer(LPCTOKEN token);
 
 BOOL atob(LPCSTR str) {
     return !strcmp(str, "true");
@@ -269,31 +308,391 @@ BOOL is_comma(LPCSTR str) {
     return !strcmp(str, ",");
 }
 
-static HANDLE RunAction(HANDLE handle) {
-    LPJASS j = handle;
-    jass_pushfunction(j, j->context.func);
-    jass_call(j, 0);
-    gi.MemFree(handle);
-    return NULL;
-}
-
 LPCJASSCONTEXT jass_getcontext(LPJASS j) {
     return &j->context;
 }
 
-void jass_startthread(LPJASS j, LPCJASSCONTEXT context) {
-    LPJASS thread = jass_newstate();
-    memcpy(thread, j, sizeof(JASS));
-    memset(thread->stack, 0, sizeof(thread->stack));
-    thread->stack_pointer = thread->stack;
-    thread->num_stack = 0;
-    thread->context = *context;
-    gi.CreateThread(RunAction, thread);
+static LPJASS jass_root(LPJASS j) {
+    return j->root ? j->root : j;
+}
+
+static void jass_free_coroutine(LPJASSCOROUTINE co) {
+    DELETE_LIST(JASSCOROUTINEFRAME, co->frames, gi.MemFree);
+    if (co->state) {
+        gi.MemFree(co->state);
+    }
+    gi.MemFree(co);
+}
+
+static LPJASSCOROUTINEFRAME jass_coroutine_pushframe(LPJASSCOROUTINE co,
+                                                     JASSFRAMETYPE type,
+                                                     LPCJASSFUNC func,
+                                                     LPCTOKEN body,
+                                                     LPJASSDICT locals) {
+    LPJASSCOROUTINEFRAME frame = JASSALLOC(JASSCOROUTINEFRAME);
+    frame->type = type;
+    frame->func = func;
+    frame->body = body;
+    frame->pc = body;
+    frame->locals = locals;
+    frame->loop_count = 0;
+    ADD_TO_LIST(frame, co->frames);
+    return frame;
+}
+
+static void jass_coroutine_popframe(LPJASSCOROUTINE co) {
+    LPJASSCOROUTINEFRAME frame = co->frames;
+    if (frame) {
+        co->frames = frame->next;
+        gi.MemFree(frame);
+    }
+}
+
+static LPJASSCOROUTINEFRAME jass_coroutine_functionframe(LPJASSCOROUTINE co) {
+    FOR_EACH_LIST(JASSCOROUTINEFRAME, frame, co->frames) {
+        if (frame->type == JASS_FRAME_FUNCTION) {
+            return frame;
+        }
+    }
+    return NULL;
+}
+
+static void jass_coroutine_useframe(LPJASS j, LPJASSCOROUTINE co) {
+    LPJASSCOROUTINEFRAME frame = jass_coroutine_functionframe(co);
+    if (j->num_stack && frame) {
+        j->stack[0].env.locals = frame->locals;
+    }
+}
+
+static LPJASSDICT jass_coroutine_buildlocals(LPJASS j, LPCJASSFUNC func, LPCTOKEN args) {
+    LPJASSDICT locals = NULL;
+    LPCTOKEN arg_token = args;
+
+    FOR_EACH_LIST(JASSARG, arg, func->args) {
+        LPJASSDICT local = JASSALLOC(JASSDICT);
+        local->key = arg->name;
+        local->value.type = arg->type;
+        if (arg_token) {
+            jass_dotoken(j, arg_token);
+            jass_copy(j, &local->value, jass_topvalue(j));
+            jass_pop(j, 1);
+            arg_token = arg_token->next;
+        }
+        PUSH_BACK(JASSDICT, local, locals);
+    }
+    return locals;
+}
+
+void jass_startcoroutine(LPJASS j, LPCJASSCONTEXT context) {
+    LPJASS root = jass_root(j);
+    LPJASS co_state = JASSALLOC(JASS);
+    memcpy(co_state, root, sizeof(JASS));
+    memset(co_state->stack, 0, sizeof(co_state->stack));
+    co_state->stack_pointer = co_state->stack;
+    co_state->num_stack = 0;
+    co_state->context = *context;
+    if (!co_state->context.playerState) {
+        co_state->context.playerState = currentplayer;
+    }
+    if (!co_state->context.unit) {
+        co_state->context.unit = currentunit;
+    }
+    co_state->root = root;
+    co_state->coroutines = NULL;
+    co_state->current_coroutine = NULL;
+
+    LPJASSCOROUTINE co = JASSALLOC(JASSCOROUTINE);
+    co->state = co_state;
+    co->frames = NULL;
+    co->wake_time = gi.GetTime();
+    co->yielded = false;
+    co->done = false;
+    co->next = NULL;
+    if (context->func) {
+        jass_coroutine_pushframe(co,
+                                 JASS_FRAME_FUNCTION,
+                                 context->func,
+                                 context->func->code,
+                                 NULL);
+    }
+
+    PUSH_BACK(JASSCOROUTINE, co, root->coroutines);
+    fprintf(stderr,
+            "JASS coroutine start: func=%s player=%d unit=%p time=%u\n",
+            context->func ? context->func->name : "<null>",
+            co_state->context.playerState ? (int)co_state->context.playerState->number : -1,
+            (void *)co_state->context.unit,
+            (unsigned)gi.GetTime());
+}
+
+BOOL jass_startcoroutinebyname(LPJASS j, LPCSTR name) {
+    LPCJASSFUNC func = find_function(jass_root(j), name);
+    JASSCONTEXT context = *jass_getcontext(j);
+
+    if (!func) {
+        fprintf(stderr, "Function not found %s\n", name);
+        return false;
+    }
+    context.func = func;
+    jass_startcoroutine(j, &context);
+    return true;
+}
+
+LPCSTR jass_functionname(LPCJASSFUNC func) {
+    return func ? func->name : NULL;
+}
+
+BOOL jass_triggerdisabled(LPTRIGGER trigger) {
+    return trigger ? trigger->disabled : false;
+}
+
+void jass_sleep(LPJASS j, DWORD msec) {
+    LPJASS root = jass_root(j);
+    LPJASSCOROUTINE co = root->current_coroutine;
+    if (!co) {
+        return;
+    }
+    co->wake_time = gi.GetTime() + msec;
+    co->yielded = true;
+    fprintf(stderr,
+            "JASS coroutine sleep: func=%s msec=%u wake=%u now=%u\n",
+            co->state->context.func ? co->state->context.func->name : "<unknown>",
+            (unsigned)msec,
+            (unsigned)co->wake_time,
+            (unsigned)gi.GetTime());
+}
+
+static BOOL jass_yielded(LPJASS j) {
+    LPJASS root = jass_root(j);
+    LPJASSCOROUTINE co = root->current_coroutine;
+    return co && co->yielded;
+}
+
+static LPPLAYER jass_eventplayer(LPEDICT unit) {
+    if (!unit) {
+        return NULL;
+    }
+    if (unit->client) {
+        return &unit->client->ps;
+    }
+    return G_GetPlayerByNumber(unit->s.player);
+}
+
+static BOOL jass_coroutine_callstatement(LPJASS j, LPJASSCOROUTINE co, LPCTOKEN token) {
+    LPCJASSFUNC func = NULL;
+    LPJASSDICT locals;
+
+    if (token->type != TT_CALL || !(func = find_function(j, token->primary))) {
+        return false;
+    }
+    if (func->nativefunc) {
+        return false;
+    }
+    locals = jass_coroutine_buildlocals(j, func, token->args);
+    jass_coroutine_pushframe(co, JASS_FRAME_FUNCTION, func, func->code, locals);
+    return true;
+}
+
+static LPCTOKEN jass_coroutine_selectifbody(LPJASS j, LPCTOKEN token) {
+    if (uses_localplayer(token->condition) && currentplayer) {
+        if (jass_dotoken(j, token->condition) && jass_popboolean(j)) {
+            return token->body;
+        }
+        return NULL;
+    }
+
+    while (token) {
+        if (!token->condition) {
+            return token->body;
+        }
+        jass_dotoken(j, token->condition);
+        if (jass_popboolean(j)) {
+            return token->body;
+        }
+        token = token->elseblock;
+    }
+    return NULL;
+}
+
+static BOOL jass_coroutine_runlocalplayerif(LPJASS j, LPJASSCOROUTINE co, LPCTOKEN token) {
+    LPPLAYER previous_player;
+
+    if (!uses_localplayer(token->condition) || currentplayer) {
+        return false;
+    }
+
+    previous_player = currentplayer;
+    FOR_LOOP(i, MAX_PLAYERS) {
+        currentplayer = G_GetPlayerByNumber(i);
+        jass_dotoken(j, token->condition);
+        if (jass_popboolean(j)) {
+            fprintf(stderr,
+                    "JASS coroutine localplayer branch: func=%s player=%u time=%u\n",
+                    co->state->context.func ? co->state->context.func->name : "<unknown>",
+                    (unsigned)i,
+                    (unsigned)gi.GetTime());
+            eval_TOKENS(j, token->body);
+            if (jass_yielded(j)) {
+                fprintf(stderr,
+                        "JASS coroutine localplayer branch yielded; branch continuation is not resumable yet\n");
+                currentplayer = previous_player;
+                return true;
+            }
+        }
+    }
+    currentplayer = previous_player;
+    return true;
+}
+
+static void jass_coroutine_return(LPJASSCOROUTINE co) {
+    while (co->frames) {
+        JASSFRAMETYPE type = co->frames->type;
+        jass_coroutine_popframe(co);
+        if (type == JASS_FRAME_FUNCTION) {
+            return;
+        }
+    }
+}
+
+static void jass_resumecoroutine(LPJASSCOROUTINE co) {
+    LPJASS j = co->state;
+
+    if (!j->num_stack) {
+        jass_pushfunction(j, j->context.func);
+        j->stack_pointer = &j->stack[0];
+        j->stack[0].env.done = false;
+        j->stack[0].env.returnstack = -1;
+    }
+
+    co->yielded = false;
+    while (co->frames && !co->yielded) {
+        LPJASSCOROUTINEFRAME frame = co->frames;
+        LPCTOKEN token = frame->pc;
+        LPCTOKEN next;
+
+        jass_coroutine_useframe(j, co);
+        if (!token) {
+            if (frame->type == JASS_FRAME_LOOP) {
+                frame->pc = frame->body;
+                assert(frame->loop_count++ < INF_LOOP_PROTECTION);
+            } else {
+                jass_coroutine_popframe(co);
+            }
+            continue;
+        }
+
+        next = token->next;
+        switch (token->type) {
+            case TT_CALL:
+                frame->pc = next;
+                if (!jass_coroutine_callstatement(j, co, token)) {
+                    eval_SINGLETOKEN(j, token);
+                }
+                break;
+            case TT_IF: {
+                LPCTOKEN body;
+                frame->pc = next;
+                if (jass_coroutine_runlocalplayerif(j, co, token)) {
+                    break;
+                }
+                body = jass_coroutine_selectifbody(j, token);
+                if (body) {
+                    jass_coroutine_pushframe(co, JASS_FRAME_BLOCK, NULL, body, NULL);
+                }
+                break;
+            }
+            case TT_LOOP:
+                frame->pc = next;
+                jass_coroutine_pushframe(co, JASS_FRAME_LOOP, NULL, token->body, NULL);
+                break;
+            case TT_EXITWHEN:
+                frame->pc = next;
+                jass_dotoken(j, token->condition);
+                if (jass_popboolean(j)) {
+                    jass_coroutine_popframe(co);
+                }
+                break;
+            case TT_RETURN:
+                frame->pc = NULL;
+                if (token->body) {
+                    jass_dotoken(j, token->body);
+                }
+                jass_coroutine_return(co);
+                break;
+            case TT_VARDECL:
+                frame->pc = next;
+                eval_VARDECL(j, token);
+                jass_coroutine_functionframe(co)->locals = j->stack[0].env.locals;
+                break;
+            default:
+                frame->pc = next;
+                eval_SINGLETOKEN(j, token);
+                break;
+        }
+    }
+
+    if (!co->yielded && !co->frames) {
+        co->done = true;
+    }
+}
+
+void jass_runevents(LPJASS j) {
+    LPJASS root = jass_root(j);
+    LPJASSCOROUTINE prev = NULL;
+    LPJASSCOROUTINE co = root->coroutines;
+    DWORD now = gi.GetTime();
+
+    while (co) {
+        LPJASSCOROUTINE next;
+        if (!co->done && co->wake_time <= now) {
+            LPPLAYER previous_player = currentplayer;
+            LPEDICT previous_unit = currentunit;
+
+            fprintf(stderr,
+                    "JASS coroutine resume: func=%s now=%u wake=%u player=%d\n",
+                    co->state->context.func ? co->state->context.func->name : "<unknown>",
+                    (unsigned)now,
+                    (unsigned)co->wake_time,
+                    co->state->context.playerState ? (int)co->state->context.playerState->number : -1);
+            root->current_coroutine = co;
+            currentplayer = co->state->context.playerState;
+            currentunit = co->state->context.unit;
+            jass_resumecoroutine(co);
+            currentunit = previous_unit;
+            currentplayer = previous_player;
+            root->current_coroutine = NULL;
+        }
+
+        next = co->next;
+        if (co->done) {
+            fprintf(stderr,
+                    "JASS coroutine done: func=%s now=%u\n",
+                    co->state->context.func ? co->state->context.func->name : "<unknown>",
+                    (unsigned)now);
+            if (prev) {
+                prev->next = next;
+            } else {
+                root->coroutines = next;
+            }
+            jass_free_coroutine(co);
+        } else {
+            prev = co;
+        }
+        co = next;
+    }
 }
 
 BOOL jass_evaluatetrigger(LPJASS j, LPTRIGGER trigger, LPEDICT unit) {
-    if (trigger->disabled)
+    LPPLAYER player = jass_eventplayer(unit);
+
+    if (trigger->disabled) {
+        fprintf(stderr,
+                "JASS trigger skipped: trigger=%p disabled=1 unit=%p time=%u\n",
+                (void *)trigger,
+                (void *)unit,
+                (unsigned)gi.GetTime());
         return false;
+    }
     JASS tmp_state;
     FOR_EACH_LIST(TRIGGERCONDITION, cond, trigger->conditions) {
         memcpy(&tmp_state, j, sizeof(struct jass_s));
@@ -301,8 +700,16 @@ BOOL jass_evaluatetrigger(LPJASS j, LPTRIGGER trigger, LPEDICT unit) {
         tmp_state.num_stack = 0;
         tmp_state.context.trigger = trigger;
         tmp_state.context.unit = unit;
+        tmp_state.context.playerState = player;
         jass_pushfunction(&tmp_state, cond->expr);
-        if (jass_call(&tmp_state, 0) != 1 || !jass_popboolean(&tmp_state)) {
+        LPPLAYER previous_player = currentplayer;
+        LPEDICT previous_unit = currentunit;
+        currentplayer = player;
+        currentunit = unit;
+        DWORD result_count = jass_call(&tmp_state, 0);
+        currentunit = previous_unit;
+        currentplayer = previous_player;
+        if (result_count != 1 || !jass_popboolean(&tmp_state)) {
             return false;
         }
     }
@@ -311,8 +718,8 @@ BOOL jass_evaluatetrigger(LPJASS j, LPTRIGGER trigger, LPEDICT unit) {
 
 void jass_executetrigger(LPJASS j, LPTRIGGER trigger, LPEDICT unit) {
     FOR_EACH_LIST(TRIGGERACTION, action, trigger->actions) {
-        LPPLAYER player = unit ? G_GetPlayerByNumber(unit->s.player) : NULL;
-        jass_startthread(j, &MAKE(JASSCONTEXT,
+        LPPLAYER player = jass_eventplayer(unit);
+        jass_startcoroutine(j, &MAKE(JASSCONTEXT,
                                   .trigger = trigger,
                                   .func = action->func,
                                   .unit = unit,
@@ -948,7 +1355,7 @@ TOKENFUNC(CALL) {
 TOKENFUNC(LOOP) {
     for (DWORD i = 0;; i++) {
         FOR_EACH_LIST(TOKEN const, tok, token->body) {
-            if (jass_mustreturn(j)) {
+            if (jass_mustreturn(j) || jass_yielded(j)) {
                 return;
             } else if (token->type == TT_RETURN) {
                 jass_setreturn(j);
@@ -961,6 +1368,9 @@ TOKENFUNC(LOOP) {
                 }
             } else {
                 eval_SINGLETOKEN(j, tok);
+                if (jass_yielded(j)) {
+                    return;
+                }
             }
         }
         assert(i < INF_LOOP_PROTECTION);
@@ -995,13 +1405,16 @@ TOKENFUNC(SINGLETOKEN) {
 
 TOKENFUNC(TOKENS) {
     FOR_EACH_LIST(TOKEN const, tok, token) {
-        if (jass_mustreturn(j)) {
+        if (jass_mustreturn(j) || jass_yielded(j)) {
             return;
         } else if (tok->type == TT_RETURN) {
             jass_setreturn(j);
             jass_dotoken(j, tok->body);
         } else {
             eval_SINGLETOKEN(j, tok);
+        }
+        if (jass_yielded(j)) {
+            return;
         }
     }
 }
@@ -1019,10 +1432,18 @@ BOOL jass_dobuffer(LPJASS j, LPSTR buffer2) {
 LPJASS jass_newstate(void) {
     LPJASS j = JASSALLOC(JASS);
     j->stack_pointer = j->stack;
+    j->root = j;
     return j;
 }
 
 void jass_close(LPJASS j) {
+    LPJASS root = jass_root(j);
+    LPJASSCOROUTINE co = root->coroutines;
+    while (co) {
+        LPJASSCOROUTINE next = co->next;
+        jass_free_coroutine(co);
+        co = next;
+    }
     gi.MemFree(j);
 }
 
@@ -1140,7 +1561,7 @@ void jass_callbyname(LPJASS j, LPCSTR name, BOOL async) {
         return;
     }
     if (async) {
-        jass_startthread(j, &MAKE(JASSCONTEXT, .func = func));
+        jass_startcoroutinebyname(j, name);
     } else {
         jass_pushfunction(j, func);
         jass_call(j, 0);

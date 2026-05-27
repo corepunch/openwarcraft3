@@ -123,7 +123,10 @@ static void G_ShutdownGame(void) {
 
 FLOAT G_Cinefade(void) {
     DWORD duration = level.cinefilter.end.time - level.cinefilter.start.time;
-    if (gi.GetTime() > level.cinefilter.end.time) {
+    if (!level.cinefilter.displayed) {
+        return 0;
+    }
+    if (!duration || gi.GetTime() > level.cinefilter.end.time) {
         return level.cinefilter.end.color.a / 255.0;
     } else {
         FLOAT k = (gi.GetTime() - level.cinefilter.start.time) / (FLOAT)duration;
@@ -170,6 +173,7 @@ static void G_RunFrame(void) {
     }
     
     G_RunEvents();
+    jass_runevents(level.vm);
 
     G_RunClients();
 

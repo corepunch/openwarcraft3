@@ -218,6 +218,7 @@ JASSMODULE jass_funcs[] = {
     { "GetTriggerEvalCount", GetTriggerEvalCount },
     { "GetTriggerExecCount", GetTriggerExecCount },
     { "ExecuteFunc", ExecuteFunc },
+    { "newthread", newthread },
     { "And", And },
     { "Or", Or },
     { "Not", Not },
@@ -829,4 +830,3 @@ JASSMODULE jass_funcs[] = {
     { "VersionSupported", VersionSupported },
     { NULL },
 };
-

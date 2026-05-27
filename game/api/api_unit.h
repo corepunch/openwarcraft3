@@ -2,6 +2,7 @@
 DWORD SetUnit##NAME(LPJASS j) {  \
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");  \
     memcpy(&whichUnit->FIELD, jass_checkhandle(j, 2, #TYPE), sizeof(whichUnit->FIELD)); \
+    gi.LinkEntity(whichUnit); \
     return 0; \
 }  \
 DWORD GetUnit##NAME(LPJASS j) {  \
@@ -100,6 +101,7 @@ DWORD SetUnitPosition(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     whichUnit->s.origin.x = jass_checknumber(j, 2);
     whichUnit->s.origin.y = jass_checknumber(j, 3);
+    gi.LinkEntity(whichUnit);
     return 0;
 }
 DWORD GetUnitDefaultAcquireRange(LPJASS j) {

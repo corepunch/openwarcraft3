@@ -193,7 +193,26 @@ CLIENTCOMMAND(Inventory) {
 }
 
 CLIENTCOMMAND(Cancel) {
+    fprintf(stderr,
+            "Client cancel command: player=%u edict=%u time=%u\n",
+            clent && clent->client ? (unsigned)clent->client->ps.number : 999u,
+            clent ? (unsigned)clent->s.number : 999u,
+            (unsigned)gi.GetTime());
     G_PublishEvent(clent, EVENT_PLAYER_END_CINEMATIC);
+    if (level.mapinfo) {
+        FOR_LOOP(i, game.max_clients) {
+            LPEDICT ent = G_GetPlayerEntityByNumber(i);
+            if (ent && ent != clent &&
+                level.mapinfo->players[i].playerType == kPlayerTypeHuman)
+            {
+                fprintf(stderr,
+                        "Client cancel command: also publishing for human player=%u edict=%u\n",
+                        (unsigned)i,
+                        (unsigned)ent->s.number);
+                G_PublishEvent(ent, EVENT_PLAYER_END_CINEMATIC);
+            }
+        }
+    }
 }
 
 void UI_ShowQuests(LPEDICT ent);
