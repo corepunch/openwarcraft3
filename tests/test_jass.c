@@ -1,5 +1,5 @@
 /*
- * test_jass.c — Tests for the JASS interpreter (vm_main.c / jass_parser.c).
+ * test_jass.c — Tests for the JASS interpreter (jdo.c / jparser.c).
  *
  * Tests are self-contained: each one calls jass_newstate(), runs a snippet
  * of JASS via jass_dobuffer() or jass_callbyname(), then inspects the stack
@@ -13,9 +13,9 @@
 #include "test_framework.h"
 #include "test_harness.h"
 
-/* Pull in the JASS public API.  vm_main.c is compiled into the test binary. */
-#include "../jass/vm_public.h"
-#include "../jass/jass_parser.h"
+/* Pull in the JASS public API. */
+#include "../jass/jass.h"
+#include "../jass/jparser.h"
 
 /* -------------------------------------------------------------------------
  * Minimal jass_funcs table (replaces api_module.c for the test binary).
@@ -87,7 +87,7 @@ JASSMODULE jass_funcs[] = {
 };
 
 /* -------------------------------------------------------------------------
- * G_GetPlayerByNumber stub — vm_main.c calls this for GetLocalPlayer
+ * G_GetPlayerByNumber stub — jdo.c calls this for GetLocalPlayer
  * branches inside IF tokens.  We don't use GetLocalPlayer in our test
  * snippets, but the linker still needs the symbol.
  * --------------------------------------------------------------------- */

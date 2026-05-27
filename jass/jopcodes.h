@@ -1,5 +1,5 @@
-#ifndef bytecode_h
-#define bytecode_h
+#ifndef jopcodes_h
+#define jopcodes_h
 
 typedef enum {
     VMCODE_TYPE,

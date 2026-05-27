@@ -1,5 +1,5 @@
-#ifndef vm_public_h
-#define vm_public_h
+#ifndef jass_h
+#define jass_h
 
 #include "../game/g_local.h"
 #include "../game/api/api_macros.h"

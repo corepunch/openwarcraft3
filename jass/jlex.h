@@ -1,5 +1,5 @@
-#ifndef parser_h
-#define parser_h
+#ifndef jlex_h
+#define jlex_h
 
 #include "../common/shared.h"
 

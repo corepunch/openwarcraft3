@@ -1,6 +1,7 @@
-#include "vm_public.h"
-#include "vm_bytecode.h"
-#include "jass_parser.h"
+#include "jass.h"
+#include "jvm.h"
+#include "jopcodes.h"
+#include "jparser.h"
 
 #define TOKENFUNC(NAME) void write_##NAME(LPWRITER w, LPCTOKEN t)
 #define TOKENEVAL(NAME) { #NAME, TT_##NAME, write_##NAME }
@@ -24,7 +25,9 @@ struct vmWriter {
     struct vmBuffer init;
 };
 
-BOOL atob(LPCSTR str);
+static BOOL jcode_atob(LPCSTR str) {
+    return !strcmp(str, "true");
+}
 
 void VM_Write(struct vmBuffer *buffer, const char *format, ...) {
     assert(buffer->writecount < buffer->buffersize);
@@ -54,9 +57,9 @@ TOKENFUNC(String) {
 }
 
 TOKENFUNC(Boolean) {
-    VM_Write(&w->text, "\tpushb %d", atob(t->primary));
+    VM_Write(&w->text, "\tpushb %d", jcode_atob(t->primary));
 
-//    return jass_pushboolean(j, atob(t->primary));
+//    return jass_pushboolean(j, jcode_atob(t->primary));
 }
 
 TOKENFUNC(Identifier) {

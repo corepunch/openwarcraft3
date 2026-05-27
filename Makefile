@@ -78,9 +78,10 @@ WOW_BINARY   := $(BIN_DIR)/openwow$(EXE_EXT)
 MPQ_TEST         := $(BIN_DIR)/test_mpq_compat$(EXE_EXT)
 WOW_CFLAGS   := $(CFLAGS) -DWOW -DOW3_LOAD_ALL_MPQS -Wno-unused-function
 
-TOOL_SRCS := $(shell find tools -maxdepth 1 -name '*.c' | sort)
+TOOL_SRCS := $(shell find tools -maxdepth 1 -name '*.c' ! -name 'jass.c' | sort)
 TOOL_NAMES := $(patsubst tools/%.c,%,$(TOOL_SRCS))
 TOOL_BINS := $(addprefix $(BIN_DIR)/,$(addsuffix $(EXE_EXT),$(TOOL_NAMES)))
+JASS_BIN := $(BIN_DIR)/jass$(EXE_EXT)
 TOOL_DEPS := $(shell find tools -maxdepth 1 -name '*.h' | sort)
 CLIENT_HEADERS := $(shell find client -name '*.h' | sort)
 UI_HEADERS := $(shell find ui -name '*.h' | sort)
@@ -92,7 +93,8 @@ UI_HEADERS := $(shell find ui -name '*.h' | sort)
 UNITY = find $1 -name '*.c' $2 | sort | awk '{printf "\043include \"%s\"\n", $$0}'
 
 default: build
-build: shared jass renderer game ui openwarcraft3 tools
+build: shared jass renderer game ui openwarcraft3 tools jass-tool
+jass-tool: $(JASS_BIN)
 shared:      $(SHARED_LIB)
 jass:        $(JASS_LIB)
 renderer:    $(RENDERER_LIB)
@@ -131,6 +133,12 @@ $(BIN_DIR)/%$(EXE_EXT): tools/%.c $(TOOL_DEPS) $(CLIENT_HEADERS) | $(BIN_DIR) $(
 	@echo "[$*]"
 	$(CC) $(CFLAGS) -o $@ $< \
 		$(RPATH) $(LDFLAGS) -lshared -ljass -lrenderer -lgame -lui $(LIBS) -lm -lz
+
+# jass — standalone JASS interpreter (no renderer/game/SDL2 needed)
+$(JASS_BIN): tools/jass.c $(TOOL_DEPS) | $(BIN_DIR) $(SHARED_LIB) $(JASS_LIB)
+	@echo "[jass-tool]"
+	$(CC) $(CFLAGS) -DTOOL_COMMON_NO_MPQ -o $@ tools/jass.c \
+		$(RPATH) $(LDFLAGS) -lshared -ljass -lm
 
 $(MPQ_TEST): tests/test_mpq_compat.c common/mpq.c common/mpq.h | $(BIN_DIR)
 	@echo "[mpq-compat-test]"
