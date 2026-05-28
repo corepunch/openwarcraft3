@@ -22,6 +22,7 @@
  */
 #include "g_local.h"
 #include "g_unitdata.h"
+#include "../common/common.h"
 #include "../jass/jass.h"
 
 struct game_export globals;
@@ -31,6 +32,18 @@ struct level_locals level;
 struct edict_s *g_edicts;
 
 extern JASSMODULE jass_funcs[];
+
+static sheetRow_t *G_ReadSheet(LPCSTR filename) {
+    return FS_ParseSLK(filename);
+}
+
+static sheetRow_t *G_ReadConfig(LPCSTR filename) {
+    return FS_ParseINI(filename);
+}
+
+static LPCSTR G_FindSheetCell(sheetRow_t *sheet, LPCSTR row, LPCSTR column) {
+    return FS_FindSheetCell(sheet, row, column);
+}
 
 LPCSTR miscdata_files[] = {
     "UI\\MiscData.txt",
@@ -326,6 +339,15 @@ static void G_ClientBegin(LPEDICT edict) {
  * exclusively through the returned function pointers. */
 struct game_export *GetGameAPI(struct game_import *import) {
     gi = *import;
+    if (!gi.ReadSheet) {
+        gi.ReadSheet = G_ReadSheet;
+    }
+    if (!gi.ReadConfig) {
+        gi.ReadConfig = G_ReadConfig;
+    }
+    if (!gi.FindSheetCell) {
+        gi.FindSheetCell = G_FindSheetCell;
+    }
     globals.Init = G_InitGame;
     globals.Shutdown = G_ShutdownGame;
     globals.SpawnEntities = G_SpawnEntities;
