@@ -94,60 +94,6 @@ static LPCSTR test_find_sheet_cell(sheetRow_t *sheet, LPCSTR row, LPCSTR column)
     return NULL;
 }
 
-static void test_text_remove_comments(LPSTR buffer) {
-    BOOL in_single_line_comment = false;
-    BOOL in_block_comment = false;
-    DWORD num_quotes = 0;
-    char *src = buffer;
-    char *dest = buffer;
-    while (*src != '\0') {
-        if (!in_single_line_comment && !in_block_comment) {
-            if (*src == '"') {
-                num_quotes++;
-                *dest++ = *src++;
-            } else if (num_quotes & 1) {
-                *dest++ = *src++;
-            } else if (*src == '/' && *(src + 1) == '/') {
-                in_single_line_comment = true;
-                src += 2;
-            } else if (*src == '/' && *(src + 1) == '*') {
-                in_block_comment = true;
-                src += 2;
-            } else {
-                *dest++ = *src++;
-            }
-        } else if (in_single_line_comment && *src == '\n') {
-            in_single_line_comment = false;
-            *dest++ = *src++;
-        } else if (in_block_comment && *src == '*' && *(src + 1) == '/') {
-            in_block_comment = false;
-            src += 2;
-        } else {
-            src++;
-        }
-    }
-    *dest = '\0';
-}
-
-static BOMStatus test_text_remove_bom(LPSTR buffer) {
-    unsigned char utf8BOM[] = { 0xEF, 0xBB, 0xBF };
-    unsigned char utf16LEBOM[] = { 0xFF, 0xFE };
-    unsigned char utf16BEBOM[] = { 0xFE, 0xFF };
-    size_t length = strlen(buffer);
-
-    if (length >= 3 && memcmp(buffer, utf8BOM, 3) == 0) {
-        memmove(buffer, buffer + 3, length - 3);
-        return UTF8_BOM_FOUND;
-    } else if (length >= 2 && memcmp(buffer, utf16LEBOM, 2) == 0) {
-        memmove(buffer, buffer + 2, length - 2);
-        return UTF16LE_BOM_FOUND;
-    } else if (length >= 2 && memcmp(buffer, utf16BEBOM, 2) == 0) {
-        memmove(buffer, buffer + 2, length - 2);
-        return UTF16BE_BOM_FOUND;
-    }
-    return NO_BOM;
-}
-
 static LPSTR test_read_fdf_file(LPCSTR filename) {
     char path[512] = "data/fdf/";
     size_t prefix_len = strlen(path);
@@ -228,8 +174,6 @@ static void reset_test_gi(void) {
     gi.FontIndex = test_font_index;
     gi.FindSheetCell = test_find_sheet_cell;
     gi.ReadFileIntoString = test_read_fdf_file;
-    gi.TextRemoveComments = test_text_remove_comments;
-    gi.TextRemoveBom = test_text_remove_bom;
     gi.WriteByte = test_write_byte;
     gi.WriteShort = test_write_short;
     gi.WriteLong = test_write_long;

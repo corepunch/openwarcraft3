@@ -51,9 +51,6 @@ struct game_import {
     sheetRow_t *(*ReadSheet)(LPCSTR sheetFilename);
     sheetRow_t *(*ReadConfig)(LPCSTR configFilename);
     LPCSTR (*FindSheetCell)(sheetRow_t *sheet, LPCSTR row, LPCSTR column);
-    void (*TextRemoveComments)(LPSTR buffer);
-    BOMStatus (*TextRemoveBom)(LPSTR buffer);
-
     void (*multicast)(LPCVECTOR3 origin, multicast_t to);
     void (*unicast)(edict_t *ent);
     void (*WriteByte)(LONG c);
@@ -70,6 +67,10 @@ struct game_import {
     void (*configstring)(DWORD index, LPCSTR string);
     void (*confignstring)(DWORD index, LPCSTR string, DWORD len);
     void (*error)(LPCSTR fmt, ...);
+
+    /* Cvar access — allows the game library to read command-line/config values
+     * without linking directly against common.  Returns fallback if not set. */
+    LPCSTR (*CvarString)(LPCSTR name, LPCSTR fallback);
 };
 
 struct client;

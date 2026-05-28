@@ -444,6 +444,38 @@ static BOOL jass_yielded(LPJASS j) {
 }
 
 /* =========================================================================
+ * Runtime error boundary  (JASS equivalent of Lua error())
+ * ========================================================================= */
+
+void jass_rterror(LPJASS j, LPCSTR message) {
+    LPJASS root = jass_root(j);
+    root->rterror_pending = true;
+    snprintf(root->rterror_message, sizeof(root->rterror_message), "%s", message ? message : "(nil)");
+    fprintf(stderr, "JASS runtime error: %s\n", root->rterror_message);
+
+    LPJASSCOROUTINE co = root->current_coroutine;
+    if (co && co->rterror_jmp_set) {
+        longjmp(co->rterror_jmp, 1);
+    }
+    /* No active coroutine boundary — abort process (parser-path fallback). */
+    abort();
+}
+
+BOOL jass_rterror_pending(LPJASS j) {
+    return jass_root(j)->rterror_pending;
+}
+
+LPCSTR jass_rterror_message(LPJASS j) {
+    return jass_root(j)->rterror_message;
+}
+
+void jass_rterror_clear(LPJASS j) {
+    LPJASS root = jass_root(j);
+    root->rterror_pending = false;
+    root->rterror_message[0] = '\0';
+}
+
+/* =========================================================================
  * Player event helpers
  * ========================================================================= */
 
@@ -547,6 +579,15 @@ static void jass_resumecoroutine(LPJASSCOROUTINE co) {
         j->stack[0].env.returnstack = -1;
     }
 
+    /* Establish the runtime-error abort boundary for this resume. */
+    co->rterror_jmp_set = true;
+    if (setjmp(co->rterror_jmp) != 0) {
+        /* jass_rterror() jumped here — mark coroutine done and return. */
+        co->rterror_jmp_set = false;
+        co->done = true;
+        return;
+    }
+
     co->yielded = false;
     while (co->frames && !co->yielded) {
         LPJASSCOROUTINEFRAME frame = co->frames;
@@ -627,6 +668,7 @@ static void jass_resumecoroutine(LPJASSCOROUTINE co) {
         }
     }
 
+    co->rterror_jmp_set = false;
     if (!co->yielded && !co->frames) {
         co->done = true;
     }
@@ -1441,9 +1483,35 @@ TOKENFUNC(TOKENS) {
  * Buffer / file execution
  * ========================================================================= */
 
+static void jass_remove_comments(LPSTR buf) {
+    BOOL in_line  = false;
+    BOOL in_block = false;
+    DWORD quotes  = 0;
+    char *src = buf, *dst = buf;
+    while (*src) {
+        if (!in_line && !in_block) {
+            if (*src == '"') { quotes++; *dst++ = *src++; }
+            else if (quotes & 1) { *dst++ = *src++; }
+            else if (src[0] == '/' && src[1] == '/') { in_line  = true;  src += 2; }
+            else if (src[0] == '/' && src[1] == '*') { in_block = true;  src += 2; }
+            else { *dst++ = *src++; }
+        } else if (in_line  && *src == '\n')                        { in_line  = false; *dst++ = *src++; }
+          else if (in_block && src[0] == '*' && src[1] == '/')      { in_block = false; src += 2; }
+          else { src++; }
+    }
+    *dst = '\0';
+}
+
+static void jass_remove_bom(LPSTR buf) {
+    unsigned char *u = (unsigned char *)buf;
+    if (u[0] == 0xEF && u[1] == 0xBB && u[2] == 0xBF) { memmove(buf, buf + 3, strlen(buf + 3) + 1); return; }
+    if (u[0] == 0xFF && u[1] == 0xFE)                  { memmove(buf, buf + 2, strlen(buf + 2) + 1); return; }
+    if (u[0] == 0xFE && u[1] == 0xFF)                  { memmove(buf, buf + 2, strlen(buf + 2) + 1); }
+}
+
 BOOL jass_dobuffer(LPJASS j, LPSTR buffer) {
-    jass_host.TextRemoveComments(buffer);
-    jass_host.TextRemoveBom(buffer);
+    jass_remove_comments(buffer);
+    jass_remove_bom(buffer);
     LPTOKEN program = JASS_ParseTokens(&MAKE(PARSER, .buffer = buffer, .delimiters = JASS_DELIM));
     eval_TOKENS(j, program);
     return true;
@@ -1548,13 +1616,13 @@ DWORD jass_call(LPJASS j, DWORD args) {
     return ret;
 }
 
-void jass_callbyname(LPJASS j, LPCSTR name, BOOL async) {
+void jass_callbyname(LPJASS j, LPCSTR name, BOOL spawn_coroutine) {
     LPCJASSFUNC func = find_function(j, name);
     if (!func) {
         fprintf(stderr, "Function not found %s\n", name);
         return;
     }
-    if (async) {
+    if (spawn_coroutine) {
         (void)jass_startcoroutinebyname(j, name);
     } else {
         jass_pushfunction(j, func);

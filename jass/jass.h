@@ -55,8 +55,6 @@ typedef struct {
     void (*MemFree)(HANDLE ptr);
     DWORD (*GetTime)(void);
     LPSTR (*ReadFileIntoString)(LPCSTR filename);
-    void (*TextRemoveComments)(LPSTR buffer);
-    BOMStatus (*TextRemoveBom)(LPSTR buffer);
     LPCJASSMODULE natives;
     LPPLAYER (*GetPlayerByNumber)(DWORD number);
 } JASSHOST;
@@ -145,6 +143,36 @@ BOOL jass_popboolean(LPJASS j);
 void jass_pop(LPJASS j, DWORD count);
 BOOL jass_evaluatetrigger(LPJASS j, LPTRIGGER trigger, LPEDICT unit);
 void jass_executetrigger(LPJASS j, LPTRIGGER trigger, LPEDICT unit);
+
+/* -------------------------------------------------------------------------
+ * Runtime error / test-assertion boundary.
+ *
+ * jass_rterror() aborts the currently-executing coroutine via longjmp and
+ * records a failure message on the root state.  It is the JASS equivalent
+ * of Lua's error() — it never returns to the caller.
+ *
+ * jass_rterror_pending() returns true when a runtime error was recorded
+ * since the last jass_rterror_clear().
+ * jass_rterror_message() returns the message string (valid until cleared).
+ * jass_rterror_clear() resets the error state.
+ * ------------------------------------------------------------------------- */
+void   jass_rterror(LPJASS j, LPCSTR message);
+BOOL   jass_rterror_pending(LPJASS j);
+LPCSTR jass_rterror_message(LPJASS j);
+void   jass_rterror_clear(LPJASS j);
+
+/* jass_callbyname — call a named JASS function.
+ * spawn_coroutine=true: enqueue as a new coroutine (returns immediately).
+ * spawn_coroutine=false: call synchronously on the current stack. */
+void jass_callbyname(LPJASS j, LPCSTR name, BOOL spawn_coroutine);
+
+/* jass_dofile / jass_dobuffer — load and evaluate source. */
+BOOL jass_dofile(LPJASS j, LPCSTR fileName);
+BOOL jass_dobuffer(LPJASS j, LPSTR buffer);
+
+/* jass_newstate / jass_close — state lifecycle. */
+LPJASS jass_newstate(void);
+void   jass_close(LPJASS j);
 
 
 #endif

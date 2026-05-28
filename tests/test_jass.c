@@ -58,6 +58,23 @@ static DWORD native_ExecuteFunc(LPJASS j) {
     return 0;
 }
 
+static DWORD native_BJassError(LPJASS j) {
+    LPCSTR msg = jass_checkstring(j, 1);
+    jass_rterror(j, msg);
+    return 0;
+}
+
+static DWORD native_BJassAssert(LPJASS j) {
+    BOOL cond = jass_checkboolean(j, 1);
+    if (!cond) {
+        LPCSTR msg = jass_checkstring(j, 2);
+        char buf[640];
+        snprintf(buf, sizeof(buf), "assertion failed: %s", msg ? msg : "(no message)");
+        jass_rterror(j, buf);
+    }
+    return 0;
+}
+
 extern LPPLAYER currentplayer;
 
 static DWORD native_Player(LPJASS j) {
@@ -83,6 +100,8 @@ JASSMODULE jass_funcs[] = {
     { "Player",       native_Player },
     { "GetLocalPlayer", native_GetLocalPlayer },
     { "CurrentPlayerNumber", native_CurrentPlayerNumber },
+    { "BJassError",   native_BJassError  },
+    { "BJassAssert",  native_BJassAssert },
     { NULL }
 };
 
@@ -104,8 +123,6 @@ static LPJASS make_jass(void) {
         .MemFree = gi.MemFree,
         .GetTime = gi.GetTime,
         .ReadFileIntoString = gi.ReadFileIntoString,
-        .TextRemoveComments = gi.TextRemoveComments,
-        .TextRemoveBom = gi.TextRemoveBom,
         .natives = jass_funcs,
         .GetPlayerByNumber = G_GetPlayerByNumber,
     ));
@@ -1223,6 +1240,114 @@ static void test_toboolean_string_nonempty(void) {
 }
 
 /* =========================================================================
+ * Runtime error / assertion natives
+ * ========================================================================= */
+
+static void test_rterror_records_pending(void) {
+    /* BJassError fired via a coroutine sets rterror_pending on the root. */
+    const char *src =
+        "native BJassError takes string msg returns nothing\n"
+        "function Fail takes nothing returns nothing\n"
+        "  call BJassError(\"boom\")\n"
+        "endfunction\n";
+    LPJASS j = run(src);
+    jass_callbyname(j, "Fail", true);
+    jass_runevents(j);
+    ASSERT(jass_rterror_pending(j));
+    ASSERT_STR_EQ(jass_rterror_message(j), "boom");
+    jass_close(j);
+}
+
+static void test_rterror_clear_resets_state(void) {
+    const char *src =
+        "native BJassError takes string msg returns nothing\n"
+        "function Fail takes nothing returns nothing\n"
+        "  call BJassError(\"x\")\n"
+        "endfunction\n";
+    LPJASS j = run(src);
+    jass_callbyname(j, "Fail", true);
+    jass_runevents(j);
+    ASSERT(jass_rterror_pending(j));
+    jass_rterror_clear(j);
+    ASSERT(!jass_rterror_pending(j));
+    jass_close(j);
+}
+
+static void test_assert_passes_on_true(void) {
+    /* BJassAssert(true, ...) — coroutine completes normally, no error. */
+    const char *src =
+        "native BJassAssert takes boolean cond, string msg returns nothing\n"
+        "function Check takes nothing returns nothing\n"
+        "  call BJassAssert(true, \"should not fail\")\n"
+        "endfunction\n";
+    LPJASS j = run(src);
+    jass_callbyname(j, "Check", true);
+    jass_runevents(j);
+    ASSERT(!jass_rterror_pending(j));
+    jass_close(j);
+}
+
+static void test_assert_fails_on_false(void) {
+    /* BJassAssert(false, msg) — coroutine aborts and error is recorded. */
+    const char *src =
+        "native BJassAssert takes boolean cond, string msg returns nothing\n"
+        "function Check takes nothing returns nothing\n"
+        "  call BJassAssert(false, \"expected failure\")\n"
+        "endfunction\n";
+    LPJASS j = run(src);
+    jass_callbyname(j, "Check", true);
+    jass_runevents(j);
+    ASSERT(jass_rterror_pending(j));
+    jass_close(j);
+}
+
+static void test_assert_abort_does_not_kill_sibling_coroutine(void) {
+    /* A failing coroutine must not prevent a sibling from completing. */
+    const char *src =
+        "native BJassAssert takes boolean cond, string msg returns nothing\n"
+        "globals\n"
+        "  integer g_ok = 0\n"
+        "endglobals\n"
+        "function Failing takes nothing returns nothing\n"
+        "  call BJassAssert(false, \"intentional\")\n"
+        "endfunction\n"
+        "function Passing takes nothing returns nothing\n"
+        "  set g_ok = 42\n"
+        "endfunction\n"
+        "function GetGOk takes nothing returns integer\n"
+        "  return g_ok\n"
+        "endfunction\n";
+    LPJASS j = run(src);
+    jass_callbyname(j, "Failing", true);
+    jass_callbyname(j, "Passing", true);
+    jass_runevents(j);
+    ASSERT(jass_rterror_pending(j));
+    /* Passing ran after Failing was aborted — g_ok must be 42. */
+    jass_callbyname(j, "GetGOk", false);
+    ASSERT_EQ_INT(jass_checkinteger(j, -1), 42);
+    jass_pop(j, 1);
+    jass_close(j);
+}
+
+static void test_rterror_direct_api(void) {
+    /* Direct C call to jass_rterror() without a coroutine boundary.
+     * When called outside a coroutine resume, rterror should still record
+     * the message; we verify the pending/message API here via a synthesised
+     * coroutine that deliberately triggers the error. */
+    const char *src =
+        "native BJassError takes string msg returns nothing\n"
+        "function DoError takes nothing returns nothing\n"
+        "  call BJassError(\"direct\")\n"
+        "endfunction\n";
+    LPJASS j = run(src);
+    jass_callbyname(j, "DoError", true);
+    jass_runevents(j);
+    ASSERT(jass_rterror_pending(j));
+    ASSERT_STR_EQ(jass_rterror_message(j), "direct");
+    jass_close(j);
+}
+
+/* =========================================================================
  * Test suite entry point
  * ========================================================================= */
 
@@ -1299,4 +1424,11 @@ BEGIN_SUITE(jass)
     RUN_TEST(test_coroutine_loop_wait_resumes_each_iteration);
     RUN_TEST(test_coroutine_polled_wait_helper_uses_trigger_sleep);
     RUN_TEST(test_trigger_coroutine_uses_client_player_for_player_entity);
+    /* Runtime error / assert natives */
+    RUN_TEST(test_rterror_records_pending);
+    RUN_TEST(test_rterror_clear_resets_state);
+    RUN_TEST(test_assert_passes_on_true);
+    RUN_TEST(test_assert_fails_on_false);
+    RUN_TEST(test_assert_abort_does_not_kill_sibling_coroutine);
+    RUN_TEST(test_rterror_direct_api);
 END_SUITE()

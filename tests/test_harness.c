@@ -161,41 +161,6 @@ static BOOL   mock_OpenFileEx(HANDLE a, LPCSTR n, DWORD sc, HANDLE *f) { (void)a
 static BOOL   mock_CloseFile(HANDLE f)                  { (void)f; return false; }
 static BOOL   mock_ReadArchiveFile(HANDLE f, void *b, DWORD r, LPDWORD br, LPOVERLAPPED o) { (void)f; (void)b; (void)r; (void)o; if (br) *br = 0; return false; }
 static DWORD  mock_GetArchiveFileSize(HANDLE f, LPDWORD h) { (void)f; if (h) *h = 0; return 0; }
-static void   mock_TextRemoveComments(LPSTR buffer) {
-    BOOL in_single_line_comment = false;
-    BOOL in_block_comment = false;
-    DWORD num_quotes = 0;
-    char *src = buffer;
-    char *dest = buffer;
-    while (*src != '\0') {
-        if (!in_single_line_comment && !in_block_comment) {
-            if (*src == '"') {
-                num_quotes++;
-                *dest++ = *src++;
-            } else if (num_quotes&1) {
-                *dest++ = *src++;
-            } else if (*src == '/' && *(src + 1) == '/') {
-                in_single_line_comment = true;
-                src += 2;
-            } else if (*src == '/' && *(src + 1) == '*') {
-                in_block_comment = true;
-                src += 2;
-            } else {
-                *dest++ = *src++;
-            }
-        } else if (in_single_line_comment && *src == '\n') {
-            in_single_line_comment = false;
-            *dest++ = *src++;
-        } else if (in_block_comment && *src == '*' && *(src + 1) == '/') {
-            in_block_comment = false;
-            src += 2;
-        } else {
-            src++;
-        }
-    }
-    *dest = '\0';
-}
-static BOMStatus mock_TextRemoveBom(LPSTR b)            { (void)b; return NO_BOM; }
 static void   mock_multicast(LPCVECTOR3 o, multicast_t t) { (void)o; (void)t; }
 static void   mock_unicast(edict_t *e)                  { (void)e; }
 static void   mock_WriteByte(LONG c)                    { (void)c; }
@@ -303,8 +268,6 @@ void setup_game(void) {
     gi.ReadSheet           = mock_ReadSheet;
     gi.ReadConfig          = mock_ReadConfig;
     gi.FindSheetCell       = mock_FindSheetCell;
-    gi.TextRemoveComments  = mock_TextRemoveComments;
-    gi.TextRemoveBom       = mock_TextRemoveBom;
     gi.multicast           = mock_multicast;
     gi.unicast             = mock_unicast;
     gi.WriteByte           = mock_WriteByte;
@@ -320,6 +283,7 @@ void setup_game(void) {
     gi.configstring        = mock_configstring;
     gi.confignstring       = mock_confignstring;
     gi.error               = mock_error;
+    gi.CvarString          = NULL; /* tests don't use in-game test runner */
     test_client_stubs_init();
 
     /* Initialise game-export fields. */

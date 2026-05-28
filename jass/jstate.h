@@ -6,6 +6,8 @@
  * plus the two global broadcast variables used during coroutine dispatch.
  * Only jdo.c and jcode.c need this header. */
 
+#include <setjmp.h>
+
 #include "jass.h"
 #include "jparser.h"
 
@@ -85,6 +87,9 @@ struct jass_coroutine {
     DWORD wake_time;
     BOOL yielded;
     BOOL done;
+    /* Runtime error abort: set by jass_rterror(), caught in jass_resumecoroutine(). */
+    jmp_buf rterror_jmp;
+    BOOL rterror_jmp_set;
 };
 
 #define MAX_JASS_STACK 256
@@ -100,6 +105,9 @@ struct jass_s {
     LPJASS root;
     LPJASSCOROUTINE coroutines;
     LPJASSCOROUTINE current_coroutine;
+    /* Runtime error state — owned by root, written by jass_rterror(). */
+    BOOL rterror_pending;
+    char rterror_message[512];
 };
 
 /* Primitive type table — indexed by JASSTYPEID. Defined in jdo.c. */

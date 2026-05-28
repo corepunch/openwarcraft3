@@ -11,8 +11,6 @@ static void G_InitJassHost(void) {
         .MemFree = gi.MemFree,
         .GetTime = gi.GetTime,
         .ReadFileIntoString = gi.ReadFileIntoString,
-        .TextRemoveComments = gi.TextRemoveComments,
-        .TextRemoveBom = gi.TextRemoveBom,
         .natives = jass_funcs,
         .GetPlayerByNumber = G_GetPlayerByNumber,
     ));

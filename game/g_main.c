@@ -22,12 +22,15 @@
  */
 #include "g_local.h"
 #include "g_unitdata.h"
+#include "../jass/jass.h"
 
 struct game_export globals;
 struct game_import gi;
 struct game_locals game;
 struct level_locals level;
 struct edict_s *g_edicts;
+
+extern JASSMODULE jass_funcs[];
 
 LPCSTR miscdata_files[] = {
     "UI\\MiscData.txt",
@@ -76,7 +79,62 @@ static void InitConstants(void) {
     InitMiscValue("RootAngle", &game.constants.rootAngle);
 }
 
+/* -------------------------------------------------------------------------
+ * In-game JASS test runner.
+ *
+ * Activated by passing -jass_test=<script.j> on the command line.
+ * Optionally specify the entrypoint with -jass_test_entry=<function>.
+ * The game binary exits 0 on success, 1 on any assertion failure.
+ *
+ * Example:
+ *   openwarcraft3 -data=<dir> -jass_test=tests/fixtures/test_jass_assertions.j
+ * ------------------------------------------------------------------------- */
+static void G_RunJassTests(LPCSTR script, LPCSTR entry) {
+    if (!entry || !*entry) {
+        entry = "run_tests";
+    }
+    fprintf(stderr, "JASS test mode: script=%s entry=%s\n", script, entry);
+
+    jass_sethost(&MAKE(JASSHOST,
+        .MemAlloc           = gi.MemAlloc,
+        .MemFree            = gi.MemFree,
+        .GetTime            = gi.GetTime,
+        .ReadFileIntoString = gi.ReadFileIntoString,
+        .natives            = jass_funcs,
+        .GetPlayerByNumber  = G_GetPlayerByNumber,
+    ));
+
+    LPJASS j = jass_newstate();
+    if (!jass_dofile(j, script)) {
+        fprintf(stderr, "JASS test error: could not load '%s'\n", script);
+        jass_close(j);
+        exit(1);
+    }
+
+    jass_callbyname(j, entry, true);
+    /* Pump coroutines until all finish (no timer advancement needed for immediate tests). */
+    jass_runevents(j);
+
+    BOOL failed = jass_rterror_pending(j);
+    if (failed) {
+        fprintf(stderr, "JASS test FAILED: %s\n", jass_rterror_message(j));
+    } else {
+        fprintf(stderr, "JASS test PASSED\n");
+    }
+    jass_close(j);
+    exit(failed ? 1 : 0);
+}
+
 static void G_InitGame(void) {
+    if (gi.CvarString) {
+        LPCSTR jass_test = gi.CvarString("jass_test", "");
+        if (jass_test && *jass_test) {
+            LPCSTR jass_entry = gi.CvarString("jass_test_entry", "");
+            G_RunJassTests(jass_test, jass_entry);
+            /* G_RunJassTests always calls exit() */
+        }
+    }
+
     fprintf(stderr, "Game initialization.\n");
     fprintf(stderr, "Game is starting up.\n");
     fprintf(stderr, "Game is openwarcraft3 built on %s.\n", __DATE__);

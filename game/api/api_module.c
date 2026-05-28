@@ -1,5 +1,6 @@
 #include "../../jass/jass.h"
 
+#include "api_test.h"
 #include "api_unit.h"
 #include "api_effect.h"
 #include "api_camera.h"
@@ -828,5 +829,8 @@ JASSMODULE jass_funcs[] = {
     { "VersionGet", VersionGet },
     { "VersionCompatible", VersionCompatible },
     { "VersionSupported", VersionSupported },
+    // test assertions
+    { "BJassError",  BJassError  },
+    { "BJassAssert", BJassAssert },
     { NULL },
 };
