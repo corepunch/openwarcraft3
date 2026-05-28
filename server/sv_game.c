@@ -6,33 +6,54 @@
 /* UI layout byte tracking (legacy - now handled client-side) */
 DWORD layoutBytesWritten = 0;
 
-void PF_WriteByte(int c) { MSG_WriteByte(&sv.multicast, c); }
-void PF_WriteShort(int c) { MSG_WriteShort(&sv.multicast, c); }
-void PF_WriteLong(int c) { MSG_WriteLong(&sv.multicast, c); }
-void PF_WriteFloat(float f) { MSG_WriteFloat(&sv.multicast, f); }
-void PF_WriteString(LPCSTR s) { MSG_WriteString(&sv.multicast, s); }
-void PF_WritePos(LPCVECTOR3 pos) { MSG_WritePos(&sv.multicast, pos); }
-void PF_WriteDir(LPCVECTOR3 dir) { MSG_WriteDir(&sv.multicast, dir); }
-void PF_WriteAngle(float f) { MSG_WriteAngle(&sv.multicast, f); }
-
-void PF_WriteEntity(LPCENTITYSTATE ent) {
-    entityState_t empty;
-    memset(&empty, 0, sizeof(entityState_t));
-    MSG_WriteDeltaEntity(&sv.multicast, &empty, ent, true);
-}
-
-void PF_WriteUIFrame(LPCUIFRAME frame) {
-    DWORD before = sv.multicast.cursize;
-    uiFrame_t empty;
-    memset(&empty, 0, sizeof(uiFrame_t));
-    empty.tex.coord[1] = 0xff;
-    empty.tex.coord[3] = 0xff;
-    MSG_WriteDeltaUIFrame(&sv.multicast, &empty, frame, true);
-    MSG_WriteShort(&sv.multicast, frame->buffer.size);
-    MSG_Write(&sv.multicast, frame->buffer.data, frame->buffer.size);
-    if (sv.multicast.cursize >= before) {
-        extern DWORD layoutBytesWritten;
-        layoutBytesWritten += sv.multicast.cursize - before;
+void PF_Write(pfWriteType_t type, void const *value) {
+    switch (type) {
+        case PF_BYTE:
+            MSG_WriteByte(&sv.multicast, (int)*(LONG const *)value);
+            break;
+        case PF_SHORT:
+            MSG_WriteShort(&sv.multicast, (int)*(LONG const *)value);
+            break;
+        case PF_LONG:
+            MSG_WriteLong(&sv.multicast, (int)*(LONG const *)value);
+            break;
+        case PF_FLOAT:
+            MSG_WriteFloat(&sv.multicast, *(FLOAT const *)value);
+            break;
+        case PF_STRING:
+            MSG_WriteString(&sv.multicast, value ? (LPCSTR)value : "");
+            break;
+        case PF_POSITION:
+            MSG_WritePos(&sv.multicast, (LPCVECTOR3)value);
+            break;
+        case PF_DIRECTION:
+            MSG_WriteDir(&sv.multicast, (LPCVECTOR3)value);
+            break;
+        case PF_ANGLE:
+            MSG_WriteAngle(&sv.multicast, *(FLOAT const *)value);
+            break;
+        case PF_ENTITY: {
+            entityState_t empty;
+            memset(&empty, 0, sizeof(entityState_t));
+            MSG_WriteDeltaEntity(&sv.multicast, &empty, (LPCENTITYSTATE)value, true);
+            break;
+        }
+        case PF_UIFRAME: {
+            LPCUIFRAME frame = (LPCUIFRAME)value;
+            DWORD before = sv.multicast.cursize;
+            uiFrame_t empty;
+            memset(&empty, 0, sizeof(uiFrame_t));
+            empty.tex.coord[1] = 0xff;
+            empty.tex.coord[3] = 0xff;
+            MSG_WriteDeltaUIFrame(&sv.multicast, &empty, frame, true);
+            MSG_WriteShort(&sv.multicast, frame->buffer.size);
+            MSG_Write(&sv.multicast, frame->buffer.data, frame->buffer.size);
+            if (sv.multicast.cursize >= before) {
+                extern DWORD layoutBytesWritten;
+                layoutBytesWritten += sv.multicast.cursize - before;
+            }
+            break;
+        }
     }
 }
 
@@ -694,16 +715,7 @@ void SV_InitGameProgs(void) {
     import.MenuAction = MenuAction;
     import.configstring = PF_Configstring;
     import.confignstring = PF_Confignstring;
-    import.WriteByte = PF_WriteByte;
-    import.WriteShort = PF_WriteShort;
-    import.WriteLong = PF_WriteLong;
-    import.WriteFloat = PF_WriteFloat;
-    import.WriteString = PF_WriteString;
-    import.WritePosition = PF_WritePos;
-    import.WriteDirection = PF_WriteDir;
-    import.WriteAngle = PF_WriteAngle;
-    import.WriteEntity = PF_WriteEntity;
-    import.WriteUIFrame = PF_WriteUIFrame;
+    import.Write = PF_Write;
     import.CvarString = Cvar_String;
 
     ge = GetGameAPI(&import);

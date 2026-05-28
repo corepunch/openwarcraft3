@@ -133,25 +133,30 @@ static bool test_has_repo_fdf(void) {
     return access(path, R_OK) == 0;
 }
 
-static void test_write_byte(LONG c) {
-    MSG_WriteByte(&sv.multicast, (int)c);
-}
-
-static void test_write_short(LONG c) {
-    MSG_WriteShort(&sv.multicast, (int)c);
-}
-
-static void test_write_long(LONG c) {
-    MSG_WriteLong(&sv.multicast, (int)c);
-}
-
-static void test_write_ui_frame(LPCUIFRAME frame) {
-    uiFrame_t empty = { 0 };
-    empty.tex.coord[1] = 0xff;
-    empty.tex.coord[3] = 0xff;
-    MSG_WriteDeltaUIFrame(&sv.multicast, &empty, frame, true);
-    MSG_WriteShort(&sv.multicast, frame->buffer.size);
-    MSG_Write(&sv.multicast, frame->buffer.data, frame->buffer.size);
+static void test_write(pfWriteType_t type, void const *value) {
+    switch (type) {
+        case PF_BYTE:
+            MSG_WriteByte(&sv.multicast, (int)*(LONG const *)value);
+            break;
+        case PF_SHORT:
+            MSG_WriteShort(&sv.multicast, (int)*(LONG const *)value);
+            break;
+        case PF_LONG:
+            MSG_WriteLong(&sv.multicast, (int)*(LONG const *)value);
+            break;
+        case PF_UIFRAME: {
+            LPCUIFRAME frame = (LPCUIFRAME)value;
+            uiFrame_t empty = { 0 };
+            empty.tex.coord[1] = 0xff;
+            empty.tex.coord[3] = 0xff;
+            MSG_WriteDeltaUIFrame(&sv.multicast, &empty, frame, true);
+            MSG_WriteShort(&sv.multicast, frame->buffer.size);
+            MSG_Write(&sv.multicast, frame->buffer.data, frame->buffer.size);
+            break;
+        }
+        default:
+            break;
+    }
 }
 
 static void test_unicast(edict_t *ent) {
@@ -174,10 +179,7 @@ static void reset_test_gi(void) {
     gi.FontIndex = test_font_index;
     gi.FindSheetCell = test_find_sheet_cell;
     gi.ReadFileIntoString = test_read_fdf_file;
-    gi.WriteByte = test_write_byte;
-    gi.WriteShort = test_write_short;
-    gi.WriteLong = test_write_long;
-    gi.WriteUIFrame = test_write_ui_frame;
+    gi.Write = test_write;
     gi.unicast = test_unicast;
 }
 

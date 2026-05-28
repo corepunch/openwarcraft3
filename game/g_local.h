@@ -49,8 +49,8 @@ if (NAME) { \
     UI_SetCurrentClient(ent->client); \
     UI_WriteStart(layer); \
     BuildUI(ent->client, ##__VA_ARGS__); \
-    gi.WriteLong(0); \
-    gi.WriteShort(0); \
+    gi.Write(PF_LONG, &(LONG){0}); \
+    gi.Write(PF_SHORT, &(LONG){0}); \
     gi.unicast(ent); \
     UI_SetCurrentClient(NULL);
 
