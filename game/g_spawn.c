@@ -10,7 +10,7 @@ static void G_InitJassHost(void) {
         .MemAlloc = gi.MemAlloc,
         .MemFree = gi.MemFree,
         .GetTime = gi.GetTime,
-        .ReadFileIntoString = gi.ReadFileIntoString,
+        .ReadFile = gi.ReadFile,
         .natives = jass_funcs,
         .GetPlayerByNumber = G_GetPlayerByNumber,
     ));

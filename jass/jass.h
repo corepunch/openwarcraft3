@@ -54,7 +54,7 @@ typedef struct {
     HANDLE (*MemAlloc)(long size);
     void (*MemFree)(HANDLE ptr);
     DWORD (*GetTime)(void);
-    LPSTR (*ReadFileIntoString)(LPCSTR filename);
+    HANDLE (*ReadFile)(LPCSTR filename, DWORD *size);
     LPCJASSMODULE natives;
     LPPLAYER (*GetPlayerByNumber)(DWORD number);
 } JASSHOST;
