@@ -78,8 +78,8 @@ BOOL build_menu_send_builder(LPEDICT clent, LPCVECTOR2 location) {
     }
     entityState_t empty;
     memset(&empty, 0, sizeof(entityState_t));
-    gi.WriteByte(svc_cursor);
-    gi.WriteEntity(&empty);
+    gi.Write(PF_BYTE, &(LONG){svc_cursor});
+    gi.Write(PF_ENTITY, &empty);
     gi.unicast(clent);
     return true;
 }
@@ -88,8 +88,8 @@ void build_menu_selectlocation(LPEDICT ent, DWORD building_id) {
     entityState_t cursor;
     FillUnitData(&cursor, building_id, "stand");
     UI_AddCancelButton(ent);
-    gi.WriteByte(svc_cursor);
-    gi.WriteEntity(&cursor);
+    gi.Write(PF_BYTE, &(LONG){svc_cursor});
+    gi.Write(PF_ENTITY, &cursor);
     gi.unicast(ent);
     ent->client->menu.on_location_selected = build_menu_send_builder;
     ent->build_project = building_id;

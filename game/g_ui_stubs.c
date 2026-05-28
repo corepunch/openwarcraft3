@@ -109,7 +109,7 @@ static void UI_WriteProxyFrame(LPUIFRAME frame, HANDLE data, DWORD data_size) {
     frame->tex.coord[3] = 0xff;
     frame->buffer.data = data;
     frame->buffer.size = data_size;
-    gi.WriteUIFrame(frame);
+    gi.Write(PF_UIFRAME, frame);
 }
 
 static void UI_WriteTextFrame(FLOAT x, FLOAT y, FLOAT w, FLOAT h, LPCSTR text, COLOR32 color,
@@ -286,8 +286,8 @@ static void UI_WriteServerConsoleShell(LPEDICT ent) {
         return;
     }
 
-    gi.WriteByte(svc_layout);
-    gi.WriteByte(LAYER_CONSOLE);
+    gi.Write(PF_BYTE, &(LONG){svc_layout});
+    gi.Write(PF_BYTE, &(LONG){LAYER_CONSOLE});
     ui_next_frame_number = 1;
 
     UI_WriteCommandTextFrame(0.004f, 0.006f, 0.085f, 0.014f, "Quests (F9)", "quests",
@@ -298,8 +298,8 @@ static void UI_WriteServerConsoleShell(LPEDICT ent) {
     UI_WriteTextFrame(0.259f, 0.006f, 0.085f, 0.014f, "Chat (F12)", COLOR32_WHITE, FONT_JUSTIFYCENTER);
     UI_WriteTooltipFrame();
 
-    gi.WriteLong(0);
-    gi.WriteShort(0);
+    gi.Write(PF_LONG, &(LONG){0});
+    gi.Write(PF_SHORT, &(LONG){0});
     gi.unicast(ent);
 }
 
@@ -401,10 +401,10 @@ void UI_ClearLayer(LPEDICT ent, DWORD layer) {
     if (!ent) {
         return;
     }
-    gi.WriteByte(svc_layout);
-    gi.WriteByte(layer);
-    gi.WriteLong(0);
-    gi.WriteShort(0);
+    gi.Write(PF_BYTE, &(LONG){svc_layout});
+    gi.Write(PF_BYTE, &(LONG){layer});
+    gi.Write(PF_LONG, &(LONG){0});
+    gi.Write(PF_SHORT, &(LONG){0});
     gi.unicast(ent);
 }
 
@@ -615,15 +615,15 @@ void Get_Commands_f(LPEDICT ent) {
     }
     memset(&ent->client->menu, 0, sizeof(ent->client->menu));
 
-    gi.WriteByte(svc_layout);
-    gi.WriteByte(LAYER_COMMANDBAR);
+    gi.Write(PF_BYTE, &(LONG){svc_layout});
+    gi.Write(PF_BYTE, &(LONG){LAYER_COMMANDBAR});
     ui_next_frame_number = 1;
     count = G_GetCommandButtons(selected, buttons, 12);
     FOR_LOOP(i, count) {
         UI_WriteCommandButtonFrame(&buttons[i]);
     }
-    gi.WriteLong(0);
-    gi.WriteShort(0);
+    gi.Write(PF_LONG, &(LONG){0});
+    gi.Write(PF_SHORT, &(LONG){0});
     gi.unicast(ent);
 }
 
@@ -637,18 +637,18 @@ void Get_Portrait_f(LPEDICT ent) {
 
     count = UI_SelectedUnits(ent->client, selected, MAX_SELECTED_ENTITIES);
 
-    gi.WriteByte(svc_layout);
-    gi.WriteByte(LAYER_PORTRAIT);
+    gi.Write(PF_BYTE, &(LONG){svc_layout});
+    gi.Write(PF_BYTE, &(LONG){LAYER_PORTRAIT});
     ui_next_frame_number = 1;
     if (count == 1) {
         UI_WritePortraitFrame(selected[0]);
     }
-    gi.WriteLong(0);
-    gi.WriteShort(0);
+    gi.Write(PF_LONG, &(LONG){0});
+    gi.Write(PF_SHORT, &(LONG){0});
     gi.unicast(ent);
 
-    gi.WriteByte(svc_layout);
-    gi.WriteByte(LAYER_INFOPANEL);
+    gi.Write(PF_BYTE, &(LONG){svc_layout});
+    gi.Write(PF_BYTE, &(LONG){LAYER_INFOPANEL});
     ui_next_frame_number = 1;
     if (count == 1) {
         if (selected[0]->build) {
@@ -659,18 +659,18 @@ void Get_Portrait_f(LPEDICT ent) {
     } else if (count > 1) {
         UI_WriteMultiselect(selected, count);
     }
-    gi.WriteLong(0);
-    gi.WriteShort(0);
+    gi.Write(PF_LONG, &(LONG){0});
+    gi.Write(PF_SHORT, &(LONG){0});
     gi.unicast(ent);
 
-    gi.WriteByte(svc_layout);
-    gi.WriteByte(LAYER_INVENTORY);
+    gi.Write(PF_BYTE, &(LONG){svc_layout});
+    gi.Write(PF_BYTE, &(LONG){LAYER_INVENTORY});
     ui_next_frame_number = 1;
     if (count == 1) {
         UI_WriteInventory(selected[0]);
     }
-    gi.WriteLong(0);
-    gi.WriteShort(0);
+    gi.Write(PF_LONG, &(LONG){0});
+    gi.Write(PF_SHORT, &(LONG){0});
     gi.unicast(ent);
 }
 
@@ -752,8 +752,8 @@ void UI_ShowQuest(LPEDICT ent, LPCQUEST quest) {
         return;
     }
 
-    gi.WriteByte(svc_layout);
-    gi.WriteByte(LAYER_QUESTDIALOG);
+    gi.Write(PF_BYTE, &(LONG){svc_layout});
+    gi.Write(PF_BYTE, &(LONG){LAYER_QUESTDIALOG});
     ui_next_frame_number = 1;
 
     UI_WriteBackdropFrame(QUEST_X, QUEST_Y, QUEST_W, QUEST_H, "ToolTipBackground", "ToolTipBorder");
@@ -831,8 +831,8 @@ void UI_ShowQuest(LPEDICT ent, LPCQUEST quest) {
                              FONT_JUSTIFYCENTER,
                              HUD_FONT_SIZE);
 
-    gi.WriteLong(0);
-    gi.WriteShort(0);
+    gi.Write(PF_LONG, &(LONG){0});
+    gi.Write(PF_SHORT, &(LONG){0});
     gi.unicast(ent);
 }
 
@@ -877,8 +877,8 @@ void UI_ShowText(LPEDICT ent, LPCVECTOR2 pos, LPCSTR text, FLOAT duration) {
     if (x < 0.0f || x > UI_BASE_WIDTH) {
         x = 0.0500f;
     }
-    gi.WriteByte(svc_layout);
-    gi.WriteByte(LAYER_MESSAGE);
+    gi.Write(PF_BYTE, &(LONG){svc_layout});
+    gi.Write(PF_BYTE, &(LONG){LAYER_MESSAGE});
     ui_next_frame_number = 1;
     message = UI_FormatMessageText(UI_LevelStringSafe(text));
     UI_WriteTextAreaFrame(x,
@@ -889,8 +889,8 @@ void UI_ShowText(LPEDICT ent, LPCVECTOR2 pos, LPCSTR text, FLOAT duration) {
                           COLOR32_WHITE,
                           HUD_FONT_SIZE,
                           0.0f);
-    gi.WriteLong(0);
-    gi.WriteShort(0);
+    gi.Write(PF_LONG, &(LONG){0});
+    gi.Write(PF_SHORT, &(LONG){0});
     gi.unicast(ent);
 }
 
@@ -898,8 +898,8 @@ void UI_AddCancelButton(LPEDICT ent) {
     UI_SetCurrentClient(ent ? ent->client : NULL);
     UI_WriteStart(LAYER_COMMANDBAR);
     UI_AddCommandButton(STR_CmdCancel);
-    gi.WriteLong(0);
-    gi.WriteShort(0);
+    gi.Write(PF_LONG, &(LONG){0});
+    gi.Write(PF_SHORT, &(LONG){0});
     gi.unicast(ent);
     UI_SetCurrentClient(NULL);
 }
@@ -936,7 +936,7 @@ FLOAT Theme_Float(LPCSTR key, LPCSTR def) {
 }
 
 void UI_WriteStart(DWORD layer) {
-    gi.WriteByte(svc_layout);
-    gi.WriteByte(layer);
+    gi.Write(PF_BYTE, &(LONG){svc_layout});
+    gi.Write(PF_BYTE, &(LONG){layer});
     ui_next_frame_number = 1;
 }

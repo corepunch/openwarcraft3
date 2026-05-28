@@ -246,9 +246,9 @@ BOOL move_selectlocation(LPEDICT clent, LPCVECTOR2 location) {
         }
         order_move(ent, waypoint);
     }
-    gi.WriteByte(svc_temp_entity);
-    gi.WriteByte(TE_MOVE_CONFIRMATION);
-    gi.WritePosition(&MAKE(VECTOR3, confirmation.x, confirmation.y, 0));
+    gi.Write(PF_BYTE, &(LONG){svc_temp_entity});
+    gi.Write(PF_BYTE, &(LONG){TE_MOVE_CONFIRMATION});
+    gi.Write(PF_POSITION, &(VECTOR3){confirmation.x, confirmation.y, 0});
     gi.unicast(clent);
     return true;
 }

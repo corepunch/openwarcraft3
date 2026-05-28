@@ -18,6 +18,19 @@ struct link_s {
     LPLINK prev, next;
 };
 
+typedef enum {
+    PF_BYTE,
+    PF_SHORT,
+    PF_LONG,
+    PF_FLOAT,
+    PF_STRING,
+    PF_POSITION,
+    PF_DIRECTION,
+    PF_ANGLE,
+    PF_ENTITY,
+    PF_UIFRAME,
+} pfWriteType_t;
+
 struct game_import {
     HANDLE (*MemAlloc)(long size);
     void (*MemFree)(HANDLE);
@@ -41,16 +54,7 @@ struct game_import {
     LPCSTR (*FindSheetCell)(sheetRow_t *sheet, LPCSTR row, LPCSTR column);
     void (*multicast)(LPCVECTOR3 origin, multicast_t to);
     void (*unicast)(edict_t *ent);
-    void (*WriteByte)(LONG c);
-    void (*WriteShort)(LONG c);
-    void (*WriteLong)(LONG c);
-    void (*WriteFloat)(FLOAT f);
-    void (*WriteString)(LPCSTR s);
-    void (*WritePosition)(LPCVECTOR3 pos);
-    void (*WriteDirection)(LPCVECTOR3 dir);
-    void (*WriteAngle)(FLOAT f);
-    void (*WriteEntity)(LPCENTITYSTATE ent);
-    void (*WriteUIFrame)(LPCUIFRAME frame);
+    void (*Write)(pfWriteType_t type, void const *value);
 
     void (*configstring)(DWORD index, LPCSTR string);
     void (*confignstring)(DWORD index, LPCSTR string, DWORD len);

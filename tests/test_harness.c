@@ -152,16 +152,7 @@ static int    mock_FontIndex(LPCSTR n, DWORD s)         { (void)n; (void)s; retu
 static HANDLE mock_ReadFile(LPCSTR f, LPDWORD s)        { (void)f; if (s) *s=0; return NULL; }
 static void   mock_multicast(LPCVECTOR3 o, multicast_t t) { (void)o; (void)t; }
 static void   mock_unicast(edict_t *e)                  { (void)e; }
-static void   mock_WriteByte(LONG c)                    { (void)c; }
-static void   mock_WriteShort(LONG c)                   { (void)c; }
-static void   mock_WriteLong(LONG c)                    { (void)c; }
-static void   mock_WriteFloat(FLOAT f)                  { (void)f; }
-static void   mock_WriteString(LPCSTR s)                { (void)s; }
-static void   mock_WritePosition(LPCVECTOR3 p)          { (void)p; }
-static void   mock_WriteDirection(LPCVECTOR3 d)         { (void)d; }
-static void   mock_WriteAngle(FLOAT f)                  { (void)f; }
-static void   mock_WriteEntity(LPCENTITYSTATE e)        { (void)e; }
-static void   mock_WriteUIFrame(LPCUIFRAME f)           { (void)f; }
+static void   mock_Write(pfWriteType_t type, void const *value) { (void)type; (void)value; }
 static void   mock_configstring(DWORD i, LPCSTR s)      { (void)i; (void)s; }
 static void   mock_confignstring(DWORD i, LPCSTR s, DWORD l) { (void)i; (void)s; (void)l; }
 static void   mock_error(LPCSTR fmt, ...)               { (void)fmt; }
@@ -250,16 +241,7 @@ void setup_game(void) {
     gi.FindSheetCell       = mock_FindSheetCell;
     gi.multicast           = mock_multicast;
     gi.unicast             = mock_unicast;
-    gi.WriteByte           = mock_WriteByte;
-    gi.WriteShort          = mock_WriteShort;
-    gi.WriteLong           = mock_WriteLong;
-    gi.WriteFloat          = mock_WriteFloat;
-    gi.WriteString         = mock_WriteString;
-    gi.WritePosition       = mock_WritePosition;
-    gi.WriteDirection      = mock_WriteDirection;
-    gi.WriteAngle          = mock_WriteAngle;
-    gi.WriteEntity         = mock_WriteEntity;
-    gi.WriteUIFrame        = mock_WriteUIFrame;
+    gi.Write              = mock_Write;
     gi.configstring        = mock_configstring;
     gi.confignstring       = mock_confignstring;
     gi.error               = mock_error;
