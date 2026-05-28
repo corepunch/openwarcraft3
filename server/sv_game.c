@@ -698,9 +698,6 @@ void SV_InitGameProgs(void) {
     import.ImageIndex = SV_ImageIndex;
     import.SoundIndex = SV_SoundIndex;
     import.FontIndex = SV_FontIndex;
-    import.ReadSheet = FS_ParseSLK;
-    import.ReadConfig = FS_ParseINI;
-    import.FindSheetCell = FS_FindSheetCell;
     import.GetTime = SV_GetTime;
     import.GetAnimation = SV_GetAnimation;
     import.GetHeightAtPoint = CM_GetHeightAtPoint;
