@@ -52,27 +52,6 @@
  * Host interface implementation
  * ========================================================================= */
 
-static void noop_remove_comments(LPSTR buf) {
-    /* Strip single-line // comments */
-    for (LPSTR p = buf; *p; p++) {
-        if (p[0] == '/' && p[1] == '/') {
-            while (*p && *p != '\n') {
-                *p++ = ' ';
-            }
-        }
-    }
-}
-
-static BOMStatus noop_remove_bom(LPSTR buf) {
-    /* UTF-8 BOM: EF BB BF */
-    unsigned char *u = (unsigned char *)buf;
-    if (u[0] == 0xEF && u[1] == 0xBB && u[2] == 0xBF) {
-        memmove(buf, buf + 3, strlen(buf + 3) + 1);
-        return BOM_UTF8;
-    }
-    return BOM_NONE;
-}
-
 static LPSTR read_file(LPCSTR filename) {
     FILE *f = fopen(filename, "rb");
     if (!f) {
@@ -104,8 +83,6 @@ static JASSHOST make_host(void) {
         .MemFree            = Tool_MemFree,
         .GetTime            = get_time_ms,
         .ReadFileIntoString = read_file,
-        .TextRemoveComments = noop_remove_comments,
-        .TextRemoveBom      = noop_remove_bom,
         .natives            = NULL,
         .GetPlayerByNumber  = NULL,
     );
