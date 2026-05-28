@@ -1536,10 +1536,16 @@ void jass_close(LPJASS j) {
 }
 
 BOOL jass_dofile(LPJASS j, LPCSTR fileName) {
-    LPSTR buffer = jass_host.ReadFileIntoString(fileName);
+    DWORD size = 0;
+    LPSTR buffer = jass_host.ReadFile(fileName, &size);
     if (buffer) {
-        BOOL success = jass_dobuffer(j, buffer);
+        /* ReadFile does not NUL-terminate; append one so dobuffer can work in-place. */
+        LPSTR nul_terminated = jass_alloc(size + 1);
+        memcpy(nul_terminated, buffer, size);
+        nul_terminated[size] = '\0';
         jass_free(buffer);
+        BOOL success = jass_dobuffer(j, nul_terminated);
+        jass_free(nul_terminated);
         return success;
     } else {
         return false;

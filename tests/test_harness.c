@@ -152,7 +152,6 @@ static int    mock_ModelIndex(LPCSTR name)              { (void)name; return 0; 
 static int    mock_SoundIndex(LPCSTR name)              { (void)name; return 0; }
 static int    mock_ImageIndex(LPCSTR name)              { (void)name; return 0; }
 static int    mock_FontIndex(LPCSTR n, DWORD s)         { (void)n; (void)s; return 0; }
-static LPSTR  mock_ReadFileIntoString(LPCSTR f)         { (void)f; return NULL; }
 static HANDLE mock_ReadFile(LPCSTR f, LPDWORD s)        { (void)f; if (s) *s=0; return NULL; }
 static void   mock_multicast(LPCVECTOR3 o, multicast_t t) { (void)o; (void)t; }
 static void   mock_unicast(edict_t *e)                  { (void)e; }
@@ -248,7 +247,6 @@ void setup_game(void) {
     gi.BoxEdicts           = mock_BoxEdicts;
     gi.GetFlowDirection    = mock_GetFlowDirection;
     gi.GetHeightAtPoint    = mock_GetHeightAtPoint;
-    gi.ReadFileIntoString  = mock_ReadFileIntoString;
     gi.ReadFile            = mock_ReadFile;
     gi.GetTime             = mock_GetTime;
     gi.ReadSheet           = mock_ReadSheet;

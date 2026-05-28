@@ -52,7 +52,7 @@
  * Host interface implementation
  * ========================================================================= */
 
-static LPSTR read_file(LPCSTR filename) {
+static HANDLE read_file(LPCSTR filename, DWORD *out_size) {
     FILE *f = fopen(filename, "rb");
     if (!f) {
         fprintf(stderr, "jass: cannot open '%s': %s\n", filename, strerror(errno));
@@ -61,14 +61,14 @@ static LPSTR read_file(LPCSTR filename) {
     fseek(f, 0, SEEK_END);
     long size = ftell(f);
     fseek(f, 0, SEEK_SET);
-    LPSTR buf = Tool_MemAlloc(size + 1);
+    LPSTR buf = Tool_MemAlloc(size);
     if (!buf) {
         fclose(f);
         return NULL;
     }
     fread(buf, 1, size, f);
-    buf[size] = '\0';
     fclose(f);
+    *out_size = (DWORD)size;
     return buf;
 }
 
@@ -82,7 +82,7 @@ static JASSHOST make_host(void) {
         .MemAlloc           = Tool_MemAlloc,
         .MemFree            = Tool_MemFree,
         .GetTime            = get_time_ms,
-        .ReadFileIntoString = read_file,
+        .ReadFile = read_file,
         .natives            = NULL,
         .GetPlayerByNumber  = NULL,
     );

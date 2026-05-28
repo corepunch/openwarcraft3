@@ -35,7 +35,6 @@ struct game_import {
     void (*MenuAction)(LPCSTR action, LPCSTR arg);
     VECTOR2 (*GetFlowDirection)(DWORD heatmapindex, FLOAT fx, FLOAT fy);
     FLOAT (*GetHeightAtPoint)(FLOAT x, FLOAT y);
-    LPSTR (*ReadFileIntoString)(LPCSTR filename);
     HANDLE (*ReadFile)(LPCSTR filename, LPDWORD size);
     DWORD (*GetTime)(void);
     sheetRow_t *(*ReadSheet)(LPCSTR sheetFilename);
