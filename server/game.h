@@ -27,7 +27,6 @@ struct game_import {
     int (*FontIndex)(LPCSTR fontName, DWORD fontSize);
     LPCANIMATION (*GetAnimation)(DWORD modelindex, LPCSTR name);
     DWORD (*BuildHeatmap)(LPEDICT goalentity);
-    BOOL (*ClosestPathablePoint)(LPCVECTOR2 location, LPVECTOR2 out);
     BOOL (*ClosestPathablePointForRadius)(LPCVECTOR2 location, FLOAT radius, LPVECTOR2 out);
     void (*LinkEntity)(LPEDICT ent);
     void (*UnlinkEntity)(LPEDICT ent);

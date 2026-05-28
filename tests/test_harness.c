@@ -123,9 +123,6 @@ static BOOL mock_ClosestPathablePointForRadius(LPCVECTOR2 location, FLOAT radius
     return true;
 }
 
-static BOOL mock_ClosestPathablePoint(LPCVECTOR2 location, LPVECTOR2 out) {
-    return mock_ClosestPathablePointForRadius(location, 0, out);
-}
 
 static sheetRow_t *mock_ReadSheet(LPCSTR filename) {
     (void)filename;
@@ -240,7 +237,6 @@ void setup_game(void) {
     gi.FontIndex           = mock_FontIndex;
     gi.GetAnimation        = mock_GetAnimation;
     gi.BuildHeatmap        = mock_BuildHeatmap;
-    gi.ClosestPathablePoint = mock_ClosestPathablePoint;
     gi.ClosestPathablePointForRadius = mock_ClosestPathablePointForRadius;
     gi.LinkEntity          = mock_LinkEntity;
     gi.UnlinkEntity        = mock_UnlinkEntity;
