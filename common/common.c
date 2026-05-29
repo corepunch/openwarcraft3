@@ -819,14 +819,15 @@ BOMStatus PF_TextRemoveBom(LPSTR buffer) {
     if (!buffer) {
         return INVALID_BOM;
     }
-    if (memcmp(buffer, utf8_bom, 3) == 0) {
-        memmove(buffer, buffer + 3, strlen(buffer + 3) + 1);
+    size_t len = strlen(buffer);
+    if (len >= 3 && memcmp(buffer, utf8_bom, 3) == 0) {
+        memmove(buffer, buffer + 3, len - 3 + 1);
         return UTF8_BOM_FOUND;
-    } else if (memcmp(buffer, utf16le_bom, 2) == 0) {
-        memmove(buffer, buffer + 2, strlen(buffer + 2) + 1);
+    } else if (len >= 2 && memcmp(buffer, utf16le_bom, 2) == 0) {
+        memmove(buffer, buffer + 2, len - 2 + 1);
         return UTF16LE_BOM_FOUND;
-    } else if (memcmp(buffer, utf16be_bom, 2) == 0) {
-        memmove(buffer, buffer + 2, strlen(buffer + 2) + 1);
+    } else if (len >= 2 && memcmp(buffer, utf16be_bom, 2) == 0) {
+        memmove(buffer, buffer + 2, len - 2 + 1);
         return UTF16BE_BOM_FOUND;
     }
     return NO_BOM;

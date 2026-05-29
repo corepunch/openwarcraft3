@@ -15,6 +15,9 @@ void run_ui_fdf_tests(void);
 void run_ui_layout_tests(void);
 void run_ui_logo_layout_tests(void);
 void run_tool_common_tests(void);
+void run_ui_e2e_tests(void);
+void run_ui_oracle_tests(void);
+void run_ui_serialize_tests(void);
 
 int main(void) {
     printf("=== OpenWarcraft3 UI Test Gate ===\n\n");
@@ -33,6 +36,18 @@ int main(void) {
 
     printf("[Tool common helpers]\n");
     run_tool_common_tests();
+    printf("\n");
+
+    printf("[UI e2e]\n");
+    run_ui_e2e_tests();
+    printf("\n");
+
+    printf("[UI oracle]\n");
+    run_ui_oracle_tests();
+    printf("\n");
+
+    printf("[UI serialize]\n");
+    run_ui_serialize_tests();
     printf("\n");
 
     TEST_RESULTS();
