@@ -445,6 +445,7 @@ void UI_InitLocal(void) {
     }
 
     /* Route to the configured first menu scene. */
+    UI_ResetRouter();
     LPCSTR start_route = uiimport.Cvar_String
         ? uiimport.Cvar_String("ui_start_route", "/main")
         : "/main";
@@ -453,6 +454,7 @@ void UI_InitLocal(void) {
 
 void UI_ShutdownLocal(void) {
     UI_ResetGlueSceneModels();
+    UI_ResetRouter();
     UI_ClearTemplates();
     memset(&ui_state, 0, sizeof(ui_state));
 }

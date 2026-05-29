@@ -4,6 +4,7 @@
 
 #include "test_framework.h"
 #include "../ui/ui_local.h"
+#include "../ui/ui_dialog.h"
 #include "../ui/ui_screen.h"
 
 static void setup_game(void) {}
@@ -989,13 +990,63 @@ static void test_esc_menu_confirm_quit_panel_is_available(void) {
     ASSERT_STR_EQ(message->Text, "CONFIRM_EXIT_MESSAGE");
 }
 
+static void test_dialog_war3_supports_configurable_button_modes(void) {
+    LPCSTR files[] = {
+        "UI\\FrameDef\\GlobalStrings.fdf",
+        "UI\\FrameDef\\Glue\\StandardTemplates.fdf",
+        "UI\\FrameDef\\Glue\\DialogWar3.fdf",
+    };
+    LPFRAMEDEF root;
+    uiDialogWar3_t dialog;
+    uiDialogWar3Init_t init = {
+        .modal_name = "TestDialogModal",
+        .cover_name = "TestDialogModalCover",
+        .template_name = "DialogWar3",
+    };
+    uiDialogWar3Config_t config = {
+        .message = "CONFIRM_EXIT_MESSAGE",
+        .icon = UI_DIALOG_WAR3_ICON_ERROR,
+        .buttons = UI_DIALOG_WAR3_BUTTONS_OK,
+        .ok_route = "menu /main/main",
+    };
+
+    load_ui_files(files, sizeof(files) / sizeof(files[0]));
+    uiimport.GetRenderer = test_get_renderer;
+    uiimport.Printf = test_ui_printf;
+
+    root = UI_Spawn(FT_FRAME, NULL);
+    if (!require_not_null(root)) return;
+    snprintf(root->Name, sizeof(root->Name), "%s", "TestDialogRoot");
+    UI_SetSize(root, UI_BASE_WIDTH, UI_BASE_HEIGHT);
+
+    ASSERT(UI_DialogWar3Init(&dialog, root, &init));
+    ASSERT(!UI_DialogWar3Visible(&dialog));
+
+    UI_DialogWar3Show(&dialog, &config);
+    ASSERT(UI_DialogWar3Visible(&dialog));
+    ASSERT_STR_EQ(dialog.text->Text, "Are you sure you want to exit?");
+    ASSERT(dialog.cover->Texture.Image != 0);
+    ASSERT_EQ_INT(dialog.cover->Color.a, 128);
+    ASSERT(dialog.icon->Backdrop.Background != 0);
+    ASSERT(!dialog.ok_backdrop->hidden);
+    ASSERT(dialog.no_backdrop->hidden);
+    ASSERT(dialog.yes_backdrop->hidden);
+    ASSERT_STR_EQ(dialog.ok_button->OnClick, "menu /main/main");
+
+    UI_DialogWar3Hide(&dialog);
+    ASSERT(!UI_DialogWar3Visible(&dialog));
+}
+
 static void test_main_menu_quit_dialog_routes_to_quit(void) {
     LPCSTR files[] = {
         "UI\\FrameDef\\GlobalStrings.fdf",
+        "UI\\FrameDef\\UI\\EscMenuTemplates.fdf",
+        "UI\\FrameDef\\UI\\EscMenuMainPanel.fdf",
         "UI\\FrameDef\\Glue\\StandardTemplates.fdf",
         "UI\\FrameDef\\Glue\\MainMenu.fdf",
         "UI\\FrameDef\\Glue\\DialogWar3.fdf",
     };
+    LPFRAMEDEF global_exit_button;
     LPFRAMEDEF exit_button;
     LPFRAMEDEF modal;
     LPFRAMEDEF cover;
@@ -1019,11 +1070,13 @@ static void test_main_menu_quit_dialog_routes_to_quit(void) {
 
     mainMenuScreen.init();
 
-    exit_button = UI_FindFrame("ExitButton");
+    global_exit_button = UI_FindFrame("ExitButton");
+    exit_button = UI_FindChildFrame(UI_FindFrame("MainMenuFrame"), "ExitButton");
     if (!require_not_null(exit_button)) {
         uiimport = saved;
         return;
     }
+    ASSERT(global_exit_button != exit_button);
     ASSERT(!exit_button->hidden);
     ASSERT_STR_EQ(exit_button->OnClick, "menu /main/quit-confirm");
 
@@ -1089,7 +1142,7 @@ static void test_main_menu_quit_dialog_routes_to_quit(void) {
         return;
     }
 
-    ASSERT_STR_EQ(message->Text, "Are you sure you want to exit?");
+    ASSERT_STR_EQ(message->Text, "Do you want to Quit?");
     ASSERT(icon->Backdrop.Background != 0);
     ASSERT(ok_backdrop->hidden);
     ASSERT(!no_backdrop->hidden);
@@ -1148,5 +1201,6 @@ BEGIN_SUITE(ui_fdf)
     RUN_TEST(test_duplicate_name_prefers_first_template);
     RUN_TEST(test_unknown_token_does_not_crash_existing_definitions);
     RUN_TEST(test_esc_menu_confirm_quit_panel_is_available);
+    RUN_TEST(test_dialog_war3_supports_configurable_button_modes);
     RUN_TEST(test_main_menu_quit_dialog_routes_to_quit);
 END_SUITE()

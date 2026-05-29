@@ -15,6 +15,7 @@
  */
 
 #include "../ui_local.h"
+#include "../ui_dialog.h"
 #include "../ui_screen.h"
 
 /* Frame references */
@@ -22,98 +23,31 @@ static LPFRAMEDEF frame_MainMenu = NULL;
 static LPFRAMEDEF frame_ControlLayer = NULL;
 static LPFRAMEDEF frame_RealmSelect = NULL;
 static LPFRAMEDEF frame_Logo = NULL;
-static LPFRAMEDEF frame_QuitModal = NULL;
-static LPFRAMEDEF frame_QuitDialog = NULL;
-static LPFRAMEDEF frame_QuitDialogText = NULL;
-static LPFRAMEDEF frame_QuitDialogIcon = NULL;
-static LPFRAMEDEF frame_QuitDialogOkBackdrop = NULL;
-static LPFRAMEDEF frame_QuitDialogNoBackdrop = NULL;
-static LPFRAMEDEF frame_QuitDialogYesBackdrop = NULL;
-static LPFRAMEDEF frame_QuitDialogNoButton = NULL;
-static LPFRAMEDEF frame_QuitDialogYesButton = NULL;
+static uiDialogWar3_t quit_dialog;
 
 /* State */
 static BOOL show_realm_select = false;
 
-static void MainMenu_SetQuitModalVisible(BOOL visible) {
-    if (frame_QuitModal) {
-        UI_SetHidden(frame_QuitModal, !visible);
-    }
-    if (frame_QuitDialog) {
-        UI_SetHidden(frame_QuitDialog, !visible);
-    }
+static void MainMenu_InitQuitDialog(void) {
+    uiDialogWar3Init_t init = {
+        .modal_name = "MainMenuQuitModal",
+        .cover_name = "MainMenuQuitModalCover",
+        .template_name = "DialogWar3",
+    };
+
+    UI_DialogWar3Init(&quit_dialog, frame_MainMenu, &init);
 }
 
-static void MainMenu_InitQuitDialog(void) {
-    LPFRAMEDEF template_dialog;
-    LPFRAMEDEF cover;
+static void MainMenu_ShowQuitDialog(void) {
+    uiDialogWar3Config_t config = {
+        .message = "Do you want to Quit?",
+        .icon = UI_DIALOG_WAR3_ICON_QUESTION,
+        .buttons = UI_DIALOG_WAR3_BUTTONS_YES_NO,
+        .no_route = "menu /main/main",
+        .yes_route = "menu /quit",
+    };
 
-    frame_QuitModal = UI_FindFrame("MainMenuQuitModal");
-    if (!frame_QuitModal) {
-        frame_QuitModal = UI_Spawn(FT_DIALOG, frame_MainMenu);
-        if (!frame_QuitModal) {
-            uiimport.Printf("ERROR: failed to create MainMenuQuitModal\n");
-            return;
-        }
-        snprintf(frame_QuitModal->Name, sizeof(frame_QuitModal->Name), "%s", "MainMenuQuitModal");
-        UI_SetPoint(frame_QuitModal, FRAMEPOINT_TOPLEFT, frame_MainMenu, FRAMEPOINT_TOPLEFT, 0.0f, 0.0f);
-        UI_SetPoint(frame_QuitModal, FRAMEPOINT_BOTTOMRIGHT, frame_MainMenu, FRAMEPOINT_BOTTOMRIGHT, 0.0f, 0.0f);
-
-        /* DialogWar3 provides the frame; the black cover is code-owned like WarSmash's modal veil. */
-        cover = UI_Spawn(FT_TEXTURE, frame_QuitModal);
-        if (cover) {
-            snprintf(cover->Name, sizeof(cover->Name), "%s", "MainMenuQuitModalCover");
-            UI_SetPoint(cover, FRAMEPOINT_TOPLEFT, frame_QuitModal, FRAMEPOINT_TOPLEFT, 0.0f, 0.0f);
-            UI_SetPoint(cover, FRAMEPOINT_BOTTOMRIGHT, frame_QuitModal, FRAMEPOINT_BOTTOMRIGHT, 0.0f, 0.0f);
-            cover->Texture.Image = UI_LoadTexture("Textures\\Black32.blp", false);
-            cover->Color = MAKE(COLOR32, 255, 255, 255, 128);
-        }
-    } else {
-        UI_SetParent(frame_QuitModal, frame_MainMenu);
-    }
-
-    frame_QuitDialog = UI_FindChildFrame(frame_QuitModal, "DialogWar3");
-    if (!frame_QuitDialog) {
-        template_dialog = UI_FindFrame("DialogWar3");
-        if (!template_dialog) {
-            uiimport.Printf("ERROR: DialogWar3 not found\n");
-            MainMenu_SetQuitModalVisible(false);
-            return;
-        }
-        frame_QuitDialog = UI_CloneFrameTree(template_dialog, frame_QuitModal);
-        if (!frame_QuitDialog) {
-            uiimport.Printf("ERROR: failed to clone DialogWar3\n");
-            MainMenu_SetQuitModalVisible(false);
-            return;
-        }
-    }
-    UI_SetParent(frame_QuitDialog, frame_QuitModal);
-    UI_SetPoint(frame_QuitDialog, FRAMEPOINT_CENTER, frame_QuitModal, FRAMEPOINT_CENTER, 0.0f, 0.0f);
-
-    frame_QuitDialogText = UI_FindChildFrame(frame_QuitDialog, "DialogText");
-    frame_QuitDialogIcon = UI_FindChildFrame(frame_QuitDialog, "DialogIcon");
-    frame_QuitDialogOkBackdrop = UI_FindChildFrame(frame_QuitDialog, "DialogButtonOKBackdrop");
-    frame_QuitDialogNoBackdrop = UI_FindChildFrame(frame_QuitDialog, "DialogButtonNoBackdrop");
-    frame_QuitDialogYesBackdrop = UI_FindChildFrame(frame_QuitDialog, "DialogButtonYesBackdrop");
-    frame_QuitDialogNoButton = UI_FindChildFrame(frame_QuitDialog, "DialogButtonNo");
-    frame_QuitDialogYesButton = UI_FindChildFrame(frame_QuitDialog, "DialogButtonYes");
-
-    if (frame_QuitDialogText) {
-        UI_SetText(frame_QuitDialogText, "CONFIRM_EXIT_MESSAGE");
-    }
-    if (frame_QuitDialogIcon) {
-        frame_QuitDialogIcon->Backdrop.Background = UI_LoadTexture("UI\\Widgets\\Glues\\dialogbox-question.blp", false);
-    }
-    UI_SetHidden(frame_QuitDialogOkBackdrop, true);
-    UI_SetHidden(frame_QuitDialogNoBackdrop, false);
-    UI_SetHidden(frame_QuitDialogYesBackdrop, false);
-    if (frame_QuitDialogNoButton) {
-        UI_SetOnClick(frame_QuitDialogNoButton, "menu /main/main");
-    }
-    if (frame_QuitDialogYesButton) {
-        UI_SetOnClick(frame_QuitDialogYesButton, "menu /quit");
-    }
-    MainMenu_SetQuitModalVisible(false);
+    UI_DialogWar3Show(&quit_dialog, &config);
 }
 
 static void MainMenu_InitFrames(void) {
@@ -148,13 +82,13 @@ static void MainMenu_InitFrames(void) {
     }
 
     /* Wire button callbacks */
-    UI_FRAME(RealmButton);
-    UI_FRAME(SinglePlayerButton);
-    UI_FRAME(BattleNetButton);
-    UI_FRAME(LocalAreaNetworkButton);
-    UI_FRAME(OptionsButton);
-    UI_FRAME(CreditsButton);
-    UI_FRAME(ExitButton);
+    LPFRAMEDEF RealmButton = UI_FindChildFrame(frame_MainMenu, "RealmButton");
+    LPFRAMEDEF SinglePlayerButton = UI_FindChildFrame(frame_MainMenu, "SinglePlayerButton");
+    LPFRAMEDEF BattleNetButton = UI_FindChildFrame(frame_MainMenu, "BattleNetButton");
+    LPFRAMEDEF LocalAreaNetworkButton = UI_FindChildFrame(frame_MainMenu, "LocalAreaNetworkButton");
+    LPFRAMEDEF OptionsButton = UI_FindChildFrame(frame_MainMenu, "OptionsButton");
+    LPFRAMEDEF CreditsButton = UI_FindChildFrame(frame_MainMenu, "CreditsButton");
+    LPFRAMEDEF ExitButton = UI_FindChildFrame(frame_MainMenu, "ExitButton");
 
     UI_SetOnClick(RealmButton, "menu /realm-select");
     UI_SetOnClick(SinglePlayerButton, "map \"Maps\\Campaign\\Human02.w3m\"");
@@ -215,7 +149,7 @@ static void MainMenu_MouseEvent(int x, int y, int buttons) {
 static void MainMenu_Route(LPCSTR path) {
     /* Handle sub-routes */
     if (!strcmp(path, "/realm-select")) {
-        MainMenu_SetQuitModalVisible(false);
+        UI_DialogWar3Hide(&quit_dialog);
         show_realm_select = true;
         if (frame_RealmSelect) {
             UI_SetHidden(frame_RealmSelect, false);
@@ -225,7 +159,7 @@ static void MainMenu_Route(LPCSTR path) {
         }
     } else if (!strcmp(path, "/main")) {
         show_realm_select = false;
-        MainMenu_SetQuitModalVisible(false);
+        UI_DialogWar3Hide(&quit_dialog);
         if (frame_RealmSelect) {
             UI_SetHidden(frame_RealmSelect, true);
         }
@@ -233,7 +167,7 @@ static void MainMenu_Route(LPCSTR path) {
             UI_SetHidden(frame_ControlLayer, false);
         }
     } else if (!strcmp(path, "/quit-confirm")) {
-        MainMenu_SetQuitModalVisible(true);
+        MainMenu_ShowQuitDialog();
     }
 }
 
