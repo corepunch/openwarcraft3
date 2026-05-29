@@ -266,6 +266,31 @@ static void test_near_goal_jitter_settles_to_stand(void) {
     ASSERT_ANIM(unit, "stand");
 }
 
+static void test_unit_stops_when_goal_is_occupied(void) {
+    LPEDICT unit = make_moving_unit(0.0f, 0.0f);
+    LPEDICT blocker = alloc_test_unit(UNIT_ID("hfoo"), 100.0f, 0.0f);
+    VECTOR2 dest = {100.0f, 0.0f};
+
+    unit->collision = 16.0f;
+    blocker->collision = 16.0f;
+    blocker->stand = unit_stand;
+    unit_stand(blocker);
+    blocker->movetype = MOVETYPE_NONE;
+
+    unit_issueorder(unit, "move", &dest);
+
+    for (int i = 0; i < 20; i++) {
+        if (!unit->currentmove || strcmp(unit->currentmove->animation, "walk") != 0) {
+            break;
+        }
+        unit->currentmove->think(unit);
+        G_SolveCollisions();
+    }
+
+    ASSERT_ANIM(unit, "stand");
+    ASSERT(M_DistanceToGoal(unit) <= unit->collision + blocker->collision + 8.0f);
+}
+
 /* -----------------------------------------------------------------------
  * Suite runner
  * --------------------------------------------------------------------- */
@@ -286,4 +311,5 @@ BEGIN_SUITE(movement)
     RUN_TEST(test_group_move_assigns_distinct_reserved_destinations);
     RUN_TEST(test_blocked_move_stops_instead_of_walking_forever);
     RUN_TEST(test_near_goal_jitter_settles_to_stand);
+    RUN_TEST(test_unit_stops_when_goal_is_occupied);
 END_SUITE()

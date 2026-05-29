@@ -72,7 +72,7 @@ static void MainMenu_InitFrames(void) {
     UI_SetOnClick(LocalAreaNetworkButton, "menu /lan/create");
     UI_SetOnClick(OptionsButton, "menu /options");
     UI_SetOnClick(CreditsButton, "menu /credits");
-    UI_SetOnClick(ExitButton, "menu /quit");
+    UI_SetOnClick(ExitButton, "menu /quit-confirm");
 
     /* Realm select buttons */
     if (frame_RealmSelect) {

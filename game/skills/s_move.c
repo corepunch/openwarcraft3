@@ -21,6 +21,7 @@ void move_walk(LPEDICT ent);
 #define MOVE_SETTLE_FRAMES 4
 #define MOVE_SLOT_MARGIN 8.0f
 #define MOVE_MIN_SLOT_SPACING 16.0f
+#define MOVE_ARRIVE_TOLERANCE 4.0f
 
 typedef struct {
     VECTOR2 point;
@@ -159,6 +160,30 @@ static void move_reset_progress(LPEDICT self) {
     self->move_blocked_frames = 0;
 }
 
+static BOOL move_should_arrive(LPEDICT ent, FLOAT move_distance) {
+    VECTOR2 to_goal = Vector2_sub(&ent->goalentity->s.origin2, &ent->s.origin2);
+    FLOAT distance = Vector2_len(&to_goal);
+
+    if (distance <= move_distance) {
+        return true;
+    }
+
+    /*
+     * If the goal lies within this frame's movement corridor, snap to it
+     * rather than letting the unit wobble around the destination.  This keeps
+     * short path segments and near-goal collision nudges from producing a
+     * visible back-and-forth at the endpoint.
+     */
+    VECTOR2 direction = { cosf(ent->s.angle), sinf(ent->s.angle) };
+    FLOAT projected = Vector2_dot(&to_goal, &direction);
+    if (projected < 0 || projected > move_distance + MOVE_ARRIVE_TOLERANCE) {
+        return false;
+    }
+
+    FLOAT lateral = fabsf(to_goal.x * direction.y - to_goal.y * direction.x);
+    return lateral <= MAX(MOVE_ARRIVE_TOLERANCE, ent->collision + MOVE_SLOT_MARGIN);
+}
+
 static BOOL move_is_blocked(LPEDICT ent, FLOAT distance, FLOAT move_distance) {
     if (ent->move_last_distance >= 0) {
         FLOAT progress = ent->move_last_distance - distance;
@@ -187,7 +212,7 @@ static void ai_move_walk(LPEDICT ent) {
     FLOAT distance = M_DistanceToGoal(ent);
     FLOAT move_distance = unit_movedistance(ent);
 
-    if (distance <= move_distance) {
+    if (move_should_arrive(ent, move_distance)) {
         ent->s.origin2 = ent->goalentity->s.origin2;
         gi.LinkEntity(ent);
         ent->stand(ent);
