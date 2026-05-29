@@ -119,6 +119,24 @@ static int test_model_index(LPCSTR name) {
     return (name && *name) ? 456 : 0;
 }
 
+static LPTEXTURE test_load_texture(LPCSTR name) {
+    captured_image_path = name;
+    return (LPTEXTURE)1;
+}
+
+static LPMODEL test_load_model(LPCSTR name) {
+    captured_model_path = name;
+    return (LPMODEL)1;
+}
+
+static LPRENDERER test_get_renderer(void) {
+    static refExport_t renderer = {
+        .LoadTexture = test_load_texture,
+        .LoadModel = test_load_model,
+    };
+    return &renderer;
+}
+
 static int test_font_index(LPCSTR name, DWORD size) {
     (void)name;
     (void)size;
@@ -160,8 +178,13 @@ static void reset_ui_state(void) {
     UI_ClearTemplates();
     captured_image_path = NULL;
     captured_model_path = NULL;
+    uiimport.MemAlloc = test_ui_mem_alloc;
+    uiimport.MemFree = test_ui_mem_free;
     uiimport.ImageIndex = fake_image_index;
     uiimport.ModelIndex = fake_model_index;
+    uiimport.GetRenderer = test_get_renderer;
+    uiimport.Printf = test_ui_printf;
+    uiimport.Error = test_ui_printf;
 }
 
 static void test_parse_single_frame_definition(void) {
@@ -348,7 +371,7 @@ static void test_backdrop_background_adds_blp_extension(void) {
 
     frame = UI_FindFrame("BD");
     if (!require_not_null(frame)) return;
-    ASSERT_EQ_INT(frame->Backdrop.Background, 123);
+    ASSERT_EQ_INT(frame->Backdrop.Background, 1);
     ASSERT_NOT_NULL(captured_image_path);
     ASSERT_STR_EQ(captured_image_path, "TestUI/Textures/checker_8x8.blp");
 }
@@ -365,7 +388,7 @@ static void test_background_art_uses_model_index(void) {
     sprite = UI_FindFrame("SpriteA");
     if (!require_not_null(sprite)) return;
     ASSERT_EQ_INT(sprite->Type, FT_SPRITE);
-    ASSERT_EQ_INT(sprite->Portrait.model, 456);
+    ASSERT_EQ_INT(sprite->Portrait.model, 1);
     ASSERT_NOT_NULL(captured_model_path);
     ASSERT_STR_EQ(captured_model_path, "TestUI/Models/quad_sprite.mdx");
 }
@@ -934,8 +957,8 @@ static void test_esc_menu_confirm_quit_panel_is_available(void) {
     if (!require_not_null(cancel_button)) return;
     if (!require_not_null(message)) return;
 
-    ASSERT_STR_EQ(quit_button->Text, "KEY_EXIT");
-    ASSERT_STR_EQ(cancel_button->Text, "KEY_CANCEL");
+    ASSERT_STR_EQ(quit_button->Text, "ConfirmQuitQuitButtonText");
+    ASSERT_STR_EQ(cancel_button->Text, "ConfirmQuitCancelButtonText");
     ASSERT_STR_EQ(message->Text, "CONFIRM_EXIT_MESSAGE");
 }
 

@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
-#include "mpq.h"
 
 #include "../common/common.h"
 
@@ -296,10 +295,7 @@ static sheetRow_t *FS_ParseSLK_Buffer(LPCSTR buffer)
 sheetRow_t *FS_ParseSLK(LPCSTR fileName) {
     sheetRow_t *cachedTail = NULL;
     sheetRow_t *cached = SheetCacheLookup(fileName, &cachedTail);
-    HANDLE file;
-    DWORD fileSize;
     LPSTR buffer;
-    DWORD bytesRead = 0;
     sheetRow_t *rows;
 
     if (cached) {
@@ -307,28 +303,12 @@ sheetRow_t *FS_ParseSLK(LPCSTR fileName) {
         return cached;
     }
 
-    file = FS_OpenFile(fileName);
-    if (!file) {
-        return NULL;
-    }
-
-    fileSize = SFileGetFileSize(file, NULL);
-    buffer = MemAlloc(fileSize + 1);
+    buffer = FS_ReadFileIntoString(fileName);
     if (!buffer) {
-        FS_CloseFile(file);
         return NULL;
     }
-
-    if (!SFileReadFile(file, buffer, fileSize, &bytesRead, NULL) || bytesRead == 0) {
-        FS_CloseFile(file);
-        MemFree(buffer);
-        return NULL;
-    }
-    buffer[bytesRead] = '\0';
-    FS_CloseFile(file);
-
     rows = FS_ParseSLK_Buffer(buffer);
-    MemFree(buffer);
+    FS_FreeFileString(buffer);
     if (rows) {
         SheetCacheStore(fileName, rows, last_parsed_sheet_tail);
     }
@@ -439,7 +419,7 @@ sheetRow_t *FS_ParseINI(LPCSTR fileName) {
     } else {
         SheetCacheStore(fileName, config, last_parsed_sheet_tail);
     }
-    MemFree(buffer);
+    FS_FreeFileString(buffer);
     return config;
 }
 

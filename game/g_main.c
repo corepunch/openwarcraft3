@@ -20,9 +20,9 @@
  *   3. G_RunEntities()    — call G_RunEntity() on every live entity.
  *   4. G_SolveCollisions() — resolve entity overlaps (g_phys.c).
  */
+#include "../common/common.h"
 #include "g_local.h"
 #include "g_unitdata.h"
-#include "../common/common.h"
 #include "../jass/jass.h"
 
 struct game_export globals;
@@ -32,18 +32,6 @@ struct level_locals level;
 struct edict_s *g_edicts;
 
 extern JASSMODULE jass_funcs[];
-
-static sheetRow_t *G_ReadSheet(LPCSTR filename) {
-    return FS_ParseSLK(filename);
-}
-
-static sheetRow_t *G_ReadConfig(LPCSTR filename) {
-    return FS_ParseINI(filename);
-}
-
-static LPCSTR G_FindSheetCell(sheetRow_t *sheet, LPCSTR row, LPCSTR column) {
-    return FS_FindSheetCell(sheet, row, column);
-}
 
 LPCSTR miscdata_files[] = {
     "UI\\MiscData.txt",
@@ -56,7 +44,7 @@ LPCSTR miscdata_files[] = {
 };
 
 static void InitMiscValue(LPCSTR name, FLOAT *dest) {
-    LPCSTR strvalue = gi.FindSheetCell(game.config.misc, "Misc", name);
+    LPCSTR strvalue = FS_FindSheetCell(game.config.misc, "Misc", name);
     *dest = strvalue ? atof(strvalue) : 0;
 }
 
@@ -64,7 +52,7 @@ static void InitConstants(void) {
     sheetRow_t *miscTail = NULL;
 
     for (LPCSTR *config = miscdata_files; *config; config++) {
-        sheetRow_t *current = gi.ReadConfig(*config);
+        sheetRow_t *current = FS_ParseINI(*config);
         if (current) {
             sheetRow_t *currentTail = G_SheetTail(current);
 
@@ -165,11 +153,11 @@ static void G_InitGame(void) {
 
     game.max_clients = globals.max_clients;
     game.clients = gi.MemAlloc(game.max_clients * sizeof(GAMECLIENT));
-    game.config.theme = gi.ReadConfig("UI\\war3skins.txt");
-    game.config.splats = gi.ReadSheet("Splats\\SplatData.slk");
-    game.config.uberSplats = gi.ReadSheet("Splats\\UberSplatData.slk");
-    game.config.abilities = gi.ReadSheet("Units\\AbilityData.slk");
-    game.config.items = gi.ReadSheet("Units\\ItemData.slk");
+    game.config.theme = FS_ParseINI("UI\\war3skins.txt");
+    game.config.splats = FS_ParseSLK("Splats\\SplatData.slk");
+    game.config.uberSplats = FS_ParseSLK("Splats\\UberSplatData.slk");
+    game.config.abilities = FS_ParseSLK("Units\\AbilityData.slk");
+    game.config.items = FS_ParseSLK("Units\\ItemData.slk");
     InitConstants();
     InitUnitData();
     InitAbilities();
@@ -256,7 +244,7 @@ static void G_RunFrame(void) {
 static LPCSTR G_GetThemeValue(LPCSTR filename) {
     LPCSTR skinned = NULL;
     if (!strstr(filename, "\\")) {
-        skinned = gi.FindSheetCell(game.config.theme, "Default", filename);
+        skinned = FS_FindSheetCell(game.config.theme, "Default", filename);
     }
     return skinned ? skinned : filename;
 }
@@ -339,15 +327,12 @@ static void G_ClientBegin(LPEDICT edict) {
  * exclusively through the returned function pointers. */
 struct game_export *GetGameAPI(struct game_import *import) {
     gi = *import;
-    if (!gi.ReadSheet) {
-        gi.ReadSheet = G_ReadSheet;
-    }
-    if (!gi.ReadConfig) {
-        gi.ReadConfig = G_ReadConfig;
-    }
-    if (!gi.FindSheetCell) {
-        gi.FindSheetCell = G_FindSheetCell;
-    }
+    FS_SetSheetHost(&MAKE(SHEETHOST,
+        .ReadFile = gi.ReadFile,
+        .FreeFile = (void (*)(HANDLE))gi.MemFree,
+        .MemAlloc = gi.MemAlloc,
+        .MemFree = gi.MemFree,
+    ));
     globals.Init = G_InitGame;
     globals.Shutdown = G_ShutdownGame;
     globals.SpawnEntities = G_SpawnEntities;

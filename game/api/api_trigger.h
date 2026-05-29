@@ -13,24 +13,14 @@ DWORD ResetTrigger(LPJASS j) {
 }
 DWORD EnableTrigger(LPJASS j) {
     LPTRIGGER whichTrigger = jass_checkhandle(j, 1, "trigger");
-    LPCSTR funcName = jass_functionname(jass_getcontext(j)->func);
+    (void)j;
     whichTrigger->disabled = false;
-    fprintf(stderr,
-            "JASS trigger enabled: trigger=%p func=%s time=%u\n",
-            (void *)whichTrigger,
-            funcName ? funcName : "<unknown>",
-            (unsigned)gi.GetTime());
     return 0;
 }
 DWORD DisableTrigger(LPJASS j) {
     LPTRIGGER whichTrigger = jass_checkhandle(j, 1, "trigger");
-    LPCSTR funcName = jass_functionname(jass_getcontext(j)->func);
+    (void)j;
     whichTrigger->disabled = true;
-    fprintf(stderr,
-            "JASS trigger disabled: trigger=%p func=%s time=%u\n",
-            (void *)whichTrigger,
-            funcName ? funcName : "<unknown>",
-            (unsigned)gi.GetTime());
     return 0;
 }
 DWORD IsTriggerEnabled(LPJASS j) {
@@ -241,13 +231,7 @@ DWORD TriggerAddAction(LPJASS j) {
     LPTRIGGER whichTrigger = jass_checkhandle(j, 1, "trigger");
     TRIGGERACTION *action = gi.MemAlloc(sizeof(TRIGGERACTION));
     action->func = jass_checkcode(j, 2);
-    LPCSTR funcName = jass_functionname(action->func);
     ADD_TO_LIST(action, whichTrigger->actions);
-    fprintf(stderr,
-            "TriggerAddAction: trigger=%p action=%s time=%u\n",
-            (void *)whichTrigger,
-            funcName ? funcName : "<null>",
-            (unsigned)gi.GetTime());
     return jass_pushlighthandle(j, action, "triggeraction");
 }
 DWORD TriggerRemoveAction(LPJASS j) {

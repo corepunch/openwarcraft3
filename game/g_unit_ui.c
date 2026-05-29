@@ -68,7 +68,7 @@ static LPCSTR G_RemoveQuotes(LPCSTR text) {
 }
 
 static LPCSTR G_AbilityString(LPCSTR classname, LPCSTR field) {
-    return game.config.abilities ? gi.FindSheetCell(game.config.abilities, classname, field) : NULL;
+    return game.config.abilities ? FS_FindSheetCell(game.config.abilities, classname, field) : NULL;
 }
 
 static LPCSTR G_ProcessTooltipString(LPCSTR input) {
@@ -223,7 +223,7 @@ BYTE G_GetCommandButtons(LPEDICT ent, gameCommandButton_t *buttons, BYTE max_but
         G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdSelectSkill, false, 0);
     } else if (UNIT_ABILITIES_NORMAL(ent->class_id)) {
         PARSE_LIST(UNIT_ABILITIES_NORMAL(ent->class_id), abil, parse_segment) {
-            LPCSTR code = game.config.abilities ? gi.FindSheetCell(game.config.abilities, abil, "code") : NULL;
+            LPCSTR code = game.config.abilities ? FS_FindSheetCell(game.config.abilities, abil, "code") : NULL;
             if (code && G_IsImplementedAbility(code)) {
                 G_AddCommandButton(ent, buttons, max_buttons, &count, code, false, 0);
             }

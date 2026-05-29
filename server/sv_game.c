@@ -687,7 +687,7 @@ void PF_Sleep(DWORD msec) {
 }
 
 void SV_InitGameProgs(void) {
-    struct game_import import;
+    struct game_import import = { 0 };
     
     import.multicast = PF_Multicast;
     import.unicast = PF_Unicast;

@@ -32,16 +32,6 @@ static inline void Viewer_OrbitInit(viewer_orbit_t *orbit, VECTOR3 target, float
 static inline void Viewer_OrbitBuildCamera(viewer_orbit_t const *orbit, float aspect, float fov, float znear, float zfar, LPMATRIX4 output);
 static inline void Viewer_OrbitBuildLight(viewer_orbit_t const *orbit, LPCVECTOR3 sunangles, float scale, LPMATRIX4 output);
 
-HANDLE FS_ReadLooseFile(LPCSTR filename, LPDWORD size, DWORD extraBytes) {
-    (void)filename;
-    (void)size;
-    (void)extraBytes;
-    return NULL;
-}
-
-#include "../common/parser.c"
-#include "../common/sheet.c"
-
 static VECTOR3 Viewer_OrbitEye(viewer_orbit_t const *orbit) {
     float const yaw = orbit->yaw_deg * (float)M_PI / 180.0f;
     float const pitch = orbit->pitch_deg * (float)M_PI / 180.0f;

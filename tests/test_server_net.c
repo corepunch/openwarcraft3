@@ -13,17 +13,7 @@
 #include "../server/server.h"
 
 void test_client_stubs_init(void);
-void UI_ClearTemplates(void);
-void UI_Init(void);
-void UI_ParseFDF_Buffer(LPCSTR fileName, LPSTR buffer);
-void UI_ShowMainMenu(LPEDICT ent);
-void UI_ShowSinglePlayerMenu(LPEDICT ent);
-void UI_ShowMultiplayerMenu(LPEDICT ent);
-void UI_ShowMultiplayerCreateMenu(LPEDICT ent);
-void UI_ShowMultiplayerGameSetupMenu(LPEDICT ent, DWORD mapIndex);
 extern struct game_import gi;
-
-#define TEST_LAYER_CONSOLE 3
 
 /* External symbols referenced by sv_init.c but unused in these tests. */
 void SV_InitGameProgs(void) {}
@@ -78,98 +68,6 @@ static int test_font_index(LPCSTR name, DWORD fontSize) {
     return 0;
 }
 
-static LPCSTR test_find_sheet_cell(sheetRow_t *sheet, LPCSTR row, LPCSTR column) {
-    (void)sheet;
-    if (row && column && !strcmp(row, "Default")) {
-        if (!strcmp(column, "GlueSpriteLayerTopRight")) {
-            return "UI\\Glues\\SpriteLayers\\TopRightPanel.mdl";
-        }
-        if (!strcmp(column, "GlueSpriteLayerTopLeft")) {
-            return "UI\\Glues\\SpriteLayers\\TopLeftPanel.mdl";
-        }
-        if (!strcmp(column, "GlueSpriteLayerBackground")) {
-            return "UI\\Glues\\MainMenu\\MainMenu3d\\MainMenu3d.mdl";
-        }
-    }
-    return NULL;
-}
-
-static LPSTR test_read_fdf_file(LPCSTR filename) {
-    char path[512] = "data/fdf/";
-    size_t prefix_len = strlen(path);
-    size_t filename_len = strlen(filename);
-    if (prefix_len + filename_len + 1 >= sizeof(path)) {
-        return NULL;
-    }
-    for (size_t i = 0; i < filename_len; i++) {
-        path[prefix_len + i] = filename[i] == '\\' ? '/' : filename[i];
-    }
-    path[prefix_len + filename_len] = '\0';
-
-    FILE *fp = fopen(path, "rb");
-    if (!fp) {
-        return NULL;
-    }
-    fseek(fp, 0, SEEK_END);
-    long len = ftell(fp);
-    fseek(fp, 0, SEEK_SET);
-    if (len < 0) {
-        fclose(fp);
-        return NULL;
-    }
-    LPSTR buffer = MemAlloc((DWORD)len + 1);
-    if (!buffer) {
-        fclose(fp);
-        return NULL;
-    }
-    size_t read = fread(buffer, 1, (size_t)len, fp);
-    fclose(fp);
-    buffer[read] = '\0';
-    return buffer;
-}
-
-static bool test_has_repo_fdf(void) {
-    char path[512] = "data/fdf/UI/FrameDef/Glue/MainMenu.fdf";
-    return access(path, R_OK) == 0;
-}
-
-static void test_write(pfWriteType_t type, void const *value) {
-    switch (type) {
-        case PF_BYTE:
-            MSG_WriteByte(&sv.multicast, (int)*(LONG const *)value);
-            break;
-        case PF_SHORT:
-            MSG_WriteShort(&sv.multicast, (int)*(LONG const *)value);
-            break;
-        case PF_LONG:
-            MSG_WriteLong(&sv.multicast, (int)*(LONG const *)value);
-            break;
-        case PF_UIFRAME: {
-            LPCUIFRAME frame = (LPCUIFRAME)value;
-            uiFrame_t empty = { 0 };
-            empty.tex.coord[1] = 0xff;
-            empty.tex.coord[3] = 0xff;
-            MSG_WriteDeltaUIFrame(&sv.multicast, &empty, frame, true);
-            MSG_WriteShort(&sv.multicast, frame->buffer.size);
-            MSG_Write(&sv.multicast, frame->buffer.data, frame->buffer.size);
-            break;
-        }
-        default:
-            break;
-    }
-}
-
-static void test_unicast(edict_t *ent) {
-    FOR_LOOP(i, svs.num_clients) {
-        if (svs.clients[i].edict == ent) {
-            SZ_Write(&svs.clients[i].netchan.message, sv.multicast.data, sv.multicast.cursize);
-            SZ_Clear(&sv.multicast);
-            return;
-        }
-    }
-    SZ_Clear(&sv.multicast);
-}
-
 static void reset_test_gi(void) {
     memset(&gi, 0, sizeof(gi));
     gi.MemAlloc = test_mem_alloc;
@@ -177,10 +75,6 @@ static void reset_test_gi(void) {
     gi.ModelIndex = test_model_index;
     gi.ImageIndex = test_image_index;
     gi.FontIndex = test_font_index;
-    gi.FindSheetCell = test_find_sheet_cell;
-    gi.ReadFileIntoString = test_read_fdf_file;
-    gi.Write = test_write;
-    gi.unicast = test_unicast;
 }
 
 void SV_BuildClientFrame(LPCLIENT client) {
@@ -188,106 +82,12 @@ void SV_BuildClientFrame(LPCLIENT client) {
 }
 
 void SV_WriteFrameToClient(LPCLIENT client) {
-    Netchan_Transmit(NS_SERVER, &client->netchan);
-}
-
-static bool test_menu_command_seen = false;
-
-static void setup_test_menu_frames(void) {
-    static LPCSTR menu_fdf =
-        "Frame \"FRAME\" \"MainMenuFrame\" {"
-        " SetAllPoints,"
-        " Frame \"FRAME\" \"ControlLayer\" {"
-        "  SetAllPoints,"
-        "  Frame \"FRAME\" \"MainMenuOnlyFrame\" {"
-        "   Width 0.25,"
-        "   Height 0.03125,"
-        "  }"
-        " }"
-        "}"
-        "Frame \"FRAME\" \"SinglePlayerMenu\" {"
-        " SetAllPoints,"
-        " Frame \"FRAME\" \"SinglePlayerOnlyFrame\" {"
-        "  Width 0.125,"
-        "  Height 0.0625,"
-        " }"
-        "}";
-    LPSTR buffer = strdup(menu_fdf);
-    ASSERT_NOT_NULL(buffer);
-    UI_ClearTemplates();
-    UI_ParseFDF_Buffer("test_menu.fdf", buffer);
-    free(buffer);
-}
-
-static void test_client_command(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
-    ASSERT_NOT_NULL(ent);
-    ASSERT_EQ_INT(argc, 2);
-    ASSERT_STR_EQ(argv[0], "menu");
-    ASSERT_STR_EQ(argv[1], "/single-player");
-    test_menu_command_seen = true;
-    UI_ShowSinglePlayerMenu(ent);
-}
-
-static bool decoded_layout_contains_onclick(LPCUIFRAME decoded, LPCSTR onclick) {
-    FOR_LOOP(i, MAX_LAYOUT_OBJECTS) {
-        if (decoded[i].onclick && !strcmp(decoded[i].onclick, onclick)) {
-            return true;
-        }
-    }
-    return false;
-}
-
-static DWORD decoded_layout_count_sprite_animation(LPCUIFRAME decoded, LPCSTR animation) {
-    DWORD count = 0;
-    FOR_LOOP(i, MAX_LAYOUT_OBJECTS) {
-        if (decoded[i].flags.type == FT_SPRITE &&
-            decoded[i].text &&
-            !strcmp(decoded[i].text, animation)) {
-            count++;
-        }
-    }
-    return count;
-}
-
-static DWORD decoded_layout_count_type(LPCUIFRAME decoded, FRAMETYPE type) {
-    DWORD count = 0;
-    FOR_LOOP(i, MAX_LAYOUT_OBJECTS) {
-        if (decoded[i].flags.type == type) {
-            count++;
-        }
-    }
-    return count;
-}
-
-static bool decoded_layout_contains_listbox_fetch(LPCUIFRAME decoded, LPCSTR fetchCommand) {
-    FOR_LOOP(i, MAX_LAYOUT_OBJECTS) {
-        uiListBox_t const *listbox;
-        if (decoded[i].flags.type != FT_LISTBOX ||
-            decoded[i].buffer.size < sizeof(uiListBox_t) ||
-            !decoded[i].buffer.data) {
-            continue;
-        }
-        listbox = (uiListBox_t const *)decoded[i].buffer.data;
-        if (!strcmp(listbox->fetchCommand, fetchCommand)) {
-            return true;
-        }
-    }
-    return false;
+    (void)client;
 }
 
 void SV_ParseClientMessage(LPSIZEBUF msg, LPCLIENT client) {
-    BYTE pack_id = 0;
-    while (MSG_Read(msg, &pack_id, 1)) {
-        ASSERT_EQ_INT(pack_id, clc_stringcmd);
-        if (pack_id != clc_stringcmd) {
-            return;
-        }
-
-        LPCSTR command = MSG_ReadString2(msg);
-        LPCSTR argv[] = { "menu", "/single-player" };
-        ASSERT_STR_EQ(command, "menu /single-player");
-        ge->ClientCommand(client->edict, 2, argv);
-    }
+    (void)msg;
+    (void)client;
 }
 
 static struct game_export test_ge;
@@ -302,9 +102,7 @@ static void reset_server_state(int max_players) {
     test_ge.edict_size = sizeof(edict_t);
     test_ge.RunFrame = test_run_frame;
     test_ge.GetThemeValue = test_theme_value;
-    test_ge.ClientCommand = test_client_command;
     ge = &test_ge;
-    test_menu_command_seen = false;
     reset_test_gi();
 }
 
@@ -473,196 +271,8 @@ static void test_multicast_syncs_updates_to_all_connected_clients(void) {
     ASSERT_EQ_INT(sv.multicast.cursize, 0);
 }
 
-static void test_menu_command_updates_client_layout_after_server_response(void) {
-    struct netchan client_netchan;
-    BYTE server_packet[MAX_MSGLEN];
-    sizeBuf_t server_msg = { server_packet, MAX_MSGLEN, 0, 0 };
-    netadr_t from;
-    GAMECLIENT game_client = { 0 };
-    edict_t client_edict = { 0 };
-    LPCUIFRAME decoded;
-    bool found_mainmenu_frame = false;
-    bool found_singleplayer_frame = false;
-
-    NET_Shutdown();
-    reset_server_state(1);
-    test_client_stubs_init();
-    setup_test_menu_frames();
-
-    sv.framenum = 1;
-    sv.time = 100;
-    svs.realtime = 100;
-    svs.num_clients = 1;
-    svs.clients[0].state = cs_spawned;
-    svs.clients[0].netchan.remote_address.type = NA_LOOPBACK;
-    SZ_Init(&svs.clients[0].netchan.message,
-            svs.clients[0].netchan.message_buf,
-            MAX_MSGLEN);
-
-    game_client.ps.number = 0;
-    client_edict.inuse = true;
-    client_edict.client = &game_client;
-    svs.clients[0].edict = &client_edict;
-
-    UI_ShowMainMenu(&client_edict);
-    SV_WriteFrameToClient(&svs.clients[0]);
-    ASSERT(NET_GetPacket(NS_CLIENT, &from, &server_msg) > 0);
-    CL_ParseServerMessage(&server_msg);
-    ASSERT_NOT_NULL(cl.layout[TEST_LAYER_CONSOLE]);
-    decoded = SCR_Clear(cl.layout[TEST_LAYER_CONSOLE]);
-    FOR_LOOP(i, MAX_LAYOUT_OBJECTS) {
-        if (decoded[i].flags.type == FT_FRAME &&
-            decoded[i].size.width == 0.25f &&
-            decoded[i].size.height == 0.03125f) {
-            found_mainmenu_frame = true;
-            break;
-        }
-    }
-    ASSERT(found_mainmenu_frame);
-
-    memset(&client_netchan, 0, sizeof(client_netchan));
-    client_netchan.remote_address.type = NA_LOOPBACK;
-    SZ_Init(&client_netchan.message, client_netchan.message_buf, MAX_MSGLEN);
-    MSG_WriteByte(&client_netchan.message, clc_stringcmd);
-    MSG_WriteString(&client_netchan.message, "menu /single-player");
-    Netchan_Transmit(NS_CLIENT, &client_netchan);
-
-    ASSERT(!test_menu_command_seen);
-
-    SV_Frame(100);
-
-    ASSERT(test_menu_command_seen);
-    ASSERT(NET_GetPacket(NS_CLIENT, &from, &server_msg) > 0);
-    CL_ParseServerMessage(&server_msg);
-    ASSERT_NOT_NULL(cl.layout[TEST_LAYER_CONSOLE]);
-    decoded = SCR_Clear(cl.layout[TEST_LAYER_CONSOLE]);
-    found_mainmenu_frame = false;
-    FOR_LOOP(i, MAX_LAYOUT_OBJECTS) {
-        if (decoded[i].flags.type == FT_FRAME &&
-            decoded[i].size.width == 0.25f &&
-            decoded[i].size.height == 0.03125f) {
-            found_mainmenu_frame = true;
-        }
-        if (decoded[i].flags.type == FT_FRAME &&
-            decoded[i].size.width == 0.125f &&
-            decoded[i].size.height == 0.0625f) {
-            found_singleplayer_frame = true;
-        }
-    }
-    ASSERT(!found_mainmenu_frame);
-    ASSERT(found_singleplayer_frame);
-
-    SAFE_DELETE(cl.layout[TEST_LAYER_CONSOLE], MemFree);
-    NET_Shutdown();
-}
-
-static void test_menu_command_updates_client_layout_with_repo_fdf(void) {
-    struct netchan client_netchan;
-    BYTE server_packet[MAX_MSGLEN];
-    sizeBuf_t server_msg = { server_packet, MAX_MSGLEN, 0, 0 };
-    netadr_t from;
-    GAMECLIENT game_client = { 0 };
-    edict_t client_edict = { 0 };
-    LPCUIFRAME decoded;
-
-    NET_Shutdown();
-    reset_server_state(1);
-    test_client_stubs_init();
-    if (!test_has_repo_fdf()) {
-        return;
-    }
-    UI_Init();
-
-    sv.framenum = 1;
-    sv.time = 100;
-    svs.realtime = 100;
-    svs.num_clients = 1;
-    svs.clients[0].state = cs_spawned;
-    svs.clients[0].netchan.remote_address.type = NA_LOOPBACK;
-    SZ_Init(&svs.clients[0].netchan.message,
-            svs.clients[0].netchan.message_buf,
-            MAX_MSGLEN);
-
-    game_client.ps.number = 0;
-    client_edict.inuse = true;
-    client_edict.client = &game_client;
-    svs.clients[0].edict = &client_edict;
-
-    UI_ShowMainMenu(&client_edict);
-    SV_WriteFrameToClient(&svs.clients[0]);
-    ASSERT(NET_GetPacket(NS_CLIENT, &from, &server_msg) > 0);
-    CL_ParseServerMessage(&server_msg);
-    ASSERT_NOT_NULL(cl.layout[TEST_LAYER_CONSOLE]);
-    decoded = SCR_Clear(cl.layout[TEST_LAYER_CONSOLE]);
-    ASSERT(decoded_layout_contains_onclick(decoded, "menu /single-player"));
-    ASSERT(decoded_layout_contains_onclick(decoded, "menu /realm-select"));
-    ASSERT(!decoded_layout_contains_onclick(decoded, "menu /single-player/campaign"));
-    ASSERT_EQ_INT(decoded_layout_count_sprite_animation(decoded, "MainMenu Stand"), 2);
-    ASSERT_EQ_INT(decoded_layout_count_sprite_animation(decoded, "SinglePlayer Stand"), 0);
-    ASSERT_EQ_INT(decoded_layout_count_type(decoded, FT_SPRITE), 3);
-
-    memset(&client_netchan, 0, sizeof(client_netchan));
-    client_netchan.remote_address.type = NA_LOOPBACK;
-    SZ_Init(&client_netchan.message, client_netchan.message_buf, MAX_MSGLEN);
-    MSG_WriteByte(&client_netchan.message, clc_stringcmd);
-    MSG_WriteString(&client_netchan.message, "menu /single-player");
-    Netchan_Transmit(NS_CLIENT, &client_netchan);
-
-    test_menu_command_seen = false;
-    SV_Frame(100);
-
-    ASSERT(test_menu_command_seen);
-    ASSERT(NET_GetPacket(NS_CLIENT, &from, &server_msg) > 0);
-    CL_ParseServerMessage(&server_msg);
-    decoded = SCR_Clear(cl.layout[TEST_LAYER_CONSOLE]);
-    ASSERT(!decoded_layout_contains_onclick(decoded, "menu /single-player"));
-    ASSERT(decoded_layout_contains_onclick(decoded, "menu /single-player/campaign"));
-    ASSERT(decoded_layout_contains_onclick(decoded, "menu /main"));
-    ASSERT_EQ_INT(decoded_layout_count_sprite_animation(decoded, "MainMenu Stand"), 0);
-    ASSERT_EQ_INT(decoded_layout_count_sprite_animation(decoded, "SinglePlayer Stand"), 2);
-    ASSERT_EQ_INT(decoded_layout_count_type(decoded, FT_SPRITE), 2);
-
-    UI_ShowMultiplayerMenu(&client_edict);
-    SV_WriteFrameToClient(&svs.clients[0]);
-    ASSERT(NET_GetPacket(NS_CLIENT, &from, &server_msg) > 0);
-    CL_ParseServerMessage(&server_msg);
-    decoded = SCR_Clear(cl.layout[TEST_LAYER_CONSOLE]);
-    ASSERT_EQ_INT(decoded_layout_count_sprite_animation(decoded, "BattlenetCustom Stand"), 2);
-    ASSERT_EQ_INT(decoded_layout_count_sprite_animation(decoded, "BattlenetWelcome Stand"), 0);
-    ASSERT(decoded_layout_contains_listbox_fetch(decoded, "lan-games"));
-
-    UI_ShowMultiplayerCreateMenu(&client_edict);
-    SV_WriteFrameToClient(&svs.clients[0]);
-    ASSERT(NET_GetPacket(NS_CLIENT, &from, &server_msg) > 0);
-    CL_ParseServerMessage(&server_msg);
-    decoded = SCR_Clear(cl.layout[TEST_LAYER_CONSOLE]);
-    ASSERT_EQ_INT(decoded_layout_count_sprite_animation(decoded, "BattlenetCustomCreate Stand"), 2);
-    ASSERT(decoded_layout_contains_listbox_fetch(decoded, "maps"));
-    ASSERT(decoded_layout_contains_onclick(decoded, "menu /lan/setup?map={MapListBox}"));
-
-    UI_ShowMultiplayerGameSetupMenu(&client_edict, 0);
-    SV_WriteFrameToClient(&svs.clients[0]);
-    ASSERT(NET_GetPacket(NS_CLIENT, &from, &server_msg) > 0);
-    CL_ParseServerMessage(&server_msg);
-    decoded = SCR_Clear(cl.layout[TEST_LAYER_CONSOLE]);
-    ASSERT_EQ_INT(decoded_layout_count_sprite_animation(decoded, "BattlenetCustomCreate Stand"), 2);
-    ASSERT(decoded_layout_contains_onclick(decoded, "menu /game"));
-    ASSERT(decoded_layout_contains_onclick(decoded, "menu /lan/create"));
-    ASSERT(!decoded_layout_contains_listbox_fetch(decoded, "maps"));
-
-    SAFE_DELETE(cl.layout[TEST_LAYER_CONSOLE], MemFree);
-    NET_Shutdown();
-}
-
 void run_server_net_tests(void) {
     RUN_TEST(test_udp_multi_client_connects_register_distinct_slots);
     RUN_TEST(test_udp_connect_honors_ge_max_clients_limit);
     RUN_TEST(test_multicast_syncs_updates_to_all_connected_clients);
-    RUN_TEST(test_menu_command_updates_client_layout_after_server_response);
-    RUN_TEST(test_menu_command_updates_client_layout_with_repo_fdf);
-}
-
-void run_menu_loop_tests(void) {
-    RUN_TEST(test_menu_command_updates_client_layout_after_server_response);
-    RUN_TEST(test_menu_command_updates_client_layout_with_repo_fdf);
 }

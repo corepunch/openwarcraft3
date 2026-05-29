@@ -12,6 +12,7 @@ struct word_extractor {
 
 LPCSTR parse_token(LPPARSER p);
 LPCSTR parse_segment(LPPARSER p);
+LPCSTR parse_segment2(LPPARSER p);
 LPCSTR peek_token(LPPARSER p);
 BOOL eat_token(LPPARSER p, LPCSTR value);
 void parser_error(LPPARSER parser) ;

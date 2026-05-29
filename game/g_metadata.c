@@ -160,7 +160,7 @@ LPCSTR UnitStringField(sheetMetaData_t *metadatas, DWORD unit_id, LPCSTR name) {
     }
     sheetMetaData_t *metadata = G_FindMetaData(metadatas, name);
     if (metadata && metadata->table) {
-        return gi.FindSheetCell(metadata->table, GetClassName(unit_id), metadata->field);
+        return FS_FindSheetCell(metadata->table, GetClassName(unit_id), metadata->field);
     } else {
         return NULL;
     }
@@ -194,7 +194,7 @@ void InitUnitData(void) {
     Doodads = NULL;
     
     for (LPCSTR *config = config_files; *config; config++) {
-        sheetRow_t *current = gi.ReadConfig(*config);
+        sheetRow_t *current = FS_ParseINI(*config);
         if (current) {
             if (abilityConfigTableCount < sizeof(abilityConfigTables) / sizeof(*abilityConfigTables)) {
                 abilityConfigTables[abilityConfigTableCount++] = current;
@@ -208,23 +208,23 @@ void InitUnitData(void) {
         }
     }
     for (LPCSTR *config = profile_files; *config; config++) {
-        sheetRow_t *current = gi.ReadConfig(*config);
+        sheetRow_t *current = FS_ParseINI(*config);
         if (current) {
             AppendSheetRows(&Profile, &profileTail, current);
         }
     }
-    sheetRow_t *DestructableData = gi.ReadSheet("Units\\DestructableData.slk");
-    Doodads = gi.ReadSheet("Doodads\\Doodads.slk");
+    sheetRow_t *DestructableData = FS_ParseSLK("Units\\DestructableData.slk");
+    Doodads = FS_ParseSLK("Doodads\\Doodads.slk");
     G_SetConfigTable(UnitsMetaData, "Profile", Profile);
-    G_SetConfigTable(UnitsMetaData, "UnitAbilities", gi.ReadSheet("Units\\UnitAbilities.slk"));
-    G_SetConfigTable(UnitsMetaData, "UnitBalance", gi.ReadSheet("Units\\UnitBalance.slk"));
-    G_SetConfigTable(UnitsMetaData, "UnitData", gi.ReadSheet("Units\\UnitData.slk"));
-    G_SetConfigTable(UnitsMetaData, "UnitUI", gi.ReadSheet("Units\\UnitUI.slk"));
-    G_SetConfigTable(UnitsMetaData, "UnitWeapons", gi.ReadSheet("Units\\UnitWeapons.slk"));
+    G_SetConfigTable(UnitsMetaData, "UnitAbilities", FS_ParseSLK("Units\\UnitAbilities.slk"));
+    G_SetConfigTable(UnitsMetaData, "UnitBalance", FS_ParseSLK("Units\\UnitBalance.slk"));
+    G_SetConfigTable(UnitsMetaData, "UnitData", FS_ParseSLK("Units\\UnitData.slk"));
+    G_SetConfigTable(UnitsMetaData, "UnitUI", FS_ParseSLK("Units\\UnitUI.slk"));
+    G_SetConfigTable(UnitsMetaData, "UnitWeapons", FS_ParseSLK("Units\\UnitWeapons.slk"));
     
     G_SetConfigTable(DestructableMetaData, "DestructableData", DestructableData);
     
-    G_SetConfigTable(ItemsMetaData, "ItemData", gi.ReadSheet("Units\\ItemData.slk"));
+    G_SetConfigTable(ItemsMetaData, "ItemData", FS_ParseSLK("Units\\ItemData.slk"));
 }
 
 void ShutdownUnitData(void) {

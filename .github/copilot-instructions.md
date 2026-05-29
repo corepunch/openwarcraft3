@@ -32,6 +32,11 @@ This codebase is inspired by **Quake 2**. The developer working on this project 
 - If behavior needs title/game knowledge, put that policy in game-side code (`game/`, game.dll boundary) and pass generic parameters into engine APIs.
 - Prefer generic fallbacks in engine code (caller-provided names, first available sequence, data-driven metadata) rather than title-specific heuristics.
 
+## Build And Linking
+
+- Never add `DYLIB_LOOKUP := -Wl,-undefined,dynamic_lookup` or otherwise rely on `-Wl,-undefined,dynamic_lookup` in this repository.
+- If a target has unresolved symbols, fix the dependency graph or shared implementation instead of weakening the linker contract.
+
 ## Domain
 
 - This is a **real-time strategy game** (RTS), so game logic should account for unit management, pathfinding, resource gathering, building construction, and large numbers of entities — adapted from the Quake 2 entity/server model where applicable.

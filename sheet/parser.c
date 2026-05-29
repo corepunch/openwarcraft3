@@ -1,7 +1,7 @@
-#include "mpq.h"
-
-#include "common.h"
+#include "../common/common.h"
 #include <ctype.h>
+
+static SHEETHOST sheet_host = { 0 };
 
 bool ParserDone(parser_t *p) {
     return !*p->str || p->error;
@@ -24,30 +24,43 @@ void ParserError(parser_t *p) {
     p->error = true;
 }
 
-LPSTR FS_ReadFileIntoString(LPCSTR fileName) {
-    HANDLE fp = FS_OpenFile(fileName);
-    if (!fp) {
-        DWORD fileSize = 0;
-        return FS_ReadLooseFile(fileName, &fileSize, 1);
+void FS_SetSheetHost(SHEETHOST const *host) {
+    if (host) {
+        sheet_host = *host;
+    } else {
+        memset(&sheet_host, 0, sizeof(sheet_host));
     }
-    DWORD const fileSize = SFileGetFileSize(fp, NULL);
-    LPSTR buffer = MemAlloc(fileSize + 1);
-    SFileReadFile(fp, buffer, fileSize, NULL, NULL);
-    FS_CloseFile(fp);
+}
+
+LPSTR FS_ReadFileIntoString(LPCSTR fileName) {
+    HANDLE raw = NULL;
+    DWORD fileSize = 0;
+    LPSTR buffer;
+
+    if (!sheet_host.ReadFile || !sheet_host.FreeFile || !sheet_host.MemAlloc || !sheet_host.MemFree) {
+        return NULL;
+    }
+    raw = sheet_host.ReadFile(fileName, &fileSize);
+    if (!raw) {
+        return NULL;
+    }
+    buffer = sheet_host.MemAlloc((long)fileSize + 1);
+    if (!buffer) {
+        sheet_host.FreeFile(raw);
+        return NULL;
+    }
+    if (fileSize > 0) {
+        memcpy(buffer, raw, fileSize);
+    }
     buffer[fileSize] = '\0';
+    sheet_host.FreeFile(raw);
     return buffer;
 }
 
-HANDLE FS_ReadFile(LPCSTR filename, LPDWORD size) {
-    HANDLE fp = FS_OpenFile(filename);
-    if (!fp) {
-        return FS_ReadLooseFile(filename, size, 0);
+void FS_FreeFileString(LPSTR buffer) {
+    if (buffer && sheet_host.MemFree) {
+        sheet_host.MemFree(buffer);
     }
-    *size = SFileGetFileSize(fp, NULL);
-    LPSTR buffer = MemAlloc(*size);
-    SFileReadFile(fp, buffer, *size, NULL, NULL);
-    FS_CloseFile(fp);
-    return buffer;
 }
 
 LPSTR ParserGetToken(parser_t *p) {
