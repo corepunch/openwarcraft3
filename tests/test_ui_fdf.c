@@ -3,6 +3,8 @@
 #include <stdio.h>
 
 #include "test_framework.h"
+#include "../ui/ui_local.h"
+#include "../ui/ui_dialog.h"
 #include "../ui/ui_screen.h"
 
 static void setup_game(void) {}
@@ -10,6 +12,7 @@ static void teardown_game(void) {}
 
 static const char *captured_image_path;
 static const char *captured_model_path;
+static char captured_command[128];
 
 static int fake_image_index(LPCSTR name) {
     captured_image_path = name;
@@ -156,6 +159,10 @@ static void test_ui_printf(LPCSTR fmt, ...) {
     (void)fmt;
 }
 
+static void test_cmd_execute_text(LPCSTR text) {
+    snprintf(captured_command, sizeof(captured_command), "%s", text ? text : "");
+}
+
 static void load_ui_file(LPCSTR file_name) {
     uiImport_t saved = uiimport;
 
@@ -174,10 +181,31 @@ static void load_ui_file(LPCSTR file_name) {
     uiimport = saved;
 }
 
+static void load_ui_files(LPCSTR const *file_names, size_t count) {
+    uiImport_t saved = uiimport;
+
+    UI_ClearTemplates();
+    memset(&uiimport, 0, sizeof(uiimport));
+    uiimport.FS_ReadFile = test_fs_read_file;
+    uiimport.FS_FreeFile = test_fs_free_file;
+    uiimport.MemAlloc = test_ui_mem_alloc;
+    uiimport.MemFree = test_ui_mem_free;
+    uiimport.ImageIndex = test_image_index;
+    uiimport.ModelIndex = test_model_index;
+    uiimport.FontIndex = test_font_index;
+    uiimport.Printf = test_ui_printf;
+    uiimport.Error = test_ui_printf;
+    for (size_t i = 0; i < count; i++) {
+        UI_ParseFDF(file_names[i]);
+    }
+    uiimport = saved;
+}
+
 static void reset_ui_state(void) {
     UI_ClearTemplates();
     captured_image_path = NULL;
     captured_model_path = NULL;
+    captured_command[0] = '\0';
     uiimport.MemAlloc = test_ui_mem_alloc;
     uiimport.MemFree = test_ui_mem_free;
     uiimport.ImageIndex = fake_image_index;
@@ -371,7 +399,7 @@ static void test_backdrop_background_adds_blp_extension(void) {
 
     frame = UI_FindFrame("BD");
     if (!require_not_null(frame)) return;
-    ASSERT_EQ_INT(frame->Backdrop.Background, 1);
+    ASSERT_EQ_INT(frame->Backdrop.Background, 123);
     ASSERT_NOT_NULL(captured_image_path);
     ASSERT_STR_EQ(captured_image_path, "TestUI/Textures/checker_8x8.blp");
 }
@@ -388,7 +416,7 @@ static void test_background_art_uses_model_index(void) {
     sprite = UI_FindFrame("SpriteA");
     if (!require_not_null(sprite)) return;
     ASSERT_EQ_INT(sprite->Type, FT_SPRITE);
-    ASSERT_EQ_INT(sprite->Portrait.model, 1);
+    ASSERT_EQ_INT(sprite->Portrait.model, 456);
     ASSERT_NOT_NULL(captured_model_path);
     ASSERT_STR_EQ(captured_model_path, "TestUI/Models/quad_sprite.mdx");
 }
@@ -962,24 +990,178 @@ static void test_esc_menu_confirm_quit_panel_is_available(void) {
     ASSERT_STR_EQ(message->Text, "CONFIRM_EXIT_MESSAGE");
 }
 
-static void test_main_menu_exit_button_routes_to_quit_confirm(void) {
+static void test_dialog_war3_supports_configurable_button_modes(void) {
+    LPCSTR files[] = {
+        "UI\\FrameDef\\GlobalStrings.fdf",
+        "UI\\FrameDef\\Glue\\StandardTemplates.fdf",
+        "UI\\FrameDef\\Glue\\DialogWar3.fdf",
+    };
+    LPFRAMEDEF root;
+    uiDialogWar3_t dialog;
+    uiDialogWar3Init_t init = {
+        .modal_name = "TestDialogModal",
+        .cover_name = "TestDialogModalCover",
+        .template_name = "DialogWar3",
+    };
+    uiDialogWar3Config_t config = {
+        .message = "CONFIRM_EXIT_MESSAGE",
+        .icon = UI_DIALOG_WAR3_ICON_ERROR,
+        .buttons = UI_DIALOG_WAR3_BUTTONS_OK,
+        .ok_route = "menu /main/main",
+    };
+
+    load_ui_files(files, sizeof(files) / sizeof(files[0]));
+    uiimport.GetRenderer = test_get_renderer;
+    uiimport.Printf = test_ui_printf;
+
+    root = UI_Spawn(FT_FRAME, NULL);
+    if (!require_not_null(root)) return;
+    snprintf(root->Name, sizeof(root->Name), "%s", "TestDialogRoot");
+    UI_SetSize(root, UI_BASE_WIDTH, UI_BASE_HEIGHT);
+
+    ASSERT(UI_DialogWar3Init(&dialog, root, &init));
+    ASSERT(!UI_DialogWar3Visible(&dialog));
+
+    UI_DialogWar3Show(&dialog, &config);
+    ASSERT(UI_DialogWar3Visible(&dialog));
+    ASSERT_STR_EQ(dialog.dialog->DialogBackdropName, "DialogBackdrop");
+    ASSERT_NOT_NULL(UI_FindChildFrame(dialog.dialog, dialog.dialog->DialogBackdropName));
+    ASSERT_STR_EQ(dialog.text->Text, "Are you sure you want to exit?");
+    ASSERT(dialog.cover->Texture.Image != 0);
+    ASSERT_EQ_INT(dialog.cover->Color.a, 128);
+    ASSERT(dialog.icon->Backdrop.Background != 0);
+    ASSERT(!dialog.ok_backdrop->hidden);
+    ASSERT(dialog.no_backdrop->hidden);
+    ASSERT(dialog.yes_backdrop->hidden);
+    ASSERT_STR_EQ(dialog.ok_button->OnClick, "menu /main/main");
+
+    UI_DialogWar3Hide(&dialog);
+    ASSERT(!UI_DialogWar3Visible(&dialog));
+}
+
+static void test_main_menu_quit_dialog_routes_to_quit(void) {
+    LPCSTR files[] = {
+        "UI\\FrameDef\\GlobalStrings.fdf",
+        "UI\\FrameDef\\UI\\EscMenuTemplates.fdf",
+        "UI\\FrameDef\\UI\\EscMenuMainPanel.fdf",
+        "UI\\FrameDef\\Glue\\StandardTemplates.fdf",
+        "UI\\FrameDef\\Glue\\MainMenu.fdf",
+        "UI\\FrameDef\\Glue\\DialogWar3.fdf",
+    };
+    LPFRAMEDEF global_exit_button;
     LPFRAMEDEF exit_button;
+    LPFRAMEDEF modal;
+    LPFRAMEDEF cover;
+    LPFRAMEDEF dialog;
+    LPFRAMEDEF message;
+    LPFRAMEDEF icon;
+    LPFRAMEDEF ok_backdrop;
+    LPFRAMEDEF no_backdrop;
+    LPFRAMEDEF yes_backdrop;
+    LPFRAMEDEF no_button;
+    LPFRAMEDEF yes_button;
     uiImport_t saved = uiimport;
 
-    load_ui_file("UI\\FrameDef\\Glue\\MainMenu.fdf");
+    load_ui_files(files, sizeof(files) / sizeof(files[0]));
 
     memset(&uiimport, 0, sizeof(uiimport));
     uiimport.Printf = test_ui_printf;
-    uiimport.GetRenderer = NULL;
+    uiimport.GetRenderer = test_get_renderer;
+    uiimport.Cmd_ExecuteText = test_cmd_execute_text;
+    captured_command[0] = '\0';
 
     mainMenuScreen.init();
 
-    exit_button = UI_FindFrame("ExitButton");
+    global_exit_button = UI_FindFrame("ExitButton");
+    exit_button = UI_FindChildFrame(UI_FindFrame("MainMenuFrame"), "ExitButton");
     if (!require_not_null(exit_button)) {
         uiimport = saved;
         return;
     }
-    ASSERT_STR_EQ(exit_button->OnClick, "menu /quit-confirm");
+    ASSERT(global_exit_button != exit_button);
+    ASSERT(!exit_button->hidden);
+    ASSERT_STR_EQ(exit_button->OnClick, "menu /main/quit-confirm");
+
+    modal = UI_FindChildFrame(UI_FindFrame("MainMenuFrame"), "MainMenuQuitModal");
+    if (!require_not_null(modal)) {
+        uiimport = saved;
+        return;
+    }
+    ASSERT_EQ_INT(modal->Type, FT_DIALOG);
+    ASSERT(modal->hidden);
+
+    cover = UI_FindChildFrame(modal, "MainMenuQuitModalCover");
+    if (!require_not_null(cover)) {
+        uiimport = saved;
+        return;
+    }
+    ASSERT_EQ_INT(cover->Type, FT_TEXTURE);
+    ASSERT(cover->Texture.Image != 0);
+    ASSERT_EQ_INT(cover->Color.a, 128);
+
+    dialog = UI_FindChildFrame(modal, "DialogWar3");
+    if (!require_not_null(dialog)) {
+        uiimport = saved;
+        return;
+    }
+    ASSERT_EQ_INT(dialog->Type, FT_DIALOG);
+    ASSERT(dialog->hidden);
+
+    message = UI_FindChildFrame(dialog, "DialogText");
+    icon = UI_FindChildFrame(dialog, "DialogIcon");
+    ok_backdrop = UI_FindChildFrame(dialog, "DialogButtonOKBackdrop");
+    no_backdrop = UI_FindChildFrame(dialog, "DialogButtonNoBackdrop");
+    yes_backdrop = UI_FindChildFrame(dialog, "DialogButtonYesBackdrop");
+    no_button = UI_FindChildFrame(dialog, "DialogButtonNo");
+    yes_button = UI_FindChildFrame(dialog, "DialogButtonYes");
+
+    if (!require_not_null(message)) {
+        uiimport = saved;
+        return;
+    }
+    if (!require_not_null(icon)) {
+        uiimport = saved;
+        return;
+    }
+    if (!require_not_null(ok_backdrop)) {
+        uiimport = saved;
+        return;
+    }
+    if (!require_not_null(no_backdrop)) {
+        uiimport = saved;
+        return;
+    }
+    if (!require_not_null(yes_backdrop)) {
+        uiimport = saved;
+        return;
+    }
+    if (!require_not_null(no_button)) {
+        uiimport = saved;
+        return;
+    }
+    if (!require_not_null(yes_button)) {
+        uiimport = saved;
+        return;
+    }
+
+    ASSERT_STR_EQ(message->Text, "Do you want to Quit?");
+    ASSERT(icon->Backdrop.Background != 0);
+    ASSERT(ok_backdrop->hidden);
+    ASSERT(!no_backdrop->hidden);
+    ASSERT(!yes_backdrop->hidden);
+    ASSERT_STR_EQ(no_button->OnClick, "menu /main/main");
+    ASSERT_STR_EQ(yes_button->OnClick, "menu /quit");
+
+    mainMenuScreen.route("/quit-confirm");
+    ASSERT(!modal->hidden);
+    ASSERT(!dialog->hidden);
+
+    UI_MenuCommandLocal(no_button->OnClick);
+    ASSERT(modal->hidden);
+    ASSERT(dialog->hidden);
+
+    UI_MenuCommandLocal(yes_button->OnClick);
+    ASSERT_STR_EQ(captured_command, "quit\n");
 
     uiimport = saved;
 }
@@ -1021,5 +1203,6 @@ BEGIN_SUITE(ui_fdf)
     RUN_TEST(test_duplicate_name_prefers_first_template);
     RUN_TEST(test_unknown_token_does_not_crash_existing_definitions);
     RUN_TEST(test_esc_menu_confirm_quit_panel_is_available);
-    RUN_TEST(test_main_menu_exit_button_routes_to_quit_confirm);
+    RUN_TEST(test_dialog_war3_supports_configurable_button_modes);
+    RUN_TEST(test_main_menu_quit_dialog_routes_to_quit);
 END_SUITE()
