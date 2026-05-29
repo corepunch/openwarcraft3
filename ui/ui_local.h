@@ -185,6 +185,7 @@ struct uiFrameDef_s {
         BOOL BlendAll;
         BOOL Mirrored;
     } Backdrop;
+    UINAME DialogBackdropName;
     LPCFRAMEDEF DialogBackdrop;
     struct {
         DWORD model;

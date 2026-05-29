@@ -539,6 +539,8 @@ static void UI_DrawSprite(LPCFRAMEDEF frame, LPCRECT rect) {
 }
 
 static void UI_DrawFrameOne(LPCFRAMEDEF frame) {
+    LPCFRAMEDEF dialog_backdrop;
+
     if (!frame) {
         return;
     }
@@ -559,6 +561,14 @@ static void UI_DrawFrameOne(LPCFRAMEDEF frame) {
         case FT_FRAME:
         case FT_SIMPLEFRAME:
             /* Container frames have no visual representation */
+            break;
+
+        case FT_DIALOG:
+            dialog_backdrop = frame->DialogBackdrop;
+            if (!dialog_backdrop && frame->DialogBackdropName[0]) {
+                dialog_backdrop = UI_FindChildFrame((LPFRAMEDEF)frame, frame->DialogBackdropName);
+            }
+            UI_DrawBackdropWithColor(dialog_backdrop, rect, frame->Color);
             break;
 
         case FT_CONTROL:

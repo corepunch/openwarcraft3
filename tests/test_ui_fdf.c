@@ -1024,6 +1024,8 @@ static void test_dialog_war3_supports_configurable_button_modes(void) {
 
     UI_DialogWar3Show(&dialog, &config);
     ASSERT(UI_DialogWar3Visible(&dialog));
+    ASSERT_STR_EQ(dialog.dialog->DialogBackdropName, "DialogBackdrop");
+    ASSERT_NOT_NULL(UI_FindChildFrame(dialog.dialog, dialog.dialog->DialogBackdropName));
     ASSERT_STR_EQ(dialog.text->Text, "Are you sure you want to exit?");
     ASSERT(dialog.cover->Texture.Image != 0);
     ASSERT_EQ_INT(dialog.cover->Color.a, 128);
