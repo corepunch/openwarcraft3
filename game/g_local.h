@@ -5,6 +5,7 @@
 #include <ctype.h>
 #include <limits.h>
 
+#include "../common/common.h"
 #include "../server/game.h"
 #include "g_shared.h"
 #include "g_unitdata.h"
@@ -57,15 +58,6 @@ if (NAME) { \
 
 #define FOR_SELECTED_UNITS(CLIENT, ENT) \
 FILTER_EDICTS(ENT, G_IsEntitySelected(CLIENT, ENT))
-
-#define svc_bad 0
-// these ops are known to the game dll
-//    svc_muzzleflash,
-//    svc_muzzleflash2,
-#define svc_temp_entity 1
-#define svc_layout 2
-#define svc_playerinfo 3
-#define svc_cursor 4
 
 KNOWN_AS(uiFrameDef_s, FRAMEDEF);
 KNOWN_AS(jass_s, JASS);

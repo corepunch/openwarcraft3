@@ -3,6 +3,7 @@
  */
 
 #include <ctype.h>
+#include <stdlib.h>
 #include "ui_local.h"
 
 #define MAX_THEME_ENTRIES 1024

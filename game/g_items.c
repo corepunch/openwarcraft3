@@ -1,7 +1,7 @@
 #include "g_local.h"
 
 static FLOAT G_MiscVectorValue(LPCSTR name, DWORD index) {
-    LPCSTR value = gi.FindSheetCell(game.config.misc, "Misc", name);
+    LPCSTR value = FS_FindSheetCell(game.config.misc, "Misc", name);
     if (!value) {
         return 0;
     }
@@ -21,7 +21,7 @@ void SP_SpawnItem(LPEDICT self) {
     PATHSTR model_filename;
     strcpy(model_filename, ITEM_FILE(self->class_id));
     self->s.model = gi.ModelIndex(model_filename);
-    self->s.shadow = G_LoadShadowTexture(gi.FindSheetCell(game.config.misc, "Misc", "ItemShadowFile"), false);
+    self->s.shadow = G_LoadShadowTexture(FS_FindSheetCell(game.config.misc, "Misc", "ItemShadowFile"), false);
     self->s.shadow_rect = ShadowPackRect(
         G_MiscVectorValue("ItemShadowOffset", 0),
         G_MiscVectorValue("ItemShadowOffset", 1),

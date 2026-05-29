@@ -99,8 +99,8 @@ LPEDICT G_Spawn(void) {
 
 static void SP_SpawnDoodad(LPEDICT edict) {
     LPCSTR class_id = GetClassName(edict->class_id);
-    LPCSTR dir = gi.FindSheetCell(Doodads, class_id, "dir");
-    LPCSTR file = gi.FindSheetCell(Doodads, class_id, "file");
+    LPCSTR dir = FS_FindSheetCell(Doodads, class_id, "dir");
+    LPCSTR file = FS_FindSheetCell(Doodads, class_id, "file");
     PATHSTR buffer;
     if (dir) {
         snprintf(buffer, sizeof(buffer), "%s\\%s\\%s%d.mdx", dir, file, file, edict->variation);

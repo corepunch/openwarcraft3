@@ -158,6 +158,7 @@ int main(int argc, char **argv) {
     if (!Viewer_AddArchive(archives, sizeof(archives) / sizeof(archives[0]), mpq)) {
         return 1;
     }
+    Tool_SetSheetHost(archives, sizeof(archives) / sizeof(archives[0]));
 
     refExport_t re = R_GetAPI((refImport_t){
         .FS_ReadFile = Tool_FS_ReadFile,

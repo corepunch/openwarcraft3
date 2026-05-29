@@ -216,17 +216,76 @@ static inline const char *Tool_PathExt(const char *path) {
     return dot ? dot + 1 : "";
 }
 
+#ifndef TOOL_COMMON_NO_MPQ
+static inline HANDLE Tool_ReadFileRaw(LPCSTR filename, LPDWORD size);
+
 /* Tool-specific FS_ReadFile wrapper for Quake 3 pattern */
 static inline int Tool_FS_ReadFile(LPCSTR filename, void **buf) {
     if (!buf) return -1;
     DWORD size = 0;
-    *buf = FS_ReadFile(filename, &size);
-    if (!*buf) return -1;
+    HANDLE raw = Tool_ReadFileRaw(filename, &size);
+    if (!raw) {
+        return -1;
+    }
+    *buf = raw;
     return (int)size;
+}
+
+typedef struct {
+    HANDLE *archives;
+    size_t count;
+} ToolSheetHostState;
+
+static inline ToolSheetHostState *Tool_SheetHostState(void) {
+    static ToolSheetHostState state;
+    return &state;
+}
+
+static inline HANDLE Tool_ReadFileRaw(LPCSTR filename, LPDWORD size) {
+    ToolSheetHostState *state = Tool_SheetHostState();
+    HANDLE file;
+    HANDLE buffer;
+    DWORD fileSize;
+
+    if (!state->archives || state->count == 0) {
+        return NULL;
+    }
+    file = Tool_OpenFile(state->archives, state->count, filename);
+    if (!file) {
+        return NULL;
+    }
+    fileSize = SFileGetFileSize(file, NULL);
+    buffer = Tool_MemAlloc((long)fileSize + 1);
+    if (!buffer) {
+        Tool_CloseFile(file);
+        return NULL;
+    }
+    if (fileSize > 0) {
+        SFileReadFile(file, buffer, fileSize, NULL, NULL);
+    }
+    Tool_CloseFile(file);
+    ((char *)buffer)[fileSize] = '\0';
+    if (size) {
+        *size = fileSize;
+    }
+    return buffer;
 }
 
 static inline void Tool_FS_FreeFile(void *buf) {
     MemFree(buf);
 }
+
+static inline void Tool_SetSheetHost(HANDLE *archives, size_t count) {
+    ToolSheetHostState *state = Tool_SheetHostState();
+    state->archives = archives;
+    state->count = count;
+    FS_SetSheetHost(&MAKE(SHEETHOST,
+        .ReadFile = Tool_ReadFileRaw,
+        .FreeFile = Tool_MemFree,
+        .MemAlloc = Tool_MemAlloc,
+        .MemFree = Tool_MemFree,
+    ));
+}
+#endif
 
 #endif

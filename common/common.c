@@ -626,6 +626,18 @@ int FS_ReadFileQ3(LPCSTR filename, void **buf) {
     return (int)size;
 }
 
+HANDLE FS_ReadFile(LPCSTR filename, LPDWORD size) {
+    HANDLE fp = FS_OpenFile(filename);
+    if (!fp) {
+        return FS_ReadLooseFile(filename, size, 0);
+    }
+    *size = SFileGetFileSize(fp, NULL);
+    LPSTR buffer = MemAlloc(*size);
+    SFileReadFile(fp, buffer, *size, NULL, NULL);
+    FS_CloseFile(fp);
+    return buffer;
+}
+
 void FS_FreeFile(void *buf) {
     MemFree(buf);
 }
@@ -799,6 +811,27 @@ void FS_Shutdown(void) {
     }
 }
 
+BOMStatus PF_TextRemoveBom(LPSTR buffer) {
+    unsigned char utf8_bom[] = { 0xEF, 0xBB, 0xBF };
+    unsigned char utf16le_bom[] = { 0xFF, 0xFE };
+    unsigned char utf16be_bom[] = { 0xFE, 0xFF };
+
+    if (!buffer) {
+        return INVALID_BOM;
+    }
+    if (memcmp(buffer, utf8_bom, 3) == 0) {
+        memmove(buffer, buffer + 3, strlen(buffer + 3) + 1);
+        return UTF8_BOM_FOUND;
+    } else if (memcmp(buffer, utf16le_bom, 2) == 0) {
+        memmove(buffer, buffer + 2, strlen(buffer + 2) + 1);
+        return UTF16LE_BOM_FOUND;
+    } else if (memcmp(buffer, utf16be_bom, 2) == 0) {
+        memmove(buffer, buffer + 2, strlen(buffer + 2) + 1);
+        return UTF16BE_BOM_FOUND;
+    }
+    return NO_BOM;
+}
+
 HANDLE MemAlloc(long size) {
     HANDLE mem = malloc(size);
 //    printf("Alloc (%d) %llx\n", size, mem);
@@ -846,6 +879,12 @@ static void Com_Map_f(void) {
 void Com_Init(int argc, LPCSTR *argv) {
     Cbuf_Init();
     Cvar_Init();
+    FS_SetSheetHost(&MAKE(SHEETHOST,
+        .ReadFile = FS_ReadFile,
+        .FreeFile = FS_FreeFile,
+        .MemAlloc = MemAlloc,
+        .MemFree = MemFree,
+    ));
     Key_Init();
     Cmd_AddCommand("map", Com_Map_f);
     Cvar_ApplyConfigCommandLine(argc, argv);

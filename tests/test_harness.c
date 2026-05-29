@@ -124,23 +124,6 @@ static BOOL mock_ClosestPathablePointForRadius(LPCVECTOR2 location, FLOAT radius
 }
 
 
-static sheetRow_t *mock_ReadSheet(LPCSTR filename) {
-    (void)filename;
-    return NULL;
-}
-
-static sheetRow_t *mock_ReadConfig(LPCSTR filename) {
-    (void)filename;
-    return NULL;
-}
-
-static LPCSTR mock_FindSheetCell(sheetRow_t *sheet,
-                                  LPCSTR      row,
-                                  LPCSTR      column)
-{
-    return FS_FindSheetCell(sheet, row, column);
-}
-
 static DWORD mock_GetTime(void) {
     return level.time;
 }
@@ -156,6 +139,26 @@ static void   mock_Write(pfWriteType_t type, void const *value) { (void)type; (v
 static void   mock_configstring(DWORD i, LPCSTR s)      { (void)i; (void)s; }
 static void   mock_confignstring(DWORD i, LPCSTR s, DWORD l) { (void)i; (void)s; (void)l; }
 static void   mock_error(LPCSTR fmt, ...)               { (void)fmt; }
+
+void Get_Portrait_f(LPEDICT ent) {
+    (void)ent;
+}
+
+BOOL G_ActorHasSkill(LPEDICT ent, LPCSTR id) {
+    (void)ent;
+    (void)id;
+    return false;
+}
+
+void harvest_start(LPEDICT self, LPEDICT target) {
+    (void)self;
+    (void)target;
+}
+
+void harvest_gold_start(LPEDICT self, LPEDICT target) {
+    (void)self;
+    (void)target;
+}
 
 /* =======================================================================
  * Test unit-data tables (normally loaded from MPQ by InitUnitData)
@@ -236,9 +239,6 @@ void setup_game(void) {
     gi.GetHeightAtPoint    = mock_GetHeightAtPoint;
     gi.ReadFile            = mock_ReadFile;
     gi.GetTime             = mock_GetTime;
-    gi.ReadSheet           = mock_ReadSheet;
-    gi.ReadConfig          = mock_ReadConfig;
-    gi.FindSheetCell       = mock_FindSheetCell;
     gi.multicast           = mock_multicast;
     gi.unicast             = mock_unicast;
     gi.Write              = mock_Write;

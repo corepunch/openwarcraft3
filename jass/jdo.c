@@ -388,12 +388,6 @@ LPJASSCOROUTINE jass_startcoroutine(LPJASS j, LPCJASSCONTEXT context) {
     }
 
     PUSH_BACK(JASSCOROUTINE, co, root->coroutines);
-    fprintf(stderr,
-            "JASS coroutine start: func=%s player=%d unit=%p time=%u\n",
-            context->func ? context->func->name : "<null>",
-            co_state->context.playerState ? (int)co_state->context.playerState->number : -1,
-            (void *)co_state->context.unit,
-            (unsigned)jass_gettime());
     return co;
 }
 
@@ -429,12 +423,6 @@ void jass_sleep(LPJASS j, DWORD msec) {
     }
     co->wake_time = jass_gettime() + msec;
     co->yielded = true;
-    fprintf(stderr,
-            "JASS coroutine sleep: func=%s msec=%u wake=%u now=%u\n",
-            co->state->context.func ? co->state->context.func->name : "<unknown>",
-            (unsigned)msec,
-            (unsigned)co->wake_time,
-            (unsigned)jass_gettime());
 }
 
 static BOOL jass_yielded(LPJASS j) {
@@ -541,15 +529,8 @@ static BOOL jass_coroutine_runlocalplayerif(LPJASS j, LPJASSCOROUTINE co, LPCTOK
         currentplayer = jass_getplayerbyindex(i);
         jass_dotoken(j, token->condition);
         if (jass_popboolean(j)) {
-            fprintf(stderr,
-                    "JASS coroutine localplayer branch: func=%s player=%u time=%u\n",
-                    co->state->context.func ? co->state->context.func->name : "<unknown>",
-                    (unsigned)i,
-                    (unsigned)jass_gettime());
             eval_TOKENS(j, token->body);
             if (jass_yielded(j)) {
-                fprintf(stderr,
-                        "JASS coroutine localplayer branch yielded; branch continuation is not resumable yet\n");
                 currentplayer = previous_player;
                 return true;
             }
@@ -689,12 +670,6 @@ BOOL jass_resume(LPJASS j, LPJASSCOROUTINE co) {
     LPPLAYER previous_player = currentplayer;
     LPEDICT previous_unit = currentunit;
 
-    fprintf(stderr,
-            "JASS coroutine resume: func=%s now=%u wake=%u player=%d\n",
-            co->state->context.func ? co->state->context.func->name : "<unknown>",
-            (unsigned)now,
-            (unsigned)co->wake_time,
-            co->state->context.playerState ? (int)co->state->context.playerState->number : -1);
     root->current_coroutine = co;
     currentplayer = co->state->context.playerState;
     currentunit = co->state->context.unit;
@@ -710,7 +685,6 @@ void jass_runevents(LPJASS j) {
     LPJASS root = jass_root(j);
     LPJASSCOROUTINE prev = NULL;
     LPJASSCOROUTINE co = root->coroutines;
-    DWORD now = jass_gettime();
 
     while (co) {
         LPJASSCOROUTINE next;
@@ -718,10 +692,6 @@ void jass_runevents(LPJASS j) {
 
         next = co->next;
         if (co->done) {
-            fprintf(stderr,
-                    "JASS coroutine done: func=%s now=%u\n",
-                    co->state->context.func ? co->state->context.func->name : "<unknown>",
-                    (unsigned)now);
             if (prev) {
                 prev->next = next;
             } else {
@@ -743,11 +713,6 @@ BOOL jass_evaluatetrigger(LPJASS j, LPTRIGGER trigger, LPEDICT unit) {
     LPPLAYER player = jass_eventplayer(unit);
 
     if (trigger->disabled) {
-        fprintf(stderr,
-                "JASS trigger skipped: trigger=%p disabled=1 unit=%p time=%u\n",
-                (void *)trigger,
-                (void *)unit,
-                (unsigned)jass_gettime());
         return false;
     }
     JASS tmp_state;

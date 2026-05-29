@@ -129,6 +129,7 @@ void LoadMap(LPCSTR pFilename);
 
 void FS_Init(void);
 void FS_Shutdown(void);
+BOMStatus PF_TextRemoveBom(LPSTR buffer);
 
 void Com_Quit(void);
 void Sys_Quit(void);
@@ -149,6 +150,14 @@ HANDLE FS_FindFirstFile(LPCSTR mask, SFILE_FIND_DATA *findData);
 BOOL FS_FindNextFile(HANDLE find, SFILE_FIND_DATA *findData);
 BOOL FS_FindClose(HANDLE find);
 
+typedef struct {
+    HANDLE (*ReadFile)(LPCSTR filename, LPDWORD size);
+    void (*FreeFile)(HANDLE file);
+    HANDLE (*MemAlloc)(long size);
+    void (*MemFree)(HANDLE mem);
+} SHEETHOST;
+
+void FS_SetSheetHost(SHEETHOST const *host);
 sheetRow_t *FS_ParseINI(LPCSTR fileName);
 sheetRow_t *FS_ParseSLK(LPCSTR fileName);
 LPCSTR FS_FindSheetCell(sheetRow_t *sheet, LPCSTR row, LPCSTR column);
@@ -178,10 +187,11 @@ DWORD CM_BuildHeatmap(struct edict_s *goalentity);
 BOOL CM_ClosestPathablePoint(LPCVECTOR2 location, LPVECTOR2 out);
 BOOL CM_ClosestPathablePointForRadius(LPCVECTOR2 location, FLOAT radius, LPVECTOR2 out);
 
-// parser.c
+// sheet/parser.c
 LPSTR ParserGetTokenEx(parser_t *p, bool sameLine);
 LPSTR ParserGetToken(parser_t *p);
 LPSTR FS_ReadFileIntoString(LPCSTR fileName);
+void FS_FreeFileString(LPSTR buffer);
 void ParserError(parser_t *p);
 
 // cmd.c

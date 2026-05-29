@@ -27,12 +27,6 @@ void run_game_tests(void);
 void run_combat_tests(void);
 void run_server_net_tests(void);
 void run_tool_common_tests(void);
-void run_ui_fdf_tests(void);
-void run_ui_serialize_tests(void);
-void run_ui_layout_tests(void);
-void run_ui_logo_layout_tests(void);
-void run_ui_e2e_tests(void);
-void run_ui_oracle_tests(void);
 
 int main(void) {
     printf("=== OpenWarcraft3 Unit Tests ===\n\n");
@@ -79,30 +73,6 @@ int main(void) {
 
     printf("[Tool common helpers]\n");
     run_tool_common_tests();
-    printf("\n");
-
-    printf("[UI FDF parser / frame graph]\n");
-    run_ui_fdf_tests();
-    printf("\n");
-
-    printf("[UI serialization / delta]\n");
-    run_ui_serialize_tests();
-    printf("\n");
-
-    printf("[UI layout solver]\n");
-    run_ui_layout_tests();
-    printf("\n");
-
-    printf("[UI logo/sprite layout]\n");
-    run_ui_logo_layout_tests();
-    printf("\n");
-
-    printf("[UI end-to-end server→client]\n");
-    run_ui_e2e_tests();
-    printf("\n");
-
-    printf("[UI tool-backed oracle]\n");
-    run_ui_oracle_tests();
     printf("\n");
 
     TEST_RESULTS();

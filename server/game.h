@@ -49,9 +49,6 @@ struct game_import {
     FLOAT (*GetHeightAtPoint)(FLOAT x, FLOAT y);
     HANDLE (*ReadFile)(LPCSTR filename, LPDWORD size);
     DWORD (*GetTime)(void);
-    sheetRow_t *(*ReadSheet)(LPCSTR sheetFilename);
-    sheetRow_t *(*ReadConfig)(LPCSTR configFilename);
-    LPCSTR (*FindSheetCell)(sheetRow_t *sheet, LPCSTR row, LPCSTR column);
     void (*multicast)(LPCVECTOR3 origin, multicast_t to);
     void (*unicast)(edict_t *ent);
     void (*Write)(pfWriteType_t type, void const *value);

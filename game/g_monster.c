@@ -192,9 +192,9 @@ pathTex_t *M_LoadPathTex(LPCSTR filename) {
 
 DWORD M_LoadUberSplat(LPCSTR uber_splat) {
     if (IS_FOURCC(uber_splat)) {
-        LPCSTR dir = gi.FindSheetCell(game.config.uberSplats, uber_splat, "dir");
-        LPCSTR file = gi.FindSheetCell(game.config.uberSplats, uber_splat, "file");
-        LPCSTR scale = gi.FindSheetCell(game.config.uberSplats, uber_splat, "scale");
+        LPCSTR dir = FS_FindSheetCell(game.config.uberSplats, uber_splat, "dir");
+        LPCSTR file = FS_FindSheetCell(game.config.uberSplats, uber_splat, "file");
+        LPCSTR scale = FS_FindSheetCell(game.config.uberSplats, uber_splat, "scale");
         PATHSTR filename;
         snprintf(filename, sizeof(PATHSTR), "%s\\%s.blp", dir, file);
         return gi.ImageIndex(filename) | (atoi(scale) << 16);

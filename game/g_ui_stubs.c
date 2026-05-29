@@ -925,7 +925,7 @@ DWORD UI_LoadTexture(LPCSTR path, BOOL forcewrap) {
 LPCSTR Theme_String(LPCSTR key, LPCSTR def) {
     LPCSTR value = NULL;
     if (key && !strstr(key, "\\") && game.config.theme) {
-        value = gi.FindSheetCell(game.config.theme, "Default", key);
+        value = FS_FindSheetCell(game.config.theme, "Default", key);
     }
     return value ? value : def;
 }

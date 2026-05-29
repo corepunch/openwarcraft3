@@ -220,7 +220,7 @@ void Cvar_LoadConfig(LPCSTR filename) {
     fprintf(stderr, "Executing %s\n", filename);
     Cbuf_AddText(text);
     Cbuf_AddText("\n");
-    MemFree(text);
+    FS_FreeFileString(text);
 }
 
 static void Cvar_WriteEscaped(FILE *file, LPCSTR text) {

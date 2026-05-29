@@ -2,6 +2,8 @@
  * ui_main.c — UI library entry point and lifecycle management.
  */
 
+#include <stdlib.h>
+
 #include "ui_local.h"
 #include "ui_screen.h"
 

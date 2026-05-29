@@ -8,7 +8,7 @@ typedef struct {
 void CMD_CancelCommand(LPEDICT ent);
 
 FLOAT AB_Number(LPCSTR classname, LPCSTR field) {
-    LPCSTR str = gi.FindSheetCell(game.config.abilities, classname, field);
+    LPCSTR str = FS_FindSheetCell(game.config.abilities, classname, field);
     return str ? atof(str) : 0;
 }
 
