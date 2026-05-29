@@ -1,11 +1,17 @@
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 
 #include "test_framework.h"
-#include "test_harness.h"
+#include "../ui/ui_local.h"
+#include "../ui/ui_screen.h"
+
+static void setup_game(void) {}
+static void teardown_game(void) {}
 
 static const char *captured_image_path;
 static const char *captured_model_path;
+static char captured_command[128];
 
 static int fake_image_index(LPCSTR name) {
     captured_image_path = name;
@@ -32,12 +38,180 @@ static int require_not_null(const void *ptr) {
     return ptr != NULL;
 }
 
+static char *normalize_ui_path(LPCSTR path) {
+    size_t len;
+    char *mapped;
+    size_t prefix_len = strlen("data/fdf/");
+
+    if (!path) {
+        return NULL;
+    }
+
+    len = strlen(path);
+    mapped = malloc(prefix_len + len + 1);
+    if (!mapped) {
+        return NULL;
+    }
+
+    memcpy(mapped, "data/fdf/", prefix_len);
+    for (size_t i = 0; i < len; i++) {
+        mapped[prefix_len + i] = (path[i] == '\\') ? '/' : path[i];
+    }
+    mapped[prefix_len + len] = '\0';
+    return mapped;
+}
+
+static int test_fs_read_file(LPCSTR file_name, void **buf) {
+    char *mapped;
+    FILE *file;
+    long size;
+    void *data;
+
+    if (!buf) {
+        return -1;
+    }
+    *buf = NULL;
+
+    mapped = normalize_ui_path(file_name);
+    if (!mapped) {
+        return -1;
+    }
+
+    file = fopen(mapped, "rb");
+    free(mapped);
+    if (!file) {
+        return -1;
+    }
+
+    if (fseek(file, 0, SEEK_END) != 0) {
+        fclose(file);
+        return -1;
+    }
+    size = ftell(file);
+    if (size < 0 || fseek(file, 0, SEEK_SET) != 0) {
+        fclose(file);
+        return -1;
+    }
+
+    data = malloc((size_t)size + 1);
+    if (!data) {
+        fclose(file);
+        return -1;
+    }
+    if (fread(data, 1, (size_t)size, file) != (size_t)size) {
+        free(data);
+        fclose(file);
+        return -1;
+    }
+    fclose(file);
+    ((char *)data)[size] = '\0';
+    *buf = data;
+    return (int)size;
+}
+
+static void test_fs_free_file(void *buf) {
+    free(buf);
+}
+
+static int test_image_index(LPCSTR name) {
+    return (name && *name) ? 123 : 0;
+}
+
+static int test_model_index(LPCSTR name) {
+    return (name && *name) ? 456 : 0;
+}
+
+static LPTEXTURE test_load_texture(LPCSTR name) {
+    captured_image_path = name;
+    return (LPTEXTURE)1;
+}
+
+static LPMODEL test_load_model(LPCSTR name) {
+    captured_model_path = name;
+    return (LPMODEL)1;
+}
+
+static LPRENDERER test_get_renderer(void) {
+    static refExport_t renderer = {
+        .LoadTexture = test_load_texture,
+        .LoadModel = test_load_model,
+    };
+    return &renderer;
+}
+
+static int test_font_index(LPCSTR name, DWORD size) {
+    (void)name;
+    (void)size;
+    return 1;
+}
+
+static HANDLE test_ui_mem_alloc(long size) {
+    void *ptr = calloc(1u, (size_t)size);
+    return ptr;
+}
+
+static void test_ui_mem_free(HANDLE ptr) {
+    free(ptr);
+}
+
+static void test_ui_printf(LPCSTR fmt, ...) {
+    (void)fmt;
+}
+
+static void test_cmd_execute_text(LPCSTR text) {
+    snprintf(captured_command, sizeof(captured_command), "%s", text ? text : "");
+}
+
+static void load_ui_file(LPCSTR file_name) {
+    uiImport_t saved = uiimport;
+
+    UI_ClearTemplates();
+    memset(&uiimport, 0, sizeof(uiimport));
+    uiimport.FS_ReadFile = test_fs_read_file;
+    uiimport.FS_FreeFile = test_fs_free_file;
+    uiimport.MemAlloc = test_ui_mem_alloc;
+    uiimport.MemFree = test_ui_mem_free;
+    uiimport.ImageIndex = test_image_index;
+    uiimport.ModelIndex = test_model_index;
+    uiimport.FontIndex = test_font_index;
+    uiimport.Printf = test_ui_printf;
+    uiimport.Error = test_ui_printf;
+    UI_ParseFDF(file_name);
+    uiimport = saved;
+}
+
+static void load_ui_files(LPCSTR const *file_names, size_t count) {
+    uiImport_t saved = uiimport;
+
+    UI_ClearTemplates();
+    memset(&uiimport, 0, sizeof(uiimport));
+    uiimport.FS_ReadFile = test_fs_read_file;
+    uiimport.FS_FreeFile = test_fs_free_file;
+    uiimport.MemAlloc = test_ui_mem_alloc;
+    uiimport.MemFree = test_ui_mem_free;
+    uiimport.ImageIndex = test_image_index;
+    uiimport.ModelIndex = test_model_index;
+    uiimport.FontIndex = test_font_index;
+    uiimport.Printf = test_ui_printf;
+    uiimport.Error = test_ui_printf;
+    for (size_t i = 0; i < count; i++) {
+        UI_ParseFDF(file_names[i]);
+    }
+    uiimport = saved;
+}
+
 static void reset_ui_state(void) {
     UI_ClearTemplates();
     captured_image_path = NULL;
     captured_model_path = NULL;
-    gi.ImageIndex = fake_image_index;
-    gi.ModelIndex = fake_model_index;
+    captured_command[0] = '\0';
+    uiimport.MemAlloc = test_ui_mem_alloc;
+    uiimport.MemFree = test_ui_mem_free;
+    uiimport.ImageIndex = fake_image_index;
+    uiimport.ModelIndex = fake_model_index;
+    uiimport.GetRenderer = test_get_renderer;
+    uiimport.Printf = test_ui_printf;
+    uiimport.Error = test_ui_printf;
 }
 
 static void test_parse_single_frame_definition(void) {
@@ -792,6 +966,151 @@ static void test_unknown_token_does_not_crash_existing_definitions(void) {
     ASSERT_FLOAT_EQ(good->Width, 0.5f);
 }
 
+static void test_esc_menu_confirm_quit_panel_is_available(void) {
+    LPFRAMEDEF panel;
+    LPFRAMEDEF quit_button;
+    LPFRAMEDEF cancel_button;
+    LPFRAMEDEF message;
+
+    load_ui_file("UI\\FrameDef\\UI\\EscMenuMainPanel.fdf");
+
+    panel = UI_FindFrame("ConfirmQuitPanel");
+    quit_button = UI_FindFrame("ConfirmQuitQuitButton");
+    cancel_button = UI_FindFrame("ConfirmQuitCancelButton");
+    message = UI_FindFrame("ConfirmQuitMessageText");
+
+    if (!require_not_null(panel)) return;
+    if (!require_not_null(quit_button)) return;
+    if (!require_not_null(cancel_button)) return;
+    if (!require_not_null(message)) return;
+
+    ASSERT_STR_EQ(quit_button->Text, "ConfirmQuitQuitButtonText");
+    ASSERT_STR_EQ(cancel_button->Text, "ConfirmQuitCancelButtonText");
+    ASSERT_STR_EQ(message->Text, "CONFIRM_EXIT_MESSAGE");
+}
+
+static void test_main_menu_quit_dialog_routes_to_quit(void) {
+    LPCSTR files[] = {
+        "UI\\FrameDef\\GlobalStrings.fdf",
+        "UI\\FrameDef\\Glue\\StandardTemplates.fdf",
+        "UI\\FrameDef\\Glue\\MainMenu.fdf",
+        "UI\\FrameDef\\Glue\\DialogWar3.fdf",
+    };
+    LPFRAMEDEF exit_button;
+    LPFRAMEDEF modal;
+    LPFRAMEDEF cover;
+    LPFRAMEDEF dialog;
+    LPFRAMEDEF message;
+    LPFRAMEDEF icon;
+    LPFRAMEDEF ok_backdrop;
+    LPFRAMEDEF no_backdrop;
+    LPFRAMEDEF yes_backdrop;
+    LPFRAMEDEF no_button;
+    LPFRAMEDEF yes_button;
+    uiImport_t saved = uiimport;
+
+    load_ui_files(files, sizeof(files) / sizeof(files[0]));
+
+    memset(&uiimport, 0, sizeof(uiimport));
+    uiimport.Printf = test_ui_printf;
+    uiimport.GetRenderer = test_get_renderer;
+    uiimport.Cmd_ExecuteText = test_cmd_execute_text;
+    captured_command[0] = '\0';
+
+    mainMenuScreen.init();
+
+    exit_button = UI_FindFrame("ExitButton");
+    if (!require_not_null(exit_button)) {
+        uiimport = saved;
+        return;
+    }
+    ASSERT(!exit_button->hidden);
+    ASSERT_STR_EQ(exit_button->OnClick, "menu /main/quit-confirm");
+
+    modal = UI_FindChildFrame(UI_FindFrame("MainMenuFrame"), "MainMenuQuitModal");
+    if (!require_not_null(modal)) {
+        uiimport = saved;
+        return;
+    }
+    ASSERT_EQ_INT(modal->Type, FT_DIALOG);
+    ASSERT(modal->hidden);
+
+    cover = UI_FindChildFrame(modal, "MainMenuQuitModalCover");
+    if (!require_not_null(cover)) {
+        uiimport = saved;
+        return;
+    }
+    ASSERT_EQ_INT(cover->Type, FT_TEXTURE);
+    ASSERT(cover->Texture.Image != 0);
+    ASSERT_EQ_INT(cover->Color.a, 128);
+
+    dialog = UI_FindChildFrame(modal, "DialogWar3");
+    if (!require_not_null(dialog)) {
+        uiimport = saved;
+        return;
+    }
+    ASSERT_EQ_INT(dialog->Type, FT_DIALOG);
+    ASSERT(dialog->hidden);
+
+    message = UI_FindChildFrame(dialog, "DialogText");
+    icon = UI_FindChildFrame(dialog, "DialogIcon");
+    ok_backdrop = UI_FindChildFrame(dialog, "DialogButtonOKBackdrop");
+    no_backdrop = UI_FindChildFrame(dialog, "DialogButtonNoBackdrop");
+    yes_backdrop = UI_FindChildFrame(dialog, "DialogButtonYesBackdrop");
+    no_button = UI_FindChildFrame(dialog, "DialogButtonNo");
+    yes_button = UI_FindChildFrame(dialog, "DialogButtonYes");
+
+    if (!require_not_null(message)) {
+        uiimport = saved;
+        return;
+    }
+    if (!require_not_null(icon)) {
+        uiimport = saved;
+        return;
+    }
+    if (!require_not_null(ok_backdrop)) {
+        uiimport = saved;
+        return;
+    }
+    if (!require_not_null(no_backdrop)) {
+        uiimport = saved;
+        return;
+    }
+    if (!require_not_null(yes_backdrop)) {
+        uiimport = saved;
+        return;
+    }
+    if (!require_not_null(no_button)) {
+        uiimport = saved;
+        return;
+    }
+    if (!require_not_null(yes_button)) {
+        uiimport = saved;
+        return;
+    }
+
+    ASSERT_STR_EQ(message->Text, "Are you sure you want to exit?");
+    ASSERT(icon->Backdrop.Background != 0);
+    ASSERT(ok_backdrop->hidden);
+    ASSERT(!no_backdrop->hidden);
+    ASSERT(!yes_backdrop->hidden);
+    ASSERT_STR_EQ(no_button->OnClick, "menu /main/main");
+    ASSERT_STR_EQ(yes_button->OnClick, "menu /quit");
+
+    mainMenuScreen.route("/quit-confirm");
+    ASSERT(!modal->hidden);
+    ASSERT(!dialog->hidden);
+
+    UI_MenuCommandLocal(no_button->OnClick);
+    ASSERT(modal->hidden);
+    ASSERT(dialog->hidden);
+
+    UI_MenuCommandLocal(yes_button->OnClick);
+    ASSERT_STR_EQ(captured_command, "quit\n");
+
+    uiimport = saved;
+}
+
 BEGIN_SUITE(ui_fdf)
     RUN_TEST(test_parse_single_frame_definition);
     RUN_TEST(test_parse_nested_parent_child_relationship);
@@ -828,4 +1147,6 @@ BEGIN_SUITE(ui_fdf)
     RUN_TEST(test_long_stringlist_text_is_bounded_to_frame_storage);
     RUN_TEST(test_duplicate_name_prefers_first_template);
     RUN_TEST(test_unknown_token_does_not_crash_existing_definitions);
+    RUN_TEST(test_esc_menu_confirm_quit_panel_is_available);
+    RUN_TEST(test_main_menu_quit_dialog_routes_to_quit);
 END_SUITE()

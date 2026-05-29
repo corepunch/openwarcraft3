@@ -47,6 +47,7 @@ static RECT scene_rect;
 static BOOL scene_rect_valid = FALSE;
 static LPCFRAMEDEF active_slider = NULL;
 static LPCFRAMEDEF active_popup = NULL;
+static LPCFRAMEDEF active_modal = NULL;
 static LPFRAMEDEF active_edit = NULL;
 static DWORD active_edit_cursor = 0;
 
@@ -76,6 +77,8 @@ static DWORD UI_FontPixelSize(FLOAT size) {
 /* Forward declarations */
 static LPCRECT UI_LayoutRect(LPCFRAMEDEF frame);
 static void UI_DrawFrameOne(LPCFRAMEDEF frame);
+static BOOL UI_FrameWithinRoot(LPCFRAMEDEF root, LPCFRAMEDEF frame);
+static BOOL UI_PointerBlockedByModal(LPCFRAMEDEF frame);
 
 /* ========================================================================
  * LAYOUT SOLVING
@@ -394,6 +397,10 @@ static BOOL UI_FrameWithinRoot(LPCFRAMEDEF root, LPCFRAMEDEF frame) {
     return FALSE;
 }
 
+static BOOL UI_PointerBlockedByModal(LPCFRAMEDEF frame) {
+    return active_modal && !UI_FrameWithinRoot(active_modal, frame);
+}
+
 static void UI_SanitizeInteractionState(LPCFRAMEDEF root) {
     if (!root) {
         active_popup = NULL;
@@ -405,12 +412,33 @@ static void UI_SanitizeInteractionState(LPCFRAMEDEF root) {
     if (active_popup && !UI_FrameWithinRoot(root, active_popup)) {
         active_popup = NULL;
     }
+    if (active_popup && active_modal && !UI_FrameWithinRoot(active_modal, active_popup)) {
+        active_popup = NULL;
+    }
     if (active_slider && !UI_FrameWithinRoot(root, active_slider)) {
+        active_slider = NULL;
+    }
+    if (active_slider && active_modal && !UI_FrameWithinRoot(active_modal, active_slider)) {
         active_slider = NULL;
     }
     if (active_edit && !UI_FrameWithinRoot(root, active_edit)) {
         UI_FocusEdit(NULL);
     }
+    if (active_edit && active_modal && !UI_FrameWithinRoot(active_modal, active_edit)) {
+        UI_FocusEdit(NULL);
+    }
+}
+
+static LPCFRAMEDEF UI_FindActiveModal(LPCFRAMEDEF const *draw_order, DWORD count) {
+    LPCFRAMEDEF modal = NULL;
+
+    FOR_LOOP(i, count) {
+        LPCFRAMEDEF frame = draw_order[i];
+        if (frame && !frame->hidden && frame->Type == FT_DIALOG) {
+            modal = frame;
+        }
+    }
+    return modal;
 }
 
 static void UI_DrawHighlightFrame(LPCFRAMEDEF frame, LPCRECT rect) {
@@ -646,6 +674,7 @@ void UI_DrawFrame(LPCFRAMEDEF frame) {
     scene_rect = UI_GetSceneRect();
     total = UI_CollectFrameTree(frame, draw_order, MAX_UI_CLASSES);
     count = MIN(total, MAX_UI_CLASSES);
+    active_modal = UI_FindActiveModal(draw_order, count);
     UI_SanitizeInteractionState(frame);
     UI_ClosePopupIfClickedOutside();
     UI_ClearEditFocusIfClickedOutside();

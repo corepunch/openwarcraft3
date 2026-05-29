@@ -415,6 +415,7 @@ void UI_InitLocal(void) {
     UI_ParseFDF("UI\\FrameDef\\UI\\EscMenuMainPanel.fdf");
     UI_ParseFDF("UI\\FrameDef\\Glue\\StandardTemplates.fdf");
     UI_ParseFDF("UI\\FrameDef\\Glue\\MainMenu.fdf");
+    UI_ParseFDF("UI\\FrameDef\\Glue\\DialogWar3.fdf");
     UI_ParseFDF("UI\\FrameDef\\Glue\\MapListBox.fdf");
     UI_ParseFDF("UI\\FrameDef\\Glue\\MapInfoPane.fdf");
     UI_ParseFDF("UI\\FrameDef\\Glue\\LocalMultiplayerCreate.fdf");
