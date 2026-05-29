@@ -665,6 +665,27 @@ static void test_native_call_chain(void) {
     jass_close(j);
 }
 
+static void test_statement_call_discards_return_value(void) {
+    const char *src =
+        "native NativeAdd takes integer a, integer b returns integer\n"
+        "function MakeValue takes nothing returns integer\n"
+        "  return NativeAdd(1, 2)\n"
+        "endfunction\n"
+        "function ManyIgnoredCalls takes nothing returns integer\n"
+        "  local integer i = 0\n"
+        "  loop\n"
+        "    exitwhen i >= 300\n"
+        "    call MakeValue()\n"
+        "    set i = i + 1\n"
+        "  endloop\n"
+        "  return i\n"
+        "endfunction\n";
+    LPJASS j = run(src);
+    jass_callbyname(j, "ManyIgnoredCalls", false);
+    ASSERT_EQ_INT(jass_checkinteger(j, -1), 300);
+    jass_close(j);
+}
+
 /* =========================================================================
  * Type system: typedef / handle types
  * ========================================================================= */
@@ -1406,6 +1427,7 @@ BEGIN_SUITE(jass)
     /* Natives */
     RUN_TEST(test_native_call);
     RUN_TEST(test_native_call_chain);
+    RUN_TEST(test_statement_call_discards_return_value);
     /* Types */
     RUN_TEST(test_typedef);
     /* Coroutines */
