@@ -101,7 +101,7 @@ static void QuitConfirm_Draw(void) {
 
 static void QuitConfirm_KeyEvent(int key, BOOL down) {
     if (down && key == 27) {
-        UI_Route("/back");
+        UI_Route("/main");
     }
 }
 
