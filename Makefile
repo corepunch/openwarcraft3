@@ -168,16 +168,16 @@ $(SHEET_LIB): sheet/parser.c sheet/sheet.c common/common.h | $(LIB_DIR)
 # renderer — depends on shared
 # Uses FS_ReadFile (archive-agnostic) for initial file loads, but includes
 # common/mpq.c for nested .w3m archive handling (maps are MPQ archives containing
-# internal files like war3map.w3e, war3map.shd that must be read via StormLib)
+# internal files like war3map.w3e and war3map.shd).
 $(RENDERER_LIB): $(SHARED_LIB) $(CLIENT_HEADERS) common/mpq.c common/mpq.h $(shell find renderer -name '*.c') | $(LIB_DIR)
 	@echo "[renderer]"
 	@$(call UNITY,renderer,! -path 'renderer/wow/*') | \
-		$(CC) $(CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - common/mpq.c $(LDFLAGS) -lshared $(LIBS) -lz -lstorm
+		$(CC) $(CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - common/mpq.c $(LDFLAGS) -lshared $(LIBS) -lz
 
 $(RENDERER_WOW_LIB): $(SHARED_LIB) $(CLIENT_HEADERS) common/mpq.c common/mpq.h $(shell find renderer -name '*.c') | $(LIB_DIR)
 	@echo "[renderer-wow]"
 	@$(call UNITY,renderer,! -path 'renderer/w3m/*') | \
-		$(CC) $(WOW_CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - common/mpq.c $(LDFLAGS) -lshared $(LIBS) -lz -lstorm
+		$(CC) $(WOW_CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - common/mpq.c $(LDFLAGS) -lshared $(LIBS) -lz
 
 # game — depends on shared and jass
 $(GAME_LIB): $(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) $(shell find game -name '*.c') | $(LIB_DIR)
