@@ -18,6 +18,7 @@ static uiScreen_t *screens[] = {
     &lanJoinScreen,
     &lanCreateScreen,
     &gameSetupScreen,
+    &quitConfirmScreen,
     NULL
 };
 
