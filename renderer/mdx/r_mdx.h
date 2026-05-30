@@ -4,6 +4,8 @@
 #include "../r_local.h"
 
 #define MODEL_ATTACHMENT_PATH_LENGTH 0x100
+#define MDX_TEXTURE_PATH_LENGTH 260
+#define MDX_TEXTURE_RECORD_SIZE (sizeof(DWORD) + MDX_TEXTURE_PATH_LENGTH + sizeof(DWORD))
 #define MDX_MAX_NODES 1024
 #define MDX_MATRIX_PALETTE 128
 
@@ -80,12 +82,11 @@ typedef struct mdxVertexSkin_s {
     BYTE boneWeight[MAX_SKIN_BONES];
 } mdxVertexSkin_t;
 
-typedef enum {
-    TEXREPL_NONE,
-    TEXREPL_TEAMCOLOR,
-    TEXREPL_TEAMGLOW,
-    TEXREPL_TEXTURE = 31,
-} replaceableID_t;
+typedef DWORD replaceableID_t;
+
+#define TEXREPL_NONE 0
+#define TEXREPL_TEAMCOLOR 1
+#define TEXREPL_TEAMGLOW 2
 
 typedef struct mdxSequence_s {
     mdxObjectName_t name;
@@ -206,9 +207,9 @@ typedef struct mdxEvent_s {
 
 typedef struct mdxTexture_s {
     replaceableID_t replaceableID;
-    char path[MODEL_ATTACHMENT_PATH_LENGTH];
-    int texid;
+    char path[MDX_TEXTURE_PATH_LENGTH];
     int nWrapping; //(1:WrapWidth; 2:WrapHeight; 3:Both)
+    int texid;
 } mdxTexture_t;
 
 typedef struct mdxMaterialLayer_s {

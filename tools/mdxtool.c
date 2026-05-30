@@ -566,7 +566,7 @@ static bool DumpModelInfoNoWindow(LPCSTR modelPath) {
                 break;
             }
             case MAKEFOURCC('T', 'E', 'X', 'S'):
-                fprintf(stderr, "  TEXS: count=%u\n", (unsigned)(chunkSize / sizeof(mdxTexture_t)));
+                fprintf(stderr, "  TEXS: count=%u\n", (unsigned)(chunkSize / MDX_TEXTURE_RECORD_SIZE));
                 break;
             case MAKEFOURCC('P', 'I', 'V', 'T'):
                 fprintf(stderr, "  PIVT: count=%u\n", (unsigned)(chunkSize / sizeof(VECTOR3)));
