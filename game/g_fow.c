@@ -3,7 +3,7 @@
 #define FOW_INVALID_CELL 0xffffffffu
 #define FOW_PATHING_PIXEL_SIZE 32.0f
 #define FOW_TREE_DILATION_CELLS 1
-#define FOW_BLOCKER_LIGHT_MARGIN_CELLS 2
+#define FOW_BLOCKER_LIGHT_MARGIN_CELLS 1
 #define G_FOW_CELL_INDEX(x, y) ((y) * level.fow.width + (x))
 #define G_FOW_SET_VISIBLE_CELL(grid, x, y) do { \
     DWORD fow_index_ = G_FOW_CELL_INDEX((DWORD)(x), (DWORD)(y)); \
