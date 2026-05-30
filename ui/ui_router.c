@@ -18,7 +18,6 @@ static uiScreen_t *screens[] = {
     &lanJoinScreen,
     &lanCreateScreen,
     &gameSetupScreen,
-    &quitConfirmScreen,
     NULL
 };
 
@@ -26,6 +25,12 @@ static uiScreen_t *screens[] = {
 static uiScreen_t *screen_stack[MAX_SCREEN_STACK];
 static int screen_stack_depth = 0;
 static uiScreen_t *current_screen = NULL;
+
+void UI_ResetRouter(void) {
+    memset(screen_stack, 0, sizeof(screen_stack));
+    screen_stack_depth = 0;
+    current_screen = NULL;
+}
 
 static uiScreen_t *UI_FindScreen(LPCSTR name) {
     for (int i = 0; screens[i]; i++) {

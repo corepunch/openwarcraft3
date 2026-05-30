@@ -724,7 +724,7 @@ static parseItem_t items[] = {
     { "TabFocusDefault", { F_END }, TabFocusDefault },
     { "TabFocusPush", { F_END }, TabFocusPush },
     { "TabFocusNext", { F(Control.TabFocusNext, Name), F_END } },
-    { "DialogBackdrop", { F(DialogBackdrop, FramePtr), F_END } },
+    { "DialogBackdrop", { F(DialogBackdropName, Name), F_END } },
     // Fields
     { "Width", { F(Width, Float), F_END } },
     { "Height", { F(Height, Float), F_END } },

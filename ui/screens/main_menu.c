@@ -15,6 +15,7 @@
  */
 
 #include "../ui_local.h"
+#include "../ui_dialog.h"
 #include "../ui_screen.h"
 
 /* Frame references */
@@ -22,9 +23,32 @@ static LPFRAMEDEF frame_MainMenu = NULL;
 static LPFRAMEDEF frame_ControlLayer = NULL;
 static LPFRAMEDEF frame_RealmSelect = NULL;
 static LPFRAMEDEF frame_Logo = NULL;
+static uiDialogWar3_t quit_dialog;
 
 /* State */
 static BOOL show_realm_select = false;
+
+static void MainMenu_InitQuitDialog(void) {
+    uiDialogWar3Init_t init = {
+        .modal_name = "MainMenuQuitModal",
+        .cover_name = "MainMenuQuitModalCover",
+        .template_name = "DialogWar3",
+    };
+
+    UI_DialogWar3Init(&quit_dialog, frame_MainMenu, &init);
+}
+
+static void MainMenu_ShowQuitDialog(void) {
+    uiDialogWar3Config_t config = {
+        .message = "Do you want to Quit?",
+        .icon = UI_DIALOG_WAR3_ICON_QUESTION,
+        .buttons = UI_DIALOG_WAR3_BUTTONS_YES_NO,
+        .no_route = "menu /main/main",
+        .yes_route = "menu /quit",
+    };
+
+    UI_DialogWar3Show(&quit_dialog, &config);
+}
 
 static void MainMenu_InitFrames(void) {
     /* Find top-level frames */
@@ -58,13 +82,13 @@ static void MainMenu_InitFrames(void) {
     }
 
     /* Wire button callbacks */
-    UI_FRAME(RealmButton);
-    UI_FRAME(SinglePlayerButton);
-    UI_FRAME(BattleNetButton);
-    UI_FRAME(LocalAreaNetworkButton);
-    UI_FRAME(OptionsButton);
-    UI_FRAME(CreditsButton);
-    UI_FRAME(ExitButton);
+    LPFRAMEDEF RealmButton = UI_FindChildFrame(frame_MainMenu, "RealmButton");
+    LPFRAMEDEF SinglePlayerButton = UI_FindChildFrame(frame_MainMenu, "SinglePlayerButton");
+    LPFRAMEDEF BattleNetButton = UI_FindChildFrame(frame_MainMenu, "BattleNetButton");
+    LPFRAMEDEF LocalAreaNetworkButton = UI_FindChildFrame(frame_MainMenu, "LocalAreaNetworkButton");
+    LPFRAMEDEF OptionsButton = UI_FindChildFrame(frame_MainMenu, "OptionsButton");
+    LPFRAMEDEF CreditsButton = UI_FindChildFrame(frame_MainMenu, "CreditsButton");
+    LPFRAMEDEF ExitButton = UI_FindChildFrame(frame_MainMenu, "ExitButton");
 
     UI_SetOnClick(RealmButton, "menu /realm-select");
     UI_SetOnClick(SinglePlayerButton, "map \"Maps\\Campaign\\Human02.w3m\"");
@@ -72,7 +96,8 @@ static void MainMenu_InitFrames(void) {
     UI_SetOnClick(LocalAreaNetworkButton, "menu /lan/create");
     UI_SetOnClick(OptionsButton, "menu /options");
     UI_SetOnClick(CreditsButton, "menu /credits");
-    UI_SetOnClick(ExitButton, "menu /quit-confirm");
+    UI_SetOnClick(ExitButton, "menu /main/quit-confirm");
+    MainMenu_InitQuitDialog();
 
     /* Realm select buttons */
     if (frame_RealmSelect) {
@@ -124,6 +149,7 @@ static void MainMenu_MouseEvent(int x, int y, int buttons) {
 static void MainMenu_Route(LPCSTR path) {
     /* Handle sub-routes */
     if (!strcmp(path, "/realm-select")) {
+        UI_DialogWar3Hide(&quit_dialog);
         show_realm_select = true;
         if (frame_RealmSelect) {
             UI_SetHidden(frame_RealmSelect, false);
@@ -133,12 +159,15 @@ static void MainMenu_Route(LPCSTR path) {
         }
     } else if (!strcmp(path, "/main")) {
         show_realm_select = false;
+        UI_DialogWar3Hide(&quit_dialog);
         if (frame_RealmSelect) {
             UI_SetHidden(frame_RealmSelect, true);
         }
         if (frame_ControlLayer) {
             UI_SetHidden(frame_ControlLayer, false);
         }
+    } else if (!strcmp(path, "/quit-confirm")) {
+        MainMenu_ShowQuitDialog();
     }
 }
 

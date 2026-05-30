@@ -26,6 +26,9 @@ static BOOL UI_PointerBlockedByPopup(LPCFRAMEDEF frame) {
     LPFRAMEDEF menu;
     LPCRECT rect;
 
+    if (UI_PointerBlockedByModal(frame)) {
+        return true;
+    }
     if (!active_popup) {
         return false;
     }

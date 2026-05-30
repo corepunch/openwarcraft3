@@ -417,6 +417,7 @@ void UI_InitLocal(void) {
     UI_ParseFDF("UI\\FrameDef\\UI\\EscMenuMainPanel.fdf");
     UI_ParseFDF("UI\\FrameDef\\Glue\\StandardTemplates.fdf");
     UI_ParseFDF("UI\\FrameDef\\Glue\\MainMenu.fdf");
+    UI_ParseFDF("UI\\FrameDef\\Glue\\DialogWar3.fdf");
     UI_ParseFDF("UI\\FrameDef\\Glue\\MapListBox.fdf");
     UI_ParseFDF("UI\\FrameDef\\Glue\\MapInfoPane.fdf");
     UI_ParseFDF("UI\\FrameDef\\Glue\\LocalMultiplayerCreate.fdf");
@@ -446,6 +447,7 @@ void UI_InitLocal(void) {
     }
 
     /* Route to the configured first menu scene. */
+    UI_ResetRouter();
     LPCSTR start_route = uiimport.Cvar_String
         ? uiimport.Cvar_String("ui_start_route", "/main")
         : "/main";
@@ -454,6 +456,7 @@ void UI_InitLocal(void) {
 
 void UI_ShutdownLocal(void) {
     UI_ResetGlueSceneModels();
+    UI_ResetRouter();
     UI_ClearTemplates();
     memset(&ui_state, 0, sizeof(ui_state));
 }
