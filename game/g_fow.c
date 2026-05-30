@@ -3,6 +3,7 @@
 #define FOW_INVALID_CELL 0xffffffffu
 #define FOW_PATHING_PIXEL_SIZE 32.0f
 #define FOW_TREE_DILATION_CELLS 1
+#define FOW_BLOCKER_LIGHT_MARGIN_CELLS 2
 #define G_FOW_CELL_INDEX(x, y) ((y) * level.fow.width + (x))
 #define G_FOW_SET_VISIBLE_CELL(grid, x, y) do { \
     DWORD fow_index_ = G_FOW_CELL_INDEX((DWORD)(x), (DWORD)(y)); \
@@ -276,6 +277,95 @@ static void G_FowRevealShadowcast(fowPlayerGrid_t *grid, DWORD cx, DWORD cy, int
     }
 }
 
+static BOOL G_FowHasVisibleNeighbor(fowPlayerGrid_t *grid, int x, int y, int margin) {
+    int margin_sq = margin * margin;
+
+    for (int dy = -margin; dy <= margin; dy++) {
+        int ny = y + dy;
+        if (ny < 0 || ny >= (int)level.fow.height) {
+            continue;
+        }
+        for (int dx = -margin; dx <= margin; dx++) {
+            int nx = x + dx;
+            DWORD index;
+
+            if (nx < 0 || nx >= (int)level.fow.width) {
+                continue;
+            }
+            if (dx * dx + dy * dy > margin_sq) {
+                continue;
+            }
+            index = G_FOW_CELL_INDEX((DWORD)nx, (DWORD)ny);
+            if (grid->visible[index] == 1) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+static void G_FowCommitRimCells(fowPlayerGrid_t *grid,
+                                DWORD cx,
+                                DWORD cy,
+                                int max_radius)
+{
+    for (int dy = -max_radius; dy <= max_radius; dy++) {
+        int y = (int)cy + dy;
+        if (y < 0 || y >= (int)level.fow.height) {
+            continue;
+        }
+        for (int dx = -max_radius; dx <= max_radius; dx++) {
+            int x = (int)cx + dx;
+            DWORD index;
+
+            if (x < 0 || x >= (int)level.fow.width) {
+                continue;
+            }
+            index = G_FOW_CELL_INDEX((DWORD)x, (DWORD)y);
+            if (grid->visible[index] != 2) {
+                continue;
+            }
+            grid->visible[index] = 0;
+            G_FOW_SET_VISIBLE_CELL(grid, x, y);
+        }
+    }
+}
+
+static void G_FowRevealBlockerRim(fowPlayerGrid_t *grid, DWORD cx, DWORD cy, int radius_cells) {
+    int margin = FOW_BLOCKER_LIGHT_MARGIN_CELLS;
+    int max_radius = radius_cells + margin;
+    int max_radius_sq = max_radius * max_radius;
+
+    for (int dy = -max_radius; dy <= max_radius; dy++) {
+        int y = (int)cy + dy;
+        if (y < 0 || y >= (int)level.fow.height) {
+            continue;
+        }
+        for (int dx = -max_radius; dx <= max_radius; dx++) {
+            int x = (int)cx + dx;
+            DWORD index;
+
+            if (x < 0 || x >= (int)level.fow.width) {
+                continue;
+            }
+            if (dx * dx + dy * dy > max_radius_sq) {
+                continue;
+            }
+
+            index = G_FOW_CELL_INDEX((DWORD)x, (DWORD)y);
+            if (!level.fow.blocked[index]) {
+                continue;
+            }
+            if (!grid->visible[index] &&
+                G_FowHasVisibleNeighbor(grid, x, y, margin))
+            {
+                grid->visible[index] = 2;
+            }
+        }
+    }
+    G_FowCommitRimCells(grid, cx, cy, max_radius);
+}
+
 static void G_FowRevealCircle(DWORD player, LPCEDICT ent, FLOAT radius) {
     fowPlayerGrid_t *grid;
     DWORD cx, cy;
@@ -300,6 +390,7 @@ static void G_FowRevealCircle(DWORD player, LPCEDICT ent, FLOAT radius) {
                              (int)cy + radius_cells))
     {
         G_FowRevealShadowcast(grid, cx, cy, radius_cells);
+        G_FowRevealBlockerRim(grid, cx, cy, radius_cells);
     } else {
         G_FowRevealDisk(grid, cx, cy, radius_cells);
     }

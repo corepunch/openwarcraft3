@@ -457,6 +457,7 @@ static void test_fow_tree_pathtex_closes_gap_behind_canopy(void) {
     DWORD canopy_index = G_FowWorldToCellY(128.0f) * level.fow.width + G_FowWorldToCellX(192.0f);
     DWORD behind_index = G_FowWorldToCellY(128.0f) * level.fow.width + G_FowWorldToCellX(256.0f);
     ASSERT(level.fow.blocked[canopy_index]);
+    ASSERT(level.fow.players[0].visible[canopy_index]);
     ASSERT(!level.fow.players[0].visible[behind_index]);
     G_FowShutdown();
 }
