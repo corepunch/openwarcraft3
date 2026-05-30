@@ -189,6 +189,7 @@ static void G_InitMapPlayer(LPEDICT clent, LPCMAPPLAYER player, DWORD playernum)
     LPPLAYER ps = &clent->client->ps;
     memset(ps, 0, sizeof(PLAYER));
     ps->number = playernum;
+    ps->race = player->playerRace;
     ps->origin.x = player->startingPosition.x;
     ps->origin.y = player->startingPosition.y;
     ps->viewquat = Quaternion_fromEuler(&MAKE(VECTOR3, 326, 0, 0), ROTATE_ZYX);
