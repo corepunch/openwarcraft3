@@ -35,7 +35,7 @@ static void UI_DialogWar3SetVisible(uiDialogWar3_t *dialog, BOOL visible) {
         return;
     }
     UI_SetHidden(dialog->modal, !visible);
-    UI_SetHidden(dialog->dialog, !visible);
+    UI_SetHidden(dialog->frames.DialogWar3, !visible);
 }
 
 static BOOL UI_DialogWar3CreateModal(uiDialogWar3_t *dialog,
@@ -81,34 +81,32 @@ static BOOL UI_DialogWar3CreateFrame(uiDialogWar3_t *dialog,
                                      uiDialogWar3Init_t const *init)
 {
     LPCSTR template_name = UI_DialogWar3TemplateName(init);
+    DialogWar3FdfBindings_t template_bindings;
     LPFRAMEDEF template_dialog;
+    LPFRAMEDEF dialog_frame;
 
-    dialog->dialog = UI_FindChildFrame(dialog->modal, template_name);
-    if (!dialog->dialog) {
-        template_dialog = UI_FindFrame(template_name);
-        if (!template_dialog) {
+    dialog_frame = UI_FindChildFrame(dialog->modal, template_name);
+    if (!dialog_frame) {
+        if (!DialogWar3FdfBindings_Bind(&template_bindings)) {
             uiimport.Printf("ERROR: %s not found\n", template_name);
             return false;
         }
-        dialog->dialog = UI_CloneFrameTree(template_dialog, dialog->modal);
-        if (!dialog->dialog) {
+        template_dialog = template_bindings.DialogWar3;
+        dialog_frame = UI_CloneFrameTree(template_dialog, dialog->modal);
+        if (!dialog_frame) {
             uiimport.Printf("ERROR: failed to clone %s\n", template_name);
             return false;
         }
     }
 
-    UI_SetParent(dialog->dialog, dialog->modal);
-    UI_SetPoint(dialog->dialog, FRAMEPOINT_CENTER, dialog->modal, FRAMEPOINT_CENTER, 0.0f, 0.0f);
+    if (!DialogWar3FdfBindings_BindFromDialogWar3(&dialog->frames, dialog_frame)) {
+        return false;
+    }
 
-    dialog->text = UI_FindChildFrame(dialog->dialog, "DialogText");
-    dialog->icon = UI_FindChildFrame(dialog->dialog, "DialogIcon");
-    dialog->ok_backdrop = UI_FindChildFrame(dialog->dialog, "DialogButtonOKBackdrop");
-    dialog->no_backdrop = UI_FindChildFrame(dialog->dialog, "DialogButtonNoBackdrop");
-    dialog->yes_backdrop = UI_FindChildFrame(dialog->dialog, "DialogButtonYesBackdrop");
-    dialog->ok_button = UI_FindChildFrame(dialog->dialog, "DialogButtonOK");
-    dialog->no_button = UI_FindChildFrame(dialog->dialog, "DialogButtonNo");
-    dialog->yes_button = UI_FindChildFrame(dialog->dialog, "DialogButtonYes");
-    dialog->default_height = dialog->dialog->Height;
+    UI_SetParent(dialog->frames.DialogWar3, dialog->modal);
+    UI_SetPoint(dialog->frames.DialogWar3, FRAMEPOINT_CENTER, dialog->modal, FRAMEPOINT_CENTER, 0.0f, 0.0f);
+
+    dialog->default_height = dialog->frames.DialogWar3->Height;
 
     return true;
 }
@@ -139,24 +137,24 @@ BOOL UI_DialogWar3Init(uiDialogWar3_t *dialog,
 void UI_DialogWar3Show(uiDialogWar3_t *dialog,
                        uiDialogWar3Config_t const *config)
 {
-    if (!dialog || !dialog->dialog || !config) {
+    if (!dialog || !dialog->frames.DialogWar3 || !config) {
         return;
     }
 
-    if (dialog->text) {
-        UI_SetText(dialog->text, "%s", config->message ? config->message : "");
+    if (dialog->frames.DialogText) {
+        UI_SetText(dialog->frames.DialogText, "%s", config->message ? config->message : "");
     }
-    if (dialog->icon) {
-        dialog->icon->Backdrop.Background = UI_LoadTexture(UI_DialogWar3IconPath(config->icon), false);
+    if (dialog->frames.DialogIcon) {
+        dialog->frames.DialogIcon->Backdrop.Background = UI_LoadTexture(UI_DialogWar3IconPath(config->icon), false);
     }
 
-    UI_SetHidden(dialog->ok_backdrop, config->buttons != UI_DIALOG_WAR3_BUTTONS_OK);
-    UI_SetHidden(dialog->no_backdrop, config->buttons != UI_DIALOG_WAR3_BUTTONS_YES_NO);
-    UI_SetHidden(dialog->yes_backdrop, config->buttons != UI_DIALOG_WAR3_BUTTONS_YES_NO);
+    UI_SetHidden(dialog->frames.DialogButtonOKBackdrop, config->buttons != UI_DIALOG_WAR3_BUTTONS_OK);
+    UI_SetHidden(dialog->frames.DialogButtonNoBackdrop, config->buttons != UI_DIALOG_WAR3_BUTTONS_YES_NO);
+    UI_SetHidden(dialog->frames.DialogButtonYesBackdrop, config->buttons != UI_DIALOG_WAR3_BUTTONS_YES_NO);
 
-    UI_SetOnClick(dialog->ok_button, "%s", config->ok_route ? config->ok_route : "");
-    UI_SetOnClick(dialog->no_button, "%s", config->no_route ? config->no_route : "");
-    UI_SetOnClick(dialog->yes_button, "%s", config->yes_route ? config->yes_route : "");
+    UI_SetOnClick(dialog->frames.DialogButtonOK, "%s", config->ok_route ? config->ok_route : "");
+    UI_SetOnClick(dialog->frames.DialogButtonNo, "%s", config->no_route ? config->no_route : "");
+    UI_SetOnClick(dialog->frames.DialogButtonYes, "%s", config->yes_route ? config->yes_route : "");
 
     UI_DialogWar3SetVisible(dialog, true);
 }
@@ -166,6 +164,6 @@ void UI_DialogWar3Hide(uiDialogWar3_t *dialog) {
 }
 
 BOOL UI_DialogWar3Visible(uiDialogWar3_t const *dialog) {
-    return dialog && dialog->modal && dialog->dialog &&
-           !dialog->modal->hidden && !dialog->dialog->hidden;
+    return dialog && dialog->modal && dialog->frames.DialogWar3 &&
+           !dialog->modal->hidden && !dialog->frames.DialogWar3->hidden;
 }

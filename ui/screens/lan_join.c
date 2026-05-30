@@ -454,7 +454,7 @@ static void LAN_StartSelectedMap(void) {
     if (!LAN_SelectedMapPath()) {
         return;
     }
-    UI_Push("/game-setup");
+    UI_Route("/game-setup");
 }
 
 static void LAN_SelectMap(DWORD index) {

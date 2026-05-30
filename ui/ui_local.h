@@ -412,11 +412,7 @@ void UI_TextInputLocal(LPCSTR text);
 
 /* ui_router.c — Menu routing */
 void UI_Route(LPCSTR route);
-void UI_Push(LPCSTR path);
-void UI_Pop(void);
 void UI_ResetRouter(void);
 uiScreen_t *UI_GetCurrentScreen(void);
-
-/* Screen stack for navigation history - moved to ui_screen.h */
 
 #endif

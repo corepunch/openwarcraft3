@@ -652,7 +652,7 @@ static void GameSetup_BuildFrames(void) {
     GameSetup_BindMapInfoPane(MapInfoPaneContainer);
 
     UI_SetOnClick(setup.start_button, "menu /game-setup/start");
-    UI_SetOnClick(setup.cancel_button, "menu /back");
+    UI_SetOnClick(setup.cancel_button, "menu /lan/create");
     setup.ready = true;
 }
 
