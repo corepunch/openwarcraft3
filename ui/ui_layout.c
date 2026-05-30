@@ -471,9 +471,13 @@ void UI_LayoutDrawScrollBar(LPCUIFRAME frame, LPCRECT screen) {
     UI_LayoutDrawBackdropPart(frame, &thumb, &scrollbar->thumbButton);
 }
 
+static BOOL UI_LayoutFrameHasClickCommand(LPCUIFRAME frame) {
+    return frame && frame->onclick && *frame->onclick;
+}
+
 static BOOL UI_LayoutGlueTextButtonIsPushed(LPCUIFRAME frame, LPCRECT screen) {
     VECTOR2 const m = UI_LayoutMouseToFdf();
-    return Rect_contains(screen, &m) && UI_LayoutMouseButton() == 1;
+    return UI_LayoutFrameHasClickCommand(frame) && Rect_contains(screen, &m) && UI_LayoutMouseButton() == 1;
 }
 
 static void UI_LayoutFormatOnClickCommand(LPCSTR source, LPSTR dest, DWORD dest_size) {
@@ -515,7 +519,7 @@ static void UI_LayoutFormatOnClickCommand(LPCSTR source, LPSTR dest, DWORD dest_
 
 void UI_LayoutGlueTextButton(LPCUIFRAME frame, LPCRECT screen) {
     uiGlueTextButton_t const *gluetextbutton = frame->buffer.data;
-    BOOL const enabled = frame->onclick && *frame->onclick;
+    BOOL const enabled = UI_LayoutFrameHasClickCommand(frame);
     uiBackdrop_t const *backdrop = &gluetextbutton->normal;
     if (!enabled) {
         backdrop = UI_LayoutGlueTextButtonIsPushed(frame, screen) ? &gluetextbutton->disabledPushed : &gluetextbutton->disabled;
@@ -530,7 +534,7 @@ static void UI_LayoutDrawGlueTextButtonHighlight(LPCUIFRAME frame) {
     uiGlueTextButton_t const *gluetextbutton = frame->buffer.data;
     RECT const *screen = UI_LayoutLayoutRect(frame);
     VECTOR2 const m = UI_LayoutMouseToFdf();
-    BOOL const enabled = frame->onclick && *frame->onclick;
+    BOOL const enabled = UI_LayoutFrameHasClickCommand(frame);
     BOOL const mouse_over = Rect_contains(screen, &m);
 
     if (enabled && mouse_over) {
@@ -677,6 +681,9 @@ static void UI_LayoutApplyPushedTextOffset(LPCUIFRAME frame, LPRECT screen) {
         return;
     }
     if (parent->flags.type != FT_GLUETEXTBUTTON && parent->flags.type != FT_GLUEBUTTON) {
+        return;
+    }
+    if (!UI_LayoutFrameHasClickCommand(parent)) {
         return;
     }
 
@@ -947,7 +954,7 @@ void UI_LayoutDrawFrame(LPCUIFRAME frame) {
     }
     if (Rect_contains(screen, &m) &&
         UI_LayoutMouseEvent() == UI_CLIENT_MOUSE_LEFT_UP &&
-        frame->onclick)
+        UI_LayoutFrameHasClickCommand(frame))
     {
         char command[CMDARG_LEN * 2];
 

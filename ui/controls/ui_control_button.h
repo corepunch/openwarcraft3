@@ -9,13 +9,14 @@ static BOOL UI_ButtonEnabled(LPCFRAMEDEF frame) {
 }
 
 static BOOL UI_ButtonIsPushed(LPCFRAMEDEF frame, LPCRECT rect) {
-    (void)frame;
-    return UI_MouseContains(rect) && ui_mouse.button == 1 && ui_mouse.down;
+    return UI_ButtonEnabled(frame) && UI_MouseContains(rect) && ui_mouse.button == 1 && ui_mouse.down;
 }
 
 static void UI_DrawButtonText(LPCFRAMEDEF frame, LPCRECT rect) {
-    LPCFRAMEDEF text_frame = NULL;
+    LPFRAMEDEF text_frame = NULL;
     RECT text_rect = *rect;
+    COLOR32 original_color;
+    BOOL use_disabled_color;
 
     if (frame->Text && *frame->Text) {
         text_frame = UI_FindChildFrame((LPFRAMEDEF)frame, frame->Text);
@@ -38,7 +39,17 @@ static void UI_DrawButtonText(LPCFRAMEDEF frame, LPCRECT rect) {
         text_rect.y -= frame->Button.PushedTextOffset.y;
     }
 
+    original_color = text_frame->Font.Color;
+    use_disabled_color = !UI_ButtonEnabled(frame) &&
+                         (text_frame->Font.DisabledColor.a ||
+                          text_frame->Font.DisabledColor.r ||
+                          text_frame->Font.DisabledColor.g ||
+                          text_frame->Font.DisabledColor.b);
+    if (use_disabled_color) {
+        text_frame->Font.Color = text_frame->Font.DisabledColor;
+    }
     UI_DrawText(text_frame, &text_rect);
+    text_frame->Font.Color = original_color;
 }
 
 static LPCFRAMEDEF UI_ButtonBackdrop(LPCFRAMEDEF frame, LPCRECT rect) {
