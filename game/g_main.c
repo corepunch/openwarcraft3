@@ -168,6 +168,7 @@ static void G_ShutdownGame(void) {
     if (g_edicts == NULL) {
         return;
     }
+    G_FowShutdown();
     gi.MemFree(g_edicts);
     g_edicts = NULL;
     globals.edicts = NULL;
@@ -181,6 +182,9 @@ static void G_ShutdownGame(void) {
 }
 
 FLOAT G_Cinefade(void) {
+    if (G_SkipCutscene()) {
+        return 0;
+    }
     DWORD duration = level.cinefilter.end.time - level.cinefilter.start.time;
     if (!level.cinefilter.displayed) {
         return 0;
@@ -191,6 +195,16 @@ FLOAT G_Cinefade(void) {
         FLOAT k = (gi.GetTime() - level.cinefilter.start.time) / (FLOAT)duration;
         return LerpNumber(level.cinefilter.start.color.a, level.cinefilter.end.color.a, k) / 255.0;
     }
+}
+
+BOOL G_SkipCutscene(void) {
+    LPCSTR value;
+
+    if (!gi.CvarString) {
+        return false;
+    }
+    value = gi.CvarString("skip_cutscene", "0");
+    return value && *value && strcmp(value, "0");
 }
 
 static void G_RunClients(void) {
@@ -239,6 +253,8 @@ static void G_RunFrame(void) {
     G_RunEntities();
 
     G_SolveCollisions();
+    G_FowUpdate();
+    G_FowSendDeltas();
 }
 
 static LPCSTR G_GetThemeValue(LPCSTR filename) {
@@ -318,6 +334,9 @@ static void G_ClientBegin(LPEDICT edict) {
         client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] += UNIT_FOOD_MADE(ent->class_id);
         client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED] += UNIT_FOOD_USED(ent->class_id);
     }
+
+    G_FowUpdate();
+    G_FowSendFull(edict);
     
     level.started = true;
 }
@@ -340,6 +359,7 @@ struct game_export *GetGameAPI(struct game_import *import) {
     globals.ClientCommand = G_ClientCommand;
     globals.ClientSetCameraPosition = G_ClientSetCameraPosition;
     globals.ClientBegin = G_ClientBegin;
+    globals.CanSeeEntity = G_FowPlayerCanSeeEntity;
     globals.GetThemeValue = G_GetThemeValue;
     globals.edict_size = sizeof(struct edict_s);
     return &globals;

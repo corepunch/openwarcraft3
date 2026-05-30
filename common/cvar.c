@@ -386,4 +386,5 @@ void Cvar_Init(void) {
     Cvar_Get("ui_game_setup_map", "", 0);
     Cvar_Get("net_enabled", "1", CVAR_ARCHIVE);
     Cvar_Get("com_frame_limit", "0", 0);
+    Cvar_Get("skip_cutscene", "0", 0);
 }

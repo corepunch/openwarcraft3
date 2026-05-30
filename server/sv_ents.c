@@ -26,18 +26,21 @@ typedef struct {
 /* Determine whether a client should receive updates for the given entity.
  * Always true for the client's own player-owned entities; otherwise based
  * on a simple distance check against the client's camera position. */
-static bool SV_CanClientSeeEntity(LPCCLIENT client, LPCENTITYSTATE edict) {
+static bool SV_CanClientSeeEntity(LPCCLIENT client, LPCEDICT edict) {
 #ifdef WOW
     (void)client;
     (void)edict;
     return true;
 #else
     edict_t *clent = client->edict;
-    if (edict->player == clent->client->ps.number)
+    if (edict->s.player == clent->client->ps.number)
         return true;
-    if (fabs(edict->origin.x - clent->client->ps.origin.x) > VISUAL_DISTANCE)
+    if (ge->CanSeeEntity) {
+        return ge->CanSeeEntity(clent->client->ps.number, edict);
+    }
+    if (fabs(edict->s.origin.x - clent->client->ps.origin.x) > VISUAL_DISTANCE)
         return false;
-    if (fabs(edict->origin.y - clent->client->ps.origin.y) > VISUAL_DISTANCE)
+    if (fabs(edict->s.origin.y - clent->client->ps.origin.y) > VISUAL_DISTANCE)
         return false;
     return true;
 #endif
@@ -125,7 +128,7 @@ void SV_BuildClientFrame(LPCLIENT client) {
             continue;
         if (!edict->s.model && !edict->s.sound && !edict->s.event)
             continue;
-        if (!SV_CanClientSeeEntity(client, &edict->s) && index > ge->max_clients)
+        if (!SV_CanClientSeeEntity(client, edict) && index > ge->max_clients)
             continue;
         SV_AddVisibleEntityCandidate(candidates,
                                      &num_candidates,

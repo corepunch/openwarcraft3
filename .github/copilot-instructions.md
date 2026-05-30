@@ -144,6 +144,19 @@ Agent guidance:
 	- `build/bin/openwarcraft3 -data=data/Warcraft\ III -net_enabled=0 -ui_start_route=/single-player/campaign`
 	- `make run-ui-text UI_ROUTE=/single-player/campaign`
 
+## Time Profiler Workflow
+
+- For runtime CPU profiling on macOS, prefer Instruments `xctrace` with the local `xctraceprof` parser.
+- Record a real run with Time Profiler:
+	- `/Applications/Xcode.app/Contents/Developer/usr/bin/xctrace record --template "Time Profiler" --time-limit 20s --output /private/tmp/openwarcraft3-orc01.trace --launch -- /Users/igor/Developer/openwarcraft3/build/bin/openwarcraft3 -data="/Users/igor/Developer/openwarcraft3/data/Warcraft III" -net_enabled=1 +map "Maps\\Campaign\\Orc01.w3m"`
+- Export the time-profile table to XML:
+	- `/Applications/Xcode.app/Contents/Developer/usr/bin/xctrace export --input /private/tmp/openwarcraft3-orc01.trace --xpath '/trace-toc/run[@number="1"]/data/table[@schema="time-profile"]' > /private/tmp/openwarcraft3-orc01-timeprof.xml`
+- Summarize the relevant window and focus symbols:
+	- `build/bin/xctraceprof --window 8:18 --top 25 /private/tmp/openwarcraft3-orc01-timeprof.xml`
+	- `build/bin/xctraceprof --window 8:18 --focus R_RenderFogOfWar --top 25 /private/tmp/openwarcraft3-orc01-timeprof.xml`
+	- `build/bin/xctraceprof --window 8:18 --focus SV_Frame --top 20 /private/tmp/openwarcraft3-orc01-timeprof.xml`
+- Use `R_RenderFogOfWar` when investigating legacy renderer-owned fog work, `CL_ParseFogOfWar` / `R_SetFogOfWarData` for client texture upload, and `SV_Frame` / `G_FowUpdate` when investigating server/game tick work such as authoritative fog, movement, and snapshots.
+
 ## UI Screen Authoring Conventions
 
 - In client/UI code, never define or hardcode UI elements, layout coordinates, textures, frame names, or control structures that can be read from FDF. Parse and reuse the actual FDF frames/templates, then bind dynamic data into those frames.

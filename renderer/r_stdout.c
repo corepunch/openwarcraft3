@@ -157,6 +157,12 @@ static void RStd_RenderFrame(viewDef_t const *viewdef) {
     printf("\n");
 }
 
+static void RStd_SetFogOfWarData(DWORD width, DWORD height, BYTE const *data) {
+    (void)width;
+    (void)height;
+    (void)data;
+}
+
 static LPTEXTURE RStd_LoadTexture(LPCSTR fileName) {
     LPTEXTURE texture = ri.MemAlloc(sizeof(TEXTURE));
 
@@ -437,6 +443,7 @@ refExport_t R_StdoutGetAPI(refImport_t imp) {
         .Shutdown = RStd_Shutdown,
         .RegisterMap = RStd_RegisterMap,
         .RenderFrame = RStd_RenderFrame,
+        .SetFogOfWarData = RStd_SetFogOfWarData,
         .LoadTexture = RStd_LoadTexture,
         .LoadModel = RStd_LoadModel,
         .LoadFont = RStd_LoadFont,

@@ -63,6 +63,7 @@ static struct {
     LPRENDERTARGET rt[FOW_RT_COUNT];
     LPBUFFER casters;
     LPTEXTURE sight;
+    LPTEXTURE network;
     DWORD last_update_time;
 } fow_resources = { 0 };
 
@@ -227,6 +228,9 @@ static void R_BlitTexture(GLuint texid, float alpha) {
 }
 
 void R_RenderFogOfWar(void) {
+    if (fow_resources.network) {
+        return;
+    }
     if (!tr.world ||
         (tr.viewDef.rdflags & (RDF_NOFOG | RDF_NOWORLDMODEL)) ||
         !fow_resources.rt[FOW_RT_IMMEDIATE] ||
@@ -387,13 +391,53 @@ void R_ShutdownFogOfWar(void) {
     fow_resources.casters = NULL;
     R_ReleaseTexture(fow_resources.sight);
     fow_resources.sight = NULL;
+    R_ReleaseTexture(fow_resources.network);
+    fow_resources.network = NULL;
     fow_resources.last_update_time = 0;
 }
 
 DWORD R_GetFogOfWarTexture(void) {
+    if (fow_resources.network &&
+        !(tr.viewDef.rdflags & (RDF_NOFOG | RDF_NOWORLDMODEL))) {
+        return fow_resources.network->texid;
+    }
     if (fow_resources.rt[FOW_RT_RESULT] &&
         !(tr.viewDef.rdflags & (RDF_NOFOG | RDF_NOWORLDMODEL))) {
         return fow_resources.rt[FOW_RT_RESULT]->texture;
     }
     return tr.texture[TEX_WHITE]->texid;
+}
+
+void R_SetFogOfWarData(DWORD width, DWORD height, BYTE const *data) {
+    if (!width || !height || !data) {
+        R_ReleaseTexture(fow_resources.network);
+        fow_resources.network = NULL;
+        return;
+    }
+
+    if (!fow_resources.network ||
+        fow_resources.network->width != width ||
+        fow_resources.network->height != height)
+    {
+        R_ReleaseTexture(fow_resources.network);
+        fow_resources.network = R_AllocateTexture(width, height);
+    }
+
+    R_Call(glBindTexture, GL_TEXTURE_2D, fow_resources.network->texid);
+    R_Call(glPixelStorei, GL_UNPACK_ALIGNMENT, 1);
+    R_Call(glTexImage2D,
+           GL_TEXTURE_2D,
+           0,
+           GL_R8,
+           width,
+           height,
+           0,
+           GL_RED,
+           GL_UNSIGNED_BYTE,
+           data);
+    R_Call(glPixelStorei, GL_UNPACK_ALIGNMENT, 4);
+    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 }

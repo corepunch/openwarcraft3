@@ -547,7 +547,7 @@ void R_Init(DWORD width, DWORD height) {
     tr.rt[RT_DEPTHMAP] = R_AllocateRenderTexture(SHADOW_TEXSIZE, SHADOW_TEXSIZE, GL_DEPTH_COMPONENT, GL_FLOAT, GL_DEPTH_ATTACHMENT);
 #endif
     R_Call(glDisable, GL_DEPTH_TEST);
-    R_Call(glClearColor, 0.25, 0.25, 0.25, 1.0);
+    R_Call(glClearColor, 0.0, 0.0, 0.0, 1.0);
     R_Call(glViewport, 0, 0, tr.drawableSize.width, tr.drawableSize.height);
     R_InitParticles();
     M3_Init();
@@ -819,6 +819,7 @@ refExport_t R_GetAPI(refImport_t imp) {
         .LoadTexture = R_LoadTexture,
         .LoadModel = R_LoadModel,
         .LoadFont = R_LoadFont,
+        .SetFogOfWarData = R_SetFogOfWarData,
         .ReleaseTexture = R_ReleaseTexture,
         .ReleaseModel = R_ReleaseModel,
         .RenderFrame = R_RenderFrame,

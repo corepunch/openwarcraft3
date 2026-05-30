@@ -29,7 +29,13 @@ typedef enum {
     PF_ANGLE,
     PF_ENTITY,
     PF_UIFRAME,
+    PF_DATA,
 } pfWriteType_t;
+
+typedef struct {
+    void const *data;
+    DWORD size;
+} pfWriteData_t;
 
 struct game_import {
     HANDLE (*MemAlloc)(long size);
@@ -47,6 +53,7 @@ struct game_import {
     void (*MenuAction)(LPCSTR action, LPCSTR arg);
     VECTOR2 (*GetFlowDirection)(DWORD heatmapindex, FLOAT fx, FLOAT fy);
     FLOAT (*GetHeightAtPoint)(FLOAT x, FLOAT y);
+    BOX2 (*GetWorldBounds)(void);
     HANDLE (*ReadFile)(LPCSTR filename, LPDWORD size);
     DWORD (*GetTime)(void);
     void (*multicast)(LPCVECTOR3 origin, multicast_t to);
@@ -99,6 +106,7 @@ struct game_export {
     void (*ClientCommand)(LPEDICT ent, DWORD argc, LPCSTR argv[]);
     void (*ClientSetCameraPosition)(LPEDICT ent, LPCVECTOR2 position);
     void (*ClientBegin)(LPEDICT ent);
+    BOOL (*CanSeeEntity)(DWORD player, LPCEDICT ent);
     
     edict_t *edicts;
     int num_edicts;

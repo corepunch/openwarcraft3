@@ -109,6 +109,13 @@ static FLOAT mock_GetHeightAtPoint(FLOAT x, FLOAT y) {
     return 0.0f;
 }
 
+static BOX2 mock_GetWorldBounds(void) {
+    return (BOX2){
+        .min = { 0.0f, 0.0f },
+        .max = { TILE_SIZE * 4.0f, TILE_SIZE * 3.0f },
+    };
+}
+
 static DWORD mock_BuildHeatmap(LPEDICT goalentity) {
     (void)goalentity;
     return 0;
@@ -237,6 +244,7 @@ void setup_game(void) {
     gi.BoxEdicts           = mock_BoxEdicts;
     gi.GetFlowDirection    = mock_GetFlowDirection;
     gi.GetHeightAtPoint    = mock_GetHeightAtPoint;
+    gi.GetWorldBounds      = mock_GetWorldBounds;
     gi.ReadFile            = mock_ReadFile;
     gi.GetTime             = mock_GetTime;
     gi.multicast           = mock_multicast;

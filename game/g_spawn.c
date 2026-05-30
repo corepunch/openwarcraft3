@@ -204,9 +204,11 @@ static void G_InitMapPlayer(LPEDICT clent, LPCMAPPLAYER player, DWORD playernum)
 }
 
 void G_SpawnEntities(LPCMAPINFO mapinfo, LPCDOODAD entities) {
+    G_FowShutdown();
     memset(&level, 0, sizeof(level));
 
     level.mapinfo = mapinfo;
+    G_FowInit();
     G_InitJassHost();
     level.vm = jass_newstate();
     

@@ -54,6 +54,13 @@ void PF_Write(pfWriteType_t type, void const *value) {
             }
             break;
         }
+        case PF_DATA: {
+            pfWriteData_t const *data = value;
+            if (data && data->data && data->size) {
+                MSG_Write(&sv.multicast, data->data, data->size);
+            }
+            break;
+        }
     }
 }
 
@@ -701,6 +708,7 @@ void SV_InitGameProgs(void) {
     import.GetTime = SV_GetTime;
     import.GetAnimation = SV_GetAnimation;
     import.GetHeightAtPoint = CM_GetHeightAtPoint;
+    import.GetWorldBounds = CM_GetWorldBounds;
     import.BuildHeatmap = CM_BuildHeatmap;
     import.ClosestPathablePointForRadius = CM_ClosestPathablePointForRadius;
     import.GetFlowDirection = get_flow_direction;

@@ -16,6 +16,16 @@
 #define UPDATE_BACKUP 16
 #define UPDATE_MASK (UPDATE_BACKUP-1)
 #define U_REMOVE 31
+#define FOW_CELLS_PER_TILE_SIDE 2
+#define FOW_CELL_SIZE (TILE_SIZE / FOW_CELLS_PER_TILE_SIDE)
+#define FOW_CHUNK_TARGET_BYTES 8192
+
+enum {
+    FOW_MSG_FULL = 1 << 0,
+    FOW_MSG_VISIBLE_PLANE = 1 << 1,
+    FOW_MSG_EXPLORED_PLANE = 1 << 2,
+    FOW_MSG_RLE = 1 << 3,
+};
 
 #define SFileReadArray(file, object, variable, elemsize, alloc) \
 SFileReadFile(file, &object->num_##variable, 4, NULL, NULL); \
@@ -56,6 +66,7 @@ enum svc_ops {
 //    svc_deltapacketentities,    // [...]
     svc_frame,
     svc_mirror,
+    svc_fogofwar,
     
 // Unit UI data (Phase 8: HUD migration)
     svc_unit_ui                  // [byte num_units] for each unit: [short entity] [byte num_buttons] [buttons] [byte num_inventory] [inventory] [byte num_queue] [queue]
@@ -186,6 +197,8 @@ struct edict_s;
 DWORD CM_BuildHeatmap(struct edict_s *goalentity);
 BOOL CM_ClosestPathablePoint(LPCVECTOR2 location, LPVECTOR2 out);
 BOOL CM_ClosestPathablePointForRadius(LPCVECTOR2 location, FLOAT radius, LPVECTOR2 out);
+FLOAT CM_GetHeightAtPoint(FLOAT sx, FLOAT sy);
+BOX2 CM_GetWorldBounds(void);
 
 // sheet/parser.c
 LPSTR ParserGetTokenEx(parser_t *p, bool sameLine);

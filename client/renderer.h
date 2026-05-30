@@ -92,6 +92,7 @@ typedef struct {
     void (*Shutdown)(void);
     void (*RegisterMap)(LPCSTR mapFileName);
     void (*RenderFrame)(viewDef_t const *viewdef);
+    void (*SetFogOfWarData)(DWORD width, DWORD height, BYTE const *data);
     LPTEXTURE (*LoadTexture)(LPCSTR fileName);
     LPMODEL (*LoadModel)(LPCSTR filename);
     LPFONT (*LoadFont)(LPCSTR filename, DWORD size);

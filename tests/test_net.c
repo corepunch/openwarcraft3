@@ -25,8 +25,9 @@
 #include "test_framework.h"
 
 /* Pull in the net types + common types without game state. */
-#include "../common/shared.h"
-#include "../common/net.h"
+#include "../client/client.h"
+
+void test_client_stubs_init(void);
 
 /* -----------------------------------------------------------------------
  * Helpers
@@ -368,6 +369,158 @@ static void test_msg_multiple_types_sequential(void) {
     ASSERT_EQ_INT((unsigned int)MSG_ReadLong(&sb), (unsigned int)0x12345678);
 }
 
+static void reset_fow_client_state(void) {
+    SAFE_DELETE(cl.fow.visible, MemFree);
+    SAFE_DELETE(cl.fow.explored, MemFree);
+    SAFE_DELETE(cl.fow.texture, MemFree);
+    test_client_stubs_init();
+}
+
+static void write_fow_message(sizeBuf_t *sb,
+                              DWORD flags,
+                              DWORD width,
+                              DWORD height,
+                              DWORD first_row,
+                              DWORD row_count,
+                              BYTE const *payload,
+                              DWORD payload_bytes)
+{
+    MSG_WriteByte(sb, svc_fogofwar);
+    MSG_WriteByte(sb, flags);
+    MSG_WriteShort(sb, width);
+    MSG_WriteShort(sb, height);
+    MSG_WriteShort(sb, first_row);
+    MSG_WriteShort(sb, row_count);
+    MSG_WriteShort(sb, payload_bytes);
+    MSG_Write(sb, payload, payload_bytes);
+}
+
+static void test_fow_full_message_unpacks_visible_and_explored_planes(void) {
+    BYTE buf[64];
+    BYTE payload[] = {
+        1, 1, 15, 2, 14,
+    };
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+    reset_fow_client_state();
+
+    write_fow_message(&sb,
+                      FOW_MSG_FULL | FOW_MSG_VISIBLE_PLANE | FOW_MSG_EXPLORED_PLANE | FOW_MSG_RLE,
+                      8,
+                      2,
+                      0,
+                      2,
+                      payload,
+                      sizeof(payload));
+    CL_ParseServerMessage(&sb);
+
+    ASSERT_EQ_INT(cl.fow.width, 8);
+    ASSERT_EQ_INT(cl.fow.height, 2);
+    ASSERT(cl.fow.visible[0]);
+    ASSERT(!cl.fow.visible[1]);
+    ASSERT(cl.fow.explored[0]);
+    ASSERT(cl.fow.explored[1]);
+    ASSERT_EQ_INT(cl.fow.texture[0], 255);
+    ASSERT_EQ_INT(cl.fow.texture[1], 128);
+    reset_fow_client_state();
+}
+
+static void test_fow_row_delta_reconstructs_client_grid(void) {
+    BYTE buf[64];
+    BYTE full_payload[] = { 0, 16 };
+    BYTE delta_payload[] = { 0, 4, 1, 3 };
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+    reset_fow_client_state();
+
+    write_fow_message(&sb,
+                      FOW_MSG_FULL | FOW_MSG_VISIBLE_PLANE | FOW_MSG_RLE,
+                      8,
+                      2,
+                      0,
+                      2,
+                      full_payload,
+                      sizeof(full_payload));
+    write_fow_message(&sb,
+                      FOW_MSG_VISIBLE_PLANE | FOW_MSG_RLE,
+                      8,
+                      2,
+                      1,
+                      1,
+                      delta_payload,
+                      sizeof(delta_payload));
+    CL_ParseServerMessage(&sb);
+
+    ASSERT(!cl.fow.visible[0]);
+    ASSERT(cl.fow.visible[1 * cl.fow.width + 4]);
+    ASSERT_EQ_INT(cl.fow.texture[1 * cl.fow.width + 4], 255);
+    reset_fow_client_state();
+}
+
+static void test_fow_rle_255_continues_current_value(void) {
+    BYTE buf[64];
+    BYTE payload[] = { 1, 255, 16, 8 };
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+    reset_fow_client_state();
+
+    write_fow_message(&sb,
+                      FOW_MSG_FULL | FOW_MSG_VISIBLE_PLANE | FOW_MSG_RLE,
+                      279,
+                      1,
+                      0,
+                      1,
+                      payload,
+                      sizeof(payload));
+    CL_ParseServerMessage(&sb);
+
+    ASSERT(cl.fow.visible[0]);
+    ASSERT(cl.fow.visible[270]);
+    ASSERT(!cl.fow.visible[271]);
+    ASSERT(!cl.fow.visible[278]);
+    reset_fow_client_state();
+}
+
+static void test_fow_rle_zero_length_flips_after_exact_255_run(void) {
+    BYTE buf[64];
+    BYTE payload[] = { 1, 255, 0, 8 };
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+    reset_fow_client_state();
+
+    write_fow_message(&sb,
+                      FOW_MSG_FULL | FOW_MSG_VISIBLE_PLANE | FOW_MSG_RLE,
+                      263,
+                      1,
+                      0,
+                      1,
+                      payload,
+                      sizeof(payload));
+    CL_ParseServerMessage(&sb);
+
+    ASSERT(cl.fow.visible[254]);
+    ASSERT(!cl.fow.visible[255]);
+    ASSERT(!cl.fow.visible[262]);
+    reset_fow_client_state();
+}
+
+static void test_fow_malformed_payload_does_not_overread(void) {
+    BYTE buf[64];
+    BYTE payload[] = { 1, 1 };
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+    reset_fow_client_state();
+
+    write_fow_message(&sb,
+                      FOW_MSG_VISIBLE_PLANE | FOW_MSG_RLE,
+                      8,
+                      2,
+                      0,
+                      2,
+                      payload,
+                      sizeof(payload));
+    CL_ParseServerMessage(&sb);
+
+    ASSERT_EQ_INT(sb.readcount, sb.cursize);
+    ASSERT_EQ_INT(cl.fow.width, 0);
+    reset_fow_client_state();
+}
+
 /* -----------------------------------------------------------------------
  * Suite entry point
  * --------------------------------------------------------------------- */
@@ -398,4 +551,9 @@ void run_net_tests(void) {
     RUN_TEST(test_msg_writedir_readdir_roundtrip);
     RUN_TEST(test_msg_writeangle_readangle_roundtrip);
     RUN_TEST(test_msg_multiple_types_sequential);
+    RUN_TEST(test_fow_full_message_unpacks_visible_and_explored_planes);
+    RUN_TEST(test_fow_row_delta_reconstructs_client_grid);
+    RUN_TEST(test_fow_rle_255_continues_current_value);
+    RUN_TEST(test_fow_rle_zero_length_flips_after_exact_255_run);
+    RUN_TEST(test_fow_malformed_payload_does_not_overread);
 }
