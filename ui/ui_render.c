@@ -263,6 +263,13 @@ static LPCRECT UI_LayoutRect(LPCFRAMEDEF frame) {
                     if (intrinsic_h == 0) intrinsic_h = tex_size.height / 1000.0f;
                 }
                 break;
+            case FT_SPRITE:
+                /*
+                 * WC3 SPRITE frames position the MDX instance at the assigned
+                 * anchor point. Many glue sprites have screen-space vertices
+                 * baked into the model and intentionally omit Width/Height.
+                 */
+                break;
             default:
                 /* Default size if not specified */
                 if (intrinsic_w == 0) intrinsic_w = 0.1f;
@@ -478,7 +485,7 @@ static void UI_DrawButtonHighlight(LPCFRAMEDEF frame) {
         return;
     }
 
-    highlight = UI_FindFrameNear(frame, frame->Control.Backdrop.MouseOver);
+    highlight = UI_ButtonMouseOverHighlight(frame);
     UI_DrawHighlightFrame(highlight, rect);
 }
 
@@ -552,7 +559,7 @@ static void UI_DrawFrameOne(LPCFRAMEDEF frame) {
     
     /* Calculate layout */
     LPCRECT rect = UI_LayoutRect(frame);
-    if (!rect || rect->w <= 0 || rect->h <= 0) {
+    if (!rect || ((rect->w <= 0 || rect->h <= 0) && frame->Type != FT_SPRITE)) {
         return;
     }
     
