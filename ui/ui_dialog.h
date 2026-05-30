@@ -2,6 +2,7 @@
 #define UI_DIALOG_H
 
 #include "ui_local.h"
+#include "generated/dialog_war3.h"
 
 typedef enum {
     UI_DIALOG_WAR3_ICON_MESSAGE,
@@ -33,15 +34,7 @@ typedef struct {
     LPFRAMEDEF parent;
     LPFRAMEDEF modal;
     LPFRAMEDEF cover;
-    LPFRAMEDEF dialog;
-    LPFRAMEDEF text;
-    LPFRAMEDEF icon;
-    LPFRAMEDEF ok_backdrop;
-    LPFRAMEDEF no_backdrop;
-    LPFRAMEDEF yes_backdrop;
-    LPFRAMEDEF ok_button;
-    LPFRAMEDEF no_button;
-    LPFRAMEDEF yes_button;
+    DialogWar3FdfBindings_t frames;
     FLOAT default_height;
 } uiDialogWar3_t;
 

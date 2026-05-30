@@ -2,13 +2,11 @@
  * ui_router.c — UI navigation router.
  *
  * The router dispatches menu commands (e.g. "menu /main", "menu /lan/setup")
- * to the appropriate screen controller and manages the screen stack.
+ * to the appropriate screen controller.
  */
 
 #include "ui_local.h"
 #include "ui_screen.h"
-
-#define MAX_SCREEN_STACK 16
 
 /* Screen registry */
 static uiScreen_t *screens[] = {
@@ -21,14 +19,9 @@ static uiScreen_t *screens[] = {
     NULL
 };
 
-/* Screen stack */
-static uiScreen_t *screen_stack[MAX_SCREEN_STACK];
-static int screen_stack_depth = 0;
 static uiScreen_t *current_screen = NULL;
 
 void UI_ResetRouter(void) {
-    memset(screen_stack, 0, sizeof(screen_stack));
-    screen_stack_depth = 0;
     current_screen = NULL;
 }
 
@@ -41,6 +34,26 @@ static uiScreen_t *UI_FindScreen(LPCSTR name) {
     return NULL;
 }
 
+static BOOL UI_LoadScreen(uiScreen_t *screen) {
+    return !screen || !screen->load || screen->load();
+}
+
+static void UI_EnterScreen(uiScreen_t *screen) {
+    if (!screen) {
+        current_screen = NULL;
+        return;
+    }
+    if (!UI_LoadScreen(screen)) {
+        uiimport.Printf("UI_Route: failed to load screen '%s'\n", screen->name);
+        current_screen = NULL;
+        return;
+    }
+    current_screen = screen;
+    if (screen->init) {
+        screen->init();
+    }
+}
+
 void UI_Route(LPCSTR path) {
     uiimport.Printf("UI_Route: %s\n", path);
 
@@ -51,10 +64,6 @@ void UI_Route(LPCSTR path) {
     /* Handle special routes */
     if (!strcmp(path, "/quit")) {
         uiimport.Cmd_ExecuteText("quit\n");
-        return;
-    }
-    if (!strcmp(path, "/back")) {
-        UI_Pop();
         return;
     }
 
@@ -96,9 +105,9 @@ void UI_Route(LPCSTR path) {
         if (current_screen && current_screen->shutdown) {
             current_screen->shutdown();
         }
-        current_screen = screen;
-        if (screen->init) {
-            screen->init();
+        UI_EnterScreen(screen);
+        if (current_screen != screen) {
+            return;
         }
     }
 
@@ -109,38 +118,6 @@ void UI_Route(LPCSTR path) {
         char query_path[256];
         snprintf(query_path, sizeof(query_path), "?%s", query);
         screen->route(query_path);
-    }
-}
-
-void UI_Push(LPCSTR path) {
-    if (screen_stack_depth >= MAX_SCREEN_STACK) {
-        uiimport.Printf("UI_Push: stack overflow\n");
-        return;
-    }
-
-    if (current_screen) {
-        screen_stack[screen_stack_depth++] = current_screen;
-    }
-    UI_Route(path);
-}
-
-void UI_Pop(void) {
-    uiScreen_t *screen;
-
-    if (screen_stack_depth == 0) {
-        uiimport.Printf("UI_Pop: stack underflow\n");
-        return;
-    }
-
-    screen = screen_stack[--screen_stack_depth];
-    screen_stack[screen_stack_depth] = NULL;
-
-    if (current_screen && current_screen->shutdown) {
-        current_screen->shutdown();
-    }
-    current_screen = screen;
-    if (current_screen && current_screen->init) {
-        current_screen->init();
     }
 }
 

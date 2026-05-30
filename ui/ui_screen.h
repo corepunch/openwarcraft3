@@ -12,6 +12,7 @@
 
 typedef struct uiScreen_s {
     LPCSTR name;
+    BOOL (*load)(void);
     void (*init)(void);
     void (*shutdown)(void);
     void (*refresh)(int msec);

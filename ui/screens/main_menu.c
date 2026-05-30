@@ -17,25 +17,21 @@
 #include "../ui_local.h"
 #include "../ui_dialog.h"
 #include "../ui_screen.h"
+#include "../generated/main_menu.h"
 
-/* Frame references */
-static LPFRAMEDEF frame_MainMenu = NULL;
-static LPFRAMEDEF frame_ControlLayer = NULL;
-static LPFRAMEDEF frame_RealmSelect = NULL;
-static LPFRAMEDEF frame_Logo = NULL;
+/* Generated FDF frame references */
+static MainMenuFdfBindings_t main_menu;
 static uiDialogWar3_t quit_dialog;
 
 /* State */
 static BOOL show_realm_select = false;
 
-static void MainMenu_InitQuitDialog(void) {
-    uiDialogWar3Init_t init = {
-        .modal_name = "MainMenuQuitModal",
-        .cover_name = "MainMenuQuitModalCover",
-        .template_name = "DialogWar3",
-    };
+static BOOL MainMenu_Load(void) {
+    return MainMenuFdfBindings_Bind(&main_menu);
+}
 
-    UI_DialogWar3Init(&quit_dialog, frame_MainMenu, &init);
+static void MainMenu_InitQuitDialog(void) {
+    UI_DialogWar3Init(&quit_dialog, main_menu.MainMenuFrame, NULL);
 }
 
 static void MainMenu_ShowQuitDialog(void) {
@@ -51,60 +47,43 @@ static void MainMenu_ShowQuitDialog(void) {
 }
 
 static void MainMenu_InitFrames(void) {
-    /* Find top-level frames */
-    UI_FRAME(MainMenuFrame);
-    UI_FRAME(ControlLayer);
-    UI_FRAME(RealmSelect);
-    UI_FRAME(WarCraftIIILogo);
-
-    frame_MainMenu = MainMenuFrame;
-    frame_ControlLayer = ControlLayer;
-    frame_RealmSelect = RealmSelect;
-    frame_Logo = WarCraftIIILogo;
-
-    if (!frame_MainMenu) {
+    if (!main_menu.MainMenuFrame) {
         uiimport.Printf("ERROR: MainMenuFrame not found\n");
         return;
     }
 
-    if (frame_RealmSelect) {
-        UI_SetHidden(frame_RealmSelect, true);
+    if (main_menu.RealmSelect) {
+        UI_SetHidden(main_menu.RealmSelect, true);
     }
-    if (frame_ControlLayer) {
-        UI_SetHidden(frame_ControlLayer, false);
+    if (main_menu.ControlLayer) {
+        UI_SetHidden(main_menu.ControlLayer, false);
     }
-    if (frame_Logo) {
+    if (main_menu.WarCraftIIILogo) {
         DWORD logo_model = UI_LoadModel("MainMenuLogo", true);
         if (logo_model) {
-            frame_Logo->Portrait.model = logo_model;
+            main_menu.WarCraftIIILogo->Portrait.model = logo_model;
         }
-        UI_SetPoint(frame_Logo, FRAMEPOINT_TOPLEFT, frame_MainMenu, FRAMEPOINT_TOPLEFT, 0.13f, -0.08f);
+        UI_SetPoint(main_menu.WarCraftIIILogo,
+                    FRAMEPOINT_TOPLEFT,
+                    main_menu.MainMenuFrame,
+                    FRAMEPOINT_TOPLEFT,
+                    0.13f,
+                    -0.08f);
     }
 
-    /* Wire button callbacks */
-    LPFRAMEDEF RealmButton = UI_FindChildFrame(frame_MainMenu, "RealmButton");
-    LPFRAMEDEF SinglePlayerButton = UI_FindChildFrame(frame_MainMenu, "SinglePlayerButton");
-    LPFRAMEDEF BattleNetButton = UI_FindChildFrame(frame_MainMenu, "BattleNetButton");
-    LPFRAMEDEF LocalAreaNetworkButton = UI_FindChildFrame(frame_MainMenu, "LocalAreaNetworkButton");
-    LPFRAMEDEF OptionsButton = UI_FindChildFrame(frame_MainMenu, "OptionsButton");
-    LPFRAMEDEF CreditsButton = UI_FindChildFrame(frame_MainMenu, "CreditsButton");
-    LPFRAMEDEF ExitButton = UI_FindChildFrame(frame_MainMenu, "ExitButton");
-
-    UI_SetOnClick(RealmButton, "menu /realm-select");
-    UI_SetOnClick(SinglePlayerButton, "menu /single-player");
-    UI_SetOnClick(BattleNetButton, "menu /lan/create");
-    UI_SetOnClick(LocalAreaNetworkButton, "menu /lan/create");
-    UI_SetOnClick(OptionsButton, "menu /options");
-    UI_SetOnClick(CreditsButton, "menu /credits");
-    UI_SetOnClick(ExitButton, "menu /main/quit-confirm");
+    UI_SetOnClick(main_menu.RealmButton, "menu /realm-select");
+    UI_SetOnClick(main_menu.SinglePlayerButton, "menu /single-player");
+    UI_SetOnClick(main_menu.BattleNetButton, "menu /lan/create");
+    UI_SetOnClick(main_menu.LocalAreaNetworkButton, "menu /lan/create");
+    UI_SetOnClick(main_menu.OptionsButton, "menu /options");
+    UI_SetOnClick(main_menu.CreditsButton, "menu /credits");
+    UI_SetOnClick(main_menu.ExitButton, "menu /main/quit-confirm");
     MainMenu_InitQuitDialog();
 
     /* Realm select buttons */
-    if (frame_RealmSelect) {
-        LPFRAMEDEF RealmSelectOKButton = UI_FindChildFrame(frame_RealmSelect, "RealmSelectOKButton");
-        LPFRAMEDEF RealmSelectCancelButton = UI_FindChildFrame(frame_RealmSelect, "RealmSelectCancelButton");
-        UI_SetOnClick(RealmSelectOKButton, "menu /main");
-        UI_SetOnClick(RealmSelectCancelButton, "menu /main");
+    if (main_menu.RealmSelect) {
+        UI_SetOnClick(main_menu.RealmSelectOKButton, "menu /main");
+        UI_SetOnClick(main_menu.RealmSelectCancelButton, "menu /main");
     }
 }
 
@@ -128,8 +107,8 @@ static void MainMenu_Draw(void) {
     UI_DrawGlueScene("MainMenu Stand");
 
     /* Render main menu frame tree */
-    if (frame_MainMenu) {
-        UI_DrawFrame(frame_MainMenu);
+    if (main_menu.MainMenuFrame) {
+        UI_DrawFrame(main_menu.MainMenuFrame);
     }
 }
 
@@ -151,20 +130,20 @@ static void MainMenu_Route(LPCSTR path) {
     if (!strcmp(path, "/realm-select")) {
         UI_DialogWar3Hide(&quit_dialog);
         show_realm_select = true;
-        if (frame_RealmSelect) {
-            UI_SetHidden(frame_RealmSelect, false);
+        if (main_menu.RealmSelect) {
+            UI_SetHidden(main_menu.RealmSelect, false);
         }
-        if (frame_ControlLayer) {
-            UI_SetHidden(frame_ControlLayer, true);
+        if (main_menu.ControlLayer) {
+            UI_SetHidden(main_menu.ControlLayer, true);
         }
     } else if (!strcmp(path, "/main")) {
         show_realm_select = false;
         UI_DialogWar3Hide(&quit_dialog);
-        if (frame_RealmSelect) {
-            UI_SetHidden(frame_RealmSelect, true);
+        if (main_menu.RealmSelect) {
+            UI_SetHidden(main_menu.RealmSelect, true);
         }
-        if (frame_ControlLayer) {
-            UI_SetHidden(frame_ControlLayer, false);
+        if (main_menu.ControlLayer) {
+            UI_SetHidden(main_menu.ControlLayer, false);
         }
     } else if (!strcmp(path, "/quit-confirm")) {
         MainMenu_ShowQuitDialog();
@@ -173,6 +152,7 @@ static void MainMenu_Route(LPCSTR path) {
 
 uiScreen_t mainMenuScreen = {
     .name = "main",
+    .load = MainMenu_Load,
     .init = MainMenu_Init,
     .shutdown = MainMenu_Shutdown,
     .refresh = MainMenu_Refresh,

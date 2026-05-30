@@ -60,6 +60,39 @@ build/bin/fdftool -mpq "data/Warcraft III/War3.mpq" -fdf "UI\\FrameDef\\UI\\Cons
 build/bin/fdftool -mpq "data/Warcraft III/War3.mpq" -fdf "UI\\FrameDef\\Glue\\MainMenu.fdf" --info
 ```
 
+## `fdfbindgen`
+
+FDF binding header generator. It writes generated C to stdout, so redirect it
+to whichever checked-in or temporary header path you want. Name generated
+headers after the consuming `.c` file: `ui/screens/main_menu.c` should include
+`ui/generated/main_menu.h`.
+
+Use it to generate per-screen C structs and binding functions from FDF frame
+names, so screen controllers do not hand-write lookup structs or assign
+`UI_FindFrame` / `UI_FindChildFrame` strings themselves. Generated bindings
+are flat direct fields, e.g. `main_menu.ExitButton`. Each selected root also
+gets a `BindFrom<RootName>()` helper for cloned frame trees, such as dialogs.
+
+Syntax:
+
+```bash
+build/bin/fdfbindgen [-prefix Name] [-root FrameName] [-include path] [-no-include] <file.fdf|->...
+```
+
+Useful options:
+
+- `-prefix <Name>` choose the C type/function prefix
+- `-root <FrameName>` bind only one root frame; pass it more than once for multiple roots
+- `-include <path>` choose the generated header include, defaulting to `ui/ui_local.h`
+- `-no-include` omit the include if the includer already provides UI declarations
+
+Examples:
+
+```bash
+build/bin/fdfbindgen -prefix MainMenu -root MainMenuFrame MainMenu.fdf > ui/generated/main_menu.h
+build/bin/mpqtool -mpq "data/Warcraft III/War3.mpq" cat UI/FrameDef/Glue/MainMenu.fdf | build/bin/fdfbindgen -prefix MainMenu -root MainMenuFrame -
+```
+
 ## `mdxtool`
 
 MDX model viewer and inspector.
