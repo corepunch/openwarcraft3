@@ -1,6 +1,8 @@
 #include "g_local.h"
 
 #define FOW_INVALID_CELL 0xffffffffu
+#define FOW_PATHING_PIXEL_SIZE 32.0f
+#define FOW_TREE_DILATION_CELLS 1
 #define G_FOW_CELL_INDEX(x, y) ((y) * level.fow.width + (x))
 #define G_FOW_SET_VISIBLE_CELL(grid, x, y) do { \
     DWORD fow_index_ = G_FOW_CELL_INDEX((DWORD)(x), (DWORD)(y)); \
@@ -86,6 +88,22 @@ static void G_FowSetBlocked(DWORD x, DWORD y) {
     if (!level.fow.blocked[index]) {
         level.fow.blocked[index] = 1;
         level.fow.num_blocked++;
+    }
+}
+
+static void G_FowSetBlockedDilated(DWORD x, DWORD y, int dilation) {
+    for (int dy = -dilation; dy <= dilation; dy++) {
+        int by = (int)y + dy;
+        if (by < 0 || by >= (int)level.fow.height) {
+            continue;
+        }
+        for (int dx = -dilation; dx <= dilation; dx++) {
+            int bx = (int)x + dx;
+            if (bx < 0 || bx >= (int)level.fow.width) {
+                continue;
+            }
+            G_FowSetBlocked((DWORD)bx, (DWORD)by);
+        }
     }
 }
 
@@ -328,13 +346,71 @@ static BOOL G_FowEntityIsBlocker(LPCEDICT ent) {
     return true;
 }
 
+static int G_FowBlockerDilation(LPCEDICT ent) {
+    if (ent->targtype == TARG_TREE) {
+        return FOW_TREE_DILATION_CELLS;
+    }
+    if (!(ent->svflags & SVF_MONSTER) &&
+        DESTRUCTABLE_OCCLUDER_HEIGHT(ent->class_id) > 0.0f)
+    {
+        return FOW_TREE_DILATION_CELLS;
+    }
+    return 0;
+}
+
+static BOOL G_FowMarkBlockerPathTex(LPCEDICT ent, int dilation) {
+    pathTex_t const *pathtex = ent->pathtex;
+    FLOAT scale;
+    BOOL marked = false;
+
+    if (!pathtex || !pathtex->width || !pathtex->height) {
+        return false;
+    }
+
+    scale = MAX(ent->s.scale, 0.01f);
+    FOR_LOOP(py, pathtex->height) {
+        FOR_LOOP(px, pathtex->width) {
+            COLOR32 const *pixel = &pathtex->map[px + py * pathtex->width];
+            FLOAT x;
+            FLOAT y;
+            DWORD cx;
+            DWORD cy;
+
+            if (!pixel->b) {
+                continue;
+            }
+
+            x = ent->s.origin.x +
+                ((FLOAT)px + 0.5f - (FLOAT)pathtex->width * 0.5f) *
+                FOW_PATHING_PIXEL_SIZE * scale;
+            y = ent->s.origin.y +
+                ((FLOAT)py + 0.5f - (FLOAT)pathtex->height * 0.5f) *
+                FOW_PATHING_PIXEL_SIZE * scale;
+            cx = G_FowWorldToCellX(x);
+            cy = G_FowWorldToCellY(y);
+            if (cx == FOW_INVALID_CELL || cy == FOW_INVALID_CELL) {
+                continue;
+            }
+            G_FowSetBlockedDilated(cx, cy, dilation);
+            marked = true;
+        }
+    }
+    return marked;
+}
+
 static void G_FowMarkBlocker(LPCEDICT ent) {
     DWORD cx;
     DWORD cy;
     FLOAT radius;
     int radius_cells;
+    int dilation;
 
     if (!G_FowEntityIsBlocker(ent)) {
+        return;
+    }
+
+    dilation = G_FowBlockerDilation(ent);
+    if (G_FowMarkBlockerPathTex(ent, dilation)) {
         return;
     }
 
@@ -344,7 +420,7 @@ static void G_FowMarkBlocker(LPCEDICT ent) {
         return;
     }
 
-    G_FowSetBlocked(cx, cy);
+    G_FowSetBlockedDilated(cx, cy, dilation);
     radius = MAX(ent->s.radius, ent->collision);
     radius_cells = (int)floorf(radius / (FLOAT)FOW_CELL_SIZE);
     if (radius_cells <= 0) {
@@ -362,7 +438,7 @@ static void G_FowMarkBlocker(LPCEDICT ent) {
                 continue;
             }
             if (dx * dx + dy * dy <= radius_cells * radius_cells) {
-                G_FowSetBlocked((DWORD)x, (DWORD)y);
+                G_FowSetBlockedDilated((DWORD)x, (DWORD)y, dilation);
             }
         }
     }

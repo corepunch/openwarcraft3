@@ -177,6 +177,10 @@ sheetRow_t *G_SheetTail(sheetRow_t *rows);
 #define DESTRUCTABLE_DIRECTORY(UNIT) UnitStringField(DestructableMetaData, UNIT, "bdir")
 #define DESTRUCTABLE_SHADOW(UNIT) UnitStringField(DestructableMetaData, UNIT, "bshd")
 #define DESTRUCTABLE_OCCLUDER_HEIGHT(UNIT) UnitRealField(DestructableMetaData, UNIT, "boch")
+#define DESTRUCTABLE_RADIUS(UNIT) UnitRealField(DestructableMetaData, UNIT, "brad")
+#define DESTRUCTABLE_FOG_RADIUS(UNIT) UnitRealField(DestructableMetaData, UNIT, "bfra")
+#define DESTRUCTABLE_FOG_VISIBILITY(UNIT) UnitBooleanField(DestructableMetaData, UNIT, "bfvi")
+#define DESTRUCTABLE_PATH_TEX(UNIT) UnitStringField(DestructableMetaData, UNIT, "bptx")
 
 #define ITEM_NAME(UNIT) UnitStringField(ItemsMetaData, UNIT, "inam")
 #define ITEM_FILE(UNIT) UnitStringField(ItemsMetaData, UNIT, "ifil")

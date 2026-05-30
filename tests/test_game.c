@@ -422,6 +422,45 @@ static void test_fow_blocker_stops_visibility_behind_it(void) {
     G_FowShutdown();
 }
 
+static pathTex_t *make_fow_pathtex(DWORD width, DWORD height, BYTE blocked) {
+    pathTex_t *tex = gi.MemAlloc(sizeof(*tex) + width * height * sizeof(COLOR32));
+
+    ASSERT(tex != NULL);
+    tex->width = (WORD)width;
+    tex->height = (WORD)height;
+    FOR_LOOP(i, width * height) {
+        tex->map[i] = (COLOR32){ 0, 0, blocked, 255 };
+    }
+    return tex;
+}
+
+static void test_fow_tree_pathtex_closes_gap_behind_canopy(void) {
+    reset_entities();
+    G_FowInit();
+
+    LPEDICT revealer = alloc_test_unit(UNIT_ID("hpea"), 32.0f, 128.0f);
+    revealer->s.player = 0;
+    revealer->balance.sight_radius.day = 320.0f;
+    revealer->health.value = 1.0f;
+    revealer->health.max_value = 1.0f;
+
+    LPEDICT tree = alloc_test_unit(UNIT_ID("LTlt"), 128.0f, 128.0f);
+    tree->s.flags |= EF_FOW_BLOCKER;
+    tree->targtype = TARG_TREE;
+    tree->s.scale = 1.0f;
+    tree->pathtex = make_fow_pathtex(4, 4, 1);
+    tree->health.value = 1.0f;
+    tree->health.max_value = 1.0f;
+
+    G_FowUpdate();
+
+    DWORD canopy_index = G_FowWorldToCellY(128.0f) * level.fow.width + G_FowWorldToCellX(192.0f);
+    DWORD behind_index = G_FowWorldToCellY(128.0f) * level.fow.width + G_FowWorldToCellX(256.0f);
+    ASSERT(level.fow.blocked[canopy_index]);
+    ASSERT(!level.fow.players[0].visible[behind_index]);
+    G_FowShutdown();
+}
+
 static void test_fow_full_sync_marks_player_connected(void) {
     reset_entities();
     G_FowInit();
@@ -501,5 +540,6 @@ BEGIN_SUITE(game)
     RUN_TEST(test_fow_revealer_marks_visible_and_explored);
     RUN_TEST(test_fow_visible_clears_but_explored_remains);
     RUN_TEST(test_fow_blocker_stops_visibility_behind_it);
+    RUN_TEST(test_fow_tree_pathtex_closes_gap_behind_canopy);
     RUN_TEST(test_fow_full_sync_marks_player_connected);
 END_SUITE()

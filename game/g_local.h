@@ -852,6 +852,7 @@ DWORD G_LoadShadowTexture(LPCSTR, BOOL);
 
 // g_pathing.c
 pathTex_t *LoadTGA(BYTE const*, size_t);
+pathTex_t *M_LoadPathTex(LPCSTR filename);
 
 // g_move.c
 BOOL SV_CloseEnough(LPEDICT, LPCEDICT, FLOAT);

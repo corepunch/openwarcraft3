@@ -118,6 +118,8 @@ static void SP_SpawnDoodad(LPEDICT edict) {
 static void SP_SpawnDestructable(LPEDICT edict) {
     LPCSTR dir = DESTRUCTABLE_DIRECTORY(edict->class_id);
     LPCSTR file = DESTRUCTABLE_FILE(edict->class_id);
+    LPCSTR path_tex = DESTRUCTABLE_PATH_TEX(edict->class_id);
+    FLOAT radius = DESTRUCTABLE_RADIUS(edict->class_id);
     PATHSTR buffer;
     snprintf(buffer, sizeof(buffer), "%s.blp", DESTRUCTABLE_TEXTURE(edict->class_id));
     edict->s.image = gi.ImageIndex(buffer);
@@ -127,8 +129,12 @@ static void SP_SpawnDestructable(LPEDICT edict) {
         snprintf(buffer, sizeof(buffer), "%s%d.mdx", file, edict->variation);
     }
     edict->s.model = gi.ModelIndex(buffer);
-    edict->s.radius = 50;//destr->radius;
-    edict->collision = 50;
+    if (radius <= 0.0f) {
+        radius = 50.0f;
+    }
+    edict->s.radius = radius;
+    edict->collision = radius;
+    edict->pathtex = M_LoadPathTex(path_tex);
     edict->s.shadow = G_LoadShadowTexture(DESTRUCTABLE_SHADOW(edict->class_id), false);
     edict->s.shadow_rect = 0;
     edict->health.value = DESTRUCTABLE_HIT_POINT_MAXIMUM(edict->class_id);
