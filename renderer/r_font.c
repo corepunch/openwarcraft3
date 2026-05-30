@@ -207,14 +207,22 @@ FLOAT R_GetFontHeight(LPFONT font) {
 }
 
 BOOL will_word_fit(LPCSTR text, FLOAT width, LPCFONT font) {
-    for (LPCSTR p = text; *p && !isspace(*p) && *p != '|';) {
+    LPCSTR p = text;
+    for (; *p && !isspace(*p) && *p != '|';) {
         unsigned codepoint;
         p = utf8_to_codepoint(p, &codepoint);
         glyphSet_t *set = R_GetGlyphSet((LPFONT)font, codepoint);
         stbtt_bakedchar *g = &set->glyphs[codepoint & 0xff];
         width -= INV_SCALE(g->xadvance);
     }
-    return width >= -0.001;
+    for (; *p && isspace(*p) && *p != '\n';) {
+        unsigned codepoint;
+        p = utf8_to_codepoint(p, &codepoint);
+        glyphSet_t *set = R_GetGlyphSet((LPFONT)font, codepoint);
+        stbtt_bakedchar *g = &set->glyphs[codepoint & 0xff];
+        width -= INV_SCALE(g->xadvance);
+    }
+    return width > 0;
 }
 
 static VECTOR2 get_position(LPCDRAWTEXT arg) {
@@ -261,14 +269,15 @@ static VECTOR2 process_text(LPCDRAWTEXT arg, BOOL draw) {
     COLOR32 color = arg->color;
     VECTOR2 cursor = pos;
     FLOAT linesize = 0.5 * arg->font->size / 1000.f;
-    FLOAT line_advance = linesize * arg->lineHeight;
+    FLOAT line_height = R_GetFontHeight((LPFONT)arg->font);
+    FLOAT line_advance = line_height * (arg->lineHeight > 0 ? arg->lineHeight : 1.0f);
     FLOAT max_cursor_x = pos.x;
     FLOAT min_cursor_y = pos.y;
     FLOAT max_cursor_y = pos.y;
     for (LPCSTR p = arg->text; *p;) {
         if (*p == '\n') {
             cursor.x = pos.x;
-            cursor.y += line_advance * 1.1;
+            cursor.y += line_advance;
             max_cursor_y = MAX(max_cursor_y, cursor.y);
             p++;
             continue;
@@ -276,7 +285,7 @@ static VECTOR2 process_text(LPCDRAWTEXT arg, BOOL draw) {
         if (!strncmp(p, "|n", 2) || !strncmp(p, "|N", 2)) {
         // next_line:
             cursor.x = pos.x;
-            cursor.y += line_advance * 1.1;
+            cursor.y += line_advance;
             max_cursor_y = MAX(max_cursor_y, cursor.y);
             p += 2;
             continue;
