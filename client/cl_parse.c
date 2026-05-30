@@ -197,6 +197,178 @@ void CL_ParseCursor(LPSIZEBUF msg) {
     }
 }
 
+static BOOL CL_EnsureFogOfWarSize(DWORD width, DWORD height) {
+    DWORD cells;
+
+    if (!width || !height) {
+        return false;
+    }
+    if (cl.fow.width == width && cl.fow.height == height &&
+        cl.fow.visible && cl.fow.explored && cl.fow.texture)
+    {
+        return true;
+    }
+
+    SAFE_DELETE(cl.fow.visible, MemFree);
+    SAFE_DELETE(cl.fow.explored, MemFree);
+    SAFE_DELETE(cl.fow.texture, MemFree);
+    cl.fow.width = width;
+    cl.fow.height = height;
+    cells = width * height;
+    cl.fow.visible = MemAlloc(cells);
+    cl.fow.explored = MemAlloc(cells);
+    cl.fow.texture = MemAlloc(cells);
+    if (!cl.fow.visible || !cl.fow.explored || !cl.fow.texture) {
+        SAFE_DELETE(cl.fow.visible, MemFree);
+        SAFE_DELETE(cl.fow.explored, MemFree);
+        SAFE_DELETE(cl.fow.texture, MemFree);
+        cl.fow.width = 0;
+        cl.fow.height = 0;
+        return false;
+    }
+    memset(cl.fow.visible, 0, cells);
+    memset(cl.fow.explored, 0, cells);
+    memset(cl.fow.texture, 0, cells);
+    return true;
+}
+
+static void CL_ClearFogRows(BYTE *plane, DWORD first_row, DWORD row_count) {
+    if (!plane || first_row >= cl.fow.height) {
+        return;
+    }
+    row_count = MIN(row_count, cl.fow.height - first_row);
+    memset(plane + first_row * cl.fow.width, 0, row_count * cl.fow.width);
+}
+
+static void CL_UpdateFogTexture(void) {
+    DWORD cells = cl.fow.width * cl.fow.height;
+
+    if (!cl.fow.texture || !cl.fow.visible || !cl.fow.explored) {
+        return;
+    }
+    FOR_LOOP(i, cells) {
+        cl.fow.texture[i] = cl.fow.visible[i] ? 255 : (cl.fow.explored[i] ? 128 : 0);
+    }
+    if (re.SetFogOfWarData) {
+        re.SetFogOfWarData(cl.fow.width, cl.fow.height, cl.fow.texture);
+    }
+}
+
+static BYTE *CL_FogPlaneForStreamIndex(DWORD flags, DWORD stream_index) {
+    DWORD index = 0;
+
+    if (flags & FOW_MSG_VISIBLE_PLANE) {
+        if (stream_index == index) {
+            return cl.fow.visible;
+        }
+        index++;
+    }
+    if (flags & FOW_MSG_EXPLORED_PLANE) {
+        if (stream_index == index) {
+            return cl.fow.explored;
+        }
+    }
+    return NULL;
+}
+
+static BOOL CL_ValidateFogRLE(BYTE const *payload, DWORD payload_bytes, DWORD expected_bits) {
+    DWORD bits = 0;
+
+    if (!payload || payload_bytes < 2 || expected_bits == 0 ||
+        (payload[0] != 0 && payload[0] != 1))
+    {
+        return false;
+    }
+
+    for (DWORD i = 1; i < payload_bytes; i++) {
+        DWORD len = payload[i];
+        if (bits == expected_bits) {
+            return false;
+        }
+        bits += len;
+        if (bits > expected_bits) {
+            return false;
+        }
+    }
+    return bits == expected_bits;
+}
+
+static void CL_UnpackFogRLE(BYTE const *payload,
+                            DWORD payload_bytes,
+                            DWORD flags,
+                            DWORD first_row,
+                            DWORD row_count)
+{
+    DWORD plane_bits = cl.fow.width * row_count;
+    DWORD decoded = 0;
+    BYTE value = payload[0] ? 1 : 0;
+
+    for (DWORD i = 1; i < payload_bytes; i++) {
+        DWORD len = payload[i];
+
+        FOR_LOOP(j, len) {
+            DWORD plane_index = decoded / plane_bits;
+            DWORD bit_index = decoded % plane_bits;
+            DWORD row = bit_index / cl.fow.width;
+            DWORD x = bit_index % cl.fow.width;
+            BYTE *plane = CL_FogPlaneForStreamIndex(flags, plane_index);
+
+            if (plane) {
+                plane[(first_row + row) * cl.fow.width + x] = value;
+            }
+            decoded++;
+        }
+
+        if (len != 255) {
+            value = !value;
+        }
+    }
+}
+
+void CL_ParseFogOfWar(LPSIZEBUF msg) {
+    DWORD flags = MSG_ReadByte(msg);
+    DWORD width = MSG_ReadShort(msg);
+    DWORD height = MSG_ReadShort(msg);
+    DWORD first_row = MSG_ReadShort(msg);
+    DWORD row_count = MSG_ReadShort(msg);
+    DWORD payload_bytes = MSG_ReadShort(msg);
+    DWORD plane_count = 0;
+    DWORD expected_bits;
+    BYTE const *payload;
+
+    if (flags & FOW_MSG_VISIBLE_PLANE) {
+        plane_count++;
+    }
+    if (flags & FOW_MSG_EXPLORED_PLANE) {
+        plane_count++;
+    }
+    expected_bits = width * row_count * plane_count;
+    if (!plane_count || !width || !height || !(flags & FOW_MSG_RLE) ||
+        first_row >= height || row_count > height - first_row ||
+        payload_bytes > msg->cursize - msg->readcount)
+    {
+        msg->readcount = MIN(msg->cursize, msg->readcount + payload_bytes);
+        return;
+    }
+    payload = msg->data + msg->readcount;
+    if (!CL_ValidateFogRLE(payload, payload_bytes, expected_bits)) {
+        msg->readcount = MIN(msg->cursize, msg->readcount + payload_bytes);
+        return;
+    }
+    if (!CL_EnsureFogOfWarSize(width, height)) {
+        msg->readcount = MIN(msg->cursize, msg->readcount + payload_bytes);
+        return;
+    }
+
+    if (flags & FOW_MSG_FULL) {
+        CL_ClearFogRows(cl.fow.visible, first_row, row_count);
+        CL_ClearFogRows(cl.fow.explored, first_row, row_count);
+    }
+    CL_UnpackFogRLE(payload, payload_bytes, flags, first_row, row_count);
+    msg->readcount += payload_bytes;
+    CL_UpdateFogTexture();
+}
+
 void CL_MirrorMessage(LPSIZEBUF msg) {
     char buf[256] = { 0 };
     MSG_ReadString(msg, buf);
@@ -241,6 +413,9 @@ void CL_ParseServerMessage(LPSIZEBUF msg) {
                 break;
             case svc_mirror:
                 CL_MirrorMessage(msg);
+                break;
+            case svc_fogofwar:
+                CL_ParseFogOfWar(msg);
                 break;
             case svc_temp_entity:
                 CL_ParseTEnt(msg);

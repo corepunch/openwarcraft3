@@ -43,6 +43,9 @@ DWORD StopCamera(LPJASS j) {
 DWORD ResetToGameCamera(LPJASS j) {
     FLOAT duration = jass_checknumber(j, 1);
     LPGAMECLIENT gc = G_GetPlayerClientByNumber(PLAYER_NUM(currentplayer));
+    if (G_SkipCutscene()) {
+        duration = 0;
+    }
     gc->camera.old_state = gc->camera.state;
     gc->camera.state.viewangles = (VECTOR3) { 326, 0, 0 };
     gc->camera.state.fov = 50 * FOV_ASPECT;
@@ -61,6 +64,9 @@ DWORD PanCameraTo(LPJASS j) {
 DWORD PanCameraToTimed(LPJASS j) {
     FLOAT duration = jass_checknumber(j, 3);
     LPGAMECLIENT gc = G_GetPlayerClientByNumber(PLAYER_NUM(currentplayer));
+    if (G_SkipCutscene()) {
+        duration = 0;
+    }
     gc->camera.state.position.x = jass_checknumber(j, 1);
     gc->camera.state.position.y = jass_checknumber(j, 2);
     gc->camera.end_time = gc->camera.start_time + (duration * 1000);
@@ -77,6 +83,9 @@ DWORD PanCameraToWithZ(LPJASS j) {
 DWORD PanCameraToTimedWithZ(LPJASS j) {
     FLOAT duration = jass_checknumber(j, 4);
     LPGAMECLIENT gc = G_GetPlayerClientByNumber(PLAYER_NUM(currentplayer));
+    if (G_SkipCutscene()) {
+        duration = 0;
+    }
     gc->camera.state.position.x = jass_checknumber(j, 1);
     gc->camera.state.position.y = jass_checknumber(j, 2);
     gc->camera.end_time = gc->camera.start_time + (duration * 1000);
@@ -181,6 +190,9 @@ DWORD CameraSetupApplyForceDuration(LPJASS j) {
         return 0;
     }
     LPGAMECLIENT gc = G_GetPlayerClientByNumber(PLAYER_NUM(currentplayer));
+    if (G_SkipCutscene()) {
+        forceDuration = 0;
+    }
     gc->camera.old_state = gc->camera.state;
     gc->camera.state = *whichSetup;
     gc->camera.start_time = gi.GetTime();

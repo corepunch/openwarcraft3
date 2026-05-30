@@ -13,6 +13,7 @@
  *   unit_learnability — hero ability slot management
  *   Alliance types    — ALLIANCE_SHARED_VISION and independent flags
  *   Player resources  — PLAYERSTATE_RESOURCE_GOLD / LUMBER set/get
+ *   Fog of war        — grid sizing, circle reveal, visible/explored decay
  */
 
 #include "test_framework.h"
@@ -346,6 +347,137 @@ static void test_player_gold_lumber_independent(void) {
 }
 
 /* =========================================================================
+ * Fog of war
+ * ========================================================================= */
+
+static void test_fow_grid_uses_two_by_two_cells_per_tile(void) {
+    G_FowInit();
+    ASSERT_EQ_INT(level.fow.width, 8);
+    ASSERT_EQ_INT(level.fow.height, 6);
+    ASSERT_EQ_INT(G_FowWorldToCellX(0.0f), 0);
+    ASSERT_EQ_INT(G_FowWorldToCellX(63.0f), 0);
+    ASSERT_EQ_INT(G_FowWorldToCellX(64.0f), 1);
+    ASSERT_EQ_INT(G_FowWorldToCellY(128.0f), 2);
+    G_FowShutdown();
+}
+
+static void test_fow_revealer_marks_visible_and_explored(void) {
+    reset_entities();
+    G_FowInit();
+
+    LPEDICT revealer = alloc_test_unit(UNIT_ID("hpea"), 64.0f, 64.0f);
+    revealer->s.player = 0;
+    revealer->balance.sight_radius.day = 128.0f;
+    revealer->health.value = 1.0f;
+    revealer->health.max_value = 1.0f;
+
+    G_FowUpdate();
+    DWORD index = G_FowWorldToCellY(64.0f) * level.fow.width + G_FowWorldToCellX(64.0f);
+    ASSERT(level.fow.players[0].visible[index]);
+    ASSERT(level.fow.players[0].explored[index]);
+    G_FowShutdown();
+}
+
+static void test_fow_visible_clears_but_explored_remains(void) {
+    reset_entities();
+    G_FowInit();
+
+    LPEDICT revealer = alloc_test_unit(UNIT_ID("hpea"), 64.0f, 64.0f);
+    revealer->s.player = 0;
+    revealer->balance.sight_radius.day = 128.0f;
+    revealer->health.value = 1.0f;
+    revealer->health.max_value = 1.0f;
+
+    G_FowUpdate();
+    DWORD index = G_FowWorldToCellY(64.0f) * level.fow.width + G_FowWorldToCellX(64.0f);
+    revealer->s.renderfx |= RF_HIDDEN;
+    G_FowUpdate();
+
+    ASSERT(!level.fow.players[0].visible[index]);
+    ASSERT(level.fow.players[0].explored[index]);
+    G_FowShutdown();
+}
+
+static void test_fow_blocker_stops_visibility_behind_it(void) {
+    reset_entities();
+    G_FowInit();
+
+    LPEDICT revealer = alloc_test_unit(UNIT_ID("hpea"), 96.0f, 96.0f);
+    revealer->s.player = 0;
+    revealer->balance.sight_radius.day = 256.0f;
+    revealer->health.value = 1.0f;
+    revealer->health.max_value = 1.0f;
+
+    LPEDICT blocker = alloc_test_unit(UNIT_ID("LTlt"), 160.0f, 96.0f);
+    blocker->s.flags |= EF_FOW_BLOCKER;
+    blocker->health.value = 1.0f;
+    blocker->health.max_value = 1.0f;
+
+    G_FowUpdate();
+
+    DWORD blocker_index = G_FowWorldToCellY(96.0f) * level.fow.width + G_FowWorldToCellX(160.0f);
+    DWORD behind_index = G_FowWorldToCellY(96.0f) * level.fow.width + G_FowWorldToCellX(224.0f);
+    ASSERT(level.fow.players[0].visible[blocker_index]);
+    ASSERT(!level.fow.players[0].visible[behind_index]);
+    G_FowShutdown();
+}
+
+static pathTex_t *make_fow_pathtex(DWORD width, DWORD height, BYTE blocked) {
+    pathTex_t *tex = gi.MemAlloc(sizeof(*tex) + width * height * sizeof(COLOR32));
+
+    ASSERT(tex != NULL);
+    tex->width = (WORD)width;
+    tex->height = (WORD)height;
+    FOR_LOOP(i, width * height) {
+        tex->map[i] = (COLOR32){ 0, 0, blocked, 255 };
+    }
+    return tex;
+}
+
+static void test_fow_tree_pathtex_closes_gap_behind_canopy(void) {
+    reset_entities();
+    G_FowInit();
+
+    LPEDICT revealer = alloc_test_unit(UNIT_ID("hpea"), 32.0f, 128.0f);
+    revealer->s.player = 0;
+    revealer->balance.sight_radius.day = 320.0f;
+    revealer->health.value = 1.0f;
+    revealer->health.max_value = 1.0f;
+
+    LPEDICT tree = alloc_test_unit(UNIT_ID("LTlt"), 128.0f, 128.0f);
+    tree->s.flags |= EF_FOW_BLOCKER;
+    tree->targtype = TARG_TREE;
+    tree->s.scale = 1.0f;
+    tree->pathtex = make_fow_pathtex(4, 4, 1);
+    tree->health.value = 1.0f;
+    tree->health.max_value = 1.0f;
+
+    G_FowUpdate();
+
+    DWORD canopy_index = G_FowWorldToCellY(128.0f) * level.fow.width + G_FowWorldToCellX(192.0f);
+    DWORD behind_index = G_FowWorldToCellY(128.0f) * level.fow.width + G_FowWorldToCellX(256.0f);
+    ASSERT(level.fow.blocked[canopy_index]);
+    ASSERT(level.fow.players[0].visible[canopy_index]);
+    ASSERT(!level.fow.players[0].visible[behind_index]);
+    G_FowShutdown();
+}
+
+static void test_fow_full_sync_marks_player_connected(void) {
+    reset_entities();
+    G_FowInit();
+
+    LPEDICT clent = &g_edicts[0];
+    clent->client = &game.clients[0];
+    clent->client->ps.number = 0;
+
+    ASSERT(!level.fow.players[0].client_connected);
+    G_FowSendFull(clent);
+    ASSERT(level.fow.players[0].client_connected);
+    ASSERT(!level.fow.players[1].client_connected);
+    G_FowShutdown();
+}
+
+/* =========================================================================
  * Suite runner
  * ========================================================================= */
 
@@ -403,4 +535,12 @@ BEGIN_SUITE(game)
     RUN_TEST(test_player_gold_set_get);
     RUN_TEST(test_player_lumber_set_get);
     RUN_TEST(test_player_gold_lumber_independent);
+
+    /* Fog of war */
+    RUN_TEST(test_fow_grid_uses_two_by_two_cells_per_tile);
+    RUN_TEST(test_fow_revealer_marks_visible_and_explored);
+    RUN_TEST(test_fow_visible_clears_but_explored_remains);
+    RUN_TEST(test_fow_blocker_stops_visibility_behind_it);
+    RUN_TEST(test_fow_tree_pathtex_closes_gap_behind_canopy);
+    RUN_TEST(test_fow_full_sync_marks_player_connected);
 END_SUITE()

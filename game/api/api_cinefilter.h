@@ -73,6 +73,9 @@ DWORD SetCineFilterEndColor(LPJASS j) {
 }
 DWORD SetCineFilterDuration(LPJASS j) {
     FLOAT duration = jass_checknumber(j, 1);
+    if (G_SkipCutscene()) {
+        duration = 0;
+    }
     level.cinefilter.start.time = gi.GetTime();
     level.cinefilter.end.time = gi.GetTime() + duration * 1000;
     fprintf(stderr,
@@ -84,6 +87,9 @@ DWORD SetCineFilterDuration(LPJASS j) {
 }
 DWORD DisplayCineFilter(LPJASS j) {
     level.cinefilter.displayed = jass_checkboolean(j, 1);
+    if (G_SkipCutscene()) {
+        level.cinefilter.displayed = false;
+    }
     fprintf(stderr,
             "CineFilter display: %d time=%u fade=%.3f\n",
             level.cinefilter.displayed,

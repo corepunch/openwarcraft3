@@ -262,6 +262,7 @@ void R_InitFogOfWar(DWORD width, DWORD height);
 void R_ShutdownFogOfWar(void);
 void R_RenderFogOfWar(void);
 DWORD R_GetFogOfWarTexture(void);
+void R_SetFogOfWarData(DWORD width, DWORD height, BYTE const *data);
 
 // r_particles.c
 void R_InitParticles(void);

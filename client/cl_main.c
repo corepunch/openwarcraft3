@@ -67,6 +67,10 @@ void CL_ClientCommand(LPCSTR cmd) {
 void CL_ClearState(void) {
     CL_ClearTEnts ();
 
+    SAFE_DELETE(cl.fow.visible, MemFree);
+    SAFE_DELETE(cl.fow.explored, MemFree);
+    SAFE_DELETE(cl.fow.texture, MemFree);
+
     if (ui.ClearLayoutLayer) {
         FOR_LOOP(layer, MAX_LAYOUT_LAYERS) {
             ui.ClearLayoutLayer(layer);

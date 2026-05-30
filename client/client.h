@@ -94,6 +94,13 @@ struct client_state {
         BOOL active;
         VECTOR2 origin;
     } camera_prediction;
+    struct {
+        DWORD width;
+        DWORD height;
+        BYTE *visible;
+        BYTE *explored;
+        BYTE *texture;
+    } fow;
     LPENTITYSTATE cursorEntity;
     LPCMODEL moveConfirmation;
     DWORD num_entities;

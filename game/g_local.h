@@ -747,12 +747,31 @@ typedef struct {
     DWORD write, read;
 } LEVELEVENTS;
 
+typedef struct {
+    BYTE *visible;
+    BYTE *explored;
+    BYTE *dirty_visible_rows;
+    BYTE *dirty_explored_rows;
+    BOOL client_connected;
+    BOOL had_visible;
+} fowPlayerGrid_t;
+
+typedef struct {
+    DWORD width;
+    DWORD height;
+    BOX2 bounds;
+    BYTE *blocked;
+    DWORD num_blocked;
+    fowPlayerGrid_t players[MAX_PLAYERS];
+} fowGrid_t;
+
 struct level_locals {
     LPJASS vm;
     LPCMAPINFO mapinfo;
     LEVELEVENTS events;
     LPQUEST quests;
     USHORT alliances[MAX_PLAYERS][MAX_PLAYERS];
+    fowGrid_t fow;
     CINEFILTER cinefilter;
     DWORD framenum;
     DWORD time;
@@ -779,8 +798,19 @@ LPGAMECLIENT G_GetPlayerClientByNumber(DWORD);
 TARGTYPE G_GetTargetType(LPCSTR);
 LPCSTR G_LevelString(LPCSTR);
 FLOAT G_Cinefade(void);
+BOOL G_SkipCutscene(void);
 void G_SetPlayerText(LPGAMECLIENT, PLAYERTEXT, LPCSTR);
 GAMEEVENT *G_PublishEvent(LPEDICT, EVENTTYPE);
+
+// g_fow.c
+void G_FowInit(void);
+void G_FowShutdown(void);
+void G_FowUpdate(void);
+void G_FowSendDeltas(void);
+void G_FowSendFull(LPEDICT ent);
+BOOL G_FowPlayerCanSeeEntity(DWORD player, LPCEDICT ent);
+DWORD G_FowWorldToCellX(FLOAT x);
+DWORD G_FowWorldToCellY(FLOAT y);
 
 // g_spawn.c
 LPEDICT G_Spawn(void);
@@ -822,6 +852,7 @@ DWORD G_LoadShadowTexture(LPCSTR, BOOL);
 
 // g_pathing.c
 pathTex_t *LoadTGA(BYTE const*, size_t);
+pathTex_t *M_LoadPathTex(LPCSTR filename);
 
 // g_move.c
 BOOL SV_CloseEnough(LPEDICT, LPCEDICT, FLOAT);

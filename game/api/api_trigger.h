@@ -247,12 +247,19 @@ DWORD TriggerClearActions(LPJASS j) {
 }
 DWORD TriggerSleepAction(LPJASS j) {
     FLOAT timeout = jass_checknumber(j, 1);
+    if (G_SkipCutscene()) {
+        timeout = MIN(timeout, 0.001f);
+    }
     jass_sleep(j, timeout * 1000);
     return 0;
 }
 DWORD TriggerWaitForSound(LPJASS j) {
     gsound_t *s = jass_checkhandle(j, 1, "sound");
     FLOAT offset = jass_checknumber(j, 2);
+    if (G_SkipCutscene()) {
+        jass_sleep(j, 1);
+        return 0;
+    }
     jass_sleep(j, s->duration * 0.1 + offset * 1000);
     return 0;
 }

@@ -904,6 +904,9 @@ DWORD SetSkyModel(LPJASS j) {
 }
 DWORD EnableUserControl(LPJASS j) {
     BOOL b = jass_checkboolean(j, 1);
+    if (G_SkipCutscene()) {
+        b = true;
+    }
     if (currentplayer) {
         PLAYER_CLIENT(currentplayer)->no_control = !b;
         fprintf(stderr,
@@ -929,6 +932,10 @@ DWORD ShowInterface(LPJASS j) {
     BOOL flag = jass_checkboolean(j, 1);
     FLOAT fadeDuration = jass_checknumber(j, 2);
     LPPLAYER player = currentplayer;
+    if (G_SkipCutscene()) {
+        flag = true;
+        fadeDuration = 0;
+    }
     if (player) {
         LPGAMECLIENT client = PLAYER_CLIENT(player);
 
@@ -1050,6 +1057,9 @@ DWORD SetCinematicScene(LPJASS j) {
     LPCSTR text = jass_checkstring(j, 4);
     //FLOAT sceneDuration = jass_checknumber(j, 5);
     //FLOAT voiceoverDuration = jass_checknumber(j, 6);
+    if (G_SkipCutscene()) {
+        return 0;
+    }
     if (currentplayer) {
         currentplayer->texts[PLAYERTEXT_SPEAKER] = G_LevelString(speakerTitle);
         currentplayer->texts[PLAYERTEXT_DIALOGUE] = G_LevelString(text);

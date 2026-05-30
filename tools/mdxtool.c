@@ -151,7 +151,7 @@ static void Matrix4_getFrontOrthoCameraMatrix(mdxModel_t const *mdx,
                                               float scale,
                                               LPMATRIX4 output)
 {
-    // Mirror Warsmash uiScene camera: fixed UI coordinate range 0..0.8 x 0..0.6
+    // Mirror the UI scene camera: fixed UI coordinate range 0..0.8 x 0..0.6
     // (aspect and scale are unused — model local coords ARE screen coords)
     BOX3 const bounds = GetPreviewBounds(mdx);
     float const max_z = isfinite(bounds.max.z) ? bounds.max.z : 512.0f;
@@ -161,7 +161,7 @@ static void Matrix4_getFrontOrthoCameraMatrix(mdxModel_t const *mdx,
     float const far_clip  = eye_z - min_z + 100.0f;
     MATRIX4 proj, view;
 
-    // Same ortho range as Warsmash: left=0, right=0.8, bottom=0, top=0.6
+    // Same UI ortho range: left=0, right=0.8, bottom=0, top=0.6
     Matrix4_ortho(&proj, 0.0f, 0.8f, 0.0f, 0.6f, near_clip, far_clip);
     Matrix4_lookAt(&view,
                    &(VECTOR3){ 0, 0, eye_z },
@@ -1024,7 +1024,7 @@ static void RenderModelFrame(refExport_t const *re, LPMODEL model, DWORD now, bo
         entity.origin = root;
         Matrix4_getSideLightMatrix(&model->mdx->cameras->pivot, &model->mdx->cameras->targetPivot, PORTRAIT_SHADOW_SIZE, &viewdef.lightMatrix);
     } else if (g_use_front_ortho) {
-        // Use Warsmash UI coordinate space: no offset, no scale.
+        // Use UI coordinate space: no offset, no scale.
         // The model's local vertices are already in 0..0.8 x 0..0.6 world space.
         entity.origin = (VECTOR3){ 0, 0, 0 };
         entity.scale  = 1.0f;
