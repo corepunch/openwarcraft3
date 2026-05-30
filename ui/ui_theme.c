@@ -116,6 +116,29 @@ static LPCSTR UI_FindThemeValue(LPCSTR entry, LPCSTR category) {
     return NULL;
 }
 
+static LPCSTR UI_ThemeRaceCategory(DWORD race) {
+    switch (race) {
+        case kPlayerRaceHuman: return "Human";
+        case kPlayerRaceOrc: return "Orc";
+        case kPlayerRaceUndead: return "Undead";
+        case kPlayerRaceNightElf: return "NightElf";
+        default: return NULL;
+    }
+}
+
+static LPCSTR UI_ThemeEffectiveCategory(LPCSTR category) {
+    LPCPLAYER ps;
+    LPCSTR player_category;
+
+    if (!category || !*category || strcmp(category, "Default")) {
+        return category;
+    }
+
+    ps = uiimport.GetPlayerState ? uiimport.GetPlayerState() : NULL;
+    player_category = ps ? UI_ThemeRaceCategory(ps->race) : NULL;
+    return player_category ? player_category : category;
+}
+
 LPCSTR Theme_String(LPCSTR entry, LPCSTR category) {
     LPCSTR filename = NULL;
     char versioned[128];
@@ -124,6 +147,7 @@ LPCSTR Theme_String(LPCSTR entry, LPCSTR category) {
     if (!category || !*category) {
         category = fallback;
     }
+    category = UI_ThemeEffectiveCategory(category);
 
     filename = UI_FindThemeValue(entry, category);
     if (!filename && strcmp(category, fallback)) {

@@ -347,6 +347,7 @@ struct playerState_s {
     DWORD client_ui_state;
     DWORD team;
     DWORD color;    // player color index (0 = red, 1 = blue, … see PLAYER_COLOR_*)
+    DWORD race;     // map player race, see playerRace_t
     LPSTR name;     // player display name (set from mapplayer or by script)
     LONG  start_location; // start location index assigned to this player (-1 = none)
     FLOAT cinefade;

@@ -179,6 +179,8 @@ LPCSTR CornerFlags[] = {
 FRAMEDEF frames[MAX_UI_CLASSES] = { 0 };
 static LPCTEXTURE ui_textures[MAX_IMAGES] = { 0 };
 static PATHSTR ui_texture_names[MAX_IMAGES] = { 0 };
+static PATHSTR ui_texture_keys[MAX_IMAGES] = { 0 };
+static BOOL ui_texture_decorated[MAX_IMAGES] = { 0 };
 static LPCMODEL ui_models[MAX_MODELS] = { 0 };
 static PATHSTR ui_model_names[MAX_MODELS] = { 0 };
 
@@ -198,6 +200,8 @@ void UI_ClearTemplates(void) {
     memset(frames, 0, sizeof(frames));
     memset(ui_textures, 0, sizeof(ui_textures));
     memset(ui_texture_names, 0, sizeof(ui_texture_names));
+    memset(ui_texture_keys, 0, sizeof(ui_texture_keys));
+    memset(ui_texture_decorated, 0, sizeof(ui_texture_decorated));
     memset(ui_models, 0, sizeof(ui_models));
     memset(ui_model_names, 0, sizeof(ui_model_names));
     UI_ClearTheme();
@@ -393,13 +397,25 @@ LPCSTR EnsureExtension(LPCSTR file, LPCSTR ext) {
 
 DWORD UI_LoadTexture(LPCSTR file, BOOL decorate) {
     LPRENDERER renderer;
+    LPCSTR resolved;
     DWORD index;
 
-    file = decorate ? Theme_String(file, "Default") : file;
-    file = EnsureExtension(file, ".blp");
+    if (!file || !*file) {
+        return 0;
+    }
+
+    resolved = decorate ? Theme_String(file, "Default") : file;
+    resolved = EnsureExtension(resolved, ".blp");
 
     FOR_LOOP(i, MAX_IMAGES) {
-        if (ui_texture_names[i][0] && !strcmp(ui_texture_names[i], file)) {
+        if (!ui_texture_names[i][0]) {
+            continue;
+        }
+        if (decorate) {
+            if (ui_texture_decorated[i] && !strcmp(ui_texture_keys[i], file)) {
+                return i;
+            }
+        } else if (!ui_texture_decorated[i] && !strcmp(ui_texture_names[i], resolved)) {
             return i;
         }
     }
@@ -415,17 +431,35 @@ DWORD UI_LoadTexture(LPCSTR file, BOOL decorate) {
         return 0;
     }
 
-    snprintf(ui_texture_names[index], sizeof(ui_texture_names[index]), "%s", file);
+    snprintf(ui_texture_names[index], sizeof(ui_texture_names[index]), "%s", resolved);
+    snprintf(ui_texture_keys[index], sizeof(ui_texture_keys[index]), "%s", file);
+    ui_texture_decorated[index] = decorate;
     renderer = uiimport.GetRenderer();
     if (renderer && renderer->LoadTexture && !ui_textures[index]) {
-        ui_textures[index] = renderer->LoadTexture(file);
+        ui_textures[index] = renderer->LoadTexture(resolved);
     }
     return index;
 }
 
 LPCTEXTURE UI_GetTexture(DWORD index) {
+    LPRENDERER renderer;
+    LPCSTR resolved;
+
     if (!index || index >= MAX_IMAGES) {
         return NULL;
+    }
+    if (ui_texture_decorated[index] && ui_texture_keys[index][0]) {
+        resolved = EnsureExtension(Theme_String(ui_texture_keys[index], "Default"), ".blp");
+        if (strcmp(ui_texture_names[index], resolved)) {
+            renderer = uiimport.GetRenderer ? uiimport.GetRenderer() : NULL;
+            if (renderer && renderer->LoadTexture) {
+                if (ui_textures[index] && renderer->ReleaseTexture) {
+                    renderer->ReleaseTexture((LPTEXTURE)ui_textures[index]);
+                }
+                ui_textures[index] = renderer->LoadTexture(resolved);
+                snprintf(ui_texture_names[index], sizeof(ui_texture_names[index]), "%s", resolved);
+            }
+        }
     }
     return ui_textures[index];
 }
