@@ -185,10 +185,16 @@ static PATHSTR ui_model_names[MAX_MODELS] = { 0 };
 void FDF_ParseFrame(LPPARSER p, LPFRAMEDEF frame);
 static char *UI_Trim(char *text);
 static void UI_CopyDisplayString(char *out, size_t out_size, LPCSTR in);
+static void UI_SetFrameDisplayString(LPFRAMEDEF frame, LPCSTR text);
+static void UI_FixCopiedFrameTextPointer(LPFRAMEDEF frame, LPCFRAMEDEF source);
+static void UI_FreeFrameDynamicText(LPFRAMEDEF frame);
 static void UI_RemoveBom(LPSTR buffer);
 static void UI_CloneTemplateChildren(LPCFRAMEDEF source, LPFRAMEDEF parent);
 
 void UI_ClearTemplates(void) {
+    FOR_LOOP(i, MAX_UI_CLASSES) {
+        UI_FreeFrameDynamicText(&frames[i]);
+    }
     memset(frames, 0, sizeof(frames));
     memset(ui_textures, 0, sizeof(ui_textures));
     memset(ui_texture_names, 0, sizeof(ui_texture_names));
@@ -304,6 +310,67 @@ static void UI_CopyDisplayString(char *out, size_t out_size, LPCSTR in) {
         return;
     }
     snprintf(out, out_size, "%s", in);
+}
+
+static void UI_FreeFrameDynamicText(LPFRAMEDEF frame) {
+    if (frame && frame->DynamicText) {
+        uiimport.MemFree(frame->DynamicText);
+        frame->DynamicText = NULL;
+        frame->DynamicTextCapacity = 0;
+    }
+}
+
+static void UI_SetFrameDisplayString(LPFRAMEDEF frame, LPCSTR text) {
+    size_t len;
+
+    if (!frame) {
+        return;
+    }
+
+    UI_FreeFrameDynamicText(frame);
+
+    if (!text) {
+        frame->TextStorage[0] = '\0';
+        frame->Text = frame->TextStorage;
+        return;
+    }
+
+    len = strlen(text);
+    if (len < sizeof(frame->TextStorage)) {
+        UI_CopyDisplayString(frame->TextStorage, sizeof(frame->TextStorage), text);
+        frame->Text = frame->TextStorage;
+        return;
+    }
+
+    frame->DynamicText = uiimport.MemAlloc((long)len + 1);
+    if (frame->DynamicText) {
+        memcpy(frame->DynamicText, text, len + 1);
+        frame->DynamicTextCapacity = (DWORD)(len + 1);
+        frame->Text = frame->DynamicText;
+    } else {
+        UI_CopyDisplayString(frame->TextStorage, sizeof(frame->TextStorage), text);
+        frame->Text = frame->TextStorage;
+    }
+}
+
+static void UI_FixCopiedFrameTextPointer(LPFRAMEDEF frame, LPCFRAMEDEF source) {
+    LPCSTR copied_text;
+
+    if (!frame || !source || !source->Text) {
+        return;
+    }
+
+    copied_text = source->Text;
+    frame->DynamicText = NULL;
+    frame->DynamicTextCapacity = 0;
+
+    if (copied_text == source->TextStorage) {
+        frame->Text = frame->TextStorage;
+    } else if (copied_text == source->DynamicText) {
+        UI_SetFrameDisplayString(frame, copied_text);
+    } else {
+        frame->Text = copied_text;
+    }
 }
 
 static BOOL UI_HasKnownTextureExtension(LPCSTR file) {
@@ -481,9 +548,13 @@ MAKE_PARSER(Text) {
     UINAME key = { 0 };
     sscanf(token, UINAME_FMT, key);
     LPCSTR str = UI_GetString(key);
-    memset(out, 0, sizeof(UINAME));
-    UI_CopyDisplayString(out, sizeof(UINAME), str);
-    frame->Text = out;
+    if (frame && out == frame->TextStorage) {
+        UI_SetFrameDisplayString(frame, str);
+    } else {
+        memset(out, 0, sizeof(UINAME));
+        UI_CopyDisplayString(out, sizeof(UINAME), str);
+        frame->Text = out;
+    }
 }
 
 typedef struct stringListItem_s {
@@ -913,7 +984,9 @@ void UI_InheritFrom(LPFRAMEDEF frame, LPCSTR inheritName) {
         FRAMEDEF tmp;
         FRAMETYPE requested_type = frame->Type;
         memcpy(&tmp, frame, sizeof(FRAMEDEF));
+        UI_FreeFrameDynamicText(frame);
         memcpy(frame, inherit, sizeof(FRAMEDEF));
+        UI_FixCopiedFrameTextPointer(frame, inherit);
         memcpy(frame->Name, tmp.Name, sizeof(UINAME));
         frame->Parent = tmp.Parent;
         frame->Type = requested_type;
@@ -1148,6 +1221,7 @@ LPFRAMEDEF UI_CloneFrameTree(LPCFRAMEDEF source, LPFRAMEDEF parent) {
             return NULL;
         }
         *copies[i] = *sources[i];
+        UI_FixCopiedFrameTextPointer(copies[i], sources[i]);
     }
     FOR_LOOP(i, count) {
         UI_RemapClonedFramePointers(copies[i], parent, sources, copies, count);
@@ -1315,11 +1389,13 @@ void UI_SetParent(LPFRAMEDEF frame, LPCFRAMEDEF parent) {
 void UI_SetText(LPFRAMEDEF frame, LPCSTR format, ...) {
     va_list argptr;
     static char text[1024];
+    if (!frame || !format) {
+        return;
+    }
     va_start(argptr, format);
     vsnprintf(text, sizeof(text), format, argptr);
     va_end(argptr);
-    UI_CopyDisplayString(frame->TextStorage, sizeof(frame->TextStorage), UI_GetString(text));
-    frame->Text = frame->TextStorage;
+    UI_SetFrameDisplayString(frame, UI_GetString(text));
 }
 
 void UI_SetOnClick(LPFRAMEDEF frame, LPCSTR format, ...) {
@@ -1333,6 +1409,7 @@ void UI_SetOnClick(LPFRAMEDEF frame, LPCSTR format, ...) {
 }
 
 void UI_SetTextPointer(LPFRAMEDEF frame, LPCSTR text) {
+    UI_FreeFrameDynamicText(frame);
     frame->Text = text;
 }
 

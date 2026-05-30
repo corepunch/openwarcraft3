@@ -244,9 +244,9 @@ static LPCRECT UI_LayoutRect(LPCFRAMEDEF frame) {
                         .font = renderer ? renderer->LoadFont(UI_FontFile(frame->Font.Name),
                                                               UI_FontPixelSize(frame->Font.Size)) : NULL,
                         .text = frame->Text,
-                        .textWidth = intrinsic_w > 0 ? intrinsic_w : 0.2f,
-                        .lineHeight = 1.33f,
-                        .wordWrap = TRUE,
+                        .textWidth = intrinsic_w > 0 ? intrinsic_w : 0.0f,
+                        .lineHeight = 1.0f,
+                        .wordWrap = intrinsic_w > 0,
                     };
                     VECTOR2 text_size = renderer ? renderer->GetTextSize((LPCDRAWTEXT)&dt) : MAKE(VECTOR2, 0, 0);
                     if (intrinsic_w == 0) intrinsic_w = text_size.x;
@@ -368,8 +368,8 @@ static void UI_DrawText(LPCFRAMEDEF frame, LPCRECT rect) {
         .rect = text_rect,
         .color = color,
         .textWidth = text_rect.w,
-        .lineHeight = 1.33f,
-        .wordWrap = TRUE,
+        .lineHeight = 1.0f,
+        .wordWrap = frame->Width > 0,
         .halign = frame->Font.Justification.Horizontal,
         .valign = frame->Font.Justification.Vertical,
     };
