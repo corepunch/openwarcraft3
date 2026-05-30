@@ -1,11 +1,85 @@
 #ifndef UI_CONTROL_BUTTON_H
 #define UI_CONTROL_BUTTON_H
 
+static BOOL UI_ButtonIsPopupArrow(LPCFRAMEDEF frame) {
+    LPCFRAMEDEF parent = frame ? frame->Parent : NULL;
+
+    return frame &&
+           parent &&
+           UI_IsPopupFrameType(parent->Type) &&
+           parent->Popup.ArrowFrame[0] &&
+           !strcmp(frame->Name, parent->Popup.ArrowFrame);
+}
+
+static BOOL UI_ButtonBackdropNameContains(LPCFRAMEDEF frame, LPCSTR text) {
+    return frame &&
+           frame->Control.Backdrop.Normal[0] &&
+           text &&
+           strstr(frame->Control.Backdrop.Normal, text);
+}
+
+static LPCSTR UI_ButtonPopupPushedBackdropName(LPCFRAMEDEF frame) {
+    if (!frame || !UI_IsPopupFrameType(frame->Type)) {
+        return NULL;
+    }
+    if (UI_ButtonBackdropNameContains(frame, "Campaign")) {
+        return "StandardCampaignButtonPushedBackdropTemplate";
+    }
+    if (UI_ButtonBackdropNameContains(frame, "BattleNet")) {
+        return "BattleNetButtonPushedBackdropTemplate";
+    }
+    if (UI_ButtonBackdropNameContains(frame, "EscMenu")) {
+        return "EscMenuButtonPushedBackdropTemplate";
+    }
+    if (UI_ButtonBackdropNameContains(frame, "Standard")) {
+        return "StandardButtonPushedBackdropTemplate";
+    }
+    return NULL;
+}
+
+static LPCSTR UI_ButtonPopupMouseOverHighlightName(LPCFRAMEDEF frame) {
+    if (!frame || !UI_IsPopupFrameType(frame->Type)) {
+        return NULL;
+    }
+    if (UI_ButtonBackdropNameContains(frame, "Campaign")) {
+        return "StandardCampaignButtonMouseOverHighlightTemplate";
+    }
+    if (UI_ButtonBackdropNameContains(frame, "BattleNet")) {
+        return "BattleNetButtonMouseOverHighlightTemplate";
+    }
+    if (UI_ButtonBackdropNameContains(frame, "EscMenu")) {
+        return "EscMenuButtonMouseOverHighlightTemplate";
+    }
+    if (UI_ButtonBackdropNameContains(frame, "Standard")) {
+        return "StandardButtonMouseOverHighlightTemplate";
+    }
+    return NULL;
+}
+
+static VECTOR2 UI_ButtonPushedTextOffset(LPCFRAMEDEF frame) {
+    if (frame &&
+        (frame->Button.PushedTextOffset.x != 0.0f ||
+         frame->Button.PushedTextOffset.y != 0.0f)) {
+        return frame->Button.PushedTextOffset;
+    }
+    if (frame && UI_IsPopupFrameType(frame->Type)) {
+        if (UI_ButtonBackdropNameContains(frame, "BattleNet")) {
+            return MAKE(VECTOR2, -0.002f, -0.003f);
+        }
+        if (UI_ButtonBackdropNameContains(frame, "EscMenu")) {
+            return MAKE(VECTOR2, 0.002f, -0.002f);
+        }
+        return MAKE(VECTOR2, -0.0015f, -0.0015f);
+    }
+    return MAKE(VECTOR2, 0.0f, 0.0f);
+}
+
 static BOOL UI_ButtonEnabled(LPCFRAMEDEF frame) {
     return frame &&
            (frame->OnClick[0] ||
             frame->Type == FT_POPUPMENU ||
-            frame->Type == FT_GLUEPOPUPMENU);
+            frame->Type == FT_GLUEPOPUPMENU ||
+            UI_ButtonIsPopupArrow(frame));
 }
 
 static BOOL UI_ButtonIsPushed(LPCFRAMEDEF frame, LPCRECT rect) {
@@ -35,8 +109,9 @@ static void UI_DrawButtonText(LPCFRAMEDEF frame, LPCRECT rect) {
     }
 
     if (UI_ButtonIsPushed(frame, rect)) {
-        text_rect.x += frame->Button.PushedTextOffset.x;
-        text_rect.y -= frame->Button.PushedTextOffset.y;
+        VECTOR2 pushed_offset = UI_ButtonPushedTextOffset(frame);
+        text_rect.x += pushed_offset.x;
+        text_rect.y -= pushed_offset.y;
     }
 
     original_color = text_frame->Font.Color;
@@ -60,8 +135,10 @@ static LPCFRAMEDEF UI_ButtonBackdrop(LPCFRAMEDEF frame, LPCRECT rect) {
         backdrop_name = pushed && frame->Control.Backdrop.DisabledPushed[0]
                         ? frame->Control.Backdrop.DisabledPushed
                         : frame->Control.Backdrop.Disabled;
-    } else if (pushed && frame->Control.Backdrop.Pushed[0]) {
-        backdrop_name = frame->Control.Backdrop.Pushed;
+    } else if (pushed) {
+        backdrop_name = frame->Control.Backdrop.Pushed[0]
+                        ? frame->Control.Backdrop.Pushed
+                        : UI_ButtonPopupPushedBackdropName(frame);
     }
 
     LPCFRAMEDEF backdrop = UI_FindFrameNear(frame, backdrop_name);
@@ -69,6 +146,18 @@ static LPCFRAMEDEF UI_ButtonBackdrop(LPCFRAMEDEF frame, LPCRECT rect) {
         backdrop = UI_FindFrameNear(frame, frame->Button.NormalTexture);
     }
     return backdrop;
+}
+
+static LPCFRAMEDEF UI_ButtonMouseOverHighlight(LPCFRAMEDEF frame) {
+    LPCSTR highlight_name;
+
+    if (!frame) {
+        return NULL;
+    }
+    highlight_name = frame->Control.Backdrop.MouseOver[0]
+                     ? frame->Control.Backdrop.MouseOver
+                     : UI_ButtonPopupMouseOverHighlightName(frame);
+    return UI_FindFrameNear(frame, highlight_name);
 }
 
 #endif
