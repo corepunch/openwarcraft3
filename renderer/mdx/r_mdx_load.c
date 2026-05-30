@@ -718,7 +718,24 @@ blockReadCode_t MDLX_ReadPIVT(LPSIZEBUF sb, mdxModel_t *model) {
 }
 
 blockReadCode_t MDLX_ReadTEXS(LPSIZEBUF sb, mdxModel_t *model) {
-    MODEL_READ_ARRAY(sb, Texture, textures);
+    // MODEL_READ_ARRAY(sb, Texture, textures);
+    // TEXS records are fixed 268-byte file records; mdxTexture_t also carries runtime texid state.
+    model->num_textures = sb->cursize / MDX_TEXTURE_RECORD_SIZE;
+    if (model->num_textures <= 0) {
+        return BLOCKREAD_OK;
+    }
+
+    model->textures = ri.MemAlloc(sizeof(mdxTexture_t) * model->num_textures);
+    FOR_LOOP(i, model->num_textures) {
+        mdxTexture_t *texture = &model->textures[i];
+        if (!MSG_Read(sb, &texture->replaceableID, sizeof(DWORD)) ||
+            !MSG_Read(sb, texture->path, MDX_TEXTURE_PATH_LENGTH) ||
+            !MSG_Read(sb, &texture->nWrapping, sizeof(DWORD))) {
+            return BLOCKREAD_ERROR;
+        }
+        texture->path[MDX_TEXTURE_PATH_LENGTH - 1] = '\0';
+        texture->texid = -1;
+    }
     return BLOCKREAD_OK;
 }
 
@@ -817,6 +834,10 @@ mdxModel_t *R_LoadModelMDLX(void *data, DWORD size) {
     }
     FOR_LOOP(i, model->num_textures) {
         mdxTexture_t *tex = model->textures+i;
+        if (!tex->path[0]) {
+            tex->texid = -1;
+            continue;
+        }
         tex->texid = R_RegisterTextureFile(tex->path);
         LPCTEXTURE loaded = R_FindTextureByID(tex->texid);
         R_SetTextureWrap(loaded, tex->nWrapping & 0x1, tex->nWrapping & 0x2);

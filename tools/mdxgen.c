@@ -95,10 +95,10 @@ static void wb_free(wbuf_t *b) { free(b->data); b->data = NULL; b->size = b->cap
 #define MDX_VERSION        800u
 
 /*
- * Texture record on disk = sizeof(mdxTexture_t):
- *   replaceableID (4) + path[256] (256) + texid (4, runtime, write 0) + nWrapping (4) = 268 bytes
+ * Texture record on disk:
+ *   replaceableID (4) + path[260] (260) + nWrapping (4) = 268 bytes
  */
-#define MDX_TEX_PATH_LEN   256
+#define MDX_TEX_PATH_LEN   260
 #define MDX_TEX_RECORD     268u
 
 /*
@@ -196,13 +196,12 @@ static void emit_SEQS(wbuf_t *b, const char **names,
     }
 }
 
-/* TEXS chunk: array of mdxTexture_t (268 bytes each) */
+/* TEXS chunk: on-disk texture records, 268 bytes each. */
 static void emit_TEXS(wbuf_t *b, const char *tex_path) {
     wb_tag(b, "TEXS");
     wb_u32(b, MDX_TEX_RECORD);
     wb_u32(b, 0);                  /* replaceableID = TEXREPL_NONE */
     wb_str(b, tex_path, MDX_TEX_PATH_LEN);
-    wb_i32(b, 0);                  /* texid (runtime, written 0) */
     wb_i32(b, 0);                  /* nWrapping */
 }
 

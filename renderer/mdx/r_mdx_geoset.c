@@ -47,11 +47,11 @@ static LPCTEXTURE MDLX_GetTexture(mdxModel_t const *model,
     switch (replaceableID) {
         case TEXREPL_TEAMCOLOR: return tr.texture[TEX_TEAM_COLOR + teamID];
         case TEXREPL_TEAMGLOW: return tr.texture[TEX_TEAM_GLOW + teamID];
-        case TEXREPL_NONE: return R_FindTextureByID(modeltex->texid);
-        case TEXREPL_TEXTURE: return overrideTexture;
         default:
-//                printf("%d\n", modeltex->replaceableID);
-            return NULL;
+            if (replaceableID != TEXREPL_NONE && overrideTexture) {
+                return overrideTexture;
+            }
+            return R_FindTextureByID(modeltex->texid);
     }
 }
 
