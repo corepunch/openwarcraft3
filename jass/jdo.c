@@ -104,6 +104,7 @@ static void jass_setnull(LPJASSVAR var);
 static LPCJASSTYPE find_type(LPCJASS j, LPCSTR name);
 static LPCJASSTYPE get_base_type(LPCJASSTYPE type);
 static LPJASSVAR ensure_array_value(LPJASS j, LPJASSVAR dest, DWORD index);
+static void jass_discard(LPJASS j, DWORD count);
 
 /* =========================================================================
  * Host interface
@@ -857,6 +858,13 @@ void jass_pop(LPJASS j, DWORD count) {
     j->num_stack -= count;
 }
 
+static void jass_discard(LPJASS j, DWORD count) {
+    while (count-- && j->num_stack) {
+        jass_setnull(jass_topvalue(j));
+        jass_pop(j, 1);
+    }
+}
+
 /* =========================================================================
  * Memory: null / copy / free
  * ========================================================================= */
@@ -1374,7 +1382,7 @@ TOKENFUNC(FUNCTION) {
 }
 
 TOKENFUNC(CALL) {
-    jass_dotoken(j, token);
+    jass_discard(j, jass_dotoken(j, token));
 }
 
 TOKENFUNC(LOOP) {

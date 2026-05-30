@@ -92,6 +92,10 @@ LPEDICT G_Spawn(void) {
             return e;
         }
     }
+    if (globals.num_edicts >= globals.max_edicts) {
+        gi.error("G_Spawn: no free edicts (%d max)\n", globals.max_edicts);
+        return NULL;
+    }
     LPEDICT edict = &g_edicts[globals.num_edicts++];
     G_InitEdict(edict);
     return edict;
@@ -219,6 +223,9 @@ void G_SpawnEntities(LPCMAPINFO mapinfo, LPCDOODAD entities) {
 //            printf("%.4s", )
 //        }
         LPEDICT ent = G_Spawn();
+        if (!ent) {
+            break;
+        }
         ent->class_id = doodad->doodID;
         ent->variation = doodad->variation;
         ent->hero = doodad->hero;
@@ -241,6 +248,9 @@ void G_SpawnEntities(LPCMAPINFO mapinfo, LPCDOODAD entities) {
  
 LPEDICT SP_SpawnAtLocation(DWORD class_id, DWORD player, LPCVECTOR2 location) {
     LPEDICT ent = G_Spawn();
+    if (!ent) {
+        return NULL;
+    }
     ent->class_id = class_id;
     ent->s.class_id = class_id;
     ent->spawn_time = gi.GetTime();
