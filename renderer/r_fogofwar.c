@@ -122,6 +122,9 @@ static DWORD R_CollectRevealers(renderEntity_t const **out, DWORD max_revealers)
         if (ent->flags & RF_HIDDEN) {
             continue;
         }
+        if (!(ent->flags & RF_FOW_REVEALER)) {
+            continue;
+        }
         if (count >= max_revealers) {
             break;
         }

@@ -239,6 +239,9 @@ static void V_AddClientEntity(centity_t const *ent) {
     if (ent->current.flags & EF_FOW_BLOCKER) {
         re.flags |= RF_FOW_BLOCKER;
     }
+    if (ent->current.flags & EF_FOW_REVEALER) {
+        re.flags |= RF_FOW_REVEALER;
+    }
     re.radius = ent->current.radius;
     re.number = ent->current.number;
     re.splat = cl.pics[ent->current.splat & 0xffff];

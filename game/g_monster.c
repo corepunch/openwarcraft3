@@ -302,6 +302,9 @@ void SP_SpawnUnit(LPEDICT self) {
     if (UNIT_OCCLUDER_HEIGHT(self->class_id) > 0) {
         self->s.flags |= EF_FOW_BLOCKER;
     }
+    if (UNIT_SIGHT_RADIUS(self->class_id) > 0 || UNIT_SIGHT_RADIUS_NIGHT(self->class_id) > 0) {
+        self->s.flags |= EF_FOW_REVEALER;
+    }
     self->mana.value = UNIT_MANA(self->class_id);
     self->mana.max_value = UNIT_MANA(self->class_id);
     self->health.value = UNIT_HP(self->class_id);
