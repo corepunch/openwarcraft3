@@ -354,6 +354,7 @@ void UI_PreloadGlueSceneModels(void);
 void UI_DrawGlueScene(LPCSTR panel_anim);
 
 /* ui_fdf.c — FDF parsing (moved from game/ui/ui_fdf.c) */
+BOOL UI_EnsureFDF(LPCSTR filename);
 void UI_ParseFDF(LPCSTR filename);
 void UI_ParseFDF_Buffer(LPCSTR filename, LPSTR buffer);
 void UI_ClearTemplates(void);
@@ -407,6 +408,7 @@ COLOR32 Theme_ListBoxIconTextColor(void);
 
 /* ui_render.c — Frame rendering */
 void UI_DrawFrame(LPCFRAMEDEF frame);
+void UI_DrawFrames(LPCFRAMEDEF const *roots, DWORD num_roots);
 BOOL UI_EditKey(int key);
 void UI_TextInputLocal(LPCSTR text);
 

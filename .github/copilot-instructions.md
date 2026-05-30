@@ -139,7 +139,10 @@ Agent guidance:
 - Prefer the stdout renderer first for UI layout, FDF translation, button state, backdrop tiling, UV, color-code, and route-composition bugs.
 - Use `mdxtool --info` first when a UI model itself may be missing or malformed.
 - `fdftool` is no longer the primary UI inspection path; Phase 8 moved UI rendering into the client-side UI library.
-- For startup-menu diagnostics, override `ui_start_route` on the command line instead of editing default or generated config files. Example: `build/bin/openwarcraft3 -data=data/Warcraft\ III -net_enabled=0 -ui_start_route=/main`.
+- For startup-menu diagnostics, override `ui_start_route` on the command line instead of editing default or generated config files. Any registered UI route can be launched this way, for example:
+	- `build/bin/openwarcraft3 -data=data/Warcraft\ III -net_enabled=0 -ui_start_route=/main`
+	- `build/bin/openwarcraft3 -data=data/Warcraft\ III -net_enabled=0 -ui_start_route=/single-player/campaign`
+	- `make run-ui-text UI_ROUTE=/single-player/campaign`
 
 ## UI Screen Authoring Conventions
 

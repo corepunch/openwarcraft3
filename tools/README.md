@@ -69,28 +69,30 @@ headers after the consuming `.c` file: `ui/screens/main_menu.c` should include
 
 Use it to generate per-screen C structs and binding functions from FDF frame
 names, so screen controllers do not hand-write lookup structs or assign
-`UI_FindFrame` / `UI_FindChildFrame` strings themselves. Generated bindings
-are flat direct fields, e.g. `main_menu.ExitButton`. Each selected root also
-gets a `BindFrom<RootName>()` helper for cloned frame trees, such as dialogs.
+`UI_FindFrame` / `UI_FindChildFrame` strings themselves. It emits `<Prefix>_t`
+and `<Prefix>_Load(...)`; the struct uses flat direct fields, e.g.
+`main_menu.ExitButton`. The load function parses configured FDF paths once,
+then binds the selected root from the global FDF frame table.
 
 Syntax:
 
 ```bash
-build/bin/fdfbindgen [-prefix Name] [-root FrameName] [-include path] [-no-include] <file.fdf|->...
+build/bin/fdfbindgen [-prefix Name] [-root FrameName] [-load path] [-include path] [-no-include] <file.fdf|->...
 ```
 
 Useful options:
 
 - `-prefix <Name>` choose the C type/function prefix
 - `-root <FrameName>` bind only one root frame; pass it more than once for multiple roots
-- `-include <path>` choose the generated header include, defaulting to `ui/ui_local.h`
+- `-load <path>` emit a parse-once load for a runtime FDF path before binding
+- `-include <path>` choose the generated header include, defaulting to `../ui_local.h`
 - `-no-include` omit the include if the includer already provides UI declarations
 
 Examples:
 
 ```bash
-build/bin/fdfbindgen -prefix MainMenu -root MainMenuFrame MainMenu.fdf > ui/generated/main_menu.h
-build/bin/mpqtool -mpq "data/Warcraft III/War3.mpq" cat UI/FrameDef/Glue/MainMenu.fdf | build/bin/fdfbindgen -prefix MainMenu -root MainMenuFrame -
+build/bin/fdfbindgen -prefix MainMenu -root MainMenuFrame -load "UI\\FrameDef\\Glue\\MainMenu.fdf" MainMenu.fdf > ui/generated/main_menu.h
+build/bin/mpqtool -mpq "data/Warcraft III/War3.mpq" cat UI/FrameDef/Glue/MainMenu.fdf | build/bin/fdfbindgen -prefix MainMenu -root MainMenuFrame -load "UI\\FrameDef\\Glue\\MainMenu.fdf" -
 ```
 
 ## `mdxtool`

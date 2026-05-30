@@ -79,6 +79,7 @@ static LPCRECT UI_LayoutRect(LPCFRAMEDEF frame);
 static void UI_DrawFrameOne(LPCFRAMEDEF frame);
 static BOOL UI_FrameWithinRoot(LPCFRAMEDEF root, LPCFRAMEDEF frame);
 static BOOL UI_PointerBlockedByModal(LPCFRAMEDEF frame);
+static LPCFRAMEDEF UI_FindActiveModalRoot(LPCFRAMEDEF const *roots, DWORD num_roots);
 
 /* ========================================================================
  * LAYOUT SOLVING
@@ -408,27 +409,39 @@ static BOOL UI_PointerBlockedByModal(LPCFRAMEDEF frame) {
     return active_modal && !UI_FrameWithinRoot(active_modal, frame);
 }
 
-static void UI_SanitizeInteractionState(LPCFRAMEDEF root) {
-    if (!root) {
+static BOOL UI_FrameInDrawOrder(LPCFRAMEDEF const *draw_order, DWORD count, LPCFRAMEDEF frame) {
+    if (!frame) {
+        return FALSE;
+    }
+    FOR_LOOP(i, count) {
+        if (draw_order[i] == frame) {
+            return TRUE;
+        }
+    }
+    return FALSE;
+}
+
+static void UI_SanitizeInteractionState(LPCFRAMEDEF const *draw_order, DWORD count) {
+    if (!draw_order || count == 0) {
         active_popup = NULL;
         active_slider = NULL;
         UI_FocusEdit(NULL);
         return;
     }
 
-    if (active_popup && !UI_FrameWithinRoot(root, active_popup)) {
+    if (active_popup && !UI_FrameInDrawOrder(draw_order, count, active_popup)) {
         active_popup = NULL;
     }
     if (active_popup && active_modal && !UI_FrameWithinRoot(active_modal, active_popup)) {
         active_popup = NULL;
     }
-    if (active_slider && !UI_FrameWithinRoot(root, active_slider)) {
+    if (active_slider && !UI_FrameInDrawOrder(draw_order, count, active_slider)) {
         active_slider = NULL;
     }
     if (active_slider && active_modal && !UI_FrameWithinRoot(active_modal, active_slider)) {
         active_slider = NULL;
     }
-    if (active_edit && !UI_FrameWithinRoot(root, active_edit)) {
+    if (active_edit && !UI_FrameInDrawOrder(draw_order, count, active_edit)) {
         UI_FocusEdit(NULL);
     }
     if (active_edit && active_modal && !UI_FrameWithinRoot(active_modal, active_edit)) {
@@ -436,16 +449,56 @@ static void UI_SanitizeInteractionState(LPCFRAMEDEF root) {
     }
 }
 
-static LPCFRAMEDEF UI_FindActiveModal(LPCFRAMEDEF const *draw_order, DWORD count) {
+static LPCFRAMEDEF UI_FindActiveModalRoot(LPCFRAMEDEF const *roots, DWORD num_roots) {
     LPCFRAMEDEF modal = NULL;
 
-    FOR_LOOP(i, count) {
-        LPCFRAMEDEF frame = draw_order[i];
+    FOR_LOOP(i, num_roots) {
+        LPCFRAMEDEF frame = roots[i];
         if (frame && !frame->hidden && frame->Type == FT_DIALOG) {
             modal = frame;
         }
     }
     return modal;
+}
+
+static DWORD UI_FrameDrawOrderIndex(LPCFRAMEDEF const *draw_order, DWORD count, LPCFRAMEDEF frame) {
+    FOR_LOOP(i, count) {
+        if (draw_order[i] == frame) {
+            return i;
+        }
+    }
+    return count;
+}
+
+static void UI_DrawModalDim(void) {
+    LPRENDERER renderer = UI_GetRenderer();
+    DWORD texture;
+    LPCTEXTURE tex;
+    LPCRECT rect;
+
+    if (!active_modal || !renderer || !renderer->DrawImageEx) {
+        return;
+    }
+
+    texture = UI_LoadTexture("Textures\\Black32.blp", false);
+    tex = UI_GetTexture(texture);
+    if (!tex) {
+        return;
+    }
+
+    rect = UI_LayoutRect(active_modal);
+    if (!rect) {
+        rect = &scene_rect;
+    }
+
+    renderer->DrawImageEx(&MAKE(drawImage_t,
+                                .texture = tex,
+                                .shader = SHADER_UI,
+                                .alphamode = BLEND_MODE_BLEND,
+                                .screen = *rect,
+                                .uv = MAKE(RECT, 0, 0, 1, 1),
+                                .color = MAKE(COLOR32, 255, 255, 255, 128),
+                                .rotate = FALSE));
 }
 
 static void UI_DrawHighlightFrame(LPCFRAMEDEF frame, LPCRECT rect) {
@@ -478,6 +531,9 @@ static void UI_DrawButtonHighlight(LPCFRAMEDEF frame) {
     LPCFRAMEDEF highlight;
 
     if (!frame || !UI_ButtonEnabled(frame)) {
+        return;
+    }
+    if (UI_PointerBlockedByPopup(frame)) {
         return;
     }
     rect = UI_LayoutRect(frame);
@@ -673,13 +729,41 @@ static void UI_DrawFrameOne(LPCFRAMEDEF frame) {
  * PUBLIC API
  * ======================================================================== */
 
-void UI_DrawFrame(LPCFRAMEDEF frame) {
+static void UI_DrawFrameRangeSprites(LPCFRAMEDEF const *draw_order, DWORD start, DWORD end) {
+    for (DWORD i = start; i < end; i++) {
+        if (draw_order[i]->Type == FT_SPRITE &&
+            !UI_IsActivePopupMenu(draw_order[i])) {
+            UI_DrawFrameOne(draw_order[i]);
+        }
+    }
+}
+
+static void UI_DrawFrameRangeControls(LPCFRAMEDEF const *draw_order, DWORD start, DWORD end) {
+    for (DWORD i = start; i < end; i++) {
+        if (draw_order[i]->Type != FT_SPRITE &&
+            !UI_IsActivePopupMenu(draw_order[i])) {
+            UI_DrawFrameOne(draw_order[i]);
+        }
+    }
+}
+
+static void UI_DrawFrameRangeHighlights(LPCFRAMEDEF const *draw_order, DWORD start, DWORD end) {
+    for (DWORD i = start; i < end; i++) {
+        if (UI_RenderIsButtonFrameType(draw_order[i]->Type) &&
+            !UI_IsActivePopupMenu(draw_order[i])) {
+            UI_DrawButtonHighlight(draw_order[i]);
+        }
+    }
+}
+
+void UI_DrawFrames(LPCFRAMEDEF const *roots, DWORD num_roots) {
     LPCFRAMEDEF draw_order[MAX_UI_CLASSES];
     DWORD total;
     DWORD count;
+    DWORD modal_index;
     LPFRAMEDEF popup_menu;
 
-    if (!frame) {
+    if (!roots || num_roots == 0) {
         return;
     }
     
@@ -689,37 +773,43 @@ void UI_DrawFrame(LPCFRAMEDEF frame) {
     
     /* Initialize scene rect */
     scene_rect = UI_GetSceneRect();
-    total = UI_CollectFrameTree(frame, draw_order, MAX_UI_CLASSES);
+    total = 0;
+    FOR_LOOP(i, num_roots) {
+        DWORD emitted;
+        if (!roots[i] || roots[i]->hidden) {
+            continue;
+        }
+        emitted = UI_CollectFrameTree(roots[i],
+                                      total < MAX_UI_CLASSES ? draw_order + total : NULL,
+                                      total < MAX_UI_CLASSES ? MAX_UI_CLASSES - total : 0);
+        total += emitted;
+    }
     count = MIN(total, MAX_UI_CLASSES);
-    active_modal = UI_FindActiveModal(draw_order, count);
-    UI_SanitizeInteractionState(frame);
+    active_modal = UI_FindActiveModalRoot(roots, num_roots);
+    modal_index = UI_FrameDrawOrderIndex(draw_order, count, active_modal);
+    UI_SanitizeInteractionState(draw_order, count);
     UI_ClosePopupIfClickedOutside();
     UI_ClearEditFocusIfClickedOutside();
     UI_UpdatePopupVisibility(draw_order, count);
 
     /* Match the old client overlay pass: animated/model sprites first, then
      * regular UI controls above them. */
-    FOR_LOOP(i, count) {
-        if (draw_order[i]->Type == FT_SPRITE &&
-            !UI_IsActivePopupMenu(draw_order[i])) {
-            UI_DrawFrameOne(draw_order[i]);
-        }
+    UI_DrawFrameRangeSprites(draw_order, 0, modal_index);
+    UI_DrawFrameRangeControls(draw_order, 0, modal_index);
+    UI_DrawFrameRangeHighlights(draw_order, 0, modal_index);
+    if (active_modal) {
+        UI_DrawModalDim();
     }
-    FOR_LOOP(i, count) {
-        if (draw_order[i]->Type != FT_SPRITE &&
-            !UI_IsActivePopupMenu(draw_order[i])) {
-            UI_DrawFrameOne(draw_order[i]);
-        }
-    }
-    FOR_LOOP(i, count) {
-        if (UI_RenderIsButtonFrameType(draw_order[i]->Type) &&
-            !UI_IsActivePopupMenu(draw_order[i])) {
-            UI_DrawButtonHighlight(draw_order[i]);
-        }
-    }
+    UI_DrawFrameRangeSprites(draw_order, modal_index, count);
+    UI_DrawFrameRangeControls(draw_order, modal_index, count);
+    UI_DrawFrameRangeHighlights(draw_order, modal_index, count);
 
     popup_menu = active_popup ? UI_PopupMenuFrame(active_popup) : NULL;
     if (popup_menu && !popup_menu->hidden) {
         UI_DrawFrameOne(popup_menu);
     }
+}
+
+void UI_DrawFrame(LPCFRAMEDEF frame) {
+    UI_DrawFrames(&frame, 1);
 }

@@ -20,18 +20,23 @@
 #include "../generated/main_menu.h"
 
 /* Generated FDF frame references */
-static MainMenuFdfBindings_t main_menu;
+static MainMenu_t main_menu;
 static uiDialogWar3_t quit_dialog;
 
 /* State */
 static BOOL show_realm_select = false;
 
-static BOOL MainMenu_Load(void) {
-    return MainMenuFdfBindings_Bind(&main_menu);
+static BOOL MainMenu_LoadScreen(void) {
+    return MainMenu_Load(&main_menu);
 }
 
 static void MainMenu_InitQuitDialog(void) {
-    UI_DialogWar3Init(&quit_dialog, main_menu.MainMenuFrame, NULL);
+    uiDialogWar3Init_t init = {
+        .modal_name = "MainMenuQuitModal",
+        .template_name = "DialogWar3",
+    };
+
+    UI_DialogWar3Init(&quit_dialog, main_menu.MainMenuFrame, &init);
 }
 
 static void MainMenu_ShowQuitDialog(void) {
@@ -104,11 +109,19 @@ static void MainMenu_Refresh(int msec) {
 }
 
 static void MainMenu_Draw(void) {
+    LPCFRAMEDEF roots[2];
+    DWORD num_roots = 0;
+
     UI_DrawGlueScene("MainMenu Stand");
 
-    /* Render main menu frame tree */
     if (main_menu.MainMenuFrame) {
-        UI_DrawFrame(main_menu.MainMenuFrame);
+        roots[num_roots++] = main_menu.MainMenuFrame;
+    }
+    if (UI_DialogWar3Visible(&quit_dialog)) {
+        roots[num_roots++] = quit_dialog.modal;
+    }
+    if (num_roots > 0) {
+        UI_DrawFrames(roots, num_roots);
     }
 }
 
@@ -152,7 +165,7 @@ static void MainMenu_Route(LPCSTR path) {
 
 uiScreen_t mainMenuScreen = {
     .name = "main",
-    .load = MainMenu_Load,
+    .load = MainMenu_LoadScreen,
     .init = MainMenu_Init,
     .shutdown = MainMenu_Shutdown,
     .refresh = MainMenu_Refresh,

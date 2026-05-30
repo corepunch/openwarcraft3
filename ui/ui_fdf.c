@@ -177,6 +177,8 @@ LPCSTR CornerFlags[] = {
 #define TARGET(TYPE) TYPE *target = (TYPE *)((uint8_t *)frame + arg->fofs);
 
 FRAMEDEF frames[MAX_UI_CLASSES] = { 0 };
+static PATHSTR ui_loaded_fdfs[128] = { 0 };
+static DWORD ui_num_loaded_fdfs = 0;
 static LPCTEXTURE ui_textures[MAX_IMAGES] = { 0 };
 static PATHSTR ui_texture_names[MAX_IMAGES] = { 0 };
 static PATHSTR ui_texture_keys[MAX_IMAGES] = { 0 };
@@ -204,6 +206,8 @@ void UI_ClearTemplates(void) {
     memset(ui_texture_decorated, 0, sizeof(ui_texture_decorated));
     memset(ui_models, 0, sizeof(ui_models));
     memset(ui_model_names, 0, sizeof(ui_model_names));
+    memset(ui_loaded_fdfs, 0, sizeof(ui_loaded_fdfs));
+    ui_num_loaded_fdfs = 0;
     UI_ClearTheme();
 }
 
@@ -1365,8 +1369,40 @@ void UI_ParseFDF_Buffer(LPCSTR fileName, LPSTR buffer2) {
     }
 }
 
-void UI_ParseFDF(LPCSTR fileName) {
+static BOOL UI_FDFLoaded(LPCSTR fileName) {
+    if (!fileName || !*fileName) {
+        return false;
+    }
+    FOR_LOOP(i, ui_num_loaded_fdfs) {
+        if (!strcmp(ui_loaded_fdfs[i], fileName)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static void UI_MarkFDFLoaded(LPCSTR fileName) {
+    if (!fileName || !*fileName || UI_FDFLoaded(fileName)) {
+        return;
+    }
+    if (ui_num_loaded_fdfs >= sizeof(ui_loaded_fdfs) / sizeof(ui_loaded_fdfs[0])) {
+        return;
+    }
+    snprintf(ui_loaded_fdfs[ui_num_loaded_fdfs],
+             sizeof(ui_loaded_fdfs[ui_num_loaded_fdfs]),
+             "%s",
+             fileName);
+    ui_num_loaded_fdfs++;
+}
+
+BOOL UI_EnsureFDF(LPCSTR fileName) {
     void *buffer = NULL;
+    BOOL loaded = false;
+
+    if (UI_FDFLoaded(fileName)) {
+        return true;
+    }
+
     int size = uiimport.FS_ReadFile(fileName, &buffer);
     if (size >= 0 && buffer) {
         LPSTR text = uiimport.MemAlloc((DWORD)size + 1);
@@ -1375,9 +1411,16 @@ void UI_ParseFDF(LPCSTR fileName) {
             text[size] = '\0';
             UI_ParseFDF_Buffer(fileName, text);
             uiimport.MemFree(text);
+            UI_MarkFDFLoaded(fileName);
+            loaded = true;
         }
         uiimport.FS_FreeFile(buffer);
     }
+    return loaded;
+}
+
+void UI_ParseFDF(LPCSTR fileName) {
+    UI_EnsureFDF(fileName);
 }
 
 void UI_WriteFrameWithChildren(LPCFRAMEDEF frame, LPCFRAMEDEF parent) {

@@ -13,6 +13,9 @@ static void teardown_game(void) {}
 static const char *captured_image_path;
 static const char *captured_model_path;
 static char captured_command[128];
+static DWORD captured_draw_calls;
+static DWORD captured_dim_draws;
+static DWORD captured_dim_draw_index;
 
 static int fake_image_index(LPCSTR name) {
     captured_image_path = name;
@@ -132,10 +135,23 @@ static LPMODEL test_load_model(LPCSTR name) {
     return (LPMODEL)1;
 }
 
+static void test_draw_image_ex(LPCDRAWIMAGE draw_image) {
+    captured_draw_calls++;
+    if (draw_image &&
+        draw_image->color.r == 255 &&
+        draw_image->color.g == 255 &&
+        draw_image->color.b == 255 &&
+        draw_image->color.a == 128) {
+        captured_dim_draws++;
+        captured_dim_draw_index = captured_draw_calls;
+    }
+}
+
 static LPRENDERER test_get_renderer(void) {
     static refExport_t renderer = {
         .LoadTexture = test_load_texture,
         .LoadModel = test_load_model,
+        .DrawImageEx = test_draw_image_ex,
     };
     return &renderer;
 }
@@ -206,6 +222,9 @@ static void reset_ui_state(void) {
     captured_image_path = NULL;
     captured_model_path = NULL;
     captured_command[0] = '\0';
+    captured_draw_calls = 0;
+    captured_dim_draws = 0;
+    captured_dim_draw_index = 0;
     uiimport.MemAlloc = test_ui_mem_alloc;
     uiimport.MemFree = test_ui_mem_free;
     uiimport.ImageIndex = fake_image_index;
@@ -1000,7 +1019,6 @@ static void test_dialog_war3_supports_configurable_button_modes(void) {
     uiDialogWar3_t dialog;
     uiDialogWar3Init_t init = {
         .modal_name = "TestDialogModal",
-        .cover_name = "TestDialogModalCover",
         .template_name = "DialogWar3",
     };
     uiDialogWar3Config_t config = {
@@ -1024,16 +1042,15 @@ static void test_dialog_war3_supports_configurable_button_modes(void) {
 
     UI_DialogWar3Show(&dialog, &config);
     ASSERT(UI_DialogWar3Visible(&dialog));
-    ASSERT_STR_EQ(dialog.dialog->DialogBackdropName, "DialogBackdrop");
-    ASSERT_NOT_NULL(UI_FindChildFrame(dialog.dialog, dialog.dialog->DialogBackdropName));
-    ASSERT_STR_EQ(dialog.text->Text, "Are you sure you want to exit?");
-    ASSERT(dialog.cover->Texture.Image != 0);
-    ASSERT_EQ_INT(dialog.cover->Color.a, 128);
-    ASSERT(dialog.icon->Backdrop.Background != 0);
-    ASSERT(!dialog.ok_backdrop->hidden);
-    ASSERT(dialog.no_backdrop->hidden);
-    ASSERT(dialog.yes_backdrop->hidden);
-    ASSERT_STR_EQ(dialog.ok_button->OnClick, "menu /main/main");
+    ASSERT(dialog.modal->Parent == NULL);
+    ASSERT_STR_EQ(dialog.frames.DialogWar3->DialogBackdropName, "DialogBackdrop");
+    ASSERT_NOT_NULL(UI_FindChildFrame(dialog.frames.DialogWar3, dialog.frames.DialogWar3->DialogBackdropName));
+    ASSERT_STR_EQ(dialog.frames.DialogText->Text, "Are you sure you want to exit?");
+    ASSERT(dialog.frames.DialogIcon->Backdrop.Background != 0);
+    ASSERT(!dialog.frames.DialogButtonOKBackdrop->hidden);
+    ASSERT(dialog.frames.DialogButtonNoBackdrop->hidden);
+    ASSERT(dialog.frames.DialogButtonYesBackdrop->hidden);
+    ASSERT_STR_EQ(dialog.frames.DialogButtonOK->OnClick, "menu /main/main");
 
     UI_DialogWar3Hide(&dialog);
     ASSERT(!UI_DialogWar3Visible(&dialog));
@@ -1051,7 +1068,6 @@ static void test_main_menu_quit_dialog_routes_to_quit(void) {
     LPFRAMEDEF global_exit_button;
     LPFRAMEDEF exit_button;
     LPFRAMEDEF modal;
-    LPFRAMEDEF cover;
     LPFRAMEDEF dialog;
     LPFRAMEDEF message;
     LPFRAMEDEF icon;
@@ -1082,22 +1098,15 @@ static void test_main_menu_quit_dialog_routes_to_quit(void) {
     ASSERT(!exit_button->hidden);
     ASSERT_STR_EQ(exit_button->OnClick, "menu /main/quit-confirm");
 
-    modal = UI_FindChildFrame(UI_FindFrame("MainMenuFrame"), "MainMenuQuitModal");
+    modal = UI_FindFrame("MainMenuQuitModal");
     if (!require_not_null(modal)) {
         uiimport = saved;
         return;
     }
     ASSERT_EQ_INT(modal->Type, FT_DIALOG);
+    ASSERT(modal->Parent == NULL);
     ASSERT(modal->hidden);
-
-    cover = UI_FindChildFrame(modal, "MainMenuQuitModalCover");
-    if (!require_not_null(cover)) {
-        uiimport = saved;
-        return;
-    }
-    ASSERT_EQ_INT(cover->Type, FT_TEXTURE);
-    ASSERT(cover->Texture.Image != 0);
-    ASSERT_EQ_INT(cover->Color.a, 128);
+    ASSERT(UI_FindChildFrame(modal, "MainMenuQuitModalCover") == NULL);
 
     dialog = UI_FindChildFrame(modal, "DialogWar3");
     if (!require_not_null(dialog)) {
@@ -1155,6 +1164,13 @@ static void test_main_menu_quit_dialog_routes_to_quit(void) {
     mainMenuScreen.route("/quit-confirm");
     ASSERT(!modal->hidden);
     ASSERT(!dialog->hidden);
+    captured_draw_calls = 0;
+    captured_dim_draws = 0;
+    captured_dim_draw_index = 0;
+    mainMenuScreen.draw();
+    ASSERT_EQ_INT(captured_dim_draws, 1);
+    ASSERT(captured_dim_draw_index > 0);
+    ASSERT(captured_draw_calls > captured_dim_draw_index);
 
     UI_MenuCommandLocal(no_button->OnClick);
     ASSERT(modal->hidden);
