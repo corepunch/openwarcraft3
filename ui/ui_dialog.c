@@ -24,12 +24,6 @@ static LPCSTR UI_DialogWar3ModalName(uiDialogWar3Init_t const *init) {
            : "DialogWar3Modal";
 }
 
-static LPCSTR UI_DialogWar3CoverName(uiDialogWar3Init_t const *init) {
-    return init && init->cover_name && init->cover_name[0]
-           ? init->cover_name
-           : "DialogWar3ModalCover";
-}
-
 static void UI_DialogWar3SetVisible(uiDialogWar3_t *dialog, BOOL visible) {
     if (!dialog) {
         return;
@@ -43,36 +37,21 @@ static BOOL UI_DialogWar3CreateModal(uiDialogWar3_t *dialog,
                                      uiDialogWar3Init_t const *init)
 {
     LPCSTR modal_name = UI_DialogWar3ModalName(init);
-    LPCSTR cover_name = UI_DialogWar3CoverName(init);
 
     dialog->modal = UI_FindFrame(modal_name);
     if (!dialog->modal) {
-        dialog->modal = UI_Spawn(FT_DIALOG, parent);
+        dialog->modal = UI_Spawn(FT_DIALOG, NULL);
         if (!dialog->modal) {
             uiimport.Printf("ERROR: failed to create %s\n", modal_name);
             return false;
         }
         snprintf(dialog->modal->Name, sizeof(dialog->modal->Name), "%s", modal_name);
     } else {
-        UI_SetParent(dialog->modal, parent);
+        UI_SetParent(dialog->modal, NULL);
     }
 
     UI_SetPoint(dialog->modal, FRAMEPOINT_TOPLEFT, parent, FRAMEPOINT_TOPLEFT, 0.0f, 0.0f);
     UI_SetPoint(dialog->modal, FRAMEPOINT_BOTTOMRIGHT, parent, FRAMEPOINT_BOTTOMRIGHT, 0.0f, 0.0f);
-
-    dialog->cover = UI_FindChildFrame(dialog->modal, cover_name);
-    if (!dialog->cover) {
-        dialog->cover = UI_Spawn(FT_TEXTURE, dialog->modal);
-        if (dialog->cover) {
-            snprintf(dialog->cover->Name, sizeof(dialog->cover->Name), "%s", cover_name);
-        }
-    }
-    if (dialog->cover) {
-        UI_SetPoint(dialog->cover, FRAMEPOINT_TOPLEFT, dialog->modal, FRAMEPOINT_TOPLEFT, 0.0f, 0.0f);
-        UI_SetPoint(dialog->cover, FRAMEPOINT_BOTTOMRIGHT, dialog->modal, FRAMEPOINT_BOTTOMRIGHT, 0.0f, 0.0f);
-        dialog->cover->Texture.Image = UI_LoadTexture("Textures\\Black32.blp", false);
-        dialog->cover->Color = MAKE(COLOR32, 255, 255, 255, 128);
-    }
 
     return true;
 }
@@ -81,25 +60,13 @@ static BOOL UI_DialogWar3CreateFrame(uiDialogWar3_t *dialog,
                                      uiDialogWar3Init_t const *init)
 {
     LPCSTR template_name = UI_DialogWar3TemplateName(init);
-    DialogWar3FdfBindings_t template_bindings;
-    LPFRAMEDEF template_dialog;
-    LPFRAMEDEF dialog_frame;
 
-    dialog_frame = UI_FindChildFrame(dialog->modal, template_name);
-    if (!dialog_frame) {
-        if (!DialogWar3FdfBindings_Bind(&template_bindings)) {
-            uiimport.Printf("ERROR: %s not found\n", template_name);
-            return false;
-        }
-        template_dialog = template_bindings.DialogWar3;
-        dialog_frame = UI_CloneFrameTree(template_dialog, dialog->modal);
-        if (!dialog_frame) {
-            uiimport.Printf("ERROR: failed to clone %s\n", template_name);
-            return false;
-        }
+    if (strcmp(template_name, "DialogWar3")) {
+        uiimport.Printf("ERROR: unsupported dialog template: %s\n", template_name);
+        return false;
     }
 
-    if (!DialogWar3FdfBindings_BindFromDialogWar3(&dialog->frames, dialog_frame)) {
+    if (!DialogWar3_Load(&dialog->frames)) {
         return false;
     }
 

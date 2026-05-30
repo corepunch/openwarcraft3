@@ -17,7 +17,6 @@ typedef enum {
 
 typedef struct {
     LPCSTR modal_name;
-    LPCSTR cover_name;
     LPCSTR template_name;
 } uiDialogWar3Init_t;
 
@@ -33,8 +32,7 @@ typedef struct {
 typedef struct {
     LPFRAMEDEF parent;
     LPFRAMEDEF modal;
-    LPFRAMEDEF cover;
-    DialogWar3FdfBindings_t frames;
+    DialogWar3_t frames;
     FLOAT default_height;
 } uiDialogWar3_t;
 

@@ -40,14 +40,16 @@ static int selected_roots[MAX_ROOTS];
 static int selected_root_count = 0;
 static const char *root_filters[MAX_ROOTS];
 static int root_filter_count = 0;
+static const char *load_paths[MAX_FILES];
+static int load_path_count = 0;
 static char prefix[MAX_IDENT] = "";
-static char include_path[256] = "ui/ui_local.h";
+static char include_path[256] = "../ui_local.h";
 static bool emit_include = true;
 
 static void usage(void) {
     fprintf(stderr,
             "Usage:\n"
-            "  fdfbindgen [-prefix Name] [-root FrameName] [-include path] [-no-include] <file.fdf|->...\n"
+            "  fdfbindgen [-prefix Name] [-root FrameName] [-load path] [-include path] [-no-include] <file.fdf|->...\n"
             "\n"
             "Generates a header-only C binding struct for FDF frame names on stdout.\n"
             "Use -root more than once to bind selected root frames; without -root,\n"
@@ -56,8 +58,8 @@ static void usage(void) {
             "the consuming .c file, e.g. ui/screens/main_menu.c -> ui/generated/main_menu.h.\n"
             "\n"
             "Examples:\n"
-            "  fdfbindgen -prefix MainMenu -root MainMenuFrame MainMenu.fdf > ui/generated/main_menu.h\n"
-            "  mpqtool -mpq War3.mpq cat UI/FrameDef/Glue/MainMenu.fdf | fdfbindgen -prefix MainMenu -root MainMenuFrame -\n");
+            "  fdfbindgen -prefix MainMenu -root MainMenuFrame -load UI\\\\FrameDef\\\\Glue\\\\MainMenu.fdf MainMenu.fdf > ui/generated/main_menu.h\n"
+            "  mpqtool -mpq War3.mpq cat UI/FrameDef/Glue/MainMenu.fdf | fdfbindgen -prefix MainMenu -root MainMenuFrame -load UI\\\\FrameDef\\\\Glue\\\\MainMenu.fdf -\n");
 }
 
 static bool read_all(FILE *fp, const char *name, char **out_data, size_t *out_size) {
@@ -461,12 +463,23 @@ static void emit_binding_fields(int node_index) {
     }
 }
 
+static void emit_c_string(const char *text) {
+    putchar('"');
+    for (size_t i = 0; text && text[i]; i++) {
+        if (text[i] == '\\' || text[i] == '"') {
+            putchar('\\');
+        }
+        putchar(text[i]);
+    }
+    putchar('"');
+}
+
 static void emit_binding_type(void) {
-    printf("typedef struct %sFdfBindings_s {\n", prefix);
+    printf("typedef struct %s_s {\n", prefix);
     for (int i = 0; i < selected_root_count; i++) {
         emit_binding_fields(selected_roots[i]);
     }
-    printf("} %sFdfBindings_t;\n\n", prefix);
+    printf("} %s_t;\n\n", prefix);
 }
 
 static void emit_bind_children(int node_index, const char *node_expr) {
@@ -480,52 +493,35 @@ static void emit_bind_children(int node_index, const char *node_expr) {
 }
 
 static void emit_bind_function(void) {
-    printf("static inline BOOL %sFdfBindings_Bind(%sFdfBindings_t *out) {\n", prefix, prefix);
+    printf("static inline BOOL %s_Load(%s_t *out) {\n", prefix, prefix);
     printf("    BOOL ok = true;\n");
+    printf("    LPFRAMEDEF bind_root;\n");
     printf("    if (!out) {\n");
     printf("        return false;\n");
     printf("    }\n");
+    for (int i = 0; i < load_path_count; i++) {
+        printf("    if (!UI_EnsureFDF(");
+        emit_c_string(load_paths[i]);
+        printf(")) {\n");
+        printf("        ok = false;\n");
+        printf("    }\n");
+    }
     printf("    memset(out, 0, sizeof(*out));\n");
     for (int i = 0; i < selected_root_count; i++) {
         int root = selected_roots[i];
-        char root_expr[1024];
-        snprintf(root_expr, sizeof(root_expr), "out->%s", nodes[root].binding_ident);
         printf("    OW3_FDF_BIND_ROOT(out, %s, \"%s\");\n",
                nodes[root].binding_ident, nodes[root].name);
-        emit_bind_children(root, root_expr);
+        printf("    bind_root = out->%s;\n", nodes[root].binding_ident);
+        emit_bind_children(root, "bind_root");
     }
     printf("    return ok;\n");
     printf("}\n");
-}
-
-static void emit_bind_from_root_function(int root) {
-    const char *root_ident = nodes[root].binding_ident;
-
-    printf("\n");
-    printf("static inline BOOL %sFdfBindings_BindFrom%s(%sFdfBindings_t *out, LPFRAMEDEF root) {\n",
-           prefix, root_ident, prefix);
-    printf("    BOOL ok = true;\n");
-    printf("    if (!out || !root) {\n");
-    printf("        return false;\n");
-    printf("    }\n");
-    printf("    memset(out, 0, sizeof(*out));\n");
-    printf("    OW3_FDF_BIND_EXISTING_ROOT(out, %s, root, \"%s\");\n",
-           root_ident, nodes[root].name);
-    emit_bind_children(root, "root");
-    printf("    return ok;\n");
-    printf("}\n");
-}
-
-static void emit_bind_from_root_functions(void) {
-    for (int i = 0; i < selected_root_count; i++) {
-        emit_bind_from_root_function(selected_roots[i]);
-    }
 }
 
 static void emit_header(void) {
     char guard[MAX_IDENT * 2];
     char guard_prefix[MAX_IDENT];
-    snprintf(guard_prefix, sizeof(guard_prefix), "%s_FDF_BINDINGS_H", prefix);
+    snprintf(guard_prefix, sizeof(guard_prefix), "%s_H", prefix);
     make_ident(guard_prefix, guard, sizeof(guard));
     for (size_t i = 0; guard[i]; i++) {
         guard[i] = (char)toupper((unsigned char)guard[i]);
@@ -536,25 +532,20 @@ static void emit_header(void) {
     if (emit_include) {
         printf("#include \"%s\"\n\n", include_path);
     }
-    printf("#ifndef OW3_FDF_BINDINGS_REPORT_MISSING\n");
-    printf("#define OW3_FDF_BINDINGS_REPORT_MISSING(NAME) \\\n");
+    printf("#ifndef OW3_FDF_REPORT_MISSING\n");
+    printf("#define OW3_FDF_REPORT_MISSING(NAME) \\\n");
     printf("    do { if (uiimport.Printf) uiimport.Printf(\"ERROR: missing FDF binding: %%s\\n\", (NAME)); } while (0)\n");
     printf("#endif\n\n");
     printf("#ifndef OW3_FDF_BIND_ROOT\n");
     printf("#define OW3_FDF_BIND_ROOT(OUT, FIELD, NAME) \\\n");
-    printf("    do { (OUT)->FIELD = UI_FindFrame((NAME)); if (!(OUT)->FIELD) { OW3_FDF_BINDINGS_REPORT_MISSING((NAME)); ok = false; } } while (0)\n");
-    printf("#endif\n\n");
-    printf("#ifndef OW3_FDF_BIND_EXISTING_ROOT\n");
-    printf("#define OW3_FDF_BIND_EXISTING_ROOT(OUT, FIELD, ROOT, NAME) \\\n");
-    printf("    do { (OUT)->FIELD = (ROOT); if (!(OUT)->FIELD) { OW3_FDF_BINDINGS_REPORT_MISSING((NAME)); ok = false; } } while (0)\n");
+    printf("    do { (OUT)->FIELD = UI_FindFrame((NAME)); if (!(OUT)->FIELD) { OW3_FDF_REPORT_MISSING((NAME)); ok = false; } } while (0)\n");
     printf("#endif\n\n");
     printf("#ifndef OW3_FDF_BIND_CHILD\n");
     printf("#define OW3_FDF_BIND_CHILD(OUT, FIELD, PARENT, NAME) \\\n");
-    printf("    do { (OUT)->FIELD = (PARENT) ? UI_FindChildFrame((PARENT), (NAME)) : NULL; if (!(OUT)->FIELD) { OW3_FDF_BINDINGS_REPORT_MISSING((NAME)); ok = false; } } while (0)\n");
+    printf("    do { (OUT)->FIELD = (PARENT) ? UI_FindChildFrame((PARENT), (NAME)) : NULL; if (!(OUT)->FIELD) { OW3_FDF_REPORT_MISSING((NAME)); ok = false; } } while (0)\n");
     printf("#endif\n\n");
     emit_binding_type();
     emit_bind_function();
-    emit_bind_from_root_functions();
     printf("\n#endif /* %s */\n", guard);
 }
 
@@ -599,6 +590,12 @@ int main(int argc, char **argv) {
                 return 1;
             }
             root_filters[root_filter_count++] = argv[i];
+        } else if (!strcmp(argv[i], "-load")) {
+            if (++i >= argc || load_path_count >= MAX_FILES) {
+                usage();
+                return 1;
+            }
+            load_paths[load_path_count++] = argv[i];
         } else if (!strcmp(argv[i], "-include")) {
             if (++i >= argc) {
                 usage();
