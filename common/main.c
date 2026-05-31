@@ -150,7 +150,7 @@ int main(int argc, LPSTR argv[]) {
     while (true) {
         DWORD currentTime = SDL_GetTicks();
         DWORD msec = currentTime - startTime;
-        if (!has_connect_addr && sv.state == ss_game) {
+        if (!has_connect_addr && (sv.state == ss_lobby || sv.state == ss_game)) {
             SV_Frame(msec);
         }
         CL_Frame(msec);

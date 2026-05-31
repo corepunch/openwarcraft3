@@ -13,6 +13,8 @@
 #include "../server/server.h"
 
 void test_client_stubs_init(void);
+void test_client_stubs_clear_cvars(void);
+void test_client_stubs_set_cvar(LPCSTR name, LPCSTR value);
 extern struct game_import gi;
 
 /* External symbols referenced by sv_init.c but unused in these tests. */
@@ -20,7 +22,8 @@ void SV_InitGameProgs(void) {}
 void SV_ClearWorld(void) {}
 bool CM_LoadMap(LPCSTR mapFilename) { (void)mapFilename; return true; }
 LPDOODAD CM_GetDoodads(void) { return NULL; }
-LPCMAPINFO CM_GetMapInfo(void) { return NULL; }
+static LPMAPINFO test_mapinfo;
+LPCMAPINFO CM_GetMapInfo(void) { return test_mapinfo; }
 struct cmodel *SV_LoadModel(LPCSTR filename) { (void)filename; return NULL; }
 HANDLE FS_FindFirstFile(LPCSTR mask, SFILE_FIND_DATA *findData) {
     (void)mask;
@@ -91,15 +94,26 @@ void SV_ParseClientMessage(LPSIZEBUF msg, LPCLIENT client) {
 }
 
 static struct game_export test_ge;
+static edict_t test_edicts[MAX_CLIENT_ENTITIES];
+
+static void test_spawn_entities(LPCMAPINFO mapinfo, LPCDOODAD doodads) {
+    (void)mapinfo;
+    (void)doodads;
+}
 
 static void reset_server_state(int max_players) {
     memset(&sv, 0, sizeof(sv));
     memset(&svs, 0, sizeof(svs));
     memset(&test_ge, 0, sizeof(test_ge));
+    memset(test_edicts, 0, sizeof(test_edicts));
+    test_mapinfo = NULL;
     SZ_Init(&sv.multicast, sv.multicast_buf, sizeof(sv.multicast_buf));
     test_ge.max_clients = max_players;
     test_ge.max_edicts = MAX_CLIENT_ENTITIES;
     test_ge.edict_size = sizeof(edict_t);
+    test_ge.edicts = test_edicts;
+    test_ge.num_edicts = max_players;
+    test_ge.SpawnEntities = test_spawn_entities;
     test_ge.RunFrame = test_run_frame;
     test_ge.GetThemeValue = test_theme_value;
     ge = &test_ge;
@@ -282,6 +296,15 @@ static BOOL recv_info_oob(int sock, LPSTR out, DWORD out_size) {
     return false;
 }
 
+static void drain_client_packets(void) {
+    BYTE msg_buf[MAX_MSGLEN];
+    sizeBuf_t msg = { msg_buf, MAX_MSGLEN, 0, 0 };
+    netadr_t from;
+
+    while (NET_GetPacket(NS_CLIENT, &from, &msg)) {
+    }
+}
+
 static void test_udp_multi_client_connects_register_distinct_slots(void) {
     int c1 = open_client_socket();
     int c2 = open_client_socket();
@@ -357,6 +380,68 @@ static void test_lan_info_query_returns_discoverable_server_metadata(void) {
     NET_Shutdown();
 }
 
+static void test_lan_info_query_returns_lobby_metadata(void) {
+    int c1 = open_client_socket();
+    char info[512];
+    ASSERT(c1 >= 0);
+    NET_Shutdown();
+    ASSERT(NET_Init(PORT_SERVER + 12));
+    reset_server_state(8);
+    sv.state = ss_lobby;
+    snprintf(sv.configstrings[CS_WORLD], sizeof(sv.configstrings[CS_WORLD]),
+             "Maps\\Melee\\TwinRivers.w3m");
+    svs.num_clients = 1;
+    svs.clients[0].state = cs_connected;
+
+    send_info_oob(c1, PORT_SERVER + 12);
+    pump_server_connectionless();
+
+    ASSERT(recv_info_oob(c1, info, sizeof(info)));
+    ASSERT(strstr(info, "\\mapname\\Maps/Melee/TwinRivers.w3m") != NULL);
+    ASSERT(strstr(info, "\\players\\1") != NULL);
+
+    if (c1 >= 0) close(c1);
+    NET_Shutdown();
+}
+
+static void test_lobby_team_selection_expands_map_forces(void) {
+    MAPINFO info;
+
+    reset_server_state(4);
+    memset(&info, 0, sizeof(info));
+    info.num_teams = 1;
+    info.teams = MemAlloc(sizeof(*info.teams));
+    memset(info.teams, 0, sizeof(*info.teams));
+    info.teams[0].playerMasks = 0x0f;
+    FOR_LOOP(i, 4) {
+        info.players[i].used = true;
+        info.players[i].playerType = kPlayerTypeHuman;
+        info.players[i].playerRace = kPlayerRaceHuman;
+    }
+    test_mapinfo = &info;
+
+    test_client_stubs_clear_cvars();
+    test_client_stubs_set_cvar("sv_lobby_slots", "2");
+    test_client_stubs_set_cvar("sv_slot0_map_player", "0");
+    test_client_stubs_set_cvar("sv_slot0_type", "human");
+    test_client_stubs_set_cvar("sv_slot0_team", "0");
+    test_client_stubs_set_cvar("sv_slot1_map_player", "1");
+    test_client_stubs_set_cvar("sv_slot1_type", "human");
+    test_client_stubs_set_cvar("sv_slot1_team", "3");
+
+    SV_Map("Maps\\Melee\\Test.w3m");
+
+    ASSERT_EQ_INT(info.num_teams, 4);
+    ASSERT((info.teams[0].playerMasks & (1u << 0)) != 0);
+    ASSERT((info.teams[0].playerMasks & (1u << 1)) == 0);
+    ASSERT((info.teams[3].playerMasks & (1u << 1)) != 0);
+
+    SV_Shutdown();
+    SAFE_DELETE(info.teams, MemFree);
+    test_mapinfo = NULL;
+    test_client_stubs_clear_cvars();
+}
+
 static void test_multicast_syncs_updates_to_all_connected_clients(void) {
     BYTE payload[] = { 0x11, 0x22, 0x33, 0x44 };
     VECTOR3 origin = { 0, 0, 0 };
@@ -378,9 +463,41 @@ static void test_multicast_syncs_updates_to_all_connected_clients(void) {
     ASSERT_EQ_INT(sv.multicast.cursize, 0);
 }
 
+static void test_lobby_chat_broadcasts_to_connected_clients(void) {
+    BYTE msg_buf[MAX_MSGLEN];
+    sizeBuf_t msg = { msg_buf, MAX_MSGLEN, 0, 0 };
+    netadr_t from;
+    char text[512];
+
+    NET_Shutdown();
+    reset_server_state(4);
+    drain_client_packets();
+    sv.state = ss_lobby;
+    svs.num_clients = 2;
+    FOR_LOOP(i, svs.num_clients) {
+        svs.clients[i].state = cs_connected;
+        svs.clients[i].netchan.remote_address.type = NA_LOOPBACK;
+        SZ_Init(&svs.clients[i].netchan.message,
+                svs.clients[i].netchan.message_buf,
+                MAX_MSGLEN);
+    }
+
+    SV_LobbyBroadcastChat("Host", "hello team");
+
+    FOR_LOOP(i, svs.num_clients) {
+        ASSERT(NET_GetPacket(NS_CLIENT, &from, &msg));
+        ASSERT_EQ_INT(MSG_ReadByte(&msg), svc_lobby_chat);
+        MSG_ReadString(&msg, text);
+        ASSERT_STR_EQ(text, "Host: hello team");
+    }
+}
+
 void run_server_net_tests(void) {
     RUN_TEST(test_udp_multi_client_connects_register_distinct_slots);
     RUN_TEST(test_udp_connect_honors_ge_max_clients_limit);
     RUN_TEST(test_lan_info_query_returns_discoverable_server_metadata);
+    RUN_TEST(test_lan_info_query_returns_lobby_metadata);
+    RUN_TEST(test_lobby_team_selection_expands_map_forces);
     RUN_TEST(test_multicast_syncs_updates_to_all_connected_clients);
+    RUN_TEST(test_lobby_chat_broadcasts_to_connected_clients);
 }

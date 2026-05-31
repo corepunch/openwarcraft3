@@ -42,7 +42,7 @@ static void SV_LanInfo(const netadr_t *from) {
     char speed[16];
     char slots[16];
 
-    if (sv.state != ss_game || !from) {
+    if ((sv.state != ss_lobby && sv.state != ss_game) || !from) {
         return;
     }
     SV_LanSanitizeValue(sv.configstrings[CS_WORLD], mapname, sizeof(mapname));

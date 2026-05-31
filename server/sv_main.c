@@ -190,6 +190,10 @@ void SV_Frame(DWORD msec) {
         return;
     }
 
+    if (sv.state == ss_lobby) {
+        return;
+    }
+
     if (!SV_HasSpawnedClient()) {
         return;
     }

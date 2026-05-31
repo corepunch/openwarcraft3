@@ -424,6 +424,22 @@ static void UI_DrawHighlightFrame(LPCFRAMEDEF frame, LPCRECT rect);
 #include "controls/ui_control_map_list.h"
 #include "controls/ui_control_slider.h"
 
+BOOL UI_EditHasFocus(LPCFRAMEDEF frame) {
+    return active_edit && active_edit == frame;
+}
+
+LPCSTR UI_EditValue(LPCFRAMEDEF frame) {
+    return UI_EditText(frame);
+}
+
+void UI_SetEditValue(LPFRAMEDEF frame, LPCSTR text) {
+    UI_SetEditText(frame, text);
+}
+
+void UI_ClearEditFocus(void) {
+    UI_FocusEdit(NULL);
+}
+
 static BOOL UI_FrameWithinRoot(LPCFRAMEDEF root, LPCFRAMEDEF frame) {
     LPCFRAMEDEF cursor = frame;
 

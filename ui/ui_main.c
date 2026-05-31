@@ -9,6 +9,16 @@
 #include "generated/cinematic_panel.h"
 #include "generated/loading_screen.h"
 #include "generated/resource_bar.h"
+#if defined(__has_include)
+#if __has_include(<SDL2/SDL_keycode.h>)
+#include <SDL2/SDL_keycode.h>
+#endif
+#endif
+
+#ifndef SDLK_RETURN
+#define SDLK_RETURN 13
+#define SDLK_KP_ENTER 1073741912
+#endif
 
 /* Global import table filled by UI_GetAPI */
 uiImport_t uiimport;
@@ -663,10 +673,19 @@ void UI_DrawFrameLocal(void) {
 
 void UI_KeyEventLocal(int key, BOOL down, DWORD time) {
     (void)time;
+    uiScreen_t *screen;
+    BOOL sent_to_screen = false;
+
     if (!ui_state.active) {
         return;
     }
 
+    screen = UI_GetCurrentScreen();
+    if (down && (key == SDLK_RETURN || key == SDLK_KP_ENTER) &&
+        screen && screen->key_event) {
+        screen->key_event(key, down);
+        sent_to_screen = true;
+    }
     if (down && UI_LayoutEditKey(key)) {
         return;
     }
@@ -675,8 +694,7 @@ void UI_KeyEventLocal(int key, BOOL down, DWORD time) {
     }
     
     /* Delegate to current screen */
-    uiScreen_t *screen = UI_GetCurrentScreen();
-    if (screen && screen->key_event) {
+    if (!sent_to_screen && screen && screen->key_event) {
         screen->key_event(key, down);
     }
 }
@@ -840,6 +858,10 @@ void UI_MenuCommandLocal(LPCSTR command) {
     if (sscanf(command, "menu_game_setup_map %255[^\n]", map_path) == 1) {
         UI_SetScreen(&gameSetupScreen);
         GameSetup_LoadMap(map_path);
+        return;
+    }
+    if (!strncmp(command, "menu_game_setup_chat ", 21)) {
+        GameSetup_AddChatMessage(command + 21);
         return;
     }
 

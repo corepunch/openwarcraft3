@@ -39,13 +39,49 @@ static playerRace_t SV_LobbyPlayerRace(LPCSTR value, playerRace_t fallback) {
     return fallback;
 }
 
-static void SV_LobbyMovePlayerToTeam(LPMAPINFO info, DWORD player, DWORD team) {
-    if (!info || !info->teams || player >= MAX_PLAYERS || team >= info->num_teams) {
+static BOOL SV_LobbyEnsureTeams(LPMAPINFO info, DWORD num_teams) {
+    mapTeam_t *teams;
+
+    if (!info) {
+        return false;
+    }
+    if (num_teams <= info->num_teams) {
+        return true;
+    }
+    if (num_teams > MAX_PLAYERS) {
+        num_teams = MAX_PLAYERS;
+    }
+    teams = MemAlloc(sizeof(*teams) * num_teams);
+    if (!teams) {
+        return false;
+    }
+    memset(teams, 0, sizeof(*teams) * num_teams);
+    if (info->teams && info->num_teams > 0) {
+        memcpy(teams, info->teams, sizeof(*teams) * info->num_teams);
+        MemFree(info->teams);
+    }
+    info->teams = teams;
+    info->num_teams = num_teams;
+    return true;
+}
+
+static void SV_LobbyClearPlayerTeams(LPMAPINFO info, DWORD player) {
+    if (!info || !info->teams || player >= MAX_PLAYERS) {
         return;
     }
     FOR_LOOP(i, info->num_teams) {
         info->teams[i].playerMasks &= ~(1u << player);
     }
+}
+
+static void SV_LobbyMovePlayerToTeam(LPMAPINFO info, DWORD player, DWORD team) {
+    if (!info || player >= MAX_PLAYERS || team >= MAX_PLAYERS) {
+        return;
+    }
+    if (!SV_LobbyEnsureTeams(info, team + 1)) {
+        return;
+    }
+    SV_LobbyClearPlayerTeams(info, player);
     info->teams[team].playerMasks |= 1u << player;
 }
 
@@ -63,6 +99,7 @@ static void SV_ApplyLobbySettings(LPMAPINFO info) {
         char name[64];
         DWORD player;
         LPCSTR value;
+        playerType_t type;
 
         snprintf(name, sizeof(name), "sv_slot%u_map_player", (unsigned)slot);
         player = (DWORD)Cvar_Integer(name, (int)slot);
@@ -72,14 +109,19 @@ static void SV_ApplyLobbySettings(LPMAPINFO info) {
 
         snprintf(name, sizeof(name), "sv_slot%u_type", (unsigned)slot);
         value = Cvar_String(name, "");
-        info->players[player].playerType = SV_LobbyPlayerType(value, info->players[player].playerType);
+        type = SV_LobbyPlayerType(value, info->players[player].playerType);
+        info->players[player].playerType = type;
 
         snprintf(name, sizeof(name), "sv_slot%u_race", (unsigned)slot);
         value = Cvar_String(name, "");
         info->players[player].playerRace = SV_LobbyPlayerRace(value, info->players[player].playerRace);
 
         snprintf(name, sizeof(name), "sv_slot%u_team", (unsigned)slot);
-        SV_LobbyMovePlayerToTeam(info, player, (DWORD)Cvar_Integer(name, (int)player));
+        if (type == kPlayerTypeNone) {
+            SV_LobbyClearPlayerTeams(info, player);
+        } else {
+            SV_LobbyMovePlayerToTeam(info, player, (DWORD)Cvar_Integer(name, (int)player));
+        }
     }
 }
 
@@ -97,6 +139,68 @@ static void SV_InitMulticast(void) {
     if (sv.multicast.maxsize == 0) {
         SZ_Init(&sv.multicast, sv.multicast_buf, MAX_MSGLEN);
     }
+}
+
+static void SV_SanitizeLobbyText(LPCSTR in, LPSTR out, DWORD out_size) {
+    DWORD write = 0;
+
+    if (!out || out_size == 0) {
+        return;
+    }
+    out[0] = '\0';
+    if (!in) {
+        return;
+    }
+    for (; *in && write + 1 < out_size; in++) {
+        unsigned char c = (unsigned char)*in;
+
+        if (c == '\n' || c == '\r') {
+            c = ' ';
+        }
+        if (c < 32) {
+            continue;
+        }
+        out[write++] = (char)c;
+    }
+    out[write] = '\0';
+}
+
+static void SV_LobbySendChat(LPCLIENT client, LPCSTR text) {
+    if (!client || !text || !text[0]) {
+        return;
+    }
+    if (client->state != cs_connected && client->state != cs_spawned) {
+        return;
+    }
+    MSG_WriteByte(&client->netchan.message, svc_lobby_chat);
+    MSG_WriteString(&client->netchan.message, text);
+    Netchan_Transmit(NS_SERVER, &client->netchan);
+}
+
+void SV_LobbyBroadcastChat(LPCSTR sender, LPCSTR text) {
+    char clean_sender[64];
+    char clean_text[256];
+    char line[384];
+
+    if (sv.state != ss_lobby || !text || !text[0]) {
+        return;
+    }
+    SV_SanitizeLobbyText(sender && sender[0] ? sender : "Player", clean_sender, sizeof(clean_sender));
+    SV_SanitizeLobbyText(text, clean_text, sizeof(clean_text));
+    if (!clean_text[0]) {
+        return;
+    }
+    snprintf(line, sizeof(line), "%s: %s", clean_sender[0] ? clean_sender : "Player", clean_text);
+    FOR_LOOP(i, svs.num_clients) {
+        SV_LobbySendChat(&svs.clients[i], line);
+    }
+}
+
+static void SV_ClearLobbyClients(void) {
+    FOR_LOOP(i, MAX_CLIENTS) {
+        memset(&svs.clients[i], 0, sizeof(svs.clients[i]));
+    }
+    svs.num_clients = 0;
 }
 
 void SV_ClientConnect(void) {
@@ -184,6 +288,41 @@ void SV_Map(LPCSTR mapFilename) {
     fprintf(stderr, "Server initialized.\n\n");
 }
 
+void SV_StartLobby(LPCSTR mapFilename) {
+    if (!mapFilename || !mapFilename[0]) {
+        return;
+    }
+    if (!ge) {
+        fprintf(stderr, "SV_StartLobby: game API not initialized\n");
+        return;
+    }
+    if (!svs.initialized) {
+        SV_InitGame();
+    }
+    SAFE_DELETE(sv.baselines, MemFree);
+    SV_ClearLobbyClients();
+    memset(&sv, 0, sizeof(struct server));
+    sv.state = ss_lobby;
+    snprintf(sv.configstrings[CS_WORLD], sizeof(sv.configstrings[CS_WORLD]), "%s", mapFilename);
+    SV_InitMulticast();
+    SV_ClientConnect();
+    fprintf(stderr, "Lobby initialized for %s\n", mapFilename);
+}
+
+#ifndef TOOL_COMMON_NO_MPQ
+static void SV_StartLobby_f(void) {
+    if (Cmd_Argc() < 2) {
+        fprintf(stderr, "usage: lobby_start <map>\n");
+        return;
+    }
+    SV_StartLobby(Cmd_ArgsFrom(1));
+}
+
+static void SV_LobbySay_f(void) {
+    SV_LobbyBroadcastChat("Player", Cmd_ArgsFrom(1));
+}
+#endif
+
 void SV_InitGame(void) {
     if (!ge) {
         fprintf(stderr, "SV_InitGame: game API not initialized\n");
@@ -234,4 +373,8 @@ void SV_Init(void) {
 
     SV_InitGameProgs();
     SV_InitGame();
+#ifndef TOOL_COMMON_NO_MPQ
+    Cmd_AddCommand("lobby_start", SV_StartLobby_f);
+    Cmd_AddCommand("lobby_say", SV_LobbySay_f);
+#endif
 }

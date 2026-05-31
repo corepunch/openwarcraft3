@@ -390,6 +390,33 @@ void CL_MirrorMessage(LPSIZEBUF msg) {
     MSG_WriteString(&cls.netchan.message, buf);
 }
 
+static void CL_ParseLobbySetup(LPSIZEBUF msg) {
+    char map[MAX_PATHLEN] = { 0 };
+    char command[MAX_PATHLEN + 32];
+
+    MSG_ReadString(msg, map);
+    if (!map[0] || !ui.MenuCommand) {
+        return;
+    }
+    snprintf(command, sizeof(command), "menu_game_setup_map %s", map);
+    ui.MenuCommand(command);
+}
+
+static void CL_ParseLobbyChat(LPSIZEBUF msg) {
+    char text[512] = { 0 };
+    char command[sizeof(text) + 32];
+
+    MSG_ReadString(msg, text);
+    if (!text[0]) {
+        return;
+    }
+    if (!ui.MenuCommand) {
+        return;
+    }
+    snprintf(command, sizeof(command), "menu_game_setup_chat %s", text);
+    ui.MenuCommand(command);
+}
+
 /* Dispatch loop for a complete server message buffer.  Each iteration reads
  * one message-type byte and calls the matching handler.  An unknown type
  * stops processing and prints an error to stderr. */
@@ -425,6 +452,12 @@ void CL_ParseServerMessage(LPSIZEBUF msg) {
                 break;
             case svc_mirror:
                 CL_MirrorMessage(msg);
+                break;
+            case svc_lobby_setup:
+                CL_ParseLobbySetup(msg);
+                break;
+            case svc_lobby_chat:
+                CL_ParseLobbyChat(msg);
                 break;
             case svc_fogofwar:
                 CL_ParseFogOfWar(msg);

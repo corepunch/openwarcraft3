@@ -14,6 +14,7 @@ KNOWN_AS(client, CLIENT);
 
 typedef enum {
     ss_dead, // no map loaded
+    ss_lobby, // LAN pregame lobby
     ss_loading, // spawning level edicts
     ss_game, // actively running
     ss_cinematic,
@@ -107,6 +108,7 @@ extern struct server {
 extern struct game_export *ge;
 
 // sv_init.c
+void SV_StartLobby(LPCSTR mapFilename);
 void SV_Map(LPCSTR pFilename);
 void SV_ClientConnect(void);
 void SV_InitGame(void);
@@ -132,6 +134,7 @@ void SV_WriteConfigString(LPSIZEBUF msg, DWORD i);
 
 // sv_user.c
 void SV_ExecuteUserCommand(LPSIZEBUF msg, LPCLIENT client);
+void SV_LobbyBroadcastChat(LPCSTR sender, LPCSTR text);
 
 /* Unit UI data requests (Phase 8) */
 void SV_HandleUnitUIRequest(LPCLIENT client, LPSIZEBUF msg);
