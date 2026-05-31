@@ -3,12 +3,16 @@
 
 #define MAX_MSGLEN 256 * 1024
 
+#define BZ_XSTR(x) BZ_STR(x)
+#define BZ_STR(x) #x
+
 #ifdef WOW
 #define PORT_SERVER 27911
 #else
 #define PORT_SERVER 27910
 #endif
-#define OW3_PROTOCOL_VERSION 1
+#define PORT_SERVER_STRING BZ_XSTR(PORT_SERVER)
+#define BZ_PROTOCOL_VERSION 1
 
 typedef void const *LPCVOID;
 typedef struct sizeBuf_s *LPSIZEBUF;

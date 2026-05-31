@@ -38,22 +38,22 @@ static inline BOOL MapInfoPane_Load(MapInfoPane_t *out) {
         ok = false;
     }
     memset(out, 0, sizeof(*out));
-    OW3_FDF_BIND_ROOT(out, MapInfoPane, "MapInfoPane");
+    BZ_FDF_BIND_ROOT(out, MapInfoPane, "MapInfoPane");
     bind_root = out->MapInfoPane;
-    OW3_FDF_BIND_CHILD(out, MaxPlayersIcon, bind_root, "MaxPlayersIcon");
-    OW3_FDF_BIND_CHILD(out, MaxPlayersValue, out->MaxPlayersIcon, "MaxPlayersValue");
-    OW3_FDF_BIND_CHILD(out, MapNameValue, bind_root, "MapNameValue");
-    OW3_FDF_BIND_CHILD(out, AuthIcon, bind_root, "AuthIcon");
-    OW3_FDF_BIND_CHILD(out, MinimapImage, bind_root, "MinimapImage");
-    OW3_FDF_BIND_CHILD(out, MinimapImageBackdrop, bind_root, "MinimapImageBackdrop");
-    OW3_FDF_BIND_CHILD(out, SuggestedPlayersLabel, bind_root, "SuggestedPlayersLabel");
-    OW3_FDF_BIND_CHILD(out, SuggestedPlayersValue, bind_root, "SuggestedPlayersValue");
-    OW3_FDF_BIND_CHILD(out, MapSizeLabel, bind_root, "MapSizeLabel");
-    OW3_FDF_BIND_CHILD(out, MapSizeValue, bind_root, "MapSizeValue");
-    OW3_FDF_BIND_CHILD(out, MapTilesetLabel, bind_root, "MapTilesetLabel");
-    OW3_FDF_BIND_CHILD(out, MapTilesetValue, bind_root, "MapTilesetValue");
-    OW3_FDF_BIND_CHILD(out, MapDescLabel, bind_root, "MapDescLabel");
-    OW3_FDF_BIND_CHILD(out, MapDescValue, bind_root, "MapDescValue");
+    BZ_FDF_BIND_CHILD(out, MaxPlayersIcon, bind_root, "MaxPlayersIcon");
+    BZ_FDF_BIND_CHILD(out, MaxPlayersValue, out->MaxPlayersIcon, "MaxPlayersValue");
+    BZ_FDF_BIND_CHILD(out, MapNameValue, bind_root, "MapNameValue");
+    BZ_FDF_BIND_CHILD(out, AuthIcon, bind_root, "AuthIcon");
+    BZ_FDF_BIND_CHILD(out, MinimapImage, bind_root, "MinimapImage");
+    BZ_FDF_BIND_CHILD(out, MinimapImageBackdrop, bind_root, "MinimapImageBackdrop");
+    BZ_FDF_BIND_CHILD(out, SuggestedPlayersLabel, bind_root, "SuggestedPlayersLabel");
+    BZ_FDF_BIND_CHILD(out, SuggestedPlayersValue, bind_root, "SuggestedPlayersValue");
+    BZ_FDF_BIND_CHILD(out, MapSizeLabel, bind_root, "MapSizeLabel");
+    BZ_FDF_BIND_CHILD(out, MapSizeValue, bind_root, "MapSizeValue");
+    BZ_FDF_BIND_CHILD(out, MapTilesetLabel, bind_root, "MapTilesetLabel");
+    BZ_FDF_BIND_CHILD(out, MapTilesetValue, bind_root, "MapTilesetValue");
+    BZ_FDF_BIND_CHILD(out, MapDescLabel, bind_root, "MapDescLabel");
+    BZ_FDF_BIND_CHILD(out, MapDescValue, bind_root, "MapDescValue");
     return ok;
 }
 
@@ -65,23 +65,23 @@ static inline BOOL MapInfoPane_Bind(MapInfoPane_t *out, LPFRAMEDEF bind_root) {
     memset(out, 0, sizeof(*out));
     out->MapInfoPane = bind_root;
     if (!out->MapInfoPane) {
-        OW3_FDF_REPORT_MISSING("MapInfoPane");
+        BZ_FDF_REPORT_MISSING("MapInfoPane");
         ok = false;
     }
-    OW3_FDF_BIND_CHILD(out, MaxPlayersIcon, bind_root, "MaxPlayersIcon");
-    OW3_FDF_BIND_CHILD(out, MaxPlayersValue, out->MaxPlayersIcon, "MaxPlayersValue");
-    OW3_FDF_BIND_CHILD(out, MapNameValue, bind_root, "MapNameValue");
-    OW3_FDF_BIND_CHILD(out, AuthIcon, bind_root, "AuthIcon");
-    OW3_FDF_BIND_CHILD(out, MinimapImage, bind_root, "MinimapImage");
-    OW3_FDF_BIND_CHILD(out, MinimapImageBackdrop, bind_root, "MinimapImageBackdrop");
-    OW3_FDF_BIND_CHILD(out, SuggestedPlayersLabel, bind_root, "SuggestedPlayersLabel");
-    OW3_FDF_BIND_CHILD(out, SuggestedPlayersValue, bind_root, "SuggestedPlayersValue");
-    OW3_FDF_BIND_CHILD(out, MapSizeLabel, bind_root, "MapSizeLabel");
-    OW3_FDF_BIND_CHILD(out, MapSizeValue, bind_root, "MapSizeValue");
-    OW3_FDF_BIND_CHILD(out, MapTilesetLabel, bind_root, "MapTilesetLabel");
-    OW3_FDF_BIND_CHILD(out, MapTilesetValue, bind_root, "MapTilesetValue");
-    OW3_FDF_BIND_CHILD(out, MapDescLabel, bind_root, "MapDescLabel");
-    OW3_FDF_BIND_CHILD(out, MapDescValue, bind_root, "MapDescValue");
+    BZ_FDF_BIND_CHILD(out, MaxPlayersIcon, bind_root, "MaxPlayersIcon");
+    BZ_FDF_BIND_CHILD(out, MaxPlayersValue, out->MaxPlayersIcon, "MaxPlayersValue");
+    BZ_FDF_BIND_CHILD(out, MapNameValue, bind_root, "MapNameValue");
+    BZ_FDF_BIND_CHILD(out, AuthIcon, bind_root, "AuthIcon");
+    BZ_FDF_BIND_CHILD(out, MinimapImage, bind_root, "MinimapImage");
+    BZ_FDF_BIND_CHILD(out, MinimapImageBackdrop, bind_root, "MinimapImageBackdrop");
+    BZ_FDF_BIND_CHILD(out, SuggestedPlayersLabel, bind_root, "SuggestedPlayersLabel");
+    BZ_FDF_BIND_CHILD(out, SuggestedPlayersValue, bind_root, "SuggestedPlayersValue");
+    BZ_FDF_BIND_CHILD(out, MapSizeLabel, bind_root, "MapSizeLabel");
+    BZ_FDF_BIND_CHILD(out, MapSizeValue, bind_root, "MapSizeValue");
+    BZ_FDF_BIND_CHILD(out, MapTilesetLabel, bind_root, "MapTilesetLabel");
+    BZ_FDF_BIND_CHILD(out, MapTilesetValue, bind_root, "MapTilesetValue");
+    BZ_FDF_BIND_CHILD(out, MapDescLabel, bind_root, "MapDescLabel");
+    BZ_FDF_BIND_CHILD(out, MapDescValue, bind_root, "MapDescValue");
     return ok;
 }
 

@@ -39,23 +39,23 @@ static inline BOOL PlayerSlot_Load(PlayerSlot_t *out) {
         ok = false;
     }
     memset(out, 0, sizeof(*out));
-    OW3_FDF_BIND_ROOT(out, PlayerSlot, "PlayerSlot");
+    BZ_FDF_BIND_ROOT(out, PlayerSlot, "PlayerSlot");
     bind_root = out->PlayerSlot;
-    OW3_FDF_BIND_CHILD(out, DownloadValue, bind_root, "DownloadValue");
-    OW3_FDF_BIND_CHILD(out, NameMenu, bind_root, "NameMenu");
-    OW3_FDF_BIND_CHILD(out, NamePopupMenuMenu, out->NameMenu, "NamePopupMenuMenu");
-    OW3_FDF_BIND_CHILD(out, RaceMenu, bind_root, "RaceMenu");
-    OW3_FDF_BIND_CHILD(out, RacePopupMenuMenu, out->RaceMenu, "RacePopupMenuMenu");
-    OW3_FDF_BIND_CHILD(out, TeamButton, bind_root, "TeamButton");
-    OW3_FDF_BIND_CHILD(out, TeamButtonBackdrop, out->TeamButton, "TeamButtonBackdrop");
-    OW3_FDF_BIND_CHILD(out, TeamButtonDisabledBackdrop, out->TeamButton, "TeamButtonDisabledBackdrop");
-    OW3_FDF_BIND_CHILD(out, TeamButtonTitle, out->TeamButton, "TeamButtonTitle");
-    OW3_FDF_BIND_CHILD(out, TeamButtonArrow, out->TeamButton, "TeamButtonArrow");
-    OW3_FDF_BIND_CHILD(out, ColorButton, bind_root, "ColorButton");
-    OW3_FDF_BIND_CHILD(out, ColorButtonBackdrop, out->ColorButton, "ColorButtonBackdrop");
-    OW3_FDF_BIND_CHILD(out, ColorButtonDisabledBackdrop, out->ColorButton, "ColorButtonDisabledBackdrop");
-    OW3_FDF_BIND_CHILD(out, ColorButtonValue, out->ColorButton, "ColorButtonValue");
-    OW3_FDF_BIND_CHILD(out, ColorButtonArrow, out->ColorButton, "ColorButtonArrow");
+    BZ_FDF_BIND_CHILD(out, DownloadValue, bind_root, "DownloadValue");
+    BZ_FDF_BIND_CHILD(out, NameMenu, bind_root, "NameMenu");
+    BZ_FDF_BIND_CHILD(out, NamePopupMenuMenu, out->NameMenu, "NamePopupMenuMenu");
+    BZ_FDF_BIND_CHILD(out, RaceMenu, bind_root, "RaceMenu");
+    BZ_FDF_BIND_CHILD(out, RacePopupMenuMenu, out->RaceMenu, "RacePopupMenuMenu");
+    BZ_FDF_BIND_CHILD(out, TeamButton, bind_root, "TeamButton");
+    BZ_FDF_BIND_CHILD(out, TeamButtonBackdrop, out->TeamButton, "TeamButtonBackdrop");
+    BZ_FDF_BIND_CHILD(out, TeamButtonDisabledBackdrop, out->TeamButton, "TeamButtonDisabledBackdrop");
+    BZ_FDF_BIND_CHILD(out, TeamButtonTitle, out->TeamButton, "TeamButtonTitle");
+    BZ_FDF_BIND_CHILD(out, TeamButtonArrow, out->TeamButton, "TeamButtonArrow");
+    BZ_FDF_BIND_CHILD(out, ColorButton, bind_root, "ColorButton");
+    BZ_FDF_BIND_CHILD(out, ColorButtonBackdrop, out->ColorButton, "ColorButtonBackdrop");
+    BZ_FDF_BIND_CHILD(out, ColorButtonDisabledBackdrop, out->ColorButton, "ColorButtonDisabledBackdrop");
+    BZ_FDF_BIND_CHILD(out, ColorButtonValue, out->ColorButton, "ColorButtonValue");
+    BZ_FDF_BIND_CHILD(out, ColorButtonArrow, out->ColorButton, "ColorButtonArrow");
     return ok;
 }
 
@@ -67,24 +67,24 @@ static inline BOOL PlayerSlot_Bind(PlayerSlot_t *out, LPFRAMEDEF bind_root) {
     memset(out, 0, sizeof(*out));
     out->PlayerSlot = bind_root;
     if (!out->PlayerSlot) {
-        OW3_FDF_REPORT_MISSING("PlayerSlot");
+        BZ_FDF_REPORT_MISSING("PlayerSlot");
         ok = false;
     }
-    OW3_FDF_BIND_CHILD(out, DownloadValue, bind_root, "DownloadValue");
-    OW3_FDF_BIND_CHILD(out, NameMenu, bind_root, "NameMenu");
-    OW3_FDF_BIND_CHILD(out, NamePopupMenuMenu, out->NameMenu, "NamePopupMenuMenu");
-    OW3_FDF_BIND_CHILD(out, RaceMenu, bind_root, "RaceMenu");
-    OW3_FDF_BIND_CHILD(out, RacePopupMenuMenu, out->RaceMenu, "RacePopupMenuMenu");
-    OW3_FDF_BIND_CHILD(out, TeamButton, bind_root, "TeamButton");
-    OW3_FDF_BIND_CHILD(out, TeamButtonBackdrop, out->TeamButton, "TeamButtonBackdrop");
-    OW3_FDF_BIND_CHILD(out, TeamButtonDisabledBackdrop, out->TeamButton, "TeamButtonDisabledBackdrop");
-    OW3_FDF_BIND_CHILD(out, TeamButtonTitle, out->TeamButton, "TeamButtonTitle");
-    OW3_FDF_BIND_CHILD(out, TeamButtonArrow, out->TeamButton, "TeamButtonArrow");
-    OW3_FDF_BIND_CHILD(out, ColorButton, bind_root, "ColorButton");
-    OW3_FDF_BIND_CHILD(out, ColorButtonBackdrop, out->ColorButton, "ColorButtonBackdrop");
-    OW3_FDF_BIND_CHILD(out, ColorButtonDisabledBackdrop, out->ColorButton, "ColorButtonDisabledBackdrop");
-    OW3_FDF_BIND_CHILD(out, ColorButtonValue, out->ColorButton, "ColorButtonValue");
-    OW3_FDF_BIND_CHILD(out, ColorButtonArrow, out->ColorButton, "ColorButtonArrow");
+    BZ_FDF_BIND_CHILD(out, DownloadValue, bind_root, "DownloadValue");
+    BZ_FDF_BIND_CHILD(out, NameMenu, bind_root, "NameMenu");
+    BZ_FDF_BIND_CHILD(out, NamePopupMenuMenu, out->NameMenu, "NamePopupMenuMenu");
+    BZ_FDF_BIND_CHILD(out, RaceMenu, bind_root, "RaceMenu");
+    BZ_FDF_BIND_CHILD(out, RacePopupMenuMenu, out->RaceMenu, "RacePopupMenuMenu");
+    BZ_FDF_BIND_CHILD(out, TeamButton, bind_root, "TeamButton");
+    BZ_FDF_BIND_CHILD(out, TeamButtonBackdrop, out->TeamButton, "TeamButtonBackdrop");
+    BZ_FDF_BIND_CHILD(out, TeamButtonDisabledBackdrop, out->TeamButton, "TeamButtonDisabledBackdrop");
+    BZ_FDF_BIND_CHILD(out, TeamButtonTitle, out->TeamButton, "TeamButtonTitle");
+    BZ_FDF_BIND_CHILD(out, TeamButtonArrow, out->TeamButton, "TeamButtonArrow");
+    BZ_FDF_BIND_CHILD(out, ColorButton, bind_root, "ColorButton");
+    BZ_FDF_BIND_CHILD(out, ColorButtonBackdrop, out->ColorButton, "ColorButtonBackdrop");
+    BZ_FDF_BIND_CHILD(out, ColorButtonDisabledBackdrop, out->ColorButton, "ColorButtonDisabledBackdrop");
+    BZ_FDF_BIND_CHILD(out, ColorButtonValue, out->ColorButton, "ColorButtonValue");
+    BZ_FDF_BIND_CHILD(out, ColorButtonArrow, out->ColorButton, "ColorButtonArrow");
     return ok;
 }
 

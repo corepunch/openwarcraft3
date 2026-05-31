@@ -36,20 +36,20 @@ static inline BOOL DialogWar3_Load(DialogWar3_t *out) {
         ok = false;
     }
     memset(out, 0, sizeof(*out));
-    OW3_FDF_BIND_ROOT(out, DialogWar3, "DialogWar3");
+    BZ_FDF_BIND_ROOT(out, DialogWar3, "DialogWar3");
     bind_root = out->DialogWar3;
-    OW3_FDF_BIND_CHILD(out, DialogBackdrop, bind_root, "DialogBackdrop");
-    OW3_FDF_BIND_CHILD(out, DialogText, bind_root, "DialogText");
-    OW3_FDF_BIND_CHILD(out, DialogIcon, bind_root, "DialogIcon");
-    OW3_FDF_BIND_CHILD(out, DialogButtonOKBackdrop, bind_root, "DialogButtonOKBackdrop");
-    OW3_FDF_BIND_CHILD(out, DialogButtonOK, out->DialogButtonOKBackdrop, "DialogButtonOK");
-    OW3_FDF_BIND_CHILD(out, DialogButtonOKText, out->DialogButtonOK, "DialogButtonOKText");
-    OW3_FDF_BIND_CHILD(out, DialogButtonNoBackdrop, bind_root, "DialogButtonNoBackdrop");
-    OW3_FDF_BIND_CHILD(out, DialogButtonNo, out->DialogButtonNoBackdrop, "DialogButtonNo");
-    OW3_FDF_BIND_CHILD(out, DialogButtonNoText, out->DialogButtonNo, "DialogButtonNoText");
-    OW3_FDF_BIND_CHILD(out, DialogButtonYesBackdrop, bind_root, "DialogButtonYesBackdrop");
-    OW3_FDF_BIND_CHILD(out, DialogButtonYes, out->DialogButtonYesBackdrop, "DialogButtonYes");
-    OW3_FDF_BIND_CHILD(out, DialogButtonYesText, out->DialogButtonYes, "DialogButtonYesText");
+    BZ_FDF_BIND_CHILD(out, DialogBackdrop, bind_root, "DialogBackdrop");
+    BZ_FDF_BIND_CHILD(out, DialogText, bind_root, "DialogText");
+    BZ_FDF_BIND_CHILD(out, DialogIcon, bind_root, "DialogIcon");
+    BZ_FDF_BIND_CHILD(out, DialogButtonOKBackdrop, bind_root, "DialogButtonOKBackdrop");
+    BZ_FDF_BIND_CHILD(out, DialogButtonOK, out->DialogButtonOKBackdrop, "DialogButtonOK");
+    BZ_FDF_BIND_CHILD(out, DialogButtonOKText, out->DialogButtonOK, "DialogButtonOKText");
+    BZ_FDF_BIND_CHILD(out, DialogButtonNoBackdrop, bind_root, "DialogButtonNoBackdrop");
+    BZ_FDF_BIND_CHILD(out, DialogButtonNo, out->DialogButtonNoBackdrop, "DialogButtonNo");
+    BZ_FDF_BIND_CHILD(out, DialogButtonNoText, out->DialogButtonNo, "DialogButtonNoText");
+    BZ_FDF_BIND_CHILD(out, DialogButtonYesBackdrop, bind_root, "DialogButtonYesBackdrop");
+    BZ_FDF_BIND_CHILD(out, DialogButtonYes, out->DialogButtonYesBackdrop, "DialogButtonYes");
+    BZ_FDF_BIND_CHILD(out, DialogButtonYesText, out->DialogButtonYes, "DialogButtonYesText");
     return ok;
 }
 

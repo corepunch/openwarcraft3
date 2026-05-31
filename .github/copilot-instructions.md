@@ -11,6 +11,7 @@ This codebase is inspired by **Quake 2**. The developer working on this project 
 - Prefer simple, flat, and data-oriented design over complex object-oriented abstractions.
 - Keep the code readable, compact, and close to the metal — minimize unnecessary indirection.
 - Use `snake_case` for functions and variables, `ALL_CAPS` for constants and macros, matching Quake 2 conventions.
+- Use the `BZ_` prefix for project-private compile-time macros, generated binding helpers, environment toggles, and namespaced constants that need a project prefix.
 - When fixing warnings for short, future-facing hooks such as one-line static moves, extern declarations, or placeholder assignments, prefer commenting them out over deleting them. Add a short comment explaining the warning being fixed and when the line should come back, for example that Linux `-Wall` warns while the hook is unused.
 
 ## Architecture

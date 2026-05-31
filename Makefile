@@ -17,7 +17,7 @@ ifeq ($(DIAG_OUTPUT),1)
 	CFLAGS += -DDIAG_OUTPUT
 endif
 ifeq ($(NO_NETWORK),1)
-	CFLAGS += -DOW3_NO_NETWORK
+	CFLAGS += -DBZ_NO_NETWORK
 endif
 # ---------------------------------------------------------------------------
 # Platform detection

@@ -5,29 +5,29 @@
 #include <stdlib.h>
 
 #if defined(__APPLE__)
-#define OW3_PLATFORM "Darwin"
+#define BZ_PLATFORM "Darwin"
 #elif defined(_WIN32)
-#define OW3_PLATFORM "Windows"
+#define BZ_PLATFORM "Windows"
 #elif defined(__linux__)
-#define OW3_PLATFORM "Linux"
+#define BZ_PLATFORM "Linux"
 #else
-#define OW3_PLATFORM "Unknown"
+#define BZ_PLATFORM "Unknown"
 #endif
 
 #if defined(__aarch64__) || defined(_M_ARM64)
-#define OW3_ARCH "arm64"
+#define BZ_ARCH "arm64"
 #elif defined(__x86_64__) || defined(_M_X64)
-#define OW3_ARCH "x86_64"
+#define BZ_ARCH "x86_64"
 #elif defined(__i386__) || defined(_M_IX86)
-#define OW3_ARCH "x86"
+#define BZ_ARCH "x86"
 #else
-#define OW3_ARCH "unknown"
+#define BZ_ARCH "unknown"
 #endif
 
 #if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
-#define OW3_BYTE_ORDER "big endian"
+#define BZ_BYTE_ORDER "big endian"
 #else
-#define OW3_BYTE_ORDER "little endian"
+#define BZ_BYTE_ORDER "little endian"
 #endif
 
 #define USAGE \
@@ -35,7 +35,7 @@
 "  openwarcraft3 -data <folder> +map <map>       (listen server + local client)\n" \
 "  openwarcraft3 -data <folder>                 (client menu)\n" \
 "  openwarcraft3 -data <folder> -connect <host>  (remote client, default port " \
-                                                    __XSTR(PORT_SERVER) ")\n" \
+                                                    PORT_SERVER_STRING ")\n" \
 "  openwarcraft3 -data <folder> -connect <host:port>\n" \
 "\n" \
 "Examples:\n" \
@@ -47,9 +47,6 @@
 "  - The data folder may also be saved as data in the generated per-build config.\n" \
 "  - The map path uses the internal MPQ path format; use +map to launch one.\n" \
 "  - Remote clients still need the game data for asset loading.\n"
-
-#define __XSTR(x) __STR(x)
-#define __STR(x) #x
 
 extern LPTEXTURE Texture;
 
@@ -65,9 +62,9 @@ int main(int argc, LPSTR argv[]) {
             "Platform: %s\n"
             "Architecture: %s\n"
             "Byte ordering: %s\n\n",
-            OW3_PLATFORM,
-            OW3_ARCH,
-            OW3_BYTE_ORDER);
+            BZ_PLATFORM,
+            BZ_ARCH,
+            BZ_BYTE_ORDER);
 
     Com_Init(argc, (LPCSTR *)argv);
 

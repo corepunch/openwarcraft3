@@ -2,6 +2,8 @@
 
 OpenWarcraft3 uses Quake-style runtime configuration: small cvars select subsystems, choose startup modes, and make diagnostics reproducible from the command line.
 
+Project-private compile-time macros, generated binding helpers, environment toggles, and namespaced constants use the `BZ_` prefix. Keep new project-prefixed names on that prefix instead of adding another project namespace.
+
 ## Config Files
 
 Config files live under `share/`, which is the engine-owned default resource directory.
