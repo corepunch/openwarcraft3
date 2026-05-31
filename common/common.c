@@ -406,7 +406,6 @@ typedef struct {
     PATHSTR *paths;
     DWORD maxPaths;
     DWORD count;
-    DWORD depth;
 } fsArchiveScan_t;
 
 static void FS_AddArchiveScanEntry(LPCSTR name, LPCSTR path, BOOL isDirectory, BOOL isFile, void *userData) {
@@ -415,13 +414,7 @@ static void FS_AddArchiveScanEntry(LPCSTR name, LPCSTR path, BOOL isDirectory, B
     if (!scan) {
         return;
     }
-    if (isDirectory && scan->depth > 0 && strcasecmp(name, "Maps")) {
-        fsArchiveScan_t child_scan = *scan;
-        child_scan.depth--;
-        FS_ForEachDiskEntry(path, FS_AddArchiveScanEntry, &child_scan);
-        scan->count = child_scan.count;
-        return;
-    }
+    (void)isDirectory;
     if (isFile && scan->count < scan->maxPaths && FS_HasExtension(name, ".mpq")) {
         snprintf(scan->paths[scan->count++], sizeof(PATHSTR), "%s", path);
     }
@@ -429,7 +422,7 @@ static void FS_AddArchiveScanEntry(LPCSTR name, LPCSTR path, BOOL isDirectory, B
 
 BOOL FS_AddDataDirectory(LPCSTR dirname) {
     PATHSTR archivePaths[MAX_ARCHIVES];
-    fsArchiveScan_t scan = { archivePaths, MAX_ARCHIVES, 0, 2 };
+    fsArchiveScan_t scan = { archivePaths, MAX_ARCHIVES, 0 };
     DWORD mountedCount = 0;
 
     if (!FS_DirectoryExists(dirname)) {

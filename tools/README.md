@@ -77,19 +77,26 @@ For single-root headers it also emits `<Prefix>_Bind(...)`, which binds the
 same generated fields against an existing root frame. Use this for cloned FDF
 trees such as reusable row or pane templates.
 
+When more than one FDF input is passed, matching frame paths are merged. Frames
+that only exist in some inputs are emitted as optional bindings, so one checked-in
+header can cover RoC/TFT shape differences and the screen controller can branch
+on whether an optional pointer is present.
+
 Syntax:
 
 ```bash
-build/bin/fdfbindgen [-prefix Name] [-root FrameName] [-load path] [-include path] [-no-include] <file.fdf|->...
+build/bin/fdfbindgen [-prefix Name] [-root FrameName] [-optional-root FrameName] [-load path] [-include path] [-no-include] [-optional-children] <file.fdf|->...
 ```
 
 Useful options:
 
 - `-prefix <Name>` choose the C type/function prefix
 - `-root <FrameName>` bind only one root frame; pass it more than once for multiple roots
+- `-optional-root <FrameName>` bind a selected root without failing when it is absent
 - `-load <path>` emit a parse-once load for a runtime FDF path before binding
 - `-include <path>` choose the generated header include, defaulting to `../ui_local.h`
 - `-no-include` omit the include if the includer already provides UI declarations
+- `-optional-children` keep selected roots required but bind all child frames as optional
 
 Examples:
 

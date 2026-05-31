@@ -401,9 +401,19 @@ LPFRAMEDEF UI_CloneFrameTree(LPCFRAMEDEF source, LPFRAMEDEF parent);
     do { (OUT)->FIELD = UI_FindFrame((NAME)); if (!(OUT)->FIELD) { OW3_FDF_REPORT_MISSING((NAME)); ok = false; } } while (0)
 #endif
 
+#ifndef OW3_FDF_BIND_ROOT_OPTIONAL
+#define OW3_FDF_BIND_ROOT_OPTIONAL(OUT, FIELD, NAME) \
+    do { (OUT)->FIELD = UI_FindFrame((NAME)); } while (0)
+#endif
+
 #ifndef OW3_FDF_BIND_CHILD
 #define OW3_FDF_BIND_CHILD(OUT, FIELD, PARENT, NAME) \
     do { (OUT)->FIELD = (PARENT) ? UI_FindChildFrame((PARENT), (NAME)) : NULL; if (!(OUT)->FIELD) { OW3_FDF_REPORT_MISSING((NAME)); ok = false; } } while (0)
+#endif
+
+#ifndef OW3_FDF_BIND_CHILD_OPTIONAL
+#define OW3_FDF_BIND_CHILD_OPTIONAL(OUT, FIELD, PARENT, NAME) \
+    do { (OUT)->FIELD = (PARENT) ? UI_FindChildFrame((PARENT), (NAME)) : NULL; } while (0)
 #endif
 
 void UI_BindMapList(LPFRAMEDEF frame,

@@ -25,6 +25,8 @@ typedef struct {
     char ident[MAX_IDENT];
     char binding_ident[MAX_IDENT];
     char frame_type[MAX_NAME];
+    unsigned char seen_in_file[MAX_FILES];
+    int seen_file_count;
     int parent;
     int first_child;
     int last_child;
@@ -40,16 +42,21 @@ static int selected_roots[MAX_ROOTS];
 static int selected_root_count = 0;
 static const char *root_filters[MAX_ROOTS];
 static int root_filter_count = 0;
+static const char *optional_root_filters[MAX_ROOTS];
+static int optional_root_filter_count = 0;
 static const char *load_paths[MAX_FILES];
 static int load_path_count = 0;
+static int current_file_index = -1;
+static int parsed_file_count = 0;
 static char prefix[MAX_IDENT] = "";
 static char include_path[256] = "../ui_local.h";
 static bool emit_include = true;
+static bool optional_children = false;
 
 static void usage(void) {
     fprintf(stderr,
             "Usage:\n"
-            "  fdfbindgen [-prefix Name] [-root FrameName] [-load path] [-include path] [-no-include] <file.fdf|->...\n"
+            "  fdfbindgen [-prefix Name] [-root FrameName] [-optional-root FrameName] [-load path] [-include path] [-no-include] [-optional-children] <file.fdf|->...\n"
             "\n"
             "Generates a header-only C binding struct for FDF frame names on stdout.\n"
             "Use -root more than once to bind selected root frames; without -root,\n"
@@ -275,8 +282,39 @@ static void uniquify_node_ident(int node_index) {
     }
 }
 
+static void mark_node_seen(int index) {
+    if (current_file_index >= 0 && current_file_index < MAX_FILES &&
+        !nodes[index].seen_in_file[current_file_index]) {
+        nodes[index].seen_in_file[current_file_index] = 1;
+        nodes[index].seen_file_count++;
+    }
+}
+
+static int find_child_node(int parent, const char *name) {
+    if (parent < 0) {
+        for (int i = 0; i < node_count; i++) {
+            if (nodes[i].parent < 0 && !strcmp(nodes[i].name, name)) {
+                return i;
+            }
+        }
+        return -1;
+    }
+    for (int child = nodes[parent].first_child; child >= 0; child = nodes[child].next_sibling) {
+        if (!strcmp(nodes[child].name, name)) {
+            return child;
+        }
+    }
+    return -1;
+}
+
 static int add_node(int parent, const char *name, const char *frame_type) {
     int index;
+    int existing;
+    existing = find_child_node(parent, name ? name : "");
+    if (existing >= 0) {
+        mark_node_seen(existing);
+        return existing;
+    }
     if (node_count >= MAX_FDF_NODES) {
         fprintf(stderr, "fdfbindgen: too many FDF frame declarations (max %d)\n", MAX_FDF_NODES);
         exit(1);
@@ -299,6 +337,7 @@ static int add_node(int parent, const char *name, const char *frame_type) {
         nodes[parent].last_child = index;
     }
     uniquify_node_ident(index);
+    mark_node_seen(index);
     return index;
 }
 
@@ -388,9 +427,21 @@ static bool parse_file(const char *path) {
     lx.pos = 0;
     lx.name = path;
     lx.line = 1;
+    current_file_index = parsed_file_count;
     parse_scope(&lx, -1);
+    parsed_file_count++;
+    current_file_index = -1;
     free(data);
     return true;
+}
+
+static bool is_optional_root_name(const char *name) {
+    for (int i = 0; i < optional_root_filter_count; i++) {
+        if (!strcmp(name, optional_root_filters[i])) {
+            return true;
+        }
+    }
+    return false;
 }
 
 static void select_roots(void) {
@@ -413,7 +464,7 @@ static void select_roots(void) {
                     found = true;
                 }
             }
-            if (!found) {
+            if (!found && !is_optional_root_name(root_filters[r])) {
                 fprintf(stderr, "fdfbindgen: root frame not found in input: %s\n", root_filters[r]);
             }
         }
@@ -474,6 +525,18 @@ static void emit_c_string(const char *text) {
     putchar('"');
 }
 
+static bool node_is_optional(int node_index) {
+    if (nodes[node_index].parent < 0) {
+        if (is_optional_root_name(nodes[node_index].name)) {
+            return true;
+        }
+    }
+    if (optional_children && nodes[node_index].parent >= 0) {
+        return true;
+    }
+    return parsed_file_count > 1 && nodes[node_index].seen_file_count < parsed_file_count;
+}
+
 static void emit_binding_type(void) {
     printf("typedef struct %s_s {\n", prefix);
     for (int i = 0; i < selected_root_count; i++) {
@@ -486,7 +549,8 @@ static void emit_bind_children(int node_index, const char *node_expr) {
     for (int child = nodes[node_index].first_child; child >= 0; child = nodes[child].next_sibling) {
         char child_expr[1024];
         snprintf(child_expr, sizeof(child_expr), "out->%s", nodes[child].binding_ident);
-        printf("    OW3_FDF_BIND_CHILD(out, %s, %s, \"%s\");\n",
+        printf("    %s(out, %s, %s, \"%s\");\n",
+               node_is_optional(child) ? "OW3_FDF_BIND_CHILD_OPTIONAL" : "OW3_FDF_BIND_CHILD",
                nodes[child].binding_ident, node_expr, nodes[child].name);
         emit_bind_children(child, child_expr);
     }
@@ -509,7 +573,8 @@ static void emit_bind_function(void) {
     printf("    memset(out, 0, sizeof(*out));\n");
     for (int i = 0; i < selected_root_count; i++) {
         int root = selected_roots[i];
-        printf("    OW3_FDF_BIND_ROOT(out, %s, \"%s\");\n",
+        printf("    %s(out, %s, \"%s\");\n",
+               node_is_optional(root) ? "OW3_FDF_BIND_ROOT_OPTIONAL" : "OW3_FDF_BIND_ROOT",
                nodes[root].binding_ident, nodes[root].name);
         printf("    bind_root = out->%s;\n", nodes[root].binding_ident);
         emit_bind_children(root, "bind_root");
@@ -533,10 +598,16 @@ static void emit_bind_at_function(void) {
     printf("    }\n");
     printf("    memset(out, 0, sizeof(*out));\n");
     printf("    out->%s = bind_root;\n", nodes[root].binding_ident);
-    printf("    if (!out->%s) {\n", nodes[root].binding_ident);
-    printf("        OW3_FDF_REPORT_MISSING(\"%s\");\n", nodes[root].name);
-    printf("        ok = false;\n");
-    printf("    }\n");
+    if (node_is_optional(root)) {
+        printf("    if (!out->%s) {\n", nodes[root].binding_ident);
+        printf("        return true;\n");
+        printf("    }\n");
+    } else {
+        printf("    if (!out->%s) {\n", nodes[root].binding_ident);
+        printf("        OW3_FDF_REPORT_MISSING(\"%s\");\n", nodes[root].name);
+        printf("        ok = false;\n");
+        printf("    }\n");
+    }
     emit_bind_children(root, "bind_root");
     printf("    return ok;\n");
     printf("}\n");
@@ -603,6 +674,13 @@ int main(int argc, char **argv) {
                 return 1;
             }
             root_filters[root_filter_count++] = argv[i];
+        } else if (!strcmp(argv[i], "-optional-root")) {
+            if (++i >= argc || root_filter_count >= MAX_ROOTS || optional_root_filter_count >= MAX_ROOTS) {
+                usage();
+                return 1;
+            }
+            root_filters[root_filter_count++] = argv[i];
+            optional_root_filters[optional_root_filter_count++] = argv[i];
         } else if (!strcmp(argv[i], "-load")) {
             if (++i >= argc || load_path_count >= MAX_FILES) {
                 usage();
@@ -618,6 +696,8 @@ int main(int argc, char **argv) {
             emit_include = true;
         } else if (!strcmp(argv[i], "-no-include")) {
             emit_include = false;
+        } else if (!strcmp(argv[i], "-optional-children")) {
+            optional_children = true;
         } else if (argv[i][0] == '-' && argv[i][1] != '\0' && strcmp(argv[i], "-")) {
             fprintf(stderr, "fdfbindgen: unknown option: %s\n", argv[i]);
             usage();
