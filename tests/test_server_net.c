@@ -148,6 +148,32 @@ static void send_connect_oob(int sock, unsigned short server_port) {
     (void)sendto(sock, datagram, packet_len, 0, (struct sockaddr *)&to, sizeof(to));
 }
 
+static void send_info_oob(int sock, unsigned short server_port) {
+    enum {
+        MAX_INFO_DATAGRAM_SIZE = 64,
+        OOB_HEADER_SIZE = 4,
+        INFO_TEXT_SIZE = 4
+    };
+    BYTE datagram[MAX_INFO_DATAGRAM_SIZE];
+    DWORD msg_len = OOB_HEADER_SIZE + INFO_TEXT_SIZE; /* -1 + "info" */
+    DWORD packet_len = 4 + msg_len; /* net packet header + payload */
+    int oob_marker = -1;
+    datagram[0] = (BYTE)(msg_len & 0xFF);
+    datagram[1] = (BYTE)((msg_len >> 8) & 0xFF);
+    datagram[2] = (BYTE)((msg_len >> 16) & 0xFF);
+    datagram[3] = (BYTE)((msg_len >> 24) & 0xFF);
+    memcpy(datagram + 4, &oob_marker, sizeof(oob_marker));
+    memcpy(datagram + 8, "info", 4);
+
+    struct sockaddr_in to;
+    memset(&to, 0, sizeof(to));
+    to.sin_family = AF_INET;
+    to.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+    to.sin_port = htons(server_port);
+
+    (void)sendto(sock, datagram, packet_len, 0, (struct sockaddr *)&to, sizeof(to));
+}
+
 static BOOL recv_client_connect_oob(int sock) {
     enum {
         MAX_RECV_RETRIES = 40,
@@ -202,6 +228,60 @@ static void pump_server_connects(void) {
     }
 }
 
+static void pump_server_connectionless(void) {
+    enum {
+        MAX_PACKETS_PER_PUMP = 64,
+        MAX_EMPTY_POLLS = 40,
+        RECV_POLL_DELAY_US = 5000,
+    };
+    BYTE msg_buf[MAX_MSGLEN];
+    sizeBuf_t msg = { msg_buf, MAX_MSGLEN, 0, 0 };
+    netadr_t from;
+    DWORD empty_polls = 0;
+    int r;
+
+    for (DWORD packets = 0; packets < MAX_PACKETS_PER_PUMP && empty_polls < MAX_EMPTY_POLLS;) {
+        r = NET_GetPacket(NS_SERVER, &from, &msg);
+        if (!r) {
+            empty_polls++;
+            usleep(RECV_POLL_DELAY_US);
+            continue;
+        }
+        empty_polls = 0;
+        packets++;
+        SV_ConnectionlessPacket(&from, &msg);
+    }
+}
+
+static BOOL recv_info_oob(int sock, LPSTR out, DWORD out_size) {
+    enum {
+        MAX_RECV_RETRIES = 40,
+        RECV_POLL_DELAY_US = 5000
+    };
+    BYTE datagram[512];
+    struct sockaddr_in from;
+    socklen_t fromlen = sizeof(from);
+    int flags = fcntl(sock, F_GETFL, 0);
+    fcntl(sock, F_SETFL, flags | O_NONBLOCK);
+
+    if (out && out_size > 0) {
+        out[0] = '\0';
+    }
+    FOR_LOOP(i, MAX_RECV_RETRIES) {
+        int r = recvfrom(sock, datagram, sizeof(datagram), 0, (struct sockaddr *)&from, &fromlen);
+        if (r > 8) {
+            DWORD len = MIN((DWORD)(r - 8), out_size ? out_size - 1 : 0);
+            if (out && out_size > 0) {
+                memcpy(out, datagram + 8, len);
+                out[len] = '\0';
+            }
+            return memcmp(datagram + 8, "info", 4) == 0;
+        }
+        usleep(RECV_POLL_DELAY_US);
+    }
+    return false;
+}
+
 static void test_udp_multi_client_connects_register_distinct_slots(void) {
     int c1 = open_client_socket();
     int c2 = open_client_socket();
@@ -250,6 +330,33 @@ static void test_udp_connect_honors_ge_max_clients_limit(void) {
     NET_Shutdown();
 }
 
+static void test_lan_info_query_returns_discoverable_server_metadata(void) {
+    int c1 = open_client_socket();
+    char info[512];
+    ASSERT(c1 >= 0);
+    NET_Shutdown();
+    ASSERT(NET_Init(PORT_SERVER + 11));
+    reset_server_state(8);
+    sv.state = ss_game;
+    snprintf(sv.configstrings[CS_WORLD], sizeof(sv.configstrings[CS_WORLD]),
+             "Maps\\Melee\\TwinRivers.w3m");
+    svs.num_clients = 1;
+    svs.clients[0].state = cs_spawned;
+
+    send_info_oob(c1, PORT_SERVER + 11);
+    pump_server_connectionless();
+
+    ASSERT(recv_info_oob(c1, info, sizeof(info)));
+    ASSERT(strstr(info, "\\hostname\\OpenWarcraft3") != NULL);
+    ASSERT(strstr(info, "\\mapname\\Maps/Melee/TwinRivers.w3m") != NULL);
+    ASSERT(strstr(info, "\\players\\1") != NULL);
+    ASSERT(strstr(info, "\\maxplayers\\8") != NULL);
+    ASSERT(strstr(info, "\\speed\\2") != NULL);
+
+    if (c1 >= 0) close(c1);
+    NET_Shutdown();
+}
+
 static void test_multicast_syncs_updates_to_all_connected_clients(void) {
     BYTE payload[] = { 0x11, 0x22, 0x33, 0x44 };
     VECTOR3 origin = { 0, 0, 0 };
@@ -274,5 +381,6 @@ static void test_multicast_syncs_updates_to_all_connected_clients(void) {
 void run_server_net_tests(void) {
     RUN_TEST(test_udp_multi_client_connects_register_distinct_slots);
     RUN_TEST(test_udp_connect_honors_ge_max_clients_limit);
+    RUN_TEST(test_lan_info_query_returns_discoverable_server_metadata);
     RUN_TEST(test_multicast_syncs_updates_to_all_connected_clients);
 }

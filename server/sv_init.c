@@ -1,6 +1,88 @@
 #include "server.h"
 #include <arpa/inet.h>
 
+static playerType_t SV_LobbyPlayerType(LPCSTR value, playerType_t fallback) {
+    if (!value || !*value) {
+        return fallback;
+    }
+    if (!strcmp(value, "human") || !strcmp(value, "open")) {
+        return kPlayerTypeHuman;
+    }
+    if (!strcmp(value, "computer")) {
+        return kPlayerTypeComputer;
+    }
+    if (!strcmp(value, "closed") || !strcmp(value, "none")) {
+        return kPlayerTypeNone;
+    }
+    return fallback;
+}
+
+static playerRace_t SV_LobbyPlayerRace(LPCSTR value, playerRace_t fallback) {
+    if (!value || !*value) {
+        return fallback;
+    }
+    if (!strcmp(value, "random")) {
+        return kPlayerRaceNone;
+    }
+    if (!strcmp(value, "human")) {
+        return kPlayerRaceHuman;
+    }
+    if (!strcmp(value, "orc")) {
+        return kPlayerRaceOrc;
+    }
+    if (!strcmp(value, "undead")) {
+        return kPlayerRaceUndead;
+    }
+    if (!strcmp(value, "nightelf")) {
+        return kPlayerRaceNightElf;
+    }
+    return fallback;
+}
+
+static void SV_LobbyMovePlayerToTeam(LPMAPINFO info, DWORD player, DWORD team) {
+    if (!info || !info->teams || player >= MAX_PLAYERS || team >= info->num_teams) {
+        return;
+    }
+    FOR_LOOP(i, info->num_teams) {
+        info->teams[i].playerMasks &= ~(1u << player);
+    }
+    info->teams[team].playerMasks |= 1u << player;
+}
+
+static void SV_ApplyLobbySettings(LPMAPINFO info) {
+    DWORD slots;
+
+    if (!info) {
+        return;
+    }
+    slots = (DWORD)Cvar_Integer("sv_lobby_slots", 0);
+    if (slots > MAX_PLAYERS) {
+        slots = MAX_PLAYERS;
+    }
+    FOR_LOOP(slot, slots) {
+        char name[64];
+        DWORD player;
+        LPCSTR value;
+
+        snprintf(name, sizeof(name), "sv_slot%u_map_player", (unsigned)slot);
+        player = (DWORD)Cvar_Integer(name, (int)slot);
+        if (player >= MAX_PLAYERS || !info->players[player].used) {
+            continue;
+        }
+
+        snprintf(name, sizeof(name), "sv_slot%u_type", (unsigned)slot);
+        value = Cvar_String(name, "");
+        info->players[player].playerType = SV_LobbyPlayerType(value, info->players[player].playerType);
+
+        snprintf(name, sizeof(name), "sv_slot%u_race", (unsigned)slot);
+        value = Cvar_String(name, "");
+        info->players[player].playerRace = SV_LobbyPlayerRace(value, info->players[player].playerRace);
+
+        snprintf(name, sizeof(name), "sv_slot%u_team", (unsigned)slot);
+        SV_LobbyMovePlayerToTeam(info, player, (DWORD)Cvar_Integer(name, (int)player));
+    }
+}
+
 void SV_CreateBaseline(void) {
     sv.baselines = MemAlloc(sizeof(entityState_t) * ge->max_edicts);
     memset(sv.baselines, 0, sizeof(entityState_t) * ge->max_edicts);
@@ -92,6 +174,7 @@ void SV_Map(LPCSTR mapFilename) {
         sv.state = ss_dead;
         return;
     }
+    SV_ApplyLobbySettings((LPMAPINFO)CM_GetMapInfo());
     SV_ClearWorld();
     SV_CreateBaseline();
     ge->SpawnEntities(CM_GetMapInfo(), CM_GetDoodads());

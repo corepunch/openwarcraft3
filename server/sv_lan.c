@@ -38,17 +38,26 @@ static void SV_LanSanitizeValue(LPCSTR in, LPSTR out, size_t out_size) {
 
 static void SV_LanInfo(const netadr_t *from) {
     char mapname[80];
+    char hostname[80];
+    char speed[16];
+    char slots[16];
 
     if (sv.state != ss_game || !from) {
         return;
     }
     SV_LanSanitizeValue(sv.configstrings[CS_WORLD], mapname, sizeof(mapname));
+    SV_LanSanitizeValue(Cvar_String("sv_hostname", "OpenWarcraft3"), hostname, sizeof(hostname));
+    SV_LanSanitizeValue(Cvar_String("sv_game_speed", "2"), speed, sizeof(speed));
+    SV_LanSanitizeValue(Cvar_String("sv_lobby_slots", "0"), slots, sizeof(slots));
     Netchan_OutOfBandPrint(NS_SERVER,
                            *from,
-                           "info\n\\hostname\\OpenWarcraft3\\mapname\\%s\\players\\%u\\maxplayers\\%u",
+                           "info\n\\hostname\\%s\\mapname\\%s\\players\\%u\\maxplayers\\%u\\speed\\%s\\slots\\%s",
+                           hostname[0] ? hostname : "OpenWarcraft3",
                            mapname,
                            (unsigned)SV_LanPlayerCount(),
-                           (unsigned)(ge ? ge->max_clients : MAX_CLIENTS));
+                           (unsigned)(ge ? ge->max_clients : MAX_CLIENTS),
+                           speed,
+                           slots);
 }
 
 void SV_ConnectionlessPacket(const netadr_t *from, LPSIZEBUF msg) {
