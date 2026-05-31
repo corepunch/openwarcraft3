@@ -485,6 +485,7 @@ void LAN_SelectMapIndex(DWORD index) {
     if (lan.maps.selected >= lan.maps.scroll + LAN_VISIBLE_MAPS) {
         lan.maps.scroll = lan.maps.selected - LAN_VISIBLE_MAPS + 1;
     }
+    LAN_UpdateMapInfo();
 }
 
 void LAN_ShowCreate(void) {
