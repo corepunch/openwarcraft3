@@ -62,9 +62,11 @@ int main(int argc, LPSTR argv[]) {
 
     fprintf(stderr,
             "\nOpenWarcraft3\n"
+            "Commit: %s\n"
             "Platform: %s\n"
             "Architecture: %s\n"
             "Byte ordering: %s\n\n",
+            OW3_COMMIT_ID,
             OW3_PLATFORM,
             OW3_ARCH,
             OW3_BYTE_ORDER);
