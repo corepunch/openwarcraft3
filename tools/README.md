@@ -95,6 +95,30 @@ build/bin/fdfbindgen -prefix MainMenu -root MainMenuFrame -load "UI\\FrameDef\\G
 build/bin/mpqtool -mpq "data/Warcraft III/War3.mpq" cat UI/FrameDef/Glue/MainMenu.fdf | build/bin/fdfbindgen -prefix MainMenu -root MainMenuFrame -load "UI\\FrameDef\\Glue\\MainMenu.fdf" -
 ```
 
+## `png2sysfont`
+
+PNG atlas to embedded renderer font header converter. It reads an RGBA PNG
+with a 16-column character grid and writes a lossless RLE byte-array header
+for `renderer/r_sysfont.c`.
+
+Syntax:
+
+```bash
+build/bin/png2sysfont <input.png> <output.h> <symbol> [cell_width cell_height]
+```
+
+Example:
+
+```bash
+build/bin/png2sysfont share/fonts/conchars-simple.png share/fonts/conchars_sysfont.h conchars_sysfont 16 16
+```
+
+The repo shortcut is:
+
+```bash
+make font
+```
+
 ## `mdxtool`
 
 MDX model viewer and inspector.

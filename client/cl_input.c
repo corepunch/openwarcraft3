@@ -64,7 +64,7 @@ void CL_Input(void) {
                     keyCode_t mousevt = CL_MouseButtonKey(&event.button);
                     mouse.origin.x = event.button.x;
                     mouse.origin.y = event.button.y;
-                    if (mousevt) {
+                    if (mousevt && cls.key_dest != key_console) {
                         mouse_button_keys[event.button.button] = mousevt;
                         Key_Event(mousevt, true, event.button.timestamp);
                     }
@@ -77,7 +77,7 @@ void CL_Input(void) {
                                       : 0;
                     mouse.origin.x = event.button.x;
                     mouse.origin.y = event.button.y;
-                    if (mousevt) {
+                    if (mousevt && cls.key_dest != key_console) {
                         Key_Event(mousevt, false, event.button.timestamp);
                         mouse_button_keys[event.button.button] = 0;
                     }
@@ -102,16 +102,30 @@ void CL_Input(void) {
         
         switch(event.type) {
             case SDL_TEXTINPUT:
-                if (cls.key_dest == key_menu) {
+                if (cls.key_dest == key_console) {
+                    CON_TextInput(event.text.text);
+                } else if (cls.key_dest == key_menu) {
                     if (ui.TextInput) {
                         ui.TextInput(event.text.text);
                     }
                 }
                 break;
             case SDL_KEYDOWN:
+                if (event.key.keysym.sym == SDLK_BACKQUOTE) {
+                    CON_ToggleConsole();
+                    break;
+                }
+                if (cls.key_dest == key_console) {
+                    CON_KeyEvent(event.key.keysym.sym, true);
+                    break;
+                }
                 Key_Event(event.key.keysym.sym, true, event.key.timestamp);
                 break;
             case SDL_KEYUP:
+                if (cls.key_dest == key_console || event.key.keysym.sym == SDLK_BACKQUOTE) {
+                    CON_KeyEvent(event.key.keysym.sym, false);
+                    break;
+                }
                 Key_Event(event.key.keysym.sym, false, event.key.timestamp);
 //                if(event.key.keysym.sym == SDLK_ESCAPE) {
 //                    return Com_Quit();

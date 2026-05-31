@@ -253,6 +253,70 @@ CLIENTCOMMAND(Quest) {
     }
 }
 
+static BOOL G_DebugIsNumber(LPCSTR text) {
+    if (!text || !*text) {
+        return false;
+    }
+    if (*text == '-' || *text == '+') {
+        text++;
+    }
+    if (!*text) {
+        return false;
+    }
+    while (*text) {
+        if (!isdigit((unsigned char)*text)) {
+            return false;
+        }
+        text++;
+    }
+    return true;
+}
+
+CLIENTCOMMAND(DebugSpawn) {
+    LPGAMECLIENT client = clent->client;
+    DWORD class_id;
+    VECTOR2 location;
+    LPEDICT spawned;
+    DWORD first_ability = 2;
+
+    if (argc < 2 || strlen(argv[1]) < 4) {
+        fprintf(stderr, "usage: debugspawn <unitid> [x y] [ability ...]\n");
+        return;
+    }
+
+    class_id = *((DWORD const *)argv[1]);
+    location = client->ps.origin;
+    if (argc >= 4 && G_DebugIsNumber(argv[2]) && G_DebugIsNumber(argv[3])) {
+        location.x = atoi(argv[2]);
+        location.y = atoi(argv[3]);
+        first_ability = 4;
+    } else {
+        LPEDICT selected = G_GetMainSelectedUnit(client);
+        if (selected) {
+            location = selected->s.origin2;
+            location.x += selected->collision + 96.0f;
+        }
+    }
+
+    spawned = SP_SpawnAtLocation(class_id, client->ps.number, &location);
+    if (!spawned) {
+        return;
+    }
+
+    for (DWORD i = first_ability; i < argc; i++) {
+        if (strlen(argv[i]) >= 4) {
+            unit_learnability(spawned, *((DWORD const *)argv[i]));
+        }
+    }
+
+    FOR_SELECTED_UNITS(client, ent) {
+        G_DeselectEntity(client, ent);
+    }
+    G_SelectEntity(client, spawned);
+    Get_Portrait_f(clent);
+    Get_Commands_f(clent);
+}
+
 typedef struct {
     LPCSTR name;
     void (*func)(LPEDICT ent, DWORD argc, LPCSTR argv[]);
@@ -270,6 +334,7 @@ clientCommand_t clientCommands[] = {
     { "quests", CMD_Quests },
     { "hidequests", CMD_HideQuests },
     { "quest", CMD_Quest },
+    { "debugspawn", CMD_DebugSpawn },
     { "menu", CMD_Menu },
     { NULL }
 };
