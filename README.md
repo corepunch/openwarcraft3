@@ -125,7 +125,7 @@ Config load order:
 2. `share/default.cfg`
 3. `share/config.cfg`
 4. `share/autoexec.cfg`
-5. Command-line cvars such as `-r_module=stdout` or `+set ui_start_route /main`
+5. Command-line cvars (`-<cvar>=<value>` or `+set <cvar> <value>`) such as `-r_module=stdout` or `+set ui_start_route /main`
 
 Common runtime cvars:
 

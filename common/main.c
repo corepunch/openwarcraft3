@@ -69,28 +69,15 @@ int main(int argc, LPSTR argv[]) {
             OW3_ARCH,
             OW3_BYTE_ORDER);
 
-    for (int i = 0; i < argc; i++) {
-        if (!strncmp(argv[i], "-data=", 6)) {
-            if (!FS_AddDataDirectory(argv[i] + 6)) {
-                fprintf(stderr, "Failed to add data directory: %s\n", argv[i] + 6);
-                return 1;
-            }
-            data = 1;
-        }
-    }
-
     Com_Init(argc, (LPCSTR *)argv);
 
-    if (!data) {
-        LPCSTR data_dir = Cvar_String("fs_data", "");
-
-        if (data_dir && *data_dir) {
-            if (!FS_AddDataDirectory(data_dir)) {
-                fprintf(stderr, "Failed to add data directory: %s\n", data_dir);
-                return 1;
-            }
-            data = 1;
+    LPCSTR data_dir = Cvar_String("fs_data", "");
+    if (data_dir && *data_dir) {
+        if (!FS_AddDataDirectory(data_dir)) {
+            fprintf(stderr, "Failed to add data directory: %s\n", data_dir);
+            return 1;
         }
+        data = 1;
     }
 
     if (!data) {
