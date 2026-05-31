@@ -11,11 +11,7 @@ DATA_DIR := data
 CC      := gcc
 BIN_DIR := build/bin
 LIB_DIR := build/lib
-OW3_COMMIT_ID ?= $(GITHUB_SHA)
-ifeq ($(strip $(OW3_COMMIT_ID)),)
-	OW3_COMMIT_ID := unknown
-endif
-CFLAGS  := -Wall -I. -Ishared -Ishared/types -DOW3_COMMIT_ID=\"$(OW3_COMMIT_ID)\"
+CFLAGS  := -Wall -I. -Ishared -Ishared/types
 
 ifeq ($(DIAG_OUTPUT),1)
 	CFLAGS += -DDIAG_OUTPUT

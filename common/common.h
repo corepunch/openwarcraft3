@@ -20,10 +20,6 @@
 #define FOW_CELL_SIZE (TILE_SIZE / FOW_CELLS_PER_TILE_SIDE)
 #define FOW_CHUNK_TARGET_BYTES 8192
 
-#ifndef OW3_COMMIT_ID
-#define OW3_COMMIT_ID "unknown"
-#endif
-
 enum {
     FOW_MSG_FULL = 1 << 0,
     FOW_MSG_VISIBLE_PLANE = 1 << 1,
