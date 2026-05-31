@@ -95,22 +95,22 @@ build/bin/fdfbindgen -prefix MainMenu -root MainMenuFrame -load "UI\\FrameDef\\G
 build/bin/mpqtool -mpq "data/Warcraft III/War3.mpq" cat UI/FrameDef/Glue/MainMenu.fdf | build/bin/fdfbindgen -prefix MainMenu -root MainMenuFrame -load "UI\\FrameDef\\Glue\\MainMenu.fdf" -
 ```
 
-## `png2sysfont`
+## `img2sysfont`
 
-PNG atlas to embedded renderer font header converter. It reads an RGBA PNG
-with a 16-column character grid and writes a lossless RLE byte-array header
-for `renderer/r_sysfont.c`.
+Image atlas to embedded renderer font header converter. It reads an RGBA PNG
+or 8-bit indexed PCX with a 16-column character grid and writes a lossless RLE
+byte-array header for `renderer/r_sysfont.c`.
 
 Syntax:
 
 ```bash
-build/bin/png2sysfont <input.png> <output.h> <symbol> [cell_width cell_height]
+build/bin/img2sysfont <input.png|input.pcx> <output.h> <symbol> [cell_width cell_height]
 ```
 
 Example:
 
 ```bash
-build/bin/png2sysfont share/fonts/conchars-simple.png share/fonts/conchars_sysfont.h conchars_sysfont 16 16
+build/bin/img2sysfont share/fonts/conchars.pcx share/fonts/conchars_sysfont.h conchars_sysfont 8 8
 ```
 
 The repo shortcut is:
