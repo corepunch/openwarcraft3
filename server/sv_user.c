@@ -32,10 +32,13 @@ static void SV_FlushSpawnMessage(LPCLIENT cl, LPCSTR phase, DWORD count, DWORD *
     }
 }
 
-void SV_Configstrings_f(LPCLIENT cl) {
+void SV_Configstrings_f(LPCLIENT cl, int argc, LPCSTR *argv) {
     DWORD count = 0;
     DWORD batch_count = 0;
     DWORD packets = 0;
+
+    (void)argc;
+    (void)argv;
 
     FOR_LOOP(i, MAX_CONFIGSTRINGS) {
         if (!*sv.configstrings[i])
@@ -63,11 +66,14 @@ void SV_Configstrings_f(LPCLIENT cl) {
     Netchan_Transmit(NS_SERVER, &cl->netchan);
 }
 
-void SV_Baselines_f(LPCLIENT cl) {
+void SV_Baselines_f(LPCLIENT cl, int argc, LPCSTR *argv) {
     entityState_t nullstate;
     DWORD count = 0;
     DWORD batch_count = 0;
     DWORD packets = 0;
+
+    (void)argc;
+    (void)argv;
 
     memset(&nullstate, 0, sizeof(entityState_t));
     FOR_LOOP(index, ge->num_edicts) {
@@ -98,12 +104,18 @@ void SV_Baselines_f(LPCLIENT cl) {
     Netchan_Transmit(NS_SERVER, &cl->netchan);
 }
 
-void SV_Begin_f(LPCLIENT cl) {
+void SV_Begin_f(LPCLIENT cl, int argc, LPCSTR *argv) {
+    (void)argc;
+    (void)argv;
+
     cl->state = cs_spawned;
     ge->ClientBegin(cl->edict);
 }
 
-void SV_PlayerInfo_f(LPCLIENT cl) {
+void SV_PlayerInfo_f(LPCLIENT cl, int argc, LPCSTR *argv) {
+    (void)argc;
+    (void)argv;
+
     /* Assign the client's game edict (Quake 2/3 pattern) */
     cl->edict = EDICT_NUM(CM_GetLocalPlayerNumber());
     MSG_WriteByte(&cl->netchan.message, svc_mirror);
@@ -111,15 +123,59 @@ void SV_PlayerInfo_f(LPCLIENT cl) {
     Netchan_Transmit(NS_SERVER, &cl->netchan);
 }
 
-void SV_New_f(LPCLIENT cl) {
+void SV_New_f(LPCLIENT cl, int argc, LPCSTR *argv) {
+    (void)argc;
+    (void)argv;
+
+    if (sv.state == ss_lobby) {
+        MSG_WriteByte(&cl->netchan.message, svc_lobby_setup);
+        MSG_WriteString(&cl->netchan.message, sv.configstrings[CS_WORLD]);
+        Netchan_Transmit(NS_SERVER, &cl->netchan);
+        return;
+    }
     MSG_WriteByte(&cl->netchan.message, svc_mirror);
     MSG_WriteString(&cl->netchan.message, "configstrings");
     Netchan_Transmit(NS_SERVER, &cl->netchan);
 }
 
+static DWORD SV_ClientIndex(LPCLIENT client) {
+    if (!client || client < svs.clients || client >= svs.clients + MAX_CLIENTS) {
+        return 0;
+    }
+    return (DWORD)(client - svs.clients);
+}
+
+static void SV_LobbySayClient_f(LPCLIENT cl, int argc, LPCSTR *argv) {
+    char text[256];
+    size_t used = 0;
+    char sender[32];
+
+    if (argc < 2 || !argv) {
+        return;
+    }
+    text[0] = '\0';
+    for (int i = 1; i < argc; i++) {
+        LPCSTR value = argv[i] ? argv[i] : "";
+        size_t len = strlen(value);
+
+        if (used && used + 1 < sizeof(text)) {
+            text[used++] = ' ';
+            text[used] = '\0';
+        }
+        if (len >= sizeof(text) - used) {
+            len = sizeof(text) - used - 1;
+        }
+        memcpy(text + used, value, len);
+        used += len;
+        text[used] = '\0';
+    }
+    snprintf(sender, sizeof(sender), "Player %u", (unsigned)SV_ClientIndex(cl) + 1);
+    SV_LobbyBroadcastChat(sender, text);
+}
+
 typedef struct {
     LPCSTR name;
-    void (*func)(LPCLIENT client);
+    void (*func)(LPCLIENT client, int argc, LPCSTR *argv);
 } ucmd_t;
 
 ucmd_t ucmds[] = {
@@ -128,6 +184,7 @@ ucmd_t ucmds[] = {
     { "baselines", SV_Baselines_f },
     { "playerinfo", SV_PlayerInfo_f },
     { "begin", SV_Begin_f },
+    { "lobby_say", SV_LobbySayClient_f },
     { NULL }
 };
 
@@ -140,7 +197,7 @@ void SV_ExecuteUserCommand(LPSIZEBUF msg, LPCLIENT client) {
     parser_t p = { 0 };
     p.tok = p.token;
     p.str = command;
-    for (LPCSTR tok = ParserGetToken(&p); tok; tok = ParserGetToken(&p)) {
+    for (LPCSTR tok = ParserGetToken(&p); tok && argc < MAX_CMDARGS; tok = ParserGetToken(&p)) {
         strcpy(args[argc], tok);
         argv[argc] = args[argc];
         argc++;
@@ -150,7 +207,7 @@ void SV_ExecuteUserCommand(LPSIZEBUF msg, LPCLIENT client) {
     }
     for (ucmd_t *u = ucmds; u->name; u++) {
         if (!strcmp(argv[0], u->name)) {
-            u->func(client);
+            u->func(client, (int)argc, argv);
             return;
         }
     }

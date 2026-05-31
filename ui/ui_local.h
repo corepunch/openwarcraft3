@@ -439,6 +439,10 @@ void UI_DrawFrame(LPCFRAMEDEF frame);
 void UI_DrawFrames(LPCFRAMEDEF const *roots, DWORD num_roots);
 BOOL UI_EditKey(int key);
 void UI_TextInputLocal(LPCSTR text);
+BOOL UI_EditHasFocus(LPCFRAMEDEF frame);
+LPCSTR UI_EditValue(LPCFRAMEDEF frame);
+void UI_SetEditValue(LPFRAMEDEF frame, LPCSTR text);
+void UI_ClearEditFocus(void);
 
 uiScreen_t *UI_GetCurrentScreen(void);
 

@@ -1,4 +1,6 @@
 #include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 #include "../client/client.h"
 
@@ -7,6 +9,29 @@ struct client_static cls;
 refExport_t re;
 uiExport_t ui;
 mouseEvent_t mouse;
+
+typedef struct {
+    char name[64];
+    char value[128];
+} mockCvar_t;
+
+static mockCvar_t mock_cvars[32];
+
+#define MOCK_CVAR_COUNT (sizeof(mock_cvars) / sizeof(mock_cvars[0]))
+
+void test_client_stubs_clear_cvars(void) {
+    memset(mock_cvars, 0, sizeof(mock_cvars));
+}
+
+void test_client_stubs_set_cvar(LPCSTR name, LPCSTR value) {
+    FOR_LOOP(i, MOCK_CVAR_COUNT) {
+        if (!mock_cvars[i].name[0] || !strcmp(mock_cvars[i].name, name)) {
+            snprintf(mock_cvars[i].name, sizeof(mock_cvars[i].name), "%s", name ? name : "");
+            snprintf(mock_cvars[i].value, sizeof(mock_cvars[i].value), "%s", value ? value : "");
+            return;
+        }
+    }
+}
 
 static size2_t mock_GetWindowSize(void) {
     return MAKE(size2_t, 1024, 768);
@@ -25,12 +50,20 @@ void CON_DrawConsole(void) {
 }
 
 int Cvar_Integer(LPCSTR name, int fallback) {
-    (void)name;
+    FOR_LOOP(i, MOCK_CVAR_COUNT) {
+        if (mock_cvars[i].name[0] && !strcmp(mock_cvars[i].name, name)) {
+            return atoi(mock_cvars[i].value);
+        }
+    }
     return fallback;
 }
 
 LPCSTR Cvar_String(LPCSTR name, LPCSTR fallback) {
-    (void)name;
+    FOR_LOOP(i, MOCK_CVAR_COUNT) {
+        if (mock_cvars[i].name[0] && !strcmp(mock_cvars[i].name, name)) {
+            return mock_cvars[i].value;
+        }
+    }
     return fallback;
 }
 

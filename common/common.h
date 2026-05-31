@@ -67,6 +67,8 @@ enum svc_ops {
 //    svc_deltapacketentities,    // [...]
     svc_frame,
     svc_mirror,
+    svc_lobby_setup,
+    svc_lobby_chat,
     svc_fogofwar,
     
 // Unit UI data (Phase 8: HUD migration)
@@ -197,7 +199,9 @@ void CL_BeginLoadingMap(LPCSTR mapName);
 void SV_Init(void);
 void SV_Frame(DWORD msec);
 void SV_Shutdown(void);
+void SV_StartLobby(LPCSTR pFilename);
 void SV_Map(LPCSTR pFilename);
+void SV_LobbyBroadcastChat(LPCSTR sender, LPCSTR text);
 void MenuAction(LPCSTR action, LPCSTR arg);
 
 HANDLE MemAlloc(long size);
