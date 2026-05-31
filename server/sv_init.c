@@ -337,6 +337,9 @@ void SV_StartLobby(LPCSTR mapFilename) {
     if (!mapFilename || !mapFilename[0]) {
         return;
     }
+    if (sv.state == ss_lobby && !strcmp(sv.configstrings[CS_WORLD], mapFilename)) {
+        return;
+    }
     if (!ge) {
         fprintf(stderr, "SV_StartLobby: game API not initialized\n");
         return;
