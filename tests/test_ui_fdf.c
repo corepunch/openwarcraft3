@@ -242,6 +242,7 @@ static void reset_ui_state(void) {
     memset(captured_text_rects, 0, sizeof(captured_text_rects));
     fake_text_size = MAKE(VECTOR2, 0.050f, 0.016f);
     memset(&ui_mouse, 0, sizeof(ui_mouse));
+    UI_ClearEditFocus();
     uiimport.MemAlloc = test_ui_mem_alloc;
     uiimport.MemFree = test_ui_mem_free;
     uiimport.ImageIndex = fake_image_index;
@@ -1249,6 +1250,38 @@ static void test_button1_dropdown_backdrop_gets_hover_highlight(void) {
     ASSERT_EQ_INT(captured_hover_draws, 1);
 }
 
+static void test_editbox_without_text_frame_click_focus_accepts_text_input(void) {
+    LPFRAMEDEF root;
+    LPFRAMEDEF editbox;
+
+    reset_ui_state();
+    parse_fdf("editbox_input.fdf",
+              "Frame \"FRAME\" \"Root\" {"
+              " Width 0.8, Height 0.6,"
+              " Frame \"EDITBOX\" \"ChatEditBox\" {"
+              "  Width 0.3, Height 0.04,"
+              "  SetPoint TOPLEFT, \"Root\", TOPLEFT, 0.1, -0.1,"
+              " }"
+              "}");
+
+    root = UI_FindFrame("Root");
+    editbox = UI_FindFrame("ChatEditBox");
+    if (!require_not_null(root)) return;
+    if (!require_not_null(editbox)) return;
+
+    ui_mouse.x = 130;
+    ui_mouse.y = 130;
+    ui_mouse.event = UI_MOUSE_LEFT_DOWN;
+    ui_mouse.button = 1;
+    ui_mouse.down = true;
+    UI_DrawFrame(root);
+
+    ASSERT(UI_EditHasFocus(editbox));
+    UI_TextInputLocal("hello");
+    ASSERT_STR_EQ(UI_EditValue(editbox), "hello");
+    ASSERT(!UI_EditKey(13));
+}
+
 static void test_esc_menu_confirm_quit_panel_is_available(void) {
     LPFRAMEDEF panel;
     LPFRAMEDEF quit_button;
@@ -1482,6 +1515,7 @@ BEGIN_SUITE(ui_fdf)
     RUN_TEST(test_single_line_text_auto_height_uses_fdf_font_size);
     RUN_TEST(test_glue_checkbox_toggles_and_draws_check_highlight);
     RUN_TEST(test_button1_dropdown_backdrop_gets_hover_highlight);
+    RUN_TEST(test_editbox_without_text_frame_click_focus_accepts_text_input);
     RUN_TEST(test_esc_menu_confirm_quit_panel_is_available);
     RUN_TEST(test_dialog_war3_supports_configurable_button_modes);
     RUN_TEST(test_main_menu_quit_dialog_commands_quit);
