@@ -442,6 +442,34 @@ static void test_lobby_team_selection_expands_map_forces(void) {
     test_client_stubs_clear_cvars();
 }
 
+static void test_lobby_start_preserves_connected_clients(void) {
+    MAPINFO info;
+    netadr_t remote = { NA_IP, { 127, 0, 0, 1 }, { 0 }, htons(PORT_SERVER + 13) };
+
+    reset_server_state(4);
+    memset(&info, 0, sizeof(info));
+    test_mapinfo = &info;
+
+    SV_StartLobby("Maps\\Melee\\Test.w3m");
+    ASSERT_EQ_INT(sv.state, ss_lobby);
+    ASSERT_EQ_INT(svs.num_clients, 1);
+    SV_DirectConnect(&remote);
+    ASSERT_EQ_INT(svs.num_clients, 2);
+
+    SV_Map("Maps\\Melee\\Test.w3m");
+
+    ASSERT_EQ_INT(sv.state, ss_game);
+    ASSERT_EQ_INT(svs.num_clients, 2);
+    ASSERT_EQ_INT(svs.clients[0].state, cs_connected);
+    ASSERT_EQ_INT(svs.clients[0].netchan.remote_address.type, NA_LOOPBACK);
+    ASSERT_EQ_INT(svs.clients[1].state, cs_connected);
+    ASSERT_EQ_INT(svs.clients[1].netchan.remote_address.type, NA_IP);
+    ASSERT_EQ_INT(svs.clients[1].netchan.remote_address.port, remote.port);
+
+    SV_Shutdown();
+    test_mapinfo = NULL;
+}
+
 static void test_multicast_syncs_updates_to_all_connected_clients(void) {
     BYTE payload[] = { 0x11, 0x22, 0x33, 0x44 };
     VECTOR3 origin = { 0, 0, 0 };
@@ -498,6 +526,7 @@ void run_server_net_tests(void) {
     RUN_TEST(test_lan_info_query_returns_discoverable_server_metadata);
     RUN_TEST(test_lan_info_query_returns_lobby_metadata);
     RUN_TEST(test_lobby_team_selection_expands_map_forces);
+    RUN_TEST(test_lobby_start_preserves_connected_clients);
     RUN_TEST(test_multicast_syncs_updates_to_all_connected_clients);
     RUN_TEST(test_lobby_chat_broadcasts_to_connected_clients);
 }

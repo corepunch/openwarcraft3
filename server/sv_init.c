@@ -203,6 +203,47 @@ static void SV_ClearLobbyClients(void) {
     svs.num_clients = 0;
 }
 
+static DWORD SV_SaveLobbyClients(netadr_t *addrs, DWORD max_addrs) {
+    DWORD count = 0;
+
+    if (sv.state != ss_lobby || !addrs || max_addrs == 0) {
+        return 0;
+    }
+    FOR_LOOP(i, svs.num_clients) {
+        LPCLIENT cl = &svs.clients[i];
+
+        if (cl->state != cs_connected && cl->state != cs_spawned) {
+            continue;
+        }
+        if (count >= max_addrs) {
+            break;
+        }
+        addrs[count++] = cl->netchan.remote_address;
+    }
+    return count;
+}
+
+static void SV_RestoreLobbyClients(netadr_t const *addrs, DWORD count) {
+    if (!addrs || count == 0) {
+        SV_ClientConnect();
+        return;
+    }
+    FOR_LOOP(i, count) {
+        LPCLIENT cl;
+
+        if (svs.num_clients >= MAX_CLIENTS ||
+            svs.num_clients >= ge->max_clients) {
+            break;
+        }
+        cl = &svs.clients[svs.num_clients++];
+        memset(cl, 0, sizeof(*cl));
+        cl->state = cs_connected;
+        cl->netchan.remote_address = addrs[i];
+        SZ_Init(&cl->netchan.message, cl->netchan.message_buf, MAX_MSGLEN);
+        Netchan_OutOfBandPrint(NS_SERVER, addrs[i], "client_connect");
+    }
+}
+
 void SV_ClientConnect(void) {
     // Reuse slot 0 if it already holds a loopback client (e.g. repeated SV_Map
     // calls without a full SV_Shutdown in between).
@@ -267,7 +308,11 @@ void SV_DirectConnect(const netadr_t *from) {
 }
 
 void SV_Map(LPCSTR mapFilename) {
+    netadr_t lobby_clients[MAX_CLIENTS];
+    DWORD num_lobby_clients;
+
     fprintf(stderr, "Server initialization.\n");
+    num_lobby_clients = SV_SaveLobbyClients(lobby_clients, MAX_CLIENTS);
     SV_InitGame();
     memset(&sv, 0, sizeof(struct server));
     sv.state = ss_loading;
@@ -283,8 +328,8 @@ void SV_Map(LPCSTR mapFilename) {
     SV_CreateBaseline();
     ge->SpawnEntities(CM_GetMapInfo(), CM_GetDoodads());
     sv.state = ss_game;
-    // Register slot 0 as the local (loopback) client now that the map is ready
-    SV_ClientConnect();
+    // Keep lobby clients connected through the immediate game start.
+    SV_RestoreLobbyClients(lobby_clients, num_lobby_clients);
     fprintf(stderr, "Server initialized.\n\n");
 }
 
