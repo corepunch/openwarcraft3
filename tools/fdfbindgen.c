@@ -364,6 +364,7 @@ static void parse_scope(lexer_t *lx, int parent) {
         char frame_type[MAX_NAME] = "";
         char frame_name[MAX_NAME] = "";
         int child;
+        bool anonymous_declaration = false;
         if (!quoted && !strcmp(tok, "}")) {
             return;
         }
@@ -386,9 +387,18 @@ static void parse_scope(lexer_t *lx, int parent) {
             if (!lexer_next(lx, frame_name, sizeof(frame_name), &quoted)) {
                 return;
             }
+            if (!quoted &&
+                (!strcmp(frame_name, "INHERITS") ||
+                 !strcmp(frame_name, "WITHCHILDREN"))) {
+                anonymous_declaration = true;
+            }
         }
         while (lexer_next(lx, tok, sizeof(tok), &quoted)) {
             if (!quoted && !strcmp(tok, "{")) {
+                if (anonymous_declaration) {
+                    skip_scope(lx);
+                    break;
+                }
                 child = add_node(parent, frame_name, frame_type);
                 parse_scope(lx, child);
                 break;

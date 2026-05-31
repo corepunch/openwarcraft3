@@ -11,6 +11,8 @@
 #include "../ui_local.h"
 #include "../ui_screen.h"
 #include "../generated/local_multiplayer_create.h"
+#include "../generated/map_list_box.h"
+#include "../generated/map_info_pane.h"
 
 #define LAN_VISIBLE_MAPS 14
 #define LAN_FILELIST_SIZE 32768
@@ -21,15 +23,10 @@ typedef struct lan_join_state_s {
     BOOL ready;
     LPFRAMEDEF root;
     LPFRAMEDEF play_button;
-    LPFRAMEDEF map_list_box;
-    LPFRAMEDEF info_root;
-    LPFRAMEDEF info_players;
-    LPFRAMEDEF info_name;
-    LPFRAMEDEF info_suggested;
-    LPFRAMEDEF info_size;
-    LPFRAMEDEF info_tileset;
-    LPFRAMEDEF info_description;
-    LPFRAMEDEF info_minimap;
+    MapListBox_t map_list_template;
+    MapListBox_t map_list_box;
+    MapInfoPane_t map_info_template;
+    MapInfoPane_t map_info_pane;
     LPFRAMEDEF game_speed_slider;
     LPFRAMEDEF game_speed_value;
 } lan_join_state_t;
@@ -37,7 +34,12 @@ typedef struct lan_join_state_s {
 static lan_join_state_t lan;
 
 static BOOL LANJoin_LoadScreen(void) {
-    return LocalMultiplayerCreate_Load(&lan.frames);
+    BOOL ok = true;
+
+    ok = LocalMultiplayerCreate_Load(&lan.frames) && ok;
+    ok = MapListBox_Load(&lan.map_list_template) && ok;
+    ok = MapInfoPane_Load(&lan.map_info_template) && ok;
+    return ok;
 }
 
 static void LAN_CopyString(LPSTR out, size_t out_size, LPCSTR value) {
@@ -253,90 +255,76 @@ static void LAN_UpdateGameSpeed(void) {
 }
 
 static void LAN_BindMapInfoPane(LPFRAMEDEF container) {
-    LPFRAMEDEF source;
+    LPFRAMEDEF root;
 
-    if (lan.info_root || !container) {
+    if (lan.map_info_pane.MapInfoPane || !container) {
         return;
     }
 
-    source = UI_FindFrame("MapInfoPane");
-    if (!source) {
+    if (!lan.map_info_template.MapInfoPane) {
         uiimport.Printf("LAN_BindMapInfoPane: MapInfoPane missing\n");
         return;
     }
 
-    lan.info_root = UI_CloneFrameTree(source, container);
-    if (!lan.info_root) {
+    root = UI_CloneFrameTree(lan.map_info_template.MapInfoPane, container);
+    if (!root || !MapInfoPane_Bind(&lan.map_info_pane, root)) {
         return;
     }
-    UI_SetPoint(lan.info_root, FRAMEPOINT_TOPLEFT, container, FRAMEPOINT_TOPLEFT, 0.0f, 0.0f);
-    UI_SetPoint(lan.info_root, FRAMEPOINT_BOTTOMRIGHT, container, FRAMEPOINT_BOTTOMRIGHT, 0.0f, 0.0f);
-    UI_LayoutMapInfoPane(lan.info_root);
-
-    UI_FRAME(lan.info_root, MaxPlayersValue);
-    UI_FRAME(lan.info_root, MapNameValue);
-    UI_FRAME(lan.info_root, MinimapImage);
-    UI_FRAME(lan.info_root, SuggestedPlayersValue);
-    UI_FRAME(lan.info_root, MapSizeValue);
-    UI_FRAME(lan.info_root, MapTilesetValue);
-    UI_FRAME(lan.info_root, MapDescValue);
-
-    lan.info_players = MaxPlayersValue;
-    lan.info_name = MapNameValue;
-    lan.info_minimap = MinimapImage;
-    lan.info_suggested = SuggestedPlayersValue;
-    lan.info_size = MapSizeValue;
-    lan.info_tileset = MapTilesetValue;
-    lan.info_description = MapDescValue;
+    UI_SetPoint(lan.map_info_pane.MapInfoPane, FRAMEPOINT_TOPLEFT, container, FRAMEPOINT_TOPLEFT, 0.0f, 0.0f);
+    UI_SetPoint(lan.map_info_pane.MapInfoPane, FRAMEPOINT_BOTTOMRIGHT, container, FRAMEPOINT_BOTTOMRIGHT, 0.0f, 0.0f);
+    UI_LayoutMapInfoPane(lan.map_info_pane.MapInfoPane);
 }
 
 static void LAN_CreateMapListFrame(LPFRAMEDEF container, LPFRAMEDEF label) {
-    LPFRAMEDEF source;
+    LPFRAMEDEF root;
 
-    if (lan.map_list_box || !container) {
+    if (lan.map_list_box.MapListBox || !container) {
         return;
     }
-    source = UI_FindFrame("MapListBox");
-    lan.map_list_box = source ? UI_CloneFrameTree(source, container) : NULL;
-    if (!lan.map_list_box) {
+    if (!lan.map_list_template.MapListBox) {
+        uiimport.Printf("LAN_CreateMapListFrame: MapListBox missing\n");
         return;
     }
-    UI_SetPoint(lan.map_list_box, FRAMEPOINT_TOPLEFT, container, FRAMEPOINT_TOPLEFT, 0.0f, 0.0f);
-    UI_SetPoint(lan.map_list_box, FRAMEPOINT_BOTTOMRIGHT, container, FRAMEPOINT_BOTTOMRIGHT, 0.0f, 0.0f);
-    UI_BindMapList(lan.map_list_box, &lan.maps, label, LAN_VISIBLE_MAPS, "menu_lan_select %u");
+    root = UI_CloneFrameTree(lan.map_list_template.MapListBox, container);
+    if (!root || !MapListBox_Bind(&lan.map_list_box, root)) {
+        return;
+    }
+    UI_SetPoint(lan.map_list_box.MapListBox, FRAMEPOINT_TOPLEFT, container, FRAMEPOINT_TOPLEFT, 0.0f, 0.0f);
+    UI_SetPoint(lan.map_list_box.MapListBox, FRAMEPOINT_BOTTOMRIGHT, container, FRAMEPOINT_BOTTOMRIGHT, 0.0f, 0.0f);
+    UI_BindMapList(lan.map_list_box.MapListBox, &lan.maps, label, LAN_VISIBLE_MAPS, "menu_lan_select %u");
 }
 
 static void LAN_UpdateMapInfo(void) {
     uiMapListItem_t *item;
 
     if (lan.maps.count == 0 || lan.maps.selected >= lan.maps.count) {
-        UI_SetHidden(lan.info_minimap, true);
-        LAN_SetTextIfPresent(lan.info_players, " ");
-        LAN_SetTextIfPresent(lan.info_name, " ");
-        LAN_SetTextIfPresent(lan.info_suggested, "%s", UI_GetString("UNKNOWNMAP_SUGGESTEDPLAYERS"));
-        LAN_SetTextIfPresent(lan.info_size, "%s", UI_GetString("UNKNOWNMAP_MAPSIZE"));
-        LAN_SetTextIfPresent(lan.info_tileset, "%s", UI_GetString("UNKNOWNMAP_TILESET"));
-        LAN_SetTextIfPresent(lan.info_description, "%s", UI_GetString("UNKNOWNMAP_DESCRIPTION"));
+        UI_SetHidden(lan.map_info_pane.MinimapImage, true);
+        LAN_SetTextIfPresent(lan.map_info_pane.MaxPlayersValue, " ");
+        LAN_SetTextIfPresent(lan.map_info_pane.MapNameValue, " ");
+        LAN_SetTextIfPresent(lan.map_info_pane.SuggestedPlayersValue, "%s", UI_GetString("UNKNOWNMAP_SUGGESTEDPLAYERS"));
+        LAN_SetTextIfPresent(lan.map_info_pane.MapSizeValue, "%s", UI_GetString("UNKNOWNMAP_MAPSIZE"));
+        LAN_SetTextIfPresent(lan.map_info_pane.MapTilesetValue, "%s", UI_GetString("UNKNOWNMAP_TILESET"));
+        LAN_SetTextIfPresent(lan.map_info_pane.MapDescValue, "%s", UI_GetString("UNKNOWNMAP_DESCRIPTION"));
         return;
     }
 
     item = &lan.maps.items[lan.maps.selected];
-    if (lan.info_minimap && uiimport.FindMapPreviewTexture) {
+    if (lan.map_info_pane.MinimapImage && uiimport.FindMapPreviewTexture) {
         PATHSTR preview;
 
         if (uiimport.FindMapPreviewTexture(item->path, preview, sizeof(preview))) {
-            UI_SetTexture(lan.info_minimap, preview, false);
-            UI_SetHidden(lan.info_minimap, false);
+            UI_SetTexture(lan.map_info_pane.MinimapImage, preview, false);
+            UI_SetHidden(lan.map_info_pane.MinimapImage, false);
         } else {
-            UI_SetHidden(lan.info_minimap, true);
+            UI_SetHidden(lan.map_info_pane.MinimapImage, true);
         }
     }
-    LAN_SetTextIfPresent(lan.info_players, "%u", (unsigned)item->players);
-    LAN_SetTextIfPresent(lan.info_name, "%s", item->name[0] ? item->name : item->path);
-    LAN_SetTextIfPresent(lan.info_suggested, "%s", item->suggestedPlayers);
-    LAN_SetTextIfPresent(lan.info_size, "%s", item->mapSize);
-    LAN_SetTextIfPresent(lan.info_tileset, "%s", item->tileset);
-    LAN_SetTextIfPresent(lan.info_description, "%s", item->description);
+    LAN_SetTextIfPresent(lan.map_info_pane.MaxPlayersValue, "%u", (unsigned)item->players);
+    LAN_SetTextIfPresent(lan.map_info_pane.MapNameValue, "%s", item->name[0] ? item->name : item->path);
+    LAN_SetTextIfPresent(lan.map_info_pane.SuggestedPlayersValue, "%s", item->suggestedPlayers);
+    LAN_SetTextIfPresent(lan.map_info_pane.MapSizeValue, "%s", item->mapSize);
+    LAN_SetTextIfPresent(lan.map_info_pane.MapTilesetValue, "%s", item->tileset);
+    LAN_SetTextIfPresent(lan.map_info_pane.MapDescValue, "%s", item->description);
 }
 
 static void LAN_UpdateControls(void) {
@@ -458,6 +446,22 @@ LPCSTR LAN_SelectedMapName(void) {
     return lan.maps.items[lan.maps.selected].name[0]
         ? lan.maps.items[lan.maps.selected].name
         : lan.maps.items[lan.maps.selected].path;
+}
+
+DWORD LAN_SelectedGameSpeed(void) {
+    int value;
+
+    if (!lan.ready || !lan.game_speed_slider) {
+        return 2;
+    }
+    value = (int)floorf(lan.game_speed_slider->Slider.InitialValue + 0.5f);
+    if (value < 0) {
+        return 0;
+    }
+    if (value > 2) {
+        return 2;
+    }
+    return (DWORD)value;
 }
 
 void LAN_StartSelectedMap(void) {

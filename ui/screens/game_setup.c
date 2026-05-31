@@ -29,6 +29,7 @@ typedef enum {
 
 typedef struct {
     BOOL visible;
+    DWORD map_player;
     gameSetupSlotType_t type;
     playerRace_t race;
     DWORD team;
@@ -275,6 +276,90 @@ static LPCSTR GameSetup_SlotTypeName(gameSetupSlotType_t type, LPCSTR human_name
     }
 }
 
+static LPCSTR GameSetup_SlotTypeCvar(gameSetupSlotType_t type) {
+    switch (type) {
+        case GAME_SETUP_SLOT_HUMAN: return "human";
+        case GAME_SETUP_SLOT_COMPUTER: return "computer";
+        case GAME_SETUP_SLOT_CLOSED: return "closed";
+        case GAME_SETUP_SLOT_OPEN:
+        default:
+            return "open";
+    }
+}
+
+static LPCSTR GameSetup_RaceCvar(playerRace_t race) {
+    switch (race) {
+        case kPlayerRaceHuman: return "human";
+        case kPlayerRaceOrc: return "orc";
+        case kPlayerRaceUndead: return "undead";
+        case kPlayerRaceNightElf: return "nightelf";
+        case kPlayerRaceNone:
+        default:
+            return "random";
+    }
+}
+
+static void GameSetup_AppendText(LPSTR out, size_t out_size, size_t *used, LPCSTR text) {
+    size_t len;
+
+    if (!out || !used || !text || *used >= out_size) {
+        return;
+    }
+    len = strlen(text);
+    if (len >= out_size - *used) {
+        len = out_size - *used - 1;
+    }
+    memcpy(out + *used, text, len);
+    *used += len;
+    out[*used] = '\0';
+}
+
+static void GameSetup_AppendQuotedValue(LPSTR out, size_t out_size, size_t *used, LPCSTR value) {
+    GameSetup_AppendText(out, out_size, used, "\"");
+    for (LPCSTR p = value ? value : ""; *p; p++) {
+        char ch[2] = { *p, '\0' };
+
+        if (*p == '\n' || *p == '\r') {
+            GameSetup_AppendText(out, out_size, used, " ");
+            continue;
+        }
+        if (*p == '"' || *p == '\\') {
+            GameSetup_AppendText(out, out_size, used, "\\");
+        }
+        GameSetup_AppendText(out, out_size, used, ch);
+    }
+    GameSetup_AppendText(out, out_size, used, "\"");
+}
+
+static void GameSetup_AppendSetCommand(LPSTR out,
+                                       size_t out_size,
+                                       size_t *used,
+                                       LPCSTR name,
+                                       LPCSTR value) {
+    GameSetup_AppendText(out, out_size, used, "set ");
+    GameSetup_AppendText(out, out_size, used, name);
+    GameSetup_AppendText(out, out_size, used, " ");
+    GameSetup_AppendQuotedValue(out, out_size, used, value);
+    GameSetup_AppendText(out, out_size, used, "\n");
+}
+
+static void GameSetup_AppendSetInteger(LPSTR out,
+                                       size_t out_size,
+                                       size_t *used,
+                                       LPCSTR name,
+                                       DWORD value) {
+    char text[32];
+
+    snprintf(text, sizeof(text), "%u", (unsigned)value);
+    GameSetup_AppendSetCommand(out, out_size, used, name, text);
+}
+
+static void GameSetup_AppendMapCommand(LPSTR out, size_t out_size, size_t *used, LPCSTR map_path) {
+    GameSetup_AppendText(out, out_size, used, "map ");
+    GameSetup_AppendQuotedValue(out, out_size, used, map_path);
+    GameSetup_AppendText(out, out_size, used, "\n");
+}
+
 static void GameSetup_ResolveMapString(LPCSTR raw, LPSTR out, DWORD out_size) {
     if (!out || out_size == 0) {
         return;
@@ -410,6 +495,7 @@ static void GameSetup_PopulateSlots(void) {
         GameSetup_SlotName(player, is_first_human, name, sizeof(name));
 
         setup.configs[visible].visible = true;
+        setup.configs[visible].map_player = i;
         setup.configs[visible].type = player->playerType == kPlayerTypeComputer
             ? GAME_SETUP_SLOT_COMPUTER
             : GAME_SETUP_SLOT_HUMAN;
@@ -628,12 +714,46 @@ static void GameSetup_MouseEvent(int x, int y, int buttons) {
 }
 
 void GameSetup_StartGame(void) {
-    char command[MAX_PATHLEN + 32];
+    char command[8192];
+    DWORD slot_count = 0;
+    size_t used = 0;
 
     if (!setup.map_path[0]) {
         return;
     }
-    snprintf(command, sizeof(command), "map \"%s\"\n", setup.map_path);
+    FOR_LOOP(i, MAX_PLAYERS) {
+        if (setup.configs[i].visible) {
+            slot_count++;
+        }
+    }
+    GameSetup_AppendSetCommand(command, sizeof(command), &used, "sv_hostname",
+                               setup.map_name[0] ? setup.map_name : "OpenWarcraft3");
+    GameSetup_AppendSetCommand(command, sizeof(command), &used, "sv_map_path", setup.map_path);
+    GameSetup_AppendSetCommand(command, sizeof(command), &used, "sv_map_name",
+                               setup.map_name[0] ? setup.map_name : setup.map_path);
+    GameSetup_AppendSetInteger(command, sizeof(command), &used, "sv_game_speed", LAN_SelectedGameSpeed());
+    GameSetup_AppendSetInteger(command, sizeof(command), &used, "sv_lobby_slots", slot_count);
+    FOR_LOOP(i, slot_count) {
+        gameSetupSlotConfig_t const *config = &setup.configs[i];
+        char name[64];
+
+        snprintf(name, sizeof(name), "sv_slot%u_map_player", (unsigned)i);
+        GameSetup_AppendSetInteger(command, sizeof(command), &used, name, config->map_player);
+        snprintf(name, sizeof(name), "sv_slot%u_type", (unsigned)i);
+        GameSetup_AppendSetCommand(command, sizeof(command), &used, name,
+                                   GameSetup_SlotTypeCvar(config->type));
+        snprintf(name, sizeof(name), "sv_slot%u_race", (unsigned)i);
+        GameSetup_AppendSetCommand(command, sizeof(command), &used, name,
+                                   GameSetup_RaceCvar(config->race));
+        snprintf(name, sizeof(name), "sv_slot%u_team", (unsigned)i);
+        GameSetup_AppendSetInteger(command, sizeof(command), &used, name, config->team);
+        snprintf(name, sizeof(name), "sv_slot%u_color", (unsigned)i);
+        GameSetup_AppendSetInteger(command, sizeof(command), &used, name, config->color);
+        snprintf(name, sizeof(name), "sv_slot%u_name", (unsigned)i);
+        GameSetup_AppendSetCommand(command, sizeof(command), &used, name,
+                                   config->name[0] ? config->name : GameSetup_SlotTypeName(config->type, NULL));
+    }
+    GameSetup_AppendMapCommand(command, sizeof(command), &used, setup.map_path);
     uiimport.Cmd_ExecuteText(command);
 }
 

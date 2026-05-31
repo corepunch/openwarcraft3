@@ -9,6 +9,8 @@
 #include "../generated/options_menu.h"
 
 #define OPTIONS_ARRAY_COUNT(ARRAY) (sizeof(ARRAY) / sizeof((ARRAY)[0]))
+#define OPTIONS_GAME_PORT_MIN 1024
+#define OPTIONS_GAME_PORT_MAX 49151
 
 typedef enum {
     OPTIONS_PANEL_GAMEPLAY,
@@ -36,6 +38,51 @@ static BOOL OptionsMenu_LoadScreen(void) {
 static void OptionsMenu_SetHidden(LPFRAMEDEF frame, BOOL hidden) {
     if (frame) {
         UI_SetHidden(frame, hidden);
+    }
+}
+
+static LPFRAMEDEF OptionsMenu_EnsureEditText(LPFRAMEDEF edit, LPCSTR name) {
+    LPFRAMEDEF text;
+    LPCFRAMEDEF template;
+
+    if (!edit || !name || !*name) {
+        return NULL;
+    }
+    if (!edit->Edit.TextFrame[0]) {
+        snprintf(edit->Edit.TextFrame, sizeof(edit->Edit.TextFrame), "%s", name);
+    }
+    text = UI_FindChildFrame(edit, edit->Edit.TextFrame);
+    if (text) {
+        return text;
+    }
+
+    text = UI_Spawn(FT_TEXT, edit);
+    if (!text) {
+        return NULL;
+    }
+    snprintf(text->Name, sizeof(text->Name), "%s", edit->Edit.TextFrame);
+    template = UI_FindFrame("StandardEditBoxTextTemplate");
+    if (template) {
+        text->DecorateFileNames = template->DecorateFileNames;
+        text->Width = template->Width;
+        text->Height = template->Height;
+        text->Font = template->Font;
+    }
+    text->Font.Justification.Horizontal = FONT_JUSTIFYLEFT;
+    text->Font.Justification.Vertical = FONT_JUSTIFYMIDDLE;
+    return text;
+}
+
+static LPCSTR OptionsMenu_EditText(LPFRAMEDEF edit) {
+    LPFRAMEDEF text = edit ? UI_FindChildFrame(edit, edit->Edit.TextFrame) : NULL;
+    return text && text->Text ? text->Text : "";
+}
+
+static void OptionsMenu_SetEditText(LPFRAMEDEF edit, LPCSTR text) {
+    LPFRAMEDEF text_frame = OptionsMenu_EnsureEditText(edit, "GamePortEditBoxText");
+
+    if (text_frame) {
+        UI_SetText(text_frame, "%s", text ? text : "");
     }
 }
 
@@ -99,6 +146,30 @@ static DWORD OptionsMenu_CvarSelection(LPCSTR name, DWORD fallback, DWORD count)
 static void OptionsMenu_SetPopupCvar(LPFRAMEDEF menu, LPCSTR name) {
     if (menu) {
         UI_SetOnClick(menu, "seta %s %%u", name);
+    }
+}
+
+static void OptionsMenu_InitGamePortEditBox(void) {
+    LPCSTR port = uiimport.Cvar_String ? uiimport.Cvar_String("game_port", "") : "";
+
+    if (options_menu.GamePortEditBox) {
+        options_menu.GamePortEditBox->Edit.MaxChars = 5;
+    }
+    OptionsMenu_SetEditText(options_menu.GamePortEditBox, port);
+}
+
+static void OptionsMenu_ApplyGamePort(void) {
+    LPCSTR text = OptionsMenu_EditText(options_menu.GamePortEditBox);
+    int port = text && *text ? atoi(text) : 0;
+    char command[64];
+
+    if (port < OPTIONS_GAME_PORT_MIN || port > OPTIONS_GAME_PORT_MAX) {
+        OptionsMenu_InitGamePortEditBox();
+        return;
+    }
+    snprintf(command, sizeof(command), "seta game_port %d\n", port);
+    if (uiimport.Cmd_ExecuteText) {
+        uiimport.Cmd_ExecuteText(command);
     }
 }
 
@@ -213,11 +284,13 @@ static void OptionsMenu_InitGameplayMenus(void) {
         { "Taiwan Chinese", 11 },
     };
 
+    OptionsMenu_InitGamePortEditBox();
     OptionsMenu_SetPopupItems(options_menu.ChatSupportMenu,
                               options_menu.ChatSupportPopupMenuMenu,
                               chat_support_items,
                               OPTIONS_ARRAY_COUNT(chat_support_items),
-                              0);
+                              OptionsMenu_CvarSelection("ui_chat_support", 0, OPTIONS_ARRAY_COUNT(chat_support_items)));
+    OptionsMenu_SetPopupCvar(options_menu.ChatSupportPopupMenuMenu, "ui_chat_support");
 }
 
 static void OptionsMenu_InitSoundMenus(void) {
@@ -232,7 +305,8 @@ static void OptionsMenu_InitSoundMenus(void) {
                               options_menu.ProviderPopupMenuMenu,
                               provider_items,
                               OPTIONS_ARRAY_COUNT(provider_items),
-                              1);
+                              OptionsMenu_CvarSelection("s_provider", 1, OPTIONS_ARRAY_COUNT(provider_items)));
+    OptionsMenu_SetPopupCvar(options_menu.ProviderPopupMenuMenu, "s_provider");
 }
 
 static void OptionsMenu_InitPopupMenus(void) {
@@ -257,7 +331,7 @@ static void OptionsMenu_Init(void) {
     UI_SetOnClick(options_menu.GameplayButton, "menu_options_gameplay");
     UI_SetOnClick(options_menu.VideoButton, "menu_video");
     UI_SetOnClick(options_menu.SoundButton, "menu_options_sound");
-    UI_SetOnClick(options_menu.OKButton, "menu_main");
+    UI_SetOnClick(options_menu.OKButton, "menu_options_apply");
     UI_SetOnClick(options_menu.CancelButton, "menu_main");
     UI_SetOnClick(options_menu.ConfirmOKButton, "menu_main");
     UI_SetOnClick(options_menu.ConfirmCancelButton, "menu_options");
@@ -306,6 +380,10 @@ void OptionsMenu_ShowSound(void) {
 
 void OptionsMenu_ShowKeys(void) {
     OptionsMenu_SetPanel(OPTIONS_PANEL_GAMEPLAY);
+}
+
+void OptionsMenu_Apply(void) {
+    OptionsMenu_ApplyGamePort();
 }
 
 uiScreen_t optionsMenuScreen = {

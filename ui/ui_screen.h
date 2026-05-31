@@ -35,6 +35,7 @@ extern uiScreen_t quitConfirmScreen;
 
 LPCSTR LAN_SelectedMapPath(void);
 LPCSTR LAN_SelectedMapName(void);
+DWORD LAN_SelectedGameSpeed(void);
 
 void UI_ShowMainMenu(void);
 void UI_ShowSinglePlayerMenu(void);
@@ -51,6 +52,7 @@ void OptionsMenu_ShowGameplay(void);
 void OptionsMenu_ShowVideo(void);
 void OptionsMenu_ShowSound(void);
 void OptionsMenu_ShowKeys(void);
+void OptionsMenu_Apply(void);
 
 void SinglePlayerMenu_ShowMain(void);
 void SinglePlayerMenu_ShowCampaign(void);
