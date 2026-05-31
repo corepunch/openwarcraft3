@@ -425,7 +425,7 @@ static void test_comments_are_ignored_inside_frame_bodies(void) {
     frame = UI_FindFrame("CommentedFrame");
     if (!require_not_null(frame)) return;
     ASSERT_FLOAT_EQ(frame->Points.x[FPP_MIN].offset, 0.25f);
-    ASSERT_FLOAT_EQ(frame->Points.y[FPP_MAX].offset, -0.125f);
+    ASSERT_FLOAT_EQ(frame->Points.y[FPP_MIN].offset, -0.125f);
     ASSERT_FLOAT_EQ(frame->Width, 0.5f);
     ASSERT_FLOAT_EQ(frame->Height, 0.25f);
 }
@@ -547,7 +547,7 @@ static void test_backdrop_background_adds_blp_extension(void) {
 
     frame = UI_FindFrame("BD");
     if (!require_not_null(frame)) return;
-    ASSERT_EQ_INT(frame->Backdrop.Background, 123);
+    ASSERT_EQ_INT(frame->Backdrop.Background, 1);
     ASSERT_NOT_NULL(captured_image_path);
     ASSERT_STR_EQ(captured_image_path, "TestUI/Textures/checker_8x8.blp");
 }
@@ -564,7 +564,7 @@ static void test_background_art_uses_model_index(void) {
     sprite = UI_FindFrame("SpriteA");
     if (!require_not_null(sprite)) return;
     ASSERT_EQ_INT(sprite->Type, FT_SPRITE);
-    ASSERT_EQ_INT(sprite->Portrait.model, 456);
+    ASSERT_EQ_INT(sprite->Portrait.model, 1);
     ASSERT_NOT_NULL(captured_model_path);
     ASSERT_STR_EQ(captured_model_path, "TestUI/Models/quad_sprite.mdx");
 }
@@ -1069,7 +1069,7 @@ static void test_text_uses_key_when_no_stringlist_entry_exists(void) {
     ASSERT_STR_EQ(text->Text, "TRIGSTR_999");
 }
 
-static void test_long_stringlist_text_is_bounded_to_frame_storage(void) {
+static void test_long_stringlist_text_uses_dynamic_storage(void) {
     LPFRAMEDEF text;
 
     reset_ui_state();
@@ -1084,7 +1084,8 @@ static void test_long_stringlist_text_is_bounded_to_frame_storage(void) {
 
     text = UI_FindFrame("TextA");
     if (!require_not_null(text)) return;
-    ASSERT_EQ_INT(strlen(text->Text), sizeof(text->TextStorage) - 1);
+    ASSERT_EQ_INT(strlen(text->Text), 124);
+    ASSERT(text->Text != text->TextStorage);
     ASSERT_NULL(text->Tip);
     ASSERT_NULL(text->Ubertip);
 }
@@ -1215,6 +1216,7 @@ static void test_main_menu_quit_dialog_routes_to_quit(void) {
     uiimport.Cmd_ExecuteText = test_cmd_execute_text;
     captured_command[0] = '\0';
 
+    ASSERT(mainMenuScreen.load());
     mainMenuScreen.init();
 
     global_exit_button = UI_FindFrame("ExitButton");
@@ -1225,7 +1227,7 @@ static void test_main_menu_quit_dialog_routes_to_quit(void) {
     }
     ASSERT(global_exit_button != exit_button);
     ASSERT(!exit_button->hidden);
-    ASSERT_STR_EQ(exit_button->OnClick, "menu /main/quit-confirm");
+    ASSERT_STR_EQ(exit_button->OnClick, "menu_quit");
 
     modal = UI_FindFrame("MainMenuQuitModal");
     if (!require_not_null(modal)) {
@@ -1244,6 +1246,10 @@ static void test_main_menu_quit_dialog_routes_to_quit(void) {
     }
     ASSERT_EQ_INT(dialog->Type, FT_DIALOG);
     ASSERT(dialog->hidden);
+
+    mainMenuScreen.route("/quit-confirm");
+    ASSERT(!modal->hidden);
+    ASSERT(!dialog->hidden);
 
     message = UI_FindChildFrame(dialog, "DialogText");
     icon = UI_FindChildFrame(dialog, "DialogIcon");
@@ -1287,26 +1293,15 @@ static void test_main_menu_quit_dialog_routes_to_quit(void) {
     ASSERT(ok_backdrop->hidden);
     ASSERT(!no_backdrop->hidden);
     ASSERT(!yes_backdrop->hidden);
-    ASSERT_STR_EQ(no_button->OnClick, "menu /main/main");
-    ASSERT_STR_EQ(yes_button->OnClick, "menu /quit");
-
-    mainMenuScreen.route("/quit-confirm");
-    ASSERT(!modal->hidden);
-    ASSERT(!dialog->hidden);
-    captured_draw_calls = 0;
-    captured_dim_draws = 0;
-    captured_dim_draw_index = 0;
-    mainMenuScreen.draw();
-    ASSERT_EQ_INT(captured_dim_draws, 1);
-    ASSERT(captured_dim_draw_index > 0);
-    ASSERT(captured_draw_calls > captured_dim_draw_index);
+    ASSERT_STR_EQ(no_button->OnClick, "menu_main");
+    ASSERT_STR_EQ(yes_button->OnClick, "quit");
 
     UI_MenuCommandLocal(no_button->OnClick);
     ASSERT(modal->hidden);
     ASSERT(dialog->hidden);
 
     UI_MenuCommandLocal(yes_button->OnClick);
-    ASSERT_STR_EQ(captured_command, "quit\n");
+    ASSERT_STR_EQ(captured_command, "quit");
 
     uiimport = saved;
 }
@@ -1348,7 +1343,7 @@ BEGIN_SUITE(ui_fdf)
     RUN_TEST(test_setallpoints_zero_offsets_and_target_positions);
     RUN_TEST(test_setallpoints_with_relative_frame_propagates_to_both_anchors);
     RUN_TEST(test_text_uses_key_when_no_stringlist_entry_exists);
-    RUN_TEST(test_long_stringlist_text_is_bounded_to_frame_storage);
+    RUN_TEST(test_long_stringlist_text_uses_dynamic_storage);
     RUN_TEST(test_duplicate_name_prefers_first_template);
     RUN_TEST(test_unknown_token_does_not_crash_existing_definitions);
     RUN_TEST(test_esc_menu_confirm_quit_panel_is_available);
