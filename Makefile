@@ -19,10 +19,6 @@ endif
 ifeq ($(NO_NETWORK),1)
 	CFLAGS += -DOW3_NO_NETWORK
 endif
-ifeq ($(ALL_MPQS),1)
-	CFLAGS += -DOW3_LOAD_ALL_MPQS
-endif
-
 # ---------------------------------------------------------------------------
 # Platform detection
 # ---------------------------------------------------------------------------
@@ -77,7 +73,7 @@ UI_WOW_LIB       := $(LIB_DIR)/libui-wow$(LIB_EXT)
 BINARY       := $(BIN_DIR)/openwarcraft3$(EXE_EXT)
 WOW_BINARY   := $(BIN_DIR)/openwow$(EXE_EXT)
 MPQ_TEST         := $(BIN_DIR)/test_mpq_compat$(EXE_EXT)
-WOW_CFLAGS   := $(CFLAGS) -DWOW -DOW3_LOAD_ALL_MPQS -Wno-unused-function
+WOW_CFLAGS   := $(CFLAGS) -DWOW -Wno-unused-function
 
 TOOL_SRCS := $(shell find tools -maxdepth 1 -name '*.c' ! -name 'jass.c' | sort)
 TOOL_NAMES := $(patsubst tools/%.c,%,$(TOOL_SRCS))
@@ -114,22 +110,22 @@ tools:       $(TOOL_BINS)
 font:       $(FONT_HEADER)
 $(TOOL_NAMES): %: $(BIN_DIR)/%$(EXE_EXT)
 run: $(BINARY)
-	$(BINARY) -data=$(WC3DATA)
+	$(BINARY) -data $(WC3DATA)
 
 run-demo: $(BINARY)
-	$(BINARY) -data=$(DEMODATA)
+	$(BINARY) -data $(DEMODATA)
 
 run-map: $(BINARY)
-	$(BINARY) -data=$(WC3DATA) -net_enabled=1 +map "$(MAP)"
+	$(BINARY) -data $(WC3DATA) +net_enabled 1 +map "$(MAP)"
 
 run-wow: $(WOW_BINARY)
-	$(WOW_BINARY) -data=data/world-of-warcraft/installed/Data -net_enabled=1 +map World/Maps/Azeroth/Azeroth.wdt
+	$(WOW_BINARY) -data data/world-of-warcraft/installed/Data +net_enabled 1 +map World/Maps/Azeroth/Azeroth.wdt
 
 build-run-wow: openwow
-	$(WOW_BINARY) -data=data/world-of-warcraft/installed/Data -net_enabled=1 +map World/Maps/Azeroth/Azeroth.wdt
+	$(WOW_BINARY) -data data/world-of-warcraft/installed/Data +net_enabled 1 +map World/Maps/Azeroth/Azeroth.wdt
 
 run-ui-text: $(BINARY)
-	$(BINARY) -data=$(WC3DATA) -net_enabled=0 -r_module=stdout -com_frame_limit=1 +$(UI_CMD)
+	$(BINARY) -data $(WC3DATA) +net_enabled 0 +r_module stdout +com_frame_limit 1 +$(UI_CMD)
 
 diag: clean
 	$(MAKE) DIAG_OUTPUT=1 build

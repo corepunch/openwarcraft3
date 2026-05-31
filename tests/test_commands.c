@@ -12,6 +12,7 @@ static PATHSTR last_loading_map;
 static PATHSTR last_sv_map;
 static char last_forwarded[1024];
 static bool command_tests_initialized;
+static bool late_command_called;
 
 void Key_Init(void) {
 }
@@ -52,6 +53,11 @@ static void reset_map_handoff(void) {
     last_loading_map[0] = '\0';
     last_sv_map[0] = '\0';
     last_forwarded[0] = '\0';
+    late_command_called = false;
+}
+
+static void Test_LateCommand_f(void) {
+    late_command_called = true;
 }
 
 static void setup_command_tests(void) {
@@ -59,9 +65,9 @@ static void setup_command_tests(void) {
         return;
     }
 
-    LPCSTR argv[] = { "test_commands", "-config=" };
+    LPCSTR argv[] = { "test_commands", "-config", "" };
 
-    Com_Init(2, argv);
+    Com_Init(3, argv);
     ASSERT(FS_AddArchive("build/tests/tests.mpq") != NULL);
     reset_map_handoff();
     command_tests_initialized = true;
@@ -89,6 +95,70 @@ static void test_command_and_cvar_completion(void) {
     ASSERT_EQ_INT(Cvar_CompleteVariable("scr_show", out, sizeof(out), false), 1);
     ASSERT_STR_EQ(out, "scr_showfps");
     ASSERT(Cvar_String("scr_showfps", NULL) != NULL);
+}
+
+static void test_data_command_line_sets_data_cvar(void) {
+    LPCSTR argv[] = { "test_commands", "-data", "tests/data dir" };
+
+    setup_command_tests();
+    Cvar_ApplyCommandLine(3, argv);
+
+    ASSERT_STR_EQ(Cvar_String("data", NULL), "tests/data dir");
+}
+
+static void test_dash_cvars_are_not_command_line_cvars(void) {
+    LPCSTR argv[] = { "test_commands", "-net_enabled=0" };
+
+    setup_command_tests();
+    Cvar_Set("net_enabled", "1");
+    Cvar_ApplyCommandLine(2, argv);
+
+    ASSERT_STR_EQ(Cvar_String("net_enabled", NULL), "1");
+}
+
+static void test_plus_cvars_apply_immediately(void) {
+    LPCSTR argv[] = { "test_commands", "+net_enabled", "0", "+r_module", "stdout" };
+
+    setup_command_tests();
+    Cvar_Set("net_enabled", "1");
+    Cvar_Set("r_module", "renderer");
+    COM_InitArgv(5, argv);
+    Cbuf_AddEarlyCommands(true);
+
+    ASSERT_STR_EQ(Cvar_String("net_enabled", NULL), "0");
+    ASSERT_STR_EQ(Cvar_String("r_module", NULL), "stdout");
+}
+
+static void test_plus_map_is_early_launch_selector(void) {
+    LPCSTR argv[] = { "test_commands", "+map", "Human02" };
+
+    setup_command_tests();
+    Cvar_Set("map", "");
+    reset_map_handoff();
+    COM_InitArgv(3, argv);
+    Cbuf_AddEarlyCommands(true);
+    Cbuf_AddLateCommands();
+    Cbuf_Execute();
+
+    ASSERT_STR_EQ(Cvar_String("map", NULL), "Human02");
+    ASSERT_STR_EQ(last_loading_map, "");
+    ASSERT_STR_EQ(last_sv_map, "");
+}
+
+static void test_remaining_plus_commands_run_late(void) {
+    LPCSTR argv[] = { "test_commands", "+test_late_command" };
+
+    setup_command_tests();
+    if (!Cmd_Exists("test_late_command")) {
+        Cmd_AddCommand("test_late_command", Test_LateCommand_f);
+    }
+    late_command_called = false;
+    COM_InitArgv(2, argv);
+    Cbuf_AddEarlyCommands(true);
+    Cbuf_AddLateCommands();
+    Cbuf_Execute();
+
+    ASSERT(late_command_called);
 }
 
 typedef struct {
@@ -178,6 +248,11 @@ static void test_map_command_rejects_ambiguous_short_name(void) {
 void run_command_tests(void) {
     RUN_TEST(test_command_registration);
     RUN_TEST(test_command_and_cvar_completion);
+    RUN_TEST(test_data_command_line_sets_data_cvar);
+    RUN_TEST(test_dash_cvars_are_not_command_line_cvars);
+    RUN_TEST(test_plus_cvars_apply_immediately);
+    RUN_TEST(test_plus_map_is_early_launch_selector);
+    RUN_TEST(test_remaining_plus_commands_run_late);
     RUN_TEST(test_fixture_maps_are_listed_from_mpq);
     RUN_TEST(test_short_map_name_resolves_from_fixture_mpq);
     RUN_TEST(test_explicit_map_path_still_resolves);

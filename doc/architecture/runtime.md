@@ -20,7 +20,7 @@ Command-line forms:
 
 ```bash
 build/bin/openwarcraft3 -data=data/Warcraft\ III -r_module=stdout
-build/bin/openwarcraft3 +set ui_start_route /main
+build/bin/openwarcraft3 +set ui_start_command menu_main
 ```
 
 ## Core Cvars
@@ -28,13 +28,13 @@ build/bin/openwarcraft3 +set ui_start_route /main
 | cvar | Default | Description |
 |------|---------|-------------|
 | `config` | `share/config.cfg` | Generated config path |
-| `fs_data` | empty | Saved Warcraft III data directory |
+| `data` | empty | Saved Warcraft III data directory |
 | `map` | empty | Internal MPQ map path for listen-server mode |
 | `connect` | empty | Remote server address |
 | `r_module` | `renderer` | Renderer backend name |
 | `ui_module` | `ui` | UI module name |
 | `g_module` | `game` | Game module name |
-| `ui_start_route` | `/main` | Initial client-side UI route |
+| `ui_start_command` | `menu_main` | Initial client-side UI command |
 | `net_enabled` | `1` | Set to `0` for isolated UI/render diagnostics |
 | `com_frame_limit` | `0` | Exit after N frames; `0` means run forever |
 
@@ -44,7 +44,7 @@ The runtime libraries are built into `build/lib/`:
 
 - `libshared` — math and shared primitives
 - `librenderer` — renderer API implementations
-- `libui` — client-side FDF parsing, routing, and UI rendering
+- `libui` — client-side FDF parsing, command-driven screen selection, and UI rendering
 - `libgame` — server-side game logic
 
 The project follows the Quake 2/Quake 3 module style: modules communicate through import/export function tables, not by reaching directly into each other's internals. The renderer exposes `R_GetAPI`; the UI exposes `UI_GetAPI`; the game module has a server/game API boundary.
@@ -73,7 +73,7 @@ build/bin/openwarcraft3 \
   -data=data/Warcraft\ III \
   -net_enabled=0 \
   -r_module=stdout \
-  -ui_start_route=/main \
+  -ui_start_command=menu_main \
   -com_frame_limit=1
 ```
 
@@ -81,7 +81,7 @@ Important flags:
 
 - `-r_module=stdout` selects the text renderer.
 - `-net_enabled=0` skips UDP socket binding; this avoids port conflicts for menu-only checks.
-- `-ui_start_route=/main` chooses the UI route.
+- `-ui_start_command=menu_main` chooses the UI command.
 - `-com_frame_limit=1` exits after one frame.
 
 One-frame runs with `com_frame_limit > 0` do not write `share/config.cfg`, so diagnostics do not change the next normal launch.
@@ -103,7 +103,7 @@ renderer_shutdown backend="stdout"
 
 Use the stdout renderer when investigating UI issues that are hard to see from screenshots:
 
-- missing frames or wrong route startup
+- missing frames or wrong command startup
 - button/backdrop placement and sizes
 - texture and model load paths
 - UVs, tiling, rotation, colors, and blend modes

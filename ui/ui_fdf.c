@@ -1127,6 +1127,12 @@ static BOOL UI_IsButtonFrameType(FRAMETYPE type) {
            type == FT_SIMPLEBUTTON;
 }
 
+static BOOL UI_IsCheckBoxFrameType(FRAMETYPE type) {
+    return type == FT_CHECKBOX ||
+           type == FT_GLUECHECKBOX ||
+           type == FT_SIMPLECHECKBOX;
+}
+
 static BOOL UI_IsEmbeddedControlPart(LPCFRAMEDEF parent, LPCFRAMEDEF child) {
     if (!parent || !child) {
         return false;
@@ -1140,7 +1146,10 @@ static BOOL UI_IsEmbeddedControlPart(LPCFRAMEDEF parent, LPCFRAMEDEF child) {
                UI_FrameNameEquals(child, parent->Control.Backdrop.DisabledPushed);
     }
     if (child->Type == FT_HIGHLIGHT) {
-        return UI_FrameNameEquals(child, parent->Control.Backdrop.MouseOver);
+        return UI_FrameNameEquals(child, parent->Control.Backdrop.MouseOver) ||
+               (UI_IsCheckBoxFrameType(parent->Type) &&
+                (UI_FrameNameEquals(child, parent->CheckBox.CheckHighlight) ||
+                 UI_FrameNameEquals(child, parent->CheckBox.DisabledCheckHighlight)));
     }
     if (child->Type == FT_TEXT) {
         if (UI_IsButtonFrameType(parent->Type) &&
@@ -1284,7 +1293,7 @@ void UI_BindMapList(LPFRAMEDEF frame,
                     uiMapListState_t *state,
                     LPCFRAMEDEF label,
                     DWORD visible_rows,
-                    LPCSTR select_route)
+                    LPCSTR select_command)
 {
     uiMapListControl_t *control;
 
@@ -1299,10 +1308,10 @@ void UI_BindMapList(LPFRAMEDEF frame,
     control->RowHeight = 0.019f;
     control->InsetX = 0.008f;
     control->InsetY = 0.007f;
-    snprintf(control->SelectRoute,
-             sizeof(control->SelectRoute),
+    snprintf(control->SelectCommand,
+             sizeof(control->SelectCommand),
              "%s",
-             select_route ? select_route : "");
+             select_command ? select_command : "");
     snprintf(control->FontName,
              sizeof(control->FontName),
              "%s",

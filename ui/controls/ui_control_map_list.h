@@ -49,7 +49,7 @@ static void UI_DrawMapListControl(LPCFRAMEDEF frame, LPCRECT rect) {
             char command[128];
             snprintf(command,
                      sizeof(command),
-                     control->SelectRoute[0] ? control->SelectRoute : "menu /lan/select/%u",
+                     control->SelectCommand[0] ? control->SelectCommand : "menu_lan_select %u",
                      (unsigned)index);
             UI_MenuCommandLocal(command);
         }

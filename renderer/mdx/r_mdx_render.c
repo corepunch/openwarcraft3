@@ -289,7 +289,20 @@ static mdxSequence_t const *R_SelectUISequence(mdxModel_t const *mdx, LPCSTR ani
             seq = &mdx->sequences[index];
         }
     } else if (anim && *anim) {
-        seq = MDLX_FindSequenceByName(mdx, anim);
+        LPCSTR ratio = strchr(anim, '@');
+        if (ratio) {
+            char sequence_name[sizeof(mdxObjectName_t) + 1];
+            size_t len = (size_t)(ratio - anim);
+
+            if (len >= sizeof(sequence_name)) {
+                len = sizeof(sequence_name) - 1;
+            }
+            memcpy(sequence_name, anim, len);
+            sequence_name[len] = '\0';
+            seq = MDLX_FindSequenceByName(mdx, sequence_name);
+        } else {
+            seq = MDLX_FindSequenceByName(mdx, anim);
+        }
     }
     if (!seq && mdx->cameras && anim && (!strcmp(anim, "Stand") || !strcmp(anim, "Portrait"))) {
         FOR_LOOP(i, mdx->num_sequences) {

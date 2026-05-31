@@ -24,9 +24,9 @@ typedef struct {
     LPCSTR message;
     uiDialogWar3Icon_t icon;
     uiDialogWar3Buttons_t buttons;
-    LPCSTR ok_route;
-    LPCSTR yes_route;
-    LPCSTR no_route;
+    LPCSTR ok_command;
+    LPCSTR yes_command;
+    LPCSTR no_command;
 } uiDialogWar3Config_t;
 
 typedef struct {

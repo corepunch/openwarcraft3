@@ -66,6 +66,18 @@ static BOOL UI_FrameIndex(LPCFRAMEDEF frame, DWORD *index) {
     return TRUE;
 }
 
+static BOOL UI_TextHasLineBreak(LPCSTR text) {
+    for (LPCSTR p = text ? text : ""; *p; p++) {
+        if (*p == '\n' || *p == '\r') {
+            return TRUE;
+        }
+        if (*p == '|' && (p[1] == 'n' || p[1] == 'N')) {
+            return TRUE;
+        }
+    }
+    return FALSE;
+}
+
 static LPCSTR UI_FontFile(LPCSTR name) {
     return Theme_String(name && *name ? name : "MasterFont", "Default");
 }
@@ -240,6 +252,8 @@ static LPCRECT UI_LayoutRect(LPCFRAMEDEF frame) {
             case FT_TEXT:
             case FT_STRING:
                 if (frame->Text && frame->Font.Index) {
+                    BOOL auto_width = intrinsic_w == 0;
+                    BOOL auto_height = intrinsic_h == 0;
                     LPRENDERER renderer = UI_GetRenderer();
                     drawText_t dt = {
                         .font = renderer ? renderer->LoadFont(UI_FontFile(frame->Font.Name),
@@ -250,8 +264,23 @@ static LPCRECT UI_LayoutRect(LPCFRAMEDEF frame) {
                         .wordWrap = intrinsic_w > 0,
                     };
                     VECTOR2 text_size = renderer ? renderer->GetTextSize((LPCDRAWTEXT)&dt) : MAKE(VECTOR2, 0, 0);
-                    if (intrinsic_w == 0) intrinsic_w = text_size.x;
-                    if (intrinsic_h == 0) intrinsic_h = text_size.y;
+                    if (auto_width) {
+                        intrinsic_w = text_size.x;
+                    }
+                    if (auto_height) {
+                        /*
+                         * FDF single-line labels are spaced from the declared
+                         * font size, not from the TrueType line box. FRIZQT's
+                         * metrics are taller than the requested size, and using
+                         * that height here makes chained labels drift away from
+                         * sibling controls.
+                         */
+                        intrinsic_h = (auto_width &&
+                                       frame->Font.Size > 0.0f &&
+                                       !UI_TextHasLineBreak(frame->Text))
+                                      ? frame->Font.Size
+                                      : text_size.y;
+                    }
                 }
                 break;
             case FT_TEXTURE:
@@ -385,9 +414,12 @@ static void UI_DrawText(LPCFRAMEDEF frame, LPCRECT rect) {
     renderer->DrawText((LPCDRAWTEXT)&dt);
 }
 
+static void UI_DrawHighlightFrame(LPCFRAMEDEF frame, LPCRECT rect);
+
 #include "controls/ui_control_backdrop.h"
 #include "controls/ui_control_popup_menu.h"
 #include "controls/ui_control_button.h"
+#include "controls/ui_control_checkbox.h"
 #include "controls/ui_control_editbox.h"
 #include "controls/ui_control_map_list.h"
 #include "controls/ui_control_slider.h"
@@ -555,6 +587,12 @@ static BOOL UI_RenderIsButtonFrameType(FRAMETYPE type) {
            type == FT_SIMPLEBUTTON;
 }
 
+static BOOL UI_RenderIsCheckBoxFrameType(FRAMETYPE type) {
+    return type == FT_CHECKBOX ||
+           type == FT_GLUECHECKBOX ||
+           type == FT_SIMPLECHECKBOX;
+}
+
 static void UI_DrawPortrait(LPCFRAMEDEF frame, LPCRECT rect) {
     LPRENDERER renderer = UI_GetRenderer();
 
@@ -699,6 +737,12 @@ static void UI_DrawFrameOne(LPCFRAMEDEF frame) {
             UI_DrawSlider(frame, rect);
             break;
 
+        case FT_CHECKBOX:
+        case FT_GLUECHECKBOX:
+        case FT_SIMPLECHECKBOX:
+            UI_DrawCheckBox(frame, rect);
+            break;
+
         case FT_EDITBOX:
         case FT_GLUEEDITBOX:
         case FT_SLASHCHATBOX:
@@ -714,7 +758,6 @@ static void UI_DrawFrameOne(LPCFRAMEDEF frame) {
             break;
 
         case FT_LISTBOX:
-        case FT_CHECKBOX:
         case FT_TEXTAREA:
             /* TODO: Implement complex control rendering */
             break;
@@ -752,6 +795,10 @@ static void UI_DrawFrameRangeHighlights(LPCFRAMEDEF const *draw_order, DWORD sta
         if (UI_RenderIsButtonFrameType(draw_order[i]->Type) &&
             !UI_IsActivePopupMenu(draw_order[i])) {
             UI_DrawButtonHighlight(draw_order[i]);
+        }
+        if (UI_RenderIsCheckBoxFrameType(draw_order[i]->Type) &&
+            !UI_IsActivePopupMenu(draw_order[i])) {
+            UI_DrawCheckBoxMouseOverHighlight(draw_order[i]);
         }
     }
 }

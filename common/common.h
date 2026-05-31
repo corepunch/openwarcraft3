@@ -223,6 +223,8 @@ void ParserError(parser_t *p);
 void Cbuf_Init(void);
 void Cbuf_AddText(LPCSTR text);
 void Cbuf_Execute(void);
+void Cbuf_AddEarlyCommands(bool clear);
+bool Cbuf_AddLateCommands(void);
 int Cmd_Argc(void);
 LPCSTR Cmd_Argv(int arg);
 LPCSTR Cmd_ArgsFrom(int arg);
@@ -233,6 +235,12 @@ void Cmd_ExecuteString(LPCSTR text);
 void Cmd_ForwardToServer(LPCSTR text);
 void Cmd_ForEachCommand(cmdListFunc_t func, void *userData);
 int Cmd_CompleteCommand(LPCSTR partial, LPSTR out, DWORD out_size, bool print);
+
+// common.c command-line args
+void COM_InitArgv(int argc, LPCSTR *argv);
+int COM_Argc(void);
+LPCSTR COM_Argv(int arg);
+void COM_ClearArgv(int arg);
 
 // cvar.c
 void Cvar_Init(void);

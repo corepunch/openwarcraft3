@@ -1,6 +1,6 @@
 # UI Flow
 
-This document traces the current client-side UI path: input, routing, frame rendering, and unit-data queries.
+This document traces the current client-side UI path: input, menu commands, frame rendering, and unit-data queries.
 
 ## Overview
 
@@ -14,7 +14,7 @@ Client input
   -> OpenGL renderer or stdout renderer
 ```
 
-All FDF parsing, layout solving, route transitions, and frame rendering happen client-side. The server sends data for game-dependent UI, but it does not author UI frame trees.
+All FDF parsing, layout solving, screen transitions, and frame rendering happen client-side. The server sends data for game-dependent UI, but it does not author UI frame trees.
 
 ## Startup Flow
 
@@ -30,7 +30,7 @@ common/main.c
       -> re.Init
       -> UI_GetAPI
       -> ui.Init
-      -> UI_Route(ui_start_route)
+      -> UI_MenuCommandLocal(ui_start_command)
 ```
 
 Important cvars:
@@ -38,7 +38,7 @@ Important cvars:
 | cvar | Purpose |
 |------|---------|
 | `r_module` | `renderer` for OpenGL, `stdout` for text output |
-| `ui_start_route` | Initial route, usually `/main` |
+| `ui_start_command` | Initial command, usually `menu_main` |
 | `net_enabled` | Set `0` for UI-only diagnostics |
 | `com_frame_limit` | Exit after N frames |
 
@@ -49,15 +49,15 @@ Important cvars:
 3. The current `uiScreen_t` receives the event.
 4. Button frames inspect mouse containment and event state in `ui/ui_render.c`.
 5. If a clicked frame has `OnClick`, `UI_MenuCommandLocal` executes the command.
-6. `menu <route>` commands call `UI_Route`.
+6. Menu commands call direct screen/action handlers.
 
 Example menu command:
 
 ```text
-menu /single-player
+menu_game
 ```
 
-The route switch is local to the client. No network traffic is required for menu transitions.
+The screen switch is local to the client. No network traffic is required for menu transitions.
 
 ## Draw Flow
 
@@ -80,7 +80,7 @@ SCR_UpdateScreen();
 4. console/debug overlay
 5. `re.EndFrame`
 
-`ui.DrawFrame` dispatches to the active screen. For `/main`, `ui/screens/main_menu.c` draws the `MainMenu3d` portrait background, the logo sprite, and the main menu frame tree.
+`ui.DrawFrame` dispatches to the active screen. For `menu_main`, `ui/screens/main_menu.c` draws the `MainMenu3d` portrait background, the logo sprite, and the main menu frame tree.
 
 ## Stdout Renderer Flow
 
@@ -93,7 +93,7 @@ make run-ui-text
 This expands to a one-frame run with:
 
 ```bash
--net_enabled=0 -r_module=stdout -ui_start_route=/main -com_frame_limit=1
+-net_enabled=0 -r_module=stdout -ui_start_command=menu_main -com_frame_limit=1
 ```
 
 The stdout renderer receives the same UI draw calls as the OpenGL renderer but prints them:
@@ -105,7 +105,7 @@ draw_image name="UI\\Widgets\\Glues\\GlueScreen-Button1-Border.blp" screen={...}
 draw_text font="Fonts\\FRIZQT__.TTF" rect={...} text="|CffffffffS|Ringle Player"
 ```
 
-Use this output to verify route composition, layout rects, UVs, text translation, color codes, and button state art before taking screenshots.
+Use this output to verify screen composition, layout rects, UVs, text translation, color codes, and button state art before taking screenshots.
 
 ## Unit Selection and Command Card Flow
 

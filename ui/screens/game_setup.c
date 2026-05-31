@@ -10,17 +10,14 @@
 
 #include "../ui_local.h"
 #include "../ui_screen.h"
+#include "../generated/game_chatroom.h"
+#include "../generated/map_info_pane.h"
+#include "../generated/player_slot.h"
 
 typedef struct {
-    LPFRAMEDEF row;
-    LPFRAMEDEF name_menu;
-    LPFRAMEDEF race_menu;
-    LPFRAMEDEF name_menu_items;
-    LPFRAMEDEF race_menu_items;
+    PlayerSlot_t frames;
     LPFRAMEDEF name_text;
     LPFRAMEDEF race_text;
-    LPFRAMEDEF team_text;
-    LPFRAMEDEF color_value;
 } gameSetupSlotRow_t;
 
 typedef enum {
@@ -40,6 +37,10 @@ typedef struct {
 } gameSetupSlotConfig_t;
 
 typedef struct {
+    GameChatroom_t frames;
+    PlayerSlot_t slot_template;
+    MapInfoPane_t map_info_template;
+    MapInfoPane_t map_info_pane;
     BOOL ready;
     PATHSTR map_path;
     UINAME map_name;
@@ -50,19 +51,20 @@ typedef struct {
     LPFRAMEDEF start_button;
     LPFRAMEDEF cancel_button;
     LPFRAMEDEF team_container;
-    LPFRAMEDEF info_root;
-    LPFRAMEDEF info_players;
-    LPFRAMEDEF info_name;
-    LPFRAMEDEF info_suggested;
-    LPFRAMEDEF info_size;
-    LPFRAMEDEF info_tileset;
-    LPFRAMEDEF info_description;
-    LPFRAMEDEF info_minimap;
     gameSetupSlotRow_t slots[MAX_PLAYERS];
     gameSetupSlotConfig_t configs[MAX_PLAYERS];
 } gameSetupState_t;
 
 static gameSetupState_t setup;
+
+static BOOL GameSetup_LoadScreen(void) {
+    BOOL ok = true;
+
+    ok = GameChatroom_Load(&setup.frames) && ok;
+    ok = PlayerSlot_Load(&setup.slot_template) && ok;
+    ok = MapInfoPane_Load(&setup.map_info_template) && ok;
+    return ok;
+}
 
 static void GameSetup_CopyString(LPSTR out, size_t out_size, LPCSTR value) {
     if (!out || out_size == 0) {
@@ -144,161 +146,105 @@ static void GameSetup_SetTextIfPresent(LPFRAMEDEF frame, LPCSTR format, ...) {
     UI_SetText(frame, "%s", text);
 }
 
-static void GameSetup_HideSlotChild(LPFRAMEDEF row, LPCSTR name) {
-    LPFRAMEDEF frame = row ? UI_FindChildFrame(row, name) : NULL;
-
-    if (frame) {
-        UI_SetHidden(frame, true);
-    }
-}
-
-static void GameSetup_FitSlotRow(LPFRAMEDEF row) {
-    LPFRAMEDEF download_value;
-    LPFRAMEDEF name_menu;
-    LPFRAMEDEF race_menu;
-    LPFRAMEDEF team_button;
-    LPFRAMEDEF color_button;
-
-    if (!row) {
+static void GameSetup_FitSlotRow(PlayerSlot_t *row) {
+    if (!row || !row->PlayerSlot) {
         return;
     }
 
-    download_value = UI_FindChildFrame(row, "DownloadValue");
-    name_menu = UI_FindChildFrame(row, "NameMenu");
-    race_menu = UI_FindChildFrame(row, "RaceMenu");
-    team_button = UI_FindChildFrame(row, "TeamButton");
-    color_button = UI_FindChildFrame(row, "ColorButton");
-
-    if (download_value) {
-        UI_SetHidden(download_value, true);
+    if (row->DownloadValue) {
+        UI_SetHidden(row->DownloadValue, true);
     }
-    if (name_menu) {
-        UI_SetSize(name_menu, 0.168f, name_menu->Height);
-        UI_SetPoint(name_menu, FRAMEPOINT_LEFT, row, FRAMEPOINT_LEFT, 0.0f, 0.0f);
+    if (row->NameMenu) {
+        UI_SetSize(row->NameMenu, 0.168f, row->NameMenu->Height);
+        UI_SetPoint(row->NameMenu, FRAMEPOINT_LEFT, row->PlayerSlot, FRAMEPOINT_LEFT, 0.0f, 0.0f);
     }
-    if (race_menu && name_menu) {
-        UI_SetSize(race_menu, 0.085f, race_menu->Height);
-        UI_SetPoint(race_menu, FRAMEPOINT_LEFT, name_menu, FRAMEPOINT_RIGHT, 0.0f, 0.0f);
+    if (row->RaceMenu && row->NameMenu) {
+        UI_SetSize(row->RaceMenu, 0.085f, row->RaceMenu->Height);
+        UI_SetPoint(row->RaceMenu, FRAMEPOINT_LEFT, row->NameMenu, FRAMEPOINT_RIGHT, 0.0f, 0.0f);
     }
-    if (team_button && race_menu) {
-        UI_SetSize(team_button, 0.085f, team_button->Height);
-        UI_SetPoint(team_button, FRAMEPOINT_LEFT, race_menu, FRAMEPOINT_RIGHT, 0.0f, 0.0f);
+    if (row->TeamButton && row->RaceMenu) {
+        UI_SetSize(row->TeamButton, 0.085f, row->TeamButton->Height);
+        UI_SetPoint(row->TeamButton, FRAMEPOINT_LEFT, row->RaceMenu, FRAMEPOINT_RIGHT, 0.0f, 0.0f);
     }
-    if (color_button && team_button) {
-        UI_SetSize(color_button, 0.038f, color_button->Height);
-        UI_SetPoint(color_button, FRAMEPOINT_LEFT, team_button, FRAMEPOINT_RIGHT, 0.0f, 0.0f);
+    if (row->ColorButton && row->TeamButton) {
+        UI_SetSize(row->ColorButton, 0.038f, row->ColorButton->Height);
+        UI_SetPoint(row->ColorButton, FRAMEPOINT_LEFT, row->TeamButton, FRAMEPOINT_RIGHT, 0.0f, 0.0f);
     }
 }
 
-static LPFRAMEDEF GameSetup_EnsureColorValue(LPFRAMEDEF row) {
-    LPFRAMEDEF color_button = row ? UI_FindChildFrame(row, "ColorButton") : NULL;
-    LPFRAMEDEF value = row ? UI_FindChildFrame(row, "ColorButtonValue") : NULL;
-
-    if (value || !color_button) {
-        return value;
-    }
-
-    value = UI_Spawn(FT_BACKDROP, color_button);
-    if (!value) {
-        return NULL;
-    }
-    snprintf(value->Name, sizeof(value->Name), "ColorButtonValue");
-    value->Parent = color_button;
-    UI_SetSize(value, 0.018f, 0.018f);
-    UI_SetPoint(value, FRAMEPOINT_CENTER, color_button, FRAMEPOINT_CENTER, 0.0f, 0.0f);
-    return value;
-}
-
-static void GameSetup_BindSlotRow(gameSetupSlotRow_t *slot) {
-    LPFRAMEDEF handicap_menu;
+static void GameSetup_SetupSlotRow(gameSetupSlotRow_t *slot) {
     DWORD const index = (DWORD)(slot - setup.slots);
 
-    if (!slot || !slot->row) {
+    if (!slot || !slot->frames.PlayerSlot) {
         return;
     }
 
-    slot->name_menu = UI_FindChildFrame(slot->row, "NameMenu");
-    slot->race_menu = UI_FindChildFrame(slot->row, "RaceMenu");
-    slot->name_menu_items = UI_FindChildFrame(slot->row, "NamePopupMenuMenu");
-    slot->race_menu_items = UI_FindChildFrame(slot->row, "RacePopupMenuMenu");
-    handicap_menu = UI_FindChildFrame(slot->row, "HandicapMenu");
+    GameSetup_FitSlotRow(&slot->frames);
+    slot->name_text = GameSetup_FindPopupTitleText(slot->frames.NameMenu);
+    slot->race_text = GameSetup_FindPopupTitleText(slot->frames.RaceMenu);
 
-    GameSetup_FitSlotRow(slot->row);
-    slot->name_text = GameSetup_FindPopupTitleText(slot->name_menu);
-    slot->race_text = GameSetup_FindPopupTitleText(slot->race_menu);
-    slot->team_text = UI_FindChildFrame(slot->row, "TeamButtonTitle");
-    slot->color_value = GameSetup_EnsureColorValue(slot->row);
-
-    GameSetup_PositionPopupMenuParts(slot->name_menu);
-    GameSetup_PositionPopupMenuParts(slot->race_menu);
-    if (slot->name_menu_items) {
-        UI_MenuClearItems(slot->name_menu_items);
-        UI_MenuAddItem(slot->name_menu_items, "Open", GAME_SETUP_SLOT_OPEN);
-        UI_MenuAddItem(slot->name_menu_items, "Player", GAME_SETUP_SLOT_HUMAN);
-        UI_MenuAddItem(slot->name_menu_items, "Computer", GAME_SETUP_SLOT_COMPUTER);
-        UI_MenuAddItem(slot->name_menu_items, "Closed", GAME_SETUP_SLOT_CLOSED);
-        UI_SetOnClick(slot->name_menu_items, "menu /game-setup/slot/%u/type/%%u", (unsigned)index);
-        UI_SetHidden(slot->name_menu_items, true);
+    GameSetup_PositionPopupMenuParts(slot->frames.NameMenu);
+    GameSetup_PositionPopupMenuParts(slot->frames.RaceMenu);
+    if (slot->frames.NamePopupMenuMenu) {
+        UI_MenuClearItems(slot->frames.NamePopupMenuMenu);
+        UI_MenuAddItem(slot->frames.NamePopupMenuMenu, "Open", GAME_SETUP_SLOT_OPEN);
+        UI_MenuAddItem(slot->frames.NamePopupMenuMenu, "Player", GAME_SETUP_SLOT_HUMAN);
+        UI_MenuAddItem(slot->frames.NamePopupMenuMenu, "Computer", GAME_SETUP_SLOT_COMPUTER);
+        UI_MenuAddItem(slot->frames.NamePopupMenuMenu, "Closed", GAME_SETUP_SLOT_CLOSED);
+        UI_SetOnClick(slot->frames.NamePopupMenuMenu, "menu_game_setup_slot_type %u %%u", (unsigned)index);
+        UI_SetHidden(slot->frames.NamePopupMenuMenu, true);
     }
-    if (slot->race_menu_items) {
-        UI_MenuClearItems(slot->race_menu_items);
-        UI_MenuAddItem(slot->race_menu_items, "Random", kPlayerRaceNone);
-        UI_MenuAddItem(slot->race_menu_items, "Human", kPlayerRaceHuman);
-        UI_MenuAddItem(slot->race_menu_items, "Orc", kPlayerRaceOrc);
-        UI_MenuAddItem(slot->race_menu_items, "Undead", kPlayerRaceUndead);
-        UI_MenuAddItem(slot->race_menu_items, "Night Elf", kPlayerRaceNightElf);
-        UI_SetOnClick(slot->race_menu_items, "menu /game-setup/slot/%u/race/%%u", (unsigned)index);
-        UI_SetHidden(slot->race_menu_items, true);
+    if (slot->frames.RacePopupMenuMenu) {
+        UI_MenuClearItems(slot->frames.RacePopupMenuMenu);
+        UI_MenuAddItem(slot->frames.RacePopupMenuMenu, "Random", kPlayerRaceNone);
+        UI_MenuAddItem(slot->frames.RacePopupMenuMenu, "Human", kPlayerRaceHuman);
+        UI_MenuAddItem(slot->frames.RacePopupMenuMenu, "Orc", kPlayerRaceOrc);
+        UI_MenuAddItem(slot->frames.RacePopupMenuMenu, "Undead", kPlayerRaceUndead);
+        UI_MenuAddItem(slot->frames.RacePopupMenuMenu, "Night Elf", kPlayerRaceNightElf);
+        UI_SetOnClick(slot->frames.RacePopupMenuMenu, "menu_game_setup_slot_race %u %%u", (unsigned)index);
+        UI_SetHidden(slot->frames.RacePopupMenuMenu, true);
     }
-    UI_SetOnClick(UI_FindChildFrame(slot->row, "TeamButton"),
-                  "menu /game-setup/slot/%u/team/next",
-                  (unsigned)index);
-    UI_SetOnClick(UI_FindChildFrame(slot->row, "ColorButton"),
-                  "menu /game-setup/slot/%u/color/next",
-                  (unsigned)index);
-    GameSetup_HideSlotChild(slot->row, "HandicapPopupMenuMenu");
-    if (handicap_menu) {
-        UI_SetHidden(handicap_menu, true);
-    }
+    UI_SetOnClick(slot->frames.TeamButton, "menu_game_setup_slot_team_next %u", (unsigned)index);
+    UI_SetOnClick(slot->frames.ColorButton, "menu_game_setup_slot_color_next %u", (unsigned)index);
 }
 
 static void GameSetup_BuildSlotRows(void) {
-    UI_FRAME(PlayerSlot);
     LPFRAMEDEF previous = NULL;
 
-    if (!setup.team_container || !PlayerSlot || setup.slots[0].row) {
+    if (!setup.team_container || !setup.slot_template.PlayerSlot || setup.slots[0].frames.PlayerSlot) {
         return;
     }
 
     FOR_LOOP(i, MAX_PLAYERS) {
         gameSetupSlotRow_t *slot = &setup.slots[i];
+        LPFRAMEDEF row;
 
-        slot->row = UI_CloneFrameTree(PlayerSlot, setup.team_container);
-        if (!slot->row) {
+        row = UI_CloneFrameTree(setup.slot_template.PlayerSlot, setup.team_container);
+        if (!row || !PlayerSlot_Bind(&slot->frames, row)) {
             return;
         }
-        snprintf(slot->row->Name, sizeof(slot->row->Name), "CreateGamePlayerSlot%u", (unsigned)i);
-        UI_SetSize(slot->row, 0.46375f, slot->row->Height > 0.0f ? slot->row->Height : 0.025f);
+        snprintf(slot->frames.PlayerSlot->Name, sizeof(slot->frames.PlayerSlot->Name), "CreateGamePlayerSlot%u", (unsigned)i);
+        UI_SetSize(slot->frames.PlayerSlot, 0.46375f, slot->frames.PlayerSlot->Height > 0.0f ? slot->frames.PlayerSlot->Height : 0.025f);
         if (previous) {
-            UI_SetPoint(slot->row, FRAMEPOINT_TOPLEFT, previous, FRAMEPOINT_BOTTOMLEFT, 0.0f, 0.0f);
+            UI_SetPoint(slot->frames.PlayerSlot, FRAMEPOINT_TOPLEFT, previous, FRAMEPOINT_BOTTOMLEFT, 0.0f, 0.0f);
         } else {
-            UI_SetPoint(slot->row,
+            UI_SetPoint(slot->frames.PlayerSlot,
                         FRAMEPOINT_TOPLEFT,
                         setup.team_container,
                         FRAMEPOINT_TOPLEFT,
                         0.0f,
                         0.0f);
         }
-        previous = slot->row;
-        GameSetup_BindSlotRow(slot);
-        UI_SetHidden(slot->row, true);
+        previous = slot->frames.PlayerSlot;
+        GameSetup_SetupSlotRow(slot);
+        UI_SetHidden(slot->frames.PlayerSlot, true);
     }
 }
 
 static void GameSetup_ClearSlots(void) {
     FOR_LOOP(i, MAX_PLAYERS) {
-        if (setup.slots[i].row) {
-            UI_SetHidden(setup.slots[i].row, true);
+        if (setup.slots[i].frames.PlayerSlot) {
+            UI_SetHidden(setup.slots[i].frames.PlayerSlot, true);
         }
     }
 }
@@ -402,9 +348,9 @@ static void GameSetup_DrawSlotConfig(DWORD row_index) {
     }
     row = &setup.slots[row_index];
     config = &setup.configs[row_index];
-    if (!row->row || !config->visible) {
-        if (row->row) {
-            UI_SetHidden(row->row, true);
+    if (!row->frames.PlayerSlot || !config->visible) {
+        if (row->frames.PlayerSlot) {
+            UI_SetHidden(row->frames.PlayerSlot, true);
         }
         return;
     }
@@ -414,14 +360,14 @@ static void GameSetup_DrawSlotConfig(DWORD row_index) {
                                "%s",
                                GameSetup_SlotTypeName(config->type, config->name));
     GameSetup_SetTextIfPresent(row->race_text, "%s", GameSetup_RaceName(config->race));
-    GameSetup_SetTextIfPresent(row->team_text, "%s", team);
-    if (row->color_value) {
+    GameSetup_SetTextIfPresent(row->frames.TeamButtonTitle, "%s", team);
+    if (row->frames.ColorButtonValue) {
         snprintf(color_path, sizeof(color_path),
                  "ReplaceableTextures\\TeamColor\\TeamColor%02u.blp",
                  (unsigned)(config->color % 16));
-        GameSetup_SetBackdropTexture(row->color_value, color_path, false);
+        GameSetup_SetBackdropTexture(row->frames.ColorButtonValue, color_path, false);
     }
-    UI_SetHidden(row->row, false);
+    UI_SetHidden(row->frames.PlayerSlot, false);
 }
 
 static void GameSetup_DrawSlotConfigs(void) {
@@ -477,41 +423,24 @@ static void GameSetup_PopulateSlots(void) {
 }
 
 static void GameSetup_BindMapInfoPane(LPFRAMEDEF container) {
-    LPFRAMEDEF source;
+    LPFRAMEDEF root;
 
-    if (setup.info_root || !container) {
+    if (setup.map_info_pane.MapInfoPane || !container) {
         return;
     }
 
-    source = UI_FindFrame("MapInfoPane");
-    if (!source) {
+    if (!setup.map_info_template.MapInfoPane) {
         uiimport.Printf("GameSetup_BindMapInfoPane: MapInfoPane missing\n");
         return;
     }
 
-    setup.info_root = UI_CloneFrameTree(source, container);
-    if (!setup.info_root) {
+    root = UI_CloneFrameTree(setup.map_info_template.MapInfoPane, container);
+    if (!root || !MapInfoPane_Bind(&setup.map_info_pane, root)) {
         return;
     }
-    UI_SetPoint(setup.info_root, FRAMEPOINT_TOPLEFT, container, FRAMEPOINT_TOPLEFT, 0.0f, 0.0f);
-    UI_SetPoint(setup.info_root, FRAMEPOINT_BOTTOMRIGHT, container, FRAMEPOINT_BOTTOMRIGHT, 0.0f, 0.0f);
-    UI_LayoutMapInfoPane(setup.info_root);
-
-    UI_FRAME(setup.info_root, MaxPlayersValue);
-    UI_FRAME(setup.info_root, MapNameValue);
-    UI_FRAME(setup.info_root, MinimapImage);
-    UI_FRAME(setup.info_root, SuggestedPlayersValue);
-    UI_FRAME(setup.info_root, MapSizeValue);
-    UI_FRAME(setup.info_root, MapTilesetValue);
-    UI_FRAME(setup.info_root, MapDescValue);
-
-    setup.info_players = MaxPlayersValue;
-    setup.info_name = MapNameValue;
-    setup.info_minimap = MinimapImage;
-    setup.info_suggested = SuggestedPlayersValue;
-    setup.info_size = MapSizeValue;
-    setup.info_tileset = MapTilesetValue;
-    setup.info_description = MapDescValue;
+    UI_SetPoint(setup.map_info_pane.MapInfoPane, FRAMEPOINT_TOPLEFT, container, FRAMEPOINT_TOPLEFT, 0.0f, 0.0f);
+    UI_SetPoint(setup.map_info_pane.MapInfoPane, FRAMEPOINT_BOTTOMRIGHT, container, FRAMEPOINT_BOTTOMRIGHT, 0.0f, 0.0f);
+    UI_LayoutMapInfoPane(setup.map_info_pane.MapInfoPane);
 }
 
 static DWORD GameSetup_CountPlayers(LPCMAPINFO info) {
@@ -532,51 +461,51 @@ static void GameSetup_UpdateMapInfo(void) {
     LPCSTR tileset;
 
     if (!setup.have_map_info) {
-        if (setup.info_minimap) {
-            UI_SetHidden(setup.info_minimap, true);
+        if (setup.map_info_pane.MinimapImage) {
+            UI_SetHidden(setup.map_info_pane.MinimapImage, true);
         }
-        GameSetup_SetTextIfPresent(setup.info_players, " ");
-        GameSetup_SetTextIfPresent(setup.info_name, "%s", setup.map_name[0] ? setup.map_name : " ");
-        GameSetup_SetTextIfPresent(setup.info_suggested, "%s", UI_GetString("UNKNOWNMAP_SUGGESTEDPLAYERS"));
-        GameSetup_SetTextIfPresent(setup.info_size, "%s", UI_GetString("UNKNOWNMAP_MAPSIZE"));
-        GameSetup_SetTextIfPresent(setup.info_tileset, "%s", UI_GetString("UNKNOWNMAP_TILESET"));
-        GameSetup_SetTextIfPresent(setup.info_description, "%s", UI_GetString("UNKNOWNMAP_DESCRIPTION"));
+        GameSetup_SetTextIfPresent(setup.map_info_pane.MaxPlayersValue, " ");
+        GameSetup_SetTextIfPresent(setup.map_info_pane.MapNameValue, "%s", setup.map_name[0] ? setup.map_name : " ");
+        GameSetup_SetTextIfPresent(setup.map_info_pane.SuggestedPlayersValue, "%s", UI_GetString("UNKNOWNMAP_SUGGESTEDPLAYERS"));
+        GameSetup_SetTextIfPresent(setup.map_info_pane.MapSizeValue, "%s", UI_GetString("UNKNOWNMAP_MAPSIZE"));
+        GameSetup_SetTextIfPresent(setup.map_info_pane.MapTilesetValue, "%s", UI_GetString("UNKNOWNMAP_TILESET"));
+        GameSetup_SetTextIfPresent(setup.map_info_pane.MapDescValue, "%s", UI_GetString("UNKNOWNMAP_DESCRIPTION"));
         return;
     }
 
-    GameSetup_SetTextIfPresent(setup.info_players, "%u", (unsigned)GameSetup_CountPlayers(&setup.map_info));
-    GameSetup_SetTextIfPresent(setup.info_name, "%s", setup.map_name[0] ? setup.map_name : setup.map_path);
+    GameSetup_SetTextIfPresent(setup.map_info_pane.MaxPlayersValue, "%u", (unsigned)GameSetup_CountPlayers(&setup.map_info));
+    GameSetup_SetTextIfPresent(setup.map_info_pane.MapNameValue, "%s", setup.map_name[0] ? setup.map_name : setup.map_path);
 
     uiimport.ResolveMapInfoString(&setup.map_info,
                                   setup.map_info.playersRecommended,
                                   value,
                                   sizeof(value));
     uiimport.SanitizeMapInfoText(value);
-    GameSetup_SetTextIfPresent(setup.info_suggested, "%s", value);
+    GameSetup_SetTextIfPresent(setup.map_info_pane.SuggestedPlayersValue, "%s", value);
 
-    GameSetup_SetTextIfPresent(setup.info_size,
+    GameSetup_SetTextIfPresent(setup.map_info_pane.MapSizeValue,
                                "%s",
                                uiimport.MapSizeName(setup.map_info.playableArea.width,
                                                     setup.map_info.playableArea.height));
 
     tileset = uiimport.MapTilesetName((BYTE)setup.map_info.mainGroundType);
-    GameSetup_SetTextIfPresent(setup.info_tileset, "%s", tileset ? tileset : UI_GetString("UNKNOWNMAP_TILESET"));
+    GameSetup_SetTextIfPresent(setup.map_info_pane.MapTilesetValue, "%s", tileset ? tileset : UI_GetString("UNKNOWNMAP_TILESET"));
 
     uiimport.ResolveMapInfoString(&setup.map_info,
                                   setup.map_info.mapDescription,
                                   value,
                                   sizeof(value));
     uiimport.SanitizeMapInfoText(value);
-    GameSetup_SetTextIfPresent(setup.info_description, "%s", value[0] ? value : UI_GetString("UNKNOWNMAP_DESCRIPTION"));
+    GameSetup_SetTextIfPresent(setup.map_info_pane.MapDescValue, "%s", value[0] ? value : UI_GetString("UNKNOWNMAP_DESCRIPTION"));
 
-    if (setup.info_minimap && uiimport.FindMapPreviewTexture) {
+    if (setup.map_info_pane.MinimapImage && uiimport.FindMapPreviewTexture) {
         PATHSTR preview;
 
         if (uiimport.FindMapPreviewTexture(setup.map_path, preview, sizeof(preview))) {
-            UI_SetTexture(setup.info_minimap, preview, false);
-            UI_SetHidden(setup.info_minimap, false);
+            UI_SetTexture(setup.map_info_pane.MinimapImage, preview, false);
+            UI_SetHidden(setup.map_info_pane.MinimapImage, false);
         } else {
-            UI_SetHidden(setup.info_minimap, true);
+            UI_SetHidden(setup.map_info_pane.MinimapImage, true);
         }
     }
 }
@@ -614,14 +543,8 @@ static void GameSetup_LoadSelectedMap(void) {
     }
 }
 
-static void GameSetup_LoadRouteMap(LPCSTR path) {
-    LPCSTR map_path;
-
-    if (!path || strncmp(path, "?map=", 5)) {
-        return;
-    }
-    map_path = path + 5;
-    if (!map_path[0]) {
+void GameSetup_LoadMap(LPCSTR map_path) {
+    if (!map_path || !map_path[0]) {
         return;
     }
 
@@ -642,23 +565,22 @@ static void GameSetup_LoadRouteMap(LPCSTR path) {
 
 static void GameSetup_BuildFrames(void) {
     setup.ready = false;
-    setup.root = UI_FindFrame("GameChatroom");
+    setup.root = setup.frames.GameChatroom;
     if (!setup.root) {
         uiimport.Printf("GameSetup_BuildFrames: GameChatroom missing\n");
         return;
     }
     UI_SetAllPoints(setup.root);
 
-    setup.game_name = UI_FindChildFrame(setup.root, "GameNameValue");
-    setup.start_button = UI_FindChildFrame(setup.root, "StartGameButton");
-    setup.cancel_button = UI_FindChildFrame(setup.root, "CancelButton");
-    setup.team_container = UI_FindChildFrame(setup.root, "TeamSetupContainer");
-    UI_FRAME(setup.root, MapInfoPaneContainer);
+    setup.game_name = setup.frames.GameNameValue;
+    setup.start_button = setup.frames.StartGameButton;
+    setup.cancel_button = setup.frames.CancelButton;
+    setup.team_container = setup.frames.TeamSetupContainer;
 
     GameSetup_BuildSlotRows();
-    GameSetup_BindMapInfoPane(MapInfoPaneContainer);
+    GameSetup_BindMapInfoPane(setup.frames.MapInfoPaneContainer);
 
-    UI_SetOnClick(setup.start_button, "menu /game-setup/start");
+    UI_SetOnClick(setup.start_button, "menu_game_setup_start");
     UI_SetOnClick(setup.cancel_button, "menu_startserver");
     setup.ready = true;
 }
@@ -705,7 +627,7 @@ static void GameSetup_MouseEvent(int x, int y, int buttons) {
     (void)buttons;
 }
 
-static void GameSetup_StartGame(void) {
+void GameSetup_StartGame(void) {
     char command[MAX_PATHLEN + 32];
 
     if (!setup.map_path[0]) {
@@ -715,7 +637,7 @@ static void GameSetup_StartGame(void) {
     uiimport.Cmd_ExecuteText(command);
 }
 
-static void GameSetup_SetSlotType(DWORD slot, DWORD value) {
+void GameSetup_SetSlotType(DWORD slot, DWORD value) {
     if (slot >= MAX_PLAYERS || !setup.configs[slot].visible) {
         return;
     }
@@ -729,7 +651,7 @@ static void GameSetup_SetSlotType(DWORD slot, DWORD value) {
     GameSetup_DrawSlotConfig(slot);
 }
 
-static void GameSetup_SetSlotRace(DWORD slot, DWORD value) {
+void GameSetup_SetSlotRace(DWORD slot, DWORD value) {
     if (slot >= MAX_PLAYERS || !setup.configs[slot].visible || value > kPlayerRaceNightElf) {
         return;
     }
@@ -737,7 +659,7 @@ static void GameSetup_SetSlotRace(DWORD slot, DWORD value) {
     GameSetup_DrawSlotConfig(slot);
 }
 
-static void GameSetup_CycleSlotTeam(DWORD slot) {
+void GameSetup_CycleSlotTeam(DWORD slot) {
     DWORD max_teams;
 
     if (slot >= MAX_PLAYERS || !setup.configs[slot].visible) {
@@ -750,7 +672,7 @@ static void GameSetup_CycleSlotTeam(DWORD slot) {
     GameSetup_DrawSlotConfig(slot);
 }
 
-static void GameSetup_CycleSlotColor(DWORD slot) {
+void GameSetup_CycleSlotColor(DWORD slot) {
     if (slot >= MAX_PLAYERS || !setup.configs[slot].visible) {
         return;
     }
@@ -758,53 +680,13 @@ static void GameSetup_CycleSlotColor(DWORD slot) {
     GameSetup_DrawSlotConfig(slot);
 }
 
-static BOOL GameSetup_HandleSlotRoute(LPCSTR path) {
-    unsigned slot = 0;
-    unsigned value = 0;
-
-    if (!path || strncmp(path, "/slot/", 6)) {
-        return false;
-    }
-    if (sscanf(path, "/slot/%u/type/%u", &slot, &value) == 2) {
-        GameSetup_SetSlotType(slot, value);
-        return true;
-    }
-    if (sscanf(path, "/slot/%u/race/%u", &slot, &value) == 2) {
-        GameSetup_SetSlotRace(slot, value);
-        return true;
-    }
-    if (sscanf(path, "/slot/%u/team/next", &slot) == 1) {
-        GameSetup_CycleSlotTeam(slot);
-        return true;
-    }
-    if (sscanf(path, "/slot/%u/color/next", &slot) == 1) {
-        GameSetup_CycleSlotColor(slot);
-        return true;
-    }
-    return false;
-}
-
-static void GameSetup_Route(LPCSTR path) {
-    if (!setup.ready) {
-        return;
-    }
-
-    if (path && !strcmp(path, "/start")) {
-        GameSetup_StartGame();
-    } else if (path && !strncmp(path, "?map=", 5)) {
-        GameSetup_LoadRouteMap(path);
-    } else if (GameSetup_HandleSlotRoute(path)) {
-        return;
-    }
-}
-
 uiScreen_t gameSetupScreen = {
     .name = "game-setup",
+    .load = GameSetup_LoadScreen,
     .init = GameSetup_Init,
     .shutdown = GameSetup_Shutdown,
     .refresh = GameSetup_Refresh,
     .draw = GameSetup_Draw,
     .key_event = GameSetup_KeyEvent,
     .mouse_event = GameSetup_MouseEvent,
-    .route = GameSetup_Route,
 };

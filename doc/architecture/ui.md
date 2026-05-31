@@ -12,7 +12,7 @@ Phase 8 removed all server-side UI code. The game library now only provides **da
 
 **Looking for a specific topic?**
 
-- **Complete end-to-end flow** (client input → route/data update → rendering): See [UI_FLOW.md](./UI_FLOW.md)
+- **Complete end-to-end flow** (client input → command/data update → rendering): See [UI_FLOW.md](./UI_FLOW.md)
 - **Runtime cvars and stdout renderer**: See [Runtime Modules and Cvars](./runtime.md)
 - **How to add a new UI element**: See [Adding a New UI Element](#adding-a-new-ui-element) below
 - **FDF file syntax**: See [FDF File Format](../file-formats/fdf.md)
@@ -23,8 +23,8 @@ Phase 8 removed all server-side UI code. The game library now only provides **da
 |------|---------|
 | `frameDef_t` | A template parsed from an FDF file and stored in the registry |
 | `FRAMEDEF` | The alias used by the C API for a frame definition being constructed |
-| `uiScreen_t` | A screen controller with init, refresh, draw, input, and route callbacks |
-| `ui_start_route` | Cvar selecting the first screen route, e.g. `/main` |
+| `uiScreen_t` | A screen controller with init, refresh, draw, and input callbacks |
+| `ui_start_command` | Cvar selecting the first UI command, e.g. `menu_main` |
 
 ## Initialisation
 
@@ -33,7 +33,7 @@ Phase 8 removed all server-side UI code. The game library now only provides **da
 1. Loads UI library via `UI_GetAPI(uiImport_t)` function table.
 2. Client provides import functions: memory allocation, file I/O, MPQ access.
 3. UI library loads Warcraft III `.fdf` files from MPQ via `UI_ParseFDF` (`ui/ui_fdf.c`).
-4. UI routes to `ui_start_route`, defaulting to `/main`.
+4. UI executes `ui_start_command`, defaulting to `menu_main`.
 5. Screen controller manages frame lifecycle, drawing, and input routing.
 
 ## Frame Definition Files (FDF)
@@ -119,27 +119,26 @@ The UI library (`ui/`) handles all frame rendering:
 
 The client parses FDF files locally and maintains the complete frame hierarchy. No serialized UI blobs are transmitted over the network.
 
-## Routes
+## Menu Commands
 
-UI screens are routed by path strings, closer to Quake 3's client-side UI module than the old server-authored layout path. The current route is managed in `ui/ui_router.c`.
+UI screens are selected by explicit menu commands. This keeps navigation in the same Quake-style command stream as buttons, console input, and startup configuration.
 
 Examples:
 
-| Route | Purpose |
-|-------|---------|
-| `/main` | Main menu |
-| `/single-player` | Single-player menu |
-| `/lan/refresh` | LAN game list |
-| `/lan/create` | LAN create-game screen |
-| `/lan/join` | LAN join flow |
+| Command | Purpose |
+|---------|---------|
+| `menu_main` | Main menu |
+| `menu_game` | Single-player menu |
+| `menu_lan_refresh` | Refresh LAN map list |
+| `menu_startserver` | LAN create-game screen |
 
-The startup route is configurable:
+The startup command is configurable:
 
 ```bash
-build/bin/openwarcraft3 -data=data/Warcraft\ III -ui_start_route=/main
+build/bin/openwarcraft3 -data=data/Warcraft\ III -ui_start_command=menu_main
 ```
 
-For isolated route diagnostics:
+For isolated UI diagnostics:
 
 ```bash
 make run-ui-text
@@ -168,7 +167,7 @@ The stdout renderer is the preferred first-pass diagnostic for UI rendering. It 
 - `draw_text` with font, rect, measured size, color, and translated text
 - `draw_sys_text` for console overlay text
 
-Use it to check route composition, frame positions, backdrop tiling, missing assets, hover/pressed state changes, translated strings, and Warcraft color codes without taking screenshots.
+Use it to check screen composition, frame positions, backdrop tiling, missing assets, hover/pressed state changes, translated strings, and Warcraft color codes without taking screenshots.
 
 ## UI Test Asset Policy
 

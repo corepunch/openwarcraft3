@@ -74,7 +74,7 @@ Runs `openwarcraft3` from `build/bin/` using the data folder configured in the M
 The executable expects a Warcraft III data folder rather than a single archive:
 
 ```bash
-build/bin/openwarcraft3 -data="data/Warcraft III"
+build/bin/openwarcraft3 -data "data/Warcraft III"
 ```
 
 The data folder is scanned for top-level `.mpq` archives and an optional loose `Maps/` directory. This lets newer installs expose multiplayer maps from the filesystem while older assets can still be loaded from MPQs.
@@ -104,7 +104,7 @@ make run-ui-text
 That expands to:
 
 ```bash
-build/bin/openwarcraft3 -data=data/Warcraft\ III -net_enabled=0 -r_module=stdout -ui_start_route=/main -com_frame_limit=1
+build/bin/openwarcraft3 -data data/Warcraft\ III +net_enabled 0 +r_module stdout +com_frame_limit 1 +menu_main
 ```
 
 It prints calls such as `draw_portrait`, `draw_sprite`, `draw_image`, `draw_text`, and `draw_sys_text`, then exits after one frame.
@@ -113,7 +113,7 @@ It prints calls such as `draw_portrait`, `draw_sprite`, `draw_image`, `draw_text
 
 OpenWarcraft3 includes a Quake-style console for diagnostics and runtime commands. Press backtick/tilde to open or close it, press Enter to run a command, use Up/Down for command history, and press Tab to complete command and cvar names.
 
-The console accepts the same commands and cvars used by the command line. For example, `map "Maps\Campaign\Orc01.w3m"` starts a listen-server game directly, while `r_module`, `ui_start_route`, and `net_enabled` can be inspected or changed during debugging.
+The console accepts the same commands and cvars used by the command line. For example, `map "Maps\Campaign\Orc01.w3m"` starts a listen-server game directly, while `menu_main`, `menu_credits`, and `menu_options` switch client-side menu screens.
 
 ### Configuration and cvars
 
@@ -125,19 +125,18 @@ Config load order:
 2. `share/default.cfg`
 3. `share/config.cfg`
 4. `share/autoexec.cfg`
-5. Command-line cvars (`-<cvar>=<value>` or `+set <cvar> <value>`) such as `-r_module=stdout` or `+set ui_start_route /main`
+5. Command-line launch args such as `-data data/Warcraft\ III`, command-line cvars such as `+r_module stdout` or `+set net_enabled 0`, and queued commands such as `+map Maps\\Campaign\\Orc01.w3m` or `+menu_main`
 
 Common runtime cvars:
 
 | cvar | Default | Purpose |
 |------|---------|---------|
-| `fs_data` | `""` | Saved Warcraft III data folder |
+| `data` | `""` | Saved Warcraft III data folder |
 | `map` | `""` | Internal map path for listen-server mode |
 | `connect` | `""` | Remote server address |
 | `r_module` | `"renderer"` | Renderer backend: `renderer` or `stdout` |
 | `ui_module` | `"ui"` | UI module name for the Quake-style module boundary |
 | `g_module` | `"game"` | Game module name for the server game boundary |
-| `ui_start_route` | `"/main"` | First client-side UI route |
 | `net_enabled` | `"1"` | Disable with `0` for isolated UI/render diagnostics |
 | `com_frame_limit` | `"0"` | Exit after N frames; useful with `r_module=stdout` |
 
@@ -163,8 +162,8 @@ The **client** (`client/`) captures user input via SDL2, forwards commands to th
 
 Communication between the client and server happens through the network layer (`common/net.c`), which follows the Quake 2 runtime-dispatch model.  The routing decision is made at runtime on `netadr_t.type`:
 
-- **Loopback** (`NA_LOOPBACK`) — when both server and client run in the same process (started with `+map`; `-map=` is still accepted), two 256 KiB ring buffers carry traffic in each direction with zero latency and no socket overhead.
-- **UDP** (`NA_IP`) — when the executable is started with `-connect=<host>`, it binds a non-blocking UDP socket and communicates with a remote listen server over the network.
+- **Loopback** (`NA_LOOPBACK`) — when both server and client run in the same process with `+map`, two 256 KiB ring buffers carry traffic in each direction with zero latency and no socket overhead.
+- **UDP** (`NA_IP`) — when the executable is started with `-connect <host>`, it binds a non-blocking UDP socket and communicates with a remote listen server over the network.
 
 ```
 # Listen server (loopback, single process)
@@ -335,12 +334,12 @@ For UI work, use the stdout renderer before reaching for screenshots:
 make run-ui-text
 ```
 
-This runs the configured UI route for one frame, skips network socket binding, prints draw calls to stdout, and exits without writing `share/config.cfg`. It is useful for checking:
+This runs the configured UI command for one frame, skips network socket binding, prints draw calls to stdout, and exits without writing `share/config.cfg`. It is useful for checking:
 
-- which textures, models, fonts, and routes were loaded
+- which textures, models, fonts, and screens were loaded
 - button/backdrop rects, UVs, colors, and blend modes
 - text content after FDF string translation and Warcraft color-code expansion
-- scene placement across routes such as `/main`, `/lan/refresh`, or `/single-player`
+- scene placement across commands such as `menu_main`, `menu_startserver`, or `menu_game`
 
 ---
 
@@ -351,7 +350,7 @@ The project builds four runtime libraries and one executable:
 1. **libshared** (`shared/`) — mathematics (vectors, matrices, quaternions, geometric primitives); no external dependencies
 2. **librenderer** (`renderer/`) — renderer API implementations, including OpenGL and stdout diagnostics; depends on `libshared`, SDL2
 3. **libgame** (`game/`) — server-side game logic; depends on `libshared`
-4. **libui** (`ui/`) — client-side FDF parser, route controller, and UI renderer
+4. **libui** (`ui/`) — client-side FDF parser, command-driven screen controller, and UI renderer
 5. **openwarcraft3** — main executable linking the runtime libraries plus SDL2
 
 The module boundary follows the Quake 2/Quake 3 style: subsystems expose function tables (`R_GetAPI`, `UI_GetAPI`, game exports/imports) rather than sharing global implementation details. The cvars `r_module`, `ui_module`, and `g_module` name the active modules. Today `r_module=stdout` selects the text renderer backend; the cvar layout is also the path toward fully dynamic library selection.

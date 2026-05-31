@@ -19,13 +19,14 @@ typedef struct uiScreen_s {
     void (*draw)(void);
     void (*key_event)(int key, BOOL down);
     void (*mouse_event)(int x, int y, int buttons);
-    void (*route)(LPCSTR path);  /* Handle sub-routes like /lan?join=192.168.1.1 */
     void (*update_unit_ui)(DWORD num_units, uiUnitData_t *units);  /* Phase 8: receive unit UI data */
 } uiScreen_t;
 
 /* Screen implementations */
 extern uiScreen_t mainMenuScreen;
 extern uiScreen_t singlePlayerMenuScreen;
+extern uiScreen_t optionsMenuScreen;
+extern uiScreen_t creditsMenuScreen;
 extern uiScreen_t mapSelectScreen;
 extern uiScreen_t lanJoinScreen;
 extern uiScreen_t lanCreateScreen;
@@ -34,5 +35,37 @@ extern uiScreen_t quitConfirmScreen;
 
 LPCSTR LAN_SelectedMapPath(void);
 LPCSTR LAN_SelectedMapName(void);
+
+void UI_ShowMainMenu(void);
+void UI_ShowSinglePlayerMenu(void);
+void UI_ShowOptionsMenu(void);
+void UI_ShowCreditsMenu(void);
+void UI_ShowLanCreateMenu(void);
+void UI_ShowGameSetupMenu(void);
+
+void MainMenu_ShowMainPanel(void);
+void MainMenu_ShowRealmSelect(void);
+void MainMenu_ShowQuitConfirm(void);
+
+void OptionsMenu_ShowGameplay(void);
+void OptionsMenu_ShowVideo(void);
+void OptionsMenu_ShowSound(void);
+void OptionsMenu_ShowKeys(void);
+
+void SinglePlayerMenu_ShowMain(void);
+void SinglePlayerMenu_ShowCampaign(void);
+void SinglePlayerMenu_LaunchCampaign(LPCSTR name);
+
+void LAN_ShowCreate(void);
+void LAN_RefreshMaps(void);
+void LAN_SelectMapIndex(DWORD index);
+void LAN_StartSelectedMap(void);
+
+void GameSetup_StartGame(void);
+void GameSetup_LoadMap(LPCSTR map_path);
+void GameSetup_SetSlotType(DWORD slot, DWORD value);
+void GameSetup_SetSlotRace(DWORD slot, DWORD value);
+void GameSetup_CycleSlotTeam(DWORD slot);
+void GameSetup_CycleSlotColor(DWORD slot);
 
 #endif /* UI_SCREEN_H */

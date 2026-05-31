@@ -10,11 +10,13 @@
 
 #include "../ui_local.h"
 #include "../ui_screen.h"
+#include "../generated/local_multiplayer_create.h"
 
 #define LAN_VISIBLE_MAPS 14
 #define LAN_FILELIST_SIZE 32768
 
 typedef struct lan_join_state_s {
+    LocalMultiplayerCreate_t frames;
     uiMapListState_t maps;
     BOOL ready;
     LPFRAMEDEF root;
@@ -33,6 +35,10 @@ typedef struct lan_join_state_s {
 } lan_join_state_t;
 
 static lan_join_state_t lan;
+
+static BOOL LANJoin_LoadScreen(void) {
+    return LocalMultiplayerCreate_Load(&lan.frames);
+}
 
 static void LAN_CopyString(LPSTR out, size_t out_size, LPCSTR value) {
     if (!out || out_size == 0) {
@@ -297,7 +303,7 @@ static void LAN_CreateMapListFrame(LPFRAMEDEF container, LPFRAMEDEF label) {
     }
     UI_SetPoint(lan.map_list_box, FRAMEPOINT_TOPLEFT, container, FRAMEPOINT_TOPLEFT, 0.0f, 0.0f);
     UI_SetPoint(lan.map_list_box, FRAMEPOINT_BOTTOMRIGHT, container, FRAMEPOINT_BOTTOMRIGHT, 0.0f, 0.0f);
-    UI_BindMapList(lan.map_list_box, &lan.maps, label, LAN_VISIBLE_MAPS, "menu /lan/select/%u");
+    UI_BindMapList(lan.map_list_box, &lan.maps, label, LAN_VISIBLE_MAPS, "menu_lan_select %u");
 }
 
 static void LAN_UpdateMapInfo(void) {
@@ -340,7 +346,7 @@ static void LAN_UpdateControls(void) {
 
     if (lan.play_button) {
         if (lan.maps.count > 0) {
-            UI_SetOnClick(lan.play_button, "menu /lan/start");
+            UI_SetOnClick(lan.play_button, "menu_lan_start");
         } else {
             lan.play_button->OnClick[0] = '\0';
         }
@@ -351,40 +357,30 @@ static void LAN_UpdateControls(void) {
 
 static void LAN_BuildFrames(void) {
     lan.ready = false;
-    lan.root = UI_FindFrame("LocalMultiplayerCreate");
+    lan.root = lan.frames.LocalMultiplayerCreate;
     if (!lan.root) {
         uiimport.Printf("LAN_BuildFrames: LocalMultiplayerCreate missing\n");
         return;
     }
     UI_SetAllPoints(lan.root);
 
-    UI_FRAME(lan.root, MapListLabel);
-    UI_FRAME(lan.root, MapListContainer);
-    UI_FRAME(lan.root, MapInfoPanel);
-    UI_FRAME(lan.root, AdvancedOptionsPanel);
-    UI_FRAME(lan.root, MapInfoPaneContainer);
-    UI_FRAME(lan.root, GameSpeedSlider);
-    UI_FRAME(lan.root, GameSpeedValue);
-    UI_FRAME(lan.root, MapInfoButton);
-    UI_FRAME(lan.root, AdvancedOptionsButton);
-    UI_FRAME(lan.root, CancelButton);
-    lan.play_button = UI_FindChildFrame(lan.root, "PlayButton");
+    lan.play_button = lan.frames.PlayButton;
     if (!lan.play_button) {
         uiimport.Printf("LAN_BuildFrames: PlayButton missing\n");
         return;
     }
-    lan.game_speed_slider = GameSpeedSlider;
-    lan.game_speed_value = GameSpeedValue;
+    lan.game_speed_slider = lan.frames.GameSpeedSlider;
+    lan.game_speed_value = lan.frames.GameSpeedValue;
 
-    LAN_CreateMapListFrame(MapListContainer, MapListLabel);
-    LAN_BindMapInfoPane(MapInfoPaneContainer);
+    LAN_CreateMapListFrame(lan.frames.MapListContainer, lan.frames.MapListLabel);
+    LAN_BindMapInfoPane(lan.frames.MapInfoPaneContainer);
 
-    UI_SetHidden(MapInfoPanel, false);
-    UI_SetHidden(AdvancedOptionsPanel, true);
-    UI_SetOnClick(MapInfoButton, "menu /lan/create");
-    UI_SetOnClick(AdvancedOptionsButton, "menu /lan/create");
-    UI_SetOnClick(lan.play_button, "menu /lan/start");
-    UI_SetOnClick(CancelButton, "menu_main");
+    UI_SetHidden(lan.frames.MapInfoPanel, false);
+    UI_SetHidden(lan.frames.AdvancedOptionsPanel, true);
+    UI_SetOnClick(lan.frames.MapInfoButton, "menu_startserver");
+    UI_SetOnClick(lan.frames.AdvancedOptionsButton, "menu_startserver");
+    UI_SetOnClick(lan.play_button, "menu_lan_start");
+    UI_SetOnClick(lan.frames.CancelButton, "menu_main");
     lan.ready = true;
 }
 
@@ -464,14 +460,14 @@ LPCSTR LAN_SelectedMapName(void) {
         : lan.maps.items[lan.maps.selected].path;
 }
 
-static void LAN_StartSelectedMap(void) {
+void LAN_StartSelectedMap(void) {
     if (!LAN_SelectedMapPath()) {
         return;
     }
-    UI_Route("/game-setup");
+    UI_ShowGameSetupMenu();
 }
 
-static void LAN_SelectMap(DWORD index) {
+void LAN_SelectMapIndex(DWORD index) {
     if (!lan.ready) {
         return;
     }
@@ -487,30 +483,29 @@ static void LAN_SelectMap(DWORD index) {
     }
 }
 
-static void LANJoin_Route(LPCSTR path) {
+void LAN_ShowCreate(void) {
     if (!lan.ready) {
         return;
     }
 
-    if (!path || !*path || !strcmp(path, "/create")) {
-        /* Screen init already loaded maps; keep /create cheap for re-entry. */
-    } else if (!strcmp(path, "/refresh")) {
-        LAN_LoadMaps();
-    } else if (!strncmp(path, "/select/", 8)) {
-        LAN_SelectMap((DWORD)atoi(path + 8));
-    } else if (!strcmp(path, "/start")) {
-        LAN_StartSelectedMap();
+    LAN_UpdateControls();
+}
+
+void LAN_RefreshMaps(void) {
+    if (!lan.ready) {
+        return;
     }
+    LAN_LoadMaps();
     LAN_UpdateControls();
 }
 
 uiScreen_t lanJoinScreen = {
     .name = "lan",
+    .load = LANJoin_LoadScreen,
     .init = LANJoin_Init,
     .shutdown = LANJoin_Shutdown,
     .refresh = LANJoin_Refresh,
     .draw = LANJoin_Draw,
     .key_event = LANJoin_KeyEvent,
     .mouse_event = LANJoin_MouseEvent,
-    .route = LANJoin_Route,
 };

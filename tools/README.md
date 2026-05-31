@@ -73,6 +73,9 @@ names, so screen controllers do not hand-write lookup structs or assign
 and `<Prefix>_Load(...)`; the struct uses flat direct fields, e.g.
 `main_menu.ExitButton`. The load function parses configured FDF paths once,
 then binds the selected root from the global FDF frame table.
+For single-root headers it also emits `<Prefix>_Bind(...)`, which binds the
+same generated fields against an existing root frame. Use this for cloned FDF
+trees such as reusable row or pane templates.
 
 Syntax:
 

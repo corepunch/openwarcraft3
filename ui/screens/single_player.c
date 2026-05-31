@@ -4,6 +4,7 @@
 
 #include "../ui_local.h"
 #include "../ui_screen.h"
+#include "../generated/single_player_menu.h"
 
 typedef enum {
     SINGLE_PLAYER_VIEW_MAIN,
@@ -12,7 +13,7 @@ typedef enum {
 
 typedef struct {
     playerRace_t race;
-    LPCSTR route;
+    LPCSTR name;
     LPCSTR map_path;
     LPCSTR background_model;
 } singlePlayerCampaign_t;
@@ -30,24 +31,20 @@ static singlePlayerCampaign_t const campaigns[] = {
       "UI\\Glues\\SinglePlayer\\TutorialCampaign3D\\TutorialCampaign3D.mdx" },
 };
 
-static LPFRAMEDEF frame_single_player = NULL;
-static LPFRAMEDEF frame_single_player_main = NULL;
-static LPFRAMEDEF frame_profile_panel = NULL;
-static LPFRAMEDEF frame_campaign = NULL;
-static LPFRAMEDEF frame_campaign_select = NULL;
-static LPFRAMEDEF frame_mission_select = NULL;
-static LPFRAMEDEF frame_campaign_backdrop = NULL;
-static LPFRAMEDEF frame_campaign_fade = NULL;
-static LPFRAMEDEF frame_campaign_logo = NULL;
+static SinglePlayerMenu_t single_player;
 static DWORD campaign_background_model = 0;
 static singlePlayerView_t current_view = SINGLE_PLAYER_VIEW_MAIN;
 
-static singlePlayerCampaign_t const *SinglePlayer_FindCampaign(LPCSTR route) {
-    if (!route) {
+static BOOL SinglePlayerMenu_LoadScreen(void) {
+    return SinglePlayerMenu_Load(&single_player);
+}
+
+static singlePlayerCampaign_t const *SinglePlayer_FindCampaign(LPCSTR name) {
+    if (!name) {
         return NULL;
     }
     for (DWORD i = 0; i < sizeof(campaigns) / sizeof(campaigns[0]); i++) {
-        if (!strcmp(route, campaigns[i].route)) {
+        if (!strcmp(name, campaigns[i].name)) {
             return &campaigns[i];
         }
     }
@@ -63,21 +60,21 @@ static void SinglePlayer_SetHidden(LPFRAMEDEF frame, BOOL hidden) {
 static void SinglePlayer_SetView(singlePlayerView_t view) {
     current_view = view;
 
-    SinglePlayer_SetHidden(frame_single_player, view != SINGLE_PLAYER_VIEW_MAIN);
-    SinglePlayer_SetHidden(frame_single_player_main, false);
-    SinglePlayer_SetHidden(frame_profile_panel, true);
+    SinglePlayer_SetHidden(single_player.SinglePlayerMenu, view != SINGLE_PLAYER_VIEW_MAIN);
+    SinglePlayer_SetHidden(single_player.MainPanel, false);
+    SinglePlayer_SetHidden(single_player.ProfilePanel, true);
 
-    SinglePlayer_SetHidden(frame_campaign, view != SINGLE_PLAYER_VIEW_CAMPAIGN_SELECT);
-    SinglePlayer_SetHidden(frame_campaign_backdrop, true);
-    SinglePlayer_SetHidden(frame_campaign_select, false);
-    SinglePlayer_SetHidden(frame_mission_select, true);
-    SinglePlayer_SetHidden(frame_campaign_fade, true);
+    SinglePlayer_SetHidden(single_player.CampaignMenu, view != SINGLE_PLAYER_VIEW_CAMPAIGN_SELECT);
+    SinglePlayer_SetHidden(single_player.CampaignBackdrop_2, true);
+    SinglePlayer_SetHidden(single_player.CampaignSelectFrame, false);
+    SinglePlayer_SetHidden(single_player.MissionSelectFrame, true);
+    SinglePlayer_SetHidden(single_player.SlidingDoors, true);
 }
 
 static void SinglePlayer_SetCampaignBackdrop(singlePlayerCampaign_t const *campaign) {
-    if (frame_campaign_backdrop && campaign && campaign->background_model) {
+    if (single_player.CampaignBackdrop_2 && campaign && campaign->background_model) {
         campaign_background_model = UI_LoadModel(campaign->background_model, false);
-        frame_campaign_backdrop->Portrait.model = campaign_background_model;
+        single_player.CampaignBackdrop_2->Portrait.model = campaign_background_model;
     }
 }
 
@@ -102,75 +99,49 @@ static void SinglePlayer_LaunchCampaign(singlePlayerCampaign_t const *campaign) 
 }
 
 static void SinglePlayer_BindMainMenu(void) {
-    LPFRAMEDEF CampaignButton;
-    LPFRAMEDEF LoadSavedButton;
-    LPFRAMEDEF ViewReplayButton;
-    LPFRAMEDEF SkirmishButton;
-    LPFRAMEDEF ProfileButton;
-    LPFRAMEDEF CancelButton;
-    LPFRAMEDEF ProfileNameText;
-
-    if (!frame_single_player) {
+    if (!single_player.SinglePlayerMenu) {
         return;
     }
 
-    CampaignButton = UI_FindChildFrame(frame_single_player, "CampaignButton");
-    LoadSavedButton = UI_FindChildFrame(frame_single_player, "LoadSavedButton");
-    ViewReplayButton = UI_FindChildFrame(frame_single_player, "ViewReplayButton");
-    SkirmishButton = UI_FindChildFrame(frame_single_player, "SkirmishButton");
-    ProfileButton = UI_FindChildFrame(frame_single_player, "ProfileButton");
-    CancelButton = UI_FindChildFrame(frame_single_player, "CancelButton");
-    ProfileNameText = UI_FindChildFrame(frame_single_player, "ProfileNameText");
-
-    UI_SetOnClick(CampaignButton, "menu /single-player/campaign");
-    UI_SetOnClick(LoadSavedButton, "");
-    UI_SetOnClick(ViewReplayButton, "");
-    UI_SetOnClick(SkirmishButton, "");
-    UI_SetOnClick(ProfileButton, "");
-    UI_SetOnClick(CancelButton, "menu_main");
-    if (ProfileNameText) {
-        UI_SetText(ProfileNameText, "Player");
+    UI_SetOnClick(single_player.CampaignButton, "menu_single_player_campaign");
+    UI_SetOnClick(single_player.LoadSavedButton, "");
+    UI_SetOnClick(single_player.ViewReplayButton, "");
+    UI_SetOnClick(single_player.SkirmishButton, "");
+    UI_SetOnClick(single_player.ProfileButton, "");
+    UI_SetOnClick(single_player.CancelButton, "menu_main");
+    if (single_player.ProfileNameText) {
+        UI_SetText(single_player.ProfileNameText, "Player");
     }
 }
 
 static void SinglePlayer_BindCampaignMenu(void) {
-    LPFRAMEDEF BackButton;
-    LPFRAMEDEF HumanButton;
-    LPFRAMEDEF OrcButton;
-    LPFRAMEDEF UndeadButton;
-    LPFRAMEDEF NightElfButton;
-    LPFRAMEDEF TutorialButton;
-    LPFRAMEDEF DifficultySelect;
     LPFRAMEDEF DifficultyMenu;
     LPFRAMEDEF DifficultyTitle;
 
-    if (!frame_campaign) {
+    if (!single_player.CampaignMenu) {
         return;
     }
 
-    BackButton = UI_FindChildFrame(frame_campaign, "BackButton");
-    HumanButton = UI_FindChildFrame(frame_campaign, "HumanButton");
-    OrcButton = UI_FindChildFrame(frame_campaign, "OrcButton");
-    UndeadButton = UI_FindChildFrame(frame_campaign, "UndeadButton");
-    NightElfButton = UI_FindChildFrame(frame_campaign, "NightElfButton");
-    TutorialButton = UI_FindChildFrame(frame_campaign, "TutorialButton");
-    DifficultySelect = UI_FindChildFrame(frame_campaign, "DifficultySelect");
-    DifficultyMenu = DifficultySelect ? UI_FindChildFrame(DifficultySelect, "CampaignPopupMenuMenu") : NULL;
-    DifficultyTitle = DifficultySelect ? UI_FindChildFrame(DifficultySelect, "CampaignPopupMenuTitleTextTemplate") : NULL;
+    UI_SetOnClick(single_player.BackButton, "menu_game");
+    UI_SetOnClick(single_player.HumanButton, "menu_single_player_campaign_human");
+    UI_SetOnClick(single_player.OrcButton, "menu_single_player_campaign_orc");
+    UI_SetOnClick(single_player.UndeadButton, "menu_single_player_campaign_undead");
+    UI_SetOnClick(single_player.NightElfButton, "menu_single_player_campaign_night_elf");
+    UI_SetOnClick(single_player.TutorialButton, "menu_single_player_campaign_tutorial");
 
-    UI_SetOnClick(BackButton, "menu_game");
-    UI_SetOnClick(HumanButton, "menu /single-player/campaign/human");
-    UI_SetOnClick(OrcButton, "menu /single-player/campaign/orc");
-    UI_SetOnClick(UndeadButton, "menu /single-player/campaign/undead");
-    UI_SetOnClick(NightElfButton, "menu /single-player/campaign/night-elf");
-    UI_SetOnClick(TutorialButton, "menu /single-player/campaign/tutorial");
+    DifficultyMenu = single_player.DifficultySelect
+        ? UI_FindChildFrame(single_player.DifficultySelect, "CampaignPopupMenuMenu")
+        : NULL;
+    DifficultyTitle = single_player.DifficultySelect
+        ? UI_FindChildFrame(single_player.DifficultySelect, "CampaignPopupMenuTitleTextTemplate")
+        : NULL;
 
     if (DifficultyMenu) {
         UI_MenuClearItems(DifficultyMenu);
         UI_MenuAddItem(DifficultyMenu, UI_GetString("EASY"), 0);
         UI_MenuAddItem(DifficultyMenu, UI_GetString("NORMAL"), 1);
         UI_MenuAddItem(DifficultyMenu, UI_GetString("HARD"), 2);
-        UI_SetOnClick(DifficultyMenu, "menu /single-player/difficulty/%u");
+        UI_SetOnClick(DifficultyMenu, "menu_single_player_difficulty %u");
         UI_SetHidden(DifficultyMenu, true);
     }
     if (DifficultyTitle) {
@@ -182,18 +153,8 @@ static void SinglePlayerMenu_Init(void) {
     uiimport.Printf("SinglePlayerMenu_Init\n");
     UI_PreloadGlueSceneModels();
 
-    frame_single_player = UI_FindFrame("SinglePlayerMenu");
-    frame_single_player_main = frame_single_player ? UI_FindChildFrame(frame_single_player, "MainPanel") : NULL;
-    frame_profile_panel = frame_single_player ? UI_FindChildFrame(frame_single_player, "ProfilePanel") : NULL;
-    frame_campaign = UI_FindFrame("CampaignMenu");
-    frame_campaign_select = frame_campaign ? UI_FindChildFrame(frame_campaign, "CampaignSelectFrame") : NULL;
-    frame_mission_select = frame_campaign ? UI_FindChildFrame(frame_campaign, "MissionSelectFrame") : NULL;
-    frame_campaign_backdrop = frame_campaign ? UI_FindChildFrame(frame_campaign, "CampaignBackdrop") : NULL;
-    frame_campaign_fade = frame_campaign ? UI_FindChildFrame(frame_campaign, "SlidingDoors") : NULL;
-    frame_campaign_logo = frame_campaign ? UI_FindChildFrame(frame_campaign, "WarCraftIIILogo") : NULL;
-
-    if (frame_campaign_logo) {
-        frame_campaign_logo->Portrait.model = UI_LoadModel("CampaignLogo", true);
+    if (single_player.WarCraftIIILogo) {
+        single_player.WarCraftIIILogo->Portrait.model = UI_LoadModel("CampaignLogo", true);
     }
 
     SinglePlayer_BindMainMenu();
@@ -212,15 +173,15 @@ static void SinglePlayerMenu_Refresh(int msec) {
 static void SinglePlayerMenu_Draw(void) {
     if (current_view == SINGLE_PLAYER_VIEW_CAMPAIGN_SELECT) {
         SinglePlayer_DrawCampaignBackdrop();
-        if (frame_campaign) {
-            UI_DrawFrame(frame_campaign);
+        if (single_player.CampaignMenu) {
+            UI_DrawFrame(single_player.CampaignMenu);
         }
         return;
     }
 
     UI_DrawGlueScene("SinglePlayer Stand");
-    if (frame_single_player) {
-        UI_DrawFrame(frame_single_player);
+    if (single_player.SinglePlayerMenu) {
+        UI_DrawFrame(single_player.SinglePlayerMenu);
     }
 }
 
@@ -235,37 +196,28 @@ static void SinglePlayerMenu_MouseEvent(int x, int y, int buttons) {
     (void)buttons;
 }
 
-static void SinglePlayerMenu_Route(LPCSTR path) {
-    if (!path || !strcmp(path, "/") || !strcmp(path, "/main")) {
-        SinglePlayer_SetView(SINGLE_PLAYER_VIEW_MAIN);
-        return;
-    }
+void SinglePlayerMenu_ShowMain(void) {
+    SinglePlayer_SetView(SINGLE_PLAYER_VIEW_MAIN);
+}
 
-    if (!strcmp(path, "/campaign")) {
-        SinglePlayer_SetCampaignBackdrop(&campaigns[0]);
-        SinglePlayer_SetView(SINGLE_PLAYER_VIEW_CAMPAIGN_SELECT);
-        return;
-    }
+void SinglePlayerMenu_ShowCampaign(void) {
+    SinglePlayer_SetCampaignBackdrop(&campaigns[0]);
+    SinglePlayer_SetView(SINGLE_PLAYER_VIEW_CAMPAIGN_SELECT);
+}
 
-    if (!strncmp(path, "/campaign/", 10)) {
-        singlePlayerCampaign_t const *campaign = SinglePlayer_FindCampaign(path + 10);
-        SinglePlayer_SetCampaignBackdrop(campaign);
-        SinglePlayer_LaunchCampaign(campaign);
-        return;
-    }
-
-    if (!strncmp(path, "/difficulty/", 12)) {
-        return;
-    }
+void SinglePlayerMenu_LaunchCampaign(LPCSTR name) {
+    singlePlayerCampaign_t const *campaign = SinglePlayer_FindCampaign(name);
+    SinglePlayer_SetCampaignBackdrop(campaign);
+    SinglePlayer_LaunchCampaign(campaign);
 }
 
 uiScreen_t singlePlayerMenuScreen = {
     .name = "single-player",
+    .load = SinglePlayerMenu_LoadScreen,
     .init = SinglePlayerMenu_Init,
     .shutdown = SinglePlayerMenu_Shutdown,
     .refresh = SinglePlayerMenu_Refresh,
     .draw = SinglePlayerMenu_Draw,
     .key_event = SinglePlayerMenu_KeyEvent,
     .mouse_event = SinglePlayerMenu_MouseEvent,
-    .route = SinglePlayerMenu_Route,
 };

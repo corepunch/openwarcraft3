@@ -119,9 +119,9 @@ void UI_DialogWar3Show(uiDialogWar3_t *dialog,
     UI_SetHidden(dialog->frames.DialogButtonNoBackdrop, config->buttons != UI_DIALOG_WAR3_BUTTONS_YES_NO);
     UI_SetHidden(dialog->frames.DialogButtonYesBackdrop, config->buttons != UI_DIALOG_WAR3_BUTTONS_YES_NO);
 
-    UI_SetOnClick(dialog->frames.DialogButtonOK, "%s", config->ok_route ? config->ok_route : "");
-    UI_SetOnClick(dialog->frames.DialogButtonNo, "%s", config->no_route ? config->no_route : "");
-    UI_SetOnClick(dialog->frames.DialogButtonYes, "%s", config->yes_route ? config->yes_route : "");
+    UI_SetOnClick(dialog->frames.DialogButtonOK, "%s", config->ok_command ? config->ok_command : "");
+    UI_SetOnClick(dialog->frames.DialogButtonNo, "%s", config->no_command ? config->no_command : "");
+    UI_SetOnClick(dialog->frames.DialogButtonYes, "%s", config->yes_command ? config->yes_command : "");
 
     UI_DialogWar3SetVisible(dialog, true);
 }

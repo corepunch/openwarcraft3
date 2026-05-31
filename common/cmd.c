@@ -87,6 +87,111 @@ void Cbuf_AddText(LPCSTR text) {
     SZ_Write(&cmd_text, text, l);
 }
 
+static bool Cbuf_IsCommandLineSwitch(LPCSTR arg) {
+    return arg && (arg[0] == '+' || arg[0] == '-') && arg[1] != '\0';
+}
+
+static void Cbuf_AddQuotedArg(LPCSTR arg) {
+    bool quote = false;
+
+    if (!arg) {
+        return;
+    }
+    for (LPCSTR p = arg; *p; p++) {
+        if (isspace((unsigned char)*p) || *p == '"' || *p == ';') {
+            quote = true;
+            break;
+        }
+    }
+    if (!quote) {
+        Cbuf_AddText(arg);
+        return;
+    }
+    Cbuf_AddText("\"");
+    for (LPCSTR p = arg; *p; p++) {
+        if (*p == '"' || *p == '\\') {
+            Cbuf_AddText("\\");
+        }
+        char ch[2] = { *p, '\0' };
+        Cbuf_AddText(ch);
+    }
+    Cbuf_AddText("\"");
+}
+
+/*
+===============
+Cbuf_AddEarlyCommands
+
+Quake-style command-line processing for startup cvars.  +set commands and
++<known cvar> value forms are applied before the client/server modules start.
+Other +commands stay in argv for Cbuf_AddLateCommands().
+===============
+*/
+void Cbuf_AddEarlyCommands(bool clear) {
+    int argc = COM_Argc();
+
+    for (int i = 1; i < argc; i++) {
+        LPCSTR arg = COM_Argv(i);
+
+        if (!strcmp(arg, "+set") && i + 2 < argc) {
+            Cvar_Set(COM_Argv(i + 1), COM_Argv(i + 2));
+            if (clear) {
+                COM_ClearArgv(i);
+                COM_ClearArgv(i + 1);
+                COM_ClearArgv(i + 2);
+            }
+            i += 2;
+            continue;
+        }
+        if (arg[0] == '+' && Cvar_String(arg + 1, NULL) != NULL) {
+            LPCSTR value = "1";
+            int cmd_index = i;
+
+            if (i + 1 < argc && !Cbuf_IsCommandLineSwitch(COM_Argv(i + 1))) {
+                value = COM_Argv(i + 1);
+                if (clear) {
+                    COM_ClearArgv(i + 1);
+                }
+                i++;
+            }
+            Cvar_Set(arg + 1, value);
+            if (clear) {
+                COM_ClearArgv(cmd_index);
+            }
+        }
+    }
+}
+
+/*
+=================
+Cbuf_AddLateCommands
+
+Adds remaining + command-line chunks to the command buffer, stopping each
+chunk at the next + or - switch.
+=================
+*/
+bool Cbuf_AddLateCommands(void) {
+    int argc = COM_Argc();
+    bool added = false;
+
+    for (int i = 1; i < argc; i++) {
+        LPCSTR arg = COM_Argv(i);
+
+        if (!arg[0] || arg[0] != '+') {
+            continue;
+        }
+        Cbuf_AddText(arg + 1);
+        while (i + 1 < argc && !Cbuf_IsCommandLineSwitch(COM_Argv(i + 1))) {
+            i++;
+            Cbuf_AddText(" ");
+            Cbuf_AddQuotedArg(COM_Argv(i));
+        }
+        Cbuf_AddText("\n");
+        added = true;
+    }
+    return added;
+}
+
 LPCSTR current_command = NULL;
 
 static void Cmd_TokenizeString(LPCSTR text) {
