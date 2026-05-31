@@ -341,8 +341,18 @@ static void Cvar_Exec_f(void) {
     Cvar_LoadConfig(Cmd_Argv(1));
 }
 
-static bool Cvar_IsSwitch(LPCSTR arg, char marker) {
-    return arg && arg[0] == marker && arg[1] != '\0';
+static bool Cvar_ApplyDashArg(int argc, LPCSTR *argv, int *index, LPCSTR name) {
+    LPCSTR arg = argv[*index];
+    size_t len = strlen(name);
+
+    if (arg[0] != '-' || strncmp(arg + 1, name, len)) {
+        return false;
+    }
+    if (arg[len + 1] == '\0' && *index + 1 < argc) {
+        Cvar_Set(name, argv[++(*index)]);
+        return true;
+    }
+    return false;
 }
 
 void Cvar_ApplyConfigCommandLine(int argc, LPCSTR *argv) {
@@ -352,13 +362,8 @@ void Cvar_ApplyConfigCommandLine(int argc, LPCSTR *argv) {
         if (!arg || !*arg) {
             continue;
         }
-        if (!strncmp(arg, "-config=", 8)) {
-            Cvar_Set("config", arg + 8);
+        if (Cvar_ApplyDashArg(argc, argv, &i, "config")) {
             continue;
-        }
-        if (!strcmp(arg, "+set") && i + 2 < argc && !strcmp(argv[i + 1], "config")) {
-            Cvar_Set("config", argv[i + 2]);
-            i += 2;
         }
     }
 }
@@ -370,60 +375,11 @@ void Cvar_ApplyCommandLine(int argc, LPCSTR *argv) {
         if (!arg || !*arg) {
             continue;
         }
-        if (!strncmp(arg, "-map=", 5)) {
-            Cvar_Set("map", arg + 5);
+        if (Cvar_ApplyDashArg(argc, argv, &i, "connect")) {
             continue;
         }
-        if (!strncmp(arg, "-connect=", 9)) {
-            Cvar_Set("connect", arg + 9);
+        if (Cvar_ApplyDashArg(argc, argv, &i, "data")) {
             continue;
-        }
-        if (!strncmp(arg, "-data=", 6)) {
-            Cvar_Set("fs_data", arg + 6);
-            continue;
-        }
-        if (arg[0] == '-' && strchr(arg, '=')) {
-            LPCSTR equals = strchr(arg, '=');
-            char name[128];
-            size_t len = (size_t)(equals - (arg + 1));
-
-            if (len >= sizeof(name)) {
-                len = sizeof(name) - 1;
-            }
-            memcpy(name, arg + 1, len);
-            name[len] = '\0';
-            Cvar_Set(name, equals + 1);
-            continue;
-        }
-        if (!strcmp(arg, "+set") && i + 2 < argc) {
-            Cvar_Set(argv[i + 1], argv[i + 2]);
-            i += 2;
-            continue;
-        }
-        if (!strcmp(arg, "+map") && i + 1 < argc) {
-            Cvar_Set("map", argv[i + 1]);
-            i += 1;
-            continue;
-        }
-        if (Cvar_IsSwitch(arg, '+')) {
-            char line[1024];
-            DWORD used;
-
-            snprintf(line, sizeof(line), "%s", arg + 1);
-            used = (DWORD)strlen(line);
-            while (i + 1 < argc
-                   && !Cvar_IsSwitch(argv[i + 1], '+')
-                   && !Cvar_IsSwitch(argv[i + 1], '-')) {
-                i++;
-                if (used + strlen(argv[i]) + 2 >= sizeof(line)) {
-                    break;
-                }
-                line[used++] = ' ';
-                snprintf(line + used, sizeof(line) - used, "%s", argv[i]);
-                used = (DWORD)strlen(line);
-            }
-            Cbuf_AddText(line);
-            Cbuf_AddText("\n");
         }
     }
 }
@@ -440,13 +396,12 @@ void Cvar_Init(void) {
 #else
     Cvar_Get("config", "share/openwarcraft3-config.cfg", CVAR_ARCHIVE);
 #endif
-    Cvar_Get("fs_data", "", CVAR_ARCHIVE);
+    Cvar_Get("data", "", CVAR_ARCHIVE);
     Cvar_Get("map", "", 0);
     Cvar_Get("connect", "", 0);
     Cvar_Get("r_module", "renderer", CVAR_ARCHIVE);
     Cvar_Get("ui_module", "ui", CVAR_ARCHIVE);
     Cvar_Get("g_module", "game", CVAR_ARCHIVE);
-    Cvar_Get("ui_start_route", "/main", CVAR_ARCHIVE);
     Cvar_Get("ui_game_setup_map", "", 0);
     Cvar_Get("net_enabled", "1", CVAR_ARCHIVE);
     Cvar_Get("com_frame_limit", "0", 0);

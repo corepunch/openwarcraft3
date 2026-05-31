@@ -518,6 +518,30 @@ static void emit_bind_function(void) {
     printf("}\n");
 }
 
+static void emit_bind_at_function(void) {
+    int root;
+
+    if (selected_root_count != 1) {
+        return;
+    }
+
+    root = selected_roots[0];
+    printf("\nstatic inline BOOL %s_Bind(%s_t *out, LPFRAMEDEF bind_root) {\n", prefix, prefix);
+    printf("    BOOL ok = true;\n");
+    printf("    if (!out) {\n");
+    printf("        return false;\n");
+    printf("    }\n");
+    printf("    memset(out, 0, sizeof(*out));\n");
+    printf("    out->%s = bind_root;\n", nodes[root].binding_ident);
+    printf("    if (!out->%s) {\n", nodes[root].binding_ident);
+    printf("        OW3_FDF_REPORT_MISSING(\"%s\");\n", nodes[root].name);
+    printf("        ok = false;\n");
+    printf("    }\n");
+    emit_bind_children(root, "bind_root");
+    printf("    return ok;\n");
+    printf("}\n");
+}
+
 static void emit_header(void) {
     char guard[MAX_IDENT * 2];
     char guard_prefix[MAX_IDENT];
@@ -532,20 +556,9 @@ static void emit_header(void) {
     if (emit_include) {
         printf("#include \"%s\"\n\n", include_path);
     }
-    printf("#ifndef OW3_FDF_REPORT_MISSING\n");
-    printf("#define OW3_FDF_REPORT_MISSING(NAME) \\\n");
-    printf("    do { if (uiimport.Printf) uiimport.Printf(\"ERROR: missing FDF binding: %%s\\n\", (NAME)); } while (0)\n");
-    printf("#endif\n\n");
-    printf("#ifndef OW3_FDF_BIND_ROOT\n");
-    printf("#define OW3_FDF_BIND_ROOT(OUT, FIELD, NAME) \\\n");
-    printf("    do { (OUT)->FIELD = UI_FindFrame((NAME)); if (!(OUT)->FIELD) { OW3_FDF_REPORT_MISSING((NAME)); ok = false; } } while (0)\n");
-    printf("#endif\n\n");
-    printf("#ifndef OW3_FDF_BIND_CHILD\n");
-    printf("#define OW3_FDF_BIND_CHILD(OUT, FIELD, PARENT, NAME) \\\n");
-    printf("    do { (OUT)->FIELD = (PARENT) ? UI_FindChildFrame((PARENT), (NAME)) : NULL; if (!(OUT)->FIELD) { OW3_FDF_REPORT_MISSING((NAME)); ok = false; } } while (0)\n");
-    printf("#endif\n\n");
     emit_binding_type();
     emit_bind_function();
+    emit_bind_at_function();
     printf("\n#endif /* %s */\n", guard);
 }
 

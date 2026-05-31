@@ -18,7 +18,7 @@ Startup mode is selected in `common/main.c` from the `map` and `connect` cvars:
 - `map` set — listen-server mode
 - `connect` set — remote-client mode
 
-The initial menu route comes from `ui_start_route`, defaulting to `/main`.
+The initial menu command comes from `ui_start_command`, defaulting to `menu_main`.
 
 Renderer choices:
 
@@ -32,7 +32,7 @@ Renderer choices:
 ```c
 void CL_Frame(DWORD msec) {
     cl.time += msec;
-    ui.Refresh(msec);   // 1. update active client-side UI route
+    ui.Refresh(msec);   // 1. update active client-side UI screen
     CL_Input();         // 2. sample keyboard / mouse
     CL_ReadPackets();   // 3. apply incoming server messages
     CL_SendCommand();   // 4. execute commands and forward to server

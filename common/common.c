@@ -16,6 +16,11 @@ extern void Key_Init(void);
 
 #define MAXPRINTMSG 4096
 #define MAX_FS_MAPS 4096
+#define MAX_NUM_ARGVS 64
+#define MAX_ARG_CHARS 1024
+
+static int com_argc;
+static LPCSTR com_argv[MAX_NUM_ARGVS + 1];
 
 const LPCSTR WarcraftSheets[] = {
     "Units\\unitUI.slk",
@@ -231,7 +236,6 @@ static BOOL FS_FileOnDiskExists(LPCSTR filename) {
     return FS_StatPath(filename, NULL, &isFile) && isFile;
 }
 
-#ifdef OW3_LOAD_ALL_MPQS
 static BOOL FS_HasExtension(LPCSTR filename, LPCSTR extension) {
     size_t filenameLen;
     size_t extensionLen;
@@ -246,7 +250,6 @@ static BOOL FS_HasExtension(LPCSTR filename, LPCSTR extension) {
     }
     return !strcasecmp(filename + filenameLen - extensionLen, extension);
 }
-#endif
 
 static BOOL FS_IsArchiveExtensionAt(LPCSTR path, size_t dot) {
     static LPCSTR const extensions[] = { ".mpq", ".w3m", ".w3x", NULL };
@@ -389,39 +392,44 @@ static void FS_AddGameDirectory(LPCSTR dirname) {
     }
 }
 
-#ifdef OW3_LOAD_ALL_MPQS
 static int FS_ComparePaths(const void *a, const void *b) {
     PATHSTR const *pa = a;
     PATHSTR const *pb = b;
+    LPCSTR abase = FS_BaseName(*pa);
+    LPCSTR bbase = FS_BaseName(*pb);
+    int cmp = strcasecmp(abase, bbase);
 
-    return strcasecmp(*pa, *pb);
+    return cmp ? cmp : strcasecmp(*pa, *pb);
 }
 
 typedef struct {
     PATHSTR *paths;
     DWORD maxPaths;
     DWORD count;
+    DWORD depth;
 } fsArchiveScan_t;
 
 static void FS_AddArchiveScanEntry(LPCSTR name, LPCSTR path, BOOL isDirectory, BOOL isFile, void *userData) {
     fsArchiveScan_t *scan = userData;
 
-    (void)isDirectory;
-    if (!scan || !isFile || scan->count >= scan->maxPaths) {
+    if (!scan) {
         return;
     }
-    if (!FS_HasExtension(name, ".mpq")) {
+    if (isDirectory && scan->depth > 0 && strcasecmp(name, "Maps")) {
+        fsArchiveScan_t child_scan = *scan;
+        child_scan.depth--;
+        FS_ForEachDiskEntry(path, FS_AddArchiveScanEntry, &child_scan);
+        scan->count = child_scan.count;
         return;
     }
-    snprintf(scan->paths[scan->count++], sizeof(PATHSTR), "%s", path);
+    if (isFile && scan->count < scan->maxPaths && FS_HasExtension(name, ".mpq")) {
+        snprintf(scan->paths[scan->count++], sizeof(PATHSTR), "%s", path);
+    }
 }
-#endif
 
 BOOL FS_AddDataDirectory(LPCSTR dirname) {
-#ifdef OW3_LOAD_ALL_MPQS
     PATHSTR archivePaths[MAX_ARCHIVES];
-    fsArchiveScan_t scan = { archivePaths, MAX_ARCHIVES, 0 };
-#endif
+    fsArchiveScan_t scan = { archivePaths, MAX_ARCHIVES, 0, 2 };
     DWORD mountedCount = 0;
 
     if (!FS_DirectoryExists(dirname)) {
@@ -429,7 +437,6 @@ BOOL FS_AddDataDirectory(LPCSTR dirname) {
     }
 
     FS_AddGameDirectory(dirname);
-#ifdef OW3_LOAD_ALL_MPQS
     FS_ForEachDiskEntry(dirname, FS_AddArchiveScanEntry, &scan);
 
     qsort(archivePaths, scan.count, sizeof(archivePaths[0]), FS_ComparePaths);
@@ -438,16 +445,6 @@ BOOL FS_AddDataDirectory(LPCSTR dirname) {
             mountedCount++;
         }
     }
-#else
-    {
-        char archivePath[MAX_PATHLEN * 2];
-
-        FS_MakeDiskPath(dirname, "War3.mpq", archivePath, sizeof(archivePath));
-        if (FS_FileOnDiskExists(archivePath) && FS_AddArchive(archivePath)) {
-            mountedCount++;
-        }
-    }
-#endif
     return mountedCount > 0;
 }
 
@@ -1033,6 +1030,40 @@ void Com_Quit(void) {
     Sys_Quit();
 }
 
+void COM_InitArgv(int argc, LPCSTR *argv) {
+    int i;
+
+    if (argc > MAX_NUM_ARGVS) {
+        Com_Error(ERR_FATAL, "argc > MAX_NUM_ARGVS");
+    }
+    com_argc = argc;
+    for (i = 0; i < argc; i++) {
+        if (!argv[i] || strlen(argv[i]) >= MAX_ARG_CHARS) {
+            com_argv[i] = "";
+        } else {
+            com_argv[i] = argv[i];
+        }
+    }
+}
+
+int COM_Argc(void) {
+    return com_argc;
+}
+
+LPCSTR COM_Argv(int arg) {
+    if (arg < 0 || arg >= com_argc || !com_argv[arg]) {
+        return "";
+    }
+    return com_argv[arg];
+}
+
+void COM_ClearArgv(int arg) {
+    if (arg < 0 || arg >= com_argc || !com_argv[arg]) {
+        return;
+    }
+    com_argv[arg] = "";
+}
+
 typedef struct {
     LPCSTR name;
     DWORD count;
@@ -1169,6 +1200,7 @@ static void Com_Map_f(void) {
 }
 
 void Com_Init(int argc, LPCSTR *argv) {
+    COM_InitArgv(argc, argv);
     Cbuf_Init();
     Cvar_Init();
     FS_SetSheetHost(&MAKE(SHEETHOST,
@@ -1183,6 +1215,8 @@ void Com_Init(int argc, LPCSTR *argv) {
     Cmd_AddCommand("path", Com_Path_f);
     Cmd_AddCommand("dir", Com_Dir_f);
     Cvar_ApplyConfigCommandLine(argc, argv);
+    Cbuf_AddEarlyCommands(false);
+    Cbuf_Execute();
     FS_Init();
     Cvar_LoadConfig("share/default.cfg");
     Cbuf_Execute();
@@ -1199,6 +1233,8 @@ void Com_Init(int argc, LPCSTR *argv) {
     Cvar_Set("map", "");
     Cvar_Set("connect", "");
     Cvar_ApplyCommandLine(argc, argv);
+    Cbuf_AddEarlyCommands(true);
+    Cbuf_Execute();
 #ifdef WOW
     if (!*Cvar_String("map", "") && !*Cvar_String("connect", "")) {
         Cvar_Set("map", "World/Maps/Azeroth/Azeroth.wdt");

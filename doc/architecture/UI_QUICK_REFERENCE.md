@@ -8,13 +8,12 @@ This is the short version of the current client-side UI architecture.
 Mouse/keyboard
   -> client input
   -> ui/ui_main.c
-  -> ui/ui_router.c
   -> ui/screens/*.c
   -> ui/ui_render.c
   -> renderer API
 ```
 
-The UI library parses Warcraft III FDF files client-side, owns the frame tree, and routes screens by path. The server provides game data only, such as command buttons and inventory items.
+The UI library parses Warcraft III FDF files client-side, owns the frame tree, and switches screens through menu commands. The server provides game data only, such as command buttons and inventory items.
 
 ## Startup
 
@@ -24,16 +23,16 @@ The UI library parses Warcraft III FDF files client-side, owns the frame tree, a
 2. Initialise the renderer.
 3. Initialise `UI_GetAPI`.
 4. Load theme and FDF assets.
-5. Route to `ui_start_route`, default `/main`.
+5. Execute `ui_start_command`, default `menu_main`.
 
-Common routes:
+Common commands:
 
-| Route | Purpose |
-|-------|---------|
-| `/main` | Main menu |
-| `/single-player` | Single-player menu |
-| `/lan/refresh` | LAN game list |
-| `/lan/create` | Create LAN game |
+| Command | Purpose |
+|---------|---------|
+| `menu_main` | Main menu |
+| `menu_game` | Single-player menu |
+| `menu_lan_refresh` | LAN game list |
+| `menu_startserver` | Create LAN game |
 
 ## Renderer Diagnostics
 
@@ -50,7 +49,7 @@ build/bin/openwarcraft3 \
   -data=data/Warcraft\ III \
   -net_enabled=0 \
   -r_module=stdout \
-  -ui_start_route=/main \
+  -ui_start_command=menu_main \
   -com_frame_limit=1
 ```
 
@@ -62,7 +61,7 @@ The output includes:
 - `draw_text` with text, font, rect, measured size, and color
 - `draw_sys_text` console overlay lines
 
-This is useful for checking layout, anchors, backdrop pieces, button state art, translated strings, color codes, and route composition without a window.
+This is useful for checking layout, anchors, backdrop pieces, button state art, translated strings, color codes, and screen composition without a window.
 
 ## Unit Selection Flow
 
@@ -84,8 +83,7 @@ The client caches returned unit data and renders it on subsequent UI frames.
 
 | File | Purpose |
 |------|---------|
-| `ui/ui_main.c` | UI entry point, lifecycle, startup route |
-| `ui/ui_router.c` | Route selection and screen stack |
+| `ui/ui_main.c` | UI entry point, lifecycle, startup command, screen selection |
 | `ui/ui_fdf.c` | FDF parsing and frame registry |
 | `ui/ui_render.c` | Layout solving and frame rendering |
 | `ui/ui_theme.c` | Warcraft UI theme resources |
@@ -104,7 +102,7 @@ The client caches returned unit data and renders it on subsequent UI frames.
 | `r_module` | `renderer` for OpenGL, `stdout` for text output |
 | `ui_module` | UI module name |
 | `g_module` | Game module name |
-| `ui_start_route` | Initial UI route |
+| `ui_start_command` | Initial UI command |
 | `net_enabled` | Set `0` for isolated UI diagnostics |
 | `com_frame_limit` | Exit after N frames |
 

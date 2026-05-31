@@ -10,8 +10,8 @@
  * - Credits
  * - Exit
  *
- * The screen loads MainMenu.fdf frame definitions and routes onClick
- * commands to UI_MenuCommand() for navigation.
+ * The screen loads MainMenu.fdf frame definitions and sends menu commands
+ * to UI_MenuCommand() for navigation.
  */
 
 #include "../ui_local.h"
@@ -44,8 +44,8 @@ static void MainMenu_ShowQuitDialog(void) {
         .message = "Do you want to Quit?",
         .icon = UI_DIALOG_WAR3_ICON_QUESTION,
         .buttons = UI_DIALOG_WAR3_BUTTONS_YES_NO,
-        .no_route = "menu_main",
-        .yes_route = "quit",
+        .no_command = "menu_main",
+        .yes_command = "quit",
     };
 
     UI_DialogWar3Show(&quit_dialog, &config);
@@ -76,7 +76,7 @@ static void MainMenu_InitFrames(void) {
                     -0.08f);
     }
 
-    UI_SetOnClick(main_menu.RealmButton, "menu /realm-select");
+    UI_SetOnClick(main_menu.RealmButton, "menu_realm_select");
     UI_SetOnClick(main_menu.SinglePlayerButton, "menu_game");
     UI_SetOnClick(main_menu.BattleNetButton, "menu_multiplayer");
     UI_SetOnClick(main_menu.LocalAreaNetworkButton, "menu_multiplayer");
@@ -96,7 +96,7 @@ static void MainMenu_Init(void) {
     uiimport.Printf("MainMenu_Init\n");
     UI_PreloadGlueSceneModels();
     MainMenu_InitFrames();
-    show_realm_select = false;
+    MainMenu_ShowMainPanel();
 }
 
 static void MainMenu_Shutdown(void) {
@@ -138,29 +138,30 @@ static void MainMenu_MouseEvent(int x, int y, int buttons) {
     (void)buttons;
 }
 
-static void MainMenu_Route(LPCSTR path) {
-    /* Handle sub-routes */
-    if (!strcmp(path, "/realm-select")) {
-        UI_DialogWar3Hide(&quit_dialog);
-        show_realm_select = true;
-        if (main_menu.RealmSelect) {
-            UI_SetHidden(main_menu.RealmSelect, false);
-        }
-        if (main_menu.ControlLayer) {
-            UI_SetHidden(main_menu.ControlLayer, true);
-        }
-    } else if (!strcmp(path, "/main")) {
-        show_realm_select = false;
-        UI_DialogWar3Hide(&quit_dialog);
-        if (main_menu.RealmSelect) {
-            UI_SetHidden(main_menu.RealmSelect, true);
-        }
-        if (main_menu.ControlLayer) {
-            UI_SetHidden(main_menu.ControlLayer, false);
-        }
-    } else if (!strcmp(path, "/quit-confirm")) {
-        MainMenu_ShowQuitDialog();
+void MainMenu_ShowMainPanel(void) {
+    show_realm_select = false;
+    UI_DialogWar3Hide(&quit_dialog);
+    if (main_menu.RealmSelect) {
+        UI_SetHidden(main_menu.RealmSelect, true);
     }
+    if (main_menu.ControlLayer) {
+        UI_SetHidden(main_menu.ControlLayer, false);
+    }
+}
+
+void MainMenu_ShowRealmSelect(void) {
+    UI_DialogWar3Hide(&quit_dialog);
+    show_realm_select = true;
+    if (main_menu.RealmSelect) {
+        UI_SetHidden(main_menu.RealmSelect, false);
+    }
+    if (main_menu.ControlLayer) {
+        UI_SetHidden(main_menu.ControlLayer, true);
+    }
+}
+
+void MainMenu_ShowQuitConfirm(void) {
+    MainMenu_ShowQuitDialog();
 }
 
 uiScreen_t mainMenuScreen = {
@@ -172,5 +173,4 @@ uiScreen_t mainMenuScreen = {
     .draw = MainMenu_Draw,
     .key_event = MainMenu_KeyEvent,
     .mouse_event = MainMenu_MouseEvent,
-    .route = MainMenu_Route,
 };

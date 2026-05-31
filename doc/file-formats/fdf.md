@@ -120,7 +120,7 @@ make run-ui-text
 | Source | Purpose |
 |--------|---------|
 | `ui/ui_fdf.c` | FDF text parser and programmatic frame API |
-| `ui/ui_main.c` | Loads FDF/theme assets and routes to `ui_start_route` |
+| `ui/ui_main.c` | Loads FDF/theme assets and executes `ui_start_command` |
 | `ui/ui_render.c` | Layout solving and frame rendering |
 | `ui/ui_theme.c` | Warcraft theme file loading |
 | `ui/screens/*.c` | Screen controllers |

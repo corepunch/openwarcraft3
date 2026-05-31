@@ -181,7 +181,7 @@ typedef struct {
     void (*MouseEvent)(int x, int y, int button, BOOL down);
     
     /* Menu navigation (called by client for button clicks, console commands) */
-    void (*MenuCommand)(LPCSTR route);
+    void (*MenuCommand)(LPCSTR command);
     
     /* Unit UI data updates (Phase 8: HUD migration) */
     void (*UpdateUnitUI)(DWORD num_units, uiUnitData_t *units);

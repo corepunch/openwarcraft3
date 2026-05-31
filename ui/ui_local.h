@@ -139,7 +139,7 @@ typedef struct {
     FLOAT RowHeight;
     FLOAT InsetX;
     FLOAT InsetY;
-    UINAME SelectRoute;
+    UINAME SelectCommand;
     UINAME FontName;
     FLOAT FontSize;
     COLOR32 TextColor;
@@ -302,6 +302,7 @@ struct uiFrameDef_s {
     struct {
         UINAME CheckHighlight;
         UINAME DisabledCheckHighlight;
+        BOOL Checked;
     } CheckBox;
     struct {
         LPCFRAMEDEF FirstItem;
@@ -352,6 +353,7 @@ BOOL UI_LayoutHitTest(int x, int y);
 void UI_ResetGlueSceneModels(void);
 void UI_PreloadGlueSceneModels(void);
 void UI_DrawGlueScene(LPCSTR panel_anim);
+void UI_DrawGlueSceneLayers(LPCSTR left_panel_anim, LPCSTR right_panel_anim);
 
 /* ui_fdf.c — FDF parsing (moved from game/ui/ui_fdf.c) */
 BOOL UI_EnsureFDF(LPCSTR filename);
@@ -388,11 +390,27 @@ LPFRAMEDEF UI_FindFrame(LPCSTR);
 LPFRAMEDEF UI_FindFrameNear(LPCFRAMEDEF, LPCSTR);
 LPFRAMEDEF UI_FindChildFrame(LPFRAMEDEF, LPCSTR);
 LPFRAMEDEF UI_CloneFrameTree(LPCFRAMEDEF source, LPFRAMEDEF parent);
+
+#ifndef OW3_FDF_REPORT_MISSING
+#define OW3_FDF_REPORT_MISSING(NAME) \
+    do { if (uiimport.Printf) uiimport.Printf("ERROR: missing FDF binding: %s\n", (NAME)); } while (0)
+#endif
+
+#ifndef OW3_FDF_BIND_ROOT
+#define OW3_FDF_BIND_ROOT(OUT, FIELD, NAME) \
+    do { (OUT)->FIELD = UI_FindFrame((NAME)); if (!(OUT)->FIELD) { OW3_FDF_REPORT_MISSING((NAME)); ok = false; } } while (0)
+#endif
+
+#ifndef OW3_FDF_BIND_CHILD
+#define OW3_FDF_BIND_CHILD(OUT, FIELD, PARENT, NAME) \
+    do { (OUT)->FIELD = (PARENT) ? UI_FindChildFrame((PARENT), (NAME)) : NULL; if (!(OUT)->FIELD) { OW3_FDF_REPORT_MISSING((NAME)); ok = false; } } while (0)
+#endif
+
 void UI_BindMapList(LPFRAMEDEF frame,
                     uiMapListState_t *state,
                     LPCFRAMEDEF label,
                     DWORD visible_rows,
-                    LPCSTR select_route);
+                    LPCSTR select_command);
 void UI_MenuClearItems(LPFRAMEDEF frame);
 void UI_MenuAddItem(LPFRAMEDEF frame, LPCSTR text, LONG value);
 void UI_LayoutMapInfoPane(LPFRAMEDEF frame);
@@ -412,9 +430,6 @@ void UI_DrawFrames(LPCFRAMEDEF const *roots, DWORD num_roots);
 BOOL UI_EditKey(int key);
 void UI_TextInputLocal(LPCSTR text);
 
-/* ui_router.c — Menu routing */
-void UI_Route(LPCSTR route);
-void UI_ResetRouter(void);
 uiScreen_t *UI_GetCurrentScreen(void);
 
 #endif

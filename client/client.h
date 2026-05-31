@@ -181,7 +181,7 @@ void CL_ClearTEnts(void);
 int CL_ModelIndex(LPCSTR modelName);
 int CL_ImageIndex(LPCSTR imageName);
 int CL_FontIndex(LPCSTR fontName, DWORD fontSize);
-void CL_UIMenuCommand(LPCSTR route);
+void CL_UIMenuCommand(LPCSTR command);
 
 /* Unit UI data parsing (Phase 8) */
 void CL_ParseUnitUI(LPSIZEBUF msg);

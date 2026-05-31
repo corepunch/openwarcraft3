@@ -20,6 +20,7 @@ typedef struct {
 } uiState_t;
 
 static uiState_t ui_state;
+static uiScreen_t *ui_current_screen = NULL;
 static BOOL ui_menu_commands_registered;
 static LPFRAMEDEF resource_bar_frame;
 static LPFRAMEDEF resource_bar_gold_text;
@@ -68,78 +69,142 @@ typedef struct {
 
 static uiLoadingState_t loading_state;
 
-typedef struct {
-    LPCSTR command;
-    LPCSTR route;
-} uiMenuCommand_t;
+static void UI_SetScreen(uiScreen_t *screen) {
+    if (ui_current_screen == screen) {
+        return;
+    }
+    if (ui_current_screen && ui_current_screen->shutdown) {
+        ui_current_screen->shutdown();
+    }
+    ui_current_screen = NULL;
+    if (!screen) {
+        return;
+    }
+    if (screen->load && !screen->load()) {
+        uiimport.Printf("UI_SetScreen: failed to load screen '%s'\n", screen->name);
+        return;
+    }
+    ui_current_screen = screen;
+    if (screen->init) {
+        screen->init();
+    }
+}
 
-static uiMenuCommand_t const ui_menu_commands[] = {
-    { "menu_main", "/main" },
-    { "menu_game", "/single-player" },
-    { "menu_multiplayer", "/lan/create" },
-    { "menu_options", "/options" },
-    { "menu_video", "/options/video" },
-    { "menu_keys", "/options/keys" },
-    { "menu_loadgame", "/loadgame" },
-    { "menu_savegame", "/savegame" },
-    { "menu_playerconfig", "/playerconfig" },
-    { "menu_startserver", "/lan/create" },
-    { "menu_joinserver", "/lan/create" },
-    { "menu_credits", "/credits" },
-    { "menu_quit", "/main/quit-confirm" },
-    { NULL, NULL },
-};
+uiScreen_t *UI_GetCurrentScreen(void) {
+    return ui_current_screen;
+}
+
+void UI_ShowMainMenu(void) {
+    UI_SetScreen(&mainMenuScreen);
+    MainMenu_ShowMainPanel();
+}
+
+void UI_ShowSinglePlayerMenu(void) {
+    UI_SetScreen(&singlePlayerMenuScreen);
+    SinglePlayerMenu_ShowMain();
+}
+
+void UI_ShowOptionsMenu(void) {
+    UI_SetScreen(&optionsMenuScreen);
+    OptionsMenu_ShowGameplay();
+}
+
+void UI_ShowCreditsMenu(void) {
+    UI_SetScreen(&creditsMenuScreen);
+}
+
+void UI_ShowLanCreateMenu(void) {
+    UI_SetScreen(&lanJoinScreen);
+    LAN_ShowCreate();
+}
+
+void UI_ShowGameSetupMenu(void) {
+    UI_SetScreen(&gameSetupScreen);
+}
 
 static void UI_MenuMain_f(void) {
-    UI_Route("/main");
+    UI_ShowMainMenu();
 }
 
 static void UI_MenuGame_f(void) {
-    UI_Route("/single-player");
+    UI_ShowSinglePlayerMenu();
 }
 
 static void UI_MenuMultiplayer_f(void) {
-    UI_Route("/lan/create");
+    UI_ShowLanCreateMenu();
 }
 
 static void UI_MenuOptions_f(void) {
-    UI_Route("/options");
+    UI_ShowOptionsMenu();
 }
 
 static void UI_MenuVideo_f(void) {
-    UI_Route("/options/video");
+    UI_SetScreen(&optionsMenuScreen);
+    OptionsMenu_ShowVideo();
 }
 
 static void UI_MenuKeys_f(void) {
-    UI_Route("/options/keys");
+    UI_SetScreen(&optionsMenuScreen);
+    OptionsMenu_ShowKeys();
 }
 
 static void UI_MenuLoadGame_f(void) {
-    UI_Route("/loadgame");
 }
 
 static void UI_MenuSaveGame_f(void) {
-    UI_Route("/savegame");
 }
 
 static void UI_MenuPlayerConfig_f(void) {
-    UI_Route("/playerconfig");
 }
 
 static void UI_MenuStartServer_f(void) {
-    UI_Route("/lan/create");
+    UI_ShowLanCreateMenu();
 }
 
 static void UI_MenuJoinServer_f(void) {
-    UI_Route("/lan/create");
+    UI_ShowLanCreateMenu();
 }
 
 static void UI_MenuCredits_f(void) {
-    UI_Route("/credits");
+    UI_ShowCreditsMenu();
 }
 
 static void UI_MenuQuit_f(void) {
-    UI_Route("/main/quit-confirm");
+    UI_SetScreen(&mainMenuScreen);
+    MainMenu_ShowQuitConfirm();
+}
+
+static void UI_MenuRealmSelect_f(void) {
+    UI_SetScreen(&mainMenuScreen);
+    MainMenu_ShowRealmSelect();
+}
+
+static void UI_MenuOptionsGameplay_f(void) {
+    UI_SetScreen(&optionsMenuScreen);
+    OptionsMenu_ShowGameplay();
+}
+
+static void UI_MenuOptionsSound_f(void) {
+    UI_SetScreen(&optionsMenuScreen);
+    OptionsMenu_ShowSound();
+}
+
+static void UI_MenuSinglePlayerCampaign_f(void) {
+    UI_SetScreen(&singlePlayerMenuScreen);
+    SinglePlayerMenu_ShowCampaign();
+}
+
+static void UI_MenuLANRefresh_f(void) {
+    UI_ShowLanCreateMenu();
+    LAN_RefreshMaps();
+}
+
+static void UI_MenuLANStart_f(void) {
+    LAN_StartSelectedMap();
+}
+
+static void UI_MenuGameSetupStart_f(void) {
+    GameSetup_StartGame();
 }
 
 typedef struct {
@@ -161,6 +226,13 @@ static uiMenuCommandDef_t const ui_menu_command_defs[] = {
     { "menu_joinserver", UI_MenuJoinServer_f },
     { "menu_credits", UI_MenuCredits_f },
     { "menu_quit", UI_MenuQuit_f },
+    { "menu_realm_select", UI_MenuRealmSelect_f },
+    { "menu_options_gameplay", UI_MenuOptionsGameplay_f },
+    { "menu_options_sound", UI_MenuOptionsSound_f },
+    { "menu_single_player_campaign", UI_MenuSinglePlayerCampaign_f },
+    { "menu_lan_refresh", UI_MenuLANRefresh_f },
+    { "menu_lan_start", UI_MenuLANStart_f },
+    { "menu_game_setup_start", UI_MenuGameSetupStart_f },
     { NULL, NULL },
 };
 
@@ -229,15 +301,6 @@ static void UI_DrawConsoleMinimap(void) {
         return;
     }
     renderer->DrawMinimap(&rect);
-}
-
-static LPCSTR UI_MenuCommandRoute(LPCSTR command) {
-    for (uiMenuCommand_t const *menu = ui_menu_commands; menu->command; menu++) {
-        if (!strcmp(menu->command, command)) {
-            return menu->route;
-        }
-    }
-    return NULL;
 }
 
 static void UI_RegisterMenuCommands(void) {
@@ -555,7 +618,7 @@ void UI_InitLocal(void) {
     
     /*
      * Map launches use the server-authored in-game HUD via svc_layout.  Leave
-     * the client menu router idle there so no glue screen covers the game.
+     * the client-side menu screen idle there so no glue screen covers the game.
      */
     LPCSTR map = uiimport.Cvar_String
         ? uiimport.Cvar_String("map", "")
@@ -565,17 +628,12 @@ void UI_InitLocal(void) {
         return;
     }
 
-    /* Route to the configured first menu scene. */
-    UI_ResetRouter();
-    LPCSTR start_route = uiimport.Cvar_String
-        ? uiimport.Cvar_String("ui_start_route", "/main")
-        : "/main";
-    UI_Route(start_route && *start_route ? start_route : "/main");
+    UI_MenuCommandLocal("menu_main");
 }
 
 void UI_ShutdownLocal(void) {
     UI_ResetGlueSceneModels();
-    UI_ResetRouter();
+    UI_SetScreen(NULL);
     UI_ClearTemplates();
     memset(&ui_state, 0, sizeof(ui_state));
 }
@@ -678,22 +736,132 @@ void UI_MouseEventLocal(int x, int y, int button, BOOL down) {
 }
 
 void UI_MenuCommandLocal(LPCSTR command) {
-    LPCSTR route;
+    DWORD index;
+    DWORD slot;
+    DWORD value;
+    char map_path[MAX_PATHLEN];
 
     uiimport.Printf("UI_MenuCommandLocal: %s\n", command);
-    
-    /* Parse command */
-    route = UI_MenuCommandRoute(command);
-    if (route) {
-        UI_Route(route);
-    } else if (!strncmp(command, "menu ", 5)) {
-        UI_Route(command + 5);
-    } else {
-        if (UI_IsMapCommand(command)) {
-            ui_state.game_mode = true;
-        }
-        uiimport.Cmd_ExecuteText(command);
+
+    if (!command || !*command) {
+        return;
     }
+
+    if (!strcmp(command, "menu_main")) {
+        UI_MenuMain_f();
+        return;
+    }
+    if (!strcmp(command, "menu_game")) {
+        UI_MenuGame_f();
+        return;
+    }
+    if (!strcmp(command, "menu_multiplayer") ||
+        !strcmp(command, "menu_startserver") ||
+        !strcmp(command, "menu_joinserver")) {
+        UI_MenuMultiplayer_f();
+        return;
+    }
+    if (!strcmp(command, "menu_options")) {
+        UI_MenuOptions_f();
+        return;
+    }
+    if (!strcmp(command, "menu_video")) {
+        UI_MenuVideo_f();
+        return;
+    }
+    if (!strcmp(command, "menu_keys")) {
+        UI_MenuKeys_f();
+        return;
+    }
+    if (!strcmp(command, "menu_credits")) {
+        UI_MenuCredits_f();
+        return;
+    }
+    if (!strcmp(command, "menu_quit")) {
+        UI_MenuQuit_f();
+        return;
+    }
+    if (!strcmp(command, "menu_realm_select")) {
+        UI_MenuRealmSelect_f();
+        return;
+    }
+    if (!strcmp(command, "menu_options_gameplay")) {
+        UI_MenuOptionsGameplay_f();
+        return;
+    }
+    if (!strcmp(command, "menu_options_sound")) {
+        UI_MenuOptionsSound_f();
+        return;
+    }
+    if (!strcmp(command, "menu_single_player_campaign")) {
+        UI_MenuSinglePlayerCampaign_f();
+        return;
+    }
+    if (!strcmp(command, "menu_single_player_campaign_human")) {
+        SinglePlayerMenu_LaunchCampaign("human");
+        return;
+    }
+    if (!strcmp(command, "menu_single_player_campaign_orc")) {
+        SinglePlayerMenu_LaunchCampaign("orc");
+        return;
+    }
+    if (!strcmp(command, "menu_single_player_campaign_undead")) {
+        SinglePlayerMenu_LaunchCampaign("undead");
+        return;
+    }
+    if (!strcmp(command, "menu_single_player_campaign_night_elf")) {
+        SinglePlayerMenu_LaunchCampaign("night-elf");
+        return;
+    }
+    if (!strcmp(command, "menu_single_player_campaign_tutorial")) {
+        SinglePlayerMenu_LaunchCampaign("tutorial");
+        return;
+    }
+    if (sscanf(command, "menu_single_player_difficulty %u", &value) == 1) {
+        return;
+    }
+    if (!strcmp(command, "menu_lan_refresh")) {
+        UI_MenuLANRefresh_f();
+        return;
+    }
+    if (!strcmp(command, "menu_lan_start")) {
+        UI_MenuLANStart_f();
+        return;
+    }
+    if (sscanf(command, "menu_lan_select %u", &index) == 1) {
+        LAN_SelectMapIndex(index);
+        return;
+    }
+    if (!strcmp(command, "menu_game_setup_start")) {
+        UI_MenuGameSetupStart_f();
+        return;
+    }
+    if (sscanf(command, "menu_game_setup_slot_type %u %u", &slot, &value) == 2) {
+        GameSetup_SetSlotType(slot, value);
+        return;
+    }
+    if (sscanf(command, "menu_game_setup_slot_race %u %u", &slot, &value) == 2) {
+        GameSetup_SetSlotRace(slot, value);
+        return;
+    }
+    if (sscanf(command, "menu_game_setup_slot_team_next %u", &slot) == 1) {
+        GameSetup_CycleSlotTeam(slot);
+        return;
+    }
+    if (sscanf(command, "menu_game_setup_slot_color_next %u", &slot) == 1) {
+        GameSetup_CycleSlotColor(slot);
+        return;
+    }
+    if (sscanf(command, "menu_game_setup_map %255[^\n]", map_path) == 1) {
+        UI_SetScreen(&gameSetupScreen);
+        GameSetup_LoadMap(map_path);
+        return;
+    }
+
+    if (UI_IsMapCommand(command)) {
+        ui_state.game_mode = true;
+    }
+    uiimport.Cmd_ExecuteText(command);
 }
 
 /* Stub callbacks for server data updates */

@@ -19,7 +19,7 @@ This codebase is inspired by **Quake 2**. The developer working on this project 
 - Game state should be managed in a straightforward, imperative style consistent with Quake 2's `g_*.c` / `cl_*.c` / `r_*.c` file layout.
 - The engine and game code may be separated (similar to Quake 2's `game.dll` / `ref_gl` split) to allow modular replacement of subsystems.
 - Runtime modules communicate through function tables (`R_GetAPI`, `UI_GetAPI`, game imports/exports). Prefer this boundary over direct cross-module dependencies.
-- Use cvars for runtime choices: `r_module`, `ui_module`, `g_module`, `ui_start_route`, `net_enabled`, and `com_frame_limit`.
+- Use cvars for runtime choices: `r_module`, `ui_module`, `g_module`, `net_enabled`, and `com_frame_limit`.
 
 ## Network State Contracts
 
@@ -124,12 +124,12 @@ Use this output in bug reports/diagnostics so rendering issues can be triaged fr
 
 - Use `make run-ui-text` to inspect client-side UI rendering without opening a window or taking screenshots.
 - Default command:
-	- `make run-ui-text UI_ROUTE=/main`
+	- `make run-ui-text UI_CMD=menu_main`
 - Equivalent explicit command:
-	- `build/bin/openwarcraft3 -data=data/Warcraft\ III -net_enabled=0 -r_module=stdout -ui_start_route=/main -com_frame_limit=1`
-- `r_module=stdout` selects the text renderer.
-- `net_enabled=0` avoids binding the UDP port for menu-only diagnostics.
-- `com_frame_limit=1` exits after one frame and skips writing `share/config.cfg`.
+	- `build/bin/openwarcraft3 -data data/Warcraft\ III +net_enabled 0 +r_module stdout +com_frame_limit 1 +menu_main`
+- `+r_module stdout` selects the text renderer.
+- `+net_enabled 0` avoids binding the UDP port for menu-only diagnostics.
+- `+com_frame_limit 1` exits after one frame and skips writing `share/config.cfg`.
 
 Expected output includes:
 - `load_texture`, `load_model`, `load_font`
@@ -139,19 +139,19 @@ Expected output includes:
 - `draw_sys_text` for console overlay output
 
 Agent guidance:
-- Prefer the stdout renderer first for UI layout, FDF translation, button state, backdrop tiling, UV, color-code, and route-composition bugs.
+- Prefer the stdout renderer first for UI layout, FDF translation, button state, backdrop tiling, UV, color-code, and menu-command composition bugs.
 - Use `mdxtool --info` first when a UI model itself may be missing or malformed.
 - `fdftool` is no longer the primary UI inspection path; Phase 8 moved UI rendering into the client-side UI library.
-- For startup-menu diagnostics, override `ui_start_route` on the command line instead of editing default or generated config files. Any registered UI route can be launched this way, for example:
-	- `build/bin/openwarcraft3 -data=data/Warcraft\ III -net_enabled=0 -ui_start_route=/main`
-	- `build/bin/openwarcraft3 -data=data/Warcraft\ III -net_enabled=0 -ui_start_route=/single-player/campaign`
-	- `make run-ui-text UI_ROUTE=/single-player/campaign`
+- For startup-menu diagnostics, invoke a concrete menu command directly with a leading `+`. UI navigation is command-based; do not add router-style paths such as `/credits` or `/options`, do not add a generic `ui` console command, and do not add startup cvars for menu routing. Register concrete menu commands such as `menu_credits` or `menu_options` instead. Examples:
+	- `build/bin/openwarcraft3 -data data/Warcraft\ III +net_enabled 0 +menu_main`
+	- `build/bin/openwarcraft3 -data data/Warcraft\ III +net_enabled 0 +menu_single_player_campaign`
+	- `make run-ui-text UI_CMD=menu_single_player_campaign`
 
 ## Time Profiler Workflow
 
 - For runtime CPU profiling on macOS, prefer Instruments `xctrace` with the local `xctraceprof` parser.
 - Record a real run with Time Profiler:
-	- `/Applications/Xcode.app/Contents/Developer/usr/bin/xctrace record --template "Time Profiler" --time-limit 20s --output /private/tmp/openwarcraft3-orc01.trace --launch -- /Users/igor/Developer/openwarcraft3/build/bin/openwarcraft3 -data="/Users/igor/Developer/openwarcraft3/data/Warcraft III" -net_enabled=1 +map "Maps\\Campaign\\Orc01.w3m"`
+	- `/Applications/Xcode.app/Contents/Developer/usr/bin/xctrace record --template "Time Profiler" --time-limit 20s --output /private/tmp/openwarcraft3-orc01.trace --launch -- /Users/igor/Developer/openwarcraft3/build/bin/openwarcraft3 -data "/Users/igor/Developer/openwarcraft3/data/Warcraft III" +net_enabled 1 +map "Maps\\Campaign\\Orc01.w3m"`
 - Export the time-profile table to XML:
 	- `/Applications/Xcode.app/Contents/Developer/usr/bin/xctrace export --input /private/tmp/openwarcraft3-orc01.trace --xpath '/trace-toc/run[@number="1"]/data/table[@schema="time-profile"]' > /private/tmp/openwarcraft3-orc01-timeprof.xml`
 - Summarize the relevant window and focus symbols:

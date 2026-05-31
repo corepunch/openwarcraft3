@@ -83,12 +83,12 @@ static void InitConstants(void) {
 /* -------------------------------------------------------------------------
  * In-game JASS test runner.
  *
- * Activated by passing -jass_test=<script.j> on the command line.
- * Optionally specify the entrypoint with -jass_test_entry=<function>.
+ * Activated by passing +set jass_test <script.j> on the command line.
+ * Optionally specify the entrypoint with +set jass_test_entry <function>.
  * The game binary exits 0 on success, 1 on any assertion failure.
  *
  * Example:
- *   openwarcraft3 -data=<dir> -jass_test=tests/fixtures/test_jass_assertions.j
+ *   openwarcraft3 -data <dir> +set jass_test tests/fixtures/test_jass_assertions.j
  * ------------------------------------------------------------------------- */
 static void G_RunJassTests(LPCSTR script, LPCSTR entry) {
     if (!entry || !*entry) {

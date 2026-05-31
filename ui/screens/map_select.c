@@ -30,10 +30,6 @@ static void MapSelect_MouseEvent(int x, int y, int buttons) {
     (void)buttons;
 }
 
-static void MapSelect_Route(LPCSTR path) {
-    (void)path;
-}
-
 uiScreen_t mapSelectScreen = {
     .name = "map-select",
     .init = MapSelect_Init,
@@ -42,5 +38,4 @@ uiScreen_t mapSelectScreen = {
     .draw = MapSelect_Draw,
     .key_event = MapSelect_KeyEvent,
     .mouse_event = MapSelect_MouseEvent,
-    .route = MapSelect_Route,
 };

@@ -17,6 +17,9 @@ static char captured_command[128];
 static DWORD captured_draw_calls;
 static DWORD captured_dim_draws;
 static DWORD captured_dim_draw_index;
+static DWORD captured_text_draws;
+static RECT captured_text_rects[8];
+static VECTOR2 fake_text_size;
 static HANDLE test_mpq_archive;
 
 static int fake_image_index(LPCSTR name) {
@@ -103,6 +106,25 @@ static LPMODEL test_load_model(LPCSTR name) {
     return (LPMODEL)1;
 }
 
+static LPFONT test_load_font(LPCSTR name, DWORD size) {
+    (void)name;
+    (void)size;
+    return (LPFONT)1;
+}
+
+static VECTOR2 test_get_text_size(LPCDRAWTEXT draw_text) {
+    (void)draw_text;
+    return fake_text_size;
+}
+
+static void test_draw_text(LPCDRAWTEXT draw_text) {
+    if (captured_text_draws < sizeof(captured_text_rects) / sizeof(captured_text_rects[0]) &&
+        draw_text) {
+        captured_text_rects[captured_text_draws] = draw_text->rect;
+    }
+    captured_text_draws++;
+}
+
 static void test_draw_image_ex(LPCDRAWIMAGE draw_image) {
     captured_draw_calls++;
     if (draw_image &&
@@ -115,11 +137,19 @@ static void test_draw_image_ex(LPCDRAWIMAGE draw_image) {
     }
 }
 
+static size2_t test_get_window_size(void) {
+    return MAKE(size2_t, 1000, 750);
+}
+
 static LPRENDERER test_get_renderer(void) {
     static refExport_t renderer = {
         .LoadTexture = test_load_texture,
         .LoadModel = test_load_model,
+        .LoadFont = test_load_font,
+        .GetWindowSize = test_get_window_size,
         .DrawImageEx = test_draw_image_ex,
+        .DrawText = test_draw_text,
+        .GetTextSize = test_get_text_size,
     };
     return &renderer;
 }
@@ -193,10 +223,15 @@ static void reset_ui_state(void) {
     captured_draw_calls = 0;
     captured_dim_draws = 0;
     captured_dim_draw_index = 0;
+    captured_text_draws = 0;
+    memset(captured_text_rects, 0, sizeof(captured_text_rects));
+    fake_text_size = MAKE(VECTOR2, 0.050f, 0.016f);
+    memset(&ui_mouse, 0, sizeof(ui_mouse));
     uiimport.MemAlloc = test_ui_mem_alloc;
     uiimport.MemFree = test_ui_mem_free;
     uiimport.ImageIndex = fake_image_index;
     uiimport.ModelIndex = fake_model_index;
+    uiimport.FontIndex = test_font_index;
     uiimport.GetRenderer = test_get_renderer;
     uiimport.Printf = test_ui_printf;
     uiimport.Error = test_ui_printf;
@@ -1084,6 +1119,86 @@ static void test_unknown_token_does_not_crash_existing_definitions(void) {
     ASSERT_FLOAT_EQ(good->Width, 0.5f);
 }
 
+static void test_single_line_text_auto_height_uses_fdf_font_size(void) {
+    LPFRAMEDEF root;
+
+    reset_ui_state();
+    fake_text_size = MAKE(VECTOR2, 0.050f, 0.016f);
+    parse_fdf("text-height.fdf",
+              "Frame \"FRAME\" \"Root\" {"
+              " Width 0.8, Height 0.6,"
+              " Frame \"TEXT\" \"AutoLabel\" {"
+              "  SetPoint TOPLEFT, \"Root\", TOPLEFT, 0.1, -0.1,"
+              "  FrameFont \"MasterFont\", 0.013, \"\","
+              "  Text \"COLON_RESOLUTION\","
+              " }"
+              " Frame \"TEXT\" \"WrappedInfo\" {"
+              "  Width 0.2,"
+              "  SetPoint TOPLEFT, \"AutoLabel\", BOTTOMLEFT, 0.0, -0.03,"
+              "  FrameFont \"MasterFont\", 0.013, \"\","
+              "  Text \"GAMEPORT_INFO\","
+              " }"
+              "}");
+
+    root = UI_FindFrame("Root");
+    if (!require_not_null(root)) return;
+
+    UI_DrawFrame(root);
+
+    ASSERT_EQ_INT(captured_text_draws, 2);
+    ASSERT_EQ_FLOAT(captured_text_rects[0].h, 0.013f, 0.0001f);
+    ASSERT_EQ_FLOAT(captured_text_rects[1].h, 0.016f, 0.0001f);
+}
+
+static void test_glue_checkbox_toggles_and_draws_check_highlight(void) {
+    LPFRAMEDEF root;
+    LPFRAMEDEF checkbox;
+
+    reset_ui_state();
+    parse_fdf("checkbox.fdf",
+              "Frame \"FRAME\" \"Root\" {"
+              " Width 0.8, Height 0.6,"
+              " Frame \"GLUECHECKBOX\" \"OptionCheck\" {"
+              "  Width 0.024, Height 0.024,"
+              "  SetPoint TOPLEFT, \"Root\", TOPLEFT, 0.1, -0.1,"
+              "  ControlBackdrop \"OptionBackdrop\","
+              "  Frame \"BACKDROP\" \"OptionBackdrop\" {"
+              "   BackdropBackground \"Textures\\\\Black32.blp\","
+              "  }"
+              "  CheckBoxCheckHighlight \"OptionCheckMark\","
+              "  Frame \"HIGHLIGHT\" \"OptionCheckMark\" {"
+              "   HighlightType \"FILETEXTURE\","
+              "   HighlightAlphaFile \"Textures\\\\White32.blp\","
+              "   HighlightAlphaMode \"BLEND\","
+              "  }"
+              " }"
+              "}");
+
+    root = UI_FindFrame("Root");
+    checkbox = UI_FindFrame("OptionCheck");
+    if (!require_not_null(root)) return;
+    if (!require_not_null(checkbox)) return;
+
+    captured_draw_calls = 0;
+    UI_DrawFrame(root);
+    ASSERT(!checkbox->CheckBox.Checked);
+    ASSERT_EQ_INT(captured_draw_calls, 1);
+
+    ui_mouse.x = 130;
+    ui_mouse.y = 130;
+    ui_mouse.event = UI_MOUSE_LEFT_UP;
+    captured_draw_calls = 0;
+    UI_DrawFrame(root);
+    ASSERT(checkbox->CheckBox.Checked);
+    ASSERT_EQ_INT(captured_draw_calls, 2);
+
+    ui_mouse.event = UI_MOUSE_LEFT_UP;
+    captured_draw_calls = 0;
+    UI_DrawFrame(root);
+    ASSERT(!checkbox->CheckBox.Checked);
+    ASSERT_EQ_INT(captured_draw_calls, 1);
+}
+
 static void test_esc_menu_confirm_quit_panel_is_available(void) {
     LPFRAMEDEF panel;
     LPFRAMEDEF quit_button;
@@ -1123,7 +1238,7 @@ static void test_dialog_war3_supports_configurable_button_modes(void) {
         .message = "CONFIRM_EXIT_MESSAGE",
         .icon = UI_DIALOG_WAR3_ICON_ERROR,
         .buttons = UI_DIALOG_WAR3_BUTTONS_OK,
-        .ok_route = "menu /main/main",
+        .ok_command = "menu_main",
     };
 
     load_ui_files(files, sizeof(files) / sizeof(files[0]));
@@ -1148,13 +1263,13 @@ static void test_dialog_war3_supports_configurable_button_modes(void) {
     ASSERT(!dialog.frames.DialogButtonOKBackdrop->hidden);
     ASSERT(dialog.frames.DialogButtonNoBackdrop->hidden);
     ASSERT(dialog.frames.DialogButtonYesBackdrop->hidden);
-    ASSERT_STR_EQ(dialog.frames.DialogButtonOK->OnClick, "menu /main/main");
+    ASSERT_STR_EQ(dialog.frames.DialogButtonOK->OnClick, "menu_main");
 
     UI_DialogWar3Hide(&dialog);
     ASSERT(!UI_DialogWar3Visible(&dialog));
 }
 
-static void test_main_menu_quit_dialog_routes_to_quit(void) {
+static void test_main_menu_quit_dialog_commands_quit(void) {
     LPCSTR files[] = {
         "UI\\FrameDef\\GlobalStrings.fdf",
         "UI\\FrameDef\\UI\\EscMenuTemplates.fdf",
@@ -1215,7 +1330,7 @@ static void test_main_menu_quit_dialog_routes_to_quit(void) {
     ASSERT_EQ_INT(dialog->Type, FT_DIALOG);
     ASSERT(dialog->hidden);
 
-    mainMenuScreen.route("/quit-confirm");
+    MainMenu_ShowQuitConfirm();
     ASSERT(!modal->hidden);
     ASSERT(!dialog->hidden);
 
@@ -1314,7 +1429,9 @@ BEGIN_SUITE(ui_fdf)
     RUN_TEST(test_long_stringlist_text_uses_dynamic_storage);
     RUN_TEST(test_duplicate_name_prefers_first_template);
     RUN_TEST(test_unknown_token_does_not_crash_existing_definitions);
+    RUN_TEST(test_single_line_text_auto_height_uses_fdf_font_size);
+    RUN_TEST(test_glue_checkbox_toggles_and_draws_check_highlight);
     RUN_TEST(test_esc_menu_confirm_quit_panel_is_available);
     RUN_TEST(test_dialog_war3_supports_configurable_button_modes);
-    RUN_TEST(test_main_menu_quit_dialog_routes_to_quit);
+    RUN_TEST(test_main_menu_quit_dialog_commands_quit);
 END_SUITE()

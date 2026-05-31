@@ -71,7 +71,7 @@ For deterministic UI diagnostics without a window:
 make run-ui-text
 ```
 
-This uses `r_module=stdout`, disables networking, runs the route from `ui_start_route`, prints renderer calls to stdout, and exits after one frame.
+This uses `r_module=stdout`, disables networking, runs the command from `ui_start_command`, prints renderer calls to stdout, and exits after one frame.
 
 ### (Optional) Download Warcraft III 1.29b assets
 
@@ -124,7 +124,7 @@ Important runtime cvars:
 | `r_module` | `renderer` | Renderer backend: `renderer` or `stdout` |
 | `ui_module` | `ui` | UI module name |
 | `g_module` | `game` | Game module name |
-| `ui_start_route` | `/main` | First client-side UI route |
+| `ui_start_command` | `menu_main` | First client-side UI command |
 | `net_enabled` | `1` | Disable with `0` for isolated UI/render diagnostics |
 | `com_frame_limit` | `0` | Exit after N frames |
 
@@ -135,7 +135,7 @@ The project builds four runtime libraries and one executable:
 1. **libshared** (`shared/`) — mathematics (vectors, matrices, quaternions, geometric primitives); no external dependencies
 2. **librenderer** (`renderer/`) — renderer API implementations, including OpenGL and stdout diagnostics; depends on `libshared`, SDL2
 3. **libgame** (`game/`) — server-side game logic; depends on `libshared`
-4. **libui** (`ui/`) — client-side FDF parser, route controller, and UI renderer
+4. **libui** (`ui/`) — client-side FDF parser, command-driven screen controller, and UI renderer
 5. **openwarcraft3** — main executable linking the runtime libraries plus SDL2
 
 The build is driven by a `Makefile` for Linux/macOS. Run `make test` to execute the unit test suite.

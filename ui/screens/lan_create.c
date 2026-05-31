@@ -30,10 +30,6 @@ static void LANCreate_MouseEvent(int x, int y, int buttons) {
     (void)buttons;
 }
 
-static void LANCreate_Route(LPCSTR path) {
-    (void)path;
-}
-
 uiScreen_t lanCreateScreen = {
     .name = "lan-create",
     .init = LANCreate_Init,
@@ -42,5 +38,4 @@ uiScreen_t lanCreateScreen = {
     .draw = LANCreate_Draw,
     .key_event = LANCreate_KeyEvent,
     .mouse_event = LANCreate_MouseEvent,
-    .route = LANCreate_Route,
 };

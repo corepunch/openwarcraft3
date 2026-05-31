@@ -98,17 +98,15 @@ static VECTOR2 CL_UIGetMouseFdf(void);
 static DWORD CL_UIGetMouseButton(void);
 static uiClientMouseEvent_t CL_UIGetMouseEvent(void);
 
-static void CL_MenuRoute(LPCSTR route) {
-    char command[256];
-
-    if (!route || !*route) {
+static void CL_MenuCommand(LPCSTR command) {
+    if (!command || !*command) {
         return;
     }
     if (!ui.MenuCommand) {
-        Cvar_Set("ui_start_route", route);
+        Cbuf_AddText(command);
+        Cbuf_AddText("\n");
         return;
     }
-    snprintf(command, sizeof(command), "menu %s", route);
     ui.MenuCommand(command);
 }
 
@@ -396,9 +394,9 @@ int CL_FontIndex(LPCSTR fontName, DWORD fontSize) {
     return 0;
 }
 
-void CL_UIMenuCommand(LPCSTR route) {
-    CON_printf("CL_UIMenuCommand: %s\\n", route);
-    CL_MenuRoute(route);
+void CL_UIMenuCommand(LPCSTR command) {
+    CON_printf("CL_UIMenuCommand: %s\\n", command);
+    CL_MenuCommand(command);
 }
 
 void CL_Init(void) {

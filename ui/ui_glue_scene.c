@@ -55,7 +55,7 @@ void UI_PreloadGlueSceneModels(void) {
     ui_glue_scene.loaded = true;
 }
 
-void UI_DrawGlueScene(LPCSTR panel_anim) {
+void UI_DrawGlueSceneLayers(LPCSTR left_panel_anim, LPCSTR right_panel_anim) {
     LPRENDERER renderer = uiimport.GetRenderer ? uiimport.GetRenderer() : NULL;
 
     if (!renderer) {
@@ -71,10 +71,14 @@ void UI_DrawGlueScene(LPCSTR panel_anim) {
 
     if (renderer->DrawSprite) {
         if (ui_glue_scene.top_left_panel) {
-            renderer->DrawSprite(ui_glue_scene.top_left_panel, panel_anim, 0.0f, UI_BASE_HEIGHT);
+            renderer->DrawSprite(ui_glue_scene.top_left_panel, left_panel_anim, 0.0f, UI_BASE_HEIGHT);
         }
         if (ui_glue_scene.top_right_panel) {
-            renderer->DrawSprite(ui_glue_scene.top_right_panel, panel_anim, 0.0f, UI_BASE_HEIGHT);
+            renderer->DrawSprite(ui_glue_scene.top_right_panel, right_panel_anim, 0.0f, UI_BASE_HEIGHT);
         }
     }
+}
+
+void UI_DrawGlueScene(LPCSTR panel_anim) {
+    UI_DrawGlueSceneLayers(panel_anim, panel_anim);
 }

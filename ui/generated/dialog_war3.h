@@ -4,21 +4,6 @@
 
 #include "../ui_local.h"
 
-#ifndef OW3_FDF_REPORT_MISSING
-#define OW3_FDF_REPORT_MISSING(NAME) \
-    do { if (uiimport.Printf) uiimport.Printf("ERROR: missing FDF binding: %s\n", (NAME)); } while (0)
-#endif
-
-#ifndef OW3_FDF_BIND_ROOT
-#define OW3_FDF_BIND_ROOT(OUT, FIELD, NAME) \
-    do { (OUT)->FIELD = UI_FindFrame((NAME)); if (!(OUT)->FIELD) { OW3_FDF_REPORT_MISSING((NAME)); ok = false; } } while (0)
-#endif
-
-#ifndef OW3_FDF_BIND_CHILD
-#define OW3_FDF_BIND_CHILD(OUT, FIELD, PARENT, NAME) \
-    do { (OUT)->FIELD = (PARENT) ? UI_FindChildFrame((PARENT), (NAME)) : NULL; if (!(OUT)->FIELD) { OW3_FDF_REPORT_MISSING((NAME)); ok = false; } } while (0)
-#endif
-
 typedef struct DialogWar3_s {
     LPFRAMEDEF DialogWar3;
     LPFRAMEDEF DialogBackdrop;
