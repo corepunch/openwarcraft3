@@ -10,6 +10,7 @@
 #define MAX_CACHED_FONTS 64
 #define FONT_SCALE 2
 #define INV_SCALE(x) ((x) / (FONT_SCALE * 1000.f))
+#define TEXT_BATCH_VERTICES 1020
 
 typedef struct {
     LPTEXTURE image;
@@ -261,6 +262,44 @@ static RECT get_screenrect(LPCVECTOR2 cursor, stbtt_bakedchar *g) {
     return screen;
 }
 
+typedef struct {
+    VERTEX vertices[TEXT_BATCH_VERTICES];
+    DWORD count;
+    LPCTEXTURE texture;
+} textBatch_t;
+
+static void flush_text_batch(textBatch_t *batch, LPCDRAWTEXT arg) {
+    if (!batch->count) {
+        return;
+    }
+    R_DrawImageBatch(batch->texture,
+                     SHADER_UI,
+                     BLEND_MODE_BLEND,
+                     0.0f,
+                     arg->hasClip,
+                     &arg->clip,
+                     batch->vertices,
+                     batch->count,
+                     false);
+    batch->count = 0;
+    batch->texture = NULL;
+}
+
+static void add_text_glyph(textBatch_t *batch,
+                           LPCDRAWTEXT arg,
+                           LPCTEXTURE texture,
+                           LPCRECT screen,
+                           LPCRECT uv,
+                           COLOR32 color)
+{
+    if (batch->texture != texture || batch->count + 6 > TEXT_BATCH_VERTICES) {
+        flush_text_batch(batch, arg);
+        batch->texture = texture;
+    }
+    R_AddQuad(batch->vertices + batch->count, screen, uv, color, 0);
+    batch->count += 6;
+}
+
 static VECTOR2 process_text(LPCDRAWTEXT arg, BOOL draw) {
     if (!arg->font) {
         return MAKE(VECTOR2, 0, 0);
@@ -274,6 +313,7 @@ static VECTOR2 process_text(LPCDRAWTEXT arg, BOOL draw) {
     FLOAT max_cursor_x = pos.x;
     FLOAT min_cursor_y = pos.y;
     FLOAT max_cursor_y = pos.y;
+    textBatch_t batch = { 0 };
     for (LPCSTR p = arg->text; *p;) {
         if (*p == '\n') {
             cursor.x = pos.x;
@@ -302,6 +342,7 @@ static VECTOR2 process_text(LPCDRAWTEXT arg, BOOL draw) {
             switch (*(DWORD*)(p+1)) {
                 case MAKEFOURCC('I', 'c', 'o', 'n'):
                     if (draw && arg->icons && icon < MAX_IMAGES && arg->icons[icon]) {
+                        flush_text_batch(&batch, arg);
                         R_DrawImageEx(&MAKE(drawImage_t,
                                             .texture = arg->icons[icon],
                                             .shader = SHADER_UI,
@@ -347,19 +388,14 @@ static VECTOR2 process_text(LPCDRAWTEXT arg, BOOL draw) {
             FLOAT const h = set->image->height;
             RECT const uv_rect = get_uvrect(g, h, w);
             RECT const screen = get_screenrect(&cursor, g);
-            R_DrawImageEx(&MAKE(drawImage_t,
-                                .texture = set->image,
-                                .shader = SHADER_UI,
-                                .alphamode = BLEND_MODE_BLEND,
-                                .screen = screen,
-                                .uv = uv_rect,
-                                .color = color,
-                                .hasClip = arg->hasClip,
-                                .clip = arg->clip));
+            add_text_glyph(&batch, arg, set->image, &screen, &uv_rect, color);
         }
         cursor.x += INV_SCALE(g->xadvance);
         max_cursor_x = MAX(max_cursor_x, cursor.x);
         max_cursor_y = MAX(max_cursor_y, cursor.y);
+    }
+    if (draw) {
+        flush_text_batch(&batch, arg);
     }
     return MAKE(VECTOR2,
                 max_cursor_x - pos.x,

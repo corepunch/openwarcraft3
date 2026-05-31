@@ -18,6 +18,7 @@
 #include <GLES3/gl3.h>
 #endif
 
+#ifdef DIAG_OUTPUT
 #define GetError()\
 {\
     for (GLenum Error = glGetError(); (GL_NO_ERROR != Error); Error = glGetError())\
@@ -32,6 +33,9 @@
         }\
     }\
 }
+#else
+#define GetError() do { } while (0)
+#endif
 
 #define R_Call(func, ...) func(__VA_ARGS__); GetError();
 #ifdef USE_SHADOWMAPS
@@ -246,6 +250,7 @@ void R_DrawChar(int x, int y, int c);
 void R_DrawFill(LPCRECT rect, COLOR32 color);
 void R_DrawImage(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv, COLOR32 color);
 void R_DrawImageEx(LPCDRAWIMAGE drawImage);
+void R_DrawImageBatch(LPCTEXTURE texture, SHADERTYPE shaderType, BLEND_MODE alphamode, FLOAT uActiveGlow, BOOL hasClip, LPCRECT clip, LPCVERTEX vertices, DWORD num_vertices, BOOL repeat);
 void R_DrawMinimap(LPCRECT screen);
 void R_DrawLoadingIndicator(LPCRECT rect, DWORD time, COLOR32 color);
 void R_DrawPic(LPCTEXTURE texture, float x, float y);
