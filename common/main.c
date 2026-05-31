@@ -50,6 +50,20 @@
 
 extern LPTEXTURE Texture;
 
+static unsigned short Sys_GamePort(void) {
+    int port = Cvar_Integer("game_port", PORT_SERVER);
+
+    if (port <= 0 || port > 65535) {
+        fprintf(stderr,
+                "Invalid game_port %d, using default %u\n",
+                port,
+                (unsigned)PORT_SERVER);
+        Cvar_Set("game_port", PORT_SERVER_STRING);
+        port = PORT_SERVER;
+    }
+    return (unsigned short)port;
+}
+
 void Sys_Quit(void) {
     exit(0);
 }
@@ -90,6 +104,7 @@ int main(int argc, LPSTR argv[]) {
     bool menu_mode = !has_map && !has_connect_addr;
     bool listen_server_mode = has_map && !has_connect_addr;
     bool net_enabled = Cvar_Integer("net_enabled", 1) != 0;
+    unsigned short game_port = Sys_GamePort();
 
     if (has_map) {
         if (!Com_ResolveMapArgument(map, resolved_map, sizeof(resolved_map))) {
@@ -100,12 +115,12 @@ int main(int argc, LPSTR argv[]) {
     cls.key_dest = menu_mode ? key_menu : key_game;
     cls.state = ca_disconnected;
 
-    unsigned short port = has_connect_addr ? 0 : PORT_SERVER;
+    unsigned short port = has_connect_addr ? 0 : game_port;
     if (has_connect_addr && !net_enabled) {
         fprintf(stderr, "Cannot connect with net_enabled disabled\n");
         return 1;
     }
-    bool net_active = net_enabled && !menu_mode;
+    bool net_active = net_enabled;
     if (net_active && !NET_Init(port)) {
         fprintf(stderr, "NET_Init failed\n");
         return 1;
@@ -118,7 +133,7 @@ int main(int argc, LPSTR argv[]) {
 
     if (has_connect_addr) {
         // Remote-client mode: skip the local server, connect over UDP.
-        CL_Connect(connect_addr, PORT_SERVER);
+        CL_Connect(connect_addr, game_port);
     } else if (listen_server_mode) {
         // Listen-server mode: show the client loading screen before the
         // synchronous server map load, mirroring Quake's loading plaque flow.

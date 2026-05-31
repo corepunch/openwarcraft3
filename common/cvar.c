@@ -404,6 +404,8 @@ void Cvar_Init(void) {
     Cvar_Get("g_module", "game", CVAR_ARCHIVE);
     Cvar_Get("ui_game_setup_map", "", 0);
     Cvar_Get("net_enabled", "1", CVAR_ARCHIVE);
+    Cvar_Get("game_port", PORT_SERVER_STRING, CVAR_ARCHIVE);
+    Cvar_Get("sv_hostname", "OpenWarcraft3", CVAR_ARCHIVE);
     Cvar_Get("com_frame_limit", "0", 0);
     Cvar_Get("scr_showfps", "1", CVAR_ARCHIVE);
     Cvar_Get("skip_cutscene", "0", 0);
@@ -415,4 +417,6 @@ void Cvar_Init(void) {
     Cvar_Get("r_lights", "2", CVAR_ARCHIVE);
     Cvar_Get("r_unit_shadows", "1", CVAR_ARCHIVE);
     Cvar_Get("r_occlusion", "1", CVAR_ARCHIVE);
+    Cvar_Get("ui_chat_support", "0", CVAR_ARCHIVE);
+    Cvar_Get("s_provider", "1", CVAR_ARCHIVE);
 }

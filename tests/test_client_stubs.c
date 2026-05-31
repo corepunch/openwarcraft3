@@ -29,6 +29,11 @@ int Cvar_Integer(LPCSTR name, int fallback) {
     return fallback;
 }
 
+LPCSTR Cvar_String(LPCSTR name, LPCSTR fallback) {
+    (void)name;
+    return fallback;
+}
+
 void CL_ParseTEnt(LPSIZEBUF msg) {
     (void)msg;
 }
