@@ -456,6 +456,7 @@ static BOOL UI_FrameInDrawOrder(LPCFRAMEDEF const *draw_order, DWORD count, LPCF
 static void UI_SanitizeInteractionState(LPCFRAMEDEF const *draw_order, DWORD count) {
     if (!draw_order || count == 0) {
         active_popup = NULL;
+        UI_ResetPopupScroll();
         active_slider = NULL;
         UI_FocusEdit(NULL);
         return;
@@ -463,9 +464,11 @@ static void UI_SanitizeInteractionState(LPCFRAMEDEF const *draw_order, DWORD cou
 
     if (active_popup && !UI_FrameInDrawOrder(draw_order, count, active_popup)) {
         active_popup = NULL;
+        UI_ResetPopupScroll();
     }
     if (active_popup && active_modal && !UI_FrameWithinRoot(active_modal, active_popup)) {
         active_popup = NULL;
+        UI_ResetPopupScroll();
     }
     if (active_slider && !UI_FrameInDrawOrder(draw_order, count, active_slider)) {
         active_slider = NULL;
@@ -721,7 +724,11 @@ static void UI_DrawFrameOne(LPCFRAMEDEF frame) {
                 !UI_PointerBlockedByPopup(frame) &&
                 UI_MouseContains(rect) &&
                 ui_mouse.event == UI_MOUSE_LEFT_UP) {
-                active_popup = active_popup == frame ? NULL : frame;
+                LPCFRAMEDEF next_popup = active_popup == frame ? NULL : frame;
+                if (active_popup != next_popup) {
+                    UI_ResetPopupScroll();
+                    active_popup = next_popup;
+                }
             }
             break;
             
