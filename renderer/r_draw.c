@@ -131,6 +131,66 @@ static void R_ResetUIScissor(void) {
     R_Call(glScissor, 0, 0, tr.drawableSize.width, tr.drawableSize.height);
 }
 
+void R_DrawImageBatch(LPCTEXTURE texture,
+                      SHADERTYPE shaderType,
+                      BLEND_MODE alphamode,
+                      FLOAT uActiveGlow,
+                      BOOL hasClip,
+                      LPCRECT clip,
+                      LPCVERTEX vertices,
+                      DWORD num_vertices,
+                      BOOL repeat)
+{
+    if (!vertices || !num_vertices) {
+        return;
+    }
+
+    LPCSHADER shader = tr.shader[shaderType];
+    
+    MATRIX4 ui_matrix, model_matrix;
+    RECT const scene = R_UISceneRect();
+    Matrix4_ortho(&ui_matrix, scene.x, scene.x + scene.w, scene.y + scene.h, scene.y, 0.0f, 100.0f);
+    Matrix4_identity(&model_matrix);
+    
+    R_Call(glDisable, GL_CULL_FACE);
+    R_Call(glUseProgram, shader->progid);
+    R_Call(glUniformMatrix4fv, shader->uViewProjectionMatrix, 1, GL_FALSE, ui_matrix.v);
+    R_Call(glUniformMatrix4fv, shader->uModelMatrix, 1, GL_FALSE, model_matrix.v);
+    R_Call(glUniform1f , shader->uActiveGlow, uActiveGlow);
+    R_Call(glBindVertexArray, tr.buffer[RBUF_TEMP1]->vao);
+    R_Call(glBindBuffer, GL_ARRAY_BUFFER, tr.buffer[RBUF_TEMP1]->vbo);
+    R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(VERTEX) * num_vertices, vertices, GL_STATIC_DRAW);
+    R_Call(glDisable, GL_DEPTH_TEST);
+    R_Call(glDepthMask, GL_FALSE);
+    R_Call(glEnable, GL_BLEND);
+    
+    R_SetBlending(alphamode);
+    R_BindTexture(texture, 0);
+    
+//    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+//    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    if (repeat) {
+        R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    } else {
+        R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    }
+    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    R_Call(glDisable, GL_CULL_FACE);
+    R_Call(glEnable, GL_BLEND);
+    if (hasClip) {
+        R_SetUIClipScissor(clip);
+    }
+    R_Call(glDrawArrays, GL_TRIANGLES, 0, num_vertices);
+    if (hasClip) {
+        R_ResetUIScissor();
+    }
+
+    R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+}
+
 void R_DrawImageEx(LPCDRAWIMAGE drawImage) {
     VERTEX simp[6];
     R_AddQuad(simp, &drawImage->screen, &drawImage->uv, drawImage->color, 0);
@@ -156,50 +216,15 @@ void R_DrawImageEx(LPCDRAWIMAGE drawImage) {
         }
     }
 
-    LPCSHADER shader = tr.shader[drawImage->shader];
-    
-    MATRIX4 ui_matrix, model_matrix;
-    RECT const scene = R_UISceneRect();
-    Matrix4_ortho(&ui_matrix, scene.x, scene.x + scene.w, scene.y + scene.h, scene.y, 0.0f, 100.0f);
-    Matrix4_identity(&model_matrix);
-    
-    R_Call(glDisable, GL_CULL_FACE);
-    R_Call(glUseProgram, shader->progid);
-    R_Call(glUniformMatrix4fv, shader->uViewProjectionMatrix, 1, GL_FALSE, ui_matrix.v);
-    R_Call(glUniformMatrix4fv, shader->uModelMatrix, 1, GL_FALSE, model_matrix.v);
-    R_Call(glUniform1f , shader->uActiveGlow, drawImage->uActiveGlow);
-    R_Call(glBindVertexArray, tr.buffer[RBUF_TEMP1]->vao);
-    R_Call(glBindBuffer, GL_ARRAY_BUFFER, tr.buffer[RBUF_TEMP1]->vbo);
-    R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(VERTEX) * 6, simp, GL_STATIC_DRAW);
-    R_Call(glDisable, GL_DEPTH_TEST);
-    R_Call(glDepthMask, GL_FALSE);
-    R_Call(glEnable, GL_BLEND);
-    
-    R_SetBlending(drawImage->alphamode);
-    R_BindTexture(drawImage->texture, 0);
-    
-//    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-//    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    if (drawImage->uv.w > 1 || drawImage->uv.h > 1) {
-        R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-        R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    } else {
-        R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-        R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    }
-    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    R_Call(glDisable, GL_CULL_FACE);
-    R_Call(glEnable, GL_BLEND);
-    if (drawImage->hasClip) {
-        R_SetUIClipScissor(&drawImage->clip);
-    }
-    R_Call(glDrawArrays, GL_TRIANGLES, 0, 6);
-    if (drawImage->hasClip) {
-        R_ResetUIScissor();
-    }
-
-    R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    R_DrawImageBatch(drawImage->texture,
+                     drawImage->shader,
+                     drawImage->alphamode,
+                     drawImage->uActiveGlow,
+                     drawImage->hasClip,
+                     &drawImage->clip,
+                     simp,
+                     6,
+                     drawImage->uv.w > 1 || drawImage->uv.h > 1);
 }
 
 void R_DrawImage(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv, COLOR32 color) {

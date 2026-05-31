@@ -7,6 +7,7 @@ extern bool is_rendering_lights;
 #endif
 
 #define MDX_SHADER_MAX_LIGHTS 8
+#define MDLX_STACK_DRAW_ORDER 64
 
 typedef struct mdxShaderLight_s {
     MATRIX4 matrix;
@@ -220,12 +221,25 @@ static bool MDLX_IsBlendedLayer(mdxMaterialLayer_t const *layer) {
     return layer->blendMode >= BLEND_MODE_BLEND;
 }
 
+static bool MDLX_MaterialHasPass(mdxMaterial_t const *material, bool blendedPass) {
+    if (!material) {
+        return false;
+    }
+    FOR_LOOP(layerID, material->num_layers) {
+        if (MDLX_IsBlendedLayer(&material->layers[layerID]) == blendedPass) {
+            return true;
+        }
+    }
+    return false;
+}
+
 static VECTOR4 MDLX_EvaluateGeosetColor(mdxModel_t const *model,
                                         mdxGeoset_t const *geoset,
                                         DWORD frame);
 
 typedef struct mdxGeosetDrawOrder_s {
     mdxGeoset_t const *geoset;
+    mdxMaterial_t const *material;
     int priority;
     DWORD order;
 } mdxGeosetDrawOrder_t;
@@ -477,28 +491,23 @@ static float MDLX_EvaluateLayerAlpha(mdxModel_t const *model,
 
 static void MDLX_RenderGeoset(mdxModel_t const *model,
                              mdxGeoset_t const *geoset,
+                             mdxMaterial_t const *material,
                              DWORD team,
-                             LPCMATRIX4 modelMatrix,
                              LPCTEXTURE overrideTexture,
                              BOOL forceUnshaded,
                              DWORD frame,
-                             mdxShaderLight_t const *lights,
-                             int numLights,
                              bool blendedPass)
 {
-    MATRIX3 mNormalMatrix;
     BOOL force_two_sided = model && !model->cameras;
     LPSHADER shader = mdlx.shader;
-    Matrix3_normal(&mNormalMatrix, modelMatrix);
-    mdxMaterial_t const *material = MDLX_GetMaterialAtIndex(geoset, model);
-    VECTOR4 geosetColor = MDLX_EvaluateGeosetColor(model, geoset, frame);
+    VECTOR4 geosetColor;
 
-    R_Call(glUseProgram, shader->progid);
-    R_Call(glUniform1i, shader->uUseDiscard, 0);
-    R_Call(glUniformMatrix4fv, shader->uModelMatrix, 1, GL_FALSE, modelMatrix->v);
-    R_Call(glUniformMatrix3fv, shader->uNormalMatrix, 1, GL_TRUE, mNormalMatrix.v);
+    if (!MDLX_MaterialHasPass(material, blendedPass)) {
+        return;
+    }
+
+    geosetColor = MDLX_EvaluateGeosetColor(model, geoset, frame);
     MDLX_BindGeosetMatrixPalette(model, geoset);
-    MDLX_BindShaderLights(lights, numLights);
     R_Call(glUniform1f, shader->uLayerAlpha, 1.0f);
     R_Call(glUniform4f, shader->uGeosetColor, geosetColor.x, geosetColor.y, geosetColor.z, geosetColor.w);
 
@@ -641,33 +650,40 @@ check_geometry:
 }
 
 static void MDLX_RenderGeosets(const renderEntity_t *entity,
-                               const mdxModel_t *model,
-                               LPCMATRIX4 model_matrix,
-                               mdxShaderLight_t const *lights,
-                               int numLights)
+                               const mdxModel_t *model)
 {
     BOOL forceUnshaded = (entity->flags & RF_NO_LIGHTING) != 0;
     DWORD geosetCount = 0;
     DWORD drawCount = 0;
+    mdxGeosetDrawOrder_t stackDrawOrder[MDLX_STACK_DRAW_ORDER];
     mdxGeosetDrawOrder_t *drawOrder;
 
     FOR_EACH_LIST(mdxGeoset_t, geoset, model->geosets) {
+        mdxMaterial_t const *material;
         geosetCount++;
         if (!MDLX_IsGeosetVisible(model, geoset, entity->frame)) {
             continue;
         }
-        MDLX_RenderGeoset(model, geoset, entity->team&TEAM_MASK, model_matrix, entity->skin, forceUnshaded, entity->frame, lights, numLights, false);
+        material = MDLX_GetMaterialAtIndex(geoset, model);
+        if (MDLX_MaterialHasPass(material, false)) {
+            MDLX_RenderGeoset(model, geoset, material, entity->team&TEAM_MASK, entity->skin, forceUnshaded, entity->frame, false);
+        }
     }
 
     if (geosetCount == 0) {
         return;
     }
 
-    drawOrder = ri.MemAlloc(sizeof(*drawOrder) * geosetCount);
+    drawOrder = geosetCount <= MDLX_STACK_DRAW_ORDER ?
+                stackDrawOrder :
+                ri.MemAlloc(sizeof(*drawOrder) * geosetCount);
     if (!drawOrder) {
         FOR_EACH_LIST(mdxGeoset_t, geoset, model->geosets) {
-            if (MDLX_IsGeosetVisible(model, geoset, entity->frame)) {
-                MDLX_RenderGeoset(model, geoset, entity->team&TEAM_MASK, model_matrix, entity->skin, forceUnshaded, entity->frame, lights, numLights, true);
+            mdxMaterial_t const *material = MDLX_GetMaterialAtIndex(geoset, model);
+            if (MDLX_IsGeosetVisible(model, geoset, entity->frame) &&
+                MDLX_MaterialHasPass(material, true))
+            {
+                MDLX_RenderGeoset(model, geoset, material, entity->team&TEAM_MASK, entity->skin, forceUnshaded, entity->frame, true);
             }
         }
         return;
@@ -678,22 +694,30 @@ static void MDLX_RenderGeosets(const renderEntity_t *entity,
             continue;
         }
         material = MDLX_GetMaterialAtIndex(geoset, model);
+        if (!MDLX_MaterialHasPass(material, true)) {
+            continue;
+        }
         drawOrder[drawCount] = (mdxGeosetDrawOrder_t) {
             .geoset = geoset,
+            .material = material,
             .priority = material ? material->priority : 0,
             .order = drawCount,
         };
         drawCount++;
     }
 
-    qsort(drawOrder, drawCount, sizeof(*drawOrder), MDLX_CompareGeosetDrawOrder);
+    if (drawCount > 1) {
+        qsort(drawOrder, drawCount, sizeof(*drawOrder), MDLX_CompareGeosetDrawOrder);
+    }
 
     FOR_LOOP(i, drawCount) {
         mdxGeoset_t const *geoset = drawOrder[i].geoset;
-        MDLX_RenderGeoset(model, geoset, entity->team&TEAM_MASK, model_matrix, entity->skin, forceUnshaded, entity->frame, lights, numLights, true);
+        MDLX_RenderGeoset(model, geoset, drawOrder[i].material, entity->team&TEAM_MASK, entity->skin, forceUnshaded, entity->frame, true);
     }
 
-    ri.MemFree(drawOrder);
+    if (drawOrder != stackDrawOrder) {
+        ri.MemFree(drawOrder);
+    }
 }
 
 static void MDLX_RenderParticleEmitters(const renderEntity_t *entity, const mdxModel_t *model, LPCMATRIX4 model_matrix) {
@@ -738,13 +762,17 @@ void MDX_RenderModel(renderEntity_t const *entity,
     }
     
     LPSHADER shader = mdlx.shader;
+    MATRIX3 normalMatrix;
     GLfloat const *viewProjectionMatrix =
 #ifdef USE_SHADOWMAPS
         is_rendering_lights ? tr.viewDef.lightMatrix.v :
 #endif
         tr.viewDef.viewProjectionMatrix.v;
+    Matrix3_normal(&normalMatrix, transform);
     R_Call(glUseProgram, shader->progid);
     R_Call(glUniformMatrix4fv, shader->uViewProjectionMatrix, 1, GL_FALSE, viewProjectionMatrix);
+    R_Call(glUniformMatrix4fv, shader->uModelMatrix, 1, GL_FALSE, transform->v);
+    R_Call(glUniformMatrix3fv, shader->uNormalMatrix, 1, GL_TRUE, normalMatrix.v);
     R_Call(glUniformMatrix4fv, shader->uTextureMatrix, 1, GL_FALSE, tr.viewDef.textureMatrix.v);
     R_Call(glUniformMatrix4fv, shader->uLightMatrix, 1, GL_FALSE, tr.viewDef.lightMatrix.v);
     R_Call(glUniform1i, shader->uUnshaded, (entity->flags & RF_NO_LIGHTING) != 0);
@@ -759,6 +787,7 @@ void MDX_RenderModel(renderEntity_t const *entity,
     MDLX_BindBoneMatrices(model, transform, entity->frame, entity->oldframe);
     mdxShaderLight_t lights[MDX_SHADER_MAX_LIGHTS];
     int numLights = MDLX_CollectModelLights(model, transform, entity->frame, lights, MDX_SHADER_MAX_LIGHTS);
+    MDLX_BindShaderLights(lights, numLights);
 
     if (entity->flags & RF_NO_FOGOFWAR) {
         R_Call(glActiveTexture, GL_TEXTURE2);
@@ -766,7 +795,7 @@ void MDX_RenderModel(renderEntity_t const *entity,
         R_Call(glActiveTexture, GL_TEXTURE0);
     }
     
-    MDLX_RenderGeosets(entity, model, transform, lights, numLights);
+    MDLX_RenderGeosets(entity, model);
     
     MDLX_RenderParticleEmitters(entity, model, transform);
 
