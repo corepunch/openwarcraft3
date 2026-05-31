@@ -86,7 +86,9 @@ JASS_BIN := $(BIN_DIR)/jass$(EXE_EXT)
 TOOL_DEPS := $(shell find tools -maxdepth 1 -name '*.h' | sort)
 CLIENT_HEADERS := $(shell find client -name '*.h' | sort)
 UI_HEADERS := $(shell find ui -name '*.h' | sort)
-FONT_SRC := share/fonts/conchars.pcx
+FONT_SRC := renderer/conchars.pcx
+FONT_HEADER := renderer/conchars_sysfont.h
+FONT_SYMBOL := conchars_sysfont_pcx
 
 # Unity-build helper: pipe all .c files in a directory tree as #include
 # directives to gcc's stdin so the whole module is one translation unit.
@@ -109,8 +111,7 @@ game-wow:     $(GAME_WOW_LIB)
 ui-wow:       $(UI_WOW_LIB)
 openwow:      $(WOW_BINARY)
 tools:       $(TOOL_BINS)
-font:
-	@echo "$(FONT_SRC)"
+font:       $(FONT_HEADER)
 $(TOOL_NAMES): %: $(BIN_DIR)/%$(EXE_EXT)
 run: $(BINARY)
 	$(BINARY) -data=$(WC3DATA)
@@ -138,6 +139,13 @@ $(BIN_DIR)/%$(EXE_EXT): tools/%.c $(TOOL_DEPS) $(CLIENT_HEADERS) | $(BIN_DIR) $(
 	@echo "[$*]"
 	$(CC) $(CFLAGS) -o $@ $< \
 		$(RPATH) $(LDFLAGS) -lsheet -lshared -ljass -lrenderer -lgame -lui $(LIBS) -lm -lz
+
+$(BIN_DIR)/img2sysfont$(EXE_EXT): tools/img2sysfont.c | $(BIN_DIR)
+	@echo "[img2sysfont]"
+	$(CC) $(CFLAGS) -o $@ tools/img2sysfont.c
+
+$(FONT_HEADER): $(FONT_SRC) $(BIN_DIR)/img2sysfont$(EXE_EXT)
+	$(BIN_DIR)/img2sysfont$(EXE_EXT) $(FONT_SRC) $(FONT_HEADER) $(FONT_SYMBOL)
 
 # jass — standalone JASS interpreter (no renderer/game/SDL2 needed)
 $(JASS_BIN): tools/jass.c $(TOOL_DEPS) | $(BIN_DIR) $(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB)
@@ -172,12 +180,12 @@ $(SHEET_LIB): sheet/parser.c sheet/sheet.c common/common.h | $(LIB_DIR)
 # Uses FS_ReadFile (archive-agnostic) for initial file loads, but includes
 # common/mpq.c for nested .w3m archive handling (maps are MPQ archives containing
 # internal files like war3map.w3e and war3map.shd).
-$(RENDERER_LIB): $(SHARED_LIB) $(CLIENT_HEADERS) common/mpq.c common/mpq.h $(shell find renderer -name '*.c') | $(LIB_DIR)
+$(RENDERER_LIB): $(SHARED_LIB) $(CLIENT_HEADERS) common/mpq.c common/mpq.h $(FONT_HEADER) $(shell find renderer -name '*.c') | $(LIB_DIR)
 	@echo "[renderer]"
 	@$(call UNITY,renderer,! -path 'renderer/wow/*') | \
 		$(CC) $(CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - common/mpq.c $(LDFLAGS) -lshared $(LIBS) -lz
 
-$(RENDERER_WOW_LIB): $(SHARED_LIB) $(CLIENT_HEADERS) common/mpq.c common/mpq.h $(shell find renderer -name '*.c') | $(LIB_DIR)
+$(RENDERER_WOW_LIB): $(SHARED_LIB) $(CLIENT_HEADERS) common/mpq.c common/mpq.h $(FONT_HEADER) $(shell find renderer -name '*.c') | $(LIB_DIR)
 	@echo "[renderer-wow]"
 	@$(call UNITY,renderer,! -path 'renderer/w3m/*') | \
 		$(CC) $(WOW_CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - common/mpq.c $(LDFLAGS) -lshared $(LIBS) -lz
