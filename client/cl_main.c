@@ -399,7 +399,39 @@ void CL_UIMenuCommand(LPCSTR command) {
     CL_MenuCommand(command);
 }
 
+typedef struct {
+    DWORD width;
+    DWORD height;
+} clVideoMode_t;
+
+static clVideoMode_t const cl_video_modes[] = {
+    { 640, 480 },
+    { 800, 600 },
+    { 1024, 768 },
+    { 1152, 864 },
+    { 1280, 720 },
+    { 1280, 960 },
+    { 1280, 1024 },
+    { 1366, 768 },
+    { 1600, 900 },
+    { 1600, 1200 },
+    { 1920, 1080 },
+    { 1920, 1200 },
+    { 2560, 1440 },
+};
+
+static clVideoMode_t CL_VideoMode(void) {
+    int mode = Cvar_Integer("vid_mode", 2);
+
+    if (mode < 0 || mode >= (int)(sizeof(cl_video_modes) / sizeof(cl_video_modes[0]))) {
+        mode = 2;
+    }
+    return cl_video_modes[mode];
+}
+
 void CL_Init(void) {
+    clVideoMode_t mode;
+
     CON_printf("OpenWarcraft3 v0.1");
     fprintf(stderr, "Console initialized.\n");
 
@@ -414,7 +446,8 @@ void CL_Init(void) {
         .error = CON_printf,
     });
     
-    re.Init(WINDOW_WIDTH, WINDOW_HEIGHT);
+    mode = CL_VideoMode();
+    re.Init(mode.width, mode.height);
     
     /* Initialize UI library */
     ui = UI_GetAPI((uiImport_t) {

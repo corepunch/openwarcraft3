@@ -407,4 +407,12 @@ void Cvar_Init(void) {
     Cvar_Get("com_frame_limit", "0", 0);
     Cvar_Get("scr_showfps", "1", CVAR_ARCHIVE);
     Cvar_Get("skip_cutscene", "0", 0);
+    Cvar_Get("vid_mode", "2", CVAR_ARCHIVE);
+    Cvar_Get("r_model_detail", "2", CVAR_ARCHIVE);
+    Cvar_Get("r_anim_quality", "2", CVAR_ARCHIVE);
+    Cvar_Get("r_texture_quality", "2", CVAR_ARCHIVE);
+    Cvar_Get("r_particles", "2", CVAR_ARCHIVE);
+    Cvar_Get("r_lights", "2", CVAR_ARCHIVE);
+    Cvar_Get("r_unit_shadows", "1", CVAR_ARCHIVE);
+    Cvar_Get("r_occlusion", "1", CVAR_ARCHIVE);
 }

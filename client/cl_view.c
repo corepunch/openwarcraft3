@@ -250,6 +250,9 @@ static void V_AddClientEntity(centity_t const *ent) {
     re.splatsize = ent->current.splat >> 16;
     re.shadow = cl.pics[ent->current.shadow];
     ShadowUnpackRect(ent->current.shadow_rect, &re.shadow_x, &re.shadow_y, &re.shadow_w, &re.shadow_h);
+    if (!Cvar_Integer("r_unit_shadows", 1)) {
+        re.flags |= RF_NO_SHADOW;
+    }
 #ifdef WOW
     if (ent->current.model2 > 0 &&
         ent->current.model2 < MAX_MODELS &&
