@@ -6,6 +6,7 @@
 KNOWN_AS(modelInfo_s, MODELINFO);
 
 #define MODELINFO_MAX_TEXTURES 256
+#define MAX_RENDER_DECALS 32
 
 typedef struct {
     // Quake 3-style file API: renderer is archive-agnostic
@@ -64,6 +65,13 @@ typedef struct {
 } renderEntity_t;
 
 typedef struct {
+    VECTOR2 origin;
+    LPCTEXTURE texture;
+    COLOR32 color;
+    float radius;
+} renderDecal_t;
+
+typedef struct {
     viewCamera_t camerastate[2];
     RECT viewport;
     RECT scissor;
@@ -72,6 +80,8 @@ typedef struct {
     float lerpfrac;
     DWORD num_entities;
     renderEntity_t *entities;
+    DWORD num_decals;
+    renderDecal_t *decals;
     MATRIX4 viewProjectionMatrix;
     MATRIX4 lightMatrix;
     MATRIX4 textureMatrix;
@@ -102,7 +112,8 @@ typedef struct {
     void (*ReleaseModel)(LPMODEL model);
     void (*BeginFrame)(void);
     void (*EndFrame)(void);
-    void (*PrintSysText)(LPCSTR string, DWORD x, DWORD y, COLOR32 color);
+    void (*DrawChar)(int x, int y, int c);
+    void (*DrawFill)(LPCRECT rect, COLOR32 color);
     void (*DrawSelectionRect)(LPCRECT rect, COLOR32 color);
     void (*DrawPic)(LPCTEXTURE texture, float x, float y);
     void (*DrawImage)(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv, COLOR32 color);

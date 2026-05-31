@@ -72,6 +72,7 @@ typedef struct {
     BOOL (*on_entity_selected)(LPEDICT, LPEDICT);
     BOOL (*on_location_selected)(LPEDICT, LPCVECTOR2);
     void (*cmdbutton)(LPEDICT, DWORD);
+    DWORD ability_code;
 } menu_t;
 
 enum {
@@ -659,6 +660,7 @@ struct edict_s {
     heroabilitystatus_t abilstatus[MAX_UNIT_STATUSES];
     BOOL invulnerable;  // unit cannot take damage when true
     BOOL paused;        // unit AI and movement suspended when true
+    BOOL stunned;       // unit AI and movement suspended by timed status
     BOOL no_pathing;    // pathfinding disabled when true
     DWORD unit_color;   // explicit per-unit color override (0 = use owner color)
     VECTOR2 old_origin;
@@ -832,6 +834,7 @@ void unit_runwait(LPEDICT, void (*callback)(LPEDICT ));
 void unit_entercombat(LPEDICT, LPEDICT);
 void unit_leavecombat(LPEDICT);
 BOOL unit_affectingcombat(LPEDICT);
+void unit_updatestatuses(LPEDICT);
 
 // g_monster.c
 void unit_moveindirection(LPEDICT);
@@ -989,6 +992,7 @@ LPEDICT unit_createorfind(DWORD, DWORD, LPCVECTOR2, FLOAT);
 BOOL unit_additemtoslot(LPEDICT, LPEDICT, DWORD);
 BOOL unit_additem(LPEDICT, LPEDICT);
 void unit_addstatus(LPEDICT, LPCSTR, DWORD);
+void unit_addtimedstatus(LPEDICT, LPCSTR, DWORD, FLOAT);
 void unit_learnability(LPEDICT, DWORD);
 
 void order_attack(LPEDICT, LPEDICT);

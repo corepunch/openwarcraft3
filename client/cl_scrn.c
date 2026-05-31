@@ -1,13 +1,25 @@
 #include "client.h"
 
+#define SCR_FPS_HEIGHT 8
+#define SCR_FPS_BOTTOM_MARGIN 4
+
+static void SCR_DrawString(int x, int y, LPCSTR string) {
+    if (!string) {
+        return;
+    }
+    for (DWORD i = 0; string[i]; i++) {
+        re.DrawChar(x + i * 8, y, (BYTE)string[i]);
+    }
+}
+
 static void SCR_DrawFPS(DWORD msec) {
     static DWORD elapsed = 0;
     static DWORD frames_drawn = 0;
     static DWORD fps = 0;
     char text[32];
     size2_t window = re.GetWindowSize();
-    COLOR32 color = {255,255,255,180};
-    DWORD y = window.height > 24 ? window.height - 24 : 0;
+    DWORD inset = SCR_FPS_HEIGHT + SCR_FPS_BOTTOM_MARGIN;
+    DWORD y = window.height > inset ? window.height - inset : 0;
 
     elapsed += msec;
     frames_drawn++;
@@ -24,7 +36,7 @@ static void SCR_DrawFPS(DWORD msec) {
     } else {
         snprintf(text, sizeof(text), "FPS: --");
     }
-    re.PrintSysText(text, 10, y, color);
+    SCR_DrawString(10, y, text);
 }
 
 void SCR_UpdateScreen(DWORD msec) {

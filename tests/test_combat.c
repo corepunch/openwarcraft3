@@ -118,6 +118,18 @@ static void test_tdamage_non_lethal_does_not_call_die(void) {
     ASSERT(target->health.value > 0.0f);
 }
 
+static void test_tdamage_invulnerable_ignores_damage(void) {
+    LPEDICT target   = make_combat_unit(UNIT_ID("hfoo"), 420.0f, 0.0f, 0.0f);
+    LPEDICT attacker = make_combat_unit(UNIT_ID("hpea"), 250.0f, 50.0f, 0.0f);
+    target->invulnerable = true;
+    _die_call_count = 0;
+
+    T_Damage(target, attacker, 9999);
+
+    ASSERT_EQ_FLOAT(target->health.value, 420.0f, 0.01f);
+    ASSERT_EQ_INT(_die_call_count, 0);
+}
+
 /* ==========================================================================
  * M_MoveFrame
  * ========================================================================== */
@@ -271,6 +283,127 @@ static void test_get_ability_index_roundtrip(void) {
     ability_t const *a   = FindAbilityByClassname(STR_CmdMove);
     DWORD             idx = FindAbilityIndex(STR_CmdMove);
     ASSERT(GetAbilityByIndex(idx) == a);
+}
+
+static void test_registered_reference_ability_codes(void) {
+    static LPCSTR codes[] = {
+        "AHhb", "AHwe", "AHbz", "AHtb", "ANfb", "Apxf", "AOsf",
+        "Abun", "Astd", "AEim", "Aenc", "Aent", "Aegm", "Aeat",
+        "Ambt", "ANch", "AIco", "AHca", "Agld", "Agl2", "Abgm",
+        "Abli", "Aaha", "Artn", "Ahar", "Awha", "Ahrl", "ANcl",
+        "AUcs", "AInv", "Arep", "Aren", "Arst", "Avul", "Apit",
+        "Aneu", "Aall", "Acoi", "AIhe", "AIma", "AIat", "AIab",
+        "AIim", "AIsm", "AIam", "AIxm", "AIde", "AIml", "AImm",
+        "AIfs", "AImi", "AIem", "AIlm", "Acar", "Aloa", "Adro",
+        "Adri", "Aroo"
+    };
+
+    FOR_LOOP(i, sizeof(codes) / sizeof(codes[0])) {
+        ASSERT_NOT_NULL(FindAbilityByClassname(codes[i]));
+    }
+}
+
+static const char slk_ability_helpers[] =
+    "ID;PWXL;N;EBB;Y3;X12\n"
+    "C;Y1;X1;K\"alias\"\n"
+    "C;Y1;X2;K\"code\"\n"
+    "C;Y1;X3;K\"targs\"\n"
+    "C;Y1;X4;K\"Cost1\"\n"
+    "C;Y1;X5;K\"Cool1\"\n"
+    "C;Y1;X6;K\"Rng1\"\n"
+    "C;Y1;X7;K\"Dur1\"\n"
+    "C;Y1;X8;K\"Data11\"\n"
+    "C;Y1;X9;K\"Data12\"\n"
+    "C;Y1;X10;K\"UnitID1\"\n"
+    "C;Y1;X11;K\"Area1\"\n"
+    "C;Y1;X12;K\"HeroDur1\"\n"
+    "C;Y2;X1;K\"AHtb\"\n"
+    "C;Y2;X2;K\"AHtb\"\n"
+    "C;Y2;X3;K\"air,ground,enemy,neutral\"\n"
+    "C;Y2;X4;K\"75\"\n"
+    "C;Y2;X5;K\"9\"\n"
+    "C;Y2;X6;K\"600\"\n"
+    "C;Y2;X7;K\"5\"\n"
+    "C;Y2;X8;K\"100\"\n"
+    "C;Y2;X12;K\"3\"\n"
+    "C;Y3;X1;K\"AHwe\"\n"
+    "C;Y3;X2;K\"AHwe\"\n"
+    "C;Y3;X4;K\"140\"\n"
+    "C;Y3;X5;K\"20\"\n"
+    "C;Y3;X7;K\"75\"\n"
+    "C;Y3;X9;K\"2\"\n"
+    "C;Y3;X10;K\"hwat\"\n"
+    "E\n";
+
+static void test_spell_helpers_read_slk_fields(void) {
+    sheetRow_t *old_abilities = game.config.abilities;
+    sheetRow_t *rows = parse_slk_string(slk_ability_helpers);
+    DWORD thunder = MAKEFOURCC('A', 'H', 't', 'b');
+    DWORD water = MAKEFOURCC('A', 'H', 'w', 'e');
+
+    game.config.abilities = rows;
+
+    ASSERT_EQ_FLOAT(S_SpellNumber(thunder, "Cost", 1), 75.0f, 0.01f);
+    ASSERT_EQ_FLOAT(S_SpellRange(thunder, 1), 600.0f, 0.01f);
+    ASSERT_EQ_FLOAT(S_SpellDuration(thunder, 1, true), 3.0f, 0.01f);
+    ASSERT_EQ_FLOAT(S_SpellData(thunder, 1, 1), 100.0f, 0.01f);
+    ASSERT_EQ_INT((int)S_SpellUnitId(water, 1), (int)UNIT_ID("hwat"));
+
+    game.config.abilities = old_abilities;
+    free_slk_rows(rows);
+}
+
+static void test_spell_mana_and_cooldown(void) {
+    sheetRow_t *old_abilities = game.config.abilities;
+    sheetRow_t *rows = parse_slk_string(slk_ability_helpers);
+    DWORD thunder = MAKEFOURCC('A', 'H', 't', 'b');
+    LPEDICT caster = make_combat_unit(UNIT_ID("hpea"), 250.0f, 0.0f, 0.0f);
+    caster->mana.value = 100.0f;
+    caster->mana.max_value = 100.0f;
+    level.time = 1000;
+    game.config.abilities = rows;
+
+    ASSERT(S_SpellCooldownReady(caster, thunder));
+    ASSERT(S_SpellSpendMana(caster, thunder, 1));
+    ASSERT_EQ_FLOAT(caster->mana.value, 25.0f, 0.01f);
+    ASSERT(!S_SpellSpendMana(caster, thunder, 1));
+
+    S_SpellStartCooldown(caster, thunder, 1);
+    ASSERT(!S_SpellCooldownReady(caster, thunder));
+    level.time += 9001;
+    unit_updatestatuses(caster);
+    ASSERT(S_SpellCooldownReady(caster, thunder));
+
+    game.config.abilities = old_abilities;
+    free_slk_rows(rows);
+}
+
+static void test_timed_stun_status_expires_without_touching_pause(void) {
+    LPEDICT ent = make_combat_unit(UNIT_ID("hfoo"), 420.0f, 0.0f, 0.0f);
+    ent->paused = true;
+    level.time = 100;
+
+    unit_addtimedstatus(ent, "Bstu", 1, 0.05f);
+
+    ASSERT(ent->stunned);
+    ASSERT(ent->paused);
+    level.time = 151;
+    unit_updatestatuses(ent);
+    ASSERT(!ent->stunned);
+    ASSERT(ent->paused);
+}
+
+static void test_timed_life_status_kills_unit(void) {
+    LPEDICT ent = make_combat_unit(UNIT_ID("hfoo"), 420.0f, 0.0f, 0.0f);
+    _die_call_count = 0;
+    level.time = 200;
+
+    unit_addtimedstatus(ent, "BTLF", 1, 0.05f);
+    level.time = 251;
+    unit_updatestatuses(ent);
+
+    ASSERT_EQ_FLOAT(ent->health.value, 0.0f, 0.01f);
+    ASSERT_EQ_INT(_die_call_count, 1);
 }
 
 /* ==========================================================================
@@ -460,6 +593,7 @@ BEGIN_SUITE(combat)
     RUN_TEST(test_tdamage_lethal_calls_die);
     RUN_TEST(test_tdamage_lethal_resets_attacker_to_stand);
     RUN_TEST(test_tdamage_non_lethal_does_not_call_die);
+    RUN_TEST(test_tdamage_invulnerable_ignores_damage);
 
     /* M_MoveFrame */
     RUN_TEST(test_mmoveframe_no_animation_is_noop);
@@ -479,6 +613,11 @@ BEGIN_SUITE(combat)
     RUN_TEST(test_get_ability_by_index_zero);
     RUN_TEST(test_get_ability_by_index_out_of_range);
     RUN_TEST(test_get_ability_index_roundtrip);
+    RUN_TEST(test_registered_reference_ability_codes);
+    RUN_TEST(test_spell_helpers_read_slk_fields);
+    RUN_TEST(test_spell_mana_and_cooldown);
+    RUN_TEST(test_timed_stun_status_expires_without_touching_pause);
+    RUN_TEST(test_timed_life_status_kills_unit);
 
     /* player_pay */
     RUN_TEST(test_player_pay_deducts_gold);

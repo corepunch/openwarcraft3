@@ -44,6 +44,10 @@
 #define MAX_SKIN_BONES 8
 #define NUM_SELECTION_CIRCLES 3
 #define NUM_RECT_VERTICES 6
+#define SYSFONT_COLS 16
+#define SYSFONT_ROWS 16
+#define SYSFONT_DRAW_WIDTH 8
+#define SYSFONT_DRAW_HEIGHT 8
 
 #include "../common/common.h"
 #include "../client/renderer.h"
@@ -183,6 +187,7 @@ int R_RegisterTextureFile(LPCSTR textureFileName);
 LPTEXTURE R_LoadTexture(LPCSTR textureFileName);
 void R_ReleaseTexture(LPTEXTURE texture);
 void R_DrawWorld(void);
+void R_DrawDecals(void);
 void R_DrawAlphaSurfaces(void);
 void R_RenderFrame(viewDef_t const *viewDef);
 LPTEXTURE R_AllocateTexture(DWORD width, DWORD height);
@@ -235,7 +240,8 @@ LPBUFFER R_MakeVertexArrayObject(LPCVERTEX vertices, DWORD size);
 void R_DrawBuffer(LPCBUFFER buffer, DWORD num_vertices);
 
 // r_draw.c
-void R_PrintSysText(LPCSTR string, DWORD x, DWORD y, COLOR32 color);
+void R_DrawChar(int x, int y, int c);
+void R_DrawFill(LPCRECT rect, COLOR32 color);
 void R_DrawImage(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv, COLOR32 color);
 void R_DrawImageEx(LPCDRAWIMAGE drawImage);
 void R_DrawMinimap(LPCRECT screen);

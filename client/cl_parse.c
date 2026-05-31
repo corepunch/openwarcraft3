@@ -197,6 +197,15 @@ void CL_ParseCursor(LPSIZEBUF msg) {
     }
 }
 
+void CL_ParseCursorSplat(LPSIZEBUF msg) {
+    cl.cursor_splat.image = MSG_ReadShort(msg);
+    cl.cursor_splat.radius = MSG_ReadFloat(msg);
+    if (!cl.cursor_splat.image || cl.cursor_splat.radius <= 0.0f ||
+        cl.cursor_splat.image >= MAX_IMAGES) {
+        memset(&cl.cursor_splat, 0, sizeof(cl.cursor_splat));
+    }
+}
+
 static BOOL CL_EnsureFogOfWarSize(DWORD width, DWORD height) {
     DWORD cells;
 
@@ -410,6 +419,9 @@ void CL_ParseServerMessage(LPSIZEBUF msg) {
                 break;
             case svc_cursor:
                 CL_ParseCursor(msg);
+                break;
+            case svc_cursor_splat:
+                CL_ParseCursorSplat(msg);
                 break;
             case svc_mirror:
                 CL_MirrorMessage(msg);

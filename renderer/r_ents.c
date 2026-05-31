@@ -76,6 +76,27 @@ void R_DrawEntities(void) {
     }
 }
 
+void R_DrawDecals(void) {
+    FOR_LOOP(i, tr.viewDef.num_decals) {
+        renderDecal_t const *decal = tr.viewDef.decals + i;
+        BOX3 bounds;
+
+        if (!decal->texture || decal->radius <= 0.0f) {
+            continue;
+        }
+        if (!(tr.viewDef.rdflags & RDF_NOFRUSTUMCULL)) {
+            bounds = (BOX3){
+                .min = { decal->origin.x - decal->radius, decal->origin.y - decal->radius, -4096.0f },
+                .max = { decal->origin.x + decal->radius, decal->origin.y + decal->radius, 4096.0f },
+            };
+            if (!Frustum_ContainsAABox(&tr.viewDef.frustum, &bounds)) {
+                continue;
+            }
+        }
+        R_RenderSplat(&decal->origin, decal->radius, decal->texture, tr.shader[SHADER_SPLAT], decal->color);
+    }
+}
+
 VECTOR2 R_PointToScreenSpace(float x, float y) {
     size2_t window = R_GetWindowSize();
     VECTOR2 p = {

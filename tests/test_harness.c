@@ -563,6 +563,13 @@ BOOL G_IsEntitySelected(LPGAMECLIENT client, LPEDICT ent) {
     return client && ent && (ent->selected & (1 << client->ps.number));
 }
 
+LPEDICT G_GetMainSelectedUnit(LPGAMECLIENT client) {
+    FOR_SELECTED_UNITS(client, ent) {
+        return ent;
+    }
+    return NULL;
+}
+
 /* Stubs for abilities defined in skill files not included in the test binary.
  * s_skills.c references all of these via its abilitylist[] table.
  * (a_attack is the real symbol from s_attack.c, a_stop/a_move from their

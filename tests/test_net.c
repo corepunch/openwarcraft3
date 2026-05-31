@@ -395,6 +395,28 @@ static void write_fow_message(sizeBuf_t *sb,
     MSG_Write(sb, payload, payload_bytes);
 }
 
+static void test_cursor_splat_message_sets_and_clears_state(void) {
+    BYTE buf[32];
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+
+    test_client_stubs_init();
+    MSG_WriteByte(&sb, svc_cursor_splat);
+    MSG_WriteShort(&sb, 7);
+    MSG_WriteFloat(&sb, 320.0f);
+    CL_ParseServerMessage(&sb);
+    ASSERT_EQ_INT(cl.cursor_splat.image, 7);
+    ASSERT_EQ_FLOAT(cl.cursor_splat.radius, 320.0f, 0.0001f);
+
+    SZ_Clear(&sb);
+    sb.readcount = 0;
+    MSG_WriteByte(&sb, svc_cursor_splat);
+    MSG_WriteShort(&sb, 0);
+    MSG_WriteFloat(&sb, 0.0f);
+    CL_ParseServerMessage(&sb);
+    ASSERT_EQ_INT(cl.cursor_splat.image, 0);
+    ASSERT_EQ_FLOAT(cl.cursor_splat.radius, 0.0f, 0.0001f);
+}
+
 static void test_fow_full_message_unpacks_visible_and_explored_planes(void) {
     BYTE buf[64];
     BYTE payload[] = {
@@ -551,6 +573,7 @@ void run_net_tests(void) {
     RUN_TEST(test_msg_writedir_readdir_roundtrip);
     RUN_TEST(test_msg_writeangle_readangle_roundtrip);
     RUN_TEST(test_msg_multiple_types_sequential);
+    RUN_TEST(test_cursor_splat_message_sets_and_clears_state);
     RUN_TEST(test_fow_full_message_unpacks_visible_and_explored_planes);
     RUN_TEST(test_fow_row_delta_reconstructs_client_grid);
     RUN_TEST(test_fow_rle_255_continues_current_value);

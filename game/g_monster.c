@@ -139,6 +139,8 @@ void M_MoveFrame(LPEDICT self) {
 void monster_think(LPEDICT self) {
     if (!self->currentmove)
         return;
+    if (self->paused || self->stunned)
+        return;
     M_MoveFrame(self);
     if (self->currentmove->think) {
         self->currentmove->think(self);
@@ -309,6 +311,7 @@ void SP_SpawnUnit(LPEDICT self) {
     self->mana.max_value = UNIT_MANA(self->class_id);
     self->health.value = UNIT_HP(self->class_id);
     self->health.max_value = UNIT_HP(self->class_id);
+    self->invulnerable = G_ActorHasSkill(self, "Avul");
     self->unitinfo.MoveSpeed = UNIT_SPEED(self->class_id);
     self->balance.sight_radius.day = UNIT_SIGHT_RADIUS(self->class_id);
     self->balance.sight_radius.night = UNIT_SIGHT_RADIUS_NIGHT(self->class_id);

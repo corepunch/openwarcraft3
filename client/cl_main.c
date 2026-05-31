@@ -22,6 +22,7 @@ struct client_state cl;
 void Cmd_ForwardToServer(LPCSTR text) {
     if (cls.state <= ca_connected || *text == '-' || *text == '+') {
         fprintf(stderr, "Unknown command \"%s\"\n", text);
+        CON_printf("Unknown command \"%s\"", text);
         return;
     }
     MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
@@ -437,6 +438,7 @@ void CL_Init(void) {
 
     Cmd_AddCommand("quit", Com_Quit);
 
+    CON_Init();
     CL_InitInput();
 
     if (cls.key_dest == key_menu) {

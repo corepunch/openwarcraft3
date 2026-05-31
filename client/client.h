@@ -19,7 +19,6 @@
 #define MAX_CLIENT_ENTITIES MAX_GAME_ENTITIES
 #define MAX_CONSOLE_MESSAGES 256
 #define MAX_CONSOLE_MESSAGE_LEN 1024
-#define CONSOLE_MESSAGE_TIME 5000
 #define VIEW_SHADOW_SIZE 1500
 #define MAX_CONFIRMATION_OBJECTS 16
 #define MAX_LAYOUT_LAYERS 16
@@ -102,6 +101,10 @@ struct client_state {
         BYTE *texture;
     } fow;
     LPENTITYSTATE cursorEntity;
+    struct {
+        DWORD image;
+        FLOAT radius;
+    } cursor_splat;
     LPCMODEL moveConfirmation;
     DWORD num_entities;
     DWORD time;
@@ -134,12 +137,17 @@ void CL_ParseServerMessage(LPSIZEBUF msg);
 
 void CON_DrawConsole(void);
 void CON_printf(LPCSTR fmt, ...);
+void CON_Init(void);
+void CON_ToggleConsole(void);
+void CON_TextInput(LPCSTR text);
+void CON_KeyEvent(int key, bool down);
 
 // cl_view.c
 //void Matrix4_fromViewAngles(LPCVECTOR3 target, LPCVECTOR3 angles, float distance, LPMATRIX4 output);
 //void Matrix4_getLightMatrix(LPCVECTOR3 sunangles, LPCVECTOR3 target, float scale, LPMATRIX4 output);
 //void Matrix4_getCameraMatrix(viewCamera_t const *camera, LPMATRIX4 output);
 void V_AddEntity(renderEntity_t *ent);
+void V_AddDecal(renderDecal_t *decal);
 
 // cl_scrn.c
 LPCUIFRAME SCR_Clear(HANDLE data);

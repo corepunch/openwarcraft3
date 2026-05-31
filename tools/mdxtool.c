@@ -68,6 +68,15 @@ static texture_preview_cache_t texture_previews = { 0 };
 
 static BOX3 GetPreviewBounds(mdxModel_t const *mdx);
 
+static void Tool_DrawString(refExport_t const *re, LPCSTR string, int x, int y) {
+    if (!string) {
+        return;
+    }
+    for (DWORD i = 0; string[i]; i++) {
+        re->DrawChar(x + i * 8, y, (BYTE)string[i]);
+    }
+}
+
 static void FreeTexturePreviewCache(void) {
     if (texture_previews.paths) {
         free(texture_previews.paths);
@@ -695,7 +704,7 @@ static void DrawTexturePreviews(refExport_t const *re) {
         snprintf(line, sizeof(line), "%s", Tool_PathBasename(texture_previews.paths[i]));
         DWORD textX = (DWORD)((drawX / 0.8f) * window.width);
         DWORD textY = (DWORD)(((drawY + drawH + 0.005f) / 0.6f) * window.height);
-        re->PrintSysText(line, textX, textY, COLOR32_WHITE);
+        Tool_DrawString(re, line, textX, textY);
     }
 }
 
@@ -1070,8 +1079,8 @@ static void RenderModelFrame(refExport_t const *re, LPMODEL model, DWORD now, bo
     if (g_run_once) {
         DumpFrameCoverage(re);
     }
-    re->PrintSysText(useModelCamera ? "mdxtool: model camera" : (g_use_front_ortho ? "mdxtool: front ortho" : "mdxtool: preview camera"), 10, 10, COLOR32_WHITE);
-    re->PrintSysText(g_model_path, 10, 28, COLOR32_WHITE);
+    Tool_DrawString(re, useModelCamera ? "mdxtool: model camera" : (g_use_front_ortho ? "mdxtool: front ortho" : "mdxtool: preview camera"), 10, 10);
+    Tool_DrawString(re, g_model_path, 10, 28);
     {
         size2_t window = re->GetWindowSize();
         int left_x = 10;
@@ -1081,46 +1090,46 @@ static void RenderModelFrame(refExport_t const *re, LPMODEL model, DWORD now, bo
         char line[512];
 
         snprintf(line, sizeof(line), "SEQS %u", (unsigned)g_overlay.num_sequences);
-        re->PrintSysText(line, left_x, y0 + dy * 0, COLOR32_WHITE);
+        Tool_DrawString(re, line, left_x, y0 + dy * 0);
         snprintf(line, sizeof(line), "SEQ #%d %s", (int)g_overlay.selected_sequence, g_overlay.selected_sequence_name);
-        re->PrintSysText(line, left_x, y0 + dy * 8, COLOR32_WHITE);
+        Tool_DrawString(re, line, left_x, y0 + dy * 8);
         if (seq) {
             snprintf(line,
                      sizeof(line),
                      "INT  %u..%u",
                      (unsigned)seq->interval[0],
                      (unsigned)seq->interval[1]);
-            re->PrintSysText(line, left_x, y0 + dy * 9, COLOR32_WHITE);
+            Tool_DrawString(re, line, left_x, y0 + dy * 9);
         }
         snprintf(line, sizeof(line), "TEXS %u", (unsigned)g_overlay.num_textures);
-        re->PrintSysText(line, left_x, y0 + dy * 1, COLOR32_WHITE);
+        Tool_DrawString(re, line, left_x, y0 + dy * 1);
         snprintf(line, sizeof(line), "GEOS %u", (unsigned)g_overlay.num_geosets);
-        re->PrintSysText(line, left_x, y0 + dy * 2, COLOR32_WHITE);
+        Tool_DrawString(re, line, left_x, y0 + dy * 2);
         snprintf(line, sizeof(line), "CAMS %u", (unsigned)g_overlay.num_cameras);
-        re->PrintSysText(line, left_x, y0 + dy * 3, COLOR32_WHITE);
+        Tool_DrawString(re, line, left_x, y0 + dy * 3);
         snprintf(line, sizeof(line), "LITE %u", (unsigned)g_overlay.num_lights);
-        re->PrintSysText(line, left_x, y0 + dy * 4, COLOR32_WHITE);
+        Tool_DrawString(re, line, left_x, y0 + dy * 4);
         snprintf(line, sizeof(line), "PRE2 %u", (unsigned)g_overlay.num_emitters);
-        re->PrintSysText(line, left_x, y0 + dy * 5, COLOR32_WHITE);
+        Tool_DrawString(re, line, left_x, y0 + dy * 5);
         snprintf(line, sizeof(line), "ATCH %u", (unsigned)g_overlay.num_attachments);
-        re->PrintSysText(line, left_x, y0 + dy * 6, COLOR32_WHITE);
+        Tool_DrawString(re, line, left_x, y0 + dy * 6);
         snprintf(line, sizeof(line), "HELP %u", (unsigned)g_overlay.num_helpers);
-        re->PrintSysText(line, left_x, y0 + dy * 7, COLOR32_WHITE);
+        Tool_DrawString(re, line, left_x, y0 + dy * 7);
 
         snprintf(line, sizeof(line), "CENTER %.3f %.3f %.3f", g_model_center.x, g_model_center.y, g_model_center.z);
-        re->PrintSysText(line, right_x, y0 + dy * 0, COLOR32_WHITE);
+        Tool_DrawString(re, line, right_x, y0 + dy * 0);
         snprintf(line, sizeof(line), "BONE %u", (unsigned)g_overlay.num_bones);
-        re->PrintSysText(line, right_x, y0 + dy * 1, COLOR32_WHITE);
+        Tool_DrawString(re, line, right_x, y0 + dy * 1);
         snprintf(line, sizeof(line), "CLID %u", (unsigned)g_overlay.num_collision_shapes);
-        re->PrintSysText(line, right_x, y0 + dy * 2, COLOR32_WHITE);
+        Tool_DrawString(re, line, right_x, y0 + dy * 2);
         snprintf(line, sizeof(line), "PIVT %u", (unsigned)g_overlay.num_pivots);
-        re->PrintSysText(line, right_x, y0 + dy * 3, COLOR32_WHITE);
+        Tool_DrawString(re, line, right_x, y0 + dy * 3);
         snprintf(line, sizeof(line), "BBOX %.3f %.3f %.3f", g_overlay.bounds_w, g_overlay.bounds_d, g_overlay.bounds_h);
-        re->PrintSysText(line, right_x, y0 + dy * 4, COLOR32_WHITE);
+        Tool_DrawString(re, line, right_x, y0 + dy * 4);
         snprintf(line, sizeof(line), "DIST %.3f", g_overlay.orbit_distance);
-        re->PrintSysText(line, right_x, y0 + dy * 5, COLOR32_WHITE);
+        Tool_DrawString(re, line, right_x, y0 + dy * 5);
         snprintf(line, sizeof(line), "SCALE  %.3f", g_preview_scale);
-        re->PrintSysText(line, right_x, y0 + dy * 6, COLOR32_WHITE);
+        Tool_DrawString(re, line, right_x, y0 + dy * 6);
 
         if (mdx && mdx->sequences && mdx->num_sequences > 0) {
             int maxRows = 10;
@@ -1151,7 +1160,7 @@ static void RenderModelFrame(refExport_t const *re, LPMODEL model, DWORD now, bo
                          seqi == seq_index ? '*' : ' ',
                          seqi,
                          seqName);
-                re->PrintSysText(line, listX, listY + row * dy, COLOR32_WHITE);
+                Tool_DrawString(re, line, listX, listY + row * dy);
             }
         }
     }

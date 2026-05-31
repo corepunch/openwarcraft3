@@ -29,6 +29,15 @@ static struct {
     .fov = 50.0f,
 };
 
+static void Tool_DrawString(refExport_t const *re, LPCSTR string, int x, int y) {
+    if (!string) {
+        return;
+    }
+    for (DWORD i = 0; string[i]; i++) {
+        re->DrawChar(x + i * 8, y, (BYTE)string[i]);
+    }
+}
+
 static void usage(void) {
     fprintf(stderr,
         "Usage:\n"
@@ -225,8 +234,8 @@ int main(int argc, char **argv) {
 
         re.BeginFrame();
         re.RenderFrame(&viewdef);
-        re.PrintSysText("maptool: orbit camera", 10, 10, COLOR32_WHITE);
-        re.PrintSysText(g_map_path, 10, 28, COLOR32_WHITE);
+        Tool_DrawString(&re, "maptool: orbit camera", 10, 10);
+        Tool_DrawString(&re, g_map_path, 10, 28);
         re.EndFrame();
     }
 

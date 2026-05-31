@@ -146,10 +146,11 @@ static void RStd_RegisterMap(LPCSTR mapFileName) {
 
 static void RStd_RenderFrame(viewDef_t const *viewdef) {
     printf("render_frame");
-    printf(" time=%u delta=%u entities=%u",
+    printf(" time=%u delta=%u entities=%u decals=%u",
            viewdef ? viewdef->time : 0,
            viewdef ? viewdef->deltaTime : 0,
-           viewdef ? viewdef->num_entities : 0);
+           viewdef ? viewdef->num_entities : 0,
+           viewdef ? viewdef->num_decals : 0);
     if (viewdef) {
         RStd_PrintRect("viewport", &viewdef->viewport);
         RStd_PrintRect("scissor", &viewdef->scissor);
@@ -247,10 +248,14 @@ static void RStd_EndFrame(void) {
     fflush(stdout);
 }
 
-static void RStd_PrintSysText(LPCSTR string, DWORD x, DWORD y, COLOR32 color) {
-    printf("draw_sys_text x=%u y=%u", x, y);
+static void RStd_DrawChar(int x, int y, int c) {
+    printf("draw_char x=%d y=%d c=%d\n", x, y, c & 255);
+}
+
+static void RStd_DrawFill(LPCRECT rect, COLOR32 color) {
+    printf("draw_fill");
+    RStd_PrintRect("screen", rect);
     RStd_PrintColor(color);
-    RStd_PrintName("text", string);
     printf("\n");
 }
 
@@ -453,7 +458,8 @@ refExport_t R_StdoutGetAPI(refImport_t imp) {
         .ReleaseModel = RStd_ReleaseModel,
         .BeginFrame = RStd_BeginFrame,
         .EndFrame = RStd_EndFrame,
-        .PrintSysText = RStd_PrintSysText,
+        .DrawChar = RStd_DrawChar,
+        .DrawFill = RStd_DrawFill,
         .DrawSelectionRect = RStd_DrawSelectionRect,
         .DrawPic = RStd_DrawPic,
         .DrawImage = RStd_DrawImage,

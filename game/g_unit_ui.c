@@ -124,6 +124,7 @@ static LPCSTR G_CommandArtPath(LPCSTR art) {
 }
 
 BOOL G_BuildCommandButton(LPEDICT ent, LPCSTR code, BOOL research, DWORD level, gameCommandButton_t *button) {
+    LPCSTR base_code;
     LPCSTR art_code;
     LPCSTR art;
     LPCSTR art_path;
@@ -140,6 +141,10 @@ BOOL G_BuildCommandButton(LPEDICT ent, LPCSTR code, BOOL research, DWORD level, 
     }
 
     memset(button, 0, sizeof(*button));
+    base_code = game.config.abilities ? FS_FindSheetCell(game.config.abilities, code, "code") : NULL;
+    if (!base_code) {
+        base_code = code;
+    }
     art_code = G_CommandArtCode(ent, code);
     art = FindConfigValue(art_code, G_ResearchField(STR_ART, research));
     buttonpos = FindConfigValue(art_code, G_ResearchField(STR_BUTTONPOS, research));
@@ -160,12 +165,12 @@ BOOL G_BuildCommandButton(LPEDICT ent, LPCSTR code, BOOL research, DWORD level, 
     button->x = x == UINT_MAX ? 255 : (BYTE)MIN(x, 3);
     button->y = y == UINT_MAX ? 255 : (BYTE)MIN(y, 2);
     button->research = research ? 1 : 0;
-    button->active = (BYTE)FindAbilityIndex(code);
+    button->active = (BYTE)FindAbilityIndex(base_code);
     if (!button->art[0]) {
         fprintf(stderr,
                 "G_BuildCommandButton: missing art unit=%.4s code=%s art_code=%s raw_art=%s\n",
                 (char *)&ent->class_id,
-                code,
+                base_code,
                 art_code ? art_code : "",
                 art ? art : "");
     }
@@ -225,7 +230,7 @@ BYTE G_GetCommandButtons(LPEDICT ent, gameCommandButton_t *buttons, BYTE max_but
         PARSE_LIST(UNIT_ABILITIES_NORMAL(ent->class_id), abil, parse_segment) {
             LPCSTR code = game.config.abilities ? FS_FindSheetCell(game.config.abilities, abil, "code") : NULL;
             if (code && G_IsImplementedAbility(code)) {
-                G_AddCommandButton(ent, buttons, max_buttons, &count, code, false, 0);
+                G_AddCommandButton(ent, buttons, max_buttons, &count, abil, false, 0);
             }
         }
     }

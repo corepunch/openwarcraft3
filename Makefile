@@ -86,6 +86,11 @@ JASS_BIN := $(BIN_DIR)/jass$(EXE_EXT)
 TOOL_DEPS := $(shell find tools -maxdepth 1 -name '*.h' | sort)
 CLIENT_HEADERS := $(shell find client -name '*.h' | sort)
 UI_HEADERS := $(shell find ui -name '*.h' | sort)
+FONT_SRC := share/fonts/conchars-simple.png
+FONT_HEADER := share/fonts/conchars_sysfont.h
+FONT_SYMBOL := conchars_sysfont
+FONT_CELL_WIDTH := 16
+FONT_CELL_HEIGHT := 16
 
 # Unity-build helper: pipe all .c files in a directory tree as #include
 # directives to gcc's stdin so the whole module is one translation unit.
@@ -108,6 +113,8 @@ game-wow:     $(GAME_WOW_LIB)
 ui-wow:       $(UI_WOW_LIB)
 openwow:      $(WOW_BINARY)
 tools:       $(TOOL_BINS)
+font:       $(BIN_DIR)/png2sysfont$(EXE_EXT)
+	$(BIN_DIR)/png2sysfont$(EXE_EXT) $(FONT_SRC) $(FONT_HEADER) $(FONT_SYMBOL) $(FONT_CELL_WIDTH) $(FONT_CELL_HEIGHT)
 $(TOOL_NAMES): %: $(BIN_DIR)/%$(EXE_EXT)
 run: $(BINARY)
 	$(BINARY) -data=$(WC3DATA)
@@ -244,10 +251,17 @@ TEST_GAME_SRCS := \
 	game/g_utils.c \
 	game/m_unit.c \
 	game/skills/s_attack.c \
+	game/skills/s_area_spell.c \
 	game/skills/s_move.c \
+	game/skills/s_item.c \
 	game/skills/s_skills.c \
+	game/skills/s_spell.c \
 	game/skills/s_stop.c \
+	game/skills/s_summon.c \
+	game/skills/s_thunderbolt.c \
 	game/skills/s_train.c \
+	game/skills/s_utility_abilities.c \
+	game/skills/s_ability_stubs.c \
 	client/cl_layout.c \
 	client/cl_parse.c \
 	client/cl_scrn.c \
@@ -360,4 +374,4 @@ test-assets: blpgen mdxgen mpqtool mdxtool | $(TESTS_DIR)
 $(TESTS_DIR):
 	@mkdir -p $@
 
-.PHONY: default build shared jass renderer game ui openwarcraft3 tools $(TOOL_NAMES) run run-demo run-map run-ui-text diag clean download test test-jass test-wow-appearance test-ui test-mpq-compat test-assets
+.PHONY: default build shared jass renderer game ui openwarcraft3 tools font $(TOOL_NAMES) run run-demo run-map run-ui-text diag clean download test test-jass test-wow-appearance test-ui test-mpq-compat test-assets

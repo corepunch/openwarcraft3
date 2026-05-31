@@ -617,6 +617,7 @@ void R_RenderView(void) {
         R_Call(glClear, GL_DEPTH_BUFFER_BIT);
     }
     R_DrawWorld();
+    R_DrawDecals();
     R_DrawEntities();
     R_DrawAlphaSurfaces();
     R_DrawParticles();
@@ -832,7 +833,8 @@ refExport_t R_GetAPI(refImport_t imp) {
         .DrawMinimap = R_DrawMinimap,
         .DrawLoadingIndicator = R_DrawLoadingIndicator,
         .DrawSelectionRect = R_DrawSelectionRect,
-        .PrintSysText = R_PrintSysText,
+        .DrawChar = R_DrawChar,
+        .DrawFill = R_DrawFill,
         .GetWindowSize = R_GetWindowSize,
         .GetTextureSize = R_GetTextureSize,
         .DrawPortrait = R_DrawPortrait,
