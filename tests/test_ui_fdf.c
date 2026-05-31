@@ -407,6 +407,135 @@ static void test_vector_parser_accepts_f_suffixes(void) {
     ASSERT_FLOAT_EQ(frame->Button.PushedTextOffset.y, -0.003f);
 }
 
+static void test_comments_are_ignored_inside_frame_bodies(void) {
+    LPFRAMEDEF frame;
+
+    reset_ui_state();
+    parse_fdf("comments_in_body.fdf",
+              "// leading file comment\n"
+              "/* leading block comment */\n"
+              "Frame \"BACKDROP\" \"CommentedFrame\" {\n"
+              "    // Disabled source asset line from shipped FDF files\n"
+              "    // Anchor TOPLEFT, 0.259375, -0.003125,\n"
+              "    Anchor /* corner */ TOPLEFT, /* x */ 0.25, /* y */ -0.125,\n"
+              "    Width 0.5, // inline value comment\n"
+              "    Height /* block before value */ 0.25,\n"
+              "}\n");
+
+    frame = UI_FindFrame("CommentedFrame");
+    if (!require_not_null(frame)) return;
+    ASSERT_FLOAT_EQ(frame->Points.x[FPP_MIN].offset, 0.25f);
+    ASSERT_FLOAT_EQ(frame->Points.y[FPP_MAX].offset, -0.125f);
+    ASSERT_FLOAT_EQ(frame->Width, 0.5f);
+    ASSERT_FLOAT_EQ(frame->Height, 0.25f);
+}
+
+static void test_comments_are_ignored_between_setpoint_arguments(void) {
+    LPFRAMEDEF root;
+    LPFRAMEDEF child;
+
+    reset_ui_state();
+    parse_fdf("comments_in_args.fdf",
+              "Frame \"FRAME\" \"Root\" {\n"
+              "    Width 0.8,\n"
+              "    Frame \"FRAME\" \"Child\" {\n"
+              "        SetPoint TOPLEFT /* after first arg */,\n"
+              "                 // relative frame on the next line\n"
+              "                 \"Root\",\n"
+              "                 /* target point */ TOPLEFT,\n"
+              "                 0.125 /* x before comma */,\n"
+              "                 // y offset can be separated by a source comment\n"
+              "                 -0.25,\n"
+              "    }\n"
+              "}\n");
+
+    root = UI_FindFrame("Root");
+    child = UI_FindFrame("Child");
+    if (!require_not_null(root)) return;
+    if (!require_not_null(child)) return;
+
+    ASSERT_EQ_INT(child->Points.x[FPP_MIN].used, 1);
+    ASSERT_EQ_INT(child->Points.x[FPP_MIN].targetPos, FPP_MIN);
+    ASSERT_FLOAT_EQ(child->Points.x[FPP_MIN].offset, 0.125f);
+    ASSERT(child->Points.x[FPP_MIN].relativeTo == root);
+
+    ASSERT_EQ_INT(child->Points.y[FPP_MIN].used, 1);
+    ASSERT_EQ_INT(child->Points.y[FPP_MIN].targetPos, FPP_MIN);
+    ASSERT_FLOAT_EQ(child->Points.y[FPP_MIN].offset, -0.25f);
+    ASSERT(child->Points.y[FPP_MIN].relativeTo == root);
+}
+
+static void test_comment_markers_inside_quoted_strings_are_preserved(void) {
+    LPFRAMEDEF text;
+    LPFRAMEDEF more_text;
+
+    reset_ui_state();
+    parse_fdf("quoted_comment_markers.fdf",
+              "StringList {\n"
+              "    QUOTED_TEXT \"literal // text and /* block marker */ text\",\n"
+              "    MORE_TEXT \"more /* marker */ and // marker text\",\n"
+              "}\n"
+              "Frame \"TEXT\" \"QuotedText\" {\n"
+              "    Text \"QUOTED_TEXT\", // real parser comment\n"
+              "}\n"
+              "Frame \"TEXT\" \"MoreText\" {\n"
+              "    Text \"MORE_TEXT\", /* real block comment */\n"
+              "}\n");
+
+    text = UI_FindFrame("QuotedText");
+    more_text = UI_FindFrame("MoreText");
+    if (!require_not_null(text)) return;
+    if (!require_not_null(more_text)) return;
+    ASSERT_STR_EQ(text->Text, "literal // text and /* block marker */ text");
+    ASSERT_STR_EQ(more_text->Text, "more /* marker */ and // marker text");
+}
+
+static void test_shipped_style_disabled_properties_do_not_escape_comments(void) {
+    LPFRAMEDEF root;
+    LPFRAMEDEF icon;
+    LPFRAMEDEF text;
+
+    reset_ui_state();
+    parse_fdf("resourcebar_comments.fdf",
+              "/* ResourceBar-style source comments around disabled art. */\n"
+              "Frame \"FRAME\" \"ResourceRoot\" {\n"
+              "    Texture \"ResourceBarGoldIcon\" {\n"
+              "        // Anchor TOPLEFT, 0.259375, -0.003125,\n"
+              "        // File \"UpkeepIcon\",\n"
+              "        Anchor TOPLEFT, 0.010, -0.020,\n"
+              "        File \"UI\\\\Feedback\\\\Resources\\\\ResourceGold.blp\",\n"
+              "    }\n"
+              "    String \"ResourceBarUpkeepText\" {\n"
+              "        // SetPoint TOPLEFT, \"ResourceBarGoldIcon\", TOPRIGHT, 0.004, 0.000,\n"
+              "        SetPoint LEFT, \"ResourceBarGoldIcon\", RIGHT, 0.030, 0.000,\n"
+              "        Text \"No Upkeep\",\n"
+              "    }\n"
+              "    // The parser must resume with real children after comment-only lines.\n"
+              "    Frame \"TEXT\" \"AfterCommentText\" {\n"
+              "        Text \"AFTER_COMMENT\",\n"
+              "    }\n"
+              "}\n");
+
+    root = UI_FindFrame("ResourceRoot");
+    icon = UI_FindFrame("ResourceBarGoldIcon");
+    text = UI_FindFrame("ResourceBarUpkeepText");
+    if (!require_not_null(root)) return;
+    if (!require_not_null(icon)) return;
+    if (!require_not_null(text)) return;
+
+    ASSERT(icon->Parent == root);
+    ASSERT(text->Parent == root);
+    ASSERT_EQ_INT(icon->Type, FT_TEXTURE);
+    ASSERT_EQ_INT(text->Type, FT_STRING);
+    ASSERT_EQ_INT(icon->Points.x[FPP_MIN].used, 1);
+    ASSERT_FLOAT_EQ(icon->Points.x[FPP_MIN].offset, 0.010f);
+    ASSERT_EQ_INT(text->Points.x[FPP_MIN].used, 1);
+    ASSERT_FLOAT_EQ(text->Points.x[FPP_MIN].offset, 0.030f);
+    ASSERT(text->Points.x[FPP_MIN].relativeTo == icon);
+    ASSERT_STR_EQ(text->Text, "No Upkeep");
+    ASSERT_NOT_NULL(UI_FindFrame("AfterCommentText"));
+}
+
 static void test_backdrop_background_adds_blp_extension(void) {
     LPFRAMEDEF frame;
 
@@ -1192,6 +1321,10 @@ BEGIN_SUITE(ui_fdf)
     RUN_TEST(test_anchor_translates_to_setpoint_state);
     RUN_TEST(test_backdrop_flags_and_insets_are_parsed);
     RUN_TEST(test_vector_parser_accepts_f_suffixes);
+    RUN_TEST(test_comments_are_ignored_inside_frame_bodies);
+    RUN_TEST(test_comments_are_ignored_between_setpoint_arguments);
+    RUN_TEST(test_comment_markers_inside_quoted_strings_are_preserved);
+    RUN_TEST(test_shipped_style_disabled_properties_do_not_escape_comments);
     RUN_TEST(test_backdrop_background_adds_blp_extension);
     RUN_TEST(test_background_art_uses_model_index);
     RUN_TEST(test_collect_frame_tree_preorder_matches_writer_traversal);

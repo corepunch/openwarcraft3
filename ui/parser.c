@@ -16,21 +16,20 @@ BOOL eat_token(LPPARSER p, LPCSTR value) {
     }
 }
 
-LPCSTR parse_token(LPPARSER p) {
-    static char word[MAX_SEGMENT_SIZE];
-    
-    /* Skip whitespace and comments */
+static void skip_space_and_comments(LPPARSER p) {
     for (;;) {
-        while (isspace(*p->buffer)) ++p->buffer;
-        
-        /* Skip single-line comments */
+        while (isspace((unsigned char)*p->buffer)) {
+            ++p->buffer;
+        }
+
         if (p->buffer[0] == '/' && p->buffer[1] == '/') {
             p->buffer += 2;
-            while (*p->buffer && *p->buffer != '\n') ++p->buffer;
+            while (*p->buffer && *p->buffer != '\n') {
+                ++p->buffer;
+            }
             continue;
         }
-        
-        /* Skip multi-line comments */
+
         if (p->buffer[0] == '/' && p->buffer[1] == '*') {
             p->buffer += 2;
             while (*p->buffer) {
@@ -42,9 +41,23 @@ LPCSTR parse_token(LPPARSER p) {
             }
             continue;
         }
-        
+
         break;
     }
+}
+
+static void rtrim_segment(LPSTR segment) {
+    LPSTR end = segment + strlen(segment);
+
+    while (end > segment && isspace((unsigned char)end[-1])) {
+        *--end = '\0';
+    }
+}
+
+LPCSTR parse_token(LPPARSER p) {
+    static char word[MAX_SEGMENT_SIZE];
+    
+    skip_space_and_comments(p);
     
     if (*p->buffer == '\"') {
         LPCSTR closingQuote = strchr(p->buffer+1, '"');
@@ -86,8 +99,9 @@ LPCSTR parse_segment(LPPARSER p) {
     memset(segment, 0, MAX_SEGMENT_SIZE);
     if (*p->buffer == '\0')
         return NULL;
-    while (isspace(*p->buffer))
-        ++p->buffer;
+    skip_space_and_comments(p);
+    if (*p->buffer == '\0')
+        return NULL;
     LPCSTR start = p->buffer;
     if (*p->buffer == '\"') {
         ++start;
@@ -112,21 +126,73 @@ LPCSTR parse_segment(LPPARSER p) {
 
 LPCSTR parse_segment2(LPPARSER p) {
     static char segment[MAX_SEGMENT_SIZE];
+    LPSTR out = segment;
+    BOOL quoted = false;
+    BOOL have_segment = false;
+
     memset(segment, 0, MAX_SEGMENT_SIZE);
     if (*p->buffer == '\0')
         return NULL;
-    while (isspace(*p->buffer))
-        ++p->buffer;
-    DWORD num_quotes = 0;
-    for (LPSTR out = segment; *p->buffer; ++p->buffer, ++out) {
-        if (*p->buffer == ',' && (num_quotes & 1) == 0) {
+
+    skip_space_and_comments(p);
+    if (*p->buffer == '\0')
+        return NULL;
+
+    while (*p->buffer) {
+        if (!quoted && *p->buffer == ',') {
             ++p->buffer;
             break;
         }
-        if (*p->buffer == '"')
-            ++num_quotes;
-        *out = *p->buffer;
+
+        if (!quoted && p->buffer[0] == '/' && p->buffer[1] == '/') {
+            p->buffer += 2;
+            while (*p->buffer && *p->buffer != '\n') {
+                ++p->buffer;
+            }
+            if (have_segment) {
+                skip_space_and_comments(p);
+                if (*p->buffer == ',') {
+                    ++p->buffer;
+                }
+                break;
+            }
+            skip_space_and_comments(p);
+            continue;
+        }
+
+        if (!quoted && p->buffer[0] == '/' && p->buffer[1] == '*') {
+            p->buffer += 2;
+            while (*p->buffer) {
+                if (p->buffer[0] == '*' && p->buffer[1] == '/') {
+                    p->buffer += 2;
+                    break;
+                }
+                ++p->buffer;
+            }
+            if (have_segment) {
+                skip_space_and_comments(p);
+                if (*p->buffer == ',') {
+                    ++p->buffer;
+                }
+                break;
+            }
+            skip_space_and_comments(p);
+            continue;
+        }
+
+        if (*p->buffer == '"') {
+            quoted = !quoted;
+        }
+        if (out < segment + MAX_SEGMENT_SIZE - 1) {
+            *out++ = *p->buffer;
+        }
+        if (!isspace((unsigned char)*p->buffer)) {
+            have_segment = true;
+        }
+        ++p->buffer;
     }
+    *out = '\0';
+    rtrim_segment(segment);
     return segment;
 }
 
@@ -147,4 +213,3 @@ void *find_in_array(void *array, long sizeofelem, LPCSTR name) {
     }
     return NULL;
 }
-

@@ -120,7 +120,7 @@ run-demo: $(BINARY)
 	$(BINARY) -data=$(DEMODATA)
 
 run-map: $(BINARY)
-	$(BINARY) -data=$(WC3DATA) -net_enabled=1 +map $(MAP)
+	$(BINARY) -data=$(WC3DATA) -net_enabled=1 +map "$(MAP)"
 
 run-wow: $(WOW_BINARY)
 	$(WOW_BINARY) -data=data/world-of-warcraft/installed/Data -net_enabled=1 +map World/Maps/Azeroth/Azeroth.wdt
