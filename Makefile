@@ -11,9 +11,11 @@ DATA_DIR := data
 CC      := gcc
 BIN_DIR := build/bin
 LIB_DIR := build/lib
-OW3_COMMIT_ID := $(shell git rev-parse --short=12 HEAD 2>/dev/null || printf unknown)
-OW3_COMMIT_DIRTY := $(shell git diff --quiet --ignore-submodules HEAD 2>/dev/null; if [ $$? -eq 1 ]; then printf '%s' -dirty; fi)
-CFLAGS  := -Wall -I. -Ishared -Ishared/types -DOW3_COMMIT_ID=\"$(OW3_COMMIT_ID)$(OW3_COMMIT_DIRTY)\"
+OW3_COMMIT_ID ?= $(GITHUB_SHA)
+ifeq ($(strip $(OW3_COMMIT_ID)),)
+	OW3_COMMIT_ID := unknown
+endif
+CFLAGS  := -Wall -I. -Ishared -Ishared/types -DOW3_COMMIT_ID=\"$(OW3_COMMIT_ID)\"
 
 ifeq ($(DIAG_OUTPUT),1)
 	CFLAGS += -DDIAG_OUTPUT
