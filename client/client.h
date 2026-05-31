@@ -102,6 +102,10 @@ struct client_state {
         BYTE *texture;
     } fow;
     LPENTITYSTATE cursorEntity;
+    struct {
+        DWORD image;
+        FLOAT radius;
+    } cursor_splat;
     LPCMODEL moveConfirmation;
     DWORD num_entities;
     DWORD time;
@@ -140,6 +144,7 @@ void CON_printf(LPCSTR fmt, ...);
 //void Matrix4_getLightMatrix(LPCVECTOR3 sunangles, LPCVECTOR3 target, float scale, LPMATRIX4 output);
 //void Matrix4_getCameraMatrix(viewCamera_t const *camera, LPMATRIX4 output);
 void V_AddEntity(renderEntity_t *ent);
+void V_AddDecal(renderDecal_t *decal);
 
 // cl_scrn.c
 LPCUIFRAME SCR_Clear(HANDLE data);

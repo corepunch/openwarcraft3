@@ -244,10 +244,17 @@ TEST_GAME_SRCS := \
 	game/g_utils.c \
 	game/m_unit.c \
 	game/skills/s_attack.c \
+	game/skills/s_area_spell.c \
 	game/skills/s_move.c \
+	game/skills/s_item.c \
 	game/skills/s_skills.c \
+	game/skills/s_spell.c \
 	game/skills/s_stop.c \
+	game/skills/s_summon.c \
+	game/skills/s_thunderbolt.c \
 	game/skills/s_train.c \
+	game/skills/s_utility_abilities.c \
+	game/skills/s_ability_stubs.c \
 	client/cl_layout.c \
 	client/cl_parse.c \
 	client/cl_scrn.c \

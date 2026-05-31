@@ -98,6 +98,9 @@ static BOOL can_attack(LPCEDICT ent) {
  * attacker returns to its stand (idle) state.  Otherwise, if the target is
  * able to attack back it issues an automatic counter-attack order. */
 void T_Damage(LPEDICT target, LPEDICT attacker, int damage) {
+    if (!target || target->invulnerable) {
+        return;
+    }
     unit_entercombat(attacker, target);
     unit_entercombat(target, attacker);
 

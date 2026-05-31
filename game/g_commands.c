@@ -115,8 +115,10 @@ CLIENTCOMMAND(SmartPoint) {
 CLIENTCOMMAND(Button) {
     LPCSTR classname = argv[1];
     LPGAMECLIENT client = clent->client;
-    ability_t const *ability = FindAbilityByClassname(classname);
+    LPCSTR code = game.config.abilities ? FS_FindSheetCell(game.config.abilities, classname, "code") : NULL;
+    ability_t const *ability = FindAbilityByClassname(code ? code : classname);
     if (ability && ability->cmd) {
+        client->menu.ability_code = *((DWORD const *)classname);
         ability->cmd(clent);
     } else if (client->menu.cmdbutton) {
         client->menu.cmdbutton(clent, *((DWORD *)classname));
@@ -177,8 +179,10 @@ CLIENTCOMMAND(Inventory) {
     abilities = FindConfigValue(GetClassName(item->class_id), "abilList");
     if (abilities && *abilities) {
         PARSE_LIST(abilities, ability_name, parse_segment) {
-            ability_t const *ability = FindAbilityByClassname(ability_name);
+            LPCSTR code = game.config.abilities ? FS_FindSheetCell(game.config.abilities, ability_name, "code") : NULL;
+            ability_t const *ability = FindAbilityByClassname(code ? code : ability_name);
             if (ability && ability->cmd) {
+                client->menu.ability_code = *((DWORD const *)ability_name);
                 ability->cmd(clent);
                 handled = true;
                 break;

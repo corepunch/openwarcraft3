@@ -183,6 +183,7 @@ int R_RegisterTextureFile(LPCSTR textureFileName);
 LPTEXTURE R_LoadTexture(LPCSTR textureFileName);
 void R_ReleaseTexture(LPTEXTURE texture);
 void R_DrawWorld(void);
+void R_DrawDecals(void);
 void R_DrawAlphaSurfaces(void);
 void R_RenderFrame(viewDef_t const *viewDef);
 LPTEXTURE R_AllocateTexture(DWORD width, DWORD height);

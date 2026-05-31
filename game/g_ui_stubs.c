@@ -28,6 +28,8 @@
 #define BUILDQUEUE_FIRST_Y (INFO_PANEL_Y + 0.0390f)
 #define BUILDQUEUE_FIRST_W 0.0280f
 #define BUILDQUEUE_FIRST_H 0.0310f
+
+static void UI_ClearCursorSplat(LPEDICT ent);
 #define BUILDQUEUE_LIST_X (INFO_PANEL_X + 0.0095f)
 #define BUILDQUEUE_LIST_Y (INFO_PANEL_Y + 0.0800f)
 #define BUILDQUEUE_ITEM_W 0.0200f
@@ -609,6 +611,7 @@ void Get_Commands_f(LPEDICT ent) {
     gameCommandButton_t buttons[12];
     BYTE count;
 
+    UI_ClearCursorSplat(ent);
     if (!ent || !ent->client || !selected) {
         UI_ClearLayer(ent, LAYER_COMMANDBAR);
         return;
@@ -939,4 +942,16 @@ void UI_WriteStart(DWORD layer) {
     gi.Write(PF_BYTE, &(LONG){svc_layout});
     gi.Write(PF_BYTE, &(LONG){layer});
     ui_next_frame_number = 1;
+}
+
+static void UI_ClearCursorSplat(LPEDICT ent) {
+    FLOAT radius = 0.0f;
+
+    if (!ent || !ent->client) {
+        return;
+    }
+    gi.Write(PF_BYTE, &(LONG){ svc_cursor_splat });
+    gi.Write(PF_SHORT, &(LONG){ 0 });
+    gi.Write(PF_FLOAT, &radius);
+    gi.unicast(ent);
 }

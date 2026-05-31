@@ -48,6 +48,7 @@ enum svc_ops {
     svc_layout,
     svc_playerinfo,
     svc_cursor,
+    svc_cursor_splat,
 
 // the rest are private to the client and server
 //    svc_nop,

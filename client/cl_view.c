@@ -5,7 +5,9 @@
 
 static struct {
     renderEntity_t entities[MAX_CLIENT_ENTITIES];
+    renderDecal_t decals[MAX_RENDER_DECALS];
     int num_entities;
+    int num_decals;
 } view_state;
 
 static bool world_loaded = false;
@@ -285,7 +287,9 @@ static void V_AddClientEntity(centity_t const *ent) {
 
 static void V_ClearScene(void) {
     view_state.num_entities = 0;
+    view_state.num_decals = 0;
     cl.viewDef.num_entities = 0;
+    cl.viewDef.num_decals = 0;
 }
 
 static void CL_AddBuilding(void) {
@@ -314,6 +318,29 @@ static void CL_AddBuilding(void) {
     view_state.entities[view_state.num_entities++] = ent;
 }
 
+static void CL_AddCursorSplat(void) {
+    renderDecal_t decal;
+    VECTOR3 point;
+
+    if (!cl.cursor_splat.image || cl.cursor_splat.image >= MAX_IMAGES ||
+        cl.cursor_splat.radius <= 0.0f) {
+        return;
+    }
+    if (CL_MouseOverGameplayUI()) {
+        return;
+    }
+    if (!re.TraceLocation(&cl.viewDef, mouse.origin.x, mouse.origin.y, &point)) {
+        return;
+    }
+
+    memset(&decal, 0, sizeof(decal));
+    decal.origin = (VECTOR2){ point.x, point.y };
+    decal.radius = cl.cursor_splat.radius;
+    decal.texture = cl.pics[cl.cursor_splat.image];
+    decal.color = (COLOR32){ 255, 255, 255, 180 };
+    V_AddDecal(&decal);
+}
+
 static void CL_AddEntities(void) {
     FOR_LOOP(index, MAX_CLIENT_ENTITIES) {
         centity_t const *ce = &cl.ents[index];
@@ -325,9 +352,12 @@ static void CL_AddEntities(void) {
     CL_AddTEnts();
     
     CL_AddBuilding();
+    CL_AddCursorSplat();
 
     cl.viewDef.num_entities = view_state.num_entities;
     cl.viewDef.entities = view_state.entities;
+    cl.viewDef.num_decals = view_state.num_decals;
+    cl.viewDef.decals = view_state.decals;
 }
 
 void CL_PrepRefresh(void) {
@@ -547,6 +577,13 @@ void V_AddEntity(renderEntity_t *ent) {
         return;
     }
     view_state.entities[view_state.num_entities++] = *ent;
+}
+
+void V_AddDecal(renderDecal_t *decal) {
+    if (view_state.num_decals >= MAX_RENDER_DECALS) {
+        return;
+    }
+    view_state.decals[view_state.num_decals++] = *decal;
 }
 
 void V_Shutdown(void) {

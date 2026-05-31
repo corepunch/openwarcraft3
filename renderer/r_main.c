@@ -617,6 +617,7 @@ void R_RenderView(void) {
         R_Call(glClear, GL_DEPTH_BUFFER_BIT);
     }
     R_DrawWorld();
+    R_DrawDecals();
     R_DrawEntities();
     R_DrawAlphaSurfaces();
     R_DrawParticles();

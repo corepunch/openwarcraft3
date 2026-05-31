@@ -42,8 +42,12 @@ void SV_Physics_Toss(LPEDICT ent) {
     FLOAT distance = ent->velocity * FRAMETIME;
     VECTOR3 dir = Vector3_sub(&ent->goalentity->s.origin, &ent->s.origin);
     if (Vector3_len(&dir) < distance) {
-        T_Damage(ent->goalentity, ent->owner, ent->damage);
-        G_FreeEdict(ent);
+        if (ent->currentmove && ent->currentmove->endfunc) {
+            ent->currentmove->endfunc(ent);
+        } else {
+            T_Damage(ent->goalentity, ent->owner, ent->damage);
+            G_FreeEdict(ent);
+        }
     } else {
         Vector3_normalize(&dir);
         G_PushEntity3(ent, distance, &dir);
@@ -59,6 +63,7 @@ void SV_Physics_Link(LPEDICT ent) {
  * then calls the entity's think function, and finally compresses health/mana
  * into the 8-bit stat fields that are sent to clients. */
 void G_RunEntity(LPEDICT ent) {
+    unit_updatestatuses(ent);
     SAFE_CALL(ent->prethink, ent);
     switch (ent->movetype) {
         case MOVETYPE_STEP:

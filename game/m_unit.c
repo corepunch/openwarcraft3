@@ -182,8 +182,86 @@ BOOL unit_additem(LPEDICT edict, LPEDICT item) {
     return false;
 }
 
+static BOOL unit_status_stuns(DWORD code) {
+    return code == MAKEFOURCC('B', 's', 't', 'u');
+}
+
+static BOOL unit_status_timedlife(DWORD code) {
+    return code == MAKEFOURCC('B', 'T', 'L', 'F');
+}
+
+static void unit_refreshstatusflags(LPEDICT ent) {
+    ent->stunned = false;
+    FOR_LOOP(i, MAX_UNIT_STATUSES) {
+        heroabilitystatus_t *status = ent->abilstatus + i;
+        if (status->level && unit_status_stuns(status->code)) {
+            ent->stunned = true;
+        }
+    }
+}
+
+void unit_updatestatuses(LPEDICT ent) {
+    DWORD now = gi.GetTime();
+    BOOL changed = false;
+    BOOL kill = false;
+
+    FOR_LOOP(i, MAX_UNIT_STATUSES) {
+        heroabilitystatus_t *status = ent->abilstatus + i;
+        if (!status->level || !status->timestamp) {
+            continue;
+        }
+        if (now >= status->timestamp) {
+            if (unit_status_timedlife(status->code)) {
+                kill = true;
+            }
+            memset(status, 0, sizeof(*status));
+            changed = true;
+        }
+    }
+    if (changed) {
+        unit_refreshstatusflags(ent);
+    }
+    if (kill && !M_IsDead(ent)) {
+        ent->health.value = 0;
+        if (ent->die) {
+            ent->die(ent, ent->owner);
+        }
+    }
+}
+
+void unit_addtimedstatus(LPEDICT ent, LPCSTR skill, DWORD level, FLOAT duration) {
+    DWORD code;
+    DWORD now;
+    heroabilitystatus_t *slot = NULL;
+
+    if (!ent || !skill || !*skill || level == 0) {
+        return;
+    }
+
+    code = *((DWORD const *)skill);
+    now = gi.GetTime();
+    FOR_LOOP(i, MAX_UNIT_STATUSES) {
+        heroabilitystatus_t *status = ent->abilstatus + i;
+        if (status->level && status->code == code) {
+            slot = status;
+            break;
+        }
+        if (!status->level && !slot) {
+            slot = status;
+        }
+    }
+    if (!slot) {
+        return;
+    }
+
+    slot->code = code;
+    slot->level = level;
+    slot->timestamp = duration > 0 ? now + (DWORD)(duration * 1000.0f) : 0;
+    unit_refreshstatusflags(ent);
+}
+
 void unit_addstatus(LPEDICT ent, LPCSTR skill, DWORD level) {
-    
+    unit_addtimedstatus(ent, skill, level, 0);
 }
 
 void unit_learnability(LPEDICT ent, DWORD abilcode) {

@@ -146,10 +146,11 @@ static void RStd_RegisterMap(LPCSTR mapFileName) {
 
 static void RStd_RenderFrame(viewDef_t const *viewdef) {
     printf("render_frame");
-    printf(" time=%u delta=%u entities=%u",
+    printf(" time=%u delta=%u entities=%u decals=%u",
            viewdef ? viewdef->time : 0,
            viewdef ? viewdef->deltaTime : 0,
-           viewdef ? viewdef->num_entities : 0);
+           viewdef ? viewdef->num_entities : 0,
+           viewdef ? viewdef->num_decals : 0);
     if (viewdef) {
         RStd_PrintRect("viewport", &viewdef->viewport);
         RStd_PrintRect("scissor", &viewdef->scissor);
