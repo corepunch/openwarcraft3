@@ -70,10 +70,10 @@ static void QuitConfirm_Init(void) {
     }
 
     if (frame_quit_button) {
-        UI_SetOnClick(frame_quit_button, "menu /quit");
+        UI_SetOnClick(frame_quit_button, "quit");
     }
     if (frame_cancel_button) {
-        UI_SetOnClick(frame_cancel_button, "menu /main");
+        UI_SetOnClick(frame_cancel_button, "menu_main");
     }
 
     QuitConfirm_UpdateVisibility();

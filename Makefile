@@ -2,7 +2,7 @@ WC3DATA  := data/Warcraft\ III
 DEMODATA := data/Warcraft3demo
 MPQ      := $(WC3DATA)/War3.mpq
 MAP      := Maps/Campaign/Human02.w3m
-UI_ROUTE := /main
+UI_CMD   := menu_main
 
 ZIP_URL  := https://archive.org/download/warcraft-iii-installer-enus/Warcraft-III-1.29.2-enUS.zip
 ZIP_FILE := Warcraft-III-1.29.2-enUS.zip
@@ -129,7 +129,7 @@ build-run-wow: openwow
 	$(WOW_BINARY) -data=data/world-of-warcraft/installed/Data -net_enabled=1 +map World/Maps/Azeroth/Azeroth.wdt
 
 run-ui-text: $(BINARY)
-	$(BINARY) -data=$(WC3DATA) -net_enabled=0 -r_module=stdout -ui_start_route=$(UI_ROUTE) -com_frame_limit=1
+	$(BINARY) -data=$(WC3DATA) -net_enabled=0 -r_module=stdout -com_frame_limit=1 +$(UI_CMD)
 
 diag: clean
 	$(MAKE) DIAG_OUTPUT=1 build

@@ -1,7 +1,7 @@
 /*
  * ui_router.c — UI navigation router.
  *
- * The router dispatches menu commands (e.g. "menu /main", "menu /lan/setup")
+ * The router dispatches resolved menu routes (e.g. "/main", "/lan/setup")
  * to the appropriate screen controller.
  */
 

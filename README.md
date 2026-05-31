@@ -86,7 +86,7 @@ Useful run targets:
 The stdout UI renderer is meant for layout and draw-call debugging without opening a window or taking screenshots:
 
 ```bash
-make run-ui-text UI_ROUTE=/main
+make run-ui-text
 ```
 
 That expands to:
@@ -314,7 +314,7 @@ No serialized UI blobs are transmitted over the network. The server is game-agno
 For UI work, use the stdout renderer before reaching for screenshots:
 
 ```bash
-make run-ui-text UI_ROUTE=/main
+make run-ui-text
 ```
 
 This runs the configured UI route for one frame, skips network socket binding, prints draw calls to stdout, and exits without writing `share/config.cfg`. It is useful for checking:

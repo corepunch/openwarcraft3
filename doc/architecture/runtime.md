@@ -63,7 +63,7 @@ The stdout renderer implements the renderer API without opening an SDL/OpenGL wi
 Recommended command:
 
 ```bash
-make run-ui-text UI_ROUTE=/main
+make run-ui-text
 ```
 
 Equivalent explicit command:

@@ -44,8 +44,8 @@ static void MainMenu_ShowQuitDialog(void) {
         .message = "Do you want to Quit?",
         .icon = UI_DIALOG_WAR3_ICON_QUESTION,
         .buttons = UI_DIALOG_WAR3_BUTTONS_YES_NO,
-        .no_route = "menu /main/main",
-        .yes_route = "menu /quit",
+        .no_route = "menu_main",
+        .yes_route = "quit",
     };
 
     UI_DialogWar3Show(&quit_dialog, &config);
@@ -77,18 +77,18 @@ static void MainMenu_InitFrames(void) {
     }
 
     UI_SetOnClick(main_menu.RealmButton, "menu /realm-select");
-    UI_SetOnClick(main_menu.SinglePlayerButton, "menu /single-player");
-    UI_SetOnClick(main_menu.BattleNetButton, "menu /lan/create");
-    UI_SetOnClick(main_menu.LocalAreaNetworkButton, "menu /lan/create");
-    UI_SetOnClick(main_menu.OptionsButton, "menu /options");
-    UI_SetOnClick(main_menu.CreditsButton, "menu /credits");
-    UI_SetOnClick(main_menu.ExitButton, "menu /main/quit-confirm");
+    UI_SetOnClick(main_menu.SinglePlayerButton, "menu_game");
+    UI_SetOnClick(main_menu.BattleNetButton, "menu_multiplayer");
+    UI_SetOnClick(main_menu.LocalAreaNetworkButton, "menu_multiplayer");
+    UI_SetOnClick(main_menu.OptionsButton, "menu_options");
+    UI_SetOnClick(main_menu.CreditsButton, "menu_credits");
+    UI_SetOnClick(main_menu.ExitButton, "menu_quit");
     MainMenu_InitQuitDialog();
 
     /* Realm select buttons */
     if (main_menu.RealmSelect) {
-        UI_SetOnClick(main_menu.RealmSelectOKButton, "menu /main");
-        UI_SetOnClick(main_menu.RealmSelectCancelButton, "menu /main");
+        UI_SetOnClick(main_menu.RealmSelectOKButton, "menu_main");
+        UI_SetOnClick(main_menu.RealmSelectCancelButton, "menu_main");
     }
 }
 

@@ -127,7 +127,7 @@ static void SinglePlayer_BindMainMenu(void) {
     UI_SetOnClick(ViewReplayButton, "");
     UI_SetOnClick(SkirmishButton, "");
     UI_SetOnClick(ProfileButton, "");
-    UI_SetOnClick(CancelButton, "menu /main");
+    UI_SetOnClick(CancelButton, "menu_main");
     if (ProfileNameText) {
         UI_SetText(ProfileNameText, "Player");
     }
@@ -158,7 +158,7 @@ static void SinglePlayer_BindCampaignMenu(void) {
     DifficultyMenu = DifficultySelect ? UI_FindChildFrame(DifficultySelect, "CampaignPopupMenuMenu") : NULL;
     DifficultyTitle = DifficultySelect ? UI_FindChildFrame(DifficultySelect, "CampaignPopupMenuTitleTextTemplate") : NULL;
 
-    UI_SetOnClick(BackButton, "menu /single-player/main");
+    UI_SetOnClick(BackButton, "menu_game");
     UI_SetOnClick(HumanButton, "menu /single-player/campaign/human");
     UI_SetOnClick(OrcButton, "menu /single-player/campaign/orc");
     UI_SetOnClick(UndeadButton, "menu /single-player/campaign/undead");

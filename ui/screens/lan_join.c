@@ -370,7 +370,7 @@ static void LAN_BuildFrames(void) {
     UI_SetOnClick(MapInfoButton, "menu /lan/create");
     UI_SetOnClick(AdvancedOptionsButton, "menu /lan/create");
     UI_SetOnClick(lan.play_button, "menu /lan/start");
-    UI_SetOnClick(CancelButton, "menu /main");
+    UI_SetOnClick(CancelButton, "menu_main");
     lan.ready = true;
 }
 

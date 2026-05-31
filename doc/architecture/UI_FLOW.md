@@ -87,7 +87,7 @@ SCR_UpdateScreen();
 For automated or text-first diagnostics, use:
 
 ```bash
-make run-ui-text UI_ROUTE=/main
+make run-ui-text
 ```
 
 This expands to a one-frame run with:

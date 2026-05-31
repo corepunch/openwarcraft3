@@ -910,7 +910,7 @@ void Com_Init(int argc, LPCSTR *argv) {
         Cvar_Set("map", "World/Maps/Azeroth/Azeroth.wdt");
     }
 #endif
-    Cbuf_Execute();
+    /* Leave generic +commands queued until client/UI modules register commands. */
 }
 
 void Com_Error(errorCode_t code, LPCSTR fmt, ...) {

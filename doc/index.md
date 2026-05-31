@@ -68,7 +68,7 @@ Useful run targets:
 For deterministic UI diagnostics without a window:
 
 ```bash
-make run-ui-text UI_ROUTE=/main
+make run-ui-text
 ```
 
 This uses `r_module=stdout`, disables networking, runs the route from `ui_start_route`, prints renderer calls to stdout, and exits after one frame.

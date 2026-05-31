@@ -98,6 +98,20 @@ static VECTOR2 CL_UIGetMouseFdf(void);
 static DWORD CL_UIGetMouseButton(void);
 static uiClientMouseEvent_t CL_UIGetMouseEvent(void);
 
+static void CL_MenuRoute(LPCSTR route) {
+    char command[256];
+
+    if (!route || !*route) {
+        return;
+    }
+    if (!ui.MenuCommand) {
+        Cvar_Set("ui_start_route", route);
+        return;
+    }
+    snprintf(command, sizeof(command), "menu %s", route);
+    ui.MenuCommand(command);
+}
+
 static refExport_t CL_GetRendererAPI(refImport_t imp) {
     LPCSTR module = Cvar_String("r_module", "renderer");
 
@@ -352,10 +366,7 @@ int CL_FontIndex(LPCSTR fontName, DWORD fontSize) {
 
 void CL_UIMenuCommand(LPCSTR route) {
     CON_printf("CL_UIMenuCommand: %s\\n", route);
-    /* Forward menu commands to UI library */
-    if (ui.MenuCommand) {
-        ui.MenuCommand(route);
-    }
+    CL_MenuRoute(route);
 }
 
 void CL_Init(void) {
@@ -398,6 +409,7 @@ void CL_Init(void) {
         .ReadSheet = FS_ParseSLK,
         .ReadConfig = FS_ParseINI,
         .FindSheetCell = FS_FindSheetCell,
+        .Cmd_AddCommand = Cmd_AddCommand,
         .Cmd_ExecuteText = Cbuf_AddText,
         .ServerCommand = CL_UIServerCommand,
         .Cvar_String = Cvar_String,

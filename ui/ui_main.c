@@ -20,6 +20,7 @@ typedef struct {
 } uiState_t;
 
 static uiState_t ui_state;
+static BOOL ui_menu_commands_registered;
 static LPFRAMEDEF resource_bar_frame;
 static LPFRAMEDEF resource_bar_gold_text;
 static LPFRAMEDEF resource_bar_lumber_text;
@@ -66,6 +67,102 @@ typedef struct {
 } uiLoadingState_t;
 
 static uiLoadingState_t loading_state;
+
+typedef struct {
+    LPCSTR command;
+    LPCSTR route;
+} uiMenuCommand_t;
+
+static uiMenuCommand_t const ui_menu_commands[] = {
+    { "menu_main", "/main" },
+    { "menu_game", "/single-player" },
+    { "menu_multiplayer", "/lan/create" },
+    { "menu_options", "/options" },
+    { "menu_video", "/options/video" },
+    { "menu_keys", "/options/keys" },
+    { "menu_loadgame", "/loadgame" },
+    { "menu_savegame", "/savegame" },
+    { "menu_playerconfig", "/playerconfig" },
+    { "menu_startserver", "/lan/create" },
+    { "menu_joinserver", "/lan/create" },
+    { "menu_credits", "/credits" },
+    { "menu_quit", "/main/quit-confirm" },
+    { NULL, NULL },
+};
+
+static void UI_MenuMain_f(void) {
+    UI_Route("/main");
+}
+
+static void UI_MenuGame_f(void) {
+    UI_Route("/single-player");
+}
+
+static void UI_MenuMultiplayer_f(void) {
+    UI_Route("/lan/create");
+}
+
+static void UI_MenuOptions_f(void) {
+    UI_Route("/options");
+}
+
+static void UI_MenuVideo_f(void) {
+    UI_Route("/options/video");
+}
+
+static void UI_MenuKeys_f(void) {
+    UI_Route("/options/keys");
+}
+
+static void UI_MenuLoadGame_f(void) {
+    UI_Route("/loadgame");
+}
+
+static void UI_MenuSaveGame_f(void) {
+    UI_Route("/savegame");
+}
+
+static void UI_MenuPlayerConfig_f(void) {
+    UI_Route("/playerconfig");
+}
+
+static void UI_MenuStartServer_f(void) {
+    UI_Route("/lan/create");
+}
+
+static void UI_MenuJoinServer_f(void) {
+    UI_Route("/lan/create");
+}
+
+static void UI_MenuCredits_f(void) {
+    UI_Route("/credits");
+}
+
+static void UI_MenuQuit_f(void) {
+    UI_Route("/main/quit-confirm");
+}
+
+typedef struct {
+    LPCSTR command;
+    void (*function)(void);
+} uiMenuCommandDef_t;
+
+static uiMenuCommandDef_t const ui_menu_command_defs[] = {
+    { "menu_main", UI_MenuMain_f },
+    { "menu_game", UI_MenuGame_f },
+    { "menu_multiplayer", UI_MenuMultiplayer_f },
+    { "menu_options", UI_MenuOptions_f },
+    { "menu_video", UI_MenuVideo_f },
+    { "menu_keys", UI_MenuKeys_f },
+    { "menu_loadgame", UI_MenuLoadGame_f },
+    { "menu_savegame", UI_MenuSaveGame_f },
+    { "menu_playerconfig", UI_MenuPlayerConfig_f },
+    { "menu_startserver", UI_MenuStartServer_f },
+    { "menu_joinserver", UI_MenuJoinServer_f },
+    { "menu_credits", UI_MenuCredits_f },
+    { "menu_quit", UI_MenuQuit_f },
+    { NULL, NULL },
+};
 
 typedef struct {
     LPCSTR texture;
@@ -132,6 +229,25 @@ static void UI_DrawConsoleMinimap(void) {
         return;
     }
     renderer->DrawMinimap(&rect);
+}
+
+static LPCSTR UI_MenuCommandRoute(LPCSTR command) {
+    for (uiMenuCommand_t const *menu = ui_menu_commands; menu->command; menu++) {
+        if (!strcmp(menu->command, command)) {
+            return menu->route;
+        }
+    }
+    return NULL;
+}
+
+static void UI_RegisterMenuCommands(void) {
+    if (ui_menu_commands_registered || !uiimport.Cmd_AddCommand) {
+        return;
+    }
+    for (uiMenuCommandDef_t const *cmd = ui_menu_command_defs; cmd->command; cmd++) {
+        uiimport.Cmd_AddCommand(cmd->command, cmd->function);
+    }
+    ui_menu_commands_registered = true;
 }
 
 static void UI_InitGameResourceBar(void) {
@@ -406,6 +522,7 @@ void UI_InitLocal(void) {
     memset(&ui_state, 0, sizeof(ui_state));
     memset(&ui_mouse, 0, sizeof(ui_mouse));
     UI_ResetGlueSceneModels();
+    UI_RegisterMenuCommands();
     
     uiimport.Printf("UI_InitLocal: loading FDF assets\n");
 
@@ -561,10 +678,15 @@ void UI_MouseEventLocal(int x, int y, int button, BOOL down) {
 }
 
 void UI_MenuCommandLocal(LPCSTR command) {
+    LPCSTR route;
+
     uiimport.Printf("UI_MenuCommandLocal: %s\n", command);
     
     /* Parse command */
-    if (!strncmp(command, "menu ", 5)) {
+    route = UI_MenuCommandRoute(command);
+    if (route) {
+        UI_Route(route);
+    } else if (!strncmp(command, "menu ", 5)) {
         UI_Route(command + 5);
     } else {
         if (UI_IsMapCommand(command)) {

@@ -142,7 +142,7 @@ build/bin/openwarcraft3 -data=data/Warcraft\ III -ui_start_route=/main
 For isolated route diagnostics:
 
 ```bash
-make run-ui-text UI_ROUTE=/main
+make run-ui-text
 ```
 
 That command uses `r_module=stdout`, `net_enabled=0`, and `com_frame_limit=1` to print one frame of draw calls and exit.

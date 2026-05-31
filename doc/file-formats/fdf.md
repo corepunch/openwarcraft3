@@ -112,7 +112,7 @@ Helper functions:
 For draw-call inspection, use the stdout renderer:
 
 ```bash
-make run-ui-text UI_ROUTE=/main
+make run-ui-text
 ```
 
 ## Related Source Files

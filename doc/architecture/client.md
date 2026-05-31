@@ -96,7 +96,7 @@ Calls into the renderer API:
 With `r_module=stdout`, the same calls produce text lines such as `draw_image`, `draw_text`, and `draw_portrait` instead of pixels. This is useful for scriptable UI checks:
 
 ```bash
-make run-ui-text UI_ROUTE=/main
+make run-ui-text
 ```
 
 ## Entity Interpolation

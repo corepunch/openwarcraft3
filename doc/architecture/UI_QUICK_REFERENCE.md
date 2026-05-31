@@ -40,7 +40,7 @@ Common routes:
 Use the stdout renderer before taking screenshots:
 
 ```bash
-make run-ui-text UI_ROUTE=/main
+make run-ui-text
 ```
 
 Equivalent:
@@ -113,7 +113,7 @@ See [Runtime Modules and Cvars](./runtime.md) for the full config reference.
 ## Debug Checklist
 
 1. Use `mdxtool --info` to verify model assets and sequence names.
-2. Use `make run-ui-text UI_ROUTE=/main` to inspect draw calls.
+2. Use `make run-ui-text` to inspect draw calls.
 3. Check `draw_image screen={...}` for layout and anchors.
 4. Check `draw_image uv={...}` for tiling and atlas issues.
 5. Check `draw_text text="..."` for translated strings and Warcraft color codes.
