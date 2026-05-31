@@ -18,6 +18,24 @@ static BOOL UI_ButtonBackdropNameContains(LPCFRAMEDEF frame, LPCSTR text) {
            strstr(frame->Control.Backdrop.Normal, text);
 }
 
+static BOOL UI_ButtonBackdropTextureContains(LPCFRAMEDEF frame, LPCSTR text) {
+    LPCFRAMEDEF backdrop;
+    LPCSTR background;
+    LPCSTR edge;
+
+    if (!frame || !frame->Control.Backdrop.Normal[0] || !text) {
+        return false;
+    }
+    backdrop = UI_FindFrameNear(frame, frame->Control.Backdrop.Normal);
+    if (!backdrop) {
+        return false;
+    }
+    background = UI_TextureName(backdrop->Backdrop.Background);
+    edge = UI_TextureName(backdrop->Backdrop.EdgeFile);
+    return (background && strstr(background, text)) ||
+           (edge && strstr(edge, text));
+}
+
 static LPCSTR UI_ButtonPopupPushedBackdropName(LPCFRAMEDEF frame) {
     if (!frame || !UI_IsPopupFrameType(frame->Type)) {
         return NULL;
@@ -37,8 +55,8 @@ static LPCSTR UI_ButtonPopupPushedBackdropName(LPCFRAMEDEF frame) {
     return NULL;
 }
 
-static LPCSTR UI_ButtonPopupMouseOverHighlightName(LPCFRAMEDEF frame) {
-    if (!frame || !UI_IsPopupFrameType(frame->Type)) {
+static LPCSTR UI_ButtonFallbackMouseOverHighlightName(LPCFRAMEDEF frame) {
+    if (!frame) {
         return NULL;
     }
     if (UI_ButtonBackdropNameContains(frame, "Campaign")) {
@@ -51,6 +69,15 @@ static LPCSTR UI_ButtonPopupMouseOverHighlightName(LPCFRAMEDEF frame) {
         return "EscMenuButtonMouseOverHighlightTemplate";
     }
     if (UI_ButtonBackdropNameContains(frame, "Standard")) {
+        return "StandardButtonMouseOverHighlightTemplate";
+    }
+    if (UI_ButtonBackdropTextureContains(frame, "CampaignButton")) {
+        return "StandardCampaignButtonMouseOverHighlightTemplate";
+    }
+    if (UI_ButtonBackdropTextureContains(frame, "BorderedBackdropBorder")) {
+        return "StandardBorderedButtonMouseOverHighlightTemplate";
+    }
+    if (UI_ButtonBackdropTextureContains(frame, "GlueScreen-Button1-")) {
         return "StandardButtonMouseOverHighlightTemplate";
     }
     return NULL;
@@ -156,7 +183,7 @@ static LPCFRAMEDEF UI_ButtonMouseOverHighlight(LPCFRAMEDEF frame) {
     }
     highlight_name = frame->Control.Backdrop.MouseOver[0]
                      ? frame->Control.Backdrop.MouseOver
-                     : UI_ButtonPopupMouseOverHighlightName(frame);
+                     : UI_ButtonFallbackMouseOverHighlightName(frame);
     return UI_FindFrameNear(frame, highlight_name);
 }
 

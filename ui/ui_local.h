@@ -381,6 +381,7 @@ void UI_ClearMouseTransient(void);
 DWORD UI_FindFrameNumber(LPCSTR);
 DWORD UI_CollectFrameTree(LPCFRAMEDEF root, LPCFRAMEDEF *out, DWORD max);
 DWORD UI_LoadTexture(LPCSTR, BOOL);
+LPCSTR UI_TextureName(DWORD index);
 LPCTEXTURE UI_GetTexture(DWORD index);
 LPCMODEL UI_GetModel(DWORD index);
 DWORD UI_LoadModel(LPCSTR file, BOOL decorate);

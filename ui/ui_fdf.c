@@ -445,6 +445,13 @@ DWORD UI_LoadTexture(LPCSTR file, BOOL decorate) {
     return index;
 }
 
+LPCSTR UI_TextureName(DWORD index) {
+    if (!index || index >= MAX_IMAGES) {
+        return NULL;
+    }
+    return ui_texture_names[index][0] ? ui_texture_names[index] : NULL;
+}
+
 LPCTEXTURE UI_GetTexture(DWORD index) {
     LPRENDERER renderer;
     LPCSTR resolved;
