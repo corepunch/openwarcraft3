@@ -324,7 +324,7 @@ VECTOR3 CM_PointIntoHeightmap(LPCVECTOR3 point) {
     };
 }
 
-short R_GetHeightMapValue(int x, int y) {
+FLOAT R_GetHeightMapValue(int x, int y) {
     return GetWar3MapVertexHeight(GetWar3MapVertex(tr.world, x, y));
 }
 
@@ -336,6 +336,60 @@ VECTOR3 R_PointFromHeightmap(LPCVECTOR3 point) {
     };
 }
 
+static BOOL R_ClipTraceToHeightmap(LPCLINE3 line, FLOAT max_x, FLOAT max_y, LPFLOAT t0, LPFLOAT t1) {
+    FLOAT const bounds_min[2] = { 0.0f, 0.0f };
+    FLOAT const bounds_max[2] = { max_x, max_y };
+    FLOAT const start[2] = { line->a.x, line->a.y };
+    FLOAT const finish[2] = { line->b.x, line->b.y };
+
+    *t0 = 0.0f;
+    *t1 = 1.0f;
+    FOR_LOOP(axis, 2) {
+        FLOAT const dir = finish[axis] - start[axis];
+        FLOAT near_t;
+        FLOAT far_t;
+
+        if (fabsf(dir) < EPSILON) {
+            if (start[axis] < bounds_min[axis] || start[axis] > bounds_max[axis]) {
+                return false;
+            }
+            continue;
+        }
+
+        near_t = (bounds_min[axis] - start[axis]) / dir;
+        far_t = (bounds_max[axis] - start[axis]) / dir;
+        if (near_t > far_t) {
+            FLOAT const swap = near_t;
+            near_t = far_t;
+            far_t = swap;
+        }
+        *t0 = MAX(*t0, near_t);
+        *t1 = MIN(*t1, far_t);
+        if (*t0 > *t1) {
+            return false;
+        }
+    }
+    return true;
+}
+
+static BOOL R_TraceHeightmapTile(int x, int y, LPCLINE3 line, LPVECTOR3 output) {
+    TRIANGLE3 const tri1 = {
+        { x, y, R_GetHeightMapValue(x, y) },
+        { x+1, y, R_GetHeightMapValue(x+1, y) },
+        { x+1, y+1, R_GetHeightMapValue(x+1, y+1) },
+    };
+    TRIANGLE3 const tri2 = {
+        { x+1, y+1, R_GetHeightMapValue(x+1, y+1) },
+        { x, y+1, R_GetHeightMapValue(x, y+1) },
+        { x, y, R_GetHeightMapValue(x, y) },
+    };
+
+    if (Line3_intersect_triangle(line, &tri1, output)) {
+        return true;
+    }
+    return Line3_intersect_triangle(line, &tri2, output);
+}
+
 bool R_TraceLocation(viewDef_t const *viewdef, FLOAT x, FLOAT y, LPVECTOR3 output) {
     if (!viewdef || !output || !tr.world) {
         return false;
@@ -345,26 +399,70 @@ bool R_TraceLocation(viewDef_t const *viewdef, FLOAT x, FLOAT y, LPVECTOR3 outpu
         .a = CM_PointIntoHeightmap(&gline.a),
         .b = CM_PointIntoHeightmap(&gline.b),
     };
-    FOR_LOOP(x, tr.world->width) {
-        FOR_LOOP(y, tr.world->height) {
-            TRIANGLE3 const tri1 = {
-                { x, y, R_GetHeightMapValue(x, y) },
-                { x+1, y, R_GetHeightMapValue(x+1, y) },
-                { x+1, y+1, R_GetHeightMapValue(x+1, y+1) },
-            };
-            TRIANGLE3 const tri2 = {
-                { x+1, y+1, R_GetHeightMapValue(x+1, y+1) },
-                { x, y+1, R_GetHeightMapValue(x, y+1) },
-                { x, y, R_GetHeightMapValue(x, y) },
-            };
-            if (Line3_intersect_triangle(&line, &tri1, output)) {
-                *output = R_PointFromHeightmap(output);
-                return true;
+    int const tiles_x = (int)tr.world->width - 1;
+    int const tiles_y = (int)tr.world->height - 1;
+    FLOAT t0;
+    FLOAT t1;
+    FLOAT dir_x;
+    FLOAT dir_y;
+    int tile_x;
+    int tile_y;
+    int step_x;
+    int step_y;
+    FLOAT t_max_x;
+    FLOAT t_max_y;
+    FLOAT t_delta_x;
+    FLOAT t_delta_y;
+
+    if (tiles_x <= 0 || tiles_y <= 0 ||
+        !R_ClipTraceToHeightmap(&line, (FLOAT)tiles_x, (FLOAT)tiles_y, &t0, &t1)) {
+        return false;
+    }
+
+    dir_x = line.b.x - line.a.x;
+    dir_y = line.b.y - line.a.y;
+    tile_x = (int)floorf(line.a.x + dir_x * t0);
+    tile_y = (int)floorf(line.a.y + dir_y * t0);
+    tile_x = MAX(0, MIN(tiles_x - 1, tile_x));
+    tile_y = MAX(0, MIN(tiles_y - 1, tile_y));
+
+    if (fabsf(dir_x) < EPSILON) {
+        step_x = 0;
+        t_max_x = 1.0e30f;
+        t_delta_x = 1.0e30f;
+    } else {
+        step_x = dir_x > 0.0f ? 1 : -1;
+        t_max_x = (((FLOAT)tile_x + (step_x > 0 ? 1.0f : 0.0f)) - line.a.x) / dir_x;
+        t_delta_x = fabsf(1.0f / dir_x);
+    }
+
+    if (fabsf(dir_y) < EPSILON) {
+        step_y = 0;
+        t_max_y = 1.0e30f;
+        t_delta_y = 1.0e30f;
+    } else {
+        step_y = dir_y > 0.0f ? 1 : -1;
+        t_max_y = (((FLOAT)tile_y + (step_y > 0 ? 1.0f : 0.0f)) - line.a.y) / dir_y;
+        t_delta_y = fabsf(1.0f / dir_y);
+    }
+
+    while (tile_x >= 0 && tile_y >= 0 && tile_x < tiles_x && tile_y < tiles_y) {
+        if (R_TraceHeightmapTile(tile_x, tile_y, &line, output)) {
+            *output = R_PointFromHeightmap(output);
+            return true;
+        }
+        if (t_max_x < t_max_y) {
+            if (t_max_x > t1) {
+                break;
             }
-            if (Line3_intersect_triangle(&line, &tri2, output)) {
-                *output = R_PointFromHeightmap(output);
-                return true;
+            tile_x += step_x;
+            t_max_x += t_delta_x;
+        } else {
+            if (t_max_y > t1) {
+                break;
             }
+            tile_y += step_y;
+            t_max_y += t_delta_y;
         }
     }
     return false;

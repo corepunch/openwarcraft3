@@ -21,6 +21,10 @@
     } \
 } while (0)
 
+static DWORD g_fow_blocker_hash;
+static DWORD g_fow_blocker_count;
+static BOOL g_fow_blockers_valid;
+
 static DWORD G_FowCellCount(void) {
     return level.fow.width * level.fow.height;
 }
@@ -437,6 +441,69 @@ static BOOL G_FowEntityIsBlocker(LPCEDICT ent) {
     return true;
 }
 
+static DWORD G_FowHashMix(DWORD hash, DWORD value) {
+    hash ^= value;
+    hash *= 16777619u;
+    return hash;
+}
+
+static DWORD G_FowHashFloat(DWORD hash, FLOAT value) {
+    DWORD bits;
+
+    memcpy(&bits, &value, sizeof(bits));
+    return G_FowHashMix(hash, bits);
+}
+
+static DWORD G_FowHashPointer(DWORD hash, void const *ptr) {
+    DWORD_PTR value = (DWORD_PTR)ptr;
+
+    hash = G_FowHashMix(hash, (DWORD)value);
+    return G_FowHashMix(hash, (DWORD)(value >> 16 >> 16));
+}
+
+static BOOL G_FowBlockersChanged(void) {
+    DWORD hash = 2166136261u;
+    DWORD count = 0;
+
+    FOR_LOOP(i, globals.num_edicts) {
+        LPCEDICT ent = &g_edicts[i];
+
+        if (!G_FowEntityIsBlocker(ent)) {
+            continue;
+        }
+
+        count++;
+        hash = G_FowHashMix(hash, i);
+        hash = G_FowHashMix(hash, ent->s.flags);
+        hash = G_FowHashMix(hash, ent->s.renderfx);
+        hash = G_FowHashFloat(hash, ent->s.origin.x);
+        hash = G_FowHashFloat(hash, ent->s.origin.y);
+        hash = G_FowHashFloat(hash, ent->s.radius);
+        hash = G_FowHashFloat(hash, ent->s.scale);
+        hash = G_FowHashFloat(hash, ent->collision);
+        hash = G_FowHashFloat(hash, ent->health.value);
+        hash = G_FowHashMix(hash, ent->class_id);
+        hash = G_FowHashMix(hash, ent->targtype);
+        hash = G_FowHashPointer(hash, ent->pathtex);
+        if (ent->pathtex) {
+            hash = G_FowHashMix(hash, ent->pathtex->width);
+            hash = G_FowHashMix(hash, ent->pathtex->height);
+        }
+    }
+
+    if (g_fow_blockers_valid &&
+        g_fow_blocker_hash == hash &&
+        g_fow_blocker_count == count)
+    {
+        return false;
+    }
+
+    g_fow_blocker_hash = hash;
+    g_fow_blocker_count = count;
+    g_fow_blockers_valid = true;
+    return true;
+}
+
 static int G_FowBlockerDilation(LPCEDICT ent) {
     if (ent->targtype == TARG_TREE) {
         return FOW_TREE_DILATION_CELLS;
@@ -575,12 +642,16 @@ void G_FowShutdown(void) {
     }
     SAFE_DELETE(level.fow.blocked, gi.MemFree);
     memset(&level.fow, 0, sizeof(level.fow));
+    g_fow_blocker_hash = 0;
+    g_fow_blocker_count = 0;
+    g_fow_blockers_valid = false;
 }
 
 void G_FowInit(void) {
     DWORD cells;
 
     G_FowShutdown();
+    g_fow_blockers_valid = false;
     if (!gi.GetWorldBounds) {
         return;
     }
@@ -621,7 +692,9 @@ void G_FowUpdate(void) {
         return;
     }
 
-    G_FowRebuildBlockers();
+    if (G_FowBlockersChanged()) {
+        G_FowRebuildBlockers();
+    }
     FOR_LOOP(player, MAX_PLAYERS) {
         fowPlayerGrid_t *grid = &level.fow.players[player];
         if (!grid->had_visible && !grid->client_connected) {
