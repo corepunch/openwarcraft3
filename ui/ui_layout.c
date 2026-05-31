@@ -1174,7 +1174,7 @@ BOOL UI_LayoutEditKey(int key) {
         case SDLK_RETURN:
         case SDLK_KP_ENTER:
             active_edit_number = 0;
-            return true;
+            return false;
         default:
             break;
     }

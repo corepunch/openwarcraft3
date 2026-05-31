@@ -129,9 +129,10 @@ BOOL UI_EditKey(int key) {
             return true;
         case SDLK_RETURN:
         case SDLK_KP_ENTER:
+            return false;
         case SDLK_ESCAPE:
             UI_FocusEdit(NULL);
-            return true;
+            return false;
         default:
             break;
     }
