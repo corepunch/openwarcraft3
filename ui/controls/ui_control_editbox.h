@@ -1,6 +1,46 @@
 #ifndef UI_CONTROL_EDITBOX_H
 #define UI_CONTROL_EDITBOX_H
 
+static LPFRAMEDEF UI_CreateEditTextFrame(LPFRAMEDEF frame) {
+    LPFRAMEDEF text_frame;
+    LPCFRAMEDEF template;
+
+    if (!frame) {
+        return NULL;
+    }
+
+    text_frame = UI_Spawn(FT_TEXT, frame);
+    if (!text_frame) {
+        return NULL;
+    }
+
+    snprintf(text_frame->Name,
+             sizeof(text_frame->Name),
+             "%sText",
+             frame->Name[0] ? frame->Name : "EditBox");
+    template = UI_FindFrame("StandardEditBoxTextTemplate");
+    if (template) {
+        text_frame->DecorateFileNames = template->DecorateFileNames;
+        text_frame->Width = template->Width;
+        text_frame->Height = template->Height;
+        text_frame->Font = template->Font;
+    }
+    if (!text_frame->Font.Name[0]) {
+        snprintf(text_frame->Font.Name, sizeof(text_frame->Font.Name), "MasterFont");
+    }
+    if (text_frame->Font.Size <= 0.0f) {
+        text_frame->Font.Size = 0.015f;
+    }
+    if (!text_frame->Font.Color.a) {
+        text_frame->Font.Color = COLOR32_WHITE;
+    }
+    text_frame->Font.Justification.Horizontal = FONT_JUSTIFYLEFT;
+    text_frame->Font.Justification.Vertical = FONT_JUSTIFYMIDDLE;
+    UI_SetAllPoints(text_frame);
+    snprintf(frame->Edit.TextFrame, sizeof(frame->Edit.TextFrame), "%s", text_frame->Name);
+    return text_frame;
+}
+
 static LPFRAMEDEF UI_EditTextFrame(LPCFRAMEDEF frame) {
     LPFRAMEDEF text_frame;
 
@@ -10,6 +50,9 @@ static LPFRAMEDEF UI_EditTextFrame(LPCFRAMEDEF frame) {
     text_frame = UI_FindChildFrame((LPFRAMEDEF)frame, frame->Edit.TextFrame);
     if (!text_frame && frame->Edit.TextFrame[0]) {
         text_frame = UI_FindFrameNear(frame, frame->Edit.TextFrame);
+    }
+    if (!text_frame) {
+        text_frame = UI_CreateEditTextFrame((LPFRAMEDEF)frame);
     }
     return text_frame;
 }
