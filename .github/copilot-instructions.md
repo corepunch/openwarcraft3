@@ -60,6 +60,7 @@ This codebase is inspired by **Quake 2**. The developer working on this project 
 ## MPQ Inspection Workflow
 
 - When investigating Warcraft III assets, prefer using the local CLI utility `build/bin/mpqtool` instead of guessing file paths.
+- Tests must not depend on a developer's local Warcraft III data or `War3.mpq`. Add any archive fixtures under `tests/resources-src`, pack them into the generated `build/tests/tests.mpq` through `make test-assets`, and point tests at that fixture MPQ instead.
 - Use `ls` mode to browse archive structure incrementally:
 	- `build/bin/mpqtool -mpq <path-to-mpq> ls`
 	- `build/bin/mpqtool -mpq <path-to-mpq> ls <subdir>`

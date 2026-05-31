@@ -5,7 +5,37 @@
 
 extern void Key_WriteBindings(FILE *file);
 
+#define CVAR_COMPLETE_CHARS 1024
+
 static cvar_t *cvar_vars;
+
+static BOOL Cvar_NameMatches(LPCSTR name, LPCSTR partial) {
+    size_t len;
+
+    if (!name || !partial) {
+        return false;
+    }
+    len = strlen(partial);
+    return !strncasecmp(name, partial, len);
+}
+
+static void Cvar_CommonPrefix(LPSTR out, DWORD out_size, LPCSTR name) {
+    DWORD i;
+
+    if (!out || out_size == 0 || !name) {
+        return;
+    }
+    if (!out[0]) {
+        snprintf(out, out_size, "%s", name);
+        return;
+    }
+    for (i = 0; out[i] && name[i] && i + 1 < out_size; i++) {
+        if (tolower((unsigned char)out[i]) != tolower((unsigned char)name[i])) {
+            break;
+        }
+    }
+    out[i] = '\0';
+}
 
 static LPSTR Cvar_CopyString(LPCSTR in) {
     size_t len = in ? strlen(in) : 0;
@@ -111,6 +141,40 @@ FLOAT Cvar_Value(LPCSTR name, FLOAT fallback) {
     cvar_t *var = Cvar_FindVar(name);
 
     return var ? var->value : fallback;
+}
+
+void Cvar_ForEachVariable(cmdListFunc_t func, void *userData) {
+    if (!func) {
+        return;
+    }
+    FOR_EACH_LIST(cvar_t, var, cvar_vars) {
+        func(var->name, userData);
+    }
+}
+
+int Cvar_CompleteVariable(LPCSTR partial, LPSTR out, DWORD out_size, bool print) {
+    int matches = 0;
+    char common[CVAR_COMPLETE_CHARS];
+
+    if (out && out_size > 0) {
+        out[0] = '\0';
+    }
+    common[0] = '\0';
+    partial = partial ? partial : "";
+    FOR_EACH_LIST(cvar_t, var, cvar_vars) {
+        if (!Cvar_NameMatches(var->name, partial)) {
+            continue;
+        }
+        if (print) {
+            fprintf(stderr, "%s\n", var->name);
+        }
+        Cvar_CommonPrefix(common, sizeof(common), var->name);
+        matches++;
+    }
+    if (out && out_size > 0 && matches > 0) {
+        snprintf(out, out_size, "%s", common);
+    }
+    return matches;
 }
 
 static void Cvar_Set_f(void) {
@@ -386,5 +450,6 @@ void Cvar_Init(void) {
     Cvar_Get("ui_game_setup_map", "", 0);
     Cvar_Get("net_enabled", "1", CVAR_ARCHIVE);
     Cvar_Get("com_frame_limit", "0", 0);
+    Cvar_Get("scr_showfps", "1", CVAR_ARCHIVE);
     Cvar_Get("skip_cutscene", "0", 0);
 }

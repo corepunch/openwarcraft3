@@ -15,6 +15,7 @@
 extern void Key_Init(void);
 
 #define MAXPRINTMSG 4096
+#define MAX_FS_MAPS 4096
 
 const LPCSTR WarcraftSheets[] = {
     "Units\\unitUI.slk",
@@ -66,6 +67,96 @@ static PATHSTR archiveNames[MAX_ARCHIVES];
 static PATHSTR gameDirs[MAX_GAME_DIRS];
 
 typedef void (*fsDiskEntryFunc_t)(LPCSTR name, LPCSTR path, BOOL isDirectory, BOOL isFile, void *userData);
+
+static void FS_NormalizePath(LPCSTR in, LPSTR out, DWORD out_size) {
+    DWORD i;
+
+    if (!out || out_size == 0) {
+        return;
+    }
+    out[0] = '\0';
+    if (!in) {
+        return;
+    }
+    snprintf(out, out_size, "%s", in);
+    for (i = 0; out[i]; i++) {
+        if (out[i] == '/') {
+            out[i] = '\\';
+        }
+    }
+}
+
+static BOOL FS_PathHasExtension(LPCSTR filename, LPCSTR extension) {
+    size_t filenameLen;
+    size_t extensionLen;
+
+    if (!filename || !extension) {
+        return false;
+    }
+    filenameLen = strlen(filename);
+    extensionLen = strlen(extension);
+    if (filenameLen < extensionLen) {
+        return false;
+    }
+    return !strcasecmp(filename + filenameLen - extensionLen, extension);
+}
+
+static BOOL FS_IsMapPath(LPCSTR filename) {
+    return FS_PathHasExtension(filename, ".w3m") || FS_PathHasExtension(filename, ".w3x");
+}
+
+static BOOL FS_IsExplicitMapPath(LPCSTR name) {
+    return name &&
+           (strchr(name, '/') ||
+            strchr(name, '\\') ||
+            FS_IsMapPath(name));
+}
+
+static LPCSTR FS_BaseName(LPCSTR path) {
+    LPCSTR base;
+
+    if (!path) {
+        return "";
+    }
+    base = path;
+    for (LPCSTR p = path; *p; p++) {
+        if (*p == '/' || *p == '\\') {
+            base = p + 1;
+        }
+    }
+    return base;
+}
+
+static BOOL FS_MapBaseEquals(LPCSTR path, LPCSTR name) {
+    LPCSTR base = FS_BaseName(path);
+    size_t nameLen = strlen(name ? name : "");
+    size_t baseLen = strlen(base);
+
+    if (!name || !*name || baseLen < 4) {
+        return false;
+    }
+    if (!FS_IsMapPath(base)) {
+        return false;
+    }
+    baseLen -= 4;
+    return nameLen == baseLen && !strncasecmp(base, name, baseLen);
+}
+
+static int FS_CompareMapPaths(const void *a, const void *b) {
+    PATHSTR const *pa = a;
+    PATHSTR const *pb = b;
+
+    return strcasecmp(*pa, *pb);
+}
+
+static BOOL FS_MapListHas(PATHSTR *maps, DWORD count, LPCSTR path) {
+    FOR_LOOP(i, count) {
+        if (!strcasecmp(maps[i], path)) {
+            return true;
+        }
+    }
+    return false;
+}
 
 HANDLE FS_AddArchive(LPCSTR filename) {
     if (!filename || !*filename) {
@@ -733,6 +824,92 @@ BOOL FS_FindClose(HANDLE handle) {
     return true;
 }
 
+DWORD FS_ListMaps(fsMapListFunc_t func, void *userData) {
+    PATHSTR *maps;
+    SFILE_FIND_DATA findData;
+    HANDLE handle;
+    DWORD count = 0;
+
+    maps = calloc(MAX_FS_MAPS, sizeof(*maps));
+    if (!maps) {
+        return 0;
+    }
+    handle = FS_FindFirstFile("Maps\\*", &findData);
+    while (handle && count < MAX_FS_MAPS) {
+        PATHSTR path;
+
+        FS_NormalizePath(findData.cFileName, path, sizeof(path));
+        if (FS_IsMapPath(path) && !FS_MapListHas(maps, count, path)) {
+            snprintf(maps[count++], sizeof(maps[count]), "%s", path);
+        }
+        if (!FS_FindNextFile(handle, &findData)) {
+            break;
+        }
+    }
+    if (handle) {
+        FS_FindClose(handle);
+    }
+    qsort(maps, count, sizeof(maps[0]), FS_CompareMapPaths);
+    if (func) {
+        FOR_LOOP(i, count) {
+            func(maps[i], userData);
+        }
+    }
+    free(maps);
+    return count;
+}
+
+typedef struct {
+    LPCSTR name;
+    LPSTR out;
+    DWORD out_size;
+    DWORD matches;
+} fsMapResolveState_t;
+
+static void FS_ResolveMapPathCallback(LPCSTR path, void *userData) {
+    fsMapResolveState_t *resolve = userData;
+
+    if (!resolve || !FS_MapBaseEquals(path, resolve->name)) {
+        return;
+    }
+    if (resolve->matches == 0 && resolve->out && resolve->out_size > 0) {
+        snprintf(resolve->out, resolve->out_size, "%s", path);
+    }
+    resolve->matches++;
+}
+
+fsMapResolve_t FS_ResolveMapPath(LPCSTR name, LPSTR out, DWORD out_size) {
+    fsMapResolveState_t resolve;
+    PATHSTR normalized;
+
+    if (out && out_size > 0) {
+        out[0] = '\0';
+    }
+    if (!name || !*name) {
+        return FS_MAP_RESOLVE_NOT_FOUND;
+    }
+    if (FS_IsExplicitMapPath(name)) {
+        FS_NormalizePath(name, normalized, sizeof(normalized));
+        if (out && out_size > 0) {
+            snprintf(out, out_size, "%s", normalized);
+        }
+        return FS_FileExists(normalized) ? FS_MAP_RESOLVE_OK : FS_MAP_RESOLVE_NOT_FOUND;
+    }
+
+    memset(&resolve, 0, sizeof(resolve));
+    resolve.name = name;
+    resolve.out = out;
+    resolve.out_size = out_size;
+    FS_ListMaps(FS_ResolveMapPathCallback, &resolve);
+    if (resolve.matches == 1) {
+        return FS_MAP_RESOLVE_OK;
+    }
+    if (resolve.matches > 1) {
+        return FS_MAP_RESOLVE_AMBIGUOUS;
+    }
+    return FS_MAP_RESOLVE_NOT_FOUND;
+}
+
 bool FS_ExtractFile(LPCSTR toExtract, LPCSTR extracted) {
     FOR_LOOP(i, MAX_ARCHIVES) {
         if (SFileExtractFile(archives[i], toExtract, extracted, 0))
@@ -856,17 +1033,131 @@ void Com_Quit(void) {
     Sys_Quit();
 }
 
+typedef struct {
+    LPCSTR name;
+    DWORD count;
+} comMapMatchPrint_t;
+
+static void Com_PrintMapCallback(LPCSTR path, void *userData) {
+    DWORD *count = userData;
+
+    fprintf(stderr, "%s\n", path);
+    if (count) {
+        (*count)++;
+    }
+}
+
+static void Com_PrintMapMatchCallback(LPCSTR path, void *userData) {
+    comMapMatchPrint_t *matches = userData;
+
+    if (!matches || !FS_MapBaseEquals(path, matches->name)) {
+        return;
+    }
+    fprintf(stderr, "  %s\n", path);
+    matches->count++;
+}
+
+bool Com_ResolveMapArgument(LPCSTR arg, LPSTR out, DWORD out_size) {
+    fsMapResolve_t status;
+
+    status = FS_ResolveMapPath(arg, out, out_size);
+    if (status == FS_MAP_RESOLVE_OK) {
+        return true;
+    }
+    if (status == FS_MAP_RESOLVE_AMBIGUOUS) {
+        comMapMatchPrint_t matches = { arg, 0 };
+
+        fprintf(stderr, "Map name \"%s\" is ambiguous:\n", arg);
+        FS_ListMaps(Com_PrintMapMatchCallback, &matches);
+        return false;
+    }
+    fprintf(stderr, "Can't find map %s\n", arg ? arg : "");
+    fprintf(stderr, "Run \"maps\" to list available maps.\n");
+    return false;
+}
+
 void MenuAction(LPCSTR action, LPCSTR arg) {
     if (!strcmp(action, "map")) {
+        PATHSTR map;
+
         if (!arg || !*arg) {
             return;
         }
+        if (!Com_ResolveMapArgument(arg, map, sizeof(map))) {
+            return;
+        }
         CL_SetGameplayBindings();
-        CL_BeginLoadingMap(arg);
-        SV_Map(arg);
+        CL_BeginLoadingMap(map);
+        SV_Map(map);
     } else if (!strcmp(action, "quit")) {
         Com_Quit();
     }
+}
+
+static void Com_Maps_f(void) {
+    DWORD count = 0;
+
+    FS_ListMaps(Com_PrintMapCallback, &count);
+    fprintf(stderr, "%u maps\n", count);
+}
+
+static void Com_Path_f(void) {
+    fprintf(stderr, "Current search path:\n");
+    FOR_LOOP(i, MAX_GAME_DIRS) {
+        if (gameDirs[i][0]) {
+            fprintf(stderr, "%s\n", gameDirs[i]);
+        }
+    }
+    FOR_LOOP(i, MAX_ARCHIVES) {
+        if (archives[i]) {
+            fprintf(stderr, "%s\n", archiveNames[i]);
+        }
+    }
+}
+
+static BOOL Com_DirExtensionMatches(LPCSTR path, LPCSTR extension) {
+    char dotted[64];
+
+    if (!extension || !*extension) {
+        return true;
+    }
+    if (*extension == '.') {
+        return FS_PathHasExtension(path, extension);
+    }
+    snprintf(dotted, sizeof(dotted), ".%s", extension);
+    return FS_PathHasExtension(path, dotted);
+}
+
+static void Com_Dir_f(void) {
+    LPCSTR path = Cmd_Argc() > 1 ? Cmd_Argv(1) : "*";
+    LPCSTR extension = Cmd_Argc() > 2 ? Cmd_Argv(2) : NULL;
+    char mask[MAX_PATHLEN * 2];
+    SFILE_FIND_DATA findData;
+    HANDLE handle;
+    DWORD count = 0;
+
+    if (strchr(path, '*')) {
+        snprintf(mask, sizeof(mask), "%s", path);
+    } else {
+        snprintf(mask, sizeof(mask), "%s\\*", path);
+    }
+    handle = FS_FindFirstFile(mask, &findData);
+    while (handle) {
+        PATHSTR normalized;
+
+        FS_NormalizePath(findData.cFileName, normalized, sizeof(normalized));
+        if (Com_DirExtensionMatches(normalized, extension)) {
+            fprintf(stderr, "%s\n", normalized);
+            count++;
+        }
+        if (!FS_FindNextFile(handle, &findData)) {
+            break;
+        }
+    }
+    if (handle) {
+        FS_FindClose(handle);
+    }
+    fprintf(stderr, "%u files\n", count);
 }
 
 static void Com_Map_f(void) {
@@ -888,6 +1179,9 @@ void Com_Init(int argc, LPCSTR *argv) {
     ));
     Key_Init();
     Cmd_AddCommand("map", Com_Map_f);
+    Cmd_AddCommand("maps", Com_Maps_f);
+    Cmd_AddCommand("path", Com_Path_f);
+    Cmd_AddCommand("dir", Com_Dir_f);
     Cvar_ApplyConfigCommandLine(argc, argv);
     FS_Init();
     Cvar_LoadConfig("share/default.cfg");

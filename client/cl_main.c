@@ -152,6 +152,29 @@ static BOOL CL_UI_ListHasFile(PATHSTR *files, int count, LPCSTR name) {
     return false;
 }
 
+typedef struct {
+    LPCSTR extension;
+    char *listbuf;
+    int bufsize;
+    int used;
+    int count;
+} clUiFileList_t;
+
+static void CL_UI_AddMapFile(LPCSTR path, void *userData) {
+    clUiFileList_t *list = userData;
+    int len;
+
+    if (!list || !CL_UI_HasExtension(path, list->extension)) {
+        return;
+    }
+    len = (int)strlen(path) + 1;
+    if (list->used + len < list->bufsize) {
+        memcpy(list->listbuf + list->used, path, len);
+        list->used += len;
+    }
+    list->count++;
+}
+
 static int CL_UI_GetFileList(LPCSTR path, LPCSTR extension, char *listbuf, int bufsize) {
     enum { MAX_UI_FILELIST = 1024 };
     PATHSTR files[MAX_UI_FILELIST];
@@ -165,6 +188,15 @@ static int CL_UI_GetFileList(LPCSTR path, LPCSTR extension, char *listbuf, int b
         return 0;
     }
     listbuf[0] = '\0';
+    if (!strcasecmp(path, "Maps")) {
+        clUiFileList_t list = { extension, listbuf, bufsize, 0, 0 };
+
+        FS_ListMaps(CL_UI_AddMapFile, &list);
+        if (list.used < list.bufsize) {
+            list.listbuf[list.used] = '\0';
+        }
+        return list.count;
+    }
     snprintf(mask, sizeof(mask), "%s\\*", path);
 
     handle = FS_FindFirstFile(mask, &find);

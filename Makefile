@@ -277,6 +277,8 @@ TEST_GAME_SRCS := \
 	common/msg.c
 
 TEST_SRCS := $(shell find tests -maxdepth 1 -name 'test_*.c' \
+	! -name 'test_commands.c' \
+	! -name 'test_commands_main.c' \
 	! -name 'test_jass_main.c' \
 	! -name 'test_main_ui.c' \
 	! -name 'test_mpq_compat.c' \
@@ -300,8 +302,16 @@ test: test-assets $(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) | $(BIN_DIR)
 		$(TEST_SRCS) $(TEST_GAME_SRCS) \
 		$(RPATH) $(LDFLAGS) -lsheet -lshared -ljass -lm
 	$(BIN_DIR)/test_openwarcraft3$(EXE_EXT)
+	$(MAKE) test-commands
 	$(MAKE) test-wow-appearance
 	$(MAKE) test-ui
+
+test-commands: test-assets $(SHARED_LIB) $(SHEET_LIB) | $(BIN_DIR)
+	$(CC) $(TEST_CFLAGS) -o $(BIN_DIR)/test_commands$(EXE_EXT) \
+		tests/test_commands_main.c tests/test_commands.c \
+		common/common.c common/cmd.c common/cvar.c common/msg.c common/net.c common/mpq.c \
+		$(RPATH) $(LDFLAGS) -lsheet -lshared -lm -lz
+	$(BIN_DIR)/test_commands$(EXE_EXT)
 
 test-jass: $(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) | $(BIN_DIR)
 	$(CC) $(TEST_CFLAGS) -o $(BIN_DIR)/test_jass$(EXE_EXT) \
@@ -368,9 +378,14 @@ test-assets: blpgen mdxgen mpqtool mdxtool | $(TESTS_DIR)
 		$(TESTS_SRC_DIR)/TestUI/Frames/basic_layout.fdf          TestUI/Frames/basic_layout.fdf \
 		$(TESTS_SRC_DIR)/TestUI/Frames/backdrop_variants.fdf     TestUI/Frames/backdrop_variants.fdf \
 		$(TESTS_SRC_DIR)/TestUI/Frames/simple_sprite.fdf         TestUI/Frames/simple_sprite.fdf \
-		$(TESTS_SRC_DIR)/TestUI/Frames/animated_sprite.fdf       TestUI/Frames/animated_sprite.fdf
+		$(TESTS_SRC_DIR)/TestUI/Frames/animated_sprite.fdf       TestUI/Frames/animated_sprite.fdf \
+		$(TESTS_SRC_DIR)/Maps/Campaign/Human02.w3m               Maps/Campaign/Human02.w3m \
+		$(TESTS_SRC_DIR)/Maps/Campaign/Orc01.w3m                 Maps/Campaign/Orc01.w3m \
+		$(TESTS_SRC_DIR)/Maps/Melee/TwinRivers.w3m               Maps/Melee/TwinRivers.w3m \
+		$(TESTS_SRC_DIR)/Maps/FrozenThrone/TwinRivers.w3x        Maps/FrozenThrone/TwinRivers.w3x
 	@echo "[test-assets] verifying archive"
 	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(TESTS_MPQ) ls | grep -q "TestUI/" && echo "  ls OK"
+	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(TESTS_MPQ) cat Maps/Campaign/Human02.w3m | grep -q "Human02" && echo "  cat map OK"
 	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(TESTS_MPQ) cat TestUI/Frames/basic_layout.fdf | grep -q "TestRootFrame" && echo "  cat FDF OK"
 	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(TESTS_MPQ) cat TestUI/Textures/solid_white.blp | head -c4 | grep -q "BLP2" && echo "  cat BLP OK"
 	@echo "[test-assets] done — $(TESTS_MPQ)"

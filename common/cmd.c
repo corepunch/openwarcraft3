@@ -20,6 +20,43 @@ static int cmd_argc;
 static char cmd_argv[MAX_CMD_TOKENS][MAX_CMD_TOKEN_CHARS];
 static char cmd_args[MAX_CMD_TOKEN_CHARS];
 
+static BOOL Cmd_NameMatches(LPCSTR name, LPCSTR partial) {
+    size_t len;
+
+    if (!name || !partial) {
+        return false;
+    }
+    len = strlen(partial);
+    return !strncasecmp(name, partial, len);
+}
+
+static void Cmd_CommonPrefix(LPSTR out, DWORD out_size, LPCSTR name) {
+    DWORD i;
+
+    if (!out || out_size == 0 || !name) {
+        return;
+    }
+    if (!out[0]) {
+        snprintf(out, out_size, "%s", name);
+        return;
+    }
+    for (i = 0; out[i] && name[i] && i + 1 < out_size; i++) {
+        if (tolower((unsigned char)out[i]) != tolower((unsigned char)name[i])) {
+            break;
+        }
+    }
+    out[i] = '\0';
+}
+
+static void Cmd_List_f(void) {
+    DWORD count = 0;
+
+    FOR_EACH_LIST(cmd_function_t, cmd, cmd_functions) {
+        fprintf(stderr, "%s\n", cmd->name);
+        count++;
+    }
+    fprintf(stderr, "%u commands\n", count);
+}
 
 char *va(char *format, ...) {
     va_list argptr;
@@ -38,6 +75,7 @@ void Cbuf_Init(void) {
     cmd_wait = false;
     SZ_Init (&cmd_text, cmd_text_buf, sizeof(cmd_text_buf));
     Cmd_AddCommand("wait", Cmd_Wait_f);
+    Cmd_AddCommand("cmdlist", Cmd_List_f);
 }
 
 void Cbuf_AddText(LPCSTR text) {
@@ -204,6 +242,40 @@ bool Cmd_Exists(LPCSTR cmd_name) {
         }
     }
     return false;
+}
+
+void Cmd_ForEachCommand(cmdListFunc_t func, void *userData) {
+    if (!func) {
+        return;
+    }
+    FOR_EACH_LIST(cmd_function_t, cmd, cmd_functions) {
+        func(cmd->name, userData);
+    }
+}
+
+int Cmd_CompleteCommand(LPCSTR partial, LPSTR out, DWORD out_size, bool print) {
+    int matches = 0;
+    char common[MAX_CMD_TOKEN_CHARS];
+
+    if (out && out_size > 0) {
+        out[0] = '\0';
+    }
+    common[0] = '\0';
+    partial = partial ? partial : "";
+    FOR_EACH_LIST(cmd_function_t, cmd, cmd_functions) {
+        if (!Cmd_NameMatches(cmd->name, partial)) {
+            continue;
+        }
+        if (print) {
+            fprintf(stderr, "%s\n", cmd->name);
+        }
+        Cmd_CommonPrefix(common, sizeof(common), cmd->name);
+        matches++;
+    }
+    if (out && out_size > 0 && matches > 0) {
+        snprintf(out, out_size, "%s", common);
+    }
+    return matches;
 }
 
 void Cmd_AddCommand(LPCSTR cmd_name, xcommand_t function) {

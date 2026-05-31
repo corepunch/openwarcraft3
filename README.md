@@ -77,6 +77,14 @@ build/bin/openwarcraft3 -data="data/Warcraft III"
 
 The data folder is scanned for top-level `.mpq` archives and an optional loose `Maps/` directory. This lets newer installs expose multiplayer maps from the filesystem while older assets can still be loaded from MPQs.
 
+To start a game from the normal client menu, click **Single Player**, then **Campaign**, then choose a campaign race. The current Single Player flow launches the first available campaign map for the selected race:
+
+- Tutorial: `Maps\Campaign\Prologue01.w3m`
+- Human: `Maps\Campaign\Human02.w3m`
+- Orc: `Maps\Campaign\Orc01.w3m`
+- Undead: `Maps\Campaign\Undead01.w3m`
+- Night Elf: `Maps\Campaign\NightElf01.w3m`
+
 Useful run targets:
 
 - `make run` — start the client menu using `WC3DATA`
@@ -96,6 +104,12 @@ build/bin/openwarcraft3 -data=data/Warcraft\ III -net_enabled=0 -r_module=stdout
 ```
 
 It prints calls such as `draw_portrait`, `draw_sprite`, `draw_image`, `draw_text`, and `draw_sys_text`, then exits after one frame.
+
+### In-game console
+
+OpenWarcraft3 includes a Quake-style console for diagnostics and runtime commands. Press backtick/tilde to open or close it, press Enter to run a command, use Up/Down for command history, and press Tab to complete command and cvar names.
+
+The console accepts the same commands and cvars used by the command line. For example, `map "Maps\Campaign\Orc01.w3m"` starts a listen-server game directly, while `r_module`, `ui_start_route`, and `net_enabled` can be inspected or changed during debugging.
 
 ### Configuration and cvars
 
@@ -363,6 +377,9 @@ Note: `fdftool` was removed in Phase 8 as it depended on deleted server-side UI 
 
 ## Current Status
 - Functional game implementation with basic Warcraft III features
+- Client-side main menu, Single Player menu, campaign selection, and campaign-map launching
+- Quake-style runtime console with command history, cvar lookup, and completion
+- Client-side Warcraft III FDF UI rendering with stdout renderer diagnostics
 - Support for original v1.0 assets with ongoing work for v1.29b compatibility
 - Active development focused on expanding game feature completeness
 - Cross-platform support for Linux and macOS environments

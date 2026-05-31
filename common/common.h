@@ -102,6 +102,14 @@ struct font;
 struct m2Model_s;
 
 typedef void (*xcommand_t)(void);
+typedef void (*cmdListFunc_t)(LPCSTR name, void *userData);
+typedef void (*fsMapListFunc_t)(LPCSTR path, void *userData);
+
+typedef enum {
+    FS_MAP_RESOLVE_OK,
+    FS_MAP_RESOLVE_NOT_FOUND,
+    FS_MAP_RESOLVE_AMBIGUOUS,
+} fsMapResolve_t;
 
 typedef struct cvar_s {
     struct cvar_s *next;
@@ -138,6 +146,7 @@ KNOWN_AS(CliffInfo, CLIFFINFO);
 void Com_Init(int argc, LPCSTR *argv);
 void Com_Error(errorCode_t code, LPCSTR fmt, ...);
 void LoadMap(LPCSTR pFilename);
+bool Com_ResolveMapArgument(LPCSTR arg, LPSTR out, DWORD out_size);
 
 void FS_Init(void);
 void FS_Shutdown(void);
@@ -161,6 +170,8 @@ void FS_FreeFile(void *buf);
 HANDLE FS_FindFirstFile(LPCSTR mask, SFILE_FIND_DATA *findData);
 BOOL FS_FindNextFile(HANDLE find, SFILE_FIND_DATA *findData);
 BOOL FS_FindClose(HANDLE find);
+DWORD FS_ListMaps(fsMapListFunc_t func, void *userData);
+fsMapResolve_t FS_ResolveMapPath(LPCSTR name, LPSTR out, DWORD out_size);
 
 typedef struct {
     HANDLE (*ReadFile)(LPCSTR filename, LPDWORD size);
@@ -220,6 +231,8 @@ void Cmd_RemoveCommand(LPCSTR cmd_name);
 bool Cmd_Exists(LPCSTR cmd_name);
 void Cmd_ExecuteString(LPCSTR text);
 void Cmd_ForwardToServer(LPCSTR text);
+void Cmd_ForEachCommand(cmdListFunc_t func, void *userData);
+int Cmd_CompleteCommand(LPCSTR partial, LPSTR out, DWORD out_size, bool print);
 
 // cvar.c
 void Cvar_Init(void);
@@ -234,5 +247,7 @@ void Cvar_WriteConfig(LPCSTR filename);
 void Cvar_ApplyConfigCommandLine(int argc, LPCSTR *argv);
 void Cvar_ApplyCommandLine(int argc, LPCSTR *argv);
 bool Cvar_Command(void);
+void Cvar_ForEachVariable(cmdListFunc_t func, void *userData);
+int Cvar_CompleteVariable(LPCSTR partial, LPSTR out, DWORD out_size, bool print);
 
 #endif

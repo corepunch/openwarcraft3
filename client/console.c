@@ -26,6 +26,7 @@ static DWORD con_history_pos;
 static keydest_t con_prev_key_dest = key_game;
 
 static void CON_PrintCvarResult(LPCSTR command);
+static void CON_CompleteInput(void);
 
 static void CON_DrawChar(int x, int y, int c) {
     re.DrawChar(x, y, c);
@@ -272,6 +273,88 @@ static void CON_PrintCvarResult(LPCSTR command) {
     }
 }
 
+typedef struct {
+    LPCSTR partial;
+} conCompletePrint_t;
+
+static BOOL CON_CompleteNameMatches(LPCSTR name, LPCSTR partial) {
+    size_t len;
+
+    if (!name || !partial) {
+        return false;
+    }
+    len = strlen(partial);
+    return !strncasecmp(name, partial, len);
+}
+
+static void CON_PrintCompleteMatch(LPCSTR name, void *userData) {
+    conCompletePrint_t *print = userData;
+
+    if (print && CON_CompleteNameMatches(name, print->partial)) {
+        CON_printf("%s", name);
+    }
+}
+
+static void CON_CompleteReplace(DWORD start, DWORD end, LPCSTR text, BOOL add_space) {
+    char completed[CON_INPUT_LEN];
+
+    if (!text || !*text || start > end || end > strlen(con_input)) {
+        return;
+    }
+    snprintf(completed,
+             sizeof(completed),
+             "%.*s%s%s%s",
+             (int)start,
+             con_input,
+             text,
+             add_space ? " " : "",
+             con_input + end);
+    CON_SetInput(completed);
+    con_cursor = start + (DWORD)strlen(text) + (add_space ? 1 : 0);
+}
+
+static void CON_CompleteInput(void) {
+    char partial[CON_INPUT_LEN];
+    char completed[CON_INPUT_LEN];
+    DWORD start = 0;
+    DWORD end = con_cursor;
+    int matches;
+    BOOL cvar = false;
+
+    while (con_input[start] && isspace((unsigned char)con_input[start]) && start < end) {
+        start++;
+    }
+    for (DWORD i = start; i < end; i++) {
+        if (isspace((unsigned char)con_input[i])) {
+            return;
+        }
+    }
+    if (end < start || end - start >= sizeof(partial)) {
+        return;
+    }
+    memcpy(partial, con_input + start, end - start);
+    partial[end - start] = '\0';
+
+    matches = Cmd_CompleteCommand(partial, completed, sizeof(completed), false);
+    if (!matches) {
+        matches = Cvar_CompleteVariable(partial, completed, sizeof(completed), false);
+        cvar = true;
+    }
+    if (!matches) {
+        return;
+    }
+    if (matches > 1) {
+        conCompletePrint_t print = { partial };
+
+        if (cvar) {
+            Cvar_ForEachVariable(CON_PrintCompleteMatch, &print);
+        } else {
+            Cmd_ForEachCommand(CON_PrintCompleteMatch, &print);
+        }
+    }
+    CON_CompleteReplace(start, end, completed, matches == 1);
+}
+
 void CON_KeyEvent(int key, bool down) {
     SDL_Keymod mod;
 
@@ -297,6 +380,9 @@ void CON_KeyEvent(int key, bool down) {
         case SDLK_RETURN:
         case SDLK_KP_ENTER:
             CON_Submit();
+            break;
+        case SDLK_TAB:
+            CON_CompleteInput();
             break;
         case SDLK_BACKSPACE:
             if (con_cursor > 0) {

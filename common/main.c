@@ -98,6 +98,7 @@ int main(int argc, LPSTR argv[]) {
         return 1;
     }
 
+    PATHSTR resolved_map;
     LPCSTR map = Cvar_String("map", "");
     LPCSTR connect_addr = Cvar_String("connect", "");
     bool has_map = map && *map;
@@ -105,6 +106,13 @@ int main(int argc, LPSTR argv[]) {
     bool menu_mode = !has_map && !has_connect_addr;
     bool listen_server_mode = has_map && !has_connect_addr;
     bool net_enabled = Cvar_Integer("net_enabled", 1) != 0;
+
+    if (has_map) {
+        if (!Com_ResolveMapArgument(map, resolved_map, sizeof(resolved_map))) {
+            return 1;
+        }
+        map = resolved_map;
+    }
     cls.key_dest = menu_mode ? key_menu : key_game;
     cls.state = ca_disconnected;
 

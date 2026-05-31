@@ -49,7 +49,9 @@ void SCR_UpdateScreen(DWORD msec) {
     }
 
     CON_DrawConsole();
-    SCR_DrawFPS(msec);
+    if (Cvar_Integer("scr_showfps", 0)) {
+        SCR_DrawFPS(msec);
+    }
     
 //    if (cl.pics[42]) re.DrawPic(cl.pics[42], 0, 0);
     

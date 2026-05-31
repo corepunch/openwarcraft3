@@ -24,6 +24,11 @@ void V_RenderView(void) {
 void CON_DrawConsole(void) {
 }
 
+int Cvar_Integer(LPCSTR name, int fallback) {
+    (void)name;
+    return fallback;
+}
+
 void CL_ParseTEnt(LPSIZEBUF msg) {
     (void)msg;
 }
