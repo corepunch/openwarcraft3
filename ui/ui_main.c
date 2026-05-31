@@ -6,6 +6,9 @@
 
 #include "ui_local.h"
 #include "ui_screen.h"
+#include "generated/cinematic_panel.h"
+#include "generated/loading_screen.h"
+#include "generated/resource_bar.h"
 
 /* Global import table filled by UI_GetAPI */
 uiImport_t uiimport;
@@ -22,22 +25,9 @@ typedef struct {
 static uiState_t ui_state;
 static uiScreen_t *ui_current_screen = NULL;
 static BOOL ui_menu_commands_registered;
-static LPFRAMEDEF resource_bar_frame;
-static LPFRAMEDEF resource_bar_gold_text;
-static LPFRAMEDEF resource_bar_lumber_text;
-static LPFRAMEDEF resource_bar_supply_text;
-static LPFRAMEDEF resource_bar_upkeep_text;
-static LPFRAMEDEF cinematic_panel_frame;
-static LPFRAMEDEF cinematic_speaker_text;
-static LPFRAMEDEF cinematic_dialogue_text;
-static LPFRAMEDEF loading_frame;
-static LPFRAMEDEF loading_custom_panel;
-static LPFRAMEDEF loading_melee_panel;
-static LPFRAMEDEF loading_background;
-static LPFRAMEDEF loading_bar;
-static LPFRAMEDEF loading_title_text;
-static LPFRAMEDEF loading_subtitle_text;
-static LPFRAMEDEF loading_text;
+static ResourceBar_t resource_bar;
+static CinematicPanel_t cinematic_panel;
+static LoadingScreen_t loading_screen;
 
 static BOOL UI_IsMapCommand(LPCSTR command) {
     if (!command) {
@@ -189,6 +179,11 @@ static void UI_MenuOptionsSound_f(void) {
     OptionsMenu_ShowSound();
 }
 
+static void UI_MenuOptionsApply_f(void) {
+    OptionsMenu_Apply();
+    UI_MenuMain_f();
+}
+
 static void UI_MenuSinglePlayerCampaign_f(void) {
     UI_SetScreen(&singlePlayerMenuScreen);
     SinglePlayerMenu_ShowCampaign();
@@ -229,6 +224,7 @@ static uiMenuCommandDef_t const ui_menu_command_defs[] = {
     { "menu_realm_select", UI_MenuRealmSelect_f },
     { "menu_options_gameplay", UI_MenuOptionsGameplay_f },
     { "menu_options_sound", UI_MenuOptionsSound_f },
+    { "menu_options_apply", UI_MenuOptionsApply_f },
     { "menu_single_player_campaign", UI_MenuSinglePlayerCampaign_f },
     { "menu_lan_refresh", UI_MenuLANRefresh_f },
     { "menu_lan_start", UI_MenuLANStart_f },
@@ -314,14 +310,9 @@ static void UI_RegisterMenuCommands(void) {
 }
 
 static void UI_InitGameResourceBar(void) {
-    resource_bar_frame = UI_FindFrame("ResourceBarFrame");
-    resource_bar_gold_text = UI_FindFrame("ResourceBarGoldText");
-    resource_bar_lumber_text = UI_FindFrame("ResourceBarLumberText");
-    resource_bar_supply_text = UI_FindFrame("ResourceBarSupplyText");
-    resource_bar_upkeep_text = UI_FindFrame("ResourceBarUpkeepText");
-
-    if (resource_bar_frame) {
-        UI_SetPoint(resource_bar_frame,
+    ResourceBar_Load(&resource_bar);
+    if (resource_bar.ResourceBarFrame) {
+        UI_SetPoint(resource_bar.ResourceBarFrame,
                     FRAMEPOINT_TOPRIGHT,
                     NULL,
                     FRAMEPOINT_TOPRIGHT,
@@ -333,27 +324,27 @@ static void UI_InitGameResourceBar(void) {
 static void UI_DrawResourceBar(void) {
     LPCPLAYER ps = uiimport.GetPlayerState ? uiimport.GetPlayerState() : NULL;
 
-    if (!ps || !resource_bar_frame) {
+    if (!ps || !resource_bar.ResourceBarFrame) {
         return;
     }
 
-    if (resource_bar_gold_text) {
-        UI_SetText(resource_bar_gold_text, "%u", (unsigned)ps->stats[PLAYERSTATE_RESOURCE_GOLD]);
+    if (resource_bar.ResourceBarGoldText) {
+        UI_SetText(resource_bar.ResourceBarGoldText, "%u", (unsigned)ps->stats[PLAYERSTATE_RESOURCE_GOLD]);
     }
-    if (resource_bar_lumber_text) {
-        UI_SetText(resource_bar_lumber_text, "%u", (unsigned)ps->stats[PLAYERSTATE_RESOURCE_LUMBER]);
+    if (resource_bar.ResourceBarLumberText) {
+        UI_SetText(resource_bar.ResourceBarLumberText, "%u", (unsigned)ps->stats[PLAYERSTATE_RESOURCE_LUMBER]);
     }
-    if (resource_bar_supply_text) {
-        UI_SetText(resource_bar_supply_text,
+    if (resource_bar.ResourceBarSupplyText) {
+        UI_SetText(resource_bar.ResourceBarSupplyText,
                    "%u/%u",
                    (unsigned)ps->stats[PLAYERSTATE_RESOURCE_FOOD_USED],
                    (unsigned)ps->stats[PLAYERSTATE_RESOURCE_FOOD_CAP]);
     }
-    if (resource_bar_upkeep_text) {
-        UI_SetText(resource_bar_upkeep_text, "UPKEEP_NONE");
+    if (resource_bar.ResourceBarUpkeepText) {
+        UI_SetText(resource_bar.ResourceBarUpkeepText, "UPKEEP_NONE");
     }
 
-    UI_DrawFrame(resource_bar_frame);
+    UI_DrawFrame(resource_bar.ResourceBarFrame);
 }
 
 static BOOL UI_CinematicActive(LPCPLAYER ps) {
@@ -365,24 +356,22 @@ static BOOL UI_LoadingActive(LPCPLAYER ps) {
 }
 
 static void UI_InitCinematicPanel(void) {
-    cinematic_panel_frame = UI_FindFrame("CinematicPanel");
-    cinematic_speaker_text = UI_FindFrame("CinematicSpeakerText");
-    cinematic_dialogue_text = UI_FindFrame("CinematicDialogueText");
+    CinematicPanel_Load(&cinematic_panel);
 }
 
 static void UI_DrawCinematicPanel(LPCPLAYER ps) {
-    if (!ps || !cinematic_panel_frame) {
+    if (!ps || !cinematic_panel.CinematicPanel) {
         return;
     }
 
-    if (cinematic_speaker_text) {
-        UI_SetTextPointer(cinematic_speaker_text, ps->texts[PLAYERTEXT_SPEAKER] ? ps->texts[PLAYERTEXT_SPEAKER] : "");
+    if (cinematic_panel.CinematicSpeakerText) {
+        UI_SetTextPointer(cinematic_panel.CinematicSpeakerText, ps->texts[PLAYERTEXT_SPEAKER] ? ps->texts[PLAYERTEXT_SPEAKER] : "");
     }
-    if (cinematic_dialogue_text) {
-        UI_SetTextPointer(cinematic_dialogue_text, ps->texts[PLAYERTEXT_DIALOGUE] ? ps->texts[PLAYERTEXT_DIALOGUE] : "");
+    if (cinematic_panel.CinematicDialogueText) {
+        UI_SetTextPointer(cinematic_panel.CinematicDialogueText, ps->texts[PLAYERTEXT_DIALOGUE] ? ps->texts[PLAYERTEXT_DIALOGUE] : "");
     }
 
-    UI_DrawFrame(cinematic_panel_frame);
+    UI_DrawFrame(cinematic_panel.CinematicPanel);
 }
 
 static LPCSTR UI_CsvField(LPCSTR text, DWORD index, LPSTR out, DWORD out_size) {
@@ -492,20 +481,12 @@ static void UI_UpdateLoadingMapInfo(void) {
 }
 
 static void UI_InitLoadingScreen(void) {
-    loading_frame = UI_FindFrame("Loading");
-    loading_custom_panel = UI_FindFrame("LoadingCustomPanel");
-    loading_melee_panel = UI_FindFrame("LoadingMeleePanel");
-    loading_background = UI_FindFrame("LoadingBackground");
-    loading_bar = UI_FindFrame("LoadingBar");
-    loading_title_text = UI_FindFrame("LoadingTitleText");
-    loading_subtitle_text = UI_FindFrame("LoadingSubtitleText");
-    loading_text = UI_FindFrame("LoadingText");
-
-    if (loading_custom_panel) {
-        UI_SetHidden(loading_custom_panel, false);
+    LoadingScreen_Load(&loading_screen);
+    if (loading_screen.LoadingCustomPanel) {
+        UI_SetHidden(loading_screen.LoadingCustomPanel, false);
     }
-    if (loading_melee_panel) {
-        UI_SetHidden(loading_melee_panel, true);
+    if (loading_screen.LoadingMeleePanel) {
+        UI_SetHidden(loading_screen.LoadingMeleePanel, true);
     }
 }
 
@@ -514,31 +495,31 @@ static void UI_DrawLoadingScreen(void) {
 
     UI_UpdateLoadingMapInfo();
 
-    if (!loading_frame) {
+    if (!loading_screen.Loading) {
         return;
     }
-    if (loading_background) {
-        snprintf(loading_background->TextStorage, sizeof(loading_background->TextStorage), "#!%u",
+    if (loading_screen.LoadingBackground) {
+        snprintf(loading_screen.LoadingBackground->TextStorage, sizeof(loading_screen.LoadingBackground->TextStorage), "#!%u",
                  (unsigned)loading_state.background_sequence);
-        loading_background->Text = loading_background->TextStorage;
-        loading_background->Portrait.model = loading_state.background_model;
+        loading_screen.LoadingBackground->Text = loading_screen.LoadingBackground->TextStorage;
+        loading_screen.LoadingBackground->Portrait.model = loading_state.background_model;
     }
-    if (loading_bar) {
-        snprintf(loading_bar->TextStorage, sizeof(loading_bar->TextStorage), "#0@%.4f", loading_progress);
-        loading_bar->Text = loading_bar->TextStorage;
-        loading_bar->Portrait.model = loading_state.progress_model;
+    if (loading_screen.LoadingBar) {
+        snprintf(loading_screen.LoadingBar->TextStorage, sizeof(loading_screen.LoadingBar->TextStorage), "#0@%.4f", loading_progress);
+        loading_screen.LoadingBar->Text = loading_screen.LoadingBar->TextStorage;
+        loading_screen.LoadingBar->Portrait.model = loading_state.progress_model;
     }
-    if (loading_title_text) {
-        UI_SetTextPointer(loading_title_text, loading_state.title);
+    if (loading_screen.LoadingTitleText) {
+        UI_SetTextPointer(loading_screen.LoadingTitleText, loading_state.title);
     }
-    if (loading_subtitle_text) {
-        UI_SetTextPointer(loading_subtitle_text, loading_state.subtitle);
+    if (loading_screen.LoadingSubtitleText) {
+        UI_SetTextPointer(loading_screen.LoadingSubtitleText, loading_state.subtitle);
     }
-    if (loading_text) {
-        UI_SetTextPointer(loading_text, loading_state.text);
+    if (loading_screen.LoadingText) {
+        UI_SetTextPointer(loading_screen.LoadingText, loading_state.text);
     }
 
-    UI_DrawFrame(loading_frame);
+    UI_DrawFrame(loading_screen.Loading);
 }
 
 VECTOR2 UI_MouseToFdf(void) {
@@ -791,6 +772,10 @@ void UI_MenuCommandLocal(LPCSTR command) {
     }
     if (!strcmp(command, "menu_options_sound")) {
         UI_MenuOptionsSound_f();
+        return;
+    }
+    if (!strcmp(command, "menu_options_apply")) {
+        UI_MenuOptionsApply_f();
         return;
     }
     if (!strcmp(command, "menu_single_player_campaign")) {
