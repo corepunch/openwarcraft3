@@ -5,6 +5,8 @@
 static LPCSTR devotionaura_target_art;
 
 static umove_t aura_move_stand = { "stand", ai_idle, NULL };
+// Disabled until the aura effect uses a death move; Linux -Wall warns on unused static hooks.
+// static umove_t aura_move_death = { "death", NULL, G_FreeEdict };
 
 void devotionaura_command(LPEDICT clent) {
     LPEDICT unit = G_GetMainSelectedUnit(clent->client);
