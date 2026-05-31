@@ -28,6 +28,8 @@ void MDLX_Shutdown(void);
 LPTEXTURE R_LoadTextureBLP1(HANDLE data, DWORD filesize);
 LPTEXTURE R_LoadTextureBLP2(HANDLE data, DWORD filesize);
 LPTEXTURE R_LoadTextureDDS(HANDLE data, DWORD filesize);
+BOOL R_IsTexturePCX(HANDLE data, DWORD filesize);
+LPTEXTURE R_LoadTexturePCX(HANDLE data, DWORD filesize);
 
 static BOOL R_PathHasExtension(LPCSTR path, LPCSTR extension) {
     size_t pathLen;
@@ -178,7 +180,9 @@ LPTEXTURE R_LoadTexture(LPCSTR textureFilename) {
             texture = R_LoadTextureDDS(buffer, fileSize);
             break;
         default:
-            if (R_PathHasExtension(textureFilename, ".tga")) {
+            if (R_IsTexturePCX(buffer, fileSize) || R_PathHasExtension(textureFilename, ".pcx")) {
+                texture = R_LoadTexturePCX(buffer, fileSize);
+            } else if (R_PathHasExtension(textureFilename, ".tga")) {
                 texture = R_LoadTextureSTB(buffer, fileSize);
             }
             if (!texture) {

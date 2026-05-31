@@ -87,10 +87,6 @@ TOOL_DEPS := $(shell find tools -maxdepth 1 -name '*.h' | sort)
 CLIENT_HEADERS := $(shell find client -name '*.h' | sort)
 UI_HEADERS := $(shell find ui -name '*.h' | sort)
 FONT_SRC := share/fonts/conchars.pcx
-FONT_HEADER := share/fonts/conchars_sysfont.h
-FONT_SYMBOL := conchars_sysfont
-FONT_CELL_WIDTH := 8
-FONT_CELL_HEIGHT := 8
 
 # Unity-build helper: pipe all .c files in a directory tree as #include
 # directives to gcc's stdin so the whole module is one translation unit.
@@ -113,8 +109,8 @@ game-wow:     $(GAME_WOW_LIB)
 ui-wow:       $(UI_WOW_LIB)
 openwow:      $(WOW_BINARY)
 tools:       $(TOOL_BINS)
-font:       $(BIN_DIR)/img2sysfont$(EXE_EXT)
-	$(BIN_DIR)/img2sysfont$(EXE_EXT) $(FONT_SRC) $(FONT_HEADER) $(FONT_SYMBOL) $(FONT_CELL_WIDTH) $(FONT_CELL_HEIGHT)
+font:
+	@echo "$(FONT_SRC)"
 $(TOOL_NAMES): %: $(BIN_DIR)/%$(EXE_EXT)
 run: $(BINARY)
 	$(BINARY) -data=$(WC3DATA)

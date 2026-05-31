@@ -1,39 +1,50 @@
 #include "r_local.h"
 
-#include "../share/fonts/conchars_sysfont.h"
+#define SYSFONT_TEXTURE "share/fonts/conchars.pcx"
 
-static void R_DecodeSysFontPixels(BYTE pixels[CONCHARS_SYSFONT_WIDTH * CONCHARS_SYSFONT_HEIGHT * 4]) {
-    DWORD out = 0;
+static LPTEXTURE R_LoadSysFontTextureFile(void) {
+    FILE *file;
+    long size;
+    LPBYTE data;
+    LPTEXTURE texture = NULL;
 
-    for (DWORD i = 0; i + 5 < CONCHARS_SYSFONT_RLE_SIZE; i += 6) {
-        DWORD run = conchars_sysfont_rle[i] | (conchars_sysfont_rle[i + 1] << 8);
-        BYTE r = conchars_sysfont_rle[i + 2];
-        BYTE g = conchars_sysfont_rle[i + 3];
-        BYTE b = conchars_sysfont_rle[i + 4];
-        BYTE a = conchars_sysfont_rle[i + 5];
-
-        while (run-- && out + 3 < CONCHARS_SYSFONT_WIDTH * CONCHARS_SYSFONT_HEIGHT * 4) {
-            pixels[out++] = r;
-            pixels[out++] = g;
-            pixels[out++] = b;
-            pixels[out++] = a;
-        }
+    file = fopen(SYSFONT_TEXTURE, "rb");
+    if (!file) {
+        return NULL;
     }
+    if (fseek(file, 0, SEEK_END) != 0) {
+        fclose(file);
+        return NULL;
+    }
+    size = ftell(file);
+    if (size <= 0 || size > INT32_MAX || fseek(file, 0, SEEK_SET) != 0) {
+        fclose(file);
+        return NULL;
+    }
+    data = ri.MemAlloc((DWORD)size);
+    if (!data) {
+        fclose(file);
+        return NULL;
+    }
+    if (fread(data, 1, (size_t)size, file) == (size_t)size) {
+        texture = R_LoadTexturePCX(data, (DWORD)size);
+    }
+    ri.MemFree(data);
+    fclose(file);
+    return texture;
 }
 
 LPTEXTURE R_MakeSysFontTexture(void) {
-    LPTEXTURE texture = ri.MemAlloc(sizeof(TEXTURE));
-    BYTE pixels[CONCHARS_SYSFONT_WIDTH * CONCHARS_SYSFONT_HEIGHT * 4] = { 0 };
+    LPTEXTURE texture = R_LoadSysFontTextureFile();
 
-    texture->width = CONCHARS_SYSFONT_WIDTH;
-    texture->height = CONCHARS_SYSFONT_HEIGHT;
-    R_DecodeSysFontPixels(pixels);
-    R_Call(glGenTextures, 1, &texture->texid);
+    if (!texture) {
+        texture = R_LoadTexture(SYSFONT_TEXTURE);
+    }
+
     R_Call(glBindTexture, GL_TEXTURE_2D, texture->texid);
     R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    R_Call(glTexImage2D, GL_TEXTURE_2D, 0, GL_RGBA, texture->width, texture->height, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
     return texture;
 }

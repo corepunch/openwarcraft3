@@ -95,25 +95,14 @@ build/bin/fdfbindgen -prefix MainMenu -root MainMenuFrame -load "UI\\FrameDef\\G
 build/bin/mpqtool -mpq "data/Warcraft III/War3.mpq" cat UI/FrameDef/Glue/MainMenu.fdf | build/bin/fdfbindgen -prefix MainMenu -root MainMenuFrame -load "UI\\FrameDef\\Glue\\MainMenu.fdf" -
 ```
 
-## `img2sysfont`
+## Console Font
 
-Image atlas to embedded renderer font header converter. It reads an RGBA PNG
-or 8-bit indexed PCX with a 16-column character grid and writes a lossless RLE
-byte-array header for `renderer/r_sysfont.c`.
+The renderer loads the console charset directly from
+`share/fonts/conchars.pcx`. The PCX loader supports 8-bit indexed, RLE
+compressed PCX files with a trailing 256-color palette; palette index `255`
+is treated as transparent for Quake-style conchars.
 
-Syntax:
-
-```bash
-build/bin/img2sysfont <input.png|input.pcx> <output.h> <symbol> [cell_width cell_height]
-```
-
-Example:
-
-```bash
-build/bin/img2sysfont share/fonts/conchars.pcx share/fonts/conchars_sysfont.h conchars_sysfont 8 8
-```
-
-The repo shortcut is:
+The repo shortcut prints the active console font source:
 
 ```bash
 make font
