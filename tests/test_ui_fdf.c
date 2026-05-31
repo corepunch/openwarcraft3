@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <stdint.h>
 
 #include "test_framework.h"
 #include "../ui/ui_local.h"
@@ -18,6 +19,9 @@ static DWORD captured_draw_calls;
 static DWORD captured_dim_draws;
 static DWORD captured_dim_draw_index;
 static DWORD captured_text_draws;
+static uintptr_t fake_texture_id;
+static LPTEXTURE hover_texture;
+static DWORD captured_hover_draws;
 static RECT captured_text_rects[8];
 static VECTOR2 fake_text_size;
 static HANDLE test_mpq_archive;
@@ -97,8 +101,13 @@ static int test_model_index(LPCSTR name) {
 }
 
 static LPTEXTURE test_load_texture(LPCSTR name) {
+    LPTEXTURE texture = (LPTEXTURE)(uintptr_t)(++fake_texture_id);
+
     captured_image_path = name;
-    return (LPTEXTURE)1;
+    if (name && strstr(name, "Hover.blp")) {
+        hover_texture = texture;
+    }
+    return texture;
 }
 
 static LPMODEL test_load_model(LPCSTR name) {
@@ -127,6 +136,9 @@ static void test_draw_text(LPCDRAWTEXT draw_text) {
 
 static void test_draw_image_ex(LPCDRAWIMAGE draw_image) {
     captured_draw_calls++;
+    if (draw_image && draw_image->texture == hover_texture) {
+        captured_hover_draws++;
+    }
     if (draw_image &&
         draw_image->color.r == 255 &&
         draw_image->color.g == 255 &&
@@ -224,6 +236,9 @@ static void reset_ui_state(void) {
     captured_dim_draws = 0;
     captured_dim_draw_index = 0;
     captured_text_draws = 0;
+    fake_texture_id = 0;
+    hover_texture = NULL;
+    captured_hover_draws = 0;
     memset(captured_text_rects, 0, sizeof(captured_text_rects));
     fake_text_size = MAKE(VECTOR2, 0.050f, 0.016f);
     memset(&ui_mouse, 0, sizeof(ui_mouse));
@@ -1199,6 +1214,41 @@ static void test_glue_checkbox_toggles_and_draws_check_highlight(void) {
     ASSERT_EQ_INT(captured_draw_calls, 1);
 }
 
+static void test_button1_dropdown_backdrop_gets_hover_highlight(void) {
+    LPFRAMEDEF root;
+
+    reset_ui_state();
+    parse_fdf("dropdown_hover.fdf",
+              "Frame \"FRAME\" \"Root\" {"
+              " Width 0.8, Height 0.6,"
+              " Frame \"HIGHLIGHT\" \"StandardBorderedButtonMouseOverHighlightTemplate\" {"
+              "  HighlightType \"FILETEXTURE\","
+              "  HighlightAlphaFile \"Textures\\\\Hover.blp\","
+              "  HighlightAlphaMode \"ADD\","
+              " }"
+              " Frame \"POPUPMENU\" \"NameMenu\" {"
+              "  Width 0.178125, Height 0.025,"
+              "  SetPoint TOPLEFT, \"Root\", TOPLEFT, 0.1, -0.1,"
+              "  ControlBackdrop \"PlayerSlotPopupMenuBackdrop\","
+              "  Frame \"BACKDROP\" \"PlayerSlotPopupMenuBackdrop\" {"
+              "   BackdropBackground \"UI\\\\Widgets\\\\Glues\\\\GlueScreen-Button1-BackdropBackground.blp\","
+              "   BackdropEdgeFile \"UI\\\\Widgets\\\\Glues\\\\GlueScreen-Button1-BorderedBackdropBorder.blp\","
+              "  }"
+              " }"
+              "}");
+
+    root = UI_FindFrame("Root");
+    if (!require_not_null(root)) return;
+    ASSERT_NOT_NULL(hover_texture);
+
+    ui_mouse.x = 130;
+    ui_mouse.y = 130;
+    captured_hover_draws = 0;
+    UI_DrawFrame(root);
+
+    ASSERT_EQ_INT(captured_hover_draws, 1);
+}
+
 static void test_esc_menu_confirm_quit_panel_is_available(void) {
     LPFRAMEDEF panel;
     LPFRAMEDEF quit_button;
@@ -1431,6 +1481,7 @@ BEGIN_SUITE(ui_fdf)
     RUN_TEST(test_unknown_token_does_not_crash_existing_definitions);
     RUN_TEST(test_single_line_text_auto_height_uses_fdf_font_size);
     RUN_TEST(test_glue_checkbox_toggles_and_draws_check_highlight);
+    RUN_TEST(test_button1_dropdown_backdrop_gets_hover_highlight);
     RUN_TEST(test_esc_menu_confirm_quit_panel_is_available);
     RUN_TEST(test_dialog_war3_supports_configurable_button_modes);
     RUN_TEST(test_main_menu_quit_dialog_commands_quit);
