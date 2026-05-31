@@ -391,28 +391,28 @@ LPFRAMEDEF UI_FindFrameNear(LPCFRAMEDEF, LPCSTR);
 LPFRAMEDEF UI_FindChildFrame(LPFRAMEDEF, LPCSTR);
 LPFRAMEDEF UI_CloneFrameTree(LPCFRAMEDEF source, LPFRAMEDEF parent);
 
-#ifndef OW3_FDF_REPORT_MISSING
-#define OW3_FDF_REPORT_MISSING(NAME) \
+#ifndef BZ_FDF_REPORT_MISSING
+#define BZ_FDF_REPORT_MISSING(NAME) \
     do { if (uiimport.Printf) uiimport.Printf("ERROR: missing FDF binding: %s\n", (NAME)); } while (0)
 #endif
 
-#ifndef OW3_FDF_BIND_ROOT
-#define OW3_FDF_BIND_ROOT(OUT, FIELD, NAME) \
-    do { (OUT)->FIELD = UI_FindFrame((NAME)); if (!(OUT)->FIELD) { OW3_FDF_REPORT_MISSING((NAME)); ok = false; } } while (0)
+#ifndef BZ_FDF_BIND_ROOT
+#define BZ_FDF_BIND_ROOT(OUT, FIELD, NAME) \
+    do { (OUT)->FIELD = UI_FindFrame((NAME)); if (!(OUT)->FIELD) { BZ_FDF_REPORT_MISSING((NAME)); ok = false; } } while (0)
 #endif
 
-#ifndef OW3_FDF_BIND_ROOT_OPTIONAL
-#define OW3_FDF_BIND_ROOT_OPTIONAL(OUT, FIELD, NAME) \
+#ifndef BZ_FDF_BIND_ROOT_OPTIONAL
+#define BZ_FDF_BIND_ROOT_OPTIONAL(OUT, FIELD, NAME) \
     do { (OUT)->FIELD = UI_FindFrame((NAME)); } while (0)
 #endif
 
-#ifndef OW3_FDF_BIND_CHILD
-#define OW3_FDF_BIND_CHILD(OUT, FIELD, PARENT, NAME) \
-    do { (OUT)->FIELD = (PARENT) ? UI_FindChildFrame((PARENT), (NAME)) : NULL; if (!(OUT)->FIELD) { OW3_FDF_REPORT_MISSING((NAME)); ok = false; } } while (0)
+#ifndef BZ_FDF_BIND_CHILD
+#define BZ_FDF_BIND_CHILD(OUT, FIELD, PARENT, NAME) \
+    do { (OUT)->FIELD = (PARENT) ? UI_FindChildFrame((PARENT), (NAME)) : NULL; if (!(OUT)->FIELD) { BZ_FDF_REPORT_MISSING((NAME)); ok = false; } } while (0)
 #endif
 
-#ifndef OW3_FDF_BIND_CHILD_OPTIONAL
-#define OW3_FDF_BIND_CHILD_OPTIONAL(OUT, FIELD, PARENT, NAME) \
+#ifndef BZ_FDF_BIND_CHILD_OPTIONAL
+#define BZ_FDF_BIND_CHILD_OPTIONAL(OUT, FIELD, PARENT, NAME) \
     do { (OUT)->FIELD = (PARENT) ? UI_FindChildFrame((PARENT), (NAME)) : NULL; } while (0)
 #endif
 

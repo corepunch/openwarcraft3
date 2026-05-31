@@ -39,23 +39,23 @@ static inline BOOL GameChatroom_Load(GameChatroom_t *out) {
         ok = false;
     }
     memset(out, 0, sizeof(*out));
-    OW3_FDF_BIND_ROOT(out, GameChatroom, "GameChatroom");
+    BZ_FDF_BIND_ROOT(out, GameChatroom, "GameChatroom");
     bind_root = out->GameChatroom;
-    OW3_FDF_BIND_CHILD(out, TeamSetupContainer, bind_root, "TeamSetupContainer");
-    OW3_FDF_BIND_CHILD(out, ChatTextArea, bind_root, "ChatTextArea");
-    OW3_FDF_BIND_CHILD(out, ChatScrollBar, out->ChatTextArea, "ChatScrollBar");
-    OW3_FDF_BIND_CHILD(out, ChatEditBox, bind_root, "ChatEditBox");
-    OW3_FDF_BIND_CHILD(out, MapDisplayPanel, bind_root, "MapDisplayPanel");
-    OW3_FDF_BIND_CHILD(out, MapInfoPaneContainer, out->MapDisplayPanel, "MapInfoPaneContainer");
-    OW3_FDF_BIND_CHILD(out, GameNameLabel, out->MapDisplayPanel, "GameNameLabel");
-    OW3_FDF_BIND_CHILD(out, GameNameValue, out->MapDisplayPanel, "GameNameValue");
-    OW3_FDF_BIND_CHILD(out, AdvancedOptionsContainer, out->MapDisplayPanel, "AdvancedOptionsContainer");
-    OW3_FDF_BIND_CHILD(out, StartGameBackdrop, bind_root, "StartGameBackdrop");
-    OW3_FDF_BIND_CHILD(out, StartGameButton, out->StartGameBackdrop, "StartGameButton");
-    OW3_FDF_BIND_CHILD(out, StartGameButtonText, out->StartGameButton, "StartGameButtonText");
-    OW3_FDF_BIND_CHILD(out, CancelBackdrop, bind_root, "CancelBackdrop");
-    OW3_FDF_BIND_CHILD(out, CancelButton, out->CancelBackdrop, "CancelButton");
-    OW3_FDF_BIND_CHILD(out, CancelButtonText, out->CancelButton, "CancelButtonText");
+    BZ_FDF_BIND_CHILD(out, TeamSetupContainer, bind_root, "TeamSetupContainer");
+    BZ_FDF_BIND_CHILD(out, ChatTextArea, bind_root, "ChatTextArea");
+    BZ_FDF_BIND_CHILD(out, ChatScrollBar, out->ChatTextArea, "ChatScrollBar");
+    BZ_FDF_BIND_CHILD(out, ChatEditBox, bind_root, "ChatEditBox");
+    BZ_FDF_BIND_CHILD(out, MapDisplayPanel, bind_root, "MapDisplayPanel");
+    BZ_FDF_BIND_CHILD(out, MapInfoPaneContainer, out->MapDisplayPanel, "MapInfoPaneContainer");
+    BZ_FDF_BIND_CHILD(out, GameNameLabel, out->MapDisplayPanel, "GameNameLabel");
+    BZ_FDF_BIND_CHILD(out, GameNameValue, out->MapDisplayPanel, "GameNameValue");
+    BZ_FDF_BIND_CHILD(out, AdvancedOptionsContainer, out->MapDisplayPanel, "AdvancedOptionsContainer");
+    BZ_FDF_BIND_CHILD(out, StartGameBackdrop, bind_root, "StartGameBackdrop");
+    BZ_FDF_BIND_CHILD(out, StartGameButton, out->StartGameBackdrop, "StartGameButton");
+    BZ_FDF_BIND_CHILD(out, StartGameButtonText, out->StartGameButton, "StartGameButtonText");
+    BZ_FDF_BIND_CHILD(out, CancelBackdrop, bind_root, "CancelBackdrop");
+    BZ_FDF_BIND_CHILD(out, CancelButton, out->CancelBackdrop, "CancelButton");
+    BZ_FDF_BIND_CHILD(out, CancelButtonText, out->CancelButton, "CancelButtonText");
     return ok;
 }
 

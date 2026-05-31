@@ -112,7 +112,7 @@ This should execute via normal runtime state after map/bootstrap setup.
 Add make targets/flags to build test-enabled app binary:
 
 - `openwarcraft3_test` (or similarly named binary)
-- compile with `-DOW3_TESTING`
+- compile with `-DBZ_TESTING`
 - include test integration sources only in this build
 
 ### 5) Add null renderer target
@@ -174,7 +174,7 @@ After all candidate integration suites are migrated and stable:
 - `make test-unit`
   - builds/runs standalone pure unit tests
 - `make test-integration`
-  - builds `openwarcraft3_test` with `OW3_TESTING`
+  - builds `openwarcraft3_test` with `BZ_TESTING`
   - uses null renderer
   - ensures `test-assets` produced
   - runs tests via `-mpq=build/tests/tests.mpq -test=all` (no `war3.mpq` fallback)

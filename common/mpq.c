@@ -350,7 +350,7 @@ static BOOL FindBlockIndex(MPQ_ARCHIVE *mpq, const char *fileName, DWORD hash1, 
 {
     DWORD hash_pos;
     DWORD index;
-    BOOL trace = getenv("OW3_MPQ_TRACE") != NULL;
+    BOOL trace = getenv("BZ_MPQ_TRACE") != NULL;
 
     hash_pos = (hash1 & (mpq->header.dwHashTableSize - 1));
     if (trace) {
@@ -1681,7 +1681,7 @@ static void PreloadListfileCache(MPQ_ARCHIVE *mpq)
     MPQ_LISTFILE_ENTRY *entries = NULL;
     MPQ_LISTFILE_BUCKET_ENTRY **buckets = NULL;
     size_t i;
-    BOOL trace = getenv("OW3_MPQ_TRACE") != NULL;
+    BOOL trace = getenv("BZ_MPQ_TRACE") != NULL;
 
     if (!mpq || !mpq->hashtable || !mpq->blocktable) {
         return;

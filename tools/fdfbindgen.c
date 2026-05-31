@@ -550,7 +550,7 @@ static void emit_bind_children(int node_index, const char *node_expr) {
         char child_expr[1024];
         snprintf(child_expr, sizeof(child_expr), "out->%s", nodes[child].binding_ident);
         printf("    %s(out, %s, %s, \"%s\");\n",
-               node_is_optional(child) ? "OW3_FDF_BIND_CHILD_OPTIONAL" : "OW3_FDF_BIND_CHILD",
+               node_is_optional(child) ? "BZ_FDF_BIND_CHILD_OPTIONAL" : "BZ_FDF_BIND_CHILD",
                nodes[child].binding_ident, node_expr, nodes[child].name);
         emit_bind_children(child, child_expr);
     }
@@ -574,7 +574,7 @@ static void emit_bind_function(void) {
     for (int i = 0; i < selected_root_count; i++) {
         int root = selected_roots[i];
         printf("    %s(out, %s, \"%s\");\n",
-               node_is_optional(root) ? "OW3_FDF_BIND_ROOT_OPTIONAL" : "OW3_FDF_BIND_ROOT",
+               node_is_optional(root) ? "BZ_FDF_BIND_ROOT_OPTIONAL" : "BZ_FDF_BIND_ROOT",
                nodes[root].binding_ident, nodes[root].name);
         printf("    bind_root = out->%s;\n", nodes[root].binding_ident);
         emit_bind_children(root, "bind_root");
@@ -604,7 +604,7 @@ static void emit_bind_at_function(void) {
         printf("    }\n");
     } else {
         printf("    if (!out->%s) {\n", nodes[root].binding_ident);
-        printf("        OW3_FDF_REPORT_MISSING(\"%s\");\n", nodes[root].name);
+        printf("        BZ_FDF_REPORT_MISSING(\"%s\");\n", nodes[root].name);
         printf("        ok = false;\n");
         printf("    }\n");
     }

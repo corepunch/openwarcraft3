@@ -23,16 +23,16 @@ static inline BOOL CreditsMenu_Load(CreditsMenu_t *out) {
         return false;
     }
     memset(out, 0, sizeof(*out));
-    OW3_FDF_BIND_ROOT(out, CreditsMenu, "CreditsMenu");
+    BZ_FDF_BIND_ROOT(out, CreditsMenu, "CreditsMenu");
     bind_root = out->CreditsMenu;
-    OW3_FDF_BIND_CHILD(out, CreditsControlLayer, bind_root, "CreditsControlLayer");
-    OW3_FDF_BIND_CHILD(out, CreditsTitleText, out->CreditsControlLayer, "CreditsTitleText");
-    OW3_FDF_BIND_CHILD(out, CreditsSubtitleText, out->CreditsControlLayer, "CreditsSubtitleText");
-    OW3_FDF_BIND_CHILD(out, CreditsBodyText, out->CreditsControlLayer, "CreditsBodyText");
-    OW3_FDF_BIND_CHILD(out, CreditsFooterText, out->CreditsControlLayer, "CreditsFooterText");
-    OW3_FDF_BIND_CHILD(out, CreditsBackBackdrop, out->CreditsControlLayer, "CreditsBackBackdrop");
-    OW3_FDF_BIND_CHILD(out, CreditsBackButton, out->CreditsBackBackdrop, "CreditsBackButton");
-    OW3_FDF_BIND_CHILD(out, CreditsBackButtonText, out->CreditsBackButton, "CreditsBackButtonText");
+    BZ_FDF_BIND_CHILD(out, CreditsControlLayer, bind_root, "CreditsControlLayer");
+    BZ_FDF_BIND_CHILD(out, CreditsTitleText, out->CreditsControlLayer, "CreditsTitleText");
+    BZ_FDF_BIND_CHILD(out, CreditsSubtitleText, out->CreditsControlLayer, "CreditsSubtitleText");
+    BZ_FDF_BIND_CHILD(out, CreditsBodyText, out->CreditsControlLayer, "CreditsBodyText");
+    BZ_FDF_BIND_CHILD(out, CreditsFooterText, out->CreditsControlLayer, "CreditsFooterText");
+    BZ_FDF_BIND_CHILD(out, CreditsBackBackdrop, out->CreditsControlLayer, "CreditsBackBackdrop");
+    BZ_FDF_BIND_CHILD(out, CreditsBackButton, out->CreditsBackBackdrop, "CreditsBackButton");
+    BZ_FDF_BIND_CHILD(out, CreditsBackButtonText, out->CreditsBackButton, "CreditsBackButtonText");
     return ok;
 }
 
