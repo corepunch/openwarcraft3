@@ -1,0 +1,383 @@
+// -- INCLUDE FILES ---------------------------------------------------------
+
+IncludeFile "UI\FrameDef\UI\EscMenuTemplates.fdf",
+
+// -- LOCAL TEMPLATES -------------------------------------------------------
+
+Frame "TEXT" "EscMenuMainPanelDialogTextTemplate" {
+    DecorateFileNames,
+    FrameFont "EscMenuTextFont", 0.013, "",
+    FontJustificationH JUSTIFYLEFT,
+    FontJustificationV JUSTIFYMIDDLE,    
+    FontFlags "FIXEDSIZE",
+    FontColor 0.99 0.827 0.0705 1.0,
+    FontHighlightColor 1.0 1.0 1.0 1.0,
+    FontDisabledColor 0.5 0.5 0.5 1.0,
+    FontShadowColor 0.0 0.0 0.0 0.9,	
+    FontShadowOffset 0.002 -0.002,	
+}
+
+// -- FRAMES ----------------------------------------------------------------
+
+Frame "FRAME" "EscMenuMainPanel" {
+    SetAllPoints,
+
+    //******************************
+    //*
+    //* MAIN MENU BUTTONS
+    //*
+    //******
+			
+	Frame "FRAME" "MainPanel" {
+
+		Width 0.288,
+		Height 0.384,
+		TabFocusPush,
+
+        Frame "TEXT" "WouldTheRealOptionsTitleTextPleaseStandUp" INHERITS "EscMenuTitleTextTemplate" {
+            SetPoint TOP, "EscMenuMainPanel", TOP, 0.0, -0.03,
+
+            FontColor 1.0 1.0 1.0 1.0,
+            Text "MAIN_MENU",
+        }
+		
+		Frame "FRAME" "InsideMainPanel" {
+			
+		    Frame "GLUETEXTBUTTON" "PauseButton" INHERITS WITHCHILDREN "EscMenuButtonTemplate" {
+		        SetPoint TOP, "EscMenuMainPanel", TOP, 0.0, -0.067,
+                ControlShortcutKey "M",
+				TabFocusDefault,
+				TabFocusNext "SaveGameButton",
+
+		        ButtonText "PauseButtonText",
+		        Frame "TEXT" "PauseButtonText" INHERITS "EscMenuButtonTextTemplate" {
+			        Text "KEY_PAUSE_GAME",
+		        }
+		    }
+
+		    Frame "GLUETEXTBUTTON" "SaveGameButton" INHERITS WITHCHILDREN "EscMenuButtonTemplate" {
+		        SetPoint TOP, "EscMenuMainPanel", TOP, 0.0, -0.104,
+                ControlShortcutKey "S",
+				TabFocusNext "LoadGameButton",
+
+		        ButtonText "SaveGameButtonText",
+		        Frame "TEXT" "SaveGameButtonText" INHERITS "EscMenuButtonTextTemplate" {
+			        Text "KEY_SAVE_GAME",
+		        }
+		    }
+
+		    Frame "GLUETEXTBUTTON" "LoadGameButton" INHERITS WITHCHILDREN "EscMenuButtonTemplate" {
+		        SetPoint TOP, "SaveGameButton", BOTTOM, 0.0, -0.002,
+                ControlShortcutKey "L",
+				TabFocusNext "OptionsButton",
+                
+		        ButtonText "LoadGameButtonText",
+		        Frame "TEXT" "LoadGameButtonText" INHERITS "EscMenuButtonTextTemplate" {
+			        Text "KEY_LOAD_GAME",
+		        }
+		    }
+
+		    Frame "GLUETEXTBUTTON" "OptionsButton" INHERITS WITHCHILDREN "EscMenuButtonTemplate" {
+		        SetPoint TOP, "LoadGameButton", BOTTOM, 0.0, -0.002,
+                ControlShortcutKey "O",
+				TabFocusNext "HelpButton",
+
+		        ButtonText "OptionsButtonText",
+		        Frame "TEXT" "OptionsButtonText" INHERITS "EscMenuButtonTextTemplate" {
+			        Text "KEY_OPTIONS",
+		        }
+		    }
+
+		    Frame "GLUETEXTBUTTON" "HelpButton" INHERITS WITHCHILDREN "EscMenuButtonTemplate" {
+		        SetPoint TOPLEFT, "OptionsButton", BOTTOMLEFT, 0.0, -0.002,
+                ControlShortcutKey "H",
+				TabFocusNext "TipsButton",
+				Width 0.11,
+				
+		        ButtonText "HelpButtonText",
+		        Frame "TEXT" "HelpButtonText" INHERITS "EscMenuButtonTextTemplate" {
+			        Text "KEY_HELP",
+		        }
+		    }
+
+		    Frame "GLUETEXTBUTTON" "TipsButton" INHERITS WITHCHILDREN "EscMenuButtonTemplate" {
+		        SetPoint TOPRIGHT, "OptionsButton", BOTTOMRIGHT, 0.0, -0.002,
+                ControlShortcutKey "T",
+				TabFocusNext "EndGameButton",
+				Width 0.11,
+				
+		        ButtonText "TipsButtonText",
+		        Frame "TEXT" "TipsButtonText" INHERITS "EscMenuButtonTextTemplate" {
+			        Text "KEY_TIPS",
+		        }
+		    }
+
+		    Frame "GLUETEXTBUTTON" "EndGameButton" INHERITS WITHCHILDREN "EscMenuButtonTemplate" {
+		        SetPoint TOP, "OptionsButton", BOTTOM, 0.0, -0.039,
+                ControlShortcutKey "E",
+				TabFocusNext "ReturnButton",
+
+		        ButtonText "EndGameButtonText",
+		        Frame "TEXT" "EndGameButtonText" INHERITS "EscMenuButtonTextTemplate" {
+			        Text "KEY_END_GAME",
+		        }
+		    }
+			
+		    Frame "GLUETEXTBUTTON" "ReturnButton" INHERITS WITHCHILDREN "EscMenuButtonTemplate" {
+		        SetPoint BOTTOM, "EscMenuMainPanel", BOTTOM, 0.0, 0.03,
+                ControlShortcutKey "R",
+
+		        ButtonText "ReturnButtonText",
+		        Frame "TEXT" "ReturnButtonText" INHERITS "EscMenuButtonTextTemplate" {
+			        Text "KEY_RETURN_TO_GAME",
+		        }
+		    }
+		}
+	}
+
+	//******************************
+	//*
+	//* END GAME BUTTONS
+	//*
+	//******
+
+	Frame "FRAME" "EndGamePanel" {
+
+		Width 0.288,
+		Height 0.384,
+		TabFocusPush,
+
+		Frame "FRAME" "InsideEndGamePanel" {
+			
+		    Frame "TEXT" "EndGameTitleText" INHERITS "EscMenuTitleTextTemplate" {
+		        SetPoint TOP, "EscMenuMainPanel", TOP, 0.0, -0.03,
+
+		        FontColor 1.0 1.0 1.0 1.0,
+		        Text "END_GAME_OPTIONS",
+		    }
+
+		    Frame "GLUETEXTBUTTON" "RestartButton" INHERITS WITHCHILDREN "EscMenuButtonTemplate" {
+				TabFocusDefault,
+				TabFocusNext "QuitButton",
+		        SetPoint TOP, "EscMenuMainPanel", TOP, 0.0, -0.067,
+                ControlShortcutKey "R",
+		        ButtonText "RestartButtonText",
+		        Frame "TEXT" "RestartButtonText" INHERITS "EscMenuButtonTextTemplate" {
+			        Text "KEY_RESTART_MISSION",
+		        }
+		    }
+
+		    Frame "GLUETEXTBUTTON" "QuitButton" INHERITS WITHCHILDREN "EscMenuButtonTemplate" {
+		        SetPoint TOP, "RestartButton", BOTTOM, 0.0, -0.002,
+				TabFocusNext "ExitButton",
+                ControlShortcutKey "Q",
+		        ButtonText "QuitButtonText",
+		        Frame "TEXT" "QuitButtonText" INHERITS "EscMenuButtonTextTemplate" {
+			        Text "KEY_QUIT_MISSION",
+		        }
+		    }
+
+		    Frame "GLUETEXTBUTTON" "ExitButton" INHERITS WITHCHILDREN "EscMenuButtonTemplate" {
+		        SetPoint TOP, "QuitButton", BOTTOM, 0.0, -0.002,
+				TabFocusNext "PreviousButton",
+                ControlShortcutKey "X",
+		        ButtonText "ExitButtonText",
+		        Frame "TEXT" "ExitButtonText" INHERITS "EscMenuButtonTextTemplate" {
+			        Text "KEY_EXIT_PROGRAM",
+		        }
+		    }
+
+		    Frame "GLUETEXTBUTTON" "PreviousButton" INHERITS WITHCHILDREN "EscMenuButtonTemplate" {
+		        SetPoint BOTTOM, "EscMenuMainPanel", BOTTOM, 0.0, 0.03,
+                ControlShortcutKey "P",
+		        ButtonText "PreviousButtonText",
+		        Frame "TEXT" "PreviousButtonText" INHERITS "EscMenuButtonTextTemplate" {
+			        Text "KEY_PREVIOUS_MENU",
+		        }
+		    }
+		}
+	}
+	
+	//******************************
+	//*
+	//* CONFIRM QUIT
+	//*
+	//******
+
+	Frame "FRAME" "ConfirmQuitPanel" {
+
+		Width 0.336,
+		Height 0.192,
+		TabFocusPush,
+
+		Frame "FRAME" "InsideConfirmQuitPanel" {
+					
+	        Frame "TEXT" "ConfirmQuitTitleText" INHERITS "EscMenuTitleTextTemplate" {
+	            SetPoint TOP, "EscMenuMainPanel", TOP, 0.0, -0.03,
+
+	            FontColor 1.0 1.0 1.0 1.0,
+	            Text "CONFIRM_EXIT",
+	        }
+
+	        Frame "TEXT" "ConfirmQuitMessageText" INHERITS "EscMenuMainPanelDialogTextTemplate" {
+				Width 0.26,
+	            SetPoint TOP, "ConfirmQuitTitleText", BOTTOM, 0.0, -0.005,
+				FontJustificationH JUSTIFYCENTER,
+				
+	            Text "CONFIRM_EXIT_MESSAGE",
+	        }
+	        
+	        Frame "GLUETEXTBUTTON" "ConfirmQuitQuitButton" INHERITS WITHCHILDREN "EscMenuButtonTemplate" {
+				TabFocusDefault,
+				TabFocusNext "ConfirmQuitCancelButton",
+
+	            SetPoint BOTTOMLEFT, "EscMenuMainPanel", BOTTOMLEFT, 0.035, 0.03,
+				Width 0.129,
+                ControlShortcutKey "X",
+	            ButtonText "ConfirmQuitQuitButtonText",
+		        Frame "TEXT" "ConfirmQuitQuitButtonText" INHERITS "EscMenuButtonTextTemplate" {
+			        Text "KEY_EXIT",
+		        }
+	        }
+
+	        Frame "GLUETEXTBUTTON" "ConfirmQuitCancelButton" INHERITS WITHCHILDREN "EscMenuButtonTemplate" {
+	            SetPoint LEFT, "ConfirmQuitQuitButton", RIGHT, 0.006, 0.0,
+				Width 0.129,
+				ControlShortcutKey "A",
+	            ButtonText "ConfirmQuitCancelButtonText",
+		        Frame "TEXT" "ConfirmQuitCancelButtonText" INHERITS "EscMenuButtonTextTemplate" {
+			        Text "KEY_CANCEL",
+		        }
+	        }
+		}
+	}
+	
+	
+	//******************************
+	//*
+	//* HELP
+	//*
+	//******
+
+	Frame "FRAME" "HelpPanel" {
+
+		Width 0.432,
+		Height 0.384,
+		TabFocusPush,
+
+		Frame "FRAME" "InsideHelpPanel" {
+					
+	        Frame "TEXT" "HelpTitleText" INHERITS "EscMenuTitleTextTemplate" {
+	            SetPoint TOP, "EscMenuMainPanel", TOP, 0.0, -0.03,
+
+	            FontColor 1.0 1.0 1.0 1.0,
+	            Text "HELP",
+	        }
+
+	        Frame "TEXTAREA" "HelpTextArea" INHERITS WITHCHILDREN "EscMenuTextAreaTemplate" {
+	            SetPoint TOP, "HelpTitleText", BOTTOM, 0.0, -0.005,
+	            Width 0.362,
+				Height 0.264,
+	        }
+	        
+	        Frame "GLUETEXTBUTTON" "HelpOKButton" INHERITS WITHCHILDREN "EscMenuButtonTemplate" {
+				TabFocusDefault,
+
+	            SetPoint BOTTOM, "EscMenuMainPanel", BOTTOM, 0.0, 0.03,
+				Width 0.16,
+				ControlShortcutKey "O",
+	            ButtonText "HelpOKButtonText",
+		        Frame "TEXT" "HelpOKButtonText" INHERITS "EscMenuButtonTextTemplate" {
+			        Text "KEY_OK",
+		        }
+	        }
+		}
+	}
+	
+	//******************************
+	//*
+	//* TIPS
+	//*
+	//******
+
+	Frame "FRAME" "TipsPanel" {
+
+		Width 0.432,
+		Height 0.284,
+		TabFocusPush,
+
+		Frame "FRAME" "InsideTipsPanel" {
+					
+	        Frame "TEXT" "TipsTitleText" INHERITS "EscMenuTitleTextTemplate" {
+	            SetPoint TOP, "EscMenuMainPanel", TOP, 0.0, -0.04,
+
+	            FontColor 1.0 1.0 1.0 1.0,
+	            Text "WARCRAFT_III_TIPS",
+	        }
+
+	        Frame "TEXTAREA" "TipsTextArea" INHERITS WITHCHILDREN "EscMenuTextAreaTemplate" {
+	            SetPoint TOP, "TipsTitleText", BOTTOM, 0.0, -0.009,
+	            Width 0.362,
+				Height 0.147,
+	        }
+	        
+	        Frame "GLUETEXTBUTTON" "TipsBackButton" INHERITS WITHCHILDREN "EscMenuButtonTemplate" {
+				TabFocusDefault,
+				TabFocusNext "TipsNextButton",
+
+	            SetPoint BOTTOMLEFT, "EscMenuMainPanel", BOTTOMLEFT, 0.03, 0.03,
+				Width 0.115,
+                ControlShortcutKey "B",
+				
+	            ButtonText "TipsBackButtonText",
+		        Frame "TEXT" "TipsBackButtonText" INHERITS "EscMenuButtonTextTemplate" {
+			        Text "KEY_BACK_ARROW",
+		        }
+	        }
+
+	        Frame "GLUETEXTBUTTON" "TipsNextButton" INHERITS WITHCHILDREN "EscMenuButtonTemplate" {
+				TabFocusNext "TipsOKButton",
+
+	            SetPoint BOTTOM, "EscMenuMainPanel", BOTTOM, 0.0, 0.03,
+				Width 0.115,
+                ControlShortcutKey "N",
+				
+	            ButtonText "TipsNextButtonText",
+		        Frame "TEXT" "TipsNextButtonText" INHERITS "EscMenuButtonTextTemplate" {
+			        Text "KEY_NEXT_ARROW",
+		        }
+	        }
+
+	        Frame "GLUETEXTBUTTON" "TipsOKButton" INHERITS WITHCHILDREN "EscMenuButtonTemplate" {
+	            SetPoint BOTTOMRIGHT, "EscMenuMainPanel", BOTTOMRIGHT, -0.03, 0.03,
+				Width 0.115,
+				ControlShortcutKey "O",
+	            ButtonText "TipsOKButtonText",
+		        Frame "TEXT" "TipsOKButtonText" INHERITS "EscMenuButtonTextTemplate" {
+			        Text "KEY_OK",
+		        }
+	        }
+
+		} 
+	}
+	
+}
+
+// the following frames are created within the escmenu itself, and need to be
+// outside of the above frames.
+
+Frame "BACKDROP" "EscMenuBackdrop" {
+	Width 0.288,
+	Height 0.384,
+
+    DecorateFileNames,
+    BackdropTileBackground,
+    BackdropBackground  "EscMenuBackground",
+    BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R",
+    BackdropCornerSize  0.048,
+    BackdropBackgroundSize  0.256,
+    BackdropBackgroundInsets 0.01 0.01 0.01 0.01,
+    BackdropEdgeFile  "EscMenuBorder",
+    BackdropBlendAll,
+}
+

@@ -64,6 +64,13 @@ typedef struct {
 
 static gameSetupState_t setup;
 
+static void GameSetup_CopyString(LPSTR out, size_t out_size, LPCSTR value) {
+    if (!out || out_size == 0) {
+        return;
+    }
+    snprintf(out, out_size, "%s", value ? value : "");
+}
+
 static LPCSTR GameSetup_BaseName(LPCSTR path) {
     LPCSTR base = path;
 
@@ -463,7 +470,7 @@ static void GameSetup_PopulateSlots(void) {
         setup.configs[visible].race = player->playerRace;
         setup.configs[visible].team = force_index;
         setup.configs[visible].color = i;
-        snprintf(setup.configs[visible].name, sizeof(setup.configs[visible].name), "%s", name);
+        GameSetup_CopyString(setup.configs[visible].name, sizeof(setup.configs[visible].name), name);
         visible++;
     }
     GameSetup_DrawSlotConfigs();

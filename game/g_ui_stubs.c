@@ -477,7 +477,7 @@ static void UI_WriteInventory(LPEDICT ent) {
 static void UI_WriteCommandButtonFrame(gameCommandButton_t const *button) {
     uiFrame_t frame;
     RECT rect;
-    char onclick[128];
+    char onclick[320];
     char tooltip[1024];
 
     if (!button) {

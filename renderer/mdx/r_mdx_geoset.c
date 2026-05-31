@@ -556,15 +556,19 @@ mdxSequence_t const *MDLX_FindSequenceByName(mdxModel_t const *model, LPCSTR nam
 
 DWORD MDLX_RemapAnimation(mdxModel_t const *model, DWORD frame, LPCSTR str) {
     mdxSequence_t const *seq = R_FindSequenceAtTime(model, frame);
+    size_t seq_name_len;
+
     if (!seq) return frame;
-    char buffer[64] = { 0 };
-    sprintf(buffer, "%s %s", seq->name, str);
-    mdxSequence_t const *other = MDLX_FindSequenceByName(model, buffer);
-    if (other) {
-        return frame + other->interval[0] - seq->interval[0];
-    } else {
-        return frame;
+    seq_name_len = strlen(seq->name);
+    FOR_LOOP(i, model->num_sequences) {
+        mdxSequence_t const *other = &model->sequences[i];
+        if (!strncmp(other->name, seq->name, seq_name_len) &&
+            other->name[seq_name_len] == ' ' &&
+            !strcmp(other->name + seq_name_len + 1, str)) {
+            return frame + other->interval[0] - seq->interval[0];
+        }
     }
+    return frame;
 }
 
 bool MDLX_TraceModel(renderEntity_t const *ent, LPCLINE3 line) {

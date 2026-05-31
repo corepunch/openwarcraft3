@@ -6,6 +6,7 @@
 #include "../ui/ui_local.h"
 #include "../ui/ui_dialog.h"
 #include "../ui/ui_screen.h"
+#include "../common/mpq.h"
 
 static void setup_game(void) {}
 static void teardown_game(void) {}
@@ -16,6 +17,7 @@ static char captured_command[128];
 static DWORD captured_draw_calls;
 static DWORD captured_dim_draws;
 static DWORD captured_dim_draw_index;
+static HANDLE test_mpq_archive;
 
 static int fake_image_index(LPCSTR name) {
     captured_image_path = name;
@@ -42,33 +44,10 @@ static int require_not_null(const void *ptr) {
     return ptr != NULL;
 }
 
-static char *normalize_ui_path(LPCSTR path) {
-    size_t len;
-    char *mapped;
-    size_t prefix_len = strlen("data/fdf/");
-
-    if (!path) {
-        return NULL;
-    }
-
-    len = strlen(path);
-    mapped = malloc(prefix_len + len + 1);
-    if (!mapped) {
-        return NULL;
-    }
-
-    memcpy(mapped, "data/fdf/", prefix_len);
-    for (size_t i = 0; i < len; i++) {
-        mapped[prefix_len + i] = (path[i] == '\\') ? '/' : path[i];
-    }
-    mapped[prefix_len + len] = '\0';
-    return mapped;
-}
-
 static int test_fs_read_file(LPCSTR file_name, void **buf) {
-    char *mapped;
-    FILE *file;
-    long size;
+    HANDLE file;
+    DWORD size;
+    DWORD read;
     void *data;
 
     if (!buf) {
@@ -76,38 +55,27 @@ static int test_fs_read_file(LPCSTR file_name, void **buf) {
     }
     *buf = NULL;
 
-    mapped = normalize_ui_path(file_name);
-    if (!mapped) {
+    if (!test_mpq_archive &&
+        !SFileOpenArchive("build/tests/tests.mpq", 0, 0, &test_mpq_archive)) {
         return -1;
     }
 
-    file = fopen(mapped, "rb");
-    free(mapped);
-    if (!file) {
+    if (!SFileOpenFileEx(test_mpq_archive, file_name, SFILE_OPEN_FROM_MPQ, &file)) {
         return -1;
     }
 
-    if (fseek(file, 0, SEEK_END) != 0) {
-        fclose(file);
-        return -1;
-    }
-    size = ftell(file);
-    if (size < 0 || fseek(file, 0, SEEK_SET) != 0) {
-        fclose(file);
-        return -1;
-    }
-
+    size = SFileGetFileSize(file, NULL);
     data = malloc((size_t)size + 1);
     if (!data) {
-        fclose(file);
+        SFileCloseFile(file);
         return -1;
     }
-    if (fread(data, 1, (size_t)size, file) != (size_t)size) {
+    if (!SFileReadFile(file, data, size, &read, NULL) || read != size) {
         free(data);
-        fclose(file);
+        SFileCloseFile(file);
         return -1;
     }
-    fclose(file);
+    SFileCloseFile(file);
     ((char *)data)[size] = '\0';
     *buf = data;
     return (int)size;

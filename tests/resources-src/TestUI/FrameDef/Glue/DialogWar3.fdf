@@ -1,0 +1,90 @@
+// -- INCLUDE FILES ---------------------------------------------------------
+
+IncludeFile "UI\FrameDef\Glue\StandardTemplates.fdf",
+
+// -- LOCAL TEMPLATES -------------------------------------------------------
+
+// -- FRAMES ----------------------------------------------------------------
+
+Frame "DIALOG" "DialogWar3" {
+    Height 0.2,
+    Width 0.35,
+
+    DialogBackdrop "DialogBackdrop",
+    Frame "BACKDROP" "DialogBackdrop" {
+        BackdropTileBackground,
+        BackdropBackground  "UI\Widgets\BattleNet\bnet-dialoguebox-background.blp",
+        BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R",
+        BackdropCornerSize  0.064,
+        BackdropBackgroundSize  0.128,
+        BackdropBackgroundInsets 0.01 0.01 0.01 0.01,
+        BackdropEdgeFile  "UI\Widgets\BattleNet\bnet-dialoguebox-border.blp",
+    }
+
+    Frame "TEXT" "DialogText" INHERITS "StandardInfoTextTemplate" {
+        Width 0.24,
+        SetPoint TOPLEFT, "DialogWar3", TOPLEFT, 0.08125, -0.0405,
+
+        FontColor 1.0 1.0 1.0 1.0,
+        FontJustificationH JUSTIFYLEFT,
+        FontJustificationV JUSTIFYTOP,
+    }
+
+    Frame "BACKDROP" "DialogIcon" {
+        Height 0.05,
+        Width 0.05,
+        SetPoint RIGHT, "DialogText", LEFT, -0.005625, 0.0,
+
+        BackdropBackground  "UI\Widgets\BattleNet\bnet-dialoguebox-background.blp",
+        BackdropBlendAll,
+    }
+
+    Frame "BACKDROP" "DialogButtonOKBackdrop" INHERITS "StandardMenuSingleButtonBaseBackdrop" {
+        SetPoint BOTTOM, "DialogWar3", BOTTOM, -0.015, 0.015,
+
+	    Frame "GLUETEXTBUTTON" "DialogButtonOK" INHERITS WITHCHILDREN "StandardButtonTemplate" {
+                Width 0.159,
+		SetPoint TOPRIGHT,"DialogButtonOKBackdrop",TOPRIGHT, -0.032, -0.015625,
+
+                ButtonText "DialogButtonOKText",
+		    Frame "TEXT" "DialogButtonOKText" INHERITS "StandardButtonTextTemplate" {
+			    Text "OK",
+		    }
+	    }
+    }
+
+    Frame "BACKDROP" "DialogButtonNoBackdrop" INHERITS "StandardMenuSingleSmallButtonBaseBackdrop" {
+        Width 0.2325,
+        Height 0.0525,
+        SetPoint BOTTOM, "DialogWar3", BOTTOM, 0.04, 0.015,
+
+	    Frame "GLUETEXTBUTTON" "DialogButtonNo" INHERITS WITHCHILDREN "StandardButtonTemplate" {
+            Width 0.095,
+            Height 0.025,
+            SetPoint TOPRIGHT,"DialogButtonNoBackdrop",TOPRIGHT, -0.031, -0.013,
+
+            ButtonText "DialogButtonNoText",
+		    Frame "TEXT" "DialogButtonNoText" INHERITS "StandardButtonTextTemplate" {
+			    Text "NO",
+		    }
+	    }
+    }
+
+    Frame "BACKDROP" "DialogButtonYesBackdrop" INHERITS "StandardMenuSingleSmallButtonBaseBackdrop" {
+        Width 0.2325,
+        Height 0.0525,
+        SetPoint BOTTOM, "DialogWar3", BOTTOM, -0.114, 0.015,
+
+	    Frame "GLUETEXTBUTTON" "DialogButtonYes" INHERITS WITHCHILDREN "StandardButtonTemplate" {
+            Width 0.095,
+            Height 0.025,
+            SetPoint TOPRIGHT,"DialogButtonYesBackdrop",TOPRIGHT, -0.031, -0.013,
+
+            ButtonText "DialogButtonYesText",
+		    Frame "TEXT" "DialogButtonYesText" INHERITS "StandardButtonTextTemplate" {
+			    Text "YES",
+		    }
+	    }
+    }
+
+}

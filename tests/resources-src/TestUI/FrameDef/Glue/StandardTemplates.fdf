@@ -1,0 +1,1093 @@
+/*
+ *  StandardTemplates.fdf
+ *  ---------------------
+ *  These are standard templates to be inherited by most components 
+ *  in the glue screens.  The one exception being Battle.Net screens
+ *  which should utilize the templates in BattleNetTemplates.fdf.
+ */
+
+Frame "BACKDROP" "StandardHeavyBackdropTemplate" {
+    BackdropTileBackground,
+    BackdropBackground  "UI\Widgets\HeavyBorderBackGround.blp",
+    BackdropCornerFlags "UL|UR|BL|BR",
+    BackdropCornerFile  "UI\Widgets\HeavyBorderCorners.blp",
+    BackdropLeftFile    "UI\Widgets\HeavyBorderLeft.blp",
+    BackdropRightFile   "UI\Widgets\HeavyBorderRight.blp",
+    BackdropTopFile     "UI\Widgets\HeavyBorderTop.blp",
+    BackdropBottomFile  "UI\Widgets\HeavyBorderBottom.blp",
+}
+
+Frame "BACKDROP" "StandardMediumBackdropTemplate" {
+    BackdropTileBackground,
+    BackdropBackground  "UI\Widgets\LightBorderBackGround.blp",
+    BackdropCornerFlags "UL|UR|BL|BR",
+    BackdropCornerFile  "UI\Widgets\LightBorderCorners.blp",
+    BackdropLeftFile    "UI\Widgets\LightBorderLeft.blp",
+    BackdropRightFile   "UI\Widgets\LightBorderRight.blp",
+    BackdropTopFile     "UI\Widgets\LightBorderTop.blp",
+    BackdropBottomFile  "UI\Widgets\LightBorderBottom.blp",
+}
+
+Frame "BACKDROP" "StandardLightBackdropTemplate" {
+    BackdropTileBackground,
+    BackdropBackground  "UI\Widgets\LightBorderBackGround.blp",
+    BackdropCornerFlags "UL|UR|BL|BR",
+    BackdropCornerFile  "UI\Widgets\LightBorderCorners.blp",
+    BackdropLeftFile    "UI\Widgets\LightBorderLeft.blp",
+    BackdropRightFile   "UI\Widgets\LightBorderRight.blp",
+    BackdropTopFile     "UI\Widgets\LightBorderTop.blp",
+    BackdropBottomFile  "UI\Widgets\LightBorderBottom.blp",
+}
+
+Frame "BACKDROP" "StandardControlBackdropTemplate" {
+    BackdropTileBackground,
+    BackdropHalfSides,
+    BackdropBackground  "UI\Widgets\ButtonBackGround.blp",
+    BackdropCornerFlags "UL|UR|BL|BR",    
+    BackdropCornerSize  0.015,
+    BackdropCornerFile  "UI\Widgets\ButtonCorners.blp",
+    BackdropLeftFile    "UI\Widgets\ButtonLeft.blp",
+    BackdropRightFile   "UI\Widgets\ButtonRight.blp",
+    BackdropTopFile     "UI\Widgets\ButtonTop.blp",
+    BackdropBottomFile  "UI\Widgets\ButtonBottom.blp",        
+}
+
+// --- TINY BUTTON BASE --------------------------------------------------------------------
+
+Frame "BACKDROP" "StandardMenuTinyButtonBaseBackdrop" {
+    Width 0.11,
+    Height 0.055,
+    BackdropBlendAll,
+    BackdropBackground  "UI\Widgets\Glues\GlueScreen-Button1-TinyBorder.blp",
+}
+
+
+// --- SMALL BUTTON BASE --------------------------------------------------------------------
+
+Frame "BACKDROP" "StandardMenuSmallButtonBaseBackdrop" {
+    Width 0.256,
+    Height 0.064,
+    BackdropBlendAll,
+    BackdropBackground  "UI\Widgets\Glues\GlueScreen-Button1-SmallBorder.blp",
+}
+
+
+// --- LARGE BUTTON BASE --------------------------------------------------------------------
+
+Frame "BACKDROP" "StandardMenuLargeButtonBaseBackdrop" {
+    Width 0.256,
+    Height 0.064,
+    BackdropBlendAll,
+    BackdropBackground  "UI\Widgets\Glues\GlueScreen-Button1-LargeBorder.blp",
+}
+
+
+// --- SINGLE BUTTON BASE --------------------------------------------------------------------
+
+Frame "BACKDROP" "StandardMenuSingleButtonBaseBackdrop" {
+    Width 0.256,
+    Height 0.064,
+    BackdropBlendAll,
+    BackdropBackground  "UI\Widgets\Glues\GlueScreen-Button1-BorderSingle.blp",
+}
+
+
+// --- SINGLE SMALL BUTTON BASE --------------------------------------------------------------------
+
+Frame "BACKDROP" "StandardMenuSingleSmallButtonBaseBackdrop" {
+    Width 0.256,
+    Height 0.064,
+    BackdropBlendAll,
+    BackdropBackground  "UI\Widgets\Glues\GlueScreen-Button1-SmallBorderSingle.blp",
+}
+
+
+// --- SINGLE LARGE BUTTON BASE --------------------------------------------------------------------
+
+Frame "BACKDROP" "StandardMenuSingleLargeButtonBaseBackdrop" {
+    Width 0.256,
+    Height 0.064,
+    BackdropBlendAll,
+    BackdropBackground  "UI\Widgets\Glues\GlueScreen-Button1-LargeBorderSingle.blp",
+}
+
+
+// --- BUTTON -----------------------------------------------------------------------
+
+Frame "BACKDROP" "StandardMenuButtonBaseBackdrop" {
+    Width 0.256,
+    Height 0.064,
+    BackdropBlendAll,
+    BackdropBackground  "UI\Widgets\Glues\GlueScreen-Button1-Border.blp",
+}
+
+Frame "BACKDROP" "StandardButtonBackdropTemplate" {
+    BackdropTileBackground,
+    BackdropBackground  "UI\Widgets\Glues\GlueScreen-Button1-BackdropBackground.blp",
+    BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R",
+    BackdropCornerSize  0.016,
+    BackdropBackgroundSize  0.032,
+    BackdropBackgroundInsets 0.004 0.004 0.004 0.004,
+    BackdropEdgeFile  "UI\Widgets\Glues\GlueScreen-Button1-BackdropBorder.blp",
+}
+
+Frame "BACKDROP" "StandardButtonPushedBackdropTemplate" {
+    BackdropTileBackground,
+    BackdropBackground  "UI\Widgets\Glues\GlueScreen-Button1-BackdropBackground.blp",
+    BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R",
+    BackdropCornerSize  0.016,
+    BackdropBackgroundSize  0.032,
+    BackdropBackgroundInsets 0.004 0.004 0.004 0.004,
+    BackdropEdgeFile  "UI\Widgets\Glues\GlueScreen-Button1-BackdropBorder-Down.blp",
+}
+
+Frame "BACKDROP" "StandardButtonDisabledBackdropTemplate" {
+    BackdropTileBackground,
+    BackdropBackground  "UI\Widgets\Glues\GlueScreen-Button1-BackdropBackground-Disabled.blp",
+    BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R",
+    BackdropCornerSize  0.016,
+    BackdropBackgroundSize  0.032,
+    BackdropBackgroundInsets 0.004 0.004 0.004 0.004,
+    BackdropEdgeFile  "UI\Widgets\Glues\GlueScreen-Button1-BackdropBorder-Disabled.blp",
+}
+
+Frame "BACKDROP" "StandardButtonDisabledPushedBackdropTemplate" {
+    BackdropTileBackground,
+    BackdropBackground  "UI\Widgets\Glues\GlueScreen-Button1-BackdropBackground-Disabled.blp",
+    BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R",
+    BackdropCornerSize  0.016,
+    BackdropBackgroundSize  0.032,
+    BackdropBackgroundInsets 0.004 0.004 0.004 0.004,
+    BackdropEdgeFile  "UI\Widgets\Glues\GlueScreen-Button1-BackdropBorder-DisabledDown.blp",
+}
+
+Frame "HIGHLIGHT" "StandardButtonFocusHighlightTemplate" {
+    HighlightType "FILETEXTURE",
+    HighlightAlphaFile "UI\Widgets\Glues\GlueScreen-Button-KeyboardHighlight.blp",    
+    HighlightAlphaMode "ADD",
+}
+
+Frame "HIGHLIGHT" "StandardButtonMouseOverHighlightTemplate" {
+    HighlightType "FILETEXTURE",
+    HighlightAlphaFile "UI\Widgets\BattleNet\bnet-button01-highlight-mouse.blp",    
+    HighlightAlphaMode "ADD",
+}
+
+Frame "TEXTBUTTON" "StandardButtonTemplate" {
+    Height 0.031,
+    Width 0.179,
+    ControlStyle "AUTOTRACK|HIGHLIGHTONMOUSEOVER",
+    ButtonPushedTextOffset -0.002f -0.003f,    
+
+    ControlBackdrop "ButtonBackdropTemplate",
+    Frame "BACKDROP" "ButtonBackdropTemplate" INHERITS "StandardButtonBackdropTemplate" {
+    }
+
+    ControlPushedBackdrop "ButtonPushedBackdropTemplate",
+    Frame "BACKDROP" "ButtonPushedBackdropTemplate" INHERITS "StandardButtonPushedBackdropTemplate" {
+    }
+
+    ControlDisabledBackdrop "ButtonDisabledBackdropTemplate",
+    Frame "BACKDROP" "ButtonDisabledBackdropTemplate" INHERITS "StandardButtonDisabledBackdropTemplate" {
+    }
+
+//    ControlFocusHighlight "ButtonFocusHighlightTemplate",
+//    Frame "HIGHLIGHT" "ButtonFocusHighlightTemplate" INHERITS "StandardButtonFocusHighlightTemplate" {
+//    }
+
+    ControlMouseOverHighlight "ButtonMouseOverHighlightTemplate",
+    Frame "HIGHLIGHT" "ButtonMouseOverHighlightTemplate" INHERITS "StandardButtonMouseOverHighlightTemplate" {
+    }
+}
+
+// --- BORDERED BUTTON -----------------------------------------------------------------------
+
+Frame "BACKDROP" "StandardBorderedButtonBackdropTemplate" {
+    BackdropTileBackground,
+    BackdropBackground  "UI\Widgets\Glues\GlueScreen-Button1-BackdropBackground.blp",
+    BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R",
+    BackdropCornerSize  0.016,
+    BackdropBackgroundSize  0.032,
+    BackdropBackgroundInsets 0.004 0.004 0.004 0.004,
+    BackdropEdgeFile  "UI\Widgets\Glues\GlueScreen-Button1-BorderedBackdropBorder.blp",
+}
+
+Frame "BACKDROP" "StandardBorderedButtonPushedBackdropTemplate" {
+    BackdropTileBackground,
+    BackdropBackground  "UI\Widgets\Glues\GlueScreen-Button1-BackdropBackground.blp",
+    BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R",
+    BackdropCornerSize  0.016,
+    BackdropBackgroundSize  0.032,
+    BackdropBackgroundInsets 0.004 0.004 0.004 0.004,
+    BackdropEdgeFile  "UI\Widgets\Glues\GlueScreen-Button1-BorderedBackdropBorder-Down.blp",
+}
+
+Frame "BACKDROP" "StandardBorderedButtonDisabledBackdropTemplate" {
+    BackdropTileBackground,
+    BackdropBackground  "UI\Widgets\Glues\GlueScreen-Button1-BackdropBackground-Disabled.blp",
+    BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R",
+    BackdropCornerSize  0.016,
+    BackdropBackgroundSize  0.032,
+    BackdropBackgroundInsets 0.004 0.004 0.004 0.004,
+    BackdropEdgeFile  "UI\Widgets\Glues\GlueScreen-Button1-BorderedBackdropBorder-Disabled.blp",
+}
+
+Frame "BACKDROP" "StandardBorderedButtonDisabledPushedBackdropTemplate" {
+    BackdropTileBackground,
+    BackdropBackground  "UI\Widgets\Glues\GlueScreen-Button1-BackdropBackground-Disabled.blp",
+    BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R",
+    BackdropCornerSize  0.016,
+    BackdropBackgroundSize  0.032,
+    BackdropBackgroundInsets 0.004 0.004 0.004 0.004,
+    BackdropEdgeFile  "UI\Widgets\Glues\GlueScreen-Button1-BorderedBackdropBorder-DisabledDown.blp",
+}
+
+Frame "HIGHLIGHT" "StandardBorderedButtonFocusHighlightTemplate" {
+    HighlightType "FILETEXTURE",
+    HighlightAlphaFile "UI\Widgets\Glues\GlueScreen-Button-KeyboardHighlight.blp",    
+    HighlightAlphaMode "ADD",
+}
+
+Frame "HIGHLIGHT" "StandardBorderedButtonMouseOverHighlightTemplate" {
+    HighlightType "FILETEXTURE",
+    HighlightAlphaFile "UI\Widgets\BattleNet\bnet-button01-highlight-mouse.blp",    
+    HighlightAlphaMode "ADD",
+}
+
+Frame "TEXTBUTTON" "StandardBorderedButtonTemplate" {
+    Height 0.031,
+    Width 0.179,
+    ControlStyle "AUTOTRACK|HIGHLIGHTONMOUSEOVER",
+    ButtonPushedTextOffset -0.002f -0.003f,    
+
+    ControlBackdrop "BorderedButtonBackdropTemplate",
+    Frame "BACKDROP" "BorderedButtonBackdropTemplate" INHERITS "StandardBorderedButtonBackdropTemplate" {
+    }
+
+    ControlPushedBackdrop "BorderedButtonPushedBackdropTemplate",
+    Frame "BACKDROP" "BorderedButtonPushedBackdropTemplate" INHERITS "StandardBorderedButtonPushedBackdropTemplate" {
+    }
+
+    ControlDisabledBackdrop "BorderedButtonDisabledBackdropTemplate",
+    Frame "BACKDROP" "BorderedButtonDisabledBackdropTemplate" INHERITS "StandardBorderedButtonDisabledBackdropTemplate" {
+    }
+
+//    ControlFocusHighlight "BorderedButtonFocusHighlightTemplate",
+//    Frame "HIGHLIGHT" "BorderedButtonFocusHighlightTemplate" INHERITS "StandardBorderedButtonFocusHighlightTemplate" {
+//    }
+
+    ControlMouseOverHighlight "BorderedButtonMouseOverHighlightTemplate",
+    Frame "HIGHLIGHT" "BorderedButtonMouseOverHighlightTemplate" INHERITS "StandardBorderedButtonMouseOverHighlightTemplate" {
+    }
+}
+
+// --- SMALL BUTTON -----------------------------------------------------------------------
+
+Frame "BACKDROP" "StandardSmallButtonBackdropTemplate" {
+    BackdropTileBackground,
+    BackdropBackground  "UI\Widgets\Glues\GlueScreen-Button1-BackdropBackground.blp",
+    BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R",
+    BackdropCornerSize  0.012,
+    BackdropBackgroundSize  0.032,
+    BackdropBackgroundInsets 0.003 0.003 0.003 0.003,
+    BackdropEdgeFile  "UI\Widgets\Glues\GlueScreen-Button1-BackdropBorder.blp",
+}
+
+Frame "BACKDROP" "StandardSmallButtonPushedBackdropTemplate" {
+    BackdropTileBackground,
+    BackdropBackground  "UI\Widgets\Glues\GlueScreen-Button1-BackdropBackground.blp",
+    BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R",
+    BackdropCornerSize  0.012,
+    BackdropBackgroundSize  0.032,
+    BackdropBackgroundInsets 0.003 0.003 0.003 0.003,
+    BackdropEdgeFile  "UI\Widgets\Glues\GlueScreen-Button1-BackdropBorder-Down.blp",
+}
+
+Frame "BACKDROP" "StandardSmallButtonDisabledBackdropTemplate" {
+    BackdropTileBackground,
+    BackdropBackground  "UI\Widgets\Glues\GlueScreen-Button1-BackdropBackground-Disabled.blp",
+    BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R",
+    BackdropCornerSize  0.012,
+    BackdropBackgroundSize  0.032,
+    BackdropBackgroundInsets 0.003 0.003 0.003 0.003,
+    BackdropEdgeFile  "UI\Widgets\Glues\GlueScreen-Button1-BackdropBorder-Disabled.blp",
+}
+
+Frame "BACKDROP" "StandardSmallButtonDisabledPushedBackdropTemplate" {
+    BackdropTileBackground,
+    BackdropBackground  "UI\Widgets\Glues\GlueScreen-Button1-BackdropBackground-Disabled.blp",
+    BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R",
+    BackdropCornerSize  0.012,
+    BackdropBackgroundSize  0.032,
+    BackdropBackgroundInsets 0.003 0.003 0.003 0.003,
+    BackdropEdgeFile  "UI\Widgets\Glues\GlueScreen-Button1-BackdropBorder-DisabledDown.blp",
+}
+
+Frame "HIGHLIGHT" "StandardSmallButtonFocusHighlightTemplate" {
+    HighlightType "FILETEXTURE",
+    HighlightAlphaFile "UI\Widgets\Glues\GlueScreen-Button-KeyboardHighlight.blp",    
+    HighlightAlphaMode "ADD",
+}
+
+Frame "HIGHLIGHT" "StandardSmallButtonMouseOverHighlightTemplate" {
+    HighlightType "FILETEXTURE",
+    HighlightAlphaFile "UI\Widgets\BattleNet\bnet-button01-highlight-mouse.blp",    
+    HighlightAlphaMode "ADD",
+}
+
+Frame "TEXTBUTTON" "StandardSmallButtonTemplate" {
+    Height 0.031,
+    Width 0.179,
+    ControlStyle "AUTOTRACK|HIGHLIGHTONMOUSEOVER",
+    ButtonPushedTextOffset -0.002f -0.003f,    
+
+    ControlBackdrop "SmallButtonBackdropTemplate",
+    Frame "BACKDROP" "SmallButtonBackdropTemplate" INHERITS "StandardSmallButtonBackdropTemplate" {
+    }
+
+    ControlPushedBackdrop "SmallButtonPushedBackdropTemplate",
+    Frame "BACKDROP" "SmallButtonPushedBackdropTemplate" INHERITS "StandardSmallButtonPushedBackdropTemplate" {
+    }
+
+    ControlDisabledBackdrop "SmallButtonDisabledBackdropTemplate",
+    Frame "BACKDROP" "SmallButtonDisabledBackdropTemplate" INHERITS "StandardSmallButtonDisabledBackdropTemplate" {
+    }
+
+//    ControlFocusHighlight "SmallButtonFocusHighlightTemplate",
+//    Frame "HIGHLIGHT" "SmallButtonFocusHighlightTemplate" INHERITS "StandardSmallButtonFocusHighlightTemplate" {
+//    }
+
+    ControlMouseOverHighlight "SmallButtonMouseOverHighlightTemplate",
+    Frame "HIGHLIGHT" "SmallButtonMouseOverHighlightTemplate" INHERITS "StandardSmallButtonMouseOverHighlightTemplate" {
+    }
+}
+
+// --- CAMPAIGN BUTTON -----------------------------------------------------------------------
+
+Frame "BACKDROP" "StandardCampaignButtonBackdropTemplate" {
+    BackdropTileBackground,
+    BackdropBackground  "UI\Widgets\Glues\GlueScreen-CampaignButton-BackdropBackground.blp",
+    BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R",
+    BackdropCornerSize  0.016,
+    BackdropBackgroundSize  0.036,
+    BackdropBackgroundInsets 0.007 0.007 0.007 0.007,
+    BackdropEdgeFile  "UI\Widgets\Glues\GlueScreen-CampaignButton-BackdropBorder.blp",
+    BackdropBlendAll,
+}
+
+Frame "BACKDROP" "StandardCampaignButtonPushedBackdropTemplate" {
+    BackdropTileBackground,
+    BackdropBackground  "UI\Widgets\Glues\GlueScreen-CampaignButton-BackdropBackground-Down.blp",
+    BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R",
+    BackdropCornerSize  0.016,
+    BackdropBackgroundSize  0.036,
+    BackdropBackgroundInsets 0.007 0.007 0.007 0.007,
+    BackdropEdgeFile  "UI\Widgets\Glues\GlueScreen-CampaignButton-BackdropBorder-Down.blp",
+    BackdropBlendAll,
+}
+
+Frame "BACKDROP" "StandardCampaignButtonDisabledBackdropTemplate" {
+    BackdropTileBackground,
+    BackdropBackground  "UI\Widgets\Glues\GlueScreen-CampaignButton-BackdropBackground-Disabled.blp",
+    BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R",
+    BackdropCornerSize  0.016,
+    BackdropBackgroundSize  0.032,
+    BackdropBackgroundInsets 0.004 0.004 0.004 0.004,
+    BackdropEdgeFile  "UI\Widgets\Glues\GlueScreen-CampaignButton-BackdropBorder-Disabled.blp",
+    BackdropBlendAll,
+}
+
+Frame "BACKDROP" "StandardCampaignButtonDisabledPushedBackdropTemplate" {
+    BackdropTileBackground,
+    BackdropBackground  "UI\Widgets\Glues\GlueScreen-CampaignButton-BackdropBackground-Disabled.blp",
+    BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R",
+    BackdropCornerSize  0.016,
+    BackdropBackgroundSize  0.032,
+    BackdropBackgroundInsets 0.004 0.004 0.004 0.004,
+    BackdropEdgeFile  "UI\Widgets\Glues\GlueScreen-CampaignButton-BackdropBorder-DisabledDown.blp",
+    BackdropBlendAll,
+}
+
+Frame "HIGHLIGHT" "StandardCampaignButtonFocusHighlightTemplate" {
+    HighlightType "FILETEXTURE",
+    HighlightAlphaFile "UI\Widgets\Glues\GlueScreen-Button-KeyboardHighlight.blp",    
+    HighlightAlphaMode "ADD",
+}
+
+Frame "HIGHLIGHT" "StandardCampaignButtonMouseOverHighlightTemplate" {
+    HighlightType "FILETEXTURE",
+    HighlightAlphaFile "UI\Widgets\BattleNet\bnet-button01-highlight-mouse.blp",    
+    HighlightAlphaMode "ADD",
+}
+
+Frame "TEXTBUTTON" "CampaignButtonTemplate" {
+    Height 0.036,
+    Width 0.179,
+    ControlStyle "AUTOTRACK|HIGHLIGHTONMOUSEOVER",
+    ButtonPushedTextOffset -0.0015f -0.0015f,    
+
+    ControlBackdrop "CampaignButtonBackdropTemplate",
+    Frame "BACKDROP" "CampaignButtonBackdropTemplate" INHERITS "StandardCampaignButtonBackdropTemplate" {
+    }
+
+    ControlPushedBackdrop "CampaignButtonPushedBackdropTemplate",
+    Frame "BACKDROP" "CampaignButtonPushedBackdropTemplate" INHERITS "StandardCampaignButtonPushedBackdropTemplate" {
+    }
+
+    ControlDisabledBackdrop "CampaignButtonDisabledBackdropTemplate",
+    Frame "BACKDROP" "CampaignButtonDisabledBackdropTemplate" INHERITS "StandardCampaignButtonDisabledBackdropTemplate" {
+    }
+
+//    ControlFocusHighlight "CampaignButtonFocusHighlightTemplate",
+//    Frame "HIGHLIGHT" "CampaignButtonFocusHighlightTemplate" INHERITS "StandardCampaignButtonFocusHighlightTemplate" {
+//    }
+
+    ControlMouseOverHighlight "CampaignButtonMouseOverHighlightTemplate",
+    Frame "HIGHLIGHT" "CampaignButtonMouseOverHighlightTemplate" INHERITS "StandardCampaignButtonMouseOverHighlightTemplate" {
+    }
+}
+
+
+// --- CAMPAIGN ARROW BUTTON -----------------------------------------------------------------------
+
+Frame "BACKDROP" "StandardCampaignArrowButtonBackdropTemplate" {
+    BackdropTileBackground,
+    BackdropBackground  "UI\Widgets\Glues\GlueScreen-CampaignButton-BackdropBackgroundArrow.blp",
+    BackdropCornerFlags "UL|UR|BL|BR",
+    BackdropCornerSize  0.016,
+    BackdropBackgroundSize  0.032,
+    BackdropBackgroundInsets 0.007 0.007 0.007 0.007,
+    BackdropEdgeFile  "UI\Widgets\Glues\GlueScreen-CampaignButton-BackdropBorder.blp",
+    BackdropBlendAll,
+}
+
+Frame "BACKDROP" "StandardCampaignArrowButtonPushedBackdropTemplate" {
+    BackdropTileBackground,
+    BackdropBackground  "UI\Widgets\Glues\GlueScreen-CampaignButton-BackdropBackgroundArrow-Down.blp",
+    BackdropCornerFlags "UL|UR|BL|BR",
+    BackdropCornerSize  0.016,
+    BackdropBackgroundSize  0.032,
+    BackdropBackgroundInsets 0.007 0.007 0.007 0.007,
+    BackdropEdgeFile  "UI\Widgets\Glues\GlueScreen-CampaignButton-BackdropBorder-Down.blp",
+    BackdropBlendAll,
+}
+
+Frame "BACKDROP" "StandardCampaignArrowButtonDisabledBackdropTemplate" {
+    BackdropTileBackground,
+    BackdropBackground  "UI\Widgets\Glues\GlueScreen-CampaignButton-BackdropBackgroundArrow-Disabled.blp",
+    BackdropCornerFlags "UL|UR|BL|BR",
+    BackdropCornerSize  0.016,
+    BackdropBackgroundSize  0.032,
+    BackdropBackgroundInsets 0.004 0.004 0.004 0.004,
+    BackdropEdgeFile  "UI\Widgets\Glues\GlueScreen-CampaignButton-BackdropBorder-Disabled.blp",
+    BackdropBlendAll,
+}
+
+Frame "BACKDROP" "StandardCampaignArrowButtonDisabledPushedBackdropTemplate" {
+    BackdropTileBackground,
+    BackdropBackground  "UI\Widgets\Glues\GlueScreen-CampaignButton-BackdropBackgroundArrow-Disabled.blp",
+    BackdropCornerFlags "UL|UR|BL|BR",
+    BackdropCornerSize  0.016,
+    BackdropBackgroundSize  0.032,
+    BackdropBackgroundInsets 0.004 0.004 0.004 0.004,
+    BackdropEdgeFile  "UI\Widgets\Glues\GlueScreen-CampaignButton-BackdropBorder-DisabledDown.blp",
+    BackdropBlendAll,
+}
+
+Frame "HIGHLIGHT" "StandardCampaignArrowButtonFocusHighlightTemplate" {
+    HighlightType "FILETEXTURE",
+    HighlightAlphaFile "UI\Widgets\Glues\GlueScreen-CampaignButton-KeyboardHighlight.blp",    
+    HighlightAlphaMode "ADD",
+}
+
+Frame "HIGHLIGHT" "StandardCampaignArrowButtonMouseOverHighlightTemplate" {
+    HighlightType "FILETEXTURE",
+    HighlightAlphaFile "UI\Widgets\BattleNet\bnet-button01-highlight-mouse.blp",    
+    HighlightAlphaMode "ADD",
+}
+
+Frame "TEXTBUTTON" "CampaignArrowButtonTemplate" {
+    Height 0.032,
+    Width 0.032,
+    ControlStyle "AUTOTRACK|HIGHLIGHTONFOCUS|HIGHLIGHTONMOUSEOVER",
+    ButtonPushedTextOffset -0.0015f -0.0015f,    
+
+    ControlBackdrop "CampaignArrowButtonBackdropTemplate",
+    Frame "BACKDROP" "CampaignArrowButtonBackdropTemplate" INHERITS "StandardCampaignArrowButtonBackdropTemplate" {
+    }
+
+    ControlPushedBackdrop "CampaignArrowButtonPushedBackdropTemplate",
+    Frame "BACKDROP" "CampaignArrowButtonPushedBackdropTemplate" INHERITS "StandardCampaignArrowButtonPushedBackdropTemplate" {
+    }
+
+    ControlDisabledBackdrop "CampaignArrowButtonDisabledBackdropTemplate",
+    Frame "BACKDROP" "CampaignArrowButtonDisabledBackdropTemplate" INHERITS "StandardCampaignArrowButtonDisabledBackdropTemplate" {
+    }
+
+    ControlFocusHighlight "CampaignArrowButtonFocusHighlightTemplate",
+    Frame "HIGHLIGHT" "CampaignArrowButtonFocusHighlightTemplate" INHERITS "StandardCampaignArrowButtonFocusHighlightTemplate" {
+    }
+
+    ControlMouseOverHighlight "CampaignArrowButtonMouseOverHighlightTemplate",
+    Frame "HIGHLIGHT" "CampaignArrowButtonMouseOverHighlightTemplate" INHERITS "StandardCampaignArrowButtonMouseOverHighlightTemplate" {
+    }
+}
+
+
+// --- CAMPAIGN CAMERA BUTTON ----------------------------------------------------------------------
+
+Frame "BACKDROP" "StandardCampaignCameraButtonBackdropTemplate" {
+    BackdropTileBackground,
+    BackdropBackground  "UI\Widgets\Glues\GlueScreen-CampaignButton-BackdropBackgroundCamera.blp",
+    BackdropCornerFlags "UL|UR|BL|BR",
+    BackdropCornerSize  0.016,
+    BackdropBackgroundSize  0.032,
+    BackdropBackgroundInsets 0.007 0.007 0.007 0.007,
+    BackdropEdgeFile  "UI\Widgets\Glues\GlueScreen-CampaignButton-BackdropBorder.blp",
+    BackdropBlendAll,
+}
+
+Frame "BACKDROP" "StandardCampaignCameraButtonPushedBackdropTemplate" {
+    BackdropTileBackground,
+    BackdropBackground  "UI\Widgets\Glues\GlueScreen-CampaignButton-BackdropBackgroundCamera-Down.blp",
+    BackdropCornerFlags "UL|UR|BL|BR",
+    BackdropCornerSize  0.016,
+    BackdropBackgroundSize  0.032,
+    BackdropBackgroundInsets 0.007 0.007 0.007 0.007,
+    BackdropEdgeFile  "UI\Widgets\Glues\GlueScreen-CampaignButton-BackdropBorder-Down.blp",
+    BackdropBlendAll,
+}
+
+Frame "BACKDROP" "StandardCampaignCameraButtonDisabledBackdropTemplate" {
+    BackdropTileBackground,
+    BackdropBackground  "UI\Widgets\Glues\GlueScreen-CampaignButton-BackdropBackgroundCamera-Disabled.blp",
+    BackdropCornerFlags "UL|UR|BL|BR",
+    BackdropCornerSize  0.016,
+    BackdropBackgroundSize  0.032,
+    BackdropBackgroundInsets 0.004 0.004 0.004 0.004,
+    BackdropEdgeFile  "UI\Widgets\Glues\GlueScreen-CampaignButton-BackdropBorder-Disabled.blp",
+    BackdropBlendAll,
+}
+
+Frame "BACKDROP" "StandardCampaignCameraButtonDisabledPushedBackdropTemplate" {
+    BackdropTileBackground,
+    BackdropBackground  "UI\Widgets\Glues\GlueScreen-CampaignButton-BackdropBackgroundCamera-Disabled.blp",
+    BackdropCornerFlags "UL|UR|BL|BR",
+    BackdropCornerSize  0.016,
+    BackdropBackgroundSize  0.032,
+    BackdropBackgroundInsets 0.004 0.004 0.004 0.004,
+    BackdropEdgeFile  "UI\Widgets\Glues\GlueScreen-CampaignButton-BackdropBorder-DisabledDown.blp",
+    BackdropBlendAll,
+}
+
+Frame "HIGHLIGHT" "StandardCampaignCameraButtonFocusHighlightTemplate" {
+    HighlightType "FILETEXTURE",
+    HighlightAlphaFile "UI\Widgets\Glues\GlueScreen-CampaignButton-KeyboardHighlight.blp",    
+    HighlightAlphaMode "ADD",
+}
+
+Frame "HIGHLIGHT" "StandardCampaignCameraButtonMouseOverHighlightTemplate" {
+    HighlightType "FILETEXTURE",
+    HighlightAlphaFile "UI\Widgets\BattleNet\bnet-button01-highlight-mouse.blp",    
+    HighlightAlphaMode "ADD",
+}
+
+Frame "TEXTBUTTON" "CampaignCameraButtonTemplate" {
+    Height 0.032,
+    Width 0.032,
+    ControlStyle "AUTOTRACK|HIGHLIGHTONFOCUS|HIGHLIGHTONMOUSEOVER",
+    ButtonPushedTextOffset -0.0015f -0.0015f,    
+
+    ControlBackdrop "CampaignCameraButtonBackdropTemplate",
+    Frame "BACKDROP" "CampaignCameraButtonBackdropTemplate" INHERITS "StandardCampaignCameraButtonBackdropTemplate" {
+    }
+
+    ControlPushedBackdrop "CampaignCameraButtonPushedBackdropTemplate",
+    Frame "BACKDROP" "CampaignCameraButtonPushedBackdropTemplate" INHERITS "StandardCampaignCameraButtonPushedBackdropTemplate" {
+    }
+
+    ControlDisabledBackdrop "CampaignCameraButtonDisabledBackdropTemplate",
+    Frame "BACKDROP" "CampaignCameraButtonDisabledBackdropTemplate" INHERITS "StandardCampaignCameraButtonDisabledBackdropTemplate" {
+    }
+
+    ControlFocusHighlight "CampaignCameraButtonFocusHighlightTemplate",
+    Frame "HIGHLIGHT" "CampaignCameraButtonFocusHighlightTemplate" INHERITS "StandardCampaignCameraButtonFocusHighlightTemplate" {
+    }
+
+    ControlMouseOverHighlight "CampaignCameraButtonMouseOverHighlightTemplate",
+    Frame "HIGHLIGHT" "CampaignCameraButtonMouseOverHighlightTemplate" INHERITS "StandardCampaignCameraButtonMouseOverHighlightTemplate" {
+    }
+}
+
+
+// --- ICONIC BUTTON -------------------------------------------------------------------
+
+Frame "GLUEBUTTON" "StandardIconicButtonTemplate" {
+    Height 0.031,
+    Width 0.031,
+    ControlStyle "AUTOTRACK|HIGHLIGHTONMOUSEOVER",
+
+//    ControlFocusHighlight "StandardIconicButtonFocusHighlightTemplate",
+//    Frame "HIGHLIGHT" "StandardIconicButtonFocusHighlightTemplate" INHERITS "StandardButtonFocusHighlightTemplate" {
+//    }
+
+    ControlMouseOverHighlight "StandardIconicButtonMouseOverHighlightTemplate",
+    Frame "HIGHLIGHT" "StandardIconicButtonMouseOverHighlightTemplate" INHERITS "StandardButtonMouseOverHighlightTemplate" {
+    }
+}
+
+
+// --- TEXT -----------------------------------------------------------------------
+
+Frame "TEXT" "StandardButtonTextTemplate" {
+    DecorateFileNames,
+    FrameFont "MasterFont", 0.013, "",
+    FontJustificationH JUSTIFYCENTER,
+    FontJustificationV JUSTIFYMIDDLE,    
+    FontFlags "FIXEDSIZE",
+    FontColor 0.99 0.827 0.0705 1.0,
+    FontHighlightColor 1.0 1.0 1.0 1.0,
+    FontDisabledColor 0.5 0.5 0.5 1.0,
+	FontShadowColor 0.0 0.0 0.0 0.9,	
+    FontShadowOffset 0.001 -0.001,
+}
+
+Frame "TEXT" "StandardInfoTextTemplate" {
+    DecorateFileNames,
+    FrameFont "MasterFont", 0.013, "",
+    FontJustificationH JUSTIFYCENTER,
+    FontJustificationV JUSTIFYMIDDLE,    
+    FontFlags "FIXEDSIZE",
+    FontColor 0.99 0.827 0.0705 1.0,
+    FontHighlightColor 1.0 1.0 1.0 1.0,
+    FontDisabledColor 0.5 0.5 0.5 1.0,
+	FontShadowColor 0.0 0.0 0.0 0.9,	
+    FontShadowOffset 0.001 -0.001,	
+}
+
+Frame "TEXT" "StandardTitleTextTemplate" {
+    DecorateFileNames,
+    FrameFont "MasterFont", 0.015, "",
+    FontJustificationH JUSTIFYLEFT,
+    FontJustificationV JUSTIFYMIDDLE,    
+    FontFlags "FIXEDSIZE",
+    FontColor 1.0 1.0 1.0 1.0,
+    FontHighlightColor 1.0 1.0 1.0 1.0,
+    FontDisabledColor 0.2 0.2 0.2 1.0,
+    FontShadowColor 0.0 0.0 0.0 0.9,	
+    FontShadowOffset 0.001 -0.001,	
+}
+
+Frame "TEXT" "StandardLabelTextTemplate" {
+    DecorateFileNames,
+    FrameFont "MasterFont", 0.013, "",
+    FontJustificationH JUSTIFYLEFT,
+    FontJustificationV JUSTIFYMIDDLE,    
+    FontFlags "FIXEDSIZE",
+    FontColor 0.99 0.827 0.0705 1.0,
+    FontHighlightColor 1.0 1.0 1.0 1.0,
+    FontDisabledColor 0.2 0.2 0.2 1.0,
+	FontShadowColor 0.0 0.0 0.0 0.9,	
+    FontShadowOffset 0.001 -0.001,	
+}
+
+Frame "TEXT" "StandardValueTextTemplate" {
+    DecorateFileNames,
+    FrameFont "MasterFont", 0.013, "",
+    FontJustificationH JUSTIFYLEFT,
+    FontJustificationV JUSTIFYMIDDLE,    
+    FontFlags "FIXEDSIZE",
+    FontColor 1.0 1.0 1.0 1.0,
+    FontHighlightColor 1.0 1.0 1.0 1.0,
+    FontDisabledColor 0.2 0.2 0.2 1.0,
+	FontShadowColor 0.0 0.0 0.0 0.9,	
+    FontShadowOffset 0.001 -0.001,	
+}
+
+Frame "TEXT" "StandardSmallTextTemplate" {
+    DecorateFileNames,
+    FrameFont "MasterFont", 0.011, "",
+    FontJustificationH JUSTIFYLEFT,
+    FontJustificationV JUSTIFYMIDDLE,    
+    FontFlags "FIXEDSIZE",
+    FontColor 0.99 0.827 0.0705 1.0,
+    FontHighlightColor 1.0 1.0 1.0 1.0,
+    FontDisabledColor 0.2 0.2 0.2 1.0,
+	FontShadowColor 0.0 0.0 0.0 0.9,	
+    FontShadowOffset 0.001 -0.001,	
+}
+
+Frame "TEXT" "StandardSmallTitleTextTemplate" {
+    DecorateFileNames,
+    FrameFont "MasterFont", 0.011, "",
+    FontJustificationH JUSTIFYLEFT,
+    FontJustificationV JUSTIFYMIDDLE,    
+    FontFlags "FIXEDSIZE",
+    FontColor 1.0 1.0 1.0 1.0,
+    FontHighlightColor 1.0 1.0 1.0 1.0,
+    FontDisabledColor 0.2 0.2 0.2 1.0,
+	FontShadowColor 0.0 0.0 0.0 0.9,	
+    FontShadowOffset 0.001 -0.001,	
+}
+
+// --- SLIDER -----------------------------------------------------------------------
+
+Frame "SLIDER" "StandardSliderTemplate" {
+    Height 0.016,
+    SliderLayoutHorizontal,
+
+    ControlBackdrop "StandardScrollBarBackdropTemplate",
+    Frame "BACKDROP" "StandardScrollBarBackdropTemplate" {
+        BackdropTileBackground,
+        BackdropBackground  "UI\Widgets\Glues\GlueScreen-Slider-BackdropBackground.blp",
+        BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R",
+        BackdropCornerSize  0.008,
+        BackdropBackgroundInsets 0.004 0.004 0.004 0.004,
+        BackdropEdgeFile  "UI\Widgets\Glues\GlueScreen-Slider-BackdropBorder.blp",
+        BackdropBlendAll,
+    }
+
+    SliderThumbButtonFrame "StandardThumbButtonTemplate",
+    Frame "BUTTON" "StandardThumbButtonTemplate" {
+        Width 0.016,
+        Height 0.016,
+
+        ControlBackdrop "StandardThumbButtonBackdropTemplate",
+        Frame "BACKDROP" "StandardThumbButtonBackdropTemplate" {
+            BackdropBlendAll,
+            BackdropBackground  "UI\Widgets\Glues\SinglePlayerSkirmish-ScrollBarKnob.blp",
+        }
+
+        ControlDisabledBackdrop "StandardThumbButtonDisabledBackdrop",
+        Frame "BACKDROP" "StandardThumbButtonDisabledBackdrop" {
+            BackdropBlendAll,
+            BackdropBackground  "UI\Widgets\Glues\SinglePlayerSkirmish-ScrollBarKnobDisabled.blp",
+        }
+    }
+}
+
+// --- SCROLLBAR -----------------------------------------------------------------------
+
+Frame "SCROLLBAR" "StandardScrollBarTemplate" {
+    Width 0.0165,
+    SliderLayoutVertical,
+
+    ControlBackdrop "StandardScrollBarBackdrop",
+    Frame "BACKDROP" "StandardScrollBarBackdrop" {
+        BackdropTileBackground,
+        BackdropBackground  "UI\Widgets\Glues\GlueScreen-Scrollbar-BackdropBackground.blp",
+        BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R",
+        BackdropCornerSize  0.008,
+        BackdropBackgroundInsets 0.004 0.004 0.004 0.004,
+        BackdropEdgeFile  "UI\Widgets\Glues\GlueScreen-Scrollbar-BackdropBorder.blp",
+        BackdropBlendAll,
+    }
+
+    ScrollBarIncButtonFrame "StandardScrollBarIncButton",
+    Frame "BUTTON" "StandardScrollBarIncButton" {
+        Width 0.015,
+        Height 0.015,
+        ControlBackdrop "StandardScrollBarIncButtonBackdrop",
+        Frame "BACKDROP" "StandardScrollBarIncButtonBackdrop" {                    
+            BackdropBackground  "UI\Widgets\Glues\GlueScreen-Scrollbar-UpArrow.blp",
+            BackdropBlendAll,
+        }
+    }
+
+    ScrollBarDecButtonFrame "StandardScrollBarDecButton",
+    Frame "BUTTON" "StandardScrollBarDecButton" {
+        Width 0.015,
+        Height 0.015,
+        ControlBackdrop "StandardScrollBarDecButtonBackdrop",
+        Frame "BACKDROP" "StandardScrollBarDecButtonBackdrop" {
+            BackdropBackground  "UI\Widgets\Glues\GlueScreen-Scrollbar-DownArrow.blp",
+            BackdropBlendAll,
+        }
+    }
+
+    SliderThumbButtonFrame "StandardThumbButton",
+    Frame "BUTTON" "StandardThumbButton" {
+        Width 0.01,
+        Height 0.01,
+        ControlBackdrop "StandardThumbButtonBackdrop",
+        Frame "BACKDROP" "StandardThumbButtonBackdrop" {
+            BackdropBackground  "UI\Widgets\Glues\SinglePlayerSkirmish-ScrollBarKnob.blp",
+            BackdropBlendAll,
+        }
+    }
+}
+
+// --- LISTBOX -----------------------------------------------------------------------
+
+Frame "LISTBOX" "StandardListBoxTemplate" {
+    ListBoxBorder 0.01,
+
+    ControlBackdrop "StandardListBoxBackdropTemplate",
+    Frame "BACKDROP" "StandardListBoxBackdropTemplate" INHERITS "StandardLightBackdropTemplate" {
+    }
+
+    ListBoxScrollBar "StandardListBoxScrollBarTemplate",
+    Frame "SCROLLBAR" "StandardListBoxScrollBarTemplate" INHERITS WITHCHILDREN "StandardScrollBarTemplate" {
+    }
+}
+
+// --- UNDECORATED EDITBOX -------------------------------------------------------------
+
+Frame "BACKDROP" "StandardEditBoxBackdropTemplate" {
+    BackdropTileBackground,
+    BackdropBackground  "UI\Widgets\BattleNet\bnet-inputbox-back.blp",
+    BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R",
+    BackdropCornerSize  0.032,
+    BackdropBackgroundInsets 0.004 0.004 0.004 0.004,
+    BackdropEdgeFile  "UI\Widgets\BattleNet\bnet-inputbox-border.blp",
+    BackdropBlendAll,
+}
+
+Frame "TEXT" "StandardEditBoxTextTemplate" {
+    DecorateFileNames,
+    FrameFont "MasterFont", 0.015, "",
+    FontColor 1.0 1.0 1.0,
+    FontFlags "FIXEDSIZE",
+}
+
+Frame "EDITBOX" "StandardEditBoxTemplate" {
+    Height 0.04,
+    EditBorderSize 0.009,
+    EditCursorColor 1.0 1.0 1.0,
+
+    ControlBackdrop "StandardEditBoxBackdrop",
+    Frame "BACKDROP" "StandardEditBoxBackdrop" INHERITS "StandardEditBoxBackdropTemplate" {
+    }
+}
+
+// --- DECORATED EDITBOX ---------------------------------------------------------------
+
+Frame "BACKDROP" "StandardDecoratedEditBoxBackdropTemplate" {
+    DecorateFileNames,
+    BackdropTileBackground,
+    BackdropBackground  "EscMenuEditBoxBackground",
+    BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R",
+    BackdropCornerSize  0.0125,
+    BackdropBackgroundSize  0.256,
+    BackdropBackgroundInsets 0.005 0.005 0.005 0.005,
+    BackdropEdgeFile  "EscMenuEditBoxBorder",
+    BackdropBlendAll,
+}
+
+Frame "TEXT" "StandardDecoratedEditBoxTextTemplate" {
+    DecorateFileNames,
+    FrameFont "MasterFont", 0.015, "",
+    FontColor 1.0 1.0 1.0,
+    FontFlags "FIXEDSIZE",
+}
+
+Frame "EDITBOX" "StandardDecoratedEditBoxTemplate" {
+    Height 0.04,
+    EditBorderSize 0.009,
+    EditCursorColor 1.0 1.0 1.0,
+
+    ControlBackdrop "StandardDecoratedEditBoxBackdrop",
+    Frame "BACKDROP" "StandardDecoratedEditBoxBackdrop" INHERITS "StandardDecoratedEditBoxBackdropTemplate" {
+    }
+}
+
+// --- POPUP MENU --------------------------------------------------------------------
+
+Frame "BACKDROP" "StandardPopupMenuBaseBackdrop" {
+    Width 0.256,
+    Height 0.064,
+    BackdropBlendAll,
+    BackdropBackground  "UI\Widgets\Glues\GlueScreen-PlayerButton-BorderRight.blp",
+}
+
+Frame "MENU" "StandardPopupMenuMenuTemplate" {
+    Height 0.06,
+    DecorateFileNames,
+    FrameFont "MasterFont",0.011,"",
+    MenuTextHighlightColor 0.99 0.827 0.0705 1.0,
+    MenuItemHeight 0.014,
+    MenuBorder 0.009,
+
+    ControlBackdrop "StandardPopupMenuMenuBackdropTemplate",
+    Frame "BACKDROP" "StandardPopupMenuMenuBackdropTemplate" INHERITS "StandardBorderedButtonBackdropTemplate" {
+    }
+}
+
+Frame "TEXTBUTTON" "StandardPopupMenuTitleTemplate" {  
+    DecorateFileNames,
+    FrameFont "MasterFont",0.011,"",
+    ButtonText "StandardPopupMenuTitleTextTemplate",
+    Frame "TEXT" "StandardPopupMenuTitleTextTemplate" {
+        FontJustificationOffset 0.01 0.0,
+        FontFlags "FIXEDSIZE",
+    }
+}
+
+Frame "BUTTON" "StandardPopupMenuArrowTemplate" {
+    Height 0.011,
+    Width 0.011,
+    ControlBackdrop "StandardPopupMenuArrowBackdropTemplate",
+    Frame "BACKDROP" "StandardPopupMenuArrowBackdropTemplate" {
+        BackdropBlendAll,
+        BackdropBackground "UI\Widgets\Glues\GlueScreen-Pulldown-Arrow.blp",
+    }
+}
+
+
+Frame "POPUPMENU" "StandardPopupMenuTemplate" {
+    Width 0.111875,
+    Height 0.01875,
+    PopupButtonInset 0.01,
+
+
+    ControlBackdrop "StandardPopupMenuBackdropTemplate",
+    Frame "BACKDROP" "StandardPopupMenuBackdropTemplate" INHERITS "StandardButtonBackdropTemplate" {
+    }
+
+    ControlDisabledBackdrop "StandardPopupMenuDisabledBackdropTemplate",
+    Frame "BACKDROP" "StandardPopupMenuDisabledBackdropTemplate" INHERITS "StandardButtonDisabledBackdropTemplate" {
+    }
+
+    PopupTitleFrame "PopupMenuTitle",
+    Frame "TEXTBUTTON" "PopupMenuTitle" INHERITS WITHCHILDREN "StandardPopupMenuTitleTemplate" {
+    }
+
+    PopupArrowFrame "PopupMenuArrow",
+    Frame "BUTTON" "PopupMenuArrow" INHERITS WITHCHILDREN "StandardPopupMenuArrowTemplate" { 
+    }
+
+    PopupMenuFrame "PopupMenuMenu",
+    Frame "MENU" "PopupMenuMenu" INHERITS WITHCHILDREN "StandardPopupMenuMenuTemplate" {
+    }
+}
+
+// --- CAMPAIGN POPUP MENU --------------------------------------------------------------------
+
+Frame "BACKDROP" "CampaignPopupMenuBaseBackdrop" {
+    Width 0.256,
+    Height 0.064,
+    BackdropBlendAll,
+    BackdropBackground  "UI\Widgets\Glues\GlueScreen-PlayerButton-BorderRight.blp",
+}
+
+Frame "MENU" "CampaignPopupMenuMenuTemplate" {
+    Height 0.06,
+    DecorateFileNames,
+    FrameFont "MasterFont",0.013,"",
+    MenuTextHighlightColor 0.99 0.827 0.0705 1.0,
+    MenuItemHeight 0.014,
+    MenuBorder 0.015,
+
+    ControlBackdrop "CampaignPopupMenuMenuBackdropTemplate",
+    Frame "BACKDROP" "CampaignPopupMenuMenuBackdropTemplate" INHERITS "StandardCampaignButtonBackdropTemplate" {
+    }
+}
+
+Frame "TEXTBUTTON" "CampaignPopupMenuTitleTemplate" {  
+    DecorateFileNames,
+    FrameFont "MasterFont",0.013,"",
+    ButtonText "CampaignPopupMenuTitleTextTemplate",
+    Frame "TEXT" "CampaignPopupMenuTitleTextTemplate" {
+        FontJustificationOffset 0.015 0.0,
+        FontFlags "FIXEDSIZE",
+    }
+}
+
+Frame "BUTTON" "CampaignPopupMenuArrowTemplate" {
+    Height 0.011,
+    Width 0.011,
+    ControlBackdrop "CampaignPopupMenuArrowBackdropTemplate",
+    Frame "BACKDROP" "CampaignPopupMenuArrowBackdropTemplate" {
+        BackdropBlendAll,
+        BackdropBackground "UI\Widgets\Glues\GlueScreen-Pulldown-Arrow.blp",
+    }
+}
+
+
+Frame "POPUPMENU" "CampaignPopupMenuTemplate" {
+    Width 0.111875,
+    Height 0.01875,
+    PopupButtonInset 0.015,
+
+
+    ControlBackdrop "CampaignPopupMenuBackdropTemplate",
+    Frame "BACKDROP" "CampaignPopupMenuBackdropTemplate" INHERITS "StandardCampaignButtonBackdropTemplate" {
+    }
+
+    ControlDisabledBackdrop "CampaignPopupMenuDisabledBackdropTemplate",
+    Frame "BACKDROP" "CampaignPopupMenuDisabledBackdropTemplate" INHERITS "StandardCampaignButtonDisabledBackdropTemplate" {
+    }
+
+    PopupTitleFrame "CampaignPopupMenuTitle",
+    Frame "TEXTBUTTON" "CampaignPopupMenuTitle" INHERITS WITHCHILDREN "CampaignPopupMenuTitleTemplate" {
+    }
+
+    PopupArrowFrame "CampaignPopupMenuArrow",
+    Frame "BUTTON" "CampaignPopupMenuArrow" INHERITS WITHCHILDREN "CampaignPopupMenuArrowTemplate" { 
+    }
+
+    PopupMenuFrame "CampaignPopupMenuMenu",
+    Frame "MENU" "CampaignPopupMenuMenu" INHERITS WITHCHILDREN "CampaignPopupMenuMenuTemplate" {
+    }
+}
+
+// --- CHECKBOX --------------------------------------------------------------------
+
+Frame "CHECKBOX" "StandardCheckBoxTemplate" {
+    Width 0.024,
+    Height 0.024,
+
+    ControlBackdrop "StandardCheckBoxBackdrop",
+    Frame "BACKDROP" "StandardCheckBoxBackdrop" {
+        BackdropBlendAll,
+        BackdropBackground  "UI\Widgets\Glues\GlueScreen-Checkbox-Background.blp",
+    }
+
+    ControlPushedBackdrop "StandardCheckBoxPushedBackdrop",
+    Frame "BACKDROP" "StandardCheckBoxPushedBackdrop" {
+        BackdropBlendAll,
+        BackdropBackground  "UI\Widgets\Glues\GlueScreen-Checkbox-BackgroundPressed.blp",
+    }
+
+    ControlDisabledBackdrop "StandardCheckBoxDisabledBackdrop",
+    Frame "BACKDROP" "StandardCheckBoxDisabledBackdrop" {
+        BackdropBlendAll,
+        BackdropBackground  "UI\Widgets\Glues\GlueScreen-Checkbox-BackgroundDisabled.blp",
+    }
+
+    CheckBoxCheckHighlight "StandardCheckHighlightTemplate",
+    Frame "HIGHLIGHT" "StandardCheckHighlightTemplate" {
+        HighlightType "FILETEXTURE",
+        HighlightAlphaFile "UI\Widgets\Glues\GlueScreen-Checkbox-Check.blp",    
+        HighlightAlphaMode "BLEND",
+    }
+
+    CheckBoxDisabledCheckHighlight "StandardDisabledCheckHighlightTemplate",
+    Frame "HIGHLIGHT" "StandardDisabledCheckHighlightTemplate" {
+        HighlightType "FILETEXTURE",
+        HighlightAlphaFile "UI\Widgets\Glues\GlueScreen-Checkbox-CheckDisabled.blp",    
+        HighlightAlphaMode "BLEND",
+    }
+}
+
+// --- DIALOG -----------------------------------------------------------------------
+
+Frame "DIALOG" "StandardDialogTemplate" {
+    Width 0.60,
+    Height 0.40,
+    DecorateFileNames,
+    FrameFont "MasterFont",0.015,"",
+
+    DialogBackdrop "StandardDialogBackdropTemplate",
+    Frame "BACKDROP" "StandardDialogBackdropTemplate" INHERITS "StandardHeavyBackdropTemplate" {
+    }
+}
+
+// --- FRAME -----------------------------------------------------------------------
+
+
+Frame "FRAME" "StandardFrameTemplate" {
+    DecorateFileNames,
+    FrameFont "MasterFont", 0.015, "",
+}
+

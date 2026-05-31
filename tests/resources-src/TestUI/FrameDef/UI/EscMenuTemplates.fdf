@@ -1,0 +1,468 @@
+/*
+ *  EscMenuTemplates.fdf
+ *  ---------------------
+ *  These are EscMenu templates to be inherited by most components 
+ *  in the in-game menus.
+ */
+
+// --- BUTTON -----------------------------------------------------------------------
+
+Frame "BACKDROP" "EscMenuButtonBackdropTemplate" {
+    DecorateFileNames,
+    BackdropTileBackground,
+    BackdropBackground  "EscMenuButtonBackground",
+    BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R",
+    BackdropCornerSize  0.0125,
+    BackdropBackgroundSize  0.256,
+    BackdropBackgroundInsets 0.005 0.005 0.005 0.005,
+    BackdropEdgeFile  "EscMenuButtonBorder",
+}
+
+Frame "BACKDROP" "EscMenuButtonPushedBackdropTemplate" {
+    DecorateFileNames,
+    BackdropTileBackground,
+    BackdropBackground  "EscMenuButtonPushedBackground",
+    BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R",
+    BackdropCornerSize  0.0125,
+    BackdropBackgroundSize  0.256,
+    BackdropBackgroundInsets 0.005 0.005 0.005 0.005,
+    BackdropEdgeFile  "EscMenuButtonPushedBorder",
+}
+
+Frame "BACKDROP" "EscMenuButtonDisabledBackdropTemplate" {
+    DecorateFileNames,
+    BackdropTileBackground,
+    BackdropBackground  "EscMenuButtonDisabledBackground",
+    BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R",
+    BackdropCornerSize  0.0125,
+    BackdropBackgroundSize  0.256,
+    BackdropBackgroundInsets 0.005 0.005 0.005 0.005,
+    BackdropEdgeFile  "EscMenuButtonDisabledBorder",
+}
+
+Frame "BACKDROP" "EscMenuButtonDisabledPushedBackdropTemplate" {
+    DecorateFileNames,
+    BackdropTileBackground,
+    BackdropBackground  "EscMenuButtonDisabledPushedBackground",
+    BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R",
+    BackdropCornerSize  0.0125,
+    BackdropBackgroundSize  0.256,
+    BackdropBackgroundInsets 0.005 0.005 0.005 0.005,
+    BackdropEdgeFile  "EscMenuButtonDisabledPushedBorder",
+}
+
+Frame "BACKDROP" "EscMenuControlBackdropTemplate" {
+    DecorateFileNames,
+    BackdropTileBackground,
+    BackdropBackground  "EscMenuEditBoxBackground",
+    BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R",
+    BackdropCornerSize  0.0125,
+    BackdropBackgroundSize  0.256,
+    BackdropBackgroundInsets 0.005 0.005 0.005 0.005,
+    BackdropEdgeFile  "EscMenuEditBoxBorder",
+    BackdropBlendAll,
+}
+
+Frame "HIGHLIGHT" "EscMenuButtonMouseOverHighlightTemplate" {
+    DecorateFileNames,
+    HighlightType "FILETEXTURE",
+    HighlightAlphaFile "EscMenuButtonMouseOverHighlight",
+    HighlightAlphaMode "ADD",
+}
+
+Frame "GLUETEXTBUTTON" "EscMenuButtonTemplate" {
+    Width 0.228,
+    Height 0.035,
+    ControlStyle "AUTOTRACK|HIGHLIGHTONMOUSEOVER",
+    ButtonPushedTextOffset 0.002f -0.002f,    
+
+    ControlBackdrop "ButtonBackdropTemplate",
+    Frame "BACKDROP" "ButtonBackdropTemplate" INHERITS "EscMenuButtonBackdropTemplate" {
+    }
+
+    ControlPushedBackdrop "ButtonPushedBackdropTemplate",
+    Frame "BACKDROP" "ButtonPushedBackdropTemplate" INHERITS "EscMenuButtonPushedBackdropTemplate" {
+    }
+
+    ControlDisabledBackdrop "ButtonDisabledBackdropTemplate",
+    Frame "BACKDROP" "ButtonDisabledBackdropTemplate" INHERITS "EscMenuButtonDisabledBackdropTemplate" {
+    }
+
+    ControlDisabledPushedBackdrop "ButtonDisabledPushedBackdropTemplate",
+    Frame "BACKDROP" "ButtonDisabledPushedBackdropTemplate" INHERITS "EscMenuButtonDisabledPushedBackdropTemplate" {
+    }
+
+    ControlMouseOverHighlight "ButtonMouseOverHighlightTemplate",
+    Frame "HIGHLIGHT" "ButtonMouseOverHighlightTemplate" INHERITS "EscMenuButtonMouseOverHighlightTemplate" {
+    }
+}
+
+// --- TEXT -----------------------------------------------------------------------
+
+Frame "TEXT" "EscMenuButtonTextTemplate" {
+    DecorateFileNames,
+    FrameFont "EscMenuTextFont", 0.013, "",
+    FontJustificationH JUSTIFYCENTER,
+    FontJustificationV JUSTIFYMIDDLE,    
+    FontJustificationOffset 0.0 -0.002,
+    FontFlags "FIXEDSIZE",
+    FontColor 0.99 0.827 0.0705 1.0,
+    FontHighlightColor 1.0 1.0 1.0 1.0,
+    FontDisabledColor 0.5 0.5 0.5 1.0,
+	FontShadowColor 0.0 0.0 0.0 0.9,	
+    FontShadowOffset 0.002 -0.002,	
+}
+
+Frame "TEXT" "EscMenuInfoTextTemplate" {
+    DecorateFileNames,
+    FrameFont "EscMenuTextFont", 0.011, "",
+    FontJustificationH JUSTIFYCENTER,
+    FontJustificationV JUSTIFYMIDDLE,    
+    FontFlags "FIXEDSIZE",
+    FontColor 0.99 0.827 0.0705 1.0,
+    FontHighlightColor 1.0 1.0 1.0 1.0,
+    FontDisabledColor 0.5 0.5 0.5 1.0,
+	FontShadowColor 0.0 0.0 0.0 0.9,	
+    FontShadowOffset 0.002 -0.002,	
+}
+
+Frame "TEXT" "EscMenuTitleTextTemplate" {
+    DecorateFileNames,
+    FrameFont "EscMenuTextFont", 0.015, "",
+    FontJustificationH JUSTIFYLEFT,
+    FontJustificationV JUSTIFYMIDDLE,    
+    FontFlags "FIXEDSIZE",
+    FontColor 0.99 0.827 0.0705 1.0,
+    FontHighlightColor 1.0 1.0 1.0 1.0,
+    FontDisabledColor 0.2 0.2 0.2 1.0,
+	FontShadowColor 0.0 0.0 0.0 0.9,	
+    FontShadowOffset 0.002 -0.002,	
+}
+
+Frame "TEXT" "EscMenuLabelTextTemplate" {
+    DecorateFileNames,
+    FrameFont "EscMenuTextFont", 0.011, "",
+    FontJustificationH JUSTIFYLEFT,
+    FontJustificationV JUSTIFYMIDDLE,    
+    FontFlags "FIXEDSIZE",
+    FontColor 0.99 0.827 0.0705 1.0,
+    FontHighlightColor 1.0 1.0 1.0 1.0,
+    FontDisabledColor 0.2 0.2 0.2 1.0,
+	FontShadowColor 0.0 0.0 0.0 0.9,	
+    FontShadowOffset 0.002 -0.002,	
+}
+
+// --- SLIDER -----------------------------------------------------------------------
+
+Frame "SLIDER" "EscMenuSliderTemplate" {
+    Height 0.012,
+    Width 0.139,
+    SliderLayoutHorizontal,
+
+    ControlBackdrop "EscMenuScrollBarBackdropTemplate",
+    Frame "BACKDROP" "EscMenuScrollBarBackdropTemplate" {
+        DecorateFileNames,
+        BackdropTileBackground,
+        BackdropBackground  "EscMenuSliderBackground",
+        BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R",
+        BackdropCornerSize  0.006,
+        BackdropBackgroundSize 0.006,
+        BackdropBackgroundInsets 0.0025 0.0025 0.0025 0.0025,
+        BackdropEdgeFile  "EscMenuSliderBorder",
+        BackdropBlendAll,
+    }
+
+    ControlDisabledBackdrop "EscMenuScrollBarDisabledBackdrop",
+    Frame "BACKDROP" "EscMenuScrollBarDisabledBackdrop" {
+        DecorateFileNames,
+        BackdropTileBackground,
+        BackdropBackground  "EscMenuSliderBackground",
+        BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R",
+        BackdropCornerSize  0.006,
+        BackdropBackgroundSize 0.006,
+        BackdropBackgroundInsets 0.0025 0.0025 0.0025 0.0025,
+        BackdropEdgeFile  "EscMenuSliderDisabledBorder",
+        BackdropBlendAll,
+    }
+
+    SliderThumbButtonFrame "EscMenuThumbButtonTemplate",
+    Frame "BUTTON" "EscMenuThumbButtonTemplate" {
+        Width 0.016,
+        Height 0.016,
+
+        ControlBackdrop "EscMenuThumbButtonBackdropTemplate",
+        Frame "BACKDROP" "EscMenuThumbButtonBackdropTemplate" {
+            DecorateFileNames,
+            BackdropBlendAll,
+            BackdropBackground  "EscMenuSliderThumbButton",
+        }
+
+        ControlDisabledBackdrop "EscMenuThumbButtonDisabledBackdrop",
+        Frame "BACKDROP" "EscMenuThumbButtonDisabledBackdrop" {
+            DecorateFileNames,
+            BackdropBlendAll,
+            BackdropBackground  "EscMenuSliderDisabledThumbButton",
+        }
+    }
+}
+
+// --- SCROLLBAR -----------------------------------------------------------------------
+
+Frame "SCROLLBAR" "EscMenuScrollBarTemplate" {
+    Width 0.012,
+    SliderLayoutVertical,
+
+    ControlBackdrop "EscMenuScrollBarBackdrop",
+    Frame "BACKDROP" "EscMenuScrollBarBackdrop" {
+        DecorateFileNames,
+        BackdropTileBackground,
+        BackdropBackground  "EscMenuSliderBackground",
+        BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R",
+        BackdropCornerSize  0.006,
+        BackdropBackgroundSize 0.006,
+        BackdropBackgroundInsets 0.0025 0.0025 0.0025 0.0025,
+        BackdropEdgeFile  "EscMenuSliderBorder",
+        BackdropBlendAll,
+    }
+
+/*
+    ScrollBarIncButtonFrame "EscMenuScrollBarIncButton",
+    Frame "BUTTON" "EscMenuScrollBarIncButton" {
+        Width 0.015,
+        Height 0.015,
+        ControlBackdrop "EscMenuScrollBarIncButtonBackdrop",
+        Frame "BACKDROP" "EscMenuScrollBarIncButtonBackdrop" {                    
+            BackdropBackground  "UI\Widgets\Glues\SinglePlayerSkirmish-ScrollBarUpButton.blp",
+            BackdropBlendAll,
+        }
+    }
+
+    ScrollBarDecButtonFrame "EscMenuScrollBarDecButton",
+    Frame "BUTTON" "EscMenuScrollBarDecButton" {
+        Width 0.015,
+        Height 0.015,
+        ControlBackdrop "EscMenuScrollBarDecButtonBackdrop",
+        Frame "BACKDROP" "EscMenuScrollBarDecButtonBackdrop" {
+            BackdropBackground  "UI\Widgets\Glues\SinglePlayerSkirmish-ScrollBarDownButton.blp",
+            BackdropBlendAll,
+        }
+    }
+*/
+
+    SliderThumbButtonFrame "EscMenuScrollThumbButton",
+    Frame "BUTTON" "EscMenuScrollThumbButton" {
+        Width 0.016,
+        Height 0.016,
+
+        ControlBackdrop "EscMenuScrollThumbButtonBackdrop",
+        Frame "BACKDROP" "EscMenuScrollThumbButtonBackdrop" {
+            DecorateFileNames,
+            BackdropBlendAll,
+            BackdropBackground  "EscMenuSliderThumbButton",
+        }
+    }
+}
+
+// --- POPUP MENU --------------------------------------------------------------------
+
+Frame "MENU" "EscMenuPopupMenuMenuTemplate" {
+    DecorateFileNames,
+    Height 0.03,
+    FrameFont "EscMenuTextFont",0.011,"",
+    MenuTextHighlightColor 1.0 0.0 0,
+    MenuItemHeight 0.014,
+    MenuBorder 0.009,
+
+    ControlBackdrop "EscMenuPopupMenuMenuBackdropTemplate",
+    Frame "BACKDROP" "EscMenuPopupMenuMenuBackdropTemplate" INHERITS "EscMenuButtonBackdropTemplate" {
+        DecorateFileNames,
+        BackdropBackground "EscMenuEditBoxBackground",
+    }
+}
+
+Frame "GLUETEXTBUTTON" "EscMenuPopupMenuTitleTemplate" {  
+    DecorateFileNames,
+    FrameFont "EscMenuTextFont",0.011,"",
+    ButtonText "EscMenuPopupMenuTitleTextTemplate",
+    Frame "TEXT" "EscMenuPopupMenuTitleTextTemplate" {
+        FontJustificationOffset 0.01 0.0,
+        FontFlags "FIXEDSIZE",
+    }
+}
+
+Frame "BUTTON" "EscMenuPopupMenuArrowTemplate" {
+    Height 0.011,
+    Width 0.011,
+    ControlBackdrop "EscMenuPopupMenuArrowBackdropTemplate",
+    Frame "BACKDROP" "EscMenuPopupMenuArrowBackdropTemplate" {
+        DecorateFileNames,
+        BackdropBlendAll,        
+        BackdropBackground "EscMenuPopupMenuArrow",
+    }
+}
+
+Frame "POPUPMENU" "EscMenuPopupMenuTemplate" {
+    Width 0.111875,
+    Height 0.03,
+    PopupButtonInset 0.01,
+
+/*
+    ControlBackdrop "EscMenuPopupMenuBackdropTemplate",
+    Frame "BACKDROP" "EscMenuPopupMenuBackdropTemplate" INHERITS "EscMenuButtonBackdropTemplate" {
+    }
+
+    ControlDisabledBackdrop "EscMenuPopupMenuDisabledBackdropTemplate",
+    Frame "BACKDROP" "EscMenuPopupMenuDisabledBackdropTemplate" INHERITS "EscMenuButtonDisabledBackdropTemplate" {
+    }
+
+    PopupTitleFrame "PopupMenuTitleTemplate",
+    Frame "GLUETEXTBUTTON" "PopupMenuTitleTemplate" INHERITS WITHCHILDREN "EscMenuPopupMenuTitleTemplate" {
+    }
+
+    PopupArrowFrame "PopupMenuArrowTemplate",
+    Frame "BUTTON" "PopupMenuArrowTemplate" INHERITS WITHCHILDREN "EscMenuPopupMenuArrowTemplate" { 
+    }
+
+    PopupMenuFrame "PopupMenuMenuTemplate",
+    Frame "MENU" "PopupMenuMenuTemplate" INHERITS WITHCHILDREN "EscMenuPopupMenuMenuTemplate" {
+    }
+*/
+}
+
+// --- CHECKBOX --------------------------------------------------------------------
+
+Frame "GLUECHECKBOX" "EscMenuCheckBoxTemplate" {
+    Width 0.024,
+    Height 0.024,
+
+    ControlBackdrop "EscMenuCheckBoxBackdrop",
+    Frame "BACKDROP" "EscMenuCheckBoxBackdrop" {
+        DecorateFileNames,
+        BackdropBlendAll,
+        BackdropBackground  "EscMenuCheckBoxBackground",
+    }
+
+    ControlDisabledBackdrop "EscMenuDisabledCheckBoxBackdrop",
+    Frame "BACKDROP" "EscMenuDisabledCheckBoxBackdrop" {
+        DecorateFileNames,
+        BackdropBlendAll,
+        BackdropBackground  "EscMenuDisabledCheckBoxBackground",
+    }
+
+    ControlPushedBackdrop "EscMenuCheckBoxPushedBackdrop",
+    Frame "BACKDROP" "EscMenuCheckBoxPushedBackdrop" {
+        DecorateFileNames,
+        BackdropBlendAll,
+        BackdropBackground  "EscMenuCheckBoxPushedBackground",
+    }
+
+    CheckBoxCheckHighlight "EscMenuCheckHighlightTemplate",
+    Frame "HIGHLIGHT" "EscMenuCheckHighlightTemplate" {
+        DecorateFileNames,
+        HighlightType "FILETEXTURE",
+        HighlightAlphaFile "EscMenuCheckBoxCheckHighlight",
+        HighlightAlphaMode "BLEND",
+    }
+
+    CheckBoxDisabledCheckHighlight "EscMenuDisabledCheckHighlightTemplate",
+    Frame "HIGHLIGHT" "EscMenuDisabledCheckHighlightTemplate" {
+        DecorateFileNames,
+        HighlightType "FILETEXTURE",
+        HighlightAlphaFile "EscMenuDisabledCheckHighlight",
+        HighlightAlphaMode "BLEND",
+    }
+}
+
+// --- RADIOBUTTON --------------------------------------------------------------------
+
+Frame "GLUECHECKBOX" "EscMenuRadioButtonTemplate" {
+    Width 0.016,
+    Height 0.016,
+
+    ControlBackdrop "EscMenuRadioButtonBackdrop",
+    Frame "BACKDROP" "EscMenuRadioButtonBackdrop" {
+        DecorateFileNames,
+        BackdropBlendAll,
+        BackdropBackground  "EscMenuRadioButtonBackground",
+    }
+
+    ControlDisabledBackdrop "EscMenuRadioButtonDisabledBackdrop",
+    Frame "BACKDROP" "EscMenuRadioButtonDisabledBackdrop" {
+        DecorateFileNames,
+        BackdropBlendAll,
+        BackdropBackground  "EscMenuRadioButtonDisabledBackground",
+    }
+
+    ControlPushedBackdrop "EscMenuRadioButtonPushedBackdrop",
+    Frame "BACKDROP" "EscMenuRadioButtonPushedBackdrop" {
+        DecorateFileNames,
+        BackdropBlendAll,
+        BackdropBackground  "EscMenuRadioButtonPushedBackground",
+    }
+
+    CheckBoxCheckHighlight "EscMenuRadioButtonHighlightTemplate",
+    Frame "HIGHLIGHT" "EscMenuRadioButtonHighlightTemplate" {
+        DecorateFileNames,
+        HighlightType "FILETEXTURE",
+        HighlightAlphaFile "EscMenuRadioButtonSelectedHighlight",
+        HighlightAlphaMode "BLEND",
+    }
+
+    CheckBoxDisabledCheckHighlight "EscMenuDisabledRadioButtonHighlightTemplate",
+    Frame "HIGHLIGHT" "EscMenuDisabledRadioButtonHighlightTemplate" {
+        DecorateFileNames,
+        HighlightType "FILETEXTURE",
+        HighlightAlphaFile "EscMenuDisabledRadioButtonSelectedHighlight",
+        HighlightAlphaMode "BLEND",
+    }
+}
+
+// --- EDITBOX -----------------------------------------------------------------------
+
+Frame "TEXT" "EscMenuEditBoxTextTemplate" {
+    DecorateFileNames,
+    FrameFont "MasterFont", 0.015, "",
+    FontColor 1.0 1.0 1.0,
+    FontFlags "FIXEDSIZE",
+}
+
+Frame "BACKDROP" "EscMenuEditBoxBackdropTemplate" {
+    DecorateFileNames,
+    BackdropTileBackground,
+    BackdropBackground  "EscMenuEditBoxBackground",
+    BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R",
+    BackdropCornerSize  0.0125,
+    BackdropBackgroundSize  0.256,
+    BackdropBackgroundInsets 0.005 0.005 0.005 0.005,
+    BackdropEdgeFile  "EscMenuEditBoxBorder",
+    BackdropBlendAll,
+}
+
+Frame "EDITBOX" "EscMenuEditBoxTemplate" {
+    Height 0.04,
+    EditBorderSize 0.009,
+    EditCursorColor 1.0 1.0 1.0,
+
+    ControlBackdrop "EscMenuEditBoxBackdrop",
+    Frame "BACKDROP" "EscMenuEditBoxBackdrop" INHERITS "EscMenuEditBoxBackdropTemplate" {
+    }
+}
+
+// --- TEXTAREA -----------------------------------------------------------------
+
+Frame "TEXTAREA" "EscMenuTextAreaTemplate" {
+    //DecorateFileNames,
+    //FrameFont "MasterFont", 0.011, "",
+    TextAreaLineHeight 0.015,
+    TextAreaLineGap 0.0,
+    TextAreaInset 0.01,
+
+    TextAreaScrollBar "EscMenuTextAreaScrollBarTemplate",
+    Frame "SCROLLBAR" "EscMenuTextAreaScrollBarTemplate" INHERITS WITHCHILDREN "EscMenuScrollBarTemplate" {
+    }
+
+    ControlBackdrop "EscMenuTextAreaBackdropTemplate",
+    Frame "BACKDROP" "EscMenuTextAreaBackdropTemplate" INHERITS "EscMenuControlBackdropTemplate" {
+    }
+}
+

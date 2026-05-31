@@ -332,8 +332,9 @@ test-wow-appearance: | $(BIN_DIR)
 test-ui: test-assets $(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) | $(BIN_DIR)
 	$(CC) $(TEST_UI_CFLAGS) -o $(BIN_DIR)/test_openwarcraft3_ui$(EXE_EXT) \
 		$(TEST_UI_SRCS) $(TEST_GAME_SRCS) \
+		common/mpq.c \
 		$(shell find ui -name '*.c' | sort) \
-		$(RPATH) $(LDFLAGS) -lsheet -lshared -ljass -lm
+		$(RPATH) $(LDFLAGS) -lsheet -lshared -ljass -lm -lz
 	$(BIN_DIR)/test_openwarcraft3_ui$(EXE_EXT)
 
 test-mpq-compat: mpqtool $(MPQ_TEST)
@@ -382,6 +383,12 @@ test-assets: blpgen mdxgen mpqtool mdxtool | $(TESTS_DIR)
 		$(TESTS_SRC_DIR)/TestUI/Frames/backdrop_variants.fdf     TestUI/Frames/backdrop_variants.fdf \
 		$(TESTS_SRC_DIR)/TestUI/Frames/simple_sprite.fdf         TestUI/Frames/simple_sprite.fdf \
 		$(TESTS_SRC_DIR)/TestUI/Frames/animated_sprite.fdf       TestUI/Frames/animated_sprite.fdf \
+		$(TESTS_SRC_DIR)/TestUI/FrameDef/GlobalStrings.fdf       UI/FrameDef/GlobalStrings.fdf \
+		$(TESTS_SRC_DIR)/TestUI/FrameDef/UI/EscMenuTemplates.fdf UI/FrameDef/UI/EscMenuTemplates.fdf \
+		$(TESTS_SRC_DIR)/TestUI/FrameDef/UI/EscMenuMainPanel.fdf UI/FrameDef/UI/EscMenuMainPanel.fdf \
+		$(TESTS_SRC_DIR)/TestUI/FrameDef/Glue/StandardTemplates.fdf UI/FrameDef/Glue/StandardTemplates.fdf \
+		$(TESTS_SRC_DIR)/TestUI/FrameDef/Glue/MainMenu.fdf       UI/FrameDef/Glue/MainMenu.fdf \
+		$(TESTS_SRC_DIR)/TestUI/FrameDef/Glue/DialogWar3.fdf     UI/FrameDef/Glue/DialogWar3.fdf \
 		$(TESTS_SRC_DIR)/Maps/Campaign/Human02.w3m               Maps/Campaign/Human02.w3m \
 		$(TESTS_SRC_DIR)/Maps/Campaign/Orc01.w3m                 Maps/Campaign/Orc01.w3m \
 		$(TESTS_SRC_DIR)/Maps/Melee/TwinRivers.w3m               Maps/Melee/TwinRivers.w3m \

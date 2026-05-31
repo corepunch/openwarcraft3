@@ -499,13 +499,11 @@ void R_Init(DWORD width, DWORD height) {
 //    R_LoadModel("Assets\\Units\\Terran\\MarineTychus\\MarineTychus.m3");
 //    R_LoadModel("Assets\\Units\\Zerg\\Queen\\Queen.m3");
     
-    extern LPCSTR vs_skin;
     extern LPCSTR vs_default;
     extern LPCSTR fs_default;
     extern LPCSTR fs_ui;
     extern LPCSTR fs_splat;
     extern LPCSTR fs_shadow_splat;
-    extern LPCSTR fs_alphatest;
     extern LPCSTR fs_commandbutton;
     extern LPCSTR fs_minimap_fog;
     
