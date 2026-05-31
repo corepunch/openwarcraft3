@@ -25,16 +25,20 @@
 #define assert_type(var, type) assert(jass_checktype(var, type))
 #define JASSALLOC(type) jass_alloc(sizeof(type))
 
+static void jass_setnull(LPJASSVAR var);
+
 #define JASS_ADD_STACK(j, VAR, TYPE) \
 LPJASSVAR VAR = &j->stack[j->num_stack++]; \
 memset(VAR, 0, sizeof(*VAR)); \
 VAR->type = &jass_types[TYPE];
 
-#define JASS_SET_VALUE(VAR, VALUE, SIZE) \
-jass_setnull(VAR); \
-if (VALUE) { \
-  (VAR)->value = jass_alloc(SIZE); \
-  memcpy((VAR)->value, VALUE, SIZE); \
+static void jass_store_value(LPJASSVAR var, LPCVOID value, DWORD size) {
+    jass_setnull(var);
+    if (!value) {
+        return;
+    }
+    var->value = jass_alloc(size);
+    memcpy(var->value, value, size);
 }
 
 #define JASS_CMPOP(NAME, OP) \
@@ -935,7 +939,7 @@ void jass_copy(LPJASS j, LPJASSVAR var, LPCJASSVAR other) {
     } else switch (jass_getvarbasetype(var)) {
         case jasstype_integer:
             assert(other->type == var->type);
-            JASS_SET_VALUE(var, other->value, sizeof(LONG));
+            jass_store_value(var, other->value, sizeof(LONG));
             break;
         case jasstype_handle:
             if (!is_handle_convertible(other->type, var->type)) {
@@ -959,15 +963,15 @@ void jass_copy(LPJASS j, LPJASSVAR var, LPCJASSVAR other) {
                     assert(false);
                     return;
             }
-            JASS_SET_VALUE(var, &fval, sizeof(FLOAT));
+            jass_store_value(var, &fval, sizeof(FLOAT));
             break;
         case jasstype_boolean:
             assert(other->type == var->type);
-            JASS_SET_VALUE(var, other->value, sizeof(BOOL));
+            jass_store_value(var, other->value, sizeof(BOOL));
             break;
         case jasstype_string:
             assert(other->type == var->type);
-            JASS_SET_VALUE(var, other->value, strlen(other->value)+1);
+            jass_store_value(var, other->value, strlen(other->value)+1);
             break;
         default:
             assert(false);
@@ -986,7 +990,7 @@ DWORD jass_pushnull(LPJASS j) {
 
 DWORD jass_pushinteger(LPJASS j, LONG value) {
     JASS_ADD_STACK(j, var, jasstype_integer);
-    JASS_SET_VALUE(var, &value, sizeof(value));
+    jass_store_value(var, &value, sizeof(value));
     return 1;
 }
 
@@ -1023,19 +1027,19 @@ DWORD jass_pushlighthandle(LPJASS j, HANDLE value, LPCSTR type) {
 
 DWORD jass_pushnumber(LPJASS j, FLOAT value) {
     JASS_ADD_STACK(j, var, jasstype_real);
-    JASS_SET_VALUE(var, &value, sizeof(value));
+    jass_store_value(var, &value, sizeof(value));
     return 1;
 }
 
 DWORD jass_pushboolean(LPJASS j, BOOL value) {
     JASS_ADD_STACK(j, var, jasstype_boolean);
-    JASS_SET_VALUE(var, &value, sizeof(value));
+    jass_store_value(var, &value, sizeof(value));
     return 1;
 }
 
 DWORD jass_pushstringlen(LPJASS j, LPCSTR value, DWORD len) {
     JASS_ADD_STACK(j, var, jasstype_string);
-    JASS_SET_VALUE(var, value, len+1);
+    jass_store_value(var, value, len+1);
     ((LPSTR)var->value)[len] = '\0';
     removeDoubleBackslashes(var->value);
     return 1;
@@ -1048,7 +1052,7 @@ DWORD jass_pushstring(LPJASS j, LPCSTR value) {
 
 DWORD jass_pushcfunction(LPJASS j, LPJASSCFUNCTION func) {
     JASS_ADD_STACK(j, var, jasstype_cfunction);
-    JASS_SET_VALUE(var, &func, sizeof(LPJASSCFUNCTION));
+    jass_store_value(var, &func, sizeof(LPJASSCFUNCTION));
     return 1;
 }
 

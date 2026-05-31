@@ -4,6 +4,7 @@
 #include "test_harness.h"
 
 LPCUIFRAME SCR_Clear(HANDLE data);
+LPUIFRAME SCR_Frame(DWORD number);
 VECTOR2 SCR_SolveAxisPosition(LPCUIFRAME frame,
                               uiFramePoints_t const points,
                               FLOAT width,
@@ -69,8 +70,8 @@ static float ndc_to_top_pixel(float ndc_y) {
 }
 
 static void test_bottom_anchored_panel_sprite_extends_onto_screen(void) {
-    LPUIFRAME frames = SCR_Clear(NULL);
-    uiFrame_t *panel = &frames[1];
+    SCR_Clear(NULL);
+    uiFrame_t *panel = SCR_Frame(1);
     VECTOR3 bottom_left;
     VECTOR3 top_right;
 
@@ -89,8 +90,8 @@ static void test_bottom_anchored_panel_sprite_extends_onto_screen(void) {
 }
 
 static void test_logo_top_anchor_projects_near_top_of_screen(void) {
-    LPUIFRAME frames = SCR_Clear(NULL);
-    uiFrame_t *logo = &frames[1];
+    SCR_Clear(NULL);
+    uiFrame_t *logo = SCR_Frame(1);
 
     float const model_center_x_ui = (-0.112f + 0.111f) * 0.5f;
     float const model_center_y_ui = (-0.058f + 0.053f) * 0.5f;

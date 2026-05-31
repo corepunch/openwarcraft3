@@ -87,6 +87,8 @@ To start a game from the normal client menu, click **Single Player**, then **Cam
 - Undead: `Maps\Campaign\Undead01.w3m`
 - Night Elf: `Maps\Campaign\NightElf01.w3m`
 
+These are MPQ-internal paths, so campaign maps may not appear in the loose `data/Warcraft III/Maps/` directory even when they are present in `War3.mpq`. You can inspect them with `build/bin/mpqtool -mpq "data/Warcraft III/War3.mpq" ls Maps/Campaign`.
+
 Useful run targets:
 
 - `make run` — start the client menu using `WC3DATA`

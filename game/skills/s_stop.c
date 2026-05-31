@@ -1,6 +1,7 @@
 #include "s_skills.h"
 
-static umove_t stop_stand = { "stand", ai_stand, NULL, &a_stop};
+// Disabled until stop owns a custom stand move; Linux -Wall warns on unused static hooks.
+// static umove_t stop_stand = { "stand", ai_stand, NULL, &a_stop};
 
 ability_t a_stop = {
 //    .cmd = build_command,

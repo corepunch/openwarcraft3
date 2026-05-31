@@ -34,6 +34,20 @@ typedef struct lan_join_state_s {
 
 static lan_join_state_t lan;
 
+static void LAN_CopyString(LPSTR out, size_t out_size, LPCSTR value) {
+    if (!out || out_size == 0) {
+        return;
+    }
+    snprintf(out, out_size, "%s", value ? value : "");
+}
+
+static void LAN_CopyTitleSubtitle(LPSTR out, size_t out_size, LPCSTR title, LPCSTR subtitle) {
+    if (!out || out_size == 0) {
+        return;
+    }
+    snprintf(out, out_size, "%s: %s", title ? title : "", subtitle ? subtitle : "");
+}
+
 static BOOL LAN_HasMapExtension(LPCSTR path) {
     LPCSTR dot = strrchr(path, '.');
     return dot && (!strcasecmp(dot, ".w3m") || !strcasecmp(dot, ".w3x"));
@@ -57,7 +71,7 @@ static void LAN_SetMapDisplayName(uiMapListItem_t *item,
     uiimport.ResolveMapInfoString(info, info ? info->mapName : NULL, name, sizeof(name));
     uiimport.SanitizeMapListField(name);
     if (name[0]) {
-        snprintf(item->name, sizeof(item->name), "%s", name);
+        LAN_CopyString(item->name, sizeof(item->name), name);
     }
 
     if (strncasecmp(item->path, "Maps\\Campaign\\", 14) ||
@@ -73,13 +87,13 @@ static void LAN_SetMapDisplayName(uiMapListItem_t *item,
     uiimport.SanitizeMapListField(loading_subtitle);
 
     if (loading_title[0] && loading_subtitle[0]) {
-        snprintf(item->name, sizeof(item->name), "%s: %s", loading_title, loading_subtitle);
+        LAN_CopyTitleSubtitle(item->name, sizeof(item->name), loading_title, loading_subtitle);
     } else if (description[0]) {
-        snprintf(item->name, sizeof(item->name), "%s", description);
+        LAN_CopyString(item->name, sizeof(item->name), description);
     } else if (loading_title[0]) {
-        snprintf(item->name, sizeof(item->name), "%s", loading_title);
+        LAN_CopyString(item->name, sizeof(item->name), loading_title);
     } else if (loading_subtitle[0]) {
-        snprintf(item->name, sizeof(item->name), "%s", loading_subtitle);
+        LAN_CopyString(item->name, sizeof(item->name), loading_subtitle);
     }
 }
 
@@ -150,7 +164,7 @@ static void LAN_AddMap(LPCSTR path) {
     if (uiimport.DefaultMapName) {
         uiimport.DefaultMapName(item->path, item->name, sizeof(item->name));
     } else {
-        snprintf(item->name, sizeof(item->name), "%s", item->path);
+        LAN_CopyString(item->name, sizeof(item->name), item->path);
     }
     snprintf(item->description, sizeof(item->description), "%s", UI_GetString("UNKNOWNMAP_DESCRIPTION"));
     snprintf(item->suggestedPlayers, sizeof(item->suggestedPlayers), "%s", UI_GetString("UNKNOWNMAP_SUGGESTEDPLAYERS"));

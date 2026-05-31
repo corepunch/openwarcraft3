@@ -1,0 +1,46 @@
+Frame "DIALOG" "DialogWar3" {
+    Width 0.400,
+    Height 0.240,
+    DialogBackdrop "DialogBackdrop",
+
+    Frame "BACKDROP" "DialogBackdrop" {
+        Width 0.400,
+        Height 0.240,
+    }
+
+    Frame "TEXT" "DialogText" {
+        Text "CONFIRM_EXIT_MESSAGE",
+    }
+
+    Frame "BACKDROP" "DialogIcon" {
+        Width 0.040,
+        Height 0.040,
+    }
+
+    Frame "BACKDROP" "DialogButtonOKBackdrop" {
+        Frame "BUTTON" "DialogButtonOK" {
+            ButtonText "OK",
+            Frame "TEXT" "DialogButtonOKText" {
+                Text "OK",
+            }
+        }
+    }
+
+    Frame "BACKDROP" "DialogButtonNoBackdrop" {
+        Frame "BUTTON" "DialogButtonNo" {
+            ButtonText "NO",
+            Frame "TEXT" "DialogButtonNoText" {
+                Text "NO",
+            }
+        }
+    }
+
+    Frame "BACKDROP" "DialogButtonYesBackdrop" {
+        Frame "BUTTON" "DialogButtonYes" {
+            ButtonText "YES",
+            Frame "TEXT" "DialogButtonYesText" {
+                Text "YES",
+            }
+        }
+    }
+}

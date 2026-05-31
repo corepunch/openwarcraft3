@@ -1,0 +1,84 @@
+// Template-like global frame used to verify child lookup does not bind globally.
+Frame "BUTTON" "ExitButton" {
+}
+
+Frame "FRAME" "MainMenuFrame" {
+    Width 0.800,
+    Height 0.600,
+
+    Frame "SPRITE" "WarCraftIIILogo" {
+    }
+
+    Frame "FRAME" "RealmSelect" {
+        Frame "TEXT" "RealmSelectText" {
+        }
+        Frame "TEXT" "RealmSelectMessage" {
+        }
+        Frame "FRAME" "RealmListContainer" {
+        }
+        Frame "BACKDROP" "RealmSelectOKBackdrop" {
+            Frame "BUTTON" "RealmSelectOKButton" {
+                Frame "TEXT" "RealmSelectOKText" {
+                }
+            }
+        }
+        Frame "BACKDROP" "RealmSelectCancelBackdrop" {
+            Frame "BUTTON" "RealmSelectCancelButton" {
+                Frame "TEXT" "RealmSelectCancelText" {
+                }
+            }
+        }
+    }
+
+    Frame "FRAME" "ControlLayer" {
+        Frame "BACKDROP" "SinglePlayerBackdrop" {
+            Frame "BUTTON" "SinglePlayerButton" {
+                Frame "TEXT" "SinglePlayerButtonText" {
+                }
+            }
+        }
+
+        Frame "BACKDROP" "BattleNetBackdrop" {
+            Frame "BUTTON" "RealmButton" {
+                Frame "BACKDROP" "RealmButtonBackdropTemplate" {
+                }
+                Frame "BACKDROP" "RealmButtonPushedBackdropTemplate" {
+                }
+                Frame "BACKDROP" "RealmButtonDisabledBackdropTemplate" {
+                }
+            }
+            Frame "BUTTON" "BattleNetButton" {
+                Frame "TEXT" "BattleNetButtonText" {
+                }
+            }
+        }
+
+        Frame "BACKDROP" "LocalAreaNetworkBackdrop" {
+            Frame "BUTTON" "LocalAreaNetworkButton" {
+                Frame "TEXT" "LocalAreaNetworkButtonText" {
+                }
+            }
+        }
+
+        Frame "BACKDROP" "OptionsBackdrop" {
+            Frame "BUTTON" "OptionsButton" {
+                Frame "TEXT" "OptionsButtonText" {
+                }
+            }
+        }
+
+        Frame "BACKDROP" "CreditsBackdrop" {
+            Frame "BUTTON" "CreditsButton" {
+                Frame "TEXT" "CreditsButtonText" {
+                }
+            }
+        }
+
+        Frame "BACKDROP" "ExitBackdrop" {
+            Frame "BUTTON" "ExitButton" {
+                Frame "TEXT" "ExitButtonText" {
+                }
+            }
+        }
+    }
+}

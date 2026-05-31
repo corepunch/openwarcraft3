@@ -4,6 +4,7 @@
 #include "test_harness.h"
 
 LPCUIFRAME SCR_Clear(HANDLE data);
+LPUIFRAME SCR_Frame(DWORD number);
 LPCRECT SCR_LayoutRect(LPCUIFRAME frame);
 VECTOR2 SCR_GetAxisBounds(LPCRECT rect, bool is_x_axis);
 FLOAT SCR_NormalizeAnchorOffset(uiFramePoint_t const *p, bool is_x_axis);
@@ -13,9 +14,9 @@ VECTOR2 SCR_SolveAxisPosition(LPCUIFRAME frame,
                               bool is_x_axis);
 
 static LPUIFRAME setup_layout_root(void) {
-    LPUIFRAME frames = SCR_Clear(NULL);
-    ASSERT_NOT_NULL(frames);
-    return frames;
+    SCR_Clear(NULL);
+    ASSERT_NOT_NULL(SCR_Frame(0));
+    return SCR_Frame(0);
 }
 
 static void test_axis_bounds_returns_x_interval(void) {

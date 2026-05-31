@@ -565,9 +565,11 @@ void M3_DrawDivisions(m3Model_t const *model, m3Divisions_t const *divisions) {
         m3Region_t const *region = divisions->regions+batch->regionIndex;
         m3MaterialReference_t const *mref = model->materialReferences+batch->materialReferenceIndex;
         m3Material_t const *material = model->materialStandard+mref->materialIndex;
+#ifndef __linux__
         DWORD const num_indices = region->triangleIndicesCount;
         DWORD const first_vertex = region->firstVertexIndex;
         HANDLE const indices = (HANDLE)(sizeof(USHORT) * region->firstTriangleIndex);
+#endif
         R_Call(glUniform1f, m3.uFirstBoneLookupIndex, region->firstBoneLookupIndex);
         R_Call(glUniform1f, m3.uBoneWeightPairsCount, region->boneWeightPairsCount);
         
@@ -581,9 +583,7 @@ void M3_DrawDivisions(m3Model_t const *model, m3Divisions_t const *divisions) {
         M3_FOR_EACH(Layer, layer, material->diffuseLayer) {
             if (!layer->texture)
                 continue;
-#if __linux__
-#warning "glDrawElementsBaseVertex is not available without an OpenGL loader on Linux. Call omitted."
-#else
+#ifndef __linux__
             R_Call(glDrawElementsBaseVertex, GL_TRIANGLES, num_indices, GL_UNSIGNED_SHORT, indices, first_vertex);
 #endif
         }

@@ -1,0 +1,16 @@
+Frame "FRAME" "ConfirmQuitPanel" {
+    Width 0.336,
+    Height 0.192,
+
+    Frame "GLUETEXTBUTTON" "ConfirmQuitQuitButton" {
+        ButtonText "ConfirmQuitQuitButtonText",
+    }
+
+    Frame "GLUETEXTBUTTON" "ConfirmQuitCancelButton" {
+        ButtonText "ConfirmQuitCancelButtonText",
+    }
+
+    Frame "TEXT" "ConfirmQuitMessageText" {
+        Text "CONFIRM_EXIT_MESSAGE",
+    }
+}
