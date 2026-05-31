@@ -1,4 +1,6 @@
-<img width="647" height="88" alt="OpenWarcraft3 logo" src="doc/images/logo.jpg" />
+<p align="center">
+  <img width="647" height="88" alt="OpenWarcraft3 logo" src="doc/images/logo.png" />
+</p>
 
 **OpenWarcraft3** is an open-source implementation of Warcraft III that uses SDL2 and runs on Windows, Linux, and macOS.
 
