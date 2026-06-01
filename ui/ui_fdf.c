@@ -1501,6 +1501,13 @@ void UI_SetOnClick(LPFRAMEDEF frame, LPCSTR format, ...) {
     va_end(argptr);
 }
 
+void UI_SetEnabled(LPFRAMEDEF frame, BOOL enabled) {
+    if (!frame) {
+        return;
+    }
+    frame->disabled = !enabled;
+}
+
 void UI_SetTextPointer(LPFRAMEDEF frame, LPCSTR text) {
     UI_FreeFrameDynamicText(frame);
     frame->Text = text;

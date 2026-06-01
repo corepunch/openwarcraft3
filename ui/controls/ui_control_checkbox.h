@@ -2,8 +2,7 @@
 #define UI_CONTROL_CHECKBOX_H
 
 static BOOL UI_CheckBoxEnabled(LPCFRAMEDEF frame) {
-    (void)frame;
-    return TRUE;
+    return frame && !frame->disabled;
 }
 
 static BOOL UI_CheckBoxIsPushed(LPCFRAMEDEF frame, LPCRECT rect) {

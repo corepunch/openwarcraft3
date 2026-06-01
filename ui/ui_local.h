@@ -161,6 +161,7 @@ struct uiFrameDef_s {
     BOOL inuse;
     BOOL AnyPointsSet;
     BOOL hidden;
+    BOOL disabled;
     DWORD TextLength;
     DWORD Stat;
     LPSTR DynamicText;
@@ -365,6 +366,7 @@ void UI_SetAllPoints(LPFRAMEDEF);
 void UI_SetParent(LPFRAMEDEF, LPCFRAMEDEF);
 void UI_SetText(LPFRAMEDEF, LPCSTR, ...);
 void UI_SetOnClick(LPFRAMEDEF, LPCSTR, ...);
+void UI_SetEnabled(LPFRAMEDEF, BOOL);
 void UI_SetTextPointer(LPFRAMEDEF, LPCSTR);
 void UI_SetSize(LPFRAMEDEF, FLOAT, FLOAT);
 void UI_SetPoint(LPFRAMEDEF, UIFRAMEPOINT, LPCFRAMEDEF, UIFRAMEPOINT, FLOAT, FLOAT);
