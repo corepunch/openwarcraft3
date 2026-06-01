@@ -223,19 +223,19 @@ $(UI_WOW_LIB): $(SHARED_LIB) $(CLIENT_HEADERS) $(COMMON_HEADERS) $(UI_HEADERS) $
 APP_SRCS := $(shell find client server common -name '*.c')
 $(BINARY): $(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) $(GAME_LIB) $(RENDERER_LIB) $(UI_LIB) $(APP_SRCS) $(CLIENT_HEADERS) $(COMMON_HEADERS) | $(BIN_DIR)
 	@echo "[openwarcraft3]"
-	@$(call UNITY,client server common) | \
+	@$(call UNITY,client server common,! -name 'world_wow.c') | \
 		$(CC) $(CFLAGS) -x c -o $@ - $(RPATH) $(LDFLAGS) \
 		-lsheet -lshared -ljass -lgame -lrenderer -lui $(LIBS) -lz
 
 $(WOW_BINARY): $(SHARED_LIB) $(SHEET_LIB) $(GAME_WOW_LIB) $(RENDERER_WOW_LIB) $(UI_WOW_LIB) $(APP_SRCS) $(CLIENT_HEADERS) $(COMMON_HEADERS) | $(BIN_DIR)
 	@echo "[openwow]"
-	@$(call UNITY,client server common) | \
+	@$(call UNITY,client server common,! -name 'world_w3.c') | \
 		$(CC) $(WOW_CFLAGS) -x c -o $@ - $(RPATH) $(LDFLAGS) \
 		-lsheet -lshared -lgame-wow -lrenderer-wow -lui-wow $(LIBS) -lz
 
 $(SC2_BINARY): $(SHARED_LIB) $(SHEET_LIB) $(GAME_SC2_LIB) $(RENDERER_LIB) $(UI_LIB) $(APP_SRCS) $(CLIENT_HEADERS) | $(BIN_DIR)
 	@echo "[opensc2]"
-	@$(call UNITY,client server common) | \
+	@$(call UNITY,client server common,! -name 'world_wow.c') | \
 		$(CC) $(SC2_CFLAGS) -x c -o $@ - $(RPATH) $(LDFLAGS) \
 		-lsheet -lshared -lgame-sc2 -lrenderer -lui $(LIBS) -lz
 
