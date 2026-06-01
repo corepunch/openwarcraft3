@@ -232,6 +232,16 @@ static void G_RunClients(void) {
     }
 }
 
+static void G_StartScripts(void) {
+    if (level.scriptsStarted) {
+        return;
+    }
+    fprintf(stderr, "G_StartScripts: calling war3map main\n");
+    jass_callbyname(level.vm, "main", true);
+    level.scriptsStarted = true;
+    jass_runevents(level.vm);
+}
+
 /* One complete server-frame simulation step.
  * Skipped until the first map has been started; on the very first frame after
  * a map loads, the JASS "main" function is invoked to run map initialization
@@ -240,10 +250,7 @@ static void G_RunFrame(void) {
     if (!level.started)
         return;
 
-    if (!level.scriptsStarted) {
-        jass_callbyname(level.vm, "main", true);
-        level.scriptsStarted = true;
-    }
+    G_StartScripts();
     
     G_RunEvents();
     jass_runevents(level.vm);
@@ -323,10 +330,23 @@ static void G_ClientBegin(LPEDICT edict) {
         edict->client = client;
     }
 
-    client->ps.origin = (VECTOR2){ 0, 0 };
-    if (globals.num_edicts <= globals.max_clients) {
-        return;
+    client->ps.client_ui_state = CLIENT_UI_GAME;
+    if (!client->mapplayer) {
+        client->ps.origin = (VECTOR2){ 0, 0 };
     }
+    fprintf(stderr,
+            "G_ClientBegin: edict=%u player=%u team=%u race=%u color=%u start_location=%ld origin=(%.1f %.1f) name=\"%s\"\n",
+            (unsigned)(edict - globals.edicts),
+            (unsigned)client->ps.number,
+            (unsigned)client->ps.team,
+            (unsigned)client->ps.race,
+            (unsigned)client->ps.color,
+            (long)client->ps.start_location,
+            client->ps.origin.x,
+            client->ps.origin.y,
+            client->ps.name ? client->ps.name : "");
+    level.started = true;
+    G_StartScripts();
 
     UI_ShowGameInterface(edict);
 
@@ -337,8 +357,6 @@ static void G_ClientBegin(LPEDICT edict) {
 
     G_FowUpdate();
     G_FowSendFull(edict);
-    
-    level.started = true;
 }
 
 /* Return the game API vtable to the server.

@@ -43,8 +43,14 @@ void SetTileUV(LPCWAR3MAPVERTEX mv, DWORD tile, LPVERTEX vertices, LPCTEXTURE te
     float ux = 0.0f;
     
     if (tile == 15 && texture->width > texture->height) {
-        tile = mv->groundVariation;
-        ux = 0.5f;
+        if (mv->groundVariation <= 15) {
+            tile = mv->groundVariation;
+            ux = 0.5f;
+        } else if (mv->groundVariation == 16) {
+            tile = 15;
+        } else {
+            tile = 0;
+        }
     }
 
     vertices[0].texcoord.x = u * ((tile%4)+0)+ux;

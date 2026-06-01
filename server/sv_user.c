@@ -121,6 +121,13 @@ void SV_PlayerInfo_f(LPCLIENT cl, int argc, LPCSTR *argv) {
     /* Assign the client's game edict (Quake 2/3 pattern) */
     playernum = cl->playernum < ge->max_clients ? cl->playernum : CM_GetLocalPlayerNumber();
     cl->edict = EDICT_NUM(playernum);
+    fprintf(stderr,
+            "SV_PlayerInfo_f: client=%ld name=\"%s\" lobby_slot=%u player=%u edict=%u\n",
+            (long)(cl - svs.clients),
+            cl->name,
+            (unsigned)cl->lobby_slot,
+            (unsigned)playernum,
+            (unsigned)NUM_FOR_EDICT(cl->edict));
     MSG_WriteByte(&cl->netchan.message, svc_mirror);
     MSG_WriteString(&cl->netchan.message, "begin");
     Netchan_Transmit(NS_SERVER, &cl->netchan);

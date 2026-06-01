@@ -67,8 +67,7 @@ enum svc_ops {
 //    svc_deltapacketentities,    // [...]
     svc_frame,
     svc_mirror,
-    svc_lobby_setup,
-    svc_lobby_chat,
+    svc_gamecmd,                // [string command] [short payload_size] [payload]
     svc_fogofwar,
     
 // Unit UI data (Phase 8: HUD migration)

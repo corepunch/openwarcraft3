@@ -11,6 +11,27 @@
  */
 #include "client.h"
 
+static LPCSTR CL_LobbySlotTypeName(lobbySlotType_t type) {
+    switch (type) {
+        case LOBBY_SLOT_OPEN: return "open";
+        case LOBBY_SLOT_HUMAN: return "human";
+        case LOBBY_SLOT_COMPUTER: return "computer";
+        case LOBBY_SLOT_CLOSED: return "closed";
+    }
+    return "unknown";
+}
+
+static LPCSTR CL_PlayerRaceName(playerRace_t race) {
+    switch (race) {
+        case kPlayerRaceNone: return "none";
+        case kPlayerRaceHuman: return "human";
+        case kPlayerRaceOrc: return "orc";
+        case kPlayerRaceUndead: return "undead";
+        case kPlayerRaceNightElf: return "nightelf";
+    }
+    return "unknown";
+}
+
 /* Apply a stream of delta-encoded entity updates.  For each entity the server
  * sends only the fields that changed since the previous frame.  A U_REMOVE
  * flag signals that an entity should be removed from the local table. */
@@ -107,8 +128,34 @@ void CL_ParseFrame(LPSIZEBUF msg) {
 void CL_ParsePlayerInfo(LPSIZEBUF msg) {
     DWORD bits;
     DWORD plnum = MSG_ReadPlayerBits(msg, &bits);
+    DWORD old_number = cl.playerstate.number;
+    DWORD old_team = cl.playerstate.team;
+    DWORD old_color = cl.playerstate.color;
+    DWORD old_race = cl.playerstate.race;
+    DWORD old_ui_state = cl.playerstate.client_ui_state;
+    LONG old_start_location = cl.playerstate.start_location;
     MSG_ReadDeltaPlayerState(msg, &cl.playerstate, plnum, bits);
     VECTOR2 server_origin = cl.playerstate.origin;
+
+    if (old_number != cl.playerstate.number ||
+        old_team != cl.playerstate.team ||
+        old_color != cl.playerstate.color ||
+        old_race != cl.playerstate.race ||
+        old_ui_state != cl.playerstate.client_ui_state ||
+        old_start_location != cl.playerstate.start_location)
+    {
+        fprintf(stderr,
+                "CL_ParsePlayerInfo: player=%u team=%u race=%u color=%u start_location=%ld ui_state=%u origin=(%.1f %.1f) name=\"%s\"\n",
+                (unsigned)cl.playerstate.number,
+                (unsigned)cl.playerstate.team,
+                (unsigned)cl.playerstate.race,
+                (unsigned)cl.playerstate.color,
+                (long)cl.playerstate.start_location,
+                (unsigned)cl.playerstate.client_ui_state,
+                cl.playerstate.origin.x,
+                cl.playerstate.origin.y,
+                cl.playerstate.name ? cl.playerstate.name : "");
+    }
 
     cl.viewDef.camerastate[1] = cl.viewDef.camerastate[0];
     cl.viewDef.camerastate[0].origin.x = server_origin.x;
@@ -270,6 +317,29 @@ static void CL_UpdateFogTexture(void) {
     }
 }
 
+static void CL_LogFogOfWarFull(DWORD flags) {
+    DWORD cells = cl.fow.width * cl.fow.height;
+    DWORD visible = 0;
+    DWORD explored = 0;
+
+    if (!(flags & FOW_MSG_FULL) || !cl.fow.visible || !cl.fow.explored) {
+        return;
+    }
+    FOR_LOOP(i, cells) {
+        visible += cl.fow.visible[i] ? 1 : 0;
+        explored += cl.fow.explored[i] ? 1 : 0;
+    }
+    fprintf(stderr,
+            "CL_ParseFogOfWar: player=%u team=%u cells=%u visible=%u explored=%u grid=%ux%u\n",
+            (unsigned)cl.playerstate.number,
+            (unsigned)cl.playerstate.team,
+            (unsigned)cells,
+            (unsigned)visible,
+            (unsigned)explored,
+            (unsigned)cl.fow.width,
+            (unsigned)cl.fow.height);
+}
+
 static BYTE *CL_FogPlaneForStreamIndex(DWORD flags, DWORD stream_index) {
     DWORD index = 0;
 
@@ -383,6 +453,9 @@ void CL_ParseFogOfWar(LPSIZEBUF msg) {
     CL_UnpackFogRLE(payload, payload_bytes, flags, first_row, row_count);
     msg->readcount += payload_bytes;
     CL_UpdateFogTexture();
+    if ((flags & FOW_MSG_FULL) && first_row + row_count >= height) {
+        CL_LogFogOfWarFull(flags);
+    }
 }
 
 void CL_MirrorMessage(LPSIZEBUF msg) {
@@ -391,6 +464,10 @@ void CL_MirrorMessage(LPSIZEBUF msg) {
     if (!strcmp(buf, "begin")) {
         cls.state = *cl.configstrings[CS_WORLD] ? ca_active : ca_connected;
         cl.pending_begin = true;
+        fprintf(stderr,
+                "CL_MirrorMessage: begin received world=\"%s\" state=%d pending_begin=1\n",
+                cl.configstrings[CS_WORLD],
+                cls.state);
         return;
     }
     MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
@@ -435,6 +512,33 @@ static void CL_ParseLobbySetup(LPSIZEBUF msg) {
         slot->color = (DWORD)MSG_ReadByte(msg);
         MSG_ReadStringN(msg, slot->name, sizeof(slot->name));
     }
+    fprintf(stderr,
+            "CL_ParseLobbySetup: map=\"%s\" name=\"%s\" speed=%u slots=%u local_slot=%u revision=%u\n",
+            state.map_path,
+            state.map_name,
+            (unsigned)state.game_speed,
+            (unsigned)state.slot_count,
+            (unsigned)state.local_slot,
+            (unsigned)state.revision);
+    FOR_LOOP(i, state.slot_count) {
+        lobbySlot_t const *slot = &state.slots[i];
+
+        if (!slot->visible) {
+            continue;
+        }
+        fprintf(stderr,
+                "  client lobby slot %u%s: occupied=%d client=%u map_player=%u type=%s race=%s team=%u color=%u name=\"%s\"\n",
+                (unsigned)i,
+                i == state.local_slot ? " local" : "",
+                slot->occupied ? 1 : 0,
+                (unsigned)slot->client,
+                (unsigned)slot->map_player,
+                CL_LobbySlotTypeName(slot->type),
+                CL_PlayerRaceName(slot->race),
+                (unsigned)slot->team,
+                (unsigned)slot->color,
+                slot->name);
+    }
     if (!state.map_path[0] || !ui.UpdateLobbySetup) {
         return;
     }
@@ -456,6 +560,34 @@ static void CL_ParseLobbyChat(LPSIZEBUF msg) {
     }
     snprintf(command, sizeof(command), "menu_game_setup_chat %u %s", own ? 1u : 0u, text);
     ui.MenuCommand(command);
+}
+
+static void CL_ParseGameCommand(LPSIZEBUF msg) {
+    char command[MAX_PATHLEN] = { 0 };
+    sizeBuf_t payload;
+    int payload_size;
+    DWORD payload_start;
+
+    MSG_ReadStringN(msg, command, sizeof(command));
+    payload_size = MSG_ReadShort(msg);
+    if (payload_size < 0 || msg->readcount + (DWORD)payload_size > msg->cursize) {
+        msg->readcount = msg->cursize;
+        return;
+    }
+
+    payload_start = msg->readcount;
+    payload.data = msg->data + payload_start;
+    payload.maxsize = (DWORD)payload_size;
+    payload.cursize = (DWORD)payload_size;
+    payload.readcount = 0;
+
+    if (!strcmp(command, "lobby_setup")) {
+        CL_ParseLobbySetup(&payload);
+    } else if (!strcmp(command, "lobby_chat")) {
+        CL_ParseLobbyChat(&payload);
+    }
+
+    msg->readcount = payload_start + (DWORD)payload_size;
 }
 
 /* Dispatch loop for a complete server message buffer.  Each iteration reads
@@ -494,11 +626,8 @@ void CL_ParseServerMessage(LPSIZEBUF msg) {
             case svc_mirror:
                 CL_MirrorMessage(msg);
                 break;
-            case svc_lobby_setup:
-                CL_ParseLobbySetup(msg);
-                break;
-            case svc_lobby_chat:
-                CL_ParseLobbyChat(msg);
+            case svc_gamecmd:
+                CL_ParseGameCommand(msg);
                 break;
             case svc_fogofwar:
                 CL_ParseFogOfWar(msg);

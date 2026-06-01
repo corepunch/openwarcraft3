@@ -152,11 +152,31 @@ unit_createorfind(DWORD player,
         {
             ent->s.player = player;
             ent->s.angle = facing * M_PI / 180;
+            if (player < PLAYER_NEUTRAL_PASSIVE) {
+                fprintf(stderr,
+                        "unit_createorfind: reused %.4s for player=%u at=(%.1f %.1f)\n",
+                        (char const *)&unitid,
+                        (unsigned)player,
+                        location->x,
+                        location->y);
+            }
             return ent;
         }
     }
     LPEDICT unit = SP_SpawnAtLocation(unitid, player, location);
+    if (player < PLAYER_NEUTRAL_PASSIVE) {
+        fprintf(stderr,
+                "unit_createorfind: spawned %.4s for player=%u ent=%u at=(%.1f %.1f)\n",
+                (char const *)&unitid,
+                (unsigned)player,
+                unit ? (unsigned)(unit - globals.edicts) : 0,
+                location->x,
+                location->y);
+    }
 //    printf("%.4s\n", &unit->class_id);
+    if (!unit) {
+        return NULL;
+    }
     if (unit->stand) {
         unit->stand(unit);
     }
