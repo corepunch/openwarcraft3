@@ -67,6 +67,9 @@ static BOOL CreditsMenu_LoadScreen(void) {
             return false;
         }
         buffer = uiimport.MemAlloc(size);
+        if (!buffer) {
+            return false;
+        }
         memcpy(buffer, credits_menu_fdf, size);
         UI_ParseFDF_Buffer("UI\\FrameDef\\Glue\\CreditsMenu.fdf", buffer);
         uiimport.MemFree(buffer);

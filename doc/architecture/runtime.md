@@ -21,8 +21,8 @@ Load order:
 Command-line forms:
 
 ```bash
-build/bin/openwarcraft3 -data=data/Warcraft\ III -r_module=stdout
-build/bin/openwarcraft3 +set ui_start_command menu_main
+build/bin/openwarcraft3 -data data/Warcraft\ III +r_module stdout
+build/bin/openwarcraft3 -data data/Warcraft\ III +menu_main
 ```
 
 ## Core Cvars
@@ -36,7 +36,6 @@ build/bin/openwarcraft3 +set ui_start_command menu_main
 | `r_module` | `renderer` | Renderer backend name |
 | `ui_module` | `ui` | UI module name |
 | `g_module` | `game` | Game module name |
-| `ui_start_command` | `menu_main` | Initial client-side UI command |
 | `net_enabled` | `1` | Set to `0` for isolated UI/render diagnostics |
 | `com_frame_limit` | `0` | Exit after N frames; `0` means run forever |
 
@@ -72,19 +71,19 @@ Equivalent explicit command:
 
 ```bash
 build/bin/openwarcraft3 \
-  -data=data/Warcraft\ III \
-  -net_enabled=0 \
-  -r_module=stdout \
-  -ui_start_command=menu_main \
-  -com_frame_limit=1
+  -data data/Warcraft\ III \
+  +net_enabled 0 \
+  +r_module stdout \
+  +menu_main \
+  +com_frame_limit 1
 ```
 
 Important flags:
 
-- `-r_module=stdout` selects the text renderer.
-- `-net_enabled=0` skips UDP socket binding; this avoids port conflicts for menu-only checks.
-- `-ui_start_command=menu_main` chooses the UI command.
-- `-com_frame_limit=1` exits after one frame.
+- `+r_module stdout` selects the text renderer.
+- `+net_enabled 0` skips UDP socket binding; this avoids port conflicts for menu-only checks.
+- `+menu_main` chooses the UI starting command.
+- `+com_frame_limit 1` exits after one frame.
 
 One-frame runs with `com_frame_limit > 0` do not write `share/config.cfg`, so diagnostics do not change the next normal launch.
 

@@ -97,6 +97,7 @@ int MSG_ReadShort(LPSIZEBUF buf);
 int MSG_ReadLong(LPSIZEBUF buf);
 float MSG_ReadFloat(LPSIZEBUF buf);
 void MSG_ReadString(LPSIZEBUF buf, LPSTR value);
+void MSG_ReadStringN(LPSIZEBUF buf, LPSTR value, int maxlen);
 void MSG_ReadPos(LPSIZEBUF buf, LPVECTOR3 pos);
 void MSG_ReadDir(LPSIZEBUF buf, LPVECTOR3 dir);
 float MSG_ReadAngle(LPSIZEBUF buf);
