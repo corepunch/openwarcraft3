@@ -92,17 +92,11 @@ typedef enum {
     SHAPETYPE_CYLINDER,
 } MODELCOLLISIONSHAPETYPE;
 
-struct cmodel {
-    LPANIMATION animations;
-    DWORD num_animations;
-};
-
 extern struct server {
     serverState_t state;
     PATHSTR name;
     PATHSTR configstrings[MAX_CONFIGSTRINGS];
     BOOL syncstrings[MAX_CONFIGSTRINGS];
-    struct cmodel *models[MAX_MODELS];
     DWORD framenum;
     DWORD time;
     LPENTITYSTATE baselines;
@@ -139,8 +133,6 @@ int SV_FontIndex(LPCSTR name, DWORD fontSize);
 void SV_LoadModels(void);
 
 // sv_game.c
-struct cmodel *SV_LoadModel(LPCSTR filename);
-
 void SV_WriteGameCommand(LPSIZEBUF msg, LPCSTR command, sizeBuf_t const *payload);
 void SV_Multicast(LPCVECTOR3 origin, multicast_t to);
 void SV_InitGameProgs(void);

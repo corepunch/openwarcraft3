@@ -27,7 +27,7 @@ DWORD AddSpecialEffectTarget(LPJASS j) {
     LPCSTR modelName = jass_checkstring(j, 1);
     LPEDICT targetWidget = jass_checkhandle(j, 2, "widget");
     LPCSTR attachPointName = jass_checkstring(j, 3);
-    targetWidget->s.model2 = gi.ModelIndex(modelName);
+    targetWidget->s.model2 = G_RegisterModel(modelName);
     if (!strcmp(attachPointName, "overhead")) {
         targetWidget->s.renderfx |= RF_ATTACH_OVERHEAD;
     }

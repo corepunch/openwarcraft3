@@ -15,7 +15,7 @@ void devotionaura_command(LPEDICT clent) {
     LPEDICT effect = G_Spawn();
     effect->s.origin = unit->s.origin;
     effect->s.angle = unit->s.angle;
-    effect->s.model = gi.ModelIndex(devotionaura_target_art);
+    effect->s.model = G_RegisterModel(devotionaura_target_art);
     effect->goalentity = unit;
     effect->movetype = MOVETYPE_LINK;
     effect->think = M_MoveFrame;

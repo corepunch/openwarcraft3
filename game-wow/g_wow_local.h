@@ -58,6 +58,10 @@ extern struct game_export globals;
 extern edict_t wow_edicts[WOW_MAX_EDICTS];
 extern wowEntityLocal_t wow_entity_locals[WOW_MAX_EDICTS];
 
+int          G_RegisterModel(LPCSTR filename);
+LPCANIMATION G_GetAnimation(DWORD modelindex, LPCSTR animname);
+void         G_FreeModels(void);
+
 FLOAT Wow_Clamp(FLOAT value, FLOAT min_value, FLOAT max_value);
 DWORD Wow_Read32(BYTE const *p);
 FLOAT Wow_ReadFloat(BYTE const *p);

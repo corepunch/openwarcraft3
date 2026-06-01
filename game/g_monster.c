@@ -293,7 +293,7 @@ void SP_SpawnUnit(LPEDICT self) {
     LPCSTR uber_splat = UNIT_UBER_SPLAT(self->class_id);
     LPCSTR path_tex = UNIT_PATH_TEX(self->class_id);
     sprintf(model_filename, "%s.mdx", UNIT_MODEL(self->class_id));
-    self->s.model = gi.ModelIndex(model_filename);
+    self->s.model = G_RegisterModel(model_filename);
     self->s.splat = M_LoadUberSplat(uber_splat);
     if (UNIT_IS_BUILDING(self->class_id)) {
         M_SetBuildingShadow(self);
@@ -335,7 +335,7 @@ void SP_SpawnUnit(LPEDICT self) {
         self->attack1.origin.x = UNIT_ATTACK1_LAUNCH_X(self->class_id);
         self->attack1.origin.y = UNIT_ATTACK1_LAUNCH_Y(self->class_id);
         self->attack1.origin.z = UNIT_ATTACK1_LAUNCH_Z(self->class_id);
-        self->attack1.projectile.model = gi.ModelIndex(UNIT_ATTACK1_PROJECTILE_ART(self->class_id));
+        self->attack1.projectile.model = G_RegisterModel(UNIT_ATTACK1_PROJECTILE_ART(self->class_id));
         self->attack1.projectile.arc = UNIT_ATTACK1_PROJECTILE_ARC(self->class_id);
         self->attack1.projectile.speed = UNIT_ATTACK1_PROJECTILE_SPEED(self->class_id);        
 //        printf("%.4s %s\n", &self->class_id, UNIT_ATTACK1_PROJECTILE_ART(self->class_id));

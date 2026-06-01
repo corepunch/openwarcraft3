@@ -47,7 +47,7 @@ static void thunderbolt_fire(LPEDICT caster, LPEDICT target, DWORD code, DWORD l
     missile = G_Spawn();
     missile->s.origin = caster->s.origin;
     missile->s.angle = caster->s.angle;
-    missile->s.model = art ? gi.ModelIndex(art) : 0;
+    missile->s.model = art ? G_RegisterModel(art) : 0;
     missile->goalentity = target;
     missile->owner = caster;
     missile->velocity = speed / 1000.0f;

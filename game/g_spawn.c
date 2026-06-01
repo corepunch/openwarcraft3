@@ -118,7 +118,7 @@ static void SP_SpawnDoodad(LPEDICT edict) {
     } else {
         snprintf(buffer, sizeof(buffer), "%s%d.mdx", file, edict->variation);
     }
-    edict->s.model = gi.ModelIndex(buffer);
+    edict->s.model = G_RegisterModel(buffer);
     edict->movetype = MOVETYPE_NONE;
 }
 
@@ -135,7 +135,7 @@ static void SP_SpawnDestructable(LPEDICT edict) {
     } else {
         snprintf(buffer, sizeof(buffer), "%s%d.mdx", file, edict->variation);
     }
-    edict->s.model = gi.ModelIndex(buffer);
+    edict->s.model = G_RegisterModel(buffer);
     if (radius <= 0.0f) {
         radius = 50.0f;
     }

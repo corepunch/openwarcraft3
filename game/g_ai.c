@@ -24,20 +24,20 @@ void unit_moveindirection(LPEDICT self) {
 }
 
 void unit_setanimation(LPEDICT self, LPCSTR anim) {
-    self->animation = gi.GetAnimation(self->s.model, anim);
+    self->animation = G_GetAnimation(self->s.model, anim);
 }
 
 void unit_setmove(LPEDICT self, umove_t *move) {
     self->currentmove = move;
-    self->animation = gi.GetAnimation(self->s.model, move->animation);
+    self->animation = G_GetAnimation(self->s.model, move->animation);
     if (self->animation) {
         // skip
     } else if (strstr(move->animation, "run")) {
-        self->animation = gi.GetAnimation(self->s.model, "walk");
+        self->animation = G_GetAnimation(self->s.model, "walk");
     } else if (strstr(move->animation, "stand ")) {
-        self->animation = gi.GetAnimation(self->s.model, "stand");
+        self->animation = G_GetAnimation(self->s.model, "stand");
     } else if (strstr(move->animation, "attack ")) {
-        self->animation = gi.GetAnimation(self->s.model, "attack");
+        self->animation = G_GetAnimation(self->s.model, "attack");
     }
 }
 
