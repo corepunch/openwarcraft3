@@ -189,6 +189,13 @@ static void test_cmd_execute_text(LPCSTR text) {
     snprintf(captured_command, sizeof(captured_command), "%s", text ? text : "");
 }
 
+static LPCSTR test_cvar_string(LPCSTR name, LPCSTR fallback) {
+    if (name && !strcmp(name, "game_port")) {
+        return "27910";
+    }
+    return fallback;
+}
+
 static void load_ui_file(LPCSTR file_name) {
     uiImport_t saved = uiimport;
 
@@ -1282,6 +1289,56 @@ static void test_editbox_without_text_frame_click_focus_accepts_text_input(void)
     ASSERT(!UI_EditKey(13));
 }
 
+static void test_options_game_port_enter_applies_and_blurs(void) {
+    LPCSTR files[] = {
+        "UI\\FrameDef\\GlobalStrings.fdf",
+        "UI\\FrameDef\\Glue\\StandardTemplates.fdf",
+        "UI\\FrameDef\\Glue\\OptionsMenu.fdf",
+    };
+    LPFRAMEDEF root;
+    LPFRAMEDEF editbox;
+    uiImport_t saved = uiimport;
+
+    load_ui_files(files, sizeof(files) / sizeof(files[0]));
+
+    memset(&uiimport, 0, sizeof(uiimport));
+    uiimport.Printf = test_ui_printf;
+    uiimport.GetRenderer = test_get_renderer;
+    uiimport.Cmd_ExecuteText = test_cmd_execute_text;
+    uiimport.Cvar_String = test_cvar_string;
+    captured_command[0] = '\0';
+
+    ASSERT(optionsMenuScreen.load());
+    optionsMenuScreen.init();
+
+    root = UI_FindFrame("OptionsMenu");
+    editbox = UI_FindFrame("GamePortEditBox");
+    if (!require_not_null(root)) {
+        uiimport = saved;
+        return;
+    }
+    if (!require_not_null(editbox)) {
+        uiimport = saved;
+        return;
+    }
+
+    UI_SetEditValue(editbox, "27911");
+    ui_mouse.x = 130;
+    ui_mouse.y = 130;
+    ui_mouse.event = UI_MOUSE_LEFT_DOWN;
+    ui_mouse.button = 1;
+    ui_mouse.down = true;
+    UI_DrawFrame(root);
+    ASSERT(UI_EditHasFocus(editbox));
+
+    optionsMenuScreen.key_event(13, true);
+
+    ASSERT_STR_EQ(captured_command, "seta game_port 27911\n");
+    ASSERT(!UI_EditHasFocus(editbox));
+
+    uiimport = saved;
+}
+
 static void test_esc_menu_confirm_quit_panel_is_available(void) {
     LPFRAMEDEF panel;
     LPFRAMEDEF quit_button;
@@ -1517,6 +1574,7 @@ BEGIN_SUITE(ui_fdf)
     RUN_TEST(test_button1_dropdown_backdrop_gets_hover_highlight);
     RUN_TEST(test_editbox_without_text_frame_click_focus_accepts_text_input);
     RUN_TEST(test_esc_menu_confirm_quit_panel_is_available);
+    RUN_TEST(test_options_game_port_enter_applies_and_blurs);
     RUN_TEST(test_dialog_war3_supports_configurable_button_modes);
     RUN_TEST(test_main_menu_quit_dialog_commands_quit);
 END_SUITE()

@@ -384,6 +384,7 @@ test-assets: blpgen mdxgen mpqtool mdxtool | $(TESTS_DIR)
 		$(TESTS_SRC_DIR)/TestUI/FrameDef/UI/EscMenuMainPanel.fdf UI/FrameDef/UI/EscMenuMainPanel.fdf \
 		$(TESTS_SRC_DIR)/TestUI/FrameDef/Glue/StandardTemplates.fdf UI/FrameDef/Glue/StandardTemplates.fdf \
 		$(TESTS_SRC_DIR)/TestUI/FrameDef/Glue/MainMenu.fdf       UI/FrameDef/Glue/MainMenu.fdf \
+		$(TESTS_SRC_DIR)/TestUI/FrameDef/Glue/OptionsMenu.fdf    UI/FrameDef/Glue/OptionsMenu.fdf \
 		$(TESTS_SRC_DIR)/TestUI/FrameDef/Glue/DialogWar3.fdf     UI/FrameDef/Glue/DialogWar3.fdf \
 		$(TESTS_SRC_DIR)/Maps/Campaign/Human02.w3m               Maps/Campaign/Human02.w3m \
 		$(TESTS_SRC_DIR)/Maps/Campaign/Orc01.w3m                 Maps/Campaign/Orc01.w3m \
