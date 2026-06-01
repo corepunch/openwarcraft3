@@ -12,27 +12,6 @@ typedef struct ResourceBar_s {
     LPFRAMEDEF ResourceBarUpkeepText;
 } ResourceBar_t;
 
-static inline BOOL ResourceBar_Load(ResourceBar_t *out) {
-    BOOL ok = true;
-    LPFRAMEDEF bind_root;
-    if (!out) {
-        return false;
-    }
-    if (!UI_EnsureFDF("UI\\FrameDef\\GlobalStrings.fdf")) {
-        ok = false;
-    }
-    if (!UI_EnsureFDF("UI\\FrameDef\\UI\\ResourceBar.fdf")) {
-        ok = false;
-    }
-    memset(out, 0, sizeof(*out));
-    BZ_FDF_BIND_ROOT(out, ResourceBarFrame, "ResourceBarFrame");
-    bind_root = out->ResourceBarFrame;
-    BZ_FDF_BIND_CHILD(out, ResourceBarGoldText, bind_root, "ResourceBarGoldText");
-    BZ_FDF_BIND_CHILD(out, ResourceBarLumberText, bind_root, "ResourceBarLumberText");
-    BZ_FDF_BIND_CHILD(out, ResourceBarSupplyText, bind_root, "ResourceBarSupplyText");
-    BZ_FDF_BIND_CHILD(out, ResourceBarUpkeepText, bind_root, "ResourceBarUpkeepText");
-    return ok;
-}
 
 static inline BOOL ResourceBar_Bind(ResourceBar_t *out, LPFRAMEDEF bind_root) {
     BOOL ok = true;
@@ -50,6 +29,13 @@ static inline BOOL ResourceBar_Bind(ResourceBar_t *out, LPFRAMEDEF bind_root) {
     BZ_FDF_BIND_CHILD(out, ResourceBarSupplyText, bind_root, "ResourceBarSupplyText");
     BZ_FDF_BIND_CHILD(out, ResourceBarUpkeepText, bind_root, "ResourceBarUpkeepText");
     return ok;
+}
+
+static inline BOOL ResourceBar_Load(ResourceBar_t *out) {
+    return out &&
+           UI_EnsureFDF("UI\\FrameDef\\GlobalStrings.fdf") &&
+           UI_EnsureFDF("UI\\FrameDef\\UI\\ResourceBar.fdf") &&
+           ResourceBar_Bind(out, UI_FindFrame("ResourceBarFrame"));
 }
 
 #endif /* RESOURCEBAR_H */

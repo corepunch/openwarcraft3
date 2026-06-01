@@ -42,27 +42,18 @@ typedef struct MainMenu_s {
     LPFRAMEDEF ExitButtonText;
 } MainMenu_t;
 
-static inline BOOL MainMenu_Load(MainMenu_t *out) {
+
+static inline BOOL MainMenu_Bind(MainMenu_t *out, LPFRAMEDEF bind_root) {
     BOOL ok = true;
-    LPFRAMEDEF bind_root;
     if (!out) {
         return false;
     }
-    if (!UI_EnsureFDF("UI\\FrameDef\\GlobalStrings.fdf")) {
-        ok = false;
-    }
-    if (!UI_EnsureFDF("UI\\FrameDef\\UI\\EscMenuTemplates.fdf")) {
-        ok = false;
-    }
-    if (!UI_EnsureFDF("UI\\FrameDef\\Glue\\StandardTemplates.fdf")) {
-        ok = false;
-    }
-    if (!UI_EnsureFDF("UI\\FrameDef\\Glue\\MainMenu.fdf")) {
-        ok = false;
-    }
     memset(out, 0, sizeof(*out));
-    BZ_FDF_BIND_ROOT(out, MainMenuFrame, "MainMenuFrame");
-    bind_root = out->MainMenuFrame;
+    out->MainMenuFrame = bind_root;
+    if (!out->MainMenuFrame) {
+        BZ_FDF_REPORT_MISSING("MainMenuFrame");
+        ok = false;
+    }
     BZ_FDF_BIND_CHILD(out, WarCraftIIILogo, bind_root, "WarCraftIIILogo");
     BZ_FDF_BIND_CHILD(out, RealmSelect, bind_root, "RealmSelect");
     BZ_FDF_BIND_CHILD(out, RealmSelectText, out->RealmSelect, "RealmSelectText");
@@ -98,6 +89,15 @@ static inline BOOL MainMenu_Load(MainMenu_t *out) {
     BZ_FDF_BIND_CHILD(out, ExitButton, out->ExitBackdrop, "ExitButton");
     BZ_FDF_BIND_CHILD(out, ExitButtonText, out->ExitButton, "ExitButtonText");
     return ok;
+}
+
+static inline BOOL MainMenu_Load(MainMenu_t *out) {
+    return out &&
+           UI_EnsureFDF("UI\\FrameDef\\GlobalStrings.fdf") &&
+           UI_EnsureFDF("UI\\FrameDef\\UI\\EscMenuTemplates.fdf") &&
+           UI_EnsureFDF("UI\\FrameDef\\Glue\\StandardTemplates.fdf") &&
+           UI_EnsureFDF("UI\\FrameDef\\Glue\\MainMenu.fdf") &&
+           MainMenu_Bind(out, UI_FindFrame("MainMenuFrame"));
 }
 
 #endif /* MAINMENU_H */

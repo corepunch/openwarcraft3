@@ -104,7 +104,7 @@ make run-ui-text
 That expands to:
 
 ```bash
-build/bin/openwarcraft3 -data data/Warcraft\ III +net_enabled 0 +r_module stdout +com_frame_limit 1 +menu_main
+build/bin/openwarcraft3 -data data/Warcraft\ III +r_module stdout +com_frame_limit 1 +menu_main
 ```
 
 It prints calls such as `draw_portrait`, `draw_sprite`, `draw_image`, `draw_text`, and `draw_sys_text`, then exits after one frame.
@@ -125,7 +125,7 @@ Config load order:
 2. `share/default.cfg`
 3. `share/config.cfg`
 4. `share/autoexec.cfg`
-5. Command-line launch args such as `-data data/Warcraft\ III`, command-line cvars such as `+r_module stdout` or `+set net_enabled 0`, and queued commands such as `+map Maps\\Campaign\\Orc01.w3m` or `+menu_main`
+5. Command-line launch args such as `-data data/Warcraft\ III`, command-line cvars such as `+r_module stdout`, and queued commands such as `+map Maps\\Campaign\\Orc01.w3m` or `+menu_main`
 
 Common runtime cvars:
 
@@ -137,7 +137,6 @@ Common runtime cvars:
 | `r_module` | `"renderer"` | Renderer backend: `renderer` or `stdout` |
 | `ui_module` | `"ui"` | UI module name for the Quake-style module boundary |
 | `g_module` | `"game"` | Game module name for the server game boundary |
-| `net_enabled` | `"1"` | Disable with `0` for isolated UI/render diagnostics |
 | `com_frame_limit` | `"0"` | Exit after N frames; useful with `r_module=stdout` |
 
 ### (Optional) Download Warcraft III 1.29b assets

@@ -10,28 +10,6 @@ typedef struct MapListBox_s {
     LPFRAMEDEF MapListScrollBar;
 } MapListBox_t;
 
-static inline BOOL MapListBox_Load(MapListBox_t *out) {
-    BOOL ok = true;
-    LPFRAMEDEF bind_root;
-    if (!out) {
-        return false;
-    }
-    if (!UI_EnsureFDF("UI\\FrameDef\\GlobalStrings.fdf")) {
-        ok = false;
-    }
-    if (!UI_EnsureFDF("UI\\FrameDef\\Glue\\StandardTemplates.fdf")) {
-        ok = false;
-    }
-    if (!UI_EnsureFDF("UI\\FrameDef\\Glue\\MapListBox.fdf")) {
-        ok = false;
-    }
-    memset(out, 0, sizeof(*out));
-    BZ_FDF_BIND_ROOT(out, MapListBox, "MapListBox");
-    bind_root = out->MapListBox;
-    BZ_FDF_BIND_CHILD(out, MapListBoxBackdrop, bind_root, "MapListBoxBackdrop");
-    BZ_FDF_BIND_CHILD(out, MapListScrollBar, bind_root, "MapListScrollBar");
-    return ok;
-}
 
 static inline BOOL MapListBox_Bind(MapListBox_t *out, LPFRAMEDEF bind_root) {
     BOOL ok = true;
@@ -47,6 +25,14 @@ static inline BOOL MapListBox_Bind(MapListBox_t *out, LPFRAMEDEF bind_root) {
     BZ_FDF_BIND_CHILD(out, MapListBoxBackdrop, bind_root, "MapListBoxBackdrop");
     BZ_FDF_BIND_CHILD(out, MapListScrollBar, bind_root, "MapListScrollBar");
     return ok;
+}
+
+static inline BOOL MapListBox_Load(MapListBox_t *out) {
+    return out &&
+           UI_EnsureFDF("UI\\FrameDef\\GlobalStrings.fdf") &&
+           UI_EnsureFDF("UI\\FrameDef\\Glue\\StandardTemplates.fdf") &&
+           UI_EnsureFDF("UI\\FrameDef\\Glue\\MapListBox.fdf") &&
+           MapListBox_Bind(out, UI_FindFrame("MapListBox"));
 }
 
 #endif /* MAPLISTBOX_H */

@@ -107,25 +107,25 @@ static void test_data_command_line_sets_data_cvar(void) {
 }
 
 static void test_dash_cvars_are_not_command_line_cvars(void) {
-    LPCSTR argv[] = { "test_commands", "-net_enabled=0" };
+    LPCSTR argv[] = { "test_commands", "-r_module=stdout" };
 
     setup_command_tests();
-    Cvar_Set("net_enabled", "1");
+    Cvar_Set("r_module", "renderer");
     Cvar_ApplyCommandLine(2, argv);
 
-    ASSERT_STR_EQ(Cvar_String("net_enabled", NULL), "1");
+    ASSERT_STR_EQ(Cvar_String("r_module", NULL), "renderer");
 }
 
 static void test_plus_cvars_apply_immediately(void) {
-    LPCSTR argv[] = { "test_commands", "+net_enabled", "0", "+r_module", "stdout" };
+    LPCSTR argv[] = { "test_commands", "+game_port", "28010", "+r_module", "stdout" };
 
     setup_command_tests();
-    Cvar_Set("net_enabled", "1");
+    Cvar_Set("game_port", PORT_SERVER_STRING);
     Cvar_Set("r_module", "renderer");
     COM_InitArgv(5, argv);
     Cbuf_AddEarlyCommands(true);
 
-    ASSERT_STR_EQ(Cvar_String("net_enabled", NULL), "0");
+    ASSERT_STR_EQ(Cvar_String("game_port", NULL), "28010");
     ASSERT_STR_EQ(Cvar_String("r_module", NULL), "stdout");
 }
 

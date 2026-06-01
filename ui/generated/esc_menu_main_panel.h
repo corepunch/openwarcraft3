@@ -62,24 +62,18 @@ typedef struct EscMenuMainPanel_s {
     LPFRAMEDEF TipsOKButtonText;
 } EscMenuMainPanel_t;
 
-static inline BOOL EscMenuMainPanel_Load(EscMenuMainPanel_t *out) {
+
+static inline BOOL EscMenuMainPanel_Bind(EscMenuMainPanel_t *out, LPFRAMEDEF bind_root) {
     BOOL ok = true;
-    LPFRAMEDEF bind_root;
     if (!out) {
         return false;
     }
-    if (!UI_EnsureFDF("UI\\FrameDef\\GlobalStrings.fdf")) {
-        ok = false;
-    }
-    if (!UI_EnsureFDF("UI\\FrameDef\\UI\\EscMenuTemplates.fdf")) {
-        ok = false;
-    }
-    if (!UI_EnsureFDF("UI\\FrameDef\\UI\\EscMenuMainPanel.fdf")) {
-        ok = false;
-    }
     memset(out, 0, sizeof(*out));
-    BZ_FDF_BIND_ROOT(out, EscMenuMainPanel, "EscMenuMainPanel");
-    bind_root = out->EscMenuMainPanel;
+    out->EscMenuMainPanel = bind_root;
+    if (!out->EscMenuMainPanel) {
+        BZ_FDF_REPORT_MISSING("EscMenuMainPanel");
+        ok = false;
+    }
     BZ_FDF_BIND_CHILD(out, MainPanel, bind_root, "MainPanel");
     BZ_FDF_BIND_CHILD(out, WouldTheRealOptionsTitleTextPleaseStandUp, out->MainPanel, "WouldTheRealOptionsTitleTextPleaseStandUp");
     BZ_FDF_BIND_CHILD(out, InsideMainPanel, out->MainPanel, "InsideMainPanel");
@@ -135,6 +129,14 @@ static inline BOOL EscMenuMainPanel_Load(EscMenuMainPanel_t *out) {
     BZ_FDF_BIND_CHILD(out, TipsOKButton, out->InsideTipsPanel, "TipsOKButton");
     BZ_FDF_BIND_CHILD(out, TipsOKButtonText, out->TipsOKButton, "TipsOKButtonText");
     return ok;
+}
+
+static inline BOOL EscMenuMainPanel_Load(EscMenuMainPanel_t *out) {
+    return out &&
+           UI_EnsureFDF("UI\\FrameDef\\GlobalStrings.fdf") &&
+           UI_EnsureFDF("UI\\FrameDef\\UI\\EscMenuTemplates.fdf") &&
+           UI_EnsureFDF("UI\\FrameDef\\UI\\EscMenuMainPanel.fdf") &&
+           EscMenuMainPanel_Bind(out, UI_FindFrame("EscMenuMainPanel"));
 }
 
 #endif /* ESCMENUMAINPANEL_H */

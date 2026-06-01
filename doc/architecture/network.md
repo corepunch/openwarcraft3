@@ -66,40 +66,28 @@ int NET_GetPacket(NETSOURCE netsrc, netadr_t *from, LPSIZEBUF msg) {
 
 ## UDP (remote client)
 
-When the executable starts with `-connect=` it binds to an ephemeral port
-(port 0; the OS assigns one) and connects to the specified server over UDP.
-The server always listens on `PORT_SERVER` (27910).
+When the client searches LAN servers or starts a remote connection, it calls
+`NET_Config(true)`.  This opens a client socket on an ephemeral port.  When a
+LAN lobby is hosted, the server socket opens on `game_port`, defaulting to
+`PORT_SERVER` (27910).
 
-The UDP path shares the same framing as the loopback path: every datagram
-starts with a 4-byte **little-endian** length prefix, followed by the payload.
-The length is encoded/decoded with `memcpy` into a `uint32_t` to avoid
-strict-aliasing and alignment issues:
-
-```c
-// Encode length prefix (little-endian, no aliasing UB)
-uint32_t prefix = (uint32_t)length;
-unsigned char sendbuf[4 + MAX_MSGLEN];
-sendbuf[0] = (prefix      ) & 0xff;
-sendbuf[1] = (prefix >>  8) & 0xff;
-sendbuf[2] = (prefix >> 16) & 0xff;
-sendbuf[3] = (prefix >> 24) & 0xff;
-memcpy(sendbuf + 4, data, length);
-sendto(udp_socket, sendbuf, 4 + length, 0, ...);
-```
+UDP datagrams are sent raw, matching Quake 2.  An out-of-band packet begins
+with the normal `-1` message marker in the payload; there is no extra network
+length prefix.
 
 ## Initialisation
 
-`NET_Init(port)` is called once from `main.c` before any server or client
-code runs:
+`NET_Init()` is called once from `main.c` and only clears loopback state. UDP
+sockets are opened and closed through `NET_Config(multiplayer)`, matching
+Quake 2:
 
-| Mode | Port argument | Effect |
-|------|--------------|--------|
-| Listen server (`+map`) | `PORT_SERVER` (27910) | Bind UDP socket to 27910 so remote clients can find it |
-| Remote client (`-connect=`) | `0` | Bind UDP socket to OS-assigned ephemeral port |
+| Mode | Call | Effect |
+|------|------|--------|
+| Local map (`+map`) | `NET_Config(false)` or no multiplayer config | Loopback only; no UDP sockets |
+| LAN lobby host | `NET_Config(true)` | Server socket on `game_port`, client socket on an ephemeral port |
+| LAN search / remote connect | `NET_Config(true)` | Client socket on an ephemeral port, server socket available if hosting |
 
-If socket creation fails, `NET_Init` returns `0` and the process exits.
-
-`NET_Shutdown()` is called on exit to close the socket.
+`NET_Shutdown()` calls `NET_Config(false)` to close any open sockets.
 
 ## Connection handshake
 

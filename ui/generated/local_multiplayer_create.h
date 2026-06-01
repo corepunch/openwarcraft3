@@ -35,24 +35,18 @@ typedef struct LocalMultiplayerCreate_s {
     LPFRAMEDEF CancelButtonText;
 } LocalMultiplayerCreate_t;
 
-static inline BOOL LocalMultiplayerCreate_Load(LocalMultiplayerCreate_t *out) {
+
+static inline BOOL LocalMultiplayerCreate_Bind(LocalMultiplayerCreate_t *out, LPFRAMEDEF bind_root) {
     BOOL ok = true;
-    LPFRAMEDEF bind_root;
     if (!out) {
         return false;
     }
-    if (!UI_EnsureFDF("UI\\FrameDef\\GlobalStrings.fdf")) {
-        ok = false;
-    }
-    if (!UI_EnsureFDF("UI\\FrameDef\\Glue\\StandardTemplates.fdf")) {
-        ok = false;
-    }
-    if (!UI_EnsureFDF("UI\\FrameDef\\Glue\\LocalMultiplayerCreate.fdf")) {
-        ok = false;
-    }
     memset(out, 0, sizeof(*out));
-    BZ_FDF_BIND_ROOT(out, LocalMultiplayerCreate, "LocalMultiplayerCreate");
-    bind_root = out->LocalMultiplayerCreate;
+    out->LocalMultiplayerCreate = bind_root;
+    if (!out->LocalMultiplayerCreate) {
+        BZ_FDF_REPORT_MISSING("LocalMultiplayerCreate");
+        ok = false;
+    }
     BZ_FDF_BIND_CHILD(out, GameSettingsPanel, bind_root, "GameSettingsPanel");
     BZ_FDF_BIND_CHILD(out, GameSettingsTitle, out->GameSettingsPanel, "GameSettingsTitle");
     BZ_FDF_BIND_CHILD(out, GameSpeedLabel, out->GameSettingsPanel, "GameSpeedLabel");
@@ -81,6 +75,14 @@ static inline BOOL LocalMultiplayerCreate_Load(LocalMultiplayerCreate_t *out) {
     BZ_FDF_BIND_CHILD(out, CancelButton, out->CancelBackdrop, "CancelButton");
     BZ_FDF_BIND_CHILD(out, CancelButtonText, out->CancelButton, "CancelButtonText");
     return ok;
+}
+
+static inline BOOL LocalMultiplayerCreate_Load(LocalMultiplayerCreate_t *out) {
+    return out &&
+           UI_EnsureFDF("UI\\FrameDef\\GlobalStrings.fdf") &&
+           UI_EnsureFDF("UI\\FrameDef\\Glue\\StandardTemplates.fdf") &&
+           UI_EnsureFDF("UI\\FrameDef\\Glue\\LocalMultiplayerCreate.fdf") &&
+           LocalMultiplayerCreate_Bind(out, UI_FindFrame("LocalMultiplayerCreate"));
 }
 
 #endif /* LOCALMULTIPLAYERCREATE_H */

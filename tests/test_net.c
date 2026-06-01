@@ -4,8 +4,9 @@
  * Tests exercise the public NET_* and SZ_* / MSG_* APIs directly, without
  * touching the UDP socket.  All address arguments use NA_LOOPBACK so that
  * NET_SendPacket routes to the in-process ring buffer and no real socket is
- * required.  NET_Init() is intentionally not called so udp_socket stays at
- * -1, making NET_GetUDPPacket a safe no-op throughout.
+ * required.  NET_Config(true) is intentionally not called for the loopback
+ * tests so UDP sockets stay closed, making NET_GetUDPPacket a safe no-op
+ * throughout.
  *
  * Covered scenarios:
  *   loopback empty          — NET_GetPacket returns 0 on an idle buffer
@@ -28,6 +29,7 @@
 #include "../client/client.h"
 
 void test_client_stubs_init(void);
+void test_client_stubs_set_cvar(LPCSTR name, LPCSTR value);
 
 /* -----------------------------------------------------------------------
  * Helpers
@@ -201,6 +203,22 @@ static void test_loopback_na_ip_no_crash_without_socket(void) {
     netadr_t from;
     drain_loopback(NS_SERVER);
     ASSERT_EQ_INT(NET_GetPacket(NS_SERVER, &from, &msg), 0);
+}
+
+static void test_net_config_opens_and_closes_udp_sockets(void) {
+    test_client_stubs_set_cvar("game_port", "28030");
+    NET_Init();
+    NET_Config(false);
+    ASSERT(!NET_IsConfigured(NS_CLIENT));
+    ASSERT(!NET_IsConfigured(NS_SERVER));
+
+    NET_Config(true);
+    ASSERT(NET_IsConfigured(NS_CLIENT));
+    ASSERT(NET_IsConfigured(NS_SERVER));
+
+    NET_Config(false);
+    ASSERT(!NET_IsConfigured(NS_CLIENT));
+    ASSERT(!NET_IsConfigured(NS_SERVER));
 }
 
 /* -----------------------------------------------------------------------
@@ -558,6 +576,7 @@ void run_net_tests(void) {
     RUN_TEST(test_loopback_multiple_packets_in_order);
     RUN_TEST(test_loopback_server_to_client);
     RUN_TEST(test_loopback_na_ip_no_crash_without_socket);
+    RUN_TEST(test_net_config_opens_and_closes_udp_sockets);
     RUN_TEST(test_string_to_adr_ip_only);
     RUN_TEST(test_string_to_adr_ip_with_port);
     RUN_TEST(test_string_to_adr_port_overrides_default);

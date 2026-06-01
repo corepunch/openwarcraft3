@@ -12,6 +12,11 @@ void MemFree(HANDLE mem) {
     free(mem);
 }
 
+int Cvar_Integer(LPCSTR name, int fallback) {
+    (void)name;
+    return fallback;
+}
+
 static sizeBuf_t make_msg_buf(BYTE *buf, DWORD bufsz) {
     sizeBuf_t sb;
     SZ_Init(&sb, buf, bufsz);

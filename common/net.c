@@ -14,11 +14,12 @@
  *   local (same-process) server+client communication.  bufs[NS_CLIENT]
  *   carries client→server traffic; bufs[NS_SERVER] carries server→client.
  *
- * UDP socket:
- *   A single global non-blocking UDP socket is created by NET_Init().
- *   The server binds it to PORT_SERVER; clients bind to port 0 (OS-assigned
- *   ephemeral port).  All datagrams carry a 4-byte little-endian length
- *   prefix so the framing is identical to the loopback format.
+ * UDP sockets:
+ *   Matching Quake 2's ip_sockets[NS_CLIENT/NS_SERVER], NET_Config(true)
+ *   opens a server socket on game_port and a client socket on an ephemeral
+ *   port.  NET_Config(false) closes both sockets for local-only play.  UDP
+ *   datagrams are sent raw, exactly like Quake 2; only the in-process
+ *   loopback queue needs internal length framing.
  */
 #include <stdarg.h>
 #include <stdlib.h>
@@ -29,6 +30,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <string.h>
 
 #include "common.h"
 
@@ -85,7 +87,6 @@ int NET_GetLoopPacket(NETSOURCE netsrc, netadr_t *from, LPSIZEBUF msg) {
         ((char *)msg->data)[i] = buf->buffer[(buf->read++) % LOOPBACK_SIZE];
     }
     msg->cursize = size;
-    msg->maxsize = size;
     msg->readcount = 0;
 
     memset(from, 0, sizeof(*from));
@@ -97,26 +98,88 @@ int NET_GetLoopPacket(NETSOURCE netsrc, netadr_t *from, LPSIZEBUF msg) {
  * UDP socket
  * -------------------------------------------------------------------------*/
 
-static int udp_socket = -1;
+static int udp_sockets[2] = { -1, -1 };
 
-static void NET_SendUDPPacket(int length, const void *data, netadr_t to) {
-    if (udp_socket < 0)
+static LPCSTR NET_SourceName(NETSOURCE netsrc) {
+    return netsrc == NS_CLIENT ? "client" : "server";
+}
+
+static int NET_UDPSocket(unsigned short port) {
+    int newsocket;
+    int flag = 1;
+    struct sockaddr_in addr;
+
+    newsocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+    if (newsocket < 0) {
+        fprintf(stderr, "NET_UDPSocket: socket creation failed: %s\n", strerror(errno));
+        return -1;
+    }
+
+    setsockopt(newsocket, SOL_SOCKET, SO_BROADCAST, &flag, sizeof(flag));
+
+    memset(&addr, 0, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = INADDR_ANY;
+    addr.sin_port = htons(port);
+
+    if (bind(newsocket, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
+        fprintf(stderr, "NET_UDPSocket: bind failed on port %u: %s\n", port, strerror(errno));
+        close(newsocket);
+        return -1;
+    }
+
+    flag = fcntl(newsocket, F_GETFL, 0);
+    if (flag >= 0) {
+        fcntl(newsocket, F_SETFL, flag | O_NONBLOCK);
+    }
+
+    if (port) {
+        fprintf(stderr, "NET_UDPSocket: bound UDP 0.0.0.0:%u\n", (unsigned)port);
+    } else {
+        fprintf(stderr, "NET_UDPSocket: bound ephemeral client UDP port\n");
+    }
+    return newsocket;
+}
+
+static unsigned short NET_GamePort(void) {
+    int port = Cvar_Integer("game_port", PORT_SERVER);
+
+    if (port <= 0 || port > 65535) {
+        fprintf(stderr,
+                "Invalid game_port %d, using default %u\n",
+                port,
+                (unsigned)PORT_SERVER);
+        port = PORT_SERVER;
+    }
+    return (unsigned short)port;
+}
+
+static void NET_OpenIP(void) {
+    if (udp_sockets[NS_SERVER] < 0) {
+        unsigned short port = NET_GamePort();
+        fprintf(stderr, "NET_OpenIP: opening server socket on UDP port %u\n", (unsigned)port);
+        udp_sockets[NS_SERVER] = NET_UDPSocket(port);
+    }
+    if (udp_sockets[NS_CLIENT] < 0) {
+        fprintf(stderr, "NET_OpenIP: opening client socket on ephemeral UDP port\n");
+        udp_sockets[NS_CLIENT] = NET_UDPSocket(0);
+    }
+}
+
+static void NET_SendUDPPacket(NETSOURCE netsrc, int length, const void *data, netadr_t to) {
+    int sock = udp_sockets[netsrc];
+
+    if (sock < 0) {
+        fprintf(stderr,
+                "NET_SendUDPPacket: %s socket is closed, dropping packet to %s\n",
+                NET_SourceName(netsrc),
+                NET_AdrToString(&to));
         return;
+    }
     if (length <= 0 || length > MAX_MSGLEN) {
         fprintf(stderr, "NET_SendUDPPacket: bad packet length %d\n", length);
         return;
     }
-
-    // Packet format: [4-byte little-endian length][data]
-    static unsigned char sendbuf[MAX_MSGLEN + 4];
-    DWORD len_le = (DWORD)length;
-    // Write length as 4 bytes in explicit little-endian order to avoid
-    // strict-aliasing UB and ensure wire-level portability.
-    sendbuf[0] = (unsigned char)( len_le        & 0xff);
-    sendbuf[1] = (unsigned char)((len_le >>  8) & 0xff);
-    sendbuf[2] = (unsigned char)((len_le >> 16) & 0xff);
-    sendbuf[3] = (unsigned char)((len_le >> 24) & 0xff);
-    memcpy(sendbuf + 4, data, length);
 
     struct sockaddr_in addr;
     memset(&addr, 0, sizeof(addr));
@@ -128,98 +191,74 @@ static void NET_SendUDPPacket(int length, const void *data, netadr_t to) {
     }
     addr.sin_port = to.port;    // already in network byte order
 
-    if (sendto(udp_socket, sendbuf, length + 4, 0,
+    if (sendto(sock, data, length, 0,
                (struct sockaddr *)&addr, sizeof(addr)) < 0) {
-        fprintf(stderr, "NET_SendUDPPacket: sendto failed: %d\n", errno);
+        fprintf(stderr,
+                "NET_SendUDPPacket: sendto %s failed: %s\n",
+                NET_AdrToString(&to),
+                strerror(errno));
     }
 }
 
 static int NET_GetUDPPacket(NETSOURCE netsrc, netadr_t *from, LPSIZEBUF msg) {
-    (void)netsrc;
-    if (udp_socket < 0)
+    int sock = udp_sockets[netsrc];
+
+    if (sock < 0)
         return 0;
 
-    static unsigned char recvbuf[MAX_MSGLEN + 4];
     struct sockaddr_in srcaddr;
     socklen_t addrlen = sizeof(srcaddr);
 
-    int bytes = recvfrom(udp_socket, recvbuf, sizeof(recvbuf), 0,
+    int bytes = recvfrom(sock, msg->data, msg->maxsize, 0,
                          (struct sockaddr *)&srcaddr, &addrlen);
     if (bytes < 0) {
         if (errno != EAGAIN && errno != EWOULDBLOCK)
             fprintf(stderr, "NET_GetUDPPacket: recvfrom failed: %d\n", errno);
         return 0;
     }
-    if (bytes < 4)
-        return 0;
-
-    // Read the 4-byte little-endian length prefix via memcpy to avoid
-    // strict-aliasing UB and cope with potentially unaligned buffers.
-    DWORD size = 0;
-    size  = (DWORD)recvbuf[0];
-    size |= (DWORD)recvbuf[1] <<  8;
-    size |= (DWORD)recvbuf[2] << 16;
-    size |= (DWORD)recvbuf[3] << 24;
-    if ((int)(size + 4) > bytes || size >= MAX_MSGLEN) {
-        fprintf(stderr, "NET_GetUDPPacket: invalid packet size %u\n", size);
+    if (bytes == msg->maxsize) {
+        fprintf(stderr, "NET_GetUDPPacket: oversize packet from UDP socket\n");
         return 0;
     }
 
-    memcpy(msg->data, recvbuf + 4, size);
-    msg->cursize = size;
-    msg->maxsize = size;
+    msg->cursize = (DWORD)bytes;
     msg->readcount = 0;
 
     memset(from, 0, sizeof(*from));
     from->type = NA_IP;
     memcpy(from->ip, &srcaddr.sin_addr, 4);
     from->port = srcaddr.sin_port;  // keep in network byte order
-    return (int)size;
+    return bytes;
 }
 
 /* ---------------------------------------------------------------------------
  * Public API
  * -------------------------------------------------------------------------*/
 
-bool NET_Init(unsigned short port) {
+void NET_Init(void) {
     memset(loopbufs, 0, sizeof(loopbufs));
+}
 
-    udp_socket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-    if (udp_socket < 0) {
-        fprintf(stderr, "NET_Init: socket creation failed: %d\n", errno);
-        return false;
+void NET_Config(BOOL multiplayer) {
+    if (!multiplayer) {
+        FOR_LOOP(i, 2) {
+            if (udp_sockets[i] >= 0) {
+                fprintf(stderr, "NET_Config: closing %s UDP socket\n", NET_SourceName((NETSOURCE)i));
+                close(udp_sockets[i]);
+                udp_sockets[i] = -1;
+            }
+        }
+        return;
     }
+    NET_OpenIP();
+}
 
-    int flag = 1;
-    setsockopt(udp_socket, SOL_SOCKET, SO_REUSEADDR, &flag, sizeof(flag));
-    setsockopt(udp_socket, SOL_SOCKET, SO_BROADCAST, &flag, sizeof(flag));
-
-    struct sockaddr_in addr;
-    memset(&addr, 0, sizeof(addr));
-    addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = INADDR_ANY;
-    addr.sin_port = htons(port);
-
-    if (bind(udp_socket, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
-        fprintf(stderr, "NET_Init: bind failed on port %u: %d\n", port, errno);
-        close(udp_socket);
-        udp_socket = -1;
-        return false;
-    }
-
-    // Set non-blocking so NET_GetUDPPacket never stalls the main loop
-    int flags = fcntl(udp_socket, F_GETFL, 0);
-    if (flags >= 0)
-        fcntl(udp_socket, F_SETFL, flags | O_NONBLOCK);
-
-    return true;
+BOOL NET_IsConfigured(NETSOURCE netsrc) {
+    return netsrc <= NS_SERVER && udp_sockets[netsrc] >= 0;
 }
 
 void NET_Shutdown(void) {
-    if (udp_socket >= 0) {
-        close(udp_socket);
-        udp_socket = -1;
-    }
+    NET_Config(false);
 }
 
 bool NET_StringToAdr(LPCSTR s, unsigned short default_port, netadr_t *adr) {
@@ -236,6 +275,10 @@ bool NET_StringToAdr(LPCSTR s, unsigned short default_port, netadr_t *adr) {
     }
 
     memset(adr, 0, sizeof(*adr));
+    if (!strcmp(s, "localhost")) {
+        adr->type = NA_LOOPBACK;
+        return true;
+    }
     adr->type = NA_IP;
     adr->port = htons(port);
 
@@ -280,7 +323,7 @@ void NET_SendPacket(NETSOURCE netsrc, int length, const void *data, netadr_t to)
         break;
     case NA_IP:
     case NA_BROADCAST:
-        NET_SendUDPPacket(length, data, to);
+        NET_SendUDPPacket(netsrc, length, data, to);
         break;
     default:
         break;

@@ -89,6 +89,10 @@ static DWORD CL_UIGetNumEntities(void);
 static LPCENTITYSTATE CL_UIGetEntity(DWORD idx);
 static void CL_UIServerCommand(LPCSTR text);
 static void CL_UIRequestUnitUI(DWORD num_selected, DWORD *entity_nums);
+static void CL_LANRefreshServers(void);
+static DWORD CL_LANNumServers(void);
+static BOOL CL_LANServer(DWORD index, uiLanGame_t *out);
+static void CL_LANConnectServer(DWORD index);
 static LPCSTR CL_UIGetLoadingMap(void);
 static LPCMODEL CL_UIGetModel(DWORD idx);
 static LPCMODEL CL_UIGetPortrait(DWORD idx);
@@ -308,8 +312,133 @@ static void CL_UIRequestUnitUI(DWORD num_selected, DWORD *entity_nums) {
     }
 }
 
+#define CL_MAX_LAN_SERVERS 64
+
+static uiLanGame_t cl_lan_servers[CL_MAX_LAN_SERVERS];
+static DWORD cl_num_lan_servers;
+
+static void CL_InfoValue(LPCSTR info, LPCSTR key, LPSTR out, DWORD out_size) {
+    char needle[64];
+    LPCSTR cursor;
+    LPCSTR value;
+    LPCSTR end;
+    size_t len;
+
+    if (!out || out_size == 0) {
+        return;
+    }
+    out[0] = '\0';
+    if (!info || !key || !*key) {
+        return;
+    }
+
+    snprintf(needle, sizeof(needle), "\\%s\\", key);
+    cursor = strstr(info, needle);
+    if (!cursor) {
+        return;
+    }
+    value = cursor + strlen(needle);
+    end = strchr(value, '\\');
+    len = end ? (size_t)(end - value) : strlen(value);
+    if (len >= out_size) {
+        len = out_size - 1;
+    }
+    memcpy(out, value, len);
+    out[len] = '\0';
+}
+
+static void CL_LANRefreshServers(void) {
+    netadr_t adr;
+    unsigned short port = (unsigned short)Cvar_Integer("game_port", PORT_SERVER);
+
+    memset(cl_lan_servers, 0, sizeof(cl_lan_servers));
+    cl_num_lan_servers = 0;
+    fprintf(stderr, "CL_LANRefreshServers: opening UDP sockets and querying port %u\n", (unsigned)port);
+    NET_Config(true);
+
+    memset(&adr, 0, sizeof(adr));
+    adr.type = NA_BROADCAST;
+    adr.port = htons(port);
+    fprintf(stderr, "CL_LANRefreshServers: sending broadcast info query to %s\n", NET_AdrToString(&adr));
+    Netchan_OutOfBandPrint(NS_CLIENT, adr, "info");
+}
+
+static DWORD CL_LANNumServers(void) {
+    return cl_num_lan_servers;
+}
+
+static BOOL CL_LANServer(DWORD index, uiLanGame_t *out) {
+    if (!out || index >= cl_num_lan_servers) {
+        return false;
+    }
+    *out = cl_lan_servers[index];
+    return true;
+}
+
+static void CL_LANConnectServer(DWORD index) {
+    uiLanGame_t *game;
+    unsigned short port = (unsigned short)Cvar_Integer("game_port", PORT_SERVER);
+
+    if (index >= cl_num_lan_servers) {
+        return;
+    }
+    game = &cl_lan_servers[index];
+    Cvar_Set("connect", game->address);
+    CL_Connect(game->address, port);
+}
+
+static void CL_AddLANServer(const netadr_t *from, LPCSTR info) {
+    uiLanGame_t *game;
+    char value[128];
+    LPCSTR address;
+
+    if (!from || !info) {
+        return;
+    }
+    address = NET_AdrToString(from);
+    FOR_LOOP(i, cl_num_lan_servers) {
+        if (!strcmp(cl_lan_servers[i].address, address)) {
+            game = &cl_lan_servers[i];
+            goto update;
+        }
+    }
+    if (cl_num_lan_servers >= CL_MAX_LAN_SERVERS) {
+        fprintf(stderr, "CL_AddLANServer: ignoring %s, LAN server list is full\n", address);
+        return;
+    }
+    game = &cl_lan_servers[cl_num_lan_servers++];
+    memset(game, 0, sizeof(*game));
+    snprintf(game->address, sizeof(game->address), "%s", address);
+
+update:
+    CL_InfoValue(info, "hostname", game->hostname, sizeof(game->hostname));
+    CL_InfoValue(info, "mapname", game->mapname, sizeof(game->mapname));
+    CL_InfoValue(info, "players", value, sizeof(value));
+    game->players = (DWORD)atoi(value);
+    CL_InfoValue(info, "maxplayers", value, sizeof(value));
+    game->maxPlayers = (DWORD)atoi(value);
+    CL_InfoValue(info, "speed", value, sizeof(value));
+    game->speed = (DWORD)atoi(value);
+    CL_InfoValue(info, "slots", value, sizeof(value));
+    game->slots = (DWORD)atoi(value);
+    if (!game->hostname[0]) {
+        snprintf(game->hostname, sizeof(game->hostname), "%s", "OpenWarcraft3");
+    }
+    fprintf(stderr,
+            "CL_AddLANServer: %s hostname=\"%s\" map=\"%s\" players=%u/%u\n",
+            game->address,
+            game->hostname,
+            game->mapname,
+            (unsigned)game->players,
+            (unsigned)game->maxPlayers);
+}
+
 static LPCSTR CL_UIGetLoadingMap(void) {
     return cl.loading_map;
+}
+
+static void CL_UICvarSet(LPCSTR name, LPCSTR value) {
+    Cvar_Set(name, value);
 }
 
 static LPCSTR CL_UIGetLoadingStatus(void) {
@@ -476,6 +605,11 @@ void CL_Init(void) {
         .Cmd_ExecuteText = Cbuf_AddText,
         .ServerCommand = CL_UIServerCommand,
         .Cvar_String = Cvar_String,
+        .Cvar_Set = CL_UICvarSet,
+        .LANRefreshServers = CL_LANRefreshServers,
+        .LANNumServers = CL_LANNumServers,
+        .LANServer = CL_LANServer,
+        .LANConnectServer = CL_LANConnectServer,
         .GetLoadingMap = CL_UIGetLoadingMap,
         .GetLoadingStatus = CL_UIGetLoadingStatus,
         .GetLoadingProgress = CL_UIGetLoadingProgress,
@@ -527,9 +661,9 @@ void CL_Init(void) {
 void CL_ConnectionlessPacket(const netadr_t *from, LPSIZEBUF msg) {
     char payload[1024] = { 0 };
     char command[256] = { 0 };
+    char *info;
     DWORD length;
 
-    (void)from;
     if (msg->cursize <= 4) {
         return;
     }
@@ -539,6 +673,11 @@ void CL_ConnectionlessPacket(const netadr_t *from, LPSIZEBUF msg) {
     }
     memcpy(payload, msg->data + 4, length);
     sscanf(payload, "%255s", command);
+    if (!strcmp(command, "info")) {
+        info = strchr(payload, '\n');
+        CL_AddLANServer(from, info ? info + 1 : "");
+        return;
+    }
     if (strcmp(command, "client_connect")) {
         return;
     }
@@ -546,6 +685,19 @@ void CL_ConnectionlessPacket(const netadr_t *from, LPSIZEBUF msg) {
     MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
     MSG_WriteString(&cls.netchan.message, "new");
     cls.state = ca_connected;
+}
+
+static void CL_ReadPacketMessage(const netadr_t *from, LPSIZEBUF msg, int length) {
+    if (length >= 4) {
+        int hdr;
+
+        memcpy(&hdr, msg->data, sizeof(hdr));
+        if (hdr == -1) {
+            CL_ConnectionlessPacket(from, msg);
+            return;
+        }
+    }
+    CL_ParseServerMessage(msg);
 }
 
 /* Read all available server packets from the network buffer and dispatch each
@@ -560,20 +712,12 @@ void CL_ReadPackets(void) {
     };
     netadr_t from;
     int r;
-    while ((r = (cls.netchan.remote_address.type == NA_LOOPBACK
-                 ? NET_GetLoopPacket(NS_CLIENT, &from, &net_message)
-                 : NET_GetPacket(NS_CLIENT, &from, &net_message))) != 0) {
-        // Guard: need at least 4 bytes for the OOB marker.
-        // Read the header via memcpy to avoid strict-aliasing UB.
-        if (r >= 4) {
-            int hdr;
-            memcpy(&hdr, net_message.data, sizeof(hdr));
-            if (hdr == -1) {
-                CL_ConnectionlessPacket(&from, &net_message);
-                continue;
-            }
-        }
-        CL_ParseServerMessage(&net_message);
+
+    while ((r = NET_GetLoopPacket(NS_CLIENT, &from, &net_message)) != 0) {
+        CL_ReadPacketMessage(&from, &net_message, r);
+    }
+    while ((r = NET_GetPacket(NS_CLIENT, &from, &net_message)) != 0) {
+        CL_ReadPacketMessage(&from, &net_message, r);
     }
 }
 
@@ -589,6 +733,9 @@ void CL_SendCmd(void) {
  * "client_connect" packet which triggers CL_ConnectionlessPacket(). */
 void CL_Connect(LPCSTR host, unsigned short port) {
     netadr_t adr;
+
+    fprintf(stderr, "CL_Connect: opening UDP sockets for %s:%u\n", host, (unsigned)port);
+    NET_Config(true);
     if (!NET_StringToAdr(host, port, &adr)) {
         fprintf(stderr, "CL_Connect: bad server address \"%s\"\n", host);
         return;

@@ -21,39 +21,6 @@ typedef struct LoadingScreen_s {
     LPFRAMEDEF LoadingMeleePlayerContainer;
 } LoadingScreen_t;
 
-static inline BOOL LoadingScreen_Load(LoadingScreen_t *out) {
-    BOOL ok = true;
-    LPFRAMEDEF bind_root;
-    if (!out) {
-        return false;
-    }
-    if (!UI_EnsureFDF("UI\\FrameDef\\GlobalStrings.fdf")) {
-        ok = false;
-    }
-    if (!UI_EnsureFDF("UI\\FrameDef\\Glue\\StandardTemplates.fdf")) {
-        ok = false;
-    }
-    if (!UI_EnsureFDF("UI\\FrameDef\\Glue\\Loading.fdf")) {
-        ok = false;
-    }
-    memset(out, 0, sizeof(*out));
-    BZ_FDF_BIND_ROOT(out, Loading, "Loading");
-    bind_root = out->Loading;
-    BZ_FDF_BIND_CHILD(out, LoadingBackground, bind_root, "LoadingBackground");
-    BZ_FDF_BIND_CHILD(out, LoadingBar, bind_root, "LoadingBar");
-    BZ_FDF_BIND_CHILD(out, LoadingBarText, out->LoadingBar, "LoadingBarText");
-    BZ_FDF_BIND_CHILD(out, LoadingCustomPanel, bind_root, "LoadingCustomPanel");
-    BZ_FDF_BIND_CHILD(out, LoadingTitleText, out->LoadingCustomPanel, "LoadingTitleText");
-    BZ_FDF_BIND_CHILD(out, LoadingSubtitleText, out->LoadingCustomPanel, "LoadingSubtitleText");
-    BZ_FDF_BIND_CHILD(out, LoadingText, out->LoadingCustomPanel, "LoadingText");
-    BZ_FDF_BIND_CHILD(out, LoadingMeleePanel, bind_root, "LoadingMeleePanel");
-    BZ_FDF_BIND_CHILD(out, MinimapImage, out->LoadingMeleePanel, "MinimapImage");
-    BZ_FDF_BIND_CHILD(out, LoadingMeleeMapName, out->LoadingMeleePanel, "LoadingMeleeMapName");
-    BZ_FDF_BIND_CHILD(out, LoadingMeleeGameTypeLabel, out->LoadingMeleePanel, "LoadingMeleeGameTypeLabel");
-    BZ_FDF_BIND_CHILD(out, LoadingMeleeGameTypeValue, out->LoadingMeleePanel, "LoadingMeleeGameTypeValue");
-    BZ_FDF_BIND_CHILD(out, LoadingMeleePlayerContainer, out->LoadingMeleePanel, "LoadingMeleePlayerContainer");
-    return ok;
-}
 
 static inline BOOL LoadingScreen_Bind(LoadingScreen_t *out, LPFRAMEDEF bind_root) {
     BOOL ok = true;
@@ -80,6 +47,14 @@ static inline BOOL LoadingScreen_Bind(LoadingScreen_t *out, LPFRAMEDEF bind_root
     BZ_FDF_BIND_CHILD(out, LoadingMeleeGameTypeValue, out->LoadingMeleePanel, "LoadingMeleeGameTypeValue");
     BZ_FDF_BIND_CHILD(out, LoadingMeleePlayerContainer, out->LoadingMeleePanel, "LoadingMeleePlayerContainer");
     return ok;
+}
+
+static inline BOOL LoadingScreen_Load(LoadingScreen_t *out) {
+    return out &&
+           UI_EnsureFDF("UI\\FrameDef\\GlobalStrings.fdf") &&
+           UI_EnsureFDF("UI\\FrameDef\\Glue\\StandardTemplates.fdf") &&
+           UI_EnsureFDF("UI\\FrameDef\\Glue\\Loading.fdf") &&
+           LoadingScreen_Bind(out, UI_FindFrame("Loading"));
 }
 
 #endif /* LOADINGSCREEN_H */

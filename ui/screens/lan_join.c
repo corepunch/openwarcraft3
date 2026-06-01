@@ -1,5 +1,5 @@
 /*
- * ui/screens/lan_join.c - LAN create-game map selection screen.
+ * ui/screens/lan_join.c - LAN browser and create-game map selection screens.
  */
 
 #include <stdlib.h>
@@ -8,27 +8,49 @@
 #include <strings.h>
 #endif
 
+#ifndef SDLK_RETURN
+#define SDLK_RETURN 13
+#define SDLK_KP_ENTER 1073741912
+#endif
+
 #include "../ui_local.h"
 #include "../ui_screen.h"
+#include "../generated/local_multiplayer_join.h"
 #include "../generated/local_multiplayer_create.h"
 #include "../generated/map_list_box.h"
 #include "../generated/map_info_pane.h"
 
 #define LAN_VISIBLE_MAPS 14
+#define LAN_VISIBLE_GAMES 11
 #define LAN_FILELIST_SIZE 32768
+#define LAN_PLAYER_NAME_DEFAULT "Player"
+#define LAN_PLAYER_NAME_MAX_CHARS 20
+#define LAN_REFRESH_MSEC 1500
+
+typedef enum {
+    LAN_MODE_BROWSER,
+    LAN_MODE_CREATE,
+} lanMode_t;
 
 typedef struct lan_join_state_s {
-    LocalMultiplayerCreate_t frames;
+    LocalMultiplayerJoin_t join_frames;
+    LocalMultiplayerCreate_t create_frames;
+    lanMode_t mode;
+    uiMapListState_t games;
     uiMapListState_t maps;
     BOOL ready;
     LPFRAMEDEF root;
+    LPFRAMEDEF join_button;
     LPFRAMEDEF play_button;
     MapListBox_t map_list_template;
-    MapListBox_t map_list_box;
+    MapListBox_t game_list_box;
+    MapListBox_t create_map_list_box;
     MapInfoPane_t map_info_template;
-    MapInfoPane_t map_info_pane;
+    MapInfoPane_t game_map_info_pane;
+    MapInfoPane_t create_map_info_pane;
     LPFRAMEDEF game_speed_slider;
     LPFRAMEDEF game_speed_value;
+    int refresh_time;
 } lan_join_state_t;
 
 static lan_join_state_t lan;
@@ -36,7 +58,10 @@ static lan_join_state_t lan;
 static BOOL LANJoin_LoadScreen(void) {
     BOOL ok = true;
 
-    ok = LocalMultiplayerCreate_Load(&lan.frames) && ok;
+    ok = UI_EnsureFDF("UI\\FrameDef\\GlobalStrings.fdf") && ok;
+    ok = UI_EnsureFDF("UI\\FrameDef\\Glue\\StandardTemplates.fdf") && ok;
+    ok = LocalMultiplayerJoin_Load(&lan.join_frames) && ok;
+    ok = LocalMultiplayerCreate_Load(&lan.create_frames) && ok;
     ok = MapListBox_Load(&lan.map_list_template) && ok;
     ok = MapInfoPane_Load(&lan.map_info_template) && ok;
     return ok;
@@ -231,14 +256,7 @@ static void LAN_SetTextIfPresent(LPFRAMEDEF frame, LPCSTR format, ...) {
     UI_SetText(frame, "%s", text);
 }
 
-static LPCSTR LAN_GameSpeedText(void) {
-    int value;
-
-    if (!lan.game_speed_slider) {
-        return UI_GetString("FAST");
-    }
-
-    value = (int)floorf(lan.game_speed_slider->Slider.InitialValue + 0.5f);
+static LPCSTR LAN_GameSpeedValueText(DWORD value) {
     switch (value) {
         case 0:
             return UI_GetString("SLOW");
@@ -250,14 +268,69 @@ static LPCSTR LAN_GameSpeedText(void) {
     }
 }
 
+static LPCSTR LAN_PlayerName(void) {
+    LPCSTR name = uiimport.Cvar_String
+        ? uiimport.Cvar_String("name", LAN_PLAYER_NAME_DEFAULT)
+        : LAN_PLAYER_NAME_DEFAULT;
+    return name && name[0] ? name : LAN_PLAYER_NAME_DEFAULT;
+}
+
+static BOOL LAN_HasVisibleText(LPCSTR text) {
+    if (!text) {
+        return false;
+    }
+    while (*text) {
+        if (*text > ' ') {
+            return true;
+        }
+        text++;
+    }
+    return false;
+}
+
+static void LAN_InitPlayerNameEditBox(void) {
+    if (!lan.join_frames.PlayerNameEditBox) {
+        return;
+    }
+    lan.join_frames.PlayerNameEditBox->Edit.MaxChars = LAN_PLAYER_NAME_MAX_CHARS;
+    UI_SetEditValue(lan.join_frames.PlayerNameEditBox, LAN_PlayerName());
+}
+
+void LAN_ApplyPlayerName(void) {
+    LPCSTR text;
+
+    if (!lan.join_frames.PlayerNameEditBox) {
+        return;
+    }
+    text = UI_EditValue(lan.join_frames.PlayerNameEditBox);
+    if (!LAN_HasVisibleText(text)) {
+        text = LAN_PLAYER_NAME_DEFAULT;
+        UI_SetEditValue(lan.join_frames.PlayerNameEditBox, text);
+    }
+    if (uiimport.Cvar_Set) {
+        uiimport.Cvar_Set("name", text);
+    }
+}
+
+static LPCSTR LAN_GameSpeedText(void) {
+    int value;
+
+    if (!lan.game_speed_slider) {
+        return UI_GetString("FAST");
+    }
+
+    value = (int)floorf(lan.game_speed_slider->Slider.InitialValue + 0.5f);
+    return LAN_GameSpeedValueText((DWORD)value);
+}
+
 static void LAN_UpdateGameSpeed(void) {
     LAN_SetTextIfPresent(lan.game_speed_value, "%s", LAN_GameSpeedText());
 }
 
-static void LAN_BindMapInfoPane(LPFRAMEDEF container) {
+static void LAN_BindMapInfoPane(LPFRAMEDEF container, MapInfoPane_t *pane) {
     LPFRAMEDEF root;
 
-    if (lan.map_info_pane.MapInfoPane || !container) {
+    if (!pane || pane->MapInfoPane || !container) {
         return;
     }
 
@@ -267,18 +340,22 @@ static void LAN_BindMapInfoPane(LPFRAMEDEF container) {
     }
 
     root = UI_CloneFrameTree(lan.map_info_template.MapInfoPane, container);
-    if (!root || !MapInfoPane_Bind(&lan.map_info_pane, root)) {
+    if (!root || !MapInfoPane_Bind(pane, root)) {
         return;
     }
-    UI_SetPoint(lan.map_info_pane.MapInfoPane, FRAMEPOINT_TOPLEFT, container, FRAMEPOINT_TOPLEFT, 0.0f, 0.0f);
-    UI_SetPoint(lan.map_info_pane.MapInfoPane, FRAMEPOINT_BOTTOMRIGHT, container, FRAMEPOINT_BOTTOMRIGHT, 0.0f, 0.0f);
-    UI_LayoutMapInfoPane(lan.map_info_pane.MapInfoPane);
+    UI_SetPoint(pane->MapInfoPane, FRAMEPOINT_TOPLEFT, container, FRAMEPOINT_TOPLEFT, 0.0f, 0.0f);
+    UI_SetPoint(pane->MapInfoPane, FRAMEPOINT_BOTTOMRIGHT, container, FRAMEPOINT_BOTTOMRIGHT, 0.0f, 0.0f);
+    UI_LayoutMapInfoPane(pane->MapInfoPane);
 }
 
-static void LAN_CreateMapListFrame(LPFRAMEDEF container, LPFRAMEDEF label) {
+static void LAN_CreateMapListFrame(LPFRAMEDEF container,
+                                   LPFRAMEDEF label,
+                                   MapListBox_t *list_box,
+                                   uiMapListState_t *state,
+                                   DWORD visible_rows) {
     LPFRAMEDEF root;
 
-    if (lan.map_list_box.MapListBox || !container) {
+    if (!list_box || !state || list_box->MapListBox || !container) {
         return;
     }
     if (!lan.map_list_template.MapListBox) {
@@ -286,49 +363,117 @@ static void LAN_CreateMapListFrame(LPFRAMEDEF container, LPFRAMEDEF label) {
         return;
     }
     root = UI_CloneFrameTree(lan.map_list_template.MapListBox, container);
-    if (!root || !MapListBox_Bind(&lan.map_list_box, root)) {
+    if (!root || !MapListBox_Bind(list_box, root)) {
         return;
     }
-    UI_SetPoint(lan.map_list_box.MapListBox, FRAMEPOINT_TOPLEFT, container, FRAMEPOINT_TOPLEFT, 0.0f, 0.0f);
-    UI_SetPoint(lan.map_list_box.MapListBox, FRAMEPOINT_BOTTOMRIGHT, container, FRAMEPOINT_BOTTOMRIGHT, 0.0f, 0.0f);
-    UI_BindMapList(lan.map_list_box.MapListBox, &lan.maps, label, LAN_VISIBLE_MAPS, "menu_lan_select %u");
+    UI_SetPoint(list_box->MapListBox, FRAMEPOINT_TOPLEFT, container, FRAMEPOINT_TOPLEFT, 0.0f, 0.0f);
+    UI_SetPoint(list_box->MapListBox, FRAMEPOINT_BOTTOMRIGHT, container, FRAMEPOINT_BOTTOMRIGHT, 0.0f, 0.0f);
+    UI_BindMapList(list_box->MapListBox, state, label, visible_rows, "menu_lan_select %u");
 }
 
-static void LAN_UpdateMapInfo(void) {
+static void LAN_UpdateMapInfo(MapInfoPane_t *pane, uiMapListState_t *items) {
     uiMapListItem_t *item;
 
-    if (lan.maps.count == 0 || lan.maps.selected >= lan.maps.count) {
-        UI_SetHidden(lan.map_info_pane.MinimapImage, true);
-        LAN_SetTextIfPresent(lan.map_info_pane.MaxPlayersValue, " ");
-        LAN_SetTextIfPresent(lan.map_info_pane.MapNameValue, " ");
-        LAN_SetTextIfPresent(lan.map_info_pane.SuggestedPlayersValue, "%s", UI_GetString("UNKNOWNMAP_SUGGESTEDPLAYERS"));
-        LAN_SetTextIfPresent(lan.map_info_pane.MapSizeValue, "%s", UI_GetString("UNKNOWNMAP_MAPSIZE"));
-        LAN_SetTextIfPresent(lan.map_info_pane.MapTilesetValue, "%s", UI_GetString("UNKNOWNMAP_TILESET"));
-        LAN_SetTextIfPresent(lan.map_info_pane.MapDescValue, "%s", UI_GetString("UNKNOWNMAP_DESCRIPTION"));
+    if (!pane || !items) {
+        return;
+    }
+    if (items->count == 0 || items->selected >= items->count) {
+        UI_SetHidden(pane->MinimapImage, true);
+        LAN_SetTextIfPresent(pane->MaxPlayersValue, " ");
+        LAN_SetTextIfPresent(pane->MapNameValue, " ");
+        LAN_SetTextIfPresent(pane->SuggestedPlayersValue, "%s", UI_GetString("UNKNOWNMAP_SUGGESTEDPLAYERS"));
+        LAN_SetTextIfPresent(pane->MapSizeValue, "%s", UI_GetString("UNKNOWNMAP_MAPSIZE"));
+        LAN_SetTextIfPresent(pane->MapTilesetValue, "%s", UI_GetString("UNKNOWNMAP_TILESET"));
+        LAN_SetTextIfPresent(pane->MapDescValue, "%s", UI_GetString("UNKNOWNMAP_DESCRIPTION"));
         return;
     }
 
-    item = &lan.maps.items[lan.maps.selected];
-    if (lan.map_info_pane.MinimapImage && uiimport.FindMapPreviewTexture) {
+    item = &items->items[items->selected];
+    if (pane->MinimapImage && uiimport.FindMapPreviewTexture) {
         PATHSTR preview;
 
         if (uiimport.FindMapPreviewTexture(item->path, preview, sizeof(preview))) {
-            UI_SetTexture(lan.map_info_pane.MinimapImage, preview, false);
-            UI_SetHidden(lan.map_info_pane.MinimapImage, false);
+            UI_SetTexture(pane->MinimapImage, preview, false);
+            UI_SetHidden(pane->MinimapImage, false);
         } else {
-            UI_SetHidden(lan.map_info_pane.MinimapImage, true);
+            UI_SetHidden(pane->MinimapImage, true);
         }
     }
-    LAN_SetTextIfPresent(lan.map_info_pane.MaxPlayersValue, "%u", (unsigned)item->players);
-    LAN_SetTextIfPresent(lan.map_info_pane.MapNameValue, "%s", item->name[0] ? item->name : item->path);
-    LAN_SetTextIfPresent(lan.map_info_pane.SuggestedPlayersValue, "%s", item->suggestedPlayers);
-    LAN_SetTextIfPresent(lan.map_info_pane.MapSizeValue, "%s", item->mapSize);
-    LAN_SetTextIfPresent(lan.map_info_pane.MapTilesetValue, "%s", item->tileset);
-    LAN_SetTextIfPresent(lan.map_info_pane.MapDescValue, "%s", item->description);
+    LAN_SetTextIfPresent(pane->MaxPlayersValue, "%u", (unsigned)item->players);
+    LAN_SetTextIfPresent(pane->MapNameValue, "%s", item->name[0] ? item->name : item->path);
+    LAN_SetTextIfPresent(pane->SuggestedPlayersValue, "%s", item->suggestedPlayers);
+    LAN_SetTextIfPresent(pane->MapSizeValue, "%s", item->mapSize);
+    LAN_SetTextIfPresent(pane->MapTilesetValue, "%s", item->tileset);
+    LAN_SetTextIfPresent(pane->MapDescValue, "%s", item->description);
+}
+
+static void LAN_LoadGames(void) {
+    DWORD count;
+
+    memset(&lan.games, 0, sizeof(lan.games));
+    if (!uiimport.LANNumServers || !uiimport.LANServer) {
+        return;
+    }
+
+    count = uiimport.LANNumServers();
+    if (count > UI_MAX_MAP_LIST_ITEMS) {
+        count = UI_MAX_MAP_LIST_ITEMS;
+    }
+    FOR_LOOP(i, count) {
+        uiLanGame_t game;
+        uiMapListItem_t *item;
+
+        if (!uiimport.LANServer(i, &game)) {
+            continue;
+        }
+        item = &lan.games.items[lan.games.count++];
+        snprintf(item->path, sizeof(item->path), "%s", game.mapname);
+        snprintf(item->name, sizeof(item->name), "%s", game.hostname[0] ? game.hostname : game.address);
+        snprintf(item->description, sizeof(item->description), "%s", game.address);
+        snprintf(item->suggestedPlayers,
+                 sizeof(item->suggestedPlayers),
+                 "%u/%u",
+                 (unsigned)game.players,
+                 (unsigned)game.maxPlayers);
+        snprintf(item->mapSize, sizeof(item->mapSize), "%s", LAN_GameSpeedValueText(game.speed));
+        snprintf(item->tileset, sizeof(item->tileset), "%s", game.mapname[0] ? game.mapname : UI_GetString("UNKNOWNMAP_DESCRIPTION"));
+        item->players = game.players;
+        item->flags = i;
+    }
+    lan.games.visualScroll = (FLOAT)lan.games.scroll;
+}
+
+static void LAN_UpdateBrowserControls(void) {
+    uiMapListItem_t *item;
+
+    if (lan.join_button) {
+        if (lan.games.count > 0) {
+            UI_SetOnClick(lan.join_button, "menu_lan_join");
+        } else {
+            lan.join_button->OnClick[0] = '\0';
+        }
+    }
+
+    if (lan.games.count == 0 || lan.games.selected >= lan.games.count) {
+        LAN_SetTextIfPresent(lan.join_frames.GameCreatorValue, " ");
+        LAN_SetTextIfPresent(lan.join_frames.GameSpeedValue, " ");
+        LAN_UpdateMapInfo(&lan.game_map_info_pane, &lan.games);
+        return;
+    }
+
+    item = &lan.games.items[lan.games.selected];
+    LAN_SetTextIfPresent(lan.join_frames.GameCreatorValue, "%s", item->name);
+    LAN_SetTextIfPresent(lan.join_frames.GameSpeedValue, "%s", item->mapSize);
+    LAN_UpdateMapInfo(&lan.game_map_info_pane, &lan.games);
 }
 
 static void LAN_UpdateControls(void) {
     if (!lan.ready) {
+        return;
+    }
+
+    if (lan.mode == LAN_MODE_BROWSER) {
+        LAN_UpdateBrowserControls();
         return;
     }
 
@@ -340,46 +485,100 @@ static void LAN_UpdateControls(void) {
         }
     }
     LAN_UpdateGameSpeed();
-    LAN_UpdateMapInfo();
+    LAN_UpdateMapInfo(&lan.create_map_info_pane, &lan.maps);
 }
 
-static void LAN_BuildFrames(void) {
+static void LAN_RequestServerRefresh(void) {
+    if (uiimport.LANRefreshServers) {
+        uiimport.LANRefreshServers();
+    }
+    lan.refresh_time = 0;
+}
+
+static BOOL LAN_BuildBrowserFrames(void) {
     lan.ready = false;
-    lan.root = lan.frames.LocalMultiplayerCreate;
+    lan.root = lan.join_frames.LocalMultiplayerJoin;
     if (!lan.root) {
-        uiimport.Printf("LAN_BuildFrames: LocalMultiplayerCreate missing\n");
-        return;
+        uiimport.Printf("LAN_BuildBrowserFrames: LocalMultiplayerJoin missing\n");
+        return false;
     }
     UI_SetAllPoints(lan.root);
 
-    lan.play_button = lan.frames.PlayButton;
-    if (!lan.play_button) {
-        uiimport.Printf("LAN_BuildFrames: PlayButton missing\n");
-        return;
+    lan.join_button = lan.join_frames.JoinButton;
+    if (!lan.join_button) {
+        uiimport.Printf("LAN_BuildBrowserFrames: JoinButton missing\n");
+        return false;
     }
-    lan.game_speed_slider = lan.frames.GameSpeedSlider;
-    lan.game_speed_value = lan.frames.GameSpeedValue;
 
-    LAN_CreateMapListFrame(lan.frames.MapListContainer, lan.frames.MapListLabel);
-    LAN_BindMapInfoPane(lan.frames.MapInfoPaneContainer);
+    LAN_CreateMapListFrame(lan.join_frames.GameListContainer,
+                           lan.join_frames.GameListLabel,
+                           &lan.game_list_box,
+                           &lan.games,
+                           LAN_VISIBLE_GAMES);
+    LAN_BindMapInfoPane(lan.join_frames.MapInfoPaneContainer, &lan.game_map_info_pane);
 
-    UI_SetHidden(lan.frames.MapInfoPanel, false);
-    UI_SetHidden(lan.frames.AdvancedOptionsPanel, true);
-    UI_SetOnClick(lan.frames.MapInfoButton, "menu_startserver");
-    UI_SetOnClick(lan.frames.AdvancedOptionsButton, "menu_startserver");
+    LAN_InitPlayerNameEditBox();
+    UI_SetOnClick(lan.join_frames.CreateButton, "menu_startserver");
+    UI_SetOnClick(lan.join_button, "menu_lan_join");
+    UI_SetOnClick(lan.join_frames.CancelButton, "menu_main");
+    return true;
+}
+
+static BOOL LAN_BuildCreateFrames(void) {
+    lan.ready = false;
+    lan.root = lan.create_frames.LocalMultiplayerCreate;
+    if (!lan.root) {
+        uiimport.Printf("LAN_BuildCreateFrames: LocalMultiplayerCreate missing\n");
+        return false;
+    }
+    UI_SetAllPoints(lan.root);
+
+    lan.play_button = lan.create_frames.PlayButton;
+    if (!lan.play_button) {
+        uiimport.Printf("LAN_BuildCreateFrames: PlayButton missing\n");
+        return false;
+    }
+    lan.game_speed_slider = lan.create_frames.GameSpeedSlider;
+    lan.game_speed_value = lan.create_frames.GameSpeedValue;
+
+    LAN_CreateMapListFrame(lan.create_frames.MapListContainer,
+                           lan.create_frames.MapListLabel,
+                           &lan.create_map_list_box,
+                           &lan.maps,
+                           LAN_VISIBLE_MAPS);
+    LAN_BindMapInfoPane(lan.create_frames.MapInfoPaneContainer, &lan.create_map_info_pane);
+
+    UI_SetHidden(lan.create_frames.MapInfoPanel, false);
+    UI_SetHidden(lan.create_frames.AdvancedOptionsPanel, true);
+    UI_SetOnClick(lan.create_frames.MapInfoButton, "menu_startserver");
+    UI_SetOnClick(lan.create_frames.AdvancedOptionsButton, "menu_startserver");
     UI_SetOnClick(lan.play_button, "menu_lan_start");
-    UI_SetOnClick(lan.frames.CancelButton, "menu_main");
-    lan.ready = true;
+    UI_SetOnClick(lan.create_frames.CancelButton, "menu_multiplayer");
+    return true;
+}
+
+static void LAN_BuildFrames(lanMode_t mode) {
+    lan.mode = mode;
+    if (mode == LAN_MODE_BROWSER) {
+        lan.ready = LAN_BuildBrowserFrames();
+    } else {
+        lan.ready = LAN_BuildCreateFrames();
+    }
 }
 
 static void LANJoin_Init(void) {
-    uiimport.Printf("LANCreate_Init\n");
+    uiimport.Printf("LANJoin_Init\n");
     UI_PreloadGlueSceneModels();
-    LAN_BuildFrames();
+    LAN_BuildFrames(lan.mode);
     if (!lan.ready) {
         return;
     }
-    LAN_LoadMaps();
+    if (lan.mode == LAN_MODE_BROWSER) {
+        LAN_RequestServerRefresh();
+        LAN_LoadGames();
+    } else {
+        LAN_LoadMaps();
+    }
     LAN_UpdateControls();
 }
 
@@ -387,21 +586,41 @@ static void LANJoin_Shutdown(void) {
 }
 
 static void LANJoin_Refresh(int msec) {
+    uiMapListState_t *list;
+    FLOAT target;
+    FLOAT diff;
+    FLOAT alpha;
+
     if (!lan.ready) {
         return;
     }
 
-    FLOAT const target = (FLOAT)lan.maps.scroll;
-    FLOAT const diff = target - lan.maps.visualScroll;
-    FLOAT alpha = (FLOAT)msec / 90.0f;
+    list = lan.mode == LAN_MODE_BROWSER ? &lan.games : &lan.maps;
+    if (lan.mode == LAN_MODE_BROWSER) {
+        DWORD selected = lan.games.selected;
+
+        lan.refresh_time += msec;
+        if (lan.refresh_time >= LAN_REFRESH_MSEC) {
+            LAN_RequestServerRefresh();
+        }
+        LAN_LoadGames();
+        if (selected < lan.games.count) {
+            lan.games.selected = selected;
+        }
+        LAN_UpdateControls();
+    }
+
+    target = (FLOAT)list->scroll;
+    diff = target - list->visualScroll;
+    alpha = (FLOAT)msec / 90.0f;
 
     if (alpha > 1.0f) {
         alpha = 1.0f;
     }
     if (diff > -0.001f && diff < 0.001f) {
-        lan.maps.visualScroll = target;
+        list->visualScroll = target;
     } else {
-        lan.maps.visualScroll += diff * alpha;
+        list->visualScroll += diff * alpha;
     }
 }
 
@@ -410,14 +629,24 @@ static void LANJoin_Draw(void) {
         return;
     }
 
-    UI_DrawGlueScene("BattlenetCustomCreate Stand");
-    LAN_UpdateGameSpeed();
+    UI_DrawGlueScene(lan.mode == LAN_MODE_BROWSER
+                     ? "BattlenetCustom Stand"
+                     : "BattlenetCustomCreate Stand");
+    if (lan.mode == LAN_MODE_CREATE) {
+        LAN_UpdateGameSpeed();
+    }
     UI_DrawFrame(lan.root);
 }
 
 static void LANJoin_KeyEvent(int key, BOOL down) {
-    (void)key;
-    (void)down;
+    if (!down) {
+        return;
+    }
+    if ((key == SDLK_RETURN || key == SDLK_KP_ENTER) &&
+        UI_EditHasFocus(lan.join_frames.PlayerNameEditBox)) {
+        LAN_ApplyPlayerName();
+        UI_ClearEditFocus();
+    }
 }
 
 static void LANJoin_MouseEvent(int x, int y, int buttons) {
@@ -468,31 +697,63 @@ void LAN_StartSelectedMap(void) {
     if (!LAN_SelectedMapPath()) {
         return;
     }
+    if (uiimport.Cvar_Set) {
+        uiimport.Cvar_Set("connect", "");
+    } else if (uiimport.Cmd_ExecuteText) {
+        uiimport.Cmd_ExecuteText("seta connect \"\"\n");
+    }
     UI_ShowGameSetupMenu();
 }
 
 void LAN_SelectMapIndex(DWORD index) {
+    uiMapListState_t *list;
+    DWORD visible_rows;
+
     if (!lan.ready) {
         return;
     }
-    if (index >= lan.maps.count) {
+    list = lan.mode == LAN_MODE_BROWSER ? &lan.games : &lan.maps;
+    visible_rows = lan.mode == LAN_MODE_BROWSER ? LAN_VISIBLE_GAMES : LAN_VISIBLE_MAPS;
+    if (index >= list->count) {
         return;
     }
-    lan.maps.selected = index;
-    if (lan.maps.selected < lan.maps.scroll) {
-        lan.maps.scroll = lan.maps.selected;
+    list->selected = index;
+    if (list->selected < list->scroll) {
+        list->scroll = list->selected;
     }
-    if (lan.maps.selected >= lan.maps.scroll + LAN_VISIBLE_MAPS) {
-        lan.maps.scroll = lan.maps.selected - LAN_VISIBLE_MAPS + 1;
+    if (list->selected >= list->scroll + visible_rows) {
+        list->scroll = list->selected - visible_rows + 1;
     }
-    LAN_UpdateMapInfo();
+    LAN_UpdateControls();
+}
+
+void LAN_JoinSelectedGame(void) {
+    if (!lan.ready || lan.mode != LAN_MODE_BROWSER || !uiimport.LANConnectServer) {
+        return;
+    }
+    if (lan.games.count == 0 || lan.games.selected >= lan.games.count) {
+        return;
+    }
+    LAN_ApplyPlayerName();
+    uiimport.LANConnectServer(lan.games.items[lan.games.selected].flags);
+}
+
+void LAN_ShowBrowser(void) {
+    LAN_BuildFrames(LAN_MODE_BROWSER);
+    if (!lan.ready) {
+        return;
+    }
+    LAN_RequestServerRefresh();
+    LAN_LoadGames();
+    LAN_UpdateControls();
 }
 
 void LAN_ShowCreate(void) {
+    LAN_BuildFrames(LAN_MODE_CREATE);
     if (!lan.ready) {
         return;
     }
-
+    LAN_LoadMaps();
     LAN_UpdateControls();
 }
 
@@ -500,7 +761,12 @@ void LAN_RefreshMaps(void) {
     if (!lan.ready) {
         return;
     }
-    LAN_LoadMaps();
+    if (lan.mode == LAN_MODE_BROWSER) {
+        LAN_RequestServerRefresh();
+        LAN_LoadGames();
+    } else {
+        LAN_LoadMaps();
+    }
     LAN_UpdateControls();
 }
 

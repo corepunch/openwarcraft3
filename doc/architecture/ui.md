@@ -144,7 +144,7 @@ For isolated UI diagnostics:
 make run-ui-text
 ```
 
-That command uses `r_module=stdout`, `net_enabled=0`, and `com_frame_limit=1` to print one frame of draw calls and exit.
+That command uses `r_module=stdout` and `com_frame_limit=1` to print one frame of draw calls and exit. Menu-only diagnostics do not open UDP sockets.
 
 ## Dynamic Updates
 

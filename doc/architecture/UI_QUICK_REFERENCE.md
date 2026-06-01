@@ -47,7 +47,6 @@ Equivalent:
 ```bash
 build/bin/openwarcraft3 \
   -data=data/Warcraft\ III \
-  -net_enabled=0 \
   -r_module=stdout \
   -ui_start_command=menu_main \
   -com_frame_limit=1
@@ -103,7 +102,6 @@ The client caches returned unit data and renders it on subsequent UI frames.
 | `ui_module` | UI module name |
 | `g_module` | Game module name |
 | `ui_start_command` | Initial UI command |
-| `net_enabled` | Set `0` for isolated UI diagnostics |
 | `com_frame_limit` | Exit after N frames |
 
 See [Runtime Modules and Cvars](./runtime.md) for the full config reference.

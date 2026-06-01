@@ -51,9 +51,10 @@ struct netchan {
     BYTE message_buf[MAX_MSGLEN];
 };
 
-// Initialise the UDP socket, binding to the given port.
-// Pass port=0 to let the OS pick an ephemeral port (client mode).
-bool NET_Init(unsigned short port);
+// Initialise loopback state. UDP sockets are opened lazily by NET_Config().
+void NET_Init(void);
+void NET_Config(BOOL multiplayer);
+BOOL NET_IsConfigured(NETSOURCE netsrc);
 void NET_Shutdown(void);
 
 // Parse "host" or "host:port" into a netadr_t.  default_port is used

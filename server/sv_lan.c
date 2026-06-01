@@ -43,12 +43,23 @@ static void SV_LanInfo(const netadr_t *from) {
     char slots[16];
 
     if ((sv.state != ss_lobby && sv.state != ss_game) || !from) {
+        if (from) {
+            fprintf(stderr,
+                    "SV_LanInfo: ignoring info query from %s while server state=%d\n",
+                    NET_AdrToString(from),
+                    sv.state);
+        }
         return;
     }
     SV_LanSanitizeValue(sv.configstrings[CS_WORLD], mapname, sizeof(mapname));
     SV_LanSanitizeValue(Cvar_String("sv_hostname", "OpenWarcraft3"), hostname, sizeof(hostname));
     SV_LanSanitizeValue(Cvar_String("sv_game_speed", "2"), speed, sizeof(speed));
     SV_LanSanitizeValue(Cvar_String("sv_lobby_slots", "0"), slots, sizeof(slots));
+    fprintf(stderr,
+            "SV_LanInfo: answering info query from %s with hostname=\"%s\" map=\"%s\"\n",
+            NET_AdrToString(from),
+            hostname[0] ? hostname : "OpenWarcraft3",
+            mapname);
     Netchan_OutOfBandPrint(NS_SERVER,
                            *from,
                            "info\n\\hostname\\%s\\mapname\\%s\\players\\%u\\maxplayers\\%u\\speed\\%s\\slots\\%s",
@@ -82,6 +93,10 @@ void SV_ConnectionlessPacket(const netadr_t *from, LPSIZEBUF msg) {
         *status++ = '\0';
     }
     sscanf(payload, "%31s", command);
+    fprintf(stderr,
+            "SV_ConnectionlessPacket: command=\"%s\" from %s\n",
+            command,
+            from ? NET_AdrToString(from) : "unknown");
     if (!strcmp(command, "connect")) {
         SV_DirectConnect(from);
     } else if (!strcmp(command, "info")) {

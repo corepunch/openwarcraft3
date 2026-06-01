@@ -572,6 +572,8 @@ static void GameSetup_UseResolvedMapTitle(void) {
 }
 
 static void GameSetup_SlotName(LPCMAPPLAYER player, BOOL first_human, LPSTR out, DWORD out_size) {
+    LPCSTR name;
+
     if (!player) {
         snprintf(out, out_size, "Open");
         return;
@@ -581,7 +583,8 @@ static void GameSetup_SlotName(LPCMAPPLAYER player, BOOL first_human, LPSTR out,
         return;
     }
     if (player->playerType == kPlayerTypeHuman && first_human) {
-        snprintf(out, out_size, "Player");
+        name = uiimport.Cvar_String ? uiimport.Cvar_String("name", "Player") : "Player";
+        snprintf(out, out_size, "%s", name && name[0] ? name : "Player");
         return;
     }
     GameSetup_ResolveMapString(player->playerName, out, out_size);

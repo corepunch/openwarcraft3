@@ -20,24 +20,18 @@ typedef struct DialogWar3_s {
     LPFRAMEDEF DialogButtonYesText;
 } DialogWar3_t;
 
-static inline BOOL DialogWar3_Load(DialogWar3_t *out) {
+
+static inline BOOL DialogWar3_Bind(DialogWar3_t *out, LPFRAMEDEF bind_root) {
     BOOL ok = true;
-    LPFRAMEDEF bind_root;
     if (!out) {
         return false;
     }
-    if (!UI_EnsureFDF("UI\\FrameDef\\GlobalStrings.fdf")) {
-        ok = false;
-    }
-    if (!UI_EnsureFDF("UI\\FrameDef\\Glue\\StandardTemplates.fdf")) {
-        ok = false;
-    }
-    if (!UI_EnsureFDF("UI\\FrameDef\\Glue\\DialogWar3.fdf")) {
-        ok = false;
-    }
     memset(out, 0, sizeof(*out));
-    BZ_FDF_BIND_ROOT(out, DialogWar3, "DialogWar3");
-    bind_root = out->DialogWar3;
+    out->DialogWar3 = bind_root;
+    if (!out->DialogWar3) {
+        BZ_FDF_REPORT_MISSING("DialogWar3");
+        ok = false;
+    }
     BZ_FDF_BIND_CHILD(out, DialogBackdrop, bind_root, "DialogBackdrop");
     BZ_FDF_BIND_CHILD(out, DialogText, bind_root, "DialogText");
     BZ_FDF_BIND_CHILD(out, DialogIcon, bind_root, "DialogIcon");
@@ -51,6 +45,14 @@ static inline BOOL DialogWar3_Load(DialogWar3_t *out) {
     BZ_FDF_BIND_CHILD(out, DialogButtonYes, out->DialogButtonYesBackdrop, "DialogButtonYes");
     BZ_FDF_BIND_CHILD(out, DialogButtonYesText, out->DialogButtonYes, "DialogButtonYesText");
     return ok;
+}
+
+static inline BOOL DialogWar3_Load(DialogWar3_t *out) {
+    return out &&
+           UI_EnsureFDF("UI\\FrameDef\\GlobalStrings.fdf") &&
+           UI_EnsureFDF("UI\\FrameDef\\Glue\\StandardTemplates.fdf") &&
+           UI_EnsureFDF("UI\\FrameDef\\Glue\\DialogWar3.fdf") &&
+           DialogWar3_Bind(out, UI_FindFrame("DialogWar3"));
 }
 
 #endif /* DIALOGWAR3_H */

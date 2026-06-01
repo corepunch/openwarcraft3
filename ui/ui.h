@@ -60,6 +60,16 @@ typedef struct {
 } uiQueueItem_t;
 
 typedef struct {
+    char address[64];
+    char hostname[80];
+    char mapname[80];
+    DWORD players;
+    DWORD maxPlayers;
+    DWORD speed;
+    DWORD slots;
+} uiLanGame_t;
+
+typedef struct {
     WORD entity_num;                              /* Entity number */
     DWORD class_id;
     DWORD model;
@@ -127,6 +137,11 @@ typedef struct {
     void (*Cmd_ExecuteText)(LPCSTR text);
     void (*ServerCommand)(LPCSTR text);
     LPCSTR (*Cvar_String)(LPCSTR name, LPCSTR fallback);
+    void (*Cvar_Set)(LPCSTR name, LPCSTR value);
+    void (*LANRefreshServers)(void);
+    DWORD (*LANNumServers)(void);
+    BOOL (*LANServer)(DWORD index, uiLanGame_t *out);
+    void (*LANConnectServer)(DWORD index);
     LPCSTR (*GetLoadingMap)(void);
     LPCSTR (*GetLoadingStatus)(void);
     FLOAT (*GetLoadingProgress)(void);
