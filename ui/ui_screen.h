@@ -67,7 +67,7 @@ void LAN_StartSelectedMap(void);
 void LAN_JoinSelectedGame(void);
 void LAN_ApplyPlayerName(void);
 
-void GameSetup_StartGame(void);
+BOOL GameSetup_StartGame(void);
 void GameSetup_LoadMap(LPCSTR map_path);
 void GameSetup_UpdateLobbySetup(lobbyState_t const *state);
 void GameSetup_AddChatMessage(LPCSTR text, BOOL own);

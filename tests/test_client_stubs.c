@@ -75,6 +75,14 @@ void CL_ParseUnitUI(LPSIZEBUF msg) {
     (void)msg;
 }
 
+void CL_BeginLoadingMap(LPCSTR mapName) {
+    snprintf(cl.loading_map, sizeof(cl.loading_map), "%s", mapName ? mapName : "");
+    cl.loading_status[0] = '\0';
+    cl.loading_progress = 0.0f;
+    cl.playerstate.client_ui_state = CLIENT_UI_LOADING;
+    cls.state = ca_loading;
+}
+
 void test_client_stubs_init(void) {
     memset(&cl, 0, sizeof(cl));
     memset(&cls, 0, sizeof(cls));
