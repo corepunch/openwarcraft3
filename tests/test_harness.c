@@ -56,11 +56,6 @@ static void mock_MemFree(HANDLE p) {
 HANDLE MemAlloc(long size) { return mock_MemAlloc(size); }
 void   MemFree(HANDLE p)   { mock_MemFree(p); }
 
-static LPCANIMATION mock_GetAnimation(DWORD modelindex, LPCSTR name) {
-    (void)modelindex; (void)name;
-    return NULL;
-}
-
 static void mock_LinkEntity(LPEDICT ent) {
     if (!ent) return;
     /* Keep a simple AABB around the entity's 2-D origin. */
@@ -263,7 +258,6 @@ void setup_game(void) {
     gi.SoundIndex          = mock_SoundIndex;
     gi.ImageIndex          = mock_ImageIndex;
     gi.FontIndex           = mock_FontIndex;
-    gi.GetAnimation        = mock_GetAnimation;
     gi.BuildHeatmap        = mock_BuildHeatmap;
     gi.ClosestPathablePointForRadius = mock_ClosestPathablePointForRadius;
     gi.LinkEntity          = mock_LinkEntity;

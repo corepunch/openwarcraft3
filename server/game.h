@@ -44,7 +44,6 @@ struct game_import {
     int (*SoundIndex)(LPCSTR soundName);
     int (*ImageIndex)(LPCSTR imageName);
     int (*FontIndex)(LPCSTR fontName, DWORD fontSize);
-    LPCANIMATION (*GetAnimation)(DWORD modelindex, LPCSTR name);
     DWORD (*BuildHeatmap)(LPEDICT goalentity);
     BOOL (*ClosestPathablePointForRadius)(LPCVECTOR2 location, FLOAT radius, LPVECTOR2 out);
     void (*LinkEntity)(LPEDICT ent);

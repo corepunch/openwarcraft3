@@ -69,11 +69,14 @@ GAME_LIB     := $(LIB_DIR)/libgame$(LIB_EXT)
 UI_LIB       := $(LIB_DIR)/libui$(LIB_EXT)
 RENDERER_WOW_LIB := $(LIB_DIR)/librenderer-wow$(LIB_EXT)
 GAME_WOW_LIB     := $(LIB_DIR)/libgame-wow$(LIB_EXT)
+GAME_SC2_LIB     := $(LIB_DIR)/libgame-sc2$(LIB_EXT)
 UI_WOW_LIB       := $(LIB_DIR)/libui-wow$(LIB_EXT)
 BINARY       := $(BIN_DIR)/openwarcraft3$(EXE_EXT)
 WOW_BINARY   := $(BIN_DIR)/openwow$(EXE_EXT)
+SC2_BINARY   := $(BIN_DIR)/opensc2$(EXE_EXT)
 MPQ_TEST         := $(BIN_DIR)/test_mpq_compat$(EXE_EXT)
-WOW_CFLAGS   := $(CFLAGS) -DWOW -Wno-unused-function
+WOW_CFLAGS   := $(CFLAGS) -DWOW -DOW3_LOAD_ALL_MPQS -Wno-unused-function
+SC2_CFLAGS   := $(CFLAGS) -DSC2 -DOW3_LOAD_ALL_MPQS -Wno-unused-function
 
 TOOL_SRCS := $(shell find tools -maxdepth 1 -name '*.c' ! -name 'jass.c' | sort)
 TOOL_NAMES := $(patsubst tools/%.c,%,$(TOOL_SRCS))
@@ -107,6 +110,8 @@ renderer-wow: $(RENDERER_WOW_LIB)
 game-wow:     $(GAME_WOW_LIB)
 ui-wow:       $(UI_WOW_LIB)
 openwow:      $(WOW_BINARY)
+game-sc2:     $(GAME_SC2_LIB)
+opensc2:      $(SC2_BINARY)
 tools:       $(TOOL_BINS)
 font:       $(FONT_HEADER)
 $(TOOL_NAMES): %: $(BIN_DIR)/%$(EXE_EXT)
@@ -198,6 +203,11 @@ $(GAME_WOW_LIB): $(SHARED_LIB) $(COMMON_HEADERS) $(shell find game-wow -name '*.
 	@$(call UNITY,game-wow) | \
 		$(CC) $(WOW_CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - $(LDFLAGS) -lshared -lm
 
+$(GAME_SC2_LIB): $(SHARED_LIB) $(shell find game-sc2 -name '*.c') | $(LIB_DIR)
+	@echo "[game-sc2]"
+	@$(call UNITY,game-sc2) | \
+		$(CC) $(SC2_CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - $(LDFLAGS) -lshared -lm
+
 # ui — depends on shared
 $(UI_LIB): $(SHARED_LIB) $(CLIENT_HEADERS) $(COMMON_HEADERS) $(UI_HEADERS) $(shell find ui -name '*.c') | $(LIB_DIR)
 	@echo "[ui]"
@@ -222,6 +232,12 @@ $(WOW_BINARY): $(SHARED_LIB) $(SHEET_LIB) $(GAME_WOW_LIB) $(RENDERER_WOW_LIB) $(
 	@$(call UNITY,client server common) | \
 		$(CC) $(WOW_CFLAGS) -x c -o $@ - $(RPATH) $(LDFLAGS) \
 		-lsheet -lshared -lgame-wow -lrenderer-wow -lui-wow $(LIBS) -lz
+
+$(SC2_BINARY): $(SHARED_LIB) $(SHEET_LIB) $(GAME_SC2_LIB) $(RENDERER_LIB) $(UI_LIB) $(APP_SRCS) $(CLIENT_HEADERS) | $(BIN_DIR)
+	@echo "[opensc2]"
+	@$(call UNITY,client server common) | \
+		$(CC) $(SC2_CFLAGS) -x c -o $@ - $(RPATH) $(LDFLAGS) \
+		-lsheet -lshared -lgame-sc2 -lrenderer -lui $(LIBS) -lz
 
 download: $(ZIP_FILE)
 	mkdir -p $(DATA_DIR)
@@ -417,4 +433,4 @@ test-assets: blpgen mdxgen mpqtool mdxtool | $(TESTS_DIR)
 $(TESTS_DIR):
 	@mkdir -p $@
 
-.PHONY: default build shared jass renderer game ui openwarcraft3 tools font $(TOOL_NAMES) run run-demo run-map run-ui-text diag clean download test test-jass test-wow-appearance test-wow-combat test-ui test-mpq-compat test-assets
+.PHONY: default build shared jass renderer game ui openwarcraft3 tools font $(TOOL_NAMES) run run-demo run-map run-ui-text diag clean download test test-jass test-wow-appearance test-wow-combat test-ui test-mpq-compat test-assets game-sc2 opensc2

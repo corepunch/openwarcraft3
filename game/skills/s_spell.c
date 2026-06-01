@@ -272,7 +272,7 @@ void S_SpellSpawnTargetArt(LPEDICT target, LPCSTR art) {
     effect = G_Spawn();
     effect->s.origin = target->s.origin;
     effect->s.angle = target->s.angle;
-    effect->s.model = gi.ModelIndex(art);
+    effect->s.model = G_RegisterModel(art);
     effect->goalentity = target;
     effect->movetype = MOVETYPE_LINK;
     effect->think = M_MoveFrame;

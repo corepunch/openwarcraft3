@@ -825,6 +825,11 @@ LPEDICT Waypoint_add(LPCVECTOR2);
 void M_CheckGround (LPEDICT);
 void monster_start(LPEDICT);
 
+// g_model.c
+int          G_RegisterModel(LPCSTR filename);
+LPCANIMATION G_GetAnimation(DWORD modelindex, LPCSTR animname);
+void         G_FreeModels(void);
+
 // g_ai.c
 void ai_birth(LPEDICT);
 void ai_stand(LPEDICT);

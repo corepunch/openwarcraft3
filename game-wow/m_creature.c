@@ -210,7 +210,7 @@ static LPEDICT Wow_SpawnCreature(DWORD display_id,
         return NULL;
     }
 
-    ent->s.model = gi.ModelIndex ? gi.ModelIndex(model_path) : 0;
+    ent->s.model = G_RegisterModel(model_path);
     if (!ent->s.model) {
         ent->inuse = false;
         fprintf(stderr, "WoW creature display %u skipped: model %s could not be indexed\n",

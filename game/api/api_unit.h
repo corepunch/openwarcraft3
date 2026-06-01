@@ -184,7 +184,7 @@ DWORD QueueUnitAnimation(LPJASS j) {
 DWORD SetUnitAnimation(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     LPCSTR whichAnimation = jass_checkstring(j, 2);
-    if (whichUnit) whichUnit->animation = gi.GetAnimation(whichUnit->s.model, whichAnimation);
+    if (whichUnit) whichUnit->animation = G_GetAnimation(whichUnit->s.model, whichAnimation);
     return 0;
 }
 DWORD SetUnitAnimationByIndex(LPJASS j) {

@@ -169,6 +169,7 @@ static void G_ShutdownGame(void) {
         return;
     }
     G_FowShutdown();
+    G_FreeModels();
     gi.MemFree(g_edicts);
     g_edicts = NULL;
     globals.edicts = NULL;

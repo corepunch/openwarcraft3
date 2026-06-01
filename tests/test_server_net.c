@@ -24,7 +24,6 @@ bool CM_LoadMap(LPCSTR mapFilename) { (void)mapFilename; return true; }
 LPDOODAD CM_GetDoodads(void) { return NULL; }
 static LPMAPINFO test_mapinfo;
 LPCMAPINFO CM_GetMapInfo(void) { return test_mapinfo; }
-struct cmodel *SV_LoadModel(LPCSTR filename) { (void)filename; return NULL; }
 VECTOR2 CM_GetNormalizedMapPosition(FLOAT x, FLOAT y) { return (VECTOR2){ x, y }; }
 VECTOR2 CM_GetDenormalizedMapPosition(FLOAT x, FLOAT y) { return (VECTOR2){ x, y }; }
 BOX2 CM_GetWorldBounds(void) { return (BOX2){ .min = {0,0}, .max = {1024,1024} }; }

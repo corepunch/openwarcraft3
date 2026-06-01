@@ -126,35 +126,13 @@ int SV_ModelIndex(LPCSTR name) {
 //    }
     PATHSTR model_filename = { 0 };
     strcpy(model_filename, name);
-    if (!strstr(model_filename, ".mdx")
-#ifdef WOW
-        && !strstr(model_filename, ".m2")
-#endif
-    ) {
+    if (!strstr(model_filename, ".mdx") && !strstr(model_filename, ".m2")) {
         LPSTR mdl = strstr(model_filename, ".mdl");
         mdl = mdl ? mdl : (model_filename + strlen(model_filename));
         strcpy(mdl, ".mdx");
     }
     int modelindex = SV_FindIndex(model_filename, CS_MODELS, MAX_MODELS, true);
-#if 0
-    if (!strstr(name, "Doodads\\")) {
-        printf("%s\n", name);
-        FOR_LOOP(i, sv.models[modelindex]->num_animations){
-            LPANIMATION anim = &sv.models[modelindex]->animations[i];
-            printf("    %s\n", anim->name);
-        }
-    }
-#endif
     return modelindex;
-}
-
-void SV_LoadModels(void) {
-    for (DWORD i = 1; i < MAX_MODELS && *sv.configstrings[CS_MODELS + i]; i++) {
-        if (sv.models[i])
-            continue;
-//        LPCSTR filename = sv.configstrings[CS_MODELS + i];
-        sv.models[i] = SV_LoadModel(sv.configstrings[CS_MODELS + i]);
-    }
 }
 
 int SV_SoundIndex(LPCSTR name) {

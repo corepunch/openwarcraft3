@@ -39,10 +39,10 @@ static void FillUnitData(LPENTITYSTATE ent, DWORD unit_id, LPCSTR anim) {
     sprintf(buffer, "%s.mdx", model_filename);
     memset(ent, 0, sizeof(entityState_t));
     ent->class_id = unit_id;
-    ent->model = gi.ModelIndex(buffer);
+    ent->model = G_RegisterModel(buffer);
     ent->scale = UNIT_SCALING_VALUE(unit_id);
     ent->angle = -M_PI / 2;
-    LPCANIMATION animation = gi.GetAnimation(ent->model, anim);
+    LPCANIMATION animation = G_GetAnimation(ent->model, anim);
     if (animation) {
         ent->frame = animation->interval[0];
     }

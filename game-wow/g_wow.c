@@ -360,13 +360,13 @@ LPCANIMATION Wow_SetEntityAnimation(LPEDICT ent, LPCSTR animation_name) {
     wowEntityLocal_t *local = Wow_EntityLocal(ent);
     LPCANIMATION anim;
 
-    if (!ent || !local || !gi.GetAnimation || !animation_name || ent->s.model == 0) {
+    if (!ent || !local || !animation_name || ent->s.model == 0) {
         if (local) {
             local->animation = NULL;
         }
         return NULL;
     }
-    anim = gi.GetAnimation(ent->s.model, animation_name);
+    anim = G_GetAnimation(ent->s.model, animation_name);
     if (!anim || anim->interval[1] <= anim->interval[0]) {
         Wow_LogMissingAnimation(ent, animation_name, anim != NULL);
         local->animation = NULL;
@@ -523,8 +523,8 @@ static void Wow_InitPlayer(LPEDICT ent) {
     ent->client = &wow_clients[0];
     ent->inuse = true;
     ent->s.number = 0;
-    ent->s.model = gi.ModelIndex ? gi.ModelIndex(WOW_PLAYER_MODEL) : 0;
-    ent->s.model2 = gi.ModelIndex ? gi.ModelIndex(WOW_PLAYER_WEAPON_MODEL) : 0;
+    ent->s.model = G_RegisterModel(WOW_PLAYER_MODEL);
+    ent->s.model2 = G_RegisterModel(WOW_PLAYER_WEAPON_MODEL);
     ent->s.appearance = Wow_PackAppearance(0, 0, 0, 0, 0, WOW_CLASS_WARRIOR, 0);
     ent->s.equipment = Wow_PackEquipment(0, 0, 0, 0);
     ent->s.origin = (VECTOR3){ wow_spawn_origin.x, wow_spawn_origin.y, height };
@@ -575,6 +575,7 @@ static void Wow_Init(void) {
 }
 
 static void Wow_Shutdown(void) {
+    G_FreeModels();
     globals.edicts = NULL;
     globals.num_edicts = 0;
 }
