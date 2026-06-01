@@ -1,0 +1,29 @@
+Frame "FRAME" "OptionsMenu" {
+    Width 0.8,
+    Height 0.6,
+
+    Frame "FRAME" "OptionsControlLayer" {
+        SetAllPoints,
+
+        Frame "FRAME" "GameplayPanel" {
+            SetAllPoints,
+
+            Frame "EDITBOX" "GamePortEditBox" {
+                Width 0.1,
+                Height 0.04,
+                SetPoint TOPLEFT, "GameplayPanel", TOPLEFT, 0.1, -0.1,
+                EditTextFrame "GamePortEditBoxText",
+
+                Frame "TEXT" "GamePortEditBoxText" {
+                    SetAllPoints,
+                }
+            }
+        }
+
+        Frame "FRAME" "VideoPanel" {
+        }
+
+        Frame "FRAME" "SoundPanel" {
+        }
+    }
+}

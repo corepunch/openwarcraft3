@@ -8,6 +8,13 @@
 #include "../ui_screen.h"
 #include "../generated/options_menu.h"
 
+#ifndef SDLK_RETURN
+#define SDLK_RETURN 13
+#endif
+#ifndef SDLK_KP_ENTER
+#define SDLK_KP_ENTER 1073741912
+#endif
+
 #define OPTIONS_ARRAY_COUNT(ARRAY) (sizeof(ARRAY) / sizeof((ARRAY)[0]))
 #define OPTIONS_GAME_PORT_MIN 1024
 #define OPTIONS_GAME_PORT_MAX 49151
@@ -356,8 +363,14 @@ static void OptionsMenu_Draw(void) {
 }
 
 static void OptionsMenu_KeyEvent(int key, BOOL down) {
-    (void)key;
-    (void)down;
+    if (!down) {
+        return;
+    }
+    if ((key == SDLK_RETURN || key == SDLK_KP_ENTER) &&
+        UI_EditHasFocus(options_menu.GamePortEditBox)) {
+        OptionsMenu_ApplyGamePort();
+        UI_ClearEditFocus();
+    }
 }
 
 static void OptionsMenu_MouseEvent(int x, int y, int buttons) {
