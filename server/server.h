@@ -136,6 +136,7 @@ int SV_ModelIndex(LPCSTR name);
 int SV_SoundIndex(LPCSTR name);
 int SV_ImageIndex(LPCSTR name);
 int SV_FontIndex(LPCSTR name, DWORD fontSize);
+void SV_LoadModels(void);
 
 // sv_game.c
 struct cmodel *SV_LoadModel(LPCSTR filename);

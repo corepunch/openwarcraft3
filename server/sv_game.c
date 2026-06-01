@@ -305,6 +305,12 @@ static struct cmodel *SV_LoadModelMDLX(HANDLE file) {
     return model;
 }
 
+static struct cmodel *SV_EmptyModel(void) {
+    struct cmodel *model = MemAlloc(sizeof(*model));
+    memset(model, 0, sizeof(*model));
+    return model;
+}
+
 #ifdef WOW
 typedef struct {
     int32_t size;
@@ -622,8 +628,10 @@ struct cmodel *SV_LoadModel(LPCSTR filename) {
             file = FS_OpenFile(path);
         }
 #endif
-        if (!file)
-            return NULL;
+        if (!file) {
+            fprintf(stderr, "Failed to load model file %s\n", filename);
+            return SV_EmptyModel();
+        }
     }
 #ifdef PRINT_ANIMATIONS
     printf("%s\n", filename);
@@ -643,8 +651,7 @@ struct cmodel *SV_LoadModel(LPCSTR filename) {
 #ifdef WOW
             model = SV_LoadModelM2(file);
 #else
-            model = MemAlloc(sizeof(*model));
-            memset(model, 0, sizeof(*model));
+            model = SV_EmptyModel();
 #endif
             break;
         default:
@@ -652,7 +659,7 @@ struct cmodel *SV_LoadModel(LPCSTR filename) {
             break;
     }
     FS_CloseFile(file);
-    return model;
+    return model ? model : SV_EmptyModel();
 }
 
 LPCANIMATION SV_GetAnimation(DWORD modelindex, LPCSTR animname) {
