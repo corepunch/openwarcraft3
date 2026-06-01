@@ -173,6 +173,8 @@ static void Wow_MonsterStart(LPEDICT ent,
     local->patrol_phase = (FLOAT)DEG2RAD(yaw);
     local->walk_speed = walk_speed;
     local->health = 3;
+    local->attack_damage_point = 250;
+    local->attack_backswing = 450;
     ent->svflags |= SVF_MONSTER;
     ent->idle = Wow_AIIdle;
     ent->move = Wow_AIMove;

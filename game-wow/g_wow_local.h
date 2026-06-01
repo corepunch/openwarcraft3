@@ -41,8 +41,15 @@ typedef struct {
     FLOAT patrol_phase;
     FLOAT walk_speed;
     DWORD health;
+    DWORD attack_damage_point;
+    DWORD attack_backswing;
     DWORD attack_time;
+    DWORD attack_damage_time;
+    DWORD attack_backswing_time;
     DWORD pain_time;
+    DWORD death_time;
+    BOOL attack_damage_done;
+    BOOL dead;
     LPEDICT enemy;
 } wowEntityLocal_t;
 
@@ -81,6 +88,7 @@ void Wow_AIIdle(LPEDICT ent);
 void Wow_AIMove(LPEDICT ent);
 void Wow_AIAttack(LPEDICT ent);
 void Wow_AIPain(LPEDICT ent);
+void Wow_AIDie(LPEDICT ent, LPEDICT attacker);
 BOOL Wow_AIAdvanceLockedFrame(LPEDICT ent);
 BOOL Wow_EntityAffectingCombat(LPEDICT ent);
 BOOL Wow_SetStandMove(LPEDICT ent);

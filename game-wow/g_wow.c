@@ -517,6 +517,8 @@ static void Wow_InitPlayer(LPEDICT ent) {
         local->home = wow_spawn_origin;
         local->yaw = wow_move.yaw;
         local->health = 100;
+        local->attack_damage_point = 250;
+        local->attack_backswing = 450;
     }
     ent->client = &wow_clients[0];
     ent->inuse = true;
@@ -673,7 +675,7 @@ static void Wow_ClientCommand(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
             : Wow_FindNearestAttackTarget(ent);
         wowEntityLocal_t *local = Wow_EntityLocal(ent);
 
-        if (!ent || !local || !ent->attack) {
+        if (!ent || !local || local->dead || !ent->attack) {
             return;
         }
         local->enemy = target && target != ent ? target : NULL;
@@ -684,9 +686,14 @@ static void Wow_ClientCommand(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
         if (local) {
             local->enemy = NULL;
             local->attack_time = 0;
+            local->attack_damage_time = 0;
+            local->attack_backswing_time = 0;
+            local->attack_damage_done = false;
             local->pain_time = 0;
         }
-        Wow_SetStandMove(ent);
+        if (!local || !local->dead) {
+            Wow_SetStandMove(ent);
+        }
     }
 }
 

@@ -282,9 +282,10 @@ TEST_SRCS := $(shell find tests -maxdepth 1 -name 'test_*.c' \
 	! -name 'test_main_ui.c' \
 	! -name 'test_mpq_compat.c' \
 	! -name 'test_ui_*.c' \
+	! -name 'test_wow_combat.c' \
 	! -name 'test_wow_appearance.c' | sort)
 
-TEST_CFLAGS := -Wall -DTOOL_COMMON_NO_MPQ -Itests/stubs -Ishared/types -Igame -Iserver -Icommon -Iclient -Igame/skills
+TEST_CFLAGS := $(CFLAGS) -DTOOL_COMMON_NO_MPQ -Itests/stubs -Ishared/types -Igame -Iserver -Icommon -Iclient -Igame/skills
 TEST_UI_CFLAGS := $(TEST_CFLAGS)
 
 TEST_UI_SRCS := \
@@ -306,6 +307,7 @@ test: test-assets $(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) | $(BIN_DIR)
 	$(BIN_DIR)/test_openwarcraft3$(EXE_EXT)
 	$(MAKE) test-commands
 	$(MAKE) test-wow-appearance
+	$(MAKE) test-wow-combat
 	$(MAKE) test-ui
 
 test-commands: test-assets $(SHARED_LIB) $(SHEET_LIB) | $(BIN_DIR)
@@ -327,6 +329,12 @@ test-wow-appearance: | $(BIN_DIR)
 		tests/test_wow_appearance.c common/msg.c common/net.c \
 		$(shell find shared -name '*.c') -lm
 	$(BIN_DIR)/test_wow_appearance$(EXE_EXT)
+
+test-wow-combat: | $(BIN_DIR)
+	$(CC) $(TEST_CFLAGS) -DWOW -o $(BIN_DIR)/test_wow_combat$(EXE_EXT) \
+		tests/test_wow_combat.c game-wow/g_ai.c \
+		$(shell find shared -name '*.c') -lm
+	$(BIN_DIR)/test_wow_combat$(EXE_EXT)
 
 test-ui: test-assets $(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) | $(BIN_DIR)
 	$(CC) $(TEST_UI_CFLAGS) -o $(BIN_DIR)/test_openwarcraft3_ui$(EXE_EXT) \
@@ -409,4 +417,4 @@ test-assets: blpgen mdxgen mpqtool mdxtool | $(TESTS_DIR)
 $(TESTS_DIR):
 	@mkdir -p $@
 
-.PHONY: default build shared jass renderer game ui openwarcraft3 tools font $(TOOL_NAMES) run run-demo run-map run-ui-text diag clean download test test-jass test-wow-appearance test-ui test-mpq-compat test-assets
+.PHONY: default build shared jass renderer game ui openwarcraft3 tools font $(TOOL_NAMES) run run-demo run-map run-ui-text diag clean download test test-jass test-wow-appearance test-wow-combat test-ui test-mpq-compat test-assets
