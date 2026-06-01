@@ -461,6 +461,19 @@ static DWORD UI_DefaultLoadingModel(void) {
     return UI_LoadModel("LoadingMeleeBackground", true);
 }
 
+static DWORD UI_CustomLoadingModel(LPCMAPINFO info) {
+    PATHSTR model;
+
+    if (!info || !info->loadingScreenModel || !info->loadingScreenModel[0]) {
+        return 0;
+    }
+    snprintf(model, sizeof(model), "%s", info->loadingScreenModel);
+    if (uiimport.SanitizeMapInfoText) {
+        uiimport.SanitizeMapInfoText(model);
+    }
+    return model[0] ? UI_LoadModel(model, false) : 0;
+}
+
 static void UI_UpdateLoadingMapInfo(void) {
     MAPINFO info;
     LPCSTR map_path = UI_LoadingMapPath();
@@ -478,6 +491,9 @@ static void UI_UpdateLoadingMapInfo(void) {
     if (uiimport.ReadMapInfo && uiimport.ReadMapInfo(map_path, &info)) {
         if (uiimport.ResolveMapInfoString) {
             uiimport.ResolveMapInfoString(&info, info.loadingScreenTitle, loading_state.title, sizeof(loading_state.title));
+            if (!loading_state.title[0]) {
+                uiimport.ResolveMapInfoString(&info, info.mapName, loading_state.title, sizeof(loading_state.title));
+            }
             uiimport.ResolveMapInfoString(&info, info.loadingScreenSubtitle, loading_state.subtitle, sizeof(loading_state.subtitle));
             uiimport.ResolveMapInfoString(&info, info.loadingScreenText, loading_state.text, sizeof(loading_state.text));
         }
@@ -486,7 +502,8 @@ static void UI_UpdateLoadingMapInfo(void) {
             uiimport.SanitizeMapInfoText(loading_state.subtitle);
             uiimport.SanitizeMapInfoText(loading_state.text);
         }
-        if (info.campaignBackgroundNumber != (DWORD)-1) {
+        background_model = UI_CustomLoadingModel(&info);
+        if (!background_model && info.campaignBackgroundNumber != (DWORD)-1) {
             background_model = UI_LoadCampaignLoadingModel(info.campaignBackgroundNumber, &background_sequence);
         }
         if (uiimport.FreeMapInfo) {

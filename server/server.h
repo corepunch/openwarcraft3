@@ -141,6 +141,7 @@ void SV_LoadModels(void);
 // sv_game.c
 struct cmodel *SV_LoadModel(LPCSTR filename);
 
+void SV_WriteGameCommand(LPSIZEBUF msg, LPCSTR command, sizeBuf_t const *payload);
 void SV_Multicast(LPCVECTOR3 origin, multicast_t to);
 void SV_InitGameProgs(void);
 

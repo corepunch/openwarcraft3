@@ -102,17 +102,22 @@ void PF_Multicast(LPCVECTOR3 origin, multicast_t to) {
 }
 
 void PF_Unicast(edict_t *ent) {
+    LPCLIENT client = NULL;
+
     if (!ent) {
         SZ_Clear(&sv.multicast);
         return;
     }
-    DWORD p = NUM_FOR_EDICT(ent);
-    LPCLIENT client = NULL;
-    if (p >= 1 && p <= ge->max_clients && p <= svs.num_clients) {
-        client = svs.clients + (p - 1);
-    } else if (svs.num_clients == 1) {
+    FOR_LOOP(i, svs.num_clients) {
+        if (svs.clients[i].edict == ent) {
+            client = &svs.clients[i];
+            break;
+        }
+    }
+    if (!client && svs.num_clients == 1) {
         client = svs.clients;
-    } else {
+    }
+    if (!client) {
         SZ_Clear(&sv.multicast);
         return;
     }

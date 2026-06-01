@@ -56,6 +56,14 @@ static void CL_SendDeferredBegin(void) {
     if (!cl.pending_begin) {
         return;
     }
+    fprintf(stderr,
+            "CL_SendDeferredBegin: sending begin world=\"%s\" state=%d player=%u team=%u race=%u color=%u\n",
+            cl.configstrings[CS_WORLD],
+            cls.state,
+            (unsigned)cl.playerstate.number,
+            (unsigned)cl.playerstate.team,
+            (unsigned)cl.playerstate.race,
+            (unsigned)cl.playerstate.color);
     MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
     MSG_WriteString(&cls.netchan.message, "begin");
     cl.pending_begin = false;
@@ -491,15 +499,16 @@ void CL_PrepRefresh(void) {
         return;
     }
 
+    if (world_loaded && cls.state == ca_active && cl.pending_begin) {
+        CL_LoadingUpdate("Starting game", 1.0f);
+        CL_SendDeferredBegin();
+        loading_complete_displayed = false;
+        loading_settle_frames = 0;
+        return;
+    }
+
     if (world_loaded && cls.state == ca_active &&
         cl.playerstate.client_ui_state == CLIENT_UI_LOADING) {
-        if (cl.pending_begin) {
-            CL_LoadingUpdate("Starting game", 1.0f);
-            CL_SendDeferredBegin();
-            loading_complete_displayed = false;
-            loading_settle_frames = 0;
-            return;
-        }
         if (!loading_complete_displayed) {
             CL_LoadingUpdate("Finishing", 1.0f);
             loading_complete_displayed = true;

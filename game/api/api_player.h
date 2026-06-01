@@ -92,8 +92,17 @@ DWORD GetPlayerController(LPJASS j) {
     return jass_pushnullhandle(j, "mapcontrol");
 }
 DWORD GetPlayerSlotState(LPJASS j) {
-    //LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
-    return jass_pushnullhandle(j, "playerslotstate");
+    LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
+    LPGAMECLIENT client = whichPlayer ? PLAYER_CLIENT(whichPlayer) : NULL;
+    LONG state = 0;
+
+    if (client && client->mapplayer &&
+        (client->mapplayer->playerType == kPlayerTypeHuman ||
+         client->mapplayer->playerType == kPlayerTypeComputer))
+    {
+        state = 1;
+    }
+    return JassPushPlayerSlotStateHandle(j, state);
 }
 DWORD GetPlayerTaxRate(LPJASS j) {
     //HANDLE sourcePlayer = jass_checkhandle(j, 1, "player");
@@ -222,8 +231,10 @@ DWORD IsLocationMaskedToPlayer(LPJASS j) {
     return jass_pushboolean(j, 0);
 }
 DWORD GetPlayerRace(LPJASS j) {
-    //LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
-    return jass_pushnullhandle(j, "race");
+    LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
+    LONG race = whichPlayer ? (LONG)whichPlayer->race : kPlayerRaceNone;
+
+    return JassPushRaceHandle(j, race);
 }
 DWORD GetPlayerId(LPJASS j) {
     LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");

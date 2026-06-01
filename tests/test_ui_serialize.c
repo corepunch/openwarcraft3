@@ -293,6 +293,32 @@ static void test_player_text_delta_roundtrip_updates_dynamic_text(void) {
     ASSERT_STR_EQ(decoded.texts[PLAYERTEXT_MAP_PREVIEW], "Maps\\Example.w3m/war3mapMap.blp");
 }
 
+static void test_player_identity_delta_roundtrip(void) {
+    PLAYER base;
+    PLAYER to;
+    PLAYER decoded;
+
+    memset(&base, 0, sizeof(base));
+    memset(&to, 0, sizeof(to));
+    memset(&decoded, 0, sizeof(decoded));
+
+    to.number = 3;
+    to.team = 2;
+    to.color = 6;
+    to.race = 4;
+    to.start_location = 3;
+    to.name = "Blue Player";
+
+    write_then_read_delta_player(&base, &to, &decoded);
+
+    ASSERT_EQ_INT((int)decoded.number, 3);
+    ASSERT_EQ_INT((int)decoded.team, 2);
+    ASSERT_EQ_INT((int)decoded.color, 6);
+    ASSERT_EQ_INT((int)decoded.race, 4);
+    ASSERT_EQ_INT((int)decoded.start_location, 3);
+    ASSERT_STR_EQ(decoded.name, "Blue Player");
+}
+
 static void test_delta_roundtrip_preserves_backdrop_typedata(void) {
     FRAMEDEF frame;
     uiFrame_t base;
@@ -556,6 +582,7 @@ BEGIN_SUITE(ui_serialize)
     RUN_TEST(test_build_frame_scales_offsets_to_ui_framepoint_int16);
     RUN_TEST(test_delta_roundtrip_preserves_text_fields);
     RUN_TEST(test_player_text_delta_roundtrip_updates_dynamic_text);
+    RUN_TEST(test_player_identity_delta_roundtrip);
     RUN_TEST(test_delta_roundtrip_preserves_backdrop_typedata);
     RUN_TEST(test_build_frame_sets_uv_bytes_from_texcoord);
     RUN_TEST(test_collect_tree_and_build_frame_numbering_is_stable);

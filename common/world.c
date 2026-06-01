@@ -794,6 +794,12 @@ static void CM_ReadDoodads(HANDLE archive) {
     FOR_LOOP(index, numDoodads) {
         DWORD count;
         LPDOODAD doodad = MemAlloc(sizeof(DOODAD));
+
+        doodad->player = PLAYER_NEUTRAL_PASSIVE;
+        doodad->hitPoints = (DWORD)-1;
+        doodad->manaPoints = (DWORD)-1;
+        doodad->goldAmount = 12500;
+        doodad->targetAcquisition = -1.0f;
         SFileReadFile(file, &doodad->doodID, sizeof(DWORD), NULL, NULL);
         SFileReadFile(file, &doodad->variation, sizeof(DWORD), NULL, NULL);
         SFileReadFile(file, &doodad->position, sizeof(VECTOR3), NULL, NULL);

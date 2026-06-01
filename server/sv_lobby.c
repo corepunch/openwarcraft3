@@ -47,6 +47,18 @@ static void SV_LobbyMovePlayerToTeam(LPMAPINFO info, DWORD player, DWORD team) {
     info->teams[team].playerMasks |= 1u << player;
 }
 
+static DWORD SV_LobbyMapPlayerTeam(LPCMAPINFO info, DWORD player) {
+    if (!info || !info->teams || player >= MAX_PLAYERS) {
+        return player;
+    }
+    FOR_LOOP(i, info->num_teams) {
+        if (info->teams[i].playerMasks & (1u << player)) {
+            return i;
+        }
+    }
+    return player;
+}
+
 static LPCSTR SV_LobbyBaseName(LPCSTR path) {
     LPCSTR base = path;
 
@@ -144,16 +156,41 @@ static playerType_t SV_LobbySlotPlayerType(lobbySlot_t const *slot) {
     return kPlayerTypeNone;
 }
 
+static LPCSTR SV_LobbySlotTypeName(lobbySlotType_t type) {
+    switch (type) {
+        case LOBBY_SLOT_OPEN: return "open";
+        case LOBBY_SLOT_HUMAN: return "human";
+        case LOBBY_SLOT_COMPUTER: return "computer";
+        case LOBBY_SLOT_CLOSED: return "closed";
+    }
+    return "unknown";
+}
+
+static LPCSTR SV_PlayerTypeName(playerType_t type) {
+    switch (type) {
+        case kPlayerTypeNone: return "none";
+        case kPlayerTypeHuman: return "human";
+        case kPlayerTypeComputer: return "computer";
+        case kPlayerTypeNeutral: return "neutral";
+        case kPlayerTypeRescuable: return "rescuable";
+    }
+    return "unknown";
+}
+
 static void SV_LobbySendChat(LPCLIENT client, DWORD clientnum, DWORD sender_client, LPCSTR text) {
+    BYTE payload_buf[MAX_MSGLEN];
+    sizeBuf_t payload;
+
     if (!client || !text || !text[0]) {
         return;
     }
     if (client->state != cs_connected && client->state != cs_spawned) {
         return;
     }
-    MSG_WriteByte(&client->netchan.message, svc_lobby_chat);
-    MSG_WriteByte(&client->netchan.message, clientnum == sender_client ? 1 : 0);
-    MSG_WriteString(&client->netchan.message, text);
+    SZ_Init(&payload, payload_buf, sizeof(payload_buf));
+    MSG_WriteByte(&payload, clientnum == sender_client ? 1 : 0);
+    MSG_WriteString(&payload, text);
+    SV_WriteGameCommand(&client->netchan.message, "lobby_chat", &payload);
     Netchan_Transmit(NS_SERVER, &client->netchan);
 }
 
@@ -257,31 +294,34 @@ BOOL SV_LobbyAssignClient(DWORD clientnum, BOOL host) {
 }
 
 void SV_LobbyWriteSetup(LPCLIENT cl) {
+    BYTE payload_buf[MAX_MSGLEN];
+    sizeBuf_t payload;
     DWORD local_slot = cl ? cl->lobby_slot : MAX_PLAYERS;
 
     if (!cl) {
         return;
     }
-    MSG_WriteByte(&cl->netchan.message, svc_lobby_setup);
-    MSG_WriteString(&cl->netchan.message, svs.lobby.map_path);
-    MSG_WriteString(&cl->netchan.message, svs.lobby.map_name);
-    MSG_WriteByte(&cl->netchan.message, (int)svs.lobby.game_speed);
-    MSG_WriteByte(&cl->netchan.message, (int)svs.lobby.slot_count);
-    MSG_WriteByte(&cl->netchan.message, local_slot < MAX_PLAYERS ? (int)local_slot : 255);
-    MSG_WriteLong(&cl->netchan.message, (int)svs.lobby.revision);
+    SZ_Init(&payload, payload_buf, sizeof(payload_buf));
+    MSG_WriteString(&payload, svs.lobby.map_path);
+    MSG_WriteString(&payload, svs.lobby.map_name);
+    MSG_WriteByte(&payload, (int)svs.lobby.game_speed);
+    MSG_WriteByte(&payload, (int)svs.lobby.slot_count);
+    MSG_WriteByte(&payload, local_slot < MAX_PLAYERS ? (int)local_slot : 255);
+    MSG_WriteLong(&payload, (int)svs.lobby.revision);
     FOR_LOOP(i, svs.lobby.slot_count) {
         lobbySlot_t const *slot = &svs.lobby.slots[i];
 
-        MSG_WriteByte(&cl->netchan.message, slot->visible ? 1 : 0);
-        MSG_WriteByte(&cl->netchan.message, slot->occupied ? 1 : 0);
-        MSG_WriteByte(&cl->netchan.message, slot->visible && slot->client < MAX_CLIENTS ? (int)slot->client : 255);
-        MSG_WriteByte(&cl->netchan.message, slot->visible && slot->map_player < MAX_PLAYERS ? (int)slot->map_player : 255);
-        MSG_WriteByte(&cl->netchan.message, (int)slot->type);
-        MSG_WriteByte(&cl->netchan.message, (int)slot->race);
-        MSG_WriteByte(&cl->netchan.message, (int)slot->team);
-        MSG_WriteByte(&cl->netchan.message, (int)slot->color);
-        MSG_WriteString(&cl->netchan.message, slot->name);
+        MSG_WriteByte(&payload, slot->visible ? 1 : 0);
+        MSG_WriteByte(&payload, slot->occupied ? 1 : 0);
+        MSG_WriteByte(&payload, slot->visible && slot->client < MAX_CLIENTS ? (int)slot->client : 255);
+        MSG_WriteByte(&payload, slot->visible && slot->map_player < MAX_PLAYERS ? (int)slot->map_player : 255);
+        MSG_WriteByte(&payload, (int)slot->type);
+        MSG_WriteByte(&payload, (int)slot->race);
+        MSG_WriteByte(&payload, (int)slot->team);
+        MSG_WriteByte(&payload, (int)slot->color);
+        MSG_WriteString(&payload, slot->name);
     }
+    SV_WriteGameCommand(&cl->netchan.message, "lobby_setup", &payload);
 }
 
 void SV_LobbyBroadcastSetup(void) {
@@ -367,8 +407,14 @@ void SV_ApplyLobbySettings(LPMAPINFO info) {
         info->players[i].color = i;
     }
     if (!svs.lobby.active || svs.lobby.slot_count == 0) {
+        fprintf(stderr, "SV_ApplyLobbySettings: no active lobby, using map player defaults\n");
         return;
     }
+    fprintf(stderr,
+            "SV_ApplyLobbySettings: map=\"%s\" slots=%u revision=%u\n",
+            svs.lobby.map_path,
+            (unsigned)svs.lobby.slot_count,
+            (unsigned)svs.lobby.revision);
     FOR_LOOP(i, MAX_PLAYERS) {
         if (info->players[i].used &&
             info->players[i].playerType != kPlayerTypeNeutral &&
@@ -390,6 +436,19 @@ void SV_ApplyLobbySettings(LPMAPINFO info) {
             continue;
         }
         type = SV_LobbySlotPlayerType(slot);
+        fprintf(stderr,
+                "  lobby slot %u: visible=%d occupied=%d client=%u map_player=%u slot_type=%s applied_type=%s race=%u team=%u color=%u name=\"%s\"\n",
+                (unsigned)slotnum,
+                slot->visible ? 1 : 0,
+                slot->occupied ? 1 : 0,
+                (unsigned)slot->client,
+                (unsigned)slot->map_player,
+                SV_LobbySlotTypeName(slot->type),
+                SV_PlayerTypeName(type),
+                (unsigned)slot->race,
+                (unsigned)slot->team,
+                (unsigned)slot->color,
+                slot->name);
         player->playerType = type;
         player->playerRace = slot->race;
         player->color = slot->color % MAX_CLIENTS;
@@ -403,6 +462,24 @@ void SV_ApplyLobbySettings(LPMAPINFO info) {
         } else {
             SV_LobbyMovePlayerToTeam(info, slot->map_player, slot->team);
         }
+    }
+    FOR_LOOP(i, MAX_PLAYERS) {
+        mapPlayer_t const *player = &info->players[i];
+
+        if (!player->used && player->playerType == kPlayerTypeNone) {
+            continue;
+        }
+        fprintf(stderr,
+                "  map player %u: used=%d type=%s race=%u team=%u color=%u start=(%.1f %.1f) name=\"%s\"\n",
+                (unsigned)i,
+                player->used ? 1 : 0,
+                SV_PlayerTypeName(player->playerType),
+                (unsigned)player->playerRace,
+                (unsigned)SV_LobbyMapPlayerTeam(info, i),
+                (unsigned)player->color,
+                player->startingPosition.x,
+                player->startingPosition.y,
+                player->playerName ? player->playerName : "");
     }
 }
 

@@ -4,6 +4,7 @@
 #include "api_unit.h"
 #include "api_effect.h"
 #include "api_camera.h"
+#include "api_misc.h"
 #include "api_player.h"
 #include "api_leaderboard.h"
 #include "api_destructable.h"
@@ -14,7 +15,6 @@
 #include "api_item.h"
 #include "api_quest.h"
 #include "api_cinefilter.h"
-#include "api_misc.h"
 
 JASSMODULE jass_funcs[] = {
     { "ConvertRace", ConvertRace },

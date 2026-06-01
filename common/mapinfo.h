@@ -5,6 +5,10 @@
 #define SEGMENT_SIZE 8
 //#define AREA_SIZE (TILE_SIZE * SEGMENT_SIZE)
 #define MAX_PLAYERS 16
+#define PLAYER_NEUTRAL_PASSIVE 12
+#define PLAYER_NEUTRAL_VICTIM 13
+#define PLAYER_NEUTRAL_EXTRA 14
+#define PLAYER_NEUTRAL_AGGRESSIVE 15
 
 typedef struct {
     float bounds[8];

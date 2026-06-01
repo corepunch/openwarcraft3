@@ -795,11 +795,27 @@ DWORD RecycleGuardPosition(LPJASS j) {
 }
 DWORD CreateUnit(LPJASS j) {
     LPPLAYER player = jass_checkhandle(j, 1, "player");
+    DWORD playernum = player ? PLAYER_NUM(player) : MAX_PLAYERS;
+    DWORD unitid = jass_checkinteger(j, 2);
+    VECTOR2 location = MAKE(VECTOR2, jass_checknumber(j, 3), jass_checknumber(j, 4));
+    FLOAT facing = jass_checknumber(j, 5);
+    if (playernum < PLAYER_NEUTRAL_PASSIVE) {
+        fprintf(stderr,
+                "CreateUnit: player=%u unit=%.4s at=(%.1f %.1f) facing=%.1f\n",
+                (unsigned)playernum,
+                (char const *)&unitid,
+                location.x,
+                location.y,
+                facing);
+    }
+    if (!player) {
+        return jass_pushnullhandle(j, "unit");
+    }
     LPEDICT unit =
     unit_createorfind(PLAYER_NUM(player),
-                        jass_checkinteger(j, 2),
-                        &MAKE(VECTOR2, jass_checknumber(j, 3), jass_checknumber(j, 4)),
-                        jass_checknumber(j, 5));
+                        unitid,
+                        &location,
+                        facing);
     return jass_pushlighthandle(j, unit, "unit");
 }
 DWORD CreateUnitByName(LPJASS j) {
@@ -812,11 +828,27 @@ DWORD CreateUnitByName(LPJASS j) {
 }
 DWORD CreateUnitAtLoc(LPJASS j) {
     LPPLAYER player = jass_checkhandle(j, 1, "player");
+    DWORD playernum = player ? PLAYER_NUM(player) : MAX_PLAYERS;
+    DWORD unitid = jass_checkinteger(j, 2);
+    LPCVECTOR2 location = jass_checkhandle(j, 3, "location");
+    FLOAT facing = jass_checknumber(j, 4);
+    if (playernum < PLAYER_NEUTRAL_PASSIVE) {
+        fprintf(stderr,
+                "CreateUnitAtLoc: player=%u unit=%.4s at=(%.1f %.1f) facing=%.1f\n",
+                (unsigned)playernum,
+                (char const *)&unitid,
+                location ? location->x : 0.0f,
+                location ? location->y : 0.0f,
+                facing);
+    }
+    if (!player || !location) {
+        return jass_pushnullhandle(j, "unit");
+    }
     LPEDICT unit =
     unit_createorfind(PLAYER_NUM(player),
-                      jass_checkinteger(j, 2),
-                      jass_checkhandle(j, 3, "location"),
-                      jass_checknumber(j, 4));
+                      unitid,
+                      location,
+                      facing);
     return jass_pushlighthandle(j, unit, "unit");
 }
 DWORD CreateUnitAtLocByName(LPJASS j) {

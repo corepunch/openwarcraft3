@@ -2,6 +2,27 @@ extern LPPLAYER currentplayer;
 
 DWORD class_id(LPCSTR str) { return *(DWORD *)str; }
 
+static DWORD api_race_handles[256];
+static DWORD api_player_slot_state_handles[256];
+
+static DWORD JassPushEnumHandle(LPJASS j, LPCSTR type, LONG value, DWORD *handles, DWORD count) {
+    if (value >= 0 && (DWORD)value < count) {
+        handles[value] = (DWORD)value;
+        return jass_pushlighthandle(j, &handles[value], type);
+    }
+    DWORD *handle = jass_newhandle(j, sizeof(DWORD), type);
+    *handle = (DWORD)value;
+    return 1;
+}
+
+static DWORD JassPushRaceHandle(LPJASS j, LONG value) {
+    return JassPushEnumHandle(j, "race", value, api_race_handles, sizeof(api_race_handles) / sizeof(api_race_handles[0]));
+}
+
+static DWORD JassPushPlayerSlotStateHandle(LPJASS j, LONG value) {
+    return JassPushEnumHandle(j, "playerslotstate", value, api_player_slot_state_handles, sizeof(api_player_slot_state_handles) / sizeof(api_player_slot_state_handles[0]));
+}
+
 #define CONVERT_FUNC(NAME, TYPE) \
 DWORD Convert##NAME(LPJASS j) { \
     API_ALLOC(DWORD, TYPE); \
@@ -21,7 +42,9 @@ DWORD NAME(LPJASS j) { \
     return jass_push##OUTPUT(j, FUNC(arg1, arg2)); \
 }
 
-CONVERT_FUNC(Race, race);
+DWORD ConvertRace(LPJASS j) {
+    return JassPushRaceHandle(j, jass_checkinteger(j, 1));
+}
 CONVERT_FUNC(AllianceType, alliancetype);
 CONVERT_FUNC(RacePref, racepreference);
 CONVERT_FUNC(IGameState, igamestate);
@@ -48,7 +71,9 @@ CONVERT_FUNC(MapSetting, mapsetting);
 CONVERT_FUNC(MapDensity, mapdensity);
 CONVERT_FUNC(MapControl, mapcontrol);
 CONVERT_FUNC(PlayerColor, playercolor);
-CONVERT_FUNC(PlayerSlotState, playerslotstate);
+DWORD ConvertPlayerSlotState(LPJASS j) {
+    return JassPushPlayerSlotStateHandle(j, jass_checkinteger(j, 1));
+}
 CONVERT_FUNC(VolumeGroup, volumegroup);
 CONVERT_FUNC(CameraField, camerafield);
 CONVERT_FUNC(BlendMode, blendmode);
@@ -146,14 +171,23 @@ DWORD SetPlayers(LPJASS j) {
     return 0;
 }
 DWORD DefineStartLocation(LPJASS j) {
-    //LONG whichStartLoc = jass_checkinteger(j, 1);
-    //FLOAT x = jass_checknumber(j, 2);
-    //FLOAT y = jass_checknumber(j, 3);
+    LONG whichStartLoc = jass_checkinteger(j, 1);
+    FLOAT x = jass_checknumber(j, 2);
+    FLOAT y = jass_checknumber(j, 3);
+
+    if (level.mapinfo && whichStartLoc >= 0 && whichStartLoc < MAX_PLAYERS) {
+        ((LPMAPINFO)level.mapinfo)->players[whichStartLoc].startingPosition = (VECTOR2){ x, y };
+    }
     return 0;
 }
 DWORD DefineStartLocationLoc(LPJASS j) {
-    //LONG whichStartLoc = jass_checkinteger(j, 1);
-    //HANDLE whichLocation = jass_checkhandle(j, 2, "location");
+    LONG whichStartLoc = jass_checkinteger(j, 1);
+    LPCVECTOR2 whichLocation = jass_checkhandle(j, 2, "location");
+
+    if (level.mapinfo && whichLocation &&
+        whichStartLoc >= 0 && whichStartLoc < MAX_PLAYERS) {
+        ((LPMAPINFO)level.mapinfo)->players[whichStartLoc].startingPosition = *whichLocation;
+    }
     return 0;
 }
 DWORD SetStartLocPrioCount(LPJASS j) {
@@ -241,16 +275,29 @@ DWORD GetCreatureDensity(LPJASS j) {
     return jass_pushnullhandle(j, "mapdensity");
 }
 DWORD GetStartLocationX(LPJASS j) {
-    //LONG whichStartLocation = jass_checkinteger(j, 1);
-    return jass_pushnumber(j, 0);
+    LONG whichStartLocation = jass_checkinteger(j, 1);
+
+    if (!level.mapinfo || whichStartLocation < 0 || whichStartLocation >= MAX_PLAYERS) {
+        return jass_pushnumber(j, 0);
+    }
+    return jass_pushnumber(j, level.mapinfo->players[whichStartLocation].startingPosition.x);
 }
 DWORD GetStartLocationY(LPJASS j) {
-    //LONG whichStartLocation = jass_checkinteger(j, 1);
-    return jass_pushnumber(j, 0);
+    LONG whichStartLocation = jass_checkinteger(j, 1);
+
+    if (!level.mapinfo || whichStartLocation < 0 || whichStartLocation >= MAX_PLAYERS) {
+        return jass_pushnumber(j, 0);
+    }
+    return jass_pushnumber(j, level.mapinfo->players[whichStartLocation].startingPosition.y);
 }
 DWORD GetStartLocationLoc(LPJASS j) {
-    //LONG whichStartLocation = jass_checkinteger(j, 1);
-    return jass_pushnullhandle(j, "location");
+    LONG whichStartLocation = jass_checkinteger(j, 1);
+    API_ALLOC(VECTOR2, location);
+
+    if (level.mapinfo && whichStartLocation >= 0 && whichStartLocation < MAX_PLAYERS) {
+        *location = level.mapinfo->players[whichStartLocation].startingPosition;
+    }
+    return 1;
 }
 
 DWORD CreateTimer(LPJASS j) {
@@ -1152,19 +1199,19 @@ DWORD Preloader(LPJASS j) {
 // **************
 
 DWORD GetPlayerNeutralPassive(LPJASS j) {
-    return jass_pushinteger(j, 12);
+    return jass_pushinteger(j, PLAYER_NEUTRAL_PASSIVE);
 }
 DWORD GetPlayerNeutralAggressive(LPJASS j) {
-    return jass_pushinteger(j, 15);
+    return jass_pushinteger(j, PLAYER_NEUTRAL_AGGRESSIVE);
 }
 DWORD GetBJMaxPlayers(LPJASS j) {
     return jass_pushinteger(j, game.max_clients);
 }
 DWORD GetBJPlayerNeutralVictim(LPJASS j) {
-    return jass_pushinteger(j, 13);
+    return jass_pushinteger(j, PLAYER_NEUTRAL_VICTIM);
 }
 DWORD GetBJPlayerNeutralExtra(LPJASS j) {
-    return jass_pushinteger(j, 14);
+    return jass_pushinteger(j, PLAYER_NEUTRAL_EXTRA);
 }
 DWORD GetBJMaxPlayerSlots(LPJASS j) {
     return jass_pushinteger(j, 12);

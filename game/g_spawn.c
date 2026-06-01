@@ -16,6 +16,13 @@ static void G_InitJassHost(void) {
     ));
 }
 
+static DWORD G_NormalizeMapObjectPlayer(DWORD player) {
+    if (player < MAX_PLAYERS) {
+        return player;
+    }
+    return PLAYER_NEUTRAL_PASSIVE;
+}
+
 LPCSTR targs[] = {
     "none", // NONE
     "air",  // AIR
@@ -216,6 +223,17 @@ static DWORD G_MapPlayerTeam(LPCMAPINFO mapinfo, DWORD playernum) {
     return playernum;
 }
 
+static LPCSTR G_PlayerTypeName(playerType_t type) {
+    switch (type) {
+        case kPlayerTypeNone: return "none";
+        case kPlayerTypeHuman: return "human";
+        case kPlayerTypeComputer: return "computer";
+        case kPlayerTypeNeutral: return "neutral";
+        case kPlayerTypeRescuable: return "rescuable";
+    }
+    return "unknown";
+}
+
 static void G_InitMapPlayer(LPEDICT clent, LPCMAPINFO mapinfo, DWORD playernum) {
     LPCMAPPLAYER player = mapinfo ? mapinfo->players + playernum : NULL;
     LPPLAYER ps = &clent->client->ps;
@@ -237,11 +255,88 @@ static void G_InitMapPlayer(LPEDICT clent, LPCMAPINFO mapinfo, DWORD playernum) 
     clent->client->camera.state.target_distance = 1650;
     clent->client->camera.old_state = clent->client->camera.state;
     clent->client->mapplayer = player;
+    fprintf(stderr,
+            "G_InitMapPlayer: player=%u type=%s team=%u race=%u color=%u start_location=%ld origin=(%.1f %.1f) name=\"%s\"\n",
+            (unsigned)playernum,
+            player ? G_PlayerTypeName(player->playerType) : "none",
+            (unsigned)ps->team,
+            (unsigned)ps->race,
+            (unsigned)ps->color,
+            (long)ps->start_location,
+            ps->origin.x,
+            ps->origin.y,
+            ps->name ? ps->name : "");
+}
+
+typedef struct {
+    DWORD total;
+    DWORD units;
+    DWORD destructables;
+    DWORD doodads;
+    DWORD items;
+    DWORD blockers;
+    DWORD revealers;
+} spawnOwnerStats_t;
+
+static void G_AddSpawnOwnerStats(spawnOwnerStats_t *stats, LPCEDICT ent, DWORD original_owner) {
+    DWORD owner;
+
+    if (!stats || !ent) {
+        return;
+    }
+    owner = ent->s.player < MAX_PLAYERS ? ent->s.player : PLAYER_NEUTRAL_PASSIVE;
+    stats[owner].total++;
+    if (UNIT_MODEL(ent->class_id)) {
+        stats[owner].units++;
+    } else if (DESTRUCTABLE_FILE(ent->class_id)) {
+        stats[owner].destructables++;
+    } else if (ITEM_FILE(ent->class_id)) {
+        stats[owner].items++;
+    } else {
+        stats[owner].doodads++;
+    }
+    if (ent->s.flags & EF_FOW_BLOCKER) {
+        stats[owner].blockers++;
+    }
+    if (ent->s.flags & EF_FOW_REVEALER) {
+        stats[owner].revealers++;
+    }
+    if (original_owner != owner) {
+        fprintf(stderr,
+                "G_SpawnEntities: normalized owner for %.4s from %u to %u\n",
+                (char const *)&ent->class_id,
+                (unsigned)original_owner,
+                (unsigned)owner);
+    }
+}
+
+static void G_LogSpawnOwnerStats(spawnOwnerStats_t const *stats) {
+    if (!stats) {
+        return;
+    }
+    FOR_LOOP(player, MAX_PLAYERS) {
+        if (!stats[player].total) {
+            continue;
+        }
+        fprintf(stderr,
+                "G_SpawnEntities: owner=%u total=%u units=%u destructables=%u doodads=%u items=%u fow_revealers=%u fow_blockers=%u\n",
+                (unsigned)player,
+                (unsigned)stats[player].total,
+                (unsigned)stats[player].units,
+                (unsigned)stats[player].destructables,
+                (unsigned)stats[player].doodads,
+                (unsigned)stats[player].items,
+                (unsigned)stats[player].revealers,
+                (unsigned)stats[player].blockers);
+    }
 }
 
 void G_SpawnEntities(LPCMAPINFO mapinfo, LPCDOODAD entities) {
+    spawnOwnerStats_t owner_stats[MAX_PLAYERS];
+
     G_FowShutdown();
     memset(&level, 0, sizeof(level));
+    memset(owner_stats, 0, sizeof(owner_stats));
 
     level.mapinfo = mapinfo;
     G_FowInit();
@@ -257,6 +352,7 @@ void G_SpawnEntities(LPCMAPINFO mapinfo, LPCDOODAD entities) {
     globals.num_edicts = game.max_clients;
 
     FOR_EACH_LIST(DOODAD const, doodad, entities) {
+        DWORD original_owner;
 //        if (doodad->doodID == MAKEFOURCC('h', 'C', '0', '2')) {
 //            int a=0;
 //            printf("%.4s", )
@@ -268,13 +364,16 @@ void G_SpawnEntities(LPCMAPINFO mapinfo, LPCDOODAD entities) {
         ent->class_id = doodad->doodID;
         ent->variation = doodad->variation;
         ent->hero = doodad->hero;
-        ent->s.player = doodad->player < MAX_PLAYERS ? doodad->player : MAX_PLAYERS - 1;
+        original_owner = doodad->player;
+        ent->s.player = G_NormalizeMapObjectPlayer(original_owner);
         ent->s.origin = doodad->position;
         ent->s.angle = doodad->angle;
         ent->s.scale = doodad->scale.x;
         SP_CallSpawn(ent);
+        G_AddSpawnOwnerStats(owner_stats, ent, original_owner);
         gi.LinkEntity(ent);
     }
+    G_LogSpawnOwnerStats(owner_stats);
     SP_worldspawn(NULL);
     
     jass_dofile(level.vm, "Scripts\\common.j");
