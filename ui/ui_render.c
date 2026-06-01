@@ -733,11 +733,13 @@ static void UI_DrawFrameOne(LPCFRAMEDEF frame) {
             if (!UI_PointerBlockedByPopup(frame) &&
                 UI_MouseContains(rect) &&
                 ui_mouse.event == UI_MOUSE_LEFT_UP &&
+                UI_ButtonEnabled(frame) &&
                 frame->OnClick[0]) {
                 UI_MenuCommandLocal(frame->OnClick);
             }
             if (UI_IsPopupFrameType(frame->Type) &&
                 !UI_PointerBlockedByPopup(frame) &&
+                UI_ButtonEnabled(frame) &&
                 UI_MouseContains(rect) &&
                 ui_mouse.event == UI_MOUSE_LEFT_UP) {
                 LPCFRAMEDEF next_popup = active_popup == frame ? NULL : frame;

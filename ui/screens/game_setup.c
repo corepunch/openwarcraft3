@@ -179,9 +179,23 @@ static void GameSetup_UpdateStartButton(void) {
     }
     if (GameSetup_IsHost()) {
         UI_SetOnClick(setup.start_button, "menu_game_setup_start");
+        UI_SetEnabled(setup.start_button, true);
     } else {
         setup.start_button->OnClick[0] = '\0';
+        UI_SetEnabled(setup.start_button, false);
     }
+}
+
+static void GameSetup_UpdateSlotControlState(gameSetupSlotRow_t *row) {
+    BOOL const host = GameSetup_IsHost();
+
+    if (!row || !row->frames.PlayerSlot) {
+        return;
+    }
+    UI_SetEnabled(row->frames.NameMenu, host);
+    UI_SetEnabled(row->frames.RaceMenu, host);
+    UI_SetEnabled(row->frames.TeamButton, host);
+    UI_SetEnabled(row->frames.ColorButton, host);
 }
 
 static LPFRAMEDEF GameSetup_EnsureChatText(void) {
@@ -670,6 +684,7 @@ static void GameSetup_DrawSlotConfig(DWORD row_index) {
                  (unsigned)(config->color % 16));
         GameSetup_SetBackdropTexture(row->frames.ColorButtonValue, color_path, false);
     }
+    GameSetup_UpdateSlotControlState(row);
     UI_SetHidden(row->frames.PlayerSlot, false);
 }
 
@@ -973,6 +988,9 @@ void GameSetup_StartGame(void) {
 }
 
 void GameSetup_SetSlotType(DWORD slot, DWORD value) {
+    if (!GameSetup_IsHost()) {
+        return;
+    }
     if (slot >= MAX_PLAYERS || !setup.configs[slot].visible) {
         return;
     }
@@ -987,6 +1005,9 @@ void GameSetup_SetSlotType(DWORD slot, DWORD value) {
 }
 
 void GameSetup_SetSlotRace(DWORD slot, DWORD value) {
+    if (!GameSetup_IsHost()) {
+        return;
+    }
     if (slot >= MAX_PLAYERS || !setup.configs[slot].visible || value > kPlayerRaceNightElf) {
         return;
     }
@@ -997,7 +1018,10 @@ void GameSetup_SetSlotRace(DWORD slot, DWORD value) {
 void GameSetup_CycleSlotTeam(DWORD slot) {
     DWORD max_teams;
 
-    if (slot >= MAX_PLAYERS || !setup.configs[slot].visible || GameSetup_FixedPlayerSettings()) {
+    if (!GameSetup_IsHost() ||
+        slot >= MAX_PLAYERS ||
+        !setup.configs[slot].visible ||
+        GameSetup_FixedPlayerSettings()) {
         return;
     }
     max_teams = GameSetup_SelectableTeamCount();
@@ -1006,6 +1030,9 @@ void GameSetup_CycleSlotTeam(DWORD slot) {
 }
 
 void GameSetup_CycleSlotColor(DWORD slot) {
+    if (!GameSetup_IsHost()) {
+        return;
+    }
     if (slot >= MAX_PLAYERS || !setup.configs[slot].visible) {
         return;
     }
