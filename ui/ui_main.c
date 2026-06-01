@@ -29,6 +29,8 @@ static ResourceBar_t resource_bar;
 static CinematicPanel_t cinematic_panel;
 static LoadingScreen_t loading_screen;
 
+static void UI_EnterGameMode(void);
+
 static BOOL UI_IsMapCommand(LPCSTR command) {
     if (!command) {
         return false;
@@ -208,7 +210,13 @@ static void UI_MenuLANJoin_f(void) {
 }
 
 static void UI_MenuGameSetupStart_f(void) {
-    GameSetup_StartGame();
+    if (GameSetup_StartGame()) {
+        UI_EnterGameMode();
+    }
+}
+
+static void UI_MenuInGame_f(void) {
+    UI_EnterGameMode();
 }
 
 typedef struct {
@@ -239,6 +247,7 @@ static uiMenuCommandDef_t const ui_menu_command_defs[] = {
     { "menu_lan_start", UI_MenuLANStart_f },
     { "menu_lan_join", UI_MenuLANJoin_f },
     { "menu_game_setup_start", UI_MenuGameSetupStart_f },
+    { "menu_ingame", UI_MenuInGame_f },
     { NULL, NULL },
 };
 
@@ -363,6 +372,10 @@ static BOOL UI_CinematicActive(LPCPLAYER ps) {
 
 static BOOL UI_LoadingActive(LPCPLAYER ps) {
     return ps && ps->client_ui_state == CLIENT_UI_LOADING;
+}
+
+static void UI_EnterGameMode(void) {
+    ui_state.game_mode = true;
 }
 
 static void UI_InitCinematicPanel(void) {
@@ -616,7 +629,7 @@ void UI_InitLocal(void) {
         ? uiimport.Cvar_String("map", "")
         : "";
     if (map && *map) {
-        ui_state.game_mode = true;
+        UI_EnterGameMode();
         return;
     }
 
@@ -843,6 +856,10 @@ void UI_MenuCommandLocal(LPCSTR command) {
         UI_MenuGameSetupStart_f();
         return;
     }
+    if (!strcmp(command, "menu_ingame")) {
+        UI_MenuInGame_f();
+        return;
+    }
     if (sscanf(command, "menu_game_setup_slot_type %u %u", &slot, &value) == 2) {
         GameSetup_SetSlotType(slot, value);
         return;
@@ -881,7 +898,7 @@ void UI_MenuCommandLocal(LPCSTR command) {
     }
 
     if (UI_IsMapCommand(command)) {
-        ui_state.game_mode = true;
+        UI_EnterGameMode();
     }
     uiimport.Cmd_ExecuteText(command);
 }
@@ -899,6 +916,9 @@ void UI_UpdateUnitUILocal(DWORD num_units, uiUnitData_t *units) {
 }
 
 static void UI_UpdateLobbySetupLocal(lobbyState_t const *state) {
+    if (ui_state.game_mode) {
+        return;
+    }
     UI_SetScreen(&gameSetupScreen);
     GameSetup_UpdateLobbySetup(state);
 }

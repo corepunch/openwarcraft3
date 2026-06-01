@@ -958,13 +958,13 @@ static void GameSetup_MouseEvent(int x, int y, int buttons) {
     (void)buttons;
 }
 
-void GameSetup_StartGame(void) {
+BOOL GameSetup_StartGame(void) {
     char command[8192];
     DWORD slot_count;
     size_t used = 0;
 
     if (!GameSetup_IsHost() || !setup.map_path[0]) {
-        return;
+        return false;
     }
     command[0] = '\0';
     slot_count = GameSetup_LobbySlotCount();
@@ -974,6 +974,7 @@ void GameSetup_StartGame(void) {
     }
     GameSetup_AppendMapCommand(command, sizeof(command), &used, setup.map_path);
     uiimport.Cmd_ExecuteText(command);
+    return true;
 }
 
 void GameSetup_SetSlotType(DWORD slot, DWORD value) {
