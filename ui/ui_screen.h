@@ -69,7 +69,8 @@ void LAN_ApplyPlayerName(void);
 
 void GameSetup_StartGame(void);
 void GameSetup_LoadMap(LPCSTR map_path);
-void GameSetup_AddChatMessage(LPCSTR text);
+void GameSetup_UpdateLobbySetup(lobbyState_t const *state);
+void GameSetup_AddChatMessage(LPCSTR text, BOOL own);
 void GameSetup_SetSlotType(DWORD slot, DWORD value);
 void GameSetup_SetSlotRace(DWORD slot, DWORD value);
 void GameSetup_CycleSlotTeam(DWORD slot);

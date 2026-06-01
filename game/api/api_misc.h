@@ -891,6 +891,17 @@ DWORD SetTerrainFogEx(LPJASS j) {
     //FLOAT blue = jass_checknumber(j, 7);
     return 0;
 }
+DWORD SetWaterBaseColor(LPJASS j) {
+    //LONG red = jass_checkinteger(j, 1);
+    //LONG green = jass_checkinteger(j, 2);
+    //LONG blue = jass_checkinteger(j, 3);
+    //LONG alpha = jass_checkinteger(j, 4);
+    return 0;
+}
+DWORD SetWaterDeforms(LPJASS j) {
+    //BOOL val = jass_checkboolean(j, 1);
+    return 0;
+}
 DWORD SetDayNightModels(LPJASS j) {
     LPCSTR terrainDNCFile = jass_checkstring(j, 1);
     LPCSTR unitDNCFile = jass_checkstring(j, 2);

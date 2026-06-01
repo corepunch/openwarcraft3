@@ -67,6 +67,9 @@ typedef struct mapPlayer_s {
     VECTOR2 startingPosition;
     DWORD allyLowPrioritiesFlags; // (bit "x"=1 -> set for player "x")
     DWORD allyHighPrioritiesFlags; // (bit "x"=1 -> set for player "x")
+    DWORD enemyLowPrioritiesFlags; // 1.32+
+    DWORD enemyHighPrioritiesFlags; // 1.32+
+    DWORD color; // runtime only; war3map.w3i records are parsed field-by-field above
 } mapPlayer_t;
 
 typedef struct {
@@ -110,25 +113,35 @@ typedef struct {
 } mapRandomGroupPositionItem_t;
 
 typedef struct {
-    mapRandomGroupPositionType_t type;
-    DWORD num_items;
-    mapRandomGroupPositionItem_t *items;
-} mapRandomGroupPosition_t;
+    DWORD chance;
+    DWORD *itemIDs; // one unit/item id for each position in the owning random table
+} mapRandomUnit_t;
 
 typedef struct {
-    DWORD groupNumber;
-    LPSTR groupName;
+    DWORD tableNumber;
+    LPSTR tableName;
     DWORD num_positions;
-//    positions are the table columns where you can enter the unit/item ids,
-//    all units in the same line have the same chance, but belong to different "sets"
-//    of the random group, called positions here
-    mapRandomGroupPosition_t *positions;
-} MapRandomGroup;
+    mapRandomGroupPositionType_t *positionTypes;
+    DWORD num_units;
+    mapRandomUnit_t *units;
+} mapRandomUnitTable_t;
 
 typedef struct {
-    DWORD num_randomGroups;
-    MapRandomGroup *randomGroups;
-} mapRandomUnitTable_t;
+    DWORD chance;
+    DWORD itemID;
+} mapRandomItem_t;
+
+typedef struct {
+    DWORD num_items;
+    mapRandomItem_t *items;
+} mapRandomItemSet_t;
+
+typedef struct {
+    DWORD tableNumber;
+    LPSTR tableName;
+    DWORD num_sets;
+    mapRandomItemSet_t *sets;
+} mapRandomItemTable_t;
 
 #define MAX_TRIGSTR_LENGTH 1024
 
@@ -180,6 +193,10 @@ struct mapInfo_s {
     DWORD fileFormat; // file format version = 18
     DWORD numberOfSaves;
     DWORD editorVersion;
+    DWORD gameVersionMajor; // format 28+
+    DWORD gameVersionMinor; // format 28+
+    DWORD gameVersionPatch; // format 28+
+    DWORD gameVersionBuild; // format 28+
     LPSTR mapName;
     LPSTR mapAuthor;
     LPSTR mapDescription;
@@ -189,18 +206,37 @@ struct mapInfo_s {
     DWORD flags;
     char mainGroundType; // Example: 'A'= Ashenvale, 'X' = City Dalaran
     DWORD campaignBackgroundNumber; // (-1 = none)
+    LPSTR loadingScreenModel; // TFT+
     LPSTR loadingScreenText;
     LPSTR loadingScreenTitle;
     LPSTR loadingScreenSubtitle;
     DWORD loadingScreenNumber; // (-1 = none)
+    DWORD gameDataSet; // TFT+
+    LPSTR prologueScreenModel; // TFT+
     LPSTR prologueScreenText;
     LPSTR prologueScreenTitle;
     LPSTR prologueScreenSubtitle;
+    DWORD fogStyle; // TFT+
+    FLOAT fogStartZ; // TFT+
+    FLOAT fogEndZ; // TFT+
+    FLOAT fogDensity; // TFT+
+    COLOR32 fogColor; // TFT+
+    DWORD weatherID; // TFT+
+    LPSTR soundEnvironment; // TFT+
+    BYTE lightEnvironmentTileset; // TFT+
+    COLOR32 waterColor; // TFT+
+    DWORD scriptType; // format 28+
+    DWORD supportedModes; // format 31+
+    DWORD gameDataVersion; // format 31+
+    DWORD defaultZoomOverride; // format 32+
+    DWORD maximumZoomOverride; // format 32+
+    DWORD minimumZoomOverride; // format 33+
 //    DWORD num_players;
     DWORD num_teams;
     DWORD num_upgradeAvailabilities;
     DWORD num_techAvailabilities;
     DWORD num_randomUnits;
+    DWORD num_randomItems;
     DWORD num_originalUnits;
     DWORD num_userCreatedUnits;
     mapPlayer_t players[MAX_PLAYERS];
@@ -208,6 +244,7 @@ struct mapInfo_s {
     mapUpgradeAvailability_t *upgradeAvailabilities;
     mapTechAvailability_t *techAvailabilities;
     mapRandomUnitTable_t *randomUnits;
+    mapRandomItemTable_t *randomItems;
     mapTrigStr_t *strings;
     unitData_t *originalUnits;
     unitData_t *userCreatedUnits;

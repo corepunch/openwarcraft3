@@ -2,7 +2,7 @@
 
 LPCWAR3MAPVERTEX GetWar3MapVertex(LPCWAR3MAP war3Map, DWORD x, DWORD y) {
     int const index = x + y * war3Map->width;
-    char const *ptr = ((char const *)war3Map->vertices) + index * MAP_VERTEX_SIZE;
+    char const *ptr = ((char const *)war3Map->vertices) + index * sizeof(WAR3MAPVERTEX);
     return (LPCWAR3MAPVERTEX)ptr;
 }
 

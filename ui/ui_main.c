@@ -865,7 +865,18 @@ void UI_MenuCommandLocal(LPCSTR command) {
         return;
     }
     if (!strncmp(command, "menu_game_setup_chat ", 21)) {
-        GameSetup_AddChatMessage(command + 21);
+        DWORD own = 0;
+        LPCSTR text = command + 21;
+
+        if (sscanf(text, "%u", &own) == 1) {
+            while (*text && *text != ' ' && *text != '\t') {
+                text++;
+            }
+            while (*text == ' ' || *text == '\t') {
+                text++;
+            }
+        }
+        GameSetup_AddChatMessage(text, own != 0);
         return;
     }
 
@@ -887,6 +898,11 @@ void UI_UpdateUnitUILocal(DWORD num_units, uiUnitData_t *units) {
     }
 }
 
+static void UI_UpdateLobbySetupLocal(lobbyState_t const *state) {
+    UI_SetScreen(&gameSetupScreen);
+    GameSetup_UpdateLobbySetup(state);
+}
+
 /* Export function table */
 uiExport_t UI_GetAPI(uiImport_t import) {
     uiimport = import;
@@ -903,6 +919,7 @@ uiExport_t UI_GetAPI(uiImport_t import) {
     exp.MouseEvent = UI_MouseEventLocal;
     exp.MenuCommand = UI_MenuCommandLocal;
     exp.UpdateUnitUI = UI_UpdateUnitUILocal;
+    exp.UpdateLobbySetup = UI_UpdateLobbySetupLocal;
     exp.SetLayoutLayer = UI_LayoutSetLayer;
     exp.ClearLayoutLayer = UI_LayoutClearLayer;
     exp.HitTestLayout = UI_LayoutHitTest;

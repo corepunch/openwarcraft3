@@ -5,7 +5,7 @@
 #include "net.h"
 #include "mpq.h"
 
-#define MAP_VERTEX_SIZE 7
+#define MAP_VERTEX_FILE_SIZE 7
 #define MAX_SHEET_LINE 1024
 #define MAX_COMMAND_ENTITIES 64
 #define HEIGHT_COR (TILE_SIZE * 2 + 5)
@@ -202,6 +202,7 @@ void SV_Shutdown(void);
 void SV_StartLobby(LPCSTR pFilename);
 void SV_Map(LPCSTR pFilename);
 void SV_LobbyBroadcastChat(LPCSTR sender, LPCSTR text);
+void SV_LobbyBroadcastChatFrom(DWORD sender_client, LPCSTR sender, LPCSTR text);
 void MenuAction(LPCSTR action, LPCSTR arg);
 
 HANDLE MemAlloc(long size);

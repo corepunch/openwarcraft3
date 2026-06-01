@@ -67,7 +67,9 @@ typedef struct {
     LPFRAMEDEF chat_text;
     LPFRAMEDEF team_container;
     char chat_lines[GAME_SETUP_CHAT_LINES][GAME_SETUP_CHAT_LINE];
+    BOOL chat_line_own[GAME_SETUP_CHAT_LINES];
     DWORD num_chat_lines;
+    BOOL applying_lobby;
     gameSetupSlotRow_t slots[MAX_PLAYERS];
     gameSetupSlotConfig_t configs[MAX_PLAYERS];
 } gameSetupState_t;
@@ -245,7 +247,7 @@ static LPFRAMEDEF GameSetup_EnsureChatText(void) {
     return setup.chat_text;
 }
 
-void GameSetup_AddChatMessage(LPCSTR text) {
+void GameSetup_AddChatMessage(LPCSTR text, BOOL own) {
     char buffer[GAME_SETUP_CHAT_LINES * GAME_SETUP_CHAT_LINE];
     size_t used = 0;
 
@@ -256,6 +258,9 @@ void GameSetup_AddChatMessage(LPCSTR text) {
         memmove(setup.chat_lines,
                 setup.chat_lines + 1,
                 sizeof(setup.chat_lines[0]) * (GAME_SETUP_CHAT_LINES - 1));
+        memmove(setup.chat_line_own,
+                setup.chat_line_own + 1,
+                sizeof(setup.chat_line_own[0]) * (GAME_SETUP_CHAT_LINES - 1));
         setup.num_chat_lines = GAME_SETUP_CHAT_LINES - 1;
     }
     GameSetup_CopyString(setup.chat_lines[setup.num_chat_lines],
@@ -266,6 +271,7 @@ void GameSetup_AddChatMessage(LPCSTR text) {
             *p = ' ';
         }
     }
+    setup.chat_line_own[setup.num_chat_lines] = own;
     setup.num_chat_lines++;
 
     buffer[0] = '\0';
@@ -273,7 +279,12 @@ void GameSetup_AddChatMessage(LPCSTR text) {
         if (i > 0) {
             GameSetup_AppendText(buffer, sizeof(buffer), &used, "\n");
         }
+        GameSetup_AppendText(buffer,
+                             sizeof(buffer),
+                             &used,
+                             setup.chat_line_own[i] ? "|cffffffff" : "|cffffcc00");
         GameSetup_AppendText(buffer, sizeof(buffer), &used, setup.chat_lines[i]);
+        GameSetup_AppendText(buffer, sizeof(buffer), &used, "|r");
     }
     GameSetup_SetTextIfPresent(GameSetup_EnsureChatText(), "%s", buffer);
 }
@@ -407,29 +418,6 @@ static LPCSTR GameSetup_SlotTypeName(gameSetupSlotType_t type, LPCSTR human_name
     }
 }
 
-static LPCSTR GameSetup_SlotTypeCvar(gameSetupSlotType_t type) {
-    switch (type) {
-        case GAME_SETUP_SLOT_HUMAN: return "human";
-        case GAME_SETUP_SLOT_COMPUTER: return "computer";
-        case GAME_SETUP_SLOT_CLOSED: return "closed";
-        case GAME_SETUP_SLOT_OPEN:
-        default:
-            return "open";
-    }
-}
-
-static LPCSTR GameSetup_RaceCvar(playerRace_t race) {
-    switch (race) {
-        case kPlayerRaceHuman: return "human";
-        case kPlayerRaceOrc: return "orc";
-        case kPlayerRaceUndead: return "undead";
-        case kPlayerRaceNightElf: return "nightelf";
-        case kPlayerRaceNone:
-        default:
-            return "random";
-    }
-}
-
 static void GameSetup_AppendText(LPSTR out, size_t out_size, size_t *used, LPCSTR text) {
     size_t len;
 
@@ -462,29 +450,6 @@ static void GameSetup_AppendQuotedValue(LPSTR out, size_t out_size, size_t *used
     GameSetup_AppendText(out, out_size, used, "\"");
 }
 
-static void GameSetup_AppendSetCommand(LPSTR out,
-                                       size_t out_size,
-                                       size_t *used,
-                                       LPCSTR name,
-                                       LPCSTR value) {
-    GameSetup_AppendText(out, out_size, used, "set ");
-    GameSetup_AppendText(out, out_size, used, name);
-    GameSetup_AppendText(out, out_size, used, " ");
-    GameSetup_AppendQuotedValue(out, out_size, used, value);
-    GameSetup_AppendText(out, out_size, used, "\n");
-}
-
-static void GameSetup_AppendSetInteger(LPSTR out,
-                                       size_t out_size,
-                                       size_t *used,
-                                       LPCSTR name,
-                                       DWORD value) {
-    char text[32];
-
-    snprintf(text, sizeof(text), "%u", (unsigned)value);
-    GameSetup_AppendSetCommand(out, out_size, used, name, text);
-}
-
 static void GameSetup_AppendMapCommand(LPSTR out, size_t out_size, size_t *used, LPCSTR map_path) {
     GameSetup_AppendText(out, out_size, used, "map ");
     GameSetup_AppendQuotedValue(out, out_size, used, map_path);
@@ -504,28 +469,69 @@ static DWORD GameSetup_LobbySlotCount(void) {
 
 static void GameSetup_AppendLobbyConfig(LPSTR command, size_t command_size, size_t *used) {
     DWORD slot_count = GameSetup_LobbySlotCount();
+    char text[128];
 
-    GameSetup_AppendSetCommand(command, command_size, used, "sv_hostname",
-                               setup.map_name[0] ? setup.map_name : "OpenWarcraft3");
-    GameSetup_AppendSetCommand(command, command_size, used, "sv_map_path", setup.map_path);
-    GameSetup_AppendSetCommand(command, command_size, used, "sv_map_name",
-                               setup.map_name[0] ? setup.map_name : setup.map_path);
-    GameSetup_AppendSetInteger(command, command_size, used, "sv_game_speed", LAN_SelectedGameSpeed());
-    GameSetup_AppendSetInteger(command, command_size, used, "sv_lobby_slots", slot_count);
+    snprintf(text, sizeof(text), "lobby_config %u %u ",
+             (unsigned)LAN_SelectedGameSpeed(),
+             (unsigned)slot_count);
+    GameSetup_AppendText(command, command_size, used, text);
+    GameSetup_AppendQuotedValue(command, command_size, used,
+                                setup.map_name[0] ? setup.map_name : setup.map_path);
+    GameSetup_AppendText(command, command_size, used, "\n");
+}
+
+static void GameSetup_AppendLobbySlot(LPSTR command, size_t command_size, size_t *used, DWORD slot) {
+    gameSetupSlotConfig_t const *config;
+    char text[256];
+
+    if (slot >= MAX_PLAYERS) {
+        return;
+    }
+    config = &setup.configs[slot];
+    snprintf(text, sizeof(text),
+             "lobby_slot %u %u %u %u %u %u %u ",
+             (unsigned)slot,
+             (unsigned)(config->visible ? 1 : 0),
+             (unsigned)config->map_player,
+             (unsigned)config->type,
+             (unsigned)config->race,
+             (unsigned)config->team,
+             (unsigned)config->color);
+    GameSetup_AppendText(command, command_size, used, text);
+    GameSetup_AppendQuotedValue(command, command_size, used,
+                                config->name[0] ? config->name : GameSetup_SlotTypeName(config->type, NULL));
+    GameSetup_AppendText(command, command_size, used, "\n");
+}
+
+static void GameSetup_PublishSlot(DWORD slot) {
+    char command[512];
+    size_t used = 0;
+
+    if (!GameSetup_IsHost() || setup.applying_lobby || !setup.map_path[0]) {
+        return;
+    }
+    command[0] = '\0';
+    GameSetup_AppendLobbySlot(command, sizeof(command), &used, slot);
+    uiimport.Cmd_ExecuteText(command);
 }
 
 static void GameSetup_PublishLobby(void) {
     char command[2048];
     size_t used = 0;
+    DWORD slot_count;
 
-    if (!GameSetup_IsHost() || !setup.map_path[0]) {
+    if (!GameSetup_IsHost() || setup.applying_lobby || !setup.map_path[0]) {
         return;
     }
     command[0] = '\0';
-    GameSetup_AppendLobbyConfig(command, sizeof(command), &used);
     GameSetup_AppendText(command, sizeof(command), &used, "lobby_start ");
     GameSetup_AppendQuotedValue(command, sizeof(command), &used, setup.map_path);
     GameSetup_AppendText(command, sizeof(command), &used, "\n");
+    GameSetup_AppendLobbyConfig(command, sizeof(command), &used);
+    slot_count = GameSetup_LobbySlotCount();
+    FOR_LOOP(i, slot_count) {
+        GameSetup_AppendLobbySlot(command, sizeof(command), &used, i);
+    }
     uiimport.Cmd_ExecuteText(command);
 }
 
@@ -729,7 +735,7 @@ static void GameSetup_PopulateSlots(void) {
         setup.configs[visible].map_player = i;
         setup.configs[visible].type = player->playerType == kPlayerTypeComputer
             ? GAME_SETUP_SLOT_COMPUTER
-            : GAME_SETUP_SLOT_HUMAN;
+            : is_first_human ? GAME_SETUP_SLOT_HUMAN : GAME_SETUP_SLOT_OPEN;
         setup.configs[visible].race = player->playerRace;
         setup.configs[visible].team = GameSetup_DefaultTeamForSlot(&setup.map_info, i, visible);
         setup.configs[visible].color = i;
@@ -964,24 +970,7 @@ void GameSetup_StartGame(void) {
     slot_count = GameSetup_LobbySlotCount();
     GameSetup_AppendLobbyConfig(command, sizeof(command), &used);
     FOR_LOOP(i, slot_count) {
-        gameSetupSlotConfig_t const *config = &setup.configs[i];
-        char name[64];
-
-        snprintf(name, sizeof(name), "sv_slot%u_map_player", (unsigned)i);
-        GameSetup_AppendSetInteger(command, sizeof(command), &used, name, config->map_player);
-        snprintf(name, sizeof(name), "sv_slot%u_type", (unsigned)i);
-        GameSetup_AppendSetCommand(command, sizeof(command), &used, name,
-                                   GameSetup_SlotTypeCvar(config->type));
-        snprintf(name, sizeof(name), "sv_slot%u_race", (unsigned)i);
-        GameSetup_AppendSetCommand(command, sizeof(command), &used, name,
-                                   GameSetup_RaceCvar(config->race));
-        snprintf(name, sizeof(name), "sv_slot%u_team", (unsigned)i);
-        GameSetup_AppendSetInteger(command, sizeof(command), &used, name, config->team);
-        snprintf(name, sizeof(name), "sv_slot%u_color", (unsigned)i);
-        GameSetup_AppendSetInteger(command, sizeof(command), &used, name, config->color);
-        snprintf(name, sizeof(name), "sv_slot%u_name", (unsigned)i);
-        GameSetup_AppendSetCommand(command, sizeof(command), &used, name,
-                                   config->name[0] ? config->name : GameSetup_SlotTypeName(config->type, NULL));
+        GameSetup_AppendLobbySlot(command, sizeof(command), &used, i);
     }
     GameSetup_AppendMapCommand(command, sizeof(command), &used, setup.map_path);
     uiimport.Cmd_ExecuteText(command);
@@ -1002,6 +991,7 @@ void GameSetup_SetSlotType(DWORD slot, DWORD value) {
         snprintf(setup.configs[slot].name, sizeof(setup.configs[slot].name), "Player");
     }
     GameSetup_DrawSlotConfig(slot);
+    GameSetup_PublishSlot(slot);
 }
 
 void GameSetup_SetSlotRace(DWORD slot, DWORD value) {
@@ -1013,6 +1003,7 @@ void GameSetup_SetSlotRace(DWORD slot, DWORD value) {
     }
     setup.configs[slot].race = (playerRace_t)value;
     GameSetup_DrawSlotConfig(slot);
+    GameSetup_PublishSlot(slot);
 }
 
 void GameSetup_CycleSlotTeam(DWORD slot) {
@@ -1027,6 +1018,7 @@ void GameSetup_CycleSlotTeam(DWORD slot) {
     max_teams = GameSetup_SelectableTeamCount();
     setup.configs[slot].team = (setup.configs[slot].team + 1) % max_teams;
     GameSetup_DrawSlotConfig(slot);
+    GameSetup_PublishSlot(slot);
 }
 
 void GameSetup_CycleSlotColor(DWORD slot) {
@@ -1038,6 +1030,40 @@ void GameSetup_CycleSlotColor(DWORD slot) {
     }
     setup.configs[slot].color = (setup.configs[slot].color + 1) % 16;
     GameSetup_DrawSlotConfig(slot);
+    GameSetup_PublishSlot(slot);
+}
+
+void GameSetup_UpdateLobbySetup(lobbyState_t const *state) {
+    BOOL changed_map;
+
+    if (!state || !state->active || !state->map_path[0]) {
+        return;
+    }
+    setup.applying_lobby = true;
+    changed_map = strcmp(setup.map_path, state->map_path) != 0;
+    if (changed_map || !setup.ready) {
+        GameSetup_LoadMap(state->map_path);
+    }
+    snprintf(setup.map_path, sizeof(setup.map_path), "%s", state->map_path);
+    snprintf(setup.map_name, sizeof(setup.map_name), "%s",
+             state->map_name[0] ? state->map_name : GameSetup_BaseName(state->map_path));
+    GameSetup_SetTextIfPresent(setup.game_name, "%s", setup.map_name[0] ? setup.map_name : "Local Game");
+    memset(setup.configs, 0, sizeof(setup.configs));
+    FOR_LOOP(i, state->slot_count) {
+        lobbySlot_t const *slot = &state->slots[i];
+
+        setup.configs[i].visible = slot->visible;
+        setup.configs[i].map_player = slot->map_player;
+        setup.configs[i].type = (gameSetupSlotType_t)slot->type;
+        setup.configs[i].race = slot->race;
+        setup.configs[i].team = slot->team;
+        setup.configs[i].color = slot->color;
+        GameSetup_CopyString(setup.configs[i].name, sizeof(setup.configs[i].name), slot->name);
+    }
+    GameSetup_UpdateMapInfo();
+    GameSetup_DrawSlotConfigs();
+    GameSetup_UpdateStartButton();
+    setup.applying_lobby = false;
 }
 
 uiScreen_t gameSetupScreen = {

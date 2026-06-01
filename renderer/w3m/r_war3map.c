@@ -123,6 +123,46 @@ static void R_LoadMapMinimap(HANDLE hMpq, LPCSTR mapFilename) {
     }
 }
 
+static BOOL R_ReadWar3MapVertex(HANDLE file, LPWAR3MAPVERTEX vert) {
+    WORD water_and_edge;
+    BYTE flags;
+    BYTE variation;
+    BYTE cliff_and_layer;
+
+    if (!file || !vert) {
+        return false;
+    }
+    memset(vert, 0, sizeof(*vert));
+    if (!SFileReadFile(file, &vert->accurate_height, sizeof(vert->accurate_height), NULL, NULL)) {
+        return false;
+    }
+    if (!SFileReadFile(file, &water_and_edge, sizeof(water_and_edge), NULL, NULL)) {
+        return false;
+    }
+    if (!SFileReadFile(file, &flags, sizeof(flags), NULL, NULL)) {
+        return false;
+    }
+    if (!SFileReadFile(file, &variation, sizeof(variation), NULL, NULL)) {
+        return false;
+    }
+    if (!SFileReadFile(file, &cliff_and_layer, sizeof(cliff_and_layer), NULL, NULL)) {
+        return false;
+    }
+
+    vert->waterlevel = water_and_edge & 0x3FFF;
+    vert->mapedge = (water_and_edge & 0x4000) != 0;
+    vert->ground = flags & 0x0F;
+    vert->ramp = (flags & 0x10) != 0;
+    vert->blight = (flags & 0x20) != 0;
+    vert->water = (flags & 0x40) != 0;
+    vert->boundary = (flags & 0x80) != 0;
+    vert->cliffVariation = (variation >> 5) & 0x07;
+    vert->groundVariation = variation & 0x1F;
+    vert->cliff = (cliff_and_layer >> 4) & 0x0F;
+    vert->level = cliff_and_layer & 0x0F;
+    return true;
+}
+
 LPWAR3MAP FileReadWar3Map(HANDLE archive) {
     LPWAR3MAP map = ri.MemAlloc(sizeof(WAR3MAP));
     HANDLE file;
@@ -136,10 +176,15 @@ LPWAR3MAP FileReadWar3Map(HANDLE archive) {
     SFileReadFile(file, &map->width, 4, NULL, NULL);
     SFileReadFile(file, &map->height, 4, NULL, NULL);
     SFileReadFile(file, &map->center, 8, NULL, NULL);
-    int const vertexblocksize = MAP_VERTEX_SIZE * map->width * map->height;
+    DWORD const num_vertices = map->width * map->height;
+    int const vertexblocksize = sizeof(WAR3MAPVERTEX) * num_vertices;
     map->vertices = ri.MemAlloc(vertexblocksize);
     R_AllocateFogOfWar(map);
-    SFileReadFile(file, map->vertices, vertexblocksize, 0, 0);
+    FOR_LOOP(i, num_vertices) {
+        if (!R_ReadWar3MapVertex(file, (LPWAR3MAPVERTEX)map->vertices + i)) {
+            break;
+        }
+    }
     SFileCloseFile(file);
 #ifdef DEBUG_PATHFINDING
     pathTexture = R_AllocateTexture((map->width - 1) * 4, (map->height - 1) * 4);

@@ -154,6 +154,17 @@ sheetRow_t *find_row(LPCSTR dood_id) {
     return NULL;
 }
 
+static BOOL G_ClassIdIsPrintable(DWORD class_id) {
+    BYTE const *id = (BYTE const *)&class_id;
+
+    FOR_LOOP(i, 4) {
+        if (id[i] < 32 || id[i] > 126) {
+            return false;
+        }
+    }
+    return true;
+}
+
 void SP_CallSpawn(LPEDICT edict) {
     if (!edict->class_id)
         return;
@@ -175,7 +186,9 @@ void SP_CallSpawn(LPEDICT edict) {
             UnitStringField(DestructableMetaData, edict->class_id, "bfil");
         }
         edict->svflags |= SVF_NOCLIENT;
-        fprintf(stderr, "Warning: Unknown ID %.4s\n", (const char *)&edict->class_id);
+        if (!G_ClassIdIsPrintable(edict->class_id)) {
+            fprintf(stderr, "Warning: Invalid map object ID %.4s\n", (const char *)&edict->class_id);
+        }
     }
 //    for (struct spawn *s = spawns; s->func; s++) {
 //        if (*((int const *)s->name) == edict->class_id) {
@@ -191,13 +204,30 @@ void SP_worldspawn(LPEDICT ent) {
     gi.configstring(CS_MANAHBAR, Theme_String("SimpleManaBarConsole", "Default"));
 }
 
-static void G_InitMapPlayer(LPEDICT clent, LPCMAPPLAYER player, DWORD playernum) {
+static DWORD G_MapPlayerTeam(LPCMAPINFO mapinfo, DWORD playernum) {
+    if (!mapinfo || !mapinfo->teams) {
+        return playernum;
+    }
+    FOR_LOOP(i, mapinfo->num_teams) {
+        if (mapinfo->teams[i].playerMasks & (1u << playernum)) {
+            return i;
+        }
+    }
+    return playernum;
+}
+
+static void G_InitMapPlayer(LPEDICT clent, LPCMAPINFO mapinfo, DWORD playernum) {
+    LPCMAPPLAYER player = mapinfo ? mapinfo->players + playernum : NULL;
     LPPLAYER ps = &clent->client->ps;
     memset(ps, 0, sizeof(PLAYER));
     ps->number = playernum;
-    ps->race = player->playerRace;
-    ps->origin.x = player->startingPosition.x;
-    ps->origin.y = player->startingPosition.y;
+    ps->team = G_MapPlayerTeam(mapinfo, playernum);
+    ps->color = player ? player->color : playernum;
+    ps->race = player ? player->playerRace : kPlayerRaceNone;
+    ps->name = player ? player->playerName : NULL;
+    ps->start_location = player ? (LONG)playernum : -1;
+    ps->origin.x = player ? player->startingPosition.x : 0.0f;
+    ps->origin.y = player ? player->startingPosition.y : 0.0f;
     ps->viewquat = Quaternion_fromEuler(&MAKE(VECTOR3, 326, 0, 0), ROTATE_ZYX);
     ps->fov = 50;
     ps->distance = 1650;
@@ -221,7 +251,7 @@ void G_SpawnEntities(LPCMAPINFO mapinfo, LPCDOODAD entities) {
     FOR_LOOP(p, MAX_PLAYERS) {
         LPGAMECLIENT client = game.clients+p;
         g_edicts[p].client = client;
-        G_InitMapPlayer(g_edicts+p, mapinfo->players+p, p);
+        G_InitMapPlayer(g_edicts+p, mapinfo, p);
     }
 
     globals.num_edicts = game.max_clients;

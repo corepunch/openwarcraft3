@@ -408,6 +408,12 @@ typedef struct {
     DWORD count;
 } fsArchiveScan_t;
 
+static void FS_AddArchiveScanDirectoryEntry(LPCSTR name,
+                                            LPCSTR path,
+                                            BOOL isDirectory,
+                                            BOOL isFile,
+                                            void *userData);
+
 static void FS_AddArchiveScanEntry(LPCSTR name, LPCSTR path, BOOL isDirectory, BOOL isFile, void *userData) {
     fsArchiveScan_t *scan = userData;
 
@@ -417,6 +423,26 @@ static void FS_AddArchiveScanEntry(LPCSTR name, LPCSTR path, BOOL isDirectory, B
     (void)isDirectory;
     if (isFile && scan->count < scan->maxPaths && FS_HasExtension(name, ".mpq")) {
         snprintf(scan->paths[scan->count++], sizeof(PATHSTR), "%s", path);
+    }
+}
+
+static void FS_AddArchiveScanDirectory(LPCSTR dirname, fsArchiveScan_t *scan) {
+    if (!dirname || !scan || scan->count >= scan->maxPaths) {
+        return;
+    }
+    FS_ForEachDiskEntry(dirname, FS_AddArchiveScanEntry, scan);
+    FS_ForEachDiskEntry(dirname, FS_AddArchiveScanDirectoryEntry, scan);
+}
+
+static void FS_AddArchiveScanDirectoryEntry(LPCSTR name,
+                                            LPCSTR path,
+                                            BOOL isDirectory,
+                                            BOOL isFile,
+                                            void *userData) {
+    (void)name;
+    (void)isFile;
+    if (isDirectory) {
+        FS_AddArchiveScanDirectory(path, userData);
     }
 }
 
@@ -430,7 +456,7 @@ BOOL FS_AddDataDirectory(LPCSTR dirname) {
     }
 
     FS_AddGameDirectory(dirname);
-    FS_ForEachDiskEntry(dirname, FS_AddArchiveScanEntry, &scan);
+    FS_AddArchiveScanDirectory(dirname, &scan);
 
     qsort(archivePaths, scan.count, sizeof(archivePaths[0]), FS_ComparePaths);
     FOR_LOOP(i, scan.count) {

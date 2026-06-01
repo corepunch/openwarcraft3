@@ -200,6 +200,7 @@ typedef struct {
     
     /* Unit UI data updates (Phase 8: HUD migration) */
     void (*UpdateUnitUI)(DWORD num_units, uiUnitData_t *units);
+    void (*UpdateLobbySetup)(lobbyState_t const *state);
 
     /* Server-authored layout layers decoded by the generic client. */
     void (*SetLayoutLayer)(DWORD layer, HANDLE data);

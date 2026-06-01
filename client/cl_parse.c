@@ -391,21 +391,55 @@ void CL_MirrorMessage(LPSIZEBUF msg) {
 }
 
 static void CL_ParseLobbySetup(LPSIZEBUF msg) {
-    char map[MAX_PATHLEN] = { 0 };
-    char command[MAX_PATHLEN + 32];
+    lobbyState_t state;
+    int slot_count;
+    int local_slot;
 
-    MSG_ReadStringN(msg, map, sizeof(map));
-    if (!map[0] || !ui.MenuCommand) {
+    memset(&state, 0, sizeof(state));
+    state.active = true;
+    MSG_ReadStringN(msg, state.map_path, sizeof(state.map_path));
+    MSG_ReadStringN(msg, state.map_name, sizeof(state.map_name));
+    state.game_speed = (DWORD)MSG_ReadByte(msg);
+    slot_count = MSG_ReadByte(msg);
+    local_slot = MSG_ReadByte(msg);
+    state.revision = (DWORD)MSG_ReadLong(msg);
+    if (slot_count < 0) {
+        slot_count = 0;
+    }
+    if (slot_count > MAX_PLAYERS) {
+        slot_count = MAX_PLAYERS;
+    }
+    state.slot_count = (DWORD)slot_count;
+    state.local_slot = local_slot >= 0 && local_slot < MAX_PLAYERS ? (DWORD)local_slot : MAX_PLAYERS;
+    FOR_LOOP(i, state.slot_count) {
+        lobbySlot_t *slot = &state.slots[i];
+        int client;
+        int map_player;
+
+        slot->visible = MSG_ReadByte(msg) != 0;
+        slot->occupied = MSG_ReadByte(msg) != 0;
+        client = MSG_ReadByte(msg);
+        map_player = MSG_ReadByte(msg);
+        slot->client = client >= 0 && client < MAX_CLIENTS ? (DWORD)client : MAX_CLIENTS;
+        slot->map_player = map_player >= 0 && map_player < MAX_PLAYERS ? (DWORD)map_player : MAX_PLAYERS;
+        slot->type = (lobbySlotType_t)MSG_ReadByte(msg);
+        slot->race = (playerRace_t)MSG_ReadByte(msg);
+        slot->team = (DWORD)MSG_ReadByte(msg);
+        slot->color = (DWORD)MSG_ReadByte(msg);
+        MSG_ReadStringN(msg, slot->name, sizeof(slot->name));
+    }
+    if (!state.map_path[0] || !ui.UpdateLobbySetup) {
         return;
     }
-    snprintf(command, sizeof(command), "menu_game_setup_map %s", map);
-    ui.MenuCommand(command);
+    ui.UpdateLobbySetup(&state);
 }
 
 static void CL_ParseLobbyChat(LPSIZEBUF msg) {
     char text[512] = { 0 };
     char command[sizeof(text) + 32];
+    int own;
 
+    own = MSG_ReadByte(msg);
     MSG_ReadStringN(msg, text, sizeof(text));
     if (!text[0]) {
         return;
@@ -413,7 +447,7 @@ static void CL_ParseLobbyChat(LPSIZEBUF msg) {
     if (!ui.MenuCommand) {
         return;
     }
-    snprintf(command, sizeof(command), "menu_game_setup_chat %s", text);
+    snprintf(command, sizeof(command), "menu_game_setup_chat %u %s", own ? 1u : 0u, text);
     ui.MenuCommand(command);
 }
 

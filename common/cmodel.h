@@ -5,17 +5,17 @@
 
 struct War3MapVertex {
     USHORT accurate_height;
-    USHORT waterlevel:14;
-    BYTE mapedge:2;
-    BYTE ground:4;
-    BYTE ramp:1;
-    BYTE blight:1;
-    BYTE water:1;
-    BYTE boundary:1;
-    BYTE groundVariation:4;
-    BYTE cliffVariation:4; // used also to mark mid-ramp
-    BYTE level:4;
-    BYTE cliff:4;
+    USHORT waterlevel;
+    BYTE mapedge;
+    BYTE ground;
+    BYTE ramp;
+    BYTE blight;
+    BYTE water;
+    BYTE boundary;
+    BYTE groundVariation;
+    BYTE cliffVariation; // used also to mark mid-ramp
+    BYTE level;
+    BYTE cliff;
 };
 
 struct war3map {

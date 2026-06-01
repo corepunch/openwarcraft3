@@ -858,6 +858,36 @@ typedef struct particle_s {
 
 #include "mapinfo.h"
 
+typedef enum {
+    LOBBY_SLOT_OPEN,
+    LOBBY_SLOT_HUMAN,
+    LOBBY_SLOT_COMPUTER,
+    LOBBY_SLOT_CLOSED,
+} lobbySlotType_t;
+
+typedef struct lobbySlot_s {
+    BOOL visible;
+    BOOL occupied;
+    DWORD client;
+    DWORD map_player;
+    lobbySlotType_t type;
+    playerRace_t race;
+    DWORD team;
+    DWORD color;
+    UINAME name;
+} lobbySlot_t;
+
+typedef struct lobbyState_s {
+    BOOL active;
+    PATHSTR map_path;
+    UINAME map_name;
+    DWORD game_speed;
+    DWORD slot_count;
+    DWORD revision;
+    DWORD local_slot;
+    lobbySlot_t slots[MAX_PLAYERS];
+} lobbyState_t;
+
 //#define NULL 0
 
 #endif

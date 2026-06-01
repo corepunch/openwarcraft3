@@ -2,136 +2,12 @@
 #include <arpa/inet.h>
 
 static BOOL SV_EnsureServerPort(void) {
-    NET_Config(true);
+    NET_ConfigSource(NS_SERVER, true);
     if (!NET_IsConfigured(NS_SERVER)) {
         fprintf(stderr, "SV_EnsureServerPort: failed to bind UDP server port\n");
         return false;
     }
     return true;
-}
-
-static playerType_t SV_LobbyPlayerType(LPCSTR value, playerType_t fallback) {
-    if (!value || !*value) {
-        return fallback;
-    }
-    if (!strcmp(value, "human") || !strcmp(value, "open")) {
-        return kPlayerTypeHuman;
-    }
-    if (!strcmp(value, "computer")) {
-        return kPlayerTypeComputer;
-    }
-    if (!strcmp(value, "closed") || !strcmp(value, "none")) {
-        return kPlayerTypeNone;
-    }
-    return fallback;
-}
-
-static playerRace_t SV_LobbyPlayerRace(LPCSTR value, playerRace_t fallback) {
-    if (!value || !*value) {
-        return fallback;
-    }
-    if (!strcmp(value, "random")) {
-        return kPlayerRaceNone;
-    }
-    if (!strcmp(value, "human")) {
-        return kPlayerRaceHuman;
-    }
-    if (!strcmp(value, "orc")) {
-        return kPlayerRaceOrc;
-    }
-    if (!strcmp(value, "undead")) {
-        return kPlayerRaceUndead;
-    }
-    if (!strcmp(value, "nightelf")) {
-        return kPlayerRaceNightElf;
-    }
-    return fallback;
-}
-
-static BOOL SV_LobbyEnsureTeams(LPMAPINFO info, DWORD num_teams) {
-    mapTeam_t *teams;
-
-    if (!info) {
-        return false;
-    }
-    if (num_teams <= info->num_teams) {
-        return true;
-    }
-    if (num_teams > MAX_PLAYERS) {
-        num_teams = MAX_PLAYERS;
-    }
-    teams = MemAlloc(sizeof(*teams) * num_teams);
-    if (!teams) {
-        return false;
-    }
-    memset(teams, 0, sizeof(*teams) * num_teams);
-    if (info->teams && info->num_teams > 0) {
-        memcpy(teams, info->teams, sizeof(*teams) * info->num_teams);
-        MemFree(info->teams);
-    }
-    info->teams = teams;
-    info->num_teams = num_teams;
-    return true;
-}
-
-static void SV_LobbyClearPlayerTeams(LPMAPINFO info, DWORD player) {
-    if (!info || !info->teams || player >= MAX_PLAYERS) {
-        return;
-    }
-    FOR_LOOP(i, info->num_teams) {
-        info->teams[i].playerMasks &= ~(1u << player);
-    }
-}
-
-static void SV_LobbyMovePlayerToTeam(LPMAPINFO info, DWORD player, DWORD team) {
-    if (!info || player >= MAX_PLAYERS || team >= MAX_PLAYERS) {
-        return;
-    }
-    if (!SV_LobbyEnsureTeams(info, team + 1)) {
-        return;
-    }
-    SV_LobbyClearPlayerTeams(info, player);
-    info->teams[team].playerMasks |= 1u << player;
-}
-
-static void SV_ApplyLobbySettings(LPMAPINFO info) {
-    DWORD slots;
-
-    if (!info) {
-        return;
-    }
-    slots = (DWORD)Cvar_Integer("sv_lobby_slots", 0);
-    if (slots > MAX_PLAYERS) {
-        slots = MAX_PLAYERS;
-    }
-    FOR_LOOP(slot, slots) {
-        char name[64];
-        DWORD player;
-        LPCSTR value;
-        playerType_t type;
-
-        snprintf(name, sizeof(name), "sv_slot%u_map_player", (unsigned)slot);
-        player = (DWORD)Cvar_Integer(name, (int)slot);
-        if (player >= MAX_PLAYERS || !info->players[player].used) {
-            continue;
-        }
-
-        snprintf(name, sizeof(name), "sv_slot%u_type", (unsigned)slot);
-        value = Cvar_String(name, "");
-        type = SV_LobbyPlayerType(value, info->players[player].playerType);
-        info->players[player].playerType = type;
-
-        snprintf(name, sizeof(name), "sv_slot%u_race", (unsigned)slot);
-        value = Cvar_String(name, "");
-        info->players[player].playerRace = SV_LobbyPlayerRace(value, info->players[player].playerRace);
-
-        snprintf(name, sizeof(name), "sv_slot%u_team", (unsigned)slot);
-        if (type == kPlayerTypeNone) {
-            SV_LobbyClearPlayerTeams(info, player);
-        } else {
-            SV_LobbyMovePlayerToTeam(info, player, (DWORD)Cvar_Integer(name, (int)player));
-        }
-    }
 }
 
 void SV_CreateBaseline(void) {
@@ -150,61 +26,6 @@ static void SV_InitMulticast(void) {
     }
 }
 
-static void SV_SanitizeLobbyText(LPCSTR in, LPSTR out, DWORD out_size) {
-    DWORD write = 0;
-
-    if (!out || out_size == 0) {
-        return;
-    }
-    out[0] = '\0';
-    if (!in) {
-        return;
-    }
-    for (; *in && write + 1 < out_size; in++) {
-        unsigned char c = (unsigned char)*in;
-
-        if (c == '\n' || c == '\r') {
-            c = ' ';
-        }
-        if (c < 32) {
-            continue;
-        }
-        out[write++] = (char)c;
-    }
-    out[write] = '\0';
-}
-
-static void SV_LobbySendChat(LPCLIENT client, LPCSTR text) {
-    if (!client || !text || !text[0]) {
-        return;
-    }
-    if (client->state != cs_connected && client->state != cs_spawned) {
-        return;
-    }
-    MSG_WriteByte(&client->netchan.message, svc_lobby_chat);
-    MSG_WriteString(&client->netchan.message, text);
-    Netchan_Transmit(NS_SERVER, &client->netchan);
-}
-
-void SV_LobbyBroadcastChat(LPCSTR sender, LPCSTR text) {
-    char clean_sender[64];
-    char clean_text[256];
-    char line[384];
-
-    if (sv.state != ss_lobby || !text || !text[0]) {
-        return;
-    }
-    SV_SanitizeLobbyText(sender && sender[0] ? sender : "Player", clean_sender, sizeof(clean_sender));
-    SV_SanitizeLobbyText(text, clean_text, sizeof(clean_text));
-    if (!clean_text[0]) {
-        return;
-    }
-    snprintf(line, sizeof(line), "%s: %s", clean_sender[0] ? clean_sender : "Player", clean_text);
-    FOR_LOOP(i, svs.num_clients) {
-        SV_LobbySendChat(&svs.clients[i], line);
-    }
-}
-
 static void SV_ClearLobbyClients(void) {
     FOR_LOOP(i, MAX_CLIENTS) {
         memset(&svs.clients[i], 0, sizeof(svs.clients[i]));
@@ -212,10 +33,18 @@ static void SV_ClearLobbyClients(void) {
     svs.num_clients = 0;
 }
 
-static DWORD SV_SaveLobbyClients(netadr_t *addrs, DWORD max_addrs) {
+typedef struct {
+    netadr_t addr;
+    DWORD playernum;
+    DWORD lobby_slot;
+    char userinfo[256];
+    UINAME name;
+} savedLobbyClient_t;
+
+static DWORD SV_SaveLobbyClients(savedLobbyClient_t *saved, DWORD max_saved) {
     DWORD count = 0;
 
-    if (sv.state != ss_lobby || !addrs || max_addrs == 0) {
+    if (sv.state != ss_lobby || !saved || max_saved == 0) {
         return 0;
     }
     FOR_LOOP(i, svs.num_clients) {
@@ -224,16 +53,21 @@ static DWORD SV_SaveLobbyClients(netadr_t *addrs, DWORD max_addrs) {
         if (cl->state != cs_connected && cl->state != cs_spawned) {
             continue;
         }
-        if (count >= max_addrs) {
+        if (count >= max_saved) {
             break;
         }
-        addrs[count++] = cl->netchan.remote_address;
+        saved[count].addr = cl->netchan.remote_address;
+        saved[count].playernum = cl->playernum;
+        saved[count].lobby_slot = cl->lobby_slot;
+        snprintf(saved[count].userinfo, sizeof(saved[count].userinfo), "%s", cl->userinfo);
+        snprintf(saved[count].name, sizeof(saved[count].name), "%s", cl->name);
+        count++;
     }
     return count;
 }
 
-static void SV_RestoreLobbyClients(netadr_t const *addrs, DWORD count) {
-    if (!addrs || count == 0) {
+static void SV_RestoreLobbyClients(savedLobbyClient_t const *saved, DWORD count) {
+    if (!saved || count == 0) {
         SV_ClientConnect();
         return;
     }
@@ -247,9 +81,13 @@ static void SV_RestoreLobbyClients(netadr_t const *addrs, DWORD count) {
         cl = &svs.clients[svs.num_clients++];
         memset(cl, 0, sizeof(*cl));
         cl->state = cs_connected;
-        cl->netchan.remote_address = addrs[i];
+        cl->netchan.remote_address = saved[i].addr;
+        cl->playernum = saved[i].playernum;
+        cl->lobby_slot = saved[i].lobby_slot;
+        snprintf(cl->userinfo, sizeof(cl->userinfo), "%s", saved[i].userinfo);
+        snprintf(cl->name, sizeof(cl->name), "%s", saved[i].name);
         SZ_Init(&cl->netchan.message, cl->netchan.message_buf, MAX_MSGLEN);
-        Netchan_OutOfBandPrint(NS_SERVER, addrs[i], "client_connect");
+        Netchan_OutOfBandPrint(NS_SERVER, saved[i].addr, "client_connect");
     }
 }
 
@@ -260,7 +98,9 @@ void SV_ClientConnect(void) {
         svs.clients[0].netchan.remote_address.type == NA_LOOPBACK) {
         netadr_t adr = { NA_LOOPBACK };
         SV_InitMulticast();
+        SV_LobbyAssignClient(0, true);
         Netchan_OutOfBandPrint(NS_SERVER, adr, "client_connect");
+        SV_LobbyBroadcastSetup();
         return;
     }
     if (svs.num_clients >= MAX_CLIENTS ||
@@ -270,7 +110,9 @@ void SV_ClientConnect(void) {
     }
     LPCLIENT cl = &svs.clients[svs.num_clients];
     svs.num_clients++;
+    memset(cl, 0, sizeof(*cl));
     cl->state = cs_connected;
+    SV_LobbyClientInit(cl, NULL);
     SV_InitMulticast();
     // Local client uses the in-process loopback path
     memset(&cl->netchan.remote_address, 0, sizeof(cl->netchan.remote_address));
@@ -278,7 +120,9 @@ void SV_ClientConnect(void) {
     SZ_Init(&cl->netchan.message, cl->netchan.message_buf, MAX_MSGLEN);
     netadr_t adr = { NA_LOOPBACK };
     fprintf(stderr, "SV_ClientConnect: connected local client over loopback\n");
+    SV_LobbyAssignClient(0, true);
     Netchan_OutOfBandPrint(NS_SERVER, adr, "client_connect");
+    SV_LobbyBroadcastSetup();
 }
 
 /* Find the client slot whose netchan address matches from.  For loopback
@@ -299,9 +143,9 @@ LPCLIENT SV_FindClientByAddr(const netadr_t *from) {
 }
 
 /* Register a new remote client that sent the first connection packet. */
-void SV_DirectConnect(const netadr_t *from) {
+void SV_DirectConnect(const netadr_t *from, LPCSTR userinfo) {
     // Ignore if address is already registered
-    if (SV_FindClientByAddr(from))
+    if (!from || SV_FindClientByAddr(from))
         return;
     if (svs.num_clients >= MAX_CLIENTS ||
         svs.num_clients >= ge->max_clients) {
@@ -309,20 +153,33 @@ void SV_DirectConnect(const netadr_t *from) {
         return;
     }
     LPCLIENT cl = &svs.clients[svs.num_clients];
+    DWORD clientnum = svs.num_clients;
     svs.num_clients++;
+    memset(cl, 0, sizeof(*cl));
     cl->state = cs_connected;
+    SV_LobbyClientInit(cl, userinfo);
     SV_InitMulticast();
     cl->netchan.remote_address = *from;
     SZ_Init(&cl->netchan.message, cl->netchan.message_buf, MAX_MSGLEN);
+    if (sv.state == ss_lobby && !SV_LobbyAssignClient(clientnum, false)) {
+        fprintf(stderr, "SV_DirectConnect: no open lobby slot for %s\n", NET_AdrToString(from));
+        memset(cl, 0, sizeof(*cl));
+        svs.num_clients--;
+        return;
+    }
     Netchan_OutOfBandPrint(NS_SERVER, *from, "client_connect");
+    SV_LobbyBroadcastSetup();
 }
 
 void SV_Map(LPCSTR mapFilename) {
-    netadr_t lobby_clients[MAX_CLIENTS];
+    savedLobbyClient_t lobby_clients[MAX_CLIENTS];
     DWORD num_lobby_clients;
+    BOOL had_lobby;
 
     fprintf(stderr, "Server initialization (loopback/local map).\n");
+    had_lobby = sv.state == ss_lobby && svs.lobby.active;
     num_lobby_clients = SV_SaveLobbyClients(lobby_clients, MAX_CLIENTS);
+    SV_ClearLobbyClients();
     SV_InitGame();
     memset(&sv, 0, sizeof(struct server));
     sv.state = ss_loading;
@@ -332,6 +189,9 @@ void SV_Map(LPCSTR mapFilename) {
         fprintf(stderr, "SV_Map: map load failed\n");
         sv.state = ss_dead;
         return;
+    }
+    if (!had_lobby) {
+        memset(&svs.lobby, 0, sizeof(svs.lobby));
     }
     SV_ApplyLobbySettings((LPMAPINFO)CM_GetMapInfo());
     SV_ClearWorld();
@@ -347,11 +207,11 @@ void SV_StartLobby(LPCSTR mapFilename) {
     if (!mapFilename || !mapFilename[0]) {
         return;
     }
-    fprintf(stderr, "SV_StartLobby: opening LAN server port for %s\n", mapFilename);
-    if (!SV_EnsureServerPort()) {
+    if (sv.state == ss_lobby && !strcmp(sv.configstrings[CS_WORLD], mapFilename)) {
         return;
     }
-    if (sv.state == ss_lobby && !strcmp(sv.configstrings[CS_WORLD], mapFilename)) {
+    fprintf(stderr, "SV_StartLobby: opening LAN server port for %s\n", mapFilename);
+    if (!SV_EnsureServerPort()) {
         return;
     }
     if (!svs.initialized) {
@@ -365,6 +225,7 @@ void SV_StartLobby(LPCSTR mapFilename) {
     memset(&sv, 0, sizeof(struct server));
     sv.state = ss_lobby;
     snprintf(sv.configstrings[CS_WORLD], sizeof(sv.configstrings[CS_WORLD]), "%s", mapFilename);
+    SV_LobbyInit(mapFilename);
     SV_InitMulticast();
     SV_ClientConnect();
     fprintf(stderr, "Lobby initialized for %s\n", mapFilename);
@@ -379,9 +240,6 @@ static void SV_StartLobby_f(void) {
     SV_StartLobby(Cmd_ArgsFrom(1));
 }
 
-static void SV_LobbySay_f(void) {
-    SV_LobbyBroadcastChat("Player", Cmd_ArgsFrom(1));
-}
 #endif
 
 void SV_InitGame(void) {
@@ -390,11 +248,9 @@ void SV_InitGame(void) {
     }
 
     if (svs.initialized) {
-        SV_Shutdown();
+        return;
     }
 
-    // SV_Shutdown tears down game state (including ge->edicts), so make sure
-    // the game side is initialized before using EDICT_NUM.
     if (!ge->edicts) {
         if (!ge->Init) {
             fprintf(stderr, "SV_InitGame: missing ge->Init callback\n");
@@ -421,6 +277,7 @@ void SV_Shutdown(void) {
     SAFE_DELETE(sv.baselines, MemFree);
     SAFE_DELETE(svs.client_entities, MemFree);
     svs.num_clients = 0;
+    memset(&svs.lobby, 0, sizeof(svs.lobby));
     svs.initialized = false;
     if (ge && ge->Shutdown) {
         ge->Shutdown();
@@ -433,6 +290,6 @@ void SV_Init(void) {
 
 #ifndef TOOL_COMMON_NO_MPQ
     Cmd_AddCommand("lobby_start", SV_StartLobby_f);
-    Cmd_AddCommand("lobby_say", SV_LobbySay_f);
+    SV_LobbyAddCommands();
 #endif
 }
