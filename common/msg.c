@@ -250,6 +250,18 @@ void MSG_ReadString(LPSIZEBUF buf, LPSTR value) {
     }
 }
 
+void MSG_ReadStringN(LPSIZEBUF buf, LPSTR value, int maxlen) {
+    int i = 0;
+    for (;;) {
+        int c = MSG_ReadByte(buf);
+        if (c == 0)
+            break;
+        if (i < maxlen - 1)
+            value[i++] = (char)c;
+    }
+    value[i] = '\0';
+}
+
 LPCSTR MSG_ReadString2(LPSIZEBUF buf) {
     static char buffer[2048];
     MSG_ReadString(buf, buffer);

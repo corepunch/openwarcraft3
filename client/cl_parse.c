@@ -394,7 +394,7 @@ static void CL_ParseLobbySetup(LPSIZEBUF msg) {
     char map[MAX_PATHLEN] = { 0 };
     char command[MAX_PATHLEN + 32];
 
-    MSG_ReadString(msg, map);
+    MSG_ReadStringN(msg, map, sizeof(map));
     if (!map[0] || !ui.MenuCommand) {
         return;
     }
@@ -406,7 +406,7 @@ static void CL_ParseLobbyChat(LPSIZEBUF msg) {
     char text[512] = { 0 };
     char command[sizeof(text) + 32];
 
-    MSG_ReadString(msg, text);
+    MSG_ReadStringN(msg, text, sizeof(text));
     if (!text[0]) {
         return;
     }
