@@ -197,6 +197,7 @@ void SV_Map(LPCSTR mapFilename) {
     SV_ClearWorld();
     SV_CreateBaseline();
     ge->SpawnEntities(CM_GetMapInfo(), CM_GetDoodads());
+    SV_LoadModels();
     sv.state = ss_game;
     // Keep lobby clients connected through the immediate game start.
     SV_RestoreLobbyClients(lobby_clients, num_lobby_clients);
