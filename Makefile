@@ -116,16 +116,16 @@ run-demo: $(BINARY)
 	$(BINARY) -data $(DEMODATA)
 
 run-map: $(BINARY)
-	$(BINARY) -data $(WC3DATA) +net_enabled 1 +map "$(MAP)"
+	$(BINARY) -data $(WC3DATA) +map "$(MAP)"
 
 run-wow: $(WOW_BINARY)
-	$(WOW_BINARY) -data data/world-of-warcraft/installed/Data +net_enabled 1 +map World/Maps/Azeroth/Azeroth.wdt
+	$(WOW_BINARY) -data data/world-of-warcraft/installed/Data +map World/Maps/Azeroth/Azeroth.wdt
 
 build-run-wow: openwow
-	$(WOW_BINARY) -data data/world-of-warcraft/installed/Data +net_enabled 1 +map World/Maps/Azeroth/Azeroth.wdt
+	$(WOW_BINARY) -data data/world-of-warcraft/installed/Data +map World/Maps/Azeroth/Azeroth.wdt
 
 run-ui-text: $(BINARY)
-	$(BINARY) -data $(WC3DATA) +net_enabled 0 +r_module stdout +com_frame_limit 1 +$(UI_CMD)
+	$(BINARY) -data $(WC3DATA) +r_module stdout +com_frame_limit 1 +$(UI_CMD)
 
 diag: clean
 	$(MAKE) DIAG_OUTPUT=1 build

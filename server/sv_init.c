@@ -1,6 +1,15 @@
 #include "server.h"
 #include <arpa/inet.h>
 
+static BOOL SV_EnsureServerPort(void) {
+    NET_Config(true);
+    if (!NET_IsConfigured(NS_SERVER)) {
+        fprintf(stderr, "SV_EnsureServerPort: failed to bind UDP server port\n");
+        return false;
+    }
+    return true;
+}
+
 static playerType_t SV_LobbyPlayerType(LPCSTR value, playerType_t fallback) {
     if (!value || !*value) {
         return fallback;
@@ -268,6 +277,7 @@ void SV_ClientConnect(void) {
     cl->netchan.remote_address.type = NA_LOOPBACK;
     SZ_Init(&cl->netchan.message, cl->netchan.message_buf, MAX_MSGLEN);
     netadr_t adr = { NA_LOOPBACK };
+    fprintf(stderr, "SV_ClientConnect: connected local client over loopback\n");
     Netchan_OutOfBandPrint(NS_SERVER, adr, "client_connect");
 }
 
@@ -311,7 +321,7 @@ void SV_Map(LPCSTR mapFilename) {
     netadr_t lobby_clients[MAX_CLIENTS];
     DWORD num_lobby_clients;
 
-    fprintf(stderr, "Server initialization.\n");
+    fprintf(stderr, "Server initialization (loopback/local map).\n");
     num_lobby_clients = SV_SaveLobbyClients(lobby_clients, MAX_CLIENTS);
     SV_InitGame();
     memset(&sv, 0, sizeof(struct server));
@@ -337,15 +347,18 @@ void SV_StartLobby(LPCSTR mapFilename) {
     if (!mapFilename || !mapFilename[0]) {
         return;
     }
-    if (sv.state == ss_lobby && !strcmp(sv.configstrings[CS_WORLD], mapFilename)) {
+    fprintf(stderr, "SV_StartLobby: opening LAN server port for %s\n", mapFilename);
+    if (!SV_EnsureServerPort()) {
         return;
     }
-    if (!ge) {
-        fprintf(stderr, "SV_StartLobby: game API not initialized\n");
+    if (sv.state == ss_lobby && !strcmp(sv.configstrings[CS_WORLD], mapFilename)) {
         return;
     }
     if (!svs.initialized) {
         SV_InitGame();
+        if (!svs.initialized) {
+            return;
+        }
     }
     SAFE_DELETE(sv.baselines, MemFree);
     SV_ClearLobbyClients();
@@ -373,8 +386,7 @@ static void SV_LobbySay_f(void) {
 
 void SV_InitGame(void) {
     if (!ge) {
-        fprintf(stderr, "SV_InitGame: game API not initialized\n");
-        return;
+        SV_InitGameProgs();
     }
 
     if (svs.initialized) {
@@ -419,8 +431,6 @@ void SV_Init(void) {
     memset(&svs, 0, sizeof(struct server_static));
     memset(&sv, 0, sizeof(struct server));
 
-    SV_InitGameProgs();
-    SV_InitGame();
 #ifndef TOOL_COMMON_NO_MPQ
     Cmd_AddCommand("lobby_start", SV_StartLobby_f);
     Cmd_AddCommand("lobby_say", SV_LobbySay_f);

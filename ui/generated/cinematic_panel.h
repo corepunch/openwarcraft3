@@ -16,34 +16,6 @@ typedef struct CinematicPanel_s {
     LPFRAMEDEF CinematicTopBorder;
 } CinematicPanel_t;
 
-static inline BOOL CinematicPanel_Load(CinematicPanel_t *out) {
-    BOOL ok = true;
-    LPFRAMEDEF bind_root;
-    if (!out) {
-        return false;
-    }
-    if (!UI_EnsureFDF("UI\\FrameDef\\GlobalStrings.fdf")) {
-        ok = false;
-    }
-    if (!UI_EnsureFDF("UI\\FrameDef\\UI\\EscMenuTemplates.fdf")) {
-        ok = false;
-    }
-    if (!UI_EnsureFDF("UI\\FrameDef\\UI\\CinematicPanel.fdf")) {
-        ok = false;
-    }
-    memset(out, 0, sizeof(*out));
-    BZ_FDF_BIND_ROOT(out, CinematicPanel, "CinematicPanel");
-    bind_root = out->CinematicPanel;
-    BZ_FDF_BIND_CHILD(out, CinematicBottomBorder, bind_root, "CinematicBottomBorder");
-    BZ_FDF_BIND_CHILD(out, CinematicScenePanel, bind_root, "CinematicScenePanel");
-    BZ_FDF_BIND_CHILD(out, CinematicPortraitBackground, out->CinematicScenePanel, "CinematicPortraitBackground");
-    BZ_FDF_BIND_CHILD(out, CinematicPortrait, out->CinematicScenePanel, "CinematicPortrait");
-    BZ_FDF_BIND_CHILD(out, CinematicPortraitCover, out->CinematicScenePanel, "CinematicPortraitCover");
-    BZ_FDF_BIND_CHILD(out, CinematicSpeakerText, out->CinematicScenePanel, "CinematicSpeakerText");
-    BZ_FDF_BIND_CHILD(out, CinematicDialogueText, out->CinematicScenePanel, "CinematicDialogueText");
-    BZ_FDF_BIND_CHILD(out, CinematicTopBorder, bind_root, "CinematicTopBorder");
-    return ok;
-}
 
 static inline BOOL CinematicPanel_Bind(CinematicPanel_t *out, LPFRAMEDEF bind_root) {
     BOOL ok = true;
@@ -65,6 +37,14 @@ static inline BOOL CinematicPanel_Bind(CinematicPanel_t *out, LPFRAMEDEF bind_ro
     BZ_FDF_BIND_CHILD(out, CinematicDialogueText, out->CinematicScenePanel, "CinematicDialogueText");
     BZ_FDF_BIND_CHILD(out, CinematicTopBorder, bind_root, "CinematicTopBorder");
     return ok;
+}
+
+static inline BOOL CinematicPanel_Load(CinematicPanel_t *out) {
+    return out &&
+           UI_EnsureFDF("UI\\FrameDef\\GlobalStrings.fdf") &&
+           UI_EnsureFDF("UI\\FrameDef\\UI\\EscMenuTemplates.fdf") &&
+           UI_EnsureFDF("UI\\FrameDef\\UI\\CinematicPanel.fdf") &&
+           CinematicPanel_Bind(out, UI_FindFrame("CinematicPanel"));
 }
 
 #endif /* CINEMATICPANEL_H */

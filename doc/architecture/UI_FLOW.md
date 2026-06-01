@@ -39,7 +39,6 @@ Important cvars:
 |------|---------|
 | `r_module` | `renderer` for OpenGL, `stdout` for text output |
 | `ui_start_command` | Initial command, usually `menu_main` |
-| `net_enabled` | Set `0` for UI-only diagnostics |
 | `com_frame_limit` | Exit after N frames |
 
 ## Menu Navigation Flow
@@ -93,7 +92,7 @@ make run-ui-text
 This expands to a one-frame run with:
 
 ```bash
--net_enabled=0 -r_module=stdout -ui_start_command=menu_main -com_frame_limit=1
+-r_module=stdout -ui_start_command=menu_main -com_frame_limit=1
 ```
 
 The stdout renderer receives the same UI draw calls as the OpenGL renderer but prints them:

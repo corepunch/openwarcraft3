@@ -23,24 +23,18 @@ typedef struct GameChatroom_s {
     LPFRAMEDEF CancelButtonText;
 } GameChatroom_t;
 
-static inline BOOL GameChatroom_Load(GameChatroom_t *out) {
+
+static inline BOOL GameChatroom_Bind(GameChatroom_t *out, LPFRAMEDEF bind_root) {
     BOOL ok = true;
-    LPFRAMEDEF bind_root;
     if (!out) {
         return false;
     }
-    if (!UI_EnsureFDF("UI\\FrameDef\\GlobalStrings.fdf")) {
-        ok = false;
-    }
-    if (!UI_EnsureFDF("UI\\FrameDef\\Glue\\StandardTemplates.fdf")) {
-        ok = false;
-    }
-    if (!UI_EnsureFDF("UI\\FrameDef\\Glue\\GameChatroom.fdf")) {
-        ok = false;
-    }
     memset(out, 0, sizeof(*out));
-    BZ_FDF_BIND_ROOT(out, GameChatroom, "GameChatroom");
-    bind_root = out->GameChatroom;
+    out->GameChatroom = bind_root;
+    if (!out->GameChatroom) {
+        BZ_FDF_REPORT_MISSING("GameChatroom");
+        ok = false;
+    }
     BZ_FDF_BIND_CHILD(out, TeamSetupContainer, bind_root, "TeamSetupContainer");
     BZ_FDF_BIND_CHILD(out, ChatTextArea, bind_root, "ChatTextArea");
     BZ_FDF_BIND_CHILD(out, ChatScrollBar, out->ChatTextArea, "ChatScrollBar");
@@ -57,6 +51,14 @@ static inline BOOL GameChatroom_Load(GameChatroom_t *out) {
     BZ_FDF_BIND_CHILD(out, CancelButton, out->CancelBackdrop, "CancelButton");
     BZ_FDF_BIND_CHILD(out, CancelButtonText, out->CancelButton, "CancelButtonText");
     return ok;
+}
+
+static inline BOOL GameChatroom_Load(GameChatroom_t *out) {
+    return out &&
+           UI_EnsureFDF("UI\\FrameDef\\GlobalStrings.fdf") &&
+           UI_EnsureFDF("UI\\FrameDef\\Glue\\StandardTemplates.fdf") &&
+           UI_EnsureFDF("UI\\FrameDef\\Glue\\GameChatroom.fdf") &&
+           GameChatroom_Bind(out, UI_FindFrame("GameChatroom"));
 }
 
 #endif /* GAMECHATROOM_H */

@@ -36,7 +36,6 @@ build/bin/openwarcraft3 -data data/Warcraft\ III +menu_main
 | `r_module` | `renderer` | Renderer backend name |
 | `ui_module` | `ui` | UI module name |
 | `g_module` | `game` | Game module name |
-| `net_enabled` | `1` | Set to `0` for isolated UI/render diagnostics |
 | `com_frame_limit` | `0` | Exit after N frames; `0` means run forever |
 
 ## Module Boundary
@@ -72,7 +71,6 @@ Equivalent explicit command:
 ```bash
 build/bin/openwarcraft3 \
   -data data/Warcraft\ III \
-  +net_enabled 0 \
   +r_module stdout \
   +menu_main \
   +com_frame_limit 1
@@ -81,7 +79,7 @@ build/bin/openwarcraft3 \
 Important flags:
 
 - `+r_module stdout` selects the text renderer.
-- `+net_enabled 0` skips UDP socket binding; this avoids port conflicts for menu-only checks.
+- Menu-only checks do not enter the LAN browser, connect, or host a lobby, so UDP sockets are never opened.
 - `+menu_main` chooses the UI starting command.
 - `+com_frame_limit 1` exits after one frame.
 

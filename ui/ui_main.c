@@ -108,6 +108,11 @@ void UI_ShowLanCreateMenu(void) {
     LAN_ShowCreate();
 }
 
+void UI_ShowLanBrowserMenu(void) {
+    UI_SetScreen(&lanJoinScreen);
+    LAN_ShowBrowser();
+}
+
 void UI_ShowGameSetupMenu(void) {
     UI_SetScreen(&gameSetupScreen);
 }
@@ -121,7 +126,7 @@ static void UI_MenuGame_f(void) {
 }
 
 static void UI_MenuMultiplayer_f(void) {
-    UI_ShowLanCreateMenu();
+    UI_ShowLanBrowserMenu();
 }
 
 static void UI_MenuOptions_f(void) {
@@ -148,11 +153,12 @@ static void UI_MenuPlayerConfig_f(void) {
 }
 
 static void UI_MenuStartServer_f(void) {
+    LAN_ApplyPlayerName();
     UI_ShowLanCreateMenu();
 }
 
 static void UI_MenuJoinServer_f(void) {
-    UI_ShowLanCreateMenu();
+    UI_ShowLanBrowserMenu();
 }
 
 static void UI_MenuCredits_f(void) {
@@ -190,12 +196,15 @@ static void UI_MenuSinglePlayerCampaign_f(void) {
 }
 
 static void UI_MenuLANRefresh_f(void) {
-    UI_ShowLanCreateMenu();
     LAN_RefreshMaps();
 }
 
 static void UI_MenuLANStart_f(void) {
     LAN_StartSelectedMap();
+}
+
+static void UI_MenuLANJoin_f(void) {
+    LAN_JoinSelectedGame();
 }
 
 static void UI_MenuGameSetupStart_f(void) {
@@ -228,6 +237,7 @@ static uiMenuCommandDef_t const ui_menu_command_defs[] = {
     { "menu_single_player_campaign", UI_MenuSinglePlayerCampaign_f },
     { "menu_lan_refresh", UI_MenuLANRefresh_f },
     { "menu_lan_start", UI_MenuLANStart_f },
+    { "menu_lan_join", UI_MenuLANJoin_f },
     { "menu_game_setup_start", UI_MenuGameSetupStart_f },
     { NULL, NULL },
 };
@@ -583,6 +593,7 @@ void UI_InitLocal(void) {
     UI_ParseFDF("UI\\FrameDef\\Glue\\DialogWar3.fdf");
     UI_ParseFDF("UI\\FrameDef\\Glue\\MapListBox.fdf");
     UI_ParseFDF("UI\\FrameDef\\Glue\\MapInfoPane.fdf");
+    UI_ParseFDF("UI\\FrameDef\\Glue\\LocalMultiplayerJoin.fdf");
     UI_ParseFDF("UI\\FrameDef\\Glue\\LocalMultiplayerCreate.fdf");
     UI_ParseFDF("UI\\FrameDef\\Glue\\TeamSetup.fdf");
     UI_ParseFDF("UI\\FrameDef\\Glue\\PlayerSlot.fdf");
@@ -737,10 +748,16 @@ void UI_MenuCommandLocal(LPCSTR command) {
         UI_MenuGame_f();
         return;
     }
-    if (!strcmp(command, "menu_multiplayer") ||
-        !strcmp(command, "menu_startserver") ||
-        !strcmp(command, "menu_joinserver")) {
+    if (!strcmp(command, "menu_multiplayer")) {
         UI_MenuMultiplayer_f();
+        return;
+    }
+    if (!strcmp(command, "menu_startserver")) {
+        UI_MenuStartServer_f();
+        return;
+    }
+    if (!strcmp(command, "menu_joinserver")) {
+        UI_MenuJoinServer_f();
         return;
     }
     if (!strcmp(command, "menu_options")) {
@@ -812,6 +829,10 @@ void UI_MenuCommandLocal(LPCSTR command) {
     }
     if (!strcmp(command, "menu_lan_start")) {
         UI_MenuLANStart_f();
+        return;
+    }
+    if (!strcmp(command, "menu_lan_join")) {
+        UI_MenuLANJoin_f();
         return;
     }
     if (sscanf(command, "menu_lan_select %u", &index) == 1) {

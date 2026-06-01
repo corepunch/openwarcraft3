@@ -23,41 +23,6 @@ typedef struct PlayerSlot_s {
     LPFRAMEDEF ColorButtonArrow;
 } PlayerSlot_t;
 
-static inline BOOL PlayerSlot_Load(PlayerSlot_t *out) {
-    BOOL ok = true;
-    LPFRAMEDEF bind_root;
-    if (!out) {
-        return false;
-    }
-    if (!UI_EnsureFDF("UI\\FrameDef\\GlobalStrings.fdf")) {
-        ok = false;
-    }
-    if (!UI_EnsureFDF("UI\\FrameDef\\Glue\\StandardTemplates.fdf")) {
-        ok = false;
-    }
-    if (!UI_EnsureFDF("UI\\FrameDef\\Glue\\PlayerSlot.fdf")) {
-        ok = false;
-    }
-    memset(out, 0, sizeof(*out));
-    BZ_FDF_BIND_ROOT(out, PlayerSlot, "PlayerSlot");
-    bind_root = out->PlayerSlot;
-    BZ_FDF_BIND_CHILD(out, DownloadValue, bind_root, "DownloadValue");
-    BZ_FDF_BIND_CHILD(out, NameMenu, bind_root, "NameMenu");
-    BZ_FDF_BIND_CHILD(out, NamePopupMenuMenu, out->NameMenu, "NamePopupMenuMenu");
-    BZ_FDF_BIND_CHILD(out, RaceMenu, bind_root, "RaceMenu");
-    BZ_FDF_BIND_CHILD(out, RacePopupMenuMenu, out->RaceMenu, "RacePopupMenuMenu");
-    BZ_FDF_BIND_CHILD(out, TeamButton, bind_root, "TeamButton");
-    BZ_FDF_BIND_CHILD(out, TeamButtonBackdrop, out->TeamButton, "TeamButtonBackdrop");
-    BZ_FDF_BIND_CHILD(out, TeamButtonDisabledBackdrop, out->TeamButton, "TeamButtonDisabledBackdrop");
-    BZ_FDF_BIND_CHILD(out, TeamButtonTitle, out->TeamButton, "TeamButtonTitle");
-    BZ_FDF_BIND_CHILD(out, TeamButtonArrow, out->TeamButton, "TeamButtonArrow");
-    BZ_FDF_BIND_CHILD(out, ColorButton, bind_root, "ColorButton");
-    BZ_FDF_BIND_CHILD(out, ColorButtonBackdrop, out->ColorButton, "ColorButtonBackdrop");
-    BZ_FDF_BIND_CHILD(out, ColorButtonDisabledBackdrop, out->ColorButton, "ColorButtonDisabledBackdrop");
-    BZ_FDF_BIND_CHILD(out, ColorButtonValue, out->ColorButton, "ColorButtonValue");
-    BZ_FDF_BIND_CHILD(out, ColorButtonArrow, out->ColorButton, "ColorButtonArrow");
-    return ok;
-}
 
 static inline BOOL PlayerSlot_Bind(PlayerSlot_t *out, LPFRAMEDEF bind_root) {
     BOOL ok = true;
@@ -86,6 +51,14 @@ static inline BOOL PlayerSlot_Bind(PlayerSlot_t *out, LPFRAMEDEF bind_root) {
     BZ_FDF_BIND_CHILD(out, ColorButtonValue, out->ColorButton, "ColorButtonValue");
     BZ_FDF_BIND_CHILD(out, ColorButtonArrow, out->ColorButton, "ColorButtonArrow");
     return ok;
+}
+
+static inline BOOL PlayerSlot_Load(PlayerSlot_t *out) {
+    return out &&
+           UI_EnsureFDF("UI\\FrameDef\\GlobalStrings.fdf") &&
+           UI_EnsureFDF("UI\\FrameDef\\Glue\\StandardTemplates.fdf") &&
+           UI_EnsureFDF("UI\\FrameDef\\Glue\\PlayerSlot.fdf") &&
+           PlayerSlot_Bind(out, UI_FindFrame("PlayerSlot"));
 }
 
 #endif /* PLAYERSLOT_H */

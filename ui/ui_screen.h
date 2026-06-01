@@ -42,6 +42,7 @@ void UI_ShowSinglePlayerMenu(void);
 void UI_ShowOptionsMenu(void);
 void UI_ShowCreditsMenu(void);
 void UI_ShowLanCreateMenu(void);
+void UI_ShowLanBrowserMenu(void);
 void UI_ShowGameSetupMenu(void);
 
 void MainMenu_ShowMainPanel(void);
@@ -59,9 +60,12 @@ void SinglePlayerMenu_ShowCampaign(void);
 void SinglePlayerMenu_LaunchCampaign(LPCSTR name);
 
 void LAN_ShowCreate(void);
+void LAN_ShowBrowser(void);
 void LAN_RefreshMaps(void);
 void LAN_SelectMapIndex(DWORD index);
 void LAN_StartSelectedMap(void);
+void LAN_JoinSelectedGame(void);
+void LAN_ApplyPlayerName(void);
 
 void GameSetup_StartGame(void);
 void GameSetup_LoadMap(LPCSTR map_path);

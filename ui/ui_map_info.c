@@ -31,6 +31,8 @@ static void UI_SetHiddenIfPresent(LPFRAMEDEF frame, BOOL hidden) {
 
 void UI_LayoutMapInfoPane(LPFRAMEDEF frame) {
     MapInfoPane_t pane;
+    FLOAT height;
+    BOOL compact;
 
     if (!frame) {
         return;
@@ -38,6 +40,11 @@ void UI_LayoutMapInfoPane(LPFRAMEDEF frame) {
     if (!MapInfoPane_Bind(&pane, frame)) {
         return;
     }
+    height = frame->Height;
+    if (height <= 0.0f && frame->Parent) {
+        height = frame->Parent->Height;
+    }
+    compact = height > 0.0f && height < 0.25f;
 
     UI_SetPointIfPresent(pane.MaxPlayersIcon, FRAMEPOINT_TOPLEFT, frame, FRAMEPOINT_TOPLEFT, 0.012f, -0.004f);
     UI_SetSizeIfPresent(pane.MapNameValue, 0.218f, 0.020f);
@@ -50,9 +57,19 @@ void UI_LayoutMapInfoPane(LPFRAMEDEF frame) {
     UI_SetPointIfPresent(pane.MinimapImageBackdrop, FRAMEPOINT_CENTER, pane.MinimapImage, FRAMEPOINT_CENTER, 0.0f, 0.002275f);
 
     UI_SetSizeIfPresent(pane.SuggestedPlayersLabel, 0.170f, 0.016f);
-    UI_SetPointIfPresent(pane.SuggestedPlayersLabel, FRAMEPOINT_TOPLEFT, frame, FRAMEPOINT_TOPLEFT, 0.012f, -0.195f);
+    UI_SetPointIfPresent(pane.SuggestedPlayersLabel,
+                         FRAMEPOINT_TOPLEFT,
+                         frame,
+                         FRAMEPOINT_TOPLEFT,
+                         0.012f,
+                         compact ? -0.163f : -0.195f);
     UI_SetSizeIfPresent(pane.SuggestedPlayersValue, 0.126f, 0.016f);
-    UI_SetPointIfPresent(pane.SuggestedPlayersValue, FRAMEPOINT_TOPRIGHT, frame, FRAMEPOINT_TOPRIGHT, -0.012f, -0.195f);
+    UI_SetPointIfPresent(pane.SuggestedPlayersValue,
+                         FRAMEPOINT_TOPRIGHT,
+                         frame,
+                         FRAMEPOINT_TOPRIGHT,
+                         -0.012f,
+                         compact ? -0.163f : -0.195f);
 
     UI_SetSizeIfPresent(pane.MapSizeLabel, 0.112f, 0.016f);
     UI_SetPointIfPresent(pane.MapSizeLabel, FRAMEPOINT_TOPLEFT, pane.SuggestedPlayersLabel, FRAMEPOINT_BOTTOMLEFT, 0.0f, -0.002f);
@@ -64,8 +81,12 @@ void UI_LayoutMapInfoPane(LPFRAMEDEF frame) {
     UI_SetSizeIfPresent(pane.MapTilesetValue, 0.126f, 0.016f);
     UI_SetPointIfPresent(pane.MapTilesetValue, FRAMEPOINT_TOPRIGHT, pane.MapSizeValue, FRAMEPOINT_BOTTOMRIGHT, 0.0f, -0.002f);
 
-    UI_SetSizeIfPresent(pane.MapDescLabel, 0.200f, 0.016f);
-    UI_SetPointIfPresent(pane.MapDescLabel, FRAMEPOINT_TOPLEFT, pane.MapTilesetLabel, FRAMEPOINT_BOTTOMLEFT, 0.0f, -0.012f);
-    UI_SetSizeIfPresent(pane.MapDescValue, 0.245f, 0.080f);
-    UI_SetPointIfPresent(pane.MapDescValue, FRAMEPOINT_TOPLEFT, pane.MapDescLabel, FRAMEPOINT_BOTTOMLEFT, 0.0f, -0.002f);
+    UI_SetHiddenIfPresent(pane.MapDescLabel, compact);
+    UI_SetHiddenIfPresent(pane.MapDescValue, compact);
+    if (!compact) {
+        UI_SetSizeIfPresent(pane.MapDescLabel, 0.200f, 0.016f);
+        UI_SetPointIfPresent(pane.MapDescLabel, FRAMEPOINT_TOPLEFT, pane.MapTilesetLabel, FRAMEPOINT_BOTTOMLEFT, 0.0f, -0.012f);
+        UI_SetSizeIfPresent(pane.MapDescValue, 0.245f, 0.080f);
+        UI_SetPointIfPresent(pane.MapDescValue, FRAMEPOINT_TOPLEFT, pane.MapDescLabel, FRAMEPOINT_BOTTOMLEFT, 0.0f, -0.002f);
+    }
 }

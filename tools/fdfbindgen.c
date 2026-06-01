@@ -566,8 +566,23 @@ static void emit_bind_children(int node_index, const char *node_expr) {
     }
 }
 
-static void emit_bind_function(void) {
+static void emit_load_function(void) {
     printf("static inline BOOL %s_Load(%s_t *out) {\n", prefix, prefix);
+
+    if (selected_root_count == 1) {
+        int root = selected_roots[0];
+
+        printf("    return out");
+        for (int i = 0; i < load_path_count; i++) {
+            printf(" &&\n           UI_EnsureFDF(");
+            emit_c_string(load_paths[i]);
+            printf(")");
+        }
+        printf(" &&\n           %s_Bind(out, UI_FindFrame(\"%s\"));\n", prefix, nodes[root].name);
+        printf("}\n");
+        return;
+    }
+
     printf("    BOOL ok = true;\n");
     printf("    LPFRAMEDEF bind_root;\n");
     printf("    if (!out) {\n");
@@ -620,7 +635,7 @@ static void emit_bind_at_function(void) {
     }
     emit_bind_children(root, "bind_root");
     printf("    return ok;\n");
-    printf("}\n");
+    printf("}\n\n");
 }
 
 static void emit_header(void) {
@@ -638,8 +653,8 @@ static void emit_header(void) {
         printf("#include \"%s\"\n\n", include_path);
     }
     emit_binding_type();
-    emit_bind_function();
     emit_bind_at_function();
+    emit_load_function();
     printf("\n#endif /* %s */\n", guard);
 }
 

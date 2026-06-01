@@ -136,6 +136,16 @@ static int open_client_socket(void) {
     return s;
 }
 
+static BOOL bind_server_socket(unsigned short port) {
+    char text[16];
+
+    snprintf(text, sizeof(text), "%u", (unsigned)port);
+    test_client_stubs_set_cvar("game_port", text);
+    NET_Config(false);
+    NET_Config(true);
+    return NET_IsConfigured(NS_SERVER);
+}
+
 static void send_connect_oob(int sock, unsigned short server_port) {
     enum {
         MAX_CONNECT_DATAGRAM_SIZE = 64,
@@ -144,14 +154,9 @@ static void send_connect_oob(int sock, unsigned short server_port) {
     };
     BYTE datagram[MAX_CONNECT_DATAGRAM_SIZE];
     DWORD msg_len = OOB_HEADER_SIZE + CONNECT_TEXT_SIZE; /* -1 + "connect" */
-    DWORD packet_len = 4 + msg_len; /* net packet header + payload */
     int oob_marker = -1;
-    datagram[0] = (BYTE)(msg_len & 0xFF);
-    datagram[1] = (BYTE)((msg_len >> 8) & 0xFF);
-    datagram[2] = (BYTE)((msg_len >> 16) & 0xFF);
-    datagram[3] = (BYTE)((msg_len >> 24) & 0xFF);
-    memcpy(datagram + 4, &oob_marker, sizeof(oob_marker));
-    memcpy(datagram + 8, "connect", 7);
+    memcpy(datagram, &oob_marker, sizeof(oob_marker));
+    memcpy(datagram + 4, "connect", 7);
 
     struct sockaddr_in to;
     memset(&to, 0, sizeof(to));
@@ -159,7 +164,7 @@ static void send_connect_oob(int sock, unsigned short server_port) {
     to.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
     to.sin_port = htons(server_port);
 
-    (void)sendto(sock, datagram, packet_len, 0, (struct sockaddr *)&to, sizeof(to));
+    (void)sendto(sock, datagram, msg_len, 0, (struct sockaddr *)&to, sizeof(to));
 }
 
 static void send_info_oob(int sock, unsigned short server_port) {
@@ -170,14 +175,9 @@ static void send_info_oob(int sock, unsigned short server_port) {
     };
     BYTE datagram[MAX_INFO_DATAGRAM_SIZE];
     DWORD msg_len = OOB_HEADER_SIZE + INFO_TEXT_SIZE; /* -1 + "info" */
-    DWORD packet_len = 4 + msg_len; /* net packet header + payload */
     int oob_marker = -1;
-    datagram[0] = (BYTE)(msg_len & 0xFF);
-    datagram[1] = (BYTE)((msg_len >> 8) & 0xFF);
-    datagram[2] = (BYTE)((msg_len >> 16) & 0xFF);
-    datagram[3] = (BYTE)((msg_len >> 24) & 0xFF);
-    memcpy(datagram + 4, &oob_marker, sizeof(oob_marker));
-    memcpy(datagram + 8, "info", 4);
+    memcpy(datagram, &oob_marker, sizeof(oob_marker));
+    memcpy(datagram + 4, "info", 4);
 
     struct sockaddr_in to;
     memset(&to, 0, sizeof(to));
@@ -185,7 +185,7 @@ static void send_info_oob(int sock, unsigned short server_port) {
     to.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
     to.sin_port = htons(server_port);
 
-    (void)sendto(sock, datagram, packet_len, 0, (struct sockaddr *)&to, sizeof(to));
+    (void)sendto(sock, datagram, msg_len, 0, (struct sockaddr *)&to, sizeof(to));
 }
 
 static BOOL recv_client_connect_oob(int sock) {
@@ -202,7 +202,7 @@ static BOOL recv_client_connect_oob(int sock) {
     FOR_LOOP(i, MAX_RECV_RETRIES) {
         int r = recvfrom(sock, datagram, sizeof(datagram), 0, (struct sockaddr *)&from, &fromlen);
         if (r > 0) {
-            if (r >= 4 + 4 + 14 && memcmp(datagram + 8, "client_connect", 14) == 0)
+            if (r >= 4 + 14 && memcmp(datagram + 4, "client_connect", 14) == 0)
                 return true;
             return false;
         }
@@ -283,13 +283,13 @@ static BOOL recv_info_oob(int sock, LPSTR out, DWORD out_size) {
     }
     FOR_LOOP(i, MAX_RECV_RETRIES) {
         int r = recvfrom(sock, datagram, sizeof(datagram), 0, (struct sockaddr *)&from, &fromlen);
-        if (r > 8) {
-            DWORD len = MIN((DWORD)(r - 8), out_size ? out_size - 1 : 0);
+        if (r > 4) {
+            DWORD len = MIN((DWORD)(r - 4), out_size ? out_size - 1 : 0);
             if (out && out_size > 0) {
-                memcpy(out, datagram + 8, len);
+                memcpy(out, datagram + 4, len);
                 out[len] = '\0';
             }
-            return memcmp(datagram + 8, "info", 4) == 0;
+            return memcmp(datagram + 4, "info", 4) == 0;
         }
         usleep(RECV_POLL_DELAY_US);
     }
@@ -309,8 +309,7 @@ static void test_udp_multi_client_connects_register_distinct_slots(void) {
     int c1 = open_client_socket();
     int c2 = open_client_socket();
     ASSERT(c1 >= 0 && c2 >= 0);
-    NET_Shutdown();
-    ASSERT(NET_Init(PORT_SERVER + 9));
+    ASSERT(bind_server_socket(PORT_SERVER + 9));
     reset_server_state(8);
 
     send_connect_oob(c1, PORT_SERVER + 9);
@@ -333,8 +332,7 @@ static void test_udp_connect_honors_ge_max_clients_limit(void) {
     int c2 = open_client_socket();
     int c3 = open_client_socket();
     ASSERT(c1 >= 0 && c2 >= 0 && c3 >= 0);
-    NET_Shutdown();
-    ASSERT(NET_Init(PORT_SERVER + 10));
+    ASSERT(bind_server_socket(PORT_SERVER + 10));
     reset_server_state(2);
 
     send_connect_oob(c1, PORT_SERVER + 10);
@@ -357,8 +355,7 @@ static void test_lan_info_query_returns_discoverable_server_metadata(void) {
     int c1 = open_client_socket();
     char info[512];
     ASSERT(c1 >= 0);
-    NET_Shutdown();
-    ASSERT(NET_Init(PORT_SERVER + 11));
+    ASSERT(bind_server_socket(PORT_SERVER + 11));
     reset_server_state(8);
     sv.state = ss_game;
     snprintf(sv.configstrings[CS_WORLD], sizeof(sv.configstrings[CS_WORLD]),
@@ -384,8 +381,7 @@ static void test_lan_info_query_returns_lobby_metadata(void) {
     int c1 = open_client_socket();
     char info[512];
     ASSERT(c1 >= 0);
-    NET_Shutdown();
-    ASSERT(NET_Init(PORT_SERVER + 12));
+    ASSERT(bind_server_socket(PORT_SERVER + 12));
     reset_server_state(8);
     sv.state = ss_lobby;
     snprintf(sv.configstrings[CS_WORLD], sizeof(sv.configstrings[CS_WORLD]),
@@ -442,10 +438,32 @@ static void test_lobby_team_selection_expands_map_forces(void) {
     test_client_stubs_clear_cvars();
 }
 
+static void test_local_map_uses_loopback_without_udp(void) {
+    MAPINFO info;
+
+    NET_Shutdown();
+    reset_server_state(4);
+    memset(&info, 0, sizeof(info));
+    test_mapinfo = &info;
+
+    SV_Map("Maps\\Melee\\Test.w3m");
+
+    ASSERT_EQ_INT(sv.state, ss_game);
+    ASSERT_EQ_INT(svs.num_clients, 1);
+    ASSERT_EQ_INT(svs.clients[0].netchan.remote_address.type, NA_LOOPBACK);
+    ASSERT(!NET_IsConfigured(NS_CLIENT));
+    ASSERT(!NET_IsConfigured(NS_SERVER));
+
+    SV_Shutdown();
+    test_mapinfo = NULL;
+}
+
 static void test_lobby_start_preserves_connected_clients(void) {
     MAPINFO info;
     netadr_t remote = { NA_IP, { 127, 0, 0, 1 }, { 0 }, htons(PORT_SERVER + 13) };
 
+    NET_Shutdown();
+    test_client_stubs_set_cvar("game_port", "28040");
     reset_server_state(4);
     memset(&info, 0, sizeof(info));
     test_mapinfo = &info;
@@ -467,6 +485,7 @@ static void test_lobby_start_preserves_connected_clients(void) {
     ASSERT_EQ_INT(svs.clients[1].netchan.remote_address.port, remote.port);
 
     SV_Shutdown();
+    NET_Shutdown();
     test_mapinfo = NULL;
 }
 
@@ -474,6 +493,8 @@ static void test_lobby_start_same_map_is_noop(void) {
     MAPINFO info;
     netadr_t remote = { NA_IP, { 127, 0, 0, 1 }, { 0 }, htons(PORT_SERVER + 14) };
 
+    NET_Shutdown();
+    test_client_stubs_set_cvar("game_port", "28041");
     reset_server_state(4);
     memset(&info, 0, sizeof(info));
     test_mapinfo = &info;
@@ -491,6 +512,7 @@ static void test_lobby_start_same_map_is_noop(void) {
     ASSERT_EQ_INT(svs.clients[1].netchan.remote_address.port, remote.port);
 
     SV_Shutdown();
+    NET_Shutdown();
     test_mapinfo = NULL;
 }
 
@@ -550,6 +572,7 @@ void run_server_net_tests(void) {
     RUN_TEST(test_lan_info_query_returns_discoverable_server_metadata);
     RUN_TEST(test_lan_info_query_returns_lobby_metadata);
     RUN_TEST(test_lobby_team_selection_expands_map_forces);
+    RUN_TEST(test_local_map_uses_loopback_without_udp);
     RUN_TEST(test_lobby_start_preserves_connected_clients);
     RUN_TEST(test_lobby_start_same_map_is_noop);
     RUN_TEST(test_multicast_syncs_updates_to_all_connected_clients);

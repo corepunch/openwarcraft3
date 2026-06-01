@@ -103,7 +103,6 @@ int main(int argc, LPSTR argv[]) {
     bool has_connect_addr = connect_addr && *connect_addr;
     bool menu_mode = !has_map && !has_connect_addr;
     bool listen_server_mode = has_map && !has_connect_addr;
-    bool net_enabled = Cvar_Integer("net_enabled", 1) != 0;
     unsigned short game_port = Sys_GamePort();
 
     if (has_map) {
@@ -115,16 +114,7 @@ int main(int argc, LPSTR argv[]) {
     cls.key_dest = menu_mode ? key_menu : key_game;
     cls.state = ca_disconnected;
 
-    unsigned short port = has_connect_addr ? 0 : game_port;
-    if (has_connect_addr && !net_enabled) {
-        fprintf(stderr, "Cannot connect with net_enabled disabled\n");
-        return 1;
-    }
-    bool net_active = net_enabled;
-    if (net_active && !NET_Init(port)) {
-        fprintf(stderr, "NET_Init failed\n");
-        return 1;
-    }
+    NET_Init();
 
     SV_Init();
     CL_Init();

@@ -125,7 +125,6 @@ Important runtime cvars:
 | `ui_module` | `ui` | UI module name |
 | `g_module` | `game` | Game module name |
 | `ui_start_command` | `menu_main` | First client-side UI command |
-| `net_enabled` | `1` | Disable with `0` for isolated UI/render diagnostics |
 | `com_frame_limit` | `0` | Exit after N frames |
 
 ## Build System
