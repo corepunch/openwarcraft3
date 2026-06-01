@@ -95,10 +95,15 @@ void SV_ParseClientMessage(LPSIZEBUF msg, LPCLIENT client) {
 
 static struct game_export test_ge;
 static edict_t test_edicts[MAX_CLIENT_ENTITIES];
+static DWORD test_game_shutdowns;
 
 static void test_spawn_entities(LPCMAPINFO mapinfo, LPCDOODAD doodads) {
     (void)mapinfo;
     (void)doodads;
+}
+
+static void test_game_shutdown(void) {
+    test_game_shutdowns++;
 }
 
 static void reset_server_state(int max_players) {
@@ -106,6 +111,7 @@ static void reset_server_state(int max_players) {
     memset(&svs, 0, sizeof(svs));
     memset(&test_ge, 0, sizeof(test_ge));
     memset(test_edicts, 0, sizeof(test_edicts));
+    test_game_shutdowns = 0;
     test_mapinfo = NULL;
     SZ_Init(&sv.multicast, sv.multicast_buf, sizeof(sv.multicast_buf));
     test_ge.max_clients = max_players;
@@ -116,6 +122,7 @@ static void reset_server_state(int max_players) {
     test_ge.SpawnEntities = test_spawn_entities;
     test_ge.RunFrame = test_run_frame;
     test_ge.GetThemeValue = test_theme_value;
+    test_ge.Shutdown = test_game_shutdown;
     ge = &test_ge;
     reset_test_gi();
 }
@@ -237,7 +244,7 @@ static void pump_server_connects(void) {
             int hdr = 0;
             memcpy(&hdr, msg.data, sizeof(hdr));
             if (hdr == -1 && memcmp(msg.data + 4, "connect", 7) == 0)
-                SV_DirectConnect(&from);
+                SV_DirectConnect(&from, "");
         }
     }
 }
@@ -402,6 +409,7 @@ static void test_lan_info_query_returns_lobby_metadata(void) {
 
 static void test_lobby_team_selection_expands_map_forces(void) {
     MAPINFO info;
+    lobbySlot_t slot;
 
     reset_server_state(4);
     memset(&info, 0, sizeof(info));
@@ -415,15 +423,31 @@ static void test_lobby_team_selection_expands_map_forces(void) {
         info.players[i].playerRace = kPlayerRaceHuman;
     }
     test_mapinfo = &info;
+    sv.state = ss_lobby;
 
-    test_client_stubs_clear_cvars();
-    test_client_stubs_set_cvar("sv_lobby_slots", "2");
-    test_client_stubs_set_cvar("sv_slot0_map_player", "0");
-    test_client_stubs_set_cvar("sv_slot0_type", "human");
-    test_client_stubs_set_cvar("sv_slot0_team", "0");
-    test_client_stubs_set_cvar("sv_slot1_map_player", "1");
-    test_client_stubs_set_cvar("sv_slot1_type", "human");
-    test_client_stubs_set_cvar("sv_slot1_team", "3");
+    memset(&svs.lobby, 0, sizeof(svs.lobby));
+    svs.lobby.active = true;
+    snprintf(svs.lobby.map_path, sizeof(svs.lobby.map_path), "Maps\\Melee\\Test.w3m");
+    SV_LobbySetConfig(2, 2, "Test");
+    memset(&slot, 0, sizeof(slot));
+    slot.visible = true;
+    slot.client = MAX_CLIENTS;
+    slot.map_player = 0;
+    slot.type = LOBBY_SLOT_HUMAN;
+    slot.race = kPlayerRaceOrc;
+    slot.team = 0;
+    slot.color = 4;
+    snprintf(slot.name, sizeof(slot.name), "Host");
+    SV_LobbySetSlot(0, &slot);
+    svs.lobby.slots[0].occupied = true;
+    svs.lobby.slots[0].client = 0;
+    slot.map_player = 1;
+    slot.type = LOBBY_SLOT_COMPUTER;
+    slot.race = kPlayerRaceUndead;
+    slot.team = 3;
+    slot.color = 7;
+    snprintf(slot.name, sizeof(slot.name), "Computer");
+    SV_LobbySetSlot(1, &slot);
 
     SV_Map("Maps\\Melee\\Test.w3m");
 
@@ -431,11 +455,15 @@ static void test_lobby_team_selection_expands_map_forces(void) {
     ASSERT((info.teams[0].playerMasks & (1u << 0)) != 0);
     ASSERT((info.teams[0].playerMasks & (1u << 1)) == 0);
     ASSERT((info.teams[3].playerMasks & (1u << 1)) != 0);
+    ASSERT_EQ_INT(info.players[0].playerRace, kPlayerRaceOrc);
+    ASSERT_EQ_INT(info.players[1].playerType, kPlayerTypeComputer);
+    ASSERT_EQ_INT(info.players[1].playerRace, kPlayerRaceUndead);
+    ASSERT_EQ_INT(info.players[1].color, 7);
+    ASSERT_STR_EQ(info.players[0].playerName, "Host");
 
     SV_Shutdown();
     SAFE_DELETE(info.teams, MemFree);
     test_mapinfo = NULL;
-    test_client_stubs_clear_cvars();
 }
 
 static void test_local_map_uses_loopback_without_udp(void) {
@@ -460,6 +488,7 @@ static void test_local_map_uses_loopback_without_udp(void) {
 
 static void test_lobby_start_preserves_connected_clients(void) {
     MAPINFO info;
+    lobbySlot_t slot;
     netadr_t remote = { NA_IP, { 127, 0, 0, 1 }, { 0 }, htons(PORT_SERVER + 13) };
 
     NET_Shutdown();
@@ -471,18 +500,42 @@ static void test_lobby_start_preserves_connected_clients(void) {
     SV_StartLobby("Maps\\Melee\\Test.w3m");
     ASSERT_EQ_INT(sv.state, ss_lobby);
     ASSERT_EQ_INT(svs.num_clients, 1);
-    SV_DirectConnect(&remote);
+    ASSERT(!NET_IsConfigured(NS_CLIENT));
+    ASSERT(NET_IsConfigured(NS_SERVER));
+    SV_LobbySetConfig(2, 2, "Test");
+    memset(&slot, 0, sizeof(slot));
+    slot.visible = true;
+    slot.client = MAX_CLIENTS;
+    slot.map_player = 0;
+    slot.type = LOBBY_SLOT_HUMAN;
+    slot.race = kPlayerRaceHuman;
+    slot.team = 0;
+    slot.color = 0;
+    snprintf(slot.name, sizeof(slot.name), "Host");
+    SV_LobbySetSlot(0, &slot);
+    slot.map_player = 1;
+    slot.type = LOBBY_SLOT_OPEN;
+    slot.race = kPlayerRaceOrc;
+    slot.team = 1;
+    slot.color = 1;
+    snprintf(slot.name, sizeof(slot.name), "Open");
+    SV_LobbySetSlot(1, &slot);
+    SV_DirectConnect(&remote, "\\name\\Remote");
     ASSERT_EQ_INT(svs.num_clients, 2);
+    ASSERT_EQ_INT(svs.clients[1].playernum, 1);
 
     SV_Map("Maps\\Melee\\Test.w3m");
 
     ASSERT_EQ_INT(sv.state, ss_game);
     ASSERT_EQ_INT(svs.num_clients, 2);
+    ASSERT_EQ_INT(test_game_shutdowns, 0);
     ASSERT_EQ_INT(svs.clients[0].state, cs_connected);
     ASSERT_EQ_INT(svs.clients[0].netchan.remote_address.type, NA_LOOPBACK);
     ASSERT_EQ_INT(svs.clients[1].state, cs_connected);
     ASSERT_EQ_INT(svs.clients[1].netchan.remote_address.type, NA_IP);
     ASSERT_EQ_INT(svs.clients[1].netchan.remote_address.port, remote.port);
+    ASSERT_EQ_INT(svs.clients[1].playernum, 1);
+    ASSERT_STR_EQ(svs.clients[1].name, "Remote");
 
     SV_Shutdown();
     NET_Shutdown();
@@ -491,6 +544,7 @@ static void test_lobby_start_preserves_connected_clients(void) {
 
 static void test_lobby_start_same_map_is_noop(void) {
     MAPINFO info;
+    lobbySlot_t slot;
     netadr_t remote = { NA_IP, { 127, 0, 0, 1 }, { 0 }, htons(PORT_SERVER + 14) };
 
     NET_Shutdown();
@@ -500,7 +554,21 @@ static void test_lobby_start_same_map_is_noop(void) {
     test_mapinfo = &info;
 
     SV_StartLobby("Maps\\Melee\\Test.w3m");
-    SV_DirectConnect(&remote);
+    SV_LobbySetConfig(2, 2, "Test");
+    memset(&slot, 0, sizeof(slot));
+    slot.visible = true;
+    slot.client = MAX_CLIENTS;
+    slot.map_player = 0;
+    slot.type = LOBBY_SLOT_HUMAN;
+    slot.race = kPlayerRaceHuman;
+    snprintf(slot.name, sizeof(slot.name), "Host");
+    SV_LobbySetSlot(0, &slot);
+    slot.map_player = 1;
+    slot.type = LOBBY_SLOT_OPEN;
+    slot.race = kPlayerRaceOrc;
+    snprintf(slot.name, sizeof(slot.name), "Open");
+    SV_LobbySetSlot(1, &slot);
+    SV_DirectConnect(&remote, "\\name\\Remote");
     ASSERT_EQ_INT(svs.num_clients, 2);
 
     SV_StartLobby("Maps\\Melee\\Test.w3m");
@@ -514,6 +582,105 @@ static void test_lobby_start_same_map_is_noop(void) {
     SV_Shutdown();
     NET_Shutdown();
     test_mapinfo = NULL;
+}
+
+static void test_lobby_rejects_remote_when_slots_full(void) {
+    MAPINFO info;
+    lobbySlot_t slot;
+    netadr_t remote = { NA_IP, { 127, 0, 0, 1 }, { 0 }, htons(PORT_SERVER + 15) };
+
+    NET_Shutdown();
+    test_client_stubs_set_cvar("game_port", "28042");
+    reset_server_state(4);
+    memset(&info, 0, sizeof(info));
+    test_mapinfo = &info;
+
+    SV_StartLobby("Maps\\Melee\\Test.w3m");
+    SV_LobbySetConfig(2, 1, "Test");
+    memset(&slot, 0, sizeof(slot));
+    slot.visible = true;
+    slot.client = MAX_CLIENTS;
+    slot.map_player = 0;
+    slot.type = LOBBY_SLOT_HUMAN;
+    slot.race = kPlayerRaceHuman;
+    snprintf(slot.name, sizeof(slot.name), "Host");
+    SV_LobbySetSlot(0, &slot);
+
+    ASSERT_EQ_INT(svs.num_clients, 1);
+    SV_DirectConnect(&remote, "\\name\\Remote");
+    ASSERT_EQ_INT(svs.num_clients, 1);
+
+    SV_Shutdown();
+    NET_Shutdown();
+    test_mapinfo = NULL;
+}
+
+static void test_lobby_setup_message_round_trips_slot_table(void) {
+    BYTE msg_buf[MAX_MSGLEN];
+    sizeBuf_t msg = { msg_buf, MAX_MSGLEN, 0, 0 };
+    LPCLIENT cl;
+    char text[128];
+
+    reset_server_state(4);
+    sv.state = ss_lobby;
+    svs.num_clients = 1;
+    cl = &svs.clients[0];
+    cl->state = cs_connected;
+    cl->lobby_slot = 1;
+    SZ_Init(&cl->netchan.message, cl->netchan.message_buf, MAX_MSGLEN);
+    memset(&svs.lobby, 0, sizeof(svs.lobby));
+    svs.lobby.active = true;
+    snprintf(svs.lobby.map_path, sizeof(svs.lobby.map_path), "Maps\\Melee\\Test.w3m");
+    snprintf(svs.lobby.map_name, sizeof(svs.lobby.map_name), "Test Map");
+    svs.lobby.game_speed = 3;
+    svs.lobby.slot_count = 2;
+    svs.lobby.revision = 7;
+    svs.lobby.slots[1].visible = true;
+    svs.lobby.slots[1].occupied = true;
+    svs.lobby.slots[1].client = 0;
+    svs.lobby.slots[1].map_player = 4;
+    svs.lobby.slots[1].type = LOBBY_SLOT_HUMAN;
+    svs.lobby.slots[1].race = kPlayerRaceNightElf;
+    svs.lobby.slots[1].team = 2;
+    svs.lobby.slots[1].color = 6;
+    snprintf(svs.lobby.slots[1].name, sizeof(svs.lobby.slots[1].name), "Remote");
+
+    SV_LobbyWriteSetup(cl);
+    msg.data = cl->netchan.message.data;
+    msg.cursize = cl->netchan.message.cursize;
+    msg.readcount = 0;
+
+    ASSERT_EQ_INT(MSG_ReadByte(&msg), svc_lobby_setup);
+    MSG_ReadString(&msg, text);
+    ASSERT_STR_EQ(text, "Maps\\Melee\\Test.w3m");
+    MSG_ReadString(&msg, text);
+    ASSERT_STR_EQ(text, "Test Map");
+    ASSERT_EQ_INT(MSG_ReadByte(&msg), 3);
+    ASSERT_EQ_INT(MSG_ReadByte(&msg), 2);
+    ASSERT_EQ_INT(MSG_ReadByte(&msg), 1);
+    ASSERT_EQ_INT(MSG_ReadLong(&msg), 7);
+    FOR_LOOP(i, 1) {
+        ASSERT_EQ_INT(MSG_ReadByte(&msg), 0);
+        ASSERT_EQ_INT(MSG_ReadByte(&msg), 0);
+        ASSERT_EQ_INT(MSG_ReadByte(&msg), -1);
+        ASSERT_EQ_INT(MSG_ReadByte(&msg), -1);
+        ASSERT_EQ_INT(MSG_ReadByte(&msg), 0);
+        ASSERT_EQ_INT(MSG_ReadByte(&msg), 0);
+        ASSERT_EQ_INT(MSG_ReadByte(&msg), 0);
+        ASSERT_EQ_INT(MSG_ReadByte(&msg), 0);
+        MSG_ReadString(&msg, text);
+        ASSERT_STR_EQ(text, "");
+    }
+    ASSERT_EQ_INT(MSG_ReadByte(&msg), 1);
+    ASSERT_EQ_INT(MSG_ReadByte(&msg), 1);
+    ASSERT_EQ_INT(MSG_ReadByte(&msg), 0);
+    ASSERT_EQ_INT(MSG_ReadByte(&msg), 4);
+    ASSERT_EQ_INT(MSG_ReadByte(&msg), LOBBY_SLOT_HUMAN);
+    ASSERT_EQ_INT(MSG_ReadByte(&msg), kPlayerRaceNightElf);
+    ASSERT_EQ_INT(MSG_ReadByte(&msg), 2);
+    ASSERT_EQ_INT(MSG_ReadByte(&msg), 6);
+    MSG_ReadString(&msg, text);
+    ASSERT_STR_EQ(text, "Remote");
 }
 
 static void test_multicast_syncs_updates_to_all_connected_clients(void) {
@@ -556,11 +723,12 @@ static void test_lobby_chat_broadcasts_to_connected_clients(void) {
                 MAX_MSGLEN);
     }
 
-    SV_LobbyBroadcastChat("Host", "hello team");
+    SV_LobbyBroadcastChatFrom(0, "Host", "hello team");
 
     FOR_LOOP(i, svs.num_clients) {
         ASSERT(NET_GetPacket(NS_CLIENT, &from, &msg));
         ASSERT_EQ_INT(MSG_ReadByte(&msg), svc_lobby_chat);
+        ASSERT_EQ_INT(MSG_ReadByte(&msg), i == 0 ? 1 : 0);
         MSG_ReadString(&msg, text);
         ASSERT_STR_EQ(text, "Host: hello team");
     }
@@ -575,6 +743,8 @@ void run_server_net_tests(void) {
     RUN_TEST(test_local_map_uses_loopback_without_udp);
     RUN_TEST(test_lobby_start_preserves_connected_clients);
     RUN_TEST(test_lobby_start_same_map_is_noop);
+    RUN_TEST(test_lobby_rejects_remote_when_slots_full);
+    RUN_TEST(test_lobby_setup_message_round_trips_slot_table);
     RUN_TEST(test_multicast_syncs_updates_to_all_connected_clients);
     RUN_TEST(test_lobby_chat_broadcasts_to_connected_clients);
 }

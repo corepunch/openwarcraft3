@@ -68,10 +68,15 @@ struct client {
     clientState_t state;
     edict_t *edict; // EDICT_NUM(clientnum+1)
     DWORD lastframe;
+    DWORD playernum;
+    DWORD lobby_slot;
+    char userinfo[256];
+    UINAME name;
 };
 
 extern struct server_static {
     struct client clients[MAX_CLIENTS];
+    lobbyState_t lobby;
     LPENTITYSTATE client_entities;
     bool initialized;
     DWORD num_clients;
@@ -113,8 +118,17 @@ void SV_Map(LPCSTR pFilename);
 void SV_ClientConnect(void);
 void SV_InitGame(void);
 LPCLIENT SV_FindClientByAddr(const netadr_t *from);
-void SV_DirectConnect(const netadr_t *from);
+void SV_DirectConnect(const netadr_t *from, LPCSTR userinfo);
 void SV_ConnectionlessPacket(const netadr_t *from, LPSIZEBUF msg);
+void SV_LobbySetConfig(DWORD speed, DWORD slots, LPCSTR map_name);
+void SV_LobbySetSlot(DWORD slot, lobbySlot_t const *config);
+void SV_LobbyInit(LPCSTR mapFilename);
+void SV_LobbyClientInit(LPCLIENT cl, LPCSTR userinfo);
+BOOL SV_LobbyAssignClient(DWORD clientnum, BOOL host);
+void SV_ApplyLobbySettings(LPMAPINFO info);
+void SV_LobbyBroadcastSetup(void);
+void SV_LobbyWriteSetup(LPCLIENT cl);
+void SV_LobbyAddCommands(void);
 void SV_BuildClientFrame(LPCLIENT client);
 void SV_WriteFrameToClient(LPCLIENT client);
 void SV_ParseClientMessage(LPSIZEBUF msg, LPCLIENT client);
@@ -135,6 +149,7 @@ void SV_WriteConfigString(LPSIZEBUF msg, DWORD i);
 // sv_user.c
 void SV_ExecuteUserCommand(LPSIZEBUF msg, LPCLIENT client);
 void SV_LobbyBroadcastChat(LPCSTR sender, LPCSTR text);
+void SV_LobbyBroadcastChatFrom(DWORD sender_client, LPCSTR sender, LPCSTR text);
 
 /* Unit UI data requests (Phase 8) */
 void SV_HandleUnitUIRequest(LPCLIENT client, LPSIZEBUF msg);

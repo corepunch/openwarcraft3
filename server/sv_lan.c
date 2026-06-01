@@ -51,15 +51,17 @@ static void SV_LanInfo(const netadr_t *from) {
         }
         return;
     }
-    SV_LanSanitizeValue(sv.configstrings[CS_WORLD], mapname, sizeof(mapname));
-    SV_LanSanitizeValue(Cvar_String("sv_hostname", "OpenWarcraft3"), hostname, sizeof(hostname));
-    SV_LanSanitizeValue(Cvar_String("sv_game_speed", "2"), speed, sizeof(speed));
-    SV_LanSanitizeValue(Cvar_String("sv_lobby_slots", "0"), slots, sizeof(slots));
-    fprintf(stderr,
-            "SV_LanInfo: answering info query from %s with hostname=\"%s\" map=\"%s\"\n",
-            NET_AdrToString(from),
-            hostname[0] ? hostname : "OpenWarcraft3",
-            mapname);
+    if (svs.lobby.active) {
+        SV_LanSanitizeValue(svs.lobby.map_path, mapname, sizeof(mapname));
+        SV_LanSanitizeValue(svs.lobby.map_name, hostname, sizeof(hostname));
+        snprintf(speed, sizeof(speed), "%u", (unsigned)svs.lobby.game_speed);
+        snprintf(slots, sizeof(slots), "%u", (unsigned)svs.lobby.slot_count);
+    } else {
+        SV_LanSanitizeValue(sv.configstrings[CS_WORLD], mapname, sizeof(mapname));
+        SV_LanSanitizeValue(Cvar_String("sv_hostname", "OpenWarcraft3"), hostname, sizeof(hostname));
+        SV_LanSanitizeValue(Cvar_String("sv_game_speed", "2"), speed, sizeof(speed));
+        snprintf(slots, sizeof(slots), "%u", (unsigned)(ge ? ge->max_clients : MAX_CLIENTS));
+    }
     Netchan_OutOfBandPrint(NS_SERVER,
                            *from,
                            "info\n\\hostname\\%s\\mapname\\%s\\players\\%u\\maxplayers\\%u\\speed\\%s\\slots\\%s",
@@ -93,12 +95,11 @@ void SV_ConnectionlessPacket(const netadr_t *from, LPSIZEBUF msg) {
         *status++ = '\0';
     }
     sscanf(payload, "%31s", command);
-    fprintf(stderr,
-            "SV_ConnectionlessPacket: command=\"%s\" from %s\n",
-            command,
-            from ? NET_AdrToString(from) : "unknown");
     if (!strcmp(command, "connect")) {
-        SV_DirectConnect(from);
+        fprintf(stderr,
+                "SV_ConnectionlessPacket: connect from %s\n",
+                from ? NET_AdrToString(from) : "unknown");
+        SV_DirectConnect(from, status);
     } else if (!strcmp(command, "info")) {
         SV_LanInfo(from);
     }

@@ -82,6 +82,7 @@ JASS_BIN := $(BIN_DIR)/jass$(EXE_EXT)
 TOOL_DEPS := $(shell find tools -maxdepth 1 -name '*.h' | sort)
 CLIENT_HEADERS := $(shell find client -name '*.h' | sort)
 UI_HEADERS := $(shell find ui -name '*.h' | sort)
+COMMON_HEADERS := $(shell find common -name '*.h' | sort)
 FONT_SRC := renderer/conchars.pcx
 FONT_HEADER := renderer/conchars_sysfont.h
 FONT_SYMBOL := conchars_sysfont_pcx
@@ -131,7 +132,7 @@ diag: clean
 	$(MAKE) DIAG_OUTPUT=1 build
 	$(MAKE) DIAG_OUTPUT=1 run
 
-$(BIN_DIR)/%$(EXE_EXT): tools/%.c $(TOOL_DEPS) $(CLIENT_HEADERS) | $(BIN_DIR) $(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) $(RENDERER_LIB) $(GAME_LIB) $(UI_LIB)
+$(BIN_DIR)/%$(EXE_EXT): tools/%.c $(TOOL_DEPS) $(CLIENT_HEADERS) $(COMMON_HEADERS) | $(BIN_DIR) $(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) $(RENDERER_LIB) $(GAME_LIB) $(UI_LIB)
 	@echo "[$*]"
 	$(CC) $(CFLAGS) -o $@ $< \
 		$(RPATH) $(LDFLAGS) -lsheet -lshared -ljass -lrenderer -lgame -lui $(LIBS) -lm -lz
@@ -176,47 +177,47 @@ $(SHEET_LIB): sheet/parser.c sheet/sheet.c common/common.h | $(LIB_DIR)
 # Uses FS_ReadFile (archive-agnostic) for initial file loads, but includes
 # common/mpq.c for nested .w3m archive handling (maps are MPQ archives containing
 # internal files like war3map.w3e and war3map.shd).
-$(RENDERER_LIB): $(SHARED_LIB) $(CLIENT_HEADERS) common/mpq.c common/mpq.h $(FONT_HEADER) $(shell find renderer -name '*.c') | $(LIB_DIR)
+$(RENDERER_LIB): $(SHARED_LIB) $(CLIENT_HEADERS) $(COMMON_HEADERS) common/mpq.c common/mpq.h $(FONT_HEADER) $(shell find renderer -name '*.c') | $(LIB_DIR)
 	@echo "[renderer]"
 	@$(call UNITY,renderer,! -path 'renderer/wow/*') | \
 		$(CC) $(CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - common/mpq.c $(LDFLAGS) -lshared $(LIBS) -lz
 
-$(RENDERER_WOW_LIB): $(SHARED_LIB) $(CLIENT_HEADERS) common/mpq.c common/mpq.h $(FONT_HEADER) $(shell find renderer -name '*.c') | $(LIB_DIR)
+$(RENDERER_WOW_LIB): $(SHARED_LIB) $(CLIENT_HEADERS) $(COMMON_HEADERS) common/mpq.c common/mpq.h $(FONT_HEADER) $(shell find renderer -name '*.c') | $(LIB_DIR)
 	@echo "[renderer-wow]"
 	@$(call UNITY,renderer,! -path 'renderer/w3m/*') | \
 		$(CC) $(WOW_CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - common/mpq.c $(LDFLAGS) -lshared $(LIBS) -lz
 
 # game — depends on shared and jass
-$(GAME_LIB): $(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) $(shell find game -name '*.c') | $(LIB_DIR)
+$(GAME_LIB): $(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) $(COMMON_HEADERS) $(shell find game -name '*.c') | $(LIB_DIR)
 	@echo "[game]"
 	@$(call UNITY,game) | \
 		$(CC) $(CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - $(LDFLAGS) -lsheet -lshared -ljass -lm
 
-$(GAME_WOW_LIB): $(SHARED_LIB) $(shell find game-wow -name '*.c') | $(LIB_DIR)
+$(GAME_WOW_LIB): $(SHARED_LIB) $(COMMON_HEADERS) $(shell find game-wow -name '*.c') | $(LIB_DIR)
 	@echo "[game-wow]"
 	@$(call UNITY,game-wow) | \
 		$(CC) $(WOW_CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - $(LDFLAGS) -lshared -lm
 
 # ui — depends on shared
-$(UI_LIB): $(SHARED_LIB) $(CLIENT_HEADERS) $(UI_HEADERS) $(shell find ui -name '*.c') | $(LIB_DIR)
+$(UI_LIB): $(SHARED_LIB) $(CLIENT_HEADERS) $(COMMON_HEADERS) $(UI_HEADERS) $(shell find ui -name '*.c') | $(LIB_DIR)
 	@echo "[ui]"
 	@$(call UNITY,ui) | \
 		$(CC) $(CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - $(LDFLAGS) -lshared -lm
 
-$(UI_WOW_LIB): $(SHARED_LIB) $(CLIENT_HEADERS) $(UI_HEADERS) $(shell find ui-wow -name '*.c') | $(LIB_DIR)
+$(UI_WOW_LIB): $(SHARED_LIB) $(CLIENT_HEADERS) $(COMMON_HEADERS) $(UI_HEADERS) $(shell find ui-wow -name '*.c') | $(LIB_DIR)
 	@echo "[ui-wow]"
 	@$(call UNITY,ui-wow) | \
 		$(CC) $(WOW_CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - $(LDFLAGS) -lshared -lm
 
 # main binary — depends on all libraries
 APP_SRCS := $(shell find client server common -name '*.c')
-$(BINARY): $(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) $(GAME_LIB) $(RENDERER_LIB) $(UI_LIB) $(APP_SRCS) $(CLIENT_HEADERS) | $(BIN_DIR)
+$(BINARY): $(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) $(GAME_LIB) $(RENDERER_LIB) $(UI_LIB) $(APP_SRCS) $(CLIENT_HEADERS) $(COMMON_HEADERS) | $(BIN_DIR)
 	@echo "[openwarcraft3]"
 	@$(call UNITY,client server common) | \
 		$(CC) $(CFLAGS) -x c -o $@ - $(RPATH) $(LDFLAGS) \
 		-lsheet -lshared -ljass -lgame -lrenderer -lui $(LIBS) -lz
 
-$(WOW_BINARY): $(SHARED_LIB) $(SHEET_LIB) $(GAME_WOW_LIB) $(RENDERER_WOW_LIB) $(UI_WOW_LIB) $(APP_SRCS) $(CLIENT_HEADERS) | $(BIN_DIR)
+$(WOW_BINARY): $(SHARED_LIB) $(SHEET_LIB) $(GAME_WOW_LIB) $(RENDERER_WOW_LIB) $(UI_WOW_LIB) $(APP_SRCS) $(CLIENT_HEADERS) $(COMMON_HEADERS) | $(BIN_DIR)
 	@echo "[openwow]"
 	@$(call UNITY,client server common) | \
 		$(CC) $(WOW_CFLAGS) -x c -o $@ - $(RPATH) $(LDFLAGS) \
@@ -267,6 +268,7 @@ TEST_GAME_SRCS := \
 	client/cl_scrn.c \
 	server/sv_init.c \
 	server/sv_lan.c \
+	server/sv_lobby.c \
 	server/sv_send.c \
 	server/sv_main.c \
 	common/net.c \

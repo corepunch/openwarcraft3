@@ -485,10 +485,6 @@ void SFileReadString(HANDLE file, LPSTR *lppString) {
     SFileReadFile(file, *lppString, stringLength, NULL, NULL);
 }
 
-static void SFileSkipBytes(HANDLE file, DWORD size) {
-    SFileSetFilePointer(file, size, 0, FILE_CURRENT);
-}
-
 static DWORD SFileBytesRemaining(HANDLE file) {
     DWORD position = SFileSetFilePointer(file, 0, 0, FILE_CURRENT);
     DWORD size = SFileGetFileSize(file, NULL);
@@ -497,13 +493,6 @@ static DWORD SFileBytesRemaining(HANDLE file) {
         return 0;
     }
     return size - position;
-}
-
-static void SFileSkipString(HANDLE file) {
-    LPSTR text = NULL;
-
-    SFileReadString(file, &text);
-    SAFE_DELETE(text, MemFree);
 }
 
 static BOOL CM_ReadInfoInto(HANDLE archive, LPMAPINFO info, BOOL setup_only) {
@@ -518,8 +507,11 @@ static BOOL CM_ReadInfoInto(HANDLE archive, LPMAPINFO info, BOOL setup_only) {
     SFileReadFile(file, &info->fileFormat, 4, NULL, NULL);
     SFileReadFile(file, &info->numberOfSaves, sizeof(DWORD), NULL, NULL);
     SFileReadFile(file, &info->editorVersion, sizeof(DWORD), NULL, NULL);
-    if (info->fileFormat > 27) {
-        SFileSkipBytes(file, sizeof(DWORD) * 4);
+    if (info->fileFormat >= 28) {
+        SFileReadFile(file, &info->gameVersionMajor, sizeof(DWORD), NULL, NULL);
+        SFileReadFile(file, &info->gameVersionMinor, sizeof(DWORD), NULL, NULL);
+        SFileReadFile(file, &info->gameVersionPatch, sizeof(DWORD), NULL, NULL);
+        SFileReadFile(file, &info->gameVersionBuild, sizeof(DWORD), NULL, NULL);
     }
     SFileReadString(file, &info->mapName);
     SFileReadString(file, &info->mapAuthor);
@@ -530,29 +522,47 @@ static BOOL CM_ReadInfoInto(HANDLE archive, LPMAPINFO info, BOOL setup_only) {
     SFileReadFile(file, &info->flags, sizeof(DWORD), NULL, NULL);
     SFileReadFile(file, &info->mainGroundType, sizeof(char), NULL, NULL);
     SFileReadFile(file, &info->campaignBackgroundNumber, sizeof(DWORD), NULL, NULL);
-    if (info->fileFormat > 24) {
-        SFileSkipString(file);
+    if (info->fileFormat >= 25) {
+        SFileReadString(file, &info->loadingScreenModel);
     }
     SFileReadString(file, &info->loadingScreenText);
     SFileReadString(file, &info->loadingScreenTitle);
     SFileReadString(file, &info->loadingScreenSubtitle);
-    SFileReadFile(file, &info->loadingScreenNumber, sizeof(DWORD), NULL, NULL);
-    if (info->fileFormat > 24) {
-        SFileSkipString(file);
+    if (info->fileFormat >= 25) {
+        SFileReadFile(file, &info->gameDataSet, sizeof(DWORD), NULL, NULL);
+    } else {
+        SFileReadFile(file, &info->loadingScreenNumber, sizeof(DWORD), NULL, NULL);
+    }
+    if (info->fileFormat >= 25) {
+        SFileReadString(file, &info->prologueScreenModel);
     }
     SFileReadString(file, &info->prologueScreenText);
     SFileReadString(file, &info->prologueScreenTitle);
     SFileReadString(file, &info->prologueScreenSubtitle);
-    if (info->fileFormat > 24) {
-        SFileSkipBytes(file, sizeof(DWORD) + sizeof(FLOAT) * 2 + sizeof(FLOAT) + sizeof(BYTE) * 4 + sizeof(DWORD));
-        SFileSkipString(file);
-        SFileSkipBytes(file, sizeof(BYTE) + sizeof(BYTE) * 4);
+    if (info->fileFormat >= 25) {
+        SFileReadFile(file, &info->fogStyle, sizeof(DWORD), NULL, NULL);
+        SFileReadFile(file, &info->fogStartZ, sizeof(FLOAT), NULL, NULL);
+        SFileReadFile(file, &info->fogEndZ, sizeof(FLOAT), NULL, NULL);
+        SFileReadFile(file, &info->fogDensity, sizeof(FLOAT), NULL, NULL);
+        SFileReadFile(file, &info->fogColor, sizeof(COLOR32), NULL, NULL);
+        SFileReadFile(file, &info->weatherID, sizeof(DWORD), NULL, NULL);
+        SFileReadString(file, &info->soundEnvironment);
+        SFileReadFile(file, &info->lightEnvironmentTileset, sizeof(BYTE), NULL, NULL);
+        SFileReadFile(file, &info->waterColor, sizeof(COLOR32), NULL, NULL);
     }
-    if (info->fileFormat > 27) {
-        SFileSkipBytes(file, sizeof(BYTE) * 4);
+    if (info->fileFormat >= 28) {
+        SFileReadFile(file, &info->scriptType, sizeof(DWORD), NULL, NULL);
     }
-    if (info->fileFormat > 30) {
-        SFileSkipBytes(file, sizeof(DWORD) * 2);
+    if (info->fileFormat >= 31) {
+        SFileReadFile(file, &info->supportedModes, sizeof(DWORD), NULL, NULL);
+        SFileReadFile(file, &info->gameDataVersion, sizeof(DWORD), NULL, NULL);
+    }
+    if (info->fileFormat >= 32) {
+        SFileReadFile(file, &info->defaultZoomOverride, sizeof(DWORD), NULL, NULL);
+        SFileReadFile(file, &info->maximumZoomOverride, sizeof(DWORD), NULL, NULL);
+    }
+    if (info->fileFormat >= 33) {
+        SFileReadFile(file, &info->minimumZoomOverride, sizeof(DWORD), NULL, NULL);
     }
 
     DWORD num_players = 0;
@@ -572,6 +582,10 @@ static BOOL CM_ReadInfoInto(HANDLE archive, LPMAPINFO info, BOOL setup_only) {
         SFileReadFile(file, &player->startingPosition, sizeof(VECTOR2), NULL, NULL);
         SFileReadFile(file, &player->allyLowPrioritiesFlags, sizeof(DWORD), NULL, NULL);
         SFileReadFile(file, &player->allyHighPrioritiesFlags, sizeof(DWORD), NULL, NULL);
+        if (info->fileFormat >= 31) {
+            SFileReadFile(file, &player->enemyLowPrioritiesFlags, sizeof(DWORD), NULL, NULL);
+            SFileReadFile(file, &player->enemyHighPrioritiesFlags, sizeof(DWORD), NULL, NULL);
+        }
         SAFE_DELETE(scratch.playerName, MemFree);
     }
 
@@ -618,20 +632,49 @@ static BOOL CM_ReadInfoInto(HANDLE archive, LPMAPINFO info, BOOL setup_only) {
     info->randomUnits = MemAlloc(sizeof(mapRandomUnitTable_t) * info->num_randomUnits);
     FOR_LOOP(i, info->num_randomUnits) {
         mapRandomUnitTable_t *table = &info->randomUnits[i];
-        SFileReadFile(file, &table->num_randomGroups, sizeof(DWORD), NULL, NULL);
-        table->randomGroups = MemAlloc(sizeof(MapRandomGroup) * table->num_randomGroups);
-        FOR_LOOP(j, table->num_randomGroups) {
-            MapRandomGroup *group = &table->randomGroups[j];
-            SFileReadFile(file, &group->groupNumber, sizeof(DWORD), NULL, NULL);
-            SFileReadString(file, &group->groupName);
-            SFileReadFile(file, &group->num_positions, sizeof(DWORD), NULL, NULL);
-            group->positions = MemAlloc(sizeof(mapRandomGroupPosition_t) * group->num_positions);
-            FOR_LOOP(k, group->num_positions) {
-                mapRandomGroupPosition_t *position = &group->positions[k];
-                SFileReadFile(file, &position->type, sizeof(mapRandomGroupPositionType_t), NULL, NULL);
-                SFileReadFile(file, &position->num_items, sizeof(DWORD), NULL, NULL);
-                position->items = MemAlloc(sizeof(mapRandomGroupPositionItem_t) * position->num_items);
-                SFileReadFile(file, position->items, sizeof(mapRandomGroupPositionItem_t) * position->num_items, NULL, NULL);
+        SFileReadFile(file, &table->tableNumber, sizeof(DWORD), NULL, NULL);
+        SFileReadString(file, &table->tableName);
+        SFileReadFile(file, &table->num_positions, sizeof(DWORD), NULL, NULL);
+        if (table->num_positions > 0) {
+            table->positionTypes = MemAlloc(sizeof(mapRandomGroupPositionType_t) * table->num_positions);
+            SFileReadFile(file,
+                          table->positionTypes,
+                          sizeof(mapRandomGroupPositionType_t) * table->num_positions,
+                          NULL,
+                          NULL);
+        }
+        SFileReadFile(file, &table->num_units, sizeof(DWORD), NULL, NULL);
+        if (table->num_units > 0) {
+            table->units = MemAlloc(sizeof(mapRandomUnit_t) * table->num_units);
+        }
+        FOR_LOOP(j, table->num_units) {
+            mapRandomUnit_t *unit = &table->units[j];
+            SFileReadFile(file, &unit->chance, sizeof(DWORD), NULL, NULL);
+            if (table->num_positions > 0) {
+                unit->itemIDs = MemAlloc(sizeof(DWORD) * table->num_positions);
+                SFileReadFile(file, unit->itemIDs, sizeof(DWORD) * table->num_positions, NULL, NULL);
+            }
+        }
+    }
+
+    if (info->fileFormat >= 25 && SFileBytesRemaining(file) > 1) {
+        SFileReadFile(file, &info->num_randomItems, sizeof(DWORD), NULL, NULL);
+        info->randomItems = MemAlloc(sizeof(mapRandomItemTable_t) * info->num_randomItems);
+        FOR_LOOP(i, info->num_randomItems) {
+            mapRandomItemTable_t *table = &info->randomItems[i];
+            SFileReadFile(file, &table->tableNumber, sizeof(DWORD), NULL, NULL);
+            SFileReadString(file, &table->tableName);
+            SFileReadFile(file, &table->num_sets, sizeof(DWORD), NULL, NULL);
+            if (table->num_sets > 0) {
+                table->sets = MemAlloc(sizeof(mapRandomItemSet_t) * table->num_sets);
+            }
+            FOR_LOOP(j, table->num_sets) {
+                mapRandomItemSet_t *set = &table->sets[j];
+                SFileReadFile(file, &set->num_items, sizeof(DWORD), NULL, NULL);
+                if (set->num_items > 0) {
+                    set->items = MemAlloc(sizeof(mapRandomItem_t) * set->num_items);
+                    SFileReadFile(file, set->items, sizeof(mapRandomItem_t) * set->num_items, NULL, NULL);
+                }
             }
         }
     }
@@ -657,29 +700,38 @@ static void MapInfo_Release(LPMAPINFO mapInfo) {
         SAFE_DELETE(mapInfo->teams[i].name, MemFree);
     }
     FOR_LOOP(i, mapInfo->num_randomUnits) {
-        FOR_LOOP(j, mapInfo->randomUnits[i].num_randomGroups) {
-            FOR_LOOP(k, mapInfo->randomUnits[i].randomGroups[j].num_positions) {
-                SAFE_DELETE(mapInfo->randomUnits[i].randomGroups[j].positions[k].items, MemFree);
-            }
-            SAFE_DELETE(mapInfo->randomUnits[i].randomGroups[j].positions, MemFree);
-            SAFE_DELETE(mapInfo->randomUnits[i].randomGroups[j].groupName, MemFree);
+        FOR_LOOP(j, mapInfo->randomUnits[i].num_units) {
+            SAFE_DELETE(mapInfo->randomUnits[i].units[j].itemIDs, MemFree);
         }
-        SAFE_DELETE(mapInfo->randomUnits[i].randomGroups, MemFree);
+        SAFE_DELETE(mapInfo->randomUnits[i].units, MemFree);
+        SAFE_DELETE(mapInfo->randomUnits[i].positionTypes, MemFree);
+        SAFE_DELETE(mapInfo->randomUnits[i].tableName, MemFree);
+    }
+    FOR_LOOP(i, mapInfo->num_randomItems) {
+        FOR_LOOP(j, mapInfo->randomItems[i].num_sets) {
+            SAFE_DELETE(mapInfo->randomItems[i].sets[j].items, MemFree);
+        }
+        SAFE_DELETE(mapInfo->randomItems[i].sets, MemFree);
+        SAFE_DELETE(mapInfo->randomItems[i].tableName, MemFree);
     }
     SAFE_DELETE(mapInfo->mapName, MemFree);
     SAFE_DELETE(mapInfo->mapAuthor, MemFree);
     SAFE_DELETE(mapInfo->mapDescription, MemFree);
     SAFE_DELETE(mapInfo->playersRecommended, MemFree);
+    SAFE_DELETE(mapInfo->loadingScreenModel, MemFree);
     SAFE_DELETE(mapInfo->loadingScreenText, MemFree);
     SAFE_DELETE(mapInfo->loadingScreenTitle, MemFree);
     SAFE_DELETE(mapInfo->loadingScreenSubtitle, MemFree);
+    SAFE_DELETE(mapInfo->prologueScreenModel, MemFree);
     SAFE_DELETE(mapInfo->prologueScreenText, MemFree);
     SAFE_DELETE(mapInfo->prologueScreenTitle, MemFree);
     SAFE_DELETE(mapInfo->prologueScreenSubtitle, MemFree);
+    SAFE_DELETE(mapInfo->soundEnvironment, MemFree);
     SAFE_DELETE(mapInfo->teams, MemFree);
     SAFE_DELETE(mapInfo->upgradeAvailabilities, MemFree);
     SAFE_DELETE(mapInfo->techAvailabilities, MemFree);
     SAFE_DELETE(mapInfo->randomUnits, MemFree);
+    SAFE_DELETE(mapInfo->randomItems, MemFree);
     while (string) {
         mapTrigStr_t *next = string->next;
         MemFree(string);
@@ -696,17 +748,51 @@ void CM_FreeMapInfo(LPMAPINFO mapInfo) {
     memset(mapInfo, 0, sizeof(*mapInfo));
 }
 
+static BOOL CM_ReadUnitArray(HANDLE file, DWORD *num, void **data, DWORD elem_size);
+
+static BOOL CM_ReadDroppedItemSets(HANDLE file, DWORD *num_sets, droppableItemSet_t **sets) {
+    DWORD count;
+
+    if (!num_sets || !sets) {
+        return false;
+    }
+    *num_sets = 0;
+    *sets = NULL;
+    if (!SFileReadFile(file, &count, sizeof(count), NULL, NULL)) {
+        return false;
+    }
+    if (count > SFileBytesRemaining(file) / sizeof(DWORD)) {
+        fprintf(stderr, "CM_ReadUnit: invalid dropped item set count %u\n", (unsigned)count);
+        return false;
+    }
+    *num_sets = count;
+    if (count > 0) {
+        *sets = MemAlloc(count * sizeof(**sets));
+    }
+    FOR_LOOP(i, count) {
+        DWORD num_items;
+        droppableItemSet_t *set = &(*sets)[i];
+
+        if (!CM_ReadUnitArray(file, &num_items, (void **)&set->droppableItems, sizeof(droppableItem_t))) {
+            return false;
+        }
+        set->num_droppableItems = (int)num_items;
+    }
+    return true;
+}
+
 static void CM_ReadDoodads(HANDLE archive) {
     HANDLE file;
-    DWORD fileHeader, version, unknown, numDoodads;
+    DWORD fileHeader, version, subversion, numDoodads;
 
     SFileOpenFileEx(archive, "war3map.doo", SFILE_OPEN_FROM_MPQ, &file);
     SFileReadFile(file, &fileHeader, 4, NULL, NULL);
     SFileReadFile(file, &version, 4, NULL, NULL);
-    SFileReadFile(file, &unknown, 4, NULL, NULL);
+    SFileReadFile(file, &subversion, 4, NULL, NULL);
     SFileReadFile(file, &numDoodads, 4, NULL, NULL);
 
     FOR_LOOP(index, numDoodads) {
+        DWORD count;
         LPDOODAD doodad = MemAlloc(sizeof(DOODAD));
         SFileReadFile(file, &doodad->doodID, sizeof(DWORD), NULL, NULL);
         SFileReadFile(file, &doodad->variation, sizeof(DWORD), NULL, NULL);
@@ -715,6 +801,14 @@ static void CM_ReadDoodads(HANDLE archive) {
         SFileReadFile(file, &doodad->scale, sizeof(VECTOR3), NULL, NULL);
         SFileReadFile(file, &doodad->flags, sizeof(BYTE), NULL, NULL);
         SFileReadFile(file, &doodad->treeLife, sizeof(BYTE), NULL, NULL);
+        if (subversion != 0) {
+            SFileReadFile(file, &doodad->droppedItemSetPtr, sizeof(DWORD), NULL, NULL);
+            if (!CM_ReadDroppedItemSets(file, &count, &doodad->droppableItemSets)) {
+                MemFree(doodad);
+                break;
+            }
+            doodad->num_droppedItemSets = count;
+        }
         SFileReadFile(file, &doodad->unitID, sizeof(DWORD), NULL, NULL);
         
         ADD_TO_LIST(doodad, world.doodads);
@@ -723,7 +817,30 @@ static void CM_ReadDoodads(HANDLE archive) {
     SFileCloseFile(file);
 }
 
-static void CM_ReadUnit(HANDLE file, struct Doodad *unit) {
+static BOOL CM_ReadUnitArray(HANDLE file, DWORD *num, void **data, DWORD elem_size) {
+    DWORD count;
+
+    if (!num || !data || elem_size == 0) {
+        return false;
+    }
+    *num = 0;
+    *data = NULL;
+    if (!SFileReadFile(file, &count, sizeof(count), NULL, NULL)) {
+        return false;
+    }
+    if (count > SFileBytesRemaining(file) / elem_size) {
+        fprintf(stderr, "CM_ReadUnit: invalid array count %u\n", (unsigned)count);
+        return false;
+    }
+    *num = count;
+    if (count > 0) {
+        *data = MemAlloc(count * elem_size);
+        SFileReadFile(file, *data, count * elem_size, NULL, NULL);
+    }
+    return true;
+}
+
+static BOOL CM_ReadUnit(HANDLE file, struct Doodad *unit, BOOL frozenThrone) {
     SFileReadFile(file, &unit->doodID, sizeof(DWORD), NULL, NULL);
     SFileReadFile(file, &unit->variation, sizeof(DWORD), NULL, NULL);
     SFileReadFile(file, &unit->position, sizeof(VECTOR3), NULL, NULL);
@@ -735,30 +852,37 @@ static void CM_ReadUnit(HANDLE file, struct Doodad *unit) {
     SFileReadFile(file, &unit->unknown2, sizeof(BYTE), NULL, NULL);
     SFileReadFile(file, &unit->hitPoints, sizeof(DWORD), NULL, NULL); // (-1 = use default)
     SFileReadFile(file, &unit->manaPoints, sizeof(DWORD), NULL, NULL); // (-1 = use default, 0 = unit doesn't have mana)
-    // in Frozen Throne:
-//    SFileReadFile(file, &unit->droppedItemSetPtr, sizeof(DWORD), NULL, NULL);
-    SFileReadFile(file, &unit->num_droppedItemSets, sizeof(DWORD), NULL, NULL);
-    unit->droppableItemSets = MemAlloc(unit->num_droppedItemSets * sizeof(droppableItemSet_t));
-    FOR_LOOP(droppedItemSetIdx, unit->num_droppedItemSets) {
-        droppableItemSet_t *set = &unit->droppableItemSets[droppedItemSetIdx];
-        SFileReadFile(file, &set->num_droppableItems, sizeof(DWORD), NULL, NULL);
-        set->droppableItems = MemAlloc(set->num_droppableItems * sizeof(droppableItem_t));
-        SFileReadFile(file, set->droppableItems, set->num_droppableItems * sizeof(droppableItem_t), NULL, NULL);
+    if (frozenThrone) {
+        SFileReadFile(file, &unit->droppedItemSetPtr, sizeof(DWORD), NULL, NULL);
+    }
+    if (!CM_ReadDroppedItemSets(file, &unit->num_droppedItemSets, &unit->droppableItemSets)) {
+        return false;
     }
 
     SFileReadFile(file, &unit->goldAmount, sizeof(DWORD), NULL, NULL); // (default = 12500)
     SFileReadFile(file, &unit->targetAcquisition, sizeof(FLOAT), NULL, NULL); // (-1 = normal, -2 = camp)
 
-    SFileReadFile(file, &unit->hero, sizeof(DWORD), NULL, NULL); // (set to 1 for non hero units and items)
-    // in Frozen Throne:
-//    SFileReadFile(file, &unit->hero, sizeof(struct DoodadHero), NULL, NULL); // (set to 1 for non hero units and items)
+    // war3mapUnits.doo stores only the file-format hero fields here.  The
+    // runtime doodadHero_t has extra state, so do not read sizeof(hero).
+    SFileReadFile(file, &unit->hero.level, sizeof(DWORD), NULL, NULL);
+    SFileReadFile(file, &unit->hero.str, sizeof(DWORD), NULL, NULL);
+    SFileReadFile(file, &unit->hero.agi, sizeof(DWORD), NULL, NULL);
+    SFileReadFile(file, &unit->hero.intel, sizeof(DWORD), NULL, NULL);
+    unit->hero.xp = 0;
+    unit->hero.suspend_xp = false;
 
-    SFileReadArray(file, unit, inventoryItems, sizeof(inventoryItem_t), MemAlloc);
-    SFileReadArray(file, unit, modifiedAbilities, sizeof(modifiedAbility_t), MemAlloc);
+    if (!CM_ReadUnitArray(file, &unit->num_inventoryItems, (void **)&unit->inventoryItems, sizeof(inventoryItem_t))) {
+        return false;
+    }
+    if (!CM_ReadUnitArray(file, &unit->num_modifiedAbilities, (void **)&unit->modifiedAbilities, sizeof(modifiedAbility_t))) {
+        return false;
+    }
 
     SFileReadFile(file, &unit->randomUnitFlag, sizeof(DWORD), NULL, NULL); // "r" (for uDNR units and iDNR items)
 
-    switch (unit->randomUnitFlag) {
+    switch ((LONG)unit->randomUnitFlag) {
+        case -1:
+            break;
         case 0:
             SFileReadFile(file, &unit->levelOfRandomItem, sizeof(DWORD), NULL, NULL);
             break;
@@ -767,12 +891,18 @@ static void CM_ReadUnit(HANDLE file, struct Doodad *unit) {
             SFileReadFile(file, &unit->randomUnitPositionNumber, sizeof(DWORD), NULL, NULL);
             break;
         case 2:
-            SFileReadArray(file, unit, diffAvailUnits, sizeof(droppableItem_t), MemAlloc);
+            if (!CM_ReadUnitArray(file, &unit->num_diffAvailUnits, (void **)&unit->diffAvailUnits, sizeof(droppableItem_t))) {
+                return false;
+            }
             break;
+        default:
+            fprintf(stderr, "CM_ReadUnit: invalid random unit flag %d\n", (int)unit->randomUnitFlag);
+            return false;
     }
     SFileReadFile(file, &unit->color, sizeof(COLOR32), NULL, NULL);
     SFileReadFile(file, &unit->waygate, sizeof(DWORD), NULL, NULL);
     SFileReadFile(file, &unit->unitID, sizeof(DWORD), NULL, NULL);
+    return true;
 }
 
 static void CM_ReadUnitDoodads(HANDLE archive) {
@@ -787,17 +917,62 @@ static void CM_ReadUnitDoodads(HANDLE archive) {
 
     FOR_LOOP(index, numUnits) {
         LPDOODAD doodad = MemAlloc(sizeof(DOODAD));
-        CM_ReadUnit(file, doodad);        
+        if (!CM_ReadUnit(file, doodad, subversion != 0)) {
+            MemFree(doodad);
+            break;
+        }
         ADD_TO_LIST(doodad, world.doodads);
     }
 
     SFileCloseFile(file);
 }
 
+static BOOL CM_ReadWar3MapVertex(HANDLE file, LPWAR3MAPVERTEX vert) {
+    WORD water_and_edge;
+    BYTE flags;
+    BYTE variation;
+    BYTE cliff_and_layer;
+
+    if (!file || !vert) {
+        return false;
+    }
+    memset(vert, 0, sizeof(*vert));
+    if (!SFileReadFile(file, &vert->accurate_height, sizeof(vert->accurate_height), NULL, NULL)) {
+        return false;
+    }
+    if (!SFileReadFile(file, &water_and_edge, sizeof(water_and_edge), NULL, NULL)) {
+        return false;
+    }
+    if (!SFileReadFile(file, &flags, sizeof(flags), NULL, NULL)) {
+        return false;
+    }
+    if (!SFileReadFile(file, &variation, sizeof(variation), NULL, NULL)) {
+        return false;
+    }
+    if (!SFileReadFile(file, &cliff_and_layer, sizeof(cliff_and_layer), NULL, NULL)) {
+        return false;
+    }
+
+    vert->waterlevel = water_and_edge & 0x3FFF;
+    vert->mapedge = (water_and_edge & 0x4000) != 0;
+    vert->ground = flags & 0x0F;
+    vert->ramp = (flags & 0x10) != 0;
+    vert->blight = (flags & 0x20) != 0;
+    vert->water = (flags & 0x40) != 0;
+    vert->boundary = (flags & 0x80) != 0;
+    vert->cliffVariation = (variation >> 5) & 0x07;
+    vert->groundVariation = variation & 0x1F;
+    vert->cliff = (cliff_and_layer >> 4) & 0x0F;
+    vert->level = cliff_and_layer & 0x0F;
+    return true;
+}
+
 static void CM_ReadHeightmap(HANDLE archive) {
     world.map = MemAlloc(sizeof(WAR3MAP));
     HANDLE file;
-    SFileOpenFileEx(archive, "war3map.w3e", SFILE_OPEN_FROM_MPQ, &file);
+    if (!SFileOpenFileEx(archive, "war3map.w3e", SFILE_OPEN_FROM_MPQ, &file)) {
+        return;
+    }
     SFileReadFile(file, &world.map->header, 4, NULL, NULL);
     SFileReadFile(file, &world.map->version, 4, NULL, NULL);
     SFileReadFile(file, &world.map->tileset, 1, NULL, NULL);
@@ -807,9 +982,14 @@ static void CM_ReadHeightmap(HANDLE archive) {
     SFileReadFile(file, &world.map->width, 4, NULL, NULL);
     SFileReadFile(file, &world.map->height, 4, NULL, NULL);
     SFileReadFile(file, &world.map->center, 8, NULL, NULL);
-    int const vertexblocksize = MAP_VERTEX_SIZE * world.map->width * world.map->height;
+    DWORD const num_vertices = world.map->width * world.map->height;
+    int const vertexblocksize = sizeof(WAR3MAPVERTEX) * num_vertices;
     world.map->vertices = MemAlloc(vertexblocksize);
-    SFileReadFile(file, world.map->vertices, vertexblocksize, 0, 0);
+    FOR_LOOP(i, num_vertices) {
+        if (!CM_ReadWar3MapVertex(file, (LPWAR3MAPVERTEX)world.map->vertices + i)) {
+            break;
+        }
+    }
     SFileCloseFile(file);
 }
 
@@ -1290,7 +1470,7 @@ bool CM_LoadMap(LPCSTR mapFilename) {
 
 static LPCWAR3MAPVERTEX CM_GetWar3MapVertex(DWORD x, DWORD y) {
     int const index = x + y * world.map->width;
-    char const *ptr = ((char const *)world.map->vertices) + index * MAP_VERTEX_SIZE;
+    char const *ptr = ((char const *)world.map->vertices) + index * sizeof(WAR3MAPVERTEX);
     return (LPCWAR3MAPVERTEX)ptr;
 }
 

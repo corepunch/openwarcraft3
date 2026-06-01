@@ -15,11 +15,12 @@
  *   carries client→server traffic; bufs[NS_SERVER] carries server→client.
  *
  * UDP sockets:
- *   Matching Quake 2's ip_sockets[NS_CLIENT/NS_SERVER], NET_Config(true)
- *   opens a server socket on game_port and a client socket on an ephemeral
- *   port.  NET_Config(false) closes both sockets for local-only play.  UDP
- *   datagrams are sent raw, exactly like Quake 2; only the in-process
- *   loopback queue needs internal length framing.
+ *   Matching Quake 2's ip_sockets[NS_CLIENT/NS_SERVER], the client side
+ *   uses an ephemeral port and the server side binds game_port.  Callers
+ *   open only the side they need; NET_Config(true) remains a convenience
+ *   for tests and tools that explicitly want both sockets.  UDP datagrams
+ *   are sent raw, exactly like Quake 2; only the in-process loopback queue
+ *   needs internal length framing.
  */
 #include <stdarg.h>
 #include <stdlib.h>
@@ -154,13 +155,13 @@ static unsigned short NET_GamePort(void) {
     return (unsigned short)port;
 }
 
-static void NET_OpenIP(void) {
-    if (udp_sockets[NS_SERVER] < 0) {
+static void NET_OpenIP(NETSOURCE netsrc) {
+    if (netsrc == NS_SERVER && udp_sockets[NS_SERVER] < 0) {
         unsigned short port = NET_GamePort();
         fprintf(stderr, "NET_OpenIP: opening server socket on UDP port %u\n", (unsigned)port);
         udp_sockets[NS_SERVER] = NET_UDPSocket(port);
     }
-    if (udp_sockets[NS_CLIENT] < 0) {
+    if (netsrc == NS_CLIENT && udp_sockets[NS_CLIENT] < 0) {
         fprintf(stderr, "NET_OpenIP: opening client socket on ephemeral UDP port\n");
         udp_sockets[NS_CLIENT] = NET_UDPSocket(0);
     }
@@ -242,15 +243,27 @@ void NET_Init(void) {
 void NET_Config(BOOL multiplayer) {
     if (!multiplayer) {
         FOR_LOOP(i, 2) {
-            if (udp_sockets[i] >= 0) {
-                fprintf(stderr, "NET_Config: closing %s UDP socket\n", NET_SourceName((NETSOURCE)i));
-                close(udp_sockets[i]);
-                udp_sockets[i] = -1;
-            }
+            NET_ConfigSource((NETSOURCE)i, false);
         }
         return;
     }
-    NET_OpenIP();
+    NET_ConfigSource(NS_SERVER, true);
+    NET_ConfigSource(NS_CLIENT, true);
+}
+
+void NET_ConfigSource(NETSOURCE netsrc, BOOL open) {
+    if (netsrc > NS_SERVER) {
+        return;
+    }
+    if (!open) {
+        if (udp_sockets[netsrc] >= 0) {
+            fprintf(stderr, "NET_Config: closing %s UDP socket\n", NET_SourceName(netsrc));
+            close(udp_sockets[netsrc]);
+            udp_sockets[netsrc] = -1;
+        }
+        return;
+    }
+    NET_OpenIP(netsrc);
 }
 
 BOOL NET_IsConfigured(NETSOURCE netsrc) {

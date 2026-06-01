@@ -221,6 +221,25 @@ static void test_net_config_opens_and_closes_udp_sockets(void) {
     ASSERT(!NET_IsConfigured(NS_SERVER));
 }
 
+static void test_net_config_source_opens_one_udp_socket(void) {
+    test_client_stubs_set_cvar("game_port", "28031");
+    NET_Init();
+    NET_Config(false);
+
+    NET_ConfigSource(NS_CLIENT, true);
+    ASSERT(NET_IsConfigured(NS_CLIENT));
+    ASSERT(!NET_IsConfigured(NS_SERVER));
+
+    NET_Config(false);
+    NET_ConfigSource(NS_SERVER, true);
+    ASSERT(!NET_IsConfigured(NS_CLIENT));
+    ASSERT(NET_IsConfigured(NS_SERVER));
+
+    NET_Config(false);
+    ASSERT(!NET_IsConfigured(NS_CLIENT));
+    ASSERT(!NET_IsConfigured(NS_SERVER));
+}
+
 /* -----------------------------------------------------------------------
  * NET_StringToAdr
  * --------------------------------------------------------------------- */
@@ -577,6 +596,7 @@ void run_net_tests(void) {
     RUN_TEST(test_loopback_server_to_client);
     RUN_TEST(test_loopback_na_ip_no_crash_without_socket);
     RUN_TEST(test_net_config_opens_and_closes_udp_sockets);
+    RUN_TEST(test_net_config_source_opens_one_udp_socket);
     RUN_TEST(test_string_to_adr_ip_only);
     RUN_TEST(test_string_to_adr_ip_with_port);
     RUN_TEST(test_string_to_adr_port_overrides_default);

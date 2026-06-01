@@ -25,7 +25,6 @@
 #define LAN_FILELIST_SIZE 32768
 #define LAN_PLAYER_NAME_DEFAULT "Player"
 #define LAN_PLAYER_NAME_MAX_CHARS 20
-#define LAN_REFRESH_MSEC 1500
 
 typedef enum {
     LAN_MODE_BROWSER,
@@ -50,7 +49,6 @@ typedef struct lan_join_state_s {
     MapInfoPane_t create_map_info_pane;
     LPFRAMEDEF game_speed_slider;
     LPFRAMEDEF game_speed_value;
-    int refresh_time;
 } lan_join_state_t;
 
 static lan_join_state_t lan;
@@ -407,10 +405,67 @@ static void LAN_UpdateMapInfo(MapInfoPane_t *pane, uiMapListState_t *items) {
     LAN_SetTextIfPresent(pane->MapDescValue, "%s", item->description);
 }
 
+static void LAN_ClearGames(void) {
+    memset(&lan.games, 0, sizeof(lan.games));
+}
+
+static void LAN_CopyGameMapInfo(uiMapListItem_t *item, const uiLanGame_t *game) {
+    uiMapListItem_t map_item;
+
+    if (!item || !game) {
+        return;
+    }
+
+    memset(&map_item, 0, sizeof(map_item));
+    snprintf(map_item.path, sizeof(map_item.path), "%s", item->path);
+    if (LAN_ParseMapInfo(&map_item)) {
+        snprintf(item->description, sizeof(item->description), "%s", map_item.description);
+        snprintf(item->suggestedPlayers, sizeof(item->suggestedPlayers), "%s", map_item.suggestedPlayers);
+        snprintf(item->mapSize, sizeof(item->mapSize), "%s", map_item.mapSize);
+        snprintf(item->tileset, sizeof(item->tileset), "%s", map_item.tileset);
+        item->players = map_item.players ? map_item.players : item->players;
+        return;
+    }
+
+    snprintf(item->description, sizeof(item->description), "%s", game->address);
+    snprintf(item->suggestedPlayers,
+             sizeof(item->suggestedPlayers),
+             "%u/%u",
+             (unsigned)game->players,
+             (unsigned)game->maxPlayers);
+    snprintf(item->mapSize, sizeof(item->mapSize), "%s", UI_GetString("UNKNOWNMAP_MAPSIZE"));
+    snprintf(item->tileset, sizeof(item->tileset), "%s", UI_GetString("UNKNOWNMAP_TILESET"));
+}
+
+static void LAN_CopyGame(uiMapListItem_t *item, const uiLanGame_t *game, DWORD index) {
+    PATHSTR path;
+    BOOL path_changed;
+
+    if (!item || !game) {
+        return;
+    }
+
+    snprintf(path, sizeof(path), "%s", game->mapname);
+    for (char *p = path; *p; p++) {
+        if (*p == '/') {
+            *p = '\\';
+        }
+    }
+
+    path_changed = strcmp(item->path, path) != 0;
+    snprintf(item->path, sizeof(item->path), "%s", path);
+    snprintf(item->name, sizeof(item->name), "%s", game->hostname[0] ? game->hostname : game->address);
+    item->players = game->slots ? game->slots : game->maxPlayers;
+    item->flags = index;
+
+    if (path_changed || !item->tileset[0]) {
+        LAN_CopyGameMapInfo(item, game);
+    }
+}
+
 static void LAN_LoadGames(void) {
     DWORD count;
 
-    memset(&lan.games, 0, sizeof(lan.games));
     if (!uiimport.LANNumServers || !uiimport.LANServer) {
         return;
     }
@@ -426,21 +481,24 @@ static void LAN_LoadGames(void) {
         if (!uiimport.LANServer(i, &game)) {
             continue;
         }
-        item = &lan.games.items[lan.games.count++];
-        snprintf(item->path, sizeof(item->path), "%s", game.mapname);
-        snprintf(item->name, sizeof(item->name), "%s", game.hostname[0] ? game.hostname : game.address);
-        snprintf(item->description, sizeof(item->description), "%s", game.address);
-        snprintf(item->suggestedPlayers,
-                 sizeof(item->suggestedPlayers),
-                 "%u/%u",
-                 (unsigned)game.players,
-                 (unsigned)game.maxPlayers);
-        snprintf(item->mapSize, sizeof(item->mapSize), "%s", LAN_GameSpeedValueText(game.speed));
-        snprintf(item->tileset, sizeof(item->tileset), "%s", game.mapname[0] ? game.mapname : UI_GetString("UNKNOWNMAP_DESCRIPTION"));
-        item->players = game.players;
-        item->flags = i;
+        if (i >= lan.games.count) {
+            item = &lan.games.items[lan.games.count++];
+            memset(item, 0, sizeof(*item));
+        } else {
+            item = &lan.games.items[i];
+        }
+        LAN_CopyGame(item, &game, i);
     }
-    lan.games.visualScroll = (FLOAT)lan.games.scroll;
+    if (lan.games.count > count) {
+        memset(&lan.games.items[count], 0, sizeof(lan.games.items[0]) * (lan.games.count - count));
+        lan.games.count = count;
+    }
+    if (lan.games.selected >= lan.games.count) {
+        lan.games.selected = lan.games.count ? lan.games.count - 1 : 0;
+    }
+    if (lan.games.scroll > lan.games.selected) {
+        lan.games.scroll = lan.games.selected;
+    }
 }
 
 static void LAN_UpdateBrowserControls(void) {
@@ -463,7 +521,14 @@ static void LAN_UpdateBrowserControls(void) {
 
     item = &lan.games.items[lan.games.selected];
     LAN_SetTextIfPresent(lan.join_frames.GameCreatorValue, "%s", item->name);
-    LAN_SetTextIfPresent(lan.join_frames.GameSpeedValue, "%s", item->mapSize);
+    LAN_SetTextIfPresent(lan.join_frames.GameSpeedValue, "%s", LAN_GameSpeedValueText(2));
+    if (uiimport.LANServer) {
+        uiLanGame_t game;
+
+        if (uiimport.LANServer(item->flags, &game)) {
+            LAN_SetTextIfPresent(lan.join_frames.GameSpeedValue, "%s", LAN_GameSpeedValueText(game.speed));
+        }
+    }
     LAN_UpdateMapInfo(&lan.game_map_info_pane, &lan.games);
 }
 
@@ -492,7 +557,6 @@ static void LAN_RequestServerRefresh(void) {
     if (uiimport.LANRefreshServers) {
         uiimport.LANRefreshServers();
     }
-    lan.refresh_time = 0;
 }
 
 static BOOL LAN_BuildBrowserFrames(void) {
@@ -574,6 +638,7 @@ static void LANJoin_Init(void) {
         return;
     }
     if (lan.mode == LAN_MODE_BROWSER) {
+        LAN_ClearGames();
         LAN_RequestServerRefresh();
         LAN_LoadGames();
     } else {
@@ -597,16 +662,7 @@ static void LANJoin_Refresh(int msec) {
 
     list = lan.mode == LAN_MODE_BROWSER ? &lan.games : &lan.maps;
     if (lan.mode == LAN_MODE_BROWSER) {
-        DWORD selected = lan.games.selected;
-
-        lan.refresh_time += msec;
-        if (lan.refresh_time >= LAN_REFRESH_MSEC) {
-            LAN_RequestServerRefresh();
-        }
         LAN_LoadGames();
-        if (selected < lan.games.count) {
-            lan.games.selected = selected;
-        }
         LAN_UpdateControls();
     }
 
@@ -743,6 +799,7 @@ void LAN_ShowBrowser(void) {
     if (!lan.ready) {
         return;
     }
+    LAN_ClearGames();
     LAN_RequestServerRefresh();
     LAN_LoadGames();
     LAN_UpdateControls();
@@ -762,6 +819,7 @@ void LAN_RefreshMaps(void) {
         return;
     }
     if (lan.mode == LAN_MODE_BROWSER) {
+        LAN_ClearGames();
         LAN_RequestServerRefresh();
         LAN_LoadGames();
     } else {

@@ -54,6 +54,7 @@ struct netchan {
 // Initialise loopback state. UDP sockets are opened lazily by NET_Config().
 void NET_Init(void);
 void NET_Config(BOOL multiplayer);
+void NET_ConfigSource(NETSOURCE netsrc, BOOL open);
 BOOL NET_IsConfigured(NETSOURCE netsrc);
 void NET_Shutdown(void);
 

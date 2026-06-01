@@ -113,11 +113,14 @@ void SV_Begin_f(LPCLIENT cl, int argc, LPCSTR *argv) {
 }
 
 void SV_PlayerInfo_f(LPCLIENT cl, int argc, LPCSTR *argv) {
+    DWORD playernum;
+
     (void)argc;
     (void)argv;
 
     /* Assign the client's game edict (Quake 2/3 pattern) */
-    cl->edict = EDICT_NUM(CM_GetLocalPlayerNumber());
+    playernum = cl->playernum < ge->max_clients ? cl->playernum : CM_GetLocalPlayerNumber();
+    cl->edict = EDICT_NUM(playernum);
     MSG_WriteByte(&cl->netchan.message, svc_mirror);
     MSG_WriteString(&cl->netchan.message, "begin");
     Netchan_Transmit(NS_SERVER, &cl->netchan);
@@ -128,8 +131,7 @@ void SV_New_f(LPCLIENT cl, int argc, LPCSTR *argv) {
     (void)argv;
 
     if (sv.state == ss_lobby) {
-        MSG_WriteByte(&cl->netchan.message, svc_lobby_setup);
-        MSG_WriteString(&cl->netchan.message, sv.configstrings[CS_WORLD]);
+        SV_LobbyWriteSetup(cl);
         Netchan_Transmit(NS_SERVER, &cl->netchan);
         return;
     }
@@ -170,7 +172,7 @@ static void SV_LobbySayClient_f(LPCLIENT cl, int argc, LPCSTR *argv) {
         text[used] = '\0';
     }
     snprintf(sender, sizeof(sender), "Player %u", (unsigned)SV_ClientIndex(cl) + 1);
-    SV_LobbyBroadcastChat(sender, text);
+    SV_LobbyBroadcastChatFrom(SV_ClientIndex(cl), sender, text);
 }
 
 typedef struct {

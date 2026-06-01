@@ -600,6 +600,8 @@ JASSMODULE jass_funcs[] = {
     { "ResetTerrainFog", ResetTerrainFog },
     { "SetUnitFog", SetUnitFog },
     { "SetTerrainFogEx", SetTerrainFogEx },
+    { "SetWaterBaseColor", SetWaterBaseColor },
+    { "SetWaterDeforms", SetWaterDeforms },
     { "DisplayTextToPlayer", DisplayTextToPlayer },
     { "DisplayTimedTextToPlayer", DisplayTimedTextToPlayer },
     { "DisplayTimedTextFromPlayer", DisplayTimedTextFromPlayer },

@@ -350,16 +350,22 @@ static void CL_InfoValue(LPCSTR info, LPCSTR key, LPSTR out, DWORD out_size) {
 static void CL_LANRefreshServers(void) {
     netadr_t adr;
     unsigned short port = (unsigned short)Cvar_Integer("game_port", PORT_SERVER);
+    BOOL const open_client_socket = !NET_IsConfigured(NS_CLIENT);
 
     memset(cl_lan_servers, 0, sizeof(cl_lan_servers));
     cl_num_lan_servers = 0;
-    fprintf(stderr, "CL_LANRefreshServers: opening UDP sockets and querying port %u\n", (unsigned)port);
-    NET_Config(true);
+    if (open_client_socket) {
+        fprintf(stderr, "CL_LANRefreshServers: opening client UDP socket for LAN queries\n");
+    }
+    NET_ConfigSource(NS_CLIENT, true);
+    if (!NET_IsConfigured(NS_CLIENT)) {
+        fprintf(stderr, "CL_LANRefreshServers: client UDP socket is closed, cannot query LAN servers\n");
+        return;
+    }
 
     memset(&adr, 0, sizeof(adr));
     adr.type = NA_BROADCAST;
     adr.port = htons(port);
-    fprintf(stderr, "CL_LANRefreshServers: sending broadcast info query to %s\n", NET_AdrToString(&adr));
     Netchan_OutOfBandPrint(NS_CLIENT, adr, "info");
 }
 
@@ -424,13 +430,6 @@ update:
     if (!game->hostname[0]) {
         snprintf(game->hostname, sizeof(game->hostname), "%s", "OpenWarcraft3");
     }
-    fprintf(stderr,
-            "CL_AddLANServer: %s hostname=\"%s\" map=\"%s\" players=%u/%u\n",
-            game->address,
-            game->hostname,
-            game->mapname,
-            (unsigned)game->players,
-            (unsigned)game->maxPlayers);
 }
 
 static LPCSTR CL_UIGetLoadingMap(void) {
@@ -731,11 +730,40 @@ void CL_SendCmd(void) {
 /* Set up the netchan to point at a remote server and send an initial
  * connection request.  The server will respond with an out-of-band
  * "client_connect" packet which triggers CL_ConnectionlessPacket(). */
+static void CL_SanitizeUserinfoValue(LPCSTR in, LPSTR out, DWORD out_size) {
+    DWORD write = 0;
+
+    if (!out || out_size == 0) {
+        return;
+    }
+    out[0] = '\0';
+    if (!in) {
+        return;
+    }
+    for (; *in && write + 1 < out_size; in++) {
+        unsigned char c = (unsigned char)*in;
+
+        if (c == '\\' || c == '\n' || c == '\r') {
+            c = ' ';
+        }
+        if (c < 32) {
+            continue;
+        }
+        out[write++] = (char)c;
+    }
+    out[write] = '\0';
+}
+
 void CL_Connect(LPCSTR host, unsigned short port) {
     netadr_t adr;
+    UINAME name;
 
-    fprintf(stderr, "CL_Connect: opening UDP sockets for %s:%u\n", host, (unsigned)port);
-    NET_Config(true);
+    fprintf(stderr, "CL_Connect: opening client UDP socket for %s\n", host);
+    NET_ConfigSource(NS_CLIENT, true);
+    if (!NET_IsConfigured(NS_CLIENT)) {
+        fprintf(stderr, "CL_Connect: client UDP socket is closed, cannot connect\n");
+        return;
+    }
     if (!NET_StringToAdr(host, port, &adr)) {
         fprintf(stderr, "CL_Connect: bad server address \"%s\"\n", host);
         return;
@@ -745,7 +773,8 @@ void CL_Connect(LPCSTR host, unsigned short port) {
     cls.state = ca_connecting;
     // Send an out-of-band "connect" request; the server will register this
     // client slot and reply with "client_connect".
-    Netchan_OutOfBandPrint(NS_CLIENT, adr, "connect");
+    CL_SanitizeUserinfoValue(Cvar_String("name", "Player"), name, sizeof(name));
+    Netchan_OutOfBandPrint(NS_CLIENT, adr, "connect\n\\name\\%s", name[0] ? name : "Player");
     fprintf(stderr, "CL_Connect: connecting to %d.%d.%d.%d:%u\n",
             adr.ip[0], adr.ip[1], adr.ip[2], adr.ip[3], ntohs(adr.port));
 }
