@@ -3,84 +3,40 @@
  */
 
 #include "../ui_local.h"
+#include "../ui_dialog.h"
 #include "../ui_screen.h"
-#include "../generated/credits_menu.h"
 
-static CreditsMenu_t credits_menu;
-
-static char const credits_menu_fdf[] =
-    "IncludeFile \"UI\\FrameDef\\Glue\\StandardTemplates.fdf\",\n"
-    "Frame \"FRAME\" \"CreditsMenu\" INHERITS \"StandardFrameTemplate\" {\n"
-    "    SetAllPoints,\n"
-    "    Frame \"FRAME\" \"CreditsControlLayer\" {\n"
-    "        SetAllPoints,\n"
-    "        Frame \"BACKDROP\" \"CreditsPanelBackdrop\" INHERITS \"StandardHeavyBackdropTemplate\" {\n"
-    "            Width 0.58,\n"
-    "            Height 0.31,\n"
-    "            SetPoint CENTER, \"CreditsMenu\", CENTER, 0.0, 0.025,\n"
-    "        }\n"
-    "        Frame \"TEXT\" \"CreditsTitleText\" INHERITS \"StandardTitleTextTemplate\" {\n"
-    "            SetPoint TOPLEFT, \"CreditsPanelBackdrop\", TOPLEFT, 0.035, -0.035,\n"
-    "            FontColor 1.0 1.0 1.0 1.0,\n"
-    "            Text \"KEY_CREDITS\",\n"
-    "        }\n"
-    "        Frame \"TEXT\" \"CreditsSubtitleText\" INHERITS \"StandardInfoTextTemplate\" {\n"
-    "            Width 0.51,\n"
-    "            SetPoint TOPLEFT, \"CreditsTitleText\", BOTTOMLEFT, 0.0, -0.035,\n"
-    "            FontJustificationH JUSTIFYLEFT,\n"
-    "            Text \"OpenWarcraft3\",\n"
-    "        }\n"
-    "        Frame \"TEXT\" \"CreditsBodyText\" INHERITS \"StandardInfoTextTemplate\" {\n"
-    "            Width 0.51,\n"
-    "            SetPoint TOPLEFT, \"CreditsSubtitleText\", BOTTOMLEFT, 0.0, -0.018,\n"
-    "            FontJustificationH JUSTIFYLEFT,\n"
-    "            Text \"A Quake-style RTS runtime inspired by Warcraft III data.\",\n"
-    "        }\n"
-    "        Frame \"TEXT\" \"CreditsFooterText\" INHERITS \"StandardInfoTextTemplate\" {\n"
-    "            Width 0.51,\n"
-    "            SetPoint TOPLEFT, \"CreditsBodyText\", BOTTOMLEFT, 0.0, -0.018,\n"
-    "            FontJustificationH JUSTIFYLEFT,\n"
-    "            Text \"Original Warcraft III assets and names belong to Blizzard Entertainment.\",\n"
-    "        }\n"
-    "        Frame \"BACKDROP\" \"CreditsBackBackdrop\" INHERITS \"StandardMenuButtonBaseBackdrop\" {\n"
-    "            Width 0.205,\n"
-    "            SetPoint BOTTOMRIGHT, \"CreditsPanelBackdrop\", BOTTOMRIGHT, -0.025, 0.025,\n"
-    "            Frame \"GLUETEXTBUTTON\" \"CreditsBackButton\" INHERITS WITHCHILDREN \"StandardButtonTemplate\" {\n"
-    "                Width 0.145,\n"
-    "                SetPoint TOPRIGHT, \"CreditsBackBackdrop\", TOPRIGHT, -0.012, -0.0165,\n"
-    "                ControlShortcutKey \"B\",\n"
-    "                ButtonText \"CreditsBackButtonText\",\n"
-    "                Frame \"TEXT\" \"CreditsBackButtonText\" INHERITS \"StandardButtonTextTemplate\" {\n"
-    "                    Text \"Back\",\n"
-    "                }\n"
-    "            }\n"
-    "        }\n"
-    "    }\n"
-    "}\n";
+static LPFRAMEDEF credits_root;
+static uiDialogWar3_t credits_dialog;
 
 static BOOL CreditsMenu_LoadScreen(void) {
-    if (!UI_FindFrame("CreditsMenu")) {
-        DWORD size = (DWORD)strlen(credits_menu_fdf) + 1;
-        LPSTR buffer;
-
-        if (!uiimport.MemAlloc || !uiimport.MemFree) {
-            return false;
-        }
-        buffer = uiimport.MemAlloc(size);
-        if (!buffer) {
-            return false;
-        }
-        memcpy(buffer, credits_menu_fdf, size);
-        UI_ParseFDF_Buffer("UI\\FrameDef\\Glue\\CreditsMenu.fdf", buffer);
-        uiimport.MemFree(buffer);
+    credits_root = UI_FindFrame("CreditsMenu");
+    if (!credits_root) {
+        credits_root = UI_Spawn(FT_FRAME, NULL);
+        if (!credits_root) return false;
+        snprintf(credits_root->Name, sizeof(credits_root->Name), "CreditsMenu");
     }
-    return CreditsMenu_Load(&credits_menu);
+    UI_SetAllPoints(credits_root);
+    return credits_root != NULL;
 }
 
 static void CreditsMenu_Init(void) {
+    uiDialogWar3Init_t init = {
+        .modal_name = "CreditsDialogModal",
+        .template_name = "BattleNetDialogTemplate",
+    };
+    uiDialogWar3Config_t config = {
+        .message = "OpenWarcraft3\n\nA Quake-style RTS runtime for Warcraft III data.\n\nThe project began with a Warcraft III map renderer I wrote around 2006. In 2023 I decided to restore that old work and push it further: not just a viewer, but a playable game engine.\n\nThere is still a lot to build, fix, and polish. Contributors are always welcome.\n\nOriginal Warcraft III assets and names belong to Blizzard Entertainment.",
+        .icon = UI_DIALOG_WAR3_ICON_MESSAGE,
+        .buttons = UI_DIALOG_WAR3_BUTTONS_OK,
+        .ok_command = "menu_main",
+    };
+
     uiimport.Printf("CreditsMenu_Init\n");
     UI_PreloadGlueSceneModels();
-    UI_SetOnClick(credits_menu.CreditsBackButton, "menu_main");
+    if (UI_DialogWar3Init(&credits_dialog, credits_root, &init)) {
+        UI_DialogWar3Show(&credits_dialog, &config);
+    }
 }
 
 static void CreditsMenu_Shutdown(void) {
@@ -92,8 +48,8 @@ static void CreditsMenu_Refresh(int msec) {
 
 static void CreditsMenu_Draw(void) {
     UI_DrawGlueScene("MainMenu Stand");
-    if (credits_menu.CreditsMenu) {
-        UI_DrawFrame(credits_menu.CreditsMenu);
+    if (credits_dialog.modal) {
+        UI_DrawFrame(credits_dialog.modal);
     }
 }
 

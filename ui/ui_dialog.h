@@ -32,6 +32,15 @@ typedef struct {
 typedef struct {
     LPFRAMEDEF parent;
     LPFRAMEDEF modal;
+    LPFRAMEDEF frame;
+    LPFRAMEDEF text;
+    LPFRAMEDEF icon;
+    LPFRAMEDEF ok_backdrop;
+    LPFRAMEDEF ok_button;
+    LPFRAMEDEF no_backdrop;
+    LPFRAMEDEF no_button;
+    LPFRAMEDEF yes_backdrop;
+    LPFRAMEDEF yes_button;
     DialogWar3_t frames;
     FLOAT default_height;
 } uiDialogWar3_t;

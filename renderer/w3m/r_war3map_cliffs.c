@@ -170,11 +170,15 @@ static void R_MakeCliff(LPCWAR3MAP map, DWORD x, DWORD y, cliffData_t const *dat
     }
 
     LPCMODEL pModel = R_LoadCliffModel(data, cliffcfg, is_ramp);
-    if (!pModel) {
+    if (!pModel || pModel->modeltype != ID_MDLX || !pModel->mdx || !pModel->mdx->geosets) {
         fprintf(stderr, "Model %.4s not found\n", (LPCSTR)&cliffcfg);
         return;
     }
     mdxGeoset_t *pGeoset = pModel->mdx->geosets;
+    if (!pGeoset->triangles || !pGeoset->vertices || !pGeoset->normals || !pGeoset->texcoord) {
+        fprintf(stderr, "Model %.4s has incomplete cliff geometry\n", (LPCSTR)&cliffcfg);
+        return;
+    }
     
     VECTOR2 offset = { (x+1) * TILE_SIZE, y * TILE_SIZE };
     

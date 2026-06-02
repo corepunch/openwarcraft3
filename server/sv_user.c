@@ -7,6 +7,10 @@ static DWORD SV_ConfigStringWireSize(DWORD index) {
     return 1 + 2 + (DWORD)strlen(ge->GetThemeValue(sv.configstrings[index])) + 1;
 }
 
+static DWORD SV_ClientPlayerNumber(LPCLIENT cl) {
+    return cl->playernum < MAX_PLAYERS ? cl->playernum : CM_GetLocalPlayerNumber();
+}
+
 static void SV_FlushSpawnMessage(LPCLIENT cl, LPCSTR phase, DWORD count, DWORD *packets) {
     if (cl->netchan.message.cursize == 0) {
         return;
@@ -111,19 +115,20 @@ void SV_Begin_f(LPCLIENT cl, int argc, LPCSTR *argv) {
     (void)argv;
 
     if (!cl->edict) {
-        playernum = cl->playernum < ge->max_clients ? cl->playernum : CM_GetLocalPlayerNumber();
+        playernum = SV_ClientPlayerNumber(cl);
         cl->edict = EDICT_NUM(playernum);
         fprintf(stderr,
                 "SV_Begin_f: assigned missing edict for client=%ld player=%u\n",
                 (long)(cl - svs.clients),
                 (unsigned)playernum);
     }
+    playernum = (DWORD)NUM_FOR_EDICT(cl->edict);
     fprintf(stderr,
             "SV_Begin_f: client=%ld name=\"%s\" lobby_slot=%u player=%u edict=%u\n",
             (long)(cl - svs.clients),
             cl->name,
             (unsigned)cl->lobby_slot,
-            (unsigned)cl->playernum,
+            (unsigned)playernum,
             (unsigned)NUM_FOR_EDICT(cl->edict));
     cl->state = cs_spawned;
     cl->lastframe = (DWORD)-1;
@@ -137,7 +142,7 @@ void SV_PlayerInfo_f(LPCLIENT cl, int argc, LPCSTR *argv) {
     (void)argv;
 
     /* Assign the client's game edict (Quake 2/3 pattern) */
-    playernum = cl->playernum < ge->max_clients ? cl->playernum : CM_GetLocalPlayerNumber();
+    playernum = SV_ClientPlayerNumber(cl);
     cl->edict = EDICT_NUM(playernum);
     fprintf(stderr,
             "SV_PlayerInfo_f: client=%ld name=\"%s\" lobby_slot=%u player=%u edict=%u ready for client begin\n",

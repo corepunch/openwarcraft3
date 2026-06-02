@@ -8,8 +8,25 @@ typedef enum {
     BACKDROPINSET_LEFT,
 } BACKDROPINSET;
 
+typedef enum {
+    UI_BACKDROP_WARN_NO_ART,
+    UI_BACKDROP_WARN_BACKGROUND_TEXTURE,
+    UI_BACKDROP_WARN_EDGE_TEXTURE,
+    UI_BACKDROP_WARN_ZERO_CORNER_SIZE,
+    UI_BACKDROP_WARN_COUNT,
+} uiBackdropWarn_t;
+
 static BOOL UI_BackdropHasArt(LPCFRAMEDEF frame) {
     return frame && (frame->Backdrop.Background || frame->Backdrop.EdgeFile);
+}
+
+static void UI_BackdropWarnOnce(LPCFRAMEDEF frame, uiBackdropWarn_t warn, LPCSTR detail) {
+    static BOOL warned[UI_BACKDROP_WARN_COUNT][MAX_UI_CLASSES];
+    DWORD index;
+
+    if (!uiimport.Printf || !UI_FrameIndex(frame, &index) || warn >= UI_BACKDROP_WARN_COUNT || warned[warn][index]) return;
+    warned[warn][index] = true;
+    uiimport.Printf("ERROR: UI backdrop '%s' %s\n", frame->Name[0] ? frame->Name : "<unnamed>", detail);
 }
 
 static void UI_BackdropRects(LPCRECT screen, LPRECT rects, FLOAT corner_size) {
@@ -64,6 +81,7 @@ static void UI_DrawBackdropWithColor(LPCFRAMEDEF frame, LPCRECT rect, COLOR32 co
     RECT rects[BACKDROP_SIZE];
 
     if (!UI_BackdropHasArt(frame)) {
+        UI_BackdropWarnOnce(frame, UI_BACKDROP_WARN_NO_ART, "has no background or edge texture");
         return;
     }
 
@@ -99,15 +117,21 @@ static void UI_DrawBackdropWithColor(LPCFRAMEDEF frame, LPCRECT rect, COLOR32 co
                                         .uv = uv,
                                         .color = color,
                                         .rotate = FALSE));
+        } else {
+            UI_BackdropWarnOnce(frame, UI_BACKDROP_WARN_BACKGROUND_TEXTURE, "background texture is missing");
         }
     }
 
     if (!frame->Backdrop.EdgeFile || !frame->Backdrop.CornerFlags) {
         return;
     }
+    if (frame->Backdrop.CornerSize <= 0.0f) {
+        UI_BackdropWarnOnce(frame, UI_BACKDROP_WARN_ZERO_CORNER_SIZE, "has edge art but BackdropCornerSize is zero");
+    }
 
     LPCTEXTURE edge_tex = UI_GetTexture(frame->Backdrop.EdgeFile);
     if (!edge_tex) {
+        UI_BackdropWarnOnce(frame, UI_BACKDROP_WARN_EDGE_TEXTURE, "edge texture is missing");
         return;
     }
 
