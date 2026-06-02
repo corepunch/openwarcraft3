@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <ctype.h>
 
-#include "../common/common.h"
+#include "common/common.h"
 
 #define MAX_INI_LINE 1024
 #define MAX_SHEET_COLUMNS 256

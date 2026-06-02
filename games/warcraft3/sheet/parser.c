@@ -1,4 +1,4 @@
-#include "../common/common.h"
+#include "common/common.h"
 #include <ctype.h>
 
 static SHEETHOST sheet_host = { 0 };

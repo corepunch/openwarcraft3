@@ -23,7 +23,7 @@
 
 #include "test_framework.h"
 #include "test_harness.h"
-#include "../games/warcraft3/game/skills/s_skills.h"
+#include "../game/skills/s_skills.h"
 
 /* Forward declarations for internal functions not in any public header. */
 BOOL  player_pay(LPPLAYER ps, DWORD project);

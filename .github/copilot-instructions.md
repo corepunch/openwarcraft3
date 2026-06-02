@@ -48,7 +48,9 @@ This codebase is inspired by **Quake 2**. The developer working on this project 
 - Engine modules (`renderer/`, `client/`, `common/`, `server/` core paths) must remain game-agnostic.
 - Never hardcode game-specific asset names, animation names, frame names, map/script conventions, or franchise-specific literals in engine code.
 - Examples of forbidden engine literals: specific sequence names like `"MainMenu Stand"`, specific UI roots, or title-specific asset assumptions.
-- If behavior needs title/game knowledge, put that policy in game-side code (`game/`, game.dll boundary) and pass generic parameters into engine APIs.
+- If behavior needs title/game knowledge, put that policy in the selected game source tree under `games/<game>/` and pass generic parameters into engine APIs.
+- Game-owned sources live under `games/warcraft3/`, `games/world-of-warcraft/`, and `games/starcraft2/`, with `game/`, `renderer/`, and, where present, `ui/` subdirectories. Warcraft III also owns `jass/`, `sheet/`, and `tests/` under `games/warcraft3/`. The Makefile still exposes friendly targets such as `game`, `renderer`, and `ui` for the default Warcraft III build.
+- The renderer library is a compound module: engine renderer sources in `renderer/` are compiled together with the selected game's `games/<game>/renderer/` sources. Engine renderer code calls the `R_Game*` API declared in `renderer/r_game.h`; it must not switch on MDX/M2/M3 model formats or include game renderer internals directly.
 - Prefer generic fallbacks in engine code (caller-provided names, first available sequence, data-driven metadata) rather than title-specific heuristics.
 
 ## Build And Linking
@@ -165,8 +167,8 @@ Agent guidance:
 ## UI Screen Authoring Conventions
 
 - In client/UI code, never define or hardcode UI elements, layout coordinates, textures, frame names, or control structures that can be read from FDF. Parse and reuse the actual FDF frames/templates, then bind dynamic data into those frames.
-- The only exception is `game.dll` / `game/` code, where there is no FDF parser. Server-authored gameplay HUD payloads may generate simple proxy frames there when needed.
-- In `ui/screens/*.c`, prefer `UI_FRAME(...)` and `UI_CHILD_FRAME(...)` for readability and FDF-name coupling.
+- The only exception is selected game code under `games/<game>/game/`, where there is no FDF parser. Server-authored gameplay HUD payloads may generate simple proxy frames there when needed.
+- In `games/warcraft3/ui/screens/*.c`, prefer `UI_FRAME(...)` and `UI_CHILD_FRAME(...)` for readability and FDF-name coupling.
 - Use `UI_FindChildFrame(...)` when it is clearly shorter or cleaner than introducing temporary macro-bound locals.
 - Avoid excessive pointer null-check noise in screen controllers. Prefer one scene-level readiness gate (early return) over repeated per-widget checks.
 - If a required root frame is missing, fail fast for that screen and skip further scene setup/update work.

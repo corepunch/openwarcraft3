@@ -70,7 +70,7 @@ The terrain file encodes a grid of vertices. Each vertex stores:
 | `cliffTexture` | `BYTE` | Cliff face texture index |
 | `layerHeight` | `BYTE` | Cliff level (0 = sea floor, 1 = base, 2 = raised, …) |
 
-The renderer (`renderer/w3m/`) reads each vertex and constructs mesh layers:
+The Warcraft III renderer (`games/warcraft3/renderer/w3m/`) reads each vertex and constructs mesh layers:
 
 - **Ground layer** — a quad grid textured with the four ground texture slots, blended by the per-vertex weights.
 - **Cliff layer** — vertical faces extruded between adjacent vertices at different cliff levels.
@@ -79,7 +79,7 @@ The renderer (`renderer/w3m/`) reads each vertex and constructs mesh layers:
 ### Height Calculation
 
 ```c
-// renderer/w3m/r_war3map_utils.c
+// games/warcraft3/renderer/w3m/r_war3map_utils.c
 float GetWar3MapVertexHeight(LPCWAR3MAPVERTEX vert) {
     return (vert->height - 0x2000) / 4.0f;
 }
@@ -103,7 +103,7 @@ Doodads are decorative or destructible objects placed in the editor. Each record
 
 ## Pathing Map (`war3map.wpm`)
 
-A 2-bit-per-cell grid at 1/4 tile resolution. Each cell encodes walkability, flyability, buildability, and blight status. The pathfinder (`game/g_pathing.c`) reads this map to determine which cells units can traverse.
+A 2-bit-per-cell grid at 1/4 tile resolution. Each cell encodes walkability, flyability, buildability, and blight status. The Warcraft III pathfinder (`games/warcraft3/game/g_pathing.c`) reads this map to determine which cells units can traverse.
 
 ## Object Data Overrides
 
@@ -124,8 +124,8 @@ Each record contains a four-character unit ID followed by a list of `(field_tag,
 | Source | Purpose |
 |--------|---------|
 | `common/world.c` | Map archive loading and info parsing |
-| `renderer/w3m/r_war3map.c` | Terrain mesh construction |
-| `renderer/w3m/r_war3map_ground.c` | Ground layer geometry |
-| `renderer/w3m/r_war3map_cliffs.c` | Cliff geometry |
-| `renderer/w3m/r_war3map_water.c` | Water layer geometry |
-| `game/g_pathing.c` | Pathfinding using the pathing map |
+| `games/warcraft3/renderer/w3m/r_war3map.c` | Terrain mesh construction |
+| `games/warcraft3/renderer/w3m/r_war3map_ground.c` | Ground layer geometry |
+| `games/warcraft3/renderer/w3m/r_war3map_cliffs.c` | Cliff geometry |
+| `games/warcraft3/renderer/w3m/r_war3map_water.c` | Water layer geometry |
+| `games/warcraft3/game/g_pathing.c` | Pathfinding using the pathing map |

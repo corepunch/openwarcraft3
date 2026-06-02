@@ -46,7 +46,7 @@ Important cvars:
 1. SDL input is translated by the client input layer.
 2. `UI_MouseEventLocal` or `UI_KeyEventLocal` updates UI state.
 3. The current `uiScreen_t` receives the event.
-4. Button frames inspect mouse containment and event state in `ui/ui_render.c`.
+4. Button frames inspect mouse containment and event state in `games/warcraft3/ui/ui_render.c`.
 5. If a clicked frame has `OnClick`, `UI_MenuCommandLocal` executes the command.
 6. Menu commands call direct screen/action handlers.
 
@@ -79,7 +79,7 @@ SCR_UpdateScreen();
 4. console/debug overlay
 5. `re.EndFrame`
 
-`ui.DrawFrame` dispatches to the active screen. For `menu_main`, `ui/screens/main_menu.c` draws the `MainMenu3d` portrait background, the logo sprite, and the main menu frame tree.
+`ui.DrawFrame` dispatches to the active screen. For `menu_main`, `games/warcraft3/ui/screens/main_menu.c` draws the `MainMenu3d` portrait background, the logo sprite, and the main menu frame tree.
 
 ## Stdout Renderer Flow
 
@@ -115,11 +115,11 @@ client selection
   -> CL_RequestUnitUI
   -> clc_request_unit_ui
   -> server/sv_unit_ui.c
-  -> game/g_unit_ui.c
+  -> games/warcraft3/game/g_unit_ui.c
   -> svc_unit_ui
   -> client/cl_unit_ui.c
   -> ui.UpdateUnitUI
-  -> ui/screens/console_ui.c
+  -> games/warcraft3/ui/screens/console_ui.c
 ```
 
 ### Client Request

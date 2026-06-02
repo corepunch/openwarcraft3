@@ -45,7 +45,7 @@ Move UI ownership into a separate `ui` shared module (Quake 3 style), keep engin
 
 ### 1) Add new UI public interface
 
-Create a shared header (for example `ui/ui_api.h`) with:
+Create a shared header (now `client/ui.h`) with:
 
 - `struct ui_import` (callbacks provided by host)
 - `struct ui_export` (functions provided by UI module)
@@ -69,7 +69,7 @@ Update `Makefile`:
 
 - Add `UI_LIB := build/lib/libui$(LIB_EXT)`
 - Add `ui` target
-- Build `libui` from `ui/` sources
+- Build `libui` from the selected game's UI sources; after the games-layout migration, Warcraft III UI lives in `games/warcraft3/ui/`
 - Link `openwarcraft3` and relevant tools/tests against `-lui`
 
 Acceptance:
@@ -216,8 +216,8 @@ Acceptance:
 
 ## Task checklist (execution order)
 
-1. Create `ui/ui_api.h` ABI.
-2. Add `ui/` module skeleton (`ui_main.c`).
+1. Create the shared UI ABI (`client/ui.h`).
+2. Add the UI module skeleton (`ui_main.c`); after the games-layout migration this lives under `games/warcraft3/ui/`.
 3. Add `libui` target and link wiring in `Makefile`.
 4. Wire `GetUIAPI` host-side startup/shutdown.
 5. Implement `RenderRoute` with `/main-menu` and `/single-player`.

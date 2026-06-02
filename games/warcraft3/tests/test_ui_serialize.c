@@ -2,7 +2,7 @@
 
 #include "test_framework.h"
 #include "test_harness.h"
-#include "../common/net.h"
+#include "../../../common/net.h"
 
 static int fake_image_index_ser(LPCSTR name) {
     return (name && *name) ? 321 : 0;

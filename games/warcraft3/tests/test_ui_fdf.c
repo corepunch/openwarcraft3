@@ -5,10 +5,10 @@
 #include <stdarg.h>
 
 #include "test_framework.h"
-#include "../games/warcraft3/ui/ui_local.h"
-#include "../games/warcraft3/ui/ui_dialog.h"
-#include "../games/warcraft3/ui/ui_screen.h"
-#include "../common/mpq.h"
+#include "../ui/ui_local.h"
+#include "../ui/ui_dialog.h"
+#include "../ui/ui_screen.h"
+#include "../../../common/mpq.h"
 
 static void setup_game(void) {}
 static void teardown_game(void) {}

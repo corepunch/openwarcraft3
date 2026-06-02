@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "../client/client.h"
+#include "../../../client/client.h"
 
 struct client_state cl;
 struct client_static cls;
