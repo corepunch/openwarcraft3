@@ -81,6 +81,7 @@ static void SV_RestoreLobbyClients(savedLobbyClient_t const *saved, DWORD count)
         cl = &svs.clients[svs.num_clients++];
         memset(cl, 0, sizeof(*cl));
         cl->state = cs_connected;
+        cl->lastframe = (DWORD)-1;
         cl->netchan.remote_address = saved[i].addr;
         cl->playernum = saved[i].playernum;
         cl->lobby_slot = saved[i].lobby_slot;
@@ -97,6 +98,7 @@ void SV_ClientConnect(void) {
     if (svs.num_clients > 0 &&
         svs.clients[0].netchan.remote_address.type == NA_LOOPBACK) {
         netadr_t adr = { NA_LOOPBACK };
+        svs.clients[0].lastframe = (DWORD)-1;
         SV_InitMulticast();
         SV_LobbyAssignClient(0, true);
         Netchan_OutOfBandPrint(NS_SERVER, adr, "client_connect");
@@ -112,6 +114,7 @@ void SV_ClientConnect(void) {
     svs.num_clients++;
     memset(cl, 0, sizeof(*cl));
     cl->state = cs_connected;
+    cl->lastframe = (DWORD)-1;
     SV_LobbyClientInit(cl, NULL);
     SV_InitMulticast();
     // Local client uses the in-process loopback path
@@ -157,6 +160,7 @@ void SV_DirectConnect(const netadr_t *from, LPCSTR userinfo) {
     svs.num_clients++;
     memset(cl, 0, sizeof(*cl));
     cl->state = cs_connected;
+    cl->lastframe = (DWORD)-1;
     SV_LobbyClientInit(cl, userinfo);
     SV_InitMulticast();
     cl->netchan.remote_address = *from;

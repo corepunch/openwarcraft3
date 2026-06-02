@@ -221,11 +221,18 @@ void CL_SetMenuBindings(void) {
     SDL_StartTextInput();
 }
 
-void CL_SetGameplayBindings(void) {
+void CL_SetGameplayInput(void) {
+    if (cls.key_dest != key_game) {
+        fprintf(stderr, "CL_SetGameplayInput: switching key_dest %d -> key_game\n", cls.key_dest);
+    }
     cls.key_dest = key_game;
-    cls.netchan.remote_address.type = NA_LOOPBACK;
     SDL_StopTextInput();
     CL_InputModeSetGameplay();
+}
+
+void CL_SetGameplayBindings(void) {
+    CL_SetGameplayInput();
+    cls.netchan.remote_address.type = NA_LOOPBACK;
 }
 
 void IN_SelectDown(void) {

@@ -105,10 +105,28 @@ void SV_Baselines_f(LPCLIENT cl, int argc, LPCSTR *argv) {
 }
 
 void SV_Begin_f(LPCLIENT cl, int argc, LPCSTR *argv) {
+    DWORD playernum;
+
     (void)argc;
     (void)argv;
 
+    if (!cl->edict) {
+        playernum = cl->playernum < ge->max_clients ? cl->playernum : CM_GetLocalPlayerNumber();
+        cl->edict = EDICT_NUM(playernum);
+        fprintf(stderr,
+                "SV_Begin_f: assigned missing edict for client=%ld player=%u\n",
+                (long)(cl - svs.clients),
+                (unsigned)playernum);
+    }
+    fprintf(stderr,
+            "SV_Begin_f: client=%ld name=\"%s\" lobby_slot=%u player=%u edict=%u\n",
+            (long)(cl - svs.clients),
+            cl->name,
+            (unsigned)cl->lobby_slot,
+            (unsigned)cl->playernum,
+            (unsigned)NUM_FOR_EDICT(cl->edict));
     cl->state = cs_spawned;
+    cl->lastframe = (DWORD)-1;
     ge->ClientBegin(cl->edict);
 }
 
@@ -122,15 +140,12 @@ void SV_PlayerInfo_f(LPCLIENT cl, int argc, LPCSTR *argv) {
     playernum = cl->playernum < ge->max_clients ? cl->playernum : CM_GetLocalPlayerNumber();
     cl->edict = EDICT_NUM(playernum);
     fprintf(stderr,
-            "SV_PlayerInfo_f: client=%ld name=\"%s\" lobby_slot=%u player=%u edict=%u\n",
+            "SV_PlayerInfo_f: client=%ld name=\"%s\" lobby_slot=%u player=%u edict=%u ready for client begin\n",
             (long)(cl - svs.clients),
             cl->name,
             (unsigned)cl->lobby_slot,
             (unsigned)playernum,
             (unsigned)NUM_FOR_EDICT(cl->edict));
-    MSG_WriteByte(&cl->netchan.message, svc_mirror);
-    MSG_WriteString(&cl->netchan.message, "begin");
-    Netchan_Transmit(NS_SERVER, &cl->netchan);
 }
 
 void SV_New_f(LPCLIENT cl, int argc, LPCSTR *argv) {

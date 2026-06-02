@@ -83,6 +83,10 @@ void CL_BeginLoadingMap(LPCSTR mapName) {
     cls.state = ca_loading;
 }
 
+void CL_SetGameplayInput(void) {
+    cls.key_dest = key_game;
+}
+
 void test_client_stubs_init(void) {
     memset(&cl, 0, sizeof(cl));
     memset(&cls, 0, sizeof(cls));

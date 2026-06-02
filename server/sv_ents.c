@@ -218,6 +218,20 @@ void SV_WritePlayerstateToClient(LPCCLIENTFRAME from, LPCCLIENTFRAME to, LPSIZEB
     }
     MSG_WriteByte(msg, svc_playerinfo);
     MSG_WriteDeltaPlayerState(msg, ops, ps);
+    if (!from) {
+        fprintf(stderr,
+                "SV_WritePlayerstateToClient: full player=%u team=%u race=%u color=%u origin=(%.1f %.1f) fov=%u distance=%ld ui_state=%u name=\"%s\"\n",
+                (unsigned)ps->number,
+                (unsigned)ps->team,
+                (unsigned)ps->race,
+                (unsigned)ps->color,
+                ps->origin.x,
+                ps->origin.y,
+                (unsigned)ps->fov,
+                (long)ps->distance,
+                (unsigned)ps->client_ui_state,
+                ps->name ? ps->name : "");
+    }
 }
 
 /* Write the full frame packet (svc_frame header + player state + entity list)
@@ -225,7 +239,9 @@ void SV_WritePlayerstateToClient(LPCCLIENTFRAME from, LPCCLIENTFRAME to, LPSIZEB
  * next call can compute the correct delta. */
 void SV_WriteFrameToClient(LPCLIENT client) {
     LPCLIENTFRAME frame = &client->frames[sv.framenum & UPDATE_MASK];
-    LPCLIENTFRAME oldframe = &client->frames[client->lastframe & UPDATE_MASK];
+    LPCLIENTFRAME oldframe = client->lastframe == (DWORD)-1
+        ? NULL
+        : &client->frames[client->lastframe & UPDATE_MASK];
     DWORD start_size = client->netchan.message.cursize;
 
     MSG_WriteByte(&client->netchan.message, svc_frame);
@@ -244,7 +260,7 @@ void SV_WriteFrameToClient(LPCLIENT client) {
                 "SV_WriteFrameToClient: frame=%u entities=%u old_entities=%u bytes=%u start=%u max=%u overflow=%d\n",
                 (unsigned)sv.framenum,
                 (unsigned)frame->num_entities,
-                (unsigned)oldframe->num_entities,
+                oldframe ? (unsigned)oldframe->num_entities : 0,
                 (unsigned)client->netchan.message.cursize,
                 (unsigned)start_size,
                 (unsigned)client->netchan.message.maxsize,

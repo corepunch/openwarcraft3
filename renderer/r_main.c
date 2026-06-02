@@ -194,6 +194,15 @@ LPTEXTURE R_LoadTexture(LPCSTR textureFilename) {
     return texture;
 }
 
+static LPMODEL R_LoadEmptyModel(LPCSTR modelFilename, LPCSTR reason) {
+    LPMODEL model;
+
+    fprintf(stderr, "R_LoadModel: %s: %s, using empty model\n", reason, modelFilename);
+    model = ri.MemAlloc(sizeof(model_t));
+    memset(model, 0, sizeof(*model));
+    return model;
+}
+
 LPMODEL R_LoadModel(LPCSTR modelFilename) {
     void *buffer = NULL;
     int fileSize = ri.FS_ReadFile(modelFilename, &buffer);
@@ -243,8 +252,7 @@ LPMODEL R_LoadModel(LPCSTR modelFilename) {
                 return model;
             }
 #endif
-            fprintf(stderr, "Model not found: %s\n", modelFilename);
-            return NULL;
+            return R_LoadEmptyModel(modelFilename, "not found");
         }
     }
     switch (*(DWORD *)buffer) {
