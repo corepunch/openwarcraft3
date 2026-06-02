@@ -232,7 +232,7 @@ DWORD R_EntitiesInRect(viewDef_t const *viewdef, LPCRECT rect, DWORD max, LPDWOR
 void R_DrawEntities(void);
 FLOAT R_GetHeightAtPoint(FLOAT x, FLOAT y);
 
-// r_mdx.c
+// r_model.c
 LPMODEL R_LoadModel(LPCSTR modelFilename);
 void R_ReleaseModel(LPMODEL model);
 
@@ -282,19 +282,6 @@ void R_InitParticles(void);
 void R_ShutdownParticles(void);
 void R_DrawParticles(void);
 cparticle_t *R_SpawnParticle(void);
-
-// r_war3map.c
-VECTOR2 GetWar3MapSize(LPCWAR3MAP war3Map);
-
-
-// loaders
-mdxModel_t *R_LoadModelMDLX(void *buffer, DWORD size);
-m3Model_t *R_LoadModelM3(void *buffer, DWORD size);
-m2Model_t *R_LoadModelM2(LPCSTR modelFilename, void *buffer, DWORD size);
-void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, LPCMATRIX4 transform);
-BOOL M2_AttachmentMatrix(m2Model_t const *model, DWORD attachment_id, LPCMATRIX4 model_matrix, LPMATRIX4 out);
-FLOAT M2_GroundOffset(m2Model_t const *model);
-void M2_Release(m2Model_t *model);
 
 extern struct render_globals tr;
 

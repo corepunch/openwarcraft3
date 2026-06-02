@@ -38,7 +38,7 @@
 #define TOOL_COMMON_NO_MPQ
 #include "tool_common.h"
 
-#include "../jass/jass.h"
+#include "jass/jass.h"
 
 /* =========================================================================
  * Version banner

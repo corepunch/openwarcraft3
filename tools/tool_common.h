@@ -1,7 +1,7 @@
 #ifndef tool_common_h
 #define tool_common_h
 
-#include "../common/common.h"
+#include "common/common.h"
 
 #include <stdlib.h>
 #include <string.h>

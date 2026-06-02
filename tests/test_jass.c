@@ -14,7 +14,7 @@
 #include "test_harness.h"
 
 /* Pull in the JASS public API. */
-#include "../jass/jass.h"
+#include "jass/jass.h"
 #include "../jass/jparser.h"
 
 /* -------------------------------------------------------------------------

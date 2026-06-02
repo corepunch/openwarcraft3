@@ -1,10 +1,10 @@
 #ifndef client_h
 #define client_h
 
-#include "../common/common.h"
+#include "common/common.h"
 #include "renderer.h"
 #include "keys.h"
-#include "../ui/ui.h"
+#include "client/ui.h"
 
 #define WINDOW_WIDTH 1024
 #define WINDOW_HEIGHT 768
