@@ -1,4 +1,7 @@
 #include "r_local.h"
+#ifdef WOW
+#include "wow/r_wowmap.h"
+#endif
 #include <float.h>
 
 void R_GetEntityMatrix(renderEntity_t const *entity, LPMATRIX4 matrix) {

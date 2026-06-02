@@ -203,7 +203,7 @@ $(GAME_WOW_LIB): $(SHARED_LIB) $(COMMON_HEADERS) $(shell find game-wow -name '*.
 	@$(call UNITY,game-wow) | \
 		$(CC) $(WOW_CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - $(LDFLAGS) -lshared -lm
 
-$(GAME_SC2_LIB): $(SHARED_LIB) $(shell find game-sc2 -name '*.c') | $(LIB_DIR)
+$(GAME_SC2_LIB): $(SHARED_LIB) $(COMMON_HEADERS) $(shell find game-sc2 -name '*.c') | $(LIB_DIR)
 	@echo "[game-sc2]"
 	@$(call UNITY,game-sc2) | \
 		$(CC) $(SC2_CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - $(LDFLAGS) -lshared -lm
@@ -263,6 +263,7 @@ TEST_GAME_SRCS := \
 	game/g_events.c \
 	game/g_fow.c \
 	game/g_metadata.c \
+	game/g_model.c \
 	game/g_monster.c \
 	game/g_pathing.c \
 	game/g_phys.c \
