@@ -242,6 +242,7 @@ clean:
 # harness (tests/test_harness.c) rather than by game/g_main.c.
 # ---------------------------------------------------------------------------
 TEST_GAME_SRCS := \
+	common/routing.c \
 	game/g_ai.c \
 	game/g_events.c \
 	game/g_fow.c \
