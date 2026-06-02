@@ -65,6 +65,10 @@ static uiLoadingState_t loading_state;
 static void UI_SetScreen(uiScreen_t *screen) {
     uiScreen_t *previous_screen = ui_current_screen;
 
+    if (screen) {
+        ui_state.game_mode = false;
+    }
+
     if (ui_current_screen == screen) {
         return;
     }
@@ -407,6 +411,7 @@ static BOOL UI_LoadingActive(LPCPLAYER ps) {
 
 static void UI_EnterGameMode(void) {
     ui_state.game_mode = true;
+    UI_SetScreen(NULL);
 }
 
 static void UI_InitCinematicPanel(void) {

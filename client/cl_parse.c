@@ -86,9 +86,6 @@ static void CL_ParseConfigString(LPSIZEBUF msg) {
     if (index == CS_WORLD && cl.configstrings[index][0] &&
         strcmp(cl.loading_map, cl.configstrings[index])) {
         CL_BeginLoadingMap(cl.configstrings[index]);
-        if (ui.MenuCommand) {
-            ui.MenuCommand("menu_ingame");
-        }
     }
 //    printf("%d %s\n", index, cl.configstrings[index]);
 }
