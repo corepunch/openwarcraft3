@@ -11,7 +11,7 @@ static DWORD SV_ClientPlayerNumber(LPCLIENT cl) {
     return cl->playernum < MAX_PLAYERS ? cl->playernum : CM_GetLocalPlayerNumber();
 }
 
-static void SV_FlushSpawnMessage(LPCLIENT cl, LPCSTR phase, DWORD count, DWORD *packets) {
+static void SV_FlushSpawnMessage(LPCLIENT cl, LPCSTR phase, DWORD count) {
     if (cl->netchan.message.cursize == 0) {
         return;
     }
@@ -22,24 +22,12 @@ static void SV_FlushSpawnMessage(LPCLIENT cl, LPCSTR phase, DWORD count, DWORD *
                 (unsigned)count,
                 (unsigned)cl->netchan.message.cursize,
                 (unsigned)cl->netchan.message.maxsize);
-    } else {
-        fprintf(stderr,
-                "SV_%s_f: transmitting batch count=%u bytes=%u max=%u\n",
-                phase,
-                (unsigned)count,
-                (unsigned)cl->netchan.message.cursize,
-                (unsigned)cl->netchan.message.maxsize);
     }
     Netchan_Transmit(NS_SERVER, &cl->netchan);
-    if (packets) {
-        (*packets)++;
-    }
 }
 
 void SV_Configstrings_f(LPCLIENT cl, int argc, LPCSTR *argv) {
-    DWORD count = 0;
     DWORD batch_count = 0;
-    DWORD packets = 0;
 
     (void)argc;
     (void)argv;
@@ -48,33 +36,23 @@ void SV_Configstrings_f(LPCLIENT cl, int argc, LPCSTR *argv) {
         if (!*sv.configstrings[i])
             continue;
         if (cl->netchan.message.cursize + SV_ConfigStringWireSize(i) + 16 >= cl->netchan.message.maxsize) {
-            SV_FlushSpawnMessage(cl, "Configstrings", batch_count, &packets);
+            SV_FlushSpawnMessage(cl, "Configstrings", batch_count);
             batch_count = 0;
         }
         SV_WriteConfigString(&cl->netchan.message, i);
-        count++;
         batch_count++;
     }
     if (cl->netchan.message.cursize + 16 >= cl->netchan.message.maxsize) {
-        SV_FlushSpawnMessage(cl, "Configstrings", batch_count, &packets);
-        batch_count = 0;
+        SV_FlushSpawnMessage(cl, "Configstrings", batch_count);
     }
     MSG_WriteByte(&cl->netchan.message, svc_mirror);
     MSG_WriteString(&cl->netchan.message, "baselines");
-    fprintf(stderr,
-            "SV_Configstrings_f: queued %u configstrings in %u packet(s), final bytes=%u overflow=%d\n",
-            (unsigned)count,
-            (unsigned)(packets + 1),
-            (unsigned)cl->netchan.message.cursize,
-            cl->netchan.message.overflowed ? 1 : 0);
     Netchan_Transmit(NS_SERVER, &cl->netchan);
 }
 
 void SV_Baselines_f(LPCLIENT cl, int argc, LPCSTR *argv) {
     entityState_t nullstate;
-    DWORD count = 0;
     DWORD batch_count = 0;
-    DWORD packets = 0;
 
     (void)argc;
     (void)argv;
@@ -85,26 +63,18 @@ void SV_Baselines_f(LPCLIENT cl, int argc, LPCSTR *argv) {
         if (e->svflags & SVF_NOCLIENT)
             continue;
         if (cl->netchan.message.cursize + 512 >= cl->netchan.message.maxsize) {
-            SV_FlushSpawnMessage(cl, "Baselines", batch_count, &packets);
+            SV_FlushSpawnMessage(cl, "Baselines", batch_count);
             batch_count = 0;
         }
         MSG_WriteByte(&cl->netchan.message, svc_spawnbaseline);
         MSG_WriteDeltaEntity(&cl->netchan.message, &nullstate, &e->s, true);
-        count++;
         batch_count++;
     }
     if (cl->netchan.message.cursize + 16 >= cl->netchan.message.maxsize) {
-        SV_FlushSpawnMessage(cl, "Baselines", batch_count, &packets);
-        batch_count = 0;
+        SV_FlushSpawnMessage(cl, "Baselines", batch_count);
     }
     MSG_WriteByte(&cl->netchan.message, svc_mirror);
     MSG_WriteString(&cl->netchan.message, "playerinfo");
-    fprintf(stderr,
-            "SV_Baselines_f: queued %u baselines in %u packet(s), final bytes=%u overflow=%d\n",
-            (unsigned)count,
-            (unsigned)(packets + 1),
-            (unsigned)cl->netchan.message.cursize,
-            cl->netchan.message.overflowed ? 1 : 0);
     Netchan_Transmit(NS_SERVER, &cl->netchan);
 }
 
@@ -122,14 +92,6 @@ void SV_Begin_f(LPCLIENT cl, int argc, LPCSTR *argv) {
                 (long)(cl - svs.clients),
                 (unsigned)playernum);
     }
-    playernum = (DWORD)NUM_FOR_EDICT(cl->edict);
-    fprintf(stderr,
-            "SV_Begin_f: client=%ld name=\"%s\" lobby_slot=%u player=%u edict=%u\n",
-            (long)(cl - svs.clients),
-            cl->name,
-            (unsigned)cl->lobby_slot,
-            (unsigned)playernum,
-            (unsigned)NUM_FOR_EDICT(cl->edict));
     cl->state = cs_spawned;
     cl->lastframe = (DWORD)-1;
     ge->ClientBegin(cl->edict);
@@ -144,13 +106,6 @@ void SV_PlayerInfo_f(LPCLIENT cl, int argc, LPCSTR *argv) {
     /* Assign the client's game edict (Quake 2/3 pattern) */
     playernum = SV_ClientPlayerNumber(cl);
     cl->edict = EDICT_NUM(playernum);
-    fprintf(stderr,
-            "SV_PlayerInfo_f: client=%ld name=\"%s\" lobby_slot=%u player=%u edict=%u ready for client begin\n",
-            (long)(cl - svs.clients),
-            cl->name,
-            (unsigned)cl->lobby_slot,
-            (unsigned)playernum,
-            (unsigned)NUM_FOR_EDICT(cl->edict));
 }
 
 void SV_New_f(LPCLIENT cl, int argc, LPCSTR *argv) {

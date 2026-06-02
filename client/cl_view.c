@@ -397,7 +397,6 @@ void CL_PrepRefresh(void) {
         world_loaded = false;
         begin_sent = false;
         snprintf(registered_map, sizeof(registered_map), "%s", cl.configstrings[CS_WORLD]);
-        fprintf(stderr, "CL_PrepRefresh: new world configstring %s\n", registered_map);
     }
 
     total_assets = 1 +
@@ -416,19 +415,11 @@ void CL_PrepRefresh(void) {
     
     if (!map_registered) {
         if (!map_load_announced) {
-            fprintf(stderr,
-                    "CL_PrepRefresh: loading world assets total=%u models=%u images=%u fonts=%u\n",
-                    (unsigned)total_assets,
-                    (unsigned)CL_CountConfigstrings(CS_MODELS, MAX_MODELS),
-                    (unsigned)CL_CountConfigstrings(CS_IMAGES, MAX_IMAGES),
-                    (unsigned)CL_CountConfigstrings(CS_FONTS, MAX_FONTSTYLES));
             CL_UpdateAssetLoadingProgress("Loading world", loaded_assets, total_assets);
             map_load_announced = true;
             return;
         }
-        fprintf(stderr, "CL_PrepRefresh: registering world %s\n", cl.configstrings[CS_WORLD]);
         if (!CM_IsMapLoaded(cl.configstrings[CS_WORLD])) {
-            fprintf(stderr, "CL_PrepRefresh: loading client collision map %s\n", cl.configstrings[CS_WORLD]);
             CM_LoadMap(cl.configstrings[CS_WORLD]);
         }
         re.RegisterMap(cl.configstrings[CS_WORLD]);
@@ -456,12 +447,6 @@ void CL_PrepRefresh(void) {
             fprintf(stderr,
                     "CL_PrepRefresh: model configstring %u failed to load: %s\n",
                     (unsigned)i,
-                    filename);
-        } else if ((i % 25) == 0) {
-            fprintf(stderr,
-                    "CL_PrepRefresh: loaded model %u/%u: %s\n",
-                    (unsigned)CL_CountLoadedConfigstrings(CS_MODELS, MAX_MODELS, (HANDLE const *)cl.models),
-                    (unsigned)CL_CountConfigstrings(CS_MODELS, MAX_MODELS),
                     filename);
         }
         if (portrait[0] && FS_FileExists(portrait)) {

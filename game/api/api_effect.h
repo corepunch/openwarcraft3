@@ -35,7 +35,7 @@ DWORD AddSpecialEffectTarget(LPJASS j) {
 }
 DWORD DestroyEffect(LPJASS j) {
     LPEDICT whichEffect = jass_checkhandle(j, 1, "effect");
-    whichEffect->s.model2 = 0;
+    if (whichEffect) whichEffect->s.model2 = 0;
     return 0;
 }
 DWORD AddSpellEffect(LPJASS j) {

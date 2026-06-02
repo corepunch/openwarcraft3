@@ -126,13 +126,6 @@ DWORD TriggerRegisterPlayerEvent(LPJASS j) {
     LPEVENT evt = G_MakeEvent(*whichPlayerEvent);
     evt->subject = PLAYER_ENT(whichPlayer);
     evt->trigger = whichTrigger;
-    fprintf(stderr,
-            "TriggerRegisterPlayerEvent: trigger=%p player=%u event=%u subject=%p time=%u\n",
-            (void *)whichTrigger,
-            whichPlayer ? (unsigned)PLAYER_NUM(whichPlayer) : 999u,
-            (unsigned)*whichPlayerEvent,
-            evt->subject,
-            (unsigned)gi.GetTime());
     return jass_pushlighthandle(j, evt, "event");
 }
 DWORD GetTriggerPlayer(LPJASS j) {
@@ -186,6 +179,9 @@ DWORD TriggerRegisterUnitEvent(LPJASS j) {
     LPTRIGGER whichTrigger = jass_checkhandle(j, 1, "trigger");
     LPEDICT whichUnit = jass_checkhandle(j, 2, "unit");
     EVENTTYPE *whichEvent = jass_checkhandle(j, 3, "unitevent");
+    if (!whichTrigger || !whichUnit || !whichEvent) {
+        return jass_pushnullhandle(j, "event");
+    }
     LPEVENT evt = G_MakeEvent(*whichEvent);
     evt->subject = whichUnit;
     evt->trigger = whichTrigger;
@@ -203,6 +199,9 @@ DWORD TriggerRegisterUnitInRange(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 2, "unit");
     FLOAT range = jass_checknumber(j, 3);
 //    HANDLE filter = jass_checkhandle(j, 4, "boolexpr");
+    if (!whichTrigger || !whichUnit) {
+        return jass_pushnullhandle(j, "event");
+    }
     LPEVENT evt = G_MakeEvent(EVENT_UNIT_IN_RANGE);
     evt->subject = whichUnit;
     evt->trigger = whichTrigger;

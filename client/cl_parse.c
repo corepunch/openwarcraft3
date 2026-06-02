@@ -125,15 +125,6 @@ void CL_ParseFrame(LPSIZEBUF msg) {
 void CL_ParsePlayerInfo(LPSIZEBUF msg) {
     DWORD bits;
     DWORD plnum = MSG_ReadPlayerBits(msg, &bits);
-    DWORD old_number = cl.playerstate.number;
-    DWORD old_team = cl.playerstate.team;
-    DWORD old_color = cl.playerstate.color;
-    DWORD old_race = cl.playerstate.race;
-    DWORD old_ui_state = cl.playerstate.client_ui_state;
-    LONG old_start_location = cl.playerstate.start_location;
-    VECTOR2 old_origin = cl.playerstate.origin;
-    BYTE old_fov = cl.playerstate.fov;
-    LONG old_distance = cl.playerstate.distance;
     BOOL first_camera_sample = cl.viewDef.camerastate[0].znear <= 0 ||
                                cl.viewDef.camerastate[0].zfar <= 0;
     MSG_ReadDeltaPlayerState(msg, &cl.playerstate, plnum, bits);
@@ -141,33 +132,6 @@ void CL_ParsePlayerInfo(LPSIZEBUF msg) {
     cls.state = ca_active;
     if (cl.playerstate.client_ui_state == CLIENT_UI_GAME) {
         CL_SetGameplayInput();
-    }
-
-    if (old_number != cl.playerstate.number ||
-        old_team != cl.playerstate.team ||
-        old_color != cl.playerstate.color ||
-        old_race != cl.playerstate.race ||
-        old_ui_state != cl.playerstate.client_ui_state ||
-        old_start_location != cl.playerstate.start_location ||
-        old_origin.x != cl.playerstate.origin.x ||
-        old_origin.y != cl.playerstate.origin.y ||
-        old_fov != cl.playerstate.fov ||
-        old_distance != cl.playerstate.distance)
-    {
-        fprintf(stderr,
-                "CL_ParsePlayerInfo: player=%u team=%u race=%u color=%u start_location=%ld ui_state=%u origin=(%.1f %.1f) fov=%u distance=%ld first_camera=%d name=\"%s\"\n",
-                (unsigned)cl.playerstate.number,
-                (unsigned)cl.playerstate.team,
-                (unsigned)cl.playerstate.race,
-                (unsigned)cl.playerstate.color,
-                (long)cl.playerstate.start_location,
-                (unsigned)cl.playerstate.client_ui_state,
-                cl.playerstate.origin.x,
-                cl.playerstate.origin.y,
-                (unsigned)cl.playerstate.fov,
-                (long)cl.playerstate.distance,
-                first_camera_sample ? 1 : 0,
-                cl.playerstate.name ? cl.playerstate.name : "");
     }
 
     cl.viewDef.camerastate[1] = cl.viewDef.camerastate[0];
@@ -339,29 +303,6 @@ static void CL_UpdateFogTexture(void) {
     }
 }
 
-static void CL_LogFogOfWarFull(DWORD flags) {
-    DWORD cells = cl.fow.width * cl.fow.height;
-    DWORD visible = 0;
-    DWORD explored = 0;
-
-    if (!(flags & FOW_MSG_FULL) || !cl.fow.visible || !cl.fow.explored) {
-        return;
-    }
-    FOR_LOOP(i, cells) {
-        visible += cl.fow.visible[i] ? 1 : 0;
-        explored += cl.fow.explored[i] ? 1 : 0;
-    }
-    fprintf(stderr,
-            "CL_ParseFogOfWar: player=%u team=%u cells=%u visible=%u explored=%u grid=%ux%u\n",
-            (unsigned)cl.playerstate.number,
-            (unsigned)cl.playerstate.team,
-            (unsigned)cells,
-            (unsigned)visible,
-            (unsigned)explored,
-            (unsigned)cl.fow.width,
-            (unsigned)cl.fow.height);
-}
-
 static BYTE *CL_FogPlaneForStreamIndex(DWORD flags, DWORD stream_index) {
     DWORD index = 0;
 
@@ -475,22 +416,14 @@ void CL_ParseFogOfWar(LPSIZEBUF msg) {
     CL_UnpackFogRLE(payload, payload_bytes, flags, first_row, row_count);
     msg->readcount += payload_bytes;
     CL_UpdateFogTexture();
-    if ((flags & FOW_MSG_FULL) && first_row + row_count >= height) {
-        CL_LogFogOfWarFull(flags);
-    }
 }
 
 void CL_MirrorMessage(LPSIZEBUF msg) {
     char buf[256] = { 0 };
     MSG_ReadString(msg, buf);
     if (!strcmp(buf, "begin")) {
-        fprintf(stderr,
-                "CL_MirrorMessage: legacy begin received world=\"%s\" state=%d\n",
-                cl.configstrings[CS_WORLD],
-                cls.state);
         return;
     }
-    fprintf(stderr, "CL_MirrorMessage: forwarding \"%s\" to server\n", buf);
     MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
     MSG_WriteString(&cls.netchan.message, buf);
 }

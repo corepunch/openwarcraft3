@@ -539,6 +539,9 @@ DWORD ClearSelection(LPJASS j) {
 DWORD SelectUnit(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     BOOL flag = jass_checkboolean(j, 2);
+    if (!whichUnit) {
+        return 0;
+    }
     if (flag) {
         if (currentplayer) {
             whichUnit->selected |= 1 << PLAYER_NUM(currentplayer);

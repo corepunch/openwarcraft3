@@ -1,13 +1,15 @@
 #define UNIT_TYPED_ACCESS(NAME, FIELD, TYPE) \
 DWORD SetUnit##NAME(LPJASS j) {  \
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");  \
-    memcpy(&whichUnit->FIELD, jass_checkhandle(j, 2, #TYPE), sizeof(whichUnit->FIELD)); \
-    gi.LinkEntity(whichUnit); \
+    if (whichUnit) { \
+        memcpy(&whichUnit->FIELD, jass_checkhandle(j, 2, #TYPE), sizeof(whichUnit->FIELD)); \
+        gi.LinkEntity(whichUnit); \
+    } \
     return 0; \
 }  \
 DWORD GetUnit##NAME(LPJASS j) {  \
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");  \
-    return jass_pushlighthandle(j, &whichUnit->FIELD, #TYPE); \
+    return whichUnit ? jass_pushlighthandle(j, &whichUnit->FIELD, #TYPE) : jass_pushnullhandle(j, #TYPE); \
 }
 
 #define UNIT_ACCESS(NAME, FIELD) \
@@ -18,7 +20,7 @@ DWORD SetUnit##NAME(LPJASS j) {  \
 }  \
 DWORD GetUnit##NAME(LPJASS j) {  \
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");  \
-    return jass_pushnumber(j, whichUnit->FIELD); \
+    return jass_pushnumber(j, whichUnit ? whichUnit->FIELD : 0); \
 }
 
 #define UNITINFO_ACCESS(FIELD) UNIT_ACCESS(FIELD, unitinfo.FIELD)
@@ -34,6 +36,9 @@ UNITINFO_ACCESS(AcquireRange);
 
 DWORD GetUnitFacing(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    if (!whichUnit) {
+        return jass_pushnumber(j, 0);
+    }
     FLOAT facingAngle = whichUnit->s.angle;
     jass_pushnumber(j, RAD2DEG(facingAngle));
     return 1;
@@ -42,7 +47,7 @@ DWORD GetUnitFacing(LPJASS j) {
 DWORD SetUnitFacing(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     FLOAT facingAngle = jass_checknumber(j, 2);
-    whichUnit->s.angle = DEG2RAD(facingAngle);
+    if (whichUnit) whichUnit->s.angle = DEG2RAD(facingAngle);
     return 0;
 }
 
@@ -50,13 +55,13 @@ DWORD SetUnitFacingTimed(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     FLOAT facingAngle = jass_checknumber(j, 2);
 //    FLOAT duration = jass_checknumber(j, 3);
-    whichUnit->s.angle = DEG2RAD(facingAngle);
+    if (whichUnit) whichUnit->s.angle = DEG2RAD(facingAngle);
     return 0;
 }
 
 DWORD KillUnit(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    whichUnit->health.value = 0;
+    if (whichUnit) whichUnit->health.value = 0;
     return 0;
 }
 DWORD RemoveUnit(LPJASS j) {
@@ -69,6 +74,9 @@ DWORD RemoveUnit(LPJASS j) {
 DWORD ShowUnit(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     BOOL show = jass_checkboolean(j, 2);
+    if (!whichUnit) {
+        return 0;
+    }
     if (show) {
         whichUnit->s.renderfx &= ~RF_HIDDEN;
     } else {
@@ -82,6 +90,9 @@ JASS_API(SetUnitState,
 (UNITSTATE, whichUnitState, "unitstate"),
 (number, newVal))
 {
+    if (!whichUnit || !whichUnitState) {
+        return;
+    }
     (&whichUnit->health.value)[*whichUnitState] = newVal;
 }
 //DWORD SetUnitState(LPJASS j) {
@@ -94,14 +105,18 @@ JASS_API(SetUnitState,
 DWORD GetUnitState(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     UNITSTATE *whichUnitState = jass_checkhandle(j, 2, "unitstate");
-    FLOAT value = (&whichUnit->health.value)[*whichUnitState];
+    FLOAT value = whichUnit && whichUnitState ? (&whichUnit->health.value)[*whichUnitState] : 0;
     return jass_pushnumber(j, value);
 }
 DWORD SetUnitPosition(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    whichUnit->s.origin.x = jass_checknumber(j, 2);
-    whichUnit->s.origin.y = jass_checknumber(j, 3);
-    gi.LinkEntity(whichUnit);
+    FLOAT x = jass_checknumber(j, 2);
+    FLOAT y = jass_checknumber(j, 3);
+    if (whichUnit) {
+        whichUnit->s.origin.x = x;
+        whichUnit->s.origin.y = y;
+        gi.LinkEntity(whichUnit);
+    }
     return 0;
 }
 DWORD GetUnitDefaultAcquireRange(LPJASS j) {
@@ -124,7 +139,7 @@ DWORD SetUnitOwner(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     LPCPLAYER whichPlayer = jass_checkhandle(j, 2, "player");
 //    BOOL changeColor = jass_checkboolean(j, 3);
-    whichUnit->s.player = PLAYER_NUM(whichPlayer);
+    if (whichUnit && whichPlayer) whichUnit->s.player = PLAYER_NUM(whichPlayer);
     return 0;
 }
 DWORD SetUnitColor(LPJASS j) {
@@ -140,7 +155,7 @@ DWORD SetUnitScale(LPJASS j) {
 //    FLOAT scaleX = jass_checknumber(j, 2);
 //    FLOAT scaleY = jass_checknumber(j, 3);
     FLOAT scaleZ = jass_checknumber(j, 4);
-    whichUnit->s.scale = scaleZ;
+    if (whichUnit) whichUnit->s.scale = scaleZ;
     return 0;
 }
 DWORD SetUnitTimeScale(LPJASS j) {
@@ -169,7 +184,7 @@ DWORD QueueUnitAnimation(LPJASS j) {
 DWORD SetUnitAnimation(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     LPCSTR whichAnimation = jass_checkstring(j, 2);
-    whichUnit->animation = gi.GetAnimation(whichUnit->s.model, whichAnimation);
+    if (whichUnit) whichUnit->animation = gi.GetAnimation(whichUnit->s.model, whichAnimation);
     return 0;
 }
 DWORD SetUnitAnimationByIndex(LPJASS j) {
@@ -274,12 +289,12 @@ DWORD SetHeroLevel(LPJASS j) {
     LPEDICT whichHero = jass_checkhandle(j, 1, "unit");
     LONG level = jass_checkinteger(j, 2);
 //    BOOL showEyeCandy = jass_checkboolean(j, 3);
-    whichHero->hero.level = level;
+    if (whichHero) whichHero->hero.level = level;
     return 0;
 }
 DWORD GetHeroLevel(LPJASS j) {
     LPEDICT whichHero = jass_checkhandle(j, 1, "unit");
-    return jass_pushinteger(j, whichHero->hero.level);
+    return jass_pushinteger(j, whichHero ? whichHero->hero.level : 0);
 }
 DWORD SuspendHeroXP(LPJASS j) {
     LPEDICT whichHero = jass_checkhandle(j, 1, "unit");
@@ -460,8 +475,10 @@ DWORD GetUnitDefaultMoveSpeed(LPJASS j) {
 }
 DWORD GetOwningPlayer(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    LPPLAYER player = G_GetPlayerByNumber(whichUnit->s.player);
-    return jass_pushlighthandle(j, player, "player");
+    if (!whichUnit) {
+        return jass_pushnullhandle(j, "player");
+    }
+    return jass_pushlighthandle(j, G_GetPlayerByNumber(whichUnit->s.player), "player");
 }
 DWORD GetUnitTypeId(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
@@ -797,19 +814,9 @@ DWORD RecycleGuardPosition(LPJASS j) {
 }
 DWORD CreateUnit(LPJASS j) {
     LPPLAYER player = jass_checkhandle(j, 1, "player");
-    DWORD playernum = player ? PLAYER_NUM(player) : MAX_PLAYERS;
     DWORD unitid = jass_checkinteger(j, 2);
     VECTOR2 location = MAKE(VECTOR2, jass_checknumber(j, 3), jass_checknumber(j, 4));
     FLOAT facing = jass_checknumber(j, 5);
-    if (playernum < PLAYER_NEUTRAL_PASSIVE) {
-        fprintf(stderr,
-                "CreateUnit: player=%u unit=%.4s at=(%.1f %.1f) facing=%.1f\n",
-                (unsigned)playernum,
-                (char const *)&unitid,
-                location.x,
-                location.y,
-                facing);
-    }
     if (!player) {
         return jass_pushnullhandle(j, "unit");
     }
@@ -830,19 +837,9 @@ DWORD CreateUnitByName(LPJASS j) {
 }
 DWORD CreateUnitAtLoc(LPJASS j) {
     LPPLAYER player = jass_checkhandle(j, 1, "player");
-    DWORD playernum = player ? PLAYER_NUM(player) : MAX_PLAYERS;
     DWORD unitid = jass_checkinteger(j, 2);
     LPCVECTOR2 location = jass_checkhandle(j, 3, "location");
     FLOAT facing = jass_checknumber(j, 4);
-    if (playernum < PLAYER_NEUTRAL_PASSIVE) {
-        fprintf(stderr,
-                "CreateUnitAtLoc: player=%u unit=%.4s at=(%.1f %.1f) facing=%.1f\n",
-                (unsigned)playernum,
-                (char const *)&unitid,
-                location ? location->x : 0.0f,
-                location ? location->y : 0.0f,
-                facing);
-    }
     if (!player || !location) {
         return jass_pushnullhandle(j, "unit");
     }
