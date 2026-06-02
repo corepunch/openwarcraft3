@@ -422,6 +422,13 @@ static void FS_AddArchiveScanEntry(LPCSTR name, LPCSTR path, BOOL isDirectory, B
     }
     (void)isDirectory;
     if (isFile && scan->count < scan->maxPaths && FS_HasExtension(name, ".mpq")) {
+        LPCSTR base = FS_BaseName(path);
+
+        if (!Cvar_Integer("fs_expansion", 0) &&
+            base && !strncasecmp(base, "War3x", 5)) {
+            fprintf(stderr, "Skipping expansion archive '%s' (set fs_expansion 1 or use -tft to mount it).\n", path);
+            return;
+        }
         snprintf(scan->paths[scan->count++], sizeof(PATHSTR), "%s", path);
     }
 }

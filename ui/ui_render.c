@@ -681,6 +681,9 @@ static void UI_DrawFrameOne(LPCFRAMEDEF frame) {
         case FT_FRAME:
         case FT_SIMPLEFRAME:
             /* Container frames have no visual representation */
+            if (frame->MapListControl.State) {
+                UI_DrawMapListControl(frame, rect);
+            }
             break;
 
         case FT_DIALOG:
