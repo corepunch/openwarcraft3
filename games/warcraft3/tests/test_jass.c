@@ -15,7 +15,7 @@
 
 /* Pull in the JASS public API. */
 #include "jass/jass.h"
-#include "../jass/jparser.h"
+#include "jass/jparser.h"
 
 /* -------------------------------------------------------------------------
  * Minimal jass_funcs table (replaces api_module.c for the test binary).

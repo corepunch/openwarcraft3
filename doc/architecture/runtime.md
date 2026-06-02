@@ -43,11 +43,23 @@ build/bin/openwarcraft3 -data data/Warcraft\ III +menu_main
 The runtime libraries are built into `build/lib/`:
 
 - `libshared` — math and shared primitives
-- `librenderer` — renderer API implementations
-- `libui` — client-side FDF parsing, command-driven screen selection, and UI rendering
-- `libgame` — server-side game logic
+- `libjass` — Warcraft III JASS VM from `games/warcraft3/jass/`
+- `libsheet` — Warcraft III SLK/profile parser from `games/warcraft3/sheet/`
+- `librenderer` — generic renderer sources from `renderer/` plus the selected game's renderer hooks
+- `libui` — selected-game UI library; for Warcraft III this is `games/warcraft3/ui/`
+- `libgame` — selected-game server-side game logic; for Warcraft III this is `games/warcraft3/game/`
+
+Game-owned sources live under `games/<game>/`:
+
+| Game | Game logic | Renderer hooks | UI | Other game-owned sources |
+|------|------------|----------------|----|--------------------------|
+| Warcraft III | `games/warcraft3/game/` | `games/warcraft3/renderer/` | `games/warcraft3/ui/` | `jass/`, `sheet/`, `tests/` |
+| World of Warcraft | `games/world-of-warcraft/game/` | `games/world-of-warcraft/renderer/` | `games/world-of-warcraft/ui/` | none today |
+| StarCraft II | `games/starcraft2/game/` | `games/starcraft2/renderer/` | uses the default UI library today | none today |
 
 The project follows the Quake 2/Quake 3 module style: modules communicate through import/export function tables, not by reaching directly into each other's internals. The renderer exposes `R_GetAPI`; the UI exposes `UI_GetAPI`; the game module has a server/game API boundary.
+
+The renderer has one extra internal boundary: engine code in `renderer/` calls the `R_Game*` functions declared in `renderer/r_game.h`. Those hooks are implemented by the selected `games/<game>/renderer/` tree. This keeps common renderer code from switching on game-specific model formats such as MDX, M2, or M3.
 
 The cvars `r_module`, `ui_module`, and `g_module` are the runtime names for those modules. At present, `r_module` selects between:
 

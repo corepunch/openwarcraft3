@@ -38,24 +38,24 @@ These do not need full game bootstrapping and should remain in a separate test b
 
 Concretely this likely includes:
 
-- `tests/test_slk.c`
+- `games/warcraft3/tests/test_slk.c`
 - `tests/test_net.c`
 - `tests/test_tool_common.c`
 - `tests/test_mpq_compat.c`
-- selected low-level portions of `tests/test_jass.c` if they remain engine-independent
+- selected low-level portions of `games/warcraft3/tests/test_jass.c` if they remain engine-independent
 
 ### Integration tests in real game (migrate)
 
 These should run through normal game startup and command handling:
 
-- `tests/test_unit.c`
-- `tests/test_combat.c`
-- `tests/test_movement.c`
-- `tests/test_collision.c`
-- `tests/test_api.c`
-- `tests/test_game.c`
-- `tests/test_ui_e2e.c`
-- `tests/test_ui_oracle.c`
+- `games/warcraft3/tests/test_unit.c`
+- `games/warcraft3/tests/test_combat.c`
+- `games/warcraft3/tests/test_movement.c`
+- `games/warcraft3/tests/test_collision.c`
+- `games/warcraft3/tests/test_api.c`
+- `games/warcraft3/tests/test_game.c`
+- `games/warcraft3/tests/test_ui_e2e.c`
+- `games/warcraft3/tests/test_ui_oracle.c`
 
 UI FDF/layout serialization tests can remain standalone if they stay deterministic and renderer-free.
 

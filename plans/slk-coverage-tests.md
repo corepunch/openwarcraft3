@@ -32,7 +32,7 @@ Expand SLK parser and metadata test coverage with larger and more detailed SLK f
     - custom unit fixtures that define game-playable units with realistic stats
 
 - [ ] **Phase 3** — Parser conformance suite expansion.
-  - Extend `tests/test_slk.c` and add parser-focused companion tests.
+  - Extend `games/warcraft3/tests/test_slk.c` and add parser-focused companion tests.
   - Add coverage for:
     - C and F row handling
     - case-insensitive field lookup
@@ -53,10 +53,10 @@ Expand SLK parser and metadata test coverage with larger and more detailed SLK f
     - Run gameplay scenarios (movement, pathfinding, combat) using SLK-driven custom units
 
 - [ ] **Phase 6** — Metadata integration tests.
-  - Add tests for `UnitIntegerField`, `UnitRealField`, `UnitBooleanField`, and macro wrappers in `game/g_unitdata.h`.
+  - Add tests for `UnitIntegerField`, `UnitRealField`, `UnitBooleanField`, and macro wrappers in `games/warcraft3/game/g_unitdata.h`.
   - Validate known IDs, unknown IDs, and remapped user-created unit IDs.
 
-- [ ] **Phase 7** — Parser hardening in `common/sheet.c`.
+- [ ] **Phase 7** — Parser hardening in `games/warcraft3/sheet/`.
   - Implement fixes uncovered by new tests:
     - malformed token handling
     - bounds safety
@@ -84,11 +84,12 @@ Expand SLK parser and metadata test coverage with larger and more detailed SLK f
 ## Key Files
 
 - `plans/slk-coverage-tests.md`
-- `tests/test_slk.c`
-- `tests/test_harness.c`
-- `tests/test_harness.h`
+- `games/warcraft3/tests/test_slk.c`
+- `games/warcraft3/tests/test_harness.c`
+- `games/warcraft3/tests/test_harness.h`
 - `tests/fixtures/*.slk`
-- `common/sheet.c`
-- `game/g_metadata.c`
-- `game/g_unitdata.h`
+- `games/warcraft3/sheet/parser.c`
+- `games/warcraft3/sheet/sheet.c`
+- `games/warcraft3/game/g_metadata.c`
+- `games/warcraft3/game/g_unitdata.h`
 - `Makefile`

@@ -38,7 +38,7 @@ Refactor UI parser/serialization/layout code for deterministic testing first, th
   - [x] Add `make test-assets` Makefile target
   - [x] Verify `mpqtool ls/cat` against `tests.mpq` in CI smoke check
 
-- [x] **Phase 6** — Refactor server-side UI code for testability (no behavior change). Extract seams in `game/ui/ui_fdf.c` (parser/frame-graph) and `game/ui/ui_write.c` (serialization) so tests can capture deterministic byte streams and frame graphs without live networking. _Blocks parser/serialization/end-to-end suites._
+- [x] **Phase 6** — Refactor the then-server-side UI code for testability (no behavior change). This work predated the client-side UI migration and the later `games/warcraft3/ui/` source layout. _Blocks parser/serialization/end-to-end suites._
 
 - [x] **Phase 7** — FDF parser and frame-graph suites (~45–60 tests). Cover frame declarations, inheritance, SetPoint/Anchor semantics, mixed frame hierarchies, malformed inputs, duplicate-name behavior, and path/string handling for backdrop and sprite/model fields. _Depends on Phases 4 and 6._
 
@@ -88,12 +88,12 @@ Refactor UI parser/serialization/layout code for deterministic testing first, th
 - `tools/blpgen.c` — BLP2 texture generator (✅ done)
 - `tools/mdxtool.c` / `tools/mdxgen.c` — MDX fixture generator (✅ done)
 - `tools/fdftool.c` — oracle/inspection path
-- `game/ui/ui_fdf.c` — parser and frame-graph seams
-- `game/ui/ui_write.c` — UI frame serialization seams
+- `games/warcraft3/ui/ui_fdf.c` — parser and frame-graph code after the client-side UI migration
+- Legacy server-side `game/ui/ui_write.c` was removed when serialized UI blobs were deleted
 - `common/msg.c` — delta write/read verification
 - `client/cl_parse.c` — layout blob ingest
 - `client/cl_scrn.c` — layout solver and coordinate-sensitive behavior
 - `renderer/r_draw.c` — UI ortho projection
-- `tests/test_harness.c` / `tests/test_harness.h` — extend for UI/archive fixture plumbing
+- `games/warcraft3/tests/test_harness.c` / `games/warcraft3/tests/test_harness.h` — extend for UI/archive fixture plumbing
 - `tests/resources-src/` — source-controlled FDF fixtures and asset specs
 - `build/tests/tests.mpq` — generated artifact (not committed)

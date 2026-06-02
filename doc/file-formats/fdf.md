@@ -1,6 +1,6 @@
 # UI Frame Definition File (FDF)
 
-FDF (Frame Definition File) is a plain-text declarative format used by Warcraft III to describe the UI frame hierarchy — positions, sizes, textures, fonts, and child frames. OpenWarcraft3 parses FDF files client-side in the `ui/` runtime library.
+FDF (Frame Definition File) is a plain-text declarative format used by Warcraft III to describe the UI frame hierarchy — positions, sizes, textures, fonts, and child frames. OpenWarcraft3 parses FDF files client-side in the Warcraft III UI runtime library (`games/warcraft3/ui/`).
 
 ## File Format
 
@@ -23,7 +23,7 @@ FrameType "FrameName" {
 
 ### Frame Types
 
-The following frame types are recognised by the parser (`ui/ui_fdf.c`):
+The following frame types are recognised by the Warcraft III UI parser (`games/warcraft3/ui/ui_fdf.c`):
 
 | Type | Purpose |
 |------|---------|
@@ -84,7 +84,7 @@ This aligns the frame's top-left corner 2% from the screen left edge and 2% from
 
 ## Frame Registry
 
-`UI_ParseFDF` (`ui/ui_fdf.c`) tokenises the FDF text, constructs `frameDef_t` structs, and stores them in the global frame registry keyed by name. Screen controllers query the registry, parent frames into the active tree, and draw through `ui/ui_render.c`.
+`UI_ParseFDF` (`games/warcraft3/ui/ui_fdf.c`) tokenises the FDF text, constructs `frameDef_t` structs, and stores them in the global frame registry keyed by name. Screen controllers query the registry, parent frames into the active tree, and draw through `games/warcraft3/ui/ui_render.c`.
 
 ## Programmatic API
 
@@ -119,9 +119,9 @@ make run-ui-text
 
 | Source | Purpose |
 |--------|---------|
-| `ui/ui_fdf.c` | FDF text parser and programmatic frame API |
-| `ui/ui_main.c` | Loads FDF/theme assets and executes `ui_start_command` |
-| `ui/ui_render.c` | Layout solving and frame rendering |
-| `ui/ui_theme.c` | Warcraft theme file loading |
-| `ui/screens/*.c` | Screen controllers |
+| `games/warcraft3/ui/ui_fdf.c` | FDF text parser and programmatic frame API |
+| `games/warcraft3/ui/ui_main.c` | Loads FDF/theme assets and executes `ui_start_command` |
+| `games/warcraft3/ui/ui_render.c` | Layout solving and frame rendering |
+| `games/warcraft3/ui/ui_theme.c` | Warcraft theme file loading |
+| `games/warcraft3/ui/screens/*.c` | Screen controllers |
 | `renderer/r_stdout.c` | Text renderer for draw-call diagnostics |

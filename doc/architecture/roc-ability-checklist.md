@@ -2,7 +2,7 @@
 
 Source: `Units\AbilityData.slk` from `data/Warcraft III/War3.mpq` (Reign of Chaos data).
 
-This checklist is grouped by Warcraft ability base `code`, because OpenWarcraft3 registers behavior by base code in `game/skills/s_skills.c`. The `Aliases` column lists ROC `AbilityData.slk` aliases that share that base behavior.
+This checklist is grouped by Warcraft ability base `code`, because OpenWarcraft3 registers behavior by base code in `games/warcraft3/game/skills/s_skills.c`. The `Aliases` column lists ROC `AbilityData.slk` aliases that share that base behavior.
 
 Status values:
 

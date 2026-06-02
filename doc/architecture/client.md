@@ -74,7 +74,7 @@ Camera rotation is applied to the stored `cl.viewangles` every frame. Mouse butt
 
 Serialises the current `usercmd_t` as a `clc_move` message and writes it to the loopback send buffer for the server to read on its next `SV_ReadPackets` call.
 
-For higher-level actions (right-click, ability use, unit selection), the input code sends dedicated `clc_*` messages that the server's command dispatcher (`game/g_commands.c`) handles.
+For higher-level actions (right-click, ability use, unit selection), the input code sends dedicated `clc_*` messages that the selected game's command dispatcher handles. In the Warcraft III build this is `games/warcraft3/game/g_commands.c`.
 
 ### 4. CL_PrepRefresh
 

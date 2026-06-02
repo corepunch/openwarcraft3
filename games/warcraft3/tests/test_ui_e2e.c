@@ -4,7 +4,7 @@
 
 #include "test_framework.h"
 #include "test_harness.h"
-#include "../common/net.h"
+#include "../../../common/net.h"
 
 /* Forward declarations to avoid macro collisions with game/g_local.h */
 void MSG_WriteDeltaUIFrame(LPSIZEBUF msg, LPCUIFRAME from, LPCUIFRAME to, bool force);

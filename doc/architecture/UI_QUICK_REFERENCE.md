@@ -7,9 +7,9 @@ This is the short version of the current client-side UI architecture.
 ```text
 Mouse/keyboard
   -> client input
-  -> ui/ui_main.c
-  -> ui/screens/*.c
-  -> ui/ui_render.c
+  -> games/warcraft3/ui/ui_main.c
+  -> games/warcraft3/ui/screens/*.c
+  -> games/warcraft3/ui/ui_render.c
   -> renderer API
 ```
 
@@ -69,11 +69,11 @@ client/cl_input.c
   CL_RequestUnitUI
   -> clc_request_unit_ui
   -> server/sv_unit_ui.c
-  -> game/g_unit_ui.c
+  -> games/warcraft3/game/g_unit_ui.c
   -> svc_unit_ui
   -> client/cl_unit_ui.c
   -> ui.UpdateUnitUI
-  -> ui/screens/console_ui.c
+  -> games/warcraft3/ui/screens/console_ui.c
 ```
 
 The client caches returned unit data and renders it on subsequent UI frames.
@@ -82,16 +82,17 @@ The client caches returned unit data and renders it on subsequent UI frames.
 
 | File | Purpose |
 |------|---------|
-| `ui/ui_main.c` | UI entry point, lifecycle, startup command, screen selection |
-| `ui/ui_fdf.c` | FDF parsing and frame registry |
-| `ui/ui_render.c` | Layout solving and frame rendering |
-| `ui/ui_theme.c` | Warcraft UI theme resources |
-| `ui/screens/main_menu.c` | Main menu screen |
-| `ui/screens/console_ui.c` | In-game HUD screen |
+| `client/ui.h` | Shared UI module API declaration |
+| `games/warcraft3/ui/ui_main.c` | UI entry point, lifecycle, startup command, screen selection |
+| `games/warcraft3/ui/ui_fdf.c` | FDF parsing and frame registry |
+| `games/warcraft3/ui/ui_render.c` | Layout solving and frame rendering |
+| `games/warcraft3/ui/ui_theme.c` | Warcraft UI theme resources |
+| `games/warcraft3/ui/screens/main_menu.c` | Main menu screen |
+| `games/warcraft3/ui/screens/console_ui.c` | In-game HUD screen |
 | `client/cl_main.c` | Renderer/UI init and client frame loop |
 | `client/cl_unit_ui.c` | `svc_unit_ui` parser |
 | `server/sv_unit_ui.c` | Unit UI data request handler |
-| `game/g_unit_ui.c` | Game-side unit UI data provider |
+| `games/warcraft3/game/g_unit_ui.c` | Game-side unit UI data provider |
 | `renderer/r_stdout.c` | Text renderer backend |
 
 ## Runtime Cvars

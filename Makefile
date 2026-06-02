@@ -13,6 +13,8 @@ BIN_DIR := build/bin
 LIB_DIR := build/lib
 CFLAGS  := -Wall -I. -Ishared -Ishared/types
 WC3_DIR := games/warcraft3
+WC3_JASS_DIR := $(WC3_DIR)/jass
+WC3_SHEET_DIR := $(WC3_DIR)/sheet
 WOW_DIR := games/world-of-warcraft
 SC2_DIR := games/starcraft2
 
@@ -175,14 +177,14 @@ $(SHARED_LIB): $(shell find shared -name '*.c') | $(LIB_DIR)
 		$(CC) $(CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - $(LDFLAGS) -lm
 
 # jass — Warcraft III script VM
-$(JASS_LIB): $(SHARED_LIB) $(shell find jass -name '*.c' -o -name '*.h') | $(LIB_DIR)
+$(JASS_LIB): $(SHARED_LIB) $(shell find $(WC3_JASS_DIR) -name '*.c' -o -name '*.h') | $(LIB_DIR)
 	@echo "[jass]"
-	@$(call UNITY,jass) | \
+	@$(call UNITY,$(WC3_JASS_DIR)) | \
 		$(CC) $(WC3_CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - $(LDFLAGS) -lshared -lm
 
-$(SHEET_LIB): sheet/parser.c sheet/sheet.c common/common.h | $(LIB_DIR)
+$(SHEET_LIB): $(WC3_SHEET_DIR)/parser.c $(WC3_SHEET_DIR)/sheet.c common/common.h | $(LIB_DIR)
 	@echo "[sheet]"
-	$(CC) $(CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ sheet/parser.c sheet/sheet.c $(LDFLAGS)
+	$(CC) $(CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ $(WC3_SHEET_DIR)/parser.c $(WC3_SHEET_DIR)/sheet.c $(LDFLAGS)
 
 # renderer — depends on shared
 # Uses FS_ReadFile (archive-agnostic) for initial file loads, but includes
@@ -266,8 +268,10 @@ clean:
 # The test binary compiles only the game modules needed by the tests
 # (no renderer, no archive backend, no SDL2) together with the shared sources.
 # Global game state and gi function-pointers are provided by the test
-# harness (tests/test_harness.c) rather than by games/warcraft3/game/g_main.c.
+# harness ($(WC3_DIR)/tests/test_harness.c) rather than by games/warcraft3/game/g_main.c.
 # ---------------------------------------------------------------------------
+WC3_TEST_DIR := $(WC3_DIR)/tests
+
 TEST_GAME_SRCS := \
 	common/routing.c \
 	$(WC3_DIR)/game/g_ai.c \
@@ -303,27 +307,27 @@ TEST_GAME_SRCS := \
 	common/net.c \
 	common/msg.c
 
-TEST_SRCS := $(shell find tests -maxdepth 1 -name 'test_*.c' \
+TEST_SRCS := \
+	$(shell find $(WC3_TEST_DIR) -maxdepth 1 -name 'test_*.c' \
 	! -name 'test_commands.c' \
 	! -name 'test_commands_main.c' \
 	! -name 'test_jass_main.c' \
 	! -name 'test_main_ui.c' \
-	! -name 'test_mpq_compat.c' \
-	! -name 'test_ui_*.c' \
-	! -name 'test_wow_combat.c' \
-	! -name 'test_wow_appearance.c' | sort)
+	! -name 'test_ui_*.c' | sort) \
+	tests/test_net.c \
+	tests/test_tool_common.c
 
-TEST_CFLAGS := $(WC3_CFLAGS) -DTOOL_COMMON_NO_MPQ -Itests/stubs -Ishared/types -I$(WC3_DIR)/game -Iserver -Icommon -Iclient -I$(WC3_DIR)/game/skills
+TEST_CFLAGS := $(WC3_CFLAGS) -DTOOL_COMMON_NO_MPQ -Itests -I$(WC3_TEST_DIR) -Ishared/types -I$(WC3_DIR)/game -Iserver -Icommon -Iclient -I$(WC3_DIR)/game/skills
 TEST_UI_CFLAGS := $(TEST_CFLAGS)
 
 TEST_UI_SRCS := \
-	tests/test_main_ui.c \
-	tests/test_harness.c \
-	tests/test_client_stubs.c \
-	tests/test_server_net.c \
-	tests/test_jass.c \
+	$(WC3_TEST_DIR)/test_main_ui.c \
+	$(WC3_TEST_DIR)/test_harness.c \
+	$(WC3_TEST_DIR)/test_client_stubs.c \
+	$(WC3_TEST_DIR)/test_server_net.c \
+	$(WC3_TEST_DIR)/test_jass.c \
 	tests/test_tool_common.c \
-	$(shell find tests -maxdepth 1 -name 'test_ui_*.c' \
+	$(shell find $(WC3_TEST_DIR) -maxdepth 1 -name 'test_ui_*.c' \
 		! -name 'test_ui_e2e.c' \
 		! -name 'test_ui_oracle.c' \
 		! -name 'test_ui_serialize.c' | sort)
@@ -340,14 +344,14 @@ test: test-assets $(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) | $(BIN_DIR)
 
 test-commands: test-assets $(SHARED_LIB) $(SHEET_LIB) | $(BIN_DIR)
 	$(CC) $(TEST_CFLAGS) -o $(BIN_DIR)/test_commands$(EXE_EXT) \
-		tests/test_commands_main.c tests/test_commands.c \
+		$(WC3_TEST_DIR)/test_commands_main.c $(WC3_TEST_DIR)/test_commands.c \
 		common/common.c common/cmd.c common/cvar.c common/msg.c common/net.c common/mpq.c \
 		$(RPATH) $(LDFLAGS) -lsheet -lshared -lm -lz
 	$(BIN_DIR)/test_commands$(EXE_EXT)
 
 test-jass: $(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) | $(BIN_DIR)
 	$(CC) $(TEST_CFLAGS) -o $(BIN_DIR)/test_jass$(EXE_EXT) \
-		tests/test_jass_main.c tests/test_jass.c tests/test_harness.c tests/test_client_stubs.c \
+		$(WC3_TEST_DIR)/test_jass_main.c $(WC3_TEST_DIR)/test_jass.c $(WC3_TEST_DIR)/test_harness.c $(WC3_TEST_DIR)/test_client_stubs.c \
 		$(WC3_DIR)/game/g_metadata.c common/msg.c \
 		$(RPATH) $(LDFLAGS) -lsheet -lshared -ljass -lm
 	$(BIN_DIR)/test_jass$(EXE_EXT)
