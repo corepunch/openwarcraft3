@@ -302,7 +302,7 @@ LPEDICT SP_SpawnAtLocation(DWORD class_id, DWORD player, LPCVECTOR2 location) {
     ent->spawn_time = gi.GetTime();
     ent->s.origin.x = location->x;
     ent->s.origin.y = location->y;
-    ent->s.origin.z = gi.GetHeightAtPoint(location->x, location->y);
+    ent->s.origin.z = CM_GetHeightAtPoint(location->x, location->y);
     ent->s.scale = 1;
     ent->s.angle = -M_PI / 2;
     ent->s.player = player;

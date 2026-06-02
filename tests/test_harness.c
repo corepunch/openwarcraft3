@@ -94,37 +94,6 @@ static DWORD mock_BoxEdicts(LPCBOX2 area,
     return count;
 }
 
-static VECTOR2 mock_GetFlowDirection(DWORD heatmap, FLOAT x, FLOAT y) {
-    (void)heatmap; (void)x; (void)y;
-    return (VECTOR2){0.0f, 0.0f};
-}
-
-static FLOAT mock_GetHeightAtPoint(FLOAT x, FLOAT y) {
-    (void)x; (void)y;
-    return 0.0f;
-}
-
-static BOX2 mock_GetWorldBounds(void) {
-    return (BOX2){
-        .min = { 0.0f, 0.0f },
-        .max = { TILE_SIZE * 4.0f, TILE_SIZE * 3.0f },
-    };
-}
-
-static DWORD mock_BuildHeatmap(LPEDICT goalentity) {
-    (void)goalentity;
-    return 0;
-}
-
-static BOOL mock_ClosestPathablePointForRadius(LPCVECTOR2 location, FLOAT radius, LPVECTOR2 out) {
-    (void)radius;
-    if (!location || !out) {
-        return false;
-    }
-    *out = *location;
-    return true;
-}
-
 
 static DWORD mock_GetTime(void) {
     return level.time;
@@ -258,14 +227,9 @@ void setup_game(void) {
     gi.SoundIndex          = mock_SoundIndex;
     gi.ImageIndex          = mock_ImageIndex;
     gi.FontIndex           = mock_FontIndex;
-    gi.BuildHeatmap        = mock_BuildHeatmap;
-    gi.ClosestPathablePointForRadius = mock_ClosestPathablePointForRadius;
     gi.LinkEntity          = mock_LinkEntity;
     gi.UnlinkEntity        = mock_UnlinkEntity;
     gi.BoxEdicts           = mock_BoxEdicts;
-    gi.GetFlowDirection    = mock_GetFlowDirection;
-    gi.GetHeightAtPoint    = mock_GetHeightAtPoint;
-    gi.GetWorldBounds      = mock_GetWorldBounds;
     gi.ReadFile            = mock_ReadFile;
     gi.GetTime             = mock_GetTime;
     gi.multicast           = mock_multicast;

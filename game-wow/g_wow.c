@@ -318,7 +318,7 @@ static void Wow_SelectLoadingScreen(LPCSTR map_path) {
 }
 
 FLOAT Wow_TerrainHeight(FLOAT x, FLOAT y) {
-    return gi.GetHeightAtPoint ? gi.GetHeightAtPoint(x, y) : 0.0f;
+    return CM_GetHeightAtPoint(x, y);
 }
 
 static FLOAT Wow_ViewPitch(FLOAT wrapped_pitch) {
@@ -724,6 +724,17 @@ struct game_export *GetGameAPI(struct game_import *import) {
     globals.ClientCommand = Wow_ClientCommand;
     globals.ClientSetCameraPosition = Wow_ClientSetCameraPosition;
     globals.ClientBegin = Wow_ClientBegin;
+    globals.CanSeeEntity = NULL;
+    globals.LoadMap = CM_LoadMap;
+    globals.GetMapInfo = CM_GetMapInfo;
+    globals.GetDoodads = CM_GetDoodads;
+    globals.GetLocalPlayerNumber = CM_GetLocalPlayerNumber;
+    globals.BakeStaticObstacles = G_BakeStaticObstacles;
+    globals.BuildHeatmap = G_BuildHeatmap;
+    globals.ClosestPathablePointForRadius = G_ClosestPathablePointForRadius;
+    globals.GetFlowDirection = G_GetFlowDirection;
+    globals.GetHeightAtPoint = CM_GetHeightAtPoint;
+    globals.GetWorldBounds = CM_GetWorldBounds;
     globals.max_edicts = WOW_MAX_EDICTS;
     globals.max_clients = WOW_MAX_CLIENTS;
     globals.edict_size = sizeof(edict_t);

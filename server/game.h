@@ -44,15 +44,10 @@ struct game_import {
     int (*SoundIndex)(LPCSTR soundName);
     int (*ImageIndex)(LPCSTR imageName);
     int (*FontIndex)(LPCSTR fontName, DWORD fontSize);
-    DWORD (*BuildHeatmap)(LPEDICT goalentity);
-    BOOL (*ClosestPathablePointForRadius)(LPCVECTOR2 location, FLOAT radius, LPVECTOR2 out);
     void (*LinkEntity)(LPEDICT ent);
     void (*UnlinkEntity)(LPEDICT ent);
     DWORD (*BoxEdicts)(LPCBOX2 area, LPEDICT *list, DWORD maxcount, BOOL (*pred)(LPCEDICT));
     void (*MenuAction)(LPCSTR action, LPCSTR arg);
-    VECTOR2 (*GetFlowDirection)(DWORD heatmapindex, FLOAT fx, FLOAT fy);
-    FLOAT (*GetHeightAtPoint)(FLOAT x, FLOAT y);
-    BOX2 (*GetWorldBounds)(void);
     HANDLE (*ReadFile)(LPCSTR filename, LPDWORD size);
     DWORD (*GetTime)(void);
     void (*multicast)(LPCVECTOR3 origin, multicast_t to);
@@ -106,6 +101,16 @@ struct game_export {
     void (*ClientSetCameraPosition)(LPEDICT ent, LPCVECTOR2 position);
     void (*ClientBegin)(LPEDICT ent);
     BOOL (*CanSeeEntity)(DWORD player, LPCEDICT ent);
+    bool (*LoadMap)(LPCSTR mapFilename);
+    LPCMAPINFO (*GetMapInfo)(void);
+    LPDOODAD (*GetDoodads)(void);
+    DWORD (*GetLocalPlayerNumber)(void);
+    void (*BakeStaticObstacles)(void);
+    DWORD (*BuildHeatmap)(LPEDICT goalentity);
+    BOOL (*ClosestPathablePointForRadius)(LPCVECTOR2 location, FLOAT radius, LPVECTOR2 out);
+    VECTOR2 (*GetFlowDirection)(DWORD heatmapindex, FLOAT fx, FLOAT fy);
+    FLOAT (*GetHeightAtPoint)(FLOAT x, FLOAT y);
+    BOX2 (*GetWorldBounds)(void);
     
     edict_t *edicts;
     int num_edicts;

@@ -95,7 +95,7 @@ DWORD M_RefreshHeatmap(LPEDICT self) {
     if (!route) {
         return 0;
     }
-    route->heatmap2 = gi.BuildHeatmap(route);
+    route->heatmap2 = CM_BuildHeatmap(route);
     return route->heatmap2;
 }
 
@@ -347,7 +347,7 @@ void SP_SpawnUnit(LPEDICT self) {
 }
 
 void M_CheckGround(LPEDICT self) {
-    self->s.origin.z = gi.GetHeightAtPoint(self->s.origin.x, self->s.origin.y);
+    self->s.origin.z = CM_GetHeightAtPoint(self->s.origin.x, self->s.origin.y);
 }
 
 BOOL M_CheckAttack(LPEDICT self) {

@@ -24,9 +24,11 @@ bool CM_LoadMap(LPCSTR mapFilename) { (void)mapFilename; return true; }
 LPDOODAD CM_GetDoodads(void) { return NULL; }
 static LPMAPINFO test_mapinfo;
 LPCMAPINFO CM_GetMapInfo(void) { return test_mapinfo; }
+DWORD CM_GetLocalPlayerNumber(void) { return 0; }
+FLOAT CM_GetHeightAtPoint(FLOAT x, FLOAT y) { (void)x; (void)y; return 0.0f; }
 VECTOR2 CM_GetNormalizedMapPosition(FLOAT x, FLOAT y) { return (VECTOR2){ x, y }; }
 VECTOR2 CM_GetDenormalizedMapPosition(FLOAT x, FLOAT y) { return (VECTOR2){ x, y }; }
-BOX2 CM_GetWorldBounds(void) { return (BOX2){ .min = {0,0}, .max = {1024,1024} }; }
+BOX2 CM_GetWorldBounds(void) { return (BOX2){ .min = {0,0}, .max = {TILE_SIZE * 4.0f, TILE_SIZE * 3.0f} }; }
 HANDLE FS_FindFirstFile(LPCSTR mask, SFILE_FIND_DATA *findData) {
     (void)mask;
     (void)findData;
@@ -124,6 +126,16 @@ static void reset_server_state(int max_players) {
     test_ge.SpawnEntities = test_spawn_entities;
     test_ge.RunFrame = test_run_frame;
     test_ge.GetThemeValue = test_theme_value;
+    test_ge.LoadMap = CM_LoadMap;
+    test_ge.GetMapInfo = CM_GetMapInfo;
+    test_ge.GetDoodads = CM_GetDoodads;
+    test_ge.GetLocalPlayerNumber = CM_GetLocalPlayerNumber;
+    test_ge.BakeStaticObstacles = CM_BakeStaticObstacles;
+    test_ge.BuildHeatmap = CM_BuildHeatmap;
+    test_ge.ClosestPathablePointForRadius = CM_ClosestPathablePointForRadius;
+    test_ge.GetFlowDirection = get_flow_direction;
+    test_ge.GetHeightAtPoint = CM_GetHeightAtPoint;
+    test_ge.GetWorldBounds = CM_GetWorldBounds;
     test_ge.Shutdown = test_game_shutdown;
     ge = &test_ge;
     reset_test_gi();

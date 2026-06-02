@@ -61,6 +61,10 @@ extern wowEntityLocal_t wow_entity_locals[WOW_MAX_EDICTS];
 int          G_RegisterModel(LPCSTR filename);
 LPCANIMATION G_GetAnimation(DWORD modelindex, LPCSTR animname);
 void         G_FreeModels(void);
+void         G_BakeStaticObstacles(void);
+DWORD        G_BuildHeatmap(LPEDICT goalentity);
+BOOL         G_ClosestPathablePointForRadius(LPCVECTOR2 location, FLOAT radius, LPVECTOR2 out);
+VECTOR2      G_GetFlowDirection(DWORD heatmapindex, FLOAT fx, FLOAT fy);
 
 FLOAT Wow_Clamp(FLOAT value, FLOAT min_value, FLOAT max_value);
 DWORD Wow_Read32(BYTE const *p);

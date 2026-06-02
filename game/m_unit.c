@@ -128,7 +128,7 @@ BOOL unit_issueorder(LPEDICT self, LPCSTR order, LPCVECTOR2 point) {
     }
     if (!strcmp(order, "move") || !strcmp(order, "attack")) {
         VECTOR2 target = *point;
-        gi.ClosestPathablePointForRadius(point, self->collision, &target);
+        CM_ClosestPathablePointForRadius(point, self->collision, &target);
         LPEDICT waypoint = Waypoint_add(&target);
         order_move(self, waypoint);
         return true;

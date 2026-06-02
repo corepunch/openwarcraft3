@@ -133,8 +133,6 @@ void PF_error(LPCSTR fmt, ...) {
 
 
 
-VECTOR2 get_flow_direction(DWORD heatmapindex, float fx, float fy);
-
 void PF_Sleep(DWORD msec) {
     usleep(msec * 1000);
 }
@@ -152,11 +150,6 @@ void SV_InitGameProgs(void) {
     import.SoundIndex = SV_SoundIndex;
     import.FontIndex = SV_FontIndex;
     import.GetTime = SV_GetTime;
-    import.GetHeightAtPoint = CM_GetHeightAtPoint;
-    import.GetWorldBounds = CM_GetWorldBounds;
-    import.BuildHeatmap = CM_BuildHeatmap;
-    import.ClosestPathablePointForRadius = CM_ClosestPathablePointForRadius;
-    import.GetFlowDirection = get_flow_direction;
     import.ReadFile = FS_ReadFile;
     import.error = PF_error;
     import.LinkEntity = SV_LinkEntity;

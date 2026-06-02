@@ -63,6 +63,16 @@ struct game_export *GetGameAPI(struct game_import *import) {
     globals.ClientSetCameraPosition = SC2_ClientSetCameraPosition;
     globals.CanSeeEntity          = SC2_CanSeeEntity;
     globals.GetThemeValue         = SC2_GetThemeValue;
+    globals.LoadMap               = CM_LoadMap;
+    globals.GetMapInfo            = CM_GetMapInfo;
+    globals.GetDoodads            = CM_GetDoodads;
+    globals.GetLocalPlayerNumber  = CM_GetLocalPlayerNumber;
+    globals.BakeStaticObstacles   = CM_BakeStaticObstacles;
+    globals.BuildHeatmap          = CM_BuildHeatmap;
+    globals.ClosestPathablePointForRadius = CM_ClosestPathablePointForRadius;
+    globals.GetFlowDirection      = get_flow_direction;
+    globals.GetHeightAtPoint      = CM_GetHeightAtPoint;
+    globals.GetWorldBounds        = CM_GetWorldBounds;
     globals.edict_size            = sizeof(edict_t);
     globals.max_clients           = SC2_MAX_CLIENTS;
     globals.max_edicts            = SC2_MAX_EDICTS;

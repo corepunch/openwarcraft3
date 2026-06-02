@@ -2,7 +2,7 @@
 
 void unit_changeangle(LPEDICT self) {
     DWORD heatmap = M_RefreshHeatmap(self->goalentity);
-    VECTOR2 dir = gi.GetFlowDirection(heatmap, self->s.origin.x, self->s.origin.y);
+    VECTOR2 dir = get_flow_direction(heatmap, self->s.origin.x, self->s.origin.y);
 
     if (Vector2_len(&dir) <= 0.001f) {
         dir = Vector2_sub(&self->goalentity->s.origin2, &self->s.origin2);

@@ -1,4 +1,16 @@
+#ifdef GAME_WORLD
+#if defined(WOW) || defined(SC2)
 #include "../server/server.h"
+#else
+#include "../game/g_local.h"
+#endif
+#define ge (&globals)
+#ifndef EDICT_NUM
+#define EDICT_NUM(n) (globals.edicts + (n))
+#endif
+#else
+#include "../server/server.h"
+#endif
 
 #include <float.h>
 #include <limits.h>
@@ -273,8 +285,12 @@ static bool closest_pathable_node(LPCVECTOR2 location, FLOAT radius, point2_t *o
 BOOL CM_ClosestPathablePointForRadius(LPCVECTOR2 location, FLOAT radius, LPVECTOR2 out) {
     point2_t point;
 
-    if (!location || !out || !pathmap.data || !pathmap.original) {
+    if (!location || !out) {
         return false;
+    }
+    if (!pathmap.data || !pathmap.original) {
+        *out = *location;
+        return true;
     }
 
     reset_pathmap_data();
@@ -326,6 +342,10 @@ VECTOR2 compute_directiom(DWORD x, DWORD y) {
 }
 
 VECTOR2 get_flow_direction(DWORD heatmapindex, float fnx, float fny) {
+    (void)heatmapindex;
+    if (!pathmap.data || !pathmap.heatmap || !pathmap.width || !pathmap.height) {
+        return (VECTOR2){ 0, 0 };
+    }
     VECTOR2 n = CM_GetNormalizedMapPosition(fnx, fny);
     n.x *= pathmap.width;
     n.y *= pathmap.height;
@@ -382,6 +402,10 @@ DWORD build_heatmap(point2_t target) {
 
 DWORD CM_BuildHeatmap(edict_t *goalentity) {
     DWORD map_cells = pathmap.width * pathmap.height;
+
+    if (!goalentity || !pathmap.data || !pathmap.original || !pathmap.heatmap || !map_cells) {
+        return 0;
+    }
 
     /* Cache lookup — find slot with matching goal. */
     FOR_LOOP(i, HEATMAP_CACHE_SLOTS) {

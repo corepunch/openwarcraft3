@@ -794,7 +794,7 @@ LPSTR FS_ReadArchiveFileIntoString(HANDLE archive, LPCSTR filename) {
     DWORD fileSize = SFileGetFileSize(file, NULL);
     LPSTR buffer = MemAlloc(fileSize + 1);
     SFileReadFile(file, buffer, fileSize, NULL, NULL);
-    FS_CloseFile(file);
+    SFileCloseFile(file);
     buffer[fileSize] = '\0';
     return buffer;
 }
