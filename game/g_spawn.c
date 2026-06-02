@@ -246,7 +246,10 @@ static void G_InitMapPlayer(LPEDICT clent, LPCMAPINFO mapinfo, DWORD playernum) 
     clent->client->mapplayer = player;
 }
 
-void G_SpawnEntities(LPCMAPINFO mapinfo, LPCDOODAD entities) {
+void G_SpawnEntities(void) {
+    LPCMAPINFO mapinfo = CM_GetMapInfo();
+    LPCDOODAD entities = CM_GetDoodads();
+
     G_FowShutdown();
     memset(&level, 0, sizeof(level));
 
@@ -290,6 +293,7 @@ void G_SpawnEntities(LPCMAPINFO mapinfo, LPCDOODAD entities) {
     jass_dobuffer(level.vm, level.mapinfo->mapscript);
 
     UI_Init();
+    CM_BakeStaticObstacles();
 }
  
 LPEDICT SP_SpawnAtLocation(DWORD class_id, DWORD player, LPCVECTOR2 location) {

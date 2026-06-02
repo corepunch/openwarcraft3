@@ -580,8 +580,19 @@ static void Wow_Shutdown(void) {
     globals.num_edicts = 0;
 }
 
-static void Wow_SpawnEntities(LPCMAPINFO mapinfo, LPCDOODAD doodads) {
-    (void)doodads;
+static bool Wow_LoadMap(LPCSTR mapFilename) {
+    if (!CM_LoadMap(mapFilename)) {
+        return false;
+    }
+    if (gi.ApplyLobbySettings) {
+        gi.ApplyLobbySettings((LPMAPINFO)CM_GetMapInfo());
+    }
+    return true;
+}
+
+static void Wow_SpawnEntities(void) {
+    LPCMAPINFO mapinfo = CM_GetMapInfo();
+
     if (mapinfo && mapinfo->players[0].used) {
         wow_spawn_origin = mapinfo->players[0].startingPosition;
     }
@@ -725,15 +736,7 @@ struct game_export *GetGameAPI(struct game_import *import) {
     globals.ClientSetCameraPosition = Wow_ClientSetCameraPosition;
     globals.ClientBegin = Wow_ClientBegin;
     globals.CanSeeEntity = NULL;
-    globals.LoadMap = CM_LoadMap;
-    globals.GetMapInfo = CM_GetMapInfo;
-    globals.GetDoodads = CM_GetDoodads;
-    globals.GetLocalPlayerNumber = CM_GetLocalPlayerNumber;
-    globals.BakeStaticObstacles = G_BakeStaticObstacles;
-    globals.BuildHeatmap = G_BuildHeatmap;
-    globals.ClosestPathablePointForRadius = G_ClosestPathablePointForRadius;
-    globals.GetFlowDirection = G_GetFlowDirection;
-    globals.GetHeightAtPoint = CM_GetHeightAtPoint;
+    globals.LoadMap = Wow_LoadMap;
     globals.GetWorldBounds = CM_GetWorldBounds;
     globals.max_edicts = WOW_MAX_EDICTS;
     globals.max_clients = WOW_MAX_CLIENTS;
