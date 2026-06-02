@@ -1,6 +1,6 @@
 # Server Architecture
 
-The server (`server/`) is the authoritative simulation layer. It owns the canonical game state, runs the selected game library as a shared library, and delivers entity snapshots to clients each frame. For the default Warcraft III build, game logic lives in `games/warcraft3/game/` and is built as `libgame`.
+The server (`server/`) is the authoritative simulation layer. It owns the canonical game state, runs the selected game library as a shared library, and delivers entity snapshots to clients each frame. For the default Warcraft III build, game logic lives in `games/warcraft-3/game/` and is built as `libgame`.
 
 ## Startup
 
@@ -47,7 +47,7 @@ void SV_RunGameFrame(void) {
 }
 ```
 
-`G_RunFrame` (in `games/warcraft3/game/g_main.c`) iterates every live entity and calls `G_RunEntity`, which dispatches on `movetype` and calls the entity's `think` or `update` callback.
+`G_RunFrame` (in `games/warcraft-3/game/g_main.c`) iterates every live entity and calls `G_RunEntity`, which dispatches on `movetype` and calls the entity's `think` or `update` callback.
 
 ### 3. SV_SendClientMessages
 
@@ -57,7 +57,7 @@ Delta compression ensures only changed entity fields are sent, keeping bandwidth
 
 ## Game Library Interface
 
-The server communicates with the game library through two vtable structs defined in the selected game's API directory. For Warcraft III, that is `games/warcraft3/game/api/`.
+The server communicates with the game library through two vtable structs defined in the selected game's API directory. For Warcraft III, that is `games/warcraft-3/game/api/`.
 
 ### `game_import_t` — server services provided to the game
 
@@ -114,9 +114,9 @@ The client's acknowledged frame number is tracked per slot so the server can re-
 |------|---------|
 | `server/sv_main.c` | `SV_Frame`, `SV_Init`, `SV_ReadPackets` |
 | `server/sv_ents.c` | `SV_BuildClientFrame`, `SV_WriteFrameToClient`, delta encoding |
-| `games/warcraft3/game/g_main.c` | `G_RunFrame`, `G_ClientBegin`, entity-per-frame dispatch |
-| `games/warcraft3/game/g_phys.c` | Entity movement, collision response |
-| `games/warcraft3/game/g_commands.c` | Player command handlers (move, attack, ability) |
-| `games/warcraft3/game/g_monster.c` | Unit lifecycle, animation state machine |
+| `games/warcraft-3/game/g_main.c` | `G_RunFrame`, `G_ClientBegin`, entity-per-frame dispatch |
+| `games/warcraft-3/game/g_phys.c` | Entity movement, collision response |
+| `games/warcraft-3/game/g_commands.c` | Player command handlers (move, attack, ability) |
+| `games/warcraft-3/game/g_monster.c` | Unit lifecycle, animation state machine |
 | `common/net.c` | Loopback + UDP transport shared with the client |
 | `common/msg.c` | Message serialisation and delta encoding helpers |

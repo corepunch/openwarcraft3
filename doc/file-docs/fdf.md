@@ -373,7 +373,7 @@ Warcraft UI files often reference symbolic names (skin keys) instead of direct t
 Those keys are resolved through `UI/war3skins.txt`.
 
 In this project, the theme table is loaded by the client-side UI library from `UI\war3skins.txt`,
-and keys are resolved through `Theme_String(...)` in `games/warcraft3/ui/ui_theme.c` and `games/warcraft3/ui/ui_fdf.c`.
+and keys are resolved through `Theme_String(...)` in `games/warcraft-3/ui/ui_theme.c` and `games/warcraft-3/ui/ui_fdf.c`.
 
 ### Main Menu Glue Layer Examples
 

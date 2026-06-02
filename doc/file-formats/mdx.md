@@ -27,7 +27,7 @@ CLID  <size>  [collision]… ← collision shapes
 LITE  <size>  [light]…     ← light nodes
 ```
 
-Not all chunks are present in every model. The Warcraft III loader (`games/warcraft3/renderer/mdx/r_mdx_load.c`) dispatches on each FourCC tag.
+Not all chunks are present in every model. The Warcraft III loader (`games/warcraft-3/renderer/mdx/r_mdx_load.c`) dispatches on each FourCC tag.
 
 ## Node Hierarchy
 
@@ -148,7 +148,7 @@ Standard sequence names are: `Stand`, `Walk`, `Attack`, `Attack Slam`, `Attack 2
 
 | Source | Purpose |
 |--------|---------|
-| `games/warcraft3/renderer/mdx/r_mdx.h` | All MDX struct definitions |
-| `games/warcraft3/renderer/mdx/r_mdx_load.c` | Chunk parser and model loader |
-| `games/warcraft3/renderer/mdx/r_mdx_render.c` | Per-frame skinning and draw calls |
-| `games/warcraft3/renderer/mdx/r_mdx_interpolation.c` | Keyframe track evaluation |
+| `games/warcraft-3/renderer/mdx/r_mdx.h` | All MDX struct definitions |
+| `games/warcraft-3/renderer/mdx/r_mdx_load.c` | Chunk parser and model loader |
+| `games/warcraft-3/renderer/mdx/r_mdx_render.c` | Per-frame skinning and draw calls |
+| `games/warcraft-3/renderer/mdx/r_mdx_interpolation.c` | Keyframe track evaluation |

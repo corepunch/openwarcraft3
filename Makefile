@@ -12,11 +12,11 @@ CC      := gcc
 BIN_DIR := build/bin
 LIB_DIR := build/lib
 CFLAGS  := -Wall -I. -Ishared -Ishared/types
-WC3_DIR := games/warcraft3
+WC3_DIR := games/warcraft-3
 WC3_JASS_DIR := $(WC3_DIR)/jass
 WC3_SHEET_DIR := $(WC3_DIR)/sheet
 WOW_DIR := games/world-of-warcraft
-SC2_DIR := games/starcraft2
+SC2_DIR := games/starcraft-2
 
 ifeq ($(DIAG_OUTPUT),1)
 	CFLAGS += -DDIAG_OUTPUT
@@ -268,7 +268,7 @@ clean:
 # The test binary compiles only the game modules needed by the tests
 # (no renderer, no archive backend, no SDL2) together with the shared sources.
 # Global game state and gi function-pointers are provided by the test
-# harness ($(WC3_DIR)/tests/test_harness.c) rather than by games/warcraft3/game/g_main.c.
+# harness ($(WC3_DIR)/tests/test_harness.c) rather than by games/warcraft-3/game/g_main.c.
 # ---------------------------------------------------------------------------
 WC3_TEST_DIR := $(WC3_DIR)/tests
 

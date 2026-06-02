@@ -220,7 +220,7 @@ BOOL CM_ClosestPathablePointForRadius(LPCVECTOR2 location, FLOAT radius, LPVECTO
 FLOAT CM_GetHeightAtPoint(FLOAT sx, FLOAT sy);
 BOX2 CM_GetWorldBounds(void);
 
-// games/warcraft3/sheet/parser.c
+// games/warcraft-3/sheet/parser.c
 LPSTR ParserGetTokenEx(parser_t *p, bool sameLine);
 LPSTR ParserGetToken(parser_t *p);
 LPSTR FS_ReadFileIntoString(LPCSTR fileName);

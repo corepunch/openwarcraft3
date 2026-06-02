@@ -43,19 +43,19 @@ build/bin/openwarcraft3 -data data/Warcraft\ III +menu_main
 The runtime libraries are built into `build/lib/`:
 
 - `libshared` — math and shared primitives
-- `libjass` — Warcraft III JASS VM from `games/warcraft3/jass/`
-- `libsheet` — Warcraft III SLK/profile parser from `games/warcraft3/sheet/`
+- `libjass` — Warcraft III JASS VM from `games/warcraft-3/jass/`
+- `libsheet` — Warcraft III SLK/profile parser from `games/warcraft-3/sheet/`
 - `librenderer` — generic renderer sources from `renderer/` plus the selected game's renderer hooks
-- `libui` — selected-game UI library; for Warcraft III this is `games/warcraft3/ui/`
-- `libgame` — selected-game server-side game logic; for Warcraft III this is `games/warcraft3/game/`
+- `libui` — selected-game UI library; for Warcraft III this is `games/warcraft-3/ui/`
+- `libgame` — selected-game server-side game logic; for Warcraft III this is `games/warcraft-3/game/`
 
 Game-owned sources live under `games/<game>/`:
 
 | Game | Game logic | Renderer hooks | UI | Other game-owned sources |
 |------|------------|----------------|----|--------------------------|
-| Warcraft III | `games/warcraft3/game/` | `games/warcraft3/renderer/` | `games/warcraft3/ui/` | `jass/`, `sheet/`, `tests/` |
+| Warcraft III | `games/warcraft-3/game/` | `games/warcraft-3/renderer/` | `games/warcraft-3/ui/` | `jass/`, `sheet/`, `tests/` |
 | World of Warcraft | `games/world-of-warcraft/game/` | `games/world-of-warcraft/renderer/` | `games/world-of-warcraft/ui/` | none today |
-| StarCraft II | `games/starcraft2/game/` | `games/starcraft2/renderer/` | uses the default UI library today | none today |
+| StarCraft II | `games/starcraft-2/game/` | `games/starcraft-2/renderer/` | uses the default UI library today | none today |
 
 The project follows the Quake 2/Quake 3 module style: modules communicate through import/export function tables, not by reaching directly into each other's internals. The renderer exposes `R_GetAPI`; the UI exposes `UI_GetAPI`; the game module has a server/game API boundary.
 

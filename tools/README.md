@@ -64,8 +64,8 @@ build/bin/fdftool -mpq "data/Warcraft III/War3.mpq" -fdf "UI\\FrameDef\\Glue\\Ma
 
 FDF binding header generator. It writes generated C to stdout, so redirect it
 to whichever checked-in or temporary header path you want. Name generated
-headers after the consuming `.c` file: `games/warcraft3/ui/screens/main_menu.c` should include
-`games/warcraft3/ui/generated/main_menu.h`.
+headers after the consuming `.c` file: `games/warcraft-3/ui/screens/main_menu.c` should include
+`games/warcraft-3/ui/generated/main_menu.h`.
 
 Use it to generate per-screen C structs and binding functions from FDF frame
 names, so screen controllers do not hand-write lookup structs or assign
@@ -101,7 +101,7 @@ Useful options:
 Examples:
 
 ```bash
-build/bin/fdfbindgen -prefix MainMenu -root MainMenuFrame -load "UI\\FrameDef\\Glue\\MainMenu.fdf" MainMenu.fdf > games/warcraft3/ui/generated/main_menu.h
+build/bin/fdfbindgen -prefix MainMenu -root MainMenuFrame -load "UI\\FrameDef\\Glue\\MainMenu.fdf" MainMenu.fdf > games/warcraft-3/ui/generated/main_menu.h
 build/bin/mpqtool -mpq "data/Warcraft III/War3.mpq" cat UI/FrameDef/Glue/MainMenu.fdf | build/bin/fdfbindgen -prefix MainMenu -root MainMenuFrame -load "UI\\FrameDef\\Glue\\MainMenu.fdf" -
 ```
 

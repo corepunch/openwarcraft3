@@ -1,6 +1,6 @@
 # Map Renderer Architecture
 
-The Warcraft III map renderer (`games/warcraft3/renderer/w3m/`) is responsible for turning a parsed Warcraft III terrain file (`war3map.w3e`) into textured 3-D geometry on screen. It is compiled into the compound renderer library beside the generic engine renderer sources in `renderer/`; the server and client never touch the geometry directly.
+The Warcraft III map renderer (`games/warcraft-3/renderer/w3m/`) is responsible for turning a parsed Warcraft III terrain file (`war3map.w3e`) into textured 3-D geometry on screen. It is compiled into the compound renderer library beside the generic engine renderer sources in `renderer/`; the server and client never touch the geometry directly.
 
 ## High-Level Pipeline
 
@@ -60,7 +60,7 @@ Each ground layer corresponds to one entry in `map->grounds[]`. The per-vertex `
 `GetTile(mv, layer)` returns a 4-bit index (0–15) describing the blend shape at the boundary between layer `layer` and the layer below it. For the bottom-most layer (layer 0) every tile is assigned index 15 (fully covered).
 
 ```c
-// games/warcraft3/renderer/w3m/r_war3map_utils.c
+// games/warcraft-3/renderer/w3m/r_war3map_utils.c
 DWORD GetTile(LPCWAR3MAPVERTEX mv, DWORD ground) {
     if (ground == 0) return 15;
     return (mv[0].ground >= ground ? 4 : 0) +
@@ -214,12 +214,12 @@ Ground textures are cached globally in `g_groundTextures[]`, indexed by the grou
 
 | File | Purpose |
 |------|---------|
-| `games/warcraft3/renderer/w3m/r_war3map.c` | Map loading, segment building, `R_DrawWorld`, `R_DrawAlphaSurfaces` |
-| `games/warcraft3/renderer/w3m/r_war3map.h` | `MAPSEGMENT` / `MAPLAYER` structs, public declarations |
-| `games/warcraft3/renderer/w3m/r_war3map_ground.c` | Ground and ramp tile geometry, splat rendering, height/normal queries |
-| `games/warcraft3/renderer/w3m/r_war3map_cliffs.c` | Cliff model loading, vertex baking, height snapping |
-| `games/warcraft3/renderer/w3m/r_war3map_water.c` | Water tile geometry and opacity |
-| `games/warcraft3/renderer/w3m/r_war3map_utils.c` | Shared helpers: `GetTile`, `SetTileUV`, `GetTileDepth`, vertex accessors |
+| `games/warcraft-3/renderer/w3m/r_war3map.c` | Map loading, segment building, `R_DrawWorld`, `R_DrawAlphaSurfaces` |
+| `games/warcraft-3/renderer/w3m/r_war3map.h` | `MAPSEGMENT` / `MAPLAYER` structs, public declarations |
+| `games/warcraft-3/renderer/w3m/r_war3map_ground.c` | Ground and ramp tile geometry, splat rendering, height/normal queries |
+| `games/warcraft-3/renderer/w3m/r_war3map_cliffs.c` | Cliff model loading, vertex baking, height snapping |
+| `games/warcraft-3/renderer/w3m/r_war3map_water.c` | Water tile geometry and opacity |
+| `games/warcraft-3/renderer/w3m/r_war3map_utils.c` | Shared helpers: `GetTile`, `SetTileUV`, `GetTileDepth`, vertex accessors |
 | `renderer/r_fogofwar.c` | Fog-of-war render targets and ray-cast sight shader |
 | `renderer/r_main.c` | `R_RenderShadowMap`, `R_RenderView`, `R_RenderFrame` |
 | `renderer/r_shader.c` | GLSL sources for `SHADER_DEFAULT`, `SHADER_UI`, `SHADER_SPLAT` |
