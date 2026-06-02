@@ -3,6 +3,41 @@ LPPLAYER NAME = G_GetPlayerByNumber(jass_getcontext(j)->unit->s.player);
 
 extern LPPLAYER currentplayer;
 
+static LPGAMECLIENT G_CurrentCameraClient(LPCSTR func) {
+    if (!currentplayer) {
+        fprintf(stderr,
+                "%s skipped: no currentplayer time=%u\n",
+                func,
+                (unsigned)gi.GetTime());
+        return NULL;
+    }
+    return G_GetPlayerClientByNumber(PLAYER_NUM(currentplayer));
+}
+
+static void G_SetCameraPositionForCurrentPlayer(LPCSTR func, FLOAT x, FLOAT y, FLOAT duration) {
+    LPGAMECLIENT gc = G_CurrentCameraClient(func);
+    if (!gc) {
+        return;
+    }
+    if (G_SkipCutscene()) {
+        duration = 0;
+    }
+    gc->camera.old_state = gc->camera.state;
+    gc->camera.state.position.x = x;
+    gc->camera.state.position.y = y;
+    gc->camera.start_time = gi.GetTime();
+    gc->camera.end_time = gc->camera.start_time + duration * 1000;
+    fprintf(stderr,
+            "%s: player=%u pos=(%.1f,%.1f) duration=%.3f start=%u end=%u\n",
+            func,
+            (unsigned)PLAYER_NUM(currentplayer),
+            x,
+            y,
+            duration,
+            (unsigned)gc->camera.start_time,
+            (unsigned)gc->camera.end_time);
+}
+
 DWORD SetCameraTargetController(LPJASS j) {
     //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     //FLOAT xoffset = jass_checknumber(j, 2);
@@ -17,13 +52,15 @@ DWORD SetCameraOrientController(LPJASS j) {
     return 0;
 }
 DWORD SetCameraPosition(LPJASS j) {
-    //FLOAT x = jass_checknumber(j, 1);
-    //FLOAT y = jass_checknumber(j, 2);
+    FLOAT x = jass_checknumber(j, 1);
+    FLOAT y = jass_checknumber(j, 2);
+    G_SetCameraPositionForCurrentPlayer("SetCameraPosition", x, y, 0);
     return 0;
 }
 DWORD SetCameraQuickPosition(LPJASS j) {
-    //FLOAT x = jass_checknumber(j, 1);
-    //FLOAT y = jass_checknumber(j, 2);
+    FLOAT x = jass_checknumber(j, 1);
+    FLOAT y = jass_checknumber(j, 2);
+    G_SetCameraPositionForCurrentPlayer("SetCameraQuickPosition", x, y, 0);
     return 0;
 }
 DWORD SetCameraBounds(LPJASS j) {
@@ -42,7 +79,10 @@ DWORD StopCamera(LPJASS j) {
 }
 DWORD ResetToGameCamera(LPJASS j) {
     FLOAT duration = jass_checknumber(j, 1);
-    LPGAMECLIENT gc = G_GetPlayerClientByNumber(PLAYER_NUM(currentplayer));
+    LPGAMECLIENT gc = G_CurrentCameraClient("ResetToGameCamera");
+    if (!gc) {
+        return 0;
+    }
     if (G_SkipCutscene()) {
         duration = 0;
     }
@@ -55,41 +95,31 @@ DWORD ResetToGameCamera(LPJASS j) {
     return 0;
 }
 DWORD PanCameraTo(LPJASS j) {
-    LPGAMECLIENT gc = G_GetPlayerClientByNumber(PLAYER_NUM(currentplayer));
-    gc->camera.state.position.x = jass_checknumber(j, 1);
-    gc->camera.state.position.y = jass_checknumber(j, 2);
-    gc->camera.end_time = gc->camera.start_time;
+    FLOAT x = jass_checknumber(j, 1);
+    FLOAT y = jass_checknumber(j, 2);
+    G_SetCameraPositionForCurrentPlayer("PanCameraTo", x, y, 0);
     return 0;
 }
 DWORD PanCameraToTimed(LPJASS j) {
+    FLOAT x = jass_checknumber(j, 1);
+    FLOAT y = jass_checknumber(j, 2);
     FLOAT duration = jass_checknumber(j, 3);
-    LPGAMECLIENT gc = G_GetPlayerClientByNumber(PLAYER_NUM(currentplayer));
-    if (G_SkipCutscene()) {
-        duration = 0;
-    }
-    gc->camera.state.position.x = jass_checknumber(j, 1);
-    gc->camera.state.position.y = jass_checknumber(j, 2);
-    gc->camera.end_time = gc->camera.start_time + (duration * 1000);
+    G_SetCameraPositionForCurrentPlayer("PanCameraToTimed", x, y, duration);
     return 0;
 }
 DWORD PanCameraToWithZ(LPJASS j) {
-    LPGAMECLIENT gc = G_GetPlayerClientByNumber(PLAYER_NUM(currentplayer));
-    gc->camera.state.position.x = jass_checknumber(j, 1);
-    gc->camera.state.position.y = jass_checknumber(j, 2);
-    gc->camera.end_time = gc->camera.start_time;
+    FLOAT x = jass_checknumber(j, 1);
+    FLOAT y = jass_checknumber(j, 2);
     //FLOAT zOffsetDest = jass_checknumber(j, 3);
+    G_SetCameraPositionForCurrentPlayer("PanCameraToWithZ", x, y, 0);
     return 0;
 }
 DWORD PanCameraToTimedWithZ(LPJASS j) {
-    FLOAT duration = jass_checknumber(j, 4);
-    LPGAMECLIENT gc = G_GetPlayerClientByNumber(PLAYER_NUM(currentplayer));
-    if (G_SkipCutscene()) {
-        duration = 0;
-    }
-    gc->camera.state.position.x = jass_checknumber(j, 1);
-    gc->camera.state.position.y = jass_checknumber(j, 2);
-    gc->camera.end_time = gc->camera.start_time + (duration * 1000);
+    FLOAT x = jass_checknumber(j, 1);
+    FLOAT y = jass_checknumber(j, 2);
     //FLOAT zOffsetDest = jass_checknumber(j, 3);
+    FLOAT duration = jass_checknumber(j, 4);
+    G_SetCameraPositionForCurrentPlayer("PanCameraToTimedWithZ", x, y, duration);
     return 0;
 }
 DWORD SetCinematicCamera(LPJASS j) {
@@ -180,16 +210,10 @@ DWORD CameraSetupApplyForceDuration(LPJASS j) {
     LPCAMERASETUP whichSetup = jass_checkhandle(j, 1, "camerasetup");
     BOOL doPan = jass_checkboolean(j, 2);
     FLOAT forceDuration = jass_checknumber(j, 3);
-    if (!currentplayer) {
-        fprintf(stderr,
-                "CameraSetupApplyForceDuration skipped: no currentplayer pos=(%.1f,%.1f) duration=%.3f time=%u\n",
-                whichSetup->position.x,
-                whichSetup->position.y,
-                forceDuration,
-                (unsigned)gi.GetTime());
+    LPGAMECLIENT gc = G_CurrentCameraClient("CameraSetupApplyForceDuration");
+    if (!gc) {
         return 0;
     }
-    LPGAMECLIENT gc = G_GetPlayerClientByNumber(PLAYER_NUM(currentplayer));
     if (G_SkipCutscene()) {
         forceDuration = 0;
     }

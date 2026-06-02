@@ -134,18 +134,31 @@ void CL_ParsePlayerInfo(LPSIZEBUF msg) {
     DWORD old_race = cl.playerstate.race;
     DWORD old_ui_state = cl.playerstate.client_ui_state;
     LONG old_start_location = cl.playerstate.start_location;
+    VECTOR2 old_origin = cl.playerstate.origin;
+    BYTE old_fov = cl.playerstate.fov;
+    LONG old_distance = cl.playerstate.distance;
+    BOOL first_camera_sample = cl.viewDef.camerastate[0].znear <= 0 ||
+                               cl.viewDef.camerastate[0].zfar <= 0;
     MSG_ReadDeltaPlayerState(msg, &cl.playerstate, plnum, bits);
     VECTOR2 server_origin = cl.playerstate.origin;
+    cls.state = ca_active;
+    if (cl.playerstate.client_ui_state == CLIENT_UI_GAME) {
+        CL_SetGameplayInput();
+    }
 
     if (old_number != cl.playerstate.number ||
         old_team != cl.playerstate.team ||
         old_color != cl.playerstate.color ||
         old_race != cl.playerstate.race ||
         old_ui_state != cl.playerstate.client_ui_state ||
-        old_start_location != cl.playerstate.start_location)
+        old_start_location != cl.playerstate.start_location ||
+        old_origin.x != cl.playerstate.origin.x ||
+        old_origin.y != cl.playerstate.origin.y ||
+        old_fov != cl.playerstate.fov ||
+        old_distance != cl.playerstate.distance)
     {
         fprintf(stderr,
-                "CL_ParsePlayerInfo: player=%u team=%u race=%u color=%u start_location=%ld ui_state=%u origin=(%.1f %.1f) name=\"%s\"\n",
+                "CL_ParsePlayerInfo: player=%u team=%u race=%u color=%u start_location=%ld ui_state=%u origin=(%.1f %.1f) fov=%u distance=%ld first_camera=%d name=\"%s\"\n",
                 (unsigned)cl.playerstate.number,
                 (unsigned)cl.playerstate.team,
                 (unsigned)cl.playerstate.race,
@@ -154,6 +167,9 @@ void CL_ParsePlayerInfo(LPSIZEBUF msg) {
                 (unsigned)cl.playerstate.client_ui_state,
                 cl.playerstate.origin.x,
                 cl.playerstate.origin.y,
+                (unsigned)cl.playerstate.fov,
+                (long)cl.playerstate.distance,
+                first_camera_sample ? 1 : 0,
                 cl.playerstate.name ? cl.playerstate.name : "");
     }
 
@@ -165,6 +181,15 @@ void CL_ParsePlayerInfo(LPSIZEBUF msg) {
     cl.viewDef.camerastate[0].viewangles = cl.playerstate.viewangles;
     cl.viewDef.camerastate[0].distance = cl.playerstate.distance;
     cl.viewDef.camerastate[0].fov = cl.playerstate.fov;
+    cl.viewDef.camerastate[0].znear = 100;
+    cl.viewDef.camerastate[0].zfar = 5000;
+
+    if (first_camera_sample) {
+        cl.viewDef.camerastate[1] = cl.viewDef.camerastate[0];
+    } else {
+        cl.viewDef.camerastate[1].znear = 100;
+        cl.viewDef.camerastate[1].zfar = 5000;
+    }
 
     if (cl.camera_prediction.active) {
         if (server_origin.x == cl.camera_prediction.origin.x &&
@@ -462,14 +487,13 @@ void CL_MirrorMessage(LPSIZEBUF msg) {
     char buf[256] = { 0 };
     MSG_ReadString(msg, buf);
     if (!strcmp(buf, "begin")) {
-        cls.state = *cl.configstrings[CS_WORLD] ? ca_active : ca_connected;
-        cl.pending_begin = true;
         fprintf(stderr,
-                "CL_MirrorMessage: begin received world=\"%s\" state=%d pending_begin=1\n",
+                "CL_MirrorMessage: legacy begin received world=\"%s\" state=%d\n",
                 cl.configstrings[CS_WORLD],
                 cls.state);
         return;
     }
+    fprintf(stderr, "CL_MirrorMessage: forwarding \"%s\" to server\n", buf);
     MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
     MSG_WriteString(&cls.netchan.message, buf);
 }

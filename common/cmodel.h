@@ -34,6 +34,7 @@ struct war3map {
 };
 
 bool CM_LoadMap(LPCSTR mapFilename);
+BOOL CM_IsMapLoaded(LPCSTR mapFilename);
 BOOL CM_ReadMapInfo(LPCSTR mapFilename, LPMAPINFO info);
 BOOL CM_FindMapPreviewTexture(LPCSTR mapFilename, LPSTR out, DWORD out_size);
 void CM_FreeMapInfo(LPMAPINFO info);

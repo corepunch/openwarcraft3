@@ -10,6 +10,7 @@ static struct {
     MAPINFO info;
     struct Doodad *doodads;
 } world = { 0 };
+static PATHSTR cm_loaded_map = { 0 };
 
 #ifdef WOW
 static VECTOR3 cm_wow_spawn_position = { 0.0f, 0.0f, 0.0f };
@@ -1408,6 +1409,7 @@ void CM_ReadMapScript(HANDLE archive) {
 bool CM_LoadMap(LPCSTR mapFilename) {
 #ifdef WOW
     memset(&world, 0, sizeof(world));
+    snprintf(cm_loaded_map, sizeof(cm_loaded_map), "%s", mapFilename ? mapFilename : "");
     if (mapFilename) {
         size_t len = strlen(mapFilename);
         world.info.mapName = MemAlloc(len + 1);
@@ -1421,6 +1423,7 @@ bool CM_LoadMap(LPCSTR mapFilename) {
     DWORD mapSize = 0;
 
     memset(&world, 0, sizeof(world));
+    snprintf(cm_loaded_map, sizeof(cm_loaded_map), "%s", mapFilename ? mapFilename : "");
     mapData = FS_ReadFile(mapFilename, &mapSize);
     if (!mapData || mapSize == 0) {
         Com_Error(ERR_DROP, "CM_LoadMap: failed to read map %s\n", mapFilename);
@@ -1471,6 +1474,14 @@ bool CM_LoadMap(LPCSTR mapFilename) {
     SFileCloseArchive(mapArchive);
     MemFree(mapData);
     return true;
+#endif
+}
+
+BOOL CM_IsMapLoaded(LPCSTR mapFilename) {
+#ifdef WOW
+    return cm_loaded_map[0] && mapFilename && !strcmp(cm_loaded_map, mapFilename);
+#else
+    return world.map && mapFilename && !strcmp(cm_loaded_map, mapFilename);
 #endif
 }
 

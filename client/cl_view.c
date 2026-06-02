@@ -11,6 +11,7 @@ static struct {
 } view_state;
 
 static bool world_loaded = false;
+static bool begin_sent = false;
 
 #ifdef WOW
 #define CL_MODEL_LOADS_PER_FRAME 32
@@ -52,12 +53,9 @@ static void CL_UpdateAssetLoadingProgress(LPCSTR status, DWORD loaded, DWORD tot
     CL_LoadingUpdate(status, progress);
 }
 
-static void CL_SendDeferredBegin(void) {
-    if (!cl.pending_begin) {
-        return;
-    }
+static void CL_SendBegin(void) {
     fprintf(stderr,
-            "CL_SendDeferredBegin: sending begin world=\"%s\" state=%d player=%u team=%u race=%u color=%u\n",
+            "CL_SendBegin: sending begin world=\"%s\" state=%d player=%u team=%u race=%u color=%u\n",
             cl.configstrings[CS_WORLD],
             cls.state,
             (unsigned)cl.playerstate.number,
@@ -66,7 +64,6 @@ static void CL_SendDeferredBegin(void) {
             (unsigned)cl.playerstate.color);
     MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
     MSG_WriteString(&cls.netchan.message, "begin");
-    cl.pending_begin = false;
 }
 
 void Matrix4_fromViewAngles(LPCVECTOR3 target, LPCVECTOR3 angles, FLOAT distance, LPMATRIX4 output) {
@@ -381,6 +378,13 @@ void CL_PrepRefresh(void) {
     DWORD loaded_assets;
 
     if (!*cl.configstrings[CS_WORLD]) {
+        map_registered = false;
+        map_load_announced = false;
+        loading_complete_displayed = false;
+        loading_settle_frames = 0;
+        world_loaded = false;
+        begin_sent = false;
+        registered_map[0] = '\0';
         CL_LoadingUpdate("Awaiting configstrings", 0.0f);
         return;
     }
@@ -391,6 +395,7 @@ void CL_PrepRefresh(void) {
         loading_complete_displayed = false;
         loading_settle_frames = 0;
         world_loaded = false;
+        begin_sent = false;
         snprintf(registered_map, sizeof(registered_map), "%s", cl.configstrings[CS_WORLD]);
         fprintf(stderr, "CL_PrepRefresh: new world configstring %s\n", registered_map);
     }
@@ -422,6 +427,10 @@ void CL_PrepRefresh(void) {
             return;
         }
         fprintf(stderr, "CL_PrepRefresh: registering world %s\n", cl.configstrings[CS_WORLD]);
+        if (!CM_IsMapLoaded(cl.configstrings[CS_WORLD])) {
+            fprintf(stderr, "CL_PrepRefresh: loading client collision map %s\n", cl.configstrings[CS_WORLD]);
+            CM_LoadMap(cl.configstrings[CS_WORLD]);
+        }
         re.RegisterMap(cl.configstrings[CS_WORLD]);
         map_registered = true;
         world_loaded = true;
@@ -499,9 +508,11 @@ void CL_PrepRefresh(void) {
         return;
     }
 
-    if (world_loaded && cls.state == ca_active && cl.pending_begin) {
+    /* Quake II sends "begin" after the client finishes precache. */
+    if (world_loaded && !begin_sent) {
         CL_LoadingUpdate("Starting game", 1.0f);
-        CL_SendDeferredBegin();
+        CL_SendBegin();
+        begin_sent = true;
         loading_complete_displayed = false;
         loading_settle_frames = 0;
         return;
@@ -520,6 +531,7 @@ void CL_PrepRefresh(void) {
         }
         CL_LoadingUpdate("Entering game", 1.0f);
         cl.playerstate.client_ui_state = CLIENT_UI_GAME;
+        CL_SetGameplayInput();
     }
 }
 
@@ -533,7 +545,7 @@ void V_RenderView(void) {
 #endif
     
     static DWORD lastTime = 0;
-    if (!world_loaded || loading_screen) {
+    if (!world_loaded || cls.state != ca_active || loading_screen) {
         VECTOR3 target = { 0, 0, 90 };
 
         cl.viewDef.viewport = (RECT) { 0, 0, 1, 1 };

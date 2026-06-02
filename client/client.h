@@ -82,7 +82,6 @@ struct client_state {
     PATHSTR loading_map;
     char loading_status[128];
     FLOAT loading_progress;
-    BOOL pending_begin;
     centity_t ents[MAX_CLIENT_ENTITIES];
     HANDLE layout[MAX_LAYOUT_LAYERS];
     viewDef_t viewDef;
@@ -125,6 +124,7 @@ struct client_static {
 // cl_main.c
 void CL_Connect(LPCSTR host, unsigned short port);
 void CL_SetMenuBindings(void);
+void CL_SetGameplayInput(void);
 void CL_SetGameplayBindings(void);
 void CL_BeginLoadingMap(LPCSTR mapName);
 void CL_LoadingUpdate(LPCSTR status, FLOAT progress);

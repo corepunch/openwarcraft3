@@ -454,6 +454,33 @@ static void test_cursor_splat_message_sets_and_clears_state(void) {
     ASSERT_EQ_FLOAT(cl.cursor_splat.radius, 0.0f, 0.0001f);
 }
 
+static void test_playerinfo_game_state_switches_to_game_input_without_retargeting(void) {
+    BYTE buf[256];
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+    PLAYER from = { 0 };
+    PLAYER to = { 0 };
+
+    test_client_stubs_init();
+    cls.key_dest = key_menu;
+    cls.netchan.remote_address.type = NA_IP;
+    to.number = 1;
+    to.origin = (VECTOR2){ 128.0f, 256.0f };
+    to.fov = 50;
+    to.distance = 1650;
+    to.client_ui_state = CLIENT_UI_GAME;
+
+    MSG_WriteByte(&sb, svc_playerinfo);
+    MSG_WriteDeltaPlayerState(&sb, &from, &to);
+
+    CL_ParseServerMessage(&sb);
+
+    ASSERT_EQ_INT(cls.key_dest, key_game);
+    ASSERT_EQ_INT(cls.netchan.remote_address.type, NA_IP);
+    ASSERT_EQ_INT(cl.playerstate.number, 1);
+    ASSERT_EQ_FLOAT(cl.viewDef.camerastate[0].origin.x, 128.0f, 0.0001f);
+    ASSERT_EQ_FLOAT(cl.viewDef.camerastate[0].origin.y, 256.0f, 0.0001f);
+}
+
 static void test_fow_full_message_unpacks_visible_and_explored_planes(void) {
     BYTE buf[64];
     BYTE payload[] = {
@@ -613,6 +640,7 @@ void run_net_tests(void) {
     RUN_TEST(test_msg_writeangle_readangle_roundtrip);
     RUN_TEST(test_msg_multiple_types_sequential);
     RUN_TEST(test_cursor_splat_message_sets_and_clears_state);
+    RUN_TEST(test_playerinfo_game_state_switches_to_game_input_without_retargeting);
     RUN_TEST(test_fow_full_message_unpacks_visible_and_explored_planes);
     RUN_TEST(test_fow_row_delta_reconstructs_client_grid);
     RUN_TEST(test_fow_rle_255_continues_current_value);
