@@ -164,6 +164,24 @@ void MainMenu_ShowQuitConfirm(void) {
     MainMenu_ShowQuitDialog();
 }
 
+void MainMenu_ShowDisconnected(void) {
+    uiDialogWar3Config_t config = {
+        .message = "You were disconnected from the game.",
+        .icon = UI_DIALOG_WAR3_ICON_MESSAGE,
+        .buttons = UI_DIALOG_WAR3_BUTTONS_OK,
+        .ok_command = "menu_main",
+    };
+
+    show_realm_select = false;
+    if (main_menu.RealmSelect) {
+        UI_SetHidden(main_menu.RealmSelect, true);
+    }
+    if (main_menu.ControlLayer) {
+        UI_SetHidden(main_menu.ControlLayer, false);
+    }
+    UI_DialogWar3Show(&quit_dialog, &config);
+}
+
 uiScreen_t mainMenuScreen = {
     .name = "main",
     .load = MainMenu_LoadScreen,

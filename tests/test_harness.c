@@ -177,11 +177,17 @@ void harvest_gold_start(LPEDICT self, LPEDICT target) {
 
 static sheetField_t hpea_balance_fields[5];
 static sheetField_t hfoo_balance_fields[5];
-static sheetRow_t   test_balance_rows[2];
+static sheetRow_t   test_balance_rows[3];
 
 static sheetField_t hpea_data_fields[2];
 static sheetField_t hfoo_data_fields[2];
-static sheetRow_t   test_data_rows[2];
+static sheetField_t hbar_data_fields[2];
+static sheetRow_t   test_data_rows[3];
+
+static sheetField_t hpea_ui_fields[1];
+static sheetField_t hfoo_ui_fields[1];
+static sheetField_t hbar_ui_fields[1];
+static sheetRow_t   test_ui_rows[3];
 
 void setup_test_unit_data(void) {
     /* --- UnitBalance table (speed, HP, build time, gold/lumber cost) --- */
@@ -197,8 +203,16 @@ void setup_test_unit_data(void) {
     hfoo_balance_fields[3] = (sheetField_t){"goldcost",  "135", &hfoo_balance_fields[4]};
     hfoo_balance_fields[4] = (sheetField_t){"lumbercost","20",  NULL};
 
+    static sheetField_t hbar_balance_fields[5];
+    hbar_balance_fields[0] = (sheetField_t){"spd",    "0",    &hbar_balance_fields[1]};
+    hbar_balance_fields[1] = (sheetField_t){"realHP", "1500", &hbar_balance_fields[2]};
+    hbar_balance_fields[2] = (sheetField_t){"bldtm",  "120",  &hbar_balance_fields[3]};
+    hbar_balance_fields[3] = (sheetField_t){"goldcost", "385", &hbar_balance_fields[4]};
+    hbar_balance_fields[4] = (sheetField_t){"lumbercost", "185", NULL};
+
     test_balance_rows[0] = (sheetRow_t){"hpea", hpea_balance_fields, &test_balance_rows[1]};
-    test_balance_rows[1] = (sheetRow_t){"hfoo", hfoo_balance_fields, NULL};
+    test_balance_rows[1] = (sheetRow_t){"hfoo", hfoo_balance_fields, &test_balance_rows[2]};
+    test_balance_rows[2] = (sheetRow_t){"hbar", hbar_balance_fields, NULL};
 
     /* --- UnitData table (collision radius, move type) --- */
     hpea_data_fields[0] = (sheetField_t){"collision", "16",   &hpea_data_fields[1]};
@@ -207,11 +221,24 @@ void setup_test_unit_data(void) {
     hfoo_data_fields[0] = (sheetField_t){"collision", "16",   &hfoo_data_fields[1]};
     hfoo_data_fields[1] = (sheetField_t){"movetp",    "foot", NULL};
 
+    hbar_data_fields[0] = (sheetField_t){"collision", "64",   &hbar_data_fields[1]};
+    hbar_data_fields[1] = (sheetField_t){"movetp",    "",     NULL};
+
     test_data_rows[0] = (sheetRow_t){"hpea", hpea_data_fields, &test_data_rows[1]};
-    test_data_rows[1] = (sheetRow_t){"hfoo", hfoo_data_fields, NULL};
+    test_data_rows[1] = (sheetRow_t){"hfoo", hfoo_data_fields, &test_data_rows[2]};
+    test_data_rows[2] = (sheetRow_t){"hbar", hbar_data_fields, NULL};
+
+    hpea_ui_fields[0] = (sheetField_t){"isbldg", "0", NULL};
+    hfoo_ui_fields[0] = (sheetField_t){"isbldg", "0", NULL};
+    hbar_ui_fields[0] = (sheetField_t){"isbldg", "1", NULL};
+
+    test_ui_rows[0] = (sheetRow_t){"hpea", hpea_ui_fields, &test_ui_rows[1]};
+    test_ui_rows[1] = (sheetRow_t){"hfoo", hfoo_ui_fields, &test_ui_rows[2]};
+    test_ui_rows[2] = (sheetRow_t){"hbar", hbar_ui_fields, NULL};
 
     G_SetConfigTable(UnitsMetaData, "UnitBalance", test_balance_rows);
     G_SetConfigTable(UnitsMetaData, "UnitData",    test_data_rows);
+    G_SetConfigTable(UnitsMetaData, "UnitUI",      test_ui_rows);
 }
 
 /* =======================================================================

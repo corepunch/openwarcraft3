@@ -142,6 +142,9 @@ static DWORD move_collect_selected(LPGAMECLIENT client,
         if (count >= max_units) {
             break;
         }
+        if (UNIT_IS_BUILDING(ent->class_id) || UNIT_SPEED(ent->class_id) <= 0) {
+            continue;
+        }
         units[count++] = ent;
         center->x += ent->s.origin2.x;
         center->y += ent->s.origin2.y;
@@ -246,6 +249,12 @@ BOOL move_selectlocation(LPEDICT clent, LPCVECTOR2 location) {
     BOOL have_confirmation = false;
     DWORD num_units = move_collect_selected(clent->client, units, MAX_SELECTED_ENTITIES, &center);
     FLOAT spacing = move_slot_spacing(units, num_units);
+    LPEDICT route_waypoint;
+
+    if (num_units == 0) {
+        return false;
+    }
+    route_waypoint = Waypoint_add(location);
 
     FOR_LOOP(i, num_units) {
         LPEDICT ent = units[i];
@@ -265,6 +274,7 @@ BOOL move_selectlocation(LPEDICT clent, LPCVECTOR2 location) {
         }
         reserved[i] = (moveSlot_t){ target, ent->collision };
         LPEDICT waypoint = Waypoint_add(&target);
+        waypoint->secondarygoal = route_waypoint;
         if (!have_confirmation) {
             confirmation = target;
             have_confirmation = true;

@@ -168,11 +168,12 @@ BOOL G_BuildCommandButton(LPEDICT ent, LPCSTR code, BOOL research, DWORD level, 
     button->active = (BYTE)FindAbilityIndex(base_code);
     if (!button->art[0]) {
         fprintf(stderr,
-                "G_BuildCommandButton: missing art unit=%.4s code=%s art_code=%s raw_art=%s\n",
+                "G_BuildCommandButton: skipping missing art unit=%.4s code=%s art_code=%s raw_art=%s\n",
                 (char *)&ent->class_id,
                 base_code,
                 art_code ? art_code : "",
                 art ? art : "");
+        return false;
     }
     return true;
 }

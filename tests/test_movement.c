@@ -221,9 +221,37 @@ static void test_group_move_assigns_distinct_reserved_destinations(void) {
     ASSERT_NOT_NULL(a->goalentity);
     ASSERT_NOT_NULL(b->goalentity);
     ASSERT_NOT_NULL(c->goalentity);
+    ASSERT_NOT_NULL(a->goalentity->secondarygoal);
+    ASSERT(a->goalentity->secondarygoal == b->goalentity->secondarygoal);
+    ASSERT(a->goalentity->secondarygoal == c->goalentity->secondarygoal);
     ASSERT(Vector2_distance(&a->goalentity->s.origin2, &b->goalentity->s.origin2) >= 32.0f);
     ASSERT(Vector2_distance(&a->goalentity->s.origin2, &c->goalentity->s.origin2) >= 32.0f);
     ASSERT(Vector2_distance(&b->goalentity->s.origin2, &c->goalentity->s.origin2) >= 32.0f);
+}
+
+static void test_group_move_ignores_selected_buildings(void) {
+    reset_entities();
+    LPEDICT clent = alloc_test_unit(0, 0.0f, 0.0f);
+    clent->client = &game.clients[0];
+
+    LPEDICT building = alloc_test_unit(UNIT_ID("hbar"), 0.0f, 0.0f);
+    LPEDICT peasant = alloc_test_unit(UNIT_ID("hpea"), 20.0f, 0.0f);
+
+    building->collision = 64.0f;
+    building->selected = 1 << clent->client->ps.number;
+    building->stand = unit_stand;
+    unit_stand(building);
+
+    peasant->collision = 16.0f;
+    peasant->selected = 1 << clent->client->ps.number;
+    peasant->stand = unit_stand;
+    unit_stand(peasant);
+
+    VECTOR2 dest = {100.0f, 100.0f};
+    ASSERT(move_selectlocation(clent, &dest));
+
+    ASSERT_NULL(building->goalentity);
+    ASSERT_NOT_NULL(peasant->goalentity);
 }
 
 static void test_blocked_move_stops_instead_of_walking_forever(void) {
@@ -309,6 +337,7 @@ BEGIN_SUITE(movement)
     RUN_TEST(test_unit_position_changes_after_move_frame);
     RUN_TEST(test_unit_does_not_overshoot_goal);
     RUN_TEST(test_group_move_assigns_distinct_reserved_destinations);
+    RUN_TEST(test_group_move_ignores_selected_buildings);
     RUN_TEST(test_blocked_move_stops_instead_of_walking_forever);
     RUN_TEST(test_near_goal_jitter_settles_to_stand);
     RUN_TEST(test_unit_stops_when_goal_is_occupied);

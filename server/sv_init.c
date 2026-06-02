@@ -279,6 +279,14 @@ void SV_Shutdown(void) {
     if (!svs.initialized) {
         return;
     }
+    FOR_LOOP(i, svs.num_clients) {
+        LPCLIENT client = &svs.clients[i];
+        if (client->state == cs_free) {
+            continue;
+        }
+        MSG_WriteByte(&client->netchan.message, svc_disconnect);
+        Netchan_Transmit(NS_SERVER, &client->netchan);
+    }
     SAFE_DELETE(sv.baselines, MemFree);
     SAFE_DELETE(svs.client_entities, MemFree);
     svs.num_clients = 0;

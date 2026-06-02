@@ -172,6 +172,11 @@ static void UI_MenuQuit_f(void) {
     MainMenu_ShowQuitConfirm();
 }
 
+static void UI_MenuDisconnected_f(void) {
+    UI_SetScreen(&mainMenuScreen);
+    MainMenu_ShowDisconnected();
+}
+
 static void UI_MenuRealmSelect_f(void) {
     UI_SetScreen(&mainMenuScreen);
     MainMenu_ShowRealmSelect();
@@ -238,6 +243,7 @@ static uiMenuCommandDef_t const ui_menu_command_defs[] = {
     { "menu_joinserver", UI_MenuJoinServer_f },
     { "menu_credits", UI_MenuCredits_f },
     { "menu_quit", UI_MenuQuit_f },
+    { "menu_disconnected", UI_MenuDisconnected_f },
     { "menu_realm_select", UI_MenuRealmSelect_f },
     { "menu_options_gameplay", UI_MenuOptionsGameplay_f },
     { "menu_options_sound", UI_MenuOptionsSound_f },
