@@ -580,6 +580,8 @@ static void Wow_Shutdown(void) {
     globals.num_edicts = 0;
 }
 
+static void Wow_SpawnEntities(void);
+
 static bool Wow_LoadMap(LPCSTR mapFilename) {
     if (!CM_LoadMap(mapFilename)) {
         return false;
@@ -587,6 +589,10 @@ static bool Wow_LoadMap(LPCSTR mapFilename) {
     if (gi.ApplyLobbySettings) {
         gi.ApplyLobbySettings((LPMAPINFO)CM_GetMapInfo());
     }
+    if (gi.ClearWorld) {
+        gi.ClearWorld();
+    }
+    Wow_SpawnEntities();
     return true;
 }
 
@@ -729,7 +735,6 @@ struct game_export *GetGameAPI(struct game_import *import) {
 
     globals.Init = Wow_Init;
     globals.Shutdown = Wow_Shutdown;
-    globals.SpawnEntities = Wow_SpawnEntities;
     globals.RunFrame = Wow_RunFrame;
     globals.GetThemeValue = Wow_GetThemeValue;
     globals.ClientCommand = Wow_ClientCommand;

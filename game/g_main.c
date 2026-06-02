@@ -7,7 +7,7 @@
  *
  * Key callbacks:
  *   Init        — allocates entity pool, loads config/unit data tables.
- *   SpawnEntities — loads a map and spawns all its entities.
+ *   LoadMap     — loads a map and spawns all its entities.
  *   RunFrame    — called once per server frame; runs events, client camera
  *                 interpolation, entity physics/AI, and collision resolution.
  *   ClientBegin — called when a client finishes connecting; sends the initial
@@ -40,6 +40,10 @@ static bool G_LoadMap(LPCSTR mapFilename) {
     if (gi.ApplyLobbySettings) {
         gi.ApplyLobbySettings((LPMAPINFO)CM_GetMapInfo());
     }
+    if (gi.ClearWorld) {
+        gi.ClearWorld();
+    }
+    G_SpawnEntities();
     return true;
 }
 
@@ -382,7 +386,6 @@ struct game_export *GetGameAPI(struct game_import *import) {
     ));
     globals.Init = G_InitGame;
     globals.Shutdown = G_ShutdownGame;
-    globals.SpawnEntities = G_SpawnEntities;
     globals.RunFrame = G_RunFrame;
     globals.ClientCommand = G_ClientCommand;
     globals.ClientSetCameraPosition = G_ClientSetCameraPosition;

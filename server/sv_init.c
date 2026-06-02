@@ -197,9 +197,7 @@ void SV_Map(LPCSTR mapFilename) {
     if (!had_lobby) {
         memset(&svs.lobby, 0, sizeof(svs.lobby));
     }
-    SV_ClearWorld();
     SV_CreateBaseline();
-    ge->SpawnEntities();
 //    SV_LoadModels(); // model animation data is loaded lazily by game modules now
     sv.state = ss_game;
     // Keep lobby clients connected through the immediate game start.

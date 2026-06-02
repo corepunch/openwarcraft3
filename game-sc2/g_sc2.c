@@ -22,6 +22,8 @@ static void SC2_Shutdown(void) {
     G_FreeModels();
 }
 
+static void SC2_SpawnEntities(void);
+
 static bool SC2_LoadMap(LPCSTR mapFilename) {
     if (!CM_LoadMap(mapFilename)) {
         return false;
@@ -29,6 +31,10 @@ static bool SC2_LoadMap(LPCSTR mapFilename) {
     if (gi.ApplyLobbySettings) {
         gi.ApplyLobbySettings((LPMAPINFO)CM_GetMapInfo());
     }
+    if (gi.ClearWorld) {
+        gi.ClearWorld();
+    }
+    SC2_SpawnEntities();
     return true;
 }
 
@@ -66,7 +72,6 @@ struct game_export *GetGameAPI(struct game_import *import) {
 
     globals.Init                  = SC2_Init;
     globals.Shutdown              = SC2_Shutdown;
-    globals.SpawnEntities         = SC2_SpawnEntities;
     globals.RunFrame              = SC2_RunFrame;
     globals.ClientBegin           = SC2_ClientBegin;
     globals.ClientCommand         = SC2_ClientCommand;
