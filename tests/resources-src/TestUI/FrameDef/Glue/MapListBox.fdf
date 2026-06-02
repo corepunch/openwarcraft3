@@ -1,0 +1,3 @@
+Frame "FRAME" "MapListBox" {
+    Frame "SCROLLBAR" "MapListScrollBar" {}
+}

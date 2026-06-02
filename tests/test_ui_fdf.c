@@ -1542,7 +1542,7 @@ static void test_single_player_campaign_profile(BOOL tft) {
         "UI\\FrameDef\\Glue\\StandardTemplates.fdf",
         "UI\\FrameDef\\Glue\\SinglePlayerMenu.fdf",
         "UI\\FrameDef\\Glue\\CampaignMenu.fdf",
-        "UI\\FrameDef\\Glue\\CampaignListBox.fdf",
+        "UI\\FrameDef\\Glue\\MapListBox.fdf",
     };
     uiImport_t saved = uiimport;
     LPFRAMEDEF root;
@@ -1593,7 +1593,7 @@ static void test_single_player_campaign_profile(BOOL tft) {
     SinglePlayerMenu_ShowCampaign();
     campaign_select_frame = UI_FindFrame("CampaignSelectFrame");
     campaign_list_box = campaign_select_frame
-        ? UI_FindChildFrame(campaign_select_frame, "CampaignListBox")
+        ? UI_FindChildFrame(campaign_select_frame, "MapListBox")
         : NULL;
 
     if (!require_not_null(campaign_list_box)) {
