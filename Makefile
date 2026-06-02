@@ -388,7 +388,7 @@ test-assets: blpgen mdxgen mpqtool mdxtool | $(TESTS_DIR)
 		$(TESTS_SRC_DIR)/TestUI/FrameDef/Glue/MainMenu.fdf       UI/FrameDef/Glue/MainMenu.fdf \
 		$(TESTS_SRC_DIR)/TestUI/FrameDef/Glue/SinglePlayerMenu.fdf UI/FrameDef/Glue/SinglePlayerMenu.fdf \
 		$(TESTS_SRC_DIR)/TestUI/FrameDef/Glue/CampaignMenu.fdf   UI/FrameDef/Glue/CampaignMenu.fdf \
-		$(TESTS_SRC_DIR)/TestUI/FrameDef/Glue/CampaignListBox.fdf UI/FrameDef/Glue/CampaignListBox.fdf \
+		$(TESTS_SRC_DIR)/TestUI/FrameDef/Glue/MapListBox.fdf     UI/FrameDef/Glue/MapListBox.fdf \
 		$(TESTS_SRC_DIR)/TestUI/CampaignStrings.txt              UI/CampaignStrings.txt \
 		$(TESTS_SRC_DIR)/TestUI/CampaignStrings_exp.txt          UI/CampaignStrings_exp.txt \
 		$(TESTS_SRC_DIR)/TestUI/FrameDef/Glue/OptionsMenu.fdf    UI/FrameDef/Glue/OptionsMenu.fdf \

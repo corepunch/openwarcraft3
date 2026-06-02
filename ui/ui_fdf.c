@@ -1410,11 +1410,9 @@ BOOL UI_EnsureFDF(LPCSTR fileName) {
     BOOL loaded = false;
 
     if (UI_FDFLoaded(fileName)) {
-        fprintf(stderr, "UI_EnsureFDF: already loaded %s\n", fileName);
         return true;
     }
 
-    fprintf(stderr, "UI_EnsureFDF: loading %s\n", fileName);
     int size = uiimport.FS_ReadFile(fileName, &buffer);
     if (size >= 0 && buffer) {
         LPSTR text = uiimport.MemAlloc((DWORD)size + 1);
@@ -1425,13 +1423,8 @@ BOOL UI_EnsureFDF(LPCSTR fileName) {
             uiimport.MemFree(text);
             UI_MarkFDFLoaded(fileName);
             loaded = true;
-            fprintf(stderr, "UI_EnsureFDF: loaded %s (%d bytes)\n", fileName, size);
-        } else {
-            fprintf(stderr, "UI_EnsureFDF: allocation failed for %s (%d bytes)\n", fileName, size);
         }
         uiimport.FS_FreeFile(buffer);
-    } else {
-        fprintf(stderr, "UI_EnsureFDF: failed to read %s\n", fileName);
     }
     return loaded;
 }

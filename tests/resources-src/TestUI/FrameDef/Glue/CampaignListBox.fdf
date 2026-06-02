@@ -1,3 +1,0 @@
-Frame "FRAME" "CampaignListBox" {
-    Frame "SCROLLBAR" "CampaignListScrollBar" {}
-}

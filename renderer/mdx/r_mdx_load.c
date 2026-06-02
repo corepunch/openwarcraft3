@@ -114,7 +114,7 @@ DWORD R_ModelFindBiggestGroup(mdxGeoset_t const *geoset) {
     return biggest;
 }
 
-static BYTE R_AddGeosetMatrixPaletteEntry(mdxGeoset_t *geoset, int matrix_id) {
+static BYTE R_AddGeosetMatrixPaletteEntry(mdxGeoset_t *geoset, int matrix_id, DWORD *overflow_count, int *overflow_first) {
     if (matrix_id < 0) {
         matrix_id = 0;
     }
@@ -124,10 +124,9 @@ static BYTE R_AddGeosetMatrixPaletteEntry(mdxGeoset_t *geoset, int matrix_id) {
         }
     }
     if (geoset->num_matrixPalette >= MDX_MATRIX_PALETTE) {
-        fprintf(stderr,
-                "MDX geoset uses more than %d unique matrices; falling back to palette slot 0 for node %d\n",
-                MDX_MATRIX_PALETTE,
-                matrix_id);
+        if (!*overflow_count)
+            *overflow_first = matrix_id;
+        (*overflow_count)++;
         return 0;
     }
     geoset->matrixPalette[geoset->num_matrixPalette] = matrix_id;
@@ -148,13 +147,15 @@ void R_SetupGeosetVertexBuffer(mdxGeoset_t *geoset) {
         : 1;
     matrixGroup_t *matrixGroups = ri.MemAlloc(sizeof(matrixGroup_t) * matrixGroupCount);
     DWORD indexOffset = 0;
+    DWORD paletteOverflowCount = 0;
+    int paletteOverflowFirst = 0;
     geoset->matrixPalette = ri.MemAlloc(sizeof(*geoset->matrixPalette) * MDX_MATRIX_PALETTE);
     geoset->num_matrixPalette = 0;
 
     FOR_LOOP(matrixGroupIndex, matrixGroupCount) {
         memset(&matrixGroups[matrixGroupIndex], 0x00, sizeof(matrixGroup_t));
         if (matrixGroupCount == 1 && (!geoset->matrixGroupSizes || !geoset->matrices || geoset->num_matrixGroupSizes <= 0)) {
-            matrixGroups[matrixGroupIndex][0] = R_AddGeosetMatrixPaletteEntry(geoset, 0);
+            matrixGroups[matrixGroupIndex][0] = R_AddGeosetMatrixPaletteEntry(geoset, 0, &paletteOverflowCount, &paletteOverflowFirst);
             continue;
         }
         DWORD groupSize = geoset->matrixGroupSizes[matrixGroupIndex];
@@ -168,8 +169,15 @@ void R_SetupGeosetVertexBuffer(mdxGeoset_t *geoset) {
         }
         FOR_LOOP(matrixIndex, groupSize) {
             int matrix_id = geoset->matrices[indexOffset++];
-            matrixGroups[matrixGroupIndex][matrixIndex] = R_AddGeosetMatrixPaletteEntry(geoset, matrix_id);
+            matrixGroups[matrixGroupIndex][matrixIndex] = R_AddGeosetMatrixPaletteEntry(geoset, matrix_id, &paletteOverflowCount, &paletteOverflowFirst);
         }
+    }
+    if (paletteOverflowCount) {
+        fprintf(stderr,
+                "MDX geoset uses more than %d unique matrices; %u matrix refs fell back to palette slot 0 (first node %d)\n",
+                MDX_MATRIX_PALETTE,
+                paletteOverflowCount,
+                paletteOverflowFirst);
     }
 
     FOR_LOOP(vertex, geoset->num_vertices) {

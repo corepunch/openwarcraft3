@@ -47,7 +47,7 @@ static singlePlayerView_t current_view = SINGLE_PLAYER_VIEW_MAIN;
 
 static BOOL SinglePlayerMenu_LoadScreen(void) {
     if (SinglePlayerMenu_Load(&single_player)) {
-        UI_EnsureFDF("UI\\FrameDef\\Glue\\CampaignListBox.fdf");
+        UI_EnsureFDF("UI\\FrameDef\\Glue\\MapListBox.fdf");
         return true;
     }
     return false;
@@ -460,7 +460,7 @@ static void SinglePlayer_CreateCampaignList(void) {
         return;
     }
 
-    template_frame = UI_FindFrame("CampaignListBox");
+    template_frame = UI_FindFrame("MapListBox");
     if (!template_frame) {
         return;
     }
