@@ -59,6 +59,7 @@ void OptionsMenu_Apply(void);
 void SinglePlayerMenu_ShowMain(void);
 void SinglePlayerMenu_ShowCampaign(void);
 void SinglePlayerMenu_LaunchCampaign(LPCSTR name);
+void SinglePlayerMenu_LaunchCampaignIndex(DWORD index);
 
 void LAN_ShowCreate(void);
 void LAN_ShowBrowser(void);

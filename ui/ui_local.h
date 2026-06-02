@@ -12,6 +12,8 @@
 #ifndef ui_local_h
 #define ui_local_h
 
+#include <stdio.h>
+
 #include "ui.h"
 #include "../common/shared.h"  /* For PLAYERSTATE/PLAYERTEXT enums */
 
@@ -396,7 +398,10 @@ LPFRAMEDEF UI_CloneFrameTree(LPCFRAMEDEF source, LPFRAMEDEF parent);
 
 #ifndef BZ_FDF_REPORT_MISSING
 #define BZ_FDF_REPORT_MISSING(NAME) \
-    do { if (uiimport.Printf) uiimport.Printf("ERROR: missing FDF binding: %s\n", (NAME)); } while (0)
+    do { \
+        fprintf(stderr, "ERROR: missing FDF binding: %s\n", (NAME)); \
+        if (uiimport.Printf) uiimport.Printf("ERROR: missing FDF binding: %s\n", (NAME)); \
+    } while (0)
 #endif
 
 #ifndef BZ_FDF_BIND_ROOT

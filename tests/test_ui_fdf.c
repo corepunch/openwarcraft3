@@ -25,6 +25,7 @@ static DWORD captured_hover_draws;
 static RECT captured_text_rects[8];
 static VECTOR2 fake_text_size;
 static HANDLE test_mpq_archive;
+static BOOL hide_expansion_campaign_file;
 
 static int fake_image_index(LPCSTR name) {
     captured_image_path = name;
@@ -64,6 +65,12 @@ static int test_fs_read_file(LPCSTR file_name, void **buf) {
 
     if (!test_mpq_archive &&
         !SFileOpenArchive("build/tests/tests.mpq", 0, 0, &test_mpq_archive)) {
+        return -1;
+    }
+
+    if (hide_expansion_campaign_file &&
+        file_name &&
+        !strcasecmp(file_name, "UI\\CampaignStrings_exp.txt")) {
         return -1;
     }
 
@@ -1529,6 +1536,101 @@ static void test_main_menu_quit_dialog_commands_quit(void) {
     uiimport = saved;
 }
 
+static void test_single_player_campaign_profile(BOOL tft) {
+    LPCSTR files[] = {
+        "UI\\FrameDef\\GlobalStrings.fdf",
+        "UI\\FrameDef\\Glue\\StandardTemplates.fdf",
+        "UI\\FrameDef\\Glue\\SinglePlayerMenu.fdf",
+        "UI\\FrameDef\\Glue\\CampaignMenu.fdf",
+        "UI\\FrameDef\\Glue\\CampaignListBox.fdf",
+    };
+    uiImport_t saved = uiimport;
+    LPFRAMEDEF root;
+    LPFRAMEDEF campaign_button;
+    LPFRAMEDEF cancel_button;
+    LPFRAMEDEF campaign_select_frame;
+    LPFRAMEDEF campaign_list_box;
+
+    hide_expansion_campaign_file = !tft;
+    load_ui_files(files, sizeof(files) / sizeof(files[0]));
+
+    memset(&uiimport, 0, sizeof(uiimport));
+    uiimport.Printf = test_ui_printf;
+    uiimport.GetRenderer = test_get_renderer;
+    uiimport.Cmd_ExecuteText = test_cmd_execute_text;
+    uiimport.FS_ReadFile = test_fs_read_file;
+    uiimport.FS_FreeFile = test_fs_free_file;
+    uiimport.MemAlloc = test_ui_mem_alloc;
+    uiimport.MemFree = test_ui_mem_free;
+
+    if (!singlePlayerMenuScreen.load()) {
+        ASSERT(false);
+        uiimport = saved;
+        return;
+    }
+    singlePlayerMenuScreen.init();
+
+    root = UI_FindFrame("SinglePlayerMenu");
+    campaign_button = UI_FindFrame("CampaignButton");
+    cancel_button = UI_FindFrame("CancelButton");
+
+    if (!require_not_null(root)) {
+        uiimport = saved;
+        return;
+    }
+    if (!require_not_null(campaign_button)) {
+        uiimport = saved;
+        return;
+    }
+    if (!require_not_null(cancel_button)) {
+        uiimport = saved;
+        return;
+    }
+    ASSERT(!root->hidden);
+    ASSERT_STR_EQ(campaign_button->OnClick, "menu_single_player_campaign");
+    ASSERT_STR_EQ(cancel_button->OnClick, "menu_main");
+
+    SinglePlayerMenu_ShowCampaign();
+    campaign_select_frame = UI_FindFrame("CampaignSelectFrame");
+    campaign_list_box = campaign_select_frame
+        ? UI_FindChildFrame(campaign_select_frame, "CampaignListBox")
+        : NULL;
+
+    if (!require_not_null(campaign_list_box)) {
+        uiimport = saved;
+        return;
+    }
+    ASSERT(!campaign_list_box->hidden);
+    ASSERT(campaign_list_box->MapListControl.State != NULL);
+    ASSERT_EQ_INT((int)campaign_list_box->MapListControl.State->count, 4);
+    ASSERT_STR_EQ(campaign_list_box->MapListControl.State->items[0].name,
+                  tft
+                      ? "Sentinels Campaign: Terror of the Tides"
+                      : "Human Campaign: The Scourge of Lordaeron");
+    ASSERT_STR_EQ(campaign_list_box->MapListControl.State->items[1].path,
+                  tft ? "Human" : "Undead");
+    ASSERT_STR_EQ(campaign_list_box->MapListControl.SelectCommand,
+                  "menu_single_player_campaign_select %u");
+
+    captured_command[0] = '\0';
+    SinglePlayerMenu_LaunchCampaignIndex(tft ? 1 : 0);
+    ASSERT_STR_EQ(captured_command,
+                  tft
+                      ? "map \"Maps\\FrozenThrone\\Campaign\\HumanX01.w3x\""
+                      : "map \"Maps\\Campaign\\Human01.w3m\"");
+
+    hide_expansion_campaign_file = false;
+    uiimport = saved;
+}
+
+static void test_single_player_screen_loads_roc_campaigns(void) {
+    test_single_player_campaign_profile(false);
+}
+
+static void test_single_player_screen_loads_tft_campaigns(void) {
+    test_single_player_campaign_profile(true);
+}
+
 BEGIN_SUITE(ui_fdf)
     RUN_TEST(test_parse_single_frame_definition);
     RUN_TEST(test_parse_nested_parent_child_relationship);
@@ -1577,4 +1679,6 @@ BEGIN_SUITE(ui_fdf)
     RUN_TEST(test_options_game_port_enter_applies_and_blurs);
     RUN_TEST(test_dialog_war3_supports_configurable_button_modes);
     RUN_TEST(test_main_menu_quit_dialog_commands_quit);
+    RUN_TEST(test_single_player_screen_loads_roc_campaigns);
+    RUN_TEST(test_single_player_screen_loads_tft_campaigns);
 END_SUITE()

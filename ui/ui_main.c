@@ -3,6 +3,7 @@
  */
 
 #include <stdlib.h>
+#include <stdio.h>
 
 #include "ui_local.h"
 #include "ui_screen.h"
@@ -62,22 +63,49 @@ typedef struct {
 static uiLoadingState_t loading_state;
 
 static void UI_SetScreen(uiScreen_t *screen) {
+    uiScreen_t *previous_screen = ui_current_screen;
+
     if (ui_current_screen == screen) {
+        fprintf(stderr,
+                "UI_SetScreen: already on screen '%s'\n",
+                screen ? screen->name : "(null)");
         return;
     }
-    if (ui_current_screen && ui_current_screen->shutdown) {
-        ui_current_screen->shutdown();
-    }
-    ui_current_screen = NULL;
+
+    fprintf(stderr,
+            "UI_SetScreen: %s -> %s\n",
+            ui_current_screen ? ui_current_screen->name : "(null)",
+            screen ? screen->name : "(null)");
+
     if (!screen) {
+        if (ui_current_screen && ui_current_screen->shutdown) {
+            fprintf(stderr,
+                    "UI_SetScreen: shutting down screen '%s'\n",
+                    ui_current_screen->name);
+            ui_current_screen->shutdown();
+        }
+        ui_current_screen = NULL;
         return;
     }
     if (screen->load && !screen->load()) {
-        uiimport.Printf("UI_SetScreen: failed to load screen '%s'\n", screen->name);
+        fprintf(stderr,
+                "UI_SetScreen: failed to load screen '%s', keeping '%s'\n",
+                screen->name,
+                previous_screen ? previous_screen->name : "(null)");
+        if (uiimport.Printf) {
+            uiimport.Printf("UI_SetScreen: failed to load screen '%s'\n", screen->name);
+        }
         return;
+    }
+    if (ui_current_screen && ui_current_screen->shutdown) {
+        fprintf(stderr,
+                "UI_SetScreen: shutting down screen '%s'\n",
+                ui_current_screen->name);
+        ui_current_screen->shutdown();
     }
     ui_current_screen = screen;
     if (screen->init) {
+        fprintf(stderr, "UI_SetScreen: initializing screen '%s'\n", screen->name);
         screen->init();
     }
 }
@@ -854,6 +882,10 @@ void UI_MenuCommandLocal(LPCSTR command) {
     }
     if (!strcmp(command, "menu_single_player_campaign_tutorial")) {
         SinglePlayerMenu_LaunchCampaign("tutorial");
+        return;
+    }
+    if (sscanf(command, "menu_single_player_campaign_select %u", &value) == 1) {
+        SinglePlayerMenu_LaunchCampaignIndex(value);
         return;
     }
     if (sscanf(command, "menu_single_player_difficulty %u", &value) == 1) {

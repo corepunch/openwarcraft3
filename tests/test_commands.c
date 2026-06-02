@@ -106,6 +106,26 @@ static void test_data_command_line_sets_data_cvar(void) {
     ASSERT_STR_EQ(Cvar_String("data", NULL), "tests/data dir");
 }
 
+static void test_tft_command_line_enables_expansion_archives(void) {
+    LPCSTR argv[] = { "test_commands", "-tft" };
+
+    setup_command_tests();
+    Cvar_Set("fs_expansion", "0");
+    Cvar_ApplyCommandLine(2, argv);
+
+    ASSERT_STR_EQ(Cvar_String("fs_expansion", NULL), "1");
+}
+
+static void test_roc_command_line_disables_expansion_archives(void) {
+    LPCSTR argv[] = { "test_commands", "-roc" };
+
+    setup_command_tests();
+    Cvar_Set("fs_expansion", "1");
+    Cvar_ApplyCommandLine(2, argv);
+
+    ASSERT_STR_EQ(Cvar_String("fs_expansion", NULL), "0");
+}
+
 static void test_dash_cvars_are_not_command_line_cvars(void) {
     LPCSTR argv[] = { "test_commands", "-r_module=stdout" };
 
@@ -249,6 +269,8 @@ void run_command_tests(void) {
     RUN_TEST(test_command_registration);
     RUN_TEST(test_command_and_cvar_completion);
     RUN_TEST(test_data_command_line_sets_data_cvar);
+    RUN_TEST(test_tft_command_line_enables_expansion_archives);
+    RUN_TEST(test_roc_command_line_disables_expansion_archives);
     RUN_TEST(test_dash_cvars_are_not_command_line_cvars);
     RUN_TEST(test_plus_cvars_apply_immediately);
     RUN_TEST(test_plus_map_is_early_launch_selector);

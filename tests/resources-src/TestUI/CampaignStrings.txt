@@ -1,0 +1,38 @@
+[Index]
+CampaignList="Human","Undead","Orc","NightElf"
+
+[Human]
+Header="Human Campaign"
+Name="The Scourge of Lordaeron"
+Background="HumanBackdrop"
+Cursor=0
+Entries=1
+Mission0="The Defense of Strahnbrad"
+File0="Human01"
+
+[Undead]
+Header="Undead Campaign"
+Name="Path of the Damned"
+Background="UndeadBackdrop"
+Cursor=2
+Entries=1
+Mission0="Trudging through the Ashes"
+File0="Undead01"
+
+[Orc]
+Header="Orc Campaign"
+Name="The Invasion of Kalimdor"
+Background="OrcBackdrop"
+Cursor=1
+Entries=1
+Mission0="Landfall"
+File0="Orc01"
+
+[NightElf]
+Header="Night Elf Campaign"
+Name="Eternity's End"
+Background="NightElfBackdrop"
+Cursor=3
+Entries=1
+Mission0="Enemies at the Gate"
+File0="NightElf01"

@@ -355,6 +355,14 @@ static bool Cvar_ApplyDashArg(int argc, LPCSTR *argv, int *index, LPCSTR name) {
     return false;
 }
 
+static bool Cvar_ApplyDashFlag(LPCSTR arg, LPCSTR name, LPCSTR cvar, LPCSTR value) {
+    if (!arg || arg[0] != '-' || strcmp(arg + 1, name)) {
+        return false;
+    }
+    Cvar_Set(cvar, value);
+    return true;
+}
+
 void Cvar_ApplyConfigCommandLine(int argc, LPCSTR *argv) {
     for (int i = 1; i < argc; i++) {
         LPCSTR arg = argv[i];
@@ -381,6 +389,12 @@ void Cvar_ApplyCommandLine(int argc, LPCSTR *argv) {
         if (Cvar_ApplyDashArg(argc, argv, &i, "data")) {
             continue;
         }
+        if (Cvar_ApplyDashFlag(arg, "tft", "fs_expansion", "1")) {
+            continue;
+        }
+        if (Cvar_ApplyDashFlag(arg, "roc", "fs_expansion", "0")) {
+            continue;
+        }
     }
 }
 
@@ -397,6 +411,7 @@ void Cvar_Init(void) {
     Cvar_Get("config", "share/openwarcraft3-config.cfg", CVAR_ARCHIVE);
 #endif
     Cvar_Get("data", "", CVAR_ARCHIVE);
+    Cvar_Get("fs_expansion", "0", 0);
     Cvar_Get("map", "", 0);
     Cvar_Get("connect", "", 0);
     Cvar_Get("r_module", "renderer", CVAR_ARCHIVE);

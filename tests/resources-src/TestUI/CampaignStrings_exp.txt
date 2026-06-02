@@ -1,0 +1,30 @@
+[Index]
+CampaignList="","","","","NightElf","Human","Undead","","Orc"
+
+[NightElf]
+Header="Sentinels Campaign"
+Name="Terror of the Tides"
+Background="NightElfBackdrop"
+Cursor=3
+Mission0="Chapter One","Rise of the Naga","Maps\FrozenThrone\Campaign\NightElfX01.w3x"
+
+[Human]
+Header="Alliance Campaign"
+Name="Curse of the Blood Elves"
+Background="HumanBackdrop"
+Cursor=0
+Mission0="Chapter One","Misconceptions","Maps\FrozenThrone\Campaign\HumanX01.w3x"
+
+[Undead]
+Header="Scourge Campaign"
+Name="Legacy of the Damned"
+Background="UndeadBackdrop"
+Cursor=2
+Mission0="Chapter One","King Arthas","Maps\FrozenThrone\Campaign\UndeadX01.w3x"
+
+[Orc]
+Header="Bonus Campaign"
+Name="The Founding of Durotar"
+Background="OrcBackdrop"
+Cursor=1
+Mission0="Chapter One","To Tame a Land","Maps\FrozenThrone\Campaign\OrcX01.w3x"

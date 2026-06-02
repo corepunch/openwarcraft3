@@ -1,0 +1,19 @@
+Frame "FRAME" "CampaignMenu" {
+    Frame "SPRITE" "CampaignBackdrop" {}
+    Frame "SPRITE" "SlidingDoors" {}
+    Frame "BUTTON" "BackButton" {
+        Frame "TEXT" "BackButtonText" {}
+    }
+    Frame "FRAME" "MissionSelectFrame" {
+        Frame "TEXT" "MissionName" {}
+        Frame "TEXT" "MissionNameHeader" {}
+    }
+    Frame "FRAME" "CampaignSelectFrame" {
+        Frame "SPRITE" "WarCraftIIILogo" {}
+        Frame "BACKDROP" "CampaignDifficultyBackdrop" {
+            Frame "POPUPMENU" "DifficultySelect" {}
+            Frame "TEXT" "DifficultySelectLabel" {}
+            Frame "TEXT" "DifficultyDescriptionText" {}
+        }
+    }
+}

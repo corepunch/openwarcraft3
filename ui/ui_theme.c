@@ -18,15 +18,9 @@ static themeEntry_t theme_entries[MAX_THEME_ENTRIES];
 static DWORD theme_count = 0;
 
 static char *UI_ThemeTrim(char *text) {
-    char *end;
-
-    while (*text && isspace((unsigned char)*text)) {
-        text++;
-    }
-    end = text + strlen(text);
-    while (end > text && isspace((unsigned char)end[-1])) {
+    text += strspn(text, " \t\r\n");
+    for (char *end = text + strlen(text); end > text && isspace((unsigned char)end[-1]); )
         *--end = '\0';
-    }
     return text;
 }
 

@@ -1,0 +1,66 @@
+Frame "FRAME" "SinglePlayerMenu" {
+    Frame "FRAME" "ProfilePanel" {
+        Frame "TEXT" "SinglePlayerProfileText" {}
+        Frame "TEXT" "ProfileMessage" {}
+        Frame "TEXT" "ProfileAddText" {}
+        Frame "EDITBOX" "NewProfileEditBox" {
+            Frame "TEXT" "NewProfileEditBoxText" {}
+        }
+        Frame "BACKDROP" "AddProfileBackdrop" {
+            Frame "BUTTON" "AddProfileButton" {
+                Frame "TEXT" "AddProfileButtonText" {}
+            }
+        }
+        Frame "TEXT" "ProfileListText" {}
+        Frame "FRAME" "ProfileListContainer" {}
+        Frame "BACKDROP" "DeleteProfileBackdrop" {
+            Frame "BUTTON" "DeleteProfileButton" {
+                Frame "TEXT" "DeleteProfileButtonText" {}
+            }
+        }
+        Frame "BACKDROP" "SelectProfileBackdrop" {
+            Frame "BUTTON" "SelectProfileButton" {
+                Frame "TEXT" "SelectProfileButtonText" {}
+            }
+        }
+    }
+
+    Frame "FRAME" "CancelPanel" {
+        Frame "BACKDROP" "CancelBackdrop" {
+            Frame "BUTTON" "CancelButton" {
+                Frame "TEXT" "CancelButtonText" {}
+            }
+        }
+    }
+
+    Frame "FRAME" "MainPanel" {
+        Frame "BACKDROP" "CampaignBackdrop" {
+            Frame "BUTTON" "CampaignButton" {
+                Frame "TEXT" "CampaignButtonText" {}
+            }
+        }
+        Frame "BACKDROP" "LoadSavedBackdrop" {
+            Frame "BUTTON" "LoadSavedButton" {
+                Frame "TEXT" "LoadSavedButtonText" {}
+            }
+        }
+        Frame "BACKDROP" "ViewReplayBackdrop" {
+            Frame "BUTTON" "ViewReplayButton" {
+                Frame "TEXT" "ViewReplayButtonText" {}
+            }
+        }
+        Frame "BACKDROP" "SkirmishBackdrop" {
+            Frame "BUTTON" "SkirmishButton" {
+                Frame "TEXT" "SkirmishButtonText" {}
+            }
+        }
+        Frame "TEXT" "ProfileNameText" {}
+        Frame "BACKDROP" "ProfileButtonBackdrop" {
+            Frame "BUTTON" "ProfileButton" {
+                Frame "BACKDROP" "RealmButtonBackdropTemplate" {}
+                Frame "BACKDROP" "RealmButtonPushedBackdropTemplate" {}
+                Frame "BACKDROP" "RealmButtonDisabledBackdropTemplate" {}
+            }
+        }
+    }
+}
