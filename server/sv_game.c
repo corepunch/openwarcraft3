@@ -156,6 +156,7 @@ void SV_InitGameProgs(void) {
     import.UnlinkEntity = SV_UnlinkEntity;
     import.BoxEdicts = SV_AreaEdicts;
     import.MenuAction = MenuAction;
+    import.ClearWorld = SV_ClearWorld;
     import.configstring = PF_Configstring;
     import.confignstring = PF_Confignstring;
     import.Write = PF_Write;

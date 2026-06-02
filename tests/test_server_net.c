@@ -81,6 +81,7 @@ static void reset_test_gi(void) {
     gi.ModelIndex = test_model_index;
     gi.ImageIndex = test_image_index;
     gi.FontIndex = test_font_index;
+    gi.ClearWorld = SV_ClearWorld;
     gi.ApplyLobbySettings = SV_ApplyLobbySettings;
 }
 
@@ -101,11 +102,15 @@ static struct game_export test_ge;
 static edict_t test_edicts[MAX_CLIENT_ENTITIES];
 static DWORD test_game_shutdowns;
 
+static void test_spawn_entities(void);
+
 static bool test_load_map(LPCSTR mapFilename) {
     if (!CM_LoadMap(mapFilename)) {
         return false;
     }
     SV_ApplyLobbySettings((LPMAPINFO)CM_GetMapInfo());
+    SV_ClearWorld();
+    test_spawn_entities();
     return true;
 }
 
@@ -129,7 +134,6 @@ static void reset_server_state(int max_players) {
     test_ge.edict_size = sizeof(edict_t);
     test_ge.edicts = test_edicts;
     test_ge.num_edicts = max_players;
-    test_ge.SpawnEntities = test_spawn_entities;
     test_ge.RunFrame = test_run_frame;
     test_ge.GetThemeValue = test_theme_value;
     test_ge.LoadMap = test_load_map;

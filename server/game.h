@@ -48,6 +48,7 @@ struct game_import {
     void (*UnlinkEntity)(LPEDICT ent);
     DWORD (*BoxEdicts)(LPCBOX2 area, LPEDICT *list, DWORD maxcount, BOOL (*pred)(LPCEDICT));
     void (*MenuAction)(LPCSTR action, LPCSTR arg);
+    void (*ClearWorld)(void);
     HANDLE (*ReadFile)(LPCSTR filename, LPDWORD size);
     DWORD (*GetTime)(void);
     void (*multicast)(LPCVECTOR3 origin, multicast_t to);
@@ -95,7 +96,6 @@ typedef struct {
 struct game_export {
     void (*Init)(void);
     void (*Shutdown)(void);
-    void (*SpawnEntities)(void);
     void (*RunFrame)(void);
     LPCSTR (*GetThemeValue)(LPCSTR filename);
     void (*ClientCommand)(LPEDICT ent, DWORD argc, LPCSTR argv[]);
