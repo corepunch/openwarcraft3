@@ -57,6 +57,7 @@ struct game_import {
     void (*configstring)(DWORD index, LPCSTR string);
     void (*confignstring)(DWORD index, LPCSTR string, DWORD len);
     void (*error)(LPCSTR fmt, ...);
+    void (*ApplyLobbySettings)(LPMAPINFO info);
 
     /* Cvar access — allows the game library to read command-line/config values
      * without linking directly against common.  Returns fallback if not set. */
@@ -94,7 +95,7 @@ typedef struct {
 struct game_export {
     void (*Init)(void);
     void (*Shutdown)(void);
-    void (*SpawnEntities)(LPCMAPINFO mapinfo, LPCDOODAD doodads);
+    void (*SpawnEntities)(void);
     void (*RunFrame)(void);
     LPCSTR (*GetThemeValue)(LPCSTR filename);
     void (*ClientCommand)(LPEDICT ent, DWORD argc, LPCSTR argv[]);
@@ -102,14 +103,6 @@ struct game_export {
     void (*ClientBegin)(LPEDICT ent);
     BOOL (*CanSeeEntity)(DWORD player, LPCEDICT ent);
     bool (*LoadMap)(LPCSTR mapFilename);
-    LPCMAPINFO (*GetMapInfo)(void);
-    LPDOODAD (*GetDoodads)(void);
-    DWORD (*GetLocalPlayerNumber)(void);
-    void (*BakeStaticObstacles)(void);
-    DWORD (*BuildHeatmap)(LPEDICT goalentity);
-    BOOL (*ClosestPathablePointForRadius)(LPCVECTOR2 location, FLOAT radius, LPVECTOR2 out);
-    VECTOR2 (*GetFlowDirection)(DWORD heatmapindex, FLOAT fx, FLOAT fy);
-    FLOAT (*GetHeightAtPoint)(FLOAT x, FLOAT y);
     BOX2 (*GetWorldBounds)(void);
     
     edict_t *edicts;

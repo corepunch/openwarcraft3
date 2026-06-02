@@ -24,7 +24,6 @@ bool CM_LoadMap(LPCSTR mapFilename) { (void)mapFilename; return true; }
 LPDOODAD CM_GetDoodads(void) { return NULL; }
 static LPMAPINFO test_mapinfo;
 LPCMAPINFO CM_GetMapInfo(void) { return test_mapinfo; }
-DWORD CM_GetLocalPlayerNumber(void) { return 0; }
 FLOAT CM_GetHeightAtPoint(FLOAT x, FLOAT y) { (void)x; (void)y; return 0.0f; }
 VECTOR2 CM_GetNormalizedMapPosition(FLOAT x, FLOAT y) { return (VECTOR2){ x, y }; }
 VECTOR2 CM_GetDenormalizedMapPosition(FLOAT x, FLOAT y) { return (VECTOR2){ x, y }; }
@@ -82,6 +81,7 @@ static void reset_test_gi(void) {
     gi.ModelIndex = test_model_index;
     gi.ImageIndex = test_image_index;
     gi.FontIndex = test_font_index;
+    gi.ApplyLobbySettings = SV_ApplyLobbySettings;
 }
 
 void SV_BuildClientFrame(LPCLIENT client) {
@@ -101,9 +101,15 @@ static struct game_export test_ge;
 static edict_t test_edicts[MAX_CLIENT_ENTITIES];
 static DWORD test_game_shutdowns;
 
-static void test_spawn_entities(LPCMAPINFO mapinfo, LPCDOODAD doodads) {
-    (void)mapinfo;
-    (void)doodads;
+static bool test_load_map(LPCSTR mapFilename) {
+    if (!CM_LoadMap(mapFilename)) {
+        return false;
+    }
+    SV_ApplyLobbySettings((LPMAPINFO)CM_GetMapInfo());
+    return true;
+}
+
+static void test_spawn_entities(void) {
 }
 
 static void test_game_shutdown(void) {
@@ -126,15 +132,7 @@ static void reset_server_state(int max_players) {
     test_ge.SpawnEntities = test_spawn_entities;
     test_ge.RunFrame = test_run_frame;
     test_ge.GetThemeValue = test_theme_value;
-    test_ge.LoadMap = CM_LoadMap;
-    test_ge.GetMapInfo = CM_GetMapInfo;
-    test_ge.GetDoodads = CM_GetDoodads;
-    test_ge.GetLocalPlayerNumber = CM_GetLocalPlayerNumber;
-    test_ge.BakeStaticObstacles = CM_BakeStaticObstacles;
-    test_ge.BuildHeatmap = CM_BuildHeatmap;
-    test_ge.ClosestPathablePointForRadius = CM_ClosestPathablePointForRadius;
-    test_ge.GetFlowDirection = get_flow_direction;
-    test_ge.GetHeightAtPoint = CM_GetHeightAtPoint;
+    test_ge.LoadMap = test_load_map;
     test_ge.GetWorldBounds = CM_GetWorldBounds;
     test_ge.Shutdown = test_game_shutdown;
     ge = &test_ge;

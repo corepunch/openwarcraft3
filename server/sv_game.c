@@ -159,6 +159,7 @@ void SV_InitGameProgs(void) {
     import.configstring = PF_Configstring;
     import.confignstring = PF_Confignstring;
     import.Write = PF_Write;
+    import.ApplyLobbySettings = SV_ApplyLobbySettings;
     import.CvarString = Cvar_String;
 
     ge = GetGameAPI(&import);

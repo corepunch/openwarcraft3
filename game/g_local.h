@@ -817,7 +817,7 @@ DWORD G_FowWorldToCellY(FLOAT y);
 // g_spawn.c
 LPEDICT G_Spawn(void);
 void SP_CallSpawn(LPEDICT);
-void G_SpawnEntities(LPCMAPINFO, LPCDOODAD);
+void G_SpawnEntities(void);
 BOOL SP_FindEmptySpaceAround(LPEDICT, DWORD, LPVECTOR2, FLOAT *);
 LPEDICT SP_SpawnAtLocation(DWORD, DWORD, LPCVECTOR2);
 
