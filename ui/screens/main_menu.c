@@ -112,7 +112,7 @@ static void MainMenu_Draw(void) {
     LPCFRAMEDEF roots[2];
     DWORD num_roots = 0;
 
-    UI_DrawGlueScene("MainMenu Stand");
+    UI_DrawGlueScene(show_realm_select ? "RealmSelection Stand" : "MainMenu Stand");
 
     if (main_menu.MainMenuFrame) {
         roots[num_roots++] = main_menu.MainMenuFrame;
@@ -147,6 +147,9 @@ void MainMenu_ShowMainPanel(void) {
     if (main_menu.ControlLayer) {
         UI_SetHidden(main_menu.ControlLayer, false);
     }
+    if (main_menu.WarCraftIIILogo) {
+        UI_SetHidden(main_menu.WarCraftIIILogo, false);
+    }
 }
 
 void MainMenu_ShowRealmSelect(void) {
@@ -157,6 +160,9 @@ void MainMenu_ShowRealmSelect(void) {
     }
     if (main_menu.ControlLayer) {
         UI_SetHidden(main_menu.ControlLayer, true);
+    }
+    if (main_menu.WarCraftIIILogo) {
+        UI_SetHidden(main_menu.WarCraftIIILogo, true);
     }
 }
 
@@ -178,6 +184,9 @@ void MainMenu_ShowDisconnected(void) {
     }
     if (main_menu.ControlLayer) {
         UI_SetHidden(main_menu.ControlLayer, false);
+    }
+    if (main_menu.WarCraftIIILogo) {
+        UI_SetHidden(main_menu.WarCraftIIILogo, false);
     }
     UI_DialogWar3Show(&quit_dialog, &config);
 }

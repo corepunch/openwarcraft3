@@ -2,6 +2,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdint.h>
+#include <stdarg.h>
 
 #include "test_framework.h"
 #include "../ui/ui_local.h"
@@ -15,10 +16,13 @@ static void teardown_game(void) {}
 static const char *captured_image_path;
 static const char *captured_model_path;
 static char captured_command[128];
+static char captured_printf[512];
 static DWORD captured_draw_calls;
 static DWORD captured_dim_draws;
 static DWORD captured_dim_draw_index;
 static DWORD captured_text_draws;
+static DWORD captured_stand_sprites;
+static DWORD captured_realm_panel_sprites;
 static uintptr_t fake_texture_id;
 static LPTEXTURE hover_texture;
 static DWORD captured_hover_draws;
@@ -26,6 +30,7 @@ static RECT captured_text_rects[8];
 static VECTOR2 fake_text_size;
 static HANDLE test_mpq_archive;
 static BOOL hide_expansion_campaign_file;
+static BOOL test_fs_expansion;
 
 static int fake_image_index(LPCSTR name) {
     captured_image_path = name;
@@ -156,6 +161,16 @@ static void test_draw_image_ex(LPCDRAWIMAGE draw_image) {
     }
 }
 
+static void test_draw_sprite(LPCMODEL model, LPCSTR anim, float x, float y) {
+    (void)model;
+    (void)x;
+    (void)y;
+    if (anim && !strcmp(anim, "Stand"))
+        captured_stand_sprites++;
+    if (anim && !strcmp(anim, "RealmSelection Stand"))
+        captured_realm_panel_sprites++;
+}
+
 static size2_t test_get_window_size(void) {
     return MAKE(size2_t, 1000, 750);
 }
@@ -168,6 +183,7 @@ static LPRENDERER test_get_renderer(void) {
         .GetWindowSize = test_get_window_size,
         .DrawImageEx = test_draw_image_ex,
         .DrawText = test_draw_text,
+        .DrawSprite = test_draw_sprite,
         .GetTextSize = test_get_text_size,
     };
     return &renderer;
@@ -189,7 +205,11 @@ static void test_ui_mem_free(HANDLE ptr) {
 }
 
 static void test_ui_printf(LPCSTR fmt, ...) {
-    (void)fmt;
+    va_list argptr;
+
+    va_start(argptr, fmt);
+    vsnprintf(captured_printf, sizeof(captured_printf), fmt ? fmt : "", argptr);
+    va_end(argptr);
 }
 
 static void test_cmd_execute_text(LPCSTR text) {
@@ -197,6 +217,9 @@ static void test_cmd_execute_text(LPCSTR text) {
 }
 
 static LPCSTR test_cvar_string(LPCSTR name, LPCSTR fallback) {
+    if (name && !strcmp(name, "fs_expansion")) {
+        return test_fs_expansion ? "1" : "0";
+    }
     if (name && !strcmp(name, "game_port")) {
         return "27910";
     }
@@ -246,10 +269,13 @@ static void reset_ui_state(void) {
     captured_image_path = NULL;
     captured_model_path = NULL;
     captured_command[0] = '\0';
+    captured_printf[0] = '\0';
     captured_draw_calls = 0;
     captured_dim_draws = 0;
     captured_dim_draw_index = 0;
     captured_text_draws = 0;
+    captured_stand_sprites = 0;
+    captured_realm_panel_sprites = 0;
     fake_texture_id = 0;
     hover_texture = NULL;
     captured_hover_draws = 0;
@@ -438,6 +464,15 @@ static void test_vector_parser_accepts_f_suffixes(void) {
     if (!require_not_null(frame)) return;
     ASSERT_FLOAT_EQ(frame->Button.PushedTextOffset.x, -0.002f);
     ASSERT_FLOAT_EQ(frame->Button.PushedTextOffset.y, -0.003f);
+}
+
+static void test_chat_display_tokens_map_to_text_area(void) {
+    reset_ui_state();
+    parse_fdf("chat_display.fdf", "Frame \"CHATDISPLAY\" \"Chat\" { ChatDisplayLineHeight 0.012, ChatDisplayBorderSize 0.034, }");
+    LPFRAMEDEF frame = UI_FindFrame("Chat");
+    if (!require_not_null(frame)) return;
+    ASSERT_FLOAT_EQ(frame->TextArea.LineHeight, 0.012f);
+    ASSERT_FLOAT_EQ(frame->TextArea.Inset, 0.034f);
 }
 
 static void test_comments_are_ignored_inside_frame_bodies(void) {
@@ -1264,6 +1299,28 @@ static void test_button1_dropdown_backdrop_gets_hover_highlight(void) {
     ASSERT_EQ_INT(captured_hover_draws, 1);
 }
 
+static void test_backdrop_edge_without_corner_size_logs_error(void) {
+    LPFRAMEDEF root;
+
+    reset_ui_state();
+    parse_fdf("bad_backdrop.fdf",
+              "Frame \"FRAME\" \"Root\" {"
+              " Width 0.8, Height 0.6,"
+              " Frame \"BACKDROP\" \"BrokenPanel\" {"
+              "  Width 0.3, Height 0.2,"
+              "  SetPoint CENTER, \"Root\", CENTER, 0, 0,"
+              "  BackdropBackground \"Textures\\\\Black32.blp\","
+              "  BackdropEdgeFile \"Textures\\\\White32.blp\","
+              "  BackdropCornerFlags \"UL|UR|BL|BR|T|L|B|R\","
+              " }"
+              "}");
+
+    root = UI_FindFrame("Root");
+    if (!require_not_null(root)) return;
+    UI_DrawFrame(root);
+    ASSERT(strstr(captured_printf, "BackdropCornerSize is zero") != NULL);
+}
+
 static void test_editbox_without_text_frame_click_focus_accepts_text_input(void) {
     LPFRAMEDEF root;
     LPFRAMEDEF editbox;
@@ -1416,6 +1473,48 @@ static void test_dialog_war3_supports_configurable_button_modes(void) {
     ASSERT(!UI_DialogWar3Visible(&dialog));
 }
 
+static void test_dialog_supports_battlenet_template(void) {
+    LPCSTR files[] = {
+        "UI\\FrameDef\\Glue\\StandardTemplates.fdf",
+        "UI\\FrameDef\\Glue\\DialogWar3.fdf",
+        "UI\\FrameDef\\Glue\\BattleNetTemplates.fdf",
+    };
+    LPFRAMEDEF root;
+    uiDialogWar3_t dialog;
+    uiDialogWar3Init_t init = {
+        .modal_name = "TestBattleNetDialogModal",
+        .template_name = "BattleNetDialogTemplate",
+    };
+    uiDialogWar3Config_t config = {
+        .message = "OpenWarcraft3\nA larger dialog template.",
+        .buttons = UI_DIALOG_WAR3_BUTTONS_OK,
+        .ok_command = "menu_main",
+    };
+
+    load_ui_files(files, sizeof(files) / sizeof(files[0]));
+    uiimport.GetRenderer = test_get_renderer;
+    uiimport.Printf = test_ui_printf;
+
+    root = UI_Spawn(FT_FRAME, NULL);
+    if (!require_not_null(root)) return;
+    UI_SetSize(root, UI_BASE_WIDTH, UI_BASE_HEIGHT);
+
+    ASSERT(UI_DialogWar3Init(&dialog, root, &init));
+    ASSERT(dialog.frame->Width > 0.5f);
+    ASSERT(dialog.frame->Height > 0.3f);
+    ASSERT(dialog.icon == NULL);
+    ASSERT_NOT_NULL(dialog.text);
+    ASSERT_NOT_NULL(dialog.ok_button);
+    ASSERT_NOT_NULL(dialog.frame->DialogBackdrop);
+    ASSERT(dialog.ok_backdrop == dialog.ok_button);
+    ASSERT(dialog.ok_button->Parent == dialog.frame);
+
+    UI_DialogWar3Show(&dialog, &config);
+    ASSERT(UI_DialogWar3Visible(&dialog));
+    ASSERT_STR_EQ(dialog.text->Text, "OpenWarcraft3\nA larger dialog template.");
+    ASSERT_STR_EQ(dialog.ok_button->OnClick, "menu_main");
+}
+
 static void test_main_menu_quit_dialog_commands_quit(void) {
     LPCSTR files[] = {
         "UI\\FrameDef\\GlobalStrings.fdf",
@@ -1536,6 +1635,32 @@ static void test_main_menu_quit_dialog_commands_quit(void) {
     uiimport = saved;
 }
 
+static void test_main_menu_realm_select_uses_realm_panel_anim(void) {
+    LPCSTR files[] = {
+        "UI\\FrameDef\\GlobalStrings.fdf",
+        "UI\\FrameDef\\UI\\EscMenuTemplates.fdf",
+        "UI\\FrameDef\\Glue\\StandardTemplates.fdf",
+        "UI\\FrameDef\\Glue\\DialogWar3.fdf",
+        "UI\\FrameDef\\Glue\\MainMenu.fdf",
+    };
+    uiImport_t saved = uiimport;
+
+    load_ui_files(files, sizeof(files) / sizeof(files[0]));
+    memset(&uiimport, 0, sizeof(uiimport));
+    uiimport.Printf = test_ui_printf;
+    uiimport.GetRenderer = test_get_renderer;
+
+    ASSERT(mainMenuScreen.load());
+    mainMenuScreen.init();
+    MainMenu_ShowRealmSelect();
+    captured_stand_sprites = 0;
+    captured_realm_panel_sprites = 0;
+    mainMenuScreen.draw();
+    ASSERT_EQ_INT(captured_stand_sprites, 0);
+    ASSERT_EQ_INT(captured_realm_panel_sprites, 2);
+    uiimport = saved;
+}
+
 static void test_single_player_campaign_profile(BOOL tft) {
     LPCSTR files[] = {
         "UI\\FrameDef\\GlobalStrings.fdf",
@@ -1551,13 +1676,15 @@ static void test_single_player_campaign_profile(BOOL tft) {
     LPFRAMEDEF campaign_select_frame;
     LPFRAMEDEF campaign_list_box;
 
-    hide_expansion_campaign_file = !tft;
+    hide_expansion_campaign_file = false;
+    test_fs_expansion = tft;
     load_ui_files(files, sizeof(files) / sizeof(files[0]));
 
     memset(&uiimport, 0, sizeof(uiimport));
     uiimport.Printf = test_ui_printf;
     uiimport.GetRenderer = test_get_renderer;
     uiimport.Cmd_ExecuteText = test_cmd_execute_text;
+    uiimport.Cvar_String = test_cvar_string;
     uiimport.FS_ReadFile = test_fs_read_file;
     uiimport.FS_FreeFile = test_fs_free_file;
     uiimport.MemAlloc = test_ui_mem_alloc;
@@ -1620,6 +1747,7 @@ static void test_single_player_campaign_profile(BOOL tft) {
                       : "map \"Maps\\Campaign\\Human01.w3m\"");
 
     hide_expansion_campaign_file = false;
+    test_fs_expansion = false;
     uiimport = saved;
 }
 
@@ -1641,6 +1769,7 @@ BEGIN_SUITE(ui_fdf)
     RUN_TEST(test_anchor_translates_to_setpoint_state);
     RUN_TEST(test_backdrop_flags_and_insets_are_parsed);
     RUN_TEST(test_vector_parser_accepts_f_suffixes);
+    RUN_TEST(test_chat_display_tokens_map_to_text_area);
     RUN_TEST(test_comments_are_ignored_inside_frame_bodies);
     RUN_TEST(test_comments_are_ignored_between_setpoint_arguments);
     RUN_TEST(test_comment_markers_inside_quoted_strings_are_preserved);
@@ -1674,11 +1803,14 @@ BEGIN_SUITE(ui_fdf)
     RUN_TEST(test_single_line_text_auto_height_uses_fdf_font_size);
     RUN_TEST(test_glue_checkbox_toggles_and_draws_check_highlight);
     RUN_TEST(test_button1_dropdown_backdrop_gets_hover_highlight);
+    RUN_TEST(test_backdrop_edge_without_corner_size_logs_error);
     RUN_TEST(test_editbox_without_text_frame_click_focus_accepts_text_input);
     RUN_TEST(test_esc_menu_confirm_quit_panel_is_available);
     RUN_TEST(test_options_game_port_enter_applies_and_blurs);
     RUN_TEST(test_dialog_war3_supports_configurable_button_modes);
+    RUN_TEST(test_dialog_supports_battlenet_template);
     RUN_TEST(test_main_menu_quit_dialog_commands_quit);
+    RUN_TEST(test_main_menu_realm_select_uses_realm_panel_anim);
     RUN_TEST(test_single_player_screen_loads_roc_campaigns);
     RUN_TEST(test_single_player_screen_loads_tft_campaigns);
 END_SUITE()

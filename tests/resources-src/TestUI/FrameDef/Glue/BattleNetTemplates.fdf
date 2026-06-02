@@ -1,0 +1,45 @@
+Frame "BACKDROP" "BattleNetHeavyBackdropTemplate" {
+    BackdropBackground "TestUI\Textures\solid_white.blp",
+    BackdropEdgeFile "TestUI\Textures\panel_border_32x32.blp",
+    BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R",
+    BackdropCornerSize 0.064,
+}
+
+Frame "DIALOG" "BattleNetDialogTemplate" {
+    Width 0.60,
+    Height 0.40,
+    DialogBackdrop "BattleNetDialogBackdropTemplate",
+    Frame "BACKDROP" "BattleNetDialogBackdropTemplate" INHERITS "BattleNetHeavyBackdropTemplate" {
+    }
+}
+
+Frame "BACKDROP" "BattleNetMenuSingleButtonBaseBackdrop" {
+    Width 0.256,
+    Height 0.064,
+    BackdropBackground "TestUI\Textures\solid_white.blp",
+}
+
+Frame "TEXTBUTTON" "BattleNetButtonTemplate" {
+    Height 0.031,
+    Width 0.179,
+}
+
+Frame "TEXTBUTTON" "BattleNetBorderedButtonTemplate" {
+    Height 0.031,
+    Width 0.179,
+    ControlBackdrop "BorderedButtonBackdropTemplate",
+    Frame "BACKDROP" "BorderedButtonBackdropTemplate" {
+        BackdropBackground "TestUI\Textures\solid_white.blp",
+    }
+}
+
+Frame "TEXT" "BattleNetButtonTextTemplate" {
+    FrameFont "MasterFont", 0.013, "",
+    FontJustificationH JUSTIFYCENTER,
+    FontJustificationV JUSTIFYMIDDLE,
+}
+
+Frame "CHATDISPLAY" "BattleNetChatDisplayTemplate" {
+    ChatDisplayLineHeight 0.01,
+    ChatDisplayBorderSize 0.01,
+}

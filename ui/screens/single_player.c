@@ -330,21 +330,27 @@ static void SinglePlayer_FinalizeCampaignOrder(void) {
     }
 }
 
+static BOOL SinglePlayer_ExpansionEnabled(void) {
+    LPCSTR value = uiimport.Cvar_String ? uiimport.Cvar_String("fs_expansion", "0") : "0";
+    return value && atoi(value) != 0;
+}
+
 static void SinglePlayer_LoadCampaignData(void) {
     LPCSTR campaign_file;
+    BOOL const expansion = SinglePlayer_ExpansionEnabled();
 
     memset(campaigns, 0, sizeof(campaigns));
     memset(campaign_order, 0, sizeof(campaign_order));
     campaign_count = 0;
     campaign_order_count = 0;
 
-    campaign_file = Theme_String("CampaignFile", "Default");
+    campaign_file = expansion ? Theme_String("CampaignFile", "Default") : NULL;
     if (campaign_file && strcmp(campaign_file, "CampaignFile") &&
         SinglePlayer_LoadCampaignFile(campaign_file)) {
         SinglePlayer_FinalizeCampaignOrder();
         return;
     }
-    if (SinglePlayer_LoadCampaignFile("UI\\CampaignStrings_exp.txt") ||
+    if ((expansion && SinglePlayer_LoadCampaignFile("UI\\CampaignStrings_exp.txt")) ||
         SinglePlayer_LoadCampaignFile("UI\\CampaignStrings.txt")) {
         SinglePlayer_FinalizeCampaignOrder();
     }

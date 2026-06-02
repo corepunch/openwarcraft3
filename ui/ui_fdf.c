@@ -923,6 +923,8 @@ static parseItem_t items[] = {
     { "TextAreaInset", { F(TextArea.Inset, Float), F_END } },
     { "TextAreaScrollBar", { F(TextArea.ScrollBar, Name), F_END } },
     { "TextAreaMaxLines", { F(TextArea.MaxLines, Integer), F_END } },
+    { "ChatDisplayLineHeight", { F(TextArea.LineHeight, Float), F_END } },
+    { "ChatDisplayBorderSize", { F(TextArea.Inset, Float), F_END } },
     // CheckBox
     { "CheckBoxCheckHighlight", { F(CheckBox.CheckHighlight, Name), F_END } },
     { "CheckBoxDisabledCheckHighlight", { F(CheckBox.DisabledCheckHighlight, Name), F_END } },

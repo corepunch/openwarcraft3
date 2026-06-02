@@ -66,9 +66,6 @@ static void UI_SetScreen(uiScreen_t *screen) {
     uiScreen_t *previous_screen = ui_current_screen;
 
     if (ui_current_screen == screen) {
-        fprintf(stderr,
-                "UI_SetScreen: already on screen '%s'\n",
-                screen ? screen->name : "(null)");
         return;
     }
 
