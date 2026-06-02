@@ -12,6 +12,9 @@ CC      := gcc
 BIN_DIR := build/bin
 LIB_DIR := build/lib
 CFLAGS  := -Wall -I. -Ishared -Ishared/types
+WC3_DIR := games/warcraft3
+WOW_DIR := games/world-of-warcraft
+SC2_DIR := games/starcraft2
 
 ifeq ($(DIAG_OUTPUT),1)
 	CFLAGS += -DDIAG_OUTPUT
@@ -68,6 +71,7 @@ RENDERER_LIB := $(LIB_DIR)/librenderer$(LIB_EXT)
 GAME_LIB     := $(LIB_DIR)/libgame$(LIB_EXT)
 UI_LIB       := $(LIB_DIR)/libui$(LIB_EXT)
 RENDERER_WOW_LIB := $(LIB_DIR)/librenderer-wow$(LIB_EXT)
+RENDERER_SC2_LIB := $(LIB_DIR)/librenderer-sc2$(LIB_EXT)
 GAME_WOW_LIB     := $(LIB_DIR)/libgame-wow$(LIB_EXT)
 GAME_SC2_LIB     := $(LIB_DIR)/libgame-sc2$(LIB_EXT)
 UI_WOW_LIB       := $(LIB_DIR)/libui-wow$(LIB_EXT)
@@ -75,8 +79,9 @@ BINARY       := $(BIN_DIR)/openwarcraft3$(EXE_EXT)
 WOW_BINARY   := $(BIN_DIR)/openwow$(EXE_EXT)
 SC2_BINARY   := $(BIN_DIR)/opensc2$(EXE_EXT)
 MPQ_TEST         := $(BIN_DIR)/test_mpq_compat$(EXE_EXT)
-WOW_CFLAGS   := $(CFLAGS) -DWOW -DOW3_LOAD_ALL_MPQS -Wno-unused-function
-SC2_CFLAGS   := $(CFLAGS) -DSC2 -DOW3_LOAD_ALL_MPQS -Wno-unused-function
+WC3_CFLAGS   := $(CFLAGS) -I$(WC3_DIR)
+WOW_CFLAGS   := $(CFLAGS) -I$(WOW_DIR) -DWOW -DOW3_LOAD_ALL_MPQS -Wno-unused-function
+SC2_CFLAGS   := $(CFLAGS) -I$(SC2_DIR) -DSC2 -DOW3_LOAD_ALL_MPQS -Wno-unused-function
 
 TOOL_SRCS := $(shell find tools -maxdepth 1 -name '*.c' ! -name 'jass.c' | sort)
 TOOL_NAMES := $(patsubst tools/%.c,%,$(TOOL_SRCS))
@@ -84,7 +89,7 @@ TOOL_BINS := $(addprefix $(BIN_DIR)/,$(addsuffix $(EXE_EXT),$(TOOL_NAMES)))
 JASS_BIN := $(BIN_DIR)/jass$(EXE_EXT)
 TOOL_DEPS := $(shell find tools -maxdepth 1 -name '*.h' | sort)
 CLIENT_HEADERS := $(shell find client -name '*.h' | sort)
-UI_HEADERS := $(shell find ui -name '*.h' | sort)
+UI_HEADERS := $(shell find $(WC3_DIR)/ui -name '*.h' | sort) client/ui.h
 COMMON_HEADERS := $(shell find common -name '*.h' | sort)
 FONT_SRC := renderer/conchars.pcx
 FONT_HEADER := renderer/conchars_sysfont.h
@@ -107,6 +112,7 @@ game:        $(GAME_LIB)
 ui:          $(UI_LIB)
 openwarcraft3: $(BINARY)
 renderer-wow: $(RENDERER_WOW_LIB)
+renderer-sc2: $(RENDERER_SC2_LIB)
 game-wow:     $(GAME_WOW_LIB)
 ui-wow:       $(UI_WOW_LIB)
 openwow:      $(WOW_BINARY)
@@ -152,7 +158,7 @@ $(FONT_HEADER): $(FONT_SRC) $(BIN_DIR)/img2sysfont$(EXE_EXT)
 # jass — standalone JASS interpreter (no renderer/game/SDL2 needed)
 $(JASS_BIN): tools/jass.c $(TOOL_DEPS) | $(BIN_DIR) $(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB)
 	@echo "[jass-tool]"
-	$(CC) $(CFLAGS) -DTOOL_COMMON_NO_MPQ -o $@ tools/jass.c \
+	$(CC) $(WC3_CFLAGS) -DTOOL_COMMON_NO_MPQ -o $@ tools/jass.c \
 		$(RPATH) $(LDFLAGS) -lsheet -lshared -ljass -lm
 
 $(MPQ_TEST): tests/test_mpq_compat.c common/mpq.c common/mpq.h | $(BIN_DIR)
@@ -172,7 +178,7 @@ $(SHARED_LIB): $(shell find shared -name '*.c') | $(LIB_DIR)
 $(JASS_LIB): $(SHARED_LIB) $(shell find jass -name '*.c' -o -name '*.h') | $(LIB_DIR)
 	@echo "[jass]"
 	@$(call UNITY,jass) | \
-		$(CC) $(CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - $(LDFLAGS) -lshared -lm
+		$(CC) $(WC3_CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - $(LDFLAGS) -lshared -lm
 
 $(SHEET_LIB): sheet/parser.c sheet/sheet.c common/common.h | $(LIB_DIR)
 	@echo "[sheet]"
@@ -182,41 +188,46 @@ $(SHEET_LIB): sheet/parser.c sheet/sheet.c common/common.h | $(LIB_DIR)
 # Uses FS_ReadFile (archive-agnostic) for initial file loads, but includes
 # common/mpq.c for nested .w3m archive handling (maps are MPQ archives containing
 # internal files like war3map.w3e and war3map.shd).
-$(RENDERER_LIB): $(SHARED_LIB) $(CLIENT_HEADERS) $(COMMON_HEADERS) common/mpq.c common/mpq.h $(FONT_HEADER) $(shell find renderer -name '*.c') | $(LIB_DIR)
+$(RENDERER_LIB): $(SHARED_LIB) $(CLIENT_HEADERS) $(COMMON_HEADERS) common/mpq.c common/mpq.h $(FONT_HEADER) $(shell find renderer $(WC3_DIR)/renderer -name '*.c') | $(LIB_DIR)
 	@echo "[renderer]"
-	@$(call UNITY,renderer,! -path 'renderer/wow/*') | \
-		$(CC) $(CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - common/mpq.c $(LDFLAGS) -lshared $(LIBS) -lz
+	@$(call UNITY,renderer $(WC3_DIR)/renderer,) | \
+		$(CC) $(WC3_CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - common/mpq.c $(LDFLAGS) -lshared $(LIBS) -lz
 
-$(RENDERER_WOW_LIB): $(SHARED_LIB) $(CLIENT_HEADERS) $(COMMON_HEADERS) common/mpq.c common/mpq.h $(FONT_HEADER) $(shell find renderer -name '*.c') | $(LIB_DIR)
+$(RENDERER_WOW_LIB): $(SHARED_LIB) $(CLIENT_HEADERS) $(COMMON_HEADERS) common/mpq.c common/mpq.h $(FONT_HEADER) $(shell find renderer $(WOW_DIR)/renderer -name '*.c') | $(LIB_DIR)
 	@echo "[renderer-wow]"
-	@$(call UNITY,renderer,! -path 'renderer/w3m/*') | \
+	@$(call UNITY,renderer $(WOW_DIR)/renderer,) | \
 		$(CC) $(WOW_CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - common/mpq.c $(LDFLAGS) -lshared $(LIBS) -lz
 
-# game — depends on shared and jass
-$(GAME_LIB): $(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) $(COMMON_HEADERS) common/mpq.c common/mpq.h $(shell find game -name '*.c') | $(LIB_DIR)
-	@echo "[game]"
-	@$(call UNITY,game) | \
-		$(CC) $(CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - common/mpq.c $(LDFLAGS) -lsheet -lshared -ljass $(LIBS) -lm -lz
+$(RENDERER_SC2_LIB): $(SHARED_LIB) $(CLIENT_HEADERS) $(COMMON_HEADERS) common/mpq.c common/mpq.h $(FONT_HEADER) $(shell find renderer $(SC2_DIR)/renderer -name '*.c') | $(LIB_DIR)
+	@echo "[renderer-sc2]"
+	@$(call UNITY,renderer $(SC2_DIR)/renderer,) | \
+		$(CC) $(SC2_CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - common/mpq.c $(LDFLAGS) -lshared $(LIBS) -lz
 
-$(GAME_WOW_LIB): $(SHARED_LIB) $(COMMON_HEADERS) common/mpq.c common/mpq.h $(shell find game-wow -name '*.c') | $(LIB_DIR)
+# game — depends on shared and jass
+$(GAME_LIB): $(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) $(COMMON_HEADERS) common/mpq.c common/mpq.h $(shell find $(WC3_DIR)/game -name '*.c') | $(LIB_DIR)
+	@echo "[game]"
+	@$(call UNITY,$(WC3_DIR)/game) | \
+		$(CC) $(WC3_CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - common/mpq.c $(LDFLAGS) -lsheet -lshared -ljass $(LIBS) -lm -lz
+
+$(GAME_WOW_LIB): $(SHARED_LIB) $(COMMON_HEADERS) common/mpq.c common/mpq.h $(shell find $(WOW_DIR)/game -name '*.c') | $(LIB_DIR)
 	@echo "[game-wow]"
-	@$(call UNITY,game-wow) | \
+	@$(call UNITY,$(WOW_DIR)/game) | \
 		$(CC) $(WOW_CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - common/mpq.c $(LDFLAGS) -lshared $(LIBS) -lm -lz
 
-$(GAME_SC2_LIB): $(SHARED_LIB) $(COMMON_HEADERS) common/mpq.c common/mpq.h $(shell find game-sc2 -name '*.c') | $(LIB_DIR)
+$(GAME_SC2_LIB): $(SHARED_LIB) $(COMMON_HEADERS) common/mpq.c common/mpq.h $(shell find $(SC2_DIR)/game -name '*.c') | $(LIB_DIR)
 	@echo "[game-sc2]"
-	@$(call UNITY,game-sc2) | \
+	@$(call UNITY,$(SC2_DIR)/game) | \
 		$(CC) $(SC2_CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - common/mpq.c $(LDFLAGS) -lshared $(LIBS) -lm -lz
 
 # ui — depends on shared
-$(UI_LIB): $(SHARED_LIB) $(CLIENT_HEADERS) $(COMMON_HEADERS) $(UI_HEADERS) $(shell find ui -name '*.c') | $(LIB_DIR)
+$(UI_LIB): $(SHARED_LIB) $(CLIENT_HEADERS) $(COMMON_HEADERS) $(UI_HEADERS) $(shell find $(WC3_DIR)/ui -name '*.c') | $(LIB_DIR)
 	@echo "[ui]"
-	@$(call UNITY,ui) | \
-		$(CC) $(CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - $(LDFLAGS) -lshared -lm
+	@$(call UNITY,$(WC3_DIR)/ui) | \
+		$(CC) $(WC3_CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - $(LDFLAGS) -lshared -lm
 
-$(UI_WOW_LIB): $(SHARED_LIB) $(CLIENT_HEADERS) $(COMMON_HEADERS) $(UI_HEADERS) $(shell find ui-wow -name '*.c') | $(LIB_DIR)
+$(UI_WOW_LIB): $(SHARED_LIB) $(CLIENT_HEADERS) $(COMMON_HEADERS) client/ui.h $(shell find $(WOW_DIR)/ui -name '*.c') | $(LIB_DIR)
 	@echo "[ui-wow]"
-	@$(call UNITY,ui-wow) | \
+	@$(call UNITY,$(WOW_DIR)/ui) | \
 		$(CC) $(WOW_CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - $(LDFLAGS) -lshared -lm
 
 # main binary — depends on all libraries
@@ -224,7 +235,7 @@ APP_SRCS := $(shell find client server common -name '*.c')
 $(BINARY): $(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) $(GAME_LIB) $(RENDERER_LIB) $(UI_LIB) $(APP_SRCS) $(CLIENT_HEADERS) $(COMMON_HEADERS) | $(BIN_DIR)
 	@echo "[openwarcraft3]"
 	@$(call UNITY,client server common,! -name 'world_wow.c') | \
-		$(CC) $(CFLAGS) -x c -o $@ - $(RPATH) $(LDFLAGS) \
+		$(CC) $(WC3_CFLAGS) -x c -o $@ - $(RPATH) $(LDFLAGS) \
 		-lsheet -lshared -ljass -lgame -lrenderer -lui $(LIBS) -lz
 
 $(WOW_BINARY): $(SHARED_LIB) $(SHEET_LIB) $(GAME_WOW_LIB) $(RENDERER_WOW_LIB) $(UI_WOW_LIB) $(APP_SRCS) $(CLIENT_HEADERS) $(COMMON_HEADERS) | $(BIN_DIR)
@@ -233,11 +244,11 @@ $(WOW_BINARY): $(SHARED_LIB) $(SHEET_LIB) $(GAME_WOW_LIB) $(RENDERER_WOW_LIB) $(
 		$(CC) $(WOW_CFLAGS) -x c -o $@ - $(RPATH) $(LDFLAGS) \
 		-lsheet -lshared -lgame-wow -lrenderer-wow -lui-wow $(LIBS) -lz
 
-$(SC2_BINARY): $(SHARED_LIB) $(SHEET_LIB) $(GAME_SC2_LIB) $(RENDERER_LIB) $(UI_LIB) $(APP_SRCS) $(CLIENT_HEADERS) | $(BIN_DIR)
+$(SC2_BINARY): $(SHARED_LIB) $(SHEET_LIB) $(GAME_SC2_LIB) $(RENDERER_SC2_LIB) $(UI_LIB) $(APP_SRCS) $(CLIENT_HEADERS) | $(BIN_DIR)
 	@echo "[opensc2]"
 	@$(call UNITY,client server common,! -name 'world_wow.c') | \
 		$(CC) $(SC2_CFLAGS) -x c -o $@ - $(RPATH) $(LDFLAGS) \
-		-lsheet -lshared -lgame-sc2 -lrenderer -lui $(LIBS) -lz
+		-lsheet -lshared -lgame-sc2 -lrenderer-sc2 -lui $(LIBS) -lz
 
 download: $(ZIP_FILE)
 	mkdir -p $(DATA_DIR)
@@ -255,32 +266,32 @@ clean:
 # The test binary compiles only the game modules needed by the tests
 # (no renderer, no archive backend, no SDL2) together with the shared sources.
 # Global game state and gi function-pointers are provided by the test
-# harness (tests/test_harness.c) rather than by game/g_main.c.
+# harness (tests/test_harness.c) rather than by games/warcraft3/game/g_main.c.
 # ---------------------------------------------------------------------------
 TEST_GAME_SRCS := \
 	common/routing.c \
-	game/g_ai.c \
-	game/g_events.c \
-	game/g_fow.c \
-	game/g_metadata.c \
-	game/g_model.c \
-	game/g_monster.c \
-	game/g_pathing.c \
-	game/g_phys.c \
-	game/g_utils.c \
-	game/m_unit.c \
-	game/skills/s_attack.c \
-	game/skills/s_area_spell.c \
-	game/skills/s_move.c \
-	game/skills/s_item.c \
-	game/skills/s_skills.c \
-	game/skills/s_spell.c \
-	game/skills/s_stop.c \
-	game/skills/s_summon.c \
-	game/skills/s_thunderbolt.c \
-	game/skills/s_train.c \
-	game/skills/s_utility_abilities.c \
-	game/skills/s_ability_stubs.c \
+	$(WC3_DIR)/game/g_ai.c \
+	$(WC3_DIR)/game/g_events.c \
+	$(WC3_DIR)/game/g_fow.c \
+	$(WC3_DIR)/game/g_metadata.c \
+	$(WC3_DIR)/game/g_model.c \
+	$(WC3_DIR)/game/g_monster.c \
+	$(WC3_DIR)/game/g_pathing.c \
+	$(WC3_DIR)/game/g_phys.c \
+	$(WC3_DIR)/game/g_utils.c \
+	$(WC3_DIR)/game/m_unit.c \
+	$(WC3_DIR)/game/skills/s_attack.c \
+	$(WC3_DIR)/game/skills/s_area_spell.c \
+	$(WC3_DIR)/game/skills/s_move.c \
+	$(WC3_DIR)/game/skills/s_item.c \
+	$(WC3_DIR)/game/skills/s_skills.c \
+	$(WC3_DIR)/game/skills/s_spell.c \
+	$(WC3_DIR)/game/skills/s_stop.c \
+	$(WC3_DIR)/game/skills/s_summon.c \
+	$(WC3_DIR)/game/skills/s_thunderbolt.c \
+	$(WC3_DIR)/game/skills/s_train.c \
+	$(WC3_DIR)/game/skills/s_utility_abilities.c \
+	$(WC3_DIR)/game/skills/s_ability_stubs.c \
 	client/cl_layout.c \
 	client/cl_parse.c \
 	client/cl_scrn.c \
@@ -302,7 +313,7 @@ TEST_SRCS := $(shell find tests -maxdepth 1 -name 'test_*.c' \
 	! -name 'test_wow_combat.c' \
 	! -name 'test_wow_appearance.c' | sort)
 
-TEST_CFLAGS := $(CFLAGS) -DTOOL_COMMON_NO_MPQ -Itests/stubs -Ishared/types -Igame -Iserver -Icommon -Iclient -Igame/skills
+TEST_CFLAGS := $(WC3_CFLAGS) -DTOOL_COMMON_NO_MPQ -Itests/stubs -Ishared/types -I$(WC3_DIR)/game -Iserver -Icommon -Iclient -I$(WC3_DIR)/game/skills
 TEST_UI_CFLAGS := $(TEST_CFLAGS)
 
 TEST_UI_SRCS := \
@@ -337,7 +348,7 @@ test-commands: test-assets $(SHARED_LIB) $(SHEET_LIB) | $(BIN_DIR)
 test-jass: $(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) | $(BIN_DIR)
 	$(CC) $(TEST_CFLAGS) -o $(BIN_DIR)/test_jass$(EXE_EXT) \
 		tests/test_jass_main.c tests/test_jass.c tests/test_harness.c tests/test_client_stubs.c \
-		game/g_metadata.c common/msg.c \
+		$(WC3_DIR)/game/g_metadata.c common/msg.c \
 		$(RPATH) $(LDFLAGS) -lsheet -lshared -ljass -lm
 	$(BIN_DIR)/test_jass$(EXE_EXT)
 
@@ -349,7 +360,7 @@ test-wow-appearance: | $(BIN_DIR)
 
 test-wow-combat: | $(BIN_DIR)
 	$(CC) $(TEST_CFLAGS) -DWOW -o $(BIN_DIR)/test_wow_combat$(EXE_EXT) \
-		tests/test_wow_combat.c game-wow/g_ai.c \
+		tests/test_wow_combat.c $(WOW_DIR)/game/g_ai.c \
 		$(shell find shared -name '*.c') -lm
 	$(BIN_DIR)/test_wow_combat$(EXE_EXT)
 
@@ -357,7 +368,7 @@ test-ui: test-assets $(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) | $(BIN_DIR)
 	$(CC) $(TEST_UI_CFLAGS) -o $(BIN_DIR)/test_openwarcraft3_ui$(EXE_EXT) \
 		$(TEST_UI_SRCS) $(TEST_GAME_SRCS) \
 		common/mpq.c \
-		$(shell find ui -name '*.c' | sort) \
+		$(shell find $(WC3_DIR)/ui -name '*.c' | sort) \
 		$(RPATH) $(LDFLAGS) -lsheet -lshared -ljass -lm -lz
 	$(BIN_DIR)/test_openwarcraft3_ui$(EXE_EXT)
 
@@ -434,4 +445,4 @@ test-assets: blpgen mdxgen mpqtool mdxtool | $(TESTS_DIR)
 $(TESTS_DIR):
 	@mkdir -p $@
 
-.PHONY: default build shared jass renderer game ui openwarcraft3 tools font $(TOOL_NAMES) run run-demo run-map run-ui-text diag clean download test test-jass test-wow-appearance test-wow-combat test-ui test-mpq-compat test-assets game-sc2 opensc2
+.PHONY: default build shared jass renderer game ui openwarcraft3 tools font $(TOOL_NAMES) run run-demo run-map run-ui-text diag clean download test test-jass test-wow-appearance test-wow-combat test-ui test-mpq-compat test-assets renderer-sc2 game-sc2 opensc2

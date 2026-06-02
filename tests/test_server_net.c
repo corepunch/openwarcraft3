@@ -7,10 +7,10 @@
 
 #include "test_framework.h"
 
-#include "../common/shared.h"
+#include "common/shared.h"
 #include "../common/net.h"
 #include "../client/client.h"
-#include "../server/server.h"
+#include "server/server.h"
 
 void test_client_stubs_init(void);
 void test_client_stubs_clear_cvars(void);

@@ -1,4 +1,5 @@
 #include "r_local.h"
+#include "r_game.h"
 
 #define SIGHT_SIZE 64
 #define SIGHT_DISTANCE 2000
@@ -253,7 +254,7 @@ void R_RenderFogOfWar(void) {
 
     MATRIX4 model_matrix;
     MATRIX4 proj_matrix;
-    VECTOR2 mapsize = GetWar3MapSize(tr.world);
+    VECTOR2 mapsize = R_GameWorldSize();
 
     Matrix4_identity(&model_matrix);
     Matrix4_translate(&model_matrix, &(VECTOR3) { -tr.world->center.x, -tr.world->center.y, 0 });

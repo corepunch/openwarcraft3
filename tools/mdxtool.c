@@ -1,4 +1,4 @@
-#include "renderer/mdx/r_mdx.h"
+#include "games/warcraft3/renderer/mdx/r_mdx.h"
 #include "tools/viewer_common.h"
 
 #include <stdarg.h>

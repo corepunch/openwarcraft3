@@ -1,4 +1,5 @@
 #include "r_local.h"
+#include "r_game.h"
 
 #ifdef WOW
 #define R_UI_BASE_WIDTH  1.0f
@@ -246,7 +247,7 @@ static BOOL R_MinimapPointForWorld(LPCVECTOR3 world, LPCRECT screen, LPVECTOR2 o
         return false;
     }
 
-    map_size = GetWar3MapSize(tr.world);
+    map_size = R_GameWorldSize();
     if (map_size.x <= 0.0f || map_size.y <= 0.0f) {
         return false;
     }

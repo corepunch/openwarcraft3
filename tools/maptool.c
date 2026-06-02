@@ -1,5 +1,5 @@
 #include "renderer/r_local.h"
-#include "renderer/w3m/r_war3map.h"
+#include "games/warcraft3/renderer/w3m/r_war3map.h"
 #include "tools/viewer_common.h"
 
 #include <SDL2/SDL.h>

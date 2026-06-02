@@ -2,7 +2,7 @@
 
 #include <stdlib.h>
 
-#include "../common/shared.h"
+#include "common/shared.h"
 #include "../common/net.h"
 
 int _tests_run = 0;

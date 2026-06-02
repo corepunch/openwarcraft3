@@ -1,5 +1,5 @@
 #include "../client/client.h"
-#include "../server/server.h"
+#include "server/server.h"
 
 #include <SDL2/SDL.h>
 #include <stdlib.h>

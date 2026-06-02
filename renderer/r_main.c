@@ -1,5 +1,5 @@
 #include "r_local.h"
-#include "m3/r_m3.h"
+#include "r_game.h"
 #include "stb/stb_image.h"
 
 #include <SDL2/SDL.h>
@@ -17,13 +17,6 @@ SDL_GLContext context;
 bool is_rendering_lights = false;
 #endif
 static bool renderer_shutdown = false;
-
-void M3_Init(void);
-void MDLX_Init(void);
-
-void M3_Shutdown(void);
-void MDLX_Shutdown(void);
-
 
 LPTEXTURE R_LoadTextureBLP1(HANDLE data, DWORD filesize);
 LPTEXTURE R_LoadTextureBLP2(HANDLE data, DWORD filesize);
@@ -204,95 +197,15 @@ static LPMODEL R_LoadEmptyModel(LPCSTR modelFilename, LPCSTR reason) {
 }
 
 LPMODEL R_LoadModel(LPCSTR modelFilename) {
-    void *buffer = NULL;
-    int fileSize = ri.FS_ReadFile(modelFilename, &buffer);
-    LPMODEL model = NULL;
-    
-    if (fileSize < 0) {
-        // Warcraft III FDF often refers to models as .mdl even when only the
-        // .mdx file is present in the archive. Try that translation first so
-        // classic menu assets like WarCraftIIILogo resolve correctly.
-        if (strstr(modelFilename, ".mdl")) {
-            PATHSTR tempFileName = { 0 };
-            LPSTR ext = strstr(modelFilename, ".mdl");
-            strncpy(tempFileName, modelFilename, ext - modelFilename);
-            strcpy(tempFileName + strlen(tempFileName), ".mdx");
-            fileSize = ri.FS_ReadFile(tempFileName, &buffer);
-        }
-        if (fileSize < 0) {
-            // Try again without trailing sequence digits, e.g. *0.mdx.
-            PATHSTR tempFileName = { 0 };
-            LPCSTR end = modelFilename + strlen(modelFilename) - 4;
-            if (end > modelFilename && isdigit(*(end - 1))) {
-                end--;
-            }
-            strncpy(tempFileName, modelFilename, end - modelFilename);
-            strcpy(tempFileName + strlen(tempFileName), ".mdx");
-            fileSize = ri.FS_ReadFile(tempFileName, &buffer);
-        }
-        if (fileSize < 0 || !buffer) {
-#ifdef WOW
-            if (R_PathHasExtension(modelFilename, ".mdx")) {
-                PATHSTR tempFileName = { 0 };
-                LPSTR ext = strstr(modelFilename, ".mdx");
-                strncpy(tempFileName, modelFilename, ext - modelFilename);
-                strcpy(tempFileName + strlen(tempFileName), ".m2");
-                fileSize = ri.FS_ReadFile(tempFileName, &buffer);
-            }
-#endif
-        }
-        if (fileSize < 0 || !buffer) {
-#ifdef WOW
-            if (R_PathHasExtension(modelFilename, ".m2") || R_PathHasExtension(modelFilename, ".mdx")) {
-                fprintf(stderr, "R_LoadModel: missing WoW model %s, using fallback\n", modelFilename);
-                model = ri.MemAlloc(sizeof(model_t));
-                memset(model, 0, sizeof(*model));
-                model->m2 = R_LoadModelM2(modelFilename, NULL, 0);
-                model->modeltype = ID_MD20;
-                return model;
-            }
-#endif
-            return R_LoadEmptyModel(modelFilename, "not found");
-        }
+    LPMODEL model = R_GameLoadModel(modelFilename);
+    return model ? model : R_LoadEmptyModel(modelFilename, "not found");
+}
+
+void R_ReleaseModel(LPMODEL model) {
+    if (!model) {
+        return;
     }
-    switch (*(DWORD *)buffer) {
-        case ID_MDLX:
-            model = ri.MemAlloc(sizeof(model_t));
-            model->mdx = R_LoadModelMDLX(buffer, fileSize);
-            model->modeltype = ID_MDLX;
-            break;
-        case ID_43DM:
-            model = ri.MemAlloc(sizeof(model_t));
-            model->m3 = R_LoadModelM3(buffer, fileSize);
-            model->modeltype = ID_43DM;
-            break;
-        case ID_MD20:
-        case ID_MD21:
-        case ID_12DM:
-            model = ri.MemAlloc(sizeof(model_t));
-            model->m2 = R_LoadModelM2(modelFilename, buffer, fileSize);
-            model->modeltype = ID_MD20;
-            if (!model->m2) {
-                ri.MemFree(model);
-                model = NULL;
-            }
-            break;
-        default:
-            if (strstr(modelFilename, ".mdl")) {
-                PATHSTR tempFileName = { 0 };
-                LPSTR ext = strstr(modelFilename, ".mdl");
-                if (ext) {
-                    strncpy(tempFileName, modelFilename, ext - modelFilename);
-                    strcpy(tempFileName + strlen(tempFileName), ".mdx");
-                    ri.MemFree(buffer);
-                    return R_LoadModel(tempFileName);
-                }
-            }
-            fprintf(stderr, "Unknown model format %.4s in file %s\n", (LPSTR)buffer, modelFilename);
-            break;
-    }
-    ri.FS_FreeFile(buffer);
-    return model;
+    R_GameReleaseModel(model);
 }
 
 LPRENDERTARGET
@@ -341,13 +254,7 @@ static void R_SetupGL(bool drawLight) {
     MATRIX4 ui_matrix;
 
     Matrix4_identity(&model_matrix);
-    if (tr.world) {
-        VECTOR2 s = GetWar3MapSize(tr.world);
-        VECTOR2 c = tr.world->center;
-        Matrix4_ortho(&tr.viewDef.textureMatrix, -s.x+c.x, s.x+c.x, -s.y+c.y, s.y+c.y, 0.0f, 100.0f);
-    } else {
-        Matrix4_identity(&tr.viewDef.textureMatrix);
-    }
+    R_GameSetupTextureMatrix();
     Matrix4_ortho(&ui_matrix, 0.0f, window.width, window.height, 0.0f, 0.0f, 100.0f);
 
     Matrix3_normal(&normal_matrix, &model_matrix);
@@ -394,23 +301,6 @@ static void R_SetupGL(bool drawLight) {
     R_Call(glBindFramebuffer, GL_FRAMEBUFFER, 0);
 #endif
 }
-
-LPCSTR selCirclesNames[NUM_SELECTION_CIRCLES] = {
-    "ReplaceableTextures\\Selection\\SelectionCircleSmall.blp",
-    "ReplaceableTextures\\Selection\\SelectionCircleMed.blp",
-    "ReplaceableTextures\\Selection\\SelectionCircleLarge.blp",
-};
-
-LPCSTR sheetNames[SHEET_COUNT] = {
-    "TerrainArt\\Terrain.slk",
-    "TerrainArt\\CliffTypes.slk",
-};
-
-LPCSTR modelNames[MODEL_COUNT] = {
-    "UI\\Feedback\\SelectionCircle\\SelectionCircle.mdx"
-};
-
-//#include "mdx/r_mdx.h"
 
 static LPCSTR R_GLString(GLenum name) {
     GLubyte const *value = glGetString(name);
@@ -518,26 +408,7 @@ void R_Init(DWORD width, DWORD height) {
     extern LPCSTR fs_commandbutton;
     extern LPCSTR fs_minimap_fog;
     
-#ifndef WOW
-    FOR_LOOP(i, MODEL_COUNT) {
-        tr.model[i] = R_LoadModel(modelNames[i]);
-    }
-    FOR_LOOP(i, SHEET_COUNT) {
-        tr.sheet[i] = ri.ReadSheet(sheetNames[i]);
-    }
-
-    FOR_LOOP(i, NUM_SELECTION_CIRCLES) {
-        tr.texture[TEX_SELECTION_CIRCLE+i] = R_LoadTexture(selCirclesNames[i]);
-    }
-
-    FOR_LOOP(team, MAX_TEAMS) {
-        PATHSTR glowFilename, colorFilename;
-        sprintf(glowFilename, "ReplaceableTextures\\TeamGlow\\TeamGlow%02d.blp", team);
-        sprintf(colorFilename, "ReplaceableTextures\\TeamColor\\TeamColor%02d.blp", team);
-        tr.texture[TEX_TEAM_GLOW + team] = R_LoadTexture(glowFilename);
-        tr.texture[TEX_TEAM_COLOR + team] = R_LoadTexture(colorFilename);
-    }
-#endif
+    R_GameLoadAssets();
 
     tr.shader[SHADER_DEFAULT] = R_InitShader(vs_default, fs_default);
     tr.shader[SHADER_UI] = R_InitShader(vs_default, fs_ui);
@@ -552,9 +423,6 @@ void R_Init(DWORD width, DWORD height) {
     tr.texture[TEX_BLACK] = R_AllocateSinglePixelTexture(0xff000000);
     tr.texture[TEX_BLOB_SHADOW] = R_MakeBlobShadowTexture();
     tr.texture[TEX_LOADING_INDICATOR] = R_MakeLoadingIndicatorTexture();
-#ifndef WOW
-    tr.texture[TEX_WATER] = R_LoadTexture("ReplaceableTextures\\Water\\Water12.blp");
-#endif
     tr.texture[TEX_FONT] = R_MakeSysFontTexture();
 #ifdef USE_SHADOWMAPS
     tr.rt[RT_DEPTHMAP] = R_AllocateRenderTexture(SHADOW_TEXSIZE, SHADOW_TEXSIZE, GL_DEPTH_COMPONENT, GL_FLOAT, GL_DEPTH_ATTACHMENT);
@@ -563,8 +431,7 @@ void R_Init(DWORD width, DWORD height) {
     R_Call(glClearColor, 0.0, 0.0, 0.0, 1.0);
     R_Call(glViewport, 0, 0, tr.drawableSize.width, tr.drawableSize.height);
     R_InitParticles();
-    M3_Init();
-    MDLX_Init();
+    R_GameInit();
     fprintf(stderr, "Refresher initialized.\n\n");
 }
 
@@ -573,8 +440,7 @@ void R_Shutdown(void) {
         return;
     }
     renderer_shutdown = true;
-    M3_Shutdown();
-    MDLX_Shutdown();
+    R_GameShutdown();
     R_ShutdownFonts();
     
     R_ShutdownFogOfWar();
@@ -613,8 +479,8 @@ void R_RenderShadowMap(void) {
     is_rendering_lights = true;
     R_SetupGL(true);
     R_BindTexture(tr.texture[TEX_SHADOWMAP], 1);
-    R_DrawWorld();
-    R_DrawTerrainShadows();
+    R_GameDrawWorld();
+    R_GameDrawTerrainShadows();
     R_DrawEntities();
 }
 #endif
@@ -629,10 +495,10 @@ void R_RenderView(void) {
     if (tr.viewDef.rdflags & RDF_NOWORLDMODEL) {
         R_Call(glClear, GL_DEPTH_BUFFER_BIT);
     }
-    R_DrawWorld();
+    R_GameDrawWorld();
     R_DrawDecals();
     R_DrawEntities();
-    R_DrawAlphaSurfaces();
+    R_GameDrawAlphaSurfaces();
     R_DrawParticles();
     R_RevertSettings();
     
@@ -694,132 +560,20 @@ size2_t R_GetTextureSize(LPCTEXTURE texture) {
     }
 }
 
-float GetAccurateHeightAtPoint(float sx, float sy);
-
-typedef struct {
-    LPMODEL model;
-    DWORD count;
-    char paths[256][512];
-} model_texture_cache_t;
-
-static model_texture_cache_t model_texture_cache = { 0 };
-
-static void R_TextureCacheAdd(LPCSTR path) {
-    if (!path || !*path || model_texture_cache.count >= 256) {
-        return;
-    }
-    FOR_LOOP(i, model_texture_cache.count) {
-        if (!strcmp(model_texture_cache.paths[i], path)) {
-            return;
-        }
-    }
-    strncpy(model_texture_cache.paths[model_texture_cache.count], path, sizeof(model_texture_cache.paths[0]) - 1);
-    model_texture_cache.paths[model_texture_cache.count][sizeof(model_texture_cache.paths[0]) - 1] = 0;
-    model_texture_cache.count++;
-}
-
-static void R_BuildModelTextureCache(LPMODEL model) {
-    if (model_texture_cache.model == model) {
-        return;
-    }
-    model_texture_cache.model = model;
-    model_texture_cache.count = 0;
-
-    if (!model) {
-        return;
-    }
-
-    switch (model->modeltype) {
-        case ID_MDLX:
-            if (model->mdx && model->mdx->textures) {
-                FOR_LOOP(i, model->mdx->num_textures) {
-                    R_TextureCacheAdd(model->mdx->textures[i].path);
-                }
-            }
-            break;
-        case ID_43DM:
-            if (model->m3 && model->m3->materialStandard) {
-                FOR_LOOP(i, model->m3->materialStandardNum) {
-                    m3Material_t const *material = &model->m3->materialStandard[i];
-                    m3Layer_t const *layers[] = {
-                        material->diffuseLayer,
-                        material->decalLayer,
-                        material->specularLayer,
-                        material->glossLayer,
-                        material->emissiveLayer,
-                        material->emissive2Layer,
-                        material->evioLayer,
-                        material->evioMaskLayer,
-                        material->alphaMaskLayer,
-                        material->alphaMask2Layer,
-                        material->normalLayer,
-                        material->heightLayer,
-                        material->lightMapLayer,
-                        material->ambientOcclusionLayer,
-                    };
-                    FOR_LOOP(layerIndex, sizeof(layers) / sizeof(layers[0])) {
-                        m3Layer_t const *layer = layers[layerIndex];
-                        if (layer && layer->imagePath && *layer->imagePath) {
-                            R_TextureCacheAdd(layer->imagePath);
-                        }
-                    }
-                }
-            }
-            break;
-        default:
-            break;
-    }
-}
-
 bool R_GetModelInfo(LPMODEL model, LPMODELINFO info) {
     if (!model || !info) {
         return false;
     }
-
     memset(info, 0, sizeof(*info));
+    return R_GameGetModelInfo(model, info);
+}
 
-    R_BuildModelTextureCache(model);
-    if (model_texture_cache.model == model) {
-        info->textureCount = MIN(model_texture_cache.count, MODELINFO_MAX_TEXTURES);
-        FOR_LOOP(i, info->textureCount) {
-            info->texturePaths[i] = model_texture_cache.paths[i];
-        }
-    }
+void R_DrawPortrait(LPCMODEL model, LPCRECT viewport, LPCSTR anim) {
+    R_GameDrawPortrait(model, viewport, anim);
+}
 
-    if (model->modeltype == ID_MDLX && model->mdx) {
-        bool found = false;
-        float min_u = 1.0f, min_v = 1.0f, max_u = 0.0f, max_v = 0.0f;
-
-        FOR_EACH_LIST(mdxGeoset_t, geoset, model->mdx->geosets) {
-            if (!geoset->texcoord || geoset->num_texcoord <= 0) {
-                continue;
-            }
-            FOR_LOOP(i, geoset->num_texcoord) {
-                float u = geoset->texcoord[i].x;
-                float v = geoset->texcoord[i].y;
-                if (!found) {
-                    min_u = max_u = u;
-                    min_v = max_v = v;
-                    found = true;
-                } else {
-                    if (u < min_u) min_u = u;
-                    if (u > max_u) max_u = u;
-                    if (v < min_v) min_v = v;
-                    if (v > max_v) max_v = v;
-                }
-            }
-        }
-
-        if (found) {
-            info->textureUVRect.x = min_u;
-            info->textureUVRect.y = min_v;
-            info->textureUVRect.w = max_u - min_u;
-            info->textureUVRect.h = max_v - min_v;
-            info->hasTextureUVRect = true;
-        }
-    }
-
-    return true;
+void R_DrawSprite(LPCMODEL model, LPCSTR anim, float x, float y) {
+    R_GameDrawSprite(model, anim, x, y);
 }
 
 refExport_t R_GetAPI(refImport_t imp) {
@@ -829,7 +583,7 @@ refExport_t R_GetAPI(refImport_t imp) {
     ri = imp;
     return (refExport_t) {
         .Init = R_Init,
-        .RegisterMap = R_RegisterMap,
+        .RegisterMap = R_GameRegisterMap,
         .LoadTexture = R_LoadTexture,
         .LoadModel = R_LoadModel,
         .LoadFont = R_LoadFont,
@@ -856,9 +610,9 @@ refExport_t R_GetAPI(refImport_t imp) {
         .GetTextSize = R_GetTextSize,
         .GetModelInfo = R_GetModelInfo,
         .DrawBoundingBox = R_DrawBoundingBox,
-        .GetHeightAtPoint = GetAccurateHeightAtPoint,
+        .GetHeightAtPoint = R_GameGetHeightAtPoint,
         .TraceEntity = R_TraceEntity,
-        .TraceLocation = R_TraceLocation,
+        .TraceLocation = R_GameTraceLocation,
         .EntitiesInRect = R_EntitiesInRect,
 #ifdef DEBUG_PATHFINDING
         .SetPathTexture = R_SetPathTexture,
