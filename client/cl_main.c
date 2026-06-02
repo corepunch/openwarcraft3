@@ -19,6 +19,11 @@ uiExport_t ui;
 struct client_static cls;
 struct client_state cl;
 
+#define CL_TIMEOUT_MSEC 10000
+
+static DWORD cl_last_packet_time = 0;
+static DWORD cl_realtime = 0;
+
 void Cmd_ForwardToServer(LPCSTR text) {
     if (cls.state <= ca_connected || *text == '-' || *text == '+') {
         fprintf(stderr, "Unknown command \"%s\"\n", text);
@@ -112,6 +117,32 @@ static void CL_MenuCommand(LPCSTR command) {
         return;
     }
     ui.MenuCommand(command);
+}
+
+void CL_Disconnect(LPCSTR reason, BOOL notify) {
+    if (cls.state == ca_disconnected) {
+        return;
+    }
+
+    fprintf(stderr, "CL_Disconnect: %s\n", reason && *reason ? reason : "disconnected");
+
+    if (cls.state >= ca_connected) {
+        SZ_Clear(&cls.netchan.message);
+        MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
+        MSG_WriteString(&cls.netchan.message, "disconnect");
+        Netchan_Transmit(NS_CLIENT, &cls.netchan);
+    }
+
+    CL_ClearState();
+    cls.state = ca_disconnected;
+    cl_last_packet_time = 0;
+    CL_SetMenuBindings();
+
+    if (notify) {
+        CL_MenuCommand("menu_disconnected");
+    } else {
+        CL_MenuCommand("menu_main");
+    }
 }
 
 static refExport_t CL_GetRendererAPI(refImport_t imp) {
@@ -687,6 +718,7 @@ void CL_ConnectionlessPacket(const netadr_t *from, LPSIZEBUF msg) {
 }
 
 static void CL_ReadPacketMessage(const netadr_t *from, LPSIZEBUF msg, int length) {
+    cl_last_packet_time = cl_realtime;
     if (length >= 4) {
         int hdr;
 
@@ -725,6 +757,16 @@ void CL_SendCmd(void) {
         return;
     }
     Netchan_Transmit(NS_CLIENT, &cls.netchan);
+}
+
+static void CL_CheckTimeout(void) {
+    if (cls.state < ca_connected || cl_last_packet_time == 0) {
+        return;
+    }
+    if (cl_realtime - cl_last_packet_time <= CL_TIMEOUT_MSEC) {
+        return;
+    }
+    CL_Disconnect("Connection to host timed out.", true);
 }
 
 /* Set up the netchan to point at a remote server and send an initial
@@ -804,6 +846,7 @@ void CL_SendCommand(void) {
  * Advances the client clock, applies incoming server state, samples input,
  * sends commands, and renders the current frame. */
 void CL_Frame(DWORD msec) {
+    cl_realtime += msec;
     cl.time += msec;
 
     /* Update UI library */
@@ -813,6 +856,7 @@ void CL_Frame(DWORD msec) {
 
     CL_Input();
     CL_ReadPackets();
+    CL_CheckTimeout();
     CL_SendCommand();
     CL_PrepRefresh();
     SCR_UpdateScreen(msec);

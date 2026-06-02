@@ -35,14 +35,14 @@ CLIENTCOMMAND(Select) {
             Get_Commands_f(clent);
         }
     } else {
-        BOOL selected = false;
+        BOOL cleared = false;
         BOOL hasunits = false;
         for (DWORD i = 1; i < argc; i++) {
             DWORD number = atoi(argv[i]);
             if (number >= globals.num_edicts)
                 continue;
             LPEDICT e = &globals.edicts[number];
-            if (!UNIT_IS_BUILDING(e->class_id)) {
+            if (e->s.player == client->ps.number && !UNIT_IS_BUILDING(e->class_id)) {
                 hasunits = true;
             }
         }
@@ -54,14 +54,14 @@ CLIENTCOMMAND(Select) {
             if (e->s.player == client->ps.number) {
                 if (hasunits && UNIT_IS_BUILDING(e->class_id))
                     continue;
-                if (!selected) {
+                if (!cleared) {
                     FOR_SELECTED_UNITS(client, ent) G_DeselectEntity(client, ent);
-                    selected = true;
+                    cleared = true;
                 }
                 G_SelectEntity(client, e);
             }
         }
-        if (selected) {
+        if (cleared) {
             Get_Portrait_f(clent);
             Get_Commands_f(clent);
         }

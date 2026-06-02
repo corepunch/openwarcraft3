@@ -87,6 +87,12 @@ void CL_SetGameplayInput(void) {
     cls.key_dest = key_game;
 }
 
+void CL_Disconnect(LPCSTR reason, BOOL notify) {
+    (void)reason;
+    (void)notify;
+    cls.state = ca_disconnected;
+}
+
 void test_client_stubs_init(void) {
     memset(&cl, 0, sizeof(cl));
     memset(&cls, 0, sizeof(cls));

@@ -663,7 +663,11 @@ void CL_ParseServerMessage(LPSIZEBUF msg) {
             case svc_unit_ui:
                 CL_ParseUnitUI(msg);
                 break;
-                            default:
+            case svc_disconnect:
+                CL_Disconnect("Server disconnected.", true);
+                msg->readcount = msg->cursize;
+                return;
+            default:
                 fprintf(stderr, "Unknown message %d\n", pack_id);
                 return;
         }

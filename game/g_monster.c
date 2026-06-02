@@ -70,6 +70,7 @@ LPEDICT Waypoint_add(LPCVECTOR2 spot) {
     waypoint->s.origin.x = spot->x;
     waypoint->s.origin.y = spot->y;
     waypoint->heatmap2 = 0;
+    waypoint->secondarygoal = NULL;
     waypoint->collision = 0;
     M_CheckGround(waypoint);
     return waypoint;
@@ -89,10 +90,13 @@ BOOL M_IsDead(LPEDICT ent) {
 }
 
 DWORD M_RefreshHeatmap(LPEDICT self) {
-    if (!self->heatmap2) {
-        self->heatmap2 = gi.BuildHeatmap(self);
+    LPEDICT route = self && self->secondarygoal ? self->secondarygoal : self;
+
+    if (!route) {
+        return 0;
     }
-    return self->heatmap2;
+    route->heatmap2 = gi.BuildHeatmap(route);
+    return route->heatmap2;
 }
 
 /* Advance the unit's animation frame by FRAMETIME milliseconds.

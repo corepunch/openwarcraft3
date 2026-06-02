@@ -38,6 +38,9 @@ struct {
     routeNode_t *heatmap;
 } pathmap = { 0 };
 
+static edict_t *active_heatmap_goal = NULL;
+static DWORD active_heatmap_generation = 0;
+
 static point2_t LocationToPathMap(LPCVECTOR2 location);
 
 static int const dx[] = {-1, 1, 0, 0, -1, -1, 1, 1};
@@ -322,18 +325,31 @@ DWORD build_heatmap(point2_t target) {
 DWORD CM_BuildHeatmap(edict_t *goalentity) {
     point2_t target = LocationToPathMap(&goalentity->s.origin2);
 
+    if (goalentity == active_heatmap_goal && active_heatmap_generation != 0) {
+        return active_heatmap_generation;
+    }
+
     reset_pathmap_data();
     clear_heatmap();
     apply_entity_obstacles(goalentity);
     if (!is_pathable_node(target.x, target.y)) {
         closest_pathable_node(&goalentity->s.origin2, 0, &target);
     }
-    return build_heatmap(target);
+    build_heatmap(target);
+
+    active_heatmap_goal = goalentity;
+    active_heatmap_generation++;
+    if (active_heatmap_generation == 0) {
+        active_heatmap_generation = 1;
+    }
+    return active_heatmap_generation;
 }
 
 void CM_ReadPathMap(HANDLE archive) {
     HANDLE file;
     DWORD header, version;
+    active_heatmap_goal = NULL;
+    active_heatmap_generation = 0;
     SFileOpenFileEx(archive, "war3map.wpm", SFILE_OPEN_FROM_MPQ, &file);
     SFileReadFile(file, &header, 4, NULL, NULL);
     SFileReadFile(file, &version, 4, NULL, NULL);

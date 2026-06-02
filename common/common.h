@@ -71,7 +71,8 @@ enum svc_ops {
     svc_fogofwar,
     
 // Unit UI data (Phase 8: HUD migration)
-    svc_unit_ui                  // [byte num_units] for each unit: [short entity] [byte num_buttons] [buttons] [byte num_inventory] [inventory] [byte num_queue] [queue]
+    svc_unit_ui,                 // [byte num_units] for each unit: [short entity] [byte num_buttons] [buttons] [byte num_inventory] [inventory] [byte num_queue] [queue]
+    svc_disconnect               // server is closing or dropped this client
 };
 
 // client to server
