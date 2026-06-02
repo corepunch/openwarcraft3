@@ -749,9 +749,122 @@ void CM_FreeMapInfo(LPMAPINFO mapInfo) {
     memset(mapInfo, 0, sizeof(*mapInfo));
 }
 
-static BOOL CM_ReadUnitArray(HANDLE file, DWORD *num, void **data, DWORD elem_size);
+#define CM_PLACEMENT_ROC_VERSION 7
+#define CM_PLACEMENT_TFT_VERSION 8
+#define CM_DOO_MAGIC MAKEFOURCC('W', '3', 'd', 'o')
+#define CM_DROPPABLE_ITEM_DISK_SIZE 8
+#define CM_INVENTORY_ITEM_DISK_SIZE 8
+#define CM_MODIFIED_ABILITY_DISK_SIZE 12
 
-static BOOL CM_ReadDroppedItemSets(HANDLE file, DWORD *num_sets, droppableItemSet_t **sets) {
+typedef struct {
+    DWORD version;
+    DWORD subversion;
+    DWORD count;
+    BOOL tft;
+} cmPlacementHeader_t;
+
+static BOOL CM_ReadPlacementHeader(HANDLE file, LPCSTR filename, cmPlacementHeader_t *header) {
+    DWORD magic;
+
+    if (!file || !header) {
+        return false;
+    }
+    memset(header, 0, sizeof(*header));
+    if (!SFileReadFile(file, &magic, sizeof(magic), NULL, NULL) ||
+        !SFileReadFile(file, &header->version, sizeof(header->version), NULL, NULL) ||
+        !SFileReadFile(file, &header->subversion, sizeof(header->subversion), NULL, NULL) ||
+        !SFileReadFile(file, &header->count, sizeof(header->count), NULL, NULL)) {
+        fprintf(stderr, "CM_ReadPlacementHeader: short %s header\n", filename);
+        return false;
+    }
+    if (magic != CM_DOO_MAGIC) {
+        fprintf(stderr, "CM_ReadPlacementHeader: invalid %s magic 0x%08x\n", filename, (unsigned)magic);
+        return false;
+    }
+    if (header->version != CM_PLACEMENT_ROC_VERSION &&
+        header->version != CM_PLACEMENT_TFT_VERSION) {
+        fprintf(stderr,
+                "CM_ReadPlacementHeader: unsupported %s version %u subversion %u\n",
+                filename,
+                (unsigned)header->version,
+                (unsigned)header->subversion);
+        return false;
+    }
+    header->tft = header->version == CM_PLACEMENT_TFT_VERSION;
+    return true;
+}
+
+static BOOL CM_ReadCount(HANDLE file, DWORD elem_size, DWORD *count, LPCSTR context) {
+    DWORD max_count;
+
+    if (!file || !count || elem_size == 0) {
+        return false;
+    }
+    *count = 0;
+    if (!SFileReadFile(file, count, sizeof(*count), NULL, NULL)) {
+        fprintf(stderr, "CM_ReadCount: short count for %s\n", context);
+        return false;
+    }
+    max_count = SFileBytesRemaining(file) / elem_size;
+    if (*count > max_count) {
+        fprintf(stderr,
+                "CM_ReadCount: invalid %s count %u max=%u remaining=%u elem=%u\n",
+                context,
+                (unsigned)*count,
+                (unsigned)max_count,
+                (unsigned)SFileBytesRemaining(file),
+                (unsigned)elem_size);
+        return false;
+    }
+    return true;
+}
+
+static void CM_FreeDroppedItemSets(DWORD num_sets, droppableItemSet_t *sets) {
+    if (!sets) {
+        return;
+    }
+    FOR_LOOP(i, num_sets) {
+        SAFE_DELETE(sets[i].droppableItems, MemFree);
+    }
+    MemFree(sets);
+}
+
+static void CM_FreeDoodadPlacementData(LPDOODAD doodad) {
+    if (!doodad) {
+        return;
+    }
+    CM_FreeDroppedItemSets(doodad->num_droppedItemSets, doodad->droppableItemSets);
+    SAFE_DELETE(doodad->inventoryItems, MemFree);
+    SAFE_DELETE(doodad->modifiedAbilities, MemFree);
+    SAFE_DELETE(doodad->diffAvailUnits, MemFree);
+}
+
+static BOOL CM_ReadDroppableItems(HANDLE file, DWORD *num, droppableItem_t **data, LPCSTR context) {
+    DWORD count;
+
+    if (!num || !data) {
+        return false;
+    }
+    *num = 0;
+    *data = NULL;
+    if (!CM_ReadCount(file, CM_DROPPABLE_ITEM_DISK_SIZE, &count, context)) {
+        return false;
+    }
+    *num = count;
+    if (count > 0) {
+        *data = MemAlloc(count * sizeof(**data));
+    }
+    FOR_LOOP(i, count) {
+        DWORD chance;
+
+        SFileReadFile(file, &(*data)[i].itemID, sizeof(DWORD), NULL, NULL);
+        SFileReadFile(file, &chance, sizeof(chance), NULL, NULL);
+        (*data)[i].chanceToDrop = (int)chance;
+    }
+    return true;
+}
+
+static BOOL CM_ReadDroppedItemSets(HANDLE file, DWORD *num_sets, droppableItemSet_t **sets, LPCSTR context) {
     DWORD count;
 
     if (!num_sets || !sets) {
@@ -759,11 +872,7 @@ static BOOL CM_ReadDroppedItemSets(HANDLE file, DWORD *num_sets, droppableItemSe
     }
     *num_sets = 0;
     *sets = NULL;
-    if (!SFileReadFile(file, &count, sizeof(count), NULL, NULL)) {
-        return false;
-    }
-    if (count > SFileBytesRemaining(file) / sizeof(DWORD)) {
-        fprintf(stderr, "CM_ReadUnit: invalid dropped item set count %u\n", (unsigned)count);
+    if (!CM_ReadCount(file, sizeof(DWORD), &count, context)) {
         return false;
     }
     *num_sets = count;
@@ -771,10 +880,15 @@ static BOOL CM_ReadDroppedItemSets(HANDLE file, DWORD *num_sets, droppableItemSe
         *sets = MemAlloc(count * sizeof(**sets));
     }
     FOR_LOOP(i, count) {
-        DWORD num_items;
         droppableItemSet_t *set = &(*sets)[i];
+        char item_context[128];
+        DWORD num_items;
 
-        if (!CM_ReadUnitArray(file, &num_items, (void **)&set->droppableItems, sizeof(droppableItem_t))) {
+        snprintf(item_context, sizeof(item_context), "%s item set %u", context, (unsigned)i);
+        if (!CM_ReadDroppableItems(file, &num_items, &set->droppableItems, item_context)) {
+            CM_FreeDroppedItemSets(count, *sets);
+            *sets = NULL;
+            *num_sets = 0;
             return false;
         }
         set->num_droppableItems = (int)num_items;
@@ -784,21 +898,27 @@ static BOOL CM_ReadDroppedItemSets(HANDLE file, DWORD *num_sets, droppableItemSe
 
 static void CM_ReadDoodads(HANDLE archive) {
     HANDLE file;
-    DWORD fileHeader, version, subversion, numDoodads;
+    cmPlacementHeader_t header;
 
-    SFileOpenFileEx(archive, "war3map.doo", SFILE_OPEN_FROM_MPQ, &file);
-    SFileReadFile(file, &fileHeader, 4, NULL, NULL);
-    SFileReadFile(file, &version, 4, NULL, NULL);
-    SFileReadFile(file, &subversion, 4, NULL, NULL);
-    SFileReadFile(file, &numDoodads, 4, NULL, NULL);
+    if (!SFileOpenFileEx(archive, "war3map.doo", SFILE_OPEN_FROM_MPQ, &file)) {
+        fprintf(stderr, "CM_ReadDoodads: missing war3map.doo\n");
+        return;
+    }
+    if (!CM_ReadPlacementHeader(file, "war3map.doo", &header)) {
+        SFileCloseFile(file);
+        return;
+    }
 
-    FOR_LOOP(index, numDoodads) {
+    FOR_LOOP(index, header.count) {
         DWORD count;
         LPDOODAD doodad = MemAlloc(sizeof(DOODAD));
+        char context[128];
 
+        snprintf(context, sizeof(context), "war3map.doo doodad %u", (unsigned)index);
         doodad->player = PLAYER_NEUTRAL_PASSIVE;
         doodad->hitPoints = (DWORD)-1;
         doodad->manaPoints = (DWORD)-1;
+        doodad->droppedItemSetPtr = (DWORD)-1;
         doodad->goldAmount = 12500;
         doodad->targetAcquisition = -1.0f;
         SFileReadFile(file, &doodad->doodID, sizeof(DWORD), NULL, NULL);
@@ -808,9 +928,10 @@ static void CM_ReadDoodads(HANDLE archive) {
         SFileReadFile(file, &doodad->scale, sizeof(VECTOR3), NULL, NULL);
         SFileReadFile(file, &doodad->flags, sizeof(BYTE), NULL, NULL);
         SFileReadFile(file, &doodad->treeLife, sizeof(BYTE), NULL, NULL);
-        if (subversion != 0) {
+        if (header.tft) {
             SFileReadFile(file, &doodad->droppedItemSetPtr, sizeof(DWORD), NULL, NULL);
-            if (!CM_ReadDroppedItemSets(file, &count, &doodad->droppableItemSets)) {
+            if (!CM_ReadDroppedItemSets(file, &count, &doodad->droppableItemSets, context)) {
+                CM_FreeDoodadPlacementData(doodad);
                 MemFree(doodad);
                 break;
             }
@@ -824,30 +945,57 @@ static void CM_ReadDoodads(HANDLE archive) {
     SFileCloseFile(file);
 }
 
-static BOOL CM_ReadUnitArray(HANDLE file, DWORD *num, void **data, DWORD elem_size) {
+static BOOL CM_ReadInventoryItems(HANDLE file, DWORD *num, inventoryItem_t **data, LPCSTR context) {
     DWORD count;
 
-    if (!num || !data || elem_size == 0) {
+    if (!num || !data) {
         return false;
     }
     *num = 0;
     *data = NULL;
-    if (!SFileReadFile(file, &count, sizeof(count), NULL, NULL)) {
-        return false;
-    }
-    if (count > SFileBytesRemaining(file) / elem_size) {
-        fprintf(stderr, "CM_ReadUnit: invalid array count %u\n", (unsigned)count);
+    if (!CM_ReadCount(file, CM_INVENTORY_ITEM_DISK_SIZE, &count, context)) {
         return false;
     }
     *num = count;
     if (count > 0) {
-        *data = MemAlloc(count * elem_size);
-        SFileReadFile(file, *data, count * elem_size, NULL, NULL);
+        *data = MemAlloc(count * sizeof(**data));
+    }
+    FOR_LOOP(i, count) {
+        SFileReadFile(file, &(*data)[i].slot, sizeof(DWORD), NULL, NULL);
+        SFileReadFile(file, &(*data)[i].itemID, sizeof(DWORD), NULL, NULL);
     }
     return true;
 }
 
-static BOOL CM_ReadUnit(HANDLE file, struct Doodad *unit, BOOL frozenThrone) {
+static BOOL CM_ReadModifiedAbilities(HANDLE file, DWORD *num, modifiedAbility_t **data, LPCSTR context) {
+    DWORD count;
+
+    if (!num || !data) {
+        return false;
+    }
+    *num = 0;
+    *data = NULL;
+    if (!CM_ReadCount(file, CM_MODIFIED_ABILITY_DISK_SIZE, &count, context)) {
+        return false;
+    }
+    *num = count;
+    if (count > 0) {
+        *data = MemAlloc(count * sizeof(**data));
+    }
+    FOR_LOOP(i, count) {
+        SFileReadFile(file, &(*data)[i].abilityID, sizeof(DWORD), NULL, NULL);
+        SFileReadFile(file, &(*data)[i].active, sizeof(DWORD), NULL, NULL);
+        SFileReadFile(file, &(*data)[i].level, sizeof(DWORD), NULL, NULL);
+    }
+    return true;
+}
+
+static BOOL CM_ReadUnit(HANDLE file, struct Doodad *unit, cmPlacementHeader_t const *header, DWORD index) {
+    char context[128];
+    char array_context[128];
+
+    snprintf(context, sizeof(context), "war3mapUnits.doo unit %u", (unsigned)index);
+
     SFileReadFile(file, &unit->doodID, sizeof(DWORD), NULL, NULL);
     SFileReadFile(file, &unit->variation, sizeof(DWORD), NULL, NULL);
     SFileReadFile(file, &unit->position, sizeof(VECTOR3), NULL, NULL);
@@ -859,10 +1007,12 @@ static BOOL CM_ReadUnit(HANDLE file, struct Doodad *unit, BOOL frozenThrone) {
     SFileReadFile(file, &unit->unknown2, sizeof(BYTE), NULL, NULL);
     SFileReadFile(file, &unit->hitPoints, sizeof(DWORD), NULL, NULL); // (-1 = use default)
     SFileReadFile(file, &unit->manaPoints, sizeof(DWORD), NULL, NULL); // (-1 = use default, 0 = unit doesn't have mana)
-    if (frozenThrone) {
+    if (header->tft) {
         SFileReadFile(file, &unit->droppedItemSetPtr, sizeof(DWORD), NULL, NULL);
+    } else {
+        unit->droppedItemSetPtr = (DWORD)-1;
     }
-    if (!CM_ReadDroppedItemSets(file, &unit->num_droppedItemSets, &unit->droppableItemSets)) {
+    if (!CM_ReadDroppedItemSets(file, &unit->num_droppedItemSets, &unit->droppableItemSets, context)) {
         return false;
     }
 
@@ -872,16 +1022,20 @@ static BOOL CM_ReadUnit(HANDLE file, struct Doodad *unit, BOOL frozenThrone) {
     // war3mapUnits.doo stores only the file-format hero fields here.  The
     // runtime doodadHero_t has extra state, so do not read sizeof(hero).
     SFileReadFile(file, &unit->hero.level, sizeof(DWORD), NULL, NULL);
-    SFileReadFile(file, &unit->hero.str, sizeof(DWORD), NULL, NULL);
-    SFileReadFile(file, &unit->hero.agi, sizeof(DWORD), NULL, NULL);
-    SFileReadFile(file, &unit->hero.intel, sizeof(DWORD), NULL, NULL);
+    if (header->tft) {
+        SFileReadFile(file, &unit->hero.str, sizeof(DWORD), NULL, NULL);
+        SFileReadFile(file, &unit->hero.agi, sizeof(DWORD), NULL, NULL);
+        SFileReadFile(file, &unit->hero.intel, sizeof(DWORD), NULL, NULL);
+    }
     unit->hero.xp = 0;
     unit->hero.suspend_xp = false;
 
-    if (!CM_ReadUnitArray(file, &unit->num_inventoryItems, (void **)&unit->inventoryItems, sizeof(inventoryItem_t))) {
+    snprintf(array_context, sizeof(array_context), "%s inventory", context);
+    if (!CM_ReadInventoryItems(file, &unit->num_inventoryItems, &unit->inventoryItems, array_context)) {
         return false;
     }
-    if (!CM_ReadUnitArray(file, &unit->num_modifiedAbilities, (void **)&unit->modifiedAbilities, sizeof(modifiedAbility_t))) {
+    snprintf(array_context, sizeof(array_context), "%s abilities", context);
+    if (!CM_ReadModifiedAbilities(file, &unit->num_modifiedAbilities, &unit->modifiedAbilities, array_context)) {
         return false;
     }
 
@@ -898,12 +1052,16 @@ static BOOL CM_ReadUnit(HANDLE file, struct Doodad *unit, BOOL frozenThrone) {
             SFileReadFile(file, &unit->randomUnitPositionNumber, sizeof(DWORD), NULL, NULL);
             break;
         case 2:
-            if (!CM_ReadUnitArray(file, &unit->num_diffAvailUnits, (void **)&unit->diffAvailUnits, sizeof(droppableItem_t))) {
+            snprintf(array_context, sizeof(array_context), "%s random unit choices", context);
+            if (!CM_ReadDroppableItems(file, &unit->num_diffAvailUnits, &unit->diffAvailUnits, array_context)) {
                 return false;
             }
             break;
         default:
-            fprintf(stderr, "CM_ReadUnit: invalid random unit flag %d\n", (int)unit->randomUnitFlag);
+            fprintf(stderr,
+                    "CM_ReadUnit: invalid random unit flag %d in %s\n",
+                    (int)unit->randomUnitFlag,
+                    context);
             return false;
     }
     SFileReadFile(file, &unit->color, sizeof(COLOR32), NULL, NULL);
@@ -914,17 +1072,21 @@ static BOOL CM_ReadUnit(HANDLE file, struct Doodad *unit, BOOL frozenThrone) {
 
 static void CM_ReadUnitDoodads(HANDLE archive) {
     HANDLE file;
-    DWORD fileHeader, version, subversion, numUnits;
+    cmPlacementHeader_t header;
 
-    SFileOpenFileEx(archive, "war3mapUnits.doo", SFILE_OPEN_FROM_MPQ, &file);
-    SFileReadFile(file, &fileHeader, 4, NULL, NULL);
-    SFileReadFile(file, &version, 4, NULL, NULL);
-    SFileReadFile(file, &subversion, 4, NULL, NULL);
-    SFileReadFile(file, &numUnits, 4, NULL, NULL);
+    if (!SFileOpenFileEx(archive, "war3mapUnits.doo", SFILE_OPEN_FROM_MPQ, &file)) {
+        fprintf(stderr, "CM_ReadUnitDoodads: missing war3mapUnits.doo\n");
+        return;
+    }
+    if (!CM_ReadPlacementHeader(file, "war3mapUnits.doo", &header)) {
+        SFileCloseFile(file);
+        return;
+    }
 
-    FOR_LOOP(index, numUnits) {
+    FOR_LOOP(index, header.count) {
         LPDOODAD doodad = MemAlloc(sizeof(DOODAD));
-        if (!CM_ReadUnit(file, doodad, subversion != 0)) {
+        if (!CM_ReadUnit(file, doodad, &header, index)) {
+            CM_FreeDoodadPlacementData(doodad);
             MemFree(doodad);
             break;
         }

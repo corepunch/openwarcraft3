@@ -742,17 +742,19 @@ DWORD IssueBuildOrderById(LPJASS j) {
 }
 DWORD SetResourceAmount(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    whichUnit->resources = jass_checkinteger(j, 2);
+    LONG amount = jass_checkinteger(j, 2);
+    if (whichUnit) whichUnit->resources = amount;
     return 0;
 }
 DWORD AddResourceAmount(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    whichUnit->resources += jass_checkinteger(j, 2);
+    LONG amount = jass_checkinteger(j, 2);
+    if (whichUnit) whichUnit->resources += amount;
     return 0;
 }
 DWORD GetResourceAmount(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    return jass_pushinteger(j, whichUnit->resources);
+    return jass_pushinteger(j, whichUnit ? whichUnit->resources : 0);
 }
 DWORD WaygateGetDestinationX(LPJASS j) {
     //HANDLE waygate = jass_checkhandle(j, 1, "unit");
