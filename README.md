@@ -20,6 +20,23 @@ You can also download the latest build artifact from the [CI workflow runs](http
   <img src="doc/images/screenshot3.jpg" width="31%" />
 </p>
 
+## Beyond Warcraft III
+
+Warcraft III is the first and most complete target, but the long-term goal is a reusable engine for several Blizzard-era game formats and play styles.
+
+The project is being organized around a small core runtime: client, server, renderer, UI, networking, math, archive loading, console/cvars, and Quake-style module boundaries. Each game then brings its own policy and data formats under `games/<game>/`: game simulation, renderer hooks, UI layer, scripts, tables, models, maps, and tests.
+
+In spirit, this is a little like ScummVM: keep the original game data outside the repository, rebuild the engine/runtime behavior in open source, and let legally owned local assets run through a modern, portable codebase. OpenWarcraft3 is not affiliated with Blizzard and does not ship retail assets; it is an engine and compatibility project for people who already have the original data.
+
+Current and planned targets:
+
+- **Warcraft III** (`games/warcraft-3/`) — main playable prototype and current development focus.
+- **StarCraft II** (`games/starcraft-2/`) — next RTS-family target, currently focused on M3 model and renderer groundwork.
+- **World of Warcraft** (`games/world-of-warcraft/`) — exploratory world/terrain/model loading target, useful for renderer architecture work.
+- **Diablo III** — a future candidate once the shared engine and the RTS/MMO-era targets have matured enough to make another data family worthwhile.
+
+The near-term priority is still Warcraft III. The broader vision is to keep extracting clean reusable engine pieces as that target becomes more complete, so later game reimplementations start from a stronger foundation instead of a fresh pile of hacks.
+
 ## Getting Started
 
 ### 1. Clone
