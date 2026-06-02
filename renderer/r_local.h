@@ -54,7 +54,7 @@
 #define SYSFONT_DRAW_HEIGHT 8
 
 #include "../common/common.h"
-#include "../client/renderer.h"
+#include "../client/tr_public.h"
 
 extern refImport_t ri;
 

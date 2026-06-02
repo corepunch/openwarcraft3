@@ -1,5 +1,5 @@
 #include "renderer/r_local.h"
-#include "client/renderer.h"
+#include "client/tr_public.h"
 #include "game/g_local.h"
 #include "tools/viewer_common.h"
 #include "common/mpq.h"

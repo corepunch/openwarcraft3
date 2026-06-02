@@ -1,7 +1,7 @@
 #include <stdlib.h> // atoi()
 
 #include "client.h"
-#include "renderer.h"
+#include "tr_public.h"
 
 static struct {
     renderEntity_t entities[MAX_CLIENT_ENTITIES];

@@ -10,7 +10,7 @@
  * CL_Init() sets up the renderer and input bindings at startup.
  */
 #include "client.h"
-#include "renderer.h"
+#include "tr_public.h"
 #include <arpa/inet.h>
 
 refExport_t re;

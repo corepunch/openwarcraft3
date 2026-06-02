@@ -2,7 +2,7 @@
  * ui.h — UI library public interface.
  *
  * Defines the import/export function tables for the UI library following
- * the same pattern as the renderer (client/renderer.h) and game DLL
+ * the same pattern as the renderer (client/tr_public.h) and game DLL
  * (server/game.h).
  *
  * The client fills uiImport_t with callbacks for file I/O, memory allocation,
@@ -17,7 +17,7 @@
 #ifndef ui_h
 #define ui_h
 
-#include "client/renderer.h"
+#include "client/tr_public.h"
 
 /* Unit UI data structures (Phase 8) */
 #define MAX_COMMAND_BUTTONS 12

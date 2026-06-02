@@ -2,7 +2,7 @@
 #define client_h
 
 #include "common/common.h"
-#include "renderer.h"
+#include "tr_public.h"
 #include "keys.h"
 #include "client/ui.h"
 
