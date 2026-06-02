@@ -485,6 +485,7 @@ void CL_BeginLoadingMap(LPCSTR mapName) {
     cl.loading_progress = 0.0f;
     cl.playerstate.client_ui_state = CLIENT_UI_LOADING;
     cls.state = ca_loading;
+    CL_MenuCommand("menu_ingame");
 }
 
 void CL_LoadingUpdate(LPCSTR status, FLOAT progress) {
