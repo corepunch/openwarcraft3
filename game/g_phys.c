@@ -146,11 +146,14 @@ void G_SolveCollisions(void) {
             } else {
                 G_PushEntity(a, -diff * 0.5f, &d);
                 G_PushEntity(b, diff * 0.5f, &d);
-//                // one of the colliders reached the point?
-//                // then stop the other one as well
-                if (a->goalentity == b->goalentity) {
-                    if (IS_MOVING(a)) a->stand(a);
-                    if (IS_MOVING(b)) b->stand(b);
+                /* Transitive bumping: a stopped unit that has reached its
+                 * goal passes arrival to any overlapping unit heading for
+                 * the same goal.  This prevents the jitter that occurs when
+                 * collision nudges keep a nearly-arrived unit oscillating
+                 * around the destination. */
+                if (a->goalentity && a->goalentity == b->goalentity) {
+                    if (!IS_MOVING(a) && IS_MOVING(b)) b->stand(b);
+                    if (!IS_MOVING(b) && IS_MOVING(a)) a->stand(a);
                 }
             }
         }

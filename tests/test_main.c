@@ -19,6 +19,7 @@ int _tests_failed = 0;
 void run_slk_tests(void);
 void run_unit_tests(void);
 void run_movement_tests(void);
+void run_pathfinding_tests(void);
 void run_collision_tests(void);
 void run_net_tests(void);
 void run_jass_tests(void);
@@ -41,6 +42,10 @@ int main(void) {
 
     printf("[Unit movement / pathfinding]\n");
     run_movement_tests();
+    printf("\n");
+
+    printf("[Heatmap / flow-field pathfinding]\n");
+    run_pathfinding_tests();
     printf("\n");
 
     printf("[Collision resolution / TGA loader]\n");

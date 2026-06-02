@@ -38,8 +38,29 @@ struct {
     routeNode_t *heatmap;
 } pathmap = { 0 };
 
-static edict_t *active_heatmap_goal = NULL;
-static DWORD active_heatmap_generation = 0;
+#define HEATMAP_CACHE_SLOTS 4
+
+typedef struct {
+    edict_t    *goal;
+    DWORD       generation;
+    routeNode_t *data;   /* owns a full-map heatmap buffer, NULL when empty */
+} heatmapCacheEntry_t;
+
+static heatmapCacheEntry_t heatmap_cache[HEATMAP_CACHE_SLOTS];
+static DWORD heatmap_next_generation = 1;
+static int   heatmap_lru[HEATMAP_CACHE_SLOTS];
+static int   heatmap_lru_clock = 0;
+
+static void heatmap_cache_invalidate(void) {
+    FOR_LOOP(i, HEATMAP_CACHE_SLOTS) {
+        heatmap_cache[i].goal       = NULL;
+        heatmap_cache[i].generation = 0;
+        /* Keep allocated buffers to avoid malloc churn on map reload. */
+    }
+    heatmap_next_generation = 1;
+    heatmap_lru_clock       = 0;
+    memset(heatmap_lru, 0, sizeof(heatmap_lru));
+}
 
 static point2_t LocationToPathMap(LPCVECTOR2 location);
 
@@ -94,35 +115,72 @@ static void clear_heatmap(void) {
     }
 }
 
-static void apply_entity_obstacles(edict_t const *ignore) {
-    FOR_LOOP(i, ge->num_edicts){
-        edict_t *ent = EDICT_NUM(i);
-        if (!ent->inuse || ent == ignore) {
-            continue;
-        }
-
-        point2_t p = LocationToPathMap(&ent->s.origin2);
-        if (ent->pathtex) {
-            pathTex_t *pt = ent->pathtex;
-            FOR_LOOP(x, pt->width) {
-                FOR_LOOP(y, pt->height) {
-                    int px = (int)x + p.x - (int)pt->width / 2;
-                    int py = (int)y + p.y - (int)pt->height / 2;
-                    if (is_valid_point(px, py)) {
-                        path_node(px, py)->nowalk |= pt->map[x + y * pt->width].b;
-                    }
+/* Stamp a single entity's footprint into a pathmap byte array. */
+static void stamp_entity_obstacle(edict_t const *ent, pathMapCell_t *target) {
+    point2_t p = LocationToPathMap(&ent->s.origin2);
+    if (ent->pathtex) {
+        pathTex_t *pt = ent->pathtex;
+        FOR_LOOP(x, pt->width) {
+            FOR_LOOP(y, pt->height) {
+                int px = (int)x + p.x - (int)pt->width / 2;
+                int py = (int)y + p.y - (int)pt->height / 2;
+                if (is_valid_point(px, py)) {
+                    target[px + py * pathmap.width].nowalk |=
+                        pt->map[x + y * pt->width].b;
                 }
             }
-        } else if (!(ent->svflags & SVF_MONSTER)) {
-            DWORD radius = ent->collision / 24;
-            FOR_LOOP(x, MAX(1, radius * 2)) {
-                FOR_LOOP(y, MAX(1, radius * 2)) {
-                    int px = (int)x + p.x - (int)radius;
-                    int py = (int)y + p.y - (int)radius;
-                    if (is_valid_point(px, py)) {
-                        path_node(px, py)->nowalk |= 1;
-                    }
+        }
+    } else if (!(ent->svflags & SVF_MONSTER)) {
+        DWORD radius = ent->collision / 24;
+        FOR_LOOP(x, MAX(1, radius * 2)) {
+            FOR_LOOP(y, MAX(1, radius * 2)) {
+                int px = (int)x + p.x - (int)radius;
+                int py = (int)y + p.y - (int)radius;
+                if (is_valid_point(px, py)) {
+                    target[px + py * pathmap.width].nowalk |= 1;
                 }
+            }
+        }
+    }
+}
+
+/* Bake all current static entity obstacles (buildings, doodads with pathtex,
+ * non-monster solid entities) permanently into pathmap.original.  Call this
+ * once after SpawnEntities() — these obstacles never move so they don't need
+ * to be re-stamped every heatmap build. */
+void CM_BakeStaticObstacles(void) {
+    if (!pathmap.original || !ge)
+        return;
+    FOR_LOOP(i, ge->num_edicts) {
+        edict_t *ent = EDICT_NUM(i);
+        if (!ent->inuse)
+            continue;
+        stamp_entity_obstacle(ent, pathmap.original);
+    }
+    /* Invalidate the cache so the next build uses the updated original. */
+    heatmap_cache_invalidate();
+}
+
+/* Apply only dynamic (unit/monster) obstacles into pathmap.data for
+ * closest-pathable-point queries at command time.  Static obstacles are
+ * already baked into pathmap.original and copied in by reset_pathmap_data(). */
+static void apply_dynamic_obstacles(edict_t const *ignore) {
+    FOR_LOOP(i, ge->num_edicts) {
+        edict_t *ent = EDICT_NUM(i);
+        if (!ent->inuse || ent == ignore)
+            continue;
+        /* Only stamp units (SVF_MONSTER) — static obstacles are already in
+         * pathmap.original and were restored by reset_pathmap_data(). */
+        if (!(ent->svflags & SVF_MONSTER))
+            continue;
+        point2_t p = LocationToPathMap(&ent->s.origin2);
+        DWORD radius = MAX(1, (DWORD)(ent->collision / 24));
+        FOR_LOOP(x, radius * 2) {
+            FOR_LOOP(y, radius * 2) {
+                int px = (int)x + p.x - (int)radius;
+                int py = (int)y + p.y - (int)radius;
+                if (is_valid_point(px, py))
+                    path_node(px, py)->nowalk |= 1;
             }
         }
     }
@@ -220,7 +278,7 @@ BOOL CM_ClosestPathablePointForRadius(LPCVECTOR2 location, FLOAT radius, LPVECTO
     }
 
     reset_pathmap_data();
-    apply_entity_obstacles(NULL);
+    apply_dynamic_obstacles(NULL);
     if (!closest_pathable_node(location, radius, &point)) {
         return false;
     }
@@ -323,33 +381,87 @@ DWORD build_heatmap(point2_t target) {
 }
 
 DWORD CM_BuildHeatmap(edict_t *goalentity) {
-    point2_t target = LocationToPathMap(&goalentity->s.origin2);
+    DWORD map_cells = pathmap.width * pathmap.height;
 
-    if (goalentity == active_heatmap_goal && active_heatmap_generation != 0) {
-        return active_heatmap_generation;
+    /* Cache lookup — find slot with matching goal. */
+    FOR_LOOP(i, HEATMAP_CACHE_SLOTS) {
+        if (heatmap_cache[i].goal == goalentity && heatmap_cache[i].data) {
+            heatmap_lru[i] = heatmap_lru_clock++;
+            /* Restore this goal's heatmap into pathmap.heatmap. */
+            memcpy(pathmap.heatmap, heatmap_cache[i].data,
+                   map_cells * sizeof(routeNode_t));
+            return heatmap_cache[i].generation;
+        }
     }
 
+    /* Cache miss — evict the least-recently-used slot.
+     * Prefer empty slots (goal==NULL) before comparing LRU timestamps. */
+    int evict = 0;
+    FOR_LOOP(i, HEATMAP_CACHE_SLOTS) {
+        if (!heatmap_cache[i].goal) { evict = i; break; }
+        if (!heatmap_cache[evict].goal) break;
+        if (heatmap_lru[i] < heatmap_lru[evict]) evict = i;
+    }
+    if (!heatmap_cache[evict].data)
+        heatmap_cache[evict].data = MemAlloc(map_cells * sizeof(routeNode_t));
+
+    point2_t target = LocationToPathMap(&goalentity->s.origin2);
     reset_pathmap_data();
     clear_heatmap();
-    apply_entity_obstacles(goalentity);
+    /* Static obstacles are already baked into pathmap.original by
+     * CM_BakeStaticObstacles(); no per-frame entity scan needed here. */
     if (!is_pathable_node(target.x, target.y)) {
         closest_pathable_node(&goalentity->s.origin2, 0, &target);
     }
     build_heatmap(target);
 
-    active_heatmap_goal = goalentity;
-    active_heatmap_generation++;
-    if (active_heatmap_generation == 0) {
-        active_heatmap_generation = 1;
-    }
-    return active_heatmap_generation;
+    memcpy(heatmap_cache[evict].data, pathmap.heatmap,
+           map_cells * sizeof(routeNode_t));
+    heatmap_cache[evict].goal       = goalentity;
+    heatmap_cache[evict].generation = heatmap_next_generation++;
+    if (heatmap_next_generation == 0)
+        heatmap_next_generation = 1;
+    heatmap_lru[evict] = heatmap_lru_clock++;
+
+    return heatmap_cache[evict].generation;
 }
 
+#ifdef TOOL_COMMON_NO_MPQ
+/* Synthesize a pathmap from a raw byte array for unit tests.
+ * Each byte is treated as a pathMapCell_t (bit 1 = nowalk).
+ * The world coordinate system is set up so cell (x,y) maps to
+ * world position (x * cell_size, y * cell_size). */
+void CM_SetupTestPathmap(DWORD width, DWORD height, BYTE const *cells) {
+    DWORD n = width * height;
+
+    MemFree(pathmap.data);
+    MemFree(pathmap.original);
+    MemFree(pathmap.heatmap);
+
+    pathmap.width    = width;
+    pathmap.height   = height;
+    pathmap.data     = MemAlloc(n);
+    pathmap.original = MemAlloc(n);
+    pathmap.heatmap  = MemAlloc(n * sizeof(routeNode_t));
+
+    memcpy(pathmap.original, cells, n);
+    memcpy(pathmap.data,     cells, n);
+    memset(pathmap.heatmap, 0, n * sizeof(routeNode_t));
+
+    FOR_LOOP(i, n) {
+        pathmap.heatmap[i].x = i % width;
+        pathmap.heatmap[i].y = i / width;
+    }
+
+    heatmap_cache_invalidate();
+}
+#endif
+
+#ifndef TOOL_COMMON_NO_MPQ
 void CM_ReadPathMap(HANDLE archive) {
     HANDLE file;
     DWORD header, version;
-    active_heatmap_goal = NULL;
-    active_heatmap_generation = 0;
+    heatmap_cache_invalidate();
     SFileOpenFileEx(archive, "war3map.wpm", SFILE_OPEN_FROM_MPQ, &file);
     SFileReadFile(file, &header, 4, NULL, NULL);
     SFileReadFile(file, &version, 4, NULL, NULL);
@@ -371,3 +483,4 @@ void CM_ReadPathMap(HANDLE archive) {
     CM_FillDebugObstacles();
 #endif
 }
+#endif /* !TOOL_COMMON_NO_MPQ */
