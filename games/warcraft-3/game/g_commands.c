@@ -351,6 +351,7 @@ void G_ClientCommand(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
 void G_ClientSetCameraPosition(LPEDICT ent, LPCVECTOR2 position) {
     if (ent->client->no_control)
         return;
+    G_ClearCameraTarget(ent->client, "G_ClientSetCameraPosition");
     ent->client->camera.old_state = ent->client->camera.state;
     ent->client->camera.state.position = *position;
     ent->client->camera.start_time = gi.GetTime();

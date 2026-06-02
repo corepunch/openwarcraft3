@@ -530,6 +530,11 @@ struct client_s {
         CAMERASETUP old_state;
         DWORD start_time;
         DWORD end_time;
+        LPEDICT target_controller;
+        VECTOR2 target_offset;
+        VECTOR2 target_last_log_origin;
+        DWORD target_last_log_time;
+        BOOL target_inherit_orientation;
     } camera;
 };
 
@@ -801,6 +806,8 @@ TARGTYPE G_GetTargetType(LPCSTR);
 LPCSTR G_LevelString(LPCSTR);
 FLOAT G_Cinefade(void);
 BOOL G_SkipCutscene(void);
+BOOL G_DebugCamera(void);
+void G_ClearCameraTarget(LPGAMECLIENT client, LPCSTR func);
 void G_SetPlayerText(LPGAMECLIENT, PLAYERTEXT, LPCSTR);
 GAMEEVENT *G_PublishEvent(LPEDICT, EVENTTYPE);
 

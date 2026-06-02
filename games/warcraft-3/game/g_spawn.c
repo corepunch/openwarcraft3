@@ -223,6 +223,35 @@ static DWORD G_MapPlayerTeam(LPCMAPINFO mapinfo, DWORD playernum) {
     return playernum;
 }
 
+static DWORD G_LocalMapPlayerNumber(LPCMAPINFO mapinfo) {
+    if (!mapinfo) {
+        return 0;
+    }
+    FOR_LOOP(i, MAX_PLAYERS) {
+        if (mapinfo->players[i].used && mapinfo->players[i].playerType == kPlayerTypeHuman) {
+            return i;
+        }
+    }
+    return 0;
+}
+
+static DWORD G_ClientSlotMapPlayerNumber(LPCMAPINFO mapinfo, DWORD slot, DWORD local_player) {
+    DWORD count = 1;
+
+    if (slot == 0) {
+        return local_player;
+    }
+    FOR_LOOP(i, MAX_PLAYERS) {
+        if (i == local_player) {
+            continue;
+        }
+        if (count++ == slot) {
+            return i;
+        }
+    }
+    return slot;
+}
+
 static void G_InitMapPlayer(LPEDICT clent, LPCMAPINFO mapinfo, DWORD playernum) {
     LPCMAPPLAYER player = mapinfo ? mapinfo->players + playernum : NULL;
     LPPLAYER ps = &clent->client->ps;
@@ -249,6 +278,7 @@ static void G_InitMapPlayer(LPEDICT clent, LPCMAPINFO mapinfo, DWORD playernum) 
 void G_SpawnEntities(void) {
     LPCMAPINFO mapinfo = CM_GetMapInfo();
     LPCDOODAD entities = CM_GetDoodads();
+    DWORD local_player = G_LocalMapPlayerNumber(mapinfo);
 
     G_FowShutdown();
     memset(&level, 0, sizeof(level));
@@ -260,8 +290,18 @@ void G_SpawnEntities(void) {
     
     FOR_LOOP(p, MAX_PLAYERS) {
         LPGAMECLIENT client = game.clients+p;
+        DWORD playernum = G_ClientSlotMapPlayerNumber(mapinfo, p, local_player);
         g_edicts[p].client = client;
-        G_InitMapPlayer(g_edicts+p, mapinfo, p);
+        G_InitMapPlayer(g_edicts+p, mapinfo, playernum);
+        if (G_DebugCamera()) {
+            fprintf(stderr,
+                    "G_InitMapPlayer: client_slot=%u player=%u type=%u start=(%.1f,%.1f)\n",
+                    (unsigned)p,
+                    (unsigned)playernum,
+                    mapinfo ? (unsigned)mapinfo->players[playernum].playerType : 0,
+                    client->ps.origin.x,
+                    client->ps.origin.y);
+        }
     }
 
     globals.num_edicts = game.max_clients;

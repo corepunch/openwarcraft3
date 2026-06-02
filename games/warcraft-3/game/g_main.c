@@ -222,11 +222,84 @@ BOOL G_SkipCutscene(void) {
     return value && *value && strcmp(value, "0");
 }
 
+BOOL G_DebugCamera(void) {
+    LPCSTR value;
+
+    if (!gi.CvarString) {
+        return false;
+    }
+    value = gi.CvarString("g_debug_camera", "0");
+    return value && *value && strcmp(value, "0");
+}
+
+void G_ClearCameraTarget(LPGAMECLIENT client, LPCSTR func) {
+    if (!client || !client->camera.target_controller) {
+        return;
+    }
+    if (G_DebugCamera()) {
+        fprintf(stderr,
+                "%s: clear camera target player=%u unit=%.4s pos=(%.1f,%.1f) time=%u\n",
+                func,
+                (unsigned)client->ps.number,
+                (char *)&client->camera.target_controller->class_id,
+                client->camera.target_controller->s.origin2.x,
+                client->camera.target_controller->s.origin2.y,
+                (unsigned)gi.GetTime());
+    }
+    client->camera.target_controller = NULL;
+    client->camera.target_offset = (VECTOR2){ 0, 0 };
+    client->camera.target_inherit_orientation = false;
+}
+
+static void G_UpdateCameraTarget(LPGAMECLIENT client) {
+    LPEDICT target = client->camera.target_controller;
+    VECTOR2 position;
+    BOOL moved;
+    DWORD now;
+
+    if (!target) {
+        return;
+    }
+    if (!target->inuse) {
+        G_ClearCameraTarget(client, "G_UpdateCameraTarget");
+        return;
+    }
+    position.x = target->s.origin2.x + client->camera.target_offset.x;
+    position.y = target->s.origin2.y + client->camera.target_offset.y;
+    client->camera.old_state.position = position;
+    client->camera.state.position = position;
+    client->camera.start_time = gi.GetTime();
+    client->camera.end_time = client->camera.start_time;
+
+    if (!G_DebugCamera()) {
+        return;
+    }
+    moved = Vector2_distance(&position, &client->camera.target_last_log_origin) >= 64.0f;
+    now = gi.GetTime();
+    if (moved || now - client->camera.target_last_log_time >= 1000) {
+        fprintf(stderr,
+                "camera target update: player=%u unit=%.4s unitpos=(%.1f,%.1f) offset=(%.1f,%.1f) campos=(%.1f,%.1f) time=%u\n",
+                (unsigned)client->ps.number,
+                (char *)&target->class_id,
+                target->s.origin2.x,
+                target->s.origin2.y,
+                client->camera.target_offset.x,
+                client->camera.target_offset.y,
+                position.x,
+                position.y,
+                (unsigned)now);
+        client->camera.target_last_log_origin = position;
+        client->camera.target_last_log_time = now;
+    }
+}
+
 static void G_RunClients(void) {
     FLOAT cinefade = G_Cinefade();
     FOR_LOOP(i, game.max_clients) {
         LPGAMECLIENT client = game.clients+i;
-        DWORD duration = client->camera.end_time - client->camera.start_time;
+        DWORD duration;
+        G_UpdateCameraTarget(client);
+        duration = client->camera.end_time - client->camera.start_time;
         if (gi.GetTime() < client->camera.end_time && duration > 0) {
             FLOAT k = (gi.GetTime() - client->camera.start_time) / (FLOAT)duration;
             LPCCAMERASETUP a = &client->camera.old_state;
@@ -242,6 +315,17 @@ static void G_RunClients(void) {
             client->ps.viewquat = Quaternion_fromEuler(&client->camera.state.viewangles, ROTATE_ZYX);
             client->ps.fov = client->camera.state.fov / FOV_ASPECT;
             client->ps.distance = client->camera.state.target_distance;
+        }
+        if (G_DebugCamera() && duration > 0 && gi.GetTime() >= client->camera.end_time) {
+            fprintf(stderr,
+                    "camera pan done: player=%u pos=(%.1f,%.1f) fov=%u dist=%.1f time=%u\n",
+                    (unsigned)client->ps.number,
+                    client->ps.origin.x,
+                    client->ps.origin.y,
+                    (unsigned)client->ps.fov,
+                    client->ps.distance,
+                    (unsigned)gi.GetTime());
+            client->camera.start_time = client->camera.end_time;
         }
         client->ps.cinefade = cinefade;
     }
