@@ -151,25 +151,25 @@ diag: clean
 
 $(BIN_DIR)/%$(EXE_EXT): tools/%.c $(TOOL_DEPS) $(CLIENT_HEADERS) $(COMMON_HEADERS) | $(BIN_DIR) $(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) $(RENDERER_LIB) $(GAME_LIB) $(UI_LIB)
 	@echo "[$*]"
-	$(CC) $(CFLAGS) -o $@ $< \
+	@$(CC) $(CFLAGS) -o $@ $< \
 		$(RPATH) $(LDFLAGS) -lsheet -lshared -ljass -lrenderer -lgame -lui $(LIBS) -lm -lz
 
 $(BIN_DIR)/img2sysfont$(EXE_EXT): tools/img2sysfont.c | $(BIN_DIR)
 	@echo "[img2sysfont]"
-	$(CC) $(CFLAGS) -o $@ tools/img2sysfont.c
+	@$(CC) $(CFLAGS) -o $@ tools/img2sysfont.c
 
 $(FONT_HEADER): $(FONT_SRC) $(BIN_DIR)/img2sysfont$(EXE_EXT)
-	$(BIN_DIR)/img2sysfont$(EXE_EXT) $(FONT_SRC) $(FONT_HEADER) $(FONT_SYMBOL)
+	@$(BIN_DIR)/img2sysfont$(EXE_EXT) $(FONT_SRC) $(FONT_HEADER) $(FONT_SYMBOL)
 
 # jass — standalone JASS interpreter (no renderer/game/SDL2 needed)
 $(JASS_BIN): tools/jass.c $(TOOL_DEPS) | $(BIN_DIR) $(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB)
 	@echo "[jass-tool]"
-	$(CC) $(WC3_CFLAGS) -DTOOL_COMMON_NO_MPQ -o $@ tools/jass.c \
+	@$(CC) $(WC3_CFLAGS) -DTOOL_COMMON_NO_MPQ -o $@ tools/jass.c \
 		$(RPATH) $(LDFLAGS) -lsheet -lshared -ljass -lm
 
 $(MPQ_TEST): tests/test_mpq_compat.c common/mpq.c common/mpq.h | $(BIN_DIR)
 	@echo "[mpq-compat-test]"
-	$(CC) $(CFLAGS) -o $@ tests/test_mpq_compat.c common/mpq.c -lm -lz
+	@$(CC) $(CFLAGS) -o $@ tests/test_mpq_compat.c common/mpq.c -lm -lz
 
 $(BIN_DIR) $(LIB_DIR):
 	@mkdir -p $@
@@ -188,7 +188,7 @@ $(JASS_LIB): $(SHARED_LIB) $(shell find $(WC3_JASS_DIR) -name '*.c' -o -name '*.
 
 $(SHEET_LIB): $(WC3_SHEET_DIR)/parser.c $(WC3_SHEET_DIR)/sheet.c common/common.h | $(LIB_DIR)
 	@echo "[sheet]"
-	$(CC) $(CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ $(WC3_SHEET_DIR)/parser.c $(WC3_SHEET_DIR)/sheet.c $(LDFLAGS)
+	@$(CC) $(CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ $(WC3_SHEET_DIR)/parser.c $(WC3_SHEET_DIR)/sheet.c $(LDFLAGS)
 
 # renderer — depends on shared
 # Uses FS_ReadFile (archive-agnostic) for initial file loads, but includes
@@ -337,51 +337,51 @@ TEST_UI_SRCS := \
 		! -name 'test_ui_serialize.c' | sort)
 
 test: test-assets $(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) | $(BIN_DIR)
-	$(CC) $(TEST_CFLAGS) -o $(BIN_DIR)/test_openwarcraft3$(EXE_EXT) \
+	@$(CC) $(TEST_CFLAGS) -o $(BIN_DIR)/test_openwarcraft3$(EXE_EXT) \
 		$(TEST_SRCS) $(TEST_GAME_SRCS) \
 		$(RPATH) $(LDFLAGS) -lsheet -lshared -ljass -lm
-	$(BIN_DIR)/test_openwarcraft3$(EXE_EXT)
-	$(MAKE) test-commands
-	$(MAKE) test-wow-appearance
-	$(MAKE) test-wow-combat
-	$(MAKE) test-ui
+	@$(BIN_DIR)/test_openwarcraft3$(EXE_EXT)
+	@$(MAKE) test-commands
+	@$(MAKE) test-wow-appearance
+	@$(MAKE) test-wow-combat
+	@$(MAKE) test-ui
 
 test-commands: test-assets $(SHARED_LIB) $(SHEET_LIB) | $(BIN_DIR)
-	$(CC) $(TEST_CFLAGS) -o $(BIN_DIR)/test_commands$(EXE_EXT) \
+	@$(CC) $(TEST_CFLAGS) -o $(BIN_DIR)/test_commands$(EXE_EXT) \
 		$(WC3_TEST_DIR)/test_commands_main.c $(WC3_TEST_DIR)/test_commands.c \
 		common/common.c common/cmd.c common/cvar.c common/msg.c common/net.c common/mpq.c \
 		$(RPATH) $(LDFLAGS) -lsheet -lshared -lm -lz
-	$(BIN_DIR)/test_commands$(EXE_EXT)
+	@$(BIN_DIR)/test_commands$(EXE_EXT)
 
 test-jass: $(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) | $(BIN_DIR)
-	$(CC) $(TEST_CFLAGS) -o $(BIN_DIR)/test_jass$(EXE_EXT) \
+	@$(CC) $(TEST_CFLAGS) -o $(BIN_DIR)/test_jass$(EXE_EXT) \
 		$(WC3_TEST_DIR)/test_jass_main.c $(WC3_TEST_DIR)/test_jass.c $(WC3_TEST_DIR)/test_harness.c $(WC3_TEST_DIR)/test_client_stubs.c \
 		$(WC3_DIR)/game/g_metadata.c common/msg.c \
 		$(RPATH) $(LDFLAGS) -lsheet -lshared -ljass -lm
-	$(BIN_DIR)/test_jass$(EXE_EXT)
+	@$(BIN_DIR)/test_jass$(EXE_EXT)
 
 test-wow-appearance: | $(BIN_DIR)
-	$(CC) $(TEST_CFLAGS) -DWOW -o $(BIN_DIR)/test_wow_appearance$(EXE_EXT) \
+	@$(CC) $(TEST_CFLAGS) -DWOW -o $(BIN_DIR)/test_wow_appearance$(EXE_EXT) \
 		tests/test_wow_appearance.c common/msg.c common/net.c \
 		$(shell find shared -name '*.c') -lm
-	$(BIN_DIR)/test_wow_appearance$(EXE_EXT)
+	@$(BIN_DIR)/test_wow_appearance$(EXE_EXT)
 
 test-wow-combat: | $(BIN_DIR)
-	$(CC) $(TEST_CFLAGS) -DWOW -o $(BIN_DIR)/test_wow_combat$(EXE_EXT) \
+	@$(CC) $(TEST_CFLAGS) -DWOW -o $(BIN_DIR)/test_wow_combat$(EXE_EXT) \
 		tests/test_wow_combat.c $(WOW_DIR)/game/g_ai.c \
 		$(shell find shared -name '*.c') -lm
-	$(BIN_DIR)/test_wow_combat$(EXE_EXT)
+	@$(BIN_DIR)/test_wow_combat$(EXE_EXT)
 
 test-ui: test-assets $(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) | $(BIN_DIR)
-	$(CC) $(TEST_UI_CFLAGS) -o $(BIN_DIR)/test_openwarcraft3_ui$(EXE_EXT) \
+	@$(CC) $(TEST_UI_CFLAGS) -o $(BIN_DIR)/test_openwarcraft3_ui$(EXE_EXT) \
 		$(TEST_UI_SRCS) $(TEST_GAME_SRCS) \
 		common/mpq.c \
 		$(shell find $(WC3_DIR)/ui -name '*.c' | sort) \
 		$(RPATH) $(LDFLAGS) -lsheet -lshared -ljass -lm -lz
-	$(BIN_DIR)/test_openwarcraft3_ui$(EXE_EXT)
+	@$(BIN_DIR)/test_openwarcraft3_ui$(EXE_EXT)
 
 test-mpq-compat: mpqtool $(MPQ_TEST)
-	$(MPQ_TEST) -mpq=$(MPQ)
+	@$(MPQ_TEST) -mpq=$(MPQ)
 
 # ---------------------------------------------------------------------------
 # test-assets — generate fixture resources and pack them into build/tests/tests.mpq
@@ -400,19 +400,19 @@ TESTS_SRC_DIR := tests/resources-src
 test-assets: blpgen mdxgen mpqtool mdxtool | $(TESTS_DIR)
 	@echo "[test-assets] generating textures"
 	@mkdir -p $(TESTS_RES_DIR)/TestUI/Textures
-	$(BIN_DIR)/blpgen$(EXE_EXT) solid        1  1  ffffffff  $(TESTS_RES_DIR)/TestUI/Textures/solid_white.blp
-	$(BIN_DIR)/blpgen$(EXE_EXT) checker      8  8  2         $(TESTS_RES_DIR)/TestUI/Textures/checker_8x8.blp
-	$(BIN_DIR)/blpgen$(EXE_EXT) alpha_ring   16 16           $(TESTS_RES_DIR)/TestUI/Textures/alpha_ring_16x16.blp
-	$(BIN_DIR)/blpgen$(EXE_EXT) panel_border 32 32 2         $(TESTS_RES_DIR)/TestUI/Textures/panel_border_32x32.blp
-	$(BIN_DIR)/blpgen$(EXE_EXT) paletted     8  8  2         $(TESTS_RES_DIR)/TestUI/Textures/paletted_checker_8x8.blp
+	@$(BIN_DIR)/blpgen$(EXE_EXT) solid        1  1  ffffffff  $(TESTS_RES_DIR)/TestUI/Textures/solid_white.blp
+	@$(BIN_DIR)/blpgen$(EXE_EXT) checker      8  8  2         $(TESTS_RES_DIR)/TestUI/Textures/checker_8x8.blp
+	@$(BIN_DIR)/blpgen$(EXE_EXT) alpha_ring   16 16           $(TESTS_RES_DIR)/TestUI/Textures/alpha_ring_16x16.blp
+	@$(BIN_DIR)/blpgen$(EXE_EXT) panel_border 32 32 2         $(TESTS_RES_DIR)/TestUI/Textures/panel_border_32x32.blp
+	@$(BIN_DIR)/blpgen$(EXE_EXT) paletted     8  8  2         $(TESTS_RES_DIR)/TestUI/Textures/paletted_checker_8x8.blp
 	@echo "[test-assets] generating models"
 	@mkdir -p $(TESTS_RES_DIR)/TestUI/Models
-	$(BIN_DIR)/mdxgen$(EXE_EXT) quad_sprite   TestUI/Textures/checker_8x8.blp       $(TESTS_RES_DIR)/TestUI/Models/quad_sprite.mdx
-	$(BIN_DIR)/mdxgen$(EXE_EXT) panel_sprite  TestUI/Textures/solid_white.blp        $(TESTS_RES_DIR)/TestUI/Models/panel_sprite.mdx
-	$(BIN_DIR)/mdxgen$(EXE_EXT) ui_panel      TestUI/Textures/solid_white.blp        $(TESTS_RES_DIR)/TestUI/Models/ui_panel.mdx
-	$(BIN_DIR)/mdxgen$(EXE_EXT) anim_pulse    TestUI/Textures/alpha_ring_16x16.blp   $(TESTS_RES_DIR)/TestUI/Models/anim_pulse.mdx
+	@$(BIN_DIR)/mdxgen$(EXE_EXT) quad_sprite   TestUI/Textures/checker_8x8.blp       $(TESTS_RES_DIR)/TestUI/Models/quad_sprite.mdx
+	@$(BIN_DIR)/mdxgen$(EXE_EXT) panel_sprite  TestUI/Textures/solid_white.blp        $(TESTS_RES_DIR)/TestUI/Models/panel_sprite.mdx
+	@$(BIN_DIR)/mdxgen$(EXE_EXT) ui_panel      TestUI/Textures/solid_white.blp        $(TESTS_RES_DIR)/TestUI/Models/ui_panel.mdx
+	@$(BIN_DIR)/mdxgen$(EXE_EXT) anim_pulse    TestUI/Textures/alpha_ring_16x16.blp   $(TESTS_RES_DIR)/TestUI/Models/anim_pulse.mdx
 	@echo "[test-assets] packing tests.mpq"
-	$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(TESTS_MPQ) pack \
+	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(TESTS_MPQ) pack \
 		$(TESTS_RES_DIR)/TestUI/Textures/solid_white.blp        TestUI/Textures/solid_white.blp \
 		$(TESTS_RES_DIR)/TestUI/Textures/checker_8x8.blp        TestUI/Textures/checker_8x8.blp \
 		$(TESTS_RES_DIR)/TestUI/Textures/alpha_ring_16x16.blp   TestUI/Textures/alpha_ring_16x16.blp \

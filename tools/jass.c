@@ -35,7 +35,9 @@
 #  include <unistd.h>
 #endif
 
+#ifndef TOOL_COMMON_NO_MPQ
 #define TOOL_COMMON_NO_MPQ
+#endif
 #include "tool_common.h"
 
 #include "jass/jass.h"
