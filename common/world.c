@@ -1,4 +1,4 @@
-#include "world_local.h"
+#include "common.h"
 
 #ifndef _WIN32
 #include <strings.h>
@@ -232,9 +232,11 @@ static BOOL CM_ReadInfoInto(HANDLE archive, LPMAPINFO info, BOOL setup_only) {
     return true;
 }
 
+#ifdef GAME_WORLD
 static void CM_ReadInfo(HANDLE archive) {
     CM_ReadInfoInto(archive, &world.info, false);
 }
+#endif
 
 static void MapInfo_Release(LPMAPINFO mapInfo) {
     mapTrigStr_t *string = mapInfo ? mapInfo->strings : NULL;
@@ -311,6 +313,7 @@ typedef struct {
     BOOL tft;
 } cmPlacementHeader_t;
 
+#ifdef GAME_WORLD
 static BOOL CM_ReadPlacementHeader(HANDLE file, LPCSTR filename, cmPlacementHeader_t *header) {
     DWORD magic;
 
@@ -709,6 +712,7 @@ static void CM_ReadHeightmap(HANDLE archive) {
     }
     SFileCloseFile(file);
 }
+#endif
 
 void CM_ReadModification(HANDLE file, unitModification_t *mod) {
     SFileReadFile(file, &mod->modID, 4, NULL, NULL);

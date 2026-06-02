@@ -1,7 +1,6 @@
-#define GAME_WORLD 1
-
 #include "g_local.h"
 
+#define GAME_WORLD 1
 #include "common/world.c"
 #include "common/world_w3.c"
 #include "common/routing.c"
@@ -13,3 +12,4 @@
 #undef PF_TextRemoveBom
 #undef Com_Error
 #undef ge
+#undef GAME_WORLD

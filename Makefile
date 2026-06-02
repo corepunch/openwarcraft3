@@ -93,6 +93,10 @@ TOOL_DEPS := $(shell find tools -maxdepth 1 -name '*.h' | sort)
 CLIENT_HEADERS := $(shell find client -name '*.h' | sort)
 UI_HEADERS := $(shell find $(WC3_DIR)/ui -name '*.h' | sort) client/ui.h
 COMMON_HEADERS := $(shell find common -name '*.h' | sort)
+WC3_COMMON_SRCS := $(shell find $(WC3_DIR)/common -name '*.c' 2>/dev/null | sort)
+WOW_COMMON_SRCS := $(shell find $(WOW_DIR)/common -name '*.c' 2>/dev/null | sort)
+SC2_COMMON_SRCS := $(shell find $(SC2_DIR)/common -name '*.c' 2>/dev/null | sort)
+WORLD_CORE_SRCS := common/world.c common/routing.c
 FONT_SRC := renderer/conchars.pcx
 FONT_HEADER := renderer/conchars_sysfont.h
 FONT_SYMBOL := conchars_sysfont_pcx
@@ -206,17 +210,17 @@ $(RENDERER_SC2_LIB): $(SHARED_LIB) $(CLIENT_HEADERS) $(COMMON_HEADERS) common/mp
 		$(CC) $(SC2_CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - common/mpq.c $(LDFLAGS) -lshared $(LIBS) -lz
 
 # game — depends on shared and jass
-$(GAME_LIB): $(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) $(COMMON_HEADERS) common/mpq.c common/mpq.h $(shell find $(WC3_DIR)/game -name '*.c') | $(LIB_DIR)
+$(GAME_LIB): $(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) $(COMMON_HEADERS) common/mpq.c common/mpq.h $(WORLD_CORE_SRCS) $(WC3_COMMON_SRCS) $(shell find $(WC3_DIR)/game -name '*.c') | $(LIB_DIR)
 	@echo "[game]"
 	@$(call UNITY,$(WC3_DIR)/game) | \
 		$(CC) $(WC3_CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - common/mpq.c $(LDFLAGS) -lsheet -lshared -ljass $(LIBS) -lm -lz
 
-$(GAME_WOW_LIB): $(SHARED_LIB) $(COMMON_HEADERS) common/mpq.c common/mpq.h $(shell find $(WOW_DIR)/game -name '*.c') | $(LIB_DIR)
+$(GAME_WOW_LIB): $(SHARED_LIB) $(COMMON_HEADERS) common/mpq.c common/mpq.h common/world.c $(WOW_COMMON_SRCS) $(shell find $(WOW_DIR)/game -name '*.c') | $(LIB_DIR)
 	@echo "[game-wow]"
 	@$(call UNITY,$(WOW_DIR)/game) | \
 		$(CC) $(WOW_CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - common/mpq.c $(LDFLAGS) -lshared $(LIBS) -lm -lz
 
-$(GAME_SC2_LIB): $(SHARED_LIB) $(COMMON_HEADERS) common/mpq.c common/mpq.h $(shell find $(SC2_DIR)/game -name '*.c') | $(LIB_DIR)
+$(GAME_SC2_LIB): $(SHARED_LIB) $(COMMON_HEADERS) common/mpq.c common/mpq.h $(WORLD_CORE_SRCS) $(SC2_COMMON_SRCS) $(shell find $(SC2_DIR)/game -name '*.c') | $(LIB_DIR)
 	@echo "[game-sc2]"
 	@$(call UNITY,$(SC2_DIR)/game) | \
 		$(CC) $(SC2_CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - common/mpq.c $(LDFLAGS) -lshared $(LIBS) -lm -lz
@@ -236,19 +240,19 @@ $(UI_WOW_LIB): $(SHARED_LIB) $(CLIENT_HEADERS) $(COMMON_HEADERS) client/ui.h $(s
 APP_SRCS := $(shell find client server common -name '*.c')
 $(BINARY): $(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) $(GAME_LIB) $(RENDERER_LIB) $(UI_LIB) $(APP_SRCS) $(CLIENT_HEADERS) $(COMMON_HEADERS) | $(BIN_DIR)
 	@echo "[openwarcraft3]"
-	@$(call UNITY,client server common,! -name 'world_wow.c') | \
+	@$(call UNITY,client server common,) | \
 		$(CC) $(WC3_CFLAGS) -x c -o $@ - $(RPATH) $(LDFLAGS) \
 		-lsheet -lshared -ljass -lgame -lrenderer -lui $(LIBS) -lz
 
 $(WOW_BINARY): $(SHARED_LIB) $(SHEET_LIB) $(GAME_WOW_LIB) $(RENDERER_WOW_LIB) $(UI_WOW_LIB) $(APP_SRCS) $(CLIENT_HEADERS) $(COMMON_HEADERS) | $(BIN_DIR)
 	@echo "[openwow]"
-	@$(call UNITY,client server common,! -name 'world_w3.c') | \
+	@$(call UNITY,client server common,) | \
 		$(CC) $(WOW_CFLAGS) -x c -o $@ - $(RPATH) $(LDFLAGS) \
 		-lsheet -lshared -lgame-wow -lrenderer-wow -lui-wow $(LIBS) -lz
 
 $(SC2_BINARY): $(SHARED_LIB) $(SHEET_LIB) $(GAME_SC2_LIB) $(RENDERER_SC2_LIB) $(UI_LIB) $(APP_SRCS) $(CLIENT_HEADERS) | $(BIN_DIR)
 	@echo "[opensc2]"
-	@$(call UNITY,client server common,! -name 'world_wow.c') | \
+	@$(call UNITY,client server common,) | \
 		$(CC) $(SC2_CFLAGS) -x c -o $@ - $(RPATH) $(LDFLAGS) \
 		-lsheet -lshared -lgame-sc2 -lrenderer-sc2 -lui $(LIBS) -lz
 

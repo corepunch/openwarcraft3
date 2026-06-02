@@ -1,4 +1,4 @@
-#include "world_local.h"
+#include "common/common.h"
 
 static LPCWAR3MAPVERTEX CM_GetWar3MapVertex(DWORD x, DWORD y) {
     int const index = x + y * world.map->width;
@@ -11,10 +11,10 @@ static FLOAT CM_GetWar3MapVertexHeight(LPCWAR3MAPVERTEX vert) {
 }
 
 void CM_ReadPathMap(HANDLE archive);
-void CM_ReadDoodads(HANDLE archive);
-void CM_ReadUnitDoodads(HANDLE archive);
-void CM_ReadHeightmap(HANDLE archive);
-void CM_ReadInfo(HANDLE archive);
+static void CM_ReadDoodads(HANDLE archive);
+static void CM_ReadUnitDoodads(HANDLE archive);
+static void CM_ReadHeightmap(HANDLE archive);
+static void CM_ReadInfo(HANDLE archive);
 void CM_ReadUnits(HANDLE archive);
 void CM_ReadStrings(HANDLE archive);
 void CM_ReadMapScript(HANDLE archive);

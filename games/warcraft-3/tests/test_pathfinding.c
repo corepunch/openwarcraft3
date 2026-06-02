@@ -57,7 +57,7 @@ void unit_stand(LPEDICT self);
  * The test pathmap is 8×8 cells.  World coordinates are 1:1 with cell
  * coordinates (cell_size = 1) because CM_GetNormalizedMapPosition and
  * CM_GetDenormalizedMapPosition return identity transforms when called
- * from world_w3.c / world_wow.c stubs are absent — routing.c uses them
+ * from game common/world_*.c stubs are absent — routing.c uses them
  * only to convert; the test harness's world bounds mock covers this.
  *
  * We use a 10×10 cell map with a wall column at x=5 to test obstacle
