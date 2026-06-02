@@ -2,7 +2,7 @@
 #define G_SC2_LOCAL_H
 
 #include "../common/common.h"
-#include "../server/game.h"
+#include "../server/server.h"
 
 #define SC2_MAX_CLIENTS 1
 #define SC2_MAX_EDICTS  128

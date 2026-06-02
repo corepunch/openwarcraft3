@@ -1,5 +1,6 @@
 #include "g_local.h"
 #include <ctype.h>
+#include <stdlib.h>
 
 enum {
     ID_SEQS = MAKEFOURCC('S','E','Q','S'),
@@ -83,76 +84,78 @@ struct md34Sequence {
     LONG d5[3];
 };
 
-static void *ReadEntry(HANDLE file, DWORD offset, DWORD size) {
-    void *data = gi.MemAlloc(size);
-    SFileSetFilePointer(file, offset, NULL, FILE_BEGIN);
-    SFileReadFile(file, data, size, NULL, NULL);
-    return data;
+static BYTE const *ModelDataAt(BYTE const *data, DWORD data_size, DWORD offset, DWORD size) {
+    if (!data || offset > data_size || size > data_size - offset)
+        return NULL;
+    return data + offset;
 }
 
 static int compare_animation_name(const void *a, const void *b) {
     return strcmp(((LPCANIMATION)a)->name, ((LPCANIMATION)b)->name);
 }
 
-static animation_t *LoadModelMD34(HANDLE file, DWORD *out_count) {
-    struct md33Header hdr;
-    SFileReadFile(file, &hdr, sizeof(hdr), NULL, NULL);
-
-    struct md34ReferenceEntry *ent = ReadEntry(file, hdr.ofsRefs,
-        sizeof(struct md34ReferenceEntry) * hdr.nRefs);
+static animation_t *LoadModelMD34(BYTE const *data, DWORD data_size, DWORD *out_count) {
+    struct md33Header const *hdr = (struct md33Header const *)ModelDataAt(data, data_size, 4, sizeof(*hdr));
+    struct md34ReferenceEntry const *ent;
 
     animation_t *animations = NULL;
     DWORD num = 0;
 
-    FOR_LOOP(i, hdr.nRefs) {
+    if (!hdr) {
+        *out_count = 0;
+        return NULL;
+    }
+    ent = (struct md34ReferenceEntry const *)ModelDataAt(data, data_size, hdr->ofsRefs,
+        sizeof(struct md34ReferenceEntry) * hdr->nRefs);
+    if (!ent) {
+        *out_count = 0;
+        return NULL;
+    }
+
+    FOR_LOOP(i, hdr->nRefs) {
         struct md34ReferenceEntry const *re = ent + i;
         if (re->id != MAKEFOURCC('S','Q','E','S'))
             continue;
-        struct md34Sequence *seq = ReadEntry(file, re->offset,
+        struct md34Sequence const *seq = (struct md34Sequence const *)ModelDataAt(data, data_size, re->offset,
             re->nEntries * sizeof(struct md34Sequence));
+        if (!seq)
+            continue;
         animations = gi.MemAlloc(sizeof(animation_t) * re->nEntries);
+        memset(animations, 0, sizeof(animation_t) * re->nEntries);
         num = re->nEntries;
         DWORD startanim = 0;
         FOR_LOOP(j, re->nEntries) {
-            struct md34Sequence *src = seq + j;
-            char *name = ReadEntry(file, ent[src->name.ref].offset, src->name.nEntries);
+            struct md34Sequence const *src = seq + j;
+            char const *name = src->name.ref < hdr->nRefs
+                ? (char const *)ModelDataAt(data, data_size, ent[src->name.ref].offset, src->name.nEntries)
+                : NULL;
             LPANIMATION dest = animations + j;
-            strncpy(dest->name, name, sizeof(dest->name) - 1);
+            if (name) {
+                DWORD name_len = MIN(src->name.nEntries, sizeof(dest->name) - 1);
+                memcpy(dest->name, name, name_len);
+            }
             dest->interval[0] = startanim + src->interval[0];
             dest->interval[1] = startanim + src->interval[1];
             startanim += src->interval[1];
-            gi.MemFree(name);
         }
         qsort(animations, num, sizeof(animation_t), compare_animation_name);
         FOR_LOOP(j, num) {
             ConvertMDLXAnimationName(animations + j);
         }
-        gi.MemFree(seq);
         break;
     }
-    gi.MemFree(ent);
     *out_count = num;
     return animations;
 }
 
 /* ---- MDLX (Warcraft III) ---- */
 
-static animation_t *LoadModelMDLX(HANDLE file, DWORD *out_count) {
-    DWORD fileSize    = SFileGetFileSize(file, NULL);
-    DWORD payloadSize = fileSize > 4 ? fileSize - 4 : 0;
-    BYTE *payload     = NULL;
-
-    if (payloadSize > 0) {
-        DWORD bytesRead = 0;
-        payload = gi.MemAlloc(payloadSize);
-        SFileReadFile(file, payload, payloadSize, &bytesRead, NULL);
-        payloadSize = bytesRead;
-    }
-
+static animation_t *LoadModelMDLX(BYTE const *data, DWORD data_size, DWORD *out_count) {
+    DWORD payloadSize = data_size > 4 ? data_size - 4 : 0;
     animation_t *animations = NULL;
     DWORD num = 0;
-    BYTE *ptr = payload;
-    BYTE *end = payload + payloadSize;
+    BYTE const *ptr = data + 4;
+    BYTE const *end = ptr + payloadSize;
 
     while (ptr && ptr + 8 <= end) {
         DWORD header, size;
@@ -172,7 +175,6 @@ static animation_t *LoadModelMDLX(HANDLE file, DWORD *out_count) {
         }
         ptr += size;
     }
-    gi.MemFree(payload);
     *out_count = num;
     return animations;
 }
@@ -196,33 +198,49 @@ int G_RegisterModel(LPCSTR filename) {
     return index;
 }
 
+static BYTE *ReadModelFile(LPCSTR filename, DWORD *out_size) {
+    BYTE *data;
+
+    if (!filename || !*filename)
+        return NULL;
+    data = gi.ReadFile(filename, out_size);
+    if (!data) {
+        PATHSTR path;
+        size_t len = strlen(filename);
+        if (len == 0 || len >= sizeof(path))
+            return NULL;
+        strcpy(path, filename);
+        path[len - 1] = 'x';
+        data = gi.ReadFile(path, out_size);
+    }
+    return data;
+}
+
 static g_cmodel_t *LoadModel(LPCSTR filename) {
     DWORD fileheader;
-    HANDLE file = FS_OpenFile(filename);
-    if (!file) {
-        PATHSTR path;
-        strcpy(path, filename);
-        path[strlen(path) - 1] = 'x';
-        file = FS_OpenFile(path);
-        if (!file)
-            return NULL;
+    DWORD data_size = 0;
+    BYTE *data = ReadModelFile(filename, &data_size);
+    if (!data || data_size < sizeof(fileheader)) {
+        if (data)
+            gi.MemFree(data);
+        return NULL;
     }
 
     g_cmodel_t *model = gi.MemAlloc(sizeof(g_cmodel_t));
     memset(model, 0, sizeof(*model));
 
-    SFileReadFile(file, &fileheader, 4, NULL, NULL);
+    memcpy(&fileheader, data, sizeof(fileheader));
     switch (fileheader) {
         case ID_MDLX:
-            model->animations = LoadModelMDLX(file, &model->num_animations);
+            model->animations = LoadModelMDLX(data, data_size, &model->num_animations);
             break;
         case ID_43DM:
-            model->animations = LoadModelMD34(file, &model->num_animations);
+            model->animations = LoadModelMD34(data, data_size, &model->num_animations);
             break;
         default:
             break;
     }
-    FS_CloseFile(file);
+    gi.MemFree(data);
     return model;
 }
 
