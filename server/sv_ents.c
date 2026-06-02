@@ -218,20 +218,6 @@ void SV_WritePlayerstateToClient(LPCCLIENTFRAME from, LPCCLIENTFRAME to, LPSIZEB
     }
     MSG_WriteByte(msg, svc_playerinfo);
     MSG_WriteDeltaPlayerState(msg, ops, ps);
-    if (!from) {
-        fprintf(stderr,
-                "SV_WritePlayerstateToClient: full player=%u team=%u race=%u color=%u origin=(%.1f %.1f) fov=%u distance=%ld ui_state=%u name=\"%s\"\n",
-                (unsigned)ps->number,
-                (unsigned)ps->team,
-                (unsigned)ps->race,
-                (unsigned)ps->color,
-                ps->origin.x,
-                ps->origin.y,
-                (unsigned)ps->fov,
-                (long)ps->distance,
-                (unsigned)ps->client_ui_state,
-                ps->name ? ps->name : "");
-    }
 }
 
 /* Write the full frame packet (svc_frame header + player state + entity list)

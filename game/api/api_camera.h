@@ -1,5 +1,6 @@
 #define API_PLAYERSTATE(NAME) \
-LPPLAYER NAME = G_GetPlayerByNumber(jass_getcontext(j)->unit->s.player);
+LPCJASSCONTEXT NAME##Context = jass_getcontext(j); \
+LPPLAYER NAME = NAME##Context && NAME##Context->unit ? G_GetPlayerByNumber(NAME##Context->unit->s.player) : currentplayer;
 
 extern LPPLAYER currentplayer;
 
@@ -221,19 +222,6 @@ DWORD CameraSetupApplyForceDuration(LPJASS j) {
     gc->camera.state = *whichSetup;
     gc->camera.start_time = gi.GetTime();
     gc->camera.end_time = gc->camera.start_time + (doPan ? forceDuration * 1000 : 0);
-    fprintf(stderr,
-            "CameraSetupApplyForceDuration: player=%u pos=(%.1f,%.1f) angles=(%.1f,%.1f,%.1f) fov=%.1f dist=%.1f duration=%.3f start=%u end=%u\n",
-            (unsigned)PLAYER_NUM(currentplayer),
-            whichSetup->position.x,
-            whichSetup->position.y,
-            whichSetup->viewangles.x,
-            whichSetup->viewangles.y,
-            whichSetup->viewangles.z,
-            whichSetup->fov,
-            whichSetup->target_distance,
-            forceDuration,
-            (unsigned)gc->camera.start_time,
-            (unsigned)gc->camera.end_time);
     return 0;
 }
 DWORD CameraSetupApplyForceDurationWithZ(LPJASS j) {
@@ -297,7 +285,9 @@ DWORD GetCameraTargetPositionZ(LPJASS j) {
 DWORD GetCameraTargetPositionLoc(LPJASS j) {
     API_ALLOC(VECTOR2, location);
     API_PLAYERSTATE(playerstate);
-    *location = playerstate->origin;
+    if (playerstate) {
+        *location = playerstate->origin;
+    }
     return 1;
 }
 DWORD GetCameraEyePositionX(LPJASS j) {

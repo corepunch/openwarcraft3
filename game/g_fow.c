@@ -876,9 +876,6 @@ static DWORD G_FowRowsPerChunk(DWORD flags) {
 void G_FowSendFull(LPEDICT ent) {
     DWORD player;
     DWORD rows_per_chunk;
-    DWORD visible = 0;
-    DWORD explored = 0;
-    DWORD cells;
 
     if (!ent || !ent->client || !G_FowReady()) {
         return;
@@ -887,20 +884,6 @@ void G_FowSendFull(LPEDICT ent) {
     if (player >= MAX_PLAYERS) {
         return;
     }
-    cells = G_FowCellCount();
-    FOR_LOOP(i, cells) {
-        visible += level.fow.players[player].visible && level.fow.players[player].visible[i] ? 1 : 0;
-        explored += level.fow.players[player].explored && level.fow.players[player].explored[i] ? 1 : 0;
-    }
-    fprintf(stderr,
-            "G_FowSendFull: player=%u team=%u cells=%u visible=%u explored=%u grid=%ux%u\n",
-            (unsigned)player,
-            (unsigned)ent->client->ps.team,
-            (unsigned)cells,
-            (unsigned)visible,
-            (unsigned)explored,
-            (unsigned)level.fow.width,
-            (unsigned)level.fow.height);
     level.fow.players[player].client_connected = true;
     rows_per_chunk = G_FowRowsPerChunk(FOW_MSG_VISIBLE_PLANE | FOW_MSG_EXPLORED_PLANE);
     for (DWORD row = 0; row < level.fow.height; row += rows_per_chunk) {

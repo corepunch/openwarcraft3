@@ -777,6 +777,13 @@ DWORD StoreUnit(LPJASS j) {
     //HANDLE whichUnit = jass_checkhandle(j, 4, "unit");
     return jass_pushboolean(j, 0);
 }
+DWORD StoreString(LPJASS j) {
+    //HANDLE cache = jass_checkhandle(j, 1, "gamecache");
+    //LPCSTR missionKey = jass_checkstring(j, 2);
+    //LPCSTR key = jass_checkstring(j, 3);
+    //LPCSTR value = jass_checkstring(j, 4);
+    return jass_pushboolean(j, 0);
+}
 DWORD SyncStoredInteger(LPJASS j) {
     //HANDLE cache = jass_checkhandle(j, 1, "gamecache");
     //LPCSTR missionKey = jass_checkstring(j, 2);
@@ -801,6 +808,81 @@ DWORD SyncStoredUnit(LPJASS j) {
     //LPCSTR key = jass_checkstring(j, 3);
     return 0;
 }
+DWORD SyncStoredString(LPJASS j) {
+    //HANDLE cache = jass_checkhandle(j, 1, "gamecache");
+    //LPCSTR missionKey = jass_checkstring(j, 2);
+    //LPCSTR key = jass_checkstring(j, 3);
+    return 0;
+}
+DWORD HaveStoredInteger(LPJASS j) {
+    //HANDLE cache = jass_checkhandle(j, 1, "gamecache");
+    //LPCSTR missionKey = jass_checkstring(j, 2);
+    //LPCSTR key = jass_checkstring(j, 3);
+    return jass_pushboolean(j, 0);
+}
+DWORD HaveStoredReal(LPJASS j) {
+    //HANDLE cache = jass_checkhandle(j, 1, "gamecache");
+    //LPCSTR missionKey = jass_checkstring(j, 2);
+    //LPCSTR key = jass_checkstring(j, 3);
+    return jass_pushboolean(j, 0);
+}
+DWORD HaveStoredBoolean(LPJASS j) {
+    //HANDLE cache = jass_checkhandle(j, 1, "gamecache");
+    //LPCSTR missionKey = jass_checkstring(j, 2);
+    //LPCSTR key = jass_checkstring(j, 3);
+    return jass_pushboolean(j, 0);
+}
+DWORD HaveStoredUnit(LPJASS j) {
+    //HANDLE cache = jass_checkhandle(j, 1, "gamecache");
+    //LPCSTR missionKey = jass_checkstring(j, 2);
+    //LPCSTR key = jass_checkstring(j, 3);
+    return jass_pushboolean(j, 0);
+}
+DWORD HaveStoredString(LPJASS j) {
+    //HANDLE cache = jass_checkhandle(j, 1, "gamecache");
+    //LPCSTR missionKey = jass_checkstring(j, 2);
+    //LPCSTR key = jass_checkstring(j, 3);
+    return jass_pushboolean(j, 0);
+}
+DWORD FlushGameCache(LPJASS j) {
+    //HANDLE cache = jass_checkhandle(j, 1, "gamecache");
+    return 0;
+}
+DWORD FlushStoredMission(LPJASS j) {
+    //HANDLE cache = jass_checkhandle(j, 1, "gamecache");
+    //LPCSTR missionKey = jass_checkstring(j, 2);
+    return 0;
+}
+DWORD FlushStoredInteger(LPJASS j) {
+    //HANDLE cache = jass_checkhandle(j, 1, "gamecache");
+    //LPCSTR missionKey = jass_checkstring(j, 2);
+    //LPCSTR key = jass_checkstring(j, 3);
+    return 0;
+}
+DWORD FlushStoredReal(LPJASS j) {
+    //HANDLE cache = jass_checkhandle(j, 1, "gamecache");
+    //LPCSTR missionKey = jass_checkstring(j, 2);
+    //LPCSTR key = jass_checkstring(j, 3);
+    return 0;
+}
+DWORD FlushStoredBoolean(LPJASS j) {
+    //HANDLE cache = jass_checkhandle(j, 1, "gamecache");
+    //LPCSTR missionKey = jass_checkstring(j, 2);
+    //LPCSTR key = jass_checkstring(j, 3);
+    return 0;
+}
+DWORD FlushStoredUnit(LPJASS j) {
+    //HANDLE cache = jass_checkhandle(j, 1, "gamecache");
+    //LPCSTR missionKey = jass_checkstring(j, 2);
+    //LPCSTR key = jass_checkstring(j, 3);
+    return 0;
+}
+DWORD FlushStoredString(LPJASS j) {
+    //HANDLE cache = jass_checkhandle(j, 1, "gamecache");
+    //LPCSTR missionKey = jass_checkstring(j, 2);
+    //LPCSTR key = jass_checkstring(j, 3);
+    return 0;
+}
 DWORD GetStoredInteger(LPJASS j) {
     //HANDLE cache = jass_checkhandle(j, 1, "gamecache");
     //LPCSTR missionKey = jass_checkstring(j, 2);
@@ -818,6 +900,12 @@ DWORD GetStoredBoolean(LPJASS j) {
     //LPCSTR missionKey = jass_checkstring(j, 2);
     //LPCSTR key = jass_checkstring(j, 3);
     return jass_pushboolean(j, 0);
+}
+DWORD GetStoredString(LPJASS j) {
+    //HANDLE cache = jass_checkhandle(j, 1, "gamecache");
+    //LPCSTR missionKey = jass_checkstring(j, 2);
+    //LPCSTR key = jass_checkstring(j, 3);
+    return jass_pushstring(j, "");
 }
 DWORD RestoreUnit(LPJASS j) {
 //    ggamecache_t const *cache = jass_checkhandle(j, 1, "gamecache");
@@ -967,11 +1055,6 @@ DWORD EnableUserControl(LPJASS j) {
     }
     if (currentplayer) {
         PLAYER_CLIENT(currentplayer)->no_control = !b;
-        fprintf(stderr,
-                "EnableUserControl: player=%u enabled=%d time=%u\n",
-                (unsigned)PLAYER_NUM(currentplayer),
-                b,
-                (unsigned)gi.GetTime());
     }
     return 0;
 }
@@ -988,24 +1071,16 @@ DWORD GetTimeOfDayScale(LPJASS j) {
 }
 DWORD ShowInterface(LPJASS j) {
     BOOL flag = jass_checkboolean(j, 1);
-    FLOAT fadeDuration = jass_checknumber(j, 2);
+    (void)jass_checknumber(j, 2);
     LPPLAYER player = currentplayer;
     if (G_SkipCutscene()) {
         flag = true;
-        fadeDuration = 0;
     }
     if (player) {
         LPGAMECLIENT client = PLAYER_CLIENT(player);
 
         if (client) {
             client->ps.client_ui_state = flag ? CLIENT_UI_GAME : CLIENT_UI_CINEMATIC;
-            fprintf(stderr,
-                    "ShowInterface: player=%u show=%d duration=%.3f ui=%u time=%u\n",
-                    (unsigned)PLAYER_NUM(player),
-                    flag,
-                    fadeDuration,
-                    (unsigned)client->ps.client_ui_state,
-                    (unsigned)gi.GetTime());
         }
     }
     return 0;

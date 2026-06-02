@@ -142,6 +142,32 @@ static LPPLAYER jass_getplayerbyindex(DWORD number) {
  * Operators (built-in native functions for arithmetic / comparison)
  * ========================================================================= */
 
+DWORD __add(LPJASS j) {
+    if (jass_gettype(j, 1) == jasstype_string && jass_gettype(j, 2) == jasstype_string) {
+        LPCSTR a = jass_checkstring(j, 1);
+        LPCSTR b = jass_checkstring(j, 2);
+        DWORD alen = a ? (DWORD)strlen(a) : 0;
+        DWORD blen = b ? (DWORD)strlen(b) : 0;
+        LPSTR text = jass_alloc(alen + blen + 1);
+
+        if (alen) {
+            memcpy(text, a, alen);
+        }
+        if (blen) {
+            memcpy(text + alen, b, blen);
+        }
+        text[alen + blen] = '\0';
+        jass_pushstringlen(j, text, alen + blen);
+        jass_free(text);
+        return 1;
+    }
+
+    if (jass_gettype(j, 1) == jasstype_integer && jass_gettype(j, 2) == jasstype_integer) {
+        return jass_pushinteger(j, jass_checkinteger(j, 1) + jass_checkinteger(j, 2));
+    }
+    return jass_pushnumber(j, jass_checknumber(j, 1) + jass_checknumber(j, 2));
+}
+
 DWORD __unm(LPJASS j) {
     if (jass_gettype(j, 1) == jasstype_integer) {
         return jass_pushinteger(j, -jass_checkinteger(j, 1));
@@ -150,7 +176,6 @@ DWORD __unm(LPJASS j) {
     }
 }
 
-JASS_NUMOP(__add, +);
 JASS_NUMOP(__sub, -);
 JASS_NUMOP(__mul, *);
 JASS_NUMOP(__div, /);
@@ -774,6 +799,13 @@ static LPJASSCFUNCTION find_cfunction(LPCJASS j, LPCSTR name) {
             return m->func;
         }
     }
+    if (jass_host.natives) {
+        for (LPCJASSMODULE m = jass_host.natives; m->name; m++) {
+            if (!strcmp(m->name, name)) {
+                return m->func;
+            }
+        }
+    }
     return NULL;
 }
 
@@ -880,8 +912,19 @@ static void jass_deletedict(LPJASSDICT dict) {
 }
 
 void jass_setnull(LPJASSVAR var) {
-    SAFE_DELETE(var->env.locals, jass_deletedict);
-    switch (jass_getvarbasetype(var)) {
+    if (!var || !var->type) {
+        return;
+    }
+    uintptr_t typeaddr = (uintptr_t)var->type;
+    if ((typeaddr & (sizeof(void *) - 1)) || typeaddr < 4096 || typeaddr >= 0x0000800000000000ULL) {
+        memset(var, 0, sizeof(*var));
+        return;
+    }
+    JASSTYPEID type = jass_getvarbasetype(var);
+    if (type == jasstype_code || type == jasstype_cfunction) {
+        SAFE_DELETE(var->env.locals, jass_deletedict);
+    }
+    switch (type) {
         case jasstype_handle:
             if (var->refcount && *var->refcount > 0) {
                 (*var->refcount)--;
@@ -972,6 +1015,11 @@ void jass_copy(LPJASS j, LPJASSVAR var, LPCJASSVAR other) {
         case jasstype_string:
             assert(other->type == var->type);
             jass_store_value(var, other->value, strlen(other->value)+1);
+            break;
+        case jasstype_code:
+        case jasstype_cfunction:
+            assert(other->type == var->type);
+            var->value = other->value;
             break;
         default:
             assert(false);
@@ -1083,11 +1131,17 @@ LONG jass_checkinteger(LPJASS j, int index) {
 
 FLOAT jass_checknumber(LPJASS j, int index) {
     LPCJASSVAR var = jass_stackvalue(j, index);
+    if (!var->value) {
+        return 0;
+    }
     if (jass_checktype(var, jasstype_real)) {
-        return var->value ? *(FLOAT *)var->value : 0;
+        return *(FLOAT *)var->value;
     }
     if (jass_checktype(var, jasstype_integer)) {
-        return var->value ? *(LONG *)var->value : 0;
+        return *(LONG *)var->value;
+    }
+    if (jass_checktype(var, jasstype_boolean)) {
+        return *(BOOL *)var->value ? 1 : 0;
     }
     assert(false);
 }
@@ -1128,6 +1182,9 @@ LPCJASSFUNC jass_checkcode(LPJASS j, int index) {
 
 HANDLE jass_checkhandle(LPJASS j, int index, LPCSTR type) {
     LPCJASSVAR var = jass_stackvalue(j, index);
+    if (!var->value) {
+        return NULL;
+    }
     assert(is_handle_convertible(var->type, find_type(j, type)));
     return var->value;
 }
@@ -1210,7 +1267,9 @@ DWORD VM_EvalCall(LPJASS j, LPCTOKEN token) {
         DWORD args = 0;
         jass_pushfunction(j, f);
         FOR_EACH_LIST(TOKEN, arg, token->args) {
-            jass_dotoken(j, arg);
+            if (!jass_dotoken(j, arg)) {
+                jass_pushnull(j);
+            }
             args++;
         }
         jass_call(j, args);
@@ -1219,7 +1278,9 @@ DWORD VM_EvalCall(LPJASS j, LPCTOKEN token) {
         DWORD args = 0;
         jass_pushcfunction(j, cf);
         FOR_EACH_LIST(TOKEN, arg, token->args) {
-            jass_dotoken(j, arg);
+            if (!jass_dotoken(j, arg)) {
+                jass_pushnull(j);
+            }
             args++;
         }
         jass_call(j, args);

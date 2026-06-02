@@ -407,14 +407,8 @@ void SV_ApplyLobbySettings(LPMAPINFO info) {
         info->players[i].color = i;
     }
     if (!svs.lobby.active || svs.lobby.slot_count == 0) {
-        fprintf(stderr, "SV_ApplyLobbySettings: no active lobby, using map player defaults\n");
         return;
     }
-    fprintf(stderr,
-            "SV_ApplyLobbySettings: map=\"%s\" slots=%u revision=%u\n",
-            svs.lobby.map_path,
-            (unsigned)svs.lobby.slot_count,
-            (unsigned)svs.lobby.revision);
     FOR_LOOP(i, MAX_PLAYERS) {
         if (info->players[i].used &&
             info->players[i].playerType != kPlayerTypeNeutral &&

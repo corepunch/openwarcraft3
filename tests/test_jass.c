@@ -256,6 +256,19 @@ static void test_real_multiplication(void) {
     jass_close(j);
 }
 
+static void test_string_concatenation(void) {
+    const char *src =
+        "function Join takes nothing returns string\n"
+        "  local string a = \"Orc\"\n"
+        "  local string b = \"X01\"\n"
+        "  return a + b\n"
+        "endfunction\n";
+    LPJASS j = run(src);
+    jass_callbyname(j, "Join", false);
+    ASSERT_STR_EQ(jass_checkstring(j, -1), "OrcX01");
+    jass_close(j);
+}
+
 /* =========================================================================
  * Boolean logic
  * ========================================================================= */
@@ -587,6 +600,34 @@ static void test_function_two_args(void) {
     LPJASS j = run(src);
     jass_callbyname(j, "CallMax", false);
     ASSERT_EQ_INT(jass_checkinteger(j, -1), 8);
+    jass_close(j);
+}
+
+static void test_code_variable_stores_function(void) {
+    const char *src =
+        "native newthread takes code c returns nothing\n"
+        "globals\n"
+        "  code saved = null\n"
+        "  integer ran = 0\n"
+        "endglobals\n"
+        "function SavedAction takes nothing returns nothing\n"
+        "  set ran = 7\n"
+        "endfunction\n"
+        "function SaveCode takes nothing returns nothing\n"
+        "  set saved = function SavedAction\n"
+        "endfunction\n"
+        "function RunSaved takes nothing returns nothing\n"
+        "  call newthread(saved)\n"
+        "endfunction\n"
+        "function GetRan takes nothing returns integer\n"
+        "  return ran\n"
+        "endfunction\n";
+    LPJASS j = run(src);
+    jass_callbyname(j, "SaveCode", false);
+    jass_callbyname(j, "RunSaved", false);
+    jass_runevents(j);
+    jass_callbyname(j, "GetRan", false);
+    ASSERT_EQ_INT(jass_checkinteger(j, -1), 7);
     jass_close(j);
 }
 
@@ -1224,6 +1265,30 @@ static void test_push_null_handle(void) {
     jass_close(j);
 }
 
+static void test_generic_null_checks_as_typed_handle(void) {
+    LPJASS j = make_jass();
+    jass_pushnull(j);
+    ASSERT_NULL(jass_checkhandle(j, -1, "unit"));
+    jass_pop(j, 1);
+    jass_close(j);
+}
+
+static void test_null_checks_as_zero_number(void) {
+    LPJASS j = make_jass();
+    jass_pushnull(j);
+    ASSERT_EQ_INT((int)jass_checknumber(j, -1), 0);
+    jass_pop(j, 1);
+    jass_close(j);
+}
+
+static void test_boolean_checks_as_number(void) {
+    LPJASS j = make_jass();
+    jass_pushboolean(j, true);
+    ASSERT_EQ_INT((int)jass_checknumber(j, -1), 1);
+    jass_pop(j, 1);
+    jass_close(j);
+}
+
 /* =========================================================================
  * toboolean coercion
  * ========================================================================= */
@@ -1379,6 +1444,9 @@ BEGIN_SUITE(jass)
     RUN_TEST(test_push_pop_boolean);
     RUN_TEST(test_push_pop_string);
     RUN_TEST(test_push_null_handle);
+    RUN_TEST(test_generic_null_checks_as_typed_handle);
+    RUN_TEST(test_null_checks_as_zero_number);
+    RUN_TEST(test_boolean_checks_as_number);
     /* toboolean coercions */
     RUN_TEST(test_toboolean_integer_nonzero);
     RUN_TEST(test_toboolean_integer_zero);
@@ -1394,6 +1462,7 @@ BEGIN_SUITE(jass)
     /* Real arithmetic */
     RUN_TEST(test_real_addition);
     RUN_TEST(test_real_multiplication);
+    RUN_TEST(test_string_concatenation);
     /* Boolean logic */
     RUN_TEST(test_boolean_true_literal);
     RUN_TEST(test_boolean_false_literal);
@@ -1421,6 +1490,7 @@ BEGIN_SUITE(jass)
     /* Functions */
     RUN_TEST(test_function_with_args);
     RUN_TEST(test_function_two_args);
+    RUN_TEST(test_code_variable_stores_function);
     RUN_TEST(test_recursive_factorial);
     /* Arrays */
     RUN_TEST(test_array_read_write);

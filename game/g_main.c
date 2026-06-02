@@ -236,7 +236,6 @@ static void G_StartScripts(void) {
     if (level.scriptsStarted) {
         return;
     }
-    fprintf(stderr, "G_StartScripts: calling war3map main\n");
     jass_callbyname(level.vm, "main", true);
     level.scriptsStarted = true;
     jass_runevents(level.vm);

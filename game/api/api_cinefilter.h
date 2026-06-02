@@ -46,13 +46,6 @@ DWORD SetCineFilterStartColor(LPJASS j) {
          .g = jass_checkinteger(j, 2),
          .b = jass_checkinteger(j, 3),
          .a = jass_checkinteger(j, 4));
-    fprintf(stderr,
-            "CineFilter start color: rgba=(%u,%u,%u,%u) time=%u\n",
-            (unsigned)level.cinefilter.start.color.r,
-            (unsigned)level.cinefilter.start.color.g,
-            (unsigned)level.cinefilter.start.color.b,
-            (unsigned)level.cinefilter.start.color.a,
-            (unsigned)gi.GetTime());
     return 0;
 }
 DWORD SetCineFilterEndColor(LPJASS j) {
@@ -62,13 +55,6 @@ DWORD SetCineFilterEndColor(LPJASS j) {
          .g = jass_checkinteger(j, 2),
          .b = jass_checkinteger(j, 3),
          .a = jass_checkinteger(j, 4));
-    fprintf(stderr,
-            "CineFilter end color: rgba=(%u,%u,%u,%u) time=%u\n",
-            (unsigned)level.cinefilter.end.color.r,
-            (unsigned)level.cinefilter.end.color.g,
-            (unsigned)level.cinefilter.end.color.b,
-            (unsigned)level.cinefilter.end.color.a,
-            (unsigned)gi.GetTime());
     return 0;
 }
 DWORD SetCineFilterDuration(LPJASS j) {
@@ -78,11 +64,6 @@ DWORD SetCineFilterDuration(LPJASS j) {
     }
     level.cinefilter.start.time = gi.GetTime();
     level.cinefilter.end.time = gi.GetTime() + duration * 1000;
-    fprintf(stderr,
-            "CineFilter duration: %.3f start=%u end=%u\n",
-            duration,
-            (unsigned)level.cinefilter.start.time,
-            (unsigned)level.cinefilter.end.time);
     return 0;
 }
 DWORD DisplayCineFilter(LPJASS j) {
@@ -90,11 +71,6 @@ DWORD DisplayCineFilter(LPJASS j) {
     if (G_SkipCutscene()) {
         level.cinefilter.displayed = false;
     }
-    fprintf(stderr,
-            "CineFilter display: %d time=%u fade=%.3f\n",
-            level.cinefilter.displayed,
-            (unsigned)gi.GetTime(),
-            G_Cinefade());
     return 0;
 }
 DWORD IsCineFilterDisplayed(LPJASS j) {

@@ -94,6 +94,9 @@ static BOOL unit_smart_target_is_enemy(LPEDICT self, LPEDICT target) {
 }
 
 BOOL unit_issuetargetorder(LPEDICT self, LPCSTR order, LPEDICT target) {
+    if (!self || !order || !target) {
+        return false;
+    }
     if (!strcmp(order, "smart")) {
         if (G_ActorHasSkill(self, "Ahar")) {
             if (G_ActorHasSkill(target, "Agld")) {
@@ -120,6 +123,9 @@ BOOL unit_issuetargetorder(LPEDICT self, LPCSTR order, LPEDICT target) {
 
 BOOL unit_issueorder(LPEDICT self, LPCSTR order, LPCVECTOR2 point) {
 //    printf("%.4s %s\n", &self->class_id, order);
+    if (!self || !order || !point) {
+        return false;
+    }
     if (!strcmp(order, "move") || !strcmp(order, "attack")) {
         VECTOR2 target = *point;
         gi.ClosestPathablePointForRadius(point, self->collision, &target);
@@ -132,6 +138,9 @@ BOOL unit_issueorder(LPEDICT self, LPCSTR order, LPCVECTOR2 point) {
 
 BOOL unit_issueimmediateorder(LPEDICT self, LPCSTR order) {
 //    printf("%.4s %s\n", &self->class_id, order);
+    if (!self || !order) {
+        return false;
+    }
     if (!strcmp(order, "stop")) {
         order_stop(self);
         return true;
@@ -152,27 +161,10 @@ unit_createorfind(DWORD player,
         {
             ent->s.player = player;
             ent->s.angle = facing * M_PI / 180;
-            if (player < PLAYER_NEUTRAL_PASSIVE) {
-                fprintf(stderr,
-                        "unit_createorfind: reused %.4s for player=%u at=(%.1f %.1f)\n",
-                        (char const *)&unitid,
-                        (unsigned)player,
-                        location->x,
-                        location->y);
-            }
             return ent;
         }
     }
     LPEDICT unit = SP_SpawnAtLocation(unitid, player, location);
-    if (player < PLAYER_NEUTRAL_PASSIVE) {
-        fprintf(stderr,
-                "unit_createorfind: spawned %.4s for player=%u ent=%u at=(%.1f %.1f)\n",
-                (char const *)&unitid,
-                (unsigned)player,
-                unit ? (unsigned)(unit - globals.edicts) : 0,
-                location->x,
-                location->y);
-    }
 //    printf("%.4s\n", &unit->class_id);
     if (!unit) {
         return NULL;

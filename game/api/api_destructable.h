@@ -89,6 +89,15 @@ DWORD GetDestructableMaxLife(LPJASS j) {
     //HANDLE d = jass_checkhandle(j, 1, "destructable");
     return jass_pushnumber(j, 0);
 }
+DWORD SetDestructableOccluderHeight(LPJASS j) {
+    //HANDLE d = jass_checkhandle(j, 1, "destructable");
+    //(void)jass_checknumber(j, 2);
+    return 0;
+}
+DWORD GetDestructableOccluderHeight(LPJASS j) {
+    //HANDLE d = jass_checkhandle(j, 1, "destructable");
+    return jass_pushnumber(j, 0);
+}
 DWORD DestructableRestoreLife(LPJASS j) {
     //HANDLE d = jass_checkhandle(j, 1, "destructable");
     //FLOAT life = jass_checknumber(j, 2);

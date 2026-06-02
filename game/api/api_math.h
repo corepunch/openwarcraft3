@@ -10,8 +10,8 @@ DWORD RectFromLoc(LPJASS j) {
     LPCVECTOR2 min = jass_checkhandle(j, 1, "location");
     LPCVECTOR2 max = jass_checkhandle(j, 2, "location");
     API_ALLOC(BOX2, rect);
-    rect->min = *min;
-    rect->max = *max;
+    if (min) rect->min = *min;
+    if (max) rect->max = *max;
     return 1;
 }
 DWORD RemoveRect(LPJASS j) {
@@ -20,18 +20,24 @@ DWORD RemoveRect(LPJASS j) {
 }
 DWORD SetRect(LPJASS j) {
     LPBOX2 whichRect = jass_checkhandle(j, 1, "rect");
-    whichRect->min.x = jass_checknumber(j, 2);
-    whichRect->min.y = jass_checknumber(j, 3);
-    whichRect->max.x = jass_checknumber(j, 4);
-    whichRect->max.y = jass_checknumber(j, 5);
+    FLOAT minx = jass_checknumber(j, 2);
+    FLOAT miny = jass_checknumber(j, 3);
+    FLOAT maxx = jass_checknumber(j, 4);
+    FLOAT maxy = jass_checknumber(j, 5);
+    if (whichRect) {
+        whichRect->min.x = minx;
+        whichRect->min.y = miny;
+        whichRect->max.x = maxx;
+        whichRect->max.y = maxy;
+    }
     return 0;
 }
 DWORD SetRectFromLoc(LPJASS j) {
     LPBOX2 whichRect = jass_checkhandle(j, 1, "rect");
     LPCVECTOR2 min = jass_checkhandle(j, 2, "location");
     LPCVECTOR2 max = jass_checkhandle(j, 3, "location");
-    whichRect->min = *min;
-    whichRect->max = *max;
+    if (whichRect && min) whichRect->min = *min;
+    if (whichRect && max) whichRect->max = *max;
     return 0;
 }
 DWORD MoveRectTo(LPJASS j) {
@@ -40,38 +46,38 @@ DWORD MoveRectTo(LPJASS j) {
         jass_checknumber(j, 2),
         jass_checknumber(j, 3),
     };
-    Box2_moveTo(whichRect, &newCenterLoc);
+    if (whichRect) Box2_moveTo(whichRect, &newCenterLoc);
     return 0;
 }
 DWORD MoveRectToLoc(LPJASS j) {
     LPBOX2 whichRect = jass_checkhandle(j, 1, "rect");
     LPCVECTOR2 newCenterLoc = jass_checkhandle(j, 2, "location");
-    Box2_moveTo(whichRect, newCenterLoc);
+    if (whichRect && newCenterLoc) Box2_moveTo(whichRect, newCenterLoc);
     return 0;
 }
 DWORD GetRectCenterX(LPJASS j) {
     LPCBOX2 whichRect = jass_checkhandle(j, 1, "rect");
-    return jass_pushnumber(j, Box2_center(whichRect).x);
+    return jass_pushnumber(j, whichRect ? Box2_center(whichRect).x : 0);
 }
 DWORD GetRectCenterY(LPJASS j) {
     LPCBOX2 whichRect = jass_checkhandle(j, 1, "rect");
-    return jass_pushnumber(j, Box2_center(whichRect).y);
+    return jass_pushnumber(j, whichRect ? Box2_center(whichRect).y : 0);
 }
 DWORD GetRectMinX(LPJASS j) {
     LPCBOX2 whichRect = jass_checkhandle(j, 1, "rect");
-    return jass_pushnumber(j, whichRect->min.x);
+    return jass_pushnumber(j, whichRect ? whichRect->min.x : 0);
 }
 DWORD GetRectMinY(LPJASS j) {
     LPCBOX2 whichRect = jass_checkhandle(j, 1, "rect");
-    return jass_pushnumber(j, whichRect->min.y);
+    return jass_pushnumber(j, whichRect ? whichRect->min.y : 0);
 }
 DWORD GetRectMaxX(LPJASS j) {
     LPCBOX2 whichRect = jass_checkhandle(j, 1, "rect");
-    return jass_pushnumber(j, whichRect->max.x);
+    return jass_pushnumber(j, whichRect ? whichRect->max.x : 0);
 }
 DWORD GetRectMaxY(LPJASS j) {
     LPCBOX2 whichRect = jass_checkhandle(j, 1, "rect");
-    return jass_pushnumber(j, whichRect->max.y);
+    return jass_pushnumber(j, whichRect ? whichRect->max.y : 0);
 }
 DWORD CreateRegion(LPJASS j) {
     API_ALLOC(REGION, region);

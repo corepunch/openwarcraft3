@@ -202,6 +202,15 @@ static void test_issueorder_unknown_returns_false(void) {
     ASSERT(!result);
 }
 
+static void test_issueorder_null_inputs_return_false(void) {
+    LPEDICT ent = make_unit(0, 0);
+    VECTOR2 dest = {100.0f, 0.0f};
+
+    ASSERT(!unit_issueorder(NULL, "move", &dest));
+    ASSERT(!unit_issueorder(ent, NULL, &dest));
+    ASSERT(!unit_issueorder(ent, "move", NULL));
+}
+
 static void test_issueimmediateorder_stop(void) {
     LPEDICT ent = make_unit(0, 0);
     /* Put unit in walk state first. */
@@ -218,6 +227,13 @@ static void test_issueimmediateorder_unknown_returns_false(void) {
     LPEDICT ent = make_unit(0, 0);
     BOOL result = unit_issueimmediateorder(ent, "patrol");
     ASSERT(!result);
+}
+
+static void test_issueimmediateorder_null_inputs_return_false(void) {
+    LPEDICT ent = make_unit(0, 0);
+
+    ASSERT(!unit_issueimmediateorder(NULL, "stop"));
+    ASSERT(!unit_issueimmediateorder(ent, NULL));
 }
 
 /* -----------------------------------------------------------------------
@@ -285,8 +301,10 @@ BEGIN_SUITE(unit)
     RUN_TEST(test_issueorder_move_sets_walk_animation);
     RUN_TEST(test_issueorder_move_preserves_combat_state);
     RUN_TEST(test_issueorder_unknown_returns_false);
+    RUN_TEST(test_issueorder_null_inputs_return_false);
     RUN_TEST(test_issueimmediateorder_stop);
     RUN_TEST(test_issueimmediateorder_unknown_returns_false);
+    RUN_TEST(test_issueimmediateorder_null_inputs_return_false);
 
     RUN_TEST(test_additemtoslot_fills_empty_slot);
     RUN_TEST(test_additemtoslot_rejects_occupied_slot);
