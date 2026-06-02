@@ -189,7 +189,7 @@ void SV_Map(LPCSTR mapFilename) {
     sv.state = ss_loading;
     strcpy(sv.configstrings[CS_WORLD], mapFilename);
     SZ_Init(&sv.multicast, sv.multicast_buf, MAX_MSGLEN);
-    if (!CM_LoadMap(mapFilename)) {
+    if (!ge->LoadMap(mapFilename)) {
         fprintf(stderr, "SV_Map: map load failed\n");
         sv.state = ss_dead;
         return;
@@ -197,11 +197,11 @@ void SV_Map(LPCSTR mapFilename) {
     if (!had_lobby) {
         memset(&svs.lobby, 0, sizeof(svs.lobby));
     }
-    SV_ApplyLobbySettings((LPMAPINFO)CM_GetMapInfo());
+    SV_ApplyLobbySettings((LPMAPINFO)ge->GetMapInfo());
     SV_ClearWorld();
     SV_CreateBaseline();
-    ge->SpawnEntities(CM_GetMapInfo(), CM_GetDoodads());
-    CM_BakeStaticObstacles();
+    ge->SpawnEntities(ge->GetMapInfo(), ge->GetDoodads());
+    ge->BakeStaticObstacles();
 //    SV_LoadModels(); // model animation data is loaded lazily by game modules now
     sv.state = ss_game;
     // Keep lobby clients connected through the immediate game start.

@@ -652,11 +652,7 @@ void G_FowInit(void) {
 
     G_FowShutdown();
     g_fow_blockers_valid = false;
-    if (!gi.GetWorldBounds) {
-        return;
-    }
-
-    level.fow.bounds = gi.GetWorldBounds();
+    level.fow.bounds = CM_GetWorldBounds();
     level.fow.width = (DWORD)ceilf((level.fow.bounds.max.x - level.fow.bounds.min.x) / (FLOAT)FOW_CELL_SIZE);
     level.fow.height = (DWORD)ceilf((level.fow.bounds.max.y - level.fow.bounds.min.y) / (FLOAT)FOW_CELL_SIZE);
     level.fow.width = MAX(level.fow.width, 1);

@@ -1,4 +1,5 @@
 #include "world_local.h"
+#include <limits.h>
 #include <math.h>
 
 #define CM_WOW_ADT_SIZE       533.333313f

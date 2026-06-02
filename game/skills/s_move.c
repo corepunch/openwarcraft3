@@ -55,7 +55,7 @@ static BOOL move_try_slot(LPCVECTOR2 point,
                           DWORD num_reserved,
                           LPVECTOR2 out) {
     VECTOR2 pathable = *point;
-    if (!gi.ClosestPathablePointForRadius(point, radius, &pathable)) {
+    if (!CM_ClosestPathablePointForRadius(point, radius, &pathable)) {
         return false;
     }
     if (move_slot_overlaps(&pathable, radius, reserved, num_reserved)) {
@@ -270,7 +270,7 @@ BOOL move_selectlocation(LPEDICT clent, LPCVECTOR2 location) {
                                      i,
                                      &target)) {
             target = *location;
-            gi.ClosestPathablePointForRadius(location, ent->collision, &target);
+            CM_ClosestPathablePointForRadius(location, ent->collision, &target);
         }
         reserved[i] = (moveSlot_t){ target, ent->collision };
         LPEDICT waypoint = Waypoint_add(&target);

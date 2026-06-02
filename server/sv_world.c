@@ -70,7 +70,7 @@ LPAREANODE SV_CreateAreaNode(DWORD depth, LPCVECTOR2 mins, LPCVECTOR2 maxs) {
 void SV_ClearWorld(void) {
     memset(sv_areanodes, 0, sizeof(sv_areanodes));
     sv_numareanodes = 0;
-    BOX2 bounds = CM_GetWorldBounds();
+    BOX2 bounds = ge->GetWorldBounds();
     SV_CreateAreaNode(0, &bounds.min, &bounds.max);
 }
 

@@ -193,20 +193,20 @@ $(RENDERER_WOW_LIB): $(SHARED_LIB) $(CLIENT_HEADERS) $(COMMON_HEADERS) common/mp
 		$(CC) $(WOW_CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - common/mpq.c $(LDFLAGS) -lshared $(LIBS) -lz
 
 # game — depends on shared and jass
-$(GAME_LIB): $(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) $(COMMON_HEADERS) $(shell find game -name '*.c') | $(LIB_DIR)
+$(GAME_LIB): $(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) $(COMMON_HEADERS) common/mpq.c common/mpq.h $(shell find game -name '*.c') | $(LIB_DIR)
 	@echo "[game]"
 	@$(call UNITY,game) | \
-		$(CC) $(CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - $(LDFLAGS) -lsheet -lshared -ljass -lm
+		$(CC) $(CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - common/mpq.c $(LDFLAGS) -lsheet -lshared -ljass $(LIBS) -lm -lz
 
-$(GAME_WOW_LIB): $(SHARED_LIB) $(COMMON_HEADERS) $(shell find game-wow -name '*.c') | $(LIB_DIR)
+$(GAME_WOW_LIB): $(SHARED_LIB) $(COMMON_HEADERS) common/mpq.c common/mpq.h $(shell find game-wow -name '*.c') | $(LIB_DIR)
 	@echo "[game-wow]"
 	@$(call UNITY,game-wow) | \
-		$(CC) $(WOW_CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - $(LDFLAGS) -lshared -lm
+		$(CC) $(WOW_CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - common/mpq.c $(LDFLAGS) -lshared $(LIBS) -lm -lz
 
-$(GAME_SC2_LIB): $(SHARED_LIB) $(COMMON_HEADERS) $(shell find game-sc2 -name '*.c') | $(LIB_DIR)
+$(GAME_SC2_LIB): $(SHARED_LIB) $(COMMON_HEADERS) common/mpq.c common/mpq.h $(shell find game-sc2 -name '*.c') | $(LIB_DIR)
 	@echo "[game-sc2]"
 	@$(call UNITY,game-sc2) | \
-		$(CC) $(SC2_CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - $(LDFLAGS) -lshared -lm
+		$(CC) $(SC2_CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - common/mpq.c $(LDFLAGS) -lshared $(LIBS) -lm -lz
 
 # ui — depends on shared
 $(UI_LIB): $(SHARED_LIB) $(CLIENT_HEADERS) $(COMMON_HEADERS) $(UI_HEADERS) $(shell find ui -name '*.c') | $(LIB_DIR)

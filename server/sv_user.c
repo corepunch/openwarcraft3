@@ -8,7 +8,7 @@ static DWORD SV_ConfigStringWireSize(DWORD index) {
 }
 
 static DWORD SV_ClientPlayerNumber(LPCLIENT cl) {
-    return cl->playernum < MAX_PLAYERS ? cl->playernum : CM_GetLocalPlayerNumber();
+    return cl->playernum < MAX_PLAYERS ? cl->playernum : ge->GetLocalPlayerNumber();
 }
 
 static void SV_FlushSpawnMessage(LPCLIENT cl, LPCSTR phase, DWORD count) {
