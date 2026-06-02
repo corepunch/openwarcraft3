@@ -32,7 +32,7 @@ R_RenderView       → colour pass: ground + cliffs, then entities,
 
 ## Segment System
 
-The map is divided into axis-aligned *segments* of `SEGMENT_SIZE × SEGMENT_SIZE` tiles (8 × 8 by default, defined in `mapinfo.h`). Every segment is a `MAPSEGMENT` node in the singly-linked list `g_mapSegments`.
+The map is divided into axis-aligned *segments* of `SEGMENT_SIZE × SEGMENT_SIZE` tiles (8 × 8 by default, defined in `games/warcraft-3/common/mapinfo.h`). Every segment is a `MAPSEGMENT` node in the singly-linked list `g_mapSegments`.
 
 ```
 Map grid (width-1) × (height-1) tiles
@@ -202,8 +202,8 @@ Ground textures are cached globally in `g_groundTextures[]`, indexed by the grou
 
 | Constant | Value | Defined in | Meaning |
 |----------|-------|-----------|---------|
-| `TILE_SIZE` | 128 | `mapinfo.h` | World units per heightmap tile |
-| `SEGMENT_SIZE` | 8 | `mapinfo.h` | Tiles per segment side |
+| `TILE_SIZE` | 128 | `games/warcraft-3/common/mapinfo.h` | World units per heightmap tile |
+| `SEGMENT_SIZE` | 8 | `games/warcraft-3/common/mapinfo.h` | Tiles per segment side |
 | `SHADOW_TEXSIZE` | 1024 | `r_local.h` | Shadow-map texture resolution |
 | `DECODE_HEIGHT(v)` | `v / 4.0f` | `common.h` | Raw heightmap int → world units |
 | `HEIGHT_COR` | (see `common.h`) | `common.h` | Cliff-level baseline correction |
@@ -223,4 +223,4 @@ Ground textures are cached globally in `g_groundTextures[]`, indexed by the grou
 | `renderer/r_fogofwar.c` | Fog-of-war render targets and ray-cast sight shader |
 | `renderer/r_main.c` | `R_RenderShadowMap`, `R_RenderView`, `R_RenderFrame` |
 | `renderer/r_shader.c` | GLSL sources for `SHADER_DEFAULT`, `SHADER_UI`, `SHADER_SPLAT` |
-| `common/mapinfo.h` | `TILE_SIZE`, `SEGMENT_SIZE`, `WAR3MAP` struct layout |
+| `games/warcraft-3/common/mapinfo.h` | `TILE_SIZE`, `SEGMENT_SIZE`, `WAR3MAP` struct layout |

@@ -4,6 +4,7 @@
 #include "shared.h"
 #include "net.h"
 #include "mpq.h"
+#include "games/warcraft-3/common/mapinfo.h"
 
 #define MAP_VERTEX_FILE_SIZE 7
 #define MAX_SHEET_LINE 1024

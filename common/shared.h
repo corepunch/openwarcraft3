@@ -17,6 +17,7 @@
 #endif
 
 #define MAX_PATHLEN 256
+#define MAX_PLAYERS 16
 #define MAX_SELECTED_ENTITIES 64
 #define TOKEN_LEN 1024
 #define FRAMETIME 100
@@ -856,7 +857,13 @@ typedef struct particle_s {
     FLOAT lifespan;
 } cparticle_t;
 
-#include "mapinfo.h"
+typedef enum {
+    kPlayerRaceNone,
+    kPlayerRaceHuman,
+    kPlayerRaceOrc,
+    kPlayerRaceUndead,
+    kPlayerRaceNightElf
+} playerRace_t;
 
 typedef enum {
     LOBBY_SLOT_OPEN,

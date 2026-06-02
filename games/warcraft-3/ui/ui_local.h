@@ -16,6 +16,7 @@
 
 #include "client/ui.h"
 #include "common/shared.h"  /* For PLAYERSTATE/PLAYERTEXT enums */
+#include "games/warcraft-3/common/mapinfo.h"
 
 /* Constants */
 #define MAX_BUILD_QUEUE 7

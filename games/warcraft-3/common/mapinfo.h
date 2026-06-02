@@ -1,10 +1,11 @@
 #ifndef __mapinfo_h__
 #define __mapinfo_h__
 
+#include "common/shared.h"
+
 #define TILE_SIZE 128
 #define SEGMENT_SIZE 8
 //#define AREA_SIZE (TILE_SIZE * SEGMENT_SIZE)
-#define MAX_PLAYERS 16
 #define PLAYER_NEUTRAL_PASSIVE 12
 #define PLAYER_NEUTRAL_VICTIM 13
 #define PLAYER_NEUTRAL_EXTRA 14
@@ -44,14 +45,6 @@ typedef enum {
     kPlayerTypeNeutral,
     kPlayerTypeRescuable
 } playerType_t;
-
-typedef enum {
-    kPlayerRaceNone,
-    kPlayerRaceHuman,
-    kPlayerRaceOrc,
-    kPlayerRaceUndead,
-    kPlayerRaceNightElf
-} playerRace_t;
 
 typedef enum {
     allied_force_1 = 0x0001,
