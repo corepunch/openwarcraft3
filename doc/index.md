@@ -51,7 +51,7 @@ make build
 
 Compiles the engine and game libraries (`shared`, `jass`, `sheet`, `renderer`, `game`, `ui`) and the `openwarcraft3` executable into `build/`.
 
-The default Warcraft III libraries are built from engine sources plus `games/warcraft3/`. Warcraft III-specific script, sheet, game, renderer, UI, and test sources live under that tree. Alternate game builds use the same engine sources with `games/world-of-warcraft/` or `games/starcraft2/`.
+The default Warcraft III libraries are built from engine sources plus `games/warcraft-3/`. Warcraft III-specific script, sheet, game, renderer, UI, and test sources live under that tree. Alternate game builds use the same engine sources with `games/world-of-warcraft/` or `games/starcraft-2/`.
 
 ### 4. Run
 
@@ -91,7 +91,7 @@ Downloads a ~1.2 GB installer from `archive.org` into the `data/` folder. Skip t
 
 OpenWarcraft3 uses a strict client-server separation where all game logic runs exclusively on the server and clients are responsible only for rendering and input.
 
-The **server** hosts the selected game library. For Warcraft III, the source lives in `games/warcraft3/game/` and is built as `libgame` behind a Quake-style function table boundary. It maintains the authoritative game state: all entities, their positions, health, current animations, and AI state. The server processes player commands, runs the game simulation each frame, and sends the resulting state to clients.
+The **server** hosts the selected game library. For Warcraft III, the source lives in `games/warcraft-3/game/` and is built as `libgame` behind a Quake-style function table boundary. It maintains the authoritative game state: all entities, their positions, health, current animations, and AI state. The server processes player commands, runs the game simulation each frame, and sends the resulting state to clients.
 
 The **client** (`client/`) captures user input via SDL2, forwards commands to the server, receives the updated game state, and renders it using the renderer API. Generic renderer sources live in `renderer/`; selected-game render policy and model/map formats live in `games/<game>/renderer/`. The client never runs game logic directly — it is purely a display and input layer.
 
@@ -134,14 +134,14 @@ Important runtime cvars:
 The default Warcraft III build produces the engine/game libraries and one executable:
 
 1. **libshared** (`shared/`) — mathematics (vectors, matrices, quaternions, geometric primitives); no external dependencies
-2. **libjass** (`games/warcraft3/jass/`) — Warcraft III JASS VM
-3. **libsheet** (`games/warcraft3/sheet/`) — Warcraft III SLK/profile parser
-4. **librenderer** (`renderer/` + `games/warcraft3/renderer/`) — generic renderer backend plus Warcraft III model/map hooks; depends on `libshared`, SDL2
-5. **libgame** (`games/warcraft3/game/`) — server-side Warcraft III game logic; depends on `libshared`
-6. **libui** (`games/warcraft3/ui/`) — client-side FDF parser, command-driven screen controller, and UI renderer
+2. **libjass** (`games/warcraft-3/jass/`) — Warcraft III JASS VM
+3. **libsheet** (`games/warcraft-3/sheet/`) — Warcraft III SLK/profile parser
+4. **librenderer** (`renderer/` + `games/warcraft-3/renderer/`) — generic renderer backend plus Warcraft III model/map hooks; depends on `libshared`, SDL2
+5. **libgame** (`games/warcraft-3/game/`) — server-side Warcraft III game logic; depends on `libshared`
+6. **libui** (`games/warcraft-3/ui/`) — client-side FDF parser, command-driven screen controller, and UI renderer
 7. **openwarcraft3** — main executable linking the runtime libraries plus SDL2
 
-Alternate builds follow the same shape: `openwow` links `libgame-wow`, `librenderer-wow`, and `libui-wow` from `games/world-of-warcraft/`; `opensc2` links `libgame-sc2` and `librenderer-sc2` from `games/starcraft2/`.
+Alternate builds follow the same shape: `openwow` links `libgame-wow`, `librenderer-wow`, and `libui-wow` from `games/world-of-warcraft/`; `opensc2` links `libgame-sc2` and `librenderer-sc2` from `games/starcraft-2/`.
 
 The renderer module is intentionally compound. Engine renderer code in `renderer/` owns common GL, scene, font, texture, and diagnostic behavior. The selected game's `games/<game>/renderer/` sources implement the `R_Game*` hooks in `renderer/r_game.h`, so the engine renderer does not branch on MDX/M2/M3 model formats.
 

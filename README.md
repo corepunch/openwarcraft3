@@ -57,7 +57,7 @@ make build
 
 Compiles the engine and game libraries (`shared`, `jass`, `sheet`, `renderer`, `game`, `ui`) and the `openwarcraft3` executable into `build/`.
 
-The default Warcraft III libraries are built from engine sources plus `games/warcraft3/`. Warcraft III-specific script, sheet, game, renderer, UI, and test sources live under that tree. Alternate game builds use the same engine sources with `games/world-of-warcraft/` or `games/starcraft2/`.
+The default Warcraft III libraries are built from engine sources plus `games/warcraft-3/`. Warcraft III-specific script, sheet, game, renderer, UI, and test sources live under that tree. Alternate game builds use the same engine sources with `games/world-of-warcraft/` or `games/starcraft-2/`.
 
 Viewer tools are also built into `build/bin/`:
 - `mdxtool` — model viewer
@@ -157,7 +157,7 @@ Downloads a ~1.2 GB installer from `archive.org` into the `data/` folder. Skip t
 
 OpenWarcraft3 uses a strict client-server separation where all game logic runs exclusively on the server and clients are responsible only for rendering and input.
 
-The **server** hosts the selected game library. For Warcraft III, the source lives in `games/warcraft3/game/` and is built as `libgame` behind a Quake-style function table boundary. It maintains the authoritative game state: all entities, their positions, health, current animations, and AI state. The server processes player commands, runs the game simulation each frame, and sends the resulting state to clients.
+The **server** hosts the selected game library. For Warcraft III, the source lives in `games/warcraft-3/game/` and is built as `libgame` behind a Quake-style function table boundary. It maintains the authoritative game state: all entities, their positions, health, current animations, and AI state. The server processes player commands, runs the game simulation each frame, and sends the resulting state to clients.
 
 The **client** (`client/`) captures user input via SDL2, forwards commands to the server, receives the updated game state, and renders it using the renderer API. The generic renderer sources live in `renderer/`; selected-game render policy and model/map formats live in `games/<game>/renderer/`. The client never runs game logic directly — it is purely a display and input layer.
 
@@ -222,12 +222,12 @@ The client receives these delta messages in `CL_ReadPacketEntities` (`client/cl_
 
 ## Projectile System
 
-Ranged attacks spawn a projectile entity (`fire_rocket` in `games/warcraft3/game/skills/s_attack.c`). The projectile stores a reference to its target entity, a launch speed, a damage value, and a model index for rendering. Its `movetype` is set to `MOVETYPE_FLYMISSILE`.
+Ranged attacks spawn a projectile entity (`fire_rocket` in `games/warcraft-3/game/skills/s_attack.c`). The projectile stores a reference to its target entity, a launch speed, a damage value, and a model index for rendering. Its `movetype` is set to `MOVETYPE_FLYMISSILE`.
 
-Each game frame, `G_RunEntity` (`games/warcraft3/game/g_phys.c`) dispatches on `movetype`. For `MOVETYPE_FLYMISSILE`, `SV_Physics_Toss` moves the projectile straight toward the target's current position at a fixed speed. When the remaining distance is less than the distance traveled this frame, the projectile calls `T_Damage` on the target and frees itself:
+Each game frame, `G_RunEntity` (`games/warcraft-3/game/g_phys.c`) dispatches on `movetype`. For `MOVETYPE_FLYMISSILE`, `SV_Physics_Toss` moves the projectile straight toward the target's current position at a fixed speed. When the remaining distance is less than the distance traveled this frame, the projectile calls `T_Damage` on the target and frees itself:
 
 ```c
-// games/warcraft3/game/g_phys.c
+// games/warcraft-3/game/g_phys.c
 void SV_Physics_Toss(LPEDICT ent) {
     FLOAT distance = ent->velocity * FRAMETIME;
     VECTOR3 dir = Vector3_sub(&ent->goalentity->s.origin, &ent->s.origin);
@@ -241,18 +241,18 @@ void SV_Physics_Toss(LPEDICT ent) {
 }
 ```
 
-`T_Damage` (`games/warcraft3/game/skills/s_attack.c`) reduces the target's health. If the target survives and is capable of attacking back, it automatically issues a counter-attack order. If the target's health reaches zero, its `die` callback is invoked.
+`T_Damage` (`games/warcraft-3/game/skills/s_attack.c`) reduces the target's health. If the target survives and is capable of attacking back, it automatically issues a counter-attack order. If the target's health reaches zero, its `die` callback is invoked.
 
 Because projectiles are regular server entities with a model, they are automatically included in the entity snapshot and rendered on the client without any special handling.
 
 ## Unit Movement
 
-When a player right-clicks on the ground, the client sends a command to the server. The server's command handler (`games/warcraft3/game/g_commands.c`) resolves the selected units and calls `move_selectlocation` (`games/warcraft3/game/skills/s_move.c`), which:
+When a player right-clicks on the ground, the client sends a command to the server. The server's command handler (`games/warcraft-3/game/g_commands.c`) resolves the selected units and calls `move_selectlocation` (`games/warcraft-3/game/skills/s_move.c`), which:
 
-1. Allocates a **waypoint** entity at the target map position, snapping its Z coordinate to the terrain height (`Waypoint_add` in `games/warcraft3/game/g_monster.c`)
+1. Allocates a **waypoint** entity at the target map position, snapping its Z coordinate to the terrain height (`Waypoint_add` in `games/warcraft-3/game/g_monster.c`)
 2. Calls `order_move` on each selected unit, setting the unit's `goalentity` to the waypoint and switching its current move to the walk state
 
-Each server frame, units in the walk state execute `ai_walk` (`games/warcraft3/game/skills/s_move.c`):
+Each server frame, units in the walk state execute `ai_walk` (`games/warcraft-3/game/skills/s_move.c`):
 
 ```c
 static void ai_walk(LPEDICT ent) {
@@ -265,13 +265,13 @@ static void ai_walk(LPEDICT ent) {
 }
 ```
 
-After all entities have moved, `G_SolveCollisions` (`games/warcraft3/game/g_phys.c`) iterates over every pair of overlapping entities and separates them. When two moving units collide, the separation is split proportionally based on each unit's remaining distance to its goal — the unit that is closer to its destination yields more, preventing deadlocks at the destination.
+After all entities have moved, `G_SolveCollisions` (`games/warcraft-3/game/g_phys.c`) iterates over every pair of overlapping entities and separates them. When two moving units collide, the separation is split proportionally based on each unit's remaining distance to its goal — the unit that is closer to its destination yields more, preventing deadlocks at the destination.
 
-Animation is driven by `M_MoveFrame` (`games/warcraft3/game/g_monster.c`), which advances `edict->s.frame` each game tick according to the current animation interval. When an animation cycle completes, the `endfunc` of the current `umove_t` is called to transition to the next state (e.g. attack → cooldown → attack again).
+Animation is driven by `M_MoveFrame` (`games/warcraft-3/game/g_monster.c`), which advances `edict->s.frame` each game tick according to the current animation interval. When an animation cycle completes, the `endfunc` of the current `umove_t` is called to transition to the next state (e.g. attack → cooldown → attack again).
 
 ## UI System (Phase 8: Client-Side Architecture)
 
-All UI logic runs **client-side** in the selected UI library. Warcraft III UI sources live in `games/warcraft3/ui/`; the shared client-facing UI API is declared in `client/ui.h`. The server provides only game data (unit abilities, inventory, build queues) through a query protocol. This follows the Quake 3 Arena pattern where UI is a separate client-side library.
+All UI logic runs **client-side** in the selected UI library. Warcraft III UI sources live in `games/warcraft-3/ui/`; the shared client-facing UI API is declared in `client/ui.h`. The server provides only game data (unit abilities, inventory, build queues) through a query protocol. This follows the Quake 3 Arena pattern where UI is a separate client-side library.
 
 ### Migration from Server-Side UI
 
@@ -279,7 +279,7 @@ Previously (Phase 1-7), UI logic ran on the server in `game/ui/` and `game/hud/`
 
 ### FDF Parsing and Frame Management
 
-The UI library (`games/warcraft3/ui/ui_main.c`) loads Warcraft III's `.fdf` (Frame Definition File) assets via `UI_ParseFDF` (`games/warcraft3/ui/ui_fdf.c`). These files describe the hierarchy of UI frames — their type (backdrop, button, label, etc.), textures, fonts, anchor points, and sizes. The UI library maintains the complete frame tree and handles all layout calculation and rendering client-side.
+The UI library (`games/warcraft-3/ui/ui_main.c`) loads Warcraft III's `.fdf` (Frame Definition File) assets via `UI_ParseFDF` (`games/warcraft-3/ui/ui_fdf.c`). These files describe the hierarchy of UI frames — their type (backdrop, button, label, etc.), textures, fonts, anchor points, and sizes. The UI library maintains the complete frame tree and handles all layout calculation and rendering client-side.
 
 ### Unit Data Query Protocol
 
@@ -313,7 +313,7 @@ for (j = 0; j < num_buttons; j++) {
 
 **Client Storage:**
 ```c
-// games/warcraft3/ui/screens/console_ui.c — Cache and render
+// games/warcraft-3/ui/screens/console_ui.c — Cache and render
 static uiUnitData_t cached_units[MAX_CACHED_UNITS];
 void ConsoleUI_UpdateUnitUI(DWORD num_units, uiUnitData_t *units) {
     memcpy(cached_units, units, sizeof(uiUnitData_t) * num_units);
@@ -323,7 +323,7 @@ void ConsoleUI_UpdateUnitUI(DWORD num_units, uiUnitData_t *units) {
 
 ### Client-Side Rendering
 
-The UI library dispatches rendering to screen controllers (e.g., `games/warcraft3/ui/screens/console_ui.c` for in-game HUD, `games/warcraft3/ui/screens/main_menu.c` for menus). Each screen manages its own frame tree and updates frames based on game state. The renderer calls back into client import functions to draw quads, text, and models.
+The UI library dispatches rendering to screen controllers (e.g., `games/warcraft-3/ui/screens/console_ui.c` for in-game HUD, `games/warcraft-3/ui/screens/main_menu.c` for menus). Each screen manages its own frame tree and updates frames based on game state. The renderer calls back into client import functions to draw quads, text, and models.
 
 No serialized UI blobs are transmitted over the network. The server is game-agnostic and provides only data.
 
@@ -349,14 +349,14 @@ This runs the configured UI command for one frame, skips network socket binding,
 The default Warcraft III build produces the engine/game libraries and one executable:
 
 1. **libshared** (`shared/`) — mathematics (vectors, matrices, quaternions, geometric primitives); no external dependencies
-2. **libjass** (`games/warcraft3/jass/`) — Warcraft III JASS VM
-3. **libsheet** (`games/warcraft3/sheet/`) — Warcraft III SLK/profile parser
-4. **librenderer** (`renderer/` + `games/warcraft3/renderer/`) — generic renderer backend plus Warcraft III model/map hooks; depends on `libshared`, SDL2
-5. **libgame** (`games/warcraft3/game/`) — server-side Warcraft III game logic; depends on `libshared`
-6. **libui** (`games/warcraft3/ui/`) — client-side FDF parser, command-driven screen controller, and UI renderer
+2. **libjass** (`games/warcraft-3/jass/`) — Warcraft III JASS VM
+3. **libsheet** (`games/warcraft-3/sheet/`) — Warcraft III SLK/profile parser
+4. **librenderer** (`renderer/` + `games/warcraft-3/renderer/`) — generic renderer backend plus Warcraft III model/map hooks; depends on `libshared`, SDL2
+5. **libgame** (`games/warcraft-3/game/`) — server-side Warcraft III game logic; depends on `libshared`
+6. **libui** (`games/warcraft-3/ui/`) — client-side FDF parser, command-driven screen controller, and UI renderer
 7. **openwarcraft3** — main executable linking the runtime libraries plus SDL2
 
-Alternate builds follow the same shape: `openwow` links `libgame-wow`, `librenderer-wow`, and `libui-wow` from `games/world-of-warcraft/`; `opensc2` links `libgame-sc2` and `librenderer-sc2` from `games/starcraft2/`.
+Alternate builds follow the same shape: `openwow` links `libgame-wow`, `librenderer-wow`, and `libui-wow` from `games/world-of-warcraft/`; `opensc2` links `libgame-sc2` and `librenderer-sc2` from `games/starcraft-2/`.
 
 The renderer module is intentionally compound. Engine renderer code in `renderer/` owns common GL, scene, font, texture, and diagnostic behavior. The selected game's `games/<game>/renderer/` sources implement the `R_Game*` hooks in `renderer/r_game.h`, so the engine renderer does not branch on MDX/M2/M3 model formats.
 
@@ -374,9 +374,9 @@ UI tests are fully repo-owned and deterministic:
 
 `make test` now always runs `make test-assets` first, so the generated UI archive is part of the normal test flow.
 
-Warcraft III-specific test sources live under `games/warcraft3/tests/`. Engine/tool tests that are not tied to one game remain under the root `tests/` tree.
+Warcraft III-specific test sources live under `games/warcraft-3/tests/`. Engine/tool tests that are not tied to one game remain under the root `tests/` tree.
 
-For UI-impacting changes (`games/warcraft3/ui/*`, `client/cl_scrn.c`, `renderer/r_draw.c`, sprite/model UI paths), run `make test-ui` before merging. This gate executes parser, layout, end-to-end, and tool-oracle UI suites.
+For UI-impacting changes (`games/warcraft-3/ui/*`, `client/cl_scrn.c`, `renderer/r_draw.c`, sprite/model UI paths), run `make test-ui` before merging. This gate executes parser, layout, end-to-end, and tool-oracle UI suites.
 
 Note: `fdftool` was removed in Phase 8 as it depended on deleted server-side UI code (`game/ui/`).
 

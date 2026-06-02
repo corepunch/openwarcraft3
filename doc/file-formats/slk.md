@@ -42,11 +42,11 @@ The first row (`Y=1`) contains column headers. Subsequent rows hold data records
 
 ## INI / Profile Files
 
-Alongside SLK files, Warcraft III uses `profile.txt` style INI files (`war3mapSkin.txt`, `TriggerData.txt`, etc.). These follow a standard `[Section]\nKey=Value` layout. OpenWarcraft3 parses both via `games/warcraft3/sheet/sheet.c`.
+Alongside SLK files, Warcraft III uses `profile.txt` style INI files (`war3mapSkin.txt`, `TriggerData.txt`, etc.). These follow a standard `[Section]\nKey=Value` layout. OpenWarcraft3 parses both via `games/warcraft-3/sheet/sheet.c`.
 
 ## Parsing in OpenWarcraft3
 
-The Warcraft III SLK/profile parser lives in `games/warcraft3/sheet/`. It works in two phases:
+The Warcraft III SLK/profile parser lives in `games/warcraft-3/sheet/`. It works in two phases:
 
 ### Phase 1 — Tokenisation (`SheetParseTokens`)
 
@@ -74,7 +74,7 @@ After all cells are parsed, `FS_MakeRowsFromSheet` converts the flat cell list i
 LPCSTR value = FS_GetField(row, "HP");
 ```
 
-The resulting row array drives Warcraft III unit spawning (`games/warcraft3/game/g_spawn.c`) and metadata lookups (`games/warcraft3/game/g_metadata.c`) at runtime.
+The resulting row array drives Warcraft III unit spawning (`games/warcraft-3/game/g_spawn.c`) and metadata lookups (`games/warcraft-3/game/g_metadata.c`) at runtime.
 
 ## Example SLK Snippet
 
@@ -100,8 +100,8 @@ E
 
 | Source | Purpose |
 |--------|---------|
-| `games/warcraft3/sheet/parser.c` | Token parser helpers |
-| `games/warcraft3/sheet/sheet.c` | SLK parser and row accessor |
+| `games/warcraft-3/sheet/parser.c` | Token parser helpers |
+| `games/warcraft-3/sheet/sheet.c` | SLK parser and row accessor |
 | `common/shared.h` | `sheetRow_t`, `sheetField_t` type definitions |
-| `games/warcraft3/game/g_metadata.c` | Unit metadata lookups from SLK tables |
-| `games/warcraft3/game/g_spawn.c` | Unit spawning using SLK data |
+| `games/warcraft-3/game/g_metadata.c` | Unit metadata lookups from SLK tables |
+| `games/warcraft-3/game/g_spawn.c` | Unit spawning using SLK data |

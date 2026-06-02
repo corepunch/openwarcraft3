@@ -1,6 +1,6 @@
 # UI System Architecture
 
-As of Phase 8 (May 2026), all UI logic in OpenWarcraft3 runs **client-side** in the selected UI library. Warcraft III UI sources live in `games/warcraft3/ui/`; the shared client-facing UI API is declared in `client/ui.h`. The server is now game-agnostic and provides unit data through a query protocol when clients request it. This follows the Quake 3 Arena pattern where UI is a separate client-side library.
+As of Phase 8 (May 2026), all UI logic in OpenWarcraft3 runs **client-side** in the selected UI library. Warcraft III UI sources live in `games/warcraft-3/ui/`; the shared client-facing UI API is declared in `client/ui.h`. The server is now game-agnostic and provides unit data through a query protocol when clients request it. This follows the Quake 3 Arena pattern where UI is a separate client-side library.
 
 ## Migration from Server-Side UI (Phase 1-7)
 
@@ -28,17 +28,17 @@ Phase 8 removed all server-side UI code. The game library now only provides **da
 
 ## Initialisation
 
-`UI_Init` (`games/warcraft3/ui/ui_main.c`) is called once from `CL_Init` when the client starts:
+`UI_Init` (`games/warcraft-3/ui/ui_main.c`) is called once from `CL_Init` when the client starts:
 
 1. Loads UI library via `UI_GetAPI(uiImport_t)` function table.
 2. Client provides import functions: memory allocation, file I/O, MPQ access.
-3. UI library loads Warcraft III `.fdf` files from MPQ via `UI_ParseFDF` (`games/warcraft3/ui/ui_fdf.c`).
+3. UI library loads Warcraft III `.fdf` files from MPQ via `UI_ParseFDF` (`games/warcraft-3/ui/ui_fdf.c`).
 4. UI executes `ui_start_command`, defaulting to `menu_main`.
 5. Screen controller manages frame lifecycle, drawing, and input routing.
 
 ## Frame Definition Files (FDF)
 
-FDF files declare frame templates hierarchically. `UI_ParseFDF_Buffer` (`games/warcraft3/ui/ui_fdf.c`) accepts a writable C string, tokenises it, and registers `frameDef_t` entries in a global lookup table. Frames can inherit from a base template with `InheritsParts`.
+FDF files declare frame templates hierarchically. `UI_ParseFDF_Buffer` (`games/warcraft-3/ui/ui_fdf.c`) accepts a writable C string, tokenises it, and registers `frameDef_t` entries in a global lookup table. Frames can inherit from a base template with `InheritsParts`.
 
 See [FDF File Format](../file-formats/fdf.md) for the full syntax reference.
 
@@ -83,7 +83,7 @@ for (j = 0; j < num_buttons; j++) {
 ### Client Storage
 
 ```c
-// games/warcraft3/ui/screens/console_ui.c - Store unit data
+// games/warcraft-3/ui/screens/console_ui.c - Store unit data
 static uiUnitData_t cached_units[MAX_CACHED_UNITS];
 static DWORD cached_unit_count = 0;
 
@@ -110,7 +110,7 @@ The UI library maintains the frame tree and recalculates layout when frames are 
 
 ## Client-Side Rendering (Phase 8+)
 
-The Warcraft III UI library (`games/warcraft3/ui/`) handles all frame rendering:
+The Warcraft III UI library (`games/warcraft-3/ui/`) handles all frame rendering:
 
 1. Screen controller (e.g., `console_ui.c`) updates frame states based on game data.
 2. `UI_DrawFrame` walks the frame tree and dispatches each frame to type-specific renderers.
@@ -190,7 +190,7 @@ Note: `fdftool` was removed in Phase 8 as it depended on deleted server-side UI 
 
 ## Adding a New UI Element
 
-1. In the appropriate screen controller (e.g., `games/warcraft3/ui/screens/console_ui.c`), define the frame using the FDF API or programmatically:
+1. In the appropriate screen controller (e.g., `games/warcraft-3/ui/screens/console_ui.c`), define the frame using the FDF API or programmatically:
 
 ```c
 // Option A: Reference FDF-defined frame
@@ -225,15 +225,15 @@ void ConsoleUI_UpdateUnitUI(DWORD num_units, uiUnitData_t *units) {
 | File | Purpose |
 |------|---------|
 | `server/sv_unit_ui.c` | Handle `clc_request_unit_ui`, query game DLL |
-| `games/warcraft3/game/g_unit_ui.c` | `G_GetCommandButtons`, `G_GetInventory`, `G_GetBuildQueue` |
-| `games/warcraft3/game/g_ui_stubs.c` | No-op stubs for legacy server-side UI functions |
+| `games/warcraft-3/game/g_unit_ui.c` | `G_GetCommandButtons`, `G_GetInventory`, `G_GetBuildQueue` |
+| `games/warcraft-3/game/g_ui_stubs.c` | No-op stubs for legacy server-side UI functions |
 | `server/game.h` | `game_export` callbacks for unit data queries |
 | `client/ui.h` | Shared UI module API declaration |
-| `games/warcraft3/ui/ui_main.c` | `UI_GetAPI`, library entry point, screen routing |
-| `games/warcraft3/ui/ui_fdf.c` | FDF parser and programmatic frame API |
-| `games/warcraft3/ui/ui_render.c` | Frame rendering dispatch |
-| `games/warcraft3/ui/screens/console_ui.c` | In-game HUD (resource bar, command card, inventory) |
-| `games/warcraft3/ui/screens/main_menu.c` | Main menu, single player menu, etc. |
+| `games/warcraft-3/ui/ui_main.c` | `UI_GetAPI`, library entry point, screen routing |
+| `games/warcraft-3/ui/ui_fdf.c` | FDF parser and programmatic frame API |
+| `games/warcraft-3/ui/ui_render.c` | Frame rendering dispatch |
+| `games/warcraft-3/ui/screens/console_ui.c` | In-game HUD (resource bar, command card, inventory) |
+| `games/warcraft-3/ui/screens/main_menu.c` | Main menu, single player menu, etc. |
 | `client/cl_unit_ui.c` | `CL_ParseUnitUI` — receive unit data from server |
 | `client/cl_input.c` | Selection tracking, query trigger |
 | `renderer/r_font.c` | Bitmap font rasteriser |
@@ -243,6 +243,6 @@ void ConsoleUI_UpdateUnitUI(DWORD num_units, uiUnitData_t *units) {
 
 | File | Purpose |
 |------|---------|
-| `games/warcraft3/game/g_unit_ui.c` | Converts selected entities into command card, inventory, and build queue data |
+| `games/warcraft-3/game/g_unit_ui.c` | Converts selected entities into command card, inventory, and build queue data |
 | `server/sv_unit_ui.c` | Marshals unit UI data into `svc_unit_ui` messages |
 | `client/cl_unit_ui.c` | Receives `svc_unit_ui` and forwards decoded data to the UI library |

@@ -5,8 +5,8 @@ the reference ability base-code list used for parity work.
 
 Primary local files:
 
-- `games/warcraft3/game/skills/s_skills.c`
-- `games/warcraft3/game/skills/*.c`
+- `games/warcraft-3/game/skills/s_skills.c`
+- `games/warcraft-3/game/skills/*.c`
 
 The practical parity list maps Warcraft ability base codes to concrete ability
 type definitions. Unknown or unsupported codes should resolve to explicit local
@@ -24,7 +24,7 @@ typedef struct ability_s {
 ```
 
 Abilities are discovered through the static `abilitylist[]` in
-`games/warcraft3/game/skills/s_skills.c`. Normal unit command buttons are shown only when the
+`games/warcraft-3/game/skills/s_skills.c`. Normal unit command buttons are shown only when the
 unit ability alias resolves through `Units\AbilityData.slk` to a registered base
 code. The command keeps the original alias when dispatching so per-alias SLK
 data such as item heal amounts still resolves correctly. Hero abilities are
