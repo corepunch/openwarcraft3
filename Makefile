@@ -106,6 +106,33 @@ FONT_SYMBOL := conchars_sysfont_pcx
 # Note: awk with octal \043 for '#' avoids Make treating '#' in a variable
 # value as a comment character, which would truncate the sed expression.
 UNITY = find $1 -name '*.c' $2 | sort | awk '{printf "\043include \"%s\"\n", $$0}'
+CSRC = $(shell find $(1) -name '*.c' $(2) | sort)
+
+define unity_lib_schema
+$(1): $(2) | $$(LIB_DIR)
+	@echo "[$(3)]"
+	@$$(call UNITY,$(4),$(5)) | \
+		$$(CC) $(6) $$(LIB_FLAGS) $$(INSTALL_NAME) -x c -o $$@ - $(7) $$(LDFLAGS) $(8)
+endef
+
+define src_lib_schema
+$(1): $(2) | $$(LIB_DIR)
+	@echo "[$(3)]"
+	@$$(CC) $(4) $$(LIB_FLAGS) $$(INSTALL_NAME) -x c -o $$@ $(5) $$(LDFLAGS) $(6)
+endef
+
+define app_schema
+$(1): $(2) | $$(BIN_DIR)
+	@echo "[$(3)]"
+	@$$(call UNITY,client server common,) | \
+		$$(CC) $(4) -x c -o $$@ - $$(RPATH) $$(LDFLAGS) $(5)
+endef
+
+define test_schema
+$(1): $(2) | $$(BIN_DIR)
+	@$$(CC) $(3) -o $(4) $(5) $$(RPATH) $$(LDFLAGS) $(6)
+	@$(4) $(7)
+endef
 
 default: build
 build: shared jass sheet renderer game ui openwarcraft3 tools jass-tool
@@ -174,87 +201,30 @@ $(MPQ_TEST): tests/test_mpq_compat.c common/mpq.c common/mpq.h | $(BIN_DIR)
 $(BIN_DIR) $(LIB_DIR):
 	@mkdir -p $@
 
-# shared — math library
-$(SHARED_LIB): $(shell find shared -name '*.c') | $(LIB_DIR)
-	@echo "[shared]"
-	@$(call UNITY,shared) | \
-		$(CC) $(CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - $(LDFLAGS) -lm
-
-# jass — Warcraft III script VM
-$(JASS_LIB): $(SHARED_LIB) $(shell find $(WC3_JASS_DIR) -name '*.c' -o -name '*.h') | $(LIB_DIR)
-	@echo "[jass]"
-	@$(call UNITY,$(WC3_JASS_DIR)) | \
-		$(CC) $(WC3_CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - $(LDFLAGS) -lshared -lm
-
-$(SHEET_LIB): $(WC3_SHEET_DIR)/parser.c $(WC3_SHEET_DIR)/sheet.c common/common.h | $(LIB_DIR)
-	@echo "[sheet]"
-	@$(CC) $(CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ $(WC3_SHEET_DIR)/parser.c $(WC3_SHEET_DIR)/sheet.c $(LDFLAGS)
-
-# renderer — depends on shared
-# Uses FS_ReadFile (archive-agnostic) for initial file loads, but includes
-# common/mpq.c for nested .w3m archive handling (maps are MPQ archives containing
-# internal files like war3map.w3e and war3map.shd).
-$(RENDERER_LIB): $(SHARED_LIB) $(CLIENT_HEADERS) $(COMMON_HEADERS) common/mpq.c common/mpq.h $(FONT_HEADER) $(shell find renderer $(WC3_DIR)/renderer -name '*.c') | $(LIB_DIR)
-	@echo "[renderer]"
-	@$(call UNITY,renderer $(WC3_DIR)/renderer,) | \
-		$(CC) $(WC3_CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - common/mpq.c $(LDFLAGS) -lshared $(LIBS) -lz
-
-$(RENDERER_WOW_LIB): $(SHARED_LIB) $(CLIENT_HEADERS) $(COMMON_HEADERS) common/mpq.c common/mpq.h $(FONT_HEADER) $(shell find renderer $(WOW_DIR)/renderer -name '*.c') | $(LIB_DIR)
-	@echo "[renderer-wow]"
-	@$(call UNITY,renderer $(WOW_DIR)/renderer,) | \
-		$(CC) $(WOW_CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - common/mpq.c $(LDFLAGS) -lshared $(LIBS) -lz
-
-$(RENDERER_SC2_LIB): $(SHARED_LIB) $(CLIENT_HEADERS) $(COMMON_HEADERS) common/mpq.c common/mpq.h $(FONT_HEADER) $(shell find renderer $(SC2_DIR)/renderer -name '*.c') | $(LIB_DIR)
-	@echo "[renderer-sc2]"
-	@$(call UNITY,renderer $(SC2_DIR)/renderer,) | \
-		$(CC) $(SC2_CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - common/mpq.c $(LDFLAGS) -lshared $(LIBS) -lz
-
-# game — depends on shared and jass
-$(GAME_LIB): $(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) $(COMMON_HEADERS) common/mpq.c common/mpq.h $(WORLD_CORE_SRCS) $(WC3_COMMON_SRCS) $(shell find $(WC3_DIR)/game -name '*.c') | $(LIB_DIR)
-	@echo "[game]"
-	@$(call UNITY,$(WC3_DIR)/game) | \
-		$(CC) $(WC3_CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - common/mpq.c $(LDFLAGS) -lsheet -lshared -ljass $(LIBS) -lm -lz
-
-$(GAME_WOW_LIB): $(SHARED_LIB) $(COMMON_HEADERS) common/mpq.c common/mpq.h common/world.c $(WOW_COMMON_SRCS) $(shell find $(WOW_DIR)/game -name '*.c') | $(LIB_DIR)
-	@echo "[game-wow]"
-	@$(call UNITY,$(WOW_DIR)/game) | \
-		$(CC) $(WOW_CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - common/mpq.c $(LDFLAGS) -lshared $(LIBS) -lm -lz
-
-$(GAME_SC2_LIB): $(SHARED_LIB) $(COMMON_HEADERS) common/mpq.c common/mpq.h $(WORLD_CORE_SRCS) $(SC2_COMMON_SRCS) $(shell find $(SC2_DIR)/game -name '*.c') | $(LIB_DIR)
-	@echo "[game-sc2]"
-	@$(call UNITY,$(SC2_DIR)/game) | \
-		$(CC) $(SC2_CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - common/mpq.c $(LDFLAGS) -lshared $(LIBS) -lm -lz
-
-# ui — depends on shared
-$(UI_LIB): $(SHARED_LIB) $(CLIENT_HEADERS) $(COMMON_HEADERS) $(UI_HEADERS) $(shell find $(WC3_DIR)/ui -name '*.c') | $(LIB_DIR)
-	@echo "[ui]"
-	@$(call UNITY,$(WC3_DIR)/ui) | \
-		$(CC) $(WC3_CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - $(LDFLAGS) -lshared -lm
-
-$(UI_WOW_LIB): $(SHARED_LIB) $(CLIENT_HEADERS) $(COMMON_HEADERS) client/ui.h $(shell find $(WOW_DIR)/ui -name '*.c') | $(LIB_DIR)
-	@echo "[ui-wow]"
-	@$(call UNITY,$(WOW_DIR)/ui) | \
-		$(CC) $(WOW_CFLAGS) $(LIB_FLAGS) $(INSTALL_NAME) -x c -o $@ - $(LDFLAGS) -lshared -lm
-
-# main binary — depends on all libraries
 APP_SRCS := $(shell find client server common -name '*.c')
-$(BINARY): $(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) $(GAME_LIB) $(RENDERER_LIB) $(UI_LIB) $(APP_SRCS) $(CLIENT_HEADERS) $(COMMON_HEADERS) | $(BIN_DIR)
-	@echo "[openwarcraft3]"
-	@$(call UNITY,client server common,) | \
-		$(CC) $(WC3_CFLAGS) -x c -o $@ - $(RPATH) $(LDFLAGS) \
-		-lsheet -lshared -ljass -lgame -lrenderer -lui $(LIBS) -lz
+RENDERER_BASE_DEPS := $(SHARED_LIB) $(CLIENT_HEADERS) $(COMMON_HEADERS) common/mpq.c common/mpq.h $(FONT_HEADER)
+RENDERER_SHARED_LIBS := -lshared $(LIBS) -lz
+GAME_BASE_DEPS := $(SHARED_LIB) $(COMMON_HEADERS) common/mpq.c common/mpq.h
+UI_BASE_DEPS := $(SHARED_LIB) $(CLIENT_HEADERS) $(COMMON_HEADERS)
 
-$(WOW_BINARY): $(SHARED_LIB) $(SHEET_LIB) $(GAME_WOW_LIB) $(RENDERER_WOW_LIB) $(UI_WOW_LIB) $(APP_SRCS) $(CLIENT_HEADERS) $(COMMON_HEADERS) | $(BIN_DIR)
-	@echo "[openwow]"
-	@$(call UNITY,client server common,) | \
-		$(CC) $(WOW_CFLAGS) -x c -o $@ - $(RPATH) $(LDFLAGS) \
-		-lsheet -lshared -lgame-wow -lrenderer-wow -lui-wow $(LIBS) -lz
+$(eval $(call unity_lib_schema,$(SHARED_LIB),$(call CSRC,shared),shared,shared,,$(CFLAGS),,-lm))
+$(eval $(call unity_lib_schema,$(JASS_LIB),$(SHARED_LIB) $(shell find $(WC3_JASS_DIR) -name '*.c' -o -name '*.h'),jass,$(WC3_JASS_DIR),,$(WC3_CFLAGS),,-lshared -lm))
+$(eval $(call src_lib_schema,$(SHEET_LIB),$(WC3_SHEET_DIR)/parser.c $(WC3_SHEET_DIR)/sheet.c common/common.h,sheet,$(CFLAGS),$(WC3_SHEET_DIR)/parser.c $(WC3_SHEET_DIR)/sheet.c,))
 
-$(SC2_BINARY): $(SHARED_LIB) $(SHEET_LIB) $(GAME_SC2_LIB) $(RENDERER_SC2_LIB) $(UI_LIB) $(APP_SRCS) $(CLIENT_HEADERS) | $(BIN_DIR)
-	@echo "[opensc2]"
-	@$(call UNITY,client server common,) | \
-		$(CC) $(SC2_CFLAGS) -x c -o $@ - $(RPATH) $(LDFLAGS) \
-		-lsheet -lshared -lgame-sc2 -lrenderer-sc2 -lui $(LIBS) -lz
+$(eval $(call unity_lib_schema,$(RENDERER_LIB),$(RENDERER_BASE_DEPS) $(call CSRC,renderer $(WC3_DIR)/renderer),renderer,renderer $(WC3_DIR)/renderer,,$(WC3_CFLAGS),common/mpq.c,$(RENDERER_SHARED_LIBS)))
+$(eval $(call unity_lib_schema,$(RENDERER_WOW_LIB),$(RENDERER_BASE_DEPS) $(call CSRC,renderer $(WOW_DIR)/renderer),renderer-wow,renderer $(WOW_DIR)/renderer,,$(WOW_CFLAGS),common/mpq.c,$(RENDERER_SHARED_LIBS)))
+$(eval $(call unity_lib_schema,$(RENDERER_SC2_LIB),$(RENDERER_BASE_DEPS) $(call CSRC,renderer $(SC2_DIR)/renderer),renderer-sc2,renderer $(SC2_DIR)/renderer,,$(SC2_CFLAGS),common/mpq.c,$(RENDERER_SHARED_LIBS)))
+
+$(eval $(call unity_lib_schema,$(GAME_LIB),$(GAME_BASE_DEPS) $(JASS_LIB) $(SHEET_LIB) $(WORLD_CORE_SRCS) $(WC3_COMMON_SRCS) $(call CSRC,$(WC3_DIR)/game),game,$(WC3_DIR)/game,,$(WC3_CFLAGS),common/mpq.c,-lsheet -lshared -ljass $(LIBS) -lm -lz))
+$(eval $(call unity_lib_schema,$(GAME_WOW_LIB),$(GAME_BASE_DEPS) common/world.c $(WOW_COMMON_SRCS) $(call CSRC,$(WOW_DIR)/game),game-wow,$(WOW_DIR)/game,,$(WOW_CFLAGS),common/mpq.c,-lshared $(LIBS) -lm -lz))
+$(eval $(call unity_lib_schema,$(GAME_SC2_LIB),$(GAME_BASE_DEPS) $(WORLD_CORE_SRCS) $(SC2_COMMON_SRCS) $(call CSRC,$(SC2_DIR)/game),game-sc2,$(SC2_DIR)/game,,$(SC2_CFLAGS),common/mpq.c,-lshared $(LIBS) -lm -lz))
+
+$(eval $(call unity_lib_schema,$(UI_LIB),$(UI_BASE_DEPS) $(UI_HEADERS) $(call CSRC,$(WC3_DIR)/ui),ui,$(WC3_DIR)/ui,,$(WC3_CFLAGS),,-lshared -lm))
+$(eval $(call unity_lib_schema,$(UI_WOW_LIB),$(UI_BASE_DEPS) client/ui.h $(call CSRC,$(WOW_DIR)/ui),ui-wow,$(WOW_DIR)/ui,,$(WOW_CFLAGS),,-lshared -lm))
+
+$(eval $(call app_schema,$(BINARY),$(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) $(GAME_LIB) $(RENDERER_LIB) $(UI_LIB) $(APP_SRCS) $(CLIENT_HEADERS) $(COMMON_HEADERS),openwarcraft3,$(WC3_CFLAGS),-lsheet -lshared -ljass -lgame -lrenderer -lui $(LIBS) -lz))
+$(eval $(call app_schema,$(WOW_BINARY),$(SHARED_LIB) $(SHEET_LIB) $(GAME_WOW_LIB) $(RENDERER_WOW_LIB) $(UI_WOW_LIB) $(APP_SRCS) $(CLIENT_HEADERS) $(COMMON_HEADERS),openwow,$(WOW_CFLAGS),-lsheet -lshared -lgame-wow -lrenderer-wow -lui-wow $(LIBS) -lz))
+$(eval $(call app_schema,$(SC2_BINARY),$(SHARED_LIB) $(SHEET_LIB) $(GAME_SC2_LIB) $(RENDERER_SC2_LIB) $(UI_LIB) $(APP_SRCS) $(CLIENT_HEADERS),opensc2,$(SC2_CFLAGS),-lsheet -lshared -lgame-sc2 -lrenderer-sc2 -lui $(LIBS) -lz))
 
 download: $(ZIP_FILE)
 	mkdir -p $(DATA_DIR)
@@ -346,39 +316,11 @@ test: test-assets $(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) | $(BIN_DIR)
 	@$(MAKE) test-wow-combat
 	@$(MAKE) test-ui
 
-test-commands: test-assets $(SHARED_LIB) $(SHEET_LIB) | $(BIN_DIR)
-	@$(CC) $(TEST_CFLAGS) -o $(BIN_DIR)/test_commands$(EXE_EXT) \
-		$(WC3_TEST_DIR)/test_commands_main.c $(WC3_TEST_DIR)/test_commands.c \
-		common/common.c common/cmd.c common/cvar.c common/msg.c common/net.c common/mpq.c \
-		$(RPATH) $(LDFLAGS) -lsheet -lshared -lm -lz
-	@$(BIN_DIR)/test_commands$(EXE_EXT)
-
-test-jass: $(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) | $(BIN_DIR)
-	@$(CC) $(TEST_CFLAGS) -o $(BIN_DIR)/test_jass$(EXE_EXT) \
-		$(WC3_TEST_DIR)/test_jass_main.c $(WC3_TEST_DIR)/test_jass.c $(WC3_TEST_DIR)/test_harness.c $(WC3_TEST_DIR)/test_client_stubs.c \
-		$(WC3_DIR)/game/g_metadata.c common/msg.c \
-		$(RPATH) $(LDFLAGS) -lsheet -lshared -ljass -lm
-	@$(BIN_DIR)/test_jass$(EXE_EXT)
-
-test-wow-appearance: | $(BIN_DIR)
-	@$(CC) $(TEST_CFLAGS) -DWOW -o $(BIN_DIR)/test_wow_appearance$(EXE_EXT) \
-		tests/test_wow_appearance.c common/msg.c common/net.c \
-		$(shell find shared -name '*.c') -lm
-	@$(BIN_DIR)/test_wow_appearance$(EXE_EXT)
-
-test-wow-combat: | $(BIN_DIR)
-	@$(CC) $(TEST_CFLAGS) -DWOW -o $(BIN_DIR)/test_wow_combat$(EXE_EXT) \
-		tests/test_wow_combat.c $(WOW_DIR)/game/g_ai.c \
-		$(shell find shared -name '*.c') -lm
-	@$(BIN_DIR)/test_wow_combat$(EXE_EXT)
-
-test-ui: test-assets $(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) | $(BIN_DIR)
-	@$(CC) $(TEST_UI_CFLAGS) -o $(BIN_DIR)/test_openwarcraft3_ui$(EXE_EXT) \
-		$(TEST_UI_SRCS) $(TEST_GAME_SRCS) \
-		common/mpq.c \
-		$(shell find $(WC3_DIR)/ui -name '*.c' | sort) \
-		$(RPATH) $(LDFLAGS) -lsheet -lshared -ljass -lm -lz
-	@$(BIN_DIR)/test_openwarcraft3_ui$(EXE_EXT)
+$(eval $(call test_schema,test-commands,test-assets $(SHARED_LIB) $(SHEET_LIB),$(TEST_CFLAGS),$(BIN_DIR)/test_commands$(EXE_EXT),$(WC3_TEST_DIR)/test_commands_main.c $(WC3_TEST_DIR)/test_commands.c common/common.c common/cmd.c common/cvar.c common/msg.c common/net.c common/mpq.c,-lsheet -lshared -lm -lz,))
+$(eval $(call test_schema,test-jass,$(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB),$(TEST_CFLAGS),$(BIN_DIR)/test_jass$(EXE_EXT),$(WC3_TEST_DIR)/test_jass_main.c $(WC3_TEST_DIR)/test_jass.c $(WC3_TEST_DIR)/test_harness.c $(WC3_TEST_DIR)/test_client_stubs.c $(WC3_DIR)/game/g_metadata.c common/msg.c,-lsheet -lshared -ljass -lm,))
+$(eval $(call test_schema,test-wow-appearance,,$(TEST_CFLAGS) -DWOW,$(BIN_DIR)/test_wow_appearance$(EXE_EXT),tests/test_wow_appearance.c common/msg.c common/net.c $(call CSRC,shared),-lm,))
+$(eval $(call test_schema,test-wow-combat,,$(TEST_CFLAGS) -DWOW,$(BIN_DIR)/test_wow_combat$(EXE_EXT),tests/test_wow_combat.c $(WOW_DIR)/game/g_ai.c $(call CSRC,shared),-lm,))
+$(eval $(call test_schema,test-ui,test-assets $(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB),$(TEST_UI_CFLAGS),$(BIN_DIR)/test_openwarcraft3_ui$(EXE_EXT),$(TEST_UI_SRCS) $(TEST_GAME_SRCS) common/mpq.c $(call CSRC,$(WC3_DIR)/ui),-lsheet -lshared -ljass -lm -lz,))
 
 test-mpq-compat: mpqtool $(MPQ_TEST)
 	@$(MPQ_TEST) -mpq=$(MPQ)
@@ -400,49 +342,34 @@ TESTS_SRC_DIR := tests/resources-src
 test-assets: blpgen mdxgen mpqtool mdxtool | $(TESTS_DIR)
 	@echo "[test-assets] generating textures"
 	@mkdir -p $(TESTS_RES_DIR)/TestUI/Textures
-	@$(BIN_DIR)/blpgen$(EXE_EXT) solid        1  1  ffffffff  $(TESTS_RES_DIR)/TestUI/Textures/solid_white.blp
-	@$(BIN_DIR)/blpgen$(EXE_EXT) checker      8  8  2         $(TESTS_RES_DIR)/TestUI/Textures/checker_8x8.blp
-	@$(BIN_DIR)/blpgen$(EXE_EXT) alpha_ring   16 16           $(TESTS_RES_DIR)/TestUI/Textures/alpha_ring_16x16.blp
-	@$(BIN_DIR)/blpgen$(EXE_EXT) panel_border 32 32 2         $(TESTS_RES_DIR)/TestUI/Textures/panel_border_32x32.blp
-	@$(BIN_DIR)/blpgen$(EXE_EXT) paletted     8  8  2         $(TESTS_RES_DIR)/TestUI/Textures/paletted_checker_8x8.blp
+	@for tex in \
+		"solid 1 1 ffffffff $(TESTS_RES_DIR)/TestUI/Textures/solid_white.blp" \
+		"checker 8 8 2 $(TESTS_RES_DIR)/TestUI/Textures/checker_8x8.blp" \
+		"alpha_ring 16 16 $(TESTS_RES_DIR)/TestUI/Textures/alpha_ring_16x16.blp" \
+		"panel_border 32 32 2 $(TESTS_RES_DIR)/TestUI/Textures/panel_border_32x32.blp" \
+		"paletted 8 8 2 $(TESTS_RES_DIR)/TestUI/Textures/paletted_checker_8x8.blp"; do \
+		$(BIN_DIR)/blpgen$(EXE_EXT) $$tex; \
+	done
 	@echo "[test-assets] generating models"
 	@mkdir -p $(TESTS_RES_DIR)/TestUI/Models
-	@$(BIN_DIR)/mdxgen$(EXE_EXT) quad_sprite   TestUI/Textures/checker_8x8.blp       $(TESTS_RES_DIR)/TestUI/Models/quad_sprite.mdx
-	@$(BIN_DIR)/mdxgen$(EXE_EXT) panel_sprite  TestUI/Textures/solid_white.blp        $(TESTS_RES_DIR)/TestUI/Models/panel_sprite.mdx
-	@$(BIN_DIR)/mdxgen$(EXE_EXT) ui_panel      TestUI/Textures/solid_white.blp        $(TESTS_RES_DIR)/TestUI/Models/ui_panel.mdx
-	@$(BIN_DIR)/mdxgen$(EXE_EXT) anim_pulse    TestUI/Textures/alpha_ring_16x16.blp   $(TESTS_RES_DIR)/TestUI/Models/anim_pulse.mdx
+	@for model in \
+		"quad_sprite TestUI/Textures/checker_8x8.blp $(TESTS_RES_DIR)/TestUI/Models/quad_sprite.mdx" \
+		"panel_sprite TestUI/Textures/solid_white.blp $(TESTS_RES_DIR)/TestUI/Models/panel_sprite.mdx" \
+		"ui_panel TestUI/Textures/solid_white.blp $(TESTS_RES_DIR)/TestUI/Models/ui_panel.mdx" \
+		"anim_pulse TestUI/Textures/alpha_ring_16x16.blp $(TESTS_RES_DIR)/TestUI/Models/anim_pulse.mdx"; do \
+		$(BIN_DIR)/mdxgen$(EXE_EXT) $$model; \
+	done
 	@echo "[test-assets] packing tests.mpq"
-	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(TESTS_MPQ) pack \
-		$(TESTS_RES_DIR)/TestUI/Textures/solid_white.blp        TestUI/Textures/solid_white.blp \
-		$(TESTS_RES_DIR)/TestUI/Textures/checker_8x8.blp        TestUI/Textures/checker_8x8.blp \
-		$(TESTS_RES_DIR)/TestUI/Textures/alpha_ring_16x16.blp   TestUI/Textures/alpha_ring_16x16.blp \
-		$(TESTS_RES_DIR)/TestUI/Textures/panel_border_32x32.blp TestUI/Textures/panel_border_32x32.blp \
-		$(TESTS_RES_DIR)/TestUI/Textures/paletted_checker_8x8.blp TestUI/Textures/paletted_checker_8x8.blp \
-		$(TESTS_RES_DIR)/TestUI/Models/quad_sprite.mdx           TestUI/Models/quad_sprite.mdx \
-		$(TESTS_RES_DIR)/TestUI/Models/panel_sprite.mdx          TestUI/Models/panel_sprite.mdx \
-		$(TESTS_RES_DIR)/TestUI/Models/ui_panel.mdx              TestUI/Models/ui_panel.mdx \
-		$(TESTS_RES_DIR)/TestUI/Models/anim_pulse.mdx            TestUI/Models/anim_pulse.mdx \
-		$(TESTS_SRC_DIR)/TestUI/Frames/basic_layout.fdf          TestUI/Frames/basic_layout.fdf \
-		$(TESTS_SRC_DIR)/TestUI/Frames/backdrop_variants.fdf     TestUI/Frames/backdrop_variants.fdf \
-		$(TESTS_SRC_DIR)/TestUI/Frames/simple_sprite.fdf         TestUI/Frames/simple_sprite.fdf \
-		$(TESTS_SRC_DIR)/TestUI/Frames/animated_sprite.fdf       TestUI/Frames/animated_sprite.fdf \
-		$(TESTS_SRC_DIR)/TestUI/FrameDef/GlobalStrings.fdf       UI/FrameDef/GlobalStrings.fdf \
-		$(TESTS_SRC_DIR)/TestUI/FrameDef/UI/EscMenuTemplates.fdf UI/FrameDef/UI/EscMenuTemplates.fdf \
-		$(TESTS_SRC_DIR)/TestUI/FrameDef/UI/EscMenuMainPanel.fdf UI/FrameDef/UI/EscMenuMainPanel.fdf \
-		$(TESTS_SRC_DIR)/TestUI/FrameDef/Glue/StandardTemplates.fdf UI/FrameDef/Glue/StandardTemplates.fdf \
-		$(TESTS_SRC_DIR)/TestUI/FrameDef/Glue/MainMenu.fdf       UI/FrameDef/Glue/MainMenu.fdf \
-		$(TESTS_SRC_DIR)/TestUI/FrameDef/Glue/SinglePlayerMenu.fdf UI/FrameDef/Glue/SinglePlayerMenu.fdf \
-		$(TESTS_SRC_DIR)/TestUI/FrameDef/Glue/CampaignMenu.fdf   UI/FrameDef/Glue/CampaignMenu.fdf \
-		$(TESTS_SRC_DIR)/TestUI/FrameDef/Glue/MapListBox.fdf     UI/FrameDef/Glue/MapListBox.fdf \
-		$(TESTS_SRC_DIR)/TestUI/CampaignStrings.txt              UI/CampaignStrings.txt \
-		$(TESTS_SRC_DIR)/TestUI/CampaignStrings_exp.txt          UI/CampaignStrings_exp.txt \
-		$(TESTS_SRC_DIR)/TestUI/FrameDef/Glue/OptionsMenu.fdf    UI/FrameDef/Glue/OptionsMenu.fdf \
-		$(TESTS_SRC_DIR)/TestUI/FrameDef/Glue/BattleNetTemplates.fdf UI/FrameDef/Glue/BattleNetTemplates.fdf \
-		$(TESTS_SRC_DIR)/TestUI/FrameDef/Glue/DialogWar3.fdf     UI/FrameDef/Glue/DialogWar3.fdf \
-		$(TESTS_SRC_DIR)/Maps/Campaign/Human02.w3m               Maps/Campaign/Human02.w3m \
-		$(TESTS_SRC_DIR)/Maps/Campaign/Orc01.w3m                 Maps/Campaign/Orc01.w3m \
-		$(TESTS_SRC_DIR)/Maps/Melee/TwinRivers.w3m               Maps/Melee/TwinRivers.w3m \
-		$(TESTS_SRC_DIR)/Maps/FrozenThrone/TwinRivers.w3x        Maps/FrozenThrone/TwinRivers.w3x
+	@set --; \
+	for f in $$(find $(TESTS_RES_DIR) -type f | sort); do \
+		rel=$${f#$(TESTS_RES_DIR)/}; set -- "$$@" "$$f" "$$rel"; \
+	done; \
+	for f in $$(find $(TESTS_SRC_DIR) -type f | sort); do \
+		rel=$${f#$(TESTS_SRC_DIR)/}; arc=$$rel; \
+		case "$$rel" in TestUI/FrameDef/*|TestUI/CampaignStrings*) arc=UI/$${rel#TestUI/};; esac; \
+		set -- "$$@" "$$f" "$$arc"; \
+	done; \
+	$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(TESTS_MPQ) pack "$$@"
 	@echo "[test-assets] verifying archive"
 	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(TESTS_MPQ) ls | grep -q "TestUI/" && echo "  ls OK"
 	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(TESTS_MPQ) cat Maps/Campaign/Human02.w3m | grep -q "Human02" && echo "  cat map OK"
