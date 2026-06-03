@@ -127,6 +127,7 @@ openwow:      $(WOW_BINARY)
 game-sc2:     $(GAME_SC2_LIB)
 opensc2:      $(SC2_BINARY)
 tools:       $(TOOL_BINS)
+	@echo "[tools]"
 font:       $(FONT_HEADER)
 $(TOOL_NAMES): %: $(BIN_DIR)/%$(EXE_EXT)
 
@@ -154,12 +155,10 @@ $(eval $(call unity_lib_schema,$(SHARED_LIB),$(call CSRC,shared),shared,shared,,
 include games/warcraft-3/game.mk
 
 $(BIN_DIR)/%$(EXE_EXT): tools/%.c $(TOOL_DEPS) $(CLIENT_HEADERS) $(COMMON_HEADERS) | $(BIN_DIR) $(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) $(RENDERER_LIB) $(GAME_LIB) $(UI_LIB)
-	@echo "[$*]"
 	@$(CC) $(CFLAGS) -o $@ $< \
 		$(RPATH) $(LDFLAGS) -lsheet -lshared -ljass -lrenderer -lgame -lui $(LIBS) -lm -lz
 
 $(BIN_DIR)/img2sysfont$(EXE_EXT): tools/img2sysfont.c | $(BIN_DIR)
-	@echo "[img2sysfont]"
 	@$(CC) $(CFLAGS) -o $@ tools/img2sysfont.c
 
 $(FONT_HEADER): $(FONT_SRC) $(BIN_DIR)/img2sysfont$(EXE_EXT)
