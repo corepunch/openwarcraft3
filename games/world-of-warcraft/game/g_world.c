@@ -1,4 +1,6 @@
 #include "g_wow_local.h"
+#include <ctype.h>
+#include <stdlib.h>
 
 #define GAME_WORLD 1
 #include "common/world.c"

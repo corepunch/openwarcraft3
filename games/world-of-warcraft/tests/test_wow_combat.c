@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "../games/world-of-warcraft/game/g_wow_local.h"
+#include "game/g_wow_local.h"
 
 int _tests_run = 0;
 int _tests_failed = 0;
