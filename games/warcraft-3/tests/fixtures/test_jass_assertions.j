@@ -1,7 +1,7 @@
 // test_jass_assertions.j — JASS-side tests for BJassAssert / BJassError.
 //
 // Run via:
-//   openwarcraft3 -data <dir> +set jass_test tests/fixtures/test_jass_assertions.j
+//   openwarcraft3 -data <dir> +set jass_test games/warcraft-3/tests/fixtures/test_jass_assertions.j
 //
 // The entrypoint is run_tests (default for jass_test mode).
 // Each helper function name starts with test_ and calls BJassAssert to verify

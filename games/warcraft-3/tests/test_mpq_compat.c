@@ -1,4 +1,4 @@
-#include "../common/mpq.h"
+#include "common/mpq.h"
 
 #include <stdio.h>
 #include <stdlib.h>

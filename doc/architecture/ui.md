@@ -173,7 +173,7 @@ Use it to check screen composition, frame positions, backdrop tiling, missing as
 
 UI test fixtures and assets are repository-owned. Do not copy Warcraft III assets into tests.
 
-- Author source fixtures in `tests/resources-src/`.
+- Author source fixtures in `games/warcraft-3/tests/resources-src/`.
 - Generate deterministic BLP/MDX assets into `build/tests/resources/`.
 - Pack and validate `build/tests/tests.mpq` via `make test-assets`.
 

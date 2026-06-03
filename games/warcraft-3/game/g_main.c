@@ -102,7 +102,7 @@ static void InitConstants(void) {
  * The game binary exits 0 on success, 1 on any assertion failure.
  *
  * Example:
- *   openwarcraft3 -data <dir> +set jass_test tests/fixtures/test_jass_assertions.j
+ *   openwarcraft3 -data <dir> +set jass_test games/warcraft-3/tests/fixtures/test_jass_assertions.j
  * ------------------------------------------------------------------------- */
 static void G_RunJassTests(LPCSTR script, LPCSTR entry) {
     if (!entry || !*entry) {

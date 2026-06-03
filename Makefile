@@ -15,6 +15,7 @@ CFLAGS  := -Wall -I. -Ishared -Ishared/types
 WC3_DIR := games/warcraft-3
 WC3_JASS_DIR := $(WC3_DIR)/jass
 WC3_SHEET_DIR := $(WC3_DIR)/sheet
+WC3_TEST_DIR := $(WC3_DIR)/tests
 WOW_DIR := games/world-of-warcraft
 SC2_DIR := games/starcraft-2
 
@@ -194,9 +195,9 @@ $(JASS_BIN): tools/jass.c $(TOOL_DEPS) | $(BIN_DIR) $(SHARED_LIB) $(JASS_LIB) $(
 	@$(CC) $(WC3_CFLAGS) -DTOOL_COMMON_NO_MPQ -o $@ tools/jass.c \
 		$(RPATH) $(LDFLAGS) -lsheet -lshared -ljass -lm
 
-$(MPQ_TEST): tests/test_mpq_compat.c common/mpq.c common/mpq.h | $(BIN_DIR)
+$(MPQ_TEST): $(WC3_TEST_DIR)/test_mpq_compat.c common/mpq.c common/mpq.h | $(BIN_DIR)
 	@echo "[mpq-compat-test]"
-	@$(CC) $(CFLAGS) -o $@ tests/test_mpq_compat.c common/mpq.c -lm -lz
+	@$(CC) $(CFLAGS) -o $@ $(WC3_TEST_DIR)/test_mpq_compat.c common/mpq.c -lm -lz
 
 $(BIN_DIR) $(LIB_DIR):
 	@mkdir -p $@
@@ -244,8 +245,6 @@ clean:
 # Global game state and gi function-pointers are provided by the test
 # harness ($(WC3_DIR)/tests/test_harness.c) rather than by games/warcraft-3/game/g_main.c.
 # ---------------------------------------------------------------------------
-WC3_TEST_DIR := $(WC3_DIR)/tests
-
 TEST_GAME_SRCS := \
 	common/routing.c \
 	$(WC3_DIR)/game/g_ai.c \
@@ -287,6 +286,7 @@ TEST_SRCS := \
 	! -name 'test_commands_main.c' \
 	! -name 'test_jass_main.c' \
 	! -name 'test_main_ui.c' \
+	! -name 'test_mpq_compat.c' \
 	! -name 'test_ui_*.c' | sort) \
 	tests/test_net.c \
 	tests/test_tool_common.c
@@ -331,13 +331,13 @@ test-mpq-compat: mpqtool $(MPQ_TEST)
 # Generated files (never committed):
 #   build/tests/resources/TestUI/Textures/*.blp  — via blpgen
 #   build/tests/resources/TestUI/Models/*.mdx    — via mdxgen
-# Source-controlled FDF fixtures (tests/resources-src/**/*.fdf) are packed directly.
+# Source-controlled FDF fixtures ($(WC3_TEST_DIR)/resources-src/**/*.fdf) are packed directly.
 # The archive is recreated from scratch on every run (deterministic).
 # ---------------------------------------------------------------------------
 TESTS_DIR     := build/tests
 TESTS_MPQ     := $(TESTS_DIR)/tests.mpq
 TESTS_RES_DIR := $(TESTS_DIR)/resources
-TESTS_SRC_DIR := tests/resources-src
+TESTS_SRC_DIR := $(WC3_TEST_DIR)/resources-src
 
 test-assets: blpgen mdxgen mpqtool mdxtool | $(TESTS_DIR)
 	@echo "[test-assets] generating textures"

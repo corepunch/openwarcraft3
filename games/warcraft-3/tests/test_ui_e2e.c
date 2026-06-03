@@ -118,7 +118,7 @@ static HANDLE build_layout_blob_from_fixture(const char *fixture_path, const cha
 }
 
 static void test_e2e_basic_layout_decodes_nonempty_frame_stream(void) {
-    HANDLE blob = build_layout_blob_from_fixture("tests/resources-src/TestUI/Frames/basic_layout.fdf", "TestRootFrame");
+    HANDLE blob = build_layout_blob_from_fixture("games/warcraft-3/tests/resources-src/TestUI/Frames/basic_layout.fdf", "TestRootFrame");
     LPUIFRAME decoded;
     DWORD i;
     DWORD non_null_count = 0;
@@ -141,7 +141,7 @@ static void test_e2e_basic_layout_decodes_nonempty_frame_stream(void) {
 }
 
 static void test_e2e_basic_layout_backdrop_decodes_as_backdrop(void) {
-    HANDLE blob = build_layout_blob_from_fixture("tests/resources-src/TestUI/Frames/basic_layout.fdf", "TestRootFrame");
+    HANDLE blob = build_layout_blob_from_fixture("games/warcraft-3/tests/resources-src/TestUI/Frames/basic_layout.fdf", "TestRootFrame");
     LPUIFRAME decoded;
     DWORD i;
     DWORD found = 0;
@@ -161,7 +161,7 @@ static void test_e2e_basic_layout_backdrop_decodes_as_backdrop(void) {
 }
 
 static void test_e2e_simple_sprite_contains_sprite_model_index(void) {
-    HANDLE blob = build_layout_blob_from_fixture("tests/resources-src/TestUI/Frames/simple_sprite.fdf", "TestSpriteRoot");
+    HANDLE blob = build_layout_blob_from_fixture("games/warcraft-3/tests/resources-src/TestUI/Frames/simple_sprite.fdf", "TestSpriteRoot");
     LPUIFRAME decoded;
     DWORD i;
     BOOL found = false;
@@ -183,7 +183,7 @@ static void test_e2e_simple_sprite_contains_sprite_model_index(void) {
 }
 
 static void test_e2e_animated_sprite_contains_text_and_backdrop(void) {
-    HANDLE blob = build_layout_blob_from_fixture("tests/resources-src/TestUI/Frames/animated_sprite.fdf", "TestAnimRoot");
+    HANDLE blob = build_layout_blob_from_fixture("games/warcraft-3/tests/resources-src/TestUI/Frames/animated_sprite.fdf", "TestAnimRoot");
     LPUIFRAME decoded;
     DWORD i;
     BOOL has_text = false;
@@ -209,7 +209,7 @@ static void test_e2e_animated_sprite_contains_text_and_backdrop(void) {
 }
 
 static void test_e2e_collect_tree_and_decode_preserves_parent_indexes(void) {
-    HANDLE blob = build_layout_blob_from_fixture("tests/resources-src/TestUI/Frames/basic_layout.fdf", "TestRootFrame");
+    HANDLE blob = build_layout_blob_from_fixture("games/warcraft-3/tests/resources-src/TestUI/Frames/basic_layout.fdf", "TestRootFrame");
     LPUIFRAME decoded;
     DWORD i;
     DWORD decoded_count = 0;

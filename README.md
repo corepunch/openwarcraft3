@@ -385,7 +385,7 @@ The build is driven by a `Makefile` for Linux/macOS. Run `make test` to execute 
 
 UI tests are fully repo-owned and deterministic:
 
-1. Source fixtures live under `tests/resources-src/`.
+1. Source fixtures live under `games/warcraft-3/tests/resources-src/`.
 2. Generated test assets are built into `build/tests/resources/`.
 3. The packed archive is `build/tests/tests.mpq` (generated, never committed).
 
