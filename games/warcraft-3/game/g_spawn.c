@@ -293,15 +293,6 @@ void G_SpawnEntities(void) {
         DWORD playernum = G_ClientSlotMapPlayerNumber(mapinfo, p, local_player);
         g_edicts[p].client = client;
         G_InitMapPlayer(g_edicts+p, mapinfo, playernum);
-        if (G_DebugCamera()) {
-            fprintf(stderr,
-                    "G_InitMapPlayer: client_slot=%u player=%u type=%u start=(%.1f,%.1f)\n",
-                    (unsigned)p,
-                    (unsigned)playernum,
-                    mapinfo ? (unsigned)mapinfo->players[playernum].playerType : 0,
-                    client->ps.origin.x,
-                    client->ps.origin.y);
-        }
     }
 
     globals.num_edicts = game.max_clients;

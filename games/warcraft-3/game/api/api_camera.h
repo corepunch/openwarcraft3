@@ -44,16 +44,13 @@ DWORD SetCameraTargetController(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     FLOAT xoffset = jass_checknumber(j, 2);
     FLOAT yoffset = jass_checknumber(j, 3);
-    BOOL inheritOrientation = jass_checkboolean(j, 4);
+    (void)jass_checkboolean(j, 4);
     LPGAMECLIENT gc = G_CurrentCameraClient("SetCameraTargetController");
     if (!gc) {
         return 0;
     }
     gc->camera.target_controller = whichUnit;
     gc->camera.target_offset = (VECTOR2){ xoffset, yoffset };
-    gc->camera.target_inherit_orientation = inheritOrientation;
-    gc->camera.target_last_log_origin = (VECTOR2){ 0, 0 };
-    gc->camera.target_last_log_time = 0;
     if (whichUnit) {
         gc->camera.old_state = gc->camera.state;
         gc->camera.state.position.x = whichUnit->s.origin2.x + xoffset;
@@ -61,17 +58,6 @@ DWORD SetCameraTargetController(LPJASS j) {
         gc->camera.start_time = gi.GetTime();
         gc->camera.end_time = gc->camera.start_time;
     }
-    fprintf(stderr,
-            "SetCameraTargetController: player=%u unit=%s%.4s pos=(%.1f,%.1f) offset=(%.1f,%.1f) inherit=%u time=%u\n",
-            currentplayer ? (unsigned)PLAYER_NUM(currentplayer) : (unsigned)MAX_PLAYERS,
-            whichUnit ? "" : "<null>",
-            whichUnit ? (char *)&whichUnit->class_id : "",
-            whichUnit ? whichUnit->s.origin2.x : 0,
-            whichUnit ? whichUnit->s.origin2.y : 0,
-            xoffset,
-            yoffset,
-            (unsigned)inheritOrientation,
-            (unsigned)gi.GetTime());
     return 0;
 }
 DWORD SetCameraOrientController(LPJASS j) {
@@ -122,14 +108,6 @@ DWORD ResetToGameCamera(LPJASS j) {
     gc->camera.state.target_distance = 1650;
     gc->camera.start_time = gi.GetTime();
     gc->camera.end_time = gc->camera.start_time + (duration * 1000);
-    fprintf(stderr,
-            "ResetToGameCamera: player=%u duration=%.3f pos=(%.1f,%.1f) start=%u end=%u\n",
-            (unsigned)PLAYER_NUM(currentplayer),
-            duration,
-            gc->camera.state.position.x,
-            gc->camera.state.position.y,
-            (unsigned)gc->camera.start_time,
-            (unsigned)gc->camera.end_time);
     return 0;
 }
 DWORD PanCameraTo(LPJASS j) {
@@ -195,21 +173,6 @@ DWORD CameraSetupSetField(LPJASS j) {
         case CAMERA_FIELD_ZOFFSET: whichSetup->z_offset = value; break;
     }
 //    FLOAT duration = jass_checknumber(j, 4);
-    if (G_DebugCamera()) {
-        fprintf(stderr,
-                "CameraSetupSetField: setup=%p field=%u value=%.1f pos=(%.1f,%.1f) angles=(%.1f,%.1f,%.1f) fov=%.1f dist=%.1f far=%.1f\n",
-                (void *)whichSetup,
-                whichField ? (unsigned)*whichField : 0,
-                value,
-                whichSetup ? whichSetup->position.x : 0,
-                whichSetup ? whichSetup->position.y : 0,
-                whichSetup ? whichSetup->viewangles.x : 0,
-                whichSetup ? whichSetup->viewangles.y : 0,
-                whichSetup ? whichSetup->viewangles.z : 0,
-                whichSetup ? whichSetup->fov : 0,
-                whichSetup ? whichSetup->target_distance : 0,
-                whichSetup ? whichSetup->far_z : 0);
-    }
     return 0;
 }
 DWORD CameraSetupGetField(LPJASS j) {
@@ -234,13 +197,6 @@ DWORD CameraSetupSetDestPosition(LPJASS j) {
 //    FLOAT duration = jass_checknumber(j, 4);
     whichSetup->position.x = x;
     whichSetup->position.y = y;
-    if (G_DebugCamera()) {
-        fprintf(stderr,
-                "CameraSetupSetDestPosition: setup=%p pos=(%.1f,%.1f)\n",
-                (void *)whichSetup,
-                x,
-                y);
-    }
     return 0;
 }
 DWORD CameraSetupGetDestPositionLoc(LPJASS j) {
@@ -282,22 +238,6 @@ DWORD CameraSetupApplyForceDuration(LPJASS j) {
     gc->camera.state = *whichSetup;
     gc->camera.start_time = gi.GetTime();
     gc->camera.end_time = gc->camera.start_time + (doPan ? forceDuration * 1000 : 0);
-    fprintf(stderr,
-            "CameraSetupApplyForceDuration: player=%u setup=%p doPan=%u duration=%.3f pos=(%.1f,%.1f) angles=(%.1f,%.1f,%.1f) fov=%.1f dist=%.1f far=%.1f start=%u end=%u\n",
-            (unsigned)PLAYER_NUM(currentplayer),
-            (void *)whichSetup,
-            (unsigned)doPan,
-            forceDuration,
-            whichSetup->position.x,
-            whichSetup->position.y,
-            whichSetup->viewangles.x,
-            whichSetup->viewangles.y,
-            whichSetup->viewangles.z,
-            whichSetup->fov,
-            whichSetup->target_distance,
-            whichSetup->far_z,
-            (unsigned)gc->camera.start_time,
-            (unsigned)gc->camera.end_time);
     return 0;
 }
 DWORD CameraSetupApplyForceDurationWithZ(LPJASS j) {
