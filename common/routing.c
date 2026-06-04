@@ -22,10 +22,12 @@ typedef struct {
     int f, g, h, s;
 } pathNode_t;
 
+/* Per-build heatmap node.  x/y are NOT stored here — they are derivable
+ * from the flat array index (x = index % width, y = index / width).
+ * All fields that need clearing between builds are zero-valued when reset,
+ * so the entire array can be wiped with a single memset(). */
 typedef struct routeNode_s {
     struct routeNode_s *next;
-    int x;
-    int y;
     int step;
     int price;
     bool closed;
@@ -53,24 +55,26 @@ struct {
 #define HEATMAP_CACHE_SLOTS 4
 
 typedef struct {
-    edict_t    *goal;
-    DWORD       generation;
-    routeNode_t *data;   /* owns a full-map heatmap buffer, NULL when empty */
+    edict_t *goal;
+    DWORD    generation;
+    VECTOR2 *flow;   /* pre-computed flow vector per cell; NULL until first use */
 } heatmapCacheEntry_t;
 
 static heatmapCacheEntry_t heatmap_cache[HEATMAP_CACHE_SLOTS];
-static DWORD heatmap_next_generation = 1;
-static int   heatmap_lru[HEATMAP_CACHE_SLOTS];
-static int   heatmap_lru_clock = 0;
+static DWORD    heatmap_next_generation = 1;
+static int      heatmap_lru[HEATMAP_CACHE_SLOTS];
+static int      heatmap_lru_clock = 0;
+static VECTOR2 *active_flow = NULL; /* points into the current cache slot */
 
 static void heatmap_cache_invalidate(void) {
     FOR_LOOP(i, HEATMAP_CACHE_SLOTS) {
         heatmap_cache[i].goal       = NULL;
         heatmap_cache[i].generation = 0;
-        /* Keep allocated buffers to avoid malloc churn on map reload. */
+        /* Keep flow buffers allocated to avoid malloc churn on map reload. */
     }
     heatmap_next_generation = 1;
     heatmap_lru_clock       = 0;
+    active_flow             = NULL;
     memset(heatmap_lru, 0, sizeof(heatmap_lru));
 }
 
@@ -119,12 +123,10 @@ static void reset_pathmap_data(void) {
 }
 
 static void clear_heatmap(void) {
-    FOR_LOOP(i, pathmap.width * pathmap.height) {
-        pathmap.heatmap[i].next = NULL;
-        pathmap.heatmap[i].closed = false;
-        pathmap.heatmap[i].step = 0;
-        pathmap.heatmap[i].price = 0;
-    }
+    /* All per-build fields (next, step, price, closed) are zero when cleared.
+     * A single memset lets the CPU use vectorized stores instead of a
+     * field-by-field loop over 65k+ nodes. */
+    memset(pathmap.heatmap, 0, pathmap.width * pathmap.height * sizeof(routeNode_t));
 }
 
 /* Stamp a single entity's footprint into a pathmap byte array. */
@@ -308,17 +310,16 @@ BOOL CM_ClosestPathablePoint(LPCVECTOR2 location, LPVECTOR2 out) {
     return CM_ClosestPathablePointForRadius(location, 0, out);
 }
 
-VECTOR2 compute_directiom(DWORD x, DWORD y) {
+static VECTOR2 compute_flow_at(DWORD x, DWORD y) {
     int prices[8];
     int min_price = INT_MAX;
 
     FOR_LOOP(dir, 8) {
         prices[dir] = INT_MAX;
     }
-
     FOR_LOOP(dir, 8) {
-        int new_x = x + dx[dir];
-        int new_y = y + dy[dir];
+        int new_x = (int)x + dx[dir];
+        int new_y = (int)y + dy[dir];
         if (!is_valid_point(new_x, new_y) ||
             is_obstacle(new_x, new_y) ||
             !heatmap(new_x, new_y)->closed)
@@ -326,12 +327,11 @@ VECTOR2 compute_directiom(DWORD x, DWORD y) {
         prices[dir] = heatmap(new_x, new_y)->price;
         min_price = MIN(prices[dir], min_price);
     }
-    
+
     VECTOR2 direction = { 0, 0 };
     FOR_LOOP(dir, 8) {
-        if (prices[dir] == INT_MAX) {
+        if (prices[dir] == INT_MAX)
             continue;
-        }
         float k = 10.f / MAX(1, 10 + (prices[dir] - min_price));
         VECTOR2 dirvec = { dx[dir], dy[dir] };
         Vector2_normalize(&dirvec);
@@ -341,22 +341,38 @@ VECTOR2 compute_directiom(DWORD x, DWORD y) {
     return direction;
 }
 
+/* Bake all cell flow vectors into the given buffer after a heatmap build. */
+static void bake_flow_field(VECTOR2 *flow) {
+    DWORD cells = pathmap.width * pathmap.height;
+    FOR_LOOP(i, cells) {
+        flow[i] = compute_flow_at(i % pathmap.width, i / pathmap.width);
+    }
+}
+
 VECTOR2 get_flow_direction(DWORD heatmapindex, float fnx, float fny) {
     (void)heatmapindex;
-    if (!pathmap.data || !pathmap.heatmap || !pathmap.width || !pathmap.height) {
+    if (!active_flow || !pathmap.width || !pathmap.height) {
         return (VECTOR2){ 0, 0 };
     }
     VECTOR2 n = CM_GetNormalizedMapPosition(fnx, fny);
     n.x *= pathmap.width;
     n.y *= pathmap.height;
-    DWORD dx = floorf(n.x), dy = floorf(n.y);
-    VECTOR2 a = compute_directiom(dx, dy);
-    VECTOR2 b = compute_directiom(dx + 1, dy);
-    VECTOR2 c = compute_directiom(dx + 1, dy + 1);
-    VECTOR2 d = compute_directiom(dx, dy + 1);
-    VECTOR2 ab = Vector2_lerp(&a, &b, n.x - dx);
-    VECTOR2 cd = Vector2_lerp(&d, &c, n.x - dx);
-    return Vector2_lerp(&ab, &cd, n.y - dy);
+    DWORD cx = (DWORD)floorf(n.x);
+    DWORD cy = (DWORD)floorf(n.y);
+    if (!is_valid_point(cx, cy))
+        return (VECTOR2){ 0, 0 };
+    /* Bilinear interpolation over the pre-baked flow field. */
+    DWORD cx1 = (cx + 1 < pathmap.width)  ? cx + 1 : cx;
+    DWORD cy1 = (cy + 1 < pathmap.height) ? cy + 1 : cy;
+    FLOAT tx = n.x - (FLOAT)cx;
+    FLOAT ty = n.y - (FLOAT)cy;
+    VECTOR2 a = active_flow[cx  + cy  * pathmap.width];
+    VECTOR2 b = active_flow[cx1 + cy  * pathmap.width];
+    VECTOR2 c = active_flow[cx1 + cy1 * pathmap.width];
+    VECTOR2 d = active_flow[cx  + cy1 * pathmap.width];
+    VECTOR2 ab = Vector2_lerp(&a, &b, tx);
+    VECTOR2 cd = Vector2_lerp(&d, &c, tx);
+    return Vector2_lerp(&ab, &cd, ty);
 }
 
 static point2_t LocationToPathMap(LPCVECTOR2 location) {
@@ -368,33 +384,36 @@ DWORD build_heatmap(point2_t target) {
 #ifdef DEBUG_PATHFINDING
     CM_FillDebugObstacles();
 #endif
-    
+
+    DWORD width = pathmap.width;
     routeNode_t *open = heatmap(target.x, target.y);
-    routeNode_t **next = &open->next;
+    routeNode_t **tail = &open->next;
     open->closed = true;
-    
+
     for (int iter = 0; open && iter < MAX_ITERATIONS; iter++, open = open->next) {
+        /* Recover x,y from flat array index — no longer stored in the node. */
+        DWORD idx  = (DWORD)(open - pathmap.heatmap);
+        int   ox   = (int)(idx % width);
+        int   oy   = (int)(idx / width);
         FOR_LOOP(i, 8) {
-            int new_x = open->x + dx[i];
-            int new_y = open->y + dy[i];
+            int new_x = ox + dx[i];
+            int new_y = oy + dy[i];
             if (!is_valid_point(new_x, new_y) ||
                 is_obstacle(new_x, new_y) ||
                 heatmap(new_x, new_y)->closed)
                 continue;
             routeNode_t *neighbor = heatmap(new_x, new_y);
-            *next = neighbor;
-            next = &neighbor->next;
+            *tail = neighbor;
+            tail = &neighbor->next;
             neighbor->closed = true;
-            neighbor->step = open->step + 1;
+            neighbor->step  = open->step  + 1;
             neighbor->price = open->price + gv[i];
         }
     }
 
 #ifdef DEBUG_PATHFINDING
     FOR_LOOP(i, pathmap.width * pathmap.height) {
-        VECTOR2 dir = compute_directiom(i % pathmap.width, i / pathmap.width);
         pathDebug[i].r = pathmap.data[i].nowalk ? 255 : 0;
-//        pathDebug[i].g = (atan2(dir.y, dir.x) + M_PI) * 255 / (2 * M_PI);//pathmap.heatmap[i].step > 0 ? pathmap.heatmap[i].price * 2 : 255;
     }
 #endif
     return 0;
@@ -407,27 +426,27 @@ DWORD CM_BuildHeatmap(edict_t *goalentity) {
         return 0;
     }
 
-    /* Cache lookup — find slot with matching goal. */
+    /* Cache lookup — find slot with matching goal.
+     * On a hit: point active_flow at the cached flow field and return
+     * immediately.  No memcpy of the raw heatmap needed. */
     FOR_LOOP(i, HEATMAP_CACHE_SLOTS) {
-        if (heatmap_cache[i].goal == goalentity && heatmap_cache[i].data) {
+        if (heatmap_cache[i].goal == goalentity && heatmap_cache[i].flow) {
             heatmap_lru[i] = heatmap_lru_clock++;
-            /* Restore this goal's heatmap into pathmap.heatmap. */
-            memcpy(pathmap.heatmap, heatmap_cache[i].data,
-                   map_cells * sizeof(routeNode_t));
+            active_flow = heatmap_cache[i].flow;
             return heatmap_cache[i].generation;
         }
     }
 
     /* Cache miss — evict the least-recently-used slot.
-     * Prefer empty slots (goal==NULL) before comparing LRU timestamps. */
+     * Prefer slots with goal==NULL before comparing LRU timestamps. */
     int evict = 0;
     FOR_LOOP(i, HEATMAP_CACHE_SLOTS) {
         if (!heatmap_cache[i].goal) { evict = i; break; }
         if (!heatmap_cache[evict].goal) break;
         if (heatmap_lru[i] < heatmap_lru[evict]) evict = i;
     }
-    if (!heatmap_cache[evict].data)
-        heatmap_cache[evict].data = MemAlloc(map_cells * sizeof(routeNode_t));
+    if (!heatmap_cache[evict].flow)
+        heatmap_cache[evict].flow = MemAlloc(map_cells * sizeof(VECTOR2));
 
     point2_t target = LocationToPathMap(&goalentity->s.origin2);
     reset_pathmap_data();
@@ -438,14 +457,14 @@ DWORD CM_BuildHeatmap(edict_t *goalentity) {
         closest_pathable_node(&goalentity->s.origin2, 0, &target);
     }
     build_heatmap(target);
+    bake_flow_field(heatmap_cache[evict].flow);
 
-    memcpy(heatmap_cache[evict].data, pathmap.heatmap,
-           map_cells * sizeof(routeNode_t));
     heatmap_cache[evict].goal       = goalentity;
     heatmap_cache[evict].generation = heatmap_next_generation++;
     if (heatmap_next_generation == 0)
         heatmap_next_generation = 1;
     heatmap_lru[evict] = heatmap_lru_clock++;
+    active_flow = heatmap_cache[evict].flow;
 
     return heatmap_cache[evict].generation;
 }
@@ -470,12 +489,7 @@ void CM_SetupTestPathmap(DWORD width, DWORD height, BYTE const *cells) {
 
     memcpy(pathmap.original, cells, n);
     memcpy(pathmap.data,     cells, n);
-    memset(pathmap.heatmap, 0, n * sizeof(routeNode_t));
-
-    FOR_LOOP(i, n) {
-        pathmap.heatmap[i].x = i % width;
-        pathmap.heatmap[i].y = i / width;
-    }
+    memset(pathmap.heatmap,  0, n * sizeof(routeNode_t));
 
     heatmap_cache_invalidate();
 }
@@ -496,11 +510,7 @@ void CM_ReadPathMap(HANDLE archive) {
     pathmap.heatmap = MemAlloc(pathmap.width * pathmap.height * sizeof(routeNode_t));
     SFileReadFile(file, pathmap.original, pathmap.width * pathmap.height, 0, 0);
     SFileCloseFile(file);
-
-    FOR_LOOP(i, pathmap.width * pathmap.height) {
-        pathmap.heatmap[i].x = i % pathmap.width;
-        pathmap.heatmap[i].y = i / pathmap.width;
-    }
+    memset(pathmap.heatmap, 0, pathmap.width * pathmap.height * sizeof(routeNode_t));
 
 #ifdef DEBUG_PATHFINDING
     pathDebug = MemAlloc(pathmap.width * pathmap.height * sizeof(COLOR32));

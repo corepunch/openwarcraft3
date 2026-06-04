@@ -316,6 +316,97 @@ static void test_transitive_bumping_does_not_stop_different_goal_unit(void) {
 }
 
 /* -----------------------------------------------------------------------
+ * Flow-field cache consistency
+ *
+ * After a cache hit, get_flow_direction() must return the same vector as
+ * it did immediately after the original build.  This verifies that the
+ * pre-baked flow field is stored correctly and survives a cache lookup.
+ * --------------------------------------------------------------------- */
+
+static void test_flow_cache_consistent_after_hit(void) {
+    build_open_map();
+    CM_SetupTestPathmap(MAP_W, MAP_H, open_map);
+
+    LPEDICT wp = make_waypoint(9.0f, 5.0f);
+    CM_BuildHeatmap(wp);
+    VECTOR2 dir1 = flow_at_cell(2.0f, 5.0f);
+
+    /* Second build of the same goal must hit the cache. */
+    CM_BuildHeatmap(wp);
+    VECTOR2 dir2 = flow_at_cell(2.0f, 5.0f);
+
+    ASSERT_EQ_FLOAT(dir1.x, dir2.x, 0.001f);
+    ASSERT_EQ_FLOAT(dir1.y, dir2.y, 0.001f);
+}
+
+/* -----------------------------------------------------------------------
+ * Multi-goal flow consistency
+ *
+ * After building two goals and switching back, the flow for each goal
+ * is consistent — switching between cached goals doesn't corrupt directions.
+ * --------------------------------------------------------------------- */
+
+static void test_flow_consistent_across_goal_switches(void) {
+    build_open_map();
+    CM_SetupTestPathmap(MAP_W, MAP_H, open_map);
+
+    LPEDICT wp_left  = make_waypoint(1.0f, 5.0f);
+    LPEDICT wp_right = make_waypoint(9.0f, 5.0f);
+
+    /* Build both goals. */
+    CM_BuildHeatmap(wp_right);
+    VECTOR2 flow_right = flow_at_cell(5.0f, 5.0f); /* should point right (+x) */
+
+    CM_BuildHeatmap(wp_left);
+    VECTOR2 flow_left = flow_at_cell(5.0f, 5.0f);  /* should point left (-x) */
+
+    /* Switch back to right goal from cache. */
+    CM_BuildHeatmap(wp_right);
+    VECTOR2 flow_right2 = flow_at_cell(5.0f, 5.0f);
+
+    /* Flow directions must be in opposite x halves. */
+    ASSERT(flow_right.x > 0.0f);
+    ASSERT(flow_left.x < 0.0f);
+    /* Cached right goal must match original. */
+    ASSERT_EQ_FLOAT(flow_right.x, flow_right2.x, 0.001f);
+}
+
+/* -----------------------------------------------------------------------
+ * Proximity shortcut
+ *
+ * unit_changeangle uses direct vector math when the unit is within
+ * NAVI_THRESHOLD of its goal, skipping the heatmap.  Verify the unit
+ * gets a valid angle pointing toward the goal regardless.
+ * --------------------------------------------------------------------- */
+
+#define NAVI_THRESHOLD 128.0f  /* must match g_ai.c */
+
+static void test_proximity_shortcut_gives_correct_angle(void) {
+    build_open_map();
+    CM_SetupTestPathmap(MAP_W, MAP_H, open_map);
+    reset_entities();
+
+    /* Place unit close to goal (within NAVI_THRESHOLD). */
+    LPEDICT unit = make_unit_at(0.0f, 0.0f);
+    LPEDICT wp   = make_waypoint(5.0f, 5.0f);
+    unit->goalentity = wp;
+    unit->stand      = unit_stand;
+    unit_stand(unit);
+    order_move(unit, wp);
+
+    /* Distance must be within threshold for the shortcut to apply. */
+    FLOAT dist = M_DistanceToGoal(unit);
+    ASSERT(dist < NAVI_THRESHOLD);
+
+    unit_changeangle(unit);
+
+    /* Angle must point from (0,0) toward the goal. */
+    FLOAT expected = atan2f(wp->s.origin.y - unit->s.origin.y,
+                            wp->s.origin.x - unit->s.origin.x);
+    ASSERT_EQ_FLOAT(unit->s.angle, expected, 0.01f);
+}
+
+/* -----------------------------------------------------------------------
  * Suite runner
  * --------------------------------------------------------------------- */
 
@@ -329,4 +420,7 @@ BEGIN_SUITE(pathfinding)
     RUN_TEST(test_unit_presence_does_not_invalidate_heatmap_cache);
     RUN_TEST(test_transitive_bumping_stops_overlapping_same_goal_unit);
     RUN_TEST(test_transitive_bumping_does_not_stop_different_goal_unit);
+    RUN_TEST(test_flow_cache_consistent_after_hit);
+    RUN_TEST(test_flow_consistent_across_goal_switches);
+    RUN_TEST(test_proximity_shortcut_gives_correct_angle);
 END_SUITE()

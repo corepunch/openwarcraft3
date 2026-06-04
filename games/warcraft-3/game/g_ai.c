@@ -1,11 +1,21 @@
 #include "g_local.h"
 
-void unit_changeangle(LPEDICT self) {
-    DWORD heatmap = M_RefreshHeatmap(self->goalentity);
-    VECTOR2 dir = get_flow_direction(heatmap, self->s.origin.x, self->s.origin.y);
+#define NAVI_THRESHOLD 128.0f
 
-    if (Vector2_len(&dir) <= 0.001f) {
-        dir = Vector2_sub(&self->goalentity->s.origin2, &self->s.origin2);
+void unit_changeangle(LPEDICT self) {
+    VECTOR2 to_goal = Vector2_sub(&self->goalentity->s.origin2, &self->s.origin2);
+    FLOAT dist = Vector2_len(&to_goal);
+    VECTOR2 dir;
+
+    if (dist <= NAVI_THRESHOLD) {
+        /* Close enough: use direct vector, skip heatmap entirely. */
+        dir = to_goal;
+    } else {
+        DWORD heatmap = M_RefreshHeatmap(self->goalentity);
+        dir = get_flow_direction(heatmap, self->s.origin.x, self->s.origin.y);
+        if (Vector2_len(&dir) <= 0.001f) {
+            dir = to_goal;
+        }
     }
     self->s.angle = atan2(dir.y, dir.x);
 }
