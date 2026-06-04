@@ -127,12 +127,16 @@ void CL_ParsePlayerInfo(LPSIZEBUF msg) {
     DWORD plnum = MSG_ReadPlayerBits(msg, &bits);
     BOOL first_camera_sample = cl.viewDef.camerastate[0].znear <= 0 ||
                                cl.viewDef.camerastate[0].zfar <= 0;
+    FLOAT znear;
+    FLOAT zfar;
     MSG_ReadDeltaPlayerState(msg, &cl.playerstate, plnum, bits);
     VECTOR2 server_origin = cl.playerstate.origin;
     cls.state = ca_active;
     if (cl.playerstate.client_ui_state == CLIENT_UI_GAME) {
         CL_SetGameplayInput();
     }
+    znear = cl.viewDef.camerastate[0].znear > 0 ? cl.viewDef.camerastate[0].znear : 100;
+    zfar = cl.viewDef.camerastate[0].zfar > 0 ? cl.viewDef.camerastate[0].zfar : 5000;
 
     cl.viewDef.camerastate[1] = cl.viewDef.camerastate[0];
     cl.viewDef.camerastate[0].origin.x = server_origin.x;
@@ -142,14 +146,14 @@ void CL_ParsePlayerInfo(LPSIZEBUF msg) {
     cl.viewDef.camerastate[0].viewangles = cl.playerstate.viewangles;
     cl.viewDef.camerastate[0].distance = cl.playerstate.distance;
     cl.viewDef.camerastate[0].fov = cl.playerstate.fov;
-    cl.viewDef.camerastate[0].znear = 100;
-    cl.viewDef.camerastate[0].zfar = 5000;
+    cl.viewDef.camerastate[0].znear = znear;
+    cl.viewDef.camerastate[0].zfar = zfar;
 
     if (first_camera_sample) {
         cl.viewDef.camerastate[1] = cl.viewDef.camerastate[0];
     } else {
-        cl.viewDef.camerastate[1].znear = 100;
-        cl.viewDef.camerastate[1].zfar = 5000;
+        cl.viewDef.camerastate[1].znear = znear;
+        cl.viewDef.camerastate[1].zfar = zfar;
     }
 
     if (cl.camera_prediction.active) {
