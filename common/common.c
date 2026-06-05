@@ -107,7 +107,25 @@ static BOOL FS_PathHasExtension(LPCSTR filename, LPCSTR extension) {
 }
 
 static BOOL FS_IsMapPath(LPCSTR filename) {
+#ifdef SC2
+    return FS_PathHasExtension(filename, ".SC2Map") ||
+           FS_PathHasExtension(filename, ".s2ma") ||
+           FS_PathHasExtension(filename, ".SC2Components");
+#else
     return FS_PathHasExtension(filename, ".w3m") || FS_PathHasExtension(filename, ".w3x");
+#endif
+}
+
+static size_t FS_MapExtensionLength(LPCSTR filename) {
+#ifdef SC2
+    if (FS_PathHasExtension(filename, ".SC2Components")) return strlen(".SC2Components");
+    if (FS_PathHasExtension(filename, ".SC2Map")) return strlen(".SC2Map");
+    if (FS_PathHasExtension(filename, ".s2ma")) return strlen(".s2ma");
+#else
+    if (FS_PathHasExtension(filename, ".w3m")) return strlen(".w3m");
+    if (FS_PathHasExtension(filename, ".w3x")) return strlen(".w3x");
+#endif
+    return 0;
 }
 
 static BOOL FS_IsExplicitMapPath(LPCSTR name) {
@@ -136,14 +154,12 @@ static BOOL FS_MapBaseEquals(LPCSTR path, LPCSTR name) {
     LPCSTR base = FS_BaseName(path);
     size_t nameLen = strlen(name ? name : "");
     size_t baseLen = strlen(base);
+    size_t extLen = FS_MapExtensionLength(base);
 
-    if (!name || !*name || baseLen < 4) {
+    if (!name || !*name || extLen == 0 || baseLen <= extLen) {
         return false;
     }
-    if (!FS_IsMapPath(base)) {
-        return false;
-    }
-    baseLen -= 4;
+    baseLen -= extLen;
     return nameLen == baseLen && !strncasecmp(base, name, baseLen);
 }
 
@@ -252,7 +268,11 @@ static BOOL FS_HasExtension(LPCSTR filename, LPCSTR extension) {
 }
 
 static BOOL FS_IsArchiveExtensionAt(LPCSTR path, size_t dot) {
+#ifdef SC2
+    static LPCSTR const extensions[] = { ".mpq", ".SC2Map", ".s2ma", NULL };
+#else
     static LPCSTR const extensions[] = { ".mpq", ".w3m", ".w3x", NULL };
+#endif
 
     if (!path || path[dot] != '.') {
         return false;
@@ -471,7 +491,8 @@ BOOL FS_AddDataDirectory(LPCSTR dirname) {
             mountedCount++;
         }
     }
-    return mountedCount > 0;
+    (void)mountedCount;
+    return true;
 }
 
 #if 0
@@ -534,16 +555,20 @@ typedef struct fsFind_s {
 } fsFind_t;
 
 static BOOL FS_FindFilenameMatches(LPCSTR filename, LPCSTR mask) {
+    PATHSTR normalizedFilename;
+    PATHSTR normalizedMask;
     size_t mask_len;
 
     if (!mask || !mask[0] || !strcmp(mask, "*")) {
         return true;
     }
-    mask_len = strlen(mask);
-    if (mask_len > 0 && mask[mask_len - 1] == '*') {
-        return !strncasecmp(filename, mask, mask_len - 1);
+    FS_NormalizePath(filename, normalizedFilename, sizeof(normalizedFilename));
+    FS_NormalizePath(mask, normalizedMask, sizeof(normalizedMask));
+    mask_len = strlen(normalizedMask);
+    if (mask_len > 0 && normalizedMask[mask_len - 1] == '*') {
+        return !strncasecmp(normalizedFilename, normalizedMask, mask_len - 1);
     }
-    return !strcasecmp(filename, mask);
+    return !strcasecmp(normalizedFilename, normalizedMask);
 }
 
 static BOOL FS_FindAppendLoose(fsFind_t *find, LPCSTR name) {
@@ -584,6 +609,9 @@ static void FS_FindCollectLooseEntry(LPCSTR name, LPCSTR path, BOOL isDirectory,
              *collect->rel ? "\\" : "",
              name);
     if (isDirectory) {
+        if (FS_IsMapPath(childRel)) {
+            FS_FindAppendLoose(collect->find, childRel);
+        }
         FS_FindCollectLooseDir(collect->find, collect->root, childRel);
     } else if (isFile && FS_FindFilenameMatches(childRel, collect->find->mask)) {
         FS_FindAppendLoose(collect->find, childRel);
@@ -645,6 +673,11 @@ bool FS_FileExists(LPCSTR fileName) {
         if (FS_FileOnDiskExists(path)) {
             return true;
         }
+#ifdef SC2
+        if (FS_PathHasExtension(fileName, ".SC2Components") && FS_DirectoryExists(path)) {
+            return true;
+        }
+#endif
     }
     return false;
 }

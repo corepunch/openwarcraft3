@@ -1,5 +1,6 @@
 #include "renderer/r_game.h"
 #include "m3/r_m3.h"
+#include "sc2/r_sc2map.h"
 
 void M3_Init(void);
 void M3_Shutdown(void);
@@ -175,10 +176,11 @@ void R_GameSetupTextureMatrix(void) {
 }
 
 void R_GameRegisterMap(LPCSTR mapFileName) {
-    (void)mapFileName;
+    R_SC2RegisterMap(mapFileName);
 }
 
 void R_GameDrawWorld(void) {
+    R_SC2DrawWorld();
 }
 
 void R_GameDrawTerrainShadows(void) {
@@ -188,21 +190,15 @@ void R_GameDrawAlphaSurfaces(void) {
 }
 
 bool R_GameTraceLocation(viewDef_t const *viewdef, float x, float y, LPVECTOR3 point) {
-    (void)viewdef;
-    (void)x;
-    (void)y;
-    (void)point;
-    return false;
+    return R_SC2TraceLocation(viewdef, x, y, point);
 }
 
 FLOAT R_GameGetHeightAtPoint(FLOAT x, FLOAT y) {
-    (void)x;
-    (void)y;
-    return 0.0f;
+    return R_SC2GetHeightAtPoint(x, y);
 }
 
 VECTOR2 R_GameWorldSize(void) {
-    return (VECTOR2){ 0 };
+    return R_SC2WorldSize();
 }
 
 LPMODEL R_GameLoadModel(LPCSTR modelFilename) {
