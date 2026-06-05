@@ -215,6 +215,8 @@ struct edict_s;
 DWORD CM_BuildHeatmap(struct edict_s *goalentity);
 VECTOR2 get_flow_direction(DWORD heatmapindex, float fnx, float fny);
 void CM_BakeStaticObstacles(void);
+void CM_InvalidatePathCache(void);
+void CM_SetupPathMap(DWORD width, DWORD height, BYTE const *cells);
 BOOL CM_IsMapLoaded(LPCSTR mapFilename);
 BOOL CM_ClosestPathablePoint(LPCVECTOR2 location, LPVECTOR2 out);
 BOOL CM_ClosestPathablePointForRadius(LPCVECTOR2 location, FLOAT radius, LPVECTOR2 out);

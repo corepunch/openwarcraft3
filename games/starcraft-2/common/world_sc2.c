@@ -27,6 +27,7 @@ bool CM_LoadMapFormat(LPCSTR mapFilename) {
     world.info.players[0].playerType = kPlayerTypeHuman;
     world.info.players[0].playerRace = kPlayerRaceHuman;
     world.info.players[0].startingPosition = (VECTOR2){ 0.0f, 0.0f };
+    CM_SetupPathMap(map->width, map->height, NULL);
     return true;
 }
 

@@ -7,19 +7,19 @@ This file summarizes known embedded files listed by SC2Mapster's `File Formats/M
 | File | Format | Notes |
 | --- | --- | --- |
 | `MapInfo` | binary | High-level map metadata: dimensions, playable/camera bounds, theme/planet strings, loading-screen path/format, and player slot records. Magic is documented as `MapI`. |
-| `Objects` | XML-like/text in community examples | Placed units, doodads, resources, regions, points, and other object-layer data. Old modding threads mention removing doodads from this file. |
+| `Objects` | XML/text | Documented as `<PlacedObjects>` with `Unit`, `Doodad`, `Point`, and `Camera` children. Placed units/resources/start-like objects should be resolved through catalogs before choosing models. |
 | `Terrain` | binary | Terrain container or terrain-related metadata. Exact public detail is sparse. |
 | `PaintedPathingLayer` | binary | Painted pathing data from the editor. Exact layout still needs verification. |
 | `t3Terrain.xml` | XML | Terrain texture/tile mapping data. Community examples used it to change map terrain textures. |
 | `t3CellFlags` | binary | Cell flags. Documented header uses magic `LFCT`, version `101`, dimensions, then one byte per cell. |
-| `t3HeightMap` | binary | Height map data. |
-| `t3SyncHeightMap` | binary | Synchronized/runtime height map data. |
-| `t3SyncCliffLevel` | binary | Synchronized cliff-level data. |
+| `t3HeightMap` | binary | Detailed height map, magic `HMAP`, version `101`, chunks with `heightAdjustments`, `heightBase`, and `mask`. |
+| `t3SyncHeightMap` | binary | Smaller signed height offsets, magic `SMAP`, version `102`; height divided by 256 gives a level-like offset. |
+| `t3SyncCliffLevel` | binary | Simplified cliff level map, magic `CLIF`, version `100`, `USHORT height[sizeX * sizeY]`. |
 | `t3SyncPathingInfo` | binary | Synchronized pathing data. SC2 Map Analyzer discusses using this for more accurate pathing than `t3CellFlags`. |
 | `t3HardTile` | binary | Hard tile data. |
-| `t3TextureMasks` | binary | Terrain texture blend/mask data. |
+| `t3TextureMasks` | binary | Terrain texture blend/mask data, magic `MASK`, version `102`; layers are nibble-packed and texture definitions come from `t3Terrain.xml`. |
 | `t3VertCol` | binary | Vertex color data. |
-| `t3Water` | binary | Water/lava placement or water-layer data. |
+| `t3Water` | binary | Water/lava rectangles, magic `WATR`, version `110`; template names resolve to `CWater` entries in `WaterData.xml`. |
 | `t3FluffDoodad` | binary | Fluff doodad placement. Community notes call this harder to edit than `Objects`. |
 
 Other map archives may contain:
@@ -122,5 +122,4 @@ The following files still need direct fixture-based reverse engineering before e
 - `t3FluffDoodad`
 - `PaintedPathingLayer`
 
-SC2 Map Analyzer is the strongest public proof that these files are usable for map analysis, but its documentation is mostly tool behavior and screenshots rather than a complete binary spec.
-
+SC2 Map Analyzer is the strongest public proof that these files are usable for map analysis, but its documentation is mostly tool behavior and screenshots rather than a complete binary spec. Its gallery/description specifically points at shortest paths, resource/base classification, cliff-level visualization, and `t3CellFlags` versus `t3SyncPathingInfo` pathing quality, so use it as a behavioral comparator rather than a schema source.
