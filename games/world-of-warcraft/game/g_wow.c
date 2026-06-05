@@ -658,7 +658,6 @@ static void Wow_InitPlayer(LPEDICT ent) {
     ps->texts[PLAYERTEXT_MAP_TITLE] = wow_loading_title;
     ps->texts[PLAYERTEXT_MAP_PREVIEW] = wow_loading_texture;
     Wow_UpdatePlayerHud(ent);
-    Wow_SendPlayerUi(ent);
 }
 
 static void Wow_Init(void) {
