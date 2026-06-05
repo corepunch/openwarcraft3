@@ -33,6 +33,7 @@ typedef struct {
     LPRENDERER renderer;
     lua_State *lua;
     uiWowTexture_t textures[WOW_UI_MAX_TEXTURES];
+    DWORD texture_recycle_index;
     uiWowFont_t fonts[WOW_UI_MAX_FONTS];
     uiWowIcon_t inventory[WOW_UI_INVENTORY_SLOTS];
     uiWowIcon_t actions[WOW_UI_ACTION_SLOTS];
@@ -124,6 +125,8 @@ static void UIWow_EnsureRenderer(void) {
 }
 
 static LPTEXTURE UIWow_LoadTexture(LPCSTR name) {
+    int empty_slot = -1;
+
     if (!name || !*name) {
         return NULL;
     }
@@ -137,13 +140,27 @@ static LPTEXTURE UIWow_LoadTexture(LPCSTR name) {
         if (entry->texture && !strcmp(entry->name, name)) {
             return entry->texture;
         }
-        if (!entry->texture) {
-            snprintf(entry->name, sizeof(entry->name), "%s", name);
-            entry->texture = wow_ui.renderer->LoadTexture(name);
-            return entry->texture;
+        if (empty_slot < 0 && !entry->texture) {
+            empty_slot = i;
         }
     }
-    return wow_ui.renderer->LoadTexture(name);
+    if (empty_slot >= 0) {
+        uiWowTexture_t *entry = &wow_ui.textures[empty_slot];
+
+        snprintf(entry->name, sizeof(entry->name), "%s", name);
+        entry->texture = wow_ui.renderer->LoadTexture(name);
+        return entry->texture;
+    }
+
+    {
+        uiWowTexture_t *entry = &wow_ui.textures[wow_ui.texture_recycle_index % WOW_UI_MAX_TEXTURES];
+
+        wow_ui.texture_recycle_index = (wow_ui.texture_recycle_index + 1) % WOW_UI_MAX_TEXTURES;
+        SAFE_DELETE(entry->texture, wow_ui.renderer->ReleaseTexture);
+        snprintf(entry->name, sizeof(entry->name), "%s", name);
+        entry->texture = wow_ui.renderer->LoadTexture(name);
+        return entry->texture;
+    }
 }
 
 static LPCFONT UIWow_LoadFont(DWORD size) {
