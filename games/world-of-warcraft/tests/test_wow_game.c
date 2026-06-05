@@ -18,7 +18,9 @@ typedef struct {
 } testModel_t;
 
 static testModel_t test_models[32];
+static testModel_t test_images[32];
 static DWORD test_num_models;
+static DWORD test_num_images;
 static DWORD test_clear_world_calls;
 static DWORD test_apply_lobby_calls;
 static char test_last_error[512];
@@ -222,6 +224,19 @@ static int test_model_index(LPCSTR model_name) {
     return (int)test_num_models;
 }
 
+static int test_image_index(LPCSTR image_name) {
+    FOR_LOOP(i, test_num_images) {
+        if (!strcasecmp(test_images[i].name, image_name)) {
+            return test_images[i].index;
+        }
+    }
+    ASSERT(test_num_images < sizeof(test_images) / sizeof(test_images[0]));
+    strncpy(test_images[test_num_images].name, image_name, sizeof(test_images[0].name) - 1);
+    test_images[test_num_images].index = (int)test_num_images + 1;
+    test_num_images++;
+    return (int)test_num_images;
+}
+
 static void test_clear_world(void) {
     test_clear_world_calls++;
 }
@@ -246,6 +261,7 @@ static struct game_import test_import(void) {
     import.MemAlloc = test_mem_alloc;
     import.MemFree = test_mem_free;
     import.ModelIndex = test_model_index;
+    import.ImageIndex = test_image_index;
     import.ReadFile = test_read_file;
     import.ClearWorld = test_clear_world;
     import.ApplyLobbySettings = test_apply_lobby_settings;
@@ -287,7 +303,9 @@ void PF_TextRemoveComments(LPSTR buffer) {
 
 static void reset_test_state(void) {
     memset(test_models, 0, sizeof(test_models));
+    memset(test_images, 0, sizeof(test_images));
     test_num_models = 0;
+    test_num_images = 0;
     test_clear_world_calls = 0;
     test_apply_lobby_calls = 0;
     memset(test_last_error, 0, sizeof(test_last_error));
@@ -328,6 +346,11 @@ static void test_wow_load_map_initializes_player_state(void) {
     ASSERT_EQ_FLOAT(player->client->ps.origin.x, 123.25f, 0.001f);
     ASSERT_EQ_FLOAT(player->client->ps.origin.y, -456.5f, 0.001f);
     ASSERT_EQ_INT((int)player->client->ps.client_ui_state, CLIENT_UI_GAME);
+    ASSERT_STR_EQ(player->client->ps.name, "Thrall");
+    ASSERT_EQ_INT((int)player->client->ps.stats[WOW_STAT_HEALTH], 100);
+    ASSERT_EQ_INT((int)player->client->ps.stats[WOW_STAT_HEALTH_MAX], 100);
+    ASSERT_EQ_INT((int)player->client->ps.stats[WOW_STAT_POWER], 42);
+    ASSERT(player->client->ps.stats[WOW_STAT_INVENTORY_FIRST] > 0);
     ASSERT_STR_EQ(player->client->ps.texts[PLAYERTEXT_MAP_TITLE], "Elwynn Test");
     ASSERT_STR_EQ(player->client->ps.texts[PLAYERTEXT_MAP_PREVIEW],
                   "Interface\\Glues\\LoadingScreens\\LoadScreenTest.blp");

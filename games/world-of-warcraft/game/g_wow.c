@@ -8,7 +8,7 @@ struct game_import gi;
 struct game_export globals;
 edict_t wow_edicts[WOW_MAX_EDICTS];
 wowEntityLocal_t wow_entity_locals[WOW_MAX_EDICTS];
-static struct client_s wow_clients[WOW_MAX_CLIENTS];
+wowClient_t wow_clients[WOW_MAX_CLIENTS];
 static VECTOR2 wow_spawn_origin = { 0.0f, 0.0f };
 static char wow_loading_texture[MAX_PATHLEN] = "Interface\\Glues\\LoadingScreens\\LoadScreenEnviroment.blp";
 static char wow_loading_title[128] = "World of Warcraft";
@@ -20,6 +20,15 @@ static struct {
 } wow_move = {
     .pitch = 328.0f,
     .distance = 8.5f,
+};
+
+static wowInventoryItem_t const wow_start_inventory[WOW_UI_INVENTORY_SLOTS] = {
+    { "Interface\\Icons\\INV_Misc_Bag_08.blp", "Backpack", 1 },
+    { "Interface\\Icons\\INV_Weapon_ShortBlade_05.blp", "Short Blade", 1 },
+    { "Interface\\Icons\\INV_Misc_Food_24.blp", "Food", 5 },
+    { "Interface\\Icons\\Spell_Nature_HealingTouch.blp", "Healing Touch", 1 },
+    { "Interface\\Icons\\Ability_Warrior_BattleShout.blp", "Battle Shout", 1 },
+    { "Interface\\Icons\\INV_Misc_Coin_01.blp", "Coin", 12 },
 };
 
 #define WOW_MISSING_ANIMATION_LOG_SLOTS 128
@@ -437,6 +446,30 @@ static void Wow_UpdateCamera(LPEDICT ent) {
     ent->client->ps.distance = wow_move.distance;
 }
 
+static void Wow_UpdatePlayerHud(LPEDICT ent) {
+    wowEntityLocal_t *local = Wow_EntityLocal(ent);
+    LPPLAYER ps;
+
+    if (!ent || !ent->client || !local) {
+        return;
+    }
+    ps = &ent->client->ps;
+    ps->stats[WOW_STAT_HEALTH] = (USHORT)local->health;
+    ps->stats[WOW_STAT_HEALTH_MAX] = 100;
+    ps->stats[WOW_STAT_POWER] = 42;
+    ps->stats[WOW_STAT_POWER_MAX] = 100;
+    ps->stats[WOW_STAT_LEVEL] = 1;
+    ps->stats[WOW_STAT_XP] = 120;
+    ps->stats[WOW_STAT_XP_MAX] = 400;
+    ps->stats[WOW_STAT_COPPER] = 1234;
+
+    FOR_LOOP(slot, WOW_UI_INVENTORY_SLOTS) {
+        wowInventoryItem_t const *item = &wow_clients[0].inventory[slot];
+        ps->stats[WOW_STAT_INVENTORY_FIRST + slot] =
+            (USHORT)((item->icon[0] && gi.ImageIndex) ? gi.ImageIndex(item->icon) : 0);
+    }
+}
+
 static void Wow_MovePlayerFrame(LPEDICT ent) {
     Wow_AdvanceEntityFrame(ent);
 }
@@ -520,7 +553,7 @@ static void Wow_InitPlayer(LPEDICT ent) {
         local->attack_damage_point = 250;
         local->attack_backswing = 450;
     }
-    ent->client = &wow_clients[0];
+    ent->client = &wow_clients[0].client;
     ent->inuse = true;
     ent->s.number = 0;
     ent->s.model = G_RegisterModel(WOW_PLAYER_MODEL);
@@ -543,6 +576,8 @@ static void Wow_InitPlayer(LPEDICT ent) {
     ps = &ent->client->ps;
     memset(ps, 0, sizeof(*ps));
     ps->number = 0;
+    snprintf(wow_clients[0].name, sizeof(wow_clients[0].name), "%s", "Thrall");
+    memcpy(wow_clients[0].inventory, wow_start_inventory, sizeof(wow_start_inventory));
 #ifdef WOW
     ps->origin = wow_spawn_origin;
     ps->viewangles = (VECTOR3){ Wow_ViewPitch(wow_move.pitch), wow_move.yaw, 0.0f };
@@ -556,8 +591,10 @@ static void Wow_InitPlayer(LPEDICT ent) {
     ps->distance = 250.0f;
 #endif
     ps->client_ui_state = CLIENT_UI_GAME;
+    ps->name = wow_clients[0].name;
     ps->texts[PLAYERTEXT_MAP_TITLE] = wow_loading_title;
     ps->texts[PLAYERTEXT_MAP_PREVIEW] = wow_loading_texture;
+    Wow_UpdatePlayerHud(ent);
 }
 
 static void Wow_Init(void) {
@@ -669,6 +706,7 @@ static void Wow_RunFrame(void) {
         ent->s.rotation = (VECTOR3){ wow_move.yaw, 0.0f, 0.0f };
         Wow_UpdateCamera(ent);
     }
+    Wow_UpdatePlayerHud(ent);
 
     for (DWORD i = WOW_MAX_CLIENTS; i < (DWORD)globals.num_edicts; i++) {
         if (wow_edicts[i].inuse) {
@@ -726,7 +764,7 @@ static void Wow_ClientBegin(LPEDICT ent) {
     if (!ent || ent->client) {
         return;
     }
-    ent->client = &wow_clients[0];
+    ent->client = &wow_clients[0].client;
 }
 
 struct game_export *GetGameAPI(struct game_import *import) {

@@ -68,6 +68,9 @@ WOW_BINARY   := $(BIN_DIR)/openwow$(EXE_EXT)
 SC2_BINARY   := $(BIN_DIR)/opensc2$(EXE_EXT)
 WOW_CFLAGS   := $(CFLAGS) -I$(WOW_DIR) -DWOW -DOW3_LOAD_ALL_MPQS -Wno-unused-function
 WOW_TEST_CFLAGS := $(WOW_CFLAGS) -DTOOL_COMMON_NO_MPQ -Itests
+LUA_CFLAGS   := $(shell pkg-config --cflags lua5.4 2>/dev/null || pkg-config --cflags lua 2>/dev/null)
+LUA_LIBS     := $(shell pkg-config --libs lua5.4 2>/dev/null || pkg-config --libs lua 2>/dev/null)
+WOW_UI_CFLAGS := $(WOW_CFLAGS) $(LUA_CFLAGS)
 SC2_CFLAGS   := $(CFLAGS) -I$(SC2_DIR) -DSC2 -DOW3_LOAD_ALL_MPQS -Wno-unused-function
 
 TOOL_SRCS := $(shell find tools -maxdepth 1 -name '*.c' ! -name 'jass.c' | sort)
@@ -170,7 +173,7 @@ $(eval $(call unity_lib_schema,$(RENDERER_SC2_LIB),$(RENDERER_BASE_DEPS) $(call 
 $(eval $(call unity_lib_schema,$(GAME_WOW_LIB),$(GAME_BASE_DEPS) common/world.c $(WOW_COMMON_SRCS) $(call CSRC,$(WOW_DIR)/game),game-wow,$(WOW_DIR)/game,,$(WOW_CFLAGS),common/mpq.c,-lshared $(LIBS) -lm -lz))
 $(eval $(call unity_lib_schema,$(GAME_SC2_LIB),$(GAME_BASE_DEPS) $(WORLD_CORE_SRCS) $(SC2_COMMON_SRCS) $(call CSRC,$(SC2_DIR)/game),game-sc2,$(SC2_DIR)/game,,$(SC2_CFLAGS),common/mpq.c,-lshared $(LIBS) -lm -lz))
 
-$(eval $(call unity_lib_schema,$(UI_WOW_LIB),$(UI_BASE_DEPS) client/ui.h $(call CSRC,$(WOW_DIR)/ui),ui-wow,$(WOW_DIR)/ui,,$(WOW_CFLAGS),,-lshared -lm))
+$(eval $(call unity_lib_schema,$(UI_WOW_LIB),$(UI_BASE_DEPS) client/ui.h $(call CSRC,$(WOW_DIR)/ui),ui-wow,$(WOW_DIR)/ui,,$(WOW_UI_CFLAGS),,-lshared $(LUA_LIBS)))
 
 $(eval $(call app_schema,$(WOW_BINARY),$(SHARED_LIB) $(SHEET_LIB) $(GAME_WOW_LIB) $(RENDERER_WOW_LIB) $(UI_WOW_LIB) $(APP_SRCS) $(CLIENT_HEADERS) $(COMMON_HEADERS),openwow,$(WOW_CFLAGS),-lsheet -lshared -lgame-wow -lrenderer-wow -lui-wow $(LIBS) -lz))
 $(eval $(call app_schema,$(SC2_BINARY),$(SHARED_LIB) $(SHEET_LIB) $(GAME_SC2_LIB) $(RENDERER_SC2_LIB) $(UI_LIB) $(APP_SRCS) $(CLIENT_HEADERS),opensc2,$(SC2_CFLAGS),-lsheet -lshared -lgame-sc2 -lrenderer-sc2 -lui $(LIBS) -lz))
