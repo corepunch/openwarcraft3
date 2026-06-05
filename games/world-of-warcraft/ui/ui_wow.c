@@ -626,7 +626,7 @@ static void UIWow_DrawLoadingScreen(void) {
     }
 
     if (wow_ui.bar_background) {
-        wow_ui.renderer->DrawImage(wow_ui.bar_background, &bar_border, &uv, COLOR32_WHITE);
+        wow_ui.renderer->DrawImage(wow_ui.bar_background, &bar, &uv, COLOR32_WHITE);
     }
     if (wow_ui.bar_fill) {
         bar_fill.w *= progress;
@@ -637,7 +637,13 @@ static void UIWow_DrawLoadingScreen(void) {
         }
     }
     if (wow_ui.bar_glow) {
-        wow_ui.renderer->DrawImage(wow_ui.bar_glow, &bar_border, &uv, MAKE(COLOR32, 255, 255, 255, 200));
+        wow_ui.renderer->DrawImageEx(&MAKE(drawImage_t,
+                                           .texture = wow_ui.bar_glow,
+                                           .screen = bar_border,
+                                           .uv = uv,
+                                           .color = MAKE(COLOR32, 255, 255, 255, 200),
+                                           .shader = SHADER_UI,
+                                           .alphamode = BLEND_MODE_ADD));
     }
     if (wow_ui.bar_glass) {
         wow_ui.renderer->DrawImage(wow_ui.bar_glass, &bar_border, &uv, COLOR32_WHITE);

@@ -598,26 +598,78 @@ static void AddDisplayInfoListToOutfit(m2ToolWowOutfit_t *outfit,
     }
 }
 
-static void ApplyEquipmentKits(m2ToolWowOutfit_t *outfit,
-                               m2ToolDbc_t const *item_display_info,
-                               DWORD equipment) {
-    static DWORD const horde_plate_upper[] = { 27274 };
-    static DWORD const horde_plate_lower[] = { 27275 };
-    static DWORD const horde_plate_extremities[] = { 27271, 27270 };
-    wowEquipment_t kits = Wow_UnpackEquipment(equipment);
+typedef struct {
+    DWORD display_ids[4];
+} m2ToolEquipmentItem_t;
 
-    if (!outfit || !item_display_info) {
+typedef struct {
+    DWORD race_id;
+    DWORD gender_id;
+    m2ToolEquipmentItem_t items[256];
+} m2ToolEquipmentSlotItems_t;
+
+static m2ToolEquipmentItem_t const *EquipmentSlotItem(m2ToolEquipmentSlotItems_t const *lists,
+                                                      DWORD list_count,
+                                                      DWORD race_id,
+                                                      DWORD gender_id,
+                                                      BYTE item_index) {
+    FOR_LOOP(i, list_count) {
+        if (lists[i].race_id == race_id && lists[i].gender_id == gender_id) {
+            return &lists[i].items[item_index];
+        }
+    }
+    return NULL;
+}
+
+static void AddEquipmentItemToOutfit(m2ToolWowOutfit_t *outfit,
+                                     m2ToolDbc_t const *item_display_info,
+                                     m2ToolEquipmentSlotItems_t const *lists,
+                                     DWORD list_count,
+                                     DWORD race_id,
+                                     DWORD gender_id,
+                                     BYTE item_index) {
+    m2ToolEquipmentItem_t const *item = EquipmentSlotItem(lists, list_count, race_id, gender_id, item_index);
+
+    if (!outfit || !item_display_info || !item) {
         return;
     }
-    if (kits.upperBodyKit == WOW_EQUIPMENT_KIT_HORDE_PLATE) {
-        AddDisplayInfoListToOutfit(outfit, item_display_info, horde_plate_upper, 1);
-    }
-    if (kits.lowerBodyKit == WOW_EQUIPMENT_KIT_HORDE_PLATE) {
-        AddDisplayInfoListToOutfit(outfit, item_display_info, horde_plate_lower, 1);
-    }
-    if (kits.extremityKit == WOW_EQUIPMENT_KIT_HORDE_PLATE) {
-        AddDisplayInfoListToOutfit(outfit, item_display_info, horde_plate_extremities, 2);
-    }
+    AddDisplayInfoListToOutfit(outfit,
+                               item_display_info,
+                               item->display_ids,
+                               sizeof(item->display_ids) / sizeof(item->display_ids[0]));
+}
+
+static void ApplyEquipmentItems(m2ToolWowOutfit_t *outfit,
+                                m2ToolDbc_t const *item_display_info,
+                                DWORD race_id,
+                                DWORD gender_id,
+                                DWORD equipment) {
+    static m2ToolEquipmentSlotItems_t const upper_body_items[] = {
+        { 2, 0, { [1] = { { 27274, 0, 0, 0 } } } }
+    };
+    static m2ToolEquipmentSlotItems_t const lower_body_items[] = {
+        { 2, 0, { [1] = { { 27275, 0, 0, 0 } } } }
+    };
+    static m2ToolEquipmentSlotItems_t const hand_items[] = {
+        { 2, 0, { [1] = { { 27271, 0, 0, 0 } } } }
+    };
+    static m2ToolEquipmentSlotItems_t const foot_items[] = {
+        { 2, 0, { [1] = { { 27270, 0, 0, 0 } } } }
+    };
+    wowEquipment_t items = Wow_UnpackEquipment(equipment);
+
+    AddEquipmentItemToOutfit(outfit, item_display_info, upper_body_items,
+                             sizeof(upper_body_items) / sizeof(upper_body_items[0]),
+                             race_id, gender_id, items.upperBodyItem);
+    AddEquipmentItemToOutfit(outfit, item_display_info, lower_body_items,
+                             sizeof(lower_body_items) / sizeof(lower_body_items[0]),
+                             race_id, gender_id, items.lowerBodyItem);
+    AddEquipmentItemToOutfit(outfit, item_display_info, hand_items,
+                             sizeof(hand_items) / sizeof(hand_items[0]),
+                             race_id, gender_id, items.handItem);
+    AddEquipmentItemToOutfit(outfit, item_display_info, foot_items,
+                             sizeof(foot_items) / sizeof(foot_items[0]),
+                             race_id, gender_id, items.footItem);
 }
 
 static BOOL LoadWowStartOutfit(LPCSTR model_path,
@@ -656,7 +708,7 @@ static BOOL LoadWowStartOutfit(LPCSTR model_path,
         FOR_LOOP(display, 12) {
             AddDisplayInfoToOutfit(outfit, &item, DbcField(&start, record, 14 + display));
         }
-        ApplyEquipmentKits(outfit, &item, equipment);
+        ApplyEquipmentItems(outfit, &item, race_id, gender_id, equipment);
         found = true;
         break;
     }

@@ -401,16 +401,11 @@ typedef struct wowAppearance_s {
 } wowAppearance_t;
 
 typedef struct wowEquipment_s {
-    BYTE upperBodyKit;
-    BYTE lowerBodyKit;
-    BYTE extremityKit;
-    BYTE extraKit;
+    BYTE upperBodyItem;
+    BYTE lowerBodyItem;
+    BYTE handItem;
+    BYTE footItem;
 } wowEquipment_t;
-
-enum {
-    WOW_EQUIPMENT_KIT_NONE,
-    WOW_EQUIPMENT_KIT_HORDE_PLATE
-};
 
 static inline DWORD Wow_PackAppearance(BYTE skinColorID,
                                        BYTE faceID,
@@ -441,22 +436,22 @@ static inline wowAppearance_t Wow_UnpackAppearance(DWORD appearance) {
     return unpacked;
 }
 
-static inline DWORD Wow_PackEquipment(BYTE upperBodyKit,
-                                      BYTE lowerBodyKit,
-                                      BYTE extremityKit,
-                                      BYTE extraKit) {
-    return ((DWORD)upperBodyKit) |
-           ((DWORD)lowerBodyKit << 8) |
-           ((DWORD)extremityKit << 16) |
-           ((DWORD)extraKit << 24);
+static inline DWORD Wow_PackEquipment(BYTE upperBodyItem,
+                                      BYTE lowerBodyItem,
+                                      BYTE handItem,
+                                      BYTE footItem) {
+    return ((DWORD)upperBodyItem) |
+           ((DWORD)lowerBodyItem << 8) |
+           ((DWORD)handItem << 16) |
+           ((DWORD)footItem << 24);
 }
 
 static inline wowEquipment_t Wow_UnpackEquipment(DWORD equipment) {
     wowEquipment_t unpacked = {
-        .upperBodyKit = (BYTE)(equipment & 0xff),
-        .lowerBodyKit = (BYTE)((equipment >> 8) & 0xff),
-        .extremityKit = (BYTE)((equipment >> 16) & 0xff),
-        .extraKit = (BYTE)((equipment >> 24) & 0xff),
+        .upperBodyItem = (BYTE)(equipment & 0xff),
+        .lowerBodyItem = (BYTE)((equipment >> 8) & 0xff),
+        .handItem = (BYTE)((equipment >> 16) & 0xff),
+        .footItem = (BYTE)((equipment >> 24) & 0xff),
     };
     return unpacked;
 }

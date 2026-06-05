@@ -12,6 +12,12 @@ wowClient_t wow_clients[WOW_MAX_CLIENTS];
 static VECTOR2 wow_spawn_origin = { 0.0f, 0.0f };
 static char wow_loading_texture[MAX_PATHLEN] = "Interface\\Glues\\LoadingScreens\\LoadScreenEnviroment.blp";
 static char wow_loading_title[128] = "World of Warcraft";
+enum {
+    WOW_PLAYER_EQUIPMENT_UPPER_BODY = 1,
+    WOW_PLAYER_EQUIPMENT_LOWER_BODY = 1,
+    WOW_PLAYER_EQUIPMENT_HANDS = 1,
+    WOW_PLAYER_EQUIPMENT_FEET = 1
+};
 static struct {
     DWORD flags;
     FLOAT yaw;
@@ -612,13 +618,13 @@ static void Wow_InitPlayer(LPEDICT ent) {
     ent->s.model = G_RegisterModel(WOW_PLAYER_MODEL);
     ent->s.model2 = G_RegisterModel(WOW_PLAYER_WEAPON_MODEL);
     ent->s.appearance = Wow_PackAppearance(0, 0, 0, 0, 0, WOW_CLASS_WARRIOR, 0);
-    ent->s.equipment = Wow_PackEquipment(WOW_EQUIPMENT_KIT_HORDE_PLATE,
-                                         WOW_EQUIPMENT_KIT_HORDE_PLATE,
-                                         WOW_EQUIPMENT_KIT_HORDE_PLATE,
-                                         WOW_EQUIPMENT_KIT_NONE);
+    ent->s.equipment = Wow_PackEquipment(WOW_PLAYER_EQUIPMENT_UPPER_BODY,
+                                         WOW_PLAYER_EQUIPMENT_LOWER_BODY,
+                                         WOW_PLAYER_EQUIPMENT_HANDS,
+                                         WOW_PLAYER_EQUIPMENT_FEET);
     ent->s.origin = (VECTOR3){ wow_spawn_origin.x, wow_spawn_origin.y, height };
     ent->s.origin2 = (VECTOR2){ ent->s.origin.x, ent->s.origin.y };
-    ent->s.rotation = (VECTOR3){ wow_move.yaw, 0.0f, 0.0f };
+    ent->s.angle = (FLOAT)DEG2RAD(wow_move.yaw);
     ent->s.scale = 1.0f;
     ent->s.radius = 1.0f;
     ent->s.flags = EF_GROUND_ANCHOR;
@@ -756,11 +762,11 @@ static void Wow_RunFrame(void) {
         : (Wow_EntityAffectingCombat(ent)
             ? Wow_SetCombatReadyAnimation(ent)
             : Wow_SetStandMove(ent))) {
-        ent->s.rotation = (VECTOR3){ wow_move.yaw, 0.0f, 0.0f };
+        ent->s.angle = (FLOAT)DEG2RAD(wow_move.yaw);
         Wow_MovePlayerFrame(ent);
         Wow_UpdateCamera(ent);
     } else {
-        ent->s.rotation = (VECTOR3){ wow_move.yaw, 0.0f, 0.0f };
+        ent->s.angle = (FLOAT)DEG2RAD(wow_move.yaw);
         Wow_UpdateCamera(ent);
     }
     Wow_UpdatePlayerHud(ent);

@@ -27,7 +27,7 @@ static void Wow_FaceTarget(LPEDICT ent, LPEDICT target) {
         return;
     }
     local->yaw = (FLOAT)RAD2DEG(atan2f(delta.y, delta.x));
-    ent->s.rotation = (VECTOR3){ local->yaw, 0.0f, 0.0f };
+    ent->s.angle = (FLOAT)DEG2RAD(local->yaw);
 }
 
 static void Wow_AttackTimingFromAnimation(wowEntityLocal_t const *local,
@@ -209,7 +209,7 @@ void Wow_AIMove(LPEDICT ent) {
     ent->s.origin.y += delta.y * step / len;
     ent->s.origin2 = (VECTOR2){ ent->s.origin.x, ent->s.origin.y };
     local->yaw = (FLOAT)RAD2DEG(atan2f(delta.y, delta.x));
-    ent->s.rotation = (VECTOR3){ local->yaw, 0.0f, 0.0f };
+    ent->s.angle = (FLOAT)DEG2RAD(local->yaw);
     Wow_SetWalkMove(ent);
 }
 

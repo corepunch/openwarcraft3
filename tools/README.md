@@ -190,9 +190,10 @@ Useful options:
 - `--appearance <bits>` override the packed WoW appearance bits used by
   `--wow-player-config`
 - `--equipment <bits>` override the packed WoW equipment bits printed by
-  `--wow-player-config`. Equipment bytes are local kit selectors; kit `1`
-  selects a DBC-backed Horde plate preview set for upper body, lower body,
-  and extremities.
+  `--wow-player-config`. Equipment bytes are local slot item indices into
+  race/gender/slot item lists; byte value `0` means empty, while value `1`
+  currently selects DBC-backed Horde plate preview items for Orc male upper
+  body, lower body, hands, and feet.
 
 Example:
 

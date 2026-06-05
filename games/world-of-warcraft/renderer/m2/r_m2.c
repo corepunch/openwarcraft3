@@ -797,24 +797,75 @@ static void M2_AddDisplayInfoListToOutfit(m2CharacterOutfit_t *outfit,
     }
 }
 
-static void M2_ApplyEquipmentKits(m2CharacterOutfit_t *outfit, DWORD equipment) {
-    static DWORD const horde_plate_upper[] = { 27274 };
-    static DWORD const horde_plate_lower[] = { 27275 };
-    static DWORD const horde_plate_extremities[] = { 27271, 27270 };
-    wowEquipment_t kits = Wow_UnpackEquipment(equipment);
+typedef struct {
+    DWORD display_ids[4];
+} m2EquipmentItem_t;
 
-    if (!outfit) {
+typedef struct {
+    DWORD race_id;
+    DWORD gender_id;
+    m2EquipmentItem_t items[256];
+} m2EquipmentSlotItems_t;
+
+static m2EquipmentItem_t const *M2_EquipmentSlotItem(m2EquipmentSlotItems_t const *lists,
+                                                    DWORD list_count,
+                                                    DWORD race_id,
+                                                    DWORD gender_id,
+                                                    BYTE item_index) {
+    FOR_LOOP(i, list_count) {
+        if (lists[i].race_id == race_id && lists[i].gender_id == gender_id) {
+            return &lists[i].items[item_index];
+        }
+    }
+    return NULL;
+}
+
+static void M2_AddEquipmentItemToOutfit(m2CharacterOutfit_t *outfit,
+                                        m2EquipmentSlotItems_t const *lists,
+                                        DWORD list_count,
+                                        DWORD race_id,
+                                        DWORD gender_id,
+                                        BYTE item_index) {
+    m2EquipmentItem_t const *item = M2_EquipmentSlotItem(lists, list_count, race_id, gender_id, item_index);
+
+    if (!outfit || !item) {
         return;
     }
-    if (kits.upperBodyKit == WOW_EQUIPMENT_KIT_HORDE_PLATE) {
-        M2_AddDisplayInfoListToOutfit(outfit, horde_plate_upper, 1);
-    }
-    if (kits.lowerBodyKit == WOW_EQUIPMENT_KIT_HORDE_PLATE) {
-        M2_AddDisplayInfoListToOutfit(outfit, horde_plate_lower, 1);
-    }
-    if (kits.extremityKit == WOW_EQUIPMENT_KIT_HORDE_PLATE) {
-        M2_AddDisplayInfoListToOutfit(outfit, horde_plate_extremities, 2);
-    }
+    M2_AddDisplayInfoListToOutfit(outfit,
+                                  item->display_ids,
+                                  sizeof(item->display_ids) / sizeof(item->display_ids[0]));
+}
+
+static void M2_ApplyEquipmentItems(m2CharacterOutfit_t *outfit,
+                                   DWORD race_id,
+                                   DWORD gender_id,
+                                   DWORD equipment) {
+    static m2EquipmentSlotItems_t const upper_body_items[] = {
+        { 2, 0, { [1] = { { 27274, 0, 0, 0 } } } }
+    };
+    static m2EquipmentSlotItems_t const lower_body_items[] = {
+        { 2, 0, { [1] = { { 27275, 0, 0, 0 } } } }
+    };
+    static m2EquipmentSlotItems_t const hand_items[] = {
+        { 2, 0, { [1] = { { 27271, 0, 0, 0 } } } }
+    };
+    static m2EquipmentSlotItems_t const foot_items[] = {
+        { 2, 0, { [1] = { { 27270, 0, 0, 0 } } } }
+    };
+    wowEquipment_t items = Wow_UnpackEquipment(equipment);
+
+    M2_AddEquipmentItemToOutfit(outfit, upper_body_items,
+                                sizeof(upper_body_items) / sizeof(upper_body_items[0]),
+                                race_id, gender_id, items.upperBodyItem);
+    M2_AddEquipmentItemToOutfit(outfit, lower_body_items,
+                                sizeof(lower_body_items) / sizeof(lower_body_items[0]),
+                                race_id, gender_id, items.lowerBodyItem);
+    M2_AddEquipmentItemToOutfit(outfit, hand_items,
+                                sizeof(hand_items) / sizeof(hand_items[0]),
+                                race_id, gender_id, items.handItem);
+    M2_AddEquipmentItemToOutfit(outfit, foot_items,
+                                sizeof(foot_items) / sizeof(foot_items[0]),
+                                race_id, gender_id, items.footItem);
 }
 
 static BOOL M2_CharacterStartOutfit(LPCSTR model_path,
@@ -855,8 +906,13 @@ static BOOL M2_CharacterStartOutfit(LPCSTR model_path,
 static m2CharacterOutfit_t const *M2_CharacterOutfitForEntity(m2Model_t const *model,
                                                               renderEntity_t const *entity) {
     m2Model_t *mutable_model;
+    DWORD race_id;
+    DWORD gender_id;
 
     if (!model || !entity || !model->character_model) {
+        return NULL;
+    }
+    if (!M2_CharacterRaceGender(model->filename, &race_id, &gender_id)) {
         return NULL;
     }
 
@@ -874,7 +930,7 @@ static m2CharacterOutfit_t const *M2_CharacterOutfitForEntity(m2Model_t const *m
     if (!M2_CharacterStartOutfit(model->filename, entity->appearance, &mutable_model->character_outfit)) {
         return NULL;
     }
-    M2_ApplyEquipmentKits(&mutable_model->character_outfit, entity->equipment);
+    M2_ApplyEquipmentItems(&mutable_model->character_outfit, race_id, gender_id, entity->equipment);
     mutable_model->character_outfit_valid = true;
     return &mutable_model->character_outfit;
 }
