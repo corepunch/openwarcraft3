@@ -7,6 +7,7 @@
 #define SC2_DEFAULT_MAP_WIDTH  96
 #define SC2_DEFAULT_MAP_HEIGHT 96
 #define SC2_CELL_SIZE          1.0f
+#define SC2_MAX_TERRAIN_TEXTURES 16
 
 typedef enum {
     SC2_OBJECT_UNIT,
@@ -24,6 +25,11 @@ typedef struct {
 } sc2MapObject_t;
 
 typedef struct {
+    char           diffuse[256];
+    char           normal[256];
+} sc2TerrainTexture_t;
+
+typedef struct {
     char           map_name[128];
     DWORD          width;
     DWORD          height;
@@ -32,6 +38,18 @@ typedef struct {
     BOOL           generated;
     DWORD          num_objects;
     sc2MapObject_t objects[SC2_MAX_MAP_OBJECTS];
+    DWORD          num_terrain_textures;
+    sc2TerrainTexture_t terrain_textures[SC2_MAX_TERRAIN_TEXTURES];
+    DWORD          texture_mask_width;
+    DWORD          texture_mask_height;
+    DWORD          num_texture_masks;
+    LPBYTE         texture_masks[SC2_MAX_TERRAIN_TEXTURES];
+    DWORD          cell_flags_width;
+    DWORD          cell_flags_height;
+    LPBYTE         cell_flags;
+    DWORD          cliff_level_width;
+    DWORD          cliff_level_height;
+    USHORT        *cliff_levels;
 } sc2Map_t;
 
 typedef struct {
