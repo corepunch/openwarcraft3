@@ -52,49 +52,52 @@ static uiWowState_t wow_ui;
 
 static char const wow_default_hud_lua[] =
 "local W = ow3\n"
+"local VW, VH = 1024, 768\n"
+"local function px(x, y, w, h) return x / VW, y / VH, w / VW, h / VH end\n"
+"local function image(path, x, y, w, h) W.draw_image(path, px(x, y, w, h)) end\n"
+"local function image_uv(path, x, y, w, h, l, r, t, b) W.draw_image_uv(path, x / VW, y / VH, w / VW, h / VH, l, r, t, b) end\n"
+"local function icon(index, x, y, w, h) if index and index > 0 then W.draw_image_index(index, px(x, y, w, h)) end end\n"
 "local function bar(x, y, w, h, value, maxvalue, r, g, b)\n"
-"    W.draw_color(x, y, w, h, 12, 10, 8, 220)\n"
+"    W.draw_color(x / VW, y / VH, w / VW, h / VH, 12, 10, 8, 220)\n"
 "    local p = maxvalue > 0 and value / maxvalue or 0\n"
 "    if p < 0 then p = 0 elseif p > 1 then p = 1 end\n"
-"    W.draw_color(x + 0.002, y + 0.003, (w - 0.004) * p, h - 0.006, r, g, b, 235)\n"
+"    W.draw_color((x + 2) / VW, (y + 2) / VH, ((w - 4) * p) / VW, (h - 4) / VH, r, g, b, 235)\n"
 "end\n"
 "local function text(text, x, y, w, h, size, r, g, b, a, align)\n"
-"    W.draw_text(text or '', x, y, w, h, size, r, g, b, a or 255, align or 'left')\n"
+"    W.draw_text(text or '', x / VW, y / VH, w / VW, h / VH, size, r, g, b, a or 255, align or 'left')\n"
+"end\n"
+"local function action_button(action, x, y)\n"
+"    image('Interface\\\\Buttons\\\\UI-Quickslot2.blp', x - 14, y - 13, 64, 64)\n"
+"    icon(action and action.image, x + 2, y + 2, 32, 32)\n"
+"    if action and action.count and action.count > 1 then text(tostring(action.count), x + 2, y + 23, 32, 10, 10, 255, 255, 255, 255, 'right') end\n"
 "end\n"
 "function ow3_draw()\n"
 "    local p = W.player()\n"
-"    W.draw_image('Interface\\\\TargetingFrame\\\\UI-PlayerFrame.blp', 0.018, 0.018, 0.245, 0.118)\n"
-"    text(p.name, 0.079, 0.030, 0.125, 0.021, 14, 255, 215, 120, 255)\n"
-"    text('Lvl ' .. p.level, 0.078, 0.051, 0.050, 0.017, 11, 235, 225, 190, 255)\n"
-"    bar(0.079, 0.071, 0.142, 0.013, p.health, p.healthMax, 20, 178, 48)\n"
-"    bar(0.079, 0.087, 0.142, 0.012, p.power, p.powerMax, 26, 82, 210)\n"
-"    W.draw_image('Interface\\\\MainMenuBar\\\\UI-MainMenuBar.blp', 0.250, 0.875, 0.500, 0.108)\n"
+"    W.draw_image_uv('Interface\\\\TargetingFrame\\\\UI-TargetingFrame.blp', -19 / VW, 4 / VH, 232 / VW, 100 / VH, 1.0, 0.09375, 0, 0.78125, 96, 92, 84, 230)\n"
+"    W.draw_color(87 / VW, 22 / VH, 119 / VW, 41 / VH, 0, 0, 0, 128)\n"
+"    text(p.name, 72, 18, 100, 12, 13, 255, 215, 120, 255, 'center')\n"
+"    text('Lvl ' .. p.level, 24, 58, 42, 12, 11, 235, 225, 190, 255, 'center')\n"
+"    bar(105, 41, 119, 12, p.health, p.healthMax, 20, 178, 48)\n"
+"    bar(105, 54, 119, 11, p.power, p.powerMax, 26, 82, 210)\n"
+"    image_uv('Interface\\\\MainMenuBar\\\\UI-MainMenuBar-Dwarf.blp', 0, 715, 256, 53, 0, 1.0, 0.79296875, 1.0)\n"
+"    image_uv('Interface\\\\MainMenuBar\\\\UI-MainMenuBar-Dwarf.blp', 256, 715, 256, 53, 0, 1.0, 0.54296875, 0.75)\n"
+"    image_uv('Interface\\\\MainMenuBar\\\\UI-MainMenuBar-Dwarf.blp', 512, 715, 256, 53, 0, 1.0, 0.29296875, 0.5)\n"
+"    image_uv('Interface\\\\MainMenuBar\\\\UI-MainMenuBar-Dwarf.blp', 768, 715, 256, 53, 0, 1.0, 0.04296875, 0.25)\n"
+"    image('Interface\\\\MainMenuBar\\\\UI-MainMenuBar-EndCap-Dwarf.blp', -96, 640, 128, 128)\n"
+"    image_uv('Interface\\\\MainMenuBar\\\\UI-MainMenuBar-EndCap-Dwarf.blp', 992, 640, 128, 128, 1.0, 0.0, 0.0, 1.0)\n"
 "    local actions = W.actions()\n"
-"    local slot, gap = 0.038, 0.004\n"
-"    local x0 = (1.0 - (slot * 12 + gap * 11)) * 0.5\n"
 "    for i = 0, 11 do\n"
-"        local x = x0 + i * (slot + gap)\n"
-"        W.draw_image('Interface\\\\Buttons\\\\UI-Quickslot2.blp', x, 0.910, slot, slot)\n"
-"        local action = actions[i + 1]\n"
-"        if action and action.image and action.image > 0 then\n"
-"            W.draw_image_index(action.image, x + 0.004, 0.914, slot - 0.008, slot - 0.008)\n"
-"        end\n"
+"        action_button(actions[i + 1], 8 + i * 42, 728)\n"
 "    end\n"
-"    local inv = W.inventory()\n"
-"    for i = 0, 5 do\n"
-"        local item = inv[i + 1]\n"
-"        local x = 0.760 + (i % 3) * 0.034\n"
-"        local y = 0.808 + math.floor(i / 3) * 0.034\n"
-"        W.draw_image('Interface\\\\Buttons\\\\UI-Quickslot2.blp', x, y, 0.032, 0.032)\n"
-"        if item and item.image and item.image > 0 then\n"
-"            W.draw_image_index(item.image, x + 0.003, y + 0.003, 0.026, 0.026)\n"
-"        end\n"
+"    for i = 0, 3 do\n"
+"        action_button(nil, 939 - i * 42, 728)\n"
 "    end\n"
-"    W.draw_image('Interface\\\\Minimap\\\\UI-Minimap-Border.blp', 0.858, 0.018, 0.124, 0.124)\n"
-"    W.draw_minimap(0.875, 0.036, 0.088, 0.088)\n"
-"    W.draw_image('Interface\\\\QuestFrame\\\\UI-QuestLog-BookIcon.blp', 0.825, 0.197, 0.030, 0.030)\n"
-"    text('Quests', 0.860, 0.199, 0.110, 0.020, 13, 255, 215, 120, 255)\n"
-"    text('Copper ' .. p.copper, 0.785, 0.900, 0.095, 0.020, 12, 255, 210, 100, 255, 'right')\n"
+"    image('Interface\\\\Buttons\\\\Button-Backpack-Up.blp', 981, 729, 37, 37)\n"
+"    image('Interface\\\\Minimap\\\\UI-Minimap-Border.blp', 879, 8, 128, 128)\n"
+"    W.draw_minimap(896 / VW, 25 / VH, 91 / VW, 91 / VH)\n"
+"    image('Interface\\\\QuestFrame\\\\UI-QuestLog-BookIcon.blp', 840, 162, 32, 32)\n"
+"    text('Quests', 876, 164, 110, 20, 13, 255, 215, 120, 255)\n"
+"    text('Copper ' .. p.copper, 816, 704, 150, 20, 12, 255, 210, 100, 255, 'right')\n"
 "end\n";
 
 static LPCSTR UIWow_DefaultLoadingBackground(void) {
@@ -231,6 +234,24 @@ static int UIWow_LuaDrawImage(lua_State *L) {
     RECT screen = UIWow_LuaRect(L, 2);
     RECT uv = MAKE(RECT, 0, 0, 1, 1);
     COLOR32 color = UIWow_LuaColor(L, 6, COLOR32_WHITE);
+    LPTEXTURE texture = UIWow_LoadTexture(name);
+
+    if (wow_ui.renderer && texture) {
+        wow_ui.renderer->DrawImage(texture, &screen, &uv, color);
+    }
+    lua_pushboolean(L, texture != NULL);
+    return 1;
+}
+
+static int UIWow_LuaDrawImageUV(lua_State *L) {
+    LPCSTR name = luaL_checkstring(L, 1);
+    RECT screen = UIWow_LuaRect(L, 2);
+    FLOAT left = (FLOAT)luaL_checknumber(L, 6);
+    FLOAT right = (FLOAT)luaL_checknumber(L, 7);
+    FLOAT top = (FLOAT)luaL_checknumber(L, 8);
+    FLOAT bottom = (FLOAT)luaL_checknumber(L, 9);
+    RECT uv = MAKE(RECT, left, top, right - left, bottom - top);
+    COLOR32 color = UIWow_LuaColor(L, 10, COLOR32_WHITE);
     LPTEXTURE texture = UIWow_LoadTexture(name);
 
     if (wow_ui.renderer && texture) {
@@ -406,6 +427,7 @@ static int UIWow_LuaCommand(lua_State *L) {
 
 static luaL_Reg const wow_lua_funcs[] = {
     { "draw_image", UIWow_LuaDrawImage },
+    { "draw_image_uv", UIWow_LuaDrawImageUV },
     { "draw_image_index", UIWow_LuaDrawImageIndex },
     { "draw_color", UIWow_LuaDrawColor },
     { "draw_minimap", UIWow_LuaDrawMinimap },

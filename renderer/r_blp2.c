@@ -95,6 +95,8 @@ LPCOLOR32 blp2_convert(HANDLE buffer, DWORD filesize, struct tBLP2Header* pBLPIn
             pDst = blp2_convert_raw_bgra(pSrc, pBLPInfos, width, height);
             break;
         case BLP_FORMAT_DXT1_NO_ALPHA:
+            pDst = blp2_convert_dxt(pSrc, pBLPInfos, width, height, 0);
+            break;
         case BLP_FORMAT_DXT1_ALPHA_1:
         case BLP_FORMAT_DXT3_NO_ALPHA:
             pDst = blp2_convert_dxt(pSrc, pBLPInfos, width, height, 1);
@@ -347,7 +349,9 @@ LPCOLOR32 blp2_convert_dxt(BYTE* pSrc, struct tBLP2Header* pHeader, DWORD width,
                 FOR_LOOP(px, 4) {
                     DWORD i = py * 4 + px;
                     COLOR32 color = colors[(indices >> (2 * i)) & 3];
-                    color.a = alpha[i];
+                    if (format != 1) {
+                        color.a = alpha[i];
+                    }
                     blp2_dxt_write_pixel(pixels, width, height, bx * 4 + px, by * 4 + py, color);
                 }
             }

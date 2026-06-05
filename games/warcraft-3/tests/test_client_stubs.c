@@ -71,10 +71,6 @@ void CL_ParseTEnt(LPSIZEBUF msg) {
     (void)msg;
 }
 
-void CL_ParseUnitUI(LPSIZEBUF msg) {
-    (void)msg;
-}
-
 void CL_BeginLoadingMap(LPCSTR mapName) {
     snprintf(cl.loading_map, sizeof(cl.loading_map), "%s", mapName ? mapName : "");
     cl.loading_status[0] = '\0';

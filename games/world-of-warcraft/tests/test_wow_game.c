@@ -440,6 +440,9 @@ static void test_wow_load_map_initializes_player_state(void) {
     ASSERT_EQ_INT((int)player->client->ps.stats[WOW_STAT_HEALTH_MAX], 100);
     ASSERT_EQ_INT((int)player->client->ps.stats[WOW_STAT_POWER], 42);
     ASSERT_EQ_INT((int)test_num_images, 0);
+    ASSERT_EQ_INT((int)test_unicast_calls, 0);
+    ASSERT_NOT_NULL(game->ClientBegin);
+    game->ClientBegin(player);
     ASSERT(test_unicast_calls > 0);
     assert_player_ui_payload();
     ASSERT_STR_EQ(player->client->ps.texts[PLAYERTEXT_MAP_TITLE], "Elwynn Test");
