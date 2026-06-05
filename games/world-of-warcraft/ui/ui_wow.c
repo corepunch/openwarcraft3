@@ -7,7 +7,7 @@
 
 #define WOW_UI_MAX_TEXTURES 256
 #define WOW_UI_MAX_FONTS 16
-#define WOW_UI_SCRIPT "Interface\\FrameXML\\OpenWarcraft3HUD.lua"
+#define WOW_UI_SCRIPT "Interface\\FrameXML\\UIParent.lua"
 
 static uiImport_t uiimport;
 

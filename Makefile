@@ -214,6 +214,6 @@ test-wow-assets: blpgen mpqtool | $(TESTS_DIR)
 	$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(WOW_TEST_MPQ) pack "$$@"
 	@echo "[test-wow-assets] verifying archive"
 	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(WOW_TEST_MPQ) cat Interface/Test/LuaPanel.blp | head -c4 | grep -q "BLP2" && echo "  cat panel OK"
-	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(WOW_TEST_MPQ) cat Interface/FrameXML/OpenWarcraft3HUD.lua | grep -q "wow_lua_test" && echo "  cat lua OK"
+	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(WOW_TEST_MPQ) cat Interface/FrameXML/UIParent.lua | grep -q "wow_lua_test" && echo "  cat lua OK"
 
 .PHONY: default build shared tools font $(TOOL_NAMES) diag clean download renderer-wow game-wow ui-wow openwow renderer-sc2 game-sc2 opensc2 test-wow-appearance test-wow-combat test-wow-game test-wow-ui test-wow-assets $(WC3_PHONY)
