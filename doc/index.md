@@ -113,7 +113,7 @@ SDL2 Input  →  Client (cl_main.c)  →  UDP socket  →  Server (sv_main.c)
 ```
 
 See the [Network Architecture](architecture/network.md) page for the full design, wire format, and CLI reference. See [Runtime Modules and Cvars](architecture/runtime.md) for config files, module cvars, and stdout renderer diagnostics.
-See [Ability Coverage](architecture/ability-coverage.md) for the current game-side ability registry and reference parity checklist, and [ROC Ability Checklist](architecture/roc-ability-checklist.md) for the Reign of Chaos ability list.
+See [Ability Coverage](games/warcraft-3/docs/architecture/ability-coverage.md) for the current game-side ability registry and reference parity checklist, and [ROC Ability Checklist](games/warcraft-3/docs/architecture/roc-ability-checklist.md) for the Reign of Chaos ability list.
 
 ### Runtime Configuration
 

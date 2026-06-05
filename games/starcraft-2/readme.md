@@ -48,3 +48,5 @@ There is no polished run target yet. Direct runs should be treated as developmen
 ## Notes
 
 This target expects locally supplied StarCraft II data for real asset experiments. Original assets, names, and game data belong to Blizzard Entertainment. The directory is here so the engine can grow beyond one asset format without pretending the SC2 game is already built.
+
+Map-format research notes live in [docs/readme.md](docs/readme.md).
