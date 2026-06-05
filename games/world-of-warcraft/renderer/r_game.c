@@ -13,6 +13,7 @@ void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, LPCMAT
 BOOL M2_AttachmentMatrix(m2Model_t const *model, DWORD attachment_id, LPCMATRIX4 model_matrix, LPMATRIX4 out);
 FLOAT M2_GroundOffset(m2Model_t const *model);
 void M2_Release(m2Model_t *model);
+void M2_Shutdown(void);
 
 static BOOL R_GamePathHasExtension(LPCSTR path, LPCSTR extension) {
     size_t pathLen;
@@ -36,6 +37,7 @@ void R_GameInit(void) {
 }
 
 void R_GameShutdown(void) {
+    M2_Shutdown();
 }
 
 void R_GameSetupTextureMatrix(void) {

@@ -1,4 +1,5 @@
-#include "tools/tool_common.h"
+#include "tools/viewer_common.h"
+#include "client/tr_public.h"
 
 #include <ctype.h>
 #include <stdarg.h>
@@ -248,21 +249,32 @@ static HANDLE archives[64] = { 0 };
 static LPCSTR g_model_path = NULL;
 static LPCSTR g_skin_path = NULL;
 static LPCSTR g_anim_check = NULL;
+static bool g_info_only = false;
 static bool g_dump_all = false;
+static bool g_wow_player_config = false;
+static bool g_wow_player_config_only = false;
+static bool g_run_once = false;
+static DWORD g_wow_appearance = (1u << 23); /* Wow_PackAppearance(..., WOW_CLASS_WARRIOR, ...) */
+static DWORD g_wow_equipment = 0;
+static viewer_orbit_t g_orbit;
+static float g_preview_scale = 1.0f;
 
 static void usage(void) {
     fprintf(stderr,
             "Usage:\n"
-            "  m2tool -mpq <archive.mpq> -model <file.m2|file.mdx> [--skin <file00.skin>] [--info] [--dump-all] [--anim <name|index>]\n"
+            "  m2tool -mpq <archive.mpq> -model <file.m2|file.mdx> [--viewer] [--once] [--skin <file00.skin>] [--info] [--dump-all] [--anim <name|index>] [--wow-player-config] [--wow-player-config-only] [--appearance <bits>] [--equipment <bits>]\n"
             "\n"
             "Examples:\n"
             "  m2tool -mpq data/world-of-warcraft/installed/Data/model.MPQ -model \"Character\\\\Orc\\\\Male\\\\OrcMale.m2\"\n"
-            "  m2tool -mpq data/world-of-warcraft/installed/Data/model.MPQ -model \"Character\\\\Orc\\\\Male\\\\OrcMale.m2\" --dump-all\n"
+            "  m2tool -mpq data/world-of-warcraft/installed/Data/model.MPQ -model \"Character\\\\Orc\\\\Male\\\\OrcMale.m2\" --info\n"
+            "  m2tool -mpq data/world-of-warcraft/installed/Data/model.MPQ -mpq data/world-of-warcraft/installed/Data/dbc.MPQ -mpq data/world-of-warcraft/installed/Data/texture.MPQ -model \"Character\\\\Orc\\\\Male\\\\OrcMale.m2\" --wow-player-config-only\n"
             "\n"
             "Notes:\n"
-            "  --info is the default; it prints header arrays, bounds, vertex bounds, textures, and skin counts.\n"
+            "  Viewer mode is the default, matching mdxtool.\n"
+            "  --info prints header arrays, bounds, vertex bounds, textures, and skin counts, then exits.\n"
             "  --dump-all additionally prints animation rows and texture rows.\n"
-            "  --anim prints per-sequence bone track diagnostics for a named or numeric animation.\n");
+            "  --anim prints per-sequence bone track diagnostics for a named or numeric animation.\n"
+            "  --wow-player-config-only prints only the in-game WoW character outfit/geoset configuration.\n");
 }
 
 static void errorf(LPCSTR fmt, ...) {
@@ -272,6 +284,15 @@ static void errorf(LPCSTR fmt, ...) {
     fprintf(stderr, "\n");
     va_end(ap);
     exit(1);
+}
+
+static void Tool_DrawString(refExport_t const *re, LPCSTR string, int x, int y) {
+    if (!re || !string) {
+        return;
+    }
+    for (DWORD i = 0; string[i]; i++) {
+        re->DrawChar(x + (int)i * 8, y, (BYTE)string[i]);
+    }
 }
 
 static BOOL PathHasExtension(LPCSTR path, LPCSTR extension) {
@@ -352,6 +373,321 @@ static LPBYTE ReadWholeFile(LPCSTR path, LPDWORD out_size, LPSTR resolved, DWORD
     Tool_CloseFile(file);
     *out_size = size;
     return data;
+}
+
+enum {
+    M2TOOL_CHAR_TEX_UPPER_ARM,
+    M2TOOL_CHAR_TEX_LOWER_ARM,
+    M2TOOL_CHAR_TEX_HAND,
+    M2TOOL_CHAR_TEX_UPPER_TORSO,
+    M2TOOL_CHAR_TEX_LOWER_TORSO,
+    M2TOOL_CHAR_TEX_UPPER_LEG,
+    M2TOOL_CHAR_TEX_LOWER_LEG,
+    M2TOOL_CHAR_TEX_FOOT,
+    M2TOOL_CHAR_TEX_COUNT
+};
+
+typedef struct {
+    LPBYTE data;
+    DWORD size;
+    DWORD records;
+    DWORD fields;
+    DWORD record_size;
+    DWORD string_size;
+    BYTE const *records_base;
+    BYTE const *strings_base;
+} m2ToolDbc_t;
+
+typedef struct {
+    LPCSTR texture[M2TOOL_CHAR_TEX_COUNT];
+    DWORD geoset_group[3];
+    DWORD flags;
+    DWORD display_ids[12];
+    DWORD display_count;
+} m2ToolWowOutfit_t;
+
+static DWORD Read32LE(BYTE const *p) {
+    return ((DWORD)p[0]) | ((DWORD)p[1] << 8) | ((DWORD)p[2] << 16) | ((DWORD)p[3] << 24);
+}
+
+static BOOL LoadDbc(LPCSTR filename, m2ToolDbc_t *dbc) {
+    PATHSTR resolved = { 0 };
+    DWORD size = 0;
+
+    if (!filename || !dbc) {
+        return false;
+    }
+    memset(dbc, 0, sizeof(*dbc));
+    dbc->data = ReadWholeFile(filename, &size, resolved, sizeof(resolved));
+    if (!dbc->data || size <= 20 || memcmp(dbc->data, "WDBC", 4)) {
+        SAFE_DELETE(dbc->data, Tool_MemFree);
+        return false;
+    }
+    dbc->size = size;
+    dbc->records = Read32LE(dbc->data + 4);
+    dbc->fields = Read32LE(dbc->data + 8);
+    dbc->record_size = Read32LE(dbc->data + 12);
+    dbc->string_size = Read32LE(dbc->data + 16);
+    if (!dbc->fields || dbc->record_size < sizeof(DWORD) ||
+        20 + dbc->records * dbc->record_size + dbc->string_size > dbc->size) {
+        SAFE_DELETE(dbc->data, Tool_MemFree);
+        return false;
+    }
+    dbc->records_base = dbc->data + 20;
+    dbc->strings_base = dbc->records_base + dbc->records * dbc->record_size;
+    return true;
+}
+
+static void FreeDbc(m2ToolDbc_t *dbc) {
+    if (!dbc) {
+        return;
+    }
+    SAFE_DELETE(dbc->data, Tool_MemFree);
+    memset(dbc, 0, sizeof(*dbc));
+}
+
+static DWORD DbcField(m2ToolDbc_t const *dbc, BYTE const *record, DWORD field) {
+    if (!dbc || !record || field >= dbc->fields || field * sizeof(DWORD) + sizeof(DWORD) > dbc->record_size) {
+        return 0;
+    }
+    return Read32LE(record + field * sizeof(DWORD));
+}
+
+static LPCSTR DbcString(m2ToolDbc_t const *dbc, DWORD offset) {
+    if (!dbc || !dbc->data || offset == 0 || offset >= dbc->string_size) {
+        return NULL;
+    }
+    return (LPCSTR)(dbc->strings_base + offset);
+}
+
+static BYTE const *DbcFindID(m2ToolDbc_t const *dbc, DWORD wanted_id) {
+    if (!dbc || !dbc->data) {
+        return NULL;
+    }
+    FOR_LOOP(i, dbc->records) {
+        BYTE const *record = dbc->records_base + i * dbc->record_size;
+        if (DbcField(dbc, record, 0) == wanted_id) {
+            return record;
+        }
+    }
+    return NULL;
+}
+
+static BOOL CharacterRaceGender(LPCSTR model_path, DWORD *race_id, DWORD *gender_id) {
+    LPCSTR character;
+    LPCSTR race;
+    LPCSTR gender;
+    char race_buf[64];
+    char gender_buf[64];
+    size_t len;
+
+    if (!model_path || !race_id || !gender_id) {
+        return false;
+    }
+    character = strcasestr(model_path, "Character\\");
+    if (!character) {
+        character = strcasestr(model_path, "Character/");
+    }
+    if (!character) {
+        return false;
+    }
+    race = character + strlen("Character\\");
+    gender = strpbrk(race, "\\/");
+    if (!gender) {
+        return false;
+    }
+    len = (size_t)(gender - race);
+    if (len == 0 || len >= sizeof(race_buf)) {
+        return false;
+    }
+    memcpy(race_buf, race, len);
+    race_buf[len] = '\0';
+
+    gender++;
+    len = strcspn(gender, "\\/.");
+    if (len == 0 || len >= sizeof(gender_buf)) {
+        return false;
+    }
+    memcpy(gender_buf, gender, len);
+    gender_buf[len] = '\0';
+
+    if (!strcasecmp(race_buf, "Human")) *race_id = 1;
+    else if (!strcasecmp(race_buf, "Orc")) *race_id = 2;
+    else if (!strcasecmp(race_buf, "Dwarf")) *race_id = 3;
+    else if (!strcasecmp(race_buf, "NightElf")) *race_id = 4;
+    else if (!strcasecmp(race_buf, "Scourge") || !strcasecmp(race_buf, "Undead")) *race_id = 5;
+    else if (!strcasecmp(race_buf, "Tauren")) *race_id = 6;
+    else if (!strcasecmp(race_buf, "Gnome")) *race_id = 7;
+    else if (!strcasecmp(race_buf, "Troll")) *race_id = 8;
+    else if (!strcasecmp(race_buf, "BloodElf")) *race_id = 10;
+    else if (!strcasecmp(race_buf, "Draenei")) *race_id = 11;
+    else return false;
+
+    if (!strcasecmp(gender_buf, "Male")) *gender_id = 0;
+    else if (!strcasecmp(gender_buf, "Female")) *gender_id = 1;
+    else return false;
+    return true;
+}
+
+static BYTE WowClassFromAppearance(DWORD appearance) {
+    BYTE class_id = (BYTE)((appearance >> 23) & 0x0f);
+    return class_id ? class_id : 1;
+}
+
+static DWORD ItemDisplayInfoTextureBase(m2ToolDbc_t const *dbc) {
+    if (!dbc) {
+        return 0;
+    }
+    if (dbc->fields >= 25) {
+        return 15;
+    }
+    return dbc->fields >= 22 ? 14 : 0;
+}
+
+static DWORD ItemDisplayInfoGeosetBase(m2ToolDbc_t const *dbc) {
+    return dbc && dbc->fields >= 25 ? 7 : 6;
+}
+
+static DWORD ItemDisplayInfoFlagsField(m2ToolDbc_t const *dbc) {
+    return dbc && dbc->fields >= 25 ? 10 : 9;
+}
+
+static void AddDisplayInfoToOutfit(m2ToolWowOutfit_t *outfit,
+                                   m2ToolDbc_t const *item_display_info,
+                                   DWORD display_id) {
+    BYTE const *record;
+    DWORD texture_base;
+    DWORD geoset_base;
+    DWORD flags_field;
+
+    if (!outfit || !item_display_info || display_id == 0 || display_id == 0xffffffffu) {
+        return;
+    }
+    record = DbcFindID(item_display_info, display_id);
+    if (!record) {
+        return;
+    }
+    if (outfit->display_count < sizeof(outfit->display_ids) / sizeof(outfit->display_ids[0])) {
+        outfit->display_ids[outfit->display_count++] = display_id;
+    }
+
+    texture_base = ItemDisplayInfoTextureBase(item_display_info);
+    geoset_base = ItemDisplayInfoGeosetBase(item_display_info);
+    flags_field = ItemDisplayInfoFlagsField(item_display_info);
+    FOR_LOOP(i, 3) {
+        DWORD geoset_group = DbcField(item_display_info, record, geoset_base + i);
+        if (geoset_group) {
+            outfit->geoset_group[i] = geoset_group;
+        }
+    }
+    outfit->flags |= DbcField(item_display_info, record, flags_field);
+    FOR_LOOP(i, M2TOOL_CHAR_TEX_COUNT) {
+        LPCSTR texture = DbcString(item_display_info, DbcField(item_display_info, record, texture_base + i));
+        if (texture && *texture) {
+            outfit->texture[i] = texture;
+        }
+    }
+}
+
+static BOOL LoadWowStartOutfit(LPCSTR model_path, DWORD appearance, m2ToolWowOutfit_t *outfit) {
+    m2ToolDbc_t start = { 0 };
+    m2ToolDbc_t item = { 0 };
+    DWORD race_id;
+    DWORD gender_id;
+    DWORD class_id;
+    BOOL found = false;
+
+    if (!model_path || !outfit || !CharacterRaceGender(model_path, &race_id, &gender_id)) {
+        return false;
+    }
+    memset(outfit, 0, sizeof(*outfit));
+    class_id = WowClassFromAppearance(appearance);
+    if (!LoadDbc("DBFilesClient\\CharStartOutfit.dbc", &start) ||
+        !LoadDbc("DBFilesClient\\ItemDisplayInfo.dbc", &item)) {
+        FreeDbc(&start);
+        FreeDbc(&item);
+        return false;
+    }
+
+    FOR_LOOP(i, start.records) {
+        BYTE const *record = start.records_base + i * start.record_size;
+        DWORD race_class_gender = DbcField(&start, record, 1);
+        DWORD record_race = race_class_gender & 0xff;
+        DWORD record_class = (race_class_gender >> 8) & 0xff;
+        DWORD record_gender = (race_class_gender >> 16) & 0xff;
+
+        if (record_race != race_id || record_class != class_id || record_gender != gender_id) {
+            continue;
+        }
+        FOR_LOOP(display, 12) {
+            AddDisplayInfoToOutfit(outfit, &item, DbcField(&start, record, 14 + display));
+        }
+        found = true;
+        break;
+    }
+
+    FreeDbc(&start);
+    FreeDbc(&item);
+    return found;
+}
+
+static BOOL ComponentTexturePath(LPCSTR stem, BYTE slot, LPCSTR model_path, LPSTR out, DWORD out_size) {
+    static LPCSTR const folders[M2TOOL_CHAR_TEX_COUNT] = {
+        "ArmUpperTexture",
+        "ArmLowerTexture",
+        "HandTexture",
+        "TorsoUpperTexture",
+        "TorsoLowerTexture",
+        "LegUpperTexture",
+        "LegLowerTexture",
+        "FootTexture"
+    };
+    DWORD race_id;
+    DWORD gender_id;
+    LPCSTR gender_suffix;
+    PATHSTR candidate;
+
+    if (!stem || !*stem || slot >= M2TOOL_CHAR_TEX_COUNT || !out || out_size == 0) {
+        return false;
+    }
+    gender_suffix = CharacterRaceGender(model_path, &race_id, &gender_id) && gender_id ? "F" : "M";
+    snprintf(candidate, sizeof(candidate), "Item\\TextureComponents\\%s\\%s_%s.blp",
+             folders[slot], stem, gender_suffix);
+    if (Tool_FileExists(archives, sizeof(archives) / sizeof(archives[0]), candidate)) {
+        snprintf(out, out_size, "%s", candidate);
+        return true;
+    }
+    snprintf(candidate, sizeof(candidate), "Item\\TextureComponents\\%s\\%s_U.blp",
+             folders[slot], stem);
+    if (Tool_FileExists(archives, sizeof(archives) / sizeof(archives[0]), candidate)) {
+        snprintf(out, out_size, "%s", candidate);
+        return true;
+    }
+    snprintf(out, out_size, "Item\\TextureComponents\\%s\\%s_%s.blp",
+             folders[slot], stem, gender_suffix);
+    return true;
+}
+
+static BOOL WowVisibleSection(WORD section_id, m2ToolWowOutfit_t const *outfit) {
+    if (section_id < 400) {
+        return true;
+    }
+    if (!outfit) {
+        return section_id == 401 || section_id == 702 || section_id == 1501;
+    }
+    switch (section_id / 100) {
+        case 4: return section_id == 401;
+        case 5: return section_id == 501;
+        case 7: return section_id == 702;
+        case 8: return section_id == 802;
+        case 9: return section_id == 902;
+        case 10: return false;
+        case 11: return false;
+        case 12: return false;
+        case 13: return (outfit->flags & 0x4) ? false : section_id == 1301;
+        case 15: return section_id == 1501;
+        default: return false;
+    }
 }
 
 static BOOL TagEquals(BYTE const *tag, DWORD fourcc) {
@@ -1288,6 +1624,152 @@ static void PrintSkinInfo(LPCSTR model_path, BYTE const *m2_data, DWORD m2_size,
     Tool_MemFree(data);
 }
 
+static void AddSectionId(WORD *sections, DWORD *count, DWORD max_count, WORD section_id) {
+    if (!sections || !count) {
+        return;
+    }
+    FOR_LOOP(i, *count) {
+        if (sections[i] == section_id) {
+            return;
+        }
+    }
+    if (*count < max_count) {
+        sections[(*count)++] = section_id;
+    }
+}
+
+static DWORD CollectSkinSections(LPCSTR model_path,
+                                 BYTE const *m2_data,
+                                 DWORD m2_size,
+                                 m2HeaderInfo_t const *header,
+                                 WORD *sections,
+                                 DWORD max_sections) {
+    PATHSTR requested;
+    PATHSTR resolved = { 0 };
+    DWORD size = 0;
+    LPBYTE data;
+    m2SkinHeader_t const *skin;
+    DWORD count = 0;
+
+    if (!header || !sections || max_sections == 0) {
+        return 0;
+    }
+    if (g_skin_path) {
+        snprintf(requested, sizeof(requested), "%s", g_skin_path);
+    } else {
+        DefaultSkinPath(model_path, requested, sizeof(requested));
+    }
+    data = ReadWholeFile(requested, &size, resolved, sizeof(resolved));
+    if (data && size >= sizeof(*skin)) {
+        skin = (m2SkinHeader_t const *)data;
+        if (skin->magic == MAKEFOURCC('S', 'K', 'I', 'N')) {
+            m2SkinSection_t const *skin_sections = ArrayPtr(data, size, skin->sections, sizeof(*skin_sections));
+            if (skin_sections) {
+                FOR_LOOP(i, (DWORD)skin->sections.count) {
+                    AddSectionId(sections, &count, max_sections, skin_sections[i].skin_section_id);
+                }
+            }
+        }
+        Tool_MemFree(data);
+        return count;
+    }
+    SAFE_DELETE(data, Tool_MemFree);
+
+    if (header->version <= 263) {
+        m2EmbeddedView_t const *views = ArrayPtr(m2_data, m2_size, header->views, sizeof(*views));
+        if (views && header->views.count > 0) {
+            m2EmbeddedView_t const *view = views;
+            m2SkinSectionLegacy_t const *skin_sections = ArrayPtr(m2_data, m2_size, view->sections, sizeof(*skin_sections));
+            if (skin_sections) {
+                FOR_LOOP(i, (DWORD)view->sections.count) {
+                    AddSectionId(sections, &count, max_sections, skin_sections[i].skin_section_id);
+                }
+            }
+        }
+    }
+    return count;
+}
+
+static void SortSections(WORD *sections, DWORD count) {
+    for (DWORD i = 1; i < count; i++) {
+        WORD value = sections[i];
+        DWORD j = i;
+        while (j > 0 && sections[j - 1] > value) {
+            sections[j] = sections[j - 1];
+            j--;
+        }
+        sections[j] = value;
+    }
+}
+
+static void PrintWowPlayerConfig(BYTE const *m2_data, DWORD m2_size, m2HeaderInfo_t const *header) {
+    static LPCSTR const slot_names[M2TOOL_CHAR_TEX_COUNT] = {
+        "ArmUpper",
+        "ArmLower",
+        "Hand",
+        "TorsoUpper",
+        "TorsoLower",
+        "LegUpper",
+        "LegLower",
+        "Foot"
+    };
+    m2ToolWowOutfit_t outfit;
+    WORD sections[256];
+    DWORD section_count;
+
+    if (!g_wow_player_config) {
+        return;
+    }
+    printf("wow_player_config:\n");
+    printf("  appearance=%u equipment=%u class=%u\n",
+           (unsigned)g_wow_appearance,
+           (unsigned)g_wow_equipment,
+           (unsigned)WowClassFromAppearance(g_wow_appearance));
+    if (!LoadWowStartOutfit(g_model_path, g_wow_appearance, &outfit)) {
+        printf("  start_outfit: unavailable (need dbc.MPQ in -mpq list)\n");
+        return;
+    }
+    printf("  start_display_ids:");
+    FOR_LOOP(i, outfit.display_count) {
+        printf(" %u", (unsigned)outfit.display_ids[i]);
+    }
+    printf("\n");
+    printf("  item_flags=0x%08x geoset_groups=%u,%u,%u\n",
+           (unsigned)outfit.flags,
+           (unsigned)outfit.geoset_group[0],
+           (unsigned)outfit.geoset_group[1],
+           (unsigned)outfit.geoset_group[2]);
+    printf("  component_textures:\n");
+    FOR_LOOP(i, M2TOOL_CHAR_TEX_COUNT) {
+        PATHSTR path;
+        if (ComponentTexturePath(outfit.texture[i], (BYTE)i, g_model_path, path, sizeof(path))) {
+            printf("    %-11s stem=%s path=%s %s\n",
+                   slot_names[i],
+                   outfit.texture[i],
+                   path,
+                   Tool_FileExists(archives, sizeof(archives) / sizeof(archives[0]), path) ? "exists" : "missing");
+        }
+    }
+
+    section_count = CollectSkinSections(g_model_path, m2_data, m2_size, header, sections, sizeof(sections) / sizeof(sections[0]));
+    SortSections(sections, section_count);
+    printf("  visible_section_ids:");
+    FOR_LOOP(i, section_count) {
+        if (WowVisibleSection(sections[i], &outfit)) {
+            printf(" %u", (unsigned)sections[i]);
+        }
+    }
+    printf("\n");
+    printf("  hidden_section_ids:");
+    FOR_LOOP(i, section_count) {
+        if (!WowVisibleSection(sections[i], &outfit)) {
+            printf(" %u", (unsigned)sections[i]);
+        }
+    }
+    printf("\n");
+    printf("  note: component textures are composed into the body skin; they should not directly select clothing overlay sections.\n");
+}
+
 static void PrintHeaderArrays(m2HeaderInfo_t const *h) {
     BOOL legacy = h->version <= 263;
 
@@ -1357,70 +1839,221 @@ static void InspectModel(void) {
     }
 
     name = StringPtr(payload, payload_size, header.name);
-    printf("m2tool: model=%s resolved=%s file_size=%u payload_size=%u\n",
-           g_model_path,
-           resolved,
-           (unsigned)file_size,
-           (unsigned)payload_size);
-    printf("header: magic=%.4s version=%u flags=0x%08x layout=%s name=%s\n",
-           (char const *)&header.magic,
-           (unsigned)header.version,
-           (unsigned)header.flags,
-           header.version <= 263 ? "classic/tbc" : "wotlk+",
-           name && *name ? name : "<none>");
+    if (!g_wow_player_config_only) {
+        printf("m2tool: model=%s resolved=%s file_size=%u payload_size=%u\n",
+               g_model_path,
+               resolved,
+               (unsigned)file_size,
+               (unsigned)payload_size);
+        printf("header: magic=%.4s version=%u flags=0x%08x layout=%s name=%s\n",
+               (char const *)&header.magic,
+               (unsigned)header.version,
+               (unsigned)header.flags,
+               header.version <= 263 ? "classic/tbc" : "wotlk+",
+               name && *name ? name : "<none>");
 
-    printf("bounds:\n");
-    PrintVec3("bounding.min", header.bounding_box_min);
-    PrintVec3("bounding.max", header.bounding_box_max);
-    PrintBoundsMetrics("bounding", header.bounding_box_min, header.bounding_box_max);
-    printf("  %-22s %.6f\n", "bounding.radius", header.bounding_sphere_radius);
-    PrintVec3("collision.min", header.collision_box_min);
-    PrintVec3("collision.max", header.collision_box_max);
-    PrintBoundsMetrics("collision", header.collision_box_min, header.collision_box_max);
-    printf("  %-22s %.6f\n", "collision.radius", header.collision_sphere_radius);
+        printf("bounds:\n");
+        PrintVec3("bounding.min", header.bounding_box_min);
+        PrintVec3("bounding.max", header.bounding_box_max);
+        PrintBoundsMetrics("bounding", header.bounding_box_min, header.bounding_box_max);
+        printf("  %-22s %.6f\n", "bounding.radius", header.bounding_sphere_radius);
+        PrintVec3("collision.min", header.collision_box_min);
+        PrintVec3("collision.max", header.collision_box_max);
+        PrintBoundsMetrics("collision", header.collision_box_min, header.collision_box_max);
+        printf("  %-22s %.6f\n", "collision.radius", header.collision_sphere_radius);
 
-    has_vertex_bounds = CalculateVertexBounds(payload, payload_size, header.vertices, &vertex_bounds);
-    if (has_vertex_bounds) {
-        printf("vertex_bounds:\n");
-        PrintVec3("vertices.min", vertex_bounds.min);
-        PrintVec3("vertices.max", vertex_bounds.max);
-        PrintBoundsMetrics("vertices", vertex_bounds.min, vertex_bounds.max);
-        vertex_ground_offset = vertex_bounds.min.z < 0.0f ? -vertex_bounds.min.z : 0.0f;
-    } else {
-        printf("vertex_bounds: unavailable\n");
-    }
-
-    header_ground_offset = header.bounding_box_min.z < 0.0f ? -header.bounding_box_min.z : 0.0f;
-    printf("placement:\n");
-    printf("  %-30s %.6f\n", "header_bbox_ground_offset", header_ground_offset);
-    if (has_vertex_bounds) {
-        printf("  %-30s %.6f\n", "vertex_rest_ground_offset", vertex_ground_offset);
-        printf("  %-30s %.6f\n", "header_minus_vertex_delta", header_ground_offset - vertex_ground_offset);
-        printf("  %-30s %s\n", "recommended_ground_source", "vertex/rest bounds");
-        printf("  %-30s %.6f\n", "recommended_ground_offset", vertex_ground_offset);
-        if (header_ground_offset - vertex_ground_offset > 0.05f) {
-            printf("  %-30s %s\n",
-                   "diagnostic",
-                   "header bbox extends below rest mesh; using it as foot contact will make the model hover");
+        has_vertex_bounds = CalculateVertexBounds(payload, payload_size, header.vertices, &vertex_bounds);
+        if (has_vertex_bounds) {
+            printf("vertex_bounds:\n");
+            PrintVec3("vertices.min", vertex_bounds.min);
+            PrintVec3("vertices.max", vertex_bounds.max);
+            PrintBoundsMetrics("vertices", vertex_bounds.min, vertex_bounds.max);
+            vertex_ground_offset = vertex_bounds.min.z < 0.0f ? -vertex_bounds.min.z : 0.0f;
+        } else {
+            printf("vertex_bounds: unavailable\n");
         }
-    } else {
-        printf("  %-30s %s\n", "vertex_rest_ground_offset", "unavailable");
-        printf("  %-30s %s\n", "recommended_ground_source", "none; keep origin on terrain");
-    }
 
-    PrintHeaderArrays(&header);
-    PrintAttachments(payload, payload_size, &header);
-    PrintTextures(payload, payload_size, &header);
-    PrintTextureLookup(payload, payload_size, &header);
-    PrintSkinInfo(resolved, payload, payload_size, &header);
-    if (g_dump_all) {
+        header_ground_offset = header.bounding_box_min.z < 0.0f ? -header.bounding_box_min.z : 0.0f;
+        printf("placement:\n");
+        printf("  %-30s %.6f\n", "header_bbox_ground_offset", header_ground_offset);
+        if (has_vertex_bounds) {
+            printf("  %-30s %.6f\n", "vertex_rest_ground_offset", vertex_ground_offset);
+            printf("  %-30s %.6f\n", "header_minus_vertex_delta", header_ground_offset - vertex_ground_offset);
+            printf("  %-30s %s\n", "recommended_ground_source", "vertex/rest bounds");
+            printf("  %-30s %.6f\n", "recommended_ground_offset", vertex_ground_offset);
+            if (header_ground_offset - vertex_ground_offset > 0.05f) {
+                printf("  %-30s %s\n",
+                       "diagnostic",
+                       "header bbox extends below rest mesh; using it as foot contact will make the model hover");
+            }
+        } else {
+            printf("  %-30s %s\n", "vertex_rest_ground_offset", "unavailable");
+            printf("  %-30s %s\n", "recommended_ground_source", "none; keep origin on terrain");
+        }
+
+        PrintHeaderArrays(&header);
+        PrintAttachments(payload, payload_size, &header);
+        PrintTextures(payload, payload_size, &header);
+        PrintTextureLookup(payload, payload_size, &header);
+        PrintSkinInfo(resolved, payload, payload_size, &header);
+    }
+    PrintWowPlayerConfig(payload, payload_size, &header);
+    if (!g_wow_player_config_only && g_dump_all) {
         PrintAnimations(payload, payload_size, &header);
     }
-    if (g_anim_check) {
+    if (!g_wow_player_config_only && g_anim_check) {
         PrintAnimationDiagnostics(payload, payload_size, &header, g_anim_check);
     }
 
     Tool_MemFree(file_data);
+}
+
+static BOOL LoadPreviewBounds(BOX3 *bounds, FLOAT *extent_out) {
+    PATHSTR resolved = { 0 };
+    DWORD file_size = 0;
+    LPBYTE file_data;
+    BYTE const *payload;
+    DWORD payload_size;
+    m2HeaderInfo_t header;
+    FLOAT width;
+    FLOAT depth;
+    FLOAT height;
+
+    if (!bounds || !extent_out) {
+        return false;
+    }
+    file_data = ReadWholeFile(g_model_path, &file_size, resolved, sizeof(resolved));
+    if (!file_data) {
+        return false;
+    }
+    if (!FindM2Payload(file_data, file_size, &payload, &payload_size) ||
+        !ParseHeader(payload, payload_size, &header) ||
+        !CalculateVertexBounds(payload, payload_size, header.vertices, bounds)) {
+        Tool_MemFree(file_data);
+        return false;
+    }
+
+    width = fabsf(bounds->max.x - bounds->min.x);
+    depth = fabsf(bounds->max.y - bounds->min.y);
+    height = fabsf(bounds->max.z - bounds->min.z);
+    *extent_out = MAX(width, MAX(depth, height));
+    Tool_MemFree(file_data);
+    return true;
+}
+
+static void RenderViewerFrame(refExport_t const *re, LPMODEL model, DWORD now, LPCBOX3 bounds) {
+    viewDef_t viewdef = { 0 };
+    renderEntity_t entity = { 0 };
+    size2_t window = re->GetWindowSize();
+    FLOAT aspect = window.height ? (FLOAT)window.width / (FLOAT)window.height : 1.0f;
+    FLOAT height = bounds ? fabsf(bounds->max.z - bounds->min.z) : 2.5f;
+    FLOAT radius = MAX(1.0f, height * g_preview_scale * 0.6f);
+    FLOAT near_clip = MAX(0.01f, g_orbit.distance * 0.01f);
+    FLOAT far_clip = MAX(100.0f, g_orbit.distance + radius * 8.0f);
+    char line[512];
+
+    entity.model = model;
+    entity.scale = g_preview_scale;
+    entity.radius = radius;
+    entity.frame = now;
+    entity.oldframe = now;
+    entity.flags = RF_GROUND_ANCHOR | RF_NO_SHADOW | RF_NO_FOGOFWAR;
+#ifdef WOW
+    entity.appearance = g_wow_appearance;
+    entity.equipment = g_wow_equipment;
+#endif
+
+    Matrix4_identity(&viewdef.textureMatrix);
+    Viewer_OrbitBuildCamera(&g_orbit, aspect, 35.0f, near_clip, far_clip, &viewdef.viewProjectionMatrix);
+    Viewer_OrbitBuildLight(&g_orbit, &(VECTOR3){ 0.0f, 0.0f, 0.0f }, MAX(32.0f, radius * 2.0f), &viewdef.lightMatrix);
+    viewdef.viewport = (RECT){ 0, 0, 1, 1 };
+    viewdef.scissor = (RECT){ 0, 0, 1, 1 };
+    viewdef.time = now;
+    viewdef.deltaTime = 16;
+    viewdef.lerpfrac = 0.0f;
+    viewdef.num_entities = 1;
+    viewdef.entities = &entity;
+    viewdef.rdflags = RDF_NOWORLDMODEL | RDF_NOFRUSTUMCULL | RDF_NOFOG | RDF_NOFOGMASK;
+
+    re->BeginFrame();
+    re->RenderFrame(&viewdef);
+    Tool_DrawString(re, "m2tool: WoW M2 viewer", 10, 10);
+    Tool_DrawString(re, g_model_path, 10, 28);
+    snprintf(line,
+             sizeof(line),
+             "appearance=%u equipment=%u scale=%.3f",
+             (unsigned)g_wow_appearance,
+             (unsigned)g_wow_equipment,
+             g_preview_scale);
+    Tool_DrawString(re, line, 10, 46);
+    re->EndFrame();
+}
+
+static int RunViewer(void) {
+    refExport_t re;
+    LPMODEL model;
+    BOX3 bounds = { 0 };
+    BOOL has_bounds;
+    FLOAT extent = 2.5f;
+    FLOAT height;
+    FLOAT orbit_distance;
+    BOOL running = true;
+
+    re = R_GetAPI((refImport_t){
+        .FS_ReadFile = Tool_FS_ReadFile,
+        .FS_FreeFile = Tool_MemFree,
+        .MemAlloc = Tool_MemAlloc,
+        .MemFree = Tool_MemFree,
+        .error = errorf,
+    });
+
+    has_bounds = LoadPreviewBounds(&bounds, &extent);
+    height = has_bounds ? fabsf(bounds.max.z - bounds.min.z) : 2.5f;
+    g_preview_scale = extent > 0.0001f ? MAX(1.0f, 24.0f / extent) : 1.0f;
+    orbit_distance = MAX(40.0f, extent * g_preview_scale * 2.4f);
+    Viewer_OrbitInit(&g_orbit,
+                     (VECTOR3){ 0.0f, 0.0f, height * g_preview_scale * 0.55f },
+                     orbit_distance,
+                     -45.0f,
+                     18.0f);
+    g_orbit.reverse_drag = true;
+
+    fprintf(stderr, "m2tool: renderer init\n");
+    re.Init(VIEWER_WINDOW_WIDTH, VIEWER_WINDOW_HEIGHT);
+    fprintf(stderr, "m2tool: loading model %s\n", g_model_path);
+    model = re.LoadModel(g_model_path);
+    if (!model || model->modeltype != ID_MD20) {
+        fprintf(stderr, "m2tool: failed to load M2 model %s\n", g_model_path);
+        re.Shutdown();
+        return 1;
+    }
+    fprintf(stderr,
+            "m2tool: viewer ready scale=%.3f orbit_distance=%.3f%s\n",
+            g_preview_scale,
+            orbit_distance,
+            has_bounds ? "" : " bounds=unavailable");
+
+    while (running) {
+        SDL_Event event;
+        while (SDL_PollEvent(&event)) {
+            if (event.type == SDL_QUIT) {
+                running = false;
+            } else if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE) {
+                running = false;
+            } else {
+                Viewer_OrbitHandleEvent(&g_orbit, &event);
+            }
+        }
+
+        RenderViewerFrame(&re, model, SDL_GetTicks(), has_bounds ? &bounds : NULL);
+        if (g_run_once) {
+            running = false;
+        }
+    }
+
+    re.ReleaseModel(model);
+    re.Shutdown();
+    return 0;
 }
 
 int main(int argc, char **argv) {
@@ -1449,9 +2082,26 @@ int main(int argc, char **argv) {
         } else if (!strcmp(argv[i], "--anim") && i + 1 < argc) {
             g_anim_check = argv[++i];
         } else if (!strcmp(argv[i], "--info")) {
-            /* Default mode. */
+            g_info_only = true;
         } else if (!strcmp(argv[i], "--dump-all")) {
+            g_info_only = true;
             g_dump_all = true;
+        } else if (!strcmp(argv[i], "--viewer")) {
+            g_info_only = false;
+        } else if (!strcmp(argv[i], "--once")) {
+            g_run_once = true;
+        } else if (!strcmp(argv[i], "--wow-player-config")) {
+            g_wow_player_config = true;
+        } else if (!strcmp(argv[i], "--wow-player-config-only")) {
+            g_wow_player_config = true;
+            g_wow_player_config_only = true;
+            g_info_only = true;
+        } else if (!strcmp(argv[i], "--appearance") && i + 1 < argc) {
+            g_wow_player_config = true;
+            g_wow_appearance = (DWORD)strtoul(argv[++i], NULL, 0);
+        } else if (!strcmp(argv[i], "--equipment") && i + 1 < argc) {
+            g_wow_player_config = true;
+            g_wow_equipment = (DWORD)strtoul(argv[++i], NULL, 0);
         } else {
             usage();
             errorf("m2tool: unknown or incomplete argument: %s", argv[i]);
@@ -1465,7 +2115,14 @@ int main(int argc, char **argv) {
         errorf("m2tool: -model is required");
     }
 
-    InspectModel();
+    Tool_SetSheetHost(archives, sizeof(archives) / sizeof(archives[0]));
+    if (g_info_only || g_anim_check) {
+        InspectModel();
+    } else {
+        int result = RunViewer();
+        Tool_CloseArchives(archives, sizeof(archives) / sizeof(archives[0]));
+        return result;
+    }
     Tool_CloseArchives(archives, sizeof(archives) / sizeof(archives[0]));
     return 0;
 }
