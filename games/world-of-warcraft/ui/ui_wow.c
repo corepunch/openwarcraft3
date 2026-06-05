@@ -616,7 +616,6 @@ static void UIWow_CallLuaUpdate(DWORD msec) {
 static void UIWow_Init(void) {
     memset(&wow_ui, 0, sizeof(wow_ui));
     UIWow_EnsureRenderer();
-    UIWow_LoadStaticAssets();
     UIWow_InitLua();
 }
 
@@ -651,9 +650,9 @@ static void UIWow_DrawFrame(void) {
     }
 
     UIWow_EnsureRenderer();
-    UIWow_LoadStaticAssets();
 
     if (ps->client_ui_state == CLIENT_UI_LOADING) {
+        UIWow_LoadStaticAssets();
         UIWow_UpdateMapBackground(ps);
         UIWow_DrawLoadingScreen();
         return;

@@ -157,6 +157,11 @@ $(eval $(call unity_lib_schema,$(SHARED_LIB),$(call CSRC,shared),shared,shared,,
 
 include games/warcraft-3/game.mk
 
+WOW_TEST_RES_DIR := $(TESTS_DIR)/wow-resources
+WOW_TEST_SRC_DIR := $(WOW_TEST_DIR)/resources-src
+WOW_TEST_MPQ     := $(TESTS_DIR)/test-wow.mpq
+WOW_UI_TEST_CFLAGS := $(WOW_TEST_CFLAGS) $(LUA_CFLAGS) -DTEST_WOW_MPQ=\"$(WOW_TEST_MPQ)\"
+
 $(BIN_DIR)/%$(EXE_EXT): tools/%.c $(TOOL_DEPS) $(CLIENT_HEADERS) $(COMMON_HEADERS) | $(BIN_DIR) $(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) $(RENDERER_LIB) $(GAME_LIB) $(UI_LIB)
 	@$(CC) $(CFLAGS) -o $@ $< \
 		$(RPATH) $(LDFLAGS) -lsheet -lshared -ljass -lrenderer -lgame -lui $(LIBS) -lm -lz
@@ -191,5 +196,24 @@ clean:
 $(eval $(call test_schema,test-wow-appearance,,$(WOW_TEST_CFLAGS),$(BIN_DIR)/test_wow_appearance$(EXE_EXT),$(WOW_TEST_DIR)/test_wow_appearance.c common/msg.c common/net.c $(call CSRC,shared),-lm,))
 $(eval $(call test_schema,test-wow-combat,,$(WOW_TEST_CFLAGS),$(BIN_DIR)/test_wow_combat$(EXE_EXT),$(WOW_TEST_DIR)/test_wow_combat.c $(WOW_DIR)/game/g_ai.c $(call CSRC,shared),-lm,))
 $(eval $(call test_schema,test-wow-game,,$(WOW_TEST_CFLAGS),$(BIN_DIR)/test_wow_game$(EXE_EXT),$(WOW_TEST_DIR)/test_wow_game.c $(WOW_DIR)/game/g_wow.c $(WOW_DIR)/game/g_world.c $(WOW_DIR)/game/g_ai.c $(WOW_DIR)/game/m_creature.c common/mpq.c $(call CSRC,shared),-lm -lz,))
+$(eval $(call test_schema,test-wow-ui,test-wow-assets,$(WOW_UI_TEST_CFLAGS),$(BIN_DIR)/test_wow_ui$(EXE_EXT),$(WOW_TEST_DIR)/test_wow_ui.c $(WOW_DIR)/ui/ui_wow.c common/mpq.c,-lshared $(LUA_LIBS) -lz,))
 
-.PHONY: default build shared tools font $(TOOL_NAMES) diag clean download renderer-wow game-wow ui-wow openwow renderer-sc2 game-sc2 opensc2 test-wow-appearance test-wow-combat test-wow-game $(WC3_PHONY)
+test-wow-assets: blpgen mpqtool | $(TESTS_DIR)
+	@echo "[test-wow-assets] generating WoW UI fixtures"
+	@mkdir -p $(WOW_TEST_RES_DIR)/Interface/Test
+	@$(BIN_DIR)/blpgen$(EXE_EXT) solid 16 8 cc8844ff $(WOW_TEST_RES_DIR)/Interface/Test/LuaPanel.blp
+	@$(BIN_DIR)/blpgen$(EXE_EXT) checker 8 8 2 $(WOW_TEST_RES_DIR)/Interface/Test/Inventory.blp
+	@echo "[test-wow-assets] packing test-wow.mpq"
+	@set --; \
+	for f in $$(find $(WOW_TEST_RES_DIR) -type f | sort); do \
+		rel=$${f#$(WOW_TEST_RES_DIR)/}; set -- "$$@" "$$f" "$$rel"; \
+	done; \
+	for f in $$(find $(WOW_TEST_SRC_DIR) -type f | sort); do \
+		rel=$${f#$(WOW_TEST_SRC_DIR)/}; set -- "$$@" "$$f" "$$rel"; \
+	done; \
+	$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(WOW_TEST_MPQ) pack "$$@"
+	@echo "[test-wow-assets] verifying archive"
+	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(WOW_TEST_MPQ) cat Interface/Test/LuaPanel.blp | head -c4 | grep -q "BLP2" && echo "  cat panel OK"
+	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(WOW_TEST_MPQ) cat Interface/FrameXML/OpenWarcraft3HUD.lua | grep -q "wow_lua_test" && echo "  cat lua OK"
+
+.PHONY: default build shared tools font $(TOOL_NAMES) diag clean download renderer-wow game-wow ui-wow openwow renderer-sc2 game-sc2 opensc2 test-wow-appearance test-wow-combat test-wow-game test-wow-ui test-wow-assets $(WC3_PHONY)

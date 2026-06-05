@@ -1,0 +1,302 @@
+#include "test_framework.h"
+
+#include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <strings.h>
+
+#include "client/ui.h"
+#include "common/mpq.h"
+#include "common/wow_ui_shared.h"
+
+#ifndef TEST_WOW_MPQ
+#define TEST_WOW_MPQ "build/tests/test-wow.mpq"
+#endif
+
+struct texture {
+    DWORD texid;
+    DWORD width;
+    DWORD height;
+    char name[256];
+};
+
+struct font {
+    DWORD size;
+    char name[256];
+};
+
+int _tests_run = 0;
+int _tests_failed = 0;
+
+static HANDLE test_archive;
+static PLAYER test_ps;
+static refExport_t test_renderer;
+static LPCTEXTURE test_textures[MAX_IMAGES];
+static DWORD test_time;
+static DWORD next_texture_id;
+static DWORD loaded_textures;
+static DWORD missing_textures;
+static DWORD forbidden_texture_loads;
+static DWORD draw_panel_count;
+static DWORD draw_inventory_count;
+static DWORD draw_fill_count;
+static DWORD draw_text_count;
+static DWORD draw_minimap_count;
+static char last_draw_text[256];
+static char last_server_command[256];
+static DWORD last_panel_width;
+static DWORD last_panel_height;
+static DWORD last_inventory_width;
+static DWORD last_inventory_height;
+
+static BOOL test_path_is_wow_default(LPCSTR name) {
+    return name &&
+        (strstr(name, "Interface\\TargetingFrame\\UI-PlayerFrame.blp") ||
+         strstr(name, "Interface\\MainMenuBar\\UI-MainMenuBar.blp") ||
+         strstr(name, "Interface\\Glues\\LoadingBar\\"));
+}
+
+static DWORD test_read32(BYTE const *p) {
+    return ((DWORD)p[0]) | ((DWORD)p[1] << 8) | ((DWORD)p[2] << 16) | ((DWORD)p[3] << 24);
+}
+
+static int test_fs_read_file(LPCSTR fileName, void **buf) {
+    HANDLE file;
+    DWORD size;
+    DWORD read = 0;
+
+    if (!buf) {
+        return -1;
+    }
+    *buf = NULL;
+    if (!test_archive || !SFileOpenFileEx(test_archive, fileName, SFILE_OPEN_FROM_MPQ, &file)) {
+        return -1;
+    }
+    size = SFileGetFileSize(file, NULL);
+    *buf = calloc(1, (size_t)size + 1);
+    if (!*buf || !SFileReadFile(file, *buf, size, &read, NULL) || read != size) {
+        free(*buf);
+        *buf = NULL;
+        SFileCloseFile(file);
+        return -1;
+    }
+    SFileCloseFile(file);
+    return (int)size;
+}
+
+static void test_fs_free_file(void *buf) {
+    free(buf);
+}
+
+static HANDLE test_mem_alloc(long size) {
+    return calloc(1, (size_t)size);
+}
+
+static void test_mem_free(HANDLE mem) {
+    free(mem);
+}
+
+static void test_printf(LPCSTR fmt, ...) {
+    (void)fmt;
+}
+
+static void test_read_texture_size(LPCSTR name, LPTEXTURE texture) {
+    void *buf = NULL;
+    int size = test_fs_read_file(name, &buf);
+
+    texture->width = 0;
+    texture->height = 0;
+    if (size >= 20 && buf && test_read32(buf) == ID_BLP2) {
+        texture->width = test_read32((BYTE const *)buf + 12);
+        texture->height = test_read32((BYTE const *)buf + 16);
+    } else {
+        missing_textures++;
+    }
+    test_fs_free_file(buf);
+}
+
+static LPTEXTURE test_load_texture(LPCSTR name) {
+    LPTEXTURE texture = calloc(1, sizeof(*texture));
+
+    ASSERT_NOT_NULL(texture);
+    if (!texture) {
+        return NULL;
+    }
+    texture->texid = ++next_texture_id;
+    snprintf(texture->name, sizeof(texture->name), "%s", name ? name : "");
+    test_read_texture_size(name, texture);
+    loaded_textures++;
+    if (test_path_is_wow_default(name)) {
+        forbidden_texture_loads++;
+    }
+    return texture;
+}
+
+static LPFONT test_load_font(LPCSTR name, DWORD size) {
+    LPFONT font = calloc(1, sizeof(*font));
+
+    ASSERT_NOT_NULL(font);
+    if (!font) {
+        return NULL;
+    }
+    font->size = size;
+    snprintf(font->name, sizeof(font->name), "%s", name ? name : "");
+    return font;
+}
+
+static void test_release_texture(LPTEXTURE texture) {
+    free(texture);
+}
+
+static void test_draw_image(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv, COLOR32 color) {
+    (void)screen;
+    (void)uv;
+    (void)color;
+    if (!texture) {
+        return;
+    }
+    if (!strcmp(texture->name, "Interface\\Test\\LuaPanel.blp")) {
+        draw_panel_count++;
+        last_panel_width = texture->width;
+        last_panel_height = texture->height;
+    } else if (!strcmp(texture->name, "Interface\\Test\\Inventory.blp")) {
+        draw_inventory_count++;
+        last_inventory_width = texture->width;
+        last_inventory_height = texture->height;
+    }
+}
+
+static void test_draw_fill(LPCRECT rect, COLOR32 color) {
+    (void)rect;
+    (void)color;
+    draw_fill_count++;
+}
+
+static void test_draw_minimap(LPCRECT rect) {
+    (void)rect;
+    draw_minimap_count++;
+}
+
+static void test_draw_text(LPCDRAWTEXT drawText) {
+    draw_text_count++;
+    snprintf(last_draw_text, sizeof(last_draw_text), "%s", drawText && drawText->text ? drawText->text : "");
+}
+
+static LPCTEXTURE test_get_texture(DWORD index) {
+    return index < MAX_IMAGES ? test_textures[index] : NULL;
+}
+
+static LPCPLAYER test_get_player_state(void) {
+    return &test_ps;
+}
+
+static DWORD test_get_client_time(void) {
+    return test_time;
+}
+
+static LPRENDERER test_get_renderer(void) {
+    return &test_renderer;
+}
+
+static void test_server_command(LPCSTR text) {
+    snprintf(last_server_command, sizeof(last_server_command), "%s", text ? text : "");
+}
+
+static void reset_test_state(void) {
+    memset(&test_ps, 0, sizeof(test_ps));
+    memset(test_textures, 0, sizeof(test_textures));
+    memset(&test_renderer, 0, sizeof(test_renderer));
+    memset(last_draw_text, 0, sizeof(last_draw_text));
+    memset(last_server_command, 0, sizeof(last_server_command));
+    test_time = 1000;
+    next_texture_id = 0;
+    loaded_textures = 0;
+    missing_textures = 0;
+    forbidden_texture_loads = 0;
+    draw_panel_count = 0;
+    draw_inventory_count = 0;
+    draw_fill_count = 0;
+    draw_text_count = 0;
+    draw_minimap_count = 0;
+    last_panel_width = 0;
+    last_panel_height = 0;
+    last_inventory_width = 0;
+    last_inventory_height = 0;
+
+    test_renderer.LoadTexture = test_load_texture;
+    test_renderer.LoadFont = test_load_font;
+    test_renderer.ReleaseTexture = test_release_texture;
+    test_renderer.DrawImage = test_draw_image;
+    test_renderer.DrawFill = test_draw_fill;
+    test_renderer.DrawMinimap = test_draw_minimap;
+    test_renderer.DrawText = test_draw_text;
+
+    test_ps.client_ui_state = CLIENT_UI_GAME;
+    test_ps.name = "LuaTester";
+    test_ps.stats[WOW_STAT_HEALTH] = 77;
+    test_ps.stats[WOW_STAT_HEALTH_MAX] = 100;
+    test_ps.stats[WOW_STAT_POWER] = 55;
+    test_ps.stats[WOW_STAT_POWER_MAX] = 80;
+    test_ps.stats[WOW_STAT_LEVEL] = 9;
+    test_ps.stats[WOW_STAT_INVENTORY_FIRST] = 7;
+}
+
+static uiExport_t init_ui(void) {
+    uiExport_t ui;
+
+    ui = UI_GetAPI((uiImport_t) {
+        .FS_ReadFile = test_fs_read_file,
+        .FS_FreeFile = test_fs_free_file,
+        .MemAlloc = test_mem_alloc,
+        .MemFree = test_mem_free,
+        .ServerCommand = test_server_command,
+        .GetPlayerState = test_get_player_state,
+        .GetTexture = test_get_texture,
+        .GetClientTime = test_get_client_time,
+        .GetRenderer = test_get_renderer,
+        .Printf = test_printf,
+    });
+    ASSERT_NOT_NULL(ui.Init);
+    ASSERT_NOT_NULL(ui.Refresh);
+    ASSERT_NOT_NULL(ui.DrawFrame);
+    ASSERT_NOT_NULL(ui.Shutdown);
+    ui.Init();
+    return ui;
+}
+
+static void test_wow_lua_ui_draws_from_generated_mpq(void) {
+    uiExport_t ui;
+
+    reset_test_state();
+    ASSERT(SFileOpenArchive(TEST_WOW_MPQ, 0, 0, &test_archive));
+    test_textures[7] = test_load_texture("Interface\\Test\\Inventory.blp");
+
+    ui = init_ui();
+    ui.Refresh(33);
+    ui.DrawFrame();
+
+    ASSERT_EQ_INT((int)forbidden_texture_loads, 0);
+    ASSERT_EQ_INT((int)missing_textures, 0);
+    ASSERT_EQ_INT((int)draw_panel_count, 1);
+    ASSERT_EQ_INT((int)draw_inventory_count, 1);
+    ASSERT_EQ_INT((int)draw_fill_count, 1);
+    ASSERT_EQ_INT((int)draw_text_count, 1);
+    ASSERT_EQ_INT((int)draw_minimap_count, 1);
+    ASSERT_EQ_INT((int)last_panel_width, 16);
+    ASSERT_EQ_INT((int)last_panel_height, 8);
+    ASSERT_EQ_INT((int)last_inventory_width, 8);
+    ASSERT_EQ_INT((int)last_inventory_height, 8);
+    ASSERT_STR_EQ(last_draw_text, "LuaTester:77:33");
+    ASSERT_STR_EQ(last_server_command, "wow_lua_test 9 33");
+
+    ui.Shutdown();
+    test_release_texture((LPTEXTURE)test_textures[7]);
+    SFileCloseArchive(test_archive);
+    test_archive = NULL;
+}
+
+int main(void) {
+    RUN_TEST(test_wow_lua_ui_draws_from_generated_mpq);
+    TEST_RESULTS();
+}
