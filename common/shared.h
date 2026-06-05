@@ -407,6 +407,11 @@ typedef struct wowEquipment_s {
     BYTE extraKit;
 } wowEquipment_t;
 
+enum {
+    WOW_EQUIPMENT_KIT_NONE,
+    WOW_EQUIPMENT_KIT_HORDE_PLATE
+};
+
 static inline DWORD Wow_PackAppearance(BYTE skinColorID,
                                        BYTE faceID,
                                        BYTE hairStyleID,

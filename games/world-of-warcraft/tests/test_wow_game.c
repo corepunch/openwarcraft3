@@ -452,6 +452,11 @@ static void test_wow_load_map_initializes_player_state(void) {
     ASSERT(player->s.model2 > 0);
     ASSERT_EQ_INT((int)player->s.appearance,
                   (int)Wow_PackAppearance(0, 0, 0, 0, 0, WOW_CLASS_WARRIOR, 0));
+    ASSERT_EQ_INT((int)player->s.equipment,
+                  (int)Wow_PackEquipment(WOW_EQUIPMENT_KIT_HORDE_PLATE,
+                                         WOW_EQUIPMENT_KIT_HORDE_PLATE,
+                                         WOW_EQUIPMENT_KIT_HORDE_PLATE,
+                                         WOW_EQUIPMENT_KIT_NONE));
 
     if (game->Shutdown) {
         game->Shutdown();

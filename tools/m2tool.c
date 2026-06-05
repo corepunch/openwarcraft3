@@ -402,7 +402,7 @@ typedef struct {
     LPCSTR texture[M2TOOL_CHAR_TEX_COUNT];
     DWORD geoset_group[3];
     DWORD flags;
-    DWORD display_ids[12];
+    DWORD display_ids[16];
     DWORD display_count;
 } m2ToolWowOutfit_t;
 
@@ -589,7 +589,41 @@ static void AddDisplayInfoToOutfit(m2ToolWowOutfit_t *outfit,
     }
 }
 
-static BOOL LoadWowStartOutfit(LPCSTR model_path, DWORD appearance, m2ToolWowOutfit_t *outfit) {
+static void AddDisplayInfoListToOutfit(m2ToolWowOutfit_t *outfit,
+                                       m2ToolDbc_t const *item_display_info,
+                                       DWORD const *display_ids,
+                                       DWORD display_count) {
+    FOR_LOOP(i, display_count) {
+        AddDisplayInfoToOutfit(outfit, item_display_info, display_ids[i]);
+    }
+}
+
+static void ApplyEquipmentKits(m2ToolWowOutfit_t *outfit,
+                               m2ToolDbc_t const *item_display_info,
+                               DWORD equipment) {
+    static DWORD const horde_plate_upper[] = { 27274 };
+    static DWORD const horde_plate_lower[] = { 27275 };
+    static DWORD const horde_plate_extremities[] = { 27271, 27270 };
+    wowEquipment_t kits = Wow_UnpackEquipment(equipment);
+
+    if (!outfit || !item_display_info) {
+        return;
+    }
+    if (kits.upperBodyKit == WOW_EQUIPMENT_KIT_HORDE_PLATE) {
+        AddDisplayInfoListToOutfit(outfit, item_display_info, horde_plate_upper, 1);
+    }
+    if (kits.lowerBodyKit == WOW_EQUIPMENT_KIT_HORDE_PLATE) {
+        AddDisplayInfoListToOutfit(outfit, item_display_info, horde_plate_lower, 1);
+    }
+    if (kits.extremityKit == WOW_EQUIPMENT_KIT_HORDE_PLATE) {
+        AddDisplayInfoListToOutfit(outfit, item_display_info, horde_plate_extremities, 2);
+    }
+}
+
+static BOOL LoadWowStartOutfit(LPCSTR model_path,
+                               DWORD appearance,
+                               DWORD equipment,
+                               m2ToolWowOutfit_t *outfit) {
     m2ToolDbc_t start = { 0 };
     m2ToolDbc_t item = { 0 };
     DWORD race_id;
@@ -622,6 +656,7 @@ static BOOL LoadWowStartOutfit(LPCSTR model_path, DWORD appearance, m2ToolWowOut
         FOR_LOOP(display, 12) {
             AddDisplayInfoToOutfit(outfit, &item, DbcField(&start, record, 14 + display));
         }
+        ApplyEquipmentKits(outfit, &item, equipment);
         found = true;
         break;
     }
@@ -1725,7 +1760,7 @@ static void PrintWowPlayerConfig(BYTE const *m2_data, DWORD m2_size, m2HeaderInf
            (unsigned)g_wow_appearance,
            (unsigned)g_wow_equipment,
            (unsigned)WowClassFromAppearance(g_wow_appearance));
-    if (!LoadWowStartOutfit(g_model_path, g_wow_appearance, &outfit)) {
+    if (!LoadWowStartOutfit(g_model_path, g_wow_appearance, g_wow_equipment, &outfit)) {
         printf("  start_outfit: unavailable (need dbc.MPQ in -mpq list)\n");
         return;
     }

@@ -190,7 +190,9 @@ Useful options:
 - `--appearance <bits>` override the packed WoW appearance bits used by
   `--wow-player-config`
 - `--equipment <bits>` override the packed WoW equipment bits printed by
-  `--wow-player-config`
+  `--wow-player-config`. Equipment bytes are local kit selectors; kit `1`
+  selects a DBC-backed Horde plate preview set for upper body, lower body,
+  and extremities.
 
 Example:
 

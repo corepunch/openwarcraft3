@@ -146,6 +146,7 @@ m2tool-wow-orcmale-player: m2tool
 		-mpq data/world-of-warcraft/installed/Data/dbc.MPQ \
 		-mpq data/world-of-warcraft/installed/Data/texture.MPQ \
 		-model Character/Orc/Male/OrcMale.m2 \
+		--equipment 65793 \
 		--wow-player-config
 
 diag: clean

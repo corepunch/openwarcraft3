@@ -308,6 +308,12 @@ typedef struct m2ModelBatch_s {
     struct m2ModelBatch_s *next;
 } m2ModelBatch_t;
 
+typedef struct {
+    LPCSTR texture[M2_CHAR_TEX_COUNT];
+    DWORD geoset_group[3];
+    DWORD flags;
+} m2CharacterOutfit_t;
+
 struct m2Model_s {
     m2ModelBatch_t *batches;
     DWORD num_batches;
@@ -318,6 +324,11 @@ struct m2Model_s {
     BOOL character_model;
     LPTEXTURE character_composite;
     DWORD character_composite_key;
+    m2CharacterOutfit_t character_outfit;
+    DWORD character_outfit_appearance;
+    DWORD character_outfit_equipment;
+    BOOL character_outfit_resolved;
+    BOOL character_outfit_valid;
     BYTE *data;
     DWORD data_size;
     m2Header_t *header;
@@ -581,12 +592,6 @@ typedef struct {
     BOOL valid;
 } m2Dbc_t;
 
-typedef struct {
-    LPCSTR texture[M2_CHAR_TEX_COUNT];
-    DWORD geoset_group[3];
-    DWORD flags;
-} m2CharacterOutfit_t;
-
 static m2Dbc_t m2_char_start_outfit_dbc;
 static m2Dbc_t m2_item_display_info_dbc;
 
@@ -769,7 +774,10 @@ static void M2_AddDisplayInfoToOutfit(m2CharacterOutfit_t *outfit, DWORD display
     flags_field = M2_ItemDisplayInfoFlagsField(&m2_item_display_info_dbc);
 
     FOR_LOOP(i, 3) {
-        outfit->geoset_group[i] = M2_DbcField(&m2_item_display_info_dbc, record, geoset_base + i);
+        DWORD geoset_group = M2_DbcField(&m2_item_display_info_dbc, record, geoset_base + i);
+        if (geoset_group) {
+            outfit->geoset_group[i] = geoset_group;
+        }
     }
     outfit->flags |= M2_DbcField(&m2_item_display_info_dbc, record, flags_field);
     FOR_LOOP(i, M2_CHAR_TEX_COUNT) {
@@ -778,6 +786,34 @@ static void M2_AddDisplayInfoToOutfit(m2CharacterOutfit_t *outfit, DWORD display
         if (texture && *texture) {
             outfit->texture[i] = texture;
         }
+    }
+}
+
+static void M2_AddDisplayInfoListToOutfit(m2CharacterOutfit_t *outfit,
+                                          DWORD const *display_ids,
+                                          DWORD display_count) {
+    FOR_LOOP(i, display_count) {
+        M2_AddDisplayInfoToOutfit(outfit, display_ids[i]);
+    }
+}
+
+static void M2_ApplyEquipmentKits(m2CharacterOutfit_t *outfit, DWORD equipment) {
+    static DWORD const horde_plate_upper[] = { 27274 };
+    static DWORD const horde_plate_lower[] = { 27275 };
+    static DWORD const horde_plate_extremities[] = { 27271, 27270 };
+    wowEquipment_t kits = Wow_UnpackEquipment(equipment);
+
+    if (!outfit) {
+        return;
+    }
+    if (kits.upperBodyKit == WOW_EQUIPMENT_KIT_HORDE_PLATE) {
+        M2_AddDisplayInfoListToOutfit(outfit, horde_plate_upper, 1);
+    }
+    if (kits.lowerBodyKit == WOW_EQUIPMENT_KIT_HORDE_PLATE) {
+        M2_AddDisplayInfoListToOutfit(outfit, horde_plate_lower, 1);
+    }
+    if (kits.extremityKit == WOW_EQUIPMENT_KIT_HORDE_PLATE) {
+        M2_AddDisplayInfoListToOutfit(outfit, horde_plate_extremities, 2);
     }
 }
 
@@ -814,6 +850,33 @@ static BOOL M2_CharacterStartOutfit(LPCSTR model_path,
         return true;
     }
     return false;
+}
+
+static m2CharacterOutfit_t const *M2_CharacterOutfitForEntity(m2Model_t const *model,
+                                                              renderEntity_t const *entity) {
+    m2Model_t *mutable_model;
+
+    if (!model || !entity || !model->character_model) {
+        return NULL;
+    }
+
+    mutable_model = (m2Model_t *)model;
+    if (mutable_model->character_outfit_resolved &&
+        mutable_model->character_outfit_appearance == entity->appearance &&
+        mutable_model->character_outfit_equipment == entity->equipment) {
+        return mutable_model->character_outfit_valid ? &mutable_model->character_outfit : NULL;
+    }
+
+    mutable_model->character_outfit_appearance = entity->appearance;
+    mutable_model->character_outfit_equipment = entity->equipment;
+    mutable_model->character_outfit_resolved = true;
+    mutable_model->character_outfit_valid = false;
+    if (!M2_CharacterStartOutfit(model->filename, entity->appearance, &mutable_model->character_outfit)) {
+        return NULL;
+    }
+    M2_ApplyEquipmentKits(&mutable_model->character_outfit, entity->equipment);
+    mutable_model->character_outfit_valid = true;
+    return &mutable_model->character_outfit;
 }
 
 static BYTE M2_CharacterTextureSlotForSection(WORD section_id) {
@@ -972,6 +1035,7 @@ static void M2_PasteOutfitComponent(LPCOLOR32 pixels,
                                     LPCSTR model_path,
                                     m2CharacterOutfit_t const *outfit,
                                     BYTE slot) {
+    enum { character_component_atlas_size = 512 };
     static DWORD const rects[M2_CHAR_TEX_COUNT][4] = {
         { 0,   0,   256, 128 },
         { 0,   128, 256, 128 },
@@ -985,6 +1049,10 @@ static void M2_PasteOutfitComponent(LPCOLOR32 pixels,
     PATHSTR texture_path;
     LPTEXTURE texture;
     LPCOLOR32 component_pixels = NULL;
+    DWORD dst_x;
+    DWORD dst_y;
+    DWORD dst_w;
+    DWORD dst_h;
 
     if (!outfit || slot >= M2_CHAR_TEX_COUNT ||
         !M2_CharacterComponentTexturePath(outfit->texture[slot], slot, model_path, texture_path, sizeof(texture_path))) {
@@ -995,16 +1063,20 @@ static void M2_PasteOutfitComponent(LPCOLOR32 pixels,
         SAFE_DELETE(texture, R_ReleaseTexture);
         return;
     }
+    dst_x = rects[slot][0] * width / character_component_atlas_size;
+    dst_y = rects[slot][1] * height / character_component_atlas_size;
+    dst_w = MAX(1u, rects[slot][2] * width / character_component_atlas_size);
+    dst_h = MAX(1u, rects[slot][3] * height / character_component_atlas_size);
     M2_PasteComponent(pixels,
                       width,
                       height,
                       component_pixels,
                       texture->width,
                       texture->height,
-                      rects[slot][0],
-                      rects[slot][1],
-                      rects[slot][2],
-                      rects[slot][3]);
+                      dst_x,
+                      dst_y,
+                      dst_w,
+                      dst_h);
     ri.MemFree(component_pixels);
     R_ReleaseTexture(texture);
 }
@@ -2059,14 +2131,12 @@ static BOOL M2_IsCharacterModelPath(LPCSTR model_path) {
 }
 
 static BOOL M2_CharacterGeosetVisible(m2Model_t const *model,
-                                      renderEntity_t const *entity,
+                                      m2CharacterOutfit_t const *outfit,
                                       WORD section_id) {
-    m2CharacterOutfit_t outfit;
-
     if (!model || !model->character_model || section_id < 400) {
         return true;
     }
-    if (!M2_CharacterStartOutfit(model->filename, entity ? entity->appearance : 0, &outfit)) {
+    if (!outfit) {
         return section_id == 401 || section_id == 702 || section_id == 1501;
     }
 
@@ -2088,7 +2158,7 @@ static BOOL M2_CharacterGeosetVisible(m2Model_t const *model,
         case 12:
             return false;
         case 13:
-            if (outfit.flags & 0x4) {
+            if (outfit->flags & 0x4) {
                 return false;
             }
             return section_id == 1301;
@@ -2355,9 +2425,9 @@ m2Model_t *R_LoadModelM2(LPCSTR modelFilename, void *buffer, DWORD size) {
 
 static LPTEXTURE M2_CharacterTextureForBatch(m2Model_t const *model,
                                              renderEntity_t const *entity,
-                                             m2ModelBatch_t *batch) {
+                                             m2ModelBatch_t *batch,
+                                             m2CharacterOutfit_t const *outfit) {
     m2Model_t *mutable_model;
-    m2CharacterOutfit_t outfit;
     DWORD key;
     LPCOLOR32 pixels = NULL;
     LPTEXTURE base_texture = NULL;
@@ -2378,7 +2448,7 @@ static LPTEXTURE M2_CharacterTextureForBatch(m2Model_t const *model,
     mutable_model->character_composite = NULL;
     mutable_model->character_composite_key = key;
 
-    if (!M2_CharacterStartOutfit(model->filename, entity->appearance, &outfit)) {
+    if (!outfit) {
         return batch->texture;
     }
 
@@ -2397,7 +2467,7 @@ static LPTEXTURE M2_CharacterTextureForBatch(m2Model_t const *model,
                                 base_texture->width,
                                 base_texture->height,
                                 model->filename,
-                                &outfit,
+                                outfit,
                                 (BYTE)slot);
     }
 
@@ -2413,6 +2483,7 @@ static LPTEXTURE M2_CharacterTextureForBatch(m2Model_t const *model,
 
 void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, LPCMATRIX4 transform) {
     MATRIX3 normal_matrix;
+    m2CharacterOutfit_t const *outfit = NULL;
     m2ModelBatch_t *batch;
     LPSHADER shader;
 
@@ -2425,6 +2496,7 @@ void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, LPCMAT
 
     shader = M2_Shader();
     M2_CalculateBoneMatrices(model, entity);
+    outfit = M2_CharacterOutfitForEntity(model, entity);
     Matrix3_normal(&normal_matrix, transform);
     R_Call(glUseProgram, shader->progid);
     R_Call(glUniformMatrix4fv, shader->uViewProjectionMatrix, 1, GL_FALSE, tr.viewDef.viewProjectionMatrix.v);
@@ -2439,10 +2511,10 @@ void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, LPCMAT
     for (batch = model->batches; batch; batch = batch->next) {
         LPTEXTURE texture;
 
-        if (!M2_CharacterGeosetVisible(model, entity, batch->section_id)) {
+        if (!M2_CharacterGeosetVisible(model, outfit, batch->section_id)) {
             continue;
         }
-        texture = M2_CharacterTextureForBatch(model, entity, batch);
+        texture = M2_CharacterTextureForBatch(model, entity, batch, outfit);
         M2_UploadBatchBones(model, batch, shader);
         R_BindTexture(texture ? texture : tr.texture[TEX_WHITE], 0);
 #ifdef USE_SHADOWMAPS
