@@ -109,11 +109,19 @@ void CL_InputModeInit(void) {
 }
 
 void CL_InputModeSetGameplay(void) {
-    cl.moveConfirmation = re.LoadModel("UI\\Feedback\\Confirmation\\Confirmation.mdx");
+#ifdef SC2
+    cl.viewDef.camerastate[0].zfar = 400;
+    cl.viewDef.camerastate[0].znear = 0.1f;
+    cl.viewDef.camerastate[1].zfar = 400;
+    cl.viewDef.camerastate[1].znear = 0.1f;
+#else
+    if (!cl.moveConfirmation)
+        cl.moveConfirmation = re.LoadModel("UI\\Feedback\\Confirmation\\Confirmation.mdx");
     cl.viewDef.camerastate[0].zfar = 5000;
     cl.viewDef.camerastate[0].znear = 100;
     cl.viewDef.camerastate[1].zfar = 5000;
     cl.viewDef.camerastate[1].znear = 100;
+#endif
 }
 
 void CL_InputModeMouseMotion(SDL_MouseMotionEvent const *motion) {

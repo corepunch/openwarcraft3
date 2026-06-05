@@ -4,16 +4,17 @@
 #define M3_MAX_NODES 128
 
 #define M3_FOR_EACH(TYPE, VAR, LIST) \
-for (m3##TYPE##_t const *VAR = LIST; VAR < LIST + LIST##Num; VAR++)
+for (m3##TYPE##_t const *VAR = LIST; VAR && VAR < LIST + LIST##Num; VAR++)
 
 #define M3_READ(BUFFER, VAR, VERSION) \
 if ((BUFFER)->ent.version > VERSION || VERSION == 0) M3_Read(BUFFER, &VAR, sizeof(VAR));
 
 #define READ_REFERENCE(TARGET, REF, TYPE) { \
     m3Reader_t reader##__LINE__ = M3_MakeSizeBuf(currentmodel, REF); \
-    TARGET##Num = REF.nEntries; \
-    TARGET = ri.MemAlloc(sizeof(m3##TYPE##_t) * REF.nEntries); \
-    FOR_LOOP(n, REF.nEntries) { \
+    TARGET##Num = reader##__LINE__.valid ? MIN(REF.nEntries, reader##__LINE__.length / sizeof(m3##TYPE##_t)) : 0; \
+    TARGET = TARGET##Num ? ri.MemAlloc(sizeof(m3##TYPE##_t) * (TARGET##Num + 1)) : NULL; \
+    if (TARGET) memset(TARGET, 0, sizeof(m3##TYPE##_t) * (TARGET##Num + 1)); \
+    FOR_LOOP(n, TARGET##Num) { \
         M3_Read##TYPE(currentmodel, &reader##__LINE__, &TARGET[n]); \
     } \
 }
@@ -130,9 +131,9 @@ static LPCSTR m3_fs =
 
 "float get_lighting() {\n"
 #ifdef USE_SHADOWMAPS
-"    return mix(0.35, 1.0, get_shadow() * get_light()) * 1.5;"
+"    return clamp(mix(0.35, 1.0, get_shadow() * get_light()) * 1.5, 0.35, 1.0);"
 #else
-"    return mix(0.35, 1.0, get_light()) * 1.5;"
+"    return clamp(mix(0.35, 1.0, get_light()) * 1.5, 0.35, 1.0);"
 #endif
 "}\n"
 
@@ -182,6 +183,8 @@ static struct {
 typedef struct {
     struct ReferenceEntry ent;
     DWORD readcount;
+    DWORD length;
+    BOOL valid;
     void *data;
 } m3Reader_t;
 
@@ -194,14 +197,29 @@ R_EvalKeyframeValue(void const *left,
                     HANDLE out);
 
 void M3_Read(m3Reader_t *buffer, void *dest, DWORD bytes) {
-    memcpy(dest, buffer->data + buffer->readcount, bytes);
+    if (!dest || bytes == 0) return;
+    if (!buffer || !buffer->valid || !buffer->data ||
+        buffer->readcount > buffer->length ||
+        bytes > buffer->length - buffer->readcount) {
+        memset(dest, 0, bytes);
+        if (buffer) buffer->valid = false;
+        return;
+    }
+    memcpy(dest, (LPBYTE)buffer->data + buffer->readcount, bytes);
     buffer->readcount += bytes;
 }
 
 m3Reader_t M3_MakeSizeBuf(m3Model_t const *model, Reference ref) {
+    if (!model || !model->buffer || !model->refs || !model->head || !ref.nEntries ||
+        ref.ref >= model->head->nRefs ||
+        model->refs[ref.ref].offset >= model->size) {
+        return (m3Reader_t){ 0 };
+    }
     return (m3Reader_t) {
-        .data = model->buffer + model->refs[ref.ref].offset,
+        .data = (LPBYTE)model->buffer + model->refs[ref.ref].offset,
         .readcount = 0,
+        .length = model->size - model->refs[ref.ref].offset,
+        .valid = true,
         .ent = model->refs[ref.ref],
     };
 }
@@ -275,7 +293,7 @@ M3_READER(Layer) {
     M3_READ(sb, data->fresnel, 0);
     M3_READ(sb, data->fresnel2, 24);
     
-    if (*data->imagePath) {
+    if (data->imagePath && *data->imagePath) {
         data->texture = R_LoadTexture(data->imagePath);
     }
 }
@@ -497,6 +515,8 @@ void M3_InitMODL(m3Model_t *model, m3Reader_t sb) {
 }
 
 m3Uint32_t M3_FindAnimRef(m3SequenceTimeline_t const *timeline, m3Uint32_t animID) {
+    if (!timeline)
+        return 0;
     M3_FOR_EACH(Uint32, it, timeline->animIds) {
         if (animID == *it) {
             return timeline->animRefs[it - timeline->animIds];
@@ -526,14 +546,23 @@ M3_Get##ANIMREF##AnimValue(m3Model_t const *model, \
                            m3SequenceTimeline_t const *timeline, \
                            m3##ANIMREF##AnimRef_t const *animref, \
                            DWORD time) { \
+    if (!model || !timeline || !animref) return animref ? animref->initValue : (m3##ANIMREF##_t){ 0 }; \
     m3Uint32_t const anim = M3_FindAnimRef(timeline, animref->animId); \
     if (anim == 0) return animref->initValue; \
-    m3SequenceData_t const *sd = M3_GET_POINTER(model,timeline->sd[anim >> 16],SequenceData)+(anim&0xffff); \
+    DWORD const sdref = anim >> 16; \
+    DWORD const sdindex = anim & 0xffff; \
+    if (sdref >= 13 || sdindex >= timeline->sd[sdref].nEntries) return animref->initValue; \
+    m3SequenceData_t const *sdbase = M3_GET_POINTER(model, timeline->sd[sdref], SequenceData); \
+    if (!sdbase) return animref->initValue; \
+    m3SequenceData_t const *sd = sdbase + sdindex; \
     m3##ANIMREF##_t output = animref->initValue; \
     m3Float32_t t = 0.f; \
-    DWORD key = M3_FindKeyAtTime(M3_GET_POINTER(model, sd->keys, Uint32), sd->keys.nEntries, time, &t); \
+    m3Uint32_t const *keys = M3_GET_POINTER(model, sd->keys, Uint32); \
+    if (!keys) return animref->initValue; \
+    DWORD key = M3_FindKeyAtTime(keys, sd->keys.nEntries, time, &t); \
     if (key > 0) { \
         m3##ANIMREF##_t const *values = M3_GET_POINTER(model, sd->values, ANIMREF); \
+        if (!values || key >= sd->values.nEntries) return animref->initValue; \
         R_EvalKeyframeValue(values+key-1, values+key, t, DATATYPE, TRACK_LINEAR, &output); \
         return output; \
     } else { \
@@ -548,11 +577,27 @@ VECTOR4 M3_GET_ANIM_VALUE(Vector4, TDATA_FLOAT4);
 
 m3Model_t *R_LoadModelM3(void *data, DWORD size) {
     m3Model_t *model = ri.MemAlloc(sizeof(m3Model_t));
+    if (!model)
+        return NULL;
+    memset(model, 0, sizeof(*model));
+    if (!data || size < sizeof(struct MD33)) {
+        return model;
+    }
     model->buffer = malloc(size);
+    if (!model->buffer) {
+        return model;
+    }
     model->size = size;
     memcpy(model->buffer, data, size);
     model->head = model->buffer;
-    model->refs = model->buffer + model->head->ofsRefs;
+    if (memcmp(model->head->id, "43DM", 4) ||
+        model->head->ofsRefs >= model->size ||
+        model->head->nRefs > (model->size - model->head->ofsRefs) / sizeof(struct ReferenceEntry) ||
+        model->head->MODL.ref >= model->head->nRefs) {
+        fprintf(stderr, "R_LoadModelM3: invalid header\n");
+        return model;
+    }
+    model->refs = (struct ReferenceEntry *)((LPBYTE)model->buffer + model->head->ofsRefs);
     model->type = model->refs[model->head->MODL.ref].version;
     currentmodel = model;
     M3_InitMODL(model, M3_MakeSizeBuf(model, model->head->MODL));
@@ -560,11 +605,21 @@ m3Model_t *R_LoadModelM3(void *data, DWORD size) {
 }
 
 void M3_DrawDivisions(m3Model_t const *model, m3Divisions_t const *divisions) {
+    if (!model || !divisions || !divisions->indicesBuffer)
+        return;
     R_Call(glBindBuffer, GL_ELEMENT_ARRAY_BUFFER, divisions->indicesBuffer);
     M3_FOR_EACH(Batch, batch, divisions->batches) {
+        if (batch->regionIndex >= divisions->regionsNum ||
+            batch->materialReferenceIndex >= model->materialReferencesNum)
+            continue;
         m3Region_t const *region = divisions->regions+batch->regionIndex;
         m3MaterialReference_t const *mref = model->materialReferences+batch->materialReferenceIndex;
+        if (mref->materialIndex >= model->materialStandardNum)
+            continue;
         m3Material_t const *material = model->materialStandard+mref->materialIndex;
+        LPCTEXTURE diffuse = material->diffuseLayer && material->diffuseLayer->texture ? material->diffuseLayer->texture : tr.texture[TEX_WHITE];
+        LPCTEXTURE specular = material->specularLayer && material->specularLayer->texture ? material->specularLayer->texture : tr.texture[TEX_WHITE];
+        LPCTEXTURE normal = material->normalLayer && material->normalLayer->texture ? material->normalLayer->texture : tr.texture[TEX_WHITE];
 #ifndef __linux__
         DWORD const num_indices = region->triangleIndicesCount;
         DWORD const first_vertex = region->firstVertexIndex;
@@ -574,11 +629,11 @@ void M3_DrawDivisions(m3Model_t const *model, m3Divisions_t const *divisions) {
         R_Call(glUniform1f, m3.uBoneWeightPairsCount, region->boneWeightPairsCount);
         
         R_Call(glActiveTexture, GL_TEXTURE0);
-        R_Call(glBindTexture, GL_TEXTURE_2D, material->diffuseLayer->texture->texid);
+        R_Call(glBindTexture, GL_TEXTURE_2D, diffuse->texid);
         R_Call(glActiveTexture, GL_TEXTURE3);
-        R_Call(glBindTexture, GL_TEXTURE_2D, material->specularLayer->texture->texid);
+        R_Call(glBindTexture, GL_TEXTURE_2D, specular->texid);
         R_Call(glActiveTexture, GL_TEXTURE4);
-        R_Call(glBindTexture, GL_TEXTURE_2D, material->normalLayer->texture->texid);
+        R_Call(glBindTexture, GL_TEXTURE_2D, normal->texid);
         
         M3_FOR_EACH(Layer, layer, material->diffuseLayer) {
             if (!layer->texture)
@@ -641,6 +696,8 @@ M3_FindAnimationAtTime(m3Model_t const *model,
 
 void M3_RenderModel(renderEntity_t const *entity, m3Model_t const *model, LPCMATRIX4 transform) {
     MATRIX4 identity;
+    if (!entity || !model || !model->renbuf || !model->bones || !model->absoluteInverseBoneRestPositions)
+        return;
     Matrix4_identity(&identity);
     
     struct {
@@ -652,7 +709,7 @@ void M3_RenderModel(renderEntity_t const *entity, m3Model_t const *model, LPCMAT
     b.stc = M3_FindAnimationAtTime(model, entity->frame, &b.time);
 
     M3_FOR_EACH(Bone, bone, model->bones) {
-        LPCMATRIX4 parent = bone->parent >= 0 ? tmp+bone->parent : &identity;
+        LPCMATRIX4 parent = bone->parent >= 0 && bone->parent < (SHORT)model->bonesNum ? tmp+bone->parent : &identity;
         VECTOR3 a_p = M3_GetVector3AnimValue(model, a.stc, &bone->position, a.time);
         VECTOR4 a_r = M3_GetVector4AnimValue(model, a.stc, &bone->rotation, a.time);
         VECTOR3 a_s = M3_GetVector3AnimValue(model, a.stc, &bone->scale, a.time);
@@ -668,6 +725,10 @@ void M3_RenderModel(renderEntity_t const *entity, m3Model_t const *model, LPCMAT
 
     M3_FOR_EACH(Uint16, boneLookup, model->boneLookup) {
         m3Uint16_t boneIndex = *boneLookup;
+        if (boneIndex >= model->bonesNum || boneIndex >= model->absoluteInverseBoneRestPositionsNum ||
+            (DWORD)(boneLookup - model->boneLookup) >= M3_MAX_NODES) {
+            continue;
+        }
         LPCMATRIX4 bonematrix = tmp+boneIndex;
         LPCMATRIX4 baseline = model->absoluteInverseBoneRestPositions+boneIndex;
         Matrix4_multiply(bonematrix, baseline, bonemats+(boneLookup-model->boneLookup));
@@ -678,7 +739,8 @@ void M3_RenderModel(renderEntity_t const *entity, m3Model_t const *model, LPCMAT
 
     memcpy(&mScaledMatrix, transform, sizeof(MATRIX4));
     Matrix4_rotate(&mScaledMatrix, &(VECTOR3){0,0,90/*tr.viewDef.time*0.05*/}, ROTATE_ZYX);
-    Matrix4_scale(&mScaledMatrix, &(VECTOR3){100,100,100});
+    // SC2 entity scale is already applied by R_GetEntityMatrix; the old 100x loader scale put the camera inside units.
+//    Matrix4_scale(&mScaledMatrix, &(VECTOR3){100,100,100});
     Matrix3_normal(&mNormalMatrix, &mScaledMatrix);
 
     R_Call(glDisable, GL_BLEND);

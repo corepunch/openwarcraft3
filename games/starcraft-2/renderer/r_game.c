@@ -1,5 +1,6 @@
 #include "renderer/r_game.h"
 #include "m3/r_m3.h"
+#include "games/starcraft-2/common/sc2_map.h"
 #include "sc2/r_sc2map.h"
 
 void M3_Init(void);
@@ -172,7 +173,19 @@ void R_GameShutdown(void) {
 }
 
 void R_GameSetupTextureMatrix(void) {
-    Matrix4_identity(&tr.viewDef.textureMatrix);
+    sc2Map_t const *map = SC2_MapCurrent();
+    if (map && map->width && map->height) {
+        BOX2 bounds = SC2_MapBounds();
+        Matrix4_ortho(&tr.viewDef.textureMatrix,
+                      bounds.min.x,
+                      bounds.max.x,
+                      bounds.min.y,
+                      bounds.max.y,
+                      0.0f,
+                      100.0f);
+    } else {
+        Matrix4_identity(&tr.viewDef.textureMatrix);
+    }
 }
 
 void R_GameRegisterMap(LPCSTR mapFileName) {
@@ -227,7 +240,7 @@ void R_GameReleaseModel(LPMODEL model) {
 void R_GameRenderModel(renderEntity_t const *entity) {
     MATRIX4 transform;
 
-    if (!entity || !entity->model || entity->model->modeltype != ID_43DM) {
+    if (!entity || !entity->model || entity->model->modeltype != ID_43DM || !entity->model->m3) {
         return;
     }
     R_GetEntityMatrix(entity, &transform);

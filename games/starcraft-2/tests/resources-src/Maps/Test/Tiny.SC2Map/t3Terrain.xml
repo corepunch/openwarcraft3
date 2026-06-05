@@ -1,0 +1,9 @@
+<terrain version="113">
+    <heightMap tileSet="Fixture" dim="5 4">
+        <vertData quantizeBias="1.000000" quantizeScale="0.500000" standardHeight="2.000000" name="t3HeightMap"/>
+        <textureList num="2">
+            <texture i="0" name="Assets/Textures/Terrain/FixtureGrass_Diffuse"/>
+            <texture i="1" name="Assets/Textures/Terrain/FixtureDirt_Diffuse.dds"/>
+        </textureList>
+    </heightMap>
+</terrain>

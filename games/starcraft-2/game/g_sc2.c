@@ -223,6 +223,18 @@ static void SC2_SolveCollisions(void) {
 }
 
 static void SC2_InitClients(void) {
+    sc2Map_t const *map = SC2_MapCurrent();
+    VECTOR2 origin = { 0, 0 };
+
+    if (map && map->width && map->height) {
+        origin = (VECTOR2){
+            map->origin.x + (FLOAT)map->width * map->cell_size * 0.5f,
+            map->origin.y + (FLOAT)map->height * map->cell_size * 0.5f,
+        };
+        if (map->has_camera) {
+            origin = (VECTOR2){ map->camera_target.x, map->camera_target.y };
+        }
+    }
     FOR_LOOP(i, SC2_MAX_CLIENTS) {
         LPEDICT ent = &sc2_edicts[i];
         ent->inuse = true;
@@ -230,10 +242,15 @@ static void SC2_InitClients(void) {
         ent->client = &sc2_clients[i];
         ent->client->ps.number = i + 1;
         ent->client->ps.client_ui_state = CLIENT_UI_GAME;
-        ent->client->ps.origin = (VECTOR2){ 0, 0 };
-        ent->client->ps.fov = 60;
-        ent->client->ps.distance = 80;
-        ent->client->ps.viewangles = (VECTOR3){ DEG2RAD(60), 0, 0 };
+        ent->client->ps.origin = origin;
+        ent->client->ps.fov = (DWORD)(map && map->camera_fov > 0.0f ? map->camera_fov : 28.0f);
+        ent->client->ps.distance = map && map->camera_distance > 0.0f ? map->camera_distance : 34.07f;
+        ent->client->ps.rdflags = RDF_NOFOG | RDF_NOFOGMASK;
+        ent->client->ps.viewangles = (VECTOR3){
+            map && map->camera_pitch > 0.0f ? map->camera_pitch : 56.0f,
+            map && map->camera_yaw != 0.0f ? map->camera_yaw : 180.0f,
+            0.0f,
+        };
         ent->client->ps.viewquat = Quaternion_fromEuler(&ent->client->ps.viewangles, ROTATE_ZYX);
     }
 }
@@ -386,8 +403,7 @@ static BOOL SC2_CanSeeEntity(DWORD player, LPCEDICT ent) {
 }
 
 static LPCSTR SC2_GetThemeValue(LPCSTR filename) {
-    (void)filename;
-    return NULL;
+    return filename ? filename : "";
 }
 
 struct game_export *GetGameAPI(struct game_import *import) {

@@ -31,6 +31,7 @@ typedef struct {
 
 typedef struct {
     char           map_name[128];
+    char           tile_set[64];
     DWORD          width;
     DWORD          height;
     VECTOR2        origin;
@@ -50,6 +51,22 @@ typedef struct {
     DWORD          cliff_level_width;
     DWORD          cliff_level_height;
     USHORT        *cliff_levels;
+    FLOAT          height_quantize_bias;
+    FLOAT          height_quantize_scale;
+    FLOAT          standard_height;
+    DWORD          height_map_width;
+    DWORD          height_map_height;
+    FLOAT         *height_map;
+    BOOL           has_camera;
+    DWORD          camera_priority;
+    VECTOR3        camera_target;
+    FLOAT          camera_distance;
+    FLOAT          camera_pitch;
+    FLOAT          camera_yaw;
+    FLOAT          camera_fov;
+    FLOAT          camera_znear;
+    FLOAT          camera_zfar;
+    FLOAT          camera_height_offset;
 } sc2Map_t;
 
 typedef struct {

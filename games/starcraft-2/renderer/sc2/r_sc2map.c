@@ -44,23 +44,23 @@ static BYTE r_sc2_texture_weight(sc2Map_t const *map, DWORD texture, DWORD x, DW
 }
 
 static FLOAT r_sc2_height_at_grid(sc2Map_t const *map, DWORD x, DWORD y) {
-    if (!map->cliff_levels || !map->cliff_level_width || !map->cliff_level_height) {
+    if (!map->height_map || !map->height_map_width || !map->height_map_height) {
         return 0.0f;
+    }
+    x = MIN(map->height_map_width - 1, x * (map->height_map_width - 1) / MAX(1, map->width));
+    y = MIN(map->height_map_height - 1, y * (map->height_map_height - 1) / MAX(1, map->height));
+    return map->height_map[x + y * map->height_map_width];
+}
+
+static USHORT r_sc2_cliff_level_at_grid(sc2Map_t const *map, DWORD x, DWORD y) {
+    USHORT value;
+    if (!map->cliff_levels || !map->cliff_level_width || !map->cliff_level_height) {
+        return 0;
     }
     x = MIN(map->cliff_level_width - 1, x * map->cliff_level_width / MAX(1, map->width));
     y = MIN(map->cliff_level_height - 1, y * map->cliff_level_height / MAX(1, map->height));
-    return map->cliff_levels[x + y * map->cliff_level_width];
-}
-
-static BOOL r_sc2_tile_hole(sc2Map_t const *map, DWORD x, DWORD y) {
-    DWORD fx, fy;
-
-    if (!map->cell_flags || !map->cell_flags_width || !map->cell_flags_height) {
-        return false;
-    }
-    fx = MIN(map->cell_flags_width - 1, x * map->cell_flags_width / MAX(1, map->width));
-    fy = MIN(map->cell_flags_height - 1, y * map->cell_flags_height / MAX(1, map->height));
-    return map->cell_flags[fx + fy * map->cell_flags_width] == 0x03;
+    value = map->cliff_levels[x + y * map->cliff_level_width];
+    return value >= 0x40 ? value >> 6 : value;
 }
 
 static void r_sc2_release_layer(LPMAPLAYER layer) {
@@ -126,11 +126,6 @@ static LPMAPLAYER r_sc2_build_terrain_layer(sc2Map_t const *map, DWORD layer) {
             FLOAT z10 = r_sc2_height_at_grid(map, x + 1, y);
             FLOAT z11 = r_sc2_height_at_grid(map, x + 1, y + 1);
             FLOAT z01 = r_sc2_height_at_grid(map, x, y + 1);
-            if (r_sc2_tile_hole(map, x, y)) {
-                memset(out, 0, 6 * sizeof(*out));
-                out += 6;
-                continue;
-            }
             r_sc2_push_vertex(out++, x0, y0, z00, u0, v0, a);
             r_sc2_push_vertex(out++, x1, y0, z10, u1, v0, a);
             r_sc2_push_vertex(out++, x1, y1, z11, u1, v1, a);
@@ -190,15 +185,18 @@ static LPMAPLAYER r_sc2_build_cliff_layer(sc2Map_t const *map) {
             FLOAT z = r_sc2_height_at_grid(map, x, y);
             FLOAT zr = r_sc2_height_at_grid(map, x + 1, y);
             FLOAT zb = r_sc2_height_at_grid(map, x, y + 1);
+            USHORT c = r_sc2_cliff_level_at_grid(map, x, y);
+            USHORT cr = r_sc2_cliff_level_at_grid(map, x + 1, y);
+            USHORT cb = r_sc2_cliff_level_at_grid(map, x, y + 1);
             FLOAT x0 = bounds.min.x + x * map->cell_size;
             FLOAT y0 = bounds.min.y + y * map->cell_size;
             FLOAT x1 = x0 + map->cell_size;
             FLOAT y1 = y0 + map->cell_size;
 
-            if (zr != z && (DWORD)(out - vertices) + 6 <= capacity) {
+            if (cr != c && zr != z && (DWORD)(out - vertices) + 6 <= capacity) {
                 r_sc2_cliff_quad(&out, x1, y0, x1, y1, MIN(z, zr), MAX(z, zr));
             }
-            if (zb != z && (DWORD)(out - vertices) + 6 <= capacity) {
+            if (cb != c && zb != z && (DWORD)(out - vertices) + 6 <= capacity) {
                 r_sc2_cliff_quad(&out, x0, y1, x1, y1, MIN(z, zb), MAX(z, zb));
             }
         }
@@ -237,15 +235,30 @@ static void r_sc2_build_terrain(sc2Map_t const *map) {
     r_sc2_add_layer(&sc2_terrain_segment->layers, r_sc2_build_cliff_layer(map));
 
     bounds = SC2_MapBounds();
-    if (map->cliff_levels) {
-        FOR_LOOP(i, map->cliff_level_width * map->cliff_level_height) {
-            max_z = MAX(max_z, map->cliff_levels[i] + 1.0f);
+    if (map->height_map) {
+        FOR_LOOP(i, map->height_map_width * map->height_map_height) {
+            max_z = MAX(max_z, map->height_map[i] + 1.0f);
         }
     }
     sc2_terrain_segment->bbox = (BOX3){
         .min = { bounds.min.x, bounds.min.y, -1.0f },
         .max = { bounds.max.x, bounds.max.y, max_z },
     };
+}
+
+static void r_sc2_draw_terrain_segment(LPCMAPSEGMENT segment, DWORD mask) {
+    FOR_EACH_LIST(MAPLAYER, layer, segment->layers) {
+        if (((1 << layer->type) & mask) == 0)
+            continue;
+        if (layer == segment->layers) {
+            R_Call(glDisable, GL_BLEND);
+        } else {
+            R_Call(glEnable, GL_BLEND);
+            R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        }
+        R_BindTexture(layer->texture, 0);
+        R_DrawBuffer(layer->buffer, layer->num_vertices);
+    }
 }
 
 void R_SC2RegisterMap(LPCSTR mapFileName) {
@@ -261,17 +274,20 @@ void R_SC2RegisterMap(LPCSTR mapFileName) {
 
 void R_SC2DrawWorld(void) {
     MATRIX4 model_matrix;
+
     if (!sc2_terrain_segment || (tr.viewDef.rdflags & RDF_NOWORLDMODEL))
         return;
 
     Matrix4_identity(&model_matrix);
-    R_Call(glUseProgram, tr.shader[SHADER_DEFAULT]->progid);
-    R_Call(glUniformMatrix4fv, tr.shader[SHADER_DEFAULT]->uViewProjectionMatrix, 1, GL_FALSE, tr.viewDef.viewProjectionMatrix.v);
-    R_Call(glUniformMatrix4fv, tr.shader[SHADER_DEFAULT]->uModelMatrix, 1, GL_FALSE, model_matrix.v);
+    R_Call(glUseProgram, tr.shader[SHADER_UI]->progid);
+    R_Call(glUniformMatrix4fv, tr.shader[SHADER_UI]->uViewProjectionMatrix, 1, GL_FALSE, tr.viewDef.viewProjectionMatrix.v);
+    R_Call(glUniformMatrix4fv, tr.shader[SHADER_UI]->uModelMatrix, 1, GL_FALSE, model_matrix.v);
+    R_Call(glDisable, GL_CULL_FACE);
     R_Call(glEnable, GL_DEPTH_TEST);
     R_Call(glDepthMask, GL_TRUE);
     R_Call(glDepthFunc, GL_LEQUAL);
-    R_DrawTerrainSegment(sc2_terrain_segment, (1 << MAPLAYERTYPE_GROUND) | (1 << MAPLAYERTYPE_CLIFF));
+    R_Call(glColorMask, GL_TRUE, GL_TRUE, GL_TRUE, GL_FALSE);
+    r_sc2_draw_terrain_segment(sc2_terrain_segment, (1 << MAPLAYERTYPE_GROUND) | (1 << MAPLAYERTYPE_CLIFF));
 }
 
 bool R_SC2TraceLocation(viewDef_t const *viewdef, FLOAT x, FLOAT y, LPVECTOR3 output) {
