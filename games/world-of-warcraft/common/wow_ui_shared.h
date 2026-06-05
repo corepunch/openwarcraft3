@@ -13,7 +13,6 @@ typedef enum {
     WOW_STAT_XP = 5,
     WOW_STAT_XP_MAX = 6,
     WOW_STAT_COPPER = 7,
-    WOW_STAT_INVENTORY_FIRST = 16,
 } wowPlayerStat_t;
 
 #endif

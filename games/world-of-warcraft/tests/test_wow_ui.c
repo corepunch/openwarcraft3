@@ -187,6 +187,23 @@ static LPCTEXTURE test_get_texture(DWORD index) {
     return index < MAX_IMAGES ? test_textures[index] : NULL;
 }
 
+static int test_image_index(LPCSTR imageName) {
+    FOR_LOOP(i, MAX_IMAGES) {
+        LPCTEXTURE texture = test_textures[i];
+
+        if (texture && !strcmp(texture->name, imageName)) {
+            return (int)i;
+        }
+    }
+    for (DWORD i = 1; i < MAX_IMAGES; i++) {
+        if (!test_textures[i]) {
+            test_textures[i] = test_load_texture(imageName);
+            return (int)i;
+        }
+    }
+    return 0;
+}
+
 static LPCPLAYER test_get_player_state(void) {
     return &test_ps;
 }
@@ -239,7 +256,6 @@ static void reset_test_state(void) {
     test_ps.stats[WOW_STAT_POWER] = 55;
     test_ps.stats[WOW_STAT_POWER_MAX] = 80;
     test_ps.stats[WOW_STAT_LEVEL] = 9;
-    test_ps.stats[WOW_STAT_INVENTORY_FIRST] = 7;
 }
 
 static uiExport_t init_ui(void) {
@@ -250,6 +266,7 @@ static uiExport_t init_ui(void) {
         .FS_FreeFile = test_fs_free_file,
         .MemAlloc = test_mem_alloc,
         .MemFree = test_mem_free,
+        .ImageIndex = test_image_index,
         .ServerCommand = test_server_command,
         .GetPlayerState = test_get_player_state,
         .GetTexture = test_get_texture,
@@ -267,12 +284,19 @@ static uiExport_t init_ui(void) {
 
 static void test_wow_lua_ui_draws_from_generated_mpq(void) {
     uiExport_t ui;
+    uiUnitData_t unit;
 
     reset_test_state();
     ASSERT(SFileOpenArchive(TEST_WOW_MPQ, 0, 0, &test_archive));
-    test_textures[7] = test_load_texture("Interface\\Test\\Inventory.blp");
 
     ui = init_ui();
+    memset(&unit, 0, sizeof(unit));
+    unit.num_inventory = 1;
+    snprintf(unit.inventory[0].art, sizeof(unit.inventory[0].art), "%s", "Interface\\Test\\Inventory.blp");
+    snprintf(unit.inventory[0].tooltip, sizeof(unit.inventory[0].tooltip), "%s", "Inventory");
+    snprintf(unit.inventory[0].ubertip, sizeof(unit.inventory[0].ubertip), "%s", "1");
+    unit.inventory[0].slot = 0;
+    ui.UpdateUnitUI(1, &unit);
     ui.Refresh(33);
     ui.DrawFrame();
 
@@ -291,7 +315,12 @@ static void test_wow_lua_ui_draws_from_generated_mpq(void) {
     ASSERT_STR_EQ(last_server_command, "wow_lua_test 9 33");
 
     ui.Shutdown();
-    test_release_texture((LPTEXTURE)test_textures[7]);
+    FOR_LOOP(i, MAX_IMAGES) {
+        if (test_textures[i]) {
+            test_release_texture((LPTEXTURE)test_textures[i]);
+            test_textures[i] = NULL;
+        }
+    }
     SFileCloseArchive(test_archive);
     test_archive = NULL;
 }

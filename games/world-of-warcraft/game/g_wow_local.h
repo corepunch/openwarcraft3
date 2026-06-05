@@ -58,12 +58,13 @@ typedef struct {
     char icon[256];
     char name[64];
     DWORD count;
-} wowInventoryItem_t;
+} wowHudIcon_t;
 
 typedef struct {
     struct client_s client;
     UINAME name;
-    wowInventoryItem_t inventory[WOW_UI_INVENTORY_SLOTS];
+    wowHudIcon_t inventory[WOW_UI_INVENTORY_SLOTS];
+    wowHudIcon_t actions[WOW_UI_ACTION_SLOTS];
 } wowClient_t;
 
 extern struct game_import gi;

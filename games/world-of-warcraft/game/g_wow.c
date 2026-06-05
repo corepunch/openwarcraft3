@@ -22,12 +22,27 @@ static struct {
     .distance = 8.5f,
 };
 
-static wowInventoryItem_t const wow_start_inventory[WOW_UI_INVENTORY_SLOTS] = {
+static wowHudIcon_t const wow_start_inventory[WOW_UI_INVENTORY_SLOTS] = {
     { "Interface\\Icons\\INV_Misc_Bag_08.blp", "Backpack", 1 },
     { "Interface\\Icons\\INV_Weapon_ShortBlade_05.blp", "Short Blade", 1 },
     { "Interface\\Icons\\INV_Misc_Food_24.blp", "Food", 5 },
     { "Interface\\Icons\\Spell_Nature_HealingTouch.blp", "Healing Touch", 1 },
     { "Interface\\Icons\\Ability_Warrior_BattleShout.blp", "Battle Shout", 1 },
+    { "Interface\\Icons\\INV_Misc_Coin_01.blp", "Coin", 12 },
+};
+
+static wowHudIcon_t const wow_start_actions[WOW_UI_ACTION_SLOTS] = {
+    { "Interface\\Icons\\Ability_Warrior_Cleave.blp", "Attack", 1 },
+    { "Interface\\Icons\\Ability_Warrior_Charge.blp", "Charge", 1 },
+    { "Interface\\Icons\\Ability_Warrior_BattleShout.blp", "Battle Shout", 1 },
+    { "Interface\\Icons\\Spell_Nature_HealingTouch.blp", "Healing Touch", 1 },
+    { "Interface\\Icons\\Spell_Fire_FireBolt02.blp", "Firebolt", 1 },
+    { "Interface\\Icons\\Spell_Frost_FrostBolt02.blp", "Frostbolt", 1 },
+    { "Interface\\Icons\\INV_Weapon_ShortBlade_05.blp", "Short Blade", 1 },
+    { "Interface\\Icons\\INV_Misc_Food_24.blp", "Food", 5 },
+    { "Interface\\Icons\\INV_Potion_51.blp", "Healing Potion", 2 },
+    { "Interface\\Icons\\INV_Misc_Bag_08.blp", "Backpack", 1 },
+    { "Interface\\Icons\\Spell_Holy_MagicalSentry.blp", "Sentry", 1 },
     { "Interface\\Icons\\INV_Misc_Coin_01.blp", "Coin", 12 },
 };
 
@@ -462,12 +477,50 @@ static void Wow_UpdatePlayerHud(LPEDICT ent) {
     ps->stats[WOW_STAT_XP] = 120;
     ps->stats[WOW_STAT_XP_MAX] = 400;
     ps->stats[WOW_STAT_COPPER] = 1234;
+}
 
-    FOR_LOOP(slot, WOW_UI_INVENTORY_SLOTS) {
-        wowInventoryItem_t const *item = &wow_clients[0].inventory[slot];
-        ps->stats[WOW_STAT_INVENTORY_FIRST + slot] =
-            (USHORT)((item->icon[0] && gi.ImageIndex) ? gi.ImageIndex(item->icon) : 0);
+static void Wow_WriteHudIcon(wowHudIcon_t const *icon, DWORD slot) {
+    char command[64];
+    char count[32];
+
+    snprintf(command, sizeof(command), "wow_action %u", (unsigned)slot);
+    snprintf(count, sizeof(count), "%u", (unsigned)icon->count);
+    gi.Write(PF_STRING, icon->icon);
+    gi.Write(PF_STRING, icon->name);
+    gi.Write(PF_STRING, count);
+    gi.Write(PF_STRING, command);
+    gi.Write(PF_BYTE, &(LONG){ slot < 10 ? '1' + (LONG)slot : 0 });
+}
+
+static void Wow_WriteInventoryIcon(wowHudIcon_t const *icon, DWORD slot) {
+    char count[32];
+
+    snprintf(count, sizeof(count), "%u", (unsigned)icon->count);
+    gi.Write(PF_STRING, icon->icon);
+    gi.Write(PF_STRING, icon->name);
+    gi.Write(PF_STRING, count);
+    gi.Write(PF_BYTE, &(LONG){ slot });
+}
+
+static void Wow_SendPlayerUi(LPEDICT ent) {
+    wowClient_t *client = &wow_clients[0];
+
+    if (!ent || !gi.Write || !gi.unicast) {
+        return;
     }
+    gi.Write(PF_BYTE, &(LONG){ svc_unit_ui });
+    gi.Write(PF_BYTE, &(LONG){ 1 });
+    gi.Write(PF_SHORT, &(LONG){ ent->s.number });
+    gi.Write(PF_BYTE, &(LONG){ WOW_UI_ACTION_SLOTS });
+    FOR_LOOP(slot, WOW_UI_ACTION_SLOTS) {
+        Wow_WriteHudIcon(&client->actions[slot], slot);
+    }
+    gi.Write(PF_BYTE, &(LONG){ WOW_UI_INVENTORY_SLOTS });
+    FOR_LOOP(slot, WOW_UI_INVENTORY_SLOTS) {
+        Wow_WriteInventoryIcon(&client->inventory[slot], slot);
+    }
+    gi.Write(PF_BYTE, &(LONG){ 0 });
+    gi.unicast(ent);
 }
 
 static void Wow_MovePlayerFrame(LPEDICT ent) {
@@ -578,6 +631,7 @@ static void Wow_InitPlayer(LPEDICT ent) {
     ps->number = 0;
     snprintf(wow_clients[0].name, sizeof(wow_clients[0].name), "%s", "Thrall");
     memcpy(wow_clients[0].inventory, wow_start_inventory, sizeof(wow_start_inventory));
+    memcpy(wow_clients[0].actions, wow_start_actions, sizeof(wow_start_actions));
 #ifdef WOW
     ps->origin = wow_spawn_origin;
     ps->viewangles = (VECTOR3){ Wow_ViewPitch(wow_move.pitch), wow_move.yaw, 0.0f };
@@ -595,6 +649,7 @@ static void Wow_InitPlayer(LPEDICT ent) {
     ps->texts[PLAYERTEXT_MAP_TITLE] = wow_loading_title;
     ps->texts[PLAYERTEXT_MAP_PREVIEW] = wow_loading_texture;
     Wow_UpdatePlayerHud(ent);
+    Wow_SendPlayerUi(ent);
 }
 
 static void Wow_Init(void) {
@@ -761,10 +816,11 @@ static void Wow_ClientSetCameraPosition(LPEDICT ent, LPCVECTOR2 position) {
 }
 
 static void Wow_ClientBegin(LPEDICT ent) {
-    if (!ent || ent->client) {
+    if (!ent) {
         return;
     }
     ent->client = &wow_clients[0].client;
+    Wow_SendPlayerUi(ent);
 }
 
 struct game_export *GetGameAPI(struct game_import *import) {

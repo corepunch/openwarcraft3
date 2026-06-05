@@ -4,6 +4,7 @@
 #include <lauxlib.h>
 #include <lua.h>
 #include <lualib.h>
+#include <stdlib.h>
 
 #define WOW_UI_MAX_TEXTURES 256
 #define WOW_UI_MAX_FONTS 16
@@ -22,10 +23,19 @@ typedef struct {
 } uiWowFont_t;
 
 typedef struct {
+    DWORD image;
+    DWORD count;
+    DWORD slot;
+    char name[128];
+} uiWowIcon_t;
+
+typedef struct {
     LPRENDERER renderer;
     lua_State *lua;
     uiWowTexture_t textures[WOW_UI_MAX_TEXTURES];
     uiWowFont_t fonts[WOW_UI_MAX_FONTS];
+    uiWowIcon_t inventory[WOW_UI_INVENTORY_SLOTS];
+    uiWowIcon_t actions[WOW_UI_ACTION_SLOTS];
     LPTEXTURE background;
     LPTEXTURE bar_background;
     LPTEXTURE bar_border;
@@ -42,7 +52,6 @@ static uiWowState_t wow_ui;
 
 static char const wow_default_hud_lua[] =
 "local W = ow3\n"
-"local INV0 = W.STAT_INVENTORY_FIRST\n"
 "local function bar(x, y, w, h, value, maxvalue, r, g, b)\n"
 "    W.draw_color(x, y, w, h, 12, 10, 8, 220)\n"
 "    local p = maxvalue > 0 and value / maxvalue or 0\n"
@@ -60,14 +69,25 @@ static char const wow_default_hud_lua[] =
 "    bar(0.079, 0.071, 0.142, 0.013, p.health, p.healthMax, 20, 178, 48)\n"
 "    bar(0.079, 0.087, 0.142, 0.012, p.power, p.powerMax, 26, 82, 210)\n"
 "    W.draw_image('Interface\\\\MainMenuBar\\\\UI-MainMenuBar.blp', 0.250, 0.875, 0.500, 0.108)\n"
+"    local actions = W.actions()\n"
 "    local slot, gap = 0.038, 0.004\n"
 "    local x0 = (1.0 - (slot * 12 + gap * 11)) * 0.5\n"
 "    for i = 0, 11 do\n"
 "        local x = x0 + i * (slot + gap)\n"
 "        W.draw_image('Interface\\\\Buttons\\\\UI-Quickslot2.blp', x, 0.910, slot, slot)\n"
-"        if i < 6 then\n"
-"            local image = W.stat(INV0 + i)\n"
-"            if image and image > 0 then W.draw_image_index(image, x + 0.004, 0.914, slot - 0.008, slot - 0.008) end\n"
+"        local action = actions[i + 1]\n"
+"        if action and action.image and action.image > 0 then\n"
+"            W.draw_image_index(action.image, x + 0.004, 0.914, slot - 0.008, slot - 0.008)\n"
+"        end\n"
+"    end\n"
+"    local inv = W.inventory()\n"
+"    for i = 0, 5 do\n"
+"        local item = inv[i + 1]\n"
+"        local x = 0.760 + (i % 3) * 0.034\n"
+"        local y = 0.808 + math.floor(i / 3) * 0.034\n"
+"        W.draw_image('Interface\\\\Buttons\\\\UI-Quickslot2.blp', x, y, 0.032, 0.032)\n"
+"        if item and item.image and item.image > 0 then\n"
+"            W.draw_image_index(item.image, x + 0.003, y + 0.003, 0.026, 0.026)\n"
 "        end\n"
 "    end\n"
 "    W.draw_image('Interface\\\\Minimap\\\\UI-Minimap-Border.blp', 0.858, 0.018, 0.124, 0.124)\n"
@@ -340,6 +360,36 @@ static int UIWow_LuaPlayer(lua_State *L) {
     return 1;
 }
 
+static void UIWow_LuaPushIcon(lua_State *L, uiWowIcon_t const *icon) {
+    lua_newtable(L);
+    lua_pushinteger(L, icon ? icon->image : 0);
+    lua_setfield(L, -2, "image");
+    lua_pushinteger(L, icon ? icon->count : 0);
+    lua_setfield(L, -2, "count");
+    lua_pushinteger(L, icon ? icon->slot : 0);
+    lua_setfield(L, -2, "slot");
+    lua_pushstring(L, icon && icon->name[0] ? icon->name : "");
+    lua_setfield(L, -2, "name");
+}
+
+static int UIWow_LuaInventory(lua_State *L) {
+    lua_newtable(L);
+    FOR_LOOP(i, WOW_UI_INVENTORY_SLOTS) {
+        UIWow_LuaPushIcon(L, &wow_ui.inventory[i]);
+        lua_rawseti(L, -2, (lua_Integer)i + 1);
+    }
+    return 1;
+}
+
+static int UIWow_LuaActions(lua_State *L) {
+    lua_newtable(L);
+    FOR_LOOP(i, WOW_UI_ACTION_SLOTS) {
+        UIWow_LuaPushIcon(L, &wow_ui.actions[i]);
+        lua_rawseti(L, -2, (lua_Integer)i + 1);
+    }
+    return 1;
+}
+
 static int UIWow_LuaTime(lua_State *L) {
     lua_pushinteger(L, uiimport.GetClientTime ? uiimport.GetClientTime() : 0);
     return 1;
@@ -364,6 +414,8 @@ static luaL_Reg const wow_lua_funcs[] = {
     { "text", UIWow_LuaText },
     { "player_name", UIWow_LuaPlayerName },
     { "player", UIWow_LuaPlayer },
+    { "inventory", UIWow_LuaInventory },
+    { "actions", UIWow_LuaActions },
     { "time", UIWow_LuaTime },
     { "command", UIWow_LuaCommand },
     { NULL, NULL },
@@ -449,7 +501,6 @@ static void UIWow_InitLua(void) {
     UIWow_LuaSetInteger(L, "STAT_XP", WOW_STAT_XP);
     UIWow_LuaSetInteger(L, "STAT_XP_MAX", WOW_STAT_XP_MAX);
     UIWow_LuaSetInteger(L, "STAT_COPPER", WOW_STAT_COPPER);
-    UIWow_LuaSetInteger(L, "STAT_INVENTORY_FIRST", WOW_STAT_INVENTORY_FIRST);
     lua_setglobal(L, "ow3");
 
     UIWow_RunLuaBuffer("@default_wow_hud.lua",
@@ -683,9 +734,51 @@ static void UIWow_MenuCommand(LPCSTR route) {
     (void)route;
 }
 
+static DWORD UIWow_ImageIndex(LPCSTR art) {
+    if (!art || !*art || !uiimport.ImageIndex) {
+        return 0;
+    }
+    return (DWORD)uiimport.ImageIndex(art);
+}
+
+static DWORD UIWow_ParseCount(LPCSTR text) {
+    DWORD count;
+
+    if (!text || !*text) {
+        return 0;
+    }
+    count = (DWORD)strtoul(text, NULL, 10);
+    return count;
+}
+
 static void UIWow_UpdateUnitUI(DWORD num_units, uiUnitData_t *units) {
-    (void)num_units;
-    (void)units;
+    uiUnitData_t *unit;
+
+    memset(wow_ui.inventory, 0, sizeof(wow_ui.inventory));
+    memset(wow_ui.actions, 0, sizeof(wow_ui.actions));
+    if (num_units == 0 || !units) {
+        return;
+    }
+    unit = &units[0];
+    FOR_LOOP(i, MIN(unit->num_buttons, WOW_UI_ACTION_SLOTS)) {
+        uiCommandButton_t const *button = &unit->buttons[i];
+        uiWowIcon_t *icon = &wow_ui.actions[i];
+
+        icon->image = UIWow_ImageIndex(button->art);
+        icon->count = UIWow_ParseCount(button->ubertip);
+        icon->slot = i;
+        snprintf(icon->name, sizeof(icon->name), "%s", button->tooltip);
+    }
+    FOR_LOOP(i, MIN(unit->num_inventory, WOW_UI_INVENTORY_SLOTS)) {
+        uiInventoryItem_t const *item = &unit->inventory[i];
+        DWORD slot = item->slot < WOW_UI_INVENTORY_SLOTS ? item->slot : i;
+        uiWowIcon_t *icon = &wow_ui.inventory[slot];
+
+        icon->image = UIWow_ImageIndex(item->art);
+        icon->count = UIWow_ParseCount(item->ubertip);
+        icon->slot = slot;
+        snprintf(icon->name, sizeof(icon->name), "%s", item->tooltip);
+    }
 }
 
 static void UIWow_SetLayoutLayer(DWORD layer, HANDLE data) {
