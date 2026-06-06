@@ -180,6 +180,19 @@ static BYTE r_sc2_cell_flag_at_grid(sc2Map_t const *map, DWORD x, DWORD y) {
     return map->cell_flags[x + y * map->cell_flags_width];
 }
 
+static BOOL r_sc2_cliff_block_is_flat(sc2Map_t const *map, DWORD x, DWORD y) {
+    USHORT level = r_sc2_cliff_level_at_grid(map, x, y);
+    return r_sc2_cliff_level_at_grid(map, x + 1, y) == level &&
+           r_sc2_cliff_level_at_grid(map, x + 1, y + 1) == level &&
+           r_sc2_cliff_level_at_grid(map, x, y + 1) == level;
+}
+
+static BOOL r_sc2_skip_ground_cell(sc2Map_t const *map, DWORD x, DWORD y) {
+    if ((r_sc2_cell_flag_at_grid(map, x, y) & 0x0f) != 0x03)
+        return false;
+    return !r_sc2_cliff_block_is_flat(map, x & ~1u, y & ~1u);
+}
+
 static void r_sc2_release_layer(LPMAPLAYER layer) {
     while (layer) {
         LPMAPLAYER next = layer->next;
@@ -277,7 +290,7 @@ static LPMAPLAYER r_sc2_build_ground_layer(sc2Map_t const *map) {
 
     FOR_LOOP(y, h) {
         FOR_LOOP(x, w) {
-            if ((r_sc2_cell_flag_at_grid(map, x, y) & 0x0f) == 0x03) {
+            if (r_sc2_skip_ground_cell(map, x, y)) {
                 continue;
             }
             FLOAT x0 = bounds.min.x + x * map->cell_size;
@@ -641,8 +654,8 @@ static void r_sc2_bake_cliff_model(rCliffBakeList_t *list,
                                          position.x,
                                          position.y,
                                          position.z,
-                                         vertex->uv[0] / 2048.0f,
-                                         vertex->uv[1] / 2048.0f,
+                                         vertex->uv[0][0] / 2048.0f,
+                                         vertex->uv[0][1] / 2048.0f,
                                          255,
                                          normal);
             }

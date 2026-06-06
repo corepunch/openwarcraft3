@@ -34,6 +34,10 @@ Collected through 2026-06-06.
   - Container formats (MPQ, SC2Map, SC2Mod, SC2Replay), asset formats (DDS, M3, M3A, OGV, TGA).
 - SC2Mapster Wiki, `Model Files`: https://sc2mapster.wiki.gg/wiki/Model_Files
   - `.m3` (model + animations), `.m3a` (supplemental bone animations), model component list.
+- StarCraft II Art Tools, `Appendix: Cliff Models`: https://mapster.talv.space/star-tools/Appendix_Cliffs.html
+  - Cliff object naming, 200×200 tiling footprint, bottom-left/bottom-right/top-right/top-left corner order, variation suffix semantics, and vertex-alpha/alpha-mask requirements for cliff tops and bottoms.
+- StarCraft II Art Tools, `Materials: Material Types: SC2 Terrain`: https://mapster.talv.space/star-tools/Material_SC2Terrain.html
+  - Terrain material behavior for models that show terrain colors through a material or mask.
 
 ## Catalog / Data System
 
@@ -81,6 +85,10 @@ Collected through 2026-06-06.
   - TypeScript libraries for SC2 map files: Galaxy Script, Triggers scheme, Game Data XML.
 - Talv/stormex: https://github.com/Talv/stormex
   - CLI for listing and extracting files from Blizzard CASC storage.
+- SC2Mapster/m3addon: https://github.com/SC2Mapster/m3addon
+  - Blender M3 importer/exporter. `structures.xml` documents variable M3 vertex formats, vertex color fields, material vertex-color/vertex-alpha flags, standard materials, composite materials, and terrain material records.
+- flowtsohg/mdx-m3-viewer: https://github.com/flowtsohg/mdx-m3-viewer
+  - Web M3 renderer/parser. Useful reference for deriving M3 vertex size from `vertexFlags`, preserving material references per batch, and applying vertex color in shaders.
 
 ## Caution
 

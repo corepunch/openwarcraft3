@@ -467,9 +467,24 @@ Four characters encoding the relative cliff level at each corner of the 2×2-cel
 - `'C'` = 2 steps above base
 - `'D'` = 3 steps above base
 
-**Only the lexicographically smallest rotation of each config has a model file on disk.** `cvar` stores which of the 4 rotations to apply (`_00`=canonical, `_01`=90°, `_02`=180°, `_03`=270°). Some 2-fold symmetric configs have a 5th variant `_04`.
+The four letters use the StarCraft II Art Tools object order: bottom-left, bottom-right, top-right, top-left, counted counterclockwise from above.
+
+The suffix `_00`, `_01`, etc. is an art variation count, not a rotation. `cvar` from `t3Terrain.xml` selects this model variation. The engine may rotate compatible cliff pieces as needed when a rotated config is not present as its own file.
 
 SC2 supports 4 height tiers total; WC3 has only 2.
+
+### Geometry And Materials
+
+Cliff objects are full M3 models, not terrain quads extruded from the heightmap. The official Art Tools requirements say each cliff object tiles in a 200×200 art-unit footprint, has its pivot centered in X/Y at Z=0, and must have matching outer vertices so neighboring cliff pieces and terrain weld visually.
+
+The floor/ceiling and walkable top/bottom portions are part of the cliff-model/material path. The Art Tools docs explicitly require vertex color for tri-planar cliff texturing; black vertex-alpha allows the terrain material to show through on the tops and bottoms of cliff objects. Cliff materials also use mask blend / alpha mask behavior, and SC2 Terrain materials can sample the terrain colors below a model.
+
+Renderer implications:
+
+- Do not fill every `t3CellFlags` `0x03` cliff hole by drawing continuous terrain; non-flat cliff blocks need terrain suppressed to avoid z-fighting with the cliff model. Flat 2×2 cliff blocks are different: they have no side model, so their floor/ceiling cells still need ground terrain.
+- Preserve M3 batch material references instead of baking every cliff triangle into one opaque texture.
+- Decode M3 vertices from `vertexFlags`. Real Liberty cliff models such as `CliffNatural0_AABB_00.m3` use `vertexFlags=0x182007d`, a 32-byte one-UV format. Treating every vertex as the local 40-byte runtime struct imports only 56 of the 71 vertices and can drop cap/floor/ceiling geometry.
+- Honor material vertex-color / vertex-alpha flags, alpha-mask layers, and terrain material references before expecting cliff tops/bottoms to render correctly.
 
 ### Height Tiers (from `CliffMeshData.xml`)
 

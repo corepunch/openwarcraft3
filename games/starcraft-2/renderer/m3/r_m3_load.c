@@ -90,6 +90,7 @@ static LPCSTR m3_fs =
 "#version 140\n"
 "in vec2 v_texcoord;\n"
 "in vec2 v_texcoord2;\n"
+"in vec4 v_color;\n"
 #ifdef USE_SHADOWMAPS
 "in vec4 v_shadow;\n"
 #endif
@@ -163,7 +164,7 @@ static LPCSTR m3_fs =
 "    vec3 finalColor = vec3(0);// ambientColor + diffuseLight + specularLight;\n"
 "    diffuseLight.rgb *= get_fogofwar() * get_lighting();\n"
 "    finalColor = diffuseLight;// applyBumpMap(finalColor, bumpColor);\n"
-"    o_color = vec4(finalColor, 1.0);\n"
+"    o_color = vec4(finalColor, 1.0) * v_color;\n"
 "}\n";
 
 static MATRIX4 bonemats[M3_MAX_NODES];
@@ -255,17 +256,54 @@ M3_READER(Char) {
     if (*data == '/')
         *data = '\\';
 }
+
+static DWORD M3_VertexUVCount(DWORD flags) {
+    DWORD count;
+
+    if (flags & 0x100000) return 4;
+    if (flags & 0x80000) count = 3;
+    else if (flags & 0x40000) count = 2;
+    else count = 1;
+
+    if (flags & 0x40000000)
+        count++;
+    return MIN(count, 4);
+}
+
+static DWORD M3_VertexDiskSize(DWORD flags) {
+    return 28 + M3_VertexUVCount(flags) * sizeof(SHORT) * 2 + ((flags & 0x200) ? sizeof(COLOR32) : 0);
+}
+
 M3_READER(Vertex) {
+    DWORD uv_count = M3_VertexUVCount(model->vertexFlags);
     M3_READ(sb, data->pos, 0);
     M3_READ(sb, data->boneWeight, 0);
     M3_READ(sb, data->boneIndex, 0);
     M3_READ(sb, data->normal, 0);
-    M3_READ(sb, data->uv, 0);
-    if ((currentmodel->vertexFlags & 0x40000) != 0) {
-        M3_READ(sb, data->uv2, 0);
-    }
+    data->color = COLOR32_WHITE;
+    if (model->vertexFlags & 0x200)
+        M3_READ(sb, data->color, 0);
+    FOR_LOOP(i, uv_count)
+        M3_READ(sb, data->uv[i], 0);
     M3_READ(sb, data->tangent, 0);
 }
+
+static void M3_ReadVertexReference(m3Model_t *model, m3Reader_t *sb) {
+    Reference ref;
+    m3Reader_t reader;
+    DWORD stride = M3_VertexDiskSize(model->vertexFlags);
+    DWORD count;
+
+    M3_Read(sb, &ref, sizeof(ref));
+    reader = M3_MakeSizeBuf(model, ref);
+    count = reader.valid && stride ? MIN(ref.nEntries / stride, reader.length / stride) : 0;
+    model->verticesNum = count;
+    model->vertices = count ? ri.MemAlloc(sizeof(m3Vertex_t) * (count + 1)) : NULL;
+    if (model->vertices) memset(model->vertices, 0, sizeof(m3Vertex_t) * (count + 1));
+    FOR_LOOP(n, count)
+        M3_ReadVertex(model, &reader, &model->vertices[n]);
+}
+
 M3_READER(MaterialReference) {
     M3_READ(sb, data->materialType, 0);
     M3_READ(sb, data->materialIndex, 0);
@@ -437,12 +475,14 @@ void M3_MakeBuffer(m3Model_t *model) {
     R_Call(glEnableVertexAttribArray, attrib_skin1);
     R_Call(glEnableVertexAttribArray, attrib_boneWeight1);
     R_Call(glEnableVertexAttribArray, attrib_normal);
+    R_Call(glEnableVertexAttribArray, attrib_color);
 
     R_Call(glVertexAttribPointer, attrib_position, 3, GL_FLOAT, GL_FALSE, sizeof(m3Vertex_t), FOFS(m3Vertex_s, pos));
-    R_Call(glVertexAttribPointer, attrib_texcoord, 2, GL_SHORT, GL_FALSE, sizeof(m3Vertex_t), FOFS(m3Vertex_s, uv));
+    R_Call(glVertexAttribPointer, attrib_texcoord, 2, GL_SHORT, GL_FALSE, sizeof(m3Vertex_t), FOFS(m3Vertex_s, uv[0]));
     R_Call(glVertexAttribPointer, attrib_skin1, 4, GL_UNSIGNED_BYTE, GL_FALSE, sizeof(m3Vertex_t), FOFS(m3Vertex_s, boneIndex));
     R_Call(glVertexAttribPointer, attrib_boneWeight1, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(m3Vertex_t), FOFS(m3Vertex_s, boneWeight));
     R_Call(glVertexAttribPointer, attrib_normal, 3, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(m3Vertex_t), FOFS(m3Vertex_s, normal));
+    R_Call(glVertexAttribPointer, attrib_color, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(m3Vertex_t), FOFS(m3Vertex_s, color));
 
     R_Call(glBufferData, GL_ARRAY_BUFFER, model->verticesNum * sizeof(m3Vertex_t), model->vertices, GL_STATIC_DRAW);
 }
@@ -458,7 +498,7 @@ void M3_InitMODL(m3Model_t *model, m3Reader_t sb) {
     M3_REFR(&sb, model->bones, Bone, 0);
     M3_READ(&sb, model->numberOfBonesToCheckForSkin, 0);
     M3_READ(&sb, model->vertexFlags, 0);
-    M3_REFR(&sb, model->vertices, Vertex, 0);
+    M3_ReadVertexReference(model, &sb);
     M3_REFR(&sb, model->divisions, Divisions, 0);
     M3_REFR(&sb, model->boneLookup, Uint16, 0);
     M3_READ(&sb, model->boundings, 0);
