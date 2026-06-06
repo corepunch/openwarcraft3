@@ -1336,7 +1336,8 @@ BOOL SC2_MapLoad(LPCSTR mapFilename) {
     sc2_parse_mapinfo(&source);
     sc2_parse_terrain(&source);
     sc2_parse_height_map(&source);
-    sc2_parse_sync_height_map(&source);
+    /* t3SyncHeightMap is not visible terrain height; merging it creates cliff spikes. */
+    /* sc2_parse_sync_height_map(&source); */
     sc2_parse_cell_flags(&source);
     sc2_parse_sync_cliff_level(&source);
     sc2_parse_texture_masks(&source);
