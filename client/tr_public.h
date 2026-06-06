@@ -87,7 +87,7 @@ typedef struct {
     QUATERNION viewquat;
     VECTOR3 viewangles;
     float distance;
-    float fov;
+    float fov;      /* vertical field of view in degrees */
     float znear;
     float zfar;
 } viewCamera_t;

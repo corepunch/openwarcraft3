@@ -104,7 +104,7 @@ DWORD ResetToGameCamera(LPJASS j) {
     G_ClearCameraTarget(gc, "ResetToGameCamera");
     gc->camera.old_state = gc->camera.state;
     gc->camera.state.viewangles = (VECTOR3) { 326, 0, 0 };
-    gc->camera.state.fov = 50 * FOV_ASPECT;
+    gc->camera.state.fov = 50;
     gc->camera.state.target_distance = 1650;
     gc->camera.start_time = gi.GetTime();
     gc->camera.end_time = gc->camera.start_time + (duration * 1000);

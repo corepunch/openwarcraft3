@@ -344,7 +344,7 @@ struct playerState_s {
     VECTOR3 viewangles;
     VECTOR2 origin;
     FLOAT distance;
-    DWORD fov;
+    DWORD fov;      /* vertical field of view in degrees */
     DWORD rdflags;
     DWORD uiflags;
     DWORD client_ui_state;
