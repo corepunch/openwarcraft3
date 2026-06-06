@@ -8,6 +8,8 @@
 #define SC2_DEFAULT_MAP_HEIGHT 96
 #define SC2_CELL_SIZE          1.0f
 #define SC2_MAX_TERRAIN_TEXTURES 16
+#define SC2_MAX_CLIFF_SETS     8
+#define SC2_MAX_CLIFF_CELLS    16384
 
 typedef enum {
     SC2_OBJECT_UNIT,
@@ -28,6 +30,18 @@ typedef struct {
     char           diffuse[256];
     char           normal[256];
 } sc2TerrainTexture_t;
+
+typedef struct {
+    char           name[64];
+    char           mesh[64];
+} sc2CliffSet_t;
+
+typedef struct {
+    DWORD          index;
+    DWORD          flags;
+    DWORD          cliff_set;
+    DWORD          variant;
+} sc2CliffCell_t;
 
 typedef struct {
     char           map_name[128];
@@ -51,6 +65,10 @@ typedef struct {
     DWORD          cliff_level_width;
     DWORD          cliff_level_height;
     USHORT        *cliff_levels;
+    DWORD          num_cliff_sets;
+    sc2CliffSet_t cliff_sets[SC2_MAX_CLIFF_SETS];
+    DWORD          num_cliff_cells;
+    sc2CliffCell_t cliff_cells[SC2_MAX_CLIFF_CELLS];
     FLOAT          height_quantize_bias;
     FLOAT          height_quantize_scale;
     FLOAT          standard_height;

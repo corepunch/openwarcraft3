@@ -134,6 +134,17 @@ static void test_sc2_map_loads_xml_objects_and_terrain(void) {
     ASSERT_STR_EQ(map->terrain_textures[0].diffuse, "Assets\\Textures\\Terrain\\FixtureGrass_Diffuse.dds");
     ASSERT_STR_EQ(map->terrain_textures[0].normal, "Assets\\Textures\\Terrain\\FixtureGrass_Diffuse_normal.dds");
     ASSERT_STR_EQ(map->terrain_textures[1].diffuse, "Assets\\Textures\\Terrain\\FixtureDirt_Diffuse.dds");
+
+    ASSERT_EQ_INT(map->num_cliff_sets, 1);
+    ASSERT_STR_EQ(map->cliff_sets[0].name, "FixtureCliff0");
+    ASSERT_STR_EQ(map->cliff_sets[0].mesh, "FixtureCliff0");
+    ASSERT_EQ_INT(map->num_cliff_cells, 2);
+    ASSERT_EQ_INT(map->cliff_cells[0].index, 0);
+    ASSERT_EQ_INT(map->cliff_cells[0].flags, 1);
+    ASSERT_EQ_INT(map->cliff_cells[0].cliff_set, 0);
+    ASSERT_EQ_INT(map->cliff_cells[0].variant, 2);
+    ASSERT_EQ_INT(map->cliff_cells[1].index, 1);
+    ASSERT_EQ_INT(map->cliff_cells[1].flags, 3);
 }
 
 static void test_sc2_map_loads_binary_terrain_layers(void) {
@@ -167,6 +178,14 @@ static void test_sc2_map_loads_binary_terrain_layers(void) {
         ASSERT_EQ_FLOAT(map->height_map[19], 12.5f, 0.001f);
         ASSERT_EQ_FLOAT(SC2_MapHeightAtPoint(0.0f, 0.0f), 3.0f, 0.001f);
         ASSERT_EQ_FLOAT(SC2_MapHeightAtPoint(4.0f, 3.0f), 12.5f, 0.001f);
+        ASSERT_EQ_FLOAT(SC2_MapHeightAtPoint(map->objects[0].position.x,
+                                             map->objects[0].position.y),
+                        10.0f,
+                        0.001f);
+        ASSERT_EQ_FLOAT(SC2_MapHeightAtPoint(map->objects[0].position.x,
+                                             map->objects[0].position.y) + map->objects[0].position.z,
+                        10.25f,
+                        0.001f);
     }
 
     ASSERT_EQ_INT(map->texture_mask_width, 4);

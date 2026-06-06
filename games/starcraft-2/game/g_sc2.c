@@ -36,7 +36,9 @@ static BOOL SC2_ObjectIsMobile(sc2MapObject_t const *object) {
 }
 
 static void SC2_LinkAtGround(LPEDICT ent) {
-    ent->s.origin.z = CM_GetHeightAtPoint(ent->s.origin.x, ent->s.origin.y);
+    ent->s.origin.x = ent->s.origin2.x;
+    ent->s.origin.y = ent->s.origin2.y;
+    ent->s.origin.z = CM_GetHeightAtPoint(ent->s.origin2.x, ent->s.origin2.y);
     gi.LinkEntity(ent);
 }
 
