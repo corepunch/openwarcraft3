@@ -160,14 +160,12 @@ static FLOAT r_sc2_height_at_grid(sc2Map_t const *map, DWORD x, DWORD y) {
 }
 
 static USHORT r_sc2_cliff_level_at_grid(sc2Map_t const *map, DWORD x, DWORD y) {
-    USHORT value;
     if (!map->cliff_levels || !map->cliff_level_width || !map->cliff_level_height) {
         return 0;
     }
     x = MIN(map->cliff_level_width - 1, x * map->cliff_level_width / MAX(1, map->width));
     y = MIN(map->cliff_level_height - 1, y * map->cliff_level_height / MAX(1, map->height));
-    value = map->cliff_levels[x + y * map->cliff_level_width];
-    return value >= 0x40 ? value >> 6 : value;
+    return map->cliff_levels[x + y * map->cliff_level_width];
 }
 
 static BYTE r_sc2_cell_flag_at_grid(sc2Map_t const *map, DWORD x, DWORD y) {
@@ -267,8 +265,8 @@ static LPMAPLAYER r_sc2_build_ground_layer(sc2Map_t const *map) {
     if (!map || !map->width || !map->height)
         return NULL;
 
-    w = MIN(map->width, 192);
-    h = MIN(map->height, 192);
+    w = map->width;
+    h = map->height;
     num_vertices = w * h * 6;
     vertices = ri.MemAlloc(num_vertices * sizeof(*vertices));
     out = vertices;

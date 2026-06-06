@@ -1139,6 +1139,34 @@ static void sc2_parse_height_map(sc2MapSource_t *source) {
     sc2_free_file(data);
 }
 
+static void sc2_parse_sync_height_map(sc2MapSource_t *source) {
+    DWORD size = 0;
+    LPBYTE data = sc2_source_read(source, "t3SyncHeightMap", &size);
+    DWORD w, h;
+
+    if (!data || size < 32 || memcmp(data, "SMAP", 4) != 0) {
+        sc2_free_file(data);
+        return;
+    }
+    w = sc2_read_le32(data + 8);
+    h = sc2_read_le32(data + 12);
+    if (!w || !h || w > 4096 || h > 4096 || size < 32 + w * h * sizeof(SHORT)) {
+        sc2_free_file(data);
+        return;
+    }
+    if (!sc2_map.height_map ||
+        sc2_map.height_map_width != w ||
+        sc2_map.height_map_height != h) {
+        sc2_free_file(data);
+        return;
+    }
+    FOR_LOOP(i, w * h) {
+        SHORT delta = (SHORT)sc2_read_le16(data + 32 + i * sizeof(SHORT));
+        sc2_map.height_map[i] += (FLOAT)delta / 256.0f;
+    }
+    sc2_free_file(data);
+}
+
 static void sc2_parse_cell_flags(sc2MapSource_t *source) {
     DWORD size = 0;
     LPBYTE data = sc2_source_read(source, "t3CellFlags", &size);
@@ -1189,8 +1217,7 @@ static BYTE sc2_texture_mask_nibble(BYTE byte, DWORD pixel) {
     return pixel & 1 ? byte & 0x0F : byte >> 4;
 }
 
-static void sc2_decode_texture_mask_block(LPBYTE out, LPBYTE src, DWORD width, DWORD height, DWORD block) {
-    DWORD blocks_x = MAX(1, width / 64);
+static void sc2_decode_texture_mask_block(LPBYTE out, LPBYTE src, DWORD width, DWORD height, DWORD blocks_x, DWORD block) {
     DWORD bx = block % blocks_x;
     DWORD by = block / blocks_x;
 
@@ -1208,7 +1235,10 @@ static void sc2_decode_texture_mask_block(LPBYTE out, LPBYTE src, DWORD width, D
 static void sc2_parse_texture_masks(sc2MapSource_t *source) {
     DWORD size = 0;
     LPBYTE data = sc2_source_read(source, "t3TextureMasks", &size);
-    DWORD w, h, layer_size, layers, blocks_per_layer;
+    DWORD w, h;
+    DWORD blocks_x, blocks_y;
+    DWORD packed_layer_size, block_layer_size;
+    DWORD layer_stride, layers;
 
     if (!data || size < 64 || memcmp(data, "MASK", 4) != 0) {
         sc2_free_file(data);
@@ -1216,27 +1246,37 @@ static void sc2_parse_texture_masks(sc2MapSource_t *source) {
     }
     w = sc2_read_le32(data + 12);
     h = sc2_read_le32(data + 16);
-    if (!w || !h || w > 4096 || h > 4096 || (w * h) / 2 == 0) {
+    if (!w || !h || w > 4096 || h > 4096) {
         sc2_free_file(data);
         return;
     }
-    layer_size = (w * h) / 2;
-    blocks_per_layer = layer_size / (64 * 32);
-    layers = MIN(SC2_MAX_TERRAIN_TEXTURES, (size - 64) / layer_size);
+    packed_layer_size = (w * h) / 2;
+    blocks_x = (w + 63) / 64;
+    blocks_y = (h + 63) / 64;
+    block_layer_size = blocks_x * blocks_y * 64 * 32;
+    layer_stride = block_layer_size;
+    if (!layer_stride || size < 64 + layer_stride || (size - 64) % layer_stride != 0) {
+        layer_stride = packed_layer_size;
+    }
+    if (!layer_stride) {
+        sc2_free_file(data);
+        return;
+    }
+    layers = MIN(SC2_MAX_TERRAIN_TEXTURES, (size - 64) / layer_stride);
     sc2_map.texture_mask_width = w;
     sc2_map.texture_mask_height = h;
     sc2_map.num_texture_masks = layers;
 
     FOR_LOOP(layer, layers) {
         LPBYTE out = sc2_alloc(w * h);
-        LPBYTE src = data + 64 + layer * layer_size;
+        LPBYTE src = data + 64 + layer * layer_stride;
         if (!out) {
             break;
         }
         memset(out, 0, w * h);
-        if (blocks_per_layer > 0) {
-            FOR_LOOP(block, blocks_per_layer) {
-                sc2_decode_texture_mask_block(out, src + block * 64 * 32, w, h, block);
+        if (layer_stride == block_layer_size && block_layer_size > 0) {
+            FOR_LOOP(block, blocks_x * blocks_y) {
+                sc2_decode_texture_mask_block(out, src + block * 64 * 32, w, h, blocks_x, block);
             }
         } else {
             FOR_LOOP(i, w * h) {
@@ -1296,6 +1336,7 @@ BOOL SC2_MapLoad(LPCSTR mapFilename) {
     sc2_parse_mapinfo(&source);
     sc2_parse_terrain(&source);
     sc2_parse_height_map(&source);
+    sc2_parse_sync_height_map(&source);
     sc2_parse_cell_flags(&source);
     sc2_parse_sync_cliff_level(&source);
     sc2_parse_texture_masks(&source);
