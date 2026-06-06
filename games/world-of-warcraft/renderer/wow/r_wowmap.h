@@ -28,6 +28,10 @@
 #define WOW_SPLAT_MAX_SUBDIVISIONS 16
 #define WOW_SPLAT_Z_BIAS 0.05f
 #define WOW_SPLAT_MAX_HEIGHT_DELTA 3.0f
+#define WOW_GRASS_DRAW_DISTANCE 220.0f
+#define WOW_GRASS_DENSITY 1.0f
+#define WOW_GRASS_CELL_STEP 2
+#define WOW_GRASS_VERTICES_PER_CLUMP 6
 
 typedef struct wowWdtTile_s {
     BOOL present;
@@ -95,16 +99,19 @@ typedef struct wowWmoInstance_s {
 
 typedef struct wowAdtChunk_s {
     LPBUFFER buffer;
+    LPBUFFER grass_buffer;
     LPTEXTURE textures[4];
     LPTEXTURE alpha_texture;
     DWORD alpha_index_x;
     DWORD alpha_index_y;
     DWORD num_vertices;
+    DWORD num_grass_vertices;
     DWORD layer_count;
     wowVec3_t position;
     float heights[WOW_MCVT_COUNT];
     BOOL has_heights;
     BOX3 bounds;
+    BOX3 grass_bounds;
     struct wowAdtChunk_s *next;
 } wowAdtChunk_t;
 
@@ -123,6 +130,8 @@ typedef struct wowMap_s {
     DWORD num_object_vertices;
     DWORD num_adts;
     DWORD num_chunks;
+    DWORD num_grass_chunks;
+    DWORD num_grass_vertices;
     DWORD num_doodads;
     DWORD num_doodad_instances;
     DWORD num_doodad_models;
@@ -204,6 +213,7 @@ typedef struct {
 
 extern wowMap_t wow_world;
 extern LPSHADER wow_terrain_shader;
+extern LPSHADER wow_grass_shader;
 extern GLint wow_uTexture0;
 extern GLint wow_uTexture1;
 extern GLint wow_uTexture2;
@@ -212,6 +222,9 @@ extern GLint wow_uAlphaTexture;
 extern GLint wow_uUseWeightedBlend;
 extern GLint wow_uAlphaOrigin;
 extern GLint wow_uAlphaAtlasChunks;
+extern GLint wow_uGrassTime;
+extern GLint wow_uGrassCameraOrigin;
+extern GLint wow_uGrassDrawDistance;
 
 BOOL Wow_PathHasExtension(LPCSTR path, LPCSTR extension);
 void Wow_NormalizeMapPath(LPCSTR mapFileName, LPSTR out, DWORD out_size);
@@ -225,6 +238,7 @@ void Wow_FreeWmoInstances(void);
 void Wow_FreeDoodadInstances(void);
 void Wow_ClearLoadedAdts(void);
 void Wow_FreeWorld(void);
+void Wow_ShutdownWorldShaders(void);
 LPTEXTURE Wow_LoadTexture(LPCSTR path);
 BOOL Wow_ReadM2RadiusFromPath(LPCSTR path, float *radius);
 BOOL Wow_CopyModelPathFallback(LPCSTR path, LPSTR out, DWORD out_size);
@@ -283,6 +297,10 @@ int Wow_AdtIndexForWorldCoord(float coord);
 void Wow_LoadMapDbcFlags(void);
 void Wow_LoadNearbyAdts(int center_x, int center_y);
 void Wow_LoadCameraAdts(void);
+void Wow_InitGrassShader(void);
+void Wow_BuildGrassForChunk(wowAdtChunk_t *chunk, BYTE const alpha[4][WOW_ALPHA_TEXELS], wowLayer_t const *layers, DWORD layer_count);
+BOOL Wow_GrassChunkInRange(wowAdtChunk_t const *chunk);
+void Wow_DrawGrass(void);
 BOOL Wow_EntityInView(renderEntity_t const *entity);
 BOOL Wow_TerrainChunkInRange(wowAdtChunk_t const *chunk);
 BOOL Wow_WmoGroupInView(wowWmoGroup_t const *group, LPCMATRIX4 matrix);

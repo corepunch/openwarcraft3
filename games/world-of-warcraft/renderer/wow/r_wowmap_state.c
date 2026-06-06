@@ -74,6 +74,7 @@ void Wow_FreeChunks(void) {
     while (chunk) {
         wowAdtChunk_t *next = chunk->next;
         R_ReleaseVertexArrayObject(chunk->buffer);
+        R_ReleaseVertexArrayObject(chunk->grass_buffer);
         if (chunk->alpha_texture && chunk->alpha_texture != wow_world.alpha_atlas_texture) {
             R_ReleaseTexture(chunk->alpha_texture);
         }
@@ -81,6 +82,8 @@ void Wow_FreeChunks(void) {
         chunk = next;
     }
     wow_world.chunks = NULL;
+    wow_world.num_grass_chunks = 0;
+    wow_world.num_grass_vertices = 0;
     if (wow_world.alpha_atlas_texture) {
         R_ReleaseTexture(wow_world.alpha_atlas_texture);
         wow_world.alpha_atlas_texture = NULL;
@@ -179,6 +182,22 @@ void Wow_FreeWorld(void) {
     }
     Wow_FreeDoodadInstances();
     memset(&wow_world, 0, sizeof(wow_world));
+}
+
+void Wow_ShutdownWorldShaders(void) {
+    SAFE_DELETE(wow_terrain_shader, R_ReleaseShader);
+    SAFE_DELETE(wow_grass_shader, R_ReleaseShader);
+    wow_uTexture0 = -1;
+    wow_uTexture1 = -1;
+    wow_uTexture2 = -1;
+    wow_uTexture3 = -1;
+    wow_uAlphaTexture = -1;
+    wow_uUseWeightedBlend = -1;
+    wow_uAlphaOrigin = -1;
+    wow_uAlphaAtlasChunks = -1;
+    wow_uGrassTime = -1;
+    wow_uGrassCameraOrigin = -1;
+    wow_uGrassDrawDistance = -1;
 }
 
 LPTEXTURE Wow_LoadTexture(LPCSTR path) {

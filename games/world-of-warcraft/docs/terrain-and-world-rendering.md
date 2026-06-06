@@ -53,6 +53,23 @@ Each ADT chunk can carry up to four texture layers. The renderer stores:
 
 The splat path has a small Z bias and height-delta guard to keep layer geometry close to terrain without exploding across sharp height changes.
 
+## Grass
+
+The WoW renderer builds lightweight grass geometry while loading each ADT chunk. Placement is derived from ADT texture layer data:
+
+- `MCLY.effect_id` marks terrain layers that should emit ground clutter.
+- The decoded 64x64 `MCAL` alpha maps decide where those layers are visible.
+- Chunk height samples place each grass clump on the terrain surface.
+
+Each generated clump is two crossed, tapered blade triangles in a chunk-local VAO. Rendering uses a small WoW-owned shader with camera-distance fade and cheap vertex wind, and culls whole chunk grass buffers before drawing. The first-pass tuning constants are:
+
+| Constant | Value | Meaning |
+| --- | --- | --- |
+| `WOW_GRASS_DENSITY` | `1.0f` | Scales generated clumps per eligible layer sample. |
+| `WOW_GRASS_DRAW_DISTANCE` | `220.0f` | Camera-space draw/fade distance for grass chunks. |
+
+This is intentionally a first-pass ground-effect renderer. Exact client-style `GroundEffectTexture.dbc` and `GroundEffectDoodad.dbc` model selection can replace the placeholder blade geometry without changing the ADT placement path.
+
 ## Height Queries
 
 `games/world-of-warcraft/common/world_wow.c` keeps a one-ADT height cache for collision/spawn queries. It loads `MCVT` height samples from `MCNK` chunks and resolves point height by splitting a local cell around the center sample into triangles, then using barycentric interpolation.
@@ -73,7 +90,6 @@ Game entities are not spawned for every ADT doodad. `games/world-of-warcraft/gam
 ## Current Limits
 
 - Terrain rendering is the core focus.
-- WMO, doodad, lighting, particles, water, and animation fidelity are incomplete.
+- WMO, doodad, lighting, grass, particles, water, and animation fidelity are incomplete.
 - The draw window and asset compatibility are tuned around local classic-era data.
 - Production support for arbitrary WoW client versions is not present.
-

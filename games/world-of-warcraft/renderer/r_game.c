@@ -37,6 +37,7 @@ void R_GameInit(void) {
 }
 
 void R_GameShutdown(void) {
+    Wow_ShutdownWorldShaders();
     M2_Shutdown();
 }
 
