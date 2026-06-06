@@ -152,6 +152,8 @@ void R_DrawWorld(void) {
     R_Call(glUniformMatrix3fv, wow_terrain_shader->uNormalMatrix, 1, GL_TRUE, normal_matrix.v);
     R_Call(glUniform1i, wow_uUseWeightedBlend, wow_world.use_weighted_blend ? 1 : 0);
 
+    Wow_DrawGrass();
+
     {
         VECTOR3 camera_origin = tr.viewDef.camerastate[0].origin;
         int center_x = Wow_DoodadBucketIndex(camera_origin.x);
