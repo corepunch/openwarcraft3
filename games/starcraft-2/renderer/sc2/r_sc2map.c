@@ -180,14 +180,6 @@ static BYTE r_sc2_cell_flag_at_grid(sc2Map_t const *map, DWORD x, DWORD y) {
     return map->cell_flags[x + y * map->cell_flags_width];
 }
 
-static BOOL r_sc2_tile_has_cliff(sc2Map_t const *map, DWORD x, DWORD y) {
-    USHORT c00 = r_sc2_cliff_level_at_grid(map, x, y);
-    USHORT c10 = r_sc2_cliff_level_at_grid(map, x + 1, y);
-    USHORT c11 = r_sc2_cliff_level_at_grid(map, x + 1, y + 1);
-    USHORT c01 = r_sc2_cliff_level_at_grid(map, x, y + 1);
-    return c10 != c00 || c11 != c00 || c01 != c00;
-}
-
 static void r_sc2_release_layer(LPMAPLAYER layer) {
     while (layer) {
         LPMAPLAYER next = layer->next;
@@ -285,7 +277,7 @@ static LPMAPLAYER r_sc2_build_ground_layer(sc2Map_t const *map) {
 
     FOR_LOOP(y, h) {
         FOR_LOOP(x, w) {
-            if ((r_sc2_cell_flag_at_grid(map, x, y) & 0x0f) == 0x03 || r_sc2_tile_has_cliff(map, x, y)) {
+            if ((r_sc2_cell_flag_at_grid(map, x, y) & 0x0f) == 0x03) {
                 continue;
             }
             FLOAT x0 = bounds.min.x + x * map->cell_size;
@@ -354,22 +346,43 @@ static BOOL r_sc2_cliff_model_path(LPSTR path, size_t size, LPCSTR mesh, char co
     return false;
 }
 
-static BOOL r_sc2_cliff_config(sc2Map_t const *map, DWORD x, DWORD y, char config[5], USHORT *baselevel, USHORT *toplevel) {
+static BOOL r_sc2_cliff_config(sc2Map_t const *map,
+                               DWORD x,
+                               DWORD y,
+                               char config[5],
+                               USHORT *baselevel,
+                               USHORT *toplevel,
+                               int *rotation) {
     USHORT level[4];
     USHORT base;
     USHORT top;
-    BYTE const remap[4] = { 3, 1, 0, 2 };
+    char raw[5];
+    int best;
 
-    /* Match War3 GetTileVertices order before applying the shared cliff config remap. */
-    level[0] = r_sc2_cliff_level_at_grid(map, x + 2, y + 2);
-    level[1] = r_sc2_cliff_level_at_grid(map, x, y + 2);
-    level[2] = r_sc2_cliff_level_at_grid(map, x + 2, y);
-    level[3] = r_sc2_cliff_level_at_grid(map, x, y);
+    /* SC2 cliff models use BL, BR, TR, TL corner order. */
+    level[0] = r_sc2_cliff_level_at_grid(map, x, y);
+    level[1] = r_sc2_cliff_level_at_grid(map, x + 1, y);
+    level[2] = r_sc2_cliff_level_at_grid(map, x + 1, y + 1);
+    level[3] = r_sc2_cliff_level_at_grid(map, x, y + 1);
     base = MIN(MIN(level[0], level[1]), MIN(level[2], level[3]));
     top = MAX(MAX(level[0], level[1]), MAX(level[2], level[3]));
     FOR_LOOP(i, 4) {
-        USHORT diff = level[remap[i]] - base;
-        config[i] = (char)('A' + MIN(diff, 25));
+        USHORT diff = level[i] - base;
+        raw[i] = (char)('A' + MIN(diff, 25));
+    }
+    raw[4] = 0;
+
+    best = 0;
+    FOR_LOOP(r, 4) {
+        FOR_LOOP(k, 4) {
+            char a = raw[(best + k) & 3];
+            char b = raw[(r + k) & 3];
+            if (b < a) { best = r; break; }
+            if (b > a) break;
+        }
+    }
+    FOR_LOOP(i, 4) {
+        config[i] = raw[(best + i) & 3];
     }
     config[4] = 0;
 
@@ -378,6 +391,9 @@ static BOOL r_sc2_cliff_config(sc2Map_t const *map, DWORD x, DWORD y, char confi
     }
     if (toplevel) {
         *toplevel = top;
+    }
+    if (rotation) {
+        *rotation = best;
     }
     return config[0] != config[1] || config[1] != config[2] || config[2] != config[3];
 }
@@ -398,8 +414,13 @@ static LPCSTR r_sc2_cliff_texture_path(LPCMODEL model) {
     return NULL;
 }
 
-static VECTOR3 r_sc2_m3_rotate_model_vec(VECTOR3 pos) {
-    return (VECTOR3){ -pos.y, pos.x, pos.z };
+static VECTOR3 r_sc2_rotate_cliff_vec(VECTOR3 pos, int rotation) {
+    switch (rotation & 3) {
+        case 1: return (VECTOR3){ -pos.y,  pos.x, pos.z };
+        case 2: return (VECTOR3){ -pos.x, -pos.y, pos.z };
+        case 3: return (VECTOR3){  pos.y, -pos.x, pos.z };
+        default: return pos;
+    }
 }
 
 static VECTOR3 r_sc2_m3_raw_normal(m3Vertex_t const *vertex) {
@@ -485,7 +506,7 @@ static VECTOR3 r_sc2_m3_skin_vertex(m3Vertex_t const *vertex,
         out.y += part.y * weight;
         out.z += part.z * weight;
     }
-    return r_sc2_m3_rotate_model_vec(out);
+    return out;
 }
 
 static BOOL r_sc2_cliff_model_bounds(LPCMODEL model, LPBOX3 bounds) {
@@ -559,7 +580,8 @@ static void r_sc2_bake_cliff_model(rCliffBakeList_t *list,
                                    DWORD grid_x,
                                    DWORD grid_y,
                                    USHORT baselevel,
-                                   USHORT toplevel) {
+                                   USHORT toplevel,
+                                   int rotation) {
     BOX2 map_bounds = SC2_MapBounds();
     BOX3 bounds;
     VECTOR2 offset;
@@ -580,7 +602,7 @@ static void r_sc2_bake_cliff_model(rCliffBakeList_t *list,
     }
     offset = (VECTOR2){
         map_bounds.min.x + (grid_x + 1) * map->cell_size,
-        map_bounds.min.y + grid_y * map->cell_size,
+        map_bounds.min.y + (grid_y + 1) * map->cell_size,
     };
     r_sc2_cliff_terrain_z_span(map, grid_x, grid_y, baselevel, toplevel, &terrain_min_z, &terrain_span_z);
     model_span_z = bounds.max.z - bounds.min.z;
@@ -605,13 +627,15 @@ static void r_sc2_bake_cliff_model(rCliffBakeList_t *list,
                 m3Vertex_t const *vertex = &m3->vertices[vertex_index];
                 VECTOR3 local = r_sc2_m3_skin_vertex(vertex, region, bones, 1.0f);
                 VECTOR3 normal = r_sc2_m3_skin_vertex(vertex, region, bones, 0.0f);
+                VECTOR3 rotated = r_sc2_rotate_cliff_vec(local, rotation);
                 VECTOR3 position = {
-                    offset.x + local.x,
-                    offset.y + local.y,
+                    offset.x + rotated.x,
+                    offset.y + rotated.y,
                     /* SC2_MapHeightAtPoint(...) + local.z + baselevel stacked M3 cliffs above decoded terrain. */
                     terrain_min_z + (local.z - bounds.min.z) * z_scale,
                 };
                 VERTEX *out = R_CliffBakeVertex(list);
+                normal = r_sc2_rotate_cliff_vec(normal, rotation);
                 Vector3_normalize(&normal);
                 r_sc2_push_vertex_normal(out,
                                          position.x,
@@ -644,6 +668,7 @@ static LPMAPLAYER r_sc2_build_cliff_layer(sc2Map_t const *map) {
         DWORD grid_y;
         USHORT baselevel;
         USHORT toplevel;
+        int rotation;
         LPCMODEL model;
 
         if (cell->cliff_set >= map->num_cliff_sets)
@@ -651,7 +676,7 @@ static LPMAPLAYER r_sc2_build_cliff_layer(sc2Map_t const *map) {
         set = &map->cliff_sets[cell->cliff_set];
         grid_x = (cell->index % cliff_width) * 2;
         grid_y = (cell->index / cliff_width) * 2;
-        if (!r_sc2_cliff_config(map, grid_x, grid_y, config, &baselevel, &toplevel))
+        if (!r_sc2_cliff_config(map, grid_x, grid_y, config, &baselevel, &toplevel, &rotation))
             continue;
         if (!r_sc2_cliff_model_path(path, sizeof(path), set->mesh[0] ? set->mesh : set->name, config, cell->variant))
             continue;
@@ -661,7 +686,7 @@ static LPMAPLAYER r_sc2_build_cliff_layer(sc2Map_t const *map) {
         if (!texture_path) {
             texture_path = r_sc2_cliff_texture_path(model);
         }
-        r_sc2_bake_cliff_model(&list, map, model, grid_x, grid_y, baselevel, toplevel);
+        r_sc2_bake_cliff_model(&list, map, model, grid_x, grid_y, baselevel, toplevel, rotation);
     }
     if (!list.num_vertices) {
         ri.MemFree(list.vertices);
