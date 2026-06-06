@@ -66,6 +66,15 @@
 - mangos classic M2 notes mirror: https://github-wiki-see.page/m/Marzec737/mangos-classic/wiki/M2-files
 - Archival `World of Warcraft Formats` PDF mirror: https://lasatmanstanding.wordpress.com/wp-content/uploads/2010/05/wow-formats-2.pdf
 
+## Grass Rendering References
+
+- NVIDIA GPU Gems, `Rendering Countless Blades of Waving Grass`: https://developer.nvidia.com/gpugems/gpugems/part-i-natural-effects/chapter-7-rendering-countless-blades-waving-grass
+- NVIDIA GPU Gems 2, `Inside Geometry Instancing`: https://developer.nvidia.com/gpugems/gpugems2/part-i-geometric-complexity/chapter-3-inside-geometry-instancing
+- NVIDIA GPU Gems 3, `Vegetation Procedural Animation and Shading in Crysis`: https://developer.nvidia.com/gpugems/gpugems3/part-iii-rendering/chapter-16-vegetation-procedural-animation-and-shading-crysis
+- AMD GPUOpen, `Procedural grass rendering`: https://gpuopen.com/learn/mesh_shaders/mesh_shaders-procedural_grass_rendering/
+- Epic Unreal Engine documentation, `Grass Quick Start`: https://dev.epicgames.com/documentation/unreal-engine/grass-quick-start-in-unreal-engine
+- getMaNGOS `GroundEffectTexture`: https://www.getmangos.eu/wiki/referenceinfo/dbcfiles/five_dbc/GroundEffectTexture-r9780/
+
 ## Caution
 
 WoW file schemas vary by client era. Validate every DBC field offset, M2 header/view layout, and ADT chunk assumption against the data version being inspected.
