@@ -1,75 +1,87 @@
 # References
 
-Collected on 2026-06-05.
+Collected through 2026-06-06.
 
-## Core Format References
+## Binary Format Specifications
 
-- SC2Mapster Wiki, `File Formats`: https://sc2mapster.wiki.gg/wiki/File_Formats
-	- Notes that `SC2Map` and `SC2Mod` are MPQ archives containing map/mod data.
 - SC2Mapster Wiki, `File Formats/Maps`: https://sc2mapster.wiki.gg/wiki/File_Formats/Maps
-	- Index of embedded map files including `MapInfo`, `Objects`, `Terrain`, `t3CellFlags`, `t3HeightMap`, `t3SyncPathingInfo`, `t3Terrain.xml`, `t3TextureMasks`, and others.
+  - Index of all embedded map file formats.
 - SC2Mapster Wiki, `File Formats/Maps/MapInfo`: https://sc2mapster.wiki.gg/wiki/File_Formats/Maps/MapInfo
-	- C-like `MapInfo` struct beginning with magic `MapI`, dimensions, bounds, theme/planet strings, loading image fields, and player-slot data.
-- SC2Mapster Wiki, `File Formats/Maps/t3CellFlags`: https://sc2mapster.wiki.gg/wiki/File_Formats/Maps/t3CellFlags
-	- Documents rough `LFCT` header, version `101`, dimensions, and one-byte cell types.
+  - Full `MapInfo` C struct, player slot layout, loader image fields.
 - SC2Mapster Wiki, `File Formats/Maps/Objects`: https://sc2mapster.wiki.gg/wiki/File_Formats/Maps/Objects
-	- Documents `<PlacedObjects>` with `Camera`, `Doodad`, `Point`, and `Unit` children and common placement attributes.
+  - `<PlacedObjects>` XML schema, all attributes for `Unit`, `Doodad`, `Point`, `Camera`.
 - SC2Mapster Wiki, `File Formats/Maps/t3HeightMap`: https://sc2mapster.wiki.gg/wiki/File_Formats/Maps/t3HeightMap
-	- Documents `HMAP` header, chunk fields, and the formula using `t3Terrain.xml` quantization values.
+  - `HMAP` header, 6-byte CHUNK layout, height decode formula, standard cliff elevations.
 - SC2Mapster Wiki, `File Formats/Maps/t3SyncHeightMap`: https://sc2mapster.wiki.gg/wiki/File_Formats/Maps/t3SyncHeightMap
-	- Documents `SMAP` header and signed small-height offsets.
+  - `SMAP` header, signed `int16` height offsets relative to main height level, /256 formula.
 - SC2Mapster Wiki, `File Formats/Maps/t3SyncCliffLevel`: https://sc2mapster.wiki.gg/wiki/File_Formats/Maps/t3SyncCliffLevel
-	- Documents `CLIF` header and cliff-level height array.
+  - `CLIF` header, `USHORT height[sizeX*sizeY]` cliff level array.
+- SC2Mapster Wiki, `File Formats/Maps/t3CellFlags`: https://sc2mapster.wiki.gg/wiki/File_Formats/Maps/t3CellFlags
+  - `LFCT` header, per-cell byte flags, `0x03` cliff-hole behavior.
 - SC2Mapster Wiki, `File Formats/Maps/t3TextureMasks`: https://sc2mapster.wiki.gg/wiki/File_Formats/Maps/t3TextureMasks
-	- Documents `MASK` header, layer/block organization, and nibble-packed mask data.
+  - `MASK` header, nibble-packed 64×64-pixel blocks, layer count formula.
 - SC2Mapster Wiki, `File Formats/Maps/t3Water`: https://sc2mapster.wiki.gg/wiki/File_Formats/Maps/t3Water
-	- Documents `WATR` header and water/lava template rectangles.
+  - `WATR` header, water rectangle CHUNKs, template reference to `WaterData.xml`.
+- SC2Mapster Wiki, `File Formats/Maps/t3Terrain`: https://sc2mapster.wiki.gg/wiki/File_Formats/Maps/t3Terrain
+  - `t3Terrain.xml` schema: `<textureList>`, `<masks>`, texture name list.
+- SC2Mapster Wiki, `File Formats/Maps/t3FluffDoodad`: https://sc2mapster.wiki.gg/wiki/File_Formats/Maps/t3FluffDoodad
+  - `DLFT` header, per-doodad `(x, y, type)` float+byte records.
+- SC2Mapster Wiki, `File Formats/Maps/t3SyncPathingInfo`: https://sc2mapster.wiki.gg/wiki/File_Formats/Maps/t3SyncPathingInfo
+  - `PATH` header, `USHORT` per-cell pathing values (0x00=passable, 0x02=ramp, 0x23=blocked).
+- SC2Mapster Wiki, `File Formats/Maps/t3HardTile`: https://sc2mapster.wiki.gg/wiki/File_Formats/Maps/t3HardTile
+  - `HRDT` header, BLOCK/SUBBLOCK structs with position, 3×3 rotation matrix, scale.
+- SC2Mapster Wiki, `File Formats` (top-level): https://sc2mapster.wiki.gg/wiki/File_Formats
+  - Container formats (MPQ, SC2Map, SC2Mod, SC2Replay), asset formats (DDS, M3, M3A, OGV, TGA).
 - SC2Mapster Wiki, `Model Files`: https://sc2mapster.wiki.gg/wiki/Model_Files
-	- Describes `.m3` as model/animation files and `.m3a` as supplemental model animation files.
-- Zezula, `MPQ Archives - MPQ file format`: https://www.zezula.net/en/mpq/mpqformat.html
-	- Canonical public MPQ format reference. Notes MPQ user data is common in StarCraft II custom maps.
-- Zezula, `Storm.dll`: https://www.zezula.net/en/mpq/stormdll.html
-	- Notes Blizzard maps, including StarCraft II maps, are MPQ archives.
-- StormLib: https://www.zezula.net/en/mpq/stormlib.html
-	- Open-source MPQ library useful for opening/listing/extracting archives.
+  - `.m3` (model + animations), `.m3a` (supplemental bone animations), model component list.
 
-## Map Editing And Component Folders
+## Catalog / Data System
 
-- SC2Mapster Community GitHub, `Getting Started - Working with SC2`: https://sc2mapster.github.io/mkdocs/setup/
-	- Describes `.SC2Map` and `.SC2Components` as archived versus unarchived project forms.
-- SC2Mapster Community GitHub: https://sc2mapster.github.io/
-	- Plain-text data format guides and open development maps.
-- StarCraft II Editor Tutorials, `Data Spaces`: https://s2editor-guides.readthedocs.io/New_Tutorials/04_Data_Editor/data-spaces/
-	- Describes map/mod data spaces, `Base.SC2Data/GameData`, catalog paths in `GameData.xml`, and locale-specific data folders.
 - SC2Mapster Wiki, `Data/Actors`: https://sc2mapster.wiki.gg/wiki/Data/Actors
-	- Explains actors as visual/map-display objects that decide when models, animations, sounds, and visual physics are shown.
-- SC2Mapster Wiki, `Data/Actors/Unit`: https://sc2mapster.fandom.com/wiki/Data/Actors/Unit
-	- Describes unit actors as the main visual form for units, including model display, sounds, portrait, selection picture, and minimap icon.
-- SC2Mapster Wiki, `Data/Models/Generic`: https://sc2mapster.fandom.com/wiki/Data/Models/Generic
-	- Lists useful model catalog fields including `Art: Model`, `.m3a` animation fields, selection/shadow/visual radius, scale, variations, tipability, and texture declaration slots.
-- CurseForge, `Tutorial - How to get started`: https://www.curseforge.com/sc2/maps/tutorial-how-get-started
-	- Old beta-era modding tutorial. Describes map files as MPQ contents and summarizes XML loading/override behavior.
-- Hive Workshop, `My SC2 Map (heroes)`: https://www.hiveworkshop.com/threads/my-sc2-map-heroes.163156/
-	- Old thread with practical references to `t3Terrain.xml`, `Objects`, `GameStrings.txt`, `MapInfo`, and MPQ editors.
+  - Actor system overview, 70+ actor subtypes, Site Operations, Tokens, Actor Events.
+- SC2Mapster Wiki, `Data/Actors/Unit`: https://sc2mapster.wiki.gg/wiki/Data/Actors/Unit
+  - Full 145-field unit actor reference: Model, sounds, portrait, selection, minimap icon, animations, wireframe, status bars.
+- SC2Mapster Wiki, `Data/Models/Generic`: https://sc2mapster.wiki.gg/wiki/Data/Models/Generic
+  - Full 127-field model catalog: Art/Model path, animations, .m3a, flags, tipability, variations, texture declarations, physics.
+- StarCraft II Editor Guides, `Data Spaces`: https://s2editor-guides.readthedocs.io/New_Tutorials/04_Data_Editor/data-spaces/
+  - How to create data space XML files, `GameData.xml` includes, `.SC2Components` workflow, localization separation.
+
+## Archive / Container Format
+
+- Zezula, `MPQ Archives — MPQ file format`: https://www.zezula.net/en/mpq/mpqformat.html
+  - Canonical public MPQ format reference. Notes MPQ user data is common in StarCraft II custom maps.
+- Zezula, `Storm.dll`: https://www.zezula.net/en/mpq/stormdll.html
+  - Blizzard maps, including StarCraft II maps, are MPQ archives.
+- StormLib: https://www.zezula.net/en/mpq/stormlib.html
+  - Open-source MPQ library for opening, listing, and extracting archives.
+- SC2Mapster Community, `Getting Started — Working with SC2`: https://sc2mapster.github.io/mkdocs/setup/
+  - `.SC2Map` vs `.SC2Components` archived vs unarchived project forms.
 
 ## Existing Parsers And Analysis Tools
 
 - `sc2reader` GitHub: https://github.com/ggtracker/sc2reader
-	- Python library for SC2 replays, maps, and game summaries. Supports `load_map` and replay-associated map loading.
+  - Python library for SC2 replays and maps. Parses `MapInfo`, `GameStrings.txt`, minimap, player slots, tileset. Does **not** parse terrain geometry.
 - `sc2reader` docs: https://sc2reader.readthedocs.io/
-	- Says map parsing extracts minimap/icon images, localized metadata, dimensions, camera bounds, tileset, player slots, and team data.
-- `sc2reader` support objects: https://sc2reader.readthedocs.io/en/latest/supportobjects.html
-	- Documents `MapInfo` and `MapInfoPlayer` support structures.
-- CurseForge, `SC2 Map Analyzer`: https://www.curseforge.com/sc2/assets/sc2-map-analyzer
-	- GPL map-analysis tool. Discusses pathing approximations, `t3CellFlag`, `t3SyncPathingInfo`, cliff levels, resource/base analysis, and shortest paths.
-- CurseForge, `SC2MapLib`: https://www.curseforge.com/sc2/assets/sc2maplib
-	- XML loading/schema project for StarCraft II map data components.
+  - API docs, `load_map`, `Map` resource, `MapInfo`/`MapInfoPlayer` support objects.
+- RFEphemeration/sc2-map-analyzer: https://github.com/RFEphemeration/sc2-map-analyzer
+  - C++ tool (SC2 v1.5.2 era). Parses `MapInfo`, `t3HeightMap`, `t3CellFlags`, `PaintedPathingLayer`, `t3Terrain.xml` (ramp list), `Objects`. Source files `read.cpp` and `SC2Map.hpp` are the best available open reference for binary parsing.
+- CascLib (CASC archive reader): https://github.com/ladislav-zezula/CascLib
+  - Open-source C library for reading CASC storage from Blizzard games (WoW, SC2, Diablo III, etc.). Use for extracting SC2 assets from the installed game.
 
-## General File Summaries
+## Blizzard Official
 
-- FileInfo, `.SC2MAP File Extension`: https://fileinfo.com/extension/sc2map
-	- General description of SC2 maps containing name, author, description, size, terrain, units, triggers, pathing settings, and player starting points.
+- Blizzard/s2protocol: https://github.com/Blizzard/s2protocol
+  - Official Python library decoding SC2 replay protocol (`.SC2Replay`) into data structures. Covers replay events only — does not cover map terrain or binary terrain formats.
+
+## Related SC2 Tooling
+
+- Talv/sc2-dood: https://github.com/Talv/sc2-dood
+  - TypeScript parser and exporter for the `Objects` file from `.SC2Map` archives.
+- Talv/plaxtony: https://github.com/Talv/plaxtony
+  - TypeScript libraries for SC2 map files: Galaxy Script, Triggers scheme, Game Data XML.
+- Talv/stormex: https://github.com/Talv/stormex
+  - CLI for listing and extracting files from Blizzard CASC storage.
 
 ## Caution
 
-Many sources are old, community-maintained, or beta-era. Validate every binary layout against current maps before depending on it in code.
+Many sources are old, community-maintained, or beta-era. Validate every binary layout against current maps before depending on it in code. The sc2-map-analyzer source targets SC2 v1.5.2 (~2012); later patches may have changed field layouts.

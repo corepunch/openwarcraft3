@@ -179,15 +179,6 @@ static BYTE r_sc2_cell_flag_at_grid(sc2Map_t const *map, DWORD x, DWORD y) {
     return map->cell_flags[x + y * map->cell_flags_width];
 }
 
-static BOOL r_sc2_tile_has_cliff(sc2Map_t const *map, DWORD x, DWORD y) {
-    USHORT c00 = r_sc2_cliff_level_at_grid(map, x, y);
-    USHORT c10 = r_sc2_cliff_level_at_grid(map, x + 1, y);
-    USHORT c11 = r_sc2_cliff_level_at_grid(map, x + 1, y + 1);
-    USHORT c01 = r_sc2_cliff_level_at_grid(map, x, y + 1);
-
-    return c10 != c00 || c11 != c00 || c01 != c00;
-}
-
 static void r_sc2_release_layer(LPMAPLAYER layer) {
     while (layer) {
         LPMAPLAYER next = layer->next;
@@ -285,7 +276,7 @@ static LPMAPLAYER r_sc2_build_ground_layer(sc2Map_t const *map) {
 
     FOR_LOOP(y, h) {
         FOR_LOOP(x, w) {
-            if (r_sc2_cell_flag_at_grid(map, x, y) == 0x03 || r_sc2_tile_has_cliff(map, x, y)) {
+            if ((r_sc2_cell_flag_at_grid(map, x, y) & 0x0f) == 0x03) {
                 continue;
             }
             FLOAT x0 = bounds.min.x + x * map->cell_size;
@@ -358,6 +349,8 @@ static BOOL r_sc2_cliff_config(sc2Map_t const *map, DWORD x, DWORD y, char confi
     USHORT level[4];
     USHORT base;
     USHORT top;
+    char raw[5];
+    int best;
     BYTE const remap[4] = { 3, 1, 0, 2 };
 
     /* Match War3 GetTileVertices order before applying the shared cliff config remap. */
@@ -369,9 +362,26 @@ static BOOL r_sc2_cliff_config(sc2Map_t const *map, DWORD x, DWORD y, char confi
     top = MAX(MAX(level[0], level[1]), MAX(level[2], level[3]));
     FOR_LOOP(i, 4) {
         USHORT diff = level[remap[i]] - base;
-        config[i] = (char)('A' + MIN(diff, 25));
+        raw[i] = (char)('A' + MIN(diff, 25));
+    }
+    raw[4] = 0;
+
+    /* Only the lex-min rotation of each config has a model file on disk.
+       Rotate raw to its canonical (lex-min) form. */
+    best = 0;
+    FOR_LOOP(r, 4) {
+        FOR_LOOP(k, 4) {
+            char a = raw[(best + k) % 4];
+            char b = raw[(r    + k) % 4];
+            if (b < a) { best = r; break; }
+            if (b > a) break;
+        }
+    }
+    FOR_LOOP(i, 4) {
+        config[i] = raw[(best + i) % 4];
     }
     config[4] = 0;
+
     if (baselevel) {
         *baselevel = base;
     }
