@@ -138,6 +138,11 @@ static void test_sc2_map_loads_xml_objects_and_terrain(void) {
     ASSERT_EQ_INT(map->num_cliff_sets, 1);
     ASSERT_STR_EQ(map->cliff_sets[0].name, "FixtureCliff0");
     ASSERT_STR_EQ(map->cliff_sets[0].mesh, "FixtureCliff0");
+    ASSERT_EQ_INT(map->has_cliff_heights, true);
+    ASSERT_EQ_FLOAT(map->cliff_heights[0], -4.0f, 0.001f);
+    ASSERT_EQ_FLOAT(map->cliff_heights[1], 0.0f, 0.001f);
+    ASSERT_EQ_FLOAT(map->cliff_heights[2], 2.0f, 0.001f);
+    ASSERT_EQ_FLOAT(map->cliff_heights[3], 4.0f, 0.001f);
     ASSERT_EQ_INT(map->num_cliff_cells, 2);
     ASSERT_EQ_INT(map->cliff_cells[0].index, 0);
     ASSERT_EQ_INT(map->cliff_cells[0].flags, 1);

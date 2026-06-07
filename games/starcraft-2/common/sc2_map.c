@@ -42,14 +42,24 @@ typedef struct {
 } sc2CatalogCliff_t;
 
 typedef struct {
+    char  id[64];
+    BOOL  has_height[SC2_CLIFF_HEIGHT_TIERS];
+    FLOAT height[SC2_CLIFF_HEIGHT_TIERS];
+} sc2CatalogCliffMesh_t;
+
+typedef struct {
     DWORD models_count;
     DWORD actors_count;
     DWORD terrain_tex_count;
     DWORD cliffs_count;
+    DWORD cliff_meshes_count;
+    BOOL  has_default_cliff_height[SC2_CLIFF_HEIGHT_TIERS];
+    FLOAT default_cliff_height[SC2_CLIFF_HEIGHT_TIERS];
     sc2CatalogModel_t models[SC2_MAX_CATALOG_MODELS];
     sc2CatalogActor_t actors[SC2_MAX_CATALOG_ACTORS];
     sc2CatalogTerrainTex_t terrain_tex[SC2_MAX_CATALOG_TERRAIN_TEX];
     sc2CatalogCliff_t cliffs[SC2_MAX_CATALOG_CLIFFS];
+    sc2CatalogCliffMesh_t cliff_meshes[SC2_MAX_CATALOG_CLIFFS];
 } sc2Catalog_t;
 
 static sc2MapHost_t sc2_host;
@@ -740,6 +750,36 @@ static void sc2_catalog_add_cliff(sc2Catalog_t *catalog, LPCSTR id, LPCSTR mesh)
     snprintf(cliff->mesh, sizeof(cliff->mesh), "%s", mesh);
 }
 
+static void sc2_catalog_add_cliff_mesh_height(sc2Catalog_t *catalog,
+                                              LPCSTR id,
+                                              DWORD index,
+                                              FLOAT height,
+                                              BOOL is_default) {
+    sc2CatalogCliffMesh_t *mesh;
+
+    if (!catalog || index >= SC2_CLIFF_HEIGHT_TIERS)
+        return;
+    if (is_default || !id || !*id) {
+        catalog->has_default_cliff_height[index] = true;
+        catalog->default_cliff_height[index] = height;
+        return;
+    }
+    FOR_LOOP(i, catalog->cliff_meshes_count) {
+        if (!strcasecmp(catalog->cliff_meshes[i].id, id)) {
+            catalog->cliff_meshes[i].has_height[index] = true;
+            catalog->cliff_meshes[i].height[index] = height;
+            return;
+        }
+    }
+    if (catalog->cliff_meshes_count >= SC2_MAX_CATALOG_CLIFFS)
+        return;
+    mesh = &catalog->cliff_meshes[catalog->cliff_meshes_count++];
+    memset(mesh, 0, sizeof(*mesh));
+    snprintf(mesh->id, sizeof(mesh->id), "%s", id);
+    mesh->has_height[index] = true;
+    mesh->height[index] = height;
+}
+
 static LPCSTR sc2_catalog_model_path(sc2Catalog_t const *catalog, LPCSTR id) {
     if (!catalog || !id || !*id) return NULL;
     FOR_LOOP(i, catalog->models_count) {
@@ -752,6 +792,14 @@ static LPCSTR sc2_catalog_cliff_mesh(sc2Catalog_t const *catalog, LPCSTR id) {
     if (!catalog || !id || !*id) return NULL;
     FOR_LOOP(i, catalog->cliffs_count) {
         if (!strcasecmp(catalog->cliffs[i].id, id)) return catalog->cliffs[i].mesh;
+    }
+    return NULL;
+}
+
+static sc2CatalogCliffMesh_t const *sc2_catalog_cliff_mesh_heights(sc2Catalog_t const *catalog, LPCSTR id) {
+    if (!catalog || !id || !*id) return NULL;
+    FOR_LOOP(i, catalog->cliff_meshes_count) {
+        if (!strcasecmp(catalog->cliff_meshes[i].id, id)) return &catalog->cliff_meshes[i];
     }
     return NULL;
 }
@@ -934,6 +982,38 @@ static void sc2_parse_cliff_catalog_file(sc2Catalog_t *catalog, LPCSTR root_name
     xmlFreeDoc(doc);
 }
 
+static void sc2_parse_cliff_mesh_catalog_file(sc2Catalog_t *catalog, LPCSTR root_name) {
+    xmlDocPtr doc = sc2_read_catalog_xml(root_name, "GameData\\CliffMeshData.xml");
+    xmlNodePtr root;
+
+    if (!doc) return;
+    root = xmlDocGetRootElement(doc);
+    for (xmlNodePtr node = root ? root->children : NULL; node; node = node->next) {
+        char id[64] = "";
+        char value[64];
+        BOOL is_default = false;
+
+        if (node->type != XML_ELEMENT_NODE || !sc2_contains_i((char const *)node->name, "CCliffMesh"))
+            continue;
+        sc2_xml_attr(node, "id", id, sizeof(id));
+        if (sc2_xml_attr(node, "default", value, sizeof(value)))
+            is_default = strtoul(value, NULL, 10) != 0;
+        for (xmlNodePtr child = node->children; child; child = child->next) {
+            DWORD index;
+
+            if (child->type != XML_ELEMENT_NODE || !sc2_streqi((char const *)child->name, "CliffHeights"))
+                continue;
+            if (!sc2_xml_attr(child, "index", value, sizeof(value)))
+                continue;
+            index = (DWORD)strtoul(value, NULL, 10);
+            if (!sc2_xml_attr(child, "value", value, sizeof(value)))
+                continue;
+            sc2_catalog_add_cliff_mesh_height(catalog, id, index, strtof(value, NULL), is_default);
+        }
+    }
+    xmlFreeDoc(doc);
+}
+
 static void sc2_parse_catalogs(sc2Catalog_t *catalog) {
     static LPCSTR const roots[] = {
         "Mods/Core.SC2Mod/Base.SC2Data",
@@ -948,11 +1028,13 @@ static void sc2_parse_catalogs(sc2Catalog_t *catalog) {
     sc2_parse_actor_catalog_file(catalog, "");
     sc2_parse_terrain_tex_catalog_file(catalog, "");
     sc2_parse_cliff_catalog_file(catalog, "");
+    sc2_parse_cliff_mesh_catalog_file(catalog, "");
     for (DWORD i = 0; roots[i]; i++) {
         sc2_parse_model_catalog_file(catalog, roots[i]);
         sc2_parse_actor_catalog_file(catalog, roots[i]);
         sc2_parse_terrain_tex_catalog_file(catalog, roots[i]);
         sc2_parse_cliff_catalog_file(catalog, roots[i]);
+        sc2_parse_cliff_mesh_catalog_file(catalog, roots[i]);
     }
 }
 
@@ -1003,6 +1085,41 @@ static void sc2_resolve_cliff_sets(sc2Catalog_t const *catalog) {
                      "%s",
                      sc2_map.cliff_sets[i].name);
         }
+    }
+}
+
+static void sc2_apply_cliff_mesh_heights(sc2CatalogCliffMesh_t const *mesh) {
+    if (!mesh)
+        return;
+    FOR_LOOP(i, SC2_CLIFF_HEIGHT_TIERS) {
+        if (mesh->has_height[i]) {
+            sc2_map.cliff_heights[i] = mesh->height[i];
+            sc2_map.has_cliff_heights = true;
+        }
+    }
+}
+
+static void sc2_resolve_cliff_heights(sc2Catalog_t const *catalog) {
+    static FLOAT const fallback[SC2_CLIFF_HEIGHT_TIERS] = { -4.0f, 0.0f, 2.0f, 4.0f };
+
+    memcpy(sc2_map.cliff_heights, fallback, sizeof(sc2_map.cliff_heights));
+    sc2_map.has_cliff_heights = true;
+    if (!catalog)
+        return;
+    FOR_LOOP(i, SC2_CLIFF_HEIGHT_TIERS) {
+        if (catalog->has_default_cliff_height[i])
+            sc2_map.cliff_heights[i] = catalog->default_cliff_height[i];
+    }
+    FOR_LOOP(i, sc2_map.num_cliff_sets) {
+        sc2CatalogCliffMesh_t const *mesh;
+
+        mesh = sc2_catalog_cliff_mesh_heights(catalog, sc2_map.cliff_sets[i].name);
+        if (!mesh)
+            mesh = sc2_catalog_cliff_mesh_heights(catalog, sc2_map.cliff_sets[i].mesh);
+        if (!mesh)
+            continue;
+        sc2_apply_cliff_mesh_heights(mesh);
+        return;
     }
 }
 
@@ -1090,6 +1207,7 @@ static void sc2_resolve_catalogs(void) {
     sc2_parse_catalogs(catalog);
     sc2_resolve_terrain_textures(catalog);
     sc2_resolve_cliff_sets(catalog);
+    sc2_resolve_cliff_heights(catalog);
     sc2_resolve_object_models(catalog);
     sc2_free(catalog);
 }

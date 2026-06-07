@@ -10,6 +10,7 @@
 #define SC2_MAX_TERRAIN_TEXTURES 16
 #define SC2_MAX_CLIFF_SETS     8
 #define SC2_MAX_CLIFF_CELLS    16384
+#define SC2_CLIFF_HEIGHT_TIERS 4
 
 typedef enum {
     SC2_OBJECT_UNIT,
@@ -69,6 +70,8 @@ typedef struct {
     sc2CliffSet_t cliff_sets[SC2_MAX_CLIFF_SETS];
     DWORD          num_cliff_cells;
     sc2CliffCell_t cliff_cells[SC2_MAX_CLIFF_CELLS];
+    BOOL           has_cliff_heights;
+    FLOAT          cliff_heights[SC2_CLIFF_HEIGHT_TIERS];
     FLOAT          height_quantize_bias;
     FLOAT          height_quantize_scale;
     FLOAT          standard_height;

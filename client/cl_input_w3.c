@@ -6,6 +6,145 @@ static struct {
     VECTOR3 anchor;
 } camera_drag;
 
+#if defined(SC2) && defined(SC2_CAMERA_HACK)
+#define SC2_CAMERA_HACK_MIN_DISTANCE  5.0f
+#define SC2_CAMERA_HACK_MAX_DISTANCE  120.0f
+#define SC2_CAMERA_HACK_ZOOM_STEP     2.0f
+#define SC2_CAMERA_HACK_TURN_SPEED    0.18f
+#define SC2_CAMERA_HACK_MIN_PITCH     10.0f
+#define SC2_CAMERA_HACK_MAX_PITCH     85.0f
+#define SC2_CAMERA_HACK_CELL_SIZE     1.0f
+
+static struct {
+    BOOL initialized;
+    BOOL rotating;
+    FLOAT distance;
+    VECTOR3 angles;
+} sc2_camera_hack;
+
+static FLOAT CL_ClampFloat(FLOAT value, FLOAT min_value, FLOAT max_value) {
+    return MAX(min_value, MIN(value, max_value));
+}
+
+static BOOL CL_Sc2CameraHackShiftMiddleDown(void) {
+    SDL_Keymod mod = SDL_GetModState();
+    Uint32 buttons = SDL_GetMouseState(NULL, NULL);
+
+    return (mod & (KMOD_LSHIFT | KMOD_RSHIFT)) != 0 &&
+           (buttons & SDL_BUTTON(SDL_BUTTON_MIDDLE)) != 0;
+}
+
+static void CL_Sc2CameraHackInit(void) {
+    viewCamera_t const *camera = &cl.viewDef.camerastate[0];
+
+    if (sc2_camera_hack.initialized) {
+        return;
+    }
+    sc2_camera_hack.initialized = true;
+    sc2_camera_hack.distance = camera->distance > 0.0f ? camera->distance : 34.07f;
+    sc2_camera_hack.angles = camera->viewangles;
+    if (sc2_camera_hack.angles.x == 0.0f) {
+        sc2_camera_hack.angles.x = 56.0f;
+    }
+    if (sc2_camera_hack.angles.y == 0.0f) {
+        sc2_camera_hack.angles.y = 180.0f;
+    }
+}
+
+static void CL_Sc2CameraHackApply(void) {
+    CL_Sc2CameraHackInit();
+    cl.playerstate.distance = sc2_camera_hack.distance;
+    cl.playerstate.viewangles = sc2_camera_hack.angles;
+    cl.viewDef.camerastate[0].distance = sc2_camera_hack.distance;
+    cl.viewDef.camerastate[1].distance = sc2_camera_hack.distance;
+    cl.viewDef.camerastate[0].viewangles = sc2_camera_hack.angles;
+    cl.viewDef.camerastate[1].viewangles = sc2_camera_hack.angles;
+}
+
+static BOOL CL_Sc2CameraHackBeginRotate(void) {
+    if (!CL_GameplayInputReady() || !CL_Sc2CameraHackShiftMiddleDown()) {
+        return false;
+    }
+    CL_Sc2CameraHackInit();
+    sc2_camera_hack.rotating = true;
+    return true;
+}
+
+static void CL_Sc2CameraHackEndRotate(void) {
+    sc2_camera_hack.rotating = false;
+}
+
+static BOOL CL_Sc2CameraHackMouseMotion(SDL_MouseMotionEvent const *motion) {
+    if (!motion || !sc2_camera_hack.rotating) {
+        return false;
+    }
+    CL_Sc2CameraHackInit();
+    sc2_camera_hack.angles.y += motion->xrel * SC2_CAMERA_HACK_TURN_SPEED;
+    sc2_camera_hack.angles.x = CL_ClampFloat(sc2_camera_hack.angles.x + motion->yrel * SC2_CAMERA_HACK_TURN_SPEED,
+                                             SC2_CAMERA_HACK_MIN_PITCH,
+                                             SC2_CAMERA_HACK_MAX_PITCH);
+    CL_Sc2CameraHackApply();
+    return true;
+}
+
+static BOOL CL_Sc2CameraHackMouseWheel(SDL_MouseWheelEvent const *wheel) {
+    if (!wheel || !CL_GameplayInputReady()) {
+        return false;
+    }
+    CL_Sc2CameraHackInit();
+    sc2_camera_hack.distance = CL_ClampFloat(sc2_camera_hack.distance - wheel->y * SC2_CAMERA_HACK_ZOOM_STEP,
+                                             SC2_CAMERA_HACK_MIN_DISTANCE,
+                                             SC2_CAMERA_HACK_MAX_DISTANCE);
+    CL_Sc2CameraHackApply();
+    return true;
+}
+
+static void CL_Sc2CameraHackPrintTile(FLOAT screen_x, FLOAT screen_y) {
+    BOX2 bounds;
+    VECTOR3 point;
+    DWORD width;
+    DWORD height;
+    DWORD tile_x;
+    DWORD tile_y;
+    DWORD tile_index;
+    DWORD cliff_x;
+    DWORD cliff_y;
+    DWORD cliff_width;
+    DWORD cliff_index;
+
+    if (!CL_GameplayInputReady() || CL_MouseOverGameplayUI())
+        return;
+    if (!re.TraceLocation(&cl.viewDef, screen_x, screen_y, &point))
+        return;
+    bounds = CM_GetWorldBounds();
+    if (point.x < bounds.min.x || point.y < bounds.min.y ||
+        point.x >= bounds.max.x || point.y >= bounds.max.y)
+        return;
+    width = (DWORD)MAX(1.0f, floorf((bounds.max.x - bounds.min.x) / SC2_CAMERA_HACK_CELL_SIZE + 0.5f));
+    height = (DWORD)MAX(1.0f, floorf((bounds.max.y - bounds.min.y) / SC2_CAMERA_HACK_CELL_SIZE + 0.5f));
+    tile_x = (DWORD)floorf((point.x - bounds.min.x) / SC2_CAMERA_HACK_CELL_SIZE);
+    tile_y = (DWORD)floorf((point.y - bounds.min.y) / SC2_CAMERA_HACK_CELL_SIZE);
+    tile_x = MIN(tile_x, width - 1);
+    tile_y = MIN(tile_y, height - 1);
+    tile_index = tile_x + tile_y * width;
+    cliff_width = MAX(1, (width + 1) / 2);
+    cliff_x = tile_x / 2;
+    cliff_y = tile_y / 2;
+    cliff_index = cliff_x + cliff_y * cliff_width;
+    fprintf(stderr,
+            "SC2 tile pick: world=(%.3f %.3f %.3f) tile=(%u,%u) tile_index=%u cliff=(%u,%u) cliff_index=%u\n",
+            point.x,
+            point.y,
+            point.z,
+            (unsigned)tile_x,
+            (unsigned)tile_y,
+            (unsigned)tile_index,
+            (unsigned)cliff_x,
+            (unsigned)cliff_y,
+            (unsigned)cliff_index);
+}
+#endif
+
 static BOOL smart_click_active;
 
 static void CL_BeginPan(float x, float y) {
@@ -74,10 +213,19 @@ static void CL_SendSmartCommand(float x, float y) {
 }
 
 static void IN_PanDown(void) {
+#if defined(SC2) && defined(SC2_CAMERA_HACK)
+    if (CL_Sc2CameraHackBeginRotate()) {
+        CL_EndPan();
+        return;
+    }
+#endif
     CL_BeginPan(mouse.origin.x, mouse.origin.y);
 }
 
 static void IN_PanUp(void) {
+#if defined(SC2) && defined(SC2_CAMERA_HACK)
+    CL_Sc2CameraHackEndRotate();
+#endif
     CL_EndPan();
 }
 
@@ -98,6 +246,9 @@ static void IN_SmartUp(void) {
         return;
     }
     smart_click_active = false;
+#if defined(SC2) && defined(SC2_CAMERA_HACK)
+    CL_Sc2CameraHackPrintTile(mouse.origin.x, mouse.origin.y);
+#endif
     CL_SendSmartCommand(mouse.origin.x, mouse.origin.y);
 }
 
@@ -128,6 +279,11 @@ void CL_InputModeMouseMotion(SDL_MouseMotionEvent const *motion) {
     if (!motion) {
         return;
     }
+#if defined(SC2) && defined(SC2_CAMERA_HACK)
+    if (CL_Sc2CameraHackMouseMotion(motion)) {
+        return;
+    }
+#endif
     if (camera_drag.active) {
         CL_UpdatePan(motion->x, motion->y);
     }
@@ -138,10 +294,20 @@ void CL_InputModeMouseMotion(SDL_MouseMotionEvent const *motion) {
 }
 
 BOOL CL_InputModeMouseWheel(SDL_MouseWheelEvent const *wheel) {
+#if defined(SC2) && defined(SC2_CAMERA_HACK)
+    if (CL_Sc2CameraHackMouseWheel(wheel)) {
+        return true;
+    }
+#endif
     (void)wheel;
     return false;
 }
 
 void CL_InputModeFrame(void) {
+#if defined(SC2) && defined(SC2_CAMERA_HACK)
+    if (CL_GameplayInputReady()) {
+        CL_Sc2CameraHackApply();
+    }
+#endif
 }
 #endif
