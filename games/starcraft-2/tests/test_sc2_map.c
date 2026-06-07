@@ -129,6 +129,8 @@ static void test_sc2_map_loads_xml_objects_and_terrain(void) {
     ASSERT_STR_EQ(map->objects[2].name, "BillboardTall");
     ASSERT_EQ_INT(map->objects[2].type, SC2_OBJECT_DOODAD);
     ASSERT_STR_EQ(map->objects[2].model, "");
+    ASSERT_EQ_FLOAT(map->objects[2].position.z, 8.0f, 0.001f);
+    ASSERT_EQ_INT(map->objects[2].flags, SC2_OBJECT_HEIGHT_ABSOLUTE | SC2_OBJECT_FORCE_PLACEMENT);
 
     ASSERT_EQ_INT(map->num_terrain_textures, 2);
     ASSERT_STR_EQ(map->terrain_textures[0].diffuse, "Assets\\Textures\\Terrain\\FixtureGrass_Diffuse.dds");
@@ -182,6 +184,7 @@ static void test_sc2_map_loads_binary_terrain_layers(void) {
         ASSERT_EQ_FLOAT(map->height_map[0], 3.0f, 0.001f);
         ASSERT_EQ_FLOAT(map->height_map[19], 12.5f, 0.001f);
         ASSERT_EQ_FLOAT(SC2_MapHeightAtPoint(0.0f, 0.0f), 3.0f, 0.001f);
+        ASSERT_EQ_FLOAT(SC2_MapFlatTierHeightAtPoint(0.0f, 0.0f), 0.0f, 0.001f);
         ASSERT_EQ_FLOAT(SC2_MapHeightAtPoint(4.0f, 3.0f), 12.5f, 0.001f);
         ASSERT_EQ_FLOAT(SC2_MapHeightAtPoint(map->objects[0].position.x,
                                              map->objects[0].position.y),

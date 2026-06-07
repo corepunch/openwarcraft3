@@ -11,6 +11,9 @@
 #define SC2_MAX_CLIFF_SETS     8
 #define SC2_MAX_CLIFF_CELLS    16384
 #define SC2_CLIFF_HEIGHT_TIERS 4
+#define SC2_OBJECT_HEIGHT_ABSOLUTE 0x00000001
+#define SC2_OBJECT_HEIGHT_OFFSET   0x00000002
+#define SC2_OBJECT_FORCE_PLACEMENT 0x00000004
 
 typedef enum {
     SC2_OBJECT_UNIT,
@@ -25,6 +28,7 @@ typedef struct {
     FLOAT           angle;
     FLOAT           scale;
     DWORD           player;
+    DWORD           flags;
 } sc2MapObject_t;
 
 typedef struct {
@@ -102,6 +106,7 @@ BOOL          SC2_MapLoad(LPCSTR mapFilename);
 void          SC2_MapShutdown(void);
 sc2Map_t     *SC2_MapCurrent(void);
 FLOAT         SC2_MapHeightAtPoint(FLOAT x, FLOAT y);
+FLOAT         SC2_MapFlatTierHeightAtPoint(FLOAT x, FLOAT y);
 BOX2          SC2_MapBounds(void);
 VECTOR2       SC2_MapNormalizedPosition(FLOAT x, FLOAT y);
 VECTOR2       SC2_MapDenormalizedPosition(FLOAT x, FLOAT y);

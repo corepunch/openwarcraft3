@@ -557,6 +557,21 @@ static void sc2_object_field(sc2MapObject_t *object, LPCSTR key, LPCSTR value, B
     }
 }
 
+static void sc2_object_flag(sc2MapObject_t *object, xmlNodePtr node) {
+    char index[64];
+    char value[64];
+
+    if (!object || !sc2_contains_i((char const *)node->name, "Flag"))
+        return;
+    if (!sc2_xml_attr(node, "Index", index, sizeof(index)) ||
+        !sc2_xml_attr(node, "Value", value, sizeof(value)) ||
+        !atoi(value))
+        return;
+    if (sc2_streqi(index, "HeightAbsolute")) object->flags |= SC2_OBJECT_HEIGHT_ABSOLUTE;
+    else if (sc2_streqi(index, "HeightOffset")) object->flags |= SC2_OBJECT_HEIGHT_OFFSET;
+    else if (sc2_streqi(index, "ForcePlacement")) object->flags |= SC2_OBJECT_FORCE_PLACEMENT;
+}
+
 static void sc2_parse_object_node(xmlNodePtr node) {
     sc2MapObject_t object;
     BOOL has_position = false;
@@ -584,7 +599,10 @@ static void sc2_parse_object_node(xmlNodePtr node) {
         }
     }
     for (xmlNodePtr child = node->children; child; child = child->next) {
-        if (child->type == XML_ELEMENT_NODE && sc2_xml_content(child, value, sizeof(value)))
+        if (child->type != XML_ELEMENT_NODE)
+            continue;
+        sc2_object_flag(&object, child);
+        if (sc2_xml_content(child, value, sizeof(value)))
             sc2_object_field(&object, (char const *)child->name, value, &has_position);
     }
 
@@ -1501,6 +1519,67 @@ FLOAT SC2_MapHeightAtPoint(FLOAT x, FLOAT y) {
     h10 = sc2_map.height_map[x1 + y0 * sc2_map.height_map_width];
     h01 = sc2_map.height_map[x0 + y1 * sc2_map.height_map_width];
     h11 = sc2_map.height_map[x1 + y1 * sc2_map.height_map_width];
+    h0 = h00 + (h10 - h00) * tx;
+    h1 = h01 + (h11 - h01) * tx;
+    return h0 + (h1 - h0) * ty;
+}
+
+static USHORT sc2_cliff_level_at_grid(DWORD x, DWORD y) {
+    USHORT value;
+
+    if (!sc2_map.cliff_levels || !sc2_map.cliff_level_width || !sc2_map.cliff_level_height) {
+        return 0;
+    }
+    x = MIN(sc2_map.cliff_level_width - 1, x * sc2_map.cliff_level_width / MAX(1, sc2_map.width));
+    y = MIN(sc2_map.cliff_level_height - 1, y * sc2_map.cliff_level_height / MAX(1, sc2_map.height));
+    value = sc2_map.cliff_levels[x + y * sc2_map.cliff_level_width];
+    return value >= 0x40 ? value >> 6 : value;
+}
+
+static FLOAT sc2_cliff_tier_height(USHORT level) {
+    FLOAT step;
+
+    if (!sc2_map.has_cliff_heights)
+        return 0.0f;
+    if (level < SC2_CLIFF_HEIGHT_TIERS)
+        return sc2_map.cliff_heights[level];
+    step = sc2_map.cliff_heights[SC2_CLIFF_HEIGHT_TIERS - 1] -
+           sc2_map.cliff_heights[SC2_CLIFF_HEIGHT_TIERS - 2];
+    if (fabsf(step) <= 0.001f)
+        step = sc2_map.cell_size;
+    return sc2_map.cliff_heights[SC2_CLIFF_HEIGHT_TIERS - 1] +
+           (FLOAT)(level - (SC2_CLIFF_HEIGHT_TIERS - 1)) * step;
+}
+
+static FLOAT sc2_flat_tier_height_at_grid(DWORD x, DWORD y) {
+    if (!sc2_map.has_cliff_heights || !sc2_map.cliff_levels) {
+        return SC2_MapHeightAtPoint((FLOAT)x, (FLOAT)y);
+    }
+    return sc2_cliff_tier_height(sc2_cliff_level_at_grid(x, y));
+}
+
+FLOAT SC2_MapFlatTierHeightAtPoint(FLOAT x, FLOAT y) {
+    VECTOR2 n;
+    FLOAT fx, fy, tx, ty;
+    DWORD x0, y0, x1, y1;
+    FLOAT h00, h10, h01, h11, h0, h1;
+
+    if (!sc2_map.has_cliff_heights || !sc2_map.cliff_levels) {
+        return SC2_MapHeightAtPoint(x, y);
+    }
+    n = SC2_MapNormalizedPosition(x, y);
+    fx = MIN(MAX(n.x, 0.0f), 1.0f) * (FLOAT)sc2_map.width;
+    fy = MIN(MAX(n.y, 0.0f), 1.0f) * (FLOAT)sc2_map.height;
+    x0 = (DWORD)floorf(fx);
+    y0 = (DWORD)floorf(fy);
+    x1 = MIN(sc2_map.width, x0 + 1);
+    y1 = MIN(sc2_map.height, y0 + 1);
+    tx = fx - (FLOAT)x0;
+    ty = fy - (FLOAT)y0;
+    h00 = sc2_flat_tier_height_at_grid(x0, y0);
+    h10 = sc2_flat_tier_height_at_grid(x1, y0);
+    h01 = sc2_flat_tier_height_at_grid(x0, y1);
+    h11 = sc2_flat_tier_height_at_grid(x1, y1);
     h0 = h00 + (h10 - h00) * tx;
     h1 = h01 + (h11 - h01) * tx;
     return h0 + (h1 - h0) * ty;
