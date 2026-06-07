@@ -9,6 +9,32 @@
 
 #define SC2_TERRAIN_BLEND_LAYERS 8
 #define SC2_M3_MAX_BONES 128
+#define SC2_CLIFF_BLOCK_SPAN 2u
+#define SC2_CLIFF_BLOCK_ORIGIN(X) ((X) & ~(SC2_CLIFF_BLOCK_SPAN - 1u))
+#define SC2_CLIFF_LEVEL_PACKED_MIN 0x40u
+#define SC2_CLIFF_LEVEL_SHIFT 6
+#define SC2_CELL_FLAG_TERRAIN_MASK 0x0fu
+#define SC2_CELL_FLAG_CLIFF 0x03u
+#define SC2_GROUND_VERTICES_PER_CELL 6u
+#define SC2_TERRAIN_UV_SCALE 8.0f
+#define SC2_CLIFF_VARIANT_MASK 3u
+#define SC2_M3_UV_SCALE 2048.0f
+
+#define SC2_CLIFF_BLOCK_LEVELS(LEVEL, MAP, X, Y) \
+do { \
+    (LEVEL)[0] = r_sc2_cliff_level_at_grid((MAP), (X), (Y)); \
+    (LEVEL)[1] = r_sc2_cliff_level_at_grid((MAP), (X) + SC2_CLIFF_BLOCK_SPAN, (Y)); \
+    (LEVEL)[2] = r_sc2_cliff_level_at_grid((MAP), (X) + SC2_CLIFF_BLOCK_SPAN, (Y) + SC2_CLIFF_BLOCK_SPAN); \
+    (LEVEL)[3] = r_sc2_cliff_level_at_grid((MAP), (X), (Y) + SC2_CLIFF_BLOCK_SPAN); \
+} while (0)
+
+#define SC2_CLIFF_BLOCK_HEIGHTS(HEIGHT, MAP, X, Y) \
+do { \
+    (HEIGHT)[0] = r_sc2_height_at_grid((MAP), (X), (Y)); \
+    (HEIGHT)[1] = r_sc2_height_at_grid((MAP), (X) + SC2_CLIFF_BLOCK_SPAN, (Y)); \
+    (HEIGHT)[2] = r_sc2_height_at_grid((MAP), (X), (Y) + SC2_CLIFF_BLOCK_SPAN); \
+    (HEIGHT)[3] = r_sc2_height_at_grid((MAP), (X) + SC2_CLIFF_BLOCK_SPAN, (Y) + SC2_CLIFF_BLOCK_SPAN); \
+} while (0)
 
 extern LPCSTR vs_default;
 extern m3SequenceTimeline_t const *M3_FindAnimationAtTime(m3Model_t const *model, DWORD time, DWORD *localtime);
@@ -168,7 +194,7 @@ static USHORT r_sc2_cliff_level_at_grid(sc2Map_t const *map, DWORD x, DWORD y) {
     x = MIN(map->cliff_level_width - 1, x * map->cliff_level_width / MAX(1, map->width));
     y = MIN(map->cliff_level_height - 1, y * map->cliff_level_height / MAX(1, map->height));
     value = map->cliff_levels[x + y * map->cliff_level_width];
-    return value >= 0x40 ? value >> 6 : value;
+    return value >= SC2_CLIFF_LEVEL_PACKED_MIN ? value >> SC2_CLIFF_LEVEL_SHIFT : value;
 }
 
 static BYTE r_sc2_cell_flag_at_grid(sc2Map_t const *map, DWORD x, DWORD y) {
@@ -181,16 +207,16 @@ static BYTE r_sc2_cell_flag_at_grid(sc2Map_t const *map, DWORD x, DWORD y) {
 }
 
 static BOOL r_sc2_cliff_block_is_flat(sc2Map_t const *map, DWORD x, DWORD y) {
-    USHORT level = r_sc2_cliff_level_at_grid(map, x, y);
-    return r_sc2_cliff_level_at_grid(map, x + 2, y) == level &&
-           r_sc2_cliff_level_at_grid(map, x + 2, y + 2) == level &&
-           r_sc2_cliff_level_at_grid(map, x, y + 2) == level;
+    USHORT level[4];
+
+    SC2_CLIFF_BLOCK_LEVELS(level, map, x, y);
+    return level[1] == level[0] && level[2] == level[0] && level[3] == level[0];
 }
 
 static BOOL r_sc2_skip_ground_cell(sc2Map_t const *map, DWORD x, DWORD y) {
-    if ((r_sc2_cell_flag_at_grid(map, x, y) & 0x0f) != 0x03)
+    if ((r_sc2_cell_flag_at_grid(map, x, y) & SC2_CELL_FLAG_TERRAIN_MASK) != SC2_CELL_FLAG_CLIFF)
         return false;
-    return !r_sc2_cliff_block_is_flat(map, x & ~1u, y & ~1u);
+    return !r_sc2_cliff_block_is_flat(map, SC2_CLIFF_BLOCK_ORIGIN(x), SC2_CLIFF_BLOCK_ORIGIN(y));
 }
 
 static void r_sc2_release_layer(LPMAPLAYER layer) {
@@ -283,7 +309,7 @@ static LPMAPLAYER r_sc2_build_ground_layer(sc2Map_t const *map) {
 
     w = map->width;
     h = map->height;
-    num_vertices = w * h * 6;
+    num_vertices = w * h * SC2_GROUND_VERTICES_PER_CELL;
     vertices = ri.MemAlloc(num_vertices * sizeof(*vertices));
     out = vertices;
     bounds = SC2_MapBounds();
@@ -297,10 +323,10 @@ static LPMAPLAYER r_sc2_build_ground_layer(sc2Map_t const *map) {
             FLOAT y0 = bounds.min.y + y * map->cell_size;
             FLOAT x1 = x0 + map->cell_size;
             FLOAT y1 = y0 + map->cell_size;
-            FLOAT u0 = x0 / 8.0f;
-            FLOAT v0 = y0 / 8.0f;
-            FLOAT u1 = x1 / 8.0f;
-            FLOAT v1 = y1 / 8.0f;
+            FLOAT u0 = x0 / SC2_TERRAIN_UV_SCALE;
+            FLOAT v0 = y0 / SC2_TERRAIN_UV_SCALE;
+            FLOAT u1 = x1 / SC2_TERRAIN_UV_SCALE;
+            FLOAT v1 = y1 / SC2_TERRAIN_UV_SCALE;
             FLOAT z00 = r_sc2_height_at_grid(map, x, y);
             FLOAT z10 = r_sc2_height_at_grid(map, x + 1, y);
             FLOAT z11 = r_sc2_height_at_grid(map, x + 1, y + 1);
@@ -350,7 +376,7 @@ static LPCMODEL r_sc2_load_cliff_model(LPCSTR path) {
 }
 
 static BOOL r_sc2_cliff_model_path(LPSTR path, size_t size, LPCSTR mesh, char const config[5], DWORD variant) {
-    snprintf(path, size, "Assets\\Cliffs\\%s\\%s_%s_%02u.m3", mesh, mesh, config, variant & 3);
+    snprintf(path, size, "Assets\\Cliffs\\%s\\%s_%s_%02u.m3", mesh, mesh, config, variant & SC2_CLIFF_VARIANT_MASK);
     if (r_sc2_file_exists(path))
         return true;
     snprintf(path, size, "Assets\\Cliffs\\%s\\%s_%s_00.m3", mesh, mesh, config);
@@ -373,10 +399,7 @@ static BOOL r_sc2_cliff_config(sc2Map_t const *map,
     int best;
 
     /* SC2 cliff models use BL, BR, TR, TL corner order. */
-    level[0] = r_sc2_cliff_level_at_grid(map, x, y);
-    level[1] = r_sc2_cliff_level_at_grid(map, x + 2, y);
-    level[2] = r_sc2_cliff_level_at_grid(map, x + 2, y + 2);
-    level[3] = r_sc2_cliff_level_at_grid(map, x, y + 2);
+    SC2_CLIFF_BLOCK_LEVELS(level, map, x, y);
     base = MIN(MIN(level[0], level[1]), MIN(level[2], level[3]));
     top = MAX(MAX(level[0], level[1]), MAX(level[2], level[3]));
     FOR_LOOP(i, 4) {
@@ -580,10 +603,7 @@ static void r_sc2_cliff_terrain_z_span(sc2Map_t const *map,
                                        LPFLOAT span_z) {
     FLOAT h[4];
 
-    h[0] = r_sc2_height_at_grid(map, grid_x, grid_y);
-    h[1] = r_sc2_height_at_grid(map, grid_x + 2, grid_y);
-    h[2] = r_sc2_height_at_grid(map, grid_x, grid_y + 2);
-    h[3] = r_sc2_height_at_grid(map, grid_x + 2, grid_y + 2);
+    SC2_CLIFF_BLOCK_HEIGHTS(h, map, grid_x, grid_y);
     *min_z = MIN(MIN(h[0], h[1]), MIN(h[2], h[3]));
     *span_z = MAX(MAX(h[0], h[1]), MAX(h[2], h[3])) - *min_z;
     if (*span_z <= 0.001f)
@@ -659,8 +679,8 @@ static void r_sc2_bake_cliff_model(rCliffBakeList_t *list,
                                              position.x,
                                              position.y,
                                              position.z,
-                                             vertex->uv[0][0] / 2048.0f,
-                                             vertex->uv[0][1] / 2048.0f,
+                                             vertex->uv[0][0] / SC2_M3_UV_SCALE,
+                                             vertex->uv[0][1] / SC2_M3_UV_SCALE,
                                              255,
                                              normal);
                 }
@@ -693,8 +713,8 @@ static LPMAPLAYER r_sc2_build_cliff_layer(sc2Map_t const *map) {
         if (cell->cliff_set >= map->num_cliff_sets)
             continue;
         set = &map->cliff_sets[cell->cliff_set];
-        grid_x = (cell->index % cliff_width) * 2;
-        grid_y = (cell->index / cliff_width) * 2;
+        grid_x = (cell->index % cliff_width) * SC2_CLIFF_BLOCK_SPAN;
+        grid_y = (cell->index / cliff_width) * SC2_CLIFF_BLOCK_SPAN;
         if (!r_sc2_cliff_config(map, grid_x, grid_y, config, &baselevel, &toplevel, &rotation))
             continue;
         if (!r_sc2_cliff_model_path(path, sizeof(path), set->mesh[0] ? set->mesh : set->name, config, cell->variant))
