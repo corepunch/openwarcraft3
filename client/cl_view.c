@@ -150,7 +150,7 @@ static void Matrix4_getSc2CameraMatrix(LPCVECTOR3 origin,
     fov = fov > 0.0f ? fov : 27.8f;
     znear = znear > 0.0f ? znear : 0.1f;
     zfar = zfar > 0.0f ? zfar : 400.0f;
-    target.z = CM_GetHeightAtPoint(target.x, target.y) + height_offset;
+    target.z = height_offset;
     eye = Vector3_sub(&target, &(VECTOR3){ dir.x * distance, dir.y * distance, dir.z * distance });
     Matrix4_perspective(&proj, fov, aspect, znear, zfar);
     Matrix4_lookAt(&view, &eye, &dir, &(VECTOR3){ 0.0f, 0.0f, 1.0f });
