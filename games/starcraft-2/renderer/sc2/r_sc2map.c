@@ -7,32 +7,41 @@
 #undef SC2_REUSE_WAR3_CLIFF_BAKER
 #include "games/warcraft-3/renderer/w3m/r_terrain_layers.c"
 
-#define SC2_TERRAIN_BLEND_LAYERS 8
-#define SC2_M3_MAX_BONES 128
-#define SC2_CLIFF_BLOCK_SPAN 2u
-#define SC2_CLIFF_BLOCK_ORIGIN(X) ((X) & ~(SC2_CLIFF_BLOCK_SPAN - 1u))
-#define SC2_CLIFF_LEVEL_PACKED_MIN 0x40u
-#define SC2_CLIFF_LEVEL_SHIFT 6
-#define SC2_CELL_FLAG_TERRAIN_MASK 0x0fu
-#define SC2_CELL_FLAG_CLIFF 0x03u
+#define SC2_TERRAIN_BLEND_LAYERS    8
+#define SC2_M3_MAX_BONES            128
+#define SC2_CLIFF_BLOCK_SPAN        2u      /* cliff cells are 2x2 grid units */
+#define SC2_CLIFF_BLOCK_ORIGIN(X)   ((X) & ~(SC2_CLIFF_BLOCK_SPAN - 1u))
+#define SC2_CLIFF_BLOCK_CENTER(X)   ((X) + 1u)  /* centre grid coord within a 2-unit block */
+#define SC2_CLIFF_LEVEL_PACKED_MIN  0x40u   /* packed format threshold; values >= this are shifted */
+#define SC2_CLIFF_LEVEL_SHIFT       6
+#define SC2_CELL_FLAG_TERRAIN_MASK  0x0fu
+#define SC2_CELL_FLAG_CLIFF         0x03u
 #define SC2_GROUND_VERTICES_PER_CELL 6u
-#define SC2_TERRAIN_UV_SCALE 8.0f
-#define SC2_CLIFF_VARIANT_MASK 3u
-#define SC2_M3_UV_SCALE 2048.0f
+#define SC2_TERRAIN_UV_SCALE        8.0f
+#define SC2_CLIFF_VARIANT_MASK      3u
+#define SC2_M3_UV_SCALE             2048.0f /* M3 UV coords are stored as 1/2048 fixed-point */
+#define SC2_M3_NORMAL_SCALE         (2.0f / 255.0f)  /* byte-packed snorm: val/255*2-1 */
+#define SC2_EPSILON                 0.001f  /* near-zero threshold for spans and scale guards */
+#define SC2_TRACE_EPSILON           0.0001f /* near-zero direction threshold in ray-slab test */
+#define SC2_TRACE_INF               1.0e30f /* infinity sentinel for axis-aligned ray marching */
+#define SC2_CLIFF_MIN_SPAN          1.0f    /* minimum z-span fallback when terrain is flat */
+#define SC2_CLIFF_WIDTH(MAP)        (MAX(1, ((MAP)->width + 1) / 2))
 
+/* BL=0, BR=1, TR=2, TL=3 — matches SC2 cliff model corner convention */
 #define SC2_CLIFF_BLOCK_LEVELS(LEVEL, MAP, X, Y) \
 do { \
-    (LEVEL)[0] = r_sc2_cliff_level_at_grid((MAP), (X), (Y)); \
-    (LEVEL)[1] = r_sc2_cliff_level_at_grid((MAP), (X) + SC2_CLIFF_BLOCK_SPAN, (Y)); \
-    (LEVEL)[2] = r_sc2_cliff_level_at_grid((MAP), (X) + SC2_CLIFF_BLOCK_SPAN, (Y) + SC2_CLIFF_BLOCK_SPAN); \
-    (LEVEL)[3] = r_sc2_cliff_level_at_grid((MAP), (X), (Y) + SC2_CLIFF_BLOCK_SPAN); \
+    (LEVEL)[0] = r_sc2_cliff_level_at_grid((MAP), (X),                          (Y)); \
+    (LEVEL)[1] = r_sc2_cliff_level_at_grid((MAP), (X) + SC2_CLIFF_BLOCK_SPAN,   (Y)); \
+    (LEVEL)[2] = r_sc2_cliff_level_at_grid((MAP), (X) + SC2_CLIFF_BLOCK_SPAN,   (Y) + SC2_CLIFF_BLOCK_SPAN); \
+    (LEVEL)[3] = r_sc2_cliff_level_at_grid((MAP), (X),                          (Y) + SC2_CLIFF_BLOCK_SPAN); \
 } while (0)
 
+/* BL=0, BR=1, TL=2, TR=3 — all four corners; order only matters for min/max sweeps */
 #define SC2_CLIFF_BLOCK_HEIGHTS(HEIGHT, MAP, X, Y) \
 do { \
-    (HEIGHT)[0] = r_sc2_height_at_grid((MAP), (X), (Y)); \
+    (HEIGHT)[0] = r_sc2_height_at_grid((MAP), (X),                        (Y)); \
     (HEIGHT)[1] = r_sc2_height_at_grid((MAP), (X) + SC2_CLIFF_BLOCK_SPAN, (Y)); \
-    (HEIGHT)[2] = r_sc2_height_at_grid((MAP), (X), (Y) + SC2_CLIFF_BLOCK_SPAN); \
+    (HEIGHT)[2] = r_sc2_height_at_grid((MAP), (X),                        (Y) + SC2_CLIFF_BLOCK_SPAN); \
     (HEIGHT)[3] = r_sc2_height_at_grid((MAP), (X) + SC2_CLIFF_BLOCK_SPAN, (Y) + SC2_CLIFF_BLOCK_SPAN); \
 } while (0)
 
@@ -461,9 +470,9 @@ static VECTOR3 r_sc2_rotate_cliff_vec(VECTOR3 pos, int rotation) {
 
 static VECTOR3 r_sc2_m3_raw_normal(m3Vertex_t const *vertex) {
     VECTOR3 normal = {
-        ((FLOAT)vertex->normal[0] / 255.0f) * 2.0f - 1.0f,
-        ((FLOAT)vertex->normal[1] / 255.0f) * 2.0f - 1.0f,
-        ((FLOAT)vertex->normal[2] / 255.0f) * 2.0f - 1.0f,
+        (FLOAT)vertex->normal[0] * SC2_M3_NORMAL_SCALE - 1.0f,
+        (FLOAT)vertex->normal[1] * SC2_M3_NORMAL_SCALE - 1.0f,
+        (FLOAT)vertex->normal[2] * SC2_M3_NORMAL_SCALE - 1.0f,
     };
     Vector3_normalize(&normal);
     return normal;
@@ -602,8 +611,8 @@ static void r_sc2_cliff_terrain_z_span(sc2Map_t const *map,
     SC2_CLIFF_BLOCK_HEIGHTS(h, map, grid_x, grid_y);
     *min_z = MIN(MIN(h[0], h[1]), MIN(h[2], h[3]));
     *span_z = MAX(MAX(h[0], h[1]), MAX(h[2], h[3])) - *min_z;
-    if (*span_z <= 0.001f)
-        *span_z = MAX(1.0f, (FLOAT)(toplevel - baselevel)) * map->cell_size;
+    if (*span_z <= SC2_EPSILON)
+        *span_z = MAX(SC2_CLIFF_MIN_SPAN, (FLOAT)(toplevel - baselevel)) * map->cell_size;
 }
 
 static void r_sc2_bake_cliff_model(rCliffBakeList_t *list,
@@ -633,12 +642,12 @@ static void r_sc2_bake_cliff_model(rCliffBakeList_t *list,
         bounds.max = (VECTOR3){  map->cell_size,  map->cell_size, 0.0f };
     }
     offset = (VECTOR2){
-        map_bounds.min.x + (grid_x + 1) * map->cell_size,
-        map_bounds.min.y + (grid_y + 1) * map->cell_size,
+        map_bounds.min.x + SC2_CLIFF_BLOCK_CENTER(grid_x) * map->cell_size,
+        map_bounds.min.y + SC2_CLIFF_BLOCK_CENTER(grid_y) * map->cell_size,
     };
     r_sc2_cliff_terrain_z_span(map, grid_x, grid_y, baselevel, toplevel, &terrain_min_z, &terrain_span_z);
     model_span_z = bounds.max.z - bounds.min.z;
-    z_scale = model_span_z > 0.001f ? terrain_span_z / model_span_z : 1.0f;
+    z_scale = model_span_z > SC2_EPSILON ? terrain_span_z / model_span_z : 1.0f;
     FOR_LOOP(div_i, m3->divisionsNum) {
         m3Divisions_t const *div = &m3->divisions[div_i];
         FOR_LOOP(region_i, div->regionsNum) {
@@ -689,7 +698,7 @@ static LPMAPLAYER r_sc2_build_cliff_layer(sc2Map_t const *map) {
 
     if (!map || !map->num_cliff_cells || !map->cliff_levels)
         return NULL;
-    cliff_width = MAX(1, (map->width + 1) / 2);
+    cliff_width = SC2_CLIFF_WIDTH(map);
     FOR_LOOP(i, map->num_cliff_cells) {
         sc2CliffCell_t const *cell = &map->cliff_cells[i];
         sc2CliffSet_t const *set;
@@ -836,7 +845,7 @@ static BOOL r_sc2_clip_trace_to_bounds(LPCLINE3 line, LPCBOX2 bounds, LPFLOAT t0
         FLOAT near_t;
         FLOAT far_t;
 
-        if (fabsf(dir) < 0.0001f) {
+        if (fabsf(dir) < SC2_TRACE_EPSILON) {
             if (start[axis] < bounds_min[axis] || start[axis] > bounds_max[axis])
                 return false;
             continue;
@@ -904,20 +913,20 @@ bool R_SC2TraceLocation(viewDef_t const *viewdef, FLOAT x, FLOAT y, LPVECTOR3 ou
     tile_x = MAX(0, MIN((int)map->width - 1, tile_x));
     tile_y = MAX(0, MIN((int)map->height - 1, tile_y));
 
-    if (fabsf(dir_x) < 0.0001f) {
+    if (fabsf(dir_x) < SC2_TRACE_EPSILON) {
         step_x = 0;
-        t_max_x = 1.0e30f;
-        t_delta_x = 1.0e30f;
+        t_max_x = SC2_TRACE_INF;
+        t_delta_x = SC2_TRACE_INF;
     } else {
         step_x = dir_x > 0.0f ? 1 : -1;
         t_max_x = (bounds.min.x + (tile_x + (step_x > 0 ? 1.0f : 0.0f)) * map->cell_size - line.a.x) / dir_x;
         t_delta_x = fabsf(map->cell_size / dir_x);
     }
 
-    if (fabsf(dir_y) < 0.0001f) {
+    if (fabsf(dir_y) < SC2_TRACE_EPSILON) {
         step_y = 0;
-        t_max_y = 1.0e30f;
-        t_delta_y = 1.0e30f;
+        t_max_y = SC2_TRACE_INF;
+        t_delta_y = SC2_TRACE_INF;
     } else {
         step_y = dir_y > 0.0f ? 1 : -1;
         t_max_y = (bounds.min.y + (tile_y + (step_y > 0 ? 1.0f : 0.0f)) * map->cell_size - line.a.y) / dir_y;
