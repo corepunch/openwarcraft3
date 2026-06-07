@@ -70,6 +70,7 @@ typedef struct sc2CliffModel_s {
 typedef struct rSc2CliffPlacement_s {
     FLOAT base_z;
     FLOAT model_z_offset;
+    FLOAT z_scale;
 } rSc2CliffPlacement_t;
 
 static sc2CliffModel_t *sc2_cliff_models;
@@ -708,7 +709,7 @@ static void r_sc2_bake_cliff_region(rCliffBakeList_t *list,
             position = (VECTOR3){
                 xy.x,
                 xy.y,
-                placement->base_z + placement->model_z_offset + local.z,
+                placement->base_z + (placement->model_z_offset + local.z) * placement->z_scale,
             };
             uv = (VECTOR2){ vertex->uv[0][0] / SC2_M3_UV_SCALE, vertex->uv[0][1] / SC2_M3_UV_SCALE };
             normal = r_sc2_rotate_cliff_vec(normal, rotation);
@@ -750,8 +751,23 @@ static void r_sc2_bake_cliff_model(rCliffBakeList_t *list,
         map_bounds.min.x + SC2_CLIFF_BLOCK_CENTER(grid_x) * map->cell_size,
         map_bounds.min.y + SC2_CLIFF_BLOCK_CENTER(grid_y) * map->cell_size,
     };
-    placement.base_z = r_sc2_cliff_tile_lowest_height(map, grid_x, grid_y);
-    placement.model_z_offset = -bounds.min.z;
+    {
+        FLOAT corner_z[4] = {
+            r_sc2_visual_height_at_grid(map, grid_x,                        grid_y),
+            r_sc2_visual_height_at_grid(map, grid_x + SC2_CLIFF_BLOCK_SPAN, grid_y),
+            r_sc2_visual_height_at_grid(map, grid_x + SC2_CLIFF_BLOCK_SPAN, grid_y + SC2_CLIFF_BLOCK_SPAN),
+            r_sc2_visual_height_at_grid(map, grid_x,                        grid_y + SC2_CLIFF_BLOCK_SPAN),
+        };
+        FLOAT top_z    = MAX(MAX(corner_z[0], corner_z[1]), MAX(corner_z[2], corner_z[3]));
+        FLOAT bottom_z = MIN(MIN(corner_z[0], corner_z[1]), MIN(corner_z[2], corner_z[3]));
+        FLOAT model_span = bounds.max.z - bounds.min.z;
+        FLOAT tier_span  = top_z - bottom_z;
+        placement.base_z        = bottom_z;
+        placement.model_z_offset = -bounds.min.z;
+        placement.z_scale        = (model_span > SC2_EPSILON && tier_span > SC2_EPSILON)
+                                       ? tier_span / model_span
+                                       : 1.0f;
+    }
     FOR_LOOP(div_i, m3->divisionsNum) {
         m3Divisions_t const *div = &m3->divisions[div_i];
         FOR_LOOP(region_i, div->regionsNum) {
