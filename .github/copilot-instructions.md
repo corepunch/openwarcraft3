@@ -42,6 +42,7 @@ This codebase is inspired by **Quake 2**. The developer working on this project 
 - Before adding any "remember this failed" cache, check the analogous Quake 2/3 path first. If id-tech solved it through registration lifecycle, cache ownership, default media, or clearing state on map/ref changes, follow that pattern instead of creating a new client/game side workaround.
 - Treat API and struct growth as a last resort. If a change adds fields, the review explanation should say why a smaller Quake-style solution using existing state was not enough.
 - When replacing a single existing line or macro call with a larger custom block, keep the original line commented out immediately above the replacement and add a short comment explaining why the expansion is necessary, such as a file-format mismatch, bug fix, or new feature behavior.
+- Do not hardcode values that are likely to exist in source game data, map files, catalog XML/DBC/SLK/FDF/etc., asset metadata, or other inspectable formats. Inspect the data first and parse the authoritative field. If a temporary literal is genuinely unavoidable, mark it with a `BZ_HARDCODED_DATA_FALLBACK` comment that names the expected source file/field and the reason it is not parsed yet.
 
 ## Engine/Game Boundary (Strict)
 
