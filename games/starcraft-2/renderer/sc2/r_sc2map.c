@@ -182,9 +182,9 @@ static BYTE r_sc2_cell_flag_at_grid(sc2Map_t const *map, DWORD x, DWORD y) {
 
 static BOOL r_sc2_cliff_block_is_flat(sc2Map_t const *map, DWORD x, DWORD y) {
     USHORT level = r_sc2_cliff_level_at_grid(map, x, y);
-    return r_sc2_cliff_level_at_grid(map, x + 1, y) == level &&
-           r_sc2_cliff_level_at_grid(map, x + 1, y + 1) == level &&
-           r_sc2_cliff_level_at_grid(map, x, y + 1) == level;
+    return r_sc2_cliff_level_at_grid(map, x + 2, y) == level &&
+           r_sc2_cliff_level_at_grid(map, x + 2, y + 2) == level &&
+           r_sc2_cliff_level_at_grid(map, x, y + 2) == level;
 }
 
 static BOOL r_sc2_skip_ground_cell(sc2Map_t const *map, DWORD x, DWORD y) {
@@ -374,9 +374,9 @@ static BOOL r_sc2_cliff_config(sc2Map_t const *map,
 
     /* SC2 cliff models use BL, BR, TR, TL corner order. */
     level[0] = r_sc2_cliff_level_at_grid(map, x, y);
-    level[1] = r_sc2_cliff_level_at_grid(map, x + 1, y);
-    level[2] = r_sc2_cliff_level_at_grid(map, x + 1, y + 1);
-    level[3] = r_sc2_cliff_level_at_grid(map, x, y + 1);
+    level[1] = r_sc2_cliff_level_at_grid(map, x + 2, y);
+    level[2] = r_sc2_cliff_level_at_grid(map, x + 2, y + 2);
+    level[3] = r_sc2_cliff_level_at_grid(map, x, y + 2);
     base = MIN(MIN(level[0], level[1]), MIN(level[2], level[3]));
     top = MAX(MAX(level[0], level[1]), MAX(level[2], level[3]));
     FOR_LOOP(i, 4) {
