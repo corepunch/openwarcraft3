@@ -55,6 +55,8 @@ static LPSHADER sc2_terrain_shader;
 static GLint sc2_u_layer[SC2_TERRAIN_BLEND_LAYERS];
 static GLint sc2_u_mask[SC2_TERRAIN_BLEND_LAYERS];
 static GLint sc2_u_layer_count = -1;
+static GLint sc2_u_world_uv_offset = -1;
+static GLint sc2_u_world_uv_scale = -1;
 static LPTEXTURE sc2_terrain_textures[SC2_TERRAIN_BLEND_LAYERS];
 static LPTEXTURE sc2_terrain_masks[SC2_TERRAIN_BLEND_LAYERS];
 static DWORD sc2_num_terrain_layers;
@@ -100,11 +102,17 @@ static LPCSTR sc2_fs_terrain =
 "uniform sampler2D uMask6;\n"
 "uniform sampler2D uMask7;\n"
 "uniform int uLayerCount;\n"
+"uniform vec2 uWorldUVOffset;\n"
+"uniform vec2 uWorldUVScale;\n"
 "vec2 get_mask_coord() {\n"
 "    return clamp(v_texcoord2 * 0.5 + vec2(0.5), vec2(0.0), vec2(1.0));\n"
 "}\n"
+"vec2 get_terrain_coord() {\n"
+"    return (v_texcoord2 * 0.5 + vec2(0.5)) * uWorldUVScale + uWorldUVOffset;\n"
+"}\n"
 "void main() {\n"
 "    vec2 mc = get_mask_coord();\n"
+"    vec2 tc = uWorldUVScale.x > 0.0 ? get_terrain_coord() : v_texcoord;\n"
 "    float w0 = texture(uMask0, mc).r;\n"
 "    float w1 = texture(uMask1, mc).r;\n"
 "    float w2 = texture(uMask2, mc).r;\n"
@@ -113,16 +121,16 @@ static LPCSTR sc2_fs_terrain =
 "    float w5 = texture(uMask5, mc).r;\n"
 "    float w6 = texture(uMask6, mc).r;\n"
 "    float w7 = texture(uMask7, mc).r;\n"
-"    vec4 color = texture(uLayer0, v_texcoord) * w0;\n"
+"    vec4 color = texture(uLayer0, tc) * w0;\n"
 "    float total = w0;\n"
-"    if (uLayerCount > 1) { color += texture(uLayer1, v_texcoord) * w1; total += w1; }\n"
-"    if (uLayerCount > 2) { color += texture(uLayer2, v_texcoord) * w2; total += w2; }\n"
-"    if (uLayerCount > 3) { color += texture(uLayer3, v_texcoord) * w3; total += w3; }\n"
-"    if (uLayerCount > 4) { color += texture(uLayer4, v_texcoord) * w4; total += w4; }\n"
-"    if (uLayerCount > 5) { color += texture(uLayer5, v_texcoord) * w5; total += w5; }\n"
-"    if (uLayerCount > 6) { color += texture(uLayer6, v_texcoord) * w6; total += w6; }\n"
-"    if (uLayerCount > 7) { color += texture(uLayer7, v_texcoord) * w7; total += w7; }\n"
-"    color = total > 0.001 ? color / total : texture(uLayer0, v_texcoord);\n"
+"    if (uLayerCount > 1) { color += texture(uLayer1, tc) * w1; total += w1; }\n"
+"    if (uLayerCount > 2) { color += texture(uLayer2, tc) * w2; total += w2; }\n"
+"    if (uLayerCount > 3) { color += texture(uLayer3, tc) * w3; total += w3; }\n"
+"    if (uLayerCount > 4) { color += texture(uLayer4, tc) * w4; total += w4; }\n"
+"    if (uLayerCount > 5) { color += texture(uLayer5, tc) * w5; total += w5; }\n"
+"    if (uLayerCount > 6) { color += texture(uLayer6, tc) * w6; total += w6; }\n"
+"    if (uLayerCount > 7) { color += texture(uLayer7, tc) * w7; total += w7; }\n"
+"    color = total > 0.001 ? color / total : texture(uLayer0, tc);\n"
 "    color.rgb *= v_color.rgb;\n"
 "    color.a = 1.0;\n"
 "    o_color = color;\n"
@@ -151,7 +159,9 @@ static void r_sc2_init_terrain_shader(void) {
         sc2_u_mask[i] = glGetUniformLocation(sc2_terrain_shader->progid, mask_names[i]);
         R_Call(glUniform1i, sc2_u_mask[i], (GLint)(SC2_TERRAIN_BLEND_LAYERS + i));
     }
-    sc2_u_layer_count = glGetUniformLocation(sc2_terrain_shader->progid, "uLayerCount");
+    sc2_u_layer_count      = glGetUniformLocation(sc2_terrain_shader->progid, "uLayerCount");
+    sc2_u_world_uv_offset  = glGetUniformLocation(sc2_terrain_shader->progid, "uWorldUVOffset");
+    sc2_u_world_uv_scale   = glGetUniformLocation(sc2_terrain_shader->progid, "uWorldUVScale");
 }
 
 static HANDLE r_sc2_read_file(LPCSTR filename, LPDWORD size) {
@@ -784,20 +794,25 @@ static void r_sc2_bake_cliff_model(rCliffBakeList_t *list,
     }
 }
 
-static LPCTEXTURE r_sc2_make_white_texture(void) {
-    LPTEXTURE texture;
-    COLOR32 white = COLOR32_WHITE;
+static LPCTEXTURE r_sc2_cliff_diffuse_texture(LPCMODEL model) {
+    m3Model_t const *m3;
 
-    texture = R_AllocateTexture(1, 1);
-    R_LoadTextureMipLevel(texture, 0, &white, 1, 1);
-    R_SetTextureWrap(texture, true, true);
-    return texture;
+    if (!model || model->modeltype != ID_43DM || !model->m3)
+        return NULL;
+    m3 = model->m3;
+    FOR_LOOP(i, m3->materialStandardNum) {
+        m3Material_t const *mat = &m3->materialStandard[i];
+        if (mat->diffuseLayer && mat->diffuseLayer->texture)
+            return mat->diffuseLayer->texture;
+    }
+    return NULL;
 }
 
 static LPMAPLAYER r_sc2_build_cliff_layer(sc2Map_t const *map) {
     rCliffBakeList_t list = {0};
     LPMAPLAYER map_layer;
     DWORD cliff_width;
+    LPCTEXTURE diffuse = NULL;
 
     if (!map || !map->num_cliff_cells || !map->cliff_levels)
         return NULL;
@@ -824,6 +839,8 @@ static LPMAPLAYER r_sc2_build_cliff_layer(sc2Map_t const *map) {
         model = r_sc2_load_cliff_model(path);
         if (!model || model->modeltype != ID_43DM || !model->m3)
             continue;
+        if (!diffuse)
+            diffuse = r_sc2_cliff_diffuse_texture(model);
         r_sc2_bake_cliff_model(&list, map, model, grid_x, grid_y, rotation);
     }
     if (!list.num_vertices) {
@@ -833,7 +850,7 @@ static LPMAPLAYER r_sc2_build_cliff_layer(sc2Map_t const *map) {
     map_layer = ri.MemAlloc(sizeof(*map_layer));
     memset(map_layer, 0, sizeof(*map_layer));
     map_layer->type = MAPLAYERTYPE_CLIFF;
-    map_layer->texture = r_sc2_make_white_texture();
+    map_layer->texture = diffuse ? diffuse : tr.texture[TEX_WHITE];
     map_layer->buffer = R_MakeVertexArrayObject(list.vertices, list.num_vertices);
     map_layer->num_vertices = list.num_vertices;
     ri.MemFree(list.vertices);
@@ -890,6 +907,7 @@ static void r_sc2_draw_ground_layer(LPCMAPSEGMENT segment) {
     R_Call(glUniformMatrix4fv, sc2_terrain_shader->uModelMatrix, 1, GL_FALSE, model_matrix.v);
     R_Call(glUniformMatrix4fv, sc2_terrain_shader->uTextureMatrix, 1, GL_FALSE, tr.viewDef.textureMatrix.v);
     R_Call(glUniform1i, sc2_u_layer_count, (GLint)sc2_num_terrain_layers);
+    R_Call(glUniform2f, sc2_u_world_uv_scale, 0.0f, 0.0f);   /* use vertex texcoord for ground */
     FOR_LOOP(i, SC2_TERRAIN_BLEND_LAYERS) {
         R_BindTexture(sc2_terrain_textures[i] ? sc2_terrain_textures[i] : sc2_terrain_textures[0], i);
         R_BindTexture(sc2_terrain_masks[i] ? sc2_terrain_masks[i] : (i ? tr.texture[TEX_BLACK] : tr.texture[TEX_WHITE]),
@@ -910,6 +928,62 @@ void R_SC2RegisterMap(LPCSTR mapFileName) {
     r_sc2_build_terrain(SC2_MapCurrent());
 }
 
+static void r_sc2_draw_cliff_layer(LPCMAPSEGMENT segment) {
+    LPCMAPLAYER layer;
+    MATRIX4 model_matrix;
+
+    if (!sc2_terrain_shader || !segment)
+        return;
+    layer = segment->layers;
+    while (layer && layer->type != MAPLAYERTYPE_CLIFF) {
+        layer = layer->next;
+    }
+    if (!layer)
+        return;
+
+    Matrix4_identity(&model_matrix);
+
+    /* Pass 1: terrain blend — fills depth and lays down terrain color seamlessly.
+       Use world XY position for terrain UV so tiling matches the ground exactly. */
+    {
+        BOX2 bounds = SC2_MapBounds();
+        FLOAT map_w = bounds.max.x - bounds.min.x;
+        FLOAT map_h = bounds.max.y - bounds.min.y;
+        R_Call(glUseProgram, sc2_terrain_shader->progid);
+        R_Call(glUniformMatrix4fv, sc2_terrain_shader->uViewProjectionMatrix, 1, GL_FALSE, tr.viewDef.viewProjectionMatrix.v);
+        R_Call(glUniformMatrix4fv, sc2_terrain_shader->uModelMatrix, 1, GL_FALSE, model_matrix.v);
+        R_Call(glUniformMatrix4fv, sc2_terrain_shader->uTextureMatrix, 1, GL_FALSE, tr.viewDef.textureMatrix.v);
+        R_Call(glUniform1i, sc2_u_layer_count, (GLint)sc2_num_terrain_layers);
+        /* scale: maps [0..1] (normalised world) -> worldXY / SC2_TERRAIN_UV_SCALE */
+        R_Call(glUniform2f, sc2_u_world_uv_scale,
+               map_w / SC2_TERRAIN_UV_SCALE,
+               map_h / SC2_TERRAIN_UV_SCALE);
+        R_Call(glUniform2f, sc2_u_world_uv_offset,
+               bounds.min.x / SC2_TERRAIN_UV_SCALE,
+               bounds.min.y / SC2_TERRAIN_UV_SCALE);
+        FOR_LOOP(i, SC2_TERRAIN_BLEND_LAYERS) {
+            R_BindTexture(sc2_terrain_textures[i] ? sc2_terrain_textures[i] : sc2_terrain_textures[0], i);
+            R_BindTexture(sc2_terrain_masks[i] ? sc2_terrain_masks[i] : (i ? tr.texture[TEX_BLACK] : tr.texture[TEX_WHITE]),
+                          SC2_TERRAIN_BLEND_LAYERS + i);
+        }
+        R_Call(glDisable, GL_BLEND);
+        R_DrawBuffer(layer->buffer, layer->num_vertices);
+    }
+
+    /* Pass 2: cliff M3 texture alpha-blended on top, pulled slightly forward */
+    R_Call(glEnable, GL_POLYGON_OFFSET_FILL);
+    R_Call(glPolygonOffset, -1.0f, -1.0f);
+    R_Call(glUseProgram, tr.shader[SHADER_UI]->progid);
+    R_Call(glUniformMatrix4fv, tr.shader[SHADER_UI]->uViewProjectionMatrix, 1, GL_FALSE, tr.viewDef.viewProjectionMatrix.v);
+    R_Call(glUniformMatrix4fv, tr.shader[SHADER_UI]->uModelMatrix, 1, GL_FALSE, model_matrix.v);
+    R_Call(glEnable, GL_BLEND);
+    R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    R_BindTexture(layer->texture, 0);
+    R_DrawBuffer(layer->buffer, layer->num_vertices);
+    R_Call(glDisable, GL_POLYGON_OFFSET_FILL);
+    R_Call(glPolygonOffset, 0.0f, 0.0f);
+}
+
 void R_SC2DrawWorld(void) {
     MATRIX4 model_matrix;
 
@@ -926,11 +1000,7 @@ void R_SC2DrawWorld(void) {
     R_Call(glDepthFunc, GL_LEQUAL);
     R_Call(glColorMask, GL_TRUE, GL_TRUE, GL_TRUE, GL_FALSE);
     r_sc2_draw_ground_layer(sc2_terrain_segment);
-
-    R_Call(glUseProgram, tr.shader[SHADER_UI]->progid);
-    R_Call(glUniformMatrix4fv, tr.shader[SHADER_UI]->uViewProjectionMatrix, 1, GL_FALSE, tr.viewDef.viewProjectionMatrix.v);
-    R_Call(glUniformMatrix4fv, tr.shader[SHADER_UI]->uModelMatrix, 1, GL_FALSE, model_matrix.v);
-    R_DrawTerrainSegment(sc2_terrain_segment, (1 << MAPLAYERTYPE_CLIFF));
+    r_sc2_draw_cliff_layer(sc2_terrain_segment);
 }
 
 static BOOL r_sc2_clip_trace_to_bounds(LPCLINE3 line, LPCBOX2 bounds, LPFLOAT t0, LPFLOAT t1) {
