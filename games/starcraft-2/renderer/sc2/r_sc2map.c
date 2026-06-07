@@ -110,7 +110,7 @@ static LPCSTR sc2_vs_terrain =
 "    if (uHeightMapEnabled != 0) {\n"
 "        vec2 grid = clamp((pos.xy - uHeightMapOrigin) / uHeightMapSize * (uHeightMapGridSize - vec2(1.0)), vec2(0.0), uHeightMapGridSize - vec2(1.0));\n"
 "        vec2 hc = (grid + vec2(0.5)) / uHeightMapGridSize;\n"
-"        pos.z += texture(uHeightMap, hc).r;\n"
+"        pos.z += texture(uHeightMap, hc).r * 0.5;\n"
 "    }\n"
 "    v_texcoord = i_texcoord;\n"
 "    v_texcoord2 = (uTextureMatrix * pos).xy;\n"
