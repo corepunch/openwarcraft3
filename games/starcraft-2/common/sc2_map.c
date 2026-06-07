@@ -1301,11 +1301,12 @@ static void sc2_parse_height_map(sc2MapSource_t *source) {
             LPBYTE chunk = data + SC2_HMAP_HEADER_SIZE + src * SC2_HMAP_CHUNK_SIZE;
             USHORT height_adjustment = sc2_read_le16(chunk);
             USHORT height_base = sc2_read_le16(chunk + 2);
-            FLOAT adjust = height_adjustment * scale;
-            // HACK: zero map height and use adjust map for all height adjustments, so that cliffs can be reconstructed more accurately
-            sc2_map.height_adjust_map[x + y * crop_w] = 0;//adjust;
+                (void)height_adjustment;
+            /* Debug path: keep tier/plateau base height but disable fine adjustments.
+               This keeps terrain flat at expected cliff tiers. */
+            sc2_map.height_adjust_map[x + y * crop_w] = 0.0f;
             sc2_map.height_map[x + y * crop_w] =
-                0;//height_base * scale - bias - sc2_map.standard_height - 1.0f + adjust;
+                height_base * scale - bias - sc2_map.standard_height - 1.0f;
         }
     }
     sc2_map.height_map_width = crop_w;
@@ -1343,10 +1344,11 @@ static void sc2_parse_sync_height_map(sc2MapSource_t *source) {
             DWORD src = (crop_x + x) + (crop_y + y) * w;
             LPBYTE chunk = data + SC2_SMAP_HEADER_SIZE + src * SC2_SMAP_CHUNK_SIZE;
             SHORT delta = (SHORT)sc2_read_le16(chunk);
-            FLOAT sync_adjust = (FLOAT)delta / 256.0f;
-            sc2_map.height_map[x + y * crop_w] += sync_adjust;
-            if (sc2_map.height_adjust_map)
-                sc2_map.height_adjust_map[x + y * crop_w] += sync_adjust;
+            (void)delta;
+            /* Debug path: ignore sync micro-height offsets to keep terrain flat. */
+            // sc2_map.height_map[x + y * crop_w] += sync_adjust;
+            // if (sc2_map.height_adjust_map)
+            //     sc2_map.height_adjust_map[x + y * crop_w] += sync_adjust;
         }
     }
     sc2_free_file(data);
