@@ -556,12 +556,8 @@ static BOOL r_sc2_cliff_model_bounds(LPCMODEL model, LPBOX3 bounds) {
     r_sc2_m3_build_cliff_bones(m3, bones);
     FOR_LOOP(div_i, m3->divisionsNum) {
         m3Divisions_t const *div = &m3->divisions[div_i];
-        FOR_LOOP(batch_i, div->batchesNum) {
-            m3Batch_t const *batch = &div->batches[batch_i];
-            m3Region_t const *region;
-            if (batch->regionIndex >= div->regionsNum)
-                continue;
-            region = &div->regions[batch->regionIndex];
+        FOR_LOOP(region_i, div->regionsNum) {
+            m3Region_t const *region = &div->regions[region_i];
             for (DWORD index_i = 0; index_i + 2 < region->triangleIndicesCount; index_i += 3) {
                 DWORD fi[3], vi[3];
                 BOOL valid = true;
@@ -645,12 +641,8 @@ static void r_sc2_bake_cliff_model(rCliffBakeList_t *list,
     z_scale = model_span_z > 0.001f ? terrain_span_z / model_span_z : 1.0f;
     FOR_LOOP(div_i, m3->divisionsNum) {
         m3Divisions_t const *div = &m3->divisions[div_i];
-        FOR_LOOP(batch_i, div->batchesNum) {
-            m3Batch_t const *batch = &div->batches[batch_i];
-            m3Region_t const *region;
-            if (batch->regionIndex >= div->regionsNum)
-                continue;
-            region = &div->regions[batch->regionIndex];
+        FOR_LOOP(region_i, div->regionsNum) {
+            m3Region_t const *region = &div->regions[region_i];
             for (DWORD index_i = 0; index_i + 2 < region->triangleIndicesCount; index_i += 3) {
                 DWORD fi[3], vi[3];
                 BOOL valid = true;
