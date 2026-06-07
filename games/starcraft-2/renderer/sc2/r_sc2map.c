@@ -36,15 +36,6 @@ do { \
     (LEVEL)[3] = r_sc2_cliff_level_at_grid((MAP), (X),                          (Y) + SC2_CLIFF_BLOCK_SPAN); \
 } while (0)
 
-/* BL=0, BR=1, TL=2, TR=3 — all four corners; order only matters for min/max sweeps */
-#define SC2_CLIFF_BLOCK_HEIGHTS(HEIGHT, MAP, X, Y) \
-do { \
-    (HEIGHT)[0] = r_sc2_height_at_grid((MAP), (X),                        (Y)); \
-    (HEIGHT)[1] = r_sc2_height_at_grid((MAP), (X) + SC2_CLIFF_BLOCK_SPAN, (Y)); \
-    (HEIGHT)[2] = r_sc2_height_at_grid((MAP), (X),                        (Y) + SC2_CLIFF_BLOCK_SPAN); \
-    (HEIGHT)[3] = r_sc2_height_at_grid((MAP), (X) + SC2_CLIFF_BLOCK_SPAN, (Y) + SC2_CLIFF_BLOCK_SPAN); \
-} while (0)
-
 extern LPCSTR vs_default;
 extern m3SequenceTimeline_t const *M3_FindAnimationAtTime(m3Model_t const *model, DWORD time, DWORD *localtime);
 extern VECTOR3 M3_GetVector3AnimValue(m3Model_t const *model,
@@ -70,6 +61,14 @@ typedef struct sc2CliffModel_s {
     LPCMODEL model;
     struct sc2CliffModel_s *next;
 } sc2CliffModel_t;
+
+typedef struct rSc2CliffHeightFit_s {
+    FLOAT height[4];   /* BL, BR, TR, TL */
+    FLOAT level[4];    /* relative cliff tier fraction, same order */
+    BOX2 footprint;
+    FLOAT terrain_span;
+    FLOAT model_span;
+} rSc2CliffHeightFit_t;
 
 static sc2CliffModel_t *sc2_cliff_models;
 
@@ -583,31 +582,123 @@ static BOOL r_sc2_cliff_model_bounds(LPCMODEL model, LPBOX3 bounds) {
     return have_vertex;
 }
 
-static void r_sc2_cliff_terrain_z_span(sc2Map_t const *map,
-                                       DWORD grid_x,
-                                       DWORD grid_y,
-                                       USHORT baselevel,
-                                       USHORT toplevel,
-                                       LPFLOAT min_z,
-                                       LPFLOAT span_z) {
-    FLOAT h[4];
+static FLOAT r_sc2_bilerp(FLOAT const value[4], FLOAT x, FLOAT y) {
+    FLOAT a = value[0] + (value[1] - value[0]) * x;
+    FLOAT b = value[3] + (value[2] - value[3]) * x;
+    return a + (b - a) * y;
+}
 
-    SC2_CLIFF_BLOCK_HEIGHTS(h, map, grid_x, grid_y);
-    *min_z = MIN(MIN(h[0], h[1]), MIN(h[2], h[3]));
-    *span_z = MAX(MAX(h[0], h[1]), MAX(h[2], h[3])) - *min_z;
-    if (*span_z <= SC2_EPSILON)
-        *span_z = MAX(SC2_CLIFF_MIN_SPAN, (FLOAT)(toplevel - baselevel)) * map->cell_size;
+static FLOAT r_sc2_clamp01(FLOAT value) {
+    return MIN(1.0f, MAX(0.0f, value));
+}
+
+static BOX2 r_sc2_cliff_rotated_footprint(LPCBOX3 bounds, int rotation) {
+    BOX2 footprint = {0};
+    BOOL have_point = false;
+
+    FOR_LOOP(i, 4) {
+        VECTOR3 corner = {
+            (i & 1) ? bounds->max.x : bounds->min.x,
+            (i & 2) ? bounds->max.y : bounds->min.y,
+            0.0f,
+        };
+        VECTOR3 rotated = r_sc2_rotate_cliff_vec(corner, rotation);
+
+        if (!have_point) {
+            footprint.min = footprint.max = (VECTOR2){ rotated.x, rotated.y };
+            have_point = true;
+            continue;
+        }
+        footprint.min.x = MIN(footprint.min.x, rotated.x);
+        footprint.min.y = MIN(footprint.min.y, rotated.y);
+        footprint.max.x = MAX(footprint.max.x, rotated.x);
+        footprint.max.y = MAX(footprint.max.y, rotated.y);
+    }
+    if (footprint.max.x - footprint.min.x <= SC2_EPSILON) {
+        footprint.min.x = -1.0f;
+        footprint.max.x = 1.0f;
+    }
+    if (footprint.max.y - footprint.min.y <= SC2_EPSILON) {
+        footprint.min.y = -1.0f;
+        footprint.max.y = 1.0f;
+    }
+    return footprint;
+}
+
+static VECTOR2 r_sc2_cliff_footprint_coord(rSc2CliffHeightFit_t const *fit, LPCVECTOR3 rotated) {
+    return (VECTOR2){
+        r_sc2_clamp01((rotated->x - fit->footprint.min.x) / (fit->footprint.max.x - fit->footprint.min.x)),
+        r_sc2_clamp01((rotated->y - fit->footprint.min.y) / (fit->footprint.max.y - fit->footprint.min.y)),
+    };
+}
+
+static void r_sc2_cliff_height_fit(sc2Map_t const *map,
+                                   DWORD grid_x,
+                                   DWORD grid_y,
+                                   USHORT baselevel,
+                                   USHORT toplevel,
+                                   FLOAT model_span,
+                                   LPCBOX2 footprint,
+                                   rSc2CliffHeightFit_t *fit) {
+    USHORT level[4];
+    FLOAT level_span;
+    FLOAT min_z;
+    FLOAT max_z;
+
+    memset(fit, 0, sizeof(*fit));
+    SC2_CLIFF_BLOCK_LEVELS(level, map, grid_x, grid_y);
+    fit->height[0] = r_sc2_height_at_grid(map, grid_x,                        grid_y);
+    fit->height[1] = r_sc2_height_at_grid(map, grid_x + SC2_CLIFF_BLOCK_SPAN, grid_y);
+    fit->height[2] = r_sc2_height_at_grid(map, grid_x + SC2_CLIFF_BLOCK_SPAN, grid_y + SC2_CLIFF_BLOCK_SPAN);
+    fit->height[3] = r_sc2_height_at_grid(map, grid_x,                        grid_y + SC2_CLIFF_BLOCK_SPAN);
+    level_span = MAX(1.0f, (FLOAT)(toplevel - baselevel));
+    FOR_LOOP(i, 4) {
+        fit->level[i] = ((FLOAT)level[i] - (FLOAT)baselevel) / level_span;
+    }
+    fit->footprint = *footprint;
+    min_z = MIN(MIN(fit->height[0], fit->height[1]), MIN(fit->height[2], fit->height[3]));
+    max_z = MAX(MAX(fit->height[0], fit->height[1]), MAX(fit->height[2], fit->height[3]));
+    fit->terrain_span = max_z - min_z;
+    if (fit->terrain_span <= SC2_EPSILON)
+        fit->terrain_span = MAX(SC2_CLIFF_MIN_SPAN, (FLOAT)(toplevel - baselevel)) * map->cell_size;
+    fit->model_span = model_span;
+}
+
+static FLOAT r_sc2_cliff_vertex_z(sc2Map_t const *map,
+                                  rSc2CliffHeightFit_t const *fit,
+                                  LPCBOX3 bounds,
+                                  LPCVECTOR3 local,
+                                  LPCVECTOR3 rotated) {
+    VECTOR2 coord = r_sc2_cliff_footprint_coord(fit, rotated);
+    FLOAT terrain_z = r_sc2_bilerp(fit->height, coord.x, coord.y);
+    FLOAT terrain_level = r_sc2_bilerp(fit->level, coord.x, coord.y);
+    FLOAT model_level = fit->model_span > SC2_EPSILON ? (local->z - bounds->min.z) / fit->model_span : terrain_level;
+
+    return terrain_z + (model_level - terrain_level) * fit->terrain_span;
+}
+
+static VECTOR2 r_sc2_cliff_vertex_xy(sc2Map_t const *map,
+                                     rSc2CliffHeightFit_t const *fit,
+                                     LPCVECTOR2 offset,
+                                     LPCVECTOR3 rotated) {
+    VECTOR2 coord = r_sc2_cliff_footprint_coord(fit, rotated);
+    FLOAT span = SC2_CLIFF_BLOCK_SPAN * map->cell_size;
+
+    return (VECTOR2){
+        offset->x + (coord.x - 0.5f) * span,
+        offset->y + (coord.y - 0.5f) * span,
+    };
 }
 
 static void r_sc2_bake_cliff_region(rCliffBakeList_t *list,
+                                    sc2Map_t const *map,
                                     m3Model_t const *m3,
                                     m3Divisions_t const *div,
                                     m3Region_t const *region,
                                     MATRIX4 const bones[SC2_M3_MAX_BONES],
                                     LPCBOX3 bounds,
+                                    rSc2CliffHeightFit_t const *height_fit,
                                     LPCVECTOR2 offset,
-                                    FLOAT terrain_min_z,
-                                    FLOAT z_scale,
                                     int rotation) {
     for (DWORD index_i = 0; index_i + 2 < region->triangleIndicesCount; index_i += 3) {
         DWORD fi[3], vi[3];
@@ -628,15 +719,17 @@ static void r_sc2_bake_cliff_region(rCliffBakeList_t *list,
             VECTOR3 normal;
             VECTOR3 rotated;
             VECTOR3 position;
+            VECTOR2 xy;
             VECTOR2 uv;
 
             local = r_sc2_m3_skin_vertex(vertex, region, bones, 1.0f);
             normal = r_sc2_m3_skin_vertex(vertex, region, bones, 0.0f);
             rotated = r_sc2_rotate_cliff_vec(local, rotation);
+            xy = r_sc2_cliff_vertex_xy(map, height_fit, offset, &rotated);
             position = (VECTOR3){
-                offset->x + rotated.x,
-                offset->y + rotated.y,
-                terrain_min_z + (local.z - bounds->min.z) * z_scale,
+                xy.x,
+                xy.y,
+                r_sc2_cliff_vertex_z(map, height_fit, bounds, &local, &rotated),
             };
             uv = (VECTOR2){ vertex->uv[0][0] / SC2_M3_UV_SCALE, vertex->uv[0][1] / SC2_M3_UV_SCALE };
             normal = r_sc2_rotate_cliff_vec(normal, rotation);
@@ -662,12 +755,11 @@ static void r_sc2_bake_cliff_model(rCliffBakeList_t *list,
                                    USHORT toplevel,
                                    int rotation) {
     BOX2 map_bounds = SC2_MapBounds();
+    BOX2 footprint;
     BOX3 bounds;
+    rSc2CliffHeightFit_t height_fit;
     VECTOR2 offset;
-    FLOAT terrain_min_z;
-    FLOAT terrain_span_z;
     FLOAT model_span_z;
-    FLOAT z_scale;
     m3Model_t const *m3;
     MATRIX4 bones[SC2_M3_MAX_BONES];
 
@@ -683,21 +775,21 @@ static void r_sc2_bake_cliff_model(rCliffBakeList_t *list,
         map_bounds.min.x + SC2_CLIFF_BLOCK_CENTER(grid_x) * map->cell_size,
         map_bounds.min.y + SC2_CLIFF_BLOCK_CENTER(grid_y) * map->cell_size,
     };
-    r_sc2_cliff_terrain_z_span(map, grid_x, grid_y, baselevel, toplevel, &terrain_min_z, &terrain_span_z);
     model_span_z = bounds.max.z - bounds.min.z;
-    z_scale = model_span_z > SC2_EPSILON ? terrain_span_z / model_span_z : 1.0f;
+    footprint = r_sc2_cliff_rotated_footprint(&bounds, rotation);
+    r_sc2_cliff_height_fit(map, grid_x, grid_y, baselevel, toplevel, model_span_z, &footprint, &height_fit);
     FOR_LOOP(div_i, m3->divisionsNum) {
         m3Divisions_t const *div = &m3->divisions[div_i];
         FOR_LOOP(region_i, div->regionsNum) {
             r_sc2_bake_cliff_region(list,
+                                    map,
                                     m3,
                                     div,
                                     &div->regions[region_i],
                                     bones,
                                     &bounds,
+                                    &height_fit,
                                     &offset,
-                                    terrain_min_z,
-                                    z_scale,
                                     rotation);
         }
     }
