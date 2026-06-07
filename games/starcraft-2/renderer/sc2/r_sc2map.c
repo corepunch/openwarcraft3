@@ -536,8 +536,7 @@ static BOOL r_sc2_cliff_model_bounds(LPCMODEL model, LPBOX3 bounds) {
         FOR_LOOP(batch_i, div->batchesNum) {
             m3Batch_t const *batch = &div->batches[batch_i];
             m3Region_t const *region;
-            if (batch->regionIndex >= div->regionsNum ||
-                batch->materialReferenceIndex >= m3->materialReferencesNum)
+            if (batch->regionIndex >= div->regionsNum)
                 continue;
             region = &div->regions[batch->regionIndex];
             for (DWORD index_i = 0; index_i + 2 < region->triangleIndicesCount; index_i += 3) {
@@ -629,8 +628,7 @@ static void r_sc2_bake_cliff_model(rCliffBakeList_t *list,
         FOR_LOOP(batch_i, div->batchesNum) {
             m3Batch_t const *batch = &div->batches[batch_i];
             m3Region_t const *region;
-            if (batch->regionIndex >= div->regionsNum ||
-                batch->materialReferenceIndex >= m3->materialReferencesNum)
+            if (batch->regionIndex >= div->regionsNum)
                 continue;
             region = &div->regions[batch->regionIndex];
             for (DWORD index_i = 0; index_i + 2 < region->triangleIndicesCount; index_i += 3) {
