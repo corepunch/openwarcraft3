@@ -443,22 +443,6 @@ static BOOL r_sc2_cliff_config(sc2Map_t const *map,
     return config[0] != config[1] || config[1] != config[2] || config[2] != config[3];
 }
 
-static LPCSTR r_sc2_cliff_texture_path(LPCMODEL model) {
-    m3Model_t const *m3;
-
-    if (!model || model->modeltype != ID_43DM || !model->m3)
-        return NULL;
-    m3 = model->m3;
-    FOR_LOOP(i, m3->materialStandardNum) {
-        m3Material_t const *material = &m3->materialStandard[i];
-        FOR_LOOP(layer, material->diffuseLayerNum) {
-            if (material->diffuseLayer[layer].imagePath && *material->diffuseLayer[layer].imagePath)
-                return material->diffuseLayer[layer].imagePath;
-        }
-    }
-    return NULL;
-}
-
 static VECTOR3 r_sc2_rotate_cliff_vec(VECTOR3 pos, int rotation) {
     switch (rotation & 3) {
         case 1: return (VECTOR3){ -pos.y,  pos.x, pos.z };
@@ -615,6 +599,60 @@ static void r_sc2_cliff_terrain_z_span(sc2Map_t const *map,
         *span_z = MAX(SC2_CLIFF_MIN_SPAN, (FLOAT)(toplevel - baselevel)) * map->cell_size;
 }
 
+static void r_sc2_bake_cliff_region(rCliffBakeList_t *list,
+                                    m3Model_t const *m3,
+                                    m3Divisions_t const *div,
+                                    m3Region_t const *region,
+                                    MATRIX4 const bones[SC2_M3_MAX_BONES],
+                                    LPCBOX3 bounds,
+                                    LPCVECTOR2 offset,
+                                    FLOAT terrain_min_z,
+                                    FLOAT z_scale,
+                                    int rotation) {
+    for (DWORD index_i = 0; index_i + 2 < region->triangleIndicesCount; index_i += 3) {
+        DWORD fi[3], vi[3];
+        BOOL valid = true;
+
+        FOR_LOOP(k, 3) {
+            fi[k] = region->firstTriangleIndex + index_i + k;
+            if (fi[k] >= div->facesNum) { valid = false; break; }
+            vi[k] = div->faces[fi[k]] + region->firstVertexIndex;
+            if (vi[k] >= m3->verticesNum) { valid = false; break; }
+        }
+        if (!valid)
+            continue;
+        FOR_LOOP(k, 3) {
+            m3Vertex_t const *vertex = &m3->vertices[vi[k]];
+            VERTEX *out = R_CliffBakeVertex(list);
+            VECTOR3 local;
+            VECTOR3 normal;
+            VECTOR3 rotated;
+            VECTOR3 position;
+            VECTOR2 uv;
+
+            local = r_sc2_m3_skin_vertex(vertex, region, bones, 1.0f);
+            normal = r_sc2_m3_skin_vertex(vertex, region, bones, 0.0f);
+            rotated = r_sc2_rotate_cliff_vec(local, rotation);
+            position = (VECTOR3){
+                offset->x + rotated.x,
+                offset->y + rotated.y,
+                terrain_min_z + (local.z - bounds->min.z) * z_scale,
+            };
+            uv = (VECTOR2){ vertex->uv[0][0] / SC2_M3_UV_SCALE, vertex->uv[0][1] / SC2_M3_UV_SCALE };
+            normal = r_sc2_rotate_cliff_vec(normal, rotation);
+            Vector3_normalize(&normal);
+            r_sc2_push_vertex_normal(out,
+                                     position.x,
+                                     position.y,
+                                     position.z,
+                                     uv.x,
+                                     uv.y,
+                                     255,
+                                     normal);
+        }
+    }
+}
+
 static void r_sc2_bake_cliff_model(rCliffBakeList_t *list,
                                    sc2Map_t const *map,
                                    LPCMODEL model,
@@ -651,49 +689,33 @@ static void r_sc2_bake_cliff_model(rCliffBakeList_t *list,
     FOR_LOOP(div_i, m3->divisionsNum) {
         m3Divisions_t const *div = &m3->divisions[div_i];
         FOR_LOOP(region_i, div->regionsNum) {
-            m3Region_t const *region = &div->regions[region_i];
-            for (DWORD index_i = 0; index_i + 2 < region->triangleIndicesCount; index_i += 3) {
-                DWORD fi[3], vi[3];
-                BOOL valid = true;
-                FOR_LOOP(k, 3) {
-                    fi[k] = region->firstTriangleIndex + index_i + k;
-                    if (fi[k] >= div->facesNum) { valid = false; break; }
-                    vi[k] = div->faces[fi[k]] + region->firstVertexIndex;
-                    if (vi[k] >= m3->verticesNum) { valid = false; break; }
-                }
-                if (!valid)
-                    continue;
-                FOR_LOOP(k, 3) {
-                    m3Vertex_t const *vertex = &m3->vertices[vi[k]];
-                    VECTOR3 local = r_sc2_m3_skin_vertex(vertex, region, bones, 1.0f);
-                    VECTOR3 normal = r_sc2_m3_skin_vertex(vertex, region, bones, 0.0f);
-                    VECTOR3 rotated = r_sc2_rotate_cliff_vec(local, rotation);
-                    VECTOR3 position = {
-                        offset.x + rotated.x,
-                        offset.y + rotated.y,
-                        terrain_min_z + (local.z - bounds.min.z) * z_scale,
-                    };
-                    normal = r_sc2_rotate_cliff_vec(normal, rotation);
-                    Vector3_normalize(&normal);
-                    VERTEX *out = R_CliffBakeVertex(list);
-                    r_sc2_push_vertex_normal(out,
-                                             position.x,
-                                             position.y,
-                                             position.z,
-                                             vertex->uv[0][0] / SC2_M3_UV_SCALE,
-                                             vertex->uv[0][1] / SC2_M3_UV_SCALE,
-                                             255,
-                                             normal);
-                }
-            }
+            r_sc2_bake_cliff_region(list,
+                                    m3,
+                                    div,
+                                    &div->regions[region_i],
+                                    bones,
+                                    &bounds,
+                                    &offset,
+                                    terrain_min_z,
+                                    z_scale,
+                                    rotation);
         }
     }
 }
 
+static LPCTEXTURE r_sc2_make_white_texture(void) {
+    LPTEXTURE texture;
+    COLOR32 white = COLOR32_WHITE;
+
+    texture = R_AllocateTexture(1, 1);
+    R_LoadTextureMipLevel(texture, 0, &white, 1, 1);
+    R_SetTextureWrap(texture, true, true);
+    return texture;
+}
+
 static LPMAPLAYER r_sc2_build_cliff_layer(sc2Map_t const *map) {
-    rCliffBakeList_t list = { 0 };
+    rCliffBakeList_t list = {0};
     LPMAPLAYER map_layer;
-    LPCSTR texture_path = NULL;
     DWORD cliff_width;
 
     if (!map || !map->num_cliff_cells || !map->cliff_levels)
@@ -723,9 +745,6 @@ static LPMAPLAYER r_sc2_build_cliff_layer(sc2Map_t const *map) {
         model = r_sc2_load_cliff_model(path);
         if (!model || model->modeltype != ID_43DM || !model->m3)
             continue;
-        if (!texture_path) {
-            texture_path = r_sc2_cliff_texture_path(model);
-        }
         r_sc2_bake_cliff_model(&list, map, model, grid_x, grid_y, baselevel, toplevel, rotation);
     }
     if (!list.num_vertices) {
@@ -735,8 +754,7 @@ static LPMAPLAYER r_sc2_build_cliff_layer(sc2Map_t const *map) {
     map_layer = ri.MemAlloc(sizeof(*map_layer));
     memset(map_layer, 0, sizeof(*map_layer));
     map_layer->type = MAPLAYERTYPE_CLIFF;
-    map_layer->texture = R_LoadTexture(texture_path ? texture_path : map->terrain_textures[MIN(1, map->num_terrain_textures - 1)].diffuse);
-    R_SetTextureWrap((LPTEXTURE)map_layer->texture, true, true);
+    map_layer->texture = r_sc2_make_white_texture();
     map_layer->buffer = R_MakeVertexArrayObject(list.vertices, list.num_vertices);
     map_layer->num_vertices = list.num_vertices;
     ri.MemFree(list.vertices);
