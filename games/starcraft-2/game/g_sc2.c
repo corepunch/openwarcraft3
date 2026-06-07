@@ -328,7 +328,6 @@ static void SC2_SpawnEntities(void) {
         ent->s.radius = object->type == SC2_OBJECT_UNIT ? 1.0f : 0.5f;
         ent->s.player = object->player;
         ent->s.model = G_RegisterModel(object->model);
-        ent->s.flags |= EF_GROUND_ANCHOR;
         ent->collision = ent->s.radius;
         if (SC2_ObjectIsMobile(object)) {
             ent->svflags |= SVF_MONSTER;

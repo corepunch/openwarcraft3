@@ -54,7 +54,7 @@ static LPCSTR m3_vs =
 "out vec3 v_normal;\n"
 "out vec3 v_lightDir;\n"
 "out vec4 v_fragCoord;\n"
-"uniform mat4 uBones[64];\n"
+"uniform mat4 uBones[128];\n"
 "uniform mat4 uViewProjectionMatrix;\n"
 "uniform mat4 uTextureMatrix;\n"
 "uniform mat4 uModelMatrix;\n"
@@ -226,7 +226,7 @@ m3Reader_t M3_MakeSizeBuf(m3Model_t const *model, Reference ref) {
 }
 
 enum {
-    kMaterialStandard,
+    kMaterialStandard = 1,
     kMaterialDisplacement,
     kMaterialComposite,
     kMaterialTerrain,
@@ -307,6 +307,17 @@ static void M3_ReadVertexReference(m3Model_t *model, m3Reader_t *sb) {
 M3_READER(MaterialReference) {
     M3_READ(sb, data->materialType, 0);
     M3_READ(sb, data->materialIndex, 0);
+}
+
+M3_READER(CompositeMaterialSection) {
+    M3_READ(sb, data->materialReferenceIndex, 0);
+    M3_READ(sb, data->alphaFactor, 0);
+}
+
+M3_READER(CompositeMaterial) {
+    M3_REFR(sb, data->name, Char, 0);
+    M3_READ(sb, data->unknown, 0);
+    M3_REFR(sb, data->sections, CompositeMaterialSection, 0);
 }
 
 M3_READER(Layer) {
@@ -513,7 +524,7 @@ void M3_InitMODL(m3Model_t *model, m3Reader_t sb) {
     M3_REFR(&sb, model->materialReferences, MaterialReference, 0);
     M3_REFR(&sb, model->materialStandard, Material, 0);
     M3_READ(&sb, model->materialDisplacement, 0);
-    M3_READ(&sb, model->materialComposite, 0);
+    M3_REFR(&sb, model->materialComposite, CompositeMaterial, 0);
     M3_READ(&sb, model->materialTerrain, 0);
     M3_READ(&sb, model->materialVolume, 0);
     M3_READ(&sb, model->materialUnknown1, 0);
@@ -644,6 +655,62 @@ m3Model_t *R_LoadModelM3(void *data, DWORD size) {
     return model;
 }
 
+static void M3_DrawRegionMaterial(m3Region_t const *region, m3Material_t const *material) {
+    LPCTEXTURE diffuse = material->diffuseLayer && material->diffuseLayer->texture ? material->diffuseLayer->texture : tr.texture[TEX_WHITE];
+    LPCTEXTURE specular = material->specularLayer && material->specularLayer->texture ? material->specularLayer->texture : tr.texture[TEX_WHITE];
+    LPCTEXTURE normal = material->normalLayer && material->normalLayer->texture ? material->normalLayer->texture : tr.texture[TEX_WHITE];
+#ifndef __linux__
+    DWORD const num_indices = region->triangleIndicesCount;
+    DWORD const first_vertex = region->firstVertexIndex;
+    HANDLE const indices = (HANDLE)(sizeof(USHORT) * region->firstTriangleIndex);
+#endif
+
+    R_Call(glUniform1f, m3.uFirstBoneLookupIndex, region->firstBoneLookupIndex);
+    R_Call(glUniform1f, m3.uBoneWeightPairsCount, region->boneWeightPairsCount);
+
+    R_Call(glActiveTexture, GL_TEXTURE0);
+    R_Call(glBindTexture, GL_TEXTURE_2D, diffuse->texid);
+    R_Call(glActiveTexture, GL_TEXTURE3);
+    R_Call(glBindTexture, GL_TEXTURE_2D, specular->texid);
+    R_Call(glActiveTexture, GL_TEXTURE4);
+    R_Call(glBindTexture, GL_TEXTURE_2D, normal->texid);
+
+    M3_FOR_EACH(Layer, layer, material->diffuseLayer) {
+        if (!layer->texture)
+            continue;
+#ifndef __linux__
+        R_Call(glDrawElementsBaseVertex, GL_TRIANGLES, num_indices, GL_UNSIGNED_SHORT, indices, first_vertex);
+#endif
+    }
+}
+
+static void M3_DrawRegionMaterialReference(m3Model_t const *model,
+                                           m3Region_t const *region,
+                                           m3MaterialReference_t const *mref,
+                                           DWORD depth) {
+    if (!model || !region || !mref || depth > 4)
+        return;
+    switch (mref->materialType) {
+        case kMaterialStandard:
+            if (mref->materialIndex < model->materialStandardNum)
+                M3_DrawRegionMaterial(region, model->materialStandard+mref->materialIndex);
+            break;
+        case kMaterialComposite:
+            if (mref->materialIndex >= model->materialCompositeNum)
+                break;
+            m3CompositeMaterial_t const *composite = model->materialComposite+mref->materialIndex;
+            M3_FOR_EACH(CompositeMaterialSection, section, composite->sections) {
+                if (section->materialReferenceIndex >= model->materialReferencesNum)
+                    continue;
+                M3_DrawRegionMaterialReference(model,
+                                               region,
+                                               model->materialReferences+section->materialReferenceIndex,
+                                               depth + 1);
+            }
+            break;
+    }
+}
+
 void M3_DrawDivisions(m3Model_t const *model, m3Divisions_t const *divisions) {
     if (!model || !divisions || !divisions->indicesBuffer)
         return;
@@ -652,36 +719,10 @@ void M3_DrawDivisions(m3Model_t const *model, m3Divisions_t const *divisions) {
         if (batch->regionIndex >= divisions->regionsNum ||
             batch->materialReferenceIndex >= model->materialReferencesNum)
             continue;
-        m3Region_t const *region = divisions->regions+batch->regionIndex;
-        m3MaterialReference_t const *mref = model->materialReferences+batch->materialReferenceIndex;
-        if (mref->materialIndex >= model->materialStandardNum)
-            continue;
-        m3Material_t const *material = model->materialStandard+mref->materialIndex;
-        LPCTEXTURE diffuse = material->diffuseLayer && material->diffuseLayer->texture ? material->diffuseLayer->texture : tr.texture[TEX_WHITE];
-        LPCTEXTURE specular = material->specularLayer && material->specularLayer->texture ? material->specularLayer->texture : tr.texture[TEX_WHITE];
-        LPCTEXTURE normal = material->normalLayer && material->normalLayer->texture ? material->normalLayer->texture : tr.texture[TEX_WHITE];
-#ifndef __linux__
-        DWORD const num_indices = region->triangleIndicesCount;
-        DWORD const first_vertex = region->firstVertexIndex;
-        HANDLE const indices = (HANDLE)(sizeof(USHORT) * region->firstTriangleIndex);
-#endif
-        R_Call(glUniform1f, m3.uFirstBoneLookupIndex, region->firstBoneLookupIndex);
-        R_Call(glUniform1f, m3.uBoneWeightPairsCount, region->boneWeightPairsCount);
-        
-        R_Call(glActiveTexture, GL_TEXTURE0);
-        R_Call(glBindTexture, GL_TEXTURE_2D, diffuse->texid);
-        R_Call(glActiveTexture, GL_TEXTURE3);
-        R_Call(glBindTexture, GL_TEXTURE_2D, specular->texid);
-        R_Call(glActiveTexture, GL_TEXTURE4);
-        R_Call(glBindTexture, GL_TEXTURE_2D, normal->texid);
-        
-        M3_FOR_EACH(Layer, layer, material->diffuseLayer) {
-            if (!layer->texture)
-                continue;
-#ifndef __linux__
-            R_Call(glDrawElementsBaseVertex, GL_TRIANGLES, num_indices, GL_UNSIGNED_SHORT, indices, first_vertex);
-#endif
-        }
+        M3_DrawRegionMaterialReference(model,
+                                       divisions->regions+batch->regionIndex,
+                                       model->materialReferences+batch->materialReferenceIndex,
+                                       0);
     }
 }
 
@@ -801,7 +842,7 @@ void M3_RenderModel(renderEntity_t const *entity, m3Model_t const *model, LPCMAT
     R_Call(glUniformMatrix4fv, m3.shader->uTextureMatrix, 1, GL_FALSE, tr.viewDef.textureMatrix.v);
     R_Call(glUniformMatrix4fv, m3.shader->uModelMatrix, 1, GL_FALSE, mScaledMatrix.v);
     R_Call(glUniformMatrix3fv, m3.shader->uNormalMatrix, 1, GL_TRUE, mNormalMatrix.v);
-    R_Call(glUniformMatrix4fv, m3.shader->uBones, model->bonesNum, GL_FALSE, bonemats->v);
+    R_Call(glUniformMatrix4fv, m3.shader->uBones, MIN(model->boneLookupNum, M3_MAX_NODES), GL_FALSE, bonemats->v);
     R_Call(glBindVertexArray, model->renbuf->vao);
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, model->renbuf->vbo);
     

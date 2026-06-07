@@ -55,6 +55,25 @@ static void Tool_DrawString(refExport_t const *re, LPCSTR string, int x, int y) 
     }
 }
 
+static void PrintLayer(LPCSTR label, m3Layer_t const *layer, DWORD count) {
+    FOR_LOOP(i, count) {
+        COLOR32 color = layer[i].color.initValue;
+        fprintf(stderr,
+                "    %s[%u]: flags=0x%08x uv=%u color=(%u %u %u %u) bright=%.3f mid=%.3f tex=%s\n",
+                label,
+                (unsigned)i,
+                (unsigned)layer[i].flags,
+                (unsigned)layer[i].uvSource1,
+                (unsigned)color.r,
+                (unsigned)color.g,
+                (unsigned)color.b,
+                (unsigned)color.a,
+                layer[i].brightMult.initValue,
+                layer[i].midtoneOffset.initValue,
+                layer[i].imagePath ? layer[i].imagePath : "");
+    }
+}
+
 static BOX3 M3PreviewBounds(m3Model_t const *m3) {
     BOX3 bounds = { 0 };
     BOOL has_bounds = false;
@@ -126,6 +145,87 @@ static void PrintModelInfo(LPCMODEL model) {
                     (unsigned)div->facesNum,
                     (unsigned)div->regionsNum,
                     (unsigned)div->batchesNum);
+            FOR_LOOP(j, div->regionsNum) {
+                m3Region_t const *region = &div->regions[j];
+                fprintf(stderr,
+                        "    REG[%u]: firstVertex=%u vertices=%u firstTri=%u tris=%u boneLookup=%u weights=%u\n",
+                        (unsigned)j,
+                        (unsigned)region->firstVertexIndex,
+                        (unsigned)region->verticesCount,
+                        (unsigned)region->firstTriangleIndex,
+                        (unsigned)region->triangleIndicesCount,
+                        (unsigned)region->firstBoneLookupIndex,
+                        (unsigned)region->boneWeightPairsCount);
+            }
+            FOR_LOOP(j, div->batchesNum) {
+                m3Batch_t const *batch = &div->batches[j];
+                fprintf(stderr,
+                        "    BAT[%u]: region=%u materialRef=%u unknown=(%u %u %u)\n",
+                        (unsigned)j,
+                        (unsigned)batch->regionIndex,
+                        (unsigned)batch->materialReferenceIndex,
+                        (unsigned)batch->unknown0,
+                        (unsigned)batch->unknown1,
+                        (unsigned)batch->unknown2);
+            }
+        }
+        FOR_LOOP(i, m3->materialReferencesNum) {
+            m3MaterialReference_t const *mref = &m3->materialReferences[i];
+            fprintf(stderr,
+                    "  MREF[%u]: type=%u material=%u\n",
+                    (unsigned)i,
+                    (unsigned)mref->materialType,
+                    (unsigned)mref->materialIndex);
+        }
+        FOR_LOOP(i, m3->materialCompositeNum) {
+            m3CompositeMaterial_t const *composite = &m3->materialComposite[i];
+            fprintf(stderr,
+                    "  CMP[%u]: name=%s unknown=%u sections=%u\n",
+                    (unsigned)i,
+                    composite->name ? composite->name : "",
+                    (unsigned)composite->unknown,
+                    (unsigned)composite->sectionsNum);
+            FOR_LOOP(j, composite->sectionsNum) {
+                m3CompositeMaterialSection_t const *section = &composite->sections[j];
+                fprintf(stderr,
+                        "    CMS[%u]: materialRef=%u alpha=%.3f\n",
+                        (unsigned)j,
+                        (unsigned)section->materialReferenceIndex,
+                        section->alphaFactor.initValue);
+            }
+        }
+        FOR_LOOP(i, m3->materialStandardNum) {
+            m3Material_t const *mat = &m3->materialStandard[i];
+            fprintf(stderr,
+                    "  MAT[%u]: name=%s flags=0x%08x addFlags=0x%08x blend=%u priority=%d cutout=%u spec=%.3f specMult=%.3f emisMult=%.3f layerBlend=%u emisBlend=%u emisMode=%u specType=%u\n",
+                    (unsigned)i,
+                    mat->name ? mat->name : "",
+                    (unsigned)mat->flags,
+                    (unsigned)mat->additionalFlags,
+                    (unsigned)mat->blendMode,
+                    (int)mat->priority,
+                    (unsigned)mat->cutoutThreshold,
+                    mat->specularity,
+                    mat->specMult,
+                    mat->emisMult,
+                    (unsigned)mat->layerBlendType,
+                    (unsigned)mat->emisBlendType,
+                    (unsigned)mat->emisMode,
+                    (unsigned)mat->specType);
+            PrintLayer("DIFF", mat->diffuseLayer, mat->diffuseLayerNum);
+            PrintLayer("DECL", mat->decalLayer, mat->decalLayerNum);
+            PrintLayer("SPEC", mat->specularLayer, mat->specularLayerNum);
+            PrintLayer("GLOS", mat->glossLayer, mat->glossLayerNum);
+            PrintLayer("EMIS", mat->emissiveLayer, mat->emissiveLayerNum);
+            PrintLayer("EMI2", mat->emissive2Layer, mat->emissive2LayerNum);
+            PrintLayer("EVIO", mat->evioLayer, mat->evioLayerNum);
+            PrintLayer("EVIM", mat->evioMaskLayer, mat->evioMaskLayerNum);
+            PrintLayer("ALPH", mat->alphaMaskLayer, mat->alphaMaskLayerNum);
+            PrintLayer("ALP2", mat->alphaMask2Layer, mat->alphaMask2LayerNum);
+            PrintLayer("NORM", mat->normalLayer, mat->normalLayerNum);
+            PrintLayer("HGHT", mat->heightLayer, mat->heightLayerNum);
+            PrintLayer("LITE", mat->lightMapLayer, mat->lightMapLayerNum);
+            PrintLayer("AOCL", mat->ambientOcclusionLayer, mat->ambientOcclusionLayerNum);
         }
         FOR_LOOP(i, m3->sequencesNum) {
             m3Sequence_t const *seq = &m3->sequences[i];
