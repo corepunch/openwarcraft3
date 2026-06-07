@@ -189,8 +189,8 @@ static FLOAT r_sc2_height_at_grid(sc2Map_t const *map, DWORD x, DWORD y) {
     if (!map->height_map || !map->height_map_width || !map->height_map_height) {
         return 0.0f;
     }
-    x = MIN(map->height_map_width - 1, x * (map->height_map_width - 1) / MAX(1, map->width));
-    y = MIN(map->height_map_height - 1, y * (map->height_map_height - 1) / MAX(1, map->height));
+    x = MIN(map->height_map_width - 1, x);
+    y = MIN(map->height_map_height - 1, y);
     return map->height_map[x + y * map->height_map_width];
 }
 
