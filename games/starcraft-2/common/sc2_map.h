@@ -26,6 +26,7 @@ typedef struct {
     VECTOR3         position;
     FLOAT           angle;
     FLOAT           scale;
+    DWORD           variation;
     DWORD           player;
     DWORD           flags;
 } sc2MapObject_t;
@@ -86,6 +87,7 @@ typedef struct {
     DWORD          height_map_width;
     DWORD          height_map_height;
     FLOAT         *height_map;
+    FLOAT         *height_adjust_map;
     BOOL           has_camera;
     DWORD          camera_priority;
     VECTOR3        camera_target;

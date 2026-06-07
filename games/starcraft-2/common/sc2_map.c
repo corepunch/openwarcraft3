@@ -166,6 +166,7 @@ static void sc2_map_clear(void) {
     SAFE_DELETE(sc2_map.cell_flags, sc2_free);
     SAFE_DELETE(sc2_map.cliff_levels, sc2_free);
     SAFE_DELETE(sc2_map.height_map, sc2_free);
+    SAFE_DELETE(sc2_map.height_adjust_map, sc2_free);
     memset(&sc2_map, 0, sizeof(sc2_map));
 }
 
@@ -604,6 +605,8 @@ static void sc2_object_field(sc2MapObject_t *object, LPCSTR key, LPCSTR value, B
         object->angle = strtof(value, NULL);
     } else if (sc2_contains_i(key, "scale")) {
         object->scale = strtof(value, NULL);
+    } else if (sc2_contains_i(key, "variation")) {
+        object->variation = (DWORD)strtoul(value, NULL, 10);
     } else if (sc2_contains_i(key, "player") || sc2_contains_i(key, "owner")) {
         object->player = (DWORD)strtoul(value, NULL, 10);
     }
@@ -1093,9 +1096,21 @@ static BOOL sc2_try_object_model_path(sc2MapObject_t *object, LPCSTR prefix) {
 
     if (!object || !prefix || !*prefix || !object->name[0]) return false;
     snprintf(path, sizeof(path), "%s\\%s\\%s.m3", prefix, object->name, object->name);
-    if (!sc2_file_exists(path)) return false;
-    snprintf(object->model, sizeof(object->model), "%s", path);
-    return true;
+    if (sc2_file_exists(path)) {
+        snprintf(object->model, sizeof(object->model), "%s", path);
+        return true;
+    }
+    snprintf(path, sizeof(path), "%s\\%s\\%s_%02u.m3", prefix, object->name, object->name, object->variation);
+    if (sc2_file_exists(path)) {
+        snprintf(object->model, sizeof(object->model), "%s", path);
+        return true;
+    }
+    snprintf(path, sizeof(path), "%s\\%s\\%s_00.m3", prefix, object->name, object->name);
+    if (sc2_file_exists(path)) {
+        snprintf(object->model, sizeof(object->model), "%s", path);
+        return true;
+    }
+    return false;
 }
 
 static void sc2_resolve_object_model_candidates(sc2MapObject_t *object) {
@@ -1271,7 +1286,10 @@ static void sc2_parse_height_map(sc2MapSource_t *source) {
         return;
     }
     sc2_map.height_map = sc2_alloc(crop_w * crop_h * sizeof(*sc2_map.height_map));
-    if (!sc2_map.height_map) {
+    sc2_map.height_adjust_map = sc2_alloc(crop_w * crop_h * sizeof(*sc2_map.height_adjust_map));
+    if (!sc2_map.height_map || !sc2_map.height_adjust_map) {
+        SAFE_DELETE(sc2_map.height_map, sc2_free);
+        SAFE_DELETE(sc2_map.height_adjust_map, sc2_free);
         sc2_free_file(data);
         return;
     }
@@ -1283,9 +1301,10 @@ static void sc2_parse_height_map(sc2MapSource_t *source) {
             LPBYTE chunk = data + SC2_HMAP_HEADER_SIZE + src * SC2_HMAP_CHUNK_SIZE;
             USHORT height_adjustment = sc2_read_le16(chunk);
             USHORT height_base = sc2_read_le16(chunk + 2);
+            FLOAT adjust = height_adjustment * scale;
+            sc2_map.height_adjust_map[x + y * crop_w] = adjust;
             sc2_map.height_map[x + y * crop_w] =
-                (height_base + height_adjustment) * scale -
-                bias - sc2_map.standard_height - 1.0f;
+                height_base * scale - bias - sc2_map.standard_height - 1.0f + adjust;
         }
     }
     sc2_map.height_map_width = crop_w;
@@ -1323,7 +1342,10 @@ static void sc2_parse_sync_height_map(sc2MapSource_t *source) {
             DWORD src = (crop_x + x) + (crop_y + y) * w;
             LPBYTE chunk = data + SC2_SMAP_HEADER_SIZE + src * SC2_SMAP_CHUNK_SIZE;
             SHORT delta = (SHORT)sc2_read_le16(chunk);
-            sc2_map.height_map[x + y * crop_w] += (FLOAT)delta / 256.0f;
+            FLOAT sync_adjust = (FLOAT)delta / 256.0f;
+            sc2_map.height_map[x + y * crop_w] += sync_adjust;
+            if (sc2_map.height_adjust_map)
+                sc2_map.height_adjust_map[x + y * crop_w] += sync_adjust;
         }
     }
     sc2_free_file(data);
