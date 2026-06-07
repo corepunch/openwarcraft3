@@ -17,7 +17,7 @@ See [file-formats/objects.md](file-formats/objects.md) for the full `Objects` XM
 | `t3SyncCliffLevel` | `CLIF` | binary | parsed |
 | `t3CellFlags` | `LFCT` | binary | parsed |
 | `t3TextureMasks` | `MASK` | binary | parsed |
-| `t3SyncHeightMap` | `SMAP` | binary | **not yet parsed** |
+| `t3SyncHeightMap` | `SMAP` | binary | parsed |
 | `t3SyncPathingInfo` | `PATH` | binary | **not yet parsed** |
 | `t3Water` | `WATR` | binary | **not yet parsed** |
 | `t3FluffDoodad` | `DLFT` | binary | **not yet parsed** |
@@ -250,7 +250,7 @@ numLayers = (FileSize - 64) / (sizeX * sizeY / 2)
 
 Source: https://sc2mapster.wiki.gg/wiki/File_Formats/Maps/t3SyncHeightMap
 
-**Not yet parsed by the engine.**
+Parsed by the engine and added to the decoded `t3HeightMap` values.
 
 **Header:**
 
@@ -520,7 +520,6 @@ Map title, author, description, website, and all UI text are resolved here. Do n
 
 Files not yet parsed by the engine:
 
-- `t3SyncHeightMap` — fine height detail layer, layer on top of `t3HeightMap`
 - `t3SyncPathingInfo` — authoritative movement/building pathing
 - `t3Water` — water/lava rectangles
 - `t3FluffDoodad` — ambient doodad scatter

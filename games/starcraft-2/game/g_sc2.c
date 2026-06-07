@@ -41,7 +41,7 @@ static FLOAT SC2_ObjectSpawnZ(sc2MapObject_t const *object) {
     if (!object) {
         return 0.0f;
     }
-    ground_z = SC2_MapFlatTierHeightAtPoint(object->position.x, object->position.y);
+    ground_z = SC2_MapHeightAtPoint(object->position.x, object->position.y);
     if (object->flags & SC2_OBJECT_HEIGHT_ABSOLUTE) {
         return object->position.z;
     }
@@ -51,7 +51,7 @@ static FLOAT SC2_ObjectSpawnZ(sc2MapObject_t const *object) {
 static void SC2_LinkAtGround(LPEDICT ent) {
     ent->s.origin.x = ent->s.origin2.x;
     ent->s.origin.y = ent->s.origin2.y;
-    ent->s.origin.z = SC2_MapFlatTierHeightAtPoint(ent->s.origin2.x, ent->s.origin2.y);
+    ent->s.origin.z = SC2_MapHeightAtPoint(ent->s.origin2.x, ent->s.origin2.y);
     gi.LinkEntity(ent);
 }
 
@@ -121,7 +121,7 @@ static void SC2_OrderMove(LPEDICT ent, LPCVECTOR2 target) {
     sc2_move[number].moving = true;
     sc2_move[number].speed = SC2_MOVE_SPEED;
     sc2_waypoints[number].s.origin2 = pathable;
-    sc2_waypoints[number].s.origin.z = SC2_MapFlatTierHeightAtPoint(pathable.x, pathable.y);
+    sc2_waypoints[number].s.origin.z = SC2_MapHeightAtPoint(pathable.x, pathable.y);
     ent->s.frame = gi.GetTime();
     ent->s.ability = 1;
     CM_InvalidatePathCache();

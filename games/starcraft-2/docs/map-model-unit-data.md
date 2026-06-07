@@ -109,9 +109,9 @@ Near-term:
 
 1. Replace fixture filename fallback with catalog-driven Unit -> Actor -> Model resolution.
 2. Parse `Objects` documented attributes exactly, keeping fixture `x/y/z` as compatibility sugar.
-3. Add binary readers for `t3HeightMap`, `t3SyncHeightMap`, `t3SyncCliffLevel`, and `t3TextureMasks`.
-4. Parse `t3Terrain.xml` for quantization and texture-layer metadata.
-5. Render terrain from height/cliff grids and apply texture masks as debug colors first.
+3. Keep binary terrain readers (`t3HeightMap`, `t3SyncHeightMap`, `t3SyncCliffLevel`, `t3CellFlags`, `t3TextureMasks`) aligned with playable MapInfo bounds.
+4. Expand `t3Terrain.xml` support beyond quantization and texture-layer metadata as needed.
+5. Improve cliff/water/pathing reconstruction from source map data.
 6. Add debug dumps that compare with sc2reader metadata and SC2 Map Analyzer-style pathing views.
 
 Keep these boundaries:
@@ -120,4 +120,3 @@ Keep these boundaries:
 - Model rendering stays in `games/starcraft-2/renderer`.
 - Game spawning consumes resolved object records and registers normal model handles.
 - Engine code only knows generic map paths, media handles, and entity state.
-

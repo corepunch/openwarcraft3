@@ -10,7 +10,6 @@
 #define SC2_MAX_TERRAIN_TEXTURES 16
 #define SC2_MAX_CLIFF_SETS     8
 #define SC2_MAX_CLIFF_CELLS    16384
-#define SC2_CLIFF_HEIGHT_TIERS 4
 #define SC2_OBJECT_HEIGHT_ABSOLUTE 0x00000001
 #define SC2_OBJECT_HEIGHT_OFFSET   0x00000002
 #define SC2_OBJECT_FORCE_PLACEMENT 0x00000004
@@ -53,6 +52,13 @@ typedef struct {
     char           tile_set[64];
     DWORD          width;
     DWORD          height;
+    DWORD          full_width;
+    DWORD          full_height;
+    BOOL           has_playable_bounds;
+    LONG           playable_left;
+    LONG           playable_bottom;
+    LONG           playable_right;
+    LONG           playable_top;
     VECTOR2        origin;
     FLOAT          cell_size;
     BOOL           generated;
@@ -74,8 +80,6 @@ typedef struct {
     sc2CliffSet_t cliff_sets[SC2_MAX_CLIFF_SETS];
     DWORD          num_cliff_cells;
     sc2CliffCell_t cliff_cells[SC2_MAX_CLIFF_CELLS];
-    BOOL           has_cliff_heights;
-    FLOAT          cliff_heights[SC2_CLIFF_HEIGHT_TIERS];
     FLOAT          height_quantize_bias;
     FLOAT          height_quantize_scale;
     FLOAT          standard_height;
@@ -106,7 +110,6 @@ BOOL          SC2_MapLoad(LPCSTR mapFilename);
 void          SC2_MapShutdown(void);
 sc2Map_t     *SC2_MapCurrent(void);
 FLOAT         SC2_MapHeightAtPoint(FLOAT x, FLOAT y);
-FLOAT         SC2_MapFlatTierHeightAtPoint(FLOAT x, FLOAT y);
 BOX2          SC2_MapBounds(void);
 VECTOR2       SC2_MapNormalizedPosition(FLOAT x, FLOAT y);
 VECTOR2       SC2_MapDenormalizedPosition(FLOAT x, FLOAT y);

@@ -232,7 +232,9 @@ $(eval $(call test_schema,test-sc2,test-sc2-assets $(SHARED_LIB) $(SHEET_LIB),$(
 test-sc2-assets: sc2fixturegen mpqtool | $(TESTS_DIR)
 	@echo "[test-sc2-assets] generating SC2 terrain fixtures"
 	@mkdir -p $(SC2_TEST_RES_DIR)/Maps/Test/Tiny.SC2Map
+	@$(BIN_DIR)/sc2fixturegen$(EXE_EXT) map-info $(SC2_TEST_RES_DIR)/Maps/Test/Tiny.SC2Map/MapInfo
 	@$(BIN_DIR)/sc2fixturegen$(EXE_EXT) height-map $(SC2_TEST_RES_DIR)/Maps/Test/Tiny.SC2Map/t3HeightMap
+	@$(BIN_DIR)/sc2fixturegen$(EXE_EXT) sync-height-map $(SC2_TEST_RES_DIR)/Maps/Test/Tiny.SC2Map/t3SyncHeightMap
 	@$(BIN_DIR)/sc2fixturegen$(EXE_EXT) cell-flags $(SC2_TEST_RES_DIR)/Maps/Test/Tiny.SC2Map/t3CellFlags
 	@$(BIN_DIR)/sc2fixturegen$(EXE_EXT) cliff-levels $(SC2_TEST_RES_DIR)/Maps/Test/Tiny.SC2Map/t3SyncCliffLevel
 	@$(BIN_DIR)/sc2fixturegen$(EXE_EXT) texture-masks $(SC2_TEST_RES_DIR)/Maps/Test/Tiny.SC2Map/t3TextureMasks
@@ -248,7 +250,7 @@ test-sc2-assets: sc2fixturegen mpqtool | $(TESTS_DIR)
 	@echo "[test-sc2-assets] verifying archive"
 	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(SC2_TEST_MPQ) ls Maps/Test/Tiny.SC2Map | grep -q "MapInfo" && echo "  ls map OK"
 	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(SC2_TEST_MPQ) cat Maps/Test/Tiny.SC2Map/Objects | grep -q "UnitType=\"Marine\"" && echo "  cat objects OK"
-	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(SC2_TEST_MPQ) info Maps/Test/Tiny.SC2Map/t3CellFlags | grep -q "size=44" && echo "  binary cell flags OK"
+	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(SC2_TEST_MPQ) info Maps/Test/Tiny.SC2Map/t3CellFlags | grep -q "size=80" && echo "  binary cell flags OK"
 
 test-wow-assets: blpgen mpqtool | $(TESTS_DIR)
 	@echo "[test-wow-assets] generating WoW UI fixtures"

@@ -8,6 +8,12 @@
 #define SC2_MAX_CATALOG_ACTORS       8192
 #define SC2_MAX_CATALOG_TERRAIN_TEX  512
 #define SC2_MAX_CATALOG_CLIFFS       256
+#define SC2_MAPINFO_MIN_SIZE         16
+#define SC2_HMAP_HEADER_SIZE         32
+#define SC2_HMAP_CHUNK_SIZE          6
+#define SC2_SMAP_HEADER_SIZE         64
+#define SC2_SMAP_CHUNK_SIZE          4
+#define SC2_TERRAIN_HEADER_SIZE      32
 
 typedef struct {
     HANDLE archive;
@@ -42,28 +48,27 @@ typedef struct {
 } sc2CatalogCliff_t;
 
 typedef struct {
-    char  id[64];
-    BOOL  has_height[SC2_CLIFF_HEIGHT_TIERS];
-    FLOAT height[SC2_CLIFF_HEIGHT_TIERS];
-} sc2CatalogCliffMesh_t;
-
-typedef struct {
     DWORD models_count;
     DWORD actors_count;
     DWORD terrain_tex_count;
     DWORD cliffs_count;
-    DWORD cliff_meshes_count;
-    BOOL  has_default_cliff_height[SC2_CLIFF_HEIGHT_TIERS];
-    FLOAT default_cliff_height[SC2_CLIFF_HEIGHT_TIERS];
     sc2CatalogModel_t models[SC2_MAX_CATALOG_MODELS];
     sc2CatalogActor_t actors[SC2_MAX_CATALOG_ACTORS];
     sc2CatalogTerrainTex_t terrain_tex[SC2_MAX_CATALOG_TERRAIN_TEX];
     sc2CatalogCliff_t cliffs[SC2_MAX_CATALOG_CLIFFS];
-    sc2CatalogCliffMesh_t cliff_meshes[SC2_MAX_CATALOG_CLIFFS];
 } sc2Catalog_t;
 
 static sc2MapHost_t sc2_host;
 static sc2Map_t     sc2_map;
+
+static DWORD sc2_read_le32(BYTE const *p);
+static USHORT sc2_read_le16(BYTE const *p);
+static LONG sc2_read_i32(BYTE const *p);
+static BOOL sc2_mapinfo_magic(LPBYTE data, DWORD size);
+static void sc2_set_full_size(DWORD width, DWORD height);
+static void sc2_set_playable_bounds(LONG left, LONG bottom, LONG right, LONG top);
+static void sc2_map_position_to_playable(LPVECTOR3 position);
+static BOOL sc2_playable_crop(DWORD src_w, DWORD src_h, BOOL vertices, DWORD *left, DWORD *bottom, DWORD *width, DWORD *height);
 
 static HANDLE sc2_alloc(long size) {
     return sc2_host.mem_alloc ? sc2_host.mem_alloc(size) : NULL;
@@ -472,11 +477,58 @@ static void sc2_parse_mapinfo_node(xmlNodePtr node) {
         sc2_parse_mapinfo_node(child);
 }
 
+static BOOL sc2_parse_mapinfo_binary(sc2MapSource_t *source) {
+    DWORD size = 0;
+    LPBYTE data = sc2_source_read(source, "MapInfo", &size);
+    DWORD offset;
+    DWORD width;
+    DWORD height;
+    LONG left, bottom, right, top;
+
+    if (!sc2_mapinfo_magic(data, size)) {
+        sc2_free_file(data);
+        return false;
+    }
+    width = sc2_read_le32(data + 8);
+    height = sc2_read_le32(data + 12);
+    offset = 16;
+    FOR_LOOP(i, 2) {
+        DWORD string_start = offset;
+        while (offset < size && data[offset])
+            offset++;
+        if (offset >= size) {
+            sc2_free_file(data);
+            return false;
+        }
+        if (i == 0 && offset > string_start && !sc2_map.map_name[0]) {
+            snprintf(sc2_map.map_name, sizeof(sc2_map.map_name), "%s", (char const *)data + string_start);
+        }
+        offset++;
+    }
+    if (offset + 16 > size) {
+        sc2_free_file(data);
+        return false;
+    }
+    left = sc2_read_i32(data + offset);
+    bottom = sc2_read_i32(data + offset + 4);
+    right = sc2_read_i32(data + offset + 8);
+    top = sc2_read_i32(data + offset + 12);
+    sc2_set_full_size(width, height);
+    sc2_set_playable_bounds(left, bottom, right, top);
+    sc2_free_file(data);
+    return true;
+}
+
 static void sc2_parse_mapinfo(sc2MapSource_t *source) {
-    xmlDocPtr doc = sc2_read_xml(source, "MapInfo");
+    xmlDocPtr doc;
+
+    if (sc2_parse_mapinfo_binary(source))
+        return;
+    doc = sc2_read_xml(source, "MapInfo");
     if (!doc) doc = sc2_read_xml(source, "MapInfo.xml");
     if (!doc) return;
     sc2_parse_mapinfo_node(xmlDocGetRootElement(doc));
+    sc2_set_full_size(sc2_map.width, sc2_map.height);
     xmlFreeDoc(doc);
 }
 
@@ -609,6 +661,7 @@ static void sc2_parse_object_node(xmlNodePtr node) {
     if (has_position && (object.name[0] || object.model[0])) {
         if (sc2_map.num_objects < SC2_MAX_MAP_OBJECTS) {
             sc2_set_object_model(&object);
+            sc2_map_position_to_playable(&object.position);
             sc2_map.objects[sc2_map.num_objects++] = object;
         }
     }
@@ -673,6 +726,7 @@ static void sc2_parse_camera_node(xmlNodePtr node) {
 
     sc2_map.has_camera = true;
     sc2_map.camera_priority = priority;
+    sc2_map_position_to_playable(&target);
     sc2_map.camera_target = target;
     sc2_map.camera_distance = distance;
     sc2_map.camera_pitch = pitch;
@@ -768,36 +822,6 @@ static void sc2_catalog_add_cliff(sc2Catalog_t *catalog, LPCSTR id, LPCSTR mesh)
     snprintf(cliff->mesh, sizeof(cliff->mesh), "%s", mesh);
 }
 
-static void sc2_catalog_add_cliff_mesh_height(sc2Catalog_t *catalog,
-                                              LPCSTR id,
-                                              DWORD index,
-                                              FLOAT height,
-                                              BOOL is_default) {
-    sc2CatalogCliffMesh_t *mesh;
-
-    if (!catalog || index >= SC2_CLIFF_HEIGHT_TIERS)
-        return;
-    if (is_default || !id || !*id) {
-        catalog->has_default_cliff_height[index] = true;
-        catalog->default_cliff_height[index] = height;
-        return;
-    }
-    FOR_LOOP(i, catalog->cliff_meshes_count) {
-        if (!strcasecmp(catalog->cliff_meshes[i].id, id)) {
-            catalog->cliff_meshes[i].has_height[index] = true;
-            catalog->cliff_meshes[i].height[index] = height;
-            return;
-        }
-    }
-    if (catalog->cliff_meshes_count >= SC2_MAX_CATALOG_CLIFFS)
-        return;
-    mesh = &catalog->cliff_meshes[catalog->cliff_meshes_count++];
-    memset(mesh, 0, sizeof(*mesh));
-    snprintf(mesh->id, sizeof(mesh->id), "%s", id);
-    mesh->has_height[index] = true;
-    mesh->height[index] = height;
-}
-
 static LPCSTR sc2_catalog_model_path(sc2Catalog_t const *catalog, LPCSTR id) {
     if (!catalog || !id || !*id) return NULL;
     FOR_LOOP(i, catalog->models_count) {
@@ -810,14 +834,6 @@ static LPCSTR sc2_catalog_cliff_mesh(sc2Catalog_t const *catalog, LPCSTR id) {
     if (!catalog || !id || !*id) return NULL;
     FOR_LOOP(i, catalog->cliffs_count) {
         if (!strcasecmp(catalog->cliffs[i].id, id)) return catalog->cliffs[i].mesh;
-    }
-    return NULL;
-}
-
-static sc2CatalogCliffMesh_t const *sc2_catalog_cliff_mesh_heights(sc2Catalog_t const *catalog, LPCSTR id) {
-    if (!catalog || !id || !*id) return NULL;
-    FOR_LOOP(i, catalog->cliff_meshes_count) {
-        if (!strcasecmp(catalog->cliff_meshes[i].id, id)) return &catalog->cliff_meshes[i];
     }
     return NULL;
 }
@@ -1000,38 +1016,6 @@ static void sc2_parse_cliff_catalog_file(sc2Catalog_t *catalog, LPCSTR root_name
     xmlFreeDoc(doc);
 }
 
-static void sc2_parse_cliff_mesh_catalog_file(sc2Catalog_t *catalog, LPCSTR root_name) {
-    xmlDocPtr doc = sc2_read_catalog_xml(root_name, "GameData\\CliffMeshData.xml");
-    xmlNodePtr root;
-
-    if (!doc) return;
-    root = xmlDocGetRootElement(doc);
-    for (xmlNodePtr node = root ? root->children : NULL; node; node = node->next) {
-        char id[64] = "";
-        char value[64];
-        BOOL is_default = false;
-
-        if (node->type != XML_ELEMENT_NODE || !sc2_contains_i((char const *)node->name, "CCliffMesh"))
-            continue;
-        sc2_xml_attr(node, "id", id, sizeof(id));
-        if (sc2_xml_attr(node, "default", value, sizeof(value)))
-            is_default = strtoul(value, NULL, 10) != 0;
-        for (xmlNodePtr child = node->children; child; child = child->next) {
-            DWORD index;
-
-            if (child->type != XML_ELEMENT_NODE || !sc2_streqi((char const *)child->name, "CliffHeights"))
-                continue;
-            if (!sc2_xml_attr(child, "index", value, sizeof(value)))
-                continue;
-            index = (DWORD)strtoul(value, NULL, 10);
-            if (!sc2_xml_attr(child, "value", value, sizeof(value)))
-                continue;
-            sc2_catalog_add_cliff_mesh_height(catalog, id, index, strtof(value, NULL), is_default);
-        }
-    }
-    xmlFreeDoc(doc);
-}
-
 static void sc2_parse_catalogs(sc2Catalog_t *catalog) {
     static LPCSTR const roots[] = {
         "Mods/Core.SC2Mod/Base.SC2Data",
@@ -1046,13 +1030,11 @@ static void sc2_parse_catalogs(sc2Catalog_t *catalog) {
     sc2_parse_actor_catalog_file(catalog, "");
     sc2_parse_terrain_tex_catalog_file(catalog, "");
     sc2_parse_cliff_catalog_file(catalog, "");
-    sc2_parse_cliff_mesh_catalog_file(catalog, "");
     for (DWORD i = 0; roots[i]; i++) {
         sc2_parse_model_catalog_file(catalog, roots[i]);
         sc2_parse_actor_catalog_file(catalog, roots[i]);
         sc2_parse_terrain_tex_catalog_file(catalog, roots[i]);
         sc2_parse_cliff_catalog_file(catalog, roots[i]);
-        sc2_parse_cliff_mesh_catalog_file(catalog, roots[i]);
     }
 }
 
@@ -1103,41 +1085,6 @@ static void sc2_resolve_cliff_sets(sc2Catalog_t const *catalog) {
                      "%s",
                      sc2_map.cliff_sets[i].name);
         }
-    }
-}
-
-static void sc2_apply_cliff_mesh_heights(sc2CatalogCliffMesh_t const *mesh) {
-    if (!mesh)
-        return;
-    FOR_LOOP(i, SC2_CLIFF_HEIGHT_TIERS) {
-        if (mesh->has_height[i]) {
-            sc2_map.cliff_heights[i] = mesh->height[i];
-            sc2_map.has_cliff_heights = true;
-        }
-    }
-}
-
-static void sc2_resolve_cliff_heights(sc2Catalog_t const *catalog) {
-    static FLOAT const fallback[SC2_CLIFF_HEIGHT_TIERS] = { -4.0f, 0.0f, 2.0f, 4.0f };
-
-    memcpy(sc2_map.cliff_heights, fallback, sizeof(sc2_map.cliff_heights));
-    sc2_map.has_cliff_heights = true;
-    if (!catalog)
-        return;
-    FOR_LOOP(i, SC2_CLIFF_HEIGHT_TIERS) {
-        if (catalog->has_default_cliff_height[i])
-            sc2_map.cliff_heights[i] = catalog->default_cliff_height[i];
-    }
-    FOR_LOOP(i, sc2_map.num_cliff_sets) {
-        sc2CatalogCliffMesh_t const *mesh;
-
-        mesh = sc2_catalog_cliff_mesh_heights(catalog, sc2_map.cliff_sets[i].name);
-        if (!mesh)
-            mesh = sc2_catalog_cliff_mesh_heights(catalog, sc2_map.cliff_sets[i].mesh);
-        if (!mesh)
-            continue;
-        sc2_apply_cliff_mesh_heights(mesh);
-        return;
     }
 }
 
@@ -1225,7 +1172,6 @@ static void sc2_resolve_catalogs(void) {
     sc2_parse_catalogs(catalog);
     sc2_resolve_terrain_textures(catalog);
     sc2_resolve_cliff_sets(catalog);
-    sc2_resolve_cliff_heights(catalog);
     sc2_resolve_object_models(catalog);
     sc2_free(catalog);
 }
@@ -1238,67 +1184,147 @@ static USHORT sc2_read_le16(BYTE const *p) {
     return (USHORT)((USHORT)p[0] | ((USHORT)p[1] << 8));
 }
 
+static LONG sc2_read_i32(BYTE const *p) {
+    return (LONG)sc2_read_le32(p);
+}
+
+static BOOL sc2_mapinfo_magic(LPBYTE data, DWORD size) {
+    return data && size >= SC2_MAPINFO_MIN_SIZE &&
+        (!memcmp(data, "IpaM", 4) || !memcmp(data, "MapI", 4));
+}
+
+static void sc2_set_playable_bounds(LONG left, LONG bottom, LONG right, LONG top) {
+    if (right <= left || top <= bottom)
+        return;
+    sc2_map.has_playable_bounds = true;
+    sc2_map.playable_left = left;
+    sc2_map.playable_bottom = bottom;
+    sc2_map.playable_right = right;
+    sc2_map.playable_top = top;
+    sc2_map.width = (DWORD)(right - left);
+    sc2_map.height = (DWORD)(top - bottom);
+}
+
+static void sc2_set_full_size(DWORD width, DWORD height) {
+    sc2_map.full_width = width;
+    sc2_map.full_height = height;
+    if (!sc2_map.has_playable_bounds) {
+        sc2_map.width = width;
+        sc2_map.height = height;
+    }
+}
+
+static void sc2_map_position_to_playable(LPVECTOR3 position) {
+    if (!position || !sc2_map.has_playable_bounds)
+        return;
+    position->x -= (FLOAT)sc2_map.playable_left;
+    position->y -= (FLOAT)sc2_map.playable_bottom;
+}
+
+static BOOL sc2_playable_crop(DWORD src_w,
+                              DWORD src_h,
+                              BOOL vertices,
+                              DWORD *left,
+                              DWORD *bottom,
+                              DWORD *width,
+                              DWORD *height) {
+    DWORD right;
+    DWORD top;
+
+    if (!left || !bottom || !width || !height || !src_w || !src_h)
+        return false;
+    *left = 0;
+    *bottom = 0;
+    *width = src_w;
+    *height = src_h;
+    if (!sc2_map.has_playable_bounds)
+        return true;
+    if (sc2_map.playable_left < 0 || sc2_map.playable_bottom < 0)
+        return false;
+    *left = (DWORD)sc2_map.playable_left;
+    *bottom = (DWORD)sc2_map.playable_bottom;
+    right = (DWORD)sc2_map.playable_right + (vertices ? 1u : 0u);
+    top = (DWORD)sc2_map.playable_top + (vertices ? 1u : 0u);
+    if (*left >= right || *bottom >= top || right > src_w || top > src_h)
+        return false;
+    *width = right - *left;
+    *height = top - *bottom;
+    return true;
+}
+
 static void sc2_parse_height_map(sc2MapSource_t *source) {
     DWORD size = 0;
     LPBYTE data = sc2_source_read(source, "t3HeightMap", &size);
-    DWORD w, h;
+    DWORD w, h, crop_x, crop_y, crop_w, crop_h;
     FLOAT scale, bias;
 
-    if (!data || size < 32 || memcmp(data, "HMAP", 4) != 0) {
+    if (!data || size < SC2_HMAP_HEADER_SIZE || memcmp(data, "HMAP", 4) != 0) {
         sc2_free_file(data);
         return;
     }
     w = sc2_read_le32(data + 8);
     h = sc2_read_le32(data + 12);
-    if (!w || !h || w > 4096 || h > 4096 || size < 32 + w * h * 6) {
+    if (!w || !h || w > 4096 || h > 4096 ||
+        size < SC2_HMAP_HEADER_SIZE + w * h * SC2_HMAP_CHUNK_SIZE ||
+        !sc2_playable_crop(w, h, true, &crop_x, &crop_y, &crop_w, &crop_h)) {
         sc2_free_file(data);
         return;
     }
-    sc2_map.height_map = sc2_alloc(w * h * sizeof(*sc2_map.height_map));
+    sc2_map.height_map = sc2_alloc(crop_w * crop_h * sizeof(*sc2_map.height_map));
     if (!sc2_map.height_map) {
         sc2_free_file(data);
         return;
     }
     scale = sc2_map.height_quantize_scale ? sc2_map.height_quantize_scale : 1.0f;
     bias = sc2_map.height_quantize_bias;
-    FOR_LOOP(i, w * h) {
-        USHORT height_base = sc2_read_le16(data + 32 + i * 6);
-        USHORT height_adjustment = sc2_read_le16(data + 32 + i * 6 + 2);
-        sc2_map.height_map[i] =
-            (height_base + height_adjustment) * scale -
-            bias - sc2_map.standard_height - 1.0f;
+    FOR_LOOP(y, crop_h) {
+        FOR_LOOP(x, crop_w) {
+            DWORD src = (crop_x + x) + (crop_y + y) * w;
+            LPBYTE chunk = data + SC2_HMAP_HEADER_SIZE + src * SC2_HMAP_CHUNK_SIZE;
+            USHORT height_adjustment = sc2_read_le16(chunk);
+            USHORT height_base = sc2_read_le16(chunk + 2);
+            sc2_map.height_map[x + y * crop_w] =
+                (height_base + height_adjustment) * scale -
+                bias - sc2_map.standard_height - 1.0f;
+        }
     }
-    sc2_map.height_map_width = w;
-    sc2_map.height_map_height = h;
-    if (!sc2_map.width && w > 1) sc2_map.width = w - 1;
-    if (!sc2_map.height && h > 1) sc2_map.height = h - 1;
+    sc2_map.height_map_width = crop_w;
+    sc2_map.height_map_height = crop_h;
+    if (!sc2_map.width && crop_w > 1) sc2_map.width = crop_w - 1;
+    if (!sc2_map.height && crop_h > 1) sc2_map.height = crop_h - 1;
     sc2_free_file(data);
 }
 
 static void sc2_parse_sync_height_map(sc2MapSource_t *source) {
     DWORD size = 0;
     LPBYTE data = sc2_source_read(source, "t3SyncHeightMap", &size);
-    DWORD w, h;
+    DWORD w, h, crop_x, crop_y, crop_w, crop_h;
 
-    if (!data || size < 32 || memcmp(data, "SMAP", 4) != 0) {
+    if (!data || size < SC2_SMAP_HEADER_SIZE || memcmp(data, "SMAP", 4) != 0) {
         sc2_free_file(data);
         return;
     }
     w = sc2_read_le32(data + 8);
     h = sc2_read_le32(data + 12);
-    if (!w || !h || w > 4096 || h > 4096 || size < 32 + w * h * sizeof(SHORT)) {
+    if (!w || !h || w > 4096 || h > 4096 ||
+        size < SC2_SMAP_HEADER_SIZE + w * h * SC2_SMAP_CHUNK_SIZE ||
+        !sc2_playable_crop(w, h, true, &crop_x, &crop_y, &crop_w, &crop_h)) {
         sc2_free_file(data);
         return;
     }
     if (!sc2_map.height_map ||
-        sc2_map.height_map_width != w ||
-        sc2_map.height_map_height != h) {
+        sc2_map.height_map_width != crop_w ||
+        sc2_map.height_map_height != crop_h) {
         sc2_free_file(data);
         return;
     }
-    FOR_LOOP(i, w * h) {
-        SHORT delta = (SHORT)sc2_read_le16(data + 32 + i * sizeof(SHORT));
-        sc2_map.height_map[i] += (FLOAT)delta / 256.0f;
+    FOR_LOOP(y, crop_h) {
+        FOR_LOOP(x, crop_w) {
+            DWORD src = (crop_x + x) + (crop_y + y) * w;
+            LPBYTE chunk = data + SC2_SMAP_HEADER_SIZE + src * SC2_SMAP_CHUNK_SIZE;
+            SHORT delta = (SHORT)sc2_read_le16(chunk);
+            sc2_map.height_map[x + y * crop_w] += (FLOAT)delta / 256.0f;
+        }
     }
     sc2_free_file(data);
 }
@@ -1306,18 +1332,27 @@ static void sc2_parse_sync_height_map(sc2MapSource_t *source) {
 static void sc2_parse_cell_flags(sc2MapSource_t *source) {
     DWORD size = 0;
     LPBYTE data = sc2_source_read(source, "t3CellFlags", &size);
-    if (data && size >= 16 && memcmp(data, "LFCT", 4) == 0) {
+    if (data && size >= SC2_TERRAIN_HEADER_SIZE && memcmp(data, "LFCT", 4) == 0) {
         DWORD w = sc2_read_le32(data + 24);
         DWORD h = sc2_read_le32(data + 28);
-        if (w > 0 && h > 0 && w < 4096 && h < 4096) {
-            sc2_map.width = w;
-            sc2_map.height = h;
-            if (size >= 32 + w * h) {
-                sc2_map.cell_flags = sc2_alloc(w * h);
+        DWORD crop_x, crop_y, crop_w, crop_h;
+        if (w > 0 && h > 0 && w < 4096 && h < 4096 &&
+            size >= SC2_TERRAIN_HEADER_SIZE + w * h &&
+            sc2_playable_crop(w, h, false, &crop_x, &crop_y, &crop_w, &crop_h)) {
+            if (!sc2_map.has_playable_bounds) {
+                sc2_map.width = crop_w;
+                sc2_map.height = crop_h;
+            }
+            if (crop_w && crop_h) {
+                sc2_map.cell_flags = sc2_alloc(crop_w * crop_h);
                 if (sc2_map.cell_flags) {
-                    memcpy(sc2_map.cell_flags, data + 32, w * h);
-                    sc2_map.cell_flags_width = w;
-                    sc2_map.cell_flags_height = h;
+                    FOR_LOOP(y, crop_h) {
+                        memcpy(sc2_map.cell_flags + y * crop_w,
+                               data + SC2_TERRAIN_HEADER_SIZE + crop_x + (crop_y + y) * w,
+                               crop_w);
+                    }
+                    sc2_map.cell_flags_width = crop_w;
+                    sc2_map.cell_flags_height = crop_h;
                 }
             }
         }
@@ -1328,23 +1363,29 @@ static void sc2_parse_cell_flags(sc2MapSource_t *source) {
 static void sc2_parse_sync_cliff_level(sc2MapSource_t *source) {
     DWORD size = 0;
     LPBYTE data = sc2_source_read(source, "t3SyncCliffLevel", &size);
-    DWORD w, h;
+    DWORD w, h, crop_x, crop_y, crop_w, crop_h;
 
-    if (!data || size < 32 || memcmp(data, "CLIF", 4) != 0) {
+    if (!data || size < SC2_TERRAIN_HEADER_SIZE || memcmp(data, "CLIF", 4) != 0) {
         sc2_free_file(data);
         return;
     }
     w = sc2_read_le32(data + 8);
     h = sc2_read_le32(data + 12);
-    if (!w || !h || w > 4096 || h > 4096 || size < 32 + w * h * sizeof(USHORT)) {
+    if (!w || !h || w > 4096 || h > 4096 ||
+        size < SC2_TERRAIN_HEADER_SIZE + w * h * sizeof(USHORT) ||
+        !sc2_playable_crop(w, h, false, &crop_x, &crop_y, &crop_w, &crop_h)) {
         sc2_free_file(data);
         return;
     }
-    sc2_map.cliff_levels = sc2_alloc(w * h * sizeof(USHORT));
+    sc2_map.cliff_levels = sc2_alloc(crop_w * crop_h * sizeof(USHORT));
     if (sc2_map.cliff_levels) {
-        memcpy(sc2_map.cliff_levels, data + 32, w * h * sizeof(USHORT));
-        sc2_map.cliff_level_width = w;
-        sc2_map.cliff_level_height = h;
+        FOR_LOOP(y, crop_h) {
+            memcpy(sc2_map.cliff_levels + y * crop_w,
+                   data + SC2_TERRAIN_HEADER_SIZE + ((crop_y + y) * w + crop_x) * sizeof(USHORT),
+                   crop_w * sizeof(USHORT));
+        }
+        sc2_map.cliff_level_width = crop_w;
+        sc2_map.cliff_level_height = crop_h;
     }
     sc2_free_file(data);
 }
@@ -1472,8 +1513,7 @@ BOOL SC2_MapLoad(LPCSTR mapFilename) {
     sc2_parse_mapinfo(&source);
     sc2_parse_terrain(&source);
     sc2_parse_height_map(&source);
-    /* t3SyncHeightMap is not visible terrain height; merging it creates cliff spikes. */
-    /* sc2_parse_sync_height_map(&source); */
+    sc2_parse_sync_height_map(&source);
     sc2_parse_cell_flags(&source);
     sc2_parse_sync_cliff_level(&source);
     sc2_parse_texture_masks(&source);
@@ -1519,67 +1559,6 @@ FLOAT SC2_MapHeightAtPoint(FLOAT x, FLOAT y) {
     h10 = sc2_map.height_map[x1 + y0 * sc2_map.height_map_width];
     h01 = sc2_map.height_map[x0 + y1 * sc2_map.height_map_width];
     h11 = sc2_map.height_map[x1 + y1 * sc2_map.height_map_width];
-    h0 = h00 + (h10 - h00) * tx;
-    h1 = h01 + (h11 - h01) * tx;
-    return h0 + (h1 - h0) * ty;
-}
-
-static USHORT sc2_cliff_level_at_grid(DWORD x, DWORD y) {
-    USHORT value;
-
-    if (!sc2_map.cliff_levels || !sc2_map.cliff_level_width || !sc2_map.cliff_level_height) {
-        return 0;
-    }
-    x = MIN(sc2_map.cliff_level_width - 1, x * sc2_map.cliff_level_width / MAX(1, sc2_map.width));
-    y = MIN(sc2_map.cliff_level_height - 1, y * sc2_map.cliff_level_height / MAX(1, sc2_map.height));
-    value = sc2_map.cliff_levels[x + y * sc2_map.cliff_level_width];
-    return value >= 0x40 ? value >> 6 : value;
-}
-
-static FLOAT sc2_cliff_tier_height(USHORT level) {
-    FLOAT step;
-
-    if (!sc2_map.has_cliff_heights)
-        return 0.0f;
-    if (level < SC2_CLIFF_HEIGHT_TIERS)
-        return sc2_map.cliff_heights[level];
-    step = sc2_map.cliff_heights[SC2_CLIFF_HEIGHT_TIERS - 1] -
-           sc2_map.cliff_heights[SC2_CLIFF_HEIGHT_TIERS - 2];
-    if (fabsf(step) <= 0.001f)
-        step = sc2_map.cell_size;
-    return sc2_map.cliff_heights[SC2_CLIFF_HEIGHT_TIERS - 1] +
-           (FLOAT)(level - (SC2_CLIFF_HEIGHT_TIERS - 1)) * step;
-}
-
-static FLOAT sc2_flat_tier_height_at_grid(DWORD x, DWORD y) {
-    if (!sc2_map.has_cliff_heights || !sc2_map.cliff_levels) {
-        return SC2_MapHeightAtPoint((FLOAT)x, (FLOAT)y);
-    }
-    return sc2_cliff_tier_height(sc2_cliff_level_at_grid(x, y));
-}
-
-FLOAT SC2_MapFlatTierHeightAtPoint(FLOAT x, FLOAT y) {
-    VECTOR2 n;
-    FLOAT fx, fy, tx, ty;
-    DWORD x0, y0, x1, y1;
-    FLOAT h00, h10, h01, h11, h0, h1;
-
-    if (!sc2_map.has_cliff_heights || !sc2_map.cliff_levels) {
-        return SC2_MapHeightAtPoint(x, y);
-    }
-    n = SC2_MapNormalizedPosition(x, y);
-    fx = MIN(MAX(n.x, 0.0f), 1.0f) * (FLOAT)sc2_map.width;
-    fy = MIN(MAX(n.y, 0.0f), 1.0f) * (FLOAT)sc2_map.height;
-    x0 = (DWORD)floorf(fx);
-    y0 = (DWORD)floorf(fy);
-    x1 = MIN(sc2_map.width, x0 + 1);
-    y1 = MIN(sc2_map.height, y0 + 1);
-    tx = fx - (FLOAT)x0;
-    ty = fy - (FLOAT)y0;
-    h00 = sc2_flat_tier_height_at_grid(x0, y0);
-    h10 = sc2_flat_tier_height_at_grid(x1, y0);
-    h01 = sc2_flat_tier_height_at_grid(x0, y1);
-    h11 = sc2_flat_tier_height_at_grid(x1, y1);
     h0 = h00 + (h10 - h00) * tx;
     h1 = h01 + (h11 - h01) * tx;
     return h0 + (h1 - h0) * ty;

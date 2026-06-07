@@ -24,9 +24,6 @@
 #define SC2_EPSILON                 0.001f  /* near-zero threshold for spans and scale guards */
 #define SC2_TRACE_EPSILON           0.0001f /* near-zero direction threshold in ray-slab test */
 #define SC2_TRACE_INF               1.0e30f /* infinity sentinel for axis-aligned ray marching */
-#define SC2_CLIFF_MIN_SPAN          1.0f    /* minimum z-span fallback when terrain is flat */
-#define SC2_MAX_CLIFF_TIERS         256u
-#define SC2_FLAT_TIER_PREVIEW       1
 #define SC2_CLIFF_MODEL_FOOTPRINT   2.0f    /* loaded SC2 cliff M3 footprint: local -1..1 */
 #define SC2_CLIFF_WIDTH(MAP)        (MAX(1, ((MAP)->width + 1) / 2))
 
@@ -60,8 +57,6 @@ static GLint sc2_u_world_uv_scale = -1;
 static LPTEXTURE sc2_terrain_textures[SC2_TERRAIN_BLEND_LAYERS];
 static LPTEXTURE sc2_terrain_masks[SC2_TERRAIN_BLEND_LAYERS];
 static DWORD sc2_num_terrain_layers;
-static BOOL sc2_flat_tier_preview;
-static FLOAT sc2_tier_heights[SC2_MAX_CLIFF_TIERS];
 
 typedef struct sc2CliffModel_s {
     PATHSTR path;
@@ -218,69 +213,8 @@ static USHORT r_sc2_cliff_level_at_grid(sc2Map_t const *map, DWORD x, DWORD y) {
     return value >= SC2_CLIFF_LEVEL_PACKED_MIN ? value >> SC2_CLIFF_LEVEL_SHIFT : value;
 }
 
-static void r_sc2_build_tier_heights(sc2Map_t const *map) {
-    double sum[SC2_MAX_CLIFF_TIERS] = {0};
-    DWORD count[SC2_MAX_CLIFF_TIERS] = {0};
-    FLOAT min_z = 0.0f;
-    FLOAT max_z = 0.0f;
-    USHORT min_level = 0;
-    USHORT max_level = 0;
-    BOOL have_sample = false;
-    FLOAT step;
-
-    memset(sc2_tier_heights, 0, sizeof(sc2_tier_heights));
-    if (map && map->has_cliff_heights) {
-        FOR_LOOP(i, SC2_CLIFF_HEIGHT_TIERS) {
-            sc2_tier_heights[i] = map->cliff_heights[i];
-        }
-        step = map->cliff_heights[SC2_CLIFF_HEIGHT_TIERS - 1] - map->cliff_heights[SC2_CLIFF_HEIGHT_TIERS - 2];
-        if (fabsf(step) <= SC2_EPSILON)
-            step = map->cell_size;
-        for (DWORD i = SC2_CLIFF_HEIGHT_TIERS; i < SC2_MAX_CLIFF_TIERS; i++) {
-            sc2_tier_heights[i] = sc2_tier_heights[i - 1] + step;
-        }
-        return;
-    }
-    if (!map || !map->height_map || !map->height_map_width || !map->height_map_height)
-        return;
-    FOR_LOOP(y, map->height_map_height) {
-        FOR_LOOP(x, map->height_map_width) {
-            USHORT level = r_sc2_cliff_level_at_grid(map, x, y);
-            FLOAT z = r_sc2_height_at_grid(map, x, y);
-
-            if (!have_sample) {
-                min_z = max_z = z;
-                min_level = max_level = level;
-                have_sample = true;
-            }
-            min_z = MIN(min_z, z);
-            max_z = MAX(max_z, z);
-            min_level = MIN(min_level, level);
-            max_level = MAX(max_level, level);
-            if (level < SC2_MAX_CLIFF_TIERS) {
-                sum[level] += z;
-                count[level]++;
-            }
-        }
-    }
-    if (!have_sample)
-        return;
-    step = max_level > min_level ? (max_z - min_z) / (FLOAT)(max_level - min_level) : map->cell_size;
-    FOR_LOOP(level, SC2_MAX_CLIFF_TIERS) {
-        sc2_tier_heights[level] = count[level] ? (FLOAT)(sum[level] / (double)count[level])
-                                                : min_z + ((FLOAT)level - (FLOAT)min_level) * step;
-    }
-}
-
 static FLOAT r_sc2_visual_height_at_grid(sc2Map_t const *map, DWORD x, DWORD y) {
-    USHORT level;
-
-    if (!sc2_flat_tier_preview)
-        return r_sc2_height_at_grid(map, x, y);
-    level = r_sc2_cliff_level_at_grid(map, x, y);
-    if (level >= SC2_MAX_CLIFF_TIERS)
-        return r_sc2_height_at_grid(map, x, y);
-    return sc2_tier_heights[level];
+    return r_sc2_height_at_grid(map, x, y);
 }
 
 static BYTE r_sc2_cell_flag_at_grid(sc2Map_t const *map, DWORD x, DWORD y) {
@@ -866,8 +800,6 @@ static void r_sc2_build_terrain(sc2Map_t const *map) {
         return;
 
     r_sc2_init_terrain_shader();
-    sc2_flat_tier_preview = SC2_FLAT_TIER_PREVIEW != 0;
-    r_sc2_build_tier_heights(map);
     r_sc2_load_terrain_textures(map);
     sc2_terrain_segment = ri.MemAlloc(sizeof(*sc2_terrain_segment));
     memset(sc2_terrain_segment, 0, sizeof(*sc2_terrain_segment));

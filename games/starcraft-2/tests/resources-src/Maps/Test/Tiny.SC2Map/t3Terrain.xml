@@ -1,6 +1,6 @@
 <terrain version="113">
     <heightMap tileSet="Fixture" dim="5 4">
-        <vertData quantizeBias="1.000000" quantizeScale="0.500000" standardHeight="2.000000" name="t3HeightMap"/>
+        <vertData quantizeBias="0.000000" quantizeScale="1.000000" standardHeight="0.000000" name="t3HeightMap"/>
         <cliffSetList num="1">
             <cliffSet i="0" name="FixtureCliff0"/>
         </cliffSetList>

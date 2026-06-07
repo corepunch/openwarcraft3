@@ -47,12 +47,12 @@ Objects <Unit unitType="X"> → CUnit → CActorUnit → CModel → .m3 path + .
 | `Objects` (units, doodads) | done |
 | `t3Terrain.xml` (cliff sets, cells, textures) | done |
 | `t3HeightMap` | done |
+| `t3SyncHeightMap` (fine height detail) | done |
 | `t3SyncCliffLevel` | done |
 | `t3CellFlags` | done |
 | `t3TextureMasks` | done |
 | Terrain rendering (ground + cliff walls) | done |
 | Cliff config canonicalization | done |
-| `t3SyncHeightMap` (fine height detail) | **not started** |
 | `t3SyncPathingInfo` (pathing) | **not started** |
 | `t3Water` | **not started** |
 | `t3FluffDoodad` | **not started** |

@@ -103,8 +103,15 @@ static void test_sc2_map_loads_xml_objects_and_terrain(void) {
     map = SC2_MapCurrent();
 
     ASSERT_STR_EQ(map->map_name, "SC2 Tiny Fixture");
+    ASSERT_EQ_INT(map->full_width, 8);
+    ASSERT_EQ_INT(map->full_height, 6);
     ASSERT_EQ_INT(map->width, 4);
     ASSERT_EQ_INT(map->height, 3);
+    ASSERT_EQ_INT(map->has_playable_bounds, true);
+    ASSERT_EQ_INT(map->playable_left, 2);
+    ASSERT_EQ_INT(map->playable_bottom, 1);
+    ASSERT_EQ_INT(map->playable_right, 6);
+    ASSERT_EQ_INT(map->playable_top, 4);
     ASSERT_EQ_INT(map->num_objects, 3);
     ASSERT_EQ_INT(map->generated, false);
     ASSERT_EQ_INT(map->has_camera, true);
@@ -140,11 +147,6 @@ static void test_sc2_map_loads_xml_objects_and_terrain(void) {
     ASSERT_EQ_INT(map->num_cliff_sets, 1);
     ASSERT_STR_EQ(map->cliff_sets[0].name, "FixtureCliff0");
     ASSERT_STR_EQ(map->cliff_sets[0].mesh, "FixtureCliff0");
-    ASSERT_EQ_INT(map->has_cliff_heights, true);
-    ASSERT_EQ_FLOAT(map->cliff_heights[0], -4.0f, 0.001f);
-    ASSERT_EQ_FLOAT(map->cliff_heights[1], 0.0f, 0.001f);
-    ASSERT_EQ_FLOAT(map->cliff_heights[2], 2.0f, 0.001f);
-    ASSERT_EQ_FLOAT(map->cliff_heights[3], 4.0f, 0.001f);
     ASSERT_EQ_INT(map->num_cliff_cells, 2);
     ASSERT_EQ_INT(map->cliff_cells[0].index, 0);
     ASSERT_EQ_INT(map->cliff_cells[0].flags, 1);
@@ -165,26 +167,25 @@ static void test_sc2_map_loads_binary_terrain_layers(void) {
     ASSERT_EQ_INT(map->cell_flags_height, 3);
     ASSERT_NOT_NULL(map->cell_flags);
     if (map->cell_flags) {
-        ASSERT_EQ_INT(map->cell_flags[0], 0x10);
-        ASSERT_EQ_INT(map->cell_flags[11], 0x1b);
+        ASSERT_EQ_INT(map->cell_flags[0], 0x1a);
+        ASSERT_EQ_INT(map->cell_flags[11], 0x2d);
     }
 
     ASSERT_EQ_INT(map->cliff_level_width, 4);
     ASSERT_EQ_INT(map->cliff_level_height, 3);
     ASSERT_NOT_NULL(map->cliff_levels);
     if (map->cliff_levels) {
-        ASSERT_EQ_INT(map->cliff_levels[0], 1);
-        ASSERT_EQ_INT(map->cliff_levels[11], 12);
+        ASSERT_EQ_INT(map->cliff_levels[0], 11);
+        ASSERT_EQ_INT(map->cliff_levels[11], 30);
     }
 
     ASSERT_EQ_INT(map->height_map_width, 5);
     ASSERT_EQ_INT(map->height_map_height, 4);
     ASSERT_NOT_NULL(map->height_map);
     if (map->height_map) {
-        ASSERT_EQ_FLOAT(map->height_map[0], 3.0f, 0.001f);
+        ASSERT_EQ_FLOAT(map->height_map[0], 0.0f, 0.001f);
         ASSERT_EQ_FLOAT(map->height_map[19], 12.5f, 0.001f);
-        ASSERT_EQ_FLOAT(SC2_MapHeightAtPoint(0.0f, 0.0f), 3.0f, 0.001f);
-        ASSERT_EQ_FLOAT(SC2_MapFlatTierHeightAtPoint(0.0f, 0.0f), 0.0f, 0.001f);
+        ASSERT_EQ_FLOAT(SC2_MapHeightAtPoint(0.0f, 0.0f), 0.0f, 0.001f);
         ASSERT_EQ_FLOAT(SC2_MapHeightAtPoint(4.0f, 3.0f), 12.5f, 0.001f);
         ASSERT_EQ_FLOAT(SC2_MapHeightAtPoint(map->objects[0].position.x,
                                              map->objects[0].position.y),

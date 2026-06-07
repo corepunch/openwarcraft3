@@ -1,5 +1,5 @@
 <PlacedObjects>
-    <ObjectCamera Id="10" Position="8,9,0" Name="StartGame02" CameraTarget="8,9">
+    <ObjectCamera Id="10" Position="10,10,0" Name="StartGame02" CameraTarget="10,10">
         <CameraValue Index="FieldOfView" Value="27.7998"/>
         <CameraValue Index="NearClip" Value="0.0998"/>
         <CameraValue Index="FarClip" Value="400"/>
@@ -7,9 +7,9 @@
         <CameraValue Index="Pitch" Value="56"/>
         <CameraValue Index="Yaw" Value="179.9584"/>
     </ObjectCamera>
-    <ObjectUnit Id="1" UnitType="Marine" Position="1.5,2.5,0.25" Rotation="0.75" Scale="1,1,1" Player="2"/>
-    <ObjectUnit Id="2" UnitType="SCV" Position="3.0,4.0,0" Rotation="1.25" Scale="1,1,1" Player="2"/>
-    <ObjectDoodad Id="3" Type="BillboardTall" Position="5.0,1.0,8.0" Rotation="2.5" Scale="1,1,1">
+    <ObjectUnit Id="1" UnitType="Marine" Position="3.5,3.5,0.25" Rotation="0.75" Scale="1,1,1" Player="2"/>
+    <ObjectUnit Id="2" UnitType="SCV" Position="5.0,5.0,0" Rotation="1.25" Scale="1,1,1" Player="2"/>
+    <ObjectDoodad Id="3" Type="BillboardTall" Position="7.0,2.0,8.0" Rotation="2.5" Scale="1,1,1">
         <Flag Index="HeightAbsolute" Value="1"/>
         <Flag Index="ForcePlacement" Value="1"/>
     </ObjectDoodad>
