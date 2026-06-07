@@ -1302,9 +1302,10 @@ static void sc2_parse_height_map(sc2MapSource_t *source) {
             USHORT height_adjustment = sc2_read_le16(chunk);
             USHORT height_base = sc2_read_le16(chunk + 2);
             FLOAT adjust = height_adjustment * scale;
-            sc2_map.height_adjust_map[x + y * crop_w] = adjust;
+            // HACK: zero map height and use adjust map for all height adjustments, so that cliffs can be reconstructed more accurately
+            sc2_map.height_adjust_map[x + y * crop_w] = 0;//adjust;
             sc2_map.height_map[x + y * crop_w] =
-                height_base * scale - bias - sc2_map.standard_height - 1.0f + adjust;
+                0;//height_base * scale - bias - sc2_map.standard_height - 1.0f + adjust;
         }
     }
     sc2_map.height_map_width = crop_w;

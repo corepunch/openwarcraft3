@@ -36,16 +36,13 @@ static BOOL SC2_ObjectIsMobile(sc2MapObject_t const *object) {
 }
 
 static FLOAT SC2_ObjectSpawnZ(sc2MapObject_t const *object) {
-    FLOAT ground_z;
-
     if (!object) {
         return 0.0f;
     }
-    ground_z = SC2_MapHeightAtPoint(object->position.x, object->position.y);
     if (object->flags & SC2_OBJECT_HEIGHT_ABSOLUTE) {
         return object->position.z;
     }
-    return ground_z + object->position.z;
+    return SC2_MapHeightAtPoint(object->position.x, object->position.y) + object->position.z;
 }
 
 static void SC2_LinkAtGround(LPEDICT ent) {
