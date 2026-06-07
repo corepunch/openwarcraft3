@@ -540,28 +540,32 @@ static BOOL r_sc2_cliff_model_bounds(LPCMODEL model, LPBOX3 bounds) {
                 batch->materialReferenceIndex >= m3->materialReferencesNum)
                 continue;
             region = &div->regions[batch->regionIndex];
-            FOR_LOOP(index_i, region->triangleIndicesCount) {
-                DWORD face_index = region->firstTriangleIndex + index_i;
-                DWORD vertex_index;
-                VECTOR3 pos;
-                if (face_index >= div->facesNum)
-                    continue;
-                vertex_index = div->faces[face_index] + region->firstVertexIndex;
-                if (vertex_index >= m3->verticesNum)
-                    continue;
-                pos = r_sc2_m3_skin_vertex(&m3->vertices[vertex_index], region, bones, 1.0f);
-                if (!have_vertex) {
-                    bounds->min = pos;
-                    bounds->max = pos;
-                    have_vertex = true;
-                    continue;
+            for (DWORD index_i = 0; index_i + 2 < region->triangleIndicesCount; index_i += 3) {
+                DWORD fi[3], vi[3];
+                BOOL valid = true;
+                FOR_LOOP(k, 3) {
+                    fi[k] = region->firstTriangleIndex + index_i + k;
+                    if (fi[k] >= div->facesNum) { valid = false; break; }
+                    vi[k] = div->faces[fi[k]] + region->firstVertexIndex;
+                    if (vi[k] >= m3->verticesNum) { valid = false; break; }
                 }
-                bounds->min.x = MIN(bounds->min.x, pos.x);
-                bounds->min.y = MIN(bounds->min.y, pos.y);
-                bounds->min.z = MIN(bounds->min.z, pos.z);
-                bounds->max.x = MAX(bounds->max.x, pos.x);
-                bounds->max.y = MAX(bounds->max.y, pos.y);
-                bounds->max.z = MAX(bounds->max.z, pos.z);
+                if (!valid)
+                    continue;
+                FOR_LOOP(k, 3) {
+                    VECTOR3 pos = r_sc2_m3_skin_vertex(&m3->vertices[vi[k]], region, bones, 1.0f);
+                    if (!have_vertex) {
+                        bounds->min = pos;
+                        bounds->max = pos;
+                        have_vertex = true;
+                        continue;
+                    }
+                    bounds->min.x = MIN(bounds->min.x, pos.x);
+                    bounds->min.y = MIN(bounds->min.y, pos.y);
+                    bounds->min.z = MIN(bounds->min.z, pos.z);
+                    bounds->max.x = MAX(bounds->max.x, pos.x);
+                    bounds->max.y = MAX(bounds->max.y, pos.y);
+                    bounds->max.z = MAX(bounds->max.z, pos.z);
+                }
             }
         }
     }
@@ -629,35 +633,39 @@ static void r_sc2_bake_cliff_model(rCliffBakeList_t *list,
                 batch->materialReferenceIndex >= m3->materialReferencesNum)
                 continue;
             region = &div->regions[batch->regionIndex];
-            FOR_LOOP(index_i, region->triangleIndicesCount) {
-                DWORD face_index = region->firstTriangleIndex + index_i;
-                DWORD vertex_index;
-                if (face_index >= div->facesNum)
+            for (DWORD index_i = 0; index_i + 2 < region->triangleIndicesCount; index_i += 3) {
+                DWORD fi[3], vi[3];
+                BOOL valid = true;
+                FOR_LOOP(k, 3) {
+                    fi[k] = region->firstTriangleIndex + index_i + k;
+                    if (fi[k] >= div->facesNum) { valid = false; break; }
+                    vi[k] = div->faces[fi[k]] + region->firstVertexIndex;
+                    if (vi[k] >= m3->verticesNum) { valid = false; break; }
+                }
+                if (!valid)
                     continue;
-                vertex_index = div->faces[face_index] + region->firstVertexIndex;
-                if (vertex_index >= m3->verticesNum)
-                    continue;
-                m3Vertex_t const *vertex = &m3->vertices[vertex_index];
-                VECTOR3 local = r_sc2_m3_skin_vertex(vertex, region, bones, 1.0f);
-                VECTOR3 normal = r_sc2_m3_skin_vertex(vertex, region, bones, 0.0f);
-                VECTOR3 rotated = r_sc2_rotate_cliff_vec(local, rotation);
-                VECTOR3 position = {
-                    offset.x + rotated.x,
-                    offset.y + rotated.y,
-                    /* SC2_MapHeightAtPoint(...) + local.z + baselevel stacked M3 cliffs above decoded terrain. */
-                    terrain_min_z + (local.z - bounds.min.z) * z_scale,
-                };
-                VERTEX *out = R_CliffBakeVertex(list);
-                normal = r_sc2_rotate_cliff_vec(normal, rotation);
-                Vector3_normalize(&normal);
-                r_sc2_push_vertex_normal(out,
-                                         position.x,
-                                         position.y,
-                                         position.z,
-                                         vertex->uv[0][0] / 2048.0f,
-                                         vertex->uv[0][1] / 2048.0f,
-                                         255,
-                                         normal);
+                FOR_LOOP(k, 3) {
+                    m3Vertex_t const *vertex = &m3->vertices[vi[k]];
+                    VECTOR3 local = r_sc2_m3_skin_vertex(vertex, region, bones, 1.0f);
+                    VECTOR3 normal = r_sc2_m3_skin_vertex(vertex, region, bones, 0.0f);
+                    VECTOR3 rotated = r_sc2_rotate_cliff_vec(local, rotation);
+                    VECTOR3 position = {
+                        offset.x + rotated.x,
+                        offset.y + rotated.y,
+                        terrain_min_z + (local.z - bounds.min.z) * z_scale,
+                    };
+                    normal = r_sc2_rotate_cliff_vec(normal, rotation);
+                    Vector3_normalize(&normal);
+                    VERTEX *out = R_CliffBakeVertex(list);
+                    r_sc2_push_vertex_normal(out,
+                                             position.x,
+                                             position.y,
+                                             position.z,
+                                             vertex->uv[0][0] / 2048.0f,
+                                             vertex->uv[0][1] / 2048.0f,
+                                             255,
+                                             normal);
+                }
             }
         }
     }
