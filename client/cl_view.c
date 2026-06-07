@@ -231,7 +231,7 @@ void Matrix4_getCameraMatrix(LPMATRIX4 output) {
 #ifdef SC2
     (void)proj;
     (void)view;
-    Matrix4_getSc2CameraMatrix(&origin, &b->viewangles, distance, R_GameGetCameraHeightOffset(), fov, aspect, znear, zfar, output);
+    Matrix4_getSc2CameraMatrix(&origin, &b->viewangles, distance, CM_GetCameraHeightOffset(), fov, aspect, znear, zfar, output);
     return;
 #else
     origin.z = CM_GetHeightAtPoint(origin.x, origin.y) - 128;

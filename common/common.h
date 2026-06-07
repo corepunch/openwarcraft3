@@ -221,6 +221,7 @@ BOOL CM_IsMapLoaded(LPCSTR mapFilename);
 BOOL CM_ClosestPathablePoint(LPCVECTOR2 location, LPVECTOR2 out);
 BOOL CM_ClosestPathablePointForRadius(LPCVECTOR2 location, FLOAT radius, LPVECTOR2 out);
 FLOAT CM_GetHeightAtPoint(FLOAT sx, FLOAT sy);
+FLOAT CM_GetCameraHeightOffset(void);
 BOX2 CM_GetWorldBounds(void);
 
 struct world_state {

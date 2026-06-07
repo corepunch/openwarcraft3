@@ -35,6 +35,11 @@ FLOAT CM_GetHeightAtPoint(FLOAT sx, FLOAT sy) {
     return SC2_MapHeightAtPoint(sx, sy);
 }
 
+FLOAT CM_GetCameraHeightOffset(void) {
+    sc2Map_t const *map = SC2_MapCurrent();
+    return map ? map->camera_height_offset : 0.0f;
+}
+
 VECTOR2 CM_GetNormalizedMapPosition(FLOAT x, FLOAT y) {
     return SC2_MapNormalizedPosition(x, y);
 }

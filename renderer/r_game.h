@@ -14,7 +14,6 @@ void R_GameDrawTerrainShadows(void);
 void R_GameDrawAlphaSurfaces(void);
 bool R_GameTraceLocation(viewDef_t const *viewdef, float x, float y, LPVECTOR3 point);
 FLOAT R_GameGetHeightAtPoint(FLOAT x, FLOAT y);
-FLOAT R_GameGetCameraHeightOffset(void);
 VECTOR2 R_GameWorldSize(void);
 
 LPMODEL R_GameLoadModel(LPCSTR modelFilename);
