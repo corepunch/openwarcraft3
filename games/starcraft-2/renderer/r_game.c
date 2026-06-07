@@ -210,6 +210,11 @@ FLOAT R_GameGetHeightAtPoint(FLOAT x, FLOAT y) {
     return R_SC2GetHeightAtPoint(x, y);
 }
 
+FLOAT R_GameGetCameraHeightOffset(void) {
+    sc2Map_t const *map = SC2_MapCurrent();
+    return map ? map->camera_height_offset : 0.0f;
+}
+
 VECTOR2 R_GameWorldSize(void) {
     return R_SC2WorldSize();
 }

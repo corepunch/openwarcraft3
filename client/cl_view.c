@@ -128,6 +128,7 @@ static void Wow_AngleVectors(LPCVECTOR3 angles, LPVECTOR3 forward, LPVECTOR3 rig
 static void Matrix4_getSc2CameraMatrix(LPCVECTOR3 origin,
                                        LPCVECTOR3 angles,
                                        FLOAT distance,
+                                       FLOAT height_offset,
                                        FLOAT fov,
                                        FLOAT aspect,
                                        FLOAT znear,
@@ -149,7 +150,7 @@ static void Matrix4_getSc2CameraMatrix(LPCVECTOR3 origin,
     fov = fov > 0.0f ? fov : 27.8f;
     znear = znear > 0.0f ? znear : 0.1f;
     zfar = zfar > 0.0f ? zfar : 400.0f;
-    target.z = CM_GetHeightAtPoint(target.x, target.y);
+    target.z = CM_GetHeightAtPoint(target.x, target.y) + height_offset;
     eye = Vector3_sub(&target, &(VECTOR3){ dir.x * distance, dir.y * distance, dir.z * distance });
     Matrix4_perspective(&proj, fov, aspect, znear, zfar);
     Matrix4_lookAt(&view, &eye, &dir, &(VECTOR3){ 0.0f, 0.0f, 1.0f });
@@ -230,7 +231,7 @@ void Matrix4_getCameraMatrix(LPMATRIX4 output) {
 #ifdef SC2
     (void)proj;
     (void)view;
-    Matrix4_getSc2CameraMatrix(&origin, &b->viewangles, distance, fov, aspect, znear, zfar, output);
+    Matrix4_getSc2CameraMatrix(&origin, &b->viewangles, distance, R_GameGetCameraHeightOffset(), fov, aspect, znear, zfar, output);
     return;
 #else
     origin.z = CM_GetHeightAtPoint(origin.x, origin.y) - 128;
