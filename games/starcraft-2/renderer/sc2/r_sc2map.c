@@ -14,7 +14,6 @@
 #define SC2_CLIFF_BLOCK_CENTER(X)   ((X) + 1u)  /* centre grid coord within a 2-unit block */
 #define SC2_CLIFF_LEVEL_PACKED_MIN  0x40u   /* packed format threshold; values >= this are shifted */
 #define SC2_CLIFF_LEVEL_SHIFT       6
-#define SC2_GROUND_VERTICES_PER_CELL 6u
 #define SC2_TERRAIN_UV_SCALE        8.0f
 #define SC2_CLIFF_VARIANT_MASK      3u
 #define SC2_M3_UV_SCALE             2048.0f /* M3 UV coords are stored as 1/2048 fixed-point */
@@ -251,40 +250,6 @@ static BOOL r_sc2_skip_ground_cell(sc2Map_t const *map, DWORD x, DWORD y) {
     return !r_sc2_cliff_block_is_flat(map, SC2_CLIFF_BLOCK_ORIGIN(x), SC2_CLIFF_BLOCK_ORIGIN(y));
 }
 
-static FLOAT r_sc2_ground_height_at_grid(sc2Map_t const *map,
-                                         DWORD tile_x,
-                                         DWORD tile_y,
-                                         DWORD grid_x,
-                                         DWORD grid_y) {
-    sc2MapHeightSample_t const *sample;
-    DWORD block_x;
-    DWORD block_y;
-    USHORT level[4];
-    FLOAT sum = 0.0f;
-    DWORD count = 0;
-
-    if (!map || !map->t3HeightMap || !map->t3HeightMap->width || !map->t3HeightMap->height || !map->t3SyncCliffLevel)
-        return sc2_map_height_at_grid(map, grid_x, grid_y);
-    grid_x = MIN(map->t3HeightMap->width - 1, grid_x);
-    grid_y = MIN(map->t3HeightMap->height - 1, grid_y);
-    sample = &map->t3HeightMap->data[grid_x + grid_y * map->t3HeightMap->width];
-    block_x = SC2_CLIFF_BLOCK_ORIGIN(tile_x);
-    block_y = SC2_CLIFF_BLOCK_ORIGIN(tile_y);
-    SC2_CLIFF_BLOCK_LEVELS(level, map, block_x, block_y);
-    if (level[1] != level[0] || level[2] != level[0] || level[3] != level[0] || sample->extra == level[0])
-        return sc2_map_height_at_grid(map, grid_x, grid_y);
-    for (DWORD y = block_y; y <= block_y + SC2_CLIFF_BLOCK_SPAN && y < map->t3HeightMap->height; y++) {
-        for (DWORD x = block_x; x <= block_x + SC2_CLIFF_BLOCK_SPAN && x < map->t3HeightMap->width; x++) {
-            sample = &map->t3HeightMap->data[x + y * map->t3HeightMap->width];
-            if (sample->extra != level[0])
-                continue;
-            sum += sc2_map_height_at_grid(map, x, y);
-            count++;
-        }
-    }
-    return count ? sum / (FLOAT)count : sc2_map_height_at_grid(map, grid_x, grid_y);
-}
-
 static void r_sc2_release_layer(LPMAPLAYER layer) {
     while (layer) {
         LPMAPLAYER next = layer->next;
@@ -431,9 +396,10 @@ static void r_sc2_load_terrain_textures(sc2Map_t const *map) {
 
 static LPMAPLAYER r_sc2_build_ground_layer(sc2Map_t const *map) {
     BOX2 bounds;
-    DWORD w, h, num_vertices;
-    VERTEX *out;
+    DWORD w, h, num_vertices, num_indices;
     VERTEX *vertices;
+    DWORD *indices;
+    DWORD *out;
     LPMAPLAYER map_layer;
 
     if (!map || !SC2_MAP_WIDTH(map) || !SC2_MAP_HEIGHT(map))
@@ -441,43 +407,50 @@ static LPMAPLAYER r_sc2_build_ground_layer(sc2Map_t const *map) {
 
     w = SC2_MAP_WIDTH(map);
     h = SC2_MAP_HEIGHT(map);
-    num_vertices = w * h * SC2_GROUND_VERTICES_PER_CELL;
+    num_vertices = (w + 1) * (h + 1);
+    num_indices = w * h * 6;
     vertices = ri.MemAlloc(num_vertices * sizeof(*vertices));
-    out = vertices;
+    indices = ri.MemAlloc(num_indices * sizeof(*indices));
     bounds = SC2_MapBounds();
 
+    for (DWORD y = 0; y <= h; y++) {
+        for (DWORD x = 0; x <= w; x++) {
+            FLOAT px = bounds.min.x + x * map->cell_size;
+            FLOAT py = bounds.min.y + y * map->cell_size;
+            FLOAT u = px / SC2_TERRAIN_UV_SCALE;
+            FLOAT v = py / SC2_TERRAIN_UV_SCALE;
+            r_sc2_push_vertex(&vertices[x + y * (w + 1)], px, py, sc2_map_height_at_grid(map, x, y), u, v, 255);
+        }
+    }
+
+    out = indices;
     FOR_LOOP(y, h) {
         FOR_LOOP(x, w) {
+            DWORD i00 = x + y * (w + 1);
+            DWORD i10 = i00 + 1;
+            DWORD i01 = i00 + w + 1;
+            DWORD i11 = i01 + 1;
+
             if (r_sc2_skip_ground_cell(map, x, y)) {
                 continue;
             }
-            FLOAT x0 = bounds.min.x + x * map->cell_size;
-            FLOAT y0 = bounds.min.y + y * map->cell_size;
-            FLOAT x1 = x0 + map->cell_size;
-            FLOAT y1 = y0 + map->cell_size;
-            FLOAT u0 = x0 / SC2_TERRAIN_UV_SCALE;
-            FLOAT v0 = y0 / SC2_TERRAIN_UV_SCALE;
-            FLOAT u1 = x1 / SC2_TERRAIN_UV_SCALE;
-            FLOAT v1 = y1 / SC2_TERRAIN_UV_SCALE;
-            FLOAT z00 = r_sc2_ground_height_at_grid(map, x, y, x, y);
-            FLOAT z10 = r_sc2_ground_height_at_grid(map, x, y, x + 1, y);
-            FLOAT z11 = r_sc2_ground_height_at_grid(map, x, y, x + 1, y + 1);
-            FLOAT z01 = r_sc2_ground_height_at_grid(map, x, y, x, y + 1);
-            r_sc2_push_vertex(out++, x0, y0, z00, u0, v0, 255);
-            r_sc2_push_vertex(out++, x1, y0, z10, u1, v0, 255);
-            r_sc2_push_vertex(out++, x1, y1, z11, u1, v1, 255);
-            r_sc2_push_vertex(out++, x0, y0, z00, u0, v0, 255);
-            r_sc2_push_vertex(out++, x1, y1, z11, u1, v1, 255);
-            r_sc2_push_vertex(out++, x0, y1, z01, u0, v1, 255);
+            *out++ = i00;
+            *out++ = i10;
+            *out++ = i11;
+            *out++ = i00;
+            *out++ = i11;
+            *out++ = i01;
         }
     }
 
     map_layer = ri.MemAlloc(sizeof(*map_layer));
     memset(map_layer, 0, sizeof(*map_layer));
     map_layer->type = MAPLAYERTYPE_GROUND;
-    map_layer->buffer = R_MakeVertexArrayObject(vertices, (DWORD)(out - vertices));
-    map_layer->num_vertices = (DWORD)(out - vertices);
+    map_layer->buffer = R_MakeIndexedVertexArrayObject(vertices, num_vertices, indices, (DWORD)(out - indices));
+    map_layer->num_vertices = num_vertices;
+    map_layer->num_indices = (DWORD)(out - indices);
     ri.MemFree(vertices);
+    ri.MemFree(indices);
     return map_layer;
 }
 
@@ -999,7 +972,7 @@ static void r_sc2_draw_ground_layer(LPCMAPSEGMENT segment) {
                       SC2_TERRAIN_BLEND_LAYERS + i);
     }
     R_Call(glDisable, GL_BLEND);
-    R_DrawBuffer(layer->buffer, layer->num_vertices);
+    R_DrawIndexedBuffer(layer->buffer, layer->num_indices);
 }
 
 void R_SC2RegisterMap(LPCSTR mapFileName) {
@@ -1130,14 +1103,14 @@ static BOOL r_sc2_trace_heightmap_tile(sc2Map_t const *map, DWORD x, DWORD y, LP
     FLOAT x1 = x0 + map->cell_size;
     FLOAT y1 = y0 + map->cell_size;
     TRIANGLE3 const tri1 = {
-        { x0, y0, r_sc2_ground_height_at_grid(map, x, y, x, y) },
-        { x1, y0, r_sc2_ground_height_at_grid(map, x, y, x + 1, y) },
-        { x1, y1, r_sc2_ground_height_at_grid(map, x, y, x + 1, y + 1) },
+        { x0, y0, sc2_map_height_at_grid(map, x, y) },
+        { x1, y0, sc2_map_height_at_grid(map, x + 1, y) },
+        { x1, y1, sc2_map_height_at_grid(map, x + 1, y + 1) },
     };
     TRIANGLE3 const tri2 = {
-        { x1, y1, r_sc2_ground_height_at_grid(map, x, y, x + 1, y + 1) },
-        { x0, y1, r_sc2_ground_height_at_grid(map, x, y, x, y + 1) },
-        { x0, y0, r_sc2_ground_height_at_grid(map, x, y, x, y) },
+        { x1, y1, sc2_map_height_at_grid(map, x + 1, y + 1) },
+        { x0, y1, sc2_map_height_at_grid(map, x, y + 1) },
+        { x0, y0, sc2_map_height_at_grid(map, x, y) },
     };
 
     if (Line3_intersect_triangle(line, &tri1, output))

@@ -530,6 +530,13 @@ void R_DrawBuffer(LPCBUFFER buffer, DWORD num_vertices) {
     R_Call(glDrawArrays, GL_TRIANGLES, 0, num_vertices);
 }
 
+void R_DrawIndexedBuffer(LPCBUFFER buffer, DWORD num_indices) {
+    R_Call(glBindVertexArray, buffer->vao);
+    R_Call(glBindBuffer, GL_ARRAY_BUFFER, buffer->vbo);
+    R_Call(glBindBuffer, GL_ELEMENT_ARRAY_BUFFER, buffer->ibo);
+    R_Call(glDrawElements, GL_TRIANGLES, num_indices, GL_UNSIGNED_INT, NULL);
+}
+
 void R_BeginFrame(void) {
     R_Call(glEnable, GL_DEPTH_TEST);
     R_Call(glDepthMask, GL_TRUE);

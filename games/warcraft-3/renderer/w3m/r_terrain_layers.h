@@ -18,6 +18,7 @@ struct MapLayer {
     LPCTEXTURE texture;
     LPMAPLAYER next;
     DWORD num_vertices;
+    DWORD num_indices;
 };
 
 struct MapSegment {
