@@ -1,6 +1,7 @@
 #include "sc2_map.h"
 #include "common/mpq.h"
 #include <ctype.h>
+#include <float.h>
 #include <libxml/parser.h>
 #include <libxml/tree.h>
 
@@ -14,6 +15,11 @@
 #define SC2_SMAP_HEADER_SIZE         64
 #define SC2_SMAP_CHUNK_SIZE          4
 #define SC2_TERRAIN_HEADER_SIZE      32
+#define SC2_TRAYNOR_BRIDGE_DIAG_MAX  8
+#define SC2_TRAYNOR_BRIDGE_HALF_SIZE 5.0f
+#define SC2_TRAYNOR_BRIDGE_Z_MIN     7.5f
+#define SC2_TRAYNOR_BRIDGE_Z_MAX     8.5f
+#define SC2_DIAG_EDGE_SPLITS_MAX     512
 
 typedef struct {
     HANDLE archive;
@@ -58,8 +64,21 @@ typedef struct {
     sc2CatalogCliff_t cliffs[SC2_MAX_CATALOG_CLIFFS];
 } sc2Catalog_t;
 
+typedef struct {
+    BOOL           used;
+    DWORD          id;
+    VECTOR3        position;
+    FLOAT          angle;
+    FLOAT          scale;
+    FLOAT          max_height;
+    VECTOR2        max_point;
+    FLOAT          center_height;
+} sc2BridgeDiag_t;
+
 static sc2MapHost_t sc2_host;
 static sc2Map_t     sc2_map;
+static sc2BridgeDiag_t sc2_bridge_diag[SC2_TRAYNOR_BRIDGE_DIAG_MAX];
+static DWORD sc2_bridge_diag_count;
 
 static DWORD sc2_read_le32(BYTE const *p);
 static USHORT sc2_read_le16(BYTE const *p);
@@ -168,6 +187,11 @@ static void sc2_map_clear(void) {
     SAFE_DELETE(sc2_map.height_map, sc2_free);
     SAFE_DELETE(sc2_map.height_adjust_map, sc2_free);
     memset(&sc2_map, 0, sizeof(sc2_map));
+}
+
+static void sc2_bridge_diag_clear(void) {
+    memset(sc2_bridge_diag, 0, sizeof(sc2_bridge_diag));
+    sc2_bridge_diag_count = 0;
 }
 
 static void sc2_set_default_camera(void) {
@@ -589,7 +613,7 @@ static void sc2_object_field(sc2MapObject_t *object, LPCSTR key, LPCSTR value, B
     if ((sc2_contains_i(key, "model") || sc2_contains_i(key, "file")) && !object->model[0])
         snprintf(object->model, sizeof(object->model), "%s", value);
     else if (sc2_streqi(key, "id")) {
-        return;
+        object->id = (DWORD)strtoul(value, NULL, 10);
     } else if ((sc2_contains_i(key, "type") || sc2_contains_i(key, "unit") || sc2_contains_i(key, "doodad") ||
                 sc2_streqi(key, "name")) && !object->name[0])
         snprintf(object->name, sizeof(object->name), "%s", value);
@@ -627,6 +651,198 @@ static void sc2_object_flag(sc2MapObject_t *object, xmlNodePtr node) {
     else if (sc2_streqi(index, "ForcePlacement")) object->flags |= SC2_OBJECT_FORCE_PLACEMENT;
 }
 
+static void sc2_diag_poly(sc2MapObject_t const *object, VECTOR2 poly[4]) {
+    FLOAT half = SC2_TRAYNOR_BRIDGE_HALF_SIZE * object->scale;
+    FLOAT c = cosf(object->angle);
+    FLOAT s = sinf(object->angle);
+    VECTOR2 local[4] = {
+        { -half, -half },
+        {  half, -half },
+        {  half,  half },
+        { -half,  half },
+    };
+
+    FOR_LOOP(i, 4) {
+        poly[i].x = object->position.x + c * local[i].x - s * local[i].y;
+        poly[i].y = object->position.y + s * local[i].x + c * local[i].y;
+    }
+}
+
+static BOOL sc2_diag_point_on_edge(FLOAT x, FLOAT y, VECTOR2 const *poly) {
+    FOR_LOOP(i, 4) {
+        VECTOR2 a = poly[i];
+        VECTOR2 b = poly[(i + 1) & 3];
+        FLOAT dx = b.x - a.x;
+        FLOAT dy = b.y - a.y;
+        FLOAT cross = (x - a.x) * dy - (y - a.y) * dx;
+        FLOAT dot;
+        if (fabsf(cross) > 0.0001f)
+            continue;
+        dot = (x - a.x) * dx + (y - a.y) * dy;
+        if (dot >= -0.0001f && dot <= dx * dx + dy * dy + 0.0001f)
+            return true;
+    }
+    return false;
+}
+
+static BOOL sc2_diag_point_in_poly(FLOAT x, FLOAT y, VECTOR2 const *poly) {
+    BOOL inside = false;
+    int j = 3;
+
+    if (sc2_diag_point_on_edge(x, y, poly))
+        return true;
+    FOR_LOOP(i, 4) {
+        if (((poly[i].y > y) != (poly[j].y > y)) &&
+            x < (poly[j].x - poly[i].x) * (y - poly[i].y) /
+                (poly[j].y - poly[i].y) + poly[i].x) {
+            inside = !inside;
+        }
+        j = (int)i;
+    }
+    return inside;
+}
+
+static void sc2_diag_consider_point(FLOAT x, FLOAT y, FLOAT *best, LPVECTOR2 best_point) {
+    FLOAT h;
+
+    if (x < 0.0f || y < 0.0f || x > (FLOAT)sc2_map.width || y > (FLOAT)sc2_map.height)
+        return;
+    h = SC2_MapHeightAtPoint(x, y);
+    if (h > *best) {
+        *best = h;
+        best_point->x = x;
+        best_point->y = y;
+    }
+}
+
+static void sc2_diag_add_split(FLOAT *splits, DWORD *num_splits, FLOAT t) {
+    if (t < 0.0f || t > 1.0f || *num_splits >= SC2_DIAG_EDGE_SPLITS_MAX)
+        return;
+    FOR_LOOP(i, *num_splits) {
+        if (fabsf(splits[i] - t) < 0.000001f)
+            return;
+    }
+    splits[(*num_splits)++] = t;
+}
+
+static void sc2_diag_sort_splits(FLOAT *splits, DWORD num_splits) {
+    for (DWORD i = 1; i < num_splits; i++) {
+        FLOAT t = splits[i];
+        DWORD j = i;
+        while (j > 0 && splits[j - 1] > t) {
+            splits[j] = splits[j - 1];
+            j--;
+        }
+        splits[j] = t;
+    }
+}
+
+static void sc2_diag_consider_edge(VECTOR2 a, VECTOR2 b, FLOAT *best, LPVECTOR2 best_point) {
+    FLOAT splits[SC2_DIAG_EDGE_SPLITS_MAX];
+    DWORD num_splits = 0;
+    FLOAT dx = b.x - a.x;
+    FLOAT dy = b.y - a.y;
+
+    sc2_diag_add_split(splits, &num_splits, 0.0f);
+    sc2_diag_add_split(splits, &num_splits, 1.0f);
+    if (fabsf(dx) > 0.000001f) {
+        LONG min_x = (LONG)floorf(MIN(a.x, b.x)) - 1;
+        LONG max_x = (LONG)ceilf(MAX(a.x, b.x)) + 1;
+        for (LONG x = MAX(0, min_x); x <= MIN((LONG)sc2_map.height_map_width - 1, max_x); x++)
+            sc2_diag_add_split(splits, &num_splits, ((FLOAT)x - a.x) / dx);
+    }
+    if (fabsf(dy) > 0.000001f) {
+        LONG min_y = (LONG)floorf(MIN(a.y, b.y)) - 1;
+        LONG max_y = (LONG)ceilf(MAX(a.y, b.y)) + 1;
+        for (LONG y = MAX(0, min_y); y <= MIN((LONG)sc2_map.height_map_height - 1, max_y); y++)
+            sc2_diag_add_split(splits, &num_splits, ((FLOAT)y - a.y) / dy);
+    }
+    sc2_diag_sort_splits(splits, num_splits);
+    FOR_LOOP(i, num_splits) {
+        FLOAT t = splits[i];
+        sc2_diag_consider_point(a.x + dx * t, a.y + dy * t, best, best_point);
+    }
+    FOR_LOOP(i, num_splits - 1) {
+        FLOAT ta = splits[i];
+        FLOAT tb = splits[i + 1];
+        FLOAT tm = (ta + tb) * 0.5f;
+        FLOAT mx = a.x + dx * tm;
+        FLOAT my = a.y + dy * tm;
+        DWORD ix = MIN(sc2_map.height_map_width - 2, (DWORD)MAX(0, (LONG)floorf(mx)));
+        DWORD iy = MIN(sc2_map.height_map_height - 2, (DWORD)MAX(0, (LONG)floorf(my)));
+        FLOAT h00 = sc2_map.height_map[ix + iy * sc2_map.height_map_width];
+        FLOAT h10 = sc2_map.height_map[ix + 1 + iy * sc2_map.height_map_width];
+        FLOAT h01 = sc2_map.height_map[ix + (iy + 1) * sc2_map.height_map_width];
+        FLOAT h11 = sc2_map.height_map[ix + 1 + (iy + 1) * sc2_map.height_map_width];
+        FLOAT bb = h10 - h00;
+        FLOAT cc = h01 - h00;
+        FLOAT dd = h11 - h10 - h01 + h00;
+        FLOAT x0 = a.x - (FLOAT)ix;
+        FLOAT y0 = a.y - (FLOAT)iy;
+        FLOAT qa = dd * 2.0f * dx * dy;
+        FLOAT qb = bb * dx + cc * dy + dd * (dx * y0 + dy * x0);
+        if (tb - ta <= 0.000001f || fabsf(qa) <= 0.000001f)
+            continue;
+        tm = -qb / qa;
+        if (tm > ta && tm < tb)
+            sc2_diag_consider_point(a.x + dx * tm, a.y + dy * tm, best, best_point);
+    }
+}
+
+static FLOAT sc2_diag_max_height_in_poly(VECTOR2 const *poly, LPVECTOR2 best_point) {
+    FLOAT best = -FLT_MAX;
+    FLOAT min_x = poly[0].x, max_x = poly[0].x;
+    FLOAT min_y = poly[0].y, max_y = poly[0].y;
+
+    FOR_LOOP(i, 4) {
+        min_x = MIN(min_x, poly[i].x);
+        max_x = MAX(max_x, poly[i].x);
+        min_y = MIN(min_y, poly[i].y);
+        max_y = MAX(max_y, poly[i].y);
+        sc2_diag_consider_point(poly[i].x, poly[i].y, &best, best_point);
+    }
+    for (LONG y = MAX(0, (LONG)floorf(min_y) - 1);
+         y <= MIN((LONG)sc2_map.height_map_height - 1, (LONG)ceilf(max_y) + 1);
+         y++) {
+        for (LONG x = MAX(0, (LONG)floorf(min_x) - 1);
+             x <= MIN((LONG)sc2_map.height_map_width - 1, (LONG)ceilf(max_x) + 1);
+             x++) {
+            if (sc2_diag_point_in_poly((FLOAT)x, (FLOAT)y, poly))
+                sc2_diag_consider_point((FLOAT)x, (FLOAT)y, &best, best_point);
+        }
+    }
+    FOR_LOOP(i, 4)
+        sc2_diag_consider_edge(poly[i], poly[(i + 1) & 3], &best, best_point);
+    return best;
+}
+
+static void sc2_bridge_diag_add(sc2MapObject_t const *object) {
+    sc2BridgeDiag_t *diag;
+    VECTOR2 poly[4];
+
+    if (!object || sc2_bridge_diag_count >= SC2_TRAYNOR_BRIDGE_DIAG_MAX)
+        return;
+    if (!sc2_map.height_map || sc2_map.height_map_width < 2 || sc2_map.height_map_height < 2)
+        return;
+    if (object->type != SC2_OBJECT_DOODAD || !sc2_streqi(object->name, "MarSaraBridgeDestroyed"))
+        return;
+    if (object->position.z < SC2_TRAYNOR_BRIDGE_Z_MIN || object->position.z > SC2_TRAYNOR_BRIDGE_Z_MAX)
+        return;
+    if ((object->flags & (SC2_OBJECT_HEIGHT_ABSOLUTE | SC2_OBJECT_HEIGHT_OFFSET)) !=
+        (SC2_OBJECT_HEIGHT_ABSOLUTE | SC2_OBJECT_HEIGHT_OFFSET))
+        return;
+    diag = &sc2_bridge_diag[sc2_bridge_diag_count++];
+    memset(diag, 0, sizeof(*diag));
+    diag->used = true;
+    diag->id = object->id;
+    diag->position = object->position;
+    diag->angle = object->angle;
+    diag->scale = object->scale;
+    diag->center_height = SC2_MapHeightAtPoint(object->position.x, object->position.y);
+    sc2_diag_poly(object, poly);
+    diag->max_height = sc2_diag_max_height_in_poly(poly, &diag->max_point);
+}
+
 static void sc2_parse_object_node(xmlNodePtr node) {
     sc2MapObject_t object;
     BOOL has_position = false;
@@ -662,9 +878,10 @@ static void sc2_parse_object_node(xmlNodePtr node) {
     }
 
     if (has_position && (object.name[0] || object.model[0])) {
+        sc2_map_position_to_playable(&object.position);
+        sc2_bridge_diag_add(&object);
         if (sc2_map.num_objects < SC2_MAX_MAP_OBJECTS) {
             sc2_set_object_model(&object);
-            sc2_map_position_to_playable(&object.position);
             sc2_map.objects[sc2_map.num_objects++] = object;
         }
     }
@@ -1504,6 +1721,58 @@ static void sc2_add_default_object(LPCSTR name, LPCSTR model, FLOAT x, FLOAT y, 
     object->player = player;
 }
 
+static BOOL sc2_is_traynor01(LPCSTR mapFilename) {
+    return sc2_contains_i(mapFilename, "TRaynor01");
+}
+
+static void sc2_format_trimmed_float(char *buffer, DWORD size, FLOAT value) {
+    if (!buffer || size == 0)
+        return;
+    snprintf(buffer, size, "%.4f", value);
+    for (char *p = buffer + strlen(buffer); p > buffer && p[-1] == '0'; p--)
+        p[-1] = '\0';
+    if (buffer[0] && buffer[strlen(buffer) - 1] == '.')
+        buffer[strlen(buffer) - 1] = '\0';
+}
+
+static void sc2_print_traynor_bridge_diag(LPCSTR mapFilename) {
+    if (!sc2_is_traynor01(mapFilename) || sc2_bridge_diag_count == 0)
+        return;
+
+    fprintf(stderr,
+            "Using GetHeight/SC2_MapHeightAtPoint semantics on the default SC2 map TRaynor01, "
+            "and using the bridge footprint area [-5,-5]..[5,5] rotated/scaled by each doodad placement:\n\n");
+    fprintf(stderr, "Doodad\tPosition\tScale\tMax GetHeight in area\n");
+    FOR_LOOP(i, sc2_bridge_diag_count) {
+        sc2BridgeDiag_t const *diag = &sc2_bridge_diag[i];
+        char x[32], y[32], z[32];
+        if (!diag->used)
+            continue;
+        sc2_format_trimmed_float(x, sizeof(x), diag->position.x);
+        sc2_format_trimmed_float(y, sizeof(y), diag->position.y);
+        sc2_format_trimmed_float(z, sizeof(z), diag->position.z);
+        fprintf(stderr,
+                "Id=%u\t%s, %s, %s\t%.1f\t%.9f\n",
+                (unsigned)diag->id,
+                x,
+                y,
+                z,
+                diag->scale,
+                diag->max_height);
+    }
+    if (sc2_bridge_diag_count == 2 &&
+        fabsf(sc2_bridge_diag[0].center_height - sc2_bridge_diag[1].center_height) < 0.000001f) {
+        fprintf(stderr,
+                "For reference, GetHeight at both doodad centers is %.10f.\n",
+                sc2_bridge_diag[0].center_height);
+    } else {
+        fprintf(stderr, "For reference, GetHeight at doodad centers:");
+        FOR_LOOP(i, sc2_bridge_diag_count)
+            fprintf(stderr, " Id=%u %.10f", (unsigned)sc2_bridge_diag[i].id, sc2_bridge_diag[i].center_height);
+        fprintf(stderr, ".\n");
+    }
+}
+
 static void sc2_generate_default_map(void) {
     if (!sc2_map.width) sc2_map.width = SC2_DEFAULT_MAP_WIDTH;
     if (!sc2_map.height) sc2_map.height = SC2_DEFAULT_MAP_HEIGHT;
@@ -1529,6 +1798,7 @@ void SC2_MapSetHost(sc2MapHost_t const *host) {
 BOOL SC2_MapLoad(LPCSTR mapFilename) {
     sc2MapSource_t source;
     sc2_map_clear();
+    sc2_bridge_diag_clear();
     sc2_map.cell_size = SC2_CELL_SIZE;
     sc2_set_default_camera();
     if (!sc2_source_open(&source, mapFilename)) {
@@ -1551,6 +1821,7 @@ BOOL SC2_MapLoad(LPCSTR mapFilename) {
     fprintf(stderr, "SC2_MapLoad: %s %ux%u objects=%u%s\n",
             sc2_map.map_name, (unsigned)sc2_map.width, (unsigned)sc2_map.height,
             (unsigned)sc2_map.num_objects, sc2_map.generated ? " generated" : "");
+    sc2_print_traynor_bridge_diag(mapFilename);
     return true;
 }
 

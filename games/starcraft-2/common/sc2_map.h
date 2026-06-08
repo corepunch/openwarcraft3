@@ -21,6 +21,7 @@ typedef enum {
 
 typedef struct {
     sc2ObjectType_t type;
+    DWORD           id;
     char            name[64];
     char            model[256];
     VECTOR3         position;

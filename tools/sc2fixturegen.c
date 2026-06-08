@@ -93,8 +93,8 @@ static int write_height_map(const char *path) {
             if (x >= 2 && x <= 6 && y >= 1 && y <= 4) {
                 h = playable_height(x - 2, y - 1);
             }
-            wr_u16le(data + 32 + i * 6, (uint16_t)(h + 1));
-            wr_u16le(data + 32 + i * 6 + 2, 0);
+            wr_u16le(data + 32 + i * 6, 0);
+            wr_u16le(data + 32 + i * 6 + 2, (uint16_t)(h + 1));
             wr_u16le(data + 32 + i * 6 + 4, 0);
         }
     }
