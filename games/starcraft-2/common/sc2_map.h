@@ -157,6 +157,15 @@ typedef struct {
     sc2MapSyncHeightMap_t *t3SyncHeightMap;
 } sc2Map_t;
 
+typedef struct {
+    DWORD          x0;
+    DWORD          y0;
+    DWORD          x1;
+    DWORD          y1;
+    FLOAT          tx;
+    FLOAT          ty;
+} sc2MapHeightPoint_t;
+
 static inline DWORD sc2_map_cell_width(sc2Map_t const *map) {
     return map ? map->MapInfo.width : 0;
 }
@@ -195,34 +204,55 @@ static inline FLOAT sc2_map_height_adjust_at_grid(sc2Map_t const *map, DWORD x, 
     return (FLOAT)sample->adjustment * sc2_map_height_scale(map);
 }
 
-static inline FLOAT sc2_map_height_base_at_grid(sc2Map_t const *map, DWORD x, DWORD y) {
-    return sc2_map_height_at_grid(map, x, y) - sc2_map_height_adjust_at_grid(map, x, y);
-}
+static inline BOOL sc2_map_height_point(sc2Map_t const *map, FLOAT x, FLOAT y, sc2MapHeightPoint_t *point) {
+    FLOAT fx, fy;
 
-static inline FLOAT sc2_map_height_at_point(sc2Map_t const *map, FLOAT x, FLOAT y) {
-    FLOAT fx, fy, tx, ty;
-    DWORD x0, y0, x1, y1;
-    FLOAT h00, h10, h01, h11, h0, h1;
-
-    if (!map || !map->t3HeightMap || !map->t3HeightMap->width || !map->t3HeightMap->height)
-        return 0.0f;
+    if (!point || !map || !map->t3HeightMap || !map->t3HeightMap->width || !map->t3HeightMap->height)
+        return false;
+    memset(point, 0, sizeof(*point));
     fx = (x - map->origin.x) / (map->cell_size ? map->cell_size : 1.0f);
     fy = (y - map->origin.y) / (map->cell_size ? map->cell_size : 1.0f);
     fx = MIN(MAX(fx, 0.0f), (FLOAT)(sc2_map_cell_width(map) ? sc2_map_cell_width(map) : map->t3HeightMap->width - 1));
     fy = MIN(MAX(fy, 0.0f), (FLOAT)(sc2_map_cell_height(map) ? sc2_map_cell_height(map) : map->t3HeightMap->height - 1));
-    x0 = (DWORD)floorf(fx);
-    y0 = (DWORD)floorf(fy);
-    x1 = x0 + 1;
-    y1 = y0 + 1;
-    tx = fx - (FLOAT)x0;
-    ty = fy - (FLOAT)y0;
-    h00 = sc2_map_height_at_grid(map, x0, y0);
-    h10 = sc2_map_height_at_grid(map, x1, y0);
-    h01 = sc2_map_height_at_grid(map, x0, y1);
-    h11 = sc2_map_height_at_grid(map, x1, y1);
-    h0 = h00 + (h10 - h00) * tx;
-    h1 = h01 + (h11 - h01) * tx;
+    point->x0 = (DWORD)floorf(fx);
+    point->y0 = (DWORD)floorf(fy);
+    point->x1 = point->x0 + 1;
+    point->y1 = point->y0 + 1;
+    point->tx = fx - (FLOAT)point->x0;
+    point->ty = fy - (FLOAT)point->y0;
+    return true;
+}
+
+static inline FLOAT sc2_map_height_lerp(FLOAT h00, FLOAT h10, FLOAT h01, FLOAT h11, FLOAT tx, FLOAT ty) {
+    FLOAT h0 = h00 + (h10 - h00) * tx;
+    FLOAT h1 = h01 + (h11 - h01) * tx;
     return h0 + (h1 - h0) * ty;
+}
+
+static inline FLOAT sc2_map_height_at_point(sc2Map_t const *map, FLOAT x, FLOAT y) {
+    sc2MapHeightPoint_t p;
+
+    if (!sc2_map_height_point(map, x, y, &p))
+        return 0.0f;
+    return sc2_map_height_lerp(sc2_map_height_at_grid(map, p.x0, p.y0),
+                               sc2_map_height_at_grid(map, p.x1, p.y0),
+                               sc2_map_height_at_grid(map, p.x0, p.y1),
+                               sc2_map_height_at_grid(map, p.x1, p.y1),
+                               p.tx,
+                               p.ty);
+}
+
+static inline FLOAT sc2_map_height_adjust_at_point(sc2Map_t const *map, FLOAT x, FLOAT y) {
+    sc2MapHeightPoint_t p;
+
+    if (!sc2_map_height_point(map, x, y, &p))
+        return 0.0f;
+    return sc2_map_height_lerp(sc2_map_height_adjust_at_grid(map, p.x0, p.y0),
+                               sc2_map_height_adjust_at_grid(map, p.x1, p.y0),
+                               sc2_map_height_adjust_at_grid(map, p.x0, p.y1),
+                               sc2_map_height_adjust_at_grid(map, p.x1, p.y1),
+                               p.tx,
+                               p.ty);
 }
 
 typedef struct {

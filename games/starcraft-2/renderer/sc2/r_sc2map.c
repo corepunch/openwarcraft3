@@ -8,7 +8,6 @@
 #include "games/warcraft-3/renderer/w3m/r_terrain_layers.c"
 
 #define SC2_TERRAIN_BLEND_LAYERS    8
-#define SC2_HEIGHT_TEXTURE_UNIT      16
 #define SC2_M3_MAX_BONES            128
 #define SC2_CLIFF_BLOCK_SPAN        2u      /* cliff cells are 2x2 grid units */
 #define SC2_CLIFF_BLOCK_ORIGIN(X)   ((X) & ~(SC2_CLIFF_BLOCK_SPAN - 1u))
@@ -39,7 +38,7 @@ do { \
     (LEVEL)[3] = r_sc2_cliff_level_at_grid((MAP), (X),                          (Y) + SC2_CLIFF_BLOCK_SPAN); \
 } while (0)
 
-/* extern LPCSTR vs_default; SC2 terrain now uses a vertex shader that samples the map height texture. */
+/* extern LPCSTR vs_default; SC2 terrain uses its own vertex shader for blend UVs. */
 extern LPCSTR fs_ui;
 extern m3SequenceTimeline_t const *M3_FindAnimationAtTime(m3Model_t const *model, DWORD time, DWORD *localtime);
 extern VECTOR3 M3_GetVector3AnimValue(m3Model_t const *model,
@@ -59,19 +58,8 @@ static GLint sc2_u_mask[SC2_TERRAIN_BLEND_LAYERS];
 static GLint sc2_u_layer_count = -1;
 static GLint sc2_u_world_uv_offset = -1;
 static GLint sc2_u_world_uv_scale = -1;
-static GLint sc2_u_height_map = -1;
-static GLint sc2_u_height_map_enabled = -1;
-static GLint sc2_u_height_map_origin = -1;
-static GLint sc2_u_height_map_size = -1;
-static GLint sc2_u_height_map_grid_size = -1;
-static GLint sc2_cliff_u_height_map = -1;
-static GLint sc2_cliff_u_height_map_enabled = -1;
-static GLint sc2_cliff_u_height_map_origin = -1;
-static GLint sc2_cliff_u_height_map_size = -1;
-static GLint sc2_cliff_u_height_map_grid_size = -1;
 static LPTEXTURE sc2_terrain_textures[SC2_TERRAIN_BLEND_LAYERS];
 static LPTEXTURE sc2_terrain_masks[SC2_TERRAIN_BLEND_LAYERS];
-static LPTEXTURE sc2_height_texture;
 static DWORD sc2_num_terrain_layers;
 
 typedef struct sc2CliffModel_s {
@@ -102,18 +90,8 @@ static LPCSTR sc2_vs_terrain =
 "uniform mat4 uViewProjectionMatrix;\n"
 "uniform mat4 uTextureMatrix;\n"
 "uniform mat4 uModelMatrix;\n"
-"uniform sampler2D uHeightMap;\n"
-"uniform int uHeightMapEnabled;\n"
-"uniform vec2 uHeightMapOrigin;\n"
-"uniform vec2 uHeightMapSize;\n"
-"uniform vec2 uHeightMapGridSize;\n"
 "void main() {\n"
 "    vec4 pos = uModelMatrix * vec4(i_position, 1.0);\n"
-"    if (uHeightMapEnabled != 0) {\n"
-"        vec2 grid = clamp((pos.xy - uHeightMapOrigin) / uHeightMapSize * (uHeightMapGridSize - vec2(1.0)), vec2(0.0), uHeightMapGridSize - vec2(1.0));\n"
-"        vec2 hc = (grid + vec2(0.5)) / uHeightMapGridSize;\n"
-"        pos.z += texture(uHeightMap, hc).r;\n"
-"    }\n"
 "    v_texcoord = i_texcoord;\n"
 "    v_texcoord2 = (uTextureMatrix * pos).xy;\n"
 "    v_color = i_color;\n"
@@ -186,13 +164,7 @@ static void r_sc2_init_cliff_shader(void) {
         return;
     }
     R_Call(glUseProgram, sc2_cliff_shader->progid);
-    sc2_cliff_u_height_map = glGetUniformLocation(sc2_cliff_shader->progid, "uHeightMap");
-    sc2_cliff_u_height_map_enabled = glGetUniformLocation(sc2_cliff_shader->progid, "uHeightMapEnabled");
-    sc2_cliff_u_height_map_origin = glGetUniformLocation(sc2_cliff_shader->progid, "uHeightMapOrigin");
-    sc2_cliff_u_height_map_size = glGetUniformLocation(sc2_cliff_shader->progid, "uHeightMapSize");
-    sc2_cliff_u_height_map_grid_size = glGetUniformLocation(sc2_cliff_shader->progid, "uHeightMapGridSize");
     R_Call(glUniform1i, sc2_cliff_shader->uTexture, 0);
-    R_Call(glUniform1i, sc2_cliff_u_height_map, SC2_HEIGHT_TEXTURE_UNIT);
 }
 
 static void r_sc2_init_terrain_shader(void) {
@@ -222,12 +194,6 @@ static void r_sc2_init_terrain_shader(void) {
     sc2_u_layer_count      = glGetUniformLocation(sc2_terrain_shader->progid, "uLayerCount");
     sc2_u_world_uv_offset  = glGetUniformLocation(sc2_terrain_shader->progid, "uWorldUVOffset");
     sc2_u_world_uv_scale   = glGetUniformLocation(sc2_terrain_shader->progid, "uWorldUVScale");
-    sc2_u_height_map       = glGetUniformLocation(sc2_terrain_shader->progid, "uHeightMap");
-    sc2_u_height_map_enabled = glGetUniformLocation(sc2_terrain_shader->progid, "uHeightMapEnabled");
-    sc2_u_height_map_origin = glGetUniformLocation(sc2_terrain_shader->progid, "uHeightMapOrigin");
-    sc2_u_height_map_size  = glGetUniformLocation(sc2_terrain_shader->progid, "uHeightMapSize");
-    sc2_u_height_map_grid_size = glGetUniformLocation(sc2_terrain_shader->progid, "uHeightMapGridSize");
-    R_Call(glUniform1i, sc2_u_height_map, SC2_HEIGHT_TEXTURE_UNIT);
     r_sc2_init_cliff_shader();
 }
 
@@ -276,14 +242,6 @@ static USHORT r_sc2_cliff_level_at_grid(sc2Map_t const *map, DWORD x, DWORD y) {
     return value >= SC2_CLIFF_LEVEL_PACKED_MIN ? value >> SC2_CLIFF_LEVEL_SHIFT : value;
 }
 
-static FLOAT r_sc2_visual_height_at_grid(sc2Map_t const *map, DWORD x, DWORD y) {
-    return sc2_map_height_at_grid(map, x, y);
-}
-
-static FLOAT r_sc2_visual_base_height_at_grid(sc2Map_t const *map, DWORD x, DWORD y) {
-    return sc2_map_height_base_at_grid(map, x, y);
-}
-
 static BYTE r_sc2_cell_flag_at_grid(sc2Map_t const *map, DWORD x, DWORD y) {
     if (!map->t3CellFlags || !map->t3CellFlags->width || !map->t3CellFlags->height) {
         return 0;
@@ -327,7 +285,6 @@ static void r_sc2_release_terrain(void) {
         SAFE_DELETE(sc2_terrain_textures[i], R_ReleaseTexture);
         SAFE_DELETE(sc2_terrain_masks[i], R_ReleaseTexture);
     }
-    SAFE_DELETE(sc2_height_texture, R_ReleaseTexture);
     r_sc2_release_cliff_models();
     sc2_num_terrain_layers = 0;
 }
@@ -451,37 +408,6 @@ static void r_sc2_load_terrain_textures(sc2Map_t const *map) {
     }
 }
 
-static void r_sc2_build_height_texture(sc2Map_t const *map) {
-    FLOAT *height_adjust;
-    DWORD num_samples;
-
-    if (!map || !map->t3HeightMap || !map->t3HeightMap->width || !map->t3HeightMap->height)
-        return;
-    num_samples = map->t3HeightMap->width * map->t3HeightMap->height;
-    height_adjust = ri.MemAlloc(num_samples * sizeof(*height_adjust));
-    if (!height_adjust)
-        return;
-    FOR_LOOP(i, num_samples)
-        height_adjust[i] = (FLOAT)map->t3HeightMap->data[i].adjustment * sc2_map_height_scale(map);
-    sc2_height_texture = R_AllocateTexture(map->t3HeightMap->width, map->t3HeightMap->height);
-    R_Call(glBindTexture, GL_TEXTURE_2D, sc2_height_texture->texid);
-    R_Call(glTexImage2D,
-           GL_TEXTURE_2D,
-           0,
-           GL_R32F,
-           map->t3HeightMap->width,
-           map->t3HeightMap->height,
-           0,
-           GL_RED,
-           GL_FLOAT,
-           height_adjust);
-    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    ri.MemFree(height_adjust);
-}
-
 static LPMAPLAYER r_sc2_build_ground_layer(sc2Map_t const *map) {
     BOX2 bounds;
     DWORD w, h, num_vertices;
@@ -512,10 +438,10 @@ static LPMAPLAYER r_sc2_build_ground_layer(sc2Map_t const *map) {
             FLOAT v0 = y0 / SC2_TERRAIN_UV_SCALE;
             FLOAT u1 = x1 / SC2_TERRAIN_UV_SCALE;
             FLOAT v1 = y1 / SC2_TERRAIN_UV_SCALE;
-            FLOAT z00 = r_sc2_visual_base_height_at_grid(map, x, y);
-            FLOAT z10 = r_sc2_visual_base_height_at_grid(map, x + 1, y);
-            FLOAT z11 = r_sc2_visual_base_height_at_grid(map, x + 1, y + 1);
-            FLOAT z01 = r_sc2_visual_base_height_at_grid(map, x, y + 1);
+            FLOAT z00 = sc2_map_height_at_grid(map, x, y);
+            FLOAT z10 = sc2_map_height_at_grid(map, x + 1, y);
+            FLOAT z11 = sc2_map_height_at_grid(map, x + 1, y + 1);
+            FLOAT z01 = sc2_map_height_at_grid(map, x, y + 1);
             r_sc2_push_vertex(out++, x0, y0, z00, u0, v0, 255);
             r_sc2_push_vertex(out++, x1, y0, z10, u1, v0, 255);
             r_sc2_push_vertex(out++, x1, y1, z11, u1, v1, 255);
@@ -807,7 +733,8 @@ static void r_sc2_bake_cliff_region(rCliffBakeList_t *list,
             position = (VECTOR3){
                 xy.x,
                 xy.y,
-                placement->base_z + (placement->model_z_offset + local.z) * placement->z_scale,
+                placement->base_z + (placement->model_z_offset + local.z) * placement->z_scale +
+                    sc2_map_height_adjust_at_point(map, xy.x, xy.y),
             };
             uv = (VECTOR2){ vertex->uv[0][0] / SC2_M3_UV_SCALE, vertex->uv[0][1] / SC2_M3_UV_SCALE };
             normal = r_sc2_rotate_cliff_vec(normal, rotation);
@@ -850,12 +777,17 @@ static void r_sc2_bake_cliff_model(rCliffBakeList_t *list,
         map_bounds.min.y + SC2_CLIFF_BLOCK_CENTER(grid_y) * map->cell_size,
     };
     {
-        FLOAT corner_z[4] = {
-            r_sc2_visual_height_at_grid(map, grid_x,                        grid_y),
-            r_sc2_visual_height_at_grid(map, grid_x + SC2_CLIFF_BLOCK_SPAN, grid_y),
-            r_sc2_visual_height_at_grid(map, grid_x + SC2_CLIFF_BLOCK_SPAN, grid_y + SC2_CLIFF_BLOCK_SPAN),
-            r_sc2_visual_height_at_grid(map, grid_x,                        grid_y + SC2_CLIFF_BLOCK_SPAN),
-        };
+        FLOAT scale = sc2_map_height_scale(map);
+        FLOAT offset_z = sc2_map_height_offset(map);
+        DWORD corner_x[4] = { grid_x, grid_x + SC2_CLIFF_BLOCK_SPAN, grid_x + SC2_CLIFF_BLOCK_SPAN, grid_x };
+        DWORD corner_y[4] = { grid_y, grid_y, grid_y + SC2_CLIFF_BLOCK_SPAN, grid_y + SC2_CLIFF_BLOCK_SPAN };
+        FLOAT corner_z[4];
+        FOR_LOOP(i, 4) {
+            DWORD x = MIN(map->t3HeightMap->width - 1, corner_x[i]);
+            DWORD y = MIN(map->t3HeightMap->height - 1, corner_y[i]);
+            sc2MapHeightSample_t const *sample = &map->t3HeightMap->data[x + y * map->t3HeightMap->width];
+            corner_z[i] = (FLOAT)sample->height * scale - offset_z;
+        }
         FLOAT top_z = MAX(MAX(corner_z[0], corner_z[1]), MAX(corner_z[2], corner_z[3]));
         FLOAT bottom_z = MIN(MIN(corner_z[0], corner_z[1]), MIN(corner_z[2], corner_z[3]));
         FLOAT model_span = bounds.max.z - bounds.min.z;
@@ -955,7 +887,6 @@ static void r_sc2_build_terrain(sc2Map_t const *map) {
 
     r_sc2_init_terrain_shader();
     r_sc2_load_terrain_textures(map);
-    r_sc2_build_height_texture(map);
     sc2_terrain_segment = ri.MemAlloc(sizeof(*sc2_terrain_segment));
     memset(sc2_terrain_segment, 0, sizeof(*sc2_terrain_segment));
     r_sc2_add_layer(&sc2_terrain_segment->layers, r_sc2_build_ground_layer(map));
@@ -965,7 +896,7 @@ static void r_sc2_build_terrain(sc2Map_t const *map) {
     if (map->t3HeightMap) {
         FOR_LOOP(y, SC2_MAP_HEIGHT(map) + 1) {
             FOR_LOOP(x, SC2_MAP_WIDTH(map) + 1) {
-                max_z = MAX(max_z, r_sc2_visual_height_at_grid(map, x, y) + 1.0f);
+                max_z = MAX(max_z, sc2_map_height_at_grid(map, x, y) + 1.0f);
             }
         }
     }
@@ -975,31 +906,7 @@ static void r_sc2_build_terrain(sc2Map_t const *map) {
     };
 }
 
-static void r_sc2_bind_height_texture(sc2Map_t const *map,
-                                      GLint u_height_map_enabled,
-                                      GLint u_height_map_origin,
-                                      GLint u_height_map_size,
-                                      GLint u_height_map_grid_size) {
-    BOX2 bounds;
-    FLOAT width;
-    FLOAT height;
-
-    if (!map || !sc2_height_texture) {
-        R_Call(glUniform1i, u_height_map_enabled, 0);
-        return;
-    }
-    bounds = SC2_MapBounds();
-    width = MAX(1.0f, bounds.max.x - bounds.min.x);
-    height = MAX(1.0f, bounds.max.y - bounds.min.y);
-    R_BindTexture(sc2_height_texture, SC2_HEIGHT_TEXTURE_UNIT);
-    R_Call(glUniform1i, u_height_map_enabled, 1);
-    R_Call(glUniform2f, u_height_map_origin, bounds.min.x, bounds.min.y);
-    R_Call(glUniform2f, u_height_map_size, width, height);
-    R_Call(glUniform2f, u_height_map_grid_size, (FLOAT)map->t3HeightMap->width, (FLOAT)map->t3HeightMap->height);
-}
-
 static void r_sc2_draw_ground_layer(LPCMAPSEGMENT segment) {
-    sc2Map_t const *map = SC2_MapCurrent();
     LPCMAPLAYER layer;
     MATRIX4 model_matrix;
 
@@ -1019,11 +926,6 @@ static void r_sc2_draw_ground_layer(LPCMAPSEGMENT segment) {
     R_Call(glUniformMatrix4fv, sc2_terrain_shader->uTextureMatrix, 1, GL_FALSE, tr.viewDef.textureMatrix.v);
     R_Call(glUniform1i, sc2_u_layer_count, (GLint)sc2_num_terrain_layers);
     R_Call(glUniform2f, sc2_u_world_uv_scale, 0.0f, 0.0f);   /* use vertex texcoord for ground */
-    r_sc2_bind_height_texture(map,
-                              sc2_u_height_map_enabled,
-                              sc2_u_height_map_origin,
-                              sc2_u_height_map_size,
-                              sc2_u_height_map_grid_size);
     FOR_LOOP(i, SC2_TERRAIN_BLEND_LAYERS) {
         R_BindTexture(sc2_terrain_textures[i] ? sc2_terrain_textures[i] : sc2_terrain_textures[0], i);
         R_BindTexture(sc2_terrain_masks[i] ? sc2_terrain_masks[i] : (i ? tr.texture[TEX_BLACK] : tr.texture[TEX_WHITE]),
@@ -1077,7 +979,6 @@ static void r_sc2_draw_cliff_layer(LPCMAPSEGMENT segment) {
         R_Call(glUniform2f, sc2_u_world_uv_offset,
                bounds.min.x / SC2_TERRAIN_UV_SCALE,
                bounds.min.y / SC2_TERRAIN_UV_SCALE);
-         R_Call(glUniform1i, sc2_u_height_map_enabled, 0);
         FOR_LOOP(i, SC2_TERRAIN_BLEND_LAYERS) {
             R_BindTexture(sc2_terrain_textures[i] ? sc2_terrain_textures[i] : sc2_terrain_textures[0], i);
             R_BindTexture(sc2_terrain_masks[i] ? sc2_terrain_masks[i] : (i ? tr.texture[TEX_BLACK] : tr.texture[TEX_WHITE]),
@@ -1094,7 +995,6 @@ static void r_sc2_draw_cliff_layer(LPCMAPSEGMENT segment) {
     R_Call(glUniformMatrix4fv, sc2_cliff_shader->uViewProjectionMatrix, 1, GL_FALSE, tr.viewDef.viewProjectionMatrix.v);
     R_Call(glUniformMatrix4fv, sc2_cliff_shader->uModelMatrix, 1, GL_FALSE, model_matrix.v);
     R_Call(glUniformMatrix4fv, sc2_cliff_shader->uTextureMatrix, 1, GL_FALSE, tr.viewDef.textureMatrix.v);
-    R_Call(glUniform1i, sc2_cliff_u_height_map_enabled, 0);
     R_Call(glEnable, GL_BLEND);
     R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     R_BindTexture(layer->texture, 0);
@@ -1163,14 +1063,14 @@ static BOOL r_sc2_trace_heightmap_tile(sc2Map_t const *map, DWORD x, DWORD y, LP
     FLOAT x1 = x0 + map->cell_size;
     FLOAT y1 = y0 + map->cell_size;
     TRIANGLE3 const tri1 = {
-        { x0, y0, r_sc2_visual_height_at_grid(map, x, y) },
-        { x1, y0, r_sc2_visual_height_at_grid(map, x + 1, y) },
-        { x1, y1, r_sc2_visual_height_at_grid(map, x + 1, y + 1) },
+        { x0, y0, sc2_map_height_at_grid(map, x, y) },
+        { x1, y0, sc2_map_height_at_grid(map, x + 1, y) },
+        { x1, y1, sc2_map_height_at_grid(map, x + 1, y + 1) },
     };
     TRIANGLE3 const tri2 = {
-        { x1, y1, r_sc2_visual_height_at_grid(map, x + 1, y + 1) },
-        { x0, y1, r_sc2_visual_height_at_grid(map, x, y + 1) },
-        { x0, y0, r_sc2_visual_height_at_grid(map, x, y) },
+        { x1, y1, sc2_map_height_at_grid(map, x + 1, y + 1) },
+        { x0, y1, sc2_map_height_at_grid(map, x, y + 1) },
+        { x0, y0, sc2_map_height_at_grid(map, x, y) },
     };
 
     if (Line3_intersect_triangle(line, &tri1, output))
