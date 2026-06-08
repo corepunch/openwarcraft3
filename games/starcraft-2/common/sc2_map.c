@@ -1510,7 +1510,7 @@ static void sc2_parse_height_map(sc2MapSource_t *source) {
         sc2_free_file(data);
         return;
     }
-    scale = sc2_map.height_quantize_scale ? sc2_map.height_quantize_scale : 1.0f;
+    scale = sc2_map.height_quantize_scale;
     bias = sc2_map.height_quantize_bias;
     FOR_LOOP(y, crop_h) {
         FOR_LOOP(x, crop_w) {
@@ -1522,8 +1522,7 @@ static void sc2_parse_height_map(sc2MapSource_t *source) {
             /* Debug path: keep tier/plateau base height but disable fine adjustments.
                This keeps terrain flat at expected cliff tiers. */
             sc2_map.height_adjust_map[x + y * crop_w] = 0.0f;
-            sc2_map.height_map[x + y * crop_w] =
-                height_base * scale - bias - sc2_map.standard_height - 1.0f;
+            sc2_map.height_map[x + y * crop_w] = height_base * scale - 1.0f;
         }
     }
     sc2_map.height_map_width = crop_w;
