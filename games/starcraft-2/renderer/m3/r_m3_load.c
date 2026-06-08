@@ -162,7 +162,7 @@ static LPCSTR m3_fs =
 //"    vec3 specularLight = calculateSpecular(normal, viewDir, lightDir, specularColor.rgb);\n"
 //"    vec3 ambientColor = vec3(0.1);  // Add ambient light\n"
 "    vec3 finalColor = vec3(0);// ambientColor + diffuseLight + specularLight;\n"
-"    diffuseLight.rgb *= get_fogofwar() * get_lighting();\n"
+// "    diffuseLight.rgb *= get_fogofwar() * get_lighting();\n"
 "    finalColor = diffuseLight;// applyBumpMap(finalColor, bumpColor);\n"
 "    o_color = vec4(finalColor, 1.0) * v_color;\n"
 "}\n";
