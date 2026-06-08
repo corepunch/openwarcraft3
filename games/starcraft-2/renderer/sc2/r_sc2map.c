@@ -268,6 +268,10 @@ static FLOAT r_sc2_height_scale(sc2Map_t const *map) {
     return map && map->height_quantize_scale ? map->height_quantize_scale : 1.0f;
 }
 
+static FLOAT r_sc2_height_offset(sc2Map_t const *map) {
+    return map ? map->height_quantize_bias + map->standard_height + 1.0f : 1.0f;
+}
+
 static FLOAT r_sc2_height_at_grid(sc2Map_t const *map, DWORD x, DWORD y) {
     sc2MapHeightSample_t const *sample;
 
@@ -277,7 +281,7 @@ static FLOAT r_sc2_height_at_grid(sc2Map_t const *map, DWORD x, DWORD y) {
     x = MIN(map->t3HeightMap->width - 1, x);
     y = MIN(map->t3HeightMap->height - 1, y);
     sample = &map->t3HeightMap->data[x + y * map->t3HeightMap->width];
-    return ((FLOAT)sample->height + (FLOAT)sample->adjustment) * r_sc2_height_scale(map) - 1.0f;
+    return ((FLOAT)sample->height + (FLOAT)sample->adjustment) * r_sc2_height_scale(map) - r_sc2_height_offset(map);
 }
 
 static FLOAT r_sc2_height_adjust_at_grid(sc2Map_t const *map, DWORD x, DWORD y) {

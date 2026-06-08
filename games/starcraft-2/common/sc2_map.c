@@ -144,6 +144,10 @@ static FLOAT sc2_height_scale(void) {
     return sc2_map.height_quantize_scale ? sc2_map.height_quantize_scale : 1.0f;
 }
 
+static FLOAT sc2_height_offset(void) {
+    return sc2_map.height_quantize_bias + sc2_map.standard_height + 1.0f;
+}
+
 static FLOAT sc2_height_total_at_index(DWORD x, DWORD y) {
     sc2MapHeightSample_t const *sample;
 
@@ -152,7 +156,7 @@ static FLOAT sc2_height_total_at_index(DWORD x, DWORD y) {
     x = MIN(sc2_map.t3HeightMap->width - 1, x);
     y = MIN(sc2_map.t3HeightMap->height - 1, y);
     sample = &sc2_map.t3HeightMap->data[x + y * sc2_map.t3HeightMap->width];
-    return ((FLOAT)sample->height + (FLOAT)sample->adjustment) * sc2_height_scale() - 1.0f;
+    return ((FLOAT)sample->height + (FLOAT)sample->adjustment) * sc2_height_scale() - sc2_height_offset();
 }
 
 static BOOL sc2_source_open(sc2MapSource_t *source, LPCSTR mapFilename) {
