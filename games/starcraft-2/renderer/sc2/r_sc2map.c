@@ -264,42 +264,6 @@ static void r_sc2_push_vertex(VERTEX *v, FLOAT x, FLOAT y, FLOAT z, FLOAT u, FLO
     r_sc2_push_vertex_normal(v, x, y, z, u, t, alpha, (VECTOR3){ 0.0f, 0.0f, 1.0f });
 }
 
-static FLOAT r_sc2_height_scale(sc2Map_t const *map) {
-    return map && map->height_quantize_scale ? map->height_quantize_scale : 1.0f;
-}
-
-static FLOAT r_sc2_height_offset(sc2Map_t const *map) {
-    return map ? map->height_quantize_bias + map->standard_height + 1.0f : 1.0f;
-}
-
-static FLOAT r_sc2_height_at_grid(sc2Map_t const *map, DWORD x, DWORD y) {
-    sc2MapHeightSample_t const *sample;
-
-    if (!map->t3HeightMap || !map->t3HeightMap->width || !map->t3HeightMap->height) {
-        return 0.0f;
-    }
-    x = MIN(map->t3HeightMap->width - 1, x);
-    y = MIN(map->t3HeightMap->height - 1, y);
-    sample = &map->t3HeightMap->data[x + y * map->t3HeightMap->width];
-    return ((FLOAT)sample->height + (FLOAT)sample->adjustment) * r_sc2_height_scale(map) - r_sc2_height_offset(map);
-}
-
-static FLOAT r_sc2_height_adjust_at_grid(sc2Map_t const *map, DWORD x, DWORD y) {
-    sc2MapHeightSample_t const *sample;
-
-    if (!map->t3HeightMap || !map->t3HeightMap->width || !map->t3HeightMap->height) {
-        return 0.0f;
-    }
-    x = MIN(map->t3HeightMap->width - 1, x);
-    y = MIN(map->t3HeightMap->height - 1, y);
-    sample = &map->t3HeightMap->data[x + y * map->t3HeightMap->width];
-    return (FLOAT)sample->adjustment * r_sc2_height_scale(map);
-}
-
-static FLOAT r_sc2_height_base_at_grid(sc2Map_t const *map, DWORD x, DWORD y) {
-    return r_sc2_height_at_grid(map, x, y) - r_sc2_height_adjust_at_grid(map, x, y);
-}
-
 static USHORT r_sc2_cliff_level_at_grid(sc2Map_t const *map, DWORD x, DWORD y) {
     USHORT value;
 
@@ -313,11 +277,11 @@ static USHORT r_sc2_cliff_level_at_grid(sc2Map_t const *map, DWORD x, DWORD y) {
 }
 
 static FLOAT r_sc2_visual_height_at_grid(sc2Map_t const *map, DWORD x, DWORD y) {
-    return r_sc2_height_at_grid(map, x, y);
+    return sc2_map_height_at_grid(map, x, y);
 }
 
 static FLOAT r_sc2_visual_base_height_at_grid(sc2Map_t const *map, DWORD x, DWORD y) {
-    return r_sc2_height_base_at_grid(map, x, y);
+    return sc2_map_height_base_at_grid(map, x, y);
 }
 
 static BYTE r_sc2_cell_flag_at_grid(sc2Map_t const *map, DWORD x, DWORD y) {
@@ -498,7 +462,7 @@ static void r_sc2_build_height_texture(sc2Map_t const *map) {
     if (!height_adjust)
         return;
     FOR_LOOP(i, num_samples)
-        height_adjust[i] = (FLOAT)map->t3HeightMap->data[i].adjustment * r_sc2_height_scale(map);
+        height_adjust[i] = (FLOAT)map->t3HeightMap->data[i].adjustment * sc2_map_height_scale(map);
     sc2_height_texture = R_AllocateTexture(map->t3HeightMap->width, map->t3HeightMap->height);
     R_Call(glBindTexture, GL_TEXTURE_2D, sc2_height_texture->texid);
     R_Call(glTexImage2D,

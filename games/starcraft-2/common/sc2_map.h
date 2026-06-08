@@ -153,6 +153,40 @@ typedef struct {
     sc2MapSyncHeightMap_t *t3SyncHeightMap;
 } sc2Map_t;
 
+static inline FLOAT sc2_map_height_scale(sc2Map_t const *map) {
+    return map && map->height_quantize_scale ? map->height_quantize_scale : 1.0f;
+}
+
+static inline FLOAT sc2_map_height_offset(sc2Map_t const *map) {
+    return map ? map->height_quantize_bias + map->standard_height + 1.0f : 1.0f;
+}
+
+static inline FLOAT sc2_map_height_at_grid(sc2Map_t const *map, DWORD x, DWORD y) {
+    sc2MapHeightSample_t const *sample;
+
+    if (!map || !map->t3HeightMap || !map->t3HeightMap->width || !map->t3HeightMap->height)
+        return 0.0f;
+    x = MIN(map->t3HeightMap->width - 1, x);
+    y = MIN(map->t3HeightMap->height - 1, y);
+    sample = &map->t3HeightMap->data[x + y * map->t3HeightMap->width];
+    return ((FLOAT)sample->height + (FLOAT)sample->adjustment) * sc2_map_height_scale(map) - sc2_map_height_offset(map);
+}
+
+static inline FLOAT sc2_map_height_adjust_at_grid(sc2Map_t const *map, DWORD x, DWORD y) {
+    sc2MapHeightSample_t const *sample;
+
+    if (!map || !map->t3HeightMap || !map->t3HeightMap->width || !map->t3HeightMap->height)
+        return 0.0f;
+    x = MIN(map->t3HeightMap->width - 1, x);
+    y = MIN(map->t3HeightMap->height - 1, y);
+    sample = &map->t3HeightMap->data[x + y * map->t3HeightMap->width];
+    return (FLOAT)sample->adjustment * sc2_map_height_scale(map);
+}
+
+static inline FLOAT sc2_map_height_base_at_grid(sc2Map_t const *map, DWORD x, DWORD y) {
+    return sc2_map_height_at_grid(map, x, y) - sc2_map_height_adjust_at_grid(map, x, y);
+}
+
 typedef struct {
     HANDLE (*read_file)(LPCSTR filename, LPDWORD size);
     void   (*free_file)(HANDLE file);

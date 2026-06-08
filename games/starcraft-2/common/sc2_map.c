@@ -140,25 +140,6 @@ static DWORD sc2_map_height(void) {
     return sc2_map.MapInfo.height;
 }
 
-static FLOAT sc2_height_scale(void) {
-    return sc2_map.height_quantize_scale ? sc2_map.height_quantize_scale : 1.0f;
-}
-
-static FLOAT sc2_height_offset(void) {
-    return sc2_map.height_quantize_bias + sc2_map.standard_height + 1.0f;
-}
-
-static FLOAT sc2_height_total_at_index(DWORD x, DWORD y) {
-    sc2MapHeightSample_t const *sample;
-
-    if (!sc2_map.t3HeightMap || !sc2_map.t3HeightMap->width || !sc2_map.t3HeightMap->height)
-        return 0.0f;
-    x = MIN(sc2_map.t3HeightMap->width - 1, x);
-    y = MIN(sc2_map.t3HeightMap->height - 1, y);
-    sample = &sc2_map.t3HeightMap->data[x + y * sc2_map.t3HeightMap->width];
-    return ((FLOAT)sample->height + (FLOAT)sample->adjustment) * sc2_height_scale() - sc2_height_offset();
-}
-
 static BOOL sc2_source_open(sc2MapSource_t *source, LPCSTR mapFilename) {
     DWORD size = 0;
     memset(source, 0, sizeof(*source));
@@ -1257,10 +1238,10 @@ FLOAT SC2_MapHeightAtPoint(FLOAT x, FLOAT y) {
     y1 = y0 + 1;
     tx = fx - (FLOAT)x0;
     ty = fy - (FLOAT)y0;
-    h00 = sc2_height_total_at_index(x0, y0);
-    h10 = sc2_height_total_at_index(x1, y0);
-    h01 = sc2_height_total_at_index(x0, y1);
-    h11 = sc2_height_total_at_index(x1, y1);
+    h00 = sc2_map_height_at_grid(&sc2_map, x0, y0);
+    h10 = sc2_map_height_at_grid(&sc2_map, x1, y0);
+    h01 = sc2_map_height_at_grid(&sc2_map, x0, y1);
+    h11 = sc2_map_height_at_grid(&sc2_map, x1, y1);
     h0 = h00 + (h10 - h00) * tx;
     h1 = h01 + (h11 - h01) * tx;
     return h0 + (h1 - h0) * ty;
