@@ -938,28 +938,65 @@ static sc2CliffCell_t const *r_sc2_find_cliff_cell(sc2Map_t const *map, DWORD in
     return NULL;
 }
 
+static BOOL r_sc2_cliff_corner_touches_neighbor(DWORD corner, int dx, int dy) {
+    switch (corner) {
+        case 0: return dx <= 0 && dy <= 0;
+        case 1: return dx >= 0 && dy <= 0;
+        case 2: return dx >= 0 && dy >= 0;
+        case 3: return dx <= 0 && dy >= 0;
+        default: return false;
+    }
+}
+
+static int r_sc2_cliff_neighbor_score(USHORT level[4], USHORT top, int dx, int dy) {
+    int score = 0;
+
+    FOR_LOOP(i, 4) {
+        if (level[i] == top && r_sc2_cliff_corner_touches_neighbor(i, dx, dy)) {
+            score += 10;
+        }
+    }
+    if (!dx || !dy) {
+        score++;
+    }
+    return score;
+}
+
 static sc2CliffCell_t r_sc2_cliff_cell_for_index(sc2Map_t const *map, DWORD index, DWORD cliff_width) {
     sc2CliffCell_t cell = { .index = index };
     sc2CliffCell_t const *xml_cell = r_sc2_find_cliff_cell(map, index);
     DWORD cliff_height = MAX(1, (SC2_MAP_HEIGHT(map) + 1) / 2);
     DWORD cx = index % cliff_width;
     DWORD cy = index / cliff_width;
+    DWORD grid_x = cx * SC2_CLIFF_BLOCK_SPAN;
+    DWORD grid_y = cy * SC2_CLIFF_BLOCK_SPAN;
+    USHORT level[4];
+    USHORT base;
+    USHORT top;
+    int best_score = 0;
 
     if (xml_cell)
         return *xml_cell;
+    SC2_CLIFF_BLOCK_LEVELS(level, map, grid_x, grid_y);
+    base = MIN(MIN(level[0], level[1]), MIN(level[2], level[3]));
+    top = MAX(MAX(level[0], level[1]), MAX(level[2], level[3]));
     for (int dy = -1; dy <= 1; dy++) {
         for (int dx = -1; dx <= 1; dx++) {
             int nx = (int)cx + dx;
             int ny = (int)cy + dy;
+            int score;
 
             if (!dx && !dy)
                 continue;
             if (nx >= 0 && ny >= 0 && nx < (int)cliff_width && ny < (int)cliff_height) {
                 xml_cell = r_sc2_find_cliff_cell(map, (DWORD)nx + (DWORD)ny * cliff_width);
                 if (xml_cell) {
-                    cell = *xml_cell;
-                    cell.index = index;
-                    return cell;
+                    score = top > base ? r_sc2_cliff_neighbor_score(level, top, dx, dy) : 1;
+                    if (score > best_score) {
+                        cell = *xml_cell;
+                        cell.index = index;
+                        best_score = score;
+                    }
                 }
             }
         }
