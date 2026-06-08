@@ -25,6 +25,7 @@
 #define SC2_MAP_WIDTH(MAP)          ((MAP)->MapInfo.width)
 #define SC2_MAP_HEIGHT(MAP)         ((MAP)->MapInfo.height)
 #define SC2_CLIFF_WIDTH(MAP)        (MAX(1, (SC2_MAP_WIDTH(MAP) + 1) / 2))
+#define BZ_SC2_FIX_FLAT_TERRAIN_TIER_MISMATCH
 
 /* BL=0, BR=1, TR=2, TL=3 - matches SC2 cliff model corner convention */
 #define SC2_CLIFF_BLOCK_LEVELS(LEVEL, MAP, X, Y) \
@@ -250,6 +251,86 @@ static BOOL r_sc2_skip_ground_cell(sc2Map_t const *map, DWORD x, DWORD y) {
     return !r_sc2_cliff_block_is_flat(map, SC2_CLIFF_BLOCK_ORIGIN(x), SC2_CLIFF_BLOCK_ORIGIN(y));
 }
 
+#ifdef BZ_SC2_FIX_FLAT_TERRAIN_TIER_MISMATCH
+/* HACK: fixes flat SC2 ground tiles whose shared HMAP vertex carries lower cliff-side
+   height/extra data while the drawn flat tile and adjacent cliff edge are one tier higher. */
+static BOOL r_sc2_ground_cell_tier(sc2Map_t const *map, DWORD x, DWORD y, USHORT *tier) {
+    DWORD block_x;
+    DWORD block_y;
+    USHORT level[4];
+
+    if (!map || x >= SC2_MAP_WIDTH(map) || y >= SC2_MAP_HEIGHT(map))
+        return false;
+    block_x = SC2_CLIFF_BLOCK_ORIGIN(x);
+    block_y = SC2_CLIFF_BLOCK_ORIGIN(y);
+    SC2_CLIFF_BLOCK_LEVELS(level, map, block_x, block_y);
+    if (level[1] != level[0] || level[2] != level[0] || level[3] != level[0])
+        return false;
+    if (tier)
+        *tier = level[0];
+    return true;
+}
+
+static BOOL r_sc2_ground_cell_base_height(sc2Map_t const *map, DWORD tile_x, DWORD tile_y, USHORT tier, USHORT *height) {
+    DWORD const vx[4] = { tile_x, tile_x + 1, tile_x + 1, tile_x };
+    DWORD const vy[4] = { tile_y, tile_y, tile_y + 1, tile_y + 1 };
+    DWORD sum = 0;
+    DWORD count = 0;
+
+    FOR_LOOP(i, 4) {
+        DWORD x = MIN(map->t3HeightMap->width - 1, vx[i]);
+        DWORD y = MIN(map->t3HeightMap->height - 1, vy[i]);
+        sc2MapHeightSample_t const *sample = &map->t3HeightMap->data[x + y * map->t3HeightMap->width];
+
+        if (sample->extra != tier)
+            continue;
+        sum += sample->height;
+        count++;
+    }
+    if (!count)
+        return false;
+    *height = (USHORT)(sum / count);
+    return true;
+}
+
+static FLOAT r_sc2_ground_height_at_grid(sc2Map_t const *map, DWORD grid_x, DWORD grid_y) {
+    int tile_x[4] = { (int)grid_x - 1, (int)grid_x,     (int)grid_x - 1, (int)grid_x };
+    int tile_y[4] = { (int)grid_y - 1, (int)grid_y - 1, (int)grid_y,     (int)grid_y };
+    sc2MapHeightSample_t const *sample;
+    DWORD base_sum = 0;
+    DWORD base_count = 0;
+
+    if (!map || !map->t3HeightMap || !map->t3HeightMap->width || !map->t3HeightMap->height)
+        return 0.0f;
+    grid_x = MIN(map->t3HeightMap->width - 1, grid_x);
+    grid_y = MIN(map->t3HeightMap->height - 1, grid_y);
+    sample = &map->t3HeightMap->data[grid_x + grid_y * map->t3HeightMap->width];
+    FOR_LOOP(i, 4) {
+        USHORT tier;
+        USHORT height;
+
+        if (tile_x[i] < 0 || tile_y[i] < 0)
+            continue;
+        if (!r_sc2_ground_cell_tier(map, (DWORD)tile_x[i], (DWORD)tile_y[i], &tier))
+            continue;
+        if (sample->extra == tier)
+            return sc2_map_height_at_grid(map, grid_x, grid_y);
+        if (!r_sc2_ground_cell_base_height(map, (DWORD)tile_x[i], (DWORD)tile_y[i], tier, &height))
+            continue;
+        base_sum += height;
+        base_count++;
+    }
+    if (!base_count)
+        return sc2_map_height_at_grid(map, grid_x, grid_y);
+    return ((FLOAT)(base_sum / base_count) + (FLOAT)sample->adjustment) *
+           sc2_map_height_scale(map) - sc2_map_height_offset(map);
+}
+#else
+static FLOAT r_sc2_ground_height_at_grid(sc2Map_t const *map, DWORD grid_x, DWORD grid_y) {
+    return sc2_map_height_at_grid(map, grid_x, grid_y);
+}
+#endif
+
 static void r_sc2_release_layer(LPMAPLAYER layer) {
     while (layer) {
         LPMAPLAYER next = layer->next;
@@ -419,7 +500,7 @@ static LPMAPLAYER r_sc2_build_ground_layer(sc2Map_t const *map) {
             FLOAT py = bounds.min.y + y * map->cell_size;
             FLOAT u = px / SC2_TERRAIN_UV_SCALE;
             FLOAT v = py / SC2_TERRAIN_UV_SCALE;
-            r_sc2_push_vertex(&vertices[x + y * (w + 1)], px, py, sc2_map_height_at_grid(map, x, y), u, v, 255);
+            r_sc2_push_vertex(&vertices[x + y * (w + 1)], px, py, r_sc2_ground_height_at_grid(map, x, y), u, v, 255);
         }
     }
 
@@ -936,7 +1017,7 @@ static void r_sc2_build_terrain(sc2Map_t const *map) {
     if (map->t3HeightMap) {
         FOR_LOOP(y, SC2_MAP_HEIGHT(map) + 1) {
             FOR_LOOP(x, SC2_MAP_WIDTH(map) + 1) {
-                max_z = MAX(max_z, sc2_map_height_at_grid(map, x, y) + 1.0f);
+                max_z = MAX(max_z, r_sc2_ground_height_at_grid(map, x, y) + 1.0f);
             }
         }
     }
@@ -1103,14 +1184,14 @@ static BOOL r_sc2_trace_heightmap_tile(sc2Map_t const *map, DWORD x, DWORD y, LP
     FLOAT x1 = x0 + map->cell_size;
     FLOAT y1 = y0 + map->cell_size;
     TRIANGLE3 const tri1 = {
-        { x0, y0, sc2_map_height_at_grid(map, x, y) },
-        { x1, y0, sc2_map_height_at_grid(map, x + 1, y) },
-        { x1, y1, sc2_map_height_at_grid(map, x + 1, y + 1) },
+        { x0, y0, r_sc2_ground_height_at_grid(map, x, y) },
+        { x1, y0, r_sc2_ground_height_at_grid(map, x + 1, y) },
+        { x1, y1, r_sc2_ground_height_at_grid(map, x + 1, y + 1) },
     };
     TRIANGLE3 const tri2 = {
-        { x1, y1, sc2_map_height_at_grid(map, x + 1, y + 1) },
-        { x0, y1, sc2_map_height_at_grid(map, x, y + 1) },
-        { x0, y0, sc2_map_height_at_grid(map, x, y) },
+        { x1, y1, r_sc2_ground_height_at_grid(map, x + 1, y + 1) },
+        { x0, y1, r_sc2_ground_height_at_grid(map, x, y + 1) },
+        { x0, y0, r_sc2_ground_height_at_grid(map, x, y) },
     };
 
     if (Line3_intersect_triangle(line, &tri1, output))
