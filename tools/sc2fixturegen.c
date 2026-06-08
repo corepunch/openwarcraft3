@@ -51,14 +51,15 @@ static int write_cell_flags(const char *path) {
 
 static int write_map_info(const char *path) {
     static const char name[] = "SC2 Tiny Fixture";
-    unsigned char data[16 + sizeof(name) + 1 + 16];
-    unsigned int offset = 16;
+    unsigned char data[24 + sizeof(name) + 1 + 16];
+    unsigned int offset = 24;
 
     memset(data, 0, sizeof(data));
     memcpy(data, "IpaM", 4);
-    wr_u32le(data + 4, 33);
-    wr_u32le(data + 8, 8);
-    wr_u32le(data + 12, 6);
+    wr_u32le(data + 4, 0xffffffffu);
+    wr_u32le(data + 8, 33);
+    wr_u32le(data + 16, 8);
+    wr_u32le(data + 20, 6);
     memcpy(data + offset, name, sizeof(name));
     offset += (unsigned int)sizeof(name);
     offset++;

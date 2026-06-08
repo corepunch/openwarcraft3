@@ -19,6 +19,8 @@ struct MapInfo
     DWORD   magic;           // "MapI"
     u32     fileVersion;
 
+    u32     unknown0;        // present in current retail maps before dimensions
+    u32     unknown1;
     u32     width;           // map cell width
     u32     height;          // map cell height
     u32     unknown2;
@@ -95,7 +97,7 @@ struct MapInfo
 - Check the `MapI` magic (bytes `0x4D 0x61 0x70 0x49`) before reading anything.
 - Parse variable-length `char[]` strings explicitly with `strlen`; never use packed C structs across string boundaries.
 - `width`/`height` here may differ from `t3CellFlags` dimensions. Use `t3CellFlags` as the authoritative map size once terrain files are loaded, since the editor writes consistent dimensions there.
-- Version 24 adds 8 extra bytes after `fileVersion` before `width`/`height` — see RFEphemeration/sc2-map-analyzer `readMapInfo()` for this delta.
+- Current retail maps include 8 bytes after `fileVersion` before `width`/`height`; `TRaynor01.SC2Map` stores `136x160` at offsets `16/20`, matching its `137x161` height-map vertex grid.
 - Many fields are marked unknown. Treat them as opaque and preserve their bytes in any re-serialization.
 
 ## Cross-Reference With sc2reader

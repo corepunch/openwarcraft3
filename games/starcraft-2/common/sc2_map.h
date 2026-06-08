@@ -121,6 +121,8 @@ typedef struct {
 typedef struct {
     DWORD          fourcc;
     DWORD          version;
+    DWORD          unknown0;
+    DWORD          unknown1;
     DWORD          width;
     DWORD          height;
     BYTE           data[SC2_MAPINFO_DATA_SIZE];
