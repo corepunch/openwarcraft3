@@ -103,15 +103,10 @@ static void test_sc2_map_loads_xml_objects_and_terrain(void) {
     map = SC2_MapCurrent();
 
     ASSERT_STR_EQ(map->map_name, "SC2 Tiny Fixture");
-    ASSERT_EQ_INT(map->width, 8);
-    ASSERT_EQ_INT(map->height, 6);
-    ASSERT_NOT_NULL(map->MapInfo);
-    if (map->MapInfo) {
-        ASSERT_EQ_INT(map->MapInfo->fourcc, MAKEFOURCC('I','p','a','M'));
-        ASSERT_EQ_INT(map->MapInfo->width, 8);
-        ASSERT_EQ_INT(map->MapInfo->height, 6);
-        ASSERT_STR_EQ((char const *)map->MapInfo->data, "SC2 Tiny Fixture");
-    }
+    ASSERT_EQ_INT(map->MapInfo.fourcc, MAKEFOURCC('I','p','a','M'));
+    ASSERT_EQ_INT(map->MapInfo.width, 8);
+    ASSERT_EQ_INT(map->MapInfo.height, 6);
+    ASSERT_STR_EQ((char const *)map->MapInfo.data, "SC2 Tiny Fixture");
     ASSERT_EQ_INT(map->num_objects, 4);
 
     ASSERT_STR_EQ(map->objects[0].name, "StartGame02");

@@ -26,7 +26,9 @@
 #define SC2_TRACE_EPSILON           0.0001f /* near-zero direction threshold in ray-slab test */
 #define SC2_TRACE_INF               1.0e30f /* infinity sentinel for axis-aligned ray marching */
 #define SC2_CLIFF_MODEL_FOOTPRINT   2.0f    /* loaded SC2 cliff M3 footprint: local -1..1 */
-#define SC2_CLIFF_WIDTH(MAP)        (MAX(1, ((MAP)->width + 1) / 2))
+#define SC2_MAP_WIDTH(MAP)          ((MAP)->MapInfo.width)
+#define SC2_MAP_HEIGHT(MAP)         ((MAP)->MapInfo.height)
+#define SC2_CLIFF_WIDTH(MAP)        (MAX(1, (SC2_MAP_WIDTH(MAP) + 1) / 2))
 
 /* BL=0, BR=1, TR=2, TL=3 - matches SC2 cliff model corner convention */
 #define SC2_CLIFF_BLOCK_LEVELS(LEVEL, MAP, X, Y) \
@@ -519,11 +521,11 @@ static LPMAPLAYER r_sc2_build_ground_layer(sc2Map_t const *map) {
     VERTEX *vertices;
     LPMAPLAYER map_layer;
 
-    if (!map || !map->width || !map->height)
+    if (!map || !SC2_MAP_WIDTH(map) || !SC2_MAP_HEIGHT(map))
         return NULL;
 
-    w = map->width;
-    h = map->height;
+    w = SC2_MAP_WIDTH(map);
+    h = SC2_MAP_HEIGHT(map);
     num_vertices = w * h * SC2_GROUND_VERTICES_PER_CELL;
     vertices = ri.MemAlloc(num_vertices * sizeof(*vertices));
     out = vertices;
@@ -980,7 +982,7 @@ static void r_sc2_build_terrain(sc2Map_t const *map) {
     FLOAT max_z = 1.0f;
 
     r_sc2_release_terrain();
-    if (!map || !map->width || !map->height)
+    if (!map || !SC2_MAP_WIDTH(map) || !SC2_MAP_HEIGHT(map))
         return;
 
     r_sc2_init_terrain_shader();
@@ -993,8 +995,8 @@ static void r_sc2_build_terrain(sc2Map_t const *map) {
 
     bounds = SC2_MapBounds();
     if (map->t3HeightMap) {
-        FOR_LOOP(y, map->height + 1) {
-            FOR_LOOP(x, map->width + 1) {
+        FOR_LOOP(y, SC2_MAP_HEIGHT(map) + 1) {
+            FOR_LOOP(x, SC2_MAP_WIDTH(map) + 1) {
                 max_z = MAX(max_z, r_sc2_visual_height_at_grid(map, x, y) + 1.0f);
             }
         }
@@ -1219,7 +1221,7 @@ bool R_SC2TraceLocation(viewDef_t const *viewdef, FLOAT x, FLOAT y, LPVECTOR3 ou
     FLOAT t_max_x, t_max_y;
     FLOAT t_delta_x, t_delta_y;
 
-    if (!viewdef || !output || !map || !map->width || !map->height)
+    if (!viewdef || !output || !map || !SC2_MAP_WIDTH(map) || !SC2_MAP_HEIGHT(map))
         return false;
     line = R_LineForScreenPoint(viewdef, x, y);
     bounds = SC2_MapBounds();
@@ -1230,8 +1232,8 @@ bool R_SC2TraceLocation(viewDef_t const *viewdef, FLOAT x, FLOAT y, LPVECTOR3 ou
     dir_y = line.b.y - line.a.y;
     tile_x = (int)floorf((line.a.x + dir_x * t0 - bounds.min.x) / map->cell_size);
     tile_y = (int)floorf((line.a.y + dir_y * t0 - bounds.min.y) / map->cell_size);
-    tile_x = MAX(0, MIN((int)map->width - 1, tile_x));
-    tile_y = MAX(0, MIN((int)map->height - 1, tile_y));
+    tile_x = MAX(0, MIN((int)SC2_MAP_WIDTH(map) - 1, tile_x));
+    tile_y = MAX(0, MIN((int)SC2_MAP_HEIGHT(map) - 1, tile_y));
 
     if (fabsf(dir_x) < SC2_TRACE_EPSILON) {
         step_x = 0;
@@ -1253,7 +1255,7 @@ bool R_SC2TraceLocation(viewDef_t const *viewdef, FLOAT x, FLOAT y, LPVECTOR3 ou
         t_delta_y = fabsf(map->cell_size / dir_y);
     }
 
-    while (tile_x >= 0 && tile_y >= 0 && tile_x < (int)map->width && tile_y < (int)map->height) {
+    while (tile_x >= 0 && tile_y >= 0 && tile_x < (int)SC2_MAP_WIDTH(map) && tile_y < (int)SC2_MAP_HEIGHT(map)) {
         if (r_sc2_trace_heightmap_tile(map, (DWORD)tile_x, (DWORD)tile_y, &line, output))
             return true;
         if (t_max_x < t_max_y) {
@@ -1277,5 +1279,6 @@ FLOAT R_SC2GetHeightAtPoint(FLOAT x, FLOAT y) {
 
 VECTOR2 R_SC2WorldSize(void) {
     sc2Map_t const *map = SC2_MapCurrent();
-    return (VECTOR2){ map->width * map->cell_size, map->height * map->cell_size };
+    if (!map) return (VECTOR2){ 0.0f, 0.0f };
+    return (VECTOR2){ SC2_MAP_WIDTH(map) * map->cell_size, SC2_MAP_HEIGHT(map) * map->cell_size };
 }

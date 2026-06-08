@@ -200,7 +200,7 @@ The lower nibble carries cliff/ramp type; the upper nibble carries additional fl
 
 The wiki states this file does not influence pathing. Use `t3SyncPathingInfo` for movement/building pathing.
 
-`t3CellFlags` dimensions are used as the authoritative `map->width` / `map->height`.
+`MapInfo` dimensions are the authoritative map size. `t3CellFlags` keeps its own file-shaped layer dimensions.
 
 ---
 

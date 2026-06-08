@@ -174,7 +174,7 @@ void R_GameShutdown(void) {
 
 void R_GameSetupTextureMatrix(void) {
     sc2Map_t const *map = SC2_MapCurrent();
-    if (map && map->width && map->height) {
+    if (map && map->MapInfo.width && map->MapInfo.height) {
         BOX2 bounds = SC2_MapBounds();
         Matrix4_ortho(&tr.viewDef.textureMatrix,
                       bounds.min.x,

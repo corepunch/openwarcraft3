@@ -8,6 +8,7 @@
 #define SC2_MAX_TERRAIN_TEXTURES 16
 #define SC2_MAX_CLIFF_SETS     8
 #define SC2_MAX_CLIFF_CELLS    16384
+#define SC2_MAPINFO_DATA_SIZE  512
 #define SC2_OBJECT_HEIGHT_ABSOLUTE 0x00000001
 #define SC2_OBJECT_HEIGHT_OFFSET   0x00000002
 #define SC2_OBJECT_FORCE_PLACEMENT 0x00000004
@@ -122,14 +123,12 @@ typedef struct {
     DWORD          version;
     DWORD          width;
     DWORD          height;
-    BYTE           data[];
+    BYTE           data[SC2_MAPINFO_DATA_SIZE];
 } sc2MapInfo_t;
 
 typedef struct {
     char           map_name[128];
     char           tile_set[64];
-    DWORD          width;
-    DWORD          height;
     VECTOR2        origin;
     FLOAT          cell_size;
     DWORD          num_objects;
@@ -147,7 +146,7 @@ typedef struct {
     FLOAT          height_quantize_bias;
     FLOAT          height_quantize_scale;
     FLOAT          standard_height;
-    sc2MapInfo_t   *MapInfo;
+    sc2MapInfo_t   MapInfo;
     sc2MapHeightMap_t *t3HeightMap;
     sc2MapSyncHeightMap_t *t3SyncHeightMap;
 } sc2Map_t;

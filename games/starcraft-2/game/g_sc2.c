@@ -236,12 +236,14 @@ static void SC2_SolveCollisions(void) {
 
 static void SC2_InitClients(void) {
     sc2Map_t const *map = SC2_MapCurrent();
+    DWORD width = map ? map->MapInfo.width : 0;
+    DWORD height = map ? map->MapInfo.height : 0;
     VECTOR2 origin = { 0, 0 };
 
-    if (map && map->width && map->height) {
+    if (map && width && height) {
         origin = (VECTOR2){
-            map->origin.x + (FLOAT)map->width * map->cell_size * 0.5f,
-            map->origin.y + (FLOAT)map->height * map->cell_size * 0.5f,
+            map->origin.x + (FLOAT)width * map->cell_size * 0.5f,
+            map->origin.y + (FLOAT)height * map->cell_size * 0.5f,
         };
     }
     FOR_LOOP(i, SC2_MAX_CLIENTS) {

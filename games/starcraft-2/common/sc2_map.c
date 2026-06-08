@@ -12,6 +12,8 @@
 #define SC2_ARRAY_LEN(x)             ((DWORD)(sizeof(x) / sizeof((x)[0])))
 #define SC2_XML_STRING_FIELD(name, field) { name, offsetof(sc2MapObject_t, field), SC2_XML_FIELD_STRING, sizeof(((sc2MapObject_t *)0)->field) }
 #define SC2_XML_FIELD(name, field, type)  { name, offsetof(sc2MapObject_t, field), type, 0 }
+#define SC2_MAP_XML_STRING_FIELD(name, field) { name, offsetof(sc2Map_t, field), SC2_XML_FIELD_STRING, sizeof(((sc2Map_t *)0)->field) }
+#define SC2_MAP_XML_FIELD(name, field, type)  { name, offsetof(sc2Map_t, field), type, 0 }
 
 typedef struct {
     HANDLE archive;
@@ -75,11 +77,17 @@ typedef struct {
     DWORD  flag;
 } sc2XmlFlag_t;
 
+typedef struct {
+    LPCSTR               node_name;
+    sc2XmlField_t const *fields;
+    DWORD                num_fields;
+} sc2XmlNodeFields_t;
+
 static sc2MapHost_t sc2_host;
 static sc2Map_t     sc2_map;
 
 static BOOL sc2_mapinfo_fourcc(sc2MapInfo_t const *mapInfo);
-static void sc2_set_size(DWORD width, DWORD height);
+static BOOL sc2_parse_xml_field(void *base, sc2XmlField_t const *fields, DWORD num_fields, LPCSTR name, LPCSTR value);
 
 static HANDLE sc2_alloc(long size) {
     return sc2_host.mem_alloc ? sc2_host.mem_alloc(size) : NULL;
@@ -110,13 +118,26 @@ static BOOL sc2_file_exists(LPCSTR path) {
 }
 
 static void sc2_map_clear(void) {
-    SAFE_DELETE(sc2_map.MapInfo, sc2_free);
     SAFE_DELETE(sc2_map.t3CellFlags, sc2_free);
     SAFE_DELETE(sc2_map.t3SyncCliffLevel, sc2_free);
     SAFE_DELETE(sc2_map.t3HeightMap, sc2_free);
     SAFE_DELETE(sc2_map.t3SyncHeightMap, sc2_free);
     SAFE_DELETE(sc2_map.t3TextureMasks, sc2_free);
     memset(&sc2_map, 0, sizeof(sc2_map));
+}
+
+static sc2MapInfo_t *sc2_ensure_mapinfo(void) {
+    if (!sc2_map.MapInfo.fourcc)
+        sc2_map.MapInfo.fourcc = MAKEFOURCC('M','a','p','I');
+    return &sc2_map.MapInfo;
+}
+
+static DWORD sc2_map_width(void) {
+    return sc2_map.MapInfo.width;
+}
+
+static DWORD sc2_map_height(void) {
+    return sc2_map.MapInfo.height;
 }
 
 static FLOAT sc2_height_scale(void) {
@@ -375,15 +396,16 @@ static void sc2_parse_cliff_cell_node(xmlNodePtr node) {
 }
 
 static void sc2_map_try_size_field(LPCSTR key, LPCSTR value) {
+    sc2MapInfo_t *mapInfo = sc2_ensure_mapinfo();
     VECTOR3 v;
-    if (!key || !value || !*value) return;
+    if (!mapInfo || !key || !value || !*value) return;
     if ((sc2_contains_i(key, "width") || sc2_streqi(key, "x")) && atoi(value) > 0)
-        sc2_map.width = (DWORD)atoi(value);
+        mapInfo->width = (DWORD)atoi(value);
     else if ((sc2_contains_i(key, "height") || sc2_streqi(key, "y")) && atoi(value) > 0)
-        sc2_map.height = (DWORD)atoi(value);
+        mapInfo->height = (DWORD)atoi(value);
     else if ((sc2_contains_i(key, "size") || sc2_contains_i(key, "bounds")) && sc2_parse_vec3(value, &v)) {
-        if (v.x > 0) sc2_map.width = (DWORD)v.x;
-        if (v.y > 0) sc2_map.height = (DWORD)v.y;
+        if (v.x > 0) mapInfo->width = (DWORD)v.x;
+        if (v.y > 0) mapInfo->height = (DWORD)v.y;
     } else if ((sc2_contains_i(key, "name") || sc2_contains_i(key, "title")) && !sc2_map.map_name[0]) {
         snprintf(sc2_map.map_name, sizeof(sc2_map.map_name), "%s", value);
     }
@@ -410,21 +432,22 @@ static void sc2_parse_mapinfo_node(xmlNodePtr node) {
 static BOOL sc2_parse_mapinfo_binary(sc2MapSource_t *source) {
     DWORD size = 0;
     LPBYTE data = sc2_source_read(source, "MapInfo", &size);
+    DWORD header_size = (DWORD)(sizeof(sc2_map.MapInfo) - sizeof(sc2_map.MapInfo.data));
 
-    if (!data || size < sizeof(*sc2_map.MapInfo)) {
+    if (!data || size < header_size) {
         sc2_free_file(data);
         return false;
     }
-    sc2_map.MapInfo = sc2_alloc(size);
-    memcpy(sc2_map.MapInfo, data, size);
+    memset(&sc2_map.MapInfo, 0, sizeof(sc2_map.MapInfo));
+    memcpy(&sc2_map.MapInfo, data, MIN(size, (DWORD)sizeof(sc2_map.MapInfo)));
     sc2_free_file(data);
-    if (!sc2_mapinfo_fourcc(sc2_map.MapInfo)) {
-        SAFE_DELETE(sc2_map.MapInfo, sc2_free);
+    if (!sc2_mapinfo_fourcc(&sc2_map.MapInfo)) {
+        memset(&sc2_map.MapInfo, 0, sizeof(sc2_map.MapInfo));
         return false;
     }
-    if (!sc2_map.map_name[0] && sc2_map.MapInfo->data[0])
-        snprintf(sc2_map.map_name, sizeof(sc2_map.map_name), "%s", (char const *)sc2_map.MapInfo->data);
-    sc2_set_size(sc2_map.MapInfo->width, sc2_map.MapInfo->height);
+    if (!sc2_map.map_name[0] && sc2_map.MapInfo.data[0])
+        snprintf(sc2_map.map_name, sizeof(sc2_map.map_name), "%.*s",
+                 (int)sizeof(sc2_map.MapInfo.data), (char const *)sc2_map.MapInfo.data);
     return true;
 }
 
@@ -436,9 +459,34 @@ static void sc2_parse_mapinfo(sc2MapSource_t *source) {
     doc = sc2_read_xml(source, "MapInfo");
     if (!doc) doc = sc2_read_xml(source, "MapInfo.xml");
     if (!doc) return;
+    sc2_ensure_mapinfo();
     sc2_parse_mapinfo_node(xmlDocGetRootElement(doc));
-    sc2_set_size(sc2_map.width, sc2_map.height);
     xmlFreeDoc(doc);
+}
+
+static sc2XmlField_t const sc2_terrain_height_map_fields[] = {
+    SC2_MAP_XML_STRING_FIELD("tileSet", tile_set),
+};
+
+static sc2XmlField_t const sc2_terrain_vert_data_fields[] = {
+    SC2_MAP_XML_FIELD("quantizeBias", height_quantize_bias, SC2_XML_FIELD_FLOAT),
+    SC2_MAP_XML_FIELD("quantizeScale", height_quantize_scale, SC2_XML_FIELD_FLOAT),
+    SC2_MAP_XML_FIELD("standardHeight", standard_height, SC2_XML_FIELD_FLOAT),
+};
+
+static sc2XmlNodeFields_t const sc2_terrain_node_fields[] = {
+    { "heightMap", sc2_terrain_height_map_fields, SC2_ARRAY_LEN(sc2_terrain_height_map_fields) },
+    { "vertData",  sc2_terrain_vert_data_fields,  SC2_ARRAY_LEN(sc2_terrain_vert_data_fields) },
+};
+
+static void sc2_parse_terrain_field(xmlNodePtr node, LPCSTR name, LPCSTR value) {
+    FOR_LOOP(i, SC2_ARRAY_LEN(sc2_terrain_node_fields)) {
+        sc2XmlNodeFields_t const *mapping = &sc2_terrain_node_fields[i];
+        if (sc2_streqi((char const *)node->name, mapping->node_name)) {
+            sc2_parse_xml_field(&sc2_map, mapping->fields, mapping->num_fields, name, value);
+            return;
+        }
+    }
 }
 
 static void sc2_parse_terrain_node(xmlNodePtr node) {
@@ -454,18 +502,7 @@ static void sc2_parse_terrain_node(xmlNodePtr node) {
             LPCSTR key = (sc2_contains_i((char const *)node->name, "texture") &&
                           sc2_streqi((char const *)attr->name, "name")) ?
                          (char const *)node->name : (char const *)attr->name;
-            if (sc2_streqi((char const *)node->name, "heightMap") &&
-                sc2_streqi((char const *)attr->name, "tileSet")) {
-                snprintf(sc2_map.tile_set, sizeof(sc2_map.tile_set), "%s", (char const *)text);
-            } else if (sc2_streqi((char const *)node->name, "vertData")) {
-                if (sc2_streqi((char const *)attr->name, "quantizeBias")) {
-                    sc2_map.height_quantize_bias = strtof((char const *)text, NULL);
-                } else if (sc2_streqi((char const *)attr->name, "quantizeScale")) {
-                    sc2_map.height_quantize_scale = strtof((char const *)text, NULL);
-                } else if (sc2_streqi((char const *)attr->name, "standardHeight")) {
-                    sc2_map.standard_height = strtof((char const *)text, NULL);
-                }
-            }
+            sc2_parse_terrain_field(node, (char const *)attr->name, (char const *)text);
             sc2_parse_terrain_value(key, (char const *)text);
             xmlFree(text);
         }
@@ -1114,11 +1151,6 @@ static BOOL sc2_mapinfo_fourcc(sc2MapInfo_t const *mapInfo) {
          mapInfo->fourcc == MAKEFOURCC('M','a','p','I'));
 }
 
-static void sc2_set_size(DWORD width, DWORD height) {
-    sc2_map.width = width;
-    sc2_map.height = height;
-}
-
 static void sc2_parse_height_map(sc2MapSource_t *source) {
     DWORD size = 0;
     LPBYTE data = sc2_source_read(source, "t3HeightMap", &size);
@@ -1190,7 +1222,7 @@ BOOL SC2_MapLoad(LPCSTR mapFilename) {
     sc2_map.origin.x = 0.0f;
     sc2_map.origin.y = 0.0f;
     fprintf(stderr, "SC2_MapLoad: %s %ux%u objects=%u\n",
-            sc2_map.map_name, (unsigned)sc2_map.width, (unsigned)sc2_map.height,
+            sc2_map.map_name, (unsigned)sc2_map_width(), (unsigned)sc2_map_height(),
             (unsigned)sc2_map.num_objects);
     return true;
 }
@@ -1213,8 +1245,8 @@ FLOAT SC2_MapHeightAtPoint(FLOAT x, FLOAT y) {
     }
     fx = (x - sc2_map.origin.x) / (sc2_map.cell_size ? sc2_map.cell_size : 1.0f);
     fy = (y - sc2_map.origin.y) / (sc2_map.cell_size ? sc2_map.cell_size : 1.0f);
-    fx = MIN(MAX(fx, 0.0f), (FLOAT)(sc2_map.width ? sc2_map.width : sc2_map.t3HeightMap->width - 1));
-    fy = MIN(MAX(fy, 0.0f), (FLOAT)(sc2_map.height ? sc2_map.height : sc2_map.t3HeightMap->height - 1));
+    fx = MIN(MAX(fx, 0.0f), (FLOAT)(sc2_map_width() ? sc2_map_width() : sc2_map.t3HeightMap->width - 1));
+    fy = MIN(MAX(fy, 0.0f), (FLOAT)(sc2_map_height() ? sc2_map_height() : sc2_map.t3HeightMap->height - 1));
     x0 = (DWORD)floorf(fx);
     y0 = (DWORD)floorf(fy);
     x1 = x0 + 1;
@@ -1234,8 +1266,8 @@ BOX2 SC2_MapBounds(void) {
     return (BOX2){
         .min = sc2_map.origin,
         .max = {
-            sc2_map.origin.x + sc2_map.width * sc2_map.cell_size,
-            sc2_map.origin.y + sc2_map.height * sc2_map.cell_size,
+            sc2_map.origin.x + sc2_map_width() * sc2_map.cell_size,
+            sc2_map.origin.y + sc2_map_height() * sc2_map.cell_size,
         },
     };
 }
