@@ -144,6 +144,14 @@ static void test_sc2_map_loads_xml_objects_and_terrain(void) {
     ASSERT_EQ_FLOAT(map->t3Terrain.height_quantize_bias, 0.0f, 0.001f);
     ASSERT_EQ_FLOAT(map->t3Terrain.height_quantize_scale, 1.0f, 0.001f);
     ASSERT_EQ_FLOAT(map->t3Terrain.standard_height, 0.0f, 0.001f);
+    ASSERT_EQ_INT(map->t3Terrain.fog_enabled, true);
+    ASSERT_EQ_FLOAT(map->t3Terrain.fog_density, 0.25f, 0.001f);
+    ASSERT_EQ_FLOAT(map->t3Terrain.fog_falloff, 0.5f, 0.001f);
+    ASSERT_EQ_FLOAT(map->t3Terrain.fog_start_height, -1.5f, 0.001f);
+    ASSERT_EQ_INT(map->t3Terrain.fog_color.a, 255);
+    ASSERT_EQ_INT(map->t3Terrain.fog_color.r, 10);
+    ASSERT_EQ_INT(map->t3Terrain.fog_color.g, 20);
+    ASSERT_EQ_INT(map->t3Terrain.fog_color.b, 30);
     ASSERT_EQ_INT(map->t3Terrain.num_terrain_textures, 2);
     ASSERT_STR_EQ(map->t3Terrain.terrain_textures[0].diffuse, "Assets\\Textures\\Terrain\\FixtureGrass_Diffuse.dds");
     ASSERT_STR_EQ(map->t3Terrain.terrain_textures[0].normal, "Assets\\Textures\\Terrain\\FixtureGrass_Diffuse_normal.dds");

@@ -72,6 +72,11 @@ typedef struct {
     FLOAT          height_quantize_bias;
     FLOAT          height_quantize_scale;
     FLOAT          standard_height;
+    BOOL           fog_enabled;
+    FLOAT          fog_density;
+    FLOAT          fog_falloff;
+    FLOAT          fog_start_height;
+    COLOR32        fog_color;
 } sc2MapTerrain_t;
 
 typedef struct {

@@ -57,6 +57,10 @@ static GLint sc2_u_layer[SC2_TERRAIN_PASS_LAYERS];
 static GLint sc2_u_mask = -1;
 static GLint sc2_u_world_uv_offset = -1;
 static GLint sc2_u_world_uv_scale = -1;
+static GLint sc2_u_fog_color = -1;
+static GLint sc2_u_fog_params = -1;
+static GLint sc2_u_cliff_fog_color = -1;
+static GLint sc2_u_cliff_fog_params = -1;
 static LPTEXTURE sc2_terrain_textures[SC2_TERRAIN_BLEND_LAYERS];
 static LPTEXTURE sc2_terrain_masks[SC2_TERRAIN_BLEND_GROUPS];
 static DWORD sc2_num_terrain_layers;
@@ -83,6 +87,7 @@ static LPCSTR sc2_vs_terrain =
 "in vec3 i_normal;\n"
 "in vec4 i_color;\n"
 "out vec2 v_texcoord2;\n"
+"out vec3 v_worldpos;\n"
 "out vec4 v_color;\n"
 "uniform mat4 uViewProjectionMatrix;\n"
 "uniform mat4 uTextureMatrix;\n"
@@ -90,6 +95,7 @@ static LPCSTR sc2_vs_terrain =
 "void main() {\n"
 "    vec4 pos = uModelMatrix * vec4(i_position, 1.0);\n"
 "    v_texcoord2 = (uTextureMatrix * pos).xy;\n"
+"    v_worldpos = pos.xyz;\n"
 "    v_color = i_color;\n"
 "    gl_Position = uViewProjectionMatrix * pos;\n"
 "}\n";
@@ -101,12 +107,14 @@ static LPCSTR sc2_vs_cliff_texture =
 "in vec3 i_normal;\n"
 "in vec4 i_color;\n"
 "out vec2 v_texcoord;\n"
+"out vec3 v_worldpos;\n"
 "out vec4 v_color;\n"
 "uniform mat4 uViewProjectionMatrix;\n"
 "uniform mat4 uModelMatrix;\n"
 "void main() {\n"
 "    vec4 pos = uModelMatrix * vec4(i_position, 1.0);\n"
 "    v_texcoord = i_texcoord;\n"
+"    v_worldpos = pos.xyz;\n"
 "    v_color = i_color;\n"
 "    gl_Position = uViewProjectionMatrix * pos;\n"
 "}\n";
@@ -114,6 +122,7 @@ static LPCSTR sc2_vs_cliff_texture =
 static LPCSTR sc2_fs_terrain =
 "#version 140\n"
 "in vec2 v_texcoord2;\n"
+"in vec3 v_worldpos;\n"
 "in vec4 v_color;\n"
 "out vec4 o_color;\n"
 "uniform sampler2D uLayer0;\n"
@@ -123,11 +132,19 @@ static LPCSTR sc2_fs_terrain =
 "uniform sampler2D uMask;\n"
 "uniform vec2 uWorldUVOffset;\n"
 "uniform vec2 uWorldUVScale;\n"
+"uniform vec4 uFogColor;\n"
+"uniform vec4 uFogParams;\n"
 "vec2 get_mask_coord() {\n"
 "    return clamp(v_texcoord2 * 0.5 + vec2(0.5), vec2(0.0), vec2(1.0));\n"
 "}\n"
 "vec2 get_terrain_coord() {\n"
 "    return (v_texcoord2 * 0.5 + vec2(0.5)) * uWorldUVScale + uWorldUVOffset;\n"
+"}\n"
+"float get_height_fog() {\n"
+"    if (uFogParams.w <= 0.0) return 0.0;\n"
+"    float above = max(v_worldpos.z - uFogParams.x, 0.0);\n"
+"    float vertical = v_worldpos.z <= uFogParams.x ? 1.0 : exp(-above * max(uFogParams.z, 0.0001));\n"
+"    return clamp((uFogParams.y / max(uFogParams.z, 0.0001)) * vertical, 0.0, 1.0) * uFogColor.a;\n"
 "}\n"
 "void main() {\n"
 "    vec2 mc = get_mask_coord();\n"
@@ -138,7 +155,29 @@ static LPCSTR sc2_fs_terrain =
 "                 texture(uLayer2, tc) * w.b +\n"
 "                 texture(uLayer3, tc) * w.a;\n"
 "    color.rgb *= v_color.rgb;\n"
+"    color.rgb = mix(color.rgb, uFogColor.rgb, get_height_fog());\n"
 "    color.a = 1.0;\n"
+"    o_color = color;\n"
+"}\n";
+
+static LPCSTR sc2_fs_cliff =
+"#version 140\n"
+"in vec4 v_color;\n"
+"in vec2 v_texcoord;\n"
+"in vec3 v_worldpos;\n"
+"out vec4 o_color;\n"
+"uniform sampler2D uTexture;\n"
+"uniform vec4 uFogColor;\n"
+"uniform vec4 uFogParams;\n"
+"float get_height_fog() {\n"
+"    if (uFogParams.w <= 0.0) return 0.0;\n"
+"    float above = max(v_worldpos.z - uFogParams.x, 0.0);\n"
+"    float vertical = v_worldpos.z <= uFogParams.x ? 1.0 : exp(-above * max(uFogParams.z, 0.0001));\n"
+"    return clamp((uFogParams.y / max(uFogParams.z, 0.0001)) * vertical, 0.0, 1.0) * uFogColor.a;\n"
+"}\n"
+"void main() {\n"
+"    vec4 color = texture(uTexture, v_texcoord) * v_color;\n"
+"    color.rgb = mix(color.rgb, uFogColor.rgb, get_height_fog());\n"
 "    o_color = color;\n"
 "}\n";
 
@@ -146,12 +185,14 @@ static void r_sc2_init_cliff_shader(void) {
     if (sc2_cliff_shader) {
         return;
     }
-    sc2_cliff_shader = R_InitShader(sc2_vs_cliff_texture, fs_ui);
+    sc2_cliff_shader = R_InitShader(sc2_vs_cliff_texture, sc2_fs_cliff);
     if (!sc2_cliff_shader) {
         return;
     }
     R_Call(glUseProgram, sc2_cliff_shader->progid);
     R_Call(glUniform1i, sc2_cliff_shader->uTexture, 0);
+    sc2_u_cliff_fog_color = glGetUniformLocation(sc2_cliff_shader->progid, "uFogColor");
+    sc2_u_cliff_fog_params = glGetUniformLocation(sc2_cliff_shader->progid, "uFogParams");
 }
 
 static void r_sc2_init_terrain_shader(void) {
@@ -175,6 +216,8 @@ static void r_sc2_init_terrain_shader(void) {
     sc2_u_mask             = glGetUniformLocation(sc2_terrain_shader->progid, "uMask");
     sc2_u_world_uv_offset  = glGetUniformLocation(sc2_terrain_shader->progid, "uWorldUVOffset");
     sc2_u_world_uv_scale   = glGetUniformLocation(sc2_terrain_shader->progid, "uWorldUVScale");
+    sc2_u_fog_color        = glGetUniformLocation(sc2_terrain_shader->progid, "uFogColor");
+    sc2_u_fog_params       = glGetUniformLocation(sc2_terrain_shader->progid, "uFogParams");
     R_Call(glUniform1i, sc2_u_mask, SC2_TERRAIN_PASS_LAYERS);
     r_sc2_init_cliff_shader();
 }
@@ -1094,11 +1137,30 @@ static LPTEXTURE r_sc2_terrain_layer_texture(DWORD index) {
     return sc2_terrain_textures[0];
 }
 
+static void r_sc2_set_fog_uniforms(GLint u_color, GLint u_params) {
+    sc2Map_t const *map = SC2_MapCurrent();
+    sc2MapTerrain_t const *terrain = map ? &map->t3Terrain : NULL;
+    COLOR32 color = terrain ? terrain->fog_color : COLOR32_BLACK;
+    FLOAT enabled = terrain && terrain->fog_enabled && terrain->fog_density > 0.0f ? 1.0f : 0.0f;
+
+    R_Call(glUniform4f, u_color,
+           color.r / 255.0f,
+           color.g / 255.0f,
+           color.b / 255.0f,
+           color.a / 255.0f);
+    R_Call(glUniform4f, u_params,
+           terrain ? terrain->fog_start_height : 0.0f,
+           terrain ? terrain->fog_density : 0.0f,
+           terrain ? terrain->fog_falloff : 0.0f,
+           enabled);
+}
+
 static void r_sc2_begin_terrain_shader(MATRIX4 const *model_matrix) {
     R_Call(glUseProgram, sc2_terrain_shader->progid);
     R_Call(glUniformMatrix4fv, sc2_terrain_shader->uViewProjectionMatrix, 1, GL_FALSE, tr.viewDef.viewProjectionMatrix.v);
     R_Call(glUniformMatrix4fv, sc2_terrain_shader->uModelMatrix, 1, GL_FALSE, model_matrix->v);
     R_Call(glUniformMatrix4fv, sc2_terrain_shader->uTextureMatrix, 1, GL_FALSE, tr.viewDef.textureMatrix.v);
+    r_sc2_set_fog_uniforms(sc2_u_fog_color, sc2_u_fog_params);
 }
 
 static void r_sc2_begin_terrain_pass(DWORD group) {
@@ -1201,6 +1263,7 @@ static void r_sc2_draw_cliff_layer(LPCMAPSEGMENT segment) {
     R_Call(glUniformMatrix4fv, sc2_cliff_shader->uViewProjectionMatrix, 1, GL_FALSE, tr.viewDef.viewProjectionMatrix.v);
     R_Call(glUniformMatrix4fv, sc2_cliff_shader->uModelMatrix, 1, GL_FALSE, model_matrix.v);
     R_Call(glUniformMatrix4fv, sc2_cliff_shader->uTextureMatrix, 1, GL_FALSE, tr.viewDef.textureMatrix.v);
+    r_sc2_set_fog_uniforms(sc2_u_cliff_fog_color, sc2_u_cliff_fog_params);
     R_Call(glEnable, GL_BLEND);
     R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     R_BindTexture(layer->texture, 0);

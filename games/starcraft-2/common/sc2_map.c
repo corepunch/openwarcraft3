@@ -63,6 +63,7 @@ typedef enum {
     SC2_XML_FIELD_FLOAT,
     SC2_XML_FIELD_STRING,
     SC2_XML_FIELD_VEC3,
+    SC2_XML_FIELD_COLOR_ARGB,
 } sc2XmlFieldType_t;
 
 typedef struct {
@@ -347,6 +348,51 @@ static void sc2_parse_terrain_value(LPCSTR key, LPCSTR value) {
     }
 }
 
+static BOOL sc2_parse_argb_color(LPCSTR text, LPCOLOR32 color) {
+    DWORD a, r, g, b;
+
+    if (!text || !color)
+        return false;
+    if (sscanf(text, "%u,%u,%u,%u", &a, &r, &g, &b) == 4) {
+        *color = (COLOR32){ (BYTE)r, (BYTE)g, (BYTE)b, (BYTE)a };
+        return true;
+    }
+    if (sscanf(text, "%u,%u,%u", &r, &g, &b) == 3) {
+        *color = (COLOR32){ (BYTE)r, (BYTE)g, (BYTE)b, 255 };
+        return true;
+    }
+    return false;
+}
+
+static sc2XmlField_t const sc2_terrain_data_fields[] = {
+    SC2_TERRAIN_XML_FIELD("FogDensity", fog_density, SC2_XML_FIELD_FLOAT),
+    SC2_TERRAIN_XML_FIELD("FogFalloff", fog_falloff, SC2_XML_FIELD_FLOAT),
+    SC2_TERRAIN_XML_FIELD("FogStartHeight", fog_start_height, SC2_XML_FIELD_FLOAT),
+    SC2_TERRAIN_XML_FIELD("FogStartingHeight", fog_start_height, SC2_XML_FIELD_FLOAT),
+    SC2_TERRAIN_XML_FIELD("FogColor", fog_color, SC2_XML_FIELD_COLOR_ARGB),
+};
+
+static void sc2_parse_terrain_data_node(xmlNodePtr node, LPCSTR terrain_id) {
+    char id[64];
+    char value[256];
+
+    if (!node || node->type != XML_ELEMENT_NODE)
+        return;
+    if (sc2_streqi((char const *)node->name, "CTerrain") && sc2_xml_attr(node, "id", id, sizeof(id)))
+        terrain_id = id;
+    if (terrain_id && sc2_streqi(terrain_id, sc2_map.t3Terrain.tile_set) &&
+        sc2_xml_attr(node, "value", value, sizeof(value)) &&
+        sc2_parse_xml_field(&sc2_map.t3Terrain,
+                            sc2_terrain_data_fields,
+                            SC2_ARRAY_LEN(sc2_terrain_data_fields),
+                            (char const *)node->name,
+                            value)) {
+        sc2_map.t3Terrain.fog_enabled = true;
+    }
+    for (xmlNodePtr child = node->children; child; child = child->next)
+        sc2_parse_terrain_data_node(child, terrain_id);
+}
+
 static void sc2_parse_cliff_set_node(xmlNodePtr node) {
     char value[64];
     DWORD index;
@@ -508,6 +554,36 @@ static void sc2_parse_terrain(sc2MapSource_t *source) {
     xmlFreeDoc(doc);
 }
 
+static void sc2_parse_terrain_data(sc2MapSource_t *source) {
+    xmlDocPtr doc = sc2_read_xml(source, "Base.SC2Data/GameData/TerrainData.xml");
+    if (!doc) doc = sc2_read_xml(source, "Base.SC2Data\\GameData\\TerrainData.xml");
+    if (!doc) return;
+    sc2_parse_terrain_data_node(xmlDocGetRootElement(doc), NULL);
+    xmlFreeDoc(doc);
+}
+
+static void sc2_parse_terrain_data_catalog_file(LPCSTR root_name) {
+    xmlDocPtr doc = sc2_read_catalog_xml(root_name, "GameData\\TerrainData.xml");
+    if (!doc) return;
+    sc2_parse_terrain_data_node(xmlDocGetRootElement(doc), NULL);
+    xmlFreeDoc(doc);
+}
+
+static void sc2_parse_terrain_data_catalogs(void) {
+    static LPCSTR const roots[] = {
+        "Mods/Core.SC2Mod/Base.SC2Data",
+        "Mods/Liberty.SC2Mod/Base.SC2Data",
+        "Mods/LibertyMulti.SC2Mod/Base.SC2Data",
+        "Campaigns/LibertyStory.SC2Campaign/Base.SC2Data",
+        "Campaigns/Liberty.SC2Campaign/Base.SC2Data",
+        NULL,
+    };
+
+    sc2_parse_terrain_data_catalog_file("");
+    for (DWORD i = 0; roots[i]; i++)
+        sc2_parse_terrain_data_catalog_file(roots[i]);
+}
+
 static void sc2_set_object_model(sc2MapObject_t *object) {
     if (!object->model[0] && object->name[0] && object->type == SC2_OBJECT_UNIT)
         snprintf(object->model, sizeof(object->model), "Assets\\Units\\Terran\\%s\\%s.m3", object->name, object->name);
@@ -576,6 +652,8 @@ static BOOL sc2_parse_xml_field(void *base, sc2XmlField_t const *fields, DWORD n
                 return true;
             case SC2_XML_FIELD_VEC3:
                 return sc2_parse_vec3(value, (LPVECTOR3)out);
+            case SC2_XML_FIELD_COLOR_ARGB:
+                return sc2_parse_argb_color(value, (LPCOLOR32)out);
         }
     }
     return false;
@@ -1196,6 +1274,8 @@ BOOL SC2_MapLoad(LPCSTR mapFilename) {
     }
     sc2_parse_mapinfo(&source);
     sc2_parse_terrain(&source);
+    sc2_parse_terrain_data_catalogs();
+    sc2_parse_terrain_data(&source);
     sc2_parse_height_map(&source);
     sc2_parse_sync_height_map(&source);
     sc2_parse_cell_flags(&source);
