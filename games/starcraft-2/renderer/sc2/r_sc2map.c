@@ -262,22 +262,32 @@ static void r_sc2_push_vertex(VERTEX *v, FLOAT x, FLOAT y, FLOAT z, FLOAT u, FLO
     r_sc2_push_vertex_normal(v, x, y, z, u, t, alpha, (VECTOR3){ 0.0f, 0.0f, 1.0f });
 }
 
+static FLOAT r_sc2_height_scale(sc2Map_t const *map) {
+    return map && map->height_quantize_scale ? map->height_quantize_scale : 1.0f;
+}
+
 static FLOAT r_sc2_height_at_grid(sc2Map_t const *map, DWORD x, DWORD y) {
-    if (!map->height_map || !map->height_map_width || !map->height_map_height) {
+    sc2MapHeightSample_t const *sample;
+
+    if (!map->t3HeightMap || !map->t3HeightMap->width || !map->t3HeightMap->height) {
         return 0.0f;
     }
-    x = MIN(map->height_map_width - 1, x);
-    y = MIN(map->height_map_height - 1, y);
-    return map->height_map[x + y * map->height_map_width];
+    x = MIN(map->t3HeightMap->width - 1, x);
+    y = MIN(map->t3HeightMap->height - 1, y);
+    sample = &map->t3HeightMap->data[x + y * map->t3HeightMap->width];
+    return ((FLOAT)sample->height + (FLOAT)sample->adjustment) * r_sc2_height_scale(map) - 1.0f;
 }
 
 static FLOAT r_sc2_height_adjust_at_grid(sc2Map_t const *map, DWORD x, DWORD y) {
-    if (!map->height_adjust_map || !map->height_map_width || !map->height_map_height) {
+    sc2MapHeightSample_t const *sample;
+
+    if (!map->t3HeightMap || !map->t3HeightMap->width || !map->t3HeightMap->height) {
         return 0.0f;
     }
-    x = MIN(map->height_map_width - 1, x);
-    y = MIN(map->height_map_height - 1, y);
-    return map->height_adjust_map[x + y * map->height_map_width];
+    x = MIN(map->t3HeightMap->width - 1, x);
+    y = MIN(map->t3HeightMap->height - 1, y);
+    sample = &map->t3HeightMap->data[x + y * map->t3HeightMap->width];
+    return (FLOAT)sample->adjustment * r_sc2_height_scale(map);
 }
 
 static FLOAT r_sc2_height_base_at_grid(sc2Map_t const *map, DWORD x, DWORD y) {
@@ -287,12 +297,12 @@ static FLOAT r_sc2_height_base_at_grid(sc2Map_t const *map, DWORD x, DWORD y) {
 static USHORT r_sc2_cliff_level_at_grid(sc2Map_t const *map, DWORD x, DWORD y) {
     USHORT value;
 
-    if (!map->cliff_levels || !map->cliff_level_width || !map->cliff_level_height) {
+    if (!map->t3SyncCliffLevel || !map->t3SyncCliffLevel->width || !map->t3SyncCliffLevel->height) {
         return 0;
     }
-    x = MIN(map->cliff_level_width - 1, x * map->cliff_level_width / MAX(1, map->width));
-    y = MIN(map->cliff_level_height - 1, y * map->cliff_level_height / MAX(1, map->height));
-    value = map->cliff_levels[x + y * map->cliff_level_width];
+    x = MIN(map->t3SyncCliffLevel->width - 1, x);
+    y = MIN(map->t3SyncCliffLevel->height - 1, y);
+    value = map->t3SyncCliffLevel->data[x + y * map->t3SyncCliffLevel->width];
     return value >= SC2_CLIFF_LEVEL_PACKED_MIN ? value >> SC2_CLIFF_LEVEL_SHIFT : value;
 }
 
@@ -305,12 +315,12 @@ static FLOAT r_sc2_visual_base_height_at_grid(sc2Map_t const *map, DWORD x, DWOR
 }
 
 static BYTE r_sc2_cell_flag_at_grid(sc2Map_t const *map, DWORD x, DWORD y) {
-    if (!map->cell_flags || !map->cell_flags_width || !map->cell_flags_height) {
+    if (!map->t3CellFlags || !map->t3CellFlags->width || !map->t3CellFlags->height) {
         return 0;
     }
-    x = MIN(map->cell_flags_width - 1, x * map->cell_flags_width / MAX(1, map->width));
-    y = MIN(map->cell_flags_height - 1, y * map->cell_flags_height / MAX(1, map->height));
-    return map->cell_flags[x + y * map->cell_flags_width];
+    x = MIN(map->t3CellFlags->width - 1, x);
+    y = MIN(map->t3CellFlags->height - 1, y);
+    return map->t3CellFlags->data[x + y * map->t3CellFlags->width];
 }
 
 static BOOL r_sc2_cliff_block_is_flat(sc2Map_t const *map, DWORD x, DWORD y) {
@@ -373,21 +383,87 @@ static void r_sc2_add_layer(LPMAPLAYER *list, LPMAPLAYER layer) {
     *tail = layer;
 }
 
+static BYTE r_sc2_texture_mask_nibble(BYTE byte, DWORD pixel) {
+    return pixel & 1 ? byte & 0x0F : byte >> 4;
+}
+
+static DWORD r_sc2_texture_mask_layer_stride(sc2Map_t const *map) {
+    DWORD w, h, blocks_x, blocks_y, packed_layer_size, block_layer_size;
+
+    if (!map || !map->t3TextureMasks)
+        return 0;
+    w = map->t3TextureMasks->width;
+    h = map->t3TextureMasks->height;
+    packed_layer_size = (w * h) / 2;
+    blocks_x = (w + 63) / 64;
+    blocks_y = (h + 63) / 64;
+    block_layer_size = blocks_x * blocks_y * 64 * 32;
+    if (block_layer_size && map->t3TextureMasksSize >= sizeof(*map->t3TextureMasks) + block_layer_size &&
+        (map->t3TextureMasksSize - sizeof(*map->t3TextureMasks)) % block_layer_size == 0)
+        return block_layer_size;
+    return packed_layer_size;
+}
+
+static DWORD r_sc2_texture_mask_layers(sc2Map_t const *map) {
+    DWORD stride = r_sc2_texture_mask_layer_stride(map);
+
+    if (!map || !map->t3TextureMasks || !stride || map->t3TextureMasksSize < sizeof(*map->t3TextureMasks))
+        return 0;
+    return (map->t3TextureMasksSize - sizeof(*map->t3TextureMasks)) / stride;
+}
+
+static void r_sc2_decode_texture_mask_block(LPBYTE out, LPBYTE src, DWORD width, DWORD height, DWORD blocks_x, DWORD block) {
+    DWORD bx = block % blocks_x;
+    DWORD by = block / blocks_x;
+
+    FOR_LOOP(y, 64) {
+        FOR_LOOP(x, 64) {
+            DWORD px = bx * 64 + x;
+            DWORD py = by * 64 + y;
+            if (px >= width || py >= height)
+                continue;
+            out[px + py * width] = r_sc2_texture_mask_nibble(src[y * 32 + x / 2], x);
+        }
+    }
+}
+
 static LPTEXTURE r_sc2_build_mask_texture(sc2Map_t const *map, DWORD layer) {
+    DWORD w, h, stride, block_stride, blocks_x, blocks_y;
+    BYTE *values;
+    LPBYTE src;
     COLOR32 *pixels;
     LPTEXTURE texture;
 
-    if (!map->texture_masks[layer] || !map->texture_mask_width || !map->texture_mask_height) {
+    if (!map->t3TextureMasks || !map->t3TextureMasks->width || !map->t3TextureMasks->height || layer >= r_sc2_texture_mask_layers(map)) {
         return NULL;
     }
-    pixels = ri.MemAlloc(map->texture_mask_width * map->texture_mask_height * sizeof(*pixels));
-    FOR_LOOP(i, map->texture_mask_width * map->texture_mask_height) {
-        BYTE value = (BYTE)(map->texture_masks[layer][i] * 17);
+    w = map->t3TextureMasks->width;
+    h = map->t3TextureMasks->height;
+    stride = r_sc2_texture_mask_layer_stride(map);
+    blocks_x = (w + 63) / 64;
+    blocks_y = (h + 63) / 64;
+    block_stride = blocks_x * blocks_y * 64 * 32;
+    src = map->t3TextureMasks->data + layer * stride;
+    values = ri.MemAlloc(w * h);
+    pixels = ri.MemAlloc(w * h * sizeof(*pixels));
+    memset(values, 0, w * h);
+    if (stride == block_stride && block_stride > 0) {
+        FOR_LOOP(block, blocks_x * blocks_y) {
+            r_sc2_decode_texture_mask_block(values, src + block * 64 * 32, w, h, blocks_x, block);
+        }
+    } else {
+        FOR_LOOP(i, w * h) {
+            values[i] = r_sc2_texture_mask_nibble(src[i / 2], i);
+        }
+    }
+    FOR_LOOP(i, w * h) {
+        BYTE value = (BYTE)(values[i] * 17);
         pixels[i] = (COLOR32){ value, value, value, 255 };
     }
-    texture = R_AllocateTexture(map->texture_mask_width, map->texture_mask_height);
-    R_LoadTextureMipLevel(texture, 0, pixels, map->texture_mask_width, map->texture_mask_height);
+    texture = R_AllocateTexture(w, h);
+    R_LoadTextureMipLevel(texture, 0, pixels, w, h);
     R_SetTextureWrap(texture, false, false);
+    ri.MemFree(values);
     ri.MemFree(pixels);
     return texture;
 }
@@ -399,31 +475,41 @@ static void r_sc2_load_terrain_textures(sc2Map_t const *map) {
             sc2_terrain_textures[i] = R_LoadTexture(map->terrain_textures[i].diffuse);
             R_SetTextureWrap(sc2_terrain_textures[i], true, true);
         }
-        if (map->num_texture_masks > i) {
+        if (r_sc2_texture_mask_layers(map) > i) {
             sc2_terrain_masks[i] = r_sc2_build_mask_texture(map, i);
         }
     }
 }
 
 static void r_sc2_build_height_texture(sc2Map_t const *map) {
-    if (!map || !map->height_adjust_map || !map->height_map_width || !map->height_map_height)
+    FLOAT *height_adjust;
+    DWORD num_samples;
+
+    if (!map || !map->t3HeightMap || !map->t3HeightMap->width || !map->t3HeightMap->height)
         return;
-    sc2_height_texture = R_AllocateTexture(map->height_map_width, map->height_map_height);
+    num_samples = map->t3HeightMap->width * map->t3HeightMap->height;
+    height_adjust = ri.MemAlloc(num_samples * sizeof(*height_adjust));
+    if (!height_adjust)
+        return;
+    FOR_LOOP(i, num_samples)
+        height_adjust[i] = (FLOAT)map->t3HeightMap->data[i].adjustment * r_sc2_height_scale(map);
+    sc2_height_texture = R_AllocateTexture(map->t3HeightMap->width, map->t3HeightMap->height);
     R_Call(glBindTexture, GL_TEXTURE_2D, sc2_height_texture->texid);
     R_Call(glTexImage2D,
            GL_TEXTURE_2D,
            0,
            GL_R32F,
-           map->height_map_width,
-           map->height_map_height,
+           map->t3HeightMap->width,
+           map->t3HeightMap->height,
            0,
            GL_RED,
            GL_FLOAT,
-           map->height_adjust_map);
+           height_adjust);
     R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    ri.MemFree(height_adjust);
 }
 
 static LPMAPLAYER r_sc2_build_ground_layer(sc2Map_t const *map) {
@@ -846,7 +932,7 @@ static LPMAPLAYER r_sc2_build_cliff_layer(sc2Map_t const *map) {
     DWORD cliff_width;
     LPCTEXTURE diffuse = NULL;
 
-    if (!map || !map->num_cliff_cells || !map->cliff_levels)
+    if (!map || !map->num_cliff_cells || !map->t3SyncCliffLevel)
         return NULL;
     cliff_width = SC2_CLIFF_WIDTH(map);
     FOR_LOOP(i, map->num_cliff_cells) {
@@ -906,9 +992,9 @@ static void r_sc2_build_terrain(sc2Map_t const *map) {
     r_sc2_add_layer(&sc2_terrain_segment->layers, r_sc2_build_cliff_layer(map));
 
     bounds = SC2_MapBounds();
-    if (map->height_map) {
-        FOR_LOOP(y, map->height_map_height) {
-            FOR_LOOP(x, map->height_map_width) {
+    if (map->t3HeightMap) {
+        FOR_LOOP(y, map->height + 1) {
+            FOR_LOOP(x, map->width + 1) {
                 max_z = MAX(max_z, r_sc2_visual_height_at_grid(map, x, y) + 1.0f);
             }
         }
@@ -939,7 +1025,7 @@ static void r_sc2_bind_height_texture(sc2Map_t const *map,
     R_Call(glUniform1i, u_height_map_enabled, 1);
     R_Call(glUniform2f, u_height_map_origin, bounds.min.x, bounds.min.y);
     R_Call(glUniform2f, u_height_map_size, width, height);
-    R_Call(glUniform2f, u_height_map_grid_size, (FLOAT)map->height_map_width, (FLOAT)map->height_map_height);
+    R_Call(glUniform2f, u_height_map_grid_size, (FLOAT)map->t3HeightMap->width, (FLOAT)map->t3HeightMap->height);
 }
 
 static void r_sc2_draw_ground_layer(LPCMAPSEGMENT segment) {

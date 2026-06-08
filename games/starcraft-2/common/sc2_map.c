@@ -1,25 +1,17 @@
 #include "sc2_map.h"
+#include "sc2_utils.h"
 #include "common/mpq.h"
-#include <ctype.h>
-#include <float.h>
 #include <libxml/parser.h>
 #include <libxml/tree.h>
+#include <stddef.h>
 
 #define SC2_MAX_CATALOG_MODELS       8192
 #define SC2_MAX_CATALOG_ACTORS       8192
 #define SC2_MAX_CATALOG_TERRAIN_TEX  512
 #define SC2_MAX_CATALOG_CLIFFS       256
-#define SC2_MAPINFO_MIN_SIZE         16
-#define SC2_HMAP_HEADER_SIZE         32
-#define SC2_HMAP_CHUNK_SIZE          6
-#define SC2_SMAP_HEADER_SIZE         64
-#define SC2_SMAP_CHUNK_SIZE          4
-#define SC2_TERRAIN_HEADER_SIZE      32
-#define SC2_TRAYNOR_BRIDGE_DIAG_MAX  8
-#define SC2_TRAYNOR_BRIDGE_HALF_SIZE 5.0f
-#define SC2_TRAYNOR_BRIDGE_Z_MIN     7.5f
-#define SC2_TRAYNOR_BRIDGE_Z_MAX     8.5f
-#define SC2_DIAG_EDGE_SPLITS_MAX     512
+#define SC2_ARRAY_LEN(x)             ((DWORD)(sizeof(x) / sizeof((x)[0])))
+#define SC2_XML_STRING_FIELD(name, field) { name, offsetof(sc2MapObject_t, field), SC2_XML_FIELD_STRING, sizeof(((sc2MapObject_t *)0)->field) }
+#define SC2_XML_FIELD(name, field, type)  { name, offsetof(sc2MapObject_t, field), type, 0 }
 
 typedef struct {
     HANDLE archive;
@@ -64,30 +56,30 @@ typedef struct {
     sc2CatalogCliff_t cliffs[SC2_MAX_CATALOG_CLIFFS];
 } sc2Catalog_t;
 
+typedef enum {
+    SC2_XML_FIELD_DWORD,
+    SC2_XML_FIELD_FLOAT,
+    SC2_XML_FIELD_STRING,
+    SC2_XML_FIELD_VEC3,
+} sc2XmlFieldType_t;
+
 typedef struct {
-    BOOL           used;
-    DWORD          id;
-    VECTOR3        position;
-    FLOAT          angle;
-    FLOAT          scale;
-    FLOAT          max_height;
-    VECTOR2        max_point;
-    FLOAT          center_height;
-} sc2BridgeDiag_t;
+    LPCSTR            name;
+    size_t            offset;
+    sc2XmlFieldType_t type;
+    DWORD             size;
+} sc2XmlField_t;
+
+typedef struct {
+    LPCSTR name;
+    DWORD  flag;
+} sc2XmlFlag_t;
 
 static sc2MapHost_t sc2_host;
 static sc2Map_t     sc2_map;
-static sc2BridgeDiag_t sc2_bridge_diag[SC2_TRAYNOR_BRIDGE_DIAG_MAX];
-static DWORD sc2_bridge_diag_count;
 
-static DWORD sc2_read_le32(BYTE const *p);
-static USHORT sc2_read_le16(BYTE const *p);
-static LONG sc2_read_i32(BYTE const *p);
-static BOOL sc2_mapinfo_magic(LPBYTE data, DWORD size);
-static void sc2_set_full_size(DWORD width, DWORD height);
-static void sc2_set_playable_bounds(LONG left, LONG bottom, LONG right, LONG top);
-static void sc2_map_position_to_playable(LPVECTOR3 position);
-static BOOL sc2_playable_crop(DWORD src_w, DWORD src_h, BOOL vertices, DWORD *left, DWORD *bottom, DWORD *width, DWORD *height);
+static BOOL sc2_mapinfo_fourcc(sc2MapInfo_t const *mapInfo);
+static void sc2_set_size(DWORD width, DWORD height);
 
 static HANDLE sc2_alloc(long size) {
     return sc2_host.mem_alloc ? sc2_host.mem_alloc(size) : NULL;
@@ -107,45 +99,6 @@ static void sc2_free_file(HANDLE file) {
     if (sc2_host.free_file) sc2_host.free_file(file);
 }
 
-static BOOL sc2_streqi(LPCSTR a, LPCSTR b) {
-    return a && b && !strcasecmp(a, b);
-}
-
-static BOOL sc2_contains_i(LPCSTR text, LPCSTR needle) {
-    char a[128], b[64];
-    DWORD i;
-    if (!text || !needle) return false;
-    snprintf(a, sizeof(a), "%s", text);
-    snprintf(b, sizeof(b), "%s", needle);
-    for (i = 0; a[i]; i++) a[i] = (char)tolower((unsigned char)a[i]);
-    for (i = 0; b[i]; i++) b[i] = (char)tolower((unsigned char)b[i]);
-    return strstr(a, b) != NULL;
-}
-
-static BOOL sc2_has_extension_i(LPCSTR path, LPCSTR ext) {
-    DWORD path_len;
-    DWORD ext_len;
-
-    if (!path || !ext) return false;
-    path_len = (DWORD)strlen(path);
-    ext_len = (DWORD)strlen(ext);
-    return path_len >= ext_len && !strcasecmp(path + path_len - ext_len, ext);
-}
-
-static BOOL sc2_path_has_dir(LPCSTR path) {
-    return path && (strchr(path, '\\') || strchr(path, '/'));
-}
-
-static void sc2_normalize_slashes(LPSTR path) {
-    if (!path) return;
-    for (char *p = path; *p; p++) if (*p == '/') *p = '\\';
-}
-
-static void sc2_append_extension(LPSTR path, DWORD size, LPCSTR ext) {
-    if (!path || !ext || !*path || strchr(strrchr(path, '\\') ? strrchr(path, '\\') : path, '.')) return;
-    strncat(path, ext, size - strlen(path) - 1);
-}
-
 static BOOL sc2_file_exists(LPCSTR path) {
     DWORD size = 0;
     HANDLE data;
@@ -156,77 +109,29 @@ static BOOL sc2_file_exists(LPCSTR path) {
     return data && size > 0;
 }
 
-static void sc2_camel_to_underscore(LPCSTR in, LPSTR out, DWORD out_size) {
-    DWORD w = 0;
-
-    if (!out || out_size == 0) return;
-    out[0] = '\0';
-    if (!in) return;
-    for (DWORD i = 0; in[i] && w + 1 < out_size; i++) {
-        BOOL split = i > 0 && isupper((unsigned char)in[i]) &&
-                     (islower((unsigned char)in[i - 1]) ||
-                      (in[i + 1] && islower((unsigned char)in[i + 1])));
-        if (split && w + 1 < out_size) out[w++] = '_';
-        out[w++] = in[i];
-    }
-    out[w] = '\0';
-}
-
-static DWORD sc2_hash32(LPCSTR str) {
-    DWORD hash = 2166136261u;
-    while (str && *str) hash = (hash ^ (BYTE)*str++) * 16777619u;
-    return hash;
-}
-
 static void sc2_map_clear(void) {
-    FOR_LOOP(i, SC2_MAX_TERRAIN_TEXTURES) {
-        SAFE_DELETE(sc2_map.texture_masks[i], sc2_free);
-    }
-    SAFE_DELETE(sc2_map.cell_flags, sc2_free);
-    SAFE_DELETE(sc2_map.cliff_levels, sc2_free);
-    SAFE_DELETE(sc2_map.height_map, sc2_free);
-    SAFE_DELETE(sc2_map.height_adjust_map, sc2_free);
+    SAFE_DELETE(sc2_map.MapInfo, sc2_free);
+    SAFE_DELETE(sc2_map.t3CellFlags, sc2_free);
+    SAFE_DELETE(sc2_map.t3SyncCliffLevel, sc2_free);
+    SAFE_DELETE(sc2_map.t3HeightMap, sc2_free);
+    SAFE_DELETE(sc2_map.t3SyncHeightMap, sc2_free);
+    SAFE_DELETE(sc2_map.t3TextureMasks, sc2_free);
     memset(&sc2_map, 0, sizeof(sc2_map));
 }
 
-static void sc2_bridge_diag_clear(void) {
-    memset(sc2_bridge_diag, 0, sizeof(sc2_bridge_diag));
-    sc2_bridge_diag_count = 0;
+static FLOAT sc2_height_scale(void) {
+    return sc2_map.height_quantize_scale ? sc2_map.height_quantize_scale : 1.0f;
 }
 
-static void sc2_set_default_camera(void) {
-    sc2_map.camera_distance = 34.07f;
-    sc2_map.camera_pitch = 56.0f;
-    sc2_map.camera_yaw = 180.0f;
-    sc2_map.camera_fov = 27.8f;
-    sc2_map.camera_znear = 0.1f;
-    sc2_map.camera_zfar = 400.0f;
-}
+static FLOAT sc2_height_total_at_index(DWORD x, DWORD y) {
+    sc2MapHeightSample_t const *sample;
 
-static BOOL sc2_parse_vec3(LPCSTR text, LPVECTOR3 out) {
-    char const *p = text;
-    char *end;
-    if (!text || !out) return false;
-    out->x = strtof(p, &end);
-    if (end == p) return false;
-    p = end;
-    while (*p == ',' || isspace((unsigned char)*p)) p++;
-    out->y = strtof(p, &end);
-    if (end == p) return false;
-    p = end;
-    while (*p == ',' || isspace((unsigned char)*p)) p++;
-    out->z = strtof(p, &end);
-    if (end == p) out->z = 0.0f;
-    return true;
-}
-
-static BOOL sc2_has_nonspace(LPCSTR text) {
-    if (!text) return false;
-    while (*text) {
-        if (!isspace((unsigned char)*text)) return true;
-        text++;
-    }
-    return false;
+    if (!sc2_map.t3HeightMap || !sc2_map.t3HeightMap->width || !sc2_map.t3HeightMap->height)
+        return 0.0f;
+    x = MIN(sc2_map.t3HeightMap->width - 1, x);
+    y = MIN(sc2_map.t3HeightMap->height - 1, y);
+    sample = &sc2_map.t3HeightMap->data[x + y * sc2_map.t3HeightMap->width];
+    return ((FLOAT)sample->height + (FLOAT)sample->adjustment) * sc2_height_scale() - 1.0f;
 }
 
 static BOOL sc2_source_open(sc2MapSource_t *source, LPCSTR mapFilename) {
@@ -505,42 +410,21 @@ static void sc2_parse_mapinfo_node(xmlNodePtr node) {
 static BOOL sc2_parse_mapinfo_binary(sc2MapSource_t *source) {
     DWORD size = 0;
     LPBYTE data = sc2_source_read(source, "MapInfo", &size);
-    DWORD offset;
-    DWORD width;
-    DWORD height;
-    LONG left, bottom, right, top;
 
-    if (!sc2_mapinfo_magic(data, size)) {
+    if (!data || size < sizeof(*sc2_map.MapInfo)) {
         sc2_free_file(data);
         return false;
     }
-    width = sc2_read_le32(data + 8);
-    height = sc2_read_le32(data + 12);
-    offset = 16;
-    FOR_LOOP(i, 2) {
-        DWORD string_start = offset;
-        while (offset < size && data[offset])
-            offset++;
-        if (offset >= size) {
-            sc2_free_file(data);
-            return false;
-        }
-        if (i == 0 && offset > string_start && !sc2_map.map_name[0]) {
-            snprintf(sc2_map.map_name, sizeof(sc2_map.map_name), "%s", (char const *)data + string_start);
-        }
-        offset++;
-    }
-    if (offset + 16 > size) {
-        sc2_free_file(data);
-        return false;
-    }
-    left = sc2_read_i32(data + offset);
-    bottom = sc2_read_i32(data + offset + 4);
-    right = sc2_read_i32(data + offset + 8);
-    top = sc2_read_i32(data + offset + 12);
-    sc2_set_full_size(width, height);
-    sc2_set_playable_bounds(left, bottom, right, top);
+    sc2_map.MapInfo = sc2_alloc(size);
+    memcpy(sc2_map.MapInfo, data, size);
     sc2_free_file(data);
+    if (!sc2_mapinfo_fourcc(sc2_map.MapInfo)) {
+        SAFE_DELETE(sc2_map.MapInfo, sc2_free);
+        return false;
+    }
+    if (!sc2_map.map_name[0] && sc2_map.MapInfo->data[0])
+        snprintf(sc2_map.map_name, sizeof(sc2_map.map_name), "%s", (char const *)sc2_map.MapInfo->data);
+    sc2_set_size(sc2_map.MapInfo->width, sc2_map.MapInfo->height);
     return true;
 }
 
@@ -553,7 +437,7 @@ static void sc2_parse_mapinfo(sc2MapSource_t *source) {
     if (!doc) doc = sc2_read_xml(source, "MapInfo.xml");
     if (!doc) return;
     sc2_parse_mapinfo_node(xmlDocGetRootElement(doc));
-    sc2_set_full_size(sc2_map.width, sc2_map.height);
+    sc2_set_size(sc2_map.width, sc2_map.height);
     xmlFreeDoc(doc);
 }
 
@@ -607,33 +491,104 @@ static void sc2_set_object_model(sc2MapObject_t *object) {
         snprintf(object->model, sizeof(object->model), "Assets\\Units\\Terran\\%s\\%s.m3", object->name, object->name);
 }
 
-static void sc2_object_field(sc2MapObject_t *object, LPCSTR key, LPCSTR value, BOOL *has_position) {
-    VECTOR3 v;
-    if (!object || !key || !value || !*value) return;
-    if ((sc2_contains_i(key, "model") || sc2_contains_i(key, "file")) && !object->model[0])
-        snprintf(object->model, sizeof(object->model), "%s", value);
-    else if (sc2_streqi(key, "id")) {
-        object->id = (DWORD)strtoul(value, NULL, 10);
-    } else if ((sc2_contains_i(key, "type") || sc2_contains_i(key, "unit") || sc2_contains_i(key, "doodad") ||
-                sc2_streqi(key, "name")) && !object->name[0])
-        snprintf(object->name, sizeof(object->name), "%s", value);
-    else if (sc2_streqi(key, "x") || sc2_contains_i(key, "posx")) {
-        object->position.x = strtof(value, NULL); *has_position = true;
-    } else if (sc2_streqi(key, "y") || sc2_contains_i(key, "posy")) {
-        object->position.y = strtof(value, NULL); *has_position = true;
-    } else if (sc2_streqi(key, "z") || sc2_contains_i(key, "posz")) {
-        object->position.z = strtof(value, NULL);
-    } else if (sc2_contains_i(key, "position") && sc2_parse_vec3(value, &v)) {
-        object->position = v; *has_position = true;
-    } else if (sc2_contains_i(key, "angle") || sc2_contains_i(key, "yaw") || sc2_contains_i(key, "rotation")) {
-        object->angle = strtof(value, NULL);
-    } else if (sc2_contains_i(key, "scale")) {
-        object->scale = strtof(value, NULL);
-    } else if (sc2_contains_i(key, "variation")) {
-        object->variation = (DWORD)strtoul(value, NULL, 10);
-    } else if (sc2_contains_i(key, "player") || sc2_contains_i(key, "owner")) {
-        object->player = (DWORD)strtoul(value, NULL, 10);
+static sc2XmlField_t const sc2_object_fields[] = {
+    SC2_XML_FIELD("Id", id, SC2_XML_FIELD_DWORD),
+    SC2_XML_STRING_FIELD("Name", name),
+    SC2_XML_STRING_FIELD("Model", model),
+    SC2_XML_STRING_FIELD("File", model),
+    SC2_XML_FIELD("Position", position, SC2_XML_FIELD_VEC3),
+    SC2_XML_FIELD("Rotation", angle, SC2_XML_FIELD_FLOAT),
+    SC2_XML_FIELD("Angle", angle, SC2_XML_FIELD_FLOAT),
+    SC2_XML_FIELD("Yaw", angle, SC2_XML_FIELD_FLOAT),
+    SC2_XML_FIELD("Scale", scale, SC2_XML_FIELD_FLOAT),
+    SC2_XML_FIELD("Variation", variation, SC2_XML_FIELD_DWORD),
+    SC2_XML_FIELD("Player", player, SC2_XML_FIELD_DWORD),
+    SC2_XML_FIELD("Owner", player, SC2_XML_FIELD_DWORD),
+};
+
+static sc2XmlField_t const sc2_unit_fields[] = {
+    SC2_XML_STRING_FIELD("UnitType", name),
+};
+
+static sc2XmlField_t const sc2_doodad_fields[] = {
+    SC2_XML_STRING_FIELD("Type", name),
+};
+
+static sc2XmlField_t const sc2_camera_fields[] = {
+    SC2_XML_FIELD("CameraTarget", camera.target, SC2_XML_FIELD_VEC3),
+};
+
+static sc2XmlField_t const sc2_camera_value_fields[] = {
+    SC2_XML_FIELD("Distance", camera.distance, SC2_XML_FIELD_FLOAT),
+    SC2_XML_FIELD("Pitch", camera.pitch, SC2_XML_FIELD_FLOAT),
+    SC2_XML_FIELD("Yaw", camera.yaw, SC2_XML_FIELD_FLOAT),
+    SC2_XML_FIELD("FieldOfView", camera.fov, SC2_XML_FIELD_FLOAT),
+    SC2_XML_FIELD("NearClip", camera.znear, SC2_XML_FIELD_FLOAT),
+    SC2_XML_FIELD("FarClip", camera.zfar, SC2_XML_FIELD_FLOAT),
+    SC2_XML_FIELD("HeightOffset", camera.height_offset, SC2_XML_FIELD_FLOAT),
+};
+
+static sc2XmlFlag_t const sc2_object_flags[] = {
+    { "HeightAbsolute", SC2_OBJECT_HEIGHT_ABSOLUTE },
+    { "HeightOffset",   SC2_OBJECT_HEIGHT_OFFSET },
+    { "ForcePlacement", SC2_OBJECT_FORCE_PLACEMENT },
+};
+
+static BOOL sc2_parse_xml_field(void *base, sc2XmlField_t const *fields, DWORD num_fields, LPCSTR name, LPCSTR value) {
+    if (!base || !fields || !name || !value || !*value)
+        return false;
+    FOR_LOOP(i, num_fields) {
+        sc2XmlField_t const *field = &fields[i];
+        char *out = (char *)base + field->offset;
+        if (!sc2_streqi(name, field->name))
+            continue;
+        switch (field->type) {
+            case SC2_XML_FIELD_DWORD:
+                *(DWORD *)out = (DWORD)strtoul(value, NULL, 10);
+                return true;
+            case SC2_XML_FIELD_FLOAT:
+                *(FLOAT *)out = strtof(value, NULL);
+                return true;
+            case SC2_XML_FIELD_STRING:
+                snprintf(out, field->size, "%s", value);
+                return true;
+            case SC2_XML_FIELD_VEC3:
+                return sc2_parse_vec3(value, (LPVECTOR3)out);
+        }
     }
+    return false;
+}
+
+static void sc2_parse_object_field(sc2MapObject_t *object, sc2XmlField_t const *fields, DWORD num_fields, LPCSTR key, LPCSTR value, BOOL *has_position) {
+    if (sc2_parse_xml_field(object, fields, num_fields, key, value) &&
+        (sc2_streqi(key, "Position") || sc2_streqi(key, "CameraTarget")) &&
+        has_position)
+        *has_position = true;
+}
+
+static void sc2_parse_object_fields(sc2MapObject_t *object, sc2ObjectType_t type, LPCSTR key, LPCSTR value, BOOL *has_position) {
+    sc2_parse_object_field(object, sc2_object_fields, SC2_ARRAY_LEN(sc2_object_fields), key, value, has_position);
+    switch (type) {
+        case SC2_OBJECT_UNIT:
+            sc2_parse_object_field(object, sc2_unit_fields, SC2_ARRAY_LEN(sc2_unit_fields), key, value, has_position);
+            break;
+        case SC2_OBJECT_DOODAD:
+            sc2_parse_object_field(object, sc2_doodad_fields, SC2_ARRAY_LEN(sc2_doodad_fields), key, value, has_position);
+            break;
+        case SC2_OBJECT_CAMERA:
+            sc2_parse_object_field(object, sc2_camera_fields, SC2_ARRAY_LEN(sc2_camera_fields), key, value, has_position);
+            break;
+    }
+}
+
+static BOOL sc2_object_type(xmlNodePtr node, sc2ObjectType_t *type) {
+    LPCSTR name = (char const *)node->name;
+
+    if (sc2_contains_i(name, "ObjectUnit")) *type = SC2_OBJECT_UNIT;
+    else if (sc2_contains_i(name, "ObjectDoodad")) *type = SC2_OBJECT_DOODAD;
+    else if (sc2_contains_i(name, "ObjectCamera")) *type = SC2_OBJECT_CAMERA;
+    else return false;
+    return true;
 }
 
 static void sc2_object_flag(sc2MapObject_t *object, xmlNodePtr node) {
@@ -646,240 +601,60 @@ static void sc2_object_flag(sc2MapObject_t *object, xmlNodePtr node) {
         !sc2_xml_attr(node, "Value", value, sizeof(value)) ||
         !atoi(value))
         return;
-    if (sc2_streqi(index, "HeightAbsolute")) object->flags |= SC2_OBJECT_HEIGHT_ABSOLUTE;
-    else if (sc2_streqi(index, "HeightOffset")) object->flags |= SC2_OBJECT_HEIGHT_OFFSET;
-    else if (sc2_streqi(index, "ForcePlacement")) object->flags |= SC2_OBJECT_FORCE_PLACEMENT;
-}
-
-static void sc2_diag_poly(sc2MapObject_t const *object, VECTOR2 poly[4]) {
-    FLOAT half = SC2_TRAYNOR_BRIDGE_HALF_SIZE * object->scale;
-    FLOAT c = cosf(object->angle);
-    FLOAT s = sinf(object->angle);
-    VECTOR2 local[4] = {
-        { -half, -half },
-        {  half, -half },
-        {  half,  half },
-        { -half,  half },
-    };
-
-    FOR_LOOP(i, 4) {
-        poly[i].x = object->position.x + c * local[i].x - s * local[i].y;
-        poly[i].y = object->position.y + s * local[i].x + c * local[i].y;
-    }
-}
-
-static BOOL sc2_diag_point_on_edge(FLOAT x, FLOAT y, VECTOR2 const *poly) {
-    FOR_LOOP(i, 4) {
-        VECTOR2 a = poly[i];
-        VECTOR2 b = poly[(i + 1) & 3];
-        FLOAT dx = b.x - a.x;
-        FLOAT dy = b.y - a.y;
-        FLOAT cross = (x - a.x) * dy - (y - a.y) * dx;
-        FLOAT dot;
-        if (fabsf(cross) > 0.0001f)
-            continue;
-        dot = (x - a.x) * dx + (y - a.y) * dy;
-        if (dot >= -0.0001f && dot <= dx * dx + dy * dy + 0.0001f)
-            return true;
-    }
-    return false;
-}
-
-static BOOL sc2_diag_point_in_poly(FLOAT x, FLOAT y, VECTOR2 const *poly) {
-    BOOL inside = false;
-    int j = 3;
-
-    if (sc2_diag_point_on_edge(x, y, poly))
-        return true;
-    FOR_LOOP(i, 4) {
-        if (((poly[i].y > y) != (poly[j].y > y)) &&
-            x < (poly[j].x - poly[i].x) * (y - poly[i].y) /
-                (poly[j].y - poly[i].y) + poly[i].x) {
-            inside = !inside;
-        }
-        j = (int)i;
-    }
-    return inside;
-}
-
-static void sc2_diag_consider_point(FLOAT x, FLOAT y, FLOAT *best, LPVECTOR2 best_point) {
-    FLOAT h;
-
-    if (x < 0.0f || y < 0.0f || x > (FLOAT)sc2_map.width || y > (FLOAT)sc2_map.height)
-        return;
-    h = SC2_MapHeightAtPoint(x, y);
-    if (h > *best) {
-        *best = h;
-        best_point->x = x;
-        best_point->y = y;
-    }
-}
-
-static void sc2_diag_add_split(FLOAT *splits, DWORD *num_splits, FLOAT t) {
-    if (t < 0.0f || t > 1.0f || *num_splits >= SC2_DIAG_EDGE_SPLITS_MAX)
-        return;
-    FOR_LOOP(i, *num_splits) {
-        if (fabsf(splits[i] - t) < 0.000001f)
+    FOR_LOOP(i, SC2_ARRAY_LEN(sc2_object_flags)) {
+        if (sc2_streqi(index, sc2_object_flags[i].name)) {
+            object->flags |= sc2_object_flags[i].flag;
             return;
-    }
-    splits[(*num_splits)++] = t;
-}
-
-static void sc2_diag_sort_splits(FLOAT *splits, DWORD num_splits) {
-    for (DWORD i = 1; i < num_splits; i++) {
-        FLOAT t = splits[i];
-        DWORD j = i;
-        while (j > 0 && splits[j - 1] > t) {
-            splits[j] = splits[j - 1];
-            j--;
-        }
-        splits[j] = t;
-    }
-}
-
-static void sc2_diag_consider_edge(VECTOR2 a, VECTOR2 b, FLOAT *best, LPVECTOR2 best_point) {
-    FLOAT splits[SC2_DIAG_EDGE_SPLITS_MAX];
-    DWORD num_splits = 0;
-    FLOAT dx = b.x - a.x;
-    FLOAT dy = b.y - a.y;
-
-    sc2_diag_add_split(splits, &num_splits, 0.0f);
-    sc2_diag_add_split(splits, &num_splits, 1.0f);
-    if (fabsf(dx) > 0.000001f) {
-        LONG min_x = (LONG)floorf(MIN(a.x, b.x)) - 1;
-        LONG max_x = (LONG)ceilf(MAX(a.x, b.x)) + 1;
-        for (LONG x = MAX(0, min_x); x <= MIN((LONG)sc2_map.height_map_width - 1, max_x); x++)
-            sc2_diag_add_split(splits, &num_splits, ((FLOAT)x - a.x) / dx);
-    }
-    if (fabsf(dy) > 0.000001f) {
-        LONG min_y = (LONG)floorf(MIN(a.y, b.y)) - 1;
-        LONG max_y = (LONG)ceilf(MAX(a.y, b.y)) + 1;
-        for (LONG y = MAX(0, min_y); y <= MIN((LONG)sc2_map.height_map_height - 1, max_y); y++)
-            sc2_diag_add_split(splits, &num_splits, ((FLOAT)y - a.y) / dy);
-    }
-    sc2_diag_sort_splits(splits, num_splits);
-    FOR_LOOP(i, num_splits) {
-        FLOAT t = splits[i];
-        sc2_diag_consider_point(a.x + dx * t, a.y + dy * t, best, best_point);
-    }
-    FOR_LOOP(i, num_splits - 1) {
-        FLOAT ta = splits[i];
-        FLOAT tb = splits[i + 1];
-        FLOAT tm = (ta + tb) * 0.5f;
-        FLOAT mx = a.x + dx * tm;
-        FLOAT my = a.y + dy * tm;
-        DWORD ix = MIN(sc2_map.height_map_width - 2, (DWORD)MAX(0, (LONG)floorf(mx)));
-        DWORD iy = MIN(sc2_map.height_map_height - 2, (DWORD)MAX(0, (LONG)floorf(my)));
-        FLOAT h00 = sc2_map.height_map[ix + iy * sc2_map.height_map_width];
-        FLOAT h10 = sc2_map.height_map[ix + 1 + iy * sc2_map.height_map_width];
-        FLOAT h01 = sc2_map.height_map[ix + (iy + 1) * sc2_map.height_map_width];
-        FLOAT h11 = sc2_map.height_map[ix + 1 + (iy + 1) * sc2_map.height_map_width];
-        FLOAT bb = h10 - h00;
-        FLOAT cc = h01 - h00;
-        FLOAT dd = h11 - h10 - h01 + h00;
-        FLOAT x0 = a.x - (FLOAT)ix;
-        FLOAT y0 = a.y - (FLOAT)iy;
-        FLOAT qa = dd * 2.0f * dx * dy;
-        FLOAT qb = bb * dx + cc * dy + dd * (dx * y0 + dy * x0);
-        if (tb - ta <= 0.000001f || fabsf(qa) <= 0.000001f)
-            continue;
-        tm = -qb / qa;
-        if (tm > ta && tm < tb)
-            sc2_diag_consider_point(a.x + dx * tm, a.y + dy * tm, best, best_point);
-    }
-}
-
-static FLOAT sc2_diag_max_height_in_poly(VECTOR2 const *poly, LPVECTOR2 best_point) {
-    FLOAT best = -FLT_MAX;
-    FLOAT min_x = poly[0].x, max_x = poly[0].x;
-    FLOAT min_y = poly[0].y, max_y = poly[0].y;
-
-    FOR_LOOP(i, 4) {
-        min_x = MIN(min_x, poly[i].x);
-        max_x = MAX(max_x, poly[i].x);
-        min_y = MIN(min_y, poly[i].y);
-        max_y = MAX(max_y, poly[i].y);
-        sc2_diag_consider_point(poly[i].x, poly[i].y, &best, best_point);
-    }
-    for (LONG y = MAX(0, (LONG)floorf(min_y) - 1);
-         y <= MIN((LONG)sc2_map.height_map_height - 1, (LONG)ceilf(max_y) + 1);
-         y++) {
-        for (LONG x = MAX(0, (LONG)floorf(min_x) - 1);
-             x <= MIN((LONG)sc2_map.height_map_width - 1, (LONG)ceilf(max_x) + 1);
-             x++) {
-            if (sc2_diag_point_in_poly((FLOAT)x, (FLOAT)y, poly))
-                sc2_diag_consider_point((FLOAT)x, (FLOAT)y, &best, best_point);
         }
     }
-    FOR_LOOP(i, 4)
-        sc2_diag_consider_edge(poly[i], poly[(i + 1) & 3], &best, best_point);
-    return best;
-}
-
-static void sc2_bridge_diag_add(sc2MapObject_t const *object) {
-    sc2BridgeDiag_t *diag;
-    VECTOR2 poly[4];
-
-    if (!object || sc2_bridge_diag_count >= SC2_TRAYNOR_BRIDGE_DIAG_MAX)
-        return;
-    if (!sc2_map.height_map || sc2_map.height_map_width < 2 || sc2_map.height_map_height < 2)
-        return;
-    if (object->type != SC2_OBJECT_DOODAD || !sc2_streqi(object->name, "MarSaraBridgeDestroyed"))
-        return;
-    if (object->position.z < SC2_TRAYNOR_BRIDGE_Z_MIN || object->position.z > SC2_TRAYNOR_BRIDGE_Z_MAX)
-        return;
-    if ((object->flags & (SC2_OBJECT_HEIGHT_ABSOLUTE | SC2_OBJECT_HEIGHT_OFFSET)) !=
-        (SC2_OBJECT_HEIGHT_ABSOLUTE | SC2_OBJECT_HEIGHT_OFFSET))
-        return;
-    diag = &sc2_bridge_diag[sc2_bridge_diag_count++];
-    memset(diag, 0, sizeof(*diag));
-    diag->used = true;
-    diag->id = object->id;
-    diag->position = object->position;
-    diag->angle = object->angle;
-    diag->scale = object->scale;
-    diag->center_height = SC2_MapHeightAtPoint(object->position.x, object->position.y);
-    sc2_diag_poly(object, poly);
-    diag->max_height = sc2_diag_max_height_in_poly(poly, &diag->max_point);
 }
 
 static void sc2_parse_object_node(xmlNodePtr node) {
     sc2MapObject_t object;
     BOOL has_position = false;
-    BOOL is_unit;
-    BOOL is_doodad;
+    sc2ObjectType_t type;
     char value[256];
 
     if (!node || node->type != XML_ELEMENT_NODE) return;
-    is_unit = sc2_contains_i((char const *)node->name, "ObjectUnit");
-    is_doodad = sc2_contains_i((char const *)node->name, "ObjectDoodad");
-    if (!is_unit && !is_doodad) {
+    if (!sc2_object_type(node, &type)) {
         for (xmlNodePtr child = node->children; child; child = child->next)
             sc2_parse_object_node(child);
         return;
     }
     memset(&object, 0, sizeof(object));
     object.scale = 1.0f;
-    object.type = is_doodad ? SC2_OBJECT_DOODAD : SC2_OBJECT_UNIT;
+    object.type = type;
 
     for (xmlAttrPtr attr = node->properties; attr; attr = attr->next) {
         xmlChar *text = xmlNodeListGetString(node->doc, attr->children, 1);
         if (text) {
-            sc2_object_field(&object, (char const *)attr->name, (char const *)text, &has_position);
+            sc2_parse_object_fields(&object, type, (char const *)attr->name, (char const *)text, &has_position);
             xmlFree(text);
         }
     }
     for (xmlNodePtr child = node->children; child; child = child->next) {
+        char index[64];
         if (child->type != XML_ELEMENT_NODE)
             continue;
         sc2_object_flag(&object, child);
-        if (sc2_xml_content(child, value, sizeof(value)))
-            sc2_object_field(&object, (char const *)child->name, value, &has_position);
+        if (type == SC2_OBJECT_CAMERA &&
+            sc2_contains_i((char const *)child->name, "CameraValue") &&
+            sc2_xml_attr(child, "Index", index, sizeof(index)) &&
+            sc2_xml_attr(child, "Value", value, sizeof(value))) {
+            sc2_parse_object_field(&object,
+                                   sc2_camera_value_fields,
+                                   SC2_ARRAY_LEN(sc2_camera_value_fields),
+                                   index,
+                                   value,
+                                   NULL);
+            continue;
+        }
+        if (sc2_xml_content(child, value, sizeof(value))) {
+            sc2_parse_object_fields(&object, type, (char const *)child->name, value, &has_position);
+        }
     }
 
     if (has_position && (object.name[0] || object.model[0])) {
-        sc2_map_position_to_playable(&object.position);
-        sc2_bridge_diag_add(&object);
         if (sc2_map.num_objects < SC2_MAX_MAP_OBJECTS) {
             sc2_set_object_model(&object);
             sc2_map.objects[sc2_map.num_objects++] = object;
@@ -887,85 +662,10 @@ static void sc2_parse_object_node(xmlNodePtr node) {
     }
 }
 
-static BOOL sc2_camera_value(xmlNodePtr node, LPCSTR name, LPSTR buffer, DWORD size) {
-    if (sc2_xml_attr(node, name, buffer, size)) return true;
-    if (!strcasecmp(name, "value")) return sc2_xml_attr(node, "Value", buffer, size);
-    if (!strcasecmp(name, "index")) return sc2_xml_attr(node, "Index", buffer, size);
-    return false;
-}
-
-static void sc2_parse_camera_node(xmlNodePtr node) {
-    char name[64] = "";
-    char value[128];
-    VECTOR3 target;
-    DWORD priority;
-    FLOAT distance, pitch, yaw, fov, znear, zfar, height_offset;
-
-    if (!node || node->type != XML_ELEMENT_NODE)
-        return;
-    if (!sc2_contains_i((char const *)node->name, "ObjectCamera"))
-        goto children;
-
-    sc2_xml_attr(node, "Name", name, sizeof(name));
-    if (!sc2_xml_attr(node, "CameraTarget", value, sizeof(value)) &&
-        !sc2_xml_attr(node, "Position", value, sizeof(value))) {
-        goto children;
-    }
-    if (!sc2_parse_vec3(value, &target))
-        goto children;
-
-    priority = !sc2_map.has_camera ? 1 : 0;
-    if (sc2_contains_i(name, "StartGame")) priority = 2;
-    if (sc2_contains_i(name, "StartGame02")) priority = 3;
-    if (priority < sc2_map.camera_priority)
-        goto children;
-
-    distance = sc2_map.camera_distance;
-    pitch = sc2_map.camera_pitch;
-    yaw = sc2_map.camera_yaw;
-    fov = sc2_map.camera_fov;
-    znear = sc2_map.camera_znear;
-    zfar = sc2_map.camera_zfar;
-    height_offset = sc2_map.camera_height_offset;
-
-    for (xmlNodePtr child = node->children; child; child = child->next) {
-        char index[64];
-        if (child->type != XML_ELEMENT_NODE || !sc2_contains_i((char const *)child->name, "CameraValue"))
-            continue;
-        if (!sc2_camera_value(child, "Index", index, sizeof(index)) ||
-            !sc2_camera_value(child, "Value", value, sizeof(value)))
-            continue;
-        if (sc2_streqi(index, "Distance")) distance = strtof(value, NULL);
-        else if (sc2_streqi(index, "Pitch")) pitch = strtof(value, NULL);
-        else if (sc2_streqi(index, "Yaw")) yaw = strtof(value, NULL);
-        else if (sc2_streqi(index, "FieldOfView")) fov = strtof(value, NULL);
-        else if (sc2_streqi(index, "NearClip")) znear = strtof(value, NULL);
-        else if (sc2_streqi(index, "FarClip")) zfar = strtof(value, NULL);
-        else if (sc2_streqi(index, "HeightOffset")) height_offset = strtof(value, NULL);
-    }
-
-    sc2_map.has_camera = true;
-    sc2_map.camera_priority = priority;
-    sc2_map_position_to_playable(&target);
-    sc2_map.camera_target = target;
-    sc2_map.camera_distance = distance;
-    sc2_map.camera_pitch = pitch;
-    sc2_map.camera_yaw = yaw;
-    sc2_map.camera_fov = fov;
-    sc2_map.camera_znear = znear;
-    sc2_map.camera_zfar = zfar;
-    sc2_map.camera_height_offset = height_offset;
-
-children:
-    for (xmlNodePtr child = node->children; child; child = child->next)
-        sc2_parse_camera_node(child);
-}
-
 static void sc2_parse_objects(sc2MapSource_t *source) {
     xmlDocPtr doc = sc2_read_xml(source, "Objects");
     if (!doc) doc = sc2_read_xml(source, "Objects.xml");
     if (!doc) return;
-    sc2_parse_camera_node(xmlDocGetRootElement(doc));
     sc2_parse_object_node(xmlDocGetRootElement(doc));
     xmlFreeDoc(doc);
 }
@@ -1408,385 +1108,61 @@ static void sc2_resolve_catalogs(void) {
     sc2_free(catalog);
 }
 
-static DWORD sc2_read_le32(BYTE const *p) {
-    return (DWORD)p[0] | ((DWORD)p[1] << 8) | ((DWORD)p[2] << 16) | ((DWORD)p[3] << 24);
+static BOOL sc2_mapinfo_fourcc(sc2MapInfo_t const *mapInfo) {
+    return mapInfo &&
+        (mapInfo->fourcc == MAKEFOURCC('I','p','a','M') ||
+         mapInfo->fourcc == MAKEFOURCC('M','a','p','I'));
 }
 
-static USHORT sc2_read_le16(BYTE const *p) {
-    return (USHORT)((USHORT)p[0] | ((USHORT)p[1] << 8));
-}
-
-static LONG sc2_read_i32(BYTE const *p) {
-    return (LONG)sc2_read_le32(p);
-}
-
-static BOOL sc2_mapinfo_magic(LPBYTE data, DWORD size) {
-    return data && size >= SC2_MAPINFO_MIN_SIZE &&
-        (!memcmp(data, "IpaM", 4) || !memcmp(data, "MapI", 4));
-}
-
-static void sc2_set_playable_bounds(LONG left, LONG bottom, LONG right, LONG top) {
-    if (right <= left || top <= bottom)
-        return;
-    sc2_map.has_playable_bounds = true;
-    sc2_map.playable_left = left;
-    sc2_map.playable_bottom = bottom;
-    sc2_map.playable_right = right;
-    sc2_map.playable_top = top;
-    sc2_map.width = (DWORD)(right - left);
-    sc2_map.height = (DWORD)(top - bottom);
-}
-
-static void sc2_set_full_size(DWORD width, DWORD height) {
-    sc2_map.full_width = width;
-    sc2_map.full_height = height;
-    if (!sc2_map.has_playable_bounds) {
-        sc2_map.width = width;
-        sc2_map.height = height;
-    }
-}
-
-static void sc2_map_position_to_playable(LPVECTOR3 position) {
-    if (!position || !sc2_map.has_playable_bounds)
-        return;
-    position->x -= (FLOAT)sc2_map.playable_left;
-    position->y -= (FLOAT)sc2_map.playable_bottom;
-}
-
-static BOOL sc2_playable_crop(DWORD src_w,
-                              DWORD src_h,
-                              BOOL vertices,
-                              DWORD *left,
-                              DWORD *bottom,
-                              DWORD *width,
-                              DWORD *height) {
-    DWORD right;
-    DWORD top;
-
-    if (!left || !bottom || !width || !height || !src_w || !src_h)
-        return false;
-    *left = 0;
-    *bottom = 0;
-    *width = src_w;
-    *height = src_h;
-    if (!sc2_map.has_playable_bounds)
-        return true;
-    if (sc2_map.playable_left < 0 || sc2_map.playable_bottom < 0)
-        return false;
-    *left = (DWORD)sc2_map.playable_left;
-    *bottom = (DWORD)sc2_map.playable_bottom;
-    right = (DWORD)sc2_map.playable_right + (vertices ? 1u : 0u);
-    top = (DWORD)sc2_map.playable_top + (vertices ? 1u : 0u);
-    if (*left >= right || *bottom >= top || right > src_w || top > src_h)
-        return false;
-    *width = right - *left;
-    *height = top - *bottom;
-    return true;
+static void sc2_set_size(DWORD width, DWORD height) {
+    sc2_map.width = width;
+    sc2_map.height = height;
 }
 
 static void sc2_parse_height_map(sc2MapSource_t *source) {
     DWORD size = 0;
     LPBYTE data = sc2_source_read(source, "t3HeightMap", &size);
-    DWORD w, h, crop_x, crop_y, crop_w, crop_h;
-    FLOAT scale, bias;
 
-    if (!data || size < SC2_HMAP_HEADER_SIZE || memcmp(data, "HMAP", 4) != 0) {
-        sc2_free_file(data);
-        return;
-    }
-    w = sc2_read_le32(data + 8);
-    h = sc2_read_le32(data + 12);
-    if (!w || !h || w > 4096 || h > 4096 ||
-        size < SC2_HMAP_HEADER_SIZE + w * h * SC2_HMAP_CHUNK_SIZE ||
-        !sc2_playable_crop(w, h, true, &crop_x, &crop_y, &crop_w, &crop_h)) {
-        sc2_free_file(data);
-        return;
-    }
-    sc2_map.height_map = sc2_alloc(crop_w * crop_h * sizeof(*sc2_map.height_map));
-    sc2_map.height_adjust_map = sc2_alloc(crop_w * crop_h * sizeof(*sc2_map.height_adjust_map));
-    if (!sc2_map.height_map || !sc2_map.height_adjust_map) {
-        SAFE_DELETE(sc2_map.height_map, sc2_free);
-        SAFE_DELETE(sc2_map.height_adjust_map, sc2_free);
-        sc2_free_file(data);
-        return;
-    }
-    scale = sc2_map.height_quantize_scale;
-    bias = sc2_map.height_quantize_bias;
-    FOR_LOOP(y, crop_h) {
-        FOR_LOOP(x, crop_w) {
-            DWORD src = (crop_x + x) + (crop_y + y) * w;
-            LPBYTE chunk = data + SC2_HMAP_HEADER_SIZE + src * SC2_HMAP_CHUNK_SIZE;
-            USHORT height_adjustment = sc2_read_le16(chunk);
-            USHORT height_base = sc2_read_le16(chunk + 2);
-                (void)height_adjustment;
-            /* Debug path: keep tier/plateau base height but disable fine adjustments.
-               This keeps terrain flat at expected cliff tiers. */
-            sc2_map.height_adjust_map[x + y * crop_w] = 0.0f;
-            sc2_map.height_map[x + y * crop_w] = height_base * scale - 1.0f;
-        }
-    }
-    sc2_map.height_map_width = crop_w;
-    sc2_map.height_map_height = crop_h;
-    if (!sc2_map.width && crop_w > 1) sc2_map.width = crop_w - 1;
-    if (!sc2_map.height && crop_h > 1) sc2_map.height = crop_h - 1;
+    sc2_map.t3HeightMap = sc2_alloc(size);
+    memcpy(sc2_map.t3HeightMap, data, size);
     sc2_free_file(data);
 }
 
 static void sc2_parse_sync_height_map(sc2MapSource_t *source) {
     DWORD size = 0;
     LPBYTE data = sc2_source_read(source, "t3SyncHeightMap", &size);
-    DWORD w, h, crop_x, crop_y, crop_w, crop_h;
 
-    if (!data || size < SC2_SMAP_HEADER_SIZE || memcmp(data, "SMAP", 4) != 0) {
-        sc2_free_file(data);
-        return;
-    }
-    w = sc2_read_le32(data + 8);
-    h = sc2_read_le32(data + 12);
-    if (!w || !h || w > 4096 || h > 4096 ||
-        size < SC2_SMAP_HEADER_SIZE + w * h * SC2_SMAP_CHUNK_SIZE ||
-        !sc2_playable_crop(w, h, true, &crop_x, &crop_y, &crop_w, &crop_h)) {
-        sc2_free_file(data);
-        return;
-    }
-    if (!sc2_map.height_map ||
-        sc2_map.height_map_width != crop_w ||
-        sc2_map.height_map_height != crop_h) {
-        sc2_free_file(data);
-        return;
-    }
-    FOR_LOOP(y, crop_h) {
-        FOR_LOOP(x, crop_w) {
-            DWORD src = (crop_x + x) + (crop_y + y) * w;
-            LPBYTE chunk = data + SC2_SMAP_HEADER_SIZE + src * SC2_SMAP_CHUNK_SIZE;
-            SHORT delta = (SHORT)sc2_read_le16(chunk);
-            (void)delta;
-            /* Debug path: ignore sync micro-height offsets to keep terrain flat. */
-            // sc2_map.height_map[x + y * crop_w] += sync_adjust;
-            // if (sc2_map.height_adjust_map)
-            //     sc2_map.height_adjust_map[x + y * crop_w] += sync_adjust;
-        }
-    }
+    sc2_map.t3SyncHeightMap = sc2_alloc(size);
+    memcpy(sc2_map.t3SyncHeightMap, data, size);
     sc2_free_file(data);
 }
 
 static void sc2_parse_cell_flags(sc2MapSource_t *source) {
     DWORD size = 0;
     LPBYTE data = sc2_source_read(source, "t3CellFlags", &size);
-    if (data && size >= SC2_TERRAIN_HEADER_SIZE && memcmp(data, "LFCT", 4) == 0) {
-        DWORD w = sc2_read_le32(data + 24);
-        DWORD h = sc2_read_le32(data + 28);
-        DWORD crop_x, crop_y, crop_w, crop_h;
-        if (w > 0 && h > 0 && w < 4096 && h < 4096 &&
-            size >= SC2_TERRAIN_HEADER_SIZE + w * h &&
-            sc2_playable_crop(w, h, false, &crop_x, &crop_y, &crop_w, &crop_h)) {
-            if (!sc2_map.has_playable_bounds) {
-                sc2_map.width = crop_w;
-                sc2_map.height = crop_h;
-            }
-            if (crop_w && crop_h) {
-                sc2_map.cell_flags = sc2_alloc(crop_w * crop_h);
-                if (sc2_map.cell_flags) {
-                    FOR_LOOP(y, crop_h) {
-                        memcpy(sc2_map.cell_flags + y * crop_w,
-                               data + SC2_TERRAIN_HEADER_SIZE + crop_x + (crop_y + y) * w,
-                               crop_w);
-                    }
-                    sc2_map.cell_flags_width = crop_w;
-                    sc2_map.cell_flags_height = crop_h;
-                }
-            }
-        }
-    }
+
+    sc2_map.t3CellFlags = sc2_alloc(size);
+    memcpy(sc2_map.t3CellFlags, data, size);
     sc2_free_file(data);
 }
 
 static void sc2_parse_sync_cliff_level(sc2MapSource_t *source) {
     DWORD size = 0;
     LPBYTE data = sc2_source_read(source, "t3SyncCliffLevel", &size);
-    DWORD w, h, crop_x, crop_y, crop_w, crop_h;
 
-    if (!data || size < SC2_TERRAIN_HEADER_SIZE || memcmp(data, "CLIF", 4) != 0) {
-        sc2_free_file(data);
-        return;
-    }
-    w = sc2_read_le32(data + 8);
-    h = sc2_read_le32(data + 12);
-    if (!w || !h || w > 4096 || h > 4096 ||
-        size < SC2_TERRAIN_HEADER_SIZE + w * h * sizeof(USHORT) ||
-        !sc2_playable_crop(w, h, false, &crop_x, &crop_y, &crop_w, &crop_h)) {
-        sc2_free_file(data);
-        return;
-    }
-    sc2_map.cliff_levels = sc2_alloc(crop_w * crop_h * sizeof(USHORT));
-    if (sc2_map.cliff_levels) {
-        FOR_LOOP(y, crop_h) {
-            memcpy(sc2_map.cliff_levels + y * crop_w,
-                   data + SC2_TERRAIN_HEADER_SIZE + ((crop_y + y) * w + crop_x) * sizeof(USHORT),
-                   crop_w * sizeof(USHORT));
-        }
-        sc2_map.cliff_level_width = crop_w;
-        sc2_map.cliff_level_height = crop_h;
-    }
+    sc2_map.t3SyncCliffLevel = sc2_alloc(size);
+    memcpy(sc2_map.t3SyncCliffLevel, data, size);
     sc2_free_file(data);
-}
-
-static BYTE sc2_texture_mask_nibble(BYTE byte, DWORD pixel) {
-    return pixel & 1 ? byte & 0x0F : byte >> 4;
-}
-
-static void sc2_decode_texture_mask_block(LPBYTE out, LPBYTE src, DWORD width, DWORD height, DWORD blocks_x, DWORD block) {
-    DWORD bx = block % blocks_x;
-    DWORD by = block / blocks_x;
-
-    FOR_LOOP(y, 64) {
-        FOR_LOOP(x, 64) {
-            DWORD px = bx * 64 + x;
-            DWORD py = by * 64 + y;
-            if (px >= width || py >= height)
-                continue;
-            out[px + py * width] = sc2_texture_mask_nibble(src[y * 32 + x / 2], x);
-        }
-    }
 }
 
 static void sc2_parse_texture_masks(sc2MapSource_t *source) {
     DWORD size = 0;
     LPBYTE data = sc2_source_read(source, "t3TextureMasks", &size);
-    DWORD w, h;
-    DWORD blocks_x, blocks_y;
-    DWORD packed_layer_size, block_layer_size;
-    DWORD layer_stride, layers;
 
-    if (!data || size < 64 || memcmp(data, "MASK", 4) != 0) {
-        sc2_free_file(data);
-        return;
-    }
-    w = sc2_read_le32(data + 12);
-    h = sc2_read_le32(data + 16);
-    if (!w || !h || w > 4096 || h > 4096) {
-        sc2_free_file(data);
-        return;
-    }
-    packed_layer_size = (w * h) / 2;
-    blocks_x = (w + 63) / 64;
-    blocks_y = (h + 63) / 64;
-    block_layer_size = blocks_x * blocks_y * 64 * 32;
-    layer_stride = block_layer_size;
-    if (!layer_stride || size < 64 + layer_stride || (size - 64) % layer_stride != 0) {
-        layer_stride = packed_layer_size;
-    }
-    if (!layer_stride) {
-        sc2_free_file(data);
-        return;
-    }
-    layers = MIN(SC2_MAX_TERRAIN_TEXTURES, (size - 64) / layer_stride);
-    sc2_map.texture_mask_width = w;
-    sc2_map.texture_mask_height = h;
-    sc2_map.num_texture_masks = layers;
-
-    FOR_LOOP(layer, layers) {
-        LPBYTE out = sc2_alloc(w * h);
-        LPBYTE src = data + 64 + layer * layer_stride;
-        if (!out) {
-            break;
-        }
-        memset(out, 0, w * h);
-        if (layer_stride == block_layer_size && block_layer_size > 0) {
-            FOR_LOOP(block, blocks_x * blocks_y) {
-                sc2_decode_texture_mask_block(out, src + block * 64 * 32, w, h, blocks_x, block);
-            }
-        } else {
-            FOR_LOOP(i, w * h) {
-                out[i] = sc2_texture_mask_nibble(src[i / 2], i);
-            }
-        }
-        sc2_map.texture_masks[layer] = out;
-    }
+    sc2_map.t3TextureMasks = sc2_alloc(size);
+    memcpy(sc2_map.t3TextureMasks, data, size);
+    sc2_map.t3TextureMasksSize = size;
     sc2_free_file(data);
-}
-
-static void sc2_add_default_object(LPCSTR name, LPCSTR model, FLOAT x, FLOAT y, FLOAT angle, DWORD player) {
-    sc2MapObject_t *object;
-    if (sc2_map.num_objects >= SC2_MAX_MAP_OBJECTS) return;
-    object = &sc2_map.objects[sc2_map.num_objects++];
-    memset(object, 0, sizeof(*object));
-    object->type = SC2_OBJECT_UNIT;
-    snprintf(object->name, sizeof(object->name), "%s", name);
-    snprintf(object->model, sizeof(object->model), "%s", model);
-    object->position = (VECTOR3){ x, y, 0.0f };
-    object->angle = angle;
-    object->scale = 1.0f;
-    object->player = player;
-}
-
-static BOOL sc2_is_traynor01(LPCSTR mapFilename) {
-    return sc2_contains_i(mapFilename, "TRaynor01");
-}
-
-static void sc2_format_trimmed_float(char *buffer, DWORD size, FLOAT value) {
-    if (!buffer || size == 0)
-        return;
-    snprintf(buffer, size, "%.4f", value);
-    for (char *p = buffer + strlen(buffer); p > buffer && p[-1] == '0'; p--)
-        p[-1] = '\0';
-    if (buffer[0] && buffer[strlen(buffer) - 1] == '.')
-        buffer[strlen(buffer) - 1] = '\0';
-}
-
-static void sc2_print_traynor_bridge_diag(LPCSTR mapFilename) {
-    if (!sc2_is_traynor01(mapFilename) || sc2_bridge_diag_count == 0)
-        return;
-
-    fprintf(stderr,
-            "Using GetHeight/SC2_MapHeightAtPoint semantics on the default SC2 map TRaynor01, "
-            "and using the bridge footprint area [-5,-5]..[5,5] rotated/scaled by each doodad placement:\n\n");
-    fprintf(stderr, "Doodad\tPosition\tScale\tMax GetHeight in area\n");
-    FOR_LOOP(i, sc2_bridge_diag_count) {
-        sc2BridgeDiag_t const *diag = &sc2_bridge_diag[i];
-        char x[32], y[32], z[32];
-        if (!diag->used)
-            continue;
-        sc2_format_trimmed_float(x, sizeof(x), diag->position.x);
-        sc2_format_trimmed_float(y, sizeof(y), diag->position.y);
-        sc2_format_trimmed_float(z, sizeof(z), diag->position.z);
-        fprintf(stderr,
-                "Id=%u\t%s, %s, %s\t%.1f\t%.9f\n",
-                (unsigned)diag->id,
-                x,
-                y,
-                z,
-                diag->scale,
-                diag->max_height);
-    }
-    if (sc2_bridge_diag_count == 2 &&
-        fabsf(sc2_bridge_diag[0].center_height - sc2_bridge_diag[1].center_height) < 0.000001f) {
-        fprintf(stderr,
-                "For reference, GetHeight at both doodad centers is %.10f.\n",
-                sc2_bridge_diag[0].center_height);
-    } else {
-        fprintf(stderr, "For reference, GetHeight at doodad centers:");
-        FOR_LOOP(i, sc2_bridge_diag_count)
-            fprintf(stderr, " Id=%u %.10f", (unsigned)sc2_bridge_diag[i].id, sc2_bridge_diag[i].center_height);
-        fprintf(stderr, ".\n");
-    }
-}
-
-static void sc2_generate_default_map(void) {
-    if (!sc2_map.width) sc2_map.width = SC2_DEFAULT_MAP_WIDTH;
-    if (!sc2_map.height) sc2_map.height = SC2_DEFAULT_MAP_HEIGHT;
-    if (!sc2_map.map_name[0]) snprintf(sc2_map.map_name, sizeof(sc2_map.map_name), "SC2 Terran Test");
-    if (sc2_map.num_terrain_textures == 0) {
-        sc2_add_terrain_texture("Assets\\Textures\\Terrain\\BelShir\\BelShirGrass_Diffuse.dds");
-        sc2_add_terrain_texture("Assets\\Textures\\Terrain\\BelShir\\BelShirDirt_Diffuse.dds");
-    }
-    if (sc2_map.num_objects > 0) return;
-    sc2_map.generated = true;
-    sc2_add_default_object("CommandCenter", "Assets\\Units\\Terran\\CommandCenter\\CommandCenter.m3", 48, 48, 0, 1);
-    sc2_add_default_object("SCV", "Assets\\Units\\Terran\\SCV\\SCV.m3", 42, 44, 0, 1);
-    sc2_add_default_object("SCV", "Assets\\Units\\Terran\\SCV\\SCV.m3", 45, 42, 0, 1);
-    sc2_add_default_object("Marine", "Assets\\Units\\Terran\\Marine\\Marine.m3", 55, 51, 0, 1);
-    sc2_add_default_object("Marine", "Assets\\Units\\Terran\\Marine\\Marine.m3", 57, 53, 0, 1);
 }
 
 void SC2_MapSetHost(sc2MapHost_t const *host) {
@@ -1797,12 +1173,9 @@ void SC2_MapSetHost(sc2MapHost_t const *host) {
 BOOL SC2_MapLoad(LPCSTR mapFilename) {
     sc2MapSource_t source;
     sc2_map_clear();
-    sc2_bridge_diag_clear();
     sc2_map.cell_size = SC2_CELL_SIZE;
-    sc2_set_default_camera();
     if (!sc2_source_open(&source, mapFilename)) {
-        sc2_generate_default_map();
-        return true;
+        return false;
     }
     sc2_parse_mapinfo(&source);
     sc2_parse_terrain(&source);
@@ -1814,13 +1187,11 @@ BOOL SC2_MapLoad(LPCSTR mapFilename) {
     sc2_parse_objects(&source);
     sc2_source_close(&source);
     sc2_resolve_catalogs();
-    sc2_generate_default_map();
     sc2_map.origin.x = 0.0f;
     sc2_map.origin.y = 0.0f;
-    fprintf(stderr, "SC2_MapLoad: %s %ux%u objects=%u%s\n",
+    fprintf(stderr, "SC2_MapLoad: %s %ux%u objects=%u\n",
             sc2_map.map_name, (unsigned)sc2_map.width, (unsigned)sc2_map.height,
-            (unsigned)sc2_map.num_objects, sc2_map.generated ? " generated" : "");
-    sc2_print_traynor_bridge_diag(mapFilename);
+            (unsigned)sc2_map.num_objects);
     return true;
 }
 
@@ -1833,27 +1204,27 @@ sc2Map_t *SC2_MapCurrent(void) {
 }
 
 FLOAT SC2_MapHeightAtPoint(FLOAT x, FLOAT y) {
-    VECTOR2 n;
     FLOAT fx, fy, tx, ty;
     DWORD x0, y0, x1, y1;
     FLOAT h00, h10, h01, h11, h0, h1;
 
-    if (!sc2_map.height_map || !sc2_map.height_map_width || !sc2_map.height_map_height) {
+    if (!sc2_map.t3HeightMap || !sc2_map.t3HeightMap->width || !sc2_map.t3HeightMap->height) {
         return 0.0f;
     }
-    n = SC2_MapNormalizedPosition(x, y);
-    fx = MIN(MAX(n.x, 0.0f), 1.0f) * (FLOAT)(sc2_map.height_map_width - 1);
-    fy = MIN(MAX(n.y, 0.0f), 1.0f) * (FLOAT)(sc2_map.height_map_height - 1);
+    fx = (x - sc2_map.origin.x) / (sc2_map.cell_size ? sc2_map.cell_size : 1.0f);
+    fy = (y - sc2_map.origin.y) / (sc2_map.cell_size ? sc2_map.cell_size : 1.0f);
+    fx = MIN(MAX(fx, 0.0f), (FLOAT)(sc2_map.width ? sc2_map.width : sc2_map.t3HeightMap->width - 1));
+    fy = MIN(MAX(fy, 0.0f), (FLOAT)(sc2_map.height ? sc2_map.height : sc2_map.t3HeightMap->height - 1));
     x0 = (DWORD)floorf(fx);
     y0 = (DWORD)floorf(fy);
-    x1 = MIN(sc2_map.height_map_width - 1, x0 + 1);
-    y1 = MIN(sc2_map.height_map_height - 1, y0 + 1);
+    x1 = x0 + 1;
+    y1 = y0 + 1;
     tx = fx - (FLOAT)x0;
     ty = fy - (FLOAT)y0;
-    h00 = sc2_map.height_map[x0 + y0 * sc2_map.height_map_width];
-    h10 = sc2_map.height_map[x1 + y0 * sc2_map.height_map_width];
-    h01 = sc2_map.height_map[x0 + y1 * sc2_map.height_map_width];
-    h11 = sc2_map.height_map[x1 + y1 * sc2_map.height_map_width];
+    h00 = sc2_height_total_at_index(x0, y0);
+    h10 = sc2_height_total_at_index(x1, y0);
+    h01 = sc2_height_total_at_index(x0, y1);
+    h11 = sc2_height_total_at_index(x1, y1);
     h0 = h00 + (h10 - h00) * tx;
     h1 = h01 + (h11 - h01) * tx;
     return h0 + (h1 - h0) * ty;

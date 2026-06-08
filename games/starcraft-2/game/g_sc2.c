@@ -243,9 +243,6 @@ static void SC2_InitClients(void) {
             map->origin.x + (FLOAT)map->width * map->cell_size * 0.5f,
             map->origin.y + (FLOAT)map->height * map->cell_size * 0.5f,
         };
-        if (map->has_camera) {
-            origin = (VECTOR2){ map->camera_target.x, map->camera_target.y };
-        }
     }
     FOR_LOOP(i, SC2_MAX_CLIENTS) {
         LPEDICT ent = &sc2_edicts[i];
@@ -255,14 +252,10 @@ static void SC2_InitClients(void) {
         ent->client->ps.number = i + 1;
         ent->client->ps.client_ui_state = CLIENT_UI_GAME;
         ent->client->ps.origin = origin;
-        ent->client->ps.fov = (DWORD)(map && map->camera_fov > 0.0f ? map->camera_fov : 28.0f);
-        ent->client->ps.distance = map && map->camera_distance > 0.0f ? map->camera_distance : 34.07f;
+        ent->client->ps.fov = 28;
+        ent->client->ps.distance = 34.07f;
         ent->client->ps.rdflags = RDF_NOFOG | RDF_NOFOGMASK;
-        ent->client->ps.viewangles = (VECTOR3){
-            map && map->camera_pitch > 0.0f ? map->camera_pitch : 56.0f,
-            map && map->camera_yaw != 0.0f ? map->camera_yaw : 180.0f,
-            0.0f,
-        };
+        ent->client->ps.viewangles = (VECTOR3){ 56.0f, 180.0f, 0.0f };
         ent->client->ps.viewquat = Quaternion_fromEuler(&ent->client->ps.viewangles, ROTATE_ZYX);
     }
 }

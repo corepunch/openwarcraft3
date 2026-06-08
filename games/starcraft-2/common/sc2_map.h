@@ -4,8 +4,6 @@
 #include "common/common.h"
 
 #define SC2_MAX_MAP_OBJECTS 1024
-#define SC2_DEFAULT_MAP_WIDTH  96
-#define SC2_DEFAULT_MAP_HEIGHT 96
 #define SC2_CELL_SIZE          1.0f
 #define SC2_MAX_TERRAIN_TEXTURES 16
 #define SC2_MAX_CLIFF_SETS     8
@@ -17,7 +15,19 @@
 typedef enum {
     SC2_OBJECT_UNIT,
     SC2_OBJECT_DOODAD,
+    SC2_OBJECT_CAMERA,
 } sc2ObjectType_t;
+
+typedef struct {
+    VECTOR3         target;
+    FLOAT           distance;
+    FLOAT           pitch;
+    FLOAT           yaw;
+    FLOAT           fov;
+    FLOAT           znear;
+    FLOAT           zfar;
+    FLOAT           height_offset;
+} sc2MapCamera_t;
 
 typedef struct {
     sc2ObjectType_t type;
@@ -30,6 +40,7 @@ typedef struct {
     DWORD           variation;
     DWORD           player;
     DWORD           flags;
+    sc2MapCamera_t  camera;
 } sc2MapObject_t;
 
 typedef struct {
@@ -50,34 +61,85 @@ typedef struct {
 } sc2CliffCell_t;
 
 typedef struct {
+    USHORT         adjustment;
+    USHORT         height;
+    USHORT         extra;
+} sc2MapHeightSample_t;
+
+typedef struct {
+    DWORD          fourcc;
+    DWORD          version;
+    DWORD          width;
+    DWORD          height;
+    BYTE           padding[16];
+    sc2MapHeightSample_t data[];
+} sc2MapHeightMap_t;
+
+typedef struct {
+    SHORT          height;
+    USHORT         mask;
+} sc2MapSyncHeightSample_t;
+
+typedef struct {
+    DWORD          fourcc;
+    DWORD          version;
+    DWORD          width;
+    DWORD          height;
+    BYTE           padding[48];
+    sc2MapSyncHeightSample_t data[];
+} sc2MapSyncHeightMap_t;
+
+typedef struct {
+    DWORD          fourcc;
+    DWORD          version;
+    DWORD          zero[4];
+    DWORD          width;
+    DWORD          height;
+    BYTE           data[];
+} sc2MapCellFlags_t;
+
+typedef struct {
+    DWORD          fourcc;
+    DWORD          version;
+    DWORD          width;
+    DWORD          height;
+    DWORD          zero[4];
+    USHORT         data[];
+} sc2MapSyncCliffLevel_t;
+
+typedef struct {
+    DWORD          fourcc;
+    DWORD          version;
+    DWORD          unknown;
+    DWORD          width;
+    DWORD          height;
+    DWORD          zero[11];
+    BYTE           data[];
+} sc2MapTextureMasks_t;
+
+typedef struct {
+    DWORD          fourcc;
+    DWORD          version;
+    DWORD          width;
+    DWORD          height;
+    BYTE           data[];
+} sc2MapInfo_t;
+
+typedef struct {
     char           map_name[128];
     char           tile_set[64];
     DWORD          width;
     DWORD          height;
-    DWORD          full_width;
-    DWORD          full_height;
-    BOOL           has_playable_bounds;
-    LONG           playable_left;
-    LONG           playable_bottom;
-    LONG           playable_right;
-    LONG           playable_top;
     VECTOR2        origin;
     FLOAT          cell_size;
-    BOOL           generated;
     DWORD          num_objects;
     sc2MapObject_t objects[SC2_MAX_MAP_OBJECTS];
     DWORD          num_terrain_textures;
     sc2TerrainTexture_t terrain_textures[SC2_MAX_TERRAIN_TEXTURES];
-    DWORD          texture_mask_width;
-    DWORD          texture_mask_height;
-    DWORD          num_texture_masks;
-    LPBYTE         texture_masks[SC2_MAX_TERRAIN_TEXTURES];
-    DWORD          cell_flags_width;
-    DWORD          cell_flags_height;
-    LPBYTE         cell_flags;
-    DWORD          cliff_level_width;
-    DWORD          cliff_level_height;
-    USHORT        *cliff_levels;
+    sc2MapTextureMasks_t *t3TextureMasks;
+    DWORD          t3TextureMasksSize;
+    sc2MapCellFlags_t *t3CellFlags;
+    sc2MapSyncCliffLevel_t *t3SyncCliffLevel;
     DWORD          num_cliff_sets;
     sc2CliffSet_t cliff_sets[SC2_MAX_CLIFF_SETS];
     DWORD          num_cliff_cells;
@@ -85,20 +147,9 @@ typedef struct {
     FLOAT          height_quantize_bias;
     FLOAT          height_quantize_scale;
     FLOAT          standard_height;
-    DWORD          height_map_width;
-    DWORD          height_map_height;
-    FLOAT         *height_map;
-    FLOAT         *height_adjust_map;
-    BOOL           has_camera;
-    DWORD          camera_priority;
-    VECTOR3        camera_target;
-    FLOAT          camera_distance;
-    FLOAT          camera_pitch;
-    FLOAT          camera_yaw;
-    FLOAT          camera_fov;
-    FLOAT          camera_znear;
-    FLOAT          camera_zfar;
-    FLOAT          camera_height_offset;
+    sc2MapInfo_t   *MapInfo;
+    sc2MapHeightMap_t *t3HeightMap;
+    sc2MapSyncHeightMap_t *t3SyncHeightMap;
 } sc2Map_t;
 
 typedef struct {

@@ -103,43 +103,47 @@ static void test_sc2_map_loads_xml_objects_and_terrain(void) {
     map = SC2_MapCurrent();
 
     ASSERT_STR_EQ(map->map_name, "SC2 Tiny Fixture");
-    ASSERT_EQ_INT(map->full_width, 8);
-    ASSERT_EQ_INT(map->full_height, 6);
-    ASSERT_EQ_INT(map->width, 4);
-    ASSERT_EQ_INT(map->height, 3);
-    ASSERT_EQ_INT(map->has_playable_bounds, true);
-    ASSERT_EQ_INT(map->playable_left, 2);
-    ASSERT_EQ_INT(map->playable_bottom, 1);
-    ASSERT_EQ_INT(map->playable_right, 6);
-    ASSERT_EQ_INT(map->playable_top, 4);
-    ASSERT_EQ_INT(map->num_objects, 3);
-    ASSERT_EQ_INT(map->generated, false);
-    ASSERT_EQ_INT(map->has_camera, true);
-    ASSERT_EQ_FLOAT(map->camera_target.x, 8.0f, 0.001f);
-    ASSERT_EQ_FLOAT(map->camera_target.y, 9.0f, 0.001f);
-    ASSERT_EQ_FLOAT(map->camera_distance, 34.0f, 0.001f);
-    ASSERT_EQ_FLOAT(map->camera_pitch, 56.0f, 0.001f);
-    ASSERT_EQ_FLOAT(map->camera_yaw, 179.9584f, 0.001f);
-    ASSERT_EQ_FLOAT(map->camera_fov, 27.7998f, 0.001f);
-    ASSERT_EQ_FLOAT(map->camera_znear, 0.0998f, 0.001f);
-    ASSERT_EQ_FLOAT(map->camera_zfar, 400.0f, 0.001f);
+    ASSERT_EQ_INT(map->width, 8);
+    ASSERT_EQ_INT(map->height, 6);
+    ASSERT_NOT_NULL(map->MapInfo);
+    if (map->MapInfo) {
+        ASSERT_EQ_INT(map->MapInfo->fourcc, MAKEFOURCC('I','p','a','M'));
+        ASSERT_EQ_INT(map->MapInfo->width, 8);
+        ASSERT_EQ_INT(map->MapInfo->height, 6);
+        ASSERT_STR_EQ((char const *)map->MapInfo->data, "SC2 Tiny Fixture");
+    }
+    ASSERT_EQ_INT(map->num_objects, 4);
 
-    ASSERT_STR_EQ(map->objects[0].name, "Marine");
-    ASSERT_EQ_INT(map->objects[0].id, 1);
-    ASSERT_STR_EQ(map->objects[0].model, "Assets\\Units\\Terran\\Marine\\Marine.m3");
-    ASSERT_EQ_INT(map->objects[0].type, SC2_OBJECT_UNIT);
-    ASSERT_EQ_FLOAT(map->objects[0].position.x, 1.5f, 0.001f);
-    ASSERT_EQ_FLOAT(map->objects[0].position.y, 2.5f, 0.001f);
-    ASSERT_EQ_FLOAT(map->objects[0].position.z, 0.25f, 0.001f);
-    ASSERT_EQ_FLOAT(map->objects[0].angle, 0.75f, 0.001f);
-    ASSERT_EQ_INT(map->objects[0].player, 2);
+    ASSERT_STR_EQ(map->objects[0].name, "StartGame02");
+    ASSERT_EQ_INT(map->objects[0].id, 10);
+    ASSERT_EQ_INT(map->objects[0].type, SC2_OBJECT_CAMERA);
+    ASSERT_EQ_FLOAT(map->objects[0].position.x, 10.0f, 0.001f);
+    ASSERT_EQ_FLOAT(map->objects[0].position.y, 10.0f, 0.001f);
+    ASSERT_EQ_FLOAT(map->objects[0].camera.target.x, 10.0f, 0.001f);
+    ASSERT_EQ_FLOAT(map->objects[0].camera.target.y, 10.0f, 0.001f);
+    ASSERT_EQ_FLOAT(map->objects[0].camera.distance, 34.0f, 0.001f);
+    ASSERT_EQ_FLOAT(map->objects[0].camera.pitch, 56.0f, 0.001f);
+    ASSERT_EQ_FLOAT(map->objects[0].camera.yaw, 179.9584f, 0.001f);
+    ASSERT_EQ_FLOAT(map->objects[0].camera.fov, 27.7998f, 0.001f);
+    ASSERT_EQ_FLOAT(map->objects[0].camera.znear, 0.0998f, 0.001f);
+    ASSERT_EQ_FLOAT(map->objects[0].camera.zfar, 400.0f, 0.001f);
 
-    ASSERT_STR_EQ(map->objects[2].name, "BillboardTall");
-    ASSERT_EQ_INT(map->objects[2].id, 3);
-    ASSERT_EQ_INT(map->objects[2].type, SC2_OBJECT_DOODAD);
-    ASSERT_STR_EQ(map->objects[2].model, "");
-    ASSERT_EQ_FLOAT(map->objects[2].position.z, 8.0f, 0.001f);
-    ASSERT_EQ_INT(map->objects[2].flags, SC2_OBJECT_HEIGHT_ABSOLUTE | SC2_OBJECT_FORCE_PLACEMENT);
+    ASSERT_STR_EQ(map->objects[1].name, "Marine");
+    ASSERT_EQ_INT(map->objects[1].id, 1);
+    ASSERT_STR_EQ(map->objects[1].model, "Assets\\Units\\Terran\\Marine\\Marine.m3");
+    ASSERT_EQ_INT(map->objects[1].type, SC2_OBJECT_UNIT);
+    ASSERT_EQ_FLOAT(map->objects[1].position.x, 3.5f, 0.001f);
+    ASSERT_EQ_FLOAT(map->objects[1].position.y, 3.5f, 0.001f);
+    ASSERT_EQ_FLOAT(map->objects[1].position.z, 0.25f, 0.001f);
+    ASSERT_EQ_FLOAT(map->objects[1].angle, 0.75f, 0.001f);
+    ASSERT_EQ_INT(map->objects[1].player, 2);
+
+    ASSERT_STR_EQ(map->objects[3].name, "BillboardTall");
+    ASSERT_EQ_INT(map->objects[3].id, 3);
+    ASSERT_EQ_INT(map->objects[3].type, SC2_OBJECT_DOODAD);
+    ASSERT_STR_EQ(map->objects[3].model, "");
+    ASSERT_EQ_FLOAT(map->objects[3].position.z, 8.0f, 0.001f);
+    ASSERT_EQ_INT(map->objects[3].flags, SC2_OBJECT_HEIGHT_ABSOLUTE | SC2_OBJECT_FORCE_PLACEMENT);
 
     ASSERT_EQ_INT(map->num_terrain_textures, 2);
     ASSERT_STR_EQ(map->terrain_textures[0].diffuse, "Assets\\Textures\\Terrain\\FixtureGrass_Diffuse.dds");
@@ -165,53 +169,62 @@ static void test_sc2_map_loads_binary_terrain_layers(void) {
     ASSERT(SC2_MapLoad("Maps\\Test\\Tiny.SC2Map"));
     map = SC2_MapCurrent();
 
-    ASSERT_EQ_INT(map->cell_flags_width, 4);
-    ASSERT_EQ_INT(map->cell_flags_height, 3);
-    ASSERT_NOT_NULL(map->cell_flags);
-    if (map->cell_flags) {
-        ASSERT_EQ_INT(map->cell_flags[0], 0x1a);
-        ASSERT_EQ_INT(map->cell_flags[11], 0x2d);
+    ASSERT_NOT_NULL(map->t3CellFlags);
+    if (map->t3CellFlags) {
+        ASSERT_EQ_INT(map->t3CellFlags->fourcc, MAKEFOURCC('L','F','C','T'));
+        ASSERT_EQ_INT(map->t3CellFlags->width, 8);
+        ASSERT_EQ_INT(map->t3CellFlags->height, 6);
+        ASSERT_EQ_INT(map->t3CellFlags->data[10], 0x1a);
+        ASSERT_EQ_INT(map->t3CellFlags->data[29], 0x2d);
     }
 
-    ASSERT_EQ_INT(map->cliff_level_width, 4);
-    ASSERT_EQ_INT(map->cliff_level_height, 3);
-    ASSERT_NOT_NULL(map->cliff_levels);
-    if (map->cliff_levels) {
-        ASSERT_EQ_INT(map->cliff_levels[0], 11);
-        ASSERT_EQ_INT(map->cliff_levels[11], 30);
+    ASSERT_NOT_NULL(map->t3SyncCliffLevel);
+    if (map->t3SyncCliffLevel) {
+        ASSERT_EQ_INT(map->t3SyncCliffLevel->fourcc, MAKEFOURCC('C','L','I','F'));
+        ASSERT_EQ_INT(map->t3SyncCliffLevel->width, 8);
+        ASSERT_EQ_INT(map->t3SyncCliffLevel->height, 6);
+        ASSERT_EQ_INT(map->t3SyncCliffLevel->data[10], 11);
+        ASSERT_EQ_INT(map->t3SyncCliffLevel->data[29], 30);
     }
 
-    ASSERT_EQ_INT(map->height_map_width, 5);
-    ASSERT_EQ_INT(map->height_map_height, 4);
-    ASSERT_NOT_NULL(map->height_map);
-    if (map->height_map) {
-        ASSERT_EQ_FLOAT(map->height_map[0], 0.0f, 0.001f);
-        /* Current debug height path keeps plateau bases and ignores sync micro offsets. */
-        ASSERT_EQ_FLOAT(map->height_map[19], 12.0f, 0.001f);
+    ASSERT_NOT_NULL(map->t3HeightMap);
+    if (map->t3HeightMap) {
+        ASSERT_EQ_INT(map->t3HeightMap->fourcc, MAKEFOURCC('H','M','A','P'));
+        ASSERT_EQ_INT(map->t3HeightMap->width, 9);
+        ASSERT_EQ_INT(map->t3HeightMap->height, 7);
+        ASSERT_EQ_INT(map->t3HeightMap->data[0].adjustment, 0);
+        ASSERT_EQ_INT(map->t3HeightMap->data[0].height, 1);
+        ASSERT_EQ_INT(map->t3HeightMap->data[0].extra, 0);
+        ASSERT_EQ_INT(map->t3HeightMap->data[42].adjustment, 0);
+        ASSERT_EQ_INT(map->t3HeightMap->data[42].height, 13);
+        ASSERT_EQ_INT(map->t3HeightMap->data[42].extra, 0);
         ASSERT_EQ_FLOAT(SC2_MapHeightAtPoint(0.0f, 0.0f), 0.0f, 0.001f);
-        ASSERT_EQ_FLOAT(SC2_MapHeightAtPoint(4.0f, 3.0f), 12.0f, 0.001f);
-        ASSERT_EQ_FLOAT(SC2_MapHeightAtPoint(map->objects[0].position.x,
-                                             map->objects[0].position.y),
+        ASSERT_EQ_FLOAT(SC2_MapHeightAtPoint(6.0f, 4.0f), 12.0f, 0.001f);
+        ASSERT_EQ_FLOAT(SC2_MapHeightAtPoint(map->objects[1].position.x,
+                                             map->objects[1].position.y),
                         10.0f,
                         0.001f);
-        ASSERT_EQ_FLOAT(SC2_MapHeightAtPoint(map->objects[0].position.x,
-                                             map->objects[0].position.y) + map->objects[0].position.z,
+        ASSERT_EQ_FLOAT(SC2_MapHeightAtPoint(map->objects[1].position.x,
+                                             map->objects[1].position.y) + map->objects[1].position.z,
                         10.25f,
                         0.001f);
     }
-
-    ASSERT_EQ_INT(map->texture_mask_width, 4);
-    ASSERT_EQ_INT(map->texture_mask_height, 4);
-    ASSERT_EQ_INT(map->num_texture_masks, 2);
-    ASSERT_NOT_NULL(map->texture_masks[0]);
-    ASSERT_NOT_NULL(map->texture_masks[1]);
-    if (map->texture_masks[0]) {
-        ASSERT_EQ_INT(map->texture_masks[0][0], 1);
-        ASSERT_EQ_INT(map->texture_masks[0][1], 2);
+    ASSERT_NOT_NULL(map->t3SyncHeightMap);
+    if (map->t3SyncHeightMap) {
+        ASSERT_EQ_INT(map->t3SyncHeightMap->fourcc, MAKEFOURCC('S','M','A','P'));
+        ASSERT_EQ_INT(map->t3SyncHeightMap->width, 9);
+        ASSERT_EQ_INT(map->t3SyncHeightMap->height, 7);
+        ASSERT_EQ_INT(map->t3SyncHeightMap->data[42].height, 128);
     }
-    if (map->texture_masks[1]) {
-        ASSERT_EQ_INT(map->texture_masks[1][0], 0x0a);
-        ASSERT_EQ_INT(map->texture_masks[1][1], 0x0b);
+
+    ASSERT_NOT_NULL(map->t3TextureMasks);
+    if (map->t3TextureMasks) {
+        ASSERT_EQ_INT(map->t3TextureMasks->fourcc, MAKEFOURCC('M','A','S','K'));
+        ASSERT_EQ_INT(map->t3TextureMasks->width, 4);
+        ASSERT_EQ_INT(map->t3TextureMasks->height, 4);
+        ASSERT_EQ_INT(map->t3TextureMasksSize, 80);
+        ASSERT_EQ_INT(map->t3TextureMasks->data[0], 0x12);
+        ASSERT_EQ_INT(map->t3TextureMasks->data[8], 0xab);
     }
 }
 
