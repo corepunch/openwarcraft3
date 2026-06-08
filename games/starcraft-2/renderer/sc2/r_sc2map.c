@@ -251,6 +251,40 @@ static BOOL r_sc2_skip_ground_cell(sc2Map_t const *map, DWORD x, DWORD y) {
     return !r_sc2_cliff_block_is_flat(map, SC2_CLIFF_BLOCK_ORIGIN(x), SC2_CLIFF_BLOCK_ORIGIN(y));
 }
 
+static FLOAT r_sc2_ground_height_at_grid(sc2Map_t const *map,
+                                         DWORD tile_x,
+                                         DWORD tile_y,
+                                         DWORD grid_x,
+                                         DWORD grid_y) {
+    sc2MapHeightSample_t const *sample;
+    DWORD block_x;
+    DWORD block_y;
+    USHORT level[4];
+    FLOAT sum = 0.0f;
+    DWORD count = 0;
+
+    if (!map || !map->t3HeightMap || !map->t3HeightMap->width || !map->t3HeightMap->height || !map->t3SyncCliffLevel)
+        return sc2_map_height_at_grid(map, grid_x, grid_y);
+    grid_x = MIN(map->t3HeightMap->width - 1, grid_x);
+    grid_y = MIN(map->t3HeightMap->height - 1, grid_y);
+    sample = &map->t3HeightMap->data[grid_x + grid_y * map->t3HeightMap->width];
+    block_x = SC2_CLIFF_BLOCK_ORIGIN(tile_x);
+    block_y = SC2_CLIFF_BLOCK_ORIGIN(tile_y);
+    SC2_CLIFF_BLOCK_LEVELS(level, map, block_x, block_y);
+    if (level[1] != level[0] || level[2] != level[0] || level[3] != level[0] || sample->extra == level[0])
+        return sc2_map_height_at_grid(map, grid_x, grid_y);
+    for (DWORD y = block_y; y <= block_y + SC2_CLIFF_BLOCK_SPAN && y < map->t3HeightMap->height; y++) {
+        for (DWORD x = block_x; x <= block_x + SC2_CLIFF_BLOCK_SPAN && x < map->t3HeightMap->width; x++) {
+            sample = &map->t3HeightMap->data[x + y * map->t3HeightMap->width];
+            if (sample->extra != level[0])
+                continue;
+            sum += sc2_map_height_at_grid(map, x, y);
+            count++;
+        }
+    }
+    return count ? sum / (FLOAT)count : sc2_map_height_at_grid(map, grid_x, grid_y);
+}
+
 static void r_sc2_release_layer(LPMAPLAYER layer) {
     while (layer) {
         LPMAPLAYER next = layer->next;
@@ -425,10 +459,10 @@ static LPMAPLAYER r_sc2_build_ground_layer(sc2Map_t const *map) {
             FLOAT v0 = y0 / SC2_TERRAIN_UV_SCALE;
             FLOAT u1 = x1 / SC2_TERRAIN_UV_SCALE;
             FLOAT v1 = y1 / SC2_TERRAIN_UV_SCALE;
-            FLOAT z00 = sc2_map_height_at_grid(map, x, y);
-            FLOAT z10 = sc2_map_height_at_grid(map, x + 1, y);
-            FLOAT z11 = sc2_map_height_at_grid(map, x + 1, y + 1);
-            FLOAT z01 = sc2_map_height_at_grid(map, x, y + 1);
+            FLOAT z00 = r_sc2_ground_height_at_grid(map, x, y, x, y);
+            FLOAT z10 = r_sc2_ground_height_at_grid(map, x, y, x + 1, y);
+            FLOAT z11 = r_sc2_ground_height_at_grid(map, x, y, x + 1, y + 1);
+            FLOAT z01 = r_sc2_ground_height_at_grid(map, x, y, x, y + 1);
             r_sc2_push_vertex(out++, x0, y0, z00, u0, v0, 255);
             r_sc2_push_vertex(out++, x1, y0, z10, u1, v0, 255);
             r_sc2_push_vertex(out++, x1, y1, z11, u1, v1, 255);
@@ -1096,14 +1130,14 @@ static BOOL r_sc2_trace_heightmap_tile(sc2Map_t const *map, DWORD x, DWORD y, LP
     FLOAT x1 = x0 + map->cell_size;
     FLOAT y1 = y0 + map->cell_size;
     TRIANGLE3 const tri1 = {
-        { x0, y0, sc2_map_height_at_grid(map, x, y) },
-        { x1, y0, sc2_map_height_at_grid(map, x + 1, y) },
-        { x1, y1, sc2_map_height_at_grid(map, x + 1, y + 1) },
+        { x0, y0, r_sc2_ground_height_at_grid(map, x, y, x, y) },
+        { x1, y0, r_sc2_ground_height_at_grid(map, x, y, x + 1, y) },
+        { x1, y1, r_sc2_ground_height_at_grid(map, x, y, x + 1, y + 1) },
     };
     TRIANGLE3 const tri2 = {
-        { x1, y1, sc2_map_height_at_grid(map, x + 1, y + 1) },
-        { x0, y1, sc2_map_height_at_grid(map, x, y + 1) },
-        { x0, y0, sc2_map_height_at_grid(map, x, y) },
+        { x1, y1, r_sc2_ground_height_at_grid(map, x, y, x + 1, y + 1) },
+        { x0, y1, r_sc2_ground_height_at_grid(map, x, y, x, y + 1) },
+        { x0, y0, r_sc2_ground_height_at_grid(map, x, y, x, y) },
     };
 
     if (Line3_intersect_triangle(line, &tri1, output))
