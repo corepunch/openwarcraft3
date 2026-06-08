@@ -6,6 +6,19 @@ static struct {
     VECTOR3 anchor;
 } camera_drag;
 
+static void CL_SetCameraPosition(VECTOR2 position) {
+    cl.viewDef.camerastate[0].origin.x = position.x;
+    cl.viewDef.camerastate[0].origin.y = position.y;
+    cl.viewDef.camerastate[1].origin.x = position.x;
+    cl.viewDef.camerastate[1].origin.y = position.y;
+    cl.camera_prediction.active = true;
+    cl.camera_prediction.origin = position;
+
+    MSG_WriteByte(&cls.netchan.message, clc_camera_position);
+    MSG_WriteFloat(&cls.netchan.message, position.x);
+    MSG_WriteFloat(&cls.netchan.message, position.y);
+}
+
 #if defined(SC2) && defined(SC2_CAMERA_HACK)
 #define SC2_CAMERA_HACK_MIN_DISTANCE  5.0f
 #define SC2_CAMERA_HACK_MAX_DISTANCE  120.0f
@@ -18,8 +31,11 @@ static struct {
 static struct {
     BOOL initialized;
     BOOL rotating;
+    BOOL has_orbit_anchor;
     FLOAT distance;
     VECTOR3 angles;
+    VECTOR3 orbit_anchor;
+    VECTOR2 orbit_screen;
 } sc2_camera_hack;
 
 static FLOAT CL_ClampFloat(FLOAT value, FLOAT min_value, FLOAT max_value) {
@@ -61,17 +77,41 @@ static void CL_Sc2CameraHackApply(void) {
     cl.viewDef.camerastate[1].viewangles = sc2_camera_hack.angles;
 }
 
+static void CL_Sc2CameraHackUpdateOrbit(void) {
+    VECTOR3 point;
+    VECTOR2 position;
+
+    if (!sc2_camera_hack.has_orbit_anchor) {
+        return;
+    }
+    Matrix4_getCameraMatrix(&cl.viewDef.viewProjectionMatrix);
+    if (!re.TraceLocation(&cl.viewDef, sc2_camera_hack.orbit_screen.x, sc2_camera_hack.orbit_screen.y, &point)) {
+        return;
+    }
+    position.x = cl.viewDef.camerastate[0].origin.x + sc2_camera_hack.orbit_anchor.x - point.x;
+    position.y = cl.viewDef.camerastate[0].origin.y + sc2_camera_hack.orbit_anchor.y - point.y;
+    CL_SetCameraPosition(position);
+    Matrix4_getCameraMatrix(&cl.viewDef.viewProjectionMatrix);
+}
+
 static BOOL CL_Sc2CameraHackBeginRotate(void) {
     if (!CL_GameplayInputReady() || !CL_Sc2CameraHackShiftMiddleDown()) {
         return false;
     }
     CL_Sc2CameraHackInit();
     sc2_camera_hack.rotating = true;
+    sc2_camera_hack.orbit_screen = MAKE(VECTOR2, mouse.origin.x, mouse.origin.y);
+    Matrix4_getCameraMatrix(&cl.viewDef.viewProjectionMatrix);
+    sc2_camera_hack.has_orbit_anchor = re.TraceLocation(&cl.viewDef,
+                                                        sc2_camera_hack.orbit_screen.x,
+                                                        sc2_camera_hack.orbit_screen.y,
+                                                        &sc2_camera_hack.orbit_anchor);
     return true;
 }
 
 static void CL_Sc2CameraHackEndRotate(void) {
     sc2_camera_hack.rotating = false;
+    sc2_camera_hack.has_orbit_anchor = false;
 }
 
 static BOOL CL_Sc2CameraHackMouseMotion(SDL_MouseMotionEvent const *motion) {
@@ -84,6 +124,7 @@ static BOOL CL_Sc2CameraHackMouseMotion(SDL_MouseMotionEvent const *motion) {
                                              SC2_CAMERA_HACK_MIN_PITCH,
                                              SC2_CAMERA_HACK_MAX_PITCH);
     CL_Sc2CameraHackApply();
+    CL_Sc2CameraHackUpdateOrbit();
     return true;
 }
 
@@ -173,16 +214,7 @@ static void CL_UpdatePan(float x, float y) {
 
     position.x = cl.viewDef.camerastate[0].origin.x + camera_drag.anchor.x - point.x;
     position.y = cl.viewDef.camerastate[0].origin.y + camera_drag.anchor.y - point.y;
-    cl.viewDef.camerastate[0].origin.x = position.x;
-    cl.viewDef.camerastate[0].origin.y = position.y;
-    cl.viewDef.camerastate[1].origin.x = position.x;
-    cl.viewDef.camerastate[1].origin.y = position.y;
-    cl.camera_prediction.active = true;
-    cl.camera_prediction.origin = position;
-
-    MSG_WriteByte(&cls.netchan.message, clc_camera_position);
-    MSG_WriteFloat(&cls.netchan.message, position.x);
-    MSG_WriteFloat(&cls.netchan.message, position.y);
+    CL_SetCameraPosition(position);
 }
 
 static void CL_EndPan(void) {
