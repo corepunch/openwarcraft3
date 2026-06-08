@@ -12,6 +12,10 @@
 #define SC2_OBJECT_HEIGHT_ABSOLUTE 0x00000001
 #define SC2_OBJECT_HEIGHT_OFFSET   0x00000002
 #define SC2_OBJECT_FORCE_PLACEMENT 0x00000004
+#define SC2_LIGHT_KEY              0
+#define SC2_LIGHT_FILL             1
+#define SC2_LIGHT_BACK             2
+#define SC2_MAX_DIRECTIONAL_LIGHTS 3
 
 typedef enum {
     SC2_OBJECT_UNIT,
@@ -43,6 +47,21 @@ typedef struct {
     DWORD           flags;
     sc2MapCamera_t  camera;
 } sc2MapObject_t;
+
+typedef struct {
+    BOOL            enabled;
+    VECTOR3         color;
+    FLOAT           color_multiplier;
+    FLOAT           spec_color_multiplier;
+    VECTOR3         direction;
+} sc2DirectionalLight_t;
+
+typedef struct {
+    BOOL            enabled;
+    char            id[64];
+    VECTOR3         ambient_color;
+    sc2DirectionalLight_t directional[SC2_MAX_DIRECTIONAL_LIGHTS];
+} sc2MapLighting_t;
 
 typedef struct {
     char           diffuse[256];
@@ -160,6 +179,7 @@ typedef struct {
     sc2MapInfo_t   MapInfo;
     sc2MapHeightMap_t *t3HeightMap;
     sc2MapSyncHeightMap_t *t3SyncHeightMap;
+    sc2MapLighting_t lighting;
 } sc2Map_t;
 
 typedef struct {
@@ -265,6 +285,7 @@ typedef struct {
     void   (*free_file)(HANDLE file);
     HANDLE (*mem_alloc)(long size);
     void   (*mem_free)(HANDLE mem);
+    LPCSTR (*cvar_string)(LPCSTR name, LPCSTR fallback);
 } sc2MapHost_t;
 
 void          SC2_MapSetHost(sc2MapHost_t const *host);

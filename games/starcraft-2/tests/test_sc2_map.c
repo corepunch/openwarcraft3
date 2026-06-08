@@ -167,6 +167,25 @@ static void test_sc2_map_loads_xml_objects_and_terrain(void) {
     ASSERT_EQ_INT(map->t3Terrain.cliff_cells[0].variant, 2);
     ASSERT_EQ_INT(map->t3Terrain.cliff_cells[1].index, 1);
     ASSERT_EQ_INT(map->t3Terrain.cliff_cells[1].flags, 3);
+
+    ASSERT_EQ_INT(map->lighting.enabled, true);
+    ASSERT_STR_EQ(map->lighting.id, "Fixture");
+    ASSERT_EQ_FLOAT(map->lighting.ambient_color.x, 0.1f, 0.001f);
+    ASSERT_EQ_FLOAT(map->lighting.ambient_color.y, 0.2f, 0.001f);
+    ASSERT_EQ_FLOAT(map->lighting.ambient_color.z, 0.3f, 0.001f);
+    ASSERT_EQ_INT(map->lighting.directional[SC2_LIGHT_KEY].enabled, true);
+    ASSERT_EQ_FLOAT(map->lighting.directional[SC2_LIGHT_KEY].color.x, 0.4f, 0.001f);
+    ASSERT_EQ_FLOAT(map->lighting.directional[SC2_LIGHT_KEY].color.y, 0.5f, 0.001f);
+    ASSERT_EQ_FLOAT(map->lighting.directional[SC2_LIGHT_KEY].color.z, 0.6f, 0.001f);
+    ASSERT_EQ_FLOAT(map->lighting.directional[SC2_LIGHT_KEY].color_multiplier, 2.0f, 0.001f);
+    ASSERT_EQ_FLOAT(map->lighting.directional[SC2_LIGHT_KEY].spec_color_multiplier, 3.0f, 0.001f);
+    ASSERT_EQ_FLOAT(map->lighting.directional[SC2_LIGHT_KEY].direction.z, -1.0f, 0.001f);
+    ASSERT_EQ_INT(map->lighting.directional[SC2_LIGHT_FILL].enabled, true);
+    ASSERT_EQ_FLOAT(map->lighting.directional[SC2_LIGHT_FILL].color_multiplier, 4.0f, 0.001f);
+    ASSERT_EQ_FLOAT(map->lighting.directional[SC2_LIGHT_FILL].direction.x, 1.0f, 0.001f);
+    ASSERT_EQ_INT(map->lighting.directional[SC2_LIGHT_BACK].enabled, true);
+    ASSERT_EQ_FLOAT(map->lighting.directional[SC2_LIGHT_BACK].color_multiplier, 5.0f, 0.001f);
+    ASSERT_EQ_FLOAT(map->lighting.directional[SC2_LIGHT_BACK].direction.y, 1.0f, 0.001f);
 }
 
 static void test_sc2_map_loads_binary_terrain_layers(void) {

@@ -14,6 +14,8 @@
 #define SC2_XML_FIELD(name, field, type)  { name, offsetof(sc2MapObject_t, field), type, 0 }
 #define SC2_TERRAIN_XML_STRING_FIELD(name, field) { name, offsetof(sc2MapTerrain_t, field), SC2_XML_FIELD_STRING, sizeof(((sc2MapTerrain_t *)0)->field) }
 #define SC2_TERRAIN_XML_FIELD(name, field, type)  { name, offsetof(sc2MapTerrain_t, field), type, 0 }
+#define SC2_LIGHTING_XML_FIELD(name, field, type) { name, offsetof(sc2MapLighting_t, field), type, 0 }
+#define SC2_DIRECTIONAL_LIGHT_XML_FIELD(name, field, type) { name, offsetof(sc2DirectionalLight_t, field), type, 0 }
 
 typedef struct {
     HANDLE archive;
@@ -232,7 +234,38 @@ static xmlDocPtr sc2_read_global_xml(LPCSTR filename) {
     return doc;
 }
 
-static xmlDocPtr sc2_read_catalog_xml(LPCSTR root, LPCSTR filename) {
+static LPBYTE sc2_read_disk_file(LPCSTR filename, LPDWORD size) {
+    FILE *file;
+    long file_size;
+    LPBYTE data;
+
+    if (size) *size = 0;
+    if (!filename || !*filename)
+        return NULL;
+    file = fopen(filename, "rb");
+    if (!file)
+        return NULL;
+    if (fseek(file, 0, SEEK_END) != 0 || (file_size = ftell(file)) < 0 || fseek(file, 0, SEEK_SET) != 0) {
+        fclose(file);
+        return NULL;
+    }
+    data = sc2_alloc(file_size + 1);
+    if (!data) {
+        fclose(file);
+        return NULL;
+    }
+    if (file_size > 0 && fread(data, 1, file_size, file) != (size_t)file_size) {
+        fclose(file);
+        sc2_free(data);
+        return NULL;
+    }
+    fclose(file);
+    data[file_size] = 0;
+    if (size) *size = (DWORD)file_size;
+    return data;
+}
+
+static xmlDocPtr sc2_read_catalog_xml_from_archive(LPCSTR archive_name, LPCSTR filename) {
     DWORD archive_size = 0;
     DWORD file_size;
     LPBYTE archive_data;
@@ -242,16 +275,12 @@ static xmlDocPtr sc2_read_catalog_xml(LPCSTR root, LPCSTR filename) {
     xmlDocPtr doc = NULL;
     PATHSTR path;
 
-    if (!root || !*root) return sc2_read_global_xml(filename);
-    archive_data = sc2_read_file(root, &archive_size);
-    if (!archive_data) {
-        snprintf(path, sizeof(path), "%s", root);
-        for (char *p = path; *p; p++) if (*p == '/') *p = '\\';
-        archive_data = sc2_read_file(path, &archive_size);
-    }
+    if (!archive_name || !*archive_name || !filename || !*filename)
+        return NULL;
+    archive_data = sc2_read_disk_file(archive_name, &archive_size);
     if (!archive_data || archive_size == 0 ||
         !SFileOpenArchiveFromMemory(archive_data, archive_size, 0, &archive)) {
-        sc2_free_file(archive_data);
+        sc2_free(archive_data);
         return NULL;
     }
     if (!SFileOpenFileEx(archive, filename, SFILE_OPEN_FROM_MPQ, &file)) {
@@ -259,7 +288,7 @@ static xmlDocPtr sc2_read_catalog_xml(LPCSTR root, LPCSTR filename) {
         for (char *p = path; *p; p++) if (*p == '\\') *p = '/';
         if (!SFileOpenFileEx(archive, path, SFILE_OPEN_FROM_MPQ, &file)) {
             SFileCloseArchive(archive);
-            sc2_free_file(archive_data);
+            sc2_free(archive_data);
             return NULL;
         }
     }
@@ -273,8 +302,26 @@ static xmlDocPtr sc2_read_catalog_xml(LPCSTR root, LPCSTR filename) {
     sc2_free(data);
     SFileCloseFile(file);
     SFileCloseArchive(archive);
-    sc2_free_file(archive_data);
+    sc2_free(archive_data);
     return doc;
+}
+
+static xmlDocPtr sc2_read_catalog_xml(LPCSTR root, LPCSTR filename) {
+    PATHSTR path;
+    xmlDocPtr doc;
+    LPCSTR data_dir;
+
+    if (!root || !*root) return sc2_read_global_xml(filename);
+    snprintf(path, sizeof(path), "%s/%s", root, filename);
+    doc = sc2_read_global_xml(path);
+    if (doc)
+        return doc;
+    data_dir = sc2_host.cvar_string ? sc2_host.cvar_string("data", "") : "";
+    if (data_dir && *data_dir) {
+        snprintf(path, sizeof(path), "%s/%s", data_dir, root);
+        return sc2_read_catalog_xml_from_archive(path, filename);
+    }
+    return sc2_read_catalog_xml_from_archive(root, filename);
 }
 
 static BOOL sc2_xml_attr(xmlNodePtr node, LPCSTR attr_name, LPSTR buffer, DWORD size) {
@@ -372,6 +419,17 @@ static sc2XmlField_t const sc2_terrain_data_fields[] = {
     SC2_TERRAIN_XML_FIELD("FogColor", fog_color, SC2_XML_FIELD_COLOR_ARGB),
 };
 
+static sc2XmlField_t const sc2_light_data_fields[] = {
+    SC2_LIGHTING_XML_FIELD("AmbientColor", ambient_color, SC2_XML_FIELD_VEC3),
+};
+
+static sc2XmlField_t const sc2_directional_light_fields[] = {
+    SC2_DIRECTIONAL_LIGHT_XML_FIELD("Color", color, SC2_XML_FIELD_VEC3),
+    SC2_DIRECTIONAL_LIGHT_XML_FIELD("ColorMultiplier", color_multiplier, SC2_XML_FIELD_FLOAT),
+    SC2_DIRECTIONAL_LIGHT_XML_FIELD("SpecColorMultiplier", spec_color_multiplier, SC2_XML_FIELD_FLOAT),
+    SC2_DIRECTIONAL_LIGHT_XML_FIELD("Direction", direction, SC2_XML_FIELD_VEC3),
+};
+
 static void sc2_parse_terrain_data_node(xmlNodePtr node, LPCSTR terrain_id) {
     char id[64];
     char value[256];
@@ -391,6 +449,78 @@ static void sc2_parse_terrain_data_node(xmlNodePtr node, LPCSTR terrain_id) {
     }
     for (xmlNodePtr child = node->children; child; child = child->next)
         sc2_parse_terrain_data_node(child, terrain_id);
+}
+
+static int sc2_light_index(LPCSTR index) {
+    if (sc2_streqi(index, "Key")) return SC2_LIGHT_KEY;
+    if (sc2_streqi(index, "Fill")) return SC2_LIGHT_FILL;
+    if (sc2_streqi(index, "Back")) return SC2_LIGHT_BACK;
+    return -1;
+}
+
+static void sc2_init_directional_light(sc2DirectionalLight_t *light) {
+    if (!light || light->enabled)
+        return;
+    light->enabled = true;
+    light->color = (VECTOR3){ 1.0f, 1.0f, 1.0f };
+    light->color_multiplier = 1.0f;
+    light->spec_color_multiplier = 1.0f;
+    light->direction = (VECTOR3){ 0.0f, 0.0f, -1.0f };
+}
+
+static void sc2_parse_light_data_value(xmlNodePtr node, int light_index, LPCSTR name, LPCSTR value) {
+    sc2DirectionalLight_t *light;
+
+    if (!node || !name || !value || !*value)
+        return;
+    if (light_index >= 0 && light_index < SC2_MAX_DIRECTIONAL_LIGHTS) {
+        light = &sc2_map.lighting.directional[light_index];
+        sc2_init_directional_light(light);
+        sc2_parse_xml_field(light,
+                            sc2_directional_light_fields,
+                            SC2_ARRAY_LEN(sc2_directional_light_fields),
+                            name,
+                            value);
+        return;
+    }
+    sc2_parse_xml_field(&sc2_map.lighting,
+                        sc2_light_data_fields,
+                        SC2_ARRAY_LEN(sc2_light_data_fields),
+                        name,
+                        value);
+}
+
+static void sc2_parse_light_data_node(xmlNodePtr node, LPCSTR light_id, int light_index) {
+    char id[64];
+    char value[256];
+
+    if (!node || node->type != XML_ELEMENT_NODE)
+        return;
+    if (sc2_streqi((char const *)node->name, "CLight")) {
+        if (!sc2_xml_attr(node, "id", id, sizeof(id)) || !sc2_streqi(id, sc2_map.t3Terrain.tile_set))
+            return;
+        snprintf(sc2_map.lighting.id, sizeof(sc2_map.lighting.id), "%s", id);
+        sc2_map.lighting.enabled = true;
+        light_id = sc2_map.lighting.id;
+        light_index = -1;
+    }
+    if (light_id && sc2_streqi(light_id, sc2_map.t3Terrain.tile_set)) {
+        if (sc2_streqi((char const *)node->name, "DirectionalLight") &&
+            sc2_xml_attr(node, "index", id, sizeof(id))) {
+            light_index = sc2_light_index(id);
+        }
+        for (xmlAttrPtr attr = node->properties; attr; attr = attr->next) {
+            xmlChar *text = xmlNodeListGetString(node->doc, attr->children, 1);
+            if (text) {
+                sc2_parse_light_data_value(node, light_index, (char const *)attr->name, (char const *)text);
+                xmlFree(text);
+            }
+        }
+        if (sc2_xml_attr(node, "value", value, sizeof(value)))
+            sc2_parse_light_data_value(node, light_index, (char const *)node->name, value);
+    }
+    for (xmlNodePtr child = node->children; child; child = child->next)
+        sc2_parse_light_data_node(child, light_id, light_index);
 }
 
 static void sc2_parse_cliff_set_node(xmlNodePtr node) {
@@ -582,6 +712,36 @@ static void sc2_parse_terrain_data_catalogs(void) {
     sc2_parse_terrain_data_catalog_file("");
     for (DWORD i = 0; roots[i]; i++)
         sc2_parse_terrain_data_catalog_file(roots[i]);
+}
+
+static void sc2_parse_light_data(sc2MapSource_t *source) {
+    xmlDocPtr doc = sc2_read_xml(source, "Base.SC2Data/GameData/LightData.xml");
+    if (!doc) doc = sc2_read_xml(source, "Base.SC2Data\\GameData\\LightData.xml");
+    if (!doc) return;
+    sc2_parse_light_data_node(xmlDocGetRootElement(doc), NULL, -1);
+    xmlFreeDoc(doc);
+}
+
+static void sc2_parse_light_data_catalog_file(LPCSTR root_name) {
+    xmlDocPtr doc = sc2_read_catalog_xml(root_name, "GameData\\LightData.xml");
+    if (!doc) return;
+    sc2_parse_light_data_node(xmlDocGetRootElement(doc), NULL, -1);
+    xmlFreeDoc(doc);
+}
+
+static void sc2_parse_light_data_catalogs(void) {
+    static LPCSTR const roots[] = {
+        "Mods/Core.SC2Mod/Base.SC2Data",
+        "Mods/Liberty.SC2Mod/Base.SC2Data",
+        "Mods/LibertyMulti.SC2Mod/Base.SC2Data",
+        "Campaigns/LibertyStory.SC2Campaign/Base.SC2Data",
+        "Campaigns/Liberty.SC2Campaign/Base.SC2Data",
+        NULL,
+    };
+
+    sc2_parse_light_data_catalog_file("");
+    for (DWORD i = 0; roots[i]; i++)
+        sc2_parse_light_data_catalog_file(roots[i]);
 }
 
 static void sc2_set_object_model(sc2MapObject_t *object) {
@@ -1276,6 +1436,8 @@ BOOL SC2_MapLoad(LPCSTR mapFilename) {
     sc2_parse_terrain(&source);
     sc2_parse_terrain_data_catalogs();
     sc2_parse_terrain_data(&source);
+    sc2_parse_light_data_catalogs();
+    sc2_parse_light_data(&source);
     sc2_parse_height_map(&source);
     sc2_parse_sync_height_map(&source);
     sc2_parse_cell_flags(&source);

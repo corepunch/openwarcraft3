@@ -16,6 +16,8 @@ static struct {
     BOOL initialized;
     BOOL right_mouse;
     BOOL left_mouse;
+    BOOL middle_mouse;
+    BOOL drag_active;
     BOOL move_forward;
     BOOL move_back;
     BOOL move_left;
@@ -24,6 +26,7 @@ static struct {
     FLOAT yaw;
     FLOAT pitch;
     FLOAT distance;
+    VECTOR3 drag_anchor;
 } wow_input = {
     .pitch = 328.0f,
     .distance = 8.5f,
@@ -41,6 +44,52 @@ static void CL_WowInitInputState(void) {
     wow_input.last_time = SDL_GetTicks();
     wow_input.pitch = 328.0f;
     wow_input.distance = 8.5f;
+}
+
+static void CL_WowSetCameraPosition(VECTOR2 position) {
+    cl.viewDef.camerastate[0].origin.x = position.x;
+    cl.viewDef.camerastate[0].origin.y = position.y;
+    cl.viewDef.camerastate[1].origin.x = position.x;
+    cl.viewDef.camerastate[1].origin.y = position.y;
+    cl.camera_prediction.active = true;
+    cl.camera_prediction.origin = position;
+
+    MSG_WriteByte(&cls.netchan.message, clc_camera_position);
+    MSG_WriteFloat(&cls.netchan.message, position.x);
+    MSG_WriteFloat(&cls.netchan.message, position.y);
+}
+
+static void CL_WowBeginDrag(FLOAT x, FLOAT y) {
+    if (!CL_GameplayInputReady()) {
+        wow_input.drag_active = false;
+        return;
+    }
+    Matrix4_getCameraMatrix(&cl.viewDef.viewProjectionMatrix);
+    wow_input.drag_active = re.TraceLocation(&cl.viewDef, x, y, &wow_input.drag_anchor);
+}
+
+static void CL_WowUpdateDrag(FLOAT x, FLOAT y) {
+    VECTOR3 point;
+    VECTOR2 position;
+
+    if (!CL_GameplayInputReady()) {
+        wow_input.drag_active = false;
+        return;
+    }
+    if (!wow_input.drag_active)
+        return;
+    Matrix4_getCameraMatrix(&cl.viewDef.viewProjectionMatrix);
+    if (!re.TraceLocation(&cl.viewDef, x, y, &point))
+        return;
+    position.x = cl.viewDef.camerastate[0].origin.x + wow_input.drag_anchor.x - point.x;
+    position.y = cl.viewDef.camerastate[0].origin.y + wow_input.drag_anchor.y - point.y;
+    CL_WowSetCameraPosition(position);
+    Matrix4_getCameraMatrix(&cl.viewDef.viewProjectionMatrix);
+}
+
+static void CL_WowEndDrag(void) {
+    wow_input.middle_mouse = false;
+    wow_input.drag_active = false;
 }
 
 static void IN_WowLeftDown(void) {
@@ -141,7 +190,23 @@ void CL_InputModeSetGameplay(void) {
     cl.viewDef.camerastate[1].znear = 1;
 }
 
+void CL_InputModeMouseButton(SDL_MouseButtonEvent const *button, BOOL down) {
+    if (!button || button->button != SDL_BUTTON_MIDDLE) {
+        return;
+    }
+    if (down) {
+        wow_input.middle_mouse = true;
+        CL_WowBeginDrag(button->x, button->y);
+        return;
+    }
+    CL_WowEndDrag();
+}
+
 void CL_InputModeMouseMotion(SDL_MouseMotionEvent const *motion) {
+    if (motion && wow_input.middle_mouse) {
+        CL_WowUpdateDrag(motion->x, motion->y);
+        return;
+    }
     if (!wow_input.right_mouse || !motion) {
         return;
     }

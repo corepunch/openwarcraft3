@@ -1,4 +1,5 @@
 #include "renderer/r_local.h"
+#include "games/starcraft-2/common/sc2_map.h"
 #include "r_m3.h"
 
 #define M3_MAX_NODES 128
@@ -52,7 +53,7 @@ static LPCSTR m3_vs =
 "out vec2 v_texcoord;\n"
 "out vec2 v_texcoord2;\n"
 "out vec3 v_normal;\n"
-"out vec3 v_lightDir;\n"
+"out vec3 v_light;\n"
 "out vec4 v_fragCoord;\n"
 "uniform mat4 uBones[128];\n"
 "uniform mat4 uViewProjectionMatrix;\n"
@@ -60,6 +61,10 @@ static LPCSTR m3_vs =
 "uniform mat4 uModelMatrix;\n"
 "uniform mat4 uLightMatrix;\n"
 "uniform mat3 uNormalMatrix;\n"
+"uniform vec3 uLightAmbient;\n"
+"uniform vec3 uLightDir[3];\n"
+"uniform vec3 uLightColor[3];\n"
+"uniform float uLightEnabled[3];\n"
 "uniform float uFirstBoneLookupIndex;\n"
 "uniform float uBoneWeightPairsCount;\n"
 "vec3 transform(vec4 bones, vec4 position) {\n"
@@ -69,18 +74,28 @@ static LPCSTR m3_vs =
 "    }\n"
 "    return value.xyz;\n"
 "}\n"
+"vec3 vertex_lighting(vec3 normal) {\n"
+"    vec3 n = normalize(normal);\n"
+"    vec3 light = uLightAmbient;\n"
+"    for (int i = 0; i < 3; i++) {\n"
+"        vec3 l = normalize(uLightDir[i]);\n"
+"        light += uLightColor[i] * max(dot(n, l), 0.0) * uLightEnabled[i];\n"
+"    }\n"
+"    return max(light, vec3(0.0));\n"
+"}\n"
 "void main() {\n"
 "    vec4 bones = i_skin1 + vec4(uFirstBoneLookupIndex);\n"
 "    vec4 position = vec4(transform(bones, vec4(i_position, 1.0)), 1.0);\n"
 "    vec3 normal = transform(bones, vec4(i_normal * 2.0 - 1.0, 0.0));\n"
+"    vec3 worldNormal = uNormalMatrix * normal;\n"
 "    v_color = i_color;\n"
 "    v_texcoord = i_texcoord / 2048.0;\n"
 "    v_texcoord2 = (uTextureMatrix * uModelMatrix * position).xy;\n"
-"    v_normal = normalize(uNormalMatrix * normal);\n"
+"    v_normal = normalize(worldNormal);\n"
+"    v_light = vertex_lighting(worldNormal);\n"
 #ifdef USE_SHADOWMAPS
 "    v_shadow = uLightMatrix * uModelMatrix * position;\n"
 #endif
-"    v_lightDir = -normalize(vec3(uLightMatrix[0][2], uLightMatrix[1][2], uLightMatrix[2][2]))*1.2;\n"
 "    v_fragCoord = uViewProjectionMatrix * uModelMatrix * position;\n"
 "    gl_Position = v_fragCoord;\n"
 "}\n";
@@ -95,7 +110,7 @@ static LPCSTR m3_fs =
 "in vec4 v_shadow;\n"
 #endif
 "in vec3 v_normal;\n"
-"in vec3 v_lightDir;\n"
+"in vec3 v_light;\n"
 //"in vec4 v_fragCoord;\n"
 "out vec4 o_color;\n"
 
@@ -119,24 +134,12 @@ static LPCSTR m3_fs =
 "    return color * bumpColor.rgb;\n"
 "}\n"
 
-"float get_light() {\n"
-"    return dot(v_normal, v_lightDir);\n"
-"}\n"
-
 #ifdef USE_SHADOWMAPS
 "float get_shadow() {\n"
 "    float depth = texture(uShadowmap, vec2(v_shadow.x + 1.0, v_shadow.y + 1.0) * 0.5).r;\n"
 "    return depth < (v_shadow.z + 0.99) * 0.5 ? 0.0 : 1.0;\n"
 "}\n"
 #endif
-
-"float get_lighting() {\n"
-#ifdef USE_SHADOWMAPS
-"    return clamp(mix(0.35, 1.0, get_shadow() * get_light()) * 1.5, 0.35, 1.0);"
-#else
-"    return clamp(mix(0.35, 1.0, get_light()) * 1.5, 0.35, 1.0);"
-#endif
-"}\n"
 
 "float get_fogofwar() {\n"
 "    return texture(uFogOfWar, v_texcoord2).r;\n"
@@ -156,15 +159,12 @@ static LPCSTR m3_fs =
 //"    vec4 col = texture(uTexture, v_texcoord);\n"
 //"    col.rgb *= get_fogofwar() * get_lighting();\n"
 //"    o_color = col;\n"
-"    vec3 lightDir = normalize(-v_lightDir);\n"
-"    vec3 diffuseLight = diffuseColor.rgb;\n"
 //"    vec3 viewDir = normalize(-vec3(v_fragCoord.xy/v_fragCoord.w, 1.0));\n"
 //"    vec3 specularLight = calculateSpecular(normal, viewDir, lightDir, specularColor.rgb);\n"
 //"    vec3 ambientColor = vec3(0.1);  // Add ambient light\n"
-"    vec3 finalColor = vec3(0);// ambientColor + diffuseLight + specularLight;\n"
+"    vec3 finalColor = diffuseColor.rgb * v_light;// ambientColor + diffuseLight + specularLight;\n"
 // "    diffuseLight.rgb *= get_fogofwar() * get_lighting();\n"
-"    finalColor = diffuseLight;// applyBumpMap(finalColor, bumpColor);\n"
-"    o_color = vec4(finalColor, 1.0) * v_color;\n"
+"    o_color = vec4(finalColor, diffuseColor.a) * v_color;\n"
 "}\n";
 
 static MATRIX4 bonemats[M3_MAX_NODES];
@@ -179,6 +179,10 @@ static struct {
     DWORD uDiffuseMap;
     DWORD uSpecularMap;
     DWORD uNormalMap;
+    GLint uLightAmbient;
+    GLint uLightDir[SC2_MAX_DIRECTIONAL_LIGHTS];
+    GLint uLightColor[SC2_MAX_DIRECTIONAL_LIGHTS];
+    GLint uLightEnabled[SC2_MAX_DIRECTIONAL_LIGHTS];
 } m3 = { 0 };
 
 typedef struct {
@@ -196,6 +200,39 @@ R_EvalKeyframeValue(void const *left,
                     MODELKEYTRACKDATATYPE datatype,
                     MODELKEYTRACKTYPE linetype,
                     HANDLE out);
+
+static void M3_InitLightUniforms(void) {
+    m3.uLightAmbient = R_Call(glGetUniformLocation, m3.shader->progid, "uLightAmbient");
+    FOR_LOOP(i, SC2_MAX_DIRECTIONAL_LIGHTS) {
+        char name[32];
+
+        snprintf(name, sizeof(name), "uLightDir[%u]", (unsigned)i);
+        m3.uLightDir[i] = R_Call(glGetUniformLocation, m3.shader->progid, name);
+        snprintf(name, sizeof(name), "uLightColor[%u]", (unsigned)i);
+        m3.uLightColor[i] = R_Call(glGetUniformLocation, m3.shader->progid, name);
+        snprintf(name, sizeof(name), "uLightEnabled[%u]", (unsigned)i);
+        m3.uLightEnabled[i] = R_Call(glGetUniformLocation, m3.shader->progid, name);
+    }
+}
+
+static void M3_SetLightUniforms(void) {
+    sc2Map_t const *map = SC2_MapCurrent();
+    sc2MapLighting_t const *lighting = map ? &map->lighting : NULL;
+    VECTOR3 ambient = lighting && lighting->enabled ? lighting->ambient_color : (VECTOR3){ 1.0f, 1.0f, 1.0f };
+
+    R_Call(glUniform3f, m3.uLightAmbient, ambient.x, ambient.y, ambient.z);
+    FOR_LOOP(i, SC2_MAX_DIRECTIONAL_LIGHTS) {
+        sc2DirectionalLight_t const *light = lighting && lighting->enabled ? &lighting->directional[i] : NULL;
+        FLOAT enabled = light && light->enabled ? 1.0f : 0.0f;
+        VECTOR3 direction = enabled ? (VECTOR3){ -light->direction.x, -light->direction.y, -light->direction.z } : (VECTOR3){ 0.0f, 0.0f, 1.0f };
+        VECTOR3 color = enabled ? light->color : (VECTOR3){ 0.0f, 0.0f, 0.0f };
+        FLOAT multiplier = enabled ? light->color_multiplier : 0.0f;
+
+        R_Call(glUniform3f, m3.uLightDir[i], direction.x, direction.y, direction.z);
+        R_Call(glUniform3f, m3.uLightColor[i], color.x * multiplier, color.y * multiplier, color.z * multiplier);
+        R_Call(glUniform1f, m3.uLightEnabled[i], enabled);
+    }
+}
 
 void M3_Read(m3Reader_t *buffer, void *dest, DWORD bytes) {
     if (!dest || bytes == 0) return;
@@ -844,6 +881,7 @@ void M3_RenderModel(renderEntity_t const *entity, m3Model_t const *model, LPCMAT
     R_Call(glUniformMatrix4fv, m3.shader->uModelMatrix, 1, GL_FALSE, mScaledMatrix.v);
     R_Call(glUniformMatrix3fv, m3.shader->uNormalMatrix, 1, GL_TRUE, mNormalMatrix.v);
     R_Call(glUniformMatrix4fv, m3.shader->uBones, MIN(model->boneLookupNum, M3_MAX_NODES), GL_FALSE, bonemats->v);
+    M3_SetLightUniforms();
     R_Call(glBindVertexArray, model->renbuf->vao);
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, model->renbuf->vbo);
     
@@ -865,6 +903,7 @@ void M3_Init(void) {
     m3.uDiffuseMap = R_Call(glGetUniformLocation, m3.shader->progid, "uDiffuseMap");
     m3.uSpecularMap = R_Call(glGetUniformLocation, m3.shader->progid, "uSpecularMap");
     m3.uNormalMap = R_Call(glGetUniformLocation, m3.shader->progid, "uNormalMap");
+    M3_InitLightUniforms();
     
     R_Call(glUniform1i, m3.uDiffuseMap, 0);
     R_Call(glUniform1i, m3.uSpecularMap, 3);

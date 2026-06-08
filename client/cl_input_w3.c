@@ -50,6 +50,12 @@ static BOOL CL_Sc2CameraHackShiftMiddleDown(void) {
            (buttons & SDL_BUTTON(SDL_BUTTON_MIDDLE)) != 0;
 }
 
+static BOOL CL_Sc2CameraHackShiftDown(void) {
+    SDL_Keymod mod = SDL_GetModState();
+
+    return (mod & (KMOD_LSHIFT | KMOD_RSHIFT)) != 0;
+}
+
 static void CL_Sc2CameraHackInit(void) {
     viewCamera_t const *camera = &cl.viewDef.camerastate[0];
 
@@ -94,18 +100,25 @@ static void CL_Sc2CameraHackUpdateOrbit(void) {
     Matrix4_getCameraMatrix(&cl.viewDef.viewProjectionMatrix);
 }
 
-static BOOL CL_Sc2CameraHackBeginRotate(void) {
-    if (!CL_GameplayInputReady() || !CL_Sc2CameraHackShiftMiddleDown()) {
-        return false;
-    }
+static void CL_Sc2CameraHackBeginRotateAt(FLOAT x, FLOAT y) {
     CL_Sc2CameraHackInit();
     sc2_camera_hack.rotating = true;
-    sc2_camera_hack.orbit_screen = MAKE(VECTOR2, mouse.origin.x, mouse.origin.y);
+    sc2_camera_hack.orbit_screen = MAKE(VECTOR2, x, y);
     Matrix4_getCameraMatrix(&cl.viewDef.viewProjectionMatrix);
     sc2_camera_hack.has_orbit_anchor = re.TraceLocation(&cl.viewDef,
                                                         sc2_camera_hack.orbit_screen.x,
                                                         sc2_camera_hack.orbit_screen.y,
                                                         &sc2_camera_hack.orbit_anchor);
+}
+
+static BOOL CL_Sc2CameraHackBeginRotate(void) {
+    if (sc2_camera_hack.rotating) {
+        return true;
+    }
+    if (!CL_GameplayInputReady() || !CL_Sc2CameraHackShiftMiddleDown()) {
+        return false;
+    }
+    CL_Sc2CameraHackBeginRotateAt(mouse.origin.x, mouse.origin.y);
     return true;
 }
 
@@ -251,6 +264,8 @@ static void IN_PanDown(void) {
         return;
     }
 #endif
+    if (camera_drag.active)
+        return;
     CL_BeginPan(mouse.origin.x, mouse.origin.y);
 }
 
@@ -305,6 +320,27 @@ void CL_InputModeSetGameplay(void) {
     cl.viewDef.camerastate[1].zfar = 5000;
     cl.viewDef.camerastate[1].znear = 100;
 #endif
+}
+
+void CL_InputModeMouseButton(SDL_MouseButtonEvent const *button, BOOL down) {
+    if (!button || button->button != SDL_BUTTON_MIDDLE) {
+        return;
+    }
+    if (down) {
+#if defined(SC2) && defined(SC2_CAMERA_HACK)
+        if (CL_GameplayInputReady() && CL_Sc2CameraHackShiftDown()) {
+            CL_Sc2CameraHackBeginRotateAt(button->x, button->y);
+            CL_EndPan();
+            return;
+        }
+#endif
+        CL_BeginPan(button->x, button->y);
+        return;
+    }
+#if defined(SC2) && defined(SC2_CAMERA_HACK)
+    CL_Sc2CameraHackEndRotate();
+#endif
+    CL_EndPan();
 }
 
 void CL_InputModeMouseMotion(SDL_MouseMotionEvent const *motion) {

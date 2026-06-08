@@ -9,6 +9,7 @@ bool CM_LoadMapFormat(LPCSTR mapFilename) {
         .free_file = FS_FreeFile,
         .mem_alloc = MemAlloc,
         .mem_free = MemFree,
+        .cvar_string = gi.CvarString,
     });
     if (!SC2_MapLoad(mapFilename))
         return false;

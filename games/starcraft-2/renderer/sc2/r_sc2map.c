@@ -14,6 +14,8 @@
 #define SC2_CLIFF_BLOCK_SPAN        2u      /* cliff cells are 2x2 grid units */
 #define SC2_CLIFF_BLOCK_ORIGIN(X)   ((X) & ~(SC2_CLIFF_BLOCK_SPAN - 1u))
 #define SC2_CLIFF_BLOCK_CENTER(X)   ((X) + 1u)  /* centre grid coord within a 2-unit block */
+#define SC2_CLIFF_CELL_ACTIVE       0x01u
+#define SC2_CLIFF_CELL_RAMP         0x02u
 #define SC2_CLIFF_LEVEL_PACKED_MIN  0x40u   /* packed format threshold; values >= this are shifted */
 #define SC2_CLIFF_LEVEL_SHIFT       6
 #define SC2_TERRAIN_UV_SCALE        8.0f
@@ -77,9 +79,19 @@ typedef struct rSc2CliffPlacement_s {
     FLOAT z_scale;
 } rSc2CliffPlacement_t;
 
+typedef struct rSc2LightUniforms_s {
+    GLint ambient;
+    GLint direction[SC2_MAX_DIRECTIONAL_LIGHTS];
+    GLint color[SC2_MAX_DIRECTIONAL_LIGHTS];
+    GLint enabled[SC2_MAX_DIRECTIONAL_LIGHTS];
+} rSc2LightUniforms_t;
+
 static sc2CliffModel_t *sc2_cliff_models;
+static rSc2LightUniforms_t sc2_u_terrain_light;
+static rSc2LightUniforms_t sc2_u_cliff_light;
 
 static void r_sc2_release_cliff_models(void);
+static sc2CliffCell_t const *r_sc2_find_cliff_cell(sc2Map_t const *map, DWORD index);
 
 static LPCSTR sc2_vs_terrain =
 "#version 140\n"
@@ -88,14 +100,29 @@ static LPCSTR sc2_vs_terrain =
 "in vec4 i_color;\n"
 "out vec2 v_texcoord2;\n"
 "out vec3 v_worldpos;\n"
+"out vec3 v_light;\n"
 "out vec4 v_color;\n"
 "uniform mat4 uViewProjectionMatrix;\n"
 "uniform mat4 uTextureMatrix;\n"
 "uniform mat4 uModelMatrix;\n"
+"uniform vec3 uLightAmbient;\n"
+"uniform vec3 uLightDir[3];\n"
+"uniform vec3 uLightColor[3];\n"
+"uniform float uLightEnabled[3];\n"
+"vec3 vertex_lighting(vec3 normal) {\n"
+"    vec3 n = normalize(normal);\n"
+"    vec3 light = uLightAmbient;\n"
+"    for (int i = 0; i < 3; i++) {\n"
+"        vec3 l = normalize(uLightDir[i]);\n"
+"        light += uLightColor[i] * max(dot(n, l), 0.0) * uLightEnabled[i];\n"
+"    }\n"
+"    return max(light, vec3(0.0));\n"
+"}\n"
 "void main() {\n"
 "    vec4 pos = uModelMatrix * vec4(i_position, 1.0);\n"
 "    v_texcoord2 = (uTextureMatrix * pos).xy;\n"
 "    v_worldpos = pos.xyz;\n"
+"    v_light = vertex_lighting(mat3(uModelMatrix) * i_normal);\n"
 "    v_color = i_color;\n"
 "    gl_Position = uViewProjectionMatrix * pos;\n"
 "}\n";
@@ -108,13 +135,28 @@ static LPCSTR sc2_vs_cliff_texture =
 "in vec4 i_color;\n"
 "out vec2 v_texcoord;\n"
 "out vec3 v_worldpos;\n"
+"out vec3 v_light;\n"
 "out vec4 v_color;\n"
 "uniform mat4 uViewProjectionMatrix;\n"
 "uniform mat4 uModelMatrix;\n"
+"uniform vec3 uLightAmbient;\n"
+"uniform vec3 uLightDir[3];\n"
+"uniform vec3 uLightColor[3];\n"
+"uniform float uLightEnabled[3];\n"
+"vec3 vertex_lighting(vec3 normal) {\n"
+"    vec3 n = normalize(normal);\n"
+"    vec3 light = uLightAmbient;\n"
+"    for (int i = 0; i < 3; i++) {\n"
+"        vec3 l = normalize(uLightDir[i]);\n"
+"        light += uLightColor[i] * max(dot(n, l), 0.0) * uLightEnabled[i];\n"
+"    }\n"
+"    return max(light, vec3(0.0));\n"
+"}\n"
 "void main() {\n"
 "    vec4 pos = uModelMatrix * vec4(i_position, 1.0);\n"
 "    v_texcoord = i_texcoord;\n"
 "    v_worldpos = pos.xyz;\n"
+"    v_light = vertex_lighting(mat3(uModelMatrix) * i_normal);\n"
 "    v_color = i_color;\n"
 "    gl_Position = uViewProjectionMatrix * pos;\n"
 "}\n";
@@ -123,6 +165,7 @@ static LPCSTR sc2_fs_terrain =
 "#version 140\n"
 "in vec2 v_texcoord2;\n"
 "in vec3 v_worldpos;\n"
+"in vec3 v_light;\n"
 "in vec4 v_color;\n"
 "out vec4 o_color;\n"
 "uniform sampler2D uLayer0;\n"
@@ -155,6 +198,7 @@ static LPCSTR sc2_fs_terrain =
 "                 texture(uLayer2, tc) * w.b +\n"
 "                 texture(uLayer3, tc) * w.a;\n"
 "    color.rgb *= v_color.rgb;\n"
+"    color.rgb *= v_light;\n"
 "    color.rgb = mix(color.rgb, uFogColor.rgb, get_height_fog());\n"
 "    color.a = 1.0;\n"
 "    o_color = color;\n"
@@ -165,6 +209,7 @@ static LPCSTR sc2_fs_cliff =
 "in vec4 v_color;\n"
 "in vec2 v_texcoord;\n"
 "in vec3 v_worldpos;\n"
+"in vec3 v_light;\n"
 "out vec4 o_color;\n"
 "uniform sampler2D uTexture;\n"
 "uniform vec4 uFogColor;\n"
@@ -177,9 +222,26 @@ static LPCSTR sc2_fs_cliff =
 "}\n"
 "void main() {\n"
 "    vec4 color = texture(uTexture, v_texcoord) * v_color;\n"
+"    color.rgb *= v_light;\n"
 "    color.rgb = mix(color.rgb, uFogColor.rgb, get_height_fog());\n"
 "    o_color = color;\n"
 "}\n";
+
+static void r_sc2_init_light_uniforms(GLuint program, rSc2LightUniforms_t *uniforms) {
+    if (!uniforms)
+        return;
+    uniforms->ambient = glGetUniformLocation(program, "uLightAmbient");
+    FOR_LOOP(i, SC2_MAX_DIRECTIONAL_LIGHTS) {
+        char name[32];
+
+        snprintf(name, sizeof(name), "uLightDir[%u]", (unsigned)i);
+        uniforms->direction[i] = glGetUniformLocation(program, name);
+        snprintf(name, sizeof(name), "uLightColor[%u]", (unsigned)i);
+        uniforms->color[i] = glGetUniformLocation(program, name);
+        snprintf(name, sizeof(name), "uLightEnabled[%u]", (unsigned)i);
+        uniforms->enabled[i] = glGetUniformLocation(program, name);
+    }
+}
 
 static void r_sc2_init_cliff_shader(void) {
     if (sc2_cliff_shader) {
@@ -193,6 +255,7 @@ static void r_sc2_init_cliff_shader(void) {
     R_Call(glUniform1i, sc2_cliff_shader->uTexture, 0);
     sc2_u_cliff_fog_color = glGetUniformLocation(sc2_cliff_shader->progid, "uFogColor");
     sc2_u_cliff_fog_params = glGetUniformLocation(sc2_cliff_shader->progid, "uFogParams");
+    r_sc2_init_light_uniforms(sc2_cliff_shader->progid, &sc2_u_cliff_light);
 }
 
 static void r_sc2_init_terrain_shader(void) {
@@ -218,6 +281,7 @@ static void r_sc2_init_terrain_shader(void) {
     sc2_u_world_uv_scale   = glGetUniformLocation(sc2_terrain_shader->progid, "uWorldUVScale");
     sc2_u_fog_color        = glGetUniformLocation(sc2_terrain_shader->progid, "uFogColor");
     sc2_u_fog_params       = glGetUniformLocation(sc2_terrain_shader->progid, "uFogParams");
+    r_sc2_init_light_uniforms(sc2_terrain_shader->progid, &sc2_u_terrain_light);
     R_Call(glUniform1i, sc2_u_mask, SC2_TERRAIN_PASS_LAYERS);
     r_sc2_init_cliff_shader();
 }
@@ -251,10 +315,6 @@ static void r_sc2_push_vertex_normal(VERTEX *v,
     v->color = (COLOR32){ 255, 255, 255, alpha };
 }
 
-static void r_sc2_push_vertex(VERTEX *v, FLOAT x, FLOAT y, FLOAT z, FLOAT u, FLOAT t, BYTE alpha) {
-    r_sc2_push_vertex_normal(v, x, y, z, u, t, alpha, (VECTOR3){ 0.0f, 0.0f, 1.0f });
-}
-
 static USHORT r_sc2_cliff_level_at_grid(sc2Map_t const *map, DWORD x, DWORD y) {
     USHORT value;
 
@@ -274,8 +334,28 @@ static BOOL r_sc2_cliff_block_is_flat(sc2Map_t const *map, DWORD x, DWORD y) {
     return level[1] == level[0] && level[2] == level[0] && level[3] == level[0];
 }
 
+static DWORD r_sc2_cliff_index_at_grid(sc2Map_t const *map, DWORD x, DWORD y) {
+    DWORD cliff_width = SC2_CLIFF_WIDTH(map);
+
+    return (x / SC2_CLIFF_BLOCK_SPAN) + (y / SC2_CLIFF_BLOCK_SPAN) * cliff_width;
+}
+
+static BOOL r_sc2_cliff_block_is_ramp(sc2Map_t const *map, DWORD x, DWORD y) {
+    sc2CliffCell_t const *cell;
+
+    if (!map)
+        return false;
+    cell = r_sc2_find_cliff_cell(map, r_sc2_cliff_index_at_grid(map, x, y));
+    return cell && (cell->flags & SC2_CLIFF_CELL_RAMP);
+}
+
 static BOOL r_sc2_skip_ground_cell(sc2Map_t const *map, DWORD x, DWORD y) {
-    return !r_sc2_cliff_block_is_flat(map, SC2_CLIFF_BLOCK_ORIGIN(x), SC2_CLIFF_BLOCK_ORIGIN(y));
+    DWORD block_x = SC2_CLIFF_BLOCK_ORIGIN(x);
+    DWORD block_y = SC2_CLIFF_BLOCK_ORIGIN(y);
+
+    if (r_sc2_cliff_block_is_ramp(map, block_x, block_y))
+        return false;
+    return !r_sc2_cliff_block_is_flat(map, block_x, block_y);
 }
 
 #ifdef BZ_SC2_FIX_FLAT_TERRAIN_TIER_MISMATCH
@@ -357,6 +437,63 @@ static FLOAT r_sc2_ground_height_at_grid(sc2Map_t const *map, DWORD grid_x, DWOR
     return sc2_map_height_at_grid(map, grid_x, grid_y);
 }
 #endif
+
+static VECTOR3 r_sc2_ground_face_normal(LPCVECTOR3 a, LPCVECTOR3 b, LPCVECTOR3 c) {
+    VECTOR3 ab = Vector3_sub(b, a);
+    VECTOR3 ac = Vector3_sub(c, a);
+    VECTOR3 normal = Vector3_cross(&ab, &ac);
+
+    if (Vector3_lengthsq(&normal) <= 0.000001f)
+        return (VECTOR3){ 0.0f, 0.0f, 1.0f };
+    Vector3_normalize(&normal);
+    if (normal.z < 0.0f)
+        normal = Vector3_scale(&normal, -1.0f);
+    return normal;
+}
+
+static void r_sc2_accumulate_ground_triangle_normal(VERTEX *vertices,
+                                                    DWORD i0,
+                                                    DWORD i1,
+                                                    DWORD i2) {
+    VECTOR3 normal = r_sc2_ground_face_normal(&vertices[i0].position,
+                                              &vertices[i1].position,
+                                              &vertices[i2].position);
+
+    vertices[i0].normal = Vector3_add(&vertices[i0].normal, &normal);
+    vertices[i1].normal = Vector3_add(&vertices[i1].normal, &normal);
+    vertices[i2].normal = Vector3_add(&vertices[i2].normal, &normal);
+}
+
+static void r_sc2_build_ground_vertex_normals(sc2Map_t const *map,
+                                              VERTEX *vertices,
+                                              DWORD w,
+                                              DWORD h) {
+    DWORD num_vertices = (w + 1) * (h + 1);
+
+    FOR_LOOP(i, num_vertices) {
+        vertices[i].normal = (VECTOR3){ 0.0f, 0.0f, 0.0f };
+    }
+    FOR_LOOP(y, h) {
+        FOR_LOOP(x, w) {
+            DWORD i00 = x + y * (w + 1);
+            DWORD i10 = i00 + 1;
+            DWORD i01 = i00 + w + 1;
+            DWORD i11 = i01 + 1;
+
+            if (r_sc2_skip_ground_cell(map, x, y))
+                continue;
+            r_sc2_accumulate_ground_triangle_normal(vertices, i00, i10, i11);
+            r_sc2_accumulate_ground_triangle_normal(vertices, i00, i11, i01);
+        }
+    }
+    FOR_LOOP(i, num_vertices) {
+        if (Vector3_lengthsq(&vertices[i].normal) <= 0.000001f) {
+            vertices[i].normal = (VECTOR3){ 0.0f, 0.0f, 1.0f };
+            continue;
+        }
+        Vector3_normalize(&vertices[i].normal);
+    }
+}
 
 static void r_sc2_release_layer(LPMAPLAYER layer) {
     while (layer) {
@@ -567,9 +704,19 @@ static LPMAPLAYER r_sc2_build_ground_layer(sc2Map_t const *map) {
             FLOAT py = bounds.min.y + y * map->cell_size;
             FLOAT u = px / SC2_TERRAIN_UV_SCALE;
             FLOAT v = py / SC2_TERRAIN_UV_SCALE;
-            r_sc2_push_vertex(&vertices[x + y * (w + 1)], px, py, r_sc2_ground_height_at_grid(map, x, y), u, v, 255);
+            /* SC2 lighting needs mesh normals rebuilt after tier height correction. */
+//            r_sc2_push_vertex(&vertices[x + y * (w + 1)], px, py, r_sc2_ground_height_at_grid(map, x, y), u, v, 255);
+            r_sc2_push_vertex_normal(&vertices[x + y * (w + 1)],
+                                     px,
+                                     py,
+                                     r_sc2_ground_height_at_grid(map, x, y),
+                                     u,
+                                     v,
+                                     255,
+                                     (VECTOR3){ 0.0f, 0.0f, 1.0f });
         }
     }
+    r_sc2_build_ground_vertex_normals(map, vertices, w, h);
 
     out = indices;
     FOR_LOOP(y, h) {
@@ -1073,6 +1220,8 @@ static LPMAPLAYER r_sc2_build_cliff_layer(sc2Map_t const *map) {
 
             if (r_sc2_cliff_block_is_flat(map, grid_x, grid_y))
                 continue;
+            if (r_sc2_cliff_block_is_ramp(map, grid_x, grid_y))
+                continue;
             if (cell.cliff_set >= map->t3Terrain.num_cliff_sets)
                 continue;
             set = &map->t3Terrain.cliff_sets[cell.cliff_set];
@@ -1155,12 +1304,34 @@ static void r_sc2_set_fog_uniforms(GLint u_color, GLint u_params) {
            enabled);
 }
 
+static void r_sc2_set_light_uniforms(rSc2LightUniforms_t const *uniforms) {
+    sc2Map_t const *map = SC2_MapCurrent();
+    sc2MapLighting_t const *lighting = map ? &map->lighting : NULL;
+    VECTOR3 ambient = lighting && lighting->enabled ? lighting->ambient_color : (VECTOR3){ 1.0f, 1.0f, 1.0f };
+
+    if (!uniforms)
+        return;
+    R_Call(glUniform3f, uniforms->ambient, ambient.x, ambient.y, ambient.z);
+    FOR_LOOP(i, SC2_MAX_DIRECTIONAL_LIGHTS) {
+        sc2DirectionalLight_t const *light = lighting && lighting->enabled ? &lighting->directional[i] : NULL;
+        FLOAT enabled = light && light->enabled ? 1.0f : 0.0f;
+        VECTOR3 direction = enabled ? (VECTOR3){ -light->direction.x, -light->direction.y, -light->direction.z } : (VECTOR3){ 0.0f, 0.0f, 1.0f };
+        VECTOR3 color = enabled ? light->color : (VECTOR3){ 0.0f, 0.0f, 0.0f };
+        FLOAT multiplier = enabled ? light->color_multiplier : 0.0f;
+
+        R_Call(glUniform3f, uniforms->direction[i], direction.x, direction.y, direction.z);
+        R_Call(glUniform3f, uniforms->color[i], color.x * multiplier, color.y * multiplier, color.z * multiplier);
+        R_Call(glUniform1f, uniforms->enabled[i], enabled);
+    }
+}
+
 static void r_sc2_begin_terrain_shader(MATRIX4 const *model_matrix) {
     R_Call(glUseProgram, sc2_terrain_shader->progid);
     R_Call(glUniformMatrix4fv, sc2_terrain_shader->uViewProjectionMatrix, 1, GL_FALSE, tr.viewDef.viewProjectionMatrix.v);
     R_Call(glUniformMatrix4fv, sc2_terrain_shader->uModelMatrix, 1, GL_FALSE, model_matrix->v);
     R_Call(glUniformMatrix4fv, sc2_terrain_shader->uTextureMatrix, 1, GL_FALSE, tr.viewDef.textureMatrix.v);
     r_sc2_set_fog_uniforms(sc2_u_fog_color, sc2_u_fog_params);
+    r_sc2_set_light_uniforms(&sc2_u_terrain_light);
 }
 
 static void r_sc2_begin_terrain_pass(DWORD group) {
@@ -1231,6 +1402,7 @@ void R_SC2RegisterMap(LPCSTR mapFileName) {
         .free_file = r_sc2_free_file,
         .mem_alloc = ri.MemAlloc,
         .mem_free = ri.MemFree,
+        .cvar_string = ri.CvarString,
     });
     SC2_MapLoad(mapFileName);
     r_sc2_build_terrain(SC2_MapCurrent());
@@ -1264,6 +1436,7 @@ static void r_sc2_draw_cliff_layer(LPCMAPSEGMENT segment) {
     R_Call(glUniformMatrix4fv, sc2_cliff_shader->uModelMatrix, 1, GL_FALSE, model_matrix.v);
     R_Call(glUniformMatrix4fv, sc2_cliff_shader->uTextureMatrix, 1, GL_FALSE, tr.viewDef.textureMatrix.v);
     r_sc2_set_fog_uniforms(sc2_u_cliff_fog_color, sc2_u_cliff_fog_params);
+    r_sc2_set_light_uniforms(&sc2_u_cliff_light);
     R_Call(glEnable, GL_BLEND);
     R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     R_BindTexture(layer->texture, 0);

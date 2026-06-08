@@ -73,6 +73,7 @@ typedef struct {
     void (*MemFree)(HANDLE);
     sheetRow_t *(*ReadSheet)(LPCSTR sheetFilename);
     LPCSTR (*FindSheetCell)(sheetRow_t *sheet, LPCSTR row, LPCSTR column);
+    LPCSTR (*CvarString)(LPCSTR name, LPCSTR fallback);
     void (*error)(LPCSTR fmt, ...);
 } refImport_t;
 

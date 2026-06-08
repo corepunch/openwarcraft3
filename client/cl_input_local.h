@@ -10,6 +10,7 @@ BOOL CL_GameplayInputReady(void);
 
 void CL_InputModeInit(void);
 void CL_InputModeSetGameplay(void);
+void CL_InputModeMouseButton(SDL_MouseButtonEvent const *button, BOOL down);
 void CL_InputModeMouseMotion(SDL_MouseMotionEvent const *motion);
 BOOL CL_InputModeMouseWheel(SDL_MouseWheelEvent const *wheel);
 void CL_InputModeFrame(void);
