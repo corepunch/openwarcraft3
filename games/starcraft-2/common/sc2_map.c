@@ -12,8 +12,8 @@
 #define SC2_ARRAY_LEN(x)             ((DWORD)(sizeof(x) / sizeof((x)[0])))
 #define SC2_XML_STRING_FIELD(name, field) { name, offsetof(sc2MapObject_t, field), SC2_XML_FIELD_STRING, sizeof(((sc2MapObject_t *)0)->field) }
 #define SC2_XML_FIELD(name, field, type)  { name, offsetof(sc2MapObject_t, field), type, 0 }
-#define SC2_MAP_XML_STRING_FIELD(name, field) { name, offsetof(sc2Map_t, field), SC2_XML_FIELD_STRING, sizeof(((sc2Map_t *)0)->field) }
-#define SC2_MAP_XML_FIELD(name, field, type)  { name, offsetof(sc2Map_t, field), type, 0 }
+#define SC2_TERRAIN_XML_STRING_FIELD(name, field) { name, offsetof(sc2MapTerrain_t, field), SC2_XML_FIELD_STRING, sizeof(((sc2MapTerrain_t *)0)->field) }
+#define SC2_TERRAIN_XML_FIELD(name, field, type)  { name, offsetof(sc2MapTerrain_t, field), type, 0 }
 
 typedef struct {
     HANDLE archive;
@@ -302,7 +302,7 @@ static void sc2_add_terrain_texture(LPCSTR path) {
     char buffer[256];
     char *ext;
 
-    if (!path || !*path || sc2_map.num_terrain_textures >= SC2_MAX_TERRAIN_TEXTURES)
+    if (!path || !*path || sc2_map.t3Terrain.num_terrain_textures >= SC2_MAX_TERRAIN_TEXTURES)
         return;
     snprintf(buffer, sizeof(buffer), "%s", path);
     for (char *p = buffer; *p; p++) {
@@ -311,13 +311,13 @@ static void sc2_add_terrain_texture(LPCSTR path) {
     if (sc2_path_has_dir(buffer)) {
         sc2_append_extension(buffer, sizeof(buffer), ".dds");
     }
-    FOR_LOOP(i, sc2_map.num_terrain_textures) {
-        if (!strcasecmp(sc2_map.terrain_textures[i].diffuse, buffer)) {
+    FOR_LOOP(i, sc2_map.t3Terrain.num_terrain_textures) {
+        if (!strcasecmp(sc2_map.t3Terrain.terrain_textures[i].diffuse, buffer)) {
             return;
         }
     }
 
-    texture = &sc2_map.terrain_textures[sc2_map.num_terrain_textures++];
+    texture = &sc2_map.t3Terrain.terrain_textures[sc2_map.t3Terrain.num_terrain_textures++];
     snprintf(texture->diffuse, sizeof(texture->diffuse), "%s", buffer);
     snprintf(texture->normal, sizeof(texture->normal), "%s", buffer);
     ext = sc2_path_has_dir(texture->normal) ? strrchr(texture->normal, '.') : NULL;
@@ -330,10 +330,10 @@ static void sc2_parse_terrain_value(LPCSTR key, LPCSTR value) {
     if (!key || !value || !*value)
         return;
     if (sc2_contains_i(key, "normal")) {
-        DWORD index = sc2_map.num_terrain_textures ? sc2_map.num_terrain_textures - 1 : 0;
+        DWORD index = sc2_map.t3Terrain.num_terrain_textures ? sc2_map.t3Terrain.num_terrain_textures - 1 : 0;
         if (index < SC2_MAX_TERRAIN_TEXTURES) {
-            snprintf(sc2_map.terrain_textures[index].normal,
-                     sizeof(sc2_map.terrain_textures[index].normal),
+            snprintf(sc2_map.t3Terrain.terrain_textures[index].normal,
+                     sizeof(sc2_map.t3Terrain.terrain_textures[index].normal),
                      "%s",
                      value);
         }
@@ -358,18 +358,18 @@ static void sc2_parse_cliff_set_node(xmlNodePtr node) {
     index = (DWORD)strtoul(value, NULL, 10);
     if (index >= SC2_MAX_CLIFF_SETS)
         return;
-    if (!sc2_xml_attr(node, "name", sc2_map.cliff_sets[index].name, sizeof(sc2_map.cliff_sets[index].name)))
+    if (!sc2_xml_attr(node, "name", sc2_map.t3Terrain.cliff_sets[index].name, sizeof(sc2_map.t3Terrain.cliff_sets[index].name)))
         return;
-    sc2_map.num_cliff_sets = MAX(sc2_map.num_cliff_sets, index + 1);
+    sc2_map.t3Terrain.num_cliff_sets = MAX(sc2_map.t3Terrain.num_cliff_sets, index + 1);
 }
 
 static void sc2_parse_cliff_cell_node(xmlNodePtr node) {
     sc2CliffCell_t *cell;
     char value[64];
 
-    if (!node || !sc2_streqi((char const *)node->name, "cc") || sc2_map.num_cliff_cells >= SC2_MAX_CLIFF_CELLS)
+    if (!node || !sc2_streqi((char const *)node->name, "cc") || sc2_map.t3Terrain.num_cliff_cells >= SC2_MAX_CLIFF_CELLS)
         return;
-    cell = &sc2_map.cliff_cells[sc2_map.num_cliff_cells];
+    cell = &sc2_map.t3Terrain.cliff_cells[sc2_map.t3Terrain.num_cliff_cells];
     memset(cell, 0, sizeof(*cell));
     if (!sc2_xml_attr(node, "i", value, sizeof(value)))
         return;
@@ -377,7 +377,7 @@ static void sc2_parse_cliff_cell_node(xmlNodePtr node) {
     if (sc2_xml_attr(node, "f", value, sizeof(value))) cell->flags = (DWORD)strtoul(value, NULL, 10);
     if (sc2_xml_attr(node, "cid", value, sizeof(value))) cell->cliff_set = (DWORD)strtoul(value, NULL, 10);
     if (sc2_xml_attr(node, "cvar", value, sizeof(value))) cell->variant = (DWORD)strtoul(value, NULL, 10);
-    sc2_map.num_cliff_cells++;
+    sc2_map.t3Terrain.num_cliff_cells++;
 }
 
 static void sc2_map_try_size_field(LPCSTR key, LPCSTR value) {
@@ -450,13 +450,13 @@ static void sc2_parse_mapinfo(sc2MapSource_t *source) {
 }
 
 static sc2XmlField_t const sc2_terrain_height_map_fields[] = {
-    SC2_MAP_XML_STRING_FIELD("tileSet", tile_set),
+    SC2_TERRAIN_XML_STRING_FIELD("tileSet", tile_set),
 };
 
 static sc2XmlField_t const sc2_terrain_vert_data_fields[] = {
-    SC2_MAP_XML_FIELD("quantizeBias", height_quantize_bias, SC2_XML_FIELD_FLOAT),
-    SC2_MAP_XML_FIELD("quantizeScale", height_quantize_scale, SC2_XML_FIELD_FLOAT),
-    SC2_MAP_XML_FIELD("standardHeight", standard_height, SC2_XML_FIELD_FLOAT),
+    SC2_TERRAIN_XML_FIELD("quantizeBias", height_quantize_bias, SC2_XML_FIELD_FLOAT),
+    SC2_TERRAIN_XML_FIELD("quantizeScale", height_quantize_scale, SC2_XML_FIELD_FLOAT),
+    SC2_TERRAIN_XML_FIELD("standardHeight", standard_height, SC2_XML_FIELD_FLOAT),
 };
 
 static sc2XmlNodeFields_t const sc2_terrain_node_fields[] = {
@@ -468,7 +468,7 @@ static void sc2_parse_terrain_field(xmlNodePtr node, LPCSTR name, LPCSTR value) 
     FOR_LOOP(i, SC2_ARRAY_LEN(sc2_terrain_node_fields)) {
         sc2XmlNodeFields_t const *mapping = &sc2_terrain_node_fields[i];
         if (sc2_streqi((char const *)node->name, mapping->node_name)) {
-            sc2_parse_xml_field(&sc2_map, mapping->fields, mapping->num_fields, name, value);
+            sc2_parse_xml_field(&sc2_map.t3Terrain, mapping->fields, mapping->num_fields, name, value);
             return;
         }
     }
@@ -837,17 +837,17 @@ static BOOL sc2_terrain_texture_path_from_tileset(LPCSTR id,
     char path[256];
     DWORD tile_len;
 
-    if (!id || !*id || !sc2_map.tile_set[0] || !diffuse || !normal)
+    if (!id || !*id || !sc2_map.t3Terrain.tile_set[0] || !diffuse || !normal)
         return false;
-    tile_len = (DWORD)strlen(sc2_map.tile_set);
-    if (strncasecmp(id, sc2_map.tile_set, tile_len) || !id[tile_len])
+    tile_len = (DWORD)strlen(sc2_map.t3Terrain.tile_set);
+    if (strncasecmp(id, sc2_map.t3Terrain.tile_set, tile_len) || !id[tile_len])
         return false;
     sc2_camel_to_underscore(id + tile_len, suffix, sizeof(suffix));
-    snprintf(path, sizeof(path), "Assets\\Textures\\%s_%s.dds", sc2_map.tile_set, suffix);
+    snprintf(path, sizeof(path), "Assets\\Textures\\%s_%s.dds", sc2_map.t3Terrain.tile_set, suffix);
     if (!sc2_file_exists(path))
         return false;
     snprintf(diffuse, diffuse_size, "%s", path);
-    snprintf(path, sizeof(path), "Assets\\Textures\\%s_%sNormal.dds", sc2_map.tile_set, suffix);
+    snprintf(path, sizeof(path), "Assets\\Textures\\%s_%sNormal.dds", sc2_map.t3Terrain.tile_set, suffix);
     snprintf(normal, normal_size, "%s", sc2_file_exists(path) ? path : diffuse);
     return true;
 }
@@ -981,51 +981,51 @@ static void sc2_parse_catalogs(sc2Catalog_t *catalog) {
 }
 
 static void sc2_resolve_terrain_textures(sc2Catalog_t const *catalog) {
-    FOR_LOOP(i, sc2_map.num_terrain_textures) {
+    FOR_LOOP(i, sc2_map.t3Terrain.num_terrain_textures) {
         char stem[128];
         char diffuse_path[256];
         char normal_path[256];
         LPCSTR normal;
-        LPCSTR diffuse = sc2_catalog_terrain_diffuse(catalog, sc2_map.terrain_textures[i].diffuse, &normal);
+        LPCSTR diffuse = sc2_catalog_terrain_diffuse(catalog, sc2_map.t3Terrain.terrain_textures[i].diffuse, &normal);
 
         if (diffuse) {
-            snprintf(sc2_map.terrain_textures[i].diffuse, sizeof(sc2_map.terrain_textures[i].diffuse), "%s", diffuse);
-            snprintf(sc2_map.terrain_textures[i].normal, sizeof(sc2_map.terrain_textures[i].normal), "%s",
+            snprintf(sc2_map.t3Terrain.terrain_textures[i].diffuse, sizeof(sc2_map.t3Terrain.terrain_textures[i].diffuse), "%s", diffuse);
+            snprintf(sc2_map.t3Terrain.terrain_textures[i].normal, sizeof(sc2_map.t3Terrain.terrain_textures[i].normal), "%s",
                      normal && *normal ? normal : diffuse);
             continue;
         }
-        if (sc2_path_has_dir(sc2_map.terrain_textures[i].diffuse))
+        if (sc2_path_has_dir(sc2_map.t3Terrain.terrain_textures[i].diffuse))
             continue;
-        if (sc2_terrain_texture_path_from_tileset(sc2_map.terrain_textures[i].diffuse,
-                                                  sc2_map.terrain_textures[i].diffuse,
-                                                  sizeof(sc2_map.terrain_textures[i].diffuse),
-                                                  sc2_map.terrain_textures[i].normal,
-                                                  sizeof(sc2_map.terrain_textures[i].normal))) {
+        if (sc2_terrain_texture_path_from_tileset(sc2_map.t3Terrain.terrain_textures[i].diffuse,
+                                                  sc2_map.t3Terrain.terrain_textures[i].diffuse,
+                                                  sizeof(sc2_map.t3Terrain.terrain_textures[i].diffuse),
+                                                  sc2_map.t3Terrain.terrain_textures[i].normal,
+                                                  sizeof(sc2_map.t3Terrain.terrain_textures[i].normal))) {
             continue;
         }
-        sc2_camel_to_underscore(sc2_map.terrain_textures[i].diffuse, stem, sizeof(stem));
+        sc2_camel_to_underscore(sc2_map.t3Terrain.terrain_textures[i].diffuse, stem, sizeof(stem));
         snprintf(diffuse_path, sizeof(diffuse_path), "Assets\\Textures\\%s.dds", stem);
         snprintf(normal_path, sizeof(normal_path), "Assets\\Textures\\%sNormal.dds", stem);
         if (sc2_file_exists(diffuse_path)) {
-            snprintf(sc2_map.terrain_textures[i].diffuse, sizeof(sc2_map.terrain_textures[i].diffuse), "%s", diffuse_path);
-            snprintf(sc2_map.terrain_textures[i].normal, sizeof(sc2_map.terrain_textures[i].normal), "%s",
+            snprintf(sc2_map.t3Terrain.terrain_textures[i].diffuse, sizeof(sc2_map.t3Terrain.terrain_textures[i].diffuse), "%s", diffuse_path);
+            snprintf(sc2_map.t3Terrain.terrain_textures[i].normal, sizeof(sc2_map.t3Terrain.terrain_textures[i].normal), "%s",
                      sc2_file_exists(normal_path) ? normal_path : diffuse_path);
         }
     }
 }
 
 static void sc2_resolve_cliff_sets(sc2Catalog_t const *catalog) {
-    FOR_LOOP(i, sc2_map.num_cliff_sets) {
-        LPCSTR mesh = sc2_catalog_cliff_mesh(catalog, sc2_map.cliff_sets[i].name);
+    FOR_LOOP(i, sc2_map.t3Terrain.num_cliff_sets) {
+        LPCSTR mesh = sc2_catalog_cliff_mesh(catalog, sc2_map.t3Terrain.cliff_sets[i].name);
         if (!mesh || !*mesh)
-            mesh = sc2_cliff_mesh_fallback(sc2_map.cliff_sets[i].name);
+            mesh = sc2_cliff_mesh_fallback(sc2_map.t3Terrain.cliff_sets[i].name);
         if (mesh && *mesh) {
-            snprintf(sc2_map.cliff_sets[i].mesh, sizeof(sc2_map.cliff_sets[i].mesh), "%s", mesh);
-        } else if (sc2_map.cliff_sets[i].name[0]) {
-            snprintf(sc2_map.cliff_sets[i].mesh,
-                     sizeof(sc2_map.cliff_sets[i].mesh),
+            snprintf(sc2_map.t3Terrain.cliff_sets[i].mesh, sizeof(sc2_map.t3Terrain.cliff_sets[i].mesh), "%s", mesh);
+        } else if (sc2_map.t3Terrain.cliff_sets[i].name[0]) {
+            snprintf(sc2_map.t3Terrain.cliff_sets[i].mesh,
+                     sizeof(sc2_map.t3Terrain.cliff_sets[i].mesh),
                      "%s",
-                     sc2_map.cliff_sets[i].name);
+                     sc2_map.t3Terrain.cliff_sets[i].name);
         }
     }
 }
@@ -1221,30 +1221,7 @@ sc2Map_t *SC2_MapCurrent(void) {
 }
 
 FLOAT SC2_MapHeightAtPoint(FLOAT x, FLOAT y) {
-    FLOAT fx, fy, tx, ty;
-    DWORD x0, y0, x1, y1;
-    FLOAT h00, h10, h01, h11, h0, h1;
-
-    if (!sc2_map.t3HeightMap || !sc2_map.t3HeightMap->width || !sc2_map.t3HeightMap->height) {
-        return 0.0f;
-    }
-    fx = (x - sc2_map.origin.x) / (sc2_map.cell_size ? sc2_map.cell_size : 1.0f);
-    fy = (y - sc2_map.origin.y) / (sc2_map.cell_size ? sc2_map.cell_size : 1.0f);
-    fx = MIN(MAX(fx, 0.0f), (FLOAT)(sc2_map_width() ? sc2_map_width() : sc2_map.t3HeightMap->width - 1));
-    fy = MIN(MAX(fy, 0.0f), (FLOAT)(sc2_map_height() ? sc2_map_height() : sc2_map.t3HeightMap->height - 1));
-    x0 = (DWORD)floorf(fx);
-    y0 = (DWORD)floorf(fy);
-    x1 = x0 + 1;
-    y1 = y0 + 1;
-    tx = fx - (FLOAT)x0;
-    ty = fy - (FLOAT)y0;
-    h00 = sc2_map_height_at_grid(&sc2_map, x0, y0);
-    h10 = sc2_map_height_at_grid(&sc2_map, x1, y0);
-    h01 = sc2_map_height_at_grid(&sc2_map, x0, y1);
-    h11 = sc2_map_height_at_grid(&sc2_map, x1, y1);
-    h0 = h00 + (h10 - h00) * tx;
-    h1 = h01 + (h11 - h01) * tx;
-    return h0 + (h1 - h0) * ty;
+    return sc2_map_height_at_point(&sc2_map, x, y);
 }
 
 BOX2 SC2_MapBounds(void) {

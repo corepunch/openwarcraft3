@@ -140,21 +140,25 @@ static void test_sc2_map_loads_xml_objects_and_terrain(void) {
     ASSERT_EQ_FLOAT(map->objects[3].position.z, 8.0f, 0.001f);
     ASSERT_EQ_INT(map->objects[3].flags, SC2_OBJECT_HEIGHT_ABSOLUTE | SC2_OBJECT_FORCE_PLACEMENT);
 
-    ASSERT_EQ_INT(map->num_terrain_textures, 2);
-    ASSERT_STR_EQ(map->terrain_textures[0].diffuse, "Assets\\Textures\\Terrain\\FixtureGrass_Diffuse.dds");
-    ASSERT_STR_EQ(map->terrain_textures[0].normal, "Assets\\Textures\\Terrain\\FixtureGrass_Diffuse_normal.dds");
-    ASSERT_STR_EQ(map->terrain_textures[1].diffuse, "Assets\\Textures\\Terrain\\FixtureDirt_Diffuse.dds");
+    ASSERT_STR_EQ(map->t3Terrain.tile_set, "Fixture");
+    ASSERT_EQ_FLOAT(map->t3Terrain.height_quantize_bias, 0.0f, 0.001f);
+    ASSERT_EQ_FLOAT(map->t3Terrain.height_quantize_scale, 1.0f, 0.001f);
+    ASSERT_EQ_FLOAT(map->t3Terrain.standard_height, 0.0f, 0.001f);
+    ASSERT_EQ_INT(map->t3Terrain.num_terrain_textures, 2);
+    ASSERT_STR_EQ(map->t3Terrain.terrain_textures[0].diffuse, "Assets\\Textures\\Terrain\\FixtureGrass_Diffuse.dds");
+    ASSERT_STR_EQ(map->t3Terrain.terrain_textures[0].normal, "Assets\\Textures\\Terrain\\FixtureGrass_Diffuse_normal.dds");
+    ASSERT_STR_EQ(map->t3Terrain.terrain_textures[1].diffuse, "Assets\\Textures\\Terrain\\FixtureDirt_Diffuse.dds");
 
-    ASSERT_EQ_INT(map->num_cliff_sets, 1);
-    ASSERT_STR_EQ(map->cliff_sets[0].name, "FixtureCliff0");
-    ASSERT_STR_EQ(map->cliff_sets[0].mesh, "FixtureCliff0");
-    ASSERT_EQ_INT(map->num_cliff_cells, 2);
-    ASSERT_EQ_INT(map->cliff_cells[0].index, 0);
-    ASSERT_EQ_INT(map->cliff_cells[0].flags, 1);
-    ASSERT_EQ_INT(map->cliff_cells[0].cliff_set, 0);
-    ASSERT_EQ_INT(map->cliff_cells[0].variant, 2);
-    ASSERT_EQ_INT(map->cliff_cells[1].index, 1);
-    ASSERT_EQ_INT(map->cliff_cells[1].flags, 3);
+    ASSERT_EQ_INT(map->t3Terrain.num_cliff_sets, 1);
+    ASSERT_STR_EQ(map->t3Terrain.cliff_sets[0].name, "FixtureCliff0");
+    ASSERT_STR_EQ(map->t3Terrain.cliff_sets[0].mesh, "FixtureCliff0");
+    ASSERT_EQ_INT(map->t3Terrain.num_cliff_cells, 2);
+    ASSERT_EQ_INT(map->t3Terrain.cliff_cells[0].index, 0);
+    ASSERT_EQ_INT(map->t3Terrain.cliff_cells[0].flags, 1);
+    ASSERT_EQ_INT(map->t3Terrain.cliff_cells[0].cliff_set, 0);
+    ASSERT_EQ_INT(map->t3Terrain.cliff_cells[0].variant, 2);
+    ASSERT_EQ_INT(map->t3Terrain.cliff_cells[1].index, 1);
+    ASSERT_EQ_INT(map->t3Terrain.cliff_cells[1].flags, 3);
 }
 
 static void test_sc2_map_loads_binary_terrain_layers(void) {

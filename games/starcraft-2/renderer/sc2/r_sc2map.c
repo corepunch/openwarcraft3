@@ -439,10 +439,10 @@ static LPTEXTURE r_sc2_build_mask_texture(sc2Map_t const *map, DWORD layer) {
 }
 
 static void r_sc2_load_terrain_textures(sc2Map_t const *map) {
-    sc2_num_terrain_layers = MIN(MAX(1, map->num_terrain_textures), SC2_TERRAIN_BLEND_LAYERS);
+    sc2_num_terrain_layers = MIN(MAX(1, map->t3Terrain.num_terrain_textures), SC2_TERRAIN_BLEND_LAYERS);
     FOR_LOOP(i, sc2_num_terrain_layers) {
-        if (map->num_terrain_textures > i) {
-            sc2_terrain_textures[i] = R_LoadTexture(map->terrain_textures[i].diffuse);
+        if (map->t3Terrain.num_terrain_textures > i) {
+            sc2_terrain_textures[i] = R_LoadTexture(map->t3Terrain.terrain_textures[i].diffuse);
             R_SetTextureWrap(sc2_terrain_textures[i], true, true);
         }
         if (r_sc2_texture_mask_layers(map) > i) {
@@ -902,11 +902,11 @@ static LPMAPLAYER r_sc2_build_cliff_layer(sc2Map_t const *map) {
     DWORD cliff_width;
     LPCTEXTURE diffuse = NULL;
 
-    if (!map || !map->num_cliff_cells || !map->t3SyncCliffLevel)
+    if (!map || !map->t3Terrain.num_cliff_cells || !map->t3SyncCliffLevel)
         return NULL;
     cliff_width = SC2_CLIFF_WIDTH(map);
-    FOR_LOOP(i, map->num_cliff_cells) {
-        sc2CliffCell_t const *cell = &map->cliff_cells[i];
+    FOR_LOOP(i, map->t3Terrain.num_cliff_cells) {
+        sc2CliffCell_t const *cell = &map->t3Terrain.cliff_cells[i];
         sc2CliffSet_t const *set;
         char config[5];
         PATHSTR path;
@@ -915,9 +915,9 @@ static LPMAPLAYER r_sc2_build_cliff_layer(sc2Map_t const *map) {
         int rotation;
         LPCMODEL model;
 
-        if (cell->cliff_set >= map->num_cliff_sets)
+        if (cell->cliff_set >= map->t3Terrain.num_cliff_sets)
             continue;
-        set = &map->cliff_sets[cell->cliff_set];
+        set = &map->t3Terrain.cliff_sets[cell->cliff_set];
         grid_x = (cell->index % cliff_width) * SC2_CLIFF_BLOCK_SPAN;
         grid_y = (cell->index / cliff_width) * SC2_CLIFF_BLOCK_SPAN;
         if (!r_sc2_cliff_config(map, grid_x, grid_y, config, NULL, NULL, &rotation))
@@ -1242,7 +1242,7 @@ bool R_SC2TraceLocation(viewDef_t const *viewdef, FLOAT x, FLOAT y, LPVECTOR3 ou
 }
 
 FLOAT R_SC2GetHeightAtPoint(FLOAT x, FLOAT y) {
-    return SC2_MapHeightAtPoint(x, y);
+    return sc2_map_height_at_point(SC2_MapCurrent(), x, y);
 }
 
 VECTOR2 R_SC2WorldSize(void) {

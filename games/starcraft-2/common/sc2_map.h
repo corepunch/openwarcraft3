@@ -62,6 +62,19 @@ typedef struct {
 } sc2CliffCell_t;
 
 typedef struct {
+    char           tile_set[64];
+    DWORD          num_terrain_textures;
+    sc2TerrainTexture_t terrain_textures[SC2_MAX_TERRAIN_TEXTURES];
+    DWORD          num_cliff_sets;
+    sc2CliffSet_t cliff_sets[SC2_MAX_CLIFF_SETS];
+    DWORD          num_cliff_cells;
+    sc2CliffCell_t cliff_cells[SC2_MAX_CLIFF_CELLS];
+    FLOAT          height_quantize_bias;
+    FLOAT          height_quantize_scale;
+    FLOAT          standard_height;
+} sc2MapTerrain_t;
+
+typedef struct {
     USHORT         adjustment;
     USHORT         height;
     USHORT         extra;
@@ -130,35 +143,34 @@ typedef struct {
 
 typedef struct {
     char           map_name[128];
-    char           tile_set[64];
     VECTOR2        origin;
     FLOAT          cell_size;
     DWORD          num_objects;
     sc2MapObject_t objects[SC2_MAX_MAP_OBJECTS];
-    DWORD          num_terrain_textures;
-    sc2TerrainTexture_t terrain_textures[SC2_MAX_TERRAIN_TEXTURES];
+    sc2MapTerrain_t t3Terrain;
     sc2MapTextureMasks_t *t3TextureMasks;
     DWORD          t3TextureMasksSize;
     sc2MapCellFlags_t *t3CellFlags;
     sc2MapSyncCliffLevel_t *t3SyncCliffLevel;
-    DWORD          num_cliff_sets;
-    sc2CliffSet_t cliff_sets[SC2_MAX_CLIFF_SETS];
-    DWORD          num_cliff_cells;
-    sc2CliffCell_t cliff_cells[SC2_MAX_CLIFF_CELLS];
-    FLOAT          height_quantize_bias;
-    FLOAT          height_quantize_scale;
-    FLOAT          standard_height;
     sc2MapInfo_t   MapInfo;
     sc2MapHeightMap_t *t3HeightMap;
     sc2MapSyncHeightMap_t *t3SyncHeightMap;
 } sc2Map_t;
 
+static inline DWORD sc2_map_cell_width(sc2Map_t const *map) {
+    return map ? map->MapInfo.width : 0;
+}
+
+static inline DWORD sc2_map_cell_height(sc2Map_t const *map) {
+    return map ? map->MapInfo.height : 0;
+}
+
 static inline FLOAT sc2_map_height_scale(sc2Map_t const *map) {
-    return map && map->height_quantize_scale ? map->height_quantize_scale : 1.0f;
+    return map && map->t3Terrain.height_quantize_scale ? map->t3Terrain.height_quantize_scale : 1.0f;
 }
 
 static inline FLOAT sc2_map_height_offset(sc2Map_t const *map) {
-    return map ? map->height_quantize_bias + map->standard_height + 1.0f : 1.0f;
+    return map ? map->t3Terrain.height_quantize_bias + map->t3Terrain.standard_height + 1.0f : 1.0f;
 }
 
 static inline FLOAT sc2_map_height_at_grid(sc2Map_t const *map, DWORD x, DWORD y) {
@@ -185,6 +197,32 @@ static inline FLOAT sc2_map_height_adjust_at_grid(sc2Map_t const *map, DWORD x, 
 
 static inline FLOAT sc2_map_height_base_at_grid(sc2Map_t const *map, DWORD x, DWORD y) {
     return sc2_map_height_at_grid(map, x, y) - sc2_map_height_adjust_at_grid(map, x, y);
+}
+
+static inline FLOAT sc2_map_height_at_point(sc2Map_t const *map, FLOAT x, FLOAT y) {
+    FLOAT fx, fy, tx, ty;
+    DWORD x0, y0, x1, y1;
+    FLOAT h00, h10, h01, h11, h0, h1;
+
+    if (!map || !map->t3HeightMap || !map->t3HeightMap->width || !map->t3HeightMap->height)
+        return 0.0f;
+    fx = (x - map->origin.x) / (map->cell_size ? map->cell_size : 1.0f);
+    fy = (y - map->origin.y) / (map->cell_size ? map->cell_size : 1.0f);
+    fx = MIN(MAX(fx, 0.0f), (FLOAT)(sc2_map_cell_width(map) ? sc2_map_cell_width(map) : map->t3HeightMap->width - 1));
+    fy = MIN(MAX(fy, 0.0f), (FLOAT)(sc2_map_cell_height(map) ? sc2_map_cell_height(map) : map->t3HeightMap->height - 1));
+    x0 = (DWORD)floorf(fx);
+    y0 = (DWORD)floorf(fy);
+    x1 = x0 + 1;
+    y1 = y0 + 1;
+    tx = fx - (FLOAT)x0;
+    ty = fy - (FLOAT)y0;
+    h00 = sc2_map_height_at_grid(map, x0, y0);
+    h10 = sc2_map_height_at_grid(map, x1, y0);
+    h01 = sc2_map_height_at_grid(map, x0, y1);
+    h11 = sc2_map_height_at_grid(map, x1, y1);
+    h0 = h00 + (h10 - h00) * tx;
+    h1 = h01 + (h11 - h01) * tx;
+    return h0 + (h1 - h0) * ty;
 }
 
 typedef struct {
