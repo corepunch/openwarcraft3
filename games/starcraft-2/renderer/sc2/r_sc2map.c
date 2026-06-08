@@ -8,6 +8,8 @@
 #include "games/warcraft-3/renderer/w3m/r_terrain_layers.c"
 
 #define SC2_TERRAIN_BLEND_LAYERS    8
+#define SC2_TERRAIN_BLEND_GROUPS    2
+#define SC2_TERRAIN_PASS_LAYERS     4
 #define SC2_M3_MAX_BONES            128
 #define SC2_CLIFF_BLOCK_SPAN        2u      /* cliff cells are 2x2 grid units */
 #define SC2_CLIFF_BLOCK_ORIGIN(X)   ((X) & ~(SC2_CLIFF_BLOCK_SPAN - 1u))
@@ -51,13 +53,12 @@ extern VECTOR4 M3_GetVector4AnimValue(m3Model_t const *model,
 static LPMAPSEGMENT sc2_terrain_segment;
 static LPSHADER sc2_terrain_shader;
 static LPSHADER sc2_cliff_shader;
-static GLint sc2_u_layer[SC2_TERRAIN_BLEND_LAYERS];
-static GLint sc2_u_mask[SC2_TERRAIN_BLEND_LAYERS];
-static GLint sc2_u_layer_count = -1;
+static GLint sc2_u_layer[SC2_TERRAIN_PASS_LAYERS];
+static GLint sc2_u_mask = -1;
 static GLint sc2_u_world_uv_offset = -1;
 static GLint sc2_u_world_uv_scale = -1;
 static LPTEXTURE sc2_terrain_textures[SC2_TERRAIN_BLEND_LAYERS];
-static LPTEXTURE sc2_terrain_masks[SC2_TERRAIN_BLEND_LAYERS];
+static LPTEXTURE sc2_terrain_masks[SC2_TERRAIN_BLEND_GROUPS];
 static DWORD sc2_num_terrain_layers;
 
 typedef struct sc2CliffModel_s {
@@ -79,10 +80,8 @@ static void r_sc2_release_cliff_models(void);
 static LPCSTR sc2_vs_terrain =
 "#version 140\n"
 "in vec3 i_position;\n"
-"in vec2 i_texcoord;\n"
 "in vec3 i_normal;\n"
 "in vec4 i_color;\n"
-"out vec2 v_texcoord;\n"
 "out vec2 v_texcoord2;\n"
 "out vec4 v_color;\n"
 "uniform mat4 uViewProjectionMatrix;\n"
@@ -90,15 +89,30 @@ static LPCSTR sc2_vs_terrain =
 "uniform mat4 uModelMatrix;\n"
 "void main() {\n"
 "    vec4 pos = uModelMatrix * vec4(i_position, 1.0);\n"
-"    v_texcoord = i_texcoord;\n"
 "    v_texcoord2 = (uTextureMatrix * pos).xy;\n"
+"    v_color = i_color;\n"
+"    gl_Position = uViewProjectionMatrix * pos;\n"
+"}\n";
+
+static LPCSTR sc2_vs_cliff_texture =
+"#version 140\n"
+"in vec3 i_position;\n"
+"in vec2 i_texcoord;\n"
+"in vec3 i_normal;\n"
+"in vec4 i_color;\n"
+"out vec2 v_texcoord;\n"
+"out vec4 v_color;\n"
+"uniform mat4 uViewProjectionMatrix;\n"
+"uniform mat4 uModelMatrix;\n"
+"void main() {\n"
+"    vec4 pos = uModelMatrix * vec4(i_position, 1.0);\n"
+"    v_texcoord = i_texcoord;\n"
 "    v_color = i_color;\n"
 "    gl_Position = uViewProjectionMatrix * pos;\n"
 "}\n";
 
 static LPCSTR sc2_fs_terrain =
 "#version 140\n"
-"in vec2 v_texcoord;\n"
 "in vec2 v_texcoord2;\n"
 "in vec4 v_color;\n"
 "out vec4 o_color;\n"
@@ -106,19 +120,7 @@ static LPCSTR sc2_fs_terrain =
 "uniform sampler2D uLayer1;\n"
 "uniform sampler2D uLayer2;\n"
 "uniform sampler2D uLayer3;\n"
-"uniform sampler2D uLayer4;\n"
-"uniform sampler2D uLayer5;\n"
-"uniform sampler2D uLayer6;\n"
-"uniform sampler2D uLayer7;\n"
-"uniform sampler2D uMask0;\n"
-"uniform sampler2D uMask1;\n"
-"uniform sampler2D uMask2;\n"
-"uniform sampler2D uMask3;\n"
-"uniform sampler2D uMask4;\n"
-"uniform sampler2D uMask5;\n"
-"uniform sampler2D uMask6;\n"
-"uniform sampler2D uMask7;\n"
-"uniform int uLayerCount;\n"
+"uniform sampler2D uMask;\n"
 "uniform vec2 uWorldUVOffset;\n"
 "uniform vec2 uWorldUVScale;\n"
 "vec2 get_mask_coord() {\n"
@@ -129,25 +131,12 @@ static LPCSTR sc2_fs_terrain =
 "}\n"
 "void main() {\n"
 "    vec2 mc = get_mask_coord();\n"
-"    vec2 tc = uWorldUVScale.x > 0.0 ? get_terrain_coord() : v_texcoord;\n"
-"    float w0 = texture(uMask0, mc).r;\n"
-"    float w1 = texture(uMask1, mc).r;\n"
-"    float w2 = texture(uMask2, mc).r;\n"
-"    float w3 = texture(uMask3, mc).r;\n"
-"    float w4 = texture(uMask4, mc).r;\n"
-"    float w5 = texture(uMask5, mc).r;\n"
-"    float w6 = texture(uMask6, mc).r;\n"
-"    float w7 = texture(uMask7, mc).r;\n"
-"    vec4 color = texture(uLayer0, tc) * w0;\n"
-"    float total = w0;\n"
-"    if (uLayerCount > 1) { color += texture(uLayer1, tc) * w1; total += w1; }\n"
-"    if (uLayerCount > 2) { color += texture(uLayer2, tc) * w2; total += w2; }\n"
-"    if (uLayerCount > 3) { color += texture(uLayer3, tc) * w3; total += w3; }\n"
-"    if (uLayerCount > 4) { color += texture(uLayer4, tc) * w4; total += w4; }\n"
-"    if (uLayerCount > 5) { color += texture(uLayer5, tc) * w5; total += w5; }\n"
-"    if (uLayerCount > 6) { color += texture(uLayer6, tc) * w6; total += w6; }\n"
-"    if (uLayerCount > 7) { color += texture(uLayer7, tc) * w7; total += w7; }\n"
-"    color = total > 0.001 ? color / total : texture(uLayer0, tc);\n"
+"    vec2 tc = get_terrain_coord();\n"
+"    vec4 w = texture(uMask, mc);\n"
+"    vec4 color = texture(uLayer0, tc) * w.r +\n"
+"                 texture(uLayer1, tc) * w.g +\n"
+"                 texture(uLayer2, tc) * w.b +\n"
+"                 texture(uLayer3, tc) * w.a;\n"
 "    color.rgb *= v_color.rgb;\n"
 "    color.a = 1.0;\n"
 "    o_color = color;\n"
@@ -157,7 +146,7 @@ static void r_sc2_init_cliff_shader(void) {
     if (sc2_cliff_shader) {
         return;
     }
-    sc2_cliff_shader = R_InitShader(sc2_vs_terrain, fs_ui);
+    sc2_cliff_shader = R_InitShader(sc2_vs_cliff_texture, fs_ui);
     if (!sc2_cliff_shader) {
         return;
     }
@@ -166,12 +155,8 @@ static void r_sc2_init_cliff_shader(void) {
 }
 
 static void r_sc2_init_terrain_shader(void) {
-    static LPCSTR layer_names[SC2_TERRAIN_BLEND_LAYERS] = {
+    static LPCSTR layer_names[SC2_TERRAIN_PASS_LAYERS] = {
         "uLayer0", "uLayer1", "uLayer2", "uLayer3",
-        "uLayer4", "uLayer5", "uLayer6", "uLayer7",
-    };
-    static LPCSTR mask_names[SC2_TERRAIN_BLEND_LAYERS] = {
-        "uMask0", "uMask1", "uMask2", "uMask3", "uMask4", "uMask5", "uMask6", "uMask7",
     };
 
     if (sc2_terrain_shader) {
@@ -183,15 +168,14 @@ static void r_sc2_init_terrain_shader(void) {
         return;
     }
     R_Call(glUseProgram, sc2_terrain_shader->progid);
-    FOR_LOOP(i, SC2_TERRAIN_BLEND_LAYERS) {
+    FOR_LOOP(i, SC2_TERRAIN_PASS_LAYERS) {
         sc2_u_layer[i] = glGetUniformLocation(sc2_terrain_shader->progid, layer_names[i]);
         R_Call(glUniform1i, sc2_u_layer[i], (GLint)i);
-        sc2_u_mask[i] = glGetUniformLocation(sc2_terrain_shader->progid, mask_names[i]);
-        R_Call(glUniform1i, sc2_u_mask[i], (GLint)(SC2_TERRAIN_BLEND_LAYERS + i));
     }
-    sc2_u_layer_count      = glGetUniformLocation(sc2_terrain_shader->progid, "uLayerCount");
+    sc2_u_mask             = glGetUniformLocation(sc2_terrain_shader->progid, "uMask");
     sc2_u_world_uv_offset  = glGetUniformLocation(sc2_terrain_shader->progid, "uWorldUVOffset");
     sc2_u_world_uv_scale   = glGetUniformLocation(sc2_terrain_shader->progid, "uWorldUVScale");
+    R_Call(glUniform1i, sc2_u_mask, SC2_TERRAIN_PASS_LAYERS);
     r_sc2_init_cliff_shader();
 }
 
@@ -350,6 +334,8 @@ static void r_sc2_release_terrain(void) {
     }
     FOR_LOOP(i, SC2_TERRAIN_BLEND_LAYERS) {
         SAFE_DELETE(sc2_terrain_textures[i], R_ReleaseTexture);
+    }
+    FOR_LOOP(i, SC2_TERRAIN_BLEND_GROUPS) {
         SAFE_DELETE(sc2_terrain_masks[i], R_ReleaseTexture);
     }
     r_sc2_release_cliff_models();
@@ -421,16 +407,12 @@ static void r_sc2_decode_texture_mask_block(LPBYTE out, LPBYTE src, DWORD width,
     }
 }
 
-static LPTEXTURE r_sc2_build_mask_texture(sc2Map_t const *map, DWORD layer) {
+static void r_sc2_decode_texture_mask_layer(sc2Map_t const *map, DWORD layer, LPBYTE values) {
     DWORD w, h, stride, block_stride, blocks_x, blocks_y;
-    BYTE *values;
     LPBYTE src;
-    COLOR32 *pixels;
-    LPTEXTURE texture;
 
-    if (!map->t3TextureMasks || !map->t3TextureMasks->width || !map->t3TextureMasks->height || layer >= r_sc2_texture_mask_layers(map)) {
-        return NULL;
-    }
+    if (!map->t3TextureMasks || !map->t3TextureMasks->width || !map->t3TextureMasks->height || layer >= r_sc2_texture_mask_layers(map))
+        return;
     w = map->t3TextureMasks->width;
     h = map->t3TextureMasks->height;
     stride = r_sc2_texture_mask_layer_stride(map);
@@ -438,9 +420,6 @@ static LPTEXTURE r_sc2_build_mask_texture(sc2Map_t const *map, DWORD layer) {
     blocks_y = (h + 63) / 64;
     block_stride = blocks_x * blocks_y * 64 * 32;
     src = map->t3TextureMasks->data + layer * stride;
-    values = ri.MemAlloc(w * h);
-    pixels = ri.MemAlloc(w * h * sizeof(*pixels));
-    memset(values, 0, w * h);
     if (stride == block_stride && block_stride > 0) {
         FOR_LOOP(block, blocks_x * blocks_y) {
             r_sc2_decode_texture_mask_block(values, src + block * 64 * 32, w, h, blocks_x, block);
@@ -450,9 +429,54 @@ static LPTEXTURE r_sc2_build_mask_texture(sc2Map_t const *map, DWORD layer) {
             values[i] = r_sc2_texture_mask_nibble(src[i / 2], i);
         }
     }
+}
+
+static void r_sc2_store_mask_pixel(LPCOLOR32 pixel, BYTE r, BYTE g, BYTE b, BYTE a) {
+#if __linux__
+    *pixel = (COLOR32){ r, g, b, a };
+#else
+    *pixel = (COLOR32){ b, g, r, a };
+#endif
+}
+
+static LPTEXTURE r_sc2_build_mask_texture(sc2Map_t const *map, DWORD group) {
+    DWORD w = 1;
+    DWORD h = 1;
+    BYTE *values;
+    COLOR32 *pixels;
+    LPTEXTURE texture;
+
+    if (map->t3TextureMasks && map->t3TextureMasks->width && map->t3TextureMasks->height) {
+        w = map->t3TextureMasks->width;
+        h = map->t3TextureMasks->height;
+    }
+    values = ri.MemAlloc(w * h * SC2_TERRAIN_BLEND_LAYERS);
+    pixels = ri.MemAlloc(w * h * sizeof(*pixels));
+    memset(values, 0, w * h * SC2_TERRAIN_BLEND_LAYERS);
+    if (map->t3TextureMasks && map->t3TextureMasks->width && map->t3TextureMasks->height) {
+        FOR_LOOP(layer, MIN(sc2_num_terrain_layers, SC2_TERRAIN_BLEND_LAYERS)) {
+            r_sc2_decode_texture_mask_layer(map, layer, values + layer * w * h);
+        }
+    }
     FOR_LOOP(i, w * h) {
-        BYTE value = (BYTE)(values[i] * 17);
-        pixels[i] = (COLOR32){ value, value, value, 255 };
+        DWORD total = 0;
+        BYTE mask[SC2_TERRAIN_BLEND_LAYERS];
+        FOR_LOOP(layer, SC2_TERRAIN_BLEND_LAYERS) {
+            mask[layer] = (BYTE)(values[layer * w * h + i] * 17);
+            if (layer < sc2_num_terrain_layers) {
+                total += mask[layer];
+            }
+        }
+        if (!total) {
+            memset(mask, 0, sizeof(mask));
+            mask[0] = 255;
+            total = 255;
+        }
+        r_sc2_store_mask_pixel(&pixels[i],
+                               (BYTE)((mask[group * SC2_TERRAIN_PASS_LAYERS + 0] * 255u + total / 2) / total),
+                               (BYTE)((mask[group * SC2_TERRAIN_PASS_LAYERS + 1] * 255u + total / 2) / total),
+                               (BYTE)((mask[group * SC2_TERRAIN_PASS_LAYERS + 2] * 255u + total / 2) / total),
+                               (BYTE)((mask[group * SC2_TERRAIN_PASS_LAYERS + 3] * 255u + total / 2) / total));
     }
     texture = R_AllocateTexture(w, h);
     R_LoadTextureMipLevel(texture, 0, pixels, w, h);
@@ -469,9 +493,9 @@ static void r_sc2_load_terrain_textures(sc2Map_t const *map) {
             sc2_terrain_textures[i] = R_LoadTexture(map->t3Terrain.terrain_textures[i].diffuse);
             R_SetTextureWrap(sc2_terrain_textures[i], true, true);
         }
-        if (r_sc2_texture_mask_layers(map) > i) {
-            sc2_terrain_masks[i] = r_sc2_build_mask_texture(map, i);
-        }
+    }
+    FOR_LOOP(i, SC2_TERRAIN_BLEND_GROUPS) {
+        sc2_terrain_masks[i] = r_sc2_build_mask_texture(map, i);
     }
 }
 
@@ -1027,6 +1051,63 @@ static void r_sc2_build_terrain(sc2Map_t const *map) {
     };
 }
 
+static LPTEXTURE r_sc2_terrain_layer_texture(DWORD index) {
+    if (index < sc2_num_terrain_layers && sc2_terrain_textures[index])
+        return sc2_terrain_textures[index];
+    return sc2_terrain_textures[0];
+}
+
+static void r_sc2_begin_terrain_shader(MATRIX4 const *model_matrix) {
+    R_Call(glUseProgram, sc2_terrain_shader->progid);
+    R_Call(glUniformMatrix4fv, sc2_terrain_shader->uViewProjectionMatrix, 1, GL_FALSE, tr.viewDef.viewProjectionMatrix.v);
+    R_Call(glUniformMatrix4fv, sc2_terrain_shader->uModelMatrix, 1, GL_FALSE, model_matrix->v);
+    R_Call(glUniformMatrix4fv, sc2_terrain_shader->uTextureMatrix, 1, GL_FALSE, tr.viewDef.textureMatrix.v);
+}
+
+static void r_sc2_begin_terrain_pass(DWORD group) {
+    FOR_LOOP(i, SC2_TERRAIN_PASS_LAYERS) {
+        R_BindTexture(r_sc2_terrain_layer_texture(group * SC2_TERRAIN_PASS_LAYERS + i), i);
+    }
+    R_BindTexture(sc2_terrain_masks[group], SC2_TERRAIN_PASS_LAYERS);
+    if (group) {
+        R_Call(glEnable, GL_BLEND);
+        R_Call(glBlendFunc, GL_ONE, GL_ONE);
+        R_Call(glDepthMask, GL_FALSE);
+    } else {
+        R_Call(glDisable, GL_BLEND);
+        R_Call(glDepthMask, GL_TRUE);
+    }
+}
+
+static void r_sc2_set_terrain_uv(void) {
+    BOX2 bounds = SC2_MapBounds();
+    FLOAT map_w = bounds.max.x - bounds.min.x;
+    FLOAT map_h = bounds.max.y - bounds.min.y;
+
+    R_Call(glUniform2f, sc2_u_world_uv_scale, map_w / SC2_TERRAIN_UV_SCALE, map_h / SC2_TERRAIN_UV_SCALE);
+    R_Call(glUniform2f, sc2_u_world_uv_offset, bounds.min.x / SC2_TERRAIN_UV_SCALE, bounds.min.y / SC2_TERRAIN_UV_SCALE);
+}
+
+static void r_sc2_draw_terrain_indexed(LPCMAPLAYER layer) {
+    r_sc2_set_terrain_uv();
+    FOR_LOOP(group, SC2_TERRAIN_BLEND_GROUPS) {
+        r_sc2_begin_terrain_pass(group);
+        R_DrawIndexedBuffer(layer->buffer, layer->num_indices);
+    }
+    R_Call(glDisable, GL_BLEND);
+    R_Call(glDepthMask, GL_TRUE);
+}
+
+static void r_sc2_draw_terrain_vertices(LPCMAPLAYER layer) {
+    r_sc2_set_terrain_uv();
+    FOR_LOOP(group, SC2_TERRAIN_BLEND_GROUPS) {
+        r_sc2_begin_terrain_pass(group);
+        R_DrawBuffer(layer->buffer, layer->num_vertices);
+    }
+    R_Call(glDisable, GL_BLEND);
+    R_Call(glDepthMask, GL_TRUE);
+}
+
 static void r_sc2_draw_ground_layer(LPCMAPSEGMENT segment) {
     LPCMAPLAYER layer;
     MATRIX4 model_matrix;
@@ -1041,19 +1122,8 @@ static void r_sc2_draw_ground_layer(LPCMAPSEGMENT segment) {
         return;
 
     Matrix4_identity(&model_matrix);
-    R_Call(glUseProgram, sc2_terrain_shader->progid);
-    R_Call(glUniformMatrix4fv, sc2_terrain_shader->uViewProjectionMatrix, 1, GL_FALSE, tr.viewDef.viewProjectionMatrix.v);
-    R_Call(glUniformMatrix4fv, sc2_terrain_shader->uModelMatrix, 1, GL_FALSE, model_matrix.v);
-    R_Call(glUniformMatrix4fv, sc2_terrain_shader->uTextureMatrix, 1, GL_FALSE, tr.viewDef.textureMatrix.v);
-    R_Call(glUniform1i, sc2_u_layer_count, (GLint)sc2_num_terrain_layers);
-    R_Call(glUniform2f, sc2_u_world_uv_scale, 0.0f, 0.0f);   /* use vertex texcoord for ground */
-    FOR_LOOP(i, SC2_TERRAIN_BLEND_LAYERS) {
-        R_BindTexture(sc2_terrain_textures[i] ? sc2_terrain_textures[i] : sc2_terrain_textures[0], i);
-        R_BindTexture(sc2_terrain_masks[i] ? sc2_terrain_masks[i] : (i ? tr.texture[TEX_BLACK] : tr.texture[TEX_WHITE]),
-                      SC2_TERRAIN_BLEND_LAYERS + i);
-    }
-    R_Call(glDisable, GL_BLEND);
-    R_DrawIndexedBuffer(layer->buffer, layer->num_indices);
+    r_sc2_begin_terrain_shader(&model_matrix);
+    r_sc2_draw_terrain_indexed(layer);
 }
 
 void R_SC2RegisterMap(LPCSTR mapFileName) {
@@ -1084,30 +1154,8 @@ static void r_sc2_draw_cliff_layer(LPCMAPSEGMENT segment) {
 
     /* Pass 1: terrain blend - fills depth and lays down terrain color seamlessly.
        Use world XY position for terrain UV so tiling matches the ground exactly. */
-    {
-        BOX2 bounds = SC2_MapBounds();
-        FLOAT map_w = bounds.max.x - bounds.min.x;
-        FLOAT map_h = bounds.max.y - bounds.min.y;
-        R_Call(glUseProgram, sc2_terrain_shader->progid);
-        R_Call(glUniformMatrix4fv, sc2_terrain_shader->uViewProjectionMatrix, 1, GL_FALSE, tr.viewDef.viewProjectionMatrix.v);
-        R_Call(glUniformMatrix4fv, sc2_terrain_shader->uModelMatrix, 1, GL_FALSE, model_matrix.v);
-        R_Call(glUniformMatrix4fv, sc2_terrain_shader->uTextureMatrix, 1, GL_FALSE, tr.viewDef.textureMatrix.v);
-        R_Call(glUniform1i, sc2_u_layer_count, (GLint)sc2_num_terrain_layers);
-        /* scale: maps [0..1] (normalised world) -> worldXY / SC2_TERRAIN_UV_SCALE */
-        R_Call(glUniform2f, sc2_u_world_uv_scale,
-               map_w / SC2_TERRAIN_UV_SCALE,
-               map_h / SC2_TERRAIN_UV_SCALE);
-        R_Call(glUniform2f, sc2_u_world_uv_offset,
-               bounds.min.x / SC2_TERRAIN_UV_SCALE,
-               bounds.min.y / SC2_TERRAIN_UV_SCALE);
-        FOR_LOOP(i, SC2_TERRAIN_BLEND_LAYERS) {
-            R_BindTexture(sc2_terrain_textures[i] ? sc2_terrain_textures[i] : sc2_terrain_textures[0], i);
-            R_BindTexture(sc2_terrain_masks[i] ? sc2_terrain_masks[i] : (i ? tr.texture[TEX_BLACK] : tr.texture[TEX_WHITE]),
-                          SC2_TERRAIN_BLEND_LAYERS + i);
-        }
-        R_Call(glDisable, GL_BLEND);
-        R_DrawBuffer(layer->buffer, layer->num_vertices);
-    }
+    r_sc2_begin_terrain_shader(&model_matrix);
+    r_sc2_draw_terrain_vertices(layer);
 
     /* Pass 2: cliff M3 texture alpha-blended on top, pulled slightly forward */
     R_Call(glEnable, GL_POLYGON_OFFSET_FILL);
