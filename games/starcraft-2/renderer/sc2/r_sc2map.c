@@ -14,8 +14,6 @@
 #define SC2_CLIFF_BLOCK_CENTER(X)   ((X) + 1u)  /* centre grid coord within a 2-unit block */
 #define SC2_CLIFF_LEVEL_PACKED_MIN  0x40u   /* packed format threshold; values >= this are shifted */
 #define SC2_CLIFF_LEVEL_SHIFT       6
-#define SC2_CELL_FLAG_TERRAIN_MASK  0x0fu
-#define SC2_CELL_FLAG_CLIFF         0x03u
 #define SC2_GROUND_VERTICES_PER_CELL 6u
 #define SC2_TERRAIN_UV_SCALE        8.0f
 #define SC2_CLIFF_VARIANT_MASK      3u
@@ -242,15 +240,6 @@ static USHORT r_sc2_cliff_level_at_grid(sc2Map_t const *map, DWORD x, DWORD y) {
     return value >= SC2_CLIFF_LEVEL_PACKED_MIN ? value >> SC2_CLIFF_LEVEL_SHIFT : value;
 }
 
-static BYTE r_sc2_cell_flag_at_grid(sc2Map_t const *map, DWORD x, DWORD y) {
-    if (!map->t3CellFlags || !map->t3CellFlags->width || !map->t3CellFlags->height) {
-        return 0;
-    }
-    x = MIN(map->t3CellFlags->width - 1, x);
-    y = MIN(map->t3CellFlags->height - 1, y);
-    return map->t3CellFlags->data[x + y * map->t3CellFlags->width];
-}
-
 static BOOL r_sc2_cliff_block_is_flat(sc2Map_t const *map, DWORD x, DWORD y) {
     USHORT level[4];
 
@@ -259,8 +248,6 @@ static BOOL r_sc2_cliff_block_is_flat(sc2Map_t const *map, DWORD x, DWORD y) {
 }
 
 static BOOL r_sc2_skip_ground_cell(sc2Map_t const *map, DWORD x, DWORD y) {
-    if ((r_sc2_cell_flag_at_grid(map, x, y) & SC2_CELL_FLAG_TERRAIN_MASK) != SC2_CELL_FLAG_CLIFF)
-        return false;
     return !r_sc2_cliff_block_is_flat(map, SC2_CLIFF_BLOCK_ORIGIN(x), SC2_CLIFF_BLOCK_ORIGIN(y));
 }
 
@@ -756,7 +743,8 @@ static void r_sc2_bake_cliff_model(rCliffBakeList_t *list,
                                    LPCMODEL model,
                                    DWORD grid_x,
                                    DWORD grid_y,
-                                   int rotation) {
+                                   int rotation,
+                                   USHORT baselevel) {
     BOX2 map_bounds = SC2_MapBounds();
     BOX3 bounds;
     rSc2CliffPlacement_t placement;
@@ -781,22 +769,24 @@ static void r_sc2_bake_cliff_model(rCliffBakeList_t *list,
         FLOAT offset_z = sc2_map_height_offset(map);
         DWORD corner_x[4] = { grid_x, grid_x + SC2_CLIFF_BLOCK_SPAN, grid_x + SC2_CLIFF_BLOCK_SPAN, grid_x };
         DWORD corner_y[4] = { grid_y, grid_y, grid_y + SC2_CLIFF_BLOCK_SPAN, grid_y + SC2_CLIFF_BLOCK_SPAN };
-        FLOAT corner_z[4];
+        USHORT level[4];
+        FLOAT base_z = 0.0f;
+        DWORD num_base = 0;
+
+        SC2_CLIFF_BLOCK_LEVELS(level, map, grid_x, grid_y);
         FOR_LOOP(i, 4) {
             DWORD x = MIN(map->t3HeightMap->width - 1, corner_x[i]);
             DWORD y = MIN(map->t3HeightMap->height - 1, corner_y[i]);
             sc2MapHeightSample_t const *sample = &map->t3HeightMap->data[x + y * map->t3HeightMap->width];
-            corner_z[i] = (FLOAT)sample->height * scale - offset_z;
+
+            if (level[i] != baselevel)
+                continue;
+            base_z += (FLOAT)sample->height * scale - offset_z;
+            num_base++;
         }
-        FLOAT top_z = MAX(MAX(corner_z[0], corner_z[1]), MAX(corner_z[2], corner_z[3]));
-        FLOAT bottom_z = MIN(MIN(corner_z[0], corner_z[1]), MIN(corner_z[2], corner_z[3]));
-        FLOAT model_span = bounds.max.z - bounds.min.z;
-        FLOAT tier_span = top_z - bottom_z;
-        placement.base_z = bottom_z;
+        placement.base_z = num_base ? base_z / (FLOAT)num_base : -bounds.min.z;
         placement.model_z_offset = -bounds.min.z;
-        placement.z_scale = (model_span > SC2_EPSILON && tier_span > SC2_EPSILON)
-                                 ? tier_span / model_span
-                                 : 1.0f;
+        placement.z_scale = 1.0f;
     }
     FOR_LOOP(div_i, m3->divisionsNum) {
         m3Divisions_t const *div = &m3->divisions[div_i];
@@ -828,40 +818,83 @@ static LPCTEXTURE r_sc2_cliff_diffuse_texture(LPCMODEL model) {
     return NULL;
 }
 
+static sc2CliffCell_t const *r_sc2_find_cliff_cell(sc2Map_t const *map, DWORD index) {
+    FOR_LOOP(i, map->t3Terrain.num_cliff_cells) {
+        if (map->t3Terrain.cliff_cells[i].index == index)
+            return &map->t3Terrain.cliff_cells[i];
+    }
+    return NULL;
+}
+
+static sc2CliffCell_t r_sc2_cliff_cell_for_index(sc2Map_t const *map, DWORD index, DWORD cliff_width) {
+    sc2CliffCell_t cell = { .index = index };
+    sc2CliffCell_t const *xml_cell = r_sc2_find_cliff_cell(map, index);
+    DWORD cliff_height = MAX(1, (SC2_MAP_HEIGHT(map) + 1) / 2);
+    DWORD cx = index % cliff_width;
+    DWORD cy = index / cliff_width;
+
+    if (xml_cell)
+        return *xml_cell;
+    for (int dy = -1; dy <= 1; dy++) {
+        for (int dx = -1; dx <= 1; dx++) {
+            int nx = (int)cx + dx;
+            int ny = (int)cy + dy;
+
+            if (!dx && !dy)
+                continue;
+            if (nx >= 0 && ny >= 0 && nx < (int)cliff_width && ny < (int)cliff_height) {
+                xml_cell = r_sc2_find_cliff_cell(map, (DWORD)nx + (DWORD)ny * cliff_width);
+                if (xml_cell) {
+                    cell = *xml_cell;
+                    cell.index = index;
+                    return cell;
+                }
+            }
+        }
+    }
+    return cell;
+}
+
 static LPMAPLAYER r_sc2_build_cliff_layer(sc2Map_t const *map) {
     rCliffBakeList_t list = {0};
     LPMAPLAYER map_layer;
     DWORD cliff_width;
+    DWORD cliff_height;
     LPCTEXTURE diffuse = NULL;
 
-    if (!map || !map->t3Terrain.num_cliff_cells || !map->t3SyncCliffLevel)
+    if (!map || !map->t3Terrain.num_cliff_sets || !map->t3SyncCliffLevel)
         return NULL;
     cliff_width = SC2_CLIFF_WIDTH(map);
-    FOR_LOOP(i, map->t3Terrain.num_cliff_cells) {
-        sc2CliffCell_t const *cell = &map->t3Terrain.cliff_cells[i];
-        sc2CliffSet_t const *set;
-        char config[5];
-        PATHSTR path;
-        DWORD grid_x;
-        DWORD grid_y;
-        int rotation;
-        LPCMODEL model;
+    cliff_height = MAX(1, (SC2_MAP_HEIGHT(map) + 1) / 2);
+    FOR_LOOP(cy, cliff_height) {
+        FOR_LOOP(cx, cliff_width) {
+            DWORD index = cx + cy * cliff_width;
+            sc2CliffCell_t cell = r_sc2_cliff_cell_for_index(map, index, cliff_width);
+            sc2CliffSet_t const *set;
+            char config[5];
+            PATHSTR path;
+            DWORD grid_x = cx * SC2_CLIFF_BLOCK_SPAN;
+            DWORD grid_y = cy * SC2_CLIFF_BLOCK_SPAN;
+            USHORT baselevel;
+            int rotation;
+            LPCMODEL model;
 
-        if (cell->cliff_set >= map->t3Terrain.num_cliff_sets)
-            continue;
-        set = &map->t3Terrain.cliff_sets[cell->cliff_set];
-        grid_x = (cell->index % cliff_width) * SC2_CLIFF_BLOCK_SPAN;
-        grid_y = (cell->index / cliff_width) * SC2_CLIFF_BLOCK_SPAN;
-        if (!r_sc2_cliff_config(map, grid_x, grid_y, config, NULL, NULL, &rotation))
-            continue;
-        if (!r_sc2_cliff_model_path(path, sizeof(path), set->mesh[0] ? set->mesh : set->name, config, cell->variant))
-            continue;
-        model = r_sc2_load_cliff_model(path);
-        if (!model || model->modeltype != ID_43DM || !model->m3)
-            continue;
-        if (!diffuse)
-            diffuse = r_sc2_cliff_diffuse_texture(model);
-        r_sc2_bake_cliff_model(&list, map, model, grid_x, grid_y, rotation);
+            if (r_sc2_cliff_block_is_flat(map, grid_x, grid_y))
+                continue;
+            if (cell.cliff_set >= map->t3Terrain.num_cliff_sets)
+                continue;
+            set = &map->t3Terrain.cliff_sets[cell.cliff_set];
+            if (!r_sc2_cliff_config(map, grid_x, grid_y, config, &baselevel, NULL, &rotation))
+                continue;
+            if (!r_sc2_cliff_model_path(path, sizeof(path), set->mesh[0] ? set->mesh : set->name, config, cell.variant))
+                continue;
+            model = r_sc2_load_cliff_model(path);
+            if (!model || model->modeltype != ID_43DM || !model->m3)
+                continue;
+            if (!diffuse)
+                diffuse = r_sc2_cliff_diffuse_texture(model);
+            r_sc2_bake_cliff_model(&list, map, model, grid_x, grid_y, rotation, baselevel);
+        }
     }
     if (!list.num_vertices) {
         ri.MemFree(list.vertices);
