@@ -95,6 +95,14 @@ DWORD M_RefreshHeatmap(LPEDICT self) {
     if (!route) {
         return 0;
     }
+    /* For fixed waypoints (non-moving goals) the flow field only needs to be
+     * computed once — reuse the cached result from the first call.  Monster
+     * targets can move, so their heatmap is always rebuilt to stay accurate. */
+    if (!(route->svflags & SVF_MONSTER) &&
+        route->heatmap2 &&
+        CM_ActivateCachedFlow(route->heatmap2)) {
+        return route->heatmap2;
+    }
     route->heatmap2 = CM_BuildHeatmap(route);
     return route->heatmap2;
 }

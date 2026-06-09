@@ -213,6 +213,7 @@ void Sys_MkDir(LPCSTR directory);
 
 struct edict_s;
 DWORD CM_BuildHeatmap(struct edict_s *goalentity);
+BOOL  CM_ActivateCachedFlow(DWORD generation);
 VECTOR2 get_flow_direction(DWORD heatmapindex, float fnx, float fny);
 void CM_BakeStaticObstacles(void);
 void CM_InvalidatePathCache(void);
