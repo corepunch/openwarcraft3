@@ -119,23 +119,31 @@ LPMODEL R_GameLoadModel(LPCSTR modelFilename) {
     LPMODEL model = NULL;
 
     if (fileSize < 0 && R_GamePathHasExtension(modelFilename, ".mdl")) {
+        /* R_GamePathHasExtension uses strcasecmp, so the extension may be any
+         * case variant (e.g. ".MDL").  strstr() is case-sensitive, so we must
+         * not use it here; instead compute the stem length directly. */
         PATHSTR tempFileName = { 0 };
-        LPSTR ext = strstr(modelFilename, ".mdl");
+        size_t stemLen = strlen(modelFilename) - 4; /* ".mdl" = 4 chars */
 
-        strncpy(tempFileName, modelFilename, ext - modelFilename);
-        strcpy(tempFileName + strlen(tempFileName), ".mdx");
+        strncpy(tempFileName, modelFilename, stemLen);
+        strcpy(tempFileName + stemLen, ".mdx");
         fileSize = ri.FS_ReadFile(tempFileName, &buffer);
     }
     if (fileSize < 0) {
-        PATHSTR tempFileName = { 0 };
-        LPCSTR end = modelFilename + strlen(modelFilename) - 4;
+        size_t nameLen = strlen(modelFilename);
+        if (nameLen >= 4) {
+            PATHSTR tempFileName = { 0 };
+            LPCSTR end = modelFilename + nameLen - 4;
+            size_t stemLen;
 
-        if (end > modelFilename && isdigit(*(end - 1))) {
-            end--;
+            if (end > modelFilename && isdigit((unsigned char)*(end - 1))) {
+                end--;
+            }
+            stemLen = (size_t)(end - modelFilename);
+            strncpy(tempFileName, modelFilename, stemLen);
+            strcpy(tempFileName + stemLen, ".mdx");
+            fileSize = ri.FS_ReadFile(tempFileName, &buffer);
         }
-        strncpy(tempFileName, modelFilename, end - modelFilename);
-        strcpy(tempFileName + strlen(tempFileName), ".mdx");
-        fileSize = ri.FS_ReadFile(tempFileName, &buffer);
     }
     if (fileSize < 0 || !buffer) {
         return NULL;
@@ -145,15 +153,14 @@ LPMODEL R_GameLoadModel(LPCSTR modelFilename) {
         model->mdx = R_LoadModelMDLX(buffer, fileSize);
         model->modeltype = ID_MDLX;
     } else if (R_GamePathHasExtension(modelFilename, ".mdl")) {
+        /* Same case-insensitive issue: use stem length, not strstr. */
         PATHSTR tempFileName = { 0 };
-        LPSTR ext = strstr(modelFilename, ".mdl");
+        size_t stemLen = strlen(modelFilename) - 4;
 
-        if (ext) {
-            strncpy(tempFileName, modelFilename, ext - modelFilename);
-            strcpy(tempFileName + strlen(tempFileName), ".mdx");
-            ri.FS_FreeFile(buffer);
-            return R_LoadModel(tempFileName);
-        }
+        strncpy(tempFileName, modelFilename, stemLen);
+        strcpy(tempFileName + stemLen, ".mdx");
+        ri.FS_FreeFile(buffer);
+        return R_LoadModel(tempFileName);
     } else {
         fprintf(stderr, "Unknown model format %.4s in file %s\n", (LPSTR)buffer, modelFilename);
     }
