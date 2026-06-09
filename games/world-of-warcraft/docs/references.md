@@ -11,11 +11,6 @@
 - `tools/m2tool.c`: M2 inspection, DBC-backed player configuration, component texture path resolution.
 - `tools/README.md`: `m2tool` and WoW install examples.
 - `common/shared.h`: `Wow_PackAppearance`, `Wow_UnpackAppearance`, `Wow_PackEquipment`, and `Wow_UnpackEquipment`.
-<<<<<<< HEAD
-
-## Public References
-
-=======
 - `tools/mpqtool.c`: MPQ browsing and simple BLP metadata inspection.
 - `tools/blp2jpg.c`: BLP1/BLP2 texture decoding paths used by local tooling.
 - `tools/blpgen.c`: deterministic BLP2 fixture generator.
@@ -52,13 +47,10 @@
 - Warcraft Wiki `CASC`: https://warcraft.wiki.gg/wiki/CASC
 - Warcraft Wiki `WDB files`: https://warcraft.wiki.gg/wiki/WDB_files
 - getMaNGOS WMO file: https://www.getmangos.eu/wiki/referenceinfo/clientfiles/wmo-file-r20030/
->>>>>>> origin/main
 - TrinityCore `ItemDisplayInfo.dbc`: https://trinitycore.info/files/DBC/335/itemdisplayinfo
 - WoTLK Modding Wiki `ItemDisplayInfo`: https://wotlkdev.github.io/wiki/dbc/ItemDisplayInfo
 - getMaNGOS TBC `ItemDisplayInfo`: https://www.getmangos.eu/wiki/referenceinfo/dbcfiles/mangosonedbc/ItemDisplayInfo-r7649/
 - `wow_dbc` parser crate notes: https://github.com/gtker/wow_dbc
-<<<<<<< HEAD
-=======
 - warcraft-rs project: https://github.com/wowemulation-dev/warcraft-rs
 - warcraft-rs BLP notes: https://warcraft-rs.readthedocs.io/en/latest/formats/graphics/blp.html
 - `wow-m2` parser crate: https://docs.rs/wow-m2
@@ -73,12 +65,7 @@
 - `wow.export`: https://github.com/Kruithne/wow.export
 - mangos classic M2 notes mirror: https://github-wiki-see.page/m/Marzec737/mangos-classic/wiki/M2-files
 - Archival `World of Warcraft Formats` PDF mirror: https://lasatmanstanding.wordpress.com/wp-content/uploads/2010/05/wow-formats-2.pdf
->>>>>>> origin/main
 
 ## Caution
 
 WoW file schemas vary by client era. Validate every DBC field offset, M2 header/view layout, and ADT chunk assumption against the data version being inspected.
-<<<<<<< HEAD
-
-=======
->>>>>>> origin/main

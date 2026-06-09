@@ -72,14 +72,10 @@ WOW_TEST_CFLAGS := $(WOW_CFLAGS) -DTOOL_COMMON_NO_MPQ -Itests
 LUA_CFLAGS   := $(shell pkg-config --cflags lua5.4 2>/dev/null || pkg-config --cflags lua 2>/dev/null)
 LUA_LIBS     := $(shell pkg-config --libs lua5.4 2>/dev/null || pkg-config --libs lua 2>/dev/null)
 WOW_UI_CFLAGS := $(WOW_CFLAGS) $(LUA_CFLAGS)
-<<<<<<< HEAD
-SC2_CFLAGS   := $(CFLAGS) -I$(SC2_DIR) -DSC2 -DOW3_LOAD_ALL_MPQS -Wno-unused-function
-=======
 SC2_XML_CFLAGS := $(shell pkg-config --cflags libxml-2.0 2>/dev/null || xml2-config --cflags 2>/dev/null) -I/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/libxml2
 SC2_XML_LIBS := $(shell pkg-config --libs libxml-2.0 2>/dev/null || xml2-config --libs 2>/dev/null)
 SC2_CFLAGS   := $(CFLAGS) -I$(SC2_DIR) -DSC2 -DSC2_CAMERA_HACK -DOW3_LOAD_ALL_MPQS -Wno-unused-function $(SC2_XML_CFLAGS)
 SC2_TEST_CFLAGS := $(SC2_CFLAGS) -Itests -Icommon -DTEST_SC2_MPQ=\"build/tests/test-sc2.SC2Maps\"
->>>>>>> origin/main
 
 TOOL_SRCS := $(shell find tools -maxdepth 1 -name '*.c' ! -name 'jass.c' | sort)
 TOOL_NAMES := $(patsubst tools/%.c,%,$(TOOL_SRCS))
@@ -148,15 +144,12 @@ run-wow: $(WOW_BINARY)
 build-run-wow: openwow
 	$(WOW_BINARY) -data data/world-of-warcraft/installed/Data +map World/Maps/Azeroth/Azeroth.wdt
 
-<<<<<<< HEAD
-=======
 run-sc2: $(SC2_BINARY)
 	$(SC2_BINARY) -data data/StarCraft2 +map TRaynor01
 
 build-run-sc2: opensc2
 	$(SC2_BINARY) -data data/StarCraft2 +map TRaynor01
 
->>>>>>> origin/main
 m2tool-wow-orcmale-player: m2tool
 	$(BIN_DIR)/m2tool$(EXE_EXT) \
 		-mpq data/world-of-warcraft/installed/Data/model.MPQ \
@@ -187,12 +180,9 @@ WOW_TEST_RES_DIR := $(TESTS_DIR)/wow-resources
 WOW_TEST_SRC_DIR := $(WOW_TEST_DIR)/resources-src
 WOW_TEST_MPQ     := $(TESTS_DIR)/test-wow.mpq
 WOW_UI_TEST_CFLAGS := $(WOW_TEST_CFLAGS) $(LUA_CFLAGS) -DTEST_WOW_MPQ=\"$(WOW_TEST_MPQ)\"
-<<<<<<< HEAD
-=======
 SC2_TEST_RES_DIR := $(TESTS_DIR)/sc2-resources
 SC2_TEST_SRC_DIR := $(SC2_TEST_DIR)/resources-src
 SC2_TEST_MPQ     := $(TESTS_DIR)/test-sc2.SC2Maps
->>>>>>> origin/main
 
 $(BIN_DIR)/%$(EXE_EXT): tools/%.c $(TOOL_DEPS) $(CLIENT_HEADERS) $(COMMON_HEADERS) | $(BIN_DIR) $(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) $(RENDERER_LIB) $(GAME_LIB) $(UI_LIB)
 	@$(CC) $(CFLAGS) -o $@ $< \
@@ -202,13 +192,10 @@ $(BIN_DIR)/m2tool$(EXE_EXT): tools/m2tool.c $(TOOL_DEPS) $(CLIENT_HEADERS) $(COM
 	@$(CC) $(WOW_CFLAGS) -o $@ $< \
 		$(RPATH) $(LDFLAGS) -lrenderer-wow -lsheet -lshared $(LIBS) -lm -lz
 
-<<<<<<< HEAD
-=======
 $(BIN_DIR)/m3tool$(EXE_EXT): tools/m3tool.c $(TOOL_DEPS) $(CLIENT_HEADERS) $(COMMON_HEADERS) | $(BIN_DIR) $(SHARED_LIB) $(SHEET_LIB) $(RENDERER_SC2_LIB)
 	@$(CC) $(SC2_CFLAGS) -o $@ $< \
 		$(RPATH) $(LDFLAGS) -lrenderer-sc2 -lsheet -lshared $(LIBS) -lm -lz $(SC2_XML_LIBS)
 
->>>>>>> origin/main
 $(BIN_DIR)/img2sysfont$(EXE_EXT): tools/img2sysfont.c | $(BIN_DIR)
 	@$(CC) $(CFLAGS) -o $@ tools/img2sysfont.c
 
@@ -240,9 +227,6 @@ $(eval $(call test_schema,test-wow-appearance,,$(WOW_TEST_CFLAGS),$(BIN_DIR)/tes
 $(eval $(call test_schema,test-wow-combat,,$(WOW_TEST_CFLAGS),$(BIN_DIR)/test_wow_combat$(EXE_EXT),$(WOW_TEST_DIR)/test_wow_combat.c $(WOW_DIR)/game/g_ai.c $(call CSRC,shared),-lm,))
 $(eval $(call test_schema,test-wow-game,,$(WOW_TEST_CFLAGS),$(BIN_DIR)/test_wow_game$(EXE_EXT),$(WOW_TEST_DIR)/test_wow_game.c $(WOW_DIR)/game/g_wow.c $(WOW_DIR)/game/g_world.c $(WOW_DIR)/game/g_ai.c $(WOW_DIR)/game/m_creature.c common/mpq.c $(call CSRC,shared),-lm -lz,))
 $(eval $(call test_schema,test-wow-ui,test-wow-assets,$(WOW_UI_TEST_CFLAGS),$(BIN_DIR)/test_wow_ui$(EXE_EXT),$(WOW_TEST_DIR)/test_wow_ui.c $(WOW_DIR)/ui/ui_wow.c common/mpq.c,-lshared $(LUA_LIBS) -lz,))
-<<<<<<< HEAD
-
-=======
 $(eval $(call test_schema,test-sc2,test-sc2-assets $(SHARED_LIB) $(SHEET_LIB),$(SC2_TEST_CFLAGS),$(BIN_DIR)/test_sc2$(EXE_EXT),$(SC2_TEST_DIR)/test_sc2_main.c $(SC2_TEST_DIR)/test_sc2_map.c $(SC2_DIR)/common/sc2_map.c common/common.c common/cmd.c common/cvar.c common/msg.c common/net.c common/mpq.c,-lsheet -lshared -lm -lz $(SC2_XML_LIBS),))
 
 test-sc2-assets: sc2fixturegen mpqtool | $(TESTS_DIR)
@@ -268,7 +252,6 @@ test-sc2-assets: sc2fixturegen mpqtool | $(TESTS_DIR)
 	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(SC2_TEST_MPQ) cat Maps/Test/Tiny.SC2Map/Objects | grep -q "UnitType=\"Marine\"" && echo "  cat objects OK"
 	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(SC2_TEST_MPQ) info Maps/Test/Tiny.SC2Map/t3CellFlags | grep -q "size=80" && echo "  binary cell flags OK"
 
->>>>>>> origin/main
 test-wow-assets: blpgen mpqtool | $(TESTS_DIR)
 	@echo "[test-wow-assets] generating WoW UI fixtures"
 	@mkdir -p $(WOW_TEST_RES_DIR)/Interface/Test
@@ -287,8 +270,4 @@ test-wow-assets: blpgen mpqtool | $(TESTS_DIR)
 	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(WOW_TEST_MPQ) cat Interface/Test/LuaPanel.blp | head -c4 | grep -q "BLP2" && echo "  cat panel OK"
 	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(WOW_TEST_MPQ) cat Interface/FrameXML/UIParent.lua | grep -q "wow_lua_test" && echo "  cat lua OK"
 
-<<<<<<< HEAD
-.PHONY: default build shared tools font $(TOOL_NAMES) diag clean download renderer-wow game-wow ui-wow openwow renderer-sc2 game-sc2 opensc2 m2tool-wow-orcmale-player test-wow-appearance test-wow-combat test-wow-game test-wow-ui test-wow-assets $(WC3_PHONY)
-=======
 .PHONY: default build shared tools font $(TOOL_NAMES) diag clean download renderer-wow game-wow ui-wow openwow renderer-sc2 game-sc2 opensc2 run-sc2 build-run-sc2 m2tool-wow-orcmale-player test-wow-appearance test-wow-combat test-wow-game test-wow-ui test-wow-assets test-sc2 test-sc2-assets $(WC3_PHONY)
->>>>>>> origin/main
