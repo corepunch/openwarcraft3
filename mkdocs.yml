@@ -51,6 +51,10 @@ nav:
       - Overview: games/world-of-warcraft/readme.md
       - Docs Index: games/world-of-warcraft/docs/readme.md
       - Data Loading: games/world-of-warcraft/docs/data-loading.md
+<<<<<<< HEAD
+=======
+      - File Formats: games/world-of-warcraft/docs/file-formats.md
+>>>>>>> origin/main
       - Terrain And World Rendering: games/world-of-warcraft/docs/terrain-and-world-rendering.md
       - M2 And Character Display: games/world-of-warcraft/docs/m2-and-character-display.md
       - References: games/world-of-warcraft/docs/references.md
@@ -60,6 +64,10 @@ nav:
       - Model Format (M3): games/starcraft-2/docs/file-formats/m3.md
       - Map Storage And Loading: games/starcraft-2/docs/map-storage-and-loading.md
       - Embedded Map Files: games/starcraft-2/docs/embedded-map-files.md
+<<<<<<< HEAD
+=======
+      - Map, Model, And Unit Data: games/starcraft-2/docs/map-model-unit-data.md
+>>>>>>> origin/main
       - Parser Notes: games/starcraft-2/docs/parser-notes.md
       - References: games/starcraft-2/docs/references.md
   - Architecture:

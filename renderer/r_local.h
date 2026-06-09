@@ -83,6 +83,7 @@ struct texture {
 struct render_buffer {
     DWORD vao;
     DWORD vbo;
+    DWORD ibo;
 };
 
 struct shader_program {
@@ -243,7 +244,9 @@ VERTEX *R_AddQuad(VERTEX *buffer, LPCRECT screen, LPCRECT uv, COLOR32 color, flo
 VERTEX *R_AddStrip(VERTEX *buffer, LPCRECT screen, COLOR32 color);
 VERTEX *R_AddWireBox(VERTEX *buffer, LPCBOX3 box, COLOR32 color);
 LPBUFFER R_MakeVertexArrayObject(LPCVERTEX vertices, DWORD size);
+LPBUFFER R_MakeIndexedVertexArrayObject(LPCVERTEX vertices, DWORD num_vertices, DWORD const *indices, DWORD num_indices);
 void R_DrawBuffer(LPCBUFFER buffer, DWORD num_vertices);
+void R_DrawIndexedBuffer(LPCBUFFER buffer, DWORD num_indices);
 
 // r_draw.c
 void R_DrawChar(int x, int y, int c);

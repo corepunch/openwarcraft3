@@ -73,6 +73,7 @@ typedef struct {
     void (*MemFree)(HANDLE);
     sheetRow_t *(*ReadSheet)(LPCSTR sheetFilename);
     LPCSTR (*FindSheetCell)(sheetRow_t *sheet, LPCSTR row, LPCSTR column);
+    LPCSTR (*CvarString)(LPCSTR name, LPCSTR fallback);
     void (*error)(LPCSTR fmt, ...);
 } refImport_t;
 
@@ -87,7 +88,7 @@ typedef struct {
     QUATERNION viewquat;
     VECTOR3 viewangles;
     float distance;
-    float fov;
+    float fov;      /* vertical field of view in degrees */
     float znear;
     float zfar;
 } viewCamera_t;

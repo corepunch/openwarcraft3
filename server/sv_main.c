@@ -125,11 +125,26 @@ int SV_ModelIndex(LPCSTR name) {
 //        name = "Assets\\Units\\Terran\\MarineTychus\\MarineTychus.m3";
 //    }
     PATHSTR model_filename = { 0 };
+    LPCSTR base;
+    LPCSTR slash;
+    LPSTR ext;
+
     strcpy(model_filename, name);
-    if (!strstr(model_filename, ".mdx") && !strstr(model_filename, ".m2")) {
-        LPSTR mdl = strstr(model_filename, ".mdl");
-        mdl = mdl ? mdl : (model_filename + strlen(model_filename));
-        strcpy(mdl, ".mdx");
+    base = model_filename;
+    slash = strrchr(base, '\\');
+    if (slash) {
+        base = slash + 1;
+    }
+    slash = strrchr(base, '/');
+    if (slash) {
+        base = slash + 1;
+    }
+    ext = strrchr((LPSTR)base, '.');
+    if (!ext) {
+        ext = model_filename + strlen(model_filename);
+        strcpy(ext, ".mdx");
+    } else if (!strcasecmp(ext, ".mdl")) {
+        strcpy(ext, ".mdx");
     }
     int modelindex = SV_FindIndex(model_filename, CS_MODELS, MAX_MODELS, true);
     return modelindex;

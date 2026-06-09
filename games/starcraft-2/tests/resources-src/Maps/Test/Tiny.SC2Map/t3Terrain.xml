@@ -1,0 +1,16 @@
+<terrain version="113">
+    <heightMap tileSet="Fixture" dim="5 4">
+        <vertData quantizeBias="0.000000" quantizeScale="1.000000" standardHeight="0.000000" name="t3HeightMap"/>
+        <cliffSetList num="1">
+            <cliffSet i="0" name="FixtureCliff0"/>
+        </cliffSetList>
+        <textureList num="2">
+            <texture i="0" name="Assets/Textures/Terrain/FixtureGrass_Diffuse"/>
+            <texture i="1" name="Assets/Textures/Terrain/FixtureDirt_Diffuse.dds"/>
+        </textureList>
+        <cliffCellList num="2" numOccupied="2">
+            <cc i="0" f="1" cid="0" cvar="2"/>
+            <cc i="1" f="3" cid="0" cvar="0"/>
+        </cliffCellList>
+    </heightMap>
+</terrain>

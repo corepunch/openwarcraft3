@@ -138,6 +138,7 @@ test: test-assets $(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) | $(BIN_DIR)
 		$(RPATH) $(LDFLAGS) -lsheet -lshared -ljass -lm
 	@$(BIN_DIR)/test_openwarcraft3$(EXE_EXT)
 	@$(MAKE) test-commands
+	@$(MAKE) test-sc2
 	@$(MAKE) test-wow-appearance
 	@$(MAKE) test-wow-combat
 	@$(MAKE) test-wow-game

@@ -603,6 +603,7 @@ void CL_Init(void) {
         .FileExtract = FS_ExtractFile,
         .ReadSheet = FS_ParseSLK,
         .FindSheetCell = FS_FindSheetCell,
+        .CvarString = Cvar_String,
         .error = CON_printf,
     });
     

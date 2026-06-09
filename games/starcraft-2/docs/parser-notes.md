@@ -12,6 +12,7 @@ These notes translate the public format information into a practical OpenWarcraf
 	- locale `GameStrings.txt`.
 	- minimap/loading image paths.
 4. Parse map dimensions, bounds, tileset/theme, loading screen, and player slots from `MapInfo`.
+<<<<<<< HEAD
 5. Parse `Objects` for placed objects/resources/start locations when format coverage is sufficient.
 6. Parse terrain texture metadata from `t3Terrain.xml`.
 7. Parse binary terrain/pathing layers incrementally:
@@ -19,6 +20,17 @@ These notes translate the public format information into a practical OpenWarcraf
 	- `t3SyncCliffLevel` and height maps for terrain shape.
 	- `t3SyncPathingInfo` for movement/building pathing once decoded.
 8. Parse `Base.SC2Data/GameData` catalogs only as needed for IDs referenced by objects/terrain.
+=======
+5. Parse `Objects` for placed `Unit`, `Doodad`, `Point`, and `Camera` records.
+6. Parse `GameData.xml` and the smallest useful subset of Unit/Actor/Model catalog XML needed to resolve placed units into M3 model paths.
+7. Parse terrain texture metadata from `t3Terrain.xml`.
+8. Parse binary terrain/pathing layers incrementally:
+	- `t3CellFlags` for visualization and hole/cell inspection.
+	- `t3HeightMap`, `t3SyncHeightMap`, and `t3SyncCliffLevel` for terrain shape.
+	- `t3TextureMasks` for terrain layer blends.
+	- `t3Water` for water/lava rectangles and templates.
+	- `t3SyncPathingInfo` for movement/building pathing once decoded.
+>>>>>>> origin/main
 9. Resolve dependencies and localized strings after local parsing works on simple maps.
 
 ## Archive Abstraction
@@ -60,6 +72,12 @@ sc2map: archive files=<count>
 MapInfo: version=<n> size=<w>x<h> bounds=<l,b,r,t> theme=<id> planet=<id>
 MapInfo: players=<n>
 t3CellFlags: version=<n> size=<w>x<h> counts[00]=... counts[01]=... counts[02]=... counts[03]=...
+<<<<<<< HEAD
+=======
+t3HeightMap: version=<n> size=<w>x<h> min=<z> max=<z> masks[0..3]=...
+Objects: units=<n> doodads=<n> points=<n> cameras=<n>
+Catalog: units=<n> actors=<n> models=<n> unresolvedModels=<n>
+>>>>>>> origin/main
 ```
 
 ## Test Fixture Plan
@@ -87,6 +105,12 @@ Use existing community tools as comparators:
 - Exact modern `MapInfo` versions and field deltas across Wings of Liberty, Heart of the Swarm, Legacy of the Void, and current Arcade maps.
 - Complete `Objects` schema and whether it is always text/XML-like for current maps.
 - Exact dimensions and coordinate transforms between height, cliff, pathing, and render grids.
+<<<<<<< HEAD
 - Dependency load order across maps, mods, campaigns, and Arcade content.
 - Locked/protected map behavior and whether some downloaded maps omit editor-useful content.
 
+=======
+- Exact Unit -> Actor -> Model catalog links across base game, campaign, arcade maps, and Heroes-era assets.
+- Dependency load order across maps, mods, campaigns, and Arcade content.
+- Locked/protected map behavior and whether some downloaded maps omit editor-useful content.
+>>>>>>> origin/main

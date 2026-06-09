@@ -107,7 +107,25 @@ static BOOL FS_PathHasExtension(LPCSTR filename, LPCSTR extension) {
 }
 
 static BOOL FS_IsMapPath(LPCSTR filename) {
+#ifdef SC2
+    return FS_PathHasExtension(filename, ".SC2Map") ||
+           FS_PathHasExtension(filename, ".s2ma") ||
+           FS_PathHasExtension(filename, ".SC2Components");
+#else
     return FS_PathHasExtension(filename, ".w3m") || FS_PathHasExtension(filename, ".w3x");
+#endif
+}
+
+static size_t FS_MapExtensionLength(LPCSTR filename) {
+#ifdef SC2
+    if (FS_PathHasExtension(filename, ".SC2Components")) return strlen(".SC2Components");
+    if (FS_PathHasExtension(filename, ".SC2Map")) return strlen(".SC2Map");
+    if (FS_PathHasExtension(filename, ".s2ma")) return strlen(".s2ma");
+#else
+    if (FS_PathHasExtension(filename, ".w3m")) return strlen(".w3m");
+    if (FS_PathHasExtension(filename, ".w3x")) return strlen(".w3x");
+#endif
+    return 0;
 }
 
 static BOOL FS_IsExplicitMapPath(LPCSTR name) {
@@ -136,14 +154,12 @@ static BOOL FS_MapBaseEquals(LPCSTR path, LPCSTR name) {
     LPCSTR base = FS_BaseName(path);
     size_t nameLen = strlen(name ? name : "");
     size_t baseLen = strlen(base);
+    size_t extLen = FS_MapExtensionLength(base);
 
-    if (!name || !*name || baseLen < 4) {
+    if (!name || !*name || extLen == 0 || baseLen <= extLen) {
         return false;
     }
-    if (!FS_IsMapPath(base)) {
-        return false;
-    }
-    baseLen -= 4;
+    baseLen -= extLen;
     return nameLen == baseLen && !strncasecmp(base, name, baseLen);
 }
 
@@ -162,6 +178,44 @@ static BOOL FS_MapListHas(PATHSTR *maps, DWORD count, LPCSTR path) {
     }
     return false;
 }
+
+#ifdef SC2
+static LPCSTR FS_FindSC2MapExtension(LPCSTR path) {
+    static LPCSTR const ext = ".SC2Map";
+    size_t extLen = strlen(ext);
+
+    if (!path) {
+        return NULL;
+    }
+    for (LPCSTR p = path; *p; p++) {
+        if (!strncasecmp(p, ext, extLen) &&
+            (p[extLen] == '\0' || p[extLen] == '/' || p[extLen] == '\\')) {
+            return p;
+        }
+    }
+    return NULL;
+}
+
+static BOOL FS_CollapseSC2MapPath(LPCSTR path, LPSTR out, DWORD out_size) {
+    LPCSTR map_ext;
+    size_t len;
+
+    if (!path || !out || out_size == 0) {
+        return false;
+    }
+    map_ext = FS_FindSC2MapExtension(path);
+    if (!map_ext) {
+        return false;
+    }
+    len = (size_t)(map_ext - path) + strlen(".SC2Map");
+    if (len >= out_size) {
+        return false;
+    }
+    memcpy(out, path, len);
+    out[len] = '\0';
+    return true;
+}
+#endif
 
 HANDLE FS_AddArchive(LPCSTR filename) {
     if (!filename || !*filename) {
@@ -252,7 +306,19 @@ static BOOL FS_HasExtension(LPCSTR filename, LPCSTR extension) {
 }
 
 static BOOL FS_IsArchiveExtensionAt(LPCSTR path, size_t dot) {
+#ifdef SC2
+    static LPCSTR const extensions[] = {
+        ".mpq",
+        ".SC2Map",
+        ".s2ma",
+        ".SC2Assets",
+        ".SC2Data",
+        ".SC2Maps",
+        NULL
+    };
+#else
     static LPCSTR const extensions[] = { ".mpq", ".w3m", ".w3x", NULL };
+#endif
 
     if (!path || path[dot] != '.') {
         return false;
@@ -277,11 +343,13 @@ static BOOL FS_SplitNestedArchivePath(LPCSTR filename,
     }
     for (size_t i = 0; filename[i]; i++) {
         size_t outerLen;
+        size_t extLen;
 
         if (!FS_IsArchiveExtensionAt(filename, i)) {
             continue;
         }
-        outerLen = i + 4;
+        extLen = strcspn(filename + i, "/\\");
+        outerLen = i + extLen;
         if (outerLen >= outer_size) {
             return false;
         }
@@ -421,7 +489,17 @@ static void FS_AddArchiveScanEntry(LPCSTR name, LPCSTR path, BOOL isDirectory, B
         return;
     }
     (void)isDirectory;
-    if (isFile && scan->count < scan->maxPaths && FS_HasExtension(name, ".mpq")) {
+    if (isFile && scan->count < scan->maxPaths &&
+#ifdef SC2
+        (FS_HasExtension(name, ".mpq") ||
+         FS_HasExtension(name, ".SC2Assets") ||
+         FS_HasExtension(name, ".SC2Data") ||
+         FS_HasExtension(name, ".SC2Maps"))
+#else
+        FS_HasExtension(name, ".mpq")
+#endif
+        ) {
+#ifndef SC2
         LPCSTR base = FS_BaseName(path);
 
         if (!Cvar_Integer("fs_expansion", 0) &&
@@ -429,6 +507,7 @@ static void FS_AddArchiveScanEntry(LPCSTR name, LPCSTR path, BOOL isDirectory, B
             fprintf(stderr, "Skipping expansion archive '%s' (set fs_expansion 1 or use -tft to mount it).\n", path);
             return;
         }
+#endif
         snprintf(scan->paths[scan->count++], sizeof(PATHSTR), "%s", path);
     }
 }
@@ -471,7 +550,8 @@ BOOL FS_AddDataDirectory(LPCSTR dirname) {
             mountedCount++;
         }
     }
-    return mountedCount > 0;
+    (void)mountedCount;
+    return true;
 }
 
 #if 0
@@ -534,16 +614,20 @@ typedef struct fsFind_s {
 } fsFind_t;
 
 static BOOL FS_FindFilenameMatches(LPCSTR filename, LPCSTR mask) {
+    PATHSTR normalizedFilename;
+    PATHSTR normalizedMask;
     size_t mask_len;
 
     if (!mask || !mask[0] || !strcmp(mask, "*")) {
         return true;
     }
-    mask_len = strlen(mask);
-    if (mask_len > 0 && mask[mask_len - 1] == '*') {
-        return !strncasecmp(filename, mask, mask_len - 1);
+    FS_NormalizePath(filename, normalizedFilename, sizeof(normalizedFilename));
+    FS_NormalizePath(mask, normalizedMask, sizeof(normalizedMask));
+    mask_len = strlen(normalizedMask);
+    if (mask_len > 0 && normalizedMask[mask_len - 1] == '*') {
+        return !strncasecmp(normalizedFilename, normalizedMask, mask_len - 1);
     }
-    return !strcasecmp(filename, mask);
+    return !strcasecmp(normalizedFilename, normalizedMask);
 }
 
 static BOOL FS_FindAppendLoose(fsFind_t *find, LPCSTR name) {
@@ -584,6 +668,9 @@ static void FS_FindCollectLooseEntry(LPCSTR name, LPCSTR path, BOOL isDirectory,
              *collect->rel ? "\\" : "",
              name);
     if (isDirectory) {
+        if (FS_IsMapPath(childRel)) {
+            FS_FindAppendLoose(collect->find, childRel);
+        }
         FS_FindCollectLooseDir(collect->find, collect->root, childRel);
     } else if (isFile && FS_FindFilenameMatches(childRel, collect->find->mask)) {
         FS_FindAppendLoose(collect->find, childRel);
@@ -645,6 +732,11 @@ bool FS_FileExists(LPCSTR fileName) {
         if (FS_FileOnDiskExists(path)) {
             return true;
         }
+#ifdef SC2
+        if (FS_PathHasExtension(fileName, ".SC2Components") && FS_DirectoryExists(path)) {
+            return true;
+        }
+#endif
     }
     return false;
 }
@@ -860,8 +952,16 @@ DWORD FS_ListMaps(fsMapListFunc_t func, void *userData) {
     handle = FS_FindFirstFile("Maps\\*", &findData);
     while (handle && count < MAX_FS_MAPS) {
         PATHSTR path;
+#ifdef SC2
+        PATHSTR mapPath;
+#endif
 
         FS_NormalizePath(findData.cFileName, path, sizeof(path));
+#ifdef SC2
+        if (FS_CollapseSC2MapPath(path, mapPath, sizeof(mapPath))) {
+            snprintf(path, sizeof(path), "%s", mapPath);
+        }
+#endif
         if (FS_IsMapPath(path) && !FS_MapListHas(maps, count, path)) {
             snprintf(maps[count++], sizeof(maps[count]), "%s", path);
         }

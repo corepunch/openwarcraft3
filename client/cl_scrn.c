@@ -44,9 +44,11 @@ void SCR_UpdateScreen(DWORD msec) {
     
     V_RenderView();
 
+#ifndef SC2
     if (ui.DrawFrame) {
         ui.DrawFrame();
     }
+#endif
 
     CON_DrawConsole();
     if (Cvar_Integer("scr_showfps", 0)) {

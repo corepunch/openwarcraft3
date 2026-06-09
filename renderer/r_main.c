@@ -355,7 +355,11 @@ void R_Init(DWORD width, DWORD height) {
     SDL_GL_SetAttribute(SDL_GL_RED_SIZE, 8);
     SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, 8);
     SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, 8);
+#ifdef SC2
+    SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 0);
+#else
     SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 8);
+#endif
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
@@ -526,16 +530,30 @@ void R_DrawBuffer(LPCBUFFER buffer, DWORD num_vertices) {
     R_Call(glDrawArrays, GL_TRIANGLES, 0, num_vertices);
 }
 
+void R_DrawIndexedBuffer(LPCBUFFER buffer, DWORD num_indices) {
+    R_Call(glBindVertexArray, buffer->vao);
+    R_Call(glBindBuffer, GL_ARRAY_BUFFER, buffer->vbo);
+    R_Call(glBindBuffer, GL_ELEMENT_ARRAY_BUFFER, buffer->ibo);
+    R_Call(glDrawElements, GL_TRIANGLES, num_indices, GL_UNSIGNED_INT, NULL);
+}
+
 void R_BeginFrame(void) {
     R_Call(glEnable, GL_DEPTH_TEST);
     R_Call(glDepthMask, GL_TRUE);
     R_Call(glDepthFunc, GL_LEQUAL);
     R_Call(glEnable, GL_CULL_FACE);
     R_Call(glCullFace, GL_BACK);
+    R_Call(glColorMask, GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
     R_Call(glClear, GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+#ifdef SC2
+    R_Call(glColorMask, GL_TRUE, GL_TRUE, GL_TRUE, GL_FALSE);
+#endif
 }
 
 void R_EndFrame(void) {
+#ifdef SC2
+    R_Call(glColorMask, GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+#endif
     SDL_GL_SwapWindow(window);
     SDL_Delay(1);
 }

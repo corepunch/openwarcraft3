@@ -104,8 +104,8 @@ typedef struct m3Vertex_s {
     BYTE boneWeight[4];
     BYTE boneIndex[4];
     BYTE normal[4];
-    SHORT uv[2];
-    SHORT uv2[2];
+    COLOR32 color;
+    SHORT uv[4][2];
     BYTE tangent[4];
 } m3Vertex_t;
 
@@ -238,6 +238,17 @@ typedef struct {
 } m3MaterialReference_t;
 
 typedef struct {
+    DWORD materialReferenceIndex;
+    m3Float32AnimRef_t alphaFactor;
+} m3CompositeMaterialSection_t;
+
+typedef struct {
+    M3_ENTRIES(Char, name);
+    DWORD unknown;
+    M3_ENTRIES(CompositeMaterialSection, sections);
+} m3CompositeMaterial_t;
+
+typedef struct {
     DWORD unknown0;
     USHORT regionIndex;
     DWORD unknown1;
@@ -246,8 +257,8 @@ typedef struct {
 } m3Batch_t;
 
 typedef struct {
-    M3_ENTRIES(Region, regions);
     M3_ENTRIES(Face, faces);
+    M3_ENTRIES(Region, regions);
     M3_ENTRIES(Batch, batches);
     Reference MSEC;
     DWORD indicesBuffer;
@@ -382,7 +393,7 @@ typedef struct m3Model_s {
     M3_ENTRIES(MaterialReference, materialReferences);
     M3_ENTRIES(Material, materialStandard);
     Reference materialDisplacement;
-    Reference materialComposite;
+    M3_ENTRIES(CompositeMaterial, materialComposite);
     Reference materialTerrain;
     Reference materialVolume;
     Reference materialUnknown1;

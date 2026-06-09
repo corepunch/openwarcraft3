@@ -146,7 +146,7 @@ void CON_KeyEvent(int key, bool down);
 // cl_view.c
 //void Matrix4_fromViewAngles(LPCVECTOR3 target, LPCVECTOR3 angles, float distance, LPMATRIX4 output);
 //void Matrix4_getLightMatrix(LPCVECTOR3 sunangles, LPCVECTOR3 target, float scale, LPMATRIX4 output);
-//void Matrix4_getCameraMatrix(viewCamera_t const *camera, LPMATRIX4 output);
+void Matrix4_getCameraMatrix(LPMATRIX4 output);
 void V_AddEntity(renderEntity_t *ent);
 void V_AddDecal(renderDecal_t *decal);
 

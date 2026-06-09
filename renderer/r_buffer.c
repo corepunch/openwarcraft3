@@ -67,6 +67,7 @@ VERTEX *R_AddWireBox(VERTEX *buffer, LPCBOX3 box, COLOR32 color) {
 LPBUFFER R_MakeVertexArrayObject(LPCVERTEX vertices, DWORD size) {
     LPBUFFER buf = ri.MemAlloc(sizeof(BUFFER));
 
+    memset(buf, 0, sizeof(*buf));
     R_Call(glGenVertexArrays, 1, &buf->vao);
     R_Call(glBindVertexArray, buf->vao);
    
@@ -101,12 +102,25 @@ LPBUFFER R_MakeVertexArrayObject(LPCVERTEX vertices, DWORD size) {
     return buf;
 }
 
+LPBUFFER R_MakeIndexedVertexArrayObject(LPCVERTEX vertices, DWORD num_vertices, DWORD const *indices, DWORD num_indices) {
+    LPBUFFER buf = R_MakeVertexArrayObject(vertices, num_vertices);
+
+    R_Call(glBindVertexArray, buf->vao);
+    R_Call(glGenBuffers, 1, &buf->ibo);
+    R_Call(glBindBuffer, GL_ELEMENT_ARRAY_BUFFER, buf->ibo);
+    R_Call(glBufferData, GL_ELEMENT_ARRAY_BUFFER, num_indices * sizeof(*indices), indices, GL_STATIC_DRAW);
+    return buf;
+}
+
 void R_ReleaseVertexArrayObject(LPBUFFER buffer) {
     if (!buffer) {
         return;
     }
+    if (buffer->ibo)
+        R_Call(glDeleteBuffers, 1, &buffer->ibo);
     R_Call(glDeleteBuffers, 1, &buffer->vbo);
     R_Call(glDeleteVertexArrays, 1, &buffer->vao);
+    buffer->ibo = 0;
     buffer->vbo = 0;
     buffer->vao = 0;
     ri.MemFree(buffer);

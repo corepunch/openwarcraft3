@@ -265,12 +265,12 @@ static void G_RunClients(void) {
             QUATERNION qb = Quaternion_fromEuler(&b->viewangles, ROTATE_ZYX);
             client->ps.origin = Vector2_lerp(&a->position, &b->position, k);
             client->ps.viewquat = Quaternion_slerp(&qa, &qb, k);
-            client->ps.fov = LerpNumber(a->fov, b->fov, k) / FOV_ASPECT;
+            client->ps.fov = LerpNumber(a->fov, b->fov, k);
             client->ps.distance = LerpNumber(a->target_distance, b->target_distance, k);
         } else {
             client->ps.origin = client->camera.state.position;
             client->ps.viewquat = Quaternion_fromEuler(&client->camera.state.viewangles, ROTATE_ZYX);
-            client->ps.fov = client->camera.state.fov / FOV_ASPECT;
+            client->ps.fov = client->camera.state.fov;
             client->ps.distance = client->camera.state.target_distance;
         }
         client->ps.cinefade = cinefade;

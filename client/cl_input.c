@@ -64,6 +64,9 @@ void CL_Input(void) {
                     keyCode_t mousevt = CL_MouseButtonKey(&event.button);
                     mouse.origin.x = event.button.x;
                     mouse.origin.y = event.button.y;
+                    if (cls.key_dest == key_game) {
+                        CL_InputModeMouseButton(&event.button, true);
+                    }
                     if (mousevt && cls.key_dest != key_console) {
                         mouse_button_keys[event.button.button] = mousevt;
                         Key_Event(mousevt, true, event.button.timestamp);
@@ -77,6 +80,9 @@ void CL_Input(void) {
                                       : 0;
                     mouse.origin.x = event.button.x;
                     mouse.origin.y = event.button.y;
+                    if (cls.key_dest == key_game) {
+                        CL_InputModeMouseButton(&event.button, false);
+                    }
                     if (mousevt && cls.key_dest != key_console) {
                         Key_Event(mousevt, false, event.button.timestamp);
                         mouse_button_keys[event.button.button] = 0;
