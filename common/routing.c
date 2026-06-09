@@ -82,6 +82,23 @@ void CM_InvalidatePathCache(void) {
     heatmap_cache_invalidate();
 }
 
+/* Set active_flow to the cached flow field for the given generation without
+ * triggering a heatmap rebuild.  Returns true if the generation is still in
+ * the cache (the caller may then skip the expensive CM_BuildHeatmap call).
+ * Returns false when the entry was evicted; the caller must rebuild. */
+BOOL CM_ActivateCachedFlow(DWORD generation) {
+    if (!generation)
+        return false;
+    FOR_LOOP(i, HEATMAP_CACHE_SLOTS) {
+        if (heatmap_cache[i].generation == generation && heatmap_cache[i].flow) {
+            active_flow = heatmap_cache[i].flow;
+            heatmap_lru[i] = heatmap_lru_clock++;
+            return true;
+        }
+    }
+    return false;
+}
+
 void CM_SetupPathMap(DWORD width, DWORD height, BYTE const *cells) {
     DWORD n = width * height;
 
