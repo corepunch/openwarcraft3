@@ -97,6 +97,7 @@ TEST_GAME_SRCS := \
 	client/cl_layout.c \
 	client/cl_parse.c \
 	client/cl_scrn.c \
+	client/cl_unit_ui.c \
 	server/sv_init.c \
 	server/sv_lan.c \
 	server/sv_lobby.c \
@@ -137,9 +138,11 @@ test: test-assets $(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) | $(BIN_DIR)
 		$(RPATH) $(LDFLAGS) -lsheet -lshared -ljass -lm
 	@$(BIN_DIR)/test_openwarcraft3$(EXE_EXT)
 	@$(MAKE) test-commands
+	@$(MAKE) test-sc2
 	@$(MAKE) test-wow-appearance
 	@$(MAKE) test-wow-combat
 	@$(MAKE) test-wow-game
+	@$(MAKE) test-wow-ui
 	@$(MAKE) test-ui
 
 $(eval $(call test_schema,test-commands,test-assets $(SHARED_LIB) $(SHEET_LIB),$(TEST_CFLAGS),$(BIN_DIR)/test_commands$(EXE_EXT),$(WC3_TEST_DIR)/test_commands_main.c $(WC3_TEST_DIR)/test_commands.c common/common.c common/cmd.c common/cvar.c common/msg.c common/net.c common/mpq.c,-lsheet -lshared -lm -lz,))

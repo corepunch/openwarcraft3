@@ -21,7 +21,6 @@
 #define MAX_ENTITIES MAX_GAME_ENTITIES
 #define MAX_REGION_SIZE 16
 #define MAX_INVENTORY 6
-#define FOV_ASPECT 1.7
 #define MAX_HERO_ABILITIES 4
 #define MAX_UNIT_STATUSES 8
 #define PLAYER_TEXT_BACKUP 16
@@ -509,7 +508,7 @@ struct gcamerasetup_s {
     FLOAT target_distance;
     FLOAT far_z;
 //    FLOAT angle_of_attack;
-    FLOAT fov;
+    FLOAT fov;      /* vertical field of view in degrees */
 //    FLOAT roll;
 //    FLOAT rotations;
     FLOAT z_offset;

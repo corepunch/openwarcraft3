@@ -59,3 +59,5 @@ build/bin/openwow -data data/world-of-warcraft/installed/Data +map World/Maps/Az
 ## Notes
 
 This target expects locally supplied World of Warcraft client data. Original assets, names, and game data belong to Blizzard Entertainment. Nothing in this directory should be read as a promise of full MMO behavior; it is a renderer/runtime exploration branch that shares the engine with the rest of OpenWarcraft3.
+
+Game-specific documentation lives in [docs/readme.md](docs/readme.md).

@@ -2,29 +2,7 @@
 #define __r_war3map_h__
 
 #include "renderer/r_local.h"
-
-KNOWN_AS(MapLayer, MAPLAYER);
-KNOWN_AS(MapSegment, MAPSEGMENT);
-
-typedef enum {
-    MAPLAYERTYPE_GROUND,
-    MAPLAYERTYPE_CLIFF,
-    MAPLAYERTYPE_WATER,
-} MAPLAYERTYPE;
-
-struct MapLayer {
-    MAPLAYERTYPE type;
-    LPCBUFFER buffer;
-    LPCTEXTURE texture;
-    LPMAPLAYER next;
-    DWORD num_vertices;
-};
-
-struct MapSegment {
-    LPMAPLAYER layers;
-    LPMAPSEGMENT next;
-    BOX3 bbox;
-};
+#include "r_terrain_layers.h"
 
 LPMAPLAYER R_BuildMapSegmentLayer(LPCWAR3MAP map, DWORD sx, DWORD sy, DWORD layer);
 LPMAPLAYER R_BuildMapSegmentCliffs(LPCWAR3MAP map, DWORD sx, DWORD sy, DWORD cliff);

@@ -73,3 +73,5 @@ make test-jass
 ## Notes
 
 This target expects a legitimate Warcraft III data folder. Original assets, names, and game data belong to Blizzard Entertainment. The repository contains code, fixtures, and generated test assets, not the retail game data.
+
+Game-specific documentation lives in [docs/readme.md](docs/readme.md).

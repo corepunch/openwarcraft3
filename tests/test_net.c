@@ -406,6 +406,61 @@ static void test_msg_multiple_types_sequential(void) {
     ASSERT_EQ_INT((unsigned int)MSG_ReadLong(&sb), (unsigned int)0x12345678);
 }
 
+static uiUnitData_t test_unit_ui_last;
+static DWORD test_unit_ui_calls;
+static DWORD test_unit_ui_num_units;
+
+static void test_update_unit_ui(DWORD num_units, uiUnitData_t *units) {
+    test_unit_ui_calls++;
+    test_unit_ui_num_units = num_units;
+    memset(&test_unit_ui_last, 0, sizeof(test_unit_ui_last));
+    if (num_units && units) {
+        test_unit_ui_last = units[0];
+    }
+}
+
+static void test_unit_ui_parser_preserves_distinct_strings(void) {
+    BYTE buf[512];
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+
+    test_client_stubs_init();
+    test_unit_ui_calls = 0;
+    test_unit_ui_num_units = 0;
+    memset(&test_unit_ui_last, 0, sizeof(test_unit_ui_last));
+    ui.UpdateUnitUI = test_update_unit_ui;
+
+    MSG_WriteByte(&sb, 1);
+    MSG_WriteShort(&sb, 7);
+    MSG_WriteByte(&sb, 1);
+    MSG_WriteString(&sb, "Interface\\Icons\\Ability_Warrior_Cleave.blp");
+    MSG_WriteString(&sb, "Attack");
+    MSG_WriteString(&sb, "1");
+    MSG_WriteString(&sb, "wow_action 0");
+    MSG_WriteByte(&sb, '1');
+    MSG_WriteByte(&sb, 1);
+    MSG_WriteString(&sb, "Interface\\Icons\\INV_Misc_Bag_08.blp");
+    MSG_WriteString(&sb, "Backpack");
+    MSG_WriteString(&sb, "2");
+    MSG_WriteByte(&sb, 4);
+    MSG_WriteByte(&sb, 0);
+    sb.readcount = 0;
+
+    CL_ParseUnitUI(&sb);
+
+    ASSERT_EQ_INT((int)test_unit_ui_calls, 1);
+    ASSERT_EQ_INT((int)test_unit_ui_num_units, 1);
+    ASSERT_EQ_INT((int)test_unit_ui_last.entity_num, 7);
+    ASSERT_STR_EQ(test_unit_ui_last.buttons[0].art, "Interface\\Icons\\Ability_Warrior_Cleave.blp");
+    ASSERT_STR_EQ(test_unit_ui_last.buttons[0].tooltip, "Attack");
+    ASSERT_STR_EQ(test_unit_ui_last.buttons[0].ubertip, "1");
+    ASSERT_STR_EQ(test_unit_ui_last.buttons[0].command, "wow_action 0");
+    ASSERT_EQ_INT(test_unit_ui_last.buttons[0].hotkey, '1');
+    ASSERT_STR_EQ(test_unit_ui_last.inventory[0].art, "Interface\\Icons\\INV_Misc_Bag_08.blp");
+    ASSERT_STR_EQ(test_unit_ui_last.inventory[0].tooltip, "Backpack");
+    ASSERT_STR_EQ(test_unit_ui_last.inventory[0].ubertip, "2");
+    ASSERT_EQ_INT(test_unit_ui_last.inventory[0].slot, 4);
+}
+
 static void reset_fow_client_state(void) {
     SAFE_DELETE(cl.fow.visible, MemFree);
     SAFE_DELETE(cl.fow.explored, MemFree);
@@ -639,6 +694,7 @@ void run_net_tests(void) {
     RUN_TEST(test_msg_writedir_readdir_roundtrip);
     RUN_TEST(test_msg_writeangle_readangle_roundtrip);
     RUN_TEST(test_msg_multiple_types_sequential);
+    RUN_TEST(test_unit_ui_parser_preserves_distinct_strings);
     RUN_TEST(test_cursor_splat_message_sets_and_clears_state);
     RUN_TEST(test_playerinfo_game_state_switches_to_game_input_without_retargeting);
     RUN_TEST(test_fow_full_message_unpacks_visible_and_explored_planes);

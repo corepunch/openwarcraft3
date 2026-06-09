@@ -2,6 +2,19 @@
 #include <strings.h>
 
 #define M2_MAX_BONES_PER_BATCH 64
+#define M2_CHARACTER_TEXTURE_NONE 0xff
+
+enum {
+    M2_CHAR_TEX_UPPER_ARM,
+    M2_CHAR_TEX_LOWER_ARM,
+    M2_CHAR_TEX_HAND,
+    M2_CHAR_TEX_UPPER_TORSO,
+    M2_CHAR_TEX_LOWER_TORSO,
+    M2_CHAR_TEX_UPPER_LEG,
+    M2_CHAR_TEX_LOWER_LEG,
+    M2_CHAR_TEX_FOOT,
+    M2_CHAR_TEX_COUNT
+};
 
 typedef struct {
     int32_t size;
@@ -283,18 +296,39 @@ typedef struct {
 typedef struct m2ModelBatch_s {
     LPBUFFER buffer;
     LPTEXTURE texture;
+    LPTEXTURE character_texture;
+    DWORD character_texture_key;
     DWORD num_vertices;
+    DWORD texture_type;
     WORD bone_count;
     WORD bone_combo_index;
+    WORD section_id;
+    BYTE character_texture_slot;
+    BOOL character_texture_loaded;
     struct m2ModelBatch_s *next;
 } m2ModelBatch_t;
+
+typedef struct {
+    LPCSTR texture[M2_CHAR_TEX_COUNT];
+    DWORD geoset_group[3];
+    DWORD flags;
+} m2CharacterOutfit_t;
 
 struct m2Model_s {
     m2ModelBatch_t *batches;
     DWORD num_batches;
+    PATHSTR filename;
     BOX3 bounds;
     BOX3 geometry_bounds;
     BOOL has_geometry_bounds;
+    BOOL character_model;
+    LPTEXTURE character_composite;
+    DWORD character_composite_key;
+    m2CharacterOutfit_t character_outfit;
+    DWORD character_outfit_appearance;
+    DWORD character_outfit_equipment;
+    BOOL character_outfit_resolved;
+    BOOL character_outfit_valid;
     BYTE *data;
     DWORD data_size;
     m2Header_t *header;
@@ -543,6 +577,564 @@ static BOOL M2_CopyWithExtension(LPCSTR path, LPCSTR extension, LPSTR out, DWORD
     memcpy(out, path, stem_len);
     snprintf(out + stem_len, out_size - stem_len, "%s", extension);
     return true;
+}
+
+typedef struct {
+    LPBYTE data;
+    DWORD size;
+    DWORD records;
+    DWORD fields;
+    DWORD record_size;
+    DWORD string_size;
+    BYTE const *records_base;
+    BYTE const *strings_base;
+    BOOL tried;
+    BOOL valid;
+} m2Dbc_t;
+
+static m2Dbc_t m2_char_start_outfit_dbc;
+static m2Dbc_t m2_item_display_info_dbc;
+
+static DWORD M2_Read32(BYTE const *p) {
+    return ((DWORD)p[0]) | ((DWORD)p[1] << 8) | ((DWORD)p[2] << 16) | ((DWORD)p[3] << 24);
+}
+
+static BOOL M2_DbcLoad(m2Dbc_t *dbc, LPCSTR filename) {
+    int size;
+
+    if (!dbc || !filename) {
+        return false;
+    }
+    if (dbc->tried) {
+        return dbc->valid;
+    }
+    dbc->tried = true;
+
+    size = ri.FS_ReadFile(filename, (void **)&dbc->data);
+    if (size <= 20 || !dbc->data || memcmp(dbc->data, "WDBC", 4)) {
+        SAFE_DELETE(dbc->data, ri.FS_FreeFile);
+        return false;
+    }
+
+    dbc->size = (DWORD)size;
+    dbc->records = M2_Read32(dbc->data + 4);
+    dbc->fields = M2_Read32(dbc->data + 8);
+    dbc->record_size = M2_Read32(dbc->data + 12);
+    dbc->string_size = M2_Read32(dbc->data + 16);
+    if (dbc->fields == 0 || dbc->record_size < sizeof(DWORD) ||
+        20 + dbc->records * dbc->record_size + dbc->string_size > dbc->size) {
+        SAFE_DELETE(dbc->data, ri.FS_FreeFile);
+        memset(dbc, 0, sizeof(*dbc));
+        dbc->tried = true;
+        return false;
+    }
+
+    dbc->records_base = dbc->data + 20;
+    dbc->strings_base = dbc->records_base + dbc->records * dbc->record_size;
+    dbc->valid = true;
+    return true;
+}
+
+static void M2_DbcShutdown(m2Dbc_t *dbc) {
+    if (!dbc) {
+        return;
+    }
+    SAFE_DELETE(dbc->data, ri.FS_FreeFile);
+    memset(dbc, 0, sizeof(*dbc));
+}
+
+static DWORD M2_DbcField(m2Dbc_t const *dbc, BYTE const *record, DWORD field) {
+    if (!dbc || !record || field >= dbc->fields || field * sizeof(DWORD) + sizeof(DWORD) > dbc->record_size) {
+        return 0;
+    }
+    return M2_Read32(record + field * sizeof(DWORD));
+}
+
+static LPCSTR M2_DbcString(m2Dbc_t const *dbc, DWORD offset) {
+    if (!dbc || !dbc->valid || offset == 0 || offset >= dbc->string_size) {
+        return NULL;
+    }
+    return (LPCSTR)(dbc->strings_base + offset);
+}
+
+static BYTE const *M2_DbcFindID(m2Dbc_t *dbc, LPCSTR filename, DWORD wanted_id) {
+    if (!M2_DbcLoad(dbc, filename)) {
+        return NULL;
+    }
+    FOR_LOOP(i, dbc->records) {
+        BYTE const *record = dbc->records_base + i * dbc->record_size;
+        if (M2_DbcField(dbc, record, 0) == wanted_id) {
+            return record;
+        }
+    }
+    return NULL;
+}
+
+static BOOL M2_CharacterRaceGender(LPCSTR model_path, DWORD *race_id, DWORD *gender_id) {
+    LPCSTR character;
+    LPCSTR race;
+    LPCSTR gender;
+    char race_buf[64];
+    char gender_buf[64];
+    size_t len;
+
+    if (!model_path || !race_id || !gender_id) {
+        return false;
+    }
+    character = strcasestr(model_path, "Character\\");
+    if (!character) {
+        character = strcasestr(model_path, "Character/");
+    }
+    if (!character) {
+        return false;
+    }
+    race = character + strlen("Character\\");
+    gender = strpbrk(race, "\\/");
+    if (!gender) {
+        return false;
+    }
+    len = (size_t)(gender - race);
+    if (len == 0 || len >= sizeof(race_buf)) {
+        return false;
+    }
+    memcpy(race_buf, race, len);
+    race_buf[len] = '\0';
+
+    gender++;
+    len = strcspn(gender, "\\/.");
+    if (len == 0 || len >= sizeof(gender_buf)) {
+        return false;
+    }
+    memcpy(gender_buf, gender, len);
+    gender_buf[len] = '\0';
+
+    if (!strcasecmp(race_buf, "Human")) *race_id = 1;
+    else if (!strcasecmp(race_buf, "Orc")) *race_id = 2;
+    else if (!strcasecmp(race_buf, "Dwarf")) *race_id = 3;
+    else if (!strcasecmp(race_buf, "NightElf")) *race_id = 4;
+    else if (!strcasecmp(race_buf, "Scourge") || !strcasecmp(race_buf, "Undead")) *race_id = 5;
+    else if (!strcasecmp(race_buf, "Tauren")) *race_id = 6;
+    else if (!strcasecmp(race_buf, "Gnome")) *race_id = 7;
+    else if (!strcasecmp(race_buf, "Troll")) *race_id = 8;
+    else if (!strcasecmp(race_buf, "BloodElf")) *race_id = 10;
+    else if (!strcasecmp(race_buf, "Draenei")) *race_id = 11;
+    else return false;
+
+    if (!strcasecmp(gender_buf, "Male")) *gender_id = 0;
+    else if (!strcasecmp(gender_buf, "Female")) *gender_id = 1;
+    else return false;
+    return true;
+}
+
+static DWORD M2_ItemDisplayInfoTextureBase(m2Dbc_t const *dbc) {
+    if (!dbc) {
+        return 0;
+    }
+    if (dbc->fields >= 25) {
+        return 15;
+    }
+    if (dbc->fields >= 22) {
+        return 14;
+    }
+    return 0;
+}
+
+static DWORD M2_ItemDisplayInfoGeosetBase(m2Dbc_t const *dbc) {
+    if (!dbc) {
+        return 0;
+    }
+    return dbc->fields >= 25 ? 7 : 6;
+}
+
+static DWORD M2_ItemDisplayInfoFlagsField(m2Dbc_t const *dbc) {
+    if (!dbc) {
+        return 0;
+    }
+    return dbc->fields >= 25 ? 10 : 9;
+}
+
+static void M2_AddDisplayInfoToOutfit(m2CharacterOutfit_t *outfit, DWORD display_id) {
+    BYTE const *record;
+    DWORD texture_base;
+    DWORD geoset_base;
+    DWORD flags_field;
+
+    if (!outfit || display_id == 0 || display_id == 0xffffffffu) {
+        return;
+    }
+    record = M2_DbcFindID(&m2_item_display_info_dbc,
+                          "DBFilesClient\\ItemDisplayInfo.dbc",
+                          display_id);
+    if (!record) {
+        return;
+    }
+
+    texture_base = M2_ItemDisplayInfoTextureBase(&m2_item_display_info_dbc);
+    geoset_base = M2_ItemDisplayInfoGeosetBase(&m2_item_display_info_dbc);
+    flags_field = M2_ItemDisplayInfoFlagsField(&m2_item_display_info_dbc);
+
+    FOR_LOOP(i, 3) {
+        DWORD geoset_group = M2_DbcField(&m2_item_display_info_dbc, record, geoset_base + i);
+        if (geoset_group) {
+            outfit->geoset_group[i] = geoset_group;
+        }
+    }
+    outfit->flags |= M2_DbcField(&m2_item_display_info_dbc, record, flags_field);
+    FOR_LOOP(i, M2_CHAR_TEX_COUNT) {
+        LPCSTR texture = M2_DbcString(&m2_item_display_info_dbc,
+                                      M2_DbcField(&m2_item_display_info_dbc, record, texture_base + i));
+        if (texture && *texture) {
+            outfit->texture[i] = texture;
+        }
+    }
+}
+
+static void M2_AddDisplayInfoListToOutfit(m2CharacterOutfit_t *outfit,
+                                          DWORD const *display_ids,
+                                          DWORD display_count) {
+    FOR_LOOP(i, display_count) {
+        M2_AddDisplayInfoToOutfit(outfit, display_ids[i]);
+    }
+}
+
+typedef struct {
+    DWORD display_ids[4];
+} m2EquipmentItem_t;
+
+typedef struct {
+    DWORD race_id;
+    DWORD gender_id;
+    m2EquipmentItem_t items[256];
+} m2EquipmentSlotItems_t;
+
+static m2EquipmentItem_t const *M2_EquipmentSlotItem(m2EquipmentSlotItems_t const *lists,
+                                                    DWORD list_count,
+                                                    DWORD race_id,
+                                                    DWORD gender_id,
+                                                    BYTE item_index) {
+    FOR_LOOP(i, list_count) {
+        if (lists[i].race_id == race_id && lists[i].gender_id == gender_id) {
+            return &lists[i].items[item_index];
+        }
+    }
+    return NULL;
+}
+
+static void M2_AddEquipmentItemToOutfit(m2CharacterOutfit_t *outfit,
+                                        m2EquipmentSlotItems_t const *lists,
+                                        DWORD list_count,
+                                        DWORD race_id,
+                                        DWORD gender_id,
+                                        BYTE item_index) {
+    m2EquipmentItem_t const *item = M2_EquipmentSlotItem(lists, list_count, race_id, gender_id, item_index);
+
+    if (!outfit || !item) {
+        return;
+    }
+    M2_AddDisplayInfoListToOutfit(outfit,
+                                  item->display_ids,
+                                  sizeof(item->display_ids) / sizeof(item->display_ids[0]));
+}
+
+static void M2_ApplyEquipmentItems(m2CharacterOutfit_t *outfit,
+                                   DWORD race_id,
+                                   DWORD gender_id,
+                                   DWORD equipment) {
+    static m2EquipmentSlotItems_t const upper_body_items[] = {
+        { 2, 0, { [1] = { { 27274, 0, 0, 0 } } } }
+    };
+    static m2EquipmentSlotItems_t const lower_body_items[] = {
+        { 2, 0, { [1] = { { 27275, 0, 0, 0 } } } }
+    };
+    static m2EquipmentSlotItems_t const hand_items[] = {
+        { 2, 0, { [1] = { { 27271, 0, 0, 0 } } } }
+    };
+    static m2EquipmentSlotItems_t const foot_items[] = {
+        { 2, 0, { [1] = { { 27270, 0, 0, 0 } } } }
+    };
+    wowEquipment_t items = Wow_UnpackEquipment(equipment);
+
+    M2_AddEquipmentItemToOutfit(outfit, upper_body_items,
+                                sizeof(upper_body_items) / sizeof(upper_body_items[0]),
+                                race_id, gender_id, items.upperBodyItem);
+    M2_AddEquipmentItemToOutfit(outfit, lower_body_items,
+                                sizeof(lower_body_items) / sizeof(lower_body_items[0]),
+                                race_id, gender_id, items.lowerBodyItem);
+    M2_AddEquipmentItemToOutfit(outfit, hand_items,
+                                sizeof(hand_items) / sizeof(hand_items[0]),
+                                race_id, gender_id, items.handItem);
+    M2_AddEquipmentItemToOutfit(outfit, foot_items,
+                                sizeof(foot_items) / sizeof(foot_items[0]),
+                                race_id, gender_id, items.footItem);
+}
+
+static BOOL M2_CharacterStartOutfit(LPCSTR model_path,
+                                    DWORD appearance,
+                                    m2CharacterOutfit_t *outfit) {
+    DWORD race_id;
+    DWORD gender_id;
+    DWORD class_id;
+    wowAppearance_t unpacked;
+
+    if (!outfit || !M2_CharacterRaceGender(model_path, &race_id, &gender_id) ||
+        !M2_DbcLoad(&m2_char_start_outfit_dbc, "DBFilesClient\\CharStartOutfit.dbc")) {
+        return false;
+    }
+
+    memset(outfit, 0, sizeof(*outfit));
+    unpacked = Wow_UnpackAppearance(appearance);
+    class_id = unpacked.classID ? unpacked.classID : 1;
+
+    FOR_LOOP(record_index, m2_char_start_outfit_dbc.records) {
+        BYTE const *record = m2_char_start_outfit_dbc.records_base + record_index * m2_char_start_outfit_dbc.record_size;
+        DWORD race_class_gender = M2_DbcField(&m2_char_start_outfit_dbc, record, 1);
+        DWORD record_race = race_class_gender & 0xff;
+        DWORD record_class = (race_class_gender >> 8) & 0xff;
+        DWORD record_gender = (race_class_gender >> 16) & 0xff;
+
+        if (record_race != race_id || record_class != class_id || record_gender != gender_id) {
+            continue;
+        }
+        FOR_LOOP(i, 12) {
+            M2_AddDisplayInfoToOutfit(outfit, M2_DbcField(&m2_char_start_outfit_dbc, record, 14 + i));
+        }
+        return true;
+    }
+    return false;
+}
+
+static m2CharacterOutfit_t const *M2_CharacterOutfitForEntity(m2Model_t const *model,
+                                                              renderEntity_t const *entity) {
+    m2Model_t *mutable_model;
+    DWORD race_id;
+    DWORD gender_id;
+
+    if (!model || !entity || !model->character_model) {
+        return NULL;
+    }
+    if (!M2_CharacterRaceGender(model->filename, &race_id, &gender_id)) {
+        return NULL;
+    }
+
+    mutable_model = (m2Model_t *)model;
+    if (mutable_model->character_outfit_resolved &&
+        mutable_model->character_outfit_appearance == entity->appearance &&
+        mutable_model->character_outfit_equipment == entity->equipment) {
+        return mutable_model->character_outfit_valid ? &mutable_model->character_outfit : NULL;
+    }
+
+    mutable_model->character_outfit_appearance = entity->appearance;
+    mutable_model->character_outfit_equipment = entity->equipment;
+    mutable_model->character_outfit_resolved = true;
+    mutable_model->character_outfit_valid = false;
+    if (!M2_CharacterStartOutfit(model->filename, entity->appearance, &mutable_model->character_outfit)) {
+        return NULL;
+    }
+    M2_ApplyEquipmentItems(&mutable_model->character_outfit, race_id, gender_id, entity->equipment);
+    mutable_model->character_outfit_valid = true;
+    return &mutable_model->character_outfit;
+}
+
+static BYTE M2_CharacterTextureSlotForSection(WORD section_id) {
+    switch (section_id) {
+        case 401:
+        case 402:
+        case 403:
+        case 404:
+            return M2_CHAR_TEX_HAND;
+        case 501:
+        case 502:
+        case 503:
+        case 504:
+            return M2_CHAR_TEX_FOOT;
+        case 802:
+        case 803:
+            return M2_CHAR_TEX_LOWER_ARM;
+        case 902:
+        case 903:
+            return M2_CHAR_TEX_LOWER_LEG;
+        case 1002:
+            return M2_CHAR_TEX_UPPER_TORSO;
+        case 1102:
+        case 1202:
+            return M2_CHAR_TEX_LOWER_TORSO;
+        case 1302:
+            return M2_CHAR_TEX_UPPER_LEG;
+        default:
+            return M2_CHARACTER_TEXTURE_NONE;
+    }
+}
+
+static BOOL M2_TextureExists(LPCSTR path) {
+    LPBYTE data = NULL;
+    int size;
+
+    if (!path || !*path) {
+        return false;
+    }
+    size = ri.FS_ReadFile(path, (void **)&data);
+    if (size <= 0 || !data) {
+        if (data) {
+            ri.FS_FreeFile(data);
+        }
+        return false;
+    }
+    ri.FS_FreeFile(data);
+    return true;
+}
+
+static BOOL M2_CharacterComponentTexturePath(LPCSTR stem,
+                                             BYTE slot,
+                                             LPCSTR model_path,
+                                             LPSTR out,
+                                             DWORD out_size) {
+    static LPCSTR const folders[M2_CHAR_TEX_COUNT] = {
+        "ArmUpperTexture",
+        "ArmLowerTexture",
+        "HandTexture",
+        "TorsoUpperTexture",
+        "TorsoLowerTexture",
+        "LegUpperTexture",
+        "LegLowerTexture",
+        "FootTexture"
+    };
+    DWORD race_id;
+    DWORD gender_id;
+    LPCSTR gender_suffix;
+    PATHSTR candidate;
+
+    if (!stem || !*stem || slot >= M2_CHAR_TEX_COUNT || !out || out_size == 0) {
+        return false;
+    }
+    gender_suffix = M2_CharacterRaceGender(model_path, &race_id, &gender_id) && gender_id ? "F" : "M";
+
+    snprintf(candidate, sizeof(candidate), "Item\\TextureComponents\\%s\\%s_%s.blp",
+             folders[slot], stem, gender_suffix);
+    if (M2_TextureExists(candidate)) {
+        snprintf(out, out_size, "%s", candidate);
+        return true;
+    }
+    snprintf(candidate, sizeof(candidate), "Item\\TextureComponents\\%s\\%s_U.blp",
+             folders[slot], stem);
+    if (M2_TextureExists(candidate)) {
+        snprintf(out, out_size, "%s", candidate);
+        return true;
+    }
+    snprintf(out, out_size, "Item\\TextureComponents\\%s\\%s_%s.blp",
+             folders[slot], stem, gender_suffix);
+    return true;
+}
+
+static BOOL M2_TexturePixels(LPTEXTURE texture, LPCOLOR32 *pixels) {
+    if (!texture || !texture->texid || !texture->width || !texture->height || !pixels) {
+        return false;
+    }
+    *pixels = ri.MemAlloc(sizeof(COLOR32) * texture->width * texture->height);
+    if (!*pixels) {
+        return false;
+    }
+    R_Call(glBindTexture, GL_TEXTURE_2D, texture->texid);
+#if __linux__
+    R_Call(glGetTexImage, GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, *pixels);
+#else
+    R_Call(glGetTexImage, GL_TEXTURE_2D, 0, GL_BGRA, GL_UNSIGNED_BYTE, *pixels);
+#endif
+    return true;
+}
+
+static void M2_BlendPixel(LPCOLOR32 dst, COLOR32 src) {
+    DWORD inv;
+
+    if (src.a == 0) {
+        return;
+    }
+    if (src.a >= 250) {
+        *dst = src;
+        return;
+    }
+    inv = 255 - src.a;
+    dst->b = (BYTE)((src.b * src.a + dst->b * inv) / 255);
+    dst->g = (BYTE)((src.g * src.a + dst->g * inv) / 255);
+    dst->r = (BYTE)((src.r * src.a + dst->r * inv) / 255);
+    dst->a = (BYTE)MIN(255, src.a + (dst->a * inv) / 255);
+}
+
+static void M2_PasteComponent(LPCOLOR32 dst,
+                              DWORD dst_width,
+                              DWORD dst_height,
+                              LPCOLOR32 src,
+                              DWORD src_width,
+                              DWORD src_height,
+                              DWORD x,
+                              DWORD y,
+                              DWORD w,
+                              DWORD h) {
+    if (!dst || !src || !dst_width || !dst_height || !src_width || !src_height ||
+        x >= dst_width || y >= dst_height) {
+        return;
+    }
+    w = MIN(w, dst_width - x);
+    h = MIN(h, dst_height - y);
+    FOR_LOOP(row, h) {
+        DWORD src_y = row * src_height / h;
+        FOR_LOOP(col, w) {
+            DWORD src_x = col * src_width / w;
+            M2_BlendPixel(&dst[(y + row) * dst_width + x + col],
+                          src[src_y * src_width + src_x]);
+        }
+    }
+}
+
+static void M2_PasteOutfitComponent(LPCOLOR32 pixels,
+                                    DWORD width,
+                                    DWORD height,
+                                    LPCSTR model_path,
+                                    m2CharacterOutfit_t const *outfit,
+                                    BYTE slot) {
+    enum { character_component_atlas_size = 512 };
+    static DWORD const rects[M2_CHAR_TEX_COUNT][4] = {
+        { 0,   0,   256, 128 },
+        { 0,   128, 256, 128 },
+        { 0,   256, 256, 64  },
+        { 256, 0,   256, 128 },
+        { 256, 128, 256, 64  },
+        { 256, 192, 256, 128 },
+        { 256, 320, 256, 128 },
+        { 256, 448, 256, 64  }
+    };
+    PATHSTR texture_path;
+    LPTEXTURE texture;
+    LPCOLOR32 component_pixels = NULL;
+    DWORD dst_x;
+    DWORD dst_y;
+    DWORD dst_w;
+    DWORD dst_h;
+
+    if (!outfit || slot >= M2_CHAR_TEX_COUNT ||
+        !M2_CharacterComponentTexturePath(outfit->texture[slot], slot, model_path, texture_path, sizeof(texture_path))) {
+        return;
+    }
+    texture = R_LoadTexture(texture_path);
+    if (!texture || !M2_TexturePixels(texture, &component_pixels)) {
+        SAFE_DELETE(texture, R_ReleaseTexture);
+        return;
+    }
+    dst_x = rects[slot][0] * width / character_component_atlas_size;
+    dst_y = rects[slot][1] * height / character_component_atlas_size;
+    dst_w = MAX(1u, rects[slot][2] * width / character_component_atlas_size);
+    dst_h = MAX(1u, rects[slot][3] * height / character_component_atlas_size);
+    M2_PasteComponent(pixels,
+                      width,
+                      height,
+                      component_pixels,
+                      texture->width,
+                      texture->height,
+                      dst_x,
+                      dst_y,
+                      dst_w,
+                      dst_h);
+    ri.MemFree(component_pixels);
+    R_ReleaseTexture(texture);
 }
 
 static BOOL M2_DefaultCharacterTexturePath(LPCSTR model_path,
@@ -1284,15 +1876,13 @@ static void M2_UploadBatchBones(m2Model_t const *model, m2ModelBatch_t const *ba
     R_Call(glUniformMatrix4fv, shader->uBones, M2_MAX_BONES_PER_BATCH, GL_FALSE, palette[0].v);
 }
 
-static BOOL M2_CommonOrcMaleSectionTexture(WORD section_id, LPSTR out, DWORD out_size);
-
 static LPTEXTURE M2_TextureForBatch(BYTE const *m2_data,
                                     DWORD m2_size,
                                     m2GeometryInfo_t const *geom,
                                     m2Batch_t const *batch,
                                     LPCSTR modelFilename,
-                                    WORD section_id,
-                                    BOOL use_texture_lookup) {
+                                    BOOL use_texture_lookup,
+                                    DWORD *texture_type_out) {
     SHORT const *texture_lookup;
     m2TextureDisk_t const *texture;
     SHORT texture_index;
@@ -1300,11 +1890,10 @@ static LPTEXTURE M2_TextureForBatch(BYTE const *m2_data,
     PATHSTR replacement_path;
 
     if (!geom || !batch || batch->texture_count == 0) {
+        if (texture_type_out) {
+            *texture_type_out = 0;
+        }
         return tr.texture[TEX_WHITE];
-    }
-
-    if (M2_CommonOrcMaleSectionTexture(section_id, replacement_path, sizeof(replacement_path))) {
-        return R_LoadTexture(replacement_path);
     }
 
     if (use_texture_lookup) {
@@ -1317,12 +1906,21 @@ static LPTEXTURE M2_TextureForBatch(BYTE const *m2_data,
         texture_index = (SHORT)batch->texture_combo_index;
     }
     if (texture_index < 0 || texture_index >= geom->textures.size) {
+        if (texture_type_out) {
+            *texture_type_out = 0;
+        }
         return tr.texture[TEX_WHITE];
     }
 
     texture = M2_ArrayPtr(m2_data, m2_size, geom->textures, sizeof(*texture));
     if (!texture) {
+        if (texture_type_out) {
+            *texture_type_out = 0;
+        }
         return tr.texture[TEX_WHITE];
+    }
+    if (texture_type_out) {
+        *texture_type_out = texture[texture_index].type;
     }
 
     texture_path = M2_StringPtr(m2_data, m2_size, texture[texture_index].filename);
@@ -1339,51 +1937,6 @@ static LPTEXTURE M2_TextureForBatch(BYTE const *m2_data,
         return tr.texture[TEX_WHITE];
     }
     return R_LoadTexture(texture_path);
-}
-
-static BOOL M2_CommonOrcMaleSectionTexture(WORD section_id, LPSTR out, DWORD out_size) {
-    LPCSTR texture_path = NULL;
-
-    switch (section_id) {
-        case 401:
-        case 402:
-        case 403:
-        case 404:
-            texture_path = "Item\\TextureComponents\\HandTexture\\Cloth_A_01Brown_Glove_HA_U.blp";
-            break;
-        case 501:
-        case 502:
-        case 503:
-        case 504:
-            texture_path = "Item\\TextureComponents\\FootTexture\\Cloth_A_01Brown_Boot_FO_M.blp";
-            break;
-        case 802:
-        case 803:
-            texture_path = "Item\\TextureComponents\\ArmLowerTexture\\Cloth_A_01Brown_Sleeve_AL_U.blp";
-            break;
-        case 902:
-        case 903:
-            texture_path = "Item\\TextureComponents\\LegLowerTexture\\Cloth_A_01Brown_Pant_LL_M.blp";
-            break;
-        case 1002:
-            texture_path = "Item\\TextureComponents\\TorsoUpperTexture\\Cloth_A_01Brown_Chest_TU_M.blp";
-            break;
-        case 1102:
-        case 1202:
-            texture_path = "Item\\TextureComponents\\TorsoLowerTexture\\Cloth_A_01Brown_Chest_TL_M.blp";
-            break;
-        case 1302:
-            texture_path = "Item\\TextureComponents\\LegUpperTexture\\Cloth_A_01Brown_Pant_LU_M.blp";
-            break;
-        default:
-            break;
-    }
-
-    if (!texture_path || !out || out_size == 0) {
-        return false;
-    }
-    snprintf(out, out_size, "%s", texture_path);
-    return true;
 }
 
 static BOOL M2_SkinPath(LPCSTR model_path, LPSTR out, DWORD out_size) {
@@ -1485,10 +2038,18 @@ static void M2_AddBatch(m2Model_t *model,
     render_batch = ri.MemAlloc(sizeof(*render_batch));
     memset(render_batch, 0, sizeof(*render_batch));
     render_batch->buffer = R_MakeVertexArrayObject(vertices, index_count);
-    render_batch->texture = M2_TextureForBatch(m2_data, m2_size, geom, batch, modelFilename, section_id, use_texture_lookup);
+    render_batch->texture = M2_TextureForBatch(m2_data,
+                                               m2_size,
+                                               geom,
+                                               batch,
+                                               modelFilename,
+                                               use_texture_lookup,
+                                               &render_batch->texture_type);
     render_batch->num_vertices = index_count;
     render_batch->bone_count = bone_count;
     render_batch->bone_combo_index = bone_combo_index;
+    render_batch->section_id = section_id;
+    render_batch->character_texture_slot = M2_CharacterTextureSlotForSection(section_id);
     ADD_TO_LIST(render_batch, model->batches);
     model->num_batches++;
     ri.MemFree(vertices);
@@ -1625,31 +2186,43 @@ static BOOL M2_IsCharacterModelPath(LPCSTR model_path) {
            (gender_len == 6 && !strncasecmp(gender, "Female", 6));
 }
 
-static BOOL M2_DefaultCharacterGeosetVisible(WORD section_id) {
-    static WORD const common_orc_male_outfit[] = {
-        0,    /* base body */
-        401,  /* simple gloves */
-        501,  /* simple boots */
-        702,  /* ears */
-        802,  /* bracers */
-        902,  /* lower-leg clothing */
-        1002, /* chest */
-        1102, /* lower chest */
-        1202, /* shirt/tabard layer */
-        1302, /* belt/upper-leg layer */
-        1501  /* normal pelvis shape */
-    };
-
-    if (section_id < 400) {
+static BOOL M2_CharacterGeosetVisible(m2Model_t const *model,
+                                      m2CharacterOutfit_t const *outfit,
+                                      WORD section_id) {
+    if (!model || !model->character_model || section_id < 400) {
         return true;
     }
-
-    FOR_LOOP(i, sizeof(common_orc_male_outfit) / sizeof(common_orc_male_outfit[0])) {
-        if (section_id == common_orc_male_outfit[i]) {
-            return true;
-        }
+    if (!outfit) {
+        return section_id == 401 || section_id == 702 || section_id == 1501;
     }
-    return false;
+
+    switch (section_id / 100) {
+        case 4:
+            return section_id == 401;
+        case 5:
+            return section_id == 501;
+        case 7:
+            return section_id == 702;
+        case 8:
+            return section_id == 802;
+        case 9:
+            return section_id == 902;
+        case 10:
+            return false;
+        case 11:
+            return false;
+        case 12:
+            return false;
+        case 13:
+            if (outfit->flags & 0x4) {
+                return false;
+            }
+            return section_id == 1301;
+        case 15:
+            return section_id == 1501;
+        default:
+            return false;
+    }
 }
 
 static void M2_FreeModelData(m2Model_t *model) {
@@ -1749,7 +2322,7 @@ m2Model_t *R_LoadModelM2(LPCSTR modelFilename, void *buffer, DWORD size) {
     DWORD skin_vertex_count;
     DWORD skin_index_count;
     BOOL using_legacy_view = false;
-    BOOL filter_character_geosets;
+    BOOL character_model;
 
     if (!buffer || size < sizeof(DWORD)) {
         return M2_CreateFallbackModel(modelFilename, "missing model data");
@@ -1841,11 +2414,13 @@ m2Model_t *R_LoadModelM2(LPCSTR modelFilename, void *buffer, DWORD size) {
 
     model = ri.MemAlloc(sizeof(*model));
     memset(model, 0, sizeof(*model));
+    snprintf(model->filename, sizeof(model->filename), "%s", modelFilename ? modelFilename : "");
     model->bounds = (BOX3){ geom.bounding_box.min, geom.bounding_box.max };
     model->has_geometry_bounds = M2_CalculateGeometryBounds(m2_vertices,
                                                             (DWORD)geom.vertices.size,
                                                             &model->geometry_bounds);
-    filter_character_geosets = M2_IsCharacterModelPath(modelFilename);
+    character_model = M2_IsCharacterModelPath(modelFilename);
+    model->character_model = character_model;
     if (!M2_CopyModelData(model, m2_base, m2_size, using_legacy_view)) {
         if (skin_data) {
             ri.FS_FreeFile(skin_data);
@@ -1871,9 +2446,6 @@ m2Model_t *R_LoadModelM2(LPCSTR modelFilename, void *buffer, DWORD size) {
                                 &index_count,
                                 &bone_count,
                                 &bone_combo_index)) {
-            continue;
-        }
-        if (filter_character_geosets && !M2_DefaultCharacterGeosetVisible(section_id)) {
             continue;
         }
         M2_AddBatch(model,
@@ -1907,8 +2479,67 @@ m2Model_t *R_LoadModelM2(LPCSTR modelFilename, void *buffer, DWORD size) {
     return model;
 }
 
+static LPTEXTURE M2_CharacterTextureForBatch(m2Model_t const *model,
+                                             renderEntity_t const *entity,
+                                             m2ModelBatch_t *batch,
+                                             m2CharacterOutfit_t const *outfit) {
+    m2Model_t *mutable_model;
+    DWORD key;
+    LPCOLOR32 pixels = NULL;
+    LPTEXTURE base_texture = NULL;
+
+    if (!model || !entity || !batch || !model->character_model || batch->texture_type != 1) {
+        return batch ? batch->texture : tr.texture[TEX_WHITE];
+    }
+
+    mutable_model = (m2Model_t *)model;
+    key = entity->appearance ^ (entity->equipment * 16777619u);
+    if (mutable_model->character_composite && mutable_model->character_composite_key == key) {
+        return mutable_model->character_composite;
+    }
+
+    if (mutable_model->character_composite) {
+        R_ReleaseTexture(mutable_model->character_composite);
+    }
+    mutable_model->character_composite = NULL;
+    mutable_model->character_composite_key = key;
+
+    if (!outfit) {
+        return batch->texture;
+    }
+
+    for (m2ModelBatch_t *it = mutable_model->batches; it; it = it->next) {
+        if (it->texture_type == 1 && it->texture) {
+            base_texture = it->texture;
+            break;
+        }
+    }
+    if (!base_texture || !M2_TexturePixels(base_texture, &pixels)) {
+        return batch->texture;
+    }
+
+    FOR_LOOP(slot, M2_CHAR_TEX_COUNT) {
+        M2_PasteOutfitComponent(pixels,
+                                base_texture->width,
+                                base_texture->height,
+                                model->filename,
+                                outfit,
+                                (BYTE)slot);
+    }
+
+    mutable_model->character_composite = R_AllocateTexture(base_texture->width, base_texture->height);
+    R_LoadTextureMipLevel(mutable_model->character_composite,
+                          0,
+                          pixels,
+                          base_texture->width,
+                          base_texture->height);
+    ri.MemFree(pixels);
+    return mutable_model->character_composite ? mutable_model->character_composite : batch->texture;
+}
+
 void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, LPCMATRIX4 transform) {
     MATRIX3 normal_matrix;
+    m2CharacterOutfit_t const *outfit = NULL;
     m2ModelBatch_t *batch;
     LPSHADER shader;
 
@@ -1921,6 +2552,7 @@ void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, LPCMAT
 
     shader = M2_Shader();
     M2_CalculateBoneMatrices(model, entity);
+    outfit = M2_CharacterOutfitForEntity(model, entity);
     Matrix3_normal(&normal_matrix, transform);
     R_Call(glUseProgram, shader->progid);
     R_Call(glUniformMatrix4fv, shader->uViewProjectionMatrix, 1, GL_FALSE, tr.viewDef.viewProjectionMatrix.v);
@@ -1933,8 +2565,14 @@ void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, LPCMAT
     R_Call(glDisable, GL_BLEND);
 
     for (batch = model->batches; batch; batch = batch->next) {
+        LPTEXTURE texture;
+
+        if (!M2_CharacterGeosetVisible(model, outfit, batch->section_id)) {
+            continue;
+        }
+        texture = M2_CharacterTextureForBatch(model, entity, batch, outfit);
         M2_UploadBatchBones(model, batch, shader);
-        R_BindTexture(batch->texture ? batch->texture : tr.texture[TEX_WHITE], 0);
+        R_BindTexture(texture ? texture : tr.texture[TEX_WHITE], 0);
 #ifdef USE_SHADOWMAPS
         R_BindTexture(tr.texture[TEX_SHADOWMAP], 1);
 #endif
@@ -2019,9 +2657,20 @@ void M2_Release(m2Model_t *model) {
     while (batch) {
         m2ModelBatch_t *next = batch->next;
         R_ReleaseVertexArrayObject(batch->buffer);
+        if (batch->character_texture) {
+            R_ReleaseTexture(batch->character_texture);
+        }
         ri.MemFree(batch);
         batch = next;
     }
+    if (model->character_composite) {
+        R_ReleaseTexture(model->character_composite);
+    }
     M2_FreeModelData(model);
     ri.MemFree(model);
+}
+
+void M2_Shutdown(void) {
+    M2_DbcShutdown(&m2_char_start_outfit_dbc);
+    M2_DbcShutdown(&m2_item_display_info_dbc);
 }

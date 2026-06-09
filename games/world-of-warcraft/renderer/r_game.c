@@ -13,6 +13,7 @@ void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, LPCMAT
 BOOL M2_AttachmentMatrix(m2Model_t const *model, DWORD attachment_id, LPCMATRIX4 model_matrix, LPMATRIX4 out);
 FLOAT M2_GroundOffset(m2Model_t const *model);
 void M2_Release(m2Model_t *model);
+void M2_Shutdown(void);
 
 static BOOL R_GamePathHasExtension(LPCSTR path, LPCSTR extension) {
     size_t pathLen;
@@ -36,6 +37,7 @@ void R_GameInit(void) {
 }
 
 void R_GameShutdown(void) {
+    M2_Shutdown();
 }
 
 void R_GameSetupTextureMatrix(void) {
@@ -137,7 +139,8 @@ bool R_GameEntityMatrix(renderEntity_t const *entity, LPMATRIX4 matrix) {
     Matrix4_identity(matrix);
     Matrix4_translate(matrix, &origin);
     if (entity->flags & RF_GROUND_ANCHOR) {
-        Matrix4_rotate(matrix, &(VECTOR3){ 0.0f, 0.0f, entity->rotation.x + 180.0f }, ROTATE_XYZ);
+        /* Dynamic grounded actors share the Warcraft III one-dimensional yaw path. */
+        Matrix4_rotate(matrix, &(VECTOR3){ 0.0f, 0.0f, (entity->angle * 180.0f / (FLOAT)M_PI) + 180.0f }, ROTATE_XYZ);
     }
 
     Matrix4_identity(&adt_to_world_basis);

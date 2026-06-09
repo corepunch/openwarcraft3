@@ -18,9 +18,16 @@ typedef struct {
 } testModel_t;
 
 static testModel_t test_models[32];
+static testModel_t test_images[32];
 static DWORD test_num_models;
+static DWORD test_num_images;
 static DWORD test_clear_world_calls;
 static DWORD test_apply_lobby_calls;
+static BYTE test_multicast_buf[MAX_MSGLEN];
+static BYTE test_last_unicast_buf[MAX_MSGLEN];
+static DWORD test_multicast_size;
+static DWORD test_last_unicast_size;
+static DWORD test_unicast_calls;
 static char test_last_error[512];
 
 static animation_t test_animations[] = {
@@ -222,6 +229,19 @@ static int test_model_index(LPCSTR model_name) {
     return (int)test_num_models;
 }
 
+static int test_image_index(LPCSTR image_name) {
+    FOR_LOOP(i, test_num_images) {
+        if (!strcasecmp(test_images[i].name, image_name)) {
+            return test_images[i].index;
+        }
+    }
+    ASSERT(test_num_images < sizeof(test_images) / sizeof(test_images[0]));
+    strncpy(test_images[test_num_images].name, image_name, sizeof(test_images[0].name) - 1);
+    test_images[test_num_images].index = (int)test_num_images + 1;
+    test_num_images++;
+    return (int)test_num_images;
+}
+
 static void test_clear_world(void) {
     test_clear_world_calls++;
 }
@@ -239,6 +259,45 @@ static void test_error(LPCSTR fmt, ...) {
     va_end(args);
 }
 
+static void test_write_data(void const *data, DWORD size) {
+    if (!data || test_multicast_size + size > sizeof(test_multicast_buf)) {
+        return;
+    }
+    memcpy(test_multicast_buf + test_multicast_size, data, size);
+    test_multicast_size += size;
+}
+
+static void test_write(pfWriteType_t type, void const *value) {
+    BYTE b;
+    SHORT s;
+    LPCSTR text;
+
+    switch (type) {
+        case PF_BYTE:
+            b = (BYTE)*(LONG const *)value;
+            test_write_data(&b, sizeof(b));
+            break;
+        case PF_SHORT:
+            s = (SHORT)*(LONG const *)value;
+            test_write_data(&s, sizeof(s));
+            break;
+        case PF_STRING:
+            text = value ? (LPCSTR)value : "";
+            test_write_data(text, (DWORD)strlen(text) + 1);
+            break;
+        default:
+            break;
+    }
+}
+
+static void test_unicast(LPEDICT ent) {
+    (void)ent;
+    test_unicast_calls++;
+    test_last_unicast_size = test_multicast_size;
+    memcpy(test_last_unicast_buf, test_multicast_buf, test_last_unicast_size);
+    test_multicast_size = 0;
+}
+
 static struct game_import test_import(void) {
     struct game_import import;
 
@@ -246,9 +305,12 @@ static struct game_import test_import(void) {
     import.MemAlloc = test_mem_alloc;
     import.MemFree = test_mem_free;
     import.ModelIndex = test_model_index;
+    import.ImageIndex = test_image_index;
     import.ReadFile = test_read_file;
     import.ClearWorld = test_clear_world;
     import.ApplyLobbySettings = test_apply_lobby_settings;
+    import.Write = test_write;
+    import.unicast = test_unicast;
     import.error = test_error;
     return import;
 }
@@ -287,10 +349,55 @@ void PF_TextRemoveComments(LPSTR buffer) {
 
 static void reset_test_state(void) {
     memset(test_models, 0, sizeof(test_models));
+    memset(test_images, 0, sizeof(test_images));
     test_num_models = 0;
+    test_num_images = 0;
     test_clear_world_calls = 0;
     test_apply_lobby_calls = 0;
+    memset(test_multicast_buf, 0, sizeof(test_multicast_buf));
+    test_multicast_size = 0;
+    memset(test_last_unicast_buf, 0, sizeof(test_last_unicast_buf));
+    test_last_unicast_size = 0;
+    test_unicast_calls = 0;
     memset(test_last_error, 0, sizeof(test_last_error));
+}
+
+static void assert_player_ui_payload(void) {
+    DWORD cursor = 0;
+    int num_buttons;
+    int num_inventory;
+
+    ASSERT(test_last_unicast_size > 0);
+    ASSERT_EQ_INT(test_last_unicast_buf[cursor++], svc_unit_ui);
+    ASSERT_EQ_INT(test_last_unicast_buf[cursor++], 1);
+    ASSERT_EQ_INT((SHORT)(test_last_unicast_buf[cursor] | (test_last_unicast_buf[cursor + 1] << 8)), 0);
+    cursor += 2;
+    num_buttons = test_last_unicast_buf[cursor++];
+    ASSERT_EQ_INT(num_buttons, WOW_UI_ACTION_SLOTS);
+    ASSERT_STR_EQ((LPCSTR)test_last_unicast_buf + cursor, "Interface\\Icons\\Ability_Warrior_Cleave.blp");
+    cursor += (DWORD)strlen((LPCSTR)test_last_unicast_buf + cursor) + 1;
+    ASSERT_STR_EQ((LPCSTR)test_last_unicast_buf + cursor, "Attack");
+    cursor += (DWORD)strlen((LPCSTR)test_last_unicast_buf + cursor) + 1;
+    ASSERT_STR_EQ((LPCSTR)test_last_unicast_buf + cursor, "1");
+    cursor += (DWORD)strlen((LPCSTR)test_last_unicast_buf + cursor) + 1;
+    ASSERT_STR_EQ((LPCSTR)test_last_unicast_buf + cursor, "wow_action 0");
+    cursor += (DWORD)strlen((LPCSTR)test_last_unicast_buf + cursor) + 1;
+    ASSERT_EQ_INT(test_last_unicast_buf[cursor++], '1');
+    for (int i = 1; i < num_buttons; i++) {
+        FOR_LOOP(j, 4) {
+            cursor += (DWORD)strlen((LPCSTR)test_last_unicast_buf + cursor) + 1;
+        }
+        cursor++;
+    }
+    num_inventory = test_last_unicast_buf[cursor++];
+    ASSERT_EQ_INT(num_inventory, WOW_UI_INVENTORY_SLOTS);
+    ASSERT_STR_EQ((LPCSTR)test_last_unicast_buf + cursor, "Interface\\Icons\\INV_Misc_Bag_08.blp");
+    cursor += (DWORD)strlen((LPCSTR)test_last_unicast_buf + cursor) + 1;
+    ASSERT_STR_EQ((LPCSTR)test_last_unicast_buf + cursor, "Backpack");
+    cursor += (DWORD)strlen((LPCSTR)test_last_unicast_buf + cursor) + 1;
+    ASSERT_STR_EQ((LPCSTR)test_last_unicast_buf + cursor, "1");
+    cursor += (DWORD)strlen((LPCSTR)test_last_unicast_buf + cursor) + 1;
+    ASSERT_EQ_INT(test_last_unicast_buf[cursor++], 0);
 }
 
 static struct game_export *init_game(void) {
@@ -328,13 +435,26 @@ static void test_wow_load_map_initializes_player_state(void) {
     ASSERT_EQ_FLOAT(player->client->ps.origin.x, 123.25f, 0.001f);
     ASSERT_EQ_FLOAT(player->client->ps.origin.y, -456.5f, 0.001f);
     ASSERT_EQ_INT((int)player->client->ps.client_ui_state, CLIENT_UI_GAME);
+    ASSERT_STR_EQ(player->client->ps.name, "Thrall");
+    ASSERT_EQ_INT((int)player->client->ps.stats[WOW_STAT_HEALTH], 100);
+    ASSERT_EQ_INT((int)player->client->ps.stats[WOW_STAT_HEALTH_MAX], 100);
+    ASSERT_EQ_INT((int)player->client->ps.stats[WOW_STAT_POWER], 42);
+    ASSERT_EQ_INT((int)test_num_images, 0);
+    ASSERT_EQ_INT((int)test_unicast_calls, 0);
+    ASSERT_NOT_NULL(game->ClientBegin);
+    game->ClientBegin(player);
+    ASSERT(test_unicast_calls > 0);
+    assert_player_ui_payload();
     ASSERT_STR_EQ(player->client->ps.texts[PLAYERTEXT_MAP_TITLE], "Elwynn Test");
     ASSERT_STR_EQ(player->client->ps.texts[PLAYERTEXT_MAP_PREVIEW],
                   "Interface\\Glues\\LoadingScreens\\LoadScreenTest.blp");
     ASSERT(player->s.model > 0);
     ASSERT(player->s.model2 > 0);
+    ASSERT_EQ_FLOAT(player->s.angle, 0.0f, 0.001f);
     ASSERT_EQ_INT((int)player->s.appearance,
                   (int)Wow_PackAppearance(0, 0, 0, 0, 0, WOW_CLASS_WARRIOR, 0));
+    ASSERT_EQ_INT((int)player->s.equipment,
+                  (int)Wow_PackEquipment(1, 1, 1, 1));
 
     if (game->Shutdown) {
         game->Shutdown();

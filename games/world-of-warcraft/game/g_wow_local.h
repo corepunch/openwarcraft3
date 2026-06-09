@@ -2,6 +2,7 @@
 #define G_WOW_LOCAL_H
 
 #include "server/server.h"
+#include "common/wow_ui_shared.h"
 
 #define WOW_MAX_CLIENTS 1
 #define WOW_MAX_EDICTS 128
@@ -53,10 +54,24 @@ typedef struct {
     LPEDICT enemy;
 } wowEntityLocal_t;
 
+typedef struct {
+    char icon[256];
+    char name[64];
+    DWORD count;
+} wowHudIcon_t;
+
+typedef struct {
+    struct client_s client;
+    UINAME name;
+    wowHudIcon_t inventory[WOW_UI_INVENTORY_SLOTS];
+    wowHudIcon_t actions[WOW_UI_ACTION_SLOTS];
+} wowClient_t;
+
 extern struct game_import gi;
 extern struct game_export globals;
 extern edict_t wow_edicts[WOW_MAX_EDICTS];
 extern wowEntityLocal_t wow_entity_locals[WOW_MAX_EDICTS];
+extern wowClient_t wow_clients[WOW_MAX_CLIENTS];
 
 int          G_RegisterModel(LPCSTR filename);
 LPCANIMATION G_GetAnimation(DWORD modelindex, LPCSTR animname);

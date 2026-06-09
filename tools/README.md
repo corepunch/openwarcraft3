@@ -161,10 +161,12 @@ build/bin/mdxtool -mpq "data/Warcraft III/War3.mpq" -model "units\\orc\\Peon\\Pe
 
 ## `m2tool`
 
-M2 model inspector for World of Warcraft assets.
+M2 model viewer and inspector for World of Warcraft assets.
 
-Use it to inspect M2 headers, array offsets, bounds, vertex bounds, texture
-references, embedded/external skin counts, and animation rows.
+Use it to preview M2 models through the WoW renderer, inspect M2 headers, array
+offsets, bounds, vertex bounds, texture references, embedded/external skin
+counts, animation rows, and the player character outfit configuration used by
+the WoW renderer.
 
 Syntax:
 
@@ -174,14 +176,31 @@ build/bin/m2tool -mpq "<archive.mpq>" -model "<file.m2>" [options]
 
 Useful options:
 
-- `--info` print model metadata and exit (default)
+- `--viewer` force viewer mode, which is also the default
+- `--once` render one frame and exit
+- `--info` print model metadata and exit
 - `--dump-all` include animation rows
 - `--skin "<file00.skin>"` inspect an explicit skin file instead of the derived path
+- `--wow-player-config` load `CharStartOutfit.dbc` and `ItemDisplayInfo.dbc`
+  for the model race/gender, print the starting display IDs, component texture
+  paths, and visible/hidden character section IDs in info mode; in viewer mode,
+  pass the same packed appearance/equipment to the render entity
+- `--wow-player-config-only` print only the in-game character outfit/geoset
+  configuration and exit
+- `--appearance <bits>` override the packed WoW appearance bits used by
+  `--wow-player-config`
+- `--equipment <bits>` override the packed WoW equipment bits printed by
+  `--wow-player-config`. Equipment bytes are local slot item indices into
+  race/gender/slot item lists; byte value `0` means empty, while value `1`
+  currently selects DBC-backed Horde plate preview items for Orc male upper
+  body, lower body, hands, and feet.
 
 Example:
 
 ```bash
-build/bin/m2tool -mpq "data/world-of-warcraft/installed/Data/model.MPQ" -model "Character\\Orc\\Male\\OrcMale.m2" --dump-all
+build/bin/m2tool -mpq "data/world-of-warcraft/installed/Data/model.MPQ" -model "Character\\Orc\\Male\\OrcMale.m2"
+build/bin/m2tool -mpq "data/world-of-warcraft/installed/Data/model.MPQ" -model "Character\\Orc\\Male\\OrcMale.m2" --info
+make m2tool-wow-orcmale-player
 ```
 
 ## `maptool`

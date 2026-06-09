@@ -124,6 +124,40 @@ static void Wow_AngleVectors(LPCVECTOR3 angles, LPVECTOR3 forward, LPVECTOR3 rig
 }
 #endif
 
+#ifdef SC2
+static void Matrix4_getSc2CameraMatrix(LPCVECTOR3 origin,
+                                       LPCVECTOR3 angles,
+                                       FLOAT distance,
+                                       FLOAT height_offset,
+                                       FLOAT fov,
+                                       FLOAT aspect,
+                                       FLOAT znear,
+                                       FLOAT zfar,
+                                       LPMATRIX4 output) {
+    FLOAT const pitch = (FLOAT)DEG2RAD(angles && angles->x != 0.0f ? angles->x : 56.0f);
+    FLOAT const yaw = (FLOAT)DEG2RAD(angles && angles->y != 0.0f ? angles->y : 180.0f);
+    FLOAT const horizontal = cosf(pitch);
+    VECTOR3 target = *origin;
+    VECTOR3 dir = {
+        sinf(yaw) * horizontal,
+        cosf(yaw) * horizontal,
+        -sinf(pitch),
+    };
+    VECTOR3 eye;
+    MATRIX4 proj, view;
+
+    distance = distance > 0.0f ? distance : 34.07f;
+    fov = fov > 0.0f ? fov : 27.8f;
+    znear = znear > 0.0f ? znear : 0.1f;
+    zfar = zfar > 0.0f ? zfar : 400.0f;
+    target.z = height_offset;
+    eye = Vector3_sub(&target, &(VECTOR3){ dir.x * distance, dir.y * distance, dir.z * distance });
+    Matrix4_perspective(&proj, fov, aspect, znear, zfar);
+    Matrix4_lookAt(&view, &eye, &dir, &(VECTOR3){ 0.0f, 0.0f, 1.0f });
+    Matrix4_multiply(&proj, &view, output);
+}
+#endif
+
 void Matrix4_getLightMatrix(LPCVECTOR3 sunangles, FLOAT scale, LPMATRIX4 output) {
     MATRIX4 proj, view, tmp1, tmp2;
     viewCamera_t const *a = cl.viewDef.camerastate+1;
@@ -167,7 +201,7 @@ void Matrix4_getCameraMatrix(LPMATRIX4 output) {
     viewCamera_t *a = cl.viewDef.camerastate+1;
     viewCamera_t *b = cl.viewDef.camerastate+0;
     VECTOR3 origin = Vector3_lerp(&a->origin, &b->origin, cl.viewDef.lerpfrac);
-#ifndef WOW
+#if !defined(WOW) && !defined(SC2)
     QUATERNION quat = Quaternion_slerp(&a->viewquat, &b->viewquat, cl.viewDef.lerpfrac);
 #endif
     FLOAT distance = LerpNumber(a->distance, b->distance, cl.viewDef.lerpfrac);
@@ -194,10 +228,17 @@ void Matrix4_getCameraMatrix(LPMATRIX4 output) {
     Matrix4_perspective(&proj, fov, aspect, znear, zfar);
     Matrix4_lookAt(&view, &eye, &forward, &(VECTOR3){ 0.0f, 0.0f, 1.0f });
 #else
+#ifdef SC2
+    (void)proj;
+    (void)view;
+    Matrix4_getSc2CameraMatrix(&origin, &b->viewangles, distance, CM_GetCameraHeightOffset(), fov, aspect, znear, zfar, output);
+    return;
+#else
     origin.z = CM_GetHeightAtPoint(origin.x, origin.y) - 128;
 
     Matrix4_perspective(&proj, fov, aspect, znear, zfar);
     Matrix4_fromViewQuat(&origin, &quat, distance, &view);
+#endif
 #endif
     Matrix4_multiply(&proj, &view, output);
 }
@@ -428,6 +469,44 @@ void CL_PrepRefresh(void) {
         CL_UpdateAssetLoadingProgress("Loading world", loaded_assets + 1, total_assets);
         return;
     }
+
+#ifdef SC2
+    if (world_loaded && cls.state != ca_active) {
+        BOX2 bounds = CM_GetWorldBounds();
+        viewCamera_t camera = { 0 };
+
+        cls.state = ca_active;
+        camera.origin = (VECTOR3){
+            (bounds.min.x + bounds.max.x) * 0.5f,
+            (bounds.min.y + bounds.max.y) * 0.5f,
+            0.0f,
+        };
+        camera.fov = 28.0f;
+        camera.distance = 34.07f;
+        camera.znear = 0.1f;
+        camera.zfar = 400.0f;
+        cl.viewDef.camerastate[0] = camera;
+        cl.viewDef.camerastate[1] = camera;
+        cl.playerstate.origin = (VECTOR2){ camera.origin.x, camera.origin.y };
+        cl.playerstate.fov = camera.fov;
+        cl.playerstate.distance = camera.distance;
+    }
+
+    if (world_loaded && !begin_sent) {
+        CL_LoadingUpdate("Starting game", 1.0f);
+        CL_SendBegin();
+        begin_sent = true;
+        loading_complete_displayed = false;
+        loading_settle_frames = 0;
+        return;
+    }
+
+    if (world_loaded && cl.playerstate.client_ui_state == CLIENT_UI_LOADING) {
+        CL_LoadingUpdate("Entering game", 1.0f);
+        cl.playerstate.client_ui_state = CLIENT_UI_GAME;
+        CL_SetGameplayInput();
+    }
+#endif
     
     DWORD loaded_models_this_frame = 0;
     for (DWORD i = 1; i < MAX_MODELS; i++) {
@@ -553,7 +632,7 @@ void V_RenderView(void) {
     cl.viewDef.lerpfrac = (FLOAT)(cl.time - cl.frame.servertime) / FRAMETIME;
     cl.viewDef.lerpfrac = MAX(0.0f, MIN(1.0f, cl.viewDef.lerpfrac));
     cl.viewDef.viewport = (RECT) { 0, 0, 1, 1 };
-#ifdef WOW
+#if defined(WOW) || defined(SC2)
     cl.viewDef.scissor = (RECT) { 0, 0, 1, 1 };
 #else
     cl.viewDef.scissor = (RECT) { 0, 0.22, 1, 0.76 };

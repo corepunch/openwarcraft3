@@ -23,19 +23,53 @@ theme:
 
 nav:
   - Home: index.md
-  - File Formats:
-    - 'Warcraft III Map (W3M/W3X)': file-formats/map.md
-    - 'Warcraft III Model (MDX)': file-formats/mdx.md
-    - 'SLK Spreadsheet': file-formats/slk.md
-    - 'UI Frame Definition (FDF)': file-formats/fdf.md
-    - 'StarCraft II Model (M3)': file-formats/m3.md
+  - Games:
+    - Warcraft III:
+      - Overview: games/warcraft-3/readme.md
+      - Docs Index: games/warcraft-3/docs/readme.md
+      - File Formats:
+        - 'Map (W3M/W3X)': games/warcraft-3/docs/file-formats/map.md
+        - 'Model (MDX)': games/warcraft-3/docs/file-formats/mdx.md
+        - 'SLK Spreadsheet': games/warcraft-3/docs/file-formats/slk.md
+        - 'UI Frame Definition (FDF)': games/warcraft-3/docs/file-formats/fdf.md
+      - Detailed File Notes:
+        - Overview: games/warcraft-3/docs/file-docs/readme.md
+        - MPQ Archive: games/warcraft-3/docs/file-docs/mpq.md
+        - 'W3M / W3X Container': games/warcraft-3/docs/file-docs/w3x-w3m.md
+        - Terrain W3E: games/warcraft-3/docs/file-docs/w3e.md
+        - Doodads DOO: games/warcraft-3/docs/file-docs/doo.md
+        - 'Shadow / Pathing': games/warcraft-3/docs/file-docs/shd-wpm.md
+        - FDF Reference: games/warcraft-3/docs/file-docs/fdf.md
+      - Implementation:
+        - UI System: games/warcraft-3/docs/architecture/ui.md
+        - UI Flow: games/warcraft-3/docs/architecture/ui-flow.md
+        - UI Quick Reference: games/warcraft-3/docs/architecture/ui-quick-reference.md
+        - Map Renderer: games/warcraft-3/docs/architecture/map-renderer.md
+        - Ability Coverage: games/warcraft-3/docs/architecture/ability-coverage.md
+        - ROC Ability Checklist: games/warcraft-3/docs/architecture/roc-ability-checklist.md
+    - World of Warcraft:
+      - Overview: games/world-of-warcraft/readme.md
+      - Docs Index: games/world-of-warcraft/docs/readme.md
+      - Data Loading: games/world-of-warcraft/docs/data-loading.md
+      - File Formats: games/world-of-warcraft/docs/file-formats.md
+      - Terrain And World Rendering: games/world-of-warcraft/docs/terrain-and-world-rendering.md
+      - M2 And Character Display: games/world-of-warcraft/docs/m2-and-character-display.md
+      - References: games/world-of-warcraft/docs/references.md
+    - StarCraft II:
+      - Overview: games/starcraft-2/readme.md
+      - Docs Index: games/starcraft-2/docs/readme.md
+      - Model Format (M3): games/starcraft-2/docs/file-formats/m3.md
+      - Map Storage And Loading: games/starcraft-2/docs/map-storage-and-loading.md
+      - Embedded Map Files: games/starcraft-2/docs/embedded-map-files.md
+      - Map, Model, And Unit Data: games/starcraft-2/docs/map-model-unit-data.md
+      - Parser Notes: games/starcraft-2/docs/parser-notes.md
+      - References: games/starcraft-2/docs/references.md
   - Architecture:
     - Client: architecture/client.md
     - Server: architecture/server.md
     - Network: architecture/network.md
     - Runtime Modules and Cvars: architecture/runtime.md
-    - UI System: architecture/ui.md
-    - Map Renderer: architecture/map-renderer.md
+    - Fog of War Algorithms: architecture/fog-of-war-algorithms.md
 
 markdown_extensions:
   - tables

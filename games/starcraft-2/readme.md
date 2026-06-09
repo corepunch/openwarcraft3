@@ -43,8 +43,20 @@ Build:
 make opensc2
 ```
 
-There is no polished run target yet. Direct runs should be treated as development experiments against locally supplied data and explicit map/model paths.
+Run with the Makefile's sample StarCraft II data path and first Terran campaign map:
+
+```bash
+make run-sc2
+```
+
+Or run directly through map resolution:
+
+```bash
+build/bin/opensc2 -data data/StarCraft2 +map TRaynor01
+```
 
 ## Notes
 
 This target expects locally supplied StarCraft II data for real asset experiments. Original assets, names, and game data belong to Blizzard Entertainment. The directory is here so the engine can grow beyond one asset format without pretending the SC2 game is already built.
+
+Map-format research notes live in [docs/readme.md](docs/readme.md).

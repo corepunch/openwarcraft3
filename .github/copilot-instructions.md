@@ -10,6 +10,12 @@ This codebase is inspired by **Quake 2**. The developer working on this project 
 - Use the same patterns for module organization, data structures, and naming conventions as in Quake 2.
 - Prefer simple, flat, and data-oriented design over complex object-oriented abstractions.
 - Keep the code readable, compact, and close to the metal — minimize unnecessary indirection.
+- For trusted binary game data, prefer memory-mapped/file-shaped structs with trailing arrays wherever possible. Read the blob, allocate/copy it as one block if ownership is needed, and point consumers at that struct instead of decoding, cropping, or post-processing into parallel runtime arrays.
+- Prefer table-driven parsing for keyed/text formats such as XML, FDF, catalogs, and similar game data. Define a small schema table first, for example `{ name, offsetof(struct, field), type }`, then run one generic parser over that table. This is also called data-driven or array-driven parsing: the field mapping is data, and the parser is a tiny machine that applies it.
+- Prefer format-driven parsing when the data has a fixed syntax. Configure the parser with the format and launch it, for example `sscanf(text, "%f,%f,%f", ...)` for SC2 comma-separated vectors, instead of hand-writing character walkers, separator loops, and ad hoc token logic.
+- Do not bury schema in long manual `if`/`else` or `switch` ladders when a compact table can describe the same work. Put the mapping beside the target struct, keep the interpreter small, and let adding a field mean adding one table row instead of adding custom logic in the parser body.
+- Do not use several booleans to represent mutually exclusive state. If only one mode/kind/type can be active, define and pass an enum, then dispatch from that enum. For example, use one `sc2ObjectType_t` value instead of separate `is_unit`, `is_doodad`, and `is_camera` flags.
+- Put pure, reusable local helpers in a small nearby utils header, such as `sc2_utils.h`, as `static` functions. Keep subsystem-owned helpers that touch globals, allocation hosts, file handles, or runtime state in the `.c` file that owns that state.
 - Write tiny parsing/utility helpers only when they remove real duplication or clarify a call site. Keep them brutally short; prefer simple standard C library calls (`strchr`, `strspn`, `strtoul`, etc.) over hand-written multi-line loops unless the format genuinely requires custom logic. Do not add ceremonial blank lines inside tiny helpers, and keep trivial statement bodies on one line when that is clearer, e.g. `if (*p == '"') quoted = !quoted;`. Avoid temporary success variables for tiny wrappers; branch directly on the call and return explicit `true`/`false` when that is shorter and clearer.
 - Use `snake_case` for functions and variables, `ALL_CAPS` for constants and macros, matching Quake 2 conventions.
 - Use the `BZ_` prefix for project-private compile-time macros, generated binding helpers, environment toggles, and namespaced constants that need a project prefix.
@@ -42,6 +48,7 @@ This codebase is inspired by **Quake 2**. The developer working on this project 
 - Before adding any "remember this failed" cache, check the analogous Quake 2/3 path first. If id-tech solved it through registration lifecycle, cache ownership, default media, or clearing state on map/ref changes, follow that pattern instead of creating a new client/game side workaround.
 - Treat API and struct growth as a last resort. If a change adds fields, the review explanation should say why a smaller Quake-style solution using existing state was not enough.
 - When replacing a single existing line or macro call with a larger custom block, keep the original line commented out immediately above the replacement and add a short comment explaining why the expansion is necessary, such as a file-format mismatch, bug fix, or new feature behavior.
+- Do not hardcode values that are likely to exist in source game data, map files, catalog XML/DBC/SLK/FDF/etc., asset metadata, or other inspectable formats. Inspect the data first and parse the authoritative field. If a temporary literal is genuinely unavoidable, mark it with a `BZ_HARDCODED_DATA_FALLBACK` comment that names the expected source file/field and the reason it is not parsed yet.
 
 ## Engine/Game Boundary (Strict)
 
@@ -67,6 +74,7 @@ This codebase is inspired by **Quake 2**. The developer working on this project 
 - When investigating Warcraft III assets, prefer using the local CLI utility `build/bin/mpqtool` instead of guessing file paths.
 - Tests must not depend on a developer's local Warcraft III data or `War3.mpq`. Add any archive fixtures under `tests/resources-src`, pack them into the generated `build/tests/tests.mpq` through `make test-assets`, and point tests at that fixture MPQ instead.
 - Tests must not read from ignored local extraction folders such as `data/fdf` or `data/Warcraft III`. If a test needs FDF, map, texture, model, or other archive content, copy the minimal fixture into `tests/resources-src`, add it to `build/tests/tests.mpq`, and read it from that generated archive.
+- When a test fixture intentionally replaces an actual game archive file with custom content, use the same archive path and filename as the real game file. Do not invent project-specific replacement names for files that are meant to stand in for game files; keep the name WoW/Warcraft-style and make only the contents custom.
 - Use `ls` mode to browse archive structure incrementally:
 	- `build/bin/mpqtool -mpq <path-to-mpq> ls`
 	- `build/bin/mpqtool -mpq <path-to-mpq> ls <subdir>`
@@ -75,6 +83,24 @@ This codebase is inspired by **Quake 2**. The developer working on this project 
 	- Example with redirect: `build/bin/mpqtool -mpq <path-to-mpq> cat Scripts/war3map.j > /tmp/war3map.j`
 - Normalize slashes as needed when querying paths; both `\` and `/` are accepted by the tool input.
 - For agent workflows, default to this tool whenever you need to discover MPQ contents, inspect text assets, or extract raw file bytes for analysis.
+
+## WoW Character Display Workflow
+
+- Do not fix WoW character clothing, hair, or appearance bugs by hardcoding one model path, one race, one item texture set, or one group of M2 skin sections in engine code. Character appearance is data-driven by M2 skin section IDs plus DBC display records.
+- For player/NPC character models, inspect `CharSections.dbc`, `CharHairGeosets.dbc`, `CharHairTextures.dbc`, `CharStartOutfit.dbc`, `ItemDisplayInfo.dbc`, and `HelmetGeosetVisData.dbc` before changing renderer policy. Local DBC files live under `DBFilesClient` in the WoW MPQs and can be inspected with `build/bin/mpqtool`.
+- Some classic-era DBCs have a logical field count that is larger than `record_size / 4`; for example local `CharStartOutfit.dbc` reports 41 fields with 152-byte records. Parse DBC records by validating the file envelope and checking each accessed field against `record_size`, not by rejecting the whole file when `field_count * 4` exceeds `record_size`.
+- `ItemDisplayInfo.dbc` carries item model names/textures, geoset groups, flags, helmet visibility, and eight character texture component slots. In the local classic-era 23-field layout, texture components start at field 14; in the documented 25-field TBC/Wrath layout, they start at field 15. The component slots map to upper arm, lower arm, hand, upper torso, lower torso, upper leg, lower leg, and foot.
+- M2 skin section IDs are grouped by hundreds. Character renderers should select one variant per relevant group at draw time or through a variant cache keyed by appearance/equipment, not by throwing away sections at model-load time. Loading all batches preserves future per-entity equipment changes.
+- Do not infer visible geosets from non-empty component textures. WoW keeps default character geosets such as gloves/boots/ears/sleeves/legs/robe/pelvis visible unless item geoset groups override them; item component texture stems are normally pasted into a composed character skin texture. The `whoa-master` component path documents defaults in `ComponentData.hpp` and applies them in `CCharacterComponent::GeosRenderPrep`.
+- Component texture names in `ItemDisplayInfo.dbc` are stems, not full archive paths. Resolve them under `Item\TextureComponents\<slot-folder>\` and try gender-specific suffixes (`_M`, `_F`) before universal (`_U`) where the archive contains universal components.
+- The whoa-master character component rectangles are documented in 512x512 atlas space. Classic body skins such as `Character\Orc\Male\OrcMaleSkin00_00.blp` may be 256x256, so scale component paste rectangles to the actual destination body texture size before compositing. Otherwise all right-half slots such as torso, pants, boots, and feet land outside the texture and silently disappear.
+- The current packed WoW `equipment` bytes are local slot item indices, not raw item IDs. Treat each byte as an index into a WoW-owned 256-entry item list selected by race, gender, and slot, with index `0` meaning empty and nonzero indices resolving through DBC-backed `ItemDisplayInfo` display IDs in renderer/tool code. Keep the game state packed with `Wow_PackEquipment(...)` rather than widening entity/player state for preview gear.
+- Grounded WoW actors must use the same one-dimensional yaw path as Warcraft III/OpenWarcraft3 entities: game code writes `entityState_t.angle` in radians, the client interpolates it with `LerpRotation(...)`, and grounded M2 rendering consumes `renderEntity_t.angle`. Do not put player/creature yaw back into `entityState_t.rotation` or interpolate a 3D rotation vector for dynamic actors; `rotation` is reserved for static object/model transforms that genuinely need three axes.
+- Useful public references:
+	- TrinityCore `ItemDisplayInfo.dbc` field layout and flags: https://trinitycore.info/files/DBC/335/itemdisplayinfo
+	- WoTLK Modding Wiki `ItemDisplayInfo`: https://wotlkdev.github.io/wiki/dbc/ItemDisplayInfo
+	- getMaNGOS TBC `ItemDisplayInfo` field list: https://www.getmangos.eu/wiki/referenceinfo/dbcfiles/mangosonedbc/ItemDisplayInfo-r7649/
+	- `wow_dbc` parser crate notes for vanilla/TBC/Wrath DBC schemas: https://github.com/gtker/wow_dbc
 
 ## MDX Inspection Workflow (mdxtool)
 

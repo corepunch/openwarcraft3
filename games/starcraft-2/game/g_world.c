@@ -2,7 +2,8 @@
 
 #define GAME_WORLD 1
 #include "common/world.c"
-#include "games/warcraft-3/common/world_w3.c"
+#include "games/starcraft-2/common/sc2_map.c"
+#include "games/starcraft-2/common/world_sc2.c"
 #include "common/routing.c"
 
 #undef FS_ReadFile

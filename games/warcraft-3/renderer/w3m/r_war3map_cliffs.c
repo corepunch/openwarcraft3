@@ -1,3 +1,37 @@
+#ifdef SC2_REUSE_WAR3_CLIFF_BAKER
+
+typedef struct {
+    VERTEX *vertices;
+    DWORD num_vertices;
+    DWORD capacity;
+} rCliffBakeList_t;
+
+static void R_CliffBakeGrow(rCliffBakeList_t *list, DWORD add) {
+    VERTEX *vertices;
+    DWORD capacity;
+
+    if (list->num_vertices + add <= list->capacity)
+        return;
+    capacity = MAX(1024, list->capacity);
+    while (list->num_vertices + add > capacity) {
+        capacity *= 2;
+    }
+    vertices = ri.MemAlloc(capacity * sizeof(*vertices));
+    if (list->vertices) {
+        memcpy(vertices, list->vertices, list->num_vertices * sizeof(*vertices));
+        ri.MemFree(list->vertices);
+    }
+    list->vertices = vertices;
+    list->capacity = capacity;
+}
+
+static LPVERTEX R_CliffBakeVertex(rCliffBakeList_t *list) {
+    R_CliffBakeGrow(list, 1);
+    return &list->vertices[list->num_vertices++];
+}
+
+#else
+
 #include "r_war3map.h"
 #include "../mdx/r_mdx.h"
 
@@ -257,3 +291,5 @@ LPMAPLAYER R_BuildMapSegmentCliffs(LPCWAR3MAP map, DWORD sx, DWORD sy, DWORD cli
     mapLayer->buffer = R_MakeVertexArrayObject(cliffs_vertex_buffer, mapLayer->num_vertices);
     return mapLayer;
 }
+
+#endif

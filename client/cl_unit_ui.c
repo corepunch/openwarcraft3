@@ -30,15 +30,11 @@ void CL_ParseUnitUI(LPSIZEBUF msg) {
         }
         for (BYTE j = 0; j < unit->num_buttons; j++) {
             uiCommandButton_t *btn = &unit->buttons[j];
-            LPCSTR art = MSG_ReadString2(msg);
-            LPCSTR tip = MSG_ReadString2(msg);
-            LPCSTR ubertip = MSG_ReadString2(msg);
-            LPCSTR command = MSG_ReadString2(msg);
 
-            strncpy(btn->art, art, sizeof(btn->art) - 1);
-            strncpy(btn->tooltip, tip, sizeof(btn->tooltip) - 1);
-            strncpy(btn->ubertip, ubertip, sizeof(btn->ubertip) - 1);
-            strncpy(btn->command, command, sizeof(btn->command) - 1);
+            strncpy(btn->art, MSG_ReadString2(msg), sizeof(btn->art) - 1);
+            strncpy(btn->tooltip, MSG_ReadString2(msg), sizeof(btn->tooltip) - 1);
+            strncpy(btn->ubertip, MSG_ReadString2(msg), sizeof(btn->ubertip) - 1);
+            strncpy(btn->command, MSG_ReadString2(msg), sizeof(btn->command) - 1);
             btn->hotkey = MSG_ReadByte(msg);
         }
 
@@ -48,13 +44,10 @@ void CL_ParseUnitUI(LPSIZEBUF msg) {
         }
         for (BYTE j = 0; j < unit->num_inventory; j++) {
             uiInventoryItem_t *item = &unit->inventory[j];
-            LPCSTR art = MSG_ReadString2(msg);
-            LPCSTR tip = MSG_ReadString2(msg);
-            LPCSTR ubertip = MSG_ReadString2(msg);
 
-            strncpy(item->art, art, sizeof(item->art) - 1);
-            strncpy(item->tooltip, tip, sizeof(item->tooltip) - 1);
-            strncpy(item->ubertip, ubertip, sizeof(item->ubertip) - 1);
+            strncpy(item->art, MSG_ReadString2(msg), sizeof(item->art) - 1);
+            strncpy(item->tooltip, MSG_ReadString2(msg), sizeof(item->tooltip) - 1);
+            strncpy(item->ubertip, MSG_ReadString2(msg), sizeof(item->ubertip) - 1);
             item->slot = MSG_ReadByte(msg);
         }
 

@@ -78,6 +78,42 @@ static void heatmap_cache_invalidate(void) {
     memset(heatmap_lru, 0, sizeof(heatmap_lru));
 }
 
+void CM_InvalidatePathCache(void) {
+    heatmap_cache_invalidate();
+}
+
+void CM_SetupPathMap(DWORD width, DWORD height, BYTE const *cells) {
+    DWORD n = width * height;
+
+    SAFE_DELETE(pathmap.data, MemFree);
+    SAFE_DELETE(pathmap.original, MemFree);
+    SAFE_DELETE(pathmap.heatmap, MemFree);
+    FOR_LOOP(i, HEATMAP_CACHE_SLOTS) {
+        SAFE_DELETE(heatmap_cache[i].flow, MemFree);
+    }
+
+    pathmap.width = width;
+    pathmap.height = height;
+    if (!n) {
+        heatmap_cache_invalidate();
+        return;
+    }
+
+    pathmap.data = MemAlloc(n);
+    pathmap.original = MemAlloc(n);
+    pathmap.heatmap = MemAlloc(n * sizeof(routeNode_t));
+
+    if (cells) {
+        memcpy(pathmap.original, cells, n);
+    } else {
+        memset(pathmap.original, 0, n);
+    }
+    memcpy(pathmap.data, pathmap.original, n);
+    memset(pathmap.heatmap, 0, n * sizeof(routeNode_t));
+
+    heatmap_cache_invalidate();
+}
+
 static point2_t LocationToPathMap(LPCVECTOR2 location);
 
 static int const dx[] = {-1, 1, 0, 0, -1, -1, 1, 1};
@@ -475,23 +511,7 @@ DWORD CM_BuildHeatmap(edict_t *goalentity) {
  * The world coordinate system is set up so cell (x,y) maps to
  * world position (x * cell_size, y * cell_size). */
 void CM_SetupTestPathmap(DWORD width, DWORD height, BYTE const *cells) {
-    DWORD n = width * height;
-
-    MemFree(pathmap.data);
-    MemFree(pathmap.original);
-    MemFree(pathmap.heatmap);
-
-    pathmap.width    = width;
-    pathmap.height   = height;
-    pathmap.data     = MemAlloc(n);
-    pathmap.original = MemAlloc(n);
-    pathmap.heatmap  = MemAlloc(n * sizeof(routeNode_t));
-
-    memcpy(pathmap.original, cells, n);
-    memcpy(pathmap.data,     cells, n);
-    memset(pathmap.heatmap,  0, n * sizeof(routeNode_t));
-
-    heatmap_cache_invalidate();
+    CM_SetupPathMap(width, height, cells);
 }
 #endif
 
@@ -499,18 +519,27 @@ void CM_SetupTestPathmap(DWORD width, DWORD height, BYTE const *cells) {
 void CM_ReadPathMap(HANDLE archive) {
     HANDLE file;
     DWORD header, version;
+    DWORD width, height;
+    LPBYTE cells;
     heatmap_cache_invalidate();
-    SFileOpenFileEx(archive, "war3map.wpm", SFILE_OPEN_FROM_MPQ, &file);
+    if (!SFileOpenFileEx(archive, "war3map.wpm", SFILE_OPEN_FROM_MPQ, &file)) {
+        CM_SetupPathMap(world.map ? world.map->width : 0, world.map ? world.map->height : 0, NULL);
+        return;
+    }
     SFileReadFile(file, &header, 4, NULL, NULL);
     SFileReadFile(file, &version, 4, NULL, NULL);
-    SFileReadFile(file, &pathmap.width, 4, NULL, NULL);
-    SFileReadFile(file, &pathmap.height, 4, NULL, NULL);
-    pathmap.data = MemAlloc(pathmap.width * pathmap.height);
-    pathmap.original = MemAlloc(pathmap.width * pathmap.height);
-    pathmap.heatmap = MemAlloc(pathmap.width * pathmap.height * sizeof(routeNode_t));
-    SFileReadFile(file, pathmap.original, pathmap.width * pathmap.height, 0, 0);
+    SFileReadFile(file, &width, 4, NULL, NULL);
+    SFileReadFile(file, &height, 4, NULL, NULL);
+    if (!width || !height) {
+        SFileCloseFile(file);
+        CM_SetupPathMap(0, 0, NULL);
+        return;
+    }
+    cells = MemAlloc(width * height);
+    SFileReadFile(file, cells, width * height, 0, 0);
     SFileCloseFile(file);
-    memset(pathmap.heatmap, 0, pathmap.width * pathmap.height * sizeof(routeNode_t));
+    CM_SetupPathMap(width, height, cells);
+    MemFree(cells);
 
 #ifdef DEBUG_PATHFINDING
     pathDebug = MemAlloc(pathmap.width * pathmap.height * sizeof(COLOR32));

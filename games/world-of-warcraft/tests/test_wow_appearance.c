@@ -53,10 +53,10 @@ static void test_wow_equipment_pack_unpack(void) {
     DWORD packed = Wow_PackEquipment(1, 2, 127, 255);
     wowEquipment_t out = Wow_UnpackEquipment(packed);
 
-    ASSERT_EQ_INT(out.upperBodyKit, 1);
-    ASSERT_EQ_INT(out.lowerBodyKit, 2);
-    ASSERT_EQ_INT(out.extremityKit, 127);
-    ASSERT_EQ_INT(out.extraKit, 255);
+    ASSERT_EQ_INT(out.upperBodyItem, 1);
+    ASSERT_EQ_INT(out.lowerBodyItem, 2);
+    ASSERT_EQ_INT(out.handItem, 127);
+    ASSERT_EQ_INT(out.footItem, 255);
 }
 
 static void test_wow_entity_delta_preserves_appearance_and_equipment(void) {

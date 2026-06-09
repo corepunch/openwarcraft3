@@ -1,5 +1,7 @@
 #include "renderer/r_game.h"
 #include "m3/r_m3.h"
+#include "games/starcraft-2/common/sc2_map.h"
+#include "sc2/r_sc2map.h"
 
 void M3_Init(void);
 void M3_Shutdown(void);
@@ -171,14 +173,27 @@ void R_GameShutdown(void) {
 }
 
 void R_GameSetupTextureMatrix(void) {
-    Matrix4_identity(&tr.viewDef.textureMatrix);
+    sc2Map_t const *map = SC2_MapCurrent();
+    if (map && map->MapInfo.width && map->MapInfo.height) {
+        BOX2 bounds = SC2_MapBounds();
+        Matrix4_ortho(&tr.viewDef.textureMatrix,
+                      bounds.min.x,
+                      bounds.max.x,
+                      bounds.min.y,
+                      bounds.max.y,
+                      0.0f,
+                      100.0f);
+    } else {
+        Matrix4_identity(&tr.viewDef.textureMatrix);
+    }
 }
 
 void R_GameRegisterMap(LPCSTR mapFileName) {
-    (void)mapFileName;
+    R_SC2RegisterMap(mapFileName);
 }
 
 void R_GameDrawWorld(void) {
+    R_SC2DrawWorld();
 }
 
 void R_GameDrawTerrainShadows(void) {
@@ -188,21 +203,15 @@ void R_GameDrawAlphaSurfaces(void) {
 }
 
 bool R_GameTraceLocation(viewDef_t const *viewdef, float x, float y, LPVECTOR3 point) {
-    (void)viewdef;
-    (void)x;
-    (void)y;
-    (void)point;
-    return false;
+    return R_SC2TraceLocation(viewdef, x, y, point);
 }
 
 FLOAT R_GameGetHeightAtPoint(FLOAT x, FLOAT y) {
-    (void)x;
-    (void)y;
-    return 0.0f;
+    return R_SC2GetHeightAtPoint(x, y);
 }
 
 VECTOR2 R_GameWorldSize(void) {
-    return (VECTOR2){ 0 };
+    return R_SC2WorldSize();
 }
 
 LPMODEL R_GameLoadModel(LPCSTR modelFilename) {
@@ -231,7 +240,7 @@ void R_GameReleaseModel(LPMODEL model) {
 void R_GameRenderModel(renderEntity_t const *entity) {
     MATRIX4 transform;
 
-    if (!entity || !entity->model || entity->model->modeltype != ID_43DM) {
+    if (!entity || !entity->model || entity->model->modeltype != ID_43DM || !entity->model->m3) {
         return;
     }
     R_GetEntityMatrix(entity, &transform);

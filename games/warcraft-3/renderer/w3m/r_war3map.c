@@ -259,23 +259,6 @@ void R_DrawTerrainShadows(void) {
     R_RenderRectSplat(&mins, &maxs, tr.texture[TEX_TERRAIN_SHADOW], tr.shader[SHADER_SHADOWSPLAT], shadowColor);
 }
 
-static void R_DrawSegment(LPCMAPSEGMENT segment, DWORD mask) {
-    if (!Frustum_ContainsAABox(&tr.viewDef.frustum, &segment->bbox))
-        return;
-    FOR_EACH_LIST(MAPLAYER, layer, segment->layers) {
-        if (((1 << layer->type) & mask) == 0)
-            continue;
-        if (layer == segment->layers) {
-            R_Call(glDisable, GL_BLEND);
-        } else {
-            R_Call(glEnable, GL_BLEND);
-            R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-        }
-        R_BindTexture(layer->texture, 0);
-        R_DrawBuffer(layer->buffer, layer->num_vertices);
-    }
-}
-
 void R_DrawWorld(void) {
     if (tr.viewDef.rdflags & RDF_NOWORLDMODEL)
         return;
@@ -290,7 +273,7 @@ void R_DrawWorld(void) {
 #endif
     
     FOR_EACH_LIST(MAPSEGMENT, segment, g_mapSegments) {
-        R_DrawSegment(segment, (1 << MAPLAYERTYPE_GROUND) | (1 << MAPLAYERTYPE_CLIFF));
+        R_DrawTerrainSegment(segment, (1 << MAPLAYERTYPE_GROUND) | (1 << MAPLAYERTYPE_CLIFF));
     }
 }
 
@@ -304,7 +287,7 @@ void R_DrawAlphaSurfaces(void) {
     R_Call(glDepthMask, GL_FALSE);
 
     FOR_EACH_LIST(MAPSEGMENT, segment, g_mapSegments) {
-        R_DrawSegment(segment, (1 << MAPLAYERTYPE_WATER));
+        R_DrawTerrainSegment(segment, (1 << MAPLAYERTYPE_WATER));
     }
     R_Call(glDepthMask, GL_TRUE);
 }

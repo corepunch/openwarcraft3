@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="us-ascii"?>
+<Catalog>
+    <CTerrain id="Fixture">
+        <FogDensity value="0.250000"/>
+        <FogFalloff value="0.500000"/>
+        <FogStartingHeight value="-1.500000"/>
+        <FogColor value="255,10,20,30"/>
+    </CTerrain>
+</Catalog>

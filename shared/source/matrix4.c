@@ -72,8 +72,8 @@ void Matrix4_rotate4(LPMATRIX4 m, LPCVECTOR4 quat) {
 //    memcpy(m, &tmp, sizeof(MATRIX4));
 }
 
-void Matrix4_perspective(LPMATRIX4 m, float angle, float aspect, float znear, float zfar) {
-    float const radians = angle * 3.14159f / 360.0f;
+void Matrix4_perspective(LPMATRIX4 m, float vertical_fov, float aspect, float znear, float zfar) {
+    float const radians = vertical_fov * 3.14159f / 360.0f;
     float const sine = sin(radians);
     float const cotan = cos(radians) / sine;
     float const clip = zfar - znear;

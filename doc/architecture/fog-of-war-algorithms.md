@@ -14,7 +14,7 @@ Relevant files:
 - `renderer/r_draw.c`
 - `client/cl_view.c`
 - `common/shared.h`
-- `doc/architecture/map-renderer.md`
+- `games/warcraft-3/docs/architecture/map-renderer.md`
 
 The current renderer path:
 
