@@ -64,7 +64,6 @@ static LPCSTR m3_vs =
 "uniform vec3 uLightAmbient;\n"
 "uniform vec3 uLightDir[3];\n"
 "uniform vec3 uLightColor[3];\n"
-"uniform float uLightEnabled[3];\n"
 "uniform float uFirstBoneLookupIndex;\n"
 "uniform float uBoneWeightPairsCount;\n"
 "vec3 transform(vec4 bones, vec4 position) {\n"
@@ -79,7 +78,7 @@ static LPCSTR m3_vs =
 "    vec3 light = uLightAmbient;\n"
 "    for (int i = 0; i < 3; i++) {\n"
 "        vec3 l = normalize(uLightDir[i]);\n"
-"        light += uLightColor[i] * max(dot(n, l), 0.0) * uLightEnabled[i];\n"
+"        light += uLightColor[i] * max(dot(n, l), 0.0);\n"
 "    }\n"
 "    return max(light, vec3(0.0));\n"
 "}\n"
@@ -117,12 +116,16 @@ static LPCSTR m3_fs =
 "uniform sampler2D uDiffuseMap;\n"
 "uniform sampler2D uSpecularMap;\n"
 "uniform sampler2D uNormalMap;\n"
+"uniform sampler2D uAlphaMaskMap;\n"
 
 "uniform sampler2D uTexture;\n"
 #ifdef USE_SHADOWMAPS
 "uniform sampler2D uShadowmap;\n"
 #endif
 "uniform sampler2D uFogOfWar;\n"
+"uniform vec4 uMaterialColor;\n"
+"uniform float uAlphaCutoff;\n"
+"uniform float uUseAlphaMask;\n"
 
 "vec3 calculateSpecular(vec3 normal, vec3 viewDir, vec3 lightDir, vec3 specularColor) {\n"
 "    vec3 reflectDir = reflect(-lightDir, normal);\n"
@@ -154,6 +157,10 @@ static LPCSTR m3_fs =
 
 "void main() {\n"
 "    vec4 diffuseColor = texture(uDiffuseMap, v_texcoord);\n"
+"    float alphaMask = mix(1.0, texture(uAlphaMaskMap, v_texcoord).r, uUseAlphaMask);\n"
+"    diffuseColor *= uMaterialColor;\n"
+"    diffuseColor.a *= alphaMask;\n"
+"    if (diffuseColor.a < uAlphaCutoff) discard;\n"
 "    vec4 specularColor = texture(uSpecularMap, v_texcoord);\n"
 //"    vec3 normal = decodeNormal(uNormalMap, v_texcoord);\n"
 //"    vec4 col = texture(uTexture, v_texcoord);\n"
@@ -172,6 +179,10 @@ static MATRIX4 tmp[M3_MAX_NODES];
 
 m3Model_t *currentmodel;
 
+#ifdef USE_SHADOWMAPS
+extern bool is_rendering_lights;
+#endif
+
 static struct {
     LPSHADER shader;
     DWORD uFirstBoneLookupIndex;
@@ -179,10 +190,13 @@ static struct {
     DWORD uDiffuseMap;
     DWORD uSpecularMap;
     DWORD uNormalMap;
+    DWORD uAlphaMaskMap;
+    GLint uMaterialColor;
+    GLint uAlphaCutoff;
+    GLint uUseAlphaMask;
     GLint uLightAmbient;
     GLint uLightDir[SC2_MAX_DIRECTIONAL_LIGHTS];
     GLint uLightColor[SC2_MAX_DIRECTIONAL_LIGHTS];
-    GLint uLightEnabled[SC2_MAX_DIRECTIONAL_LIGHTS];
 } m3 = { 0 };
 
 typedef struct {
@@ -210,8 +224,6 @@ static void M3_InitLightUniforms(void) {
         m3.uLightDir[i] = R_Call(glGetUniformLocation, m3.shader->progid, name);
         snprintf(name, sizeof(name), "uLightColor[%u]", (unsigned)i);
         m3.uLightColor[i] = R_Call(glGetUniformLocation, m3.shader->progid, name);
-        snprintf(name, sizeof(name), "uLightEnabled[%u]", (unsigned)i);
-        m3.uLightEnabled[i] = R_Call(glGetUniformLocation, m3.shader->progid, name);
     }
 }
 
@@ -230,7 +242,6 @@ static void M3_SetLightUniforms(void) {
 
         R_Call(glUniform3f, m3.uLightDir[i], direction.x, direction.y, direction.z);
         R_Call(glUniform3f, m3.uLightColor[i], color.x * multiplier, color.y * multiplier, color.z * multiplier);
-        R_Call(glUniform1f, m3.uLightEnabled[i], enabled);
     }
 }
 
@@ -663,6 +674,85 @@ float   M3_GET_ANIM_VALUE(Float32, TDATA_FLOAT1);
 VECTOR3 M3_GET_ANIM_VALUE(Vector3, TDATA_FLOAT3);
 VECTOR4 M3_GET_ANIM_VALUE(Vector4, TDATA_FLOAT4);
 
+static BOOL M3_MaterialIsBlended(m3Material_t const *material) {
+    return material && material->blendMode >= BLEND_MODE_BLEND;
+}
+
+static FLOAT M3_MaterialAlphaCutoff(m3Material_t const *material) {
+    if (!material) {
+        return 1.0f;
+    }
+    if (material->cutoutThreshold > 0) {
+        return (FLOAT)material->cutoutThreshold / 255.0f;
+    }
+    if (!M3_MaterialIsBlended(material) && material->alphaMaskLayer) {
+        return 0.5f;
+    }
+    return -1.0f;
+}
+
+static BOOL M3_SetMaterialBlendMode(m3Material_t const *material) {
+    switch (material ? material->blendMode : BLEND_MODE_NONE) {
+        case BLEND_MODE_NONE:
+        case BLEND_MODE_ALPHAKEY:
+            R_Call(glDisable, GL_BLEND);
+            R_Call(glBlendFunc, GL_ONE, GL_ZERO);
+            R_Call(glDepthMask, GL_TRUE);
+            break;
+        case BLEND_MODE_BLEND:
+#ifdef USE_SHADOWMAPS
+            if (is_rendering_lights)
+                return false;
+#endif
+            R_Call(glEnable, GL_BLEND);
+            R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+            R_Call(glDepthMask, GL_FALSE);
+            break;
+        case BLEND_MODE_ADD:
+#ifdef USE_SHADOWMAPS
+            if (is_rendering_lights)
+                return false;
+#endif
+            R_Call(glEnable, GL_BLEND);
+            R_Call(glBlendFunc, GL_ONE, GL_ONE);
+            R_Call(glDepthMask, GL_FALSE);
+            break;
+        case BLEND_MODE_ADDALPHA:
+#ifdef USE_SHADOWMAPS
+            if (is_rendering_lights)
+                return false;
+#endif
+            R_Call(glEnable, GL_BLEND);
+            R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE);
+            R_Call(glDepthMask, GL_FALSE);
+            break;
+        case BLEND_MODE_MODULATE:
+#ifdef USE_SHADOWMAPS
+            if (is_rendering_lights)
+                return false;
+#endif
+            R_Call(glEnable, GL_BLEND);
+            R_Call(glBlendFunc, GL_DST_COLOR, GL_ZERO);
+            R_Call(glDepthMask, GL_FALSE);
+            break;
+        case BLEND_MODE_MODULATE_2X:
+#ifdef USE_SHADOWMAPS
+            if (is_rendering_lights)
+                return false;
+#endif
+            R_Call(glEnable, GL_BLEND);
+            R_Call(glBlendFunc, GL_DST_COLOR, GL_SRC_COLOR);
+            R_Call(glDepthMask, GL_FALSE);
+            break;
+        default:
+            R_Call(glDisable, GL_BLEND);
+            R_Call(glBlendFunc, GL_ONE, GL_ZERO);
+            R_Call(glDepthMask, GL_TRUE);
+            break;
+    }
+    return true;
+}
+
 m3Model_t *R_LoadModelM3(void *data, DWORD size) {
     m3Model_t *model = ri.MemAlloc(sizeof(m3Model_t));
     if (!model)
@@ -692,18 +782,31 @@ m3Model_t *R_LoadModelM3(void *data, DWORD size) {
     return model;
 }
 
-static void M3_DrawRegionMaterial(m3Region_t const *region, m3Material_t const *material) {
+static void M3_DrawRegionMaterial(m3Region_t const *region, m3Material_t const *material, FLOAT alpha) {
     LPCTEXTURE diffuse = material->diffuseLayer && material->diffuseLayer->texture ? material->diffuseLayer->texture : tr.texture[TEX_WHITE];
     LPCTEXTURE specular = material->specularLayer && material->specularLayer->texture ? material->specularLayer->texture : tr.texture[TEX_WHITE];
     LPCTEXTURE normal = material->normalLayer && material->normalLayer->texture ? material->normalLayer->texture : tr.texture[TEX_WHITE];
+    LPCTEXTURE alpha_mask = material->alphaMaskLayer && material->alphaMaskLayer->texture ? material->alphaMaskLayer->texture : tr.texture[TEX_WHITE];
+    COLOR32 diffuse_color = material->diffuseLayer ? material->diffuseLayer->color.initValue : COLOR32_WHITE;
 #ifndef __linux__
     DWORD const num_indices = region->triangleIndicesCount;
     DWORD const first_vertex = region->firstVertexIndex;
     HANDLE const indices = (HANDLE)(sizeof(USHORT) * region->firstTriangleIndex);
 #endif
 
+    if (!M3_SetMaterialBlendMode(material)) {
+        return;
+    }
     R_Call(glUniform1f, m3.uFirstBoneLookupIndex, region->firstBoneLookupIndex);
     R_Call(glUniform1f, m3.uBoneWeightPairsCount, region->boneWeightPairsCount);
+    R_Call(glUniform4f,
+           m3.uMaterialColor,
+           diffuse_color.r / 255.0f,
+           diffuse_color.g / 255.0f,
+           diffuse_color.b / 255.0f,
+           diffuse_color.a / 255.0f * alpha);
+    R_Call(glUniform1f, m3.uAlphaCutoff, M3_MaterialAlphaCutoff(material));
+    R_Call(glUniform1f, m3.uUseAlphaMask, material->alphaMaskLayer ? 1.0f : 0.0f);
 
     R_Call(glActiveTexture, GL_TEXTURE0);
     R_Call(glBindTexture, GL_TEXTURE_2D, diffuse->texid);
@@ -711,6 +814,8 @@ static void M3_DrawRegionMaterial(m3Region_t const *region, m3Material_t const *
     R_Call(glBindTexture, GL_TEXTURE_2D, specular->texid);
     R_Call(glActiveTexture, GL_TEXTURE4);
     R_Call(glBindTexture, GL_TEXTURE_2D, normal->texid);
+    R_Call(glActiveTexture, GL_TEXTURE5);
+    R_Call(glBindTexture, GL_TEXTURE_2D, alpha_mask->texid);
 
     M3_FOR_EACH(Layer, layer, material->diffuseLayer) {
         if (!layer->texture)
@@ -724,13 +829,18 @@ static void M3_DrawRegionMaterial(m3Region_t const *region, m3Material_t const *
 static void M3_DrawRegionMaterialReference(m3Model_t const *model,
                                            m3Region_t const *region,
                                            m3MaterialReference_t const *mref,
+                                           FLOAT alpha,
+                                           BOOL blendedPass,
                                            DWORD depth) {
     if (!model || !region || !mref || depth > 4)
         return;
     switch (mref->materialType) {
         case kMaterialStandard:
-            if (mref->materialIndex < model->materialStandardNum)
-                M3_DrawRegionMaterial(region, model->materialStandard+mref->materialIndex);
+            if (mref->materialIndex < model->materialStandardNum) {
+                m3Material_t const *material = model->materialStandard+mref->materialIndex;
+                if (M3_MaterialIsBlended(material) == blendedPass)
+                    M3_DrawRegionMaterial(region, material, alpha);
+            }
             break;
         case kMaterialComposite:
             if (mref->materialIndex >= model->materialCompositeNum)
@@ -742,13 +852,15 @@ static void M3_DrawRegionMaterialReference(m3Model_t const *model,
                 M3_DrawRegionMaterialReference(model,
                                                region,
                                                model->materialReferences+section->materialReferenceIndex,
+                                               alpha * section->alphaFactor.initValue,
+                                               blendedPass,
                                                depth + 1);
             }
             break;
     }
 }
 
-void M3_DrawDivisions(m3Model_t const *model, m3Divisions_t const *divisions) {
+void M3_DrawDivisions(m3Model_t const *model, m3Divisions_t const *divisions, BOOL blendedPass) {
     if (!model || !divisions || !divisions->indicesBuffer)
         return;
     R_Call(glBindBuffer, GL_ELEMENT_ARRAY_BUFFER, divisions->indicesBuffer);
@@ -759,6 +871,8 @@ void M3_DrawDivisions(m3Model_t const *model, m3Divisions_t const *divisions) {
         M3_DrawRegionMaterialReference(model,
                                        divisions->regions+batch->regionIndex,
                                        model->materialReferences+batch->materialReferenceIndex,
+                                       1.0f,
+                                       blendedPass,
                                        0);
     }
 }
@@ -890,9 +1004,14 @@ void M3_RenderModel(renderEntity_t const *entity, m3Model_t const *model, LPCMAT
     R_Call(glDisable, GL_CULL_FACE);
     
     M3_FOR_EACH(Divisions, div, model->divisions) {
-        M3_DrawDivisions(model, div);
+        M3_DrawDivisions(model, div, false);
+    }
+    M3_FOR_EACH(Divisions, div, model->divisions) {
+        M3_DrawDivisions(model, div, true);
     }
     
+    R_Call(glActiveTexture, GL_TEXTURE0);
+    R_Call(glDepthMask, GL_TRUE);
     R_Call(glEnable, GL_BLEND);
 }
 
@@ -903,11 +1022,16 @@ void M3_Init(void) {
     m3.uDiffuseMap = R_Call(glGetUniformLocation, m3.shader->progid, "uDiffuseMap");
     m3.uSpecularMap = R_Call(glGetUniformLocation, m3.shader->progid, "uSpecularMap");
     m3.uNormalMap = R_Call(glGetUniformLocation, m3.shader->progid, "uNormalMap");
+    m3.uAlphaMaskMap = R_Call(glGetUniformLocation, m3.shader->progid, "uAlphaMaskMap");
+    m3.uMaterialColor = R_Call(glGetUniformLocation, m3.shader->progid, "uMaterialColor");
+    m3.uAlphaCutoff = R_Call(glGetUniformLocation, m3.shader->progid, "uAlphaCutoff");
+    m3.uUseAlphaMask = R_Call(glGetUniformLocation, m3.shader->progid, "uUseAlphaMask");
     M3_InitLightUniforms();
     
     R_Call(glUniform1i, m3.uDiffuseMap, 0);
     R_Call(glUniform1i, m3.uSpecularMap, 3);
     R_Call(glUniform1i, m3.uNormalMap, 4);
+    R_Call(glUniform1i, m3.uAlphaMaskMap, 5);
 }
 
 void M3_Shutdown(void) {

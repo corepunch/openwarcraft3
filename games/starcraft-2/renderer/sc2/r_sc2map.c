@@ -83,7 +83,6 @@ typedef struct rSc2LightUniforms_s {
     GLint ambient;
     GLint direction[SC2_MAX_DIRECTIONAL_LIGHTS];
     GLint color[SC2_MAX_DIRECTIONAL_LIGHTS];
-    GLint enabled[SC2_MAX_DIRECTIONAL_LIGHTS];
 } rSc2LightUniforms_t;
 
 static sc2CliffModel_t *sc2_cliff_models;
@@ -108,13 +107,12 @@ static LPCSTR sc2_vs_terrain =
 "uniform vec3 uLightAmbient;\n"
 "uniform vec3 uLightDir[3];\n"
 "uniform vec3 uLightColor[3];\n"
-"uniform float uLightEnabled[3];\n"
 "vec3 vertex_lighting(vec3 normal) {\n"
 "    vec3 n = normalize(normal);\n"
 "    vec3 light = uLightAmbient;\n"
 "    for (int i = 0; i < 3; i++) {\n"
 "        vec3 l = normalize(uLightDir[i]);\n"
-"        light += uLightColor[i] * max(dot(n, l), 0.0) * uLightEnabled[i];\n"
+"        light += uLightColor[i] * max(dot(n, l), 0.0);\n"
 "    }\n"
 "    return max(light, vec3(0.0));\n"
 "}\n"
@@ -142,13 +140,12 @@ static LPCSTR sc2_vs_cliff_texture =
 "uniform vec3 uLightAmbient;\n"
 "uniform vec3 uLightDir[3];\n"
 "uniform vec3 uLightColor[3];\n"
-"uniform float uLightEnabled[3];\n"
 "vec3 vertex_lighting(vec3 normal) {\n"
 "    vec3 n = normalize(normal);\n"
 "    vec3 light = uLightAmbient;\n"
 "    for (int i = 0; i < 3; i++) {\n"
 "        vec3 l = normalize(uLightDir[i]);\n"
-"        light += uLightColor[i] * max(dot(n, l), 0.0) * uLightEnabled[i];\n"
+"        light += uLightColor[i] * max(dot(n, l), 0.0);\n"
 "    }\n"
 "    return max(light, vec3(0.0));\n"
 "}\n"
@@ -238,8 +235,6 @@ static void r_sc2_init_light_uniforms(GLuint program, rSc2LightUniforms_t *unifo
         uniforms->direction[i] = glGetUniformLocation(program, name);
         snprintf(name, sizeof(name), "uLightColor[%u]", (unsigned)i);
         uniforms->color[i] = glGetUniformLocation(program, name);
-        snprintf(name, sizeof(name), "uLightEnabled[%u]", (unsigned)i);
-        uniforms->enabled[i] = glGetUniformLocation(program, name);
     }
 }
 
@@ -1321,7 +1316,6 @@ static void r_sc2_set_light_uniforms(rSc2LightUniforms_t const *uniforms) {
 
         R_Call(glUniform3f, uniforms->direction[i], direction.x, direction.y, direction.z);
         R_Call(glUniform3f, uniforms->color[i], color.x * multiplier, color.y * multiplier, color.z * multiplier);
-        R_Call(glUniform1f, uniforms->enabled[i], enabled);
     }
 }
 
