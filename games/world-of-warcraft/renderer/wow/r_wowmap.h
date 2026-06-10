@@ -211,6 +211,20 @@ typedef struct {
     float u, v;
 } wowVec2_t;
 
+typedef struct {
+    DWORD id;
+    DWORD doodad_id[4];
+    DWORD weight[4];
+    DWORD amount_and_coverage;
+    DWORD terrain_type_id;
+} wowGroundEffectTexture_t;
+
+typedef struct {
+    DWORD id;
+    DWORD name_id;
+    DWORD model_id;
+} wowGroundEffectDoodad_t;
+
 extern wowMap_t wow_world;
 extern LPSHADER wow_terrain_shader;
 extern LPSHADER wow_grass_shader;
