@@ -153,12 +153,12 @@ void Wow_InitGrassShader(void) {
     "    float d = distance(v_world.xy, uGrassCameraOrigin.xy);\n"
     "    float fade = 1.0 - smoothstep(uGrassDrawDistance * 0.72, uGrassDrawDistance, d);\n"
     "    float width = 1.0 - abs(v_uv.x * 2.0 - 1.0);\n"
-    "    float body = smoothstep(0.12, 0.30, width);\n"
-    "    float root = smoothstep(0.00, 0.10, v_uv.y);\n"
-    "    float tip = 1.0 - smoothstep(0.78, 1.00, v_uv.y);\n"
-    "    float blade = body * root;\n"
-    "    float alpha = v_color.a * fade * blade * (0.70 + tip * 0.30);\n"
-    "    if (alpha <= 0.01) discard;\n"
+    "    float edge = smoothstep(0.24, 0.46, width);\n"
+    "    float root = smoothstep(0.02, 0.14, v_uv.y);\n"
+    "    float tip = 1.0 - smoothstep(0.84, 1.00, v_uv.y);\n"
+    "    float blade = edge * root * tip;\n"
+    "    float alpha = v_color.a * fade * blade * 0.55;\n"
+    "    if (alpha <= 0.02) discard;\n"
     "    o_color = vec4(v_color.rgb * get_lighting(), alpha);\n"
     "}\n";
 
