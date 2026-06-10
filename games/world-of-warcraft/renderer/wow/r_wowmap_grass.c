@@ -12,9 +12,6 @@ static wowGroundEffectDoodad_t wow_ground_effect_doodads[WOW_MAX_GROUND_EFFECT_D
 static DWORD wow_ground_effect_doodad_count = 0;
 static BOOL wow_ground_effect_doodads_loaded = false;
 
-// Forward declaration
-static BOOL Wow_LoadGroundEffectDBCs(void);
-
 static float Wow_GrassClamp(float value, float min_value, float max_value) {
     return MAX(min_value, MIN(value, max_value));
 }
@@ -33,28 +30,39 @@ static float Wow_GrassRandom(LPDWORD seed) {
     return (float)(*seed & 0xffff) / 65535.0f;
 }
 
-static BOOL Wow_LoadGroundEffectDBCs(void) {
+void Wow_LoadGroundEffectDBCs(void) {
     LPBYTE data;
     DWORD size = 0, records, fields, record_size;
     BYTE const *records_base;
 
+    fprintf(stderr, "[GRASS] Wow_LoadGroundEffectDBCs: Starting load\n");
+
     if (wow_ground_effect_textures_loaded && wow_ground_effect_doodads_loaded) {
-        return true;
+        fprintf(stderr, "[GRASS] Wow_LoadGroundEffectDBCs: Already loaded, skipping\n");
+        return;
     }
 
     // Load GroundEffectTexture.dbc
+    fprintf(stderr, "[GRASS] Loading GroundEffectTexture.dbc...\n");
     size = ri.FS_ReadFile("DBFilesClient\\GroundEffectTexture.dbc", (void **)&data);
+    fprintf(stderr, "[GRASS] FS_ReadFile returned size=%u\n", (unsigned)size);
+    
     if (data && size >= 20) {
+        fprintf(stderr, "[GRASS] Validating WDBC header...\n");
         if (memcmp(data, "WDBC", 4) == 0) {
             records = *(DWORD*)(data + 4);
             fields = *(DWORD*)(data + 8);
             record_size = *(DWORD*)(data + 12);
+            
+            fprintf(stderr, "[GRASS] WDBC: records=%u fields=%u record_size=%u\n", 
+                    (unsigned)records, (unsigned)fields, (unsigned)record_size);
             
             // Validate structure: ID, 4 doodads, 4 weights, amount+coverage, terrain_type = 11 fields
             if (fields >= 11 && record_size >= 11 * sizeof(DWORD) && 
                 records > 0 && records < WOW_MAX_GROUND_EFFECT_TEXTURES) {
                 records_base = data + 20;
                 
+                fprintf(stderr, "[GRASS] Parsing %u records...\n", (unsigned)records);
                 FOR_LOOP(record_index, records) {
                     BYTE const *record = records_base + record_index * record_size;
                     wowGroundEffectTexture_t *entry = &wow_ground_effect_textures[record_index];
@@ -73,9 +81,17 @@ static BOOL Wow_LoadGroundEffectDBCs(void) {
                 }
                 wow_ground_effect_texture_count = records;
                 wow_ground_effect_textures_loaded = true;
+                fprintf(stderr, "[GRASS] Successfully loaded %u GroundEffectTexture records\n", (unsigned)records);
+            } else {
+                fprintf(stderr, "[GRASS] WDBC validation failed: fields=%u record_size=%u records=%u\n",
+                        (unsigned)fields, (unsigned)record_size, (unsigned)records);
             }
+        } else {
+            fprintf(stderr, "[GRASS] WDBC magic check failed\n");
         }
         ri.FS_FreeFile(data);
+    } else {
+        fprintf(stderr, "[GRASS] FS_ReadFile failed or invalid size\n");
     }
 
     // Load GroundEffectDoodad.dbc (if needed)
@@ -84,7 +100,7 @@ static BOOL Wow_LoadGroundEffectDBCs(void) {
     // The actual doodad model paths come from the MMDX/MMID chunks in ADTs
     wow_ground_effect_doodads_loaded = true;
     
-    return wow_ground_effect_textures_loaded || wow_ground_effect_doodads_loaded;
+    fprintf(stderr, "[GRASS] Wow_LoadGroundEffectDBCs: Complete\n");
 }
 
 static wowGroundEffectTexture_t *Wow_GetGroundEffectTexture(DWORD effect_id) {
@@ -216,9 +232,6 @@ void Wow_BuildGrassForChunk(wowAdtChunk_t *chunk,
     if (!chunk || !alpha || !layers || layer_count == 0 || density <= 0.0f) {
         return;
     }
-
-    // Ensure GroundEffect DBCs are loaded
-    Wow_LoadGroundEffectDBCs();
 
     vertices = ri.MemAlloc(sizeof(VERTEX) * WOW_GRASS_MAX_VERTICES);
     if (!vertices) {
