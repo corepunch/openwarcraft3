@@ -31,7 +31,7 @@
 #define WOW_GRASS_DRAW_DISTANCE 220.0f
 #define WOW_GRASS_DENSITY 1.0f
 #define WOW_GRASS_CELL_STEP 2
-#define WOW_GRASS_VERTICES_PER_CLUMP 6
+#define WOW_GRASS_VERTICES_PER_CLUMP 12
 
 typedef struct wowWdtTile_s {
     BOOL present;

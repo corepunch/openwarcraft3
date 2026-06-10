@@ -117,6 +117,7 @@ void Wow_InitGrassShader(void) {
     "in vec2 i_texcoord;\n"
     "in vec4 i_color;\n"
     "out vec4 v_color;\n"
+    "out vec2 v_uv;\n"
     "out vec3 v_normal;\n"
     "out vec3 v_world;\n"
     "uniform mat4 uViewProjectionMatrix;\n"
@@ -129,12 +130,14 @@ void Wow_InitGrassShader(void) {
     "    pos.xy += vec2(wave, wave * 0.35) * top;\n"
     "    v_world = pos;\n"
     "    v_color = i_color;\n"
+    "    v_uv = i_texcoord;\n"
     "    v_normal = normalize(i_normal);\n"
     "    gl_Position = uViewProjectionMatrix * vec4(pos, 1.0);\n"
     "}\n";
     static LPCSTR fs_wow_grass =
     "#version 140\n"
     "in vec4 v_color;\n"
+    "in vec2 v_uv;\n"
     "in vec3 v_normal;\n"
     "in vec3 v_world;\n"
     "out vec4 o_color;\n"
@@ -149,8 +152,14 @@ void Wow_InitGrassShader(void) {
     "void main() {\n"
     "    float d = distance(v_world.xy, uGrassCameraOrigin.xy);\n"
     "    float fade = 1.0 - smoothstep(uGrassDrawDistance * 0.72, uGrassDrawDistance, d);\n"
-    "    if (fade <= 0.01) discard;\n"
-    "    o_color = vec4(v_color.rgb * get_lighting(), v_color.a * fade);\n"
+    "    float width = 1.0 - abs(v_uv.x * 2.0 - 1.0);\n"
+    "    float body = smoothstep(0.12, 0.30, width);\n"
+    "    float root = smoothstep(0.00, 0.10, v_uv.y);\n"
+    "    float tip = 1.0 - smoothstep(0.78, 1.00, v_uv.y);\n"
+    "    float blade = body * root;\n"
+    "    float alpha = v_color.a * fade * blade * (0.70 + tip * 0.30);\n"
+    "    if (alpha <= 0.01) discard;\n"
+    "    o_color = vec4(v_color.rgb * get_lighting(), alpha);\n"
     "}\n";
 
     if (wow_grass_shader) {
