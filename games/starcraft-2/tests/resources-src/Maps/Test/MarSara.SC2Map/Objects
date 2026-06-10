@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PlacedObjects Version="26">
+    <ObjectUnit Id="2169" Position="42.111,83.187,0" Rotation="2.447" Scale="1,1,1" UnitType="Civilian" Player="3"/>
+    <ObjectUnit Id="1834" Position="70.617,45.3417,0" Rotation="1.2182" Scale="1,1,1" UnitType="Marine" Player="2"/>
+    <ObjectUnit Id="158" Position="84.5,124.5,0" Rotation="5.4975" Scale="1,1,1" UnitType="LogisticsHeadquarters" Player="2"/>
+    <ObjectDoodad Id="1536" Variation="4" Position="52.5,100.5,7.9472" Scale="1,1,1" Type="AnimalCorpse">
+        <Flag Index="HeightAbsolute" Value="1"/>
+    </ObjectDoodad>
+    <ObjectDoodad Id="2722" Variation="1" Position="54.1867,28.303,8.0715" Rotation="0.9567" Scale="1,1,1" Type="BillboardTall">
+        <Flag Index="HeightAbsolute" Value="1"/>
+        <Flag Index="ForcePlacement" Value="1"/>
+    </ObjectDoodad>
+    <ObjectDoodad Id="490" Variation="2" Position="85.5,66.5,9.9328" Scale="0.5,0.5,0.5" Type="AnimalCorpse">
+        <Flag Index="HeightAbsolute" Value="1"/>
+    </ObjectDoodad>
+    <ObjectCamera Id="1" Position="85.0,85.0,0" Name="StartCamera">
+        <CameraValue Index="FieldOfView" Value="27.7998"/>
+        <CameraValue Index="NearClip" Value="0.0998"/>
+        <CameraValue Index="FarClip" Value="400"/>
+        <CameraValue Index="Distance" Value="34.07"/>
+        <CameraValue Index="Pitch" Value="56"/>
+        <CameraValue Index="Yaw" Value="179.9584"/>
+    </ObjectCamera>
+</PlacedObjects>

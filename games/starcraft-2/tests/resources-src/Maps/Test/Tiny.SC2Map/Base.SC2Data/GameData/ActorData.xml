@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="us-ascii"?>
+<Catalog>
+    <CActorDoodad id="AnimalCorpse">
+        <ProximityPosition value="CenterActor"/>
+        <EditorCategories value="DoodadType:Environment"/>
+    </CActorDoodad>
+    <CActorDoodad id="BillboardTall">
+        <TexSets value="MarSara"/>
+        <Footprint value="FootprintDoodad1x1"/>
+        <RandomScaleRange value="1.000000,1.000000"/>
+        <EditorFlags index="NoAutoRotate" value="1"/>
+    </CActorDoodad>
+    <CActorUnit id="Marine" unitName="Marine">
+        <DeathArray index="Normal" ModelLink="MarineDeath"/>
+    </CActorUnit>
+    <CActorUnit id="Civilian" unitName="Civilian">
+        <PortraitModel value="CivilianPortrait"/>
+    </CActorUnit>
+</Catalog>

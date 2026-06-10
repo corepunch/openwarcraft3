@@ -13,4 +13,5 @@
         <Flag Index="HeightAbsolute" Value="1"/>
         <Flag Index="ForcePlacement" Value="1"/>
     </ObjectDoodad>
+    <ObjectDoodad Id="4" Type="MineralField" Model="Assets\Doodads\Terran\MineralField\MineralField.m3" x="4" y="3" z="0" Angle="0" Scale="1" Player="15" />
 </PlacedObjects>

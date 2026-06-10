@@ -1,0 +1,19 @@
+<terrain version="113">
+    <heightMap tileSet="MarSara" dim="5 4">
+        <vertData quantizeBias="9.055906" quantizeScale="0.00046093" standardHeight="7.973049" name="t3HeightMap"/>
+        <cliffSetList num="2">
+            <cliffSet i="0" name="MarSaraCliff0"/>
+            <cliffSet i="1" name="MarSaraCliff1"/>
+        </cliffSetList>
+        <textureList num="3">
+            <texture i="0" name="MarSaraDirt"/>
+            <texture i="1" name="MarSaraRocky"/>
+            <texture i="2" name="MarSaraDirtCracked"/>
+        </textureList>
+        <cliffCellList num="4" numOccupied="3">
+            <cc i="0" f="1" cid="0" cvar="2"/>
+            <cc i="1" f="1" cid="1" cvar="0"/>
+            <cc i="3" f="1" cid="0" cvar="3"/>
+        </cliffCellList>
+    </heightMap>
+</terrain>

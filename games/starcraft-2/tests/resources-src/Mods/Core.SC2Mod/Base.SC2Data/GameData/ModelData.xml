@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="us-ascii"?>
+<Catalog>
+    <CModel id="Doodad">
+        <Model value="Assets\Doodads\##id##\##id##.m3"/>
+    </CModel>
+    <CModel id="Unit">
+        <Model value="Assets\Units\##Race##\##id##\##id##.m3"/>
+    </CModel>
+    <CModel id="Marine" parent="Unit" Race="Terran">
+        <Occlusion value="Show"/>
+    </CModel>
+    <CModel id="BillboardTall" parent="Doodad">
+        <VariationCount value="4"/>
+    </CModel>
+    <CModel id="AnimalCorpse" parent="Doodad">
+        <VariationCount value="9"/>
+    </CModel>
+</Catalog>

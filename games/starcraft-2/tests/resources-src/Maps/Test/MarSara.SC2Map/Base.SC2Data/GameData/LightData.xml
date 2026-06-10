@@ -1,17 +1,5 @@
 <?xml version="1.0" encoding="us-ascii"?>
 <Catalog>
-    <CLight id="Fixture">
-        <ToDInfoArray index="0" AmbientColor="0.100000,0.200000,0.300000">
-            <DirectionalLight index="Key">
-                <Color value="0.400000,0.500000,0.600000"/>
-                <ColorMultiplier value="2.000000"/>
-                <SpecColorMultiplier value="3.000000"/>
-                <Direction value="0.000000,0.000000,-1.000000"/>
-            </DirectionalLight>
-            <DirectionalLight index="Fill" Color="0.100000,0.200000,0.300000" ColorMultiplier="4.000000" Direction="1.000000,0.000000,0.000000"/>
-            <DirectionalLight index="Back" Color="0.300000,0.200000,0.100000" ColorMultiplier="5.000000" Direction="0.000000,1.000000,0.000000"/>
-        </ToDInfoArray>
-    </CLight>
     <CLight id="MarSara">
         <ToDInfoArray index="0" AmbientColor="0.525490,0.466667,0.400000" Colorize="1">
             <DirectionalLight index="Key">

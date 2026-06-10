@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="us-ascii"?>
+<Catalog>
+    <CCliff id="FixtureCliff0">
+        <CliffMesh value="CliffNatural0"/>
+    </CCliff>
+    <CCliff id="MarSaraCliff0">
+        <CliffMesh value="CliffNatural0"/>
+    </CCliff>
+    <CCliff id="MarSaraCliff1">
+        <CliffMesh value="CliffMade0"/>
+    </CCliff>
+</Catalog>

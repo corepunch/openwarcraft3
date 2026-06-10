@@ -755,6 +755,9 @@ static sc2XmlField_t const sc2_object_fields[] = {
     SC2_XML_STRING_FIELD("Model", model),
     SC2_XML_STRING_FIELD("File", model),
     SC2_XML_FIELD("Position", position, SC2_XML_FIELD_VEC3),
+    SC2_XML_FIELD("x", position.x, SC2_XML_FIELD_FLOAT),
+    SC2_XML_FIELD("y", position.y, SC2_XML_FIELD_FLOAT),
+    SC2_XML_FIELD("z", position.z, SC2_XML_FIELD_FLOAT),
     SC2_XML_FIELD("Rotation", angle, SC2_XML_FIELD_FLOAT),
     SC2_XML_FIELD("Angle", angle, SC2_XML_FIELD_FLOAT),
     SC2_XML_FIELD("Yaw", angle, SC2_XML_FIELD_FLOAT),
@@ -821,7 +824,8 @@ static BOOL sc2_parse_xml_field(void *base, sc2XmlField_t const *fields, DWORD n
 
 static void sc2_parse_object_field(sc2MapObject_t *object, sc2XmlField_t const *fields, DWORD num_fields, LPCSTR key, LPCSTR value, BOOL *has_position) {
     if (sc2_parse_xml_field(object, fields, num_fields, key, value) &&
-        (sc2_streqi(key, "Position") || sc2_streqi(key, "CameraTarget")) &&
+        (sc2_streqi(key, "Position") || sc2_streqi(key, "CameraTarget") ||
+         sc2_streqi(key, "x") || sc2_streqi(key, "y")) &&
         has_position)
         *has_position = true;
 }

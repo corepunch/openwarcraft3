@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="us-ascii"?>
+<Catalog>
+    <CTerrain id="MarSara">
+        <FogDensity value="0.100000"/>
+        <FogFalloff value="0.200000"/>
+        <FogStartingHeight value="5.000000"/>
+        <FogColor value="255,40,35,30"/>
+    </CTerrain>
+</Catalog>

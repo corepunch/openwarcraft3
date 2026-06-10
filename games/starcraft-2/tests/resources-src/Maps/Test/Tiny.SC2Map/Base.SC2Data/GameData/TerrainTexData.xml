@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="us-ascii"?>
+<Catalog>
+    <CTerrainTex id="FixtureGrass">
+        <Texture value="Assets\Textures\Terrain\FixtureGrass_Diffuse.dds"/>
+        <Normalmap value="Assets\Textures\Terrain\FixtureGrass_Diffuse_normal.dds"/>
+    </CTerrainTex>
+    <CTerrainTex id="FixtureDirt">
+        <Texture value="Assets\Textures\Terrain\FixtureDirt_Diffuse.dds"/>
+        <Normalmap value="Assets\Textures\Terrain\FixtureDirt_Diffuse_normal.dds"/>
+    </CTerrainTex>
+    <CTerrainTex id="MarSaraDirt">
+        <Texture value="Assets\Textures\MarSara_Dirt.dds"/>
+        <Normalmap value="Assets\Textures\MarSara_DirtNormal.dds"/>
+    </CTerrainTex>
+    <CTerrainTex id="MarSaraRocky">
+        <Texture value="Assets\Textures\MarSara_Rocky.dds"/>
+        <Normalmap value="Assets\Textures\MarSara_RockyNormal.dds"/>
+    </CTerrainTex>
+    <CTerrainTex id="MarSaraDirtCracked">
+        <Texture value="Assets\Textures\MarSara_Dirt_Cracked.dds"/>
+        <Normalmap value="Assets\Textures\MarSara_Dirt_CrackedNormal.dds"/>
+    </CTerrainTex>
+    <CTerrainTex id="MarSaraConcrete">
+        <Texture value="Assets\Textures\MarSara_Concrete.dds"/>
+        <Normalmap value="Assets\Textures\MarSara_ConcreteNormal.dds"/>
+    </CTerrainTex>
+    <CTerrainTex id="MarSaraPanels">
+        <Texture value="Assets\Textures\MarSara_Panels.dds"/>
+        <Normalmap value="Assets\Textures\MarSara_PanelsNormal.dds"/>
+    </CTerrainTex>
+    <CTerrainTex id="MarSaraDarkSand">
+        <Texture value="Assets\Textures\MarSara_Dark_Sand.dds"/>
+        <Normalmap value="Assets\Textures\MarSara_Dark_SandNormal.dds"/>
+    </CTerrainTex>
+    <CTerrainTex id="MarSaraSand">
+        <Texture value="Assets\Textures\MarSara_Sand.dds"/>
+        <Normalmap value="Assets\Textures\MarSara_SandNormal.dds"/>
+    </CTerrainTex>
+    <CTerrainTex id="MarSaraBlackenedRock">
+        <Texture value="Assets\Textures\MarSara_Blackened_Rock.dds"/>
+        <Normalmap value="Assets\Textures\MarSara_Blackened_RockNormal.dds"/>
+    </CTerrainTex>
+</Catalog>

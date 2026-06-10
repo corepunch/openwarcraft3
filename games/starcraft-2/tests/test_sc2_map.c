@@ -107,7 +107,7 @@ static void test_sc2_map_loads_xml_objects_and_terrain(void) {
     ASSERT_EQ_INT(map->MapInfo.width, 8);
     ASSERT_EQ_INT(map->MapInfo.height, 6);
     ASSERT_STR_EQ((char const *)map->MapInfo.data, "SC2 Tiny Fixture");
-    ASSERT_EQ_INT(map->num_objects, 4);
+    ASSERT_EQ_INT(map->num_objects, 5);
 
     ASSERT_STR_EQ(map->objects[0].name, "StartGame02");
     ASSERT_EQ_INT(map->objects[0].id, 10);
@@ -139,6 +139,13 @@ static void test_sc2_map_loads_xml_objects_and_terrain(void) {
     ASSERT_STR_EQ(map->objects[3].model, "");
     ASSERT_EQ_FLOAT(map->objects[3].position.z, 8.0f, 0.001f);
     ASSERT_EQ_INT(map->objects[3].flags, SC2_OBJECT_HEIGHT_ABSOLUTE | SC2_OBJECT_FORCE_PLACEMENT);
+
+    ASSERT_STR_EQ(map->objects[4].name, "MineralField");
+    ASSERT_EQ_INT(map->objects[4].type, SC2_OBJECT_DOODAD);
+    ASSERT_STR_EQ(map->objects[4].model, "Assets\\Doodads\\Terran\\MineralField\\MineralField.m3");
+    ASSERT_EQ_FLOAT(map->objects[4].position.x, 4.0f, 0.001f);
+    ASSERT_EQ_FLOAT(map->objects[4].position.y, 3.0f, 0.001f);
+    ASSERT_EQ_FLOAT(map->objects[4].position.z, 0.0f, 0.001f);
 
     ASSERT_STR_EQ(map->t3Terrain.tile_set, "Fixture");
     ASSERT_EQ_FLOAT(map->t3Terrain.height_quantize_bias, 0.0f, 0.001f);
