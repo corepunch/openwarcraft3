@@ -36,6 +36,7 @@ void Wow_LoadGroundEffectDBCs(void) {
     BYTE const *records_base;
 
     fprintf(stderr, "[GRASS] Wow_LoadGroundEffectDBCs: Starting load\n");
+    fflush(stderr);
 
     if (wow_ground_effect_textures_loaded && wow_ground_effect_doodads_loaded) {
         fprintf(stderr, "[GRASS] Wow_LoadGroundEffectDBCs: Already loaded, skipping\n");
@@ -44,8 +45,10 @@ void Wow_LoadGroundEffectDBCs(void) {
 
     // Load GroundEffectTexture.dbc
     fprintf(stderr, "[GRASS] Loading GroundEffectTexture.dbc...\n");
+    fflush(stderr);
     size = ri.FS_ReadFile("DBFilesClient\\GroundEffectTexture.dbc", (void **)&data);
     fprintf(stderr, "[GRASS] FS_ReadFile returned size=%u\n", (unsigned)size);
+    fflush(stderr);
     
     if (data && size >= 20) {
         fprintf(stderr, "[GRASS] Validating WDBC header...\n");
@@ -101,6 +104,7 @@ void Wow_LoadGroundEffectDBCs(void) {
     wow_ground_effect_doodads_loaded = true;
     
     fprintf(stderr, "[GRASS] Wow_LoadGroundEffectDBCs: Complete\n");
+    fflush(stderr);
 }
 
 static wowGroundEffectTexture_t *Wow_GetGroundEffectTexture(DWORD effect_id) {

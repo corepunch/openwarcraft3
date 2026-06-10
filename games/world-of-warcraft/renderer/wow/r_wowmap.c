@@ -5,12 +5,20 @@ void R_RegisterMap(LPCSTR mapFileName) {
     LPBYTE data = NULL;
     int size;
 
+    fprintf(stderr, "[MAP_REGISTER] Starting: %s\n", mapFileName);
+    fflush(stderr);
+    
     Wow_FreeWorld();
     Wow_NormalizeMapPath(mapFileName, path, sizeof(path));
     Wow_SetMapNames(path);
+    fprintf(stderr, "[MAP_REGISTER] Calling Wow_LoadMapDbcFlags\n");
+    fflush(stderr);
     Wow_LoadMapDbcFlags();
-    // NOTE: Wow_LoadGroundEffectDBCs() not called here - it's meant for WoW data,
-    // not Warcraft III maps. Grass will render with procedural coloring.
+    fprintf(stderr, "[MAP_REGISTER] Calling Wow_LoadGroundEffectDBCs\n");
+    fflush(stderr);
+    Wow_LoadGroundEffectDBCs();
+    fprintf(stderr, "[MAP_REGISTER] Wow_LoadGroundEffectDBCs returned\n");
+    fflush(stderr);
 
     size = ri.FS_ReadFile(path, (void **)&data);
     if (size <= 0 || !data) {
