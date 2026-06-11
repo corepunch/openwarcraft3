@@ -678,6 +678,12 @@ static BOOL M3_MaterialIsBlended(m3Material_t const *material) {
     return material && material->blendMode >= BLEND_MODE_BLEND;
 }
 
+static BOOL M3_MaterialHasAlphaMask(m3Material_t const *material) {
+    return material &&
+        material->alphaMaskLayer &&
+        material->alphaMaskLayer->texture;
+}
+
 static FLOAT M3_MaterialAlphaCutoff(m3Material_t const *material) {
     if (!material) {
         return 1.0f;
@@ -685,10 +691,21 @@ static FLOAT M3_MaterialAlphaCutoff(m3Material_t const *material) {
     if (material->cutoutThreshold > 0) {
         return (FLOAT)material->cutoutThreshold / 255.0f;
     }
-    if (!M3_MaterialIsBlended(material) && material->alphaMaskLayer) {
+    if (!M3_MaterialIsBlended(material) && M3_MaterialHasAlphaMask(material)) {
         return 0.5f;
     }
     return -1.0f;
+}
+
+static COLOR32 M3_LayerColor(m3Layer_t const *layer) {
+    COLOR32 color;
+
+    if (!layer)
+        return COLOR32_WHITE;
+    color = layer->color.initValue;
+    if (!color.r && !color.g && !color.b && !color.a)
+        return COLOR32_WHITE;
+    return color;
 }
 
 static BOOL M3_SetMaterialBlendMode(m3Material_t const *material) {
@@ -787,7 +804,7 @@ static void M3_DrawRegionMaterial(m3Region_t const *region, m3Material_t const *
     LPCTEXTURE specular = material->specularLayer && material->specularLayer->texture ? material->specularLayer->texture : tr.texture[TEX_WHITE];
     LPCTEXTURE normal = material->normalLayer && material->normalLayer->texture ? material->normalLayer->texture : tr.texture[TEX_WHITE];
     LPCTEXTURE alpha_mask = material->alphaMaskLayer && material->alphaMaskLayer->texture ? material->alphaMaskLayer->texture : tr.texture[TEX_WHITE];
-    COLOR32 diffuse_color = material->diffuseLayer ? material->diffuseLayer->color.initValue : COLOR32_WHITE;
+    COLOR32 diffuse_color = M3_LayerColor(material->diffuseLayer);
 #ifndef __linux__
     DWORD const num_indices = region->triangleIndicesCount;
     DWORD const first_vertex = region->firstVertexIndex;
@@ -806,7 +823,7 @@ static void M3_DrawRegionMaterial(m3Region_t const *region, m3Material_t const *
            diffuse_color.b / 255.0f,
            diffuse_color.a / 255.0f * alpha);
     R_Call(glUniform1f, m3.uAlphaCutoff, M3_MaterialAlphaCutoff(material));
-    R_Call(glUniform1f, m3.uUseAlphaMask, material->alphaMaskLayer ? 1.0f : 0.0f);
+    R_Call(glUniform1f, m3.uUseAlphaMask, M3_MaterialHasAlphaMask(material) ? 1.0f : 0.0f);
 
     R_Call(glActiveTexture, GL_TEXTURE0);
     R_Call(glBindTexture, GL_TEXTURE_2D, diffuse->texid);
