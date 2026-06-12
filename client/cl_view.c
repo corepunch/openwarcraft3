@@ -2,6 +2,9 @@
 
 #include "client.h"
 #include "tr_public.h"
+#ifdef SC2
+#include "games/starcraft-2/common/sc2_map.h"
+#endif
 
 static struct {
     renderEntity_t entities[MAX_CLIENT_ENTITIES];
@@ -341,6 +344,109 @@ static void V_ClearScene(void) {
     cl.viewDef.num_decals = 0;
 }
 
+static void CL_DebugEntityView(void) {
+    static BYTE prev_snapshot[MAX_CLIENT_ENTITIES];
+    static BYTE prev_view[MAX_CLIENT_ENTITIES];
+    static BYTE prev_mismatch[MAX_CLIENT_ENTITIES];
+    static BOOL initialized = false;
+    BYTE snapshot[MAX_CLIENT_ENTITIES];
+    BYTE view[MAX_CLIENT_ENTITIES];
+    BYTE mismatch[MAX_CLIENT_ENTITIES];
+    int debug_entities = Cvar_Integer("cl_debug_entities", 0);
+    DWORD snapshot_count = 0;
+    DWORD view_count = 0;
+    DWORD missing_model_handles = 0;
+
+    if (!debug_entities) {
+        initialized = false;
+        return;
+    }
+
+    memset(snapshot, 0, sizeof(snapshot));
+    memset(view, 0, sizeof(view));
+    memset(mismatch, 0, sizeof(mismatch));
+
+    FOR_LOOP(index, MAX_CLIENT_ENTITIES) {
+        centity_t const *ce = &cl.ents[index];
+
+        if (!ce->current.model) {
+            continue;
+        }
+        snapshot[index] = 1;
+        snapshot_count++;
+        if (ce->current.model >= MAX_MODELS || !cl.models[ce->current.model]) {
+            missing_model_handles++;
+        }
+    }
+    FOR_LOOP(index, view_state.num_entities) {
+        renderEntity_t const *ent = &view_state.entities[index];
+
+        if (ent->number < MAX_CLIENT_ENTITIES) {
+            view[ent->number] = 1;
+        }
+        view_count++;
+    }
+    FOR_LOOP(index, MAX_CLIENT_ENTITIES) {
+        centity_t const *ce = &cl.ents[index];
+
+        mismatch[index] = snapshot[index] && !view[index];
+        if (!initialized) {
+            continue;
+        }
+        if (prev_snapshot[index] && !snapshot[index]) {
+            fprintf(stderr, "CL view snapshot lost frame=%d ent=%u\n", cl.frame.serverframe, (unsigned)index);
+        } else if (!prev_snapshot[index] && snapshot[index]) {
+            fprintf(stderr,
+                    "CL view snapshot gained frame=%d ent=%u model=%u class=%u origin=(%.1f %.1f %.1f)\n",
+                    cl.frame.serverframe,
+                    (unsigned)index,
+                    (unsigned)ce->current.model,
+                    (unsigned)ce->current.class_id,
+                    ce->current.origin.x,
+                    ce->current.origin.y,
+                    ce->current.origin.z);
+        }
+        if (prev_view[index] && !view[index]) {
+            fprintf(stderr,
+                    "CL view render lost frame=%d ent=%u snapshot=%d model=%u class=%u\n",
+                    cl.frame.serverframe,
+                    (unsigned)index,
+                    snapshot[index] ? 1 : 0,
+                    (unsigned)ce->current.model,
+                    (unsigned)ce->current.class_id);
+        } else if (!prev_view[index] && view[index]) {
+            fprintf(stderr,
+                    "CL view render gained frame=%d ent=%u model=%u class=%u\n",
+                    cl.frame.serverframe,
+                    (unsigned)index,
+                    (unsigned)ce->current.model,
+                    (unsigned)ce->current.class_id);
+        }
+        if (debug_entities > 1 && mismatch[index] && !prev_mismatch[index]) {
+            fprintf(stderr,
+                    "CL view mismatch frame=%d ent=%u model=%u class=%u model_handle=%d\n",
+                    cl.frame.serverframe,
+                    (unsigned)index,
+                    (unsigned)ce->current.model,
+                    (unsigned)ce->current.class_id,
+                    ce->current.model < MAX_MODELS && cl.models[ce->current.model] ? 1 : 0);
+        }
+    }
+    if (debug_entities > 1) {
+        fprintf(stderr,
+                "CL view summary frame=%d snapshot=%u view=%u missing_model_handles=%u\n",
+                cl.frame.serverframe,
+                (unsigned)snapshot_count,
+                (unsigned)view_count,
+                (unsigned)missing_model_handles);
+    }
+
+    memcpy(prev_snapshot, snapshot, sizeof(prev_snapshot));
+    memcpy(prev_view, view, sizeof(prev_view));
+    memcpy(prev_mismatch, mismatch, sizeof(prev_mismatch));
+    initialized = true;
+}
+
 static void CL_AddBuilding(void) {
     if (!cl.cursorEntity)
         return;
@@ -407,6 +513,7 @@ static void CL_AddEntities(void) {
     cl.viewDef.entities = view_state.entities;
     cl.viewDef.num_decals = view_state.num_decals;
     cl.viewDef.decals = view_state.decals;
+    CL_DebugEntityView();
 }
 
 void CL_PrepRefresh(void) {
@@ -472,24 +579,24 @@ void CL_PrepRefresh(void) {
 
 #ifdef SC2
     if (world_loaded && cls.state != ca_active) {
-        BOX2 bounds = CM_GetWorldBounds();
+        sc2MapCamera_t map_camera;
         viewCamera_t camera = { 0 };
 
         cls.state = ca_active;
-        camera.origin = (VECTOR3){
-            (bounds.min.x + bounds.max.x) * 0.5f,
-            (bounds.min.y + bounds.max.y) * 0.5f,
-            0.0f,
-        };
-        camera.fov = 28.0f;
-        camera.distance = 34.07f;
-        camera.znear = 0.1f;
-        camera.zfar = 400.0f;
+        SC2_MapDefaultCamera(&map_camera);
+        camera.origin = map_camera.target;
+        camera.viewangles = (VECTOR3){ map_camera.pitch, map_camera.yaw, 0.0f };
+        camera.fov = map_camera.fov;
+        camera.distance = map_camera.distance;
+        camera.znear = map_camera.znear;
+        camera.zfar = map_camera.zfar;
         cl.viewDef.camerastate[0] = camera;
         cl.viewDef.camerastate[1] = camera;
         cl.playerstate.origin = (VECTOR2){ camera.origin.x, camera.origin.y };
         cl.playerstate.fov = camera.fov;
         cl.playerstate.distance = camera.distance;
+        cl.playerstate.viewangles = camera.viewangles;
+        cl.playerstate.viewquat = Quaternion_fromEuler(&camera.viewangles, ROTATE_ZYX);
     }
 
     if (world_loaded && !begin_sent) {

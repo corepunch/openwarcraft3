@@ -297,5 +297,6 @@ BOX2          SC2_MapBounds(void);
 VECTOR2       SC2_MapNormalizedPosition(FLOAT x, FLOAT y);
 VECTOR2       SC2_MapDenormalizedPosition(FLOAT x, FLOAT y);
 DWORD         SC2_MapObjectClassId(sc2MapObject_t const *object);
+BOOL          SC2_MapDefaultCamera(sc2MapCamera_t *camera);
 
 #endif

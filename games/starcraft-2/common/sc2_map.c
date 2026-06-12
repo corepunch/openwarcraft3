@@ -1500,3 +1500,48 @@ VECTOR2 SC2_MapDenormalizedPosition(FLOAT x, FLOAT y) {
 DWORD SC2_MapObjectClassId(sc2MapObject_t const *object) {
     return object && object->name[0] ? sc2_hash32(object->name) : 0;
 }
+
+BOOL SC2_MapDefaultCamera(sc2MapCamera_t *camera) {
+    sc2MapCamera_t value = { 0 };
+
+    if (!camera) {
+        return false;
+    }
+    if (sc2_map.MapInfo.width && sc2_map.MapInfo.height) {
+        value.target = (VECTOR3){
+            sc2_map.origin.x + (FLOAT)sc2_map.MapInfo.width * sc2_map.cell_size * 0.5f,
+            sc2_map.origin.y + (FLOAT)sc2_map.MapInfo.height * sc2_map.cell_size * 0.5f,
+            0.0f,
+        };
+    }
+    value.distance = 34.07f;
+    value.pitch = 56.0f;
+    value.yaw = 179.9584f;
+    value.fov = 27.7998f;
+    value.znear = 0.0998f;
+    value.zfar = 400.0f;
+
+    FOR_LOOP(i, sc2_map.num_objects) {
+        sc2MapObject_t const *object = &sc2_map.objects[i];
+
+        if (object->type != SC2_OBJECT_CAMERA) {
+            continue;
+        }
+        if (object->camera.target.x != 0.0f ||
+            object->camera.target.y != 0.0f ||
+            object->camera.target.z != 0.0f) {
+            value.target = object->camera.target;
+        }
+        if (object->camera.distance > 0.0f) value.distance = object->camera.distance;
+        if (object->camera.pitch != 0.0f) value.pitch = object->camera.pitch;
+        if (object->camera.yaw != 0.0f) value.yaw = object->camera.yaw;
+        if (object->camera.fov > 0.0f) value.fov = object->camera.fov;
+        if (object->camera.znear > 0.0f) value.znear = object->camera.znear;
+        if (object->camera.zfar > 0.0f) value.zfar = object->camera.zfar;
+        if (object->camera.height_offset != 0.0f) value.height_offset = object->camera.height_offset;
+        break;
+    }
+
+    *camera = value;
+    return true;
+}

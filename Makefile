@@ -74,7 +74,7 @@ LUA_LIBS     := $(shell pkg-config --libs lua5.4 2>/dev/null || pkg-config --lib
 WOW_UI_CFLAGS := $(WOW_CFLAGS) $(LUA_CFLAGS)
 SC2_XML_CFLAGS := $(shell pkg-config --cflags libxml-2.0 2>/dev/null || xml2-config --cflags 2>/dev/null) -I/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/libxml2
 SC2_XML_LIBS := $(shell pkg-config --libs libxml-2.0 2>/dev/null || xml2-config --libs 2>/dev/null)
-SC2_CFLAGS   := $(CFLAGS) -I$(SC2_DIR) -DSC2 -DSC2_CAMERA_HACK -DOW3_LOAD_ALL_MPQS -Wno-unused-function $(SC2_XML_CFLAGS)
+SC2_CFLAGS   := $(CFLAGS) -I$(SC2_DIR) -DSC2 -DOW3_LOAD_ALL_MPQS -Wno-unused-function $(SC2_XML_CFLAGS)
 SC2_TEST_CFLAGS := $(SC2_CFLAGS) -Itests -Icommon -DTEST_SC2_MPQ=\"build/tests/test-sc2.SC2Maps\"
 
 TOOL_SRCS := $(shell find tools -maxdepth 1 -name '*.c' ! -name 'jass.c' | sort)

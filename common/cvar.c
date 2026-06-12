@@ -414,6 +414,9 @@ void Cvar_Init(void) {
     Cvar_Get("fs_expansion", "0", 0);
     Cvar_Get("map", "", 0);
     Cvar_Get("connect", "", 0);
+    Cvar_Get("cl_debug_entities", "0", 0);
+    Cvar_Get("sv_debug_entities", "0", 0);
+    Cvar_Get("r_debug_entities", "0", 0);
     Cvar_Get("r_module", "renderer", CVAR_ARCHIVE);
     Cvar_Get("ui_module", "ui", CVAR_ARCHIVE);
     Cvar_Get("g_module", "game", CVAR_ARCHIVE);

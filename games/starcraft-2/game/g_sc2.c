@@ -235,17 +235,9 @@ static void SC2_SolveCollisions(void) {
 }
 
 static void SC2_InitClients(void) {
-    sc2Map_t const *map = SC2_MapCurrent();
-    DWORD width = map ? map->MapInfo.width : 0;
-    DWORD height = map ? map->MapInfo.height : 0;
-    VECTOR2 origin = { 0, 0 };
+    sc2MapCamera_t camera;
 
-    if (map && width && height) {
-        origin = (VECTOR2){
-            map->origin.x + (FLOAT)width * map->cell_size * 0.5f,
-            map->origin.y + (FLOAT)height * map->cell_size * 0.5f,
-        };
-    }
+    SC2_MapDefaultCamera(&camera);
     FOR_LOOP(i, SC2_MAX_CLIENTS) {
         LPEDICT ent = &sc2_edicts[i];
         ent->inuse = true;
@@ -253,11 +245,11 @@ static void SC2_InitClients(void) {
         ent->client = &sc2_clients[i];
         ent->client->ps.number = i + 1;
         ent->client->ps.client_ui_state = CLIENT_UI_GAME;
-        ent->client->ps.origin = origin;
-        ent->client->ps.fov = 28;
-        ent->client->ps.distance = 34.07f;
+        ent->client->ps.origin = (VECTOR2){ camera.target.x, camera.target.y };
+        ent->client->ps.fov = (DWORD)camera.fov;
+        ent->client->ps.distance = camera.distance;
         ent->client->ps.rdflags = RDF_NOFOG | RDF_NOFOGMASK;
-        ent->client->ps.viewangles = (VECTOR3){ 56.0f, 180.0f, 0.0f };
+        ent->client->ps.viewangles = (VECTOR3){ camera.pitch, camera.yaw, 0.0f };
         ent->client->ps.viewquat = Quaternion_fromEuler(&ent->client->ps.viewangles, ROTATE_ZYX);
     }
 }
@@ -404,7 +396,8 @@ static void SC2_ClientSetCameraPosition(LPEDICT ent, LPCVECTOR2 position) {
 }
 
 static BOOL SC2_CanSeeEntity(DWORD player, LPCEDICT ent) {
-    (void)player; (void)ent;
+    (void)player;
+    (void)ent;
     return true;
 }
 

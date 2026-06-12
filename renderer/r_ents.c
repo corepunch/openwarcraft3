@@ -1,6 +1,7 @@
 #include "r_local.h"
 #include "r_game.h"
 #include <float.h>
+#include <stdlib.h>
 
 void R_GetEntityMatrix(renderEntity_t const *entity, LPMATRIX4 matrix) {
     VECTOR3 origin = entity->origin;
@@ -13,6 +14,10 @@ void R_GetEntityMatrix(renderEntity_t const *entity, LPMATRIX4 matrix) {
     Matrix4_translate(matrix, &origin);
     Matrix4_rotate(matrix, &(VECTOR3){0, 0, entity->angle * 180 / M_PI}, ROTATE_XYZ);
     Matrix4_scale(matrix, &(VECTOR3){entity->scale, entity->scale, entity->scale});
+}
+
+static int R_DebugEntities(void) {
+    return atoi(ri.CvarString ? ri.CvarString("r_debug_entities", "0") : "0");
 }
 
 static BOOL R_EntityInView(renderEntity_t const *entity) {
@@ -33,10 +38,72 @@ static BOOL R_EntityInView(renderEntity_t const *entity) {
 }
 
 void R_DrawEntities(void) {
+    static BYTE prev_state[MAX_GAME_ENTITIES];
+    static BOOL initialized = false;
+    BYTE state[MAX_GAME_ENTITIES];
+    int debug_entities = R_DebugEntities();
+    DWORD drawn = 0;
+    DWORD culled = 0;
+
+    if (debug_entities) {
+        memset(state, 0, sizeof(state));
+    } else {
+        initialized = false;
+    }
+
     FOR_LOOP(i, tr.viewDef.num_entities) {
-        if (R_EntityInView(tr.viewDef.entities+i)) {
-            R_RenderModel(tr.viewDef.entities+i);
+        renderEntity_t const *ent = tr.viewDef.entities+i;
+        BOOL in_view = R_EntityInView(ent);
+
+        if (debug_entities && ent->number < MAX_GAME_ENTITIES) {
+            state[ent->number] = in_view ? 2 : 1;
         }
+        if (in_view) {
+            drawn++;
+            R_RenderModel(ent);
+        } else {
+            culled++;
+        }
+    }
+
+    if (debug_entities) {
+        if (initialized) {
+            FOR_LOOP(i, MAX_GAME_ENTITIES) {
+                if (prev_state[i] == state[i]) {
+                    continue;
+                }
+                if (!prev_state[i] && state[i]) {
+                    fprintf(stderr,
+                            "R entity entered frame_time=%u ent=%u state=%s\n",
+                            (unsigned)tr.viewDef.time,
+                            (unsigned)i,
+                            state[i] == 2 ? "drawn" : "culled");
+                } else if (prev_state[i] && !state[i]) {
+                    fprintf(stderr,
+                            "R entity left frame_time=%u ent=%u prev=%s\n",
+                            (unsigned)tr.viewDef.time,
+                            (unsigned)i,
+                            prev_state[i] == 2 ? "drawn" : "culled");
+                } else {
+                    fprintf(stderr,
+                            "R entity cull-change frame_time=%u ent=%u %s->%s\n",
+                            (unsigned)tr.viewDef.time,
+                            (unsigned)i,
+                            prev_state[i] == 2 ? "drawn" : "culled",
+                            state[i] == 2 ? "drawn" : "culled");
+                }
+            }
+        }
+        if (debug_entities > 1) {
+            fprintf(stderr,
+                    "R entity summary frame_time=%u view=%u drawn=%u culled=%u\n",
+                    (unsigned)tr.viewDef.time,
+                    (unsigned)tr.viewDef.num_entities,
+                    (unsigned)drawn,
+                    (unsigned)culled);
+        }
+        memcpy(prev_state, state, sizeof(prev_state));
+        initialized = true;
     }
 }
 

@@ -10,6 +10,9 @@
  * config strings and temporary effects each have their own message types.
  */
 #include "client.h"
+#ifdef SC2
+#include "games/starcraft-2/common/sc2_map.h"
+#endif
 
 static LPCSTR CL_LobbySlotTypeName(lobbySlotType_t type) {
     switch (type) {
@@ -38,6 +41,11 @@ static LPCSTR CL_PlayerRaceName(playerRace_t race) {
 static void CL_ReadPacketEntities(LPSIZEBUF msg) {
     int count = 0;
     int previous = 0;
+    int debug_entities = Cvar_Integer("cl_debug_entities", 0);
+    int added = 0;
+    int removed = 0;
+    int changed = 0;
+
     while (true) {
         DWORD bits = 0;
         if (msg->readcount + sizeof(DWORD) + sizeof(WORD) > msg->cursize) {
@@ -62,18 +70,67 @@ static void CL_ReadPacketEntities(LPSIZEBUF msg) {
         previous = nument;
         count++;
         centity_t *ent = &cl.ents[nument];
+        entityState_t old = ent->current;
         if (bits & (1u << U_REMOVE)) {
+            if (debug_entities && old.model) {
+                fprintf(stderr,
+                        "CL entity remove frame=%d ent=%d model=%u class=%u origin=(%.1f %.1f %.1f)\n",
+                        cl.frame.serverframe,
+                        nument,
+                        (unsigned)old.model,
+                        (unsigned)old.class_id,
+                        old.origin.x,
+                        old.origin.y,
+                        old.origin.z);
+            }
             memset(ent, 0, sizeof(centity_t));
+            removed++;
             continue;
         }
         ent->prev = ent->current;
         MSG_ReadDeltaEntity(msg, &ent->current, nument, bits);
+        if (debug_entities) {
+            if (!old.model && ent->current.model) {
+                fprintf(stderr,
+                        "CL entity add frame=%d ent=%d model=%u class=%u origin=(%.1f %.1f %.1f) radius=%.1f\n",
+                        cl.frame.serverframe,
+                        nument,
+                        (unsigned)ent->current.model,
+                        (unsigned)ent->current.class_id,
+                        ent->current.origin.x,
+                        ent->current.origin.y,
+                        ent->current.origin.z,
+                        ent->current.radius);
+                added++;
+            } else if (old.model && ent->current.model &&
+                       (old.model != ent->current.model ||
+                        old.class_id != ent->current.class_id)) {
+                fprintf(stderr,
+                        "CL entity change frame=%d ent=%d model=%u->%u class=%u->%u\n",
+                        cl.frame.serverframe,
+                        nument,
+                        (unsigned)old.model,
+                        (unsigned)ent->current.model,
+                        (unsigned)old.class_id,
+                        (unsigned)ent->current.class_id);
+                changed++;
+            }
+        }
         if (ent->serverframe != cl.frame.serverframe - 1) {
             ent->prev = ent->current;
         }
         ent->serverframe = cl.frame.serverframe;
     }
     cl.num_entities = MAX_CLIENT_ENTITIES;
+    if (debug_entities > 1 && (added || removed || changed)) {
+        fprintf(stderr,
+                "CL entity summary frame=%d packet=%d add=%d remove=%d change=%d\n",
+                cl.frame.serverframe,
+                count,
+                added,
+                removed,
+                changed);
+    }
 }
 
 static void CL_ParseConfigString(LPSIZEBUF msg) {
@@ -148,6 +205,21 @@ void CL_ParsePlayerInfo(LPSIZEBUF msg) {
     cl.viewDef.camerastate[0].fov = cl.playerstate.fov;
     cl.viewDef.camerastate[0].znear = znear;
     cl.viewDef.camerastate[0].zfar = zfar;
+#ifdef SC2
+    {
+        sc2MapCamera_t camera;
+
+        SC2_MapDefaultCamera(&camera);
+        cl.viewDef.camerastate[0].viewangles = (VECTOR3){ camera.pitch, camera.yaw, 0.0f };
+        cl.viewDef.camerastate[0].viewquat = Quaternion_fromEuler(&cl.viewDef.camerastate[0].viewangles, ROTATE_ZYX);
+        cl.viewDef.camerastate[0].distance = camera.distance;
+        cl.viewDef.camerastate[0].fov = camera.fov;
+        cl.viewDef.camerastate[0].znear = camera.znear;
+        cl.viewDef.camerastate[0].zfar = camera.zfar;
+        znear = camera.znear;
+        zfar = camera.zfar;
+    }
+#endif
 
     if (first_camera_sample) {
         cl.viewDef.camerastate[1] = cl.viewDef.camerastate[0];

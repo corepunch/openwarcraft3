@@ -159,6 +159,10 @@ void SV_BuildClientFrame(LPCLIENT client) {
 void SV_EmitPacketEntities(LPCCLIENTFRAME from, LPCCLIENTFRAME to, LPSIZEBUF msg) {
     int const from_num_entities = from ? from->num_entities : 0;
     entityState_t nullstate = { 0 };
+    int debug_entities = Cvar_Integer("sv_debug_entities", 0);
+    int added = 0;
+    int removed = 0;
+    int changed = 0;
 
     MSG_WriteByte (msg, svc_packetentities);
 
@@ -182,6 +186,19 @@ void SV_EmitPacketEntities(LPCCLIENTFRAME from, LPCCLIENTFRAME to, LPSIZEBUF msg
             oldnum = oldent->number;
         }
         if (newnum == oldnum) {
+            if (debug_entities && oldent && newent &&
+                (oldent->model != newent->model ||
+                 oldent->class_id != newent->class_id)) {
+                fprintf(stderr,
+                        "SV entity change frame=%u ent=%d model=%u->%u class=%u->%u\n",
+                        (unsigned)sv.framenum,
+                        newnum,
+                        (unsigned)oldent->model,
+                        (unsigned)newent->model,
+                        (unsigned)oldent->class_id,
+                        (unsigned)newent->class_id);
+                changed++;
+            }
             MSG_WriteDeltaEntity(msg, oldent, newent, false);
             oldindex++;
             newindex++;
@@ -192,11 +209,36 @@ void SV_EmitPacketEntities(LPCCLIENTFRAME from, LPCCLIENTFRAME to, LPSIZEBUF msg
             if (sv.baselines && newnum >= 0 && newnum < ge->max_edicts) {
                 base = &sv.baselines[newnum];
             }
+            if (debug_entities && newent) {
+                fprintf(stderr,
+                        "SV entity add frame=%u ent=%d model=%u class=%u origin=(%.1f %.1f %.1f) radius=%.1f\n",
+                        (unsigned)sv.framenum,
+                        newnum,
+                        (unsigned)newent->model,
+                        (unsigned)newent->class_id,
+                        newent->origin.x,
+                        newent->origin.y,
+                        newent->origin.z,
+                        newent->radius);
+                added++;
+            }
             MSG_WriteDeltaEntity(msg, base, newent, false);
             newindex++;
             continue;
         }
         if (newnum > oldnum) { // the old entity isn't present in the new message
+            if (debug_entities && oldent) {
+                fprintf(stderr,
+                        "SV entity remove frame=%u ent=%d model=%u class=%u origin=(%.1f %.1f %.1f)\n",
+                        (unsigned)sv.framenum,
+                        oldnum,
+                        (unsigned)oldent->model,
+                        (unsigned)oldent->class_id,
+                        oldent->origin.x,
+                        oldent->origin.y,
+                        oldent->origin.z);
+                removed++;
+            }
             MSG_WriteLong(msg, 1u << U_REMOVE);
             MSG_WriteShort(msg, oldnum);
             oldindex++;
@@ -204,6 +246,16 @@ void SV_EmitPacketEntities(LPCCLIENTFRAME from, LPCCLIENTFRAME to, LPSIZEBUF msg
         }
     }
     MSG_WriteEntityBits(msg, 0, 0);    // end of packetentities
+    if (debug_entities > 1 && (added || removed || changed)) {
+        fprintf(stderr,
+                "SV entity summary frame=%u add=%d remove=%d change=%d to=%u from=%d\n",
+                (unsigned)sv.framenum,
+                added,
+                removed,
+                changed,
+                (unsigned)to->num_entities,
+                from_num_entities);
+    }
 }
 
 void SV_WritePlayerstateToClient(LPCCLIENTFRAME from, LPCCLIENTFRAME to, LPSIZEBUF msg) {
