@@ -16,8 +16,10 @@ You can also download the latest build artifact from the [CI workflow runs](http
 
 <p align="center">
   <img src="doc/images/screenshot1.jpg" width="31%" style="margin-right:2%;" />
-  <img src="doc/images/screenshot2.jpg" width="31%" style="margin-right:2%;" />
-  <img src="doc/images/screenshot3.jpg" width="31%" />
+  <img src="doc/images/screenshot3.jpg" width="31%" style="margin-right:2%;" />
+  <a href="https://youtu.be/vg7Jm046vcI">
+  <img src="https://github.com/user-attachments/assets/c94e8fdf-5b78-4a0b-baf5-26e121947309" width="31%" />
+  </a>
 </p>
 
 ## Beyond Warcraft III
@@ -29,10 +31,6 @@ The project is being organized around a small core runtime: client, server, rend
 In spirit, this is a little like ScummVM: keep the original game data outside the repository, rebuild the engine/runtime behavior in open source, and let legally owned local assets run through a modern, portable codebase. OpenWarcraft3 is not affiliated with Blizzard and does not ship retail assets; it is an engine and compatibility project for people who already have the original data.
 
 Current and planned targets:
-
-<a href="https://youtu.be/vg7Jm046vcI">
-<img align="right" height="160" alt="World of Warcraft" src="https://github.com/user-attachments/assets/c94e8fdf-5b78-4a0b-baf5-26e121947309" />
-</a>
 
 - **Warcraft III** (`games/warcraft-3/`) — main playable prototype and current development focus.
 - **StarCraft II** (`games/starcraft-2/`) — next RTS-family target, currently focused on M3 model and renderer groundwork.
