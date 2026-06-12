@@ -23,6 +23,24 @@ typedef struct {
     BOOL failed;
 } wowCreatureModelCache_t;
 
+typedef struct {
+    DWORD id;
+    DWORD model_id;
+    DWORD sound_id;
+    DWORD extended_display_info_id;
+    FLOAT scale;
+} wowCreatureDisplayInfoDbc_t;
+
+typedef struct {
+    DWORD id;
+    DWORD flags;
+    DWORD model_name_offset;
+    DWORD size_class;
+    FLOAT model_scale;
+    DWORD unused[9];
+    FLOAT collision_width;
+} wowCreatureModelDataDbc_t;
+
 static wowAmbientCreatureType_t const wow_ambient_creature_types[] = {
     { WOW_CREATURE_DISPLAY_WOLF,   18.0f, 2.0f },
     { WOW_CREATURE_DISPLAY_BOAR,   20.0f, 1.4f },
@@ -70,9 +88,11 @@ static BOOL Wow_ResolveCreatureModel(DWORD display_id,
         return false;
     }
 
-    model_id = Wow_Read32(record + sizeof(DWORD));
-    if (fields > 4) {
-        display_scale = Wow_ReadFloat(record + 4 * sizeof(DWORD));
+    wowCreatureDisplayInfoDbc_t const *display = (wowCreatureDisplayInfoDbc_t const *)record;
+
+    model_id = display->model_id;
+    if (record_size >= sizeof(*display)) {
+        display_scale = display->scale;
     }
     gi.MemFree(display_data);
 
@@ -89,17 +109,19 @@ static BOOL Wow_ResolveCreatureModel(DWORD display_id,
         return false;
     }
 
-    model_name_offset = Wow_Read32(record + 2 * sizeof(DWORD));
+    wowCreatureModelDataDbc_t const *model = (wowCreatureModelDataDbc_t const *)record;
+
+    model_name_offset = model->model_name_offset;
     resolved_model = Wow_DbcString(strings, string_size, model_name_offset);
     if (!resolved_model || !*resolved_model) {
         gi.MemFree(model_data);
         return false;
     }
-    if (fields > 4) {
-        model_scale = Wow_ReadFloat(record + 4 * sizeof(DWORD));
+    if (record_size >= 5 * sizeof(DWORD)) {
+        model_scale = model->model_scale;
     }
-    if (fields > 14) {
-        collision_width = Wow_ReadFloat(record + 14 * sizeof(DWORD));
+    if (record_size >= sizeof(*model)) {
+        collision_width = model->collision_width;
     }
 
     snprintf(model_path, model_path_size, "%s", resolved_model);

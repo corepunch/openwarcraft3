@@ -1,5 +1,13 @@
 #include "r_wowmap.h"
 
+typedef struct {
+    DWORD magic;
+    DWORD records;
+    DWORD fields;
+    DWORD record_size;
+    DWORD string_size;
+} wowDbcHeader_t;
+
 // GroundEffectTexture.dbc cache: maps effect_id to doodad information
 static wowGroundEffectTexture_t *wow_ground_effect_textures = NULL;
 static DWORD wow_ground_effect_texture_count = 0;
@@ -51,18 +59,20 @@ void Wow_LoadGroundEffectDBCs(void) {
     fprintf(stderr, "[GRASS] FS_ReadFile returned size=%u\n", (unsigned)size);
     fflush(stderr);
 
-    if (data && size >= 20) {
+    if (data && size >= sizeof(wowDbcHeader_t)) {
+        wowDbcHeader_t const *header = (wowDbcHeader_t const *)data;
+
         fprintf(stderr, "[GRASS] Validating WDBC header...\n");
-        if (memcmp(data, "WDBC", 4) == 0) {
-            records = *(DWORD *)(data + 4);
-            record_size = *(DWORD *)(data + 12);
+        if (header->magic == MAKEFOURCC('W', 'D', 'B', 'C')) {
+            records = header->records;
+            record_size = header->record_size;
 
             fprintf(stderr, "[GRASS] WDBC: records=%u record_size=%u\n",
                     (unsigned)records, (unsigned)record_size);
 
-            if (records > 0 && record_size >= 11 * sizeof(DWORD) &&
-                (uint64_t)records * (uint64_t)record_size <= (uint64_t)size - 20ULL) {
-                records_base = data + 20;
+            if (records > 0 && record_size == sizeof(*wow_ground_effect_textures) &&
+                sizeof(*header) + (uint64_t)records * (uint64_t)record_size + header->string_size <= (uint64_t)size) {
+                records_base = data + sizeof(*header);
                 records_to_copy = records;
                 wow_ground_effect_textures = ri.MemAlloc(sizeof(*wow_ground_effect_textures) * records_to_copy);
                 if (!wow_ground_effect_textures) {
@@ -73,23 +83,10 @@ void Wow_LoadGroundEffectDBCs(void) {
                     return;
                 }
 
-                fprintf(stderr, "[GRASS] Parsing %u records...\n", (unsigned)records_to_copy);
-                FOR_LOOP(record_index, records_to_copy) {
-                    BYTE const *record = records_base + record_index * record_size;
-                    wowGroundEffectTexture_t *entry = &wow_ground_effect_textures[record_index];
-
-                    entry->id = *(DWORD *)(record + 0 * sizeof(DWORD));
-                    entry->doodad_id[0] = *(DWORD *)(record + 1 * sizeof(DWORD));
-                    entry->doodad_id[1] = *(DWORD *)(record + 2 * sizeof(DWORD));
-                    entry->doodad_id[2] = *(DWORD *)(record + 3 * sizeof(DWORD));
-                    entry->doodad_id[3] = *(DWORD *)(record + 4 * sizeof(DWORD));
-                    entry->weight[0] = *(DWORD *)(record + 5 * sizeof(DWORD));
-                    entry->weight[1] = *(DWORD *)(record + 6 * sizeof(DWORD));
-                    entry->weight[2] = *(DWORD *)(record + 7 * sizeof(DWORD));
-                    entry->weight[3] = *(DWORD *)(record + 8 * sizeof(DWORD));
-                    entry->amount_and_coverage = *(DWORD *)(record + 9 * sizeof(DWORD));
-                    entry->terrain_type_id = *(DWORD *)(record + 10 * sizeof(DWORD));
-                }
+                fprintf(stderr, "[GRASS] Copying %u records...\n", (unsigned)records_to_copy);
+                memcpy(wow_ground_effect_textures,
+                       records_base,
+                       sizeof(*wow_ground_effect_textures) * records_to_copy);
 
                 wow_ground_effect_texture_count = records_to_copy;
                 wow_ground_effect_textures_loaded = true;

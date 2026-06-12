@@ -20,7 +20,14 @@ typedef struct {
     cmWowChunkHeight_t chunks[16][16];
 } cmWowAdtHeightCache_t;
 
+typedef struct {
+    DWORD id;
+    DWORD map_id;
+    VECTOR3 position;
+} cmWowWorldSafeLoc_t;
+
 static VECTOR3              cm_wow_spawn_position = { 0.0f, 0.0f, 0.0f };
+static FLOAT                cm_wow_spawn_heights[MAX_PLAYERS];
 static char                 cm_wow_map_dir[PATH_MAX]  = { 0 };
 static char                 cm_wow_map_name[128]      = { 0 };
 static cmWowAdtHeightCache_t cm_wow_height_cache      = { 0 };
@@ -43,6 +50,18 @@ static LPCSTR CM_WowDbcString(BYTE const *string_block, DWORD string_size, DWORD
     if (offset >= string_size)
         return NULL;
     return (LPCSTR)(string_block + offset);
+}
+
+static LPSTR CM_WowCopyString(LPCSTR value) {
+    size_t len;
+    LPSTR out;
+
+    if (!value || !*value)
+        return NULL;
+    len = strlen(value);
+    out = MemAlloc((long)len + 1);
+    memcpy(out, value, len + 1);
+    return out;
 }
 
 static BOOL CM_WowExtractMapName(LPCSTR mapFilename, LPSTR out, size_t out_size) {
@@ -296,55 +315,78 @@ static BOOL CM_WowFindMapId(LPCSTR map_name, DWORD *map_id) {
     return false;
 }
 
-static BOOL CM_WowFindWorldSafeLoc(DWORD map_id, LPVECTOR3 spawn, LPSTR name, size_t name_size) {
+static LPCSTR CM_WowWorldSafeLocName(BYTE const *record, DWORD fields,
+                                      BYTE const *strings_base, DWORD string_size) {
+    for (DWORD field_index = 5; field_index < fields; field_index++) {
+        DWORD string_offset = CM_WowRead32(record + field_index * sizeof(DWORD));
+        LPCSTR value = CM_WowDbcString(strings_base, string_size, string_offset);
+        if (value && *value)
+            return value;
+    }
+    return NULL;
+}
+
+static DWORD CM_WowCollectWorldSafeLocs(DWORD map_id, LPVECTOR3 first_spawn,
+                                        LPSTR first_name, size_t first_name_size) {
     LPBYTE data;
     DWORD size = 0, records, fields, record_size, string_size;
     BYTE const *records_base, *strings_base;
+    DWORD count = 0;
 
-    if (!spawn)
-        return false;
+    if (!first_spawn)
+        return 0;
 
     data = FS_ReadFile("DBFilesClient\\WorldSafeLocs.dbc", &size);
     if (!CM_WowValidDbc(data, size, &records, &fields, &record_size, &string_size) ||
         fields < 5 || record_size < 5 * sizeof(DWORD)) {
         SAFE_DELETE(data, FS_FreeFile);
-        return false;
+        return 0;
     }
     records_base = data + 20;
     strings_base = records_base + records * record_size;
     FOR_LOOP(record_index, records) {
         BYTE const *record = records_base + record_index * record_size;
-        if (CM_WowRead32(record + sizeof(DWORD)) != map_id)
+        cmWowWorldSafeLoc_t const *safe_loc = (cmWowWorldSafeLoc_t const *)record;
+        LPCSTR name;
+        mapPlayer_t *player;
+
+        if (safe_loc->map_id != map_id)
             continue;
-        spawn->x = CM_WowReadFloat(record + 2 * sizeof(DWORD));
-        spawn->y = CM_WowReadFloat(record + 3 * sizeof(DWORD));
-        spawn->z = CM_WowReadFloat(record + 4 * sizeof(DWORD));
-        if (name && name_size) {
-            name[0] = '\0';
-            for (DWORD field_index = 5; field_index < fields; field_index++) {
-                DWORD string_offset = CM_WowRead32(record + field_index * sizeof(DWORD));
-                LPCSTR value = CM_WowDbcString(strings_base, string_size, string_offset);
-                if (value && *value) {
-                    strncpy(name, value, name_size - 1);
-                    name[name_size - 1] = '\0';
-                    break;
+
+        name = CM_WowWorldSafeLocName(record, fields, strings_base, string_size);
+        if (count == 0) {
+            memcpy(first_spawn, &safe_loc->position, sizeof(*first_spawn));
+            if (first_name && first_name_size) {
+                first_name[0] = '\0';
+                if (name) {
+                    strncpy(first_name, name, first_name_size - 1);
+                    first_name[first_name_size - 1] = '\0';
                 }
             }
         }
-        FS_FreeFile(data);
-        return true;
+        if (count < MAX_PLAYERS) {
+            player = &world.info.players[count];
+            player->used = true;
+            player->playerType = count == 0 ? kPlayerTypeHuman : kPlayerTypeNone;
+            player->playerName = CM_WowCopyString(name);
+            player->startingPosition = (VECTOR2){ safe_loc->position.x, safe_loc->position.y };
+            cm_wow_spawn_heights[count] = safe_loc->position.z;
+        }
+        count++;
     }
     FS_FreeFile(data);
-    return false;
+    return count;
 }
 
 static void CM_WowChooseSpawn(LPCSTR mapFilename) {
     char map_name[128]      = { 0 };
     char safe_loc_name[128] = { 0 };
     DWORD map_id = 0;
-    BOOL has_map_id, has_safe_loc;
+    DWORD safe_loc_count = 0;
+    BOOL has_map_id, has_safe_locs;
 
     cm_wow_spawn_position = (VECTOR3){ 0.0f, 0.0f, 0.0f };
+    memset(cm_wow_spawn_heights, 0, sizeof(cm_wow_spawn_heights));
     world.info.players[0].used       = true;
     world.info.players[0].playerType = kPlayerTypeHuman;
     CM_WowSetMapPath(mapFilename);
@@ -357,13 +399,17 @@ static void CM_WowChooseSpawn(LPCSTR mapFilename) {
     }
 
     has_map_id   = CM_WowFindMapId(map_name, &map_id);
-    has_safe_loc = has_map_id && CM_WowFindWorldSafeLoc(map_id, &cm_wow_spawn_position,
-                                                         safe_loc_name, sizeof(safe_loc_name));
-    world.info.players[0].startingPosition = (VECTOR2){ cm_wow_spawn_position.x, cm_wow_spawn_position.y };
+    if (has_map_id)
+        safe_loc_count = CM_WowCollectWorldSafeLocs(map_id, &cm_wow_spawn_position,
+                                                    safe_loc_name, sizeof(safe_loc_name));
+    has_safe_locs = safe_loc_count > 0;
+    if (!has_safe_locs)
+        world.info.players[0].startingPosition = (VECTOR2){ cm_wow_spawn_position.x, cm_wow_spawn_position.y };
 
-    if (has_safe_loc)
-        fprintf(stderr, "CM_LoadMap: WoW map %s id=%u spawn from WorldSafeLocs%s%s at %.3f %.3f %.3f\n",
+    if (has_safe_locs)
+        fprintf(stderr, "CM_LoadMap: WoW map %s id=%u loaded %u WorldSafeLocs spawn candidates, first%s%s at %.3f %.3f %.3f\n",
                 map_name, (unsigned)map_id,
+                (unsigned)safe_loc_count,
                 safe_loc_name[0] ? " " : "", safe_loc_name,
                 cm_wow_spawn_position.x, cm_wow_spawn_position.y, cm_wow_spawn_position.z);
     else if (has_map_id)
@@ -393,6 +439,12 @@ FLOAT CM_GetHeightAtPoint(FLOAT sx, FLOAT sy) {
     FLOAT terrain_height;
     if (CM_WowTerrainHeightAtPoint(sx, sy, &terrain_height))
         return terrain_height;
+    FOR_LOOP(i, MAX_PLAYERS) {
+        if (world.info.players[i].used &&
+            fabsf(world.info.players[i].startingPosition.x - sx) < 0.001f &&
+            fabsf(world.info.players[i].startingPosition.y - sy) < 0.001f)
+            return cm_wow_spawn_heights[i];
+    }
     return cm_wow_spawn_position.z;
 }
 

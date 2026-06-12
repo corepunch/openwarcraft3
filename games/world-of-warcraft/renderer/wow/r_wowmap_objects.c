@@ -78,6 +78,7 @@ BOOL Wow_LoadWmoGroup(wowWmoModel_t *model,
     DWORD batch_count = 0;
     BOX3 group_bounds = Wow_EmptyBounds();
     BOOL group_has_bounds = false;
+    COLOR32 color = Wow_Color(127, 127, 127, 255);
 
     Wow_GroupPath(model->path, group_index, group_path, sizeof(group_path));
     size = ri.FS_ReadFile(group_path, (void **)&data);
@@ -161,7 +162,7 @@ BOOL Wow_LoadWmoGroup(wowWmoModel_t *model,
                 if (uvs && vertex_index < uv_count) {
                     uv = uvs[vertex_index];
                 }
-                out_vertices[out_count] = Wow_Vertex(p.x, p.y, p.z, uv.u, uv.v, COLOR32_WHITE);
+                out_vertices[out_count] = Wow_Vertex(p.x, p.y, p.z, uv.u, uv.v, color);
                 Wow_AddBoundsPoint(&group_bounds, &out_vertices[out_count].position);
                 group_has_bounds = true;
                 out_count++;
@@ -200,7 +201,7 @@ BOOL Wow_LoadWmoGroup(wowWmoModel_t *model,
             if (uvs && vertex_index < uv_count) {
                 uv = uvs[vertex_index];
             }
-            out_vertices[out_count] = Wow_Vertex(p.x, p.y, p.z, uv.u, uv.v, COLOR32_WHITE);
+            out_vertices[out_count] = Wow_Vertex(p.x, p.y, p.z, uv.u, uv.v, color);
             Wow_AddBoundsPoint(&group_bounds, &out_vertices[out_count].position);
             group_has_bounds = true;
             out_count++;

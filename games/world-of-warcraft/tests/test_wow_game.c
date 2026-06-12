@@ -1,6 +1,7 @@
 #include "test_framework.h"
 
 #include <ctype.h>
+#include <math.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -115,19 +116,33 @@ static HANDLE make_loading_screens_dbc(LPDWORD size_out) {
 }
 
 static HANDLE make_world_safe_locs_dbc(LPDWORD size_out) {
+    static struct {
+        DWORD id;
+        LPCSTR name;
+        FLOAT x, y, z;
+    } const safe_locs[] = {
+        { 100, "Northshire", 123.25f, -456.5f, 78.0f },
+        { 101, "Deathknell, Tirisfal", 1880.7385f, 1624.7355f, 94.4343f },
+        { 102, "Coldridge Valley", -6240.32f, 331.033f, 382.758f },
+        { 103, "Valley of Trials", -600.0f, -4200.0f, 38.0f },
+    };
     DWORD size;
-    LPBYTE data = alloc_dbc(1, 6, 64, &size);
-    LPBYTE record = data + 20;
-    LPBYTE strings = record + 6 * sizeof(DWORD);
+    LPBYTE data = alloc_dbc(sizeof(safe_locs) / sizeof(safe_locs[0]), 6, 128, &size);
+    LPBYTE records = data + 20;
+    LPBYTE strings = records + sizeof(safe_locs) / sizeof(safe_locs[0]) * 6 * sizeof(DWORD);
     DWORD cursor = 1;
-    DWORD safe_name = add_string(strings, &cursor, "Northshire");
 
-    putfield(record, 0, 100);
-    putfield(record, 1, 1);
-    putfield_float(record, 2, 123.25f);
-    putfield_float(record, 3, -456.5f);
-    putfield_float(record, 4, 78.0f);
-    putfield(record, 5, safe_name);
+    FOR_LOOP(i, sizeof(safe_locs) / sizeof(safe_locs[0])) {
+        LPBYTE record = records + i * 6 * sizeof(DWORD);
+        DWORD safe_name = add_string(strings, &cursor, safe_locs[i].name);
+
+        putfield(record, 0, safe_locs[i].id);
+        putfield(record, 1, 1);
+        putfield_float(record, 2, safe_locs[i].x);
+        putfield_float(record, 3, safe_locs[i].y);
+        putfield_float(record, 4, safe_locs[i].z);
+        putfield(record, 5, safe_name);
+    }
     *size_out = size;
     return data;
 }
@@ -413,6 +428,33 @@ static struct game_export *init_game(void) {
     return game;
 }
 
+static void assert_player_spawned_at_safe_loc(LPEDICT player) {
+    LPCMAPINFO info = CM_GetMapInfo();
+    BOOL matched = false;
+
+    ASSERT_NOT_NULL(info);
+    ASSERT_STR_EQ(info->players[0].playerName, "Northshire");
+    ASSERT_STR_EQ(info->players[1].playerName, "Deathknell, Tirisfal");
+    ASSERT_EQ_INT((int)info->players[0].playerType, kPlayerTypeHuman);
+    ASSERT_EQ_INT((int)info->players[1].playerType, kPlayerTypeNone);
+
+    FOR_LOOP(i, MAX_PLAYERS) {
+        LPCMAPPLAYER spawn = &info->players[i];
+
+        if (!spawn->used)
+            continue;
+        if (fabsf(player->s.origin.x - spawn->startingPosition.x) > 0.001f ||
+            fabsf(player->s.origin.y - spawn->startingPosition.y) > 0.001f)
+            continue;
+        ASSERT_EQ_INT((int)player->client->ps.start_location, (int)i);
+        ASSERT_EQ_FLOAT(player->s.origin.z,
+                        CM_GetHeightAtPoint(spawn->startingPosition.x, spawn->startingPosition.y),
+                        0.001f);
+        matched = true;
+    }
+    ASSERT(matched);
+}
+
 static void test_wow_load_map_initializes_player_state(void) {
     struct game_export *game = init_game();
     LPEDICT player;
@@ -429,11 +471,9 @@ static void test_wow_load_map_initializes_player_state(void) {
     ASSERT_NOT_NULL(local);
     ASSERT_EQ_INT((int)local->kind, WOW_ENTITY_PLAYER);
     ASSERT_EQ_INT((int)local->health, 100);
-    ASSERT_EQ_FLOAT(player->s.origin.x, 123.25f, 0.001f);
-    ASSERT_EQ_FLOAT(player->s.origin.y, -456.5f, 0.001f);
-    ASSERT_EQ_FLOAT(player->s.origin.z, 78.0f, 0.001f);
-    ASSERT_EQ_FLOAT(player->client->ps.origin.x, 123.25f, 0.001f);
-    ASSERT_EQ_FLOAT(player->client->ps.origin.y, -456.5f, 0.001f);
+    assert_player_spawned_at_safe_loc(player);
+    ASSERT_EQ_FLOAT(player->client->ps.origin.x, player->s.origin.x, 0.001f);
+    ASSERT_EQ_FLOAT(player->client->ps.origin.y, player->s.origin.y, 0.001f);
     ASSERT_EQ_INT((int)player->client->ps.client_ui_state, CLIENT_UI_GAME);
     ASSERT_STR_EQ(player->client->ps.name, "Thrall");
     ASSERT_EQ_INT((int)player->client->ps.stats[WOW_STAT_HEALTH], 100);

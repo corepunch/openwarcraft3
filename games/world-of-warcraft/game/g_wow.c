@@ -10,6 +10,7 @@ edict_t wow_edicts[WOW_MAX_EDICTS];
 wowEntityLocal_t wow_entity_locals[WOW_MAX_EDICTS];
 wowClient_t wow_clients[WOW_MAX_CLIENTS];
 static VECTOR2 wow_spawn_origin = { 0.0f, 0.0f };
+static LONG wow_spawn_location = -1;
 static char wow_loading_texture[MAX_PATHLEN] = "Interface\\Glues\\LoadingScreens\\LoadScreenEnviroment.blp";
 static char wow_loading_title[128] = "World of Warcraft";
 enum {
@@ -58,6 +59,19 @@ typedef struct {
     DWORD model;
     char name[64];
 } wowMissingAnimationLog_t;
+
+typedef struct {
+    DWORD id;
+    DWORD unused;
+    DWORD path_offset;
+} wowLoadingScreenDbc_t;
+
+typedef struct {
+    DWORD id;
+    DWORD directory_offset;
+    DWORD unused;
+    DWORD title_offset;
+} wowMapDbc_t;
 
 static wowMissingAnimationLog_t wow_missing_animation_log[WOW_MISSING_ANIMATION_LOG_SLOTS];
 
@@ -242,7 +256,7 @@ static BOOL Wow_ResolveLoadingScreenById(DWORD loading_screen_id, LPSTR out, DWO
 
     data = gi.ReadFile ? gi.ReadFile("DBFilesClient\\LoadingScreens.dbc", &size) : NULL;
     if (!Wow_ValidDbc(data, size, &records, &fields, &record_size, &string_size) ||
-        fields < 3 || record_size < 3 * sizeof(DWORD)) {
+        fields < 3 || record_size < sizeof(wowLoadingScreenDbc_t)) {
         SAFE_DELETE(data, gi.MemFree);
         return false;
     }
@@ -251,11 +265,10 @@ static BOOL Wow_ResolveLoadingScreenById(DWORD loading_screen_id, LPSTR out, DWO
     strings_base = records_base + records * record_size;
     FOR_LOOP(record_index, records) {
         BYTE const *record = records_base + record_index * record_size;
-        DWORD id = Wow_Read32(record);
+        wowLoadingScreenDbc_t const *loading_screen = (wowLoadingScreenDbc_t const *)record;
 
-        if (id == loading_screen_id) {
-            DWORD path_offset = Wow_Read32(record + 2 * sizeof(DWORD));
-            LPCSTR path = Wow_DbcString(strings_base, string_size, path_offset);
+        if (loading_screen->id == loading_screen_id) {
+            LPCSTR path = Wow_DbcString(strings_base, string_size, loading_screen->path_offset);
 
             if (path && *path) {
                 snprintf(out, out_size, "%s", path);
@@ -298,7 +311,7 @@ static void Wow_SelectLoadingScreen(LPCSTR map_path) {
 
     data = gi.ReadFile ? gi.ReadFile("DBFilesClient\\Map.dbc", &size) : NULL;
     if (!Wow_ValidDbc(data, size, &records, &fields, &record_size, &string_size) ||
-        fields < 4 || record_size < fields * sizeof(DWORD)) {
+        fields < 4 || record_size < sizeof(wowMapDbc_t)) {
         SAFE_DELETE(data, gi.MemFree);
         return;
     }
@@ -307,16 +320,15 @@ static void Wow_SelectLoadingScreen(LPCSTR map_path) {
     strings_base = records_base + records * record_size;
     FOR_LOOP(record_index, records) {
         BYTE const *record = records_base + record_index * record_size;
-        DWORD map_dir_offset = Wow_Read32(record + sizeof(DWORD));
-        LPCSTR map_dir = Wow_DbcString(strings_base, string_size, map_dir_offset);
+        wowMapDbc_t const *map = (wowMapDbc_t const *)record;
+        LPCSTR map_dir = Wow_DbcString(strings_base, string_size, map->directory_offset);
 
         if (!map_dir || strcasecmp(map_dir, map_name)) {
             continue;
         }
 
-        DWORD map_title_offset = Wow_Read32(record + 3 * sizeof(DWORD));
         DWORD loading_screen_id = Wow_Read32(record + (fields - 1) * sizeof(DWORD));
-        LPCSTR map_title = Wow_DbcString(strings_base, string_size, map_title_offset);
+        LPCSTR map_title = Wow_DbcString(strings_base, string_size, map->title_offset);
 
         if (map_title && *map_title) {
             snprintf(wow_loading_title, sizeof(wow_loading_title), "%s", map_title);
@@ -638,6 +650,7 @@ static void Wow_InitPlayer(LPEDICT ent) {
     ps = &ent->client->ps;
     memset(ps, 0, sizeof(*ps));
     ps->number = 0;
+    ps->start_location = wow_spawn_location;
     snprintf(wow_clients[0].name, sizeof(wow_clients[0].name), "%s", "Thrall");
     memcpy(wow_clients[0].inventory, wow_start_inventory, sizeof(wow_start_inventory));
     memcpy(wow_clients[0].actions, wow_start_actions, sizeof(wow_start_actions));
@@ -696,11 +709,97 @@ static bool Wow_LoadMap(LPCSTR mapFilename) {
     return true;
 }
 
+static FLOAT Wow_PlayersRangeFromSpawn(LPCVECTOR2 spot, LPEDICT skip) {
+    FLOAT best_dist2 = 999999999.0f;
+
+    FOR_LOOP(i, WOW_MAX_CLIENTS) {
+        LPEDICT ent = &wow_edicts[i];
+        VECTOR2 delta;
+        FLOAT dist2;
+
+        if (ent == skip || !ent->inuse || !ent->client)
+            continue;
+        delta = Vector2_sub(spot, &ent->s.origin2);
+        dist2 = delta.x * delta.x + delta.y * delta.y;
+        if (dist2 < best_dist2)
+            best_dist2 = dist2;
+    }
+    return best_dist2;
+}
+
+static DWORD Wow_CountSpawnPlayers(LPEDICT skip) {
+    DWORD count = 0;
+
+    FOR_LOOP(i, WOW_MAX_CLIENTS) {
+        LPEDICT ent = &wow_edicts[i];
+
+        if (ent != skip && ent->inuse && ent->client)
+            count++;
+    }
+    return count;
+}
+
+static DWORD Wow_SelectRandomSpawnPoint(LPCMAPINFO mapinfo, LPEDICT ent) {
+    DWORD count = 0;
+    DWORD player_count;
+    DWORD avoid1 = MAX_PLAYERS;
+    DWORD avoid2 = MAX_PLAYERS;
+    FLOAT range1 = 999999999.0f;
+    FLOAT range2 = 999999999.0f;
+    DWORD selection;
+
+    if (!mapinfo)
+        return MAX_PLAYERS;
+
+    player_count = Wow_CountSpawnPlayers(ent);
+    FOR_LOOP(i, MAX_PLAYERS) {
+        FLOAT range;
+
+        if (!mapinfo->players[i].used)
+            continue;
+        count++;
+        if (player_count == 0)
+            continue;
+        range = Wow_PlayersRangeFromSpawn(&mapinfo->players[i].startingPosition, ent);
+        if (avoid1 == MAX_PLAYERS || range < range1) {
+            range2 = range1;
+            avoid2 = avoid1;
+            range1 = range;
+            avoid1 = i;
+        } else if (avoid2 == MAX_PLAYERS || range < range2) {
+            range2 = range;
+            avoid2 = i;
+        }
+    }
+    if (count == 0)
+        return MAX_PLAYERS;
+    if (count <= 2 || player_count == 0) {
+        avoid1 = MAX_PLAYERS;
+        avoid2 = MAX_PLAYERS;
+    } else {
+        count -= 2;
+    }
+    selection = (DWORD)(rand() % count);
+    FOR_LOOP(i, MAX_PLAYERS) {
+        if (!mapinfo->players[i].used || i == avoid1 || i == avoid2)
+            continue;
+        if (selection-- == 0)
+            return i;
+    }
+    return MAX_PLAYERS;
+}
+
 static void Wow_SpawnEntities(void) {
     LPCMAPINFO mapinfo = CM_GetMapInfo();
+    DWORD spawn_location = Wow_SelectRandomSpawnPoint(mapinfo, &wow_edicts[0]);
 
-    if (mapinfo && mapinfo->players[0].used) {
+    wow_spawn_location = -1;
+    if (mapinfo && spawn_location < MAX_PLAYERS) {
+        wow_spawn_origin = mapinfo->players[spawn_location].startingPosition;
+        wow_spawn_location = (LONG)spawn_location;
+    } else if (mapinfo && mapinfo->players[0].used) {
         wow_spawn_origin = mapinfo->players[0].startingPosition;
+        wow_spawn_location = 0;
     }
     Wow_SelectLoadingScreen(mapinfo ? mapinfo->mapName : NULL);
     wow_move.flags = 0;
