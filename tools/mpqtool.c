@@ -33,7 +33,7 @@ static void usage(void) {
         "  mpqtool -mpq <archive.mpq> imginfo <file>\n"
     "  mpqtool -mpq <archive.mpq> create [max-files]\n"
     "  mpqtool -mpq <archive.mpq> pack <src> <archive-file> [<src> <archive-file> ...]\n"
-    "  mpqtool wow-install <output-dir> <disc1.mpq> <disc2.mpq> <disc3.mpq> <disc4.mpq>\n"
+    "  mpqtool wow-install [-strip-data-prefix] <output-dir> <disc1.mpq> <disc2.mpq> <disc3.mpq> <disc4.mpq>\n"
         "\n"
         "Notes:\n"
         "  create, pack, and wow-install create new archives, overwriting existing targets.\n"
@@ -611,6 +611,13 @@ static void output_path_for_container(char *out, size_t out_size, const char *ou
     snprintf(out, out_size, "%s/%s", out_dir, converted);
 }
 
+static void strip_wow_data_prefix(char *container)
+{
+    if (starts_with_ci(container, "Data\\")) {
+        memmove(container, container + 5, strlen(container + 5) + 1);
+    }
+}
+
 static wow_target_t *get_wow_target(wow_target_t *targets, size_t *count, const char *out_dir, const char *container)
 {
     size_t i;
@@ -661,7 +668,7 @@ static int close_wow_targets(wow_target_t *targets, size_t count)
     return rc;
 }
 
-static int cmd_wow_install(const char *out_dir, const char **disc_paths)
+static int cmd_wow_install(const char *out_dir, const char **disc_paths, bool strip_data_prefix)
 {
     HANDLE discs[4] = { 0 };
     BYTE *manifest = NULL;
@@ -723,6 +730,9 @@ static int cmd_wow_install(const char *out_dir, const char **disc_paths)
                 xml_attr(line, "container", current_container, sizeof(current_container))) {
                 Tool_NormalizeSlashes(current_container, '\\');
                 Tool_TrimEdgeSlashes(current_container);
+                if (strip_data_prefix) {
+                    strip_wow_data_prefix(current_container);
+                }
                 current_base[0] = '\0';
             } else {
                 current_container[0] = '\0';
@@ -807,8 +817,21 @@ int main(int argc, char **argv) {
     int rc;
 
     if (argc >= 7 && strcmp(argv[1], "wow-install") == 0) {
-        const char *disc_paths[4] = { argv[3], argv[4], argv[5], argv[6] };
-        return cmd_wow_install(argv[2], disc_paths);
+        bool strip_data_prefix = false;
+        int argi = 2;
+
+        if (strcmp(argv[argi], "-strip-data-prefix") == 0) {
+            strip_data_prefix = true;
+            argi++;
+        }
+        if (argc < argi + 5) {
+            usage();
+            return 1;
+        }
+        {
+            const char *disc_paths[4] = { argv[argi + 1], argv[argi + 2], argv[argi + 3], argv[argi + 4] };
+            return cmd_wow_install(argv[argi], disc_paths, strip_data_prefix);
+        }
     }
 
     if (argc < 4) {

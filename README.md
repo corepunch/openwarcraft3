@@ -170,6 +170,50 @@ make download
 
 Downloads a ~1.2 GB installer from `archive.org` into the `data/` folder. Skip this step if you already have a Warcraft III installation and update the `WC3DATA` variable in the Makefile to point to that data folder.
 
+### (Optional) Set up World of Warcraft assets
+
+The World of Warcraft target expects rebuilt MPQ archives under
+`data/world-of-warcraft/installed/Data` or
+`data/world-of-warcraft/installed/data2`. The `data2` path is useful when you
+want to compare a fresh install against an existing `Data` folder.
+
+1. Download the European Standard Edition ISO archive from
+   [archive.org](https://archive.org/details/worldofwarcraftstandardeditioneu).
+   On the Archive.org page, use **Download Options** -> **ISO Image**.
+
+   Direct zip link:
+
+   ```bash
+   curl -L -o worldofwarcraftstandardeditioneu.zip "https://archive.org/compress/worldofwarcraftstandardeditioneu/formats=ISO%20IMAGE&file=/worldofwarcraftstandardeditioneu.zip"
+   ```
+
+2. Unzip the downloaded archive somewhere outside the repository or under a
+   local ignored data folder:
+
+   ```bash
+   unzip worldofwarcraftstandardeditioneu.zip -d /path/to/worldofwarcraftstandardeditioneu
+   ```
+
+   The extracted folder should contain `WoWDisc1.iso`, `WoWDisc2.iso`,
+   `WoWDisc3.iso`, and `WoWDisc4.iso`.
+
+3. Extract the ISOs and repack the installer tomes into runtime MPQs:
+
+   ```bash
+   make install-wow WOW_ISO_DIR=/path/to/worldofwarcraftstandardeditioneu
+   ```
+
+   This builds `isoextract` and `mpqtool`, extracts the four disc images into
+   temporary build scratch space, reads `InstallerFileList.xml` from the first
+   installer tome, and repacks the game archives into
+   `data/world-of-warcraft/installed/data2/*.MPQ`.
+
+   `mpqtool` prints progress while repacking: it logs each output MPQ as it is
+   created, reports every 1000 files repacked, and prints a final per-archive
+   file count when each MPQ is finalized. By default the temporary ISO
+   extraction under `build/wow-install` is removed after a successful install;
+   pass `WOW_KEEP_EXTRACT=1` if you want to inspect it.
+
 ---
 
 # Architecture

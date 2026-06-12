@@ -8,6 +8,11 @@ LIB_DIR := build/lib
 CFLAGS  := -Wall -I. -Ishared -Ishared/types
 WOW_DIR := games/world-of-warcraft
 WOW_TEST_DIR := $(WOW_DIR)/tests
+WOW_DATA_DIR := data/world-of-warcraft
+WOW_ISO_DIR ?= $(ISO_DIR)
+WOW_ISO_EXTRACT_DIR ?= build/wow-install
+WOW_KEEP_EXTRACT ?= 0
+WOW_INSTALL_DATA2_DIR ?= $(WOW_DATA_DIR)/installed/data2
 SC2_DIR := games/starcraft-2
 SC2_TEST_DIR := $(SC2_DIR)/tests
 
@@ -159,6 +164,41 @@ m2tool-wow-orcmale-player: m2tool
 		--equipment 16843009 \
 		--wow-player-config
 
+install-wow: $(BIN_DIR)/isoextract$(EXE_EXT) $(BIN_DIR)/mpqtool$(EXE_EXT)
+	@if [ -z "$(WOW_ISO_DIR)" ]; then \
+		echo "Usage: make install-wow WOW_ISO_DIR=/path/to/wow-isos"; \
+		echo "       make install-wow ISO_DIR=/path/to/wow-isos"; \
+		exit 1; \
+	fi
+	@set -e; \
+	iso_dir="$(WOW_ISO_DIR)"; \
+	extract_dir="$(WOW_ISO_EXTRACT_DIR)"; \
+	out_dir="$(WOW_INSTALL_DATA2_DIR)"; \
+	echo "[install-wow] extracting ISOs from $$iso_dir"; \
+	rm -rf "$$extract_dir" "$$out_dir"; \
+	mkdir -p "$$extract_dir"; \
+	for disc in 1 2 3 4; do \
+		iso=""; \
+		for candidate in "$$iso_dir"/WoWDisc$$disc.iso "$$iso_dir"/WoWDisc$$disc.ISO "$$iso_dir"/*Disc$$disc*.iso "$$iso_dir"/*Disc$$disc*.ISO "$$iso_dir"/*disc$$disc*.iso "$$iso_dir"/*disc$$disc*.ISO; do \
+			if [ -f "$$candidate" ]; then iso="$$candidate"; break; fi; \
+		done; \
+		if [ -z "$$iso" ]; then \
+			echo "install-wow: missing ISO for WoW disc $$disc in $$iso_dir" >&2; \
+			exit 1; \
+		fi; \
+		"$(BIN_DIR)/isoextract$(EXE_EXT)" "$$iso" "$$extract_dir/WoWDisc$$disc"; \
+	done; \
+	echo "[install-wow] repacking $$out_dir"; \
+	"$(BIN_DIR)/mpqtool$(EXE_EXT)" wow-install -strip-data-prefix "$$out_dir" \
+		"$$extract_dir/WoWDisc1/Installer Tome.mpq" \
+		"$$extract_dir/WoWDisc2/Installer Tome 2.mpq" \
+		"$$extract_dir/WoWDisc3/Installer Tome 3.mpq" \
+		"$$extract_dir/WoWDisc4/Installer Tome 4.mpq"; \
+	if [ "$(WOW_KEEP_EXTRACT)" != "1" ]; then \
+		echo "[install-wow] removing $$extract_dir"; \
+		rm -rf "$$extract_dir"; \
+	fi
+
 diag: clean
 	$(MAKE) DIAG_OUTPUT=1 build
 	$(MAKE) DIAG_OUTPUT=1 run
@@ -198,6 +238,9 @@ $(BIN_DIR)/m3tool$(EXE_EXT): tools/m3tool.c $(TOOL_DEPS) $(CLIENT_HEADERS) $(COM
 
 $(BIN_DIR)/img2sysfont$(EXE_EXT): tools/img2sysfont.c | $(BIN_DIR)
 	@$(CC) $(CFLAGS) -o $@ tools/img2sysfont.c
+
+$(BIN_DIR)/isoextract$(EXE_EXT): tools/isoextract.c | $(BIN_DIR)
+	@$(CC) $(CFLAGS) -o $@ tools/isoextract.c
 
 $(FONT_HEADER): $(FONT_SRC) $(BIN_DIR)/img2sysfont$(EXE_EXT)
 	@$(BIN_DIR)/img2sysfont$(EXE_EXT) $(FONT_SRC) $(FONT_HEADER) $(FONT_SYMBOL)
@@ -270,4 +313,4 @@ test-wow-assets: blpgen mpqtool | $(TESTS_DIR)
 	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(WOW_TEST_MPQ) cat Interface/Test/LuaPanel.blp | head -c4 | grep -q "BLP2" && echo "  cat panel OK"
 	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(WOW_TEST_MPQ) cat Interface/FrameXML/UIParent.lua | grep -q "wow_lua_test" && echo "  cat lua OK"
 
-.PHONY: default build shared tools font $(TOOL_NAMES) diag clean download renderer-wow game-wow ui-wow openwow renderer-sc2 game-sc2 opensc2 run-sc2 build-run-sc2 m2tool-wow-orcmale-player test-wow-appearance test-wow-combat test-wow-game test-wow-ui test-wow-assets test-sc2 test-sc2-assets $(WC3_PHONY)
+.PHONY: default build shared tools font $(TOOL_NAMES) diag clean download renderer-wow game-wow ui-wow openwow renderer-sc2 game-sc2 opensc2 run-sc2 build-run-sc2 m2tool-wow-orcmale-player install-wow test-wow-appearance test-wow-combat test-wow-game test-wow-ui test-wow-assets test-sc2 test-sc2-assets $(WC3_PHONY)

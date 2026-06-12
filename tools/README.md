@@ -23,7 +23,7 @@ Commands:
 - `imginfo <file>` inspect texture metadata
 - `create [max-files]` create a new archive
 - `pack <src> <archive-file> [<src> <archive-file> ...]` add files to an archive
-- `wow-install <output-dir> <disc1.mpq> <disc2.mpq> <disc3.mpq> <disc4.mpq>` rebuild vanilla WoW installed `Data/*.MPQ` archives from installer tomes
+- `wow-install [-strip-data-prefix] <output-dir> <disc1.mpq> <disc2.mpq> <disc3.mpq> <disc4.mpq>` rebuild vanilla WoW installed `Data/*.MPQ` archives from installer tomes; `-strip-data-prefix` writes manifest containers such as `Data\terrain.MPQ` directly as `<output-dir>/terrain.MPQ`
 
 Examples:
 
@@ -32,6 +32,14 @@ build/bin/mpqtool -mpq "data/Warcraft III/War3.mpq" ls UI/FrameDef
 build/bin/mpqtool -mpq "data/Warcraft III/War3.mpq" cat UI/FrameDef/Glue/MainMenu.fdf
 build/bin/mpqtool -mpq "data/Warcraft III/War3.mpq" imginfo UI/Widgets/Glues/GlueScreen-Button1-Border.blp
 build/bin/mpqtool wow-install "data/world-of-warcraft/installed" "data/world-of-warcraft/WoWDisc1.mpq" "data/world-of-warcraft/WoWDisc2.mpq" "data/world-of-warcraft/WoWDisc3.mpq" "data/world-of-warcraft/WoWDisc4.mpq"
+build/bin/mpqtool wow-install -strip-data-prefix "data/world-of-warcraft/installed/data2" "build/wow-install/WoWDisc1/Installer Tome.mpq" "build/wow-install/WoWDisc2/Installer Tome 2.mpq" "build/wow-install/WoWDisc3/Installer Tome 3.mpq" "build/wow-install/WoWDisc4/Installer Tome 4.mpq"
+```
+
+The Makefile shortcut extracts all four WoW disc ISOs into build scratch space
+and repacks `data/world-of-warcraft/installed/data2/*.MPQ`:
+
+```bash
+make install-wow WOW_ISO_DIR="/path/to/wow-isos"
 ```
 
 ## `fdftool`
@@ -127,6 +135,26 @@ The repo shortcut is:
 
 ```bash
 make font
+```
+
+## `isoextract`
+
+Dependency-free ISO 9660/Joliet extractor for installer discs such as classic
+World of Warcraft media.
+
+Syntax:
+
+```bash
+build/bin/isoextract ls "<image.iso>"
+build/bin/isoextract extract "<image.iso>" "<output-dir>"
+build/bin/isoextract "<image.iso>" "<output-dir>"
+```
+
+Examples:
+
+```bash
+build/bin/isoextract ls "/Users/igor/Documents/worldofwarcraftstandardeditioneu/WoWDisc1.iso"
+build/bin/isoextract "/Users/igor/Documents/worldofwarcraftstandardeditioneu/WoWDisc1.iso" "data/world-of-warcraft/WoWDisc1"
 ```
 
 ## `mdxtool`
