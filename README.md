@@ -173,9 +173,7 @@ Downloads a ~1.2 GB installer from `archive.org` into the `data/` folder. Skip t
 ### (Optional) Set up World of Warcraft assets
 
 The World of Warcraft target expects rebuilt MPQ archives under
-`data/world-of-warcraft/installed/Data` or
-`data/world-of-warcraft/installed/data2`. The `data2` path is useful when you
-want to compare a fresh install against an existing `Data` folder.
+`data/world-of-warcraft`.
 
 1. Download the European Standard Edition ISO archive from
    [archive.org](https://archive.org/details/worldofwarcraftstandardeditioneu).
@@ -206,11 +204,11 @@ want to compare a fresh install against an existing `Data` folder.
    This builds `isoextract` and `mpqtool`, extracts the four disc images into
    temporary build scratch space, reads `InstallerFileList.xml` from the first
    installer tome, and repacks the game archives into
-   `data/world-of-warcraft/installed/data2/*.MPQ`.
+   `data/world-of-warcraft/*.MPQ`.
 
    `mpqtool` prints progress while repacking: it logs each output MPQ as it is
-   created, reports every 1000 files repacked, and prints a final per-archive
-   file count when each MPQ is finalized. By default the temporary ISO
+   created, prints every source file as it is copied into its destination MPQ,
+   and prints a final per-archive file count when each MPQ is finalized. By default the temporary ISO
    extraction under `build/wow-install` is removed after a successful install;
    pass `WOW_KEEP_EXTRACT=1` if you want to inspect it.
 

@@ -53,7 +53,7 @@ make run-wow
 Or run directly with a WDT path:
 
 ```bash
-build/bin/openwow -data data/world-of-warcraft/installed/Data +map World/Maps/Azeroth/Azeroth.wdt
+build/bin/openwow -data data/world-of-warcraft +map World/Maps/Azeroth/Azeroth.wdt
 ```
 
 ## Notes

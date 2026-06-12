@@ -12,7 +12,8 @@ WOW_DATA_DIR := data/world-of-warcraft
 WOW_ISO_DIR ?= $(ISO_DIR)
 WOW_ISO_EXTRACT_DIR ?= build/wow-install
 WOW_KEEP_EXTRACT ?= 0
-WOW_INSTALL_DATA2_DIR ?= $(WOW_DATA_DIR)/installed/data2
+WOW_INSTALL_DATA_DIR ?= $(WOW_DATA_DIR)
+WOW_INSTALL_MPQS := base.MPQ dbc.MPQ fonts.MPQ interface.MPQ misc.MPQ model.MPQ sound.MPQ speech.MPQ terrain.MPQ texture.MPQ wmo.MPQ
 SC2_DIR := games/starcraft-2
 SC2_TEST_DIR := $(SC2_DIR)/tests
 
@@ -144,10 +145,10 @@ font:       $(FONT_HEADER)
 $(TOOL_NAMES): %: $(BIN_DIR)/%$(EXE_EXT)
 
 run-wow: $(WOW_BINARY)
-	$(WOW_BINARY) -data data/world-of-warcraft/installed/Data +map World/Maps/Azeroth/Azeroth.wdt
+	$(WOW_BINARY) -data $(WOW_INSTALL_DATA_DIR) +map World/Maps/Azeroth/Azeroth.wdt
 
 build-run-wow: openwow
-	$(WOW_BINARY) -data data/world-of-warcraft/installed/Data +map World/Maps/Azeroth/Azeroth.wdt
+	$(WOW_BINARY) -data $(WOW_INSTALL_DATA_DIR) +map World/Maps/Azeroth/Azeroth.wdt
 
 run-sc2: $(SC2_BINARY)
 	$(SC2_BINARY) -data data/StarCraft2 +map TRaynor01
@@ -157,9 +158,9 @@ build-run-sc2: opensc2
 
 m2tool-wow-orcmale-player: m2tool
 	$(BIN_DIR)/m2tool$(EXE_EXT) \
-		-mpq data/world-of-warcraft/installed/Data/model.MPQ \
-		-mpq data/world-of-warcraft/installed/Data/dbc.MPQ \
-		-mpq data/world-of-warcraft/installed/Data/texture.MPQ \
+		-mpq $(WOW_INSTALL_DATA_DIR)/model.MPQ \
+		-mpq $(WOW_INSTALL_DATA_DIR)/dbc.MPQ \
+		-mpq $(WOW_INSTALL_DATA_DIR)/texture.MPQ \
 		-model Character/Orc/Male/OrcMale.m2 \
 		--equipment 16843009 \
 		--wow-player-config
@@ -173,10 +174,13 @@ install-wow: $(BIN_DIR)/isoextract$(EXE_EXT) $(BIN_DIR)/mpqtool$(EXE_EXT)
 	@set -e; \
 	iso_dir="$(WOW_ISO_DIR)"; \
 	extract_dir="$(WOW_ISO_EXTRACT_DIR)"; \
-	out_dir="$(WOW_INSTALL_DATA2_DIR)"; \
+	out_dir="$(WOW_INSTALL_DATA_DIR)"; \
 	echo "[install-wow] extracting ISOs from $$iso_dir"; \
-	rm -rf "$$extract_dir" "$$out_dir"; \
-	mkdir -p "$$extract_dir"; \
+	rm -rf "$$extract_dir"; \
+	mkdir -p "$$extract_dir" "$$out_dir"; \
+	for mpq in $(WOW_INSTALL_MPQS); do \
+		rm -f "$$out_dir/$$mpq"; \
+	done; \
 	for disc in 1 2 3 4; do \
 		iso=""; \
 		for candidate in "$$iso_dir"/WoWDisc$$disc.iso "$$iso_dir"/WoWDisc$$disc.ISO "$$iso_dir"/*Disc$$disc*.iso "$$iso_dir"/*Disc$$disc*.ISO "$$iso_dir"/*disc$$disc*.iso "$$iso_dir"/*disc$$disc*.ISO; do \

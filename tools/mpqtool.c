@@ -771,6 +771,7 @@ static int cmd_wow_install(const char *out_dir, const char **disc_paths, bool st
             Tool_NormalizeSlashes(dest_path, '\\');
             Tool_TrimEdgeSlashes(dest_path);
 
+            fprintf(stderr, "%s\n", source_path);
             if (!read_archive_file(discs[current_disc - 1], source_path, &data, &size)) {
                 fprintf(stderr, "Cannot read disc %d source: %s\n", current_disc, source_path);
                 goto done;
@@ -785,9 +786,6 @@ static int cmd_wow_install(const char *out_dir, const char **disc_paths, bool st
             free(data);
             target->files++;
             added++;
-            if ((added % 1000) == 0) {
-                fprintf(stderr, "repacked %u files\n", added);
-            }
         }
     }
 

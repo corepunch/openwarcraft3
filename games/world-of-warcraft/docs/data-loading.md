@@ -19,7 +19,7 @@ make run-wow
 Direct run:
 
 ```bash
-build/bin/openwow -data data/world-of-warcraft/installed/Data +map World/Maps/Azeroth/Azeroth.wdt
+build/bin/openwow -data data/world-of-warcraft +map World/Maps/Azeroth/Azeroth.wdt
 ```
 
 The current data path expects a locally supplied WoW client install or extracted/installable MPQs. The repository does not contain retail client data.
@@ -29,7 +29,7 @@ The current data path expects a locally supplied WoW client install or extracted
 The local workflow described by `tools/README.md` installs data under:
 
 ```text
-data/world-of-warcraft/installed/Data/
+data/world-of-warcraft/
 ```
 
 Useful archive examples:
@@ -88,15 +88,15 @@ Classic-era DBCs can report a logical field count larger than `record_size / 4`.
 Inspect MPQs:
 
 ```bash
-build/bin/mpqtool -mpq data/world-of-warcraft/installed/Data/model.MPQ ls
-build/bin/mpqtool -mpq data/world-of-warcraft/installed/Data/dbc.MPQ cat DBFilesClient\\Map.dbc
+build/bin/mpqtool -mpq data/world-of-warcraft/model.MPQ ls
+build/bin/mpqtool -mpq data/world-of-warcraft/dbc.MPQ cat DBFilesClient\\Map.dbc
 ```
 
 Inspect or preview M2 models:
 
 ```bash
 build/bin/m2tool \
-  -mpq data/world-of-warcraft/installed/Data/model.MPQ \
+  -mpq data/world-of-warcraft/model.MPQ \
   -model "Character\\Orc\\Male\\OrcMale.m2" \
   --info
 ```
@@ -105,9 +105,9 @@ DBC-backed player configuration preview:
 
 ```bash
 build/bin/m2tool \
-  -mpq data/world-of-warcraft/installed/Data/model.MPQ \
-  -mpq data/world-of-warcraft/installed/Data/dbc.MPQ \
-  -mpq data/world-of-warcraft/installed/Data/texture.MPQ \
+  -mpq data/world-of-warcraft/model.MPQ \
+  -mpq data/world-of-warcraft/dbc.MPQ \
+  -mpq data/world-of-warcraft/texture.MPQ \
   -model "Character\\Orc\\Male\\OrcMale.m2" \
   --wow-player-config-only
 ```
