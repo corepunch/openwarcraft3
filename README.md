@@ -30,6 +30,10 @@ In spirit, this is a little like ScummVM: keep the original game data outside th
 
 Current and planned targets:
 
+<a href="https://youtu.be/vg7Jm046vcI">
+<img align="right" height="160" alt="World of Warcraft" src="https://github.com/user-attachments/assets/c94e8fdf-5b78-4a0b-baf5-26e121947309" />
+</a>
+
 - **Warcraft III** (`games/warcraft-3/`) — main playable prototype and current development focus.
 - **StarCraft II** (`games/starcraft-2/`) — next RTS-family target, currently focused on M3 model and renderer groundwork.
 - **World of Warcraft** (`games/world-of-warcraft/`) — exploratory world/terrain/model loading target, useful for renderer architecture work.
