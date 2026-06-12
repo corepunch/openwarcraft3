@@ -17,7 +17,7 @@ You can also download the latest build artifact from the [CI workflow runs](http
 <p align="center">
   <img src="doc/images/screenshot1.jpg" width="31%" style="margin-right:2%;" />
   <img src="doc/images/screenshot3.jpg" width="31%" style="margin-right:2%;" />
-  <a href="https://youtu.be/vg7Jm046vcI">
+  <a href="https://youtu.be/EcuoDoOztjA">
   <img src="https://github.com/user-attachments/assets/c94e8fdf-5b78-4a0b-baf5-26e121947309" width="31%" />
   </a>
 </p>
