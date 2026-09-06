@@ -173,7 +173,7 @@ void MDX_BuildBuffers(mdxModel_t *model) {
     base = 0;
     FOR_EACH_LIST(mdxGeoset_t, geo, model->geosets) {
         R_Call(glGenVertexArrays, 1, &geo->vertexArrayBuffer);
-        R_Call(glBindVertexArray, geo->vertexArrayBuffer);
+        RB_BindVAO(geo->vertexArrayBuffer);
         R_Call(glBindBuffer, GL_ELEMENT_ARRAY_BUFFER, model->buffers[BZ_MDX_INDEX_BUFFER]);
         FOR_LOOP(i, sizeof(attrs) / sizeof(*attrs)) {
             R_Call(glEnableVertexAttribArray, attrs[i].attr);

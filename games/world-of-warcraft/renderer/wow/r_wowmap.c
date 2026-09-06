@@ -116,11 +116,8 @@ static void Wow_DrawTerrainAndWmos(WOWDRAWSTATS *stats) {
     wow_terrain_shader.state.fogColor = (VECTOR3){ tr.viewDef.fogColor.x, tr.viewDef.fogColor.y, tr.viewDef.fogColor.z };
     wow_terrain_shader.state.fogParams = (VECTOR2){ tr.viewDef.fogStart, tr.viewDef.fogEnd };
     wow_terrain_shader.state.fogCamera = (VECTOR3){ tr.viewDef.camerastate[0].origin.x, tr.viewDef.camerastate[0].origin.y, tr.viewDef.camerastate[0].origin.z };
-    R_Call(glEnable, GL_DEPTH_TEST);
-    R_Call(glDepthMask, GL_TRUE);
-    R_Call(glDepthFunc, GL_LEQUAL);
-    R_Call(glDisable, GL_CULL_FACE);
-    R_Call(glDisable, GL_BLEND);
+    RB_State(RB_STATE_OPAQUE);
+    RB_Cull(0);
 
     for (chunk = draw_terrain ? wow_world.chunks : NULL; chunk; chunk = chunk->next) {
         if (!chunk->buffer || !chunk->num_vertices) {
@@ -202,9 +199,7 @@ static void Wow_DrawTerrainAndWmos(WOWDRAWSTATS *stats) {
         int bound_blend_mode = 0;
         for (int wmo_pass = 0; wmo_pass < 2; wmo_pass++) {
             if (wmo_pass == 1) {
-                R_Call(glEnable, GL_BLEND);
-                R_Call(glDepthMask, GL_FALSE);
-                R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+                RB_State(RB_STATE_BLEND_ALPHA);
                 bound_blend_mode = 2;
             }
             for (int wi = 0; wi < wmo_n; wi++) {
@@ -231,9 +226,9 @@ static void Wow_DrawTerrainAndWmos(WOWDRAWSTATS *stats) {
                             bound_blend_mode = (int)batch->blend_mode;
                             wow_terrain_shader.state.wmoBlendMode = bound_blend_mode;
                             if (wmo_pass) {
-                                if (bound_blend_mode == 3)      { R_Call(glBlendFunc, GL_ONE, GL_ONE); }
-                                else if (bound_blend_mode == 4) { R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE); }
-                                else                             { R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); }
+                                if (bound_blend_mode == 3)      { RB_State(RB_STATE_BLEND_ADD); }
+                                else if (bound_blend_mode == 4) { RB_State(RB_STATE_BLEND_ONE); }
+                                else                             { RB_State(RB_STATE_BLEND_ALPHA); }
                             }
                         }
                         Wow_BindWorldTexture(batch->texture ? batch->texture : tr.texture[TEX_WHITE], 0, bound_textures, &texture_binds);
@@ -257,9 +252,9 @@ static void Wow_DrawTerrainAndWmos(WOWDRAWSTATS *stats) {
                                 bound_blend_mode = (int)batch->blend_mode;
                                 wow_terrain_shader.state.wmoBlendMode = bound_blend_mode;
                                 if (wmo_pass) {
-                                    if (bound_blend_mode == 3)      { R_Call(glBlendFunc, GL_ONE, GL_ONE); }
-                                    else if (bound_blend_mode == 4) { R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE); }
-                                    else                             { R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); }
+                                    if (bound_blend_mode == 3)      { RB_State(RB_STATE_BLEND_ADD); }
+                                    else if (bound_blend_mode == 4) { RB_State(RB_STATE_BLEND_ONE); }
+                                    else                             { RB_State(RB_STATE_BLEND_ALPHA); }
                                 }
                             }
                             Wow_BindWorldTexture(batch->texture ? batch->texture : tr.texture[TEX_WHITE], 0, bound_textures, &texture_binds);
@@ -271,8 +266,7 @@ static void Wow_DrawTerrainAndWmos(WOWDRAWSTATS *stats) {
                 }
             }
             if (wmo_pass == 1) {
-                R_Call(glDisable, GL_BLEND);
-                R_Call(glDepthMask, GL_TRUE);
+                RB_State(RB_STATE_OPAQUE);
             }
         }
     }
@@ -479,9 +473,8 @@ void Wow_DrawWorld(void) {
         }
     }
 
-    R_Call(glDepthMask, GL_TRUE);
-    R_Call(glDisable, GL_BLEND);
-    R_Call(glEnable, GL_CULL_FACE);
+    RB_State(RB_STATE_OPAQUE);
+    RB_Cull(GL_BACK);
 
     if (R_CvarEnabled("r_doodads", "1") && wow_world.object_buffer && wow_world.num_object_vertices) {
         R_BindTexture(tr.texture[TEX_WHITE], 0);

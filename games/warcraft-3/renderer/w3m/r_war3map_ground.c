@@ -190,10 +190,8 @@ static void R_SetupSplatState(LPCTEXTURE texture, splat_shader_t *shader) {
 
     shader->state.viewProjection = tr.viewDef.viewProjectionMatrix;
     shader->state.model = mModelMatrix;
-    R_Call(glEnable, GL_BLEND);
-    R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    R_Call(glDepthMask, GL_FALSE);
-    R_Call(glBindVertexArray, tr.buffer[RBUF_TEMP1]->vao);
+    RB_State(RB_STATE_BLEND_ALPHA);
+    RB_BindVAO(tr.buffer[RBUF_TEMP1]->vao);
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, tr.buffer[RBUF_TEMP1]->vbo);
     ground_current_vertex = ground_vertex_buffer;
     R_ApplyShader(shader);
@@ -252,7 +250,7 @@ void R_AddRectSplat(LPCVECTOR2 mins, LPCVECTOR2 maxs, LPCTEXTURE texture, COLOR3
 
 void R_EndSplatBatch(void) {
     R_FlushSplatBatch();
-    R_Call(glDepthMask, GL_TRUE);
+    RB_State(RB_STATE_OPAQUE);
 }
 
 void R_RenderRectSplat(LPCVECTOR2 mins,
@@ -267,7 +265,7 @@ void R_RenderRectSplat(LPCVECTOR2 mins,
     R_SetupSplatState(texture, shader);
     R_GenerateSplatTiles(mins, maxs, color);
     R_FlushSplatBatch();
-    R_Call(glDepthMask, GL_TRUE);
+    RB_State(RB_STATE_OPAQUE);
 }
 
 LPMAPLAYER R_BuildMapSegmentLayer(LPCWAR3MAP map, DWORD sx, DWORD sy, DWORD layer) {
@@ -364,16 +362,14 @@ void R_RenderFlatRectSplat(LPCVECTOR2 mins,
     shader->state.viewProjection = tr.viewDef.viewProjectionMatrix;
     shader->state.model = model_matrix;
 
-    R_Call(glEnable, GL_BLEND);
-    R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    R_Call(glDepthMask, GL_FALSE);
-    R_Call(glBindVertexArray, tr.buffer[RBUF_TEMP1]->vao);
+    RB_State(RB_STATE_BLEND_ALPHA);
+    RB_BindVAO(tr.buffer[RBUF_TEMP1]->vao);
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, tr.buffer[RBUF_TEMP1]->vbo);
     R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STREAM_DRAW);
     R_StatsDraw(GL_TRIANGLES, sizeof(vertices) / sizeof(vertices[0]), 1);
     R_ApplyShader(shader);
     R_Call(glDrawArrays, GL_TRIANGLES, 0, sizeof(vertices) / sizeof(vertices[0]));
-    R_Call(glDepthMask, GL_TRUE);
+    RB_State(RB_STATE_OPAQUE);
 }
 
 void R_RenderSplat(LPCVECTOR2 position,

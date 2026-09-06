@@ -1803,12 +1803,7 @@ static void M2_DrawCompositeQuad(LPTEXTURE texture, LPCRECT screen, BOOL blend) 
     tr.shader_ui.state.viewProjection = projection;
     tr.shader_ui.state.model = identity;
     R_BindTexture(texture, 0);
-    if (blend) {
-        R_Call(glEnable, GL_BLEND);
-        R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    } else {
-        R_Call(glDisable, GL_BLEND);
-    }
+    RB_State(blend ? RB_STATE_BLEND_ALPHA : RB_STATE_OPAQUE);
     R_StatsDraw(GL_TRIANGLES, 6, 1);
     R_ApplyShader(&tr.shader_ui);
     R_Call(glDrawArrays, GL_TRIANGLES, 0, 6);
@@ -1883,12 +1878,12 @@ static LPTEXTURE M2_PrepareCharacterTexture(m2Model_t const *model,
     old_blend = R_Call(glIsEnabled, GL_BLEND);
     old_scissor = R_Call(glIsEnabled, GL_SCISSOR_TEST);
     R_Call(glGetIntegerv, GL_SCISSOR_BOX, old_scissor_box);
-    R_Call(glBindFramebuffer, GL_FRAMEBUFFER, cached->target->buffer);
-    R_Call(glViewport, 0, 0, M2_CHARACTER_COMPOSITE_RESOLUTION, M2_CHARACTER_COMPOSITE_RESOLUTION);
+    RB_BindFBO(cached->target->buffer);
+    RB_Viewport(&(RECT){ 0, 0, M2_CHARACTER_COMPOSITE_RESOLUTION, M2_CHARACTER_COMPOSITE_RESOLUTION });
     /* The view scissor is in window coordinates; it would clip this 256x256 target. */
-    R_Call(glDisable, GL_SCISSOR_TEST);
-    R_Call(glDisable, GL_DEPTH_TEST);
-    R_Call(glDisable, GL_CULL_FACE);
+    RB_ScissorDisable();
+    RB_State((GL_ALWAYS << 9));
+    RB_Cull(0);
     R_Call(glClearColor, 0, 0, 0, 0);
     R_Call(glClear, GL_COLOR_BUFFER_BIT);
     M2_DrawCompositeQuad(base, &(RECT){ 0, 0, M2_CHARACTER_COMPOSITE_RESOLUTION, M2_CHARACTER_COMPOSITE_RESOLUTION }, false);
@@ -1902,13 +1897,12 @@ static LPTEXTURE M2_PrepareCharacterTexture(m2Model_t const *model,
         M2_DrawCompositeHeadVariation(model->filename, 1, unpacked.faceID, unpacked.skinColorID);
         M2_DrawCompositeHeadVariation(model->filename, 2, unpacked.facialHairStyleID, unpacked.hairColorID);
     }
-    R_Call(glBindFramebuffer, GL_FRAMEBUFFER, old_framebuffer);
-    R_Call(glViewport, old_viewport[0], old_viewport[1], old_viewport[2], old_viewport[3]);
-    if (old_depth) { R_Call(glEnable, GL_DEPTH_TEST); } else { R_Call(glDisable, GL_DEPTH_TEST); }
-    if (old_cull) { R_Call(glEnable, GL_CULL_FACE); } else { R_Call(glDisable, GL_CULL_FACE); }
-    if (old_blend) { R_Call(glEnable, GL_BLEND); } else { R_Call(glDisable, GL_BLEND); }
-    R_Call(glScissor, old_scissor_box[0], old_scissor_box[1], old_scissor_box[2], old_scissor_box[3]);
-    if (old_scissor) { R_Call(glEnable, GL_SCISSOR_TEST); } else { R_Call(glDisable, GL_SCISSOR_TEST); }
+    RB_BindFBO(old_framebuffer);
+    RB_Viewport(&(RECT){ old_viewport[0], old_viewport[1], old_viewport[2], old_viewport[3] });
+    RB_State((old_blend ? RB_STATE_BLEND_ALPHA : RB_STATE_OPAQUE) | (old_depth ? RB_DEPTH_WRITE_BIT : 0));
+    RB_Cull(old_cull ? GL_BACK : 0);
+    RB_Scissor(&(RECT){ old_scissor_box[0], old_scissor_box[1], old_scissor_box[2], old_scissor_box[3] });
+    if (!old_scissor) RB_ScissorDisable();
     cached->texture.texid = cached->target->texture;
     cached->texture.width = M2_CHARACTER_COMPOSITE_RESOLUTION;
     cached->texture.height = M2_CHARACTER_COMPOSITE_RESOLUTION;
@@ -2027,13 +2021,12 @@ static void M2_SetBlendMode(MODELPROG * shader, DWORD mode) {
     shader->state.alphaKey = mode == BLEND_MODE_ALPHAKEY;
     R_SetAlphaKeyState(mode == BLEND_MODE_ALPHAKEY);
     if (mode == BLEND_MODE_NONE) {
-        R_Call(glDisable, GL_BLEND); R_Call(glDepthMask, GL_TRUE);
+        RB_State(RB_STATE_OPAQUE);
     } else if (mode != BLEND_MODE_ALPHAKEY) {
-        R_Call(glEnable, GL_BLEND); R_Call(glDepthMask, GL_FALSE);
         switch (mode) {
-        case BLEND_MODE_ADD: R_Call(glBlendFunc, GL_ONE, GL_ONE); break;
-        case BLEND_MODE_ADDALPHA: R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE); break;
-        default: R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); break;
+        case BLEND_MODE_ADD: RB_State(RB_STATE_BLEND_ADD); break;
+        case BLEND_MODE_ADDALPHA: RB_State((GL_SRC_ALPHA << 0) | (GL_ONE << 4) | (GL_LEQUAL << 9) | (0xF << 12)); break;
+        default: RB_State(RB_STATE_BLEND_ALPHA); break;
         }
     }
 }
@@ -2116,9 +2109,7 @@ void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, LPCMAT
     shader->state.fogColor = (VECTOR3){ tr.viewDef.fogColor.x, tr.viewDef.fogColor.y, tr.viewDef.fogColor.z };
     shader->state.fogParams = (VECTOR2){ tr.viewDef.fogStart, tr.viewDef.fogEnd };
     shader->state.firstBoneLookupIndex = 0.0f;
-    R_Call(glEnable, GL_DEPTH_TEST);
-    R_Call(glDepthMask, GL_TRUE);
-    R_Call(glDisable, GL_BLEND);
+    RB_State(RB_STATE_OPAQUE);
 
 	for (batch = model->batches; batch; batch = batch->next) {
 		LPCTEXTURE texture;
@@ -2190,9 +2181,7 @@ void M2_RenderInstanced(m2Model_t const *model, LPCINSTANCEBUFFER instances, DWO
         };
         R_SetModelGrass(shader, &grass);
     }
-    R_Call(glEnable, GL_DEPTH_TEST);
-    R_Call(glDepthMask, GL_TRUE);
-    R_Call(glDisable, GL_BLEND);
+    RB_State(RB_STATE_OPAQUE);
 
 	for (batch = model->batches; batch; batch = batch->next) {
         M2_SetBlendMode(shader, batch->alphamode);

@@ -1575,12 +1575,9 @@ static void r_sc2_begin_terrain_pass(DWORD group) {
     }
     R_BindTexture(sc2_terrain_masks[group], SC2_TERRAIN_PASS_LAYERS);
     if (group) {
-        R_Call(glEnable, GL_BLEND);
-        R_Call(glBlendFunc, GL_ONE, GL_ONE);
-        R_Call(glDepthMask, GL_FALSE);
+        RB_State(RB_STATE_BLEND_ADD);
     } else {
-        R_Call(glDisable, GL_BLEND);
-        R_Call(glDepthMask, GL_TRUE);
+        RB_State(RB_STATE_OPAQUE);
     }
 }
 
@@ -1602,8 +1599,7 @@ static void r_sc2_draw_terrain_indexed(LPCMAPLAYER layer) {
         R_ApplyShader(&sc2_terrain_shader);
         R_DrawIndexedBuffer(layer->buffer, layer->num_indices);
     }
-    R_Call(glDisable, GL_BLEND);
-    R_Call(glDepthMask, GL_TRUE);
+    RB_State(RB_STATE_OPAQUE);
 }
 
 static void r_sc2_draw_terrain_vertices(LPCMAPLAYER layer) {
@@ -1615,8 +1611,7 @@ static void r_sc2_draw_terrain_vertices(LPCMAPLAYER layer) {
         R_ApplyShader(&sc2_terrain_shader);
         R_DrawBuffer(layer->buffer, layer->num_vertices);
     }
-    R_Call(glDisable, GL_BLEND);
-    R_Call(glDepthMask, GL_TRUE);
+    RB_State(RB_STATE_OPAQUE);
 }
 
 static void r_sc2_draw_ground_layer(LPCMAPSEGMENT segment) {
@@ -1687,8 +1682,7 @@ static void r_sc2_draw_cliff_layer(LPCMAPSEGMENT segment) {
         return;
 
     /* Pass 2: cliff M3 texture alpha-blended on top, pulled slightly forward */
-    R_Call(glEnable, GL_POLYGON_OFFSET_FILL);
-    R_Call(glPolygonOffset, -1.0f, -1.0f);
+    RB_PolygonOffset(-1.0f, -1.0f);
 
     sc2_cliff_shader.state.viewProjection = tr.render_phase == RENDER_PHASE_LIGHTS ? tr.viewDef.lightMatrix : tr.viewDef.viewProjectionMatrix;
     sc2_cliff_shader.state.lightMatrix = tr.viewDef.lightMatrix;
@@ -1697,16 +1691,15 @@ static void r_sc2_draw_cliff_layer(LPCMAPSEGMENT segment) {
     r_sc2_set_light_state(&sc2_cliff_shader.state.lightAmbient, sc2_cliff_shader.state.lightDir, sc2_cliff_shader.state.lightColor);
     R_Call(glActiveTexture, GL_TEXTURE0 + sc2_cliff_shader.state.shadowmap);
     R_Call(glBindTexture, GL_TEXTURE_2D, tr.render_phase == RENDER_PHASE_LIGHTS ? tr.texture[TEX_WHITE]->texid : tr.rt[RT_DEPTHMAP]->texture);
-    R_Call(glEnable, GL_BLEND);
-    R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    RB_State(RB_STATE_BLEND_ALPHA);
     for (layer = segment->layers; layer; layer = layer->next) {
         if (layer->type != MAPLAYERTYPE_CLIFF) continue;
         R_BindTexture(layer->texture, 0);
         R_ApplyShader(&sc2_cliff_shader);
         R_DrawBuffer(layer->buffer, layer->num_vertices);
     }
-    R_Call(glDisable, GL_POLYGON_OFFSET_FILL);
-    R_Call(glPolygonOffset, 0.0f, 0.0f);
+    RB_PolygonOffset(0.0f, 0.0f);
+    RB_State(RB_STATE_OPAQUE);
 }
 
 void R_SC2DrawWorld(void) {
@@ -1731,11 +1724,8 @@ void R_SC2DrawWorld(void) {
 
     tr.shader_ui.state.viewProjection = tr.viewDef.viewProjectionMatrix;
     tr.shader_ui.state.model = model_matrix;
-    R_Call(glDisable, GL_CULL_FACE);
-    R_Call(glEnable, GL_DEPTH_TEST);
-    R_Call(glDepthMask, GL_TRUE);
-    R_Call(glDepthFunc, GL_LEQUAL);
-    R_Call(glColorMask, GL_TRUE, GL_TRUE, GL_TRUE, GL_FALSE);
+    RB_Cull(0);
+    RB_State(RB_STATE_OPAQUE | (0xF << 12));
     r_sc2_draw_ground_layer(sc2_terrain_segment);
     r_sc2_draw_cliff_layer(sc2_terrain_segment);
     r_sc2_draw_hard_tiles();

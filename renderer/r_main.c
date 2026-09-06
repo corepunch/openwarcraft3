@@ -311,7 +311,7 @@ R_AllocateRenderTexture(GLsizei width,
     LPRENDERTARGET rt = ri.MemAlloc(sizeof(RENDERTARGET));
     R_Call(glGenFramebuffers, 1, &rt->buffer);
     R_Call(glGenTextures, 1, &rt->texture);
-    R_Call(glBindFramebuffer, GL_FRAMEBUFFER, rt->buffer);
+    RB_BindFBO(rt->buffer);
     R_Call(glBindTexture, GL_TEXTURE_2D, rt->texture);
     R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -320,7 +320,7 @@ R_AllocateRenderTexture(GLsizei width,
     if (attachment == GL_COLOR_ATTACHMENT0) {
         glClear(GL_COLOR_BUFFER_BIT);
     }
-    R_Call(glBindFramebuffer, GL_FRAMEBUFFER, 0);
+    RB_BindFBO(0);
     return rt;
 }
 
@@ -352,8 +352,7 @@ static void R_SetupGL(bool drawLight) {
 
     Matrix3_normal(&normal_matrix, &model_matrix);
 
-    R_Call(glEnable, GL_CULL_FACE);
-    R_Call(glCullFace, GL_BACK);
+    RB_Cull(GL_BACK);
     
     GLfloat const *viewProjectionMatrix =
 #ifdef USE_SHADOWMAPS
@@ -370,25 +369,23 @@ static void R_SetupGL(bool drawLight) {
     tr.shader_ui.state.viewProjection = ui_matrix;
     tr.shader_ui.state.model = model_matrix;
     
-    R_Call(glEnable, GL_DEPTH_TEST);
-    R_Call(glDepthMask, GL_TRUE);
-    R_Call(glDepthFunc, GL_LEQUAL);
+    RB_State(RB_STATE_OPAQUE);
 
 #ifdef USE_SHADOWMAPS
     if (drawLight) {
-        R_Call(glViewport, 0, 0, SHADOW_TEXSIZE, SHADOW_TEXSIZE);
-        R_Call(glScissor, 0, 0, SHADOW_TEXSIZE, SHADOW_TEXSIZE);
-        R_Call(glBindFramebuffer, GL_FRAMEBUFFER, tr.rt[RT_DEPTHMAP]->buffer);
+        RB_Viewport(&(RECT){0, 0, SHADOW_TEXSIZE, SHADOW_TEXSIZE});
+        RB_Scissor(&(RECT){0, 0, SHADOW_TEXSIZE, SHADOW_TEXSIZE});
+        RB_BindFBO(tr.rt[RT_DEPTHMAP]->buffer);
         R_Call(glDepthMask, GL_TRUE);
         R_Call(glClear, GL_DEPTH_BUFFER_BIT);
     } else {
-        R_Call(glBindFramebuffer, GL_FRAMEBUFFER, 0);
+        RB_BindFBO(0);
         R_Call(glActiveTexture, GL_TEXTURE1);
         R_Call(glBindTexture, GL_TEXTURE_2D, tr.rt[RT_DEPTHMAP]->texture);
     }
 #else
     (void)drawLight;
-    R_Call(glBindFramebuffer, GL_FRAMEBUFFER, 0);
+    RB_BindFBO(0);
 #endif
 }
 
@@ -711,7 +708,7 @@ void R_InitRenderer(DWORD width, DWORD height) {
 #endif
     R_Call(glDisable, GL_DEPTH_TEST);
     R_Call(glClearColor, 0.0, 0.0, 0.0, 1.0);
-    R_Call(glViewport, 0, 0, tr.drawableSize.width, tr.drawableSize.height);
+    RB_Viewport(&(RECT){0, 0, tr.drawableSize.width, tr.drawableSize.height});
     R_InitParticles();
     R_Init();
     fprintf(stderr, "Refresher initialized.\n\n");
@@ -728,9 +725,7 @@ void R_SetAlphaKeyState(BOOL enabled) {
     if (tr.render_phase == RENDER_PHASE_LIGHTS) {
         /* TODO: Single-sample shadow targets need multisample depth coverage before alpha-key shadows can use ATOC. */
         R_Call(glDisable, GL_SAMPLE_ALPHA_TO_COVERAGE);
-        R_Call(glEnable, GL_BLEND);
-        R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-        R_Call(glDepthMask, GL_FALSE);
+        RB_State(RB_STATE_BLEND_ALPHA);
         return;
     }
 #endif
@@ -741,15 +736,11 @@ void R_SetAlphaKeyState(BOOL enabled) {
         R_Call(glBlendFunc, GL_ONE, GL_ZERO);
     } else {
         R_Call(glDisable, GL_SAMPLE_ALPHA_TO_COVERAGE);
-        R_Call(glEnable, GL_BLEND);
-        R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-        R_Call(glDepthMask, GL_FALSE);
+        RB_State(RB_STATE_BLEND_ALPHA);
     }
 #else
     R_Call(glDisable, GL_SAMPLE_ALPHA_TO_COVERAGE);
-    R_Call(glDisable, GL_BLEND);
-    R_Call(glBlendFunc, GL_ONE, GL_ZERO);
-    R_Call(glDepthMask, GL_TRUE);
+    RB_State(RB_STATE_OPAQUE);
 #endif
 }
 
@@ -776,20 +767,21 @@ void R_ShutdownRenderer(void) {
 }
 
 void R_SetupViewport(LPCRECT r) {
-    R_Call(glViewport,
-           r->x * tr.drawableSize.width,
-           r->y * tr.drawableSize.height,
-           r->w * tr.drawableSize.width,
-           r->h * tr.drawableSize.height);
+    RB_Viewport(&(RECT){
+        r->x * tr.drawableSize.width,
+        r->y * tr.drawableSize.height,
+        r->w * tr.drawableSize.width,
+        r->h * tr.drawableSize.height,
+    });
 }
 
 void R_SetupScissor(LPCRECT r) {
-    R_Call(glEnable, GL_SCISSOR_TEST);
-    R_Call(glScissor,
-           r->x * tr.drawableSize.width,
-           r->y * tr.drawableSize.height,
-           r->w * tr.drawableSize.width,
-           r->h * tr.drawableSize.height);
+    RB_Scissor(&(RECT){
+        r->x * tr.drawableSize.width,
+        r->y * tr.drawableSize.height,
+        r->w * tr.drawableSize.width,
+        r->h * tr.drawableSize.height,
+    });
 }
 
 void R_RevertSettings(void) {
@@ -812,11 +804,9 @@ void R_DrawSky(void) {
     };
     rdflags = tr.viewDef.rdflags;
     tr.viewDef.rdflags |= RDF_NOFRUSTUMCULL;
-    R_Call(glDepthMask, GL_FALSE);
-    R_Call(glDisable, GL_DEPTH_TEST);
+    RB_State(RB_STATE_BLEND_ALPHA);
     R_RenderModel(&sky);
-    R_Call(glEnable, GL_DEPTH_TEST);
-    R_Call(glDepthMask, GL_TRUE);
+    RB_State(RB_STATE_OPAQUE);
     tr.viewDef.rdflags = rdflags;
 }
 
@@ -825,21 +815,19 @@ void R_RenderShadowMap(void) {
     tr.render_phase = RENDER_PHASE_LIGHTS;
     R_SetupGL(true);
     /* Bias depth writes away from receivers; the old unbiased pass made each terrain triangle shadow itself. */
-    R_Call(glEnable, GL_POLYGON_OFFSET_FILL);
-    R_Call(glPolygonOffset, 2.0f, 4.0f);
+    RB_PolygonOffset(2.0f, 4.0f);
     R_BindTexture(tr.texture[TEX_SHADOWMAP], 1);
     R_DrawWorld();
     R_DrawTerrainShadows();
     R_DrawEntities();
-    R_Call(glDisable, GL_POLYGON_OFFSET_FILL);
-    R_Call(glPolygonOffset, 0.0f, 0.0f);
+    RB_PolygonOffset(0, 0);
 }
 #endif
 
 void R_RenderView(void) {
     tr.render_phase = RENDER_PHASE_SOLID;
-    R_SetupViewport(&tr.viewDef.viewport);
-    R_SetupScissor(&tr.viewDef.scissor);
+    RB_Viewport(&tr.viewDef.viewport);
+    RB_Scissor(&tr.viewDef.scissor);
     R_SetupGL(false);
     if (tr.viewDef.rdflags & RDF_NOWORLDMODEL) {
         R_Call(glClear, GL_DEPTH_BUFFER_BIT);
@@ -855,7 +843,7 @@ void R_RenderView(void) {
     }
     tr.render_phase = RENDER_PHASE_SOLID;
     R_RevertSettings();
-    R_SetupScissor(&(RECT){0, 0, 1, 1});
+    RB_Scissor(&(RECT){0, 0, 1, 1});
 
 //    extern LPCTEXTURE dds;
 //    R_DrawPic(dds, 0, 0);
@@ -888,8 +876,8 @@ void R_RenderFrame(viewDef_t const *viewDef) {
             Matrix4_identity(&tr.viewDef.lightMatrix);
         }
         Frustum_Calculate(&tr.viewDef.viewProjectionMatrix, &tr.viewDef.frustum);
-        R_SetupViewport(&tr.viewDef.viewport);
-        R_SetupScissor(&tr.viewDef.scissor);
+        RB_Viewport(&tr.viewDef.viewport);
+        RB_Scissor(&tr.viewDef.scissor);
         R_SetupGL(false);
         R_Call(glClear, GL_DEPTH_BUFFER_BIT);
         R_DrawEntities();
@@ -913,7 +901,7 @@ void R_RenderFrame(viewDef_t const *viewDef) {
 }
 
 void R_DrawBuffer(LPCBUFFER buffer, DWORD num_vertices) {
-    R_Call(glBindVertexArray, buffer->vao);
+    RB_BindVAO(buffer->vao);
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, buffer->vbo);
     R_StatsDraw(GL_TRIANGLES, num_vertices, 1);
     R_Call(glDrawArrays, GL_TRIANGLES, 0, num_vertices);
@@ -921,27 +909,27 @@ void R_DrawBuffer(LPCBUFFER buffer, DWORD num_vertices) {
 
 /* Model-owned element buffers retain per-section ranges as byte offsets. */
 void R_DrawIndexedBuffer16(LPCBUFFER buffer, LPCDRAWELEMENTS draw) {
-    R_Call(glBindVertexArray, buffer->vao);
+    RB_BindVAO(buffer->vao);
     R_StatsDraw(GL_TRIANGLES, draw->count, 1);
     R_Call(glDrawElements, GL_TRIANGLES, draw->count, GL_UNSIGNED_SHORT, (void *)(uintptr_t)draw->offset);
 }
 
 void R_DrawIndexedBuffer32(LPCBUFFER buffer, LPCDRAWELEMENTS draw) {
-    R_Call(glBindVertexArray, buffer->vao);
+    RB_BindVAO(buffer->vao);
     R_StatsDraw(GL_TRIANGLES, draw->count, 1);
     R_Call(glDrawElements, GL_TRIANGLES, draw->count, GL_UNSIGNED_INT, (void *)(uintptr_t)draw->offset);
 }
 
 /* Static procedural batches need only gl_InstanceID; their shared VAO has no per-instance stream. */
 void R_DrawBufferCopies(LPCBUFFER buffer, DWORD num_vertices, DWORD num_instances) {
-    R_Call(glBindVertexArray, buffer->vao);
+    RB_BindVAO(buffer->vao);
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, buffer->vbo);
     R_StatsDraw(GL_TRIANGLES, num_vertices, num_instances);
     R_Call(glDrawArraysInstanced, GL_TRIANGLES, 0, num_vertices, num_instances);
 }
 
 void R_DrawIndexedBuffer(LPCBUFFER buffer, DWORD num_indices) {
-    R_Call(glBindVertexArray, buffer->vao);
+    RB_BindVAO(buffer->vao);
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, buffer->vbo);
     R_Call(glBindBuffer, GL_ELEMENT_ARRAY_BUFFER, buffer->ibo);
     R_StatsDraw(GL_TRIANGLES, num_indices, 1);
@@ -987,12 +975,9 @@ static void R_FinishFrameStats(void) {
 void R_BeginFrame(void) {
     memset(&r_frame_stats, 0, sizeof(r_frame_stats));
     R_Call(glDisable, GL_SAMPLE_ALPHA_TO_COVERAGE);
-    R_Call(glEnable, GL_DEPTH_TEST);
-    R_Call(glDepthMask, GL_TRUE);
-    R_Call(glDepthFunc, GL_LEQUAL);
-    R_Call(glEnable, GL_CULL_FACE);
-    R_Call(glCullFace, GL_BACK);
-    R_Call(glColorMask, GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+    RB_State(RB_STATE_OPAQUE);
+    RB_Cull(GL_BACK);
+    RB_ColorMask(true, true, true, true);
     R_Call(glClear, GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 #ifdef SC2
     R_Call(glColorMask, GL_TRUE, GL_TRUE, GL_TRUE, GL_FALSE);
@@ -1026,7 +1011,7 @@ void R_SetWindowSize(DWORD width, DWORD height) {
     SDL_GL_GetDrawableSize(window,
                            (int *)&tr.drawableSize.width,
                            (int *)&tr.drawableSize.height);
-    R_Call(glViewport, 0, 0, tr.drawableSize.width, tr.drawableSize.height);
+    RB_Viewport(&(RECT){0, 0, tr.drawableSize.width, tr.drawableSize.height});
     fprintf(stderr,
             "Drawable size after vid_apply: %ux%u\n",
             (unsigned)tr.drawableSize.width,

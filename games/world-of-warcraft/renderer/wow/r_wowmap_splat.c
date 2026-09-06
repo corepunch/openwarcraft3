@@ -20,20 +20,17 @@ static void Wow_DrawSplatVertices(LPCTEXTURE texture, splat_shader_t *shader,
 
     shader->state.viewProjection = tr.viewDef.viewProjectionMatrix;
     shader->state.model = model_matrix;
-    R_Call(glEnable, GL_BLEND);
-    R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    R_Call(glDepthMask, GL_FALSE);
-    R_Call(glEnable, GL_POLYGON_OFFSET_FILL);
-    R_Call(glPolygonOffset, -1.0f, -1.0f);
-    R_Call(glBindVertexArray, tr.buffer[RBUF_TEMP1]->vao);
+    RB_State(RB_STATE_BLEND_ALPHA);
+    RB_PolygonOffset(-1.0f, -1.0f);
+    RB_BindVAO(tr.buffer[RBUF_TEMP1]->vao);
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, tr.buffer[RBUF_TEMP1]->vbo);
     /* Re-specifying the whole stream buffer lets the driver orphan busy storage. */
     R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(*vertices) * num_vertices, vertices, GL_STREAM_DRAW);
     R_StatsDraw(GL_TRIANGLES, num_vertices, 1);
     R_ApplyShader(shader);
     R_Call(glDrawArrays, GL_TRIANGLES, 0, num_vertices);
-    R_Call(glDisable, GL_POLYGON_OFFSET_FILL);
-    R_Call(glDepthMask, GL_TRUE);
+    RB_PolygonOffset(0.0f, 0.0f);
+    RB_State(RB_STATE_OPAQUE);
 }
 
 void Wow_FlushSplats(void) {

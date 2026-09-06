@@ -406,7 +406,7 @@ void M3_MakeBuffer(m3Model_t *model) {
     USHORT *indices = elems ? ri.MemAlloc(elems * sizeof(*indices)) : NULL;
     m3_pack_division_faces(model->divisions, model->divisionsNum, indices);
     model->renbuf = R_MakeVertexArrayObject(verts, model->verticesNum);
-    R_Call(glBindVertexArray, model->renbuf->vao);
+    RB_BindVAO(model->renbuf->vao);
     R_Call(glGenBuffers, 1, &model->renbuf->ibo);
     R_Call(glBindBuffer, GL_ELEMENT_ARRAY_BUFFER, model->renbuf->ibo);
     R_Call(glBufferData, GL_ELEMENT_ARRAY_BUFFER, elems * sizeof(*indices), indices, GL_STATIC_DRAW);
@@ -591,39 +591,25 @@ static BOOL M3_SetMaterialBlendMode(m3Material_t const *material) {
     switch (material ? material->blendMode : BLEND_MODE_NONE) {
         case BLEND_MODE_NONE:
         case BLEND_MODE_ALPHAKEY:
-            R_Call(glDisable, GL_BLEND);
-            R_Call(glBlendFunc, GL_ONE, GL_ZERO);
-            R_Call(glDepthMask, GL_TRUE);
+            RB_State(RB_STATE_OPAQUE);
             break;
         case BLEND_MODE_BLEND:
-            R_Call(glEnable, GL_BLEND);
-            R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-            R_Call(glDepthMask, GL_FALSE);
+            RB_State(RB_STATE_BLEND_ALPHA);
             break;
         case BLEND_MODE_ADD:
-            R_Call(glEnable, GL_BLEND);
-            R_Call(glBlendFunc, GL_ONE, GL_ONE);
-            R_Call(glDepthMask, GL_FALSE);
+            RB_State(RB_STATE_BLEND_ADD);
             break;
         case BLEND_MODE_ADDALPHA:
-            R_Call(glEnable, GL_BLEND);
-            R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE);
-            R_Call(glDepthMask, GL_FALSE);
+            RB_State((GL_SRC_ALPHA << 0) | (GL_ONE << 4) | (GL_LEQUAL << 9) | (0xF << 12));
             break;
         case BLEND_MODE_MODULATE:
-            R_Call(glEnable, GL_BLEND);
-            R_Call(glBlendFunc, GL_DST_COLOR, GL_ZERO);
-            R_Call(glDepthMask, GL_FALSE);
+            RB_State((GL_DST_COLOR << 0) | (GL_ZERO << 4) | (GL_LEQUAL << 9) | (0xF << 12));
             break;
         case BLEND_MODE_MODULATE_2X:
-            R_Call(glEnable, GL_BLEND);
-            R_Call(glBlendFunc, GL_DST_COLOR, GL_SRC_COLOR);
-            R_Call(glDepthMask, GL_FALSE);
+            RB_State((GL_DST_COLOR << 0) | (GL_SRC_COLOR << 4) | (GL_LEQUAL << 9) | (0xF << 12));
             break;
         default:
-            R_Call(glDisable, GL_BLEND);
-            R_Call(glBlendFunc, GL_ONE, GL_ZERO);
-            R_Call(glDepthMask, GL_TRUE);
+            RB_State(RB_STATE_OPAQUE);
             break;
     }
     return true;
@@ -668,9 +654,7 @@ static void M3_DrawEmissiveLayer(m3Region_t const *region, m3Material_t const *m
         return;
     COLOR32 ec = M3_LayerColor(emissive);
     BOOL prev_unshaded = m3.shader->state.unshaded;
-    R_Call(glEnable, GL_BLEND);
-    R_Call(glBlendFunc, GL_ONE, GL_ONE);
-    R_Call(glDepthMask, GL_FALSE);
+    RB_State(RB_STATE_BLEND_ADD);
     m3.shader->state.unshaded = 1;
     m3.shader->state.alphaKey = 0;
     m3.shader->state.geosetColor = (VECTOR4){ ec.r / 255.0f, ec.g / 255.0f, ec.b / 255.0f, ec.a / 255.0f * alpha };
@@ -881,9 +865,7 @@ void M3_RenderModel(renderEntity_t const *entity, m3Model_t const *model, LPCMAT
 //    Matrix4_scale(&mScaledMatrix, &(VECTOR3){100,100,100});
     Matrix3_normal(&mNormalMatrix, &mScaledMatrix);
 
-    R_Call(glDisable, GL_BLEND);
-    R_Call(glEnable, GL_DEPTH_TEST);
-    R_Call(glDepthMask, GL_TRUE);
+    RB_State(RB_STATE_OPAQUE);
 
 #ifdef USE_SHADOWMAPS
     if (tr.render_phase == RENDER_PHASE_LIGHTS) {
@@ -912,7 +894,7 @@ void M3_RenderModel(renderEntity_t const *entity, m3Model_t const *model, LPCMAT
     m3.shader->state.unshaded = entity && (entity->flags & RF_PORTRAIT_LIGHTING) ? 1 : 0;
     m3.shader->state.fogEnable = 0;
     m3.shader->state.firstBoneLookupIndex = 0.0f;
-    R_Call(glBindVertexArray, model->renbuf->vao);
+    RB_BindVAO(model->renbuf->vao);
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, model->renbuf->vbo);
     
     R_BindTexture(tr.texture[TEX_WHITE], 0);
@@ -920,7 +902,7 @@ void M3_RenderModel(renderEntity_t const *entity, m3Model_t const *model, LPCMAT
     R_Call(glActiveTexture, GL_TEXTURE1);
     R_Call(glBindTexture, GL_TEXTURE_2D, tr.render_phase == RENDER_PHASE_LIGHTS || (tr.viewDef.rdflags & RDF_NOWORLDMODEL) ? tr.texture[TEX_WHITE]->texid : tr.rt[RT_DEPTHMAP]->texture);
     
-    R_Call(glDisable, GL_CULL_FACE);
+    RB_Cull(0);
     
     M3_FOR_EACH(Divisions, div, model->divisions) {
         M3_DrawDivisions(model, div, false);
@@ -931,7 +913,7 @@ void M3_RenderModel(renderEntity_t const *entity, m3Model_t const *model, LPCMAT
     
     R_Call(glActiveTexture, GL_TEXTURE0);
     R_SetAlphaKeyState(false);
-    R_Call(glDepthMask, GL_TRUE);
+    RB_State(RB_STATE_OPAQUE);
     R_Call(glEnable, GL_BLEND);
 }
 

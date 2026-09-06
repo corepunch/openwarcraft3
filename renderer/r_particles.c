@@ -210,7 +210,7 @@ COLOR32 FX_BlendColor(cparticle_t const *p) {
 }
 
 static void R_FlushParticles(LPCTEXTURE texture, LPCMATRIX4 matrix, particleVertex_t *pv, BLEND_MODE blend_mode) {
-    R_Call(glBindVertexArray, particles_resources.particles->vao);
+    RB_BindVAO(particles_resources.particles->vao);
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, particles_resources.particles->vbo);
     R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(particleVertex_t) * (pv - particles_resources.vertices), particles_resources.vertices, GL_DYNAMIC_DRAW);
 
@@ -223,35 +223,24 @@ static void R_FlushParticles(LPCTEXTURE texture, LPCMATRIX4 matrix, particleVert
     particles_resources.shader.state.alphaKey = blend_mode == BLEND_MODE_ALPHAKEY;
     particles_resources.shader.state.alphaCutoff = 0.5f;
     R_SetAlphaKeyState(blend_mode == BLEND_MODE_ALPHAKEY);
-    if (blend_mode == BLEND_MODE_NONE) {
-        R_Call(glDisable, GL_BLEND);
-        R_Call(glDepthMask, GL_TRUE);
-        R_Call(glBlendFunc, GL_ONE, GL_ZERO);
-    } else if (blend_mode == BLEND_MODE_ALPHAKEY) {
-        /* Alpha-key particles must not inherit additive state from an earlier batch. */
-        R_Call(glDisable, GL_BLEND);
-        R_Call(glDepthMask, GL_TRUE);
-        R_Call(glBlendFunc, GL_ONE, GL_ZERO);
+    if (blend_mode == BLEND_MODE_NONE || blend_mode == BLEND_MODE_ALPHAKEY) {
+        RB_State(RB_STATE_OPAQUE);
     } else {
-        R_Call(glEnable, GL_BLEND);
-        R_Call(glDepthMask, GL_FALSE);
         switch (blend_mode) {
         case BLEND_MODE_ADD:
-            /* Shared particle legacy: ADD means alpha-weighted additive. */
-            R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE);
+            RB_State(RB_MakeStateBits(GL_SRC_ALPHA, GL_ONE, GL_FALSE, GL_LEQUAL, 0xF));
             break;
         case BLEND_MODE_ADDALPHA:
-            /* Shared particle legacy: ADDALPHA means unweighted additive. */
-            R_Call(glBlendFunc, GL_ONE, GL_ONE);
+            RB_State(RB_STATE_BLEND_ADD);
             break;
         case BLEND_MODE_MODULATE:
-            R_Call(glBlendFunc, GL_ZERO, GL_SRC_COLOR);
+            RB_State(RB_MakeStateBits(GL_ZERO, GL_SRC_COLOR, GL_FALSE, GL_LEQUAL, 0xF));
             break;
         case BLEND_MODE_MODULATE_2X:
-            R_Call(glBlendFunc, GL_DST_COLOR, GL_SRC_COLOR);
+            RB_State(RB_STATE_BLEND_MOD2X);
             break;
         default:
-            R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+            RB_State(RB_STATE_BLEND_ALPHA);
             break;
         }
     }
@@ -338,7 +327,7 @@ static LPBUFFER R_MakeParticlesVertexArrayObject(void) {
 
     R_Call(glGenVertexArrays, 1, &buf->vao);
     R_Call(glGenBuffers, 1, &buf->vbo);
-    R_Call(glBindVertexArray, buf->vao);
+    RB_BindVAO(buf->vao);
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, buf->vbo);
 
     R_Call(glEnableVertexAttribArray, attrib_position);

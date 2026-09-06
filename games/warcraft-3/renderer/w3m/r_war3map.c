@@ -303,9 +303,7 @@ void _W3M_DrawWorld(void) {
     if (tr.viewDef.rdflags & RDF_NOWORLDMODEL)
         return;
 
-    R_Call(glEnable, GL_DEPTH_TEST);
-    R_Call(glDepthMask, GL_TRUE);
-    R_Call(glDepthFunc, GL_LEQUAL);
+    RB_State(RB_STATE_OPAQUE);
 
     {
         MODELLIGHTING lighting;
@@ -316,18 +314,16 @@ void _W3M_DrawWorld(void) {
 
     FOR_EACH_LIST(MAPLAYER, layer, g_groundLayers) {
         if (layer == g_groundLayers) {
-            R_Call(glDisable, GL_BLEND);
+            RB_State(RB_STATE_OPAQUE);
         } else {
-            R_Call(glEnable, GL_BLEND);
-            R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+            RB_State(RB_STATE_BLEND_ALPHA);
         }
         R_BindTexture(layer->texture, 0);
         R_ApplyShader(&tr.shader_default);
         R_DrawBuffer(layer->buffer, layer->num_vertices);
     }
 
-    R_Call(glEnable, GL_BLEND);
-    R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    RB_State(RB_STATE_BLEND_ALPHA);
     FOR_EACH_LIST(MAPSEGMENT, segment, g_mapSegments) {
         R_DrawTerrainSegment(segment, (1 << MAPLAYERTYPE_CLIFF));
     }
@@ -337,12 +333,10 @@ void _W3M_DrawAlphaSurfaces(void) {
     if (tr.viewDef.rdflags & RDF_NOWORLDMODEL)
         return;
 
-    R_Call(glEnable, GL_BLEND);
-    R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    R_Call(glDepthMask, GL_FALSE);
+    RB_State(RB_STATE_BLEND_ALPHA);
 
     FOR_EACH_LIST(MAPSEGMENT, segment, g_mapSegments) {
         R_DrawTerrainSegment(segment, (1 << MAPLAYERTYPE_WATER));
     }
-    R_Call(glDepthMask, GL_TRUE);
+    RB_State(RB_STATE_OPAQUE);
 }

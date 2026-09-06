@@ -211,7 +211,7 @@ static DWORD R_AddCastersToBuffer(LPCBUFFER buffer,
     }
 
 upload:
-    R_Call(glBindVertexArray, buffer->vao);
+    RB_BindVAO(buffer->vao);
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, buffer->vbo);
     R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(castervertex_t) * (caster_writer - casters), casters, GL_DYNAMIC_DRAW);
     return (DWORD)(caster_writer - casters);
@@ -222,7 +222,7 @@ static DWORD R_PushRectToBuffer(DWORD buffer_id, LPCRECT value, float alpha) {
     RECT uv = {0,0,1,1};
     VERTEX rect[NUM_RECT_VERTICES];
     R_AddQuad(rect, value, &uv, white, 0);
-    R_Call(glBindVertexArray, tr.buffer[RBUF_TEMP1]->vao);
+    RB_BindVAO(tr.buffer[RBUF_TEMP1]->vao);
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, tr.buffer[RBUF_TEMP1]->vbo);
     R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(vertex_t) * NUM_RECT_VERTICES, rect, GL_DYNAMIC_DRAW);
     return NUM_RECT_VERTICES;
@@ -296,14 +296,11 @@ void R_RenderFogOfWar(void) {
 
     tr.shader_ui.state.viewProjection = proj_matrix;
 
-    R_Call(glViewport, 0, 0, texture_width, texture_height);
-    R_Call(glScissor, 0, 0, texture_width, texture_height);
-    R_Call(glBindFramebuffer, GL_FRAMEBUFFER, fow_resources.rt[FOW_RT_IMMEDIATE]->buffer);
-    R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    R_Call(glDepthMask, GL_FALSE);
-    R_Call(glDepthFunc, GL_ALWAYS);
-    R_Call(glDisable, GL_CULL_FACE);
-    R_Call(glEnable, GL_BLEND);
+    RB_Viewport(&(RECT){0, 0, texture_width, texture_height});
+    RB_Scissor(&(RECT){0, 0, texture_width, texture_height});
+    RB_BindFBO(fow_resources.rt[FOW_RT_IMMEDIATE]->buffer);
+    RB_State(RB_MakeStateBits(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, false, GL_ALWAYS, 0xF));
+    RB_Cull(0);
     R_Call(glClearColor, 0, 0, 0, 0);
     R_Call(glClear, GL_COLOR_BUFFER_BIT);
     R_Call(glActiveTexture, GL_TEXTURE0);
@@ -312,13 +309,12 @@ void R_RenderFogOfWar(void) {
     FOR_LOOP(p, num_revealers) {
         renderEntity_t const *ent = revealers[p];
         
-        R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-        R_Call(glColorMask, GL_FALSE, GL_FALSE, GL_FALSE, GL_TRUE);
+        RB_State(RB_MakeStateBits(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, false, GL_ALWAYS, 0x1));
         R_Call(glClear, GL_COLOR_BUFFER_BIT);
 
         // Draw smooth circle into dst alpha
         R_MakeSightMatrix(ent, &model_matrix);
-        R_Call(glBindVertexArray, tr.buffer[RBUF_TEMP1]->vao);
+        RB_BindVAO(tr.buffer[RBUF_TEMP1]->vao);
         R_Call(glBindTexture, GL_TEXTURE_2D, fow_resources.sight->texid);
         R_Call(glBindBuffer, GL_ARRAY_BUFFER, tr.buffer[RBUF_TEMP1]->vbo);
         R_StatsDraw(GL_TRIANGLES, NUM_RECT_VERTICES, 1);
@@ -328,8 +324,8 @@ void R_RenderFogOfWar(void) {
         // Draw line of sight into dst alpha
 
         memcpy(&fow_resources.shader.state.eyePosition, (GLfloat *)&ent->origin, (1) * sizeof(VECTOR2));
-        R_Call(glBindVertexArray, fow_resources.casters->vao);
-        R_Call(glBlendFunc, GL_DST_ALPHA, GL_ZERO);
+        RB_BindVAO(fow_resources.casters->vao);
+        RB_State(RB_MakeStateBits(GL_DST_ALPHA, GL_ZERO, false, GL_ALWAYS, 0x1));
         R_Call(glBindBuffer, GL_ARRAY_BUFFER, fow_resources.casters->vbo);
         R_StatsDraw(GL_TRIANGLES, num_casters, 1);
         R_ApplyShader(&fow_resources.shader);
@@ -337,10 +333,9 @@ void R_RenderFogOfWar(void) {
         
         // Draw white rect using dst alpha
         R_MakeSightMatrix(ent, &model_matrix);
-        R_Call(glBindVertexArray, tr.buffer[RBUF_TEMP1]->vao);
+        RB_BindVAO(tr.buffer[RBUF_TEMP1]->vao);
         R_Call(glBindBuffer, GL_ARRAY_BUFFER, tr.buffer[RBUF_TEMP1]->vbo);
-        R_Call(glColorMask, GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-        R_Call(glBlendFunc, GL_DST_ALPHA, GL_ONE_MINUS_DST_ALPHA);
+        RB_State(RB_MakeStateBits(GL_DST_ALPHA, GL_ONE_MINUS_DST_ALPHA, false, GL_ALWAYS, 0xF));
         R_Call(glBindTexture, GL_TEXTURE_2D, tr.texture[TEX_WHITE]->texid);
         R_StatsDraw(GL_TRIANGLES, NUM_RECT_VERTICES, 1);
         R_ApplyShader(&tr.shader_ui);
@@ -356,27 +351,27 @@ void R_RenderFogOfWar(void) {
     tr.shader_ui.state.viewProjection = proj_matrix;
 
     // Add current state to history
-    R_Call(glBlendEquation, GL_MAX);
-    R_Call(glBlendFunc, GL_ONE, GL_ONE);
-    R_Call(glBindFramebuffer, GL_FRAMEBUFFER, fow_resources.rt[FOW_RT_HISTORY]->buffer);
+    RB_BlendEquation(GL_MAX);
+    RB_State(RB_MakeStateBits(GL_ONE, GL_ONE, false, GL_ALWAYS, 0xF));
+    RB_BindFBO(fow_resources.rt[FOW_RT_HISTORY]->buffer);
     R_BlitTexture(fow_resources.rt[FOW_RT_IMMEDIATE]->texture, 1.0);
     
     // revert blend func
-    R_Call(glBlendEquation, GL_FUNC_ADD);
-    R_Call(glBlendFunc, GL_ONE, GL_ZERO);
-    R_Call(glBindFramebuffer, GL_FRAMEBUFFER, fow_resources.rt[FOW_RT_RESULT]->buffer);
+    RB_BlendEquation(GL_FUNC_ADD);
+    RB_State(RB_MakeStateBits(GL_ONE, GL_ZERO, false, GL_ALWAYS, 0xF));
+    RB_BindFBO(fow_resources.rt[FOW_RT_RESULT]->buffer);
     if (tr.viewDef.rdflags & RDF_NOFOGMASK) {
         R_BlitTexture(tr.texture[TEX_WHITE]->texid, 0.5);
     } else {
         R_BlitTexture(fow_resources.rt[FOW_RT_HISTORY]->texture, 0.5);
     }
-    R_Call(glBlendFunc, GL_ONE, GL_ONE);
+    RB_State(RB_MakeStateBits(GL_ONE, GL_ONE, false, GL_ALWAYS, 0xF));
     R_BlitTexture(fow_resources.rt[FOW_RT_IMMEDIATE]->texture, 0.5);
 
-    R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    RB_State(RB_MakeStateBits(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, false, GL_ALWAYS, 0xF));
 
     // revert changes
-    R_Call(glBindFramebuffer, GL_FRAMEBUFFER, 0);
+    RB_BindFBO(0);
 }
 
 LPBUFFER R_MakeCastersVertexArrayObject(void) {
@@ -384,7 +379,7 @@ LPBUFFER R_MakeCastersVertexArrayObject(void) {
 
     R_Call(glGenVertexArrays, 1, &buf->vao);
     R_Call(glGenBuffers, 1, &buf->vbo);
-    R_Call(glBindVertexArray, buf->vao);
+    RB_BindVAO(buf->vao);
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, buf->vbo);
 
     R_Call(glEnableVertexAttribArray, attrib_position);

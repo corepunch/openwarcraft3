@@ -163,61 +163,43 @@ static bool MDLX_SetBlendMode(const mdxMaterialLayer_t *layer, DWORD layerID) {
 #endif
     switch (layer->blendMode) {
         case BLEND_MODE_NONE:
-            R_Call(glDisable, GL_BLEND);
-            if (layerID == 0) {
-                R_Call(glBlendFunc, GL_ONE, GL_ZERO);
-            } else {
-                R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-            }
-            R_Call(glDepthMask, GL_TRUE);
+            RB_State(RB_STATE_OPAQUE);
             break;
         case BLEND_MODE_ALPHAKEY:
             mdlx.shader->state.alphaKey = 1;
             R_SetAlphaKeyState(true);
             break;
         case BLEND_MODE_BLEND:
-            R_Call(glEnable, GL_BLEND);
-            R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-            R_Call(glDepthMask, GL_FALSE);
+            RB_State(RB_STATE_BLEND_ALPHA);
             break;
         case BLEND_MODE_ADD:
-            R_Call(glEnable, GL_BLEND);
-            R_Call(glBlendFunc, GL_ONE, GL_ONE);
-            R_Call(glDepthMask, GL_FALSE);
+            RB_State(RB_STATE_BLEND_ADD);
             break;
         case BLEND_MODE_ADDALPHA:
-            R_Call(glEnable, GL_BLEND);
-            R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE);
-            R_Call(glDepthMask, GL_FALSE);
+            RB_State((GL_SRC_ALPHA << 0) | (GL_ONE << 4) | (GL_LEQUAL << 9) | (0xF << 12));
             break;
         case BLEND_MODE_MODULATE:
-            R_Call(glEnable, GL_BLEND);
-            R_Call(glBlendFunc, GL_DST_COLOR, GL_ZERO);
-            R_Call(glDepthMask, GL_FALSE);
+            RB_State((GL_DST_COLOR << 0) | (GL_ZERO << 4) | (GL_LEQUAL << 9) | (0xF << 12));
             break;
         case BLEND_MODE_MODULATE_2X:
-            R_Call(glEnable, GL_BLEND);
-            R_Call(glBlendFunc, GL_DST_COLOR, GL_SRC_COLOR);
-            R_Call(glDepthMask, GL_FALSE);
+            RB_State(RB_STATE_BLEND_MOD2X);
             break;
         default:
-            R_Call(glDisable, GL_BLEND);
-            R_Call(glBlendFunc, GL_ONE, GL_ZERO);
-            R_Call(glDepthMask, GL_TRUE);
+            RB_State(RB_STATE_OPAQUE);
             break;
     }
     return true;
 }
 
-static void MDLX_ApplyLayerFlags(const mdxMaterialLayer_t *layer) {
-    if (layer->flags & MODEL_GEO_TWOSIDED) {
-        R_Call(glDisable, GL_CULL_FACE);
-    }
+static void MDLX_ApplyLayerFlags(const mdxMaterialLayer_t *layer, DWORD *extraBits, DWORD *clearMask) {
+    if (layer->flags & MODEL_GEO_TWOSIDED)
+        RB_Cull(0);
     if (layer->flags & MODEL_GEO_NO_DEPTH_TEST) {
-        R_Call(glDisable, GL_DEPTH_TEST);
+        *extraBits |= (GL_ALWAYS << 9);
+        *clearMask |= RB_DEPTH_FUNC_MASK;
     }
     if (layer->flags & MODEL_GEO_NO_DEPTH_SET) {
-        R_Call(glDepthMask, GL_FALSE);
+        *clearMask |= RB_DEPTH_WRITE_BIT;
     }
 }
 
@@ -479,18 +461,13 @@ static void MDLX_RenderGeoset(mdxModel_t const *model,
         if (MDLX_IsBlendedLayer(layer) != blendedPass) {
             continue;
         }
-        R_Call(glEnable, GL_DEPTH_TEST);
         shader->state.alphaKey = 0;
-        if (force_two_sided) {
-            R_Call(glDisable, GL_CULL_FACE);
-        } else {
-            R_Call(glEnable, GL_CULL_FACE);
-            R_Call(glCullFace, GL_BACK);
-        }
-        R_Call(glDepthMask, GL_TRUE);
+        RB_Cull(force_two_sided ? 0 : GL_BACK);
+        DWORD layerExtraBits = 0, layerClearMask = 0;
         if (!MDLX_SetBlendMode(layer, layerID))
             continue;
-        MDLX_ApplyLayerFlags(layer);
+        MDLX_ApplyLayerFlags(layer, &layerExtraBits, &layerClearMask);
+        RB_State((backEnd.glStateBits & ~layerClearMask) | layerExtraBits);
         BOOL unshaded = forceUnshaded || (layer->flags & MODEL_GEO_UNSHADED);
         shader->state.unshaded = unshaded;
         /* Fog only affects opaque/alpha-blended geometry.  Additive and
@@ -512,18 +489,16 @@ static void MDLX_RenderGeoset(mdxModel_t const *model,
         mdxTexture_t const *modeltex = &model->textures[textureId];
         LPCTEXTURE texture = MDLX_GetTexture(model, team, textureId, modeltex->replaceableID, overrideTexture);
         R_BindTexture(texture, 0);
-        R_Call(glBindVertexArray, geoset->vertexArrayBuffer);
+        RB_BindVAO(geoset->vertexArrayBuffer);
         /* The geoset VAO already binds the model-owned index buffer. */
         R_StatsDraw(GL_TRIANGLES, geoset->num_triangles, 1);
         R_ApplyShader(shader);
         R_Call(glDrawElements, GL_TRIANGLES, geoset->num_triangles, GL_UNSIGNED_SHORT, (void *)(uintptr_t)geoset->indexofs);
     }
 
-    R_Call(glEnable, GL_DEPTH_TEST);
-    R_Call(glEnable, GL_CULL_FACE);
+    RB_Cull(GL_BACK);
     R_SetAlphaKeyState(false);
-    R_Call(glCullFace, GL_BACK);
-    R_Call(glDepthMask, GL_TRUE);
+    RB_State(RB_STATE_OPAQUE);
     shader->state.unshaded = forceUnshaded;
     shader->state.layerAlpha = 1.0f;
     shader->state.geosetColor = (VECTOR4){ 1.0f, 1.0f, 1.0f, 1.0f };

@@ -544,10 +544,8 @@ void Wow_DrawGrass(void) {
     wow_grass_shader.state.heightAtlas = 5;
     wow_grass_shader.state.grassCtrl = 6;
 
-    R_Call(glEnable,    GL_DEPTH_TEST);
-    R_Call(glDepthMask, GL_TRUE);
-    R_Call(glDepthFunc, GL_LEQUAL);
-    R_Call(glDisable,   GL_CULL_FACE);
+    RB_State(RB_STATE_OPAQUE);
+    RB_Cull(0);
     R_SetAlphaKeyState(true);
 
     R_ApplyShader(&wow_grass_shader);
