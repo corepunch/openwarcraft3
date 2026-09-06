@@ -116,6 +116,7 @@ typedef struct SHADERPROG {
     LPCSHADERDESC desc;
     GLint locs[MAX_SHADER_UNIFORMS];
     void *cache; /* shadow of last-uploaded state for change detection */
+    void *pipeline; /* optional pipeline_t* for thin-pipeline binding */
 } SHADERPROG;
 typedef struct SHADERPROG *LPSHADERPROG;
 typedef const struct SHADERPROG *LPCSHADERPROG;

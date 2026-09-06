@@ -131,3 +131,48 @@ void RB_ResetState(void) {
 void RB_Init(void) {
     RB_ResetState();
 }
+
+/* -----------------------------------------------------------------------
+ * Pipeline objects
+ * ----------------------------------------------------------------------- */
+
+static DWORD pipeline_next_id;
+
+pipeline_t RB_CreatePipeline(pipelineDesc_t *desc) {
+    pipeline_t p = {
+        .progid = glCreateProgram(),
+        .raster = desc->raster,
+        .id = ++pipeline_next_id,
+    };
+    if (desc->vertShader) R_Call(glAttachShader, p.progid, desc->vertShader);
+    if (desc->fragShader) R_Call(glAttachShader, p.progid, desc->fragShader);
+    R_Call(glLinkProgram, p.progid);
+    GLint ok;
+    glGetProgramiv(p.progid, GL_LINK_STATUS, &ok);
+    if (!ok) {
+        char log[1024];
+        glGetProgramInfoLog(p.progid, sizeof(log), NULL, log);
+        fprintf(stderr, "RB_CreatePipeline: link failed: %s\n", log);
+    }
+    return p;
+}
+
+void RB_BindPipeline(pipeline_t *p) {
+    if (!p) return;
+    R_Call(glUseProgram, p->progid);
+    RB_State((p->raster.blendSrc << 0)
+           | (p->raster.blendDst << 4)
+           | (p->raster.depthWrite ? RB_DEPTH_WRITE_BIT : 0)
+           | (p->raster.depthFunc << 9)
+           | ((p->raster.colorMask & 0xF) << RB_COLOR_MASK_SHIFT));
+    RB_Cull(p->raster.cullFace);
+}
+
+pipeline_t RB_MakePipeline(SHADERPROG *prog, pipelineRasterState_t *raster) {
+    pipeline_t p = {
+        .progid = prog->progid,
+        .raster = *raster,
+        .id = ++pipeline_next_id,
+    };
+    return p;
+}

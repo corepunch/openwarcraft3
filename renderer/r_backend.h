@@ -153,7 +153,7 @@ typedef struct pipelineDesc {
     pipelineRasterState_t raster;
 } pipelineDesc_t;
 
-/* Created pipeline handle. */
+/* Created pipeline handle: program + raster state. */
 typedef struct pipeline {
     GLuint   progid;          /* linked program */
     pipelineRasterState_t raster;
@@ -162,5 +162,17 @@ typedef struct pipeline {
 
 /* Initialize the backend (call once after GL context creation). */
 void RB_Init(void);
+
+/* Create a pipeline from a descriptor.  Links the shader program and
+ * stores the raster state.  Returns a pipeline_t ready for RB_BindPipeline. */
+pipeline_t RB_CreatePipeline(pipelineDesc_t *desc);
+
+/* Bind a pipeline: set the GL program and apply the raster state through
+ * the state cache.  Skips GL calls if the pipeline hasn't changed. */
+void RB_BindPipeline(pipeline_t *p);
+
+/* Build a pipeline from an existing SHADERPROG + raster state.
+ * Convenience for the current shader system where programs are already linked. */
+pipeline_t RB_MakePipeline(SHADERPROG *prog, pipelineRasterState_t *raster);
 
 #endif /* r_backend_h */

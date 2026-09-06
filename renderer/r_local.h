@@ -71,7 +71,6 @@ typedef enum render_phase_e {
 #include "../common/common.h"
 #include "../client/tr_public.h"
 #include "r_alpha.h"
-#include "r_backend.h"
 
 extern refImport_t ri;
 
@@ -133,6 +132,7 @@ static inline void R_SwapRedBlue(BYTE *pixels, DWORD count, DWORD stride) {
 }
 
 #include "shader_desc.h"
+#include "r_backend.h"
 #define BZ_MODEL_LIGHT_MAX 8 // lights; shared model shader array capacity; bounds one lighting-state upload
 
 /* Typed shader values are separate from the program-owned GL locations. */
