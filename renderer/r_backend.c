@@ -176,3 +176,50 @@ pipeline_t RB_MakePipeline(SHADERPROG *prog, pipelineRasterState_t *raster) {
     };
     return p;
 }
+
+/* -----------------------------------------------------------------------
+ * Root struct UBO
+ * ----------------------------------------------------------------------- */
+
+/* Per-program UBO state: one UBO per shader program, lazily created. */
+typedef struct rootUBO {
+    DWORD uboid;        /* GL buffer name */
+    DWORD size;         /* allocated size in bytes */
+    DWORD version;      /* monotonic; skip upload if unchanged */
+} rootUBO_t;
+
+#define RB_MAX_ROOT_UBOS 32
+static rootUBO_t rootUBOs[RB_MAX_ROOT_UBOS];
+static DWORD rootUBO_count;
+
+/* Create or resize a UBO for a program.  Binding happens in RB_BindPipeline. */
+static rootUBO_t *RB_EnsureRootUBO(GLuint progid, DWORD neededSize) {
+    /* Simple linear search; programs are few. */
+    for (DWORD i = 0; i < rootUBO_count; i++) {
+        if (rootUBOs[i].uboid && rootUBOs[i].size >= neededSize)
+            return &rootUBOs[i];
+    }
+    if (rootUBO_count >= RB_MAX_ROOT_UBOS) return NULL;
+    rootUBO_t *ru = &rootUBOs[rootUBO_count++];
+    if (!ru->uboid) {
+        GLuint buf;
+        glGenBuffers(1, &buf);
+        ru->uboid = buf;
+    }
+    R_Call(glBindBuffer, GL_UNIFORM_BUFFER, ru->uboid);
+    R_Call(glBufferData, GL_UNIFORM_BUFFER, neededSize, NULL, GL_DYNAMIC_DRAW);
+    ru->size = neededSize;
+    ru->version = 0;
+    return ru;
+}
+
+bool RB_UploadRoot(SHADERPROG *prog, LPCVOID state, DWORD stateSize) {
+    if (!prog || !state || stateSize == 0) return false;
+    rootUBO_t *ru = RB_EnsureRootUBO(prog->progid, stateSize);
+    if (!ru) return false;
+    R_Call(glBindBuffer, GL_UNIFORM_BUFFER, ru->uboid);
+    R_Call(glBufferSubData, GL_UNIFORM_BUFFER, 0, stateSize, state);
+    R_Call(glBindBufferBase, GL_UNIFORM_BUFFER, RB_UBO_BINDING_POINT, ru->uboid);
+    ru->version++;
+    return true;
+}

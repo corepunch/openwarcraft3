@@ -163,6 +163,24 @@ typedef struct pipeline {
 /* Initialize the backend (call once after GL context creation). */
 void RB_Init(void);
 
+/* -----------------------------------------------------------------------
+ * Root struct UBO (Phase 4)
+ *
+ * One UBO per shader program, bound to binding point 0.  The CPU state
+ * struct is uploaded as one glBufferSubData call.  std140 layout matches
+ * the existing CPU structs with 16-byte alignment padding.  Shaders may
+ * declare `layout(std140) uniform Root { ... }` matching the struct.
+ *
+ * Callers can still use per-field R_ApplyShader for shaders that haven't
+ * migrated to the root block.  RB_UploadRoot provides the one-push path.
+ * ----------------------------------------------------------------------- */
+
+#define RB_UBO_BINDING_POINT 0
+
+/* Upload the entire state struct as a UBO.  Returns true if the UBO was
+ * used (caller should skip per-field upload). */
+bool RB_UploadRoot(SHADERPROG *prog, LPCVOID state, DWORD stateSize);
+
 /* Create a pipeline from a descriptor.  Links the shader program and
  * stores the raster state.  Returns a pipeline_t ready for RB_BindPipeline. */
 pipeline_t RB_CreatePipeline(pipelineDesc_t *desc);
