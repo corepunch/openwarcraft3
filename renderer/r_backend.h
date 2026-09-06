@@ -181,6 +181,42 @@ void RB_Init(void);
  * used (caller should skip per-field upload). */
 bool RB_UploadRoot(SHADERPROG *prog, LPCVOID state, DWORD stateSize);
 
+/* -----------------------------------------------------------------------
+ * Texture/sampler heap (Phase 5)
+ *
+ * A global array of GL texture names.  Callers register textures and
+ * receive 32-bit heap indices.  The root struct carries heap indices
+ * instead of per-draw glBindTexture calls.
+ *
+ * On GL with ARB_bindless_texture, heap indices can be GPU pointers.
+ * On GLES3 without bindless, the heap maps indices to texture units
+ * and binds them before each draw.  The strategy is explicit and logged.
+ * ----------------------------------------------------------------------- */
+
+#define RB_HEAP_MAX_TEXTURES 4096 /* textures; bounds heap array and root struct capacity */
+
+typedef struct textureHeap {
+    DWORD   texids[RB_HEAP_MAX_TEXTURES]; /* GL texture names */
+    DWORD   count;                        /* next free index */
+    DWORD   bound[16];                    /* per-unit: last bound heap index (16 texture units) */
+} textureHeap_t;
+
+extern textureHeap_t texHeap;
+
+/* Register a GL texture in the heap.  Returns a 32-bit index. */
+DWORD RB_HeapAllocTexture(DWORD glTexId);
+
+/* Bind a texture by heap index to a texture unit.
+ * For non-bindless: glBindTexture + update bound cache.
+ * For bindless: the GPU pointer is already in the heap. */
+void RB_HeapBindTexture(DWORD heapIndex, DWORD unit);
+
+/* Get the GL texture name for a heap index. */
+DWORD RB_HeapGetTexId(DWORD heapIndex);
+
+/* Reset the heap for a new frame (optional; keeps allocations across frames). */
+void RB_HeapReset(void);
+
 /* Create a pipeline from a descriptor.  Links the shader program and
  * stores the raster state.  Returns a pipeline_t ready for RB_BindPipeline. */
 pipeline_t RB_CreatePipeline(pipelineDesc_t *desc);

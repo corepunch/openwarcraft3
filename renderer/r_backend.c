@@ -223,3 +223,37 @@ bool RB_UploadRoot(SHADERPROG *prog, LPCVOID state, DWORD stateSize) {
     ru->version++;
     return true;
 }
+
+/* -----------------------------------------------------------------------
+ * Texture/sampler heap
+ * ----------------------------------------------------------------------- */
+
+textureHeap_t texHeap;
+
+DWORD RB_HeapAllocTexture(DWORD glTexId) {
+    if (texHeap.count >= RB_HEAP_MAX_TEXTURES) {
+        fprintf(stderr, "RB_HeapAllocTexture: heap full (%u textures)\n", texHeap.count);
+        return 0;
+    }
+    DWORD idx = texHeap.count++;
+    texHeap.texids[idx] = glTexId;
+    return idx;
+}
+
+void RB_HeapBindTexture(DWORD heapIndex, DWORD unit) {
+    if (heapIndex >= texHeap.count || unit >= 16) return;
+    if (texHeap.bound[unit] == heapIndex) return;
+    R_Call(glActiveTexture, GL_TEXTURE0 + unit);
+    R_Call(glBindTexture, GL_TEXTURE_2D, texHeap.texids[heapIndex]);
+    texHeap.bound[unit] = heapIndex;
+}
+
+DWORD RB_HeapGetTexId(DWORD heapIndex) {
+    if (heapIndex >= texHeap.count) return 0;
+    return texHeap.texids[heapIndex];
+}
+
+void RB_HeapReset(void) {
+    texHeap.count = 0;
+    memset(texHeap.bound, 0, sizeof(texHeap.bound));
+}
