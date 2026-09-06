@@ -155,23 +155,24 @@ See [model-shader.md](architecture/model-shader.md). They are not public `lighti
 
 Typical draw shape: bind pipeline if changed, push root once, draw.
 
-## Backend state cache (Phase 1 of #89)
+## Backend state cache (Phase 1 of #89) ✅
 
 Doom 3's `R_*` / `RB_*` split and `GL_State(uint64)` XOR remain the **GL implementation** of cheap blend/depth/cull
 packets. Frontend never issues `glEnable` / `glBlendFunc` / `glDepthMask`. Backend owns those calls.
 
 ```
 backEndState_t:
-    uint32  glStateBits;      // packed blend/depth/color-mask
+    DWORD   glStateBits;      // packed blend/depth/color-mask
     GLenum  faceCulling;
     GLenum  depthFunc;
     DWORD   polygonOffsetScale, polygonOffsetBias;
     DWORD   blendEquation;
     DWORD   activeTextureUnit;
-    DWORD   currentPipeline;
     DWORD   currentVAO;
     DWORD   currentFBO;
     RECT    currentScissor;
+    RECT    currentViewport;
+    BOOL    scissorEnabled;
 ```
 
 ```c
@@ -189,6 +190,18 @@ Each helper compares against the cached value and only issues the GL call on del
 add thin pipeline objects, the root-struct push, and the texture heap. Surface sorting (by pipeline +
 blend/depth bits) waits until draws are no longer immediate.
 
+## Completed phases
+
+| Phase | Status | Description |
+|-------|--------|-------------|
+| 1 | ✅ | Backend state cache: `RB_State`, `RB_Cull`, `RB_PolygonOffset`, `RB_BlendEquation`, `RB_Scissor`, `RB_Viewport`, `RB_BindVAO`, `RB_BindFBO`, `RB_ColorMask`. |
+| 2 | ✅ | Migrate all engine + game draw functions from `R_Call(gl...)` to `RB_*`. |
+| 3 | ✅ | Thin pipeline objects: `pipelineDesc_t` → `pipeline_t` → `RB_BindPipeline`. |
+| 4 | ✅ | Root struct UBO: `RB_UploadRoot` per-program UBO, one `glBufferSubData` call. |
+| 5 | ✅ | Texture/sampler heap: 32-bit indices, `RB_HeapAllocTexture`/`RB_HeapBindTexture`. |
+
+Research: [thin-pipeline.md](thin-pipeline.md).
+
 ## Key constraints
 
 - `R_Call(gl...)` stays for diagnostics; `RB_*` uses it internally.
@@ -199,14 +212,15 @@ blend/depth bits) waits until draws are no longer immediate.
 - macOS GL 4.1, desktop GL 3.1, and GLES3 Mali-G31 each need an explicit transport. Missing extensions
   are logged; do not silently demote to a bind loop and call it bindless.
 
-## Files for the state-cache step
+## Files
 
 | File | Action |
 |------|--------|
-| `renderer/r_backend.h` | **New** — `backEndState_t`, pipeline/root types, `RB_*` |
-| `renderer/r_backend.c` | **New** — cache, later pipeline bind + root push |
-| `renderer/r_local.h` | `#include "r_backend.h"` |
-| `renderer/r_main.c`, `r_draw.c`, `r_fogofwar.c`, `r_particles.c`, `r_ents.c` | `RB_*` instead of raw GL state |
+| `renderer/r_backend.h` | `backEndState_t`, pipeline/root types, texture heap, `RB_*` |
+| `renderer/r_backend.c` | State cache, pipeline create/bind, root UBO, texture heap |
+| `renderer/r_local.h` | `#include "r_backend.h"` after `shader_desc.h` |
+| `renderer/shader_desc.h` | Optional `pipeline` field on `SHADERPROG` |
+| `renderer/r_main.c`, `r_draw.c`, `r_fogofwar.c`, `r_particles.c` | `RB_*` instead of raw GL state |
 | WC3 / WoW / SC2 game renderers | Same; listed in #89 |
 
 ## Verification
