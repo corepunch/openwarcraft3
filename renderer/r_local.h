@@ -71,6 +71,7 @@ typedef enum render_phase_e {
 #include "../common/common.h"
 #include "../client/tr_public.h"
 #include "r_alpha.h"
+#include "r_backend.h"
 
 extern refImport_t ri;
 
