@@ -730,7 +730,7 @@ TEST(wc3_game, multiselect_portrait_uses_focused_unit_and_safe_area_root) {
     int (*old_font)(LPCSTR, DWORD) = gi.FontIndex;
     LPGAMECLIENT client = &game.clients[0];
     LPEDICT player = &g_edicts[0];
-    LPEDICT first, second, third;
+    LPEDICT first, second;
 
     reset_entities();
     setup_test_world();

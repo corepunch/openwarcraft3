@@ -215,6 +215,7 @@ int main(int argc, char **argv) {
     LPCSTR data_dir = NULL;
     bool tft = false;
     bool dump_all = false;
+    DWORD raw = 0;
 
     for (int i = 1; i < argc; i++) {
         if (!strcmp(argv[i], "-data") && i + 1 < argc) {
@@ -228,13 +229,17 @@ int main(int argc, char **argv) {
             tft = false;
         } else if (!strcmp(argv[i], "-all")) {
             dump_all = true;
+        } else if (!strcmp(argv[i], "-raw") && i + 1 < argc && strlen(argv[i + 1]) == 4) {
+            LPCSTR id = argv[++i];
+            raw = RK(id);
         } else if (!strcmp(argv[i], "-h") || !strcmp(argv[i], "--help")) {
-            fprintf(stderr, "Usage: %s [-data <dir>] [-mpq <file>] [-tft] [-roc] [-all]\n", argv[0]);
+            fprintf(stderr, "Usage: %s [-data <dir>] [-mpq <file>] [-tft] [-roc] [-all] [-raw <id>]\n", argv[0]);
             fprintf(stderr, "  -data <dir>  Data directory containing MPQ archives\n");
             fprintf(stderr, "  -mpq <file>  Open a specific MPQ archive\n");
             fprintf(stderr, "  -tft         Include TFT-only abilities (version > 0)\n");
             fprintf(stderr, "  -roc         ROC only (default)\n");
             fprintf(stderr, "  -all         Dump all abilities, not just missing ones\n");
+            fprintf(stderr, "  -raw <id>    Dump the normalized AbilityData row for one rawcode\n");
             return 0;
         }
     }
@@ -259,6 +264,27 @@ int main(int argc, char **argv) {
     DWORD count = Stb_SlkLoad("Units\\AbilityData.slk", ability_schema, (void **)&rows, sizeof(AbilityData_t));
     if (!count || !rows) {
         fprintf(stderr, "Failed to load Units\\AbilityData.slk\n");
+        return 1;
+    }
+
+    if (raw) {
+        FOR_LOOP(i, count) {
+            AbilityData_t const *row = rows + i;
+            if (row->id != raw) continue;
+            printf("%.4s code=%.4s levels=%d hero=%d race=%s\n", (char const *)&row->id, (char const *)&row->code, row->levels,
+                   row->hero, row->race ? row->race : "");
+            FOR_LOOP(level, MIN(row->levels, 4)) {
+                printf("L%lu area=%g range=%g dur=%g heroDur=%g unit=%.4s buff=%s data=", (unsigned long)level + 1,
+                       row->area[level], row->range[level], row->dur[level], row->heroDur[level],
+                       (char const *)&row->unitID[level], row->buffID[level] ? row->buffID[level] : "");
+                FOR_LOOP(slot, 9) printf("%s%g", slot ? "," : "", row->data[level][slot]);
+                printf("\n");
+            }
+            FS_SLKFreeRows(ability_schema, rows, count, sizeof(AbilityData_t));
+            return 0;
+        }
+        fprintf(stderr, "Ability %.4s was not found\n", (char const *)&raw);
+        FS_SLKFreeRows(ability_schema, rows, count, sizeof(AbilityData_t));
         return 1;
     }
 

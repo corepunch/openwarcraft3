@@ -69,7 +69,16 @@ static spell_info_t spell_flame_strike = {
     .execute = flame_strike_execute,
 };
 
+static spell_info_t spell_flame_strike_human = {
+    .code = MAKEFOURCC('A', 'H', 'f', 's'),
+    .name = "Flame Strike",
+    .target_type = SPELL_TARGET_POINT,
+    .execute = flame_strike_execute,
+};
+
 ability_t a_flame_strike = {
     .cmd = spell_cmd,
     .spell = &spell_flame_strike,
 };
+
+ability_t a_flame_strike_human = { .cmd = spell_cmd, .spell = &spell_flame_strike_human };

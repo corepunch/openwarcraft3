@@ -127,7 +127,123 @@ ability_t a_mana_burn = {
     .spell = &spell_mana_burn,
 };
 
+/* Dark Ritual converts the authored fraction of an allied non-hero's maximum
+ * life into caster mana, then uses the normal damage/death path to sacrifice it. */
+static void dark_ritual_execute(LPEDICT caster, spellTarget_t st, spell_info_t const *spell) {
+    LPEDICT target = st.entity;
+    DWORD level = S_SpellLevel(caster, spell->code);
+    FLOAT mana = target->health.max_value * S_SpellData(spell->code, level, 1);
+
+    caster->mana.value = MIN(caster->mana.max_value, caster->mana.value + mana);
+    T_Damage(target, caster, (DWORD)MAX(1.0f, target->health.value));
+}
+
+static spell_info_t spell_dark_ritual = {
+    .code = MAKEFOURCC('A', 'U', 'd', 'r'),
+    .name = "Dark Ritual",
+    .target_type = SPELL_TARGET_UNIT,
+    .execute = dark_ritual_execute,
+};
+
+ability_t a_dark_ritual = {
+    .cmd = spell_cmd,
+    .spell = &spell_dark_ritual,
+};
+
+static void frost_armor_execute(LPEDICT caster, spellTarget_t st, spell_info_t const *spell) {
+    LPEDICT target = st.entity;
+    DWORD level = S_SpellLevel(caster, spell->code);
+    AbilityData_t const *data = G_AbilityData(spell->code);
+    LPCSTR buff = data->level[level - 1].buffID;
+
+    if (!target || !buff || strlen(buff) < 4) {
+        fprintf(stderr, "WC3: %.4s has no authored BuffID\n", (LPCSTR)&spell->code);
+        return;
+    }
+    unit_addtimedstatus(target, buff, level, S_SpellData(spell->code, level, 1));
+    G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_TARGET, 0, target, NULL, true);
+}
+
+static spell_info_t spell_frost_armor = {
+    .code = MAKEFOURCC('A', 'U', 'f', 'a'),
+    .name = "Frost Armor",
+    .target_type = SPELL_TARGET_UNIT,
+    .execute = frost_armor_execute,
+};
+
+static spell_info_t spell_frost_armor_variant = {
+    .code = MAKEFOURCC('A', 'U', 'f', 'u'),
+    .name = "Frost Armor Variant",
+    .target_type = SPELL_TARGET_UNIT,
+    .execute = frost_armor_execute,
+};
+
+ability_t a_frost_armor = { .cmd = spell_cmd, .spell = &spell_frost_armor };
+ability_t a_frost_armor_variant = { .cmd = spell_cmd, .spell = &spell_frost_armor_variant };
+
+static void divine_shield_think(LPEDICT ent) {
+    LPEDICT caster = ent->owner;
+
+    if (!caster || !caster->inuse || G_Time() < ent->spawn_time) return;
+    caster->invulnerable = ent->resources;
+    G_FreeEdict(ent);
+}
+
+static void divine_shield_execute(LPEDICT caster, spellTarget_t st, spell_info_t const *spell) {
+    DWORD level = S_SpellLevel(caster, spell->code);
+    LPEDICT thinker = G_Spawn();
+
+    thinker->owner = caster;
+    thinker->resources = caster->invulnerable;
+    thinker->spawn_time = G_Time() + (DWORD)(MAX(0.1f, S_SpellDuration(spell->code, level, true)) * 1000.0f);
+    caster->invulnerable = true;
+    thinker->think = divine_shield_think;
+    G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_CASTER, 0, caster, NULL, true);
+}
+
+static spell_info_t spell_divine_shield = {
+    .code = MAKEFOURCC('A', 'H', 'd', 's'),
+    .name = "Divine Shield",
+    .target_type = SPELL_TARGET_NONE,
+    .execute = divine_shield_execute,
+};
+
+ability_t a_divine_shield = { .cmd = spell_cmd, .spell = &spell_divine_shield };
+
 ability_t a_bash = {0};
+
+/* Entangling Roots applies the authored timed buff; movement owns the root
+ * consumer so expiry naturally restores the unit without a second cleanup path. */
+static void entangling_roots_execute(LPEDICT caster, spellTarget_t st, spell_info_t const *spell) {
+    DWORD level = S_SpellLevel(caster, spell->code);
+    AbilityData_t const *data = G_AbilityData(spell->code);
+    LPCSTR buff = data->level[level - 1].buffID;
+    LPEDICT target = st.entity;
+    FLOAT duration;
+
+    if (!target || !buff || strlen(buff) < 4) {
+        fprintf(stderr, "WC3: Entangling Roots has no authored BuffID\n");
+        return;
+    }
+    duration = S_SpellDuration(spell->code, level, G_UnitIsHero(target));
+    unit_addtimedstatus(target, buff, level, duration);
+    G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_TARGET, 0, target, NULL, true);
+}
+
+static spell_info_t spell_entangling_roots = {
+    .code = MAKEFOURCC('A', 'E', 'e', 'r'),
+    .name = "Entangling Roots",
+    .target_type = SPELL_TARGET_UNIT,
+    .execute = entangling_roots_execute,
+};
+
+ability_t a_entangling_roots = {
+    .cmd = spell_cmd,
+    .spell = &spell_entangling_roots,
+};
+
+/* Explicit coverage marker; no command hook means this cannot create a dead button. */
+ability_t a_unimplemented = { .flags = ABILITY_PASSIVE };
 
 /* Phoenix Fire, Invulnerable: passive abilities with no command handler.
  * Zero-initialized; the engine never calls cmd for passives. */

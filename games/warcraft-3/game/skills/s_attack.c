@@ -193,6 +193,10 @@ void T_Damage(LPEDICT target, LPEDICT attacker, int damage) {
         }
         return;
     }
+    FOR_LOOP(i, MAX_UNIT_STATUSES)
+        if (target->abilstatus[i].level && target->abilstatus[i].code == MAKEFOURCC('B','U','s','l'))
+            memset(target->abilstatus + i, 0, sizeof(target->abilstatus[i]));
+    unit_updatestatuses(target);
     unit_entercombat(attacker, target);
     unit_entercombat(target, attacker);
 
@@ -214,25 +218,32 @@ void T_Damage(LPEDICT target, LPEDICT attacker, int damage) {
     }
 }
 
-static void damage_target(LPEDICT ent) {
-    if (attack_stop_if_target_invalid(ent)) {
-        return;
-    }
-    LPEDICT other = ent->goalentity;
-    int damage = G_AttackDamage(ent, other, ai_rolldamage1(ent, 1));
-    DWORD bash_level = G_UnitAbilityLevel(ent, MAKEFOURCC('A', 'H', 'b', 'h'));
+void S_ResolveAttackHit(LPEDICT attacker, LPEDICT target, int damage) {
+    DWORD bash_level;
+    if (S_EvasionRoll(target)) return;
+    damage = S_BlackArrowDamage(attacker, S_CriticalStrikeDamage(attacker, damage));
+    bash_level = G_UnitAbilityLevel(attacker, MAKEFOURCC('A', 'H', 'b', 'h'));
     if (bash_level && (FLOAT)(rand() % 100) < S_SpellData(MAKEFOURCC('A', 'H', 'b', 'h'), bash_level, 1)) {
         damage += (int)S_SpellData(MAKEFOURCC('A', 'H', 'b', 'h'), bash_level, 3);
-        unit_addtimedstatus(other, "Bstu", 1, S_SpellDuration(MAKEFOURCC('A', 'H', 'b', 'h'), bash_level, false));
+        unit_addtimedstatus(target, "Bstu", 1, S_SpellDuration(MAKEFOURCC('A', 'H', 'b', 'h'), bash_level, false));
     }
-    DWORD wind_level = G_UnitStatusLevel(ent, MAKEFOURCC('B', 'O', 'w', 'k'));
+    DWORD wind_level = G_UnitStatusLevel(attacker, MAKEFOURCC('B', 'O', 'w', 'k'));
     if (wind_level) {
         damage += (int)S_SpellData(MAKEFOURCC('A', 'O', 'w', 'k'), wind_level, 3);
-        ent->s.renderfx &= ~RF_HIDDEN;
+        attacker->s.renderfx &= ~RF_HIDDEN;
         FOR_LOOP(i, MAX_UNIT_STATUSES)
-            if (ent->abilstatus[i].code == MAKEFOURCC('B', 'O', 'w', 'k')) memset(ent->abilstatus + i, 0, sizeof(ent->abilstatus[i]));
+            if (attacker->abilstatus[i].code == MAKEFOURCC('B', 'O', 'w', 'k')) memset(attacker->abilstatus + i, 0, sizeof(attacker->abilstatus[i]));
     }
-    T_Damage(other, ent, damage);
+    T_Damage(target, attacker, damage);
+    S_BlackArrowDeath(attacker, target);
+    attacker->health.value = MIN(attacker->health.max_value, attacker->health.value + damage * S_VampiricLifeSteal(attacker));
+    if (target->inuse && S_SpikedDamageReturn(target, damage) > 0.0f)
+        T_Damage(attacker, target, (int)S_SpikedDamageReturn(target, damage));
+}
+
+static void damage_target(LPEDICT ent) {
+    if (attack_stop_if_target_invalid(ent)) return;
+    S_ResolveAttackHit(ent, ent->goalentity, G_AttackDamage(ent, ent->goalentity, ai_rolldamage1(ent, 1)));
 }
 
 static void throw_missile(LPEDICT ent) {

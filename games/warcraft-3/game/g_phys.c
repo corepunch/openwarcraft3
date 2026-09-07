@@ -63,7 +63,7 @@ void SV_Physics_Toss(LPEDICT ent) {
              * in-flight armor/defense changes to affect the hit. Spell
              * missiles install currentmove/endfunc and bypass this branch. */
             int const damage = G_AttackDamage(ent->owner, ent->goalentity, ent->damage);
-            T_Damage(ent->goalentity, ent->owner, damage);
+            S_ResolveAttackHit(ent->owner, ent->goalentity, damage);
             G_FreeEdict(ent);
         }
     } else {
@@ -127,7 +127,7 @@ void G_RunEntity(LPEDICT ent) {
      * hero.intel is 0 for non-heroes). */
     if (ent->mana.max_value > 0 && ent->mana.value < ent->mana.max_value) {
         FLOAT const rate = ent->data.UnitBalance->manaRegen
-                         + (FLOAT)ent->hero.intel * INT_REGEN_BONUS;
+                 + (FLOAT)ent->hero.intel * INT_REGEN_BONUS + S_BrillianceManaRegen(ent);
         ent->mana.value = MIN(ent->mana.max_value, ent->mana.value + rate * (FRAMETIME / 1000.0f));
     }
     /* Hit-point regeneration (WC3 'uhpr', HP/second), plus a hero's Strength
@@ -138,7 +138,7 @@ void G_RunEntity(LPEDICT ent) {
     if (ent->health.max_value > 0 && ent->health.value > 0 &&
         ent->health.value < ent->health.max_value && G_UnitRegeneratesHP(ent)) {
         FLOAT const rate = ent->data.UnitBalance->healthRegen
-                         + (FLOAT)ent->hero.str * STR_REGEN_BONUS;
+                 + (FLOAT)ent->hero.str * STR_REGEN_BONUS + S_UnholyHealthRegen(ent);
         ent->health.value = MIN(ent->health.max_value, ent->health.value + rate * (FRAMETIME / 1000.0f));
     }
     G_UpdateOnFire(ent);

@@ -26,6 +26,16 @@ stored as `heroability_t` entries on the unit; `heroAbilList`, skill points,
 `reqLevel`, `levelSkip`, maximum ranks, and the Research-button learn menu are
 described in [Hero Ability Progression](../hero-abilities.md).
 
+Registry entries must not be counted as implemented until their gameplay
+consumer, authored data, and inverse behavior are covered. Use
+[Ability Reverse Engineering](../ability-reverse-engineering.md) to recover
+each retail class implementation before adding coverage.
+
+The old `a_unimplemented` registry marker is not an implementation strategy for
+these entries. It may remain only as temporary audit scaffolding while a real
+handler is being developed, and must be removed from an entry when that entry
+is registered for gameplay.
+
 Directly copying another engine's ability classes is not mechanical. The local
 implementation should port behavior into flat C handlers, `umove_t` state
 machines, existing edict fields, and data loaded from SLK/config tables.

@@ -125,7 +125,7 @@ static void Key_FormatName(keyCode_t key, DWORD mods, LPSTR dst, DWORD dst_size)
 
 #ifdef BZ_TESTS
 /* Exact stroke only: held mods in ctrl/alt/shift order. Shift+1 is not 1. */
-static DWORD Key_SelectSlot(DWORD mods, DWORD occupied) {
+static inline DWORD Key_SelectSlot(DWORD mods, DWORD occupied) {
     DWORD slot = mods & KEY_MOD_MASK;
     return (occupied & (1u << slot)) ? slot : KEY_MOD_COUNT;
 }

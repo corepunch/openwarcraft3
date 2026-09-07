@@ -3,6 +3,10 @@
 #define ID_TIMED_LIFE "BTLF"
 #define ID_WATER_ELEMENTAL MAKEFOURCC('A', 'H', 'w', 'e')
 #define ID_FERAL_SPIRIT MAKEFOURCC('A', 'O', 's', 'f')
+#define ID_FORCE_OF_NATURE MAKEFOURCC('A', 'E', 'f', 'n')
+#define ID_SUMMON_BEAR MAKEFOURCC('A', 'N', 's', 'g')
+#define ID_SUMMON_QUILBEAST MAKEFOURCC('A', 'N', 's', 'q')
+#define ID_SUMMON_HAWK MAKEFOURCC('A', 'N', 's', 'w')
 
 static void summon_unit(LPEDICT caster, DWORD unit_id, DWORD index, DWORD count, FLOAT duration) {
     VECTOR2 loc;
@@ -30,6 +34,23 @@ static void summon_unit(LPEDICT caster, DWORD unit_id, DWORD index, DWORD count,
     G_PublishSummonEvents(caster, summon);
 }
 
+void S_SummonUnits(LPEDICT caster, DWORD unit_id, DWORD count, FLOAT duration) {
+    if (!count) count = 1;
+    FOR_LOOP(i, count) summon_unit(caster, unit_id, i, count, duration);
+}
+
+LPEDICT S_SummonAt(LPEDICT caster, DWORD unit_id, LPCVECTOR2 loc, FLOAT duration) {
+    LPEDICT summon;
+    if (!caster || !unit_id || !loc) return NULL;
+    summon = SP_SpawnAtLocation(unit_id, caster->s.player, loc);
+    if (!summon) return NULL;
+    summon->owner = caster; G_ActivateUnitFood(summon);
+    if (summon->stand) summon->stand(summon);
+    if (duration > 0.0f) unit_addtimedstatus(summon, ID_TIMED_LIFE, 1, duration);
+    G_PublishSummonEvents(caster, summon);
+    return summon;
+}
+
 static void summon_execute(LPEDICT caster, spellTarget_t st, spell_info_t const *spell) {
     DWORD level = S_SpellLevel(caster, spell->code);
     DWORD unit_id = S_SpellUnitId(spell->code, level);
@@ -37,9 +58,7 @@ static void summon_execute(LPEDICT caster, spellTarget_t st, spell_info_t const 
     FLOAT duration = S_SpellDuration(spell->code, level, false);
 
     if (!caster || !unit_id) return;
-    if (count == 0) count = 1;
-    FOR_LOOP(i, count)
-        summon_unit(caster, unit_id, i, count, duration);
+    S_SummonUnits(caster, unit_id, count, duration);
 }
 
 static spell_info_t spell_water_elemental = {
@@ -56,6 +75,34 @@ static spell_info_t spell_feral_spirit = {
     .execute = summon_execute,
 };
 
+static spell_info_t spell_force_of_nature = {
+    .code = ID_FORCE_OF_NATURE,
+    .name = "Force of Nature",
+    .target_type = SPELL_TARGET_NONE,
+    .execute = summon_execute,
+};
+
+static spell_info_t spell_summon_bear = {
+    .code = ID_SUMMON_BEAR,
+    .name = "Summon Bear",
+    .target_type = SPELL_TARGET_NONE,
+    .execute = summon_execute,
+};
+
+static spell_info_t spell_summon_quilbeast = {
+    .code = ID_SUMMON_QUILBEAST,
+    .name = "Summon Quilbeast",
+    .target_type = SPELL_TARGET_NONE,
+    .execute = summon_execute,
+};
+
+static spell_info_t spell_summon_hawk = {
+    .code = ID_SUMMON_HAWK,
+    .name = "Summon Hawk",
+    .target_type = SPELL_TARGET_NONE,
+    .execute = summon_execute,
+};
+
 ability_t a_water_elemental = {
     .cmd = spell_cmd,
     .spell = &spell_water_elemental,
@@ -65,3 +112,12 @@ ability_t a_feral_spirit = {
     .cmd = spell_cmd,
     .spell = &spell_feral_spirit,
 };
+
+ability_t a_force_of_nature = {
+    .cmd = spell_cmd,
+    .spell = &spell_force_of_nature,
+};
+
+ability_t a_summon_bear = { .cmd = spell_cmd, .spell = &spell_summon_bear };
+ability_t a_summon_quilbeast = { .cmd = spell_cmd, .spell = &spell_summon_quilbeast };
+ability_t a_summon_hawk = { .cmd = spell_cmd, .spell = &spell_summon_hawk };

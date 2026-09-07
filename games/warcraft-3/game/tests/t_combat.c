@@ -1197,6 +1197,17 @@ TEST(wc3_combat, registered_reference_ability_codes) {
     }
 }
 
+TEST(wc3_combat, registered_first_thirty_todo_ability_codes) {
+    static LPCSTR codes[] = {
+        "AHab", "AHmt", "ANst", "ANsg", "ANsq", "ANsw", "AOww", "AOcr", "AHbn", "AHfs",
+        "AHdr", "AHpx", "AUcb", "AUim", "AUls", "AUts", "ANba", "ANsi", "AUan", "AUdc",
+        "AUdp", "AUau", "AEev", "AEme", "AUsl", "AUav", "AUin", "AOcl", "AOeq", "AOfs"
+    };
+
+    FOR_LOOP(i, sizeof(codes) / sizeof(codes[0]))
+        T_NOT_NULL(FindAbilityByClassname(codes[i]));
+}
+
 static const char slk_ability_helpers[] =
     "ID;PWXL;N;EBB;Y4;X13\n"
     "C;Y1;X1;K\"alias\"\n"

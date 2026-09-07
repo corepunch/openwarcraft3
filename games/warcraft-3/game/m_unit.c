@@ -836,7 +836,7 @@ static void unit_timed_status_log(LPCSTR stage, LPCEDICT ent, heroabilitystatus_
 }
 
 static BOOL unit_status_stuns(DWORD code) {
-    return code == MAKEFOURCC('B', 's', 't', 'u');
+    return code == MAKEFOURCC('B', 's', 't', 'u') || code == MAKEFOURCC('B', 'U', 's', 'l');
 }
 
 static BOOL unit_status_timedlife(DWORD code) {
@@ -897,7 +897,7 @@ FLOAT G_UnitArmorValue(LPCEDICT ent) {
             armor += ability->level[level - 1].data[0].number;
         }
     }
-    return armor;
+    return armor + S_SpikedArmorBonus(ent);
 }
 
 static void unit_refreshstatusflags(LPEDICT ent) {

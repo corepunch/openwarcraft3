@@ -361,6 +361,10 @@ void spell_run_frame(LPEDICT ent) {
 static BOOL spell_validate(LPEDICT clent, LPEDICT caster, DWORD code, DWORD level, LPEDICT target, FLOAT range) {
     if (!caster)
         return false;
+    if (S_UnitHasStatus(caster, MAKEFOURCC('B','N','s','i'))) {
+        G_ShowCommandErrorText(clent, "Silenced.");
+        return false;
+    }
     if (!S_SpellCooldownReady(caster, code)) {
         G_ShowCommandErrorText(clent, "Spell is not ready yet.");
         return false;
@@ -378,6 +382,10 @@ static BOOL spell_validate(LPEDICT clent, LPEDICT caster, DWORD code, DWORD leve
 static BOOL spell_validate_point(LPEDICT clent, LPEDICT caster, DWORD code, DWORD level, LPCVECTOR2 point, FLOAT range) {
     if (!caster || !point)
         return false;
+    if (S_UnitHasStatus(caster, MAKEFOURCC('B','N','s','i'))) {
+        G_ShowCommandErrorText(clent, "Silenced.");
+        return false;
+    }
     if (!S_SpellCooldownReady(caster, code)) {
         G_ShowCommandErrorText(clent, "Spell is not ready yet.");
         return false;
