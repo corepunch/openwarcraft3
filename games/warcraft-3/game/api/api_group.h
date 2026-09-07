@@ -8,8 +8,28 @@ BOOL group_add_entity(ggroup_t *group, LPEDICT ent) {
 }
 
 DWORD CreateGroup(LPJASS j) {
-    ggroup_t *group = G_AllocJassGroup();
-    if (!group) { jass_rterror(j, "CreateGroup: group registry is full"); return 0; }
+    char chain[256] = {0};
+    LPCSTR creator = NULL;
+    LONG trigger_ordinal = -1;
+    ggroup_t *group;
+    BOOL const debug = G_JassGroupDebugEnabled();
+
+    if (debug) {
+        LPCJASSCONTEXT context = jass_getcontext(j);
+        creator = jass_currentfunctionname(j);
+        jass_formatcallchain(j, chain, sizeof(chain));
+        if (context && context->trigger && context->trigger >= level.triggers &&
+            context->trigger < level.triggers + level.num_triggers) {
+            trigger_ordinal = (LONG)(context->trigger - level.triggers);
+        }
+    }
+    group = G_AllocJassGroup();
+    if (!group) {
+        if (debug) G_DumpJassGroupDebug(creator, chain, trigger_ordinal);
+        jass_rterror(j, "CreateGroup: group allocation failed");
+        return 0;
+    }
+    if (debug) G_SetJassGroupDebugContext(group, creator, chain, trigger_ordinal);
     return jass_pushlighthandle(j, group, "group");
 }
 DWORD DestroyGroup(LPJASS j) {

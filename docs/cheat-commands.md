@@ -57,6 +57,8 @@ Both require `sv_cheats 1`. They intentionally use the same authoritative player
 
 Campaign quest/script debugging uses several related command families, all gated by `sv_cheats 1`. Their diagnostic/result lines are written both to stderr and to the issuing player's in-game console, so `quest list`, `trigger list`, `objective list`, and `cinematic list` are usable without watching the launch terminal:
 
+For JASS group-lifetime diagnostics, `wc3_group_debug 1` records each live group's creator, nested JASS call path, and trigger ordinal in a non-persistent growable side table. The group registry itself grows past the old 1024-handle ceiling and prints `WC3_GROUP_DEBUG grow ...` at each pointer-table expansion; if allocation genuinely fails, the engine prints grouped `WC3_GROUP_DEBUG chain` summaries with live/allocated/freed/outstanding counts. Use these to find pathological retention without adding map-specific cleanup rules.
+
 ```
 quest list
 quest complete <index>

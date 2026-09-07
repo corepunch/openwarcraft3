@@ -450,6 +450,7 @@ static void G_ShutdownGame(void) {
     G_BotShutdown();
     if (level.vm) { jass_close(level.vm); level.vm = NULL; }
     G_JassSoundRuntimeReset();
+    G_ClearJassGroupRegistry();
     G_FowShutdown();
     G_FreeModels();
     gi.MemFree(g_edicts);

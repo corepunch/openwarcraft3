@@ -540,6 +540,46 @@ LPCSTR jass_functionname(LPCJASSFUNC func) {
     return func ? func->name : NULL;
 }
 
+LPCSTR jass_currentfunctionname(LPJASS j) {
+    LPJASS root = jass_root(j);
+    LPJASSCOROUTINE co = root->current_coroutine;
+    LPJASSCOROUTINEFRAME frame = co ? jass_coroutine_functionframe(co) : NULL;
+    LPCJASSFUNC func = frame ? frame->func : j->context.func;
+    return jass_functionname(func);
+}
+
+DWORD jass_formatcallchain(LPJASS j, LPSTR buffer, DWORD size) {
+    LPJASS root;
+    LPJASSCOROUTINE co;
+    DWORD used = 0;
+    BOOL any = false;
+
+    if (!buffer || !size) return 0;
+    buffer[0] = '\0';
+    if (!j) return 0;
+    root = jass_root(j);
+    co = root->current_coroutine;
+    if (co) {
+        FOR_EACH_LIST(JASSCOROUTINEFRAME, frame, co->frames) {
+            LPCSTR name;
+            int wrote;
+            if (frame->type != JASS_FRAME_FUNCTION || !frame->func) continue;
+            name = jass_functionname(frame->func);
+            if (!name || !*name) continue;
+            wrote = snprintf(buffer + used, size - used, "%s%s", any ? " <- " : "", name);
+            if (wrote < 0) break;
+            if ((DWORD)wrote >= size - used) { used = size - 1; break; }
+            used += (DWORD)wrote;
+            any = true;
+        }
+    }
+    if (!any && j->context.func) {
+        LPCSTR name = jass_functionname(j->context.func);
+        if (name) snprintf(buffer, size, "%s", name);
+    }
+    return (DWORD)strlen(buffer);
+}
+
 LPCJASSFUNC jass_functionbyname(LPJASS j, LPCSTR name) { return find_function(jass_root(j), name); }
 void jass_settimercontext(HANDLE timer) { currenttimer = timer; }
 

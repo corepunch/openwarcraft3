@@ -381,6 +381,7 @@ void G_SpawnEntities(void) {
     if (level.vm) { jass_close(level.vm); level.vm = NULL; }
     G_JassSoundRuntimeReset();
     G_ClearSaveRegistries();
+    G_ClearJassGroupRegistry();
     G_FowShutdown();
     memset(&level, 0, sizeof(level));
     G_ResetStartingResourceCheat();

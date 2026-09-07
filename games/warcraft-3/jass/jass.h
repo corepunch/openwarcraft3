@@ -90,6 +90,8 @@ BOOL jass_coroutinedone(LPCJASSCOROUTINE co);
 void jass_runevents(LPJASS j);
 void jass_sleep(LPJASS j, DWORD msec);
 LPCSTR jass_functionname(LPCJASSFUNC func);
+LPCSTR jass_currentfunctionname(LPJASS j);
+DWORD jass_formatcallchain(LPJASS j, LPSTR buffer, DWORD size);
 LPCJASSFUNC jass_functionbyname(LPJASS j, LPCSTR name);
 void jass_settimercontext(HANDLE timer);
 BOOL jass_triggerdisabled(LPTRIGGER trigger);

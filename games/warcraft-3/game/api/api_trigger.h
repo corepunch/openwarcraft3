@@ -6,6 +6,22 @@ static LONG QuestPeonStageTriggerOrdinal(LPTRIGGER trigger) {
     return trigger ? (LONG)(trigger - level.triggers) : -1L;
 }
 
+static BOOL SubgroupDebugTrigger(LPTRIGGER trigger) {
+    LONG ordinal = QuestPeonStageTriggerOrdinal(trigger);
+    return ordinal >= 208 && ordinal <= 213;
+}
+
+static void SubgroupDebugLogRegistration(LPTRIGGER trigger, EVENTTYPE type,
+                                         LPEDICT subject, LPCSTR registration) {
+    if (!QuestPeonStageDebugEnabled() || !SubgroupDebugTrigger(trigger)) return;
+    fprintf(stderr,
+            "WC3_SUBGROUP register trigger=%ld via=%s event=%u subject=%ld disabled=%d\n",
+            (long)QuestPeonStageTriggerOrdinal(trigger),
+            registration ? registration : "unknown", (unsigned)type,
+            subject ? (long)(subject - globals.edicts) : -1L,
+            trigger ? (int)trigger->disabled : -1);
+}
+
 static BOOL QuestPeonStageTrigger(LPTRIGGER trigger) {
     LONG ordinal = QuestPeonStageTriggerOrdinal(trigger);
     return ordinal >= 95 && ordinal <= 106;
@@ -13,6 +29,7 @@ static BOOL QuestPeonStageTrigger(LPTRIGGER trigger) {
 
 static void QuestPeonStageLogRegistration(LPTRIGGER trigger, EVENTTYPE type,
                                           LPEDICT subject, LPCSTR registration) {
+    SubgroupDebugLogRegistration(trigger, type, subject, registration);
     if (!QuestPeonStageDebugEnabled() || !QuestPeonStageTrigger(trigger)) return;
     fprintf(stderr,
             "WC3_QUEST_PEON register trigger=%ld via=%s event=%u subject=%ld disabled=%d\n",
@@ -45,6 +62,14 @@ DWORD EnableTrigger(LPJASS j) {
                 (long)QuestPeonStageTriggerOrdinal(whichTrigger),
                 caller ? caller : "(native/root)", (int)whichTrigger->disabled);
     }
+    if (QuestPeonStageDebugEnabled() && SubgroupDebugTrigger(whichTrigger)) {
+        LPCJASSCONTEXT ctx = jass_getcontext(j);
+        LPCSTR caller = ctx ? jass_functionname(ctx->func) : NULL;
+        fprintf(stderr,
+                "WC3_SUBGROUP state trigger=%ld op=enable caller=\"%s\" was_disabled=%d\n",
+                (long)QuestPeonStageTriggerOrdinal(whichTrigger),
+                caller ? caller : "(native/root)", (int)whichTrigger->disabled);
+    }
     whichTrigger->disabled = false;
     return 0;
 }
@@ -55,6 +80,14 @@ DWORD DisableTrigger(LPJASS j) {
         LPCSTR caller = ctx ? jass_functionname(ctx->func) : NULL;
         fprintf(stderr,
                 "WC3_QUEST_PEON state trigger=%ld op=disable caller=\"%s\" was_disabled=%d\n",
+                (long)QuestPeonStageTriggerOrdinal(whichTrigger),
+                caller ? caller : "(native/root)", (int)whichTrigger->disabled);
+    }
+    if (QuestPeonStageDebugEnabled() && SubgroupDebugTrigger(whichTrigger)) {
+        LPCJASSCONTEXT ctx = jass_getcontext(j);
+        LPCSTR caller = ctx ? jass_functionname(ctx->func) : NULL;
+        fprintf(stderr,
+                "WC3_SUBGROUP state trigger=%ld op=disable caller=\"%s\" was_disabled=%d\n",
                 (long)QuestPeonStageTriggerOrdinal(whichTrigger),
                 caller ? caller : "(native/root)", (int)whichTrigger->disabled);
     }
@@ -205,6 +238,17 @@ DWORD TriggerRegisterPlayerUnitEvent(LPJASS j) {
     evt->subject = PLAYER_ENT(whichPlayer);
     evt->trigger = whichTrigger;
     QuestPeonStageLogRegistration(whichTrigger, *whichPlayerUnitEvent, evt->subject, "player-unit");
+    if (gi.CvarString && atoi(gi.CvarString("wc3_quest_debug", "0")) != 0 &&
+        (*whichPlayerUnitEvent == EVENT_PLAYER_UNIT_CONSTRUCT_START ||
+         *whichPlayerUnitEvent == EVENT_PLAYER_UNIT_CONSTRUCT_FINISH)) {
+        fprintf(stderr,
+                "WC3_QUEST_BUILD register via=player-unit event=%u trigger=%ld player=%d subject=%ld disabled=%d\n",
+                (unsigned)*whichPlayerUnitEvent,
+                whichTrigger ? (long)(whichTrigger - level.triggers) : -1L,
+                whichPlayer ? (int)PLAYER_NUM(whichPlayer) : -1,
+                evt->subject ? (long)(evt->subject - globals.edicts) : -1L,
+                whichTrigger ? (int)whichTrigger->disabled : -1);
+    }
     return jass_pushlighthandle(j, evt, "event");
 }
 DWORD TriggerRegisterPlayerAllianceChange(LPJASS j) {
@@ -263,6 +307,16 @@ DWORD TriggerRegisterUnitEvent(LPJASS j) {
     evt->subject = whichUnit;
     evt->trigger = whichTrigger;
     QuestPeonStageLogRegistration(whichTrigger, *whichEvent, evt->subject, "unit");
+    if (gi.CvarString && atoi(gi.CvarString("wc3_quest_debug", "0")) != 0 &&
+        *whichEvent == EVENT_UNIT_CONSTRUCT_FINISH) {
+        fprintf(stderr,
+                "WC3_QUEST_BUILD register via=unit event=%u trigger=%ld unit=%ld id=%.4s disabled=%d\n",
+                (unsigned)*whichEvent,
+                whichTrigger ? (long)(whichTrigger - level.triggers) : -1L,
+                whichUnit ? (long)(whichUnit - globals.edicts) : -1L,
+                whichUnit ? (LPCSTR)&whichUnit->class_id : "----",
+                whichTrigger ? (int)whichTrigger->disabled : -1);
+    }
     return jass_pushlighthandle(j, evt, "event");
 }
 DWORD TriggerRegisterFilterUnitEvent(LPJASS j) {
@@ -299,6 +353,13 @@ DWORD TriggerAddCondition(LPJASS j) {
                 (long)QuestPeonStageTriggerOrdinal(whichTrigger),
                 func ? func : "(anonymous)", (int)whichTrigger->disabled);
     }
+    if (QuestPeonStageDebugEnabled() && SubgroupDebugTrigger(whichTrigger)) {
+        LPCSTR func = condition->expr ? jass_functionname(condition->expr) : NULL;
+        fprintf(stderr,
+                "WC3_SUBGROUP definition trigger=%ld add=condition func=\"%s\" disabled=%d\n",
+                (long)QuestPeonStageTriggerOrdinal(whichTrigger),
+                func ? func : "(anonymous)", (int)whichTrigger->disabled);
+    }
     return jass_pushlighthandle(j, condition, "triggercondition");
 }
 DWORD TriggerRemoveCondition(LPJASS j) {
@@ -321,6 +382,13 @@ DWORD TriggerAddAction(LPJASS j) {
         LPCSTR func = action->func ? jass_functionname(action->func) : NULL;
         fprintf(stderr,
                 "WC3_QUEST_PEON definition trigger=%ld add=action func=\"%s\" disabled=%d\n",
+                (long)QuestPeonStageTriggerOrdinal(whichTrigger),
+                func ? func : "(anonymous)", (int)whichTrigger->disabled);
+    }
+    if (QuestPeonStageDebugEnabled() && SubgroupDebugTrigger(whichTrigger)) {
+        LPCSTR func = action->func ? jass_functionname(action->func) : NULL;
+        fprintf(stderr,
+                "WC3_SUBGROUP definition trigger=%ld add=action func=\"%s\" disabled=%d\n",
                 (long)QuestPeonStageTriggerOrdinal(whichTrigger),
                 func ? func : "(anonymous)", (int)whichTrigger->disabled);
     }
@@ -371,6 +439,14 @@ DWORD TriggerEvaluate(LPJASS j) {
                 (long)QuestPeonStageTriggerOrdinal(whichTrigger),
                 caller ? caller : "(native/root)", (int)whichTrigger->disabled, result);
     }
+    if (QuestPeonStageDebugEnabled() && SubgroupDebugTrigger(whichTrigger)) {
+        LPCJASSCONTEXT ctx = jass_getcontext(j);
+        LPCSTR caller = ctx ? jass_functionname(ctx->func) : NULL;
+        fprintf(stderr,
+                "WC3_SUBGROUP direct trigger=%ld op=evaluate caller=\"%s\" disabled=%d result=%d\n",
+                (long)QuestPeonStageTriggerOrdinal(whichTrigger),
+                caller ? caller : "(native/root)", (int)whichTrigger->disabled, result);
+    }
     return jass_pushboolean(j, result);
 }
 DWORD TriggerExecute(LPJASS j) {
@@ -380,6 +456,14 @@ DWORD TriggerExecute(LPJASS j) {
         LPCSTR caller = ctx ? jass_functionname(ctx->func) : NULL;
         fprintf(stderr,
                 "WC3_QUEST_PEON direct trigger=%ld op=execute caller=\"%s\" disabled=%d\n",
+                (long)QuestPeonStageTriggerOrdinal(whichTrigger),
+                caller ? caller : "(native/root)", (int)whichTrigger->disabled);
+    }
+    if (QuestPeonStageDebugEnabled() && SubgroupDebugTrigger(whichTrigger)) {
+        LPCJASSCONTEXT ctx = jass_getcontext(j);
+        LPCSTR caller = ctx ? jass_functionname(ctx->func) : NULL;
+        fprintf(stderr,
+                "WC3_SUBGROUP direct trigger=%ld op=execute caller=\"%s\" disabled=%d\n",
                 (long)QuestPeonStageTriggerOrdinal(whichTrigger),
                 caller ? caller : "(native/root)", (int)whichTrigger->disabled);
     }

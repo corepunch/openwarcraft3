@@ -4,7 +4,7 @@
  *
  * These tests exercise the C-level game-state that the api_*.h functions
  * read and write.  They work directly on struct fields, alliance tables,
- * and group arrays — no MPQ, renderer, or JASS VM is required.
+ * and the group registry — no MPQ or renderer is required.
  *
  * Covered:
  *   Player  — color, start_location, name, team, alliance
@@ -54,6 +54,10 @@ static LPPLAYER test_player(int idx) {
 
 static LPCSTR skip_cutscene_cvar(LPCSTR name, LPCSTR fallback) {
     return !strcmp(name, "skip_cutscene") ? "1" : fallback;
+}
+
+static LPCSTR group_debug_cvar(LPCSTR name, LPCSTR fallback) {
+    return !strcmp(name, "wc3_group_debug") ? "1" : fallback;
 }
 
 static DWORD presentation_write_count;
@@ -2158,11 +2162,46 @@ TEST(wc3_api, group_add_is_set_semantics) {
     G_FreeJassGroup(group);
 }
 
+TEST(wc3_api, group_debug_creator_follows_slot_lifecycle) {
+    ggroup_t *group = G_AllocJassGroup();
+
+    T_NOT_NULL(group);
+    G_SetJassGroupDebugContext(group, "creatorA", "helperA <- actionA", 42);
+    T_STREQ(G_GetJassGroupDebugCreator(group), "creatorA");
+    T_STREQ(G_GetJassGroupDebugChain(group), "helperA <- actionA");
+    T_EQ(G_GetJassGroupDebugTrigger(group), 42);
+    G_FreeJassGroup(group);
+    T_NULL(G_GetJassGroupDebugCreator(group));
+    T_NULL(G_GetJassGroupDebugChain(group));
+    T_EQ(G_GetJassGroupDebugTrigger(group), -1);
+}
+
+TEST(wc3_api, group_debug_captures_nested_jass_call_chain) {
+    LPCSTR (*old_cvar)(LPCSTR, LPCSTR) = gi.CvarString;
+
+    reset_entities();
+    gi.CvarString = group_debug_cvar;
+    currentplayer = &game.clients[0].ps;
+    T_ASSERT(run_test_jass(
+        "function makeLeakedGroup takes nothing returns nothing\n"
+        "local group g = CreateGroup()\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "call makeLeakedGroup()\n"
+        "endfunction"));
+    T_EQ(level.num_groups, 1);
+    T_ASSERT(level.groups[0]->inuse);
+    T_STREQ(G_GetJassGroupDebugCreator(level.groups[0]), "makeLeakedGroup");
+    T_STREQ(G_GetJassGroupDebugChain(level.groups[0]), "makeLeakedGroup <- main");
+    currentplayer = NULL;
+    gi.CvarString = old_cvar;
+}
+
 TEST(wc3_api, destroyed_group_slots_are_reused) {
     DWORD const saved_num_groups = level.num_groups;
     ggroup_t *first = NULL;
 
-    for (DWORD i = 0; i < MAX_GROUPS + 32; i++) {
+    for (DWORD i = 0; i < 4096; i++) {
         ggroup_t *group = G_AllocJassGroup();
         T_NOT_NULL(group);
         if (!group) break;
@@ -2173,6 +2212,26 @@ TEST(wc3_api, destroyed_group_slots_are_reused) {
         T_ASSERT(!group->inuse);
     }
     T_EQ(level.num_groups, saved_num_groups + 1);
+}
+
+
+TEST(wc3_api, group_registry_grows_past_legacy_1024_limit) {
+    enum { LEGACY_GROUP_LIMIT = 1024, EXTRA_GROUPS = 64 };
+    DWORD id = UINT32_MAX;
+
+    reset_entities();
+    for (DWORD i = 0; i < LEGACY_GROUP_LIMIT + EXTRA_GROUPS; i++) {
+        ggroup_t *group = G_AllocJassGroup();
+        T_NOT_NULL(group);
+        if (!group) break;
+    }
+    T_EQ(level.num_groups, LEGACY_GROUP_LIMIT + EXTRA_GROUPS);
+    T_ASSERT(level.group_capacity >= level.num_groups);
+    T_ASSERT(G_SaveJassHandle("group", level.groups[LEGACY_GROUP_LIMIT + 7], &id));
+    T_EQ(id, LEGACY_GROUP_LIMIT + 7);
+    T_ASSERT(G_LoadJassHandle("group", id) == level.groups[id]);
+
+    FOR_LOOP(i, level.num_groups) G_FreeJassGroup(level.groups[i]);
 }
 
 TEST(wc3_api, destroyed_group_handle_is_not_saveable_or_loadable) {
@@ -2203,7 +2262,7 @@ TEST(wc3_api, repeated_create_destroy_group_does_not_exhaust_registry) {
         "call recycleGroup()\n"
         "endfunction"));
     T_EQ(level.num_groups, 1);
-    T_ASSERT(!level.groups[0].inuse);
+    T_ASSERT(!level.groups[0]->inuse);
     currentplayer = NULL;
 }
 

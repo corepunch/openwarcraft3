@@ -819,6 +819,16 @@ void G_CompleteConstruction(LPEDICT building) {
      * completion grants supply and publishes CONSTRUCT_FINISH exactly once. */
     legacy = building->build == building;
     if (!building->construction.active && !legacy) return;
+    if (gi.CvarString && atoi(gi.CvarString("wc3_quest_debug", "0")) != 0) {
+        fprintf(stderr,
+                "WC3_QUEST_BUILD complete-enter building=%ld id=%.4s player=%u legacy=%d active=%d primary_builder=%ld build_link=%ld health=%.1f/%.1f\n",
+                (long)(building - globals.edicts), (LPCSTR)&building->class_id,
+                (unsigned)building->s.player, legacy, (int)building->construction.active,
+                building->construction.primary_builder
+                    ? (long)(building->construction.primary_builder - globals.edicts) : -1L,
+                building->build ? (long)(building->build - globals.edicts) : -1L,
+                building->health.value, building->health.max_value);
+    }
     client = G_GetPlayerClientByNumber(building->s.player);
     if (client && client->ps.number != building->s.player) client = NULL;
     building->construction.active = false;
@@ -841,6 +851,14 @@ void G_CompleteConstruction(LPEDICT building) {
     G_QueueOwnerUISound(building, "JobDoneSound");
     G_SendOwnerMinimapAlert(building);
     G_PublishEvent(building, EVENT_PLAYER_UNIT_CONSTRUCT_FINISH);
+    if (gi.CvarString && atoi(gi.CvarString("wc3_quest_debug", "0")) != 0) {
+        fprintf(stderr,
+                "WC3_QUEST_BUILD complete-publish building=%ld id=%.4s player=%u event=%u build_link=%ld food_made=%d\n",
+                (long)(building - globals.edicts), (LPCSTR)&building->class_id,
+                (unsigned)building->s.player, (unsigned)EVENT_PLAYER_UNIT_CONSTRUCT_FINISH,
+                building->build ? (long)(building->build - globals.edicts) : -1L,
+                building->food.made);
+    }
     if (client) {
         LPEDICT clent = G_GetPlayerEntityByNumber(client->ps.number);
         G_InvalidateCommands(client);

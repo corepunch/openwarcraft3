@@ -600,12 +600,12 @@ DWORD GetResearched(LPJASS j) {
     return jass_pushinteger(j, 0);
 }
 DWORD GetTrainedUnitType(LPJASS j) {
-    struct jass_context *context = jass_getcontext(j);
+    LPCJASSCONTEXT context = jass_getcontext(j);
     LPEDICT trained = context->source ? context->source : context->unit;
     return jass_pushinteger(j, trained ? (LONG)trained->class_id : 0);
 }
 DWORD GetTrainedUnit(LPJASS j) {
-    struct jass_context *context = jass_getcontext(j);
+    LPCJASSCONTEXT context = jass_getcontext(j);
     LPEDICT trained = context->source ? context->source : context->unit;
     return jass_pushlighthandle(j, trained, "unit");
 }

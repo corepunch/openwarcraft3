@@ -142,6 +142,38 @@ static void G_ExecuteEvent(GAMEEVENT *evt) {
                     BOOL quest_peon_stage = gi.CvarString &&
                         atoi(gi.CvarString("wc3_quest_debug", "0")) != 0 &&
                         quest_trigger_ordinal >= 95 && quest_trigger_ordinal <= 106;
+                    BOOL subgroup_stage = gi.CvarString &&
+                        atoi(gi.CvarString("wc3_quest_debug", "0")) != 0 &&
+                        quest_trigger_ordinal >= 208 && quest_trigger_ordinal <= 213;
+                    BOOL quest_build_event = gi.CvarString &&
+                        atoi(gi.CvarString("wc3_quest_debug", "0")) != 0 &&
+                        (evt->type == EVENT_PLAYER_UNIT_CONSTRUCT_START ||
+                         evt->type == EVENT_PLAYER_UNIT_CONSTRUCT_FINISH ||
+                         evt->type == EVENT_UNIT_CONSTRUCT_FINISH);
+                    if (quest_build_event) {
+                        fprintf(stderr,
+                                "WC3_QUEST_BUILD dispatch event=%u trigger=%ld building=%ld id=%.4s owner=%u handler_subject=%ld direct=%d owner_match=%d match=%d disabled=%d\n",
+                                (unsigned)evt->type, (long)quest_trigger_ordinal,
+                                subject ? (long)(subject - globals.edicts) : -1L,
+                                subject ? (LPCSTR)&subject->class_id : "----",
+                                subject ? (unsigned)subject->s.player : 0u,
+                                e->subject ? (long)(e->subject - globals.edicts) : -1L,
+                                direct, owner_match, direct || owner_match,
+                                e->trigger ? (int)e->trigger->disabled : -1);
+                    }
+                    if (subgroup_stage) {
+                        fprintf(stderr,
+                                "WC3_SUBGROUP dispatch event=%u trigger=%ld subject=%ld id=%.4s owner=%u source=%ld source_id=%.4s handler_subject=%ld direct=%d owner_match=%d match=%d disabled=%d\n",
+                                (unsigned)evt->type, (long)quest_trigger_ordinal,
+                                subject ? (long)(subject - globals.edicts) : -1L,
+                                subject ? (LPCSTR)&subject->class_id : "----",
+                                subject ? (unsigned)subject->s.player : 0u,
+                                evt->source ? (long)(evt->source - globals.edicts) : -1L,
+                                evt->source ? (LPCSTR)&evt->source->class_id : "----",
+                                e->subject ? (long)(e->subject - globals.edicts) : -1L,
+                                direct, owner_match, direct || owner_match,
+                                e->trigger ? (int)e->trigger->disabled : -1);
+                    }
                     if (quest_peon_stage) {
                         fprintf(stderr,
                                 "WC3_QUEST_PEON dispatch event=%u trigger=%ld unit=%ld id=%.4s owner=%u source=%ld source_id=%.4s handler_subject=%ld direct=%d owner_match=%d match=%d disabled=%d\n",
@@ -164,6 +196,18 @@ static void G_ExecuteEvent(GAMEEVENT *evt) {
                     }
                     if (direct || owner_match) {
                         BOOL queued = jass_calltrigger(level.vm, e->trigger, subject, evt->source);
+                        if (quest_build_event) {
+                            fprintf(stderr,
+                                    "WC3_QUEST_BUILD dispatch-result event=%u trigger=%ld queued=%d disabled=%d\n",
+                                    (unsigned)evt->type, (long)quest_trigger_ordinal, queued,
+                                    e->trigger ? (int)e->trigger->disabled : -1);
+                        }
+                        if (subgroup_stage) {
+                            fprintf(stderr,
+                                    "WC3_SUBGROUP dispatch-result event=%u trigger=%ld queued=%d disabled=%d\n",
+                                    (unsigned)evt->type, (long)quest_trigger_ordinal, queued,
+                                    e->trigger ? (int)e->trigger->disabled : -1);
+                        }
                         if (quest_peon_stage) {
                             fprintf(stderr,
                                     "WC3_QUEST_PEON dispatch-result event=%u trigger=%ld queued=%d disabled=%d\n",

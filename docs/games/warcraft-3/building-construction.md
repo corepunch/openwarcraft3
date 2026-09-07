@@ -276,3 +276,13 @@ Runtime checks should cover at least:
 - [Building Damage Rendering](building-damage-rendering.md) — health-driven fire overlays are renderer presentation; construction Birth suppresses them even though construction starts at low HP.
 - [Pathfinding](pathfinding.md) — static footprint baking and dynamic-unit obstacle handling used by construction placement and teardown.
 - [Save / Load](save-load.md) — raw `edict_t` scalar persistence and `F_EDICT` fixups for `construction.primary_builder`.
+
+### Campaign construction diagnostics
+
+`+set wc3_quest_debug 1` also traces construction tutorial transitions as
+`WC3_QUEST_BUILD`. The log records construct-event registrations and dispatcher
+matching, the worker/building linkage when construction starts, legacy-race
+completion entering `G_CompleteConstruction`, publication of
+`EVENT_PLAYER_UNIT_CONSTRUCT_FINISH`, and the builder state immediately after
+release. This is intended for campaign compatibility debugging and does not
+change construction semantics.

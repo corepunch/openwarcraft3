@@ -670,7 +670,7 @@ typedef struct {
 } gitem_t;
 
 #define MAX_GROUP_SIZE 256 // entities; Warcraft III group enumeration cap used by JASS group handles
-#define MAX_GROUPS 1024 // handles; bounds deterministic per-map group registry slots
+#define JASS_GROUP_INITIAL_CAPACITY 64 // handle pointer slots; grows dynamically while group objects stay at stable addresses
 #define MAX_TRIGGERS 4096 // handles; bounds deterministic per-map trigger registry slots
 #define MAX_TIMERS 1024 // handles; bounds deterministic per-map timer registry slots
 #define MAX_EVENTS 1024 // handlers; fixed event slots preserve stable pointers across removal
@@ -678,6 +678,7 @@ typedef struct {
 #define MAX_QUESTITEMS 16 // items per quest; matches the practical quest objective display capacity
 #define MAX_WAYPOINTS 256 // entities; fixed g_edicts ring used by point-target movement
 typedef struct {
+    DWORD handle_id; // runtime ordinal in level.groups; rebuilt from slot position on load
     BOOL inuse;
     LPEDICT units[MAX_GROUP_SIZE];
     DWORD num_units;
@@ -1282,8 +1283,10 @@ typedef struct {
 
 struct level_locals {
     LPJASS vm;
-    ggroup_t groups[MAX_GROUPS];
+    ggroup_t **groups;
     DWORD num_groups;
+    DWORD group_capacity;
+    DWORD first_free_group;
     TRIGGER triggers[MAX_TRIGGERS];
     DWORD num_triggers;
     GTIMER timers[MAX_TIMERS];
@@ -1483,8 +1486,20 @@ BOOL ReadGame(LPCSTR filename);
 BOOL G_SaveJassHandle(LPCSTR type, HANDLE value, DWORD *id);
 HANDLE G_LoadJassHandle(LPCSTR type, DWORD id);
 ggroup_t *G_AllocJassGroup(void);
+BOOL G_EnsureJassGroupSlots(DWORD count);
 BOOL G_JassGroupValid(ggroup_t const *group);
+BOOL G_JassGroupIndex(ggroup_t const *group, DWORD *index);
+ggroup_t *G_JassGroupByIndex(DWORD index);
 void G_FreeJassGroup(ggroup_t *group);
+void G_ClearJassGroupRegistry(void);
+BOOL G_JassGroupDebugEnabled(void);
+void G_ResetJassGroupDebug(void);
+void G_SetJassGroupDebugCreator(ggroup_t *group, LPCSTR creator);
+void G_SetJassGroupDebugContext(ggroup_t *group, LPCSTR creator, LPCSTR chain, LONG trigger_ordinal);
+LPCSTR G_GetJassGroupDebugCreator(ggroup_t const *group);
+LPCSTR G_GetJassGroupDebugChain(ggroup_t const *group);
+LONG G_GetJassGroupDebugTrigger(ggroup_t const *group);
+void G_DumpJassGroupDebug(LPCSTR failing_creator, LPCSTR failing_chain, LONG failing_trigger);
 LPGWEATHER G_WeatherAdd(LPCBOX2 bounds, DWORD effect_id, BOOL enabled);
 void G_WeatherEnable(LPGWEATHER effect, BOOL enabled);
 void G_WeatherRemove(LPGWEATHER effect);

@@ -425,12 +425,30 @@ static void ai_repair_legacy(LPEDICT ent) {
     }
     if (hp->value >= hp->max_value) {
         hp->value = hp->max_value;
+        if (gi.CvarString && atoi(gi.CvarString("wc3_quest_debug", "0")) != 0) {
+            fprintf(stderr,
+                    "WC3_QUEST_BUILD legacy-complete worker=%ld id=%.4s building=%ld id=%.4s health=%.1f/%.1f worker_build=%ld building_build=%ld\n",
+                    (long)(ent - globals.edicts), (LPCSTR)&ent->class_id,
+                    (long)(building - globals.edicts), (LPCSTR)&building->class_id,
+                    hp->value, hp->max_value,
+                    ent->build ? (long)(ent->build - globals.edicts) : -1L,
+                    building->build ? (long)(building->build - globals.edicts) : -1L);
+        }
         /* Legacy race construction used to stop here without ever publishing
          * EVENT_PLAYER_UNIT_CONSTRUCT_FINISH.  Route the self-linked build
          * sentinel through the shared completion lifecycle so campaign
          * triggers (for example Prologue02's Orc Burrow objective) fire. */
         G_CompleteConstruction(building);
         ent->stand(ent);
+        if (gi.CvarString && atoi(gi.CvarString("wc3_quest_debug", "0")) != 0) {
+            fprintf(stderr,
+                    "WC3_QUEST_BUILD legacy-release worker=%ld id=%.4s building=%ld id=%.4s worker_build=%ld goal=%ld building_build=%ld\n",
+                    (long)(ent - globals.edicts), (LPCSTR)&ent->class_id,
+                    (long)(building - globals.edicts), (LPCSTR)&building->class_id,
+                    ent->build ? (long)(ent->build - globals.edicts) : -1L,
+                    ent->goalentity ? (long)(ent->goalentity - globals.edicts) : -1L,
+                    building->build ? (long)(building->build - globals.edicts) : -1L);
+        }
     }
 }
 
@@ -448,6 +466,13 @@ static BOOL repair_begin(LPEDICT ent, LPEDICT building, DWORD code, BOOL primary
     S_CancelRepair(ent);
     ent->build = building;
     ent->goalentity = building;
+    if (gi.CvarString && atoi(gi.CvarString("wc3_quest_debug", "0")) != 0) {
+        fprintf(stderr,
+                "WC3_QUEST_BUILD legacy-link worker=%ld id=%.4s building=%ld id=%.4s health=%.1f/%.1f\n",
+                (long)(ent - globals.edicts), (LPCSTR)&ent->class_id,
+                (long)(building - globals.edicts), (LPCSTR)&building->class_id,
+                building->health.value, building->health.max_value);
+    }
     ent->buildwork.primary = primary;
     ent->buildwork.ability = code;
     ent->buildwork.gold_accum = 0.0f;
