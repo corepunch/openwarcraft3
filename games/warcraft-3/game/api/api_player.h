@@ -1,5 +1,17 @@
 extern LPPLAYER currentplayer;
 
+static BOOL TutorialTextDebugEnabledPlayer(void) {
+    return WC3_TUTORIAL_DEBUG_ENABLED();
+}
+
+static void TutorialTextDebugContextPlayer(LPJASS j, LONG *trigger_ordinal, LPCSTR *caller) {
+    LPCJASSCONTEXT context = jass_getcontext(j);
+    if (trigger_ordinal)
+        *trigger_ordinal = context && context->trigger ? (LONG)(context->trigger - level.triggers) : -1L;
+    if (caller)
+        *caller = context && context->func ? jass_functionname(context->func) : NULL;
+}
+
 DWORD SetPlayerTeam(LPJASS j) {
     LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
     LONG whichTeam = jass_checkinteger(j, 2);
@@ -259,16 +271,67 @@ DWORD GetPlayerId(LPJASS j) {
     return jass_pushinteger(j, whichPlayer ? (LONG)whichPlayer->number : 0);
 }
 DWORD GetPlayerUnitCount(LPJASS j) {
-    //LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
-    //BOOL includeIncomplete = jass_checkboolean(j, 2);
-    return jass_pushinteger(j, 0);
+    LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
+    BOOL includeIncomplete = jass_checkboolean(j, 2);
+    LONG count = 0;
+
+    if (!whichPlayer) return jass_pushinteger(j, 0);
+
+    FOR_LOOP(i, globals.num_edicts) {
+        LPEDICT ent = globals.edicts + i;
+
+        if (!ent->inuse || !ent->class_id ||
+            ent->s.player != PLAYER_NUM(whichPlayer) ||
+            G_UnitIsBuilding(ent->class_id) || M_IsDead(ent)) {
+            continue;
+        }
+        if (!includeIncomplete && ent->construction.active) {
+            continue;
+        }
+        count++;
+    }
+    return jass_pushinteger(j, count);
 }
+
+static BOOL PlayerTypedUnitNameMatches(LPEDICT ent, LPCSTR unitName) {
+    UnitProfile_t const *profile;
+
+    if (!ent || !ent->class_id || !unitName || !*unitName) return false;
+
+    /* UnitId2String() returns the four-character object id, while legacy
+     * campaign helpers also pass the unit's authored display/legacy name
+     * (for example "Peon"). Accept both representations. */
+    if (!strcmp(GetClassName(ent->class_id), unitName)) return true;
+
+    profile = G_UnitProfile(ent->class_id);
+    return profile && profile->name && !strcmp(profile->name, unitName);
+}
+
 DWORD GetPlayerTypedUnitCount(LPJASS j) {
-    //LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
-    //LPCSTR unitName = jass_checkstring(j, 2);
-    //BOOL includeIncomplete = jass_checkboolean(j, 3);
-    //BOOL includeUpgrades = jass_checkboolean(j, 4);
-    return jass_pushinteger(j, 0);
+    LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
+    LPCSTR unitName = jass_checkstring(j, 2);
+    BOOL includeIncomplete = jass_checkboolean(j, 3);
+    BOOL includeUpgrades = jass_checkboolean(j, 4);
+    LONG count = 0;
+
+    (void)includeUpgrades; /* Unit-type upgrade equivalence is not represented yet. */
+
+    if (!whichPlayer || !unitName || !*unitName) return jass_pushinteger(j, 0);
+
+    FOR_LOOP(i, globals.num_edicts) {
+        LPEDICT ent = globals.edicts + i;
+
+        if (!ent->inuse || !ent->class_id ||
+            ent->s.player != PLAYER_NUM(whichPlayer) || M_IsDead(ent) ||
+            !PlayerTypedUnitNameMatches(ent, unitName)) {
+            continue;
+        }
+        if (!includeIncomplete && ent->construction.active) {
+            continue;
+        }
+        count++;
+    }
+    return jass_pushinteger(j, count);
 }
 DWORD GetPlayerStructureCount(LPJASS j) {
     LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
@@ -568,6 +631,16 @@ DWORD DisplayTextToPlayer(LPJASS j) {
     FLOAT x = jass_checknumber(j, 2);
     FLOAT y = jass_checknumber(j, 3);
     LPCSTR message = jass_checkstring(j, 4);
+    if (TutorialTextDebugEnabledPlayer()) {
+        LONG trigger_ordinal;
+        LPCSTR caller;
+        TutorialTextDebugContextPlayer(j, &trigger_ordinal, &caller);
+        fprintf(stderr,
+                "WC3_TUTORIAL_TEXT native=DisplayTextToPlayer trigger=%ld caller=\"%s\" player=%d x=%.3f y=%.3f duration=auto raw=\"%s\" resolved=\"%s\"\n",
+                (long)trigger_ordinal, caller ? caller : "(native/root)",
+                toPlayer ? (int)PLAYER_NUM(toPlayer) : -1, x, y,
+                message ? message : "", G_LevelString(message) ? G_LevelString(message) : "");
+    }
     UI_ShowText(PLAYER_ENT(toPlayer), &MAKE(VECTOR2, x, y), message, -1.0f);
     return 0;
 }
@@ -577,6 +650,16 @@ DWORD DisplayTimedTextToPlayer(LPJASS j) {
     FLOAT y = jass_checknumber(j, 3);
     FLOAT duration = jass_checknumber(j, 4);
     LPCSTR message = jass_checkstring(j, 5);
+    if (TutorialTextDebugEnabledPlayer()) {
+        LONG trigger_ordinal;
+        LPCSTR caller;
+        TutorialTextDebugContextPlayer(j, &trigger_ordinal, &caller);
+        fprintf(stderr,
+                "WC3_TUTORIAL_TEXT native=DisplayTimedTextToPlayer trigger=%ld caller=\"%s\" player=%d x=%.3f y=%.3f duration=%.3f raw=\"%s\" resolved=\"%s\"\n",
+                (long)trigger_ordinal, caller ? caller : "(native/root)",
+                toPlayer ? (int)PLAYER_NUM(toPlayer) : -1, x, y, duration,
+                message ? message : "", G_LevelString(message) ? G_LevelString(message) : "");
+    }
     UI_ShowText(PLAYER_ENT(toPlayer), &MAKE(VECTOR2, x, y), message, duration);
     return 0;
 }
@@ -586,6 +669,16 @@ DWORD DisplayTimedTextFromPlayer(LPJASS j) {
     FLOAT y = jass_checknumber(j, 3);
     FLOAT duration = jass_checknumber(j, 4);
     LPCSTR message = jass_checkstring(j, 5);
+    if (TutorialTextDebugEnabledPlayer()) {
+        LONG trigger_ordinal;
+        LPCSTR caller;
+        TutorialTextDebugContextPlayer(j, &trigger_ordinal, &caller);
+        fprintf(stderr,
+                "WC3_TUTORIAL_TEXT native=DisplayTimedTextFromPlayer trigger=%ld caller=\"%s\" player=%d x=%.3f y=%.3f duration=%.3f raw=\"%s\" resolved=\"%s\"\n",
+                (long)trigger_ordinal, caller ? caller : "(native/root)",
+                toPlayer ? (int)PLAYER_NUM(toPlayer) : -1, x, y, duration,
+                message ? message : "", G_LevelString(message) ? G_LevelString(message) : "");
+    }
     UI_ShowText(PLAYER_ENT(toPlayer), &MAKE(VECTOR2, x, y), message, duration);
     return 0;
 }

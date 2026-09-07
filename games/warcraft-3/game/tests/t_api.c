@@ -4,7 +4,7 @@
  *
  * These tests exercise the C-level game-state that the api_*.h functions
  * read and write.  They work directly on struct fields, alliance tables,
- * and group arrays — no MPQ, renderer, or JASS VM is required.
+ * and the group registry — no MPQ or renderer is required.
  *
  * Covered:
  *   Player  — color, start_location, name, team, alliance
@@ -29,6 +29,7 @@ void CM_SetupTestWorldBounds(LPCBOX2 bounds);
 BOOL run_test_jass(LPCSTR src);
 extern LPPLAYER currentplayer;
 void unit_die(LPEDICT self, LPEDICT attacker);
+void unit_build(LPEDICT self, DWORD class_id);
 
 
 
@@ -53,6 +54,10 @@ static LPPLAYER test_player(int idx) {
 
 static LPCSTR skip_cutscene_cvar(LPCSTR name, LPCSTR fallback) {
     return !strcmp(name, "skip_cutscene") ? "1" : fallback;
+}
+
+static LPCSTR group_debug_cvar(LPCSTR name, LPCSTR fallback) {
+    return !strcmp(name, "wc3_group_debug") ? "1" : fallback;
 }
 
 static DWORD presentation_write_count;
@@ -1280,6 +1285,101 @@ TEST(wc3_api, enable_user_ui_does_not_block_world_selection) {
     currentplayer = NULL;
 }
 
+TEST(wc3_api, client_selection_publishes_selection_events_once_per_delta) {
+    LPGAMECLIENT gc = &game.clients[0];
+    LPEDICT first = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64.0f, 64.0f);
+    LPEDICT second = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 96.0f, 64.0f);
+    char first_number[16];
+    char second_number[16];
+    LPCSTR select_first[] = { "select", first_number };
+    LPCSTR select_second[] = { "select", second_number };
+
+    gc->ps.number = 0;
+    first->s.player = second->s.player = 0;
+    first->svflags |= SVF_MONSTER;
+    second->svflags |= SVF_MONSTER;
+    snprintf(first_number, sizeof(first_number), "%u", first->s.number);
+    snprintf(second_number, sizeof(second_number), "%u", second->s.number);
+
+    T_ASSERT(run_test_jass(
+        "function selected_action takes nothing returns nothing\n"
+        "  call SetPlayerState(Player(0), PLAYER_STATE_RESOURCE_GOLD, GetPlayerState(Player(0), PLAYER_STATE_RESOURCE_GOLD) + 1)\n"
+        "endfunction\n"
+        "function deselected_action takes nothing returns nothing\n"
+        "  call SetPlayerState(Player(0), PLAYER_STATE_RESOURCE_LUMBER, GetPlayerState(Player(0), PLAYER_STATE_RESOURCE_LUMBER) + 1)\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger selected = CreateTrigger()\n"
+        "  local trigger deselected = CreateTrigger()\n"
+        "  call TriggerRegisterPlayerUnitEvent(selected, Player(0), EVENT_PLAYER_UNIT_SELECTED, null)\n"
+        "  call TriggerAddAction(selected, function selected_action)\n"
+        "  call TriggerRegisterPlayerUnitEvent(deselected, Player(0), EVENT_PLAYER_UNIT_DESELECTED, null)\n"
+        "  call TriggerAddAction(deselected, function deselected_action)\n"
+        "endfunction\n"));
+
+    globals.ClientCommand(&g_edicts[0], 2, select_first);
+    G_RunEvents();
+    jass_runevents(level.vm);
+    T_EQ(gc->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 1);
+    T_EQ(gc->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 0);
+
+    /* Re-sending identical authoritative membership is not a new selection. */
+    globals.ClientCommand(&g_edicts[0], 2, select_first);
+    G_RunEvents();
+    jass_runevents(level.vm);
+    T_EQ(gc->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 1);
+    T_EQ(gc->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 0);
+
+    globals.ClientCommand(&g_edicts[0], 2, select_second);
+    G_RunEvents();
+    jass_runevents(level.vm);
+    T_EQ(gc->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 2);
+    T_EQ(gc->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 1);
+}
+
+TEST(wc3_api, build_placement_publishes_point_order_event_context) {
+    LPGAMECLIENT client = &game.clients[0];
+    LPEDICT builder;
+    UnitProfile_t profile = { .builds = "hbar" };
+    VECTOR2 point = { 64.0f, 64.0f };
+    DWORD const barracks = MAKEFOURCC('h','b','a','r');
+
+    setup_test_world();
+    builder = alloc_test_unit(MAKEFOURCC('h','p','e','a'), -128.0f, -128.0f);
+    builder->s.player = client->ps.number;
+    builder->data.UnitProfile = &profile;
+    client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = G_UnitBalance(barracks)->goldCost;
+    client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = G_UnitBalance(barracks)->lumberCost;
+    client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 100;
+
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  integer pointEvents = 0\n"
+        "endglobals\n"
+        "function onPointOrder takes nothing returns nothing\n"
+        "  set pointEvents = pointEvents + 1\n"
+        "  call BJassAssert(GetUnitTypeId(GetOrderedUnit()) == 'hpea', \"ordered unit must be the builder\")\n"
+        "  call BJassAssert(GetIssuedOrderId() == 'hbar', \"build point order must expose building rawcode\")\n"
+        "  call BJassAssert(GetOrderPointX() == 64.0, \"build point order X must survive event dispatch\")\n"
+        "  call BJassAssert(GetOrderPointY() == 64.0, \"build point order Y must survive event dispatch\")\n"
+        "endfunction\n"
+        "function verifyPointOrder takes nothing returns nothing\n"
+        "  call BJassAssert(pointEvents == 1, \"build placement must publish one player point-order event\")\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger t = CreateTrigger()\n"
+        "  call TriggerRegisterPlayerUnitEvent(t, Player(0), EVENT_PLAYER_UNIT_ISSUED_POINT_ORDER, null)\n"
+        "  call TriggerAddAction(t, function onPointOrder)\n"
+        "endfunction\n"));
+
+    T_ASSERT(G_IssueBuildOrder(builder, barracks, &point));
+    G_RunEvents();
+    jass_runevents(level.vm);
+    jass_callbyname(level.vm, "verifyPointOrder", true);
+    jass_runevents(level.vm);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+}
+
 TEST(wc3_api, enable_user_ui_does_not_block_target_commands) {
     LPGAMECLIENT gc = &game.clients[0];
     LPCSTR point[] = { "point", "10", "20" };
@@ -2105,11 +2205,46 @@ TEST(wc3_api, group_add_is_set_semantics) {
     G_FreeJassGroup(group);
 }
 
+TEST(wc3_api, group_debug_creator_follows_slot_lifecycle) {
+    ggroup_t *group = G_AllocJassGroup();
+
+    T_NOT_NULL(group);
+    G_SetJassGroupDebugContext(group, "creatorA", "helperA <- actionA", 42);
+    T_STREQ(G_GetJassGroupDebugCreator(group), "creatorA");
+    T_STREQ(G_GetJassGroupDebugChain(group), "helperA <- actionA");
+    T_EQ(G_GetJassGroupDebugTrigger(group), 42);
+    G_FreeJassGroup(group);
+    T_NULL(G_GetJassGroupDebugCreator(group));
+    T_NULL(G_GetJassGroupDebugChain(group));
+    T_EQ(G_GetJassGroupDebugTrigger(group), -1);
+}
+
+TEST(wc3_api, group_debug_captures_nested_jass_call_chain) {
+    LPCSTR (*old_cvar)(LPCSTR, LPCSTR) = gi.CvarString;
+
+    reset_entities();
+    gi.CvarString = group_debug_cvar;
+    currentplayer = &game.clients[0].ps;
+    T_ASSERT(run_test_jass(
+        "function makeLeakedGroup takes nothing returns nothing\n"
+        "local group g = CreateGroup()\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "call makeLeakedGroup()\n"
+        "endfunction"));
+    T_EQ(level.num_groups, 1);
+    T_ASSERT(level.groups[0]->inuse);
+    T_STREQ(G_GetJassGroupDebugCreator(level.groups[0]), "makeLeakedGroup");
+    T_STREQ(G_GetJassGroupDebugChain(level.groups[0]), "makeLeakedGroup <- main");
+    currentplayer = NULL;
+    gi.CvarString = old_cvar;
+}
+
 TEST(wc3_api, destroyed_group_slots_are_reused) {
     DWORD const saved_num_groups = level.num_groups;
     ggroup_t *first = NULL;
 
-    for (DWORD i = 0; i < MAX_GROUPS + 32; i++) {
+    for (DWORD i = 0; i < 4096; i++) {
         ggroup_t *group = G_AllocJassGroup();
         T_NOT_NULL(group);
         if (!group) break;
@@ -2120,6 +2255,26 @@ TEST(wc3_api, destroyed_group_slots_are_reused) {
         T_ASSERT(!group->inuse);
     }
     T_EQ(level.num_groups, saved_num_groups + 1);
+}
+
+
+TEST(wc3_api, group_registry_grows_past_legacy_1024_limit) {
+    enum { LEGACY_GROUP_LIMIT = 1024, EXTRA_GROUPS = 64 };
+    DWORD id = UINT32_MAX;
+
+    reset_entities();
+    for (DWORD i = 0; i < LEGACY_GROUP_LIMIT + EXTRA_GROUPS; i++) {
+        ggroup_t *group = G_AllocJassGroup();
+        T_NOT_NULL(group);
+        if (!group) break;
+    }
+    T_EQ(level.num_groups, LEGACY_GROUP_LIMIT + EXTRA_GROUPS);
+    T_ASSERT(level.group_capacity >= level.num_groups);
+    T_ASSERT(G_SaveJassHandle("group", level.groups[LEGACY_GROUP_LIMIT + 7], &id));
+    T_EQ(id, LEGACY_GROUP_LIMIT + 7);
+    T_ASSERT(G_LoadJassHandle("group", id) == level.groups[id]);
+
+    FOR_LOOP(i, level.num_groups) G_FreeJassGroup(level.groups[i]);
 }
 
 TEST(wc3_api, destroyed_group_handle_is_not_saveable_or_loadable) {
@@ -2150,7 +2305,7 @@ TEST(wc3_api, repeated_create_destroy_group_does_not_exhaust_registry) {
         "call recycleGroup()\n"
         "endfunction"));
     T_EQ(level.num_groups, 1);
-    T_ASSERT(!level.groups[0].inuse);
+    T_ASSERT(!level.groups[0]->inuse);
     currentplayer = NULL;
 }
 
@@ -2534,6 +2689,95 @@ TEST(wc3_api, unit_out_of_range) {
     LPEDICT b = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 3.0f, 4.0f);  /* dist = 5 */
     FLOAT dist = Vector2_distance(&a->s.origin2, &b->s.origin2);
     T_ASSERT(!(dist <= 4.0f));
+}
+
+TEST(wc3_api, player_unit_counts_support_campaign_peon_goals) {
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  local unit p1 = CreateUnit(Player(0), 'opeo', 0.0, 0.0, 0.0)\n"
+        "  local unit p2 = CreateUnit(Player(0), 'opeo', 64.0, 0.0, 0.0)\n"
+        "  local unit p3 = CreateUnit(Player(0), 'opeo', 128.0, 0.0, 0.0)\n"
+        "  local unit p4 = CreateUnit(Player(0), 'opeo', 192.0, 0.0, 0.0)\n"
+        "  local unit p5 = CreateUnit(Player(0), 'opeo', 256.0, 0.0, 0.0)\n"
+        "  local unit enemy = CreateUnit(Player(1), 'opeo', 320.0, 0.0, 0.0)\n"
+        "  local unit burrow = CreateUnit(Player(0), 'otrb', 384.0, 0.0, 0.0)\n"
+        "  call BJassAssert(GetPlayerUnitCount(Player(0), true) == 5, \"unit count must exclude structures and other players\")\n"
+        "  call BJassAssert(GetPlayerTypedUnitCount(Player(0), \"Peon\", true, true) == 5, \"typed Peon count must reach five\")\n"
+        "  call BJassAssert(GetPlayerTypedUnitCount(Player(0), UnitId2String('opeo'), true, true) == 5, \"typed count must accept UnitId2String identity\")\n"
+        "  call KillUnit(p5)\n"
+        "  call BJassAssert(GetPlayerTypedUnitCount(Player(0), \"Peon\", true, true) == 4, \"dead Peons must not count\")\n"
+        "  call RemoveUnit(p1)\n"
+        "  call RemoveUnit(p2)\n"
+        "  call RemoveUnit(p3)\n"
+        "  call RemoveUnit(p4)\n"
+        "  call RemoveUnit(p5)\n"
+        "  call RemoveUnit(enemy)\n"
+        "  call RemoveUnit(burrow)\n"
+        "endfunction"));
+}
+
+TEST(wc3_api, train_start_event_exposes_producer_and_trainee) {
+    LPEDICT producer = NULL;
+
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  boolean trainStarted = false\n"
+        "endglobals\n"
+        "function onTrainStart takes nothing returns nothing\n"
+        "  set trainStarted = true\n"
+        "  call BJassAssert(GetTriggerUnit() != null, \"train start must expose producer\")\n"
+        "  call BJassAssert(GetTrainedUnitType() == 'opeo', \"train start must expose queued Peon type\")\n"
+        "  call BJassAssert(GetTrainedUnit() != null, \"train start must expose queued trainee\")\n"
+        "endfunction\n"
+        "function verifyTrainStart takes nothing returns nothing\n"
+        "  call BJassAssert(trainStarted, \"train-start trigger did not fire\")\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger t = CreateTrigger()\n"
+        "  call TriggerRegisterPlayerUnitEvent(t, Player(0), EVENT_PLAYER_UNIT_TRAIN_START, null)\n"
+        "  call TriggerAddAction(t, function onTrainStart)\n"
+        "endfunction"));
+
+    producer = alloc_test_unit(MAKEFOURCC('o', 'g', 'r', 'e'), 0.0f, 0.0f);
+    producer->s.player = 0;
+    game.clients[0].ps.number = 0;
+    game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 100;
+    unit_build(producer, MAKEFOURCC('o', 'p', 'e', 'o'));
+    G_RunEvents();
+    jass_runevents(level.vm);
+    jass_callbyname(level.vm, "verifyTrainStart", true);
+    jass_runevents(level.vm);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+}
+
+TEST(wc3_api, trained_unit_type_uses_train_finish_event_subject) {
+    LPEDICT trained = NULL;
+
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  integer trainedType = 0\n"
+        "endglobals\n"
+        "function onTrainFinish takes nothing returns nothing\n"
+        "  set trainedType = GetTrainedUnitType()\n"
+        "  call BJassAssert(GetTrainedUnit() != null, \"train finish must expose trained unit\")\n"
+        "endfunction\n"
+        "function verifyTrainFinish takes nothing returns nothing\n"
+        "  call BJassAssert(trainedType == 'opeo', \"GetTrainedUnitType must return trained rawcode\")\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger t = CreateTrigger()\n"
+        "  call TriggerRegisterPlayerUnitEvent(t, Player(0), EVENT_PLAYER_UNIT_TRAIN_FINISH, null)\n"
+        "  call TriggerAddAction(t, function onTrainFinish)\n"
+        "endfunction"));
+
+    trained = alloc_test_unit(MAKEFOURCC('o', 'p', 'e', 'o'), 0.0f, 0.0f);
+    trained->s.player = 0;
+    G_PublishEvent(trained, EVENT_PLAYER_UNIT_TRAIN_FINISH);
+    G_RunEvents();
+    jass_runevents(level.vm);
+    jass_callbyname(level.vm, "verifyTrainFinish", true);
+    jass_runevents(level.vm);
+    T_ASSERT(!jass_rterror_pending(level.vm));
 }
 
 /* A campaign defeat trigger may run on any owned unit death and ask whether

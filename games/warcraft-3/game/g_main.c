@@ -450,6 +450,7 @@ static void G_ShutdownGame(void) {
     G_BotShutdown();
     if (level.vm) { jass_close(level.vm); level.vm = NULL; }
     G_JassSoundRuntimeReset();
+    G_ClearJassGroupRegistry();
     G_FowShutdown();
     G_FreeModels();
     gi.MemFree(g_edicts);
@@ -828,7 +829,7 @@ LPPLAYER G_GetPlayerByNumber(DWORD number) {
 //    return NULL;
 }
 
-GAMEEVENT *G_PublishEventWithSource(LPEDICT edict, EVENTTYPE type, LPEDICT source) {
+GAMEEVENT *G_PublishEventWithValue(LPEDICT edict, EVENTTYPE type, LPEDICT source, LONG value) {
     DWORD index = level.events.write++;
     GAMEEVENT *evt = &level.events.queue[index % MAX_EVENT_QUEUE];
 
@@ -836,6 +837,7 @@ GAMEEVENT *G_PublishEventWithSource(LPEDICT edict, EVENTTYPE type, LPEDICT sourc
     evt->type = type;
     evt->edict = edict;
     evt->source = source;
+    evt->value = value;
     if (type == EVENT_PLAYER_VICTORY || type == EVENT_PLAYER_DEFEAT) {
         G_GameResultDebug("publish event type=%s ordinal=%u subject_ent=%ld owner=%u read=%u write=%u",
             type == EVENT_PLAYER_VICTORY ? "VICTORY" : "DEFEAT",
@@ -847,8 +849,12 @@ GAMEEVENT *G_PublishEventWithSource(LPEDICT edict, EVENTTYPE type, LPEDICT sourc
     return evt;
 }
 
+GAMEEVENT *G_PublishEventWithSource(LPEDICT edict, EVENTTYPE type, LPEDICT source) {
+    return G_PublishEventWithValue(edict, type, source, 0);
+}
+
 GAMEEVENT *G_PublishEvent(LPEDICT edict, EVENTTYPE type) {
-    return G_PublishEventWithSource(edict, type, NULL);
+    return G_PublishEventWithValue(edict, type, NULL, 0);
 }
 
 void G_PublishSummonEvents(LPEDICT summoner, LPEDICT summoned) {

@@ -80,6 +80,8 @@ The implementation treats a `umove_t` whose `ability` pointer is non-null as act
 
 Rally changes remain producer metadata, not unit behavior. Smart/set-rally changes are therefore applied immediately; they are not inserted into the movement/combat FIFO.
 
+Issued-order trigger events describe command submission rather than delayed execution. An accepted point order publishes `EVENT_PLAYER_UNIT_ISSUED_POINT_ORDER` / `EVENT_UNIT_ISSUED_POINT_ORDER` immediately, including when Shift causes the order to be appended to the FIFO; an accepted entity target similarly publishes the target-order family. `G_UnitStartNextQueuedOrder()` must not publish those events again when the delayed command begins. Building placement is not currently a FIFO order, but follows the same acceptance-time point-order event contract through `G_IssueBuildOrder()`. See [Issued Target and Point Order Events](issued-target-order-events.md).
+
 ## Move and formation behavior
 
 The existing `move_selectlocation()` formation allocator remains authoritative for a command-card or SmartPoint Move click. It resolves the per-unit slot and group speed at issue time.
@@ -146,7 +148,7 @@ OpenRealm does not yet have Warsmash's per-ability `onCancelFromQueue()` reserva
 
 The queue is inline numeric data inside `edict_t`; it contains no process pointers, so it persists with the existing raw-edict save record without adding an `F_EDICT` field. Entity targets remain number + `spawn_time` and are re-resolved only at execution.
 
-Adding the queue changes `sizeof(edict_t)`, so the save header's `edict_size` guard rejects older incompatible raw-struct saves independently of the outer `W3SV` format version. The current outer format is version 12; its evolution and compatibility policy are tracked in [Save/Load](save-load.md). The transient menu flags are still process-local: `WriteClient()` and `ReadClient()` explicitly clear `supports_order_queue` and `order_queued` because targeting callbacks/menu modes are rebuilt rather than persisted.
+Adding the queue changes `sizeof(edict_t)`, so the save header's `edict_size` guard rejects older incompatible raw-struct saves independently of the outer `W3SV` format version. The current outer format is version 14; its evolution and compatibility policy are tracked in [Save/Load](save-load.md). The transient menu flags are still process-local: `WriteClient()` and `ReadClient()` explicitly clear `supports_order_queue` and `order_queued` because targeting callbacks/menu modes are rebuilt rather than persisted.
 
 The existing save/load limitation still applies: arbitrary active `umove_t` behavior identity is not semantically restored. Pending queue records are persisted, but exact mid-order resume requires the separate active-behavior save work described in [Save/Load](save-load.md).
 

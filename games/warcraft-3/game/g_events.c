@@ -1,6 +1,6 @@
 #include "g_local.h"
 
-BOOL jass_calltrigger(LPJASS j, LPTRIGGER trigger, LPEDICT unit, LPEDICT source);
+BOOL jass_calltriggerwithvalue(LPJASS j, LPTRIGGER trigger, LPEDICT unit, LPEDICT source, LONG eventValue);
 
 /* One authoritative terminal-result transition shared by JASS RemovePlayer
  * and developer cheats.  Keep campaign/result presentation downstream of the
@@ -94,24 +94,24 @@ static void G_ExecuteEvent(GAMEEVENT *evt) {
                 break;
             case EVENT_GAME_STATE_LIMIT:
                 if (evt->responseTo == e) {
-                    jass_calltrigger(level.vm, e->trigger, NULL, NULL);
+                    jass_calltriggerwithvalue(level.vm, e->trigger, NULL, NULL, evt->value);
                 }
                 break;
             case EVENT_GAME_TIMER_EXPIRED:
                 break;
             case EVENT_GAME_ENTER_REGION:
                 if (evt->responseTo == e) {
-                    jass_calltrigger(level.vm, e->trigger, subject, evt->source);
+                    jass_calltriggerwithvalue(level.vm, e->trigger, subject, evt->source, evt->value);
                 }
                 break;
             case EVENT_GAME_LEAVE_REGION:
                 if (evt->responseTo == e) {
-                    jass_calltrigger(level.vm, e->trigger, subject, evt->source);
+                    jass_calltriggerwithvalue(level.vm, e->trigger, subject, evt->source, evt->value);
                 }
                 break;
             case EVENT_UNIT_IN_RANGE:
                 if (evt->responseTo == e) {
-                    jass_calltrigger(level.vm, e->trigger, subject, evt->source);
+                    jass_calltriggerwithvalue(level.vm, e->trigger, subject, evt->source, evt->value);
                 }
                 break;
             case EVENT_GAME_TRACKABLE_HIT:
@@ -137,6 +137,56 @@ static void G_ExecuteEvent(GAMEEVENT *evt) {
                     BOOL direct = subject && e->subject == subject;
                     BOOL owner_match = subject &&
                         e->subject == G_GetPlayerEntityByNumber(subject->s.player);
+                    LONG quest_trigger_ordinal = e->trigger
+                        ? (LONG)(e->trigger - level.triggers) : -1L;
+                    BOOL quest_peon_stage = gi.CvarString &&
+                        WC3_TUTORIAL_DEBUG_ENABLED() &&
+                        quest_trigger_ordinal >= 95 && quest_trigger_ordinal <= 106;
+                    BOOL subgroup_stage = gi.CvarString &&
+                        WC3_TUTORIAL_DEBUG_ENABLED() &&
+                        quest_trigger_ordinal >= 208 && quest_trigger_ordinal <= 213;
+                    BOOL quest_build_event = gi.CvarString &&
+                        WC3_TUTORIAL_DEBUG_ENABLED() &&
+                        (evt->type == EVENT_PLAYER_UNIT_CONSTRUCT_START ||
+                         evt->type == EVENT_PLAYER_UNIT_CONSTRUCT_FINISH ||
+                         evt->type == EVENT_UNIT_CONSTRUCT_FINISH);
+                    if (quest_build_event) {
+                        fprintf(stderr,
+                                "WC3_QUEST_BUILD dispatch event=%u trigger=%ld building=%ld id=%.4s owner=%u handler_subject=%ld direct=%d owner_match=%d match=%d disabled=%d\n",
+                                (unsigned)evt->type, (long)quest_trigger_ordinal,
+                                subject ? (long)(subject - globals.edicts) : -1L,
+                                subject ? (LPCSTR)&subject->class_id : "----",
+                                subject ? (unsigned)subject->s.player : 0u,
+                                e->subject ? (long)(e->subject - globals.edicts) : -1L,
+                                direct, owner_match, direct || owner_match,
+                                e->trigger ? (int)e->trigger->disabled : -1);
+                    }
+                    if (subgroup_stage) {
+                        fprintf(stderr,
+                                "WC3_SUBGROUP dispatch event=%u trigger=%ld subject=%ld id=%.4s owner=%u source=%ld source_id=%.4s handler_subject=%ld direct=%d owner_match=%d match=%d disabled=%d\n",
+                                (unsigned)evt->type, (long)quest_trigger_ordinal,
+                                subject ? (long)(subject - globals.edicts) : -1L,
+                                subject ? (LPCSTR)&subject->class_id : "----",
+                                subject ? (unsigned)subject->s.player : 0u,
+                                evt->source ? (long)(evt->source - globals.edicts) : -1L,
+                                evt->source ? (LPCSTR)&evt->source->class_id : "----",
+                                e->subject ? (long)(e->subject - globals.edicts) : -1L,
+                                direct, owner_match, direct || owner_match,
+                                e->trigger ? (int)e->trigger->disabled : -1);
+                    }
+                    if (quest_peon_stage) {
+                        fprintf(stderr,
+                                "WC3_QUEST_PEON dispatch event=%u trigger=%ld unit=%ld id=%.4s owner=%u source=%ld source_id=%.4s handler_subject=%ld direct=%d owner_match=%d match=%d disabled=%d\n",
+                                (unsigned)evt->type, (long)quest_trigger_ordinal,
+                                subject ? (long)(subject - globals.edicts) : -1L,
+                                subject ? (LPCSTR)&subject->class_id : "----",
+                                subject ? (unsigned)subject->s.player : 0u,
+                                evt->source ? (long)(evt->source - globals.edicts) : -1L,
+                                evt->source ? (LPCSTR)&evt->source->class_id : "----",
+                                e->subject ? (long)(e->subject - globals.edicts) : -1L,
+                                direct, owner_match, direct || owner_match,
+                                e->trigger ? (int)e->trigger->disabled : -1);
+                    }
                     if (result_event) {
                         matching_handlers++;
                         G_GameResultDebug("event handler candidate trigger=%p handler_subject=%ld direct=%u owner_match=%u",
@@ -145,7 +195,25 @@ static void G_ExecuteEvent(GAMEEVENT *evt) {
                             (unsigned)direct, (unsigned)owner_match);
                     }
                     if (direct || owner_match) {
-                        BOOL queued = jass_calltrigger(level.vm, e->trigger, subject, evt->source);
+                        BOOL queued = jass_calltriggerwithvalue(level.vm, e->trigger, subject, evt->source, evt->value);
+                        if (quest_build_event) {
+                            fprintf(stderr,
+                                    "WC3_QUEST_BUILD dispatch-result event=%u trigger=%ld queued=%d disabled=%d\n",
+                                    (unsigned)evt->type, (long)quest_trigger_ordinal, queued,
+                                    e->trigger ? (int)e->trigger->disabled : -1);
+                        }
+                        if (subgroup_stage) {
+                            fprintf(stderr,
+                                    "WC3_SUBGROUP dispatch-result event=%u trigger=%ld queued=%d disabled=%d\n",
+                                    (unsigned)evt->type, (long)quest_trigger_ordinal, queued,
+                                    e->trigger ? (int)e->trigger->disabled : -1);
+                        }
+                        if (quest_peon_stage) {
+                            fprintf(stderr,
+                                    "WC3_QUEST_PEON dispatch-result event=%u trigger=%ld queued=%d disabled=%d\n",
+                                    (unsigned)evt->type, (long)quest_trigger_ordinal,
+                                    queued, e->trigger ? (int)e->trigger->disabled : -1);
+                        }
                         if (result_event) {
                             invoked_handlers++;
                             G_GameResultDebug("event handler dispatch trigger=%p queued=%u",

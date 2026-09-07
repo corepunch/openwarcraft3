@@ -1,5 +1,5 @@
 ID;PWXL;N;E
-B;X62;Y6;D0
+B;X62;Y8;D0
 C;X1;Y1;K"unitBalanceID"
 C;X5;K"level"
 C;X8;K"goldcost"
@@ -57,4 +57,11 @@ C;X9;K"85"
 C;X24;K"1200"
 C;X1;Y6;K"hhou"
 C;X62;K"6"
+C;X1;Y7;K"opeo"
+C;X24;K"250"
+C;X35;K"270"
+C;X60;K"16"
+C;X1;Y8;K"otrb"
+C;X24;K"1200"
+C;X60;K"16"
 E

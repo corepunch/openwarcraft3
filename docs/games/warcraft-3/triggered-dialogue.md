@@ -57,6 +57,10 @@ current Warsmash effectively renders gameplay transmission subtitles regardless
 of that override. OpenRealm intentionally matches that behavior for now rather
 than inventing an unverified user-preference policy.
 
+When `wc3_quest_debug 1` is enabled, message/transmission entry points emit `WC3_TUTORIAL_TEXT` diagnostics before presentation state is mutated. The diagnostic records the active trigger ordinal and JASS caller plus both the raw map string token and its resolved text. Ordinary `DisplayText*` calls also record target/position/duration; `SetCinematicScene` records speaker, dialogue, portrait and scene/voice lifetimes, and `EndCinematicScene` records the clear. This is intended for campaign tutorial progression debugging and does not alter message timing or retention.
+
+Prologue02 additionally traces the Burrow-completion handoff with `WC3_TUTORIAL_FLOW` for trigger ordinals 120-165 and `WC3_TUTORIAL_SOURCE` for the authored Burrow work-complete/check functions, `Trig_W2_BurrowComplete_Q`, directly referenced trigger globals, and whichever functions reference narrator sounds `T02Narrator031` through `T02Narrator035` (the lumber/War Mill teaching sequence). `WC3_TUTORIAL_COROUTINE` confirms sleep/resume boundaries for the same range. Current runtime evidence shows the nested `WaitForSoundBJ` in trigger 150 waking normally and the trigger reaching its final queue-removal call, so the remaining diagnostic focus is the earlier lumber-stage enqueue/event path. This is startup/runtime diagnostics only: it does not synthesize tutorial steps or change trigger queue, sleep, or transmission semantics.
+
 ## Network Lifecycle
 
 Dialogue/interface JASS natives own presentation **state**, not the server
@@ -176,6 +180,10 @@ The following transmission limitations remain:
 
 These gaps do not justify coupling dialogue to camera, fog, simulation pause,
 or UI mode.
+
+### Nested scripted waits
+
+A wait issued by a native called from a scripted helper such as `WaitForSoundBJ` must suspend the **same** trigger coroutine as a direct `TriggerSleepAction`. The helper frame must remain on that coroutine until the wake time, resume first, and only then return to its caller. Campaign queue helpers rely on this ordering: a narration action can call `WaitForSoundBJ`, inspect its trigger state after the wait, and finally remove itself from Blizzard's queued-trigger list. Treating the scripted helper as a detached/synchronous call, or losing its frame across the yield, can leave the queue permanently blocked even though the dialogue was displayed. In-engine coverage includes a synthetic nested-script sleep regression in `t_game.c`.
 
 ## Verification
 

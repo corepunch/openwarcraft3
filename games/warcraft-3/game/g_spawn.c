@@ -5,6 +5,27 @@
 
 extern JASSMODULE jass_funcs[];
 
+static BOOL G_TutorialFlowDebugEnabledForMapSource(void) {
+    return WC3_TUTORIAL_DEBUG_ENABLED();
+}
+
+static void G_JassCoroutineTrace(HANDLE trigger_handle, LPCSTR function, LPCSTR phase,
+                                 DWORD now, DWORD wake_time, BOOL yielded, BOOL done) {
+    LPTRIGGER trigger = trigger_handle;
+    LONG ordinal;
+    if (!G_TutorialFlowDebugEnabledForMapSource() || !trigger ||
+        trigger < level.triggers || trigger >= level.triggers + level.num_triggers) {
+        return;
+    }
+    ordinal = (LONG)(trigger - level.triggers);
+    if (ordinal < 120 || ordinal > 165) return;
+    fprintf(stderr,
+            "WC3_TUTORIAL_COROUTINE phase=%s trigger=%ld function=\"%s\" now=%u wake=%u yielded=%d done=%d\n",
+            phase ? phase : "unknown", (long)ordinal,
+            function ? function : "(none)", (unsigned)now, (unsigned)wake_time,
+            (int)yielded, (int)done);
+}
+
 void G_InitJassHost(void) {
     jass_sethost(&MAKE(JASSHOST,
         .MemAlloc = gi.MemAlloc,
@@ -15,7 +36,146 @@ void G_InitJassHost(void) {
         .GetPlayerByNumber = G_GetPlayerByNumber,
         .SaveHandle = G_SaveJassHandle,
         .LoadHandle = G_LoadJassHandle,
+        .CoroutineTrace = G_JassCoroutineTrace,
     ));
+}
+
+static LPCSTR G_FindJassMapFunction(LPCSTR script, LPCSTR name, LPCSTR *finish) {
+    char needle[192];
+    LPCSTR start, end;
+    if (finish) *finish = NULL;
+    if (!script || !name || !*name) return NULL;
+    snprintf(needle, sizeof(needle), "function %s takes", name);
+    start = strstr(script, needle);
+    if (!start) return NULL;
+    end = strstr(start, "endfunction");
+    if (!end) return start;
+    end += strlen("endfunction");
+    while (*end == '\r' || *end == '\n') end++;
+    if (finish) *finish = end;
+    return start;
+}
+
+static void G_DumpTutorialJassFunction(LPCSTR script, LPCSTR name) {
+    LPCSTR start, finish;
+    size_t length;
+    start = G_FindJassMapFunction(script, name, &finish);
+    if (!start) {
+        fprintf(stdout, "WC3_TUTORIAL_SOURCE missing function=\"%s\"\n", name);
+        return;
+    }
+    if (!finish) {
+        fprintf(stdout, "WC3_TUTORIAL_SOURCE unterminated function=\"%s\"\n", name);
+        return;
+    }
+    length = (size_t)(finish - start);
+    fprintf(stdout, "WC3_TUTORIAL_SOURCE begin function=\"%s\"\n%.*s", name, (int)length, start);
+    if (!length || start[length - 1] != '\n') fputc('\n', stdout);
+    fprintf(stdout, "WC3_TUTORIAL_SOURCE end function=\"%s\"\n", name);
+}
+
+static BOOL G_JassRangeContains(LPCSTR start, LPCSTR finish, LPCSTR needle) {
+    LPCSTR hit;
+    if (!start || !finish || !needle || start >= finish) return false;
+    hit = strstr(start, needle);
+    return hit && hit < finish;
+}
+
+static void G_DumpTutorialJassFunctionsReferencing(LPCSTR script, LPCSTR needle) {
+    LPCSTR cursor = script;
+    char function_name[160];
+    if (!script || !needle || !*needle) return;
+    while ((cursor = strstr(cursor, "function ")) != NULL) {
+        LPCSTR name_start = cursor + strlen("function ");
+        LPCSTR name_end = strstr(name_start, " takes");
+        LPCSTR finish = strstr(name_start, "endfunction");
+        size_t name_len;
+        if (!name_end || !finish) break;
+        finish += strlen("endfunction");
+        if (G_JassRangeContains(cursor, finish, needle)) {
+            name_len = (size_t)(name_end - name_start);
+            if (name_len > 0 && name_len < sizeof(function_name)) {
+                memcpy(function_name, name_start, name_len);
+                function_name[name_len] = '\0';
+                fprintf(stdout,
+                        "WC3_TUTORIAL_SOURCE reference token=\"%s\" function=\"%s\"\n",
+                        needle, function_name);
+                G_DumpTutorialJassFunction(script, function_name);
+            }
+        }
+        cursor = finish;
+    }
+}
+
+static void G_DumpReferencedTutorialTriggers(LPCSTR script, LPCSTR start, LPCSTR finish) {
+    LPCSTR cursor = start;
+    char seen[16][96] = {{0}};
+    DWORD seen_count = 0;
+    while (cursor && cursor < finish && seen_count < 16) {
+        LPCSTR ref = strstr(cursor, "gg_trg_");
+        size_t len;
+        BOOL duplicate = false;
+        char suffix[96];
+        char function_name[160];
+        if (!ref || ref >= finish) break;
+        ref += strlen("gg_trg_");
+        len = 0;
+        while (ref + len < finish &&
+               ((ref[len] >= 'A' && ref[len] <= 'Z') ||
+                (ref[len] >= 'a' && ref[len] <= 'z') ||
+                (ref[len] >= '0' && ref[len] <= '9') || ref[len] == '_')) {
+            len++;
+        }
+        if (!len || len >= sizeof(suffix)) { cursor = ref + (len ? len : 1); continue; }
+        memcpy(suffix, ref, len);
+        suffix[len] = '\0';
+        FOR_LOOP(i, seen_count) if (!strcmp(seen[i], suffix)) duplicate = true;
+        if (!duplicate) {
+            snprintf(seen[seen_count++], sizeof(seen[0]), "%s", suffix);
+            fprintf(stdout, "WC3_TUTORIAL_SOURCE reference trigger=\"gg_trg_%s\"\n", suffix);
+            snprintf(function_name, sizeof(function_name), "Trig_%s_Conditions", suffix);
+            G_DumpTutorialJassFunction(script, function_name);
+            snprintf(function_name, sizeof(function_name), "Trig_%s_Actions", suffix);
+            G_DumpTutorialJassFunction(script, function_name);
+            snprintf(function_name, sizeof(function_name), "InitTrig_%s", suffix);
+            G_DumpTutorialJassFunction(script, function_name);
+        }
+        cursor = ref + len;
+    }
+}
+
+static void G_DumpPrologue02BurrowHandoffSource(LPCSTR script) {
+    static LPCSTR const root_names[] = {
+        "Trig_W2_BurrowComplete_Q_Func002001",
+        "Trig_W2_BurrowComplete_Q_Func007001",
+        "Trig_W2_BurrowComplete_Q_Conditions",
+        "Trig_W2_BurrowComplete_Q_Actions",
+        "InitTrig_W2_BurrowComplete_Q",
+        "Trig_W2_BurrowComplete_Abort_Conditions",
+        "Trig_W2_BurrowComplete_Abort_Actions",
+        "InitTrig_W2_BurrowComplete_Abort",
+        "Trig_W_Burrow_Check_Conditions",
+        "Trig_W_Burrow_Check_Actions",
+        "InitTrig_W_Burrow_Check",
+        "Trig_Done_Burrows_Q_Conditions",
+        "Trig_Done_Burrows_Q_Actions",
+        "InitTrig_Done_Burrows_Q",
+        "Trig_U1_SelectWarMill_Q_Conditions",
+        "Trig_U1_SelectWarMill_Q_Actions",
+        "InitTrig_U1_SelectWarMill_Q",
+    };
+    LPCSTR action_start, action_finish;
+    if (!G_TutorialFlowDebugEnabledForMapSource()) return;
+    FOR_LOOP(i, sizeof(root_names) / sizeof(root_names[0]))
+        G_DumpTutorialJassFunction(script, root_names[i]);
+    action_start = G_FindJassMapFunction(script, "Trig_W2_BurrowComplete_Q_Actions", &action_finish);
+    if (action_start && action_finish)
+        G_DumpReferencedTutorialTriggers(script, action_start, action_finish);
+    G_DumpTutorialJassFunctionsReferencing(script, "gg_snd_T02Narrator031");
+    G_DumpTutorialJassFunctionsReferencing(script, "gg_snd_T02Narrator032");
+    G_DumpTutorialJassFunctionsReferencing(script, "gg_snd_T02Narrator033");
+    G_DumpTutorialJassFunctionsReferencing(script, "gg_snd_T02Narrator034");
+    G_DumpTutorialJassFunctionsReferencing(script, "gg_snd_T02Narrator035");
 }
 
 static DWORD G_NormalizeMapObjectPlayer(DWORD player) {
@@ -381,6 +541,7 @@ void G_SpawnEntities(void) {
     if (level.vm) { jass_close(level.vm); level.vm = NULL; }
     G_JassSoundRuntimeReset();
     G_ClearSaveRegistries();
+    G_ClearJassGroupRegistry();
     G_FowShutdown();
     memset(&level, 0, sizeof(level));
     G_ResetStartingResourceCheat();
@@ -453,6 +614,7 @@ void G_SpawnEntities(void) {
     jass_dofile(level.vm, "Scripts\\common.j");
     jass_dofile(level.vm, "Scripts\\Blizzard.j");
 //    jass_dofilenative(level.vm, "/Users/igor/Desktop/war3map.j");
+    G_DumpPrologue02BurrowHandoffSource(level.mapinfo->mapscript);
     jass_dobuffer(level.vm, level.mapinfo->mapscript);
 
     UI_Init();

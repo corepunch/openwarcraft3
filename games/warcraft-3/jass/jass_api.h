@@ -41,6 +41,10 @@ typedef struct {
     void (*RuntimeError)(LPCSTR message);
     BOOL (*SaveHandle)(LPCSTR type, HANDLE value, DWORD *id);
     HANDLE (*LoadHandle)(LPCSTR type, DWORD id);
+    /* Optional host-side diagnostics for coroutine wake/resume. The VM keeps
+     * this generic: trigger is the opaque context handle supplied by the host. */
+    void (*CoroutineTrace)(HANDLE trigger, LPCSTR function, LPCSTR phase,
+                           DWORD now, DWORD wake_time, BOOL yielded, BOOL done);
 } JASSHOST;
 
 /* VM lifecycle */

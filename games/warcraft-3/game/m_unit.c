@@ -233,6 +233,71 @@ static BOOL unit_order_name_valid(LPCSTR order) {
     return order && *order && strlen(order) < UNIT_ORDER_NAME_SIZE;
 }
 
+/* The current OrderId native still uses the historical class_id/FourCC
+ * conversion. Keep issued-order event ids on that same contract for now so
+ * campaign conditions comparing GetIssuedOrderId() with OrderId("smart")
+ * agree without changing the wider numeric-order API in this compatibility
+ * fix. */
+static DWORD issued_order_ids[MAX_ENTITIES];
+static VECTOR2 issued_order_points[MAX_ENTITIES];
+static BOOL issued_order_point_valid[MAX_ENTITIES];
+
+static DWORD unit_order_event_id(LPCSTR order) {
+    DWORD id = 0;
+    if (!order) return 0;
+    memcpy(&id, order, MIN(sizeof(id), strlen(order)));
+    return id;
+}
+
+DWORD G_GetIssuedOrderId(LPCEDICT self) {
+    if (!self || self->s.number >= MAX_ENTITIES) return 0;
+    return issued_order_ids[self->s.number];
+}
+
+BOOL G_GetIssuedOrderPoint(LPCEDICT self, LPVECTOR2 point) {
+    if (point) *point = (VECTOR2){ 0.0f, 0.0f };
+    if (!self || self->s.number >= MAX_ENTITIES || !point ||
+        !issued_order_point_valid[self->s.number]) return false;
+    *point = issued_order_points[self->s.number];
+    return true;
+}
+
+void G_PublishIssuedPointOrder(LPEDICT self, DWORD order_id, LPCVECTOR2 point,
+                               DWORD issuer_player, LPCSTR debug_order) {
+    if (!self || self->s.number >= MAX_ENTITIES || !point) return;
+    issued_order_ids[self->s.number] = order_id;
+    issued_order_points[self->s.number] = *point;
+    issued_order_point_valid[self->s.number] = true;
+    if (WC3_TUTORIAL_DEBUG_ENABLED()) {
+        fprintf(stderr,
+                "WC3_QUEST_ORDER publish event=POINT player=%u unit=%u id=%.4s order=\"%s\" order_id=%u point=(%.1f,%.1f)\n",
+                (unsigned)issuer_player, (unsigned)self->s.number,
+                (LPCSTR)&self->class_id, debug_order ? debug_order : "",
+                (unsigned)order_id, point->x, point->y);
+    }
+    G_PublishEvent(self, EVENT_PLAYER_UNIT_ISSUED_POINT_ORDER);
+    G_PublishEvent(self, EVENT_UNIT_ISSUED_POINT_ORDER);
+}
+
+static void unit_publish_target_order(LPEDICT self, LPCSTR order,
+                                      LPEDICT target, DWORD issuer_player) {
+    DWORD const order_id = unit_order_event_id(order);
+
+    if (!self || self->s.number >= MAX_ENTITIES) return;
+    issued_order_ids[self->s.number] = order_id;
+    issued_order_point_valid[self->s.number] = false;
+    if (WC3_TUTORIAL_DEBUG_ENABLED()) {
+        fprintf(stderr,
+                "WC3_QUEST_ORDER publish event=TARGET player=%u unit=%u id=%.4s order=\"%s\" order_id=%u target=%u target_id=%.4s\n",
+                (unsigned)issuer_player, (unsigned)self->s.number,
+                (LPCSTR)&self->class_id, order ? order : "",
+                (unsigned)order_id, target ? (unsigned)target->s.number : 0u,
+                target ? (LPCSTR)&target->class_id : "----");
+    }
+    G_PublishEventWithSource(self, EVENT_PLAYER_UNIT_ISSUED_TARGET_ORDER, target);
+    G_PublishEventWithSource(self, EVENT_UNIT_ISSUED_TARGET_ORDER, target);
+}
+
 static BOOL unit_has_active_order(LPCEDICT self) {
     return self && self->currentmove && self->currentmove->ability != NULL &&
            !move_is_terminal_hold(self);
@@ -396,11 +461,17 @@ BOOL G_IssueUnitTargetOrder(LPEDICT self, LPCSTR order, LPEDICT target,
         strcmp(order, "repair") && strcmp(order, "militia") && strcmp(order, "militiaoff")) return false;
 
     if (queue && unit_has_active_order(self)) {
-        return unit_queue_push(self, order, UNIT_ORDER_TARGET_ENTITY, NULL, target,
-                               issuer_player, 0.0f);
+        BOOL const accepted = unit_queue_push(self, order, UNIT_ORDER_TARGET_ENTITY, NULL, target,
+                                              issuer_player, 0.0f);
+        if (accepted) unit_publish_target_order(self, order, target, issuer_player);
+        return accepted;
     }
     if (!queue) G_ClearUnitOrderQueue(self);
-    return unit_issuetargetorder_now(self, order, target);
+    {
+        BOOL const accepted = unit_issuetargetorder_now(self, order, target);
+        if (accepted) unit_publish_target_order(self, order, target, issuer_player);
+        return accepted;
+    }
 }
 
 BOOL G_IssueUnitPointOrder(LPEDICT self, LPCSTR order, LPCVECTOR2 point,
@@ -409,19 +480,37 @@ BOOL G_IssueUnitPointOrder(LPEDICT self, LPCSTR order, LPCVECTOR2 point,
     if (M_IsDead(self)) return false;
     /* Rally-point changes are metadata and apply immediately even when Shift is down. */
     if (!strcmp(order, "setrally") || (!strcmp(order, "smart") && G_UnitHasRally(self))) {
+        BOOL accepted;
         if (!queue) G_ClearUnitOrderQueue(self);
-        return G_SetRallyPoint(self, point);
+        accepted = G_SetRallyPoint(self, point);
+        if (accepted) {
+            G_PublishIssuedPointOrder(self, unit_order_event_id(order), point,
+                                      issuer_player, order);
+        }
+        return accepted;
     }
     if (S_GoldMineWorkerIsInside(self)) return false;
     if (self->aiflags & AI_IMMOBILE) return false;
     if (strcmp(order, "smart") && strcmp(order, "move") && strcmp(order, "attack")) return false;
 
     if (queue && unit_has_active_order(self)) {
-        return unit_queue_push(self, order, UNIT_ORDER_TARGET_POINT, point, NULL,
-                               issuer_player, group_speed);
+        BOOL const accepted = unit_queue_push(self, order, UNIT_ORDER_TARGET_POINT, point, NULL,
+                                               issuer_player, group_speed);
+        if (accepted) {
+            G_PublishIssuedPointOrder(self, unit_order_event_id(order), point,
+                                      issuer_player, order);
+        }
+        return accepted;
     }
     if (!queue) G_ClearUnitOrderQueue(self);
-    return unit_issueorder_now(self, order, point, group_speed);
+    {
+        BOOL const accepted = unit_issueorder_now(self, order, point, group_speed);
+        if (accepted) {
+            G_PublishIssuedPointOrder(self, unit_order_event_id(order), point,
+                                      issuer_player, order);
+        }
+        return accepted;
+    }
 }
 
 BOOL G_UnitStartNextQueuedOrder(LPEDICT self) {

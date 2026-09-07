@@ -70,8 +70,9 @@ enum {
 
 static DWORD const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static DWORD const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-static DWORD const save_version = 12; // per-client music semantics expand the persisted GAMECLIENT snapshot
+static DWORD const save_version = 14; // research event scalar context and JASS snapshot v3
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
+#define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
 
 /* F_MMOVE anchor: umove_t instances are file-scope statics, so a move pointer
@@ -180,11 +181,13 @@ static field_t const save_game_event_fields[] = {
     F(gameevent_s, type, F_INT),
     F(gameevent_s, edict, F_EDICT, 0, FIELD_NONE),
     F(gameevent_s, source, F_EDICT, 0, FIELD_NONE),
+    F(gameevent_s, value, F_INT),
     F(gameevent_s, responseTo, F_EVENT, 0, FIELD_NONE),
     { NULL, 0, 0, 0, 0, 0 }
 };
 
 static field_t const group_fields[] = {
+    /* handle_id is runtime identity derived from the table ordinal and is not serialized. */
     TF(ggroup_t, inuse, F_INT),
     TFC(ggroup_t, units, F_EDICT, MAX_GROUP_SIZE, num_units),
     { NULL, 0, 0, 0, 0, 0 }
@@ -255,7 +258,6 @@ static field_t const level_fields[] = {
     F(level_locals, next_weather_id, F_INT),
     F(level_locals, weather_effects, F_STRUCT, MAX_WEATHER_EFFECTS, weather_fields),
     F(level_locals, quests, F_STRUCT, MAX_QUESTS, quest_fields),
-    FC(level_locals, groups, F_STRUCT, MAX_GROUPS, group_fields, num_groups),
     FC(level_locals, triggers, F_STRUCT, MAX_TRIGGERS, trigger_fields, num_triggers),
     FC(level_locals, timers, F_STRUCT, MAX_TIMERS, timer_fields, num_timers),
     F(level_locals, events.handlers, F_STRUCT, MAX_EVENTS, save_event_fields),
@@ -517,10 +519,10 @@ void G_ClearSaveRegistries(void) {
 
 static BOOL RestoreRegistrySlots(DWORD groups, DWORD timers, DWORD triggers, DWORD events) {
     if (groups < level.num_groups || timers < level.num_timers || triggers < level.num_triggers ||
-        events < ActiveEventCount() || groups > MAX_GROUPS || timers > MAX_TIMERS ||
+        events < ActiveEventCount() || groups > MAX_SAVE_GROUP_HANDLES || timers > MAX_TIMERS ||
         triggers > MAX_TRIGGERS || events > MAX_EVENTS)
         return false;
-    while (level.num_groups < groups) if (!G_AllocJassGroup()) return false;
+    if (!G_EnsureJassGroupSlots(groups)) return false;
     while (level.num_timers < timers) if (!G_AllocJassTimer()) return false;
     while (level.num_triggers < triggers) if (!G_AllocJassTrigger()) return false;
     while (ActiveEventCount() < events) if (!G_MakeEvent(0)) return false;
@@ -661,7 +663,7 @@ BOOL G_SaveJassHandle(LPCSTR type, HANDLE value, DWORD *id) {
     }
     if (domain == JASS_HANDLE_GROUP) {
         if (!G_JassGroupValid(value)) return false;
-        *id = (DWORD)((ggroup_t *)value - level.groups); return true;
+        return G_JassGroupIndex(value, id);
     }
     if (domain == JASS_HANDLE_TIMER) {
         return TimerIndex(value, id);
@@ -695,7 +697,10 @@ HANDLE G_LoadJassHandle(LPCSTR type, DWORD id) {
     if (!JassHandleDomain(type, &domain)) return NULL;
     if (domain == JASS_HANDLE_ENTITY) return id < globals.num_edicts && g_edicts[id].inuse ? g_edicts + id : NULL;
     if (domain == JASS_HANDLE_PLAYER) return id < (DWORD)game.max_clients ? &game.clients[id].ps : NULL;
-    if (domain == JASS_HANDLE_GROUP) return id < level.num_groups && level.groups[id].inuse ? &level.groups[id] : NULL;
+    if (domain == JASS_HANDLE_GROUP) {
+        ggroup_t *group = G_JassGroupByIndex(id);
+        return group && group->inuse ? group : NULL;
+    }
     if (domain == JASS_HANDLE_TIMER) return id < level.num_timers ? &level.timers[id] : NULL;
     return JassListHandle(domain, id);
 }
@@ -1001,6 +1006,35 @@ static BOOL ReadMappedFields(FILE *f, field_t const *fields, BYTE *base) {
     return true;
 }
 
+static BOOL WriteGroups(FILE *f) {
+    FOR_LOOP(i, level.num_groups) {
+        ggroup_t *group = G_JassGroupByIndex(i);
+        if (!group || !WriteMappedFields(f, group_fields, (BYTE *)group)) {
+            fprintf(stderr, "WC3 SaveGame: failed at group %u\n", (unsigned)i);
+            return false;
+        }
+    }
+    return true;
+}
+
+static BOOL ReadGroups(FILE *f, DWORD count) {
+    if (!G_EnsureJassGroupSlots(count)) return false;
+    level.first_free_group = count;
+    FOR_LOOP(i, count) {
+        ggroup_t *group = G_JassGroupByIndex(i);
+        if (!group || !ReadMappedFields(f, group_fields, (BYTE *)group)) {
+            fprintf(stderr, "WC3 LoadGame: failed at group %u\n", (unsigned)i);
+            return false;
+        }
+        group->handle_id = i;
+        if (!group->inuse) {
+            group->num_units = 0;
+            if (i < level.first_free_group) level.first_free_group = i;
+        }
+    }
+    return true;
+}
+
 static BOOL WriteEdict(FILE *f, LPCEDICT ent) {
     edict_t temp = *ent;
     field_t const *field;
@@ -1062,12 +1096,18 @@ BOOL WriteGame(LPCSTR filename) {
     };
     strlcpy(header.map_path, level.map_path, sizeof(header.map_path));
 
+    if (level.num_groups > MAX_SAVE_GROUP_HANDLES) {
+        fprintf(stderr, "WC3 SaveGame: group handle count %u exceeds save safety bound %u\n",
+                (unsigned)level.num_groups, (unsigned)MAX_SAVE_GROUP_HANDLES);
+        return false;
+    }
     BOOL ok = false;
     if (!f) { fprintf(stderr, "WC3 SaveGame: cannot open %s\n", filename); return false; }
     if (!SaveBytes(f, &header, sizeof(header))) { fprintf(stderr, "WC3 SaveGame: failed at header\n"); goto done; }
     if (!WriteMappedFields(f, level_fields, (BYTE *)&level)) {
         fprintf(stderr, "WC3 SaveGame: failed at level fields\n"); goto done;
     }
+    if (!WriteGroups(f)) goto done;
     FOR_LOOP(i, game.max_clients) {
         if (!WriteClient(f, game.clients + i)) { fprintf(stderr, "WC3 SaveGame: failed at client %d\n", i); goto done; }
     }
@@ -1136,6 +1176,8 @@ BOOL ReadGame(LPCSTR filename) {
         (!level.waypoints.count && (level.waypoints.base || level.waypoints.cursor))) {
         fprintf(stderr, "WC3 LoadGame: failed at level state\n"); fclose(f); return false;
     }
+    G_ResetJassGroupDebug();
+    if (!ReadGroups(f, header.groups)) { fclose(f); return false; }
     /* Restore the Q2-style server tick before the next frame; all persisted deadlines use it. */
     gi.SetGameTime(level.time);
     FOR_LOOP(i, game.max_clients) if (!ReadClient(f, game.clients + i, targets + i)) {

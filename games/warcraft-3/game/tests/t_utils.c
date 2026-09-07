@@ -129,6 +129,7 @@ static void reset_test_state(void) {
         game.clients[i].ps.stats[PLAYERSTATE_LUMBER_UPKEEP_RATE] = 100;
         g_edicts[i].client = &game.clients[i];
     }
+    G_ClearJassGroupRegistry();
     memset(&level, 0, sizeof(level));
     strlcpy(level.map_path, "Maps\\Campaign\\SaveTest.w3m", sizeof(level.map_path));
     memset(&test_mapinfo, 0, sizeof(test_mapinfo));

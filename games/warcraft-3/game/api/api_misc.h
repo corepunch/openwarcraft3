@@ -1,5 +1,17 @@
 extern LPPLAYER currentplayer;
 
+static BOOL TutorialTextDebugEnabledMisc(void) {
+    return WC3_TUTORIAL_DEBUG_ENABLED();
+}
+
+static void TutorialTextDebugContextMisc(LPJASS j, LONG *trigger_ordinal, LPCSTR *caller) {
+    LPCJASSCONTEXT context = jass_getcontext(j);
+    if (trigger_ordinal)
+        *trigger_ordinal = context && context->trigger ? (LONG)(context->trigger - level.triggers) : -1L;
+    if (caller)
+        *caller = context && context->func ? jass_functionname(context->func) : NULL;
+}
+
 DWORD class_id(LPCSTR str) { return *(DWORD *)str; }
 
 /* Converted enums are owned JASS handles; enum equality compares their DWORD payload. */
@@ -597,13 +609,17 @@ DWORD GetResearchingUnit(LPJASS j) {
     return jass_pushlighthandle(j, jass_getcontext(j)->unit, "unit");
 }
 DWORD GetResearched(LPJASS j) {
-    return jass_pushinteger(j, 0);
+    return jass_pushinteger(j, jass_getcontext(j)->eventValue);
 }
 DWORD GetTrainedUnitType(LPJASS j) {
-    return jass_pushinteger(j, 0);
+    LPCJASSCONTEXT context = jass_getcontext(j);
+    LPEDICT trained = context->source ? context->source : context->unit;
+    return jass_pushinteger(j, trained ? (LONG)trained->class_id : 0);
 }
 DWORD GetTrainedUnit(LPJASS j) {
-    return jass_pushlighthandle(j, jass_getcontext(j)->unit, "unit");
+    LPCJASSCONTEXT context = jass_getcontext(j);
+    LPEDICT trained = context->source ? context->source : context->unit;
+    return jass_pushlighthandle(j, trained, "unit");
 }
 DWORD GetDetectedUnit(LPJASS j) {
     return jass_pushlighthandle(j, jass_getcontext(j)->unit, "unit");
@@ -627,25 +643,37 @@ DWORD GetOrderedUnit(LPJASS j) {
     return jass_pushlighthandle(j, jass_getcontext(j)->unit, "unit");
 }
 DWORD GetIssuedOrderId(LPJASS j) {
-    return jass_pushinteger(j, 0);
+    return jass_pushinteger(j, G_GetIssuedOrderId(jass_getcontext(j)->unit));
 }
 DWORD GetOrderPointX(LPJASS j) {
-    return jass_pushnumber(j, 0);
+    VECTOR2 point = { 0.0f, 0.0f };
+    G_GetIssuedOrderPoint(jass_getcontext(j)->unit, &point);
+    return jass_pushnumber(j, point.x);
 }
 DWORD GetOrderPointY(LPJASS j) {
-    return jass_pushnumber(j, 0);
+    VECTOR2 point = { 0.0f, 0.0f };
+    G_GetIssuedOrderPoint(jass_getcontext(j)->unit, &point);
+    return jass_pushnumber(j, point.y);
 }
 DWORD GetOrderPointLoc(LPJASS j) {
-    return jass_pushnullhandle(j, "location");
+    VECTOR2 point = { 0.0f, 0.0f };
+    API_ALLOC(VECTOR2, location);
+    G_GetIssuedOrderPoint(jass_getcontext(j)->unit, &point);
+    *location = point;
+    return 1;
 }
 DWORD GetOrderTarget(LPJASS j) {
-    return jass_pushnullhandle(j, "widget");
+    return jass_pushlighthandle(j, jass_getcontext(j)->source, "widget");
 }
 DWORD GetOrderTargetDestructable(LPJASS j) {
-    return jass_pushnullhandle(j, "destructable");
+    LPEDICT target = jass_getcontext(j)->source;
+    return target && G_IsDestructable(target) ?
+        jass_pushlighthandle(j, target, "destructable") : jass_pushnullhandle(j, "destructable");
 }
 DWORD GetOrderTargetUnit(LPJASS j) {
-    return jass_pushlighthandle(j, jass_getcontext(j)->unit, "unit");
+    LPEDICT target = jass_getcontext(j)->source;
+    return target && (target->svflags & SVF_MONSTER) ?
+        jass_pushlighthandle(j, target, "unit") : jass_pushnullhandle(j, "unit");
 }
 DWORD GetEventPlayerState(LPJASS j) {
     return jass_pushnullhandle(j, "playerstate");
@@ -1397,6 +1425,20 @@ DWORD SetCinematicScene(LPJASS j) {
     LPCSTR text = jass_checkstring(j, 4);
     FLOAT sceneDuration = jass_checknumber(j, 5);
     FLOAT voiceoverDuration = jass_checknumber(j, 6);
+    if (TutorialTextDebugEnabledMisc()) {
+        LONG trigger_ordinal;
+        LPCSTR caller;
+        LPCSTR resolved_speaker = G_LevelString(speakerTitle);
+        LPCSTR resolved_text = G_LevelString(text);
+        TutorialTextDebugContextMisc(j, &trigger_ordinal, &caller);
+        fprintf(stderr,
+                "WC3_TUTORIAL_TEXT native=SetCinematicScene trigger=%ld caller=\"%s\" player=%d portrait=%.4s scene=%.3f voice=%.3f speaker_raw=\"%s\" speaker=\"%s\" text_raw=\"%s\" text=\"%s\"\n",
+                (long)trigger_ordinal, caller ? caller : "(native/root)",
+                currentplayer ? (int)PLAYER_NUM(currentplayer) : -1,
+                portraitUnitId ? (LPCSTR)&portraitUnitId : "----", sceneDuration, voiceoverDuration,
+                speakerTitle ? speakerTitle : "", resolved_speaker ? resolved_speaker : "",
+                text ? text : "", resolved_text ? resolved_text : "");
+    }
     if (G_SkipCutscene()) return 0;
     if (currentplayer) {
         LPGAMECLIENT gc = PLAYER_CLIENT(currentplayer);
@@ -1426,6 +1468,15 @@ DWORD SetCinematicScene(LPJASS j) {
     return 0;
 }
 DWORD EndCinematicScene(LPJASS j) {
+    if (TutorialTextDebugEnabledMisc()) {
+        LONG trigger_ordinal;
+        LPCSTR caller;
+        TutorialTextDebugContextMisc(j, &trigger_ordinal, &caller);
+        fprintf(stderr,
+                "WC3_TUTORIAL_TEXT native=EndCinematicScene trigger=%ld caller=\"%s\" player=%d\n",
+                (long)trigger_ordinal, caller ? caller : "(native/root)",
+                currentplayer ? (int)PLAYER_NUM(currentplayer) : -1);
+    }
     if (currentplayer) {
         LPGAMECLIENT gc = PLAYER_CLIENT(currentplayer);
         G_SetPlayerText(gc, PLAYERTEXT_SPEAKER, "");

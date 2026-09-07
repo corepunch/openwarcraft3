@@ -2612,13 +2612,15 @@ TEST(wc3_save, round_trip_unread_event_queue) {
     LPEVENT saved_handler = &level.events.handlers[0];
     subject = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f);
     source = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), 64.0f, 0.0f);
-    G_PublishEventWithSource(subject, EVENT_UNIT_IN_RANGE, source)->responseTo = saved_handler;
+    GAMEEVENT *queued = G_PublishEventWithValue(subject, EVENT_UNIT_IN_RANGE, source, (LONG)MAKEFOURCC('R','h','m','e'));
+    queued->responseTo = saved_handler;
     T_ASSERT(WriteGame(filename));
     level.events.read = level.events.write; memset(level.events.queue, 0, sizeof(level.events.queue));
     T_ASSERT(ReadGame(filename));
     T_EQ(level.events.read, 0); T_EQ(level.events.write, 1);
     T_EQ(level.events.queue[0].type, EVENT_UNIT_IN_RANGE);
     T_ASSERT(level.events.queue[0].edict == subject && level.events.queue[0].source == source);
+    T_EQ((DWORD)level.events.queue[0].value, MAKEFOURCC('R','h','m','e'));
     T_ASSERT(level.events.queue[0].responseTo == saved_handler);
     level.events = old_events; remove(filename);
 }
@@ -2970,6 +2972,33 @@ TEST(wc3_save, restores_triggers_and_events_created_after_main) {
     remove(filename);
 }
 
+TEST(wc3_jass, nested_script_sleep_resumes_child_before_parent) {
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  integer nestedSleepStage = 0\n"
+        "endglobals\n"
+        "function NestedSleepChild takes nothing returns nothing\n"
+        "  call TriggerSleepAction(0.0)\n"
+        "  set nestedSleepStage = 2\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  set nestedSleepStage = 1\n"
+        "  call NestedSleepChild()\n"
+        "  set nestedSleepStage = 3\n"
+        "endfunction\n"
+        "function verifyYielded takes nothing returns nothing\n"
+        "  call BJassAssert(nestedSleepStage == 1, \"nested child did not yield caller\")\n"
+        "endfunction\n"
+        "function verifyResumed takes nothing returns nothing\n"
+        "  call BJassAssert(nestedSleepStage == 3, \"nested child did not resume before caller\")\n"
+        "endfunction\n"));
+    jass_callbyname(level.vm, "verifyYielded", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    jass_runevents(level.vm);
+    jass_callbyname(level.vm, "verifyResumed", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+}
+
 TEST(wc3_save, resumes_sleeping_jass_coroutine) {
     LPCSTR filename = "/tmp/openwarcraft3-wc3-jass-coroutine-save-test.bin";
     T_ASSERT(run_test_jass(
@@ -2992,6 +3021,45 @@ TEST(wc3_save, resumes_sleeping_jass_coroutine) {
     T_ASSERT(ReadGame(filename));
     jass_runevents(level.vm);
     jass_callbyname(level.vm, "verify", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    remove(filename);
+}
+
+TEST(wc3_save, preserves_research_event_context_across_sleeping_coroutine) {
+    LPCSTR filename = "/tmp/openwarcraft3-wc3-research-context-save-test.bin";
+    LPEDICT producer;
+    DWORD const upgrade = MAKEFOURCC('R','h','m','e');
+
+    setup_test_world();
+    producer = alloc_test_unit(MAKEFOURCC('h','b','l','a'), 0.0f, 0.0f);
+    producer->s.player = game.clients[0].ps.number;
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  integer researchBeforeSleep = 0\n"
+        "  integer researchAfterSleep = 0\n"
+        "endglobals\n"
+        "function OnResearch takes nothing returns nothing\n"
+        "  set researchBeforeSleep = GetResearched()\n"
+        "  call TriggerSleepAction(0.0)\n"
+        "  set researchAfterSleep = GetResearched()\n"
+        "endfunction\n"
+        "function VerifyResearchContext takes nothing returns nothing\n"
+        "  call BJassAssert(researchBeforeSleep == 'Rhme', \"research rawcode missing before save\")\n"
+        "  call BJassAssert(researchAfterSleep == 'Rhme', \"research rawcode missing after load/resume\")\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger t = CreateTrigger()\n"
+        "  call TriggerRegisterPlayerUnitEvent(t, Player(0), EVENT_PLAYER_UNIT_RESEARCH_START, null)\n"
+        "  call TriggerAddAction(t, function OnResearch)\n"
+        "endfunction\n"));
+
+    G_PublishEventWithValue(producer, EVENT_PLAYER_UNIT_RESEARCH_START, NULL, (LONG)upgrade);
+    G_RunEvents();
+    jass_runevents(level.vm); /* action reaches TriggerSleepAction and yields */
+    T_ASSERT(WriteGame(filename));
+    T_ASSERT(ReadGame(filename));
+    jass_runevents(level.vm);
+    jass_callbyname(level.vm, "VerifyResearchContext", false);
     T_ASSERT(!jass_rterror_pending(level.vm));
     remove(filename);
 }
