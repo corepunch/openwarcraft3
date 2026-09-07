@@ -7,6 +7,10 @@
 #include "common/ui_constants.h"
 #include "common/stb_dbc.h"
 
+void UI_WriteLoadingLayout(LPEDICT ent);
+extern char wow_loading_texture[MAX_PATHLEN];
+extern char wow_loading_title[128];
+
 typedef struct WOWWEAPON {
     DWORD entry;
     LPCSTR name;

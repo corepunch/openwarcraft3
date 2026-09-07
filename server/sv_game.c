@@ -148,14 +148,12 @@ void PF_Unicast(edict_t *ent) {
     }
     DWORD p = NUM_FOR_EDICT(ent);
     LPCLIENT client = NULL;
-    if (p >= 1 && p <= ge->max_clients && p <= svs.num_clients) {
+    FOR_LOOP(i, svs.num_clients)
+        if (svs.clients[i].edict == ent) { client = &svs.clients[i]; break; }
+    if (!client && p >= 1 && p <= ge->max_clients && p <= svs.num_clients)
         client = svs.clients + (p - 1);
-    } else if (svs.num_clients == 1) {
-        client = svs.clients;
-    } else {
-        SZ_Clear(&sv.multicast);
-        return;
-    }
+    if (!client && svs.num_clients == 1) client = svs.clients;
+    if (!client) { SZ_Clear(&sv.multicast); return; }
     SZ_Write(&client->netchan.message, sv.multicast.data, sv.multicast.cursize);
     SZ_Clear(&sv.multicast);
     Netchan_Transmit(NS_SERVER, &client->netchan);

@@ -674,6 +674,7 @@ BOOL UI_BuildFrameForWrite(LPCFRAMEDEF frame,
         case FT_MODEL:
         case FT_SPRITE:
         case FT_PORTRAIT:
+        case FT_LOADING_BAR:
             out->tex.index = frame->Portrait.model;
             break;
         default:
