@@ -839,7 +839,9 @@ void UI_WriteSingleInfo(LPEDICT ent, LPGAMECLIENT viewer) {
                         fprintf(stderr, "UI_WC3: missing cargo art for unit %s\n", GetClassName(occupant->class_id));
                         continue;
                     }
-                    art = Theme_String(art, NULL);
+                    /* A direct path is already authoritative; Theme_String returns it unchanged when no skin key
+                     * applies. */
+                    art = Theme_String(art, art);
                     if (!art || !*art) {
                         fprintf(stderr, "UI_WC3: unresolved cargo art key for unit %s\n",
                                 GetClassName(occupant->class_id));
