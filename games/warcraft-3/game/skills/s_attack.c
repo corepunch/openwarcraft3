@@ -187,6 +187,8 @@ void T_Damage(LPEDICT target, LPEDICT attacker, int damage) {
     if (!target || target->invulnerable) {
         return;
     }
+    damage = S_ManaShieldDamage(target, damage);
+    if (damage <= 0) return;
     if (G_IsDestructable(target)) {
         if (G_DestructableApplyDamage(target, attacker, (FLOAT)damage)) {
             attack_finish_after_combat(attacker);
@@ -221,7 +223,8 @@ void T_Damage(LPEDICT target, LPEDICT attacker, int damage) {
 void S_ResolveAttackHit(LPEDICT attacker, LPEDICT target, int damage) {
     DWORD bash_level;
     if (S_EvasionRoll(target)) return;
-    damage = S_BlackArrowDamage(attacker, S_CriticalStrikeDamage(attacker, damage));
+    damage = S_SearingArrowDamage(attacker, S_BlackArrowDamage(attacker, S_CriticalStrikeDamage(attacker, damage)));
+    damage = (int)((FLOAT)damage * (1.0f + S_TrueshotAttackBonus(attacker)));
     bash_level = G_UnitAbilityLevel(attacker, MAKEFOURCC('A', 'H', 'b', 'h'));
     if (bash_level && (FLOAT)(rand() % 100) < S_SpellData(MAKEFOURCC('A', 'H', 'b', 'h'), bash_level, 1)) {
         damage += (int)S_SpellData(MAKEFOURCC('A', 'H', 'b', 'h'), bash_level, 3);
@@ -235,6 +238,15 @@ void S_ResolveAttackHit(LPEDICT attacker, LPEDICT target, int damage) {
             if (attacker->abilstatus[i].code == MAKEFOURCC('B', 'O', 'w', 'k')) memset(attacker->abilstatus + i, 0, sizeof(attacker->abilstatus[i]));
     }
     T_Damage(target, attacker, damage);
+    DWORD cleave_level = G_UnitAbilityLevel(attacker, MAKEFOURCC('A','N','c','a'));
+    if (cleave_level) {
+        FLOAT radius = S_SpellNumber(MAKEFOURCC('A','N','c','a'), ABILITY_NUMBER_AREA, cleave_level);
+        FLOAT fraction = S_SpellData(MAKEFOURCC('A','N','c','a'), cleave_level, 1);
+        FILTER_EDICTS(other, other != target && S_SpellIsAliveTarget(other) &&
+                      S_SpellIsEnemy(attacker, other) &&
+                      Vector2_distance(&other->s.origin2, &target->s.origin2) <= radius)
+            T_Damage(other, attacker, (int)MAX(1.0f, damage * fraction));
+    }
     S_BlackArrowDeath(attacker, target);
     attacker->health.value = MIN(attacker->health.max_value, attacker->health.value + damage * S_VampiricLifeSteal(attacker));
     if (target->inuse) {

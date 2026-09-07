@@ -168,26 +168,26 @@ static abilityitem_t abilitylist[] = {
     // TODO: { "AHav", &a_attribute_mod },  // Avatar — CAbilityAttributeMod [HERO] human
     { "AHtc", &a_thunder_clap },  // Thunder Clap — CAbilityThunderClap [HERO] human
     { "AHds", &a_divine_shield },  // Divine Shield — CAbilityInvulnerable [HERO] human
-    // TODO: { "ANto", &a_whirlwind },  // Tornado — CAbilityWhirlwind [HERO] creeps
-    // TODO: { "ANms", &a_aura },  // Mana Shield — CAbilityAura [HERO] creeps
-    // TODO: { "AHre", &a_revive },  // Resurrection — CAbilityRevive [HERO] human
-    // TODO: { "ANbf", &a_immolation },  // Breath of Fire — CAbilityImmolation [HERO] creeps
-    // TODO: { "ANdb", &a_revenge },  // Drunken Brawler — CAbilityRevenge [HERO] creeps
-    // TODO: { "ANdh", &a_spell },  // Drunken Haze — CAbilitySpell [HERO] creeps
+    { "ANto", &a_tornado },  // Tornado — CAbilityWhirlwind [HERO] creeps
+    { "ANms", &a_mana_shield },  // Mana Shield — CAbilityAura [HERO] creeps
+    { "AHre", &a_revive },  // Resurrection — CAbilityRevive [HERO] human
+    { "ANbf", &a_breath_of_fire },  // Breath of Fire — CAbilityImmolation [HERO] creeps
+    { "ANdb", &a_drunken_brawler },  // Drunken Brawler — CAbilityRevenge [HERO] creeps
+    { "ANdh", &a_drunken_haze },  // Drunken Haze — CAbilitySpell [HERO] creeps
     // TODO: { "ANef", &a_button },  // "Storm, Earth, And Fire" — CAbilityButton [HERO] creeps
-    // TODO: { "ANdo", &a_spell },  // Doom — CAbilitySpell [HERO] creeps
-    // TODO: { "ANht", &a_healing_ward },  // Howl of Terror — CAbilityHealingWard [HERO] creeps
-    // TODO: { "ANca", &a_chain_lightning },  // Cleaving Attack — CAbilityChainLightning [HERO] creeps
-    // TODO: { "AHfa", &a_poison_attack },  // Searing Arrows — CAbilityPoisonAttack [HERO] nightelf
+    { "ANdo", &a_doom },  // Doom — CAbilitySpell [HERO] creeps
+    { "ANht", &a_howl_of_terror },  // Howl of Terror — CAbilityHealingWard [HERO] creeps
+    { "ANca", &a_cleaving_attack },  // Cleaving Attack — CAbilityChainLightning [HERO] creeps
+    { "AHfa", &a_searing_arrows },  // Searing Arrows — CAbilityPoisonAttack [HERO] nightelf
     // TODO: { "AEst", &a_button },  // Scout — CAbilityButton [HERO] nightelf
-    // TODO: { "AEar", &a_aura },  // Trueshot Aura — CAbilityAura [HERO] nightelf
-    // TODO: { "AOre", &a_reincarnation },  // Reincarnation — CAbilityReincarnation [HERO] orc
-    // TODO: { "AOhw", &a_spell },  // Healing Wave — CAbilitySpell [HERO] orc
-    // TODO: { "AOhx", &a_spell },  // Hex — CAbilitySpell [HERO] orc
+    { "AEar", &a_trueshot_aura },  // Trueshot Aura — CAbilityAura [HERO] nightelf
+    { "AOre", &a_reincarnation },  // Reincarnation — CAbilityReincarnation [HERO] orc
+    { "AOhw", &a_healing_wave },  // Healing Wave — CAbilitySpell [HERO] orc
+    { "AOhx", &a_hex },  // Hex — CAbilitySpell [HERO] orc
     // TODO: { "AOwd", &a_unknown },  // Shadow Hunter - Serpent Ward — CAbility [HERO] orc
-    // TODO: { "AOvd", &a_spell },  // Big Bad Voodoo — CAbilitySpell [HERO] orc
-    // TODO: { "AEsv", &a_morph },  // Vengeance — CAbilityMorph [HERO] nightelf
-    // TODO: { "ANab", &a_button },  // Acid Bomb — CAbilityButton [HERO] creeps
+    { "AOvd", &a_big_bad_voodoo },  // Big Bad Voodoo — CAbilitySpell [HERO] orc
+    { "AEsv", &a_vengeance },  // Vengeance — CAbilityMorph [HERO] nightelf
+    { "ANab", &a_acid_bomb },  // Acid Bomb — CAbilityButton [HERO] creeps
     // TODO: { "ANcr", &a_critical_strike },  // Chemical Rage — CAbilityCriticalStrike [HERO] creeps
     // TODO: { "ANhs", &a_heal },  // Healing Spray — CAbilityHeal [HERO] creeps
     // TODO: { "ANtm", &a_aura_regen_life },  // Transmute — CAbilityAuraRegenLife [HERO] creeps

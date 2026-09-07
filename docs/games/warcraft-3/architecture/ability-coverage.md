@@ -27,9 +27,10 @@ stored as `heroability_t` entries on the unit; `heroAbilList`, skill points,
 described in [Hero Ability Progression](../hero-abilities.md).
 
 Registry entries must not be counted as implemented until their gameplay
-consumer, authored data, and inverse behavior are covered. Use
-[Ability Reverse Engineering](../ability-reverse-engineering.md) to recover
-each retail class implementation before adding coverage.
+consumer, authored data, and inverse behavior are covered. Use the
+[Ability Implementation Plan](../ability-implementation-plan.md) to start from
+the archive data and observable behavior, then add focused evidence for any
+remaining uncertainty before adding coverage.
 
 The old `a_unimplemented` registry marker is not an implementation strategy for
 these entries. It may remain only as temporary audit scaffolding while a real
@@ -68,6 +69,29 @@ machines, existing edict fields, and data loaded from SLK/config tables.
 | `AIhe`, `AIma`, `AImi` | `s_item.c` | Synchronous item use for heal, mana restore, and permanent life gain; successful charged uses decrement charges and zero-charge perishables are removed. |
 | `AIda` | `s_item.c` | Scroll of Protection item-defense AOE: applies authored `Bdef` duration/area/armor bonus to allowed friendly targets and consumes the successful charged use. |
 | Heavy/system abilities | `s_ability_stubs.c` | Registered explicit stubs for passive autocast, cargo, mine, shop, harvest variants, item passives, and stat/XP item families. |
+
+## Evidence-backed additions
+
+`ANto` (Tornado) is registered as a `CAbilityWhirlwind` channel and reuses the
+existing whirlwind thinker. ROC and TFT `ability_audit` rows both author a
+40-second no-target ability with summon unit `ntor` and buff `BNto`; the local
+thinker therefore follows the caster like `AOww` while retaining the normal
+channel lifetime and periodic area-status path.
+
+The selected neutral-hero contracts now also cover `ANms` (Mana Shield) at the
+central damage boundary, `AHre` (Resurrection) through persistent dead-hero
+revival, `ANbf` (Breath of Fire) through point-area damage, `ANdb` (Drunken
+Brawler) through the existing critical/evasion hooks, `ANdh` (Drunken Haze) and
+`ANdo` (Doom) through timed target buffs, `ANht` (Howl of Terror) through its
+authored area buff, and `ANca` (Cleaving Attack) through the attack-hit hook.
+
+The current selected-block implementation also covers `AHfa` (Searing Arrows)
+through the missile attack hook, `AEar` (Trueshot Aura) through the ranged
+attack bonus hook, `AOre` (Reincarnation) through the unit death/revival
+lifecycle, `AOhw` (Healing Wave), `AOhx` (Hex), `AOvd` (Big Bad Voodoo), `AEsv`
+(Vengeance), and `ANab` (Acid Bomb). `AOwd` (Serpent Ward) remains unresolved:
+the ROC and TFT AbilityData archives contain no `AOwd` row, so no authoritative
+summoned unit or level data exists for a faithful registration.
 
 `a_train` exists in `s_train.c`, but training is currently handled by the
 generic `Button` command path rather than by a registered ability code.

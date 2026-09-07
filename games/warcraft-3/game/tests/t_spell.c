@@ -553,6 +553,83 @@ TEST(wc3_spell, first_new_ability_handlers_are_real_spells) {
 	T_EQ((int)thunder_clap->spell->code, (int)MAKEFOURCC('A', 'H', 't', 'c'));
 }
 
+TEST(wc3_spell, tornado_uses_whirlwind_channel_handler) {
+	ability_t const *tornado = FindAbilityByClassname("ANto");
+
+	T_NOT_NULL(tornado);
+	T_NOT_NULL(tornado->spell);
+	T_NOT_NULL(tornado->spell->execute);
+	T_EQ((int)tornado->spell->code, (int)MAKEFOURCC('A', 'N', 't', 'o'));
+	T_EQ((int)tornado->spell->target_type, (int)SPELL_TARGET_NONE);
+	T_ASSERT(tornado->spell->flags & SPELL_CHANNEL);
+}
+
+TEST(wc3_spell, requested_neutral_hero_abilities_have_contracts) {
+	ability_t const *mana_shield = FindAbilityByClassname("ANms");
+	ability_t const *revive = FindAbilityByClassname("AHre");
+	ability_t const *breath = FindAbilityByClassname("ANbf");
+	ability_t const *brawler = FindAbilityByClassname("ANdb");
+	ability_t const *haze = FindAbilityByClassname("ANdh");
+	ability_t const *doom = FindAbilityByClassname("ANdo");
+	ability_t const *howl = FindAbilityByClassname("ANht");
+	ability_t const *cleave = FindAbilityByClassname("ANca");
+
+	T_NOT_NULL(mana_shield);
+	T_NOT_NULL(revive);
+	T_NOT_NULL(breath);
+	T_NOT_NULL(brawler);
+	T_NOT_NULL(haze);
+	T_NOT_NULL(doom);
+	T_NOT_NULL(howl);
+	T_NOT_NULL(cleave);
+	T_ASSERT(mana_shield->flags & ABILITY_PASSIVE);
+	T_ASSERT(brawler->flags & ABILITY_PASSIVE);
+	T_ASSERT(cleave->flags & ABILITY_PASSIVE);
+	T_EQ((int)revive->spell->target_type, (int)SPELL_TARGET_POINT);
+	T_EQ((int)breath->spell->target_type, (int)SPELL_TARGET_POINT);
+	T_EQ((int)haze->spell->target_type, (int)SPELL_TARGET_UNIT);
+	T_EQ((int)doom->spell->target_type, (int)SPELL_TARGET_UNIT);
+	T_EQ((int)howl->spell->target_type, (int)SPELL_TARGET_NONE);
+}
+
+TEST(wc3_spell, selected_hero_ability_contracts_are_registered) {
+	ability_t const *searing = FindAbilityByClassname("AHfa");
+	ability_t const *trueshot = FindAbilityByClassname("AEar");
+	ability_t const *reincarnation = FindAbilityByClassname("AOre");
+	ability_t const *wave = FindAbilityByClassname("AOhw");
+	ability_t const *hex = FindAbilityByClassname("AOhx");
+	ability_t const *voodoo = FindAbilityByClassname("AOvd");
+	ability_t const *vengeance = FindAbilityByClassname("AEsv");
+	ability_t const *acid = FindAbilityByClassname("ANab");
+
+	T_NOT_NULL(searing); T_NOT_NULL(trueshot); T_NOT_NULL(reincarnation); T_NOT_NULL(wave);
+	T_NOT_NULL(hex); T_NOT_NULL(voodoo); T_NOT_NULL(vengeance); T_NOT_NULL(acid);
+	T_ASSERT(searing->spell->flags & SPELL_TOGGLE);
+	T_ASSERT(trueshot->flags & ABILITY_PASSIVE);
+	T_ASSERT(reincarnation->flags & ABILITY_PASSIVE);
+	T_EQ((int)wave->spell->target_type, (int)SPELL_TARGET_UNIT);
+	T_EQ((int)hex->spell->target_type, (int)SPELL_TARGET_UNIT);
+	T_EQ((int)voodoo->spell->target_type, (int)SPELL_TARGET_NONE);
+	T_EQ((int)vengeance->spell->target_type, (int)SPELL_TARGET_NONE);
+	T_EQ((int)acid->spell->target_type, (int)SPELL_TARGET_UNIT);
+}
+
+TEST(wc3_spell, mana_shield_consumes_authored_mana_before_life) {
+	const char slk[] =
+		"ID;PWXL;N;EBB;Y2;X4\n"
+		"C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"DataA1\"\nC;Y1;X4;K\"Area1\"\n"
+		"C;Y2;X1;K\"ANms\"\nC;Y2;X2;K\"ANms\"\nC;Y2;X3;K\"2\"\nC;Y2;X4;K\"128\"\nE\n";
+	slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+	LPEDICT caster = make_hero(MAKEFOURCC('h', 'p', 'e', 'a'), 100, 10, 0, 0);
+	caster->heroabilities[0] = MAKE(heroability_t, .code = MAKEFOURCC('A', 'N', 'm', 's'), .level = 1);
+	T_EQ(S_ManaShieldDamage(caster, 4), 0);
+	T_FEQ(caster->mana.value, 2.0f, 0.01f);
+	T_EQ(S_ManaShieldDamage(caster, 4), 3);
+	T_FEQ(caster->mana.value, 0.0f, 0.01f);
+	G_SetSLKRows("AbilityData", old);
+	free_slk_rows(rows);
+}
+
 TEST(wc3_spell, beastmaster_summons_use_force_of_nature_contract) {
 	ability_t const *bear = FindAbilityByClassname("ANsg");
 	ability_t const *quilbeast = FindAbilityByClassname("ANsq");

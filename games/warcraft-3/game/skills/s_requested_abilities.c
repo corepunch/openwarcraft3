@@ -125,7 +125,8 @@ static void whirlwind_think(LPEDICT ent) {
     DWORD data = ent->class_id == MAKEFOURCC('A','N','s','t') ? 2 : 1;
     if (G_Time() >= ent->spawn_time) { S_SpellCancelChannel(ent->owner); G_FreeEdict(ent); return; }
     if (ent->freetime && G_Time() < ent->freetime) return;
-    if (ent->class_id == MAKEFOURCC('A','O','w','w')) ent->s.origin2 = ent->owner->s.origin2;
+    if (ent->class_id == MAKEFOURCC('A','O','w','w') || ent->class_id == MAKEFOURCC('A','N','t','o'))
+        ent->s.origin2 = ent->owner->s.origin2;
     radial_damage_status(ent->owner, ent->s.origin2, S_SpellInfoForCode(ent->class_id), data);
     ent->freetime = G_Time() + 1000;
 }
@@ -257,6 +258,98 @@ static void far_sight_execute(LPEDICT caster, spellTarget_t st, spell_info_t con
                         S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level));
 }
 
+static void reincarnation_think(LPEDICT thinker) {
+    if (!thinker->owner || !thinker->owner->inuse) { G_FreeEdict(thinker); return; }
+    if (G_Time() < thinker->spawn_time) return;
+    if (M_IsDead(thinker->owner)) G_ReviveHero(thinker->owner, thinker->s.origin2.x, thinker->s.origin2.y);
+    G_FreeEdict(thinker);
+}
+
+void S_ReincarnationOnDeath(LPEDICT unit) {
+    DWORD code = MAKEFOURCC('A', 'O', 'r', 'e'), level = G_UnitAbilityLevel(unit, code);
+    LPEDICT thinker;
+    if (!level || !S_SpellCooldownReady(unit, code)) return;
+    thinker = G_Spawn(); thinker->owner = unit; thinker->s.origin2 = unit->s.origin2;
+    thinker->spawn_time = G_Time() + (DWORD)(S_SpellData(code, level, 1) * 1000.0f);
+    thinker->think = reincarnation_think; S_SpellStartCooldown(unit, code, level);
+}
+
+static void healing_wave_execute(LPEDICT caster, spellTarget_t st, spell_info_t const *spell) {
+    DWORD level = S_SpellLevel(caster, spell->code), count = (DWORD)S_SpellData(spell->code, level, 2);
+    FLOAT amount = S_SpellData(spell->code, level, 1), loss = S_SpellData(spell->code, level, 3);
+    LPEDICT current = st.entity, visited[32] = {0};
+    FOR_LOOP(i, MIN(count ? count : 1, 32)) {
+        if (!current || !S_SpellIsAliveTarget(current) || !S_SpellIsFriend(caster, current)) break;
+        S_SpellHeal(current, amount); visited[i] = current; amount *= 1.0f - loss;
+        current = NULL;
+        FILTER_EDICTS(target, S_SpellIsAliveTarget(target) && S_SpellIsFriend(caster, target) &&
+                      Vector2_distance(&target->s.origin2, &visited[i]->s.origin2) <= S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level)) {
+            BOOL seen = false; FOR_LOOP(j, i + 1) seen |= target == visited[j];
+            if (!seen) { current = target; break; }
+        }
+    }
+}
+
+static void big_bad_voodoo_execute(LPEDICT caster, spellTarget_t st, spell_info_t const *spell) {
+    DWORD level = S_SpellLevel(caster, spell->code);
+    LPCSTR buff = spell_buff(spell, level);
+    FLOAT area = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
+    if (!buff) return;
+    FILTER_EDICTS(target, S_SpellIsAliveTarget(target) && S_SpellIsFriend(caster, target) &&
+                  Vector2_distance(&target->s.origin2, &caster->s.origin2) <= area)
+        unit_addtimedstatus(target, buff, level, S_SpellDuration(spell->code, level, false));
+}
+
+static void acid_bomb_think(LPEDICT thinker) {
+    LPEDICT target = thinker->goalentity;
+    if (G_Time() >= thinker->spawn_time || !target || !target->inuse || M_IsDead(target)) { G_FreeEdict(thinker); return; }
+    if (!thinker->freetime || G_Time() >= thinker->freetime) {
+        T_Damage(target, thinker->owner, thinker->damage); thinker->freetime = G_Time() + 1000;
+    }
+}
+
+static void acid_bomb_execute(LPEDICT caster, spellTarget_t st, spell_info_t const *spell) {
+    DWORD level = S_SpellLevel(caster, spell->code);
+    LPCSTR buff = spell_buff(spell, level);
+    LPEDICT thinker;
+    if (!st.entity || !S_SpellIsAliveTarget(st.entity)) return;
+    if (buff) unit_addtimedstatus(st.entity, buff, level, S_SpellDuration(spell->code, level, false));
+    thinker = G_Spawn(); thinker->owner = caster; thinker->goalentity = st.entity; thinker->damage = (DWORD)MAX(1.0f, S_SpellData(spell->code, level, 3));
+    thinker->spawn_time = G_Time() + (DWORD)(S_SpellDuration(spell->code, level, false) * 1000.0f); thinker->think = acid_bomb_think;
+}
+
+static void revive_execute(LPEDICT caster, spellTarget_t st, spell_info_t const *spell) {
+    DWORD level = S_SpellLevel(caster, spell->code), count = 0;
+    DWORD limit = (DWORD)MAX(1.0f, S_SpellData(spell->code, level, 1));
+    FLOAT radius = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
+    FILTER_EDICTS(target, count < limit && target != caster && target->inuse && G_UnitIsHero(target) &&
+                  M_IsDead(target) && S_SpellIsFriend(caster, target) &&
+                  Vector2_distance(&target->s.origin2, &st.point) <= radius) {
+        G_ReviveHero(target, target->s.origin2.x, target->s.origin2.y);
+        count++;
+    }
+}
+
+static void breath_of_fire_execute(LPEDICT caster, spellTarget_t st, spell_info_t const *spell) {
+    DWORD level = S_SpellLevel(caster, spell->code);
+    FLOAT radius = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
+    DWORD damage = (DWORD)MAX(1.0f, S_SpellData(spell->code, level, 1));
+    FILTER_EDICTS(target, target != caster && S_SpellIsAliveTarget(target) && S_SpellIsEnemy(caster, target) &&
+                  Vector2_distance(&target->s.origin2, &st.point) <= radius)
+        T_Damage(target, caster, damage);
+}
+
+static void area_buff_execute(LPEDICT caster, spellTarget_t st, spell_info_t const *spell) {
+    DWORD level = S_SpellLevel(caster, spell->code);
+    AbilityData_t const *data = G_AbilityData(spell->code);
+    FLOAT radius = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
+    FLOAT duration = S_SpellDuration(spell->code, level, false);
+    LPCSTR buff = data->level[level - 1].buffID;
+    FILTER_EDICTS(target, target != caster && S_SpellIsAliveTarget(target) && S_SpellIsEnemy(caster, target) &&
+                  Vector2_distance(&target->s.origin2, &caster->s.origin2) <= radius)
+        if (buff && strlen(buff) >= 4) unit_addtimedstatus(target, buff, level, duration);
+}
+
 #define SPELL(NAME, CODE, TARGET, FLAGS, EXECUTE) \
     static spell_info_t spell_##NAME = { .code = MAKEFOURCC CODE, .name = #NAME, .target_type = TARGET, .flags = FLAGS, .execute = EXECUTE }; \
     ability_t a_##NAME = { .cmd = spell_cmd, .spell = &spell_##NAME }
@@ -264,6 +357,7 @@ static void far_sight_execute(LPEDICT caster, spellTarget_t st, spell_info_t con
 SPELL(mass_teleport, ('A','H','m','t'), SPELL_TARGET_UNIT, 0, mass_teleport_execute);
 SPELL(stomp, ('A','N','s','t'), SPELL_TARGET_POINT, SPELL_CHANNEL, stomp_execute);
 SPELL(whirlwind, ('A','O','w','w'), SPELL_TARGET_NONE, SPELL_CHANNEL, whirlwind_execute);
+SPELL(tornado, ('A','N','t','o'), SPELL_TARGET_NONE, SPELL_CHANNEL, whirlwind_execute);
 SPELL(banish, ('A','H','b','n'), SPELL_TARGET_UNIT, 0, target_status_execute);
 SPELL(phoenix, ('A','H','p','x'), SPELL_TARGET_NONE, 0, summon_execute_requested);
 SPELL(carrion_beetles, ('A','U','c','b'), SPELL_TARGET_NONE, SPELL_AUTOCAST, carrion_beetles_execute);
@@ -282,3 +376,26 @@ SPELL(chain_lightning, ('A','O','c','l'), SPELL_TARGET_UNIT, 0, chain_lightning_
 SPELL(forked_lightning, ('A','N','f','l'), SPELL_TARGET_UNIT, 0, forked_lightning_execute);
 SPELL(earthquake, ('A','O','e','q'), SPELL_TARGET_POINT, SPELL_CHANNEL, earthquake_execute);
 SPELL(far_sight, ('A','O','f','s'), SPELL_TARGET_POINT, 0, far_sight_execute);
+SPELL(revive, ('A','H','r','e'), SPELL_TARGET_POINT, 0, revive_execute);
+SPELL(breath_of_fire, ('A','N','b','f'), SPELL_TARGET_POINT, 0, breath_of_fire_execute);
+SPELL(howl_of_terror, ('A','N','h','t'), SPELL_TARGET_NONE, 0, area_buff_execute);
+SPELL(drunken_haze, ('A','N','d','h'), SPELL_TARGET_UNIT, 0, target_status_execute);
+SPELL(doom, ('A','N','d','o'), SPELL_TARGET_UNIT, 0, target_status_execute);
+SPELL(healing_wave, ('A','O','h','w'), SPELL_TARGET_UNIT, 0, healing_wave_execute);
+SPELL(hex, ('A','O','h','x'), SPELL_TARGET_UNIT, 0, target_status_execute);
+SPELL(vengeance, ('A','E','s','v'), SPELL_TARGET_NONE, 0, summon_execute_requested);
+SPELL(big_bad_voodoo, ('A','O','v','d'), SPELL_TARGET_NONE, 0, big_bad_voodoo_execute);
+SPELL(acid_bomb, ('A','N','a','b'), SPELL_TARGET_UNIT, 0, acid_bomb_execute);
+
+static void searing_arrows_execute(LPEDICT caster, spellTarget_t st, spell_info_t const *spell) {
+    toggle_status_execute(caster, st, spell);
+}
+
+static spell_info_t spell_searing_arrows = {
+    .code = MAKEFOURCC('A', 'H', 'f', 'a'), .name = "Searing Arrows", .target_type = SPELL_TARGET_NONE,
+    .flags = SPELL_TOGGLE | SPELL_AUTOCAST, .execute = searing_arrows_execute,
+};
+
+ability_t a_searing_arrows = { .cmd = spell_cmd, .spell = &spell_searing_arrows };
+ability_t a_trueshot_aura = { .flags = ABILITY_PASSIVE };
+ability_t a_reincarnation = { .flags = ABILITY_PASSIVE };
