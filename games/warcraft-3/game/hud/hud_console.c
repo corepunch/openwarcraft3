@@ -13,6 +13,14 @@
 
 #define RESOURCE_TOOLTIP_TIP_SIZE 256
 #define RESOURCE_TOOLTIP_UBERTIP_SIZE 2048
+#define TIME_OF_DAY_TOOLTIP_SIZE 512
+
+/* The four 0.085-wide upper buttons end at x=0.342.  The resource bar starts
+ * at x=0.46171875, leaving the retail clock/mouse-listener strip between them. */
+#define TIME_OF_DAY_HOVER_X 0.342f
+#define TIME_OF_DAY_HOVER_Y 0.0f
+#define TIME_OF_DAY_HOVER_W 0.11971875f
+#define TIME_OF_DAY_HOVER_H 0.060f
 
 typedef struct {
     char tip[RESOURCE_TOOLTIP_TIP_SIZE];
@@ -20,6 +28,7 @@ typedef struct {
 } resourceTooltipText_t;
 
 static resourceTooltipText_t resource_tooltips[4];
+static char time_of_day_tooltip[TIME_OF_DAY_TOOLTIP_SIZE];
 
 static LPCSTR UI_OptionalGlobalString(LPCSTR key) {
     LPCSTR value;
@@ -32,6 +41,27 @@ static LPCSTR UI_OptionalGlobalString(LPCSTR key) {
 static LPCSTR UI_GlobalStringOrFallback(LPCSTR key, LPCSTR fallback) {
     LPCSTR value = UI_OptionalGlobalString(key);
     return value ? value : fallback;
+}
+
+static void UI_FormatTimeOfDayTooltip(void) {
+    LPCSTR tip = UI_GlobalStringOrFallback(
+        "TIME_OF_DAY_TOOLTIP", "Time of Day ( |Cfffed312%s|R )");
+    LPCSTR ubertip = UI_GlobalStringOrFallback(
+        "TIME_OF_DAY_UBERTIP",
+        "This is the current time of day.|N |NThe time of day can affect visibility of units and the use of some abilities.");
+    LPCSTR value = strstr(tip, "%s");
+
+    /* Retail's GlobalStrings.fdf owns both the wording and the yellow time
+     * color. Keep that markup intact, but substitute a client-side token so a
+     * static svc_layout continues to show the live replicated clock value. */
+    if (value) {
+        size_t prefix = (size_t)(value - tip);
+        snprintf(time_of_day_tooltip, sizeof(time_of_day_tooltip),
+                 "%.*s{time}%s\n%s", (int)prefix, tip, value + 2, ubertip);
+    } else {
+        snprintf(time_of_day_tooltip, sizeof(time_of_day_tooltip),
+                 "%s\n%s", tip, ubertip);
+    }
 }
 
 static void UI_AppendTooltipText(LPSTR out, DWORD out_size, LPCSTR text) {
@@ -242,6 +272,7 @@ void UI_LoadHudConsole(void) {
 
 static void UI_WriteTimeOfDayIndicator(LPGAMECLIENT client) {
     uiFrame_t frame;
+    uiFrame_t listener;
     LPCSTR model;
     DWORD parent;
 
@@ -265,6 +296,24 @@ static void UI_WriteTimeOfDayIndicator(LPGAMECLIENT client) {
     UI_SetFramePoint(&frame.points.x[FPP_MIN], FPP_MIN, UI_PARENT, 0.0f, false);
     UI_SetFramePoint(&frame.points.y[FPP_MAX], FPP_MAX, UI_PARENT, 0.0f, true);
     UI_WriteProxyFrameToParent(&frame, NULL, 0, parent);
+
+    /* Retail exposes a distinct "Day Time Clock Mouse Listener" beneath the
+     * clock origin frame. Mirror that separation: the model remains a passive
+     * sprite while an invisible FRAME supplies the hover rect and tooltip. */
+    UI_FormatTimeOfDayTooltip();
+    memset(&listener, 0, sizeof(listener));
+    listener.flags.type = FT_FRAME;
+    listener.stat = UI_PLAYERSTAT_ENV_PHASE;
+    listener.value = game.constants.gameDayHours > 0.0f
+        ? game.constants.gameDayHours : 24.0f;
+    listener.tooltip = time_of_day_tooltip;
+    listener.size.width = TIME_OF_DAY_HOVER_W;
+    listener.size.height = TIME_OF_DAY_HOVER_H;
+    UI_SetFramePoint(&listener.points.x[FPP_MIN], FPP_MIN, UI_PARENT,
+                     TIME_OF_DAY_HOVER_X, false);
+    UI_SetFramePoint(&listener.points.y[FPP_MIN], FPP_MIN, UI_PARENT,
+                     TIME_OF_DAY_HOVER_Y, true);
+    UI_WriteProxyFrameToParent(&listener, NULL, 0, parent);
 }
 
 void UI_WriteMinimapFrame(void) {

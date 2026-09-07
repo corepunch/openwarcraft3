@@ -114,6 +114,24 @@ bars deterministic.
 This mirrors the important Warsmash ownership rule: the clock model does **not** advance itself. It is a presentation of the
 authoritative simulation time.
 
+### Clock tooltip
+
+Retail Warcraft III stores the clock tooltip in `UI\FrameDef\GlobalStrings.fdf` as:
+
+```text
+TIME_OF_DAY_TOOLTIP "Time of Day ( |Cfffed312%s|R )"
+TIME_OF_DAY_UBERTIP "This is the current time of day.|N |NThe time of day can affect visibility of units and the use of some abilities."
+```
+
+`|Cfffed312` / `|R` makes only the substituted `HH:MM` value yellow. OpenRealm resolves these global-string keys (with the retail
+English text as a fallback), replaces the authored `%s` with a client-side `{time}` token, and expands that token from
+`UI_PLAYERSTAT_ENV_PHASE` whenever the tooltip is evaluated. The passive listener also carries `DayHours` in `frame.value`, so the
+displayed time stays coherent with non-default gameplay constants while the HUD layout itself remains static.
+
+Retail exposes the clock input region separately from the model as a `Day Time Clock Mouse Listener`. OpenRealm mirrors that
+structure with an invisible `FT_FRAME` covering the strip between the upper-button bar and resource bar. The existing `FT_SPRITE`
+therefore remains render-only; generic passive-frame hover handling owns the standard tooltip.
+
 ## DNC Lighting
 
 Warsmash keeps two hidden Day/Night Cycle MDX instances: one for terrain and one for units. Generated Warcraft map scripts call
