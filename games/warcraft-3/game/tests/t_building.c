@@ -804,13 +804,15 @@ TEST(wc3_building, spawned_unit_exports_gameplay_collision_radius) {
     LPEDICT unit;
 
     setup_test_world();
-    unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0.0f, 0.0f);
+    unit = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 0.0f);
     /* alloc_test_unit() binds object data but deliberately does not run the
      * production spawn initializer.  Exercise SP_SpawnUnit() here because it
-     * is the code that resolves collisionSize and exports it to entityState_t. */
+     * is the code that resolves collisionSize and exports it to entityState_t.
+     * Use hpea because the generated ROC/TFT test data explicitly guarantees
+     * its gameplay collision radius (16); the hfoo fixture does not. */
     SP_SpawnUnit(unit);
-    T_ASSERT(unit->collision > 0.0f);
-    T_FEQ(unit->s.collision, unit->collision, 0.001f);
+    T_FEQ(unit->collision, 16.0f, 0.001f);
+    T_FEQ(unit->s.collision, 16.0f, 0.001f);
 }
 
 TEST(wc3_building, shared_build_order_uses_authoritative_validation) {

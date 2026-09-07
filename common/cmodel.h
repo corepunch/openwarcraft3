@@ -58,6 +58,8 @@ BOOL CM_ClosestPathablePointForRadius(LPCVECTOR2 location, FLOAT radius, LPVECTO
 BOOL CM_ClosestReachablePointForRadius(LPCVECTOR2 from, LPCVECTOR2 target, FLOAT radius, LPVECTOR2 out);
 BOOL CM_PointIsPathableForRadius(LPCVECTOR2 location, FLOAT radius);
 BOOL CM_LineIsWalkable(LPCVECTOR2 a, LPCVECTOR2 b);
+/* Optional byte-mask pathing sample used by generic local presentation.
+ * Backends without a compatible cell mask return false and clear flags. */
 BOOL CM_GetPathingFlagsAt(LPCVECTOR2 location, LPBYTE flags);
 BOOL CM_TerrainPointIsWalkable(LPCVECTOR2 location);
 BOOL CM_TerrainPointIsSwimmable(LPCVECTOR2 location);

@@ -15,6 +15,15 @@ BOOL CL_GameDefaultCamera(gameCamera_t *camera) {
 
 FLOAT CL_GameCameraHeightAtPoint(FLOAT x, FLOAT y) { return CM_GetHeightAtPoint(x, y); }
 FLOAT CL_GameLerpDegrees(FLOAT a, FLOAT b, FLOAT fraction) { return a + (b - a) * fraction; }
+
+/* WoW has no WC3-style byte pathing-cell mask for local build previews.
+ * Returning false tells generic client presentation that this map backend
+ * cannot classify those preview cells. */
+BOOL CM_GetPathingFlagsAt(LPCVECTOR2 location, LPBYTE flags) {
+    (void)location;
+    if (flags) *flags = 0;
+    return false;
+}
 FLOAT CM_GetCameraHeightOffset(void) { return 0; }
 
 #define CM_WOW_ADT_SIZE       533.333313f
