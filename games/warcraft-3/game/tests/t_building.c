@@ -805,6 +805,10 @@ TEST(wc3_building, spawned_unit_exports_gameplay_collision_radius) {
 
     setup_test_world();
     unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0.0f, 0.0f);
+    /* alloc_test_unit() binds object data but deliberately does not run the
+     * production spawn initializer.  Exercise SP_SpawnUnit() here because it
+     * is the code that resolves collisionSize and exports it to entityState_t. */
+    SP_SpawnUnit(unit);
     T_ASSERT(unit->collision > 0.0f);
     T_FEQ(unit->s.collision, unit->collision, 0.001f);
 }
