@@ -1,5 +1,5 @@
 static BOOL QuestPeonStageDebugEnabled(void) {
-    return gi.CvarString && atoi(gi.CvarString("wc3_quest_debug", "0")) != 0;
+    return WC3_TUTORIAL_DEBUG_ENABLED();
 }
 
 static LONG QuestPeonStageTriggerOrdinal(LPTRIGGER trigger) {
@@ -140,6 +140,7 @@ DWORD IsTriggerEnabled(LPJASS j) {
     return jass_pushboolean(j, enabled);
 }
 DWORD TriggerWaitOnSleeps(LPJASS j) {
+    /* TODO: Store the per-trigger wait-on-sleeps flag once coroutine suspension exposes that state. */
     LPTRIGGER whichTrigger = jass_checkhandle(j, 1, "trigger");
     BOOL flag = jass_checkboolean(j, 2);
     if (QuestPeonStageDebugEnabled() && TutorialFlowDebugTrigger(whichTrigger)) {
@@ -151,6 +152,7 @@ DWORD TriggerWaitOnSleeps(LPJASS j) {
     return 0;
 }
 DWORD IsTriggerWaitOnSleeps(LPJASS j) {
+    /* TODO: Return the stored per-trigger wait-on-sleeps flag once coroutine suspension exposes that state. */
     LPTRIGGER whichTrigger = jass_checkhandle(j, 1, "trigger");
     if (QuestPeonStageDebugEnabled() && TutorialFlowDebugTrigger(whichTrigger)) {
         fprintf(stderr,
@@ -299,7 +301,7 @@ DWORD TriggerRegisterPlayerUnitEvent(LPJASS j) {
     evt->subject = PLAYER_ENT(whichPlayer);
     evt->trigger = whichTrigger;
     QuestPeonStageLogRegistration(whichTrigger, *whichPlayerUnitEvent, evt->subject, "player-unit");
-    if (gi.CvarString && atoi(gi.CvarString("wc3_quest_debug", "0")) != 0 &&
+    if (WC3_TUTORIAL_DEBUG_ENABLED() &&
         (*whichPlayerUnitEvent == EVENT_PLAYER_UNIT_CONSTRUCT_START ||
          *whichPlayerUnitEvent == EVENT_PLAYER_UNIT_CONSTRUCT_FINISH)) {
         fprintf(stderr,
@@ -368,7 +370,7 @@ DWORD TriggerRegisterUnitEvent(LPJASS j) {
     evt->subject = whichUnit;
     evt->trigger = whichTrigger;
     QuestPeonStageLogRegistration(whichTrigger, *whichEvent, evt->subject, "unit");
-    if (gi.CvarString && atoi(gi.CvarString("wc3_quest_debug", "0")) != 0 &&
+    if (WC3_TUTORIAL_DEBUG_ENABLED() &&
         *whichEvent == EVENT_UNIT_CONSTRUCT_FINISH) {
         fprintf(stderr,
                 "WC3_QUEST_BUILD register via=unit event=%u trigger=%ld unit=%ld id=%.4s disabled=%d\n",
@@ -570,6 +572,7 @@ DWORD TriggerExecute(LPJASS j) {
     return 0;
 }
 DWORD TriggerExecuteWait(LPJASS j) {
+    /* TODO: Execute and yield until the trigger finishes once the coroutine scheduler supports waits. */
     LPTRIGGER whichTrigger = jass_checkhandle(j, 1, "trigger");
     if (QuestPeonStageDebugEnabled() && TutorialFlowDebugTrigger(whichTrigger)) {
         fprintf(stderr,

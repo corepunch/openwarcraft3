@@ -212,7 +212,7 @@ void build_build(LPEDICT ent) {
         building->health.value = 0;
     }
     building->build = building;
-    if (gi.CvarString && atoi(gi.CvarString("wc3_quest_debug", "0")) != 0) {
+    if (WC3_TUTORIAL_DEBUG_ENABLED()) {
         fprintf(stderr,
                 "WC3_QUEST_BUILD start worker=%ld worker_id=%.4s building=%ld id=%.4s player=%u build_time=%d health=%.1f/%.1f worker_build=%ld building_build=%ld\n",
                 (long)(ent - globals.edicts), (LPCSTR)&ent->class_id,

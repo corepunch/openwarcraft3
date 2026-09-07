@@ -268,7 +268,7 @@ void G_PublishIssuedPointOrder(LPEDICT self, DWORD order_id, LPCVECTOR2 point,
     issued_order_ids[self->s.number] = order_id;
     issued_order_points[self->s.number] = *point;
     issued_order_point_valid[self->s.number] = true;
-    if (gi.CvarString && atoi(gi.CvarString("wc3_quest_debug", "0"))) {
+    if (WC3_TUTORIAL_DEBUG_ENABLED()) {
         fprintf(stderr,
                 "WC3_QUEST_ORDER publish event=POINT player=%u unit=%u id=%.4s order=\"%s\" order_id=%u point=(%.1f,%.1f)\n",
                 (unsigned)issuer_player, (unsigned)self->s.number,
@@ -286,7 +286,7 @@ static void unit_publish_target_order(LPEDICT self, LPCSTR order,
     if (!self || self->s.number >= MAX_ENTITIES) return;
     issued_order_ids[self->s.number] = order_id;
     issued_order_point_valid[self->s.number] = false;
-    if (gi.CvarString && atoi(gi.CvarString("wc3_quest_debug", "0"))) {
+    if (WC3_TUTORIAL_DEBUG_ENABLED()) {
         fprintf(stderr,
                 "WC3_QUEST_ORDER publish event=TARGET player=%u unit=%u id=%.4s order=\"%s\" order_id=%u target=%u target_id=%.4s\n",
                 (unsigned)issuer_player, (unsigned)self->s.number,

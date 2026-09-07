@@ -1,7 +1,7 @@
 extern LPPLAYER currentplayer;
 
 static BOOL TutorialTextDebugEnabledMisc(void) {
-    return gi.CvarString && atoi(gi.CvarString("wc3_quest_debug", "0")) != 0;
+    return WC3_TUTORIAL_DEBUG_ENABLED();
 }
 
 static void TutorialTextDebugContextMisc(LPJASS j, LONG *trigger_ordinal, LPCSTR *caller) {

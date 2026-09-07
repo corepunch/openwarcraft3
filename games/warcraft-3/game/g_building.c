@@ -819,7 +819,7 @@ void G_CompleteConstruction(LPEDICT building) {
      * completion grants supply and publishes CONSTRUCT_FINISH exactly once. */
     legacy = building->build == building;
     if (!building->construction.active && !legacy) return;
-    if (gi.CvarString && atoi(gi.CvarString("wc3_quest_debug", "0")) != 0) {
+    if (WC3_TUTORIAL_DEBUG_ENABLED()) {
         fprintf(stderr,
                 "WC3_QUEST_BUILD complete-enter building=%ld id=%.4s player=%u legacy=%d active=%d primary_builder=%ld build_link=%ld health=%.1f/%.1f\n",
                 (long)(building - globals.edicts), (LPCSTR)&building->class_id,
@@ -851,7 +851,7 @@ void G_CompleteConstruction(LPEDICT building) {
     G_QueueOwnerUISound(building, "JobDoneSound");
     G_SendOwnerMinimapAlert(building);
     G_PublishEvent(building, EVENT_PLAYER_UNIT_CONSTRUCT_FINISH);
-    if (gi.CvarString && atoi(gi.CvarString("wc3_quest_debug", "0")) != 0) {
+    if (WC3_TUTORIAL_DEBUG_ENABLED()) {
         fprintf(stderr,
                 "WC3_QUEST_BUILD complete-publish building=%ld id=%.4s player=%u event=%u build_link=%ld food_made=%d\n",
                 (long)(building - globals.edicts), (LPCSTR)&building->class_id,

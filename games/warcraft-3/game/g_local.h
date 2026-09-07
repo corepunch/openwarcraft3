@@ -678,6 +678,13 @@ typedef struct {
 #define MAX_QUESTS 256 // quests; fixed quest slots preserve stable pointers across removal
 #define MAX_QUESTITEMS 16 // items per quest; matches the practical quest objective display capacity
 #define MAX_WAYPOINTS 256 // entities; fixed g_edicts ring used by point-target movement
+
+#ifdef WC3_DEBUG_TUTORIAL_FLOW
+#define WC3_TUTORIAL_DEBUG_ENABLED() (gi.CvarString && atoi(gi.CvarString("wc3_quest_debug", "0")) != 0)
+#else
+#define WC3_TUTORIAL_DEBUG_ENABLED() false
+#endif
+
 typedef struct {
     DWORD handle_id; // runtime ordinal in level.groups; rebuilt from slot position on load
     BOOL inuse;

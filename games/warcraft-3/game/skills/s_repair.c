@@ -425,7 +425,7 @@ static void ai_repair_legacy(LPEDICT ent) {
     }
     if (hp->value >= hp->max_value) {
         hp->value = hp->max_value;
-        if (gi.CvarString && atoi(gi.CvarString("wc3_quest_debug", "0")) != 0) {
+        if (WC3_TUTORIAL_DEBUG_ENABLED()) {
             fprintf(stderr,
                     "WC3_QUEST_BUILD legacy-complete worker=%ld id=%.4s building=%ld id=%.4s health=%.1f/%.1f worker_build=%ld building_build=%ld\n",
                     (long)(ent - globals.edicts), (LPCSTR)&ent->class_id,
@@ -440,7 +440,7 @@ static void ai_repair_legacy(LPEDICT ent) {
          * triggers (for example Prologue02's Orc Burrow objective) fire. */
         G_CompleteConstruction(building);
         ent->stand(ent);
-        if (gi.CvarString && atoi(gi.CvarString("wc3_quest_debug", "0")) != 0) {
+        if (WC3_TUTORIAL_DEBUG_ENABLED()) {
             fprintf(stderr,
                     "WC3_QUEST_BUILD legacy-release worker=%ld id=%.4s building=%ld id=%.4s worker_build=%ld goal=%ld building_build=%ld\n",
                     (long)(ent - globals.edicts), (LPCSTR)&ent->class_id,
@@ -466,7 +466,7 @@ static BOOL repair_begin(LPEDICT ent, LPEDICT building, DWORD code, BOOL primary
     S_CancelRepair(ent);
     ent->build = building;
     ent->goalentity = building;
-    if (gi.CvarString && atoi(gi.CvarString("wc3_quest_debug", "0")) != 0) {
+    if (WC3_TUTORIAL_DEBUG_ENABLED()) {
         fprintf(stderr,
                 "WC3_QUEST_BUILD legacy-link worker=%ld id=%.4s building=%ld id=%.4s health=%.1f/%.1f\n",
                 (long)(ent - globals.edicts), (LPCSTR)&ent->class_id,

@@ -135,7 +135,7 @@ static BOOL G_SelectionListContains(LPEDICT const *selection, DWORD count, LPCED
 static void G_PublishSelectionDelta(LPGAMECLIENT client,
                                     LPEDICT const *old_selection,
                                     DWORD old_count) {
-    BOOL const debug = atoi(gi.CvarString("wc3_quest_debug", "0")) != 0;
+    BOOL const debug = WC3_TUTORIAL_DEBUG_ENABLED();
 
     if (!client) return;
 

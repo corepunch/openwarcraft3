@@ -6,7 +6,7 @@
 extern JASSMODULE jass_funcs[];
 
 static BOOL G_TutorialFlowDebugEnabledForMapSource(void) {
-    return gi.CvarString && atoi(gi.CvarString("wc3_quest_debug", "0")) != 0;
+    return WC3_TUTORIAL_DEBUG_ENABLED();
 }
 
 static void G_JassCoroutineTrace(HANDLE trigger_handle, LPCSTR function, LPCSTR phase,

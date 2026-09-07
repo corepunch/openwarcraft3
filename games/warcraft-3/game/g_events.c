@@ -140,13 +140,13 @@ static void G_ExecuteEvent(GAMEEVENT *evt) {
                     LONG quest_trigger_ordinal = e->trigger
                         ? (LONG)(e->trigger - level.triggers) : -1L;
                     BOOL quest_peon_stage = gi.CvarString &&
-                        atoi(gi.CvarString("wc3_quest_debug", "0")) != 0 &&
+                        WC3_TUTORIAL_DEBUG_ENABLED() &&
                         quest_trigger_ordinal >= 95 && quest_trigger_ordinal <= 106;
                     BOOL subgroup_stage = gi.CvarString &&
-                        atoi(gi.CvarString("wc3_quest_debug", "0")) != 0 &&
+                        WC3_TUTORIAL_DEBUG_ENABLED() &&
                         quest_trigger_ordinal >= 208 && quest_trigger_ordinal <= 213;
                     BOOL quest_build_event = gi.CvarString &&
-                        atoi(gi.CvarString("wc3_quest_debug", "0")) != 0 &&
+                        WC3_TUTORIAL_DEBUG_ENABLED() &&
                         (evt->type == EVENT_PLAYER_UNIT_CONSTRUCT_START ||
                          evt->type == EVENT_PLAYER_UNIT_CONSTRUCT_FINISH ||
                          evt->type == EVENT_UNIT_CONSTRUCT_FINISH);

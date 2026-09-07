@@ -49,8 +49,8 @@ LPEVENT G_MakeEvent(EVENTTYPE type) {
     return NULL;
 }
 
-#define JASS_GROUP_DEBUG_CHAIN_SIZE 256
-#define JASS_GROUP_DEBUG_MAX_STATS 128
+#define JASS_GROUP_DEBUG_CHAIN_SIZE 256 // characters; bounds one captured JASS call chain for group diagnostics
+#define JASS_GROUP_DEBUG_MAX_STATS 128 // entries; bounds distinct group-debug chains retained per map
 
 typedef struct {
     char chain[JASS_GROUP_DEBUG_CHAIN_SIZE];
@@ -215,9 +215,10 @@ void G_DumpJassGroupDebug(LPCSTR failing_creator, LPCSTR failing_chain, LONG fai
         }
     }
 
+#ifdef WC3_DEBUG_GROUPS
     fprintf(stderr,
             "WC3_GROUP_DEBUG allocation-failed failing_creator=\"%s\" failing_trigger=%ld failing_chain=\"%s\" live=%u highwater=%u capacity=%u chains=%u\n",
-            failing_creator ? failing_creator : "<unknown>", failing_trigger,
+            failing_creator ? failing_creator : "<unknown>", (long)failing_trigger,
             failing_chain && *failing_chain ? failing_chain : "<unknown>",
             (unsigned)live, (unsigned)level.num_groups,
             (unsigned)level.group_capacity, (unsigned)num_counts);
@@ -227,17 +228,20 @@ void G_DumpJassGroupDebug(LPCSTR failing_creator, LPCSTR failing_chain, LONG fai
         DWORD frees = stat ? stat->frees : 0;
         fprintf(stderr,
                 "WC3_GROUP_DEBUG chain trigger=%ld live=%u allocated=%u freed=%u outstanding=%u path=\"%s\"\n",
-                counts[i].trigger_ordinal, (unsigned)counts[i].live,
+                (long)counts[i].trigger_ordinal, (unsigned)counts[i].live,
                 (unsigned)allocations, (unsigned)frees,
                 (unsigned)(allocations >= frees ? allocations - frees : 0),
                 counts[i].chain);
     }
+#endif
 }
 
 static BOOL G_GrowJassGroupRegistry(DWORD count) {
     ggroup_t **groups;
     DWORD capacity;
+#ifdef WC3_DEBUG_GROUPS
     DWORD const old_capacity = level.group_capacity;
+#endif
 
     if (count <= level.group_capacity) return true;
     capacity = level.group_capacity ? level.group_capacity : JASS_GROUP_INITIAL_CAPACITY;
@@ -256,10 +260,12 @@ static BOOL G_GrowJassGroupRegistry(DWORD count) {
     level.groups = groups;
     level.group_capacity = capacity;
     if (jass_group_debug_slots) (void)G_EnsureJassGroupDebugSlots(capacity);
+#ifdef WC3_DEBUG_GROUPS
     if (G_JassGroupDebugEnabled()) {
         fprintf(stderr, "WC3_GROUP_DEBUG grow old_capacity=%u new_capacity=%u highwater=%u\n",
                 (unsigned)old_capacity, (unsigned)capacity, (unsigned)level.num_groups);
     }
+#endif
     return true;
 }
 
