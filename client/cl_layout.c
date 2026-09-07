@@ -224,20 +224,49 @@ LPCSTR SCR_GetStringValue(LPCUIFRAME frame) {
     return text;
 }
 
+static LPCSTR SCR_GetTimeOfDayValue(LPCUIFRAME frame) {
+    static char text[16];
+    DWORD day_minutes, total_minutes;
+    uint64_t scaled;
+    FLOAT day_hours;
+
+    if (!frame || frame->stat != UI_PLAYERSTAT_ENV_PHASE) return "";
+    day_hours = frame->value > 0.0f ? frame->value : 24.0f;
+    day_minutes = (DWORD)(day_hours * 60.0f + 0.5f);
+    if (!day_minutes) day_minutes = 24u * 60u;
+
+    /* The server replicates normalized day phase in a USHORT. Reconstruct the
+     * displayed game clock from that same phase; frame.value carries DayHours
+     * so non-default gameplay constants stay coherent without layout resends. */
+    scaled = (uint64_t)cl.playerstate.stats[UI_PLAYERSTAT_ENV_PHASE] * day_minutes;
+    total_minutes = (DWORD)((scaled + UINT16_MAX / 2u) / UINT16_MAX);
+    total_minutes %= day_minutes;
+    snprintf(text, sizeof(text), "%02u:%02u",
+             (unsigned)(total_minutes / 60u), (unsigned)(total_minutes % 60u));
+    return text;
+}
+
 LPCSTR SCR_GetTooltipText(LPCUIFRAME frame) {
     static char text[2048];
-    LPCSTR src, token, value;
+    LPCSTR src, token, value, suffix;
     size_t prefix;
 
     if (!frame || !frame->tooltip) return NULL;
     src = frame->tooltip;
-    token = strstr(src, "{value}");
-    if (!token) return src;
+    token = strstr(src, "{time}");
+    if (token) {
+        value = SCR_GetTimeOfDayValue(frame);
+        suffix = token + strlen("{time}");
+    } else {
+        token = strstr(src, "{value}");
+        if (!token) return src;
+        value = SCR_GetStringValue(frame);
+        suffix = token + strlen("{value}");
+    }
 
-    value = SCR_GetStringValue(frame);
     prefix = (size_t)(token - src);
     snprintf(text, sizeof(text), "%.*s%s%s", (int)prefix, src,
-             value ? value : "", token + strlen("{value}"));
+             value ? value : "", suffix);
     return text;
 }
 

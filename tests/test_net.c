@@ -174,6 +174,27 @@ TEST(client_layout, tooltip_value_token_uses_food_display_format) {
     T_STREQ(SCR_GetTooltipText(&frame), "Food: 18/24\nFood resource help.");
 }
 
+TEST(client_layout, tooltip_time_token_uses_live_environment_phase) {
+    uiFrame_t frame = {
+        .stat = UI_PLAYERSTAT_ENV_PHASE,
+        .value = 24.0f,
+        .tooltip = "Time of Day ( |Cfffed312{time}|R )\nThis is the current time of day.",
+    };
+    DWORD const minutes = 19u * 60u + 13u;
+
+    test_client_stubs_init();
+    cl.playerstate.stats[UI_PLAYERSTAT_ENV_PHASE] =
+        (USHORT)(((uint64_t)minutes * UINT16_MAX + (24u * 60u) / 2u) / (24u * 60u));
+    T_STREQ(SCR_GetTooltipText(&frame),
+            "Time of Day ( |Cfffed31219:13|R )\nThis is the current time of day.");
+
+    /* The tooltip derives from snapshot state on every hover/update rather
+     * than freezing the time into the original layout packet. */
+    cl.playerstate.stats[UI_PLAYERSTAT_ENV_PHASE] = UINT16_MAX / 4u;
+    T_STREQ(SCR_GetTooltipText(&frame),
+            "Time of Day ( |Cfffed31206:00|R )\nThis is the current time of day.");
+}
+
 TEST(client_layout, world_hover_root_projects_model_top_into_ui_canvas) {
     RECT root;
     renderEntity_t render = { .number = 7 };
