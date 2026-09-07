@@ -118,6 +118,33 @@ void R_DrawEntities(void) {
     }
 }
 
+void R_DrawSplatRects(void) {
+    if (!tr.viewDef.num_splat_rects || !tr.viewDef.splat_rects) {
+        return;
+    }
+
+    R_BeginSplatBatch(R_SPLAT_SHADER(&tr.shader_splat));
+    FOR_LOOP(i, tr.viewDef.num_splat_rects) {
+        renderSplatRect_t const *rect = tr.viewDef.splat_rects + i;
+        BOX3 bounds;
+
+        if (rect->maxs.x <= rect->mins.x || rect->maxs.y <= rect->mins.y) {
+            continue;
+        }
+        if (!(tr.viewDef.rdflags & RDF_NOFRUSTUMCULL)) {
+            bounds = (BOX3){
+                .min = { rect->mins.x, rect->mins.y, -4096.0f },
+                .max = { rect->maxs.x, rect->maxs.y, 4096.0f },
+            };
+            if (!Frustum_ContainsAABox(&tr.viewDef.frustum, &bounds)) {
+                continue;
+            }
+        }
+        R_AddRectSplat(&rect->mins, &rect->maxs, tr.texture[TEX_WHITE], rect->color);
+    }
+    R_EndSplatBatch();
+}
+
 void R_DrawDecals(void) {
     FOR_LOOP(i, tr.viewDef.num_decals) {
         renderDecal_t const *decal = tr.viewDef.decals + i;

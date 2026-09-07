@@ -100,11 +100,20 @@ static void FillUnitData(LPENTITYSTATE ent, DWORD unit_id, LPCSTR anim) {
     ent->scale = ui->modelScale;
     ent->angle = -M_PI / 2;
     {
-        pathTex_t *pathtex = M_LoadPathTex(G_UnitData(unit_id)->pathingTexture);
+        UnitData_t const *data = G_UnitData(unit_id);
+        pathTex_t *pathtex = M_LoadPathTex(data->pathingTexture);
         if (pathtex) {
             ent->pathing_width = (USHORT)MIN(pathtex->width, USHRT_MAX);
             ent->pathing_height = (USHORT)MIN(pathtex->height, USHRT_MAX);
             gi.MemFree(pathtex);
+        }
+        /* Build-on-target placement needs parent eligibility that the client does
+         * not yet receive. Suppress its coloured grid rather than showing a
+         * misleading all-green preview; snapping still uses the dimensions. */
+        if (!data->isBuildOn) {
+            BYTE prevented = 0, required = 0;
+            G_GetBuildPlacementPathingFlags(unit_id, &prevented, &required);
+            ent->pathing_preview = EntityPathingPreviewPack(0, prevented, required);
         }
     }
     LPCANIMATION animation = G_GetAnimationForProperties(ent->model, anim, G_UnitProfile(unit_id)->animProps);
@@ -261,6 +270,10 @@ void build_menu_selectlocation(LPEDICT ent, DWORD building_id) {
 
     FillUnitData(&cursor, building_id, "stand");
     cursor.player = worker->s.player;
+    cursor.pathing_preview = EntityPathingPreviewPack(
+        worker->s.number,
+        EntityPathingPreviewPrevented(cursor.pathing_preview),
+        EntityPathingPreviewRequired(cursor.pathing_preview));
     UI_AddCancelButton(ent);
     gi.Write(PF_BYTE, &(LONG){svc_cursor});
     gi.Write(PF_ENTITY, &cursor);

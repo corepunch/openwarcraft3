@@ -650,6 +650,9 @@ void SP_SpawnUnit(LPEDICT self) {
             self->collision = get_unit_collision(self->pathtex);
         }
     }
+    /* The client building-placement preview needs the gameplay collision radius,
+     * not the selection-circle radius in s.radius, to paint live-unit blockers. */
+    self->s.collision = self->collision;
     /* Establish the authored altitude immediately; MOVETYPE_STEP will refresh
      * the same support-surface calculation each simulation frame. */
     M_CheckGround(self);

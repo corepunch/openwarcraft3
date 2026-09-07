@@ -7,8 +7,10 @@
 static struct {
     renderEntity_t entities[MAX_CLIENT_ENTITIES];
     renderDecal_t decals[MAX_RENDER_DECALS];
+    renderSplatRect_t splat_rects[MAX_RENDER_SPLAT_RECTS];
     int num_entities;
     int num_decals;
+    int num_splat_rects;
 } view_state;
 
 static bool world_loaded = false;
@@ -282,8 +284,98 @@ static void V_AddClientEntity(centity_t const *ent) {
 static void V_ClearScene(void) {
     view_state.num_entities = 0;
     view_state.num_decals = 0;
+    view_state.num_splat_rects = 0;
     cl.viewDef.num_entities = 0;
     cl.viewDef.num_decals = 0;
+    cl.viewDef.num_splat_rects = 0;
+}
+
+static BOOL CL_CircleOverlapsSplatRect(LPCENTITYSTATE state, renderSplatRect_t const *rect) {
+    FLOAT const x = MAX(rect->mins.x, MIN(rect->maxs.x, state->origin.x));
+    FLOAT const y = MAX(rect->mins.y, MIN(rect->maxs.y, state->origin.y));
+    FLOAT const dx = x - state->origin.x;
+    FLOAT const dy = y - state->origin.y;
+    return dx * dx + dy * dy < state->collision * state->collision;
+}
+
+static void CL_AddBuildingPlacementGrid(LPCVECTOR3 origin) {
+    DWORD const width = cl.cursorEntity->pathing_width;
+    DWORD const height = cl.cursorEntity->pathing_height;
+    DWORD const preview = cl.cursorEntity->pathing_preview;
+    BYTE const prevented = EntityPathingPreviewPrevented(preview);
+    BYTE const required = EntityPathingPreviewRequired(preview);
+    USHORT const ignore_entity = EntityPathingPreviewIgnore(preview);
+    FLOAT const cell_size = 32.0f;
+    FLOAT const half_width = width * cell_size * 0.5f;
+    FLOAT const half_height = height * cell_size * 0.5f;
+    DWORD const first_rect = view_state.num_splat_rects;
+    DWORD const remaining = MAX_RENDER_SPLAT_RECTS - first_rect;
+
+    /* Zero preview flags deliberately suppress build-on-target structures until
+     * the client receives enough parent-target data to colour them truthfully. */
+    if (!width || !height || (!prevented && !required) ||
+        height > remaining || width > remaining / height) {
+        return;
+    }
+
+    FOR_LOOP(x, width) {
+        FOR_LOOP(y, height) {
+            renderSplatRect_t rect;
+            VECTOR2 sample;
+            BYTE pathing = 0;
+            BOOL blocked;
+
+            rect.mins.x = origin->x - half_width + x * cell_size;
+            rect.mins.y = origin->y - half_height + y * cell_size;
+            rect.maxs.x = rect.mins.x + cell_size;
+            rect.maxs.y = rect.mins.y + cell_size;
+            sample = (VECTOR2){
+                (rect.mins.x + rect.maxs.x) * 0.5f,
+                (rect.mins.y + rect.maxs.y) * 0.5f,
+            };
+            blocked = !CM_GetPathingFlagsAt(&sample, &pathing) ||
+                      (pathing & prevented) != 0 ||
+                      (pathing & required) != required;
+            rect.color = blocked
+                ? (COLOR32){ 255, 0, 0, 51 }
+                : (COLOR32){ 0, 255, 0, 51 };
+            view_state.splat_rects[view_state.num_splat_rects++] = rect;
+        }
+    }
+
+    /* Mark only the cells touched by each live collision circle. This mirrors
+     * the server's circle-vs-footprint rule without doing entities*cells work
+     * for every preview frame on low-end clients. */
+    FOR_LOOP(i, cl.num_active) {
+        DWORD const number = cl.active_entities[i];
+        entityState_t const *state;
+        LONG x0, y0, x1, y1;
+
+        if (!number || number >= MAX_CLIENT_ENTITIES ||
+            number == ignore_entity) {
+            continue;
+        }
+        state = &cl.ents[number].current;
+        if (state->collision <= 0.0f || (state->flags & EF_NOT_SELECTABLE)) {
+            continue;
+        }
+        x0 = (LONG)floorf((state->origin.x - state->collision - (origin->x - half_width)) / cell_size);
+        y0 = (LONG)floorf((state->origin.y - state->collision - (origin->y - half_height)) / cell_size);
+        x1 = (LONG)floorf((state->origin.x + state->collision - (origin->x - half_width)) / cell_size);
+        y1 = (LONG)floorf((state->origin.y + state->collision - (origin->y - half_height)) / cell_size);
+        x0 = MAX(0, x0); y0 = MAX(0, y0);
+        x1 = MIN((LONG)width - 1, x1); y1 = MIN((LONG)height - 1, y1);
+        if (x0 > x1 || y0 > y1) continue;
+
+        for (LONG x = x0; x <= x1; x++) {
+            for (LONG y = y0; y <= y1; y++) {
+                renderSplatRect_t *rect = &view_state.splat_rects[first_rect + (DWORD)x * height + (DWORD)y];
+                if (CL_CircleOverlapsSplatRect(state, rect)) {
+                    rect->color = (COLOR32){ 255, 0, 0, 51 };
+                }
+            }
+        }
+    }
 }
 
 static void CL_AddBuilding(void) {
@@ -297,7 +389,9 @@ static void CL_AddBuilding(void) {
     renderEntity_t ent;
     memset(&ent, 0, sizeof(renderEntity_t));
     
-    re.TraceLocation(&cl.viewDef, mouse.origin.x, mouse.origin.y, &ent.origin);
+    if (!re.TraceLocation(&cl.viewDef, mouse.origin.x, mouse.origin.y, &ent.origin)) {
+        return;
+    }
 
     if (cl.cursorEntity->pathing_width && cl.cursorEntity->pathing_height) {
         DWORD const path_width = cl.cursorEntity->pathing_width;
@@ -317,7 +411,8 @@ static void CL_AddBuilding(void) {
     ent.frame = cl.cursorEntity->frame;
     ent.oldframe = cl.cursorEntity->frame;
     ent.model = cl.models[cl.cursorEntity->model];
-    
+
+    CL_AddBuildingPlacementGrid(&ent.origin);
     view_state.entities[view_state.num_entities++] = ent;
 }
 
@@ -358,6 +453,8 @@ static void CL_AddEntities(void) {
     cl.viewDef.entities = view_state.entities;
     cl.viewDef.num_decals = view_state.num_decals;
     cl.viewDef.decals = view_state.decals;
+    cl.viewDef.num_splat_rects = view_state.num_splat_rects;
+    cl.viewDef.splat_rects = view_state.splat_rects;
 }
 
 void CL_PrepRefresh(void) {
