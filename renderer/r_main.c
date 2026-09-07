@@ -815,6 +815,7 @@ void R_ShutdownRenderer(void) {
     
     R_ShutdownFogOfWar();
     R_ShutdownParticles();
+    SAFE_DELETE(tr.cinematic, R_ReleaseTexture);
     SAFE_DELETE(tr.minimap, R_ReleaseTexture);
     R_ShutdownTextureCache();
     R_ShutdownDrawBufferInstanced();
@@ -1123,8 +1124,7 @@ refExport_t R_GetAPI(refImport_t imp) {
         .Init = R_InitRenderer,
         .RegisterMap = R_RegisterMapAssets,
         .LoadTexture = R_LoadTexture,
-        .CreateTextureRGBA = R_CreateTextureRGBA,
-        .UpdateTextureRGBA = R_UpdateTextureRGBA,
+        .DrawCinematicFrame = R_DrawCinematicFrame,
         .LoadModel = R_LoadRegisteredModel,
         .LoadFont = R_LoadFont,
         .ReleaseTexture = R_ReleaseTexture,

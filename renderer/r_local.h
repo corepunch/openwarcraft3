@@ -297,6 +297,7 @@ struct render_globals {
     LPTEXTURE minimap;
     RECT minimapRect;   /* UI-space world-content rect used for minimap projection */
     BOOL hasMinimap;
+    LPTEXTURE cinematic;
 };
 
 void R_RegisterMap(LPCSTR mapFileName);
@@ -316,8 +317,7 @@ void R_DrawDecals(void);
 void R_DrawAlphaSurfaces(void);
 void R_RenderFrame(viewDef_t const *viewDef);
 LPTEXTURE R_AllocateTexture(DWORD width, DWORD height);
-LPTEXTURE R_CreateTextureRGBA(DWORD width, DWORD height, void const *pixels);
-BOOL R_UpdateTextureRGBA(LPTEXTURE texture, DWORD width, DWORD height, void const *pixels);
+void R_DrawCinematicFrame(LPCDRAWCINEMATICFRAME frame);
 LPTEXTURE R_MakeSysFontTexture(void);
 LPTEXTURE R_MakeLoadingIndicatorTexture(void);
 LPTEXTURE R_MakeSelectionCircleTexture(void);
