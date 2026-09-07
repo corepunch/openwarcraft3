@@ -36,10 +36,11 @@ typedef struct {
     BOOL music_suspended;
     PATHSTR source_path;
     PATHSTR disk_path;
-    LPTEXTURE texture;
     DWORD width;
     DWORD height;
     DWORD start_ticks;
+    BYTE *current_rgba;
+    BOOL current_valid;
 #ifdef BZ_FFMPEG
     AVFormatContext *format;
     AVCodecContext *video_codec;
@@ -79,8 +80,9 @@ static void CL_MovieReleaseFrames(void) {
 static void CL_MovieClose(void) {
     S_StreamStop(S_STREAM_MOVIE);
     if (cl_movie.music_suspended) CL_MusicResumeFromSuspend();
-    SAFE_DELETE(cl_movie.texture, re.ReleaseTexture);
+    re.DrawCinematicFrame(NULL);
     CL_MovieReleaseFrames();
+    av_freep(&cl_movie.current_rgba);
     sws_freeContext(cl_movie.sws);
     cl_movie.sws = NULL;
     swr_free(&cl_movie.swr);
@@ -171,6 +173,8 @@ static BOOL CL_MovieEnsureVideoConversion(AVFrame const *frame) {
         cl_movie.frames[i].rgba = av_malloc((size_t)cl_movie.width * cl_movie.height * 4);
         if (!cl_movie.frames[i].rgba) return false;
     }
+    cl_movie.current_rgba = av_malloc((size_t)cl_movie.width * cl_movie.height * 4);
+    if (!cl_movie.current_rgba) return false;
     return true;
 }
 
@@ -321,12 +325,9 @@ static void CL_MoviePresentFrames(void) {
 
     while (cl_movie.frame_count) {
         clMovieVideoFrame_t *frame = &cl_movie.frames[cl_movie.frame_head];
-        if ((DWORD)frame->pts_ms > elapsed && cl_movie.texture) break;
-        if (!cl_movie.texture) {
-            cl_movie.texture = re.CreateTextureRGBA(cl_movie.width, cl_movie.height, frame->rgba);
-        } else {
-            re.UpdateTextureRGBA(cl_movie.texture, cl_movie.width, cl_movie.height, frame->rgba);
-        }
+        if ((DWORD)frame->pts_ms > elapsed && cl_movie.current_valid) break;
+        memcpy(cl_movie.current_rgba, frame->rgba, (size_t)cl_movie.width * cl_movie.height * 4);
+        cl_movie.current_valid = true;
         cl_movie.frame_head = (cl_movie.frame_head + 1) % CL_MOVIE_VIDEO_QUEUE;
         cl_movie.frame_count--;
     }
@@ -434,14 +435,13 @@ void CL_MovieUpdate(void) {
 void CL_MovieDraw(void) {
     RECT scene;
     RECT movie;
-    RECT uv = {0, 0, 1, 1};
     FLOAT scene_aspect;
     FLOAT movie_aspect;
 
     if (!cl_movie.active) return;
     scene = re.GetUISceneRect();
     re.DrawFill(&scene, COLOR32_BLACK);
-    if (!cl_movie.texture || !cl_movie.width || !cl_movie.height) return;
+    if (!cl_movie.current_valid || !cl_movie.width || !cl_movie.height) return;
 
     scene_aspect = scene.w / scene.h;
     movie_aspect = (FLOAT)cl_movie.width / (FLOAT)cl_movie.height;
@@ -453,7 +453,11 @@ void CL_MovieDraw(void) {
         movie.w = scene.h * movie_aspect;
         movie.x = scene.x + (scene.w - movie.w) * 0.5f;
     }
-    re.DrawImage(cl_movie.texture, &movie, &uv, COLOR32_WHITE);
+    re.DrawCinematicFrame(&MAKE(drawCinematicFrame_t,
+                                .width = cl_movie.width,
+                                .height = cl_movie.height,
+                                .pixels = cl_movie.current_rgba,
+                                .screen = movie));
 }
 
 BOOL CL_MovieKeyEvent(keyCode_t key, bool down) {

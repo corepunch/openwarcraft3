@@ -192,7 +192,10 @@ blend/depth bits) waits until draws are no longer immediate.
 ## Key constraints
 
 - `R_Call(gl...)` stays for diagnostics; `RB_*` uses it internally.
-- `refExport_t` is unchanged. Pipeline/root types live in the renderer (`r_backend.h` via `r_local.h`).
+- `refExport_t` is the client/renderer ABI. After changing its layout, run `make build` before launching;
+  `make test` may rebuild a renderer dylib without relinking an existing game executable, and mixing those
+  artifacts dispatches calls through the wrong function-table slots.
+- Pipeline/root types live in the renderer (`r_backend.h` via `r_local.h`).
 - Callers never reference `progid` or uniform locations. `shader_desc_t` remains the GLSL grammar until
   the root-struct push replaces per-field `glUniform*`.
 - One representation per shader concept: no zero-count modes or parallel fallback uniforms.
