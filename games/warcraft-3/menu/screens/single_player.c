@@ -881,6 +881,7 @@ static void SinglePlayer_BindCampaignMenu(void) {
 static void SinglePlayerMenu_Init(void) {
     menuimport.Printf("SinglePlayerMenu_Init\n");
     UI_PreloadGlueSceneModels();
+    UI_GotoGluePanel("SinglePlayer", NULL, NULL);
     SinglePlayer_LoadCampaignData();
     campaign_list_frame = NULL;
     mission_list_frame = NULL;
@@ -932,12 +933,12 @@ static void SinglePlayerMenu_FinishCampaignTransition(void *params) {
 
 static void SinglePlayerMenu_Draw(void) {
     if (return_main_pending) {
-        UI_DrawGlueScene(NULL);
+        UI_DrawGlueScene();
         return;
     }
 
     if (campaign_transition_pending) {
-        UI_DrawGlueScene(NULL);
+        UI_DrawGlueScene();
         return;
     }
     if (current_view == SINGLE_PLAYER_VIEW_CAMPAIGN_SELECT ||
@@ -949,7 +950,7 @@ static void SinglePlayerMenu_Draw(void) {
         return;
     }
 
-    UI_DrawGlueScene("SinglePlayer Stand");
+    UI_DrawGlueScene();
     if (single_player.SinglePlayerMenu) {
         UI_DrawFrame(single_player.SinglePlayerMenu);
     }
@@ -989,7 +990,7 @@ BOOL SinglePlayerMenu_BeginMainMenu(void) {
     }
     return_main_pending = true;
     SinglePlayer_SetHidden(single_player.SinglePlayerMenu, true);
-    UI_PlayGlueAnimation("SinglePlayer Death", SinglePlayerMenu_FinishMainMenuTransition, NULL);
+    UI_GotoGluePanel("MainMenu", SinglePlayerMenu_FinishMainMenuTransition, NULL);
     return true;
 }
 
@@ -999,7 +1000,7 @@ BOOL SinglePlayerMenu_BeginCampaign(void) {
     }
     campaign_transition_pending = true;
     SinglePlayer_SetHidden(single_player.SinglePlayerMenu, true);
-    UI_PlayGlueAnimation("SinglePlayer Death", SinglePlayerMenu_FinishCampaignTransition, NULL);
+    UI_CloseGluePanel(SinglePlayerMenu_FinishCampaignTransition, NULL);
     return true;
 }
 

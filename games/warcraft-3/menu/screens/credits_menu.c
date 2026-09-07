@@ -34,6 +34,7 @@ static void CreditsMenu_Init(void) {
 
     menuimport.Printf("CreditsMenu_Init\n");
     UI_PreloadGlueSceneModels();
+    UI_GotoGluePanel("MainMenu", NULL, NULL);
     if (UI_DialogWar3Init(&credits_dialog, credits_root, &init)) {
         UI_DialogWar3Show(&credits_dialog, &config);
     }
@@ -47,7 +48,7 @@ static void CreditsMenu_Refresh(int msec) {
 }
 
 static void CreditsMenu_Draw(void) {
-    UI_DrawGlueScene("MainMenu Stand");
+    UI_DrawGlueScene();
     if (credits_dialog.modal) {
         UI_DrawFrame(credits_dialog.modal);
     }

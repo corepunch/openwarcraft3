@@ -688,11 +688,9 @@ static void LANJoin_Draw(void) {
         return;
     }
 
-    UI_DrawGlueScene(lan.mode == LAN_MODE_BROWSER
-                     ? "BattlenetCustom Stand"
-                     : lan.mode == LAN_MODE_SINGLE_PLAYER_CREATE
-                         ? "SinglePlayerSkirmish Stand"
-                         : "BattlenetCustomCreate Stand");
+    UI_GotoGluePanel(lan.mode == LAN_MODE_BROWSER ? "BattlenetCustom" :
+                     lan.mode == LAN_MODE_SINGLE_PLAYER_CREATE ? "SinglePlayerSkirmish" : "BattlenetCustomCreate", NULL, NULL);
+    UI_DrawGlueScene();
     if (lan.mode != LAN_MODE_BROWSER) {
         LAN_UpdateGameSpeed();
     }

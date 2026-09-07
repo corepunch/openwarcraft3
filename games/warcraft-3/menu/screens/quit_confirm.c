@@ -39,6 +39,7 @@ static void QuitConfirm_UpdateVisibility(void) {
 static void QuitConfirm_Init(void) {
     menuimport.Printf("QuitConfirm_Init\n");
     UI_PreloadGlueSceneModels();
+    UI_GotoGluePanel("MainMenu", NULL, NULL);
 
     if (!quit_confirm.EscMenuMainPanel) {
         menuimport.Printf("ERROR: EscMenuMainPanel not found\n");
@@ -73,7 +74,7 @@ static void QuitConfirm_Refresh(int msec) {
 }
 
 static void QuitConfirm_Draw(void) {
-    UI_DrawGlueScene("MainMenu Stand");
+    UI_DrawGlueScene();
     if (quit_confirm.EscMenuMainPanel) {
         UI_DrawFrame(quit_confirm.EscMenuMainPanel);
     }

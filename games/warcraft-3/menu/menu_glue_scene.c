@@ -14,6 +14,18 @@ typedef struct {
 } uiGlueAnimState_t;
 
 typedef struct {
+    LPCSTR name;
+    LPCSTR left;
+    LPCSTR right;
+} uiGluePanel_t;
+
+typedef enum {
+    UI_GLUE_PANEL_IDLE,
+    UI_GLUE_PANEL_EXIT,
+    UI_GLUE_PANEL_ENTER,
+} uiGluePanelPhase_t;
+
+typedef struct {
     BOOL loaded;
     LPCMODEL background;
     LPCMODEL top_left_panel;
@@ -21,11 +33,25 @@ typedef struct {
     uiGlueAnimState_t background_anim;
     uiGlueAnimState_t left_anim;
     uiGlueAnimState_t right_anim;
-    uiGlueAnimationFinished_f finished;
-    void *finished_params;
+    uiGluePanel_t const *current;
+    uiGluePanel_t const *target;
+    uiGluePanelPhase_t phase;
+    uiGluePanelChanged_f changed;
+    void *changed_params;
 } uiGlueSceneState_t;
 
 static uiGlueSceneState_t menu_glue_scene;
+
+static uiGluePanel_t const glue_panels[] = {
+    { "MainMenu", "MainMenu Stand", "MainMenu Stand" },
+    { "RealmSelection", "RealmSelection Stand", "RealmSelection Stand" },
+    { "SinglePlayer", "SinglePlayer Stand", "SinglePlayer Stand" },
+    { "Options", "Options Stand Alternate", "Options Stand" },
+    { "SinglePlayerSkirmish", "SinglePlayerSkirmish Stand", "SinglePlayerSkirmish Stand" },
+    { "MultiplayerPreGameChat", "MultiplayerPreGameChat Stand", "MultiplayerPreGameChat Stand" },
+    { "BattlenetCustom", "BattlenetCustom Stand", "BattlenetCustom Stand" },
+    { "BattlenetCustomCreate", "BattlenetCustomCreate Stand", "BattlenetCustomCreate Stand" },
+};
 
 static LPCSTR UI_GlueBackgroundPath(void) {
     LPCSTR model = Theme_String("GlueSpriteLayerBackground", "Default");
@@ -73,25 +99,26 @@ static BOOL UI_GlueIsOneShot(LPCSTR anim) {
 /* Stable glue states are named "<screen> Stand". Retail/Warsmash enters them
  * through the matching non-looping Birth sequence; preserve any suffix such as
  * "Alternate" while swapping the primary tag. */
-static BOOL UI_GlueBirthForStand(LPCSTR stand, LPSTR birth, DWORD birth_size) {
+static BOOL UI_GlueSequenceForStand(LPCSTR stand, LPCSTR primary, LPSTR sequence, DWORD sequence_size) {
     LPCSTR marker;
     size_t prefix;
 
-    if (!stand || !birth || birth_size == 0) return false;
+    if (!stand || !primary || !*primary || !sequence || sequence_size == 0) return false;
     if (!strcmp(stand, "Stand")) {
-        snprintf(birth, birth_size, "Birth");
+        snprintf(sequence, sequence_size, "%s", primary);
         return true;
     }
     marker = strstr(stand, " Stand");
     if (!marker) return false;
     prefix = (size_t)(marker - stand);
-    if (prefix + strlen(" Birth") + strlen(marker + strlen(" Stand")) + 1 > birth_size) {
+    if (prefix + strlen(primary) + strlen(marker + strlen(" Stand")) + 3 > sequence_size) {
         return false;
     }
-    memcpy(birth, stand, prefix);
-    birth[prefix] = '\0';
-    strncat(birth, " Birth", birth_size - strlen(birth) - 1);
-    strncat(birth, marker + strlen(" Stand"), birth_size - strlen(birth) - 1);
+    memcpy(sequence, stand, prefix);
+    sequence[prefix] = '\0';
+    strncat(sequence, " ", sequence_size - strlen(sequence) - 1);
+    strncat(sequence, primary, sequence_size - strlen(sequence) - 1);
+    strncat(sequence, marker + strlen(" Stand"), sequence_size - strlen(sequence) - 1);
     return true;
 }
 
@@ -113,7 +140,7 @@ static void UI_GlueBeginLayerAnimation(LPRENDERER renderer, LPCMODEL model, LPCS
     char birth[UI_GLUE_ANIM_NAME];
 
     if (!requested || !*requested) requested = "Stand";
-    if (UI_GlueBirthForStand(requested, birth, sizeof(birth))) {
+    if (UI_GlueSequenceForStand(requested, "Birth", birth, sizeof(birth))) {
         UI_GlueStartAnimation(renderer, model, birth, requested, state);
         return;
     }
@@ -141,14 +168,34 @@ static LPCSTR UI_GlueAnimationFrame(uiGlueAnimState_t *state, LPSTR scrubbed, DW
     return scrubbed;
 }
 
-static void UI_GlueSetLayerAnimation(LPRENDERER renderer, LPCMODEL model, LPCSTR requested,
-                                     uiGlueAnimState_t *state) {
-    if (!requested || !*requested || !strcmp(state->next, requested)) return;
-    UI_GlueBeginLayerAnimation(renderer, model, requested, state);
-}
-
 static void UI_GlueRestartBackground(LPRENDERER renderer) {
     UI_GlueStartAnimation(renderer, menu_glue_scene.background, "Birth", "Stand", &menu_glue_scene.background_anim);
+}
+
+static uiGluePanel_t const *UI_GluePanel(LPCSTR name) {
+    if (!name || !*name) return NULL;
+    FOR_LOOP(i, sizeof(glue_panels) / sizeof(glue_panels[0])) if (!strcmp(glue_panels[i].name, name)) return &glue_panels[i];
+    return NULL;
+}
+
+static void UI_GlueBeginPanel(LPRENDERER renderer, uiGluePanel_t const *panel) {
+    UI_GlueBeginLayerAnimation(renderer, menu_glue_scene.top_left_panel, panel->left, &menu_glue_scene.left_anim);
+    UI_GlueBeginLayerAnimation(renderer, menu_glue_scene.top_right_panel, panel->right, &menu_glue_scene.right_anim);
+}
+
+static void UI_GlueEndLayer(LPRENDERER renderer, LPCMODEL model, LPCSTR stand, uiGlueAnimState_t *state) {
+    char death[UI_GLUE_ANIM_NAME];
+
+    if (!UI_GlueSequenceForStand(stand, "Death", death, sizeof(death))) {
+        fprintf(stderr, "UI: glue panel sequence has no Stand primary: %s\n", stand);
+        return;
+    }
+    UI_GlueStartAnimation(renderer, model, death, death, state);
+}
+
+static void UI_GlueEndPanel(LPRENDERER renderer, uiGluePanel_t const *panel) {
+    UI_GlueEndLayer(renderer, menu_glue_scene.top_left_panel, panel->left, &menu_glue_scene.left_anim);
+    UI_GlueEndLayer(renderer, menu_glue_scene.top_right_panel, panel->right, &menu_glue_scene.right_anim);
 }
 
 void UI_ResetGlueSceneModels(void) {
@@ -160,10 +207,11 @@ void UI_RestartGlueScene(void) {
 
     if (!renderer) return;
     UI_GlueRestartBackground(renderer);
-    memset(&menu_glue_scene.left_anim, 0, sizeof(menu_glue_scene.left_anim));
-    memset(&menu_glue_scene.right_anim, 0, sizeof(menu_glue_scene.right_anim));
-    menu_glue_scene.finished = NULL;
-    menu_glue_scene.finished_params = NULL;
+    if (menu_glue_scene.current) UI_GlueBeginPanel(renderer, menu_glue_scene.current);
+    menu_glue_scene.target = NULL;
+    menu_glue_scene.phase = UI_GLUE_PANEL_IDLE;
+    menu_glue_scene.changed = NULL;
+    menu_glue_scene.changed_params = NULL;
 }
 
 void UI_ReleaseGlueSceneModels(void) {
@@ -188,20 +236,62 @@ void UI_PreloadGlueSceneModels(void) {
     UI_RestartGlueScene();
 }
 
-/* Finish callbacks replace draw-loop completion polling. They run only after
- * both panel layers reached their final authored frame. */
-void UI_PlayGlueAnimation(LPCSTR panel_anim, uiGlueAnimationFinished_f finished, void *params) {
+/* Panel names are the public transition contract. This owns the authored
+ * current Death -> target Birth sequencing, including alternate left layers. */
+void UI_GotoGluePanel(LPCSTR panel_name, uiGluePanelChanged_f changed, void *params) {
     LPRENDERER renderer = menuimport.GetRenderer();
+    uiGluePanel_t const *panel = UI_GluePanel(panel_name);
 
     UI_PreloadGlueSceneModels();
     if (!renderer) return;
-    UI_GlueBeginLayerAnimation(renderer, menu_glue_scene.top_left_panel, panel_anim, &menu_glue_scene.left_anim);
-    UI_GlueBeginLayerAnimation(renderer, menu_glue_scene.top_right_panel, panel_anim, &menu_glue_scene.right_anim);
-    menu_glue_scene.finished = finished;
-    menu_glue_scene.finished_params = params;
+    if (!panel) {
+        fprintf(stderr, "UI: unknown glue panel %s\n", panel_name ? panel_name : "(null)");
+        return;
+    }
+    if (!menu_glue_scene.current) {
+        menu_glue_scene.current = panel;
+        UI_GlueBeginPanel(renderer, panel);
+        return;
+    }
+    if (panel == menu_glue_scene.current || panel == menu_glue_scene.target) return;
+    menu_glue_scene.target = panel;
+    menu_glue_scene.phase = UI_GLUE_PANEL_EXIT;
+    menu_glue_scene.changed = changed;
+    menu_glue_scene.changed_params = params;
+    UI_GlueEndPanel(renderer, menu_glue_scene.current);
 }
 
-void UI_DrawGlueSceneLayers(LPCSTR left_panel_anim, LPCSTR right_panel_anim) {
+void UI_CloseGluePanel(uiGluePanelChanged_f changed, void *params) {
+    LPRENDERER renderer = menuimport.GetRenderer();
+
+    if (!renderer || !menu_glue_scene.current) return;
+    menu_glue_scene.target = NULL;
+    menu_glue_scene.phase = UI_GLUE_PANEL_EXIT;
+    menu_glue_scene.changed = changed;
+    menu_glue_scene.changed_params = params;
+    UI_GlueEndPanel(renderer, menu_glue_scene.current);
+}
+
+/* Unsupported model timing must retain the old immediate panel switch rather
+ * than inserting a visible frame of an unclocked outgoing sequence. */
+static void UI_GlueFinishExit(LPRENDERER renderer) {
+    uiGluePanelChanged_f changed = menu_glue_scene.changed;
+    void *params = menu_glue_scene.changed_params;
+
+    if (menu_glue_scene.target) {
+        menu_glue_scene.current = menu_glue_scene.target;
+        menu_glue_scene.target = NULL;
+        menu_glue_scene.phase = UI_GLUE_PANEL_ENTER;
+        UI_GlueBeginPanel(renderer, menu_glue_scene.current);
+    } else {
+        menu_glue_scene.phase = UI_GLUE_PANEL_IDLE;
+    }
+    menu_glue_scene.changed = NULL;
+    menu_glue_scene.changed_params = NULL;
+    if (changed) changed(params);
+}
+
+void UI_DrawGlueScene(void) {
     LPRENDERER renderer = menuimport.GetRenderer();
     FLOAT right_offset;
     char background_anim[UI_GLUE_ANIM_NAME];
@@ -209,11 +299,12 @@ void UI_DrawGlueSceneLayers(LPCSTR left_panel_anim, LPCSTR right_panel_anim) {
     char right_anim[UI_GLUE_ANIM_NAME];
     BOOL left_complete, right_complete;
 
-    if (!renderer) return;
+    if (!renderer || !menu_glue_scene.current) return;
     UI_PreloadGlueSceneModels();
+    if (menu_glue_scene.phase == UI_GLUE_PANEL_EXIT &&
+        !menu_glue_scene.left_anim.duration && !menu_glue_scene.right_anim.duration)
+        UI_GlueFinishExit(renderer);
     right_offset = UI_GlueRightPanelOffset(renderer);
-    if (left_panel_anim) UI_GlueSetLayerAnimation(renderer, menu_glue_scene.top_left_panel, left_panel_anim, &menu_glue_scene.left_anim);
-    if (right_panel_anim) UI_GlueSetLayerAnimation(renderer, menu_glue_scene.top_right_panel, right_panel_anim, &menu_glue_scene.right_anim);
 
     if (renderer->RenderFrame && menu_glue_scene.background) {
         renderEntity_t entity = {0};
@@ -240,16 +331,9 @@ void UI_DrawGlueSceneLayers(LPCSTR left_panel_anim, LPCSTR right_panel_anim) {
         LPCSTR anim = UI_GlueAnimationFrame(&menu_glue_scene.right_anim, right_anim, sizeof(right_anim), &right_complete);
         renderer->DrawSprite(menu_glue_scene.top_right_panel, anim, right_offset, UI_BASE_HEIGHT);
     }
-    if (left_complete && right_complete && menu_glue_scene.finished) {
-        uiGlueAnimationFinished_f finished = menu_glue_scene.finished;
-        void *params = menu_glue_scene.finished_params;
-
-        menu_glue_scene.finished = NULL;
-        menu_glue_scene.finished_params = NULL;
-        finished(params);
+    if (left_complete && right_complete && menu_glue_scene.phase == UI_GLUE_PANEL_EXIT) {
+        UI_GlueFinishExit(renderer);
+    } else if (left_complete && right_complete && menu_glue_scene.phase == UI_GLUE_PANEL_ENTER) {
+        menu_glue_scene.phase = UI_GLUE_PANEL_IDLE;
     }
-}
-
-void UI_DrawGlueScene(LPCSTR panel_anim) {
-    UI_DrawGlueSceneLayers(panel_anim, panel_anim);
 }

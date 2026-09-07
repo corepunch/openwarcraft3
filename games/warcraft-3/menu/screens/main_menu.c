@@ -161,16 +161,16 @@ static void MainMenu_Draw(void) {
     DWORD num_roots = 0;
 
     if (edition_switch_pending) {
-        UI_DrawGlueScene(NULL);
+        UI_DrawGlueScene();
         return;
     }
 
     if (single_player_transition_pending) {
-        UI_DrawGlueScene(NULL);
+        UI_DrawGlueScene();
         return;
     }
 
-    UI_DrawGlueScene(show_realm_select ? "RealmSelection Stand" : "MainMenu Stand");
+    UI_DrawGlueScene();
 
     if (main_menu.MainMenuFrame) {
         roots[num_roots++] = main_menu.MainMenuFrame;
@@ -195,7 +195,7 @@ void MainMenu_BeginSinglePlayer(void) {
     show_realm_select = false;
     UI_DialogWar3Hide(&quit_dialog);
     UI_SetHidden(main_menu.MainMenuFrame, true);
-    UI_PlayGlueAnimation("MainMenu Death", MainMenu_FinishSinglePlayerTransition, NULL);
+    UI_GotoGluePanel("SinglePlayer", MainMenu_FinishSinglePlayerTransition, NULL);
 }
 
 void MainMenu_BeginEditionSwitch(void) {
@@ -209,11 +209,12 @@ void MainMenu_BeginEditionSwitch(void) {
     show_realm_select = false;
     UI_DialogWar3Hide(&quit_dialog);
     UI_SetHidden(main_menu.MainMenuFrame, true);
-    UI_PlayGlueAnimation("MainMenu Death", MainMenu_FinishEditionSwitch, NULL);
+    UI_CloseGluePanel(MainMenu_FinishEditionSwitch, NULL);
 }
 
 void MainMenu_ShowMainPanel(void) {
     show_realm_select = false;
+    UI_GotoGluePanel("MainMenu", NULL, NULL);
     UI_DialogWar3Hide(&quit_dialog);
     if (main_menu.MainMenuFrame) {
         UI_SetHidden(main_menu.MainMenuFrame, false);
@@ -232,6 +233,7 @@ void MainMenu_ShowMainPanel(void) {
 void MainMenu_ShowRealmSelect(void) {
     UI_DialogWar3Hide(&quit_dialog);
     show_realm_select = true;
+    UI_GotoGluePanel("RealmSelection", NULL, NULL);
     if (main_menu.RealmSelect) {
         UI_SetHidden(main_menu.RealmSelect, false);
     }

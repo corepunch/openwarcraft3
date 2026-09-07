@@ -116,16 +116,16 @@ the same edition selected by the main menu.
 `games/warcraft-3/menu/menu_glue_scene.c` renders the selected background as a model with `RDF_USE_ENTITY_CAMERA`; the main menu is
 therefore not a static BLP backdrop. Glue animation timing is model-authored rather than hard-coded. The generic renderer export
 `GetModelAnimationDuration` exposes a named sequence's interval length when the model format supports it. The menu keeps that clock
-private and exposes `UI_PlayGlueAnimation(name, finished, params)` instead: callers start an authored one-shot once and receive a
-callback after both sprite layers reach their final frame, rather than polling animation lengths during every screen draw.
+private and exposes `UI_GotoGluePanel(name, changed, params)` instead: callers name a logical panel such as `MainMenu` or
+`SinglePlayer`, while the glue system composes the current panel's `Death` and the destination panel's `Birth` sequences.
 
 The shared background starts with non-looping `Birth` and hands off to `Stand`. A stable sprite-layer request such as
 `MainMenu Stand`, `SinglePlayer Stand`, or an `... Stand Alternate` variant first tries the matching `Birth` sequence, preserves any
 suffix, and then hands off to the requested `Stand`. Explicit `Birth`/`Death` requests are one-shots and hold their final authored
-pose until the controller requests another state. Main Menu -> Single Player and Single Player -> Main Menu register their screen
-handoff as the outgoing `Death` callback, letting the incoming screen begin through its authored `Birth`. The edition switch uses the
-same callback before `menu_restart`. If a renderer/model does not expose the requested sequence duration, the code deliberately
-falls back to the previous direct requested sequence instead of inventing a timer.
+pose until the controller requests another state. `UI_GotoGluePanel` owns the Main Menu -> Single Player and Single Player -> Main
+Menu handoff: it completes the outgoing panel's `Death`, starts the destination panel's `Birth`, and then invokes the screen-change
+callback. The edition switch uses `UI_CloseGluePanel` before `menu_restart`. If a renderer/model does not expose the requested
+sequence duration, the code deliberately falls back to the previous direct requested sequence instead of inventing a timer.
 
 Campaign background models have the same local lifecycle: entering campaign selection or changing to a different campaign backdrop
 starts that model's `Birth` from frame zero and then switches to `Stand`. Entering campaign selection also waits for

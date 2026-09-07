@@ -2127,7 +2127,8 @@ TEST(menu_fdf, glue_sprite_layers_follow_widescreen_edges) {
     captured_realm_panel_sprites = 0;
     memset(captured_sprite_x, 0, sizeof(captured_sprite_x));
 
-    UI_DrawGlueSceneLayers("MainMenu Stand", "MainMenu Stand");
+    UI_GotoGluePanel("MainMenu", NULL, NULL);
+    UI_DrawGlueScene();
     T_EQ(captured_sprite_calls, 2);
     T_FEQ(captured_sprite_x[0], 0.0f, 0.0001f);
     T_FEQ(captured_sprite_x[1], 0.266666f, 0.0001f);
