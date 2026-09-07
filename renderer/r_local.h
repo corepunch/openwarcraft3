@@ -301,6 +301,7 @@ struct render_globals {
     GLuint cinematic_pbo;
     DWORD cinematic_pbo_size;
     BOOL cinematic_pbo_warned;
+    BOOL cinematic_pbo_disabled;
 };
 
 void R_RegisterMap(LPCSTR mapFileName);
