@@ -329,57 +329,6 @@ void R_RenderModel(renderEntity_t const *entity) {
     }
 }
 
-static LPCSTR R_W3CollisionShapeName(MODELCOLLISIONSHAPETYPE type) {
-    switch (type) {
-    case SHAPETYPE_BOX: return "box";
-    case SHAPETYPE_PLANE: return "plane";
-    case SHAPETYPE_SPHERE: return "sphere";
-    case SHAPETYPE_CYLINDER: return "cylinder";
-    default: return "unknown";
-    }
-}
-
-static void R_W3DebugTraceGeometry(renderEntity_t const *entity) {
-    static DWORD last_entity;
-    mdxModel_t const *model;
-    DWORD count = 0;
-
-    if (!ri.CvarString || atoi(ri.CvarString("wc3_harvest_path_debug", "0")) < 3 ||
-        !entity || !entity->model || entity->number == last_entity)
-        return;
-    model = entity->model->mdx;
-    if (!model)
-        return;
-    last_entity = entity->number;
-
-    FOR_EACH_LIST(mdxCollisionShape_t, shape, model->collisionShapes)
-        count++;
-    fprintf(stderr,
-            "WC3_HOVER_MODEL entity=%u origin=(%.1f,%.1f,%.1f) angle=%.1f scale=%.3f "
-            "model_bounds_min=(%.1f,%.1f,%.1f) model_bounds_max=(%.1f,%.1f,%.1f) "
-            "model_radius=%.1f collision_shapes=%u fallback_geosets=%d\n",
-            entity->number, entity->origin.x, entity->origin.y, entity->origin.z,
-            entity->angle, entity->scale,
-            model->bounds.box.min.x, model->bounds.box.min.y, model->bounds.box.min.z,
-            model->bounds.box.max.x, model->bounds.box.max.y, model->bounds.box.max.z,
-            model->bounds.radius, count, model->collisionShapes ? 0 : 1);
-
-    {
-        DWORD index = 0;
-        FOR_EACH_LIST(mdxCollisionShape_t, shape, model->collisionShapes) {
-            fprintf(stderr,
-                    "WC3_HOVER_SHAPE entity=%u index=%u type=%s node=\"%s\" "
-                    "node_id=%u parent=%u v0=(%.1f,%.1f,%.1f) v1=(%.1f,%.1f,%.1f) radius=%.1f\n",
-                    entity->number, index, R_W3CollisionShapeName(shape->type),
-                    shape->node.name, shape->node.node_id, shape->node.parent_id,
-                    shape->vertex[0].x, shape->vertex[0].y, shape->vertex[0].z,
-                    shape->vertex[1].x, shape->vertex[1].y, shape->vertex[1].z,
-                    shape->radius);
-            index++;
-        }
-    }
-}
-
 bool R_TraceModel(renderEntity_t const *entity, LPCLINE3 line, LPFLOAT distance) {
     VECTOR3 intersection;
 
@@ -389,7 +338,6 @@ bool R_TraceModel(renderEntity_t const *entity, LPCLINE3 line, LPFLOAT distance)
     if (!MDLX_TraceModel(entity, line, &intersection)) {
         return false;
     }
-    R_W3DebugTraceGeometry(entity);
     if (distance) {
         *distance = Vector3_distance(&line->a, &intersection);
     }

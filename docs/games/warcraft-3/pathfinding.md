@@ -173,7 +173,7 @@ prints Harvest transitions and fallback reasons. Level 2 adds per-approach route
 +set wc3_harvest_path_debug 2
 ```
 
-Lumber routing uses the `WC3_HARVEST_PATH` prefix. Gold-mine entry uses `WC3_GOLD_PATH`, and gold return/deposit uses `WC3_GOLD_RETURN`. For map-specific mine/model mismatches, level 2 also emits `WC3_GOLD_GEOMETRY` and hover transitions as `WC3_HOVER_TRACE`; level 3 adds the pathing-texture rows plus MDX bounds/collision-shape and exact cursor-hit diagnostics (`WC3_GOLD_FOOTPRINT`, `WC3_HOVER_MODEL`, `WC3_HOVER_SHAPE`, `WC3_HOVER_HIT`). Generic resumable routing does not emit per-build debug lines. A healthy interior-tree fallback should progress through a nonzero flow generation and then one of:
+Lumber routing uses the `WC3_HARVEST_PATH` prefix. Gold-mine entry uses `WC3_GOLD_PATH`, and gold return/deposit uses `WC3_GOLD_RETURN`. For map-specific mine/model mismatches, level 2 also emits `WC3_GOLD_GEOMETRY`; level 3 adds the pathing-texture rows as `WC3_GOLD_FOOTPRINT`. Generic resumable routing does not emit per-build debug lines. A healthy interior-tree fallback should progress through a nonzero flow generation and then one of:
 
 ```text
 fallback ... reason=route_goal_out_of_range

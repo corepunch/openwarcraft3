@@ -130,7 +130,7 @@ This means a visually offset custom model can produce both a hover hotspot and a
 +set wc3_harvest_path_debug 2
 ```
 
-Level 2 now emits `WC3_GOLD_GEOMETRY` once for each spawned mine (model path, origin/angle/scale, selection/collision radii, pathing texture dimensions, blocked-cell and local-world bounding boxes), `WC3_GOLD_PATH start` plus throttled `approach` samples while a worker is walking to the mine, `WC3_HOVER_TRACE` whenever the client hover entity changes, and `WC3_HOVER_COMMAND` when a smart click resolves to an entity. The hover/command lines include the traced entity rawcode, model index, and transform so they can be matched directly to the server-side mine and worker lines.
+Level 2 emits `WC3_GOLD_GEOMETRY` once for each spawned mine (model path, origin/angle/scale, selection/collision radii, pathing texture dimensions, blocked-cell and local-world bounding boxes), plus `WC3_GOLD_PATH start` and throttled `approach` samples while a worker is walking to the mine.
 
 For authored geometry details use:
 
@@ -138,7 +138,7 @@ For authored geometry details use:
 +set wc3_harvest_path_debug 3
 ```
 
-Level 3 additionally prints the mine footprint as `#`/`.` rows (`WC3_GOLD_FOOTPRINT`), the hovered MDX model bounds and every collision shape (`WC3_HOVER_MODEL` / `WC3_HOVER_SHAPE`), and the exact shape/geoset path that accepted the cursor ray (`WC3_HOVER_HIT`). When investigating an offset mine, move the cursor slowly from the visible model toward the unexpected hotspot and then order one worker to mine it. Compare the mine origin against the model bounds/collision vertices and the pathing blocked-cell box; do not change the footprint or selection radius until the mismatched coordinate source is identified.
+Level 3 additionally prints the mine footprint as `#`/`.` rows (`WC3_GOLD_FOOTPRINT`). When investigating an offset mine, compare the mine origin and pathing blocked-cell box; do not change the footprint or selection radius until the mismatched coordinate source is identified.
 
 Build and run the existing gold tests with either local archive set (add `-tft` for TFT):
 

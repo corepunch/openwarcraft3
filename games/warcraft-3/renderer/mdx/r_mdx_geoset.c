@@ -569,36 +569,6 @@ DWORD MDLX_RemapAnimation(mdxModel_t const *model, DWORD frame, LPCSTR str) {
     return frame;
 }
 
-static void MDLX_DebugTraceHit(renderEntity_t const *ent, LPCSTR kind,
-                               mdxCollisionShape_t const *shape, DWORD index) {
-    static DWORD last_entity;
-    static mdxCollisionShape_t const *last_shape;
-    static DWORD last_index = (DWORD)-1;
-
-    if (!ri.CvarString || atoi(ri.CvarString("wc3_harvest_path_debug", "0")) < 3 || !ent)
-        return;
-    if (last_entity == ent->number && last_shape == shape && last_index == index)
-        return;
-    last_entity = ent->number;
-    last_shape = shape;
-    last_index = index;
-
-    if (shape) {
-        fprintf(stderr,
-                "WC3_HOVER_HIT entity=%u kind=%s shape=%u node=\"%s\" node_id=%u parent=%u "
-                "v0=(%.1f,%.1f,%.1f) v1=(%.1f,%.1f,%.1f) radius=%.1f\n",
-                ent->number, kind, index, shape->node.name, shape->node.node_id,
-                shape->node.parent_id,
-                shape->vertex[0].x, shape->vertex[0].y, shape->vertex[0].z,
-                shape->vertex[1].x, shape->vertex[1].y, shape->vertex[1].z,
-                shape->radius);
-    } else {
-        fprintf(stderr,
-                "WC3_HOVER_HIT entity=%u kind=%s geoset=%u\n",
-                ent->number, kind, index);
-    }
-}
-
 bool MDLX_TraceModel(renderEntity_t const *ent, LPCLINE3 line, LPVECTOR3 intersection) {
     MATRIX4 invmodel, matmodel;
     VECTOR3 best_point = { 0 };
@@ -620,7 +590,6 @@ bool MDLX_TraceModel(renderEntity_t const *ent, LPCLINE3 line, LPVECTOR3 interse
     };
 
     if (model->collisionShapes) {
-        DWORD shape_index = 0;
         FOR_EACH_LIST(mdxCollisionShape_t, collisionShape, model->collisionShapes) {
             VECTOR3 point;
             BOOL shape_hit = false;
@@ -651,16 +620,10 @@ bool MDLX_TraceModel(renderEntity_t const *ent, LPCLINE3 line, LPVECTOR3 interse
                     best_distance = distance;
                     best_point = point;
                     hit = true;
-                    MDLX_DebugTraceHit(ent,
-                                       collisionShape->type == SHAPETYPE_BOX ? "box_local" : "sphere_world",
-                                       collisionShape, shape_index);
                 }
             }
-            shape_index++;
         }
     } else {
-        DWORD geoset_index = 0;
-
         /* Warsmash building picking uses only selectable geosets that are
          * visible in the current animation. Construction/death/helper
          * geosets can have very large authored extents and must not create
@@ -670,19 +633,15 @@ bool MDLX_TraceModel(renderEntity_t const *ent, LPCLINE3 line, LPVECTOR3 interse
             VECTOR3 bounds_hit;
 
             if ((geoset->selectable & 4) ||
-                !MDLX_IsGeosetVisible(model, geoset, ent->frame)) {
-                geoset_index++;
+                !MDLX_IsGeosetVisible(model, geoset, ent->frame))
                 continue;
-            }
 
             box = (BOX3) {
                 .min = *(LPCVECTOR3)&geoset->default_bounds.box.min,
                 .max = *(LPCVECTOR3)&geoset->default_bounds.box.max,
             };
-            if (!Line3_intersect_box3(&linelocal, &box, &bounds_hit)) {
-                geoset_index++;
+            if (!Line3_intersect_box3(&linelocal, &box, &bounds_hit))
                 continue;
-            }
 
             FOR_LOOP(i, geoset->num_triangles / 3) {
                 VECTOR3 local_point;
@@ -698,11 +657,9 @@ bool MDLX_TraceModel(renderEntity_t const *ent, LPCLINE3 line, LPVECTOR3 interse
                         best_distance = distance;
                         best_point = point;
                         hit = true;
-                        MDLX_DebugTraceHit(ent, "geoset_triangle", NULL, geoset_index);
                     }
                 }
             }
-            geoset_index++;
         }
     }
 
