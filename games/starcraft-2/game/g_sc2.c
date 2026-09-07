@@ -773,6 +773,8 @@ static void SC2_ClientBegin(LPEDICT ent) {
     }
 }
 
+static void SC2_ClientLoading(LPEDICT ent) { (void)ent; }
+
 static void SC2_ClientCommand(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
     DWORD client_number = SC2_EdictNumber(ent);
     VECTOR2 loc;
@@ -837,6 +839,7 @@ struct game_export *GetGameAPI(struct game_import *import) {
     globals.Shutdown              = SC2_Shutdown;
     globals.RunFrame              = SC2_RunFrame;
     globals.ClientBegin           = SC2_ClientBegin;
+    globals.ClientLoading         = SC2_ClientLoading;
     globals.ClientCommand         = SC2_ClientCommand;
     globals.ClientSetCameraPosition = SC2_ClientSetCameraPosition;
     globals.CanSeeEntity          = SC2_CanSeeEntity;

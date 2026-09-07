@@ -34,6 +34,7 @@ BOOL SCR_LayoutHitTest(int x, int y);
 BOOL SCR_LayoutModalActive(void);
 void SCR_LayoutClampSelectionRect(LPRECT rect);
 void SCR_DrawLayout(void);
+void SCR_DrawLoadingLayout(void);
 BOOL SCR_LayoutMouseEvent(menuMouseEvent_t event, int x, int y, int32_t param);
 BOOL SCR_LayoutScrollTextAreaAt(HANDLE layout, LPCVECTOR2 point, int wheel_y);
 FLOAT SCR_LayoutTextAreaMaxScroll(LPCUIFRAME frame);

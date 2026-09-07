@@ -810,6 +810,7 @@ void UI_LoadHud(void) {
     UI_LoadHudGameResult();
     UI_LoadHudCinematic();
     UI_LoadHudMessage();
+    UI_LoadHudLoading();
 }
 
 /* FDF host services — game module implementations using gi */
@@ -827,4 +828,6 @@ BZ_HOST_HIDDEN void UI_WireFrameTypeFunctions(LPFRAMEDEF frame) { (void)frame; }
 BZ_HOST_HIDDEN void UI_ClearTheme(void) {}
 
 /* Game module doesn't load 3D models for UI — stub */
-BZ_HOST_HIDDEN DWORD UI_LoadModel(LPCSTR file, BOOL decorate) { (void)file; (void)decorate; return 0; }
+BZ_HOST_HIDDEN DWORD UI_LoadModel(LPCSTR file, BOOL decorate) {
+    return file && *file ? gi.ModelIndex(decorate ? Theme_PlayerString(NULL, file, file) : file) : 0;
+}

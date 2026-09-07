@@ -166,7 +166,8 @@ void SCR_DrawScreenField(DWORD msec) {
         break;
     case ca_connecting:
     case ca_connected:
-        menu.Refresh(cl.time);
+        if (cl.playerstate.client_ui_state == CLIENT_UI_LOADING) SCR_DrawLoadingLayout();
+        else menu.Refresh(cl.time);
         break;
     case ca_active:
         V_RenderView();
@@ -894,6 +895,17 @@ void SCR_LayoutDrawPortrait(LPCUIFRAME frame, LPCRECT screen) {
     re.RenderFrame(&vd);
 }
 
+/* Loading bars are authored as portrait models; the client alone owns their ratio. */
+void SCR_LayoutDrawLoadingBar(LPCUIFRAME frame, LPCRECT screen) {
+    UIFRAME bar = *frame;
+    char anim[16];
+
+    snprintf(anim, sizeof(anim), "#0@%.4f", cl.loading_progress);
+    bar.flags.type = FT_PORTRAIT;
+    bar.text = anim;
+    SCR_LayoutDrawPortrait(&bar, screen);
+}
+
 void SCR_LayoutDrawSprite(LPCUIFRAME frame, LPCRECT screen) {
     LPCMODEL model = cl.models[frame->tex.index];
     LPCSTR anim = (frame->text && *frame->text) ? frame->text : "Stand";
@@ -1208,6 +1220,7 @@ static drawer_t drawers[] = {
     { FT_HIGHLIGHT,      SCR_LayoutDrawHighlight },
     { FT_BACKDROP,       SCR_LayoutDrawBackdrop },
     { FT_SIMPLESTATUSBAR,SCR_LayoutDrawStatusbar },
+    { FT_LOADING_BAR,    SCR_LayoutDrawLoadingBar },
     { FT_COMMANDBUTTON,  SCR_LayoutDrawCommandButton },
     { FT_STRING,         SCR_LayoutDrawString },
     { FT_NAMETAG,        SCR_LayoutDrawNameTag },
@@ -1305,6 +1318,7 @@ void SCR_DrawLayout(void) {
 
     FOR_LOOP(layer, MAX_LAYOUT_LAYERS) {
         DWORD flags = cl.playerstate.uiflags;
+        if (layer == LAYER_LOADING) continue;
         if ((1 << layer) & flags) continue;
         HANDLE layout = layout_layers[layer];
         if (layout) {
@@ -1323,6 +1337,20 @@ void SCR_DrawLayout(void) {
     /* Transient windows are frontmost gameplay UI. The window manager already
      * preserves server-authored z-order, but previously had no screen caller. */
     CL_WindowDraw();
+}
+
+/* The initial layout is a loading-only packet, not a gameplay HUD layer. */
+void SCR_DrawLoadingLayout(void) {
+    HANDLE layout = layout_layers[LAYER_LOADING];
+    RECT root;
+
+    if (!layout) return;
+    layout_current_window = false;
+    layout_current_layer = LAYER_LOADING;
+    SCR_Clear(layout);
+    root = SCR_LayoutSceneRect();
+    SCR_SetLayoutRoot(&root);
+    SCR_LayoutDrawOverlay(layout);
 }
 
 void SCR_SetLayoutLayer(DWORD layer, HANDLE data) {

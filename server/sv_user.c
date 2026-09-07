@@ -48,6 +48,8 @@ void SV_Configstrings_f(LPCLIENT cl, int argc, LPCSTR *argv) {
     MSG_WriteByte(&cl->netchan.message, svc_mirror);
     MSG_WriteString(&cl->netchan.message, "baselines");
     Netchan_Transmit(NS_SERVER, &cl->netchan);
+    if (!cl->edict) cl->edict = EDICT_NUM(SV_ClientPlayerNumber(cl));
+    ge->ClientLoading(cl->edict);
 }
 
 void SV_Baselines_f(LPCLIENT cl, int argc, LPCSTR *argv) {

@@ -272,16 +272,15 @@ Game-mode mouse behavior lives in per-game `cl_input_<game>.c` files. Never crea
 
 ## Loading Screen
 
-The loading screen is owned by the UI library and drawn when `playerState_t.client_ui_state == CLIENT_UI_LOADING`, before standalone-screen dispatch. It:
+The loading screen is a server-authored `svc_layout` sent after the initial configstrings and drawn by the client while `playerState_t.client_ui_state == CLIENT_UI_LOADING`. It:
 
-1. Loads `Loading.fdf` frames
-2. Reads map info from `.w3m`/`.w3x` (title, subtitle, custom loading screen model)
-3. Binds frames: `LoadingBackground` (3D portrait), `LoadingBar` (progress), `LoadingTitleText`, `LoadingSubtitleText`, `LoadingText`
-4. Reads normalized client-owned progress through `menuImport_t.LoadingProgress` and drives the WC3 progress MDX as `#0@ratio`
+1. Serializes the authoritative `Loading.fdf` frame tree before `begin`
+2. Includes map-authored title, subtitle, description, and background model
+3. Uses `FT_LOADING_BAR`, whose animation ratio is supplied by client-local registration progress
 
 `CL_PrepRefresh()` advances that value at real registration phase boundaries. The Quake-style plaque remains frozen for ordinary
 frame submission, but `SCR_UpdateLoadingPlaque()` explicitly repaints after a progress change. The value is local client state, not
-a player-state/network field. The loading screen stays visible until the first usable server frame sets
+a player-state/network field. The loading layout stays visible until the first usable server frame sets
 `client_ui_state = CLIENT_UI_GAME`, promotes the client to `ca_active`, and ends the plaque.
 
 ## WC3 vs SC2 vs WoW UI

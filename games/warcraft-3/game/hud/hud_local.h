@@ -18,6 +18,7 @@
 #include "../generated/alliance_dialog.h"
 #include "../generated/game_result_dialog.h"
 #include "../generated/cinematic_panel.h"
+#include "../generated/loading_screen.h"
 
 /* HUD font sizes */
 #define HUD_FONT_SIZE 10
@@ -33,6 +34,7 @@ typedef struct {
 
 /* Process-lifetime HUD bindings. memset(&hud, 0, sizeof(hud)) on map load. */
 typedef struct {
+    LoadingScreen_t loading;
     ConsoleUI_t console;
     ResourceBar_t res;
     UpperButtonBar_t upper;
@@ -99,6 +101,8 @@ DWORD UI_LiveImage(DWORD image);
 DWORD UI_LiveFont(DWORD font);
 void UI_ResetHud(void);
 void UI_LoadHud(void);
+void UI_LoadHudLoading(void);
+void UI_WriteLoadingLayout(LPEDICT ent);
 void UI_LoadHudConsole(void);
 void UI_LoadHudInfoPanel(void);
 void UI_LoadHudQuests(void);

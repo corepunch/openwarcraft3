@@ -81,8 +81,8 @@ do not infer those capabilities from the renderer's map-import lookup.
 Loading progress is client-owned and intentionally coarse. `CL_BeginLoadingMap` resets `cl.loading_progress` to
 zero. `CL_PrepRefresh` advances it monotonically at existing registration boundaries and
 `SCR_UpdateLoadingPlaque` explicitly repaints the otherwise frozen Quake-style loading plaque after each advance.
-The menu module reads the normalized value through `menuImport_t.LoadingProgress`; WC3 maps it directly onto the
-`LoadingProgressBar` MDX sequence using `#0@ratio`. No player-state/network field is involved.
+The initial server payload carries the `Loading.fdf` tree as `svc_layout`; its `FT_LOADING_BAR` maps client-local progress directly
+onto the `LoadingProgressBar` MDX sequence using `#0@ratio`. No player-state/network field is involved.
 
 Current phase values are:
 
