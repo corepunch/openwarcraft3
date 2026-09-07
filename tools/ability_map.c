@@ -15,8 +15,11 @@
 #include <string.h>
 #include <stdbool.h>
 
+#define RK(s) ((DWORD)((unsigned char)(s)[0] | ((unsigned char)(s)[1] << 8) | \
+                       ((unsigned char)(s)[2] << 16) | ((unsigned char)(s)[3] << 24)))
+
 /* ---- Minimal PE parser for RTTI extraction ---- */
-static char *pe_rtti_strings(const char *path, size_t *out_count) {
+static char **pe_rtti_strings(const char *path, size_t *out_count) {
     FILE *f = fopen(path, "rb");
     if (!f) { fprintf(stderr, "Cannot open %s\n", path); return NULL; }
     fseek(f, 0, SEEK_END);
@@ -72,7 +75,7 @@ static char *pe_rtti_strings(const char *path, size_t *out_count) {
     }
 
     *out_count = count;
-    return (char *)names;
+    return names;
 }
 
 /* ---- AbilityData struct (minimal) ---- */
@@ -111,8 +114,9 @@ static slkField_t const ability_schema[] = {
 #undef AB_D
 #undef AB_F
 
-/* ---- Hardcoded rawcode → C++ classname mapping ----
- * Derived from Game.dll RTTI + WC3 ability data cross-reference. */
+/* ---- Retail rawcode → C++ classname mapping ----
+ * The rawcode relationship is currently transcribed from retail analysis;
+ * the supplied DLL's RTTI is used below to validate each classname. */
 typedef struct { const char *rawcode; const char *classname; } rawcode_map_t;
 static rawcode_map_t const classmap[] = {
     /* Human Hero */
@@ -400,6 +404,40 @@ static const char *lookup_classname(const char *rawcode) {
     return NULL;
 }
 
+static bool rtti_has_class(char **rtti_names, size_t rtti_count, const char *classname) {
+    for (size_t i = 0; i < rtti_count; i++)
+        if (!strcmp(rtti_names[i], classname)) return true;
+    return false;
+}
+
+static void validate_classmap(char **rtti_names, size_t rtti_count) {
+    if (!rtti_names) return;
+    for (size_t i = 0; i < CLASSMAP_COUNT; i++)
+        if (!rtti_has_class(rtti_names, rtti_count, classmap[i].classname))
+            fprintf(stderr, "  classmap classname absent from RTTI: %s -> %s\n",
+                    classmap[i].rawcode, classmap[i].classname);
+}
+
+static bool is_implemented(DWORD key) {
+    static DWORD const implemented[] = {
+        RK("AHhb"), RK("AHad"), RK("AHwe"), RK("AHbz"), RK("AHtb"), RK("AHca"),
+        RK("AOsf"), RK("AOmi"), RK("AEbl"), RK("AEfk"), RK("AEsh"), RK("AEim"),
+        RK("Aeat"), RK("Ambt"), RK("Aroo"), RK("AUcs"), RK("ANfb"), RK("ANfs"),
+        RK("ANdr"), RK("ANch"), RK("AIco"), RK("ANcl"), RK("Ahar"), RK("Amic"),
+        RK("Amil"), RK("Arep"), RK("Agld"), RK("Agl2"), RK("Abgm"), RK("Abli"),
+        RK("Aaha"), RK("Artn"), RK("Awha"), RK("Ahrl"), RK("Aent"), RK("Aegm"),
+        RK("Acar"), RK("Abun"), RK("Aenc"), RK("Aloa"), RK("Adro"), RK("Adri"),
+        RK("Astd"), RK("Avul"), RK("AInv"), RK("Aneu"), RK("Apit"), RK("Aall"),
+        RK("Acoi"), RK("Apxf"), RK("Aren"), RK("Arst"), RK("AIhe"), RK("AIma"),
+        RK("AIat"), RK("AIab"), RK("AIim"), RK("AIsm"), RK("AIam"), RK("AIxm"),
+        RK("AIde"), RK("AIml"), RK("AImm"), RK("AIfs"), RK("AImi"), RK("AIem"),
+        RK("AIlm"), RK("AIda"), RK("AIct")
+    };
+    for (size_t i = 0; i < sizeof(implemented) / sizeof(implemented[0]); i++)
+        if (implemented[i] == key) return true;
+    return false;
+}
+
 /* Convert CamelCase to snake_case in-place. Skips leading "CAbility" prefix. */
 static char snake_buf[128];
 static const char *to_snake(const char *classname) {
@@ -414,6 +452,7 @@ static const char *to_snake(const char *classname) {
         snake_buf[out++] = (*p >= 'A' && *p <= 'Z') ? *p + ('a' - 'A') : *p;
         prev_upper = is_upper;
     }
+    if (!out) { strcpy(snake_buf, "unknown"); out = 7; }
     snake_buf[out] = '\0';
     return snake_buf;
 }
@@ -442,8 +481,13 @@ int main(int argc, char **argv) {
     size_t rtti_count = 0;
     char **rtti_names = NULL;
     if (dll_path) {
-        rtti_names = (char **)pe_rtti_strings(dll_path, &rtti_count);
+        rtti_names = pe_rtti_strings(dll_path, &rtti_count);
+        if (!rtti_names) {
+            fprintf(stderr, "Failed to extract RTTI from %s\n", dll_path);
+            return 1;
+        }
         fprintf(stderr, "Extracted %zu CAbility* class names from %s\n", rtti_count, dll_path);
+        validate_classmap(rtti_names, rtti_count);
     }
 
     /* Open MPQ archives */
@@ -466,30 +510,6 @@ int main(int argc, char **argv) {
     stbIniCache_t ini = {0};
     Stb_IniCacheLoadFiles(&ini, str_files);
 
-    /* Already-implemented rawcodes */
-    #define RK(s) ((DWORD)((unsigned char)(s)[0] | ((unsigned char)(s)[1] << 8) | \
-                            ((unsigned char)(s)[2] << 16) | ((unsigned char)(s)[3] << 24)))
-    static DWORD const implemented[] = {
-        RK("AHhb"),RK("AHad"),RK("AHwe"),RK("AHbz"),RK("AHtb"),RK("AHca"),
-        RK("AOsf"),RK("AOmi"),
-        RK("AEbl"),RK("AEfk"),RK("AEsh"),RK("AEim"),RK("Aeat"),RK("Ambt"),RK("Aroo"),
-        RK("AUcs"),
-        RK("ANfb"),RK("ANfs"),RK("ANdr"),RK("ANch"),RK("AIco"),RK("ANcl"),
-        RK("Ahar"),RK("Amic"),RK("Amil"),RK("Arep"),RK("Agld"),RK("Agl2"),
-        RK("Abgm"),RK("Abli"),RK("Aaha"),RK("Artn"),RK("Awha"),RK("Ahrl"),
-        RK("Aent"),RK("Aegm"),
-        RK("Acar"),RK("Abun"),RK("Aenc"),RK("Aloa"),RK("Adro"),RK("Adri"),RK("Astd"),
-        RK("Avul"),RK("AInv"),RK("Aneu"),RK("Apit"),RK("Aall"),RK("Acoi"),RK("Apxf"),
-        RK("Aren"),RK("Arst"),
-        RK("AIhe"),RK("AIma"),RK("AIat"),RK("AIab"),RK("AIim"),RK("AIsm"),
-        RK("AIam"),RK("AIxm"),RK("AIde"),RK("AIml"),RK("AImm"),RK("AIfs"),
-        RK("AImi"),RK("AIem"),RK("AIlm"),RK("AIda"),RK("AIct"),
-    };
-    #undef RK
-    static bool impl[256] = {0};
-    for (size_t i = 0; i < sizeof(implemented)/sizeof(implemented[0]); i++)
-        if (implemented[i] < 256) impl[implemented[i]] = true;
-
     /* Process unique rawcodes */
     typedef struct { DWORD key; const char *name; const char *classname; bool hero; bool item; const char *sort; const char *race; } abil_t;
     abil_t *abilities = NULL;
@@ -499,17 +519,18 @@ int main(int argc, char **argv) {
         AbilityData_t *row = rows + i;
         if (!row->id) continue;
         DWORD code = row->code ? row->code : row->id;
+        if (row->uberAlias) code = row->uberAlias;
 
         bool dup = false;
         for (DWORD j = 0; j < abil_count; j++) { if (abilities[j].key == code) { dup = true; break; } }
         if (dup) continue;
 
-        char key5[5] = {0}; memcpy(key5, &row->id, 4);
+        char key5[5] = {0}; memcpy(key5, &code, 4);
         LPCSTR name = Stb_IniCacheFind(&ini, key5, "Name");
         const char *cn = lookup_classname(key5);
 
         if (abil_count >= abil_cap) { abil_cap = abil_cap ? abil_cap * 2 : 512; abilities = realloc(abilities, abil_cap * sizeof(abil_t)); }
-        abilities[abil_count++] = (abil_t){ .key = row->id, .name = name ? name : row->comments, .classname = cn,
+        abilities[abil_count++] = (abil_t){ .key = code, .name = name ? name : row->comments, .classname = cn,
                                             .hero = row->hero != 0, .item = row->item != 0, .sort = row->sort, .race = row->race };
     }
 
@@ -520,7 +541,7 @@ int main(int argc, char **argv) {
 
     for (DWORD i = 0; i < abil_count; i++) {
         abil_t *a = &abilities[i];
-        bool done = a->key < 256 && impl[a->key];
+        bool done = is_implemented(a->key);
         if (done) continue;
 
         char raw5[5] = {0}; memcpy(raw5, &a->key, 4);
