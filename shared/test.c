@@ -170,8 +170,8 @@ int Test_Run(const char *pattern) {
         total_asserts += test_asserts;
         if (total_failures != before) failed_tests++;
         ran++;
-        fprintf(stderr, "  %-52s %s\n", t->name,
-                (total_failures == before) ? "PASS" : "FAIL");
+        if (total_failures != before)
+            fprintf(stderr, "  %-52s FAIL\n", t->name);
     }
     test_junit_body = NULL;
     fprintf(stderr, "=== %d/%d assertions passed in %d test(s)",
