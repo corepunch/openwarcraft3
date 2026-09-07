@@ -96,6 +96,19 @@ These commands play **in-map JASS cinematics**, not prerendered `PlayCinematic` 
 
 For campaign skipping, prefer `objective list` followed by `objective complete <trigger-index>` when it finds the relevant authored completion trigger; otherwise use `trigger list <part-of-name>` followed by `trigger fire <index>`. Both execute the map's authored actions so dialogue, spawning, trigger enable/disable changes, quest updates, and later mission state can advance together. For cutscenes, `cinematic list`/`cinematic play` provide the same execution path with narrower cutscene discovery and an authored `cinematic stop` escape route. `quest complete` remains useful when testing only the journal/UI state.
 
+Instant build is an issuing-player cheat and requires `sv_cheats 1`:
+
+```
+instantbuild          # toggle
+instantbuild on
+instantbuild off
+warpten               # Warcraft-style alias; same toggle
+```
+
+When enabled, structures owned by that player complete on the next construction work tick and ordinary trained units complete on the next producer tick. The cheat deliberately preserves the normal command path: the worker still travels to a valid site, placement and resource/food checks still run, the structure/unit is still created through the ordinary queue, and normal completion events, UI invalidation, sounds, rally orders, and exit-placement checks remain authoritative. Turning the cheat on also affects construction/training already in progress on their next tick. A blocked producer exit still keeps a completed trained unit queued until a legal exit position exists. Research and Hero revival timers are not changed by this command.
+
+The state is per player rather than global, so enabling it for a human player does not accelerate computer opponents. Like the other runtime cheats it stays active until explicitly toggled off or the player state is replaced by a fresh map/client lifecycle.
+
 Time-of-day phase cheats set the authoritative Warcraft clock directly and require `sv_cheats 1`:
 
 ```

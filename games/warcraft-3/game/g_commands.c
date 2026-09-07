@@ -839,6 +839,47 @@ CLIENTCOMMAND(Kill) {
     clent->health.value = 0;
 }
 
+BOOL G_PlayerInstantBuild(DWORD player) {
+    LPGAMECLIENT client = G_GetPlayerClientByNumber(player);
+    return client && client->ps.number == player && client->cheat_instant_build;
+}
+
+static BOOL G_ParseCheatToggle(LPCSTR value, BOOL current, BOOL *out) {
+    if (!out) return false;
+    if (!value || !*value) {
+        *out = !current;
+        return true;
+    }
+    if (!strcasecmp(value, "on") || !strcmp(value, "1")) {
+        *out = true;
+        return true;
+    }
+    if (!strcasecmp(value, "off") || !strcmp(value, "0")) {
+        *out = false;
+        return true;
+    }
+    return false;
+}
+
+CLIENTCOMMAND(InstantBuild) {
+    LPGAMECLIENT client = clent ? clent->client : NULL;
+    BOOL enabled;
+
+    if (!G_CheatsEnabled()) {
+        fprintf(stderr, "WC3: cheats are disabled; set sv_cheats 1\n");
+        return;
+    }
+    if (!client) return;
+    if (argc > 2 || !G_ParseCheatToggle(argc >= 2 ? argv[1] : NULL,
+                                       client->cheat_instant_build, &enabled)) {
+        fprintf(stderr, "WC3: usage: instantbuild [on|off]\n");
+        return;
+    }
+    client->cheat_instant_build = enabled;
+    fprintf(stderr, "WC3: instant build %s for player %u\n",
+            enabled ? "on" : "off", (unsigned)client->ps.number);
+}
+
 static void G_CheatGameResult(LPEDICT clent, DWORD game_result) {
     if (!G_CheatsEnabled()) {
         fprintf(stderr, "WC3: cheats are disabled; set sv_cheats 1\n");
@@ -1781,6 +1822,8 @@ clientCommand_t clientCommands[] = {
     { "lose", CMD_Lose },
     { "day", CMD_Day },
     { "night", CMD_Night },
+    { "instantbuild", CMD_InstantBuild },
+    { "warpten", CMD_InstantBuild },
     { "button", CMD_Button },
     { "autocast", CMD_Autocast },
     { "research", CMD_Research },
