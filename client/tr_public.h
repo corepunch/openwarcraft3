@@ -83,15 +83,6 @@ typedef struct drawBackdrop_s {
 typedef drawText_t const *LPCDRAWTEXT;
 typedef drawImage_t const *LPCDRAWIMAGE;
 typedef drawBackdrop_t const *LPCDRAWBACKDROP;
-
-/* Decoded full-screen cinematic frame. The renderer owns the persistent upload texture. */
-typedef struct drawCinematicFrame_s {
-    DWORD width;
-    DWORD height;
-    void const *pixels;
-    RECT screen;
-} drawCinematicFrame_t;
-typedef drawCinematicFrame_t const *LPCDRAWCINEMATICFRAME;
 #include "common/stb_slk.h"
 
 typedef struct {
@@ -226,8 +217,9 @@ typedef struct {
     void (*RegisterMap)(LPCSTR mapFileName);
     void (*RenderFrame)(viewDef_t const *viewdef);
     LPTEXTURE (*LoadTexture)(LPCSTR fileName);
-    /* NULL releases the renderer-owned cinematic texture. */
-    void (*DrawCinematicFrame)(LPCDRAWCINEMATICFRAME frame);
+    /* Dynamic RGBA texture path for decoded video and other client-owned pixels. */
+    LPTEXTURE (*CreateTextureRGBA)(DWORD width, DWORD height, void const *pixels);
+    BOOL (*UpdateTextureRGBA)(LPTEXTURE texture, DWORD width, DWORD height, void const *pixels);
     LPMODEL (*LoadModel)(LPCSTR filename);
     LPFONT (*LoadFont)(LPCSTR filename, DWORD size);
     size2_t (*GetWindowSize)(void);
@@ -254,9 +246,6 @@ typedef struct {
     void (*DrawSprite)(LPCMODEL model, LPCSTR anim, float x, float y);
     bool (*DrawCursor)(float x, float y, COLOR32 tint);
     bool (*SetEntityAnimFrame)(LPCMODEL model, LPCSTR anim, renderEntity_t *entity);
-    /* Authored named-sequence duration in milliseconds. Returns false when
-     * the active model format does not expose named animation timing. */
-    bool (*GetModelAnimationDuration)(LPCMODEL model, LPCSTR anim, LPDWORD duration);
     void (*DrawText)(LPCDRAWTEXT drawText);
     VECTOR2 (*GetTextSize)(LPCDRAWTEXT drawText);
     bool (*GetModelInfo)(LPMODEL model, LPMODELINFO info);

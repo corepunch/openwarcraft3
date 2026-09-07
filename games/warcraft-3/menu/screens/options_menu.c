@@ -321,7 +321,7 @@ static void OptionsMenu_SetPanel(optionsPanel_t panel) {
 static void OptionsMenu_Init(void) {
     menuimport.Printf("OptionsMenu_Init\n");
     UI_PreloadGlueSceneModels();
-    UI_GotoGluePanel("Options", NULL, NULL);
+    UI_GotoGluePanel("Options", NULL);
     current_panel = OPTIONS_PANEL_GAMEPLAY;
 
     UI_SetOnClick(options_menu.GameplayButton, "menu_options_gameplay");

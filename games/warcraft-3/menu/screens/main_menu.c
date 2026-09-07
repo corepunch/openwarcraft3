@@ -26,10 +26,6 @@ static uiDialogWar3_t quit_dialog;
 /* State */
 static BOOL show_realm_select = false;
 static LPFRAMEDEF edition_button;
-static BOOL edition_switch_pending;
-static BOOL edition_switch_requested;
-static BOOL edition_switch_target_expansion;
-static BOOL single_player_transition_pending;
 
 static BOOL MainMenu_LoadScreen(void) {
     return MainMenu_Load(&main_menu);
@@ -105,9 +101,6 @@ static void MainMenu_InitFrames(void) {
 static void MainMenu_Init(void) {
     menuimport.Printf("MainMenu_Init\n");
     edition_button = NULL;
-    edition_switch_pending = false;
-    edition_switch_requested = false;
-    single_player_transition_pending = false;
     UI_PreloadGlueSceneModels();
     MainMenu_InitFrames();
     MainMenu_ShowMainPanel();
@@ -115,9 +108,6 @@ static void MainMenu_Init(void) {
 
 static void MainMenu_Shutdown(void) {
     edition_button = NULL;
-    edition_switch_pending = false;
-    edition_switch_requested = false;
-    single_player_transition_pending = false;
 }
 
 static void MainMenu_ApplyEdition(BOOL expansion) {
@@ -136,20 +126,11 @@ static void MainMenu_ApplyEdition(BOOL expansion) {
 }
 
 /* Restart only after both authored Death layers have reached their final pose. */
-static void MainMenu_FinishEditionSwitch(void *params) {
-    (void)params;
-    if (!edition_switch_pending || edition_switch_requested) return;
-    edition_switch_requested = true;
-    MainMenu_ApplyEdition(edition_switch_target_expansion);
-    menuimport.Cmd_ExecuteText("menu_restart\n");
-}
+static void MainMenu_FinishEditionSwitch(void) {
+    LPCSTR expansion = menuimport.Cvar_String("fs_expansion", "0");
 
-/* The transition owns the screen swap so drawing never needs to poll animation state. */
-static void MainMenu_FinishSinglePlayerTransition(void *params) {
-    (void)params;
-    if (!single_player_transition_pending) return;
-    single_player_transition_pending = false;
-    M_ShowSinglePlayerMenu();
+    MainMenu_ApplyEdition(!(expansion && atoi(expansion) != 0));
+    menuimport.Cmd_ExecuteText("menu_restart\n");
 }
 
 static void MainMenu_Refresh(int msec) {
@@ -159,16 +140,6 @@ static void MainMenu_Refresh(int msec) {
 static void MainMenu_Draw(void) {
     LPCFRAMEDEF roots[2];
     DWORD num_roots = 0;
-
-    if (edition_switch_pending) {
-        UI_DrawGlueScene();
-        return;
-    }
-
-    if (single_player_transition_pending) {
-        UI_DrawGlueScene();
-        return;
-    }
 
     UI_DrawGlueScene();
 
@@ -189,32 +160,16 @@ static void MainMenu_KeyEvent(int key, BOOL down) {
     (void)down;
 }
 
-void MainMenu_BeginSinglePlayer(void) {
-    if (single_player_transition_pending || edition_switch_pending || !main_menu.MainMenuFrame) return;
-    single_player_transition_pending = true;
-    show_realm_select = false;
-    UI_DialogWar3Hide(&quit_dialog);
-    UI_SetHidden(main_menu.MainMenuFrame, true);
-    UI_GotoGluePanel("SinglePlayer", MainMenu_FinishSinglePlayerTransition, NULL);
-}
-
 void MainMenu_BeginEditionSwitch(void) {
-    LPCSTR expansion;
-
-    if (edition_switch_pending || !main_menu.MainMenuFrame) return;
-    expansion = menuimport.Cvar_String("fs_expansion", "0");
-    edition_switch_target_expansion = !(expansion && atoi(expansion) != 0);
-    edition_switch_pending = true;
-    edition_switch_requested = false;
+    if (!main_menu.MainMenuFrame) return;
     show_realm_select = false;
     UI_DialogWar3Hide(&quit_dialog);
-    UI_SetHidden(main_menu.MainMenuFrame, true);
-    UI_CloseGluePanel(MainMenu_FinishEditionSwitch, NULL);
+    M_TransitionToAction(MainMenu_FinishEditionSwitch);
 }
 
 void MainMenu_ShowMainPanel(void) {
     show_realm_select = false;
-    UI_GotoGluePanel("MainMenu", NULL, NULL);
+    UI_GotoGluePanel("MainMenu", NULL);
     UI_DialogWar3Hide(&quit_dialog);
     if (main_menu.MainMenuFrame) {
         UI_SetHidden(main_menu.MainMenuFrame, false);
@@ -233,7 +188,7 @@ void MainMenu_ShowMainPanel(void) {
 void MainMenu_ShowRealmSelect(void) {
     UI_DialogWar3Hide(&quit_dialog);
     show_realm_select = true;
-    UI_GotoGluePanel("RealmSelection", NULL, NULL);
+    UI_GotoGluePanel("RealmSelection", NULL);
     if (main_menu.RealmSelect) {
         UI_SetHidden(main_menu.RealmSelect, false);
     }

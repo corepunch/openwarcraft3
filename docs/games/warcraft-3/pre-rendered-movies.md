@@ -33,7 +33,7 @@ libswresample
 ```
 
 `client/cl_movie.c` owns demux/decode, A/V scheduling, Escape-to-skip, archive extraction, and full-screen presentation.
-The renderer exposes a Quake-II-style `DrawCinematicFrame` operation. The client supplies decoded RGBA pixels and the destination rectangle; the renderer owns the persistent upload texture and draws it. Passing `NULL` releases that renderer-owned texture. The sound mixer exposes a generic 44.1-kHz stereo S16 stream slot, following the same ownership split as Quake-style cinematic audio. Movie and music streams are independent; see [music.md](music.md).
+The renderer only exposes generic dynamic RGBA texture create/update operations. The sound mixer exposes a generic 44.1-kHz stereo S16 stream slot, following the same ownership split as Quake-style cinematic audio. Movie and music streams are independent; see [music.md](music.md).
 
 The decoder first asks `FS_ResolveLoosePath()` for a real disk path. This lets libavformat stream a normal loose
 `Movies\\*.mpq` file without loading the whole movie into memory. If the movie is found only inside an archive,

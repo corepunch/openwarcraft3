@@ -222,25 +222,6 @@ void R_DrawImage(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv, COLOR32 color) 
                         .shader = SHADER_UI));
 }
 
-/* Upload and draw one decoded cinematic frame while keeping the video texture renderer-owned. */
-void R_DrawCinematicFrame(LPCDRAWCINEMATICFRAME frame) {
-    if (!frame) {
-        SAFE_DELETE(tr.cinematic, R_ReleaseTexture);
-        return;
-    }
-    if (!frame->pixels || !frame->width || !frame->height || frame->screen.w <= 0 || frame->screen.h <= 0) return;
-    if (!tr.cinematic || tr.cinematic->width != frame->width || tr.cinematic->height != frame->height) {
-        SAFE_DELETE(tr.cinematic, R_ReleaseTexture);
-        tr.cinematic = R_AllocateTexture(frame->width, frame->height);
-        if (!tr.cinematic) return;
-        R_LoadTextureMipLevel(tr.cinematic, &(TEXMIP){ frame->pixels, frame->width, frame->height, 0, PIXEL_RGBA });
-    } else {
-        R_Call(glBindTexture, GL_TEXTURE_2D, tr.cinematic->texid);
-        R_Call(glTexSubImage2D, GL_TEXTURE_2D, 0, 0, 0, frame->width, frame->height, GL_RGBA, GL_UNSIGNED_BYTE, frame->pixels);
-    }
-    R_DrawImage(tr.cinematic, &frame->screen, &(RECT){0, 0, 1, 1}, COLOR32_WHITE);
-}
-
 static BOOL R_MinimapPointForWorld(LPCVECTOR3 world, LPCRECT screen, LPVECTOR2 out) {
     VECTOR2 map_size;
     FLOAT nx;

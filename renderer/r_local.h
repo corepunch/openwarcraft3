@@ -297,7 +297,6 @@ struct render_globals {
     LPTEXTURE minimap;
     RECT minimapRect;   /* UI-space world-content rect used for minimap projection */
     BOOL hasMinimap;
-    LPTEXTURE cinematic;
 };
 
 void R_RegisterMap(LPCSTR mapFileName);
@@ -317,7 +316,8 @@ void R_DrawDecals(void);
 void R_DrawAlphaSurfaces(void);
 void R_RenderFrame(viewDef_t const *viewDef);
 LPTEXTURE R_AllocateTexture(DWORD width, DWORD height);
-void R_DrawCinematicFrame(LPCDRAWCINEMATICFRAME frame);
+LPTEXTURE R_CreateTextureRGBA(DWORD width, DWORD height, void const *pixels);
+BOOL R_UpdateTextureRGBA(LPTEXTURE texture, DWORD width, DWORD height, void const *pixels);
 LPTEXTURE R_MakeSysFontTexture(void);
 LPTEXTURE R_MakeLoadingIndicatorTexture(void);
 LPTEXTURE R_MakeSelectionCircleTexture(void);
@@ -344,7 +344,6 @@ void R_ReleaseVertexArrayObject(LPBUFFER buffer);
 LPCTEXTURE R_FindTextureByID(DWORD textureID);
 void R_DrawSprite(LPCMODEL model, LPCSTR anim, float x, float y);
 bool R_SetEntityAnimFrame(LPCMODEL model, LPCSTR anim, renderEntity_t *entity);
-bool R_GetModelAnimationDuration(LPCMODEL model, LPCSTR anim, LPDWORD duration);
 void R_RenderSplat(LPCVECTOR2 position, float radius, LPCTEXTURE texture, splat_shader_t *shader, COLOR32 color);
 void R_DrawBackdrop(LPCDRAWBACKDROP drawBackdrop);
 void R_RenderRectSplat(LPCVECTOR2 mins, LPCVECTOR2 maxs, LPCTEXTURE texture, splat_shader_t *shader, COLOR32 color);

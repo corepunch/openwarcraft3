@@ -34,7 +34,7 @@ static void CreditsMenu_Init(void) {
 
     menuimport.Printf("CreditsMenu_Init\n");
     UI_PreloadGlueSceneModels();
-    UI_GotoGluePanel("MainMenu", NULL, NULL);
+    UI_GotoGluePanel("MainMenu", NULL);
     if (UI_DialogWar3Init(&credits_dialog, credits_root, &init)) {
         UI_DialogWar3Show(&credits_dialog, &config);
     }

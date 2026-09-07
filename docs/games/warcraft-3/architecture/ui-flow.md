@@ -114,22 +114,22 @@ valid after map registration and makes Quit Campaign / EndGame / campaign-select
 the same edition selected by the main menu.
 
 `games/warcraft-3/menu/menu_glue_scene.c` renders the selected background as a model with `RDF_USE_ENTITY_CAMERA`; the main menu is
-therefore not a static BLP backdrop. Glue animation timing is model-authored rather than hard-coded. The generic renderer export
-`GetModelAnimationDuration` exposes a named sequence's interval length when the model format supports it. The menu keeps that clock
-private and exposes `UI_GotoGluePanel(name, changed, params)` instead: callers name a logical panel such as `MainMenu` or
-`SinglePlayer`, while the glue system composes the current panel's `Death` and the destination panel's `Birth` sequences.
+therefore not a static BLP backdrop. Callers name a logical panel such as `MainMenu` or `SinglePlayer` through
+`UI_GotoGluePanel(name, changed)`, while the glue system composes the current panel's `Death` and the destination panel's
+`Birth` sequences. RoC and TFT use the same fixed panel intervals: every named `Birth` is 1000 ms and every named `Death` is
+666-667 ms in both left/right models, so the menu owns one phase clock without exposing model timing through the renderer ABI.
 
-The shared background starts with non-looping `Birth` and hands off to `Stand`. A stable sprite-layer request such as
-`MainMenu Stand`, `SinglePlayer Stand`, or an `... Stand Alternate` variant first tries the matching `Birth` sequence, preserves any
-suffix, and then hands off to the requested `Stand`. Explicit `Birth`/`Death` requests are one-shots and hold their final authored
-pose until the controller requests another state. `UI_GotoGluePanel` owns the Main Menu -> Single Player and Single Player -> Main
-Menu handoff: it completes the outgoing panel's `Death`, starts the destination panel's `Birth`, and then invokes the screen-change
-callback. The edition switch uses `UI_CloseGluePanel` before `menu_restart`. If a renderer/model does not expose the requested
-sequence duration, the code deliberately falls back to the previous direct requested sequence instead of inventing a timer.
+The shared background renders its looping `Stand` sequence. The panel controller has only three phases: idle, exit, and enter. It
+derives each layer's `Death@ratio` or `Birth@ratio` sequence from the current logical panel and returns to its authored `Stand` when
+the phase ends. `menu_main.c` owns cross-screen transitions: while one is active it suppresses screen drawing and input, draws the
+glue scene, then switches to the requested screen after its `Birth`. Action-only transitions invoke their action after `Death`.
+Screen controllers do not poll animation completion, keep pending flags, or hide their own frame trees for transitions.
+At startup `M_Init` only loads UI resources; the client's post-input `menu_main` command starts the initial transition. Selecting the
+screen in both places opens its FDF tree before `Birth` and must not be reintroduced.
 
-Campaign background models have the same local lifecycle: entering campaign selection or changing to a different campaign backdrop
-starts that model's `Birth` from frame zero and then switches to `Stand`. Entering campaign selection also waits for
-`SinglePlayer Death`. Returning from the campaign view restarts the normal glue `Birth` lifecycle. The retail/Warsmash
+Campaign background models render their stable `Stand` sequence. Their `Birth` durations vary by race and edition, so they are not
+part of the fixed panel-transition clock. Entering campaign selection waits for `SinglePlayer Death`; returning declares
+`SinglePlayer` as the desired panel and the closed-panel state starts its `Birth`. The retail/Warsmash
 `SlidingDoors Birth -> background swap -> SlidingDoors Death` campaign wipe is still separate work; OpenRealm currently keeps
 `SlidingDoors` hidden because its campaign-view ownership does not yet implement that intermediate transition state. Remaining glue
 parity gaps also include `MenuZFog` and edition-sensitive `GlueScreenLoop` ambience.
@@ -144,7 +144,7 @@ this menu restart; edition-decorated paths reload correctly, while broader textu
 3. The current `uiScreen_t` receives the event.
 4. Button frames inspect mouse containment and event state in `games/warcraft-3/menu/menu_render.c`.
 5. If a clicked frame has `OnClick`, `UI_MenuCommandLocal` executes the command.
-6. Menu commands call direct screen/action handlers.
+6. Menu commands declare a destination screen or action; the menu transition manager performs the handoff.
 
 Example menu command:
 
