@@ -185,7 +185,10 @@ void G_DumpJassGroupDebug(LPCSTR failing_creator, LPCSTR failing_chain, LONG fai
         DWORD live;
     } group_chain_count_t;
     group_chain_count_t counts[JASS_GROUP_DEBUG_MAX_STATS] = {0};
-    DWORD num_counts = 0, live = 0;
+    DWORD num_counts = 0;
+#ifdef WC3_DEBUG_GROUPS
+    DWORD live = 0;
+#endif
 
     if (!G_JassGroupDebugEnabled() || jass_group_debug_full_reported) return;
     jass_group_debug_full_reported = true;
@@ -196,7 +199,9 @@ void G_DumpJassGroupDebug(LPCSTR failing_creator, LPCSTR failing_chain, LONG fai
         LONG trigger_ordinal = -1;
         DWORD k;
         if (!group || !group->inuse) continue;
+    #ifdef WC3_DEBUG_GROUPS
         live++;
+    #endif
         if (i < jass_group_debug_slot_capacity) {
             if (jass_group_debug_slots[i].chain[0]) chain = jass_group_debug_slots[i].chain;
             trigger_ordinal = jass_group_debug_slots[i].trigger_ordinal;

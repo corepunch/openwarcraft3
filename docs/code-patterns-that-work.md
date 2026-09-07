@@ -128,6 +128,10 @@ refExport_t R_GetAPI(refImport_t imp) { ri = imp; return re; }
 // Then calls ri.FS_ReadFile, ri.Cvar_Get, etc.
 ```
 
+## Unity source ownership
+
+Game libraries compile selected `.c` files into one unity translation unit. A function included from a shared implementation must have one owner in that unit even when a game needs different empty-data behavior. For example, SC2's `g_world.c` includes WC3's generic `routing.c`; its `CM_GetPathingFlagsAt()` already returns false when no pathmap is loaded, so `world_sc2.c` must not define a parallel stub with the same name.
+
 ## Static utils in nearby headers
 
 Pure, reusable local helpers go in a small header as `static` functions (e.g., `sc2_utils.h`). Subsystem-owned helpers that touch globals stay in the `.c` file that owns that state. No dedicated header for a single tiny helper.
