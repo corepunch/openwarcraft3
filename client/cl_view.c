@@ -411,6 +411,7 @@ static void CL_AddBuilding(void) {
     ent.frame = cl.cursorEntity->frame;
     ent.oldframe = cl.cursorEntity->frame;
     ent.model = cl.models[cl.cursorEntity->model];
+    ent.tint = MAKE(COLOR32, 255, 255, 255, 128);
 
     CL_AddBuildingPlacementGrid(&ent.origin);
     view_state.entities[view_state.num_entities++] = ent;

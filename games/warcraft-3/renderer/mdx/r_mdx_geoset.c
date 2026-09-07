@@ -490,6 +490,19 @@ static void MDLX_RenderGeoset(mdxModel_t const *model,
         R_Call(glDepthMask, GL_TRUE);
         if (!MDLX_SetBlendMode(layer, layerID))
             continue;
+        /* Instance tint alpha is presentation opacity, not authored material
+         * alpha. Opaque and alpha-key layers therefore need a real blend path
+         * when the caller supplies a translucent instance; multiplying the
+         * shader alpha alone would otherwise leave opaque layers fully opaque. */
+        if (tint->w < 1.0f - EPSILON &&
+            (layer->blendMode == BLEND_MODE_NONE ||
+             layer->blendMode == BLEND_MODE_ALPHAKEY)) {
+            shader->state.alphaKey = 0;
+            R_SetAlphaKeyState(false);
+            R_Call(glEnable, GL_BLEND);
+            R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+            R_Call(glDepthMask, GL_FALSE);
+        }
         MDLX_ApplyLayerFlags(layer);
         BOOL unshaded = forceUnshaded || (layer->flags & MODEL_GEO_UNSHADED);
         shader->state.unshaded = unshaded;

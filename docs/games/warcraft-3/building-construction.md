@@ -111,6 +111,8 @@ Rendering deliberately reuses the terrain-splat path rather than uploading a reg
 
 The Warsmash reference also samples one 32-world-unit pathing cell per preview texel and colours prevented/required pathing failures red and valid cells green. OpenRealm preserves that presentation model but keeps placement authority on the server.
 
+The placement building itself is rendered as a white-tinted MDX instance at 128/255 alpha (approximately 50%) so the terrain plan remains visible through the ghost without modifying the shared model or its textures. `renderEntity_t.tint` owns this presentation state. The inspected Warsmash source contains the same `0.5f` vertex-alpha idea in its build-cursor code but currently leaves that line commented out, so the translucency is an intentional OpenRealm presentation choice rather than a claim about current Warsmash output.
+
 Build-on-target structures (`UnitData.isBuildOn`) are intentionally excluded from the coloured grid for now. Their authoritative validity depends on finding an eligible `canBuildOn` parent, and that parent-eligibility state is not yet part of the client cursor contract. The ghost still uses authored dimensions for snapping; suppressing the grid is preferable to showing a misleading all-green plan.
 
 ### Spawned Human construction cancellation
