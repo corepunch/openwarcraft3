@@ -472,8 +472,8 @@ static DWORD StatusBuffCode(heroabilitystatus_t const *status) {
     ability = G_AbilityData(status->code);
     if (!ability || !ability->id) return 0;
     level = MIN(MAX(status->level, 1u), 4u) - 1u;
-    buff = RawcodeFromListToken(ability->buffID[level]);
-    if (!buff && level != 0) buff = RawcodeFromListToken(ability->buffID[0]);
+    buff = RawcodeFromListToken(ability->level[level].buffID);
+    if (!buff && level != 0) buff = RawcodeFromListToken(ability->level[0].buffID);
     return buff;
 }
 

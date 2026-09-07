@@ -15,7 +15,37 @@ real command handler so a stub cannot create a dead button.
 
 ## Current Model
 
-OpenWarcraft3 uses a small Quake-style `ability_t` dispatch object. Command-capable abilities provide a `cmd` hook; optional hooks cover toggle presentation, spell metadata and synchronous item use. Command-card discovery now requires a real `cmd`, so registered passive/stub handlers do not create dead buttons. Runtime `UnitAddAbility` aliases are also included in command-card discovery.
+Campaign rawcodes in `CampaignAbilityStrings.txt` are registered through
+`games/warcraft-3/game/skills/s_campaign_abilities.c`. Each entry owns a
+rawcode-specific `spell_info_t`, so `S_SpellData`, duration, unit, buff, and
+target lookups read the campaign `AbilityData.slk` row. Shared execution
+families cover campaign area damage, War Stomp, summons, timed statuses,
+toggles, dispel, Battle Roar, and Storm Bolt without aliasing a standard
+rawcode's descriptor. The registry test in `game/tests/t_spell.c` checks every
+campaign rawcode for a concrete command, execute callback, and matching spell
+code. Campaign-specific presentation, exact summon composition, Parasite
+death spawning, and full three-form Storm/Earth/Fire behavior remain separate
+follow-up contracts when their authored rows and runtime consumers are added.
+
+OpenWarcraft3 uses a small Quake-style `ability_t` dispatch object. Command-capable abilities provide a `cmd` hook; optional hooks cover toggle presentation, spell metadata, synchronous item use, autocast, membership changes, and levels. `UnitAddAbility` and `UnitRemoveAbility` invoke `enabled` and `disabled` immediately. Stateful abilities derive their current level through `level`; the owning gameplay mutation calls `S_RefreshAbilityLevel()`, which forwards that value to `level_changed`. Command-card discovery requires a real `cmd`, so registered passive/stub handlers do not create dead buttons.
+
+The CommonAbility base codes use the subsystem that already owns their behavior.
+`AEbu`, `AGbu`, `AHbu`, `ANbu`, `AObu`, and `AUbu` share the build command;
+`ARal`, `Aatk`, and `Amov` share the ordinary rally, attack, and move commands;
+`Atdp` and `Atlp` share cargo drop/load. `AEpa` is the Poison Arrows toggle and
+reads its own `DataA` bonus in missile attack resolution. `Aloc` applies
+unselectable, invulnerable, collisionless, no-pathing traits during unit spawn.
+The five `Afih`/`Afin`/`Afio`/`Afir`/`Afiu` rawcodes share one passive descriptor;
+retail does not list these rawcodes in `UnitAbilities.slk`, so buildings synthesize
+`a_on_fire` as an intrinsic capability. `G_SetHealth()` refreshes its derived level and
+the `level_changed` callback owns health-stage and `UnitData.race` model selection. Hero revival and Hero identity
+remain owned by their existing lifecycle systems, while their CommonAbility rawcodes
+are explicit passive descriptors. ROC and TFT `ability_audit` rows match for this block;
+`Adet` is an abstract base code absent as a standalone row in both archives.
+
+Timed statuses remain generic `abilstatus[]` records. Their common duration and
+expiration bookkeeping stays in `unit_updatestatuses()`; add apply, refresh, or remove
+callbacks only when a status record can resolve its owning ability unambiguously.
 
 Abilities are discovered through the static `abilitylist[]` in
 `games/warcraft-3/game/skills/s_skills.c`. Normal unit command buttons are shown only when the
@@ -25,6 +55,17 @@ data such as item heal amounts still resolves correctly. Hero abilities are
 stored as `heroability_t` entries on the unit; `heroAbilList`, skill points,
 `reqLevel`, `levelSkip`, maximum ranks, and the Research-button learn menu are
 described in [Hero Ability Progression](../hero-abilities.md).
+
+Registry entries must not be counted as implemented until their gameplay
+consumer, authored data, and inverse behavior are covered. Use the
+[Ability Implementation Plan](../ability-implementation-plan.md) to start from
+the archive data and observable behavior, then add focused evidence for any
+remaining uncertainty before adding coverage.
+
+The old `a_unimplemented` registry marker is not an implementation strategy for
+these entries. It may remain only as temporary audit scaffolding while a real
+handler is being developed, and must be removed from an entry when that entry
+is registered for gameplay.
 
 Directly copying another engine's ability classes is not mechanical. The local
 implementation should port behavior into flat C handlers, `umove_t` state
@@ -59,6 +100,29 @@ machines, existing edict fields, and data loaded from SLK/config tables.
 | `AIda` | `s_item.c` | Scroll of Protection item-defense AOE: applies authored `Bdef` duration/area/armor bonus to allowed friendly targets and consumes the successful charged use. |
 | Heavy/system abilities | `s_ability_stubs.c` | Registered explicit stubs for passive autocast, cargo, mine, shop, harvest variants, item passives, and stat/XP item families. |
 
+## Evidence-backed additions
+
+`ANto` (Tornado) is registered as a `CAbilityWhirlwind` channel and reuses the
+existing whirlwind thinker. ROC and TFT `ability_audit` rows both author a
+40-second no-target ability with summon unit `ntor` and buff `BNto`; the local
+thinker therefore follows the caster like `AOww` while retaining the normal
+channel lifetime and periodic area-status path.
+
+The selected neutral-hero contracts now also cover `ANms` (Mana Shield) at the
+central damage boundary, `AHre` (Resurrection) through persistent dead-hero
+revival, `ANbf` (Breath of Fire) through point-area damage, `ANdb` (Drunken
+Brawler) through the existing critical/evasion hooks, `ANdh` (Drunken Haze) and
+`ANdo` (Doom) through timed target buffs, `ANht` (Howl of Terror) through its
+authored area buff, and `ANca` (Cleaving Attack) through the attack-hit hook.
+
+The current selected-block implementation also covers `AHfa` (Searing Arrows)
+through the missile attack hook, `AEar` (Trueshot Aura) through the ranged
+attack bonus hook, `AOre` (Reincarnation) through the unit death/revival
+lifecycle, `AOhw` (Healing Wave), `AOhx` (Hex), `AOvd` (Big Bad Voodoo), `AEsv`
+(Vengeance), and `ANab` (Acid Bomb). `AOwd` (Serpent Ward) remains unresolved:
+the ROC and TFT AbilityData archives contain no `AOwd` row, so no authoritative
+summoned unit or level data exists for a faithful registration.
+
 `a_train` exists in `s_train.c`, but training is currently handled by the
 generic `Button` command path rather than by a registered ability code.
 
@@ -85,6 +149,7 @@ generic `Button` command path rather than by a registered ability code.
 | `ANch` | Charm | Partial | Target ownership transfer, range, mana/cooldown, and max-level gate exist. Needs full target restrictions/order cleanup. |
 | `AIco` | Item command using Charm behavior | Partial | Shares Charm handler; inventory alias-to-base dispatch is wired. |
 | `AHca` | Cold Arrows | TODO | Needs autocast/toggle projectile modifier and slow buff. |
+| `ANfl` | Forked Lightning | Partial | Unit-target bounce spell; starts at the selected unit, applies constant authored `DataA` damage to up to `DataB` alive enemy targets, and selects subsequent unvisited targets within `Area`. Projectile presentation and exact retail target ordering remain. The test fixture marks synthetic targets with `SVF_MONSTER`. |
 | `Agld` | Gold Mine | Partial | Per-mine `Agld`-derived capacity/duration/max-gold, finite resource depletion, waiting workers, inside-miner protection, and partial final trips are implemented; full variant/overlay behavior remains. |
 | `Agl2` | Overlayed Gold Mine | TODO | Needs overlay/minable mine variant. |
 | `Abgm` | Blighted Gold Mine | TODO | Needs undead mine variant. |

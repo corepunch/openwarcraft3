@@ -902,7 +902,7 @@ CLIENTCOMMAND(Kill) {
         fprintf(stderr, "WC3: cheats are disabled; set sv_cheats 1\n");
         return;
     }
-    clent->health.value = 0;
+    G_SetHealth(clent, 0);
 }
 
 /* Keep the instant-build cheat scoped to the issuing player's live client state. */

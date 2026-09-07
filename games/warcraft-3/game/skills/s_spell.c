@@ -65,10 +65,18 @@ DWORD S_SpellLevel(LPEDICT caster, DWORD code) {
 }
 
 FLOAT S_SpellNumber(DWORD code, abilityNumber_t field, DWORD level) {
-    AbilityData_t const *row = G_AbilityData(code);
-    FLOAT const *values[] = { row->cast, row->dur, row->heroDur, row->cool, row->cost, row->area, row->range };
+    abilityLevel_t const *row = G_AbilityLevel(code, level);
     level = MAX(1, MIN(level, 4));
-    return values[field][level - 1];
+    switch (field) {
+    case ABILITY_NUMBER_CAST: return row->cast;
+    case ABILITY_NUMBER_DURATION: return row->dur;
+    case ABILITY_NUMBER_HERO_DURATION: return row->heroDur;
+    case ABILITY_NUMBER_COOLDOWN: return row->cool;
+    case ABILITY_NUMBER_COST: return row->cost;
+    case ABILITY_NUMBER_AREA: return row->area;
+    case ABILITY_NUMBER_RANGE: return row->range;
+    }
+    return 0.0f;
 }
 
 LPCSTR S_SpellString(DWORD code, LPCSTR field, DWORD level) {
@@ -105,8 +113,7 @@ DWORD S_SpellDataId(DWORD code, DWORD level, DWORD index) {
 }
 
 DWORD S_SpellUnitId(DWORD code, DWORD level) {
-    level = MAX(1, MIN(level, 4));
-    return G_AbilityData(code)->unitID[level - 1];
+    return G_AbilityLevel(code, level)->unitID;
 }
 
 FLOAT S_SpellRange(DWORD code, DWORD level) {
@@ -268,7 +275,8 @@ BOOL S_SpellAllowsTarget(DWORD code, LPEDICT caster, LPEDICT target) {
     if (!S_SpellIsAliveTarget(target)) {
         return false;
     }
-    targets = G_AbilityData(code)->targs[0];
+    if (S_UnitSpellImmune(target)) return false;
+    targets = G_AbilityLevel(code, 1)->targs;
     if (!targets) {
         return true;
     }
@@ -294,7 +302,7 @@ void S_SpellHeal(LPEDICT target, FLOAT amount) {
     if (!target || amount <= 0) {
         return;
     }
-    target->health.value = MIN(target->health.max_value, target->health.value + amount);
+    G_AddHealth(target, amount);
 }
 
 void S_SpellCursorSplat(LPEDICT clent, FLOAT radius) {
@@ -354,6 +362,10 @@ void spell_run_frame(LPEDICT ent) {
 static BOOL spell_validate(LPEDICT clent, LPEDICT caster, DWORD code, DWORD level, LPEDICT target, FLOAT range) {
     if (!caster)
         return false;
+    if (S_UnitHasStatus(caster, MAKEFOURCC('B','N','s','i'))) {
+        G_ShowCommandErrorText(clent, "Silenced.");
+        return false;
+    }
     if (!S_SpellCooldownReady(caster, code)) {
         G_ShowCommandErrorText(clent, "Spell is not ready yet.");
         return false;
@@ -371,6 +383,10 @@ static BOOL spell_validate(LPEDICT clent, LPEDICT caster, DWORD code, DWORD leve
 static BOOL spell_validate_point(LPEDICT clent, LPEDICT caster, DWORD code, DWORD level, LPCVECTOR2 point, FLOAT range) {
     if (!caster || !point)
         return false;
+    if (S_UnitHasStatus(caster, MAKEFOURCC('B','N','s','i'))) {
+        G_ShowCommandErrorText(clent, "Silenced.");
+        return false;
+    }
     if (!S_SpellCooldownReady(caster, code)) {
         G_ShowCommandErrorText(clent, "Spell is not ready yet.");
         return false;
@@ -392,6 +408,7 @@ static void spell_begin_channel(LPEDICT caster, DWORD code) {
 
 /* Pre-execute common work: spend mana, start cooldown. */
 static void spell_commit(LPEDICT caster, DWORD code, DWORD level) {
+    S_HumanBreakInvisibility(caster);
     S_SpellSpendMana(caster, code, level);
     S_SpellStartCooldown(caster, code, level);
 }
@@ -472,6 +489,26 @@ BOOL S_CastNoTargetSpell(LPEDICT caster, DWORD code) {
     if (spell->validate && !spell->validate(caster, target)) return false;
 
     spell_commit(caster, code, level);
+    spell->execute(caster, target, spell);
+    return true;
+}
+
+/* Autocast and AI orders use the same target and resource contract as a player-selected unit spell. */
+BOOL S_CastUnitTargetSpell(LPEDICT caster, DWORD code, LPEDICT unit) {
+    DWORD level;
+    spell_info_t const *spell;
+    spellTarget_t target = { .type = SPELL_TARGET_UNIT, .entity = unit };
+
+    if (!caster || !unit || !code || !G_UnitAbilityLevel(caster, code)) return false;
+    spell = S_SpellInfoForCode(code);
+    if (!spell || spell->target_type != SPELL_TARGET_UNIT || !spell->execute) return false;
+    level = S_SpellLevel(caster, code);
+    if (!S_SpellCooldownReady(caster, code) || !S_SpellCanPay(caster, code, level) ||
+        !S_SpellTargetInRange(caster, unit, S_SpellRange(code, level)) || !S_SpellAllowsTarget(code, caster, unit)) return false;
+    if (spell->validate && !spell->validate(caster, target)) return false;
+
+    spell_commit(caster, code, level);
+    if (spell->flags & SPELL_CHANNEL) spell_begin_channel(caster, code);
     spell->execute(caster, target, spell);
     return true;
 }

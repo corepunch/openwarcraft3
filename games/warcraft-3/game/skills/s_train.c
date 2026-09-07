@@ -523,7 +523,7 @@ void unit_build(LPEDICT self, DWORD class_id) {
     ent = SP_SpawnAtLocation(class_id, self->s.player, &self->s.origin2);
     ent->training = true;
     ent->training_food_wait_notified = false;
-    ent->health.value = 0;
+    G_SetHealth(ent, 0);
     /* SP_SpawnAtLocation already ran birth; calling it twice reset the trained unit and crashed sparse fixtures. */
     ent->s.renderfx |= RF_HIDDEN;
     unit_add_build_queue(self, ent);

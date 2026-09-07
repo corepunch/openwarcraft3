@@ -101,7 +101,7 @@ DWORD SetUnitFacingTimed(LPJASS j) {
 DWORD KillUnit(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     if (whichUnit) {
-        whichUnit->health.value = 0;
+        G_SetHealth(whichUnit, 0);
         if (whichUnit->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
     }
     return 0;

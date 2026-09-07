@@ -568,6 +568,12 @@ typedef struct ability_s {
     BOOL (*autocast_is_on)(LPEDICT);
     void (*autocast_set)(LPEDICT, BOOL);
     BOOL (*autocast_acquire)(LPEDICT);
+
+    /* Ability membership and owning-entity state transitions are event-driven. */
+    void (*enabled)(LPEDICT);
+    void (*disabled)(LPEDICT);
+    DWORD (*level)(LPCEDICT);
+    void (*level_changed)(LPEDICT, DWORD);
 } ability_t;
 
 typedef struct {
@@ -963,6 +969,12 @@ struct edict_s {
     heroability_t heroabilities[MAX_HERO_ABILITIES];
     heroabilitystatus_t abilstatus[MAX_UNIT_STATUSES];
     edictAbilities_s abilities;
+    DWORD autocast_code; /* one selected autocast ability; zero means disabled */
+    struct edictAvatar_s {
+        DWORD level;
+        FLOAT armor, health;
+        LONG damage;
+    } avatar;
     BOOL invulnerable;  // unit cannot take damage when true
     BOOL paused;        // unit AI and movement suspended when true
     BOOL stunned;       // unit AI and movement suspended by timed status
@@ -1022,6 +1034,7 @@ struct edict_s {
     FLOAT armor_value;    /* computed armor ('realdef', incl. hero AGI/modifiers) */
     FLOAT permanent_armor_bonus; /* research/permanent modifiers preserved across hero recompute */
     FLOAT temporary_armor_bonus; /* item/temporary modifiers preserved across hero recompute */
+    FLOAT temporary_health_bonus; /* temporary maximum-health modifiers restored on expiration */
     struct {
         BYTE select[MAX_UNIT_SELECT_SOUNDS];
         BYTE num_select;
@@ -1636,7 +1649,13 @@ BOOL SV_CloseEnough(LPEDICT, LPCEDICT, FLOAT);
 
 // g_phys.c
 void G_RunEntity(LPEDICT);
-void G_UpdateOnFire(LPEDICT);
+void G_SetHealth(LPEDICT, FLOAT);
+void G_AddHealth(LPEDICT, FLOAT);
+void S_EnableAbility(LPEDICT, DWORD);
+void S_DisableAbility(LPEDICT, DWORD);
+void S_RefreshAbilityLevel(LPEDICT, ability_t const *);
+extern ability_t a_on_fire;
+void G_ApplyUnitAbilityTraits(LPEDICT);
 void G_SolveCollisions(void);
 BOOL M_CheckCollision(LPCVECTOR2, FLOAT);
 void G_PushEntity(LPEDICT ent, FLOAT distance, LPCVECTOR2 direction);
@@ -1953,6 +1972,7 @@ BOOL unit_additemtoslot(LPEDICT, LPEDICT, DWORD);
 BOOL unit_additem(LPEDICT, LPEDICT);
 void unit_addstatus(LPEDICT, LPCSTR, DWORD);
 void unit_addtimedstatus(LPEDICT, LPCSTR, DWORD, FLOAT);
+DWORD G_UnitStatusLevel(LPCEDICT, DWORD);
 BOOL unit_statusshowstimedbar(DWORD);
 FLOAT unit_statusremainingfraction(heroabilitystatus_t const *);
 heroabilitystatus_t const *unit_findtimedbarstatus(LPCEDICT);

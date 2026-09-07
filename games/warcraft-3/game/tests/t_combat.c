@@ -63,10 +63,16 @@ void  order_move(LPEDICT self, LPEDICT target);
 /* Minimal die() stub that records calls without touching the move state. */
 static int _die_call_count = 0;
 static LPEDICT _die_last_attacker = NULL;
+static PATHSTR _fire_model;
 static void stub_die(LPEDICT self, LPEDICT attacker) {
     (void)self;
     _die_call_count++;
     _die_last_attacker = attacker;
+}
+
+static int capture_fire_model(LPCSTR model) {
+    strlcpy(_fire_model, model, sizeof(_fire_model));
+    return 77;
 }
 
 static LPEDICT make_combat_unit(DWORD class_id, FLOAT hp, FLOAT x, FLOAT y) {
@@ -131,6 +137,31 @@ TEST(wc3_combat, tdamage_reduces_health) {
 
     T_FEQ(target->health.value, 320.0f, 0.01f);
     T_EQ(_die_call_count, 0);
+}
+
+TEST(wc3_combat, tdamage_updates_building_fire_model_and_slot_mask) {
+    LPEDICT building = make_combat_unit(MAKEFOURCC('h','b','a','r'), 1000.0f, 0.0f, 0.0f);
+    LPEDICT attacker = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 50.0f, 0.0f);
+    int (*old_model_index)(LPCSTR) = gi.ModelIndex;
+
+    building->s.flags |= EF_BUILDING;
+    gi.ModelIndex = capture_fire_model;
+    T_Damage(building, attacker, 300);
+    T_STREQ(_fire_model, "Environment\\SmallBuildingFire\\SmallBuildingFire2.mdx");
+    T_EQ(building->s.effect, 77);
+    T_EQ(building->s.effect_flags, EFX_MODEL | EFX_ATTACH_SLOTS | EFX_SLOT_FIRST | EFX_SLOT_SECOND);
+    T_Damage(building, attacker, 250);
+    T_STREQ(_fire_model, "Environment\\LargeBuildingFire\\LargeBuildingFire2.mdx");
+    T_EQ(building->s.effect_flags, EFX_MODEL | EFX_ATTACH_SLOTS | EFX_SLOT_FIRST | EFX_SLOT_SECOND |
+                                       EFX_SLOT_FOURTH | EFX_SLOT_FIFTH);
+    T_Damage(building, attacker, 250);
+    T_STREQ(_fire_model, "Environment\\LargeBuildingFire\\LargeBuildingFire1.mdx");
+    T_EQ(building->s.effect_flags, EFX_MODEL | EFX_ATTACH_SLOTS | EFX_SLOT_FIRST | EFX_SLOT_SECOND |
+                                       EFX_SLOT_THIRD | EFX_SLOT_FOURTH | EFX_SLOT_FIFTH);
+    G_AddHealth(building, 800.0f);
+    T_EQ(building->s.effect, 0);
+    T_EQ(building->s.effect_flags, 0);
+    gi.ModelIndex = old_model_index;
 }
 
 TEST(wc3_combat, tdamage_lethal_calls_die) {
@@ -402,6 +433,20 @@ TEST(wc3_combat, runentity_stat_fields_updated) {
 
     T_EQ((int)ent->s.stats[ENT_HEALTH], 127);
     T_EQ((int)ent->s.stats[ENT_MANA],   255);
+}
+
+TEST(wc3_combat, sethealth_updates_ability_level_only_when_health_byte_changes) {
+    LPEDICT ent = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+
+    ent->s.flags |= EF_BUILDING;
+    ent->s.effect = 77; ent->s.effect_flags = EFX_MODEL;
+    G_SetHealth(ent, 419.0f);
+    T_EQ(ent->s.effect, 0);
+    T_EQ(ent->s.effect_flags, 0);
+    ent->s.effect = 77; ent->s.effect_flags = EFX_MODEL;
+    G_SetHealth(ent, 418.9f);
+    T_EQ(ent->s.effect, 77);
+    T_EQ(ent->s.effect_flags, EFX_MODEL);
 }
 
 TEST(wc3_combat, runentity_ability_index_from_currentmove) {
@@ -1195,6 +1240,17 @@ TEST(wc3_combat, registered_reference_ability_codes) {
     FOR_LOOP(i, sizeof(codes) / sizeof(codes[0])) {
         T_NOT_NULL(FindAbilityByClassname(codes[i]));
     }
+}
+
+TEST(wc3_combat, registered_first_thirty_todo_ability_codes) {
+    static LPCSTR codes[] = {
+        "AHab", "AHmt", "ANst", "ANsg", "ANsq", "ANsw", "AOww", "AOcr", "AHbn", "AHfs",
+        "AHdr", "AHpx", "AUcb", "AUim", "AUls", "AUts", "ANba", "ANsi", "AUan", "AUdc",
+        "AUdp", "AUau", "AEev", "AEme", "AUsl", "AUav", "AUin", "AOcl", "AOeq", "AOfs"
+    };
+
+    FOR_LOOP(i, sizeof(codes) / sizeof(codes[0]))
+        T_NOT_NULL(FindAbilityByClassname(codes[i]));
 }
 
 static const char slk_ability_helpers[] =

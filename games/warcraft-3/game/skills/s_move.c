@@ -179,7 +179,20 @@ void move_reset_progress(LPEDICT self) {
 
 /* Effective current move speed of a unit (runtime override, else data table). */
 static FLOAT unit_effective_speed(LPEDICT ent) {
-    return ent->unitinfo.MoveSpeed > 0 ? ent->unitinfo.MoveSpeed : ent->data.UnitBalance->speed;
+    FLOAT speed = ent->unitinfo.MoveSpeed > 0 ? ent->unitinfo.MoveSpeed : ent->data.UnitBalance->speed;
+    DWORD level = G_UnitStatusLevel(ent, MAKEFOURCC('B', 'O', 'w', 'k'));
+    if (level) speed *= 1.0f + G_AbilityLevel(MAKEFOURCC('A', 'O', 'w', 'k'), level)->data[0].number * 0.01f;
+    speed *= 1.0f + S_UnholyMoveBonus(ent);
+    speed *= S_HumanMoveFactor(ent);
+    FOR_LOOP(i, globals.num_edicts) {
+        LPEDICT aura = g_edicts + i;
+        DWORD aura_level = G_UnitAbilityLevel(aura, MAKEFOURCC('A', 'O', 'a', 'e'));
+        if (aura->inuse && aura_level && S_SpellIsFriend(aura, ent) &&
+            Vector2_distance(&aura->s.origin2, &ent->s.origin2) <=
+            G_AbilityLevel(MAKEFOURCC('A', 'O', 'a', 'e'), aura_level)->area)
+            speed *= 1.0f + G_AbilityLevel(MAKEFOURCC('A', 'O', 'a', 'e'), aura_level)->data[0].number * 0.01f;
+    }
+    return speed;
 }
 
 /* Slowest move speed across a group, so the whole group travels at it. */
@@ -414,6 +427,11 @@ static void ai_move_walk(LPEDICT ent) {
     FLOAT const settle_distance = move_distance + ent->collision + MOVE_SLOT_MARGIN;
     BOOL blocked;
 
+    if (G_UnitStatusLevel(ent, MAKEFOURCC('B', 'E', 'e', 'r'))) {
+        ent->stand(ent);
+        return;
+    }
+
     if (move_should_arrive(ent, move_distance)) {
         /* Snap exactly onto the goal only if that spot is actually free; if the
          * goal is occupied (e.g. ordered onto another unit, or an attack target)
@@ -467,7 +485,7 @@ static umove_t move_move_walk = { "walk", ai_move_walk, NULL, &a_move };
 void order_move(LPEDICT self, LPEDICT target) {
     if (S_GoldMineWorkerIsInside(self))
         return;
-    if (self->aiflags & AI_IMMOBILE)
+    if ((self->aiflags & AI_IMMOBILE) || G_UnitStatusLevel(self, MAKEFOURCC('B', 'E', 'e', 'r')))
         return;
     self->goalentity = target;
     self->movement.attackmove_waypoint = NULL;

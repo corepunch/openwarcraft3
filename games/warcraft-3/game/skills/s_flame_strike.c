@@ -21,12 +21,12 @@ void flame_strike_tick(LPEDICT ent) {
     /* Initial burst damage on first tick only. */
     if (ent->resources & 1) {/* resources bit 0 = initial burst pending */
         FILTER_EDICTS(target, FLAME_HITS(target))
-            T_Damage(target, caster, ent->damage);
+            S_SpellDamage(target, caster, ent->damage);
         ent->resources &= ~1;
     }
     /* Per-tick burn damage. */
     FILTER_EDICTS(target, FLAME_HITS(target))
-        T_Damage(target, caster, ent->velocity); /* velocity = burn damage per tick */
+        S_SpellDamage(target, caster, ent->velocity); /* velocity = burn damage per tick */
 #undef FLAME_HITS
 
     if (ent->spawn_time && now >= ent->spawn_time) {
@@ -69,7 +69,16 @@ static spell_info_t spell_flame_strike = {
     .execute = flame_strike_execute,
 };
 
+static spell_info_t spell_flame_strike_human = {
+    .code = MAKEFOURCC('A', 'H', 'f', 's'),
+    .name = "Flame Strike",
+    .target_type = SPELL_TARGET_POINT,
+    .execute = flame_strike_execute,
+};
+
 ability_t a_flame_strike = {
     .cmd = spell_cmd,
     .spell = &spell_flame_strike,
 };
+
+ability_t a_flame_strike_human = { .cmd = spell_cmd, .spell = &spell_flame_strike_human };

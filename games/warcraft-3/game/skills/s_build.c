@@ -209,7 +209,7 @@ void build_build(LPEDICT ent) {
         /* Other race lifecycles remain the legacy behavior until their
          * worker-inside/summon construction strategies are implemented. */
         repair_build_legacy(ent, building);
-        building->health.value = 0;
+        G_SetHealth(building, 0);
     }
     building->build = building;
     if (WC3_TUTORIAL_DEBUG_ENABLED()) {

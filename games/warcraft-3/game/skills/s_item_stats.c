@@ -41,7 +41,7 @@ static void apply_life(LPEDICT unit, FLOAT amount) {
     if (old_max <= 0) old_max = 1.0f;
     FLOAT ratio = unit->health.value / old_max;
     unit->health.max_value += amount;
-    unit->health.value = unit->health.max_value * ratio;
+    G_SetHealth(unit, unit->health.max_value * ratio);
 }
 
 static void apply_mana(LPEDICT unit, FLOAT amount) {
@@ -107,23 +107,23 @@ void item_stat_remove(LPEDICT unit, DWORD item_code) {
 /* Init functions — read bonus values from AbilityData.slk at startup. */
 
 void SP_ability_item_attack_bonus(LPCSTR classname, ability_t *self) {
-    item_attack_bonus_val = G_AbilityDataName(classname)->data[0][0];
+    item_attack_bonus_val = G_AbilityDataName(classname)->level[0].data[0].number;
 }
 
 void SP_ability_item_defense_bonus(LPCSTR classname, ability_t *self) {
-    item_defense_bonus_val = G_AbilityDataName(classname)->data[0][0];
+    item_defense_bonus_val = G_AbilityDataName(classname)->level[0].data[0].number;
 }
 
 void SP_ability_item_life_bonus(LPCSTR classname, ability_t *self) {
-    item_life_bonus_val = G_AbilityDataName(classname)->data[0][0];
+    item_life_bonus_val = G_AbilityDataName(classname)->level[0].data[0].number;
 }
 
 void SP_ability_item_mana_bonus(LPCSTR classname, ability_t *self) {
-    item_mana_bonus_val = G_AbilityDataName(classname)->data[0][0];
+    item_mana_bonus_val = G_AbilityDataName(classname)->level[0].data[0].number;
 }
 
 void SP_ability_item_stat_bonus(LPCSTR classname, ability_t *self) {
-    item_stat_str_val = G_AbilityDataName(classname)->data[0][0];
-    item_stat_agi_val = G_AbilityDataName(classname)->data[0][1];
-    item_stat_int_val = G_AbilityDataName(classname)->data[0][2];
+    item_stat_str_val = G_AbilityDataName(classname)->level[0].data[0].number;
+    item_stat_agi_val = G_AbilityDataName(classname)->level[0].data[1].number;
+    item_stat_int_val = G_AbilityDataName(classname)->level[0].data[2].number;
 }

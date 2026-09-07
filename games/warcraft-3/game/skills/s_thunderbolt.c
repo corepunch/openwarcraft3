@@ -25,7 +25,7 @@ static void thunderbolt_projectile_hit(LPEDICT missile) {
     LPEDICT caster = missile->owner;
 
     if (S_SpellIsAliveTarget(target)) {
-        T_Damage(target, caster, missile->damage);
+        S_SpellDamage(target, caster, missile->damage);
         if (!M_IsDead(target)) {
             unit_addtimedstatus(target, ID_STUN_BUFF, 1, missile->wait);
         }

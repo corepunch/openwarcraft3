@@ -10,6 +10,7 @@ Playable prototype. Not parity yet.
 
 The current build can start from the menu, launch campaign or map content, render Warcraft III terrain/models/UI, run a server-authoritative simulation, and execute a growing slice of unit, command, combat, JASS, UI, and networking behavior. It is still an indie engine project in motion: solid foundations, visible gameplay, lots of systems present, and plenty of rough edges.
 
+
 ## Working
 
 - Warcraft III MPQ-backed data loading through the shared archive layer.
@@ -107,6 +108,7 @@ File formats, renderer notes, UI/FDF behavior, and gameplay coverage work used b
 - [Pathfinding And Harvest Reachability](pathfinding.md)
 - [Inventory And World Items](inventory-and-items.md)
 - [Ability And Item Effects](ability-and-item-effects.md)
+- [Ability Coverage](architecture/ability-coverage.md)
 - [Breakable Destructables](breakable-destructables.md)
 - [Warcraft III UI System](architecture/ui.md)
 - [UI Flow](architecture/ui-flow.md)

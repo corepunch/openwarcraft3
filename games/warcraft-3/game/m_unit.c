@@ -115,13 +115,23 @@ void unit_stand(LPEDICT self) {
     }
 }
 
+/* All runtime unit-health changes pass here so intrinsic ability levels transition exactly once. */
+void G_SetHealth(LPEDICT ent, FLOAT value) {
+    BYTE const old = compress_stat(&ent->health);
+    ent->health.value = value;
+    if ((ent->s.flags & EF_BUILDING) && old != compress_stat(&ent->health)) S_RefreshAbilityLevel(ent, &a_on_fire);
+}
+
+void G_AddHealth(LPEDICT ent, FLOAT value) { G_SetHealth(ent, MIN(ent->health.max_value, ent->health.value + value)); }
+
 void unit_die(LPEDICT self, LPEDICT attacker) {
     LPGAMECLIENT owner;
     DWORD const selected_mask = self ? self->selected : 0;
 
+    S_AvatarExpire(self);
     G_ClearUnitOrderQueue(self);
     G_InvalidateUnitShortcutsForUnit(self);
-    self->health.value = 0.0f;
+    G_SetHealth(self, 0.0f);
     /* Construction owns Repair workers and a self-linked HUD queue marker.
      * Tear that state down before generic production/revival death cleanup. */
     if (self->construction.active) G_StopConstruction(self);
@@ -158,6 +168,7 @@ void unit_die(LPEDICT self, LPEDICT attacker) {
     G_PublishEventWithSource(self, EVENT_UNIT_DEATH, attacker);
     G_PublishEventWithSource(self, EVENT_PLAYER_UNIT_DEATH, attacker);
     self->svflags |= SVF_DEADMONSTER;
+    S_ReincarnationOnDeath(self);
     /* Static building footprints are baked into pathmap.original. Rebuild after
      * the death flag becomes authoritative so destroyed/cancelled structures
      * stop blocking routes immediately. */
@@ -572,7 +583,7 @@ BOOL G_TransformUnitType(LPEDICT unit, DWORD type) {
     unit->permanent_armor_bonus = 0.0f;
     unit->temporary_armor_bonus = 0.0f;
     SP_SpawnUnit(unit);
-    unit->health.value = MIN(unit->health.max_value, MAX(0.0f, unit->health.max_value * health_ratio));
+    G_SetHealth(unit, MIN(unit->health.max_value, MAX(0.0f, unit->health.max_value * health_ratio)));
     unit->mana.value = MIN(unit->mana.max_value, MAX(0.0f, unit->mana.max_value * mana_ratio));
     unit->temporary_armor_bonus = temporary_armor;
     unit->armor_value += temporary_armor;
@@ -607,8 +618,8 @@ static BOOL unit_raven_form_data(LPEDICT unit, ravenFormData_t *out) {
     if (!unit || !out) return false;
     FOR_LOOP(i, sizeof(candidates) / sizeof(candidates[0])) {
         AbilityData_t const *ability = G_AbilityData(candidates[i].id);
-        DWORD const base_type = ability->dataId[0][0];
-        DWORD const raven_type = ability->unitID[0];
+        DWORD const base_type = ability->level[0].data[0].id;
+        DWORD const raven_type = ability->level[0].unitID;
         ravenFormData_t current;
 
         if (!ability->id || !base_type || !raven_type) continue;
@@ -754,6 +765,8 @@ BOOL unit_issueimmediateorder(LPEDICT self, LPCSTR order) {
         return S_HoldPosition(self);
     if (!strcmp(order, "mirrorimage"))
         return S_CastNoTargetSpell(self, MAKEFOURCC('A', 'O', 'm', 'i'));
+    if (!strcmp(order, "avatar"))
+        return S_CastNoTargetSpell(self, MAKEFOURCC('A', 'H', 'a', 'v'));
     if (!strcmp(order, "ravenform"))
         return unit_raven_form_order(self, true);
     if (!strcmp(order, "unravenform"))
@@ -836,7 +849,7 @@ static void unit_timed_status_log(LPCSTR stage, LPCEDICT ent, heroabilitystatus_
 }
 
 static BOOL unit_status_stuns(DWORD code) {
-    return code == MAKEFOURCC('B', 's', 't', 'u');
+    return code == MAKEFOURCC('B', 's', 't', 'u') || code == MAKEFOURCC('B', 'U', 's', 'l');
 }
 
 static BOOL unit_status_timedlife(DWORD code) {
@@ -894,10 +907,10 @@ FLOAT G_UnitArmorValue(LPCEDICT ent) {
         if (status->level && status->code == MAKEFOURCC('B', 'd', 'e', 'f')) {
             DWORD level = MAX(1, MIN(status->level, 4));
             AbilityData_t const *ability = G_AbilityData(MAKEFOURCC('A', 'I', 'd', 'a'));
-            armor += ability->data[level - 1][0];
+            armor += ability->level[level - 1].data[0].number;
         }
     }
-    return armor;
+    return armor + S_SpikedArmorBonus(ent) + S_HumanArmorBonus(ent);
 }
 
 static void unit_refreshstatusflags(LPEDICT ent) {
@@ -925,6 +938,10 @@ void unit_updatestatuses(LPEDICT ent) {
             if (unit_status_timedlife(status->code)) {
                 kill = true;
             }
+            if (status->code == MAKEFOURCC('B', 'O', 'w', 'k')) {
+                ent->s.renderfx &= ~RF_HIDDEN;
+            }
+            S_HumanStatusExpired(ent, status->code, status->level);
             if (status->code == MAKEFOURCC('B', 'm', 'i', 'l')) {
                 militia_expired = true;
             }
@@ -941,7 +958,7 @@ void unit_updatestatuses(LPEDICT ent) {
         S_MilitiaExpire(ent);
     }
     if (kill && !M_IsDead(ent)) {
-        ent->health.value = 0;
+        G_SetHealth(ent, 0);
         if (ent->die) {
             ent->die(ent, ent->owner);
         }
@@ -1014,6 +1031,15 @@ void unit_addtimedstatus(LPEDICT ent, LPCSTR skill, DWORD level, FLOAT duration)
 
 void unit_addstatus(LPEDICT ent, LPCSTR skill, DWORD level) {
     unit_addtimedstatus(ent, skill, level, 0);
+}
+
+DWORD G_UnitStatusLevel(LPCEDICT ent, DWORD code) {
+    if (!ent || !code) return 0;
+    FOR_LOOP(i, MAX_UNIT_STATUSES)
+        if (ent->abilstatus[i].level && ent->abilstatus[i].code == code &&
+            (!ent->abilstatus[i].timestamp || ent->abilstatus[i].timestamp > G_Time()))
+            return ent->abilstatus[i].level;
+    return 0;
 }
 
 static heroability_t *G_FindRuntimeAbility(LPEDICT ent, DWORD abilcode) {
@@ -1228,7 +1254,7 @@ void G_RecomputeHeroStats(LPEDICT ent) {
     if (baseStr <= 0 && baseAgi <= 0 && baseInt <= 0) {
         return;
     }
-    FLOAT const newMaxHP = balance->maxHealth + ((LONG)ent->hero.str - baseStr) * 25.0f;
+    FLOAT const newMaxHP = balance->maxHealth + ((LONG)ent->hero.str - baseStr) * 25.0f + ent->temporary_health_bonus;
     FLOAT const newMaxMana = balance->maxMana + ((LONG)ent->hero.intel - baseInt) * 15.0f;
     FLOAT const agiDefenseBonus = game.constants.combatConstantsLoaded
                                 ? game.constants.agiDefenseBonus
@@ -1238,9 +1264,9 @@ void G_RecomputeHeroStats(LPEDICT ent) {
     BOOL const alive = ent->health.value > 0.0f;
     FLOAT const dHP = newMaxHP - ent->health.max_value;
     ent->health.max_value = MAX(1.0f, newMaxHP);
-    ent->health.value = MIN(ent->health.max_value, ent->health.value + dHP);
+    G_AddHealth(ent, dHP);
     if (alive && ent->health.value < 1.0f) {
-        ent->health.value = 1.0f;
+        G_SetHealth(ent, 1.0f);
     }
 
     FLOAT const dMana = newMaxMana - ent->mana.max_value;
@@ -1557,7 +1583,7 @@ void G_ReviveHero(LPEDICT ent, FLOAT x, FLOAT y) {
     ent->revival.gold = ent->revival.lumber = 0;
     ent->revival.progress = 0.0f;
     ent->s.renderfx &= ~RF_HIDDEN;
-    ent->health.value = MIN(ent->health.max_value, MAX(1.0f, ent->health.max_value * lifeFactor));
+    G_SetHealth(ent, MIN(ent->health.max_value, MAX(1.0f, ent->health.max_value * lifeFactor)));
     mana = ent->mana.max_value * manaFactor;
     if (ent->data.UnitBalance) mana += ent->data.UnitBalance->initialMana * manaStart;
     ent->mana.value = MAX(0.0f, MIN(ent->mana.max_value, mana));

@@ -91,6 +91,7 @@ void M_GetEntityMatrix(LPCENTITYSTATE entity, LPMATRIX4 matrix) {
 }
 
 static BOOL can_attack(LPCEDICT ent) {
+    if (!S_HumanCanAttack(ent)) return false;
     if (ent->attack1.type == ATK_NONE)
         return false;
     if (!ent->currentmove || ent->currentmove->ability != &a_attack)
@@ -187,24 +188,30 @@ void T_Damage(LPEDICT target, LPEDICT attacker, int damage) {
     if (!target || target->invulnerable) {
         return;
     }
+    damage = S_ManaShieldDamage(target, damage);
+    if (damage <= 0) return;
     if (G_IsDestructable(target)) {
         if (G_DestructableApplyDamage(target, attacker, (FLOAT)damage)) {
             attack_finish_after_combat(attacker);
         }
         return;
     }
+    FOR_LOOP(i, MAX_UNIT_STATUSES)
+        if (target->abilstatus[i].level && target->abilstatus[i].code == MAKEFOURCC('B','U','s','l'))
+            memset(target->abilstatus + i, 0, sizeof(target->abilstatus[i]));
+    unit_updatestatuses(target);
     unit_entercombat(attacker, target);
     unit_entercombat(target, attacker);
 
     if (target->health.value <= damage) {
-        target->health.value = 0;
+        G_SetHealth(target, 0);
         unit_leavecombat(target);
         unit_leavecombat(attacker);
         target->die(target, attacker);
         attack_finish_after_combat(attacker);
         return;
     } else {
-        target->health.value -= damage;
+        G_AddHealth(target, -damage);
     }
     if (can_attack(target) && !unit_is_walking(target) &&
         S_SpellIsEnemy(target, attacker)) {
@@ -214,13 +221,49 @@ void T_Damage(LPEDICT target, LPEDICT attacker, int damage) {
     }
 }
 
-static void damage_target(LPEDICT ent) {
-    if (attack_stop_if_target_invalid(ent)) {
-        return;
+void S_ResolveAttackHit(LPEDICT attacker, LPEDICT target, int damage) {
+    DWORD bash_level;
+    if (S_EvasionRoll(target)) return;
+    S_HumanBreakInvisibility(attacker);
+    damage = S_SearingArrowDamage(attacker, S_BlackArrowDamage(attacker, S_CriticalStrikeDamage(attacker, damage)));
+    damage = (int)((FLOAT)damage * (1.0f + S_TrueshotAttackBonus(attacker)));
+    damage = S_HumanAttackDamage(attacker, target, damage);
+    if (damage <= 0) return;
+    bash_level = G_UnitAbilityLevel(attacker, MAKEFOURCC('A', 'H', 'b', 'h'));
+    if (bash_level && (FLOAT)(rand() % 100) < S_SpellData(MAKEFOURCC('A', 'H', 'b', 'h'), bash_level, 1)) {
+        damage += (int)S_SpellData(MAKEFOURCC('A', 'H', 'b', 'h'), bash_level, 3);
+        unit_addtimedstatus(target, "Bstu", 1, S_SpellDuration(MAKEFOURCC('A', 'H', 'b', 'h'), bash_level, false));
     }
-    LPEDICT other = ent->goalentity;
-    int damage = G_AttackDamage(ent, other, ai_rolldamage1(ent, 1));
-    T_Damage(other, ent, damage);
+    DWORD wind_level = G_UnitStatusLevel(attacker, MAKEFOURCC('B', 'O', 'w', 'k'));
+    if (wind_level) {
+        damage += (int)S_SpellData(MAKEFOURCC('A', 'O', 'w', 'k'), wind_level, 3);
+        attacker->s.renderfx &= ~RF_HIDDEN;
+        FOR_LOOP(i, MAX_UNIT_STATUSES)
+            if (attacker->abilstatus[i].code == MAKEFOURCC('B', 'O', 'w', 'k')) memset(attacker->abilstatus + i, 0, sizeof(attacker->abilstatus[i]));
+    }
+    T_Damage(target, attacker, damage);
+    S_HumanAttackSplash(attacker, target, damage);
+    DWORD cleave_level = G_UnitAbilityLevel(attacker, MAKEFOURCC('A','N','c','a'));
+    if (cleave_level) {
+        FLOAT radius = S_SpellNumber(MAKEFOURCC('A','N','c','a'), ABILITY_NUMBER_AREA, cleave_level);
+        FLOAT fraction = S_SpellData(MAKEFOURCC('A','N','c','a'), cleave_level, 1);
+        FILTER_EDICTS(other, other != target && S_SpellIsAliveTarget(other) &&
+                      S_SpellIsEnemy(attacker, other) &&
+                      Vector2_distance(&other->s.origin2, &target->s.origin2) <= radius)
+            T_Damage(other, attacker, (int)MAX(1.0f, damage * fraction));
+    }
+    S_BlackArrowDeath(attacker, target);
+    G_AddHealth(attacker, damage * S_VampiricLifeSteal(attacker));
+    if (target->inuse) {
+        FLOAT thorns = S_ThornsDamageReturn(target, attacker, damage);
+        FLOAT spiked = S_SpikedDamageReturn(target, damage);
+        if (thorns + spiked > 0.0f) T_Damage(attacker, target, (int)(thorns + spiked));
+    }
+}
+
+static void damage_target(LPEDICT ent) {
+    if (attack_stop_if_target_invalid(ent)) return;
+    S_ResolveAttackHit(ent, ent->goalentity, G_AttackDamage(ent, ent->goalentity, ai_rolldamage1(ent, 1)));
 }
 
 static void throw_missile(LPEDICT ent) {
@@ -345,6 +388,14 @@ static FLOAT attack_speed_divisor(LPEDICT self) {
                           ? game.constants.agiAttackSpeedBonus
                           : 0.02f;
     FLOAT total_bonus = (FLOAT)self->hero.agi * agi_bonus;
+    FOR_LOOP(i, globals.num_edicts) {
+        LPEDICT aura = g_edicts + i;
+        DWORD level = G_UnitAbilityLevel(aura, MAKEFOURCC('A', 'O', 'a', 'e'));
+        if (aura->inuse && level && S_SpellIsFriend(aura, self) &&
+            Vector2_distance(&aura->s.origin2, &self->s.origin2) <=
+            G_AbilityData(MAKEFOURCC('A', 'O', 'a', 'e'))->level[level - 1].area)
+            total_bonus += G_AbilityData(MAKEFOURCC('A', 'O', 'a', 'e'))->level[level - 1].data[1].number * 0.01f;
+    }
     /* Warsmash clamps total attack-speed bonus to [-90%, +400%]. OpenRealm
      * currently has only the Agility contribution, but keeping the clamp here
      * makes extreme/custom hero data follow the same timing bounds. */

@@ -174,7 +174,7 @@ static BOOL repair_charge_power_cost(LPEDICT ent, LPEDICT building, AbilityData_
     if (!ent || !building || ent->buildwork.primary || G_BuildAllEnabled()) return true;
     balance = building->data.UnitBalance;
     build_time = balance ? (FLOAT)balance->buildTime : 0.0f;
-    cost_ratio = data ? data->data[0][2] : 0.0f;
+    cost_ratio = data ? data->level[0].data[2].number : 0.0f;
     if (build_time <= 0.0f || cost_ratio <= 0.0f) return true;
 
     return repair_charge(ent,
@@ -199,14 +199,14 @@ static BOOL repair_target_valid(LPEDICT ent, LPEDICT target, DWORD code, BOOL pr
          * builder always contributes at 1.0 and must not be rejected merely
          * because DataD is zero/missing for additional workers. */
         return handler == &a_repair && data && target->construction.paused &&
-               (primary || data->data[0][3] > 0.0f);
+               (primary || data->level[0].data[3].number > 0.0f);
     }
     return target->health.value < target->health.max_value;
 }
 
 static FLOAT repair_range(LPEDICT ent) {
     AbilityData_t const *data = repair_data(ent);
-    return data ? MAX(0.0f, data->range[0]) : 0.0f;
+    return data ? MAX(0.0f, data->level[0].range) : 0.0f;
 }
 
 /* Work may begin only from the worker's current position.  Do not include the
@@ -356,7 +356,7 @@ static void ai_repair(LPEDICT ent) {
             }
             ratio = 1.0f;
         } else {
-            ratio = data->data[0][3];
+            ratio = data->level[0].data[3].number;
             if (ratio <= 0.0f) {
                 repair_stop_reason(ent, "invalid_power_build_ratio");
                 return;
@@ -372,7 +372,7 @@ static void ai_repair(LPEDICT ent) {
         G_UpdateConstructionAnimation(building);
         start_hp = MAX(1.0f, hp->max_value * 0.10f);
         hp_gain = (hp->max_value - start_hp) * ((FLOAT)FRAMETIME * ratio / duration);
-        hp->value = MIN(hp->max_value, hp->value + hp_gain);
+        G_AddHealth(building, hp_gain);
         if (building->construction.progress >= duration) {
             G_CompleteConstruction(building);
             repair_stop_reason(ent, "construction_complete");
@@ -384,8 +384,8 @@ static void ai_repair(LPEDICT ent) {
         UnitBalance_t const *balance = building->data.UnitBalance;
         FLOAT seconds = (FLOAT)FRAMETIME / 1000.0f;
         FLOAT duration = repair_time(balance);
-        FLOAT cost_ratio = data->data[0][0];
-        FLOAT time_ratio = data->data[0][1];
+        FLOAT cost_ratio = data->level[0].data[0].number;
+        FLOAT time_ratio = data->level[0].data[1].number;
         FLOAT hp_rate;
 
         if (duration <= 0.0f || time_ratio <= 0.0f) {
@@ -399,10 +399,10 @@ static void ai_repair(LPEDICT ent) {
             repair_stop_reason(ent, "repair_unaffordable");
             return;
         }
-        hp->value = MIN(hp->max_value, hp->value + hp_rate * seconds);
+        G_AddHealth(building, hp_rate * seconds);
     }
     if (hp->value >= hp->max_value) {
-        hp->value = hp->max_value;
+        G_SetHealth(building, hp->max_value);
         building->stand(building);
         repair_stop_reason(ent, "repair_complete");
     }
@@ -417,14 +417,13 @@ static void ai_repair_legacy(LPEDICT ent) {
         return;
     }
     hp = &building->health;
-    if (G_PlayerInstantBuild(building->s.player)) {
-        hp->value = hp->max_value;
-    } else {
-        hp->value += hp->max_value * (FLOAT)FRAMETIME /
-                     ((FLOAT)building->data.UnitBalance->buildTime * 1000.0f);
-    }
+    if (G_PlayerInstantBuild(building->s.player))
+        G_SetHealth(building, hp->max_value);
+    else
+        G_AddHealth(building, hp->max_value * (FLOAT)FRAMETIME /
+                    ((FLOAT)building->data.UnitBalance->buildTime * 1000.0f));
     if (hp->value >= hp->max_value) {
-        hp->value = hp->max_value;
+        G_SetHealth(building, hp->max_value);
         if (WC3_TUTORIAL_DEBUG_ENABLED()) {
             fprintf(stderr,
                     "WC3_QUEST_BUILD legacy-complete worker=%ld id=%.4s building=%ld id=%.4s health=%.1f/%.1f worker_build=%ld building_build=%ld\n",
@@ -606,7 +605,7 @@ static LPCSTR repair_autocast_reject_reason(LPEDICT ent, LPEDICT target, DWORD c
         if (handler != &a_repair) return "construction_requires_human_repair";
         if (!target->construction.paused) return "construction_not_paused";
         if (!repair_primary_active(target)) primary = true;
-        if (!primary && (!data || data->data[0][3] <= 0.0f)) return "no_power_build_ratio";
+        if (!primary && (!data || data->level[0].data[3].number <= 0.0f)) return "no_power_build_ratio";
     } else if (target->health.value >= target->health.max_value) {
         return "full_health";
     }

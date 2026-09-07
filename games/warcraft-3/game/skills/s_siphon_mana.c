@@ -41,8 +41,8 @@ void siphon_mana_think(LPEDICT ent) {
 static void siphon_mana_execute(LPEDICT caster, spellTarget_t st, spell_info_t const *spell) {
     LPEDICT target = st.entity;
     DWORD level = S_SpellLevel(caster, spell->code);
-    FLOAT mana_per_second = MAX(1.0f, S_SpellData(spell->code, level, 1)); /* DataA = Mana Per Second */
-    DWORD ticks = (DWORD)MAX(1.0f, S_SpellData(spell->code, level, 2));    /* DataB = Duration (seconds) */
+    FLOAT mana_per_second = MAX(S_SpellData(spell->code, level, 1), S_SpellData(spell->code, level, 2));
+    DWORD ticks = (DWORD)MAX(1.0f, S_SpellDuration(spell->code, level, true));
     LPEDICT thinker;
 
     /* Cannot drain from an empty mana pool. */
@@ -66,7 +66,17 @@ static spell_info_t spell_siphon_mana = {
     .execute = siphon_mana_execute,
 };
 
+static spell_info_t spell_siphon_mana_human = {
+    .code = MAKEFOURCC('A', 'H', 'd', 'r'),
+    .name = "Siphon Mana",
+    .target_type = SPELL_TARGET_UNIT,
+    .flags = SPELL_CHANNEL,
+    .execute = siphon_mana_execute,
+};
+
 ability_t a_siphon_mana = {
     .cmd = spell_cmd,
     .spell = &spell_siphon_mana,
 };
+
+ability_t a_siphon_mana_human = { .cmd = spell_cmd, .spell = &spell_siphon_mana_human };
