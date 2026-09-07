@@ -791,6 +791,24 @@ TEST(wc3_building, placement_flags_treat_slk_sentinel_as_empty) {
     T_ASSERT(G_PlacementFlags("unwalkable") & WC3_PATH_UNWALKABLE);
 }
 
+TEST(wc3_building, placement_preview_uses_authoritative_pathing_flags) {
+    BYTE prevented = 0, required = 0;
+    DWORD const barracks = MAKEFOURCC('h','b','a','r');
+
+    G_GetBuildPlacementPathingFlags(barracks, &prevented, &required);
+    T_ASSERT(prevented & WC3_PATH_UNWALKABLE);
+    T_ASSERT(prevented & WC3_PATH_UNBUILDABLE);
+}
+
+TEST(wc3_building, spawned_unit_exports_gameplay_collision_radius) {
+    LPEDICT unit;
+
+    setup_test_world();
+    unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0.0f, 0.0f);
+    T_ASSERT(unit->collision > 0.0f);
+    T_FEQ(unit->s.collision, unit->collision, 0.001f);
+}
+
 TEST(wc3_building, shared_build_order_uses_authoritative_validation) {
     LPGAMECLIENT client = &game.clients[0];
     LPEDICT builder;

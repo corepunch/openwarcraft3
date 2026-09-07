@@ -566,6 +566,20 @@ void G_RefundBuilding(LPGAMECLIENT client, DWORD building_id) {
     client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] += MAX(0, b->lumberCost);
 }
 
+void G_GetBuildPlacementPathingFlags(DWORD building_id, LPBYTE prevented, LPBYTE required) {
+    UnitBalance_t const *balance = G_UnitBalance(building_id);
+    UnitUI_t const *ui = G_UnitUI(building_id);
+    LPCSTR prevent = balance->preventPlace ? balance->preventPlace : ui->preventPlace;
+    LPCSTR require = balance->requirePlace ? balance->requirePlace : ui->requirePlace;
+
+    if (prevented) {
+        *prevented = WC3_PATH_UNBUILDABLE | WC3_PATH_UNWALKABLE | G_PlacementFlags(prevent);
+    }
+    if (required) {
+        *required = G_PlacementFlags(require);
+    }
+}
+
 void G_SnapBuildingPoint(DWORD building_id, LPVECTOR2 point) {
     pathTex_t *pathtex;
     UnitData_t const *data;
@@ -618,13 +632,9 @@ static BOOL G_LiveUnitBlocksBuild(LPEDICT builder, LPEDICT build_on, LPCBOX2 foo
 
 buildPlacementResult_t G_EvaluateBuildPlacement(LPEDICT builder, DWORD building_id, LPCVECTOR2 requested,
                                                 LPVECTOR2 snapped) {
-    UnitBalance_t const *balance = G_UnitBalance(building_id);
-    UnitUI_t const *ui = G_UnitUI(building_id);
     UnitData_t const *data = G_UnitData(building_id);
-    LPCSTR prevent = balance->preventPlace ? balance->preventPlace : ui->preventPlace;
-    LPCSTR require = balance->requirePlace ? balance->requirePlace : ui->requirePlace;
-    BYTE prevented = WC3_PATH_UNBUILDABLE | WC3_PATH_UNWALKABLE | G_PlacementFlags(prevent);
-    BYTE required = G_PlacementFlags(require);
+    BYTE prevented = 0;
+    BYTE required = 0;
     pathTex_t *pathtex = NULL;
     LPEDICT build_on = NULL;
     DWORD width = 1, height = 1;
@@ -632,6 +642,7 @@ buildPlacementResult_t G_EvaluateBuildPlacement(LPEDICT builder, DWORD building_
     VECTOR2 point;
 
     if (!requested || !G_UnitIsBuilding(building_id)) return PLACE_INVALID_BUILDING;
+    G_GetBuildPlacementPathingFlags(building_id, &prevented, &required);
     point = *requested;
     G_SnapBuildingPoint(building_id, &point);
     if (snapped) *snapped = point;

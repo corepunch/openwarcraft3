@@ -337,6 +337,7 @@ void R_LoadTextureMipLevel(LPCTEXTURE texture, LPCTEXMIP mip);
 void R_BindTexture(LPCTEXTURE texture, DWORD unit);
 void R_SetTextureWrap(LPCTEXTURE texture, bool wrapS, bool wrapT);
 void R_DrawEntity(renderEntity_t const *edict, BOOL shad);
+void R_DrawSplatRects(void);
 void R_DrawTerrainShadows(void);
 bool MDLX_TraceModel(renderEntity_t const *edict, LPCLINE3 line);
 void R_ReleaseVertexArrayObject(LPBUFFER buffer);

@@ -17,6 +17,7 @@ KNOWN_AS(modelInfo_s, MODELINFO);
 
 #define MODELINFO_MAX_TEXTURES 256
 #define MAX_RENDER_DECALS 32
+#define MAX_RENDER_SPLAT_RECTS 1024
 
 /* Shader types for different rendering paths */
 typedef enum {
@@ -155,6 +156,15 @@ typedef struct {
     float radius;
 } renderDecal_t;
 
+/* Terrain-conforming solid-colour rectangles. The renderer batches these with
+ * its built-in white texture, so callers can submit many placement/pathing
+ * cells without allocating textures or issuing one draw per cell. */
+typedef struct {
+    VECTOR2 mins;
+    VECTOR2 maxs;
+    COLOR32 color;
+} renderSplatRect_t;
+
 typedef struct {
     viewCamera_t camerastate[2];
     RECT viewport;
@@ -166,6 +176,8 @@ typedef struct {
     renderEntity_t *entities;
     DWORD num_decals;
     renderDecal_t *decals;
+    DWORD num_splat_rects;
+    renderSplatRect_t *splat_rects;
     DWORD num_weather_effects;
     wc3WeatherEffect_t const *weather_effects;
     MATRIX4 viewProjectionMatrix;

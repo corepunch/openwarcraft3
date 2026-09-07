@@ -74,7 +74,7 @@ odd half-pathing-map dimension -> +32 on that axis
 no authored pathing texture -> 32-unit fallback grid
 ```
 
-The placement cursor carries its authored pathing-texture width/height in dedicated `entityState_t.pathing_width` / `pathing_height` fields. `client/cl_view.c:CL_AddBuilding()` uses those dimensions for the same visual snap. The fields are delta-serialized and have an explicit network round-trip test; world-position fields remain world position only.
+The placement cursor carries its authored pathing-texture width/height in dedicated `entityState_t.pathing_width` / `pathing_height` fields. `client/cl_view.c:CL_AddBuilding()` uses those dimensions for the same visual snap. Cursor metadata also carries the authoritative prevented/required pathing-bit masks and the builder entity number to exclude from live-occupancy preview checks. These fields are delta-serialized and have an explicit network round-trip test; world-position fields remain world position only.
 
 `G_EvaluateBuildPlacement()` checks:
 
@@ -99,7 +99,19 @@ Build placement is a server-owned UI mode. `G_CancelBuildPlacement()` is the sin
 
 A successful left-click copies the pending project to the worker order before clearing the player's placement cursor state. Leaving the worker's pre-spawn Build move (Stop, Move, or another replacement order) also clears the worker-owned `build_project`; no structure exists yet and no resources have been charged, so this is a full pre-payment cancellation rather than a construction refund.
 
-The current client ghost snaps correctly but does not yet render the full per-cell green/red placement texture. Live units are therefore authoritative server blockers but are not painted into the preview.
+### Placement grid preview
+
+While a normal footprint-based structure is selected for placement, the client draws a terrain-conforming grid under the ghost model. Every texel position in the authored pathing-map dimensions is represented by one solid splat rectangle, matching Warsmash's preview presentation: green when the local pathing sample satisfies the same prevented/required masks used by `G_EvaluateBuildPlacement()`, and red when the cell is out of bounds, violates those masks, or overlaps a live entity collision circle. The builder is excluded by the ignored-entity field packed into `entityState_t.pathing_preview`, matching the authoritative `G_LiveUnitBlocksBuild()` exclusion. Dead/non-selectable snapshot entities are not preview blockers.
+
+The cursor packs its preview-only metadata into one aligned `DWORD` to stay comfortably inside the 32-bit entity-delta field mask: bits 0..15 are the ignored entity number, bits 16..23 are prevented pathing flags, and bits 24..31 are required pathing flags. `EntityPathingPreviewPack()` and the matching accessors are the only code that should depend on that wire layout.
+
+The snapshot `entityState_t.collision` field is the gameplay collision radius used for this preview. Do not substitute `entityState_t.radius`: WC3 uses `radius` for the selection/UI circle and `edict.collision` for unit occupancy. `SP_SpawnUnit()` publishes the authored/runtime collision value into `s.collision` after building pathing has finalized its derived collision radius.
+
+Rendering deliberately reuses the terrain-splat path rather than uploading a regenerated RGBA texture each mouse frame. `client/tr_public.h:renderSplatRect_t` is a generic client→renderer scene primitive; `renderer/r_ents.c:R_DrawSplatRects()` batches all submitted rectangles with the built-in white texture through `R_BeginSplatBatch()` / `R_AddRectSplat()` / `R_EndSplatBatch()`. The placement colours use alpha 51/255 (20%), matching the opacity used by the inspected Warsmash `MeleeUI.handleBuildCursor()` splat. This keeps the plan under the ghost model and avoids one draw/upload per pathing cell.
+
+The Warsmash reference also samples one 32-world-unit pathing cell per preview texel and colours prevented/required pathing failures red and valid cells green. OpenRealm preserves that presentation model but keeps placement authority on the server.
+
+Build-on-target structures (`UnitData.isBuildOn`) are intentionally excluded from the coloured grid for now. Their authoritative validity depends on finding an eligible `canBuildOn` parent, and that parent-eligibility state is not yet part of the client cursor contract. The ghost still uses authored dimensions for snapping; suppressing the grid is preferable to showing a misleading all-green plan.
 
 ### Spawned Human construction cancellation
 
@@ -251,6 +263,11 @@ Runtime checks should cover at least:
 26. Cancel a Human construction with primary/additional builders and verify every Repair participant is released and stops spending power-build resources.
 27. Verify construct-cancel events precede the ordinary death events and `GetCancelledStructure()` resolves the unfinished building.
 28. Cancel or destroy a footprint-bearing building and verify the vacated footprint becomes pathable immediately.
+29. Enter normal building placement and verify the snapped footprint displays a 20%-alpha green per-cell terrain plan beneath the ghost.
+30. Move the ghost across unwalkable/unbuildable terrain or outside the map and verify only affected preview cells turn red.
+31. Move a live unit into the footprint and verify the cells overlapped by its gameplay collision circle turn red while the selected builder itself does not.
+32. Kill the blocking unit and verify its non-selectable corpse no longer paints placement cells red.
+33. Verify a build-on-target structure keeps normal ghost snapping but does not display the coloured grid until parent-target preview metadata is implemented.
 
 ## See Also
 

@@ -2197,11 +2197,18 @@ TEST(net, entity_delta_preserves_large_wc3_radii) {
 
 /* Building placement cursor metadata must survive svc_cursor entity deltas without
  * overloading world-position fields. */
-TEST(net, entity_delta_preserves_pathing_dimensions) {
+TEST(net, entity_delta_preserves_build_preview_fields) {
     BYTE buf[256];
     sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
     entityState_t from = { 0 };
-    entityState_t to = { .number = 9, .model = 1, .pathing_width = 6, .pathing_height = 4 };
+    entityState_t to = {
+        .number = 9,
+        .model = 1,
+        .collision = 42.5f,
+        .pathing_width = 6,
+        .pathing_height = 4,
+        .pathing_preview = EntityPathingPreviewPack(17, 0x0a, 0x20),
+    };
     entityState_t out = { 0 };
     DWORD bits = 0;
     int number;
@@ -2212,8 +2219,12 @@ TEST(net, entity_delta_preserves_pathing_dimensions) {
     MSG_ReadDeltaEntity(&sb, &out, number, bits);
 
     T_EQ(number, 9);
+    T_FEQ(out.collision, 42.5f, 0.001f);
     T_EQ(out.pathing_width, 6);
     T_EQ(out.pathing_height, 4);
+    T_EQ(EntityPathingPreviewIgnore(out.pathing_preview), 17);
+    T_EQ(EntityPathingPreviewPrevented(out.pathing_preview), 0x0a);
+    T_EQ(EntityPathingPreviewRequired(out.pathing_preview), 0x20);
     T_FEQ(out.origin.x, 0.0f, 0.001f);
     T_FEQ(out.origin.y, 0.0f, 0.001f);
 }

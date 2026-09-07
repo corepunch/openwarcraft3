@@ -625,6 +625,7 @@ typedef struct entityState_s {
 #endif
     FLOAT scale;
     FLOAT radius;
+    FLOAT collision;    /* gameplay collision radius when a client preview must mirror occupancy */
     BYTE stats[ENT_STAT_COUNT];
     BYTE player;
     BYTE model;
@@ -641,6 +642,7 @@ typedef struct entityState_s {
     BYTE ability;
     USHORT pathing_width;   /* authored cursor/building pathing texture width in 32-unit cells */
     USHORT pathing_height;  /* authored cursor/building pathing texture height in 32-unit cells */
+    DWORD pathing_preview;  /* low16 ignore entity, bits16..23 prevented, bits24..31 required */
     DWORD splat;
 #ifdef WOW
     DWORD appearance;
@@ -653,12 +655,29 @@ typedef struct entityState_s {
 } entityState_t;
 
 _Static_assert(MAX_CLIENTS     <= 256,  "entityState_t.player is BYTE — bump to USHORT if MAX_CLIENTS exceeds 255");
+_Static_assert(MAX_GAME_ENTITIES <= 65535, "entityState_t.pathing_preview reserves 16 bits for the ignored entity number");
 _Static_assert(MAX_MODELS      <= 256,  "entityState_t.model/model2 are BYTE — bump to USHORT if MAX_MODELS exceeds 255");
 _Static_assert(MAX_SOUNDS      <= 65535, "entityState_t.sound is USHORT — bump to DWORD if MAX_SOUNDS exceeds 65534");
 _Static_assert(MAX_CONFIGSTRINGS <= 65536, "entityState_t.image is USHORT — bump to DWORD if MAX_CONFIGSTRINGS exceeds 65535");
 _Static_assert(ENT_NAME_SLOT_SIZE * ENT_NAMES_PER_CS == MAX_PATHLEN, "packed name configstring must exactly fill one PATHSTR");
 _Static_assert(CS_MAX_NAMES / ENT_NAMES_PER_CS <= MAX_GENERAL,       "name pool requires more CS_GENERAL slots than MAX_GENERAL provides");
 _Static_assert(CS_MAX_NAMES <= 65535,                                 "entityState_t.name is USHORT; packed index is 1-based so max is 65535");
+
+static inline DWORD EntityPathingPreviewPack(DWORD ignore_entity, BYTE prevented, BYTE required) {
+    return (ignore_entity & 0xffffu) | ((DWORD)prevented << 16) | ((DWORD)required << 24);
+}
+
+static inline USHORT EntityPathingPreviewIgnore(DWORD preview) {
+    return (USHORT)(preview & 0xffffu);
+}
+
+static inline BYTE EntityPathingPreviewPrevented(DWORD preview) {
+    return (BYTE)((preview >> 16) & 0xffu);
+}
+
+static inline BYTE EntityPathingPreviewRequired(DWORD preview) {
+    return (BYTE)((preview >> 24) & 0xffu);
+}
 
 #ifdef WOW
 typedef struct wowAppearance_s {
