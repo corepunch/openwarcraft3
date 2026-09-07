@@ -398,6 +398,7 @@ struct client_s {
     LPCMAPPLAYER mapplayer;
     DWORD ping;
     BOOL no_control, no_ui;
+    BOOL cheat_instant_build; /* developer cheat: owner construction/training completes on next work tick */
     DWORD modal_flags;
     BOOL quest_dialog_open;
     menu_t menu;
@@ -1364,6 +1365,7 @@ void G_SetClientConnected(LPEDICT player, BOOL connected);
 void G_ResetStartingResourceCheat(void);
 void G_DisableStartingResourceCheatForLoadedGame(void);
 void G_ApplyStartingResourceCheat(void);
+BOOL G_PlayerInstantBuild(DWORD player);
 BOOL G_RemovePlayerWithResult(DWORD player_num, DWORD game_result);
 BOOL G_GameResultDebugEnabled(void);
 void G_GameResultDebug(LPCSTR format, ...);

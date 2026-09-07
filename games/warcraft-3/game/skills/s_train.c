@@ -385,9 +385,11 @@ void ai_train_build(LPEDICT ent) {
      * have no food reservation. */
     if (!ReserveTrainingFood(ent, ent->build)) return;
     {
-        FLOAT const k = (FLOAT)FRAMETIME / ((FLOAT)ent->build->data.UnitBalance->buildTime * 1000.0f);
+        FLOAT const duration = MAX(1.0f, (FLOAT)ent->build->data.UnitBalance->buildTime * 1000.0f);
+        FLOAT const k = (FLOAT)FRAMETIME / duration;
         edictStat_s *hp = &ent->build->health;
-        hp->value += hp->max_value * k;
+        if (G_PlayerInstantBuild(ent->s.player)) hp->value = hp->max_value;
+        else hp->value += hp->max_value * k;
         if (hp->value >= hp->max_value) {
             LPEDICT clent = G_GetPlayerEntityByNumber(ent->s.player);
             LPEDICT completed = ent->build;

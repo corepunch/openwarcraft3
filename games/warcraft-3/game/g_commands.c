@@ -6,6 +6,15 @@
 #define CLIENTCOMMAND(NAME) void CMD_##NAME(LPEDICT clent, DWORD argc, LPCSTR argv[])
 #define WC3_SELECTION_LIMIT 12
 
+typedef struct {
+    LPCSTR name;
+    BOOL value;
+} cheatToggleValue_t;
+
+static cheatToggleValue_t const cheat_toggle_values[] = {
+    { "on", true }, { "1", true }, { "off", false }, { "0", false },
+};
+
 /* Focus is presentation/input state within an existing selection, not a saved
  * gameplay relationship. Keep it out of GAMECLIENT so save compatibility does
  * not depend on which multiselect subgroup happened to own the HUD. */
@@ -837,6 +846,46 @@ CLIENTCOMMAND(Kill) {
         return;
     }
     clent->health.value = 0;
+}
+
+/* Keep the instant-build cheat scoped to the issuing player's live client state. */
+BOOL G_PlayerInstantBuild(DWORD player) {
+    LPGAMECLIENT client = G_GetPlayerClientByNumber(player);
+    return client && client->ps.number == player && client->cheat_instant_build;
+}
+
+/* Parse the toggle spellings shared by developer cheats and their aliases. */
+static BOOL G_ParseCheatToggle(LPCSTR value, BOOL current, BOOL *out) {
+    if (!out) return false;
+    if (!value || !*value) {
+        *out = !current;
+        return true;
+    }
+    FOR_LOOP(i, sizeof(cheat_toggle_values) / sizeof(*cheat_toggle_values))
+        if (!strcasecmp(value, cheat_toggle_values[i].name)) {
+            *out = cheat_toggle_values[i].value;
+            return true;
+        }
+    return false;
+}
+
+CLIENTCOMMAND(InstantBuild) {
+    LPGAMECLIENT client = clent ? clent->client : NULL;
+    BOOL enabled;
+
+    if (!G_CheatsEnabled()) {
+        fprintf(stderr, "WC3: cheats are disabled; set sv_cheats 1\n");
+        return;
+    }
+    if (!client) return;
+    if (argc > 2 || !G_ParseCheatToggle(argc >= 2 ? argv[1] : NULL,
+                                       client->cheat_instant_build, &enabled)) {
+        fprintf(stderr, "WC3: usage: instantbuild [on|off]\n");
+        return;
+    }
+    client->cheat_instant_build = enabled;
+    fprintf(stderr, "WC3: instant build %s for player %u\n",
+            enabled ? "on" : "off", (unsigned)client->ps.number);
 }
 
 static void G_CheatGameResult(LPEDICT clent, DWORD game_result) {
@@ -1781,6 +1830,8 @@ clientCommand_t clientCommands[] = {
     { "lose", CMD_Lose },
     { "day", CMD_Day },
     { "night", CMD_Night },
+    { "instantbuild", CMD_InstantBuild },
+    { "warpten", CMD_InstantBuild },
     { "button", CMD_Button },
     { "autocast", CMD_Autocast },
     { "research", CMD_Research },
