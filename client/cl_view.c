@@ -337,8 +337,8 @@ static void CL_AddBuildingPlacementGrid(LPCVECTOR3 origin) {
                       (pathing & prevented) != 0 ||
                       (pathing & required) != required;
             rect.color = blocked
-                ? (COLOR32){ 255, 0, 0, 204 }
-                : (COLOR32){ 0, 255, 0, 204 };
+                ? (COLOR32){ 255, 0, 0, 166 }
+                : (COLOR32){ 0, 255, 0, 166 };
             view_state.splat_rects[view_state.num_splat_rects++] = rect;
         }
     }
@@ -371,7 +371,7 @@ static void CL_AddBuildingPlacementGrid(LPCVECTOR3 origin) {
             for (LONG y = y0; y <= y1; y++) {
                 renderSplatRect_t *rect = &view_state.splat_rects[first_rect + (DWORD)x * height + (DWORD)y];
                 if (CL_CircleOverlapsSplatRect(state, rect)) {
-                    rect->color = (COLOR32){ 255, 0, 0, 204 };
+                    rect->color = (COLOR32){ 255, 0, 0, 166 };
                 }
             }
         }
