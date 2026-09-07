@@ -644,6 +644,7 @@ void SP_SpawnUnit(LPEDICT self) {
     /* Completed player upgrades are persistent techtree state, not producer
      * buffs. New units inherit the owner's current levels at spawn. */
     G_ApplyPlayerUpgradesToUnit(self);
+    S_CargoInitUnit(self);
 
     if (self->attack1.weapon == WPN_MISSILE) {
         self->attack1.origin.x = G_UnitAttack1LaunchX(self->class_id);

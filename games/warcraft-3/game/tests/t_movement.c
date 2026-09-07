@@ -3114,6 +3114,80 @@ TEST(wc3_movement, gold_mine_partial_final_trip_depletes_and_rejects_waiter) {
     free_slk_rows(rows);
 }
 
+TEST(wc3_movement, occupied_burrow_exposes_attack_stop_and_stand_down_only_with_cargo) {
+    static UnitAbilities_t const burrow_abilities = {
+        .id = MAKEFOURCC('o','b','u','r'),
+        .abilList = "Abun",
+    };
+    static UnitWeapons_t const burrow_weapons = {
+        .id = MAKEFOURCC('o','b','u','r'),
+        .attack1 = { .damageDice = 1 },
+    };
+    LPEDICT burrow = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 256.0f, 256.0f);
+    LPEDICT peon = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 256.0f, 256.0f);
+    gameCommandButton_t buttons[16];
+    BYTE count;
+    BOOL attack, stop, stand_down;
+
+    burrow->data.UnitAbilities = &burrow_abilities;
+    burrow->data.UnitWeapons = &burrow_weapons;
+
+    count = G_GetCommandButtons(burrow, buttons, (BYTE)(sizeof(buttons) / sizeof(buttons[0])));
+    attack = stop = stand_down = false;
+    FOR_LOOP(i, count) {
+        if (!strcmp(buttons[i].command, STR_CmdAttack)) attack = true;
+        if (!strcmp(buttons[i].command, STR_CmdStop)) stop = true;
+        if (!strcmp(buttons[i].command, "Astd")) stand_down = true;
+    }
+    T_ASSERT(!attack);
+    T_ASSERT(!stop);
+    T_ASSERT(!stand_down);
+
+    burrow->cargo.units[0] = peon;
+    burrow->cargo.count = 1;
+    count = G_GetCommandButtons(burrow, buttons, (BYTE)(sizeof(buttons) / sizeof(buttons[0])));
+    attack = stop = stand_down = false;
+    FOR_LOOP(i, count) {
+        if (!strcmp(buttons[i].command, STR_CmdAttack)) attack = true;
+        if (!strcmp(buttons[i].command, STR_CmdStop)) stop = true;
+        if (!strcmp(buttons[i].command, "Astd")) stand_down = true;
+    }
+    T_ASSERT(attack);
+    T_ASSERT(stop);
+    T_ASSERT(stand_down);
+}
+
+TEST(wc3_movement, stand_down_stops_attack_before_unloading_burrow) {
+    static UnitAbilities_t const burrow_abilities = {
+        .id = MAKEFOURCC('o','b','u','r'),
+        .abilList = "Abun",
+    };
+    LPEDICT burrow = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 256.0f, 256.0f);
+    LPEDICT peon = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 256.0f, 256.0f);
+    LPEDICT target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 320.0f, 256.0f);
+
+    burrow->data.UnitAbilities = &burrow_abilities;
+    burrow->cargo.units[0] = peon;
+    burrow->cargo.count = 1;
+    peon->s.renderfx |= RF_HIDDEN;
+    peon->paused = true;
+
+    order_attack(burrow, target);
+    T_NOT_NULL(burrow->currentmove);
+    T_ASSERT(burrow->currentmove->ability == &a_attack);
+    T_ASSERT(burrow->combatentity == target);
+
+    S_CargoStandDown(burrow);
+
+    T_EQ(burrow->cargo.count, 0);
+    T_ASSERT(!(peon->s.renderfx & RF_HIDDEN));
+    T_ASSERT(!peon->paused);
+    T_NOT_NULL(burrow->currentmove);
+    T_ASSERT(burrow->currentmove->ability != &a_attack);
+    T_NULL(burrow->combatentity);
+    T_NULL(burrow->goalentity);
+}
+
 /* -----------------------------------------------------------------------
  * Suite runner
  * --------------------------------------------------------------------- */

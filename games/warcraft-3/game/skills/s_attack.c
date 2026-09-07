@@ -92,6 +92,7 @@ void M_GetEntityMatrix(LPCENTITYSTATE entity, LPMATRIX4 matrix) {
 
 static BOOL can_attack(LPCEDICT ent) {
     if (!S_HumanCanAttack(ent)) return false;
+    if (!S_CargoAttacksEnabled(ent)) return false;
     if (ent->attack1.type == ATK_NONE)
         return false;
     if (!ent->currentmove || ent->currentmove->ability != &a_attack)
@@ -261,9 +262,22 @@ void S_ResolveAttackHit(LPEDICT attacker, LPEDICT target, int damage) {
     }
 }
 
+static BOOL attack_animation_can_finish(LPCEDICT ent) {
+    return ent && ent->animation && ent->animation->interval[1] > ent->animation->interval[0];
+}
+
 static void damage_target(LPEDICT ent) {
     if (attack_stop_if_target_invalid(ent)) return;
     S_ResolveAttackHit(ent, ent->goalentity, G_AttackDamage(ent, ent->goalentity, ai_rolldamage1(ent, 1)));
+    /* Normal units enter recovery from the attack animation's end callback.
+     * Some building models (notably Orc Burrows in the current asset path) do
+     * not resolve a usable attack sequence. Their damage-point timer still
+     * fires the first hit, but M_MoveFrame() can never reach the move endfunc,
+     * leaving the attack state parked at wait==0 forever. Treat the completed
+     * hit as the end of the windup when there is no finite animation to drive
+     * that transition. */
+    if (attack_target_is_valid(ent->goalentity) && !attack_animation_can_finish(ent))
+        attack_melee_cooldown(ent);
 }
 
 static void throw_missile(LPEDICT ent) {
@@ -284,6 +298,11 @@ static void throw_missile(LPEDICT ent) {
         .model = ent->attack1.projectile.model,
         .damage = damage,
     });
+    /* See damage_target(): if the model has no finite attack sequence there
+     * will be no animation-end callback to start recovery, so do it at the
+     * projectile launch point instead. */
+    if (attack_target_is_valid(ent->goalentity) && !attack_animation_can_finish(ent))
+        attack_ranged_cooldown(ent);
 //    gi.WriteByte (svc_temp_entity);
 //    gi.WriteByte(TE_MISSILE);
 //    gi.WritePosition(&origin);
@@ -407,6 +426,11 @@ void attack_melee_cooldown(LPEDICT self) {
     FLOAT divisor = attack_speed_divisor(self);
     unit_setmove(self, &attack_move_melee_cooldown);
     self->wait = MAX(0.0f, (self->attack1.cooldown - self->attack1.damagePoint) / divisor);
+    /* Burrow cargo can reduce the authored cooldown below damagePoint.  A zero
+     * recovery means the next swing starts immediately; unit_runwait() treats
+     * wait==0 as inactive, so transition explicitly instead of stalling after
+     * one attack. */
+    if (self->wait <= 0.0f) attack_melee(self);
 }
 
 void attack_melee(LPEDICT self) {
@@ -420,6 +444,7 @@ void attack_ranged_cooldown(LPEDICT self) {
     FLOAT divisor = attack_speed_divisor(self);
     unit_setmove(self, &attack_move_ranged_cooldown);
     self->wait = MAX(0.0f, (self->attack1.cooldown - self->attack1.damagePoint) / divisor);
+    if (self->wait <= 0.0f) attack_ranged(self);
 }
 
 void attack_ranged(LPEDICT self) {

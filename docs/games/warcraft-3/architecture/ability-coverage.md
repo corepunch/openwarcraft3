@@ -138,8 +138,9 @@ generic `Button` command path rather than by a registered ability code.
 | `Apxf` | Phoenix Fire | Stub | Registered passive stub. Needs autocast/projectile aura behavior. |
 | `AOsf` | Feral Spirit | Partial | No-target summon, level unit id/count, mana/cooldown, ownership, timed life, and summon events exist. |
 | `AOmi` | Mirror Image | Partial | No-target cast, mana/cooldown, data-defined image count/duration, illusion identity, summon event context, and campaign-script discovery exist. Needs retail damage multipliers, dispel/image shuffle, and richer visual behavior. |
-| `Abun` | Burrow cargo hold | Stub | Needs cargo hold state, load/unload slots, and burrow-specific command behavior. |
-| `Astd` | Stand Down | Stub | Coupled to cargo/burrow state. |
+| `Abun` | Burrow cargo hold | Partial | Per-holder capacity/target/range lookup, hidden+paused cargo state, death ejection, empty attack gating, Warsmash cooldown scaling, footprint-aware boarding range, and Battle Stations/Smart boarding exist. While occupied, the Burrow portrait remains on its dedicated layer and capacity-driven clickable cargo slots replace only the ordinary stat subsection. Remaining work is retail verification of health/mana slot decoration and other presentation details. |
+| `Abtl` | Battle Stations | Partial | OpenRealm uses its data-driven AoE, busy-unit flag, and allowed unit type to choose the nearest eligible workers up to remaining cargo capacity; selected workers path to the Burrow and load on arrival. The bundled Warsmash source defines the order/error keys but has no `Abtl` implementation, so this auto-call flow is retail/data-derived rather than source-confirmed Warsmash behavior. Needs localized no-Peons command feedback and broader custom-map validation. |
+| `Astd` | Stand Down | Partial | Occupied Burrows synthesize the stock Stand Down command even when the unit ability list omits `Astd`; empty Burrows hide it. Activation first applies normal Stop semantics so any persistent Burrow attack/order is retired, then unloads all occupants through the shared unstuck/unpause path. Needs explicit reference-style remembered-resource Back-to-Work state and remaining presentation parity. |
 | `AEim` | Immolation | Stub | Toggle status exists; needs mana drain, periodic area damage, and caster buff art/rules. |
 | `Aenc` | Entangled mine cargo hold | TODO | Requires entangled mine cargo behavior. |
 | `Aent` | Entangle Gold Mine | TODO | Needs gold mine transform/ownership behavior and target checks. |
@@ -186,10 +187,10 @@ generic `Button` command path rather than by a registered ability code.
 | `AImi` | Permanent Life Gain | Partial | Selected-unit max-health/current-health gain plus synchronous charge/consume rules exist. Shared item cooldown groups remain. |
 | `AIem` | Experience Gain | Implemented | Grants Data A XP through the shared Hero progression path and plays the target effect. |
 | `AIlm` | Level Gain | Implemented | Converts Data A level gain to the target XP threshold and uses the shared Hero progression path. |
-| `Acar` | Cargo Hold | TODO | Needs cargo slots and load/unload state. |
-| `Aloa` | Load | TODO | Depends on cargo targeting and transport state. |
-| `Adro` | Drop | TODO | Depends on cargo targeting and transport state. |
-| `Adri` | Drop Instant | TODO | Depends on cargo targeting and transport state. |
+| `Acar` | Cargo Hold | Partial | Per-holder capacity, real-unit cargo storage, hidden+paused occupants, unload/death ejection, and loaded-state JASS queries exist. Needs mobile walk-into-range behavior and cargo HUD slots. |
+| `Aloa` | Load | Partial | Same-owner, capacity, target-mask, allowed-unit-type, already-loaded, and footprint-aware range validation feed real cargo state. Smart boarding now walks compatible units into range; explicit mobile transport targeting still needs broader compatibility work and command errors. |
+| `Adro` | Drop | Partial | Drops one occupant through shared unstuck/unhide/unpause cargo removal. Needs authored point semantics and cargo UI integration. |
+| `Adri` | Drop Instant | Partial | Shares the current one-occupant drop path. Needs exact reference targeting/presentation semantics. |
 | `Aroo` | Root | Partial | Basic rooted movement toggle exists. Needs alternate unit transform and build/move interaction. |
 
 ## Suggested Port Order

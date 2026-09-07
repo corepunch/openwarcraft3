@@ -49,6 +49,7 @@ void  T_Damage(LPEDICT target, LPEDICT attacker, int damage);
 int   G_AttackDamage(LPEDICT attacker, LPEDICT target, int base);
 void  attack_melee(LPEDICT self);
 void  attack_melee_cooldown(LPEDICT self);
+void  attack_ranged(LPEDICT self);
 void  attack_ranged_cooldown(LPEDICT self);
 BOOL  attack_menu_selecttarget(LPEDICT ent, LPEDICT target);
 void  M_MoveFrame(LPEDICT self);
@@ -1021,11 +1022,48 @@ TEST(wc3_combat, attack_recovery_excludes_damage_point) {
     attack_ranged_cooldown(u);
     T_FEQ(u->wait, 1.5f, 0.001f);   /* 2.0 - 0.5 */
 
-    /* damagePoint >= cooldown clamps recovery to zero. */
+    /* damagePoint >= cooldown has no recovery phase.  The next swing starts
+     * immediately instead of leaving the attack state stuck on wait==0. */
     u->attack1.cooldown    = 0.4f;
     u->attack1.damagePoint = 0.5f;
     attack_melee_cooldown(u);
-    T_FEQ(u->wait, 0.0f, 0.001f);
+    T_STREQ(u->currentmove->animation, "attack");
+    T_FEQ(u->wait, 0.5f, 0.001f);
+}
+
+TEST(wc3_combat, ranged_zero_recovery_immediately_starts_next_attack) {
+    LPEDICT u = make_combat_unit(MAKEFOURCC('h','r','i','f'), 535.0f, 0.0f, 0.0f);
+    u->attack1.cooldown = 0.25f;
+    u->attack1.damagePoint = 0.4f;
+
+    attack_ranged_cooldown(u);
+
+    T_STREQ(u->currentmove->animation, "attack range");
+    T_FEQ(u->wait, 0.4f, 0.001f);
+}
+
+TEST(wc3_combat, animationless_ranged_attack_enters_recovery_after_launch) {
+    LPEDICT u = make_combat_unit(MAKEFOURCC('h','r','i','f'), 535.0f, 0.0f, 0.0f);
+    LPEDICT target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 64.0f, 0.0f);
+
+    u->goalentity = target;
+    u->attack1.weapon = WPN_MISSILE;
+    u->attack1.cooldown = 1.0f;
+    u->attack1.damagePoint = 0.1f;
+    u->attack1.projectile.speed = 900;
+    u->animation = NULL;
+
+    attack_ranged(u);
+    /* Simulate a model for which neither "attack range" nor its "attack"
+     * fallback resolves. The damage-point callback must still move the unit
+     * into recovery so it can attack again. */
+    u->animation = NULL;
+    u->wait = 0.01f;
+    u->currentmove->think(u);
+
+    T_STREQ(u->currentmove->animation, "stand ready");
+    T_ASSERT(u->wait > 0.0f);
+    T_ASSERT(u->goalentity == target);
 }
 
 /* A hero's Agility increases attack speed (+2%/point), dividing the windup and

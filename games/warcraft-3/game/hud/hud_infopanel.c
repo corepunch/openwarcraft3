@@ -10,6 +10,15 @@
 #include "hud_local.h"
 
 #define INVENTORY_CHARGE_FONT_SIZE 10
+/* Warsmash anchors its 0.180 x 0.120 simple info panel at the bottom-centre
+ * of the 0.800 x 0.600 UI. Cargo icons are TOPLEFT-relative to that panel at
+ * y = -0.75 * frontQueueIconWidth. Convert that bottom-origin geometry to
+ * OpenRealm's top-left proxy-frame coordinates instead of positioning the
+ * slots in world-screen space above the status panel. */
+#define CARGO_SLOT_SIZE 0.02671875f
+#define CARGO_SLOT_STEP (CARGO_SLOT_SIZE * 1.20f)
+#define CARGO_SLOT_X 0.310f
+#define CARGO_SLOT_Y 0.5000390625f
 
 static int timed_status_debug_level(void) {
     LPCSTR value;
@@ -795,6 +804,40 @@ void UI_WriteSingleInfo(LPEDICT ent, LPGAMECLIENT viewer) {
          * that slot instead of a duplicate level/class label. */
         HideLegacyUnitStats();
         WriteSimpleUnitHeader(ent, is_hero ? name : unit_name, is_hero, viewer);
+
+        /* Warsmash replaces the ordinary damage/armor/stat presentation with
+         * transport slots whenever a cargo holder contains units.  Capacity
+         * comes from the holder ability (Abun is four in standard data), so
+         * custom maps can author a different number of visible slots. */
+        if (ent->cargo.count > 0 && S_CargoCapacity(ent) > 0) {
+            DWORD const capacity = MIN(S_CargoCapacity(ent), 6u);
+            LPCSTR const slot_art = Theme_String("CargoBackdrop", "Textures\\Black32.blp");
+
+            FOR_LOOP(i, capacity) {
+                FLOAT const x = CARGO_SLOT_X + (FLOAT)i * CARGO_SLOT_STEP;
+                LPEDICT occupant = S_CargoUnitAt(ent, i);
+
+                UI_WriteTextureFrame(x, CARGO_SLOT_Y, CARGO_SLOT_SIZE, CARGO_SLOT_SIZE, slot_art);
+                if (occupant) {
+                    uiFrame_t frame;
+                    char command[64];
+                    LPCSTR art = FindConfigValue(GetClassName(occupant->class_id), STR_ART);
+                    LPCSTR tip = G_UnitProfile(occupant->class_id)->name;
+
+                    memset(&frame, 0, sizeof(frame));
+                    frame.flags.type = FT_COMMANDBUTTON;
+                    frame.color = COLOR32_WHITE;
+                    frame.tex.index = gi.ImageIndex(art && *art ? Theme_String(art, art) : "Textures\\Black32.blp");
+                    frame.tooltip = tip && *tip ? tip : GetClassName(occupant->class_id);
+                    snprintf(command, sizeof(command), "cargounload %u", (unsigned)i);
+                    frame.onclick = command;
+                    UI_SetFrameRect(&frame, x, CARGO_SLOT_Y, CARGO_SLOT_SIZE, CARGO_SLOT_SIZE);
+                    UI_WriteProxyFrame(&frame, NULL, 0);
+                }
+            }
+            UI_WriteTooltipFrame();
+            return;
+        }
     } else {
         char buffer[128];
         UI_SetText(hud.unit.NameValue, "%s", name);
