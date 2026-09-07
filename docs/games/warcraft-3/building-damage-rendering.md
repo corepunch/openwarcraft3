@@ -6,7 +6,7 @@ Building combat damage is presentation-only. The server remains authoritative fo
 
 The game module keeps the building's normal MDX model and selects the authored building-fire model and attachment slots. The renderer overlays that model at the building model's `Sprite ... Ref` attachment pivots. The fire does not create a game entity, change HP, affect pathing, or participate in combat.
 
-Construction is deliberately separate. Human construction begins at low HP, so `R_RenderModel()` suppresses combat-damage fire while the building model is in a `Birth...` sequence. Once construction leaves Birth, ordinary health thresholds apply.
+Construction is deliberately separate. Human construction begins at low HP, so the server keeps fire disabled while `construction.active` is set. Once construction completes, ordinary health thresholds apply.
 
 ## Data Flow
 
@@ -16,9 +16,11 @@ UnitData / UnitBalance
        -> EF_BUILDING
 
 edict health
+    -> G_SetHealth() / G_AddHealth()
+    -> a_on_fire.level()
+    -> a_on_fire.level_changed()
     -> compress_stat()
     -> entityState_t.stats[ENT_HEALTH] (0..255)
-    -> G_UpdateOnFire()
     -> entityState_t.effect/effect_flags
     -> client V_AddClientEntity()
     -> renderEntity_t.effect_model/effect_flags
@@ -34,7 +36,7 @@ No additional health network field is needed. `entityState_t.stats[ENT_HEALTH]` 
 
 ## Damage Staging
 
-The renderer uses the compressed equivalents of the observed WC3 damage thresholds:
+Fire has four states: off plus three active tiers. The server uses the compressed equivalents of the observed WC3 damage thresholds:
 
 | Remaining health | Fire slots | Effect tier |
 | --- | --- | --- |
@@ -45,6 +47,8 @@ The renderer uses the compressed equivalents of the observed WC3 damage threshol
 
 With 0..255 compressed health this is tested as `<=191`, `<=127`, and `<=63`. Health zero does not draw the damage overlay; normal death rendering owns that state.
 
+The intrinsic ability's `enabled` callback evaluates the current level, `disabled` clears `entityState_t.effect` and its slot mask, and `level_changed` moves between tiers when `G_SetHealth()` crosses a compressed-health value. There is no per-frame on-fire tick or ability sweep. The active tier is represented directly by the selected effect model and `EFX_SLOT_*` mask, so no parallel fire-level field is needed.
+
 The slot staging is based on retail observation rather than recovered Blizzard engine source. A 2025 Hive Workshop observation records First/Second at 75%, Fourth/Fifth joining at 50%, and Third joining at 25%:
 
 - <https://www.hiveworkshop.com/threads/sprite-ref-percentage.364442/>
@@ -53,7 +57,7 @@ The slot staging is based on retail observation rather than recovered Blizzard e
 
 ## Fire Families
 
-Human and Orc buildings use the standard fire family. Undead and Night Elf structures use their authored race-specific families. `G_UpdateOnFire()` resolves the unit's authored `UnitData.race` and registers the resulting model in the game module; the renderer receives only the selected model index and slot mask.
+Human and Orc buildings use the standard fire family. Undead and Night Elf structures use their authored race-specific families. Retail defines `Afih`, `Afio`, `Afin`, `Afiu`, and generic `Afir` as `CAbilityOnFire` classes but does not list them in stock unit ability rows, matching intrinsic `Aatk` and `Amov`. The game therefore dispatches the shared `a_on_fire` descriptor as an intrinsic capability for `EF_BUILDING` entities. Its `think` callback resolves the unit's authored `UnitData.race` and registers the resulting model; the renderer receives only the selected model index and slot mask.
 
 | Tier | Human / Orc / default | Undead | Night Elf |
 | --- | --- | --- | --- |

@@ -80,10 +80,35 @@ static abilityitem_t abilitylist[] = {
 
     /* CommonAbilityStrings.txt */
     { "Aall", &a_shop_sharing },  /* Shop Sharing, Allied Bldg. */
+    { "Abdt", &a_burrow_detection },  /* Burrow Detection */
     { "Apit", &a_shop_purchase_item },  /* Shop Purchase Item */
     { "Ahar", &a_harvest },  /* Harvest */
     { "Ahrl", &a_harvest_lumber },  /* Harvest */
+    { "Arev", &a_revive_hero },  /* Revive Hero */
+    { "Aawa", &a_revive_hero_instant },  /* Revive Hero Instantly */
+    { "Adet", &a_detector },  /* Detector */
     { "Arep", &a_repair },  /* Repair */
+    { "AEpa", &a_poison_arrows },  /* Poison Arrows */
+    { "AEbu", &a_build },  /* Build (Night Elf) */
+    { "AGbu", &a_build },  /* Build (Naga) */
+    { "AHbu", &a_build },  /* Build (Human) */
+    { "AHer", &a_hero },  /* Hero */
+    { "ANbu", &a_build },  /* Build (Neutral) */
+    { "AObu", &a_build },  /* Build (Orc) */
+    { "ARal", &a_rally },  /* Rally */
+    { "AUbu", &a_build },  /* Build (Undead) */
+    { "Aalr", &a_alarm },  /* Alarm */
+    { "Aatk", &a_attack },  /* Attack */
+    { "Afih", &a_on_fire },  /* On Fire (Human) */
+    { "Afin", &a_on_fire },  /* On Fire (Night Elf) */
+    { "Afio", &a_on_fire },  /* On Fire (Orc) */
+    { "Afir", &a_on_fire },  /* On Fire */
+    { "Afiu", &a_on_fire },  /* On Fire (Undead) */
+    { "Aloc", &a_locust },  /* Locust */
+    { "Amov", &a_move },  /* Move */
+    { "Atdp", &a_drop },  /* Drop Pilot */
+    { "Atlp", &a_load },  /* Load Pilot */
+    { "Attu", &a_turret },  /* Turret */
 
     /* HumanAbilityStrings.txt */
     { "AHdr", &a_siphon_mana_human },  /* Siphon Mana */
@@ -236,33 +261,6 @@ static abilityitem_t abilitylist[] = {
     // TODO: { "Aamk", &a_attack_mod },  /* Attribute Bonus */
     // TODO: { "ANpa", &a_poison_attack },  /* Parasite */
     // TODO: { "ANbr", &a_bash },  /* Battle Roar */
-
-    /* CommonAbilityStrings.txt */
-    // TODO: { "Abdt", &a_creep_sleep },  /* Burrow Detection */
-    // TODO: { "Arev", &a_revive },  /* Revive Hero */
-    // TODO: { "Aawa", &a_war_stomp },  /* Revive Hero Instantly */
-    // TODO: { "Adet", &a_unknown },  /* Detector */
-    // TODO: { "AEpa", &a_poison_attack },  /* Poison Arrows */
-    // TODO: { "AEbu", &a_night_elf_build },  /* Build (Night Elf) */
-    // TODO: { "AGbu", &a_neutral_build },  /* Build (Naga) */
-    // TODO: { "AHbu", &a_human_build },  /* Build (Human) */
-    // TODO: { "AHer", &a_hero },  /* Hero */
-    // TODO: { "ANbu", &a_neutral_build },  /* Build (Neutral) */
-    // TODO: { "AObu", &a_orc_build },  /* Build (Orc) */
-    // TODO: { "ARal", &a_rally },  /* Rally */
-    // TODO: { "AUbu", &a_undead_build },  /* Build (Undead) */
-    // TODO: { "Aalr", &a_alarm },  /* Alarm */
-    // TODO: { "Aatk", &a_attack },  /* Attack */
-    // TODO: { "Afih", &a_on_fire_human },  /* On Fire (Human) */
-    // TODO: { "Afin", &a_on_fire_night_elf },  /* On Fire (Night Elf) */
-    // TODO: { "Afio", &a_on_fire_orc },  /* On Fire (Orc) */
-    // TODO: { "Afir", &a_on_fire },  /* On Fire */
-    // TODO: { "Afiu", &a_on_fire_undead },  /* On Fire (Undead) */
-    // TODO: { "Aloc", &a_button },  /* Locust */
-    // TODO: { "Amov", &a_move },  /* Move */
-    // TODO: { "Atdp", &a_cargo_drop },  /* Drop Pilot */
-    // TODO: { "Atlp", &a_cargo_load },  /* Load Pilot */
-    // TODO: { "Attu", &a_button },  /* Turret */
 
     /* HumanAbilityStrings.txt */
     // TODO: { "Amls", &a_aura },  /* Aerial Shackles */
@@ -557,6 +555,26 @@ ability_t const *FindAbilityForCommand(LPCSTR classname) {
         return FindAbilityByClassname(classname);
     }
     return FindAbilityByClassname(GetClassName(G_AbilityCodeName(classname)));
+}
+
+static ability_t const *ability_for_code(DWORD code) {
+    char name[5] = {0};
+    memcpy(name, &code, 4);
+    return FindAbilityForCommand(name);
+}
+
+void S_EnableAbility(LPEDICT ent, DWORD code) {
+    ability_t const *ability = ability_for_code(code);
+    if (ability && ability->enabled) ability->enabled(ent);
+}
+
+void S_DisableAbility(LPEDICT ent, DWORD code) {
+    ability_t const *ability = ability_for_code(code);
+    if (ability && ability->disabled) ability->disabled(ent);
+}
+
+void S_RefreshAbilityLevel(LPEDICT ent, ability_t const *ability) {
+    if (ability && ability->level && ability->level_changed) ability->level_changed(ent, ability->level(ent));
 }
 
 static BOOL unit_has_ability_handler(LPEDICT ent, ability_t const *wanted) {

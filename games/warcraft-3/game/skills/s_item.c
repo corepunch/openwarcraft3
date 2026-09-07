@@ -50,7 +50,7 @@ static BOOL item_permanent_life_command(LPEDICT clent) {
         return false;
     }
     target->health.max_value += amount;
-    target->health.value += amount;
+    G_AddHealth(target, amount);
     G_SpawnAbilityEffectTarget(code, WC3_EFFECT_TARGET, 0, target, NULL, true);
     return true;
 }

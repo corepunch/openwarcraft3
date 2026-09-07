@@ -203,14 +203,14 @@ void T_Damage(LPEDICT target, LPEDICT attacker, int damage) {
     unit_entercombat(target, attacker);
 
     if (target->health.value <= damage) {
-        target->health.value = 0;
+        G_SetHealth(target, 0);
         unit_leavecombat(target);
         unit_leavecombat(attacker);
         target->die(target, attacker);
         attack_finish_after_combat(attacker);
         return;
     } else {
-        target->health.value -= damage;
+        G_AddHealth(target, -damage);
     }
     if (can_attack(target) && !unit_is_walking(target) &&
         S_SpellIsEnemy(target, attacker)) {
@@ -248,7 +248,7 @@ void S_ResolveAttackHit(LPEDICT attacker, LPEDICT target, int damage) {
             T_Damage(other, attacker, (int)MAX(1.0f, damage * fraction));
     }
     S_BlackArrowDeath(attacker, target);
-    attacker->health.value = MIN(attacker->health.max_value, attacker->health.value + damage * S_VampiricLifeSteal(attacker));
+    G_AddHealth(attacker, damage * S_VampiricLifeSteal(attacker));
     if (target->inuse) {
         FLOAT thorns = S_ThornsDamageReturn(target, attacker, damage);
         FLOAT spiked = S_SpikedDamageReturn(target, damage);

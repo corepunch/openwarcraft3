@@ -372,7 +372,7 @@ static void ai_repair(LPEDICT ent) {
         G_UpdateConstructionAnimation(building);
         start_hp = MAX(1.0f, hp->max_value * 0.10f);
         hp_gain = (hp->max_value - start_hp) * ((FLOAT)FRAMETIME * ratio / duration);
-        hp->value = MIN(hp->max_value, hp->value + hp_gain);
+        G_AddHealth(building, hp_gain);
         if (building->construction.progress >= duration) {
             G_CompleteConstruction(building);
             repair_stop_reason(ent, "construction_complete");
@@ -399,10 +399,10 @@ static void ai_repair(LPEDICT ent) {
             repair_stop_reason(ent, "repair_unaffordable");
             return;
         }
-        hp->value = MIN(hp->max_value, hp->value + hp_rate * seconds);
+        G_AddHealth(building, hp_rate * seconds);
     }
     if (hp->value >= hp->max_value) {
-        hp->value = hp->max_value;
+        G_SetHealth(building, hp->max_value);
         building->stand(building);
         repair_stop_reason(ent, "repair_complete");
     }
@@ -417,14 +417,13 @@ static void ai_repair_legacy(LPEDICT ent) {
         return;
     }
     hp = &building->health;
-    if (G_PlayerInstantBuild(building->s.player)) {
-        hp->value = hp->max_value;
-    } else {
-        hp->value += hp->max_value * (FLOAT)FRAMETIME /
-                     ((FLOAT)building->data.UnitBalance->buildTime * 1000.0f);
-    }
+    if (G_PlayerInstantBuild(building->s.player))
+        G_SetHealth(building, hp->max_value);
+    else
+        G_AddHealth(building, hp->max_value * (FLOAT)FRAMETIME /
+                    ((FLOAT)building->data.UnitBalance->buildTime * 1000.0f));
     if (hp->value >= hp->max_value) {
-        hp->value = hp->max_value;
+        G_SetHealth(building, hp->max_value);
         if (WC3_TUTORIAL_DEBUG_ENABLED()) {
             fprintf(stderr,
                     "WC3_QUEST_BUILD legacy-complete worker=%ld id=%.4s building=%ld id=%.4s health=%.1f/%.1f worker_build=%ld building_build=%ld\n",

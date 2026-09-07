@@ -301,7 +301,7 @@ void S_SpellHeal(LPEDICT target, FLOAT amount) {
     if (!target || amount <= 0) {
         return;
     }
-    target->health.value = MIN(target->health.max_value, target->health.value + amount);
+    G_AddHealth(target, amount);
 }
 
 void S_SpellCursorSplat(LPEDICT clent, FLOAT radius) {

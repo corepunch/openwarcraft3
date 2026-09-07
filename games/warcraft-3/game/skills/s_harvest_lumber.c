@@ -355,6 +355,7 @@ BOOL G_ActorAddSkill(LPEDICT ent, DWORD code) {
         if (!skill_add(ent->abilities.added, &ARRAY_COUNT(ent->abilities.added), code)) return false;
     }
     if (code == MAKEFOURCC('A', 'h', 'a', 'r')) G_InvalidateUnitShortcutsForUnit(ent);
+    S_EnableAbility(ent, code);
     { LPGAMECLIENT client = G_GetPlayerClientByNumber(ent->s.player); if (client) G_InvalidateCommands(client); }
     return true;
 }
@@ -371,6 +372,7 @@ BOOL G_ActorRemoveSkill(LPEDICT ent, DWORD code) {
     else if (!skill_add(ent->abilities.removed, &ARRAY_COUNT(ent->abilities.removed), code)) return false;
     index = skill_index(ent->abilities.permanent, ARRAY_COUNT(ent->abilities.permanent), code);
     if (index >= 0) skill_remove(ent->abilities.permanent, &ARRAY_COUNT(ent->abilities.permanent), index);
+    S_DisableAbility(ent, code);
     { LPGAMECLIENT client = G_GetPlayerClientByNumber(ent->s.player); if (client) G_InvalidateCommands(client); }
     return true;
 }
@@ -610,7 +612,7 @@ static void ai_wisp_mine(LPEDICT ent) {
         G_CreditResourceIncome(player, ent, PLAYERSTATE_RESOURCE_LUMBER,
                                (LONG)wisp_lumber_per_interval);
     }
-    ent->health.value = 0;
+    G_SetHealth(ent, 0);
     if (ent->die) {
         ent->die(ent, ent);
     }

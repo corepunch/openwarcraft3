@@ -637,6 +637,85 @@ TEST(wc3_spell, selected_hero_ability_contracts_are_registered) {
 	T_EQ((int)acid->spell->target_type, (int)SPELL_TARGET_UNIT);
 }
 
+TEST(wc3_spell, selected_common_ability_contracts_are_registered) {
+	static LPCSTR const passives[] = {
+		"Abdt", "Arev", "Aawa", "Adet", "AHer", "Aalr", "Afih", "Afin", "Afio", "Afir", "Afiu", "Aloc", "Attu",
+	};
+	static struct { LPCSTR code; ability_t const *ability; } const commands[] = {
+		{ "AEbu", &a_build }, { "AGbu", &a_build }, { "AHbu", &a_build }, { "ANbu", &a_build },
+		{ "AObu", &a_build }, { "ARal", &a_rally }, { "AUbu", &a_build }, { "Aatk", &a_attack },
+		{ "Amov", &a_move }, { "Atdp", &a_drop }, { "Atlp", &a_load },
+	};
+	ability_t const *poison = FindAbilityByClassname("AEpa");
+
+	FOR_LOOP(i, sizeof(passives) / sizeof(passives[0])) {
+		ability_t const *ability = FindAbilityByClassname(passives[i]);
+		T_NOT_NULL(ability);
+		T_ASSERT(ability->flags & ABILITY_PASSIVE);
+	}
+	FOR_LOOP(i, sizeof(commands) / sizeof(commands[0]))
+		T_EQ(FindAbilityByClassname(commands[i].code), commands[i].ability);
+	T_EQ(FindAbilityByClassname("Afih"), &a_on_fire);
+	T_EQ(FindAbilityByClassname("Afin"), &a_on_fire);
+	T_EQ(FindAbilityByClassname("Afio"), &a_on_fire);
+	T_EQ(FindAbilityByClassname("Afir"), &a_on_fire);
+	T_EQ(FindAbilityByClassname("Afiu"), &a_on_fire);
+	T_EQ(a_on_fire.level_changed, FindAbilityByClassname("Afir")->level_changed);
+	T_NOT_NULL(a_on_fire.level);
+	T_NOT_NULL(a_on_fire.level_changed);
+	T_NOT_NULL(poison);
+	T_NOT_NULL(poison->spell);
+	T_EQ((int)poison->spell->code, (int)MAKEFOURCC('A', 'E', 'p', 'a'));
+	T_ASSERT(poison->spell->flags & SPELL_TOGGLE);
+	T_ASSERT(poison->spell->flags & SPELL_AUTOCAST);
+}
+
+TEST(wc3_spell, intrinsic_on_fire_level_zero_clears_effect) {
+	edict_t building = {0};
+
+	building.inuse = true;
+	building.s.effect = 77;
+	building.s.effect_flags = EFX_MODEL;
+	building.s.flags = EF_BUILDING;
+	building.health.value = building.health.max_value = 1000.0f;
+	S_RefreshAbilityLevel(&building, &a_on_fire);
+	T_EQ(building.s.effect, 0);
+	T_EQ(building.s.effect_flags, 0);
+}
+
+TEST(wc3_spell, runtime_ability_membership_calls_enable_and_disable) {
+	UnitAbilities_t abilities = { .abilList = "Afir" };
+	edict_t unit = { .inuse = true, .s.effect = 77, .s.effect_flags = EFX_MODEL };
+	DWORD const code = MAKEFOURCC('A', 'f', 'i', 'r');
+
+	unit.data.UnitAbilities = &abilities;
+	T_ASSERT(G_ActorRemoveSkill(&unit, code));
+	T_EQ(unit.s.effect, 0);
+	T_EQ(unit.s.effect_flags, 0);
+	unit.s.effect = 77; unit.s.effect_flags = EFX_MODEL;
+	T_ASSERT(G_ActorAddSkill(&unit, code));
+	T_EQ(unit.s.effect, 0);
+	T_EQ(unit.s.effect_flags, 0);
+}
+
+TEST(wc3_spell, poison_arrows_uses_its_own_authored_bonus_damage) {
+	const char slk[] =
+		"ID;PWXL;N;EBB;Y2;X3\n"
+		"C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"DataA1\"\n"
+		"C;Y2;X1;K\"AEpa\"\nC;Y2;X2;K\"AEpa\"\nC;Y2;X3;K\"13\"\nE\n";
+	slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+	LPEDICT attacker = make_hero(MAKEFOURCC('N', 'n', 's', 'w'), 100, 100, 0, 0);
+
+	attacker->attack1.weapon = WPN_MISSILE;
+	unit_addstatus(attacker, "AEpa", 1);
+	T_EQ(S_SearingArrowDamage(attacker, 20), 33);
+	attacker->attack1.weapon = WPN_NORMAL;
+	T_EQ(S_SearingArrowDamage(attacker, 20), 20);
+
+	G_SetSLKRows("AbilityData", old);
+	free_slk_rows(rows);
+}
+
 TEST(wc3_spell, mana_shield_consumes_authored_mana_before_life) {
 	const char slk[] =
 		"ID;PWXL;N;EBB;Y2;X4\n"

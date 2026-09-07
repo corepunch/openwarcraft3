@@ -27,7 +27,25 @@ code. Campaign-specific presentation, exact summon composition, Parasite
 death spawning, and full three-form Storm/Earth/Fire behavior remain separate
 follow-up contracts when their authored rows and runtime consumers are added.
 
-OpenWarcraft3 uses a small Quake-style `ability_t` dispatch object. Command-capable abilities provide a `cmd` hook; optional hooks cover toggle presentation, spell metadata and synchronous item use. Command-card discovery now requires a real `cmd`, so registered passive/stub handlers do not create dead buttons. Runtime `UnitAddAbility` aliases are also included in command-card discovery.
+OpenWarcraft3 uses a small Quake-style `ability_t` dispatch object. Command-capable abilities provide a `cmd` hook; optional hooks cover toggle presentation, spell metadata, synchronous item use, autocast, membership changes, and levels. `UnitAddAbility` and `UnitRemoveAbility` invoke `enabled` and `disabled` immediately. Stateful abilities derive their current level through `level`; the owning gameplay mutation calls `S_RefreshAbilityLevel()`, which forwards that value to `level_changed`. Command-card discovery requires a real `cmd`, so registered passive/stub handlers do not create dead buttons.
+
+The CommonAbility base codes use the subsystem that already owns their behavior.
+`AEbu`, `AGbu`, `AHbu`, `ANbu`, `AObu`, and `AUbu` share the build command;
+`ARal`, `Aatk`, and `Amov` share the ordinary rally, attack, and move commands;
+`Atdp` and `Atlp` share cargo drop/load. `AEpa` is the Poison Arrows toggle and
+reads its own `DataA` bonus in missile attack resolution. `Aloc` applies
+unselectable, invulnerable, collisionless, no-pathing traits during unit spawn.
+The five `Afih`/`Afin`/`Afio`/`Afir`/`Afiu` rawcodes share one passive descriptor;
+retail does not list these rawcodes in `UnitAbilities.slk`, so buildings synthesize
+`a_on_fire` as an intrinsic capability. `G_SetHealth()` refreshes its derived level and
+the `level_changed` callback owns health-stage and `UnitData.race` model selection. Hero revival and Hero identity
+remain owned by their existing lifecycle systems, while their CommonAbility rawcodes
+are explicit passive descriptors. ROC and TFT `ability_audit` rows match for this block;
+`Adet` is an abstract base code absent as a standalone row in both archives.
+
+Timed statuses remain generic `abilstatus[]` records. Their common duration and
+expiration bookkeeping stays in `unit_updatestatuses()`; add apply, refresh, or remove
+callbacks only when a status record can resolve its owning ability unambiguously.
 
 Abilities are discovered through the static `abilitylist[]` in
 `games/warcraft-3/game/skills/s_skills.c`. Normal unit command buttons are shown only when the

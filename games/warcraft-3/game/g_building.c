@@ -739,7 +739,7 @@ BOOL G_StartHumanConstruction(LPEDICT builder, LPEDICT building) {
     building->construction.gold = 0;
     building->construction.lumber = 0;
     building->aiflags |= AI_HOLD_FRAME;
-    hp->value = MAX(1.0f, hp->max_value * WC3_BUILD_START_LIFE);
+    G_SetHealth(building, MAX(1.0f, hp->max_value * WC3_BUILD_START_LIFE));
 
     G_UpdateConstructionAnimation(building);
     return true;
@@ -841,7 +841,7 @@ void G_CompleteConstruction(LPEDICT building) {
     building->construction.lumber = 0;
     building->aiflags &= ~AI_HOLD_FRAME;
     if (building->build == building) building->build = NULL;
-    building->health.value = building->health.max_value;
+    G_SetHealth(building, building->health.max_value);
     building->stand(building);
 #ifdef WC3_DEBUG_AI
     fprintf(stderr, "WC3_DEBUG_AI construction complete building=%ld id=%.4s player=%u\n",

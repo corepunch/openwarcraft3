@@ -109,6 +109,25 @@ TEST(wc3_unit, shared_test_unit_starts_alive) {
     T_ASSERT(!M_IsDead(ent));
 }
 
+TEST(wc3_unit, locust_ability_applies_untargetable_collisionless_traits) {
+    static UnitAbilities_t const locust = { .abilList = "Aloc" };
+    static UnitAbilities_t const ordinary = { .abilList = "Amov,Aatk" };
+    edict_t unit = { .collision = 16.0f, .data.UnitAbilities = &locust };
+    edict_t control = { .collision = 16.0f, .data.UnitAbilities = &ordinary };
+
+    G_ApplyUnitAbilityTraits(&unit);
+    T_ASSERT(unit.s.flags & EF_NOT_SELECTABLE);
+    T_ASSERT(unit.invulnerable);
+    T_FEQ(unit.collision, 0.0f, 0.001f);
+    T_ASSERT(unit.no_pathing);
+
+    G_ApplyUnitAbilityTraits(&control);
+    T_ASSERT(!(control.s.flags & EF_NOT_SELECTABLE));
+    T_ASSERT(!control.invulnerable);
+    T_FEQ(control.collision, 16.0f, 0.001f);
+    T_ASSERT(!control.no_pathing);
+}
+
 TEST(wc3_unit, selection_sound_registration_caches_all_responses) {
     static LPCSTR const slk =
         "ID;PWXL;N;E\n"

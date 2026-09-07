@@ -48,40 +48,59 @@ static onFireNames_t const *onfire_family(DWORD race) {
     return &onfire_standard;
 }
 
-static BYTE onfire_level(BYTE health) {
-    if (health > 255 * 3 / 4) return 255;
-    if (health > 255 / 2) return 0;
-    if (health > 255 / 4) return 1;
-    return 2;
+static DWORD onfire_level(LPCEDICT ent) {
+    BYTE health;
+
+    if (!ent->inuse || !(ent->s.flags & EF_BUILDING) || ent->health.value <= 0.0f ||
+        !ent->health.max_value || ent->construction.active) return 0;
+    health = compress_stat(&ent->health);
+    if (health > 255 * 3 / 4) return 0;
+    if (health > 255 / 2) return 1;
+    if (health > 255 / 4) return 2;
+    return 3;
 }
 
-/* Refresh the server-authored fire model whenever health or construction state
- * changes.  Zero clears the effect model so the client removes the previous effect. */
-void G_UpdateOnFire(LPEDICT ent) {
+static void onfire_disabled(LPEDICT ent) {
+    ent->s.effect = 0;
+    ent->s.effect_flags = 0;
+}
+
+/* Apply one of four fire levels: off, small, medium, or severe. */
+static void onfire_level_changed(LPEDICT ent, DWORD level) {
     UnitData_t const *data;
     onFireNames_t const *names;
     onFireStage_t const *stage;
     PATHSTR path;
-    BYTE level;
     DWORD race;
 
-    ent->s.effect = 0;
-    ent->s.effect_flags = 0;
-    if (!ent->inuse || !(ent->s.flags & EF_BUILDING) || ent->health.value <= 0.0f ||
-        !ent->health.max_value || (ent->animation && !strncasecmp(ent->animation->name, "birth", 5))) return;
-
-    level = onfire_level(compress_stat(&ent->health));
-    if (level == 255) return;
+    if (!level) {
+        onfire_disabled(ent);
+        return;
+    }
     data = G_UnitData(ent->class_id);
     race = onfire_race(data ? data->race : NULL);
     names = onfire_family(race);
-    stage = onfire_stage + level;
+    stage = onfire_stage + level - 1;
+    if ((ent->s.effect_flags & EFX_ATTACH_SLOTS) &&
+        (ent->s.effect_flags & EFX_SLOT_MASK) == stage->slots) return;
+    onfire_disabled(ent);
     snprintf(path, sizeof(path), "Environment\\%s\\%s%d.mdx", names->dir[stage->size],
              names->prefix[stage->size], stage->variant);
     ent->s.effect = G_RegisterModel(path);
     if (!ent->s.effect) {
-        fprintf(stderr, "G_UpdateOnFire: failed to register %s\n", path);
+        fprintf(stderr, "onfire_level_changed: failed to register %s\n", path);
         return;
     }
     ent->s.effect_flags = EFX_MODEL | EFX_ATTACH_SLOTS | stage->slots;
 }
+
+static void onfire_enabled(LPEDICT ent) { onfire_level_changed(ent, onfire_level(ent)); }
+
+    /* Retail synthesizes one race-specific CAbilityOnFire for buildings instead of listing it in UnitAbilities.slk. */
+    ability_t a_on_fire = {
+        .flags = ABILITY_PASSIVE,
+        .enabled = onfire_enabled,
+        .disabled = onfire_disabled,
+        .level = onfire_level,
+        .level_changed = onfire_level_changed,
+    };

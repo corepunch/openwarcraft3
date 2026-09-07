@@ -115,13 +115,22 @@ void unit_stand(LPEDICT self) {
     }
 }
 
+/* All runtime unit-health changes pass here so intrinsic ability levels transition exactly once. */
+void G_SetHealth(LPEDICT ent, FLOAT value) {
+    BYTE const old = compress_stat(&ent->health);
+    ent->health.value = value;
+    if ((ent->s.flags & EF_BUILDING) && old != compress_stat(&ent->health)) S_RefreshAbilityLevel(ent, &a_on_fire);
+}
+
+void G_AddHealth(LPEDICT ent, FLOAT value) { G_SetHealth(ent, MIN(ent->health.max_value, ent->health.value + value)); }
+
 void unit_die(LPEDICT self, LPEDICT attacker) {
     LPGAMECLIENT owner;
     DWORD const selected_mask = self ? self->selected : 0;
 
     G_ClearUnitOrderQueue(self);
     G_InvalidateUnitShortcutsForUnit(self);
-    self->health.value = 0.0f;
+    G_SetHealth(self, 0.0f);
     /* Construction owns Repair workers and a self-linked HUD queue marker.
      * Tear that state down before generic production/revival death cleanup. */
     if (self->construction.active) G_StopConstruction(self);
@@ -573,7 +582,7 @@ BOOL G_TransformUnitType(LPEDICT unit, DWORD type) {
     unit->permanent_armor_bonus = 0.0f;
     unit->temporary_armor_bonus = 0.0f;
     SP_SpawnUnit(unit);
-    unit->health.value = MIN(unit->health.max_value, MAX(0.0f, unit->health.max_value * health_ratio));
+    G_SetHealth(unit, MIN(unit->health.max_value, MAX(0.0f, unit->health.max_value * health_ratio)));
     unit->mana.value = MIN(unit->mana.max_value, MAX(0.0f, unit->mana.max_value * mana_ratio));
     unit->temporary_armor_bonus = temporary_armor;
     unit->armor_value += temporary_armor;
@@ -945,7 +954,7 @@ void unit_updatestatuses(LPEDICT ent) {
         S_MilitiaExpire(ent);
     }
     if (kill && !M_IsDead(ent)) {
-        ent->health.value = 0;
+        G_SetHealth(ent, 0);
         if (ent->die) {
             ent->die(ent, ent->owner);
         }
@@ -1251,9 +1260,9 @@ void G_RecomputeHeroStats(LPEDICT ent) {
     BOOL const alive = ent->health.value > 0.0f;
     FLOAT const dHP = newMaxHP - ent->health.max_value;
     ent->health.max_value = MAX(1.0f, newMaxHP);
-    ent->health.value = MIN(ent->health.max_value, ent->health.value + dHP);
+    G_AddHealth(ent, dHP);
     if (alive && ent->health.value < 1.0f) {
-        ent->health.value = 1.0f;
+        G_SetHealth(ent, 1.0f);
     }
 
     FLOAT const dMana = newMaxMana - ent->mana.max_value;
@@ -1570,7 +1579,7 @@ void G_ReviveHero(LPEDICT ent, FLOAT x, FLOAT y) {
     ent->revival.gold = ent->revival.lumber = 0;
     ent->revival.progress = 0.0f;
     ent->s.renderfx &= ~RF_HIDDEN;
-    ent->health.value = MIN(ent->health.max_value, MAX(1.0f, ent->health.max_value * lifeFactor));
+    G_SetHealth(ent, MIN(ent->health.max_value, MAX(1.0f, ent->health.max_value * lifeFactor)));
     mana = ent->mana.max_value * manaFactor;
     if (ent->data.UnitBalance) mana += ent->data.UnitBalance->initialMana * manaStart;
     ent->mana.value = MAX(0.0f, MIN(ent->mana.max_value, mana));

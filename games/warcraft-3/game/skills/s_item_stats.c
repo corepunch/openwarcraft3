@@ -41,7 +41,7 @@ static void apply_life(LPEDICT unit, FLOAT amount) {
     if (old_max <= 0) old_max = 1.0f;
     FLOAT ratio = unit->health.value / old_max;
     unit->health.max_value += amount;
-    unit->health.value = unit->health.max_value * ratio;
+    G_SetHealth(unit, unit->health.max_value * ratio);
 }
 
 static void apply_mana(LPEDICT unit, FLOAT amount) {

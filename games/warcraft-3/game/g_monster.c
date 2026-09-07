@@ -493,6 +493,15 @@ void G_RegisterGlobalSounds(void) {
 /* Unit data decides the persistent AI capabilities assigned at spawn. */
 DWORD unit_spawn_aiflags(DWORD class_id) { return G_UnitIsBuilding(class_id) ? AI_IMMOBILE : 0; }
 
+/* Apply static ability traits after ordinary collision and vulnerability state. */
+void G_ApplyUnitAbilityTraits(LPEDICT ent) {
+    if (!G_ActorHasSkill(ent, "Aloc")) return;
+    ent->s.flags |= EF_NOT_SELECTABLE;
+    ent->invulnerable = true;
+    ent->collision = 0.0f;
+    ent->no_pathing = true;
+}
+
 /* Initialize a unit entity from the unit data tables.
  * Reads model path, scale, collision radius, HP, mana, and attack parameters
  * (type, weapon class, damage dice, range, projectile model/speed) for the
@@ -543,6 +552,7 @@ void SP_SpawnUnit(LPEDICT self) {
     self->health.value = b->maxHealth;
     self->health.max_value = b->maxHealth;
     self->invulnerable = G_ActorHasSkill(self, "Avul");
+    G_ApplyUnitAbilityTraits(self);
     self->unitinfo.MoveSpeed = b->speed;
     /* Warcraft object data owns model altitude.  Keep the mutable current
      * height separate from terrain support so SetUnitFlyHeight can change it

@@ -239,7 +239,7 @@ static void animate_dead_execute(LPEDICT caster, spellTarget_t st, spell_info_t 
     FLOAT area = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
     FILTER_EDICTS(unit, count < limit && unit->inuse && M_IsDead(unit) && !G_UnitIsHero(unit) &&
                   Vector2_distance(&unit->s.origin2, &caster->s.origin2) <= area) {
-        unit->health.value = unit->health.max_value; unit->svflags &= ~SVF_DEADMONSTER; unit->s.flags &= ~EF_NOT_SELECTABLE;
+        G_SetHealth(unit, unit->health.max_value); unit->svflags &= ~SVF_DEADMONSTER; unit->s.flags &= ~EF_NOT_SELECTABLE;
         unit->s.player = caster->s.player; unit->owner = caster;
         unit_addtimedstatus(unit, "BTLF", level, S_SpellDuration(spell->code, level, false));
         if (unit->stand) unit->stand(unit); count++;
@@ -396,6 +396,12 @@ SPELL(locust_swarm, ('A','U','l','s'), SPELL_TARGET_NONE, SPELL_CHANNEL, summon_
  * Unubertip="Right-click to deactivate auto-casting."
  */
 SPELL(black_arrow, ('A','N','b','a'), SPELL_TARGET_NONE, SPELL_TOGGLE | SPELL_AUTOCAST, toggle_status_execute);
+/* Name=Poison Arrows
+ * Ubertip="Adds <AHfa,DataA1> bonus fire damage to an attack against enemies, but drains mana with each shot fired."
+ * Untip="Right-click to activate auto-casting."
+ * Unubertip="Right-click to deactivate auto-casting."
+ */
+SPELL(poison_arrows, ('A','E','p','a'), SPELL_TARGET_NONE, SPELL_TOGGLE | SPELL_AUTOCAST, toggle_status_execute);
 /* Name=Silence
  * Ubertip="Stops enemy units in an area from casting spells."
  */

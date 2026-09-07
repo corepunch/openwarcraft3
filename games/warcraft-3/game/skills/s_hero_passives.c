@@ -10,6 +10,7 @@
 #define ID_MANA_SHIELD MAKEFOURCC('A', 'N', 'm', 's')
 #define ID_DRUNKEN_BRAWLER MAKEFOURCC('A', 'N', 'd', 'b')
 #define ID_SEARING_ARROWS MAKEFOURCC('A', 'H', 'f', 'a')
+#define ID_POISON_ARROWS MAKEFOURCC('A', 'E', 'p', 'a')
 #define ID_TRUESHOT_AURA MAKEFOURCC('A', 'E', 'a', 'r')
 
 static FLOAT hero_aura_bonus(LPEDICT unit, DWORD code, DWORD data) {
@@ -37,8 +38,9 @@ FLOAT S_TrueshotAttackBonus(LPEDICT unit) {
 
 int S_SearingArrowDamage(LPEDICT attacker, int damage) {
     DWORD level = G_UnitStatusLevel(attacker, ID_SEARING_ARROWS);
-    return level && attacker->attack1.weapon == WPN_MISSILE
-        ? damage + (int)S_SpellData(ID_SEARING_ARROWS, level, 1) : damage;
+    DWORD code = ID_SEARING_ARROWS;
+    if (!level) { level = G_UnitStatusLevel(attacker, ID_POISON_ARROWS); code = ID_POISON_ARROWS; }
+    return level && attacker->attack1.weapon == WPN_MISSILE ? damage + (int)S_SpellData(code, level, 1) : damage;
 }
 
 /* Mana Shield converts incoming damage to mana loss using the authored Ams4 factor. */
@@ -94,3 +96,14 @@ ability_t a_aura_spell = { .flags = ABILITY_PASSIVE };
 ability_t a_mana_shield = { .flags = ABILITY_PASSIVE };
 ability_t a_drunken_brawler = { .flags = ABILITY_PASSIVE };
 ability_t a_cleaving_attack = { .flags = ABILITY_PASSIVE };
+
+/* CommonAbility marker types are consumed by unit spawning, building-fire
+ * presentation, Hero revival, and ordinary order systems rather than casts. */
+ability_t a_burrow_detection = { .flags = ABILITY_PASSIVE };
+ability_t a_revive_hero = { .flags = ABILITY_PASSIVE };
+ability_t a_revive_hero_instant = { .flags = ABILITY_PASSIVE };
+ability_t a_detector = { .flags = ABILITY_PASSIVE };
+ability_t a_hero = { .flags = ABILITY_PASSIVE };
+ability_t a_alarm = { .flags = ABILITY_PASSIVE };
+ability_t a_locust = { .flags = ABILITY_PASSIVE };
+ability_t a_turret = { .flags = ABILITY_PASSIVE };

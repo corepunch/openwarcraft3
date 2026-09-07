@@ -229,7 +229,7 @@ static LPEDICT goldmine_unregister_miner(LPEDICT worker) {
 static void goldmine_deplete(LPEDICT mine) {
     if (!mine || !mine->inuse || mine->resources > 0 || M_IsDead(mine))
         return;
-    mine->health.value = 0;
+    G_SetHealth(mine, 0);
     if (mine->die)
         mine->die(mine, NULL);
     else
