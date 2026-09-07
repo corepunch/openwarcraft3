@@ -2970,6 +2970,33 @@ TEST(wc3_save, restores_triggers_and_events_created_after_main) {
     remove(filename);
 }
 
+TEST(wc3_jass, nested_script_sleep_resumes_child_before_parent) {
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  integer nestedSleepStage = 0\n"
+        "endglobals\n"
+        "function NestedSleepChild takes nothing returns nothing\n"
+        "  call TriggerSleepAction(0.0)\n"
+        "  set nestedSleepStage = 2\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  set nestedSleepStage = 1\n"
+        "  call NestedSleepChild()\n"
+        "  set nestedSleepStage = 3\n"
+        "endfunction\n"
+        "function verifyYielded takes nothing returns nothing\n"
+        "  call BJassAssert(nestedSleepStage == 1, \"nested child did not yield caller\")\n"
+        "endfunction\n"
+        "function verifyResumed takes nothing returns nothing\n"
+        "  call BJassAssert(nestedSleepStage == 3, \"nested child did not resume before caller\")\n"
+        "endfunction\n"));
+    jass_callbyname(level.vm, "verifyYielded", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    jass_runevents(level.vm);
+    jass_callbyname(level.vm, "verifyResumed", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+}
+
 TEST(wc3_save, resumes_sleeping_jass_coroutine) {
     LPCSTR filename = "/tmp/openwarcraft3-wc3-jass-coroutine-save-test.bin";
     T_ASSERT(run_test_jass(

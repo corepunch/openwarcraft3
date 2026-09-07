@@ -1,5 +1,17 @@
 extern LPPLAYER currentplayer;
 
+static BOOL TutorialTextDebugEnabledPlayer(void) {
+    return gi.CvarString && atoi(gi.CvarString("wc3_quest_debug", "0")) != 0;
+}
+
+static void TutorialTextDebugContextPlayer(LPJASS j, LONG *trigger_ordinal, LPCSTR *caller) {
+    LPCJASSCONTEXT context = jass_getcontext(j);
+    if (trigger_ordinal)
+        *trigger_ordinal = context && context->trigger ? (LONG)(context->trigger - level.triggers) : -1L;
+    if (caller)
+        *caller = context && context->func ? jass_functionname(context->func) : NULL;
+}
+
 DWORD SetPlayerTeam(LPJASS j) {
     LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
     LONG whichTeam = jass_checkinteger(j, 2);
@@ -619,6 +631,16 @@ DWORD DisplayTextToPlayer(LPJASS j) {
     FLOAT x = jass_checknumber(j, 2);
     FLOAT y = jass_checknumber(j, 3);
     LPCSTR message = jass_checkstring(j, 4);
+    if (TutorialTextDebugEnabledPlayer()) {
+        LONG trigger_ordinal;
+        LPCSTR caller;
+        TutorialTextDebugContextPlayer(j, &trigger_ordinal, &caller);
+        fprintf(stderr,
+                "WC3_TUTORIAL_TEXT native=DisplayTextToPlayer trigger=%ld caller=\"%s\" player=%d x=%.3f y=%.3f duration=auto raw=\"%s\" resolved=\"%s\"\n",
+                (long)trigger_ordinal, caller ? caller : "(native/root)",
+                toPlayer ? (int)PLAYER_NUM(toPlayer) : -1, x, y,
+                message ? message : "", G_LevelString(message) ? G_LevelString(message) : "");
+    }
     UI_ShowText(PLAYER_ENT(toPlayer), &MAKE(VECTOR2, x, y), message, -1.0f);
     return 0;
 }
@@ -628,6 +650,16 @@ DWORD DisplayTimedTextToPlayer(LPJASS j) {
     FLOAT y = jass_checknumber(j, 3);
     FLOAT duration = jass_checknumber(j, 4);
     LPCSTR message = jass_checkstring(j, 5);
+    if (TutorialTextDebugEnabledPlayer()) {
+        LONG trigger_ordinal;
+        LPCSTR caller;
+        TutorialTextDebugContextPlayer(j, &trigger_ordinal, &caller);
+        fprintf(stderr,
+                "WC3_TUTORIAL_TEXT native=DisplayTimedTextToPlayer trigger=%ld caller=\"%s\" player=%d x=%.3f y=%.3f duration=%.3f raw=\"%s\" resolved=\"%s\"\n",
+                (long)trigger_ordinal, caller ? caller : "(native/root)",
+                toPlayer ? (int)PLAYER_NUM(toPlayer) : -1, x, y, duration,
+                message ? message : "", G_LevelString(message) ? G_LevelString(message) : "");
+    }
     UI_ShowText(PLAYER_ENT(toPlayer), &MAKE(VECTOR2, x, y), message, duration);
     return 0;
 }
@@ -637,6 +669,16 @@ DWORD DisplayTimedTextFromPlayer(LPJASS j) {
     FLOAT y = jass_checknumber(j, 3);
     FLOAT duration = jass_checknumber(j, 4);
     LPCSTR message = jass_checkstring(j, 5);
+    if (TutorialTextDebugEnabledPlayer()) {
+        LONG trigger_ordinal;
+        LPCSTR caller;
+        TutorialTextDebugContextPlayer(j, &trigger_ordinal, &caller);
+        fprintf(stderr,
+                "WC3_TUTORIAL_TEXT native=DisplayTimedTextFromPlayer trigger=%ld caller=\"%s\" player=%d x=%.3f y=%.3f duration=%.3f raw=\"%s\" resolved=\"%s\"\n",
+                (long)trigger_ordinal, caller ? caller : "(native/root)",
+                toPlayer ? (int)PLAYER_NUM(toPlayer) : -1, x, y, duration,
+                message ? message : "", G_LevelString(message) ? G_LevelString(message) : "");
+    }
     UI_ShowText(PLAYER_ENT(toPlayer), &MAKE(VECTOR2, x, y), message, duration);
     return 0;
 }

@@ -11,6 +11,22 @@ static BOOL SubgroupDebugTrigger(LPTRIGGER trigger) {
     return ordinal >= 208 && ordinal <= 213;
 }
 
+static BOOL TutorialFlowDebugTrigger(LPTRIGGER trigger) {
+    LONG ordinal = QuestPeonStageTriggerOrdinal(trigger);
+    return ordinal >= 120 && ordinal <= 165;
+}
+
+static void TutorialFlowDebugLogRegistration(LPTRIGGER trigger, EVENTTYPE type,
+                                             LPEDICT subject, LPCSTR registration) {
+    if (!QuestPeonStageDebugEnabled() || !TutorialFlowDebugTrigger(trigger)) return;
+    fprintf(stderr,
+            "WC3_TUTORIAL_FLOW register trigger=%ld via=%s event=%u subject=%ld disabled=%d\n",
+            (long)QuestPeonStageTriggerOrdinal(trigger),
+            registration ? registration : "unknown", (unsigned)type,
+            subject ? (long)(subject - globals.edicts) : -1L,
+            trigger ? (int)trigger->disabled : -1);
+}
+
 static void SubgroupDebugLogRegistration(LPTRIGGER trigger, EVENTTYPE type,
                                          LPEDICT subject, LPCSTR registration) {
     if (!QuestPeonStageDebugEnabled() || !SubgroupDebugTrigger(trigger)) return;
@@ -30,6 +46,7 @@ static BOOL QuestPeonStageTrigger(LPTRIGGER trigger) {
 static void QuestPeonStageLogRegistration(LPTRIGGER trigger, EVENTTYPE type,
                                           LPEDICT subject, LPCSTR registration) {
     SubgroupDebugLogRegistration(trigger, type, subject, registration);
+    TutorialFlowDebugLogRegistration(trigger, type, subject, registration);
     if (!QuestPeonStageDebugEnabled() || !QuestPeonStageTrigger(trigger)) return;
     fprintf(stderr,
             "WC3_QUEST_PEON register trigger=%ld via=%s event=%u subject=%ld disabled=%d\n",
@@ -70,6 +87,13 @@ DWORD EnableTrigger(LPJASS j) {
                 (long)QuestPeonStageTriggerOrdinal(whichTrigger),
                 caller ? caller : "(native/root)", (int)whichTrigger->disabled);
     }
+    if (QuestPeonStageDebugEnabled() && TutorialFlowDebugTrigger(whichTrigger)) {
+        fprintf(stderr,
+                "WC3_TUTORIAL_FLOW state trigger=%ld op=enable caller=\"%s\" was_disabled=%d\n",
+                (long)QuestPeonStageTriggerOrdinal(whichTrigger),
+                jass_currentfunctionname(j) ? jass_currentfunctionname(j) : "(native/root)",
+                (int)whichTrigger->disabled);
+    }
     whichTrigger->disabled = false;
     return 0;
 }
@@ -91,25 +115,62 @@ DWORD DisableTrigger(LPJASS j) {
                 (long)QuestPeonStageTriggerOrdinal(whichTrigger),
                 caller ? caller : "(native/root)", (int)whichTrigger->disabled);
     }
+    if (QuestPeonStageDebugEnabled() && TutorialFlowDebugTrigger(whichTrigger)) {
+        fprintf(stderr,
+                "WC3_TUTORIAL_FLOW state trigger=%ld op=disable caller=\"%s\" was_disabled=%d\n",
+                (long)QuestPeonStageTriggerOrdinal(whichTrigger),
+                jass_currentfunctionname(j) ? jass_currentfunctionname(j) : "(native/root)",
+                (int)whichTrigger->disabled);
+    }
     whichTrigger->disabled = true;
     return 0;
 }
 DWORD IsTriggerEnabled(LPJASS j) {
     LPTRIGGER whichTrigger = jass_checkhandle(j, 1, "trigger");
-    return jass_pushboolean(j, !whichTrigger->disabled);
+    BOOL enabled = !whichTrigger->disabled;
+    if (QuestPeonStageDebugEnabled() && TutorialFlowDebugTrigger(whichTrigger)) {
+        char chain[256];
+        jass_formatcallchain(j, chain, sizeof(chain));
+        fprintf(stderr,
+                "WC3_TUTORIAL_FLOW query trigger=%ld native=IsTriggerEnabled caller=\"%s\" disabled=%d result=%d chain=\"%s\"\n",
+                (long)QuestPeonStageTriggerOrdinal(whichTrigger),
+                jass_currentfunctionname(j) ? jass_currentfunctionname(j) : "(native/root)",
+                (int)whichTrigger->disabled, (int)enabled, chain);
+    }
+    return jass_pushboolean(j, enabled);
 }
 DWORD TriggerWaitOnSleeps(LPJASS j) {
-    //LPTRIGGER whichTrigger = jass_checkhandle(j, 1, "trigger");
-    //BOOL flag = jass_checkboolean(j, 2);
+    LPTRIGGER whichTrigger = jass_checkhandle(j, 1, "trigger");
+    BOOL flag = jass_checkboolean(j, 2);
+    if (QuestPeonStageDebugEnabled() && TutorialFlowDebugTrigger(whichTrigger)) {
+        fprintf(stderr,
+                "WC3_TUTORIAL_FLOW wait-on-sleeps trigger=%ld flag=%d caller=\"%s\" implementation=stub\n",
+                (long)QuestPeonStageTriggerOrdinal(whichTrigger), (int)flag,
+                jass_currentfunctionname(j) ? jass_currentfunctionname(j) : "(native/root)");
+    }
     return 0;
 }
 DWORD IsTriggerWaitOnSleeps(LPJASS j) {
-    //LPTRIGGER whichTrigger = jass_checkhandle(j, 1, "trigger");
+    LPTRIGGER whichTrigger = jass_checkhandle(j, 1, "trigger");
+    if (QuestPeonStageDebugEnabled() && TutorialFlowDebugTrigger(whichTrigger)) {
+        fprintf(stderr,
+                "WC3_TUTORIAL_FLOW is-wait-on-sleeps trigger=%ld caller=\"%s\" result=0 implementation=stub\n",
+                (long)QuestPeonStageTriggerOrdinal(whichTrigger),
+                jass_currentfunctionname(j) ? jass_currentfunctionname(j) : "(native/root)");
+    }
     return jass_pushboolean(j, 0);
 }
 DWORD GetTriggeringTrigger(LPJASS j) {
     LPCJASSCONTEXT ctx = jass_getcontext(j);
-    return jass_pushlighthandle(j, ctx->trigger, "trigger");
+    if (ctx && QuestPeonStageDebugEnabled() && TutorialFlowDebugTrigger(ctx->trigger)) {
+        char chain[256];
+        jass_formatcallchain(j, chain, sizeof(chain));
+        fprintf(stderr,
+                "WC3_TUTORIAL_FLOW context trigger=%ld native=GetTriggeringTrigger caller=\"%s\" chain=\"%s\"\n",
+                (long)QuestPeonStageTriggerOrdinal(ctx->trigger),
+                jass_currentfunctionname(j) ? jass_currentfunctionname(j) : "(native/root)", chain);
+    }
+    return jass_pushlighthandle(j, ctx ? ctx->trigger : NULL, "trigger");
 }
 DWORD GetTriggerEventId(LPJASS j) {
     return jass_pushnullhandle(j, "eventid");
@@ -360,6 +421,13 @@ DWORD TriggerAddCondition(LPJASS j) {
                 (long)QuestPeonStageTriggerOrdinal(whichTrigger),
                 func ? func : "(anonymous)", (int)whichTrigger->disabled);
     }
+    if (QuestPeonStageDebugEnabled() && TutorialFlowDebugTrigger(whichTrigger)) {
+        LPCSTR func = condition->expr ? jass_functionname(condition->expr) : NULL;
+        fprintf(stderr,
+                "WC3_TUTORIAL_FLOW definition trigger=%ld add=condition func=\"%s\" disabled=%d\n",
+                (long)QuestPeonStageTriggerOrdinal(whichTrigger),
+                func ? func : "(anonymous)", (int)whichTrigger->disabled);
+    }
     return jass_pushlighthandle(j, condition, "triggercondition");
 }
 DWORD TriggerRemoveCondition(LPJASS j) {
@@ -392,6 +460,13 @@ DWORD TriggerAddAction(LPJASS j) {
                 (long)QuestPeonStageTriggerOrdinal(whichTrigger),
                 func ? func : "(anonymous)", (int)whichTrigger->disabled);
     }
+    if (QuestPeonStageDebugEnabled() && TutorialFlowDebugTrigger(whichTrigger)) {
+        LPCSTR func = action->func ? jass_functionname(action->func) : NULL;
+        fprintf(stderr,
+                "WC3_TUTORIAL_FLOW definition trigger=%ld add=action func=\"%s\" disabled=%d\n",
+                (long)QuestPeonStageTriggerOrdinal(whichTrigger),
+                func ? func : "(anonymous)", (int)whichTrigger->disabled);
+    }
     return jass_pushlighthandle(j, action, "triggeraction");
 }
 DWORD TriggerRemoveAction(LPJASS j) {
@@ -407,25 +482,35 @@ DWORD TriggerClearActions(LPJASS j) {
 }
 DWORD TriggerSleepAction(LPJASS j) {
     FLOAT timeout = jass_checknumber(j, 1);
+    LPCJASSCONTEXT ctx = jass_getcontext(j);
     if (G_SkipCutscene()) {
         timeout = MIN(timeout, 0.001f);
     }
-    jass_sleep(j, timeout * 1000);
+    if (QuestPeonStageDebugEnabled() && ctx && TutorialFlowDebugTrigger(ctx->trigger)) {
+        char chain[256];
+        jass_formatcallchain(j, chain, sizeof(chain));
+        fprintf(stderr,
+                "WC3_TUTORIAL_FLOW sleep trigger=%ld native=TriggerSleepAction msec=%lu chain=\"%s\"\n",
+                (long)QuestPeonStageTriggerOrdinal(ctx->trigger),
+                (unsigned long)(timeout * 1000.0f), chain);
+    }
+    jass_sleep(j, (DWORD)(timeout * 1000.0f));
     return 0;
 }
 DWORD TriggerWaitForSound(LPJASS j) {
     gsound_t *s = jass_checkhandle(j, 1, "sound");
     FLOAT offset = jass_checknumber(j, 2);
-    if (G_SkipCutscene()) {
-        jass_sleep(j, 1);
-        return 0;
+    LPCJASSCONTEXT ctx = jass_getcontext(j);
+    DWORD wait_msec = G_SkipCutscene() ? 1 : s->duration + (DWORD)(offset * 1000.0f);
+    if (QuestPeonStageDebugEnabled() && ctx && TutorialFlowDebugTrigger(ctx->trigger)) {
+        char chain[256];
+        jass_formatcallchain(j, chain, sizeof(chain));
+        fprintf(stderr,
+                "WC3_TUTORIAL_FLOW sleep trigger=%ld native=TriggerWaitForSound sound_msec=%lu offset=%.3f wait_msec=%lu chain=\"%s\"\n",
+                (long)QuestPeonStageTriggerOrdinal(ctx->trigger),
+                (unsigned long)s->duration, offset, (unsigned long)wait_msec, chain);
     }
-    /* s->duration is already in milliseconds (set via SetSoundDuration), and
-     * jass_sleep() takes milliseconds, so wait the full sound length plus the
-     * offset. A previous 0.1 scale made every WaitForSoundBJ() return in a
-     * tenth of the real time, flashing cinematic transmissions for a fraction
-     * of a second. */
-    jass_sleep(j, s->duration + offset * 1000);
+    jass_sleep(j, wait_msec);
     return 0;
 }
 DWORD TriggerEvaluate(LPJASS j) {
@@ -447,6 +532,13 @@ DWORD TriggerEvaluate(LPJASS j) {
                 (long)QuestPeonStageTriggerOrdinal(whichTrigger),
                 caller ? caller : "(native/root)", (int)whichTrigger->disabled, result);
     }
+    if (QuestPeonStageDebugEnabled() && TutorialFlowDebugTrigger(whichTrigger)) {
+        fprintf(stderr,
+                "WC3_TUTORIAL_FLOW direct trigger=%ld op=evaluate caller=\"%s\" disabled=%d result=%d\n",
+                (long)QuestPeonStageTriggerOrdinal(whichTrigger),
+                jass_currentfunctionname(j) ? jass_currentfunctionname(j) : "(native/root)",
+                (int)whichTrigger->disabled, result);
+    }
     return jass_pushboolean(j, result);
 }
 DWORD TriggerExecute(LPJASS j) {
@@ -467,11 +559,24 @@ DWORD TriggerExecute(LPJASS j) {
                 (long)QuestPeonStageTriggerOrdinal(whichTrigger),
                 caller ? caller : "(native/root)", (int)whichTrigger->disabled);
     }
+    if (QuestPeonStageDebugEnabled() && TutorialFlowDebugTrigger(whichTrigger)) {
+        fprintf(stderr,
+                "WC3_TUTORIAL_FLOW direct trigger=%ld op=execute caller=\"%s\" disabled=%d\n",
+                (long)QuestPeonStageTriggerOrdinal(whichTrigger),
+                jass_currentfunctionname(j) ? jass_currentfunctionname(j) : "(native/root)",
+                (int)whichTrigger->disabled);
+    }
     jass_executetrigger(j, whichTrigger, NULL);
     return 0;
 }
 DWORD TriggerExecuteWait(LPJASS j) {
-    //LPTRIGGER whichTrigger = jass_checkhandle(j, 1, "trigger");
+    LPTRIGGER whichTrigger = jass_checkhandle(j, 1, "trigger");
+    if (QuestPeonStageDebugEnabled() && TutorialFlowDebugTrigger(whichTrigger)) {
+        fprintf(stderr,
+                "WC3_TUTORIAL_FLOW direct trigger=%ld op=execute-wait caller=\"%s\" implementation=stub\n",
+                (long)QuestPeonStageTriggerOrdinal(whichTrigger),
+                jass_currentfunctionname(j) ? jass_currentfunctionname(j) : "(native/root)");
+    }
     return 0;
 }
 DWORD GetTriggerUnit(LPJASS j) {

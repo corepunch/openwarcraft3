@@ -862,18 +862,35 @@ BOOL jass_coroutinedone(LPCJASSCOROUTINE co) {
 BOOL jass_resume(LPJASS j, LPJASSCOROUTINE co) {
     LPJASS root = jass_root(j);
     DWORD now = jass_gettime();
+    LPPLAYER previous_player;
+    LPEDICT previous_unit;
 
     if (!co || co->done || co->wake_time > now) {
         return false;
     }
 
-    LPPLAYER previous_player = currentplayer;
-    LPEDICT previous_unit = currentunit;
+    previous_player = currentplayer;
+    previous_unit = currentunit;
 
     root->current_coroutine = co;
     currentplayer = co->state->context.localPlayerState;
     currentunit = co->state->context.unit;
+    if (jass_host.CoroutineTrace) {
+        LPJASSCOROUTINEFRAME frame = jass_coroutine_functionframe(co);
+        jass_host.CoroutineTrace(co->state->context.trigger,
+                                frame && frame->func ? jass_functionname(frame->func) : NULL,
+                                "resume", now, co->wake_time,
+                                co->yielded, co->done);
+    }
     jass_resumecoroutine(co);
+    if (jass_host.CoroutineTrace) {
+        LPJASSCOROUTINEFRAME frame = jass_coroutine_functionframe(co);
+        jass_host.CoroutineTrace(co->state->context.trigger,
+                                frame && frame->func ? jass_functionname(frame->func) : NULL,
+                                co->done ? "done" : (co->yielded ? "yield" : "return"),
+                                jass_gettime(), co->wake_time,
+                                co->yielded, co->done);
+    }
     currentunit = previous_unit;
     currentplayer = previous_player;
     root->current_coroutine = NULL;

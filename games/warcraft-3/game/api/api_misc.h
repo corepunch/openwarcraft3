@@ -1,5 +1,17 @@
 extern LPPLAYER currentplayer;
 
+static BOOL TutorialTextDebugEnabledMisc(void) {
+    return gi.CvarString && atoi(gi.CvarString("wc3_quest_debug", "0")) != 0;
+}
+
+static void TutorialTextDebugContextMisc(LPJASS j, LONG *trigger_ordinal, LPCSTR *caller) {
+    LPCJASSCONTEXT context = jass_getcontext(j);
+    if (trigger_ordinal)
+        *trigger_ordinal = context && context->trigger ? (LONG)(context->trigger - level.triggers) : -1L;
+    if (caller)
+        *caller = context && context->func ? jass_functionname(context->func) : NULL;
+}
+
 DWORD class_id(LPCSTR str) { return *(DWORD *)str; }
 
 /* Converted enums are owned JASS handles; enum equality compares their DWORD payload. */
@@ -1405,6 +1417,20 @@ DWORD SetCinematicScene(LPJASS j) {
     LPCSTR text = jass_checkstring(j, 4);
     FLOAT sceneDuration = jass_checknumber(j, 5);
     FLOAT voiceoverDuration = jass_checknumber(j, 6);
+    if (TutorialTextDebugEnabledMisc()) {
+        LONG trigger_ordinal;
+        LPCSTR caller;
+        LPCSTR resolved_speaker = G_LevelString(speakerTitle);
+        LPCSTR resolved_text = G_LevelString(text);
+        TutorialTextDebugContextMisc(j, &trigger_ordinal, &caller);
+        fprintf(stderr,
+                "WC3_TUTORIAL_TEXT native=SetCinematicScene trigger=%ld caller=\"%s\" player=%d portrait=%.4s scene=%.3f voice=%.3f speaker_raw=\"%s\" speaker=\"%s\" text_raw=\"%s\" text=\"%s\"\n",
+                (long)trigger_ordinal, caller ? caller : "(native/root)",
+                currentplayer ? (int)PLAYER_NUM(currentplayer) : -1,
+                portraitUnitId ? (LPCSTR)&portraitUnitId : "----", sceneDuration, voiceoverDuration,
+                speakerTitle ? speakerTitle : "", resolved_speaker ? resolved_speaker : "",
+                text ? text : "", resolved_text ? resolved_text : "");
+    }
     if (G_SkipCutscene()) return 0;
     if (currentplayer) {
         LPGAMECLIENT gc = PLAYER_CLIENT(currentplayer);
@@ -1434,6 +1460,15 @@ DWORD SetCinematicScene(LPJASS j) {
     return 0;
 }
 DWORD EndCinematicScene(LPJASS j) {
+    if (TutorialTextDebugEnabledMisc()) {
+        LONG trigger_ordinal;
+        LPCSTR caller;
+        TutorialTextDebugContextMisc(j, &trigger_ordinal, &caller);
+        fprintf(stderr,
+                "WC3_TUTORIAL_TEXT native=EndCinematicScene trigger=%ld caller=\"%s\" player=%d\n",
+                (long)trigger_ordinal, caller ? caller : "(native/root)",
+                currentplayer ? (int)PLAYER_NUM(currentplayer) : -1);
+    }
     if (currentplayer) {
         LPGAMECLIENT gc = PLAYER_CLIENT(currentplayer);
         G_SetPlayerText(gc, PLAYERTEXT_SPEAKER, "");
