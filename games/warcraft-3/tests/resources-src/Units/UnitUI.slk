@@ -1,9 +1,15 @@
 ID;PWXL;N;E
-B;X2;Y3;D0
+B;X4;Y5;D0
 C;X1;Y1;K"unitUIID"
 C;X2;K"isbldg"
+C;X4;K"file"
 C;X1;Y2;K"hpea"
 C;X2;K"0"
 C;X1;Y3;K"hbar"
 C;X2;K"1"
+C;X1;Y4;K"opeo"
+C;X4;K"TestUI\\Models\\anim_pulse.mdx"
+C;X1;Y5;K"otrb"
+C;X2;K"1"
+C;X4;K"TestUI\\Models\\anim_pulse.mdx"
 E
