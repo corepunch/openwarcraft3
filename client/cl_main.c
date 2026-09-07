@@ -39,6 +39,7 @@ typedef enum {
     CL_MENU_ACTION_NONE,
     CL_MENU_ACTION_MAP,
     CL_MENU_ACTION_MENU,
+    CL_MENU_ACTION_LOAD,
     CL_MENU_ACTION_QUIT,
 } clMenuActionType_t;
 
@@ -598,6 +599,10 @@ void MenuAction(LPCSTR action, LPCSTR arg) {
     } else if (!strcmp(action, "menu")) {
         pending.type = CL_MENU_ACTION_MENU;
         if (arg && *arg) strlcpy(pending.arg, arg, sizeof(pending.arg));
+    } else if (!strcmp(action, "load")) {
+        if (!arg || !*arg) return;
+        pending.type = CL_MENU_ACTION_LOAD;
+        strlcpy(pending.arg, arg, sizeof(pending.arg));
     } else if (!strcmp(action, "quit")) {
         pending.type = CL_MENU_ACTION_QUIT;
     } else {
@@ -669,6 +674,14 @@ execute:
         SV_Shutdown();
         CL_RebuildMenu(pending.arg[0] ? pending.arg : "menu_main");
         break;
+    case CL_MENU_ACTION_LOAD: {
+        PATHSTR map;
+        if (!SV_GetSaveMap(pending.arg, map, sizeof(map))) break;
+        CL_SetGameplayBindings();
+        CL_BeginLoadingMap(map);
+        SV_LoadGame(pending.arg, map);
+        break;
+    }
     case CL_MENU_ACTION_QUIT:
         CL_Quit_f();
         break;
@@ -705,6 +718,19 @@ TEST(client_session, menu_action_map_is_deferred_until_client_frame) {
 
     /* Do not call CL_ProcessPendingMenuAction here: the regression contract is
      * specifically that MenuAction itself cannot enter SV_Map re-entrantly. */
+    memset(&cl_pending_menu_action, 0, sizeof(cl_pending_menu_action));
+}
+
+TEST(client_session, menu_action_named_load_is_deferred_until_client_frame) {
+    memset(&cl_pending_menu_action, 0, sizeof(cl_pending_menu_action));
+
+    MenuAction("load", "chapter-01");
+
+    T_EQ(cl_pending_menu_action.type, CL_MENU_ACTION_LOAD);
+    T_STREQ(cl_pending_menu_action.arg, "chapter-01");
+
+    /* Loading rebuilds the server/map, so MenuAction must only capture the
+     * selected save while the gameplay-window callback is still active. */
     memset(&cl_pending_menu_action, 0, sizeof(cl_pending_menu_action));
 }
 

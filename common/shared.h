@@ -1033,6 +1033,7 @@ typedef struct {
     COLOR32 textColor;
     COLOR32 cursorColor;
     DWORD maxChars;
+    UINAME id;
 } uiEditBox_t;
 
 typedef struct {
@@ -1043,6 +1044,7 @@ typedef struct {
     SHORT selectedIndex;
     UINAME id;
     UINAME fetchCommand;
+    DWORD editTarget;
 } uiListBox_t;
 
 typedef struct {

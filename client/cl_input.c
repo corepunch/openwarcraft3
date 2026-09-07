@@ -164,6 +164,8 @@ void CL_Input(void) {
                     CON_TextInput(event.text.text);
                 } else if (cls.key_dest == key_menu) {
                     menu.TextInput(event.text.text);
+                } else if (cls.key_dest == key_game) {
+                    CL_WindowTextInput(event.text.text);
                 }
                 break;
             case SDL_KEYDOWN:
@@ -279,9 +281,25 @@ void CL_Input(void) {
     CL_InputModeFrame();
 }
 
+static void CL_SetSDLTextInput(BOOL enabled) {
+    /* Avoid restarting an active SDL text session on every player snapshot.
+     * Apart from needless churn, repeatedly toggling this can disrupt IME
+     * composition on platforms that use it. */
+    if (enabled) {
+        if (!SDL_IsTextInputActive()) SDL_StartTextInput();
+    } else if (SDL_IsTextInputActive()) {
+        SDL_StopTextInput();
+    }
+}
+
+void CL_SetTransientTextInput(BOOL enabled) {
+    if (cls.key_dest != key_game) return;
+    CL_SetSDLTextInput(enabled);
+}
+
 void CL_SetMenuBindings(void) {
     cls.key_dest = key_menu;
-    SDL_StartTextInput();
+    CL_SetSDLTextInput(true);
 }
 
 void CL_SetGameplayInput(void) {
@@ -289,7 +307,10 @@ void CL_SetGameplayInput(void) {
         fprintf(stderr, "CL_SetGameplayInput: switching key_dest %d -> key_game\n", cls.key_dest);
     }
     cls.key_dest = key_game;
-    SDL_StopTextInput();
+    /* CL_ParsePlayerInfo reaffirms gameplay input on ordinary snapshots. Do
+     * not let that stop SDL_TEXTINPUT while a transient gameplay edit box
+     * still owns text focus. */
+    CL_SetSDLTextInput(CL_WindowTextInputActive());
     CL_InputModeSetGameplay();
 }
 

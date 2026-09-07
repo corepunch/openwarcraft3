@@ -38,6 +38,7 @@ void CL_ParseLayout(LPSIZEBUF msg);
 void SCR_LayoutDrawScrollBar(LPCUIFRAME frame, LPCRECT screen);
 void SCR_LayoutDrawStatusbar(LPCUIFRAME frame, LPCRECT screen);
 void SCR_LayoutDrawTextArea(LPCUIFRAME frame, LPCRECT screen);
+void SCR_LayoutDrawListBox(LPCUIFRAME frame, LPCRECT screen);
 void SCR_LayoutDrawSprite(LPCUIFRAME frame, LPCRECT screen);
 void SCR_LayoutClampSelectionRect(LPRECT rect);
 BOOL SCR_LayoutModalActive(void);
@@ -57,6 +58,8 @@ static LPCTEXTURE test_scroll_tex[3];
 static DWORD test_scroll_draws;
 static drawText_t test_textarea_draw;
 static DWORD test_textarea_draws;
+static drawText_t test_listbox_draw[8];
+static DWORD test_listbox_draws;
 static DWORD test_begin_frames, test_end_frames;
 static DWORD test_model_loads, test_model_releases, test_tex_loads, test_tex_releases;
 static VECTOR3 test_overhead_point;
@@ -91,6 +94,11 @@ static void capture_scroll_image(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv,
 }
 
 static void capture_textarea(LPCDRAWTEXT text) { test_textarea_draw = *text; test_textarea_draws++; }
+static void capture_listbox_text(LPCDRAWTEXT text) {
+    if (test_listbox_draws < sizeof(test_listbox_draw) / sizeof(test_listbox_draw[0]))
+        test_listbox_draw[test_listbox_draws] = *text;
+    test_listbox_draws++;
+}
 static VECTOR2 tall_textarea_size(LPCDRAWTEXT text) {
     (void)text;
     return MAKE(VECTOR2, 0.2f, 0.8f);
@@ -766,6 +774,44 @@ TEST(net, msg_multiple_types_sequential) {
 }
 
 
+TEST(client_layout, listbox_draws_only_whole_rows_inside_viewport) {
+    uiListBox_t list = { .border = 0.004f, .itemHeight = 0.020f, .selectedIndex = -1 };
+    uiFrame_t frame = {
+        .number = 1,
+        .parent = 0,
+        .flags = { .type = FT_LISTBOX },
+        .color = COLOR32_WHITE,
+        .size = { .width = 0.3620f, .height = 0.1250f },
+        .text = "one\tone\ntwo\ttwo\nthree\tthree\nfour\tfour\nfive\tfive\nsix\tsix",
+    };
+    RECT screen = { 0.3523f, 0.2040f, 0.3620f, 0.1250f };
+
+    test_client_stubs_init();
+    /* SCR_LayoutListBoxMaxScroll() measures the frame through the normal
+     * layout runtime cache. Keep this synthetic frame inside the valid frame
+     * range and reset that cache before drawing it. */
+    SCR_Clear(NULL);
+    frame.buffer.data = &list;
+    frame.buffer.size = sizeof(list);
+    re.DrawText = capture_listbox_text;
+    test_listbox_draws = 0;
+
+    SCR_LayoutDrawListBox(&frame, &screen);
+
+    /* 0.125 - 2*0.004 = 0.117: five complete 0.020 rows fit.
+     * A partial sixth row must not be rendered. */
+    T_EQ(test_listbox_draws, 5);
+    FOR_LOOP(i, test_listbox_draws) {
+        drawText_t const *draw = &test_listbox_draw[i];
+        T_ASSERT(draw->flags & DRAW_CLIP);
+        T_FEQ(draw->rect.h, 0.020f, 0.0001f);
+        T_FEQ(draw->clip.x, draw->rect.x, 0.0001f);
+        T_FEQ(draw->clip.y, draw->rect.y, 0.0001f);
+        T_FEQ(draw->clip.w, draw->rect.w, 0.0001f);
+        T_FEQ(draw->clip.h, draw->rect.h, 0.0001f);
+    }
+}
+
 TEST(net, ui_window_frame_delta_preserves_text_offsets) {
     BYTE buf[128];
     sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
@@ -785,6 +831,60 @@ TEST(net, ui_window_frame_delta_preserves_text_offsets) {
 }
 
 static VECTOR2 text_length_mock_size(LPCDRAWTEXT text);
+
+static DWORD test_scoped_hud_text_draws;
+static DWORD test_scoped_edit_text_draws;
+
+static void capture_layout_scoped_text(LPCDRAWTEXT text) {
+    if (!text || !text->text) return;
+    if (!strcmp(text->text, "HUD frame")) test_scoped_hud_text_draws++;
+    if (!strcmp(text->text, "save-name")) test_scoped_edit_text_draws++;
+}
+
+static void test_send_edit_window(DWORD id, DWORD class_id) {
+    BYTE buf[2048], arena[128] = { 0 };
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+    uiFrame_t empty = {0};
+    uiFrame_t edit_frame = { .number = 1, .flags = { .type = FT_EDITBOX } };
+    uiFrame_t text_frame = { .number = 2, .parent = 1, .flags = { .type = FT_TEXT } };
+    uiEditBox_t edit = { .textColor = COLOR32_WHITE, .cursorColor = COLOR32_WHITE, .maxChars = 63 };
+    uiLabel_t label = {0};
+    DWORD text_offset = 1;
+
+    strlcpy(edit.id, "SaveGameFileEditBox", sizeof(edit.id));
+    snprintf((LPSTR)arena + text_offset, sizeof(arena) - text_offset, "%s", "save-name");
+    edit_frame.size.width = 0.30f; edit_frame.size.height = 0.04f;
+    text_frame.size.width = 0.20f; text_frame.size.height = 0.02f;
+    text_frame.text = (LPCSTR)(uintptr_t)text_offset;
+
+    MSG_WriteByte(&sb, svc_window); MSG_WriteByte(&sb, UI_WINDOW_OPEN);
+    MSG_WriteLong(&sb, id); MSG_WriteLong(&sb, class_id); MSG_WriteLong(&sb, UI_WINDOW_MODAL | UI_WINDOW_NO_PAUSE);
+    MSG_WriteDeltaUIWindowFrame(&sb, &empty, &edit_frame, true);
+    MSG_WriteByte(&sb, sizeof(edit)); MSG_Write(&sb, &edit, sizeof(edit));
+    MSG_WriteDeltaUIWindowFrame(&sb, &empty, &text_frame, true);
+    MSG_WriteByte(&sb, sizeof(label)); MSG_Write(&sb, &label, sizeof(label));
+    MSG_WriteLong(&sb, 0); MSG_WriteShort(&sb, 0);
+    MSG_WriteLong(&sb, text_offset + strlen("save-name") + 1);
+    MSG_Write(&sb, arena, text_offset + strlen("save-name") + 1);
+    sb.readcount = 0;
+    CL_ParseServerMessage(&sb);
+}
+
+static void test_install_text_layout_frame(DWORD layer, DWORD number, LPCSTR text) {
+    BYTE buf[512];
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+    uiFrame_t empty = {0};
+    uiFrame_t frame = { .number = number, .flags = { .type = FT_TEXT }, .color = COLOR32_WHITE, .text = text };
+    uiLabel_t label = {0};
+
+    frame.size.width = 0.20f; frame.size.height = 0.02f;
+    MSG_WriteByte(&sb, layer);
+    MSG_WriteDeltaUIFrame(&sb, &empty, &frame, true);
+    MSG_WriteByte(&sb, sizeof(label)); MSG_Write(&sb, &label, sizeof(label));
+    MSG_WriteLong(&sb, 0); MSG_WriteShort(&sb, 0);
+    sb.readcount = 0;
+    CL_ParseLayout(&sb);
+}
 
 static void test_send_window(DWORD id, DWORD class_id, DWORD flags, FLOAT x, LPCSTR text, LPCSTR command) {
     BYTE buf[1024], arena[512] = { 0 };
@@ -870,21 +970,37 @@ TEST(net, screen_layout_draws_client_windows) {
     CL_WindowClear();
 }
 
-TEST(net, window_click_raises_and_moves_keyboard_focus) {
-    char command_buf[128]; BYTE message_buf[256];
+TEST(net, window_edit_text_does_not_leak_into_same_number_hud_frame) {
+    test_client_stubs_init(); CL_WindowClear();
+    FOR_LOOP(layer, MAX_LAYOUT_LAYERS) SCR_ClearLayoutLayer(layer);
+    re.GetTextSize = text_length_mock_size;
+    re.DrawText = capture_layout_scoped_text;
 
+    /* Frame indexes are local to each serialized layout. Deliberately make
+     * persistent HUD frame 2 collide with the edit box's text child frame 2. */
+    test_install_text_layout_frame(LAYER_INFOPANEL, 2, "HUD frame");
+    test_send_edit_window(15, 105);
+    test_scoped_hud_text_draws = 0;
+    test_scoped_edit_text_draws = 0;
+
+    SCR_DrawLayout();
+
+    T_EQ(test_scoped_hud_text_draws, 1);
+    T_EQ(test_scoped_edit_text_draws, 1);
+    CL_WindowClear();
+    SCR_ClearLayoutLayer(LAYER_INFOPANEL);
+}
+
+TEST(net, window_click_raises_and_moves_keyboard_focus) {
     test_client_stubs_init(); CL_WindowClear();
     re.GetTextSize = text_length_mock_size; re.DrawText = capture_textarea;
-    SZ_Init(&cls.netchan.message, message_buf, sizeof(message_buf));
     test_send_window(1, 91, UI_WINDOW_UNIQUE, 0.05f, "First", "first");
     test_send_window(2, 92, UI_WINDOW_UNIQUE, 0.45f, "Second", "second");
     T_ASSERT(CL_WindowMouseEvent(MENU_MOUSE_DOWN, 128, 256, 1));
-    SZ_Clear(&cls.netchan.message);
+    test_forwarded_command[0] = '\0';
     T_ASSERT(CL_WindowKeyEvent('Z'));
-    cls.netchan.message.readcount = 0;
-    T_EQ(MSG_ReadByte(&cls.netchan.message), clc_stringcmd);
-    MSG_ReadString(&cls.netchan.message, command_buf);
-    T_STREQ(command_buf, "first");
+    /* Window control substitution now forwards through the typed command boundary instead of writing netchan bytes. */
+    T_STREQ(test_forwarded_command, "first");
     test_textarea_draws = 0; CL_WindowDraw();
     T_EQ(test_textarea_draws, 2);
     T_STREQ(test_textarea_draw.text, "First");

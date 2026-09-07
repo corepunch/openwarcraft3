@@ -1,4 +1,5 @@
 #include "client.h"
+#include "menu_text_input.h"
 #include "ui_layout.h"
 #include <ctype.h>
 #include <SDL2/SDL.h>
@@ -302,10 +303,6 @@ BOOL SCR_LayoutWorldHoverRoot(LPRECT root) {
     return false;
 }
 
-static RECT Rect_inset(LPCRECT r, FLOAT inset) {
-    return MAKE(RECT, r->x+inset, r->y+inset, r->w-inset*2, r->h-inset*2);
-}
-
 static RECT get_uvrect(uint8_t const *tc) {
     return (RECT){ tc[0], tc[2], tc[1]-tc[0], tc[3]-tc[2] };
 }
@@ -532,6 +529,34 @@ FLOAT SCR_LayoutTextAreaMaxScroll(LPCUIFRAME frame) {
     return MAX(0.0f, re.GetTextSize(&measure).y - view.h);
 }
 
+static int SCR_LayoutListBoxVisibleRows(LPCUIFRAME frame, LPCRECT view) {
+    uiListBox_t const *lb;
+    FLOAT item_height;
+
+    if (!frame || !view || frame->flags.type != FT_LISTBOX || !frame->buffer.data ||
+        frame->buffer.size < sizeof(uiListBox_t) || view->h <= 0.0f) return 0;
+    lb = frame->buffer.data;
+    item_height = lb->itemHeight > 0.0f ? lb->itemHeight : 0.018f;
+    return MAX((int)floorf(view->h / item_height), 1);
+}
+
+static int SCR_LayoutListBoxMaxScroll(LPCUIFRAME frame) {
+    uiListBox_t const *lb;
+    RECT view;
+    int count = 0, visible;
+
+    if (!frame || frame->flags.type != FT_LISTBOX || !frame->buffer.data ||
+        frame->buffer.size < sizeof(uiListBox_t)) return 0;
+    lb = frame->buffer.data;
+    view = Rect_inset(SCR_LayoutRect(frame), lb->border);
+    if (frame->text && *frame->text) {
+        count = 1;
+        for (LPCSTR p = frame->text; *p; p++) if (*p == '\n') count++;
+    }
+    visible = SCR_LayoutListBoxVisibleRows(frame, &view);
+    return MAX(count - visible, 0);
+}
+
 void SCR_LayoutDrawScrollBar(LPCUIFRAME frame, LPCRECT screen) {
     uiScrollBarImage_t const *art = frame->buffer.size == sizeof(*art) ? frame->buffer.data : NULL;
     uiScrollBar_t const *sb = !art && frame->buffer.size >= sizeof(*sb) ? frame->buffer.data : NULL;
@@ -540,6 +565,9 @@ void SCR_LayoutDrawScrollBar(LPCUIFRAME frame, LPCRECT screen) {
 
     if (parent && parent->flags.type == FT_TEXTAREA) {
         if (SCR_LayoutTextAreaMaxScroll(parent) <= 0.0f) return;
+        ((LPUIFRAME)frame)->value = parent->value;
+    } else if (parent && parent->flags.type == FT_LISTBOX) {
+        if (SCR_LayoutListBoxMaxScroll(parent) <= 0) return;
         ((LPUIFRAME)frame)->value = parent->value;
     }
 
@@ -636,8 +664,13 @@ void SCR_LayoutSetPointer(HANDLE layout, DWORD number, BOOL down) {
 
 void SCR_WindowPrepare(HANDLE layout, LPCRECT root) {
     layout_current_window = true;
+    layout_current = layout;
     SCR_ClearWindow(layout);
     if (root) SCR_SetLayoutRoot(root);
+}
+
+BOOL SCR_WindowLayoutIsCurrent(HANDLE layout) {
+    return layout && layout_current_window && layout_current == layout;
 }
 
 static void SCR_LayoutCheckBox(LPCUIFRAME frame, LPCRECT screen) {
@@ -937,11 +970,29 @@ static void SCR_LayoutApplyPushedTextOffset(LPCUIFRAME frame, LPRECT screen) {
 
 void SCR_LayoutDrawString(LPCUIFRAME frame, LPCRECT screen) {
     uiLabel_t const *label = frame->buffer.data;
+    LPCSTR value = SCR_GetStringValue(frame);
+    DWORD cursor = 0;
+
+    /* Transient edit boxes draw their live value from the parent control.
+     * Keeping the child STRING/TEXT only as the authored geometry carrier
+     * avoids relying on generic label rendering for edit-control text. */
+    if (frame->parent < SCR_NumFrames()) {
+        LPCUIFRAME parent = SCR_Frame(frame->parent);
+        if (parent && (parent->flags.type == FT_EDITBOX ||
+                       parent->flags.type == FT_GLUEEDITBOX ||
+                       parent->flags.type == FT_SLASHCHATBOX))
+            return;
+    }
     /* Label offsets use the same fixed-point wire representation as anchors. */
     RECT scr = { screen->x + label->offsetx / UI_FRAMEPOINT_SCALE,
                  screen->y + label->offsety / UI_FRAMEPOINT_SCALE, screen->w, screen->h };
     SCR_LayoutApplyPushedTextOffset(frame, &scr);
-    layout_text(frame, &scr, SCR_GetStringValue(frame));
+    layout_text(frame, &scr, value);
+    if (CL_WindowEditCursor(frame->number, &cursor) && re.GetTextSize) {
+        drawText_t dt = SCR_GetDrawText(frame, scr.w, value, frame->buffer.data);
+        dt.rect = scr;
+        M_DrawTextInputCursor(&re, &dt, value, cursor, COLOR32_WHITE);
+    }
 }
 
 /* Draw a nameplate whose backdrop and text share the measured content rect. */
@@ -976,12 +1027,80 @@ void SCR_LayoutDrawTextArea(LPCUIFRAME frame, LPCRECT screen) {
     re.DrawText(&dt);
 }
 
+void SCR_LayoutDrawEditBox(LPCUIFRAME frame, LPCRECT screen) {
+    uiEditBox_t const *edit = frame->buffer.data;
+    LPCUIFRAME text_frame = NULL;
+    LPCSTR value = NULL;
+    DWORD cursor = 0;
+    uiLabel_t label = { 0 };
+    drawText_t dt;
+    RECT text_rect;
+
+    if (!edit || frame->buffer.size < sizeof(*edit)) return;
+    SCR_LayoutDrawBackdrop2(frame, screen, &edit->background);
+
+    FOR_LOOP(i, SCR_NumFrames()) {
+        LPCUIFRAME child = SCR_Frame(i);
+        if (!child || child->parent != frame->number) continue;
+        if (child->flags.type == FT_STRING || child->flags.type == FT_TEXT) {
+            text_frame = child;
+            break;
+        }
+    }
+    if (!text_frame) return;
+
+    value = CL_WindowEditTextValue(text_frame->number);
+    if (!value) value = SCR_GetStringValue(text_frame);
+    if (!value) value = "";
+
+    if (text_frame->buffer.data && text_frame->buffer.size >= sizeof(uiLabel_t))
+        label = *(uiLabel_t const *)text_frame->buffer.data;
+    if (edit->font) label.font = edit->font;
+
+    /* The retail edit box text child is frequently authored as a narrow,
+     * centred STRING.  That is suitable when the native edit-box renderer
+     * owns clipping, but it is not the editable viewport itself.  Use the
+     * parent control's inner rectangle horizontally so rendered text, cursor,
+     * and clipping match the complete edit-box background.  Preserve the
+     * authored child Y/height for vertical placement. */
+    RECT inner = Rect_inset(screen, MAX(edit->borderSize, 0.0f));
+    RECT authored = *SCR_LayoutRect(text_frame);
+    text_rect = MAKE(RECT,
+        .x = inner.x,
+        .y = authored.y,
+        .w = inner.w,
+        .h = authored.h > 0.0f ? authored.h : inner.h);
+
+    dt = SCR_GetDrawText(text_frame, text_rect.w, value, &label);
+    dt.rect = text_rect;
+    dt.font = edit->font ? cl.fonts[edit->font] : dt.font;
+    dt.color = edit->textColor.a ? edit->textColor : COLOR32_WHITE;
+    dt.halign = FONT_JUSTIFYLEFT;
+    dt.flags |= DRAW_CLIP;
+    dt.clip = text_rect;
+
+    if (Cvar_Integer("ui_window_debug", 0) >= 2)
+        fprintf(stderr,
+                "UI_WINDOW_DEBUG edit-draw frame=%u textFrame=%u rect=(%.4f,%.4f %.4fx%.4f) "
+                "editRect=(%.4f,%.4f %.4fx%.4f) border=%.4f "
+                "font=%u color=(%u,%u,%u,%u) text=\"%s\"\n",
+                (unsigned)frame->number, (unsigned)text_frame->number,
+                text_rect.x, text_rect.y, text_rect.w, text_rect.h,
+                screen->x, screen->y, screen->w, screen->h, edit->borderSize,
+                (unsigned)label.font, (unsigned)dt.color.r, (unsigned)dt.color.g,
+                (unsigned)dt.color.b, (unsigned)dt.color.a, value);
+
+    re.DrawText(&dt);
+    if (CL_WindowEditCursor(text_frame->number, &cursor) && re.GetTextSize)
+        M_DrawTextInputCursor(&re, &dt, value, cursor, COLOR32_WHITE);
+}
+
 void SCR_LayoutDrawListBox(LPCUIFRAME frame, LPCRECT screen) {
     uiListBox_t const *lb = frame->buffer.data;
     RECT list_rect = Rect_inset(screen, lb->border);
     FLOAT item_height = lb->itemHeight > 0 ? lb->itemHeight : 0.018f;
     SHORT selectedIndex = lb->selectedIndex;
-    DWORD scrollOffset = 0, numRows = 0;
+    DWORD scrollOffset = 0;
     char items[MAX_LISTBOX_TEXT];
 
     SCR_LayoutDrawBackdrop2(frame, screen, &lb->background);
@@ -997,11 +1116,11 @@ void SCR_LayoutDrawListBox(LPCUIFRAME frame, LPCRECT screen) {
         FLOAT sw = MAX(SCR_LayoutRect(scrollbar)->w, 0.0f);
         if (sw > 0 && sw < list_rect.w) list_rect.w -= sw;
     }
-    DWORD visibleRows = MAX((DWORD)floorf(list_rect.h / item_height), 1);
-    if (scrollbar) {
-        DWORD maxScroll = numRows > visibleRows ? numRows - visibleRows : 0;
-        ((LPUIFRAME)scrollbar)->value = maxScroll ? scrollOffset / (FLOAT)maxScroll : 0.0f;
-    }
+    DWORD maxScroll = (DWORD)SCR_LayoutListBoxMaxScroll(frame);
+    scrollOffset = maxScroll
+        ? (DWORD)lroundf(MIN(MAX(frame->value, 0.0f), 1.0f) * maxScroll)
+        : 0;
+    if (scrollbar) ((LPUIFRAME)scrollbar)->value = maxScroll ? scrollOffset / (FLOAT)maxScroll : 0.0f;
     if (!frame->text || !*frame->text) return;
 
     snprintf(items, sizeof(items), "%s", frame->text);
@@ -1010,14 +1129,25 @@ void SCR_LayoutDrawListBox(LPCUIFRAME frame, LPCRECT screen) {
     int index  = 0;
     while (line && index < (int)scrollOffset) { line = strtok_r(NULL, "\n", &save); index++; }
 
-    FLOAT item_y = list_rect.y + list_rect.h;
-    while (line && item_y > list_rect.y) {
+    /* Warsmash creates floor(viewHeight / itemHeight) row frames.  Keep the
+     * renderer on the same whole-row count used by scrolling and hit-testing;
+     * drawing a partial extra row makes the visual list disagree with both. */
+    DWORD const visible_rows = (DWORD)SCR_LayoutListBoxVisibleRows(frame, &list_rect);
+    DWORD drawn_rows = 0;
+    FLOAT item_y = list_rect.y;
+    while (line && drawn_rows < visible_rows) {
         char *hidden = strchr(line, '\t');
         if (hidden) *hidden = '\0';
-        RECT row = { list_rect.x, 0, list_rect.w, MIN(item_height, item_y - list_rect.y) };
-        row.y = item_y - row.h;
-        if (index == selectedIndex)
-            re.DrawImage(cl.pics[0], &row, &MAKE(RECT,0,0,1,1), MAKE(COLOR32,32,64,180,128));
+        RECT row = { list_rect.x, item_y, list_rect.w, item_height };
+        if (index == selectedIndex) {
+            RECT selection = row;
+            selection.x += 0.0025f;
+            selection.y += 0.0020f;
+            selection.w = MAX(0.0f, selection.w - 0.0050f);
+            selection.h = MAX(0.0f, selection.h - 0.0040f);
+            re.DrawImage(cl.pics[0], &selection, &MAKE(RECT,0,0,1,1),
+                         MAKE(COLOR32,32,64,180,128));
+        }
         re.DrawText(&MAKE(drawText_t,
             .font       = cl.fonts[lb->text.font],
             .text       = line,
@@ -1027,8 +1157,14 @@ void SCR_LayoutDrawListBox(LPCUIFRAME frame, LPCRECT screen) {
             .icons      = cl.pics,
             .lineHeight = 1.33,
             .textWidth  = row.w,
+            /* A list row owns only its row rectangle.  Row-local clipping is
+             * stricter than clipping the batch to the entire chooser and also
+             * prevents glyph overhang from leaking into neighbouring UI. */
+            .flags      = DRAW_CLIP,
+            .clip       = row,
             .rect       = row));
-        item_y -= item_height;
+        item_y += item_height;
+        drawn_rows++;
         line = strtok_r(NULL, "\n", &save);
         index++;
     }
@@ -1077,6 +1213,9 @@ static drawer_t drawers[] = {
     { FT_NAMETAG,        SCR_LayoutDrawNameTag },
     { FT_TEXT,           SCR_LayoutDrawString },
     { FT_TEXTAREA,       SCR_LayoutDrawTextArea },
+    { FT_EDITBOX,        SCR_LayoutDrawEditBox },
+    { FT_GLUEEDITBOX,    SCR_LayoutDrawEditBox },
+    { FT_SLASHCHATBOX,   SCR_LayoutDrawEditBox },
     { FT_LISTBOX,        SCR_LayoutDrawListBox },
     { FT_SCROLLBAR,      SCR_LayoutDrawScrollBar },
     { FT_TOOLTIPTEXT,    SCR_LayoutDrawTooltip },

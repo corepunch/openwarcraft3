@@ -349,24 +349,40 @@ static uiScrollBar_t MakeScrollBar(LPCFRAMEDEF frame) {
     return result;
 }
 
-static void UI_PrepareTextAreaScrollBar(LPCFRAMEDEF text_area) {
-    LPFRAMEDEF scrollbar;
+static void UI_PrepareScrollBar(LPCFRAMEDEF owner) {
+    LPFRAMEDEF scrollbar = NULL;
     FLOAT inset;
 
-    if (!text_area || text_area->Type != FT_TEXTAREA || !text_area->TextArea.ScrollBar[0]) return;
-    scrollbar = UI_FindFrameNear(text_area, text_area->TextArea.ScrollBar);
-    if (!scrollbar || scrollbar->Type != FT_SCROLLBAR || scrollbar->hidden) return;
+    if (!owner) return;
+    if (owner->Type == FT_TEXTAREA) {
+        if (!owner->TextArea.ScrollBar[0]) return;
+        scrollbar = UI_FindFrameNear(owner, owner->TextArea.ScrollBar);
+        inset = owner->TextArea.Inset;
+    } else if (owner->Type == FT_LISTBOX) {
+        /* A gameplay window may promote an authored TextArea/ChatDisplay to a
+         * selectable ListBox.  The type union no longer retains TextArea's
+         * scrollbar name, but the authored scrollbar remains a direct child. */
+        FOR_LOOP(i, MAX_UI_CLASSES) {
+            LPFRAMEDEF child = frames + i;
+            if (child->Parent == owner && child->Type == FT_SCROLLBAR) {
+                scrollbar = child;
+                break;
+            }
+        }
+        inset = owner->ListBox.Border;
+    } else {
+        return;
+    }
+    if (!scrollbar || scrollbar->hidden) return;
 
-    /* Blizzard TextArea semantics attach the declared scrollbar to the right
-     * edge of the text viewport even when the FDF scrollbar template itself
-     * supplies only a width.  The server-authored bridge must reproduce that
-     * relationship before flattening the tree to uiFrame_t anchors. */
-    inset = text_area->TextArea.Inset;
+    /* Blizzard scrolling controls attach their scrollbar to the right edge of
+     * the viewport even when the scrollbar template itself supplies only a
+     * width. Reproduce that relationship before flattening the FDF tree. */
     memset(&scrollbar->Points, 0, sizeof(scrollbar->Points));
     scrollbar->AnyPointsSet = true;
-    UI_SetPoint(scrollbar, FRAMEPOINT_TOPRIGHT, text_area, FRAMEPOINT_TOPRIGHT,
+    UI_SetPoint(scrollbar, FRAMEPOINT_TOPRIGHT, owner, FRAMEPOINT_TOPRIGHT,
                 -inset, -inset);
-    UI_SetPoint(scrollbar, FRAMEPOINT_BOTTOMRIGHT, text_area, FRAMEPOINT_BOTTOMRIGHT,
+    UI_SetPoint(scrollbar, FRAMEPOINT_BOTTOMRIGHT, owner, FRAMEPOINT_BOTTOMRIGHT,
                 -inset, inset);
     if (scrollbar->Width <= 0.0f) scrollbar->Width = 0.015f;
 }
@@ -520,6 +536,64 @@ BOOL UI_BuildFrameForWrite(LPCFRAMEDEF frame,
             } else { buf.overflowed = true; }
             break;
         }
+        case FT_EDITBOX:
+        case FT_GLUEEDITBOX:
+        case FT_SLASHCHATBOX: {
+            LPCFRAMEDEF text_frame = frame->Edit.TextFrame[0]
+                ? UI_FindFrameNear(frame, frame->Edit.TextFrame)
+                : NULL;
+            LPCSTR save_debug = gi.CvarString("wc3_save_menu_debug", "0");
+            if (save_debug && atoi(save_debug) >= 2 &&
+                !strcmp(frame->Name, "SaveGameFileEditBox")) {
+                fprintf(stderr,
+                        "WC3_SAVE_MENU edit-serialize root=%s textRef=\"%s\" "
+                        "textFound=%d textHidden=%d textVisible=%d textParent=%s "
+                        "textType=%d text=\"%s\"\n",
+                        frame->Name, frame->Edit.TextFrame, text_frame != NULL,
+                        text_frame ? text_frame->hidden : -1,
+                        text_frame ? !!(text_frame->ui_flags & UIFLAG_VISIBLE) : 0,
+                        text_frame && text_frame->Parent ? text_frame->Parent->Name : "<none>",
+                        text_frame ? text_frame->Type : -1,
+                        text_frame ? text_frame->Text : "");
+            }
+            uiEditBox_t data = {
+                .background = MakeButtonBackdrop(frame, frame->Control.Backdrop.Normal),
+                .font = UI_LiveFont(text_frame ? text_frame->Font.Index : frame->Font.Index),
+                .borderSize = frame->Edit.BorderSize,
+                .textColor = frame->Edit.TextColor.a ? frame->Edit.TextColor
+                    : (text_frame ? text_frame->Font.Color : frame->Font.Color),
+                .cursorColor = frame->Edit.CursorColor.a ? frame->Edit.CursorColor : COLOR32_WHITE,
+                .maxChars = frame->Edit.MaxChars ? frame->Edit.MaxChars : 255,
+            };
+            if (!data.background.Background && !data.background.EdgeFile)
+                data.background = MakeBackdrop(frame);
+            strlcpy(data.id, frame->Name, sizeof(data.id));
+            if (buf.cursize + sizeof(data) <= buf.maxsize) {
+                memcpy(buf.data + buf.cursize, &data, sizeof(data));
+                buf.cursize += sizeof(data);
+            } else { buf.overflowed = true; }
+            break;
+        }
+        case FT_LISTBOX: {
+            uiLabel_t label = MakeLabel(frame);
+            if (!label.font && gi.FontIndex)
+                label.font = gi.FontIndex("Fonts\\FRIZQT__.TTF", HUD_FONT_SIZE);
+            uiListBox_t data = {
+                .background = MakeBackdrop(frame),
+                .text = label,
+                .border = frame->ListBox.Border,
+                .itemHeight = frame->Font.Size > 0.0f ? frame->Font.Size * 1.33f : 0.018f,
+                .selectedIndex = frame->Text && *frame->Text ? 0 : -1,
+            };
+            strlcpy(data.id, frame->Name, sizeof(data.id));
+            strlcpy(data.fetchCommand, frame->ListBox.FetchCommand, sizeof(data.fetchCommand));
+            data.editTarget = FindFrameNumber(frame->ListBox.EditTarget, 0);
+            if (buf.cursize + sizeof(data) <= buf.maxsize) {
+                memcpy(buf.data + buf.cursize, &data, sizeof(data));
+                buf.cursize += sizeof(data);
+            } else { buf.overflowed = true; }
+            break;
+        }
         case FT_SCROLLBAR: {
             uiScrollBar_t data = MakeScrollBar(frame);
             FLOAT range = frame->Slider.MaxValue - frame->Slider.MinValue;
@@ -650,7 +724,7 @@ DWORD UI_GetWrittenFrameNumber(LPCFRAMEDEF frame) {
 }
 
 void UI_WriteFrameWithChildren(LPCFRAMEDEF frame, LPCFRAMEDEF parent) {
-    UI_PrepareTextAreaScrollBar(frame);
+    UI_PrepareScrollBar(frame);
     if (parent) {
         LPCFRAMEDEF oldparent = frame->Parent;
         ((LPFRAMEDEF)frame)->Parent = parent;
@@ -669,7 +743,7 @@ void UI_WriteFrameWithChildren(LPCFRAMEDEF frame, LPCFRAMEDEF parent) {
 }
 
 void UI_WriteFrameWithChildrenWithTriggers(LPEDICT ent, LPCFRAMEDEF frame, LPCFRAMEDEF parent, uiTrigger_t const *triggers) {
-    UI_PrepareTextAreaScrollBar(frame);
+    UI_PrepareScrollBar(frame);
     if (parent) {
         LPCFRAMEDEF oldparent = frame->Parent;
         ((LPFRAMEDEF)frame)->Parent = parent;

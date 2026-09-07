@@ -1,4 +1,5 @@
 #include <stdarg.h>
+#include <ctype.h>
 
 #include "g_local.h"
 
@@ -1091,6 +1092,97 @@ CLIENTCOMMAND(MenuConfirmExit) {
     UI_ShowGameMenuConfirmExit(clent);
 }
 
+CLIENTCOMMAND(MenuSaveGame) {
+    (void)argc; (void)argv;
+    UI_ShowGameMenuSave(clent);
+}
+
+CLIENTCOMMAND(MenuLoadGame) {
+    (void)argc; (void)argv;
+    UI_ShowGameMenuLoad(clent);
+}
+
+static BOOL MenuNormalizeSaveName(LPCSTR input, LPSTR out, DWORD out_size) {
+    LPCSTR begin, end;
+    DWORD len;
+
+    if (!input || !out || out_size == 0) return false;
+    out[0] = '\0';
+    begin = input;
+    while (*begin && isspace((unsigned char)*begin)) begin++;
+    end = begin + strlen(begin);
+    while (end > begin && isspace((unsigned char)end[-1])) end--;
+    len = (DWORD)(end - begin);
+    if (!len || len >= out_size) return false;
+    snprintf(out, out_size, "%.*s", (int)len, begin);
+
+    len = (DWORD)strlen(out);
+    if (len >= 4 && !strcasecmp(out + len - 4, ".sav")) {
+        out[len - 4] = '\0';
+        len -= 4;
+    }
+    if (!len || !strcmp(out, ".") || !strcmp(out, "..") || out[len - 1] == '.')
+        return false;
+    for (DWORD i = 0; out[i]; i++) {
+        unsigned char ch = (unsigned char)out[i];
+        if (ch < 0x20 || strchr("\\/:*?\"<>|", ch)) return false;
+    }
+    if (!strcasecmp(out, "Quick Save")) snprintf(out, out_size, "quick");
+    return out[0] != '\0';
+}
+
+CLIENTCOMMAND(MenuSaveNamed) {
+    PATHSTR path = { 0 };
+    char name[CMDARG_LEN] = { 0 };
+
+    (void)clent;
+    if (!G_IsSinglePlayer() || argc < 2 ||
+        !MenuNormalizeSaveName(argv[1], name, sizeof(name))) {
+        fprintf(stderr, "WC3 menu: invalid save name\n");
+        return;
+    }
+    gi.SavePath(name, path, sizeof(path));
+    if (path[0] && !WriteGame(path))
+        fprintf(stderr, "WC3 menu: failed to save %s\n", path);
+}
+
+CLIENTCOMMAND(MenuLoadNamed) {
+    char name[CMDARG_LEN] = { 0 };
+
+    (void)clent;
+    if (!G_IsSinglePlayer() || argc < 2 ||
+        !MenuNormalizeSaveName(argv[1], name, sizeof(name))) return;
+    G_RequestLoadGameNamed(name);
+}
+
+CLIENTCOMMAND(MenuDeleteNamed) {
+    char name[CMDARG_LEN] = { 0 };
+
+    if (!G_IsSinglePlayer() || argc < 2 || !MenuNormalizeSaveName(argv[1], name, sizeof(name))) {
+        fprintf(stderr, "WC3 menu: invalid save name for deletion\n");
+        return;
+    }
+    if (!gi.DeleteSave(name)) {
+        fprintf(stderr, "WC3 menu: failed to delete save %s\n", name);
+        return;
+    }
+    /* Replacing the unique window refreshes its rows without releasing modal pause ownership. */
+    UI_ShowGameMenuSave(clent);
+}
+
+CLIENTCOMMAND(MenuSaveQuick) {
+    LPCSTR args[] = { "menu_save_named", "Quick Save" };
+    CMD_MenuSaveNamed(clent, 2, args);
+}
+
+CLIENTCOMMAND(MenuLoadQuick) {
+    (void)clent; (void)argc; (void)argv;
+    if (!G_IsSinglePlayer()) return;
+    /* Loading owns a full server/map rebuild. Reuse the established deferred
+     * front-end bridge rather than invoking ReadGame inside a game callback. */
+    G_RequestLoadGameMenu();
+}
+
 CLIENTCOMMAND(Resume) {
     (void)argc; (void)argv;
     G_SetClientModal(clent, WC3_MODAL_CLIENT, false);
@@ -1716,6 +1808,13 @@ clientCommand_t clientCommands[] = {
     { "menu", CMD_Menu },
     { "menu_endgame", CMD_MenuEndGame },
     { "menu_confirm_exit", CMD_MenuConfirmExit },
+    { "menu_save_game", CMD_MenuSaveGame },
+    { "menu_load_game", CMD_MenuLoadGame },
+    { "menu_save_named", CMD_MenuSaveNamed },
+    { "menu_load_named", CMD_MenuLoadNamed },
+    { "menu_delete_named", CMD_MenuDeleteNamed },
+    { "menu_save_quick", CMD_MenuSaveQuick },
+    { "menu_load_quick", CMD_MenuLoadQuick },
     { "resume", CMD_Resume },
     { "pause", CMD_Pause },
     { "allies", CMD_Allies },

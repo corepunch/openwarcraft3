@@ -907,6 +907,53 @@ TEST(wc3_game, hud_multiline_fdf_text_keeps_renderer_auto_height) {
     T_FEQ(wire.size.height, 0.0f, 0.0001f);
 }
 
+TEST(wc3_game, hud_editbox_serializes_control_identity_and_limit) {
+    FRAMEDEF frame = { .Type = FT_EDITBOX };
+    uiFrame_t wire = { 0 };
+    BYTE typedata[512] = { 0 };
+    char textbuf[128] = { 0 };
+    uiEditBox_t const *edit;
+
+    snprintf(frame.Name, sizeof(frame.Name), "SaveGameFileEditBox");
+    frame.Edit.MaxChars = 63;
+    frame.Edit.BorderSize = 0.004f;
+    frame.Edit.TextColor = MAKE(COLOR32, 255, 230, 190, 255);
+    frame.Edit.CursorColor = COLOR32_WHITE;
+    UI_ResetFrameWriteList();
+    T_ASSERT(UI_BuildFrameForWrite(&frame, &wire, typedata, sizeof(typedata),
+                                   textbuf, sizeof(textbuf)));
+    T_EQ(wire.buffer.size, sizeof(uiEditBox_t));
+    edit = (uiEditBox_t const *)wire.buffer.data;
+    T_STREQ(edit->id, "SaveGameFileEditBox");
+    T_EQ(edit->maxChars, 63);
+    T_FEQ(edit->borderSize, 0.004f, 0.0001f);
+}
+
+TEST(wc3_game, hud_listbox_serializes_static_selected_row) {
+    FRAMEDEF frame = { .Type = FT_LISTBOX };
+    uiFrame_t wire = { 0 };
+    BYTE typedata[256] = { 0 };
+    char textbuf[128] = { 0 };
+    uiListBox_t const *list;
+
+    snprintf(frame.Name, sizeof(frame.Name), "SaveFileList");
+    frame.Text = "Quick Save";
+    frame.Font.Size = 0.012f;
+    frame.ListBox.Border = 0.004f;
+    snprintf(frame.ListBox.FetchCommand, sizeof(frame.ListBox.FetchCommand), "fetch_saves");
+    UI_ResetFrameWriteList();
+    T_ASSERT(UI_BuildFrameForWrite(&frame, &wire, typedata, sizeof(typedata),
+                                   textbuf, sizeof(textbuf)));
+    T_EQ(wire.buffer.size, sizeof(uiListBox_t));
+    list = (uiListBox_t const *)wire.buffer.data;
+    T_EQ(list->selectedIndex, 0);
+    T_FEQ(list->border, 0.004f, 0.0001f);
+    T_FEQ(list->itemHeight, 0.012f * 1.33f, 0.0001f);
+    T_STREQ(list->id, "SaveFileList");
+    T_STREQ(list->fetchCommand, "fetch_saves");
+    T_EQ(list->editTarget, 0);
+}
+
 TEST(wc3_game, hud_passive_string_serializes_tooltip) {
     FRAMEDEF frame = { .Type = FT_STRING };
     uiFrame_t wire = { 0 };
@@ -1059,6 +1106,39 @@ TEST(wc3_game, hud_image_rebinds_after_configstring_wipe) {
     UI_ResetHud();
     gi.ImageIndex = old_image;
     gi.GetConfigstring = old_get;
+}
+
+TEST(wc3_game, hud_reset_drops_save_panel_bindings) {
+    FRAMEDEF frame = {0};
+
+    hud.save_menu.EscMenuSaveGamePanel = &frame;
+    UI_InitFrame(&hud.save_list, FT_LISTBOX);
+
+    UI_ResetHud();
+
+    T_NULL(hud.save_menu.EscMenuSaveGamePanel);
+    T_ASSERT(!hud.save_list.inuse);
+}
+
+TEST(wc3_game, hud_save_panel_accepts_native_list_in_authored_frame_slot) {
+    FRAMEDEF frame = {0};
+
+    UI_ResetHud();
+    hud.save_menu.EscMenuSaveGamePanel = &frame;
+    hud.save_menu.EscMenuSaveLoadContainer = &frame;
+    hud.save_menu.FileListFrame = &frame;
+    hud.save_list_art.MapListBox = &frame;
+    hud.save_list_art.MapListBoxBackdrop = hud.save_list_art.MapListScrollBar = &frame;
+    hud.save_menu.SaveOnly = hud.save_menu.LoadOnly = &frame;
+    hud.save_menu.SaveGameFileEditBox = hud.save_menu.SaveGameFileEditBoxText = &frame;
+    hud.save_menu.SaveGameSaveButton = hud.save_menu.SaveGameCancelButton = &frame;
+    hud.save_menu.LoadGameLoadButton = hud.save_menu.LoadGameCancelButton = &frame;
+    UI_InitFrame(&hud.save_list, FT_LISTBOX);
+    UI_SetParent(&hud.save_list, hud.save_list_art.MapListBox);
+
+    T_EQ(MenuSaveListBox(), &hud.save_list);
+    T_ASSERT(MenuSavePanelReady());
+    UI_ResetHud();
 }
 
 TEST(wc3_game, hud_reset_drops_cached_image_names) {
@@ -2132,6 +2212,8 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     game.clients[0].camera.state.far_z = 7000.0f;
     game.clients[0].camera.target_controller = second;
     game.clients[0].camera.target_inherit_orientation = true;
+    game.clients[0].modal_flags = WC3_MODAL_CLIENT | WC3_MODAL_QUEST;
+    game.clients[0].quest_dialog_open = true;
     T_ASSERT(WriteGame(filename));
     PATHSTR saved_map;
     T_ASSERT(G_GetSaveMap(filename, saved_map, sizeof(saved_map)));
@@ -2213,6 +2295,8 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     T_FEQ(game.clients[0].camera.state.far_z, 7000.0f, 0.001f);
     T_ASSERT(game.clients[0].camera.target_controller == &g_edicts[second - g_edicts]);
     T_ASSERT(game.clients[0].camera.target_inherit_orientation);
+    T_EQ(game.clients[0].modal_flags, 0);
+    T_ASSERT(!game.clients[0].quest_dialog_open);
     T_ASSERT(game.clients[0].rally_indicator == &g_edicts[indicator - g_edicts]);
     T_ASSERT(game.clients[0].ps.name == game.clients[0].jass.name);
     T_STREQ(game.clients[0].ps.name, "Jaina");
