@@ -126,7 +126,10 @@ WC3's authored MDX cursor uses this to tint only the transient cursor instance w
 authored geoset animation. The MDX path multiplies the instance tint into the evaluated geoset colour before assigning the existing
 `u_geosetColor` state. This deliberately avoids introducing a second shader colour uniform for the same multiplicative concept.
 A white tint therefore preserves texture/geoset colour and alpha, while a red `(255,0,0,255)` tint preserves authored alpha and
-modulates only RGB.
+modulates only RGB. For WC3 MDX instances, a non-zero tint alpha below 255 also makes otherwise opaque/alpha-key layers use ordinary
+source-alpha blending for that instance. This is required for transient model opacity such as the construction placement ghost; shader
+alpha multiplication alone cannot make a `BLEND_MODE_NONE` layer translucent while GL blending remains disabled. Alpha zero retains its
+existing sentinel meaning of unmodified/white rather than invisible.
 
 ## Extension rule
 
