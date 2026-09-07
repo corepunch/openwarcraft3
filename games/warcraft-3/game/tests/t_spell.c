@@ -295,6 +295,29 @@ TEST(wc3_spell, requested_thirty_have_concrete_handlers) {
 	}
 }
 
+TEST(wc3_spell, campaign_ability_rawcodes_are_registered_explicitly) {
+	static LPCSTR const rawcodes[] = {
+		"Aamk", "ACtn", "ANav", "ANsh", "AOw2", "ACs7", "ACs8", "ANr2", "Afbb", "Andm",
+		"Asb1", "Asb2", "Asb3", "ANha", "ANen", "ACfu", "ANpa", "Acny", "Ahnl", "Arsq",
+		"Arsg", "Arsp", "ANbr", "ANsb", "ANcf", "Acdh", "Acef", "ANhw", "ANhx", "Arsw",
+		"AOs2", "AOr2", "AOr3", "AOls",
+	};
+
+	FOR_LOOP(i, sizeof(rawcodes) / sizeof(rawcodes[0])) {
+		ability_t const *ability = FindAbilityByClassname(rawcodes[i]);
+		DWORD code = MAKEFOURCC(rawcodes[i][0], rawcodes[i][1], rawcodes[i][2], rawcodes[i][3]);
+		T_NOT_NULL(ability);
+		if (!strcmp(rawcodes[i], "ANha")) T_EQ(ability, &a_harvest);
+		else {
+			T_NE(ability, &a_unimplemented);
+			T_NOT_NULL(ability->cmd);
+			T_NOT_NULL(ability->spell);
+			T_NOT_NULL(ability->spell->execute);
+			T_EQ((int)ability->spell->code, (int)code);
+		}
+	}
+}
+
 TEST(wc3_spell, requested_active_callback_families_change_simulation) {
 	const char slk[] =
 		"ID;PWXL;N;EBB;Y6;X9\n"

@@ -100,9 +100,45 @@ Do not force passive, attack, aura, or autocast abilities into a visible cast ha
 just because their object-data class is named `CAbility*`. The runtime contract owns
 where the effect is evaluated.
 
+Ability variables must contain the ability name in snake_case. Use descriptive names
+such as `a_storm_bolt` or `a_war_stomp_campaign`; do not derive variable names from
+rawcode abbreviations such as `a_nsb` or `a_ow2`. Rawcodes remain explicit in the
+registry and in the `spell_info_t` code field.
+
 ## Behavior Record
 
 Before writing the handler, create a short record in the relevant source or test:
+
+For an implemented handler, put the matching string-table contract immediately
+above the function or ability registration as a comment. Use the exact `Name` and
+`Ubertip` text when it is short enough to remain readable; preserve placeholders
+such as `<AOws,DataA1>` and `<AOws,Dur1>` so the comment stays tied to authored
+data rather than hardcoding a value. For toggle/autocast abilities, also include
+`Untip` and `Unubertip` above the inverse command path. These comments are an
+implementation index, not a replacement for the source strings or a claim that
+every tooltip sentence is fully implemented.
+
+Example:
+
+```c
+/* Name=War Stomp
+ * Ubertip="Slams the ground, dealing <AOws,DataA1> damage to nearby enemy land units and stunning them for <AOws,Dur1> seconds."
+ */
+static void war_stomp_execute(...)
+```
+
+For an inverse/toggle path:
+
+```c
+/* Untip=Deactivate Avatar
+ * Unubertip=""
+ */
+```
+
+If a handler is shared by several rawcodes, list each rawcode's string contract
+or state explicitly which entries share the implementation. If the entry is not
+implemented, annotate the registry entry with `TODO` instead of copying a
+tooltip above an unrelated function.
 
 ```text
 rawcode:       AOws
@@ -152,6 +188,32 @@ The standard Orc War Stomp entry describes an instant self-centered effect:
 The local `AOws` handler in `games/warcraft-3/game/skills/s_ability_stubs.c` already
 implements that gameplay core through `spell_cmd`, `S_SpellData`, `S_SpellNumber`,
 `S_SpellDuration`, relationship checks, and the timed stun status.
+
+## Current Campaign Audit
+
+The campaign strings are not interchangeable with standard ability rawcodes. A
+name match is not enough: the registry lookup uses the rawcode, and the campaign
+rows must be checked separately in `AbilityData.slk`.
+
+Confirmed from `games/warcraft-3/game/skills/s_skills.c` and
+`data/strings/CampaignAbilityStrings.txt`:
+
+| Campaign entry | Registry status | Result |
+| --- | --- | --- |
+| `AOw2` War Stomp | registered as unsupported | `AOws` is implemented, but the Cairne campaign variant needs its own spell descriptor |
+| `ANsh` / `AOs2` Shockwave | registered as unsupported | campaign variants need code-specific spell descriptors |
+| `ANcf` Breath of Fire | registered as unsupported | `ANbf` is implemented, but the campaign row needs its own spell descriptor |
+| `Acdh` Drunken Haze | registered as unsupported | `ANdh` is implemented, but the campaign row needs its own spell descriptor |
+| `ANhw` Healing Wave | registered as unsupported | `AOhw` is implemented, but the campaign row needs its own spell descriptor |
+| `ANhx` Hex | registered as unsupported | `AOhx` is implemented, but the campaign row needs its own spell descriptor |
+| `ACs7`, `ACs8`, `Arsq`, `Arsg`, `Arsp` | registered as unsupported | campaign summon behavior is not yet implemented |
+| `ANbr`, `ANsb`, `Acef`, `Arsw`, `AOr2`, `AOr3`, `AOls` | registered as unsupported | no matching implementation exists yet |
+
+This is a rawcode coverage result, not proof that the standard handlers are
+behaviorally complete. For example, the campaign tooltip for Breath of Fire
+requires Drunken Haze ignition, while the current `ANbf` handler applies only
+the initial area damage. Each such gap needs a focused behavior test before the
+campaign rawcode is aliased to a standard handler.
 
 The remaining questions should be handled independently:
 

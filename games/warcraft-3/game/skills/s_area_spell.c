@@ -234,21 +234,33 @@ static spell_info_t spell_starfall = {
     .execute = starfall_execute,
 };
 
+/* Name=Blizzard
+ * Ubertip="Calls down an icy storm that damages enemy units in a target area."
+ */
 ability_t a_blizzard = {
     .cmd = spell_cmd,
     .spell = &spell_blizzard,
 };
 
+/* Name=Carrion Swarm
+ * Ubertip="Sends a wave of bats that damages enemy units in a line."
+ */
 ability_t a_carrion_swarm = {
     .cmd = spell_cmd,
     .spell = &spell_carrion_swarm,
 };
 
+/* Name=Shockwave
+ * Ubertip="A wave of force that ripples outward, causing <AOsh,DataA1> damage to land units in a line."
+ */
 ability_t a_shockwave = {
     .cmd = spell_cmd,
     .spell = &spell_shockwave,
 };
 
+/* Name=Rain of Fire
+ * Ubertip="Calls down waves of fire that damage enemy units in a target area."
+ */
 ability_t a_rain_of_fire = {
     .cmd = spell_cmd,
     .spell = &spell_rain_of_fire,
@@ -299,6 +311,9 @@ static spell_info_t spell_death_and_decay = {
     .execute = death_and_decay_execute,
 };
 
+/* Name=Death and Decay
+ * Ubertip="Damages enemy units in a target area over time."
+ */
 ability_t a_death_and_decay = { .cmd = spell_cmd, .spell = &spell_death_and_decay };
 
 static void area_damage_status_execute(LPEDICT caster, spellTarget_t st, spell_info_t const *spell) {
@@ -332,7 +347,13 @@ static spell_info_t spell_frost_nova = {
     .execute = area_damage_status_execute,
 };
 
+/* Name=Thunder Clap
+ * Ubertip="Slams the ground, damaging and slowing nearby enemy units."
+ */
 ability_t a_thunder_clap = { .cmd = spell_cmd, .spell = &spell_thunder_clap };
+/* Name=Frost Nova
+ * Ubertip="Blasts nearby enemy units with frost, damaging and slowing them."
+ */
 ability_t a_frost_nova = { .cmd = spell_cmd, .spell = &spell_frost_nova };
 
 static void tranquility_think(LPEDICT ent) {
@@ -377,11 +398,17 @@ static spell_info_t spell_tranquility = {
     .execute = tranquility_execute,
 };
 
+/* Name=Tranquility
+ * Ubertip="Heals nearby friendly units over time."
+ */
 ability_t a_tranquility = {
     .cmd = spell_cmd,
     .spell = &spell_tranquility,
 };
 
+/* Name=Starfall
+ * Ubertip="Calls down falling stars that damage nearby enemy units over time."
+ */
 ability_t a_starfall = {
     .cmd = spell_cmd,
     .spell = &spell_starfall,

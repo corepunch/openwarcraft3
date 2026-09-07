@@ -15,6 +15,18 @@ real command handler so a stub cannot create a dead button.
 
 ## Current Model
 
+Campaign rawcodes in `CampaignAbilityStrings.txt` are registered through
+`games/warcraft-3/game/skills/s_campaign_abilities.c`. Each entry owns a
+rawcode-specific `spell_info_t`, so `S_SpellData`, duration, unit, buff, and
+target lookups read the campaign `AbilityData.slk` row. Shared execution
+families cover campaign area damage, War Stomp, summons, timed statuses,
+toggles, dispel, Battle Roar, and Storm Bolt without aliasing a standard
+rawcode's descriptor. The registry test in `game/tests/t_spell.c` checks every
+campaign rawcode for a concrete command, execute callback, and matching spell
+code. Campaign-specific presentation, exact summon composition, Parasite
+death spawning, and full three-form Storm/Earth/Fire behavior remain separate
+follow-up contracts when their authored rows and runtime consumers are added.
+
 OpenWarcraft3 uses a small Quake-style `ability_t` dispatch object. Command-capable abilities provide a `cmd` hook; optional hooks cover toggle presentation, spell metadata and synchronous item use. Command-card discovery now requires a real `cmd`, so registered passive/stub handlers do not create dead buttons. Runtime `UnitAddAbility` aliases are also included in command-card discovery.
 
 Abilities are discovered through the static `abilitylist[]` in

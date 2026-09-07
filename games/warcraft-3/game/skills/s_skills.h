@@ -166,6 +166,13 @@ extern ability_t a_vengeance;
 extern ability_t a_big_bad_voodoo;
 extern ability_t a_acid_bomb;
 extern ability_t a_unimplemented;
+extern ability_t a_attribute_bonus, a_spawn_tentacle, a_avatar_campaign, a_shockwave_campaign, a_war_stomp_campaign;
+extern ability_t a_feral_spirit_campaign, a_spirit_beast, a_reincarnation_campaign, a_feedback, a_abolish_magic;
+extern ability_t a_submerge_myrmidon, a_submerge_royal_guard, a_submerge_snap_dragon, a_ensnare, a_frost_armor_campaign;
+extern ability_t a_parasite, a_cyclone_campaign, a_summoning_ritual, a_summon_quilbeast_campaign, a_summon_misha;
+extern ability_t a_stampede_campaign, a_battle_roar, a_storm_bolt_campaign, a_breath_of_fire_campaign;
+extern ability_t a_drunken_haze_campaign, a_storm_earth_fire, a_healing_wave_campaign, a_hex_campaign, a_serpent_ward;
+extern ability_t a_shockwave_cairne, a_endurance_aura_campaign, a_reincarnation_cairne, a_voodoo_spirits;
 
 FLOAT AB_Data(LPCSTR classname, DWORD level, DWORD index);
 DWORD AB_DataId(LPCSTR classname, DWORD level, DWORD index);

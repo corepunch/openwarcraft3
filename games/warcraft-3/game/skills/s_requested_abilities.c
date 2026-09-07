@@ -354,34 +354,117 @@ static void area_buff_execute(LPEDICT caster, spellTarget_t st, spell_info_t con
     static spell_info_t spell_##NAME = { .code = MAKEFOURCC CODE, .name = #NAME, .target_type = TARGET, .flags = FLAGS, .execute = EXECUTE }; \
     ability_t a_##NAME = { .cmd = spell_cmd, .spell = &spell_##NAME }
 
+/* Name=Mass Teleport
+ * Ubertip="Teleports the caster and nearby friendly units to a target location."
+ */
 SPELL(mass_teleport, ('A','H','m','t'), SPELL_TARGET_UNIT, 0, mass_teleport_execute);
+/* Name=Stampede
+ * Ubertip="Calls down hordes of rampaging thunder lizards to explode upon the Beastmaster's enemies."
+ */
 SPELL(stomp, ('A','N','s','t'), SPELL_TARGET_POINT, SPELL_CHANNEL, stomp_execute);
+/* Name=Bladestorm
+ * Ubertip="Causes a Blademaster to spin violently, damaging nearby enemy units."
+ */
 SPELL(whirlwind, ('A','O','w','w'), SPELL_TARGET_NONE, SPELL_CHANNEL, whirlwind_execute);
+/* Name=Tornado
+ * Ubertip="Creates a tornado that damages and disables enemy units."
+ */
 SPELL(tornado, ('A','N','t','o'), SPELL_TARGET_NONE, SPELL_CHANNEL, whirlwind_execute);
+/* Name=Banish
+ * Ubertip="Turns a target unit ethereal, making it unable to attack or be attacked by physical attacks."
+ */
 SPELL(banish, ('A','H','b','n'), SPELL_TARGET_UNIT, 0, target_status_execute);
+/* Name=Phoenix
+ * Ubertip="Summons a Phoenix to fight for the caster."
+ */
 SPELL(phoenix, ('A','H','p','x'), SPELL_TARGET_NONE, 0, summon_execute_requested);
+/* Name=Carrion Beetles
+ * Ubertip="Raises carrion beetles from a nearby corpse."
+ */
 SPELL(carrion_beetles, ('A','U','c','b'), SPELL_TARGET_NONE, SPELL_AUTOCAST, carrion_beetles_execute);
+/* Name=Impale
+ * Ubertip="Slams the ground, impaling enemy units in a line and stunning them."
+ */
 SPELL(impale, ('A','U','i','m'), SPELL_TARGET_POINT, 0, impale_execute);
+/* Name=Locust Swarm
+ * Ubertip="Summons a swarm of locusts that damages enemy units and returns life to the caster."
+ */
 SPELL(locust_swarm, ('A','U','l','s'), SPELL_TARGET_NONE, SPELL_CHANNEL, summon_execute_requested);
+/* Name=Black Arrow
+ * Ubertip="Adds bonus damage to attacks and summons a skeleton when an attacked unit dies."
+ * Untip="Right-click to activate auto-casting."
+ * Unubertip="Right-click to deactivate auto-casting."
+ */
 SPELL(black_arrow, ('A','N','b','a'), SPELL_TARGET_NONE, SPELL_TOGGLE | SPELL_AUTOCAST, toggle_status_execute);
+/* Name=Silence
+ * Ubertip="Stops enemy units in an area from casting spells."
+ */
 SPELL(silence, ('A','N','s','i'), SPELL_TARGET_POINT, 0, area_status_execute);
+/* Name=Animate Dead
+ * Ubertip="Raises a number of corpses to serve the caster for a limited time."
+ */
 SPELL(animate_dead, ('A','U','a','n'), SPELL_TARGET_NONE, 0, animate_dead_execute);
 static spell_info_t spell_death_coil = { .code = MAKEFOURCC('A','U','d','c'), .name = "Death Coil", .target_type = SPELL_TARGET_UNIT, .validate = death_coil_validate, .execute = death_coil_execute };
 ability_t a_death_coil = { .cmd = spell_cmd, .spell = &spell_death_coil };
+/* Name=Death Pact
+ * Ubertip="Sacrifices a friendly undead unit to restore the Death Knight's life and mana."
+ */
 SPELL(death_pact, ('A','U','d','p'), SPELL_TARGET_UNIT, 0, death_pact_execute);
+/* Name=Metamorphosis
+ * Ubertip="Transforms the Demon Hunter into a powerful demon."
+ */
 SPELL(metamorphosis, ('A','E','m','e'), SPELL_TARGET_NONE, 0, morph_execute);
+/* Name=Sleep
+ * Ubertip="Puts a target enemy unit to sleep."
+ */
 SPELL(sleep, ('A','U','s','l'), SPELL_TARGET_UNIT, 0, target_status_execute);
+/* Name=Inferno
+ * Ubertip="Calls down an infernal that damages nearby enemy units."
+ */
 SPELL(inferno, ('A','U','i','n'), SPELL_TARGET_POINT, 0, inferno_execute);
+/* Name=Chain Lightning
+ * Ubertip="Hurls a bolt of lightning that jumps between enemy units."
+ */
 SPELL(chain_lightning, ('A','O','c','l'), SPELL_TARGET_UNIT, 0, chain_lightning_execute);
+/* Name=Forked Lightning
+ * Ubertip="Strikes multiple enemy units with lightning."
+ */
 SPELL(forked_lightning, ('A','N','f','l'), SPELL_TARGET_UNIT, 0, forked_lightning_execute);
+/* Name=Earthquake
+ * Ubertip="Causes the earth to shake, damaging enemy buildings and slowing enemy units."
+ */
 SPELL(earthquake, ('A','O','e','q'), SPELL_TARGET_POINT, SPELL_CHANNEL, earthquake_execute);
+/* Name=Far Sight
+ * Ubertip="Reveals a specified area of the map."
+ */
 SPELL(far_sight, ('A','O','f','s'), SPELL_TARGET_POINT, 0, far_sight_execute);
+/* Name=Resurrection
+ * Ubertip="Brings dead friendly Heroes back to life."
+ */
 SPELL(revive, ('A','H','r','e'), SPELL_TARGET_POINT, 0, revive_execute);
+/* Name=Breath of Fire
+ * Ubertip="Breathes a cone of fire at enemy units, dealing <ANcf,DataA1> initial damage."
+ */
 SPELL(breath_of_fire, ('A','N','b','f'), SPELL_TARGET_POINT, 0, breath_of_fire_execute);
+/* Name=Howl of Terror
+ * Ubertip="Reduces the attack damage of nearby enemy units."
+ */
 SPELL(howl_of_terror, ('A','N','h','t'), SPELL_TARGET_NONE, 0, area_buff_execute);
+/* Name=Drunken Haze
+ * Ubertip="Slows enemy units and gives them a chance to miss on attacks."
+ */
 SPELL(drunken_haze, ('A','N','d','h'), SPELL_TARGET_UNIT, 0, target_status_execute);
+/* Name=Doom
+ * Ubertip="Curses a target enemy unit, preventing it from casting spells and damaging it over time."
+ */
 SPELL(doom, ('A','N','d','o'), SPELL_TARGET_UNIT, 0, target_status_execute);
+/* Name=Healing Wave
+ * Ubertip="Heals a target friendly unit and bounces to nearby friendlies, healing less each jump."
+ */
 SPELL(healing_wave, ('A','O','h','w'), SPELL_TARGET_UNIT, 0, healing_wave_execute);
+/* Name=Hex
+ * Ubertip="Transforms an enemy unit into a random critter for <ANhx,Dur1> seconds."
+ */
 SPELL(hex, ('A','O','h','x'), SPELL_TARGET_UNIT, 0, target_status_execute);
 SPELL(vengeance, ('A','E','s','v'), SPELL_TARGET_NONE, 0, summon_execute_requested);
 SPELL(big_bad_voodoo, ('A','O','v','d'), SPELL_TARGET_NONE, 0, big_bad_voodoo_execute);

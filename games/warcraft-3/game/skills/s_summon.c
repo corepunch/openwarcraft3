@@ -103,21 +103,39 @@ static spell_info_t spell_summon_hawk = {
     .execute = summon_execute,
 };
 
+/* Name=Summon Water Elemental
+ * Ubertip="Summons a Water Elemental to fight for the caster."
+ */
 ability_t a_water_elemental = {
     .cmd = spell_cmd,
     .spell = &spell_water_elemental,
 };
 
+/* Name=Feral Spirit
+ * Ubertip="Summons Spirit Wolf companions."
+ */
 ability_t a_feral_spirit = {
     .cmd = spell_cmd,
     .spell = &spell_feral_spirit,
 };
 
+/* Name=Force of Nature
+ * Ubertip="Summons treants from a target area to fight for the caster."
+ */
 ability_t a_force_of_nature = {
     .cmd = spell_cmd,
     .spell = &spell_force_of_nature,
 };
 
+/* Name=Summon Bear
+ * Ubertip="Summons Misha, a powerful bear, to attack your enemies."
+ */
 ability_t a_summon_bear = { .cmd = spell_cmd, .spell = &spell_summon_bear };
+/* Name=Summon Quilbeast
+ * Ubertip="Summons an angry quilbeast to fling spines at your enemies."
+ */
 ability_t a_summon_quilbeast = { .cmd = spell_cmd, .spell = &spell_summon_quilbeast };
+/* Name=Summon Hawk
+ * Ubertip="Summons a hawk to fight for the caster."
+ */
 ability_t a_summon_hawk = { .cmd = spell_cmd, .spell = &spell_summon_hawk };

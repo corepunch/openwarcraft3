@@ -1,6 +1,10 @@
 #include "s_skills.h"
 
-/* ---- Immolation (AEim): toggle AoE damage around caster ------------------ */
+/* Name=Immolation
+ * Ubertip="Immolates nearby enemy units, dealing damage over time."
+ * Untip="Deactivate Immolation"
+ * Unubertip=""
+ */
 
 static void immolation_execute(LPEDICT caster, spellTarget_t st, spell_info_t const *spell) {
     DWORD code = spell->code;
@@ -28,7 +32,11 @@ ability_t a_immolation = {
     .spell = &spell_immolation,
 };
 
-/* ---- Cold Arrows (AHca): autocast attack modifier with slow -------------- */
+/* Name=Cold Arrows
+ * Ubertip="Adds cold damage to attacks and slows the movement speed of the attacked unit."
+ * Untip="Right-click to activate auto-casting."
+ * Unubertip="Right-click to deactivate auto-casting."
+ */
 
 static void cold_arrows_execute(LPEDICT caster, spellTarget_t st, spell_info_t const *spell) {
     DWORD code = MAKEFOURCC('c', 'o', 'l', 'd');
@@ -56,7 +64,9 @@ ability_t a_cold_arrows = {
     .spell = &spell_cold_arrows,
 };
 
-/* War Stomp (AOws): damage and stun enemy ground units around the caster. */
+/* Name=War Stomp
+ * Ubertip="Slams the ground, dealing <AOws,DataA1> damage to nearby enemy land units and stunning them for <AOws,Dur1> seconds."
+ */
 static void war_stomp_execute(LPEDICT caster, spellTarget_t st, spell_info_t const *spell) {
     DWORD level = S_SpellLevel(caster, spell->code);
     FLOAT radius = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
@@ -86,8 +96,14 @@ ability_t a_war_stomp = {
     .spell = &spell_war_stomp,
 };
 
+/* Name=Endurance Aura
+ * Ubertip="Increases nearby friendly units' movement speed and attack rate."
+ */
 ability_t a_aura_endurance = {0};
 
+/* Name=Wind Walk
+ * Ubertip="Allows the Blademaster to become invisible and move faster until it attacks or uses an ability."
+ */
 static void wind_walk_execute(LPEDICT caster, spellTarget_t st, spell_info_t const *spell) {
     DWORD level = S_SpellLevel(caster, spell->code);
     caster->s.renderfx |= RF_HIDDEN;
@@ -106,7 +122,9 @@ ability_t a_wind_walk = {
     .spell = &spell_wind_walk,
 };
 
-/* Mana Burn (AEmb): remove the target's current mana, capped by DataA. */
+/* Name=Mana Burn
+ * Ubertip="Sends a bolt of negative energy that burns a target enemy unit's mana and deals damage proportional to the amount of mana burned."
+ */
 static void mana_burn_execute(LPEDICT caster, spellTarget_t st, spell_info_t const *spell) {
     LPEDICT target = st.entity;
     DWORD level = S_SpellLevel(caster, spell->code);
@@ -127,7 +145,9 @@ ability_t a_mana_burn = {
     .spell = &spell_mana_burn,
 };
 
-/* Dark Ritual converts the authored fraction of an allied non-hero's maximum
+/* Name=Dark Ritual
+ * Ubertip="Sacrifices a friendly non-Hero unit, converting a percentage of its hit points into mana for the caster."
+ * Dark Ritual converts the authored fraction of an allied non-hero's maximum
  * life into caster mana, then uses the normal damage/death path to sacrifice it. */
 static void dark_ritual_execute(LPEDICT caster, spellTarget_t st, spell_info_t const *spell) {
     LPEDICT target = st.entity;
@@ -150,6 +170,11 @@ ability_t a_dark_ritual = {
     .spell = &spell_dark_ritual,
 };
 
+/* Name=Frost Armor
+ * Ubertip="Creates a shield of frost around a target friendly unit. The shield adds <ACfu,DataB1> armor and slows melee units that attack it for <ACfu,Dur1> seconds. Lasts <ACfu,DataA1> seconds."
+ * Untip="Right-click to activate auto-casting."
+ * Unubertip="Right-click to deactivate auto-casting."
+ */
 static void frost_armor_execute(LPEDICT caster, spellTarget_t st, spell_info_t const *spell) {
     LPEDICT target = st.entity;
     DWORD level = S_SpellLevel(caster, spell->code);
@@ -189,6 +214,9 @@ static void divine_shield_think(LPEDICT ent) {
     G_FreeEdict(ent);
 }
 
+/* Name=Divine Shield
+ * Ubertip="Makes the Paladin invulnerable to damage for <AHds,Dur1> seconds."
+ */
 static void divine_shield_execute(LPEDICT caster, spellTarget_t st, spell_info_t const *spell) {
     DWORD level = S_SpellLevel(caster, spell->code);
     LPEDICT thinker = G_Spawn();
@@ -210,10 +238,17 @@ static spell_info_t spell_divine_shield = {
 
 ability_t a_divine_shield = { .cmd = spell_cmd, .spell = &spell_divine_shield };
 
+/* Name=Bash
+ * Ubertip="Gives a chance that an attack will deal bonus damage and stun the target."
+ * TODO: no command handler; the attack-resolution path must consume this passive.
+ */
 ability_t a_bash = {0};
 
 /* Entangling Roots applies the authored timed buff; movement owns the root
  * consumer so expiry naturally restores the unit without a second cleanup path. */
+/* Name=Entangling Roots
+ * Ubertip="Roots a target enemy unit in place, preventing movement for <AEer,Dur1> seconds."
+ */
 static void entangling_roots_execute(LPEDICT caster, spellTarget_t st, spell_info_t const *spell) {
     DWORD level = S_SpellLevel(caster, spell->code);
     AbilityData_t const *data = G_AbilityData(spell->code);
@@ -245,9 +280,14 @@ ability_t a_entangling_roots = {
 /* Explicit coverage marker; no command hook means this cannot create a dead button. */
 ability_t a_unimplemented = { .flags = ABILITY_PASSIVE };
 
-/* Phoenix Fire, Invulnerable: passive abilities with no command handler.
- * Zero-initialized; the engine never calls cmd for passives. */
+/* Name=Phoenix Fire
+ * Ubertip="Automatically attacks nearby enemy units with flaming projectiles."
+ * TODO: passive attack-resolution behavior is not implemented here.
+ */
 ability_t a_phoenix_fire = {0};
+/* Name=Invulnerable
+ * Ubertip="This unit cannot be damaged."
+ */
 ability_t a_invulnerable = {0};
 
 /* Harvest Lumber and Couple Instant: non-spell abilities with stub command handlers. */
