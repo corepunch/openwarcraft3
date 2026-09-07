@@ -214,6 +214,7 @@ typedef struct {
     RECT (*GetUISceneRect)(void);
     DWORD (*GetDrawCalls)(void);
     void (*SetWindowSize)(DWORD width, DWORD height);
+    void (*WindowChanged)(void);
     size2_t (*GetTextureSize)(LPCTEXTURE texture);
     void (*ReleaseTexture)(LPTEXTURE texture);
     void (*ReleaseModel)(LPMODEL model);

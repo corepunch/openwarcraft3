@@ -65,6 +65,8 @@ typedef struct {
 
 Camera rotation is applied to the stored `cl.viewangles` every frame. Mouse button events are translated to `BUTTON_*` bitmask bits. Keyboard events produce `CL_KeyEvent` calls which feed the console and keyboard bindings.
 
+SDL window events remain client-owned. Events that can change the OpenGL drawable (`MOVED`, `RESIZED`, `SIZE_CHANGED`, and `DISPLAY_CHANGED` on SDL versions that provide it) call the mandatory renderer `WindowChanged` export. The renderer only marks drawable state dirty at that point; the next `R_BeginFrame` re-queries the drawable once after event pumping has completed. This preserves the client/renderer boundary and avoids steady-state drawable polling.
+
 ### 3. CL_SendCommand
 
 Serialises the current `usercmd_t` as a `clc_move` message and writes it to the loopback send buffer for the server to read on its next `SV_ReadPackets` call.

@@ -29,6 +29,7 @@ SDL_Window *window;
 SDL_GLContext context;
 
 static bool renderer_shutdown = false;
+static BOOL drawable_dirty;
 
 /* Capture the physical GL drawable; SDL window dimensions are logical points on Retina. */
 static void R_Screenshot(void) {
@@ -517,6 +518,54 @@ static BOOL R_SetExclusiveDisplayMode(DWORD width, DWORD height) {
     return true;
 }
 
+/* Fullscreen transitions are not guaranteed to leave the SDL drawable at its
+ * final size before renderer initialization continues.  An affected X11 run
+ * reported a work-area-sized drawable at startup while the requested desktop
+ * mode was larger.  Client/UI code queries the SDL window size live, while
+ * renderer draw/scissor math uses this cached drawable size, so tolerate any
+ * later SDL drawable correction when the client receives a relevant SDL
+ * window/display event. */
+static BOOL R_RefreshDrawableSize(LPCSTR reason) {
+    int drawable_width = 0, drawable_height = 0;
+    int window_width = 0, window_height = 0;
+    DWORD old_width, old_height;
+
+    if (!window) return false;
+    SDL_GL_GetDrawableSize(window, &drawable_width, &drawable_height);
+    if (drawable_width <= 0 || drawable_height <= 0) return false;
+    if (tr.drawableSize.width == (DWORD)drawable_width &&
+        tr.drawableSize.height == (DWORD)drawable_height) {
+        return false;
+    }
+
+    old_width = tr.drawableSize.width;
+    old_height = tr.drawableSize.height;
+    tr.drawableSize.width = (DWORD)drawable_width;
+    tr.drawableSize.height = (DWORD)drawable_height;
+
+    /* The GL context is current whenever this is called after initialization.
+     * Reset the full viewport immediately; later world/UI passes may narrow it
+     * as usual. */
+    if (old_width && old_height) {
+        R_Call(glViewport, 0, 0, drawable_width, drawable_height);
+        /* Scissor state survives frame boundaries.  If the drawable grows,
+         * leaving the previous full-frame scissor in place would clip the
+         * newly exposed strip and can also limit the next glClear(). */
+        R_Call(glScissor, 0, 0, drawable_width, drawable_height);
+    }
+
+    if (old_width && old_height) {
+        SDL_GetWindowSize(window, &window_width, &window_height);
+        fprintf(stderr,
+                "Video: drawable size changed (%s) window=%dx%d drawable=%ux%u -> %dx%d\n",
+                reason ? reason : "unknown",
+                window_width, window_height,
+                (unsigned)old_width, (unsigned)old_height,
+                drawable_width, drawable_height);
+    }
+    return true;
+}
+
 static void R_ApplyVideoMode(DWORD width, DWORD height) {
     BOOL native = R_VideoNative();
     BOOL fullscreen = R_VideoFullscreen();
@@ -661,7 +710,7 @@ void R_InitRenderer(DWORD width, DWORD height) {
     }
 
     R_ApplyVideoMode(width, height);
-    SDL_GL_GetDrawableSize(window, (int *)&tr.drawableSize.width, (int *)&tr.drawableSize.height);
+    R_RefreshDrawableSize("initial");
     fprintf(stderr, "Refresh: OpenWarcraft3 OpenGL Refresher\n");
     fprintf(stderr, "Client: OpenWarcraft3\n\n");
     fprintf(stderr, "Drawable size: %dx%d\n\n", tr.drawableSize.width, tr.drawableSize.height);
@@ -985,6 +1034,10 @@ static void R_FinishFrameStats(void) {
 }
 
 void R_BeginFrame(void) {
+    if (drawable_dirty) {
+        drawable_dirty = false;
+        R_RefreshDrawableSize("window-event");
+    }
     memset(&r_frame_stats, 0, sizeof(r_frame_stats));
     R_Call(glDisable, GL_SAMPLE_ALPHA_TO_COVERAGE);
     R_Call(glEnable, GL_DEPTH_TEST);
@@ -1018,15 +1071,18 @@ size2_t R_GetWindowSize(void) {
     };
 }
 
+/* Coalesce SDL resize/move/display events and query the final drawable once at
+ * the next frame boundary, after the client has finished pumping events. */
+static void R_WindowChanged(void) { drawable_dirty = true; }
+
 void R_SetWindowSize(DWORD width, DWORD height) {
     if (!window || width == 0 || height == 0) {
         return;
     }
     R_ApplyVideoMode(width, height);
-    SDL_GL_GetDrawableSize(window,
-                           (int *)&tr.drawableSize.width,
-                           (int *)&tr.drawableSize.height);
+    R_RefreshDrawableSize("vid_apply");
     R_Call(glViewport, 0, 0, tr.drawableSize.width, tr.drawableSize.height);
+    R_Call(glScissor, 0, 0, tr.drawableSize.width, tr.drawableSize.height);
     fprintf(stderr,
             "Drawable size after vid_apply: %ux%u\n",
             (unsigned)tr.drawableSize.width,
@@ -1091,6 +1147,7 @@ refExport_t R_GetAPI(refImport_t imp) {
         .GetUISceneRect = R_UISceneRect,
         .GetDrawCalls = R_GetFrameDrawCalls,
         .SetWindowSize = R_SetWindowSize,
+        .WindowChanged = R_WindowChanged,
         .GetTextureSize = R_GetTextureSize,
         .DrawSprite = R_DrawSprite,
         .DrawCursor = R_DrawCursor,
