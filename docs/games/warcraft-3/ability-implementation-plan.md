@@ -105,6 +105,21 @@ such as `a_storm_bolt` or `a_war_stomp_campaign`; do not derive variable names f
 rawcode abbreviations such as `a_nsb` or `a_ow2`. Rawcodes remain explicit in the
 registry and in the `spell_info_t` code field.
 
+The active rawcode portion of `games/warcraft-3/game/skills/s_skills.c` is generated
+from the `*AbilityStrings.txt` files in `data/strings`. It is grouped by source file,
+uses the text entry's `Name` as its block comment, and preserves the existing handler
+mapping. Regenerate and check it with:
+
+```sh
+python3 tools/generate_ability_registry.py --write
+python3 tools/generate_ability_registry.py
+```
+
+The generator uses the first sorted text file when a rawcode is defined more than
+once. Entries without a text definition remain in the final `No AbilityStrings source
+file` group. The commented TODO entries are also generated, remain disabled, and are
+delimited by their own generated markers.
+
 ## Behavior Record
 
 Before writing the handler, create a short record in the relevant source or test:
