@@ -6,6 +6,15 @@
 #define CLIENTCOMMAND(NAME) void CMD_##NAME(LPEDICT clent, DWORD argc, LPCSTR argv[])
 #define WC3_SELECTION_LIMIT 12
 
+typedef struct {
+    LPCSTR name;
+    BOOL value;
+} cheatToggleValue_t;
+
+static cheatToggleValue_t const cheat_toggle_values[] = {
+    { "on", true }, { "1", true }, { "off", false }, { "0", false },
+};
+
 /* Focus is presentation/input state within an existing selection, not a saved
  * gameplay relationship. Keep it out of GAMECLIENT so save compatibility does
  * not depend on which multiselect subgroup happened to own the HUD. */
@@ -839,25 +848,24 @@ CLIENTCOMMAND(Kill) {
     clent->health.value = 0;
 }
 
+/* Keep the instant-build cheat scoped to the issuing player's live client state. */
 BOOL G_PlayerInstantBuild(DWORD player) {
     LPGAMECLIENT client = G_GetPlayerClientByNumber(player);
     return client && client->ps.number == player && client->cheat_instant_build;
 }
 
+/* Parse the toggle spellings shared by developer cheats and their aliases. */
 static BOOL G_ParseCheatToggle(LPCSTR value, BOOL current, BOOL *out) {
     if (!out) return false;
     if (!value || !*value) {
         *out = !current;
         return true;
     }
-    if (!strcasecmp(value, "on") || !strcmp(value, "1")) {
-        *out = true;
-        return true;
-    }
-    if (!strcasecmp(value, "off") || !strcmp(value, "0")) {
-        *out = false;
-        return true;
-    }
+    FOR_LOOP(i, sizeof(cheat_toggle_values) / sizeof(*cheat_toggle_values))
+        if (!strcasecmp(value, cheat_toggle_values[i].name)) {
+            *out = cheat_toggle_values[i].value;
+            return true;
+        }
     return false;
 }
 

@@ -182,6 +182,30 @@ TEST(wc3_game, give_resource_cheats_target_issuing_player_without_selection) {
     gi.CvarString = old_cvar;
 }
 
+TEST(wc3_game, instant_build_cheat_is_per_player_and_toggleable) {
+    LPCSTR (*old_cvar)(LPCSTR, LPCSTR) = gi.CvarString;
+    LPCSTR toggle[] = { "instantbuild" };
+    LPCSTR enable[] = { "instantbuild", "on" };
+    LPCSTR disable[] = { "warpten", "off" };
+
+    setup_test_world();
+    game.clients[0].connected = true;
+    game.clients[1].connected = true;
+    gi.CvarString = give_resources_cheat_cvar;
+
+    G_ClientCommand(&g_edicts[0], 1, toggle);
+    T_ASSERT(game.clients[0].cheat_instant_build);
+    T_ASSERT(!game.clients[1].cheat_instant_build);
+
+    G_ClientCommand(&g_edicts[1], 2, enable);
+    T_ASSERT(game.clients[1].cheat_instant_build);
+    G_ClientCommand(&g_edicts[0], 2, disable);
+    T_ASSERT(!game.clients[0].cheat_instant_build);
+    T_ASSERT(game.clients[1].cheat_instant_build);
+
+    gi.CvarString = old_cvar;
+}
+
 TEST(wc3_game, day_and_night_cheats_use_authored_phase_midpoints) {
     LPCSTR (*old_cvar)(LPCSTR, LPCSTR) = gi.CvarString;
     LPEDICT clent = &g_edicts[0];
