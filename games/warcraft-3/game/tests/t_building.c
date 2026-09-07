@@ -6,6 +6,7 @@
 LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y);
 void setup_test_world(void);
 void repair_build_primary(LPEDICT ent, LPEDICT building);
+void repair_build_legacy(LPEDICT ent, LPEDICT building);
 BOOL build_menu_send_builder(LPEDICT clent, LPCVECTOR2 location);
 slkTestData_t *parse_slk_string(const char *slk_text);
 void free_slk_rows(slkTestData_t *rows);
@@ -1062,6 +1063,56 @@ TEST(wc3_building, dead_building_releases_baked_static_pathing) {
 
     building->pathtex = NULL;
     gi.MemFree(pathtex);
+}
+
+TEST(wc3_building, legacy_orc_burrow_completion_publishes_construct_finish_and_grants_food) {
+    LPGAMECLIENT client = &game.clients[0];
+    LPEDICT builder;
+    LPEDICT building;
+    UnitBalance_t balance;
+    LPGAMECLIENT saved_client;
+
+    setup_test_world();
+    builder = alloc_test_unit(MAKEFOURCC('o','p','e','o'), 0, 0);
+    building = alloc_test_unit(MAKEFOURCC('o','t','r','b'), 64, 0);
+    balance = *building->data.UnitBalance;
+    builder->s.player = client->ps.number;
+    builder->stand = unit_stand;
+    builder->collision = 16.0f;
+    building->s.player = client->ps.number;
+    building->svflags |= SVF_MONSTER;
+    building->stand = building_test_stand;
+    building->collision = 32.0f;
+    balance.buildTime = 1;
+    balance.foodMade = 10;
+    building->data.UnitBalance = &balance;
+    building->health.max_value = 1000.0f;
+    building->health.value = 999.0f;
+    client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 0;
+    level.events.read = level.events.write = 0;
+    building_stand_calls = 0;
+
+    repair_build_legacy(builder, building);
+    building->build = building;
+    T_ASSERT(builder->build == building);
+    T_ASSERT(building->build == building);
+
+    /* Avoid HUD/FDF refresh in this engine-level test while preserving the
+     * owning game client used for food accounting. */
+    saved_client = g_edicts[0].client;
+    g_edicts[0].client = NULL;
+    builder->currentmove->think(builder);
+    g_edicts[0].client = saved_client;
+
+    T_NULL(builder->build);
+    T_NULL(building->build);
+    T_EQ(building_stand_calls, 1);
+    T_FEQ(building->health.value, building->health.max_value, 0.001f);
+    T_EQ(building->food.made, 10);
+    T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP], 10);
+    T_EQ(level.events.write, 1);
+    T_EQ(level.events.queue[0].type, EVENT_PLAYER_UNIT_CONSTRUCT_FINISH);
+    T_ASSERT(level.events.queue[0].edict == building);
 }
 
 TEST(wc3_building, completing_construction_clears_state_publishes_once_and_grants_food_once) {

@@ -125,6 +125,50 @@ static BOOL G_CommandQueueRequested(DWORD argc, LPCSTR argv[], DWORD first_optio
     return false;
 }
 
+static BOOL G_SelectionListContains(LPEDICT const *selection, DWORD count, LPCEDICT ent) {
+    FOR_LOOP(i, count) {
+        if (selection[i] == ent) return true;
+    }
+    return false;
+}
+
+static void G_PublishSelectionDelta(LPGAMECLIENT client,
+                                    LPEDICT const *old_selection,
+                                    DWORD old_count) {
+    BOOL const debug = atoi(gi.CvarString("wc3_quest_debug", "0")) != 0;
+
+    if (!client) return;
+
+    FOR_LOOP(i, old_count) {
+        LPEDICT ent = old_selection[i];
+        if (!G_IsEntitySelected(client, ent)) {
+            if (debug) {
+                char rawcode[5] = { 0 };
+                memcpy(rawcode, &ent->class_id, 4);
+                fprintf(stderr,
+                    "WC3_QUEST_SELECT publish event=DESELECTED player=%u unit=%u id=%s\n",
+                    (unsigned)client->ps.number, (unsigned)ent->s.number, rawcode);
+            }
+            G_PublishEvent(ent, EVENT_PLAYER_UNIT_DESELECTED);
+            G_PublishEvent(ent, EVENT_UNIT_DESELECTED);
+        }
+    }
+
+    FOR_SELECTED_UNITS(client, ent) {
+        if (!G_SelectionListContains(old_selection, old_count, ent)) {
+            if (debug) {
+                char rawcode[5] = { 0 };
+                memcpy(rawcode, &ent->class_id, 4);
+                fprintf(stderr,
+                    "WC3_QUEST_SELECT publish event=SELECTED player=%u unit=%u id=%s\n",
+                    (unsigned)client->ps.number, (unsigned)ent->s.number, rawcode);
+            }
+            G_PublishEvent(ent, EVENT_PLAYER_UNIT_SELECTED);
+            G_PublishEvent(ent, EVENT_UNIT_SELECTED);
+        }
+    }
+}
+
 static BOOL G_ParseEntityNumber(LPCSTR text, DWORD *number) {
     char *end = NULL;
     unsigned long value;
@@ -412,7 +456,14 @@ CLIENTCOMMAND(Select) {
         BOOL cleared = false;
         BOOL hasunits = false;
         LPEDICT voice = NULL;
+        LPEDICT old_selection[WC3_SELECTION_LIMIT] = { 0 };
+        DWORD old_count = 0;
         DWORD selected_count = 0;
+
+        FOR_SELECTED_UNITS(client, selected) {
+            if (old_count >= WC3_SELECTION_LIMIT) break;
+            old_selection[old_count++] = selected;
+        }
         for (DWORD i = 1; i < argc; i++) {
             DWORD number;
             if (!G_ParseEntityNumber(argv[i], &number)) continue;
@@ -464,6 +515,12 @@ CLIENTCOMMAND(Select) {
                  * Passive critter response rules remain a separate gap. */
                 G_PlayUISoundForPlayer(clent, "InterfaceClick");
             }
+            /* The client sends complete selection membership. Publish JASS
+             * selection events from the final authoritative delta instead of
+             * while the list is temporarily cleared/rebuilt, which would emit
+             * false deselect/select pairs for unchanged members. */
+            G_PublishSelectionDelta(client, old_selection, old_count);
+
             /* Selection is authoritative game state. Mirror the accepted,
              * server-filtered membership back to the client cache as well as
              * rebuilding the HUD so the client cannot retain current-selection entries

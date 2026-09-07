@@ -1,3 +1,27 @@
+static BOOL QuestPeonStageDebugEnabled(void) {
+    return gi.CvarString && atoi(gi.CvarString("wc3_quest_debug", "0")) != 0;
+}
+
+static LONG QuestPeonStageTriggerOrdinal(LPTRIGGER trigger) {
+    return trigger ? (LONG)(trigger - level.triggers) : -1L;
+}
+
+static BOOL QuestPeonStageTrigger(LPTRIGGER trigger) {
+    LONG ordinal = QuestPeonStageTriggerOrdinal(trigger);
+    return ordinal >= 95 && ordinal <= 106;
+}
+
+static void QuestPeonStageLogRegistration(LPTRIGGER trigger, EVENTTYPE type,
+                                          LPEDICT subject, LPCSTR registration) {
+    if (!QuestPeonStageDebugEnabled() || !QuestPeonStageTrigger(trigger)) return;
+    fprintf(stderr,
+            "WC3_QUEST_PEON register trigger=%ld via=%s event=%u subject=%ld disabled=%d\n",
+            (long)QuestPeonStageTriggerOrdinal(trigger),
+            registration ? registration : "unknown", (unsigned)type,
+            subject ? (long)(subject - globals.edicts) : -1L,
+            trigger ? (int)trigger->disabled : -1);
+}
+
 DWORD CreateTrigger(LPJASS j) {
     LPTRIGGER trigger = G_AllocJassTrigger();
     if (!trigger) { jass_rterror(j, "CreateTrigger: trigger registry is full"); return 0; }
@@ -13,13 +37,27 @@ DWORD ResetTrigger(LPJASS j) {
 }
 DWORD EnableTrigger(LPJASS j) {
     LPTRIGGER whichTrigger = jass_checkhandle(j, 1, "trigger");
-    (void)j;
+    if (QuestPeonStageDebugEnabled() && QuestPeonStageTrigger(whichTrigger)) {
+        LPCJASSCONTEXT ctx = jass_getcontext(j);
+        LPCSTR caller = ctx ? jass_functionname(ctx->func) : NULL;
+        fprintf(stderr,
+                "WC3_QUEST_PEON state trigger=%ld op=enable caller=\"%s\" was_disabled=%d\n",
+                (long)QuestPeonStageTriggerOrdinal(whichTrigger),
+                caller ? caller : "(native/root)", (int)whichTrigger->disabled);
+    }
     whichTrigger->disabled = false;
     return 0;
 }
 DWORD DisableTrigger(LPJASS j) {
     LPTRIGGER whichTrigger = jass_checkhandle(j, 1, "trigger");
-    (void)j;
+    if (QuestPeonStageDebugEnabled() && QuestPeonStageTrigger(whichTrigger)) {
+        LPCJASSCONTEXT ctx = jass_getcontext(j);
+        LPCSTR caller = ctx ? jass_functionname(ctx->func) : NULL;
+        fprintf(stderr,
+                "WC3_QUEST_PEON state trigger=%ld op=disable caller=\"%s\" was_disabled=%d\n",
+                (long)QuestPeonStageTriggerOrdinal(whichTrigger),
+                caller ? caller : "(native/root)", (int)whichTrigger->disabled);
+    }
     whichTrigger->disabled = true;
     return 0;
 }
@@ -70,6 +108,7 @@ DWORD TriggerRegisterTimerEvent(LPJASS j) {
     if (!whichTrigger || !(timer = G_AllocJassTimer())) return jass_pushnullhandle(j, "event");
     G_TimerStart(timer, (DWORD)(MAX(0.0f, timeout) * 1000.0f), periodic, NULL);
     evt = G_MakeEvent(EVENT_GAME_TIMER_EXPIRED); evt->trigger = whichTrigger; evt->timer = timer;
+    QuestPeonStageLogRegistration(whichTrigger, EVENT_GAME_TIMER_EXPIRED, NULL, "timer");
     return jass_pushlighthandle(j, evt, "event");
 }
 DWORD TriggerRegisterTimerExpireEvent(LPJASS j) {
@@ -78,6 +117,7 @@ DWORD TriggerRegisterTimerExpireEvent(LPJASS j) {
     LPEVENT evt;
     if (!whichTrigger || !timer) return jass_pushnullhandle(j, "event");
     evt = G_MakeEvent(EVENT_GAME_TIMER_EXPIRED); evt->trigger = whichTrigger; evt->timer = timer;
+    QuestPeonStageLogRegistration(whichTrigger, EVENT_GAME_TIMER_EXPIRED, NULL, "timer-expire");
     return jass_pushlighthandle(j, evt, "event");
 }
 DWORD TriggerRegisterGameStateEvent(LPJASS j) {
@@ -90,6 +130,7 @@ DWORD TriggerRegisterGameStateEvent(LPJASS j) {
     evt->state = whichState ? *whichState : 0;
     evt->limitop = opcode ? *opcode : 0;
     evt->limitval = limitval;
+    QuestPeonStageLogRegistration(whichTrigger, EVENT_GAME_STATE_LIMIT, NULL, "game-state");
     return jass_pushlighthandle(j, evt, "event");
 }
 DWORD TriggerRegisterDialogEvent(LPJASS j) {
@@ -114,6 +155,7 @@ DWORD TriggerRegisterEnterRegion(LPJASS j) {
     LPEVENT evt = G_MakeEvent(EVENT_GAME_ENTER_REGION);
     evt->trigger = whichTrigger;
     evt->region = *whichRegion;
+    QuestPeonStageLogRegistration(whichTrigger, EVENT_GAME_ENTER_REGION, NULL, "enter-region");
     return jass_pushlighthandle(j, evt, "event");
 }
 DWORD GetTriggeringRegion(LPJASS j) {
@@ -142,6 +184,7 @@ DWORD TriggerRegisterPlayerEvent(LPJASS j) {
     LPEVENT evt = G_MakeEvent(*whichPlayerEvent);
     evt->subject = PLAYER_ENT(whichPlayer);
     evt->trigger = whichTrigger;
+    QuestPeonStageLogRegistration(whichTrigger, *whichPlayerEvent, evt->subject, "player");
     if (*whichPlayerEvent == EVENT_PLAYER_VICTORY || *whichPlayerEvent == EVENT_PLAYER_DEFEAT) {
         G_GameResultDebug("register player event type=%s player=%u trigger=%p subject_ent=%ld",
             *whichPlayerEvent == EVENT_PLAYER_VICTORY ? "VICTORY" : "DEFEAT",
@@ -161,6 +204,7 @@ DWORD TriggerRegisterPlayerUnitEvent(LPJASS j) {
     LPEVENT evt = G_MakeEvent(*whichPlayerUnitEvent);
     evt->subject = PLAYER_ENT(whichPlayer);
     evt->trigger = whichTrigger;
+    QuestPeonStageLogRegistration(whichTrigger, *whichPlayerUnitEvent, evt->subject, "player-unit");
     return jass_pushlighthandle(j, evt, "event");
 }
 DWORD TriggerRegisterPlayerAllianceChange(LPJASS j) {
@@ -197,6 +241,7 @@ DWORD TriggerRegisterDeathEvent(LPJASS j) {
     LPEVENT evt = G_MakeEvent(EVENT_UNIT_DEATH);
     evt->subject = whichWidget;
     evt->trigger = whichTrigger;
+    QuestPeonStageLogRegistration(whichTrigger, EVENT_UNIT_DEATH, evt->subject, "death");
     return jass_pushlighthandle(j, evt, "event");
 }
 DWORD TriggerRegisterUnitStateEvent(LPJASS j) {
@@ -217,6 +262,7 @@ DWORD TriggerRegisterUnitEvent(LPJASS j) {
     LPEVENT evt = G_MakeEvent(*whichEvent);
     evt->subject = whichUnit;
     evt->trigger = whichTrigger;
+    QuestPeonStageLogRegistration(whichTrigger, *whichEvent, evt->subject, "unit");
     return jass_pushlighthandle(j, evt, "event");
 }
 DWORD TriggerRegisterFilterUnitEvent(LPJASS j) {
@@ -238,6 +284,7 @@ DWORD TriggerRegisterUnitInRange(LPJASS j) {
     evt->subject = whichUnit;
     evt->trigger = whichTrigger;
     evt->range = range;
+    QuestPeonStageLogRegistration(whichTrigger, EVENT_UNIT_IN_RANGE, evt->subject, "unit-in-range");
     return jass_pushlighthandle(j, evt, "event");
 }
 DWORD TriggerAddCondition(LPJASS j) {
@@ -245,6 +292,13 @@ DWORD TriggerAddCondition(LPJASS j) {
     TRIGGERCONDITION *condition = gi.MemAlloc(sizeof(TRIGGERCONDITION));
     condition->expr = jass_checkhandle(j, 2, "boolexpr");
     ADD_TO_LIST(condition, whichTrigger->conditions);
+    if (QuestPeonStageDebugEnabled() && QuestPeonStageTrigger(whichTrigger)) {
+        LPCSTR func = condition->expr ? jass_functionname(condition->expr) : NULL;
+        fprintf(stderr,
+                "WC3_QUEST_PEON definition trigger=%ld add=condition func=\"%s\" disabled=%d\n",
+                (long)QuestPeonStageTriggerOrdinal(whichTrigger),
+                func ? func : "(anonymous)", (int)whichTrigger->disabled);
+    }
     return jass_pushlighthandle(j, condition, "triggercondition");
 }
 DWORD TriggerRemoveCondition(LPJASS j) {
@@ -263,6 +317,13 @@ DWORD TriggerAddAction(LPJASS j) {
     TRIGGERACTION *action = gi.MemAlloc(sizeof(TRIGGERACTION));
     action->func = jass_checkcode(j, 2);
     ADD_TO_LIST(action, whichTrigger->actions);
+    if (QuestPeonStageDebugEnabled() && QuestPeonStageTrigger(whichTrigger)) {
+        LPCSTR func = action->func ? jass_functionname(action->func) : NULL;
+        fprintf(stderr,
+                "WC3_QUEST_PEON definition trigger=%ld add=action func=\"%s\" disabled=%d\n",
+                (long)QuestPeonStageTriggerOrdinal(whichTrigger),
+                func ? func : "(anonymous)", (int)whichTrigger->disabled);
+    }
     return jass_pushlighthandle(j, action, "triggeraction");
 }
 DWORD TriggerRemoveAction(LPJASS j) {
@@ -301,10 +362,27 @@ DWORD TriggerWaitForSound(LPJASS j) {
 }
 DWORD TriggerEvaluate(LPJASS j) {
     LPTRIGGER whichTrigger = jass_checkhandle(j, 1, "trigger");
-    return jass_pushboolean(j, jass_evaluatetrigger(j, whichTrigger, NULL));
+    BOOL result = jass_evaluatetrigger(j, whichTrigger, NULL);
+    if (QuestPeonStageDebugEnabled() && QuestPeonStageTrigger(whichTrigger)) {
+        LPCJASSCONTEXT ctx = jass_getcontext(j);
+        LPCSTR caller = ctx ? jass_functionname(ctx->func) : NULL;
+        fprintf(stderr,
+                "WC3_QUEST_PEON direct trigger=%ld op=evaluate caller=\"%s\" disabled=%d result=%d\n",
+                (long)QuestPeonStageTriggerOrdinal(whichTrigger),
+                caller ? caller : "(native/root)", (int)whichTrigger->disabled, result);
+    }
+    return jass_pushboolean(j, result);
 }
 DWORD TriggerExecute(LPJASS j) {
     LPTRIGGER whichTrigger = jass_checkhandle(j, 1, "trigger");
+    if (QuestPeonStageDebugEnabled() && QuestPeonStageTrigger(whichTrigger)) {
+        LPCJASSCONTEXT ctx = jass_getcontext(j);
+        LPCSTR caller = ctx ? jass_functionname(ctx->func) : NULL;
+        fprintf(stderr,
+                "WC3_QUEST_PEON direct trigger=%ld op=execute caller=\"%s\" disabled=%d\n",
+                (long)QuestPeonStageTriggerOrdinal(whichTrigger),
+                caller ? caller : "(native/root)", (int)whichTrigger->disabled);
+    }
     jass_executetrigger(j, whichTrigger, NULL);
     return 0;
 }

@@ -600,10 +600,14 @@ DWORD GetResearched(LPJASS j) {
     return jass_pushinteger(j, 0);
 }
 DWORD GetTrainedUnitType(LPJASS j) {
-    return jass_pushinteger(j, 0);
+    struct jass_context *context = jass_getcontext(j);
+    LPEDICT trained = context->source ? context->source : context->unit;
+    return jass_pushinteger(j, trained ? (LONG)trained->class_id : 0);
 }
 DWORD GetTrainedUnit(LPJASS j) {
-    return jass_pushlighthandle(j, jass_getcontext(j)->unit, "unit");
+    struct jass_context *context = jass_getcontext(j);
+    LPEDICT trained = context->source ? context->source : context->unit;
+    return jass_pushlighthandle(j, trained, "unit");
 }
 DWORD GetDetectedUnit(LPJASS j) {
     return jass_pushlighthandle(j, jass_getcontext(j)->unit, "unit");
@@ -627,7 +631,7 @@ DWORD GetOrderedUnit(LPJASS j) {
     return jass_pushlighthandle(j, jass_getcontext(j)->unit, "unit");
 }
 DWORD GetIssuedOrderId(LPJASS j) {
-    return jass_pushinteger(j, 0);
+    return jass_pushinteger(j, G_GetIssuedOrderId(jass_getcontext(j)->unit));
 }
 DWORD GetOrderPointX(LPJASS j) {
     return jass_pushnumber(j, 0);
@@ -639,13 +643,17 @@ DWORD GetOrderPointLoc(LPJASS j) {
     return jass_pushnullhandle(j, "location");
 }
 DWORD GetOrderTarget(LPJASS j) {
-    return jass_pushnullhandle(j, "widget");
+    return jass_pushlighthandle(j, jass_getcontext(j)->source, "widget");
 }
 DWORD GetOrderTargetDestructable(LPJASS j) {
-    return jass_pushnullhandle(j, "destructable");
+    LPEDICT target = jass_getcontext(j)->source;
+    return target && G_IsDestructable(target) ?
+        jass_pushlighthandle(j, target, "destructable") : jass_pushnullhandle(j, "destructable");
 }
 DWORD GetOrderTargetUnit(LPJASS j) {
-    return jass_pushlighthandle(j, jass_getcontext(j)->unit, "unit");
+    LPEDICT target = jass_getcontext(j)->source;
+    return target && (target->svflags & SVF_MONSTER) ?
+        jass_pushlighthandle(j, target, "unit") : jass_pushnullhandle(j, "unit");
 }
 DWORD GetEventPlayerState(LPJASS j) {
     return jass_pushnullhandle(j, "playerstate");

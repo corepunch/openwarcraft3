@@ -520,6 +520,12 @@ void unit_build(LPEDICT self, DWORD class_id) {
     /* SP_SpawnAtLocation already ran birth; calling it twice reset the trained unit and crashed sparse fixtures. */
     ent->s.renderfx |= RF_HIDDEN;
     unit_add_build_queue(self, ent);
+    /* Warcraft publishes TRAIN_START when an accepted trainee enters the
+     * producer queue.  The producer is the triggering unit; the hidden queued
+     * trainee is carried as event source so GetTrainedUnitType/GetTrainedUnit
+     * can expose the trainee without changing GetTriggerUnit semantics. */
+    G_PublishEventWithSource(self, EVENT_PLAYER_UNIT_TRAIN_START, ent);
+    G_PublishEventWithSource(self, EVENT_UNIT_TRAIN_START, ent);
     if (was_empty) {
         /* Queue insertion makes this item active immediately. Food reservation
          * must therefore happen before a later Train command performs its

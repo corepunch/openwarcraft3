@@ -1916,6 +1916,7 @@ BOOL unit_issuetargetorder(LPEDICT, LPCSTR, LPEDICT);
 BOOL G_TransformUnitType(LPEDICT, DWORD);
 BOOL G_IssueUnitPointOrder(LPEDICT, LPCSTR, LPCVECTOR2, BOOL, DWORD, FLOAT);
 BOOL G_IssueUnitTargetOrder(LPEDICT, LPCSTR, LPEDICT, BOOL, DWORD);
+DWORD G_GetIssuedOrderId(LPCEDICT);
 BOOL G_UnitStartNextQueuedOrder(LPEDICT);
 void G_ClearUnitOrderQueue(LPEDICT);
 DWORD G_UnitQueuedOrderCount(LPCEDICT);

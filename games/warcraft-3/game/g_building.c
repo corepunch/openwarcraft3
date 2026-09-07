@@ -810,7 +810,15 @@ BOOL G_CancelStructureConstruction(LPEDICT building) {
 
 void G_CompleteConstruction(LPEDICT building) {
     LPGAMECLIENT client;
-    if (!building || !building->construction.active) return;
+    BOOL legacy;
+
+    if (!building) return;
+    /* Human construction has explicit construction state.  The still-legacy
+     * Orc/Night Elf/Undead build path marks an in-progress structure by
+     * self-linking building->build.  Both lifecycles must converge here so
+     * completion grants supply and publishes CONSTRUCT_FINISH exactly once. */
+    legacy = building->build == building;
+    if (!building->construction.active && !legacy) return;
     client = G_GetPlayerClientByNumber(building->s.player);
     if (client && client->ps.number != building->s.player) client = NULL;
     building->construction.active = false;
@@ -822,6 +830,7 @@ void G_CompleteConstruction(LPEDICT building) {
     building->construction.gold = 0;
     building->construction.lumber = 0;
     building->aiflags &= ~AI_HOLD_FRAME;
+    if (building->build == building) building->build = NULL;
     building->health.value = building->health.max_value;
     building->stand(building);
 #ifdef WC3_DEBUG_AI

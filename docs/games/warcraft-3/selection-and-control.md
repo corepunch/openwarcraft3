@@ -52,6 +52,23 @@ Persistent Hero and idle-worker HUD shortcuts reuse this authority boundary but 
 
 Targeted ability callbacks (`menu.on_entity_selected`) are a separate path: a left click completes the pending target action instead of replacing the unit selection.
 
+### JASS selection events
+
+`CMD_Select` publishes Warcraft selection events from the **final authoritative
+selection delta**. Newly added members publish `EVENT_PLAYER_UNIT_SELECTED` and
+`EVENT_UNIT_SELECTED`; removed members publish the corresponding deselection
+events. Re-sending an unchanged full selection publishes nothing.
+
+Do not publish events while `CMD_Select` temporarily clears and rebuilds the
+selection list. The client sends complete membership, so doing so would create
+false deselect/select pairs for units that remain selected. This event path is
+required by campaign tutorial triggers such as Prologue02's `G1_SelectPeon`
+sequence before later Peon-training stages can become active.
+
+`wc3_quest_debug 1` additionally prints `WC3_QUEST_SELECT` lines for the
+authoritative selected/deselected transitions, including player, entity number,
+and unit rawcode.
+
 ## Focused Unit In A Multi-Selection
 
 Selection membership and focused-unit presentation are separate state. The server
@@ -209,7 +226,8 @@ The following are deliberately not inferred by the current implementation:
 - neutral-shop patron interaction (`Aneu`/`Apit` remains unfinished);
 - data-driven `SelectionCircle` relationship colours;
 - Neutral Passive critter-specific selection response rules;
-- exact retail behavior for `ALLIANCE_SHARED_ADVANCED_CONTROL`.
+- exact retail behavior for `ALLIANCE_SHARED_ADVANCED_CONTROL`;
+- `EVENT_PLAYER_UNIT_SELECTED`/`DESELECTED` currently reuse the generic player-unit owner-matching dispatcher. This is sufficient for own-unit campaign/tutorial selections such as Prologue02 Peons, but selecting a foreign unit should ultimately bind/match the selecting player rather than the selected unit's owner.
 
 Combat reaction remains a separate gap from relationship classification:
 OpenRealm does not yet apply Warsmash's PEON suppression/`canFlee` civilian
@@ -222,7 +240,7 @@ Do not bypass these gaps by weakening `G_UnitCanControl` or by restoring owner c
 
 ## Verification
 
-In-engine coverage is in `games/warcraft-3/game/tests/t_api.c` and `t_unit.c` for relationship classification, visible foreign selectability, shared-control authority, dead-unit non-selectability, selection removal, Hero revival restoring selectability, and Warsmash priority/level/canonical-rawcode multiselect ordering. `t_items.c` additionally covers mixed-selection Smart item pickup with a non-inventory unit first in the selection.
+In-engine coverage is in `games/warcraft-3/game/tests/t_api.c` and `t_unit.c` for relationship classification, visible foreign selectability, shared-control authority, dead-unit non-selectability, selection removal, Hero revival restoring selectability, selection/deselection JASS event deltas, and Warsmash priority/level/canonical-rawcode multiselect ordering. `t_items.c` additionally covers mixed-selection Smart item pickup with a non-inventory unit first in the selection.
 
 Useful targeted commands after building the test binary:
 

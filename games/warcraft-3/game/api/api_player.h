@@ -259,16 +259,67 @@ DWORD GetPlayerId(LPJASS j) {
     return jass_pushinteger(j, whichPlayer ? (LONG)whichPlayer->number : 0);
 }
 DWORD GetPlayerUnitCount(LPJASS j) {
-    //LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
-    //BOOL includeIncomplete = jass_checkboolean(j, 2);
-    return jass_pushinteger(j, 0);
+    LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
+    BOOL includeIncomplete = jass_checkboolean(j, 2);
+    LONG count = 0;
+
+    if (!whichPlayer) return jass_pushinteger(j, 0);
+
+    FOR_LOOP(i, globals.num_edicts) {
+        LPEDICT ent = globals.edicts + i;
+
+        if (!ent->inuse || !ent->class_id ||
+            ent->s.player != PLAYER_NUM(whichPlayer) ||
+            G_UnitIsBuilding(ent->class_id) || M_IsDead(ent)) {
+            continue;
+        }
+        if (!includeIncomplete && ent->construction.active) {
+            continue;
+        }
+        count++;
+    }
+    return jass_pushinteger(j, count);
 }
+
+static BOOL PlayerTypedUnitNameMatches(LPEDICT ent, LPCSTR unitName) {
+    UnitProfile_t const *profile;
+
+    if (!ent || !ent->class_id || !unitName || !*unitName) return false;
+
+    /* UnitId2String() returns the four-character object id, while legacy
+     * campaign helpers also pass the unit's authored display/legacy name
+     * (for example "Peon"). Accept both representations. */
+    if (!strcmp(GetClassName(ent->class_id), unitName)) return true;
+
+    profile = G_UnitProfile(ent->class_id);
+    return profile && profile->name && !strcmp(profile->name, unitName);
+}
+
 DWORD GetPlayerTypedUnitCount(LPJASS j) {
-    //LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
-    //LPCSTR unitName = jass_checkstring(j, 2);
-    //BOOL includeIncomplete = jass_checkboolean(j, 3);
-    //BOOL includeUpgrades = jass_checkboolean(j, 4);
-    return jass_pushinteger(j, 0);
+    LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
+    LPCSTR unitName = jass_checkstring(j, 2);
+    BOOL includeIncomplete = jass_checkboolean(j, 3);
+    BOOL includeUpgrades = jass_checkboolean(j, 4);
+    LONG count = 0;
+
+    (void)includeUpgrades; /* Unit-type upgrade equivalence is not represented yet. */
+
+    if (!whichPlayer || !unitName || !*unitName) return jass_pushinteger(j, 0);
+
+    FOR_LOOP(i, globals.num_edicts) {
+        LPEDICT ent = globals.edicts + i;
+
+        if (!ent->inuse || !ent->class_id ||
+            ent->s.player != PLAYER_NUM(whichPlayer) || M_IsDead(ent) ||
+            !PlayerTypedUnitNameMatches(ent, unitName)) {
+            continue;
+        }
+        if (!includeIncomplete && ent->construction.active) {
+            continue;
+        }
+        count++;
+    }
+    return jass_pushinteger(j, count);
 }
 DWORD GetPlayerStructureCount(LPJASS j) {
     LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
