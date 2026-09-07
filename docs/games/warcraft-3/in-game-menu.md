@@ -13,6 +13,7 @@ The current reachable flow is:
 Menu/F10 -> MainPanel
   Pause/Return -> close menu / resume
   End Game     -> EndGamePanel
+    Restart    -> reload current mission
     Previous   -> MainPanel
     Quit       -> leave current game/front-end
     Exit       -> ConfirmQuitPanel
@@ -20,9 +21,11 @@ Menu/F10 -> MainPanel
       Confirm  -> exit application
 ```
 
-Save, Load, Options, Help, Tips, and Restart remain visibly disabled until their underlying behavior exists. Current Warsmash also
-disables `PauseButton`; OpenRealm deliberately retains its newer pause-menu behavior and labels that button `Resume Game`, with the
-same close action as Return.
+Save, Load, Options, Help, and Tips remain visibly disabled until their underlying behavior exists. OpenRealm enables the authored
+`RestartButton` for single-player missions, labels it `Restart Mission`, and routes it through the existing deferred current-map
+reload used by `RestartGame`; multiplayer keeps the button visible but disabled. Current Warsmash also disables `PauseButton`;
+OpenRealm deliberately retains its newer pause-menu behavior and labels that button `Resume Game`, with the same close action as
+Return.
 
 ## OpenRealm Data Flow
 
@@ -36,6 +39,7 @@ hud/hud_console.c
 G_ClientCommand
   menu              -> UI_ShowMainMenu
   menu_endgame      -> UI_ShowGameMenuEndGame
+  menu_restart      -> G_RequestRestartGame(false), single-player only
   menu_confirm_exit -> UI_ShowGameMenuConfirmExit
 
 hud/hud_menu.c
@@ -81,17 +85,20 @@ and manual camera movement; transport remains live so submenu and close commands
 
 ## Client-Owned Menu Actions
 
-`UI_WINDOW_CLOSE_ACTION`, `UI_WINDOW_CLOSE_NOTIFY_ACTION`, `UI_WINDOW_DISCONNECT_ACTION`, and `UI_WINDOW_QUIT_ACTION` are interpreted
-locally by `client/cl_window.c` rather than forwarded as game commands. The server authors which button exposes those tokens, but leave
-and application-exit only happen after explicit local activation. `disconnect_game` queues the generic deferred `MenuAction("menu",
-"menu_main")` session boundary; it must not call `CL_Disconnect()` and immediately show the menu while the campaign server/game module
-is still alive, because game teardown owns FDF/template state that the front-end must rebuild afterward.
+`UI_WINDOW_CLOSE_ACTION`, `UI_WINDOW_CLOSE_NOTIFY_ACTION`, `UI_WINDOW_CLOSE_COMMAND_PREFIX`, `UI_WINDOW_DISCONNECT_ACTION`, and
+`UI_WINDOW_QUIT_ACTION` are interpreted locally by `client/cl_window.c`. Restart uses `close_window_command menu_restart`, so the
+client forwards the server-owned restart request and immediately releases the menu's modal/pause ownership while the deferred map
+reload is pending. The server authors which button exposes those tokens, but leave and application-exit only happen after explicit
+local activation. `disconnect_game` queues the generic deferred `MenuAction("menu", "menu_main")` session boundary; it must not call
+`CL_Disconnect()` and immediately show the menu while the campaign server/game module is still alive, because game teardown owns
+FDF/template state that the front-end must rebuild afterward.
 
 Use ordinary `onclick` strings for server-owned state transitions such as `menu_endgame` and `menu_confirm_exit`.
 
 ## Known Gaps
 
-- Save, Load, Options, Help, Tips, and Restart remain disabled.
+- Save, Load, Options, Help, and Tips remain disabled.
+- Restart Mission is enabled only in single-player and reloads the current `map` cvar through `G_RequestRestartGame(false)`.
 - The in-game pause button is an OpenRealm extension over the cited current Warsmash behavior: both Pause and Return resume/close.
 - F10 opens the menu through the established OpenRealm binding. Current Warsmash Java itself wires the upper menu button but not its
   keyboard F10 route.
@@ -104,10 +111,11 @@ Do not validate this from the front-end menu: `svc_window` requires an active ga
 2. The first modal acquires pause only after the client receives the window; transport and UI remain responsive.
 3. Save/Load/Options/Help/Tips render disabled and do nothing.
 4. Pause and Return close the window and release the modal pause owner.
-5. End Game opens EndGamePanel; Restart is disabled and pause remains owned continuously.
-6. Quit Game leaves the world through the deferred session boundary and returns to a freshly rebuilt main menu with valid FDF bindings.
-7. Previous returns to MainPanel without closing/reopening the modal lifecycle.
-8. Quit leaves the map and returns to the Warcraft front-end.
-9. Exit opens ConfirmQuitPanel; Cancel returns to EndGamePanel.
-10. Confirm exits the application.
-11. Leaving the menu open beyond the client timeout interval does not disconnect or advance paused simulation.
+5. End Game opens EndGamePanel with `Restart Mission` before the authored Quit and Exit buttons.
+6. In single-player, Restart Mission closes the menu and reloads the current mission; in multiplayer it remains disabled.
+7. Quit Game leaves the world through the deferred session boundary and returns to a freshly rebuilt main menu with valid FDF bindings.
+8. Previous returns to MainPanel without closing/reopening the modal lifecycle.
+9. Quit leaves the map and returns to the Warcraft front-end.
+10. Exit opens ConfirmQuitPanel; Cancel returns to EndGamePanel.
+11. Confirm exits the application.
+12. Leaving the menu open beyond the client timeout interval does not disconnect or advance paused simulation.
