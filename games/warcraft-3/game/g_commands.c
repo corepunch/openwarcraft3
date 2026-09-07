@@ -1087,6 +1087,12 @@ CLIENTCOMMAND(MenuEndGame) {
     UI_ShowGameMenuEndGame(clent);
 }
 
+CLIENTCOMMAND(MenuRestart) {
+    (void)clent; (void)argc; (void)argv;
+    if (!G_IsSinglePlayer()) return;
+    G_RequestRestartGame(false);
+}
+
 CLIENTCOMMAND(MenuConfirmExit) {
     (void)argc; (void)argv;
     UI_ShowGameMenuConfirmExit(clent);
@@ -1807,6 +1813,7 @@ clientCommand_t clientCommands[] = {
     { "debugspawn", CMD_DebugSpawn },
     { "menu", CMD_Menu },
     { "menu_endgame", CMD_MenuEndGame },
+    { "menu_restart", CMD_MenuRestart },
     { "menu_confirm_exit", CMD_MenuConfirmExit },
     { "menu_save_game", CMD_MenuSaveGame },
     { "menu_load_game", CMD_MenuLoadGame },

@@ -242,19 +242,23 @@ void UI_LoadHudMenu(void) {
 
     /* Warsmash leaves these authored controls present but disabled. OpenRealm
      * wires the retail Save/Load panel to the existing serializer while keeping
-     * unsupported Delete/overwrite-confirm behavior disabled for now. */
+     * unsupported Delete/overwrite-confirm behavior disabled for now.
+     * Restart is backed by the same deferred current-map reload used by the
+     * JASS RestartGame native and the game-result dialog. */
     MenuConfigureMainSaveLoad();
     UI_SetEnabled(hud.menu.OptionsButton, false);
     UI_SetEnabled(hud.menu.HelpButton, false);
     UI_SetEnabled(hud.menu.TipsButton, false);
-    UI_SetEnabled(hud.menu.RestartButton, false);
 
     UI_SetText(hud.menu.PauseButtonText, "Resume Game");
     UI_SetText(hud.menu.ReturnButtonText, "Return to Game");
+    UI_SetText(hud.menu.RestartButtonText, "Restart Mission");
     UI_SetOnClick(hud.menu.PauseButton, UI_WINDOW_CLOSE_NOTIFY_ACTION);
     UI_SetOnClick(hud.menu.ReturnButton, UI_WINDOW_CLOSE_NOTIFY_ACTION);
     UI_SetOnClick(hud.menu.EndGameButton, "menu_endgame");
     UI_SetOnClick(hud.menu.PreviousButton, "menu");
+    UI_SetOnClick(hud.menu.RestartButton,
+        UI_WINDOW_CLOSE_COMMAND_PREFIX "menu_restart");
     UI_SetOnClick(hud.menu.QuitButton, UI_WINDOW_DISCONNECT_ACTION);
     UI_SetOnClick(hud.menu.ExitButton, "menu_confirm_exit");
     UI_SetOnClick(hud.menu.ConfirmQuitCancelButton, "menu_endgame");
@@ -306,6 +310,10 @@ static void MenuWrite(LPEDICT ent, menuPanel_t panel) {
         UI_SetCurrentClient(NULL);
         return;
     }
+    /* Restarting the authoritative current map is a single-player mission
+     * operation. Keep the authored button visible in multiplayer but disabled,
+     * and enforce the same policy again in the command handler. */
+    UI_SetEnabled(hud.menu.RestartButton, G_IsSinglePlayer());
     MenuSelectPanel(panel);
     UI_WriteWindow(ent, hud.menu.EscMenuMainPanel, &MAKE(uiWindowDef_t,
         .id = BZ_WC3_WINDOW_MENU, .class_id = BZ_WC3_WINDOW_MENU,
