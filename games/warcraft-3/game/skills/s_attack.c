@@ -220,6 +220,18 @@ static void damage_target(LPEDICT ent) {
     }
     LPEDICT other = ent->goalentity;
     int damage = G_AttackDamage(ent, other, ai_rolldamage1(ent, 1));
+    DWORD bash_level = G_UnitAbilityLevel(ent, MAKEFOURCC('A', 'H', 'b', 'h'));
+    if (bash_level && (FLOAT)(rand() % 100) < S_SpellData(MAKEFOURCC('A', 'H', 'b', 'h'), bash_level, 1)) {
+        damage += (int)S_SpellData(MAKEFOURCC('A', 'H', 'b', 'h'), bash_level, 3);
+        unit_addtimedstatus(other, "Bstu", 1, S_SpellDuration(MAKEFOURCC('A', 'H', 'b', 'h'), bash_level, false));
+    }
+    DWORD wind_level = G_UnitStatusLevel(ent, MAKEFOURCC('B', 'O', 'w', 'k'));
+    if (wind_level) {
+        damage += (int)S_SpellData(MAKEFOURCC('A', 'O', 'w', 'k'), wind_level, 3);
+        ent->s.renderfx &= ~RF_HIDDEN;
+        FOR_LOOP(i, MAX_UNIT_STATUSES)
+            if (ent->abilstatus[i].code == MAKEFOURCC('B', 'O', 'w', 'k')) memset(ent->abilstatus + i, 0, sizeof(ent->abilstatus[i]));
+    }
     T_Damage(other, ent, damage);
 }
 
@@ -345,6 +357,14 @@ static FLOAT attack_speed_divisor(LPEDICT self) {
                           ? game.constants.agiAttackSpeedBonus
                           : 0.02f;
     FLOAT total_bonus = (FLOAT)self->hero.agi * agi_bonus;
+    FOR_LOOP(i, globals.num_edicts) {
+        LPEDICT aura = g_edicts + i;
+        DWORD level = G_UnitAbilityLevel(aura, MAKEFOURCC('A', 'O', 'a', 'e'));
+        if (aura->inuse && level && S_SpellIsFriend(aura, self) &&
+            Vector2_distance(&aura->s.origin2, &self->s.origin2) <=
+            G_AbilityData(MAKEFOURCC('A', 'O', 'a', 'e'))->level[level - 1].area)
+            total_bonus += G_AbilityData(MAKEFOURCC('A', 'O', 'a', 'e'))->level[level - 1].data[1].number * 0.01f;
+    }
     /* Warsmash clamps total attack-speed bonus to [-90%, +400%]. OpenRealm
      * currently has only the Agility contribution, but keeping the clamp here
      * makes extreme/custom hero data follow the same timing bounds. */

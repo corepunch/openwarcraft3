@@ -1953,6 +1953,7 @@ BOOL unit_additemtoslot(LPEDICT, LPEDICT, DWORD);
 BOOL unit_additem(LPEDICT, LPEDICT);
 void unit_addstatus(LPEDICT, LPCSTR, DWORD);
 void unit_addtimedstatus(LPEDICT, LPCSTR, DWORD, FLOAT);
+DWORD G_UnitStatusLevel(LPCEDICT, DWORD);
 BOOL unit_statusshowstimedbar(DWORD);
 FLOAT unit_statusremainingfraction(heroabilitystatus_t const *);
 heroabilitystatus_t const *unit_findtimedbarstatus(LPCEDICT);

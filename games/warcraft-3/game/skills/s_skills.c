@@ -16,15 +16,15 @@ typedef struct {
 
 /* ROC/TFT physical data columns are normalized by the AbilityData DDX schema. */
 FLOAT AB_Data(LPCSTR classname, DWORD level, DWORD index) {
-    AbilityData_t const *row = G_AbilityDataName(classname);
-    level = MAX(1, MIN(level, 4)); index = MAX(1, MIN(index, 9));
-    return row->data[level - 1][index - 1];
+    abilityLevel_t const *row = G_AbilityLevel(FS_SLKKey(classname), level);
+    index = MAX(1, MIN(index, 9));
+    return row->data[index - 1].number;
 }
 
 DWORD AB_DataId(LPCSTR classname, DWORD level, DWORD index) {
-    AbilityData_t const *row = G_AbilityDataName(classname);
-    level = MAX(1, MIN(level, 4)); index = MAX(1, MIN(index, 9));
-    return row->dataId[level - 1][index - 1];
+    abilityLevel_t const *row = G_AbilityLevel(FS_SLKKey(classname), level);
+    index = MAX(1, MIN(index, 9));
+    return row->data[index - 1].id;
 }
 
 static abilityitem_t abilitylist[] = {
@@ -112,6 +112,11 @@ static abilityitem_t abilitylist[] = {
     /* Additional hero spells. */
     { "ANfs", &a_flame_strike },  /* Flame Strike (Pit Lord) */
     { "ANdr", &a_siphon_mana },  /* Siphon Mana (Blood Mage) */
+    { "AEmb", &a_mana_burn },     /* Mana Burn */
+    { "AOws", &a_war_stomp },     /* War Stomp */
+    { "AOae", &a_aura_endurance }, /* Endurance Aura */
+    { "AOwk", &a_wind_walk },     /* Wind Walk */
+    { "AHbh", &a_bash },          /* Bash */
 
 
 /* Missing WC3 abilities with Game.dll C++ class names */
@@ -125,7 +130,6 @@ static abilityitem_t abilitylist[] = {
 // TODO: { "ANsw", &a_force_of_nature },  // Summon Hawk — CAbilityForceOfNature [HERO] creeps
 // TODO: { "AOww", &a_whirlwind },  // Bladestorm — CAbilityWhirlwind [HERO] orc
 // TODO: { "AOcr", &a_critical_strike },  // Critical Strike — CAbilityCriticalStrike [HERO] orc
-// TODO: { "AOwk", &a_wind_walk },  // Wind Walk — CAbilityWindWalk [HERO] orc
 // TODO: { "AHbn", &a_spell },  // Banish — CAbilitySpell [HERO] human
 // TODO: { "AHfs", &a_rain_of_fire },  // Flame Strike — CAbilityRainOfFire [HERO] human
 // TODO: { "AHdr", &a_spell },  // Siphon Mana — CAbilitySpell [HERO] human
@@ -141,7 +145,6 @@ static abilityitem_t abilitylist[] = {
 // TODO: { "AUdp", &a_spell },  // Death Pact — CAbilitySpell [HERO] undead
 // TODO: { "AUau", &a_aura_regen_life },  // Unholy Aura — CAbilityAuraRegenLife [HERO] undead
 // TODO: { "AEev", &a_evasion },  // Evasion — CAbilityEvasion [HERO] nightelf
-// TODO: { "AEmb", &a_spell },  // Mana Burn — CAbilitySpell [HERO] nightelf
 // TODO: { "AEme", &a_morph },  // Metamorphosis — CAbilityMorph [HERO] nightelf
 // TODO: { "AUsl", &a_creep_sleep },  // Sleep — CAbilityCreepSleep [HERO] undead
 // TODO: { "AUav", &a_aura },  // Vampiric Aura — CAbilityAura [HERO] undead
@@ -159,7 +162,6 @@ static abilityitem_t abilitylist[] = {
 // TODO: { "AUfu", &a_spell },  // Frost Armor — CAbilitySpell [HERO] undead
 // TODO: { "AUfn", &a_frost_nova },  // Frost Nova — CAbilityFrostNova [HERO] undead
 // TODO: { "AHav", &a_attribute_mod },  // Avatar — CAbilityAttributeMod [HERO] human
-// TODO: { "AHbh", &a_bash },  // Bash — CAbilityBash [HERO] human
 // TODO: { "AHtc", &a_thunder_clap },  // Thunder Clap — CAbilityThunderClap [HERO] human
 // TODO: { "ANfl", &a_bounce },  // Forked Lightning — CAbilityBounce [HERO] creeps
 // TODO: { "ANto", &a_whirlwind },  // Tornado — CAbilityWhirlwind [HERO] creeps
@@ -178,10 +180,8 @@ static abilityitem_t abilitylist[] = {
 // TODO: { "AEst", &a_button },  // Scout — CAbilityButton [HERO] nightelf
 // TODO: { "AEsf", &a_whirlwind },  // Starfall — CAbilityWhirlwind [HERO] nightelf
 // TODO: { "AEar", &a_aura },  // Trueshot Aura — CAbilityAura [HERO] nightelf
-// TODO: { "AOae", &a_aura_endurance },  // Endurance Aura — CAbilityAuraEndurance [HERO] orc
 // TODO: { "AOre", &a_reincarnation },  // Reincarnation — CAbilityReincarnation [HERO] orc
 // TODO: { "AOsh", &a_shockwave },  // Shockwave — CAbilityShockwave [HERO] orc
-// TODO: { "AOws", &a_war_stomp },  // War Stomp — CAbilityWarStomp [HERO] orc
 // TODO: { "AOhw", &a_spell },  // Healing Wave — CAbilitySpell [HERO] orc
 // TODO: { "AOhx", &a_spell },  // Hex — CAbilitySpell [HERO] orc
 // TODO: { "AOwd", &a_unknown },  // Shadow Hunter - Serpent Ward — CAbility [HERO] orc

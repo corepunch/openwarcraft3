@@ -65,10 +65,18 @@ DWORD S_SpellLevel(LPEDICT caster, DWORD code) {
 }
 
 FLOAT S_SpellNumber(DWORD code, abilityNumber_t field, DWORD level) {
-    AbilityData_t const *row = G_AbilityData(code);
-    FLOAT const *values[] = { row->cast, row->dur, row->heroDur, row->cool, row->cost, row->area, row->range };
+    abilityLevel_t const *row = G_AbilityLevel(code, level);
     level = MAX(1, MIN(level, 4));
-    return values[field][level - 1];
+    switch (field) {
+    case ABILITY_NUMBER_CAST: return row->cast;
+    case ABILITY_NUMBER_DURATION: return row->dur;
+    case ABILITY_NUMBER_HERO_DURATION: return row->heroDur;
+    case ABILITY_NUMBER_COOLDOWN: return row->cool;
+    case ABILITY_NUMBER_COST: return row->cost;
+    case ABILITY_NUMBER_AREA: return row->area;
+    case ABILITY_NUMBER_RANGE: return row->range;
+    }
+    return 0.0f;
 }
 
 LPCSTR S_SpellString(DWORD code, LPCSTR field, DWORD level) {
@@ -105,8 +113,7 @@ DWORD S_SpellDataId(DWORD code, DWORD level, DWORD index) {
 }
 
 DWORD S_SpellUnitId(DWORD code, DWORD level) {
-    level = MAX(1, MIN(level, 4));
-    return G_AbilityData(code)->unitID[level - 1];
+    return G_AbilityLevel(code, level)->unitID;
 }
 
 FLOAT S_SpellRange(DWORD code, DWORD level) {
@@ -268,7 +275,7 @@ BOOL S_SpellAllowsTarget(DWORD code, LPEDICT caster, LPEDICT target) {
     if (!S_SpellIsAliveTarget(target)) {
         return false;
     }
-    targets = G_AbilityData(code)->targs[0];
+    targets = G_AbilityLevel(code, 1)->targs;
     if (!targets) {
         return true;
     }

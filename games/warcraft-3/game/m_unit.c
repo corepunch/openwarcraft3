@@ -607,8 +607,8 @@ static BOOL unit_raven_form_data(LPEDICT unit, ravenFormData_t *out) {
     if (!unit || !out) return false;
     FOR_LOOP(i, sizeof(candidates) / sizeof(candidates[0])) {
         AbilityData_t const *ability = G_AbilityData(candidates[i].id);
-        DWORD const base_type = ability->dataId[0][0];
-        DWORD const raven_type = ability->unitID[0];
+        DWORD const base_type = ability->level[0].data[0].id;
+        DWORD const raven_type = ability->level[0].unitID;
         ravenFormData_t current;
 
         if (!ability->id || !base_type || !raven_type) continue;
@@ -894,7 +894,7 @@ FLOAT G_UnitArmorValue(LPCEDICT ent) {
         if (status->level && status->code == MAKEFOURCC('B', 'd', 'e', 'f')) {
             DWORD level = MAX(1, MIN(status->level, 4));
             AbilityData_t const *ability = G_AbilityData(MAKEFOURCC('A', 'I', 'd', 'a'));
-            armor += ability->data[level - 1][0];
+            armor += ability->level[level - 1].data[0].number;
         }
     }
     return armor;
@@ -924,6 +924,9 @@ void unit_updatestatuses(LPEDICT ent) {
         if (now >= status->timestamp) {
             if (unit_status_timedlife(status->code)) {
                 kill = true;
+            }
+            if (status->code == MAKEFOURCC('B', 'O', 'w', 'k')) {
+                ent->s.renderfx &= ~RF_HIDDEN;
             }
             if (status->code == MAKEFOURCC('B', 'm', 'i', 'l')) {
                 militia_expired = true;
@@ -1014,6 +1017,15 @@ void unit_addtimedstatus(LPEDICT ent, LPCSTR skill, DWORD level, FLOAT duration)
 
 void unit_addstatus(LPEDICT ent, LPCSTR skill, DWORD level) {
     unit_addtimedstatus(ent, skill, level, 0);
+}
+
+DWORD G_UnitStatusLevel(LPCEDICT ent, DWORD code) {
+    if (!ent || !code) return 0;
+    FOR_LOOP(i, MAX_UNIT_STATUSES)
+        if (ent->abilstatus[i].level && ent->abilstatus[i].code == code &&
+            (!ent->abilstatus[i].timestamp || ent->abilstatus[i].timestamp > G_Time()))
+            return ent->abilstatus[i].level;
+    return 0;
 }
 
 static heroability_t *G_FindRuntimeAbility(LPEDICT ent, DWORD abilcode) {

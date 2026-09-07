@@ -49,8 +49,8 @@ static DWORD return_resources_mask(LPCSTR ability) {
     data = G_AbilityDataName(ability);
     if (!data)
         return 0;
-    if (data->data[0][0]) mask |= RETURN_RESOURCE_GOLD;
-    if (data->data[0][1]) mask |= RETURN_RESOURCE_LUMBER;
+    if (data->level[0].data[0].number) mask |= RETURN_RESOURCE_GOLD;
+    if (data->level[0].data[1].number) mask |= RETURN_RESOURCE_LUMBER;
     return mask;
 }
 
@@ -651,8 +651,8 @@ static void wisp_harvest_command(LPEDICT clent) {
 }
 
 static void SP_ability_wisp_harvest(LPCSTR classname, ability_t *self) {
-    wisp_lumber_per_interval = G_AbilityDataName(classname)->data[0][0];
-    wisp_interval_count = (DWORD)G_AbilityDataName(classname)->data[0][1];
+    wisp_lumber_per_interval = G_AbilityDataName(classname)->level[0].data[0].number;
+    wisp_interval_count = (DWORD)G_AbilityDataName(classname)->level[0].data[1].number;
 }
 
 ability_t a_wisp_harvest = {
@@ -738,9 +738,9 @@ void SP_ability_harvest(LPCSTR classname, ability_t *self) {
     HARVEST_TREE_DAMAGE = AB_Data(classname, 1, 1);     /* lumber/tree-HP per swing */
     HARVEST_LUMBER_CAPACITY = AB_Data(classname, 1, 2); /* max lumber to carry */
     HARVEST_GOLD_CAPACITY = AB_Data(classname, 1, 3);
-    HARVEST_RANGE = G_AbilityDataName(classname)->range[0];
-    HARVEST_COOLDOWN = G_AbilityDataName(classname)->dur[0];
-    HARVEST_SEARCH_RANGE = G_AbilityDataName(classname)->area[0];
+    HARVEST_RANGE = G_AbilityDataName(classname)->level[0].range;
+    HARVEST_COOLDOWN = G_AbilityDataName(classname)->level[0].dur;
+    HARVEST_SEARCH_RANGE = G_AbilityDataName(classname)->level[0].area;
 }
 
 ability_t a_harvest = {

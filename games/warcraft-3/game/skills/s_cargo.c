@@ -43,7 +43,7 @@ void cargo_drop_all(LPEDICT transport) {
 }
 
 static void SP_ability_cargo_hold(LPCSTR classname, ability_t *self) {
-    cargo_capacity_value = G_AbilityDataName(classname)->data[0][0];
+    cargo_capacity_value = G_AbilityDataName(classname)->level[0].data[0].number;
 }
 
 ability_t a_cargo_hold = {

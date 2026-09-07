@@ -267,16 +267,24 @@ typedef struct {
  * AbilityData.slk
  * =========================================================================*/
 typedef struct {
+    FLOAT number;
+    DWORD id;
+} abilityDataValue_t;
+
+typedef struct {
+    LPCSTR targs;
+    FLOAT cast, dur, heroDur, cool, cost, area, range;
+    abilityDataValue_t data[9];
+    DWORD unitID;
+    LPCSTR buffID, efctID;
+} abilityLevel_t;
+
+typedef struct {
     DWORD id, code, uberAlias;
     LPCSTR comments, sort, race;
     LONG version, levels, reqLevel, levelSkip, priority;
     BOOL useInEditor, hero, item, checkDep, InBeta;
-    LPCSTR targs[4];
-    FLOAT cast[4], dur[4], heroDur[4], cool[4], cost[4], area[4], range[4];
-    FLOAT data[4][9];
-    DWORD dataId[4][9]; /* parallel rawcode view for ID-valued DataA..DataI fields */
-    DWORD unitID[4];
-    LPCSTR buffID[4], efctID[4];
+    abilityLevel_t level[4];
     LPCSTR castCheck, durCheck, heroDurCheck, coolCheck, costCheck, areaCheck, rangeCheck;
 } AbilityData_t;
 
@@ -461,6 +469,7 @@ UnitWeapons_t const *G_UnitWeapons(DWORD id);
 UnitAbilities_t    const *G_UnitAbil(DWORD id);
 AbilityData_t const *G_AbilityData(DWORD id);
 AbilityData_t const *G_AbilityDataName(LPCSTR name);
+abilityLevel_t const *G_AbilityLevel(DWORD id, DWORD level);
 AbilityBuffData_t const *G_AbilityBuffData(DWORD id);
 DWORD G_AbilityCode(DWORD id);
 DWORD G_AbilityCodeName(LPCSTR name);

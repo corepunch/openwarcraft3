@@ -2013,7 +2013,7 @@ TEST(wc3_building, repair_walk_handoff_requires_actual_contact) {
     setup_test_world();
     repair = (AbilityData_t *)G_AbilityData(MAKEFOURCC('A','r','e','n'));
     T_NOT_NULL(repair);
-    repair->range[0] = 50.0f;
+    repair->level[0].range = 50.0f;
 
     worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
     building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 200, 0);
@@ -2041,7 +2041,7 @@ TEST(wc3_building, repair_walk_handoff_requires_actual_contact) {
     T_ASSERT(S_OrderRepair(worker, building, MAKEFOURCC('A','r','e','n')));
     T_STREQ(worker->currentmove->animation, "walk");
 
-    interaction = worker->collision + building->collision + repair->range[0];
+    interaction = worker->collision + building->collision + repair->level[0].range;
     step = unit_movedistance(worker);
     worker->s.origin2.x = building->s.origin2.x - interaction - step * 0.5f;
     worker->s.origin2.y = building->s.origin2.y;
@@ -2107,7 +2107,7 @@ TEST(wc3_building, primary_human_builder_ignores_datad_but_extra_builder_require
     setup_test_world();
     repair = (AbilityData_t *)G_AbilityData(MAKEFOURCC('A','r','e','p'));
     T_NOT_NULL(repair);
-    repair->data[0][3] = 0.0f;
+    repair->level[0].data[3].number = 0.0f;
 
     primary = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
     extra = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 64);

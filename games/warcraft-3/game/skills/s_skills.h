@@ -80,6 +80,11 @@ extern ability_t a_item_defense_aoe;
 extern ability_t a_item_change_time;
 extern ability_t a_flame_strike;
 extern ability_t a_siphon_mana;
+extern ability_t a_mana_burn;
+extern ability_t a_war_stomp;
+extern ability_t a_aura_endurance;
+extern ability_t a_wind_walk;
+extern ability_t a_bash;
 
 FLOAT AB_Data(LPCSTR classname, DWORD level, DWORD index);
 DWORD AB_DataId(LPCSTR classname, DWORD level, DWORD index);

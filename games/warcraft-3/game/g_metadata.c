@@ -424,9 +424,21 @@ static slkField_t const abil_schema[] = {
     { NULL, 0, 0 }
 };
 
-#define AB_F(NAME, FIELD, LEVEL, TYPE) { NAME, offsetof(AbilityData_t, FIELD[LEVEL]), TYPE }
-#define AB_D(NAME, LEVEL, SLOT) { NAME, offsetof(AbilityData_t, data[LEVEL][SLOT]), STB_SLK_FLOAT }
-#define AB_ID(NAME, LEVEL, SLOT) { NAME, offsetof(AbilityData_t, dataId[LEVEL][SLOT]), STB_SLK_FOURCC }
+#define AB_F(NAME, FIELD, LEVEL, TYPE) { NAME, offsetof(AbilityData_t, level[LEVEL].FIELD), TYPE }
+#define AB_D(NAME, LEVEL, SLOT) { NAME, offsetof(AbilityData_t, level[LEVEL].data[SLOT].number), STB_SLK_FLOAT }
+#define AB_ID(NAME, LEVEL, SLOT) { NAME, offsetof(AbilityData_t, level[LEVEL].data[SLOT].id), STB_SLK_FOURCC }
+#define AB_F_LEVELS(NAME, FIELD, TYPE) \
+    AB_F(NAME "1", FIELD, 0, TYPE), AB_F(NAME "2", FIELD, 1, TYPE), \
+    AB_F(NAME "3", FIELD, 2, TYPE), AB_F(NAME "4", FIELD, 3, TYPE)
+#define AB_D_LEVELS(NAME, SLOT) \
+    AB_D(NAME "1", 0, SLOT), AB_D(NAME "2", 1, SLOT), \
+    AB_D(NAME "3", 2, SLOT), AB_D(NAME "4", 3, SLOT)
+#define AB_ID_LEVELS(NAME, SLOT) \
+    AB_ID(NAME "1", 0, SLOT), AB_ID(NAME "2", 1, SLOT), \
+    AB_ID(NAME "3", 2, SLOT), AB_ID(NAME "4", 3, SLOT)
+#define AB_D_ROW(NAME, LEVEL) \
+    AB_D(NAME "1", LEVEL, 0), AB_D(NAME "2", LEVEL, 1), \
+    AB_D(NAME "3", LEVEL, 2), AB_D(NAME "4", LEVEL, 3)
 static slkField_t const ability_schema[] = {
     { "",            offsetof(AbilityData_t, id),          STB_SLK_FOURCC },
     { "code",        offsetof(AbilityData_t, code),        STB_SLK_FOURCC },
@@ -443,51 +455,28 @@ static slkField_t const ability_schema[] = {
     { "reqLevel",    offsetof(AbilityData_t, reqLevel),    STB_SLK_INT    },
     { "levelSkip",   offsetof(AbilityData_t, levelSkip),   STB_SLK_INT    }, /* TFT */
     { "priority",    offsetof(AbilityData_t, priority),    STB_SLK_INT    }, /* TFT */
-    { "targs",       offsetof(AbilityData_t, targs[0]),    STB_SLK_STR    }, /* ROC */
-    AB_F("targs1", targs, 0, STB_SLK_STR), AB_F("targs2", targs, 1, STB_SLK_STR),
-    AB_F("targs3", targs, 2, STB_SLK_STR), AB_F("targs4", targs, 3, STB_SLK_STR),
-    AB_F("Cast1", cast, 0, STB_SLK_FLOAT), AB_F("Cast2", cast, 1, STB_SLK_FLOAT),
-    AB_F("Cast3", cast, 2, STB_SLK_FLOAT), AB_F("Cast4", cast, 3, STB_SLK_FLOAT),
-    AB_F("Dur1", dur, 0, STB_SLK_FLOAT), AB_F("Dur2", dur, 1, STB_SLK_FLOAT),
-    AB_F("Dur3", dur, 2, STB_SLK_FLOAT), AB_F("Dur4", dur, 3, STB_SLK_FLOAT),
-    AB_F("HeroDur1", heroDur, 0, STB_SLK_FLOAT), AB_F("HeroDur2", heroDur, 1, STB_SLK_FLOAT),
-    AB_F("HeroDur3", heroDur, 2, STB_SLK_FLOAT), AB_F("HeroDur4", heroDur, 3, STB_SLK_FLOAT),
-    AB_F("Cool1", cool, 0, STB_SLK_FLOAT), AB_F("Cool2", cool, 1, STB_SLK_FLOAT),
-    AB_F("Cool3", cool, 2, STB_SLK_FLOAT), AB_F("Cool4", cool, 3, STB_SLK_FLOAT),
-    AB_F("Cost1", cost, 0, STB_SLK_FLOAT), AB_F("Cost2", cost, 1, STB_SLK_FLOAT),
-    AB_F("Cost3", cost, 2, STB_SLK_FLOAT), AB_F("Cost4", cost, 3, STB_SLK_FLOAT),
-    AB_F("Area1", area, 0, STB_SLK_FLOAT), AB_F("Area2", area, 1, STB_SLK_FLOAT),
-    AB_F("Area3", area, 2, STB_SLK_FLOAT), AB_F("Area4", area, 3, STB_SLK_FLOAT),
-    AB_F("Rng1", range, 0, STB_SLK_FLOAT), AB_F("Rng2", range, 1, STB_SLK_FLOAT),
-    AB_F("Rng3", range, 2, STB_SLK_FLOAT), AB_F("Rng4", range, 3, STB_SLK_FLOAT),
-    AB_D("Data11", 0, 0), AB_D("Data12", 0, 1), AB_D("Data13", 0, 2), AB_D("Data14", 0, 3),
-    AB_D("Data21", 1, 0), AB_D("Data22", 1, 1), AB_D("Data23", 1, 2), AB_D("Data24", 1, 3),
-    AB_D("Data31", 2, 0), AB_D("Data32", 2, 1), AB_D("Data33", 2, 2), AB_D("Data34", 2, 3),
-    AB_D("DataA1", 0, 0), AB_D("DataB1", 0, 1), AB_D("DataC1", 0, 2), AB_D("DataD1", 0, 3),
-    AB_D("DataE1", 0, 4), AB_D("DataF1", 0, 5), AB_D("DataG1", 0, 6), AB_D("DataH1", 0, 7), AB_D("DataI1", 0, 8),
-    AB_D("DataA2", 1, 0), AB_D("DataB2", 1, 1), AB_D("DataC2", 1, 2), AB_D("DataD2", 1, 3),
-    AB_D("DataE2", 1, 4), AB_D("DataF2", 1, 5), AB_D("DataG2", 1, 6), AB_D("DataH2", 1, 7), AB_D("DataI2", 1, 8),
-    AB_D("DataA3", 2, 0), AB_D("DataB3", 2, 1), AB_D("DataC3", 2, 2), AB_D("DataD3", 2, 3),
-    AB_D("DataE3", 2, 4), AB_D("DataF3", 2, 5), AB_D("DataG3", 2, 6), AB_D("DataH3", 2, 7), AB_D("DataI3", 2, 8),
-    AB_D("DataA4", 3, 0), AB_D("DataB4", 3, 1), AB_D("DataC4", 3, 2), AB_D("DataD4", 3, 3),
-    AB_D("DataE4", 3, 4), AB_D("DataF4", 3, 5), AB_D("DataG4", 3, 6), AB_D("DataH4", 3, 7), AB_D("DataI4", 3, 8),
+    { "targs",       offsetof(AbilityData_t, level[0].targs), STB_SLK_STR }, /* ROC */
+    AB_F_LEVELS("targs", targs, STB_SLK_STR),
+    AB_F_LEVELS("Cast", cast, STB_SLK_FLOAT),
+    AB_F_LEVELS("Dur", dur, STB_SLK_FLOAT),
+    AB_F_LEVELS("HeroDur", heroDur, STB_SLK_FLOAT),
+    AB_F_LEVELS("Cool", cool, STB_SLK_FLOAT),
+    AB_F_LEVELS("Cost", cost, STB_SLK_FLOAT),
+    AB_F_LEVELS("Area", area, STB_SLK_FLOAT),
+    AB_F_LEVELS("Rng", range, STB_SLK_FLOAT),
+    AB_D_ROW("Data1", 0), AB_D_ROW("Data2", 1), AB_D_ROW("Data3", 2),
+    AB_D_LEVELS("DataA", 0), AB_D_LEVELS("DataB", 1), AB_D_LEVELS("DataC", 2),
+    AB_D_LEVELS("DataD", 3), AB_D_LEVELS("DataE", 4), AB_D_LEVELS("DataF", 5),
+    AB_D_LEVELS("DataG", 6), AB_D_LEVELS("DataH", 7), AB_D_LEVELS("DataI", 8),
     /* Some Warcraft abilities store raw object IDs in the generic Data slots.
      * Keep a parallel FOURCC view so gameplay can consume those fields without
      * changing the existing numeric Data parser used by other abilities/tooltips. */
-    AB_ID("DataA1", 0, 0), AB_ID("DataB1", 0, 1), AB_ID("DataC1", 0, 2), AB_ID("DataD1", 0, 3),
-    AB_ID("DataE1", 0, 4), AB_ID("DataF1", 0, 5), AB_ID("DataG1", 0, 6), AB_ID("DataH1", 0, 7), AB_ID("DataI1", 0, 8),
-    AB_ID("DataA2", 1, 0), AB_ID("DataB2", 1, 1), AB_ID("DataC2", 1, 2), AB_ID("DataD2", 1, 3),
-    AB_ID("DataE2", 1, 4), AB_ID("DataF2", 1, 5), AB_ID("DataG2", 1, 6), AB_ID("DataH2", 1, 7), AB_ID("DataI2", 1, 8),
-    AB_ID("DataA3", 2, 0), AB_ID("DataB3", 2, 1), AB_ID("DataC3", 2, 2), AB_ID("DataD3", 2, 3),
-    AB_ID("DataE3", 2, 4), AB_ID("DataF3", 2, 5), AB_ID("DataG3", 2, 6), AB_ID("DataH3", 2, 7), AB_ID("DataI3", 2, 8),
-    AB_ID("DataA4", 3, 0), AB_ID("DataB4", 3, 1), AB_ID("DataC4", 3, 2), AB_ID("DataD4", 3, 3),
-    AB_ID("DataE4", 3, 4), AB_ID("DataF4", 3, 5), AB_ID("DataG4", 3, 6), AB_ID("DataH4", 3, 7), AB_ID("DataI4", 3, 8),
-    AB_F("UnitID1", unitID, 0, STB_SLK_FOURCC), AB_F("UnitID2", unitID, 1, STB_SLK_FOURCC),
-    AB_F("UnitID3", unitID, 2, STB_SLK_FOURCC), AB_F("UnitID4", unitID, 3, STB_SLK_FOURCC),
-    AB_F("BuffID1", buffID, 0, STB_SLK_STR), AB_F("BuffID2", buffID, 1, STB_SLK_STR),
-    AB_F("BuffID3", buffID, 2, STB_SLK_STR), AB_F("BuffID4", buffID, 3, STB_SLK_STR),
-    AB_F("EfctID1", efctID, 0, STB_SLK_STR), AB_F("EfctID2", efctID, 1, STB_SLK_STR),
-    AB_F("EfctID3", efctID, 2, STB_SLK_STR), AB_F("EfctID4", efctID, 3, STB_SLK_STR),
+    AB_ID_LEVELS("DataA", 0), AB_ID_LEVELS("DataB", 1), AB_ID_LEVELS("DataC", 2),
+    AB_ID_LEVELS("DataD", 3), AB_ID_LEVELS("DataE", 4), AB_ID_LEVELS("DataF", 5),
+    AB_ID_LEVELS("DataG", 6), AB_ID_LEVELS("DataH", 7), AB_ID_LEVELS("DataI", 8),
+    AB_F_LEVELS("UnitID", unitID, STB_SLK_FOURCC),
+    AB_F_LEVELS("BuffID", buffID, STB_SLK_STR),
+    AB_F_LEVELS("EfctID", efctID, STB_SLK_STR),
     { "CastCheck",    offsetof(AbilityData_t, castCheck),    STB_SLK_STR }, /* ROC */
     { "DurCheck",     offsetof(AbilityData_t, durCheck),     STB_SLK_STR }, /* ROC */
     { "HeroDurCheck", offsetof(AbilityData_t, heroDurCheck), STB_SLK_STR }, /* ROC */
@@ -501,6 +490,10 @@ static slkField_t const ability_schema[] = {
 #undef AB_ID
 #undef AB_D
 #undef AB_F
+#undef AB_ID_LEVELS
+#undef AB_D_LEVELS
+#undef AB_D_ROW
+#undef AB_F_LEVELS
 
 static slkField_t const ability_buff_schema[] = {
     { "",            offsetof(AbilityBuffData_t, id),          STB_SLK_FOURCC },
@@ -1384,6 +1377,11 @@ UnitWeapons_t const *G_UnitWeapons(DWORD id) { static UnitWeapons_t zero; UnitWe
 UnitAbilities_t const *G_UnitAbil(DWORD id) { static UnitAbilities_t zero; UnitAbilities_t *row = FS_SLKLookup(&abil_idx, ResolveUnitID(id)); return row ? row : &zero; }
 AbilityData_t const *G_AbilityData(DWORD id) { static AbilityData_t zero; AbilityData_t *row = FS_SLKLookup(&ability_idx, id); return row ? row : &zero; }
 AbilityData_t const *G_AbilityDataName(LPCSTR name) { return G_AbilityData(FS_SLKKey(name)); }
+abilityLevel_t const *G_AbilityLevel(DWORD id, DWORD level) {
+    AbilityData_t const *row = G_AbilityData(id);
+    level = MAX(1, MIN(level, 4));
+    return row->level + level - 1;
+}
 AbilityBuffData_t const *G_AbilityBuffData(DWORD id) { static AbilityBuffData_t zero; AbilityBuffData_t *row = FS_SLKLookup(&ability_buff_idx, id); return row ? row : &zero; }
 DWORD G_AbilityCode(DWORD id) { DWORD code = G_AbilityData(id)->code; return code ? code : id; }
 DWORD G_AbilityCodeName(LPCSTR name) { return G_AbilityCode(FS_SLKKey(name)); }

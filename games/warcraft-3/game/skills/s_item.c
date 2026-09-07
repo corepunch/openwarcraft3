@@ -137,7 +137,7 @@ static BOOL item_defense_aoe_command(LPEDICT clent) {
     AbilityData_t const *data = G_AbilityData(code);
     FLOAT bonus = S_SpellData(code, level, 1);
     FLOAT area = S_SpellNumber(code, ABILITY_NUMBER_AREA, level);
-    LPCSTR buff = data->buffID[level - 1];
+    LPCSTR buff = data->level[level - 1].buffID;
     DWORD affected = 0;
 
     if (!caster || bonus <= 0.0f || area < 0.0f || !buff || strlen(buff) < 4) {

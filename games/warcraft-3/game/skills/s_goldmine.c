@@ -161,21 +161,21 @@ BOOL S_GoldMineIsMine(LPCEDICT mine) {
 
 DWORD S_GoldMineMaximumGold(LPCEDICT mine) {
     AbilityData_t const *data = goldmine_ability_data(mine);
-    if (!data || data->data[0][0] <= 0)
+    if (!data || data->level[0].data[0].number <= 0)
         return 0;
-    return (DWORD)data->data[0][0];
+    return (DWORD)data->level[0].data[0].number;
 }
 
 FLOAT S_GoldMineMiningDuration(LPCEDICT mine) {
     AbilityData_t const *data = goldmine_ability_data(mine);
-    return data ? MAX(0.0f, data->data[0][1]) : 0.0f;
+    return data ? MAX(0.0f, data->level[0].data[1].number) : 0.0f;
 }
 
 DWORD S_GoldMineCapacity(LPCEDICT mine) {
     AbilityData_t const *data = goldmine_ability_data(mine);
-    if (!data || data->data[0][2] <= 0)
+    if (!data || data->level[0].data[2].number <= 0)
         return 0;
-    return (DWORD)data->data[0][2];
+    return (DWORD)data->level[0].data[2].number;
 }
 
 BOOL S_GoldMineCanHarvest(LPCEDICT mine) {
@@ -617,8 +617,8 @@ void blight_mine_think(LPEDICT ent) {
 }
 
 static void SP_ability_blighted_goldmine(LPCSTR classname, ability_t *self) {
-    blight_gold_per_interval = G_AbilityDataName(classname)->data[0][0];
-    blight_interval_duration = G_AbilityDataName(classname)->data[0][1];
+    blight_gold_per_interval = G_AbilityDataName(classname)->level[0].data[0].number;
+    blight_interval_duration = G_AbilityDataName(classname)->level[0].data[1].number;
 }
 
 ability_t a_blighted_goldmine = {

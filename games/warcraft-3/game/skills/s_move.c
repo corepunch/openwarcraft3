@@ -179,7 +179,18 @@ void move_reset_progress(LPEDICT self) {
 
 /* Effective current move speed of a unit (runtime override, else data table). */
 static FLOAT unit_effective_speed(LPEDICT ent) {
-    return ent->unitinfo.MoveSpeed > 0 ? ent->unitinfo.MoveSpeed : ent->data.UnitBalance->speed;
+    FLOAT speed = ent->unitinfo.MoveSpeed > 0 ? ent->unitinfo.MoveSpeed : ent->data.UnitBalance->speed;
+    DWORD level = G_UnitStatusLevel(ent, MAKEFOURCC('B', 'O', 'w', 'k'));
+    if (level) speed *= 1.0f + G_AbilityLevel(MAKEFOURCC('A', 'O', 'w', 'k'), level)->data[0].number * 0.01f;
+    FOR_LOOP(i, globals.num_edicts) {
+        LPEDICT aura = g_edicts + i;
+        DWORD aura_level = G_UnitAbilityLevel(aura, MAKEFOURCC('A', 'O', 'a', 'e'));
+        if (aura->inuse && aura_level && S_SpellIsFriend(aura, ent) &&
+            Vector2_distance(&aura->s.origin2, &ent->s.origin2) <=
+            G_AbilityLevel(MAKEFOURCC('A', 'O', 'a', 'e'), aura_level)->area)
+            speed *= 1.0f + G_AbilityLevel(MAKEFOURCC('A', 'O', 'a', 'e'), aura_level)->data[0].number * 0.01f;
+    }
+    return speed;
 }
 
 /* Slowest move speed across a group, so the whole group travels at it. */
