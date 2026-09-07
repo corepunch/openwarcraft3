@@ -204,9 +204,9 @@ static void death_pact_execute(LPEDICT caster, spellTarget_t st, spell_info_t co
     T_Damage(st.entity, caster, (int)MAX(1.0f, st.entity->health.value));
 }
 
-static void chain_lightning_execute(LPEDICT caster, spellTarget_t st, spell_info_t const *spell) {
+static void bounce_execute(LPEDICT caster, spellTarget_t st, spell_info_t const *spell, FLOAT scale) {
     DWORD level = S_SpellLevel(caster, spell->code), hits = (DWORD)S_SpellData(spell->code, level, 2);
-    FLOAT damage = S_SpellData(spell->code, level, 1), scale = 1.0f - S_SpellData(spell->code, level, 3);
+    FLOAT damage = S_SpellData(spell->code, level, 1);
     LPEDICT current = st.entity, visited[32] = {0};
     DWORD nvisited = 0;
     FOR_LOOP(i, MIN(hits, 32)) {
@@ -222,6 +222,15 @@ static void chain_lightning_execute(LPEDICT caster, spellTarget_t st, spell_info
         }
         current = next;
     }
+}
+
+static void chain_lightning_execute(LPEDICT caster, spellTarget_t st, spell_info_t const *spell) {
+    DWORD level = S_SpellLevel(caster, spell->code);
+    bounce_execute(caster, st, spell, 1.0f - S_SpellData(spell->code, level, 3));
+}
+
+static void forked_lightning_execute(LPEDICT caster, spellTarget_t st, spell_info_t const *spell) {
+    bounce_execute(caster, st, spell, 1.0f);
 }
 
 static void animate_dead_execute(LPEDICT caster, spellTarget_t st, spell_info_t const *spell) {
@@ -270,5 +279,6 @@ SPELL(metamorphosis, ('A','E','m','e'), SPELL_TARGET_NONE, 0, morph_execute);
 SPELL(sleep, ('A','U','s','l'), SPELL_TARGET_UNIT, 0, target_status_execute);
 SPELL(inferno, ('A','U','i','n'), SPELL_TARGET_POINT, 0, inferno_execute);
 SPELL(chain_lightning, ('A','O','c','l'), SPELL_TARGET_UNIT, 0, chain_lightning_execute);
+SPELL(forked_lightning, ('A','N','f','l'), SPELL_TARGET_UNIT, 0, forked_lightning_execute);
 SPELL(earthquake, ('A','O','e','q'), SPELL_TARGET_POINT, SPELL_CHANNEL, earthquake_execute);
 SPELL(far_sight, ('A','O','f','s'), SPELL_TARGET_POINT, 0, far_sight_execute);

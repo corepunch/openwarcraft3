@@ -459,6 +459,42 @@ TEST(wc3_spell, spell_info_attached_to_ability) {
 	T_EQ((int)abil->spell->target_type, (int)SPELL_TARGET_UNIT);
 }
 
+TEST(wc3_spell, forked_lightning_bounces_without_damage_decay) {
+	const char slk[] =
+		"ID;PWXL;N;EBB;Y2;X6\n"
+		"C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"DataA1\"\n"
+		"C;Y1;X4;K\"DataB1\"\nC;Y1;X5;K\"Area1\"\nC;Y1;X6;K\"Dur1\"\n"
+		"C;Y2;X1;K\"ANfl\"\nC;Y2;X2;K\"ANfl\"\nC;Y2;X3;K\"85\"\n"
+		"C;Y2;X4;K\"3\"\nC;Y2;X5;K\"125\"\nC;Y2;X6;K\"0.7\"\nE\n";
+	slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+	LPEDICT caster = make_hero(MAKEFOURCC('h','p','e','a'), 250, 100, 0, 0);
+	LPEDICT first = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 100, 0);
+	LPEDICT second = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 200, 0);
+	LPEDICT third = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 300, 0);
+	LPEDICT fourth = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 400, 0);
+	spell_info_t const *spell = FindAbilityByClassname("ANfl")->spell;
+	spellTarget_t st = { .type = SPELL_TARGET_UNIT, .entity = first };
+
+	caster->s.player = 0;
+	caster->heroabilities[0] = MAKE(heroability_t, .code = MAKEFOURCC('A','N','f','l'), .level = 1);
+	first->s.player = second->s.player = third->s.player = fourth->s.player = 1;
+	    first->svflags |= SVF_MONSTER;
+	    second->svflags |= SVF_MONSTER;
+	    third->svflags |= SVF_MONSTER;
+	    fourth->svflags |= SVF_MONSTER;
+	((LPMAPINFO)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+	((LPMAPINFO)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+	first->health.value = second->health.value = third->health.value = fourth->health.value = 100;
+	spell->execute(caster, st, spell);
+	T_FEQ(first->health.value, 15.0f, 0.01f);
+	T_FEQ(second->health.value, 15.0f, 0.01f);
+	T_FEQ(third->health.value, 15.0f, 0.01f);
+	T_FEQ(fourth->health.value, 100.0f, 0.01f);
+
+	G_SetSLKRows("AbilityData", old);
+	free_slk_rows(rows);
+}
+
 TEST(wc3_spell, first_new_ability_handlers_are_real_spells) {
 	ability_t const *force = FindAbilityByClassname("AEfn");
 	ability_t const *starfall = FindAbilityByClassname("AEsf");

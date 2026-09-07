@@ -143,6 +143,7 @@ extern ability_t a_metamorphosis;
 extern ability_t a_sleep;
 extern ability_t a_inferno;
 extern ability_t a_chain_lightning;
+extern ability_t a_forked_lightning;
 extern ability_t a_earthquake;
 extern ability_t a_far_sight;
 extern ability_t a_unimplemented;

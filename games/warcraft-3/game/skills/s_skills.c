@@ -155,6 +155,7 @@ static abilityitem_t abilitylist[] = {
     { "AUav", &a_vampiric_aura },  // Vampiric Aura — CAbilityAura [HERO] undead
     { "AUin", &a_inferno },  // Inferno — CAbilityStomp [HERO] undead
     { "AOcl", &a_chain_lightning },  // Chain Lightning — CAbilityChainLightning [HERO] orc
+    { "ANfl", &a_forked_lightning },  // Forked Lightning — CAbilityBounce [HERO] creeps
     { "AOeq", &a_earthquake },  // Earthquake — CAbilityEarthquake [HERO] orc
     { "AOfs", &a_far_sight },  // Far Sight — CAbilityFarSight [HERO] orc
     { "AEer", &a_entangling_roots },  // Entangling Roots — CAbilityTarget [HERO] nightelf
@@ -166,10 +167,9 @@ static abilityitem_t abilitylist[] = {
     { "AUfn", &a_frost_nova },  // Frost Nova — CAbilityFrostNova [HERO] undead
     // TODO: { "AHav", &a_attribute_mod },  // Avatar — CAbilityAttributeMod [HERO] human
     { "AHtc", &a_thunder_clap },  // Thunder Clap — CAbilityThunderClap [HERO] human
-    // TODO: { "ANfl", &a_bounce },  // Forked Lightning — CAbilityBounce [HERO] creeps
+    { "AHds", &a_divine_shield },  // Divine Shield — CAbilityInvulnerable [HERO] human
     // TODO: { "ANto", &a_whirlwind },  // Tornado — CAbilityWhirlwind [HERO] creeps
     // TODO: { "ANms", &a_aura },  // Mana Shield — CAbilityAura [HERO] creeps
-    { "AHds", &a_divine_shield },  // Divine Shield — CAbilityInvulnerable [HERO] human
     // TODO: { "AHre", &a_revive },  // Resurrection — CAbilityRevive [HERO] human
     // TODO: { "ANbf", &a_immolation },  // Breath of Fire — CAbilityImmolation [HERO] creeps
     // TODO: { "ANdb", &a_revenge },  // Drunken Brawler — CAbilityRevenge [HERO] creeps

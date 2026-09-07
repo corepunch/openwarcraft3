@@ -8,7 +8,7 @@ code; they do not replace it. If the relevant virtual overrides cannot be
 identified and disassembled, the ability remains blocked rather than being
 implemented from inference.
 
-The repository uses `r2` for binary inspection. The optional Ghidra-backed
+The repository uses `r2` for binary inspection. The absolutely necessary Ghidra-backed
 plugin is named **r2ghidra**; `r2ghydra` is a common misspelling.
 
 ## Prerequisites
@@ -124,6 +124,44 @@ remaining blocker is the runtime path that consumes these fields during Avatar
 activation and removal. Do not implement `AHav` from the serializer alone;
 locate the relevant virtual override or shared attribute-modification helper,
 then validate its call sites and inverse/removal path in the same binary.
+
+### `ANfl` / `CAbilityBounce` result
+
+The reference row is identical in ROC and TFT. `ability_audit` reports three
+levels with `Area=125`, `Rng=600`, `Dur=0.7`, `DataA=85/160/250`, and `DataB=3`.
+`DataC=900` and `DataD=300` are present in the row but are not used by the
+local bounce damage contract; the spell's authored damage is the constant
+`DataA` amount for each of its three targets.
+
+Evidence was collected from `data/Warcraft3demo/Game.dll`, SHA-256
+`286823c37a1083e91f07d040e46a9df7af4c4952e01fcbba460589bd4e297654`.
+The RTTI strings are at image addresses `0x6f56b114` and `0x6f56b16c`; the
+constructor installs the derived vtable at `0x6f503700`, compared with the
+base table at `0x6f503990`. The differing slots dispatch through methods at
+`0x6f1db9f0`, `0x6f1dba50`, `0x6f1db860`, `0x6f1db900`, and `0x6f1dbae0`.
+The latter methods enumerate bounded authored fields and serialize the four
+numeric bounce values. The implementation uses the existing chain traversal
+contract, with `ANfl` passing a unity damage scale while `AOcl` retains its
+`DataC` per-jump reduction.
+
+The local traversal starts at the selected unit, applies damage once per
+visited target, and searches for the next unvisited alive enemy within the
+authored `Area`. It is bounded by both `DataB` and the local 32-entry visited
+array. This reproduces the current gameplay contract, but is not evidence of
+the retail target-ordering algorithm; projectile presentation and exact
+ordering remain separate parity work. The focused fixture in
+`games/warcraft-3/game/tests/t_spell.c` must mark synthetic enemy units with
+`SVF_MONSTER`, because `S_SpellIsAliveTarget` uses that flag when deciding
+whether an edict is a valid spell target.
+
+Reproduction commands:
+
+```sh
+shasum -a 256 data/Warcraft3demo/Game.dll
+build/bin/ability_audit -data 'data/Warcraft III' -roc -raw ANfl
+build/bin/ability_audit -data 'data/Warcraft III' -tft -raw ANfl
+r2 -q -e bin.cache=true -c 'pxw 96 @ 0x6f503700' -c 'pxw 96 @ 0x6f503990' data/Warcraft3demo/Game.dll
+```
 
 ## Preserve the Evidence
 
