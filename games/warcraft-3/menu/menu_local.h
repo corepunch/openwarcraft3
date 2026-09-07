@@ -47,8 +47,9 @@ static inline BOOL UI_ParseLoadingRow(LPCSTR row, LPDWORD sequence, LPSTR model)
 void UI_ResetGlueSceneModels(void);
 void UI_ReleaseGlueSceneModels(void);
 void UI_PreloadGlueSceneModels(void);
-void UI_RestartGlueSceneAnimations(void);
-BOOL UI_GlueSceneAnimationComplete(void);
+typedef void (*uiGlueAnimationFinished_f)(void *params);
+void UI_PlayGlueAnimation(LPCSTR panel_anim, uiGlueAnimationFinished_f finished, void *params);
+void UI_RestartGlueScene(void);
 void UI_DrawGlueScene(LPCSTR panel_anim);
 void UI_DrawGlueSceneLayers(LPCSTR left_panel_anim, LPCSTR right_panel_anim);
 

@@ -135,6 +135,23 @@ static void MainMenu_ApplyEdition(BOOL expansion) {
     menuimport.Printf("The Frozen Throne data is unavailable.\n");
 }
 
+/* Restart only after both authored Death layers have reached their final pose. */
+static void MainMenu_FinishEditionSwitch(void *params) {
+    (void)params;
+    if (!edition_switch_pending || edition_switch_requested) return;
+    edition_switch_requested = true;
+    MainMenu_ApplyEdition(edition_switch_target_expansion);
+    menuimport.Cmd_ExecuteText("menu_restart\n");
+}
+
+/* The transition owns the screen swap so drawing never needs to poll animation state. */
+static void MainMenu_FinishSinglePlayerTransition(void *params) {
+    (void)params;
+    if (!single_player_transition_pending) return;
+    single_player_transition_pending = false;
+    M_ShowSinglePlayerMenu();
+}
+
 static void MainMenu_Refresh(int msec) {
     (void)msec;
 }
@@ -144,21 +161,12 @@ static void MainMenu_Draw(void) {
     DWORD num_roots = 0;
 
     if (edition_switch_pending) {
-        UI_DrawGlueScene("MainMenu Death");
-        if (UI_GlueSceneAnimationComplete() && !edition_switch_requested) {
-            edition_switch_requested = true;
-            MainMenu_ApplyEdition(edition_switch_target_expansion);
-            menuimport.Cmd_ExecuteText("menu_restart\n");
-        }
+        UI_DrawGlueScene(NULL);
         return;
     }
 
     if (single_player_transition_pending) {
-        UI_DrawGlueScene("MainMenu Death");
-        if (UI_GlueSceneAnimationComplete()) {
-            single_player_transition_pending = false;
-            M_ShowSinglePlayerMenu();
-        }
+        UI_DrawGlueScene(NULL);
         return;
     }
 
@@ -187,6 +195,7 @@ void MainMenu_BeginSinglePlayer(void) {
     show_realm_select = false;
     UI_DialogWar3Hide(&quit_dialog);
     UI_SetHidden(main_menu.MainMenuFrame, true);
+    UI_PlayGlueAnimation("MainMenu Death", MainMenu_FinishSinglePlayerTransition, NULL);
 }
 
 void MainMenu_BeginEditionSwitch(void) {
@@ -200,6 +209,7 @@ void MainMenu_BeginEditionSwitch(void) {
     show_realm_select = false;
     UI_DialogWar3Hide(&quit_dialog);
     UI_SetHidden(main_menu.MainMenuFrame, true);
+    UI_PlayGlueAnimation("MainMenu Death", MainMenu_FinishEditionSwitch, NULL);
 }
 
 void MainMenu_ShowMainPanel(void) {

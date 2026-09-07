@@ -914,22 +914,30 @@ static void SinglePlayerMenu_Refresh(int msec) {
     single_player_time = (DWORD)msec;
 }
 
+/* Leave this screen only after its outgoing glue layers finish. */
+static void SinglePlayerMenu_FinishMainMenuTransition(void *params) {
+    (void)params;
+    if (!return_main_pending) return;
+    return_main_pending = false;
+    M_ShowMainMenu();
+}
+
+/* The campaign backdrop may not replace the outgoing glue scene mid-fade. */
+static void SinglePlayerMenu_FinishCampaignTransition(void *params) {
+    (void)params;
+    if (!campaign_transition_pending) return;
+    campaign_transition_pending = false;
+    SinglePlayerMenu_ShowCampaign();
+}
+
 static void SinglePlayerMenu_Draw(void) {
     if (return_main_pending) {
-        UI_DrawGlueScene("SinglePlayer Death");
-        if (UI_GlueSceneAnimationComplete()) {
-            return_main_pending = false;
-            M_ShowMainMenu();
-        }
+        UI_DrawGlueScene(NULL);
         return;
     }
 
     if (campaign_transition_pending) {
-        UI_DrawGlueScene("SinglePlayer Death");
-        if (UI_GlueSceneAnimationComplete()) {
-            campaign_transition_pending = false;
-            SinglePlayerMenu_ShowCampaign();
-        }
+        UI_DrawGlueScene(NULL);
         return;
     }
     if (current_view == SINGLE_PLAYER_VIEW_CAMPAIGN_SELECT ||
@@ -962,7 +970,7 @@ void SinglePlayerMenu_ShowMain(void) {
     return_main_pending = false;
     campaign_transition_pending = false;
     if (returning_from_campaign) {
-        UI_RestartGlueSceneAnimations();
+        UI_RestartGlueScene();
     }
     SinglePlayer_SetView(SINGLE_PLAYER_VIEW_MAIN);
 }
@@ -981,6 +989,7 @@ BOOL SinglePlayerMenu_BeginMainMenu(void) {
     }
     return_main_pending = true;
     SinglePlayer_SetHidden(single_player.SinglePlayerMenu, true);
+    UI_PlayGlueAnimation("SinglePlayer Death", SinglePlayerMenu_FinishMainMenuTransition, NULL);
     return true;
 }
 
@@ -990,6 +999,7 @@ BOOL SinglePlayerMenu_BeginCampaign(void) {
     }
     campaign_transition_pending = true;
     SinglePlayer_SetHidden(single_player.SinglePlayerMenu, true);
+    UI_PlayGlueAnimation("SinglePlayer Death", SinglePlayerMenu_FinishCampaignTransition, NULL);
     return true;
 }
 

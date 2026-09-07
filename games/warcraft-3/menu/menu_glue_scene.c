@@ -4,15 +4,13 @@
 
 #include "menu_local.h"
 
-#define UI_GLUE_ANIM_NAME 96
+#define UI_GLUE_ANIM_NAME 96 // chars; fits Blizzard glue sequence names and suffixes; used as animation storage.
 
 typedef struct {
-    char requested[UI_GLUE_ANIM_NAME];
     char active[UI_GLUE_ANIM_NAME];
+    char next[UI_GLUE_ANIM_NAME];
     DWORD start_time;
     DWORD duration;
-    BOOL one_shot;
-    BOOL complete;
 } uiGlueAnimState_t;
 
 typedef struct {
@@ -20,12 +18,11 @@ typedef struct {
     LPCMODEL background;
     LPCMODEL top_left_panel;
     LPCMODEL top_right_panel;
-    BOOL background_intro_started;
-    BOOL background_intro_complete;
-    DWORD background_intro_start;
-    DWORD background_intro_duration;
+    uiGlueAnimState_t background_anim;
     uiGlueAnimState_t left_anim;
     uiGlueAnimState_t right_anim;
+    uiGlueAnimationFinished_f finished;
+    void *finished_params;
 } uiGlueSceneState_t;
 
 static uiGlueSceneState_t menu_glue_scene;
@@ -63,9 +60,7 @@ static FLOAT UI_GlueRightPanelOffset(LPRENDERER renderer) {
 }
 
 static BOOL UI_GlueSequenceDuration(LPRENDERER renderer, LPCMODEL model, LPCSTR anim, LPDWORD duration) {
-    if (!model || !anim || !*anim || !duration) {
-        return false;
-    }
+    if (!model || !anim || !*anim || !duration) return false;
     return renderer->GetModelAnimationDuration(model, anim, duration) && *duration > 0;
 }
 
@@ -100,116 +95,75 @@ static BOOL UI_GlueBirthForStand(LPCSTR stand, LPSTR birth, DWORD birth_size) {
     return true;
 }
 
-static void UI_GlueBeginLayerAnimation(LPRENDERER renderer,
-                                       LPCMODEL model,
-                                       LPCSTR requested,
-                                       uiGlueAnimState_t *state) {
-    char birth[UI_GLUE_ANIM_NAME];
-    DWORD duration = 0;
-
+/* A glue track either advances an authored one-shot into its stable next
+ * sequence or holds the one-shot's final pose. The renderer supplies only the
+ * source timing; screen controllers never observe it. */
+static void UI_GlueStartAnimation(LPRENDERER renderer, LPCMODEL model, LPCSTR active, LPCSTR next,
+                                  uiGlueAnimState_t *state) {
     memset(state, 0, sizeof(*state));
-    snprintf(state->requested, sizeof(state->requested), "%s", requested ? requested : "Stand");
-    snprintf(state->active, sizeof(state->active), "%s", state->requested);
+    snprintf(state->active, sizeof(state->active), "%s", active);
+    snprintf(state->next, sizeof(state->next), "%s", next);
     state->start_time = M_Time();
-    state->complete = true;
-
-    if (UI_GlueBirthForStand(state->requested, birth, sizeof(birth)) &&
-        UI_GlueSequenceDuration(renderer, model, birth, &duration)) {
-        snprintf(state->active, sizeof(state->active), "%s", birth);
-        state->duration = duration;
-        state->one_shot = true;
-        state->complete = false;
-        return;
-    }
-    if (UI_GlueIsOneShot(state->requested) &&
-        UI_GlueSequenceDuration(renderer, model, state->requested, &duration)) {
-        state->duration = duration;
-        state->one_shot = true;
-        state->complete = false;
-    }
+    if (!UI_GlueSequenceDuration(renderer, model, active, &state->duration))
+        snprintf(state->active, sizeof(state->active), "%s", next);
 }
 
-static LPCSTR UI_GlueLayerAnimation(LPRENDERER renderer,
-                                    LPCMODEL model,
-                                    LPCSTR requested,
-                                    uiGlueAnimState_t *state,
-                                    LPSTR scrubbed,
-                                    DWORD scrubbed_size) {
+static void UI_GlueBeginLayerAnimation(LPRENDERER renderer, LPCMODEL model, LPCSTR requested,
+                                       uiGlueAnimState_t *state) {
+    char birth[UI_GLUE_ANIM_NAME];
+
+    if (!requested || !*requested) requested = "Stand";
+    if (UI_GlueBirthForStand(requested, birth, sizeof(birth))) {
+        UI_GlueStartAnimation(renderer, model, birth, requested, state);
+        return;
+    }
+    UI_GlueStartAnimation(renderer, model, requested, requested, state);
+    if (!UI_GlueIsOneShot(requested)) state->duration = 0;
+}
+
+static LPCSTR UI_GlueAnimationFrame(uiGlueAnimState_t *state, LPSTR scrubbed, DWORD scrubbed_size,
+                                    BOOL *complete) {
     DWORD elapsed;
     FLOAT ratio;
 
-    if (!requested || !*requested) requested = "Stand";
-    if (strcmp(state->requested, requested)) {
-        UI_GlueBeginLayerAnimation(renderer, model, requested, state);
-    }
-    if (!state->one_shot) {
-        state->complete = true;
-        return state->active;
-    }
-
+    *complete = true;
+    if (!state->duration) return state->active;
     elapsed = M_Time() - state->start_time;
     if (elapsed >= state->duration) {
-        state->complete = true;
-        /* A synthesized Birth hands off to the requested looping Stand. A
-         * directly requested Death/Birth holds its authored final pose until
-         * the caller changes state. */
-        if (strcmp(state->active, state->requested)) {
-            snprintf(state->active, sizeof(state->active), "%s", state->requested);
-            state->one_shot = false;
-            return state->active;
-        }
+        if (strcmp(state->active, state->next)) return state->next;
         snprintf(scrubbed, scrubbed_size, "%s@1.0000", state->active);
         return scrubbed;
     }
 
     ratio = (FLOAT)elapsed / (FLOAT)state->duration;
     snprintf(scrubbed, scrubbed_size, "%s@%.4f", state->active, ratio);
-    state->complete = false;
+    *complete = false;
     return scrubbed;
 }
 
-static LPCSTR UI_GlueBackgroundAnimation(LPRENDERER renderer, LPSTR scrubbed, DWORD scrubbed_size) {
-    DWORD elapsed;
-    FLOAT ratio;
+static void UI_GlueSetLayerAnimation(LPRENDERER renderer, LPCMODEL model, LPCSTR requested,
+                                     uiGlueAnimState_t *state) {
+    if (!requested || !*requested || !strcmp(state->next, requested)) return;
+    UI_GlueBeginLayerAnimation(renderer, model, requested, state);
+}
 
-    if (!menu_glue_scene.background_intro_started) {
-        menu_glue_scene.background_intro_started = true;
-        menu_glue_scene.background_intro_start = M_Time();
-        menu_glue_scene.background_intro_complete =
-            !UI_GlueSequenceDuration(renderer,
-                                     menu_glue_scene.background,
-                                     "Birth",
-                                     &menu_glue_scene.background_intro_duration);
-    }
-    if (menu_glue_scene.background_intro_complete) {
-        return "Stand";
-    }
-
-    elapsed = M_Time() - menu_glue_scene.background_intro_start;
-    if (elapsed >= menu_glue_scene.background_intro_duration) {
-        menu_glue_scene.background_intro_complete = true;
-        return "Stand";
-    }
-    ratio = (FLOAT)elapsed / (FLOAT)menu_glue_scene.background_intro_duration;
-    snprintf(scrubbed, scrubbed_size, "Birth@%.4f", ratio);
-    return scrubbed;
+static void UI_GlueRestartBackground(LPRENDERER renderer) {
+    UI_GlueStartAnimation(renderer, menu_glue_scene.background, "Birth", "Stand", &menu_glue_scene.background_anim);
 }
 
 void UI_ResetGlueSceneModels(void) {
     memset(&menu_glue_scene, 0, sizeof(menu_glue_scene));
 }
 
-void UI_RestartGlueSceneAnimations(void) {
-    menu_glue_scene.background_intro_started = false;
-    menu_glue_scene.background_intro_complete = false;
-    menu_glue_scene.background_intro_start = 0;
-    menu_glue_scene.background_intro_duration = 0;
+void UI_RestartGlueScene(void) {
+    LPRENDERER renderer = menuimport.GetRenderer();
+
+    if (!renderer) return;
+    UI_GlueRestartBackground(renderer);
     memset(&menu_glue_scene.left_anim, 0, sizeof(menu_glue_scene.left_anim));
     memset(&menu_glue_scene.right_anim, 0, sizeof(menu_glue_scene.right_anim));
-}
-
-BOOL UI_GlueSceneAnimationComplete(void) {
-    return menu_glue_scene.left_anim.complete && menu_glue_scene.right_anim.complete;
+    menu_glue_scene.finished = NULL;
+    menu_glue_scene.finished_params = NULL;
 }
 
 void UI_ReleaseGlueSceneModels(void) {
@@ -224,20 +178,27 @@ void UI_ReleaseGlueSceneModels(void) {
 void UI_PreloadGlueSceneModels(void) {
     LPRENDERER renderer;
 
-    if (menu_glue_scene.loaded) {
-        return;
-    }
-
+    if (menu_glue_scene.loaded) return;
     renderer = menuimport.GetRenderer();
-    if (!renderer || !renderer->LoadModel) {
-        return;
-    }
-
+    if (!renderer || !renderer->LoadModel) return;
     menu_glue_scene.background = renderer->LoadModel(UI_GlueBackgroundPath());
     menu_glue_scene.top_left_panel = renderer->LoadModel(UI_GlueTopLeftPanelPath());
     menu_glue_scene.top_right_panel = renderer->LoadModel(UI_GlueTopRightPanelPath());
     menu_glue_scene.loaded = true;
-    UI_RestartGlueSceneAnimations();
+    UI_RestartGlueScene();
+}
+
+/* Finish callbacks replace draw-loop completion polling. They run only after
+ * both panel layers reached their final authored frame. */
+void UI_PlayGlueAnimation(LPCSTR panel_anim, uiGlueAnimationFinished_f finished, void *params) {
+    LPRENDERER renderer = menuimport.GetRenderer();
+
+    UI_PreloadGlueSceneModels();
+    if (!renderer) return;
+    UI_GlueBeginLayerAnimation(renderer, menu_glue_scene.top_left_panel, panel_anim, &menu_glue_scene.left_anim);
+    UI_GlueBeginLayerAnimation(renderer, menu_glue_scene.top_right_panel, panel_anim, &menu_glue_scene.right_anim);
+    menu_glue_scene.finished = finished;
+    menu_glue_scene.finished_params = params;
 }
 
 void UI_DrawGlueSceneLayers(LPCSTR left_panel_anim, LPCSTR right_panel_anim) {
@@ -246,17 +207,17 @@ void UI_DrawGlueSceneLayers(LPCSTR left_panel_anim, LPCSTR right_panel_anim) {
     char background_anim[UI_GLUE_ANIM_NAME];
     char left_anim[UI_GLUE_ANIM_NAME];
     char right_anim[UI_GLUE_ANIM_NAME];
+    BOOL left_complete, right_complete;
 
-    if (!renderer) {
-        return;
-    }
-    right_offset = UI_GlueRightPanelOffset(renderer);
-
+    if (!renderer) return;
     UI_PreloadGlueSceneModels();
+    right_offset = UI_GlueRightPanelOffset(renderer);
+    if (left_panel_anim) UI_GlueSetLayerAnimation(renderer, menu_glue_scene.top_left_panel, left_panel_anim, &menu_glue_scene.left_anim);
+    if (right_panel_anim) UI_GlueSetLayerAnimation(renderer, menu_glue_scene.top_right_panel, right_panel_anim, &menu_glue_scene.right_anim);
 
     if (renderer->RenderFrame && menu_glue_scene.background) {
         renderEntity_t entity = {0};
-        LPCSTR anim = UI_GlueBackgroundAnimation(renderer, background_anim, sizeof(background_anim));
+        LPCSTR anim = UI_GlueAnimationFrame(&menu_glue_scene.background_anim, background_anim, sizeof(background_anim), &left_complete);
         entity.model = menu_glue_scene.background;
         entity.scale = 1.0f;
         entity.flags = RF_NO_SHADOW | RF_NO_FOGOFWAR | RF_PORTRAIT_LIGHTING;
@@ -267,36 +228,25 @@ void UI_DrawGlueSceneLayers(LPCSTR left_panel_anim, LPCSTR right_panel_anim) {
         viewdef.rdflags = RDF_NOWORLDMODEL | RDF_NOFRUSTUMCULL | RDF_NOFOG | RDF_USE_ENTITY_CAMERA;
         viewdef.num_entities = 1;
         viewdef.entities = &entity;
-
         renderer->RenderFrame(&viewdef);
     }
 
-    if (renderer->DrawSprite) {
-        if (menu_glue_scene.top_left_panel) {
-            LPCSTR anim = UI_GlueLayerAnimation(renderer,
-                                                menu_glue_scene.top_left_panel,
-                                                left_panel_anim,
-                                                &menu_glue_scene.left_anim,
-                                                left_anim,
-                                                sizeof(left_anim));
-            renderer->DrawSprite(menu_glue_scene.top_left_panel, anim, 0.0f, UI_BASE_HEIGHT);
-        } else {
-            menu_glue_scene.left_anim.complete = true;
-        }
-        if (menu_glue_scene.top_right_panel) {
-            LPCSTR anim = UI_GlueLayerAnimation(renderer,
-                                                menu_glue_scene.top_right_panel,
-                                                right_panel_anim,
-                                                &menu_glue_scene.right_anim,
-                                                right_anim,
-                                                sizeof(right_anim));
-            renderer->DrawSprite(menu_glue_scene.top_right_panel, anim, right_offset, UI_BASE_HEIGHT);
-        } else {
-            menu_glue_scene.right_anim.complete = true;
-        }
-    } else {
-        menu_glue_scene.left_anim.complete = true;
-        menu_glue_scene.right_anim.complete = true;
+    left_complete = right_complete = true;
+    if (renderer->DrawSprite && menu_glue_scene.top_left_panel) {
+        LPCSTR anim = UI_GlueAnimationFrame(&menu_glue_scene.left_anim, left_anim, sizeof(left_anim), &left_complete);
+        renderer->DrawSprite(menu_glue_scene.top_left_panel, anim, 0.0f, UI_BASE_HEIGHT);
+    }
+    if (renderer->DrawSprite && menu_glue_scene.top_right_panel) {
+        LPCSTR anim = UI_GlueAnimationFrame(&menu_glue_scene.right_anim, right_anim, sizeof(right_anim), &right_complete);
+        renderer->DrawSprite(menu_glue_scene.top_right_panel, anim, right_offset, UI_BASE_HEIGHT);
+    }
+    if (left_complete && right_complete && menu_glue_scene.finished) {
+        uiGlueAnimationFinished_f finished = menu_glue_scene.finished;
+        void *params = menu_glue_scene.finished_params;
+
+        menu_glue_scene.finished = NULL;
+        menu_glue_scene.finished_params = NULL;
+        finished(params);
     }
 }
 
