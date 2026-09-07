@@ -167,6 +167,7 @@ static BOOL CL_CanHoverHealthEntity(DWORD entnum) {
 
 void CL_InputModeMouseMotion(SDL_MouseMotionEvent const *motion) {
     DWORD entnum = 0;
+    BOOL trace_hit = false;
 
     if (!motion) {
         return;
@@ -178,10 +179,9 @@ void CL_InputModeMouseMotion(SDL_MouseMotionEvent const *motion) {
         cl.hover_entity = 0;
         return;
     }
-    if (!CL_MouseOverGameplayUI() &&
-        re.TraceEntity(&cl.viewDef, (float)motion->x, (float)motion->y, &entnum) &&
-        CL_CanHoverHealthEntity(entnum))
-    {
+    if (!CL_MouseOverGameplayUI())
+        trace_hit = re.TraceEntity(&cl.viewDef, (float)motion->x, (float)motion->y, &entnum);
+    if (trace_hit && CL_CanHoverHealthEntity(entnum)) {
         cl.hover_entity = entnum;
     } else {
         cl.hover_entity = 0;

@@ -330,14 +330,16 @@ void R_RenderModel(renderEntity_t const *entity) {
 }
 
 bool R_TraceModel(renderEntity_t const *entity, LPCLINE3 line, LPFLOAT distance) {
+    VECTOR3 intersection;
+
     if (!entity || !entity->model || entity->model->modeltype != ID_MDLX) {
         return false;
     }
-    if (!MDLX_TraceModel(entity, line)) {
+    if (!MDLX_TraceModel(entity, line, &intersection)) {
         return false;
     }
     if (distance) {
-        *distance = 0.0f;
+        *distance = Vector3_distance(&line->a, &intersection);
     }
     return true;
 }

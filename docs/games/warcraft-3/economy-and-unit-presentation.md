@@ -116,6 +116,30 @@ worker+mine collision contact, movement step, distance to the mine's authored pa
 flow generation. Entry/deposit logs identify `via=footprint`, `circle`, `route_goal`, or `settled`. Gold return uses the same cvar and emits `WC3_GOLD_RETURN start`, periodic `approach`, `deposit_range`, and `deposit` transitions so a Town Hall return failure can be distinguished from a mine-entry failure. If the worker remains outside all completion modes, log rejection in `g_ai.c:move_is_valid` separately for static pathmap and entity-circle collision. Do not enlarge the authored mine footprint to hide a routing/crowding problem.
 Movement uses `FRAMETIME` through `unit_movedistance`; low rendering FPS alone does not shrink the per-tick entry allowance.
 
+### Mine hover/model/pathing mismatch diagnostics
+
+A Gold Mine has three independent pieces of geometry that can disagree on custom maps:
+
+- the rendered MDX geosets define what the player sees;
+- `MDLX_TraceModel()` defines hover/click hit testing. If the MDX has collision shapes, trace uses its authored box/sphere shapes and does not fall back to visible geoset triangles when those shapes miss;
+- worker mine entry uses `CM_DistanceToPathingFootprint()` against the blue-channel blocked cells of the unit's authored pathing texture.
+
+This means a visually offset custom model can produce both a hover hotspot and a worker interaction boundary away from the visible mine without either system sharing the same mesh. Use the existing harvest debug cvar to correlate them by entity number/rawcode:
+
+```sh
++set wc3_harvest_path_debug 2
+```
+
+Level 2 emits `WC3_GOLD_GEOMETRY` once for each spawned mine (model path, origin/angle/scale, selection/collision radii, pathing texture dimensions, blocked-cell and local-world bounding boxes), plus `WC3_GOLD_PATH start` and throttled `approach` samples while a worker is walking to the mine.
+
+For authored geometry details use:
+
+```sh
++set wc3_harvest_path_debug 3
+```
+
+Level 3 additionally prints the mine footprint as `#`/`.` rows (`WC3_GOLD_FOOTPRINT`). When investigating an offset mine, compare the mine origin and pathing blocked-cell box; do not change the footprint or selection radius until the mismatched coordinate source is identified.
+
 Build and run the existing gold tests with either local archive set (add `-tft` for TFT):
 
 ```sh

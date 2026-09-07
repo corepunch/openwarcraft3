@@ -143,7 +143,7 @@ static DWORD M_TextInput_Filter(LPCSTR in, LPSTR out, DWORD out_size) {
 
 /* Handle a key event. Returns MENU_TEXTINPUT_* result.
  * Games call this from their KeyEvent handler for the focused editbox. */
-static int M_TextInput_Key(menuTextInput_t *ti, int key) {
+static inline int M_TextInput_Key(menuTextInput_t *ti, int key) {
     if (!ti || !ti->text)
         return MENU_TEXTINPUT_NONE;
 

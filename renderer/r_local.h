@@ -339,7 +339,7 @@ void R_SetTextureWrap(LPCTEXTURE texture, bool wrapS, bool wrapT);
 void R_DrawEntity(renderEntity_t const *edict, BOOL shad);
 void R_DrawSplatRects(void);
 void R_DrawTerrainShadows(void);
-bool MDLX_TraceModel(renderEntity_t const *edict, LPCLINE3 line);
+bool MDLX_TraceModel(renderEntity_t const *edict, LPCLINE3 line, LPVECTOR3 intersection);
 void R_ReleaseVertexArrayObject(LPBUFFER buffer);
 LPCTEXTURE R_FindTextureByID(DWORD textureID);
 void R_DrawSprite(LPCMODEL model, LPCSTR anim, float x, float y);

@@ -14,6 +14,108 @@ static int goldmine_path_debug_level(void) {
     return value ? atoi(value) : 0;
 }
 
+static void goldmine_debug_dump_geometry(LPCEDICT mine) {
+    pathTex_t const *pathtex;
+    UnitUI_t const *ui;
+    UnitData_t const *data;
+    DWORD blocked = 0;
+    int min_x = INT_MAX, min_y = INT_MAX, max_x = -1, max_y = -1;
+    int const debug = goldmine_path_debug_level();
+
+    if (debug < 2 || !mine)
+        return;
+
+    pathtex = mine->pathtex;
+    ui = mine->data.UnitUI;
+    data = mine->data.UnitData;
+    if (pathtex) {
+        FOR_LOOP(y, pathtex->height) {
+            FOR_LOOP(x, pathtex->width) {
+                if (!pathtex->map[x + y * pathtex->width].b)
+                    continue;
+                blocked++;
+                min_x = MIN(min_x, (int)x);
+                min_y = MIN(min_y, (int)y);
+                max_x = MAX(max_x, (int)x);
+                max_y = MAX(max_y, (int)y);
+            }
+        }
+    }
+
+    {
+        FLOAT const cell = CM_PathCellWorldSize();
+        FLOAT const local_min_x = blocked ? ((FLOAT)min_x - pathtex->width * 0.5f) * cell : 0.0f;
+        FLOAT const local_min_y = blocked ? ((FLOAT)min_y - pathtex->height * 0.5f) * cell : 0.0f;
+        FLOAT const local_max_x = blocked ? ((FLOAT)(max_x + 1) - pathtex->width * 0.5f) * cell : 0.0f;
+        FLOAT const local_max_y = blocked ? ((FLOAT)(max_y + 1) - pathtex->height * 0.5f) * cell : 0.0f;
+
+        fprintf(stderr,
+                "WC3_GOLD_GEOMETRY mine=%d rawcode=%.4s origin=(%.1f,%.1f,%.1f) angle=%.1f "
+                "model=\"%s\" scale=%.3f selection_radius=%.1f collision=%.1f "
+                "pathing=\"%s\" path=%ux%u blocked=%u blocked_bbox=[%d,%d]-[%d,%d] "
+                "blocked_local=[%.1f,%.1f]-[%.1f,%.1f] capacity=%u resources=%u\n",
+                mine->s.number, (LPCSTR)&mine->s.class_id,
+                mine->s.origin.x, mine->s.origin.y, mine->s.origin.z, mine->s.angle,
+                ui && ui->modelFile ? ui->modelFile : "", mine->s.scale, mine->s.radius,
+                mine->collision, data && data->pathingTexture ? data->pathingTexture : "",
+                pathtex ? pathtex->width : 0, pathtex ? pathtex->height : 0, blocked,
+                blocked ? min_x : -1, blocked ? min_y : -1,
+                blocked ? max_x : -1, blocked ? max_y : -1,
+                local_min_x, local_min_y, local_max_x, local_max_y,
+                S_GoldMineCapacity(mine), mine->resources);
+    }
+
+    if (debug < 3 || !pathtex)
+        return;
+    if (pathtex->width > 120) {
+        fprintf(stderr,
+                "WC3_GOLD_FOOTPRINT mine=%d rawcode=%.4s omitted reason=width width=%u\n",
+                mine->s.number, (LPCSTR)&mine->s.class_id, pathtex->width);
+        return;
+    }
+    FOR_LOOP(y, pathtex->height) {
+        char row[121];
+        FOR_LOOP(x, pathtex->width)
+            row[x] = pathtex->map[x + y * pathtex->width].b ? '#' : '.';
+        row[pathtex->width] = '\0';
+        fprintf(stderr,
+                "WC3_GOLD_FOOTPRINT mine=%d row=%02u %s\n",
+                mine->s.number, (unsigned)y, row);
+    }
+}
+
+static void goldmine_debug_log_approach(LPEDICT ent, LPEDICT mine,
+                                        FLOAT dist, FLOAT footprint_dist,
+                                        FLOAT contact, FLOAT step) {
+    static DWORD last_log[MAX_ENTITIES];
+    DWORD number;
+    DWORD now;
+
+    if (goldmine_path_debug_level() < 2 || !ent || !mine)
+        return;
+    number = ent->s.number;
+    if (number >= MAX_ENTITIES)
+        return;
+    now = G_Time();
+    if (last_log[number] && (DWORD)(now - last_log[number]) < 250)
+        return;
+    last_log[number] = now;
+
+    fprintf(stderr,
+            "WC3_GOLD_PATH approach worker=%d rawcode=%.4s pos=(%.1f,%.1f) collision=%.1f "
+            "mine=%d mine_rawcode=%.4s mine_pos=(%.1f,%.1f) mine_angle=%.1f mine_collision=%.1f "
+            "distance=%.1f contact=%.1f step=%.1f footprint=%.1f "
+            "heading=%.1f direct=%d path_valid=%d waypoint=(%.1f,%.1f) "
+            "flow=%u flow_goal=%d unreachable=%d\n",
+            ent->s.number, (LPCSTR)&ent->s.class_id, ent->s.origin.x, ent->s.origin.y, ent->collision,
+            mine->s.number, (LPCSTR)&mine->s.class_id, mine->s.origin.x, mine->s.origin.y,
+            mine->s.angle, mine->collision, dist, contact, step, footprint_dist,
+            ent->movement.heading, ent->movement.flow_direct, ent->movement.path_valid,
+            ent->movement.path_waypoint.x, ent->movement.path_waypoint.y,
+            ent->movement.flow_generation, ent->movement.flow_goal_reached,
+            ent->movement.flow_unreachable);
+}
+
 /* A resumable route miss leaves direct, accelerator, and flow states clear.
  * Gold movement must hold then: using the previous facing would send workers
  * in an unrelated direction while the shared route is still being built. */
@@ -92,6 +194,7 @@ void S_GoldMineInitUnit(LPEDICT mine) {
     maximum = S_GoldMineMaximumGold(mine);
     if (mine->resources == 0 && maximum > 0)
         mine->resources = maximum;
+    goldmine_debug_dump_geometry(mine);
 }
 
 static BOOL goldmine_membership_valid(LPCEDICT worker, LPCEDICT mine) {
@@ -200,6 +303,7 @@ static void ai_walkmine(LPEDICT ent) {
          * target is a unit. Gold Mines are units, so retain authored/static
          * pathing while allowing miners to share the same approach space. */
         unit_changeangle_interaction_ignore_units(ent);
+        goldmine_debug_log_approach(ent, mine, dist, footprint_dist, contact, step);
         if (gold_route_pending(ent))
             return;
         /* The collision-sized route ends outside the mine footprint. The
@@ -435,6 +539,15 @@ void harvestgold_wait(LPEDICT ent) {
 }
 
 void harvest_gold_start(LPEDICT self, LPEDICT target) {
+    if (goldmine_path_debug_level() >= 1) {
+        fprintf(stderr,
+                "WC3_GOLD_PATH start worker=%d rawcode=%.4s pos=(%.1f,%.1f) "
+                "mine=%d mine_rawcode=%.4s mine_pos=(%.1f,%.1f) mine_angle=%.1f\n",
+                self->s.number, (LPCSTR)&self->s.class_id, self->s.origin.x, self->s.origin.y,
+                target ? target->s.number : -1, target ? (LPCSTR)&target->s.class_id : "----",
+                target ? target->s.origin.x : 0.0f, target ? target->s.origin.y : 0.0f,
+                target ? target->s.angle : 0.0f);
+    }
     self->goalentity = target;
     self->secondarygoal = target;
     G_PublishMessage(self, GAME_MSG_HARVEST_MOVE_GOLD, target);
