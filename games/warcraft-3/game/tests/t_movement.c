@@ -3194,6 +3194,26 @@ TEST(wc3_movement, stand_down_stops_attack_before_unloading_burrow) {
     T_NULL(burrow->goalentity);
 }
 
+TEST(wc3_movement, cargo_unload_at_releases_requested_occupant_and_keeps_remaining_order) {
+    LPEDICT burrow = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 256.0f, 256.0f);
+    LPEDICT first = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 256.0f, 256.0f);
+    LPEDICT second = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 320.0f, 256.0f);
+
+    first->s.renderfx |= RF_HIDDEN; first->paused = true;
+    second->s.renderfx |= RF_HIDDEN; second->paused = true;
+    burrow->cargo.units[0] = first; burrow->cargo.units[1] = second; burrow->cargo.count = 2;
+
+    T_ASSERT(S_CargoTransportForUnit(first) == burrow);
+    T_ASSERT(S_CargoUnloadAt(burrow, 0));
+    T_EQ(burrow->cargo.count, 1);
+    T_ASSERT(S_CargoUnitAt(burrow, 0) == second);
+    T_NULL(S_CargoTransportForUnit(first));
+    T_ASSERT(!(first->s.renderfx & RF_HIDDEN));
+    T_ASSERT(!first->paused);
+    T_ASSERT(second->s.renderfx & RF_HIDDEN);
+    T_ASSERT(second->paused);
+}
+
 /* -----------------------------------------------------------------------
  * Suite runner
  * --------------------------------------------------------------------- */

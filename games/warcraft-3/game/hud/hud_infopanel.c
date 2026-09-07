@@ -15,11 +15,6 @@
  * y = -0.75 * frontQueueIconWidth. Convert that bottom-origin geometry to
  * OpenRealm's top-left proxy-frame coordinates instead of positioning the
  * slots in world-screen space above the status panel. */
-#define CARGO_SLOT_SIZE 0.02671875f
-#define CARGO_SLOT_STEP (CARGO_SLOT_SIZE * 1.20f)
-#define CARGO_SLOT_X 0.310f
-#define CARGO_SLOT_Y 0.5000390625f
-
 static int timed_status_debug_level(void) {
     LPCSTR value;
 
@@ -808,30 +803,62 @@ void UI_WriteSingleInfo(LPEDICT ent, LPGAMECLIENT viewer) {
         /* Warsmash replaces the ordinary damage/armor/stat presentation with
          * transport slots whenever a cargo holder contains units.  Capacity
          * comes from the holder ability (Abun is four in standard data), so
-         * custom maps can author a different number of visible slots. */
+         * custom maps can author a different number of visible slots. The
+         * stock FDF has no slot frame definitions, so these native proxy
+         * frames use inline authored values as permitted for native controls. */
         if (ent->cargo.count > 0 && S_CargoCapacity(ent) > 0) {
-            DWORD const capacity = MIN(S_CargoCapacity(ent), 6u);
-            LPCSTR const slot_art = Theme_String("CargoBackdrop", "Textures\\Black32.blp");
+            DWORD const capacity = S_CargoCapacity(ent);
+            LPCSTR const slot_art = Theme_String("CargoBackdrop", NULL);
+            DWORD slot_image;
+
+            if (!slot_art || !*slot_art) {
+                fprintf(stderr, "UI_WC3: missing CargoBackdrop texture for cargo panel\n");
+                return;
+            }
+            slot_image = gi.ImageIndex(slot_art);
+            if (!slot_image) {
+                fprintf(stderr, "UI_WC3: failed to load CargoBackdrop texture \"%s\"\n", slot_art);
+                return;
+            }
 
             FOR_LOOP(i, capacity) {
-                FLOAT const x = CARGO_SLOT_X + (FLOAT)i * CARGO_SLOT_STEP;
+                FLOAT const x = 0.310f + (FLOAT)i * (0.02671875f * 1.20f);
                 LPEDICT occupant = S_CargoUnitAt(ent, i);
+                uiFrame_t backdrop = { .flags = { .type = FT_TEXTURE }, .tex = { .index = slot_image },
+                                       .color = COLOR32_WHITE };
 
-                UI_WriteTextureFrame(x, CARGO_SLOT_Y, CARGO_SLOT_SIZE, CARGO_SLOT_SIZE, slot_art);
+                UI_SetFrameRect(&backdrop, x, 0.5000390625f, 0.02671875f, 0.02671875f);
+                UI_WriteProxyFrame(&backdrop, NULL, 0);
                 if (occupant) {
                     uiFrame_t frame;
                     char command[64];
                     LPCSTR art = FindConfigValue(GetClassName(occupant->class_id), STR_ART);
                     LPCSTR tip = G_UnitProfile(occupant->class_id)->name;
 
+                    if (!art || !*art) {
+                        fprintf(stderr, "UI_WC3: missing cargo art for unit %s\n", GetClassName(occupant->class_id));
+                        continue;
+                    }
+                    art = Theme_String(art, NULL);
+                    if (!art || !*art) {
+                        fprintf(stderr, "UI_WC3: unresolved cargo art key for unit %s\n",
+                                GetClassName(occupant->class_id));
+                        continue;
+                    }
+
                     memset(&frame, 0, sizeof(frame));
                     frame.flags.type = FT_COMMANDBUTTON;
                     frame.color = COLOR32_WHITE;
-                    frame.tex.index = gi.ImageIndex(art && *art ? Theme_String(art, art) : "Textures\\Black32.blp");
+                    frame.tex.index = gi.ImageIndex(art);
+                    if (!frame.tex.index) {
+                        fprintf(stderr, "UI_WC3: failed to load cargo art \"%s\" for unit %s\n", art,
+                                GetClassName(occupant->class_id));
+                        continue;
+                    }
                     frame.tooltip = tip && *tip ? tip : GetClassName(occupant->class_id);
                     snprintf(command, sizeof(command), "cargounload %u", (unsigned)i);
                     frame.onclick = command;
-                    UI_SetFrameRect(&frame, x, CARGO_SLOT_Y, CARGO_SLOT_SIZE, CARGO_SLOT_SIZE);
+                    UI_SetFrameRect(&frame, x, 0.5000390625f, 0.02671875f, 0.02671875f);
                     UI_WriteProxyFrame(&frame, NULL, 0);
                 }
             }

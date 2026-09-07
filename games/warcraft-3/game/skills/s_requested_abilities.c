@@ -242,7 +242,8 @@ static void animate_dead_execute(LPEDICT caster, spellTarget_t st, spell_info_t 
         G_SetHealth(unit, unit->health.max_value); unit->svflags &= ~SVF_DEADMONSTER; unit->s.flags &= ~EF_NOT_SELECTABLE;
         unit->s.player = caster->s.player; unit->owner = caster;
         unit_addtimedstatus(unit, "BTLF", level, S_SpellDuration(spell->code, level, false));
-        if (unit->stand) unit->stand(unit); count++;
+        if (unit->stand) unit->stand(unit);
+        count++; /* Keep the revived-unit limit independent of the optional animation callback. */
     }
 }
 
