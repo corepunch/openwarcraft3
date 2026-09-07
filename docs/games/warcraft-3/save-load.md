@@ -122,6 +122,7 @@ Q2 `ReadLevel` states the contract we hit: SpawnEntities has already run the sam
 Do not replace JASS VM `HANDLE` / `LPCJASSFUNC` / `LPEDICT` fields with integers. Q2 keeps `edict_t *` and `think` pointers in memory and remaps them in `WriteField1` / `ReadField`. The VM should do the same.
 
 - Host-owned natives (`unit`, `widget`, `item`, `player`, `quest`, `trigger`, `group`, `timer`, `event`, `weathereffect`) snapshot as stable ordinals through `G_SaveJassHandle` / `G_LoadJassHandle`.
+- Stale host-owned handles are normalized to null at the save boundary, including handles retained by yielded coroutine/event contexts. Removed units can outlive their edict only as stale JASS pointers; they must not make an otherwise valid save fail. A missing host codec or snapshot I/O failure remains fatal.
 - VM-owned payloads (sounds, rects, locations, forces, game caches) snapshot identity plus bytes.
 - `code` / trigger actions snapshot as function names, the analog of Q2 `F_FUNCTION` without a relocated code segment.
 
@@ -214,6 +215,61 @@ installs class-owned unit/destructable callbacks when those pointers have not be
 
 Regression tests: `wc3_save.round_trip_entity_c_callbacks` and `wc3_save.rejects_unknown_c_callback`.
 
+## In-Game ESC Menu Named Saves
+
+`hud/hud_menu.c` binds Blizzard's `EscMenuSaveGamePanel.fdf` and uses the normal writable save directory for single-player named
+saves. The transient-window bridge now carries two pieces of client-owned control state needed by that panel:
+
+- `FT_EDITBOX` / `FT_GLUEEDITBOX` serialize as `uiEditBox_t` with a stable FDF control ID and maximum length; the client retains the
+  typed text/cursor while the modal is open. Retained edit state is resolved only against the currently prepared transient-window
+  layout because frame numbers are local to each layout; the same numeric frame in the gameplay HUD must not inherit the save name.
+- `FT_LISTBOX` retains selected-row and scroll state locally. A row may be encoded as `display\thidden-value`; drawing stops at the
+  tab while command placeholder expansion returns the hidden value.
+
+Button commands may contain `{ControlName}` placeholders. `client/cl_window.c` expands them at activation from the current edit/list
+state and escapes `"` / `\` before forwarding the command. The WC3 panel therefore uses:
+
+```text
+Esc -> Save Game -> type name -> menu_save_named "{SaveGameFileEditBox}"
+Esc -> Load Game -> select row -> menu_load_named "{<transient list control name>}"
+```
+
+The list payload may name an edit target. Selecting a saved-game row copies its hidden basename into `SaveGameFileEditBox`, allowing
+the same Save action to overwrite that slot or save an amended name.
+
+The gameplay Save/Load dialog serializes Blizzard's `EscMenuSaveGamePanel` directly. Its `FileListFrame` is an intentionally empty
+placeholder populated by retail code, so OpenRealm instantiates the authored `MapListBox` backdrop and scrollbar there and adds a
+native `FT_LISTBOX` state child constrained by its anchors. The panel is hosted inside the shared Esc-menu backdrop, and the FDF remains
+the geometry source of truth. The transient client owns list selection, scrolling, and edit state while the
+modal is open; gameplay code only fills data, visibility, enable state, and click handlers.
+
+New saves are prefilled with a filesystem/command-safe local timestamp (`YYYY-MM-DD_HH-MM-SS`). The value remains an ordinary
+editable transient edit box, so the player can replace or amend it before saving.
+
+Each time Save Game opens, the authored `SaveGameFileEditBox`
+the edit box is initialized from local wall-clock time as `YYYY-MM-DD_HH-MM-SS`; the value is only a default and remains editable before
+submission. The timestamp avoids characters rejected by the save-path validator.
+
+`FS_ListSaves()` enumerates `.sav` basenames under the directory derived by `FS_SavePath()` and returns a double-NUL list ordered by
+filesystem modification time, newest first. Equal modification times fall back to a case-insensitive basename sort for deterministic
+ordering. This keeps recently written or overwritten saves at the top even when the player replaces the timestamp with a custom name.
+The list is exposed to game modules through `gi.ListSaves`. The WC3 menu only publishes entries for which `G_GetSaveMap()` can read a map identity.
+The basename `quick` is rendered as `Quick Save`, preserving the F6/console quick slot alongside named files.
+
+Menu-entered names are trimmed, optional `.sav` is removed, length is capped to `CMDARG_LEN - 1`, and path/control characters are
+rejected. `Quick Save` normalizes back to `quick`. Saving an existing basename currently overwrites it immediately. Delete removes the
+selected basename through the filesystem import and replaces the same unique Save window, preserving modal ownership while refreshing
+the rows. The authored overwrite-confirm panel remains disabled.
+
+Loading remains a session boundary. `menu_load_named` calls `G_RequestLoadGameNamed()`, which queues `MenuAction("load", name)`. The
+client resolves the saved map and calls `SV_LoadGame()` on the following frame, after the gameplay-window callback has returned. Do
+not call `ReadGame()` directly from an in-game button callback.
+
+The client forwards a `close_window_command` suffix before releasing the modal window, so a save request can execute while
+`client_s.modal_flags` still contains the ESC-menu owner. Treat `modal_flags` and `quest_dialog_open` as `FIELD_RUNTIME`: they describe
+live client-window ownership, not simulation state. Persisting them can reload a game as paused even though no transient window exists.
+The serializer round-trip test asserts that both fields clear on load.
+
 ## Console Usage
 
 The server registers Quake 2-style `save` and `load` commands. Save names are relative to the writable save directory and cannot contain path separators:
@@ -230,7 +286,9 @@ build/bin/openwarcraft3 -data "data/Warcraft III" +load chapter-01
 
 `FS_SavePath()` resolves saves below the same per-user directory as config: `$XDG_DATA_HOME/warcraft-3/saves/<name>.sav` on Unix when `XDG_DATA_HOME` is set to an absolute path, otherwise `~/.local/share/warcraft-3/saves/<name>.sav`; Windows uses `%APPDATA%/warcraft-3/saves/<name>.sav`. macOS follows the Unix XDG/fallback rule rather than `~/Library/Application Support`. If no writable per-user data directory is available, config and saves fall back to `share/warcraft-3/config/` and `share/warcraft-3/saves/`. The save filename may not contain `/` or `\`.
 
-The Save Game and Load Game buttons exposed by the WC3 menu layout issue `save quick` and `load quick`. The shipped config binds `F6` to `save quick`; `F9` remains the quest log shortcut.
+The ESC Save Game and Load Game panels issue the named `menu_save_named` / `menu_load_named` commands described above. The shipped
+config still binds `F6` to `save quick`; `F9` remains the quest log shortcut. Console `save <name>` / `load <name>` continue to use the
+same files, so a named ESC-menu save is also loadable from the console and vice versa.
 
 ## Verification
 
@@ -252,3 +310,38 @@ build/bin/openwarcraft3 -data "data/Warcraft III" -roc -com_fast_forward \
 ```
 
 The load succeeded when the log contains `WC3 LoadGame: restored` and a later `CL_SendBegin` for the same map, and does **not** contain `header mismatch` or `restoring map baseline`. Repeat with `-tft`.
+
+
+
+### Save/Load menu diagnostics
+
+For targeted diagnostics without changing normal behavior, use:
+
+```text
++set wc3_save_menu_debug 1
++set ui_window_debug 1
+```
+
+`wc3_save_menu_debug 1` logs each `.sav` basename discovered for the in-game
+Save/Load dialog, the resolved path/map header, filtering reasons, the final
+list payload, timestamp default, and Save/Load button enable state. Level `2`
+additionally logs the authored list control, font metrics, and dimensions.
+
+`ui_window_debug 1` logs the transient client payload for edit boxes and
+listboxes, including control IDs, screen rectangles, font resources, item
+height, selected row, and the text received over the wire. Level `2` additionally
+logs live `SDL_TEXTINPUT` updates and the current client-side edit value/cursor.
+
+For the two current presentation failures, capture both sets of lines beginning
+with `WC3_SAVE_MENU` and `UI_WINDOW_DEBUG` after opening Save, typing a few
+characters, then opening Load.
+
+### Authored Save/Load presentation
+
+The gameplay Save/Load dialog uses `EscMenuSaveGamePanel.fdf` without C-side geometry overrides. Its save-name edit field receives a
+fresh editable date/time default whenever Save Game opens.
+
+Transient edit-box text is client-local while the modal is open. Rendering of the authored edit-box text child must therefore read the
+live client edit value, not only the server-supplied initial `STRING` text, so edits remain visible before submission.
+
+The authored selectable list supports wheel, arrow, track, and thumb-drag scrolling by saved-game row.

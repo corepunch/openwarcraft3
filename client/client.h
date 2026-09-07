@@ -192,6 +192,11 @@ void CL_WindowClear(void);
 void CL_WindowDraw(void);
 BOOL CL_WindowMouseEvent(menuMouseEvent_t event, int x, int y, int32_t param);
 BOOL CL_WindowKeyEvent(int key);
+BOOL CL_WindowTextInput(LPCSTR text);
+BOOL CL_WindowTextInputActive(void);
+LPCSTR CL_WindowEditTextValue(DWORD text_frame);
+BOOL CL_WindowEditCursor(DWORD text_frame, LPDWORD cursor);
+void CL_SetTransientTextInput(BOOL enabled);
 BOOL CL_WindowModalActive(void);
 
 void CON_DrawConsole(void);

@@ -171,6 +171,9 @@ BOOL SCR_LayoutContextValue(DWORD stat, LPFLOAT value) {
 
 LPCSTR SCR_GetStringValue(LPCUIFRAME frame) {
     static char text[1024] = { 0 };
+    LPCSTR edit_text = CL_WindowEditTextValue(frame ? frame->number : 0);
+
+    if (edit_text) return edit_text;
     if (frame->stat == UI_STAT_SELECTION_HEALTH_TEXT) {
         snprintf(text, sizeof(text), "%u / %u",
                  (unsigned)cl.playerstate.stats[UI_PLAYERSTAT_SELECTION_HEALTH],
@@ -244,10 +247,28 @@ drawText_t SCR_GetDrawText(LPCUIFRAME frame,
                       uiLabel_t const *label)
 {
     LPCFONT font = cl.fonts[label->font];
+    COLOR32 color = frame->color;
+
+    /* FDF edit boxes own their text presentation. The STRING/TEXT child is
+     * the editable value carrier, but its standalone label style may be empty
+     * or transparent because retail rendering takes the font/text color from
+     * the parent edit control. Mirror that contract for transient windows. */
+    if (frame->parent < SCR_NumFrames()) {
+        LPCUIFRAME parent = SCR_Frame(frame->parent);
+        if (parent && (parent->flags.type == FT_EDITBOX ||
+                       parent->flags.type == FT_GLUEEDITBOX ||
+                       parent->flags.type == FT_SLASHCHATBOX) &&
+            parent->buffer.data && parent->buffer.size >= sizeof(uiEditBox_t)) {
+            uiEditBox_t const *edit = parent->buffer.data;
+            if (edit->font) font = cl.fonts[edit->font];
+            if (edit->textColor.a) color = edit->textColor;
+        }
+    }
+
     return MAKE(drawText_t,
                 .font = font,
                 .text = text,
-                .color = frame->color,
+                .color = color,
                 .halign = label->textalignx,
                 .valign = label->textaligny,
                 .icons = cl.pics,

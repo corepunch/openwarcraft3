@@ -4,6 +4,12 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
+#ifdef _WIN32
+#include <sys/utime.h>
+#else
+#include <utime.h>
+#endif
 
 #include "common.h"
 #include "test.h"
@@ -128,6 +134,70 @@ TEST(commands, save_path_adds_one_sav_extension) {
     T_STREQ(path, "/tmp/openwarcraft3-save-path-test/saves/quick.sav");
     FS_SavePath("manual.SAV", path, sizeof(path));
     T_STREQ(path, "/tmp/openwarcraft3-save-path-test/saves/manual.SAV");
+}
+
+TEST(commands, save_list_returns_newest_sav_basenames_first) {
+    PATHSTR older, newer, ignored;
+    char list[256] = { 0 };
+    FILE *file;
+    LPCSTR second;
+#ifdef _WIN32
+    struct _utimbuf times;
+#else
+    struct utimbuf times;
+#endif
+    time_t now = time(NULL);
+
+    setup_command_tests();
+    FS_SetHomeDirectory("/tmp/openwarcraft3-save-list-test");
+    FS_SavePath("Zulu", newer, sizeof(newer));
+    FS_SavePath("alpha", older, sizeof(older));
+    FS_UserPath("saves/ignored.txt", ignored, sizeof(ignored));
+    remove(older);
+    remove(newer);
+    remove(ignored);
+
+    file = fopen(newer, "wb"); T_NOT_NULL(file); if (file) fclose(file);
+    file = fopen(older, "wb"); T_NOT_NULL(file); if (file) fclose(file);
+    file = fopen(ignored, "wb"); T_NOT_NULL(file); if (file) fclose(file);
+
+    times.actime = now - 20;
+    times.modtime = now - 20;
+#ifdef _WIN32
+    T_EQ(_utime(older, &times), 0);
+#else
+    T_EQ(utime(older, &times), 0);
+#endif
+    times.actime = now - 10;
+    times.modtime = now - 10;
+#ifdef _WIN32
+    T_EQ(_utime(newer, &times), 0);
+#else
+    T_EQ(utime(newer, &times), 0);
+#endif
+
+    T_EQ(FS_ListSaves(list, sizeof(list)), 2);
+    T_STREQ(list, "Zulu");
+    second = list + strlen(list) + 1;
+    T_STREQ(second, "alpha");
+    T_EQ(second[strlen(second) + 1], '\0');
+
+    remove(older);
+    remove(newer);
+    remove(ignored);
+}
+
+TEST(commands, delete_save_removes_named_save_file) {
+    PATHSTR path;
+    FILE *file;
+
+    setup_command_tests();
+    FS_SetHomeDirectory("/tmp/openwarcraft3-save-delete-test");
+    FS_SavePath("manual", path, sizeof(path));
+    remove(path);
+    file = fopen(path, "wb"); T_NOT_NULL(file); if (file) fclose(file);
+    T_ASSERT(FS_DeleteSave("manual"));
+    T_ASSERT(!FS_FileExists(path));
 }
 
 TEST(commands, config_path_uses_home_game_directory) {

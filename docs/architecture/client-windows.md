@@ -78,6 +78,21 @@ retained arena; it does not duplicate strings.
 - Scrollable TextArea state is client-owned. Because a retained `svc_window` packet is reparsed for each draw/hit test,
   `client/cl_window.c` stores scroll fractions by frame number and reapplies them after each parse. Mouse wheel input, scrollbar
   arrows/track, and thumb dragging update that retained value rather than mutating only the temporary parsed frame.
+- Transient `FT_EDITBOX`/`FT_GLUEEDITBOX` text is client-owned for the window lifetime. The wire `uiEditBox_t` carries a stable
+  control `id` and `maxChars`; `client/cl_window.c` retains text/cursor state by frame number, routes SDL text input through the same
+  `menu_text_input.h` helpers used by front-end FDF edit boxes, and reapplies the text after each retained-layout parse.
+  Frame numbers are scoped to one serialized layout, not globally unique across the HUD and transient windows. Live edit-text and
+  cursor lookup must therefore be restricted to the transient window whose layout is currently prepared. Looking up retained edit
+  state by frame number across every open window can replace an unrelated persistent HUD label that happens to reuse that number.
+  Gameplay snapshots repeatedly call `CL_SetGameplayInput()`, so that function must preserve SDL text input while
+  `CL_WindowTextInputActive()` reports a focused transient edit box. Unconditionally calling `SDL_StopTextInput()` there leaves the
+  edit logically focused but prevents SDL from producing `SDL_TEXTINPUT`. Blur/close releases the transient text-input owner, and
+  returning from the console to gameplay restores it when the edit is still focused.
+- Transient `FT_LISTBOX` selection is also client-owned. The client retains the selected row and scroll fraction. List rows may use
+  `display\thidden-value`: drawing hides the suffix, while command placeholder expansion returns it.
+- An authored onclick may reference `{ControlId}`. Immediately before forwarding, the window client replaces that token with the
+  current edit-box text or selected list value and escapes quotes/backslashes. This is a commit-time control-value handoff, not a
+  per-keystroke client-to-server state stream. The WC3 named Save/Load panel is the first consumer.
 
 ### Client-owned button actions
 
@@ -124,3 +139,20 @@ linked-list raise order, keyboard focus, and malformed packets without a frame t
 ## See Also
 
 - [Warcraft III Allies Menu](../games/warcraft-3/allies-menu.md)
+
+### Live edit-box rendering
+
+A transient edit box keeps its in-progress value in client-local window state.
+The child `STRING` frame is only the initial server-authored value. String
+rendering therefore resolves a live edit value for edit text children before
+falling back to `frame->text`; otherwise the cursor can move while newly typed
+characters remain invisible.
+
+Transient `LISTBOX` controls may own a direct `SCROLLBAR` child. List scrolling uses row-count/visible-row metrics: wheel and arrow clicks advance one row, track/thumb input maps proportionally across the scrollable row range, and the scrollbar is omitted from drawing when all rows fit.
+
+
+Transient edit-box text rendering uses the parent edit control's serialized font and text color; the child STRING carries the value and geometry but does not independently own presentation.
+
+- Transient edit-box rendering is parent-owned: the edit control draws the live client-side value directly into its authored STRING/TEXT child rectangle using the serialized edit font/color; the child remains a geometry/value carrier and is not drawn separately.
+
+- Edit-box text is clipped to the parent control's inner backdrop rectangle, not the authored child STRING width; the child still supplies vertical placement. This keeps editable text/cursor width aligned with the visible input background.

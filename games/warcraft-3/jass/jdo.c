@@ -2304,18 +2304,36 @@ static BOOL jass_snapshot_readdict(LPJASS j, JASSSNAPSHOT *snapshot, LPJASSDICT 
     return true;
 }
 
+static BOOL jass_snapshot_writecontext_handle(JASSSNAPSHOT *snapshot, LPCSTR type, HANDLE value) {
+    DWORD present = value != NULL, id = 0;
+
+    if (!present) return jass_snapshot_io(snapshot, &present, sizeof(present));
+    if (!jass_host.SaveHandle) {
+        fprintf(stderr, "JASS snapshot: no host codec for %s context handle\n", type);
+        return false;
+    }
+    if (!jass_host.SaveHandle(type, value, &id)) {
+        /* Match global-handle semantics: host-owned objects may disappear while a yielded
+         * coroutine still retains them in its event context. A stale context handle is
+         * observationally null after the object has been removed, so do not make the
+         * entire save fail merely because that coroutine has not resumed yet. */
+        present = false;
+        fprintf(stderr, "JASS snapshot: stale %s context handle %p saved as null\n", type, value);
+        return jass_snapshot_io(snapshot, &present, sizeof(present));
+    }
+
+    return jass_snapshot_io(snapshot, &present, sizeof(present)) &&
+        jass_snapshot_io(snapshot, &id, sizeof(id));
+}
+
 static BOOL jass_snapshot_writecontext(JASSSNAPSHOT *snapshot, LPCJASSCONTEXT context) {
     struct { LPCSTR type; HANDLE value; } handles[] = {
         { "trigger", context->trigger }, { "unit", context->unit }, { "unit", context->source },
         { "player", context->playerState }, { "player", context->localPlayerState }, { "timer", context->timer },
     };
     if (!jass_snapshot_writestr(snapshot, jass_functionname(context->func))) return false;
-    FOR_LOOP(i, sizeof(handles) / sizeof(*handles)) {
-        DWORD present = handles[i].value != NULL, id = 0;
-        if (!jass_snapshot_io(snapshot, &present, sizeof(present))) return false;
-        if (present && (!jass_host.SaveHandle || !jass_host.SaveHandle(handles[i].type, handles[i].value, &id) ||
-            !jass_snapshot_io(snapshot, &id, sizeof(id)))) return false;
-    }
+    FOR_LOOP(i, sizeof(handles) / sizeof(*handles))
+        if (!jass_snapshot_writecontext_handle(snapshot, handles[i].type, handles[i].value)) return false;
     return true;
 }
 

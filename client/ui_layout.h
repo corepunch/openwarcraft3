@@ -28,6 +28,7 @@ void SCR_LayoutSendFrameCommand(LPCUIFRAME frame);
 void SCR_LayoutSetPointer(HANDLE layout, DWORD number, BOOL down);
 void SCR_LayoutPrepare(HANDLE layout, LPCRECT root);
 void SCR_WindowPrepare(HANDLE layout, LPCRECT root);
+BOOL SCR_WindowLayoutIsCurrent(HANDLE layout);
 void SCR_LayoutDrawOverlay(HANDLE layout);
 BOOL SCR_LayoutHitTest(int x, int y);
 BOOL SCR_LayoutModalActive(void);

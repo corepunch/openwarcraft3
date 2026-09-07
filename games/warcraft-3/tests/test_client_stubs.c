@@ -75,6 +75,8 @@ void CON_printf(LPCSTR fmt, ...) {
     va_end(args);
 }
 BOOL CL_GameplayInputReady(void) { return false; }
+/* Transient-window tests exercise focus without owning a real SDL text-input session. */
+void CL_SetTransientTextInput(BOOL enabled) { (void)enabled; }
 
 int Cvar_Integer(LPCSTR name, int fallback) {
     FOR_LOOP(i, MOCK_CVAR_COUNT) {

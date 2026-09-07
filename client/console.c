@@ -130,7 +130,10 @@ void CON_ToggleConsole(void) {
     if (cls.key_dest == key_console) {
         cls.key_dest = con_prev_key_dest;
         if (cls.key_dest == key_game) {
-            SDL_StopTextInput();
+            /* A transient gameplay edit box can remain focused while the
+             * console is temporarily open. Restore its SDL text-input owner
+             * instead of unconditionally disabling text delivery. */
+            CL_SetTransientTextInput(CL_WindowTextInputActive());
         } else {
             SDL_StartTextInput();
         }

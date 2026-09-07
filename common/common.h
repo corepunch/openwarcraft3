@@ -179,6 +179,8 @@ LPCSTR FS_HomePath(void);
 void FS_UserPath(LPCSTR rel, LPSTR out, DWORD out_size);
 void FS_ConfigPath(LPCSTR rel, LPSTR out, DWORD out_size);
 void FS_SavePath(LPCSTR rel, LPSTR out, DWORD out_size);
+DWORD FS_ListSaves(LPSTR out, DWORD out_size);
+BOOL FS_DeleteSave(LPCSTR rel);
 void FS_Shutdown(void);
 BOMStatus PF_TextRemoveBom(LPSTR buffer);
 

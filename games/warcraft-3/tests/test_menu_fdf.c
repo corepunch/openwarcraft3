@@ -950,6 +950,28 @@ TEST(menu_fdf, find_child_frame_descends_recursively) {
     T_STREQ(found->Name, "L2");
 }
 
+TEST(menu_fdf, find_child_frame_type_descends_through_control_wrapper) {
+    LPFRAMEDEF root;
+    LPFRAMEDEF found;
+
+    reset_ui_state();
+    parse_fdf("find_child_type.fdf",
+              "Frame \"FRAME\" \"Root\" {"
+              " Frame \"CONTROL\" \"Decorated\" {"
+              "  Frame \"FRAME\" \"Inner\" {"
+              "   Frame \"LISTBOX\" \"Rows\" { }"
+              "  }"
+              " }"
+              "}");
+
+    root = UI_FindFrame("Root");
+    if (!require_not_null(root)) return;
+
+    found = UI_FindChildFrameType(root, FT_LISTBOX);
+    if (!require_not_null(found)) return;
+    T_STREQ(found->Name, "Rows");
+}
+
 TEST(menu_fdf, programmatic_setpoint_maps_to_points) {
     FRAMEDEF root;
     FRAMEDEF child;

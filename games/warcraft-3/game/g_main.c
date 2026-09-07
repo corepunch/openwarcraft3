@@ -720,6 +720,12 @@ void G_RequestLoadGameMenu(void) {
     gi.MenuAction("menu", "menu_loadgame");
 }
 
+void G_RequestLoadGameNamed(LPCSTR name) {
+    if (!name || !*name) return;
+    G_GameResultDebug("request LoadGame name=%s", name);
+    gi.MenuAction("load", name);
+}
+
 void G_RequestCampaignSelect(void) {
     G_GameResultDebug("request CampaignSelect");
     gi.MenuAction("menu", "menu_single_player_campaign");

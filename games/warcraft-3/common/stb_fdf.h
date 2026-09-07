@@ -274,6 +274,7 @@ struct uiFrameDef_s {
         FLOAT Border;
         UINAME ScrollBar;
         UINAME FetchCommand;
+        LPCFRAMEDEF EditTarget;
     } ListBox;
     uiMapListControl_t MapListControl;
     struct {
@@ -482,6 +483,7 @@ void parser_error(LPPARSER parser);
 LPFRAMEDEF UI_FindFrame(LPCSTR name);
 LPFRAMEDEF UI_FindFrameByNumber(DWORD number);
 LPFRAMEDEF UI_FindChildFrame(LPFRAMEDEF frame, LPCSTR name);
+LPFRAMEDEF UI_FindChildFrameType(LPFRAMEDEF frame, FRAMETYPE type);
 LPFRAMEDEF UI_FindFrameNear(LPCFRAMEDEF anchor, LPCSTR name);
 void UI_InitFrame(LPFRAMEDEF frame, FRAMETYPE type);
 void UI_SetPoint(LPFRAMEDEF frame, UIFRAMEPOINT framePoint, LPCFRAMEDEF other, UIFRAMEPOINT otherPoint, FLOAT x, FLOAT y);
@@ -706,6 +708,21 @@ LPFRAMEDEF UI_FindChildFrame(LPFRAMEDEF frame, LPCSTR name) {
         if (frames[i].Parent != frame)
             continue;
         LPFRAMEDEF found = UI_FindChildFrame(frames + i, name);
+        if (found)
+            return found;
+    }
+    return NULL;
+}
+
+LPFRAMEDEF UI_FindChildFrameType(LPFRAMEDEF frame, FRAMETYPE type) {
+    if (!frame)
+        return NULL;
+    if (frame->Type == type)
+        return frame;
+    FOR_LOOP(i, MAX_UI_CLASSES) {
+        if (frames[i].Parent != frame)
+            continue;
+        LPFRAMEDEF found = UI_FindChildFrameType(frames + i, type);
         if (found)
             return found;
     }
