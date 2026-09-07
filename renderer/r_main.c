@@ -815,7 +815,7 @@ void R_ShutdownRenderer(void) {
     
     R_ShutdownFogOfWar();
     R_ShutdownParticles();
-    SAFE_DELETE(tr.cinematic, R_ReleaseTexture);
+    R_DrawCinematicFrame(NULL);
     SAFE_DELETE(tr.minimap, R_ReleaseTexture);
     R_ShutdownTextureCache();
     R_ShutdownDrawBufferInstanced();
