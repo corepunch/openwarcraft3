@@ -167,7 +167,7 @@ static void UI_FinishActionTransition(void) {
     action();
 }
 
-static void UI_TransitionToScreen(uiScreen_t *screen, LPCSTR panel) {
+static void UI_TransitionToScreen(uiScreen_t *screen, uiGluePanel_t panel) {
     if (ui_state.transition_screen || ui_state.transition_action) return;
     ui_state.transition_screen = screen;
     UI_GotoGluePanel(panel, UI_FinishScreenTransition);
@@ -223,7 +223,7 @@ void M_ShowGameSetupMenu(void) {
 
 static void UI_MenuMain_f(void) {
     if (!UI_GetCurrentScreen() || UI_GetCurrentScreen() == &singlePlayerMenuScreen) {
-        UI_TransitionToScreen(&mainMenuScreen, "MainMenu");
+        UI_TransitionToScreen(&mainMenuScreen, UI_GLUE_MAIN_MENU);
         return;
     }
     M_ShowMainMenu();
@@ -231,7 +231,7 @@ static void UI_MenuMain_f(void) {
 
 static void UI_MenuGame_f(void) {
     if (UI_GetCurrentScreen() == &mainMenuScreen) {
-        UI_TransitionToScreen(&singlePlayerMenuScreen, "SinglePlayer");
+        UI_TransitionToScreen(&singlePlayerMenuScreen, UI_GLUE_SINGLE_PLAYER);
         return;
     }
     M_ShowSinglePlayerMenu();

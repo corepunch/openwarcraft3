@@ -45,11 +45,24 @@ static inline BOOL UI_ParseLoadingRow(LPCSTR row, LPDWORD sequence, LPSTR model)
 }
 
 /* menu_glue_scene.c */
+typedef enum {
+    UI_GLUE_NONE,
+    UI_GLUE_MAIN_MENU,
+    UI_GLUE_REALM_SELECTION,
+    UI_GLUE_SINGLE_PLAYER,
+    UI_GLUE_OPTIONS,
+    UI_GLUE_SINGLE_PLAYER_SKIRMISH,
+    UI_GLUE_MULTIPLAYER_PRE_GAME_CHAT,
+    UI_GLUE_BATTLENET_CUSTOM,
+    UI_GLUE_BATTLENET_CUSTOM_CREATE,
+    UI_GLUE_PANEL_COUNT,
+} uiGluePanel_t;
+
 void UI_ResetGlueSceneModels(void);
 void UI_ReleaseGlueSceneModels(void);
 void UI_PreloadGlueSceneModels(void);
 typedef void (*uiGluePanelChanged_f)(void);
-void UI_GotoGluePanel(LPCSTR panel, uiGluePanelChanged_f changed);
+void UI_GotoGluePanel(uiGluePanel_t panel, uiGluePanelChanged_f changed);
 void UI_CloseGluePanel(uiGluePanelChanged_f changed);
 void UI_DrawGlueScene(void);
 

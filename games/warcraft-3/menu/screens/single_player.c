@@ -824,7 +824,7 @@ static void SinglePlayer_BindCampaignMenu(void) {
 static void SinglePlayerMenu_Init(void) {
     menuimport.Printf("SinglePlayerMenu_Init\n");
     UI_PreloadGlueSceneModels();
-    UI_GotoGluePanel("SinglePlayer", NULL);
+    UI_GotoGluePanel(UI_GLUE_SINGLE_PLAYER, NULL);
     SinglePlayer_LoadCampaignData();
     campaign_list_frame = NULL;
     mission_list_frame = NULL;
@@ -876,7 +876,7 @@ void SinglePlayerMenu_ShowMain(void) {
         LPCSTR name = menuimport.Cvar_String ? menuimport.Cvar_String("name", "Player") : "Player";
         UI_SetText(single_player.ProfileNameText, "%s", name && name[0] ? name : "Player");
     }
-    UI_GotoGluePanel("SinglePlayer", NULL);
+    UI_GotoGluePanel(UI_GLUE_SINGLE_PLAYER, NULL);
     SinglePlayer_SetView(SINGLE_PLAYER_VIEW_MAIN);
 }
 

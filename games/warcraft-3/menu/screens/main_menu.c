@@ -169,7 +169,7 @@ void MainMenu_BeginEditionSwitch(void) {
 
 void MainMenu_ShowMainPanel(void) {
     show_realm_select = false;
-    UI_GotoGluePanel("MainMenu", NULL);
+    UI_GotoGluePanel(UI_GLUE_MAIN_MENU, NULL);
     UI_DialogWar3Hide(&quit_dialog);
     if (main_menu.MainMenuFrame) {
         UI_SetHidden(main_menu.MainMenuFrame, false);
@@ -188,7 +188,7 @@ void MainMenu_ShowMainPanel(void) {
 void MainMenu_ShowRealmSelect(void) {
     UI_DialogWar3Hide(&quit_dialog);
     show_realm_select = true;
-    UI_GotoGluePanel("RealmSelection", NULL);
+    UI_GotoGluePanel(UI_GLUE_REALM_SELECTION, NULL);
     if (main_menu.RealmSelect) {
         UI_SetHidden(main_menu.RealmSelect, false);
     }

@@ -9,10 +9,9 @@
 #define UI_GLUE_DEATH_TIME 667 // ms; every named RoC/TFT panel Death interval rounds to this length.
 
 typedef struct {
-    LPCSTR name;
     LPCSTR left;
     LPCSTR right;
-} uiGluePanel_t;
+} uiGluePanelDef_t;
 
 typedef enum {
     UI_GLUE_PANEL_IDLE,
@@ -25,8 +24,8 @@ typedef struct {
     LPCMODEL background;
     LPCMODEL top_left_panel;
     LPCMODEL top_right_panel;
-    uiGluePanel_t const *current;
-    uiGluePanel_t const *target;
+    uiGluePanel_t current;
+    uiGluePanel_t target;
     uiGluePanelPhase_t phase;
     DWORD phase_start;
     uiGluePanelChanged_f changed;
@@ -34,15 +33,15 @@ typedef struct {
 
 static uiGlueSceneState_t menu_glue_scene;
 
-static uiGluePanel_t const glue_panels[] = {
-    { "MainMenu", "MainMenu Stand", "MainMenu Stand" },
-    { "RealmSelection", "RealmSelection Stand", "RealmSelection Stand" },
-    { "SinglePlayer", "SinglePlayer Stand", "SinglePlayer Stand" },
-    { "Options", "Options Stand Alternate", "Options Stand" },
-    { "SinglePlayerSkirmish", "SinglePlayerSkirmish Stand", "SinglePlayerSkirmish Stand" },
-    { "MultiplayerPreGameChat", "MultiplayerPreGameChat Stand", "MultiplayerPreGameChat Stand" },
-    { "BattlenetCustom", "BattlenetCustom Stand", "BattlenetCustom Stand" },
-    { "BattlenetCustomCreate", "BattlenetCustomCreate Stand", "BattlenetCustomCreate Stand" },
+static uiGluePanelDef_t const glue_panels[UI_GLUE_PANEL_COUNT] = {
+    [UI_GLUE_MAIN_MENU] = { .left = "MainMenu %s", .right = "MainMenu %s" },
+    [UI_GLUE_REALM_SELECTION] = { .left = "RealmSelection %s", .right = "RealmSelection %s" },
+    [UI_GLUE_SINGLE_PLAYER] = { .left = "SinglePlayer %s", .right = "SinglePlayer %s" },
+    [UI_GLUE_OPTIONS] = { .left = "Options %s Alternate", .right = "Options %s" },
+    [UI_GLUE_SINGLE_PLAYER_SKIRMISH] = { .left = "SinglePlayerSkirmish %s", .right = "SinglePlayerSkirmish %s" },
+    [UI_GLUE_MULTIPLAYER_PRE_GAME_CHAT] = { .left = "MultiplayerPreGameChat %s", .right = "MultiplayerPreGameChat %s" },
+    [UI_GLUE_BATTLENET_CUSTOM] = { .left = "BattlenetCustom %s", .right = "BattlenetCustom %s" },
+    [UI_GLUE_BATTLENET_CUSTOM_CREATE] = { .left = "BattlenetCustomCreate %s", .right = "BattlenetCustomCreate %s" },
 };
 
 static LPCSTR UI_GlueBackgroundPath(void) {
@@ -77,52 +76,18 @@ static FLOAT UI_GlueRightPanelOffset(LPRENDERER renderer) {
     return aspect > UI_MIN_ASPECT ? UI_BASE_HEIGHT * aspect - UI_BASE_WIDTH : 0.0f;
 }
 
-/* Stable glue states are named "<screen> Stand". Retail/Warsmash enters them
- * through the matching non-looping Birth sequence; preserve any suffix such as
- * "Alternate" while swapping the primary tag. */
-static BOOL UI_GlueSequenceForStand(LPCSTR stand, LPCSTR primary, LPSTR sequence, DWORD sequence_size) {
-    LPCSTR marker;
-    size_t prefix;
-
-    if (!stand || !primary || !*primary || !sequence || sequence_size == 0) return false;
-    if (!strcmp(stand, "Stand")) {
-        snprintf(sequence, sequence_size, "%s", primary);
-        return true;
-    }
-    marker = strstr(stand, " Stand");
-    if (!marker) return false;
-    prefix = (size_t)(marker - stand);
-    if (prefix + strlen(primary) + strlen(marker + strlen(" Stand")) + 3 > sequence_size) {
-        return false;
-    }
-    memcpy(sequence, stand, prefix);
-    sequence[prefix] = '\0';
-    strncat(sequence, " ", sequence_size - strlen(sequence) - 1);
-    strncat(sequence, primary, sequence_size - strlen(sequence) - 1);
-    strncat(sequence, marker + strlen(" Stand"), sequence_size - strlen(sequence) - 1);
-    return true;
-}
-
-static uiGluePanel_t const *UI_GluePanel(LPCSTR name) {
-    if (!name || !*name) return NULL;
-    FOR_LOOP(i, sizeof(glue_panels) / sizeof(glue_panels[0])) if (!strcmp(glue_panels[i].name, name)) return &glue_panels[i];
-    return NULL;
-}
-
 /* Both panel models use the same fixed intervals, so one phase clock drives
  * both layers and the sequence name is derived only when drawing. */
-static LPCSTR UI_GluePanelAnimation(LPCSTR stand, LPSTR anim, DWORD anim_size) {
+static LPCSTR UI_GluePanelAnimation(LPCSTR format, LPSTR anim, DWORD anim_size) {
     LPCSTR primary;
     DWORD duration, elapsed;
 
-    if (menu_glue_scene.phase == UI_GLUE_PANEL_IDLE) return stand;
-    primary = menu_glue_scene.phase == UI_GLUE_PANEL_EXIT ? "Death" : "Birth";
+    primary = menu_glue_scene.phase == UI_GLUE_PANEL_IDLE ? "Stand" :
+              menu_glue_scene.phase == UI_GLUE_PANEL_EXIT ? "Death" : "Birth";
+    snprintf(anim, anim_size, format, primary);
+    if (menu_glue_scene.phase == UI_GLUE_PANEL_IDLE) return anim;
     duration = menu_glue_scene.phase == UI_GLUE_PANEL_EXIT ? UI_GLUE_DEATH_TIME : UI_GLUE_BIRTH_TIME;
     elapsed = MIN(M_Time() - menu_glue_scene.phase_start, duration);
-    if (!UI_GlueSequenceForStand(stand, primary, anim, anim_size)) {
-        fprintf(stderr, "UI: glue panel sequence has no Stand primary: %s\n", stand);
-        return stand;
-    }
     snprintf(anim + strlen(anim), anim_size - strlen(anim), "@%.4f", (FLOAT)elapsed / (FLOAT)duration);
     return anim;
 }
@@ -154,14 +119,13 @@ void UI_PreloadGlueSceneModels(void) {
 
 /* Panel names are the public transition contract. This owns the authored
  * current Death -> target Birth sequencing, including alternate left layers. */
-void UI_GotoGluePanel(LPCSTR panel_name, uiGluePanelChanged_f changed) {
+void UI_GotoGluePanel(uiGluePanel_t panel, uiGluePanelChanged_f changed) {
     LPRENDERER renderer = menuimport.GetRenderer();
-    uiGluePanel_t const *panel = UI_GluePanel(panel_name);
 
     UI_PreloadGlueSceneModels();
     if (!renderer) return;
-    if (!panel) {
-        fprintf(stderr, "UI: unknown glue panel %s\n", panel_name ? panel_name : "(null)");
+    if (panel <= UI_GLUE_NONE || panel >= UI_GLUE_PANEL_COUNT) {
+        fprintf(stderr, "UI: unknown glue panel %u\n", (unsigned)panel);
         return;
     }
     if (!menu_glue_scene.current) {
@@ -187,7 +151,7 @@ void UI_CloseGluePanel(uiGluePanelChanged_f changed) {
         return;
     }
     if (menu_glue_scene.phase == UI_GLUE_PANEL_EXIT && !menu_glue_scene.target) return;
-    menu_glue_scene.target = NULL;
+    menu_glue_scene.target = UI_GLUE_NONE;
     menu_glue_scene.phase = UI_GLUE_PANEL_EXIT;
     menu_glue_scene.phase_start = M_Time();
     menu_glue_scene.changed = changed;
@@ -196,12 +160,12 @@ void UI_CloseGluePanel(uiGluePanelChanged_f changed) {
 static void UI_GlueFinishExit(void) {
     if (menu_glue_scene.target) {
         menu_glue_scene.current = menu_glue_scene.target;
-        menu_glue_scene.target = NULL;
+        menu_glue_scene.target = UI_GLUE_NONE;
         menu_glue_scene.phase = UI_GLUE_PANEL_ENTER;
     } else {
         uiGluePanelChanged_f changed = menu_glue_scene.changed;
 
-        menu_glue_scene.current = NULL;
+        menu_glue_scene.current = UI_GLUE_NONE;
         menu_glue_scene.phase = UI_GLUE_PANEL_IDLE;
         menu_glue_scene.changed = NULL;
         if (changed) changed();
@@ -225,6 +189,7 @@ static void UI_GlueAdvanceTransition(void) {
 
 void UI_DrawGlueScene(void) {
     LPRENDERER renderer = menuimport.GetRenderer();
+    uiGluePanelDef_t const *panel;
     FLOAT right_offset;
     char left_anim[UI_GLUE_ANIM_NAME];
     char right_anim[UI_GLUE_ANIM_NAME];
@@ -233,6 +198,7 @@ void UI_DrawGlueScene(void) {
     UI_PreloadGlueSceneModels();
     UI_GlueAdvanceTransition();
     if (!menu_glue_scene.current) return;
+    panel = &glue_panels[menu_glue_scene.current];
     right_offset = UI_GlueRightPanelOffset(renderer);
 
     if (renderer->RenderFrame && menu_glue_scene.background) {
@@ -251,11 +217,11 @@ void UI_DrawGlueScene(void) {
     }
 
     if (renderer->DrawSprite && menu_glue_scene.top_left_panel) {
-        LPCSTR anim = UI_GluePanelAnimation(menu_glue_scene.current->left, left_anim, sizeof(left_anim));
+        LPCSTR anim = UI_GluePanelAnimation(panel->left, left_anim, sizeof(left_anim));
         renderer->DrawSprite(menu_glue_scene.top_left_panel, anim, 0.0f, UI_BASE_HEIGHT);
     }
     if (renderer->DrawSprite && menu_glue_scene.top_right_panel) {
-        LPCSTR anim = UI_GluePanelAnimation(menu_glue_scene.current->right, right_anim, sizeof(right_anim));
+        LPCSTR anim = UI_GluePanelAnimation(panel->right, right_anim, sizeof(right_anim));
         renderer->DrawSprite(menu_glue_scene.top_right_panel, anim, right_offset, UI_BASE_HEIGHT);
     }
 }
