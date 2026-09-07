@@ -27,8 +27,11 @@ static DWORD captured_stand_sprites;
 static DWORD captured_realm_panel_sprites;
 static DWORD captured_sprite_calls;
 static FLOAT captured_sprite_x[2];
+static PATHSTR captured_sprite_anim[2];
 static size2_t test_window_size = { 1000, 750 };
+static DWORD captured_birth_sprites;
 static DWORD captured_death_sprites;
+static DWORD captured_glue_changes;
 static uintptr_t fake_texture_id;
 static LPTEXTURE hover_texture;
 static DWORD captured_hover_draws;
@@ -210,15 +213,22 @@ static void test_draw_image_ex(LPCDRAWIMAGE draw_image) {
 static void test_draw_sprite(LPCMODEL model, LPCSTR anim, float x, float y) {
     (void)model;
     (void)y;
-    if (captured_sprite_calls < 2) captured_sprite_x[captured_sprite_calls] = x;
+    if (captured_sprite_calls < 2) {
+        captured_sprite_x[captured_sprite_calls] = x;
+        snprintf(captured_sprite_anim[captured_sprite_calls], sizeof(captured_sprite_anim[0]), "%s", anim ? anim : "");
+    }
     captured_sprite_calls++;
     if (anim && !strcmp(anim, "Stand"))
         captured_stand_sprites++;
     if (anim && !strcmp(anim, "RealmSelection Stand"))
         captured_realm_panel_sprites++;
-    if (anim && !strcmp(anim, "MainMenu Death"))
+    if (anim && !strncmp(anim, "MainMenu Birth", strlen("MainMenu Birth")))
+        captured_birth_sprites++;
+    if (anim && !strncmp(anim, "MainMenu Death", strlen("MainMenu Death")))
         captured_death_sprites++;
 }
+
+static void test_glue_changed(void) { captured_glue_changes++; }
 
 static void test_draw_backdrop(LPCDRAWBACKDROP draw_backdrop) {
     (void)draw_backdrop;
@@ -231,13 +241,6 @@ static size2_t test_get_window_size(void) {
 
 static void test_release_texture(LPTEXTURE texture) { (void)texture; texture_releases++; }
 static void test_release_model(LPMODEL model) { (void)model; }
-static bool test_get_model_animation_duration(LPCMODEL model, LPCSTR anim, LPDWORD duration) {
-    (void)model;
-    (void)anim;
-    (void)duration;
-    return false;
-}
-
 static LPRENDERER test_get_renderer(void) {
     static refExport_t renderer = {
         .LoadTexture = test_load_texture,
@@ -250,7 +253,6 @@ static LPRENDERER test_get_renderer(void) {
         .DrawBackdrop = test_draw_backdrop,
         .DrawText = test_draw_text,
         .DrawSprite = test_draw_sprite,
-        .GetModelAnimationDuration = test_get_model_animation_duration,
         .GetTextSize = test_get_text_size,
     };
     return &renderer;
@@ -353,7 +355,10 @@ static void reset_ui_state(void) {
     captured_realm_panel_sprites = 0;
     captured_sprite_calls = 0;
     memset(captured_sprite_x, 0, sizeof(captured_sprite_x));
+    memset(captured_sprite_anim, 0, sizeof(captured_sprite_anim));
+    captured_birth_sprites = 0;
     captured_death_sprites = 0;
+    captured_glue_changes = 0;
     fake_texture_id = 0;
     texture_releases = map_reads = 0;
     test_loading_progress = 1.0f;
@@ -1981,8 +1986,7 @@ TEST(menu_fdf, main_menu_quit_dialog_commands_quit) {
 
     captured_command[0] = '\0';
 
-    T_ASSERT(mainMenuScreen.load());
-    mainMenuScreen.init();
+    M_ShowMainMenu();
 
     global_exit_button = UI_FindFrame("ExitButton");
     exit_button = UI_FindChildFrame(UI_FindFrame("MainMenuFrame"), "ExitButton");
@@ -2091,7 +2095,7 @@ TEST(menu_fdf, main_menu_realm_select_uses_realm_panel_anim) {
     menuimport.GetRenderer = test_get_renderer;
     menuimport.MemAlloc = test_ui_mem_alloc;
     menuimport.MemFree = test_ui_mem_free;
-
+    UI_ResetGlueSceneModels();
 
     T_ASSERT(mainMenuScreen.load());
     mainMenuScreen.init();
@@ -2100,6 +2104,13 @@ TEST(menu_fdf, main_menu_realm_select_uses_realm_panel_anim) {
     captured_realm_panel_sprites = 0;
     captured_sprite_calls = 0;
     captured_death_sprites = 0;
+    mainMenuScreen.draw();
+    T_EQ(captured_death_sprites, 2);
+    M_SetActive(true);
+    M_Refresh(M_Time() + 667);
+    M_Refresh(M_Time() + 1000);
+    captured_stand_sprites = 0;
+    captured_realm_panel_sprites = 0;
     mainMenuScreen.draw();
     T_EQ(captured_stand_sprites, 0);
     T_EQ(captured_realm_panel_sprites, 2);
@@ -2127,7 +2138,8 @@ TEST(menu_fdf, glue_sprite_layers_follow_widescreen_edges) {
     captured_realm_panel_sprites = 0;
     memset(captured_sprite_x, 0, sizeof(captured_sprite_x));
 
-    UI_DrawGlueSceneLayers("MainMenu Stand", "MainMenu Stand");
+    UI_GotoGluePanel(UI_GLUE_MAIN_MENU, NULL);
+    UI_DrawGlueScene();
     T_EQ(captured_sprite_calls, 2);
     T_FEQ(captured_sprite_x[0], 0.0f, 0.0001f);
     T_FEQ(captured_sprite_x[1], 0.266666f, 0.0001f);
@@ -2139,6 +2151,43 @@ TEST(menu_fdf, glue_sprite_layers_follow_widescreen_edges) {
     T_FEQ(centered.w, 0.8f, 0.0001f);
     test_window_size = MAKE(size2_t, 1000, 750);
 
+    menuimport = saved;
+}
+
+TEST(menu_fdf, initial_glue_panel_finishes_birth_before_opening_screen) {
+    menuImport_t saved = menuimport;
+
+    reset_ui_state();
+    memset(&menuimport, 0, sizeof(menuimport));
+    menuimport.GetRenderer = test_get_renderer;
+    UI_ResetGlueSceneModels();
+
+    UI_GotoGluePanel(UI_GLUE_MAIN_MENU, test_glue_changed);
+    UI_DrawGlueScene();
+    T_EQ(captured_birth_sprites, 2);
+    T_EQ(captured_death_sprites, 0);
+    T_EQ(captured_glue_changes, 0);
+    M_SetActive(true);
+    M_Refresh(M_Time() + 1000);
+    T_EQ(captured_glue_changes, 1);
+
+    menuimport = saved;
+}
+
+TEST(menu_fdf, glue_panel_formats_preserve_side_specific_suffixes) {
+    menuImport_t saved = menuimport;
+
+    reset_ui_state();
+    memset(&menuimport, 0, sizeof(menuimport));
+    menuimport.GetRenderer = test_get_renderer;
+    UI_ResetGlueSceneModels();
+
+    UI_GotoGluePanel(UI_GLUE_OPTIONS, NULL);
+    UI_DrawGlueScene();
+    T_STREQ(captured_sprite_anim[0], "Options Birth Alternate@0.0000");
+    T_STREQ(captured_sprite_anim[1], "Options Birth@0.0000");
+
+    UI_ResetGlueSceneModels();
     menuimport = saved;
 }
 
@@ -2183,20 +2232,19 @@ TEST(menu_fdf, main_menu_edition_button_defers_restart_after_death_frame) {
     T_STREQ(edition->OnClick, "menu_edition");
 
     M_MenuCommand(edition->OnClick);
-    T_ASSERT(root->hidden);
     T_STREQ(captured_command, "");
     mainMenuScreen.draw();
     T_EQ(captured_death_sprites, 2);
+    T_ASSERT(!test_fs_expansion);
+    T_STREQ(captured_command, "");
+    M_MenuCommand("menu_edition");
+    T_STREQ(captured_command, "");
+    M_SetActive(true);
+    M_Refresh(M_Time() + 667);
     T_ASSERT(test_fs_expansion);
     T_STREQ(captured_cvar_name, "fs_expansion");
     T_STREQ(captured_cvar_value, "1");
     T_STREQ(captured_command, "menu_restart\n");
-
-    captured_command[0] = '\0';
-    M_MenuCommand("menu_edition");
-    mainMenuScreen.draw();
-    T_EQ(captured_death_sprites, 4);
-    T_STREQ(captured_command, "");
     mainMenuScreen.shutdown();
     menuimport = saved;
 }
@@ -2238,7 +2286,8 @@ TEST(menu_fdf, main_menu_edition_button_rolls_back_when_tft_data_is_missing) {
     }
 
     M_MenuCommand("menu_edition");
-    mainMenuScreen.draw();
+    M_SetActive(true);
+    M_Refresh(M_Time() + 667);
     T_ASSERT(!test_fs_expansion);
     T_STREQ(captured_command, "menu_restart\n");
     T_ASSERT(strstr(captured_printf, "The Frozen Throne data is unavailable.") != NULL);

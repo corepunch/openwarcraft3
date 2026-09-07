@@ -933,9 +933,8 @@ static void GameSetup_Draw(void) {
         return;
     }
 
-    UI_DrawGlueScene(LAN_IsSinglePlayerCreate()
-                     ? "SinglePlayerSkirmish Stand"
-                     : "MultiplayerPreGameChat Stand");
+    UI_GotoGluePanel(LAN_IsSinglePlayerCreate() ? UI_GLUE_SINGLE_PLAYER_SKIRMISH : UI_GLUE_MULTIPLAYER_PRE_GAME_CHAT, NULL);
+    UI_DrawGlueScene();
     UI_DrawFrame(setup.root);
 }
 

@@ -321,6 +321,7 @@ static void OptionsMenu_SetPanel(optionsPanel_t panel) {
 static void OptionsMenu_Init(void) {
     menuimport.Printf("OptionsMenu_Init\n");
     UI_PreloadGlueSceneModels();
+    UI_GotoGluePanel(UI_GLUE_OPTIONS, NULL);
     current_panel = OPTIONS_PANEL_GAMEPLAY;
 
     UI_SetOnClick(options_menu.GameplayButton, "menu_options_gameplay");
@@ -344,7 +345,7 @@ static void OptionsMenu_Refresh(int msec) {
 }
 
 static void OptionsMenu_Draw(void) {
-    UI_DrawGlueSceneLayers("Options Stand Alternate", "Options Stand");
+    UI_DrawGlueScene();
     if (options_menu.OptionsMenu) {
         UI_DrawFrame(options_menu.OptionsMenu);
     }

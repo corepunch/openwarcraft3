@@ -32,6 +32,7 @@ void M_SetActive(BOOL active);
 void M_Shutdown(void);
 void M_Refresh(DWORD time);
 DWORD M_Time(void);
+void M_TransitionToAction(void (*action)(void));
 
 /* ROC rows are label,sequence,model; TFT prepends a numeric expansion category (even for ROC campaigns). */
 static inline BOOL UI_ParseLoadingRow(LPCSTR row, LPDWORD sequence, LPSTR model) {
@@ -44,13 +45,26 @@ static inline BOOL UI_ParseLoadingRow(LPCSTR row, LPDWORD sequence, LPSTR model)
 }
 
 /* menu_glue_scene.c */
+typedef enum {
+    UI_GLUE_NONE,
+    UI_GLUE_MAIN_MENU,
+    UI_GLUE_REALM_SELECTION,
+    UI_GLUE_SINGLE_PLAYER,
+    UI_GLUE_OPTIONS,
+    UI_GLUE_SINGLE_PLAYER_SKIRMISH,
+    UI_GLUE_MULTIPLAYER_PRE_GAME_CHAT,
+    UI_GLUE_BATTLENET_CUSTOM,
+    UI_GLUE_BATTLENET_CUSTOM_CREATE,
+    UI_GLUE_PANEL_COUNT,
+} uiGluePanel_t;
+
 void UI_ResetGlueSceneModels(void);
 void UI_ReleaseGlueSceneModels(void);
 void UI_PreloadGlueSceneModels(void);
-void UI_RestartGlueSceneAnimations(void);
-BOOL UI_GlueSceneAnimationComplete(void);
-void UI_DrawGlueScene(LPCSTR panel_anim);
-void UI_DrawGlueSceneLayers(LPCSTR left_panel_anim, LPCSTR right_panel_anim);
+typedef void (*uiGluePanelChanged_f)(void);
+void UI_GotoGluePanel(uiGluePanel_t panel, uiGluePanelChanged_f changed);
+void UI_CloseGluePanel(uiGluePanelChanged_f changed);
+void UI_DrawGlueScene(void);
 
 /* menu_fdf.c — FDF parsing (moved from game/menu/menu_fdf.c) */
 BOOL UI_EnsureFDF(LPCSTR filename);

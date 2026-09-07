@@ -23,6 +23,8 @@ typedef struct {
     BOOL active;
     DWORD time;
     VECTOR2 mouse_fdf;
+    uiScreen_t *transition_screen;
+    void (*transition_action)(void);
 } uiState_t;
 
 static uiState_t ui_state;
@@ -151,6 +153,32 @@ static void UI_SetScreen(uiScreen_t *screen) {
     }
 }
 
+static void UI_FinishScreenTransition(void) {
+    uiScreen_t *screen = ui_state.transition_screen;
+
+    ui_state.transition_screen = NULL;
+    UI_SetScreen(screen);
+}
+
+static void UI_FinishActionTransition(void) {
+    void (*action)(void) = ui_state.transition_action;
+
+    ui_state.transition_action = NULL;
+    action();
+}
+
+static void UI_TransitionToScreen(uiScreen_t *screen, uiGluePanel_t panel) {
+    if (ui_state.transition_screen || ui_state.transition_action) return;
+    ui_state.transition_screen = screen;
+    UI_GotoGluePanel(panel, UI_FinishScreenTransition);
+}
+
+void M_TransitionToAction(void (*action)(void)) {
+    if (ui_state.transition_screen || ui_state.transition_action) return;
+    ui_state.transition_action = action;
+    UI_CloseGluePanel(UI_FinishActionTransition);
+}
+
 uiScreen_t *UI_GetCurrentScreen(void) {
     return ui_current_screen;
 }
@@ -194,8 +222,8 @@ void M_ShowGameSetupMenu(void) {
 }
 
 static void UI_MenuMain_f(void) {
-    if (UI_GetCurrentScreen() == &singlePlayerMenuScreen &&
-        SinglePlayerMenu_BeginMainMenu()) {
+    if (!UI_GetCurrentScreen() || UI_GetCurrentScreen() == &singlePlayerMenuScreen) {
+        UI_TransitionToScreen(&mainMenuScreen, UI_GLUE_MAIN_MENU);
         return;
     }
     M_ShowMainMenu();
@@ -203,7 +231,7 @@ static void UI_MenuMain_f(void) {
 
 static void UI_MenuGame_f(void) {
     if (UI_GetCurrentScreen() == &mainMenuScreen) {
-        MainMenu_BeginSinglePlayer();
+        UI_TransitionToScreen(&singlePlayerMenuScreen, UI_GLUE_SINGLE_PLAYER);
         return;
     }
     M_ShowSinglePlayerMenu();
@@ -282,10 +310,11 @@ static void UI_MenuOptionsApply_f(void) {
 }
 
 static void UI_MenuSinglePlayerCampaign_f(void) {
-    UI_SetScreen(&singlePlayerMenuScreen);
-    if (SinglePlayerMenu_BeginCampaign()) {
+    if (UI_GetCurrentScreen() == &singlePlayerMenuScreen) {
+        M_TransitionToAction(SinglePlayerMenu_ShowCampaign);
         return;
     }
+    UI_SetScreen(&singlePlayerMenuScreen);
     SinglePlayerMenu_ShowCampaign();
 }
 
@@ -515,7 +544,6 @@ void M_Init(void) {
         return;
     }
 
-    M_MenuCommand("menu_main");
 }
 
 void M_Shutdown(void) {
@@ -553,6 +581,10 @@ void M_Refresh(DWORD time) {
         screen->refresh((int)time);
     }
 
+    if (ui_state.transition_screen || ui_state.transition_action) {
+        UI_DrawGlueScene();
+        return;
+    }
     if (screen && screen->draw)
         screen->draw();
 }
@@ -560,7 +592,7 @@ void M_Refresh(DWORD time) {
 void M_KeyEvent(int key, BOOL down, DWORD time) {
     (void)time;
 
-    if (!ui_state.active) {
+    if (!ui_state.active || ui_state.transition_screen || ui_state.transition_action) {
         return;
     }
 
@@ -601,7 +633,8 @@ BOOL M_MouseEvent(menuMouseEvent_t event, int x, int y, int32_t param) {
      * the previous layout cache; never hit-test those stale invisible frames.
      * Uninitialized unit tests may exercise the low-level FDF event path
      * directly without installing a screen controller. */
-    if (!ui_state.active || (ui_state.initialized && !UI_GetCurrentScreen())) {
+    if (!ui_state.active || ui_state.transition_screen || ui_state.transition_action ||
+        (ui_state.initialized && !UI_GetCurrentScreen())) {
         return false;
     }
 

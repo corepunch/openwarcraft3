@@ -1153,7 +1153,6 @@ refExport_t R_GetAPI(refImport_t imp) {
         .DrawSprite = R_DrawSprite,
         .DrawCursor = R_DrawCursor,
         .SetEntityAnimFrame = R_SetEntityAnimFrame,
-        .GetModelAnimationDuration = R_GetModelAnimationDuration,
         .DrawText = R_DrawText,
         .GetTextSize = R_GetTextSize,
         .GetModelInfo = R_GetModelInfo,
