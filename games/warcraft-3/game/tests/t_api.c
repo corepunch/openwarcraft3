@@ -1337,6 +1337,49 @@ TEST(wc3_api, client_selection_publishes_selection_events_once_per_delta) {
     T_EQ(gc->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 1);
 }
 
+TEST(wc3_api, build_placement_publishes_point_order_event_context) {
+    LPGAMECLIENT client = &game.clients[0];
+    LPEDICT builder;
+    UnitProfile_t profile = { .builds = "hbar" };
+    VECTOR2 point = { 64.0f, 64.0f };
+    DWORD const barracks = MAKEFOURCC('h','b','a','r');
+
+    setup_test_world();
+    builder = alloc_test_unit(MAKEFOURCC('h','p','e','a'), -128.0f, -128.0f);
+    builder->s.player = client->ps.number;
+    builder->data.UnitProfile = &profile;
+    client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = G_UnitBalance(barracks)->goldCost;
+    client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = G_UnitBalance(barracks)->lumberCost;
+    client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 100;
+
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  integer pointEvents = 0\n"
+        "endglobals\n"
+        "function onPointOrder takes nothing returns nothing\n"
+        "  set pointEvents = pointEvents + 1\n"
+        "  call BJassAssert(GetUnitTypeId(GetOrderedUnit()) == 'hpea', \"ordered unit must be the builder\")\n"
+        "  call BJassAssert(GetIssuedOrderId() == 'hbar', \"build point order must expose building rawcode\")\n"
+        "  call BJassAssert(GetOrderPointX() == 64.0, \"build point order X must survive event dispatch\")\n"
+        "  call BJassAssert(GetOrderPointY() == 64.0, \"build point order Y must survive event dispatch\")\n"
+        "endfunction\n"
+        "function verifyPointOrder takes nothing returns nothing\n"
+        "  call BJassAssert(pointEvents == 1, \"build placement must publish one player point-order event\")\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger t = CreateTrigger()\n"
+        "  call TriggerRegisterPlayerUnitEvent(t, Player(0), EVENT_PLAYER_UNIT_ISSUED_POINT_ORDER, null)\n"
+        "  call TriggerAddAction(t, function onPointOrder)\n"
+        "endfunction\n"));
+
+    T_ASSERT(G_IssueBuildOrder(builder, barracks, &point));
+    G_RunEvents();
+    jass_runevents(level.vm);
+    jass_callbyname(level.vm, "verifyPointOrder", true);
+    jass_runevents(level.vm);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+}
+
 TEST(wc3_api, enable_user_ui_does_not_block_target_commands) {
     LPGAMECLIENT gc = &game.clients[0];
     LPCSTR point[] = { "point", "10", "20" };

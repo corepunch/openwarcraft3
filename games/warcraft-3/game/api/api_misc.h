@@ -646,13 +646,21 @@ DWORD GetIssuedOrderId(LPJASS j) {
     return jass_pushinteger(j, G_GetIssuedOrderId(jass_getcontext(j)->unit));
 }
 DWORD GetOrderPointX(LPJASS j) {
-    return jass_pushnumber(j, 0);
+    VECTOR2 point = { 0.0f, 0.0f };
+    G_GetIssuedOrderPoint(jass_getcontext(j)->unit, &point);
+    return jass_pushnumber(j, point.x);
 }
 DWORD GetOrderPointY(LPJASS j) {
-    return jass_pushnumber(j, 0);
+    VECTOR2 point = { 0.0f, 0.0f };
+    G_GetIssuedOrderPoint(jass_getcontext(j)->unit, &point);
+    return jass_pushnumber(j, point.y);
 }
 DWORD GetOrderPointLoc(LPJASS j) {
-    return jass_pushnullhandle(j, "location");
+    VECTOR2 point = { 0.0f, 0.0f };
+    API_ALLOC(VECTOR2, location);
+    G_GetIssuedOrderPoint(jass_getcontext(j)->unit, &point);
+    *location = point;
+    return 1;
 }
 DWORD GetOrderTarget(LPJASS j) {
     return jass_pushlighthandle(j, jass_getcontext(j)->source, "widget");

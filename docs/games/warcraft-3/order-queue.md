@@ -80,6 +80,8 @@ The implementation treats a `umove_t` whose `ability` pointer is non-null as act
 
 Rally changes remain producer metadata, not unit behavior. Smart/set-rally changes are therefore applied immediately; they are not inserted into the movement/combat FIFO.
 
+Issued-order trigger events describe command submission rather than delayed execution. An accepted point order publishes `EVENT_PLAYER_UNIT_ISSUED_POINT_ORDER` / `EVENT_UNIT_ISSUED_POINT_ORDER` immediately, including when Shift causes the order to be appended to the FIFO; an accepted entity target similarly publishes the target-order family. `G_UnitStartNextQueuedOrder()` must not publish those events again when the delayed command begins. Building placement is not currently a FIFO order, but follows the same acceptance-time point-order event contract through `G_IssueBuildOrder()`. See [Issued Target and Point Order Events](issued-target-order-events.md).
+
 ## Move and formation behavior
 
 The existing `move_selectlocation()` formation allocator remains authoritative for a command-card or SmartPoint Move click. It resolves the per-unit slot and group speed at issue time.

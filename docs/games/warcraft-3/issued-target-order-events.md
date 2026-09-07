@@ -1,34 +1,58 @@
-# Warcraft III Issued Target Order Events
+# Warcraft III Issued Target and Point Order Events
 
-OpenRealm publishes `EVENT_PLAYER_UNIT_ISSUED_TARGET_ORDER` and
-`EVENT_UNIT_ISSUED_TARGET_ORDER` when an accepted target order is issued through
-`G_IssueUnitTargetOrder`. The event subject is the ordered unit and the existing
-JASS `source` context carries the target widget, so `GetOrderTarget`,
-`GetOrderTargetUnit`, and `GetOrderTargetDestructable` resolve from the callback
-that is already preserved by trigger conditions/actions.
+## Contract
 
-For this compatibility slice, `GetIssuedOrderId` intentionally follows the
-repository's existing `OrderId` contract, which currently converts the leading
-four bytes of the string rather than Warcraft's retail numeric order table.
-This keeps comparisons such as `GetIssuedOrderId() == OrderId("smart")`
-consistent without broadening the patch into numeric order-ID compatibility.
-The accepted order id is retained by entity number in game-side transient state.
+Warcraft trigger events describe an order when the order is **accepted**, not when a delayed behavior later reaches the front of a unit's queue. OpenRealm publishes the matching player-unit and unit event families from the authoritative order submission path:
 
-`+set wc3_quest_debug 1` logs accepted target-order publication as
-`WC3_QUEST_ORDER`. This is useful for campaign tutorial triggers such as
-Prologue02's Harvest Gold step.
+| Order shape | Player-unit event | Unit event | Event context |
+|---|---|---|---|
+| immediate/no target | `EVENT_PLAYER_UNIT_ISSUED_ORDER` (38) | `EVENT_UNIT_ISSUED_ORDER` | `GetOrderedUnit()`, `GetIssuedOrderId()` |
+| point | `EVENT_PLAYER_UNIT_ISSUED_POINT_ORDER` (39) | `EVENT_UNIT_ISSUED_POINT_ORDER` | plus `GetOrderPointX/Y/Loc()` |
+| widget/unit target | `EVENT_PLAYER_UNIT_ISSUED_TARGET_ORDER` (40) | `EVENT_UNIT_ISSUED_TARGET_ORDER` | plus `GetOrderTarget*()` |
 
-Point-order and immediate/no-target issued-order events, retail numeric order
-IDs, and selecting-player semantics for foreign controlled units remain
-separate compatibility work.
+The current compatibility work covers target orders and accepted point orders. Immediate/no-target order publication remains separate work.
 
-## Prologue02 Peon-stage diagnostics
+## Point orders
 
-With `wc3_quest_debug 1`, OpenRealm also traces the Prologue02 Town Hall / Peon
-training tutorial band (trigger ordinals 95 through 106) as `WC3_QUEST_PEON`.
-The trace records trigger definitions, registration event ids, enable/disable
-transitions, direct `TriggerEvaluate` / `TriggerExecute` calls, dispatcher
-matching, and whether `jass_calltrigger()` queued the authored actions.  A
-matched, enabled trigger with `queued=0` means its authored conditions rejected
-the event; `queued=1` means conditions passed and actions were scheduled.  This
-is intentionally diagnostic-only and does not alter trigger behavior.
+`G_IssueUnitPointOrder()` publishes event 39/its unit-scoped counterpart only after the order has been accepted. This applies whether the order starts immediately or is appended by Shift to the per-unit FIFO. Dequeuing the stored order later must **not** publish a second issued-order event.
+
+The issued point retained for the callback is the authoritative point accepted by the order. `GetOrderPointX()` and `GetOrderPointY()` expose its coordinates and `GetOrderPointLoc()` returns an equivalent JASS location handle.
+
+Rally-point changes are also point orders when a point rally target is accepted. They remain immediate producer metadata rather than movement FIFO work, but their issued-point event is still authored at acceptance time.
+
+## Building placement
+
+A successful construction placement is a point order even though it does not pass through ordinary Move/Attack point-order dispatch. `G_IssueBuildOrder()` therefore publishes an issued-point event once placement validation succeeds and the worker accepts the snapped construction destination.
+
+For a build order:
+
+```text
+GetOrderedUnit()   -> worker/builder
+GetIssuedOrderId() -> building unit rawcode
+GetOrderPointX/Y() -> accepted snapped build point
+```
+
+Using the structure rawcode for `GetIssuedOrderId()` is important because Warcraft map triggers commonly distinguish the selected construction project by comparing the issued order ID directly with a unit rawcode.
+
+Publication happens before the worker travels to the site. Arrival-time placement revalidation, resource payment, structure spawning, and construct-start/finish events are separate lifecycle stages and do not re-emit the original point-order event.
+
+## Prologue02 compatibility case
+
+The Orc tutorial map registers `Trig_B4_PlaceBox_Done` as trigger ordinal 122 for player-unit event 39. Runtime tracing showed that the Burrow placement completed and later construction-complete narration ran, but trigger 122 never dispatched. The following lumber tutorial triggers (`Trig_L_HarvestingLumber` and `Trig_L1_HarvestLumber_Q`) therefore never started.
+
+The missing contract was not a trigger-queue or coroutine failure: OpenRealm's construction placement path simply did not publish the issued point-order event. Publishing event 39 from accepted building placement restores the authored handoff without adding map-specific behavior.
+
+## Target orders
+
+`G_IssueUnitTargetOrder()` publishes accepted movement/combat/repair target orders at submission time. The event source preserves the selected target for `GetOrderTarget()`, `GetOrderTargetUnit()`, and `GetOrderTargetDestructable()`. Shift-queued target orders likewise publish once at insertion rather than again when they execute.
+
+## Known limitations
+
+- The historical string-to-order-ID compatibility path for ordinary named orders is still narrower than Warcraft's complete numeric order table. Build orders use the structure rawcode directly, which is the campaign contract required here.
+- Immediate/no-target issued-order event publication is not completed by this change.
+- Point rally changes now publish point-order events, but entity-target rally changes still return through the older rally metadata path without target-order publication.
+- Order event callback data is only meaningful while handling an issued-order event; callers should not treat the getters as durable unit state.
+
+## Regression coverage
+
+`wc3_api.build_placement_publishes_point_order_event_context` submits a real accepted build order and verifies that a player-unit point-order callback sees the builder, building rawcode, and accepted X/Y coordinates exactly once.

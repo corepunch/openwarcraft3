@@ -84,6 +84,10 @@ BOOL G_IssueBuildOrder(LPEDICT builder, DWORD building_id, LPCVECTOR2 location) 
     builder->build_project = building_id;
     move_reset_progress(builder);
     unit_setmove(builder, &build_move_walk);
+    /* Warcraft reports an accepted construction placement as a point order.
+     * Build orders expose the building rawcode as GetIssuedOrderId(), which is
+     * how campaign GUI triggers distinguish the structure that was placed. */
+    G_PublishIssuedPointOrder(builder, building_id, &snapped, builder->s.player, "build");
     return true;
 }
 
