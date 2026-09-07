@@ -229,14 +229,27 @@ static void R_ReleaseCinematicPBO(void) {
     tr.cinematic_pbo_size = 0;
 }
 
+static void R_DisableCinematicPBO(void) {
+    R_ReleaseCinematicPBO();
+    tr.cinematic_pbo_disabled = true;
+}
+
 /* Map a pixel-unpack buffer so video uploads do not make the driver copy client memory synchronously. */
 static BOOL R_MapCinematicFrame(LPCDRAWCINEMATICFRAME frame) {
     DWORD size = frame->width * frame->height * 4;
     void *mapped;
     GLboolean unmapped;
 
+    if (tr.cinematic_pbo_disabled) return false;
     if (!tr.cinematic_pbo) R_Call(glGenBuffers, 1, &tr.cinematic_pbo);
-    if (!tr.cinematic_pbo) return false;
+    if (!tr.cinematic_pbo) {
+        if (!tr.cinematic_pbo_warned) {
+            fprintf(stderr, "Renderer: cinematic PBO allocation unavailable; using direct pixel uploads\n");
+            tr.cinematic_pbo_warned = true;
+        }
+        tr.cinematic_pbo_disabled = true;
+        return false;
+    }
     R_Call(glBindBuffer, GL_PIXEL_UNPACK_BUFFER, tr.cinematic_pbo);
     if (tr.cinematic_pbo_size != size) {
         R_Call(glBufferData, GL_PIXEL_UNPACK_BUFFER, size, NULL, GL_STREAM_DRAW);
@@ -252,6 +265,7 @@ static BOOL R_MapCinematicFrame(LPCDRAWCINEMATICFRAME frame) {
             fprintf(stderr, "Renderer: cinematic PBO mapping unavailable; using direct pixel uploads\n");
             tr.cinematic_pbo_warned = true;
         }
+        R_DisableCinematicPBO();
         R_Call(glBindBuffer, GL_PIXEL_UNPACK_BUFFER, 0);
         return false;
     }
@@ -262,6 +276,7 @@ static BOOL R_MapCinematicFrame(LPCDRAWCINEMATICFRAME frame) {
             fprintf(stderr, "Renderer: cinematic PBO mapping failed; using direct pixel uploads\n");
             tr.cinematic_pbo_warned = true;
         }
+        R_DisableCinematicPBO();
         R_Call(glBindBuffer, GL_PIXEL_UNPACK_BUFFER, 0);
         return false;
     }
@@ -275,6 +290,8 @@ void R_DrawCinematicFrame(LPCDRAWCINEMATICFRAME frame) {
     if (!frame) {
         SAFE_DELETE(tr.cinematic, R_ReleaseTexture);
         R_ReleaseCinematicPBO();
+        tr.cinematic_pbo_disabled = false;
+        tr.cinematic_pbo_warned = false;
         return;
     }
     if (!frame->pixels || !frame->width || !frame->height || frame->screen.w <= 0 || frame->screen.h <= 0) return;
