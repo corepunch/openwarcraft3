@@ -895,8 +895,18 @@ void SCR_LayoutDrawPortrait(LPCUIFRAME frame, LPCRECT screen) {
     re.RenderFrame(&vd);
 }
 
-/* Loading bars are authored as portrait models; the client alone owns their ratio. */
+/* Loading bars are the one client-owned layout value; their art remains server-authored. */
 void SCR_LayoutDrawLoadingBar(LPCUIFRAME frame, LPCRECT screen) {
+    if (frame->tex.index < MAX_IMAGES && cl.pics[frame->tex.index]) {
+        RECT fill = *screen;
+        RECT uv = { 0, 0, 255, 255 };
+        RECT suv;
+        fill.w *= cl.loading_progress;
+        uv.w *= cl.loading_progress;
+        suv = Rect_div(&uv, 0xff);
+        re.DrawImage(cl.pics[frame->tex.index], &fill, &suv, frame->color);
+        return;
+    }
     UIFRAME bar = *frame;
     char anim[16];
 

@@ -773,7 +773,18 @@ static void SC2_ClientBegin(LPEDICT ent) {
     }
 }
 
-static void SC2_ClientLoading(LPEDICT ent) { (void)ent; }
+static void SC2_ClientLoading(LPEDICT ent) {
+    uiFrame_t frame = { .number = 1, .size = { 1024.0f, 64.0f }, .color = COLOR32_WHITE,
+                        .flags.type = FT_STRING, .text = "Loading..." };
+    uiLabel_t label = { .font = gi.FontIndex("Assets\\Fonts\\Standard.ttf", 18),
+                        .textalignx = FONT_JUSTIFYCENTER, .textaligny = FONT_JUSTIFYMIDDLE };
+
+    if (!ent) return;
+    SC2_HUD_WriteStart(LAYER_LOADING);
+    frame.buffer.data = &label; frame.buffer.size = sizeof(label);
+    gi.Write(PF_UIFRAME, &frame);
+    SC2_HUD_WriteEnd(ent);
+}
 
 static void SC2_ClientCommand(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
     DWORD client_number = SC2_EdictNumber(ent);
