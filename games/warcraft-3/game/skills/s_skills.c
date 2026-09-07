@@ -158,7 +158,7 @@ static abilityitem_t abilitylist[] = {
     { "AOeq", &a_earthquake },  // Earthquake — CAbilityEarthquake [HERO] orc
     { "AOfs", &a_far_sight },  // Far Sight — CAbilityFarSight [HERO] orc
     { "AEer", &a_entangling_roots },  // Entangling Roots — CAbilityTarget [HERO] nightelf
-    // TODO: { "AEah", &a_aura_spell },  // Thorns Aura — CAbilityAuraSpell [HERO] nightelf
+    { "AEah", &a_aura_spell },  // Thorns Aura — CAbilityAuraSpell [HERO] nightelf
     { "AUdr", &a_dark_ritual },  // Dark Ritual — CAbilitySpell [HERO] undead
     { "AUdd", &a_death_and_decay },  // Death And Decay — CAbilityRainOfFire [HERO] undead
     { "AUfa", &a_frost_armor },  // Frost Armor — CAbilitySpell [HERO] undead

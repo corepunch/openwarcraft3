@@ -237,8 +237,11 @@ void S_ResolveAttackHit(LPEDICT attacker, LPEDICT target, int damage) {
     T_Damage(target, attacker, damage);
     S_BlackArrowDeath(attacker, target);
     attacker->health.value = MIN(attacker->health.max_value, attacker->health.value + damage * S_VampiricLifeSteal(attacker));
-    if (target->inuse && S_SpikedDamageReturn(target, damage) > 0.0f)
-        T_Damage(attacker, target, (int)S_SpikedDamageReturn(target, damage));
+    if (target->inuse) {
+        FLOAT thorns = S_ThornsDamageReturn(target, attacker, damage);
+        FLOAT spiked = S_SpikedDamageReturn(target, damage);
+        if (thorns + spiked > 0.0f) T_Damage(attacker, target, (int)(thorns + spiked));
+    }
 }
 
 static void damage_target(LPEDICT ent) {

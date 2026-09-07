@@ -238,6 +238,34 @@ TEST(wc3_spell, hero_passives_use_authored_data_and_runtime_consumers) {
 	free_slk_rows(rows);
 }
 
+TEST(wc3_spell, thorns_aura_returns_authored_fraction_for_melee_hits) {
+	const char slk[] =
+		"ID;PWXL;N;EBB;Y2;X4\n"
+		"C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"Area1\"\nC;Y1;X4;K\"DataA1\"\n"
+		"C;Y2;X1;K\"AEah\"\nC;Y2;X2;K\"AEah\"\nC;Y2;X3;K\"900\"\nC;Y2;X4;K\"0.1\"\nE\n";
+	slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+	LPEDICT aura = make_hero(MAKEFOURCC('E', 'd', 'r', 'u'), 500, 0, 0, 0);
+	LPEDICT target = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), 100, 0);
+	LPEDICT attacker = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 100, 0);
+	aura->s.player = target->s.player = attacker->s.player = 0;
+	aura->heroabilities[0] = MAKE(heroability_t, .code = MAKEFOURCC('A', 'E', 'a', 'h'), .level = 1);
+	target->attack1.weapon = WPN_NORMAL;
+	attacker->attack1.weapon = WPN_NORMAL;
+	T_FEQ(S_ThornsDamageReturn(target, target, 100.0f), 10.0f, 0.001f);
+	T_FEQ(S_ThornsDamageReturn(target, attacker, 100.0f), 10.0f, 0.001f);
+	attacker->attack1.weapon = WPN_MISSILE;
+	T_FEQ(S_ThornsDamageReturn(target, attacker, 100.0f), 0.0f, 0.001f);
+	attacker->attack1.weapon = WPN_NORMAL;
+	target->s.origin2.x = 901.0f;
+	T_FEQ(S_ThornsDamageReturn(target, attacker, 100.0f), 0.0f, 0.001f);
+	ability_t const *ability = FindAbilityByClassname("AEah");
+	T_NOT_NULL(ability);
+	T_ASSERT(ability->flags & ABILITY_PASSIVE);
+
+	G_SetSLKRows("AbilityData", old);
+	free_slk_rows(rows);
+}
+
 TEST(wc3_spell, requested_thirty_have_concrete_handlers) {
 	static LPCSTR const rawcodes[] = {
 		"AHab", "AHmt", "ANst", "ANsg", "ANsq", "ANsw", "AOww", "AOcr", "AHbn", "AHfs",

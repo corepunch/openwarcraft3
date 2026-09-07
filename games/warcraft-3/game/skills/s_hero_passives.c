@@ -6,6 +6,7 @@
 #define ID_UNHOLY_AURA MAKEFOURCC('A', 'U', 'a', 'u')
 #define ID_EVASION MAKEFOURCC('A', 'E', 'e', 'v')
 #define ID_VAMPIRIC_AURA MAKEFOURCC('A', 'U', 'a', 'v')
+#define ID_THORNS_AURA MAKEFOURCC('A', 'E', 'a', 'h')
 
 static FLOAT hero_aura_bonus(LPEDICT unit, DWORD code, DWORD data) {
     FLOAT bonus = 0.0f;
@@ -25,6 +26,12 @@ FLOAT S_BrillianceManaRegen(LPEDICT unit) { return hero_aura_bonus(unit, ID_BRIL
 FLOAT S_UnholyHealthRegen(LPEDICT unit) { return hero_aura_bonus(unit, ID_UNHOLY_AURA, 2); }
 FLOAT S_UnholyMoveBonus(LPEDICT unit) { return hero_aura_bonus(unit, ID_UNHOLY_AURA, 1); }
 FLOAT S_VampiricLifeSteal(LPEDICT unit) { return hero_aura_bonus(unit, ID_VAMPIRIC_AURA, 1); }
+
+FLOAT S_ThornsDamageReturn(LPCEDICT target, LPCEDICT attacker, FLOAT damage) {
+    if (!target || !attacker || (attacker->attack1.weapon != WPN_NORMAL && attacker->attack1.weapon != WPN_INSTANT))
+        return 0.0f;
+    return damage * hero_aura_bonus((LPEDICT)target, ID_THORNS_AURA, 1);
+}
 
 BOOL S_EvasionRoll(LPEDICT target) {
     DWORD level = G_UnitAbilityLevel(target, ID_EVASION);
@@ -54,3 +61,4 @@ ability_t a_spiked_carapace = { .flags = ABILITY_PASSIVE };
 ability_t a_unholy_aura = { .flags = ABILITY_PASSIVE };
 ability_t a_evasion = { .flags = ABILITY_PASSIVE };
 ability_t a_vampiric_aura = { .flags = ABILITY_PASSIVE };
+ability_t a_aura_spell = { .flags = ABILITY_PASSIVE };

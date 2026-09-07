@@ -36,6 +36,95 @@ The wrapper uses `pdg` when available. Without it, class and rawcode searches
 still work and the command exits with a visible setup message; no decompiler
 output should be treated as authoritative until `pdg` is present.
 
+## Validated r2 Workflow
+
+The `AEah` investigation established a useful fallback when decompilation is
+not reliable. r2 did not produce trustworthy C/C++ source for the demo DLL:
+`pdg` was unavailable in the local installation, and full analysis emitted
+format-database errors. The implementation was written by the developer after
+reading verified assembly; r2 was used to inspect the retail binary, not to
+generate production C/C++.
+
+Use this bounded sequence for a new ability:
+
+```sh
+# 1. Confirm the class and rawcode are present without depending on full analysis.
+r2 -q -e bin.cache=true \
+  -c 'izz~CAbilityAuraSpell' -c 'izz~AEah' -c 'q' \
+  data/Warcraft3demo/Game.dll
+
+# 2. Follow the RTTI/type-descriptor references to constructors and vtables.
+r2 -e bin.cache=true -A data/Warcraft3demo/Game.dll
+[0x000000]> izz~CAbilityAuraSpell
+[0x000000]> axt @ <type-descriptor-address>
+[0x000000]> pxw 32 @ <vtable-address>
+
+# 3. Compare the derived table with a sibling/base aura table.
+[0x000000]> pxw 32 @ <sibling-vtable-address>
+
+# 4. Disassemble every differing slot and its direct callees.
+[0x000000]> af @ <method-address>
+[0x000000]> pdf @ <method-address>
+[0x000000]> pdr @ <method-address>
+[0x000000]> axt @ <callee-address>
+```
+
+If `af` cannot define a clean function, use `pd <count> @ <address>` to dump
+the raw instruction block and follow branches manually. Save the output with
+`tools/r2_ability.sh -o` or redirect the direct r2 command to a file. Keep the
+raw disassembly and binary digest with the behavior record; do not paste
+`pdg` pseudocode into the record unless its control flow has been checked
+against `pdf`.
+
+For `AEah`, this workflow recovered `CAbilityAuraSpell` RTTI and distinct
+class/vtable code in `data/Warcraft3demo/Game.dll`. It established class
+ownership and the configuration/serialization path, while the normalized ROC
+and TFT rows established the authored area and reflection fraction. The
+retail binary did not yield a directly reusable C/C++ attack handler, so the
+runtime behavior was mapped to the existing OpenWarcraft3 passive-aura and
+attack-resolution contracts and tested there. This is evidence-backed
+reimplementation, not decompiler output.
+
+### `AHav` / `CAbilityAttributeMod` result
+
+With `r2ghidra` installed, the demo DLL does produce useful C-like output, but
+only for the class plumbing found so far. The verified class data is:
+
+```text
+vtable:       0x6f51d2e8
+constructor:  0x6f267e50
+class name:   0x6f267f00 -> "CAbilityAttributeMod"
+type ID:      0x6f267f50 -> 'mxIA'
+serialize:    0x6f267f90
+deserialize:  0x6f2680c0
+```
+
+The constructor initializes the common ability state and class-specific fields
+through offsets `0x198` through `0x23c`. The serializer reads those fields in
+the same order; notably it emits four generic values at `0x1c4`, `0x200`,
+`0x214`, `0x218`, `0x21c`, and `0x220`, plus three values at `0x234`, `0x238`,
+and `0x23c`. This is persistence evidence, not proof that each value is an
+attribute bonus.
+
+The repeatable commands are:
+
+```sh
+r2 -q -e bin.cache=true -c 'aaa' \
+  -c 's 0x6f267f90' -c 'af' -c 'pdg' \
+  data/Warcraft3demo/Game.dll
+r2 -q -e bin.cache=true -c 'pxw 96 @ 0x6f51d2e8' -c 'q' \
+  data/Warcraft3demo/Game.dll
+build/bin/ability_audit -data 'data/Warcraft III' -roc -raw AHav
+```
+
+The last command currently reports `DataA..I = 5,500,20,0,0,0,0,0,0`.
+`pdg` output must still be checked against `pdf`: the decompiler loses some
+`this` typing and turns archive helper calls into unnamed functions. The
+remaining blocker is the runtime path that consumes these fields during Avatar
+activation and removal. Do not implement `AHav` from the serializer alone;
+locate the relevant virtual override or shared attribute-modification helper,
+then validate its call sites and inverse/removal path in the same binary.
+
 ## Preserve the Evidence
 
 Use a known binary and record its digest before analysis:
@@ -191,7 +280,7 @@ This matters when reading
 retail documentation that calls `DataA` the first field: use index `1`, not `0`.
 The row is authoritative for ROC/TFT values; do not replace it with a C table.
 
-The five implemented rows use the following fields:
+The six implemented rows use the following fields:
 
 | Rawcode | Runtime behavior | Authored fields |
 | --- | --- | --- |
@@ -200,6 +289,7 @@ The five implemented rows use the following fields:
 | `AHbh` | physical attack proc | `DataA` chance, `DataC` bonus damage, `HeroDur`/`Dur` stun |
 | `AOae` | passive allied aura | `Area`, `DataA` movement bonus, `DataB` attack-speed bonus |
 | `AOwk` | timed hidden movement state | `Dur`/`HeroDur`, `DataA` movement bonus, `DataC` first-hit bonus |
+| `AEah` | allied melee damage-return aura | `Area`, `DataA` reflected fraction |
 
 Verified examples from the hero block before `AEer`:
 
