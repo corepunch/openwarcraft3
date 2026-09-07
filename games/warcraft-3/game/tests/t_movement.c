@@ -3123,6 +3123,10 @@ TEST(wc3_movement, occupied_burrow_exposes_attack_stop_and_stand_down_only_with_
         .id = MAKEFOURCC('o','b','u','r'),
         .attack1 = { .damageDice = 1 },
     };
+    static UnitBalance_t const burrow_balance = {
+        .id = MAKEFOURCC('o','b','u','r'),
+        .speed = 0,
+    };
     LPEDICT burrow = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 256.0f, 256.0f);
     LPEDICT peon = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 256.0f, 256.0f);
     gameCommandButton_t buttons[16];
@@ -3131,6 +3135,7 @@ TEST(wc3_movement, occupied_burrow_exposes_attack_stop_and_stand_down_only_with_
 
     burrow->data.UnitAbilities = &burrow_abilities;
     burrow->data.UnitWeapons = &burrow_weapons;
+    burrow->data.UnitBalance = &burrow_balance;
 
     count = G_GetCommandButtons(burrow, buttons, (BYTE)(sizeof(buttons) / sizeof(buttons[0])));
     attack = stop = stand_down = false;
@@ -3167,6 +3172,7 @@ TEST(wc3_movement, stand_down_stops_attack_before_unloading_burrow) {
     LPEDICT target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 320.0f, 256.0f);
 
     burrow->data.UnitAbilities = &burrow_abilities;
+    burrow->stand = unit_stand;
     burrow->cargo.units[0] = peon;
     burrow->cargo.count = 1;
     peon->s.renderfx |= RF_HIDDEN;
