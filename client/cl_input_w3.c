@@ -70,6 +70,14 @@ static void CL_SendSmartCommand(float x, float y) {
         return;
     }
     if (re.TraceEntity(&cl.viewDef, x, y, &entnum)) {
+        if (Cvar_Integer("wc3_harvest_path_debug", 0) >= 2 && entnum < MAX_CLIENT_ENTITIES) {
+            LPCENTITYSTATE state = &cl.ents[entnum].current;
+            fprintf(stderr,
+                    "WC3_HOVER_COMMAND screen=(%.0f,%.0f) entity=%u rawcode=%.4s "
+                    "origin=(%.1f,%.1f,%.1f) angle=%.1f model=%u\n",
+                    x, y, entnum, (LPCSTR)&state->class_id,
+                    state->origin.x, state->origin.y, state->origin.z, state->angle, state->model);
+        }
         MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
         SZ_Printf(&cls.netchan.message, CL_OrderQueueModifierDown()
             ? "smart %d queue" : "smart %d", entnum);
@@ -165,8 +173,34 @@ static BOOL CL_CanHoverHealthEntity(DWORD entnum) {
            !(state->flags & EF_NOT_SELECTABLE);
 }
 
+static void CL_LogHoverTransition(float x, float y, DWORD old_hover,
+                                  BOOL trace_hit, DWORD traced, DWORD new_hover) {
+    LPCENTITYSTATE state = NULL;
+
+    if (Cvar_Integer("wc3_harvest_path_debug", 0) < 2 || old_hover == new_hover)
+        return;
+    if (traced && traced < MAX_CLIENT_ENTITIES)
+        state = &cl.ents[traced].current;
+
+    fprintf(stderr,
+            "WC3_HOVER_TRACE screen=(%.0f,%.0f) old=%u new=%u trace_hit=%d traced=%u "
+            "rawcode=%.4s model=%u origin=(%.1f,%.1f,%.1f) angle=%.1f scale=%.3f "
+            "selection_radius=%.1f path=%ux%u health=%u flags=0x%04x renderfx=0x%02x hoverable=%d\n",
+            x, y, old_hover, new_hover, trace_hit, traced,
+            state ? (LPCSTR)&state->class_id : "----",
+            state ? state->model : 0,
+            state ? state->origin.x : 0.0f, state ? state->origin.y : 0.0f,
+            state ? state->origin.z : 0.0f, state ? state->angle : 0.0f,
+            state ? state->scale : 0.0f, state ? state->radius : 0.0f,
+            state ? state->pathing_width : 0, state ? state->pathing_height : 0,
+            state ? state->stats[ENT_HEALTH] : 0, state ? state->flags : 0,
+            state ? state->renderfx : 0, traced ? CL_CanHoverHealthEntity(traced) : 0);
+}
+
 void CL_InputModeMouseMotion(SDL_MouseMotionEvent const *motion) {
     DWORD entnum = 0;
+    DWORD old_hover;
+    BOOL trace_hit = false;
 
     if (!motion) {
         return;
@@ -178,14 +212,16 @@ void CL_InputModeMouseMotion(SDL_MouseMotionEvent const *motion) {
         cl.hover_entity = 0;
         return;
     }
-    if (!CL_MouseOverGameplayUI() &&
-        re.TraceEntity(&cl.viewDef, (float)motion->x, (float)motion->y, &entnum) &&
-        CL_CanHoverHealthEntity(entnum))
-    {
+    old_hover = cl.hover_entity;
+    if (!CL_MouseOverGameplayUI())
+        trace_hit = re.TraceEntity(&cl.viewDef, (float)motion->x, (float)motion->y, &entnum);
+    if (trace_hit && CL_CanHoverHealthEntity(entnum)) {
         cl.hover_entity = entnum;
     } else {
         cl.hover_entity = 0;
     }
+    CL_LogHoverTransition((float)motion->x, (float)motion->y, old_hover,
+                          trace_hit, entnum, cl.hover_entity);
     if (camera_drag.active) {
         CL_UpdatePan(motion->x, motion->y);
     }

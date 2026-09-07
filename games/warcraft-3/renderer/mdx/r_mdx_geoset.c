@@ -2,6 +2,7 @@
 #include "renderer/r_emit.h"
 #include "renderer/r_local.h"
 #include "renderer/r_shader.h"
+#include <float.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -568,73 +569,146 @@ DWORD MDLX_RemapAnimation(mdxModel_t const *model, DWORD frame, LPCSTR str) {
     return frame;
 }
 
-bool MDLX_TraceModel(renderEntity_t const *ent, LPCLINE3 line) {
-    MATRIX4 invmodel, matmodel;
-    R_GetEntityMatrix(ent, &matmodel);
-    mdxModel_t const *model = ent->model->mdx;
-    if (!model) return false;
-    FOR_EACH_LIST(mdxCollisionShape_t, collisionShape, model->collisionShapes) {
-        if (collisionShape->type != SHAPETYPE_SPHERE)
-            continue;;
-        VECTOR3 center;
-        memcpy(&center, &collisionShape->vertex[0], sizeof(VECTOR3));
-        SPHERE3 sphere = {
-            .center = Matrix4_multiply_vector3(&matmodel, &center),
-            .radius = collisionShape->radius * ent->scale,
-        };
-        if (Line3_intersect_sphere3(line, &sphere, NULL))
-            return true;
+static void MDLX_DebugTraceHit(renderEntity_t const *ent, LPCSTR kind,
+                               mdxCollisionShape_t const *shape, DWORD index) {
+    static DWORD last_entity;
+    static mdxCollisionShape_t const *last_shape;
+    static DWORD last_index = (DWORD)-1;
+
+    if (!ri.CvarString || atoi(ri.CvarString("wc3_harvest_path_debug", "0")) < 3 || !ent)
+        return;
+    if (last_entity == ent->number && last_shape == shape && last_index == index)
+        return;
+    last_entity = ent->number;
+    last_shape = shape;
+    last_index = index;
+
+    if (shape) {
+        fprintf(stderr,
+                "WC3_HOVER_HIT entity=%u kind=%s shape=%u node=\"%s\" node_id=%u parent=%u "
+                "v0=(%.1f,%.1f,%.1f) v1=(%.1f,%.1f,%.1f) radius=%.1f\n",
+                ent->number, kind, index, shape->node.name, shape->node.node_id,
+                shape->node.parent_id,
+                shape->vertex[0].x, shape->vertex[0].y, shape->vertex[0].z,
+                shape->vertex[1].x, shape->vertex[1].y, shape->vertex[1].z,
+                shape->radius);
+    } else {
+        fprintf(stderr,
+                "WC3_HOVER_HIT entity=%u kind=%s geoset=%u\n",
+                ent->number, kind, index);
     }
+}
+
+bool MDLX_TraceModel(renderEntity_t const *ent, LPCLINE3 line, LPVECTOR3 intersection) {
+    MATRIX4 invmodel, matmodel;
+    VECTOR3 best_point = { 0 };
+    FLOAT best_distance = FLT_MAX;
+    BOOL hit = false;
+    mdxModel_t const *model;
+
+    if (!ent || !line || !ent->model)
+        return false;
+    model = ent->model->mdx;
+    if (!model)
+        return false;
+
+    R_GetEntityMatrix(ent, &matmodel);
     Matrix4_inverse(&matmodel, &invmodel);
     LINE3 linelocal = {
         Matrix4_multiply_vector3(&invmodel, &line->a),
         Matrix4_multiply_vector3(&invmodel, &line->b),
     };
-    if (!model->collisionShapes)
-        goto check_geosets;
-    FOR_EACH_LIST(mdxCollisionShape_t, collisionShape, model->collisionShapes) {
-        if (collisionShape->type == SHAPETYPE_BOX) {
-            BOX3 box = {
-                .min = collisionShape->vertex[0],
-                .max = collisionShape->vertex[1],
+
+    if (model->collisionShapes) {
+        DWORD shape_index = 0;
+        FOR_EACH_LIST(mdxCollisionShape_t, collisionShape, model->collisionShapes) {
+            VECTOR3 point;
+            BOOL shape_hit = false;
+
+            if (collisionShape->type == SHAPETYPE_BOX) {
+                BOX3 box = {
+                    .min = collisionShape->vertex[0],
+                    .max = collisionShape->vertex[1],
+                };
+                VECTOR3 local_point;
+                if (Line3_intersect_box3(&linelocal, &box, &local_point)) {
+                    point = Matrix4_multiply_vector3(&matmodel, &local_point);
+                    shape_hit = true;
+                }
+            } else if (collisionShape->type == SHAPETYPE_SPHERE) {
+                VECTOR3 center;
+                memcpy(&center, &collisionShape->vertex[0], sizeof(VECTOR3));
+                SPHERE3 sphere = {
+                    .center = Matrix4_multiply_vector3(&matmodel, &center),
+                    .radius = collisionShape->radius * ent->scale,
+                };
+                shape_hit = Line3_intersect_sphere3(line, &sphere, &point);
+            }
+
+            if (shape_hit) {
+                FLOAT const distance = Vector3_distance(&line->a, &point);
+                if (distance < best_distance) {
+                    best_distance = distance;
+                    best_point = point;
+                    hit = true;
+                    MDLX_DebugTraceHit(ent,
+                                       collisionShape->type == SHAPETYPE_BOX ? "box_local" : "sphere_world",
+                                       collisionShape, shape_index);
+                }
+            }
+            shape_index++;
+        }
+    } else {
+        DWORD geoset_index = 0;
+
+        /* Warsmash building picking uses only selectable geosets that are
+         * visible in the current animation. Construction/death/helper
+         * geosets can have very large authored extents and must not create
+         * invisible hover regions while their alpha is zero. */
+        FOR_EACH_LIST(mdxGeoset_t, geoset, model->geosets) {
+            BOX3 box;
+            VECTOR3 bounds_hit;
+
+            if ((geoset->selectable & 4) ||
+                !MDLX_IsGeosetVisible(model, geoset, ent->frame)) {
+                geoset_index++;
+                continue;
+            }
+
+            box = (BOX3) {
+                .min = *(LPCVECTOR3)&geoset->default_bounds.box.min,
+                .max = *(LPCVECTOR3)&geoset->default_bounds.box.max,
             };
-            if (Line3_intersect_box3(&linelocal, &box, NULL))
-                return true;
-        } else if (collisionShape->type == SHAPETYPE_SPHERE) {
-            VECTOR3 center;
-            memcpy(&center, &collisionShape->vertex[0], sizeof(VECTOR3));
-            SPHERE3 sphere = {
-                .center = center,
-                .radius = collisionShape->radius,
-            };
-            if (Line3_intersect_sphere3(&linelocal, &sphere, NULL))
-                return true;
+            if (!Line3_intersect_box3(&linelocal, &box, &bounds_hit)) {
+                geoset_index++;
+                continue;
+            }
+
+            FOR_LOOP(i, geoset->num_triangles / 3) {
+                VECTOR3 local_point;
+                TRIANGLE3 tri = {
+                    .a = geoset->vertices[geoset->triangles[i*3+0]],
+                    .b = geoset->vertices[geoset->triangles[i*3+1]],
+                    .c = geoset->vertices[geoset->triangles[i*3+2]],
+                };
+                if (Line3_intersect_triangle(&linelocal, &tri, &local_point)) {
+                    VECTOR3 const point = Matrix4_multiply_vector3(&matmodel, &local_point);
+                    FLOAT const distance = Vector3_distance(&line->a, &point);
+                    if (distance < best_distance) {
+                        best_distance = distance;
+                        best_point = point;
+                        hit = true;
+                        MDLX_DebugTraceHit(ent, "geoset_triangle", NULL, geoset_index);
+                    }
+                }
+            }
+            geoset_index++;
         }
     }
-    return false;
-check_geosets:
-    FOR_EACH_LIST(mdxGeoset_t, geoset, model->geosets) {
-        BOX3 box2 = {
-            .min = *(LPCVECTOR3)&geoset->default_bounds.box.min,
-            .max = *(LPCVECTOR3)&geoset->default_bounds.box.max,
-        };
-        if (Line3_intersect_box3(&linelocal, &box2, NULL))
-            goto check_geometry;
-    }
-    return false;
-check_geometry:
-    FOR_EACH_LIST(mdxGeoset_t, geoset, model->geosets) {
-        FOR_LOOP(i, geoset->num_triangles / 3) {
-            TRIANGLE3 tri = {
-                .a = geoset->vertices[geoset->triangles[i*3+0]],
-                .b = geoset->vertices[geoset->triangles[i*3+1]],
-                .c = geoset->vertices[geoset->triangles[i*3+2]],
-            };
-            if (Line3_intersect_triangle(&linelocal, &tri, NULL))
-                return true;
-        }
-    }
-    return false;
+
+    if (hit && intersection)
+        *intersection = best_point;
+    return hit;
 }
 
 static void MDLX_RenderGeosets(const renderEntity_t *entity,
