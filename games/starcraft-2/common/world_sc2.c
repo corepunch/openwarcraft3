@@ -15,6 +15,15 @@ BOOL CL_GameDefaultCamera(gameCamera_t *camera) {
 FLOAT CL_GameCameraHeightAtPoint(FLOAT x, FLOAT y) { return SC2_MapCameraHeightAtPoint(x, y); }
 FLOAT CL_GameLerpDegrees(FLOAT a, FLOAT b, FLOAT fraction) { return SC2_LerpDegrees(a, b, fraction); }
 
+/* SC2 has no WC3-style byte pathing-cell mask wired to this generic query.
+ * Returning false tells generic client presentation that this map backend
+ * cannot classify those preview cells. */
+BOOL CM_GetPathingFlagsAt(LPCVECTOR2 location, LPBYTE flags) {
+    (void)location;
+    if (flags) *flags = 0;
+    return false;
+}
+
 bool CM_LoadMapFormat(LPCSTR mapFilename) {
     memset(&world, 0, sizeof(world));
     SC2_MapSetHost(&(sc2MapHost_t){

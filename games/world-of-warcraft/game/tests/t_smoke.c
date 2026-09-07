@@ -35,6 +35,14 @@ TEST(wow_smoke, default_camera_authors_lens) {
     T_FEQ(cam.zfar, WOW_WORLD_FAR_CLIP, 0.001f);
 }
 
+TEST(wow_smoke, byte_pathing_flags_are_explicitly_unsupported) {
+    VECTOR2 point = { 0.0f, 0.0f };
+    BYTE flags = 0xff;
+
+    T_ASSERT(!CM_GetPathingFlagsAt(&point, &flags));
+    T_EQ(flags, 0);
+}
+
 TEST(wow_smoke, read32_little_endian) {
     BYTE bytes[4] = { 0x78, 0x56, 0x34, 0x12 };
     T_EQ(Stb_DbcRead32(bytes), 0x12345678u);
