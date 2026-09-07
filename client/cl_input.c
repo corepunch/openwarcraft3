@@ -31,6 +31,29 @@ static DWORD CL_BindMods(SDL_Keymod m) {
     return mods;
 }
 
+/* SDL owns the authoritative window/display transition state.  Notify the
+ * renderer only on events that can change the OpenGL drawable so it can
+ * resync physical viewport/scissor dimensions without per-frame polling. */
+static BOOL CL_WindowEvent(SDL_WindowEvent const *event) {
+    if (event->event == SDL_WINDOWEVENT_CLOSE) {
+        Com_Quit();
+        return true;
+    }
+    switch (event->event) {
+        case SDL_WINDOWEVENT_MOVED:
+        case SDL_WINDOWEVENT_RESIZED:
+        case SDL_WINDOWEVENT_SIZE_CHANGED:
+#if SDL_VERSION_ATLEAST(2, 0, 18)
+        case SDL_WINDOWEVENT_DISPLAY_CHANGED:
+#endif
+            re.WindowChanged();
+            break;
+        default:
+            break;
+    }
+    return false;
+}
+
 static keyCode_t CL_MouseButtonKey(SDL_MouseButtonEvent const *button) {
     if (!button) return 0;
     switch (button->button) {
@@ -80,7 +103,7 @@ void CL_Input(void) {
                     mouse.origin.y = event.motion.y;
                     break;
                 case SDL_WINDOWEVENT:
-                    if (event.window.event == SDL_WINDOWEVENT_CLOSE) return Com_Quit();
+                    if (CL_WindowEvent(&event.window)) return;
                     break;
                 default:
                     break;
@@ -249,12 +272,7 @@ void CL_Input(void) {
                 }
                 break;
             case SDL_WINDOWEVENT:
-                switch (event.window.event) {
-                    case SDL_WINDOWEVENT_CLOSE:   // exit game
-                        return Com_Quit();
-                    default:
-                        break;
-                }
+                if (CL_WindowEvent(&event.window)) return;
                 break;
         }
     }
