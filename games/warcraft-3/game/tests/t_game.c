@@ -2408,6 +2408,18 @@ TEST(wc3_save, name) { \
     remove(filename); \
 }
 
+#define SAVE_FLOAT_FIELD_TEST(name, field, saved) \
+TEST(wc3_save, name) { \
+    LPCSTR filename = "/tmp/openwarcraft3-wc3-save-" #name ".bin"; \
+    field_t const *desc = find_save_field(#field); \
+    reset_entities(); \
+    LPEDICT unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f); \
+    T_NOT_NULL(desc); if (desc) { T_EQ(desc->type, F_FLOAT); T_EQ(desc->array_size, 0); } \
+    unit->field = saved; \
+    T_ASSERT(WriteGame(filename)); unit->field = 0; T_ASSERT(ReadGame(filename)); T_FEQ(unit->field, saved, 0.001f); \
+    remove(filename); \
+}
+
 SAVE_INT_FIELD_TEST(field_class_id_round_trip, class_id, MAKEFOURCC('h', 'p', 'e', 'a'))
 SAVE_INT_FIELD_TEST(field_variation_round_trip, variation, 7)
 SAVE_INT_FIELD_TEST(field_build_project_round_trip, build_project, MAKEFOURCC('h', 'b', 'a', 'r'))
@@ -2418,6 +2430,12 @@ SAVE_INT_FIELD_TEST(field_heatmap_round_trip, heatmap2, 73)
 SAVE_INT_FIELD_TEST(field_peons_inside_round_trip, peonsinside, 5)
 SAVE_INT_FIELD_TEST(field_ai_flags_round_trip, aiflags, 0x55)
 SAVE_INT_FIELD_TEST(field_damage_round_trip, damage, 99)
+SAVE_INT_FIELD_TEST(field_autocast_code_round_trip, autocast_code, MAKEFOURCC('A', 'h', 'e', 'a'))
+SAVE_INT_FIELD_TEST(field_avatar_level_round_trip, avatar.level, 2)
+SAVE_INT_FIELD_TEST(field_avatar_damage_round_trip, avatar.damage, 31)
+SAVE_FLOAT_FIELD_TEST(field_avatar_armor_round_trip, avatar.armor, 7.0f)
+SAVE_FLOAT_FIELD_TEST(field_avatar_health_round_trip, avatar.health, 600.0f)
+SAVE_FLOAT_FIELD_TEST(field_temporary_health_bonus_round_trip, temporary_health_bonus, 600.0f)
 
 TEST(wc3_save, field_collision_round_trip) {
     LPCSTR filename = "/tmp/openwarcraft3-wc3-save-field-collision.bin";
@@ -2549,13 +2567,15 @@ TEST(wc3_save, round_trip_entity_c_callbacks) {
     LPEDICT idle = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 2.0f, 0.0f);
     LPEDICT effect = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 3.0f, 0.0f);
     LPEDICT tree = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 4.0f, 0.0f);
+    LPEDICT human = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 5.0f, 0.0f);
     unit->stand = unit_stand; unit->birth = unit_birth; unit->die = unit_die; unit->think = monster_think;
     mine->stand = unit_stand; mine->think = blight_mine_think;
     idle->stand = unit_stand; idle->think = NULL;
     effect->think = G_EffectThink; effect->prethink = G_EffectValidateTarget;
     tree->stand = tree_stand; tree->birth = tree_birth; tree->pain = tree_pain; tree->die = tree_die; tree->think = G_FreeEdict;
+    human->think = human_ability_think;
     T_ASSERT(WriteGame(filename));
-    unit->think = mine->think = idle->think = effect->think = tree->think = monster_think;
+    unit->think = mine->think = idle->think = effect->think = tree->think = human->think = monster_think;
     unit->stand = mine->stand = idle->stand = tree->stand = NULL;
     unit->birth = tree->birth = NULL; unit->die = tree->die = NULL; tree->pain = NULL; effect->prethink = NULL;
     T_ASSERT(ReadGame(filename));
@@ -2565,6 +2585,7 @@ TEST(wc3_save, round_trip_entity_c_callbacks) {
     T_ASSERT(effect->think == G_EffectThink && effect->prethink == G_EffectValidateTarget);
     T_ASSERT(tree->stand == tree_stand && tree->birth == tree_birth && tree->pain == tree_pain && tree->die == tree_die);
     T_ASSERT(tree->think == G_FreeEdict);
+    T_ASSERT(human->think == human_ability_think);
     remove(filename);
 }
 

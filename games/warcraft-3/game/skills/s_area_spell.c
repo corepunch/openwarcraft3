@@ -39,7 +39,7 @@ static void area_spell_damage(LPEDICT ent, FLOAT maxtotal) {
         }
     }
     FILTER_EDICTS(target, AREA_HITS(target)) {
-        T_Damage(target, caster, (DWORD)damage);
+        S_SpellDamage(target, caster, (DWORD)damage);
     }
 #undef AREA_HITS
 }
@@ -144,7 +144,7 @@ static void shockwave_execute(LPEDICT caster, spellTarget_t st, spell_info_t con
     FILTER_EDICTS(target, shockwave_hits(target, &ctx)) ntargets++;
     if (maxtotal > 0.0f && ntargets && damage * ntargets > maxtotal)
         damage = MAX(1.0f, maxtotal / (FLOAT)ntargets);
-    FILTER_EDICTS(target, shockwave_hits(target, &ctx)) T_Damage(target, caster, (DWORD)damage);
+    FILTER_EDICTS(target, shockwave_hits(target, &ctx)) S_SpellDamage(target, caster, (DWORD)damage);
 }
 
 static spell_info_t spell_shockwave = {
@@ -276,7 +276,7 @@ static void death_and_decay_think(LPEDICT ent) {
     FILTER_EDICTS(target, target->inuse && S_SpellIsAliveTarget(target) &&
                   S_SpellIsEnemy(caster, target) &&
                   Vector2_distance(&target->s.origin2, &ent->s.origin2) <= ent->collision) {
-        T_Damage(target, caster, (DWORD)MAX(1.0f, target->health.max_value * ent->wait));
+        S_SpellDamage(target, caster, (DWORD)MAX(1.0f, target->health.max_value * ent->wait));
     }
     if (ent->spawn_time && now >= ent->spawn_time) {
         G_FreeEdict(ent);
@@ -327,8 +327,7 @@ static void area_damage_status_execute(LPEDICT caster, spellTarget_t st, spell_i
     FILTER_EDICTS(target, target->inuse && target != caster && S_SpellIsAliveTarget(target) &&
                   S_SpellIsEnemy(caster, target) &&
                   Vector2_distance(&target->s.origin2, &caster->s.origin2) <= radius) {
-        T_Damage(target, caster, damage);
-        if (!M_IsDead(target) && buff && strlen(buff) >= 4 && duration > 0.0f)
+        if (S_SpellDamage(target, caster, damage) && !M_IsDead(target) && buff && strlen(buff) >= 4 && duration > 0.0f)
             unit_addtimedstatus(target, buff, level, duration);
     }
 }

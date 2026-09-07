@@ -145,10 +145,13 @@ static void war_stomp_execute(...)
 For an inverse/toggle path:
 
 ```c
-/* Untip=Deactivate Avatar
+/* Untip=Stop Defend
  * Unubertip=""
  */
 ```
+
+Do not infer toggle semantics from `Untip` alone. Retail Avatar is a timed
+one-shot spell whose `BHav` buff owns its lifetime.
 
 If a handler is shared by several rawcodes, list each rawcode's string contract
 or state explicitly which entries share the implementation. If the entry is not
@@ -218,6 +221,50 @@ Confirmed from `games/warcraft-3/game/skills/s_skills.c` and
 | `AOw2` War Stomp | registered as unsupported | `AOws` is implemented, but the Cairne campaign variant needs its own spell descriptor |
 | `ANsh` / `AOs2` Shockwave | registered as unsupported | campaign variants need code-specific spell descriptors |
 | `ANcf` Breath of Fire | registered as unsupported | `ANbf` is implemented, but the campaign row needs its own spell descriptor |
+
+## Human Ability Audit
+
+The Human registry entries audited from `HumanAbilityStrings.txt` are owned by
+`skills/s_human_abilities.c`. ROC and TFT currently provide identical normalized rows
+for the selected entries. Active spells use the shared `spell_cmd` path, and Heal,
+Inner Fire, Slow, and Spell Steal use the generic one-enabled-ability autocast state in
+`edict_t.autocast_code`.
+
+| Runtime owner | Abilities | Authored inputs consumed |
+| --- | --- | --- |
+| unit-target spell | Aerial Shackles, Control Magic, Cloud, Inner Fire, Heal, Slow, Invisibility, Polymorph | `Rng`, `Dur`/`HeroDur`, `BuffID`, `DataA-C` |
+| point spell/thinker | Flare, Dispel Magic | `Area`, `Dur`, `DataB` |
+| toggle/status | Defend, Magic Defense | `DataA-F`, `Dur`, `HeroDur` |
+| timed transformation | Avatar | `BHav`, `DataA-C`, `Dur` |
+| attack resolution | Feedback, Flak Cannons, Fragmentation Shards, Barrage, Storm Hammers | `DataA-E`, `Area`, unit attack splash fields |
+| capability/presentation marker | Sphere, Phoenix Morphing, Flying Machine Bombs, True Sight, Magic Sentry | registry presence; no invented cast behavior |
+
+Central consumers apply Slow/Defend movement factors, Inner Fire armor, attack
+locks, Defend piercing reduction/reflection,
+Feedback mana burn, and attack splash. Invisibility clears on attacks, spell commits,
+and status expiry. `human_ability_think` owns Flare reveal updates and Aerial Shackles
+damage ticks and is appended to the save callback roster.
+
+Avatar stores its applied armor, maximum-health, and attack-damage deltas on the
+edict. `BHav` owns the lifetime; expiration, death, and ability removal subtract the
+stored values, clamp current health, remove the `alternate` animation property, and
+invalidate the info panel. Hero stat recomputation includes
+`temporary_health_bonus`, so attribute changes cannot erase an active Avatar bonus.
+Spell effects call `S_SpellDamage`, which rechecks `BHav` at impact time, while
+physical attack damage continues through `T_Damage`.
+
+Detection is a per-player visibility concern; True Sight and Magic Sentry must be
+implemented in the snapshot/FOW visibility contract rather than by globally clearing
+`RF_HIDDEN`.
+
+Useful checks:
+
+```sh
+build/bin/ability_audit -data 'data/Warcraft III' -roc -raw Adef
+build/bin/ability_audit -data 'data/Warcraft III' -tft -raw Adef
+build/bin/openwarcraft3-tests +dedicated 1 +test 'wc3_spell.*' +com_frame_limit 100
+build/bin/openwarcraft3-tests +dedicated 1 +test 'wc3_save.*' +com_frame_limit 100
+```
 | `Acdh` Drunken Haze | registered as unsupported | `ANdh` is implemented, but the campaign row needs its own spell descriptor |
 | `ANhw` Healing Wave | registered as unsupported | `AOhw` is implemented, but the campaign row needs its own spell descriptor |
 | `ANhx` Hex | registered as unsupported | `AOhx` is implemented, but the campaign row needs its own spell descriptor |

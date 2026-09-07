@@ -969,6 +969,12 @@ struct edict_s {
     heroability_t heroabilities[MAX_HERO_ABILITIES];
     heroabilitystatus_t abilstatus[MAX_UNIT_STATUSES];
     edictAbilities_s abilities;
+    DWORD autocast_code; /* one selected autocast ability; zero means disabled */
+    struct edictAvatar_s {
+        DWORD level;
+        FLOAT armor, health;
+        LONG damage;
+    } avatar;
     BOOL invulnerable;  // unit cannot take damage when true
     BOOL paused;        // unit AI and movement suspended when true
     BOOL stunned;       // unit AI and movement suspended by timed status
@@ -1028,6 +1034,7 @@ struct edict_s {
     FLOAT armor_value;    /* computed armor ('realdef', incl. hero AGI/modifiers) */
     FLOAT permanent_armor_bonus; /* research/permanent modifiers preserved across hero recompute */
     FLOAT temporary_armor_bonus; /* item/temporary modifiers preserved across hero recompute */
+    FLOAT temporary_health_bonus; /* temporary maximum-health modifiers restored on expiration */
     struct {
         BYTE select[MAX_UNIT_SELECT_SOUNDS];
         BYTE num_select;

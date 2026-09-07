@@ -32,7 +32,7 @@ static void holylight_execute(LPEDICT caster, spellTarget_t st, spell_info_t con
     if (S_SpellIsFriend(caster, target))
         S_SpellHeal(target, amount);
     else
-        T_Damage(target, caster, (int)(amount * 0.5f));
+        S_SpellDamage(target, caster, (int)(amount * 0.5f));
 }
 
 static spell_info_t spell_holylight = {

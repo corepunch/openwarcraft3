@@ -91,6 +91,7 @@ void M_GetEntityMatrix(LPCENTITYSTATE entity, LPMATRIX4 matrix) {
 }
 
 static BOOL can_attack(LPCEDICT ent) {
+    if (!S_HumanCanAttack(ent)) return false;
     if (ent->attack1.type == ATK_NONE)
         return false;
     if (!ent->currentmove || ent->currentmove->ability != &a_attack)
@@ -223,8 +224,11 @@ void T_Damage(LPEDICT target, LPEDICT attacker, int damage) {
 void S_ResolveAttackHit(LPEDICT attacker, LPEDICT target, int damage) {
     DWORD bash_level;
     if (S_EvasionRoll(target)) return;
+    S_HumanBreakInvisibility(attacker);
     damage = S_SearingArrowDamage(attacker, S_BlackArrowDamage(attacker, S_CriticalStrikeDamage(attacker, damage)));
     damage = (int)((FLOAT)damage * (1.0f + S_TrueshotAttackBonus(attacker)));
+    damage = S_HumanAttackDamage(attacker, target, damage);
+    if (damage <= 0) return;
     bash_level = G_UnitAbilityLevel(attacker, MAKEFOURCC('A', 'H', 'b', 'h'));
     if (bash_level && (FLOAT)(rand() % 100) < S_SpellData(MAKEFOURCC('A', 'H', 'b', 'h'), bash_level, 1)) {
         damage += (int)S_SpellData(MAKEFOURCC('A', 'H', 'b', 'h'), bash_level, 3);
@@ -238,6 +242,7 @@ void S_ResolveAttackHit(LPEDICT attacker, LPEDICT target, int damage) {
             if (attacker->abilstatus[i].code == MAKEFOURCC('B', 'O', 'w', 'k')) memset(attacker->abilstatus + i, 0, sizeof(attacker->abilstatus[i]));
     }
     T_Damage(target, attacker, damage);
+    S_HumanAttackSplash(attacker, target, damage);
     DWORD cleave_level = G_UnitAbilityLevel(attacker, MAKEFOURCC('A','N','c','a'));
     if (cleave_level) {
         FLOAT radius = S_SpellNumber(MAKEFOURCC('A','N','c','a'), ABILITY_NUMBER_AREA, cleave_level);

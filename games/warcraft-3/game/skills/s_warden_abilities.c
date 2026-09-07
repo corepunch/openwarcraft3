@@ -59,7 +59,7 @@ static void fanofknives_execute(LPEDICT caster, spellTarget_t st, spell_info_t c
     if (maxtotal > 0.0f && ntargets > 0 && damage * (FLOAT)ntargets > maxtotal)
         damage = MAX(1.0f, maxtotal / (FLOAT)ntargets);
     FILTER_EDICTS(target, FOK_HITS(target))
-        T_Damage(target, caster, (DWORD)damage);
+        S_SpellDamage(target, caster, (DWORD)damage);
 #undef FOK_HITS
 }
 
@@ -77,7 +77,7 @@ static void shadowstrike_execute(LPEDICT caster, spellTarget_t st, spell_info_t 
     DWORD level = S_SpellLevel(caster, spell->code);
     DWORD damage = (DWORD)MAX(1.0f, S_SpellData(spell->code, level, 5)); /* DataE = Initial Damage */
 
-    T_Damage(target, caster, damage);
+    S_SpellDamage(target, caster, damage);
     /* TODO(1:1): Shadow Strike also applies a movement slow and a decaying
      * poison DoT via the BEsh buff.  The status system needs a movement-speed
      * modifier and a periodic-damage tick first. */

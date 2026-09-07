@@ -21,12 +21,12 @@ void flame_strike_tick(LPEDICT ent) {
     /* Initial burst damage on first tick only. */
     if (ent->resources & 1) {/* resources bit 0 = initial burst pending */
         FILTER_EDICTS(target, FLAME_HITS(target))
-            T_Damage(target, caster, ent->damage);
+            S_SpellDamage(target, caster, ent->damage);
         ent->resources &= ~1;
     }
     /* Per-tick burn damage. */
     FILTER_EDICTS(target, FLAME_HITS(target))
-        T_Damage(target, caster, ent->velocity); /* velocity = burn damage per tick */
+        S_SpellDamage(target, caster, ent->velocity); /* velocity = burn damage per tick */
 #undef FLAME_HITS
 
     if (ent->spawn_time && now >= ent->spawn_time) {

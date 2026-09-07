@@ -108,6 +108,7 @@ static saveCFunction_t const save_cfunctions[] = {
     SAVE_CFUNCTION(tree_birth),
     SAVE_CFUNCTION(tree_pain),
     SAVE_CFUNCTION(tree_die),
+    SAVE_CFUNCTION(human_ability_think),
 };
 
 static int SaveCFunctionIndex(void *func) {
@@ -329,6 +330,14 @@ static field_t const abilities_fields[] = {
     { NULL, 0, 0, 0, 0, 0 }
 };
 
+static field_t const avatar_fields[] = {
+    TF(struct edictAvatar_s, level, F_INT),
+    TF(struct edictAvatar_s, armor, F_FLOAT),
+    TF(struct edictAvatar_s, health, F_FLOAT),
+    TF(struct edictAvatar_s, damage, F_INT),
+    { NULL, 0, 0, 0, 0, 0 }
+};
+
 static field_t const movement_fields[] = {
     TF(edictMovement_s, attackmove_waypoint, F_EDICT, 0, FIELD_NONE),
     TF(edictMovement_s, patrol_a, F_EDICT, 0, FIELD_NONE),
@@ -375,6 +384,7 @@ field_t edict_fields[] = {
     F(edict_s, heatmap2, F_INT),
     F(edict_s, peonsinside, F_INT),
     F(edict_s, aiflags, F_INT),
+    F(edict_s, autocast_code, F_INT),
     F(edict_s, damage, F_INT),
     F(edict_s, collision, F_FLOAT),
     F(edict_s, s, F_STRUCT, 1, entity_state_fields),
@@ -397,6 +407,8 @@ field_t edict_fields[] = {
     F(edict_s, area, F_STRUCT, 1, link_fields),
     F(edict_s, destructable, F_STRUCT, 1, destructable_fields),
     F(edict_s, abilities, F_STRUCT, 1, abilities_fields),
+    F(edict_s, avatar, F_STRUCT, 1, avatar_fields),
+    F(edict_s, temporary_health_bonus, F_FLOAT),
     F(edict_s, animation, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, currentmove, F_MMOVE),
     F(edict_s, militia, F_STRUCT, 1, militia_fields),

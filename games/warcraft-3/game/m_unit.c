@@ -128,6 +128,7 @@ void unit_die(LPEDICT self, LPEDICT attacker) {
     LPGAMECLIENT owner;
     DWORD const selected_mask = self ? self->selected : 0;
 
+    S_AvatarExpire(self);
     G_ClearUnitOrderQueue(self);
     G_InvalidateUnitShortcutsForUnit(self);
     G_SetHealth(self, 0.0f);
@@ -764,6 +765,8 @@ BOOL unit_issueimmediateorder(LPEDICT self, LPCSTR order) {
         return S_HoldPosition(self);
     if (!strcmp(order, "mirrorimage"))
         return S_CastNoTargetSpell(self, MAKEFOURCC('A', 'O', 'm', 'i'));
+    if (!strcmp(order, "avatar"))
+        return S_CastNoTargetSpell(self, MAKEFOURCC('A', 'H', 'a', 'v'));
     if (!strcmp(order, "ravenform"))
         return unit_raven_form_order(self, true);
     if (!strcmp(order, "unravenform"))
@@ -907,7 +910,7 @@ FLOAT G_UnitArmorValue(LPCEDICT ent) {
             armor += ability->level[level - 1].data[0].number;
         }
     }
-    return armor + S_SpikedArmorBonus(ent);
+    return armor + S_SpikedArmorBonus(ent) + S_HumanArmorBonus(ent);
 }
 
 static void unit_refreshstatusflags(LPEDICT ent) {
@@ -938,6 +941,7 @@ void unit_updatestatuses(LPEDICT ent) {
             if (status->code == MAKEFOURCC('B', 'O', 'w', 'k')) {
                 ent->s.renderfx &= ~RF_HIDDEN;
             }
+            S_HumanStatusExpired(ent, status->code, status->level);
             if (status->code == MAKEFOURCC('B', 'm', 'i', 'l')) {
                 militia_expired = true;
             }
@@ -1250,7 +1254,7 @@ void G_RecomputeHeroStats(LPEDICT ent) {
     if (baseStr <= 0 && baseAgi <= 0 && baseInt <= 0) {
         return;
     }
-    FLOAT const newMaxHP = balance->maxHealth + ((LONG)ent->hero.str - baseStr) * 25.0f;
+    FLOAT const newMaxHP = balance->maxHealth + ((LONG)ent->hero.str - baseStr) * 25.0f + ent->temporary_health_bonus;
     FLOAT const newMaxMana = balance->maxMana + ((LONG)ent->hero.intel - baseInt) * 15.0f;
     FLOAT const agiDefenseBonus = game.constants.combatConstantsLoaded
                                 ? game.constants.agiDefenseBonus

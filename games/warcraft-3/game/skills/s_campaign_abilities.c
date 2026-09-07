@@ -17,7 +17,7 @@ static void campaign_area_damage_execute(LPEDICT caster, spellTarget_t st, spell
     FLOAT area = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
     DWORD damage = (DWORD)MAX(1.0f, S_SpellData(spell->code, level, 1));
     FILTER_EDICTS(target, S_SpellIsAliveTarget(target) && S_SpellIsEnemy(caster, target) && Vector2_distance(&target->s.origin2, &st.point) <= area)
-        T_Damage(target, caster, damage);
+        S_SpellDamage(target, caster, damage);
 }
 
 static void campaign_stomp_execute(LPEDICT caster, spellTarget_t st, spell_info_t const *spell) {
@@ -25,7 +25,7 @@ static void campaign_stomp_execute(LPEDICT caster, spellTarget_t st, spell_info_
     FLOAT area = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level), duration = S_SpellDuration(spell->code, level, false);
     DWORD damage = (DWORD)MAX(1.0f, S_SpellData(spell->code, level, 1));
     FILTER_EDICTS(target, target != caster && S_SpellIsAliveTarget(target) && S_SpellIsEnemy(caster, target) && target->targtype == TARG_GROUND && Vector2_distance(&target->s.origin2, &caster->s.origin2) <= area) {
-        T_Damage(target, caster, damage);
+        S_SpellDamage(target, caster, damage);
         if (!M_IsDead(target) && duration > 0.0f) unit_addtimedstatus(target, "Bstu", 1, duration);
     }
 }
@@ -63,7 +63,7 @@ static void campaign_battle_roar_execute(LPEDICT caster, spellTarget_t st, spell
 static void campaign_storm_bolt_execute(LPEDICT caster, spellTarget_t st, spell_info_t const *spell) {
     DWORD level = S_SpellLevel(caster, spell->code);
     if (!st.entity || !S_SpellIsAliveTarget(st.entity)) return;
-    T_Damage(st.entity, caster, (DWORD)MAX(1.0f, S_SpellData(spell->code, level, 1)));
+    S_SpellDamage(st.entity, caster, (DWORD)MAX(1.0f, S_SpellData(spell->code, level, 1)));
     if (!M_IsDead(st.entity)) unit_addtimedstatus(st.entity, "Bstu", 1, S_SpellDuration(spell->code, level, G_UnitIsHero(st.entity)));
 }
 

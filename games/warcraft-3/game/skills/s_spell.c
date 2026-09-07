@@ -275,6 +275,7 @@ BOOL S_SpellAllowsTarget(DWORD code, LPEDICT caster, LPEDICT target) {
     if (!S_SpellIsAliveTarget(target)) {
         return false;
     }
+    if (S_UnitSpellImmune(target)) return false;
     targets = G_AbilityLevel(code, 1)->targs;
     if (!targets) {
         return true;
@@ -407,6 +408,7 @@ static void spell_begin_channel(LPEDICT caster, DWORD code) {
 
 /* Pre-execute common work: spend mana, start cooldown. */
 static void spell_commit(LPEDICT caster, DWORD code, DWORD level) {
+    S_HumanBreakInvisibility(caster);
     S_SpellSpendMana(caster, code, level);
     S_SpellStartCooldown(caster, code, level);
 }
@@ -487,6 +489,26 @@ BOOL S_CastNoTargetSpell(LPEDICT caster, DWORD code) {
     if (spell->validate && !spell->validate(caster, target)) return false;
 
     spell_commit(caster, code, level);
+    spell->execute(caster, target, spell);
+    return true;
+}
+
+/* Autocast and AI orders use the same target and resource contract as a player-selected unit spell. */
+BOOL S_CastUnitTargetSpell(LPEDICT caster, DWORD code, LPEDICT unit) {
+    DWORD level;
+    spell_info_t const *spell;
+    spellTarget_t target = { .type = SPELL_TARGET_UNIT, .entity = unit };
+
+    if (!caster || !unit || !code || !G_UnitAbilityLevel(caster, code)) return false;
+    spell = S_SpellInfoForCode(code);
+    if (!spell || spell->target_type != SPELL_TARGET_UNIT || !spell->execute) return false;
+    level = S_SpellLevel(caster, code);
+    if (!S_SpellCooldownReady(caster, code) || !S_SpellCanPay(caster, code, level) ||
+        !S_SpellTargetInRange(caster, unit, S_SpellRange(code, level)) || !S_SpellAllowsTarget(code, caster, unit)) return false;
+    if (spell->validate && !spell->validate(caster, target)) return false;
+
+    spell_commit(caster, code, level);
+    if (spell->flags & SPELL_CHANNEL) spell_begin_channel(caster, code);
     spell->execute(caster, target, spell);
     return true;
 }

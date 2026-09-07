@@ -637,6 +637,85 @@ TEST(wc3_spell, selected_hero_ability_contracts_are_registered) {
 	T_EQ((int)acid->spell->target_type, (int)SPELL_TARGET_UNIT);
 }
 
+TEST(wc3_spell, human_ability_rawcodes_have_concrete_contracts) {
+	static LPCSTR const spells[] = {
+		"Amls", "Acmg", "Amdf", "Asps", "Aclf", "Adef", "Afla", "Ainf", "Adis", "Ahea", "Aslo", "Aivs", "Aply", "AHav",
+	};
+	static LPCSTR const passives[] = {
+		"Afbk", "Aflk", "Afsh", "Aroc", "Asph", "Aphx", "Agyb", "Asth", "Agyv", "Adts",
+	};
+
+	FOR_LOOP(i, sizeof(spells) / sizeof(spells[0])) {
+		ability_t const *ability = FindAbilityByClassname(spells[i]);
+		T_NOT_NULL(ability); T_NE(ability, &a_unimplemented); T_NOT_NULL(ability->cmd);
+		T_NOT_NULL(ability->spell); T_NOT_NULL(ability->spell->execute);
+		T_EQ((int)ability->spell->code, (int)MAKEFOURCC(spells[i][0], spells[i][1], spells[i][2], spells[i][3]));
+	}
+	FOR_LOOP(i, sizeof(passives) / sizeof(passives[0])) {
+		ability_t const *ability = FindAbilityByClassname(passives[i]);
+		T_NOT_NULL(ability); T_NE(ability, &a_unimplemented); T_ASSERT(ability->flags & ABILITY_PASSIVE);
+	}
+}
+
+TEST(wc3_spell, human_support_spells_use_authored_status_and_heal_values) {
+	const char slk[] =
+		"ID;PWXL;N;EBB;Y4;X9\n"
+		"C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs\"\nC;Y1;X4;K\"Rng1\"\n"
+		"C;Y1;X5;K\"Dur1\"\nC;Y1;X6;K\"HeroDur1\"\nC;Y1;X7;K\"DataA1\"\nC;Y1;X8;K\"DataB1\"\nC;Y1;X9;K\"BuffID1\"\n"
+		"C;Y2;X1;K\"Ahea\"\nC;Y2;X2;K\"Ahea\"\nC;Y2;X3;K\"ground,friend\"\nC;Y2;X4;K\"250\"\nC;Y2;X7;K\"25\"\nC;Y2;X9;K\"Bhea\"\n"
+		"C;Y3;X1;K\"Ainf\"\nC;Y3;X2;K\"Ainf\"\nC;Y3;X3;K\"ground,friend\"\nC;Y3;X4;K\"500\"\nC;Y3;X5;K\"60\"\nC;Y3;X6;K\"60\"\nC;Y3;X7;K\"0.1\"\nC;Y3;X8;K\"5\"\nC;Y3;X9;K\"Binf\"\n"
+		"C;Y4;X1;K\"Aslo\"\nC;Y4;X2;K\"Aslo\"\nC;Y4;X3;K\"ground,enemy\"\nC;Y4;X4;K\"700\"\nC;Y4;X5;K\"60\"\nC;Y4;X6;K\"10\"\nC;Y4;X7;K\"0.6\"\nC;Y4;X8;K\"0.25\"\nC;Y4;X9;K\"Bslo\"\nE\n";
+	slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+	LPEDICT caster = make_hero(MAKEFOURCC('h','p','r','i'), 300, 300, 0, 0);
+	LPEDICT ally = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 50, 0);
+	LPEDICT enemy = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 100, 0);
+	ability_t const *heal = FindAbilityByClassname("Ahea"), *inner = FindAbilityByClassname("Ainf"), *slow = FindAbilityByClassname("Aslo");
+	caster->s.player = ally->s.player = 0; enemy->s.player = 1;
+	ally->health.value = 60; ally->health.max_value = 100; ally->armor_value = 2;
+	ally->svflags |= SVF_MONSTER; enemy->svflags |= SVF_MONSTER;
+	heal->spell->execute(caster, MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = ally), heal->spell);
+	T_FEQ(ally->health.value, 85.0f, 0.001f);
+	inner->spell->execute(caster, MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = ally), inner->spell);
+	T_ASSERT(S_UnitHasStatus(ally, MAKEFOURCC('B','i','n','f'))); T_FEQ(G_UnitArmorValue(ally), 7.0f, 0.001f);
+	slow->spell->execute(caster, MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = enemy), slow->spell);
+	T_ASSERT(S_UnitHasStatus(enemy, MAKEFOURCC('B','s','l','o'))); T_FEQ(S_HumanMoveFactor(enemy), 0.4f, 0.001f);
+
+	G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+TEST(wc3_spell, human_attack_passives_and_defend_change_damage) {
+	const char slk[] =
+		"ID;PWXL;N;EBB;Y3;X10\n"
+		"C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"DataA1\"\nC;Y1;X4;K\"DataB1\"\n"
+		"C;Y1;X5;K\"DataC1\"\nC;Y1;X6;K\"DataD1\"\nC;Y1;X7;K\"DataE1\"\nC;Y1;X8;K\"DataF1\"\nC;Y1;X9;K\"DataG1\"\nC;Y1;X10;K\"DataH1\"\n"
+		"C;Y2;X1;K\"Afbk\"\nC;Y2;X2;K\"Afbk\"\nC;Y2;X3;K\"20\"\nC;Y2;X4;K\"1\"\nC;Y2;X5;K\"4\"\nC;Y2;X6;K\"1\"\n"
+		"C;Y3;X1;K\"Adef\"\nC;Y3;X2;K\"Adef\"\nC;Y3;X3;K\"0.5\"\nC;Y3;X4;K\"1\"\nC;Y3;X5;K\"0.3\"\nC;Y3;X8;K\"0\"\nE\n";
+	slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+	LPEDICT attacker = make_hero(MAKEFOURCC('h','b','r','e'), 300, 100, 0, 0);
+	LPEDICT target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 50, 0);
+	attacker->heroabilities[0] = MAKE(heroability_t, .code = MAKEFOURCC('A','f','b','k'), .level = 1);
+	target->mana.value = target->mana.max_value = 50; attacker->attack1.type = ATK_NORMAL;
+	T_EQ(S_HumanAttackDamage(attacker, target, 10), 30); T_FEQ(target->mana.value, 30.0f, 0.001f);
+	unit_addstatus(target, "Adef", 1); attacker->attack1.type = ATK_PIERCE;
+	T_EQ(S_HumanAttackDamage(attacker, target, 100), 60);
+
+	G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+TEST(wc3_spell, defend_fractional_chance_can_guarantee_reflection) {
+	const char slk[] =
+		"ID;PWXL;N;EBB;Y2;X8\n"
+		"C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"DataA1\"\nC;Y1;X4;K\"DataB1\"\n"
+		"C;Y1;X5;K\"DataC1\"\nC;Y1;X6;K\"DataD1\"\nC;Y1;X7;K\"DataE1\"\nC;Y1;X8;K\"DataF1\"\n"
+		"C;Y2;X1;K\"Adef\"\nC;Y2;X2;K\"Adef\"\nC;Y2;X3;K\"0.5\"\nC;Y2;X4;K\"1\"\nC;Y2;X5;K\"0.3\"\nC;Y2;X8;K\"1\"\nE\n";
+	slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+	LPEDICT attacker = make_hero(MAKEFOURCC('h','b','r','e'), 300, 100, 0, 0);
+	LPEDICT target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 50, 0);
+	attacker->health.value = 200; attacker->attack1.type = ATK_PIERCE; unit_addstatus(target, "Adef", 1);
+	T_EQ(S_HumanAttackDamage(attacker, target, 100), 0); T_FEQ(attacker->health.value, 100.0f, 0.001f);
+	G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
 TEST(wc3_spell, selected_common_ability_contracts_are_registered) {
 	static LPCSTR const passives[] = {
 		"Abdt", "Arev", "Aawa", "Adet", "AHer", "Aalr", "Afih", "Afin", "Afio", "Afir", "Afiu", "Aloc", "Attu",

@@ -65,7 +65,7 @@ static void radial_damage_status(LPEDICT caster, VECTOR2 point, spell_info_t con
     LPCSTR buff = spell_buff(spell, level);
     FILTER_EDICTS(target, S_SpellIsAliveTarget(target) && S_SpellIsEnemy(caster, target) &&
                   Vector2_distance(&target->s.origin2, &point) <= area) {
-        T_Damage(target, caster, (int)MAX(1.0f, S_SpellData(spell->code, level, data)));
+        S_SpellDamage(target, caster, (int)MAX(1.0f, S_SpellData(spell->code, level, data)));
         if (buff && !M_IsDead(target))
             unit_addtimedstatus(target, buff, level, S_SpellDuration(spell->code, level, G_UnitIsHero(target)));
     }
@@ -93,7 +93,7 @@ static void impale_execute(LPEDICT caster, spellTarget_t st, spell_info_t const 
         FLOAT across = delta.x * direction.y - delta.y * direction.x;
         if (along < 0.0f || along > S_SpellData(spell->code, level, 1) ||
             fabsf(across) > S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level)) continue;
-        T_Damage(target, caster, (int)S_SpellData(spell->code, level, 3));
+        S_SpellDamage(target, caster, (int)S_SpellData(spell->code, level, 3));
         if (!M_IsDead(target) && buff)
             unit_addtimedstatus(target, buff, level, S_SpellDuration(spell->code, level, G_UnitIsHero(target)));
     }
@@ -107,7 +107,7 @@ static void earthquake_think(LPEDICT ent) {
     if (ent->freetime && now < ent->freetime) return;
     FILTER_EDICTS(target, S_SpellIsAliveTarget(target) && S_SpellIsEnemy(ent->owner, target) &&
                   Vector2_distance(&target->s.origin2, &ent->s.origin2) <= S_SpellNumber(ent->class_id, ABILITY_NUMBER_AREA, level)) {
-        if (G_UnitIsBuilding(target->class_id)) T_Damage(target, ent->owner, (int)S_SpellData(ent->class_id, level, 2));
+        if (G_UnitIsBuilding(target->class_id)) S_SpellDamage(target, ent->owner, (int)S_SpellData(ent->class_id, level, 2));
         else if (buff) unit_addtimedstatus(target, buff, level, 1.5f);
     }
     ent->freetime = now + 1000;
@@ -194,7 +194,7 @@ static void death_coil_execute(LPEDICT caster, spellTarget_t st, spell_info_t co
     DWORD level = S_SpellLevel(caster, spell->code);
     FLOAT amount = S_SpellData(spell->code, level, 1);
     if (!strcmp(st.entity->data.UnitData->race, STR_UNDEAD)) S_SpellHeal(st.entity, amount);
-    else T_Damage(st.entity, caster, (int)(amount * 0.5f));
+    else S_SpellDamage(st.entity, caster, (int)(amount * 0.5f));
 }
 
 static void death_pact_execute(LPEDICT caster, spellTarget_t st, spell_info_t const *spell) {
@@ -202,7 +202,7 @@ static void death_pact_execute(LPEDICT caster, spellTarget_t st, spell_info_t co
     FLOAT life = st.entity->health.value;
     S_SpellHeal(caster, S_SpellData(spell->code, level, 2) * life);
     caster->mana.value = MIN(caster->mana.max_value, caster->mana.value + S_SpellData(spell->code, level, 1) * life);
-    T_Damage(st.entity, caster, (int)MAX(1.0f, st.entity->health.value));
+    S_SpellDamage(st.entity, caster, (int)MAX(1.0f, st.entity->health.value));
 }
 
 static void bounce_execute(LPEDICT caster, spellTarget_t st, spell_info_t const *spell, FLOAT scale) {
@@ -213,7 +213,7 @@ static void bounce_execute(LPEDICT caster, spellTarget_t st, spell_info_t const 
     FOR_LOOP(i, MIN(hits, 32)) {
         LPEDICT next = NULL;
         if (!current) break;
-        T_Damage(current, caster, (int)MAX(1.0f, damage)); visited[nvisited++] = current; damage *= scale;
+        S_SpellDamage(current, caster, (int)MAX(1.0f, damage)); visited[nvisited++] = current; damage *= scale;
         FILTER_EDICTS(target, S_SpellIsAliveTarget(target) && S_SpellIsEnemy(caster, target) &&
                       Vector2_distance(&target->s.origin2, &current->s.origin2) <= S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level)) {
             BOOL seen = false;
@@ -304,7 +304,7 @@ static void acid_bomb_think(LPEDICT thinker) {
     LPEDICT target = thinker->goalentity;
     if (G_Time() >= thinker->spawn_time || !target || !target->inuse || M_IsDead(target)) { G_FreeEdict(thinker); return; }
     if (!thinker->freetime || G_Time() >= thinker->freetime) {
-        T_Damage(target, thinker->owner, thinker->damage); thinker->freetime = G_Time() + 1000;
+        S_SpellDamage(target, thinker->owner, thinker->damage); thinker->freetime = G_Time() + 1000;
     }
 }
 
@@ -336,7 +336,7 @@ static void breath_of_fire_execute(LPEDICT caster, spellTarget_t st, spell_info_
     DWORD damage = (DWORD)MAX(1.0f, S_SpellData(spell->code, level, 1));
     FILTER_EDICTS(target, target != caster && S_SpellIsAliveTarget(target) && S_SpellIsEnemy(caster, target) &&
                   Vector2_distance(&target->s.origin2, &st.point) <= radius)
-        T_Damage(target, caster, damage);
+        S_SpellDamage(target, caster, damage);
 }
 
 static void area_buff_execute(LPEDICT caster, spellTarget_t st, spell_info_t const *spell) {

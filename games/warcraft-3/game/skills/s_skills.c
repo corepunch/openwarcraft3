@@ -111,11 +111,34 @@ static abilityitem_t abilitylist[] = {
     { "Attu", &a_turret },  /* Turret */
 
     /* HumanAbilityStrings.txt */
+    { "Amls", &a_aerial_shackles },  /* Aerial Shackles */
+    { "Afbk", &a_feedback_human },  /* Feedback */
+    { "Acmg", &a_control_magic },  /* Control Magic */
     { "AHdr", &a_siphon_mana_human },  /* Siphon Mana */
+    { "Aflk", &a_flak_cannons },  /* Flak Cannons */
+    { "Afsh", &a_fragmentation_shards },  /* Fragmentation Shards */
+    { "Aroc", &a_barrage },  /* Barrage */
+    { "Amdf", &a_magic_defense },  /* Magic Defense */
+    { "Asph", &a_sphere },  /* Sphere */
+    { "Asps", &a_spell_steal },  /* Spell Steal */
+    { "Aclf", &a_cloud },  /* Cloud */
     { "AHfs", &a_flame_strike_human },  /* Flame Strike */
     { "AHbn", &a_banish },  /* Banish */
     { "AHpx", &a_phoenix },  /* Phoenix */
+    { "Aphx", &a_phoenix_morphing },  /* Phoenix Morphing (Egg Related) */
     { "Apxf", &a_phoenix_fire },  /* Phoenix Fire */
+    { "Agyb", &a_flying_machine_bombs },  /* Flying Machine Bombs */
+    { "Asth", &a_storm_hammers },  /* Storm Hammers */
+    { "Agyv", &a_true_sight_flying_machine },  /* True Sight */
+    { "Adef", &a_defend },  /* Defend */
+    { "Afla", &a_flare },  /* Flare */
+    { "Adts", &a_magic_sentry },  /* Magic Sentry */
+    { "Ainf", &a_inner_fire },  /* Inner Fire */
+    { "Adis", &a_dispel_magic },  /* Dispel Magic */
+    { "Ahea", &a_heal },  /* Heal */
+    { "Aslo", &a_slow },  /* Slow */
+    { "Aivs", &a_invisibility },  /* Invisibility */
+    { "Aply", &a_polymorph },  /* Polymorph */
     { "AHbz", &a_blizzard },  /* Blizzard */
     { "AHwe", &a_water_elemental },  /* Summon Water Elemental */
     { "AHab", &a_brilliance_aura },  /* Brilliance Aura */
@@ -123,6 +146,7 @@ static abilityitem_t abilitylist[] = {
     { "AHtb", &a_thunderbolt },  /* Storm Bolt */
     { "AHtc", &a_thunder_clap },  /* Thunder Clap */
     { "AHbh", &a_bash },  /* Bash */
+    { "AHav", &a_avatar },  /* Avatar */
     { "AHhb", &a_holylight },  /* Holy Light */
     { "AHds", &a_divine_shield },  /* Divine Shield */
     { "AHad", &a_devotionaura },  /* Devotion Aura */
@@ -261,32 +285,6 @@ static abilityitem_t abilitylist[] = {
     // TODO: { "Aamk", &a_attack_mod },  /* Attribute Bonus */
     // TODO: { "ANpa", &a_poison_attack },  /* Parasite */
     // TODO: { "ANbr", &a_bash },  /* Battle Roar */
-
-    /* HumanAbilityStrings.txt */
-    // TODO: { "Amls", &a_aura },  /* Aerial Shackles */
-    // TODO: { "Afbk", &a_aura },  /* Feedback */
-    // TODO: { "Acmg", &a_spell },  /* Control Magic */
-    // TODO: { "Aflk", &a_button },  /* Flak Cannons */
-    // TODO: { "Afsh", &a_button },  /* Fragmentation Shards */
-    // TODO: { "Aroc", &a_rain_of_fire },  /* Barrage */
-    // TODO: { "Amdf", &a_aura },  /* Magic Defense */
-    // TODO: { "Asph", &a_poison_attack },  /* Sphere */
-    // TODO: { "Asps", &a_creep_sleep },  /* Spell Steal */
-    // TODO: { "Aclf", &a_bounce },  /* Cloud */
-    // TODO: { "Aphx", &a_morph },  /* Phoenix Morphing (Egg Related) */
-    // TODO: { "Agyb", &a_bounce },  /* Flying Machine Bombs */
-    // TODO: { "Asth", &a_bounce },  /* Storm Hammers */
-    // TODO: { "Agyv", &a_true_sight },  /* True Sight */
-    // TODO: { "Adef", &a_defend },  /* Defend */
-    // TODO: { "Afla", &a_button },  /* Flare */
-    // TODO: { "Adts", &a_magic_sentry },  /* Magic Sentry */
-    // TODO: { "Ainf", &a_inner_fire },  /* Inner Fire */
-    // TODO: { "Adis", &a_dispel_magic },  /* Dispel Magic */
-    // TODO: { "Ahea", &a_heal },  /* Heal */
-    // TODO: { "Aslo", &a_slow },  /* Slow */
-    // TODO: { "Aivs", &a_perm_invis },  /* Invisibility */
-    // TODO: { "Aply", &a_simple_spell },  /* Polymorph */
-    // TODO: { "AHav", &a_attribute_mod },  /* Avatar */
 
     /* ItemAbilityStrings.txt */
     // TODO: { "AIsp", &a_item_speed },  /* Item Temporary Speed Bonus */
@@ -709,6 +707,7 @@ DWORD FindAbilityIndex(LPCSTR classname) {
 
 void InitAbilities(void) {
     game.num_abilities = sizeof(abilitylist)/sizeof(abilitylist[0]);
+    S_InitHumanAbilities();
     FOR_LOOP(i, game.num_abilities) {
         abilityitem_t *abil = &abilitylist[i];
         if (abil->ability->init) {
