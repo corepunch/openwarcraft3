@@ -2,6 +2,7 @@
 #include "test.h"
 #include "../g_local.h"
 #include "../hud/hud_local.h"
+#include "jass/jass.h"
 
 LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y);
 void setup_test_world(void);
@@ -10,6 +11,7 @@ void repair_build_legacy(LPEDICT ent, LPEDICT building);
 BOOL build_menu_send_builder(LPEDICT clent, LPCVECTOR2 location);
 slkTestData_t *parse_slk_string(const char *slk_text);
 void free_slk_rows(slkTestData_t *rows);
+BOOL run_test_jass(LPCSTR src);
 
 static DWORD building_stand_calls;
 static uiFrame_t building_command_frame;
@@ -319,6 +321,123 @@ TEST(wc3_building, queued_research_charges_locks_and_cancel_refunds) {
     T_EQ(G_GetPlayerTechResearchedLevel(client, upgrade), 0);
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 500);
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 500);
+
+    building_restore_upgrade_data(old, rows);
+}
+
+TEST(wc3_building, research_events_publish_producer_and_rawcode_context) {
+    LPGAMECLIENT client = &game.clients[0];
+    LPEDICT producer;
+    UnitProfile_t profile = { .researches = "Rhme" };
+    slkTestData_t *rows = NULL;
+    slkTestData_t *old;
+    DWORD const upgrade = MAKEFOURCC('R','h','m','e');
+
+    setup_test_world();
+    producer = alloc_test_unit(MAKEFOURCC('h','b','l','a'), 0, 0);
+    old = building_install_upgrade_data(&rows);
+    memset(client->tech, 0, sizeof(client->tech));
+    producer->data.UnitProfile = &profile;
+    producer->s.player = client->ps.number;
+    producer->stand = building_test_stand;
+    client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 1000;
+    client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 1000;
+    client->connected = false; /* suppress HUD/audio presentation in this engine/JASS contract test */
+    level.events.read = level.events.write = 0;
+
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  integer researchStarts = 0\n"
+        "  integer researchCancels = 0\n"
+        "  integer researchFinishes = 0\n"
+        "endglobals\n"
+        "function CheckResearchContext takes nothing returns nothing\n"
+        "  call BJassAssert(GetUnitTypeId(GetResearchingUnit()) == 'hbla', \"researching unit must be producer\")\n"
+        "  call BJassAssert(GetResearched() == 'Rhme', \"research callback must expose upgrade rawcode\")\n"
+        "endfunction\n"
+        "function OnResearchStart takes nothing returns nothing\n"
+        "  call CheckResearchContext()\n"
+        "  set researchStarts = researchStarts + 1\n"
+        "endfunction\n"
+        "function OnResearchCancel takes nothing returns nothing\n"
+        "  call CheckResearchContext()\n"
+        "  set researchCancels = researchCancels + 1\n"
+        "endfunction\n"
+        "function OnResearchFinish takes nothing returns nothing\n"
+        "  call CheckResearchContext()\n"
+        "  set researchFinishes = researchFinishes + 1\n"
+        "endfunction\n"
+        "function VerifyStart takes nothing returns nothing\n"
+        "  call BJassAssert(researchStarts == 1, \"research start must fire once\")\n"
+        "  call BJassAssert(researchCancels == 0, \"research cancel fired early\")\n"
+        "  call BJassAssert(researchFinishes == 0, \"research finish fired early\")\n"
+        "endfunction\n"
+        "function VerifyCancel takes nothing returns nothing\n"
+        "  call BJassAssert(researchStarts == 1, \"unexpected extra research start\")\n"
+        "  call BJassAssert(researchCancels == 1, \"research cancel must fire once\")\n"
+        "  call BJassAssert(researchFinishes == 0, \"research finish fired on cancel\")\n"
+        "endfunction\n"
+        "function VerifyFinish takes nothing returns nothing\n"
+        "  call BJassAssert(researchStarts == 2, \"second research start missing\")\n"
+        "  call BJassAssert(researchCancels == 1, \"unexpected extra research cancel\")\n"
+        "  call BJassAssert(researchFinishes == 1, \"research finish must fire once\")\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger startTrig = CreateTrigger()\n"
+        "  local trigger cancelTrig = CreateTrigger()\n"
+        "  local trigger finishTrig = CreateTrigger()\n"
+        "  call TriggerRegisterPlayerUnitEvent(startTrig, Player(0), EVENT_PLAYER_UNIT_RESEARCH_START, null)\n"
+        "  call TriggerRegisterPlayerUnitEvent(cancelTrig, Player(0), EVENT_PLAYER_UNIT_RESEARCH_CANCEL, null)\n"
+        "  call TriggerRegisterPlayerUnitEvent(finishTrig, Player(0), EVENT_PLAYER_UNIT_RESEARCH_FINISH, null)\n"
+        "  call TriggerAddAction(startTrig, function OnResearchStart)\n"
+        "  call TriggerAddAction(cancelTrig, function OnResearchCancel)\n"
+        "  call TriggerAddAction(finishTrig, function OnResearchFinish)\n"
+        "endfunction\n"));
+
+    T_ASSERT(G_QueueResearch(producer, upgrade));
+    T_EQ(level.events.write, 2);
+    T_EQ(level.events.queue[0].type, EVENT_PLAYER_UNIT_RESEARCH_START);
+    T_EQ(level.events.queue[1].type, EVENT_UNIT_RESEARCH_START);
+    T_ASSERT(level.events.queue[0].edict == producer && level.events.queue[1].edict == producer);
+    T_EQ((DWORD)level.events.queue[0].value, upgrade);
+    T_EQ((DWORD)level.events.queue[1].value, upgrade);
+    G_RunEvents();
+    jass_runevents(level.vm);
+    jass_callbyname(level.vm, "VerifyStart", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+
+    T_ASSERT(G_CancelTrainingQueueItem(producer, 0, true));
+    T_EQ(level.events.write, 4);
+    T_EQ(level.events.queue[2].type, EVENT_PLAYER_UNIT_RESEARCH_CANCEL);
+    T_EQ(level.events.queue[3].type, EVENT_UNIT_RESEARCH_CANCEL);
+    T_EQ((DWORD)level.events.queue[2].value, upgrade);
+    T_EQ((DWORD)level.events.queue[3].value, upgrade);
+    G_RunEvents();
+    jass_runevents(level.vm);
+    jass_callbyname(level.vm, "VerifyCancel", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+
+    T_ASSERT(G_QueueResearch(producer, upgrade));
+    T_EQ(level.events.write, 6);
+    T_EQ(level.events.queue[4].type, EVENT_PLAYER_UNIT_RESEARCH_START);
+    T_EQ(level.events.queue[5].type, EVENT_UNIT_RESEARCH_START);
+    G_RunEvents();
+    jass_runevents(level.vm);
+    T_NOT_NULL(producer->build);
+    producer->build->research.duration = 0.0f;
+    T_NOT_NULL(producer->currentmove);
+    T_NOT_NULL(producer->currentmove->think);
+    producer->currentmove->think(producer);
+    T_EQ(level.events.write, 8);
+    T_EQ(level.events.queue[6].type, EVENT_PLAYER_UNIT_RESEARCH_FINISH);
+    T_EQ(level.events.queue[7].type, EVENT_UNIT_RESEARCH_FINISH);
+    T_EQ((DWORD)level.events.queue[6].value, upgrade);
+    T_EQ((DWORD)level.events.queue[7].value, upgrade);
+    G_RunEvents();
+    jass_runevents(level.vm);
+    jass_callbyname(level.vm, "VerifyFinish", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    T_EQ(G_GetPlayerTechResearchedLevel(client, upgrade), 1);
 
     building_restore_upgrade_data(old, rows);
 }

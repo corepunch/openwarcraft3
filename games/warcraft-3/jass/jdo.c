@@ -22,7 +22,7 @@
 #define INF_LOOP_PROTECTION 1000000  /* SC2 Galaxy scripts have large but legitimate loops */
 #define SYNTAX_C_OPERATORS 1 // bitmask; enables Galaxy symbolic logic and shift operators
 #define SYNTAX_INCLUDES    2 // bitmask; enables Galaxy include preprocessing
-#define BZ_JASS_SNAPSHOT_VERSION 2 // format version; adds relocatable VM-owned and function handle records
+#define BZ_JASS_SNAPSHOT_VERSION 3 // format version; adds scalar trigger-event context payloads
 #define BZ_JASS_SNAPSHOT_MAX_COUNT (1u << 20) // records; bounds allocations and list walks from corrupt snapshots
 #define BZ_JASS_SNAPSHOT_MAX_STRING (1u << 20) // bytes; bounds strings from corrupt snapshots
 
@@ -930,7 +930,8 @@ void jass_runevents(LPJASS j) {
 static BOOL jass_evaluatetriggercontext(LPJASS j,
                                         LPTRIGGER trigger,
                                         LPEDICT unit,
-                                        LPEDICT source) {
+                                        LPEDICT source,
+                                        LONG eventValue) {
     LPPLAYER player = jass_eventplayer(unit);
 
     if (trigger->disabled) {
@@ -944,6 +945,7 @@ static BOOL jass_evaluatetriggercontext(LPJASS j,
         tmp_state.context.trigger = trigger;
         tmp_state.context.unit = unit;
         tmp_state.context.source = source;
+        tmp_state.context.eventValue = eventValue;
         tmp_state.context.playerState = player;
         tmp_state.context.localPlayerState = currentplayer;
         tmp_state.context.timer = currenttimer;
@@ -960,7 +962,7 @@ static BOOL jass_evaluatetriggercontext(LPJASS j,
 }
 
 BOOL jass_evaluatetrigger(LPJASS j, LPTRIGGER trigger, LPEDICT unit) {
-    return jass_evaluatetriggercontext(j, trigger, unit, NULL);
+    return jass_evaluatetriggercontext(j, trigger, unit, NULL, 0);
 }
 
 /* Evaluate a single boolexpr (a Condition()/Filter() code) against a candidate
@@ -1002,7 +1004,8 @@ BOOL jass_evaluateplayerexpr(LPJASS j, LPCJASSFUNC expr, LPPLAYER player) {
 static void jass_executetriggercontext(LPJASS j,
                                        LPTRIGGER trigger,
                                        LPEDICT unit,
-                                       LPEDICT source) {
+                                       LPEDICT source,
+                                       LONG eventValue) {
     FOR_EACH_LIST(TRIGGERACTION, action, trigger->actions) {
         LPPLAYER player = jass_eventplayer(unit);
         jass_startcoroutine(j, &MAKE(JASSCONTEXT,
@@ -1010,6 +1013,7 @@ static void jass_executetriggercontext(LPJASS j,
                                   .func = action->func,
                                   .unit = unit,
                                   .source = source,
+                                  .eventValue = eventValue,
                                   .playerState = player,
                                   .localPlayerState = currentplayer,
                                   .timer = currenttimer,
@@ -1018,19 +1022,27 @@ static void jass_executetriggercontext(LPJASS j,
 }
 
 void jass_executetrigger(LPJASS j, LPTRIGGER trigger, LPEDICT unit) {
-    jass_executetriggercontext(j, trigger, unit, NULL);
+    jass_executetriggercontext(j, trigger, unit, NULL, 0);
+}
+
+BOOL jass_calltriggerwithvalue(LPJASS j,
+                               LPTRIGGER trigger,
+                               LPEDICT unit,
+                               LPEDICT source,
+                               LONG eventValue) {
+    if (jass_evaluatetriggercontext(j, trigger, unit, source, eventValue)) {
+        jass_executetriggercontext(j, trigger, unit, source, eventValue);
+        return true;
+    } else {
+        return false;
+    }
 }
 
 BOOL jass_calltrigger(LPJASS j,
                       LPTRIGGER trigger,
                       LPEDICT unit,
                       LPEDICT source) {
-    if (jass_evaluatetriggercontext(j, trigger, unit, source)) {
-        jass_executetriggercontext(j, trigger, unit, source);
-        return true;
-    } else {
-        return false;
-    }
+    return jass_calltriggerwithvalue(j, trigger, unit, source, 0);
 }
 
 /* =========================================================================
@@ -2388,7 +2400,8 @@ static BOOL jass_snapshot_writecontext(JASSSNAPSHOT *snapshot, LPCJASSCONTEXT co
         { "trigger", context->trigger }, { "unit", context->unit }, { "unit", context->source },
         { "player", context->playerState }, { "player", context->localPlayerState }, { "timer", context->timer },
     };
-    if (!jass_snapshot_writestr(snapshot, jass_functionname(context->func))) return false;
+    if (!jass_snapshot_writestr(snapshot, jass_functionname(context->func)) ||
+        !jass_snapshot_io(snapshot, (void *)&context->eventValue, sizeof(context->eventValue))) return false;
     FOR_LOOP(i, sizeof(handles) / sizeof(*handles))
         if (!jass_snapshot_writecontext_handle(snapshot, handles[i].type, handles[i].value)) return false;
     return true;
@@ -2407,6 +2420,7 @@ static BOOL jass_snapshot_readcontext(LPJASS j, JASSSNAPSHOT *snapshot, LPJASSCO
     context->func = func ? find_function(j, func) : NULL;
     SAFE_DELETE(func, jass_free);
     if (has_func && !context->func) return false;
+    if (!jass_snapshot_io(snapshot, &context->eventValue, sizeof(context->eventValue))) return false;
     FOR_LOOP(i, sizeof(handles) / sizeof(*handles)) {
         DWORD present, id;
         if (!jass_snapshot_io(snapshot, &present, sizeof(present)) || present > 1) return false;

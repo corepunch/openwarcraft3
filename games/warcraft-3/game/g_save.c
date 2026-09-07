@@ -70,7 +70,7 @@ enum {
 
 static DWORD const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static DWORD const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-static DWORD const save_version = 13; // dynamic JASS group registry is serialized separately from inline level fields
+static DWORD const save_version = 14; // research event scalar context and JASS snapshot v3
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
@@ -181,6 +181,7 @@ static field_t const save_game_event_fields[] = {
     F(gameevent_s, type, F_INT),
     F(gameevent_s, edict, F_EDICT, 0, FIELD_NONE),
     F(gameevent_s, source, F_EDICT, 0, FIELD_NONE),
+    F(gameevent_s, value, F_INT),
     F(gameevent_s, responseTo, F_EVENT, 0, FIELD_NONE),
     { NULL, 0, 0, 0, 0, 0 }
 };

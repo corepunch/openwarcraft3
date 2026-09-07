@@ -116,6 +116,38 @@ available.
 path as normal completion. Scripted tech changes therefore update live unit
 stats rather than only changing the integer queried by JASS/AI.
 
+
+## JASS research lifecycle events
+
+Accepted research publishes both the player-unit and unit-scoped start events:
+
+```text
+EVENT_PLAYER_UNIT_RESEARCH_START
+EVENT_UNIT_RESEARCH_START
+```
+
+Cancelling a queued research item publishes the matching `*_RESEARCH_CANCEL`
+events, and completion publishes the matching `*_RESEARCH_FINISH` events.  The
+triggering/researching unit is always the producer building, so
+`GetTriggerUnit()` and `GetResearchingUnit()` resolve to that building.
+`GetResearched()` returns the exact upgrade rawcode carried by the research
+queue item.
+
+Do not recover `GetResearched()` from the producer's current queue head.  Event
+delivery is deferred, and cancel/finish removes and frees that queue item before
+the JASS callback may run.  `GAMEEVENT.value` therefore carries the rawcode as a
+scalar event payload into `JASSCONTEXT.eventValue`.  This also makes the payload
+stable if another queue item becomes active before the callback executes.
+
+The scalar payload is part of save/load state: unread game events serialize it,
+and sleeping JASS callbacks snapshot it with the coroutine context.  Save format
+14 pairs this with JASS snapshot format 3.
+
+The Prologue02 tutorial depends on this contract at the War Mill lesson: its
+`Trig_U2_ClickUpgrade_Done` trigger registers
+`EVENT_PLAYER_UNIT_RESEARCH_START` and advances only when clicking an upgrade
+produces the research-start callback.
+
 ## Blacksmith stat effects
 
 This implementation intentionally enables only the upgrade effect codes whose
@@ -190,9 +222,6 @@ The following compatibility work also remains:
   normalized runtime upgrade rows;
 - W3I upgrade-availability records are parsed but are not yet applied to the
   research state;
-- `EVENT_*_RESEARCH_START/CANCEL/FINISH` are declared but the JASS event context
-  still lacks the researched rawcode needed for a correct `GetResearched()`
-  implementation, so this patch does not publish incomplete research events;
 - Attack 2 runtime stats are initialized and receive `ratx`/`ratd`, but combat
   order selection still attacks through Attack 1; full WC3 Attack 1/Attack 2
   selection remains unresolved;

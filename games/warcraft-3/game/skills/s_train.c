@@ -128,9 +128,14 @@ static BOOL CancelTrainingQueueItem(LPEDICT producer, DWORD index, BOOL refund, 
     ProductionSetNext(item, NULL);
 
     if (item->research.upgrade) {
+        DWORD const upgrade_id = item->research.upgrade;
         if (refund) RefundResearchCost(item);
         G_AddPlayerTechInProgress(G_GetPlayerClientByNumber(item->s.player),
-                                  item->research.upgrade, -1);
+                                  upgrade_id, -1);
+        /* The queue entity is freed immediately below, so carry the researched
+         * rawcode as scalar event context instead of retaining its edict. */
+        G_PublishEventWithValue(producer, EVENT_PLAYER_UNIT_RESEARCH_CANCEL, NULL, (LONG)upgrade_id);
+        G_PublishEventWithValue(producer, EVENT_UNIT_RESEARCH_CANCEL, NULL, (LONG)upgrade_id);
     } else {
         /* Publish while the cancelled queue entity still carries its unit and
          * owner metadata; clearing it first made train-cancel triggers impossible. */
@@ -334,6 +339,8 @@ static BOOL CompleteResearch(LPEDICT producer, LPEDICT item) {
     item->build = NULL;
     G_AddPlayerTechInProgress(client, upgrade_id, -1);
     G_SetPlayerTechResearched(client, upgrade_id, level_value);
+    G_PublishEventWithValue(producer, EVENT_PLAYER_UNIT_RESEARCH_FINISH, NULL, (LONG)upgrade_id);
+    G_PublishEventWithValue(producer, EVENT_UNIT_RESEARCH_FINISH, NULL, (LONG)upgrade_id);
     ShowResearchComplete(producer, upgrade_id, level_value);
     G_FreeEdict(item);
 
@@ -580,6 +587,11 @@ BOOL G_QueueResearch(LPEDICT producer, DWORD upgrade_id) {
     client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] -= gold;
     client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] -= lumber;
     G_AddPlayerTechInProgress(client, upgrade_id, 1);
+    /* Warcraft research callbacks identify the producer through
+     * GetResearchingUnit() and the upgrade through GetResearched().  Publish
+     * at command acceptance, matching the existing TRAIN_START queue contract. */
+    G_PublishEventWithValue(producer, EVENT_PLAYER_UNIT_RESEARCH_START, NULL, (LONG)upgrade_id);
+    G_PublishEventWithValue(producer, EVENT_UNIT_RESEARCH_START, NULL, (LONG)upgrade_id);
     unit_setmove(producer, &train_move_train);
     if (clent && client->connected) {
         G_RefreshResourceBar(clent);

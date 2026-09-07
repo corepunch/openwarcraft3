@@ -629,6 +629,7 @@ typedef struct gameevent_s {
     EVENTTYPE type;
     LPEDICT edict;
     LPEDICT source;
+    LONG value; /* scalar JASS callback payload (for example GetResearched rawcode) */
     LPEVENT responseTo;
 } GAMEEVENT;
 
@@ -1396,6 +1397,7 @@ void G_SetStockSlots(LPEDICT, BOOL, LONG);
 void G_InitStockSlots(LPEDICT);
 GAMEEVENT *G_PublishEvent(LPEDICT, EVENTTYPE);
 GAMEEVENT *G_PublishEventWithSource(LPEDICT, EVENTTYPE, LPEDICT);
+GAMEEVENT *G_PublishEventWithValue(LPEDICT, EVENTTYPE, LPEDICT, LONG);
 void G_PublishSummonEvents(LPEDICT summoner, LPEDICT summoned);
 BOOL G_SubscribeMessage(gameMsgFn, void *);
 void G_UnsubscribeMessage(gameMsgFn, void *);

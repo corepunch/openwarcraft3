@@ -609,7 +609,7 @@ DWORD GetResearchingUnit(LPJASS j) {
     return jass_pushlighthandle(j, jass_getcontext(j)->unit, "unit");
 }
 DWORD GetResearched(LPJASS j) {
-    return jass_pushinteger(j, 0);
+    return jass_pushinteger(j, jass_getcontext(j)->eventValue);
 }
 DWORD GetTrainedUnitType(LPJASS j) {
     LPCJASSCONTEXT context = jass_getcontext(j);
