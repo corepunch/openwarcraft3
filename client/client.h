@@ -139,7 +139,6 @@ void CL_SetMenuBindings(void);
 void CL_SetGameplayInput(void);
 void CL_SetGameplayBindings(void);
 void CL_BeginLoadingMap(LPCSTR mapName);
-FLOAT CL_GetLoadingProgress(void);
 void CL_SetLoadingProgress(FLOAT progress);
 
 /* Long-form client music presentation (client/cl_music.c). */

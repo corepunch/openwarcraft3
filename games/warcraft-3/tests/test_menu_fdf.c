@@ -46,7 +46,6 @@ static int test_campaign_played_mission = -1;
 static VECTOR2 test_mouse_pos;
 static LPCSTR test_map = "";
 static DWORD map_reads, texture_releases;
-static FLOAT test_loading_progress = 1.0f;
 static int fake_image_index(LPCSTR name) {
     captured_model_path = name;
     return (name && *name) ? 456 : 0;
@@ -317,10 +316,6 @@ static void test_cvar_set(LPCSTR name, LPCSTR value) {
     if (name && !strcmp(name, "fs_expansion")) test_fs_expansion = value && atoi(value) != 0;
 }
 
-static FLOAT test_get_loading_progress(void) {
-    return test_loading_progress;
-}
-
 static void load_ui_files(LPCSTR const *file_names, size_t count) {
     menuImport_t saved = menuimport;
 
@@ -361,7 +356,6 @@ static void reset_ui_state(void) {
     captured_glue_changes = 0;
     fake_texture_id = 0;
     texture_releases = map_reads = 0;
-    test_loading_progress = 1.0f;
     menu_player = NULL; test_map = "";
     test_vid_native = -1;
     hover_texture = NULL;
@@ -2698,38 +2692,6 @@ TEST(menu_fdf, deferred_texture_cache_tracks_theme_changes) {
     T_EQ(texture_releases, 1); T_EQ(fake_texture_id, 2);
     T_NOT_NULL(UI_GetTexture(index)); T_EQ(fake_texture_id, 2);
     UI_ClearTheme(); menuimport = saved;
-}
-
-/* A menu launch starts without a startup map cvar; subsequent destinations must invalidate the metadata cache. */
-TEST(menu_fdf, loading_screen_uses_current_destination_and_caches_per_map) {
-    menuImport_t saved = menuimport;
-    PLAYER player = { .client_ui_state = CLIENT_UI_LOADING };
-    reset_ui_state();
-    menuimport.FS_ReadFile = test_fs_read_file; menuimport.FS_FreeFile = test_fs_free_file;
-    menuimport.Cvar_String = test_cvar_string; menuimport.Cmd_ExecuteText = test_cmd_execute_text;
-    menuimport.LoadingProgress = test_get_loading_progress;
-    test_loading_progress = 0.375f;
-    M_Init();
-    menu_player = &player;
-    M_Refresh(0);
-    T_EQ(map_reads, 0);
-    test_map = "Maps\\Campaign\\Human02.w3m";
-    M_Refresh(1);
-    LPFRAMEDEF title = UI_FindFrame("LoadingTitleText");
-    if (require_not_null(title)) {
-        T_STREQ(title->Text, "Human02");
-        T_ASSERT(UI_FindFrame("LoadingBackground")->Portrait.model != 0);
-        T_STREQ(UI_FindFrame("LoadingBar")->Text, "#0@0.3750");
-        T_EQ(map_reads, 1);
-        M_Refresh(2); T_EQ(map_reads, 1);
-        test_map = "Maps\\Campaign\\Orc01.w3m";
-        M_Refresh(3); T_STREQ(title->Text, "Orc01"); T_EQ(map_reads, 2);
-        M_Refresh(4); T_EQ(map_reads, 2);
-        M_Init();
-        M_Refresh(5); T_EQ(map_reads, 3);
-    }
-    menu_player = NULL; test_map = "";
-    M_Shutdown(); menuimport = saved;
 }
 
 TEST(menu_fdf, loading_rows_support_roc_and_tft_schema) {

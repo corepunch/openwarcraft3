@@ -242,6 +242,8 @@ void CL_ParseFrame(LPSIZEBUF msg) {
         cls.state = ca_active;
         cl.playerstate.client_ui_state = CLIENT_UI_GAME;
         SCR_EndLoadingPlaque();
+        SAFE_DELETE(cl.layout[LAYER_LOADING], MemFree);
+        SCR_ClearLayoutLayer(LAYER_LOADING);
         CL_SetGameplayInput();
     }
     

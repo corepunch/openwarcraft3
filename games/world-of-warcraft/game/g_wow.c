@@ -2480,6 +2480,8 @@ static void Wow_ClientBegin(LPEDICT ent) {
     UI_WriteWelcomeWindow(ent);
 }
 
+static void Wow_ClientLoading(LPEDICT ent) { (void)ent; }
+
 struct game_export *GetGameAPI(struct game_import *import) {
     gi = *import;
     (void)gi;
@@ -2490,6 +2492,7 @@ struct game_export *GetGameAPI(struct game_import *import) {
     globals.GetThemeValue = Wow_GetThemeValue;
     globals.ClientCommand = Wow_ClientCommand;
     globals.ClientSetCameraPosition = Wow_ClientSetCameraPosition;
+    globals.ClientLoading = Wow_ClientLoading;
     globals.ClientBegin = Wow_ClientBegin;
     globals.CanSeeEntity = NULL;
     globals.CustomizeEntity = Wow_CustomizeEntity;

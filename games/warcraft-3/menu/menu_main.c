@@ -8,8 +8,6 @@
 #include "menu_local.h"
 #include "common/video_modes.h"
 #include "menu_screen.h"
-#include "common/stb_slk.h"
-#include "generated/loading_screen.h"
 
 /* Global import table filled by M_GetAPI */
 menuImport_t menuimport;
@@ -30,7 +28,6 @@ typedef struct {
 static uiState_t ui_state;
 static uiScreen_t *ui_current_screen = NULL;
 static BOOL ui_menu_commands_registered;
-static LoadingScreen_t loading_screen;
 
 /* Some classic/pre-widescreen skin tables expose only one of the paired
  * ConsoleTexture05/06 fields even though both extension tiles are installed.
@@ -96,17 +93,6 @@ static BOOL UI_IsMapCommand(LPCSTR command) {
     return *command != '\0';
 }
 
-typedef struct {
-    PATHSTR map;
-    char title[256];
-    char subtitle[256];
-    char text[1024];
-    DWORD background_model;
-    DWORD background_sequence;
-    DWORD progress_model;
-} uiLoadingState_t;
-
-static uiLoadingState_t loading_state;
 
 static void UI_SetScreen(uiScreen_t *screen) {
     uiScreen_t *previous_screen = ui_current_screen;
@@ -392,93 +378,6 @@ static void UI_ClearScreen(void) {
     UI_SetScreen(NULL);
 }
 
-/* LoadingScreens rows describe the model/sequence; TFT adds an expansion category before the display label. */
-static DWORD UI_LoadCampaignLoadingModel(DWORD background, DWORD *sequence) {
-    static stbIniCache_t data;
-    if (!data.source) Stb_IniCacheLoad(&data, "UI\\WorldEditData.txt");
-    char key[8];
-    PATHSTR model;
-    snprintf(key, sizeof(key), "%02u", (unsigned)background);
-    LPCSTR row = Stb_IniCacheFind(&data, "LoadingScreens", key);
-    if (!UI_ParseLoadingRow(row, sequence, model)) {
-        fprintf(stderr, "UI: invalid LoadingScreens[%s]: %s\n", key, row ? row : "(missing)");
-        return 0;
-    }
-    return UI_LoadModel(model, false);
-}
-
-static DWORD UI_DefaultLoadingModel(void) {
-    return UI_LoadModel("LoadingMeleeBackground", true);
-}
-
-static DWORD UI_CustomLoadingModel(LPCMAPINFO info) {
-    PATHSTR model;
-
-    if (!info || !info->loadingScreenModel || !info->loadingScreenModel[0]) {
-        return 0;
-    }
-    snprintf(model, sizeof(model), "%s", info->loadingScreenModel);
-    UI_SanitizeMapInfoText(model);
-    return model[0] ? UI_LoadModel(model, false) : 0;
-}
-
-static void UI_InitLoadingScreen(void) {
-    LoadingScreen_Load(&loading_screen);
-    if (loading_screen.LoadingCustomPanel) {
-        UI_SetHidden(loading_screen.LoadingCustomPanel, false);
-    }
-    if (loading_screen.LoadingMeleePanel) {
-        UI_SetHidden(loading_screen.LoadingMeleePanel, true);
-    }
-}
-
-static void UI_UpdateLoadingMapInfo(void) {
-    MAPINFO info;
-    LPCSTR map_path = menuimport.Cvar_String("map", "");
-    DWORD model = 0, seq = 0;
-    if (!map_path || !*map_path || !strcmp(loading_state.map, map_path)) return;
-    memset(&info, 0, sizeof(info)); memset(&loading_state, 0, sizeof(loading_state));
-    snprintf(loading_state.map, sizeof(loading_state.map), "%s", map_path);
-    if (UI_ReadMapInfo(map_path, &info)) {
-        UI_ResolveMapInfoString(&info, info.loadingScreenTitle, loading_state.title, sizeof(loading_state.title));
-        if (!loading_state.title[0]) UI_ResolveMapInfoString(&info, info.mapName, loading_state.title, sizeof(loading_state.title));
-        UI_ResolveMapInfoString(&info, info.loadingScreenSubtitle, loading_state.subtitle, sizeof(loading_state.subtitle));
-        UI_ResolveMapInfoString(&info, info.loadingScreenText, loading_state.text, sizeof(loading_state.text));
-        UI_SanitizeMapInfoText(loading_state.title); UI_SanitizeMapInfoText(loading_state.subtitle); UI_SanitizeMapInfoText(loading_state.text);
-        model = UI_CustomLoadingModel(&info);
-        if (!model && info.campaignBackgroundNumber != (DWORD)-1) model = UI_LoadCampaignLoadingModel(info.campaignBackgroundNumber, &seq);
-        UI_FreeMapInfo(&info);
-    }
-    if (!loading_state.title[0]) UI_DefaultMapName(map_path, loading_state.title, sizeof(loading_state.title));
-    loading_state.background_model = model ? model : UI_DefaultLoadingModel();
-    loading_state.background_sequence = seq;
-    loading_state.progress_model = UI_LoadModel("LoadingProgressBar", true);
-}
-
-static void M_DrawLoadingScreen(void) {
-    RECT scene;
-
-    if (!loading_screen.Loading) return;
-    if (loading_screen.LoadingBackground) {
-        snprintf(loading_screen.LoadingBackground->TextStorage, sizeof(loading_screen.LoadingBackground->TextStorage), "#!%u", (unsigned)loading_state.background_sequence);
-        loading_screen.LoadingBackground->Text = loading_screen.LoadingBackground->TextStorage;
-        loading_screen.LoadingBackground->Portrait.model = loading_state.background_model;
-    }
-    if (loading_screen.LoadingBar) {
-        FLOAT progress = menuimport.LoadingProgress ? menuimport.LoadingProgress() : 1.0f;
-        if (progress < 0.0f) progress = 0.0f;
-        if (progress > 1.0f) progress = 1.0f;
-        snprintf(loading_screen.LoadingBar->TextStorage, sizeof(loading_screen.LoadingBar->TextStorage), "#0@%.4f", progress);
-        loading_screen.LoadingBar->Text = loading_screen.LoadingBar->TextStorage;
-        loading_screen.LoadingBar->Portrait.model = loading_state.progress_model;
-    }
-    if (loading_screen.LoadingTitleText) UI_SetTextPointer(loading_screen.LoadingTitleText, loading_state.title);
-    if (loading_screen.LoadingSubtitleText) UI_SetTextPointer(loading_screen.LoadingSubtitleText, loading_state.subtitle);
-    if (loading_screen.LoadingText) UI_SetTextPointer(loading_screen.LoadingText, loading_state.text);
-    scene = UI_GetCenteredSceneRect();
-    UI_DrawFrameInScene(loading_screen.Loading, &scene);
-}
-
 /* Refresh frame state flags before dispatch so draw never asks for mouse position. */
 static void UI_UpdateMouseFrameFlags(LPCFRAMEDEF hit, BOOL clear_pressed) {
     FOR_LOOP(i, MAX_UI_CLASSES) {
@@ -502,7 +401,6 @@ static void UI_UpdateMouseFrameFlags(LPCFRAMEDEF hit, BOOL clear_pressed) {
 
 void M_Init(void) {
     memset(&ui_state, 0, sizeof(ui_state));
-    memset(&loading_state, 0, sizeof(loading_state));
     UI_ResetGlueSceneModels();
     UI_RegisterMenuCommands();
     
@@ -526,8 +424,6 @@ void M_Init(void) {
     UI_ParseFDF("UI\\FrameDef\\Glue\\TeamSetup.fdf");
     UI_ParseFDF("UI\\FrameDef\\Glue\\PlayerSlot.fdf");
     UI_ParseFDF("UI\\FrameDef\\Glue\\GameChatroom.fdf");
-    UI_ParseFDF("UI\\FrameDef\\Glue\\Loading.fdf");
-    UI_InitLoadingScreen();
     
     ui_state.initialized = true;
     ui_state.active = true;
@@ -568,12 +464,6 @@ void M_Refresh(DWORD time) {
     }
 
     ui_state.time = time;
-
-    if (menu_player && menu_player->client_ui_state == CLIENT_UI_LOADING) {
-        UI_UpdateLoadingMapInfo();
-        M_DrawLoadingScreen();
-        return;
-    }
 
     /* Call current screen refresh */
     uiScreen_t *screen = UI_GetCurrentScreen();

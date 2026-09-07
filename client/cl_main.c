@@ -455,10 +455,6 @@ static void CL_UICvarSet(LPCSTR name, LPCSTR value) {
     Cvar_Set(name, value);
 }
 
-FLOAT CL_GetLoadingProgress(void) {
-    return cl.loading_progress;
-}
-
 void CL_SetLoadingProgress(FLOAT progress) {
     if (progress < 0.0f) progress = 0.0f;
     if (progress > 1.0f) progress = 1.0f;
@@ -839,7 +835,6 @@ void CL_Init(void) {
         .Cvar_String = Cvar_String,
         .Cvar_Set = CL_UICvarSet,
         .GetConfigString = CL_GetConfigString,
-        .LoadingProgress = CL_GetLoadingProgress,
         .LAN_RefreshServers = CL_LANRefreshServers,
         .LAN_NumServers = CL_LANNumServers,
         .LAN_Server = CL_LANServer,

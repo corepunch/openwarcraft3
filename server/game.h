@@ -135,6 +135,7 @@ struct game_export {
     LPCSTR (*GetThemeValue)(LPCSTR filename);
     void (*ClientCommand)(LPEDICT ent, DWORD argc, LPCSTR argv[]);
     void (*ClientSetCameraPosition)(LPEDICT ent, LPCVECTOR2 position);
+    void (*ClientLoading)(LPEDICT ent);
     void (*ClientBegin)(LPEDICT ent);
     BOOL (*CanSeeEntity)(DWORD player, LPCEDICT ent);
     void (*CustomizeEntity)(DWORD player, LPCEDICT ent, LPENTITYSTATE state);
