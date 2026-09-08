@@ -65,6 +65,8 @@ void UI_PreloadGlueSceneModels(void);
 typedef void (*uiGluePanelChanged_f)(void);
 void UI_GotoGluePanel(uiGluePanel_t panel, uiGluePanelChanged_f changed);
 void UI_GotoGluePanelTransition(uiGluePanel_t panel, uiGluePanelChanged_f exited, uiGluePanelChanged_f changed);
+void UI_RetargetGluePanel(uiGluePanel_t panel, uiGluePanelChanged_f exited, uiGluePanelChanged_f changed);
+void UI_SetGlueTab(uiGluePanel_t panel);
 void UI_CloseGluePanel(uiGluePanelChanged_f changed);
 void UI_DrawGlueScene(void);
 BOOL UI_GetGlueScreenOffset(LPVECTOR2 offset);
