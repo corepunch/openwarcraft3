@@ -146,6 +146,10 @@ static void UI_FinishScreenTransition(void) {
     UI_SetScreen(screen);
 }
 
+static void UI_BeginScreenTransition(void) {
+    UI_SetScreen(ui_state.transition_screen);
+}
+
 static void UI_FinishActionTransition(void) {
     void (*action)(void) = ui_state.transition_action;
 
@@ -156,7 +160,7 @@ static void UI_FinishActionTransition(void) {
 static void UI_TransitionToScreen(uiScreen_t *screen, uiGluePanel_t panel) {
     if (ui_state.transition_screen || ui_state.transition_action) return;
     ui_state.transition_screen = screen;
-    UI_GotoGluePanel(panel, UI_FinishScreenTransition);
+    UI_GotoGluePanelTransition(panel, UI_BeginScreenTransition, UI_FinishScreenTransition);
 }
 
 void M_TransitionToAction(void (*action)(void)) {
@@ -180,8 +184,7 @@ void M_ShowSinglePlayerMenu(void) {
 }
 
 void M_ShowOptionsMenu(void) {
-    UI_SetScreen(&optionsMenuScreen);
-    OptionsMenu_ShowGameplay();
+    UI_TransitionToScreen(&optionsMenuScreen, UI_GLUE_OPTIONS);
 }
 
 void M_ShowCreditsMenu(void) {
@@ -208,7 +211,7 @@ void M_ShowGameSetupMenu(void) {
 }
 
 static void UI_MenuMain_f(void) {
-    if (!UI_GetCurrentScreen() || UI_GetCurrentScreen() == &singlePlayerMenuScreen) {
+    if (UI_GetCurrentScreen() != &mainMenuScreen) {
         UI_TransitionToScreen(&mainMenuScreen, UI_GLUE_MAIN_MENU);
         return;
     }
@@ -216,7 +219,7 @@ static void UI_MenuMain_f(void) {
 }
 
 static void UI_MenuGame_f(void) {
-    if (UI_GetCurrentScreen() == &mainMenuScreen) {
+    if (UI_GetCurrentScreen() != &singlePlayerMenuScreen) {
         UI_TransitionToScreen(&singlePlayerMenuScreen, UI_GLUE_SINGLE_PLAYER);
         return;
     }
@@ -458,6 +461,10 @@ DWORD M_Time(void) {
     return ui_state.time;
 }
 
+BOOL M_IsTransitioning(void) {
+    return ui_state.transition_screen || ui_state.transition_action;
+}
+
 void M_Refresh(DWORD time) {
     if (!ui_state.active) {
         return;
@@ -473,8 +480,11 @@ void M_Refresh(DWORD time) {
 
     if (ui_state.transition_screen || ui_state.transition_action) {
         UI_DrawGlueScene();
+        screen = UI_GetCurrentScreen();
+        if (screen && screen->draw) screen->draw();
         return;
     }
+    UI_DrawGlueScene();
     if (screen && screen->draw)
         screen->draw();
 }

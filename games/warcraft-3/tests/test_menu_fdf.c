@@ -2168,8 +2168,9 @@ TEST(menu_fdf, initial_glue_panel_finishes_birth_before_opening_screen) {
     mi = saved;
 }
 
-TEST(menu_fdf, glue_panel_formats_preserve_side_specific_suffixes) {
+TEST(menu_fdf, options_glue_panel_uses_authored_birth_sequences) {
     menuImport_t saved = mi;
+    VECTOR2 offset;
 
     reset_ui_state();
     memset(&mi, 0, sizeof(mi));
@@ -2178,8 +2179,19 @@ TEST(menu_fdf, glue_panel_formats_preserve_side_specific_suffixes) {
 
     UI_GotoGluePanel(UI_GLUE_OPTIONS, NULL);
     UI_DrawGlueScene();
-    T_STREQ(captured_sprite_anim[0], "Options Birth Alternate@0.0000");
+    T_STREQ(captured_sprite_anim[0], "Options Birth@0.0000");
     T_STREQ(captured_sprite_anim[1], "Options Birth@0.0000");
+    T_ASSERT(UI_GetGlueScreenOffset(&offset));
+    T_FEQ(offset.y, -UI_BASE_HEIGHT, 0.0001f);
+    M_SetActive(true);
+    M_Refresh(M_Time() + 500);
+    T_ASSERT(UI_GetGlueScreenOffset(&offset));
+    T_FEQ(offset.y, -0.12f, 0.0001f);
+    M_Refresh(M_Time() + 500);
+    captured_sprite_calls = 0;
+    UI_DrawGlueScene();
+    T_STREQ(captured_sprite_anim[0], "Options Stand Alternate");
+    T_ASSERT(!UI_GetGlueScreenOffset(&offset));
 
     UI_ResetGlueSceneModels();
     mi = saved;

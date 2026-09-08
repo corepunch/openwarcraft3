@@ -121,11 +121,20 @@ therefore not a static BLP backdrop. Callers select a typed logical panel such a
 
 The shared background renders its looping `Stand` sequence. The panel controller has only three phases: idle, exit, and enter. It
 derives each layer's `Death@ratio` or `Birth@ratio` sequence from the current logical panel and returns to its authored `Stand` when
-the phase ends. `menu_main.c` owns cross-screen transitions: while one is active it suppresses screen drawing and input, draws the
-glue scene, then switches to the requested screen after its `Birth`. Action-only transitions invoke their action after `Death`.
-Screen controllers do not poll animation completion, keep pending flags, or hide their own frame trees for transitions.
-At startup `M_Init` only loads UI resources; the client's post-input `menu_main` command starts the initial transition. Selecting the
-screen in both places opens its FDF tree before `Birth` and must not be reintroduced.
+the phase ends. `menu_main.c` owns every cross-screen transition: the outgoing screen remains active through `Death`, the transition
+manager switches screens at the `Death` to `Birth` boundary, and the incoming screen remains active through `Birth`. Input stays
+suppressed until `Birth` completes. `M_Refresh` re-reads the current screen after advancing the glue scene because that advancement
+can perform the boundary handoff; retaining its earlier pointer draws the outgoing screen once over the incoming panel.
+
+The panel models animate entry and exit through staged geoset visibility/alpha; their node matrices remain identity throughout
+`Birth`. Screen FDF contents therefore follow a shared 20 fps offset curve owned by `menu_glue_scene.c`, traversed forward for
+`Birth` and backward for `Death`. This keeps transition behavior independent of screen controllers. Action-only transitions invoke
+their action after `Death`; screen controllers do not poll animation completion, keep pending flags, or hide their own frame trees.
+At startup `M_Init` only loads UI resources; the client's post-input `menu_main` command starts the initial transition.
+
+TopLeftPanel and TopRightPanel both author `Options Birth` and `Options Death`; neither authors an Alternate form of those phases.
+The stable Options left panel is `Options Stand Alternate`, while transition phases use the normal `Options Birth` and
+`Options Death` names. `Options Morph Alternate` is a separate authored morph and must not substitute for screen entry.
 
 Campaign background models render their stable `Stand` sequence. Their `Birth` durations vary by race and edition, so they are not
 part of the fixed panel-transition clock. Entering campaign selection waits for `SinglePlayer Death`; returning declares

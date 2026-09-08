@@ -133,23 +133,15 @@ static void MainMenu_FinishEditionSwitch(void) {
     mi.Cmd_ExecuteText("menu_restart\n");
 }
 
-/* Restart only after both authored Death layers have reached their final pose. */
-static void MainMenu_FinishEditionSwitch(void) {
-    LPCSTR expansion = menuimport.Cvar_String("fs_expansion", "0");
-
-    MainMenu_ApplyEdition(!(expansion && atoi(expansion) != 0));
-    menuimport.Cmd_ExecuteText("menu_restart\n");
-}
-
 static void MainMenu_Refresh(int msec) {
     (void)msec;
 }
 
 static void MainMenu_Draw(void) {
+    UI_DrawGlueScene();
     LPCFRAMEDEF roots[2];
     DWORD num_roots = 0;
 
-    UI_DrawGlueScene();
 
     if (main_menu.MainMenuFrame) {
         roots[num_roots++] = main_menu.MainMenuFrame;

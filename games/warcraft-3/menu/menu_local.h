@@ -33,6 +33,7 @@ void M_Shutdown(void);
 void M_Refresh(DWORD time);
 DWORD M_Time(void);
 void M_TransitionToAction(void (*action)(void));
+BOOL M_IsTransitioning(void);
 
 /* ROC rows are label,sequence,model; TFT prepends a numeric expansion category (even for ROC campaigns). */
 static inline BOOL UI_ParseLoadingRow(LPCSTR row, LPDWORD sequence, LPSTR model) {
@@ -63,8 +64,10 @@ void UI_ReleaseGlueSceneModels(void);
 void UI_PreloadGlueSceneModels(void);
 typedef void (*uiGluePanelChanged_f)(void);
 void UI_GotoGluePanel(uiGluePanel_t panel, uiGluePanelChanged_f changed);
+void UI_GotoGluePanelTransition(uiGluePanel_t panel, uiGluePanelChanged_f exited, uiGluePanelChanged_f changed);
 void UI_CloseGluePanel(uiGluePanelChanged_f changed);
 void UI_DrawGlueScene(void);
+BOOL UI_GetGlueScreenOffset(LPVECTOR2 offset);
 
 /* menu_fdf.c — FDF parsing (moved from game/menu/menu_fdf.c) */
 BOOL UI_EnsureFDF(LPCSTR filename);

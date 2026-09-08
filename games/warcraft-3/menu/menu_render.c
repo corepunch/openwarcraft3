@@ -1288,6 +1288,13 @@ void UI_DrawFramesInScene(LPCFRAMEDEF const *roots, DWORD num_roots, LPCRECT sce
     
     /* Initialize scene rect */
     scene_rect = scene ? *scene : UI_GetSceneRect();
+    if (!scene && M_IsTransitioning()) {
+        VECTOR2 offset;
+        if (UI_GetGlueScreenOffset(&offset)) {
+            scene_rect.x += offset.x;
+            scene_rect.y += offset.y;
+        }
+    }
     scene_rect_valid = TRUE;
     total = 0;
     FOR_LOOP(i, num_roots) {
