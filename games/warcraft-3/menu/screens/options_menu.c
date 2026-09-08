@@ -321,7 +321,6 @@ static void OptionsMenu_SetPanel(optionsPanel_t panel) {
 static void OptionsMenu_Init(void) {
     mi.Printf("OptionsMenu_Init\n");
     current_panel = OPTIONS_PANEL_GAMEPLAY;
-    UI_SetGlueTab(UI_GLUE_OPTIONS);
 
     UI_SetOnClick(options_menu.GameplayButton, "menu_options_gameplay");
     UI_SetOnClick(options_menu.VideoButton, "menu_video");
@@ -337,7 +336,6 @@ static void OptionsMenu_Init(void) {
 }
 
 static void OptionsMenu_Shutdown(void) {
-    UI_SetGlueTab(UI_GLUE_NONE);
 }
 
 static void OptionsMenu_Refresh(int msec) {
@@ -387,6 +385,7 @@ void OptionsMenu_Apply(void) {
 uiScreen_t optionsMenuScreen = {
     .name = "options",
     .panel = UI_GLUE_OPTIONS,
+    .tab = 1,
     .load = OptionsMenu_LoadScreen,
     .init = OptionsMenu_Init,
     .shutdown = OptionsMenu_Shutdown,

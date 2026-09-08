@@ -1,0 +1,102 @@
+Warcraft III glue panel animations
+==================================
+
+Panel and tab groupings (from glue_panels[] in menu_glue_scene.c)
+------------------------------------------------------------------
+Each panel drives the RIGHT chrome with full Birth/Stand/Death transitions.
+The LEFT chrome uses the active tab's sequences instead:
+
+  UI_GLUE_MAIN_MENU              tab 0: MainMenu
+  UI_GLUE_REALM_SELECTION        tab 0: RealmSelection
+  UI_GLUE_SINGLE_PLAYER          tab 0: SinglePlayer        (Birth/Stand/Death)
+                                  tab 1: SinglePlayerSkirmish (Morph / Stand / Morph Alternate)
+  UI_GLUE_OPTIONS                tab 0: Options              (Birth/Stand/Death)
+                                  tab 1: Options              (Morph / Stand Alternate / Morph Alternate)
+  UI_GLUE_MULTIPLAYER_PRE_GAME_CHAT  tab 0: MultiplayerPreGameChat
+                                      tab 1: MultiplayerSubmenu (Morph / Morph Alternate)
+  UI_GLUE_BATTLENET_CUSTOM       tab 0: BattlenetCustom
+                                  tab 1: BattlenetCustomCreate      (Morph / Morph Alternate)
+                                  tab 2: BattlenetAdvancedOptions   (Morph / Morph Alternate)
+
+Tab switch animations: when tab_name != panel_name use the tab's own sequences;
+when tab_name == panel_name (Options alt) use the panel's Stand Alternate / Morph family.
+
+Models:
+  ROC  UI\Glues\SpriteLayers\TopLeftPanel.mdx   347104 bytes
+  ROC  UI\Glues\SpriteLayers\TopRightPanel.mdx  319376 bytes
+  TFT  UI\Glues\SpriteLayers\TopLeftPanel.mdx   344228 bytes
+  TFT  UI\Glues\SpriteLayers\TopRightPanel.mdx  319376 bytes
+
+All four models expose the same 62 sequence names, indices, intervals, and flags.
+Intervals and durations are milliseconds. Flag 0x1 marks an authored non-looping sequence.
+
+Extract with:
+  build/bin/mdxtool -mpq 'data/Warcraft III/War3.mpq'  -model 'UI\Glues\SpriteLayers\TopLeftPanel.mdx'  --info
+  build/bin/mdxtool -mpq 'data/Warcraft III/War3.mpq'  -model 'UI\Glues\SpriteLayers\TopRightPanel.mdx' --info
+  build/bin/mdxtool -mpq 'data/Warcraft III/War3x.mpq' -model 'UI\Glues\SpriteLayers\TopLeftPanel.mdx'  --info
+  build/bin/mdxtool -mpq 'data/Warcraft III/War3x.mpq' -model 'UI\Glues\SpriteLayers\TopRightPanel.mdx' --info
+
+Index  Animation                                      Interval       Duration  Flags
+-----  ---------------------------------------------  -------------  --------  -----
+0      Death                                          0..667         667 ms    0x1
+1      Stand Alternate                                833..1167      334 ms    0x1
+2      Birth                                          1333..2000     667 ms    0x1
+3      Stand                                          2167..2333     166 ms    0x1
+4      MainMenu Birth                                 2500..3500     1000 ms   0x1
+5      MainMenu Stand                                 3667..4667     1000 ms   0x1
+6      MainMenu Death                                 4833..5500     667 ms    0x1
+7      RealmSelection Birth                           5667..6667     1000 ms   0x1
+8      RealmSelection Stand                           6833..7833     1000 ms   0x1
+9      RealmSelection Death                           8000..8667     667 ms    0x1
+10     SinglePlayer Birth                             8833..9833     1000 ms   0x1
+11     SinglePlayer Stand                             10000..11000   1000 ms   0x1
+12     SinglePlayer Death                             11167..11833   666 ms    0x1
+13     SinglePlayer Birth Alternate                   12000..13000   1000 ms   0x1
+14     SinglePlayer Death Alternate                   13167..13833   666 ms    0x1
+15     MainCancelPanel Birth                          14000..15000   1000 ms   0x1
+16     MainCancelPanel Stand                          15167..16167   1000 ms   0x1
+17     MainCancelPanel Death                          16333..17000   667 ms    0x1
+18     SinglePlayerSkirmish Birth                     17167..18167   1000 ms   0x1
+19     SinglePlayerSkirmish Stand                     18333..19333   1000 ms   0x1
+20     SinglePlayerSkirmish Death                     19500..20167   667 ms    0x1
+21     SinglePlayerSkirmish Morph                     20333..21333   1000 ms   0x1
+22     SinglePlayerSkirmish Morph Alternate           21500..22167   667 ms    0x1
+23     BattlenetChatRoom Birth                        22333..23333   1000 ms   0x1
+24     BattlenetChatRoom Stand                        23500..24500   1000 ms   0x1
+25     BattlenetChatRoom Death                        24667..25333   666 ms    0x1
+26     BattlenetUserlist Morph                        25500..26500   1000 ms   0x1
+27     BattlenetUserlist Morph Alternate              26667..27333   666 ms    0x1
+28     BattlenetWelcome Birth                         27500..28500   1000 ms   0x1
+29     BattlenetWelcome Stand                         28667..29667   1000 ms   0x1
+30     BattlenetWelcome Death                         29833..30500   667 ms    0x1
+31     BattlenetChannel Birth                         30667..31667   1000 ms   0x1
+32     BattlenetChannel Stand                         31833..32833   1000 ms   0x1
+33     BattlenetChannel Death                         33000..33667   667 ms    0x1
+34     BattlenetProfile Birth                         33833..34833   1000 ms   0x1
+35     BattlenetProfile Stand                         35000..36000   1000 ms   0x1
+36     BattlenetProfile Death                         36167..36833   666 ms    0x1
+37     BattlenetAMM Birth                             37000..38000   1000 ms   0x1
+38     BattlenetAMM Stand                             38167..39167   1000 ms   0x1
+39     BattlenetAMM Death                             39333..40000   667 ms    0x1
+40     BattlenetCustom Birth                          40167..41167   1000 ms   0x1
+41     BattlenetCustom Stand                          41333..42333   1000 ms   0x1
+42     BattlenetCustom Death                          42500..43167   667 ms    0x1
+43     BattlenetCustomCreate Birth                    43333..44333   1000 ms   0x1
+44     BattlenetCustomCreate Stand                    44500..45500   1000 ms   0x1
+45     BattlenetCustomCreate Death                    45667..46333   666 ms    0x1
+46     BattlenetAdvancedOptions Morph                 46500..47500   1000 ms   0x1
+47     BattlenetAdvancedOptions Morph Alternate       47667..48333   666 ms    0x1
+48     BattlenetTeamChat Birth                        48500..49500   1000 ms   0x1
+49     BattlenetTeamChat Stand                        49667..50667   1000 ms   0x1
+50     BattlenetTeamChat Death                        50833..51500   667 ms    0x1
+51     MultiplayerSubmenu Morph                       51667..52667   1000 ms   0x1
+52     MultiplayerSubmenu Morph Alternate             52833..53500   667 ms    0x1
+53     MultiplayerPreGameChat Birth                   53667..54667   1000 ms   0x1
+54     MultiplayerPreGameChat Stand                   54833..55833   1000 ms   0x1
+55     MultiplayerPreGameChat Death                   56000..56667   667 ms    0x1
+56     Options Birth                                  56833..57833   1000 ms   0x1
+57     Options Stand                                  58000..59000   1000 ms   0x1
+58     Options Death                                  59167..59833   666 ms    0x1
+59     Options Morph                                  60000..61000   1000 ms   0x1
+60     Options Stand Alternate                        61167..62167   1000 ms   0x1
+61     Options Morph Alternate                        62333..63000   667 ms    0x1

@@ -910,8 +910,9 @@ static void GameSetup_Init(void) {
     if (!setup.ready) {
         return;
     }
-    UI_GotoGluePanel(LAN_IsSinglePlayerCreate() ? UI_GLUE_SINGLE_PLAYER_SKIRMISH :
-                     UI_GLUE_MULTIPLAYER_PRE_GAME_CHAT, NULL);
+    UI_GotoGluePanel(LAN_IsSinglePlayerCreate() ? UI_GLUE_SINGLE_PLAYER
+                                              : UI_GLUE_MULTIPLAYER_PRE_GAME_CHAT, NULL);
+    UI_SetGlueTab(LAN_IsSinglePlayerCreate() ? 1 : 0);
     UI_SetOnClick(setup.cancel_button,
                   LAN_IsSinglePlayerCreate() ? "menu_single_player_skirmish" : "menu_startserver");
     GameSetup_LoadSelectedMap();

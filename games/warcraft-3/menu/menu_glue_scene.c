@@ -8,9 +8,12 @@
 #define UI_GLUE_BIRTH_TIME 1000 // ms; every named RoC/TFT panel Birth interval has this length.
 #define UI_GLUE_DEATH_TIME 667 // ms; every named RoC/TFT panel Death interval rounds to this length.
 
+#define UI_GLUE_MAX_TABS 4
+
 typedef struct {
-    LPCSTR left;
-    LPCSTR right;
+    LPCSTR name;
+    LPCSTR tabs[UI_GLUE_MAX_TABS];
+    int tab_count;
 } uiGluePanelDef_t;
 
 typedef enum {
@@ -26,7 +29,9 @@ typedef struct {
     LPCMODEL top_right_panel;
     uiGluePanel_t current;
     uiGluePanel_t target;
-    uiGluePanel_t left_tab;
+    int active_tab;       // index into current panel's tabs[], 0 = default
+    int target_tab;       // >=0 while morphing to a new tab; -1 when idle
+    DWORD tab_start;      // timestamp when the current tab morph began
     uiGluePanelPhase_t phase;
     DWORD phase_start;
     uiGluePanelChanged_f exited;
@@ -36,14 +41,25 @@ typedef struct {
 static uiGlueSceneState_t scene;
 
 static uiGluePanelDef_t const glue_panels[UI_GLUE_PANEL_COUNT] = {
-    [UI_GLUE_MAIN_MENU] = { .left = "MainMenu %s", .right = "MainMenu %s" },
-    [UI_GLUE_REALM_SELECTION] = { .left = "RealmSelection %s", .right = "RealmSelection %s" },
-    [UI_GLUE_SINGLE_PLAYER] = { .left = "SinglePlayer %s", .right = "SinglePlayer %s" },
-    [UI_GLUE_OPTIONS] = { .left = "Options %s", .right = "Options %s" },
-    [UI_GLUE_SINGLE_PLAYER_SKIRMISH] = { .left = "SinglePlayerSkirmish %s", .right = "SinglePlayerSkirmish %s" },
-    [UI_GLUE_MULTIPLAYER_PRE_GAME_CHAT] = { .left = "MultiplayerPreGameChat %s", .right = "MultiplayerPreGameChat %s" },
-    [UI_GLUE_BATTLENET_CUSTOM] = { .left = "BattlenetCustom %s", .right = "BattlenetCustom %s" },
-    [UI_GLUE_BATTLENET_CUSTOM_CREATE] = { .left = "BattlenetCustomCreate %s", .right = "BattlenetCustomCreate %s" },
+    [UI_GLUE_MAIN_MENU] = {
+        "MainMenu", {"MainMenu"}, 1
+    },
+    [UI_GLUE_REALM_SELECTION] = {
+        "RealmSelection", {"RealmSelection"}, 1
+    },
+    [UI_GLUE_SINGLE_PLAYER] = {
+        "SinglePlayer", {"SinglePlayer", "SinglePlayerSkirmish"}, 2
+    },
+    [UI_GLUE_OPTIONS] = {
+        /* tabs[1] shares the panel name; UI_GlueLeftAnimation uses Stand Alternate / Morph */
+        "Options", {"Options", "Options"}, 2
+    },
+    [UI_GLUE_MULTIPLAYER_PRE_GAME_CHAT] = {
+        "MultiplayerPreGameChat", {"MultiplayerPreGameChat", "MultiplayerSubmenu"}, 2
+    },
+    [UI_GLUE_BATTLENET_CUSTOM] = {
+        "BattlenetCustom", {"BattlenetCustom", "BattlenetCustomCreate", "BattlenetAdvancedOptions"}, 3
+    },
 };
 
 static LPCSTR const phases[] = { "Stand", "Death", "Birth" };
@@ -90,12 +106,12 @@ static FLOAT UI_GlueRightPanelOffset(LPRENDERER renderer) {
     return aspect > UI_MIN_ASPECT ? UI_BASE_HEIGHT * aspect - UI_BASE_WIDTH : 0.0f;
 }
 
-/* Both panel models use the same fixed intervals, so one phase clock drives
- * both layers and the sequence name is derived only when drawing. */
-static LPCSTR UI_GluePanelAnimation(LPCSTR format, LPSTR anim, DWORD anim_size) {
+/* Both panel models share the same phase clock; the sequence name is derived only when drawing.
+ * Takes the panel name directly ("MainMenu", "Options", …) and appends the phase word. */
+static LPCSTR UI_GluePanelAnimation(LPCSTR name, LPSTR anim, DWORD anim_size) {
     DWORD duration, elapsed;
 
-    snprintf(anim, anim_size, format, phases[scene.phase]);
+    snprintf(anim, anim_size, "%s %s", name, phases[scene.phase]);
     if (scene.phase == UI_GLUE_PANEL_IDLE) return anim;
     duration = durations[scene.phase];
     elapsed = MIN(M_Time() - scene.phase_start, duration);
@@ -103,18 +119,45 @@ static LPCSTR UI_GluePanelAnimation(LPCSTR format, LPSTR anim, DWORD anim_size) 
     return anim;
 }
 
+/* Left panel animation.  During full panel Birth/Death both layers match.
+ * While a tab morph is running the left plays the appropriate Morph sequence;
+ * at rest it shows the active tab's standing state. */
 static LPCSTR UI_GlueLeftAnimation(uiGluePanelDef_t const *panel, LPSTR anim, DWORD anim_size) {
-    LPCSTR morph;
+    LPCSTR tab_name;
+    LPCSTR seq;
     DWORD duration, elapsed;
+    int featured;
 
-    if (scene.left_tab != scene.current) return UI_GluePanelAnimation(panel->left, anim, anim_size);
-    morph = scene.phase == UI_GLUE_PANEL_IDLE ? "Stand Alternate" :
-            scene.phase == UI_GLUE_PANEL_EXIT ? "Morph Alternate" : "Morph";
-    snprintf(anim, anim_size, panel->left, morph);
-    if (scene.phase == UI_GLUE_PANEL_IDLE) return anim;
-    duration = durations[scene.phase];
-    elapsed = MIN(M_Time() - scene.phase_start, duration);
-    snprintf(anim + strlen(anim), anim_size - strlen(anim), "@%.4f", (FLOAT)elapsed / (FLOAT)duration);
+    if (scene.phase != UI_GLUE_PANEL_IDLE)
+        return UI_GluePanelAnimation(panel->name, anim, anim_size);
+
+    if (scene.target_tab >= 0) {
+        /* Morph in progress.  The sequence name always belongs to the non-default
+         * tab involved: Morph when entering it, Morph Alternate when leaving. */
+        featured  = scene.target_tab > 0 ? scene.target_tab : scene.active_tab;
+        tab_name  = panel->tabs[featured];
+        if (scene.target_tab > 0) {
+            seq      = "Morph";
+            duration = UI_GLUE_BIRTH_TIME;
+        } else {
+            seq      = "Morph Alternate";
+            duration = UI_GLUE_DEATH_TIME;
+        }
+        snprintf(anim, anim_size, "%s %s", tab_name, seq);
+        elapsed = MIN(M_Time() - scene.tab_start, duration);
+        snprintf(anim + strlen(anim), anim_size - strlen(anim), "@%.4f", (FLOAT)elapsed / (FLOAT)duration);
+        return anim;
+    }
+
+    if (scene.active_tab == 0) {
+        snprintf(anim, anim_size, "%s Stand", panel->name);
+        return anim;
+    }
+    tab_name = panel->tabs[scene.active_tab];
+    if (strcmp(tab_name, panel->name) == 0)
+        snprintf(anim, anim_size, "%s Stand Alternate", panel->name);
+    else
+        snprintf(anim, anim_size, "%s Stand", tab_name);
     return anim;
 }
 
@@ -130,9 +173,10 @@ static void UI_GlueDebugPhase(LPCSTR event) {
         return;
     }
     UI_GlueLeftAnimation(panel, left, sizeof(left));
-    UI_GluePanelAnimation(panel->right, right, sizeof(right));
-    fprintf(stderr, "WC3 glue: %s current=%u target=%u phase=%s left=\"%s\" right=\"%s\"\n", event,
-            (unsigned)scene.current, (unsigned)scene.target, phases[scene.phase], left, right);
+    UI_GluePanelAnimation(panel->name, right, sizeof(right));
+    fprintf(stderr, "WC3 glue: %s current=%u target=%u phase=%s tab=%d/%d left=\"%s\" right=\"%s\"\n", event,
+            (unsigned)scene.current, (unsigned)scene.target, phases[scene.phase],
+            scene.active_tab, scene.target_tab, left, right);
 }
 #else
 #define UI_GlueDebugPhase(EVENT) ((void)0)
@@ -141,6 +185,7 @@ static void UI_GlueDebugPhase(LPCSTR event) {
 
 void UI_ResetGlueSceneModels(void) {
     memset(&scene, 0, sizeof(scene));
+    scene.target_tab = -1;
 }
 
 void UI_ReleaseGlueSceneModels(void) {
@@ -192,6 +237,7 @@ void UI_GotoGluePanelTransition(uiGluePanel_t panel, uiGluePanelChanged_f exited
     scene.target = panel;
     scene.phase = UI_GLUE_PANEL_EXIT;
     scene.phase_start = M_Time();
+    scene.target_tab = -1;  // abort any in-flight tab morph; tab is set fresh on ENTER
     scene.exited = exited;
     scene.changed = changed;
     UI_GlueDebugPhase("exit");
@@ -207,20 +253,37 @@ void UI_RetargetGluePanel(uiGluePanel_t panel, uiGluePanelChanged_f exited, uiGl
     scene.target = UI_GLUE_NONE;
     scene.phase = UI_GLUE_PANEL_ENTER;
     scene.phase_start = M_Time();
+    scene.target_tab = -1;
     scene.exited = NULL;
     scene.changed = changed;
     if (exited) exited();
     UI_GlueDebugPhase("retarget");
 }
 
-/* A screen declares its left tab once; the glue scene owns Morph/Stand/return sequencing. */
-void UI_SetGlueTab(uiGluePanel_t panel) {
-    if (panel < UI_GLUE_NONE || panel >= UI_GLUE_PANEL_COUNT) {
-        fprintf(stderr, "UI: unknown glue tab %u\n", (unsigned)panel);
+/* Switch the left panel to a specific tab within the current panel.
+ * tab == 0 returns to the default tab.  If the main panel is mid-transition
+ * the new tab is applied directly so Birth plays with the correct state. */
+void UI_SetGlueTab(int tab) {
+    uiGluePanelDef_t const *panel;
+
+    if (!scene.current) {
+        scene.active_tab = tab > 0 ? tab : 0;
+        scene.target_tab = -1;
         return;
     }
-    scene.left_tab = panel;
-    UI_GlueDebugPhase(panel ? "tab" : "tab-clear");
+    panel = &glue_panels[scene.current];
+    if (tab < 0 || tab >= panel->tab_count)
+        tab = 0;
+    if (tab == scene.active_tab && scene.target_tab < 0)
+        return;
+    if (scene.phase != UI_GLUE_PANEL_IDLE) {
+        scene.active_tab = tab;
+        scene.target_tab = -1;
+        return;
+    }
+    scene.target_tab = tab;
+    scene.tab_start = M_Time();
+    UI_GlueDebugPhase(tab ? "tab-enter" : "tab-leave");
 }
 
 void UI_CloseGluePanel(uiGluePanelChanged_f changed) {
@@ -247,6 +310,7 @@ static void UI_GlueFinishExit(void) {
         scene.current = scene.target;
         scene.target = UI_GLUE_NONE;
         scene.phase = UI_GLUE_PANEL_ENTER;
+        scene.active_tab = 0;
     } else {
         uiGluePanelChanged_f changed = scene.changed;
 
@@ -275,6 +339,22 @@ static void UI_GlueAdvanceTransition(void) {
     }
 }
 
+static void UI_GlueAdvanceTabTransition(void) {
+    uiGluePanelDef_t const *panel;
+    DWORD duration, elapsed;
+
+    if (scene.target_tab < 0) return;
+    panel = scene.current ? &glue_panels[scene.current] : NULL;
+    if (!panel) return;
+    duration = scene.target_tab > 0 ? UI_GLUE_BIRTH_TIME : UI_GLUE_DEATH_TIME;
+    elapsed  = M_Time() - scene.tab_start;
+    if (elapsed >= duration) {
+        scene.active_tab = scene.target_tab;
+        scene.target_tab = -1;
+        UI_GlueDebugPhase("tab-idle");
+    }
+}
+
 void UI_DrawGlueScene(void) {
     LPRENDERER renderer = mi.GetRenderer();
     uiGluePanelDef_t const *panel;
@@ -285,6 +365,8 @@ void UI_DrawGlueScene(void) {
     if (!renderer || !scene.current) return;
     UI_PreloadGlueSceneModels();
     UI_GlueAdvanceTransition();
+    if (scene.phase == UI_GLUE_PANEL_IDLE)
+        UI_GlueAdvanceTabTransition();
     if (!scene.current) return;
     panel = &glue_panels[scene.current];
     right_offset = UI_GlueRightPanelOffset(renderer);
@@ -311,7 +393,7 @@ void UI_DrawGlueScene(void) {
     }
     if (renderer->DrawSprite && scene.top_right_panel) {
         renderer->DrawSprite(scene.top_right_panel,
-                             UI_GluePanelAnimation(panel->right, right_anim, sizeof(right_anim)),
+                             UI_GluePanelAnimation(panel->name, right_anim, sizeof(right_anim)),
                              right_offset, UI_BASE_HEIGHT);
     }
 }

@@ -133,8 +133,10 @@ static void UI_SetScreen(uiScreen_t *screen) {
         ui_current_screen->shutdown();
     }
     ui_current_screen = screen;
-    if (screen->panel != UI_GLUE_NONE)
+    if (screen->panel != UI_GLUE_NONE) {
         UI_GotoGluePanel(screen->panel, NULL);
+        UI_SetGlueTab(screen->tab);
+    }
     if (screen->init) {
         fprintf(stderr, "UI_SetScreen: initializing screen '%s'\n", screen->name);
         screen->init();

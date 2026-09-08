@@ -2168,7 +2168,7 @@ TEST(menu_fdf, initial_glue_panel_finishes_birth_before_opening_screen) {
     mi = saved;
 }
 
-TEST(menu_fdf, options_glue_panel_uses_authored_morph_transitions) {
+TEST(menu_fdf, options_glue_panel_tab_state_during_birth_and_idle) {
     menuImport_t saved = mi;
     VECTOR2 offset;
 
@@ -2177,11 +2177,14 @@ TEST(menu_fdf, options_glue_panel_uses_authored_morph_transitions) {
     mi.GetRenderer = test_get_renderer;
     UI_ResetGlueSceneModels();
 
+    /* Navigate to Options panel, activating tab 1 (the "alternate" state). */
     UI_GotoGluePanel(UI_GLUE_MAIN_MENU, NULL);
     UI_RetargetGluePanel(UI_GLUE_OPTIONS, NULL, NULL);
-    UI_SetGlueTab(UI_GLUE_OPTIONS);
+    UI_SetGlueTab(1);
+
+    /* During full-panel ENTER (Birth): both layers play the panel name Birth. */
     UI_DrawGlueScene();
-    T_STREQ(captured_sprite_anim[0], "Options Morph@0.0000");
+    T_STREQ(captured_sprite_anim[0], "Options Birth@0.0000");
     T_STREQ(captured_sprite_anim[1], "Options Birth@0.0000");
     T_ASSERT(UI_GetGlueScreenOffset(&offset));
     T_FEQ(offset.y, -UI_BASE_HEIGHT, 0.0001f);
@@ -2190,16 +2193,60 @@ TEST(menu_fdf, options_glue_panel_uses_authored_morph_transitions) {
     T_ASSERT(UI_GetGlueScreenOffset(&offset));
     T_FEQ(offset.y, -0.12f, 0.0001f);
     M_Refresh(M_Time() + 500);
+
+    /* Now IDLE with active_tab=1: left shows Stand Alternate, right shows Stand. */
     captured_sprite_calls = 0;
     UI_DrawGlueScene();
     T_STREQ(captured_sprite_anim[0], "Options Stand Alternate");
+    T_STREQ(captured_sprite_anim[1], "Options Stand");
     T_ASSERT(!UI_GetGlueScreenOffset(&offset));
 
+    /* Full panel EXIT: both layers play Death (tab morph is not involved). */
     UI_GotoGluePanel(UI_GLUE_MAIN_MENU, NULL);
     captured_sprite_calls = 0;
     UI_DrawGlueScene();
-    T_STREQ(captured_sprite_anim[0], "Options Morph Alternate@0.0000");
+    T_STREQ(captured_sprite_anim[0], "Options Death@0.0000");
     T_STREQ(captured_sprite_anim[1], "Options Death@0.0000");
+
+    UI_ResetGlueSceneModels();
+    mi = saved;
+}
+
+TEST(menu_fdf, tab_morph_plays_when_switching_tabs_at_idle) {
+    menuImport_t saved = mi;
+
+    reset_ui_state();
+    memset(&mi, 0, sizeof(mi));
+    mi.GetRenderer = test_get_renderer;
+    UI_ResetGlueSceneModels();
+
+    /* Arrive at SinglePlayer panel with default tab, then wait for IDLE. */
+    UI_GotoGluePanel(UI_GLUE_SINGLE_PLAYER, NULL);
+    M_SetActive(true);
+    M_Refresh(M_Time() + 1000);  /* let Birth finish */
+
+    /* Switch to tab 1 (SinglePlayerSkirmish) while IDLE. */
+    UI_SetGlueTab(1);
+    captured_sprite_calls = 0;
+    UI_DrawGlueScene();
+    /* Left plays SinglePlayerSkirmish Morph, right stays at SinglePlayer Stand. */
+    T_STREQ(captured_sprite_anim[0], "SinglePlayerSkirmish Morph@0.0000");
+    T_STREQ(captured_sprite_anim[1], "SinglePlayer Stand");
+
+    /* Advance past Morph duration (1000 ms). */
+    M_Refresh(M_Time() + 1000);
+    captured_sprite_calls = 0;
+    UI_DrawGlueScene();
+    T_STREQ(captured_sprite_anim[0], "SinglePlayerSkirmish Stand");
+    T_STREQ(captured_sprite_anim[1], "SinglePlayer Stand");
+
+    /* Switch back to tab 0. */
+    UI_SetGlueTab(0);
+    captured_sprite_calls = 0;
+    UI_DrawGlueScene();
+    /* Left plays SinglePlayerSkirmish Morph Alternate (667 ms), right stays at Stand. */
+    T_STREQ(captured_sprite_anim[0], "SinglePlayerSkirmish Morph Alternate@0.0000");
+    T_STREQ(captured_sprite_anim[1], "SinglePlayer Stand");
 
     UI_ResetGlueSceneModels();
     mi = saved;
