@@ -132,9 +132,25 @@ The panel models animate entry and exit through staged geoset visibility/alpha; 
 their action after `Death`; screen controllers do not poll animation completion, keep pending flags, or hide their own frame trees.
 At startup `M_Init` only loads UI resources; the client's post-input `menu_main` command starts the initial transition.
 
-TopLeftPanel and TopRightPanel both author `Options Birth` and `Options Death`; neither authors an Alternate form of those phases.
-The stable Options left panel is `Options Stand Alternate`, while transition phases use the normal `Options Birth` and
-`Options Death` names. `Options Morph Alternate` is a separate authored morph and must not substitute for screen entry.
+The Options layers use different authored transitions. TopRightPanel uses `Options Birth` / `Options Stand` / `Options Death`.
+TopLeftPanel enters with `Options Morph`, holds `Options Stand Alternate`, and exits with `Options Morph Alternate`. Using the
+left layer's `Options Birth` animates the persistent sidebar rather than morphing the Options panel, while invented names such as
+`Options Birth Alternate` miss the sequence table and fall back to sequence zero (`Death`). These names and their 1000/667 ms
+intervals are present in both stock RoC and TFT panel models. Warsmash's current menu leaves Options disabled and has no Options
+transition state to copy.
+
+The right/main panel remains part of the normal `UI_GotoGluePanel` lifecycle. `OptionsMenu_Init` declares the independent left
+tab with `UI_SetGlueTab(UI_GLUE_OPTIONS)` and `OptionsMenu_Shutdown` clears it. The glue scene, not the screen controller, maps
+that declaration to Morph/Stand Alternate/Morph Alternate, so screen code does not micromanage animation phases or timing.
+
+Build with `WC3_DEBUG_GLUE=1` to log each glue phase boundary and any missing MDX sequence that falls back to sequence zero.
+The diagnostics are transition-scoped rather than frame-scoped. Rebuild when toggling the flag, then reproduce Options directly:
+
+```sh
+make -B openwarcraft3 WC3_DEBUG_GLUE=1
+build/bin/openwarcraft3 -data 'data/Warcraft III' +menu_options +com_frame_limit 100
+build/bin/openwarcraft3 -data 'data/Warcraft III' -tft +menu_options +com_frame_limit 100
+```
 
 Campaign background models render their stable `Stand` sequence. Their `Birth` durations vary by race and edition, so they are not
 part of the fixed panel-transition clock. Entering campaign selection waits for `SinglePlayer Death`; returning declares

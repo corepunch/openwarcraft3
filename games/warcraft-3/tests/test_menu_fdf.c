@@ -2098,14 +2098,14 @@ TEST(menu_fdf, main_menu_realm_select_uses_realm_panel_anim) {
     captured_realm_panel_sprites = 0;
     captured_sprite_calls = 0;
     captured_death_sprites = 0;
-    mainMenuScreen.draw();
+    UI_DrawGlueScene();
     T_EQ(captured_death_sprites, 2);
     M_SetActive(true);
     M_Refresh(M_Time() + 667);
     M_Refresh(M_Time() + 1000);
     captured_stand_sprites = 0;
     captured_realm_panel_sprites = 0;
-    mainMenuScreen.draw();
+    UI_DrawGlueScene();
     T_EQ(captured_stand_sprites, 0);
     T_EQ(captured_realm_panel_sprites, 2);
     mi = saved;
@@ -2168,7 +2168,7 @@ TEST(menu_fdf, initial_glue_panel_finishes_birth_before_opening_screen) {
     mi = saved;
 }
 
-TEST(menu_fdf, options_glue_panel_uses_authored_birth_sequences) {
+TEST(menu_fdf, options_glue_panel_uses_authored_morph_transitions) {
     menuImport_t saved = mi;
     VECTOR2 offset;
 
@@ -2177,9 +2177,11 @@ TEST(menu_fdf, options_glue_panel_uses_authored_birth_sequences) {
     mi.GetRenderer = test_get_renderer;
     UI_ResetGlueSceneModels();
 
-    UI_GotoGluePanel(UI_GLUE_OPTIONS, NULL);
+    UI_GotoGluePanel(UI_GLUE_MAIN_MENU, NULL);
+    UI_RetargetGluePanel(UI_GLUE_OPTIONS, NULL, NULL);
+    UI_SetGlueTab(UI_GLUE_OPTIONS);
     UI_DrawGlueScene();
-    T_STREQ(captured_sprite_anim[0], "Options Birth@0.0000");
+    T_STREQ(captured_sprite_anim[0], "Options Morph@0.0000");
     T_STREQ(captured_sprite_anim[1], "Options Birth@0.0000");
     T_ASSERT(UI_GetGlueScreenOffset(&offset));
     T_FEQ(offset.y, -UI_BASE_HEIGHT, 0.0001f);
@@ -2192,6 +2194,12 @@ TEST(menu_fdf, options_glue_panel_uses_authored_birth_sequences) {
     UI_DrawGlueScene();
     T_STREQ(captured_sprite_anim[0], "Options Stand Alternate");
     T_ASSERT(!UI_GetGlueScreenOffset(&offset));
+
+    UI_GotoGluePanel(UI_GLUE_MAIN_MENU, NULL);
+    captured_sprite_calls = 0;
+    UI_DrawGlueScene();
+    T_STREQ(captured_sprite_anim[0], "Options Morph Alternate@0.0000");
+    T_STREQ(captured_sprite_anim[1], "Options Death@0.0000");
 
     UI_ResetGlueSceneModels();
     mi = saved;
@@ -2239,7 +2247,7 @@ TEST(menu_fdf, main_menu_edition_button_defers_restart_after_death_frame) {
 
     M_MenuCommand(edition->OnClick);
     T_STREQ(captured_command, "");
-    mainMenuScreen.draw();
+    UI_DrawGlueScene();
     T_EQ(captured_death_sprites, 2);
     T_ASSERT(!test_fs_expansion);
     T_STREQ(captured_command, "");

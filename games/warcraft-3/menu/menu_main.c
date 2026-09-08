@@ -160,8 +160,14 @@ static void UI_FinishActionTransition(void) {
 }
 
 static void UI_TransitionToScreen(uiScreen_t *screen) {
-    if (ui_state.transition_screen || ui_state.transition_action) return;
+    /* Late +menu_* commands must be able to replace the default menu_main Birth queued by CL_Init. */
+    if (ui_state.transition_action || ui_state.transition_screen == screen) return;
     if (screen->panel == UI_GLUE_NONE) { UI_SetScreen(screen); return; }
+    if (ui_state.transition_screen) {
+        ui_state.transition_screen = screen;
+        UI_RetargetGluePanel(screen->panel, UI_BeginScreenTransition, UI_FinishScreenTransition);
+        return;
+    }
     ui_state.transition_screen = screen;
     UI_GotoGluePanelTransition(screen->panel, UI_BeginScreenTransition, UI_FinishScreenTransition);
 }

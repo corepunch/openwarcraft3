@@ -161,6 +161,22 @@ static mdxSequence_t const *R_SelectUISequence(mdxModel_t const *mdx, LPCSTR ani
             }
         }
     }
+#ifdef WC3_DEBUG_GLUE
+    if (!seq && anim && *anim && mdx->sequences && mdx->num_sequences > 0) {
+        static char last_missing[sizeof(mdxObjectName_t) + 1];
+        char missing[sizeof(last_missing)];
+        LPCSTR ratio = strchr(anim, '@');
+        size_t len = ratio ? (size_t)(ratio - anim) : strlen(anim);
+
+        len = MIN(len, sizeof(missing) - 1);
+        memcpy(missing, anim, len); missing[len] = '\0';
+        if (strcmp(last_missing, missing)) {
+            fprintf(stderr, "WC3 glue: missing sequence \"%s\"; falling back to sequence 0 \"%s\"\n",
+                    missing, mdx->sequences[0].name);
+            snprintf(last_missing, sizeof(last_missing), "%s", missing);
+        }
+    }
+#endif
     if (!seq && mdx->sequences && mdx->num_sequences > 0) {
         seq = &mdx->sequences[0];
     }

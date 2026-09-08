@@ -26,6 +26,7 @@ typedef struct {
     LPCMODEL top_right_panel;
     uiGluePanel_t current;
     uiGluePanel_t target;
+    uiGluePanel_t left_tab;
     uiGluePanelPhase_t phase;
     DWORD phase_start;
     uiGluePanelChanged_f exited;
@@ -38,7 +39,7 @@ static uiGluePanelDef_t const glue_panels[UI_GLUE_PANEL_COUNT] = {
     [UI_GLUE_MAIN_MENU] = { .left = "MainMenu %s", .right = "MainMenu %s" },
     [UI_GLUE_REALM_SELECTION] = { .left = "RealmSelection %s", .right = "RealmSelection %s" },
     [UI_GLUE_SINGLE_PLAYER] = { .left = "SinglePlayer %s", .right = "SinglePlayer %s" },
-    [UI_GLUE_OPTIONS] = { .left = "Options %s Alternate", .right = "Options %s" },
+    [UI_GLUE_OPTIONS] = { .left = "Options %s", .right = "Options %s" },
     [UI_GLUE_SINGLE_PLAYER_SKIRMISH] = { .left = "SinglePlayerSkirmish %s", .right = "SinglePlayerSkirmish %s" },
     [UI_GLUE_MULTIPLAYER_PRE_GAME_CHAT] = { .left = "MultiplayerPreGameChat %s", .right = "MultiplayerPreGameChat %s" },
     [UI_GLUE_BATTLENET_CUSTOM] = { .left = "BattlenetCustom %s", .right = "BattlenetCustom %s" },
@@ -102,6 +103,41 @@ static LPCSTR UI_GluePanelAnimation(LPCSTR format, LPSTR anim, DWORD anim_size) 
     return anim;
 }
 
+static LPCSTR UI_GlueLeftAnimation(uiGluePanelDef_t const *panel, LPSTR anim, DWORD anim_size) {
+    LPCSTR morph;
+    DWORD duration, elapsed;
+
+    if (scene.left_tab != scene.current) return UI_GluePanelAnimation(panel->left, anim, anim_size);
+    morph = scene.phase == UI_GLUE_PANEL_IDLE ? "Stand Alternate" :
+            scene.phase == UI_GLUE_PANEL_EXIT ? "Morph Alternate" : "Morph";
+    snprintf(anim, anim_size, panel->left, morph);
+    if (scene.phase == UI_GLUE_PANEL_IDLE) return anim;
+    duration = durations[scene.phase];
+    elapsed = MIN(M_Time() - scene.phase_start, duration);
+    snprintf(anim + strlen(anim), anim_size - strlen(anim), "@%.4f", (FLOAT)elapsed / (FLOAT)duration);
+    return anim;
+}
+
+#ifdef WC3_DEBUG_GLUE
+/* Log only phase boundaries; animation strings otherwise change every rendered frame. */
+static void UI_GlueDebugPhase(LPCSTR event) {
+    char left[UI_GLUE_ANIM_NAME], right[UI_GLUE_ANIM_NAME];
+    uiGluePanelDef_t const *panel = scene.current ? &glue_panels[scene.current] : NULL;
+
+    if (!panel) {
+        fprintf(stderr, "WC3 glue: %s current=none target=%u phase=%u\n", event,
+                (unsigned)scene.target, (unsigned)scene.phase);
+        return;
+    }
+    UI_GlueLeftAnimation(panel, left, sizeof(left));
+    UI_GluePanelAnimation(panel->right, right, sizeof(right));
+    fprintf(stderr, "WC3 glue: %s current=%u target=%u phase=%s left=\"%s\" right=\"%s\"\n", event,
+            (unsigned)scene.current, (unsigned)scene.target, phases[scene.phase], left, right);
+}
+#else
+#define UI_GlueDebugPhase(EVENT) ((void)0)
+#endif
+
 
 void UI_ResetGlueSceneModels(void) {
     memset(&scene, 0, sizeof(scene));
@@ -149,6 +185,7 @@ void UI_GotoGluePanelTransition(uiGluePanel_t panel, uiGluePanelChanged_f exited
         if (exited) exited();
         scene.exited = NULL;
         scene.changed = changed;
+        UI_GlueDebugPhase("begin");
         return;
     }
     if (panel == scene.current || panel == scene.target) return;
@@ -157,6 +194,33 @@ void UI_GotoGluePanelTransition(uiGluePanel_t panel, uiGluePanelChanged_f exited
     scene.phase_start = M_Time();
     scene.exited = exited;
     scene.changed = changed;
+    UI_GlueDebugPhase("exit");
+}
+
+/* Command-line menu overrides replace the queued default before its first transition completes. */
+void UI_RetargetGluePanel(uiGluePanel_t panel, uiGluePanelChanged_f exited, uiGluePanelChanged_f changed) {
+    if (panel <= UI_GLUE_NONE || panel >= UI_GLUE_PANEL_COUNT) {
+        fprintf(stderr, "UI: unknown glue panel %u\n", (unsigned)panel);
+        return;
+    }
+    scene.current = panel;
+    scene.target = UI_GLUE_NONE;
+    scene.phase = UI_GLUE_PANEL_ENTER;
+    scene.phase_start = M_Time();
+    scene.exited = NULL;
+    scene.changed = changed;
+    if (exited) exited();
+    UI_GlueDebugPhase("retarget");
+}
+
+/* A screen declares its left tab once; the glue scene owns Morph/Stand/return sequencing. */
+void UI_SetGlueTab(uiGluePanel_t panel) {
+    if (panel < UI_GLUE_NONE || panel >= UI_GLUE_PANEL_COUNT) {
+        fprintf(stderr, "UI: unknown glue tab %u\n", (unsigned)panel);
+        return;
+    }
+    scene.left_tab = panel;
+    UI_GlueDebugPhase(panel ? "tab" : "tab-clear");
 }
 
 void UI_CloseGluePanel(uiGluePanelChanged_f changed) {
@@ -172,6 +236,7 @@ void UI_CloseGluePanel(uiGluePanelChanged_f changed) {
     scene.phase = UI_GLUE_PANEL_EXIT;
     scene.phase_start = M_Time();
     scene.changed = changed;
+    UI_GlueDebugPhase("close");
 }
 
 static void UI_GlueFinishExit(void) {
@@ -191,6 +256,7 @@ static void UI_GlueFinishExit(void) {
         if (changed) changed();
     }
     scene.phase_start = M_Time();
+    UI_GlueDebugPhase(scene.current ? "enter" : "closed");
     if (exited) exited();
 }
 
@@ -204,6 +270,7 @@ static void UI_GlueAdvanceTransition(void) {
 
         scene.phase = UI_GLUE_PANEL_IDLE;
         scene.changed = NULL;
+        UI_GlueDebugPhase("idle");
         if (changed) changed();
     }
 }
@@ -239,7 +306,7 @@ void UI_DrawGlueScene(void) {
 
     if (renderer->DrawSprite && scene.top_left_panel) {
         renderer->DrawSprite(scene.top_left_panel,
-                             UI_GluePanelAnimation(panel->left, left_anim, sizeof(left_anim)),
+                             UI_GlueLeftAnimation(panel, left_anim, sizeof(left_anim)),
                              0.0f, UI_BASE_HEIGHT);
     }
     if (renderer->DrawSprite && scene.top_right_panel) {
