@@ -455,6 +455,7 @@ typedef enum {
     LAYER_GAME_RESULT,
     LAYER_WORLD_HOVER,
     LAYER_UNIT_SHORTCUTS,
+    LAYER_LOADING,
 } UILAYOUTLAYER;
 
 typedef enum {
@@ -857,6 +858,7 @@ typedef enum {
     FT_TOOLTIPTEXT,
     FT_MINIMAP,
     FT_NAMETAG,
+    FT_LOADING_BAR,
 } FRAMETYPE;
 
 #define UIFLAG_SIZE_TO_CONTENT   (1 << 10) // flag bit; derives a composite frame's size from rendered content; used by FT_NAMETAG

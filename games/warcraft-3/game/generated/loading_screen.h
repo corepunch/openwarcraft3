@@ -2,7 +2,7 @@
 #ifndef LOADINGSCREEN_H
 #define LOADINGSCREEN_H
 
-#include "../menu_local.h"
+#include "../g_local.h"
 
 typedef struct LoadingScreen_s {
     LPFRAMEDEF Loading;

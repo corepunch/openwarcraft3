@@ -28,8 +28,8 @@ wowClient_t wow_clients[MAX_CLIENTS];
 /* Configstring model indices for spell impact visuals; set during map load. */
 static int wow_firebolt_impact_model = 0;
 static int wow_frostbolt_impact_model = 0;
-static char wow_loading_texture[MAX_PATHLEN] = "Interface\\Glues\\LoadingScreens\\LoadScreenEnviroment.blp";
-static char wow_loading_title[128] = "World of Warcraft";
+char wow_loading_texture[MAX_PATHLEN] = "Interface\\Glues\\LoadingScreens\\LoadScreenEnviroment.blp";
+char wow_loading_title[128] = "World of Warcraft";
 
 /* Pending cross-map teleport: set by Wow_CheckAreaTriggers / warp command before
  * gi.MenuAction("map", ...) fires; consumed once by Wow_SpawnEntities on the new map. */
@@ -2480,6 +2480,8 @@ static void Wow_ClientBegin(LPEDICT ent) {
     UI_WriteWelcomeWindow(ent);
 }
 
+static void Wow_ClientLoading(LPEDICT ent) { UI_WriteLoadingLayout(ent); }
+
 struct game_export *GetGameAPI(struct game_import *import) {
     gi = *import;
     (void)gi;
@@ -2490,6 +2492,7 @@ struct game_export *GetGameAPI(struct game_import *import) {
     globals.GetThemeValue = Wow_GetThemeValue;
     globals.ClientCommand = Wow_ClientCommand;
     globals.ClientSetCameraPosition = Wow_ClientSetCameraPosition;
+    globals.ClientLoading = Wow_ClientLoading;
     globals.ClientBegin = Wow_ClientBegin;
     globals.CanSeeEntity = NULL;
     globals.CustomizeEntity = Wow_CustomizeEntity;

@@ -67,7 +67,7 @@ layout.
 ## stb_fdf.h Pattern
 
 - `stb_fdf.h` is the shared declarations-only header for FDF types (`FRAMEDEF`, enums, bind macros) and API declarations (`UI_ParseFDF`, `UI_DrawFrames`, etc.).
-- Parser implementation stays in `menu_fdf.c` (has `menuimport` dependency for MPQ asset loading). `stb_fdf.h` provides shared types + declarations so both modules see identical structs without circular includes.
+- Parser implementation stays in `menu_fdf.c` (has `mi` dependency for MPQ asset loading). `stb_fdf.h` provides shared types + declarations so both modules see identical structs without circular includes.
 - Generated binding headers in `generated/` map FDF field names to struct member offsets via macros like `bind_<fieldname>`. Use `fdfbindgen` tool to regenerate from MPQ source FDF files.
 
 ## DDX-Style Schema Tables Across Layout Engines

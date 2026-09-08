@@ -32,6 +32,8 @@ void SV_Configstrings_f(LPCLIENT cl, int argc, LPCSTR *argv) {
     (void)argc;
     (void)argv;
 
+    if (!cl->edict) cl->edict = EDICT_NUM(SV_ClientPlayerNumber(cl));
+    ge->ClientLoading(cl->edict);
     FOR_LOOP(i, MAX_CONFIGSTRINGS) {
         if (!*sv.configstrings[i])
             continue;

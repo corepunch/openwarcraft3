@@ -10,7 +10,7 @@
  * Implementation mode:
  *   #define STB_FDF_IMPLEMENTATION before including this header in exactly
  *   one .c file to get static inline implementations of pure frame helpers.
- *   Functions that depend on host-module services (menuimport, gi) remain as
+ *   Functions that depend on host-module services (mi, gi) remain as
  *   extern declarations — the host module provides those.
  */
 #ifndef stb_fdf_h

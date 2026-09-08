@@ -298,6 +298,10 @@ struct render_globals {
     RECT minimapRect;   /* UI-space world-content rect used for minimap projection */
     BOOL hasMinimap;
     LPTEXTURE cinematic;
+    GLuint cinematic_pbo;
+    DWORD cinematic_pbo_size;
+    BOOL cinematic_pbo_warned;
+    BOOL cinematic_pbo_disabled;
 };
 
 void R_RegisterMap(LPCSTR mapFileName);

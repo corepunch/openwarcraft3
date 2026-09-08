@@ -2,7 +2,7 @@
 
 ## Problem
 
-Today WC3 and WoW menu screens call the renderer directly through `menuimport.GetRenderer()`. This means every UI library must know about the renderer API, hold a renderer reference, and call draw functions itself. The result is two separate rendering paths for menus and HUDs, and every new game UI lib must reimplement the same drawing logic.
+Today WC3 and WoW menu screens call the renderer directly through `mi.GetRenderer()`. This means every UI library must know about the renderer API, hold a renderer reference, and call draw functions itself. The result is two separate rendering paths for menus and HUDs, and every new game UI lib must reimplement the same drawing logic.
 
 SC2 already demonstrates a better model: its UI lib is a pure stub and the entire HUD is driven by `svc_layout` blobs rendered generically by `SCR_DrawLayout()` in the client. The goal of this proposal is to extend that model to **all** UI rendering — including menus — so UI libs only handle loading, layout resolution, and event callbacks.
 
@@ -29,7 +29,7 @@ The UI lib resolves layout and serializes to a flat `UIFRAME[]` blob, then hands
   menu.Refresh()                        svc_layout (net, in-game only)
     → anchor/layout solver               → CL_ParseLayout()
     → serialize UIFRAME[] blob                ↘
-    → menuimport.SetLayout(layer, blob)    cl.layout[layer]
+    → mi.SetLayout(layer, blob)    cl.layout[layer]
                                               ↓
                                          SCR_DrawLayout()
                                            → re.DrawImageEx()
@@ -55,7 +55,7 @@ Currently `UI_LayoutRect()` and `UI_DrawFrameOne()` are interleaved in `menu_ren
 
 1. Run the anchor/SetPoint solver (`UI_LayoutRect`) to compute screen-space rects — same as today.
 2. Serialize the resolved frame tree to `UIFRAME[]` — the same format `hud_write.c` uses for in-game HUD.
-3. Call `menuimport.SetLayout(layer, blob, size)`.
+3. Call `mi.SetLayout(layer, blob, size)`.
 4. Return — no renderer calls.
 
 ### 3. Verify `UIFRAME` coverage for menu frame types

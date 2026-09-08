@@ -13,13 +13,13 @@ static BOOL UI_BackdropHasArt(LPCFRAMEDEF frame) {
 }
 
 static void UI_DrawBackdropWithColor(LPCFRAMEDEF frame, LPCRECT rect, COLOR32 color) {
-    LPRENDERER renderer = menuimport.GetRenderer();
+    LPRENDERER renderer = mi.GetRenderer();
 
     if (!UI_BackdropHasArt(frame) || !renderer || !renderer->DrawBackdrop) {
         return;
     }
     if (frame->Backdrop.EdgeFile && frame->Backdrop.CornerSize <= 0.0f) {
-        menuimport.Printf("BackdropCornerSize is zero for frame '%s'\n",
+        mi.Printf("BackdropCornerSize is zero for frame '%s'\n",
                         frame->Name[0] ? frame->Name : "(unnamed)");
     }
     renderer->DrawBackdrop(&MAKE(drawBackdrop_t,

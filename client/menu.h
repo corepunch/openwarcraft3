@@ -132,7 +132,6 @@ typedef struct {
     LPCSTR (*Cvar_String)(LPCSTR name, LPCSTR fallback);
     void (*Cvar_Set)(LPCSTR name, LPCSTR value);
     LPCSTR (*GetConfigString)(DWORD index);
-    FLOAT (*LoadingProgress)(void); /* normalized client-owned loading progress [0,1] */
     void (*LAN_RefreshServers)(void);
     DWORD (*LAN_NumServers)(void);
     BOOL (*LAN_Server)(DWORD index, menuLanGame_t *out);
@@ -180,6 +179,6 @@ typedef struct {
 
 /* Entry point called by the client to get the UI function table.
  * The client must fill the menuImport_t struct before calling this. */
-menuExport_t M_GetAPI(menuImport_t menuimport);
+menuExport_t M_GetAPI(menuImport_t mi);
 
 #endif

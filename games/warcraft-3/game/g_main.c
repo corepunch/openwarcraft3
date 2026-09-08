@@ -1056,6 +1056,9 @@ static void G_ClientBegin(LPEDICT edict) {
 #endif
 }
 
+/* Send this before begin; it presents server-authored map data while the client registers media. */
+static void G_ClientLoading(LPEDICT edict) { UI_WriteLoadingLayout(edict); }
+
 /* Look up or register a display name in the packed CS_GENERAL configstring pool.
  * Each configstring stores ENT_NAMES_PER_CS names of ENT_NAME_SLOT_SIZE bytes each.
  * Returns a 1-based packed index (0 = not found / pool full). */
@@ -1127,6 +1130,7 @@ struct game_export *GetGameAPI(struct game_import *import) {
     globals.RunFrame = G_RunFrame;
     globals.ClientCommand = G_ClientCommand;
     globals.ClientSetCameraPosition = G_ClientSetCameraPosition;
+    globals.ClientLoading = G_ClientLoading;
     globals.ClientBegin = G_ClientBegin;
     globals.CanSeeEntity = G_FowPlayerCanSeeEntity;
     globals.CustomizeEntity = G_CustomizeEntity;

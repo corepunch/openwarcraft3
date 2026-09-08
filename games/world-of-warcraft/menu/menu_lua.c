@@ -294,8 +294,8 @@ static int UIWow_LuaTime(lua_State *L) {
 static int UIWow_LuaCommand(lua_State *L) {
     LPCSTR text = luaL_checkstring(L, 1);
 
-    if (menuimport.ServerCommand && text && *text) {
-        menuimport.ServerCommand(text);
+    if (mi.ServerCommand && text && *text) {
+        mi.ServerCommand(text);
     }
     return 0;
 }
@@ -333,7 +333,7 @@ static int UIWow_LuaGetLoadingProgress(lua_State *L) {
 }
 
 static int UIWow_LuaGetLoadingTitle(lua_State *L) {
-    LPCSTR info = menuimport.GetConfigString(WOW_CS_MAPINFO);
+    LPCSTR info = mi.GetConfigString(WOW_CS_MAPINFO);
     lua_pushstring(L, Wow_InfoValueForKey(info, "title", ""));
     return 1;
 }
@@ -365,8 +365,8 @@ static int UIWow_LuaLoadMap(lua_State *L) {
     }
     Wow_ResolveMapPath(map_name, resolved, sizeof(resolved));
     snprintf(cmd, sizeof(cmd), "map %s", resolved);
-    if (menuimport.Cmd_ExecuteText) {
-        menuimport.Cmd_ExecuteText(cmd);
+    if (mi.Cmd_ExecuteText) {
+        mi.Cmd_ExecuteText(cmd);
     }
     return 0;
 }
@@ -379,7 +379,7 @@ static int UIWow_LuaDefaultServerLogin(lua_State *L) {
         UIWow_LuaPCall(1);
     } else {
         lua_pop(wow_ui.lua, 1);
-        if (menuimport.Cmd_ExecuteText) menuimport.Cmd_ExecuteText("menu_character_select\n");
+        if (mi.Cmd_ExecuteText) mi.Cmd_ExecuteText("menu_character_select\n");
     }
     return 0;
 }
@@ -387,10 +387,10 @@ static int UIWow_LuaDefaultServerLogin(lua_State *L) {
 static int UIWow_LuaNoop(lua_State *L) { (void)L; return 0; }
 
 static int UIWow_LuaPlaySound(lua_State *L) {
-    if (lua_isnumber(L, 1) && menuimport.PlaySound) {
-        menuimport.PlaySound((DWORD)lua_tointeger(L, 1));
-    } else if (lua_isstring(L, 1) && menuimport.PlaySoundByName) {
-        menuimport.PlaySoundByName(lua_tostring(L, 1));
+    if (lua_isnumber(L, 1) && mi.PlaySound) {
+        mi.PlaySound((DWORD)lua_tointeger(L, 1));
+    } else if (lua_isstring(L, 1) && mi.PlaySoundByName) {
+        mi.PlaySoundByName(lua_tostring(L, 1));
     }
     return 0;
 }
@@ -469,8 +469,8 @@ static int UIWow_LuaEnterWorld(lua_State *L) {
     UIWow_EnterGameMode();
     UIWow_SetSelectedCharCvars();
     /* The server playercreateinfo table owns race/class -> map; Map.dbc then resolves its client directory. */
-    if (menuimport.Cmd_ExecuteText)
-        menuimport.Cmd_ExecuteText("map playercreate");
+    if (mi.Cmd_ExecuteText)
+        mi.Cmd_ExecuteText("map playercreate");
     return 0;
 }
 
@@ -786,16 +786,16 @@ BOOL UIWow_LoadLuaFile(LPCSTR path, BOOL noisy_missing) {
     char *compat, *compat_varargs, *script;
     int size;
 
-    if (!menuimport.FS_ReadFile || !menuimport.FS_FreeFile || !path) {
+    if (!mi.FS_ReadFile || !mi.FS_FreeFile || !path) {
         UIWow_WarnOnce(WOW_UI_WARN_NO_INPUT_FS, "UIWow: FS_ReadFile/FS_FreeFile unavailable; cannot load Lua files\n");
         return false;
     }
-    size = menuimport.FS_ReadFile(path, &buf);
+    size = mi.FS_ReadFile(path, &buf);
     if (size <= 0 || !buf) {
         if (noisy_missing) {
             UIWow_Printf("UIWow: could not load '%s'\n", path);
         }
-        SAFE_DELETE(buf, menuimport.FS_FreeFile);
+        SAFE_DELETE(buf, mi.FS_FreeFile);
         return false;
     }
     compat = UIWow_LuaCompatBuffer(buf, (size_t)size);
@@ -804,7 +804,7 @@ BOOL UIWow_LoadLuaFile(LPCSTR path, BOOL noisy_missing) {
     UIWow_RunLuaBuffer(path, compat_varargs ? compat_varargs : script, compat_varargs ? strlen(compat_varargs) : (compat ? strlen(compat) : (size_t)size));
     SAFE_DELETE(compat, free);
     SAFE_DELETE(compat_varargs, free);
-    menuimport.FS_FreeFile(buf);
+    mi.FS_FreeFile(buf);
     return true;
 }
 
@@ -812,16 +812,16 @@ static BOOL UIWow_HasArchiveFile(LPCSTR path) {
     void *buf = NULL;
     int size;
 
-    if (!menuimport.FS_ReadFile || !menuimport.FS_FreeFile || !path) {
+    if (!mi.FS_ReadFile || !mi.FS_FreeFile || !path) {
         UIWow_WarnOnce(WOW_UI_WARN_NO_INPUT_FS, "UIWow: FS_ReadFile/FS_FreeFile unavailable; cannot probe archive files\n");
         return false;
     }
-    size = menuimport.FS_ReadFile(path, &buf);
+    size = mi.FS_ReadFile(path, &buf);
     if (size > 0 && buf) {
-        menuimport.FS_FreeFile(buf);
+        mi.FS_FreeFile(buf);
         return true;
     }
-    SAFE_DELETE(buf, menuimport.FS_FreeFile);
+    SAFE_DELETE(buf, mi.FS_FreeFile);
     return false;
 }
 

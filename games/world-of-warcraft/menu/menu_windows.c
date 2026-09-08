@@ -12,7 +12,7 @@
  *
  * Button OnClick scripts are raw server command strings (e.g.
  * "window_close WelcomeFrame").  UIWow_WindowMouseDown fires them directly
- * via menuimport.ServerCommand without going through the Lua VM.
+ * via mi.ServerCommand without going through the Lua VM.
  */
 
 #include "menu_local.h"
@@ -47,7 +47,7 @@ void UIWow_DrawWindows(void) {
 BOOL UIWow_WindowMouseDown(float nx, float ny) {
     LPCSTR onclick = UIWow_XMLHitButton(nx, ny);
     if (!onclick) return false;
-    if (menuimport.ServerCommand) menuimport.ServerCommand(onclick);
+    if (mi.ServerCommand) mi.ServerCommand(onclick);
     return true;
 }
 

@@ -222,10 +222,76 @@ void R_DrawImage(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv, COLOR32 color) 
                         .shader = SHADER_UI));
 }
 
+static void R_ReleaseCinematicPBO(void) {
+    if (!tr.cinematic_pbo) return;
+    R_Call(glDeleteBuffers, 1, &tr.cinematic_pbo);
+    tr.cinematic_pbo = 0;
+    tr.cinematic_pbo_size = 0;
+}
+
+static void R_DisableCinematicPBO(void) {
+    R_ReleaseCinematicPBO();
+    tr.cinematic_pbo_disabled = true;
+}
+
+/* Map a pixel-unpack buffer so video uploads do not make the driver copy client memory synchronously. */
+static BOOL R_MapCinematicFrame(LPCDRAWCINEMATICFRAME frame) {
+    DWORD size = frame->width * frame->height * 4;
+    void *mapped;
+    GLboolean unmapped;
+
+    if (tr.cinematic_pbo_disabled) return false;
+    if (!tr.cinematic_pbo) R_Call(glGenBuffers, 1, &tr.cinematic_pbo);
+    if (!tr.cinematic_pbo) {
+        if (!tr.cinematic_pbo_warned) {
+            fprintf(stderr, "Renderer: cinematic PBO allocation unavailable; using direct pixel uploads\n");
+            tr.cinematic_pbo_warned = true;
+        }
+        tr.cinematic_pbo_disabled = true;
+        return false;
+    }
+    R_Call(glBindBuffer, GL_PIXEL_UNPACK_BUFFER, tr.cinematic_pbo);
+    if (tr.cinematic_pbo_size != size) {
+        R_Call(glBufferData, GL_PIXEL_UNPACK_BUFFER, size, NULL, GL_STREAM_DRAW);
+        tr.cinematic_pbo_size = size;
+    }
+#ifdef BZ_GL_ES3
+    mapped = glMapBufferRange(GL_PIXEL_UNPACK_BUFFER, 0, size, GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT);
+#else
+    mapped = glMapBuffer(GL_PIXEL_UNPACK_BUFFER, GL_WRITE_ONLY);
+#endif
+    if (!mapped) {
+        if (!tr.cinematic_pbo_warned) {
+            fprintf(stderr, "Renderer: cinematic PBO mapping unavailable; using direct pixel uploads\n");
+            tr.cinematic_pbo_warned = true;
+        }
+        R_DisableCinematicPBO();
+        R_Call(glBindBuffer, GL_PIXEL_UNPACK_BUFFER, 0);
+        return false;
+    }
+    memcpy(mapped, frame->pixels, size);
+    unmapped = glUnmapBuffer(GL_PIXEL_UNPACK_BUFFER);
+    if (!unmapped) {
+        if (!tr.cinematic_pbo_warned) {
+            fprintf(stderr, "Renderer: cinematic PBO mapping failed; using direct pixel uploads\n");
+            tr.cinematic_pbo_warned = true;
+        }
+        R_DisableCinematicPBO();
+        R_Call(glBindBuffer, GL_PIXEL_UNPACK_BUFFER, 0);
+        return false;
+    }
+    R_Call(glTexSubImage2D, GL_TEXTURE_2D, 0, 0, 0, frame->width, frame->height, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+    R_Call(glBindBuffer, GL_PIXEL_UNPACK_BUFFER, 0);
+    return true;
+}
+
 /* Upload and draw one decoded cinematic frame while keeping the video texture renderer-owned. */
 void R_DrawCinematicFrame(LPCDRAWCINEMATICFRAME frame) {
     if (!frame) {
         SAFE_DELETE(tr.cinematic, R_ReleaseTexture);
+        R_ReleaseCinematicPBO();
+        tr.cinematic_pbo_disabled = false;
+        tr.cinematic_pbo_warned = false;
         return;
     }
     if (!frame->pixels || !frame->width || !frame->height || frame->screen.w <= 0 || frame->screen.h <= 0) return;
@@ -236,7 +302,8 @@ void R_DrawCinematicFrame(LPCDRAWCINEMATICFRAME frame) {
         R_LoadTextureMipLevel(tr.cinematic, &(TEXMIP){ frame->pixels, frame->width, frame->height, 0, PIXEL_RGBA });
     } else {
         R_Call(glBindTexture, GL_TEXTURE_2D, tr.cinematic->texid);
-        R_Call(glTexSubImage2D, GL_TEXTURE_2D, 0, 0, 0, frame->width, frame->height, GL_RGBA, GL_UNSIGNED_BYTE, frame->pixels);
+        if (!R_MapCinematicFrame(frame))
+            R_Call(glTexSubImage2D, GL_TEXTURE_2D, 0, 0, 0, frame->width, frame->height, GL_RGBA, GL_UNSIGNED_BYTE, frame->pixels);
     }
     R_DrawImage(tr.cinematic, &frame->screen, &(RECT){0, 0, 1, 1}, COLOR32_WHITE);
 }

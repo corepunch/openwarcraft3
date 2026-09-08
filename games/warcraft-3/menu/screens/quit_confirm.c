@@ -37,16 +37,16 @@ static void QuitConfirm_UpdateVisibility(void) {
 }
 
 static void QuitConfirm_Init(void) {
-    menuimport.Printf("QuitConfirm_Init\n");
+    mi.Printf("QuitConfirm_Init\n");
     UI_PreloadGlueSceneModels();
     UI_GotoGluePanel(UI_GLUE_MAIN_MENU, NULL);
 
     if (!quit_confirm.EscMenuMainPanel) {
-        menuimport.Printf("ERROR: EscMenuMainPanel not found\n");
+        mi.Printf("ERROR: EscMenuMainPanel not found\n");
         return;
     }
     if (!quit_confirm.ConfirmQuitPanel) {
-        menuimport.Printf("ERROR: ConfirmQuitPanel not found\n");
+        mi.Printf("ERROR: ConfirmQuitPanel not found\n");
         return;
     }
 

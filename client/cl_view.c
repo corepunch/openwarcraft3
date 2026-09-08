@@ -459,6 +459,7 @@ static void CL_AddEntities(void) {
 }
 
 void CL_PrepRefresh(void) {
+    if (!cl.layout[LAYER_LOADING]) return;
     if (!*cl.configstrings[CS_WORLD]) {
         world_loaded = false;
         begin_sent = false;

@@ -1799,6 +1799,7 @@ void UI_PrintClasses(void);
 void UI_ClearTemplates(void);
 void UI_ResetHud(void);
 void UI_LoadHud(void);
+void UI_WriteLoadingLayout(LPEDICT);
 void UI_ParseFDF(LPCSTR);
 void UI_ParseFDF_Buffer(LPCSTR, LPSTR);
 void UI_SetAllPoints(LPFRAMEDEF);

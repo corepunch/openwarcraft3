@@ -91,7 +91,7 @@ typedef struct {
     DWORD time;
 } uiWowState_t;
 
-extern menuImport_t menuimport;
+extern menuImport_t mi;
 extern LPCPLAYER wow_player;
 void UIWow_UpdatePlayerState(LPCPLAYER state);
 extern uiWowState_t wow_ui;

@@ -299,18 +299,18 @@ static BOOL SinglePlayer_LoadCampaignFile(LPCSTR file_name) {
     void *buffer = NULL;
     UINAME section = "";
     singlePlayerCampaign_t *campaign = NULL;
-    int size = menuimport.FS_ReadFile(file_name, &buffer);
+    int size = mi.FS_ReadFile(file_name, &buffer);
     if (size <= 0 || !buffer) {
         return false;
     }
-    LPSTR text = menuimport.MemAlloc(size + 1);
+    LPSTR text = mi.MemAlloc(size + 1);
     if (!text) {
-        menuimport.FS_FreeFile(buffer);
+        mi.FS_FreeFile(buffer);
         return false;
     }
     memcpy(text, buffer, (size_t)size);
     text[size] = '\0';
-    menuimport.FS_FreeFile(buffer);
+    mi.FS_FreeFile(buffer);
 
     char *cursor = text;
     while (*cursor) {
@@ -361,7 +361,7 @@ static BOOL SinglePlayer_LoadCampaignFile(LPCSTR file_name) {
         }
     }
 
-    menuimport.MemFree(text);
+    mi.MemFree(text);
     return campaign_count > 0;
 }
 
@@ -377,7 +377,7 @@ static void SinglePlayer_FinalizeCampaignOrder(void) {
 }
 
 static BOOL SinglePlayer_ExpansionEnabled(void) {
-    LPCSTR value = menuimport.Cvar_String("fs_expansion", "0");
+    LPCSTR value = mi.Cvar_String("fs_expansion", "0");
     return value && atoi(value) != 0;
 }
 
@@ -469,7 +469,7 @@ static void SinglePlayer_SetCampaignBackdrop(singlePlayerCampaign_t const *campa
 }
 
 static void SinglePlayer_DrawCampaignBackdrop(void) {
-    LPRENDERER renderer = menuimport.GetRenderer();
+    LPRENDERER renderer = mi.GetRenderer();
     LPCMODEL model = UI_GetModel(campaign_background_model);
 
     if (renderer && renderer->RenderFrame && model) {
@@ -512,8 +512,8 @@ static void SinglePlayer_MissionPlayedCvar(singlePlayerCampaign_t const *campaig
 }
 
 static BOOL SinglePlayer_ShowMission(singlePlayerCampaign_t const *campaign, DWORD mission_index) {
-    LPCSTR mode = menuimport.Cvar_String
-        ? menuimport.Cvar_String(SINGLE_PLAYER_MISSION_VISIBILITY_CVAR, "all")
+    LPCSTR mode = mi.Cvar_String
+        ? mi.Cvar_String(SINGLE_PLAYER_MISSION_VISIBILITY_CVAR, "all")
         : "all";
 
     if (!mode || strcasecmp(mode, "played")) {
@@ -522,18 +522,18 @@ static BOOL SinglePlayer_ShowMission(singlePlayerCampaign_t const *campaign, DWO
 
     char cvar_name[128];
     SinglePlayer_MissionPlayedCvar(campaign, mission_index, cvar_name, sizeof(cvar_name));
-    LPCSTR played = menuimport.Cvar_String ? menuimport.Cvar_String(cvar_name, "0") : "0";
+    LPCSTR played = mi.Cvar_String ? mi.Cvar_String(cvar_name, "0") : "0";
     return played && atoi(played) != 0;
 }
 
 static void SinglePlayer_MarkMissionPlayed(singlePlayerCampaign_t const *campaign, DWORD mission_index) {
     char cvar_name[128];
 
-    if (!campaign || !menuimport.Cvar_Set) {
+    if (!campaign || !mi.Cvar_Set) {
         return;
     }
     SinglePlayer_MissionPlayedCvar(campaign, mission_index, cvar_name, sizeof(cvar_name));
-    menuimport.Cvar_Set(cvar_name, "1");
+    mi.Cvar_Set(cvar_name, "1");
 }
 
 static void SinglePlayer_LaunchMission(singlePlayerCampaign_t const *campaign, DWORD mission_index) {
@@ -760,7 +760,7 @@ static void SinglePlayer_BindMainMenu(void) {
     UI_SetOnClick(single_player.ProfileButton, "");
     UI_SetOnClick(single_player.CancelButton, "menu_main");
     if (single_player.ProfileNameText) {
-        LPCSTR name = menuimport.Cvar_String ? menuimport.Cvar_String("name", "Player") : "Player";
+        LPCSTR name = mi.Cvar_String ? mi.Cvar_String("name", "Player") : "Player";
         UI_SetText(single_player.ProfileNameText, "%s", name && name[0] ? name : "Player");
     }
 }
@@ -810,8 +810,8 @@ static void SinglePlayer_BindCampaignMenu(void) {
         UI_SetOnClick(DifficultyMenu, "menu_single_player_difficulty %u");
         UI_SetHidden(DifficultyMenu, true);
     }
-    difficulty_value = menuimport.Cvar_String
-        ? menuimport.Cvar_String("wc3_campaign_difficulty", "1") : "1";
+    difficulty_value = mi.Cvar_String
+        ? mi.Cvar_String("wc3_campaign_difficulty", "1") : "1";
     if (difficulty_value) {
         LONG value = atoi(difficulty_value);
         if (value >= 0 && value <= 2) {
@@ -822,7 +822,7 @@ static void SinglePlayer_BindCampaignMenu(void) {
 }
 
 static void SinglePlayerMenu_Init(void) {
-    menuimport.Printf("SinglePlayerMenu_Init\n");
+    mi.Printf("SinglePlayerMenu_Init\n");
     UI_PreloadGlueSceneModels();
     UI_GotoGluePanel(UI_GLUE_SINGLE_PLAYER, NULL);
     SinglePlayer_LoadCampaignData();
@@ -873,7 +873,7 @@ static void SinglePlayerMenu_KeyEvent(int key, BOOL down) {
 
 void SinglePlayerMenu_ShowMain(void) {
     if (single_player.ProfileNameText) {
-        LPCSTR name = menuimport.Cvar_String ? menuimport.Cvar_String("name", "Player") : "Player";
+        LPCSTR name = mi.Cvar_String ? mi.Cvar_String("name", "Player") : "Player";
         UI_SetText(single_player.ProfileNameText, "%s", name && name[0] ? name : "Player");
     }
     UI_GotoGluePanel(UI_GLUE_SINGLE_PLAYER, NULL);
@@ -924,7 +924,7 @@ void SinglePlayerMenu_LaunchMissionIndex(DWORD index) {
     item_flags = mission_list.items[index].flags;
 #ifdef BZ_FFMPEG
     if (item_flags & SINGLE_PLAYER_LIST_FLAG_CINEMATIC) {
-        menuimport.PlayMovie(mission_list.items[index].path);
+        mi.PlayMovie(mission_list.items[index].path);
         return;
     }
 #endif
@@ -939,9 +939,9 @@ void SinglePlayerMenu_SetDifficulty(DWORD difficulty) {
         return;
     }
     SinglePlayer_UpdateDifficultyTitle(difficulty);
-    if (menuimport.Cvar_Set) {
+    if (mi.Cvar_Set) {
         snprintf(value, sizeof(value), "%u", (unsigned)difficulty);
-        menuimport.Cvar_Set("wc3_campaign_difficulty", value);
+        mi.Cvar_Set("wc3_campaign_difficulty", value);
     }
 }
 

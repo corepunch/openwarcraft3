@@ -1,6 +1,6 @@
 #include "client/menu.h"
 
-menuImport_t menuimport;
+menuImport_t mi;
 
 static void M_Init(void) {}
 static void M_Shutdown(void) {}
@@ -13,7 +13,7 @@ static void M_UpdateLobbySetup(lobbyState_t const *state) { (void)state; }
 static LPCSTR M_ResolveImagePath(LPCSTR key) { return key; }
 
 menuExport_t M_GetAPI(menuImport_t import) {
-    menuimport = import;
+    mi = import;
     return (menuExport_t) {
         .Init             = M_Init,
         .Shutdown         = M_Shutdown,
