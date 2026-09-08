@@ -10,7 +10,7 @@
 #include "menu_screen.h"
 
 /* Global import table filled by M_GetAPI */
-menuImport_t menuimport;
+menuImport_t mi;
 LPCPLAYER menu_player;
 
 void M_UpdatePlayerState(LPCPLAYER state) { menu_player = state; }
@@ -121,8 +121,8 @@ static void UI_SetScreen(uiScreen_t *screen) {
                 "UI_SetScreen: failed to load screen '%s', keeping '%s'\n",
                 screen->name,
                 previous_screen ? previous_screen->name : "(null)");
-        if (menuimport.Printf) {
-            menuimport.Printf("UI_SetScreen: failed to load screen '%s'\n", screen->name);
+        if (mi.Printf) {
+            mi.Printf("UI_SetScreen: failed to load screen '%s'\n", screen->name);
         }
         return;
     }
@@ -242,11 +242,11 @@ static void UI_MenuKeys_f(void) {
 }
 
 static void UI_MenuLoadGame_f(void) {
-    menuimport.Cmd_ExecuteText("load quick\n");
+    mi.Cmd_ExecuteText("load quick\n");
 }
 
 static void UI_MenuSaveGame_f(void) {
-    menuimport.Cmd_ExecuteText("save quick\n");
+    mi.Cmd_ExecuteText("save quick\n");
 }
 
 static void UI_MenuPlayerConfig_f(void) {
@@ -365,11 +365,11 @@ static uiMenuCommandDef_t const ui_menu_command_defs[] = {
 };
 
 static void UI_RegisterMenuCommands(void) {
-    if (ui_menu_commands_registered || !menuimport.Cmd_AddCommand) {
+    if (ui_menu_commands_registered || !mi.Cmd_AddCommand) {
         return;
     }
     for (uiMenuCommandDef_t const *cmd = ui_menu_command_defs; cmd->command; cmd++) {
-        menuimport.Cmd_AddCommand(cmd->command, cmd->function);
+        mi.Cmd_AddCommand(cmd->command, cmd->function);
     }
     ui_menu_commands_registered = true;
 }
@@ -404,7 +404,7 @@ void M_Init(void) {
     UI_ResetGlueSceneModels();
     UI_RegisterMenuCommands();
     
-    menuimport.Printf("M_Init: loading FDF assets\n");
+    mi.Printf("M_Init: loading FDF assets\n");
 
     UI_LoadTheme("UI\\war3skins.txt");
     UI_ParseFDF("UI\\FrameDef\\GlobalStrings.fdf");
@@ -432,8 +432,8 @@ void M_Init(void) {
      * Map launches use the server-authored in-game HUD via svc_layout.  Leave
      * the client-side menu screen idle there so no glue screen covers the game.
      */
-    LPCSTR map = menuimport.Cvar_String
-        ? menuimport.Cvar_String("map", "")
+    LPCSTR map = mi.Cvar_String
+        ? mi.Cvar_String("map", "")
         : "";
     if (map && *map) {
         UI_ClearScreen();
@@ -499,7 +499,7 @@ void M_KeyEvent(int key, BOOL down, DWORD time) {
 
 /* Convert pixel coordinates to FDF/UI space for hit testing */
 static VECTOR2 UI_PixelToFdf(int px, int py) {
-    LPRENDERER renderer = menuimport.GetRenderer();
+    LPRENDERER renderer = mi.GetRenderer();
     size2_t window = renderer && renderer->GetWindowSize ? renderer->GetWindowSize() : MAKE(size2_t, 0, 0);
     RECT scene = UI_GetSceneRect();
     FLOAT nx = 0;
@@ -582,7 +582,7 @@ void M_MenuCommand(LPCSTR command) {
     DWORD value;
     char map_path[MAX_PATHLEN];
 
-    menuimport.Printf("M_MenuCommand: %s\n", command);
+    mi.Printf("M_MenuCommand: %s\n", command);
 
     if (!command || !*command) {
         return;
@@ -651,17 +651,17 @@ void M_MenuCommand(LPCSTR command) {
     if (sscanf(command, "menu_video_mode %u", &value) == 1) {
         char video_command[96];
 
-        if (!menuimport.Cmd_ExecuteText) {
+        if (!mi.Cmd_ExecuteText) {
             return;
         }
         if (value == video_mode_count()) {
-            menuimport.Cmd_ExecuteText("seta vid_native 1\nseta vid_fullscreen 1\n");
+            mi.Cmd_ExecuteText("seta vid_native 1\nseta vid_fullscreen 1\n");
         } else if (value < video_mode_count()) {
             snprintf(video_command,
                      sizeof(video_command),
                      "seta vid_native 0\nseta vid_mode %u\n",
                      (unsigned)value);
-            menuimport.Cmd_ExecuteText(video_command);
+            mi.Cmd_ExecuteText(video_command);
         }
         return;
     }
@@ -773,13 +773,13 @@ void M_MenuCommand(LPCSTR command) {
     if (UI_IsMapCommand(command)) {
         UI_ClearScreen();
     }
-    menuimport.Cmd_ExecuteText(command);
+    mi.Cmd_ExecuteText(command);
 }
 
 /* Stub callbacks for server data updates */
 /* Forward unit UI data to active screen (Phase 8) */
 void M_UpdateUnitUI(DWORD num_units, menuUnitData_t *units) {
-    menuimport.Printf("UI_UpdateUnitUI: %d units\n", (int)num_units);
+    mi.Printf("UI_UpdateUnitUI: %d units\n", (int)num_units);
     
     /* Forward to current screen if it implements unit UI handling */
     uiScreen_t *screen = UI_GetCurrentScreen();
@@ -800,7 +800,7 @@ static void M_UpdateLobbySetup(lobbyState_t const *state) {
 
 /* Export function table */
 menuExport_t M_GetAPI(menuImport_t import) {
-    menuimport = import;
+    mi = import;
     
     menuExport_t exp;
     memset(&exp, 0, sizeof(exp));

@@ -179,6 +179,6 @@ typedef struct {
 
 /* Entry point called by the client to get the UI function table.
  * The client must fill the menuImport_t struct before calling this. */
-menuExport_t M_GetAPI(menuImport_t menuimport);
+menuExport_t M_GetAPI(menuImport_t mi);
 
 #endif

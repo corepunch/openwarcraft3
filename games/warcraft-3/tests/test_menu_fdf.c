@@ -317,22 +317,22 @@ static void test_cvar_set(LPCSTR name, LPCSTR value) {
 }
 
 static void load_ui_files(LPCSTR const *file_names, size_t count) {
-    menuImport_t saved = menuimport;
+    menuImport_t saved = mi;
 
     UI_ClearTemplates();
-    memset(&menuimport, 0, sizeof(menuimport));
-    menuimport.FS_ReadFile = test_fs_read_file;
-    menuimport.FS_FreeFile = test_fs_free_file;
-    menuimport.MemAlloc = test_ui_mem_alloc;
-    menuimport.MemFree = test_ui_mem_free;
+    memset(&mi, 0, sizeof(mi));
+    mi.FS_ReadFile = test_fs_read_file;
+    mi.FS_FreeFile = test_fs_free_file;
+    mi.MemAlloc = test_ui_mem_alloc;
+    mi.MemFree = test_ui_mem_free;
 
-    menuimport.ImageIndex = test_image_index;
-    menuimport.FontIndex = test_font_index;
-    menuimport.Printf = test_ui_printf;
+    mi.ImageIndex = test_image_index;
+    mi.FontIndex = test_font_index;
+    mi.Printf = test_ui_printf;
     for (size_t i = 0; i < count; i++) {
         UI_ParseFDF(file_names[i]);
     }
-    menuimport = saved;
+    mi = saved;
 }
 
 static void reset_ui_state(void) {
@@ -364,12 +364,12 @@ static void reset_ui_state(void) {
     fake_text_size = MAKE(VECTOR2, 0.050f, 0.016f);
     test_mouse_pos = MAKE(VECTOR2, 0, 0);
     UI_ClearEditFocus();
-    menuimport.MemAlloc = test_ui_mem_alloc;
-    menuimport.MemFree = test_ui_mem_free;
-    menuimport.ImageIndex = fake_image_index;
-    menuimport.FontIndex = test_font_index;
-    menuimport.GetRenderer = test_get_renderer;
-    menuimport.Printf = test_ui_printf;
+    mi.MemAlloc = test_ui_mem_alloc;
+    mi.MemFree = test_ui_mem_free;
+    mi.ImageIndex = fake_image_index;
+    mi.FontIndex = test_font_index;
+    mi.GetRenderer = test_get_renderer;
+    mi.Printf = test_ui_printf;
 
     M_SetActive(true);
 }
@@ -1384,15 +1384,15 @@ TEST(menu_fdf, single_line_text_auto_height_uses_fdf_font_size) {
 }
 
 TEST(menu_fdf, gameplay_ignores_stale_glue_hit_test_cache) {
-    menuImport_t saved = menuimport;
+    menuImport_t saved = mi;
     LPFRAMEDEF root;
     LPFRAMEDEF button;
 
     reset_ui_state();
-    menuimport.FS_ReadFile = test_missing_fs_read;
-    menuimport.FS_FreeFile = test_fs_free_file;
-    menuimport.Cvar_String = test_cvar_string;
-    menuimport.Cmd_ExecuteText = test_cmd_execute_text;
+    mi.FS_ReadFile = test_missing_fs_read;
+    mi.FS_FreeFile = test_fs_free_file;
+    mi.Cvar_String = test_cvar_string;
+    mi.Cmd_ExecuteText = test_cmd_execute_text;
 
     /* A startup map enters the initialized runtime with no standalone screen. */
     test_map = "Maps\\Campaign\\Human02.w3m";
@@ -1412,7 +1412,7 @@ TEST(menu_fdf, gameplay_ignores_stale_glue_hit_test_cache) {
     if (!require_not_null(root) || !require_not_null(button)) {
         M_Shutdown();
         test_map = "";
-        menuimport = saved;
+        mi = saved;
         return;
     }
     UI_SetOnClick(button, "test_stale_menu_click");
@@ -1427,7 +1427,7 @@ TEST(menu_fdf, gameplay_ignores_stale_glue_hit_test_cache) {
 
     M_Shutdown();
     test_map = "";
-    menuimport = saved;
+    mi = saved;
 }
 
 TEST(menu_fdf, glue_checkbox_toggles_and_draws_check_highlight) {
@@ -1485,7 +1485,7 @@ TEST(menu_fdf, control_map_list_receives_mouse_clicks) {
     uiMapListState_t state = {0};
 
     reset_ui_state();
-    menuimport.Cmd_ExecuteText = test_cmd_execute_text;
+    mi.Cmd_ExecuteText = test_cmd_execute_text;
     parse_fdf("control_map_list.fdf",
               "Frame \"FRAME\" \"Root\" {"
               " Width 0.8, Height 0.6,"
@@ -1644,12 +1644,12 @@ TEST(menu_fdf, editbox_without_text_frame_click_focus_accepts_text_input) {
 }
 
 TEST(menu_fdf, options_video_mode_command_selects_fixed_or_native_mode) {
-    menuImport_t saved = menuimport;
+    menuImport_t saved = mi;
     char command[64];
 
-    memset(&menuimport, 0, sizeof(menuimport));
-    menuimport.Printf = test_ui_printf;
-    menuimport.Cmd_ExecuteText = test_cmd_execute_text;
+    memset(&mi, 0, sizeof(mi));
+    mi.Printf = test_ui_printf;
+    mi.Cmd_ExecuteText = test_cmd_execute_text;
 
     captured_command[0] = '\0';
     M_MenuCommand("menu_video_mode 5");
@@ -1665,7 +1665,7 @@ TEST(menu_fdf, options_video_mode_command_selects_fixed_or_native_mode) {
     M_MenuCommand(command);
     T_STREQ(captured_command, "unchanged");
 
-    menuimport = saved;
+    mi = saved;
 }
 
 TEST(menu_fdf, options_resolution_popup_appends_and_selects_native_mode) {
@@ -1674,19 +1674,19 @@ TEST(menu_fdf, options_resolution_popup_appends_and_selects_native_mode) {
         "UI\\FrameDef\\Glue\\StandardTemplates.fdf",
         "UI\\FrameDef\\Glue\\OptionsMenu.fdf",
     };
-    menuImport_t saved = menuimport;
+    menuImport_t saved = mi;
     LPFRAMEDEF popup;
     LPFRAMEDEF title;
     LPFRAMEDEF menu;
 
     load_ui_files(files, sizeof(files) / sizeof(files[0]));
-    memset(&menuimport, 0, sizeof(menuimport));
-    menuimport.Printf = test_ui_printf;
-    menuimport.GetRenderer = test_get_renderer;
-    menuimport.Cmd_ExecuteText = test_cmd_execute_text;
-    menuimport.Cvar_String = test_cvar_string;
-    menuimport.MemAlloc = test_ui_mem_alloc;
-    menuimport.MemFree = test_ui_mem_free;
+    memset(&mi, 0, sizeof(mi));
+    mi.Printf = test_ui_printf;
+    mi.GetRenderer = test_get_renderer;
+    mi.Cmd_ExecuteText = test_cmd_execute_text;
+    mi.Cvar_String = test_cvar_string;
+    mi.MemAlloc = test_ui_mem_alloc;
+    mi.MemFree = test_ui_mem_free;
     test_vid_native = 1;
 
     T_ASSERT(optionsMenuScreen.load());
@@ -1697,7 +1697,7 @@ TEST(menu_fdf, options_resolution_popup_appends_and_selects_native_mode) {
     menu = popup ? UI_FindChildFrame(popup, "ResolutionPopupMenuMenu") : NULL;
     if (!require_not_null(popup) || !require_not_null(menu)) {
         test_vid_native = -1;
-        menuimport = saved;
+        mi = saved;
         return;
     }
     title = UI_FindChildFrame(popup, popup->Popup.TitleFrame);
@@ -1713,7 +1713,7 @@ TEST(menu_fdf, options_resolution_popup_appends_and_selects_native_mode) {
     }
 
     test_vid_native = -1;
-    menuimport = saved;
+    mi = saved;
 }
 
 TEST(menu_fdf, options_game_port_enter_applies_and_blurs) {
@@ -1724,17 +1724,17 @@ TEST(menu_fdf, options_game_port_enter_applies_and_blurs) {
     };
     LPFRAMEDEF root;
     LPFRAMEDEF editbox;
-    menuImport_t saved = menuimport;
+    menuImport_t saved = mi;
 
     load_ui_files(files, sizeof(files) / sizeof(files[0]));
 
-    memset(&menuimport, 0, sizeof(menuimport));
-    menuimport.Printf = test_ui_printf;
-    menuimport.GetRenderer = test_get_renderer;
-    menuimport.Cmd_ExecuteText = test_cmd_execute_text;
-    menuimport.Cvar_String = test_cvar_string;
-    menuimport.MemAlloc = test_ui_mem_alloc;
-    menuimport.MemFree = test_ui_mem_free;
+    memset(&mi, 0, sizeof(mi));
+    mi.Printf = test_ui_printf;
+    mi.GetRenderer = test_get_renderer;
+    mi.Cmd_ExecuteText = test_cmd_execute_text;
+    mi.Cvar_String = test_cvar_string;
+    mi.MemAlloc = test_ui_mem_alloc;
+    mi.MemFree = test_ui_mem_free;
 
     captured_command[0] = '\0';
 
@@ -1744,11 +1744,11 @@ TEST(menu_fdf, options_game_port_enter_applies_and_blurs) {
     root = UI_FindFrame("OptionsMenu");
     editbox = UI_FindFrame("GamePortEditBox");
     if (!require_not_null(root)) {
-        menuimport = saved;
+        mi = saved;
         return;
     }
     if (!require_not_null(editbox)) {
-        menuimport = saved;
+        mi = saved;
         return;
     }
 
@@ -1768,7 +1768,7 @@ TEST(menu_fdf, options_game_port_enter_applies_and_blurs) {
     OptionsMenu_Apply();
     T_STREQ(captured_command, "vid_apply\nwriteconfig\n");
 
-    menuimport = saved;
+    mi = saved;
 }
 
 TEST(menu_fdf, esc_menu_confirm_quit_panel_is_available) {
@@ -1818,8 +1818,8 @@ TEST(menu_fdf, dialog_war3_supports_configurable_button_modes) {
     };
 
     load_ui_files(files, sizeof(files) / sizeof(files[0]));
-    menuimport.GetRenderer = test_get_renderer;
-    menuimport.Printf = test_ui_printf;
+    mi.GetRenderer = test_get_renderer;
+    mi.Printf = test_ui_printf;
 
     root = UI_Spawn(FT_FRAME, NULL);
     if (!require_not_null(root)) return;
@@ -1849,7 +1849,7 @@ static LPCSTR const authored_dialog_files[] = {
     "UI\\FrameDef\\Glue\\StandardTemplates.fdf",
     /* DialogWar3.fdf must be pre-loaded: UI_DialogWar3EnsureTemplate("BattleNetDialogTemplate")
      * calls UI_EnsureFDF for it; without a prior load the deferred UI_EnsureFDF call hits a null
-     * FS_ReadFile (load_ui_files restores menuimport before UI_DialogWar3Init runs). */
+     * FS_ReadFile (load_ui_files restores mi before UI_DialogWar3Init runs). */
     "UI\\FrameDef\\Glue\\DialogWar3.fdf",
     "UI\\FrameDef\\Glue\\BattleNetTemplates.fdf",
     "UI\\FrameDef\\UI\\ScriptDialog.fdf",
@@ -1869,8 +1869,8 @@ TEST(menu_fdf, dialog_supports_battlenet_template) {
     };
 
     load_ui_files(authored_dialog_files, sizeof(authored_dialog_files) / sizeof(authored_dialog_files[0]));
-    menuimport.GetRenderer = test_get_renderer;
-    menuimport.Printf = test_ui_printf;
+    mi.GetRenderer = test_get_renderer;
+    mi.Printf = test_ui_printf;
 
     root = UI_Spawn(FT_FRAME, NULL);
     if (!require_not_null(root)) return;
@@ -1907,8 +1907,8 @@ TEST(menu_fdf, dialog_supports_standard_authored_template) {
     };
 
     load_ui_files(authored_dialog_files, sizeof(authored_dialog_files) / sizeof(authored_dialog_files[0]));
-    menuimport.GetRenderer = test_get_renderer;
-    menuimport.Printf = test_ui_printf;
+    mi.GetRenderer = test_get_renderer;
+    mi.Printf = test_ui_printf;
     root = UI_Spawn(FT_FRAME, NULL);
     if (!require_not_null(root)) return;
     UI_SetSize(root, UI_BASE_WIDTH, UI_BASE_HEIGHT);
@@ -1931,8 +1931,8 @@ TEST(menu_fdf, dialog_preserves_script_text_and_authors_button) {
     };
 
     load_ui_files(authored_dialog_files, sizeof(authored_dialog_files) / sizeof(authored_dialog_files[0]));
-    menuimport.GetRenderer = test_get_renderer;
-    menuimport.Printf = test_ui_printf;
+    mi.GetRenderer = test_get_renderer;
+    mi.Printf = test_ui_printf;
     root = UI_Spawn(FT_FRAME, NULL);
     if (!require_not_null(root)) return;
     UI_SetSize(root, UI_BASE_WIDTH, UI_BASE_HEIGHT);
@@ -1967,16 +1967,16 @@ TEST(menu_fdf, main_menu_quit_dialog_commands_quit) {
     LPFRAMEDEF yes_backdrop;
     LPFRAMEDEF no_button;
     LPFRAMEDEF yes_button;
-    menuImport_t saved = menuimport;
+    menuImport_t saved = mi;
 
     load_ui_files(files, sizeof(files) / sizeof(files[0]));
 
-    memset(&menuimport, 0, sizeof(menuimport));
-    menuimport.Printf = test_ui_printf;
-    menuimport.GetRenderer = test_get_renderer;
-    menuimport.Cmd_ExecuteText = test_cmd_execute_text;
-    menuimport.MemAlloc = test_ui_mem_alloc;
-    menuimport.MemFree = test_ui_mem_free;
+    memset(&mi, 0, sizeof(mi));
+    mi.Printf = test_ui_printf;
+    mi.GetRenderer = test_get_renderer;
+    mi.Cmd_ExecuteText = test_cmd_execute_text;
+    mi.MemAlloc = test_ui_mem_alloc;
+    mi.MemFree = test_ui_mem_free;
 
     captured_command[0] = '\0';
 
@@ -1985,20 +1985,20 @@ TEST(menu_fdf, main_menu_quit_dialog_commands_quit) {
     global_exit_button = UI_FindFrame("ExitButton");
     exit_button = UI_FindChildFrame(UI_FindFrame("MainMenuFrame"), "ExitButton");
     if (!require_not_null(exit_button)) {
-        menuimport = saved;
+        mi = saved;
         return;
     }
     T_ASSERT(global_exit_button != exit_button);
     T_ASSERT(!exit_button->hidden);
     T_STREQ(exit_button->OnClick, "menu_quit");
     logo = UI_FindChildFrame(UI_FindFrame("MainMenuFrame"), "WarCraftIIILogo");
-    if (!require_not_null(logo)) { menuimport = saved; return; }
+    if (!require_not_null(logo)) { mi = saved; return; }
     T_FEQ(logo->Points.x[FPP_MIN].offset, 0.13f, 0.001f);
     T_FEQ(logo->Points.y[FPP_MIN].offset, -0.08f, 0.001f);
 
     modal = UI_FindFrame("MainMenuQuitModal");
     if (!require_not_null(modal)) {
-        menuimport = saved;
+        mi = saved;
         return;
     }
     T_EQ(modal->Type, FT_DIALOG);
@@ -2008,7 +2008,7 @@ TEST(menu_fdf, main_menu_quit_dialog_commands_quit) {
 
     dialog = UI_FindChildFrame(modal, "DialogWar3");
     if (!require_not_null(dialog)) {
-        menuimport = saved;
+        mi = saved;
         return;
     }
     T_EQ(dialog->Type, FT_DIALOG);
@@ -2027,31 +2027,31 @@ TEST(menu_fdf, main_menu_quit_dialog_commands_quit) {
     yes_button = UI_FindChildFrame(dialog, "DialogButtonYes");
 
     if (!require_not_null(message)) {
-        menuimport = saved;
+        mi = saved;
         return;
     }
     if (!require_not_null(icon)) {
-        menuimport = saved;
+        mi = saved;
         return;
     }
     if (!require_not_null(ok_backdrop)) {
-        menuimport = saved;
+        mi = saved;
         return;
     }
     if (!require_not_null(no_backdrop)) {
-        menuimport = saved;
+        mi = saved;
         return;
     }
     if (!require_not_null(yes_backdrop)) {
-        menuimport = saved;
+        mi = saved;
         return;
     }
     if (!require_not_null(no_button)) {
-        menuimport = saved;
+        mi = saved;
         return;
     }
     if (!require_not_null(yes_button)) {
-        menuimport = saved;
+        mi = saved;
         return;
     }
 
@@ -2070,7 +2070,7 @@ TEST(menu_fdf, main_menu_quit_dialog_commands_quit) {
     M_MenuCommand(yes_button->OnClick);
     T_STREQ(captured_command, "quit");
 
-    menuimport = saved;
+    mi = saved;
 }
 
 TEST(menu_fdf, main_menu_realm_select_uses_realm_panel_anim) {
@@ -2081,14 +2081,14 @@ TEST(menu_fdf, main_menu_realm_select_uses_realm_panel_anim) {
         "UI\\FrameDef\\Glue\\DialogWar3.fdf",
         "UI\\FrameDef\\Glue\\MainMenu.fdf",
     };
-    menuImport_t saved = menuimport;
+    menuImport_t saved = mi;
 
     load_ui_files(files, sizeof(files) / sizeof(files[0]));
-    memset(&menuimport, 0, sizeof(menuimport));
-    menuimport.Printf = test_ui_printf;
-    menuimport.GetRenderer = test_get_renderer;
-    menuimport.MemAlloc = test_ui_mem_alloc;
-    menuimport.MemFree = test_ui_mem_free;
+    memset(&mi, 0, sizeof(mi));
+    mi.Printf = test_ui_printf;
+    mi.GetRenderer = test_get_renderer;
+    mi.MemAlloc = test_ui_mem_alloc;
+    mi.MemFree = test_ui_mem_free;
     UI_ResetGlueSceneModels();
 
     T_ASSERT(mainMenuScreen.load());
@@ -2108,11 +2108,11 @@ TEST(menu_fdf, main_menu_realm_select_uses_realm_panel_anim) {
     mainMenuScreen.draw();
     T_EQ(captured_stand_sprites, 0);
     T_EQ(captured_realm_panel_sprites, 2);
-    menuimport = saved;
+    mi = saved;
 }
 
 TEST(menu_fdf, glue_sprite_layers_follow_widescreen_edges) {
-    menuImport_t saved = menuimport;
+    menuImport_t saved = mi;
     RECT centered;
 
     reset_ui_state();
@@ -2121,11 +2121,11 @@ TEST(menu_fdf, glue_sprite_layers_follow_widescreen_edges) {
         "UI\\FrameDef\\Glue\\StandardTemplates.fdf",
         "UI\\FrameDef\\Glue\\MainMenu.fdf",
     }, 3);
-    memset(&menuimport, 0, sizeof(menuimport));
-    menuimport.Printf = test_ui_printf;
-    menuimport.GetRenderer = test_get_renderer;
-    menuimport.MemAlloc = test_ui_mem_alloc;
-    menuimport.MemFree = test_ui_mem_free;
+    memset(&mi, 0, sizeof(mi));
+    mi.Printf = test_ui_printf;
+    mi.GetRenderer = test_get_renderer;
+    mi.MemAlloc = test_ui_mem_alloc;
+    mi.MemFree = test_ui_mem_free;
     test_window_size = MAKE(size2_t, 1280, 720);
     UI_ResetGlueSceneModels();
     captured_stand_sprites = 0;
@@ -2145,15 +2145,15 @@ TEST(menu_fdf, glue_sprite_layers_follow_widescreen_edges) {
     T_FEQ(centered.w, 0.8f, 0.0001f);
     test_window_size = MAKE(size2_t, 1000, 750);
 
-    menuimport = saved;
+    mi = saved;
 }
 
 TEST(menu_fdf, initial_glue_panel_finishes_birth_before_opening_screen) {
-    menuImport_t saved = menuimport;
+    menuImport_t saved = mi;
 
     reset_ui_state();
-    memset(&menuimport, 0, sizeof(menuimport));
-    menuimport.GetRenderer = test_get_renderer;
+    memset(&mi, 0, sizeof(mi));
+    mi.GetRenderer = test_get_renderer;
     UI_ResetGlueSceneModels();
 
     UI_GotoGluePanel(UI_GLUE_MAIN_MENU, test_glue_changed);
@@ -2165,15 +2165,15 @@ TEST(menu_fdf, initial_glue_panel_finishes_birth_before_opening_screen) {
     M_Refresh(M_Time() + 1000);
     T_EQ(captured_glue_changes, 1);
 
-    menuimport = saved;
+    mi = saved;
 }
 
 TEST(menu_fdf, glue_panel_formats_preserve_side_specific_suffixes) {
-    menuImport_t saved = menuimport;
+    menuImport_t saved = mi;
 
     reset_ui_state();
-    memset(&menuimport, 0, sizeof(menuimport));
-    menuimport.GetRenderer = test_get_renderer;
+    memset(&mi, 0, sizeof(mi));
+    mi.GetRenderer = test_get_renderer;
     UI_ResetGlueSceneModels();
 
     UI_GotoGluePanel(UI_GLUE_OPTIONS, NULL);
@@ -2182,7 +2182,7 @@ TEST(menu_fdf, glue_panel_formats_preserve_side_specific_suffixes) {
     T_STREQ(captured_sprite_anim[1], "Options Birth@0.0000");
 
     UI_ResetGlueSceneModels();
-    menuimport = saved;
+    mi = saved;
 }
 
 TEST(menu_fdf, main_menu_edition_button_defers_restart_after_death_frame) {
@@ -2193,21 +2193,21 @@ TEST(menu_fdf, main_menu_edition_button_defers_restart_after_death_frame) {
         "UI\\FrameDef\\Glue\\DialogWar3.fdf",
         "UI\\FrameDef\\Glue\\MainMenu.fdf",
     };
-    menuImport_t saved = menuimport;
+    menuImport_t saved = mi;
     LPFRAMEDEF root;
     LPFRAMEDEF edition;
 
     load_ui_files(files, sizeof(files) / sizeof(files[0]));
-    memset(&menuimport, 0, sizeof(menuimport));
-    menuimport.Printf = test_ui_printf;
-    menuimport.GetRenderer = test_get_renderer;
-    menuimport.MemAlloc = test_ui_mem_alloc;
-    menuimport.MemFree = test_ui_mem_free;
-    menuimport.FS_ReadFile = test_fs_read_file;
-    menuimport.FS_FreeFile = test_fs_free_file;
-    menuimport.Cmd_ExecuteText = test_cmd_execute_text;
-    menuimport.Cvar_String = test_cvar_string;
-    menuimport.Cvar_Set = test_cvar_set;
+    memset(&mi, 0, sizeof(mi));
+    mi.Printf = test_ui_printf;
+    mi.GetRenderer = test_get_renderer;
+    mi.MemAlloc = test_ui_mem_alloc;
+    mi.MemFree = test_ui_mem_free;
+    mi.FS_ReadFile = test_fs_read_file;
+    mi.FS_FreeFile = test_fs_free_file;
+    mi.Cmd_ExecuteText = test_cmd_execute_text;
+    mi.Cvar_String = test_cvar_string;
+    mi.Cvar_Set = test_cvar_set;
     test_fs_expansion = false;
     hide_expansion_campaign_file = false;
     captured_command[0] = '\0';
@@ -2220,7 +2220,7 @@ TEST(menu_fdf, main_menu_edition_button_defers_restart_after_death_frame) {
     root = UI_FindFrame("MainMenuFrame");
     edition = root ? UI_FindChildFrame(root, "EditionButton") : NULL;
     if (!require_not_null(root) || !require_not_null(edition)) {
-        menuimport = saved;
+        mi = saved;
         return;
     }
     T_STREQ(edition->OnClick, "menu_edition");
@@ -2240,7 +2240,7 @@ TEST(menu_fdf, main_menu_edition_button_defers_restart_after_death_frame) {
     T_STREQ(captured_cvar_value, "1");
     T_STREQ(captured_command, "menu_restart\n");
     mainMenuScreen.shutdown();
-    menuimport = saved;
+    mi = saved;
 }
 
 TEST(menu_fdf, main_menu_edition_button_rolls_back_when_tft_data_is_missing) {
@@ -2251,20 +2251,20 @@ TEST(menu_fdf, main_menu_edition_button_rolls_back_when_tft_data_is_missing) {
         "UI\\FrameDef\\Glue\\DialogWar3.fdf",
         "UI\\FrameDef\\Glue\\MainMenu.fdf",
     };
-    menuImport_t saved = menuimport;
+    menuImport_t saved = mi;
     LPFRAMEDEF root;
 
     load_ui_files(files, sizeof(files) / sizeof(files[0]));
-    memset(&menuimport, 0, sizeof(menuimport));
-    menuimport.Printf = test_ui_printf;
-    menuimport.GetRenderer = test_get_renderer;
-    menuimport.MemAlloc = test_ui_mem_alloc;
-    menuimport.MemFree = test_ui_mem_free;
-    menuimport.FS_ReadFile = test_fs_read_file;
-    menuimport.FS_FreeFile = test_fs_free_file;
-    menuimport.Cmd_ExecuteText = test_cmd_execute_text;
-    menuimport.Cvar_String = test_cvar_string;
-    menuimport.Cvar_Set = test_cvar_set;
+    memset(&mi, 0, sizeof(mi));
+    mi.Printf = test_ui_printf;
+    mi.GetRenderer = test_get_renderer;
+    mi.MemAlloc = test_ui_mem_alloc;
+    mi.MemFree = test_ui_mem_free;
+    mi.FS_ReadFile = test_fs_read_file;
+    mi.FS_FreeFile = test_fs_free_file;
+    mi.Cmd_ExecuteText = test_cmd_execute_text;
+    mi.Cvar_String = test_cvar_string;
+    mi.Cvar_Set = test_cvar_set;
     test_fs_expansion = false;
     hide_expansion_campaign_file = true;
     captured_command[0] = '\0';
@@ -2275,7 +2275,7 @@ TEST(menu_fdf, main_menu_edition_button_rolls_back_when_tft_data_is_missing) {
     root = UI_FindFrame("MainMenuFrame");
     if (!require_not_null(root)) {
         hide_expansion_campaign_file = false;
-        menuimport = saved;
+        mi = saved;
         return;
     }
 
@@ -2288,7 +2288,7 @@ TEST(menu_fdf, main_menu_edition_button_rolls_back_when_tft_data_is_missing) {
 
     hide_expansion_campaign_file = false;
     mainMenuScreen.shutdown();
-    menuimport = saved;
+    mi = saved;
 }
 
 static void test_single_player_campaign_profile(BOOL tft) {
@@ -2299,7 +2299,7 @@ static void test_single_player_campaign_profile(BOOL tft) {
         "UI\\FrameDef\\Glue\\CampaignMenu.fdf",
         "UI\\FrameDef\\Glue\\MapListBox.fdf",
     };
-    menuImport_t saved = menuimport;
+    menuImport_t saved = mi;
     LPFRAMEDEF root;
     LPFRAMEDEF campaign_button;
     LPFRAMEDEF skirmish_button;
@@ -2320,22 +2320,22 @@ static void test_single_player_campaign_profile(BOOL tft) {
     test_campaign_played_mission = -1;
     load_ui_files(files, sizeof(files) / sizeof(files[0]));
 
-    memset(&menuimport, 0, sizeof(menuimport));
-    menuimport.Printf = test_ui_printf;
-    menuimport.GetRenderer = test_get_renderer;
-    menuimport.Cmd_ExecuteText = test_cmd_execute_text;
-    menuimport.Cvar_String = test_cvar_string;
-    menuimport.Cvar_Set = test_cvar_set;
-    menuimport.FS_ReadFile = test_fs_read_file;
-    menuimport.FS_FreeFile = test_fs_free_file;
-    menuimport.MemAlloc = test_ui_mem_alloc;
-    menuimport.MemFree = test_ui_mem_free;
-    menuimport.PlayMovie = test_play_movie;
+    memset(&mi, 0, sizeof(mi));
+    mi.Printf = test_ui_printf;
+    mi.GetRenderer = test_get_renderer;
+    mi.Cmd_ExecuteText = test_cmd_execute_text;
+    mi.Cvar_String = test_cvar_string;
+    mi.Cvar_Set = test_cvar_set;
+    mi.FS_ReadFile = test_fs_read_file;
+    mi.FS_FreeFile = test_fs_free_file;
+    mi.MemAlloc = test_ui_mem_alloc;
+    mi.MemFree = test_ui_mem_free;
+    mi.PlayMovie = test_play_movie;
 
 
     if (!singlePlayerMenuScreen.load()) {
         T_ASSERT(false);
-        menuimport = saved;
+        mi = saved;
         return;
     }
     singlePlayerMenuScreen.init();
@@ -2347,22 +2347,22 @@ static void test_single_player_campaign_profile(BOOL tft) {
     back_button = UI_FindFrame("BackButton");
 
     if (!require_not_null(root)) {
-        menuimport = saved;
+        mi = saved;
         return;
     }
     if (!require_not_null(campaign_button)) {
-        menuimport = saved;
+        mi = saved;
         return;
     }
     if (!require_not_null(skirmish_button)) {
-        menuimport = saved;
+        mi = saved;
         return;
     }
     if (!require_not_null(cancel_button)) {
-        menuimport = saved;
+        mi = saved;
         return;
     }
-    if (!require_not_null(back_button)) { menuimport = saved; return; }
+    if (!require_not_null(back_button)) { mi = saved; return; }
     T_ASSERT(!root->hidden);
     T_STREQ(campaign_button->OnClick, "menu_single_player_campaign");
     T_STREQ(skirmish_button->OnClick, "menu_single_player_skirmish");
@@ -2377,7 +2377,7 @@ static void test_single_player_campaign_profile(BOOL tft) {
         : NULL;
 
     if (!require_not_null(human_button) || !require_not_null(campaign_list_box)) {
-        menuimport = saved;
+        mi = saved;
         return;
     }
     T_ASSERT(human_button->hidden);
@@ -2414,7 +2414,7 @@ static void test_single_player_campaign_profile(BOOL tft) {
         !require_not_null(mission_name) ||
         !require_not_null(mission_name_header) ||
         !require_not_null(mission_list_box)) {
-        menuimport = saved;
+        mi = saved;
         return;
     }
     T_ASSERT(campaign_select_frame->hidden);
@@ -2521,7 +2521,7 @@ static void test_single_player_campaign_profile(BOOL tft) {
     test_fs_expansion = false;
     test_campaign_mission_visibility = NULL;
     test_campaign_played_mission = -1;
-    menuimport = saved;
+    mi = saved;
 }
 
 TEST(menu_fdf, single_player_screen_loads_roc_campaigns) {
@@ -2555,7 +2555,7 @@ static int utf16le_fs_read(LPCSTR file_name, void **buf) {
 static void utf16le_fs_free(void *buf) { free(buf); }
 
 TEST(menu_fdf, utf16le_fdf_is_parsed_correctly) {
-    menuImport_t saved = menuimport;
+    menuImport_t saved = mi;
     LPFRAMEDEF frame;
 
     reset_ui_state();
@@ -2569,17 +2569,17 @@ TEST(menu_fdf, utf16le_fdf_is_parsed_correctly) {
         "    Height 0.50,\n"
         "}\n";
 
-    memset(&menuimport, 0, sizeof(menuimport));
-    menuimport.FS_ReadFile = utf16le_fs_read;
-    menuimport.FS_FreeFile = utf16le_fs_free;
-    menuimport.MemAlloc = test_ui_mem_alloc;
-    menuimport.MemFree = test_ui_mem_free;
-    menuimport.ImageIndex = fake_image_index;
-    menuimport.FontIndex = test_font_index;
-    menuimport.Printf = test_ui_printf;
+    memset(&mi, 0, sizeof(mi));
+    mi.FS_ReadFile = utf16le_fs_read;
+    mi.FS_FreeFile = utf16le_fs_free;
+    mi.MemAlloc = test_ui_mem_alloc;
+    mi.MemFree = test_ui_mem_free;
+    mi.ImageIndex = fake_image_index;
+    mi.FontIndex = test_font_index;
+    mi.Printf = test_ui_printf;
 
     UI_ParseFDF("utf16le_test.fdf");
-    menuimport = saved;
+    mi = saved;
 
     frame = UI_FindFrame("UTF16Frame");
     if (!require_not_null(frame)) return;
@@ -2628,12 +2628,12 @@ static int test_versioned_theme_read(LPCSTR name, void **buf) {
 }
 
 TEST(menu_fdf, versioned_theme_keys_follow_expansion_edition) {
-    menuImport_t saved = menuimport;
+    menuImport_t saved = mi;
 
     reset_ui_state();
-    menuimport.FS_ReadFile = test_versioned_theme_read;
-    menuimport.FS_FreeFile = test_fs_free_file;
-    menuimport.Cvar_String = test_cvar_string;
+    mi.FS_ReadFile = test_versioned_theme_read;
+    mi.FS_FreeFile = test_fs_free_file;
+    mi.Cvar_String = test_cvar_string;
     UI_LoadTheme("UI\\war3skins.txt");
 
     test_fs_expansion = false;
@@ -2648,16 +2648,16 @@ TEST(menu_fdf, versioned_theme_keys_follow_expansion_edition) {
 
     test_fs_expansion = false;
     UI_ClearTheme();
-    menuimport = saved;
+    mi = saved;
 }
 
 TEST(menu_fdf, unversioned_theme_key_precedes_edition_variant) {
-    menuImport_t saved = menuimport;
+    menuImport_t saved = mi;
 
     reset_ui_state();
-    menuimport.FS_ReadFile = test_versioned_theme_read;
-    menuimport.FS_FreeFile = test_fs_free_file;
-    menuimport.Cvar_String = test_cvar_string;
+    mi.FS_ReadFile = test_versioned_theme_read;
+    mi.FS_FreeFile = test_fs_free_file;
+    mi.Cvar_String = test_cvar_string;
     UI_LoadTheme("UI\\war3skins.txt");
 
     test_fs_expansion = false;
@@ -2669,14 +2669,14 @@ TEST(menu_fdf, unversioned_theme_key_precedes_edition_variant) {
     T_STREQ(Theme_String("OnlyTft", "Default"), "OnlyTft");
 
     UI_ClearTheme();
-    menuimport = saved;
+    mi = saved;
 }
 
 TEST(menu_fdf, deferred_texture_cache_tracks_theme_changes) {
-    menuImport_t saved = menuimport;
+    menuImport_t saved = mi;
     PLAYER player = { .race = kPlayerRaceHuman };
     reset_ui_state();
-    menuimport.FS_ReadFile = test_theme_read; menuimport.FS_FreeFile = test_fs_free_file;
+    mi.FS_ReadFile = test_theme_read; mi.FS_FreeFile = test_fs_free_file;
     UI_LoadTheme("UI\\war3skins.txt");
     DWORD index = UI_LoadTexture("Background", true);
     T_EQ(UI_LoadTexture("Background", true), index);
@@ -2691,7 +2691,7 @@ TEST(menu_fdf, deferred_texture_cache_tracks_theme_changes) {
     T_STREQ(captured_image_path, "Default.blp");
     T_EQ(texture_releases, 1); T_EQ(fake_texture_id, 2);
     T_NOT_NULL(UI_GetTexture(index)); T_EQ(fake_texture_id, 2);
-    UI_ClearTheme(); menuimport = saved;
+    UI_ClearTheme(); mi = saved;
 }
 
 TEST(menu_fdf, loading_rows_support_roc_and_tft_schema) {
@@ -2714,11 +2714,11 @@ TEST(menu_fdf, loading_rows_support_roc_and_tft_schema) {
 }
 
 TEST(menu_fdf, exported_image_resolver_uses_local_player_skin) {
-    menuImport_t saved = menuimport;
+    menuImport_t saved = mi;
     PLAYER player = { .race = kPlayerRaceHuman };
 
     reset_ui_state();
-    menuimport.FS_ReadFile = test_theme_read; menuimport.FS_FreeFile = test_fs_free_file;
+    mi.FS_ReadFile = test_theme_read; mi.FS_FreeFile = test_fs_free_file;
 
     menu_player = &player;
     UI_LoadTheme("UI\\war3skins.txt");
@@ -2727,5 +2727,5 @@ TEST(menu_fdf, exported_image_resolver_uses_local_player_skin) {
     T_STREQ(M_ResolveImagePath("ConsoleTexture06"), "Custom06.blp");
     T_STREQ(M_ResolveImagePath("UI\\Textures\\fixed.blp"), "UI\\Textures\\fixed.blp");
     menu_player = NULL;
-    UI_ClearTheme(); menuimport = saved;
+    UI_ClearTheme(); mi = saved;
 }

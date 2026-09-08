@@ -32,7 +32,7 @@ static void CreditsMenu_Init(void) {
         .ok_command = "menu_main",
     };
 
-    menuimport.Printf("CreditsMenu_Init\n");
+    mi.Printf("CreditsMenu_Init\n");
     UI_PreloadGlueSceneModels();
     UI_GotoGluePanel(UI_GLUE_MAIN_MENU, NULL);
     if (UI_DialogWar3Init(&credits_dialog, credits_root, &init)) {

@@ -113,7 +113,7 @@ valid after map registration and makes Quit Campaign / EndGame / campaign-select
 `UI\CampaignStrings.txt` / `UI\CampaignStrings_exp.txt` names, so a post-switch Single Player entry reparses the campaign list from
 the same edition selected by the main menu.
 
-`games/warcraft-3/menu/menu_glue_scene.c` renders the selected background as a model with `RDF_USE_ENTITY_CAMERA`; the main menu is
+`games/warcraft-3/menu/scene.c` renders the selected background as a model with `RDF_USE_ENTITY_CAMERA`; the main menu is
 therefore not a static BLP backdrop. Callers select a typed logical panel such as `UI_GLUE_MAIN_MENU` or
 `UI_GLUE_SINGLE_PLAYER` through `UI_GotoGluePanel(panel, changed)`, while the glue system composes the current panel's `Death` and the destination panel's
 `Birth` sequences. RoC and TFT use the same fixed panel intervals: every named `Birth` is 1000 ms and every named `Death` is

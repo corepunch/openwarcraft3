@@ -15,7 +15,7 @@ void UIWow_UpdateMapBackground(LPCPLAYER ps) {
 
     (void)ps;
 
-    LPCSTR info = menuimport.GetConfigString(WOW_CS_MAPINFO);
+    LPCSTR info = mi.GetConfigString(WOW_CS_MAPINFO);
     LPCSTR preview = Wow_InfoValueForKey(info, "preview", "");
     LPCSTR map_path = *preview ? preview : default_bg;
 
@@ -49,7 +49,7 @@ void UIWow_UpdateMapBackground(LPCPLAYER ps) {
 void UIWow_DrawLoadingScreenC(LPCSTR map, LPCSTR status, FLOAT progress) {
     RECT full = MAKE(RECT, 0, 0, 1, 1);
     RECT uv = MAKE(RECT, 0, 0, 1, 1);
-    LPCSTR info = menuimport.GetConfigString(WOW_CS_MAPINFO);
+    LPCSTR info = mi.GetConfigString(WOW_CS_MAPINFO);
     LPCSTR map_title = Wow_InfoValueForKey(info, "title", "");
 
     (void)map;

@@ -54,7 +54,7 @@ static void MainMenu_ShowQuitDialog(void) {
 
 static void MainMenu_InitFrames(void) {
     if (!main_menu.MainMenuFrame) {
-        menuimport.Printf("ERROR: MainMenuFrame not found\n");
+        mi.Printf("ERROR: MainMenuFrame not found\n");
         return;
     }
 
@@ -99,7 +99,7 @@ static void MainMenu_InitFrames(void) {
 }
 
 static void MainMenu_Init(void) {
-    menuimport.Printf("MainMenu_Init\n");
+    mi.Printf("MainMenu_Init\n");
     edition_button = NULL;
     UI_PreloadGlueSceneModels();
     MainMenu_InitFrames();
@@ -114,23 +114,23 @@ static void MainMenu_ApplyEdition(BOOL expansion) {
     HANDLE data = NULL;
     int size;
 
-    menuimport.Cvar_Set("fs_expansion", expansion ? "1" : "0");
+    mi.Cvar_Set("fs_expansion", expansion ? "1" : "0");
     if (!expansion) return;
 
-    size = menuimport.FS_ReadFile("UI\\CampaignStrings_exp.txt", &data);
-    if (data) menuimport.FS_FreeFile(data);
+    size = mi.FS_ReadFile("UI\\CampaignStrings_exp.txt", &data);
+    if (data) mi.FS_FreeFile(data);
     if (size > 0) return;
 
-    menuimport.Cvar_Set("fs_expansion", "0");
-    menuimport.Printf("The Frozen Throne data is unavailable.\n");
+    mi.Cvar_Set("fs_expansion", "0");
+    mi.Printf("The Frozen Throne data is unavailable.\n");
 }
 
 /* Restart only after both authored Death layers have reached their final pose. */
 static void MainMenu_FinishEditionSwitch(void) {
-    LPCSTR expansion = menuimport.Cvar_String("fs_expansion", "0");
+    LPCSTR expansion = mi.Cvar_String("fs_expansion", "0");
 
     MainMenu_ApplyEdition(!(expansion && atoi(expansion) != 0));
-    menuimport.Cmd_ExecuteText("menu_restart\n");
+    mi.Cmd_ExecuteText("menu_restart\n");
 }
 
 static void MainMenu_Refresh(int msec) {

@@ -14,7 +14,7 @@
  * Global state (declared extern in menu_local.h)
  * ---------------------------------------------------------------------- */
 
-menuImport_t menuimport;
+menuImport_t mi;
 LPCPLAYER wow_player;
 
 void UIWow_UpdatePlayerState(LPCPLAYER state) { wow_player = state; }
@@ -33,13 +33,13 @@ void UIWow_Printf(LPCSTR fmt, ...) {
     va_list args;
     char text[1024];
 
-    if (!menuimport.Printf) {
+    if (!mi.Printf) {
         return;
     }
     va_start(args, fmt);
     vsnprintf(text, sizeof(text), fmt, args);
     va_end(args);
-    menuimport.Printf("%s", text);
+    mi.Printf("%s", text);
 }
 
 void UIWow_WarnOnce(DWORD flag, LPCSTR fmt, ...) {
@@ -50,18 +50,18 @@ void UIWow_WarnOnce(DWORD flag, LPCSTR fmt, ...) {
         return;
     }
     wow_ui.warn_once_mask |= flag;
-    if (!menuimport.Printf) {
+    if (!mi.Printf) {
         return;
     }
     va_start(args, fmt);
     vsnprintf(text, sizeof(text), fmt, args);
     va_end(args);
-    menuimport.Printf("%s", text);
+    mi.Printf("%s", text);
 }
 
 void UIWow_EnsureRenderer(void) {
-    if (!wow_ui.renderer && menuimport.GetRenderer) {
-        wow_ui.renderer = menuimport.GetRenderer();
+    if (!wow_ui.renderer && mi.GetRenderer) {
+        wow_ui.renderer = mi.GetRenderer();
     }
     if (!wow_ui.renderer) {
         UIWow_WarnOnce(WOW_UI_WARN_NO_RENDERER, "UIWow: renderer is unavailable (GetRenderer returned NULL)\n");
@@ -79,10 +79,10 @@ static BOOL UIWow_TexturePathHasExt(LPCSTR name) {
 static BOOL UIWow_MainHasArchiveFile(LPCSTR path) {
     void *buf = NULL;
     int size;
-    if (!path || !*path || !menuimport.FS_ReadFile || !menuimport.FS_FreeFile) return false;
-    size = menuimport.FS_ReadFile(path, &buf);
-    if (size > 0 && buf) { menuimport.FS_FreeFile(buf); return true; }
-    SAFE_DELETE(buf, menuimport.FS_FreeFile);
+    if (!path || !*path || !mi.FS_ReadFile || !mi.FS_FreeFile) return false;
+    size = mi.FS_ReadFile(path, &buf);
+    if (size > 0 && buf) { mi.FS_FreeFile(buf); return true; }
+    SAFE_DELETE(buf, mi.FS_FreeFile);
     return false;
 }
 
@@ -444,11 +444,11 @@ static uiWowMenuCommandDef_t const uiWow_menu_command_defs[] = {
 };
 
 static void UIWow_RegisterMenuCommands(void) {
-    if (uiWow_menu_commands_registered || !menuimport.Cmd_AddCommand) {
+    if (uiWow_menu_commands_registered || !mi.Cmd_AddCommand) {
         return;
     }
     for (uiWowMenuCommandDef_t const *cmd = uiWow_menu_command_defs; cmd->command; cmd++) {
-        menuimport.Cmd_AddCommand(cmd->command, cmd->function);
+        mi.Cmd_AddCommand(cmd->command, cmd->function);
     }
     uiWow_menu_commands_registered = true;
 }
@@ -458,10 +458,10 @@ static void UIWow_RegisterMenuCommands(void) {
  * ---------------------------------------------------------------------- */
 
 static DWORD UIWow_ImageIndex(LPCSTR art) {
-    if (!art || !*art || !menuimport.ImageIndex) {
+    if (!art || !*art || !mi.ImageIndex) {
         return 0;
     }
-    return (DWORD)menuimport.ImageIndex(art);
+    return (DWORD)mi.ImageIndex(art);
 }
 
 static DWORD UIWow_ParseCount(LPCSTR text) {
@@ -510,7 +510,7 @@ static void UIWow_UpdateUnitUI(DWORD num_units, menuUnitData_t *units) {
 static void UIWow_UpdateLobbySetup(lobbyState_t const *state) { (void)state; }
 
 menuExport_t M_GetAPI(menuImport_t import) {
-    menuimport = import;
+    mi = import;
 
     return (menuExport_t) {
         .Init             = UIWow_Init,

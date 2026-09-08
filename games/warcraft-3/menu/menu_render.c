@@ -155,7 +155,7 @@ RECT UI_GetSceneRect(void) {
      * centred 4:3 root here makes right-anchored buttons stop short of the
      * sprite-layer edge while hit testing still follows that shorter rect. */
     scene_rect = (RECT) { 0, 0, UI_BASE_WIDTH, UI_BASE_HEIGHT };
-    LPRENDERER renderer = menuimport.GetRenderer();
+    LPRENDERER renderer = mi.GetRenderer();
     if (renderer && renderer->GetWindowSize) {
         size2_t win = renderer->GetWindowSize();
         if (win.height > 0) {
@@ -291,7 +291,7 @@ static LPCRECT UI_LayoutRect(LPCFRAMEDEF frame) {
                 if (frame->Text && frame->Font.Index) {
                     BOOL auto_width = intrinsic_w == 0;
                     BOOL auto_height = intrinsic_h == 0;
-                    LPRENDERER renderer = menuimport.GetRenderer();
+                    LPRENDERER renderer = mi.GetRenderer();
                     drawText_t dt = {
                         .font = renderer ? renderer->LoadFont(UI_FontFile(frame->Font.Name),
                                                               UI_FontPixelSize(frame->Font.Size)) : NULL,
@@ -323,7 +323,7 @@ static LPCRECT UI_LayoutRect(LPCFRAMEDEF frame) {
             case FT_TEXTURE:
             case FT_BACKDROP:
                 if (frame->Texture.Image) {
-                    LPRENDERER renderer = menuimport.GetRenderer();
+                    LPRENDERER renderer = mi.GetRenderer();
                     LPCTEXTURE texture = UI_GetTexture(frame->Texture.Image);
                     size2_t tex_size = (renderer && texture) ? renderer->GetTextureSize(texture) : MAKE(size2_t, 0, 0);
                     if (intrinsic_w == 0) intrinsic_w = tex_size.width / 1000.0f;  /* Normalize to 0-1 space */
@@ -372,7 +372,7 @@ static LPCRECT UI_LayoutRect(LPCFRAMEDEF frame) {
  * ======================================================================== */
 
 static void UI_DrawTexture(LPCFRAMEDEF frame, LPCRECT rect) {
-    LPRENDERER renderer = menuimport.GetRenderer();
+    LPRENDERER renderer = mi.GetRenderer();
 
     if (!frame->Texture.Image) {
         return;
@@ -415,7 +415,7 @@ static void UI_DrawTexture(LPCFRAMEDEF frame, LPCRECT rect) {
 }
 
 static void UI_DrawText(LPCFRAMEDEF frame, LPCRECT rect) {
-    LPRENDERER renderer = menuimport.GetRenderer();
+    LPRENDERER renderer = mi.GetRenderer();
     LPCSTR font_name;
     DWORD font_size;
     RECT text_rect = *rect;
@@ -726,7 +726,7 @@ static DWORD UI_FrameDrawOrderIndex(LPCFRAMEDEF const *draw_order, DWORD count, 
 }
 
 static void UI_DrawModalDim(void) {
-    LPRENDERER renderer = menuimport.GetRenderer();
+    LPRENDERER renderer = mi.GetRenderer();
     DWORD texture;
     LPCTEXTURE tex;
     LPCRECT rect;
@@ -756,7 +756,7 @@ static void UI_DrawModalDim(void) {
 }
 
 static void UI_DrawHighlightFrame(LPCFRAMEDEF frame, LPCRECT rect) {
-    LPRENDERER renderer = menuimport.GetRenderer();
+    LPRENDERER renderer = mi.GetRenderer();
 
     if (!frame || !frame->Highlight.AlphaFile) {
         return;
@@ -815,7 +815,7 @@ static BOOL UI_RenderIsCheckBoxFrameType(FRAMETYPE type) {
 }
 
 static void UI_DrawPortrait(LPCFRAMEDEF frame, LPCRECT rect) {
-    LPRENDERER renderer = menuimport.GetRenderer();
+    LPRENDERER renderer = mi.GetRenderer();
 
     if (!frame->Portrait.model) {
         return;
@@ -849,7 +849,7 @@ static void UI_DrawPortrait(LPCFRAMEDEF frame, LPCRECT rect) {
  * frame's rect — used for the cinematic transmission portrait, whose model is a
  * game configstring index, not a UI-cache model. Mirrors UI_LayoutDrawPortrait. */
 static void UI_DrawSprite(LPCFRAMEDEF frame, LPCRECT rect) {
-    LPRENDERER renderer = menuimport.GetRenderer();
+    LPRENDERER renderer = mi.GetRenderer();
     FLOAT x = rect->x;
 
     if (frame->Texture.Image) {
@@ -1230,7 +1230,7 @@ void UI_PopupSelectItem(FLOAT fdf_x, FLOAT fdf_y) {
     if (!menu || menu->hidden) {
         return;
     }
-    LPRENDERER renderer = menuimport.GetRenderer();
+    LPRENDERER renderer = mi.GetRenderer();
     if (!renderer || !renderer->LoadFont || !renderer->DrawText) {
         return;
     }

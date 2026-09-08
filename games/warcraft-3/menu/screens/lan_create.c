@@ -6,7 +6,7 @@
 #include "../menu_screen.h"
 
 static void LANCreate_Init(void) {
-    menuimport.Printf("LANCreate_Init\n");
+    mi.Printf("LANCreate_Init\n");
 }
 
 static void LANCreate_Shutdown(void) {

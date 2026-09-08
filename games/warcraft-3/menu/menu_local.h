@@ -21,7 +21,7 @@
 typedef struct uiScreen_s uiScreen_t;  /* Defined in menu_screen.h */
 
 /* Global import callbacks (filled by M_GetAPI) */
-extern menuImport_t menuimport;
+extern menuImport_t mi;
 extern LPCPLAYER menu_player;
 
 /* Internal function prototypes */
@@ -44,7 +44,7 @@ static inline BOOL UI_ParseLoadingRow(LPCSTR row, LPDWORD sequence, LPSTR model)
     return sscanf(row + offset, "%*[^,],%u,%255[^,\r\n]", sequence, model) == 2;
 }
 
-/* menu_glue_scene.c */
+/* scene.c */
 typedef enum {
     UI_GLUE_NONE,
     UI_GLUE_MAIN_MENU,
@@ -116,7 +116,7 @@ LPFRAMEDEF UI_CloneFrameTree(LPCFRAMEDEF source, LPFRAMEDEF parent);
 #define BZ_FDF_REPORT_MISSING(NAME) \
     do { \
         fprintf(stderr, "ERROR: missing FDF binding: %s\n", (NAME)); \
-        if (menuimport.Printf) menuimport.Printf("ERROR: missing FDF binding: %s\n", (NAME)); \
+        if (mi.Printf) mi.Printf("ERROR: missing FDF binding: %s\n", (NAME)); \
     } while (0)
 #endif
 

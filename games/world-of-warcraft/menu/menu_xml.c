@@ -38,9 +38,9 @@ static void UIWow_XMLRunFrameScript(int idx, LPCSTR script, LPCSTR event_name);
 
 /* Host services for stb_wowxml.h — only compiled in the unity production build
  * where -DSTB_WOW_XML_IMPLEMENTATION is set globally. */
-int  UI_XmlFsReadFile(LPCSTR p, void **b) { return menuimport.FS_ReadFile ? menuimport.FS_ReadFile(p, b) : -1; }
-void UI_XmlFsFreeFile(void *b) { if (menuimport.FS_FreeFile) menuimport.FS_FreeFile(b); }
-void UI_XmlPrintf(LPCSTR fmt, ...) { va_list ap; if (!menuimport.Printf) return; va_start(ap, fmt); menuimport.Printf(fmt); va_end(ap); }
+int  UI_XmlFsReadFile(LPCSTR p, void **b) { return mi.FS_ReadFile ? mi.FS_ReadFile(p, b) : -1; }
+void UI_XmlFsFreeFile(void *b) { if (mi.FS_FreeFile) mi.FS_FreeFile(b); }
+void UI_XmlPrintf(LPCSTR fmt, ...) { va_list ap; if (!mi.Printf) return; va_start(ap, fmt); mi.Printf(fmt); va_end(ap); }
 void UI_XmlOnFramePublish(int idx)  { UIWow_XmlPublishFrame(idx); }
 void UI_XmlOnShow(int idx) {
     if (idx >= 0 && idx < wow_xml.count && UIWow_ElemStr(&wow_xml.elems[idx], ELEM_ON_SHOW))
@@ -477,9 +477,9 @@ static void UIWow_XmlPublishFrame(int idx) {
 /* Read Glue TOC entries line-by-line, ignore comments, resolve relative paths, and process each entry. */
 static BOOL UIWow_XMLLoadFromToc(LPCSTR toc_path) {
     void *buf = NULL; int size; char *text, *cur;
-    if (!menuimport.FS_ReadFile || !menuimport.FS_FreeFile) { UIWow_WarnOnce(WOW_UI_WARN_NO_INPUT_FS, "UIWow: FS API unavailable for TOC load\n"); return false; }
-    size = menuimport.FS_ReadFile(toc_path, &buf);
-    if (size <= 0 || !buf) { SAFE_DELETE(buf, menuimport.FS_FreeFile); UIWow_Printf("UIWow: missing TOC %s\n", toc_path); return false; }
+    if (!mi.FS_ReadFile || !mi.FS_FreeFile) { UIWow_WarnOnce(WOW_UI_WARN_NO_INPUT_FS, "UIWow: FS API unavailable for TOC load\n"); return false; }
+    size = mi.FS_ReadFile(toc_path, &buf);
+    if (size <= 0 || !buf) { SAFE_DELETE(buf, mi.FS_FreeFile); UIWow_Printf("UIWow: missing TOC %s\n", toc_path); return false; }
     text = (char *)buf; cur = text;
     while (*cur) {
         char line[PATH_MAX], resolved[PATH_MAX];
@@ -503,7 +503,7 @@ static BOOL UIWow_XMLLoadFromToc(LPCSTR toc_path) {
         while (*end == '\n' || *end == '\r') end++;
         cur = end;
     }
-    menuimport.FS_FreeFile(buf);
+    mi.FS_FreeFile(buf);
     return true;
 }
 
@@ -816,7 +816,7 @@ static LPMODEL UIWow_XMLCharCustomizeModel(int i) {
 /* Report unresolved authored geometry once without fabricating a drawable or clickable rectangle. */
 static void UIWow_XMLWarnGeometry(uiWowXmlElem_t *e, LPCRECT r) {
     if ((r->w > 0.0f && r->h > 0.0f) || e->flags & EF_LOGGED_GEOMETRY) return;
-    menuimport.Printf("UIWow: unresolved FrameXML geometry frame=%s source=%s width=%g height=%g\n",
+    mi.Printf("UIWow: unresolved FrameXML geometry frame=%s source=%s width=%g height=%g\n",
         UIWow_ElemStr(e, ELEM_NAME) ? e->texts[ELEM_NAME] : "<unnamed>",
         UIWow_ElemStr(e, ELEM_SOURCE_FILE) ? e->texts[ELEM_SOURCE_FILE] : "<buffer>", r->w, r->h);
     e->flags |= EF_LOGGED_GEOMETRY;

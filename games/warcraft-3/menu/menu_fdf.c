@@ -4,7 +4,7 @@
  * The FDF parser itself lives in stb_fdf.h (STB_FDF_IMPLEMENTATION).
  * This file provides the menu-module-specific implementations of host
  * services that the parser calls: texture/model loading via the renderer,
- * FDF file reading via menuimport, and font/string resolution.
+ * FDF file reading via mi, and font/string resolution.
  */
 
 #include <stdlib.h>
@@ -29,7 +29,7 @@ static LPCMODEL ui_models[UI_MAX_MODELS] = { 0 };
 static PATHSTR ui_model_names[UI_MAX_MODELS] = { 0 };
 
 void UI_ReleaseAssets(void) {
-    LPRENDERER renderer = menuimport.GetRenderer();
+    LPRENDERER renderer = mi.GetRenderer();
 
     FOR_LOOP(i, UI_MAX_TEXTURES)
         if (ui_textures[i]) renderer->ReleaseTexture((LPTEXTURE)ui_textures[i]);
@@ -86,7 +86,7 @@ BZ_HOST_HIDDEN DWORD UI_LoadTexture(LPCSTR file, BOOL decorate) {
     for (DWORD i = 1; i < UI_MAX_TEXTURES; i++) {
         if (!ui_texture_names[i][0]) { index = i; break; }
     }
-    if (!index || !menuimport.GetRenderer) return 0;
+    if (!index || !mi.GetRenderer) return 0;
 
     snprintf(ui_texture_names[index], sizeof(ui_texture_names[index]), "%s", resolved);
     snprintf(ui_texture_keys[index], sizeof(ui_texture_keys[index]), "%s", file);
@@ -102,7 +102,7 @@ LPCSTR UI_TextureName(DWORD index) {
 
 LPCTEXTURE UI_GetTexture(DWORD index) {
     if (!index || index >= UI_MAX_TEXTURES || !ui_texture_names[index][0]) return NULL;
-    LPRENDERER renderer = menuimport.GetRenderer();
+    LPRENDERER renderer = mi.GetRenderer();
     if (ui_texture_decorated[index] && ui_texture_keys[index][0]) {
         LPCSTR resolved = EnsureExtension(Theme_String(ui_texture_keys[index], "Default"), ".blp");
         if (strcmp(ui_texture_names[index], resolved)) {
@@ -136,10 +136,10 @@ BZ_HOST_HIDDEN DWORD UI_LoadModel(LPCSTR file, BOOL decorate) {
     for (DWORD i = 1; i < UI_MAX_MODELS; i++) {
         if (!ui_model_names[i][0]) { modelIndex = i; break; }
     }
-    if (!modelIndex || !menuimport.GetRenderer) return 0;
+    if (!modelIndex || !mi.GetRenderer) return 0;
 
     snprintf(ui_model_names[modelIndex], sizeof(ui_model_names[modelIndex]), "%s", model);
-    renderer = menuimport.GetRenderer();
+    renderer = mi.GetRenderer();
     if (renderer && renderer->LoadModel && !ui_models[modelIndex])
         ui_models[modelIndex] = renderer->LoadModel(model);
     return modelIndex;
@@ -147,14 +147,14 @@ BZ_HOST_HIDDEN DWORD UI_LoadModel(LPCSTR file, BOOL decorate) {
 
 /* ---- FDF host services (UI module) ---------------------------------------- */
 
-BZ_HOST_HIDDEN HANDLE UI_FdfAlloc(long size) { return menuimport.MemAlloc(size); }
-BZ_HOST_HIDDEN void UI_FdfFree(HANDLE ptr) { menuimport.MemFree(ptr); }
-BZ_HOST_HIDDEN DWORD UI_FdfFontIndex(LPCSTR name, DWORD size) { return menuimport.FontIndex(name, size); }
+BZ_HOST_HIDDEN HANDLE UI_FdfAlloc(long size) { return mi.MemAlloc(size); }
+BZ_HOST_HIDDEN void UI_FdfFree(HANDLE ptr) { mi.MemFree(ptr); }
+BZ_HOST_HIDDEN DWORD UI_FdfFontIndex(LPCSTR name, DWORD size) { return mi.FontIndex(name, size); }
 BZ_HOST_HIDDEN int UI_FdfReadFile(LPCSTR name, HANDLE *out) {
-    int size = menuimport.FS_ReadFile(name, out);
+    int size = mi.FS_ReadFile(name, out);
     return size;
 }
-BZ_HOST_HIDDEN void UI_FdfFreeFile(HANDLE buf) { menuimport.FS_FreeFile(buf); }
+BZ_HOST_HIDDEN void UI_FdfFreeFile(HANDLE buf) { mi.FS_FreeFile(buf); }
 
 /* ---- UI_BindMapList (menu-module specific) ----------------------------------- */
 

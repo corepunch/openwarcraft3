@@ -12,16 +12,16 @@
 #include <string.h>
 #include <time.h>
 
-/* UI adapts menuimport.* onto stb_dbc.h's shared cache I/O table. */
+/* UI adapts mi.* onto stb_dbc.h's shared cache I/O table. */
 static void *UI_DbcRead(LPCSTR filename, DWORD *size) {
     void *data = NULL;
-    int s = menuimport.FS_ReadFile ? menuimport.FS_ReadFile(filename, &data) : -1;
+    int s = mi.FS_ReadFile ? mi.FS_ReadFile(filename, &data) : -1;
     if (size) *size = (DWORD)(s > 0 ? s : 0);
     return s > 0 ? data : NULL;
 }
-static void UI_DbcFreeFile(void *p) { menuimport.FS_FreeFile(p); }
-static void *UI_DbcAlloc(size_t n) { return menuimport.MemAlloc ? menuimport.MemAlloc((long)n) : NULL; }
-static void UI_DbcFreeMem(void *p) { menuimport.MemFree(p); }
+static void UI_DbcFreeFile(void *p) { mi.FS_FreeFile(p); }
+static void *UI_DbcAlloc(size_t n) { return mi.MemAlloc ? mi.MemAlloc((long)n) : NULL; }
+static void UI_DbcFreeMem(void *p) { mi.MemFree(p); }
 static stbDbcIO_t const ui_dbc_io = { UI_DbcRead, UI_DbcFreeFile, UI_DbcAlloc, UI_DbcFreeMem };
 
 /* -------------------------------------------------------------------------
@@ -121,12 +121,12 @@ static void *base_info_buf; /* CharBaseInfo 2-byte records keep no string pointe
 /* Build the writable saved-characters path: ~/.<game>/characters.xml, falling
  * back to <base>/<game>/characters.xml when $HOME is unavailable. */
 static void CharList_Path(char *out, int sz) {
-    LPCSTR home = menuimport.Cvar_String("fs_homepath", "");
+    LPCSTR home = mi.Cvar_String("fs_homepath", "");
 
     if (home && *home) {
         snprintf(out, sz, "%s/characters.xml", home);
     } else {
-        snprintf(out, sz, "%s/%s/characters.xml", menuimport.Cvar_String("fs_basepath", "share"), BZ_GAME);
+        snprintf(out, sz, "%s/%s/characters.xml", mi.Cvar_String("fs_basepath", "share"), BZ_GAME);
     }
 }
 
@@ -179,11 +179,11 @@ static void CharList_Load(void) {
     wow_charlist.count  = 0;
     wow_charlist.loaded = true;
 
-    if (!menuimport.FS_ReadFile) return;
+    if (!mi.FS_ReadFile) return;
     char path[512];
     CharList_Path(path, sizeof(path));
-    size = menuimport.FS_ReadFile(path, &buf);
-    if (size <= 0 || !buf) { SAFE_DELETE(buf, menuimport.FS_FreeFile); return; }
+    size = mi.FS_ReadFile(path, &buf);
+    if (size <= 0 || !buf) { SAFE_DELETE(buf, mi.FS_FreeFile); return; }
 
     p = (LPCSTR)buf;
     while (*p && wow_charlist.count < WOW_MAX_CHARACTERS) {
@@ -214,14 +214,14 @@ static void CharList_Load(void) {
         wow_charlist.count++;
         p = tag_end + 1;
     }
-    menuimport.FS_FreeFile(buf);
+    mi.FS_FreeFile(buf);
 }
 
 static void CharList_Save(void) {
     char xml[4096];
     int  pos = 0;
 
-    if (!menuimport.FS_WriteFile) return;
+    if (!mi.FS_WriteFile) return;
 
     pos += snprintf(xml + pos, sizeof(xml) - (size_t)pos, "<Characters>\n");
     for (int i = 0; i < wow_charlist.count; i++) {
@@ -232,7 +232,7 @@ static void CharList_Save(void) {
     {
         char path[512];
         CharList_Path(path, sizeof(path));
-        menuimport.FS_WriteFile(path, xml, pos);
+        mi.FS_WriteFile(path, xml, pos);
     }
 }
 
@@ -271,7 +271,7 @@ static void UIWow_LoadCharCreateDbc(void) {
     {
         int size = 0;
         void *data = NULL;
-        if (menuimport.FS_ReadFile) size = menuimport.FS_ReadFile("DBFilesClient\\CharBaseInfo.dbc", &data);
+        if (mi.FS_ReadFile) size = mi.FS_ReadFile("DBFilesClient\\CharBaseInfo.dbc", &data);
         if (data && size >= 20) {
             BYTE const *rb = (BYTE const *)data + 20;
             DWORD count = MIN(Stb_DbcRead32((BYTE const *)data + 4), WOW_MAX_CHAR_BASE);
@@ -282,7 +282,7 @@ static void UIWow_LoadCharCreateDbc(void) {
                 wow_charcreate.num_base_info++;
             }
         } else if (data) {
-            menuimport.FS_FreeFile(data);
+            mi.FS_FreeFile(data);
         }
     }
 
@@ -677,7 +677,7 @@ void UIWow_SetSelectedCharCvars(void) {
         }
     }
     snprintf(userinfo, sizeof(userinfo), "\\race\\%s\\sex\\%s\\class\\%u\\appearance\\%u", race, sex, (unsigned)e->class_id, (unsigned)e->appearance);
-    menuimport.Cvar_Set(WOW_CVAR_PLAYERINFO, userinfo);
+    mi.Cvar_Set(WOW_CVAR_PLAYERINFO, userinfo);
 }
 
 int UIWow_LuaResetCharCustomize(lua_State *L) {
