@@ -1288,7 +1288,7 @@ void UI_DrawFramesInScene(LPCFRAMEDEF const *roots, DWORD num_roots, LPCRECT sce
     
     /* Initialize scene rect */
     scene_rect = scene ? *scene : UI_GetSceneRect();
-    if (!scene && M_IsTransitioning()) {
+    if (!scene) {
         VECTOR2 offset;
         if (UI_GetGlueScreenOffset(&offset)) {
             scene_rect.x += offset.x;

@@ -823,8 +823,6 @@ static void SinglePlayer_BindCampaignMenu(void) {
 
 static void SinglePlayerMenu_Init(void) {
     mi.Printf("SinglePlayerMenu_Init\n");
-    UI_PreloadGlueSceneModels();
-    UI_GotoGluePanel(UI_GLUE_SINGLE_PLAYER, NULL);
     SinglePlayer_LoadCampaignData();
     campaign_list_frame = NULL;
     mission_list_frame = NULL;
@@ -860,7 +858,6 @@ static void SinglePlayerMenu_Draw(void) {
         return;
     }
 
-    UI_DrawGlueScene();
     if (single_player.SinglePlayerMenu) {
         UI_DrawFrame(single_player.SinglePlayerMenu);
     }
@@ -876,7 +873,6 @@ void SinglePlayerMenu_ShowMain(void) {
         LPCSTR name = mi.Cvar_String ? mi.Cvar_String("name", "Player") : "Player";
         UI_SetText(single_player.ProfileNameText, "%s", name && name[0] ? name : "Player");
     }
-    UI_GotoGluePanel(UI_GLUE_SINGLE_PLAYER, NULL);
     SinglePlayer_SetView(SINGLE_PLAYER_VIEW_MAIN);
 }
 
@@ -947,6 +943,7 @@ void SinglePlayerMenu_SetDifficulty(DWORD difficulty) {
 
 uiScreen_t singlePlayerMenuScreen = {
     .name = "single-player",
+    .panel = UI_GLUE_SINGLE_PLAYER,
     .load = SinglePlayerMenu_LoadScreen,
     .init = SinglePlayerMenu_Init,
     .shutdown = SinglePlayerMenu_Shutdown,

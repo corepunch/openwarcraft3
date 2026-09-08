@@ -33,8 +33,6 @@ static void CreditsMenu_Init(void) {
     };
 
     mi.Printf("CreditsMenu_Init\n");
-    UI_PreloadGlueSceneModels();
-    UI_GotoGluePanel(UI_GLUE_MAIN_MENU, NULL);
     if (UI_DialogWar3Init(&credits_dialog, credits_root, &init)) {
         UI_DialogWar3Show(&credits_dialog, &config);
     }
@@ -48,7 +46,6 @@ static void CreditsMenu_Refresh(int msec) {
 }
 
 static void CreditsMenu_Draw(void) {
-    UI_DrawGlueScene();
     if (credits_dialog.modal) {
         UI_DrawFrame(credits_dialog.modal);
     }
@@ -61,6 +58,7 @@ static void CreditsMenu_KeyEvent(int key, BOOL down) {
 
 uiScreen_t creditsMenuScreen = {
     .name = "credits",
+    .panel = UI_GLUE_MAIN_MENU,
     .load = CreditsMenu_LoadScreen,
     .init = CreditsMenu_Init,
     .shutdown = CreditsMenu_Shutdown,

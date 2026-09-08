@@ -635,8 +635,10 @@ static void LAN_BuildFrames(lanMode_t mode) {
 
 static void LANJoin_Init(void) {
     mi.Printf("LANJoin_Init\n");
-    UI_PreloadGlueSceneModels();
     LAN_BuildFrames(lan.mode);
+    UI_GotoGluePanel(lan.mode == LAN_MODE_BROWSER       ? UI_GLUE_BATTLENET_CUSTOM :
+                     lan.mode == LAN_MODE_SINGLE_PLAYER_CREATE ? UI_GLUE_SINGLE_PLAYER_SKIRMISH :
+                                                          UI_GLUE_BATTLENET_CUSTOM_CREATE, NULL);
     if (!lan.ready) {
         return;
     }
@@ -688,9 +690,6 @@ static void LANJoin_Draw(void) {
         return;
     }
 
-    UI_GotoGluePanel(lan.mode == LAN_MODE_BROWSER ? UI_GLUE_BATTLENET_CUSTOM :
-                     lan.mode == LAN_MODE_SINGLE_PLAYER_CREATE ? UI_GLUE_SINGLE_PLAYER_SKIRMISH : UI_GLUE_BATTLENET_CUSTOM_CREATE, NULL);
-    UI_DrawGlueScene();
     if (lan.mode != LAN_MODE_BROWSER) {
         LAN_UpdateGameSpeed();
     }

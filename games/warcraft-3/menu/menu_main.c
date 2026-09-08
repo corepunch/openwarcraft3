@@ -133,6 +133,8 @@ static void UI_SetScreen(uiScreen_t *screen) {
         ui_current_screen->shutdown();
     }
     ui_current_screen = screen;
+    if (screen->panel != UI_GLUE_NONE)
+        UI_GotoGluePanel(screen->panel, NULL);
     if (screen->init) {
         fprintf(stderr, "UI_SetScreen: initializing screen '%s'\n", screen->name);
         screen->init();
@@ -157,10 +159,11 @@ static void UI_FinishActionTransition(void) {
     action();
 }
 
-static void UI_TransitionToScreen(uiScreen_t *screen, uiGluePanel_t panel) {
+static void UI_TransitionToScreen(uiScreen_t *screen) {
     if (ui_state.transition_screen || ui_state.transition_action) return;
+    if (screen->panel == UI_GLUE_NONE) { UI_SetScreen(screen); return; }
     ui_state.transition_screen = screen;
-    UI_GotoGluePanelTransition(panel, UI_BeginScreenTransition, UI_FinishScreenTransition);
+    UI_GotoGluePanelTransition(screen->panel, UI_BeginScreenTransition, UI_FinishScreenTransition);
 }
 
 void M_TransitionToAction(void (*action)(void)) {
@@ -184,7 +187,7 @@ void M_ShowSinglePlayerMenu(void) {
 }
 
 void M_ShowOptionsMenu(void) {
-    UI_TransitionToScreen(&optionsMenuScreen, UI_GLUE_OPTIONS);
+    UI_TransitionToScreen(&optionsMenuScreen);
 }
 
 void M_ShowCreditsMenu(void) {
@@ -212,7 +215,7 @@ void M_ShowGameSetupMenu(void) {
 
 static void UI_MenuMain_f(void) {
     if (UI_GetCurrentScreen() != &mainMenuScreen) {
-        UI_TransitionToScreen(&mainMenuScreen, UI_GLUE_MAIN_MENU);
+        UI_TransitionToScreen(&mainMenuScreen);
         return;
     }
     M_ShowMainMenu();
@@ -220,7 +223,7 @@ static void UI_MenuMain_f(void) {
 
 static void UI_MenuGame_f(void) {
     if (UI_GetCurrentScreen() != &singlePlayerMenuScreen) {
-        UI_TransitionToScreen(&singlePlayerMenuScreen, UI_GLUE_SINGLE_PLAYER);
+        UI_TransitionToScreen(&singlePlayerMenuScreen);
         return;
     }
     M_ShowSinglePlayerMenu();
@@ -478,13 +481,8 @@ void M_Refresh(DWORD time) {
         screen->refresh((int)time);
     }
 
-    if (ui_state.transition_screen || ui_state.transition_action) {
-        UI_DrawGlueScene();
-        screen = UI_GetCurrentScreen();
-        if (screen && screen->draw) screen->draw();
-        return;
-    }
     UI_DrawGlueScene();
+    screen = UI_GetCurrentScreen();
     if (screen && screen->draw)
         screen->draw();
 }

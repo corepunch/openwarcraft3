@@ -38,8 +38,6 @@ static void QuitConfirm_UpdateVisibility(void) {
 
 static void QuitConfirm_Init(void) {
     mi.Printf("QuitConfirm_Init\n");
-    UI_PreloadGlueSceneModels();
-    UI_GotoGluePanel(UI_GLUE_MAIN_MENU, NULL);
 
     if (!quit_confirm.EscMenuMainPanel) {
         mi.Printf("ERROR: EscMenuMainPanel not found\n");
@@ -74,7 +72,6 @@ static void QuitConfirm_Refresh(int msec) {
 }
 
 static void QuitConfirm_Draw(void) {
-    UI_DrawGlueScene();
     if (quit_confirm.EscMenuMainPanel) {
         UI_DrawFrame(quit_confirm.EscMenuMainPanel);
     }
@@ -88,6 +85,7 @@ static void QuitConfirm_KeyEvent(int key, BOOL down) {
 
 uiScreen_t quitConfirmScreen = {
     .name = "quit-confirm",
+    .panel = UI_GLUE_MAIN_MENU,
     .load = QuitConfirm_LoadScreen,
     .init = QuitConfirm_Init,
     .shutdown = QuitConfirm_Shutdown,

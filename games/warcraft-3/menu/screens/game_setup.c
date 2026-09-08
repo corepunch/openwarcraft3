@@ -904,13 +904,14 @@ static void GameSetup_BuildFrames(void) {
 
 static void GameSetup_Init(void) {
     mi.Printf("GameSetup_Init\n");
-    UI_PreloadGlueSceneModels();
     if (!setup.root) {
         GameSetup_BuildFrames();
     }
     if (!setup.ready) {
         return;
     }
+    UI_GotoGluePanel(LAN_IsSinglePlayerCreate() ? UI_GLUE_SINGLE_PLAYER_SKIRMISH :
+                     UI_GLUE_MULTIPLAYER_PRE_GAME_CHAT, NULL);
     UI_SetOnClick(setup.cancel_button,
                   LAN_IsSinglePlayerCreate() ? "menu_single_player_skirmish" : "menu_startserver");
     GameSetup_LoadSelectedMap();
@@ -933,8 +934,6 @@ static void GameSetup_Draw(void) {
         return;
     }
 
-    UI_GotoGluePanel(LAN_IsSinglePlayerCreate() ? UI_GLUE_SINGLE_PLAYER_SKIRMISH : UI_GLUE_MULTIPLAYER_PRE_GAME_CHAT, NULL);
-    UI_DrawGlueScene();
     UI_DrawFrame(setup.root);
 }
 

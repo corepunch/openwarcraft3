@@ -11,7 +11,6 @@
 typedef struct {
     LPCSTR left;
     LPCSTR right;
-    LPCSTR left_stand;
 } uiGluePanelDef_t;
 
 typedef enum {
@@ -39,7 +38,7 @@ static uiGluePanelDef_t const glue_panels[UI_GLUE_PANEL_COUNT] = {
     [UI_GLUE_MAIN_MENU] = { .left = "MainMenu %s", .right = "MainMenu %s" },
     [UI_GLUE_REALM_SELECTION] = { .left = "RealmSelection %s", .right = "RealmSelection %s" },
     [UI_GLUE_SINGLE_PLAYER] = { .left = "SinglePlayer %s", .right = "SinglePlayer %s" },
-    [UI_GLUE_OPTIONS] = { .left = "Options %s", .right = "Options %s", .left_stand = "Options Stand Alternate" },
+    [UI_GLUE_OPTIONS] = { .left = "Options %s Alternate", .right = "Options %s" },
     [UI_GLUE_SINGLE_PLAYER_SKIRMISH] = { .left = "SinglePlayerSkirmish %s", .right = "SinglePlayerSkirmish %s" },
     [UI_GLUE_MULTIPLAYER_PRE_GAME_CHAT] = { .left = "MultiplayerPreGameChat %s", .right = "MultiplayerPreGameChat %s" },
     [UI_GLUE_BATTLENET_CUSTOM] = { .left = "BattlenetCustom %s", .right = "BattlenetCustom %s" },
@@ -103,13 +102,6 @@ static LPCSTR UI_GluePanelAnimation(LPCSTR format, LPSTR anim, DWORD anim_size) 
     return anim;
 }
 
-static LPCSTR UI_GlueLeftAnimation(uiGluePanelDef_t const *panel, LPSTR anim, DWORD anim_size) {
-    if (scene.phase == UI_GLUE_PANEL_IDLE && panel->left_stand) {
-        snprintf(anim, anim_size, "%s", panel->left_stand);
-        return anim;
-    }
-    return UI_GluePanelAnimation(panel->left, anim, anim_size);
-}
 
 void UI_ResetGlueSceneModels(void) {
     memset(&scene, 0, sizeof(scene));
@@ -246,12 +238,14 @@ void UI_DrawGlueScene(void) {
     }
 
     if (renderer->DrawSprite && scene.top_left_panel) {
-        LPCSTR anim = UI_GlueLeftAnimation(panel, left_anim, sizeof(left_anim));
-        renderer->DrawSprite(scene.top_left_panel, anim, 0.0f, UI_BASE_HEIGHT);
+        renderer->DrawSprite(scene.top_left_panel,
+                             UI_GluePanelAnimation(panel->left, left_anim, sizeof(left_anim)),
+                             0.0f, UI_BASE_HEIGHT);
     }
     if (renderer->DrawSprite && scene.top_right_panel) {
-        LPCSTR anim = UI_GluePanelAnimation(panel->right, right_anim, sizeof(right_anim));
-        renderer->DrawSprite(scene.top_right_panel, anim, right_offset, UI_BASE_HEIGHT);
+        renderer->DrawSprite(scene.top_right_panel,
+                             UI_GluePanelAnimation(panel->right, right_anim, sizeof(right_anim)),
+                             right_offset, UI_BASE_HEIGHT);
     }
 }
 

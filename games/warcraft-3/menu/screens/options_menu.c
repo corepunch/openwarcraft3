@@ -320,8 +320,6 @@ static void OptionsMenu_SetPanel(optionsPanel_t panel) {
 
 static void OptionsMenu_Init(void) {
     mi.Printf("OptionsMenu_Init\n");
-    UI_PreloadGlueSceneModels();
-    UI_GotoGluePanel(UI_GLUE_OPTIONS, NULL);
     current_panel = OPTIONS_PANEL_GAMEPLAY;
 
     UI_SetOnClick(options_menu.GameplayButton, "menu_options_gameplay");
@@ -345,7 +343,6 @@ static void OptionsMenu_Refresh(int msec) {
 }
 
 static void OptionsMenu_Draw(void) {
-    UI_DrawGlueScene();
     if (options_menu.OptionsMenu) {
         UI_DrawFrame(options_menu.OptionsMenu);
     }
@@ -387,6 +384,7 @@ void OptionsMenu_Apply(void) {
 
 uiScreen_t optionsMenuScreen = {
     .name = "options",
+    .panel = UI_GLUE_OPTIONS,
     .load = OptionsMenu_LoadScreen,
     .init = OptionsMenu_Init,
     .shutdown = OptionsMenu_Shutdown,

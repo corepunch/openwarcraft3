@@ -101,7 +101,6 @@ static void MainMenu_InitFrames(void) {
 static void MainMenu_Init(void) {
     mi.Printf("MainMenu_Init\n");
     edition_button = NULL;
-    UI_PreloadGlueSceneModels();
     MainMenu_InitFrames();
     MainMenu_ShowMainPanel();
 }
@@ -138,7 +137,6 @@ static void MainMenu_Refresh(int msec) {
 }
 
 static void MainMenu_Draw(void) {
-    UI_DrawGlueScene();
     LPCFRAMEDEF roots[2];
     DWORD num_roots = 0;
 
@@ -227,6 +225,7 @@ void MainMenu_ShowDisconnected(void) {
 
 uiScreen_t mainMenuScreen = {
     .name = "main",
+    .panel = UI_GLUE_MAIN_MENU,
     .load = MainMenu_LoadScreen,
     .init = MainMenu_Init,
     .shutdown = MainMenu_Shutdown,
