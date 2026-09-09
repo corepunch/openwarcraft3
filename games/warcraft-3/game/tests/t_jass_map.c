@@ -1033,6 +1033,29 @@ TEST(wc3_jass_map, escape_menu_quit_campaign_returns_to_campaign_select) {
     gi.MenuAction = old_menu_action;
 }
 
+TEST(wc3_jass_map, escape_menu_quit_frozen_throne_campaign_returns_to_campaign_select) {
+    void (*old_menu_action)(LPCSTR, LPCSTR) = gi.MenuAction;
+    LPCMAPINFO old_mapinfo = level.mapinfo;
+    LPCSTR command[] = { "menu_quit_game" };
+    char old_map[MAX_PATHLEN];
+
+    strlcpy(old_map, level.map_path, sizeof(old_map));
+    victory_menu_action[0] = '\0';
+    victory_menu_arg[0] = '\0';
+    level.mapinfo = NULL;
+    strlcpy(level.map_path, "Maps/FrozenThrone/Campaign/HumanX02.w3x", sizeof(level.map_path));
+    gi.MenuAction = capture_victory_menu_action;
+
+    G_ClientCommand(&g_edicts[0], 1, command);
+
+    T_STREQ(victory_menu_action, "menu");
+    T_STREQ(victory_menu_arg, "menu_single_player_campaign");
+
+    level.mapinfo = old_mapinfo;
+    strlcpy(level.map_path, old_map, sizeof(level.map_path));
+    gi.MenuAction = old_menu_action;
+}
+
 TEST(wc3_jass_map, escape_menu_quit_non_campaign_returns_to_main_menu) {
     void (*old_menu_action)(LPCSTR, LPCSTR) = gi.MenuAction;
     LPCMAPINFO old_mapinfo = level.mapinfo;

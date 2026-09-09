@@ -222,10 +222,15 @@ void Wow_LoadAdt(BYTE const *data, DWORD size, DWORD tile_x, DWORD tile_y) {
 
 void Wow_LoadAdtFile(DWORD tile_x, DWORD tile_y) {
     PATHSTR path;
+    char name[32];
     BYTE *data;
     DWORD size = 0;
 
-    snprintf(path, sizeof(path), "%s/%s_%u_%u.adt", wow_world.map_dir, wow_world.map_name, (unsigned)tile_x, (unsigned)tile_y);
+    snprintf(name, sizeof(name), "_%u_%u.adt", (unsigned)tile_x, (unsigned)tile_y);
+    strlcpy(path, wow_world.map_dir, sizeof(path));
+    strlcat(path, "/", sizeof(path));
+    strlcat(path, wow_world.map_name, sizeof(path));
+    strlcat(path, name, sizeof(path));
 
     /* Prefer mmap for loose ADT files — avoids a full fread copy of 200-800 KB
      * per tile and lets the OS evict pages under memory pressure. Falls back to

@@ -415,11 +415,13 @@ static BOOL FS_EnsureSaveDirectory(void) {
     if (fs_home_dir[0]) {
         snprintf(game_dir, sizeof(game_dir), "%s", fs_home_dir);
 #ifdef _WIN32
-        snprintf(fs_save_dir, sizeof(fs_save_dir), "%s/saves", game_dir);
+        strlcpy(fs_save_dir, game_dir, sizeof(fs_save_dir));
+        strlcat(fs_save_dir, "/saves", sizeof(fs_save_dir));
         _mkdir(fs_save_dir);
         if (_access(fs_save_dir, 2) != 0) fs_save_dir[0] = '\0';
 #else
-        snprintf(fs_save_dir, sizeof(fs_save_dir), "%s/saves", game_dir);
+        strlcpy(fs_save_dir, game_dir, sizeof(fs_save_dir));
+        strlcat(fs_save_dir, "/saves", sizeof(fs_save_dir));
         mkdir(fs_save_dir, 0755);
         if (access(fs_save_dir, W_OK) != 0) fs_save_dir[0] = '\0';
 #endif

@@ -265,7 +265,7 @@ static int CL_UI_GetFileList(LPCSTR path, LPCSTR extension, char *listbuf, int b
     while (handle && count < MAX_UI_FILELIST) {
         if (CL_UI_HasExtension(find.cFileName, extension) &&
             !CL_UI_ListHasFile(files, count, find.cFileName)) {
-            snprintf(files[count], sizeof(files[count]), "%s", find.cFileName);
+            strlcpy(files[count], find.cFileName, sizeof(files[count]));
             for (char *p = files[count]; *p; p++) {
                 if (*p == '/') {
                     *p = '\\';

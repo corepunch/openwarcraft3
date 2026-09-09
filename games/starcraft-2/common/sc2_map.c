@@ -1452,11 +1452,15 @@ static BOOL sc2_catalog_model_path(sc2Catalog_t const *catalog, LPCSTR id, sc2Ma
     }
     if (cur && cur->variants > 0) {
         char *ext = strrchr(path, '.');
+        char suffix[16];
         if (!ext) { fprintf(stderr, "SC2 catalog: model stem has no extension: %s\n", path); return false; }
         if (object->variation >= (DWORD)cur->variants)
             fprintf(stderr, "SC2 catalog: variation %u exceeds count %d for %s; preserving requested asset\n", object->variation, cur->variants, id);
         /* The original path is a catalog stem, not an existing unsuffixed M3. */
-        *ext = 0; snprintf(object->model, sizeof(object->model), "%s_%02u.m3", path, object->variation);
+        *ext = 0;
+        snprintf(suffix, sizeof(suffix), "_%02u.m3", object->variation);
+        strlcpy(object->model, path, sizeof(object->model));
+        strlcat(object->model, suffix, sizeof(object->model));
     } else snprintf(object->model, sizeof(object->model), "%s", path);
     return true;
 }
