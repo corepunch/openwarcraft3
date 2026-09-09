@@ -9,10 +9,33 @@
  */
 #include "g_local.h"
 
+#define ID_CREEP_SLEEP MAKEFOURCC('A', 'C', 's', 'p')
+
 /* common.j declares PLAYER_STATE_NO_CREEP_SLEEP as playerstate 25.  The
  * WC3-local constant lives in g_local.h instead of widening common/shared.h. */
 static void creep_sleep_think(LPEDICT self);
 static umove_t creep_sleep_move = { .animation = "sleep", .think = creep_sleep_think, .endfunc = NULL };
+
+/* Match only the overlay owned by this unit, leaving unrelated target effects untouched. */
+static BOOL is_creep_sleep_overlay(LPCEDICT effect, LPCEDICT unit) {
+    return effect && effect->inuse && effect->owner == unit && effect->goalentity == unit;
+}
+
+/* Destroy every natural-sleep overlay before the unit leaves its sleep move. */
+static void remove_creep_sleep_overlay(LPEDICT unit) {
+    FOR_LOOP(i, globals.num_edicts) {
+        LPEDICT effect = g_edicts + i;
+        if (is_creep_sleep_overlay(effect, unit))
+            G_DestroyEffect(effect);
+    }
+}
+
+/* Spawn the data-driven ACsp target art at the unit's authored overhead point. */
+static void add_creep_sleep_overlay(LPEDICT unit) {
+    LPEDICT effect = G_SpawnAbilityEffectTarget(ID_CREEP_SLEEP, WC3_EFFECT_TARGET, 0, unit, "overhead", false);
+    if (effect)
+        effect->owner = unit;
+}
 
 /* Restrict automatic sleep to authored neutral-creep candidates. */
 static BOOL unit_is_neutral_sleep_candidate(LPCEDICT unit) {
@@ -43,11 +66,19 @@ BOOL G_IsCreepSleepMove(umove_t const *move) {
     return move == &creep_sleep_move;
 }
 
+/* Clear natural sleep and remove its persistent target presentation effect. */
+void G_UnitLeaveCreepSleep(LPEDICT unit) {
+    if (!unit || !unit->sleep.sleeping)
+        return;
+    unit->sleep.sleeping = false;
+    remove_creep_sleep_overlay(unit);
+}
+
 /* Leave natural sleep and restore the normal stand move when the unit is alive. */
 void G_UnitWakeUp(LPEDICT unit) {
     if (!G_UnitIsSleeping(unit))
         return;
-    unit->sleep.sleeping = false;
+    G_UnitLeaveCreepSleep(unit);
     if (!M_IsDead(unit))
         unit_stand(unit);
 }
@@ -71,6 +102,7 @@ BOOL G_TryEnterCreepSleep(LPEDICT unit) {
 
     unit_setmove(unit, &creep_sleep_move);
     unit->sleep.sleeping = true;
+    add_creep_sleep_overlay(unit);
     return true;
 }
 

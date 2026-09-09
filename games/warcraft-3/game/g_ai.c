@@ -686,11 +686,12 @@ void unit_setmove(LPEDICT self, umove_t *move) {
         move->ability != &a_build) {
         self->build_project = 0;
     }
-    self->currentmove = move;
-    /* Any behavior replacing the natural creep-sleep move wakes the unit.
+    /* Any behavior replacing the natural creep-sleep move wakes the unit and
+     * removes ACsp's persistent target overlay before changing currentmove.
      * Spell-induced BUsL is independent and continues to use timed statuses. */
     if (self->sleep.sleeping && !G_IsCreepSleepMove(move))
-        self->sleep.sleeping = false;
+        G_UnitLeaveCreepSleep(self);
+    self->currentmove = move;
     G_SetUnitAnimation(self, move->animation);
     if (self->animation) {
         // skip

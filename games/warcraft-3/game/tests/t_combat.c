@@ -123,6 +123,8 @@ TEST(wc3_effects, ability_effect_art_selects_requested_entry_and_last_fallback) 
             "TestUI\\Models\\panel_sprite.mdx");
     T_STREQ(G_AbilityEffectArt(MAKEFOURCC('B','i','m','l'), WC3_EFFECT_EFFECT, 0),
             "TestUI\\Models\\quad_sprite.mdx");
+    T_STREQ(G_AbilityEffectArt(MAKEFOURCC('A','C','s','p'), WC3_EFFECT_TARGET, 0),
+            "TestUI\\Models\\anim_pulse.mdx");
 }
 
 /* ==========================================================================
@@ -163,6 +165,53 @@ TEST(wc3_combat, tdamage_updates_building_fire_model_and_slot_mask) {
     T_EQ(building->s.effect, 0);
     T_EQ(building->s.effect_flags, 0);
     gi.ModelIndex = old_model_index;
+}
+
+static LPEDICT find_creep_sleep_overlay(LPCEDICT target) {
+    FOR_LOOP(i, globals.num_edicts) {
+        LPEDICT effect = g_edicts + i;
+        if (effect->inuse && effect->owner == target && effect->goalentity == target)
+            return effect;
+    }
+    return NULL;
+}
+
+TEST(wc3_effects, natural_creep_sleep_uses_persistent_acsp_overhead_target_art) {
+    LPEDICT target;
+    LPEDICT overlay;
+
+    setup_test_world();
+    target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    target->s.player = PLAYER_NEUTRAL_AGGRESSIVE;
+    target->sleep.can_sleep = true;
+    target->s.radius = 32.0f;
+    game.clients[PLAYER_NEUTRAL_AGGRESSIVE].ps.stats[WC3_PLAYERSTATE_NO_CREEP_SLEEP] = 0;
+
+    G_SetTimeOfDay(game.constants.duskTimeGameHours);
+    G_UpdateTimeOfDay();
+    T_ASSERT(G_TryEnterCreepSleep(target));
+    overlay = find_creep_sleep_overlay(target);
+    T_NOT_NULL(overlay);
+    T_ASSERT(overlay->s.model != 0);
+    T_ASSERT(overlay->s.flags & EF_NOT_SELECTABLE);
+    T_EQ(overlay->movetype, MOVETYPE_LINK);
+    T_ASSERT(overlay->owner == target);
+    T_FEQ(overlay->wait, 80.0f, 0.01f);
+
+    G_UnitWakeUp(target);
+    T_ASSERT(!G_UnitIsSleeping(target));
+    T_NULL(find_creep_sleep_overlay(target));
+
+    /* Replacing the Sleep move directly must use the same overlay cleanup,
+     * not merely clear the logical sleeping flag. */
+    T_ASSERT(G_TryEnterCreepSleep(target));
+    T_NOT_NULL(find_creep_sleep_overlay(target));
+    unit_stand(target);
+    T_ASSERT(!G_UnitIsSleeping(target));
+    T_NULL(find_creep_sleep_overlay(target));
+
+    G_SetTimeOfDay(12.0f);
+    G_UpdateTimeOfDay();
 }
 
 TEST(wc3_combat, positive_damage_wakes_natural_creep_sleep) {
