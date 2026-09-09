@@ -3,6 +3,7 @@
  */
 
 #include <stdlib.h>
+#include <errno.h>
 #include <stdio.h>
 
 #include "menu_local.h"
@@ -28,6 +29,91 @@ typedef struct {
 static uiState_t ui_state;
 static uiScreen_t *ui_current_screen = NULL;
 static BOOL ui_menu_commands_registered;
+
+static void UI_ClearScreen(void);
+static void M_ShowSinglePlayerSkirmishMenu(void);
+
+typedef struct { LPCSTR name; void (*func)(void); } MENUCOMMAND;
+
+static void UI_MenuMain_f(void);
+static void UI_MenuGame_f(void);
+static void UI_MenuVideo_f(void);
+static void UI_MenuKeys_f(void);
+static void UI_MenuLoadGame_f(void);
+static void UI_MenuSaveGame_f(void);
+static void UI_MenuPlayerConfig_f(void);
+static void UI_MenuStartServer_f(void);
+static void UI_MenuQuit_f(void);
+static void UI_MenuDisconnected_f(void);
+static void UI_MenuRealmSelect_f(void);
+static void UI_MenuOptionsGameplay_f(void);
+static void UI_MenuOptionsSound_f(void);
+static void UI_MenuOptionsApply_f(void);
+static void UI_MenuSinglePlayerCampaign_f(void);
+static void UI_MenuGameSetupStart_f(void);
+static void UI_MenuCampaignHuman_f(void);
+static void UI_MenuCampaignOrc_f(void);
+static void UI_MenuCampaignUndead_f(void);
+static void UI_MenuCampaignNightElf_f(void);
+static void UI_MenuCampaignTutorial_f(void);
+static void UI_MenuVideoMode_f(void);
+static void UI_MenuCampaignSelect_f(void);
+static void UI_MenuMissionSelect_f(void);
+static void UI_MenuDifficulty_f(void);
+static void UI_MenuLANSelect_f(void);
+static void UI_MenuSlotTeam_f(void);
+static void UI_MenuSlotColor_f(void);
+static void UI_MenuSlotType_f(void);
+static void UI_MenuSlotRace_f(void);
+static void UI_MenuSetupMap_f(void);
+static void UI_MenuSetupChat_f(void);
+
+/* All menu entry points are ordinary console commands; clicks only enqueue text. */
+static const MENUCOMMAND menu_commands[] = {
+    { "menu_main", UI_MenuMain_f },
+    { "menu_game", UI_MenuGame_f },
+    { "menu_multiplayer", M_ShowLanBrowserMenu },
+    { "menu_options", M_ShowOptionsMenu },
+    { "menu_video", UI_MenuVideo_f },
+    { "menu_keys", UI_MenuKeys_f },
+    { "menu_loadgame", UI_MenuLoadGame_f },
+    { "menu_savegame", UI_MenuSaveGame_f },
+    { "menu_playerconfig", UI_MenuPlayerConfig_f },
+    { "menu_startserver", UI_MenuStartServer_f },
+    { "menu_joinserver", M_ShowLanBrowserMenu },
+    { "menu_credits", M_ShowCreditsMenu },
+    { "menu_quit", UI_MenuQuit_f },
+    { "menu_disconnected", UI_MenuDisconnected_f },
+    { "menu_realm_select", UI_MenuRealmSelect_f },
+    { "menu_options_gameplay", UI_MenuOptionsGameplay_f },
+    { "menu_options_sound", UI_MenuOptionsSound_f },
+    { "menu_options_apply", UI_MenuOptionsApply_f },
+    { "menu_single_player_campaign", UI_MenuSinglePlayerCampaign_f },
+    { "menu_single_player_skirmish", M_ShowSinglePlayerSkirmishMenu },
+    { "menu_lan_refresh", LAN_RefreshMaps },
+    { "menu_lan_start", LAN_StartSelectedMap },
+    { "menu_lan_join", LAN_JoinSelectedGame },
+    { "menu_game_setup_start", UI_MenuGameSetupStart_f },
+    { "menu_ingame", UI_ClearScreen },
+    { "menu_edition", MainMenu_BeginEditionSwitch },
+    { "menu_single_player_campaign_back", SinglePlayerMenu_BackCampaign },
+    { "menu_single_player_campaign_human", UI_MenuCampaignHuman_f },
+    { "menu_single_player_campaign_orc", UI_MenuCampaignOrc_f },
+    { "menu_single_player_campaign_undead", UI_MenuCampaignUndead_f },
+    { "menu_single_player_campaign_night_elf", UI_MenuCampaignNightElf_f },
+    { "menu_single_player_campaign_tutorial", UI_MenuCampaignTutorial_f },
+    { "menu_video_mode", UI_MenuVideoMode_f },
+    { "menu_single_player_campaign_select", UI_MenuCampaignSelect_f },
+    { "menu_single_player_mission_select", UI_MenuMissionSelect_f },
+    { "menu_single_player_difficulty", UI_MenuDifficulty_f },
+    { "menu_lan_select", UI_MenuLANSelect_f },
+    { "menu_game_setup_slot_team_next", UI_MenuSlotTeam_f },
+    { "menu_game_setup_slot_color_next", UI_MenuSlotColor_f },
+    { "menu_game_setup_slot_type", UI_MenuSlotType_f },
+    { "menu_game_setup_slot_race", UI_MenuSlotRace_f },
+    { "menu_game_setup_map", UI_MenuSetupMap_f },
+    { "menu_game_setup_chat", UI_MenuSetupChat_f },
+};
 
 /* Some classic/pre-widescreen skin tables expose only one of the paired
  * ConsoleTexture05/06 fields even though both extension tiles are installed.
@@ -72,27 +158,6 @@ LPCSTR M_ResolveImagePath(LPCSTR key) {
     fallback = M_ConsoleExtensionSibling(key);
     return fallback ? fallback : resolved;
 }
-
-static void UI_ClearScreen(void);
-
-static BOOL UI_IsMapCommand(LPCSTR command) {
-    if (!command) {
-        return false;
-    }
-    while (*command == ' ' || *command == '\t' || *command == '\r' || *command == '\n') {
-        command++;
-    }
-    if (strncmp(command, "map", 3) ||
-        (command[3] != ' ' && command[3] != '\t')) {
-        return false;
-    }
-    command += 4;
-    while (*command == ' ' || *command == '\t') {
-        command++;
-    }
-    return *command != '\0';
-}
-
 
 /* Resolve resources before changing presentation; failure leaves the old screen intact. */
 static BOOL UI_LoadScreen(uiScreen_t *screen) {
@@ -204,14 +269,6 @@ static void UI_MenuGame_f(void) {
     M_ShowSinglePlayerMenu();
 }
 
-static void UI_MenuMultiplayer_f(void) {
-    M_ShowLanBrowserMenu();
-}
-
-static void UI_MenuOptions_f(void) {
-    M_ShowOptionsMenu();
-}
-
 static void UI_MenuVideo_f(void) {
     UI_SetScreen(&optionsMenuScreen);
     OptionsMenu_ShowVideo();
@@ -231,19 +288,13 @@ static void UI_MenuSaveGame_f(void) {
 }
 
 static void UI_MenuPlayerConfig_f(void) {
+    /* TODO: bind the native profile manager before exposing profile editing. */
+    fprintf(stderr, "UI: player profile configuration is not implemented\n");
 }
 
 static void UI_MenuStartServer_f(void) {
     LAN_ApplyPlayerName();
     M_ShowLanCreateMenu();
-}
-
-static void UI_MenuJoinServer_f(void) {
-    M_ShowLanBrowserMenu();
-}
-
-static void UI_MenuCredits_f(void) {
-    M_ShowCreditsMenu();
 }
 
 static void UI_MenuQuit_f(void) {
@@ -286,73 +337,16 @@ static void UI_MenuSinglePlayerCampaign_f(void) {
     SinglePlayerMenu_ShowCampaign();
 }
 
-static void UI_MenuSinglePlayerSkirmish_f(void) {
-    M_ShowSinglePlayerSkirmishMenu();
-}
-
-static void UI_MenuLANRefresh_f(void) {
-    LAN_RefreshMaps();
-}
-
-static void UI_MenuLANStart_f(void) {
-    LAN_StartSelectedMap();
-}
-
-static void UI_MenuLANJoin_f(void) {
-    LAN_JoinSelectedGame();
-}
-
 static void UI_MenuGameSetupStart_f(void) {
     if (GameSetup_StartGame()) {
         UI_ClearScreen();
     }
 }
 
-static void UI_MenuInGame_f(void) {
-    UI_ClearScreen();
-}
-
-typedef struct {
-    LPCSTR command;
-    void (*function)(void);
-} uiMenuCommandDef_t;
-
-static uiMenuCommandDef_t const ui_menu_command_defs[] = {
-    { "menu_main", UI_MenuMain_f },
-    { "menu_game", UI_MenuGame_f },
-    { "menu_multiplayer", UI_MenuMultiplayer_f },
-    { "menu_options", UI_MenuOptions_f },
-    { "menu_video", UI_MenuVideo_f },
-    { "menu_keys", UI_MenuKeys_f },
-    { "menu_loadgame", UI_MenuLoadGame_f },
-    { "menu_savegame", UI_MenuSaveGame_f },
-    { "menu_playerconfig", UI_MenuPlayerConfig_f },
-    { "menu_startserver", UI_MenuStartServer_f },
-    { "menu_joinserver", UI_MenuJoinServer_f },
-    { "menu_credits", UI_MenuCredits_f },
-    { "menu_quit", UI_MenuQuit_f },
-    { "menu_disconnected", UI_MenuDisconnected_f },
-    { "menu_realm_select", UI_MenuRealmSelect_f },
-    { "menu_options_gameplay", UI_MenuOptionsGameplay_f },
-    { "menu_options_sound", UI_MenuOptionsSound_f },
-    { "menu_options_apply", UI_MenuOptionsApply_f },
-    { "menu_single_player_campaign", UI_MenuSinglePlayerCampaign_f },
-    { "menu_single_player_skirmish", UI_MenuSinglePlayerSkirmish_f },
-    { "menu_lan_refresh", UI_MenuLANRefresh_f },
-    { "menu_lan_start", UI_MenuLANStart_f },
-    { "menu_lan_join", UI_MenuLANJoin_f },
-    { "menu_game_setup_start", UI_MenuGameSetupStart_f },
-    { "menu_ingame", UI_MenuInGame_f },
-    { NULL, NULL },
-};
-
 static void UI_RegisterMenuCommands(void) {
-    if (ui_menu_commands_registered || !mi.Cmd_AddCommand) {
-        return;
-    }
-    for (uiMenuCommandDef_t const *cmd = ui_menu_command_defs; cmd->command; cmd++) {
-        mi.Cmd_AddCommand(cmd->command, cmd->function);
-    }
+    if (ui_menu_commands_registered) return;
+    FOR_LOOP(i, sizeof(menu_commands) / sizeof(menu_commands[0]))
+        mi.Cmd_AddCommand(menu_commands[i].name, menu_commands[i].func);
     ui_menu_commands_registered = true;
 }
 
@@ -463,6 +457,12 @@ void M_Refresh(DWORD time) {
         screen->draw();
 }
 
+/* SDL text events bypass KeyEvent; apply the same ownership/transition gate before editing. */
+void M_TextInput(LPCSTR text) {
+    if (!ui_state.active || M_IsTransitioning() || (ui_state.initialized && !UI_GetCurrentScreen())) return;
+    UI_EditTextInput(text);
+}
+
 void M_KeyEvent(int key, BOOL down, DWORD time) {
     (void)time;
 
@@ -560,204 +560,85 @@ BOOL M_MouseEvent(menuMouseEvent_t event, int x, int y, int32_t param) {
     return hit != NULL;
 }
 
-void M_MenuCommand(LPCSTR command) {
-    DWORD index;
-    DWORD slot;
-    DWORD value;
-    char map_path[MAX_PATHLEN];
-
-    mi.Printf("M_MenuCommand: %s\n", command);
-
-    if (!command || !*command) {
-        return;
-    }
-
-    if (!strcmp(command, "menu_main")) {
-        UI_MenuMain_f();
-        return;
-    }
-    if (!strcmp(command, "menu_game")) {
-        UI_MenuGame_f();
-        return;
-    }
-    if (!strcmp(command, "menu_multiplayer")) {
-        UI_MenuMultiplayer_f();
-        return;
-    }
-    if (!strcmp(command, "menu_startserver")) {
-        UI_MenuStartServer_f();
-        return;
-    }
-    if (!strcmp(command, "menu_joinserver")) {
-        UI_MenuJoinServer_f();
-        return;
-    }
-    if (!strcmp(command, "menu_options")) {
-        UI_MenuOptions_f();
-        return;
-    }
-    if (!strcmp(command, "menu_video")) {
-        UI_MenuVideo_f();
-        return;
-    }
-    if (!strcmp(command, "menu_keys")) {
-        UI_MenuKeys_f();
-        return;
-    }
-    if (!strcmp(command, "menu_credits")) {
-        UI_MenuCredits_f();
-        return;
-    }
-    if (!strcmp(command, "menu_quit")) {
-        UI_MenuQuit_f();
-        return;
-    }
-    if (!strcmp(command, "menu_realm_select")) {
-        UI_MenuRealmSelect_f();
-        return;
-    }
-    if (!strcmp(command, "menu_edition")) {
-        MainMenu_BeginEditionSwitch();
-        return;
-    }
-    if (!strcmp(command, "menu_options_gameplay")) {
-        UI_MenuOptionsGameplay_f();
-        return;
-    }
-    if (!strcmp(command, "menu_options_sound")) {
-        UI_MenuOptionsSound_f();
-        return;
-    }
-    if (!strcmp(command, "menu_options_apply")) {
-        UI_MenuOptionsApply_f();
-        return;
-    }
-    if (sscanf(command, "menu_video_mode %u", &value) == 1) {
-        char video_command[96];
-
-        if (!mi.Cmd_ExecuteText) {
-            return;
-        }
-        if (value == video_mode_count()) {
-            mi.Cmd_ExecuteText("seta vid_native 1\nseta vid_fullscreen 1\n");
-        } else if (value < video_mode_count()) {
-            snprintf(video_command,
-                     sizeof(video_command),
-                     "seta vid_native 0\nseta vid_mode %u\n",
-                     (unsigned)value);
-            mi.Cmd_ExecuteText(video_command);
-        }
-        return;
-    }
-    if (!strcmp(command, "menu_single_player_campaign")) {
-        UI_MenuSinglePlayerCampaign_f();
-        return;
-    }
-    if (!strcmp(command, "menu_single_player_skirmish")) {
-        UI_MenuSinglePlayerSkirmish_f();
-        return;
-    }
-    if (!strcmp(command, "menu_single_player_campaign_back")) {
-        SinglePlayerMenu_BackCampaign();
-        return;
-    }
-    if (!strcmp(command, "menu_single_player_campaign_human")) {
-        SinglePlayerMenu_LaunchCampaign("human");
-        return;
-    }
-    if (!strcmp(command, "menu_single_player_campaign_orc")) {
-        SinglePlayerMenu_LaunchCampaign("orc");
-        return;
-    }
-    if (!strcmp(command, "menu_single_player_campaign_undead")) {
-        SinglePlayerMenu_LaunchCampaign("undead");
-        return;
-    }
-    if (!strcmp(command, "menu_single_player_campaign_night_elf")) {
-        SinglePlayerMenu_LaunchCampaign("night-elf");
-        return;
-    }
-    if (!strcmp(command, "menu_single_player_campaign_tutorial")) {
-        SinglePlayerMenu_LaunchCampaign("tutorial");
-        return;
-    }
-    if (sscanf(command, "menu_single_player_campaign_select %u", &value) == 1) {
-        SinglePlayerMenu_LaunchCampaignIndex(value);
-        return;
-    }
-    if (sscanf(command, "menu_single_player_mission_select %u", &value) == 1) {
-        SinglePlayerMenu_LaunchMissionIndex(value);
-        return;
-    }
-    if (sscanf(command, "menu_single_player_difficulty %u", &value) == 1) {
-        SinglePlayerMenu_SetDifficulty(value);
-        return;
-    }
-    if (!strcmp(command, "menu_lan_refresh")) {
-        UI_MenuLANRefresh_f();
-        return;
-    }
-    if (!strcmp(command, "menu_lan_start")) {
-        UI_MenuLANStart_f();
-        return;
-    }
-    if (!strcmp(command, "menu_lan_join")) {
-        UI_MenuLANJoin_f();
-        return;
-    }
-    if (sscanf(command, "menu_lan_select %u", &index) == 1) {
-        LAN_SelectMapIndex(index);
-        return;
-    }
-    if (!strcmp(command, "menu_game_setup_start")) {
-        UI_MenuGameSetupStart_f();
-        return;
-    }
-    if (!strcmp(command, "menu_ingame")) {
-        UI_MenuInGame_f();
-        return;
-    }
-    if (sscanf(command, "menu_game_setup_slot_type %u %u", &slot, &value) == 2) {
-        GameSetup_SetSlotType(slot, value);
-        return;
-    }
-    if (sscanf(command, "menu_game_setup_slot_race %u %u", &slot, &value) == 2) {
-        GameSetup_SetSlotRace(slot, value);
-        return;
-    }
-    if (sscanf(command, "menu_game_setup_slot_team_next %u", &slot) == 1) {
-        GameSetup_CycleSlotTeam(slot);
-        return;
-    }
-    if (sscanf(command, "menu_game_setup_slot_color_next %u", &slot) == 1) {
-        GameSetup_CycleSlotColor(slot);
-        return;
-    }
-    if (sscanf(command, "menu_game_setup_map %255[^\n]", map_path) == 1) {
-        UI_SetScreen(&gameSetupScreen);
-        GameSetup_LoadMap(map_path);
-        return;
-    }
-    if (!strncmp(command, "menu_game_setup_chat ", 21)) {
-        DWORD own = 0;
-        LPCSTR text = command + 21;
-
-        if (sscanf(text, "%u", &own) == 1) {
-            while (*text && *text != ' ' && *text != '\t') {
-                text++;
-            }
-            while (*text == ' ' || *text == '\t') {
-                text++;
-            }
-        }
-        GameSetup_AddChatMessage(text, own != 0);
-        return;
-    }
-
-    if (UI_IsMapCommand(command)) {
-        UI_ClearScreen();
-    }
+/* Keep click handling deferred until the client executes its command buffer. */
+void UI_QueueCommand(LPCSTR command) {
     mi.Cmd_ExecuteText(command);
+    mi.Cmd_ExecuteText("\n");
+}
+
+/* IDs must be complete unsigned DWORD tokens, not negative or overflowing scanf conversions. */
+static BOOL UI_MenuNumber(LPCSTR text, LPDWORD value) {
+    char *end;
+    errno = 0;
+    if (*text < '0' || *text > '9') return false;
+    unsigned long num = strtoul(text, &end, 10);
+    if (errno == ERANGE || num > UINT32_MAX || *end) return false;
+    *value = (DWORD)num;
+    return true;
+}
+
+/* Console tokenization owns quoting/whitespace; these callbacks validate only their argument shape. */
+static BOOL UI_MenuNumbers(LPDWORD nums, int count) {
+    if (mi.Cmd_Argc() == count + 1) {
+        int i;
+        for (i = 0; i < count && UI_MenuNumber(mi.Cmd_Argv(i + 1), &nums[i]); i++) {}
+        if (i == count) return true;
+    }
+    fprintf(stderr, "UI: %s expects %d unsigned integer argument(s)\n", mi.Cmd_Argv(0), count);
+    return false;
+}
+
+static void UI_MenuIndex(void (*func)(DWORD)) {
+    DWORD num;
+    if (UI_MenuNumbers(&num, 1)) func(num);
+}
+static void UI_MenuPair(void (*func)(DWORD, DWORD)) {
+    DWORD nums[2];
+    if (UI_MenuNumbers(nums, 2)) func(nums[0], nums[1]);
+}
+
+static void UI_MenuVideoMode(DWORD value) {
+    char command[96];
+    if (value == video_mode_count()) mi.Cmd_ExecuteText("seta vid_native 1\nseta vid_fullscreen 1\n");
+    else if (value < video_mode_count()) {
+        snprintf(command, sizeof(command), "seta vid_native 0\nseta vid_mode %u\n", (unsigned)value);
+        mi.Cmd_ExecuteText(command);
+    } else fprintf(stderr, "UI: invalid video mode %u\n", (unsigned)value);
+}
+
+static void UI_MenuVideoMode_f(void) { UI_MenuIndex(UI_MenuVideoMode); }
+static void UI_MenuCampaignSelect_f(void) { UI_MenuIndex(SinglePlayerMenu_LaunchCampaignIndex); }
+static void UI_MenuMissionSelect_f(void) { UI_MenuIndex(SinglePlayerMenu_LaunchMissionIndex); }
+static void UI_MenuDifficulty_f(void) { UI_MenuIndex(SinglePlayerMenu_SetDifficulty); }
+static void UI_MenuLANSelect_f(void) { UI_MenuIndex(LAN_SelectMapIndex); }
+static void UI_MenuSlotTeam_f(void) { UI_MenuIndex(GameSetup_CycleSlotTeam); }
+static void UI_MenuSlotColor_f(void) { UI_MenuIndex(GameSetup_CycleSlotColor); }
+static void UI_MenuSlotType_f(void) { UI_MenuPair(GameSetup_SetSlotType); }
+static void UI_MenuSlotRace_f(void) { UI_MenuPair(GameSetup_SetSlotRace); }
+static void UI_MenuCampaignHuman_f(void) { SinglePlayerMenu_LaunchCampaign("human"); }
+static void UI_MenuCampaignOrc_f(void) { SinglePlayerMenu_LaunchCampaign("orc"); }
+static void UI_MenuCampaignUndead_f(void) { SinglePlayerMenu_LaunchCampaign("undead"); }
+/* CampaignStrings uses NightElf; the old hyphenated shortcut never resolved a campaign. */
+static void UI_MenuCampaignNightElf_f(void) { SinglePlayerMenu_LaunchCampaign("NightElf"); }
+static void UI_MenuCampaignTutorial_f(void) { SinglePlayerMenu_LaunchCampaign("tutorial"); }
+
+/* A quoted map path is one console argument, including spaces and archive separators. */
+static void UI_MenuSetupMap_f(void) {
+    if (mi.Cmd_Argc() != 2 || !*mi.Cmd_Argv(1)) {
+        fprintf(stderr, "UI: %s expects a map path\n", mi.Cmd_Argv(0));
+        return;
+    }
+    UI_SetScreen(&gameSetupScreen);
+    if (UI_GetCurrentScreen() == &gameSetupScreen) GameSetup_LoadMap(mi.Cmd_Argv(1));
+}
+
+/* Chat retains the optional legacy numeric ownership prefix and the complete message. */
+static void UI_MenuSetupChat_f(void) {
+    DWORD own = 0;
+    int first = UI_MenuNumber(mi.Cmd_Argv(1), &own) ? 2 : 1;
+    LPCSTR text = mi.Cmd_ArgsFrom(first);
+    if (*text) GameSetup_AddChatMessage(text, own);
+    else fprintf(stderr, "UI: %s expects a chat message\n", mi.Cmd_Argv(0));
 }
 
 /* Stub callbacks for server data updates */

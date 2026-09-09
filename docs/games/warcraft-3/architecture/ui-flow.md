@@ -30,7 +30,7 @@ common/main.c
       -> re.Init
       -> M_GetAPI
       -> menu.Init
-      -> UI_MenuCommandLocal(ui_start_command)
+      -> CL_MenuCommand -> Cbuf_AddText(ui_start_command)
 ```
 
 Important cvars:
@@ -181,11 +181,11 @@ this menu restart; edition-decorated paths reload correctly, while broader textu
 ## Menu Navigation Flow
 
 1. SDL input is translated by the client input layer.
-2. `UI_MouseEventLocal` or `UI_KeyEventLocal` updates UI state.
+2. `M_MouseEvent` or `M_KeyEvent` updates UI state.
 3. The current `uiScreen_t` receives the event.
 4. Button frames inspect mouse containment and event state in `games/warcraft-3/menu/menu_render.c`.
-5. If a clicked frame has `OnClick`, `UI_MenuCommandLocal` executes the command.
-6. Menu commands declare a destination screen or action; the menu transition manager performs the handoff.
+5. If a clicked frame has `OnClick`, `UI_QueueCommand` appends its text and a newline to the console buffer through `mi.Cmd_ExecuteText`.
+6. On the next client command-buffer execution, the registered console callback declares a destination screen or action; the menu transition manager performs the handoff.
 
 Example menu command:
 
@@ -194,6 +194,38 @@ menu_game
 ```
 
 The screen switch is local to the client. No network traffic is required for menu transitions.
+
+### Console command ownership
+
+There is no separate menu command dispatcher. `M_Init` registers every entry in `menu_commands` with `Cmd_AddCommand`.
+Buttons, checkboxes, map lists, popup selections, and campaign map launches only enqueue console text. The client drains that
+buffer after the UI event stack returns, so screen initialization cannot invalidate frames still being used by a click handler.
+Command-line `+menu_*`, console input, and FDF `OnClick` actions therefore share the same registered callbacks.
+
+`menuImport_t` exposes the ordinary `Cmd_Argc`, `Cmd_Argv`, and `Cmd_ArgsFrom` readers. Numeric callbacks validate complete
+unsigned DWORD tokens and argument counts; map selection accepts one quoted path; chat joins the message arguments while
+preserving spaces inside quoted tokens and the optional numeric ownership prefix. Two queued UI commands each receive a newline.
+The engine owns unknown-command handling and `map` loading; `CL_BeginLoadingMap` already queues `menu_ingame` at that boundary.
+
+A bounded September 2026 run confirmed that `menu_video_mode` and `menu_single_player_difficulty` previously reached the engine
+as unknown commands because only the secondary click dispatcher knew them. The same run showed that text entry changed the
+focused edit box during an active screen transition. `M_TextInput` now gates SDL text events on menu activity, screen ownership,
+and the transition lock before calling `UI_EditTextInput`.
+
+Named campaign shortcuts use the actual CampaignStrings keys, including `NightElf` (the former `night-elf` argument resolved to
+NULL). Campaign/mission index commands operate on the current campaign lists; lobby commands operate on the selected map and
+host-owned slots. Those state prerequisites remain the screen controllers' responsibility. The legacy `menu_playerconfig`
+placeholder reports that profile configuration is unimplemented; this command had no implementation in the original console table.
+
+Glue model loading reports each failed path and caches one attempt per scene lifetime, avoiding per-frame retries/log spam.
+Reset/restart creates a new scene lifetime. The write-only `show_realm_select` flag has been removed; parsed frame visibility
+remains the presentation state.
+
+`make test-menu` links the actual engine command buffer, tokenizer, registration, and cvar implementation. It exercises deferred
+clicks, adjacent queued commands, malformed numeric arguments, screen commands, all named campaign shortcuts, campaign/mission
+selection, LAN join/create, lobby slot changes, quoted chat/map arguments, and game-start handoff. Native GameChatroom/PlayerSlot
+fixtures and their StandardTemplates dependencies are included in `tests.mpq`; the Tutorial fixture is extracted from the RoC
+CampaignStrings section. `make test-commands` covers the underlying engine command and map-loading contracts.
 
 ## Single Player Flow
 

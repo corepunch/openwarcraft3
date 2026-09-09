@@ -482,7 +482,7 @@ static void UI_ButtonEventHandler(LPFRAMEDEF frame, menuMouseEvent_t event, FLOA
     } else if (event == MENU_MOUSE_UP) {
         frame->ui_flags &= ~UIFLAG_PRESSED;
         if (frame->OnClick[0]) {
-            M_MenuCommand(frame->OnClick);
+            UI_QueueCommand(frame->OnClick);
         }
     }
 }
@@ -499,7 +499,7 @@ static void UI_CheckBoxEventHandler(LPFRAMEDEF frame, menuMouseEvent_t event, FL
         frame->ui_flags ^= UIFLAG_CHECKED;
         ((LPFRAMEDEF)frame)->CheckBox.Checked = (frame->ui_flags & UIFLAG_CHECKED) != 0;
         if (frame->OnClick[0]) {
-            M_MenuCommand(frame->OnClick);
+            UI_QueueCommand(frame->OnClick);
         }
     }
 }
@@ -1123,7 +1123,7 @@ void UI_MapListSelectRow(LPCFRAMEDEF frame, FLOAT fdf_x, FLOAT fdf_y) {
         snprintf(command, sizeof(command),
                  control->SelectCommand[0] ? control->SelectCommand : "menu_lan_select %u",
                  (unsigned)index);
-        M_MenuCommand(command);
+        UI_QueueCommand(command);
     }
 }
 
@@ -1262,7 +1262,7 @@ void UI_PopupSelectItem(FLOAT fdf_x, FLOAT fdf_y) {
             }
             if (menu->OnClick[0]) {
                 snprintf(command, sizeof(command), "%s %u", menu->OnClick, (unsigned)i);
-                M_MenuCommand(command);
+                UI_QueueCommand(command);
             }
             active_popup = NULL;
             UI_ResetPopupScroll();

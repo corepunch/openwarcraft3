@@ -127,6 +127,9 @@ typedef struct {
     /* Command execution (following Quake 3 pattern)
      * UI executes console commands; engine dispatcher handles routing */
     void (*Cmd_AddCommand)(LPCSTR name, void (*function)(void));
+    int (*Cmd_Argc)(void);
+    LPCSTR (*Cmd_Argv)(int arg);
+    LPCSTR (*Cmd_ArgsFrom)(int arg);
     void (*Cmd_ExecuteText)(LPCSTR text);
     void (*ServerCommand)(LPCSTR text);
     LPCSTR (*Cvar_String)(LPCSTR name, LPCSTR fallback);

@@ -5,6 +5,7 @@
 #include <stdarg.h>
 
 #include "test.h"
+#include "common/common.h"
 #include "../menu/menu_local.h"
 #include "../renderer/mdx/r_mdx.h"
 #include "../menu/menu_dialog.h"
@@ -15,7 +16,7 @@
 
 static const char *captured_image_path;
 static const char *captured_model_path;
-static char captured_command[128];
+static char captured_command[8192];
 static char captured_movie_path[MAX_PATHLEN];
 static char captured_cvar_name[64];
 static char captured_cvar_value[64];
@@ -47,6 +48,32 @@ static int test_campaign_played_mission = -1;
 static VECTOR2 test_mouse_pos;
 static LPCSTR test_map = "";
 static DWORD map_reads, texture_releases;
+static char forwarded_command[1024];
+
+/* Host boundaries only: tests link the real command buffer, tokenizer, registration, and cvars. */
+void Key_Init(void) {}
+void Key_WriteBindings(FILE *file) { (void)file; }
+void Cmd_ForwardToServer(LPCSTR text) { snprintf(forwarded_command, sizeof(forwarded_command), "%s", text); }
+void CL_SetGameplayBindings(void) {}
+void CL_Connect(LPCSTR host, unsigned short port) { (void)host; (void)port; }
+void CL_BeginLoadingMap(LPCSTR map) { (void)map; Cbuf_AddText("menu_ingame\n"); }
+void CL_Shutdown(void) {}
+void SV_Map(LPCSTR path) { (void)path; }
+BOOL SV_GetSaveMap(LPCSTR name, LPSTR map, DWORD size) { (void)name; (void)map; (void)size; return false; }
+BOOL SV_LoadGame(LPCSTR name, LPCSTR map) { (void)name; (void)map; return false; }
+void SV_Shutdown(void) {}
+void Sys_Quit(void) {}
+void PF_Sleep(DWORD msec) { (void)msec; }
+
+static void test_command_imports(void) {
+    static BOOL ready;
+    if (!ready) { Cbuf_Init(); Cvar_Init(); ready = true; }
+    mi.Cmd_AddCommand = Cmd_AddCommand;
+    mi.Cmd_Argc = Cmd_Argc;
+    mi.Cmd_Argv = Cmd_Argv;
+    mi.Cmd_ArgsFrom = Cmd_ArgsFrom;
+}
+
 static int fake_image_index(LPCSTR name) {
     captured_model_path = name;
     return (name && *name) ? 456 : 0;
@@ -282,6 +309,7 @@ static void test_ui_printf(LPCSTR fmt, ...) {
 }
 
 static void test_cmd_execute_text(LPCSTR text) {
+    if (text && !strcmp(text, "\n")) return;
     snprintf(captured_command, sizeof(captured_command), "%s", text ? text : "");
 }
 
@@ -330,6 +358,7 @@ static void load_ui_files(LPCSTR const *file_names, size_t count) {
     mi.ImageIndex = test_image_index;
     mi.FontIndex = test_font_index;
     mi.Printf = test_ui_printf;
+    test_command_imports();
     for (size_t i = 0; i < count; i++) {
         UI_ParseFDF(file_names[i]);
     }
@@ -371,6 +400,7 @@ static void reset_ui_state(void) {
     mi.FontIndex = test_font_index;
     mi.GetRenderer = test_get_renderer;
     mi.Printf = test_ui_printf;
+    test_command_imports();
 
     M_SetActive(true);
 }
@@ -1650,20 +1680,21 @@ TEST(menu_fdf, options_video_mode_command_selects_fixed_or_native_mode) {
 
     memset(&mi, 0, sizeof(mi));
     mi.Printf = test_ui_printf;
+    test_command_imports();
     mi.Cmd_ExecuteText = test_cmd_execute_text;
 
     captured_command[0] = '\0';
-    M_MenuCommand("menu_video_mode 5");
+    Cmd_ExecuteString("menu_video_mode 5");
     T_STREQ(captured_command, "seta vid_native 0\nseta vid_mode 5\n");
 
     captured_command[0] = '\0';
     snprintf(command, sizeof(command), "menu_video_mode %u", (unsigned)video_mode_count());
-    M_MenuCommand(command);
+    Cmd_ExecuteString(command);
     T_STREQ(captured_command, "seta vid_native 1\nseta vid_fullscreen 1\n");
 
     snprintf(captured_command, sizeof(captured_command), "unchanged");
     snprintf(command, sizeof(command), "menu_video_mode %u", (unsigned)video_mode_count() + 1);
-    M_MenuCommand(command);
+    Cmd_ExecuteString(command);
     T_STREQ(captured_command, "unchanged");
 
     mi = saved;
@@ -1683,6 +1714,7 @@ TEST(menu_fdf, options_resolution_popup_appends_and_selects_native_mode) {
     load_ui_files(files, sizeof(files) / sizeof(files[0]));
     memset(&mi, 0, sizeof(mi));
     mi.Printf = test_ui_printf;
+    test_command_imports();
     mi.GetRenderer = test_get_renderer;
     mi.Cmd_ExecuteText = test_cmd_execute_text;
     mi.Cvar_String = test_cvar_string;
@@ -1731,6 +1763,7 @@ TEST(menu_fdf, options_game_port_enter_applies_and_blurs) {
 
     memset(&mi, 0, sizeof(mi));
     mi.Printf = test_ui_printf;
+    test_command_imports();
     mi.GetRenderer = test_get_renderer;
     mi.Cmd_ExecuteText = test_cmd_execute_text;
     mi.Cvar_String = test_cvar_string;
@@ -1821,6 +1854,7 @@ TEST(menu_fdf, dialog_war3_supports_configurable_button_modes) {
     load_ui_files(files, sizeof(files) / sizeof(files[0]));
     mi.GetRenderer = test_get_renderer;
     mi.Printf = test_ui_printf;
+    test_command_imports();
 
     root = UI_Spawn(FT_FRAME, NULL);
     if (!require_not_null(root)) return;
@@ -1872,6 +1906,7 @@ TEST(menu_fdf, dialog_supports_battlenet_template) {
     load_ui_files(authored_dialog_files, sizeof(authored_dialog_files) / sizeof(authored_dialog_files[0]));
     mi.GetRenderer = test_get_renderer;
     mi.Printf = test_ui_printf;
+    test_command_imports();
 
     root = UI_Spawn(FT_FRAME, NULL);
     if (!require_not_null(root)) return;
@@ -1910,6 +1945,7 @@ TEST(menu_fdf, dialog_supports_standard_authored_template) {
     load_ui_files(authored_dialog_files, sizeof(authored_dialog_files) / sizeof(authored_dialog_files[0]));
     mi.GetRenderer = test_get_renderer;
     mi.Printf = test_ui_printf;
+    test_command_imports();
     root = UI_Spawn(FT_FRAME, NULL);
     if (!require_not_null(root)) return;
     UI_SetSize(root, UI_BASE_WIDTH, UI_BASE_HEIGHT);
@@ -1934,6 +1970,7 @@ TEST(menu_fdf, dialog_preserves_script_text_and_authors_button) {
     load_ui_files(authored_dialog_files, sizeof(authored_dialog_files) / sizeof(authored_dialog_files[0]));
     mi.GetRenderer = test_get_renderer;
     mi.Printf = test_ui_printf;
+    test_command_imports();
     root = UI_Spawn(FT_FRAME, NULL);
     if (!require_not_null(root)) return;
     UI_SetSize(root, UI_BASE_WIDTH, UI_BASE_HEIGHT);
@@ -1974,6 +2011,7 @@ TEST(menu_fdf, main_menu_quit_dialog_commands_quit) {
 
     memset(&mi, 0, sizeof(mi));
     mi.Printf = test_ui_printf;
+    test_command_imports();
     mi.GetRenderer = test_get_renderer;
     mi.Cmd_ExecuteText = test_cmd_execute_text;
     mi.MemAlloc = test_ui_mem_alloc;
@@ -2064,12 +2102,12 @@ TEST(menu_fdf, main_menu_quit_dialog_commands_quit) {
     T_STREQ(no_button->OnClick, "menu_main");
     T_STREQ(yes_button->OnClick, "quit");
 
-    M_MenuCommand(no_button->OnClick);
+    Cmd_ExecuteString(no_button->OnClick);
     T_ASSERT(modal->hidden);
     T_ASSERT(dialog->hidden);
 
-    M_MenuCommand(yes_button->OnClick);
-    T_STREQ(captured_command, "quit");
+    Cmd_ExecuteString(yes_button->OnClick);
+    T_STREQ(forwarded_command, "quit");
 
     mi = saved;
 }
@@ -2087,6 +2125,7 @@ TEST(menu_fdf, main_menu_realm_select_uses_realm_panel_anim) {
     load_ui_files(files, sizeof(files) / sizeof(files[0]));
     memset(&mi, 0, sizeof(mi));
     mi.Printf = test_ui_printf;
+    test_command_imports();
     mi.GetRenderer = test_get_renderer;
     mi.MemAlloc = test_ui_mem_alloc;
     mi.MemFree = test_ui_mem_free;
@@ -2097,7 +2136,7 @@ TEST(menu_fdf, main_menu_realm_select_uses_realm_panel_anim) {
     UI_GotoGluePanel(mainMenuScreen.glue, NULL, NULL);
     M_SetActive(true);
     M_Refresh(M_Time() + 1000);
-    M_MenuCommand("menu_realm_select");
+    Cmd_ExecuteString("menu_realm_select");
     captured_stand_sprites = 0;
     captured_realm_panel_sprites = 0;
     captured_sprite_calls = 0;
@@ -2127,6 +2166,7 @@ TEST(menu_fdf, glue_sprite_layers_follow_widescreen_edges) {
     }, 3);
     memset(&mi, 0, sizeof(mi));
     mi.Printf = test_ui_printf;
+    test_command_imports();
     mi.GetRenderer = test_get_renderer;
     mi.MemAlloc = test_ui_mem_alloc;
     mi.MemFree = test_ui_mem_free;
@@ -2258,7 +2298,8 @@ TEST(menu_fdf, tab_morph_plays_when_switching_tabs_at_idle) {
 /* Screen commands and the scene share the production owner, but use fixture I/O. */
 static void test_glue_setup(void) {
     mi.Printf = test_ui_printf;
-    M_MenuCommand("menu_ingame");
+    test_command_imports();
+    Cmd_ExecuteString("menu_ingame");
     reset_ui_state();
     mi.FS_ReadFile = test_fs_read_file;
     mi.FS_FreeFile = test_fs_free_file;
@@ -2272,29 +2313,169 @@ static void test_glue_tick(DWORD msec) {
     M_Refresh(M_Time() + msec);
 }
 
+/* A click must finish its event stack before screen lifecycle callbacks run. */
+TEST(menu_fdf, console_queue_defers_clicks_and_separates_commands) {
+    menuImport_t saved = mi;
+    test_glue_setup();
+    Cmd_ExecuteString("menu_main");
+    test_glue_tick(1000);
+    LPFRAMEDEF button = UI_FindFrame("OptionsButton");
+    T_NOT_NULL(button);
+    mi.Cmd_ExecuteText = Cbuf_AddText;
+    mi.Cvar_Set = test_cvar_set;
+    button->event_handler(button, MENU_MOUSE_UP, 0, 0, 1);
+    T_ASSERT(UI_GetCurrentScreen() == &mainMenuScreen);
+    T_ASSERT(!M_IsTransitioning());
+    Cbuf_Execute();
+    T_ASSERT(M_IsTransitioning());
+    test_glue_tick(667);
+    test_glue_tick(1000);
+    T_ASSERT(UI_GetCurrentScreen() == &optionsMenuScreen);
+    UI_QueueCommand("menu_video_mode 5");
+    UI_QueueCommand("menu_single_player_difficulty 2");
+    Cbuf_Execute();
+    T_STREQ(Cvar_String("vid_mode", ""), "5");
+    T_STREQ(captured_cvar_name, "wc3_campaign_difficulty");
+    T_STREQ(captured_cvar_value, "2");
+    Cmd_ExecuteString("menu_ingame");
+    UI_ResetGlueSceneModels();
+    mi = saved;
+}
+
+TEST(menu_fdf, text_input_respects_menu_activity_and_transition_lock) {
+    menuImport_t saved = mi;
+    test_glue_setup();
+    Cmd_ExecuteString("menu_video");
+    test_glue_tick(1000);
+    LPFRAMEDEF edit = UI_FindFrame("GamePortEditBox");
+    T_NOT_NULL(edit);
+    UI_SetEditValue(edit, "1234");
+    UI_EditboxFocusOnHit(edit);
+    M_SetActive(false);
+    M_TextInput("5");
+    T_STREQ(UI_EditValue(edit), "1234");
+    M_SetActive(true);
+    M_TextInput("5");
+    T_STREQ(UI_EditValue(edit), "12345");
+    Cmd_ExecuteString("menu_main");
+    T_ASSERT(M_IsTransitioning());
+    M_TextInput("6");
+    menuExport_t api = M_GetAPI(mi);
+    api.KeyEvent(8, true, M_Time());
+    T_STREQ(UI_EditValue(edit), "12345");
+    test_glue_tick(667);
+    test_glue_tick(1000);
+    T_ASSERT(!M_IsTransitioning());
+    Cmd_ExecuteString("menu_ingame");
+    UI_ResetGlueSceneModels();
+    mi = saved;
+}
+
+TEST(menu_fdf, console_commands_reject_malformed_numeric_arguments) {
+    menuImport_t saved = mi;
+    test_glue_setup();
+    mi.Cvar_Set = test_cvar_set;
+    const char *bad[] = {
+        "menu_video_mode", "menu_video_mode -1", "menu_video_mode 4294967296",
+        "menu_video_mode 999999999999999999999999999999999", "menu_video_mode 1junk",
+        "menu_video_mode 1 2", "menu_single_player_difficulty -1", "menu_single_player_difficulty 2junk",
+        "menu_game_setup_slot_type 1", "menu_game_setup_slot_race 1 2 3",
+    };
+    FOR_LOOP(i, sizeof(bad) / sizeof(bad[0])) {
+        captured_command[0] = captured_cvar_name[0] = forwarded_command[0] = 0;
+        Cmd_ExecuteString(bad[i]);
+        T_STREQ(captured_command, "");
+        T_STREQ(captured_cvar_name, "");
+        T_STREQ(forwarded_command, "");
+    }
+    Cmd_ExecuteString(" \tmenu_video_mode \"5\"  // console comment");
+    T_STREQ(captured_command, "seta vid_native 0\nseta vid_mode 5\n");
+    UI_ResetGlueSceneModels();
+    mi = saved;
+}
+
+TEST(menu_fdf, console_screen_commands_and_campaign_shortcuts) {
+    menuImport_t saved = mi;
+    test_glue_setup();
+    mi.Cvar_Set = test_cvar_set;
+    const struct { LPCSTR cmd; uiScreen_t *screen; } cases[] = {
+        { "menu_main", &mainMenuScreen },
+        { "menu_quit", &mainMenuScreen },
+        { "menu_disconnected", &mainMenuScreen },
+        { "menu_realm_select", &mainMenuScreen },
+        { "menu_credits", &creditsMenuScreen },
+        { "menu_game", &singlePlayerMenuScreen },
+        { "menu_single_player_skirmish", &lanJoinScreen },
+        { "menu_multiplayer", &lanJoinScreen },
+        { "menu_startserver", &lanJoinScreen },
+        { "menu_joinserver", &lanJoinScreen },
+        { "menu_options", &optionsMenuScreen },
+        { "menu_video", &optionsMenuScreen },
+        { "menu_options_sound", &optionsMenuScreen },
+        { "menu_options_gameplay", &optionsMenuScreen },
+        { "menu_keys", &optionsMenuScreen },
+        { "menu_options_apply", &mainMenuScreen },
+    };
+    FOR_LOOP(i, sizeof(cases) / sizeof(cases[0])) {
+        forwarded_command[0] = 0;
+        Cmd_ExecuteString(cases[i].cmd);
+        test_glue_tick(667);
+        test_glue_tick(1000);
+        T_ASSERT(UI_GetCurrentScreen() == cases[i].screen);
+        T_ASSERT(!M_IsTransitioning());
+        T_STREQ(forwarded_command, "");
+    }
+    Cmd_ExecuteString("menu_loadgame");
+    T_STREQ(captured_command, "load quick\n");
+    Cmd_ExecuteString("menu_savegame");
+    T_STREQ(captured_command, "save quick\n");
+    Cmd_ExecuteString("menu_game");
+    test_glue_tick(667);
+    test_glue_tick(1000);
+    Cmd_ExecuteString("menu_single_player_campaign");
+    test_glue_tick(667);
+    const struct { LPCSTR cmd, title; } races[] = {
+        { "menu_single_player_campaign_human", "The Scourge of Lordaeron" },
+        { "menu_single_player_campaign_undead", "Path of the Damned" },
+        { "menu_single_player_campaign_orc", "The Invasion of Kalimdor" },
+        { "menu_single_player_campaign_night_elf", "Eternity's End" },
+        { "menu_single_player_campaign_tutorial", "Exodus of the Horde" },
+    };
+    FOR_LOOP(i, sizeof(races) / sizeof(races[0])) {
+        Cmd_ExecuteString(races[i].cmd);
+        T_STREQ(UI_FindFrame("MissionName")->Text, races[i].title);
+        T_ASSERT(!UI_FindFrame("MissionSelectFrame")->hidden);
+        Cmd_ExecuteString("menu_single_player_campaign_back");
+        T_ASSERT(!UI_FindFrame("CampaignSelectFrame")->hidden);
+    }
+    Cmd_ExecuteString("menu_ingame");
+    UI_ResetGlueSceneModels();
+    mi = saved;
+}
+
 TEST(menu_fdf, glue_same_panel_screen_navigation_completes) {
     menuImport_t saved = mi;
     test_glue_setup();
-    M_MenuCommand("menu_main");
+    Cmd_ExecuteString("menu_main");
     test_glue_tick(1000);
-    M_MenuCommand("menu_credits");
+    Cmd_ExecuteString("menu_credits");
     T_ASSERT(UI_GetCurrentScreen() == &creditsMenuScreen);
-    M_MenuCommand("menu_main");
+    Cmd_ExecuteString("menu_main");
     T_ASSERT(UI_GetCurrentScreen() == &mainMenuScreen);
     T_ASSERT(!M_IsTransitioning());
 
-    M_MenuCommand("menu_game");
+    Cmd_ExecuteString("menu_game");
     test_glue_tick(667);
     test_glue_tick(1000);
-    M_MenuCommand("menu_single_player_skirmish");
+    Cmd_ExecuteString("menu_single_player_skirmish");
     test_glue_tick(1000);
     T_ASSERT(UI_GetCurrentScreen() == &lanJoinScreen);
-    M_MenuCommand("menu_game");
+    Cmd_ExecuteString("menu_game");
     T_ASSERT(UI_GetCurrentScreen() == &singlePlayerMenuScreen);
     T_ASSERT(!M_IsTransitioning());
     test_glue_tick(667);
     T_STREQ(captured_sprite_anim[0], "SinglePlayer Stand");
-    M_MenuCommand("menu_ingame");
+    Cmd_ExecuteString("menu_ingame");
     UI_ResetGlueSceneModels();
     mi = saved;
 }
@@ -2302,24 +2483,24 @@ TEST(menu_fdf, glue_same_panel_screen_navigation_completes) {
 TEST(menu_fdf, glue_create_destination_and_live_lan_mode_changes) {
     menuImport_t saved = mi;
     test_glue_setup();
-    M_MenuCommand("menu_main");
+    Cmd_ExecuteString("menu_main");
     test_glue_tick(1000);
-    M_MenuCommand("menu_startserver");
+    Cmd_ExecuteString("menu_startserver");
     test_glue_tick(667);
     test_glue_tick(1000);
     T_STREQ(captured_sprite_anim[0], "BattlenetCustomCreate Stand");
     T_STREQ(captured_sprite_anim[1], "BattlenetCustom Stand");
-    M_MenuCommand("menu_multiplayer");
+    Cmd_ExecuteString("menu_multiplayer");
     test_glue_tick(0);
     T_STREQ(captured_sprite_anim[0], "BattlenetCustomCreate Death@0.0000");
     test_glue_tick(667);
     T_STREQ(captured_sprite_anim[0], "BattlenetCustom Stand");
-    M_MenuCommand("menu_startserver");
+    Cmd_ExecuteString("menu_startserver");
     test_glue_tick(0);
     T_STREQ(captured_sprite_anim[0], "BattlenetCustomCreate Birth@0.0000");
     test_glue_tick(1000);
     T_STREQ(captured_sprite_anim[0], "BattlenetCustomCreate Stand");
-    M_MenuCommand("menu_ingame");
+    Cmd_ExecuteString("menu_ingame");
     UI_ResetGlueSceneModels();
     mi = saved;
 }
@@ -2356,9 +2537,9 @@ TEST(menu_fdf, glue_morph_requests_queue_without_restarting) {
 TEST(menu_fdf, glue_startup_screen_override_completes_birth) {
     menuImport_t saved = mi;
     test_glue_setup();
-    M_MenuCommand("menu_main");
+    Cmd_ExecuteString("menu_main");
     test_glue_tick(250);
-    M_MenuCommand("menu_options");
+    Cmd_ExecuteString("menu_options");
     T_ASSERT(UI_GetCurrentScreen() == &optionsMenuScreen);
     T_ASSERT(M_IsTransitioning());
     test_glue_tick(999);
@@ -2366,7 +2547,7 @@ TEST(menu_fdf, glue_startup_screen_override_completes_birth) {
     test_glue_tick(1);
     T_ASSERT(!M_IsTransitioning());
     T_STREQ(captured_sprite_anim[0], "Options Stand Alternate");
-    M_MenuCommand("menu_ingame");
+    Cmd_ExecuteString("menu_ingame");
     UI_ResetGlueSceneModels();
     mi = saved;
 }
@@ -2474,6 +2655,7 @@ TEST(menu_fdf, main_menu_edition_button_defers_restart_after_death_frame) {
     load_ui_files(files, sizeof(files) / sizeof(files[0]));
     memset(&mi, 0, sizeof(mi));
     mi.Printf = test_ui_printf;
+    test_command_imports();
     mi.GetRenderer = test_get_renderer;
     mi.MemAlloc = test_ui_mem_alloc;
     mi.MemFree = test_ui_mem_free;
@@ -2501,13 +2683,13 @@ TEST(menu_fdf, main_menu_edition_button_defers_restart_after_death_frame) {
     }
     T_STREQ(edition->OnClick, "menu_edition");
 
-    M_MenuCommand(edition->OnClick);
+    Cmd_ExecuteString(edition->OnClick);
     T_STREQ(captured_command, "");
     UI_DrawGlueScene();
     T_EQ(captured_death_sprites, 2);
     T_ASSERT(!test_fs_expansion);
     T_STREQ(captured_command, "");
-    M_MenuCommand("menu_edition");
+    Cmd_ExecuteString("menu_edition");
     T_STREQ(captured_command, "");
     M_SetActive(true);
     M_Refresh(M_Time() + 667);
@@ -2533,6 +2715,7 @@ TEST(menu_fdf, main_menu_edition_button_rolls_back_when_tft_data_is_missing) {
     load_ui_files(files, sizeof(files) / sizeof(files[0]));
     memset(&mi, 0, sizeof(mi));
     mi.Printf = test_ui_printf;
+    test_command_imports();
     mi.GetRenderer = test_get_renderer;
     mi.MemAlloc = test_ui_mem_alloc;
     mi.MemFree = test_ui_mem_free;
@@ -2557,7 +2740,7 @@ TEST(menu_fdf, main_menu_edition_button_rolls_back_when_tft_data_is_missing) {
         return;
     }
 
-    M_MenuCommand("menu_edition");
+    Cmd_ExecuteString("menu_edition");
     M_SetActive(true);
     M_Refresh(M_Time() + 667);
     T_ASSERT(!test_fs_expansion);
@@ -2600,6 +2783,7 @@ static void test_single_player_campaign_profile(BOOL tft) {
 
     memset(&mi, 0, sizeof(mi));
     mi.Printf = test_ui_printf;
+    test_command_imports();
     mi.GetRenderer = test_get_renderer;
     mi.Cmd_ExecuteText = test_cmd_execute_text;
     mi.Cvar_String = test_cvar_string;
@@ -2679,7 +2863,7 @@ static void test_single_player_campaign_profile(BOOL tft) {
                   "menu_single_player_campaign_select %u");
 
     captured_command[0] = '\0';
-    SinglePlayerMenu_LaunchCampaignIndex(tft ? 1 : 0);
+    Cmd_ExecuteString(tft ? "menu_single_player_campaign_select 1" : "menu_single_player_campaign_select 0");
     T_STREQ(captured_command, "");
 
     mission_select_frame = UI_FindFrame("MissionSelectFrame");
@@ -2724,7 +2908,7 @@ static void test_single_player_campaign_profile(BOOL tft) {
                 : "Cinematic: Cinematic: Human Ending");
     captured_movie_path[0] = '\0';
     captured_command[0] = '\0';
-    SinglePlayerMenu_LaunchMissionIndex(0);
+    Cmd_ExecuteString("menu_single_player_mission_select 0");
     T_STREQ(captured_movie_path,
             tft ? "Movies\\HumanXIntro.mpq" : "Movies\\HumanIntro.mpq");
     T_STREQ(captured_command, "");
@@ -2739,13 +2923,13 @@ static void test_single_player_campaign_profile(BOOL tft) {
             "menu_single_player_mission_select %u");
     T_NOT_NULL(mission_list_box->event_handler);
 
-    M_MenuCommand(back_button->OnClick);
+    Cmd_ExecuteString(back_button->OnClick);
     T_ASSERT(!campaign_select_frame->hidden);
     T_ASSERT(mission_select_frame->hidden);
 
     captured_cvar_name[0] = '\0';
     captured_cvar_value[0] = '\0';
-    SinglePlayerMenu_SetDifficulty(2);
+    Cmd_ExecuteString("menu_single_player_difficulty 2");
     T_STREQ(captured_cvar_name, "wc3_campaign_difficulty");
     T_STREQ(captured_cvar_value, "2");
     difficulty_title = UI_FindFrame("CampaignPopupMenuTitleTextTemplate");
@@ -2755,7 +2939,7 @@ static void test_single_player_campaign_profile(BOOL tft) {
 
     test_campaign_mission_visibility = "played";
     test_campaign_played_mission = 1;
-    SinglePlayerMenu_LaunchCampaignIndex(tft ? 1 : 0);
+    Cmd_ExecuteString(tft ? "menu_single_player_campaign_select 1" : "menu_single_player_campaign_select 0");
 #ifdef BZ_FFMPEG
     T_EQ((int)mission_list_box->MapListControl.State->count, 4);
     T_STREQ(mission_list_box->MapListControl.State->items[0].name,
@@ -2784,9 +2968,9 @@ static void test_single_player_campaign_profile(BOOL tft) {
     captured_cvar_name[0] = '\0';
     captured_cvar_value[0] = '\0';
 #ifdef BZ_FFMPEG
-    SinglePlayerMenu_LaunchMissionIndex(2);
+    Cmd_ExecuteString("menu_single_player_mission_select 2");
 #else
-    SinglePlayerMenu_LaunchMissionIndex(0);
+    Cmd_ExecuteString("menu_single_player_mission_select 0");
 #endif
     T_STREQ(captured_cvar_name, "wc3_campaign_played_human_1");
     T_STREQ(captured_cvar_value, "1");
@@ -2855,6 +3039,7 @@ TEST(menu_fdf, utf16le_fdf_is_parsed_correctly) {
     mi.ImageIndex = fake_image_index;
     mi.FontIndex = test_font_index;
     mi.Printf = test_ui_printf;
+    test_command_imports();
 
     UI_ParseFDF("utf16le_test.fdf");
     mi = saved;
@@ -3006,4 +3191,79 @@ TEST(menu_fdf, exported_image_resolver_uses_local_player_skin) {
     T_STREQ(M_ResolveImagePath("UI\\Textures\\fixed.blp"), "UI\\Textures\\fixed.blp");
     menu_player = NULL;
     UI_ClearTheme(); mi = saved;
+}
+
+static DWORD menu_test_refreshes, menu_test_connected;
+static void test_lan_refresh(void) { menu_test_refreshes++; }
+static DWORD test_lan_count(void) { return 1; }
+static void test_lan_connect(DWORD index) { menu_test_connected = index; }
+static BOOL test_lan_server(DWORD index, menuLanGame_t *out) {
+    *out = (menuLanGame_t){ .hostname = "Fixture game", .mapname = "Maps\\Melee\\TwinRivers.w3m", .maxPlayers = 2 };
+    return index == 0;
+}
+static int test_menu_map_list(LPCSTR path, LPCSTR ext, LPSTR out, int size) {
+    LPCSTR map = !strcmp(ext, ".w3m") ? "Maps\\Melee\\TwinRivers.w3m" : "Maps\\FrozenThrone\\TwinRivers.w3x";
+    (void)path;
+    snprintf(out, size, "%s", map);
+    return 1;
+}
+
+TEST(menu_fdf, console_lan_and_lobby_commands_deliver_arguments) {
+    menuImport_t saved = mi;
+    test_glue_setup();
+    mi.FS_GetFileList = test_menu_map_list;
+    mi.Cvar_Set = test_cvar_set;
+    mi.LAN_RefreshServers = test_lan_refresh;
+    mi.LAN_NumServers = test_lan_count;
+    mi.LAN_Server = test_lan_server;
+    mi.LAN_ConnectServer = test_lan_connect;
+    menu_test_refreshes = 0;
+    menu_test_connected = UINT32_MAX;
+    Cmd_ExecuteString("menu_joinserver");
+    T_ASSERT(menu_test_refreshes > 0);
+    Cmd_ExecuteString("menu_lan_select 0");
+    Cmd_ExecuteString("menu_lan_join");
+    T_EQ(menu_test_connected, 0);
+    Cmd_ExecuteString("menu_startserver");
+    Cmd_ExecuteString("menu_lan_refresh");
+    Cmd_ExecuteString("menu_lan_select 1");
+    T_NOT_NULL(LAN_SelectedMapPath());
+    Cmd_ExecuteString("menu_lan_start");
+    T_ASSERT(UI_GetCurrentScreen() == &gameSetupScreen);
+    Cmd_ExecuteString("menu_game_setup_map \"Maps\\Melee\\TwinRivers.w3m\"");
+    T_ASSERT(strstr(captured_command, "lobby_start \"Maps\\\\Melee\\\\TwinRivers.w3m\"") != NULL);
+    lobbyState_t state = {
+        .active = true, .map_path = "Maps\\Melee\\TwinRivers.w3m", .slot_count = 2,
+        .slots = { { .visible = true, .type = LOBBY_SLOT_HUMAN }, { .visible = true, .type = LOBBY_SLOT_COMPUTER } },
+    };
+    GameSetup_UpdateLobbySetup(&state);
+    const char *commands[] = {
+        "menu_game_setup_slot_type 0 1", "menu_game_setup_slot_race 0 1",
+        "menu_game_setup_slot_team_next 0", "menu_game_setup_slot_color_next 0",
+    };
+    FOR_LOOP(i, sizeof(commands) / sizeof(commands[0])) {
+        captured_command[0] = 0;
+        Cmd_ExecuteString(commands[i]);
+        unsigned slot, visible, player, type, race, team, color;
+        T_EQ(sscanf(captured_command, "lobby_slot %u %u %u %u %u %u %u", &slot, &visible, &player, &type, &race, &team, &color), 7);
+        T_EQ(slot, 0);
+        if (i == 0) T_EQ(type, 1);
+        if (i == 1) T_EQ(race, 1);
+        if (i == 2) T_EQ(team, 1);
+        if (i == 3) T_EQ(color, 1);
+    }
+    Cmd_ExecuteString("menu_game_setup_chat 1 \"hello  team\"");
+    LPFRAMEDEF chat = UI_FindFrame("GameSetupChatText");
+    T_NOT_NULL(chat);
+    T_ASSERT(strstr(chat->Text, "|cffffffffhello  team|r") != NULL);
+    Cmd_ExecuteString("menu_game_setup_chat hello everyone");
+    T_ASSERT(strstr(chat->Text, "|cffffcc00hello everyone|r") != NULL);
+    Cmd_ExecuteString("menu_game_setup_chat 0 \"123abc stays text\"");
+    T_ASSERT(strstr(chat->Text, "123abc stays text") != NULL);
+    captured_command[0] = 0;
+    Cmd_ExecuteString("menu_game_setup_start");
+    T_NULL(UI_GetCurrentScreen());
+    T_ASSERT(strstr(captured_command, "map \"Maps\\\\Melee\\\\TwinRivers.w3m\"") != NULL);
+    UI_ResetGlueSceneModels();
+    mi = saved;
 }

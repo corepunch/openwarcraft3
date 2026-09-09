@@ -266,7 +266,7 @@ menu.MouseEvent(x, y, button, down);
 
 The no-screen guard matters because `UI_SetScreen(NULL)` stops drawing the menu but does not clear `menu_render.c`'s last layout cache. Without the ownership check, an invisible stale glue button can consume a gameplay click before `CL_WindowMouseEvent()` and `SCR_LayoutMouseEvent()` see it.
 
-Button clicks execute `M_MenuCommand(frame->OnClick)`, which routes through the registered menu command table.
+Button clicks call `UI_QueueCommand(frame->OnClick)` to append console text and a newline. The client command buffer later invokes the registered callback; WC3 has no separate menu command dispatcher. See [WC3 console command ownership](../games/warcraft-3/architecture/ui-flow.md#console-command-ownership).
 
 Game-mode mouse behavior lives in per-game `cl_input_<game>.c` files. Never create a separate mouse state struct or poll mouse state during draw.
 

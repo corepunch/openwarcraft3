@@ -162,15 +162,18 @@ void UI_ReleaseGlueSceneModels(void) {
     UI_ResetGlueSceneModels();
 }
 
-void UI_PreloadGlueSceneModels(void) {
-    LPRENDERER renderer;
+/* Cache one load attempt per scene lifetime, but identify every missing sprite layer. */
+static LPCMODEL UI_GlueLoadModel(LPCSTR path) {
+    LPCMODEL model = mi.GetRenderer()->LoadModel(path);
+    if (!model) fprintf(stderr, "UI: failed to load glue model '%s'\n", path);
+    return model;
+}
 
+void UI_PreloadGlueSceneModels(void) {
     if (scene.loaded) return;
-    renderer = mi.GetRenderer();
-    if (!renderer || !renderer->LoadModel) return;
-    scene.background = renderer->LoadModel(UI_GlueBackgroundPath());
-    scene.top_left_panel = renderer->LoadModel(UI_GlueTopLeftPanelPath());
-    scene.top_right_panel = renderer->LoadModel(UI_GlueTopRightPanelPath());
+    scene.background = UI_GlueLoadModel(UI_GlueBackgroundPath());
+    scene.top_left_panel = UI_GlueLoadModel(UI_GlueTopLeftPanelPath());
+    scene.top_right_panel = UI_GlueLoadModel(UI_GlueTopRightPanelPath());
     scene.loaded = true;
 }
 

@@ -116,7 +116,7 @@ BOOL M_EditKey(int key) {
     }
 }
 
-void M_TextInput(LPCSTR text) {
+void UI_EditTextInput(LPCSTR text) {
     char filtered[256];
 
     if (!active_edit || !text) {

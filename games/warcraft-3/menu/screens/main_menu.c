@@ -11,7 +11,7 @@
  * - Exit
  *
  * The screen loads MainMenu.fdf frame definitions and sends menu commands
- * to UI_MenuCommand() for navigation.
+ * to the console command buffer for navigation.
  */
 
 #include "../menu_local.h"
@@ -24,7 +24,6 @@ static MainMenu_t main_menu;
 static uiDialogWar3_t quit_dialog;
 
 /* State */
-static BOOL show_realm_select = false;
 static LPFRAMEDEF edition_button;
 
 static BOOL MainMenu_LoadScreen(void) {
@@ -160,13 +159,11 @@ static void MainMenu_KeyEvent(int key, BOOL down) {
 
 void MainMenu_BeginEditionSwitch(void) {
     if (!main_menu.MainMenuFrame) return;
-    show_realm_select = false;
     UI_DialogWar3Hide(&quit_dialog);
     M_TransitionToAction(MainMenu_FinishEditionSwitch);
 }
 
 void MainMenu_ShowMainPanel(void) {
-    show_realm_select = false;
     UI_DialogWar3Hide(&quit_dialog);
     if (main_menu.MainMenuFrame) {
         UI_SetHidden(main_menu.MainMenuFrame, false);
@@ -184,7 +181,6 @@ void MainMenu_ShowMainPanel(void) {
 
 void MainMenu_ShowRealmSelect(void) {
     UI_DialogWar3Hide(&quit_dialog);
-    show_realm_select = true;
     if (main_menu.RealmSelect) {
         UI_SetHidden(main_menu.RealmSelect, false);
     }
@@ -208,7 +204,6 @@ void MainMenu_ShowDisconnected(void) {
         .ok_command = "menu_main",
     };
 
-    show_realm_select = false;
     if (main_menu.RealmSelect) {
         UI_SetHidden(main_menu.RealmSelect, true);
     }

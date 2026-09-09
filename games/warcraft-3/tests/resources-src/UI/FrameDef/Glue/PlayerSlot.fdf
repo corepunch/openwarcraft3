@@ -1,0 +1,207 @@
+// -- INCLUDE FILES ---------------------------------------------
+
+IncludeFile "UI\FrameDef\Glue\StandardTemplates.fdf",
+
+// -- LOCAL TEMPLATES -------------------------------------------
+
+Frame "POPUPMENU" "PlayerSlotPopupMenu" {
+    Width 0.109,
+    Height 0.025,
+    PopupButtonInset 0.01,
+
+    ControlBackdrop "PlayerSlotPopupMenuBackdrop",
+    Frame "BACKDROP" "PlayerSlotPopupMenuBackdrop" {
+        BackdropTileBackground,
+        BackdropBackground  "UI\Widgets\Glues\GlueScreen-Button1-BackdropBackground.blp",
+        BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R",
+        BackdropCornerSize  0.016,
+        BackdropBackgroundSize  0.032,
+        BackdropBackgroundInsets 0.004 0.004 0.004 0.004,
+        BackdropEdgeFile  "UI\Widgets\Glues\GlueScreen-Button1-BorderedBackdropBorder.blp",
+    }
+
+    ControlDisabledBackdrop "PlayerSlotPopupMenuDisabledBackdrop",
+    Frame "BACKDROP" "PlayerSlotPopupMenuDisabledBackdrop" {
+        BackdropTileBackground,
+        BackdropBackground  "UI\Widgets\Glues\GlueScreen-Button1-BackdropBackground-Disabled.blp",
+        BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R",
+        BackdropCornerSize  0.016,
+        BackdropBackgroundSize  0.032,
+        BackdropBackgroundInsets 0.004 0.004 0.004 0.004,
+        BackdropEdgeFile  "UI\Widgets\Glues\GlueScreen-Button1-BorderedBackdropBorder-Disabled.blp",
+    }
+
+    ControlPushedBackdrop "PlayerSlotPopupMenuPushedBackdrop",
+    Frame "BACKDROP" "PlayerSlotPopupMenuPushedBackdrop" {
+        BackdropTileBackground,
+        BackdropBackground  "UI\Widgets\Glues\GlueScreen-Button1-BackdropBackground.blp",
+        BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R",
+        BackdropCornerSize  0.016,
+        BackdropBackgroundSize  0.032,
+        BackdropBackgroundInsets 0.004 0.004 0.004 0.004,
+        BackdropEdgeFile  "UI\Widgets\Glues\GlueScreen-Button1-BorderedBackdropBorder-Down.blp",
+    }
+
+    PopupTitleFrame "PlayerSlotPopupMenuTitle",
+    Frame "GLUETEXTBUTTON" "PlayerSlotPopupMenuTitle" INHERITS WITHCHILDREN "StandardPopupMenuTitleTemplate" {
+    }
+
+    PopupArrowFrame "PlayerSlotPopupMenuArrow",
+    Frame "BUTTON" "PlayerSlotPopupMenuArrow" INHERITS WITHCHILDREN "StandardPopupMenuArrowTemplate" {
+    }
+}
+
+// -- FRAMES ----------------------------------------------------
+
+Frame "FRAME" "PlayerSlot" {
+    Height 0.025,
+
+    Frame "TEXT" "DownloadValue" INHERITS "StandardLabelTextTemplate" {
+        Width 0.0225,
+        UseActiveContext,
+        SetPoint LEFT, "PlayerSlot", LEFT, 0.0, 0.0,
+    }
+
+    Frame "POPUPMENU" "NameMenu" INHERITS WITHCHILDREN "PlayerSlotPopupMenu" {
+        Width 0.178125,
+        UseActiveContext,
+        SetPoint LEFT, "DownloadValue", RIGHT, 0.0035, 0.0,
+
+        PopupMenuFrame "NamePopupMenuMenu",
+        Frame "MENU" "NamePopupMenuMenu" INHERITS WITHCHILDREN "StandardPopupMenuMenuTemplate" {
+            UseActiveContext,
+        }
+    }
+
+    Frame "POPUPMENU" "RaceMenu" INHERITS WITHCHILDREN "PlayerSlotPopupMenu" {
+        Width 0.09,
+        UseActiveContext,
+        SetPoint LEFT, "NameMenu", RIGHT, 0.0, 0.0,
+
+        PopupMenuFrame "RacePopupMenuMenu",
+        Frame "MENU" "RacePopupMenuMenu" INHERITS WITHCHILDREN "StandardPopupMenuMenuTemplate" {
+            UseActiveContext,
+
+            MenuItem "RANDOM",     -2,
+            MenuItem "HUMAN",      -2,
+            MenuItem "ORC",        -2,
+            MenuItem "UNDEAD",     -2,
+            MenuItem "NIGHT_ELF",  -2,
+        }
+    }
+
+    Frame "BUTTON" "TeamButton" {
+        Height 0.025,
+        Width 0.09,
+        UseActiveContext,
+        SetPoint LEFT, "RaceMenu", RIGHT, 0.0, 0.0,
+
+        ControlBackdrop "TeamButtonBackdrop",
+        Frame "BACKDROP" "TeamButtonBackdrop" {
+            UseActiveContext,
+            BackdropTileBackground,
+            BackdropBackground  "UI\Widgets\Glues\GlueScreen-Button1-BackdropBackground.blp",
+            BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R",
+            BackdropCornerSize  0.016,
+            BackdropBackgroundSize  0.032,
+            BackdropBackgroundInsets 0.004 0.004 0.004 0.004,
+            BackdropEdgeFile  "UI\Widgets\Glues\GlueScreen-Button1-BorderedBackdropBorder.blp",
+        }
+
+        ControlDisabledBackdrop "TeamButtonDisabledBackdrop",
+        Frame "BACKDROP" "TeamButtonDisabledBackdrop" {
+            UseActiveContext,
+            BackdropTileBackground,
+            BackdropBackground  "UI\Widgets\Glues\GlueScreen-Button1-BackdropBackground-Disabled.blp",
+            BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R",
+            BackdropCornerSize  0.016,
+            BackdropBackgroundSize  0.032,
+            BackdropBackgroundInsets 0.004 0.004 0.004 0.004,
+            BackdropEdgeFile  "UI\Widgets\Glues\GlueScreen-Button1-BorderedBackdropBorder-Disabled.blp",
+        }
+
+        Frame "TEXT" "TeamButtonTitle" {
+            UseActiveContext,
+            SetPoint LEFT, "TeamButton", LEFT, 0.01, 0.0,
+            DecorateFileNames,
+            FrameFont "MasterFont",0.011,"",
+            FontFlags "FIXEDSIZE",
+        }
+
+        Frame "BACKDROP" "TeamButtonArrow" {
+            UseActiveContext,
+            Height 0.011,
+            Width 0.011,
+            SetPoint RIGHT, "TeamButton", RIGHT, -0.008, 0.0,
+            BackdropBlendAll,
+            BackdropBackground "UI\Widgets\Glues\GlueScreen-Pulldown-Arrow.blp",
+        }
+
+    }
+
+    Frame "BUTTON" "ColorButton" {
+        Height 0.025,
+        Width 0.04,
+        UseActiveContext,
+        SetPoint LEFT, "TeamButton", RIGHT, 0.0, 0.0,
+
+        ControlBackdrop "ColorButtonBackdrop",
+        Frame "BACKDROP" "ColorButtonBackdrop" {
+            UseActiveContext,
+            BackdropTileBackground,
+            BackdropBackground  "UI\Widgets\Glues\GlueScreen-Button1-BackdropBackground.blp",
+            BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R",
+            BackdropCornerSize  0.016,
+            BackdropBackgroundSize  0.032,
+            BackdropBackgroundInsets 0.004 0.004 0.004 0.004,
+            BackdropEdgeFile  "UI\Widgets\Glues\GlueScreen-Button1-BorderedBackdropBorder.blp",
+        }
+
+        ControlDisabledBackdrop "ColorButtonDisabledBackdrop",
+        Frame "BACKDROP" "ColorButtonDisabledBackdrop" {
+            UseActiveContext,
+            BackdropTileBackground,
+            BackdropBackground  "UI\Widgets\Glues\GlueScreen-Button1-BackdropBackground-Disabled.blp",
+            BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R",
+            BackdropCornerSize  0.016,
+            BackdropBackgroundSize  0.032,
+            BackdropBackgroundInsets 0.004 0.004 0.004 0.004,
+            BackdropEdgeFile  "UI\Widgets\Glues\GlueScreen-Button1-BorderedBackdropBorder-Disabled.blp",
+        }
+
+        Frame "BACKDROP" "ColorButtonValue" {
+            UseActiveContext,
+            Height 0.0125,
+            Width 0.0125,
+            SetPoint LEFT, "ColorButton", LEFT, 0.007, 0.0,
+        }
+
+        Frame "BACKDROP" "ColorButtonArrow" {
+            UseActiveContext,
+            Height 0.011,
+            Width 0.011,
+            SetPoint RIGHT, "ColorButton", RIGHT, -0.008, 0.0,
+            BackdropBlendAll,
+            BackdropBackground "UI\Widgets\Glues\GlueScreen-Pulldown-Arrow.blp",
+        }
+
+    }
+}
+
+// -- TEAMCOLORMENU ----------------------------------------------------
+
+Frame "CONTROL" "TeamColorMenu" {
+    Width 0.18,
+    Height 0.2,
+    UseActiveContext,
+
+    ControlBackdrop "TeamColorMenuBackdrop",
+    Frame "BACKDROP" "TeamColorMenuBackdrop" INHERITS "StandardBorderedButtonBackdropTemplate" {
+        UseActiveContext,
+    }
+
+    Frame "SCROLLBAR" "TeamColorMenuScrollBar" INHERITS WITHCHILDREN "StandardScrollBarTemplate" {
+        SetPoint TOPRIGHT, "TeamColorMenu", TOPRIGHT, 0.0, 0.0,
+        UseActiveContext,
+    }
+}
