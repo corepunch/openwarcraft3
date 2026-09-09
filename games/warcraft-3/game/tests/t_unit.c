@@ -428,6 +428,56 @@ TEST(wc3_unit, follow_stop_range_uses_misc_data_not_acquisition_range) {
     game.constants.structureFollowRange = old_structure;
 }
 
+TEST(wc3_unit, smart_follow_building_stops_at_pathing_footprint_range) {
+    enum { W = 8, H = 8 };
+    FLOAT const old_structure = game.constants.structureFollowRange;
+    size_t const pathtex_size = sizeof(pathTex_t) + W * H * sizeof(COLOR32);
+    pathTex_t *pathtex;
+    LPEDICT follower;
+    LPEDICT building;
+
+    reset_test_entities();
+    setup_test_world();
+    follower = make_unit(200.0f, 0.0f);
+    building = make_unit(0.0f, 0.0f);
+    follower->svflags |= SVF_MONSTER;
+    building->svflags |= SVF_MONSTER;
+    follower->s.player = building->s.player = 0;
+    building->s.flags |= EF_BUILDING;
+    building->collision = 160.0f;
+    game.constants.structureFollowRange = 100.0f;
+
+    pathtex = gi.MemAlloc(pathtex_size);
+    T_NOT_NULL(pathtex);
+    memset(pathtex, 0, pathtex_size);
+    pathtex->width = W;
+    pathtex->height = H;
+    FOR_LOOP(i, W * H) pathtex->map[i].b = 0xff;
+    building->pathtex = pathtex;
+
+    /* The building centre is 200 units away, outside StructureFollowRange,
+     * while the authored 8x8 footprint edge is only about 72 units away.  A
+     * centre-distance follow therefore walks back toward the blocked producer;
+     * footprint-aware follow is already within the intended structure range. */
+    T_ASSERT(M_DistanceToGoal(follower) == 0.0f);
+    T_ASSERT(unit_issuetargetorder(follower, "smart", building));
+    T_ASSERT(follower->movement.follow_target == building);
+    T_ASSERT(follower->goalentity == building);
+    T_ASSERT(M_DistanceToGoal(follower) > G_FollowStopRange(follower, building));
+    T_FEQ(G_FollowStopRange(follower, building), 100.0f, 0.001f);
+    T_ASSERT(CM_DistanceToPathingFootprint(building, &follower->s.origin2) <
+             game.constants.structureFollowRange);
+
+    follower->currentmove->think(follower);
+
+    T_ASSERT(follower->movement.follow_target == building);
+    T_ASSERT(G_AnimationHasPrimary(follower->animation, "stand"));
+
+    building->pathtex = NULL;
+    gi.MemFree(pathtex);
+    game.constants.structureFollowRange = old_structure;
+}
+
 TEST(wc3_unit, queued_smart_on_passive_ally_revalidates_to_follow) {
     reset_test_entities();
     setup_test_world();

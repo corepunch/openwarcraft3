@@ -320,8 +320,39 @@ FLOAT G_FollowStopRange(LPCEDICT follower, LPCEDICT target) {
     configured = (target->s.flags & EF_BUILDING)
         ? game.constants.structureFollowRange
         : game.constants.followRange;
-    collision_range = follower->collision + target->collision;
+    /* A pathing-footprint distance already includes the building extent, so
+     * only the follower radius remains as its no-overlap lower bound. */
+    collision_range = follower->collision;
+    if (!(target->s.flags & EF_BUILDING) || !target->pathtex)
+        collision_range += target->collision;
     return MAX(configured, collision_range);
+}
+
+/* Warsmash's unit canReach() tests a building target against its authored
+ * pathing pixels instead of requiring the follower to approach the building
+ * centre.  OpenRealm already uses the same footprint distance for Attack,
+ * Repair, harvesting, militia, and cargo interactions; follow/rally must use
+ * it too or a freshly trained unit can be nudged legally out of its producer
+ * and then immediately walk back into the producer's blocked footprint.
+ *
+ * CM_DistanceToPathingFootprint() measures from the follower centre to the
+ * blocked footprint edge.  StructureFollowRange remains the authored follow
+ * margin, while the follower radius is the hard no-overlap lower bound.  The
+ * target collision radius is intentionally not added when a real footprint is
+ * available because that would count the building extent twice. */
+static BOOL follow_footprint_distance(LPCEDICT follower, LPCEDICT target,
+                                      FLOAT *distance) {
+    FLOAT footprint;
+
+    if (!follower || !target || !distance ||
+        !(target->s.flags & EF_BUILDING) || !target->pathtex) {
+        return false;
+    }
+    footprint = CM_DistanceToPathingFootprint(target, &follower->s.origin2);
+    if (footprint >= FLT_MAX) return false;
+
+    *distance = footprint;
+    return true;
 }
 
 static void ai_follow_walk(LPEDICT ent) {
@@ -348,6 +379,7 @@ static void ai_follow_walk(LPEDICT ent) {
 
     distance = M_DistanceToGoal(ent);
     follow_range = G_FollowStopRange(ent, target);
+    follow_footprint_distance(ent, target, &distance);
     standing = G_AnimationHasPrimary(ent->animation, "stand");
     if (distance <= follow_range) {
         if (!standing) {
