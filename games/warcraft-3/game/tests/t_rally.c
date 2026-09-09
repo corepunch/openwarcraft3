@@ -111,6 +111,7 @@ TEST(wc3_rally, default_orc_barracks_rally_stops_trained_unit_outside_footprint)
     T_ASSERT(G_ApplyRallyOrder(producer, trained));
     T_ASSERT(trained->movement.follow_target == producer);
     T_ASSERT(trained->goalentity == producer);
+    trained->animation = &(animation_t){ .name = "stand", .interval = { 0, 300 } };
     trained->currentmove->think(trained);
 
     /* The default Smart-to-producer order remains active, but the trained unit

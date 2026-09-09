@@ -468,6 +468,7 @@ TEST(wc3_unit, smart_follow_building_stops_at_pathing_footprint_range) {
     T_ASSERT(CM_DistanceToPathingFootprint(building, &follower->s.origin2) <
              game.constants.structureFollowRange);
 
+    follower->animation = &(animation_t){ .name = "stand", .interval = { 0, 300 } };
     follower->currentmove->think(follower);
 
     T_ASSERT(follower->movement.follow_target == building);
