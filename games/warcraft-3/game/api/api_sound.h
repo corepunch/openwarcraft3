@@ -129,7 +129,7 @@ DWORD StartSound(LPJASS j) {
 
     if (currentplayer) {
         LPEDICT recipient = PLAYER_ENT(currentplayer);
-        if (!recipient) return 0;
+        if (!recipient || !recipient->client || !recipient->client->connected) return 0;
         if (playback.positioned)
             gi.PositionedSound(&playback.origin, recipient, CHAN_OWNER | CHAN_RELIABLE, sound->soundIndex,
                                playback.volume, attenuation, 0.0f);

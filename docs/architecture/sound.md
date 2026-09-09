@@ -80,6 +80,8 @@ Game code calls:
 gi.sound(entity, channel, soundindex, volume, attenuation, time_offset);
 ```
 
+For owner-only/player-local presentation, the game must only issue the sound when the target player has a connected client. Warcraft III JASS loops may set a local-player context for all authored player slots; disconnected slots are simulation identities, not network recipients, and must be skipped before `gi.sound()`/`gi.positioned_sound()`.
+
 ### Pipeline
 
 | Step | Function | File | Description |
