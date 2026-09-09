@@ -1,5 +1,12 @@
 #include "g_local.h"
 
+/* Routing consumes game-owned surface policy; only this edict contract contains WC3 destructable state. */
+static BOOL entity_is_live_walkable_surface(edict_t const *ent) {
+    return ent && ent->destructable.initialized && !ent->destructable.dead &&
+        ent->destructable.placement_solid && ent->pathtex &&
+        ent->data.DestructableData && ent->data.DestructableData->walkable;
+}
+
 static inline HANDLE G_WorldReadFile(LPCSTR filename, LPDWORD size) { return gi.ReadFile(filename, size); }
 static inline HANDLE G_WorldMemAlloc(long size) { return gi.MemAlloc(size); }
 static inline void G_WorldMemFree(HANDLE mem) { gi.MemFree(mem); }
