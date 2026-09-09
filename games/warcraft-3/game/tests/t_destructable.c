@@ -188,6 +188,23 @@ TEST(wc3_destructable, generated_script_reuses_and_activates_hidden_placement) {
     T_FEQ(dest->s.origin2.y, 96.0f, 0.01f);
 }
 
+TEST(wc3_destructable, instant_kill_cheat_makes_gate_damage_lethal) {
+    LPEDICT dest, attacker;
+
+    setup_test_world();
+    dest = make_test_destructable(500.0f, 0.0f, 0.0f);
+    dest->class_id = MAKEFOURCC('L', 'T', 'g', '1');
+    dest->s.class_id = dest->class_id;
+    attacker = make_destructable_test_attacker(10.0f, 0.0f);
+    attacker->s.player = 0;
+    game.clients[0].cheat_instant_kill = true;
+
+    T_Damage(dest, attacker, 1);
+
+    T_ASSERT(dest->destructable.dead);
+    T_FEQ(dest->health.value, 0.0f, 0.01f);
+}
+
 TEST(wc3_destructable, lethal_damage_does_not_require_die_callback) {
     LPEDICT dest = make_test_destructable(25.0f, 0.0f, 0.0f);
     LPEDICT attacker = make_destructable_test_attacker(10.0f, 0.0f);

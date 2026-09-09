@@ -399,7 +399,7 @@ struct client_s {
     DWORD ping;
     BOOL no_control, no_ui;
     BOOL cheat_instant_build; /* developer cheat: owner construction/training/research completes on next work tick */
-    BOOL cheat_instant_kill; /* developer cheat: owner damage lethally hits units/buildings */
+    BOOL cheat_instant_kill; /* developer cheat: owner damage lethally hits units/buildings/destructables */
     DWORD modal_flags;
     BOOL quest_dialog_open;
     menu_t menu;

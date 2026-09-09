@@ -153,7 +153,7 @@ instantkill on
 instantkill off
 ```
 
-When enabled, any normal damage dealt by that player's units or buildings is made lethal to unit/building targets on the same damage-resolution call. It preserves the ordinary death path, so death callbacks, combat cleanup, kill credit, and attack completion still run normally. Invulnerable targets remain immune, and destructables such as trees and crates are intentionally not affected by this cheat. The state is per player, so other human or computer players retain normal damage unless they enable their own cheat state.
+When enabled, any normal damage dealt by that player's units or buildings is made lethal to unit, building, and attackable destructable targets on the same damage-resolution call. This includes destructable gates as well as trees and crates when they are attackable. It preserves the ordinary death path, so destructable death transitions, death callbacks, combat cleanup, kill credit, and attack completion still run normally. Invulnerable targets remain immune. The state is per player, so other human or computer players retain normal damage unless they enable their own cheat state.
 
 Time-of-day phase cheats set the authoritative Warcraft clock directly and require `sv_cheats 1`:
 
