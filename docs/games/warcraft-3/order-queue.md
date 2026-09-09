@@ -35,6 +35,8 @@ point 1024 768 queue
 Entity Smart clicks may also carry the traced world point as `smart <entity> <x> <y>`. The game normally resolves the entity target exactly as before; the point is only a fallback for an alive walkable destructable whose entity Smart action is rejected. This lets a bridge remain non-attackable by right-click while the same click still becomes formation-aware ground movement to the clicked deck position. Without Shift the corresponding form is `smart 57 1024 768`.
 
 
+The shared bind layer must still dispatch the ordinary mouse-button command while Shift is held. Explicit modified mouse binds take priority (for example `ALT+MOUSE1 +pan`); when no modified mouse bind exists, `SHIFT+MOUSE1`/`SHIFT+MOUSE2` inherit the plain `MOUSE1`/`MOUSE2` bind. This lets `+select`/`+smart` run and inspect the live Shift state without weakening exact modifier semantics for keyboard hotkeys such as control groups.
+
 `select` and `point` are also used to finish command-card targeting. `menu_t.supports_order_queue` gates the modifier on the server, so only an explicitly queue-capable targeting mode treats Shift as order queuing. Move and Attack set that flag. Other target modes ignore `queue`, preserving their existing lifecycle until their reservation/cost semantics are implemented deliberately.
 
 For a successful queue-capable target click, `Get_Commands_f()` is not called while Shift remains part of that click. This leaves the Move/Attack targeting callback armed so the player can add several targets/points without reopening the command button, matching the Warsmash input model. A successful non-Shift target returns to the normal command card as before.

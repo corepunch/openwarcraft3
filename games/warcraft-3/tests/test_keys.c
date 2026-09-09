@@ -105,13 +105,17 @@ TEST(keys, format_canonical_modifier_order) {
     T_STREQ(name, "CTRL+SHIFT+1");
 }
 
-TEST(keys, select_slot_is_exact_stroke) {
+TEST(keys, select_slot_prefers_exact_and_mouse_falls_back_to_plain) {
     DWORD shift_and_plain = (1u << KEY_MOD_SHIFT) | 1u;
     DWORD ctrl_only = 1u << KEY_MOD_CTRL;
 
-    T_EQ(Key_SelectSlot(0, shift_and_plain), 0u);
-    T_EQ(Key_SelectSlot(KEY_MOD_SHIFT, shift_and_plain), KEY_MOD_SHIFT);
-    T_EQ(Key_SelectSlot(KEY_MOD_CTRL, shift_and_plain), KEY_MOD_COUNT);
-    T_EQ(Key_SelectSlot(KEY_MOD_CTRL | KEY_MOD_SHIFT, ctrl_only), KEY_MOD_COUNT);
-    T_EQ(Key_SelectSlot(KEY_MOD_SHIFT, 1u), KEY_MOD_COUNT);
+    T_EQ(Key_SelectSlot((keyCode_t)'1', 0, shift_and_plain), 0u);
+    T_EQ(Key_SelectSlot((keyCode_t)'1', KEY_MOD_SHIFT, shift_and_plain), KEY_MOD_SHIFT);
+    T_EQ(Key_SelectSlot((keyCode_t)'1', KEY_MOD_CTRL, shift_and_plain), KEY_MOD_COUNT);
+    T_EQ(Key_SelectSlot((keyCode_t)'1', KEY_MOD_CTRL | KEY_MOD_SHIFT, ctrl_only), KEY_MOD_COUNT);
+    T_EQ(Key_SelectSlot((keyCode_t)'1', KEY_MOD_SHIFT, 1u), KEY_MOD_COUNT);
+
+    T_EQ(Key_SelectSlot(K_MOUSE2, KEY_MOD_SHIFT, 1u), 0u);
+    T_EQ(Key_SelectSlot(K_MOUSE1, KEY_MOD_ALT, shift_and_plain), 0u);
+    T_EQ(Key_SelectSlot(K_MOUSE1, KEY_MOD_SHIFT, shift_and_plain), KEY_MOD_SHIFT);
 }

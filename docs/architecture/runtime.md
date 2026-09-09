@@ -91,7 +91,7 @@ After step 6, `map` and `connect` cvars are explicitly cleared, then re-populate
 
 ### Modifier keys
 
-Modifiers are a stroke, not a bag of flags. Like lite's keymap (`ctrl`, `alt`, `shift`), they must be written in that order and match exactly:
+Modifiers are a stroke, not a bag of flags. Like lite's keymap (`ctrl`, `alt`, `shift`), they must be written in that order. Keyboard strokes match exactly; mouse buttons first use an explicit modified bind and otherwise inherit the plain mouse-button bind so gameplay handlers can consume held modifiers such as Shift order queuing:
 
 ```
 bind 1 "group 1"
@@ -101,7 +101,7 @@ bind CTRL+SHIFT+1 "group assign 1"
 bind ALT+MOUSE1 "+pan"
 ```
 
-`SHIFT+CTRL+1` is rejected. `CTRL+SHIFT+1` is not `CTRL+1` or `SHIFT+1`. `SHIFT+Q` is not `q`. `CONTROL` is an alias for `CTRL`. Letters fold to lowercase (`SHIFT+Q` is the Q key). `writeconfig` emits `CTRL+ALT+SHIFT+<key>`.
+`SHIFT+CTRL+1` is rejected. `CTRL+SHIFT+1` is not `CTRL+1` or `SHIFT+1`. `SHIFT+Q` is not `q`. For mouse buttons, `ALT+MOUSE1` overrides `MOUSE1`, while an unbound `SHIFT+MOUSE1` falls back to `MOUSE1` and the command handler still sees Shift held. `CONTROL` is an alias for `CTRL`. Letters fold to lowercase (`SHIFT+Q` is the Q key). `writeconfig` emits `CTRL+ALT+SHIFT+<key>`.
 
 `+command` key-up reuses the modifiers captured on key-down, so releasing Alt before the mouse button still ends `ALT+MOUSE1 "+pan"`.
 
