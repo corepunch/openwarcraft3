@@ -180,6 +180,8 @@ The current implementation intentionally does not invent the larger Warsmash com
 - seeded combat RNG independent from unrelated `rand()` consumers;
 - non-Agility attack-speed buffs/debuffs.
 
+Attack-target validation takes both the attacker and target, including the animationless building recovery checks used by Orc Burrows. Those recovery checks apply the same weapon target mask as initial attack orders and attack windup validation.
+
 ## Verification
 
 Relevant source/tests:
