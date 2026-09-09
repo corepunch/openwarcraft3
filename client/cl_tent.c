@@ -160,18 +160,28 @@ void CL_ParseTEnt(LPSIZEBUF msg) {
     }
 }
 
-static void CL_AddConfirmationObject(moveConfirmation_t const *mc) {
-    if (!cl.moveConfirmation) return; /* An empty server media slot disables the marker. */
+static renderEntity_t CL_BuildConfirmationEntity(moveConfirmation_t const *mc, LPMODEL model) {
     renderEntity_t ent;
     memset(&ent, 0, sizeof(ent));
     ent.origin = mc->origin;
-    ent.origin.z = CM_GetHeightAtPoint(ent.origin.x, ent.origin.y) + 8.0f;
+    ent.ground_offset = 8.0f;
+    ent.origin.z = CM_GetHeightAtPoint(ent.origin.x, ent.origin.y) + ent.ground_offset;
     ent.scale = 1;
     ent.frame = cl.time - mc->timespamp;
     ent.oldframe = cl.time - mc->timespamp;
-    ent.model = cl.moveConfirmation;
+    ent.model = model;
     ent.tint = mc->tint;
-    ent.flags |= RF_NO_FOGOFWAR | RF_NO_SHADOW | RF_NO_LIGHTING;
+    /* Confirmation art is a world-space ground marker. Let the WC3 renderer
+     * replace terrain Z with authored walkable-surface Z when the point lies
+     * on a live bridge, while preserving the existing +8 visual offset. */
+    ent.flags |= RF_GROUND_CONFORM | RF_NO_FOGOFWAR | RF_NO_SHADOW | RF_NO_LIGHTING;
+    return ent;
+}
+
+static void CL_AddConfirmationObject(moveConfirmation_t const *mc) {
+    renderEntity_t ent;
+    if (!cl.moveConfirmation) return; /* An empty server media slot disables the marker. */
+    ent = CL_BuildConfirmationEntity(mc, cl.moveConfirmation);
     V_AddEntity(&ent);
 }
 
@@ -283,6 +293,32 @@ void CL_DrawTEnts(void) {
             .halign = FONT_JUSTIFYLEFT, .valign = FONT_JUSTIFYTOP));
     }
 }
+
+#ifdef BZ_TESTS
+#include "shared/test.h"
+
+TEST(client_tent, confirmation_uses_walkable_ground_conform) {
+    moveConfirmation_t const confirmation = {
+        .origin = { 128.0f, 256.0f, 0.0f },
+        .timespamp = 100,
+        .tint = { 0, 255, 0, 255 },
+    };
+    DWORD const old_time = cl.time;
+    renderEntity_t ent;
+
+    cl.time = 250;
+    ent = CL_BuildConfirmationEntity(&confirmation, NULL);
+
+    T_ASSERT(ent.flags & RF_GROUND_CONFORM);
+    T_FEQ(ent.ground_offset, 8.0f, 0.001f);
+    T_FEQ(ent.origin.x, confirmation.origin.x, 0.001f);
+    T_FEQ(ent.origin.y, confirmation.origin.y, 0.001f);
+    T_EQ(ent.frame, 150);
+    T_EQ(ent.oldframe, 150);
+
+    cl.time = old_time;
+}
+#endif
 
 void CL_ClearTEnts(void) {
     memset(&tents, 0, sizeof(tents));
