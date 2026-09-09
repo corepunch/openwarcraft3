@@ -118,13 +118,11 @@ playback before progression persistence exists. The retail-compatible follow-up 
 
 1. Replace the temporary `Cinematic:` rows with the Warcraft camera-button FDF art (`CampaignListBox` /
    `StandardCampaignCameraButton*`).
-2. Gate Open/End rows with the state written by `SetOpCinematicAvailable` / `SetEdCinematicAvailable`; those natives are
-   still stubs, so unlock persistence must be implemented before claiming retail-compatible availability.
+2. Open/End rows now consume persistent state from `SetOpCinematicAvailable` / `SetEdCinematicAvailable`
+   in [Campaign Progress](campaign-progress.md). An explicit lock hides the row; endings require an explicit unlock.
 3. Determine whether Intro availability is always data-authored/default-open or has its own progression rule in the
    original client before hiding it behind a guessed state bit.
-4. Keep campaign/mission availability (`wc3_campaign_visibility=unlocked`) separate from cinematic availability.
-   Campaign progress records authored `SetCampaignAvailable` / `SetMissionAvailable` state; an unlocked cinematic is a
-   different progression fact.
+4. Keep map visit/completion records separate from cinematic availability. They are distinct fields in `campaign.w3p`.
 
 ## Known Pitfalls
 
@@ -136,8 +134,8 @@ playback before progression persistence exists. The retail-compatible follow-up 
   extraction so FFmpeg can seek/stream normally.
 - Do not expose FFmpeg types through `server/game.h`, `client/menu.h`, or renderer public structs. FFmpeg remains a client
   implementation detail under `BZ_FFMPEG`.
-- The camera-selection rows are not safe to expose as "unlocked" until `SetOpCinematicAvailable` and
-  `SetEdCinematicAvailable` have persistent state.
+- Intro rows remain archive-authored and opening rows default to available with the campaign; ending rows require
+  a persisted unlock. Do not infer cinematic unlocks from map visits.
 
 ## Verification
 

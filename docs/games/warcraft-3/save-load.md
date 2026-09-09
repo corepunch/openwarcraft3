@@ -64,10 +64,10 @@ Saving is allowed only at a VM safe point. `jass_writesnapshot()` rejects a requ
 
 ## Field Table
 
-`games/warcraft-3/game/g_save.c` keeps the `field_t fields[]` table synchronized with `struct edict_s` in `g_local.h`. Fixed-size
+`games/warcraft-3/game/g_save.c` keeps the `SAVEFIELD edict_fields[]` table synchronized with `struct edict_s` in `g_local.h`. Fixed-size
 `edict_t` and `GAMECLIENT` records are still copied as one block. Embedded non-pointer state such as `abilstatus[]` (including each
 timed status's `timestamp` and `duration_ms`) and the inline WC3 animation-property strings (`animation_props` and
-`animation_request`) therefore round-trip with that raw record and need no `field_t` entry. The adjacent `runtime_fields[]` and
+`animation_request`) therefore round-trip with that raw record and need no `SAVEFIELD` entry. The adjacent `runtime_fields[]` and
 `client_runtime_fields[]` tables describe the process-owned bytes that must be zeroed before that copy. This keeps the
 common path memcpy-shaped while making pointer exceptions declarative rather than a hand-maintained assignment list.
 
@@ -342,3 +342,18 @@ Transient edit-box text is client-local while the modal is open. Rendering of th
 live client edit value, not only the server-supplied initial `STRING` text, so edits remain visible before submission.
 
 The authored selectable list supports wheel, arrow, track, and thumb-drag scrolling by saved-game row.
+
+## Shared Persistent Record Machinery
+
+`games/warcraft-3/common/wc3_save.h` owns `SAVEFIELD` (the former `field_t`),
+`SAVEIO`, and the nested/count/ring/tagged-union schema contracts. `wc3_save.c`
+owns byte I/O, field traversal, checksum/footer validation, and small-record
+read/write staging. `g_save.c` delegates mapped records to this walker and keeps
+its entity, trigger, timer, event and JASS pointer-domain conversions in
+`GameSaveField`. Raw edict/client fixups remain game-owned. The normal save's
+version 14 envelope and lifecycle remain separate from profile records.
+
+[Campaign game caches](campaign-game-cache.md) and [campaign progress](campaign-progress.md)
+use this same walker with value-only schemas and private file headers. No
+campaign progress is represented by cvars. See the separate guide for native
+numbering, first-mission defaults, and frontend consumption.

@@ -1,3 +1,4 @@
+#include "../../common/wc3_progress.h"
 /*
  * ui/screens/single_player.c — Single player menu screen.
  */
@@ -5,7 +6,6 @@
 #include "../menu_local.h"
 #include "../menu_screen.h"
 #include "../generated/single_player_menu.h"
-#include "common/campaign_progress.h"
 #include <ctype.h>
 #include <stdlib.h>
 #ifndef _WIN32
@@ -15,7 +15,6 @@
 #define SINGLE_PLAYER_MAX_CAMPAIGNS 16 // campaigns; UI parse/storage capacity; bounds authored campaign entries
 #define SINGLE_PLAYER_MAX_MISSIONS 128 // missions; UI parse/storage capacity; bounds authored mission entries
 #define SINGLE_PLAYER_MISSION_VISIBLE_ROWS 14 // rows; visible mission list capacity; controls listbox pagination
-#define SINGLE_PLAYER_CAMPAIGN_VISIBILITY_CVAR "wc3_campaign_visibility"
 #define SINGLE_PLAYER_LIST_FLAG_CINEMATIC 0x80000000u // bit; marks cinematic list items; separates them from mission indices
 #define SINGLE_PLAYER_LIST_INDEX_MASK 0x7fffffffu // bitmask; retains the 31-bit item index; strips the cinematic marker
 
@@ -46,11 +45,11 @@ typedef struct {
 
 typedef struct {
     playerRace_t race;
+    BOOL default_open;
     UINAME key;
     UINAME header;
     UINAME name;
     UINAME background;
-    BOOL default_open;
     singlePlayerMission_t missions[SINGLE_PLAYER_MAX_MISSIONS];
     DWORD num_missions;
     singlePlayerCinematic_t cinematics[SINGLE_PLAYER_CINEMATIC_COUNT];
@@ -78,6 +77,7 @@ static LPCSTR const solo_lft[] = {
     NULL,
 };
 
+static CAMPAIGNPROGRESS campaign_progress;
 static SinglePlayerMenu_t single_player;
 static singlePlayerCampaign_t campaigns[SINGLE_PLAYER_MAX_CAMPAIGNS];
 static DWORD campaign_count;
@@ -90,7 +90,6 @@ static LPFRAMEDEF mission_list_frame;
 static DWORD campaign_background_model = 0;
 static DWORD selected_campaign_index = SINGLE_PLAYER_MAX_CAMPAIGNS;
 static singlePlayerView_t current_view = SINGLE_PLAYER_VIEW_MAIN;
-static wc3CampaignProgress_t campaign_progress;
 
 static BOOL SinglePlayerMenu_LoadScreen(void) {
     if (SinglePlayerMenu_Load(&single_player)) {
@@ -429,16 +428,11 @@ static void SinglePlayer_LoadCampaignData(void) {
     }
 }
 
-static BOOL SinglePlayer_ShowCampaign(singlePlayerCampaign_t const *campaign);
-
 static singlePlayerCampaign_t const *SinglePlayer_DefaultCampaign(void) {
-    FOR_LOOP(i, campaign_order_count) {
-        DWORD const campaign_index = campaign_order[i];
-        if (campaign_index < campaign_count && SinglePlayer_ShowCampaign(&campaigns[campaign_index])) {
-            return &campaigns[campaign_index];
-        }
+    if (campaign_order_count && campaign_order[0] < campaign_count) {
+        return &campaigns[campaign_order[0]];
     }
-    return NULL;
+    return campaign_count ? &campaigns[0] : NULL;
 }
 
 static LPCSTR SinglePlayer_FirstMissionMap(singlePlayerCampaign_t const *campaign) {
@@ -521,70 +515,45 @@ static void SinglePlayer_DrawCampaignBackdrop(void) {
     }
 }
 
-static BOOL SinglePlayer_UnlockedOnly(void) {
-    LPCSTR mode = mi.Cvar_String
-        ? mi.Cvar_String(SINGLE_PLAYER_CAMPAIGN_VISIBILITY_CVAR, "all")
-        : "all";
-    return mode && !strcasecmp(mode, "unlocked");
-}
-
-static DWORD SinglePlayer_CampaignEdition(void) {
-    return SinglePlayer_ExpansionEnabled() ? WC3_CAMPAIGN_EDITION_TFT : WC3_CAMPAIGN_EDITION_ROC;
-}
-
-static void SinglePlayer_LoadCampaignProgress(void) {
+/* Refresh from committed game state when entering a menu; never write progress from a launch button. */
+static void SinglePlayer_ReadProgress(void) {
     PATHSTR path;
-
-    wc3_campaign_progress_init(&campaign_progress);
-    path[0] = '\0';
-    mi.UserPath(WC3_CAMPAIGN_PROGRESS_FILENAME, path, sizeof(path));
-    if (path[0]) wc3_campaign_progress_load(path, &campaign_progress);
+    mi.UserPath(BZ_PROGRESS_FILE, path, sizeof(path));
+    if (progress_load(path, &campaign_progress) == SAVE_MISSING) memset(&campaign_progress, 0, sizeof(campaign_progress));
 }
 
-static LONG SinglePlayer_CampaignProgressIndex(singlePlayerCampaign_t const *campaign) {
-    if (!campaign) return -1;
-    return wc3_campaign_progress_campaign_index(SinglePlayer_CampaignEdition(), campaign->key);
+static BOOL SinglePlayer_ShowMission(singlePlayerCampaign_t const *campaign, DWORD index) {
+    int id = campaign_index(campaign->key, SinglePlayer_ExpansionEnabled());
+    if (id < 0) return false;
+    PROGRESSSTATE state = campaign_progress.campaigns[id].missions[index];
+    /* Explicit script locks take precedence; starting a map used to set a transient UI cvar instead. */
+    return state == PROGRESS_OPEN || (state == PROGRESS_UNSET &&
+        (index == 0 || progress_map_flags(&campaign_progress, campaign->missions[index].map_path)));
 }
 
 static BOOL SinglePlayer_ShowCampaign(singlePlayerCampaign_t const *campaign) {
-    LONG campaign_index;
-
-    if (!campaign || !SinglePlayer_UnlockedOnly()) return campaign != NULL;
-    campaign_index = SinglePlayer_CampaignProgressIndex(campaign);
-    if (campaign_index >= 0) {
-        wc3CampaignProgressKey_t const key = MAKE(wc3CampaignProgressKey_t,
-            .edition = SinglePlayer_CampaignEdition(),
-            .campaign = (DWORD)campaign_index);
-        if (wc3_campaign_progress_has_campaign(&campaign_progress, key))
-            return wc3_campaign_progress_campaign_available(&campaign_progress, key);
-    }
-    return campaign->default_open;
-}
-
-static BOOL SinglePlayer_ShowMission(singlePlayerCampaign_t const *campaign, DWORD mission_index) {
-    LONG campaign_index;
-
-    if (!campaign || mission_index >= campaign->num_missions) return false;
-    if (!SinglePlayer_UnlockedOnly()) return true;
-    campaign_index = SinglePlayer_CampaignProgressIndex(campaign);
-    if (campaign_index >= 0) {
-        wc3CampaignProgressKey_t const key = MAKE(wc3CampaignProgressKey_t,
-            .edition = SinglePlayer_CampaignEdition(),
-            .campaign = (DWORD)campaign_index,
-            .mission = mission_index);
-        if (wc3_campaign_progress_has_mission(&campaign_progress, key))
-            return wc3_campaign_progress_mission_available(&campaign_progress, key);
-    }
-    return mission_index == 0 && SinglePlayer_ShowCampaign(campaign);
+    int id = campaign_index(campaign->key, SinglePlayer_ExpansionEnabled());
+    if (id < 0) return false;
+    PROGRESSSTATE state = campaign_progress.campaigns[id].avail;
+    if (state != PROGRESS_UNSET) return state == PROGRESS_OPEN;
+    if (campaign->default_open) return true;
+    FOR_LOOP(i, campaign->num_missions)
+        if (campaign->missions[i].map_path[0] && progress_map_flags(&campaign_progress, campaign->missions[i].map_path)) return true;
+    return false;
 }
 
 static void SinglePlayer_LaunchMission(singlePlayerCampaign_t const *campaign, DWORD mission_index) {
     char command[MAX_PATHLEN + 7];
     LPCSTR map_path;
 
-    if (!campaign || mission_index >= campaign->num_missions) return;
+    if (!campaign || mission_index >= campaign->num_missions) {
+        return;
+    }
     map_path = campaign->missions[mission_index].map_path;
-    if (!map_path[0]) return;
+    if (!map_path[0]) {
+        return;
+    }
+    if (!SinglePlayer_ShowMission(campaign, mission_index)) return;
     snprintf(command, sizeof(command), "map \"%s\"", map_path);
     UI_QueueCommand(command);
 }
@@ -610,13 +579,19 @@ static void SinglePlayer_MovieAssetPath(LPCSTR movie, LPSTR out, DWORD out_size)
 
 static void SinglePlayer_AddCinematicItem(singlePlayerCampaign_t const *campaign,
                                            singlePlayerCinematicKind_t kind) {
-    singlePlayerCinematic_t const *cinematic;
-    uiMapListItem_t *item;
-
     if (!campaign || kind >= SINGLE_PLAYER_CINEMATIC_COUNT ||
         mission_list.count >= UI_MAX_MAP_LIST_ITEMS) {
         return;
     }
+    int id = campaign_index(campaign->key, SinglePlayer_ExpansionEnabled());
+    if (id < 0) return;
+    PROGRESSSTATE state = kind == SINGLE_PLAYER_CINEMATIC_END ? campaign_progress.campaigns[id].ending :
+        campaign_progress.campaigns[id].opening;
+    if (kind != SINGLE_PLAYER_CINEMATIC_INTRO && (state == PROGRESS_LOCKED ||
+        (kind == SINGLE_PLAYER_CINEMATIC_END && state != PROGRESS_OPEN))) return;
+    singlePlayerCinematic_t const *cinematic;
+    uiMapListItem_t *item;
+
     cinematic = &campaign->cinematics[kind];
     if (!cinematic->movie_path[0]) {
         return;
@@ -691,10 +666,8 @@ static void SinglePlayer_PopulateMissionSelect(singlePlayerCampaign_t const *cam
 }
 
 static void SinglePlayer_SelectCampaign(singlePlayerCampaign_t const *campaign) {
-    if (!campaign) {
-        return;
-    }
-    SinglePlayer_LoadCampaignProgress();
+    SinglePlayer_ReadProgress();
+    if (!campaign || !SinglePlayer_ShowCampaign(campaign)) return;
     selected_campaign_index = (DWORD)(campaign - campaigns);
     SinglePlayer_SetCampaignBackdrop(campaign);
     SinglePlayer_PopulateMissionSelect(campaign);
@@ -862,7 +835,7 @@ static void SinglePlayer_BindCampaignMenu(void) {
 static void SinglePlayerMenu_Init(void) {
     mi.Printf("SinglePlayerMenu_Init\n");
     SinglePlayer_LoadCampaignData();
-    SinglePlayer_LoadCampaignProgress();
+    SinglePlayer_ReadProgress();
     campaign_list_frame = NULL;
     mission_list_frame = NULL;
     memset(&campaign_list, 0, sizeof(campaign_list));
@@ -916,7 +889,7 @@ void SinglePlayerMenu_ShowMain(void) {
 }
 
 void SinglePlayerMenu_ShowCampaign(void) {
-    SinglePlayer_LoadCampaignProgress();
+    SinglePlayer_ReadProgress();
     SinglePlayer_PopulateCampaignList();
     SinglePlayer_SetCampaignBackdrop(SinglePlayer_DefaultCampaign());
     selected_campaign_index = SINGLE_PLAYER_MAX_CAMPAIGNS;
@@ -924,6 +897,8 @@ void SinglePlayerMenu_ShowCampaign(void) {
 }
 
 void SinglePlayerMenu_BackCampaign(void) {
+    SinglePlayer_ReadProgress();
+    SinglePlayer_PopulateCampaignList();
     if (current_view == SINGLE_PLAYER_VIEW_MISSION_SELECT) {
         SinglePlayer_SetView(SINGLE_PLAYER_VIEW_CAMPAIGN_SELECT);
         return;

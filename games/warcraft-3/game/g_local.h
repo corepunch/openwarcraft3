@@ -11,6 +11,7 @@
 #include "common/stb_slk.h"
 #include "server/game.h"
 #include "g_shared.h"
+#include "../common/wc3_progress.h"
 #include "g_unitrow.h"
 #include "jass/jlex.h"
 
@@ -1404,10 +1405,6 @@ void G_RequestRestartGame(BOOL do_score_screen);
 void G_RequestLoadGameMenu(void);
 void G_RequestLoadGameNamed(LPCSTR name);
 void G_RequestCampaignSelect(void);
-void G_CampaignProgressResetRuntime(void);
-BOOL G_CampaignProgressSetTutorialCleared(BOOL cleared);
-BOOL G_CampaignProgressSetCampaignAvailable(LONG campaign, BOOL available);
-BOOL G_CampaignProgressSetMissionAvailable(LONG campaign, LONG mission, BOOL available);
 void G_SetScriptPaused(BOOL paused);
 void G_SetClientModal(LPEDICT player, DWORD modal, BOOL open);
 void G_SetQuestDialogOpen(LPEDICT player, BOOL open);
@@ -1996,6 +1993,10 @@ DWORD G_HeroSkillRequiredLevel(LPEDICT ent, DWORD abilcode);
 heroSkillState_t G_HeroSkillState(LPEDICT ent, DWORD abilcode, DWORD *next_level, DWORD *required_level);
 BOOL G_HeroLearnSkill(LPEDICT ent, DWORD abilcode);
 BOOL G_HeroModifySkillPoints(LPEDICT ent, LONG delta);
+
+void G_ProgressChange(LPCPROGRESSCHANGE change);
+void G_ProgressMap(BOOL completed);
+void G_ProgressNative(LPJASS j, PROGRESSKIND kind);
 
 void G_GameCacheInit(gameCache_t *cache, LPCSTR campaign);
 BOOL G_GameCacheSave(gameCache_t *cache);

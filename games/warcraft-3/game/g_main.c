@@ -259,6 +259,7 @@ static bool G_LoadMap(LPCSTR mapFilename) {
     strlcpy(level.map_path, mapFilename, sizeof(level.map_path));
     G_StartScripts();
     level.started = true;
+    G_ProgressMap(false);
     return true;
 }
 

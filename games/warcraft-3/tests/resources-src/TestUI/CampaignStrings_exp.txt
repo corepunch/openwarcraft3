@@ -2,6 +2,7 @@
 CampaignList="","","","","NightElf","Human","Undead","","Orc"
 
 [NightElf]
+DefaultOpen=1
 Header="Sentinels Campaign"
 Name="Terror of the Tides"
 Background="NightElfBackdrop"
@@ -9,7 +10,6 @@ Cursor=3
 Mission0="Chapter One","Rise of the Naga","Maps\FrozenThrone\Campaign\NightElfX01.w3x"
 
 [Human]
-DefaultOpen=1
 Header="Alliance Campaign"
 Name="Curse of the Blood Elves"
 Background="HumanBackdrop"

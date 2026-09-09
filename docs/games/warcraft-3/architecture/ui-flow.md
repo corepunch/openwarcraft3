@@ -287,12 +287,15 @@ Warsmash's `CampaignMenuUI` approach and does not depend on non-portable `Missio
 being present in the retail `MissionSelectFrame`. The campaign Back button returns Mission Select to Campaign Select
 first, then returns to the Single Player menu.
 
-Campaign and mission visibility is controlled by the game-owned `wc3_campaign_visibility` CVar. The default `all`
-mode shows every parsed campaign and map-backed chapter so campaign testing is not blocked by frontend progression
-state. `unlocked` mode reads `campaign-progress.orcp`: explicit JASS `SetCampaignAvailable` / `SetMissionAvailable`
-state wins, with `CampaignStrings` `DefaultOpen` supplying the fresh-profile campaign fallback. Mission 0 is shown for
-an available campaign unless it was explicitly locked. Merely launching a mission does not create progression state;
-authored campaign triggers own unlocks. See [campaign-progress.md](../campaign-progress.md).
+Campaign and mission visibility read the committed `campaign.w3p` profile through
+`menuImport_t.UserPath` and the shared WC3 record reader. Campaigns use the archive's
+`DefaultOpen` until an explicit script availability update overrides it. A campaign's
+first mission is initially selectable; explicit native availability and successfully
+visited map records expose later missions. Explicit locks take precedence over visits.
+Launch buttons queue the map only. Successful game map loads record visits, and human
+single-player victories record completion. The old mission visibility and played-mission
+cvars have been removed. See [Campaign Progress](../campaign-progress.md) for the schema,
+ROC/TFT numbering, and corruption handling.
 
 The generated selector reuses Warcraft's `MapListBox` template. That template is a `CONTROL` root in the retail FDF,
 so bound map-list controls must participate in the same hit testing and mouse-event dispatch as programmatic `FRAME`

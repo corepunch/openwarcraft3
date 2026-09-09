@@ -38,6 +38,7 @@ BOOL G_RemovePlayerWithResult(DWORD player_num, DWORD game_result) {
     client->jass.pending_game_result = 0;
     client->jass.pending_game_result_event = level.events.read;
     G_BotRequestStop(player_num);
+    if (game_result == 0 && client->connected && G_IsSinglePlayer()) G_ProgressMap(true);
 
     pent = G_GetPlayerEntityByNumber(player_num);
     G_GameResultDebug("RemovePlayer state player=%u result=%u pent=%p ent=%ld inuse=%u owner=%u",

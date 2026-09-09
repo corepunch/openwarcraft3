@@ -45,7 +45,8 @@ cache miss by design; the map's own fallback remains authoritative in that case.
 
 The implementation lives in:
 
-- `games/warcraft-3/game/g_gamecache.c` — cache storage, persistence, unit snapshots;
+- `games/warcraft-3/game/g_gamecache.c` — cache storage, field schemas, unit snapshots;
+- `games/warcraft-3/common/wc3_save.c` — field traversal, checksums and committed record I/O shared with normal saves;
 - `games/warcraft-3/game/api/api_misc.h` — JASS native adapters;
 - `games/warcraft-3/game/g_local.h` — bounded runtime representation.
 
@@ -114,7 +115,7 @@ silently disable campaign persistence.
 
 OpenRealm does **not** write a fake retail `.w3v` file. Retail game-cache binary
 compatibility has not been established. Campaign selector unlock/completion state is a separate retail `.w3p`
-concept and is persisted separately by OpenRealm in `campaign-progress.orcp`; see
+concept and is persisted separately by OpenRealm in `campaign.w3p`; see
 [campaign-progress.md](campaign-progress.md).
 
 For a JASS cache name such as:
@@ -138,10 +139,20 @@ avoids unresolved engine symbols in `libgame`.
 This places writable campaign state under the normal per-game user directory
 (`$XDG_DATA_HOME/warcraft-3/` on Unix when set to an absolute path, otherwise `~/.local/share/warcraft-3/`, with the existing portable `share/warcraft-3/` fallback when no writable per-user directory is available).
 
-The sidecar uses an explicit little-endian, length-prefixed format with the
-`ORGCACHE` magic and version `1`. Writes go to a temporary file and are renamed
-into place after the complete cache has been written, so a failed write does not
-silently leave a partially updated cache.
+The sidecar now uses `W3GC` magic and version `2`. `SAVEFIELD` tables describe the
+cache, counted entries, tagged value union, Hero, abilities, stats and inventory.
+The shared `save_fields()` walker is also used by `g_save.c`; the hand-written
+paired scalar/entry/unit encoders have been removed. Scalars use native binary
+representation, as in normal saves. The header checks the payload struct size.
+A `W3OK` footer carries an FNV-1a checksum over the preceding bytes.
+
+`save_record()` writes a temporary file, preserves the previous file as a backup,
+then installs the completed file, restoring the backup if installation fails.
+`load_record()` validates the checksum and schema into scratch storage before
+replacing the caller's cache. Version 1 `ORGCACHE` sidecars are rejected with a
+diagnostic; there is no migration. These are private records, not retail `.w3v`
+binaries. The backup/rename sequence protects reported write failures; it is
+not a claim of crash-durable transactional storage.
 
 Campaign names are reduced to their basename and unsafe filename characters are
 replaced when constructing the private sidecar path. The JASS-visible campaign
@@ -185,3 +196,15 @@ restored in the same process or after restarting OpenRealm. Use
 `+set wc3_gamecache_mode disabled` when intentionally testing Human02's
 cache-miss fallback. Starting Human02 without a previously committed Human01
 cache is a legitimate miss in every mode.
+
+## Shared Save Boundary
+
+The persistent profile in [Campaign Progress](campaign-progress.md) uses the same
+record machinery but a separate file and commit boundary. Neither loading a
+normal save nor changing an uncommitted JASS cache rolls back profile progress.
+The normal save still captures VM-owned cache handles as part of its JASS
+snapshot; that is separate from `SaveGameCache()` committing a campaign sidecar.
+
+`wc3_persistence.cache_disk_commit_and_hero_restore` tests a fresh disk reload,
+all value types, Hero ranks/points/stats, inventory slots/charges, and failed
+writes preserving the previous committed file.

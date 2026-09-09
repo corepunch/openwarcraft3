@@ -2584,27 +2584,27 @@ TEST(wc3_save, load_restores_server_clock_onto_saved_time) {
     remove(filename);
 }
 
-extern field_t edict_fields[];
+extern SAVEFIELD edict_fields[];
 
 /* Tests resolve descriptors by their source-level field name to guard the fixup schema itself. */
-static field_t const *find_save_field_in(field_t const *schema, LPCSTR name) {
+static SAVEFIELD const *find_save_field_in(SAVEFIELD const *schema, LPCSTR name) {
     LPCSTR dot = strchr(name, '.');
     size_t len = dot ? (size_t)(dot - name) : strlen(name);
-    for (field_t const *field = schema; field->name; field++) {
+    for (SAVEFIELD const *field = schema; field->name; field++) {
         if (strlen(field->name) != len || strncmp(field->name, name, len)) continue;
         if (!dot) return field;
-        return field->type == F_STRUCT ? find_save_field_in((field_t const *)field->flags, dot + 1) : NULL;
+        return field->type == F_STRUCT ? find_save_field_in((SAVEFIELD const *)field->flags, dot + 1) : NULL;
     }
     return NULL;
 }
 
-static field_t const *find_save_field(LPCSTR name) { return find_save_field_in(edict_fields, name); }
+static SAVEFIELD const *find_save_field(LPCSTR name) { return find_save_field_in(edict_fields, name); }
 
 /* Keep every g_save.c edict schema entry independently covered so adding or removing a fixup cannot hide in a broad save. */
 #define SAVE_INT_FIELD_TEST(name, field, saved) \
 TEST(wc3_save, name) { \
     LPCSTR filename = "/tmp/openwarcraft3-wc3-save-" #name ".bin"; \
-    field_t const *desc = find_save_field(#field); \
+    SAVEFIELD const *desc = find_save_field(#field); \
     reset_entities(); \
     LPEDICT unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f); \
     T_NOT_NULL(desc); if (desc) { T_EQ(desc->type, F_INT); T_EQ(desc->array_size, 0); } \
@@ -2616,7 +2616,7 @@ TEST(wc3_save, name) { \
 #define SAVE_PTR_FIELD_TEST(name, schema, field, count) \
 TEST(wc3_save, name) { \
     LPCSTR filename = "/tmp/openwarcraft3-wc3-save-" #name ".bin"; \
-    field_t const *desc = find_save_field(schema); \
+    SAVEFIELD const *desc = find_save_field(schema); \
     reset_entities(); \
     LPEDICT unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f); \
     LPEDICT target = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), 64.0f, 0.0f); \
@@ -2630,7 +2630,7 @@ TEST(wc3_save, name) { \
 #define SAVE_FLOAT_FIELD_TEST(name, field, saved) \
 TEST(wc3_save, name) { \
     LPCSTR filename = "/tmp/openwarcraft3-wc3-save-" #name ".bin"; \
-    field_t const *desc = find_save_field(#field); \
+    SAVEFIELD const *desc = find_save_field(#field); \
     reset_entities(); \
     LPEDICT unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f); \
     T_NOT_NULL(desc); if (desc) { T_EQ(desc->type, F_FLOAT); T_EQ(desc->array_size, 0); } \
@@ -2658,7 +2658,7 @@ SAVE_FLOAT_FIELD_TEST(field_temporary_health_bonus_round_trip, temporary_health_
 
 TEST(wc3_save, field_collision_round_trip) {
     LPCSTR filename = "/tmp/openwarcraft3-wc3-save-field-collision.bin";
-    field_t const *desc = find_save_field("collision");
+    SAVEFIELD const *desc = find_save_field("collision");
     reset_entities();
     LPEDICT unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f);
     T_NOT_NULL(desc); if (desc) { T_EQ(desc->type, F_FLOAT); T_EQ(desc->array_size, 0); }
@@ -2669,7 +2669,7 @@ TEST(wc3_save, field_collision_round_trip) {
 
 TEST(wc3_save, field_origin_round_trip) {
     LPCSTR filename = "/tmp/openwarcraft3-wc3-save-field-origin.bin";
-    field_t const *desc = find_save_field("s.origin");
+    SAVEFIELD const *desc = find_save_field("s.origin");
     reset_entities();
     LPEDICT unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f);
     T_NOT_NULL(desc); if (desc) { T_EQ(desc->type, F_VECTOR); T_EQ(desc->array_size, 0); }

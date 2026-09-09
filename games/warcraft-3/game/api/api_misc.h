@@ -806,33 +806,14 @@ DWORD GetIntegerGameState(LPJASS j) {
     return jass_pushinteger(j, 0);
 }
 DWORD SetTutorialCleared(LPJASS j) {
-    BOOL cleared = jass_checkboolean(j, 1);
-    G_CampaignProgressSetTutorialCleared(cleared);
+    PROGRESSCHANGE change = { .kind = PROGRESS_TUTORIAL, .available = jass_checkboolean(j, 1) };
+    G_ProgressChange(&change);
     return 0;
 }
-DWORD SetMissionAvailable(LPJASS j) {
-    LONG campaignNumber = jass_checkinteger(j, 1);
-    LONG missionNumber = jass_checkinteger(j, 2);
-    BOOL available = jass_checkboolean(j, 3);
-    G_CampaignProgressSetMissionAvailable(campaignNumber, missionNumber, available);
-    return 0;
-}
-DWORD SetCampaignAvailable(LPJASS j) {
-    LONG campaignNumber = jass_checkinteger(j, 1);
-    BOOL available = jass_checkboolean(j, 2);
-    G_CampaignProgressSetCampaignAvailable(campaignNumber, available);
-    return 0;
-}
-DWORD SetOpCinematicAvailable(LPJASS j) {
-    //LONG campaignNumber = jass_checkinteger(j, 1);
-    //BOOL available = jass_checkboolean(j, 2);
-    return 0;
-}
-DWORD SetEdCinematicAvailable(LPJASS j) {
-    //LONG campaignNumber = jass_checkinteger(j, 1);
-    //BOOL available = jass_checkboolean(j, 2);
-    return 0;
-}
+DWORD SetMissionAvailable(LPJASS j) { G_ProgressNative(j, PROGRESS_MISSION); return 0; }
+DWORD SetCampaignAvailable(LPJASS j) { G_ProgressNative(j, PROGRESS_CAMPAIGN); return 0; }
+DWORD SetOpCinematicAvailable(LPJASS j) { G_ProgressNative(j, PROGRESS_OPENING); return 0; }
+DWORD SetEdCinematicAvailable(LPJASS j) { G_ProgressNative(j, PROGRESS_ENDING); return 0; }
 DWORD GetDefaultDifficulty(LPJASS j) {
     return JassPushGameDifficultyHandle(j, level.setup.default_difficulty);
 }

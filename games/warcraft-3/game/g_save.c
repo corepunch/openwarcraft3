@@ -1,41 +1,6 @@
 #include "g_local.h"
 
-typedef enum {
-    F_INT,
-    F_FLOAT,
-    F_LSTRING,            // string on disk, pointer in memory, TAG_LEVEL
-    F_GSTRING,            // string on disk, pointer in memory, TAG_GAME
-    F_VECTOR,
-    F_REGION,
-    F_ANGLEHACK,
-    F_EDICT,            // index on disk, pointer in memory
-    F_ITEM,                // index on disk, pointer in memory
-    F_TRIGGER,          // index on disk, pointer in memory
-    F_TIMER,            // index on disk, pointer in memory
-    F_EVENT,            // index on disk, pointer in memory
-    F_FUNCTION,            // JASS function name; timers/triggers
-    F_FUNCTION_LIST,
-    F_CFUNCTION,           // C callback roster index; edict think/stand/die
-    F_MMOVE,
-    F_STRUCT,
-    F_STRUCT_RING,
-    F_IGNORE
-} fieldtype_t;
-
-typedef struct {
-    LPCSTR name;
-    DWORD ofs;
-    fieldtype_t type;
-    size_t size;
-    DWORD array_size;
-    uintptr_t flags; /* field flags, or child schema pointer for F_STRUCT */
-    DWORD count_ofs;
-} field_t;
-
-typedef struct {
-    field_t const *fields;
-    DWORD read_ofs, write_ofs;
-} fieldRing_t;
+#include "../common/wc3_save.h"
 
 #define F_METADATA(kind, ...) F_METADATA_INNER(kind, __VA_ARGS__)
 #define F_METADATA_INNER(kind, ...) F_METADATA_##kind(__VA_ARGS__)
@@ -69,7 +34,6 @@ enum {
 };
 
 static DWORD const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
-static DWORD const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 static DWORD const save_version = 14; // research event scalar context and JASS snapshot v3
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -124,7 +88,6 @@ typedef struct {
     PATHSTR map_path;
 } SAVEHEADER;
 
-typedef struct { DWORD checksum, commit; } SAVEFOOTER;
 
 typedef enum {
     JASS_HANDLE_ENTITY,
@@ -155,7 +118,7 @@ static struct { LPCSTR type; jassHandleDomain_t domain; } const jass_handle_doma
 };
 
 
-static field_t const weather_fields[] = {
+static SAVEFIELD const weather_fields[] = {
     TF(gweather_t, inuse, F_INT),
     TF(gweather_t, enabled, F_INT),
     TF(gweather_t, handle_id, F_INT),
@@ -164,7 +127,7 @@ static field_t const weather_fields[] = {
     { NULL, 0, 0, 0, 0, 0 }
 };
 
-static field_t const save_event_fields[] = {
+static SAVEFIELD const save_event_fields[] = {
     F(gevent_s, type, F_INT),
     F(gevent_s, subject, F_EDICT, 0, FIELD_NONE),
     F(gevent_s, trigger, F_TRIGGER, 0, FIELD_NONE),
@@ -178,7 +141,7 @@ static field_t const save_event_fields[] = {
     { NULL, 0, 0, 0, 0, 0 }
 };
 
-static field_t const save_game_event_fields[] = {
+static SAVEFIELD const save_game_event_fields[] = {
     F(gameevent_s, type, F_INT),
     F(gameevent_s, edict, F_EDICT, 0, FIELD_NONE),
     F(gameevent_s, source, F_EDICT, 0, FIELD_NONE),
@@ -187,21 +150,21 @@ static field_t const save_game_event_fields[] = {
     { NULL, 0, 0, 0, 0, 0 }
 };
 
-static field_t const group_fields[] = {
+static SAVEFIELD const group_fields[] = {
     /* handle_id is runtime identity derived from the table ordinal and is not serialized. */
     TF(ggroup_t, inuse, F_INT),
     TFC(ggroup_t, units, F_EDICT, MAX_GROUP_SIZE, num_units),
     { NULL, 0, 0, 0, 0, 0 }
 };
 
-static field_t const trigger_fields[] = {
+static SAVEFIELD const trigger_fields[] = {
     F(gtrigger_s, disabled, F_INT),
     F(gtrigger_s, actions, F_FUNCTION_LIST),
     F(gtrigger_s, conditions, F_FUNCTION_LIST),
     { NULL, 0, 0, 0, 0, 0 }
 };
 
-static field_t const timer_fields[] = {
+static SAVEFIELD const timer_fields[] = {
     F(gtimer_s, duration, F_INT),
     F(gtimer_s, remaining, F_INT),
     F(gtimer_s, periodic, F_INT),
@@ -211,14 +174,14 @@ static field_t const timer_fields[] = {
     { NULL, 0, 0, 0, 0, 0 }
 };
 
-static field_t const questitem_fields[] = {
+static SAVEFIELD const questitem_fields[] = {
     F(gquestitem_s, description, F_LSTRING),
     F(gquestitem_s, completed, F_INT),
     F(gquestitem_s, inuse, F_INT),
     { NULL, 0, 0, 0, 0, 0 }
 };
 
-static field_t const quest_fields[] = {
+static SAVEFIELD const quest_fields[] = {
     F(gquest_s, title, F_LSTRING),
     F(gquest_s, description, F_LSTRING),
     F(gquest_s, iconPath, F_LSTRING),
@@ -232,13 +195,13 @@ static field_t const quest_fields[] = {
     { NULL, 0, 0, 0, 0, 0 }
 };
 
-static fieldRing_t const game_event_ring = {
+static SAVERING const game_event_ring = {
     save_game_event_fields,
     FOFS(level_locals, events.read) - (HANDLE)NULL,
     FOFS(level_locals, events.write) - (HANDLE)NULL
 };
 
-static field_t const level_fields[] = {
+static SAVEFIELD const level_fields[] = {
     F(level_locals, framenum, F_INT),
     F(level_locals, time, F_INT),
     F(level_locals, timeofday.elapsed, F_FLOAT),
@@ -266,51 +229,51 @@ static field_t const level_fields[] = {
     { NULL, 0, 0, 0, 0, 0 }
 };
 
-static field_t const entity_state_fields[] = {
+static SAVEFIELD const entity_state_fields[] = {
     TF(entityState_t, origin, F_VECTOR),
     { NULL, 0, 0, 0, 0, 0 }
 };
 
-static field_t const link_fields[] = {
+static SAVEFIELD const link_fields[] = {
     F(link_s, prev, F_IGNORE, 0, FIELD_RUNTIME),
     F(link_s, next, F_IGNORE, 0, FIELD_RUNTIME),
     { NULL, 0, 0, 0, 0, 0 }
 };
 
-static field_t const construction_fields[] = {
+static SAVEFIELD const construction_fields[] = {
     TF(edictConstruction_s, primary_builder, F_EDICT, 0, FIELD_NONE),
     { NULL, 0, 0, 0, 0, 0 }
 };
 
-static field_t const rally_fields[] = {
+static SAVEFIELD const rally_fields[] = {
     TF(edictRally_s, entity, F_EDICT, 0, FIELD_NONE),
     { NULL, 0, 0, 0, 0, 0 }
 };
 
-static field_t const revival_fields[] = {
+static SAVEFIELD const revival_fields[] = {
     TF(edictRevival_s, producer, F_EDICT, 0, FIELD_NONE),
     TF(edictRevival_s, queue_next, F_EDICT, 0, FIELD_NONE),
     { NULL, 0, 0, 0, 0, 0 }
 };
 
-static field_t const militia_fields[] = {
+static SAVEFIELD const militia_fields[] = {
     TF(edictMilitia_s, partner, F_IGNORE, 0, FIELD_RUNTIME),
     TF(edictMilitia_s, partner_spawn_time, F_IGNORE, 0, FIELD_RUNTIME),
     TF(edictMilitia_s, returning, F_IGNORE, 0, FIELD_RUNTIME),
     { NULL, 0, 0, 0, 0, 0 }
 };
 
-static field_t const goldmine_fields[] = {
+static SAVEFIELD const goldmine_fields[] = {
     TF(edictGoldMine_s, mine, F_EDICT, 0, FIELD_NONE),
     { NULL, 0, 0, 0, 0, 0 }
 };
 
-static field_t const item_fields[] = {
+static SAVEFIELD const item_fields[] = {
     TF(edictItem_s, carrier, F_EDICT, 0, FIELD_NONE),
     { NULL, 0, 0, 0, 0, 0 }
 };
 
-static field_t const destructable_fields[] = {
+static SAVEFIELD const destructable_fields[] = {
     TF(edictDestructable_s, alive_pathtex, F_IGNORE, 0, FIELD_RUNTIME),
     TF(edictDestructable_s, death_pathtex, F_IGNORE, 0, FIELD_RUNTIME),
     TF(edictDestructable_s, drop_sets, F_IGNORE, 0, FIELD_RUNTIME),
@@ -318,19 +281,19 @@ static field_t const destructable_fields[] = {
     { NULL, 0, 0, 0, 0, 0 }
 };
 
-static field_t const cargo_fields[] = {
+static SAVEFIELD const cargo_fields[] = {
     TF(edictCargo_s, units, F_EDICT, MAX_CARGO, FIELD_NONE),
     { NULL, 0, 0, 0, 0, 0 }
 };
 
-static field_t const abilities_fields[] = {
+static SAVEFIELD const abilities_fields[] = {
     TFC(edictAbilities_s, added, F_INT, MAX_ABILITIES, added_count),
     TFC(edictAbilities_s, removed, F_INT, MAX_ABILITIES, removed_count),
     TFC(edictAbilities_s, permanent, F_INT, MAX_ABILITIES, permanent_count),
     { NULL, 0, 0, 0, 0, 0 }
 };
 
-static field_t const avatar_fields[] = {
+static SAVEFIELD const avatar_fields[] = {
     TF(struct edictAvatar_s, level, F_INT),
     TF(struct edictAvatar_s, armor, F_FLOAT),
     TF(struct edictAvatar_s, health, F_FLOAT),
@@ -338,7 +301,7 @@ static field_t const avatar_fields[] = {
     { NULL, 0, 0, 0, 0, 0 }
 };
 
-static field_t const movement_fields[] = {
+static SAVEFIELD const movement_fields[] = {
     TF(edictMovement_s, attackmove_waypoint, F_EDICT, 0, FIELD_NONE),
     TF(edictMovement_s, patrol_a, F_EDICT, 0, FIELD_NONE),
     TF(edictMovement_s, patrol_b, F_EDICT, 0, FIELD_NONE),
@@ -347,7 +310,7 @@ static field_t const movement_fields[] = {
     { NULL, 0, 0, 0, 0, 0 }
 };
 
-static field_t const edict_data_fields[] = {
+static SAVEFIELD const edict_data_fields[] = {
     TF(edictData_s, UnitProfile, F_IGNORE, 0, FIELD_RUNTIME),
     TF(edictData_s, UnitBalance, F_IGNORE, 0, FIELD_RUNTIME),
     TF(edictData_s, UnitData, F_IGNORE, 0, FIELD_RUNTIME),
@@ -360,7 +323,7 @@ static field_t const edict_data_fields[] = {
     { NULL, 0, 0, 0, 0, 0 }
 };
 
-static field_t const client_menu_fields[] = {
+static SAVEFIELD const client_menu_fields[] = {
     TF(clientMenu_s, on_entity_selected, F_IGNORE, 0, FIELD_RUNTIME),
     TF(clientMenu_s, on_location_selected, F_IGNORE, 0, FIELD_RUNTIME),
     TF(clientMenu_s, cmdbutton, F_IGNORE, 0, FIELD_RUNTIME),
@@ -368,13 +331,13 @@ static field_t const client_menu_fields[] = {
     { NULL, 0, 0, 0, 0, 0 }
 };
 
-static field_t const client_camera_fields[] = {
+static SAVEFIELD const client_camera_fields[] = {
     TF(clientCamera_s, target_controller, F_IGNORE, 0, FIELD_RUNTIME),
     { NULL, 0, 0, 0, 0, 0 }
 };
 
 /* Every persistent and process-owned edict field crossing the save boundary is represented here. */
-field_t edict_fields[] = {
+SAVEFIELD edict_fields[] = {
     F(edict_s, class_id, F_INT),
     F(edict_s, variation, F_INT),
     F(edict_s, build_project, F_INT),
@@ -426,7 +389,7 @@ field_t edict_fields[] = {
     { NULL, 0, 0, 0, 0, 0 }
 };
 
-static field_t const client_fields[] = {
+static SAVEFIELD const client_fields[] = {
     F(client_s, ps.name, F_IGNORE, 0, FIELD_RUNTIME),
     F(client_s, ps.texts, F_IGNORE, 0, FIELD_RUNTIME),
     F(client_s, mapplayer, F_IGNORE, 0, FIELD_RUNTIME),
@@ -440,13 +403,13 @@ static field_t const client_fields[] = {
     { NULL, 0, 0, 0, 0, 0 }
 };
 
-static void ClearRuntimeFields(void *object, field_t const *fields, DWORD flags) {
-    for (field_t const *field = fields; field->name; field++) {
+static void ClearRuntimeFields(void *object, SAVEFIELD const *fields, DWORD flags) {
+    for (SAVEFIELD const *field = fields; field->name; field++) {
         DWORD count = field->array_size ? field->array_size : 1;
         size_t size = field->array_size ? field->size / field->array_size : field->size;
         switch (field->type) {
         case F_STRUCT:
-            FOR_LOOP(i, count) ClearRuntimeFields((BYTE *)object + field->ofs + i * size, (field_t const *)field->flags, flags);
+            FOR_LOOP(i, count) ClearRuntimeFields((BYTE *)object + field->ofs + i * size, (SAVEFIELD const *)field->flags, flags);
             break;
         case F_IGNORE:
             if (field->flags == flags) memset((BYTE *)object + field->ofs, 0, field->size);
@@ -456,54 +419,13 @@ static void ClearRuntimeFields(void *object, field_t const *fields, DWORD flags)
     }
 }
 
-static BOOL SaveBytes(FILE *f, LPCVOID data, size_t size) { return fwrite(data, 1, size, f) == size; }
-static BOOL LoadBytes(FILE *f, void *data, size_t size) { return fread(data, 1, size, f) == size; }
-static BOOL WriteJassBytes(void *context, void *data, DWORD size) { return SaveBytes(context, data, size); }
-static BOOL ReadJassBytes(void *context, void *data, DWORD size) { return LoadBytes(context, data, size); }
-static BOOL WriteMappedFields(FILE *f, field_t const *fields, BYTE *base);
-static BOOL ReadMappedFields(FILE *f, field_t const *fields, BYTE *base);
+static BOOL WriteJassBytes(void *context, void *data, DWORD size) { return save_bytes(context, data, size); }
+static BOOL ReadJassBytes(void *context, void *data, DWORD size) { return load_bytes(context, data, size); }
+static BOOL WriteMappedFields(FILE *f, SAVEFIELD const *fields, BYTE *base);
+static BOOL ReadMappedFields(FILE *f, SAVEFIELD const *fields, BYTE *base);
 static BOOL WriteString(FILE *f, LPCSTR text);
 static BOOL ReadString(FILE *f, LPSTR *text);
 static DWORD ActiveEventCount(void);
-
-static DWORD SaveHash(DWORD hash, LPCVOID data, size_t size) {
-    BYTE const *bytes = data;
-    while (size--) hash = (hash ^ *bytes++) * 16777619u;
-    return hash;
-}
-
-/* A committed checksum rejects truncation and corruption before ReadGame mutates live state. */
-static BOOL WriteFooter(FILE *f) {
-    BYTE bytes[4096];
-    long payload;
-    DWORD checksum = 2166136261u;
-    SAVEFOOTER footer;
-    if (fflush(f) || (payload = ftell(f)) < 0 || fseek(f, 0, SEEK_SET)) return false;
-    while (payload > 0) {
-        size_t size = MIN((size_t)payload, sizeof(bytes));
-        if (fread(bytes, 1, size, f) != size) return false;
-        checksum = SaveHash(checksum, bytes, size); payload -= (long)size;
-    }
-    footer = (SAVEFOOTER){ checksum, save_commit };
-    return fseek(f, 0, SEEK_END) == 0 && SaveBytes(f, &footer, sizeof(footer));
-}
-
-static BOOL ReadFooter(FILE *f) {
-    BYTE bytes[4096];
-    long payload;
-    DWORD checksum = 2166136261u;
-    SAVEFOOTER footer;
-    if (fseek(f, 0, SEEK_END) || (payload = ftell(f)) < (long)sizeof(footer)) return false;
-    payload -= sizeof(footer);
-    if (fseek(f, payload, SEEK_SET) || !LoadBytes(f, &footer, sizeof(footer)) || footer.commit != save_commit ||
-        fseek(f, 0, SEEK_SET)) return false;
-    for (long remaining = payload; remaining > 0;) {
-        size_t size = MIN((size_t)remaining, sizeof(bytes));
-        if (fread(bytes, 1, size, f) != size) return false;
-        checksum = SaveHash(checksum, bytes, size); remaining -= (long)size;
-    }
-    return checksum == footer.checksum && fseek(f, 0, SEEK_SET) == 0;
-}
 
 /* Save files carry the canonical map path so the server can rebuild the map before restoring state. */
 BOOL G_GetSaveMap(LPCSTR filename, LPSTR map, DWORD map_size) {
@@ -511,8 +433,8 @@ BOOL G_GetSaveMap(LPCSTR filename, LPSTR map, DWORD map_size) {
     SAVEHEADER header;
     DWORD magic, version;
     if (!f || !map || !map_size) { if (f) fclose(f); return false; }
-    if (!ReadFooter(f) || !LoadBytes(f, &magic, sizeof(magic)) || !LoadBytes(f, &version, sizeof(version)) ||
-        magic != save_magic || version != save_version || fseek(f, 0, SEEK_SET) || !LoadBytes(f, &header, sizeof(header)) ||
+    if (!load_footer(f) || !load_bytes(f, &magic, sizeof(magic)) || !load_bytes(f, &version, sizeof(version)) ||
+        magic != save_magic || version != save_version || fseek(f, 0, SEEK_SET) || !load_bytes(f, &header, sizeof(header)) ||
         !header.map_path[0]) {
         if (f) fclose(f);
         return false;
@@ -545,13 +467,13 @@ static BOOL RestoreRegistrySlots(DWORD groups, DWORD timers, DWORD triggers, DWO
 static BOOL WriteJass(FILE *f) {
     BOOL present = level.vm != NULL;
     JASSSNAPSHOT snapshot = { f, WriteJassBytes };
-    return SaveBytes(f, &present, sizeof(present)) && (!present || jass_writesnapshot(level.vm, &snapshot));
+    return save_bytes(f, &present, sizeof(present)) && (!present || jass_writesnapshot(level.vm, &snapshot));
 }
 
 static BOOL ReadJass(FILE *f) {
     BOOL present;
     JASSSNAPSHOT snapshot = { f, ReadJassBytes };
-    if (!LoadBytes(f, &present, sizeof(present)) || present > 1 || present != (level.vm != NULL)) {
+    if (!load_bytes(f, &present, sizeof(present)) || present > 1 || present != (level.vm != NULL)) {
         fprintf(stderr, "WC3 LoadGame: JASS VM lifecycle does not match save\n");
         return false;
     }
@@ -602,7 +524,7 @@ static DWORD TriggerCodeCount(TRIGGERACTION const *list) {
 
 static BOOL WriteTriggerCodeList(FILE *f, TRIGGERACTION const *list) {
     DWORD n = TriggerCodeCount(list);
-    if (!SaveBytes(f, &n, sizeof(n))) return false;
+    if (!save_bytes(f, &n, sizeof(n))) return false;
     for (; list; list = list->next) if (!WriteString(f, jass_functionname(list->func))) return false;
     return true;
 }
@@ -610,7 +532,7 @@ static BOOL WriteTriggerCodeList(FILE *f, TRIGGERACTION const *list) {
 static BOOL ReadTriggerCodeList(FILE *f, TRIGGERACTION **list) {
     DWORD n;
     TRIGGERACTION **tail;
-    if (!LoadBytes(f, &n, sizeof(n))) return false;
+    if (!load_bytes(f, &n, sizeof(n))) return false;
     DELETE_LIST(TRIGGERACTION, *list, gi.MemFree);
     *list = NULL;
     tail = list;
@@ -723,23 +645,23 @@ static BOOL WriteString(FILE *f, LPCSTR text) {
 
     if (size > MAX_SAVE_STRING) return false;
     len = (DWORD)size;
-    return SaveBytes(f, &len, sizeof(len)) && (!len || SaveBytes(f, text, len));
+    return save_bytes(f, &len, sizeof(len)) && (!len || save_bytes(f, text, len));
 }
 
 static BOOL ReadString(FILE *f, LPSTR *text) {
     DWORD len;
     LPSTR value = NULL;
 
-    if (!LoadBytes(f, &len, sizeof(len)) || len > MAX_SAVE_STRING) return false;
+    if (!load_bytes(f, &len, sizeof(len)) || len > MAX_SAVE_STRING) return false;
     if (len) {
         value = malloc(len);
-        if (!value || !LoadBytes(f, value, len) || value[len - 1]) { free(value); return false; }
+        if (!value || !load_bytes(f, value, len) || value[len - 1]) { free(value); return false; }
     }
     free(*text); *text = value;
     return true;
 }
 
-static BOOL WriteField1(field_t const *field, BYTE *base) {
+static BOOL WriteField1(SAVEFIELD const *field, BYTE *base) {
     DWORD count = field->count_ofs != UINT32_MAX ? *(DWORD *)(base + field->count_ofs) :
         field->array_size ? field->array_size : 1;
     size_t size = field->array_size ? field->size / field->array_size : field->size;
@@ -750,7 +672,7 @@ static BOOL WriteField1(field_t const *field, BYTE *base) {
     }
     if (field->type == F_STRUCT) {
         FOR_LOOP(i, count) {
-            for (field_t const *child = (field_t const *)field->flags; child->name; child++)
+            for (SAVEFIELD const *child = (SAVEFIELD const *)field->flags; child->name; child++)
                 if (!WriteField1(child, base + field->ofs + i * size)) return false;
         }
         return true;
@@ -775,7 +697,7 @@ static BOOL WriteField1(field_t const *field, BYTE *base) {
             memset(p, 0, size);
             if (!move) break;
             *(int *)p = (int)((BYTE const *)move - (BYTE const *)&umove_reloc);
-            *(DWORD *)((BYTE *)p + 4) = SaveHash(0, move->animation, strlen(move->animation) + 1);
+            *(DWORD *)((BYTE *)p + 4) = save_hash(0, move->animation, strlen(move->animation) + 1);
             break;
         }
         case F_CFUNCTION: {
@@ -789,7 +711,7 @@ static BOOL WriteField1(field_t const *field, BYTE *base) {
                 return false;
             }
             *(int *)p = index;
-            *(DWORD *)((BYTE *)p + 4) = SaveHash(0, save_cfunctions[index - 1].name, strlen(save_cfunctions[index - 1].name) + 1);
+            *(DWORD *)((BYTE *)p + 4) = save_hash(0, save_cfunctions[index - 1].name, strlen(save_cfunctions[index - 1].name) + 1);
             break;
         }
         default: break;
@@ -799,7 +721,7 @@ static BOOL WriteField1(field_t const *field, BYTE *base) {
 }
 
 /* Restore entity and client pointers after the raw edict block is read. */
-static BOOL ReadField(field_t const *field, BYTE *base) {
+static BOOL ReadField(SAVEFIELD const *field, BYTE *base) {
     DWORD count = field->count_ofs != UINT32_MAX ? *(DWORD *)(base + field->count_ofs) :
         field->array_size ? field->array_size : 1;
     size_t size = field->array_size ? field->size / field->array_size : field->size;
@@ -809,7 +731,7 @@ static BOOL ReadField(field_t const *field, BYTE *base) {
     }
     if (field->type == F_STRUCT) {
         FOR_LOOP(i, count) {
-            for (field_t const *child = (field_t const *)field->flags; child->name; child++)
+            for (SAVEFIELD const *child = (SAVEFIELD const *)field->flags; child->name; child++)
                 if (!ReadField(child, base + field->ofs + i * size)) return false;
         }
         return true;
@@ -832,7 +754,7 @@ static BOOL ReadField(field_t const *field, BYTE *base) {
             if (!index && !hash) { *(umove_t **)p = NULL; break; }
             /* Reject a save written by a different build before dereferencing the move. */
             if (index < -UMOVE_RELOC_RANGE || index > UMOVE_RELOC_RANGE || (uintptr_t)move % _Alignof(umove_t) ||
-                !move->animation || SaveHash(0, move->animation, strlen(move->animation) + 1) != hash) {
+                !move->animation || save_hash(0, move->animation, strlen(move->animation) + 1) != hash) {
                 fprintf(stderr, "WC3 LoadGame: field %s[%u] move offset %d does not resolve in this build\n",
                     field->name, i, index);
                 return false;
@@ -845,7 +767,7 @@ static BOOL ReadField(field_t const *field, BYTE *base) {
             int nfunctions = (int)(sizeof(save_cfunctions) / sizeof(save_cfunctions[0]));
             if (!index && !hash) { *(void **)p = NULL; break; }
             if (index < 1 || index > nfunctions ||
-                SaveHash(0, save_cfunctions[index - 1].name, strlen(save_cfunctions[index - 1].name) + 1) != hash) {
+                save_hash(0, save_cfunctions[index - 1].name, strlen(save_cfunctions[index - 1].name) + 1) != hash) {
                 fprintf(stderr, "WC3 LoadGame: field %s[%u] C callback index %d does not resolve in this build\n",
                     field->name, i, index);
                 return false;
@@ -860,7 +782,7 @@ static BOOL ReadField(field_t const *field, BYTE *base) {
 }
 
 /* Convert one schema pointer to its stable save-domain index without mutating the live object. */
-static BOOL WriteMappedIndex(field_t const *field, void *ptr, int *index) {
+static BOOL WriteMappedIndex(SAVEFIELD const *field, void *ptr, int *index) {
     switch (field->type) {
     case F_EDICT:
     case F_ITEM: {
@@ -890,7 +812,7 @@ static BOOL WriteMappedIndex(field_t const *field, void *ptr, int *index) {
 }
 
 /* Resolve one schema index directly into the pointer domain declared by its field type. */
-static BOOL ReadMappedIndex(field_t const *field, void *ptr, int index) {
+static BOOL ReadMappedIndex(SAVEFIELD const *field, void *ptr, int index) {
     if (index < -1) return false;
     switch (field->type) {
     case F_EDICT:
@@ -910,92 +832,28 @@ static BOOL ReadMappedIndex(field_t const *field, void *ptr, int index) {
     }
 }
 
-/* Serialize mapped records, converting pointer-domain fields to stable indexes from their field types. */
-static BOOL WriteMappedFields(FILE *f, field_t const *fields, BYTE *base) {
-    for (; fields->name; fields++) {
-        DWORD count = fields->count_ofs != UINT32_MAX ? *(DWORD *)(base + fields->count_ofs) :
-            fields->array_size ? fields->array_size : 1;
-        size_t size = fields->array_size ? fields->size / fields->array_size : fields->size;
-        if (fields->count_ofs != UINT32_MAX && count > fields->array_size) return false;
-        if (fields->count_ofs != UINT32_MAX && !SaveBytes(f, &count, sizeof(count))) return false;
-        switch (fields->type) {
-        case F_STRUCT:
-            FOR_LOOP(i, count) if (!WriteMappedFields(f, (field_t const *)fields->flags, base + fields->ofs + i * size)) return false;
-            break;
-        case F_STRUCT_RING: {
-            fieldRing_t const *ring = (fieldRing_t const *)fields->flags;
-            DWORD read = *(DWORD *)(base + ring->read_ofs), write = *(DWORD *)(base + ring->write_ofs);
-            count = write - read;
-            if (count > fields->array_size || !SaveBytes(f, &count, sizeof(count))) return false;
-            FOR_LOOP(i, count) if (!WriteMappedFields(f, ring->fields,
-                base + fields->ofs + ((read + i) % fields->array_size) * size)) return false;
-            break;
-        }
+/* The shared field walker delegates only live game/JASS identity conversions here. */
+static BOOL GameSaveField(LPSAVEIO io, LPCSAVEFIELD field, BYTE *base) {
+    FILE *f = io->file;
+    DWORD count = field->count_ofs != UINT32_MAX ? *(DWORD *)(base + field->count_ofs) :
+        field->array_size ? field->array_size : 1;
+    size_t size = field->array_size ? field->size / field->array_size : field->size;
+    if (io->reading) {
+        switch (field->type) {
         case F_FUNCTION_LIST:
-            if (!WriteTriggerCodeList(f, *(TRIGGERACTION **)(base + fields->ofs))) return false;
-            break;
-        case F_FUNCTION:
-            if (!WriteString(f, jass_functionname(*(LPCJASSFUNC *)(base + fields->ofs)))) return false;
-            break;
-        case F_LSTRING:
-        case F_GSTRING:
-            if (!WriteString(f, *(LPCSTR *)(base + fields->ofs))) return false;
-            break;
-        case F_EDICT:
-        case F_ITEM:
-        case F_TRIGGER:
-        case F_TIMER:
-        case F_EVENT:
-            FOR_LOOP(i, count) {
-                int index;
-                if (!WriteMappedIndex(fields, base + fields->ofs + i * size, &index)) {
-                    fprintf(stderr, "WC3 SaveGame: cannot resolve mapped field %s[%u]\n", fields->name, i); return false;
-                }
-                if (!SaveBytes(f, &index, sizeof(index))) return false;
-            }
-            break;
-        default:
-            if (!SaveBytes(f, base + fields->ofs, fields->size)) return false;
-            break;
-        }
-    }
-    return true;
-}
-
-/* Restore mapped records, resolving pointer-domain fields from stable indexes declared by their field types. */
-static BOOL ReadMappedFields(FILE *f, field_t const *fields, BYTE *base) {
-    for (; fields->name; fields++) {
-        DWORD count = fields->array_size ? fields->array_size : 1;
-        size_t size = fields->array_size ? fields->size / fields->array_size : fields->size;
-        if (fields->count_ofs != UINT32_MAX) {
-            if (!LoadBytes(f, &count, sizeof(count)) || count > fields->array_size) return false;
-            *(DWORD *)(base + fields->count_ofs) = count;
-        }
-        switch (fields->type) {
-        case F_STRUCT:
-            FOR_LOOP(i, count) if (!ReadMappedFields(f, (field_t const *)fields->flags, base + fields->ofs + i * size)) return false;
-            break;
-        case F_STRUCT_RING: {
-            fieldRing_t const *ring = (fieldRing_t const *)fields->flags;
-            if (!LoadBytes(f, &count, sizeof(count)) || count > fields->array_size) return false;
-            *(DWORD *)(base + ring->read_ofs) = 0; *(DWORD *)(base + ring->write_ofs) = count;
-            FOR_LOOP(i, count) if (!ReadMappedFields(f, ring->fields, base + fields->ofs + i * size)) return false;
-            break;
-        }
-        case F_FUNCTION_LIST:
-            if (!ReadTriggerCodeList(f, (TRIGGERACTION **)(base + fields->ofs))) return false;
+            if (!ReadTriggerCodeList(f, (TRIGGERACTION **)(base + field->ofs))) return false;
             break;
         case F_FUNCTION: {
             LPSTR name = NULL;
             if (!ReadString(f, &name)) return false;
-            *(LPCJASSFUNC *)(base + fields->ofs) = name ? jass_functionbyname(level.vm, name) : NULL;
-            if (name && !*(LPCJASSFUNC *)(base + fields->ofs)) { free(name); return false; }
+            *(LPCJASSFUNC *)(base + field->ofs) = name ? jass_functionbyname(level.vm, name) : NULL;
+            if (name && !*(LPCJASSFUNC *)(base + field->ofs)) { free(name); return false; }
             free(name);
             break;
         }
         case F_LSTRING:
         case F_GSTRING:
-            if (!ReadString(f, (LPSTR *)(base + fields->ofs))) return false;
+            if (!ReadString(f, (LPSTR *)(base + field->ofs))) return false;
             break;
         case F_EDICT:
         case F_ITEM:
@@ -1004,18 +862,53 @@ static BOOL ReadMappedFields(FILE *f, field_t const *fields, BYTE *base) {
         case F_EVENT:
             FOR_LOOP(i, count) {
                 int index;
-                if (!LoadBytes(f, &index, sizeof(index))) return false;
-                if (!ReadMappedIndex(fields, base + fields->ofs + i * size, index)) {
-                    fprintf(stderr, "WC3 LoadGame: invalid mapped field %s[%u] index=%d\n", fields->name, i, index); return false;
+                if (!load_bytes(f, &index, sizeof(index))) return false;
+                if (!ReadMappedIndex(field, base + field->ofs + i * size, index)) {
+                    fprintf(stderr, "WC3 LoadGame: invalid mapped field %s[%u] index=%d\n", field->name, i, index); return false;
                 }
             }
             break;
-        default:
-            if (!LoadBytes(f, base + fields->ofs, fields->size)) return false;
+        default: return false;
+        }
+    } else {
+        switch (field->type) {
+        case F_FUNCTION_LIST:
+            if (!WriteTriggerCodeList(f, *(TRIGGERACTION **)(base + field->ofs))) return false;
             break;
+        case F_FUNCTION:
+            if (!WriteString(f, jass_functionname(*(LPCJASSFUNC *)(base + field->ofs)))) return false;
+            break;
+        case F_LSTRING:
+        case F_GSTRING:
+            if (!WriteString(f, *(LPCSTR *)(base + field->ofs))) return false;
+            break;
+        case F_EDICT:
+        case F_ITEM:
+        case F_TRIGGER:
+        case F_TIMER:
+        case F_EVENT:
+            FOR_LOOP(i, count) {
+                int index;
+                if (!WriteMappedIndex(field, base + field->ofs + i * size, &index)) {
+                    fprintf(stderr, "WC3 SaveGame: cannot resolve mapped field %s[%u]\n", field->name, i); return false;
+                }
+                if (!save_bytes(f, &index, sizeof(index))) return false;
+            }
+            break;
+        default: return false;
         }
     }
     return true;
+}
+
+static BOOL WriteMappedFields(FILE *f, LPCSAVEFIELD fields, BYTE *base) {
+    SAVEIO io = { .file = f, .special = GameSaveField };
+    return save_fields(&io, fields, base);
+}
+
+static BOOL ReadMappedFields(FILE *f, LPCSAVEFIELD fields, BYTE *base) {
+    SAVEIO io = { .file = f, .reading = true, .special = GameSaveField };
+    return save_fields(&io, fields, base);
 }
 
 static BOOL WriteGroups(FILE *f) {
@@ -1049,12 +942,12 @@ static BOOL ReadGroups(FILE *f, DWORD count) {
 
 static BOOL WriteEdict(FILE *f, LPCEDICT ent) {
     edict_t temp = *ent;
-    field_t const *field;
+    SAVEFIELD const *field;
 
     ClearRuntimeFields(&temp, edict_fields, FIELD_RUNTIME);
     for (field = edict_fields; field->name; field++)
         if (!WriteField1(field, (BYTE *)&temp)) return false;
-    return SaveBytes(f, &temp, sizeof(temp));
+    return save_bytes(f, &temp, sizeof(temp));
 }
 
 static BOOL WriteClient(FILE *f, LPCGAMECLIENT client) {
@@ -1064,11 +957,11 @@ static BOOL WriteClient(FILE *f, LPCGAMECLIENT client) {
     /* Client pointers and callbacks are process-owned; text storage remains inline in GAMECLIENT. */
     ClearRuntimeFields(&temp, client_fields, FIELD_RUNTIME);
     if (target < -1 || target >= (int)globals.max_edicts) return false;
-    return SaveBytes(f, &temp, sizeof(temp)) && SaveBytes(f, &target, sizeof(target));
+    return save_bytes(f, &temp, sizeof(temp)) && save_bytes(f, &target, sizeof(target));
 }
 
 static BOOL ReadClient(FILE *f, LPGAMECLIENT client, int *target) {
-    if (!LoadBytes(f, client, sizeof(*client)) || !LoadBytes(f, target, sizeof(*target))) return false;
+    if (!load_bytes(f, client, sizeof(*client)) || !load_bytes(f, target, sizeof(*target))) return false;
     if (*target < -1 || *target >= (int)globals.max_edicts) return false;
     client->ps.name = client->jass.name;
     FOR_LOOP(i, PLAYERTEXT_COUNT) client->ps.texts[i] = client->playerTextCursor[i] ?
@@ -1082,9 +975,9 @@ static BOOL ReadClient(FILE *f, LPGAMECLIENT client, int *target) {
 }
 
 static BOOL ReadEdict(FILE *f, LPEDICT ent) {
-    field_t const *field;
+    SAVEFIELD const *field;
 
-    if (!LoadBytes(f, ent, sizeof(*ent))) return false;
+    if (!load_bytes(f, ent, sizeof(*ent))) return false;
     for (field = edict_fields; field->name; field++)
         if (!ReadField(field, (BYTE *)ent)) return false;
     /* Table rows are process-owned; C callbacks already came back through F_CFUNCTION. */
@@ -1115,7 +1008,7 @@ BOOL WriteGame(LPCSTR filename) {
     }
     BOOL ok = false;
     if (!f) { fprintf(stderr, "WC3 SaveGame: cannot open %s\n", filename); return false; }
-    if (!SaveBytes(f, &header, sizeof(header))) { fprintf(stderr, "WC3 SaveGame: failed at header\n"); goto done; }
+    if (!save_bytes(f, &header, sizeof(header))) { fprintf(stderr, "WC3 SaveGame: failed at header\n"); goto done; }
     if (!WriteMappedFields(f, level_fields, (BYTE *)&level)) {
         fprintf(stderr, "WC3 SaveGame: failed at level fields\n"); goto done;
     }
@@ -1125,14 +1018,14 @@ BOOL WriteGame(LPCSTR filename) {
     }
     FOR_LOOP(i, globals.num_edicts) {
         BOOL used = g_edicts[i].inuse;
-        if (!SaveBytes(f, &used, sizeof(used))) { fprintf(stderr, "WC3 SaveGame: failed at edict %d inuse\n", i); goto done; }
-        if (used && !SaveBytes(f, &i, sizeof(i))) { fprintf(stderr, "WC3 SaveGame: failed at edict %d index\n", i); goto done; }
+        if (!save_bytes(f, &used, sizeof(used))) { fprintf(stderr, "WC3 SaveGame: failed at edict %d inuse\n", i); goto done; }
+        if (used && !save_bytes(f, &i, sizeof(i))) { fprintf(stderr, "WC3 SaveGame: failed at edict %d index\n", i); goto done; }
         if (used && !WriteEdict(f, g_edicts + i)) {
             fprintf(stderr, "WC3 SaveGame: failed at edict %d class=%08x\n", i, g_edicts[i].class_id); goto done;
         }
     }
     if (!WriteJass(f)) { fprintf(stderr, "WC3 SaveGame: failed at jass\n"); goto done; }
-    if (!WriteFooter(f)) { fprintf(stderr, "WC3 SaveGame: failed at footer/checksum\n"); goto done; }
+    if (!save_footer(f)) { fprintf(stderr, "WC3 SaveGame: failed at footer/checksum\n"); goto done; }
     ok = true;
 done:
     fclose(f);
@@ -1147,12 +1040,12 @@ BOOL ReadGame(LPCSTR filename) {
     int targets[MAX_CLIENTS];
 
     if (!f) { fprintf(stderr, "WC3 LoadGame: cannot open %s\n", filename); return false; }
-    if (!ReadFooter(f)) { fprintf(stderr, "WC3 LoadGame: invalid footer/checksum\n"); fclose(f); return false; }
-    if (!LoadBytes(f, &header.magic, sizeof(header.magic)) || !LoadBytes(f, &header.version, sizeof(header.version)) ||
+    if (!load_footer(f)) { fprintf(stderr, "WC3 LoadGame: invalid footer/checksum\n"); fclose(f); return false; }
+    if (!load_bytes(f, &header.magic, sizeof(header.magic)) || !load_bytes(f, &header.version, sizeof(header.version)) ||
         fseek(f, 0, SEEK_SET)) {
         fprintf(stderr, "WC3 LoadGame: invalid header\n"); fclose(f); return false;
     }
-    if (header.version != save_version || !LoadBytes(f, &header, sizeof(header))) {
+    if (header.version != save_version || !load_bytes(f, &header, sizeof(header))) {
         fprintf(stderr, "WC3 LoadGame: invalid header\n"); fclose(f); return false;
     }
     {
@@ -1203,11 +1096,11 @@ BOOL ReadGame(LPCSTR filename) {
     globals.num_edicts = header.num_edicts;
     FOR_LOOP(i, header.num_edicts) {
         BOOL used;
-        if (!LoadBytes(f, &used, sizeof(used))) {
+        if (!load_bytes(f, &used, sizeof(used))) {
             fprintf(stderr, "WC3 LoadGame: failed at edict %d inuse\n", i); fclose(f); return false;
         }
         if (!used) continue;
-        if (!LoadBytes(f, &index, sizeof(index)) || index >= globals.max_edicts || !ReadEdict(f, g_edicts + index)) {
+        if (!load_bytes(f, &index, sizeof(index)) || index >= globals.max_edicts || !ReadEdict(f, g_edicts + index)) {
             fprintf(stderr, "WC3 LoadGame: failed at edict %d data\n", i); fclose(f); return false;
         }
     }
