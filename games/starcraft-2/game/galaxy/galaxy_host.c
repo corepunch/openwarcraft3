@@ -292,7 +292,8 @@ LPJASS galaxy_open(HANDLE (*readfile)(LPCSTR, DWORD *),
      * via its own `include` directives, each parsed exactly once.  Pre-loading
      * them separately causes each to be re-parsed 4–7 times via nested includes,
      * making initialization O(n^2) in the JASS VM's linked-list variable lookup. */
-    snprintf(path, sizeof(path), "%s/MapScript.galaxy", sc2_gdir);
+    strlcpy(path, sc2_gdir, sizeof(path));
+    strlcat(path, "/MapScript.galaxy", sizeof(path));
     if (!jass_dofile(vm, path))
         fprintf(stderr, "galaxy_open: failed to load MapScript.galaxy from %s\n", sc2_gdir);
     if (jass_rterror_pending(vm)) {

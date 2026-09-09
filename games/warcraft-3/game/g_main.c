@@ -39,6 +39,9 @@ extern JASSMODULE jass_funcs[];
 static void G_StartScripts(void);
 static void G_CheckTimeOfDayEvents(FLOAT before, FLOAT after);
 #define WC3_CHEAT_STARTING_RESOURCE_BONUS 5000 /* gold/lumber units added once when map gameplay becomes controllable */
+static LPCSTR wc3_campaign_paths[] = {
+    "Maps\\Campaign\\", "Maps/Campaign/", "Maps\\FrozenThrone\\Campaign\\", "Maps/FrozenThrone/Campaign/"
+};
 
 static BOOL starting_resource_cheat_armed;
 static DWORD starting_resource_cheat_applied_mask;
@@ -733,20 +736,22 @@ void G_RequestEndGame(BOOL do_score_screen) {
 }
 
 static BOOL G_IsCampaignMapPath(LPCSTR path) {
-    return path && (!strncasecmp(path, "Maps\\Campaign\\", 14) ||
-                    !strncasecmp(path, "Maps/Campaign/", 14) ||
-                    !strncasecmp(path, "Maps\\FrozenThrone\\Campaign\\", 26) ||
-                    !strncasecmp(path, "Maps/FrozenThrone/Campaign/", 26));
+    if (!path) return false;
+    /* Campaign prefixes identify maps that should return to the campaign selector. */
+    FOR_LOOP(i, sizeof(wc3_campaign_paths) / sizeof(wc3_campaign_paths[0]))
+        if (!strncasecmp(path, wc3_campaign_paths[i], strlen(wc3_campaign_paths[i]))) return true;
+    return false;
 }
 
 void G_RequestQuitGame(void) {
+    /* Quit returns campaign missions to the selector while other sessions use the main menu. */
     LPCSTR map = level.map_path[0] ? level.map_path : gi.CvarString("map", "");
-    LPCSTR target = G_IsSinglePlayer() && G_IsCampaignMapPath(map)
+    BOOL single = G_IsSinglePlayer();
+    LPCSTR target = single && G_IsCampaignMapPath(map)
         ? "menu_single_player_campaign"
         : "menu_main";
 
-    G_GameResultDebug("request QuitGame map=%s single_player=%u target=%s",
-        map ? map : "(null)", (unsigned)G_IsSinglePlayer(), target);
+    G_GameResultDebug("quit map=%s sp=%u target=%s", map ? map : "(null)", (unsigned)single, target);
     gi.MenuAction("menu", target);
 }
 

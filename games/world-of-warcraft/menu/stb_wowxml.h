@@ -1224,7 +1224,10 @@ LPCSTR UIWow_XMLHitButton(FLOAT nx, FLOAT ny) {
 int    UIWow_XmlFindByNamePub(LPCSTR name)   { return UIWow_XmlFindByName(name); }
 void   UIWow_XmlComputeRectPub(int idx, FLOAT *x, FLOAT *y, FLOAT *w, FLOAT *h) {
     RECT r = (idx >= 0 && idx < wow_xml.count) ? UIWow_XmlComputeRect(idx) : MAKE(RECT, 0,0,0,0);
-    if (x) *x = r.x; if (y) *y = r.y; if (w) *w = r.w; if (h) *h = r.h;
+    if (x) *x = r.x;
+    if (y) *y = r.y;
+    if (w) *w = r.w;
+    if (h) *h = r.h;
 }
 int    UIWow_XmlElemCount(void)              { return wow_xml.count; }
 int    UIWow_XmlElemType(int idx)            { return (idx>=0&&idx<wow_xml.count) ? (int)wow_xml.elems[idx].type : -1; }

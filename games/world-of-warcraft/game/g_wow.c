@@ -1770,7 +1770,10 @@ static bool Wow_SpawnEntities(void) {
         char preview[MAX_PATHLEN];
         snprintf(preview, sizeof(preview), "%s", wow_loading_texture);
         for (char *p = preview; *p; p++) if (*p == '\\') *p = '/';
-        snprintf(buf, sizeof(buf), "\\title\\%s\\preview\\%s", wow_loading_title, preview);
+        strlcpy(buf, "\\title\\", sizeof(buf));
+        strlcat(buf, wow_loading_title, sizeof(buf));
+        strlcat(buf, "\\preview\\", sizeof(buf));
+        strlcat(buf, preview, sizeof(buf));
     }
     gi.configstring(WOW_CS_MAPINFO, buf);
     /* Re-populate the playerinfo configstring from cvars after SV_Map's

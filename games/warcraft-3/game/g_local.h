@@ -754,7 +754,7 @@ struct gquest_s {
 };
 
 /* Quest rows are present in the journal only while both server visibility gates are enabled. */
-#define QuestIsVisible(quest) ((quest) && (quest)->enabled && (quest)->discovered)
+static inline BOOL QuestIsVisible(LPCQUEST quest) { return quest && quest->enabled && quest->discovered; }
 
 typedef struct {
     struct { FLOAT day, night; } sight_radius;
