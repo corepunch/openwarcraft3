@@ -43,6 +43,8 @@ static void add_creep_sleep_overlay(LPEDICT unit) {
         effect = G_SpawnAbilityEffectTarget(ID_CREEP_SLEEP, WC3_EFFECT_TARGET, 0,
                                             unit, "overhead", false);
     } else {
+        fprintf(stderr, "WC3 CreepSleep: ACsp TargetArt missing; using canonical sleep art for unit %u\n",
+                unit->s.number);
         effect = G_SpawnModelEffect(CREEP_SLEEP_TARGET_ART, NULL, unit,
                                     "overhead", false);
     }
