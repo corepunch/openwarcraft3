@@ -17,6 +17,14 @@ placement, and currently contributing a static pathing footprint. Alive and
 death pathing resources are retained separately so the footprint can change at
 the death transition.
 
+The resource lookup is data-driven: `dest_schema` maps the `pathTex` and
+`pathTexDeath` columns from `Units\\DestructableData.slk` into
+`DestructableData_t`; `SP_SpawnDestructable` loads both through
+`M_LoadPathTex` and keeps them as `alive_pathtex` and `death_pathtex`.
+`LoadTGA` accepts the uncompressed 8-bit grayscale and 24/32-bit BGR(A)
+formats used by WC3 pathing resources. It validates the complete header, ID
+field, dimensions, allocation size, and pixel payload before decoding.
+
 ## Combat And Death
 
 Both explicit attack orders and contextual right-click orders accept an alive,
@@ -36,6 +44,23 @@ Lethal damage performs one built-in transition:
 The `dead` guard is set before events or callbacks, so overlapping hits cannot
 repeat death processing. A missing death callback or animation does not prevent
 the state transition.
+
+Alive and dead visuals use sequences from the same authored MDX model; there is
+no separate dead-model field in `DestructableData.slk`. The persistent destroyed
+bridge geometry is selected by the model's final `Death` frame. Once that
+sequence completes, `tree_decay1` pins the entity to that exact final frame so
+death-only geosets remain visible. Restoration releases the held frame and
+selects `Birth` or `Stand` as requested.
+
+Single-variation destructables register the unsuffixed model named by object
+data. For LT05 this is
+`Doodads\\Terrain\\WoodBridgeLarge45\\WoodBridgeLarge45.mdx`; registering an
+invented `WoodBridgeLarge450.mdx` lets the renderer's filename fallback find the
+model but leaves the game-side animation cache unable to resolve its sequences.
+The authoritative model has looping `Stand` at `133..1333`, non-looping `Death`
+at `2000..3000`, and non-looping `Birth` at `3333..10000`. Restore with
+`birth=true` plays the full Birth sequence before Stand; `birth=false` selects
+Stand immediately.
 
 ## Inline Item Drops
 
@@ -103,6 +128,15 @@ static-obstacle layer. When a destructable changes state, static obstacles are
 rebuilt from terrain plus the current footprints of live entities. This removes
 an alive footprint without erasing terrain restrictions and permits a type's
 optional death-pathing texture to replace it.
+
+Walkable destructables use a narrower contract. While alive, clear cells in the
+authored pathing texture replace terrain no-walk to form the bridge deck, while
+red cells retain its blocked edges. This surface overlay is baked before normal
+obstacles so it cannot erase an overlapping building, and the live bridge is
+not treated as a circle blocker during movement. On death it stops supplying
+bridge support, terrain pathing is restored, and its optional `pathTexDeath`
+enters the normal static-obstacle bake. This intentionally does not reinterpret,
+rotate, or widen the TGA and adds no bridge-specific collision-radius exception.
 
 ## Phase Boundary
 

@@ -30,6 +30,12 @@ static one_cell_pathtex_t destructable_blocked_death_pathtex = {
     .map = { { 0, 0, 1, 255 } },
 };
 
+static one_cell_pathtex_t destructable_clear_alive_pathtex = {
+    .width = 1,
+    .height = 1,
+    .map = { { 0, 0, 0, 255 } },
+};
+
 static LPEDICT make_test_destructable(FLOAT life, FLOAT x, FLOAT y) {
     LPEDICT ent = G_Spawn();
 
@@ -64,6 +70,57 @@ static LPEDICT make_destructable_test_attacker(FLOAT x, FLOAT y) {
     ent->attack1.type = ATK_NORMAL;
     ent->attack1.targetsAllowed = 256u; /* TARGET_FLAG_DEBRIS */
     return ent;
+}
+
+TEST(wc3_destructable, metadata_loads_alive_and_dead_bridge_resources) {
+    static LPCSTR const slk =
+        "ID;PWXL;N;E\n"
+        "C;Y1;X1;K\"ID\"\n"
+        "C;Y1;X2;K\"file\"\n"
+        "C;Y1;X3;K\"pathTex\"\n"
+        "C;Y1;X4;K\"pathTexDeath\"\n"
+        "C;Y1;X5;K\"walkable\"\n"
+        "C;Y2;X1;K\"LT05\"\n"
+        "C;Y2;X2;K\"Doodads\\Terrain\\WoodBridgeLarge45\\WoodBridgeLarge45.mdx\"\n"
+        "C;Y2;X3;K\"PathTextures\\CityBridgeLarge45.tga\"\n"
+        "C;Y2;X4;K\"PathTextures\\CityBridgeLarge45Death.tga\"\n"
+        "C;Y2;X5;K1\n"
+        "E\n";
+    slkTestData_t *rows = parse_slk_string(slk);
+    slkTestData_t *saved = G_SetSLKRows("DestructableData", rows);
+    DestructableData_t const *bridge = G_DestructableData(MAKEFOURCC('L', 'T', '0', '5'));
+
+    T_STREQ(bridge->file, "Doodads\\Terrain\\WoodBridgeLarge45\\WoodBridgeLarge45.mdx");
+    T_STREQ(bridge->pathingTexture, "PathTextures\\CityBridgeLarge45.tga");
+    T_STREQ(bridge->deathPathingTexture, "PathTextures\\CityBridgeLarge45Death.tga");
+    T_ASSERT(bridge->walkable);
+
+    G_SetSLKRows("DestructableData", saved);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_destructable, wood_bridge_uses_authoritative_animation_intervals) {
+    animation_t animations[] = {
+        { .name = "Stand", .interval = { 133, 1333 }, .flags = 0 },
+        { .name = "Death", .interval = { 2000, 3000 }, .flags = 1 },
+        { .name = "Birth", .interval = { 3333, 10000 }, .flags = 1 },
+    };
+    LPCANIMATION stand = G_SelectAnimationForProperties(animations, 3, "stand", NULL);
+    LPCANIMATION death = G_SelectAnimationForProperties(animations, 3, "death", NULL);
+    LPCANIMATION birth = G_SelectAnimationForProperties(animations, 3, "birth", NULL);
+
+    T_NOT_NULL(stand);
+    T_EQ(stand->interval[0], 133);
+    T_EQ(stand->interval[1], 1333);
+    T_EQ(stand->flags, 0);
+    T_NOT_NULL(death);
+    T_EQ(death->interval[0], 2000);
+    T_EQ(death->interval[1], 3000);
+    T_EQ(death->flags, 1);
+    T_NOT_NULL(birth);
+    T_EQ(birth->interval[0], 3333);
+    T_EQ(birth->interval[1], 10000);
+    T_EQ(birth->flags, 1);
 }
 
 TEST(wc3_destructable, placement_applies_life_flags_and_editor_id) {
@@ -261,6 +318,52 @@ TEST(wc3_destructable, death_replacement_pathing_remains_blocking) {
     T_ASSERT(dest->destructable.pathing_active);
     T_ASSERT(dest->pathtex == (pathTex_t *)&destructable_blocked_death_pathtex);
     T_ASSERT(!CM_PointIsPathableForRadius(&center, 0.0f));
+}
+
+TEST(wc3_destructable, alive_walkable_bridge_opens_terrain_until_death) {
+    static DestructableData_t const bridge_data = { .walkable = true };
+    BYTE cells[8 * 8] = { 0 };
+    VECTOR2 center = { 4.0f, 4.0f };
+    LPEDICT bridge, unit;
+
+    cells[4 + 4 * 8] = 2; /* terrain no-walk under the bridge deck */
+    setup_test_pathmap(8, 8, cells);
+    bridge = make_test_destructable(10.0f, center.x, center.y);
+    bridge->data.DestructableData = &bridge_data;
+    bridge->destructable.alive_pathtex = (pathTex_t *)&destructable_clear_alive_pathtex;
+    bridge->destructable.death_pathtex = (pathTex_t *)&destructable_blocked_death_pathtex;
+    bridge->pathtex = bridge->destructable.alive_pathtex;
+    bridge->collision = bridge->destructable.alive_collision = 32.0f;
+    unit = make_destructable_test_attacker(2.0f, center.y);
+    unit->collision = 1.0f;
+
+    CM_BakeStaticObstacles();
+    T_ASSERT(CM_PointIsPathableForRadius(&center, 0.0f));
+    T_ASSERT(M_MoveIsValid(unit, &center));
+
+    G_KillDestructable(bridge, NULL);
+    T_ASSERT(!CM_PointIsPathableForRadius(&center, 0.0f));
+}
+
+TEST(wc3_destructable, completed_death_holds_authored_final_frame) {
+    animation_t death = { .name = "Death", .interval = { 2000, 3000 }, .flags = 1 };
+    LPEDICT dest = make_test_destructable(10.0f, 0.0f, 0.0f);
+
+    dest->aiflags |= AI_HOLD_FRAME;
+    G_DestructableStartDeathAnimation(dest);
+    T_ASSERT(!(dest->aiflags & AI_HOLD_FRAME));
+    T_STREQ(dest->currentmove->animation, "death");
+
+    dest->animation = &death;
+    dest->s.frame = 2900;
+    tree_decay1(dest);
+
+    T_ASSERT(dest->aiflags & AI_HOLD_FRAME);
+    T_EQ(dest->s.frame, 2999);
+
+    G_DestructableStartAliveAnimation(dest, false);
+    T_ASSERT(!(dest->aiflags & AI_HOLD_FRAME));
+    T_STREQ(dest->currentmove->animation, "stand");
 }
 
 TEST(wc3_destructable, placement_retains_inline_drop_sets) {

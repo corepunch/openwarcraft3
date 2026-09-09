@@ -13,11 +13,19 @@ typedef struct {
 #define TGA_ORIGIN_MASK 0x30
 
 pathTex_t *LoadTGA(BYTE const* mem, size_t size) {
-    tgaHeader_t *header = (tgaHeader_t*)mem;
-    const BYTE *tga = mem + sizeof(tgaHeader_t) + header->id_length;
-    DWORD columns = header->width;
-    DWORD rows = header->height;
-    DWORD numPixels = columns * rows;
+    tgaHeader_t const *header;
+    BYTE const *tga;
+    size_t offset, bytes_per_pixel, num_pixels;
+    DWORD columns, rows;
+
+    if (!mem || size < sizeof(tgaHeader_t)) return NULL;
+    header = (tgaHeader_t const *)mem;
+    offset = sizeof(tgaHeader_t) + header->id_length;
+    if (offset > size) return NULL;
+    tga = mem + offset;
+    columns = header->width;
+    rows = header->height;
+    if (!columns || !rows) return NULL;
     switch (header->image_type) {
         case 2:  break;
         case 3:  break;
@@ -34,8 +42,15 @@ pathTex_t *LoadTGA(BYTE const* mem, size_t size) {
         case 8:  break;
         default: return NULL;
     }
+    bytes_per_pixel = header->pixel_size / 8;
+    num_pixels = (size_t)columns * rows;
+    /* Pathing TGAs are archive data, but rejecting truncated payloads here keeps
+     * a bad bridge resource from reading beyond its VFS buffer. Valid WC3 BGRA
+     * bytes retain their existing channel and row interpretation. */
+    if (num_pixels > (SIZE_MAX - sizeof(pathTex_t)) / sizeof(COLOR32) ||
+        num_pixels > (size - offset) / bytes_per_pixel) return NULL;
     // Allocate memory for decoded image
-    pathTex_t *pathTex = gi.MemAlloc(numPixels * sizeof(COLOR32) + sizeof(pathTex_t));
+    pathTex_t *pathTex = gi.MemAlloc(num_pixels * sizeof(COLOR32) + sizeof(pathTex_t));
     if (!pathTex)
         return NULL;
     pathTex->width = columns;
