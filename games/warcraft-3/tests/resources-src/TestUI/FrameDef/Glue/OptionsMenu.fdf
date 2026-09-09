@@ -4,6 +4,38 @@ Frame "FRAME" "OptionsMenu" {
 
     Frame "FRAME" "OptionsControlLayer" {
         SetAllPoints,
+		Frame "BACKDROP" "GameplayBackdrop" INHERITS "StandardMenuButtonBaseBackdrop" {
+			SetPoint TOPRIGHT,"OptionsMenu",TOPRIGHT, -0.015, -0.110625,
+
+			Frame "GLUETEXTBUTTON" "GameplayButton" INHERITS WITHCHILDREN "StandardButtonTemplate" {
+				SetPoint TOPRIGHT,"GameplayBackdrop",TOPRIGHT, -0.012, -0.0165,
+				ControlShortcutKey "G",
+				TabFocusDefault,
+				TabFocusNext "VideoButton",
+
+				ButtonText "GameplayButtonText",
+				Frame "TEXT" "GameplayButtonText" INHERITS "StandardButtonTextTemplate" {
+					Text "KEY_GAMEPLAY",
+				}
+			}
+		}
+
+		Frame "BACKDROP" "VideoBackdrop" INHERITS "StandardMenuButtonBaseBackdrop" {
+			SetPoint TOPRIGHT,"GameplayBackdrop",BOTTOMRIGHT,0, 0.005,
+
+			Frame "GLUETEXTBUTTON" "VideoButton" INHERITS WITHCHILDREN "StandardButtonTemplate" {
+				SetPoint TOPRIGHT,"VideoBackdrop",TOPRIGHT, -0.012, -0.0165,
+				ControlShortcutKey "V",
+				TabFocusNext "SoundButton",
+
+				ButtonText "VideoButtonText",
+				Frame "TEXT" "VideoButtonText" INHERITS "StandardButtonTextTemplate" {
+					Text "KEY_VIDEO",
+				}
+			}
+		}
+
+
 
         Frame "FRAME" "GameplayPanel" {
             SetAllPoints,

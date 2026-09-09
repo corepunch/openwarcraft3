@@ -23,6 +23,7 @@ typedef struct {
     DWORD time;
     VECTOR2 mouse_fdf;
     uiScreen_t *transition_screen;
+    void (*configure)(void);
     void (*transition_action)(void);
 } uiState_t;
 
@@ -161,7 +162,7 @@ LPCSTR M_ResolveImagePath(LPCSTR key) {
 
 /* Resolve resources before changing presentation; failure leaves the old screen intact. */
 static BOOL UI_LoadScreen(uiScreen_t *screen) {
-    if (!screen || screen == ui_current_screen || !screen->load || screen->load()) return true;
+    if (!screen || screen == ui_current_screen || screen == ui_state.transition_screen || !screen->load || screen->load()) return true;
     fprintf(stderr, "UI: failed to load screen '%s'\n", screen->name);
     return false;
 }
@@ -172,12 +173,17 @@ static void UI_InstallScreen(uiScreen_t *screen) {
     fprintf(stderr, "UI_SetScreen: %s -> %s\n", ui_current_screen ? ui_current_screen->name : "(null)", screen ? screen->name : "(null)");
     if (ui_current_screen && ui_current_screen->shutdown) ui_current_screen->shutdown();
     ui_current_screen = screen;
-    if (screen && screen->init) screen->init();
 }
 
 static void UI_FinishScreenTransition(void) { ui_state.transition_screen = NULL; }
 
-static void UI_BeginScreenTransition(void) { UI_InstallScreen(ui_state.transition_screen); }
+/* Content selection runs only at the outgoing animation boundary. */
+static void UI_BeginScreenTransition(void) {
+    void (*configure)(void) = ui_state.configure;
+    ui_state.configure = NULL;
+    UI_InstallScreen(ui_state.transition_screen);
+    if (configure) configure();
+}
 
 static void UI_FinishActionTransition(void) {
     void (*action)(void) = ui_state.transition_action;
@@ -186,24 +192,21 @@ static void UI_FinishActionTransition(void) {
     action();
 }
 
-/* Direct menu commands install their controls immediately so subsequent
- * subpanel commands can configure them. Only this owner requests the chrome. */
-static void UI_SetScreen(uiScreen_t *screen) {
-    if (!UI_LoadScreen(screen)) return;
-    UI_InstallScreen(screen);
-    ui_state.transition_screen = NULL;
-    ui_state.transition_action = NULL;
-    UI_GotoGluePanel(screen ? screen->glue : (GLUEDEST){0}, NULL, NULL);
+/* Every menu route uses the same handoff, including commands issued at startup.
+ * A loaded destination may prepare resources, but cannot replace outgoing content. */
+static BOOL UI_RequestScreen(uiScreen_t *screen, GLUEDEST glue, void (*configure)(void)) {
+    if (ui_state.transition_action || !UI_LoadScreen(screen)) return false;
+    /* Prepare inactive data before returning to lobby/map command callers. Only
+     * installation grants draw ownership, so preparation cannot flash controls. */
+    if (screen && screen != ui_current_screen && screen != ui_state.transition_screen && screen->init) screen->init();
+    ui_state.transition_screen = screen;
+    ui_state.configure = configure;
+    UI_GotoGluePanel(glue, UI_BeginScreenTransition, UI_FinishScreenTransition);
+    return true;
 }
 
-/* Load before leaving: a failed destination must not replace the chrome while
- * retaining the old screen. The boundary callback only installs controls. */
-static void UI_TransitionToScreen(uiScreen_t *screen) {
-    if (ui_state.transition_action || ui_state.transition_screen == screen) return;
-    if (!screen->glue.panel) { UI_SetScreen(screen); return; }
-    if (!UI_LoadScreen(screen)) return;
-    ui_state.transition_screen = screen;
-    UI_GotoGluePanel(screen->glue, UI_BeginScreenTransition, UI_FinishScreenTransition);
+static void UI_SetScreen(uiScreen_t *screen) {
+    UI_RequestScreen(screen, screen ? screen->glue : (GLUEDEST){0}, NULL);
 }
 
 void M_TransitionToAction(void (*action)(void)) {
@@ -217,67 +220,43 @@ uiScreen_t *UI_GetCurrentScreen(void) {
 }
 
 __attribute__((visibility("hidden"))) void M_ShowMainMenu(void) {
-    UI_SetScreen(&mainMenuScreen);
-    MainMenu_ShowMainPanel();
+    UI_RequestScreen(&mainMenuScreen, mainMenuScreen.glue, MainMenu_ShowMainPanel);
 }
 
 void M_ShowSinglePlayerMenu(void) {
-    UI_SetScreen(&singlePlayerMenuScreen);
-    SinglePlayerMenu_ShowMain();
+    UI_RequestScreen(&singlePlayerMenuScreen, singlePlayerMenuScreen.glue, SinglePlayerMenu_ShowMain);
 }
 
-void M_ShowOptionsMenu(void) {
-    UI_TransitionToScreen(&optionsMenuScreen);
-}
-
-void M_ShowCreditsMenu(void) {
-    UI_SetScreen(&creditsMenuScreen);
-}
+void M_ShowOptionsMenu(void) { UI_MenuOptionsGameplay_f(); }
+void M_ShowCreditsMenu(void) { UI_SetScreen(&creditsMenuScreen); }
 
 void M_ShowLanCreateMenu(void) {
-    LAN_ShowCreate();
-    UI_SetScreen(&lanJoinScreen);
+    UI_RequestScreen(&lanJoinScreen, (GLUEDEST){ .panel = UI_GLUE_BATTLENET_CUSTOM, .tab = 1 }, LAN_ShowCreate);
 }
 
 static void M_ShowSinglePlayerSkirmishMenu(void) {
-    LAN_ShowSinglePlayerCreate();
-    UI_SetScreen(&lanJoinScreen);
+    UI_RequestScreen(&lanJoinScreen, (GLUEDEST){ .panel = UI_GLUE_SINGLE_PLAYER, .tab = 1 }, LAN_ShowSinglePlayerCreate);
 }
 
 void M_ShowLanBrowserMenu(void) {
-    LAN_ShowBrowser();
-    UI_SetScreen(&lanJoinScreen);
+    UI_RequestScreen(&lanJoinScreen, (GLUEDEST){ .panel = UI_GLUE_BATTLENET_CUSTOM }, LAN_ShowBrowser);
 }
 
-void M_ShowGameSetupMenu(void) {
-    UI_SetScreen(&gameSetupScreen);
+static BOOL UI_RequestGameSetup(void) {
+    GLUEDEST glue = LAN_IsSinglePlayerCreate() ? (GLUEDEST){ .panel = UI_GLUE_SINGLE_PLAYER, .tab = 1 } : gameSetupScreen.glue;
+    return UI_RequestScreen(&gameSetupScreen, glue, NULL);
 }
 
-static void UI_MenuMain_f(void) {
-    if (UI_GetCurrentScreen() != &mainMenuScreen) {
-        UI_TransitionToScreen(&mainMenuScreen);
-        return;
-    }
-    M_ShowMainMenu();
-}
+void M_ShowGameSetupMenu(void) { UI_RequestGameSetup(); }
 
-static void UI_MenuGame_f(void) {
-    if (UI_GetCurrentScreen() != &singlePlayerMenuScreen) {
-        UI_TransitionToScreen(&singlePlayerMenuScreen);
-        return;
-    }
-    M_ShowSinglePlayerMenu();
-}
+static void UI_MenuMain_f(void) { M_ShowMainMenu(); }
+static void UI_MenuGame_f(void) { M_ShowSinglePlayerMenu(); }
 
 static void UI_MenuVideo_f(void) {
-    UI_SetScreen(&optionsMenuScreen);
-    OptionsMenu_ShowVideo();
+    UI_RequestScreen(&optionsMenuScreen, (GLUEDEST){ .panel = UI_GLUE_OPTIONS, .tab = 1, .page = 1 }, OptionsMenu_ShowVideo);
 }
 
-static void UI_MenuKeys_f(void) {
-    UI_SetScreen(&optionsMenuScreen);
-    OptionsMenu_ShowKeys();
-}
+static void UI_MenuKeys_f(void) { UI_MenuOptionsGameplay_f(); }
 
 static void UI_MenuLoadGame_f(void) {
     mi.Cmd_ExecuteText("load quick\n");
@@ -298,29 +277,23 @@ static void UI_MenuStartServer_f(void) {
 }
 
 static void UI_MenuQuit_f(void) {
-    UI_SetScreen(&mainMenuScreen);
-    MainMenu_ShowQuitConfirm();
+    UI_RequestScreen(&mainMenuScreen, mainMenuScreen.glue, MainMenu_ShowQuitConfirm);
 }
 
 static void UI_MenuDisconnected_f(void) {
-    UI_SetScreen(&mainMenuScreen);
-    MainMenu_ShowDisconnected();
+    UI_RequestScreen(&mainMenuScreen, mainMenuScreen.glue, MainMenu_ShowDisconnected);
 }
 
 static void UI_MenuRealmSelect_f(void) {
-    UI_SetScreen(&mainMenuScreen);
-    MainMenu_ShowRealmSelect();
-    UI_GotoGluePanel((GLUEDEST){ .panel = UI_GLUE_REALM_SELECTION }, NULL, NULL);
+    UI_RequestScreen(&mainMenuScreen, (GLUEDEST){ .panel = UI_GLUE_REALM_SELECTION }, MainMenu_ShowRealmSelect);
 }
 
 static void UI_MenuOptionsGameplay_f(void) {
-    UI_SetScreen(&optionsMenuScreen);
-    OptionsMenu_ShowGameplay();
+    UI_RequestScreen(&optionsMenuScreen, optionsMenuScreen.glue, OptionsMenu_ShowGameplay);
 }
 
 static void UI_MenuOptionsSound_f(void) {
-    UI_SetScreen(&optionsMenuScreen);
-    OptionsMenu_ShowSound();
+    UI_RequestScreen(&optionsMenuScreen, (GLUEDEST){ .panel = UI_GLUE_OPTIONS, .tab = 1, .page = 2 }, OptionsMenu_ShowSound);
 }
 
 static void UI_MenuOptionsApply_f(void) {
@@ -329,12 +302,7 @@ static void UI_MenuOptionsApply_f(void) {
 }
 
 static void UI_MenuSinglePlayerCampaign_f(void) {
-    if (UI_GetCurrentScreen() == &singlePlayerMenuScreen) {
-        M_TransitionToAction(SinglePlayerMenu_ShowCampaign);
-        return;
-    }
-    UI_SetScreen(&singlePlayerMenuScreen);
-    SinglePlayerMenu_ShowCampaign();
+    UI_RequestScreen(&singlePlayerMenuScreen, (GLUEDEST){0}, SinglePlayerMenu_ShowCampaign);
 }
 
 static void UI_MenuGameSetupStart_f(void) {
@@ -350,8 +318,13 @@ static void UI_RegisterMenuCommands(void) {
     ui_menu_commands_registered = true;
 }
 
+/* Gameplay and shutdown cancel presentation outright; they are not menu navigation. */
 static void UI_ClearScreen(void) {
-    UI_SetScreen(NULL);
+    ui_state.transition_screen = NULL;
+    ui_state.transition_action = NULL;
+    ui_state.configure = NULL;
+    UI_ResetGlueTransitions();
+    UI_InstallScreen(NULL);
 }
 
 /* Refresh frame state flags before dispatch so draw never asks for mouse position. */
@@ -419,7 +392,7 @@ void M_Init(void) {
 }
 
 void M_Shutdown(void) {
-    UI_SetScreen(NULL);
+    UI_ClearScreen();
     UI_ReleaseGlueSceneModels();
     UI_ReleaseAssets();
     UI_ClearTemplates();
@@ -435,7 +408,19 @@ DWORD M_Time(void) {
 }
 
 BOOL M_IsTransitioning(void) {
-    return ui_state.transition_screen || ui_state.transition_action;
+    return ui_state.transition_screen || ui_state.transition_action || UI_GlueIsTransitioning();
+}
+
+/* Left subtree declarations split native FDF without changing its layout. All
+ * remaining controls belong to the right side, including screen-level dialogs. */
+BOOL UI_ScreenFrameVisible(LPCFRAMEDEF frame) {
+    uiScreen_t *screen = UI_GetCurrentScreen();
+    if (!screen) return true;
+    if (ui_state.transition_screen && ui_state.transition_screen != screen) return false;
+    for (LPCFRAMEDEF cur = frame; cur; cur = cur->Parent)
+        for (LPCSTR const *name = screen->left; name && *name; name++)
+            if (!strcmp(cur->Name, *name)) return UI_GlueSideReady(UI_GLUE_LEFT);
+    return UI_GlueSideReady(UI_GLUE_RIGHT);
 }
 
 void M_Refresh(DWORD time) {
@@ -444,7 +429,6 @@ void M_Refresh(DWORD time) {
     }
 
     ui_state.time = time;
-
     /* Call current screen refresh */
     uiScreen_t *screen = UI_GetCurrentScreen();
     if (screen && screen->refresh) {
@@ -466,7 +450,7 @@ void M_TextInput(LPCSTR text) {
 void M_KeyEvent(int key, BOOL down, DWORD time) {
     (void)time;
 
-    if (!ui_state.active || ui_state.transition_screen || ui_state.transition_action) {
+    if (!ui_state.active || M_IsTransitioning()) {
         return;
     }
 
@@ -507,7 +491,7 @@ BOOL M_MouseEvent(menuMouseEvent_t event, int x, int y, int32_t param) {
      * the previous layout cache; never hit-test those stale invisible frames.
      * Uninitialized unit tests may exercise the low-level FDF event path
      * directly without installing a screen controller. */
-    if (!ui_state.active || ui_state.transition_screen || ui_state.transition_action ||
+    if (!ui_state.active || M_IsTransitioning() ||
         (ui_state.initialized && !UI_GetCurrentScreen())) {
         return false;
     }
@@ -628,8 +612,7 @@ static void UI_MenuSetupMap_f(void) {
         fprintf(stderr, "UI: %s expects a map path\n", mi.Cmd_Argv(0));
         return;
     }
-    UI_SetScreen(&gameSetupScreen);
-    if (UI_GetCurrentScreen() == &gameSetupScreen) GameSetup_LoadMap(mi.Cmd_Argv(1));
+    if (UI_RequestGameSetup()) GameSetup_LoadMap(mi.Cmd_Argv(1));
 }
 
 /* Chat retains the optional legacy numeric ownership prefix and the complete message. */
@@ -659,8 +642,7 @@ static void M_UpdateLobbySetup(lobbyState_t const *state) {
     if (!UI_GetCurrentScreen()) {
         return;
     }
-    UI_SetScreen(&gameSetupScreen);
-    GameSetup_UpdateLobbySetup(state);
+    if (UI_RequestGameSetup()) GameSetup_UpdateLobbySetup(state);
 }
 
 /* Export function table */

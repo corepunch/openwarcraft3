@@ -52,6 +52,16 @@ typedef struct lan_join_state_s {
     LPFRAMEDEF game_speed_value;
 } lan_join_state_t;
 
+static LPCSTR const lan_left[] = {
+    "GameListPanel",
+    "GameSettingsPanel",
+    "CustomCreateTitle",
+    "CustomCreateInfo",
+    "CreateBackdrop",
+    "LoadBackdrop",
+    NULL,
+};
+
 static lan_join_state_t lan;
 
 static BOOL LANJoin_LoadScreen(void) {
@@ -790,11 +800,6 @@ void LAN_JoinSelectedGame(void) {
 /* Same-screen navigation still changes chrome. With animation ownership in
  * menu_main, rebuilding controls can reuse the normal initialization path. */
 static void LAN_ShowMode(lanMode_t mode) {
-    GLUEDEST solo = { .panel = UI_GLUE_SINGLE_PLAYER, .tab = 1 };
-    lanJoinScreen.glue = mode == LAN_MODE_SINGLE_PLAYER_CREATE ? solo :
-        (GLUEDEST){ .panel = UI_GLUE_BATTLENET_CUSTOM, .tab = mode == LAN_MODE_CREATE };
-    gameSetupScreen.glue = mode == LAN_MODE_SINGLE_PLAYER_CREATE ? solo :
-        (GLUEDEST){ .panel = UI_GLUE_MULTIPLAYER_PRE_GAME_CHAT };
     lan.mode = mode;
     if (UI_GetCurrentScreen() == &lanJoinScreen) LANJoin_Init();
 }
@@ -831,6 +836,7 @@ void LAN_RefreshMaps(void) {
 
 uiScreen_t lanJoinScreen = {
     .name = "lan",
+    .left = lan_left,
     .glue = { .panel = UI_GLUE_BATTLENET_CUSTOM },
     .load = LANJoin_LoadScreen,
     .init = LANJoin_Init,

@@ -54,6 +54,11 @@ typedef struct {
     singlePlayerCinematic_t cinematics[SINGLE_PLAYER_CINEMATIC_COUNT];
 } singlePlayerCampaign_t;
 
+static LPCSTR const solo_lft[] = {
+    "ProfilePanel",
+    NULL,
+};
+
 static SinglePlayerMenu_t single_player;
 static singlePlayerCampaign_t campaigns[SINGLE_PLAYER_MAX_CAMPAIGNS];
 static DWORD campaign_count;
@@ -944,6 +949,7 @@ void SinglePlayerMenu_SetDifficulty(DWORD difficulty) {
 
 uiScreen_t singlePlayerMenuScreen = {
     .name = "single-player",
+    .left = solo_lft,
     .glue = { .panel = UI_GLUE_SINGLE_PLAYER },
     .load = SinglePlayerMenu_LoadScreen,
     .init = SinglePlayerMenu_Init,

@@ -47,7 +47,7 @@ enum {
 /* ---- Editing primitives ---- */
 
 /* Insert text at cursor position. Returns true if text was modified. */
-static BOOL M_TextInput_Insert(menuTextInput_t *ti, LPCSTR text) {
+static inline BOOL M_TextInput_Insert(menuTextInput_t *ti, LPCSTR text) {
     char buf[512];
     LPCSTR old;
     size_t old_len, add_len, cursor;
@@ -125,7 +125,7 @@ static void M_TextInput_MoveCursor(menuTextInput_t *ti, int dir) {
 
 /* Filter text input: copy only printable characters (>= 0x20) to out.
  * Returns number of bytes written (not counting NUL). */
-static DWORD M_TextInput_Filter(LPCSTR in, LPSTR out, DWORD out_size) {
+static inline DWORD M_TextInput_Filter(LPCSTR in, LPSTR out, DWORD out_size) {
     DWORD n = 0;
 
     if (!in || !out || out_size == 0)
@@ -178,7 +178,7 @@ static inline int M_TextInput_Key(menuTextInput_t *ti, int key) {
 
 /* ---- Cursor rendering ---- */
 
-static void M_DrawTextInputCursor(LPRENDERER renderer,
+static inline void M_DrawTextInputCursor(LPRENDERER renderer,
                                    LPCDRAWTEXT style,
                                    LPCSTR text,
                                    DWORD cursor,

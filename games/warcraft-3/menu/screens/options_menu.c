@@ -31,6 +31,13 @@ typedef struct {
     LONG value;
 } optionsMenuItem_t;
 
+static LPCSTR const opts_lft[] = {
+    "GameplayPanel",
+    "VideoPanel",
+    "SoundPanel",
+    NULL,
+};
+
 static OptionsMenu_t options_menu;
 static optionsPanel_t current_panel = OPTIONS_PANEL_GAMEPLAY;
 
@@ -384,6 +391,7 @@ void OptionsMenu_Apply(void) {
 
 uiScreen_t optionsMenuScreen = {
     .name = "options",
+    .left = opts_lft,
     .glue = { .panel = UI_GLUE_OPTIONS, .tab = 1 },
     .load = OptionsMenu_LoadScreen,
     .init = OptionsMenu_Init,

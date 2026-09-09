@@ -3,9 +3,11 @@ Warcraft III glue panel animations
 
 Panel and tab groupings (from glue_panels[] in menu_glue_scene.c)
 ------------------------------------------------------------------
-UI_GotoGluePanel receives one GLUEDEST {panel, tab}. Full panel transitions
-play the panel's Birth/Death family on both layers. At idle, the right layer
-holds the base Stand and the left uses its explicit tab definition.
+UI_GotoGluePanel receives one GLUEDEST {panel, tab, page}. Each layer owns its
+current/target state and clock. The right always uses the base Birth/Stand/Death
+family. The left uses the selected tab's enter/rest/leave sequences even during
+full-screen entry and exit; using base Birth for Options tab 1 skips its motion.
+Page identifies content sharing a pose: Options Gameplay=0, Video=1, Sound=2.
 
 Panel                           Tab  Enter                      Rest                         Leave
 MainMenu                          0  MainMenu Birth             MainMenu Stand               MainMenu Death
@@ -20,7 +22,10 @@ BattlenetCustom                    0  BattlenetCustom Birth      BattlenetCustom
 BattlenetCustom                    1  BattlenetCustomCreate Birth BattlenetCustomCreate Stand BattlenetCustomCreate Death
 BattlenetCustom                    2  BattlenetAdvancedOptions Morph / same Morph held at @1.0000 / Morph Alternate
 
-Enter/Leave for nonzero tabs describe tab-only changes, with right chrome at Stand.
+Enter/Leave for nonzero tabs apply to both full-screen and tab-only transitions.
+Tab-only changes keep right chrome at Stand. Changing page with the same nonzero
+tab plays leave then enter; reselecting the same page does not restart animation.
+The menu system reveals each side's FDF controls only after its entry completes.
 Create has no Morph sequence. Submenu and AdvancedOptions have no Stand sequence.
 These are explicit authored families, not names generated from a shared suffix rule.
 Repeated/reversed requests finish the running morph before honoring the latest tab.

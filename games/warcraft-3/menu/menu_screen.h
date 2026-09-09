@@ -13,6 +13,7 @@
 typedef struct uiScreen_s {
     LPCSTR name;
     GLUEDEST glue;
+    LPCSTR const *left; // Native FDF subtree names; remaining frames belong to the right side.
     BOOL (*load)(void);
     void (*init)(void);
     void (*shutdown)(void);

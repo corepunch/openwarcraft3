@@ -129,7 +129,7 @@ LPCFRAMEDEF UI_HitTest(FLOAT fdf_x, FLOAT fdf_y) {
             continue;
         }
         LPCFRAMEDEF frame = &frames[i];
-        if (!frame->inuse || !UI_FrameIsInteractive(frame)) {
+        if (!frame->inuse || !UI_FrameIsInteractive(frame) || !UI_ScreenFrameVisible(frame)) {
             continue;
         }
         if (UI_PointerBlockedByPopup(frame)) {
@@ -1288,13 +1288,6 @@ void UI_DrawFramesInScene(LPCFRAMEDEF const *roots, DWORD num_roots, LPCRECT sce
     
     /* Initialize scene rect */
     scene_rect = scene ? *scene : UI_GetSceneRect();
-    if (!scene) {
-        VECTOR2 offset;
-        if (UI_GetGlueScreenOffset(&offset)) {
-            scene_rect.x += offset.x;
-            scene_rect.y += offset.y;
-        }
-    }
     scene_rect_valid = TRUE;
     total = 0;
     FOR_LOOP(i, num_roots) {
@@ -1307,8 +1300,11 @@ void UI_DrawFramesInScene(LPCFRAMEDEF const *roots, DWORD num_roots, LPCRECT sce
                                       total < MAX_UI_CLASSES ? MAX_UI_CLASSES - total : 0);
         total += emitted;
     }
-    count = MIN(total, MAX_UI_CLASSES);
+    count = 0;
+    FOR_LOOP(i, MIN(total, MAX_UI_CLASSES))
+        if (scene || UI_ScreenFrameVisible(draw_order[i])) draw_order[count++] = draw_order[i];
     active_modal = UI_FindActiveModalRoot(roots, num_roots);
+    if (active_modal && !scene && !UI_ScreenFrameVisible(active_modal)) active_modal = NULL;
     modal_index = UI_FrameDrawOrderIndex(draw_order, count, active_modal);
     UI_SanitizeInteractionState(draw_order, count);
     UI_UpdatePopupVisibility(draw_order, count);

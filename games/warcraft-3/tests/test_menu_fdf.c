@@ -268,6 +268,11 @@ static size2_t test_get_window_size(void) {
 
 static void test_release_texture(LPTEXTURE texture) { (void)texture; texture_releases++; }
 static void test_release_model(LPMODEL model) { (void)model; }
+static bool test_entity_anim(LPCMODEL model, LPCSTR anim, renderEntity_t *entity) {
+    (void)model; (void)anim; (void)entity;
+    return true;
+}
+static void test_render_frame(viewDef_t const *view) { (void)view; }
 static LPRENDERER test_get_renderer(void) {
     static refExport_t renderer = {
         .LoadTexture = test_load_texture,
@@ -280,6 +285,8 @@ static LPRENDERER test_get_renderer(void) {
         .DrawBackdrop = test_draw_backdrop,
         .DrawText = test_draw_text,
         .DrawSprite = test_draw_sprite,
+        .SetEntityAnimFrame = test_entity_anim,
+        .RenderFrame = test_render_frame,
         .GetTextSize = test_get_text_size,
     };
     return &renderer;
@@ -2214,7 +2221,6 @@ TEST(menu_fdf, initial_glue_panel_finishes_birth_before_opening_screen) {
 
 TEST(menu_fdf, options_glue_panel_tab_state_during_birth_and_idle) {
     menuImport_t saved = mi;
-    VECTOR2 offset;
 
     reset_ui_state();
     memset(&mi, 0, sizeof(mi));
@@ -2225,16 +2231,15 @@ TEST(menu_fdf, options_glue_panel_tab_state_during_birth_and_idle) {
     UI_GotoGluePanel((GLUEDEST){ .panel = UI_GLUE_MAIN_MENU }, NULL, NULL);
     UI_GotoGluePanel((GLUEDEST){ .panel = UI_GLUE_OPTIONS, .tab = 1 }, NULL, NULL);
 
-    /* During full-panel ENTER (Birth): both layers play the panel name Birth. */
+    /* The left enters its alternate pose while the right enters the base panel. */
     UI_DrawGlueScene();
-    T_STREQ(captured_sprite_anim[0], "Options Birth@0.0000");
+    T_STREQ(captured_sprite_anim[0], "Options Morph@0.0000");
     T_STREQ(captured_sprite_anim[1], "Options Birth@0.0000");
-    T_ASSERT(UI_GetGlueScreenOffset(&offset));
-    T_FEQ(offset.y, -UI_BASE_HEIGHT, 0.0001f);
+    T_ASSERT(!UI_GlueSideReady(UI_GLUE_LEFT));
+    T_ASSERT(!UI_GlueSideReady(UI_GLUE_RIGHT));
     M_SetActive(true);
     M_Refresh(M_Time() + 500);
-    T_ASSERT(UI_GetGlueScreenOffset(&offset));
-    T_FEQ(offset.y, -0.12f, 0.0001f);
+    T_ASSERT(UI_GlueIsTransitioning());
     M_Refresh(M_Time() + 500);
 
     /* Now IDLE with active_tab=1: left shows Stand Alternate, right shows Stand. */
@@ -2242,13 +2247,13 @@ TEST(menu_fdf, options_glue_panel_tab_state_during_birth_and_idle) {
     UI_DrawGlueScene();
     T_STREQ(captured_sprite_anim[0], "Options Stand Alternate");
     T_STREQ(captured_sprite_anim[1], "Options Stand");
-    T_ASSERT(!UI_GetGlueScreenOffset(&offset));
+    T_ASSERT(!UI_GlueIsTransitioning());
 
-    /* Full panel EXIT: both layers play Death (tab morph is not involved). */
+    /* Leave the alternate left pose through its authored Morph Alternate. */
     UI_GotoGluePanel((GLUEDEST){ .panel = UI_GLUE_MAIN_MENU }, NULL, NULL);
     captured_sprite_calls = 0;
     UI_DrawGlueScene();
-    T_STREQ(captured_sprite_anim[0], "Options Death@0.0000");
+    T_STREQ(captured_sprite_anim[0], "Options Morph Alternate@0.0000");
     T_STREQ(captured_sprite_anim[1], "Options Death@0.0000");
 
     UI_ResetGlueSceneModels();
@@ -2453,6 +2458,89 @@ TEST(menu_fdf, console_screen_commands_and_campaign_shortcuts) {
     mi = saved;
 }
 
+/* Exercise real screen commands and both render/input gates at the handoff edges. */
+TEST(menu_fdf, glue_options_tabs_keep_right_controls_and_defer_left_content) {
+    menuImport_t saved = mi;
+    test_glue_setup();
+    Cmd_ExecuteString("menu_options");
+    test_glue_tick(1000);
+    LPFRAMEDEF old = UI_FindFrame("GameplayPanel"), next = UI_FindFrame("VideoPanel");
+    LPFRAMEDEF button = UI_FindFrame("VideoButton"), edit = UI_FindFrame("GamePortEditBox");
+    T_NOT_NULL(old); T_NOT_NULL(next); T_NOT_NULL(button); T_NOT_NULL(edit);
+    T_ASSERT(!old->hidden && next->hidden);
+    T_ASSERT(UI_ScreenFrameVisible(old));
+    T_ASSERT(UI_ScreenFrameVisible(button));
+    Cmd_ExecuteString("menu_video");
+    test_glue_tick(0);
+    T_STREQ(captured_sprite_anim[0], "Options Morph Alternate@0.0000");
+    T_STREQ(captured_sprite_anim[1], "Options Stand");
+    T_ASSERT(!old->hidden && next->hidden); // Selection still belongs to the outgoing tab.
+    T_ASSERT(!UI_ScreenFrameVisible(old));
+    T_ASSERT(!UI_ScreenFrameVisible(edit));
+    T_ASSERT(UI_ScreenFrameVisible(button));
+    T_ASSERT(M_IsTransitioning());
+    test_glue_tick(666);
+    T_ASSERT(!old->hidden && next->hidden);
+    test_glue_tick(1);
+    T_ASSERT(old->hidden && !next->hidden);
+    T_STREQ(captured_sprite_anim[0], "Options Morph@0.0000");
+    T_ASSERT(!UI_ScreenFrameVisible(next));
+    test_glue_tick(999);
+    T_ASSERT(!UI_ScreenFrameVisible(next));
+    test_glue_tick(1);
+    T_ASSERT(UI_ScreenFrameVisible(next));
+    T_ASSERT(!M_IsTransitioning());
+    Cmd_ExecuteString("menu_video"); // Reselecting the same page must not animate.
+    T_ASSERT(!M_IsTransitioning());
+    Cmd_ExecuteString("menu_options_sound");
+    test_glue_tick(300);
+    Cmd_ExecuteString("menu_options_gameplay"); // Latest page wins without restarting the exit.
+    test_glue_tick(367);
+    T_ASSERT(!old->hidden && next->hidden);
+    test_glue_tick(1000);
+    T_ASSERT(!UI_FindFrame("GameplayPanel")->hidden);
+    T_ASSERT(UI_FindFrame("SoundPanel")->hidden);
+    T_ASSERT(!M_IsTransitioning());
+    Cmd_ExecuteString("menu_ingame");
+    mi = saved;
+}
+
+TEST(menu_fdf, glue_lan_content_never_draws_on_outgoing_main_panels) {
+    menuImport_t saved = mi;
+    test_glue_setup();
+    Cmd_ExecuteString("menu_main");
+    test_glue_tick(1000);
+    Cmd_ExecuteString("menu_multiplayer");
+    T_ASSERT(UI_GetCurrentScreen() == &mainMenuScreen);
+    captured_text_draws = 0;
+    test_glue_tick(0);
+    T_EQ(captured_text_draws, 0);
+    T_STREQ(captured_sprite_anim[0], "MainMenu Death@0.0000");
+    test_glue_tick(666);
+    T_ASSERT(UI_GetCurrentScreen() == &mainMenuScreen);
+    captured_text_draws = 0;
+    test_glue_tick(1);
+    T_ASSERT(UI_GetCurrentScreen() == &lanJoinScreen);
+    T_EQ(captured_text_draws, 0);
+    T_ASSERT(!UI_ScreenFrameVisible(UI_FindFrame("GameListPanel")));
+    T_ASSERT(!UI_ScreenFrameVisible(UI_FindFrame("JoinButton")));
+    test_glue_tick(999);
+    T_EQ(captured_text_draws, 0);
+    test_glue_tick(1);
+    T_ASSERT(captured_text_draws > 0);
+    T_ASSERT(UI_ScreenFrameVisible(UI_FindFrame("GameListPanel")));
+    T_ASSERT(UI_ScreenFrameVisible(UI_FindFrame("JoinButton")));
+    Cmd_ExecuteString("menu_startserver");
+    T_ASSERT(!UI_ScreenFrameVisible(UI_FindFrame("GameListPanel")));
+    T_ASSERT(UI_GlueSideReady(UI_GLUE_RIGHT));
+    T_ASSERT(!UI_ScreenFrameVisible(UI_FindFrame("CreateButton")));
+    test_glue_tick(1000);
+    T_STREQ(captured_sprite_anim[0], "BattlenetCustomCreate Stand");
+    Cmd_ExecuteString("menu_ingame");
+    T_ASSERT(!M_IsTransitioning());
+    mi = saved;
+}
+
 TEST(menu_fdf, glue_same_panel_screen_navigation_completes) {
     menuImport_t saved = mi;
     test_glue_setup();
@@ -2471,9 +2559,11 @@ TEST(menu_fdf, glue_same_panel_screen_navigation_completes) {
     test_glue_tick(1000);
     T_ASSERT(UI_GetCurrentScreen() == &lanJoinScreen);
     Cmd_ExecuteString("menu_game");
+    T_ASSERT(UI_GetCurrentScreen() == &lanJoinScreen);
+    T_ASSERT(M_IsTransitioning());
+    test_glue_tick(667);
     T_ASSERT(UI_GetCurrentScreen() == &singlePlayerMenuScreen);
     T_ASSERT(!M_IsTransitioning());
-    test_glue_tick(667);
     T_STREQ(captured_sprite_anim[0], "SinglePlayer Stand");
     Cmd_ExecuteString("menu_ingame");
     UI_ResetGlueSceneModels();
@@ -2527,6 +2617,7 @@ TEST(menu_fdf, glue_morph_requests_queue_without_restarting) {
     UI_GotoGluePanel(tab, NULL, NULL);
     test_glue_tick(500);
     UI_GotoGluePanel((GLUEDEST){ .panel = UI_GLUE_OPTIONS, .tab = 1 }, NULL, NULL);
+    test_glue_tick(500); // Finish the in-flight skirmish Morph before leaving.
     test_glue_tick(667);
     test_glue_tick(1000);
     T_STREQ(captured_sprite_anim[0], "Options Stand Alternate");
@@ -2675,6 +2766,7 @@ TEST(menu_fdf, main_menu_edition_button_defers_restart_after_death_frame) {
     mainMenuScreen.init();
     UI_ResetGlueSceneModels();
     UI_GotoGluePanel(mainMenuScreen.glue, NULL, NULL);
+    test_glue_tick(1000);
     root = UI_FindFrame("MainMenuFrame");
     edition = root ? UI_FindChildFrame(root, "EditionButton") : NULL;
     if (!require_not_null(root) || !require_not_null(edition)) {
@@ -2733,6 +2825,7 @@ TEST(menu_fdf, main_menu_edition_button_rolls_back_when_tft_data_is_missing) {
     mainMenuScreen.init();
     UI_ResetGlueSceneModels();
     UI_GotoGluePanel(mainMenuScreen.glue, NULL, NULL);
+    test_glue_tick(1000);
     root = UI_FindFrame("MainMenuFrame");
     if (!require_not_null(root)) {
         hide_expansion_campaign_file = false;
@@ -3224,11 +3317,15 @@ TEST(menu_fdf, console_lan_and_lobby_commands_deliver_arguments) {
     Cmd_ExecuteString("menu_lan_select 0");
     Cmd_ExecuteString("menu_lan_join");
     T_EQ(menu_test_connected, 0);
+    test_glue_tick(1000);
     Cmd_ExecuteString("menu_startserver");
+    test_glue_tick(1000);
     Cmd_ExecuteString("menu_lan_refresh");
     Cmd_ExecuteString("menu_lan_select 1");
     T_NOT_NULL(LAN_SelectedMapPath());
     Cmd_ExecuteString("menu_lan_start");
+    test_glue_tick(667);
+    test_glue_tick(1000);
     T_ASSERT(UI_GetCurrentScreen() == &gameSetupScreen);
     Cmd_ExecuteString("menu_game_setup_map \"Maps\\Melee\\TwinRivers.w3m\"");
     T_ASSERT(strstr(captured_command, "lobby_start \"Maps\\\\Melee\\\\TwinRivers.w3m\"") != NULL);
@@ -3264,6 +3361,19 @@ TEST(menu_fdf, console_lan_and_lobby_commands_deliver_arguments) {
     Cmd_ExecuteString("menu_game_setup_start");
     T_NULL(UI_GetCurrentScreen());
     T_ASSERT(strstr(captured_command, "map \"Maps\\\\Melee\\\\TwinRivers.w3m\"") != NULL);
+    /* Reuse the loaded lobby fixture to check the solo presentation contract. */
+    Cmd_ExecuteString("menu_single_player_skirmish");
+    test_glue_tick(1000);
+    M_ShowGameSetupMenu();
+    test_glue_tick(0);
+    T_ASSERT(UI_GetCurrentScreen() == &gameSetupScreen);
+    T_STREQ(captured_sprite_anim[0], "SinglePlayerSkirmish Stand");
+    T_STREQ(captured_sprite_anim[1], "SinglePlayer Stand");
+    Cmd_ExecuteString("menu_game_setup_map \"Maps\\Melee\\TwinRivers.w3m\"");
+    test_glue_tick(0);
+    T_STREQ(captured_sprite_anim[0], "SinglePlayerSkirmish Stand");
+    T_STREQ(captured_sprite_anim[1], "SinglePlayer Stand");
+    Cmd_ExecuteString("menu_ingame");
     UI_ResetGlueSceneModels();
     mi = saved;
 }

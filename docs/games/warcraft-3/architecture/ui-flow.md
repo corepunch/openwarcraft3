@@ -113,51 +113,56 @@ valid after map registration and makes Quit Campaign / EndGame / campaign-select
 `UI\CampaignStrings.txt` / `UI\CampaignStrings_exp.txt` names, so a post-switch Single Player entry reparses the campaign list from
 the same edition selected by the main menu.
 
-`games/warcraft-3/menu/menu_glue_scene.c` renders the selected background as a model with
-`RDF_USE_ENTITY_CAMERA`. `UI_GotoGluePanel(GLUEDEST, exited, changed)` accepts one `{panel, tab}` destination. The scene
-retains current and requested destinations together, validates the tab against the destination panel, and commits both at the
-Death/Birth boundary. Tab zero is the default left layer. RoC and TFT have the same named Birth intervals (1000 ms) and
-Death intervals (666–667 ms); the controller rounds Death to 667 ms without adding renderer timing APIs.
+`games/warcraft-3/menu/menu_glue_scene.c` renders the selected background with `RDF_USE_ENTITY_CAMERA`.
+`UI_GotoGluePanel(GLUEDEST, exited, changed)` accepts `{panel, tab, page}`. `tab` selects an authored left-panel pose;
+`page` distinguishes content pages that share that pose (Options Gameplay, Video, and Sound). Each `GLUELAYER` retains
+its own current/target destination, phase, and start time. The right layer uses only the panel family. RoC and TFT share
+1000 ms named entry intervals and 666–667 ms exit intervals; the controller rounds exit duration to 667 ms.
 
-`menu_main.c` owns screen navigation. `UI_LoadScreen` resolves resources before requesting an animation; failure retains the
-current screen and chrome. `UI_InstallScreen` only shuts down/initializes controls and never requests another transition.
-Animated navigation installs the incoming screen at the Death/Birth boundary and releases its input lock after Birth.
-Direct menu/subpanel commands install immediately, then request their destination, preserving commands that configure controls
-immediately after screen selection. LAN mode selection updates the LAN and setup screen destinations even when the same screen
-remains installed; rebuilding that mode reuses `LANJoin_Init` without requesting animation from inside initialization.
+`menu_main.c: UI_RequestScreen` owns every screen/subpanel command. Loading and initializing an inactive screen prepares
+its resources and data before returning to synchronous map/lobby callers, but does not grant draw ownership. Load failure
+retains the current screen and chrome. The boundary callback installs the destination and applies its requested content
+selection only after the outgoing animation completes. Same-screen selections also defer their content changes to that
+boundary. The final callback releases the pending request after both layers settle. Gameplay/shutdown cancel transitions
+and clear ownership explicitly through `UI_ClearScreen`; they do not navigate to another menu.
 
-Same-panel requests invoke the boundary callback immediately and complete immediately when the panel is idle. A request during
-Birth replaces the pending destination/callbacks; a request during Death replaces the target without restarting the clock.
-Callbacks are detached and state is committed before invocation. Closing clears any old screen-boundary callback, so replacing
-a screen transition with an action cannot install a stale screen afterward. `M_Refresh` re-reads the current screen after drawing
-the glue scene because advancing its animation may install a different screen.
+Screens declare their left-side native FDF subtree names in `uiScreen_t.left`; remaining frames belong to the right side.
+`UI_ScreenFrameVisible` walks that ancestry and uses the corresponding layer's readiness. `UI_DrawFramesInScene` filters
+controls, model sprites, highlights, and modal dimming centrally, and `UI_HitTest` applies the same visibility gate. FDF's
+own hidden flags still choose content, but cannot reveal it before its layer finishes entering. The old whole-screen offset
+curve is gone: controls appear at their authored positions after the model animation. Main, Single Player, Options, LAN,
+and Game Setup therefore share presentation timing instead of selecting immediate versus animated installation paths.
+Mouse, key, and text input remain locked while a transition is pending, including initial entry and tab-only transitions.
 
-The right layer uses the panel's Birth/Stand/Death family. Full-panel entry/exit also uses that base family on the left;
-at rest, the left uses its selected tab. Explicit `GLUETAB` entries describe enter/stand/leave sequences rather than assuming
-uniform suffixes. SinglePlayerSkirmish and Options have Morph families; BattlenetCustomCreate instead has Birth/Stand/Death.
-MultiplayerSubmenu and BattlenetAdvancedOptions have no Stand: they hold the authored Morph endpoint with `@1.0000`.
+The right layer uses the panel's Birth/Stand/Death family. The left uses its selected tab's explicit enter/stand/leave
+sequences during full-screen transitions as well as tab changes. Options therefore enters with `Options Morph`, rests at
+`Options Stand Alternate`, and leaves with `Options Morph Alternate`; its base Birth does not animate the alternate left
+panel. SinglePlayerSkirmish has a Morph family, whereas BattlenetCustomCreate uses Birth/Stand/Death. MultiplayerSubmenu
+and BattlenetAdvancedOptions lack a Stand sequence and hold their authored Morph endpoint at `@1.0000`.
 See [the extracted sequence inventory](../../../../games/warcraft-3/menu/panels.txt).
 
-Tab changes leave the right layer at Stand. Repeated or reversed requests retain the current morph clock and queue the latest
-destination. Switching between two non-default tabs first leaves the current tab through zero, then enters the requested tab.
-A full-panel transition cancels that morph and retains the new panel's requested tab through Death.
+Changing Options pages plays left Morph Alternate followed by Morph while the right remains at Stand. Reselecting the
+same page does nothing to the model. Repeated/reversed requests retain the running sequence clock and select the latest
+requested page when it completes. Switching between non-default poses leaves through the base pose first. Full-screen
+navigation during a running tab sequence also lets that sequence finish before leaving. An overriding family request
+while the right panel is still entering can replace its pending entry, as needed by startup command selection.
+Callbacks are detached before invocation; closing replaces the pending screen-boundary callback. `M_Refresh` re-reads the
+active screen after advancing the scene because that step can install a different screen. Action-only transitions run
+the action after exit; edition switching uses this route.
 
-The panel models animate entry/exit through staged geoset visibility/alpha; their node matrices remain identity during Birth.
-FDF contents follow a shared 20 fps offset curve in `menu_glue_scene.c`, forward for Birth and backward for Death.
-Action-only transitions invoke their action after Death. At startup `M_Init` loads resources and the client's `menu_main`
-command starts the initial transition.
+The September 2026 bounded runtime investigation confirmed that LAN installed itself before MainMenu Death started,
+Options entry used base Birth followed by a jump to Stand Alternate, and `menu_video` changed FDF visibility without any
+model transition. `git blame` traced the immediate command path to the earlier menu controller and the split handoff to
+`b7a03afa8`; preserving immediate installation for command callers had retained the LAN flash. Separating data preparation
+from presentation ownership removes that exception. `mdxtool --info` verified the animation inventory directly in War3.mpq;
+RoC and TFT rendered captures checked Options entry, tab exit/re-entry, stable Video, and Main-to-LAN exit/entry.
 
-The September 2026 bounded diagnostic run reproduced three ownership failures: Credits → Main returned from a same-panel
-request without delivering completion, Main → Create validated tab 1 against Main and arrived at Create with tab 0, and LAN
-mode changes rebuilt controls without requesting chrome. The fix replaces the old split Goto/SetTab and separate Retarget paths
-with the atomic destination contract above. `mdxtool --info` also confirmed that `BattlenetCustomCreate Morph`,
-`MultiplayerSubmenu Stand`, and `BattlenetAdvancedOptions Stand` do not exist.
-
-`make test-menu` covers Credits/Main and Skirmish/Cancel input-lock release, destination-tab preservation, live LAN mode
-changes, startup overrides, interrupted/repeated morphs, transitions between non-default tabs, and close callback replacement.
-Sequence-name checks read a fixture containing only the original RoC TopLeftPanel MDLX header and SEQS chunk, stored at
-`UI/Glues/SpriteLayers/TopLeftPanel.mdx` in `build/tests/tests.mpq`. LAN FDF fixtures use the original Blizzard archive paths;
-StandardTemplates contains the authored dependencies needed by those fixtures. No test requires installed Warcraft archives.
+`make test-menu` covers deferred LAN text rendering, exact entry/exit visibility boundaries, nested left-control ownership,
+right-side preservation, Options page reselection/retargeting, Credits/Main and Skirmish/Cancel completion, LAN mode changes,
+startup overrides, full navigation during a morph, authored sequence names, and close callback replacement. Sequence checks
+read the original RoC TopLeftPanel MDLX header and SEQS chunk from `build/tests/tests.mpq`. FDF fixtures are packed under
+the native Blizzard paths; Options includes native Gameplay/Video button subtrees to exercise the right-side control gate.
+No standalone menu test requires installed Warcraft archives.
 
 Build with `WC3_DEBUG_GLUE=1` to log each glue phase boundary and any missing MDX sequence that falls back to sequence zero.
 The diagnostics are transition-scoped rather than frame-scoped. Rebuild when toggling the flag, then reproduce Options directly:
@@ -356,8 +361,6 @@ continuing network reads and client traffic.
 
 The following Warsmash/retail-style lifecycle work is intentionally not approximated in the current UI code:
 
-- Main Menu <-> Single Player and Single Player -> Campaign use authored Birth/Stand/Death completion now, but other glue-screen
-  routes (Options, LAN, Credits, and related returns) still change screens immediately;
 - the campaign `SlidingDoors Birth -> backdrop swap -> SlidingDoors Death` wipe is not wired;
 - campaign ambient sound and campaign-specific cursor switching are not wired;
 - profile creation/deletion/persistence is not implemented;

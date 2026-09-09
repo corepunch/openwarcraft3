@@ -74,6 +74,13 @@ typedef struct {
     gameSetupSlotConfig_t configs[MAX_PLAYERS];
 } gameSetupState_t;
 
+static LPCSTR const setup_lf[] = {
+    "TeamSetupContainer",
+    "ChatTextArea",
+    "ChatEditBox",
+    NULL,
+};
+
 static gameSetupState_t setup;
 
 static DWORD GameSetup_CountPlayers(LPCMAPINFO info);
@@ -1055,6 +1062,7 @@ void GameSetup_UpdateLobbySetup(lobbyState_t const *state) {
 
 uiScreen_t gameSetupScreen = {
     .name = "game-setup",
+    .left = setup_lf,
     .glue = { .panel = UI_GLUE_MULTIPLAYER_PRE_GAME_CHAT },
     .load = GameSetup_LoadScreen,
     .init = GameSetup_Init,

@@ -20,6 +20,12 @@
 #include "../generated/main_menu.h"
 
 /* Generated FDF frame references */
+static LPCSTR const main_lft[] = {
+    "WarCraftIIILogo",
+    "RealmSelect",
+    NULL,
+};
+
 static MainMenu_t main_menu;
 static uiDialogWar3_t quit_dialog;
 
@@ -218,6 +224,7 @@ void MainMenu_ShowDisconnected(void) {
 
 uiScreen_t mainMenuScreen = {
     .name = "main",
+    .left = main_lft,
     .glue = { .panel = UI_GLUE_MAIN_MENU },
     .load = MainMenu_LoadScreen,
     .init = MainMenu_Init,
