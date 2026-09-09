@@ -636,9 +636,41 @@ TEST(wc3_slk, armor_uses_realdef_not_def) {
 
 
 static PATHSTR spawn_tex;
+static PATHSTR spawn_model;
 static DWORD spawn_images;
 static int capture_spawn_image(LPCSTR name) {
     snprintf(spawn_tex, sizeof(spawn_tex), "%s", name); spawn_images++; return 42;
+}
+static int capture_spawn_model(LPCSTR name) {
+    snprintf(spawn_model, sizeof(spawn_model), "%s", name); return 43;
+}
+
+TEST(wc3_slk, single_variation_bridge_registers_authoritative_unsuffixed_model) {
+    static LPCSTR const slk =
+        "ID;PWXL;N;E\n"
+        "C;Y1;X1;K\"ID\"\n"
+        "C;Y1;X2;K\"file\"\n"
+        "C;Y1;X3;K\"numVar\"\n"
+        "C;Y1;X4;K\"targType\"\n"
+        "C;Y2;X1;K\"LT05\"\n"
+        "C;Y2;X2;K\"Doodads\\Terrain\\WoodBridgeLarge45\\WoodBridgeLarge45.mdx\"\n"
+        "C;Y2;X3;K1\n"
+        "C;Y2;X4;K\"debris\"\n"
+        "E\n";
+    slkTestData_t *rows = parse_slk_string(slk);
+    slkTestData_t *saved = G_SetSLKRows("DestructableData", rows);
+    int (*old_index)(LPCSTR) = gi.ModelIndex;
+    edict_t ent = { .class_id = MAKEFOURCC('L','T','0','5'), .variation = 0 };
+
+    setup_test_world();
+    spawn_model[0] = '\0';
+    gi.ModelIndex = capture_spawn_model;
+    SP_CallSpawn(&ent);
+
+    T_STREQ(spawn_model, "Doodads\\Terrain\\WoodBridgeLarge45\\WoodBridgeLarge45.mdx");
+    G_SetSLKRows("DestructableData", saved);
+    free_slk_rows(rows);
+    gi.ModelIndex = old_index;
 }
 
 /* Drive the real spawn path with SLK texFile values: no replacement, extensionless art, and a source TGA name. */

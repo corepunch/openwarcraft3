@@ -9,7 +9,11 @@ static umove_t tree_move_pain = { "stand hit", ai_pain, tree_stand };
 static umove_t tree_move_death = { "death", NULL, tree_decay1 };
 
 void tree_decay1(LPEDICT self) {
-//    self->monsterinfo.currentmove = &tree_move_decay1;
+    /* A destructable model's final Death frame is its persistent dead form.
+     * Holding the preceding simulation sample can leave bridge replacement
+     * geosets transparent even though the death sequence has completed. */
+    if (self->animation && self->animation->interval[1] > self->animation->interval[0])
+        self->s.frame = self->animation->interval[1] - 1;
     self->aiflags |= AI_HOLD_FRAME;
 }
 
@@ -22,12 +26,14 @@ void tree_stand(LPEDICT self) {
 }
 
 void G_DestructableStartAliveAnimation(LPEDICT self, BOOL birth) {
+    self->aiflags &= ~AI_HOLD_FRAME;
     unit_setmove(self, birth ? &tree_move_birth : &tree_move_stand);
     if (self->animation)
         self->s.frame = self->animation->interval[0];
 }
 
 void G_DestructableStartDeathAnimation(LPEDICT self) {
+    self->aiflags &= ~AI_HOLD_FRAME;
     unit_setmove(self, &tree_move_death);
     /* Begin the death sequence in the transition itself. Missing model
      * sequences leave animation NULL but do not block lifecycle processing. */

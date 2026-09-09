@@ -286,21 +286,51 @@ static void SP_SpawnDoodad(LPEDICT edict) {
     edict->svflags |= SVF_STATIC_SCENERY;
 }
 
+/* DestructableData may provide either a complete model stem (TFT/current
+ * data) or the older dir + short file pair. As in Warsmash, a variation
+ * suffix exists only when numVar > 1; appending "0" to a single-variation
+ * bridge points the game-side animation loader at a file that is not in
+ * War3.mpq even though the renderer can recover by stripping that digit. */
+static void SP_DestructableModelFilename(DestructableData_t const *row,
+                                         DWORD variation,
+                                         LPSTR out,
+                                         size_t out_size) {
+    PATHSTR stem = { 0 };
+    LPCSTR file;
+    char *dot;
+
+    if (!out || !out_size) return;
+    out[0] = '\0';
+    if (!row || !(file = row->file) || !*file) return;
+
+    if (strchr(file, '\\') || strchr(file, '/'))
+        strlcpy(stem, file, sizeof(stem));
+    else if (row->dir && *row->dir)
+        snprintf(stem, sizeof(stem), "%s\\%s\\%s", row->dir, file, file);
+    else
+        strlcpy(stem, file, sizeof(stem));
+
+    dot = strrchr(stem, '.');
+    if (dot && (!strcasecmp(dot, ".mdx") || !strcasecmp(dot, ".mdl")))
+        *dot = '\0';
+
+    if (row->numVar > 1) {
+        DWORD const max_variation = (DWORD)row->numVar - 1;
+        snprintf(out, out_size, "%s%u.mdx", stem, MIN(variation, max_variation));
+    } else {
+        snprintf(out, out_size, "%s.mdx", stem);
+    }
+}
+
 static void SP_SpawnDestructable(LPEDICT edict) {
     DestructableData_t const *row = edict->data.DestructableData;
-    LPCSTR dir = row->dir;
-    LPCSTR file = row->file;
     LPCSTR path_tex = row->pathingTexture;
     FLOAT radius = row->radius;
     PATHSTR buffer;
     LPCSTR tex = row->textureFile;
     /* texFile may include an extension; "_" means the model has no replacement texture. */
     edict->s.image = tex && *tex && strcmp(tex, "_") ? gi.ImageIndex(tex) : 0;
-    if (dir) {
-        snprintf(buffer, sizeof(buffer), "%s\\%s\\%s%d.mdx", dir, file, file, edict->variation);
-    } else {
-        snprintf(buffer, sizeof(buffer), "%s%d.mdx", file, edict->variation);
-    }
+    SP_DestructableModelFilename(row, edict->variation, buffer, sizeof(buffer));
     edict->s.model = G_RegisterModel(buffer);
     edict->destructable.alive_pathtex = M_LoadPathTex(path_tex);
     edict->destructable.death_pathtex = M_LoadPathTex(row->deathPathingTexture);

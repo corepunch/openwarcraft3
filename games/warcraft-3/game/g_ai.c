@@ -93,6 +93,11 @@ static BOOL unit_is_flying(LPCEDICT ent) {
 static BOOL filter_blockers(LPCEDICT ent) {
     if (ent == trymove_self || IS_HOLLOW(ent) || ent->collision <= 0.0f)
         return false;
+    /* An alive walkable destructable is a ground surface, not a circle-shaped
+     * obstacle. Its authored path texture remains responsible for deck edges. */
+    if (G_IsDestructable(ent) && !ent->destructable.dead &&
+        ent->destructable.placement_solid && ent->pathtex &&
+        ent->data.DestructableData && ent->data.DestructableData->walkable) return false;
     /* Trees have collisionSize 0 (they block only via their baked footprint) so
      * they are already excluded above; buildings keep a real collision circle
      * and ARE counted here — relying on the terrain footprint alone let units

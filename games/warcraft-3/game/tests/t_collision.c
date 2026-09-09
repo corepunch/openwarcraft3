@@ -483,6 +483,15 @@ TEST(wc3_collision, load_tga_unsupported_type_returns_null) {
     T_NULL(tex);
 }
 
+TEST(wc3_collision, load_tga_rejects_truncated_header_and_pixels) {
+    BYTE buf[64];
+    size_t sz = make_tga_bgra_1x1(buf, 0x00, 0x00, 0xFF, 0xFF);
+
+    T_NULL(LoadTGA(NULL, 0));
+    T_NULL(LoadTGA(buf, sizeof(test_tga_hdr_t) - 1));
+    T_NULL(LoadTGA(buf, sz - 1));
+}
+
 /* -----------------------------------------------------------------------
  * Suite runner
  * --------------------------------------------------------------------- */

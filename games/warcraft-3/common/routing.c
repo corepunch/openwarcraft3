@@ -378,18 +378,31 @@ static DWORD collision_radius_cells(FLOAT collision) {
     return MAX(1, (DWORD)ceilf(collision / pathmap_cell_world_size()));
 }
 
+static BOOL entity_is_live_walkable_surface(edict_t const *ent) {
+    return ent && ent->destructable.initialized && !ent->destructable.dead &&
+        ent->destructable.placement_solid && ent->pathtex &&
+        ent->data.DestructableData && ent->data.DestructableData->walkable;
+}
+
 /* Stamp a single entity's footprint into a pathmap byte array. */
 static void stamp_entity_obstacle(edict_t const *ent, pathMapCell_t *target) {
     point2_t p = LocationToPathMap(&ent->s.origin2);
     if (ent->pathtex) {
         pathTex_t *pt = ent->pathtex;
+        BOOL const walkable_surface = entity_is_live_walkable_surface(ent);
         FOR_LOOP(x, pt->width) {
             FOR_LOOP(y, pt->height) {
                 int px = (int)x + p.x - (int)pt->width / 2;
                 int py = (int)y + p.y - (int)pt->height / 2;
                 if (is_valid_point(px, py)) {
-                    target[px + py * pathmap.width].nowalk |=
-                        pt->map[x + y * pt->width].b;
+                    pathMapCell_t *cell = &target[px + py * pathmap.width];
+                    BYTE const blocked = pt->map[x + y * pt->width].b;
+                    /* A live bridge replaces terrain no-walk inside its
+                     * footprint: clear pixels form the deck and red pixels
+                     * retain authored rails. Other footprints only add
+                     * obstacles to the terrain baseline. */
+                    if (walkable_surface) cell->nowalk = blocked != 0;
+                    else cell->nowalk |= blocked;
                 }
             }
         }
@@ -428,9 +441,17 @@ void CM_BakeStaticObstacles(void) {
     if (!pathmap.terrain || !pathmap.original)
         return;
     memcpy(pathmap.original, pathmap.terrain, cells);
+    /* Lay walkable surfaces over terrain first. Ordinary blockers are stamped
+     * afterwards so a bridge can open water without erasing an overlapping
+     * building or destructable footprint due to edict iteration order. */
     FOR_LOOP(i, ge->num_edicts) {
         edict_t *ent = EDICT_NUM(i);
-        if (!entity_blocks_static_pathing(ent))
+        if (entity_blocks_static_pathing(ent) && entity_is_live_walkable_surface(ent))
+            stamp_entity_obstacle(ent, pathmap.original);
+    }
+    FOR_LOOP(i, ge->num_edicts) {
+        edict_t *ent = EDICT_NUM(i);
+        if (!entity_blocks_static_pathing(ent) || entity_is_live_walkable_surface(ent))
             continue;
         stamp_entity_obstacle(ent, pathmap.original);
     }
