@@ -45,9 +45,14 @@ static DWORD starting_resource_cheat_applied_mask;
 static DWORD starting_resource_cheat_deferred_mask;
 
 void G_ResetStartingResourceCheat(void) {
-    LPCSTR value = gi.CvarString ? gi.CvarString("wc3_cheat_starting_resources", "0") : "0";
+    LPCSTR value = gi.CvarString("wc3_cheat_starting_resources", "0");
 
     starting_resource_cheat_armed = value && atoi(value) != 0;
+    /* Pre-map configuration must obey the same server permission as client cheat commands. */
+    if (starting_resource_cheat_armed && !G_CheatsEnabled()) {
+        fprintf(stderr, "WC3: starting resource cheat requires sv_cheats 1 before map load\n");
+        starting_resource_cheat_armed = false;
+    }
     starting_resource_cheat_applied_mask = 0;
     starting_resource_cheat_deferred_mask = 0;
 }
@@ -60,6 +65,11 @@ void G_DisableStartingResourceCheatForLoadedGame(void) {
 
 void G_ApplyStartingResourceCheat(void) {
     if (!starting_resource_cheat_armed) return;
+    if (!G_CheatsEnabled()) {
+        fprintf(stderr, "WC3: starting resource cheat canceled because sv_cheats is disabled\n");
+        starting_resource_cheat_armed = false;
+        return;
+    }
 
     FOR_LOOP(i, game.max_clients) {
         LPGAMECLIENT client = game.clients + i;

@@ -4,6 +4,7 @@
 #include <math.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdarg.h>
 #include <strings.h>
 
 /* Generated server tables are included here so the unity source tree contains no generated files. */
@@ -2065,8 +2066,22 @@ static BOOL Wow_CheatsEnabled(void) {
     return atoi(gi.CvarString("sv_cheats", "0")) != 0;
 }
 
-static void Wow_CheatHelp(void) {
-    fprintf(stderr, "WoW: cheats: give all|health [amount]|mana [amount]|gold [amount]|xp [amount]; god; kill\n");
+/* Cheat replies belong to the issuing client; stderr alone only reaches the server operator. */
+static void Wow_CheatPrintf(LPEDICT ent, LPCSTR fmt, ...) {
+    char text[1024];
+    LONG opcode = svc_console_print;
+    va_list args;
+    va_start(args, fmt);
+    vsnprintf(text, sizeof(text), fmt, args);
+    va_end(args);
+    fprintf(stderr, "%s\n", text);
+    gi.Write(PF_BYTE, &opcode);
+    gi.Write(PF_STRING, text);
+    gi.unicast(ent);
+}
+
+static void Wow_CheatHelp(LPEDICT ent) {
+    Wow_CheatPrintf(ent, "WoW: cheats: give all|health [amount]|mana [amount]|gold [amount]|xp [amount]; god; kill");
 }
 
 static void Wow_GiveCommand(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
@@ -2074,11 +2089,11 @@ static void Wow_GiveCommand(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
     DWORD amount;
 
     if (!Wow_CheatsEnabled()) {
-        fprintf(stderr, "WoW: cheats are disabled; set sv_cheats 1\n");
+        Wow_CheatPrintf(ent, "WoW: cheats are disabled; set sv_cheats 1");
         return;
     }
     if (!local || argc < 2) {
-        Wow_CheatHelp();
+        Wow_CheatHelp(ent);
         return;
     }
     amount = argc >= 3 ? (DWORD)strtoul(argv[2], NULL, 10) : 0;
@@ -2096,32 +2111,34 @@ static void Wow_GiveCommand(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
     } else if (!strcasecmp(argv[1], "xp")) {
         ent->client->ps.stats[WOW_STAT_XP] += amount;
     } else {
-        fprintf(stderr, "WoW: unsupported give target '%s'\n", argv[1]);
-        Wow_CheatHelp();
+        Wow_CheatPrintf(ent, "WoW: unsupported give target '%s'", argv[1]);
+        Wow_CheatHelp(ent);
         return;
     }
     UI_WriteWowHud(ent);
+    Wow_CheatPrintf(ent, "WoW: give %s applied", argv[1]);
 }
 
 static void Wow_CheatCommand(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
     wowEntityLocal_t *local = Wow_EntityLocal(ent);
 
     if (!Wow_CheatsEnabled()) {
-        fprintf(stderr, "WoW: cheats are disabled; set sv_cheats 1\n");
+        Wow_CheatPrintf(ent, "WoW: cheats are disabled; set sv_cheats 1");
         return;
     }
     if (!local) {
-        fprintf(stderr, "WoW: cheat '%s' requires a player entity\n", argv[0]);
+        Wow_CheatPrintf(ent, "WoW: cheat '%s' requires a player entity", argv[0]);
         return;
     }
     if (!strcasecmp(argv[0], "god")) {
         local->godmode = !local->godmode;
-        fprintf(stderr, "WoW: god %s\n", local->godmode ? "on" : "off");
+        Wow_CheatPrintf(ent, "WoW: god %s", local->godmode ? "on" : "off");
     } else if (!strcasecmp(argv[0], "kill")) {
         Wow_AIDie(ent, NULL);
+        Wow_CheatPrintf(ent, "WoW: player killed");
     } else {
         (void)argc;
-        fprintf(stderr, "WoW: unsupported cheat command '%s'\n", argv[0]);
+        Wow_CheatPrintf(ent, "WoW: unsupported cheat command '%s'", argv[0]);
     }
 }
 

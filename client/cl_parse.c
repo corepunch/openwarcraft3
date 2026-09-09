@@ -247,6 +247,8 @@ void CL_ParseFrame(LPSIZEBUF msg) {
     
     if (cls.state != ca_active && cl.refresh_prepped) {
         cls.state = ca_active;
+        /* Our client becomes active on its first snapshot, after begin; forwarding is safe here. */
+        Cbuf_InsertFromDefer();
         cl.playerstate.client_ui_state = CLIENT_UI_GAME;
         SCR_EndLoadingPlaque();
         SAFE_DELETE(cl.layout[LAYER_LOADING], MemFree);

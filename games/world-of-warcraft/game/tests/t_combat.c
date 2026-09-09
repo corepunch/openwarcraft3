@@ -14,6 +14,21 @@
 
 #include <string.h>
 
+static DWORD cheat_packets;
+static LONG cheat_opcode;
+static BOOL cheat_writing;
+static LPEDICT cheat_recipient;
+static char cheat_text[1024];
+static LPCSTR cheat_cvar(LPCSTR name, LPCSTR fallback) { return !strcmp(name, "sv_cheats") ? "1" : fallback; }
+static void cheat_write(pfWriteType_t type, void const *data) {
+    if (!cheat_writing && type == PF_BYTE) { cheat_opcode = *(LONG const *)data; cheat_writing = true; }
+    if (cheat_opcode == svc_console_print && type == PF_STRING) snprintf(cheat_text, sizeof(cheat_text), "%s", (LPCSTR)data);
+}
+static void cheat_unicast(LPEDICT ent) {
+    if (cheat_opcode == svc_console_print) { cheat_packets++; cheat_recipient = ent; }
+    cheat_writing = false;
+}
+
 /* Register the player model once; it carries the Attack/Pain/Death animations
  * the AI code needs to start a swing and transition the same entity to a corpse. */
 static int combat_model(void) {
@@ -54,6 +69,35 @@ static void combat_prepare(LPEDICT *attacker_out, LPEDICT *target_out) {
 
     *attacker_out = attacker;
     *target_out = target;
+}
+
+TEST(wow_combat, cheat_feedback_reaches_issuing_client) {
+    struct game_import saved = gi;
+    LPEDICT player, target;
+    LPCSTR god[] = { "god" }, give[] = { "give", "health", "25" };
+    combat_prepare(&player, &target);
+    player->client = &wow_clients[0].client;
+    gi.CvarString = cheat_cvar;
+    gi.Write = cheat_write;
+    gi.unicast = cheat_unicast;
+    cheat_packets = 0;
+    cheat_writing = false;
+    globals.ClientCommand(player, 1, god);
+    T_ASSERT(Wow_EntityLocal(player)->godmode);
+    T_EQ(cheat_packets, 1);
+    T_EQ(cheat_recipient, player);
+    T_EQ(cheat_opcode, svc_console_print);
+    T_STREQ(cheat_text, "WoW: god on");
+    globals.ClientCommand(player, 3, give);
+    T_EQ(Wow_EntityLocal(player)->health, 25);
+    T_EQ(cheat_packets, 2);
+    T_STREQ(cheat_text, "WoW: give health applied");
+    gi.CvarString = saved.CvarString;
+    globals.ClientCommand(player, 1, god);
+    T_ASSERT(Wow_EntityLocal(player)->godmode);
+    T_EQ(cheat_packets, 3);
+    T_STREQ(cheat_text, "WoW: cheats are disabled; set sv_cheats 1");
+    gi = saved;
 }
 
 TEST(wow_combat, attack_applies_damage_at_damage_point) {
