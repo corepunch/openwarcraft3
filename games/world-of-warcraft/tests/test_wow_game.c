@@ -29,6 +29,8 @@ static BYTE test_last_unicast_buf[MAX_MSGLEN];
 static DWORD test_multicast_size;
 static DWORD test_last_unicast_size;
 static DWORD test_unicast_calls;
+static BYTE test_selection_buf[6];
+static DWORD test_selection_size;
 static char test_last_error[512];
 static char test_playerinfo[MAX_PATHLEN];
 
@@ -360,6 +362,9 @@ static void test_write(pfWriteType_t type, void const *value) {
             s = (SHORT)*(LONG const *)value;
             test_write_data(&s, sizeof(s));
             break;
+        case PF_LONG:
+            test_write_data(value, sizeof(LONG));
+            break;
         case PF_STRING:
             text = value ? (LPCSTR)value : "";
             test_write_data(text, (DWORD)strlen(text) + 1);
@@ -410,6 +415,11 @@ static void test_write(pfWriteType_t type, void const *value) {
 static void test_unicast(LPEDICT ent) {
     (void)ent;
     test_unicast_calls++;
+    if (test_multicast_size && test_multicast_buf[0] == svc_set_selection) {
+        test_selection_size = test_multicast_size;
+        if (test_selection_size <= sizeof(test_selection_buf))
+            memcpy(test_selection_buf, test_multicast_buf, test_selection_size);
+    }
     /* Keep the gameplay payload available: server-authored layout packets are separate messages. */
     if (test_multicast_size && test_multicast_buf[0] == svc_unit_ui) {
         test_last_unicast_size = test_multicast_size;
@@ -2144,4 +2154,23 @@ TEST(wow_game, creature_death_transitions_to_corpse_frame) {
     T_ASSERT(!(creature->svflags & SVF_MONSTER));
 
     if (game->Shutdown) game->Shutdown();
+}
+
+TEST(wow_game, target_selection_reconciles_client_groups) {
+    struct game_export *game = init_game();
+    char number[16];
+    DWORD selected;
+    LPCSTR args[] = { "select", number };
+    T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
+    LPEDICT target = first_creature();
+    snprintf(number, sizeof(number), "%u", target->s.number);
+    test_selection_size = 0;
+    game->ClientCommand(&wow_edicts[0], 2, args);
+    T_EQ(test_selection_size, 6); T_EQ(test_selection_buf[0], svc_set_selection); T_EQ(test_selection_buf[1], 1);
+    memcpy(&selected, test_selection_buf + 2, sizeof(selected));
+    T_EQ(selected, target->s.number);
+    snprintf(number, sizeof(number), "%u", MAX_GAME_ENTITIES);
+    game->ClientCommand(&wow_edicts[0], 2, args);
+    T_EQ(test_selection_size, 2); T_EQ(test_selection_buf[1], 0);
+    game->Shutdown();
 }

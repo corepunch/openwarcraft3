@@ -1975,6 +1975,11 @@ static void Wow_SelectEntity(LPEDICT ent, LPEDICT target) {
     } else {
         wc->selected_entity = 0;
     }
+    /* Share authoritative target changes with client groups, including cycle/interact and rejected selections. */
+    gi.Write(PF_BYTE, &(LONG){svc_set_selection});
+    gi.Write(PF_BYTE, &(LONG){wc->selected_entity ? 1 : 0});
+    if (wc->selected_entity) gi.Write(PF_LONG, &(LONG){wc->selected_entity});
+    gi.unicast(ent);
 }
 
 void Wow_QuestAwardKillCredit(LPEDICT attacker, DWORD display_id) {

@@ -66,13 +66,24 @@ static void CL_RegisterFontConfigString(DWORD index, BOOL replace, LPCSTR olds) 
     }
 }
 
+/* The server chooses point-order art; an empty slot explicitly disables that presentation. */
+static void CL_RegisterOrderMarker(void) {
+    LPCSTR name = cl.configstrings[CS_ORDER_MARKER];
+    SAFE_DELETE(cl.moveConfirmation, re.ReleaseModel);
+    if (!*name) return;
+    cl.moveConfirmation = re.LoadModel(name);
+    if (!cl.moveConfirmation) fprintf(stderr, "CL_RegisterOrderMarker: failed to load %s\n", name);
+}
+
 void CL_RegisterConfigString(DWORD index) {
+    if (index == CS_ORDER_MARKER) CL_RegisterOrderMarker();
     if (index > CS_MODELS && index < CS_MODELS + MAX_MODELS) CL_RegisterModelConfigString(index, false, NULL);
     else if (index > CS_IMAGES && index < CS_IMAGES + MAX_IMAGES) CL_RegisterImageConfigString(index, false, NULL);
     else if (index > CS_FONTS && index < CS_FONTS + MAX_FONTSTYLES) CL_RegisterFontConfigString(index, false, NULL);
 }
 
 void CL_UpdateConfigString(DWORD index, LPCSTR olds) {
+    if (index == CS_ORDER_MARKER && strcmp(olds, cl.configstrings[index])) CL_RegisterOrderMarker();
     if (index > CS_MODELS && index < CS_MODELS + MAX_MODELS) CL_RegisterModelConfigString(index, true, olds);
     else if (index > CS_IMAGES && index < CS_IMAGES + MAX_IMAGES) CL_RegisterImageConfigString(index, true, olds);
     else if (index > CS_SOUNDS && index < CS_SOUNDS + MAX_SOUNDS && *cl.configstrings[index]) S_RegisterSound(cl.configstrings[index]);

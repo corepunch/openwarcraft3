@@ -1,7 +1,6 @@
 #include "cl_input_local.h"
 #include "ui_layout.h"
 
-#ifndef WOW
 static struct {
     BOOL active;
     VECTOR3 anchor;
@@ -15,14 +14,11 @@ static BOOL CL_OrderQueueModifierDown(void) {
 }
 
 static BOOL CL_TracePan(float x, float y, LPVECTOR3 point) {
-#ifdef SC2
-    return re.TraceCameraPlane(&cl.viewDef, x, y, point);
-#else
-    return re.TraceLocation(&cl.viewDef, x, y, point);
-#endif
+    return Cvar_Integer("cl_camera_pan_plane", 0)
+        ? re.TraceCameraPlane(&cl.viewDef, x, y, point) : re.TraceLocation(&cl.viewDef, x, y, point);
 }
 
-void CL_InputModeResetMap(void) {
+void CL_RtsResetMap(void) {
     cam_left = cam_right = cam_north = cam_south = false;
 }
 
@@ -125,7 +121,7 @@ static void IN_CamSouthDown(void) { cam_south = true; }
 static void IN_CamSouthUp(void) { cam_south = false; }
 
 /* `camera edge` is client-local input state. Other camera subcommands belong
- * to the WC3 game module, so forward them through the normal server command
+ * to the game module, so forward them through the normal server command
  * path rather than duplicating camera simulation state in the client. */
 static void CL_Camera_f(void) {
     if (Cmd_Argc() >= 2 && !strcasecmp(Cmd_Argv(1), "edge")) {
@@ -133,7 +129,7 @@ static void CL_Camera_f(void) {
             fprintf(stderr, "usage: camera edge <0|1>\n");
             return;
         }
-        Cvar_Set("wc3_camera_edge_scroll", Cmd_Argv(2));
+        Cvar_Set("cl_camera_edge_scroll", Cmd_Argv(2));
         return;
     }
     if (Cmd_Argc() >= 2 && (!strcasecmp(Cmd_Argv(1), "move") ||
@@ -144,7 +140,7 @@ static void CL_Camera_f(void) {
     fprintf(stderr, "usage: camera <move <x> <y>|edge <0|1>|selected>\n");
 }
 
-void CL_InputModeInit(void) {
+void CL_RtsInit(void) {
     Cmd_AddCommand("+pan", IN_PanDown);
     Cmd_AddCommand("-pan", IN_PanUp);
     Cmd_AddCommand("+smart", IN_SmartDown);
@@ -158,22 +154,10 @@ void CL_InputModeInit(void) {
     Cmd_AddCommand("+camsouth", IN_CamSouthDown);
     Cmd_AddCommand("-camsouth", IN_CamSouthUp);
     Cmd_AddCommand("camera", CL_Camera_f);
-    Cvar_Get("wc3_camera_edge_scroll", "1", 0);
-}
-
-void CL_InputModeSetGameplay(void) {
-#ifndef SC2
-    if (!cl.moveConfirmation)
-        cl.moveConfirmation = re.LoadModel("UI\\Feedback\\Confirmation\\Confirmation.mdx");
-#endif
-}
-
-BOOL CL_InputModeSelectDown(void) { return false; }
-BOOL CL_InputModeSelectUp(void) { return false; }
-
-void CL_InputModeMouseButton(SDL_MouseButtonEvent const *button, BOOL down) {
-    (void)button;
-    (void)down;
+    Cvar_Get("cl_camera_edge_scroll", "0", CVAR_ARCHIVE);
+    Cvar_Get("cl_camera_scroll_speed", "0", CVAR_ARCHIVE);
+    Cvar_Get("cl_camera_edge_margin", "6", CVAR_ARCHIVE);
+    Cvar_Get("cl_camera_pan_plane", "0", 0);
 }
 
 static BOOL CL_CanHoverHealthEntity(DWORD entnum) {
@@ -187,7 +171,7 @@ static BOOL CL_CanHoverHealthEntity(DWORD entnum) {
            !(state->flags & EF_NOT_SELECTABLE);
 }
 
-void CL_InputModeMouseMotion(SDL_MouseMotionEvent const *motion) {
+void CL_RtsMouseMotion(SDL_MouseMotionEvent const *motion) {
     DWORD entnum = 0;
     BOOL trace_hit = false;
 
@@ -219,21 +203,14 @@ void CL_InputModeMouseMotion(SDL_MouseMotionEvent const *motion) {
     }
 }
 
-BOOL CL_InputModeMouseWheel(SDL_MouseWheelEvent const *wheel) {
+BOOL CL_RtsMouseWheel(SDL_MouseWheelEvent const *wheel) {
     (void)wheel;
     return false;
 }
 
 /* Camera scrolling: +cam* binds and screen-edge push. Runs every client frame.
  * World +Y is north (up on screen), +X is east (right). */
-#define CL_CAMERA_SCROLL_SPEED 1400.0f /* world units per second (WC3 default) */
-#ifdef SC2
-#undef  CL_CAMERA_SCROLL_SPEED
-#define CL_CAMERA_SCROLL_SPEED 350.0f  /* SC2 world scale is smaller */
-#endif
-#define CL_CAMERA_EDGE_MARGIN  6        /* px from window edge that triggers scroll */
-
-void CL_InputModeFrame(void) {
+void CL_RtsFrame(void) {
     static DWORD last_ms = 0;
     DWORD now = SDL_GetTicks();
     float dt = (last_ms && now > last_ms) ? (now - last_ms) / 1000.0f : 0.0f;
@@ -261,26 +238,52 @@ void CL_InputModeFrame(void) {
     if (cam_south) dy -= 1.0f;
 
     /* Screen-edge scrolling (only while the cursor is inside the window). */
-#ifndef SC2
     size2_t win = re.GetWindowSize();
-    float mx = mouse.origin.x, my = mouse.origin.y;
-    if (Cvar_Value("wc3_camera_edge_scroll", 1.0f) != 0.0f && win.width > 0 && win.height > 0 &&
+    float mx = mouse.origin.x, my = mouse.origin.y, margin = Cvar_Value("cl_camera_edge_margin", 6);
+    if (Cvar_Value("cl_camera_edge_scroll", 1.0f) != 0.0f && win.width > 0 && win.height > 0 &&
         mx >= 0 && my >= 0 && mx < win.width && my < win.height) {
-        if (mx <= CL_CAMERA_EDGE_MARGIN)               dx -= 1.0f;
-        if (mx >= (float)win.width - 1 - CL_CAMERA_EDGE_MARGIN)  dx += 1.0f;
-        if (my <= CL_CAMERA_EDGE_MARGIN)               dy += 1.0f; /* top of screen = north */
-        if (my >= (float)win.height - 1 - CL_CAMERA_EDGE_MARGIN) dy -= 1.0f;
+        if (mx <= margin)               dx -= 1.0f;
+        if (mx >= (float)win.width - 1 - margin)  dx += 1.0f;
+        if (my <= margin)               dy += 1.0f; /* top of screen = north */
+        if (my >= (float)win.height - 1 - margin) dy -= 1.0f;
     }
-#endif
 
     if (dx == 0.0f && dy == 0.0f) {
         return;
     }
 
     VECTOR2 position;
-    float step = CL_CAMERA_SCROLL_SPEED * dt;
+    float step = Cvar_Value("cl_camera_scroll_speed", 0) * dt;
     position.x = cl.viewDef.camerastate[0].origin.x + dx * step;
     position.y = cl.viewDef.camerastate[0].origin.y + dy * step;
     CL_SetCameraPosition(position);
+}
+
+#ifdef BZ_TESTS
+#include "shared/test.h"
+static DWORD pan_terrain, pan_plane;
+static bool CL_TestTerrain(viewDef_t const *view, float x, float y, LPVECTOR3 point) {
+    (void)view; (void)x; (void)y;
+    pan_terrain++; *point = (VECTOR3){ 1, 2, 3 }; return true;
+}
+static bool CL_TestPlane(viewDef_t const *view, float x, float y, LPVECTOR3 point) {
+    (void)view; (void)x; (void)y;
+    pan_plane++; *point = (VECTOR3){ 4, 5, 6 }; return true;
+}
+TEST(client_input, pan_uses_configured_surface) {
+    refExport_t saved = re;
+    FLOAT old = Cvar_Value("cl_camera_pan_plane", 0);
+    VECTOR3 point;
+    re.TraceLocation = CL_TestTerrain;
+    re.TraceCameraPlane = CL_TestPlane;
+    pan_terrain = pan_plane = 0;
+    Cvar_Set("cl_camera_pan_plane", "0");
+    T_ASSERT(CL_TracePan(0, 0, &point));
+    T_EQ(pan_terrain, 1); T_EQ(pan_plane, 0); T_FEQ(point.z, 3, 0.001f);
+    Cvar_Set("cl_camera_pan_plane", "1");
+    T_ASSERT(CL_TracePan(0, 0, &point));
+    T_EQ(pan_terrain, 1); T_EQ(pan_plane, 1); T_FEQ(point.z, 6, 0.001f);
+    Cvar_SetValue("cl_camera_pan_plane", old);
+    re = saved;
 }
 #endif

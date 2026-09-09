@@ -345,6 +345,7 @@ void COM_ClearArgv(int arg);
 
 // cvar.c
 void Cvar_Init(void);
+void Cvar_EndConfig(void);
 cvar_t *Cvar_Get(LPCSTR name, LPCSTR value, DWORD flags);
 cvar_t *Cvar_GetD(LPCSTR name, LPCSTR value, DWORD flags, LPCSTR description);
 cvar_t *Cvar_Set(LPCSTR name, LPCSTR value);

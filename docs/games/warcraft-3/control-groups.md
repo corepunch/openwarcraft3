@@ -18,6 +18,13 @@ Strokes match exactly in ctrl, alt, shift order (see [modifier key binds](../../
 
 ## Implementation
 
+### Orbit targets
+
+The orbit profile uses the same group commands with a one-target capacity. Assign replaces the target; add fills an
+empty group and retains an existing target; recall selects without double-tap camera panning. WoW selection clicks,
+recalls, and server target changes share `cl.selection` through `svc_set_selection`. Number keys remain action-bar
+bindings unless the user opts in. See [shared input profiles](../../architecture/shared-input.md).
+
 ### Storage
 
 Groups live on `struct client_state` next to `cl.selection`:
@@ -35,7 +42,7 @@ Each group stores up to `MAX_SELECTED_ENTITIES` (64) entity IDs. Warcraft III's 
 
 ### Command
 
-`group` is registered in `CL_InitInput` via `CL_ControlGroupsInit`. Config binds invoke it through `Key_Event` / `Cbuf_AddText` like every other gameplay hotkey.
+`group` is registered in `CL_InitInput` via `CL_ControlGroupsInit` in `client/cl_selection.c`. Config binds invoke it through `Key_Event` / `Cbuf_AddText` like every other gameplay hotkey.
 
 | Command | Effect |
 |---------|--------|
@@ -78,7 +85,7 @@ When `group N` runs:
 
 ### Camera Focus
 
-Recall always selects immediately. A second deliberate press of the same group within `CL_GROUP_TAP_MS` (500 ms) centers the camera on the average position of live, modeled, selectable members. SDL key-repeat is ignored for gameplay `Key_Event` so holding a number cannot count as the second tap.
+Recall always selects immediately. A second deliberate press of the same group within `BZ_GROUP_TAP_MS` (500 ms) centers the camera on the average position of live, modeled, selectable members. SDL key-repeat is ignored for gameplay `Key_Event` so holding a number cannot count as the second tap.
 
 `group assign` and `group add` both reset double-tap recall state.
 
@@ -89,7 +96,7 @@ Recall always selects immediately. A second deliberate press of the same group w
 - `cls.key_dest != key_game`
 - `cls.state != ca_active`
 - `cl.playerstate.client_ui_state != CLIENT_UI_GAME`
-- `SCR_LayoutModalActive()` returns true (WC3 only)
+- `SCR_LayoutModalActive()` returns true
 - a `UI_WINDOW_MODAL` client window is open
 
 This blocks control-group mutation behind Quest/Log/modals.
@@ -134,9 +141,10 @@ The network parser has rejection coverage in `tests/test_net.c`; in-engine selec
 ## References
 
 - `client/client.h` — `cl.groups` / `cl.group_last` on `struct client_state`
-- `client/cl_control_groups.c` — `group` command and append helper
+- `client/cl_control_groups.c` — append helper and map reset
+- `client/cl_selection.c` — shared selection/group commands
 - `games/warcraft-3/share/config.cfg` — default `group` / `SHIFT+N` / `CTRL+N` binds
-- `client/cl_input_w3.c` — `+camleft`/`+camright`/`+camnorth`/`+camsouth`
+- `client/cl_input_rts.c` — `+camleft`/`+camright`/`+camnorth`/`+camsouth`
 - `client/keys.c` / `client/keys_name.h` — modifier bind table and lookup
 - `client/cl_input.c` — SDL events to `Key_Event`
 - `client/cl_parse.c` — `CL_ParseSetSelection` for server-authoritative selection reconciliation

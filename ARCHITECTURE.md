@@ -1,5 +1,10 @@
 # OpenWarcraft Architecture
 
+For the source-verified boundary/API assessment and proposed shared input/config direction, see the
+[multi-game architecture review](docs/architecture/multi-game-review.md). That review distinguishes current
+implementation from intended architecture; in particular, the `clc_move` examples below are not implemented by
+the current server parser.
+
 OpenWarcraft is an id-Tech (Quake 2 / Quake 3) inspired engine designed to run Warcraft III, World of Warcraft, and StarCraft II assets and game modes. The architecture strictly separates authoritative server simulation, client presentation, network protocols, client-side UI, and low-level rendering.
 
 ---
@@ -208,6 +213,8 @@ For in-depth details on specific engine subsystems, consult the following dedica
 ### Core Engine & Architecture
 | Topic | Document |
 |---|---|
+| Shared input profiles, config compatibility, and target groups | [docs/architecture/shared-input.md](docs/architecture/shared-input.md) |
+| Multi-game client boundaries, API audit, and input/config migration | [docs/architecture/multi-game-review.md](docs/architecture/multi-game-review.md) |
 | Server-Authored UI Payloads & Limits | [docs/architecture/ui-payloads.md](docs/architecture/ui-payloads.md) |
 | UI System Architecture & Screen Flow | [docs/architecture/ui-system.md](docs/architecture/ui-system.md) |
 | Server Architecture & Snapshot Delta Compression | [docs/architecture/server.md](docs/architecture/server.md) |

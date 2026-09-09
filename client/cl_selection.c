@@ -1,0 +1,161 @@
+#include "cl_input_local.h"
+#include "cl_control_groups.h"
+
+/* Numbered control groups stored on cl.groups. Config binds `group N`. */
+#define BZ_GROUP_TAP_MS 500 // milliseconds; deliberate double-tap window; controls group camera recenter
+
+static DWORD CL_SelectionLimit(void) { return CL_InputOrbit() ? 1 : MAX_SELECTED_ENTITIES; }
+
+static void CL_ResetGroupTap(void) {
+    cl.group_last = MAX_CONTROL_GROUPS;
+    cl.group_last_ms = 0;
+}
+
+static BOOL CL_GroupCenter(DWORD const *ids, DWORD n, LPVECTOR2 center) {
+    double x = 0.0, y = 0.0;
+    DWORD valid = 0;
+
+    if (!ids || !center) return false;
+    n = MIN(n, CL_SelectionLimit());
+    FOR_LOOP(i, n) {
+        DWORD const number = ids[i];
+        LPCENTITYSTATE state;
+        if (!number || number >= MAX_CLIENT_ENTITIES) continue;
+        state = &cl.ents[number].current;
+        if (!state->model || state->stats[ENT_HEALTH] == 0 ||
+            (state->flags & EF_NOT_SELECTABLE)) continue;
+        x += state->origin.x;
+        y += state->origin.y;
+        valid++;
+    }
+    if (!valid) return false;
+    center->x = (FLOAT)(x / valid);
+    center->y = (FLOAT)(y / valid);
+    return true;
+}
+
+/* Orbit profiles recall one target; the server reconciles legality through svc_set_selection. */
+void CL_ApplySelection(DWORD const *ids, DWORD n) {
+    char buffer[1024];
+    n = MIN(n, CL_SelectionLimit());
+    strlcpy(buffer, n ? "select" : "select 0", sizeof(buffer));
+    FOR_LOOP(i, n) {
+        size_t used = strlen(buffer);
+        snprintf(buffer + used, sizeof(buffer) - used, " %d", ids[i]);
+    }
+    MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
+    SZ_Printf(&cls.netchan.message, "%s", buffer);
+    cl.selection.num_selected = n;
+    memcpy(cl.selection.entity_nums, ids, sizeof(DWORD) * n);
+    if (!CL_InputOrbit()) CL_RequestUnitUI(n, cl.selection.entity_nums);
+}
+
+static void CL_GroupAssign(DWORD g) {
+    DWORD n = cl.selection.num_selected;
+    n = MIN(n, CL_SelectionLimit());
+    cl.groups[g].num_selected = n;
+    memcpy(cl.groups[g].entity_nums, cl.selection.entity_nums, sizeof(DWORD) * n);
+    CL_ResetGroupTap();
+}
+
+static void CL_GroupAdd(DWORD g) {
+    DWORD n = cl.selection.num_selected;
+    n = MIN(n, CL_SelectionLimit());
+    cl.groups[g].num_selected = CL_ControlGroupAppendUnique(
+        cl.groups[g].entity_nums, cl.groups[g].num_selected, CL_SelectionLimit(),
+        cl.selection.entity_nums, n);
+    CL_ResetGroupTap();
+}
+
+static void CL_GroupRecall(DWORD g) {
+    DWORD now;
+    BOOL center_on_group;
+    VECTOR2 center;
+
+    if (cl.groups[g].num_selected == 0) {
+        CL_ResetGroupTap();
+        return;
+    }
+    now = cl.time;
+    center_on_group = cl.group_last == g &&
+        (DWORD)(now - cl.group_last_ms) <= BZ_GROUP_TAP_MS;
+    CL_ApplySelection(cl.groups[g].entity_nums, cl.groups[g].num_selected);
+    if (!CL_InputOrbit() && center_on_group && CL_GroupCenter(cl.groups[g].entity_nums, cl.groups[g].num_selected, &center))
+        CL_SetCameraPosition(center);
+    cl.group_last = g;
+    cl.group_last_ms = now;
+}
+
+static void CL_Group_f(void) {
+    static struct { LPCSTR name; DWORD op; } const verbs[] = {
+        { "assign", 1 },
+        { "add", 2 },
+        { NULL, 0 },
+    };
+    LPCSTR a1 = Cmd_Argv(1);
+    DWORD g, op = 0;
+
+    if (!CL_GameplayInputReady() || CL_WindowModalActive()) return;
+    if (Cmd_Argc() < 2) {
+        fprintf(stderr, "group [assign|add] <0-9>\n");
+        return;
+    }
+    for (DWORD i = 0; verbs[i].name; i++) {
+        if (!strcasecmp(a1, verbs[i].name)) {
+            op = verbs[i].op;
+            a1 = Cmd_Argv(2);
+            break;
+        }
+    }
+    g = (DWORD)atoi(a1);
+    if (!a1 || a1[0] < '0' || a1[0] > '9' || a1[1] || g >= MAX_CONTROL_GROUPS) {
+        fprintf(stderr, "group: %s is not a group number (0-9)\n", a1 ? a1 : "");
+        return;
+    }
+    if (op == 1) CL_GroupAssign(g);
+    else if (op == 2) CL_GroupAdd(g);
+    else CL_GroupRecall(g);
+}
+
+void CL_ControlGroupsInit(void) {
+    Cmd_AddCommand("group", CL_Group_f);
+}
+
+
+#ifdef BZ_TESTS
+#include "shared/test.h"
+TEST(client_input, orbit_groups_recall_one_target_without_moving_camera) {
+    BYTE old_sel[sizeof(cl.selection)], old_group[sizeof(cl.groups[0])], data[256];
+    sizeBuf_t old_msg = cls.netchan.message;
+    DWORD old_last = cl.group_last, old_ms = cl.group_last_ms, ids[] = { 7, 8 };
+    char mode[32], command[64];
+    snprintf(mode, sizeof(mode), "%s", Cvar_String("cl_input_mode", "rts"));
+    memcpy(old_sel, &cl.selection, sizeof(old_sel));
+    memcpy(old_group, &cl.groups[0], sizeof(old_group));
+    Cvar_Set("cl_input_mode", "orbit");
+    CL_InputModeInit();
+    SZ_Init(&cls.netchan.message, data, sizeof(data));
+    CL_ApplySelection(ids, 2);
+    T_EQ(cl.selection.num_selected, 1); T_EQ(cl.selection.entity_nums[0], 7);
+    CL_GroupAssign(0);
+    CL_ApplySelection(ids + 1, 1);
+    CL_GroupAdd(0);
+    T_EQ(cl.groups[0].num_selected, 1); T_EQ(cl.groups[0].entity_nums[0], 7);
+    SZ_Clear(&cls.netchan.message);
+    CL_GroupRecall(0);
+    CL_GroupRecall(0);
+    cls.netchan.message.readcount = 0;
+    FOR_LOOP(i, 2) {
+        T_EQ(MSG_ReadByte(&cls.netchan.message), clc_stringcmd);
+        MSG_ReadString(&cls.netchan.message, command);
+        T_STREQ(command, "select 7");
+    }
+    T_EQ(cls.netchan.message.readcount, cls.netchan.message.cursize);
+    Cvar_Set("cl_input_mode", mode);
+    CL_InputModeInit();
+    cls.netchan.message = old_msg;
+    memcpy(&cl.selection, old_sel, sizeof(old_sel));
+    memcpy(&cl.groups[0], old_group, sizeof(old_group));
+    cl.group_last = old_last; cl.group_last_ms = old_ms;
+}
+#endif

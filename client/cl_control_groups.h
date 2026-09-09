@@ -10,5 +10,6 @@ DWORD CL_ControlGroupAppendUnique(DWORD *group, DWORD count, DWORD capacity,
                                   DWORD const *ids, DWORD num_ids);
 
 void CL_ControlGroupsReset(void);
+void CL_ControlGroupsInit(void);
 
 #endif

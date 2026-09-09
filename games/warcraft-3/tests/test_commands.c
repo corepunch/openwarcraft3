@@ -596,3 +596,37 @@ TEST(video_modes, wow_defaults_allow_explicit_override) {
     Cbuf_AddEarlyCommands(true);
     T_STREQ(Cvar_String("vid_mode", NULL), "0");
 }
+
+TEST(commands, cvar_alias_preserves_override_order_and_one_archived_value) {
+    setup_command_tests();
+    Cvar_Init();
+    Cvar_Set("test_camera_speed", "1400");
+    Cmd_ExecuteString("cvar_alias test_old_camera_speed test_camera_speed");
+    Cmd_ExecuteString("seta test_old_camera_speed 900");
+    T_STREQ(Cvar_String("test_camera_speed", ""), "900");
+    T_ASSERT(Cvar_Get("test_camera_speed", "", 0)->flags & CVAR_ARCHIVE);
+    Cmd_ExecuteString("set test_camera_speed 700");
+    T_STREQ(Cvar_String("test_old_camera_speed", ""), "700");
+    T_EQ(Cvar_Get("test_old_camera_speed", "", 0), Cvar_Get("test_camera_speed", "", 0));
+    Cvar_EndConfig();
+    Cmd_ExecuteString("cvar_alias test_late_camera_alias test_camera_speed");
+    T_NULL(Cvar_String("test_late_camera_alias", NULL));
+    Cmd_ExecuteString("set test_old_camera_speed 600");
+    T_STREQ(Cvar_String("test_camera_speed", ""), "600");
+}
+
+TEST(commands, cvar_alias_migrates_early_settings_and_rejects_retargeting) {
+    setup_command_tests();
+    Cvar_Init();
+    Cvar_Get("test_early_speed", "123", CVAR_ARCHIVE);
+    Cvar_Set("test_new_speed", "456");
+    Cmd_ExecuteString("cvar_alias test_early_speed test_new_speed");
+    T_STREQ(Cvar_String("test_new_speed", ""), "123");
+    T_ASSERT(Cvar_Get("test_new_speed", "", 0)->flags & CVAR_ARCHIVE);
+    Cvar_Set("test_other_speed", "789");
+    Cmd_ExecuteString("cvar_alias test_early_speed test_other_speed");
+    T_STREQ(Cvar_String("test_early_speed", ""), "123");
+    Cmd_ExecuteString("cvar_alias test_new_speed test_early_speed");
+    T_STREQ(Cvar_String("test_new_speed", ""), "123");
+    Cvar_EndConfig();
+}

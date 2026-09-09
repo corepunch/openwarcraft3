@@ -2862,3 +2862,33 @@ TEST(net, set_selection_rejects_entity_exceeding_max) {
     CL_ParseServerMessage(&sb);
     T_EQ(cl.selection.num_selected, saved_num);
 }
+
+TEST(net, order_marker_configstring_precache_replace_and_clear) {
+    BYTE buf[512];
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+    LPCSTR paths[] = { "TestUI/Models/quad_sprite.mdx", "TestUI/Models/panel_sprite.mdx", "" };
+    test_client_stubs_init();
+    test_model_loads = test_model_releases = 0;
+    re.LoadModel = capture_load_model;
+    re.ReleaseModel = capture_release_model;
+    cl.refresh_prepped = false;
+    MSG_WriteByte(&sb, svc_configstring);
+    MSG_WriteShort(&sb, CS_ORDER_MARKER);
+    MSG_WriteString(&sb, paths[0]);
+    CL_ParseServerMessage(&sb);
+    T_EQ(test_model_loads, 0);
+    CL_RegisterConfigString(CS_ORDER_MARKER);
+    T_EQ(test_model_loads, 1);
+    T_STREQ(test_model_load_paths[0], paths[0]);
+    cl.refresh_prepped = true;
+    FOR_LOOP(i, 3) {
+        SZ_Clear(&sb); sb.readcount = 0;
+        MSG_WriteByte(&sb, svc_configstring);
+        MSG_WriteShort(&sb, CS_ORDER_MARKER);
+        MSG_WriteString(&sb, paths[i]);
+        CL_ParseServerMessage(&sb);
+        T_EQ(test_model_loads, i ? 2 : 1);
+        T_EQ(test_model_releases, i);
+    }
+    T_NULL(cl.moveConfirmation);
+}

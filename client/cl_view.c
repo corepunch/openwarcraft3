@@ -509,6 +509,7 @@ void CL_PrepRefresh(void) {
             continue;
         CL_RegisterConfigString(CS_MODELS + i);
     }
+    CL_RegisterConfigString(CS_ORDER_MARKER);
     CL_LoadingStage(0.60f);
 
     for (DWORD i = 1; i < MAX_IMAGES; i++) {

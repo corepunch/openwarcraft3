@@ -161,6 +161,7 @@ void CL_ParseTEnt(LPSIZEBUF msg) {
 }
 
 static void CL_AddConfirmationObject(moveConfirmation_t const *mc) {
+    if (!cl.moveConfirmation) return; /* An empty server media slot disables the marker. */
     renderEntity_t ent;
     memset(&ent, 0, sizeof(ent));
     ent.origin = mc->origin;
