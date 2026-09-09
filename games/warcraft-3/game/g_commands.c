@@ -616,6 +616,11 @@ CLIENTCOMMAND(Smart) {
         have_click_point = true;
     }
     FOR_CONTROLLABLE_SELECTED_UNITS(client, ent) {
+        /* A queued Smart target is otherwise accepted into the FIFO before
+         * its destructable semantics are evaluated, preventing the clicked
+         * walkable surface from falling back to the queued ground move. */
+        if (queued && have_click_point && G_DestructableIsWalkable(target) &&
+            !G_DestructableAcceptsSmartAttack(ent, target)) continue;
         if (G_IssueUnitTargetOrder(ent, "smart", target, queued, client->ps.number)) {
             if (G_UnitHasRally(ent)) rallied = true;
             issued = true;

@@ -2579,6 +2579,7 @@ static LPEDICT alloc_inventory_test_unit(void) {
 static LPEDICT alloc_world_test_item(DWORD class_id) {
     LPEDICT item = alloc_test_unit(class_id, 0, 0);
     item->s.model = 1;
+    item->targtype = TARG_ITEM;
     item->item.in_world = true;
     item->item.inventory_slot = -1;
     return item;

@@ -1756,7 +1756,7 @@ TEST(wc3_movement, smart_walkable_debris_keeps_entity_attack_precedence) {
     unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0.0f, 0.0f);
     unit->stand = unit_stand;
     unit_stand(unit);
-    unit->attack1.type = ATK_MELEE;
+    unit->attack1.type = ATK_NORMAL;
     unit->attack1.targetsAllowed = 256u; /* debris */
     debris = make_smart_destructable(256.0f, 64.0f, &debris_data, TARG_DEBRIS);
     G_SelectEntity(client, unit);
