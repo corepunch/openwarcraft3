@@ -39,13 +39,14 @@
 
 /* Runtime layout state (cached screen rects) */
 typedef struct {
-    RECT rect;
+    RECT rect, layout;
     BOOL calculated;
 } frameRuntime_t;
 
 static frameRuntime_t runtimes[MAX_UI_CLASSES];
 static RECT scene_rect;
 static BOOL scene_rect_valid = FALSE;
+static BOOL animate_frames;
 static LPCFRAMEDEF active_slider = NULL;
 static LPCFRAMEDEF active_popup = NULL;
 static LPCFRAMEDEF active_modal = NULL;
@@ -83,6 +84,7 @@ static DWORD UI_FontPixelSize(FLOAT size) {
 
 /* Forward declarations */
 static LPCRECT UI_LayoutRect(LPCFRAMEDEF frame);
+static LPCRECT UI_LayoutBase(LPCFRAMEDEF frame);
 static void UI_DrawFrameOne(LPCFRAMEDEF frame);
 static BOOL UI_FrameWithinRoot(LPCFRAMEDEF root, LPCFRAMEDEF frame);
 static BOOL UI_PointerBlockedByModal(LPCFRAMEDEF frame);
@@ -129,7 +131,7 @@ LPCFRAMEDEF UI_HitTest(FLOAT fdf_x, FLOAT fdf_y) {
             continue;
         }
         LPCFRAMEDEF frame = &frames[i];
-        if (!frame->inuse || !UI_FrameIsInteractive(frame) || !UI_ScreenFrameVisible(frame)) {
+        if (!frame->inuse || !UI_FrameIsInteractive(frame)) {
             continue;
         }
         if (UI_PointerBlockedByPopup(frame)) {
@@ -197,9 +199,9 @@ static LPCRECT UI_GetRelativeRect(LPCFRAMEDEF frame, LPCFRAMEDEF relativeTo) {
         return &scene_rect;
     }
     if (relativeTo == frame->Parent) {
-        return UI_LayoutRect(frame->Parent);
+        return UI_LayoutBase(frame->Parent);
     }
-    return UI_LayoutRect(relativeTo);
+    return UI_LayoutBase(relativeTo);
 }
 
 static FLOAT UI_GetAnchor(LPCFRAMEDEF frame,
@@ -259,7 +261,7 @@ static VECTOR2 UI_SolveAxisPosition(LPCFRAMEDEF frame,
     return (VECTOR2) { 0, size };
 }
 
-static LPCRECT UI_LayoutRect(LPCFRAMEDEF frame) {
+static LPCRECT UI_LayoutBase(LPCFRAMEDEF frame) {
     static RECT uncached_rect;
     DWORD frame_index;
     RECT *out;
@@ -270,9 +272,9 @@ static LPCRECT UI_LayoutRect(LPCFRAMEDEF frame) {
     
     /* Check cache */
     if (UI_FrameIndex(frame, &frame_index) && runtimes[frame_index].calculated) {
-        return &runtimes[frame_index].rect;
+        return &runtimes[frame_index].layout;
     }
-    out = UI_FrameIndex(frame, &frame_index) ? &runtimes[frame_index].rect : &uncached_rect;
+    out = UI_FrameIndex(frame, &frame_index) ? &runtimes[frame_index].layout : &uncached_rect;
     
     /* Mark as calculated to prevent recursion */
     if (UI_FrameIndex(frame, &frame_index)) {
@@ -365,6 +367,17 @@ static LPCRECT UI_LayoutRect(LPCFRAMEDEF frame) {
     };
     
     return out;
+}
+
+/* Resolve anchors in native FDF space, then translate each result once so motion
+ * cannot accumulate through child/sibling chains or cross-side references. */
+static LPCRECT UI_LayoutRect(LPCFRAMEDEF frame) {
+    LPCRECT base = UI_LayoutBase(frame);
+    DWORD idx;
+    if (!UI_FrameIndex(frame, &idx)) return base;
+    runtimes[idx].rect = *base;
+    if (animate_frames) runtimes[idx].rect.y += UI_ScreenFrameOffset(frame);
+    return &runtimes[idx].rect;
 }
 
 /* ========================================================================
@@ -1287,6 +1300,7 @@ void UI_DrawFramesInScene(LPCFRAMEDEF const *roots, DWORD num_roots, LPCRECT sce
     memset(runtimes, 0, sizeof(runtimes));
     
     /* Initialize scene rect */
+    animate_frames = scene == NULL;
     scene_rect = scene ? *scene : UI_GetSceneRect();
     scene_rect_valid = TRUE;
     total = 0;
@@ -1300,11 +1314,10 @@ void UI_DrawFramesInScene(LPCFRAMEDEF const *roots, DWORD num_roots, LPCRECT sce
                                       total < MAX_UI_CLASSES ? MAX_UI_CLASSES - total : 0);
         total += emitted;
     }
-    count = 0;
-    FOR_LOOP(i, MIN(total, MAX_UI_CLASSES))
-        if (scene || UI_ScreenFrameVisible(draw_order[i])) draw_order[count++] = draw_order[i];
+    /* The installed screen remains drawable while leaving; installation and tab
+     * configuration occur centrally at the boundary before the incoming motion. */
+    count = MIN(total, MAX_UI_CLASSES);
     active_modal = UI_FindActiveModalRoot(roots, num_roots);
-    if (active_modal && !scene && !UI_ScreenFrameVisible(active_modal)) active_modal = NULL;
     modal_index = UI_FrameDrawOrderIndex(draw_order, count, active_modal);
     UI_SanitizeInteractionState(draw_order, count);
     UI_UpdatePopupVisibility(draw_order, count);

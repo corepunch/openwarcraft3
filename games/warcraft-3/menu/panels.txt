@@ -25,7 +25,9 @@ BattlenetCustom                    2  BattlenetAdvancedOptions Morph / same Morp
 Enter/Leave for nonzero tabs apply to both full-screen and tab-only transitions.
 Tab-only changes keep right chrome at Stand. Changing page with the same nonzero
 tab plays leave then enter; reselecting the same page does not restart animation.
-The menu system reveals each side's FDF controls only after its entry completes.
+The menu system keeps outgoing FDF contents through exit, swaps at the boundary,
+and moves incoming contents with entry. Each side uses 51 native motion samples
+(menu_glue_motion.h), including the bounce and a separately sampled exit curve.
 Create has no Morph sequence. Submenu and AdvancedOptions have no Stand sequence.
 These are explicit authored families, not names generated from a shared suffix rule.
 Repeated/reversed requests finish the running morph before honoring the latest tab.
@@ -46,8 +48,8 @@ Intervals and durations are milliseconds. Flag 0x1 marks an authored non-looping
 Extract with:
   build/bin/mdxtool -mpq 'data/Warcraft III/War3.mpq'  -model 'UI\Glues\SpriteLayers\TopLeftPanel.mdx'  --info
   build/bin/mdxtool -mpq 'data/Warcraft III/War3.mpq'  -model 'UI\Glues\SpriteLayers\TopRightPanel.mdx' --info
-  build/bin/mdxtool -mpq 'data/Warcraft III/War3x.mpq' -model 'UI\Glues\SpriteLayers\TopLeftPanel.mdx'  --info
-  build/bin/mdxtool -mpq 'data/Warcraft III/War3x.mpq' -model 'UI\Glues\SpriteLayers\TopRightPanel.mdx' --info
+  build/bin/mdxtool -mpq 'data/Warcraft III/Frozen Throne/War3x.mpq' -model 'UI\Glues\SpriteLayers\TopLeftPanel.mdx'  --info
+  build/bin/mdxtool -mpq 'data/Warcraft III/Frozen Throne/War3x.mpq' -model 'UI\Glues\SpriteLayers\TopRightPanel.mdx' --info
 
 Index  Animation                                      Interval       Duration  Flags
 -----  ---------------------------------------------  -------------  --------  -----

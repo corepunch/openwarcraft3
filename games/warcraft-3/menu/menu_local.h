@@ -72,7 +72,8 @@ void UI_DrawGlueScene(void);
 typedef enum { UI_GLUE_LEFT, UI_GLUE_RIGHT, UI_GLUE_SIDE_COUNT } uiGlueSide_t;
 BOOL UI_GlueSideReady(uiGlueSide_t side);
 BOOL UI_GlueIsTransitioning(void);
-BOOL UI_ScreenFrameVisible(LPCFRAMEDEF frame);
+FLOAT UI_ScreenFrameOffset(LPCFRAMEDEF frame);
+FLOAT UI_GlueSideOffset(uiGlueSide_t side);
 
 /* menu_fdf.c — FDF parsing (moved from game/menu/menu_fdf.c) */
 BOOL UI_EnsureFDF(LPCSTR filename);

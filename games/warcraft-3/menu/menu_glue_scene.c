@@ -3,6 +3,7 @@
  */
 
 #include "menu_local.h"
+#include "menu_glue_motion.h"
 
 #define UI_GLUE_ANIM_NAME 96 // chars; fits Blizzard glue sequence names and suffixes; used as animation storage.
 #define UI_GLUE_BIRTH_TIME 1000 // ms; every named RoC/TFT panel Birth interval has this length.
@@ -60,6 +61,17 @@ static const GLUEPANEL glue_panels[UI_GLUE_PANEL_COUNT] = {
         [1] = { "BattlenetCustomCreate Stand", "BattlenetCustomCreate Birth", "BattlenetCustomCreate Death" },
         [2] = { "BattlenetAdvancedOptions Morph@1.0000", "BattlenetAdvancedOptions Morph", "BattlenetAdvancedOptions Morph Alternate" },
     } },
+};
+
+/* Content without a moving left mesh (logo/profile) follows the navigation's
+ * sampled travel. Each side intentionally moves as one rigid FDF partition. */
+static LPCGLUEMOTION const motion[UI_GLUE_PANEL_COUNT][UI_GLUE_SIDE_COUNT][BZ_GLUE_MAX_TABS] = {
+    [UI_GLUE_MAIN_MENU] = {{&motion_main}, {&motion_main}},
+    [UI_GLUE_REALM_SELECTION] = {{&motion_realm}, {&motion_main}},
+    [UI_GLUE_SINGLE_PLAYER] = {{&motion_main, &motion_main}, {&motion_main}},
+    [UI_GLUE_OPTIONS] = {{&motion_opts, &motion_tab}, {&motion_opts}},
+    [UI_GLUE_MULTIPLAYER_PRE_GAME_CHAT] = {{&motion_chat, &motion_chat}, {&motion_chatnav}},
+    [UI_GLUE_BATTLENET_CUSTOM] = {{&motion_lan, &motion_create, &motion_lan}, {&motion_lannav}},
 };
 
 static LPCSTR const phases[] = { "Stand", "Death", "Birth" };
@@ -172,6 +184,17 @@ static BOOL UI_GlueSameDest(GLUEDEST a, GLUEDEST b) {
 BOOL UI_GlueSideReady(uiGlueSide_t side) {
     LPCGLUELAYER layer = &scene.layers[side];
     return layer->phase == UI_GLUE_PANEL_IDLE && UI_GlueSameDest(layer->current, layer->target);
+}
+
+/* Sample the same phase clock as the MDX; retain overshoot and the native exit curve. */
+FLOAT UI_GlueSideOffset(uiGlueSide_t side) {
+    LPCGLUELAYER layer = &scene.layers[side];
+    if (layer->phase == UI_GLUE_PANEL_IDLE || !layer->current.panel) return 0;
+    LPCGLUEMOTION track = motion[layer->current.panel][side][layer->current.tab];
+    FLOAT pos = (BZ_GLUE_SAMPLES - 1) * (FLOAT)MIN(M_Time() - layer->start, durations[layer->phase]) / durations[layer->phase];
+    int idx = MIN((int)pos, BZ_GLUE_SAMPLES - 2);
+    FLOAT const *curve = layer->phase == UI_GLUE_PANEL_ENTER ? track->enter : track->leave;
+    return curve[idx] + (curve[idx + 1] - curve[idx]) * (pos - idx);
 }
 
 BOOL UI_GlueIsTransitioning(void) {

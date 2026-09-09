@@ -16,6 +16,11 @@
 #define PATHSTR char[512]
 #endif
 
+extern void ReadNode(LPSIZEBUF buffer, mdxNode_t *node, DWORD size);
+extern void R_ReleaseModelNode(mdxNode_t *node);
+
+#define BZ_MDX_MOTION_STEPS 50 // intervals; 2% spacing captures panel overshoot; used for diagnostic motion sampling.
+
 static const char *g_model_path = NULL;
 static const char *g_requested_animation = NULL;
 static bool g_use_model_camera = false;
@@ -117,6 +122,7 @@ static void usage(void) {
     "\n"
     "Notes:\n"
     "  --info prints model metadata and exits without creating a window.\n"
+    "  --info --dump-all samples bone translations at 2% intervals; --anim filters the sequence.\n"
     "  --front-ortho uses a front-facing orthographic preview camera for flat UI models.\n"
     "  --dump-all prints loaded model details (nodes, bones, geosets, materials, cameras).\n"
     "  --once renders one frame and exits.\n"
@@ -521,6 +527,38 @@ static mdxSequence_t const *FindSequenceByRequestedName(mdxModel_t const *mdx, L
     return FindSequenceByNameContains(mdx, wanted);
 }
 
+/* Use the production MDX decoder/interpolator to inspect motion without a GL window. */
+static void dump_node_motion(LPBYTE data, DWORD size, mdxModel_t const *model) {
+    for (DWORD off = 0; off + 96 <= size;) {
+        DWORD len = *(DWORD *)(data + off);
+        if (len < 96 || len + 8 > size - off) {
+            fprintf(stderr, "mdxtool: invalid bone size at %u\n", off);
+            return;
+        }
+        sizeBuf_t buf = { .data = data + off, .cursize = len, .readcount = 4 };
+        mdxNode_t node = {0};
+        ReadNode(&buf, &node, len - 4);
+        fprintf(stderr, "  node %u parent=%u name=%s tracks=%d/%d/%d\n", node.node_id, node.parent_id, node.name, !!node.translation, !!node.rotation, !!node.scale);
+        FOR_LOOP(i, model->num_sequences) {
+            mdxSequence_t const *seq = model->sequences + i;
+            if (g_requested_animation && strcmp(seq->name, g_requested_animation)) continue;
+            if (!node.translation) continue;
+            fprintf(stderr, "    %s:", seq->name);
+            for (DWORD step = 0; step <= BZ_MDX_MOTION_STEPS; step++) {
+                DWORD ms = (seq->interval[1] - seq->interval[0]) * step / BZ_MDX_MOTION_STEPS;
+                VECTOR3 val = {0};
+                DWORD time = MIN(seq->interval[0] + ms, seq->interval[1] - 1);
+                tr.viewDef.time = time;
+                MDLX_GetModelKeytrackValue(model, node.translation, time, &val);
+                fprintf(stderr, " %u:%.6f,%.6f,%.6f", ms, val.x, val.y, val.z);
+            }
+            fprintf(stderr, "\n");
+        }
+        R_ReleaseModelNode(&node);
+        off += len + 8;
+    }
+}
+
 static bool DumpModelInfoNoWindow(LPCSTR modelPath) {
     HANDLE file = FS_OpenFile(modelPath);
     if (!file) {
@@ -547,6 +585,7 @@ static bool DumpModelInfoNoWindow(LPCSTR modelPath) {
 
     fprintf(stderr, "mdxtool --info: model=%s size=%u bytes\n", modelPath, (unsigned)fileSize);
 
+    mdxModel_t model = {0};
     DWORD offset = 4;
     while (offset + 8 <= fileSize) {
         DWORD chunkId = *(DWORD *)(data + offset + 0);
@@ -573,6 +612,8 @@ static bool DumpModelInfoNoWindow(LPCSTR modelPath) {
             {
                 DWORD seqCount = chunkSize / sizeof(mdxSequence_t);
                 mdxSequence_t const *seqs = (mdxSequence_t const *)chunk;
+                model.sequences = (mdxSequence_t *)chunk;
+                model.num_sequences = seqCount;
                 fprintf(stderr, "  SEQS: count=%u\n", (unsigned)seqCount);
                 FOR_LOOP(i, seqCount) {
                     char seqName[81];
@@ -588,6 +629,10 @@ static bool DumpModelInfoNoWindow(LPCSTR modelPath) {
                 }
                 break;
             }
+            case MAKEFOURCC('G', 'L', 'B', 'S'):
+                model.globalSequences = (mdxGlobalSequence_t *)chunk;
+                model.num_globalSequences = chunkSize / sizeof(mdxGlobalSequence_t);
+                break;
             case MAKEFOURCC('T', 'E', 'X', 'S'):
                 fprintf(stderr, "  TEXS: count=%u\n", (unsigned)(chunkSize / MDX_TEXTURE_RECORD_SIZE));
                 break;
@@ -613,6 +658,7 @@ static bool DumpModelInfoNoWindow(LPCSTR modelPath) {
                 fprintf(stderr, "  HELP: count=%u\n", (unsigned)CountVariableSizeEntries(chunk, chunkSize));
                 break;
             case MAKEFOURCC('B', 'O', 'N', 'E'):
+                if (g_dump_all) dump_node_motion(chunk, chunkSize, &model);
                 fprintf(stderr, "  BONE: count=%u\n", (unsigned)CountVariableSizeEntries(chunk, chunkSize));
                 break;
             case MAKEFOURCC('C', 'L', 'I', 'D'):
@@ -1299,6 +1345,8 @@ int main(int argc, char **argv) {
     Tool_SetSheetHost(archives, sizeof(archives) / sizeof(archives[0]));
 
     if (g_info_only) {
+        ri.MemAlloc = MemAlloc;
+        ri.MemFree = MemFree;
         bool ok = DumpModelInfoNoWindow(modelPath);
         Viewer_CloseArchives(archives, sizeof(archives) / sizeof(archives[0]));
         return ok ? 0 : 1;
