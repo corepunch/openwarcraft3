@@ -2128,6 +2128,7 @@ void G_ActivateScriptedDestructable(LPEDICT ent,
                                     DWORD variation);
 BOOL G_IsDestructable(LPCEDICT ent);
 BOOL G_DestructableIsAttackable(LPCEDICT ent);
+BOOL G_DestructableIsWalkable(LPCEDICT ent);
 BOOL G_DestructableCanBeAttackedBy(LPCEDICT attacker, LPCEDICT target);
 BOOL G_DestructableAcceptsSmartAttack(LPCEDICT attacker, LPCEDICT target);
 void G_InitializeDestructablePlacement(LPEDICT ent, LPCDOODAD placement);

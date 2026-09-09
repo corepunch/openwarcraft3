@@ -591,6 +591,8 @@ CLIENTCOMMAND(Smart) {
     BOOL issued = false;
     BOOL rallied = false;
     BOOL queued;
+    BOOL have_click_point = false;
+    VECTOR2 click_point = { 0 };
     DWORD number;
     LPEDICT target;
 
@@ -609,11 +611,25 @@ CLIENTCOMMAND(Smart) {
     }
     target = &globals.edicts[number];
     queued = G_CommandQueueRequested(argc, argv, 2);
+    if (argc >= 4 && strcmp(argv[2], "queue") && strcmp(argv[3], "queue")) {
+        click_point = (VECTOR2){ atoi(argv[2]), atoi(argv[3]) };
+        have_click_point = true;
+    }
     FOR_CONTROLLABLE_SELECTED_UNITS(client, ent) {
         if (G_IssueUnitTargetOrder(ent, "smart", target, queued, client->ps.number)) {
             if (G_UnitHasRally(ent)) rallied = true;
             issued = true;
         }
+    }
+    /* A live walkable destructable is also traversable ground. If its entity
+     * Smart action was rejected, preserve the world point under the cursor and
+     * run the normal formation-aware ground Smart path instead. Keep the
+     * gameplay decision on destructable state rather than presentation flags. */
+    if (!issued && have_click_point && G_DestructableIsWalkable(target)) {
+        BOOL const old_queued = client->menu.order_queued;
+        client->menu.order_queued = queued;
+        issued = move_selectlocation(clent, &click_point);
+        client->menu.order_queued = old_queued;
     }
     if (issued) {
         G_QueueOrderSound(G_GetMainControllableUnit(client));

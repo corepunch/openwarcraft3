@@ -1611,6 +1611,166 @@ TEST(wc3_movement, harvest_target_mode_right_click_entity_cancels_without_order)
     gi.unicast = old_unicast;
 }
 
+static LPEDICT make_smart_destructable(FLOAT x, FLOAT y,
+                                        DestructableData_t const *data,
+                                        TARGTYPE targtype) {
+    LPEDICT dest = G_Spawn();
+    dest->class_id = MAKEFOURCC('L','T','0','5');
+    dest->data.DestructableData = data;
+    dest->destructable.initialized = true;
+    dest->destructable.placement_solid = true;
+    dest->health.value = dest->health.max_value = 500.0f;
+    dest->targtype = targtype;
+    dest->s.origin2 = (VECTOR2){ x, y };
+    dest->s.origin.x = x;
+    dest->s.origin.y = y;
+    return dest;
+}
+
+/* Entity picking wins over the terrain trace on a bridge. Preserve that
+ * traced point so rejected bridge Smart attack semantics can still become the
+ * same formation-aware ground move as an ordinary SmartPoint click. */
+TEST(wc3_movement, smart_walkable_bridge_falls_back_to_clicked_ground_point) {
+    static DestructableData_t const bridge_data = {
+        .file = "Doodads/Terrain/WoodBridgeLarge45/WoodBridgeLarge45.mdx",
+        .walkable = true,
+    };
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(LPEDICT) = gi.unicast;
+    LPEDICT clent = &g_edicts[0];
+    LPGAMECLIENT client = clent->client;
+    LPEDICT worker, bridge;
+    char bridge_number[16];
+    LPCSTR command[] = { "smart", bridge_number, "192", "64" };
+
+    setup_test_world();
+    gi.Write = movement_noop_write;
+    gi.unicast = movement_noop_unicast;
+    worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 0.0f);
+    worker->collision = 0.0f;
+    worker->stand = unit_stand;
+    unit_stand(worker);
+    bridge = make_smart_destructable(256.0f, 64.0f, &bridge_data, TARG_BRIDGE);
+    G_SelectEntity(client, worker);
+    snprintf(bridge_number, sizeof(bridge_number), "%u", (unsigned)bridge->s.number);
+
+    G_ClientCommand(clent, 4, command);
+
+    T_NOT_NULL(worker->goalentity);
+    T_FEQ(worker->goalentity->s.origin2.x, 192.0f, 0.01f);
+    T_FEQ(worker->goalentity->s.origin2.y, 64.0f, 0.01f);
+    T_ASSERT(worker->goalentity != bridge);
+
+    gi.Write = old_write;
+    gi.unicast = old_unicast;
+}
+
+TEST(wc3_movement, smart_nonwalkable_destructable_does_not_fall_back_to_move) {
+    static DestructableData_t const wall_data = {
+        .file = "Doodads/TestWall.mdx",
+        .walkable = false,
+    };
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(LPEDICT) = gi.unicast;
+    LPEDICT clent = &g_edicts[0];
+    LPGAMECLIENT client = clent->client;
+    LPEDICT worker, wall;
+    char wall_number[16];
+    LPCSTR command[] = { "smart", wall_number, "192", "64" };
+
+    setup_test_world();
+    gi.Write = movement_noop_write;
+    gi.unicast = movement_noop_unicast;
+    worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 0.0f);
+    worker->stand = unit_stand;
+    unit_stand(worker);
+    wall = make_smart_destructable(256.0f, 64.0f, &wall_data, TARG_WALL);
+    G_SelectEntity(client, worker);
+    snprintf(wall_number, sizeof(wall_number), "%u", (unsigned)wall->s.number);
+
+    G_ClientCommand(clent, 4, command);
+
+    T_NULL(worker->goalentity);
+    T_EQ(G_UnitQueuedOrderCount(worker), 0);
+
+    gi.Write = old_write;
+    gi.unicast = old_unicast;
+}
+
+TEST(wc3_movement, shift_smart_walkable_bridge_queues_clicked_ground_point) {
+    static DestructableData_t const bridge_data = {
+        .file = "Doodads/Terrain/WoodBridgeLarge45/WoodBridgeLarge45.mdx",
+        .walkable = true,
+    };
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(LPEDICT) = gi.unicast;
+    LPEDICT clent = &g_edicts[0];
+    LPGAMECLIENT client = clent->client;
+    LPEDICT worker, bridge;
+    VECTOR2 first = { 64.0f, 0.0f };
+    char bridge_number[16];
+    LPCSTR command[] = { "smart", bridge_number, "192", "64", "queue" };
+
+    setup_test_world();
+    gi.Write = movement_noop_write;
+    gi.unicast = movement_noop_unicast;
+    worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 0.0f);
+    worker->collision = 0.0f;
+    worker->stand = unit_stand;
+    unit_stand(worker);
+    bridge = make_smart_destructable(256.0f, 64.0f, &bridge_data, TARG_BRIDGE);
+    G_SelectEntity(client, worker);
+    T_ASSERT(G_IssueUnitPointOrder(worker, "move", &first, false,
+                                   client->ps.number, 0.0f));
+    snprintf(bridge_number, sizeof(bridge_number), "%u", (unsigned)bridge->s.number);
+
+    G_ClientCommand(clent, 5, command);
+
+    T_EQ(G_UnitQueuedOrderCount(worker), 1);
+    T_EQ(worker->order_queue.entries[worker->order_queue.head].target_type,
+         UNIT_ORDER_TARGET_POINT);
+    T_STREQ(worker->order_queue.entries[worker->order_queue.head].order, "move");
+    T_FEQ(worker->order_queue.entries[worker->order_queue.head].point.x, 192.0f, 0.01f);
+    T_FEQ(worker->order_queue.entries[worker->order_queue.head].point.y, 64.0f, 0.01f);
+
+    gi.Write = old_write;
+    gi.unicast = old_unicast;
+}
+
+TEST(wc3_movement, smart_walkable_debris_keeps_entity_attack_precedence) {
+    static DestructableData_t const debris_data = {
+        .file = "Doodads/TestDebris.mdx",
+        .walkable = true,
+    };
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(LPEDICT) = gi.unicast;
+    LPEDICT clent = &g_edicts[0];
+    LPGAMECLIENT client = clent->client;
+    LPEDICT unit, debris;
+    char debris_number[16];
+    LPCSTR command[] = { "smart", debris_number, "192", "64" };
+
+    setup_test_world();
+    gi.Write = movement_noop_write;
+    gi.unicast = movement_noop_unicast;
+    unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0.0f, 0.0f);
+    unit->stand = unit_stand;
+    unit_stand(unit);
+    unit->attack1.type = ATK_MELEE;
+    unit->attack1.targetsAllowed = 256u; /* debris */
+    debris = make_smart_destructable(256.0f, 64.0f, &debris_data, TARG_DEBRIS);
+    G_SelectEntity(client, unit);
+    snprintf(debris_number, sizeof(debris_number), "%u", (unsigned)debris->s.number);
+
+    G_ClientCommand(clent, 4, command);
+
+    T_ASSERT(unit->goalentity == debris);
+    T_EQ(G_UnitQueuedOrderCount(unit), 0);
+
+    gi.Write = old_write;
+    gi.unicast = old_unicast;
+}
+
 /* Reissuing Harvest while already full remembers the requested tree but begins
  * return immediately, so no extra over-capacity chop can occur. */
 TEST(wc3_movement, lumber_full_worker_returns_before_new_chop) {
