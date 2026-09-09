@@ -18,11 +18,15 @@ corresponding Ogre MDX models contain a looping `Sleep` sequence.  The runtime
 therefore requests the model's authored `Sleep` animation instead of treating
 natural sleep as stun or freezing a `Stand` frame.
 
-Warcraft also authors the yellow sleeping `Zzz` as the hidden `Creep Sleep`
-ability (`ACsp`) TARGET effect. Retail/modding references identify its model as
-`Abilities\Spells\Other\CreepSleep\CreepSleepTarget.mdl` and attach it to
-the sleeping unit's `overhead` point. OpenRealm resolves `ACsp` through the
-existing ability-effect data path rather than hard-coding that asset path.
+Warcraft also authors the yellow sleeping `Zzz` through the hidden `Creep Sleep`
+ability (`ACsp`) TARGET presentation. Retail/modding references identify its
+model as `Abilities\Spells\Other\CreepSleep\CreepSleepTarget.mdl`/`.mdx` and
+attach it to the sleeping unit's `overhead` point. OpenRealm first resolves
+`ACsp` through the existing ability-effect data path so map/test overrides remain
+authoritative. Some retail data sets do not expose a `TargetArt` entry for this
+hidden ability through the loaded `*AbilityFunc.txt` metadata; when that lookup
+is empty, natural creep sleep falls back specifically to the canonical retail
+`Abilities\Spells\Other\CreepSleep\CreepSleepTarget.mdx` model.
 
 ## Runtime contract
 

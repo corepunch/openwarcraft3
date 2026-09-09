@@ -10,6 +10,8 @@
 #include "g_local.h"
 
 #define ID_CREEP_SLEEP MAKEFOURCC('A', 'C', 's', 'p')
+#define CREEP_SLEEP_TARGET_ART \
+    "Abilities\\Spells\\Other\\CreepSleep\\CreepSleepTarget.mdx"
 
 /* common.j declares PLAYER_STATE_NO_CREEP_SLEEP as playerstate 25.  The
  * WC3-local constant lives in g_local.h instead of widening common/shared.h. */
@@ -30,9 +32,20 @@ static void remove_creep_sleep_overlay(LPEDICT unit) {
     }
 }
 
-/* Spawn the data-driven ACsp target art at the unit's authored overhead point. */
+/* Spawn ACsp's target art at overhead. Some retail data sets do not expose
+ * the hidden ability's TargetArt through the loaded Func metadata, so preserve
+ * data/map overrides first and otherwise use Warcraft's canonical sleep art. */
 static void add_creep_sleep_overlay(LPEDICT unit) {
-    LPEDICT effect = G_SpawnAbilityEffectTarget(ID_CREEP_SLEEP, WC3_EFFECT_TARGET, 0, unit, "overhead", false);
+    LPCSTR art = G_AbilityEffectArt(ID_CREEP_SLEEP, WC3_EFFECT_TARGET, 0);
+    LPEDICT effect;
+
+    if (art && *art) {
+        effect = G_SpawnAbilityEffectTarget(ID_CREEP_SLEEP, WC3_EFFECT_TARGET, 0,
+                                            unit, "overhead", false);
+    } else {
+        effect = G_SpawnModelEffect(CREEP_SLEEP_TARGET_ART, NULL, unit,
+                                    "overhead", false);
+    }
     if (effect)
         effect->owner = unit;
 }
