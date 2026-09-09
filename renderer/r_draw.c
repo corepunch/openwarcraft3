@@ -15,7 +15,8 @@ RECT R_UISceneRect(void) {
     return MAKE(RECT, 0, 0, R_UI_BASE_WIDTH, R_UI_BASE_HEIGHT);
 }
 
-void R_DrawStringScaled(float x, float y, LPCSTR text, float scale) {
+/* Share glyph batching internally; only scaled characters need a renderer export. */
+static void r_draw_string_scaled(float x, float y, LPCSTR text, float scale) {
     VERTEX simp[6 * 128];
     DWORD count = 0;
     size2_t window = R_GetWindowSize();
@@ -56,12 +57,12 @@ void R_DrawStringScaled(float x, float y, LPCSTR text, float scale) {
 }
 
 void R_DrawString(int x, int y, LPCSTR text) {
-    R_DrawStringScaled((float)x, (float)y, text, 1.0f);
+    r_draw_string_scaled((float)x, (float)y, text, 1.0f);
 }
 
 void R_DrawCharScaled(float x, float y, int c, float scale) {
     char text[2] = { (char)c, 0 };
-    R_DrawStringScaled(x, y, text, scale);
+    r_draw_string_scaled(x, y, text, scale);
 }
 
 void R_DrawChar(int x, int y, int c) {

@@ -15,6 +15,30 @@ openwarcraft3 +set sv_cheats 1 +map Azeroth +give all
 
 The Quake 2 reference implementation supports `give all`, health, weapons, ammo, armor and power items, plus `god`, `notarget`, and `noclip`; it also refuses these commands in deathmatch unless `sv_cheats` is enabled. See the [Quake 2 g_cmds.c source](https://unix.superglobalmegacorp.com/cgi-bin/cvsweb.cgi/quake2/game/g_cmds.c?cvsroot=quake2%3Bf%3Dh%3Bonly_with_tag%3DiD%3Bcontent-type%3Dtext%2Fx-cvsweb-markup%3Bln%3D1%3Brev%3D1.1.1.1).
 
+## Debug console scaling
+
+`client/console.c` scales the system-font atlas in whole multiples of its 8-by-8 glyph size:
+`max(1, floor(min(window.width / 640, window.height / 480)))`. Console glyphs, spacing, margins,
+and border thickness share that scale: 640x480 and 1280x720 use 1x, 1920x1080 uses 2x (16x16 glyphs),
+and 2560x1440 uses 3x. These are SDL window coordinates; Retina drawable pixels may be larger.
+The minimum stays 1x for windows smaller than 640x480.
+
+`re.DrawCharScaled` is the console's renderer entry point. The shared `r_draw_string_scaled` implementation
+is private to `renderer/r_draw.c`; ordinary `re.DrawChar` and `re.DrawString` retain 1x sizing.
+This console presentation policy is independent of cheat execution and game FDF text.
+
+PR #357's original console-scaling commit `ab06a6ee` used fractional scaling. A bounded run at 1920x1080
+confirmed scale 2.25 and 18x18 glyphs; rounding down selects the requested 16x16 glyphs instead.
+Reproduce the console scene with these late command arguments (add `-tft` for the expansion):
+
+```
++set vid_native 0 +set vid_mode 10 +set vid_fullscreen 0 +menu_main +toggleconsole +screenshot 5 +com_frame_limit 10
+```
+
+ROC/TFT screenshots verified the rounded console. Temporary scale traces were removed after verification.
+The follow-up passed `make test` both on the PR base and applied to main `583f1674`; all three games built
+in the latter checkout. That main includes `0059057e`, which fixes the older PR base's SC2 routing build failure.
+
 ## Warcraft III
 
 All `sv_cheats 1` Warcraft III cheat commands print their result to the issuing player's in-game console. This includes successful state changes as well as disabled-cheat, usage, and validation feedback. The same text is retained on stderr for terminal/debug logs; console delivery is presentation-only and is skipped for disconnected test/reserved clients.
