@@ -1399,6 +1399,7 @@ BOOL G_GameResultDebugEnabled(void);
 void G_GameResultDebug(LPCSTR format, ...);
 BOOL G_IsSinglePlayer(void);
 void G_RequestEndGame(BOOL do_score_screen);
+void G_RequestQuitGame(void);
 void G_RequestChangeLevel(LPCSTR map, BOOL do_score_screen);
 void G_RequestRestartGame(BOOL do_score_screen);
 void G_RequestLoadGameMenu(void);

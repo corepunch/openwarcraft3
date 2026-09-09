@@ -17,7 +17,7 @@ Menu/F10 -> MainPanel
   End Game     -> EndGamePanel
     Restart    -> reload current mission
     Previous   -> MainPanel
-    Quit       -> leave current game/front-end
+    Quit       -> campaign mission: campaign selector; otherwise front-end main menu
     Exit       -> ConfirmQuitPanel
       Cancel   -> EndGamePanel
       Confirm  -> exit application
@@ -44,6 +44,7 @@ G_ClientCommand
   menu              -> UI_ShowMainMenu
   menu_endgame      -> UI_ShowGameMenuEndGame
   menu_restart      -> G_RequestRestartGame(false), single-player only
+  menu_quit_game    -> G_RequestQuitGame -> campaign selector for campaign maps, otherwise main menu
   menu_confirm_exit -> UI_ShowGameMenuConfirmExit
   menu_save_game    -> UI_ShowGameMenuSave
   menu_load_game    -> UI_ShowGameMenuLoad
@@ -67,7 +68,7 @@ client/cl_window.c
   `{ControlName}` onclick placeholder -> escaped current control value
   ordinary onclick                   -> server command
   close_window[_notify]              -> close local window
-  disconnect_game                    -> deferred front-end transition
+  disconnect_game                    -> generic deferred main-menu transition (not used by WC3 Quit Mission)
   quit_application                   -> queue normal `quit` command
   last modal closes/disconnects      -> modal ownership released
 ```
@@ -102,8 +103,10 @@ and manual camera movement; transport remains live so submenu and close commands
 `UI_WINDOW_CLOSE_ACTION`, `UI_WINDOW_CLOSE_NOTIFY_ACTION`, `UI_WINDOW_CLOSE_COMMAND_PREFIX`, `UI_WINDOW_DISCONNECT_ACTION`, and
 `UI_WINDOW_QUIT_ACTION` are interpreted locally by `client/cl_window.c`. Restart uses `close_window_command menu_restart`, so the
 client forwards the server-owned restart request and immediately releases the menu's modal/pause ownership while the deferred map
-reload is pending. The server authors which button exposes those tokens, but leave and application-exit only happen after explicit
-local activation. `disconnect_game` queues the generic deferred `MenuAction("menu", "menu_main")` session boundary; it must not call
+reload is pending. Quit uses the same close-and-forward pattern with `menu_quit_game`: Warcraft game code still owns whether the
+outgoing world is a campaign mission, and `G_RequestQuitGame()` selects `menu_single_player_campaign` for classic or Frozen Throne
+campaign map paths while preserving `menu_main` for non-campaign games. The generic `disconnect_game` client action remains a
+main-menu-only session boundary and must not be used for WC3 Quit Mission because it has no campaign context. Neither path may call
 `CL_Disconnect()` and immediately show the menu while the campaign server/game module is still alive, because game teardown owns
 FDF/template state that the front-end must rebuild afterward.
 
