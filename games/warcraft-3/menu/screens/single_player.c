@@ -5,6 +5,7 @@
 #include "../menu_local.h"
 #include "../menu_screen.h"
 #include "../generated/single_player_menu.h"
+#include "common/campaign_progress.h"
 #include <ctype.h>
 #include <stdlib.h>
 #ifndef _WIN32
@@ -14,7 +15,7 @@
 #define SINGLE_PLAYER_MAX_CAMPAIGNS 16
 #define SINGLE_PLAYER_MAX_MISSIONS 128
 #define SINGLE_PLAYER_MISSION_VISIBLE_ROWS 14
-#define SINGLE_PLAYER_MISSION_VISIBILITY_CVAR "wc3_campaign_mission_visibility"
+#define SINGLE_PLAYER_CAMPAIGN_VISIBILITY_CVAR "wc3_campaign_visibility"
 #define SINGLE_PLAYER_LIST_FLAG_CINEMATIC 0x80000000u
 #define SINGLE_PLAYER_LIST_INDEX_MASK 0x7fffffffu
 
@@ -49,10 +50,28 @@ typedef struct {
     UINAME header;
     UINAME name;
     UINAME background;
+    BOOL default_open;
     singlePlayerMission_t missions[SINGLE_PLAYER_MAX_MISSIONS];
     DWORD num_missions;
     singlePlayerCinematic_t cinematics[SINGLE_PLAYER_CINEMATIC_COUNT];
 } singlePlayerCampaign_t;
+
+typedef struct {
+    LPCSTR name;
+    size_t offset, size;
+    bzFieldType_t type;
+} singlePlayerCampaignField_t;
+
+#define CAMPAIGN_FIELD(NAME, FIELD, TYPE) \
+    { NAME, offsetof(singlePlayerCampaign_t, FIELD), sizeof(((singlePlayerCampaign_t *)0)->FIELD), TYPE }
+
+static singlePlayerCampaignField_t const campaign_fields[] = {
+    CAMPAIGN_FIELD("Header", header, BZ_FIELD_CHAR_ARRAY),
+    CAMPAIGN_FIELD("Name", name, BZ_FIELD_CHAR_ARRAY),
+    CAMPAIGN_FIELD("Background", background, BZ_FIELD_CHAR_ARRAY),
+    CAMPAIGN_FIELD("Cursor", race, BZ_FIELD_U32),
+    CAMPAIGN_FIELD("DefaultOpen", default_open, BZ_FIELD_BOOL),
+};
 
 static LPCSTR const solo_lft[] = {
     "ProfilePanel",
@@ -71,6 +90,7 @@ static LPFRAMEDEF mission_list_frame;
 static DWORD campaign_background_model = 0;
 static DWORD selected_campaign_index = SINGLE_PLAYER_MAX_CAMPAIGNS;
 static singlePlayerView_t current_view = SINGLE_PLAYER_VIEW_MAIN;
+static wc3CampaignProgress_t campaign_progress;
 
 static BOOL SinglePlayerMenu_LoadScreen(void) {
     if (SinglePlayerMenu_Load(&single_player)) {
@@ -261,30 +281,35 @@ static void SinglePlayer_ParseCinematicValue(singlePlayerCinematic_t *cinematic,
     snprintf(cinematic->movie_path, sizeof(cinematic->movie_path), "%s", movie);
 }
 
-static void SinglePlayer_ParseCampaignLine(singlePlayerCampaign_t *campaign, char *key, char *value) {
-    UINAME field;
-
-    if (!campaign) {
-        return;
+/* Scalar CampaignStrings fields use one descriptor grammar; repeated productions remain explicit. */
+static BOOL SinglePlayer_ParseCampaignField(singlePlayerCampaign_t *campaign, LPCSTR key, char *value) {
+    if (!campaign || !key) return false;
+    FOR_LOOP(i, sizeof(campaign_fields) / sizeof(campaign_fields[0])) {
+        singlePlayerCampaignField_t const *field = &campaign_fields[i];
+        BYTE *dst;
+        if (strcasecmp(key, field->name)) continue;
+        dst = (BYTE *)campaign + field->offset;
+        if (field->type == BZ_FIELD_CHAR_ARRAY) {
+            char *cursor = value;
+            UINAME text;
+            if (SinglePlayer_ReadQuoted(&cursor, text, sizeof(text))) snprintf((LPSTR)dst, field->size, "%s", text);
+        } else if (field->type == BZ_FIELD_BOOL) {
+            *(BOOL *)dst = value && (atoi(value) != 0 || !strcasecmp(value, "TRUE"));
+        } else if (field->type == BZ_FIELD_U32) {
+            DWORD const number = value ? (DWORD)atoi(value) : 0;
+            memcpy(dst, &number, MIN(field->size, sizeof(number)));
+        } else {
+            fprintf(stderr, "CampaignStrings: unsupported scalar type %u for '%s'\n", (unsigned)field->type, key);
+        }
+        return true;
     }
-    if (!strcasecmp(key, "Header")) {
-        char *cursor = value;
-        if (SinglePlayer_ReadQuoted(&cursor, field, sizeof(field))) {
-            snprintf(campaign->header, sizeof(campaign->header), "%s", field);
-        }
-    } else if (!strcasecmp(key, "Name")) {
-        char *cursor = value;
-        if (SinglePlayer_ReadQuoted(&cursor, field, sizeof(field))) {
-            snprintf(campaign->name, sizeof(campaign->name), "%s", field);
-        }
-    } else if (!strcasecmp(key, "Background")) {
-        char *cursor = value;
-        if (SinglePlayer_ReadQuoted(&cursor, field, sizeof(field))) {
-            snprintf(campaign->background, sizeof(campaign->background), "%s", field);
-        }
-    } else if (!strcasecmp(key, "Cursor")) {
-        campaign->race = (playerRace_t)atoi(value);
-    } else if (!strcasecmp(key, "IntroCinematic")) {
+    return false;
+}
+
+static void SinglePlayer_ParseCampaignLine(singlePlayerCampaign_t *campaign, char *key, char *value) {
+    if (!campaign) return;
+    if (SinglePlayer_ParseCampaignField(campaign, key, value)) return;
+    if (!strcasecmp(key, "IntroCinematic")) {
         SinglePlayer_ParseCinematicValue(&campaign->cinematics[SINGLE_PLAYER_CINEMATIC_INTRO], value);
     } else if (!strcasecmp(key, "OpenCinematic")) {
         SinglePlayer_ParseCinematicValue(&campaign->cinematics[SINGLE_PLAYER_CINEMATIC_OPEN], value);
@@ -292,11 +317,8 @@ static void SinglePlayer_ParseCampaignLine(singlePlayerCampaign_t *campaign, cha
         SinglePlayer_ParseCinematicValue(&campaign->cinematics[SINGLE_PLAYER_CINEMATIC_END], value);
     } else {
         DWORD index;
-        if (SinglePlayer_ParseIndexedKey(key, "Mission", &index)) {
-            SinglePlayer_ParseMissionValue(campaign, index, value);
-        } else if (SinglePlayer_ParseIndexedKey(key, "File", &index)) {
-            SinglePlayer_ParseFileValue(campaign, index, value);
-        }
+        if (SinglePlayer_ParseIndexedKey(key, "Mission", &index)) SinglePlayer_ParseMissionValue(campaign, index, value);
+        else if (SinglePlayer_ParseIndexedKey(key, "File", &index)) SinglePlayer_ParseFileValue(campaign, index, value);
     }
 }
 
@@ -407,11 +429,16 @@ static void SinglePlayer_LoadCampaignData(void) {
     }
 }
 
+static BOOL SinglePlayer_ShowCampaign(singlePlayerCampaign_t const *campaign);
+
 static singlePlayerCampaign_t const *SinglePlayer_DefaultCampaign(void) {
-    if (campaign_order_count && campaign_order[0] < campaign_count) {
-        return &campaigns[campaign_order[0]];
+    FOR_LOOP(i, campaign_order_count) {
+        DWORD const campaign_index = campaign_order[i];
+        if (campaign_index < campaign_count && SinglePlayer_ShowCampaign(&campaigns[campaign_index])) {
+            return &campaigns[campaign_index];
+        }
     }
-    return campaign_count ? &campaigns[0] : NULL;
+    return NULL;
 }
 
 static LPCSTR SinglePlayer_FirstMissionMap(singlePlayerCampaign_t const *campaign) {
@@ -494,65 +521,71 @@ static void SinglePlayer_DrawCampaignBackdrop(void) {
     }
 }
 
-static void SinglePlayer_MissionPlayedCvar(singlePlayerCampaign_t const *campaign,
-                                           DWORD mission_index,
-                                           LPSTR out,
-                                           DWORD out_size) {
-    char campaign_key[64];
-    DWORD used = 0;
+static BOOL SinglePlayer_UnlockedOnly(void) {
+    LPCSTR mode = mi.Cvar_String
+        ? mi.Cvar_String(SINGLE_PLAYER_CAMPAIGN_VISIBILITY_CVAR, "all")
+        : "all";
+    return mode && !strcasecmp(mode, "unlocked");
+}
 
-    if (!out || !out_size) {
-        return;
+static DWORD SinglePlayer_CampaignEdition(void) {
+    return SinglePlayer_ExpansionEnabled() ? WC3_CAMPAIGN_EDITION_TFT : WC3_CAMPAIGN_EDITION_ROC;
+}
+
+static void SinglePlayer_LoadCampaignProgress(void) {
+    PATHSTR path;
+
+    wc3_campaign_progress_init(&campaign_progress);
+    if (!mi.UserPath) return;
+    path[0] = '\0';
+    mi.UserPath(WC3_CAMPAIGN_PROGRESS_FILENAME, path, sizeof(path));
+    if (path[0]) wc3_campaign_progress_load(path, &campaign_progress);
+}
+
+static LONG SinglePlayer_CampaignProgressIndex(singlePlayerCampaign_t const *campaign) {
+    if (!campaign) return -1;
+    return wc3_campaign_progress_campaign_index(SinglePlayer_CampaignEdition(), campaign->key);
+}
+
+static BOOL SinglePlayer_ShowCampaign(singlePlayerCampaign_t const *campaign) {
+    LONG campaign_index;
+
+    if (!campaign || !SinglePlayer_UnlockedOnly()) return campaign != NULL;
+    campaign_index = SinglePlayer_CampaignProgressIndex(campaign);
+    if (campaign_index >= 0) {
+        wc3CampaignProgressKey_t const key = MAKE(wc3CampaignProgressKey_t,
+            .edition = SinglePlayer_CampaignEdition(),
+            .campaign = (DWORD)campaign_index);
+        if (wc3_campaign_progress_has_campaign(&campaign_progress, key))
+            return wc3_campaign_progress_campaign_available(&campaign_progress, key);
     }
-    memset(campaign_key, 0, sizeof(campaign_key));
-    if (campaign) {
-        for (LPCSTR p = campaign->key; *p && used + 1 < sizeof(campaign_key); p++) {
-            unsigned char ch = (unsigned char)*p;
-            campaign_key[used++] = isalnum(ch) ? (char)tolower(ch) : '_';
-        }
-    }
-    snprintf(out, out_size, "wc3_campaign_played_%s_%u",
-             campaign_key[0] ? campaign_key : "campaign",
-             (unsigned)mission_index);
+    return campaign->default_open;
 }
 
 static BOOL SinglePlayer_ShowMission(singlePlayerCampaign_t const *campaign, DWORD mission_index) {
-    LPCSTR mode = mi.Cvar_String
-        ? mi.Cvar_String(SINGLE_PLAYER_MISSION_VISIBILITY_CVAR, "all")
-        : "all";
+    LONG campaign_index;
 
-    if (!mode || strcasecmp(mode, "played")) {
-        return true;
+    if (!campaign || mission_index >= campaign->num_missions) return false;
+    if (!SinglePlayer_UnlockedOnly()) return true;
+    campaign_index = SinglePlayer_CampaignProgressIndex(campaign);
+    if (campaign_index >= 0) {
+        wc3CampaignProgressKey_t const key = MAKE(wc3CampaignProgressKey_t,
+            .edition = SinglePlayer_CampaignEdition(),
+            .campaign = (DWORD)campaign_index,
+            .mission = mission_index);
+        if (wc3_campaign_progress_has_mission(&campaign_progress, key))
+            return wc3_campaign_progress_mission_available(&campaign_progress, key);
     }
-
-    char cvar_name[128];
-    SinglePlayer_MissionPlayedCvar(campaign, mission_index, cvar_name, sizeof(cvar_name));
-    LPCSTR played = mi.Cvar_String ? mi.Cvar_String(cvar_name, "0") : "0";
-    return played && atoi(played) != 0;
-}
-
-static void SinglePlayer_MarkMissionPlayed(singlePlayerCampaign_t const *campaign, DWORD mission_index) {
-    char cvar_name[128];
-
-    if (!campaign || !mi.Cvar_Set) {
-        return;
-    }
-    SinglePlayer_MissionPlayedCvar(campaign, mission_index, cvar_name, sizeof(cvar_name));
-    mi.Cvar_Set(cvar_name, "1");
+    return mission_index == 0 && SinglePlayer_ShowCampaign(campaign);
 }
 
 static void SinglePlayer_LaunchMission(singlePlayerCampaign_t const *campaign, DWORD mission_index) {
     char command[MAX_PATHLEN + 7];
     LPCSTR map_path;
 
-    if (!campaign || mission_index >= campaign->num_missions) {
-        return;
-    }
+    if (!campaign || mission_index >= campaign->num_missions) return;
     map_path = campaign->missions[mission_index].map_path;
-    if (!map_path[0]) {
-        return;
-    }
-    SinglePlayer_MarkMissionPlayed(campaign, mission_index);
+    if (!map_path[0]) return;
     snprintf(command, sizeof(command), "map \"%s\"", map_path);
     UI_QueueCommand(command);
 }
@@ -662,6 +695,7 @@ static void SinglePlayer_SelectCampaign(singlePlayerCampaign_t const *campaign) 
     if (!campaign) {
         return;
     }
+    SinglePlayer_LoadCampaignProgress();
     selected_campaign_index = (DWORD)(campaign - campaigns);
     SinglePlayer_SetCampaignBackdrop(campaign);
     SinglePlayer_PopulateMissionSelect(campaign);
@@ -679,7 +713,7 @@ static void SinglePlayer_PopulateCampaignList(void) {
             continue;
         }
         campaign = &campaigns[campaign_index];
-        if (!SinglePlayer_FirstMissionMap(campaign)) {
+        if (!SinglePlayer_FirstMissionMap(campaign) || !SinglePlayer_ShowCampaign(campaign)) {
             continue;
         }
         item = &campaign_list.items[campaign_list.count++];
@@ -829,6 +863,7 @@ static void SinglePlayer_BindCampaignMenu(void) {
 static void SinglePlayerMenu_Init(void) {
     mi.Printf("SinglePlayerMenu_Init\n");
     SinglePlayer_LoadCampaignData();
+    SinglePlayer_LoadCampaignProgress();
     campaign_list_frame = NULL;
     mission_list_frame = NULL;
     memset(&campaign_list, 0, sizeof(campaign_list));
@@ -882,6 +917,8 @@ void SinglePlayerMenu_ShowMain(void) {
 }
 
 void SinglePlayerMenu_ShowCampaign(void) {
+    SinglePlayer_LoadCampaignProgress();
+    SinglePlayer_PopulateCampaignList();
     SinglePlayer_SetCampaignBackdrop(SinglePlayer_DefaultCampaign());
     selected_campaign_index = SINGLE_PLAYER_MAX_CAMPAIGNS;
     SinglePlayer_SetView(SINGLE_PLAYER_VIEW_CAMPAIGN_SELECT);

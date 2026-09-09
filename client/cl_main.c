@@ -803,6 +803,7 @@ void CL_Init(void) {
         .FS_FreeFile = FS_FreeFile,
         .FS_GetFileList = CL_UI_GetFileList,
         .FS_WriteFile = CL_UI_WriteFile,
+        .UserPath = FS_UserPath,
         .MemAlloc = MemAlloc,
         .MemFree = MemFree,
         .ImageIndex = CL_ImageIndex,

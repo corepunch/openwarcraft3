@@ -806,18 +806,21 @@ DWORD GetIntegerGameState(LPJASS j) {
     return jass_pushinteger(j, 0);
 }
 DWORD SetTutorialCleared(LPJASS j) {
-    //BOOL cleared = jass_checkboolean(j, 1);
+    BOOL cleared = jass_checkboolean(j, 1);
+    G_CampaignProgressSetTutorialCleared(cleared);
     return 0;
 }
 DWORD SetMissionAvailable(LPJASS j) {
-    //LONG campaignNumber = jass_checkinteger(j, 1);
-    //LONG missionNumber = jass_checkinteger(j, 2);
-    //BOOL available = jass_checkboolean(j, 3);
+    LONG campaignNumber = jass_checkinteger(j, 1);
+    LONG missionNumber = jass_checkinteger(j, 2);
+    BOOL available = jass_checkboolean(j, 3);
+    G_CampaignProgressSetMissionAvailable(campaignNumber, missionNumber, available);
     return 0;
 }
 DWORD SetCampaignAvailable(LPJASS j) {
-    //LONG campaignNumber = jass_checkinteger(j, 1);
-    //BOOL available = jass_checkboolean(j, 2);
+    LONG campaignNumber = jass_checkinteger(j, 1);
+    BOOL available = jass_checkboolean(j, 2);
+    G_CampaignProgressSetCampaignAvailable(campaignNumber, available);
     return 0;
 }
 DWORD SetOpCinematicAvailable(LPJASS j) {

@@ -122,8 +122,9 @@ playback before progression persistence exists. The retail-compatible follow-up 
    still stubs, so unlock persistence must be implemented before claiming retail-compatible availability.
 3. Determine whether Intro availability is always data-authored/default-open or has its own progression rule in the
    original client before hiding it behind a guessed state bit.
-4. Keep mission-play visibility (`wc3_campaign_mission_visibility`) separate from cinematic availability. A played map
-   and an unlocked cinematic are different progression facts.
+4. Keep campaign/mission availability (`wc3_campaign_visibility=unlocked`) separate from cinematic availability.
+   Campaign progress records authored `SetCampaignAvailable` / `SetMissionAvailable` state; an unlocked cinematic is a
+   different progression fact.
 
 ## Known Pitfalls
 

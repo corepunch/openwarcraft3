@@ -113,7 +113,9 @@ Unknown mode values are reported and treated as `disk`, so a typo does not
 silently disable campaign persistence.
 
 OpenRealm does **not** write a fake retail `.w3v` file. Retail game-cache binary
-compatibility has not been established.
+compatibility has not been established. Campaign selector unlock/completion state is a separate retail `.w3p`
+concept and is persisted separately by OpenRealm in `campaign-progress.orcp`; see
+[campaign-progress.md](campaign-progress.md).
 
 For a JASS cache name such as:
 
