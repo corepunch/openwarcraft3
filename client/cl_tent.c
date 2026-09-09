@@ -160,6 +160,7 @@ void CL_ParseTEnt(LPSIZEBUF msg) {
     }
 }
 
+/* Build the transient point marker payload; the renderer owns support-surface lookup for bridge geometry. */
 static renderEntity_t CL_BuildConfirmationEntity(moveConfirmation_t const *mc, LPMODEL model) {
     renderEntity_t ent;
     memset(&ent, 0, sizeof(ent));
@@ -297,7 +298,8 @@ void CL_DrawTEnts(void) {
 #ifdef BZ_TESTS
 #include "shared/test.h"
 
-TEST(client_tent, confirmation_uses_walkable_ground_conform) {
+TEST(client_tent, confirmation_carries_walkable_ground_conform_contract) {
+    MODEL model = { 0 };
     moveConfirmation_t const confirmation = {
         .origin = { 128.0f, 256.0f, 0.0f },
         .timespamp = 100,
@@ -307,9 +309,10 @@ TEST(client_tent, confirmation_uses_walkable_ground_conform) {
     renderEntity_t ent;
 
     cl.time = 250;
-    ent = CL_BuildConfirmationEntity(&confirmation, NULL);
+    ent = CL_BuildConfirmationEntity(&confirmation, &model);
 
     T_ASSERT(ent.flags & RF_GROUND_CONFORM);
+    T_ASSERT(ent.model == &model);
     T_FEQ(ent.ground_offset, 8.0f, 0.001f);
     T_FEQ(ent.origin.x, confirmation.origin.x, 0.001f);
     T_FEQ(ent.origin.y, confirmation.origin.y, 0.001f);
