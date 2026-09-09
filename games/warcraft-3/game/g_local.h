@@ -1352,6 +1352,7 @@ struct level_locals {
     BOOL started;
     BOOL scriptsStarted;
     BOOL cinematic_debug_result_window; /* per-map debug latch for result-window tracing */
+    BOOL campaign_select_on_end; /* ForceCampaignSelectScreen defers campaign selection until EndGame */
 };
 
 #define FOR_EACH_EVENT(property) \

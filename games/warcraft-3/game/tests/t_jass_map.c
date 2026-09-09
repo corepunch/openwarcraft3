@@ -968,6 +968,48 @@ TEST(wc3_jass_map, victory_continue_runs_blizzard_continuation_while_paused) {
     gi.unicast = old_unicast;
 }
 
+TEST(wc3_jass_map, force_campaign_select_defers_until_endgame) {
+    void (*old_menu_action)(LPCSTR, LPCSTR) = gi.MenuAction;
+
+    victory_menu_action[0] = '\0';
+    victory_menu_arg[0] = '\0';
+    gi.MenuAction = capture_victory_menu_action;
+
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  call ForceCampaignSelectScreen()\n"
+        "endfunction\n"
+    ));
+
+    T_ASSERT(level.campaign_select_on_end);
+    T_STREQ(victory_menu_action, "");
+    T_STREQ(victory_menu_arg, "");
+
+    G_RequestEndGame(false);
+
+    T_ASSERT(!level.campaign_select_on_end);
+    T_STREQ(victory_menu_action, "menu");
+    T_STREQ(victory_menu_arg, "menu_single_player_campaign");
+
+    gi.MenuAction = old_menu_action;
+}
+
+TEST(wc3_jass_map, endgame_without_campaign_select_returns_to_main_menu) {
+    void (*old_menu_action)(LPCSTR, LPCSTR) = gi.MenuAction;
+
+    victory_menu_action[0] = '\0';
+    victory_menu_arg[0] = '\0';
+    level.campaign_select_on_end = false;
+    gi.MenuAction = capture_victory_menu_action;
+
+    G_RequestEndGame(false);
+
+    T_STREQ(victory_menu_action, "menu");
+    T_STREQ(victory_menu_arg, "menu_main");
+
+    gi.MenuAction = old_menu_action;
+}
+
 TEST(wc3_jass_map, play_cinematic_queues_classic_movie_asset_path) {
     void (*old_queue_movie)(LPCSTR) = gi.QueueMovie;
 

@@ -724,6 +724,11 @@ void G_RequestEndGame(BOOL do_score_screen) {
     /* Score-screen transport is not implemented yet. Keep the argument at the
      * game/session boundary so EndGame(true) does not get baked into HUD code. */
     G_GameResultDebug("request EndGame score_screen=%u", (unsigned)do_score_screen);
+    if (level.campaign_select_on_end) {
+        level.campaign_select_on_end = false;
+        gi.MenuAction("menu", "menu_single_player_campaign");
+        return;
+    }
     gi.MenuAction("menu", "menu_main");
 }
 
@@ -750,8 +755,12 @@ void G_RequestLoadGameNamed(LPCSTR name) {
 }
 
 void G_RequestCampaignSelect(void) {
+    /* Warcraft's ForceCampaignSelectScreen is called by SetCampaignAvailableBJ
+     * while campaign ending cinematics are still running. It selects the
+     * frontend destination for the eventual EndGame; it must not tear down the
+     * active map immediately. */
     G_GameResultDebug("request CampaignSelect");
-    gi.MenuAction("menu", "menu_single_player_campaign");
+    level.campaign_select_on_end = true;
 }
 
 /* One complete server-frame simulation step.
