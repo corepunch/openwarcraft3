@@ -114,6 +114,8 @@ void S_PlaySoundPacket(LPCSTR path, LPCVECTOR3 origin, BOOL positioned, int chan
     (void)path; (void)origin; (void)positioned; (void)channel; (void)volume; (void)attenuation; (void)timeofs;
 }
 void Cbuf_AddText(LPCSTR text) { (void)text; }
+void Cbuf_ClearDefer(void) {}
+void Cbuf_InsertFromDefer(void) {}
 int Cmd_Argc(void) { return 0; }
 LPCSTR Cmd_Argv(int arg) { (void)arg; return ""; }
 LPCSTR Cmd_ArgsFrom(int arg) { (void)arg; return ""; }

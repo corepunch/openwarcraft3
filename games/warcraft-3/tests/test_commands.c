@@ -21,6 +21,7 @@ static PATHSTR last_load_name;
 static PATHSTR last_load_map;
 static PATHSTR last_connect_host;
 static char last_forwarded[1024];
+static DWORD forwarded_count;
 static bool command_tests_initialized;
 static bool late_command_called;
 static bool save_map_readable;
@@ -40,6 +41,7 @@ void Key_WriteBindings(FILE *file) {
 }
 
 void Cmd_ForwardToServer(LPCSTR text) {
+    forwarded_count++;
     snprintf(last_forwarded, sizeof(last_forwarded), "%s", text ? text : "");
 }
 
@@ -112,6 +114,54 @@ static void setup_command_tests(void) {
     T_ASSERT(FS_AddArchive("build/tests/tests.mpq") != NULL);
     reset_map_handoff();
     command_tests_initialized = true;
+}
+
+TEST(commands, deferred_tail_preserves_unknown_commands_arguments_and_order) {
+    char text[512];
+    setup_command_tests();
+    Cmd_AddCommand("test_defer", Cbuf_CopyToDefer);
+    Cbuf_AddText("test_defer;set defer_order before\n");
+    for (int i = 0; i < 12; i++) Cbuf_AddText("future_game_command\n");
+    memset(text, 'x', sizeof(text));
+    memcpy(text, "future_game_command \"", 21);
+    text[sizeof(text) - 3] = '"';
+    text[sizeof(text) - 2] = '\n';
+    text[sizeof(text) - 1] = 0;
+    Cbuf_AddText(text);
+    forwarded_count = 0;
+    Cbuf_Execute();
+    T_EQ(forwarded_count, 0);
+    Cbuf_AddText("set defer_order after\n");
+    Cbuf_InsertFromDefer();
+    Cbuf_Execute();
+    T_EQ(forwarded_count, 13);
+    text[sizeof(text) - 2] = 0;
+    T_STREQ(last_forwarded, text);
+    T_STREQ(Cvar_String("defer_order", ""), "after");
+    Cbuf_InsertFromDefer();
+    Cbuf_Execute();
+    T_EQ(forwarded_count, 13);
+}
+
+TEST(commands, canceled_or_replaced_loading_discards_old_tail) {
+    setup_command_tests();
+    forwarded_count = 0;
+    Cbuf_AddText("old_world_command\n");
+    Cbuf_CopyToDefer();
+    Cbuf_ClearDefer();
+    Cbuf_InsertFromDefer();
+    Cbuf_Execute();
+    T_EQ(forwarded_count, 0);
+    Cbuf_AddText("old_world_command\n");
+    Cbuf_CopyToDefer();
+    Cbuf_AddText("new_world_command");
+    Cbuf_CopyToDefer();
+    Cbuf_AddText("set defer_separator ok\n");
+    Cbuf_InsertFromDefer();
+    Cbuf_Execute();
+    T_EQ(forwarded_count, 1);
+    T_STREQ(Cvar_String("defer_separator", ""), "ok");
+    T_STREQ(last_forwarded, "new_world_command");
 }
 
 TEST(commands, command_registration) {

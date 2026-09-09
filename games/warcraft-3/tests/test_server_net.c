@@ -18,6 +18,8 @@ void test_client_stubs_clear_cvars(void);
 void test_client_stubs_set_cvar(LPCSTR name, LPCSTR value);
 void test_client_stubs_set_world_bounds(BOX2 bounds);
 struct game_import gi;
+static DWORD map_defer_count;
+void Cbuf_CopyToDefer(void) { T_EQ(sv.state, ss_game); map_defer_count++; }
 
 /* External symbols referenced by sv_init.c but unused in these tests. */
 void SV_InitGameProgs(void) {}
@@ -973,7 +975,9 @@ TEST(server_net, loading_batch_precedes_world_and_retains_resource_indices) {
     sizeBuf_t msg = { .data = buf, .maxsize = sizeof(buf) };
     netadr_t from;
     NET_Shutdown(); reset_server_state(1); test_mapinfo = &info;
+    DWORD before = map_defer_count;
     SV_Map("Test.w3m");
+    T_EQ(map_defer_count, before + 1);
     drain_client_packets();
     /* A connection after world loading must still receive only the original loading dependencies. */
     SV_SendLoadingConfigstrings(&svs.clients[0]);
@@ -1005,6 +1009,17 @@ TEST(server_net, loading_batch_precedes_world_and_retains_resource_indices) {
 }
 
 /* Binary slots preserve embedded NULs and the final byte; ordinary paths remain terminated. */
+TEST(server_net, dedicated_map_does_not_defer_operator_commands_for_a_local_client) {
+    MAPINFO info = { 0 };
+    NET_Shutdown(); reset_server_state(1); test_mapinfo = &info;
+    DWORD before = map_defer_count;
+    test_client_stubs_set_cvar("dedicated", "1");
+    SV_Map("Test.w3m");
+    T_EQ(map_defer_count, before);
+    SV_Shutdown(); test_mapinfo = NULL;
+    test_client_stubs_set_cvar("dedicated", "0");
+}
+
 TEST(server_net, loading_configstrings_preserve_all_512_bytes) {
     BYTE data[BZ_LOADING_SCREEN_SIZE];
     FOR_LOOP(i, sizeof(data)) data[i] = (BYTE)i;

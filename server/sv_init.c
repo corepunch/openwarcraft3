@@ -379,6 +379,8 @@ void SV_Map(LPCSTR mapFilename) {
 //    SV_LoadModels(); // model animation data is loaded lazily by game modules now
     sv.next_frame_msec = svs.realtime;
     sv.state = ss_game;
+    /* Q2 defers at the map transition: loading-screen callbacks can repeat and must not replace this tail. */
+    if (!Cvar_Integer("dedicated", 0)) Cbuf_CopyToDefer();
     // Clients retain the loading-media indices established before LoadMap.
     fprintf(stderr, "Server initialized.\n\n");
 }
@@ -451,6 +453,7 @@ void SV_InitGame(void) {
 }
 
 void SV_Shutdown(void) {
+    Cbuf_ClearDefer();
     if (!svs.initialized) {
         return;
     }

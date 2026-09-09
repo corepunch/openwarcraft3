@@ -32,8 +32,6 @@ struct client_state cl;
 
 static DWORD cl_last_packet_time = 0;
 static DWORD cl_realtime = 0;
-static char cl_pending_commands[8][256];
-static DWORD cl_pending_command_count;
 
 typedef enum {
     CL_MENU_ACTION_NONE,
@@ -52,29 +50,8 @@ static clPendingMenuAction_t cl_pending_menu_action;
 static clPendingMenuAction_t cl_movie_deferred_action;
 static PATHSTR cl_pending_movie;
 
-static BOOL CL_IsDeferredCommand(LPCSTR text) {
-    return text && (!strncmp(text, "give ", 5) || !strcmp(text, "give") ||
-                    !strncmp(text, "god", 3) || !strncmp(text, "kill", 4) ||
-                    !strncmp(text, "research ", 9) ||
-                    !strncmp(text, "warp ", 5) || !strcmp(text, "warp"));
-}
-
-static void CL_FlushPendingCommands(void) {
-    FOR_LOOP(i, cl_pending_command_count) {
-        MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
-        SZ_Printf(&cls.netchan.message, "%s", cl_pending_commands[i]);
-    }
-    cl_pending_command_count = 0;
-}
-
 void Cmd_ForwardToServer(LPCSTR text) {
     if (cls.state <= ca_connected || *text == '-' || *text == '+') {
-        if (cls.state <= ca_connected && CL_IsDeferredCommand(text) &&
-            cl_pending_command_count < 8) {
-            snprintf(cl_pending_commands[cl_pending_command_count++],
-                     sizeof(cl_pending_commands[0]), "%s", text);
-            return;
-        }
         fprintf(stderr, "Unknown command \"%s\"\n", text);
         CON_printf("Unknown command \"%s\"", text);
         return;
@@ -151,6 +128,7 @@ static void CL_MenuCommand(LPCSTR command) {
 }
 
 static void CL_DisconnectInternal(LPCSTR reason, BOOL notify, BOOL queue_menu) {
+    Cbuf_ClearDefer();
     if (cls.state == ca_disconnected) {
         return;
     }
@@ -1009,6 +987,7 @@ void CL_Connect(LPCSTR host, unsigned short port) {
     }
     cls.netchan.remote_address = adr;
     SZ_Init(&cls.netchan.message, cls.netchan.message_buf, MAX_MSGLEN);
+    Cbuf_CopyToDefer();
     cls.state = ca_connecting;
     // Send an out-of-band "connect" request; the server will register this
     // client slot and reply with "client_connect".
@@ -1062,9 +1041,6 @@ void CL_Frame(DWORD msec) {
         CL_PrepRefresh();
     } else if (cls.state == ca_active) {
         CL_PrepRefresh();
-        if (cl_pending_command_count) {
-            CL_FlushPendingCommands();
-        }
     }
     SCR_UpdateScreen(msec);
 }

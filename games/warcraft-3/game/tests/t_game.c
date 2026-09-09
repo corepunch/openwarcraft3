@@ -57,6 +57,10 @@ static LPCSTR starting_resources_cheat_cvar(LPCSTR name, LPCSTR fallback) {
     return !strcmp(name, "wc3_cheat_starting_resources") ? "1" : fallback;
 }
 
+static LPCSTR allowed_starting_resources_cvar(LPCSTR name, LPCSTR fallback) {
+    return !strcmp(name, "sv_cheats") ? "1" : starting_resources_cheat_cvar(name, fallback);
+}
+
 static LPCSTR give_resources_cheat_cvar(LPCSTR name, LPCSTR fallback) {
     return !strcmp(name, "sv_cheats") ? "1" : fallback;
 }
@@ -146,6 +150,33 @@ static void selection_test_write(pfWriteType_t type, void const *data) {
 }
 
 static void selection_test_unicast(LPEDICT ent) { (void)ent; }
+
+TEST(wc3_game, selected_unit_cheats_preserve_controller_and_run_death) {
+    LPCSTR (*old_cvar)(LPCSTR, LPCSTR) = gi.CvarString;
+    LPCSTR god[] = { "god" }, kill[] = { "kill" };
+    LPEDICT unit, clent;
+
+    setup_test_world();
+    clent = &g_edicts[0];
+    clent->client->connected = false;
+    unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64, 64);
+    unit->s.player = 0;
+    unit->svflags |= SVF_MONSTER;
+    unit->die = unit_die;
+    G_SelectEntity(clent->client, unit);
+    gi.CvarString = give_resources_cheat_cvar;
+    G_ClientCommand(clent, 1, god);
+    T_ASSERT(unit->invulnerable);
+    T_ASSERT(!clent->invulnerable);
+    T_Damage(unit, unit, 10);
+    T_EQ(unit->health.value, unit->health.max_value);
+    G_ClientCommand(clent, 1, kill);
+    T_ASSERT(!clent->invulnerable);
+    T_ASSERT(unit->svflags & SVF_DEADMONSTER);
+    T_EQ(unit->health.value, 0);
+    T_ASSERT(!unit->selected);
+    gi.CvarString = old_cvar;
+}
 
 TEST(wc3_game, give_resource_cheats_target_issuing_player_without_selection) {
     LPCSTR (*old_cvar)(LPCSTR, LPCSTR) = gi.CvarString;
@@ -341,6 +372,62 @@ TEST(wc3_game, day_and_night_cheats_use_authored_phase_midpoints) {
     gi.CvarString = old_cvar;
 }
 
+TEST(wc3_game, starting_resource_cheat_requires_permission_at_arm_and_apply) {
+    LPCSTR (*old_cvar)(LPCSTR, LPCSTR) = gi.CvarString;
+    LPMAPINFO mapinfo;
+    setup_test_world();
+    mapinfo = (LPMAPINFO)level.mapinfo;
+    mapinfo->players[0].used = true;
+    mapinfo->players[0].playerType = kPlayerTypeHuman;
+    game.clients[0].mapplayer = &mapinfo->players[0];
+    game.clients[0].connected = true;
+    game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 100;
+    gi.CvarString = starting_resources_cheat_cvar;
+    G_ResetStartingResourceCheat();
+    gi.CvarString = allowed_starting_resources_cvar;
+    G_ApplyStartingResourceCheat();
+    T_EQ(game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_GOLD], 100);
+    G_ResetStartingResourceCheat();
+    gi.CvarString = starting_resources_cheat_cvar;
+    G_ApplyStartingResourceCheat();
+    gi.CvarString = allowed_starting_resources_cvar;
+    G_ApplyStartingResourceCheat();
+    T_EQ(game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_GOLD], 100);
+    G_ResetStartingResourceCheat();
+    G_ApplyStartingResourceCheat();
+    T_EQ(game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_GOLD], 5100);
+    G_DisableStartingResourceCheatForLoadedGame();
+    gi.CvarString = old_cvar;
+}
+
+TEST(wc3_game, unit_cheats_reject_disabled_missing_and_enemy_selection) {
+    LPCSTR (*old_cvar)(LPCSTR, LPCSTR) = gi.CvarString;
+    LPCSTR god[] = { "god" }, kill[] = { "kill" };
+    LPEDICT unit, clent;
+    setup_test_world();
+    clent = &g_edicts[0];
+    gi.CvarString = give_resources_cheat_cvar;
+    G_ClientCommand(clent, 1, god);
+    G_ClientCommand(clent, 1, kill);
+    T_ASSERT(!clent->invulnerable);
+    unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64, 64);
+    unit->s.player = 1;
+    unit->svflags |= SVF_MONSTER;
+    unit->die = unit_die;
+    G_SelectEntity(clent->client, unit);
+    G_ClientCommand(clent, 1, god);
+    G_ClientCommand(clent, 1, kill);
+    T_ASSERT(!unit->invulnerable);
+    T_EQ(unit->health.value, unit->health.max_value);
+    unit->s.player = 0;
+    gi.CvarString = starting_resources_cheat_cvar;
+    G_ClientCommand(clent, 1, god);
+    G_ClientCommand(clent, 1, kill);
+    T_ASSERT(!unit->invulnerable);
+    T_EQ(unit->health.value, unit->health.max_value);
+    gi.CvarString = old_cvar;
+}
+
 TEST(wc3_game, starting_resource_cheat_waits_for_playable_human_state) {
     LPCSTR (*old_cvar)(LPCSTR, LPCSTR) = gi.CvarString;
     LPMAPINFO mapinfo;
@@ -371,7 +458,7 @@ TEST(wc3_game, starting_resource_cheat_waits_for_playable_human_state) {
     game.clients[2].ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 65000;
     game.clients[2].ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 64000;
 
-    gi.CvarString = starting_resources_cheat_cvar;
+    gi.CvarString = allowed_starting_resources_cvar;
     G_ResetStartingResourceCheat();
     G_ApplyStartingResourceCheat();
 

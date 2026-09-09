@@ -14,6 +14,8 @@ typedef struct cmd_function_s {
 
 static sizeBuf_t cmd_text;
 static BYTE cmd_text_buf[8192];
+static BYTE cmd_defer_buf[sizeof(cmd_text_buf)];
+static DWORD cmd_defer_size;
 static bool cmd_wait;
 static cmd_function_t *cmd_functions; // possible commands to execute
 static int cmd_argc;
@@ -73,6 +75,7 @@ void Cmd_Wait_f (void) {
 
 void Cbuf_Init(void) {
     cmd_wait = false;
+    cmd_defer_size = 0;
     SZ_Init (&cmd_text, cmd_text_buf, sizeof(cmd_text_buf));
     Cmd_AddCommand("wait", Cmd_Wait_f);
     Cmd_AddCommand("cmdlist", Cmd_List_f);
@@ -85,6 +88,35 @@ void Cbuf_AddText(LPCSTR text) {
         return;
     }
     SZ_Write(&cmd_text, text, l);
+}
+
+/* A replacement map or disconnect must not carry the previous world's command tail forward. */
+void Cbuf_ClearDefer(void) {
+    if (cmd_defer_size) fprintf(stderr, "Cbuf_ClearDefer: discarded %u bytes for canceled loading\n", cmd_defer_size);
+    cmd_defer_size = 0;
+}
+
+/* Q2 saves the whole command tail, preserving order, arguments and commands unknown to the engine. */
+void Cbuf_CopyToDefer(void) {
+    Cbuf_ClearDefer();
+    cmd_defer_size = cmd_text.cursize;
+    memcpy(cmd_defer_buf, cmd_text.data, cmd_defer_size);
+    SZ_Clear(&cmd_text);
+}
+
+/* Resume before commands queued during loading; report overflow instead of truncating commands. */
+void Cbuf_InsertFromDefer(void) {
+    if (!cmd_defer_size) return;
+    if (cmd_text.cursize + cmd_defer_size + 1 >= cmd_text.maxsize) {
+        fprintf(stderr, "Cbuf_InsertFromDefer: overflow\n");
+        Cbuf_ClearDefer();
+        return;
+    }
+    memmove(cmd_text.data + cmd_defer_size + 1, cmd_text.data, cmd_text.cursize);
+    memcpy(cmd_text.data, cmd_defer_buf, cmd_defer_size);
+    cmd_text.data[cmd_defer_size] = '\n';
+    cmd_text.cursize += cmd_defer_size + 1;
+    cmd_defer_size = 0;
 }
 
 static bool Cbuf_IsCommandLineSwitch(LPCSTR arg) {

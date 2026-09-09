@@ -448,7 +448,6 @@ int main(int argc, LPSTR argv[]) {
             if (SV_IsActive()) CL_SetLoadingProgress(0.05f);
         }
         Cbuf_AddLateCommands();
-        Cbuf_Execute();
 
         if (has_connect_addr) {
             // Remote-client mode: skip the local server, connect over UDP.
@@ -456,8 +455,7 @@ int main(int argc, LPSTR argv[]) {
         } else if (listen_server_mode) {
             // Listen-server mode: show the client loading screen before the
             // synchronous server map load, mirroring Quake's loading plaque flow.
-            /* `+map` may already have run from the late command buffer. Do not
-             * load it again after `+load`, or the restored state is lost. */
+            /* Save-only startup has already prepared its map above; the late load command restores it. */
             if (!SV_IsActive()) {
                 SV_Init();
                 CL_BeginLoadingMap(map);
@@ -466,6 +464,8 @@ int main(int argc, LPSTR argv[]) {
                 if (SV_IsActive()) CL_SetLoadingProgress(0.05f);
             }
         }
+        /* Startup map selectors are early CVars. Load first so the whole late command tail is deferred. */
+        Cbuf_Execute();
         // Menu mode: UI runs client-side, no server connection needed (Quake 3 pattern)
     }
 

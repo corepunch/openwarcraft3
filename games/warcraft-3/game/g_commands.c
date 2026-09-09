@@ -812,7 +812,7 @@ CLIENTCOMMAND(Research) {
     Get_Commands_f(clent);
 }
 
-static BOOL G_CheatsEnabled(void) {
+BOOL G_CheatsEnabled(void) {
     return atoi(gi.CvarString("sv_cheats", "0")) != 0;
 }
 
@@ -920,22 +920,33 @@ CLIENTCOMMAND(Give) {
     Get_Portrait_f(clent);
 }
 
+/* RTS controllers are not actors: unit cheats act on the primary controllable selection. */
 CLIENTCOMMAND(God) {
+    LPEDICT unit = G_GetMainControllableUnit(clent->client);
     if (!G_CheatsEnabled()) {
         G_CheatPrintf(clent, "WC3: cheats are disabled; set sv_cheats 1");
         return;
     }
-    clent->invulnerable = !clent->invulnerable;
-    G_CheatPrintf(clent, "WC3: god %s", clent->invulnerable ? "on" : "off");
+    if (!unit) { G_CheatPrintf(clent, "WC3: god requires a selected controllable unit"); return; }
+    /* The former controller flag could never protect the selected actor in T_Damage. */
+    unit->invulnerable = !unit->invulnerable;
+    G_CheatPrintf(clent, "WC3: god %s", unit->invulnerable ? "on" : "off");
 }
 
+/* Suicide must execute the same death callback as combat, including food, selection and trigger cleanup. */
 CLIENTCOMMAND(Kill) {
+    LPEDICT unit = G_GetMainControllableUnit(clent->client);
     if (!G_CheatsEnabled()) {
         G_CheatPrintf(clent, "WC3: cheats are disabled; set sv_cheats 1");
         return;
     }
-    G_CheatPrintf(clent, "WC3: kill cheat applied");
-    G_SetHealth(clent, 0);
+    if (!unit) { G_CheatPrintf(clent, "WC3: kill requires a selected controllable unit"); return; }
+    if (!unit->die) { G_CheatPrintf(clent, "WC3: selected unit %u has no death callback", unit->s.number); return; }
+    /* Q2 clears godmode before suicide; setting controller health alone skipped every actor death effect. */
+    unit->invulnerable = false;
+    G_SetHealth(unit, 0);
+    unit->die(unit, unit);
+    G_CheatPrintf(clent, "WC3: selected unit killed");
 }
 
 /* Keep the instant-build cheat scoped to the issuing player's live client state. */
@@ -1418,7 +1429,7 @@ static void G_CheatPrintf(LPEDICT clent, LPCSTR fmt, ...) {
      * client transport is connected. Console feedback is presentation-only,
      * so defer the packet instead of writing into an uninitialized multicast
      * buffer; stderr still records the command result. */
-    if (clent && clent->client && clent->client->connected && gi.Write && gi.unicast) {
+    if (clent && clent->client && clent->client->connected) {
         LONG opcode = svc_console_print;
         gi.Write(PF_BYTE, &opcode);
         gi.Write(PF_STRING, text);

@@ -1938,6 +1938,7 @@ void G_UpdateClientSelections(void);
 void G_SyncClientSelection(LPGAMECLIENT);
 void G_QueueSelectionSound(LPEDICT);
 void G_ClientCommand(LPEDICT, DWORD, LPCSTR[]);
+BOOL G_CheatsEnabled(void);
 void G_ClientSetCameraPosition(LPEDICT, LPCVECTOR2);
 
 //  s_skills.c
