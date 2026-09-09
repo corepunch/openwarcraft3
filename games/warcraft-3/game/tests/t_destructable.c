@@ -350,12 +350,15 @@ TEST(wc3_destructable, alive_walkable_bridge_opens_terrain_until_death) {
     /* This assertion isolates bridge surface pathing; a one-cell deck cannot
      * fit a radius-one footprint without touching its authored rails. */
     unit->collision = 0.0f;
+    G_RegisterGroundSurface(bridge);
+    T_ASSERT(bridge->s.flags & EF_GROUND_SURFACE);
 
     CM_BakeStaticObstacles();
     T_ASSERT(CM_PointIsPathableForRadius(&center, 0.0f));
     T_ASSERT(M_MoveIsValid(unit, &center));
 
     G_KillDestructable(bridge, NULL);
+    T_ASSERT(!(bridge->s.flags & EF_GROUND_SURFACE));
     T_ASSERT(!CM_PointIsPathableForRadius(&center, 0.0f));
 }
 

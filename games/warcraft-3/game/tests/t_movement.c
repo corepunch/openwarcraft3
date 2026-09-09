@@ -2428,12 +2428,31 @@ TEST(wc3_movement, ground_unit_stands_on_walkable_bridge_surface) {
     bridge->pathtex = (pathTex_t *)&bridge_path;
     bridge->s.origin = MAKE(VECTOR3, 0.0f, 0.0f, terrain + 64.0f);
     G_RegisterGroundSurface(bridge);
+    T_ASSERT(bridge->s.flags & EF_GROUND_SURFACE);
     M_CheckGround(unit);
     T_FEQ(unit->s.origin.z, terrain + 64.0f, 0.01f);
+    T_FEQ(unit->s.ground_offset, unit->unitinfo.FlyHeight, 0.01f);
 
     unit->s.origin.x = CM_PathCellWorldSize() * 2.0f;
     M_CheckGround(unit);
     T_FEQ(unit->s.origin.z, CM_GetHeightAtPoint(unit->s.origin.x, unit->s.origin.y), 0.01f);
+}
+
+
+TEST(wc3_movement, ground_surface_flag_clears_when_unregistered) {
+    static DestructableData_t const bridge_data = { .walkable = true };
+    LPEDICT bridge = G_Spawn();
+
+    bridge->class_id = MAKEFOURCC('L', 'T', '0', '5');
+    bridge->data.DestructableData = &bridge_data;
+    bridge->destructable.initialized = true;
+    bridge->destructable.placement_solid = true;
+
+    G_RegisterGroundSurface(bridge);
+    T_ASSERT(bridge->s.flags & EF_GROUND_SURFACE);
+
+    G_UnregisterGroundSurface(bridge);
+    T_ASSERT(!(bridge->s.flags & EF_GROUND_SURFACE));
 }
 
 static void set_uniform_test_water_height(FLOAT height) {
@@ -2451,6 +2470,7 @@ TEST(wc3_movement, fly_height_is_added_to_support_surface) {
     M_CheckGround(unit);
 
     T_FEQ(unit->s.origin.z, terrain + 300.0f, 0.01f);
+    T_FEQ(unit->s.ground_offset, 300.0f, 0.01f);
 }
 
 TEST(wc3_movement, flyer_uses_water_surface_before_fly_height) {
