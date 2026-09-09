@@ -8,8 +8,10 @@
 
 #define CON_INPUT_LEN 256
 #define CON_HISTORY 32
-#define CON_LINE_HEIGHT 8
-#define CON_MARGIN 8
+#define CON_BASE_WIDTH 640.0f
+#define CON_BASE_HEIGHT 480.0f
+#define CON_LINE_HEIGHT 8.0f
+#define CON_MARGIN 8.0f
 
 typedef struct  {
     char msg[MAX_CONSOLE_MESSAGE_LEN];
@@ -28,25 +30,32 @@ static keydest_t con_prev_key_dest = key_game;
 static void CON_PrintCvarResult(LPCSTR command);
 static void CON_CompleteInput(void);
 
-static void CON_DrawChar(int x, int y, int c) {
-    re.DrawChar(x, y, c);
+static float CON_ScaleForWindow(size2_t window) {
+    float scale_x = window.width / CON_BASE_WIDTH;
+    float scale_y = window.height / CON_BASE_HEIGHT;
+
+    return MAX(1.0f, MIN(scale_x, scale_y));
 }
 
-static void CON_DrawString(int x, int y, LPCSTR string) {
+static void CON_DrawChar(float x, float y, int c, float scale) {
+    re.DrawCharScaled(x, y, c, scale);
+}
+
+static void CON_DrawString(float x, float y, LPCSTR string, float scale) {
     if (!string) {
         return;
     }
     for (DWORD i = 0; string[i]; i++) {
-        CON_DrawChar(x + i * CON_LINE_HEIGHT, y, (BYTE)string[i]);
+        CON_DrawChar(x + i * CON_LINE_HEIGHT * scale, y, (BYTE)string[i], scale);
     }
 }
 
-static void CON_DrawAltString(int x, int y, LPCSTR string) {
+static void CON_DrawAltString(float x, float y, LPCSTR string, float scale) {
     if (!string) {
         return;
     }
     for (DWORD i = 0; string[i]; i++) {
-        CON_DrawChar(x + i * CON_LINE_HEIGHT, y, ((BYTE)string[i]) + 128);
+        CON_DrawChar(x + i * CON_LINE_HEIGHT * scale, y, ((BYTE)string[i]) + 128, scale);
     }
 }
 
@@ -84,27 +93,30 @@ void CON_printf(LPCSTR fmt, ...) {
 
 static void CON_DrawFull(void) {
     size2_t window = re.GetWindowSize();
-    DWORD height = MAX(window.height / 2, 120);
-    DWORD rows = height / CON_LINE_HEIGHT;
+    float scale = CON_ScaleForWindow(window);
+    float line_height = CON_LINE_HEIGHT * scale;
+    float margin = CON_MARGIN * scale;
+    float height = MAX(window.height / 2.0f, 120.0f * scale);
+    DWORD rows = (DWORD)(height / line_height);
     DWORD max_lines = rows > 4 ? rows - 4 : 1;
     DWORD count = MIN(current_message, MAX_CONSOLE_MESSAGES);
     DWORD first;
-    DWORD y = CON_MARGIN + CON_LINE_HEIGHT;
+    float y = margin + line_height;
     char prompt[CON_INPUT_LEN + 8];
 
     re.DrawFill(&(RECT){ 0, 0, window.width, height }, (COLOR32){ 0, 0, 0, 220 });
-    re.DrawFill(&(RECT){ 0, height - 2, window.width, 2 }, (COLOR32){ 180, 160, 80, 220 });
+    re.DrawFill(&(RECT){ 0, height - 2.0f * scale, window.width, 2.0f * scale }, (COLOR32){ 180, 160, 80, 220 });
 
-    CON_DrawAltString(CON_MARGIN, CON_MARGIN, "OpenWarcraft3 Console");
+    CON_DrawAltString(margin, margin, "OpenWarcraft3 Console", scale);
 
     first = count > max_lines ? count - max_lines : 0;
     for (DWORD n = first; n < count; n++) {
         DWORD i = n % MAX_CONSOLE_MESSAGES;
 
         if (*messages[i].msg) {
-            CON_DrawString(CON_MARGIN, y, messages[i].msg);
+            CON_DrawString(margin, y, messages[i].msg, scale);
         }
-        y += CON_LINE_HEIGHT;
+        y += line_height;
     }
 
     snprintf(prompt, sizeof(prompt), "]%s", con_input);
@@ -117,7 +129,7 @@ static void CON_DrawFull(void) {
             prompt[con_cursor + 1] = '_';
         }
     }
-    CON_DrawString(CON_MARGIN, height - CON_LINE_HEIGHT - CON_MARGIN, prompt);
+    CON_DrawString(margin, height - line_height - margin, prompt, scale);
 }
 
 void CON_DrawConsole(void) {

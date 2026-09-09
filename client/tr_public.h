@@ -244,6 +244,8 @@ typedef struct {
     void (*Screenshot)(void);
     void (*DrawChar)(int x, int y, int c);
     void (*DrawString)(int x, int y, LPCSTR text);
+    void (*DrawCharScaled)(float x, float y, int c, float scale);
+    void (*DrawStringScaled)(float x, float y, LPCSTR text, float scale);
     void (*DrawFill)(LPCRECT rect, COLOR32 color);
     void (*DrawSelectionRect)(LPCRECT rect, COLOR32 color);
     void (*DrawPic)(LPCTEXTURE texture, float x, float y);
