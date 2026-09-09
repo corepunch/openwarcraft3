@@ -68,6 +68,30 @@ TEST(wc3_persistence, cache_disk_commit_and_hero_restore) {
     gi = saved;
 }
 
+/* A checksum-valid raw union still needs semantic checks before replacing live state. */
+TEST(wc3_persistence, cache_raw_values_reject_invalid_tags_and_strings) {
+    PATHSTR path;
+    persistence_userpath("raw-cache.orcgc", path, sizeof(path)); remove(path);
+    gameCache_t *cache = calloc(1, sizeof(*cache)), *other = calloc(1, sizeof(*other));
+    T_NOT_NULL(cache); T_NOT_NULL(other);
+    strlcpy(cache->campaign, "raw.w3v", sizeof(cache->campaign));
+    cache->num_entries = 1;
+    other->dirty = true;
+    strlcpy(other->campaign, "unchanged.w3v", sizeof(other->campaign));
+    SAVERECORD unchecked = cache_record;
+    unchecked.valid = NULL; /* Author malformed fixtures with a valid envelope and checksum. */
+    FOR_LOOP(i, 2) {
+        cache->entries[0].type = i ? GAMECACHE_STRING : (gameCacheValueType_t)99;
+        memset(cache->entries[0].value.string, 'x', sizeof(cache->entries[0].value.string));
+        T_ASSERT(!save_record(path, &cache_record, cache));
+        T_ASSERT(save_record(path, &unchecked, cache));
+        T_EQ(load_record(path, &cache_record, other), SAVE_INVALID);
+        T_STREQ(other->campaign, "unchanged.w3v");
+        T_EQ(other->num_entries, 0); T_ASSERT(other->dirty);
+    }
+    free(cache); free(other); remove(path);
+}
+
 /* Campaign offsets overlap across expansions; cinematic natives use global indexes instead. */
 TEST(wc3_persistence, native_progress_survives_reload_and_separates_expansions) {
     struct game_import saved = gi;

@@ -14,19 +14,19 @@ static struct { LPCSTR path; CAMPAIGNDOMAIN domain; } const campaign_paths[] = {
     { "maps/campaign/", CAMPAIGN_ROC },
     { "maps/frozenthrone/campaign/", CAMPAIGN_TFT },
 };
-static SAVEFIELD const progress_campaign_fields[] = {
+static field_t const progress_campaign_fields[] = {
     BZ_SAVE_FIELD(CAMPAIGNSTATE, avail, F_INT),
     BZ_SAVE_FIELD(CAMPAIGNSTATE, opening, F_INT),
     BZ_SAVE_FIELD(CAMPAIGNSTATE, ending, F_INT),
     BZ_SAVE_FIELD(CAMPAIGNSTATE, missions, F_INT),
     {0}
 };
-static SAVEFIELD const progress_map_fields[] = {
+static field_t const progress_map_fields[] = {
     BZ_SAVE_FIELD(PROGRESSMAP, path, F_STRING),
     BZ_SAVE_FIELD(PROGRESSMAP, flags, F_INT),
     {0}
 };
-static SAVEFIELD const progress_fields[] = {
+static field_t const progress_fields[] = {
     BZ_SAVE_FIELD(CAMPAIGNPROGRESS, tutorial, F_INT),
     BZ_SAVE_ARRAY(CAMPAIGNPROGRESS, campaigns, BZ_PROGRESS_CAMPAIGNS, progress_campaign_fields),
     BZ_SAVE_COUNTED(CAMPAIGNPROGRESS, maps, BZ_PROGRESS_MAPS, progress_map_fields, count),

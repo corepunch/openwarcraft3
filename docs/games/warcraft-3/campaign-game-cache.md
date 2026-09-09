@@ -139,17 +139,20 @@ avoids unresolved engine symbols in `libgame`.
 This places writable campaign state under the normal per-game user directory
 (`$XDG_DATA_HOME/warcraft-3/` on Unix when set to an absolute path, otherwise `~/.local/share/warcraft-3/`, with the existing portable `share/warcraft-3/` fallback when no writable per-user directory is available).
 
-The sidecar now uses `W3GC` magic and version `2`. `SAVEFIELD` tables describe the
-cache, counted entries, tagged value union, Hero, abilities, stats and inventory.
-The shared `save_fields()` walker is also used by `g_save.c`; the hand-written
-paired scalar/entry/unit encoders have been removed. Scalars use native binary
-representation, as in normal saves. The header checks the payload struct size.
+The sidecar uses `W3GC` magic and version `3`. `field_t` tables describe the cache
+name, counted entries, entry keys and type tags. Each pointer-free value union is
+written as one `F_BYTES` block, including Hero attributes, abilities, stats and
+inventory. This follows Quake II's raw scalar storage without per-member schemas
+or a union-dispatch serializer. Every entry occupies the full union size, even
+for scalar values. A cache validator checks type tags and string termination on
+both save and load. The shared `save_fields()` walker is also used by `g_save.c`;
+values use native binary layout. The header checks the payload struct size.
 A `W3OK` footer carries an FNV-1a checksum over the preceding bytes.
 
 `save_record()` writes a temporary file, preserves the previous file as a backup,
 then installs the completed file, restoring the backup if installation fails.
 `load_record()` validates the checksum and schema into scratch storage before
-replacing the caller's cache. Version 1 `ORGCACHE` sidecars are rejected with a
+replacing the caller's cache. Earlier `ORGCACHE` and `W3GC` sidecars are rejected with a
 diagnostic; there is no migration. These are private records, not retail `.w3v`
 binaries. The backup/rename sequence protects reported write failures; it is
 not a claim of crash-durable transactional storage.

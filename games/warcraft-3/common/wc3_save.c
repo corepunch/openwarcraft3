@@ -53,10 +53,10 @@ static BOOL save_io(LPSAVEIO io, void *data, size_t size) {
     return io->reading ? load_bytes(io->file, data, size) : save_bytes(io->file, data, size);
 }
 
-/* One traversal owns scalar, nested, counted and tagged records; game pointer domains stay in the game callback. */
-BOOL save_fields(LPSAVEIO io, LPCSAVEFIELD fields, void *object) {
+/* Walk special fields and counted records; pointer-free value blocks retain their native layout. */
+BOOL save_fields(LPSAVEIO io, field_t const *fields, void *object) {
     BYTE *base = object;
-    for (LPCSAVEFIELD f = fields; f->name; f++) {
+    for (field_t const *f = fields; f->name; f++) {
         DWORD count = f->array_size ? f->array_size : 1;
         size_t size = f->array_size ? f->size / f->array_size : f->size;
         BYTE *ptr = base + f->ofs;
@@ -70,7 +70,7 @@ BOOL save_fields(LPSAVEIO io, LPCSAVEFIELD fields, void *object) {
         switch (f->type) {
         case F_STRUCT:
             FOR_LOOP(i, count)
-                if (!save_fields(io, (LPCSAVEFIELD)f->flags, ptr + i * size)) goto fail;
+                if (!save_fields(io, (field_t const *)f->flags, ptr + i * size)) goto fail;
             break;
         case F_STRUCT_RING: {
             SAVERING const *ring = (SAVERING const *)f->flags;
@@ -86,17 +86,11 @@ BOOL save_fields(LPSAVEIO io, LPCSAVEFIELD fields, void *object) {
                 if (!save_fields(io, ring->fields, ptr + ((read + i) % f->array_size) * size)) goto fail;
             break;
         }
-        case F_UNION: {
-            SAVEUNION const *tag = (SAVEUNION const *)f->flags;
-            DWORD kind = *(DWORD *)(base + tag->tag_ofs);
-            if (kind >= tag->count || !tag->fields[kind] || !save_fields(io, tag->fields[kind], ptr)) goto fail;
-            break;
-        }
         case F_STRING:
             if ((!io->reading && !memchr(ptr, 0, f->size)) || !save_io(io, ptr, f->size) || !memchr(ptr, 0, f->size))
                 goto fail;
             break;
-        case F_INT: case F_FLOAT: case F_VECTOR: case F_REGION: case F_ANGLEHACK:
+        case F_INT: case F_FLOAT: case F_VECTOR: case F_REGION: case F_ANGLEHACK: case F_BYTES:
             if (!save_io(io, ptr, size * count)) goto fail;
             break;
         default:
@@ -113,6 +107,10 @@ fail:
 
 /* Small persistent records share the save checksum and stage changes before replacing the committed file. */
 BOOL save_record(LPCSTR path, LPCSAVERECORD record, void *data) {
+    if (record->valid && !record->valid(data)) {
+        fprintf(stderr, "WC3 save: invalid record %s\n", path);
+        return false;
+    }
     PATHSTR tmp, backup;
     RECORDHEADER head = { .magic = record->magic, .version = record->version, .size = (DWORD)record->size };
     if (snprintf(tmp, sizeof(tmp), "%s.tmp", path) >= sizeof(tmp) ||
@@ -156,6 +154,7 @@ SAVERESULT load_record(LPCSTR path, LPCSAVERECORD record, void *data) {
         head.version == record->version && head.size == record->size && save_fields(&io, record->fields, temp);
     long end = ftell(f);
     if (fseek(f, 0, SEEK_END) || end != ftell(f) - (long)sizeof(SAVEFOOTER)) ok = false;
+    if (ok && record->valid) ok = record->valid(temp);
     if (ok) memcpy(data, temp, record->size);
     else fprintf(stderr, "WC3 load: invalid, incompatible or incomplete record %s\n", path);
     free(temp); fclose(f);

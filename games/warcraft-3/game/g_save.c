@@ -118,7 +118,7 @@ static struct { LPCSTR type; jassHandleDomain_t domain; } const jass_handle_doma
 };
 
 
-static SAVEFIELD const weather_fields[] = {
+static field_t const weather_fields[] = {
     TF(gweather_t, inuse, F_INT),
     TF(gweather_t, enabled, F_INT),
     TF(gweather_t, handle_id, F_INT),
@@ -127,7 +127,7 @@ static SAVEFIELD const weather_fields[] = {
     { NULL, 0, 0, 0, 0, 0 }
 };
 
-static SAVEFIELD const save_event_fields[] = {
+static field_t const save_event_fields[] = {
     F(gevent_s, type, F_INT),
     F(gevent_s, subject, F_EDICT, 0, FIELD_NONE),
     F(gevent_s, trigger, F_TRIGGER, 0, FIELD_NONE),
@@ -141,7 +141,7 @@ static SAVEFIELD const save_event_fields[] = {
     { NULL, 0, 0, 0, 0, 0 }
 };
 
-static SAVEFIELD const save_game_event_fields[] = {
+static field_t const save_game_event_fields[] = {
     F(gameevent_s, type, F_INT),
     F(gameevent_s, edict, F_EDICT, 0, FIELD_NONE),
     F(gameevent_s, source, F_EDICT, 0, FIELD_NONE),
@@ -150,21 +150,21 @@ static SAVEFIELD const save_game_event_fields[] = {
     { NULL, 0, 0, 0, 0, 0 }
 };
 
-static SAVEFIELD const group_fields[] = {
+static field_t const group_fields[] = {
     /* handle_id is runtime identity derived from the table ordinal and is not serialized. */
     TF(ggroup_t, inuse, F_INT),
     TFC(ggroup_t, units, F_EDICT, MAX_GROUP_SIZE, num_units),
     { NULL, 0, 0, 0, 0, 0 }
 };
 
-static SAVEFIELD const trigger_fields[] = {
+static field_t const trigger_fields[] = {
     F(gtrigger_s, disabled, F_INT),
     F(gtrigger_s, actions, F_FUNCTION_LIST),
     F(gtrigger_s, conditions, F_FUNCTION_LIST),
     { NULL, 0, 0, 0, 0, 0 }
 };
 
-static SAVEFIELD const timer_fields[] = {
+static field_t const timer_fields[] = {
     F(gtimer_s, duration, F_INT),
     F(gtimer_s, remaining, F_INT),
     F(gtimer_s, periodic, F_INT),
@@ -174,14 +174,14 @@ static SAVEFIELD const timer_fields[] = {
     { NULL, 0, 0, 0, 0, 0 }
 };
 
-static SAVEFIELD const questitem_fields[] = {
+static field_t const questitem_fields[] = {
     F(gquestitem_s, description, F_LSTRING),
     F(gquestitem_s, completed, F_INT),
     F(gquestitem_s, inuse, F_INT),
     { NULL, 0, 0, 0, 0, 0 }
 };
 
-static SAVEFIELD const quest_fields[] = {
+static field_t const quest_fields[] = {
     F(gquest_s, title, F_LSTRING),
     F(gquest_s, description, F_LSTRING),
     F(gquest_s, iconPath, F_LSTRING),
@@ -201,7 +201,7 @@ static SAVERING const game_event_ring = {
     FOFS(level_locals, events.write) - (HANDLE)NULL
 };
 
-static SAVEFIELD const level_fields[] = {
+static field_t const level_fields[] = {
     F(level_locals, framenum, F_INT),
     F(level_locals, time, F_INT),
     F(level_locals, timeofday.elapsed, F_FLOAT),
@@ -229,51 +229,51 @@ static SAVEFIELD const level_fields[] = {
     { NULL, 0, 0, 0, 0, 0 }
 };
 
-static SAVEFIELD const entity_state_fields[] = {
+static field_t const entity_state_fields[] = {
     TF(entityState_t, origin, F_VECTOR),
     { NULL, 0, 0, 0, 0, 0 }
 };
 
-static SAVEFIELD const link_fields[] = {
+static field_t const link_fields[] = {
     F(link_s, prev, F_IGNORE, 0, FIELD_RUNTIME),
     F(link_s, next, F_IGNORE, 0, FIELD_RUNTIME),
     { NULL, 0, 0, 0, 0, 0 }
 };
 
-static SAVEFIELD const construction_fields[] = {
+static field_t const construction_fields[] = {
     TF(edictConstruction_s, primary_builder, F_EDICT, 0, FIELD_NONE),
     { NULL, 0, 0, 0, 0, 0 }
 };
 
-static SAVEFIELD const rally_fields[] = {
+static field_t const rally_fields[] = {
     TF(edictRally_s, entity, F_EDICT, 0, FIELD_NONE),
     { NULL, 0, 0, 0, 0, 0 }
 };
 
-static SAVEFIELD const revival_fields[] = {
+static field_t const revival_fields[] = {
     TF(edictRevival_s, producer, F_EDICT, 0, FIELD_NONE),
     TF(edictRevival_s, queue_next, F_EDICT, 0, FIELD_NONE),
     { NULL, 0, 0, 0, 0, 0 }
 };
 
-static SAVEFIELD const militia_fields[] = {
+static field_t const militia_fields[] = {
     TF(edictMilitia_s, partner, F_IGNORE, 0, FIELD_RUNTIME),
     TF(edictMilitia_s, partner_spawn_time, F_IGNORE, 0, FIELD_RUNTIME),
     TF(edictMilitia_s, returning, F_IGNORE, 0, FIELD_RUNTIME),
     { NULL, 0, 0, 0, 0, 0 }
 };
 
-static SAVEFIELD const goldmine_fields[] = {
+static field_t const goldmine_fields[] = {
     TF(edictGoldMine_s, mine, F_EDICT, 0, FIELD_NONE),
     { NULL, 0, 0, 0, 0, 0 }
 };
 
-static SAVEFIELD const item_fields[] = {
+static field_t const item_fields[] = {
     TF(edictItem_s, carrier, F_EDICT, 0, FIELD_NONE),
     { NULL, 0, 0, 0, 0, 0 }
 };
 
-static SAVEFIELD const destructable_fields[] = {
+static field_t const destructable_fields[] = {
     TF(edictDestructable_s, alive_pathtex, F_IGNORE, 0, FIELD_RUNTIME),
     TF(edictDestructable_s, death_pathtex, F_IGNORE, 0, FIELD_RUNTIME),
     TF(edictDestructable_s, drop_sets, F_IGNORE, 0, FIELD_RUNTIME),
@@ -281,19 +281,19 @@ static SAVEFIELD const destructable_fields[] = {
     { NULL, 0, 0, 0, 0, 0 }
 };
 
-static SAVEFIELD const cargo_fields[] = {
+static field_t const cargo_fields[] = {
     TF(edictCargo_s, units, F_EDICT, MAX_CARGO, FIELD_NONE),
     { NULL, 0, 0, 0, 0, 0 }
 };
 
-static SAVEFIELD const abilities_fields[] = {
+static field_t const abilities_fields[] = {
     TFC(edictAbilities_s, added, F_INT, MAX_ABILITIES, added_count),
     TFC(edictAbilities_s, removed, F_INT, MAX_ABILITIES, removed_count),
     TFC(edictAbilities_s, permanent, F_INT, MAX_ABILITIES, permanent_count),
     { NULL, 0, 0, 0, 0, 0 }
 };
 
-static SAVEFIELD const avatar_fields[] = {
+static field_t const avatar_fields[] = {
     TF(struct edictAvatar_s, level, F_INT),
     TF(struct edictAvatar_s, armor, F_FLOAT),
     TF(struct edictAvatar_s, health, F_FLOAT),
@@ -301,7 +301,7 @@ static SAVEFIELD const avatar_fields[] = {
     { NULL, 0, 0, 0, 0, 0 }
 };
 
-static SAVEFIELD const movement_fields[] = {
+static field_t const movement_fields[] = {
     TF(edictMovement_s, attackmove_waypoint, F_EDICT, 0, FIELD_NONE),
     TF(edictMovement_s, patrol_a, F_EDICT, 0, FIELD_NONE),
     TF(edictMovement_s, patrol_b, F_EDICT, 0, FIELD_NONE),
@@ -310,7 +310,7 @@ static SAVEFIELD const movement_fields[] = {
     { NULL, 0, 0, 0, 0, 0 }
 };
 
-static SAVEFIELD const edict_data_fields[] = {
+static field_t const edict_data_fields[] = {
     TF(edictData_s, UnitProfile, F_IGNORE, 0, FIELD_RUNTIME),
     TF(edictData_s, UnitBalance, F_IGNORE, 0, FIELD_RUNTIME),
     TF(edictData_s, UnitData, F_IGNORE, 0, FIELD_RUNTIME),
@@ -323,7 +323,7 @@ static SAVEFIELD const edict_data_fields[] = {
     { NULL, 0, 0, 0, 0, 0 }
 };
 
-static SAVEFIELD const client_menu_fields[] = {
+static field_t const client_menu_fields[] = {
     TF(clientMenu_s, on_entity_selected, F_IGNORE, 0, FIELD_RUNTIME),
     TF(clientMenu_s, on_location_selected, F_IGNORE, 0, FIELD_RUNTIME),
     TF(clientMenu_s, cmdbutton, F_IGNORE, 0, FIELD_RUNTIME),
@@ -331,13 +331,13 @@ static SAVEFIELD const client_menu_fields[] = {
     { NULL, 0, 0, 0, 0, 0 }
 };
 
-static SAVEFIELD const client_camera_fields[] = {
+static field_t const client_camera_fields[] = {
     TF(clientCamera_s, target_controller, F_IGNORE, 0, FIELD_RUNTIME),
     { NULL, 0, 0, 0, 0, 0 }
 };
 
 /* Every persistent and process-owned edict field crossing the save boundary is represented here. */
-SAVEFIELD edict_fields[] = {
+field_t edict_fields[] = {
     F(edict_s, class_id, F_INT),
     F(edict_s, variation, F_INT),
     F(edict_s, build_project, F_INT),
@@ -389,7 +389,7 @@ SAVEFIELD edict_fields[] = {
     { NULL, 0, 0, 0, 0, 0 }
 };
 
-static SAVEFIELD const client_fields[] = {
+static field_t const client_fields[] = {
     F(client_s, ps.name, F_IGNORE, 0, FIELD_RUNTIME),
     F(client_s, ps.texts, F_IGNORE, 0, FIELD_RUNTIME),
     F(client_s, mapplayer, F_IGNORE, 0, FIELD_RUNTIME),
@@ -403,13 +403,13 @@ static SAVEFIELD const client_fields[] = {
     { NULL, 0, 0, 0, 0, 0 }
 };
 
-static void ClearRuntimeFields(void *object, SAVEFIELD const *fields, DWORD flags) {
-    for (SAVEFIELD const *field = fields; field->name; field++) {
+static void ClearRuntimeFields(void *object, field_t const *fields, DWORD flags) {
+    for (field_t const *field = fields; field->name; field++) {
         DWORD count = field->array_size ? field->array_size : 1;
         size_t size = field->array_size ? field->size / field->array_size : field->size;
         switch (field->type) {
         case F_STRUCT:
-            FOR_LOOP(i, count) ClearRuntimeFields((BYTE *)object + field->ofs + i * size, (SAVEFIELD const *)field->flags, flags);
+            FOR_LOOP(i, count) ClearRuntimeFields((BYTE *)object + field->ofs + i * size, (field_t const *)field->flags, flags);
             break;
         case F_IGNORE:
             if (field->flags == flags) memset((BYTE *)object + field->ofs, 0, field->size);
@@ -421,8 +421,8 @@ static void ClearRuntimeFields(void *object, SAVEFIELD const *fields, DWORD flag
 
 static BOOL WriteJassBytes(void *context, void *data, DWORD size) { return save_bytes(context, data, size); }
 static BOOL ReadJassBytes(void *context, void *data, DWORD size) { return load_bytes(context, data, size); }
-static BOOL WriteMappedFields(FILE *f, SAVEFIELD const *fields, BYTE *base);
-static BOOL ReadMappedFields(FILE *f, SAVEFIELD const *fields, BYTE *base);
+static BOOL WriteMappedFields(FILE *f, field_t const *fields, BYTE *base);
+static BOOL ReadMappedFields(FILE *f, field_t const *fields, BYTE *base);
 static BOOL WriteString(FILE *f, LPCSTR text);
 static BOOL ReadString(FILE *f, LPSTR *text);
 static DWORD ActiveEventCount(void);
@@ -661,7 +661,7 @@ static BOOL ReadString(FILE *f, LPSTR *text) {
     return true;
 }
 
-static BOOL WriteField1(SAVEFIELD const *field, BYTE *base) {
+static BOOL WriteField1(field_t const *field, BYTE *base) {
     DWORD count = field->count_ofs != UINT32_MAX ? *(DWORD *)(base + field->count_ofs) :
         field->array_size ? field->array_size : 1;
     size_t size = field->array_size ? field->size / field->array_size : field->size;
@@ -672,7 +672,7 @@ static BOOL WriteField1(SAVEFIELD const *field, BYTE *base) {
     }
     if (field->type == F_STRUCT) {
         FOR_LOOP(i, count) {
-            for (SAVEFIELD const *child = (SAVEFIELD const *)field->flags; child->name; child++)
+            for (field_t const *child = (field_t const *)field->flags; child->name; child++)
                 if (!WriteField1(child, base + field->ofs + i * size)) return false;
         }
         return true;
@@ -721,7 +721,7 @@ static BOOL WriteField1(SAVEFIELD const *field, BYTE *base) {
 }
 
 /* Restore entity and client pointers after the raw edict block is read. */
-static BOOL ReadField(SAVEFIELD const *field, BYTE *base) {
+static BOOL ReadField(field_t const *field, BYTE *base) {
     DWORD count = field->count_ofs != UINT32_MAX ? *(DWORD *)(base + field->count_ofs) :
         field->array_size ? field->array_size : 1;
     size_t size = field->array_size ? field->size / field->array_size : field->size;
@@ -731,7 +731,7 @@ static BOOL ReadField(SAVEFIELD const *field, BYTE *base) {
     }
     if (field->type == F_STRUCT) {
         FOR_LOOP(i, count) {
-            for (SAVEFIELD const *child = (SAVEFIELD const *)field->flags; child->name; child++)
+            for (field_t const *child = (field_t const *)field->flags; child->name; child++)
                 if (!ReadField(child, base + field->ofs + i * size)) return false;
         }
         return true;
@@ -782,7 +782,7 @@ static BOOL ReadField(SAVEFIELD const *field, BYTE *base) {
 }
 
 /* Convert one schema pointer to its stable save-domain index without mutating the live object. */
-static BOOL WriteMappedIndex(SAVEFIELD const *field, void *ptr, int *index) {
+static BOOL WriteMappedIndex(field_t const *field, void *ptr, int *index) {
     switch (field->type) {
     case F_EDICT:
     case F_ITEM: {
@@ -812,7 +812,7 @@ static BOOL WriteMappedIndex(SAVEFIELD const *field, void *ptr, int *index) {
 }
 
 /* Resolve one schema index directly into the pointer domain declared by its field type. */
-static BOOL ReadMappedIndex(SAVEFIELD const *field, void *ptr, int index) {
+static BOOL ReadMappedIndex(field_t const *field, void *ptr, int index) {
     if (index < -1) return false;
     switch (field->type) {
     case F_EDICT:
@@ -833,7 +833,7 @@ static BOOL ReadMappedIndex(SAVEFIELD const *field, void *ptr, int index) {
 }
 
 /* The shared field walker delegates only live game/JASS identity conversions here. */
-static BOOL GameSaveField(LPSAVEIO io, LPCSAVEFIELD field, BYTE *base) {
+static BOOL GameSaveField(LPSAVEIO io, field_t const *field, BYTE *base) {
     FILE *f = io->file;
     DWORD count = field->count_ofs != UINT32_MAX ? *(DWORD *)(base + field->count_ofs) :
         field->array_size ? field->array_size : 1;
@@ -901,12 +901,12 @@ static BOOL GameSaveField(LPSAVEIO io, LPCSAVEFIELD field, BYTE *base) {
     return true;
 }
 
-static BOOL WriteMappedFields(FILE *f, LPCSAVEFIELD fields, BYTE *base) {
+static BOOL WriteMappedFields(FILE *f, field_t const *fields, BYTE *base) {
     SAVEIO io = { .file = f, .special = GameSaveField };
     return save_fields(&io, fields, base);
 }
 
-static BOOL ReadMappedFields(FILE *f, LPCSAVEFIELD fields, BYTE *base) {
+static BOOL ReadMappedFields(FILE *f, field_t const *fields, BYTE *base) {
     SAVEIO io = { .file = f, .reading = true, .special = GameSaveField };
     return save_fields(&io, fields, base);
 }
@@ -942,7 +942,7 @@ static BOOL ReadGroups(FILE *f, DWORD count) {
 
 static BOOL WriteEdict(FILE *f, LPCEDICT ent) {
     edict_t temp = *ent;
-    SAVEFIELD const *field;
+    field_t const *field;
 
     ClearRuntimeFields(&temp, edict_fields, FIELD_RUNTIME);
     for (field = edict_fields; field->name; field++)
@@ -975,7 +975,7 @@ static BOOL ReadClient(FILE *f, LPGAMECLIENT client, int *target) {
 }
 
 static BOOL ReadEdict(FILE *f, LPEDICT ent) {
-    SAVEFIELD const *field;
+    field_t const *field;
 
     if (!load_bytes(f, ent, sizeof(*ent))) return false;
     for (field = edict_fields; field->name; field++)

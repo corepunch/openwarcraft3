@@ -24,7 +24,7 @@ typedef enum {
     F_STRUCT_RING,
     F_IGNORE,
     F_STRING,           // bounded inline string
-    F_UNION             // tagged union selected by a schema table
+    F_BYTES             // pointer-free value block; native layout like Quake II edict scalars
 } fieldtype_t;
 
 typedef struct {
@@ -35,28 +35,25 @@ typedef struct {
     DWORD array_size;
     uintptr_t flags; /* field flags, or child schema pointer for F_STRUCT */
     DWORD count_ofs;
-} SAVEFIELD;
-typedef SAVEFIELD *LPSAVEFIELD;
-typedef const SAVEFIELD *LPCSAVEFIELD;
+} field_t;
 
 typedef struct {
-    SAVEFIELD const *fields;
+    field_t const *fields;
     DWORD read_ofs, write_ofs;
 } SAVERING;
 
-
-typedef struct { DWORD tag_ofs, count; LPCSAVEFIELD const *fields; } SAVEUNION;
 typedef struct saveio_s {
     FILE *file;
     BOOL reading;
-    BOOL (*special)(struct saveio_s *, LPCSAVEFIELD, BYTE *);
+    BOOL (*special)(struct saveio_s *, field_t const *, BYTE *);
 } SAVEIO;
 typedef SAVEIO *LPSAVEIO;
 typedef const SAVEIO *LPCSAVEIO;
 typedef struct {
     DWORD magic, version;
     size_t size;
-    LPCSAVEFIELD fields;
+    field_t const *fields;
+    BOOL (*valid)(LPCVOID data); /* Optional semantic validation before commit or publishing a loaded record. */
 } SAVERECORD;
 typedef SAVERECORD *LPSAVERECORD;
 typedef const SAVERECORD *LPCSAVERECORD;
@@ -71,7 +68,7 @@ BOOL load_bytes(FILE *f, void *data, size_t size);
 DWORD save_hash(DWORD hash, LPCVOID data, size_t size);
 BOOL save_footer(FILE *f);
 BOOL load_footer(FILE *f);
-BOOL save_fields(LPSAVEIO io, LPCSAVEFIELD fields, void *base);
+BOOL save_fields(LPSAVEIO io, field_t const *fields, void *base);
 BOOL save_record(LPCSTR path, LPCSAVERECORD record, void *data);
 SAVERESULT load_record(LPCSTR path, LPCSAVERECORD record, void *data);
 #endif

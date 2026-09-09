@@ -33,11 +33,11 @@ also being readable by the client menu when no server map is running.
 ## Shared Serialization
 
 `common/wc3_save.c` under `games/warcraft-3/` is shared by the game and menu modules.
-Its `SAVEFIELD` walker is the extracted mapped-record path from `g_save.c`:
+Its `field_t` walker is the extracted mapped-record path from `g_save.c`:
 
 - scalars and bounded inline strings;
 - nested structs, counted arrays and rings;
-- tagged union schemas for game-cache entry values;
+- raw pointer-free blocks for game-cache entry values;
 - a game callback for world-owned pointer/JASS identity conversions.
 
 `campaign.w3p` uses a native-binary header (`W3PR`, version 1, payload struct size),
@@ -62,7 +62,9 @@ Profile updates refuse to overwrite a corrupt file. Menus keep their last valid
 snapshot when a read fails (or initial defaults when none exists), with a diagnostic.
 
 There is no conversion of the former played cvars, `campaign-progress.orcp` profiles, or version-1 `ORGCACHE` files.
-Hero sidecars now use their own `W3GC` version-2 header with the shared machinery.
+Hero sidecars use a `W3GC` version-3 header with the shared machinery. Their
+pointer-free value unions use native binary blocks, with tag and string validation
+before committing or publishing a loaded cache. Earlier sidecars are rejected.
 
 ## Native Numbering and Menu Defaults
 

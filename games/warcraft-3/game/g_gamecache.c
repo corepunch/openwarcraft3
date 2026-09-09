@@ -18,83 +18,42 @@ typedef struct {
 
 static gameCacheMemorySlot_t gamecache_memory[MAX_GAMECACHE_MEMORY_CACHES];
 
-static SAVEFIELD const cache_hero_fields[] = {
-    BZ_SAVE_FIELD(doodadHero_t, level, F_INT),
-    BZ_SAVE_FIELD(doodadHero_t, str, F_INT),
-    BZ_SAVE_FIELD(doodadHero_t, agi, F_INT),
-    BZ_SAVE_FIELD(doodadHero_t, intel, F_INT),
-    BZ_SAVE_FIELD(doodadHero_t, xp, F_INT),
-    BZ_SAVE_FIELD(doodadHero_t, suspend_xp, F_INT),
-    BZ_SAVE_FIELD(doodadHero_t, skillpoints, F_INT),
-    {0}
-};
-static SAVEFIELD const cache_ability_fields[] = {
-    BZ_SAVE_FIELD(heroability_t, code, F_INT),
-    BZ_SAVE_FIELD(heroability_t, level, F_INT),
-    {0}
-};
-static SAVEFIELD const cache_item_fields[] = {
-    BZ_SAVE_FIELD(gameCacheItem_t, item_id, F_INT),
-    BZ_SAVE_FIELD(gameCacheItem_t, charges, F_INT),
-    {0}
-};
-static SAVEFIELD const cache_stat_fields[] = {
-    BZ_SAVE_FIELD(EDICTSTAT, value, F_FLOAT),
-    BZ_SAVE_FIELD(EDICTSTAT, max_value, F_FLOAT),
-    {0}
-};
-static SAVEFIELD const cache_unit_fields[] = {
-    BZ_SAVE_FIELD(gameCacheUnit_t, class_id, F_INT),
-    BZ_SAVE_ARRAY(gameCacheUnit_t, hero, 1, cache_hero_fields),
-    BZ_SAVE_ARRAY(gameCacheUnit_t, abilities, MAX_HERO_ABILITIES, cache_ability_fields),
-    BZ_SAVE_ARRAY(gameCacheUnit_t, health, 1, cache_stat_fields),
-    BZ_SAVE_ARRAY(gameCacheUnit_t, mana, 1, cache_stat_fields),
-    BZ_SAVE_FIELD(gameCacheUnit_t, unit_color, F_INT),
-    BZ_SAVE_ARRAY(gameCacheUnit_t, inventory, MAX_INVENTORY, cache_item_fields),
-    {0}
-};
-static SAVEFIELD const cache_integer_fields[] = {
-    { .name = "integer", .type = F_INT, .size = sizeof(LONG), .count_ofs = UINT32_MAX },
-    {0}
-};
-static SAVEFIELD const cache_real_fields[] = {
-    { .name = "real", .type = F_FLOAT, .size = sizeof(FLOAT), .count_ofs = UINT32_MAX },
-    {0}
-};
-static SAVEFIELD const cache_boolean_fields[] = {
-    { .name = "boolean", .type = F_INT, .size = sizeof(BOOL), .count_ofs = UINT32_MAX },
-    {0}
-};
-static SAVEFIELD const cache_string_fields[] = {
-    { .name = "string", .type = F_STRING, .size = sizeof(char[MAX_GAMECACHE_STRING]), .count_ofs = UINT32_MAX },
-    {0}
-};
-static LPCSAVEFIELD const cache_variants[] = {
-    [GAMECACHE_INTEGER] = cache_integer_fields,
-    [GAMECACHE_REAL] = cache_real_fields,
-    [GAMECACHE_BOOLEAN] = cache_boolean_fields,
-    [GAMECACHE_STRING] = cache_string_fields,
-    [GAMECACHE_UNIT] = cache_unit_fields,
-};
-static SAVEUNION const cache_value = {
-    .tag_ofs = offsetof(gameCacheEntry_t, type), .count = sizeof(cache_variants) / sizeof(*cache_variants),
-    .fields = cache_variants,
-};
-static SAVEFIELD const cache_entry_fields[] = {
+static BOOL G_GameCacheValid(LPCVOID data);
+
+/* The union contains only values. Like Quake II's raw edict scalars, it needs no per-member schema. */
+static field_t const cache_entry_fields[] = {
     BZ_SAVE_FIELD(gameCacheEntry_t, mission, F_STRING),
     BZ_SAVE_FIELD(gameCacheEntry_t, key, F_STRING),
     BZ_SAVE_FIELD(gameCacheEntry_t, type, F_INT),
-    { .name = "value", .ofs = offsetof(gameCacheEntry_t, value), .type = F_UNION, .flags = (uintptr_t)&cache_value, .count_ofs = UINT32_MAX },
+    BZ_SAVE_FIELD(gameCacheEntry_t, value, F_BYTES),
     {0}
 };
-static SAVEFIELD const cache_fields[] = {
+static field_t const cache_fields[] = {
     BZ_SAVE_FIELD(gameCache_t, campaign, F_STRING),
     BZ_SAVE_COUNTED(gameCache_t, entries, MAX_GAMECACHE_ENTRIES, cache_entry_fields, num_entries),
     {0}
 };
 static SAVERECORD const cache_record = {
-    .magic = MAKEFOURCC('W','3','G','C'), .version = 2, .size = sizeof(gameCache_t), .fields = cache_fields,
+    .magic = MAKEFOURCC('W','3','G','C'), .version = 3, .size = sizeof(gameCache_t), .fields = cache_fields, .valid = G_GameCacheValid,
 };
+
+/* Raw values still require tag and string validation before writing or exposing a loaded cache. */
+static BOOL G_GameCacheValid(LPCVOID data) {
+    gameCache_t const *cache = data;
+    if (cache->num_entries > MAX_GAMECACHE_ENTRIES) {
+        fprintf(stderr, "Game cache: invalid entry count %u\n", cache->num_entries);
+        return false;
+    }
+    FOR_LOOP(i, cache->num_entries) {
+        gameCacheEntry_t const *entry = cache->entries + i;
+        if (entry->type < GAMECACHE_INTEGER || entry->type > GAMECACHE_STRING ||
+            (entry->type == GAMECACHE_STRING && !memchr(entry->value.string, 0, sizeof(entry->value.string)))) {
+            fprintf(stderr, "Game cache: invalid entry %u (type %u or unterminated string)\n", i, entry->type);
+            return false;
+        }
+    }
+    return true;
+}
 
 static gameCacheStorageMode_t G_GameCacheStorageMode(void) {
     LPCSTR mode = gi.CvarString("wc3_gamecache_mode", "disk");
