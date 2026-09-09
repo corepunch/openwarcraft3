@@ -384,6 +384,43 @@ static BOOL entity_is_live_walkable_surface(edict_t const *ent) {
         ent->data.DestructableData && ent->data.DestructableData->walkable;
 }
 
+static BOOL pathtex_pixel_blocks_walk(pathTex_t const *pt, int x, int y) {
+    if (!pt || x < 0 || y < 0 || x >= (int)pt->width || y >= (int)pt->height)
+        return false;
+    return pt->map[x + y * pt->width].b != 0;
+}
+
+/* A live bridge path texture contains clear pixels both on the authored deck
+ * and in padding outside its blocked rails.  Only clear pixels enclosed by
+ * blocked pathing across either texture axis are bridge support cells that may
+ * replace terrain no-walk; exterior clear padding must leave terrain intact.
+ * This derives the deck from the authored pathing shape rather than model
+ * bounds, collision radius, alpha, or a bridge-specific hard-coded width. */
+static BOOL pathtex_clear_pixel_is_bridge_deck(pathTex_t const *pt, int x, int y) {
+    BOOL low = false, high = false;
+
+    if (!pt || pathtex_pixel_blocks_walk(pt, x, y))
+        return false;
+
+    for (int i = x - 1; i >= 0; --i) {
+        if (pathtex_pixel_blocks_walk(pt, i, y)) { low = true; break; }
+    }
+    for (int i = x + 1; i < (int)pt->width; ++i) {
+        if (pathtex_pixel_blocks_walk(pt, i, y)) { high = true; break; }
+    }
+    if (low && high)
+        return true;
+
+    low = high = false;
+    for (int i = y - 1; i >= 0; --i) {
+        if (pathtex_pixel_blocks_walk(pt, x, i)) { low = true; break; }
+    }
+    for (int i = y + 1; i < (int)pt->height; ++i) {
+        if (pathtex_pixel_blocks_walk(pt, x, i)) { high = true; break; }
+    }
+    return low && high;
+}
+
 /* Stamp a single entity's footprint into a pathmap byte array. */
 static void stamp_entity_obstacle(edict_t const *ent, pathMapCell_t *target) {
     point2_t p = LocationToPathMap(&ent->s.origin2);
@@ -397,12 +434,16 @@ static void stamp_entity_obstacle(edict_t const *ent, pathMapCell_t *target) {
                 if (is_valid_point(px, py)) {
                     pathMapCell_t *cell = &target[px + py * pathmap.width];
                     BYTE const blocked = pt->map[x + y * pt->width].b;
-                    /* A live bridge replaces terrain no-walk inside its
-                     * footprint: clear pixels form the deck and red pixels
-                     * retain authored rails. Other footprints only add
-                     * obstacles to the terrain baseline. */
-                    if (walkable_surface) cell->nowalk = blocked != 0;
-                    else cell->nowalk |= blocked;
+                    /* A live bridge may replace terrain no-walk only on the
+                     * authored deck. Clear pixels outside the blocked rails are
+                     * texture padding and must preserve the underlying river. */
+                    if (walkable_surface) {
+                        if (blocked) cell->nowalk = 1;
+                        else if (pathtex_clear_pixel_is_bridge_deck(pt, (int)x, (int)y))
+                            cell->nowalk = 0;
+                    } else {
+                        cell->nowalk |= blocked;
+                    }
                 }
             }
         }
