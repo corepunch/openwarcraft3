@@ -21,6 +21,7 @@ static cheatToggleValue_t const cheat_toggle_values[] = {
  * not depend on which multiselect subgroup happened to own the HUD. */
 static DWORD selection_focus[MAX_CLIENTS];
 static BOOL G_DebugIsNumber(LPCSTR text);
+static void G_CheatPrintf(LPEDICT clent, LPCSTR fmt, ...);
 
 static DWORD *G_SelectionFocusSlot(LPGAMECLIENT client) {
     LONG index;
@@ -820,19 +821,25 @@ static void G_AddGiveResource(LPGAMECLIENT client, DWORD state, DWORD amount) {
     client->ps.stats[state] = (USHORT)MIN(value + amount, (DWORD)USHRT_MAX);
 }
 
-static BOOL G_GivePlayerResources(LPGAMECLIENT client, LPCSTR target, LPCSTR value) {
+static BOOL G_GivePlayerResources(LPEDICT clent, LPCSTR target, LPCSTR value) {
+    LPGAMECLIENT client = clent ? clent->client : NULL;
     DWORD amount;
     BOOL const give_gold = !strcasecmp(target, "gold") || !strcasecmp(target, "res");
     BOOL const give_lumber = !strcasecmp(target, "lumber") || !strcasecmp(target, "res");
 
     if (!give_gold && !give_lumber) return false;
     if (!G_ParseGiveResourceAmount(value, &amount)) {
-        fprintf(stderr, "WC3: resource amount must be a non-negative integer\n");
+        G_CheatPrintf(clent, "WC3: resource amount must be a non-negative integer");
         return true;
     }
+    if (!client) return true;
     if (give_gold) G_AddGiveResource(client, PLAYERSTATE_RESOURCE_GOLD, amount);
     if (give_lumber) G_AddGiveResource(client, PLAYERSTATE_RESOURCE_LUMBER, amount);
     G_InvalidateCommands(client);
+    G_CheatPrintf(clent, "WC3: gave %u %s to player %u",
+            (unsigned)amount,
+            give_gold && give_lumber ? "gold and lumber" : give_gold ? "gold" : "lumber",
+            (unsigned)client->ps.number);
     return true;
 }
 
@@ -842,47 +849,50 @@ CLIENTCOMMAND(Give) {
     DWORD code;
 
     if (!G_CheatsEnabled()) {
-        fprintf(stderr, "WC3: cheats are disabled; set sv_cheats 1\n");
+        G_CheatPrintf(clent, "WC3: cheats are disabled; set sv_cheats 1");
         return;
     }
     if (argc < 2) {
-        fprintf(stderr,
+        G_CheatPrintf(clent,
             "WC3: cheats: give gold <amount> | lumber <amount> | res <amount> | "
-            "item <rawcode> [count] | ability <rawcode> | xp <amount>\n");
+            "item <rawcode> [count] | ability <rawcode> | xp <amount>");
         return;
     }
     if (argc < 3) {
-        fprintf(stderr, "WC3: give requires a target and value\n");
+        G_CheatPrintf(clent, "WC3: give requires a target and value");
         return;
     }
-    if (G_GivePlayerResources(client, argv[1], argv[2])) return;
+    if (G_GivePlayerResources(clent, argv[1], argv[2])) return;
 
     unit = G_GetMainSelectedUnit(client);
     if (!unit) {
-        fprintf(stderr, "WC3: give %s requires a selected unit\n", argv[1]);
+        G_CheatPrintf(clent, "WC3: give %s requires a selected unit", argv[1]);
         return;
     }
     if (strcasecmp(argv[1], "xp") && strlen(argv[2]) < 4) {
-        fprintf(stderr, "WC3: rawcode must contain four characters\n");
+        G_CheatPrintf(clent, "WC3: rawcode must contain four characters");
         return;
     }
     if (!strcasecmp(argv[1], "item")) {
         code = *(DWORD const *)argv[2];
         if (!G_GiveItem(unit, code)) {
-            fprintf(stderr, "WC3: could not give item %.4s to selected unit\n", argv[2]);
+            G_CheatPrintf(clent, "WC3: could not give item %.4s to selected unit", argv[2]);
             return;
         }
+        G_CheatPrintf(clent, "WC3: gave item %.4s to selected unit", argv[2]);
     } else if (!strcasecmp(argv[1], "ability")) {
         code = *(DWORD const *)argv[2];
         unit_learnability(unit, code);
+        G_CheatPrintf(clent, "WC3: gave ability %.4s to selected unit", argv[2]);
     } else if (!strcasecmp(argv[1], "xp")) {
         if (!G_UnitIsHero(unit)) {
-            fprintf(stderr, "WC3: selected unit is not a hero\n");
+            G_CheatPrintf(clent, "WC3: selected unit is not a hero");
             return;
         }
         G_HeroSetXP(unit, unit->hero.xp + (DWORD)strtoul(argv[2], NULL, 10));
+        G_CheatPrintf(clent, "WC3: gave %s XP to selected hero", argv[2]);
     } else {
-        fprintf(stderr, "WC3: unsupported give target '%s'\n", argv[1]);
+        G_CheatPrintf(clent, "WC3: unsupported give target '%s'", argv[1]);
         return;
     }
     Get_Commands_f(clent);
@@ -891,18 +901,19 @@ CLIENTCOMMAND(Give) {
 
 CLIENTCOMMAND(God) {
     if (!G_CheatsEnabled()) {
-        fprintf(stderr, "WC3: cheats are disabled; set sv_cheats 1\n");
+        G_CheatPrintf(clent, "WC3: cheats are disabled; set sv_cheats 1");
         return;
     }
     clent->invulnerable = !clent->invulnerable;
-    fprintf(stderr, "WC3: god %s\n", clent->invulnerable ? "on" : "off");
+    G_CheatPrintf(clent, "WC3: god %s", clent->invulnerable ? "on" : "off");
 }
 
 CLIENTCOMMAND(Kill) {
     if (!G_CheatsEnabled()) {
-        fprintf(stderr, "WC3: cheats are disabled; set sv_cheats 1\n");
+        G_CheatPrintf(clent, "WC3: cheats are disabled; set sv_cheats 1");
         return;
     }
+    G_CheatPrintf(clent, "WC3: kill cheat applied");
     G_SetHealth(clent, 0);
 }
 
@@ -938,17 +949,17 @@ CLIENTCOMMAND(InstantBuild) {
     BOOL enabled;
 
     if (!G_CheatsEnabled()) {
-        fprintf(stderr, "WC3: cheats are disabled; set sv_cheats 1\n");
+        G_CheatPrintf(clent, "WC3: cheats are disabled; set sv_cheats 1");
         return;
     }
     if (!client) return;
     if (argc > 2 || !G_ParseCheatToggle(argc >= 2 ? argv[1] : NULL,
                                        client->cheat_instant_build, &enabled)) {
-        fprintf(stderr, "WC3: usage: instantbuild [on|off]\n");
+        G_CheatPrintf(clent, "WC3: usage: instantbuild [on|off]");
         return;
     }
     client->cheat_instant_build = enabled;
-    fprintf(stderr, "WC3: instant build %s for player %u\n",
+    G_CheatPrintf(clent, "WC3: instant build %s for player %u",
             enabled ? "on" : "off", (unsigned)client->ps.number);
 }
 
@@ -957,26 +968,28 @@ CLIENTCOMMAND(InstantKill) {
     BOOL enabled;
 
     if (!G_CheatsEnabled()) {
-        fprintf(stderr, "WC3: cheats are disabled; set sv_cheats 1\n");
+        G_CheatPrintf(clent, "WC3: cheats are disabled; set sv_cheats 1");
         return;
     }
     if (!client) return;
     if (argc > 2 || !G_ParseCheatToggle(argc >= 2 ? argv[1] : NULL,
                                        client->cheat_instant_kill, &enabled)) {
-        fprintf(stderr, "WC3: usage: instantkill [on|off]\n");
+        G_CheatPrintf(clent, "WC3: usage: instantkill [on|off]");
         return;
     }
     client->cheat_instant_kill = enabled;
-    fprintf(stderr, "WC3: instant kill %s for player %u\n",
+    G_CheatPrintf(clent, "WC3: instant kill %s for player %u",
             enabled ? "on" : "off", (unsigned)client->ps.number);
 }
 
 static void G_CheatGameResult(LPEDICT clent, DWORD game_result) {
     if (!G_CheatsEnabled()) {
-        fprintf(stderr, "WC3: cheats are disabled; set sv_cheats 1\n");
+        G_CheatPrintf(clent, "WC3: cheats are disabled; set sv_cheats 1");
         return;
     }
     if (!clent || !clent->client) return;
+    G_CheatPrintf(clent, "WC3: %s cheat applied for player %u",
+            game_result == 0 ? "win" : "lose", (unsigned)clent->client->ps.number);
     G_RemovePlayerWithResult(clent->client->ps.number, game_result);
 }
 
@@ -1010,22 +1023,23 @@ static FLOAT G_CheatTimeOfDayTarget(BOOL daytime) {
     return target;
 }
 
-static void G_CheatSetTimeOfDay(BOOL daytime) {
+static void G_CheatSetTimeOfDay(LPEDICT clent, BOOL daytime) {
     if (!G_CheatsEnabled()) {
-        fprintf(stderr, "WC3: cheats are disabled; set sv_cheats 1\n");
+        G_CheatPrintf(clent, "WC3: cheats are disabled; set sv_cheats 1");
         return;
     }
     G_SetTimeOfDay(G_CheatTimeOfDayTarget(daytime));
+    G_CheatPrintf(clent, "WC3: time of day set to %s", daytime ? "day" : "night");
 }
 
 CLIENTCOMMAND(Day) {
-    (void)clent; (void)argc; (void)argv;
-    G_CheatSetTimeOfDay(true);
+    (void)argc; (void)argv;
+    G_CheatSetTimeOfDay(clent, true);
 }
 
 CLIENTCOMMAND(Night) {
-    (void)clent; (void)argc; (void)argv;
-    G_CheatSetTimeOfDay(false);
+    (void)argc; (void)argv;
+    G_CheatSetTimeOfDay(clent, false);
 }
 
 CLIENTCOMMAND(Inventory) {
