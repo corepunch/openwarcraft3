@@ -33,6 +33,14 @@ Consequences:
 - State changes between consecutive identical surfaces are never skipped.
 - Game-specific renderers (WC3, SC2, WoW) duplicate the same boilerplate.
 
+## View ownership
+
+`R_RenderFrame()` (`renderer/r_view.c`) leaves the latest world view in `tr.viewDef` for HUD projection consumers.
+Scenes carrying `RDF_NOWORLDMODEL` borrow that state only for their render and restore the complete prior view on
+both the entity-camera and general rendering paths. Resetting GL viewport/scissor state is a separate operation.
+This preserves the gameplay projection, frustum, viewport, flags, and lighting across portrait draws. The regression
+and runtime evidence are documented in [WC3 minimap camera outlines](games/warcraft-3/alerts-and-minimap-pings.md#camera-outline-and-portrait-view-ownership).
+
 ## Alpha-key coverage contract
 
 The shared renderer requests the compile-time `MSAA=0/2/4/8` sample count before creating the SDL
