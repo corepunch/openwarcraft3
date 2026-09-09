@@ -2412,6 +2412,10 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     first->cargo.units[3] = second;
     first->stand = unit_stand; first->birth = unit_birth; first->die = unit_die; first->think = monster_think;
     unit_stand(first);
+    first->s.player = PLAYER_NEUTRAL_AGGRESSIVE;
+    G_SetTimeOfDay(game.constants.duskTimeGameHours);
+    G_UpdateTimeOfDay();
+    T_ASSERT(G_TryEnterCreepSleep(first));
     strlcpy(first->animation_props, "alternate,work", sizeof(first->animation_props));
     strlcpy(first->animation_request, "stand ready", sizeof(first->animation_request));
     T_ASSERT(first->currentmove != NULL);
@@ -2464,6 +2468,7 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     T_ASSERT(!strcasecmp(saved_map, level.map_path));
     first->harvested_gold = 0;
     first->sleep.can_sleep = false;
+    first->sleep.sleeping = false;
     first->owner = NULL;
     first->movement.follow_target = NULL;
     first->inventory[2] = NULL;
@@ -2495,6 +2500,7 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     T_EQ(gi.BoxEdicts(&area, found, 4, NULL), 3);
     T_EQ(g_edicts[first - g_edicts].harvested_gold, 37);
     T_ASSERT(g_edicts[first - g_edicts].sleep.can_sleep);
+    T_ASSERT(g_edicts[first - g_edicts].sleep.sleeping);
     T_EQ(g_edicts[first - g_edicts].collision, 42.5f);
     T_EQ(g_edicts[first - g_edicts].s.origin.x, 96.0f);
     T_EQ(g_edicts[first - g_edicts].s.origin.y, 128.0f);
