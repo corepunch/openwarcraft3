@@ -377,7 +377,7 @@ void ai_train_build(LPEDICT ent) {
     if (ent->build->research.upgrade) {
         LPEDICT research = ent->build;
 
-        if (research->research.duration <= 0.0f) {
+        if (research->research.duration <= 0.0f || G_PlayerInstantBuild(ent->s.player)) {
             CompleteResearch(ent, research);
             return;
         }

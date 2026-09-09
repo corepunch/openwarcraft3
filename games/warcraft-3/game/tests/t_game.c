@@ -207,6 +207,31 @@ TEST(wc3_game, instant_build_cheat_is_per_player_and_toggleable) {
 }
 
 
+TEST(wc3_game, instant_kill_cheat_is_per_player_and_toggleable) {
+    LPCSTR (*old_cvar)(LPCSTR, LPCSTR) = gi.CvarString;
+    LPCSTR toggle[] = { "instantkill" };
+    LPCSTR enable[] = { "instantkill", "on" };
+    LPCSTR disable[] = { "instantkill", "off" };
+
+    setup_test_world();
+    game.clients[0].connected = true;
+    game.clients[1].connected = true;
+    gi.CvarString = give_resources_cheat_cvar;
+
+    G_ClientCommand(&g_edicts[0], 1, toggle);
+    T_ASSERT(game.clients[0].cheat_instant_kill);
+    T_ASSERT(!game.clients[1].cheat_instant_kill);
+
+    G_ClientCommand(&g_edicts[1], 2, enable);
+    T_ASSERT(game.clients[1].cheat_instant_kill);
+    G_ClientCommand(&g_edicts[0], 2, disable);
+    T_ASSERT(!game.clients[0].cheat_instant_kill);
+    T_ASSERT(game.clients[1].cheat_instant_kill);
+
+    gi.CvarString = old_cvar;
+}
+
+
 TEST(wc3_game, enemiesclear_and_eclear_remove_nearby_enemy_units_only) {
     LPCSTR (*old_cvar)(LPCSTR, LPCSTR) = gi.CvarString;
     LPGAMECLIENT client = &game.clients[0];

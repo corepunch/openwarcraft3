@@ -201,6 +201,49 @@ TEST(wc3_combat, tdamage_non_lethal_does_not_call_die) {
     T_ASSERT(target->health.value > 0.0f);
 }
 
+TEST(wc3_combat, instant_kill_cheat_makes_owner_damage_lethal) {
+    LPEDICT target;
+    LPEDICT building;
+    LPEDICT attacker;
+
+    setup_test_world();
+    target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    building = make_combat_unit(MAKEFOURCC('h','b','a','r'), 1200.0f, 100.0f, 0.0f);
+    attacker = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 50.0f, 0.0f);
+    attacker->s.player = 0;
+    target->s.player = 1;
+    building->s.player = 1;
+    building->s.flags |= EF_BUILDING;
+    game.clients[0].cheat_instant_kill = true;
+    _die_call_count = 0;
+
+    T_Damage(target, attacker, 1);
+    T_EQ(_die_call_count, 1);
+    T_FEQ(target->health.value, 0.0f, 0.01f);
+
+    T_Damage(building, attacker, 1);
+    T_EQ(_die_call_count, 2);
+    T_FEQ(building->health.value, 0.0f, 0.01f);
+}
+
+TEST(wc3_combat, instant_kill_cheat_does_not_affect_other_players) {
+    LPEDICT target;
+    LPEDICT attacker;
+
+    setup_test_world();
+    target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    attacker = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 50.0f, 0.0f);
+    attacker->s.player = 1;
+    target->s.player = 0;
+    game.clients[0].cheat_instant_kill = true;
+    _die_call_count = 0;
+
+    T_Damage(target, attacker, 1);
+    T_EQ(_die_call_count, 0);
+    T_FEQ(target->health.value, 419.0f, 0.01f);
+}
+
+
 TEST(wc3_combat, tdamage_invulnerable_ignores_damage) {
     LPEDICT target   = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
     LPEDICT attacker = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 50.0f, 0.0f);

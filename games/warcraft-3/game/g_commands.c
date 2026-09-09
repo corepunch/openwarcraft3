@@ -912,6 +912,12 @@ BOOL G_PlayerInstantBuild(DWORD player) {
     return client && client->ps.number == player && client->cheat_instant_build;
 }
 
+/* Keep one-hit damage scoped to the issuing player's live client state. */
+BOOL G_PlayerInstantKill(DWORD player) {
+    LPGAMECLIENT client = G_GetPlayerClientByNumber(player);
+    return client && client->ps.number == player && client->cheat_instant_kill;
+}
+
 /* Parse the toggle spellings shared by developer cheats and their aliases. */
 static BOOL G_ParseCheatToggle(LPCSTR value, BOOL current, BOOL *out) {
     if (!out) return false;
@@ -943,6 +949,25 @@ CLIENTCOMMAND(InstantBuild) {
     }
     client->cheat_instant_build = enabled;
     fprintf(stderr, "WC3: instant build %s for player %u\n",
+            enabled ? "on" : "off", (unsigned)client->ps.number);
+}
+
+CLIENTCOMMAND(InstantKill) {
+    LPGAMECLIENT client = clent ? clent->client : NULL;
+    BOOL enabled;
+
+    if (!G_CheatsEnabled()) {
+        fprintf(stderr, "WC3: cheats are disabled; set sv_cheats 1\n");
+        return;
+    }
+    if (!client) return;
+    if (argc > 2 || !G_ParseCheatToggle(argc >= 2 ? argv[1] : NULL,
+                                       client->cheat_instant_kill, &enabled)) {
+        fprintf(stderr, "WC3: usage: instantkill [on|off]\n");
+        return;
+    }
+    client->cheat_instant_kill = enabled;
+    fprintf(stderr, "WC3: instant kill %s for player %u\n",
             enabled ? "on" : "off", (unsigned)client->ps.number);
 }
 
@@ -1998,6 +2023,7 @@ clientCommand_t clientCommands[] = {
     { "night", CMD_Night },
     { "instantbuild", CMD_InstantBuild },
     { "warpten", CMD_InstantBuild },
+    { "instantkill", CMD_InstantKill },
     { "button", CMD_Button },
     { "autocast", CMD_Autocast },
     { "research", CMD_Research },
