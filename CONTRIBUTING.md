@@ -105,12 +105,11 @@ Key points:
 
 ## Build and Linking
 
-The Linux CI build and test jobs share `.github/scripts/install-linux-deps.sh`. Both APT update and install use only the runner's
-`/etc/apt/sources.list.d/ubuntu.sources`, with additional source parts disabled for those commands. All required packages come from
-Ubuntu. This prevents unrelated preinstalled repositories from blocking CI: run `34385738390` failed before compilation because
-Google Chrome's package index returned a hash mismatch on all five retries, while Windows built successfully. Missing Ubuntu
-sources remain a hard error, and package signature/hash verification stays enabled. To inspect dependency failures, use
-`gh run view <run-id> -R corepunch/open-realm --log-failed`.
+The Linux CI build and test jobs run in the minimal `ubuntu:24.04` container. Their shared YAML dependency step installs the
+build tools and libraries with plain APT commands before checkout (which needs Git and CA certificates). Container steps run as
+root, so no `sudo` is needed. `--no-install-recommends` keeps optional packages out. The host's preinstalled software and APT
+repositories do not enter the container: this avoids failures such as CI #1487, where the host's unrelated Google Chrome index
+failed checksum verification before compilation. Keep build dependencies explicit here rather than relying on runner contents.
 
 - Never add `DYLIB_LOOKUP := -Wl,-undefined,dynamic_lookup` or otherwise rely on `-Wl,-undefined,dynamic_lookup` in this repository.
 - If a target has unresolved symbols, fix the dependency graph or shared implementation instead of weakening the linker contract.

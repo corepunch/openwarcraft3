@@ -10,14 +10,20 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    container: ubuntu:24.04
     permissions:
       contents: read
 
     steps:
-      - uses: actions/checkout@v4
+      - &linux-dependencies
+        name: Install dependencies
+        run: |
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            build-essential git ca-certificates python3 pkg-config \
+            libgles2-mesa-dev libsdl2-dev libjpeg-dev zlib1g-dev
 
-      - name: Install dependencies
-        run: bash .github/scripts/install-linux-deps.sh
+      - uses: actions/checkout@v4
 
       - name: Run unit tests
         run: make test
@@ -40,12 +46,12 @@ jobs:
 
   build:
     runs-on: ubuntu-latest
+    container: ubuntu:24.04
 
     steps:
-      - uses: actions/checkout@v4
+      - *linux-dependencies
 
-      - name: Install dependencies
-        run: bash .github/scripts/install-linux-deps.sh
+      - uses: actions/checkout@v4
 
       - name: Build
         run: make
