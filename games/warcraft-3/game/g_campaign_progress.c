@@ -10,7 +10,7 @@ static DWORD G_CampaignProgressEdition(void) {
 }
 
 static BOOL G_CampaignProgressPath(LPSTR path, DWORD path_size) {
-    if (!path || !path_size || !gi.UserPath) return false;
+    if (!path || !path_size) return false;
     path[0] = '\0';
     gi.UserPath(WC3_CAMPAIGN_PROGRESS_FILENAME, path, path_size);
     return path[0] != '\0';

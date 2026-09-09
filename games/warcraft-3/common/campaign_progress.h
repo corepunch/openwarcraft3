@@ -4,9 +4,9 @@
 #include "common/shared.h"
 
 #define WC3_CAMPAIGN_PROGRESS_FILENAME "campaign-progress.orcp"
-#define WC3_CAMPAIGN_PROGRESS_EDITIONS 2
-#define WC3_CAMPAIGN_PROGRESS_CAMPAIGNS 5
-#define WC3_CAMPAIGN_PROGRESS_MISSIONS 128
+#define WC3_CAMPAIGN_PROGRESS_EDITIONS 2 // editions; ROC and TFT slots; used in progress arrays and file validation
+#define WC3_CAMPAIGN_PROGRESS_CAMPAIGNS 5 // campaigns; maximum campaign slots per edition; used in progress arrays
+#define WC3_CAMPAIGN_PROGRESS_MISSIONS 128 // missions; bounded mission slots per campaign; used in progress arrays
 
 typedef enum {
     WC3_CAMPAIGN_EDITION_ROC = 0,

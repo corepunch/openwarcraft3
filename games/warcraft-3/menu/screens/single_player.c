@@ -12,12 +12,12 @@
 #include <strings.h>
 #endif
 
-#define SINGLE_PLAYER_MAX_CAMPAIGNS 16
-#define SINGLE_PLAYER_MAX_MISSIONS 128
-#define SINGLE_PLAYER_MISSION_VISIBLE_ROWS 14
+#define SINGLE_PLAYER_MAX_CAMPAIGNS 16 // campaigns; UI parse/storage capacity; bounds authored campaign entries
+#define SINGLE_PLAYER_MAX_MISSIONS 128 // missions; UI parse/storage capacity; bounds authored mission entries
+#define SINGLE_PLAYER_MISSION_VISIBLE_ROWS 14 // rows; visible mission list capacity; controls listbox pagination
 #define SINGLE_PLAYER_CAMPAIGN_VISIBILITY_CVAR "wc3_campaign_visibility"
-#define SINGLE_PLAYER_LIST_FLAG_CINEMATIC 0x80000000u
-#define SINGLE_PLAYER_LIST_INDEX_MASK 0x7fffffffu
+#define SINGLE_PLAYER_LIST_FLAG_CINEMATIC 0x80000000u // bit; marks cinematic list items; separates them from mission indices
+#define SINGLE_PLAYER_LIST_INDEX_MASK 0x7fffffffu // bitmask; retains the 31-bit item index; strips the cinematic marker
 
 typedef enum {
     SINGLE_PLAYER_VIEW_MAIN,
@@ -536,7 +536,6 @@ static void SinglePlayer_LoadCampaignProgress(void) {
     PATHSTR path;
 
     wc3_campaign_progress_init(&campaign_progress);
-    if (!mi.UserPath) return;
     path[0] = '\0';
     mi.UserPath(WC3_CAMPAIGN_PROGRESS_FILENAME, path, sizeof(path));
     if (path[0]) wc3_campaign_progress_load(path, &campaign_progress);
