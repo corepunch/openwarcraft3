@@ -943,7 +943,7 @@ void SinglePlayerMenu_SetDifficulty(DWORD difficulty) {
 
 uiScreen_t singlePlayerMenuScreen = {
     .name = "single-player",
-    .panel = UI_GLUE_SINGLE_PLAYER,
+    .glue = { .panel = UI_GLUE_SINGLE_PLAYER },
     .load = SinglePlayerMenu_LoadScreen,
     .init = SinglePlayerMenu_Init,
     .shutdown = SinglePlayerMenu_Shutdown,

@@ -6,6 +6,7 @@
 
 #include "test.h"
 #include "../menu/menu_local.h"
+#include "../renderer/mdx/r_mdx.h"
 #include "../menu/menu_dialog.h"
 #include "../menu/menu_screen.h"
 #include "../common/minimap.h"
@@ -2093,7 +2094,10 @@ TEST(menu_fdf, main_menu_realm_select_uses_realm_panel_anim) {
 
     T_ASSERT(mainMenuScreen.load());
     mainMenuScreen.init();
-    MainMenu_ShowRealmSelect();
+    UI_GotoGluePanel(mainMenuScreen.glue, NULL, NULL);
+    M_SetActive(true);
+    M_Refresh(M_Time() + 1000);
+    M_MenuCommand("menu_realm_select");
     captured_stand_sprites = 0;
     captured_realm_panel_sprites = 0;
     captured_sprite_calls = 0;
@@ -2132,7 +2136,7 @@ TEST(menu_fdf, glue_sprite_layers_follow_widescreen_edges) {
     captured_realm_panel_sprites = 0;
     memset(captured_sprite_x, 0, sizeof(captured_sprite_x));
 
-    UI_GotoGluePanel(UI_GLUE_MAIN_MENU, NULL);
+    UI_GotoGluePanel((GLUEDEST){ .panel = UI_GLUE_MAIN_MENU }, NULL, NULL);
     UI_DrawGlueScene();
     T_EQ(captured_sprite_calls, 2);
     T_FEQ(captured_sprite_x[0], 0.0f, 0.0001f);
@@ -2156,7 +2160,7 @@ TEST(menu_fdf, initial_glue_panel_finishes_birth_before_opening_screen) {
     mi.GetRenderer = test_get_renderer;
     UI_ResetGlueSceneModels();
 
-    UI_GotoGluePanel(UI_GLUE_MAIN_MENU, test_glue_changed);
+    UI_GotoGluePanel((GLUEDEST){ .panel = UI_GLUE_MAIN_MENU }, NULL, test_glue_changed);
     UI_DrawGlueScene();
     T_EQ(captured_birth_sprites, 2);
     T_EQ(captured_death_sprites, 0);
@@ -2178,9 +2182,8 @@ TEST(menu_fdf, options_glue_panel_tab_state_during_birth_and_idle) {
     UI_ResetGlueSceneModels();
 
     /* Navigate to Options panel, activating tab 1 (the "alternate" state). */
-    UI_GotoGluePanel(UI_GLUE_MAIN_MENU, NULL);
-    UI_RetargetGluePanel(UI_GLUE_OPTIONS, NULL, NULL);
-    UI_SetGlueTab(1);
+    UI_GotoGluePanel((GLUEDEST){ .panel = UI_GLUE_MAIN_MENU }, NULL, NULL);
+    UI_GotoGluePanel((GLUEDEST){ .panel = UI_GLUE_OPTIONS, .tab = 1 }, NULL, NULL);
 
     /* During full-panel ENTER (Birth): both layers play the panel name Birth. */
     UI_DrawGlueScene();
@@ -2202,7 +2205,7 @@ TEST(menu_fdf, options_glue_panel_tab_state_during_birth_and_idle) {
     T_ASSERT(!UI_GetGlueScreenOffset(&offset));
 
     /* Full panel EXIT: both layers play Death (tab morph is not involved). */
-    UI_GotoGluePanel(UI_GLUE_MAIN_MENU, NULL);
+    UI_GotoGluePanel((GLUEDEST){ .panel = UI_GLUE_MAIN_MENU }, NULL, NULL);
     captured_sprite_calls = 0;
     UI_DrawGlueScene();
     T_STREQ(captured_sprite_anim[0], "Options Death@0.0000");
@@ -2221,12 +2224,12 @@ TEST(menu_fdf, tab_morph_plays_when_switching_tabs_at_idle) {
     UI_ResetGlueSceneModels();
 
     /* Arrive at SinglePlayer panel with default tab, then wait for IDLE. */
-    UI_GotoGluePanel(UI_GLUE_SINGLE_PLAYER, NULL);
+    UI_GotoGluePanel((GLUEDEST){ .panel = UI_GLUE_SINGLE_PLAYER }, NULL, NULL);
     M_SetActive(true);
     M_Refresh(M_Time() + 1000);  /* let Birth finish */
 
     /* Switch to tab 1 (SinglePlayerSkirmish) while IDLE. */
-    UI_SetGlueTab(1);
+    UI_GotoGluePanel((GLUEDEST){ .panel = UI_GLUE_SINGLE_PLAYER, .tab = 1 }, NULL, NULL);
     captured_sprite_calls = 0;
     UI_DrawGlueScene();
     /* Left plays SinglePlayerSkirmish Morph, right stays at SinglePlayer Stand. */
@@ -2241,13 +2244,217 @@ TEST(menu_fdf, tab_morph_plays_when_switching_tabs_at_idle) {
     T_STREQ(captured_sprite_anim[1], "SinglePlayer Stand");
 
     /* Switch back to tab 0. */
-    UI_SetGlueTab(0);
+    UI_GotoGluePanel((GLUEDEST){ .panel = UI_GLUE_SINGLE_PLAYER }, NULL, NULL);
     captured_sprite_calls = 0;
     UI_DrawGlueScene();
     /* Left plays SinglePlayerSkirmish Morph Alternate (667 ms), right stays at Stand. */
     T_STREQ(captured_sprite_anim[0], "SinglePlayerSkirmish Morph Alternate@0.0000");
     T_STREQ(captured_sprite_anim[1], "SinglePlayer Stand");
 
+    UI_ResetGlueSceneModels();
+    mi = saved;
+}
+
+/* Screen commands and the scene share the production owner, but use fixture I/O. */
+static void test_glue_setup(void) {
+    mi.Printf = test_ui_printf;
+    M_MenuCommand("menu_ingame");
+    reset_ui_state();
+    mi.FS_ReadFile = test_fs_read_file;
+    mi.FS_FreeFile = test_fs_free_file;
+    mi.Cvar_String = test_cvar_string;
+    mi.Cmd_ExecuteText = test_cmd_execute_text;
+    UI_ResetGlueSceneModels();
+}
+
+static void test_glue_tick(DWORD msec) {
+    captured_sprite_calls = 0;
+    M_Refresh(M_Time() + msec);
+}
+
+TEST(menu_fdf, glue_same_panel_screen_navigation_completes) {
+    menuImport_t saved = mi;
+    test_glue_setup();
+    M_MenuCommand("menu_main");
+    test_glue_tick(1000);
+    M_MenuCommand("menu_credits");
+    T_ASSERT(UI_GetCurrentScreen() == &creditsMenuScreen);
+    M_MenuCommand("menu_main");
+    T_ASSERT(UI_GetCurrentScreen() == &mainMenuScreen);
+    T_ASSERT(!M_IsTransitioning());
+
+    M_MenuCommand("menu_game");
+    test_glue_tick(667);
+    test_glue_tick(1000);
+    M_MenuCommand("menu_single_player_skirmish");
+    test_glue_tick(1000);
+    T_ASSERT(UI_GetCurrentScreen() == &lanJoinScreen);
+    M_MenuCommand("menu_game");
+    T_ASSERT(UI_GetCurrentScreen() == &singlePlayerMenuScreen);
+    T_ASSERT(!M_IsTransitioning());
+    test_glue_tick(667);
+    T_STREQ(captured_sprite_anim[0], "SinglePlayer Stand");
+    M_MenuCommand("menu_ingame");
+    UI_ResetGlueSceneModels();
+    mi = saved;
+}
+
+TEST(menu_fdf, glue_create_destination_and_live_lan_mode_changes) {
+    menuImport_t saved = mi;
+    test_glue_setup();
+    M_MenuCommand("menu_main");
+    test_glue_tick(1000);
+    M_MenuCommand("menu_startserver");
+    test_glue_tick(667);
+    test_glue_tick(1000);
+    T_STREQ(captured_sprite_anim[0], "BattlenetCustomCreate Stand");
+    T_STREQ(captured_sprite_anim[1], "BattlenetCustom Stand");
+    M_MenuCommand("menu_multiplayer");
+    test_glue_tick(0);
+    T_STREQ(captured_sprite_anim[0], "BattlenetCustomCreate Death@0.0000");
+    test_glue_tick(667);
+    T_STREQ(captured_sprite_anim[0], "BattlenetCustom Stand");
+    M_MenuCommand("menu_startserver");
+    test_glue_tick(0);
+    T_STREQ(captured_sprite_anim[0], "BattlenetCustomCreate Birth@0.0000");
+    test_glue_tick(1000);
+    T_STREQ(captured_sprite_anim[0], "BattlenetCustomCreate Stand");
+    M_MenuCommand("menu_ingame");
+    UI_ResetGlueSceneModels();
+    mi = saved;
+}
+
+TEST(menu_fdf, glue_morph_requests_queue_without_restarting) {
+    menuImport_t saved = mi;
+    GLUEDEST base = { .panel = UI_GLUE_SINGLE_PLAYER }, tab = { .panel = UI_GLUE_SINGLE_PLAYER, .tab = 1 };
+    test_glue_setup();
+    UI_GotoGluePanel(base, NULL, NULL);
+    test_glue_tick(1000);
+    UI_GotoGluePanel(tab, NULL, NULL);
+    test_glue_tick(500);
+    UI_GotoGluePanel(tab, NULL, NULL);
+    test_glue_tick(0);
+    T_STREQ(captured_sprite_anim[0], "SinglePlayerSkirmish Morph@0.5000");
+    UI_GotoGluePanel(base, NULL, NULL);
+    test_glue_tick(0);
+    T_STREQ(captured_sprite_anim[0], "SinglePlayerSkirmish Morph@0.5000");
+    test_glue_tick(500);
+    T_STREQ(captured_sprite_anim[0], "SinglePlayerSkirmish Morph Alternate@0.0000");
+    test_glue_tick(667);
+    T_STREQ(captured_sprite_anim[0], "SinglePlayer Stand");
+
+    UI_GotoGluePanel(tab, NULL, NULL);
+    test_glue_tick(500);
+    UI_GotoGluePanel((GLUEDEST){ .panel = UI_GLUE_OPTIONS, .tab = 1 }, NULL, NULL);
+    test_glue_tick(667);
+    test_glue_tick(1000);
+    T_STREQ(captured_sprite_anim[0], "Options Stand Alternate");
+    UI_ResetGlueSceneModels();
+    mi = saved;
+}
+
+TEST(menu_fdf, glue_startup_screen_override_completes_birth) {
+    menuImport_t saved = mi;
+    test_glue_setup();
+    M_MenuCommand("menu_main");
+    test_glue_tick(250);
+    M_MenuCommand("menu_options");
+    T_ASSERT(UI_GetCurrentScreen() == &optionsMenuScreen);
+    T_ASSERT(M_IsTransitioning());
+    test_glue_tick(999);
+    T_ASSERT(M_IsTransitioning());
+    test_glue_tick(1);
+    T_ASSERT(!M_IsTransitioning());
+    T_STREQ(captured_sprite_anim[0], "Options Stand Alternate");
+    M_MenuCommand("menu_ingame");
+    UI_ResetGlueSceneModels();
+    mi = saved;
+}
+
+TEST(menu_fdf, glue_nondefault_tabs_exit_before_entering_next) {
+    menuImport_t saved = mi;
+    test_glue_setup();
+    UI_GotoGluePanel((GLUEDEST){ .panel = UI_GLUE_BATTLENET_CUSTOM, .tab = 1 }, NULL, NULL);
+    test_glue_tick(1000);
+    UI_GotoGluePanel((GLUEDEST){ .panel = UI_GLUE_BATTLENET_CUSTOM, .tab = 2 }, NULL, NULL);
+    test_glue_tick(0);
+    T_STREQ(captured_sprite_anim[0], "BattlenetCustomCreate Death@0.0000");
+    test_glue_tick(667);
+    T_STREQ(captured_sprite_anim[0], "BattlenetAdvancedOptions Morph@0.0000");
+    test_glue_tick(1000);
+    T_STREQ(captured_sprite_anim[0], "BattlenetAdvancedOptions Morph@1.0000");
+    UI_ResetGlueSceneModels();
+    mi = saved;
+}
+
+TEST(menu_fdf, glue_retarget_and_close_deliver_only_latest_completion) {
+    menuImport_t saved = mi;
+    test_glue_setup();
+    UI_GotoGluePanel((GLUEDEST){ .panel = UI_GLUE_MAIN_MENU }, NULL, test_glue_changed);
+    test_glue_tick(500);
+    UI_GotoGluePanel((GLUEDEST){ .panel = UI_GLUE_OPTIONS, .tab = 1 }, NULL, test_glue_changed);
+    test_glue_tick(1000);
+    T_EQ(captured_glue_changes, 1);
+    T_STREQ(captured_sprite_anim[0], "Options Stand Alternate");
+    UI_GotoGluePanel((GLUEDEST){ .panel = UI_GLUE_MAIN_MENU }, test_glue_changed, test_glue_changed);
+    test_glue_tick(300);
+    UI_CloseGluePanel(test_glue_changed);
+    test_glue_tick(367);
+    T_EQ(captured_glue_changes, 2);
+    test_glue_tick(1000);
+    T_EQ(captured_glue_changes, 2);
+    UI_ResetGlueSceneModels();
+    mi = saved;
+}
+
+/* The fixture contains only the original MDLX SEQS chunk, not rendering data. */
+static void test_glue_sequence_exists(LPCSTR anim) {
+    void *data = NULL;
+    int size = test_fs_read_file("UI\\Glues\\SpriteLayers\\TopLeftPanel.mdx", &data);
+    char name[80];
+    BOOL found = false;
+    snprintf(name, sizeof(name), "%s", anim);
+    char *ratio = strchr(name, '@');
+    if (ratio) *ratio = 0;
+    T_ASSERT(size >= 12);
+    if (size >= 12) {
+        const DWORD *head = data;
+        T_EQ(head[0], MAKEFOURCC('M', 'D', 'L', 'X'));
+        T_EQ(head[1], MAKEFOURCC('S', 'E', 'Q', 'S'));
+        T_EQ(head[2], size - 12);
+        const mdxSequence_t *seqs = (const mdxSequence_t *)((const BYTE *)data + 12);
+        FOR_LOOP(i, head[2] / sizeof(*seqs))
+            if (!strcmp(name, seqs[i].name)) found = true;
+    }
+    if (!found) fprintf(stderr, "Test: unauthored glue sequence '%s'\n", name);
+    T_ASSERT(found);
+    free(data);
+}
+
+TEST(menu_fdf, glue_all_tab_sequences_exist_in_authored_model) {
+    menuImport_t saved = mi;
+    const GLUEDEST tabs[] = {
+        { .panel = UI_GLUE_SINGLE_PLAYER, .tab = 1 },
+        { .panel = UI_GLUE_OPTIONS, .tab = 1 },
+        { .panel = UI_GLUE_MULTIPLAYER_PRE_GAME_CHAT, .tab = 1 },
+        { .panel = UI_GLUE_BATTLENET_CUSTOM, .tab = 1 },
+        { .panel = UI_GLUE_BATTLENET_CUSTOM, .tab = 2 },
+    };
+    test_glue_setup();
+    FOR_LOOP(i, sizeof(tabs) / sizeof(tabs[0])) {
+        GLUEDEST base = { .panel = tabs[i].panel };
+        UI_ResetGlueSceneModels();
+        UI_GotoGluePanel(base, NULL, NULL);
+        test_glue_tick(1000);
+        UI_GotoGluePanel(tabs[i], NULL, NULL);
+        test_glue_tick(500);
+        test_glue_sequence_exists(captured_sprite_anim[0]);
+        test_glue_tick(500);
+        test_glue_sequence_exists(captured_sprite_anim[0]);
+        UI_GotoGluePanel(base, NULL, NULL);
+        test_glue_tick(300);
+        test_glue_sequence_exists(captured_sprite_anim[0]);
+    }
     UI_ResetGlueSceneModels();
     mi = saved;
 }
@@ -2284,6 +2491,8 @@ TEST(menu_fdf, main_menu_edition_button_defers_restart_after_death_frame) {
 
     T_ASSERT(mainMenuScreen.load());
     mainMenuScreen.init();
+    UI_ResetGlueSceneModels();
+    UI_GotoGluePanel(mainMenuScreen.glue, NULL, NULL);
     root = UI_FindFrame("MainMenuFrame");
     edition = root ? UI_FindChildFrame(root, "EditionButton") : NULL;
     if (!require_not_null(root) || !require_not_null(edition)) {
@@ -2339,6 +2548,8 @@ TEST(menu_fdf, main_menu_edition_button_rolls_back_when_tft_data_is_missing) {
 
     T_ASSERT(mainMenuScreen.load());
     mainMenuScreen.init();
+    UI_ResetGlueSceneModels();
+    UI_GotoGluePanel(mainMenuScreen.glue, NULL, NULL);
     root = UI_FindFrame("MainMenuFrame");
     if (!require_not_null(root)) {
         hide_expansion_campaign_file = false;

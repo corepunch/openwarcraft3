@@ -1,0 +1,134 @@
+// -- INCLUDE FILES ---------------------------------------------
+
+IncludeFile "UI\FrameDef\Glue\StandardTemplates.fdf",
+
+// -- LOCAL TEMPLATES -------------------------------------------
+
+// -- FRAMES ----------------------------------------------------
+
+Frame "FRAME" "MapInfoPane" {
+
+/*
+    // NOTE: use this highlight to position this guy on any new screens
+    Frame "HIGHLIGHT" "DebugTestFrame" {
+        SetAllPoints,
+        HighlightColor 1.0 0.0 0.0 0.2,
+        HighlightType "SHADE",
+    }
+*/
+
+    Frame "BACKDROP" "MaxPlayersIcon" {
+        Width 0.01875,
+        Height 0.01875,
+        BackdropBlendAll,
+        BackdropBackground  "ui\widgets\glues\icon-file-melee.blp",
+
+        Frame "TEXT" "MaxPlayersValue" INHERITS "StandardSmallTextTemplate" {
+            DecorateFileNames,
+            FrameFont "MasterFont", 0.009, "",
+            SetPoint CENTER, "MaxPlayersIcon", CENTER, 0.0, 0.0,
+        }
+    }
+
+    Frame "TEXT" "MapNameValue" INHERITS "StandardInfoTextTemplate" {
+        SetPoint LEFT, "MaxPlayersIcon", RIGHT, 0.0025, 0.0,
+        FontColor 1.0 1.0 1.0 1.0,
+    }
+
+    Frame "BACKDROP" "AuthIcon" {
+        SetPoint LEFT, "MapNameValue", RIGHT, 0.0025, 0.0,
+        Width 0.01875,
+        Height 0.01875,
+        BackdropBlendAll,
+        BackdropBackground  "ui\widgets\battlenet\chaticons\bnet-blizzard.blp",
+    }
+
+    Frame "SPRITE" "MinimapImage" {
+        Width 0.13125,
+        Height 0.13125,
+    }
+
+    Frame "BACKDROP" "MinimapImageBackdrop" {
+        SetPoint CENTER, "MinimapImage", CENTER, 0.0, 0.002275,
+        Width 0.183125,
+        Height 0.183125,
+        BackdropBlendAll,
+        BackdropBackground  "UI\Widgets\Glues\SinglePlayerSkirmish-MinimapCover3.blp",
+    }
+
+/*
+    // The following frames are needed when MAP_INFO_PANE_SUPPORTS_REPLAY is on.
+
+    Frame "TEXT" "NumPlayersLabel" INHERITS "StandardLabelTextTemplate" {
+        Text "COLON_NUMBER_OF_PLAYERS",
+        FontJustificationV JUSTIFYBOTTOM,
+    }
+
+    Frame "TEXT" "NumPlayersValue" INHERITS "StandardLabelTextTemplate" {
+        SetPoint TOPLEFT, "NumPlayersLabel", TOPLEFT, 0.0, 0.0,
+        FontColor 1.0 1.0 1.0 1.0,
+        FontJustificationH JUSTIFYRIGHT,
+        FontJustificationV JUSTIFYBOTTOM,
+    }
+
+    Frame "TEXT" "ElapsedTimeLabel" INHERITS "StandardLabelTextTemplate" {
+        Text "COLON_ELAPSED_TIME",
+        FontJustificationV JUSTIFYBOTTOM,
+    }
+
+    Frame "TEXT" "ElapsedTimeValue" INHERITS "StandardLabelTextTemplate" {
+        Text "DASH_DASH",
+        SetPoint TOPLEFT, "ElapsedTimeLabel", TOPLEFT, 0.0, 0.0,
+        FontColor 1.0 1.0 1.0 1.0,
+        FontJustificationH JUSTIFYRIGHT,
+        FontJustificationV JUSTIFYBOTTOM,
+    }
+*/
+
+    Frame "TEXT" "SuggestedPlayersLabel" INHERITS "StandardLabelTextTemplate" {
+        Text "COLON_SUGGESTED_PLAYERS",
+        FontJustificationV JUSTIFYBOTTOM,
+    }
+
+    Frame "TEXT" "SuggestedPlayersValue" INHERITS "StandardLabelTextTemplate" {
+        SetPoint TOPLEFT, "SuggestedPlayersLabel", TOPLEFT, 0.0, 0.0,
+        FontColor 1.0 1.0 1.0 1.0,
+        FontJustificationH JUSTIFYRIGHT,
+        FontJustificationV JUSTIFYBOTTOM,
+    }
+
+    Frame "TEXT" "MapSizeLabel" INHERITS "StandardLabelTextTemplate" {
+        Text "COLON_MAP_SIZE",
+        FontJustificationV JUSTIFYBOTTOM,
+    }
+
+    Frame "TEXT" "MapSizeValue" INHERITS "StandardLabelTextTemplate" {
+        SetPoint TOPLEFT, "MapSizeLabel", TOPLEFT, 0.0, 0.0,
+        FontColor 1.0 1.0 1.0 1.0,
+        FontJustificationH JUSTIFYRIGHT,
+        FontJustificationV JUSTIFYBOTTOM,
+    }
+
+    Frame "TEXT" "MapTilesetLabel" INHERITS "StandardLabelTextTemplate" {
+        Text "COLON_TILESET",
+        FontJustificationV JUSTIFYBOTTOM,
+    }
+
+    Frame "TEXT" "MapTilesetValue" INHERITS "StandardLabelTextTemplate" {
+        SetPoint TOPLEFT, "MapTilesetLabel", TOPLEFT, 0.0, 0.0,
+        FontColor 1.0 1.0 1.0 1.0,
+        FontJustificationH JUSTIFYRIGHT,
+        FontJustificationV JUSTIFYBOTTOM,
+    }
+
+    Frame "TEXT" "MapDescLabel" INHERITS "StandardLabelTextTemplate" {
+        Text "COLON_MAP_DESC",
+    }
+
+    Frame "TEXT" "MapDescValue" INHERITS "StandardSmallTextTemplate" {
+        SetPoint TOP, "MapDescLabel", BOTTOM, 0.0, -0.002,
+        FontColor 1.0 1.0 1.0 1.0,
+        FontJustificationV JUSTIFYTOP,
+        FontJustificationH JUSTIFYLEFT,
+    }
+}

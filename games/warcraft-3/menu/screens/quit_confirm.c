@@ -85,7 +85,7 @@ static void QuitConfirm_KeyEvent(int key, BOOL down) {
 
 uiScreen_t quitConfirmScreen = {
     .name = "quit-confirm",
-    .panel = UI_GLUE_MAIN_MENU,
+    .glue = { .panel = UI_GLUE_MAIN_MENU },
     .load = QuitConfirm_LoadScreen,
     .init = QuitConfirm_Init,
     .shutdown = QuitConfirm_Shutdown,

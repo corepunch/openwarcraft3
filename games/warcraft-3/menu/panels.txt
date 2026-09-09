@@ -3,23 +3,31 @@ Warcraft III glue panel animations
 
 Panel and tab groupings (from glue_panels[] in menu_glue_scene.c)
 ------------------------------------------------------------------
-Each panel drives the RIGHT chrome with full Birth/Stand/Death transitions.
-The LEFT chrome uses the active tab's sequences instead:
+UI_GotoGluePanel receives one GLUEDEST {panel, tab}. Full panel transitions
+play the panel's Birth/Death family on both layers. At idle, the right layer
+holds the base Stand and the left uses its explicit tab definition.
 
-  UI_GLUE_MAIN_MENU              tab 0: MainMenu
-  UI_GLUE_REALM_SELECTION        tab 0: RealmSelection
-  UI_GLUE_SINGLE_PLAYER          tab 0: SinglePlayer        (Birth/Stand/Death)
-                                  tab 1: SinglePlayerSkirmish (Morph / Stand / Morph Alternate)
-  UI_GLUE_OPTIONS                tab 0: Options              (Birth/Stand/Death)
-                                  tab 1: Options              (Morph / Stand Alternate / Morph Alternate)
-  UI_GLUE_MULTIPLAYER_PRE_GAME_CHAT  tab 0: MultiplayerPreGameChat
-                                      tab 1: MultiplayerSubmenu (Morph / Morph Alternate)
-  UI_GLUE_BATTLENET_CUSTOM       tab 0: BattlenetCustom
-                                  tab 1: BattlenetCustomCreate      (Morph / Morph Alternate)
-                                  tab 2: BattlenetAdvancedOptions   (Morph / Morph Alternate)
+Panel                           Tab  Enter                      Rest                         Leave
+MainMenu                          0  MainMenu Birth             MainMenu Stand               MainMenu Death
+RealmSelection                    0  RealmSelection Birth       RealmSelection Stand         RealmSelection Death
+SinglePlayer                      0  SinglePlayer Birth         SinglePlayer Stand           SinglePlayer Death
+SinglePlayer                      1  SinglePlayerSkirmish Morph SinglePlayerSkirmish Stand   SinglePlayerSkirmish Morph Alternate
+Options                           0  Options Birth              Options Stand                Options Death
+Options                           1  Options Morph              Options Stand Alternate      Options Morph Alternate
+MultiplayerPreGameChat             0  MultiplayerPreGameChat Birth / Stand / Death
+MultiplayerPreGameChat             1  MultiplayerSubmenu Morph   same Morph held at @1.0000   MultiplayerSubmenu Morph Alternate
+BattlenetCustom                    0  BattlenetCustom Birth      BattlenetCustom Stand        BattlenetCustom Death
+BattlenetCustom                    1  BattlenetCustomCreate Birth BattlenetCustomCreate Stand BattlenetCustomCreate Death
+BattlenetCustom                    2  BattlenetAdvancedOptions Morph / same Morph held at @1.0000 / Morph Alternate
 
-Tab switch animations: when tab_name != panel_name use the tab's own sequences;
-when tab_name == panel_name (Options alt) use the panel's Stand Alternate / Morph family.
+Enter/Leave for nonzero tabs describe tab-only changes, with right chrome at Stand.
+Create has no Morph sequence. Submenu and AdvancedOptions have no Stand sequence.
+These are explicit authored families, not names generated from a shared suffix rule.
+Repeated/reversed requests finish the running morph before honoring the latest tab.
+Two non-default tabs transition through tab zero.
+
+Ownership, diagnostics, and regression coverage:
+  docs/games/warcraft-3/architecture/ui-flow.md
 
 Models:
   ROC  UI\Glues\SpriteLayers\TopLeftPanel.mdx   347104 bytes

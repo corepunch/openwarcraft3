@@ -57,14 +57,15 @@ typedef enum {
     UI_GLUE_PANEL_COUNT,
 } uiGluePanel_t;
 
+typedef struct { uiGluePanel_t panel; int tab; } GLUEDEST;
+typedef GLUEDEST *LPGLUEDEST;
+typedef const GLUEDEST *LPCGLUEDEST;
+
 void UI_ResetGlueSceneModels(void);
 void UI_ReleaseGlueSceneModels(void);
 void UI_PreloadGlueSceneModels(void);
 typedef void (*uiGluePanelChanged_f)(void);
-void UI_GotoGluePanel(uiGluePanel_t panel, uiGluePanelChanged_f changed);
-void UI_GotoGluePanelTransition(uiGluePanel_t panel, uiGluePanelChanged_f exited, uiGluePanelChanged_f changed);
-void UI_RetargetGluePanel(uiGluePanel_t panel, uiGluePanelChanged_f exited, uiGluePanelChanged_f changed);
-void UI_SetGlueTab(int tab);
+void UI_GotoGluePanel(GLUEDEST dest, uiGluePanelChanged_f exited, uiGluePanelChanged_f changed);
 void UI_CloseGluePanel(uiGluePanelChanged_f changed);
 void UI_DrawGlueScene(void);
 BOOL UI_GetGlueScreenOffset(LPVECTOR2 offset);

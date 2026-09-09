@@ -384,8 +384,7 @@ void OptionsMenu_Apply(void) {
 
 uiScreen_t optionsMenuScreen = {
     .name = "options",
-    .panel = UI_GLUE_OPTIONS,
-    .tab = 1,
+    .glue = { .panel = UI_GLUE_OPTIONS, .tab = 1 },
     .load = OptionsMenu_LoadScreen,
     .init = OptionsMenu_Init,
     .shutdown = OptionsMenu_Shutdown,

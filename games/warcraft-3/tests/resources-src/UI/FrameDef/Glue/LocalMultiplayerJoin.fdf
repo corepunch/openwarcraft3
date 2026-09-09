@@ -1,0 +1,190 @@
+// -- INCLUDE FILES ---------------------------------------------------------
+
+IncludeFile "UI\FrameDef\Glue\StandardTemplates.fdf",
+
+// -- LOCAL TEMPLATES -------------------------------------------------------
+
+// -- FRAMES ----------------------------------------------------------------
+
+Frame "FRAME" "LocalMultiplayerJoin" INHERITS "StandardFrameTemplate" {
+    SetAllPoints,
+    TabFocusPush,
+
+    //*************************
+    //*
+    //* Game List Panel
+    //*
+    //*******
+
+    Frame "FRAME" "GameListPanel" {
+
+        Frame "TEXT" "GameListTitle" INHERITS "StandardTitleTextTemplate" {
+            SetPoint TOPLEFT, "LocalMultiplayerJoin", TOPLEFT, 0.02625, -0.039,
+            Text "LOCAL_NETWORK_GAMES",
+        }
+
+        Frame "TEXT" "PlayerNameLabel" INHERITS "StandardLabelTextTemplate" {
+            SetPoint TOPLEFT, "GameListTitle", BOTTOMLEFT, 0.0, -0.02,
+            Text "PLAYER_NAME",
+        }
+
+        Frame "EDITBOX" "PlayerNameEditBox" INHERITS WITHCHILDREN "StandardEditBoxTemplate" {
+            Width 0.37,
+            SetPoint TOPLEFT, "PlayerNameLabel", BOTTOMLEFT, 0.0, -0.001,
+            TabFocusDefault,
+            TabFocusNext "LoadButton",
+        }
+
+        Frame "TEXT" "GameListLabel" INHERITS "StandardLabelTextTemplate" {
+            SetPoint TOPLEFT, "PlayerNameEditBox", BOTTOMLEFT, 0.0, -0.02,
+            Text "COLON_GAMES",
+        }
+
+        Frame "FRAME" "GameListContainer" {
+            Width 0.37,
+            Height 0.275,
+            SetPoint TOPLEFT, "PlayerNameEditBox", BOTTOMLEFT, 0.0, -0.033,
+        }
+    }
+
+    //*************************
+    //*
+    //* Game Summary Panel
+    //*
+    //*******
+
+    Frame "FRAME" "GameSummaryPanel" {
+
+        Frame "FRAME" "MapInfoPaneContainer" {
+            Width 0.271875,
+            Height 0.223125,
+            SetPoint TOP, "LocalMultiplayerJoin", TOPRIGHT, -0.180625, -0.0375,
+        }
+
+        Frame "TEXT" "GameCreatorLabel" INHERITS "StandardLabelTextTemplate" {
+            Width 0.271875,
+            SetPoint TOP, "MapInfoPaneContainer", BOTTOM, 0.0, -0.005,
+
+            Text "COLON_GAME_CREATOR",
+        }
+
+        Frame "TEXT" "GameCreatorValue" INHERITS "StandardLabelTextTemplate" {
+            Width 0.271875,
+            SetPoint TOPLEFT, "GameCreatorLabel", TOPLEFT, 0.0, 0.0,
+
+            FontColor 1.0 1.0 1.0 1.0,
+            FontJustificationH JUSTIFYRIGHT,
+        }
+
+        Frame "TEXT" "GameSpeedLabel" INHERITS "StandardLabelTextTemplate" {
+            Width 0.271875,
+            SetPoint TOP, "GameCreatorLabel", BOTTOM, 0.0, -0.002,
+
+            Text "COLON_GAME_SPEED",
+        }
+
+        Frame "TEXT" "GameSpeedValue" INHERITS "StandardLabelTextTemplate" {
+            Width 0.271875,
+            SetPoint TOPLEFT, "GameSpeedLabel", TOPLEFT, 0.0, 0.0,
+
+            FontColor 1.0 1.0 1.0 1.0,
+            FontJustificationH JUSTIFYRIGHT,
+        }
+
+        Frame "FRAME" "AdvancedOptionsContainer" {
+            Height 0.125,
+            Width 0.271875,
+            SetPoint TOP, "GameSpeedLabel", BOTTOM, 0.0, -0.0145,
+        }
+    }
+
+
+    //*************************
+    //*
+    //* Game Setup Panel
+    //*
+    //*******
+
+    Frame "TEXT" "CustomCreateTitle" INHERITS "StandardTitleTextTemplate" {
+        SetPoint TOPLEFT, "LocalMultiplayerJoin", TOPLEFT, 0.02625, -0.4875,
+        Text "LAN_GAME_SETUP_TITLE",
+    }
+
+    Frame "TEXT" "CustomCreateInfo" INHERITS "StandardInfoTextTemplate" {
+        SetPoint TOPLEFT, "CustomCreateTitle", BOTTOMLEFT, 0.0, -0.001875,
+        Text "LAN_GAME_SETUP_INFO",
+    }
+
+    Frame "BACKDROP" "CreateBackdrop" INHERITS "StandardMenuSmallButtonBaseBackdrop" {
+        BackdropMirrored,
+        SetPoint BOTTOMLEFT,"LocalMultiplayerJoin",BOTTOMLEFT, 0.24, 0.013,
+
+        Frame "GLUETEXTBUTTON" "CreateButton" INHERITS WITHCHILDREN "StandardButtonTemplate" {
+            Width 0.128,
+            SetPoint TOPLEFT,"CreateBackdrop",TOPLEFT, 0.012, -0.0165,
+            ControlShortcutKey "C",
+            TabFocusNext "JoinButton",
+
+            ButtonText "CreateButtonText",
+            Frame "TEXT" "CreateButtonText" INHERITS "StandardButtonTextTemplate" {
+                Text "KEY_CREATE_GAME",
+            }
+        }
+    }
+
+    Frame "BACKDROP" "LoadBackdrop" INHERITS "StandardMenuSmallButtonBaseBackdrop" {
+        BackdropMirrored,
+        SetPoint RIGHT,"CreateBackdrop",LEFT, 0.0975, 0.0,
+
+        Frame "GLUETEXTBUTTON" "LoadButton" INHERITS WITHCHILDREN "StandardButtonTemplate" {
+            Width 0.128,
+            SetPoint TOPLEFT,"LoadBackdrop",TOPLEFT, 0.012, -0.0165,
+            ControlShortcutKey "L",
+            TabFocusNext "CreateButton",
+
+            ButtonText "LoadButtonText",
+            Frame "TEXT" "LoadButtonText" INHERITS "StandardButtonTextTemplate" {
+                Text "KEY_LOAD_GAME",
+            }
+        }
+    }
+
+    //*************************
+    //*
+    //* Bottom Buttons
+    //*
+    //*******
+
+    Frame "BACKDROP" "JoinBackdrop" INHERITS "StandardMenuButtonBaseBackdrop" {
+        Width 0.24,
+        SetPoint TOPRIGHT,"LocalMultiplayerJoin",BOTTOMRIGHT, -0.014375, 0.124375,
+
+        Frame "GLUETEXTBUTTON" "JoinButton" INHERITS WITHCHILDREN "StandardButtonTemplate" {
+            Width 0.168,
+            SetPoint TOPRIGHT,"JoinBackdrop",TOPRIGHT, -0.012, -0.0165,
+            ControlShortcutKey "J",
+            TabFocusNext "CancelButton",
+
+            ButtonText "JoinButtonText",
+            Frame "TEXT" "JoinButtonText" INHERITS "StandardButtonTextTemplate" {
+                Text "KEY_JOIN_GAME",
+            }
+        }
+    }
+
+    Frame "BACKDROP" "CancelBackdrop" INHERITS "StandardMenuButtonBaseBackdrop" {
+        Width 0.24,
+        SetPoint TOPRIGHT,"JoinBackdrop",BOTTOMRIGHT, 0.0, 0.015,
+
+        Frame "GLUETEXTBUTTON" "CancelButton" INHERITS WITHCHILDREN "StandardButtonTemplate" {
+            Width 0.168,
+            SetPoint TOPRIGHT,"CancelBackdrop",TOPRIGHT, -0.012, -0.0165,
+            ControlShortcutKey "A",
+
+            ButtonText "CancelButtonText",
+            Frame "TEXT" "CancelButtonText" INHERITS "StandardButtonTextTemplate" {
+                Text "KEY_CANCEL",
+            }
+        }
+    }
+}

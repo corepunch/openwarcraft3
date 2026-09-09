@@ -94,65 +94,25 @@ static BOOL UI_IsMapCommand(LPCSTR command) {
 }
 
 
-static void UI_SetScreen(uiScreen_t *screen) {
-    uiScreen_t *previous_screen = ui_current_screen;
+/* Resolve resources before changing presentation; failure leaves the old screen intact. */
+static BOOL UI_LoadScreen(uiScreen_t *screen) {
+    if (!screen || screen == ui_current_screen || !screen->load || screen->load()) return true;
+    fprintf(stderr, "UI: failed to load screen '%s'\n", screen->name);
+    return false;
+}
 
-    if (ui_current_screen == screen) {
-        return;
-    }
-
-    fprintf(stderr,
-            "UI_SetScreen: %s -> %s\n",
-            ui_current_screen ? ui_current_screen->name : "(null)",
-            screen ? screen->name : "(null)");
-
-    if (!screen) {
-        if (ui_current_screen && ui_current_screen->shutdown) {
-            fprintf(stderr,
-                    "UI_SetScreen: shutting down screen '%s'\n",
-                    ui_current_screen->name);
-            ui_current_screen->shutdown();
-        }
-        ui_current_screen = NULL;
-        return;
-    }
-    if (screen->load && !screen->load()) {
-        fprintf(stderr,
-                "UI_SetScreen: failed to load screen '%s', keeping '%s'\n",
-                screen->name,
-                previous_screen ? previous_screen->name : "(null)");
-        if (mi.Printf) {
-            mi.Printf("UI_SetScreen: failed to load screen '%s'\n", screen->name);
-        }
-        return;
-    }
-    if (ui_current_screen && ui_current_screen->shutdown) {
-        fprintf(stderr,
-                "UI_SetScreen: shutting down screen '%s'\n",
-                ui_current_screen->name);
-        ui_current_screen->shutdown();
-    }
+/* Installation never requests chrome: it also runs from animation callbacks. */
+static void UI_InstallScreen(uiScreen_t *screen) {
+    if (ui_current_screen == screen) return;
+    fprintf(stderr, "UI_SetScreen: %s -> %s\n", ui_current_screen ? ui_current_screen->name : "(null)", screen ? screen->name : "(null)");
+    if (ui_current_screen && ui_current_screen->shutdown) ui_current_screen->shutdown();
     ui_current_screen = screen;
-    if (screen->panel != UI_GLUE_NONE) {
-        UI_GotoGluePanel(screen->panel, NULL);
-        UI_SetGlueTab(screen->tab);
-    }
-    if (screen->init) {
-        fprintf(stderr, "UI_SetScreen: initializing screen '%s'\n", screen->name);
-        screen->init();
-    }
+    if (screen && screen->init) screen->init();
 }
 
-static void UI_FinishScreenTransition(void) {
-    uiScreen_t *screen = ui_state.transition_screen;
+static void UI_FinishScreenTransition(void) { ui_state.transition_screen = NULL; }
 
-    ui_state.transition_screen = NULL;
-    UI_SetScreen(screen);
-}
-
-static void UI_BeginScreenTransition(void) {
-    UI_SetScreen(ui_state.transition_screen);
-}
+static void UI_BeginScreenTransition(void) { UI_InstallScreen(ui_state.transition_screen); }
 
 static void UI_FinishActionTransition(void) {
     void (*action)(void) = ui_state.transition_action;
@@ -161,17 +121,24 @@ static void UI_FinishActionTransition(void) {
     action();
 }
 
+/* Direct menu commands install their controls immediately so subsequent
+ * subpanel commands can configure them. Only this owner requests the chrome. */
+static void UI_SetScreen(uiScreen_t *screen) {
+    if (!UI_LoadScreen(screen)) return;
+    UI_InstallScreen(screen);
+    ui_state.transition_screen = NULL;
+    ui_state.transition_action = NULL;
+    UI_GotoGluePanel(screen ? screen->glue : (GLUEDEST){0}, NULL, NULL);
+}
+
+/* Load before leaving: a failed destination must not replace the chrome while
+ * retaining the old screen. The boundary callback only installs controls. */
 static void UI_TransitionToScreen(uiScreen_t *screen) {
-    /* Late +menu_* commands must be able to replace the default menu_main Birth queued by CL_Init. */
     if (ui_state.transition_action || ui_state.transition_screen == screen) return;
-    if (screen->panel == UI_GLUE_NONE) { UI_SetScreen(screen); return; }
-    if (ui_state.transition_screen) {
-        ui_state.transition_screen = screen;
-        UI_RetargetGluePanel(screen->panel, UI_BeginScreenTransition, UI_FinishScreenTransition);
-        return;
-    }
+    if (!screen->glue.panel) { UI_SetScreen(screen); return; }
+    if (!UI_LoadScreen(screen)) return;
     ui_state.transition_screen = screen;
-    UI_GotoGluePanelTransition(screen->panel, UI_BeginScreenTransition, UI_FinishScreenTransition);
+    UI_GotoGluePanel(screen->glue, UI_BeginScreenTransition, UI_FinishScreenTransition);
 }
 
 void M_TransitionToAction(void (*action)(void)) {
@@ -292,6 +259,7 @@ static void UI_MenuDisconnected_f(void) {
 static void UI_MenuRealmSelect_f(void) {
     UI_SetScreen(&mainMenuScreen);
     MainMenu_ShowRealmSelect();
+    UI_GotoGluePanel((GLUEDEST){ .panel = UI_GLUE_REALM_SELECTION }, NULL, NULL);
 }
 
 static void UI_MenuOptionsGameplay_f(void) {

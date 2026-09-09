@@ -1,0 +1,178 @@
+// -- INCLUDE FILES ---------------------------------------------------------
+
+IncludeFile "UI\FrameDef\Glue\StandardTemplates.fdf",
+
+// -- LOCAL TEMPLATES -------------------------------------------------------
+
+// -- FRAMES ----------------------------------------------------------------
+
+Frame "FRAME" "LocalMultiplayerCreate" INHERITS "StandardFrameTemplate" {
+    SetAllPoints,
+
+    //*************************
+    //*
+    //* Game Settings Panel
+    //*
+    //*******
+
+    Frame "FRAME" "GameSettingsPanel" {
+
+        Frame "TEXT" "GameSettingsTitle" INHERITS "StandardTitleTextTemplate" {
+            SetPoint TOPLEFT, "LocalMultiplayerCreate", TOPLEFT, 0.02625, -0.039,
+            Text "CREATE_GAME_SETTINGS",
+        }
+
+        Frame "TEXT" "GameSpeedLabel" INHERITS "StandardLabelTextTemplate" {
+            SetPoint TOPLEFT, "GameSettingsTitle", BOTTOMLEFT, 0.0, -0.01625,
+            Text "COLON_GAME_SPEED",
+        }
+
+        Frame "BACKDROP" "GameSpeedSliderBackdrop" {
+            Height 0.032,
+            Width 0.256,
+            SetPoint TOPLEFT, "GameSpeedLabel", BOTTOMLEFT, 0.0, -0.001,
+            BackdropBlendAll,
+            BackdropBackground  "UI\Widgets\BattleNet\bnet-slider-bar3.blp",
+
+            Frame "SLIDER" "GameSpeedSlider" {
+                Height 0.032,
+                Width 0.23725,
+                SetPoint CENTER, "GameSpeedSliderBackdrop", CENTER, -0.00125, -0.0003,
+
+                SliderMinValue 0,
+                SliderMaxValue 2,
+                SliderInitialValue 2,
+                SliderStepSize 1,
+                SliderLayoutHorizontal,
+
+                SliderThumbButtonFrame "GameSpeedThumbButton",
+                Frame "BUTTON" "GameSpeedThumbButton" {
+                    Width 0.016,
+                    Height 0.016,
+
+                    ControlBackdrop "GameSpeedThumbButtonBackdrop",
+                    Frame "BACKDROP" "GameSpeedThumbButtonBackdrop" {
+                        BackdropBlendAll,
+                        BackdropBackground  "UI\Widgets\Glues\SinglePlayerSkirmish-ScrollBarKnob.blp",
+                    }
+
+                    ControlDisabledBackdrop "GameSpeedThumbButtonDisabledBackdrop",
+                    Frame "BACKDROP" "GameSpeedThumbButtonDisabledBackdrop" {
+                        BackdropBlendAll,
+                        BackdropBackground  "UI\Widgets\Glues\SinglePlayerSkirmish-ScrollBarKnobDisabled.blp",
+                    }
+                }
+            }
+        }
+
+        Frame "TEXT" "GameSpeedValue" INHERITS "StandardLabelTextTemplate" {
+            SetPoint LEFT, "GameSpeedSlider", RIGHT, 0.015, 0.0,
+        }
+
+    Frame "TEXT" "MapListLabel" INHERITS "StandardLabelTextTemplate" {
+        SetPoint TOPLEFT, "GameSpeedLabel", BOTTOMLEFT, 0.0, -0.04625,
+        Text "COLON_SELECT_MAP",
+    }
+
+        Frame "FRAME" "MapListContainer" {
+            Width 0.375,
+            Height 0.29,
+            SetPoint TOPLEFT, "MapListLabel", BOTTOMLEFT, 0.0, -0.001,
+        }
+    }
+
+    //*************************
+    //*
+    //* Map Summary Panel
+    //*
+    //*******
+
+    Frame "FRAME" "MapInfoPanel" {
+        Frame "FRAME" "MapInfoPaneContainer" {
+            Width 0.271875,
+            Height 0.323125,
+            SetPoint TOP, "LocalMultiplayerCreate", TOPRIGHT, -0.180625, -0.0375,
+        }
+
+        Frame "BACKDROP" "MapInfoBackdrop" INHERITS "StandardMenuSingleLargeButtonBaseBackdrop" {
+                SetPoint TOPRIGHT,"LocalMultiplayerCreate",TOPRIGHT, -0.055, -0.38,
+
+            Frame "GLUETEXTBUTTON" "MapInfoButton" INHERITS WITHCHILDREN "StandardButtonTemplate" {
+            Width 0.187,
+                    SetPoint TOPRIGHT,"MapInfoBackdrop",TOPRIGHT, -0.032, -0.015625,
+            ControlShortcutKey "O",
+                    TabFocusNext "CreateGameButton",
+
+                    ButtonText "MapInfoButtonText",
+                Frame "TEXT" "MapInfoButtonText" INHERITS "StandardButtonTextTemplate" {
+                    Text "KEY_ADVANCED_OPTIONS",
+                }
+            }
+        }
+    }
+
+    Frame "FRAME" "AdvancedOptionsPanel" {
+        Frame "FRAME" "AdvancedOptionsPaneContainer" {
+            Width 0.271875,
+            Height 0.323125,
+            SetPoint TOP, "LocalMultiplayerCreate", TOPRIGHT, -0.180625, -0.0375,
+        }
+
+        Frame "BACKDROP" "AdvancedOptionsBackdrop" INHERITS "StandardMenuSingleLargeButtonBaseBackdrop" {
+                SetPoint TOPRIGHT,"LocalMultiplayerCreate",TOPRIGHT, -0.055, -0.38,
+
+            Frame "GLUETEXTBUTTON" "AdvancedOptionsButton" INHERITS WITHCHILDREN "StandardButtonTemplate" {
+            Width 0.187,
+                    SetPoint TOPRIGHT,"AdvancedOptionsBackdrop",TOPRIGHT, -0.032, -0.015625,
+            ControlShortcutKey "M",
+                    TabFocusNext "CreateGameButton",
+
+                    ButtonText "AdvancedOptionsButtonText",
+                Frame "TEXT" "AdvancedOptionsButtonText" INHERITS "StandardButtonTextTemplate" {
+                    Text "KEY_MAP_INFO",
+                }
+            }
+        }
+    }
+
+    //*************************
+    //*
+    //* Bottom Buttons
+    //*
+    //*******
+
+    Frame "BACKDROP" "PlayBackdrop" INHERITS "StandardMenuButtonBaseBackdrop" {
+        Width 0.24,
+        SetPoint TOPRIGHT,"LocalMultiplayerCreate",BOTTOMRIGHT,-0.014375,0.124375,
+
+        Frame "GLUETEXTBUTTON" "PlayButton" INHERITS WITHCHILDREN "StandardButtonTemplate" {
+            Width 0.168,
+            SetPoint TOPRIGHT,"PlayBackdrop",TOPRIGHT, -0.012, -0.0165,
+            ControlShortcutKey "C",
+            TabFocusDefault,
+            TabFocusNext "CancelButton",
+
+            ButtonText "PlayButtonText",
+            Frame "TEXT" "PlayButtonText" INHERITS "StandardButtonTextTemplate" {
+                Text "KEY_CREATE_GAME",
+            }
+        }
+    }
+
+    Frame "BACKDROP" "CancelBackdrop" INHERITS "StandardMenuButtonBaseBackdrop" {
+        Width 0.24,
+        SetPoint TOPRIGHT,"PlayBackdrop",BOTTOMRIGHT, 0.0, 0.015,
+
+        Frame "GLUETEXTBUTTON" "CancelButton" INHERITS WITHCHILDREN "StandardButtonTemplate" {
+            Width 0.168,
+            SetPoint TOPRIGHT,"CancelBackdrop",TOPRIGHT, -0.012, -0.0165,
+            ControlShortcutKey "A",
+            TabFocusNext "PlayButton",
+
+            ButtonText "CancelButtonText",
+            Frame "TEXT" "CancelButtonText" INHERITS "StandardButtonTextTemplate" {
+                Text "KEY_CANCEL",
+            }
+        }
+    }
+}
