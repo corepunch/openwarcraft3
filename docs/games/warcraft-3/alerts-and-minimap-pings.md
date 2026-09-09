@@ -54,6 +54,25 @@ For rectangular Warcraft maps, world-space minimap content must **not** be stret
 
 `MDLX_DrawSpriteTinted()` temporarily replaces `tr.viewDef`. Because minimap pings are drawn after the world, it must restore the previous `tr.viewDef` after its sprite pass; otherwise a post-world sprite can corrupt renderer state expected by subsequent HUD/overlay work.
 
+### Camera outline and portrait view ownership
+
+`R_DrawMinimapCameraRect()` projects the gameplay viewport corners onto the ground plane. It skips views marked
+`RDF_NOWORLDMODEL` or `RDF_NOFRUSTUMCULL`. The selected-unit portrait can render before the minimap, so
+`R_RenderFrame()` in `renderer/r_view.c` must restore the previous `tr.viewDef` after a no-world scene, including
+the entity-camera early return. World renders retain their new view for later HUD consumers.
+
+A bounded Human02 trace confirmed the missing outline was caused by the portrait leaving flags `0x2d` and its small
+viewport in `tr.viewDef`; the minimap returned before projecting any corners. Minimap clicks still moved the camera.
+Restoring the world view produced flags zero and four projected corners, with the outline visible under both ROC and
+TFT archives. `git blame` traces the entity-camera early return to `b6349c392`; GL viewport restoration alone did not
+restore the renderer's camera state.
+
+`make test-renderer-view` exercises the production frame function with mocked game/GPU passes: authored portrait
+cameras, missing model cameras, empty entity-camera scenes, ordinary no-world scenes, and subsequent world frames.
+Removing view restoration makes all four no-world cases fail. For visual verification, load Human02 with a bounded
+frame limit, skip its intro via `cinematic stop` after connection with cheats enabled, and capture the HUD with a unit
+selected. See [renderer view ownership](../../renderer-backend.md#view-ownership).
+
 ## Recent Alert History And Space
 
 The generic minimap client keeps the latest eight positions from packets carrying `MINIMAP_PING_REMEMBER`. New entries are inserted newest-first and evict the oldest when full.

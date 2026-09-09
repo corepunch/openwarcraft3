@@ -372,6 +372,7 @@ SPRITEPROG *R_SpriteShader(SHADERTYPE type);
 void R_RenderShadowMap(void);
 #endif
 void R_RenderView(void);
+void R_SetupGL(bool drawLight);
 void R_SetupViewport(LPCRECT r);
 void R_SetupScissor(LPCRECT r);
 void R_RevertSettings(void);
