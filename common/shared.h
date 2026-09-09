@@ -194,6 +194,8 @@ enum {
     FLAG(RF_NOT_SELECTABLE, 19), /* render normally but exclude from world hit/box selection */
     FLAG(RF_NEUTRAL, 20),        /* neutral/passive relationship presentation */
     FLAG(RF_BUILDING, 21),       /* WC3 structure; enables building-only presentation */
+    FLAG(RF_GROUND_CONFORM, 22), /* presentation: conform entity Z to authored model ground surfaces */
+    FLAG(RF_GROUND_SURFACE, 23), /* presentation: model may provide an authored walkable support surface */
 };
 
 enum {
@@ -210,6 +212,8 @@ enum {
     FLAG(EF_HOVER_HEALTH, 8),   /* client may expose this entity's health on world hover */
     FLAG(EF_NEUTRAL, 9),        /* neutral/passive relationship to this snapshot recipient */
     FLAG(EF_BUILDING, 10),      /* WC3 structure presentation metadata */
+    FLAG(EF_GROUND_CONFORM, 11), /* presentation: conform entity Z to authored model ground surfaces */
+    FLAG(EF_GROUND_SURFACE, 12), /* presentation: entity model provides an authored support surface */
 };
 
 enum {
@@ -626,6 +630,7 @@ typedef struct entityState_s {
     FLOAT scale;
     FLOAT radius;
     FLOAT collision;    /* gameplay collision radius when a client preview must mirror occupancy */
+    FLOAT ground_offset; /* presentation: current altitude above the authoritative support surface (WC3 FlyHeight) */
     BYTE stats[ENT_STAT_COUNT];
     BYTE player;
     BYTE model;

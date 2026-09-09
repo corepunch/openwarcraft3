@@ -922,6 +922,7 @@ void R_RenderFrame(viewDef_t const *viewDef) {
         tr.viewDef.time = SDL_GetTicks();
     }
     R_SetupEnvironmentLighting();
+    R_ConformGroundSurfaces(&tr.viewDef);
 
     if (!tr.viewDef.scissor.w && !tr.viewDef.scissor.h) {
         tr.viewDef.scissor = (RECT){0, 0, 1, 1};

@@ -25,6 +25,22 @@ The resource lookup is data-driven: `dest_schema` maps the `pathTex` and
 formats used by WC3 pathing resources. It validates the complete header, ID
 field, dimensions, allocation size, and pixel payload before decoding.
 
+## Walkable Model Height
+
+Walkable destructable routing remains a 2D pathing concern, but their visible
+support height is model-authored. Live `walkable` destructables publish
+`EF_GROUND_SURFACE`; non-floating units publish `EF_GROUND_CONFORM`. The client
+maps those to renderer flags, and the WC3 renderer casts a vertical ray through
+each candidate surface with `MDLX_TraceModel`. It replaces the server's coarse
+`surface->s.origin.z` support with the highest MDX intersection while preserving
+the server-authored vertical offset (including mutable `FlyHeight`).
+
+This deliberately does not modify `routing.c`, `g_ai.c`, or the static pathing
+bake. `pathTex`/`pathTexDeath` remain authoritative for where units may route;
+the MDX trace is presentation-only and determines how the actor follows the
+bridge deck in Z. Dead or placement-disabled destructables clear
+`EF_GROUND_SURFACE`, so their retained Death geometry cannot lift units.
+
 ## Combat And Death
 
 Both explicit attack orders and contextual right-click orders accept an alive,

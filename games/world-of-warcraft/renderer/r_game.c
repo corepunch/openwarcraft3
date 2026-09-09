@@ -131,6 +131,10 @@ void R_SetupEnvironmentLighting(void) {
     tr.viewDef.entityLight = sun;
 }
 
+void R_ConformGroundSurfaces(viewDef_t *viewdef) {
+    (void)viewdef;
+}
+
 void R_DrawWorld(void) {
     Wow_DrawWorld();
 }
