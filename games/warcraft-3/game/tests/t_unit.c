@@ -73,6 +73,7 @@ static LPEDICT make_world_item(DWORD class_id) {
     item->class_id = class_id;
     G_BindEntityData(item);
     item->s.model = 1;
+    item->targtype = TARG_ITEM;
     item->item.in_world = true;
     item->item.inventory_slot = -1;
     return item;

@@ -128,7 +128,11 @@ BOOL G_IsItem(LPCEDICT item) {
     if (!item || !item->inuse || !item->class_id) {
         return false;
     }
-    return item->item.in_world || item->item.carrier || item->data.ItemData->file != NULL;
+    /* The item state shares storage with other entity kinds; classify by the
+     * target type before reading it so destructables cannot be mistaken for
+     * items and dereference the wrong data union member. */
+    return item->targtype == TARG_ITEM &&
+        (item->item.in_world || item->item.carrier || (item->data.ItemData && item->data.ItemData->file));
 }
 
 static DWORD G_InventoryRequiredUpgrade(DWORD ability_id) {
