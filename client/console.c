@@ -30,11 +30,9 @@ static keydest_t con_prev_key_dest = key_game;
 static void CON_PrintCvarResult(LPCSTR command);
 static void CON_CompleteInput(void);
 
+/* Whole atlas-pixel multiples replace fractional scaling (2x, not 2.25x, at 1080p). */
 static float CON_ScaleForWindow(size2_t window) {
-    float scale_x = window.width / CON_BASE_WIDTH;
-    float scale_y = window.height / CON_BASE_HEIGHT;
-
-    return MAX(1.0f, MIN(scale_x, scale_y));
+    return MAX(1.0f, floorf(MIN(window.width / CON_BASE_WIDTH, window.height / CON_BASE_HEIGHT)));
 }
 
 static void CON_DrawChar(float x, float y, int c, float scale) {

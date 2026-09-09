@@ -1145,7 +1145,6 @@ refExport_t R_GetAPI(refImport_t imp) {
         .DrawChar = R_DrawChar,
         .DrawString = R_DrawString,
         .DrawCharScaled = R_DrawCharScaled,
-        .DrawStringScaled = R_DrawStringScaled,
         .DrawFill = R_DrawFill,
         .GetWindowSize = R_GetWindowSize,
         .GetUISceneRect = R_UISceneRect,

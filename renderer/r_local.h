@@ -452,7 +452,6 @@ void R_ShutdownFonts(void);
 VECTOR2 R_GetTextSize(LPCDRAWTEXT drawText);
 void R_DrawText(LPCDRAWTEXT drawText);
 void R_DrawString(int x, int y, LPCSTR text);
-void R_DrawStringScaled(float x, float y, LPCSTR text, float scale);
 /* One thousandth of a pixel in normalized UI space is exact enough for glyph-fit decisions. */
 static inline BOOL R_TextFitsWidth(FLOAT remaining) { return remaining >= -0.000001f; }
 
