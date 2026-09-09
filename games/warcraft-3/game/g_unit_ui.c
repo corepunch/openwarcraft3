@@ -288,6 +288,10 @@ static void G_AddAbilityCommandButtons(LPEDICT ent, gameCommandButton_t *buttons
     DWORD rawcode;
 
     if (!ability || !ability->cmd || strlen(code) != 4 || *count >= max_buttons) return;
+    /* Stand Down only has meaning while a Burrow contains cargo. Resolve by
+     * implementation pointer rather than rawcode so custom abilities derived
+     * from Astd inherit the same visibility rule. */
+    if (ability == &a_stand_down && (!S_CargoIsBurrow(ent) || ent->cargo.count == 0)) return;
     memcpy(&rawcode, code, sizeof(rawcode));
     if (G_HasCommandRawcode(buttons, *count, rawcode)) return;
     idx = *count;
@@ -356,6 +360,8 @@ BYTE G_GetCommandButtons(LPEDICT ent, gameCommandButton_t *buttons, BYTE max_but
     UnitBalance_t const *b;
     UnitWeapons_t const *w;
     UnitAbilities_t const *a;
+    BOOL is_burrow;
+    BOOL burrow_occupied;
 
     if (!ent || !ent->class_id || !buttons) {
         return 0;
@@ -364,6 +370,8 @@ BYTE G_GetCommandButtons(LPEDICT ent, gameCommandButton_t *buttons, BYTE max_but
     b = ent->data.UnitBalance;
     w = ent->data.UnitWeapons;
     a = ent->data.UnitAbilities;
+    is_burrow = S_CargoIsBurrow(ent);
+    burrow_occupied = is_burrow && ent->cargo.count > 0;
 
     /* Construction has its own command-card state.  Returning no buttons for
      * every birth move made spawned Human buildings impossible to cancel. */
@@ -380,9 +388,21 @@ BYTE G_GetCommandButtons(LPEDICT ent, gameCommandButton_t *buttons, BYTE max_but
         G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdHoldPos, false, 0);
         G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdPatrol, false, 0);
         G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdStop, false, 0);
+    } else if (burrow_occupied) {
+        /* Burrows are immobile, but Stop is meaningful once their Peons have
+         * enabled the building attack: it cancels the current attack/order. */
+        G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdStop, false, 0);
     }
-    if (w->attack1.damageDice != 0) {
+    if (w->attack1.damageDice != 0 && (!is_burrow || burrow_occupied)) {
         G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdAttack, false, 0);
+    }
+    /* Some WC3 data paths expose the Burrow hold/battle-stations abilities
+     * without listing Astd in UnitAbilities.  Stand Down is nevertheless a
+     * state command of an occupied Burrow, so synthesize its stock command
+     * button while cargo exists.  G_AddAbilityCommandButtons() deduplicates
+     * it if Astd is also present in the authored ability list. */
+    if (burrow_occupied) {
+        G_AddAbilityCommandButtons(ent, buttons, max_buttons, &count, "Astd");
     }
     if (G_UnitProfile(ent->class_id)->builds) {
         G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdBuild, false, 0);

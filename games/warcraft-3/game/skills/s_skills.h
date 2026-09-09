@@ -66,6 +66,7 @@ extern ability_t a_entangled_mine;
 extern ability_t a_cargo_hold;
 extern ability_t a_cargo_hold_burrow;
 extern ability_t a_cargo_hold_entangled_mine;
+extern ability_t a_battlestations;
 extern ability_t a_stand_down;
 extern ability_t a_load;
 extern ability_t a_drop;

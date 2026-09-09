@@ -739,13 +739,14 @@ DWORD IsUnitIllusion(LPJASS j) {
     return jass_pushboolean(j, whichUnit && (whichUnit->aiflags & AI_ILLUSION));
 }
 DWORD IsUnitInTransport(LPJASS j) {
-    //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    //HANDLE whichTransport = jass_checkhandle(j, 2, "unit");
-    return jass_pushboolean(j, 0);
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    LPEDICT whichTransport = jass_checkhandle(j, 2, "unit");
+    return jass_pushboolean(j, whichUnit && whichTransport &&
+                              S_CargoTransportForUnit(whichUnit) == whichTransport);
 }
 DWORD IsUnitLoaded(LPJASS j) {
-    //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    return jass_pushboolean(j, 0);
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    return jass_pushboolean(j, whichUnit && S_CargoTransportForUnit(whichUnit) != NULL);
 }
 DWORD IsHeroUnitId(LPJASS j) {
     //LONG unitId = jass_checkinteger(j, 1);

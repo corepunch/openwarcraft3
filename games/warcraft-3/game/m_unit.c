@@ -406,6 +406,11 @@ static BOOL unit_issuetargetorder_now(LPEDICT self, LPCSTR order, LPEDICT target
             order_attack(self, target);
             return true;
         }
+        /* Friendly transports, including Orc Burrows, consume Smart as a
+         * boarding order when this unit satisfies their cargo restrictions. */
+        if (S_CargoOrderBoard(self, target)) {
+            return true;
+        }
         if (S_RepairSmart(self, target)) {
             return true;
         }

@@ -736,7 +736,7 @@ static BOOL filter_sight(LPCEDICT ent) {
 
 /* Does this unit have an attack to acquire targets with? */
 static BOOL unit_has_attack(LPCEDICT self) {
-    return self->attack1.cooldown > 0.0f &&
+    return S_CargoAttacksEnabled(self) && self->attack1.cooldown > 0.0f &&
            (self->attack1.damageBase > 0 || self->attack1.numberOfDice > 0);
 }
 

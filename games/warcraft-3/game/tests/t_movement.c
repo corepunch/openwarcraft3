@@ -3114,6 +3114,106 @@ TEST(wc3_movement, gold_mine_partial_final_trip_depletes_and_rejects_waiter) {
     free_slk_rows(rows);
 }
 
+TEST(wc3_movement, occupied_burrow_exposes_attack_stop_and_stand_down_only_with_cargo) {
+    static UnitAbilities_t const burrow_abilities = {
+        .id = MAKEFOURCC('o','b','u','r'),
+        .abilList = "Abun",
+    };
+    static UnitWeapons_t const burrow_weapons = {
+        .id = MAKEFOURCC('o','b','u','r'),
+        .attack1 = { .damageDice = 1 },
+    };
+    static UnitBalance_t const burrow_balance = {
+        .id = MAKEFOURCC('o','b','u','r'),
+        .speed = 0,
+    };
+    LPEDICT burrow = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 256.0f, 256.0f);
+    LPEDICT peon = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 256.0f, 256.0f);
+    gameCommandButton_t buttons[16];
+    BYTE count;
+    BOOL attack, stop, stand_down;
+
+    burrow->data.UnitAbilities = &burrow_abilities;
+    burrow->data.UnitWeapons = &burrow_weapons;
+    burrow->data.UnitBalance = &burrow_balance;
+
+    count = G_GetCommandButtons(burrow, buttons, (BYTE)(sizeof(buttons) / sizeof(buttons[0])));
+    attack = stop = stand_down = false;
+    FOR_LOOP(i, count) {
+        if (!strcmp(buttons[i].command, STR_CmdAttack)) attack = true;
+        if (!strcmp(buttons[i].command, STR_CmdStop)) stop = true;
+        if (!strcmp(buttons[i].command, "Astd")) stand_down = true;
+    }
+    T_ASSERT(!attack);
+    T_ASSERT(!stop);
+    T_ASSERT(!stand_down);
+
+    burrow->cargo.units[0] = peon;
+    burrow->cargo.count = 1;
+    count = G_GetCommandButtons(burrow, buttons, (BYTE)(sizeof(buttons) / sizeof(buttons[0])));
+    attack = stop = stand_down = false;
+    FOR_LOOP(i, count) {
+        if (!strcmp(buttons[i].command, STR_CmdAttack)) attack = true;
+        if (!strcmp(buttons[i].command, STR_CmdStop)) stop = true;
+        if (!strcmp(buttons[i].command, "Astd")) stand_down = true;
+    }
+    T_ASSERT(attack);
+    T_ASSERT(stop);
+    T_ASSERT(stand_down);
+}
+
+TEST(wc3_movement, stand_down_stops_attack_before_unloading_burrow) {
+    static UnitAbilities_t const burrow_abilities = {
+        .id = MAKEFOURCC('o','b','u','r'),
+        .abilList = "Abun",
+    };
+    LPEDICT burrow = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 256.0f, 256.0f);
+    LPEDICT peon = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 256.0f, 256.0f);
+    LPEDICT target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 320.0f, 256.0f);
+
+    burrow->data.UnitAbilities = &burrow_abilities;
+    burrow->stand = unit_stand;
+    burrow->cargo.units[0] = peon;
+    burrow->cargo.count = 1;
+    peon->s.renderfx |= RF_HIDDEN;
+    peon->paused = true;
+
+    order_attack(burrow, target);
+    T_NOT_NULL(burrow->currentmove);
+    T_ASSERT(burrow->currentmove->ability == &a_attack);
+    T_ASSERT(burrow->combatentity == target);
+
+    S_CargoStandDown(burrow);
+
+    T_EQ(burrow->cargo.count, 0);
+    T_ASSERT(!(peon->s.renderfx & RF_HIDDEN));
+    T_ASSERT(!peon->paused);
+    T_NOT_NULL(burrow->currentmove);
+    T_ASSERT(burrow->currentmove->ability != &a_attack);
+    T_NULL(burrow->combatentity);
+    T_NULL(burrow->goalentity);
+}
+
+TEST(wc3_movement, cargo_unload_at_releases_requested_occupant_and_keeps_remaining_order) {
+    LPEDICT burrow = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 256.0f, 256.0f);
+    LPEDICT first = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 256.0f, 256.0f);
+    LPEDICT second = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 320.0f, 256.0f);
+
+    first->s.renderfx |= RF_HIDDEN; first->paused = true;
+    second->s.renderfx |= RF_HIDDEN; second->paused = true;
+    burrow->cargo.units[0] = first; burrow->cargo.units[1] = second; burrow->cargo.count = 2;
+
+    T_ASSERT(S_CargoTransportForUnit(first) == burrow);
+    T_ASSERT(S_CargoUnloadAt(burrow, 0));
+    T_EQ(burrow->cargo.count, 1);
+    T_ASSERT(S_CargoUnitAt(burrow, 0) == second);
+    T_NULL(S_CargoTransportForUnit(first));
+    T_ASSERT(!(first->s.renderfx & RF_HIDDEN));
+    T_ASSERT(!first->paused);
+    T_ASSERT(second->s.renderfx & RF_HIDDEN);
+    T_ASSERT(second->paused);
+}
+
 /* -----------------------------------------------------------------------
  * Suite runner
  * --------------------------------------------------------------------- */

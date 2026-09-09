@@ -305,7 +305,7 @@ static BOOL follow_target_is_valid(LPCEDICT self, LPCEDICT target) {
 }
 
 static BOOL follow_can_auto_attack(LPCEDICT self) {
-    if (!self || self->attack1.cooldown <= 0.0f ||
+    if (!self || !S_CargoAttacksEnabled(self) || self->attack1.cooldown <= 0.0f ||
         (self->attack1.damageBase <= 0 && self->attack1.numberOfDice <= 0)) {
         return false;
     }

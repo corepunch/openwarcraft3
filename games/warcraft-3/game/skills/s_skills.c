@@ -466,7 +466,7 @@ static abilityitem_t abilitylist[] = {
     // TODO: { "Acha", &a_unknown },  /* Chaos */
     // TODO: { "Achl", &a_cargo_load },  /* Chaos Cargo Load */
     // TODO: { "Awar", &a_bounce },  /* Pulverize */
-    // TODO: { "Abtl", &a_battlestations },  /* Battle Stations */
+    { "Abtl", &a_battlestations },  /* Battle Stations */
     // TODO: { "Aens", &a_ensnare },  /* Ensnare */
     // TODO: { "Adev", &a_devour },  /* Devour */
     // TODO: { "Aprg", &a_lightning_purge },  /* Purge */

@@ -1067,6 +1067,19 @@ CLIENTCOMMAND(Inventory) {
     }
 }
 
+CLIENTCOMMAND(CargoUnload) {
+    LPGAMECLIENT client;
+    LPEDICT transport;
+    LONG slot;
+
+    if (!clent || !(client = clent->client) || argc < 2) return;
+    transport = G_GetMainSelectedUnit(client);
+    slot = atoi(argv[1]);
+    if (!G_UnitCanControl(client, transport) || slot < 0) return;
+    if ((DWORD)slot >= transport->cargo.count) return;
+    S_CargoUnloadAt(transport, (DWORD)slot);
+}
+
 CLIENTCOMMAND(CancelTrain) {
     LPGAMECLIENT client;
     LPEDICT producer;
@@ -1893,6 +1906,7 @@ clientCommand_t clientCommands[] = {
     { "autocast", CMD_Autocast },
     { "research", CMD_Research },
     { "inventory", CMD_Inventory },
+    { "cargounload", CMD_CargoUnload },
     { "dropitem", CMD_DropItem },
     { "select", CMD_Select },
     { "focus", CMD_Focus },
