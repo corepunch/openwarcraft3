@@ -115,11 +115,13 @@ for a consistent race-skinned menu panel and extends one action row below the no
 Quit button remains inside that panel. The fallback still uses `GlobalStrings.fdf`
 `GAMEOVER_*` labels where available and only exposes actions the current engine can execute.
 
-`EndGame`, `ChangeLevel`, `RestartGame`, `DisplayLoadDialog`, and `ForceCampaignSelectScreen` now cross the existing
-`gi.MenuAction` session boundary. `EndGame` returns the local client to the frontend, `ChangeLevel` loads the requested
-map, `RestartGame` reloads the current `map` cvar, `DisplayLoadDialog` enters the frontend load-game screen, and
-`ForceCampaignSelectScreen` returns to campaign selection. The `doScoreScreen` parameter is consumed but score-screen
-presentation is not implemented yet.
+`EndGame`, `ChangeLevel`, `RestartGame`, and `DisplayLoadDialog` cross the existing `gi.MenuAction` session boundary.
+`EndGame` returns the local client to the frontend, `ChangeLevel` loads the requested map, `RestartGame` reloads the
+current `map` cvar, and `DisplayLoadDialog` enters the frontend load-game screen. `ForceCampaignSelectScreen` is different:
+stock `SetCampaignAvailableBJ` calls it while an ending cinematic can still be running, so the native only latches campaign
+selection as the destination for the eventual `EndGame`. This is required by `Prologue02`, whose `NextLevelPrep` unlocks
+the Human campaign before a long final cinematic and calls `CustomVictoryBJ` only after that cinematic finishes. The
+`doScoreScreen` parameter is consumed but score-screen presentation is not implemented yet.
 
 `PlayCinematic` now queues `Movies\<name>.mpq` through `gi.QueueMovie`. When the script subsequently requests a map/menu
 session action, the client pauses the outgoing simulation, plays the pre-rendered movie through the optional FFmpeg
