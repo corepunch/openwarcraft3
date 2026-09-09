@@ -686,6 +686,7 @@ typedef struct {
 #define MAX_QUESTS 256 // quests; fixed quest slots preserve stable pointers across removal
 #define MAX_QUESTITEMS 16 // items per quest; matches the practical quest objective display capacity
 #define MAX_WAYPOINTS 256 // entities; fixed g_edicts ring used by point-target movement
+#define WC3_PLAYERSTATE_NO_CREEP_SLEEP 25 // common.j playerstate; prevents Neutral Hostile from entering natural night sleep
 
 #ifdef WC3_DEBUG_TUTORIAL_FLOW
 #define WC3_TUTORIAL_DEBUG_ENABLED() (gi.CvarString && atoi(gi.CvarString("wc3_quest_debug", "0")) != 0)
@@ -981,6 +982,10 @@ struct edict_s {
     BOOL paused;        // unit AI and movement suspended when true
     BOOL stunned;       // unit AI and movement suspended by timed status
     BOOL no_pathing;    // pathfinding disabled when true
+    struct edictSleep_s {
+        BOOL can_sleep; /* mutable natural/night sleep eligibility; seeded from UnitData.canSleep */
+        BOOL sleeping;  /* natural creep sleep only; intentionally excludes spell-induced BUsL */
+    } sleep;
     struct {
         DWORD code;     // ability code being channeled (0 = none)
         VECTOR2 origin; // position when channel started (movement cancels channel)
@@ -1491,6 +1496,14 @@ void G_SetFalseTimeOfDay(LONG hour, LONG minute, FLOAT duration);
 BOOL G_IsFalseTimeOfDay(void);
 void G_UpdateTimeOfDay(void);
 BOOL G_IsNight(void);
+
+// g_creep_sleep.c
+BOOL G_UnitCanSleep(LPCEDICT);
+BOOL G_UnitIsSleeping(LPCEDICT);
+void G_UnitSetCanSleep(LPEDICT, BOOL);
+void G_UnitWakeUp(LPEDICT);
+BOOL G_TryEnterCreepSleep(LPEDICT);
+BOOL G_IsCreepSleepMove(umove_t const *);
 
 // g_spawn.c
 BOOL WriteGame(LPCSTR filename);

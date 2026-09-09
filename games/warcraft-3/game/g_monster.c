@@ -543,6 +543,9 @@ void SP_SpawnUnit(LPEDICT self) {
     }
 //    printf("%.4s\n", &self->class_id);
     self->targtype = G_GetTargetType(d->targetType);
+    self->sleep.can_sleep = d->canSleep;
+    if (!self->sleep.can_sleep || !G_IsCreepSleepMove(self->currentmove))
+        self->sleep.sleeping = false;
     if (ui->occluderHeight > 0) {
         self->s.flags |= EF_FOW_BLOCKER;
         G_FowMarkBlockersDirty();

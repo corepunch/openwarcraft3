@@ -165,6 +165,30 @@ TEST(wc3_combat, tdamage_updates_building_fire_model_and_slot_mask) {
     gi.ModelIndex = old_model_index;
 }
 
+TEST(wc3_combat, positive_damage_wakes_natural_creep_sleep) {
+    LPEDICT target;
+    LPEDICT attacker;
+
+    setup_test_world();
+    target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    attacker = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 50.0f, 0.0f);
+    target->s.player = PLAYER_NEUTRAL_AGGRESSIVE;
+    target->sleep.can_sleep = true;
+    attacker->s.player = 0;
+    game.clients[PLAYER_NEUTRAL_AGGRESSIVE].ps.stats[WC3_PLAYERSTATE_NO_CREEP_SLEEP] = 0;
+
+    G_SetTimeOfDay(game.constants.duskTimeGameHours);
+    G_UpdateTimeOfDay();
+    T_ASSERT(G_TryEnterCreepSleep(target));
+    T_ASSERT(G_UnitIsSleeping(target));
+
+    T_Damage(target, attacker, 1);
+
+    T_ASSERT(!G_UnitIsSleeping(target));
+    G_SetTimeOfDay(12.0f);
+    G_UpdateTimeOfDay();
+}
+
 TEST(wc3_combat, tdamage_lethal_calls_die) {
     LPEDICT target   = make_combat_unit(MAKEFOURCC('h','f','o','o'), 100.0f, 0.0f, 0.0f);
     LPEDICT attacker = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 50.0f, 0.0f);

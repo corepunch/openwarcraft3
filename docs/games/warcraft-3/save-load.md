@@ -342,3 +342,10 @@ Transient edit-box text is client-local while the modal is open. Rendering of th
 live client edit value, not only the server-supplied initial `STRING` text, so edits remain visible before submission.
 
 The authored selectable list supports wheel, arrow, track, and thumb-drag scrolling by saved-game row.
+
+## Natural creep sleep state
+
+Save format version 15 accompanies the `edict_t` layout addition for natural creep sleep. The mutable `can_sleep` and
+`sleeping` booleans are ordinary persistent edict scalars. A sleeping unit's `currentmove` continues to use the existing
+`F_MMOVE` relocation path, so the static creep-sleep move is restored through the same ASLR-safe contract as other unit moves.
+See [Neutral Creep Sleep](creep-sleep.md).

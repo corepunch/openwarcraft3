@@ -786,29 +786,33 @@ DWORD UnitRemoveBuffs(LPJASS j) {
     return 0;
 }
 DWORD UnitAddSleep(LPJASS j) {
-    //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    //BOOL add = jass_checkboolean(j, 2);
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    BOOL add = jass_checkboolean(j, 2);
+    G_UnitSetCanSleep(whichUnit, add);
     return 0;
 }
 DWORD UnitCanSleep(LPJASS j) {
-    //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    return jass_pushboolean(j, 0);
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    return jass_pushboolean(j, G_UnitCanSleep(whichUnit));
 }
 DWORD UnitAddSleepPerm(LPJASS j) {
-    //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    //BOOL add = jass_checkboolean(j, 2);
+    /* Sleep Always (Asla) has separate ability-owned semantics (including its
+     * Sleep Once/Allow On Any Player Slot data). Keep this native conservative
+     * until that ability is represented instead of aliasing it to night sleep. */
+    (void)j;
     return 0;
 }
 DWORD UnitCanSleepPerm(LPJASS j) {
-    //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    return jass_pushboolean(j, 0);
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    return jass_pushboolean(j, whichUnit && G_ActorHasSkill(whichUnit, "Asla"));
 }
 DWORD UnitIsSleeping(LPJASS j) {
-    //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    return jass_pushboolean(j, 0);
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    return jass_pushboolean(j, G_UnitIsSleeping(whichUnit));
 }
 DWORD UnitWakeUp(LPJASS j) {
-    //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    G_UnitWakeUp(whichUnit);
     return 0;
 }
 DWORD UnitApplyTimedLife(LPJASS j) {

@@ -505,6 +505,87 @@ TEST(wc3_unit, queued_smart_on_passive_ally_revalidates_to_follow) {
     T_ASSERT(follower->goalentity == leader);
 }
 
+TEST(wc3_unit, neutral_creep_natural_sleep_tracks_night_and_wakes_at_dawn) {
+    reset_test_entities();
+    setup_test_world();
+    LPEDICT creep = make_unit(0, 0);
+    USHORT *no_creep_sleep = &game.clients[PLAYER_NEUTRAL_AGGRESSIVE].ps.stats[WC3_PLAYERSTATE_NO_CREEP_SLEEP];
+
+    creep->svflags |= SVF_MONSTER;
+    creep->s.player = PLAYER_NEUTRAL_AGGRESSIVE;
+    creep->sleep.can_sleep = true;
+    *no_creep_sleep = 0;
+
+    G_SetTimeOfDay(game.constants.duskTimeGameHours);
+    G_UpdateTimeOfDay();
+    T_ASSERT(G_IsNight());
+    ai_stand(creep);
+    T_ASSERT(G_UnitIsSleeping(creep));
+    T_STREQ(creep->animation_request, "sleep");
+
+    G_SetTimeOfDay(game.constants.dawnTimeGameHours);
+    G_UpdateTimeOfDay();
+    T_ASSERT(!G_IsNight());
+    monster_think(creep);
+    T_ASSERT(!G_UnitIsSleeping(creep));
+    T_STREQ(creep->animation_request, "stand");
+    G_SetTimeOfDay(12.0f);
+    G_UpdateTimeOfDay();
+}
+
+TEST(wc3_unit, no_creep_sleep_player_state_blocks_new_natural_sleep) {
+    reset_test_entities();
+    setup_test_world();
+    LPEDICT creep = make_unit(0, 0);
+    USHORT *no_creep_sleep = &game.clients[PLAYER_NEUTRAL_AGGRESSIVE].ps.stats[WC3_PLAYERSTATE_NO_CREEP_SLEEP];
+
+    creep->svflags |= SVF_MONSTER;
+    creep->s.player = PLAYER_NEUTRAL_AGGRESSIVE;
+    creep->sleep.can_sleep = true;
+    *no_creep_sleep = 1;
+
+    G_SetTimeOfDay(game.constants.duskTimeGameHours);
+    G_UpdateTimeOfDay();
+    ai_stand(creep);
+    T_ASSERT(!G_UnitIsSleeping(creep));
+
+    *no_creep_sleep = 0;
+    G_SetTimeOfDay(12.0f);
+    G_UpdateTimeOfDay();
+}
+
+TEST(wc3_unit, unit_add_sleep_policy_is_neutral_only_and_wakes_when_disabled) {
+    reset_test_entities();
+    setup_test_world();
+    LPEDICT neutral = make_unit(0, 0);
+    LPEDICT player_unit = make_unit(64, 0);
+
+    neutral->svflags |= SVF_MONSTER;
+    neutral->s.player = PLAYER_NEUTRAL_AGGRESSIVE;
+    neutral->sleep.can_sleep = false;
+    player_unit->svflags |= SVF_MONSTER;
+    player_unit->s.player = 0;
+    player_unit->sleep.can_sleep = false;
+
+    G_UnitSetCanSleep(neutral, true);
+    G_UnitSetCanSleep(player_unit, true);
+    T_ASSERT(G_UnitCanSleep(neutral));
+    T_ASSERT(!G_UnitCanSleep(player_unit));
+    T_ASSERT(!player_unit->sleep.can_sleep);
+
+    game.clients[PLAYER_NEUTRAL_AGGRESSIVE].ps.stats[WC3_PLAYERSTATE_NO_CREEP_SLEEP] = 0;
+    G_SetTimeOfDay(game.constants.duskTimeGameHours);
+    G_UpdateTimeOfDay();
+    ai_stand(neutral);
+    T_ASSERT(G_UnitIsSleeping(neutral));
+
+    G_UnitSetCanSleep(neutral, false);
+    T_ASSERT(!G_UnitCanSleep(neutral));
+    T_ASSERT(!G_UnitIsSleeping(neutral));
+    G_SetTimeOfDay(12.0f);
+    G_UpdateTimeOfDay();
+}
+
 TEST(wc3_unit, smart_on_neutral_aggressive_attacks_not_follows) {
     reset_test_entities();
     LPEDICT unit = make_unit(0, 0);

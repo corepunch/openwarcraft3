@@ -99,6 +99,9 @@ bars deterministic.
 This mirrors the important Warsmash ownership rule: the clock model does **not** advance itself. It is a presentation of the
 authoritative simulation time.
 
+Natural Neutral Hostile creep sleep is another consumer of this same clock. Eligible idle creeps use `G_IsNight()` and the
+MiscData Dawn/Dusk thresholds; they do not maintain an independent sleep timer. See [Neutral Creep Sleep](creep-sleep.md).
+
 ### Clock tooltip
 
 Retail Warcraft III stores the clock tooltip in `UI\FrameDef\GlobalStrings.fdf` as:

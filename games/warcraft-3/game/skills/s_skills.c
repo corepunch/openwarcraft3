@@ -391,7 +391,7 @@ static abilityitem_t abilitylist[] = {
     // TODO: { "ANdp", &a_mass_teleport },  /* Dark Portal */
     // TODO: { "ANrc", &a_rain_of_fire },  /* Rain of Chaos */
     // TODO: { "Achd", &a_cargo_hold },  /* Cargo Hold Death */
-    // TODO: { "Asla", &a_sleep_always },  /* Sleep Always */
+    // TODO: { "Asla", &a_sleep_always },  /* Sleep Always; UnitCanSleepPerm recognizes ownership, behavior remains unresolved */
     // TODO: { "Advc", &a_devour_cargo },  /* Devour Cargo */
     // TODO: { "ANpi", &a_perm_immolation },  /* Permanent Immolation */
     // TODO: { "Apig", &a_harvest_return },  /* Permanent Immolation */
@@ -404,7 +404,7 @@ static abilityitem_t abilitylist[] = {
     // TODO: { "ACtb", &a_creep_thunder_bolt },  /* Hurl Boulder */
     // TODO: { "Afzy", &a_spell },  /* Frenzy */
     // TODO: { "ACdv", &a_creep_devour },  /* Devour */
-    // TODO: { "ACsp", &a_creep_sleep },  /* Sleep */
+    // TODO: { "ACsp", &a_creep_sleep },  /* Creep Sleep ability details; natural canSleep/night behavior lives in g_creep_sleep.c */
     // TODO: { "Asod", &a_simple_spell },  /* Spawn Skeleton */
     // TODO: { "Assp", &a_simple_spell },  /* Spawn Spiderlings */
     // TODO: { "Aspd", &a_simple_spell },  /* Spawn Spiders */
