@@ -167,6 +167,7 @@ TEST(wc3_combat, tdamage_updates_building_fire_model_and_slot_mask) {
     gi.ModelIndex = old_model_index;
 }
 
+/* Find the persistent ACsp presentation edict owned by a sleeping unit. */
 static LPEDICT find_creep_sleep_overlay(LPCEDICT target) {
     FOR_LOOP(i, globals.num_edicts) {
         LPEDICT effect = g_edicts + i;
