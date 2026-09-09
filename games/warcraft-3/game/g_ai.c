@@ -687,6 +687,10 @@ void unit_setmove(LPEDICT self, umove_t *move) {
         self->build_project = 0;
     }
     self->currentmove = move;
+    /* Any behavior replacing the natural creep-sleep move wakes the unit.
+     * Spell-induced BUsL is independent and continues to use timed statuses. */
+    if (self->sleep.sleeping && !G_IsCreepSleepMove(move))
+        self->sleep.sleeping = false;
     G_SetUnitAnimation(self, move->animation);
     if (self->animation) {
         // skip
@@ -733,6 +737,10 @@ static BOOL filter_sight(LPCEDICT ent) {
     if (G_PlayerTreatsPlayerAsAlly(ai_current_entity->s.player, ent->s.player))
         return false;
     if (ent->svflags & SVF_DEADMONSTER)
+        return false;
+    /* Retail natural creep sleep suppresses ordinary auto-acquisition. Direct
+     * attack orders still target the unit and the resulting damage wakes it. */
+    if (G_UnitIsSleeping(ent))
         return false;
     if (ent->runtime.flags & UNIT_BALANCE_BUILDING)
         return false;
@@ -781,6 +789,11 @@ LPEDICT G_FindNearestEnemy(LPEDICT self, FLOAT radius) {
 
 void ai_stand(LPEDICT self) {
     if (!(self->svflags & SVF_MONSTER))
+        return;
+    /* Natural creep sleep is an idle behavior.  Enter it before the existing
+     * neutral-owner early return so night-capable Neutral Hostile camps can
+     * settle into their authored Sleep animation without gaining aggression. */
+    if (G_TryEnterCreepSleep(self))
         return;
     /* Neutral/creep units do not initiate (avoids map-wide neutral-vs-neutral
      * aggression); campaign defenders may be rescuable until script takeover

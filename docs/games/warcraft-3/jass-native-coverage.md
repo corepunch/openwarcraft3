@@ -60,6 +60,11 @@ the `overhead` attachment specially, and `LIGHTNING` spell effects remain
 unsupported, so those paths are partial rather than proof of full retail
 conformance. See [Ability, Buff, And Item Presentation Effects](ability-and-item-effects.md) and [Weather](weather.md).
 
+Natural creep sleep now consumes the authored `UnitData.canSleep` flag and implements `UnitAddSleep`, `UnitCanSleep`,
+`UnitIsSleeping`, and `UnitWakeUp` against a natural-sleep state distinct from the Dreadlord `AUsl`/`BUsL` status.
+`UnitCanSleepPerm` recognizes `Sleep Always` (`Asla`), while `UnitAddSleepPerm` remains a placeholder until Asla's
+ability-owned `Sleep Once` / player-slot semantics are modeled. See [Neutral Creep Sleep](creep-sleep.md).
+
 Known examples include:
 
 - `GroupAddUnit` and `GroupRemoveUnit` are declared to return `boolean`, but the
