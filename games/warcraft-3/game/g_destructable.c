@@ -100,6 +100,11 @@ BOOL G_DestructableIsAttackable(LPCEDICT ent) {
         !(ent->s.flags & EF_NOT_SELECTABLE);
 }
 
+BOOL G_DestructableIsWalkable(LPCEDICT ent) {
+    return G_IsDestructable(ent) && ent->data.DestructableData->walkable &&
+        ent->destructable.placement_solid && !ent->destructable.dead;
+}
+
 /* Warcraft targetflag values from common.j/common.txt.  TARGTYPE is an
  * internal enum, so its ordinal must not be used as the attack-mask bit. */
 static DWORD G_DestructableTargetFlag(TARGTYPE type) {

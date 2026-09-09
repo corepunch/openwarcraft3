@@ -26,12 +26,14 @@ The client does not mutate a unit queue directly. When Shift is down, it sends t
 
 ```text
 smart 57 queue
+smart 57 1024 768 queue
 smartpoint 1024 768 queue
 select 57 queue
 point 1024 768 queue
 ```
 
-Without Shift, the original command syntax is unchanged.
+Entity Smart clicks may also carry the traced world point as `smart <entity> <x> <y>`. The game normally resolves the entity target exactly as before; the point is only a fallback for an alive walkable destructable whose entity Smart action is rejected. This lets a bridge remain non-attackable by right-click while the same click still becomes formation-aware ground movement to the clicked deck position. Without Shift the corresponding form is `smart 57 1024 768`.
+
 
 `select` and `point` are also used to finish command-card targeting. `menu_t.supports_order_queue` gates the modifier on the server, so only an explicitly queue-capable targeting mode treats Shift as order queuing. Move and Attack set that flag. Other target modes ignore `queue`, preserving their existing lifecycle until their reservation/cost semantics are implemented deliberately.
 
