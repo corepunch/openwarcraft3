@@ -537,14 +537,21 @@ static void CL_VideoApply_f(void) {
     }
 }
 
+static LPCSTR CL_RebuildMenuTarget(LPCSTR target) {
+    return target && *target ? target : "menu_main";
+}
+
 static void CL_RebuildMenu(LPCSTR target) {
     Cvar_Set("map", "");
     menu.Shutdown();
     re.RegisterMap(NULL);
     menu.Init();
-    if (target && *target && strcmp(target, "menu_main")) {
-        CL_MenuCommand(target);
-    }
+
+    /* M_Init deliberately installs no disconnected glue screen.  Every
+     * rebuild therefore has to select its destination explicitly, including
+     * menu_main.  Skipping the main-menu command leaves a valid but empty UI
+     * after menu_restart (for example when switching RoC/TFT editions). */
+    CL_MenuCommand(CL_RebuildMenuTarget(target));
 }
 
 static void CL_MenuRestart_f(void) {
@@ -738,6 +745,14 @@ static void CL_TestMenuInit(void) {
 static void CL_TestRegisterMap(LPCSTR map) {
     cl_test_register_map_count++;
     cl_test_register_map_was_null = map == NULL;
+}
+
+TEST(client_session, menu_rebuild_defaults_to_main_menu_target) {
+    T_STREQ(CL_RebuildMenuTarget(NULL), "menu_main");
+    T_STREQ(CL_RebuildMenuTarget(""), "menu_main");
+    T_STREQ(CL_RebuildMenuTarget("menu_main"), "menu_main");
+    T_STREQ(CL_RebuildMenuTarget("menu_single_player_campaign"),
+            "menu_single_player_campaign");
 }
 
 TEST(client_session, menu_rebuild_clears_world_scope_before_returning_to_menu) {

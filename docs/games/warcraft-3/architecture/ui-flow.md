@@ -96,13 +96,17 @@ menu EditionButton
   -> renderer RegisterMap(NULL) registration boundary
   -> menu.Init()
        -> reload war3skins/FDF from the selected archive view
-       -> rebuild MainMenu and campaign-facing state
+  -> queue menu_main
+       -> install/rebuild MainMenu and campaign-facing state
 ```
 
 If TFT data is unavailable, the WC3 menu restores RoC (`fs_expansion=0`) before queuing the same restart, so the rebuilt menu remains
-in the available edition. The generic engine `menu_restart` command only runs while `cls.state == ca_disconnected`; gameplay/map
-state is never rebuilt inline. `+tft` and `+roc` are consumed during early command-line processing, before `CL_Init()`/`M_Init()`,
-so their first rendered menu already uses the selected skin/archive view rather than changing edition as a late console command.
+in the available edition. `M_Init()` intentionally does not install a disconnected screen by itself, so `CL_RebuildMenu()` must always
+queue the requested destination after initialization; this includes `menu_main`. Omitting that command leaves the rebuilt UI with no
+active frame tree and produces a black screen after the RoC/TFT EditionButton transition. The generic engine `menu_restart` command
+only runs while `cls.state == ca_disconnected`; gameplay/map state is never rebuilt inline. `+tft` and `+roc` are consumed during early
+command-line processing, before `CL_Init()`/`M_Init()`, so their first rendered menu already uses the selected skin/archive view rather
+than changing edition as a late console command.
 
 Returning from a campaign world uses the same rebuild primitive at the session boundary. A game-side `MenuAction("menu", target)`
 is consumed on the next client frame, disconnects the client without queuing a stale `menu_main`, shuts down the local server/game
