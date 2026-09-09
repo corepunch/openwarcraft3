@@ -149,6 +149,10 @@ BOOL SCR_LayoutContextValue(DWORD stat, LPFLOAT value) {
     LPCENTITYSTATE ent;
 
     if (!value) return false;
+    if (stat == UI_STAT_LOADING_PROGRESS) {
+        *value = cl.loading_progress;
+        return true;
+    }
     if (stat == UI_STAT_SELECTION_TIMED_STATUS) {
         *value = cl.playerstate.stats[UI_PLAYERSTAT_SELECTION_TIMED_STATUS] / (FLOAT)USHRT_MAX;
         return true;

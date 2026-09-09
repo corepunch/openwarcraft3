@@ -1,6 +1,16 @@
 #ifndef hud_utils_h
 #define hud_utils_h
 
+/* ROC rows are label,sequence,model; TFT prepends a numeric expansion category (even for ROC campaigns). */
+static inline BOOL UI_ParseLoadingRow(LPCSTR row, LPDWORD sequence, LPSTR model) {
+    int offset = 0;
+    *sequence = 0; model[0] = 0;
+    if (!row) return false;
+    sscanf(row, "%*u,%n", &offset);
+    /* The old fixed column indices read TFT's sequence as a filename; 255 bounds the PATHSTR output. */
+    return sscanf(row + offset, "%*[^,],%u,%255[^,\r\n]", sequence, model) == 2;
+}
+
 /* Keep generated FDF frames and later proxy frames in one monotonically increasing wire namespace. */
 static DWORD UI_NextProxyFrameNumber(DWORD next, DWORD written) { return MAX(next, written + 1); }
 static BOOL UI_HasSecondAttack(UnitWeapons_t const *weapons) {

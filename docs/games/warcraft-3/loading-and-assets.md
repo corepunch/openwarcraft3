@@ -4,17 +4,32 @@ For measured menu/loading resource residency and reclamation priorities, see [WC
 
 ## Loading-screen ownership
 
-`CL_BeginLoadingMap` publishes the resolved destination in the session-only `map` cvar **before**
-`SCR_BeginLoadingPlaque` freezes a frame. This covers console launches, menu selections, game menu actions,
-and incoming `CS_WORLD`. The client owns loading state; only `CL_PrepRefresh` promotes it to `ca_active`.
-The WC3 UI reads the current destination and caches metadata per path, not per UI lifetime.
-Loading plaques are non-interactive: `SCR_DrawCursor` suppresses both the game-authored cursor and the native SDL cursor while `CLIENT_UI_LOADING` is active, then the existing cursor-state handoff restores the configured cursor automatically when loading ends.
+`CL_BeginLoadingMap` publishes the resolved destination and freezes a non-interactive loading plaque.
+The client remains `ca_connected` while registering assets; the first usable server frame activates it once
+`CL_PrepRefresh` has completed. `SCR_DrawCursor` hides both the native and authored cursors during loading.
 
-`UI_UpdateLoadingMapInfo` reads the nested map MPQ's `war3map.w3i` and `war3map.wts` through
-`UI_ReadMapInfo`. Custom loading models take precedence; otherwise the campaign background number indexes
-`UI/WorldEditData.txt`'s `LoadingScreens` section (model plus sequence). Maps without an authored background
-use the existing `LoadingMeleeBackground` skin entry. Geometry and text fields come from native
-`UI/FrameDef/Glue/Loading.fdf` and its generated binding.
+The game binds native `UI/FrameDef/Glue/Loading.fdf` in `UI_LoadHudLoading`. During the initial handshake,
+`SV_Configstrings_f` calls `ClientLoading` before sending the media table. `UI_WriteLoadingLayout` reads
+`level.mapinfo` and resolves WTS text through `UI_LevelStringSafe`. A custom W3I loading model takes precedence;
+otherwise the campaign background number selects a model and sequence from `UI/WorldEditData.txt`'s
+`LoadingScreens` section. Maps without either use the decorated `LoadingMeleeBackground` skin entry.
+
+Both background and progress bar retain the FDF's `FT_SPRITE` type. The background uses `#!sequence` for native
+screen-space geometry. The zero-size bar uses `#0` plus `UI_STAT_LOADING_PROGRESS`, a client-local normalized
+binding, so `SCR_LayoutDrawSprite` supplies `#0@ratio`. No player-state field or network layout size changes.
+`FT_LOADING_BAR` is the image-bar contract used by WoW; an image and a model may have the same numeric index.
+
+### September 7 initial-layout regression
+
+Commit `aa5f89f73` moved the loading screen from the menu to the initial server layout but lost campaign-row
+resolution and changed native sprites into portraits. A bounded Human02 trace confirmed background number `3`
+was registered as nonexistent `LoadingMeleeBackground.mdx`, while the bar's portrait viewport was zero-sized.
+Once images registered, the same model index (`1`) selected an unrelated image. Restoring native sprite types,
+the ROC/TFT row parser, and an explicit progress binding fixes all three without changing FDF geometry.
+
+The server-layout lifecycle still publishes the screen only after synchronous `SV_Map` finishes, and its resources
+become available during client registration. It cannot display destination artwork during the earlier server-load
+phase; providing that requires a separate earlier publication lifecycle. Do not fabricate progress for that phase.
 
 ### June 28 regression
 
@@ -28,11 +43,12 @@ TFT has an additional independent schema difference: ROC `LoadingScreens` rows a
 under TFT archives. Fixed ROC indices interpreted HumanX01's sequence `6` as a filename. `UI_ParseLoadingRow`
 consumes the optional numeric category and validates the sequence/model fields; malformed rows log their key.
 
-Preserve the loading-state draw check before standalone-screen dispatch: `menu_ingame` is queued asynchronously, so loading must remain authoritative even after the glue screen is released.
+In that menu-owned implementation, the loading-state draw check had to precede standalone-screen dispatch because
+`menu_ingame` is queued asynchronously. The initial-layout path now dispatches loading from `SCR_DrawScreenField`.
 
-### FDF registry isolation
+### Historical menu FDF registry isolation
 
-`libmenu` and `libgame` intentionally have separate `stb_fdf` frame registries.  The parser implementation functions are hidden per shared library, and the `frames[]` backing store must be hidden as well.  On ELF/Linux, exporting `frames` allows normal symbol interposition to alias the two registries even though each library defines its own copy.  `G_LoadMap -> UI_ResetHud -> UI_ClearTemplates` then clears/reuses the menu's live `Loading`/`LoadingBar` slots during `SV_Map`; cached non-NULL loading-frame pointers survive but no longer describe the loading sprites, so later progress updates reach `M_DrawLoadingScreen` without reaching the MDX renderer.
+`libmenu` and `libgame` intentionally have separate `stb_fdf` frame registries.  The parser implementation functions are hidden per shared library, and the `frames[]` backing store must be hidden as well.  On ELF/Linux, exporting `frames` allows normal symbol interposition to alias the two registries even though each library defines its own copy.  `G_LoadMap -> UI_ResetHud -> UI_ClearTemplates` then clears/reuses the menu's live `Loading`/`LoadingBar` slots during `SV_Map`; cached non-NULL loading-frame pointers survive but no longer describe the loading sprites, so later progress updates reach the old `M_DrawLoadingScreen` without reaching the MDX renderer.
 
 A characteristic failure is that the initial loading sprite renders before `SV_Map`, while later progress values change without reaching the MDX sprite renderer. Verify registry isolation before changing progress math or swap/present code.
 
@@ -81,8 +97,8 @@ do not infer those capabilities from the renderer's map-import lookup.
 Loading progress is client-owned and intentionally coarse. `CL_BeginLoadingMap` resets `cl.loading_progress` to
 zero. `CL_PrepRefresh` advances it monotonically at existing registration boundaries and
 `SCR_UpdateLoadingPlaque` explicitly repaints the otherwise frozen Quake-style loading plaque after each advance.
-The initial server payload carries the `Loading.fdf` tree as `svc_layout`; its `FT_LOADING_BAR` maps client-local progress directly
-onto the `LoadingProgressBar` MDX sequence using `#0@ratio`. No player-state/network field is involved.
+The initial server payload carries the `Loading.fdf` tree as `svc_layout`; its `FT_SPRITE` bar binds
+`UI_STAT_LOADING_PROGRESS` to the `LoadingProgressBar` MDX sequence using `#0@ratio`. No player-state/network field is involved.
 
 Current phase values are:
 
@@ -153,9 +169,16 @@ Use `+com_frame_limit 100` for bounded runs; engine screenshots appear under `sc
 
 Regression tests cover texture extension lookup and exact-file precedence, SLK replacement sentinels,
 ROC/TFT loading-row schemas, rotated/equal-height/diagonal cliff edges, unused FDF art, lazy texture cache hits/misses and theme changes,
-and loading destination/cache invalidation including UI reinitialization. The loading-cache unit test uses
-existing metadata-less map fixtures to exercise the melee/default path; campaign artwork needs ROC/TFT
-runtime verification against real archives.
+and native loading-sprite serialization, client progress binding, and separate model/image namespaces.
+Campaign artwork needs ROC/TFT runtime verification against real archives. Use explicit `-roc` and `-tft`
+when a saved `fs_expansion` setting might override the default.
 
 See also [UI authoring](../../ui-authoring.md), [scene workflow](../../rendering-scene-workflow.md),
 and [filesystem loading](../../fs-loading-architecture.md).
+
+The `wc3_loading.initial_layout_resolves_campaign_custom_and_melee_art` test uses `tests.mpq`'s native
+`Loading.fdf`, skin keys and `WorldEditData.txt` rows. It calls the production loader and writer, then inspects
+emitted sprites, model configstrings, title/subtitle/body, sequence and progress binding. Cases cover ROC and
+TFT row schemas, custom-model precedence, and default skin decoration. Restoring the pre-fix
+`hud_loading.c` makes this test fail. The client drawing tests additionally check progress 0/0.5/1 and collisions
+between model and image indices.
