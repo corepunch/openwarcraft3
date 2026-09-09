@@ -11,7 +11,17 @@ extern void Key_WriteBindings(FILE *file);
 
 #define CVAR_COMPLETE_CHARS 1024
 
+typedef struct cvaralias_s {
+    struct cvaralias_s *next;
+    LPSTR name;
+    cvar_t *target;
+} CVARALIAS;
+typedef CVARALIAS *LPCVARALIAS;
+typedef CVARALIAS const *LPCCVARALIAS;
+
 static cvar_t *cvar_vars;
+static LPCVARALIAS aliases;
+static BOOL aliases_open;
 
 static BOOL Cvar_NameMatches(LPCSTR name, LPCSTR partial) {
     size_t len;
@@ -75,6 +85,8 @@ static cvar_t *Cvar_FindVar(LPCSTR name) {
     if (!name) {
         return NULL;
     }
+    FOR_EACH_LIST(CVARALIAS, alias, aliases)
+        if (!strcmp(alias->name, name)) return alias->target;
     FOR_EACH_LIST(cvar_t, var, cvar_vars) {
         if (!strcmp(var->name, name)) {
             return var;
@@ -443,7 +455,57 @@ void Cvar_ApplyCommandLine(int argc, LPCSTR *argv) {
     }
 }
 
+/* Config-owned compatibility names share one cvar, including flags and archived output. */
+static void Cvar_Alias_f(void) {
+    LPCSTR name = Cmd_Argv(1), dest = Cmd_Argv(2);
+    cvar_t *target, *old;
+    if (Cmd_Argc() != 3 || !Cvar_NameIsValid(name) || !Cvar_NameIsValid(dest) || !strcmp(name, dest)) {
+        fprintf(stderr, "usage: cvar_alias <old-name> <canonical-name>\n");
+        return;
+    }
+    target = Cvar_FindVar(dest);
+    if (!target) {
+        fprintf(stderr, "cvar_alias: define canonical cvar %s first\n", dest);
+        return;
+    }
+    FOR_EACH_LIST(CVARALIAS, alias, aliases) {
+        if (strcmp(alias->name, name)) continue;
+        if (alias->target != target) fprintf(stderr, "cvar_alias: %s already names %s\n", name, alias->target->name);
+        return;
+    }
+    if (!aliases_open) {
+        fprintf(stderr, "cvar_alias: declare %s in startup config before modules cache cvars\n", name);
+        return;
+    }
+    old = Cvar_FindVar(name);
+    if (old == target) {
+        fprintf(stderr, "cvar_alias: %s would replace its own canonical name\n", name);
+        return;
+    }
+    if (old) {
+        /* Early command-line settings can precede the shipped alias declaration. Keep their value and flags. */
+        Cvar_Set(target->name, old->string);
+        target->flags |= old->flags;
+        FOR_EACH_LIST(CVARALIAS, alias, aliases)
+            if (alias->target == old) alias->target = target;
+        for (cvar_t **link = &cvar_vars; *link; link = &(*link)->next) {
+            if (*link != old) continue;
+            *link = old->next;
+            MemFree((void *)old->name); MemFree(old->string); MemFree(old);
+            break;
+        }
+    }
+    LPCVARALIAS alias = MemAlloc(sizeof(*alias));
+    *alias = (CVARALIAS){ .next = aliases, .name = Cvar_CopyString(name), .target = target };
+    aliases = alias;
+}
+
+/* Alias migration may retire old cvars only before modules retain cvar pointers. */
+void Cvar_EndConfig(void) { aliases_open = false; }
+
 void Cvar_Init(void) {
+    aliases_open = true;
+    Cmd_AddCommand("cvar_alias", Cvar_Alias_f);
     Cmd_AddCommand("set", Cvar_Set_f);
     Cmd_AddCommand("seta", Cvar_SetA_f);
     Cmd_AddCommand("cvarlist", Cvar_List_f);

@@ -1,4 +1,5 @@
 [Default]
+TargetPointConfirm=UI\Feedback\Confirmation\Confirmation.mdl
 ConsoleInventoryCoverTexture=TestUI\Textures\default-inventory-cover.blp
 ConsoleInventoryNoCapacity=TestUI\Textures\default-inventory-no-capacity.blp
 JobDoneSound=TestJobDone

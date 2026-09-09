@@ -602,7 +602,7 @@ void R_DrawSprite(LPCMODEL model, LPCSTR anim, float x, float y) {
     (void)y;
 }
 
-/* WoW context cursors are native SDL cursors owned by cl_input_wow.c. */
+/* WoW context cursors are native SDL cursors owned by cl_input_orbit.c. */
 bool R_DrawCursor(float x, float y, COLOR32 tint) {
     (void)x; (void)y; (void)tint;
     return false;

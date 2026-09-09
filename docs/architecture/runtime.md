@@ -240,6 +240,8 @@ Entity-aware flow-field routing is composed by each game world wrapper from `gam
 
 ## See Also
 
+- [Shared input profiles](shared-input.md) — RTS/orbit modes, camera defaults, cvar aliases, and startup menus
+
 - [Client Architecture](client.md) — client main loop, input, and scene rendering
 - [Network Architecture](network.md) — loopback/UDP transport and connection handshake
 - [UI System Architecture](ui-system.md) — menu screens, FDF layout, in-game HUD

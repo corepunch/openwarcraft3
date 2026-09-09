@@ -1817,6 +1817,7 @@ void Com_Init(int argc, LPCSTR *argv) {
     Cvar_ApplyCommandLine(argc, argv);
     Cbuf_AddEarlyCommands(true);
     Cbuf_Execute();
+    Cvar_EndConfig();
     /* Leave generic +commands queued until client/UI modules register commands. */
 }
 
