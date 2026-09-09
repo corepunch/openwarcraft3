@@ -30,7 +30,7 @@ common/main.c
       -> re.Init
       -> M_GetAPI
       -> menu.Init
-      -> UI_MenuCommandLocal(ui_start_command)
+      -> CL_MenuCommand -> Cbuf_AddText(ui_start_command)
 ```
 
 Important cvars:
@@ -113,35 +113,51 @@ valid after map registration and makes Quit Campaign / EndGame / campaign-select
 `UI\CampaignStrings.txt` / `UI\CampaignStrings_exp.txt` names, so a post-switch Single Player entry reparses the campaign list from
 the same edition selected by the main menu.
 
-`games/warcraft-3/menu/scene.c` renders the selected background as a model with `RDF_USE_ENTITY_CAMERA`; the main menu is
-therefore not a static BLP backdrop. Callers select a typed logical panel such as `UI_GLUE_MAIN_MENU` or
-`UI_GLUE_SINGLE_PLAYER` through `UI_GotoGluePanel(panel, changed)`, while the glue system composes the current panel's `Death` and the destination panel's
-`Birth` sequences. RoC and TFT use the same fixed panel intervals: every named `Birth` is 1000 ms and every named `Death` is
-666-667 ms in both left/right models, so the menu owns one phase clock without exposing model timing through the renderer ABI.
+`games/warcraft-3/menu/menu_glue_scene.c` renders the selected background as a model with
+`RDF_USE_ENTITY_CAMERA`. `UI_GotoGluePanel(GLUEDEST, exited, changed)` accepts one `{panel, tab}` destination. The scene
+retains current and requested destinations together, validates the tab against the destination panel, and commits both at the
+Death/Birth boundary. Tab zero is the default left layer. RoC and TFT have the same named Birth intervals (1000 ms) and
+Death intervals (666–667 ms); the controller rounds Death to 667 ms without adding renderer timing APIs.
 
-The shared background renders its looping `Stand` sequence. The panel controller has only three phases: idle, exit, and enter. It
-derives each layer's `Death@ratio` or `Birth@ratio` sequence from the current logical panel and returns to its authored `Stand` when
-the phase ends. `menu_main.c` owns every cross-screen transition: the outgoing screen remains active through `Death`, the transition
-manager switches screens at the `Death` to `Birth` boundary, and the incoming screen remains active through `Birth`. Input stays
-suppressed until `Birth` completes. `M_Refresh` re-reads the current screen after advancing the glue scene because that advancement
-can perform the boundary handoff; retaining its earlier pointer draws the outgoing screen once over the incoming panel.
+`menu_main.c` owns screen navigation. `UI_LoadScreen` resolves resources before requesting an animation; failure retains the
+current screen and chrome. `UI_InstallScreen` only shuts down/initializes controls and never requests another transition.
+Animated navigation installs the incoming screen at the Death/Birth boundary and releases its input lock after Birth.
+Direct menu/subpanel commands install immediately, then request their destination, preserving commands that configure controls
+immediately after screen selection. LAN mode selection updates the LAN and setup screen destinations even when the same screen
+remains installed; rebuilding that mode reuses `LANJoin_Init` without requesting animation from inside initialization.
 
-The panel models animate entry and exit through staged geoset visibility/alpha; their node matrices remain identity throughout
-`Birth`. Screen FDF contents therefore follow a shared 20 fps offset curve owned by `menu_glue_scene.c`, traversed forward for
-`Birth` and backward for `Death`. This keeps transition behavior independent of screen controllers. Action-only transitions invoke
-their action after `Death`; screen controllers do not poll animation completion, keep pending flags, or hide their own frame trees.
-At startup `M_Init` only loads UI resources; the client's post-input `menu_main` command starts the initial transition.
+Same-panel requests invoke the boundary callback immediately and complete immediately when the panel is idle. A request during
+Birth replaces the pending destination/callbacks; a request during Death replaces the target without restarting the clock.
+Callbacks are detached and state is committed before invocation. Closing clears any old screen-boundary callback, so replacing
+a screen transition with an action cannot install a stale screen afterward. `M_Refresh` re-reads the current screen after drawing
+the glue scene because advancing its animation may install a different screen.
 
-The Options layers use different authored transitions. TopRightPanel uses `Options Birth` / `Options Stand` / `Options Death`.
-TopLeftPanel enters with `Options Morph`, holds `Options Stand Alternate`, and exits with `Options Morph Alternate`. Using the
-left layer's `Options Birth` animates the persistent sidebar rather than morphing the Options panel, while invented names such as
-`Options Birth Alternate` miss the sequence table and fall back to sequence zero (`Death`). These names and their 1000/667 ms
-intervals are present in both stock RoC and TFT panel models. Warsmash's current menu leaves Options disabled and has no Options
-transition state to copy.
+The right layer uses the panel's Birth/Stand/Death family. Full-panel entry/exit also uses that base family on the left;
+at rest, the left uses its selected tab. Explicit `GLUETAB` entries describe enter/stand/leave sequences rather than assuming
+uniform suffixes. SinglePlayerSkirmish and Options have Morph families; BattlenetCustomCreate instead has Birth/Stand/Death.
+MultiplayerSubmenu and BattlenetAdvancedOptions have no Stand: they hold the authored Morph endpoint with `@1.0000`.
+See [the extracted sequence inventory](../../../../games/warcraft-3/menu/panels.txt).
 
-The right/main panel remains part of the normal `UI_GotoGluePanel` lifecycle. `OptionsMenu_Init` declares the independent left
-tab with `UI_SetGlueTab(UI_GLUE_OPTIONS)` and `OptionsMenu_Shutdown` clears it. The glue scene, not the screen controller, maps
-that declaration to Morph/Stand Alternate/Morph Alternate, so screen code does not micromanage animation phases or timing.
+Tab changes leave the right layer at Stand. Repeated or reversed requests retain the current morph clock and queue the latest
+destination. Switching between two non-default tabs first leaves the current tab through zero, then enters the requested tab.
+A full-panel transition cancels that morph and retains the new panel's requested tab through Death.
+
+The panel models animate entry/exit through staged geoset visibility/alpha; their node matrices remain identity during Birth.
+FDF contents follow a shared 20 fps offset curve in `menu_glue_scene.c`, forward for Birth and backward for Death.
+Action-only transitions invoke their action after Death. At startup `M_Init` loads resources and the client's `menu_main`
+command starts the initial transition.
+
+The September 2026 bounded diagnostic run reproduced three ownership failures: Credits → Main returned from a same-panel
+request without delivering completion, Main → Create validated tab 1 against Main and arrived at Create with tab 0, and LAN
+mode changes rebuilt controls without requesting chrome. The fix replaces the old split Goto/SetTab and separate Retarget paths
+with the atomic destination contract above. `mdxtool --info` also confirmed that `BattlenetCustomCreate Morph`,
+`MultiplayerSubmenu Stand`, and `BattlenetAdvancedOptions Stand` do not exist.
+
+`make test-menu` covers Credits/Main and Skirmish/Cancel input-lock release, destination-tab preservation, live LAN mode
+changes, startup overrides, interrupted/repeated morphs, transitions between non-default tabs, and close callback replacement.
+Sequence-name checks read a fixture containing only the original RoC TopLeftPanel MDLX header and SEQS chunk, stored at
+`UI/Glues/SpriteLayers/TopLeftPanel.mdx` in `build/tests/tests.mpq`. LAN FDF fixtures use the original Blizzard archive paths;
+StandardTemplates contains the authored dependencies needed by those fixtures. No test requires installed Warcraft archives.
 
 Build with `WC3_DEBUG_GLUE=1` to log each glue phase boundary and any missing MDX sequence that falls back to sequence zero.
 The diagnostics are transition-scoped rather than frame-scoped. Rebuild when toggling the flag, then reproduce Options directly:
@@ -165,11 +181,11 @@ this menu restart; edition-decorated paths reload correctly, while broader textu
 ## Menu Navigation Flow
 
 1. SDL input is translated by the client input layer.
-2. `UI_MouseEventLocal` or `UI_KeyEventLocal` updates UI state.
+2. `M_MouseEvent` or `M_KeyEvent` updates UI state.
 3. The current `uiScreen_t` receives the event.
 4. Button frames inspect mouse containment and event state in `games/warcraft-3/menu/menu_render.c`.
-5. If a clicked frame has `OnClick`, `UI_MenuCommandLocal` executes the command.
-6. Menu commands declare a destination screen or action; the menu transition manager performs the handoff.
+5. If a clicked frame has `OnClick`, `UI_QueueCommand` appends its text and a newline to the console buffer through `mi.Cmd_ExecuteText`.
+6. On the next client command-buffer execution, the registered console callback declares a destination screen or action; the menu transition manager performs the handoff.
 
 Example menu command:
 
@@ -178,6 +194,38 @@ menu_game
 ```
 
 The screen switch is local to the client. No network traffic is required for menu transitions.
+
+### Console command ownership
+
+There is no separate menu command dispatcher. `M_Init` registers every entry in `menu_commands` with `Cmd_AddCommand`.
+Buttons, checkboxes, map lists, popup selections, and campaign map launches only enqueue console text. The client drains that
+buffer after the UI event stack returns, so screen initialization cannot invalidate frames still being used by a click handler.
+Command-line `+menu_*`, console input, and FDF `OnClick` actions therefore share the same registered callbacks.
+
+`menuImport_t` exposes the ordinary `Cmd_Argc`, `Cmd_Argv`, and `Cmd_ArgsFrom` readers. Numeric callbacks validate complete
+unsigned DWORD tokens and argument counts; map selection accepts one quoted path; chat joins the message arguments while
+preserving spaces inside quoted tokens and the optional numeric ownership prefix. Two queued UI commands each receive a newline.
+The engine owns unknown-command handling and `map` loading; `CL_BeginLoadingMap` already queues `menu_ingame` at that boundary.
+
+A bounded September 2026 run confirmed that `menu_video_mode` and `menu_single_player_difficulty` previously reached the engine
+as unknown commands because only the secondary click dispatcher knew them. The same run showed that text entry changed the
+focused edit box during an active screen transition. `M_TextInput` now gates SDL text events on menu activity, screen ownership,
+and the transition lock before calling `UI_EditTextInput`.
+
+Named campaign shortcuts use the actual CampaignStrings keys, including `NightElf` (the former `night-elf` argument resolved to
+NULL). Campaign/mission index commands operate on the current campaign lists; lobby commands operate on the selected map and
+host-owned slots. Those state prerequisites remain the screen controllers' responsibility. The legacy `menu_playerconfig`
+placeholder reports that profile configuration is unimplemented; this command had no implementation in the original console table.
+
+Glue model loading reports each failed path and caches one attempt per scene lifetime, avoiding per-frame retries/log spam.
+Reset/restart creates a new scene lifetime. The write-only `show_realm_select` flag has been removed; parsed frame visibility
+remains the presentation state.
+
+`make test-menu` links the actual engine command buffer, tokenizer, registration, and cvar implementation. It exercises deferred
+clicks, adjacent queued commands, malformed numeric arguments, screen commands, all named campaign shortcuts, campaign/mission
+selection, LAN join/create, lobby slot changes, quoted chat/map arguments, and game-start handoff. Native GameChatroom/PlayerSlot
+fixtures and their StandardTemplates dependencies are included in `tests.mpq`; the Tutorial fixture is extracted from the RoC
+CampaignStrings section. `make test-commands` covers the underlying engine command and map-loading contracts.
 
 ## Single Player Flow
 

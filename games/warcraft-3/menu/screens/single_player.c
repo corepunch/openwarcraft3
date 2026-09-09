@@ -549,7 +549,7 @@ static void SinglePlayer_LaunchMission(singlePlayerCampaign_t const *campaign, D
     }
     SinglePlayer_MarkMissionPlayed(campaign, mission_index);
     snprintf(command, sizeof(command), "map \"%s\"", map_path);
-    M_MenuCommand(command);
+    UI_QueueCommand(command);
 }
 
 #ifdef BZ_FFMPEG
@@ -892,6 +892,7 @@ void SinglePlayerMenu_BackCampaign(void) {
 
 void SinglePlayerMenu_LaunchCampaign(LPCSTR name) {
     singlePlayerCampaign_t const *campaign = SinglePlayer_FindCampaign(name);
+    if (!campaign) fprintf(stderr, "UI: unknown campaign '%s'\n", name ? name : "(null)");
     SinglePlayer_SelectCampaign(campaign);
 }
 
@@ -943,7 +944,7 @@ void SinglePlayerMenu_SetDifficulty(DWORD difficulty) {
 
 uiScreen_t singlePlayerMenuScreen = {
     .name = "single-player",
-    .panel = UI_GLUE_SINGLE_PLAYER,
+    .glue = { .panel = UI_GLUE_SINGLE_PLAYER },
     .load = SinglePlayerMenu_LoadScreen,
     .init = SinglePlayerMenu_Init,
     .shutdown = SinglePlayerMenu_Shutdown,

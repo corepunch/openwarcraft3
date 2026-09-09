@@ -910,8 +910,6 @@ static void GameSetup_Init(void) {
     if (!setup.ready) {
         return;
     }
-    UI_GotoGluePanel(LAN_IsSinglePlayerCreate() ? UI_GLUE_SINGLE_PLAYER_SKIRMISH :
-                     UI_GLUE_MULTIPLAYER_PRE_GAME_CHAT, NULL);
     UI_SetOnClick(setup.cancel_button,
                   LAN_IsSinglePlayerCreate() ? "menu_single_player_skirmish" : "menu_startserver");
     GameSetup_LoadSelectedMap();
@@ -1057,6 +1055,7 @@ void GameSetup_UpdateLobbySetup(lobbyState_t const *state) {
 
 uiScreen_t gameSetupScreen = {
     .name = "game-setup",
+    .glue = { .panel = UI_GLUE_MULTIPLAYER_PRE_GAME_CHAT },
     .load = GameSetup_LoadScreen,
     .init = GameSetup_Init,
     .shutdown = GameSetup_Shutdown,

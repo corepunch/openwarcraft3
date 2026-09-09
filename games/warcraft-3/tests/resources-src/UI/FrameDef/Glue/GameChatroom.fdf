@@ -1,0 +1,106 @@
+// -- INCLUDE FILES ---------------------------------------------
+
+IncludeFile "UI\FrameDef\Glue\StandardTemplates.fdf",
+
+// -- LOCAL TEMPLATES -------------------------------------------
+
+// -- FRAMES ----------------------------------------------------
+
+Frame "FRAME" "GameChatroom" {
+    SetAllPoints,
+
+    // --- team setup
+    Frame "FRAME" "TeamSetupContainer" {
+        Width 0.46375,
+        Height 0.39,
+        SetPoint TOPLEFT, "GameChatroom", TOPLEFT, 0.015, -0.031875,
+    }
+
+    // --- chat display
+    Frame "TEXTAREA" "ChatTextArea" {
+        DecorateFileNames,
+        FrameFont "MasterFont", 0.011, "",
+        TextAreaLineHeight 0.01,
+        TextAreaLineGap 0.0015,
+        TextAreaInset 0.0,
+        TextAreaMaxLines 128,
+
+        SetPoint TOPLEFT, "GameChatroom", TOPLEFT, 0.014375, -0.453125,
+        Width 0.461875,
+        Height 0.094375,
+
+        TextAreaScrollBar "ChatScrollBar",
+        Frame "SCROLLBAR" "ChatScrollBar" INHERITS WITHCHILDREN "StandardScrollBarTemplate" {
+        }
+    }
+
+    Frame "EDITBOX" "ChatEditBox" INHERITS WITHCHILDREN "StandardEditBoxTemplate" {
+        Width 0.469375,
+        SetPoint TOPLEFT, "ChatTextArea", BOTTOMLEFT, -0.003125, 0.000625,
+		TabFocusDefault,
+		TabFocusNext "StartGameButton",
+    }
+
+    // --- map display
+    Frame "FRAME" "MapDisplayPanel" {
+
+        Frame "FRAME" "MapInfoPaneContainer" {
+            Width 0.234375,
+            Height 0.225,
+            SetPoint TOPRIGHT, "GameChatroom", TOPRIGHT, -0.025625, -0.05625,
+        }
+
+        Frame "TEXT" "GameNameLabel" INHERITS "StandardLabelTextTemplate" {
+            Width 0.234375,
+            SetPoint BOTTOM, "MapInfoPaneContainer", TOP, 0.0, 0.008,
+            Text "COLON_GAME_NAME",
+        }
+
+        Frame "TEXT" "GameNameValue" INHERITS "StandardValueTextTemplate" {
+            Width 0.234375,
+            SetPoint TOPLEFT, "GameNameLabel", TOPLEFT, 0.0, 0.0,
+            FontJustificationH JUSTIFYRIGHT,
+        }
+
+        Frame "FRAME" "AdvancedOptionsContainer" {
+            Height 0.125,
+            Width 0.234375,
+            SetPoint TOP, "MapInfoPaneContainer", BOTTOM, 0.0, -0.008,
+        }
+    }
+
+    // --- bottom buttons
+    Frame "BACKDROP" "StartGameBackdrop" INHERITS "StandardMenuButtonBaseBackdrop" {
+        Width 0.24,
+        SetPoint BOTTOMRIGHT,"GameChatroom",BOTTOMRIGHT, -0.015, 0.074,
+
+	    Frame "GLUETEXTBUTTON" "StartGameButton" INHERITS WITHCHILDREN "StandardButtonTemplate" {
+            Width 0.168,
+		    SetPoint TOPRIGHT,"StartGameBackdrop",TOPRIGHT, -0.012, -0.0165,
+		    ControlShortcutKey "S",
+            TabFocusNext "CancelButton",
+
+            ButtonText "StartGameButtonText",
+		    Frame "TEXT" "StartGameButtonText" INHERITS "StandardButtonTextTemplate" {
+			    Text "KEY_START_GAME",
+		    }
+	    }
+    }
+
+    Frame "BACKDROP" "CancelBackdrop" INHERITS "StandardMenuButtonBaseBackdrop" {
+        Width 0.24,
+        SetPoint BOTTOMRIGHT,"GameChatroom",BOTTOMRIGHT, -0.015, 0.0225,
+
+	    Frame "GLUETEXTBUTTON" "CancelButton" INHERITS WITHCHILDREN "StandardButtonTemplate" {
+            Width 0.168,
+            SetPoint TOPRIGHT,"CancelBackdrop",TOPRIGHT, -0.012, -0.0165,
+		    ControlShortcutKey "A",
+            TabFocusNext "ChatEditBox",
+
+            ButtonText "CancelButtonText",
+		    Frame "TEXT" "CancelButtonText" INHERITS "StandardButtonTextTemplate" {
+			    Text "KEY_CANCEL",
+		    }
+	    }
+    }
+}

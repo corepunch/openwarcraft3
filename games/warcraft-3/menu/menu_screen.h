@@ -12,7 +12,7 @@
 
 typedef struct uiScreen_s {
     LPCSTR name;
-    uiGluePanel_t panel;  /* UI_GLUE_NONE for screens without a fixed panel */
+    GLUEDEST glue;
     BOOL (*load)(void);
     void (*init)(void);
     void (*shutdown)(void);

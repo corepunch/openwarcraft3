@@ -58,7 +58,7 @@ static void CreditsMenu_KeyEvent(int key, BOOL down) {
 
 uiScreen_t creditsMenuScreen = {
     .name = "credits",
-    .panel = UI_GLUE_MAIN_MENU,
+    .glue = { .panel = UI_GLUE_MAIN_MENU },
     .load = CreditsMenu_LoadScreen,
     .init = CreditsMenu_Init,
     .shutdown = CreditsMenu_Shutdown,

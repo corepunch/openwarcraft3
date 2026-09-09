@@ -1,3 +1,0 @@
-Frame "CONTROL" "MapListBox" {
-    Frame "SCROLLBAR" "MapListScrollBar" {}
-}

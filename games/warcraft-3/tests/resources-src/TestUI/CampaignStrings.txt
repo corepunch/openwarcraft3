@@ -43,3 +43,17 @@ Cursor=3
 Entries=1
 Mission0="Enemies at the Gate"
 File0="NightElf01"
+
+[Tutorial]
+Header="Prologue Campaign"
+Name="Exodus of the Horde"
+Entries=2
+InCinematic="The Prophecy"
+OpCinematic="Thrall's Vision"
+EdCinematic=""
+Title0="Chapter One"
+Title1="Chapter Two"
+Mission0="Chasing Visions"
+Mission1="Departures"
+File0="Prologue01"
+File1="Prologue02"

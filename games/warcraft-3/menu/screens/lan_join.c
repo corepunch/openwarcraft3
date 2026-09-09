@@ -636,9 +636,6 @@ static void LAN_BuildFrames(lanMode_t mode) {
 static void LANJoin_Init(void) {
     mi.Printf("LANJoin_Init\n");
     LAN_BuildFrames(lan.mode);
-    UI_GotoGluePanel(lan.mode == LAN_MODE_BROWSER       ? UI_GLUE_BATTLENET_CUSTOM :
-                     lan.mode == LAN_MODE_SINGLE_PLAYER_CREATE ? UI_GLUE_SINGLE_PLAYER_SKIRMISH :
-                                                          UI_GLUE_BATTLENET_CUSTOM_CREATE, NULL);
     if (!lan.ready) {
         return;
     }
@@ -790,23 +787,16 @@ void LAN_JoinSelectedGame(void) {
     mi.LAN_ConnectServer(lan.games.items[lan.games.selected].flags);
 }
 
+/* Same-screen navigation still changes chrome. With animation ownership in
+ * menu_main, rebuilding controls can reuse the normal initialization path. */
 static void LAN_ShowMode(lanMode_t mode) {
+    GLUEDEST solo = { .panel = UI_GLUE_SINGLE_PLAYER, .tab = 1 };
+    lanJoinScreen.glue = mode == LAN_MODE_SINGLE_PLAYER_CREATE ? solo :
+        (GLUEDEST){ .panel = UI_GLUE_BATTLENET_CUSTOM, .tab = mode == LAN_MODE_CREATE };
+    gameSetupScreen.glue = mode == LAN_MODE_SINGLE_PLAYER_CREATE ? solo :
+        (GLUEDEST){ .panel = UI_GLUE_MULTIPLAYER_PRE_GAME_CHAT };
     lan.mode = mode;
-    if (UI_GetCurrentScreen() != &lanJoinScreen) {
-        return;
-    }
-    LAN_BuildFrames(mode);
-    if (!lan.ready) {
-        return;
-    }
-    if (mode == LAN_MODE_BROWSER) {
-        LAN_ClearGames();
-        LAN_RequestServerRefresh();
-        LAN_LoadGames();
-    } else {
-        LAN_LoadMaps();
-    }
-    LAN_UpdateControls();
+    if (UI_GetCurrentScreen() == &lanJoinScreen) LANJoin_Init();
 }
 
 void LAN_ShowBrowser(void) {
@@ -841,6 +831,7 @@ void LAN_RefreshMaps(void) {
 
 uiScreen_t lanJoinScreen = {
     .name = "lan",
+    .glue = { .panel = UI_GLUE_BATTLENET_CUSTOM },
     .load = LANJoin_LoadScreen,
     .init = LANJoin_Init,
     .shutdown = LANJoin_Shutdown,

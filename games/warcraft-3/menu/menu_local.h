@@ -52,21 +52,20 @@ typedef enum {
     UI_GLUE_REALM_SELECTION,
     UI_GLUE_SINGLE_PLAYER,
     UI_GLUE_OPTIONS,
-    UI_GLUE_SINGLE_PLAYER_SKIRMISH,
     UI_GLUE_MULTIPLAYER_PRE_GAME_CHAT,
     UI_GLUE_BATTLENET_CUSTOM,
-    UI_GLUE_BATTLENET_CUSTOM_CREATE,
     UI_GLUE_PANEL_COUNT,
 } uiGluePanel_t;
+
+typedef struct { uiGluePanel_t panel; int tab; } GLUEDEST;
+typedef GLUEDEST *LPGLUEDEST;
+typedef const GLUEDEST *LPCGLUEDEST;
 
 void UI_ResetGlueSceneModels(void);
 void UI_ReleaseGlueSceneModels(void);
 void UI_PreloadGlueSceneModels(void);
 typedef void (*uiGluePanelChanged_f)(void);
-void UI_GotoGluePanel(uiGluePanel_t panel, uiGluePanelChanged_f changed);
-void UI_GotoGluePanelTransition(uiGluePanel_t panel, uiGluePanelChanged_f exited, uiGluePanelChanged_f changed);
-void UI_RetargetGluePanel(uiGluePanel_t panel, uiGluePanelChanged_f exited, uiGluePanelChanged_f changed);
-void UI_SetGlueTab(uiGluePanel_t panel);
+void UI_GotoGluePanel(GLUEDEST dest, uiGluePanelChanged_f exited, uiGluePanelChanged_f changed);
 void UI_CloseGluePanel(uiGluePanelChanged_f changed);
 void UI_DrawGlueScene(void);
 BOOL UI_GetGlueScreenOffset(LPVECTOR2 offset);
@@ -86,7 +85,7 @@ void UI_InheritFrom(LPFRAMEDEF, LPCSTR);
 void UI_LoadTheme(LPCSTR fileName);
 void UI_ClearTheme(void);
 LPCSTR M_ResolveImagePath(LPCSTR key);
-void M_MenuCommand(LPCSTR command);
+void UI_QueueCommand(LPCSTR command);
 LPCFRAMEDEF UI_HitTest(FLOAT fdf_x, FLOAT fdf_y);
 RECT UI_GetSceneRect(void);
 RECT UI_GetCenteredSceneRect(void);
@@ -177,6 +176,7 @@ void UI_DrawFrames(LPCFRAMEDEF const *roots, DWORD num_roots);
 BOOL M_EditKey(int key);
 BOOL M_MouseEvent(menuMouseEvent_t event, int x, int y, int32_t param);
 void M_TextInput(LPCSTR text);
+void UI_EditTextInput(LPCSTR text);
 BOOL UI_EditHasFocus(LPCFRAMEDEF frame);
 LPCSTR UI_EditValue(LPCFRAMEDEF frame);
 void UI_SetEditValue(LPFRAMEDEF frame, LPCSTR text);

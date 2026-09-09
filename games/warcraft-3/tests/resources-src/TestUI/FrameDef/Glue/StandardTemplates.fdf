@@ -23,3 +23,156 @@ Frame "DIALOG" "StandardDialogTemplate" {
 Frame "TEXT" "StandardLabelTextTemplate" { FrameFont "MasterFont", 0.015, "", }
 Frame "TEXT" "StandardTitleTextTemplate" { FrameFont "MasterFont", 0.02, "", }
 Frame "TEXT" "StandardValueTextTemplate" { FrameFont "MasterFont", 0.013, "", }
+
+// Authored dependencies for the LAN panel navigation fixtures.
+Frame "BACKDROP" "StandardEditBoxBackdropTemplate" {
+    BackdropTileBackground,
+    BackdropBackground  "UI\Widgets\BattleNet\bnet-inputbox-back.blp",
+    BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R",
+    BackdropCornerSize  0.032,
+    BackdropBackgroundInsets 0.004 0.004 0.004 0.004,
+    BackdropEdgeFile  "UI\Widgets\BattleNet\bnet-inputbox-border.blp",
+    BackdropBlendAll,
+}
+
+Frame "EDITBOX" "StandardEditBoxTemplate" {
+    Height 0.04,
+    EditBorderSize 0.009,
+    EditCursorColor 1.0 1.0 1.0,
+
+    ControlBackdrop "StandardEditBoxBackdrop",
+    Frame "BACKDROP" "StandardEditBoxBackdrop" INHERITS "StandardEditBoxBackdropTemplate" {
+    }
+}
+
+Frame "FRAME" "StandardFrameTemplate" {
+    DecorateFileNames,
+    FrameFont "MasterFont", 0.015, "",
+}
+
+Frame "BACKDROP" "StandardMenuButtonBaseBackdrop" {
+    Width 0.256,
+    Height 0.064,
+    BackdropBlendAll,
+    BackdropBackground  "UI\Widgets\Glues\GlueScreen-Button1-Border.blp",
+}
+
+Frame "BACKDROP" "StandardMenuSingleLargeButtonBaseBackdrop" {
+    Width 0.256,
+    Height 0.064,
+    BackdropBlendAll,
+    BackdropBackground  "UI\Widgets\Glues\GlueScreen-Button1-LargeBorderSingle.blp",
+}
+
+Frame "BACKDROP" "StandardMenuSmallButtonBaseBackdrop" {
+    Width 0.256,
+    Height 0.064,
+    BackdropBlendAll,
+    BackdropBackground  "UI\Widgets\Glues\GlueScreen-Button1-SmallBorder.blp",
+}
+
+Frame "SCROLLBAR" "StandardScrollBarTemplate" {
+    Width 0.0165,
+    SliderLayoutVertical,
+
+    ControlBackdrop "StandardScrollBarBackdrop",
+    Frame "BACKDROP" "StandardScrollBarBackdrop" {
+        BackdropTileBackground,
+        BackdropBackground  "UI\Widgets\Glues\GlueScreen-Scrollbar-BackdropBackground.blp",
+        BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R",
+        BackdropCornerSize  0.008,
+        BackdropBackgroundInsets 0.004 0.004 0.004 0.004,
+        BackdropEdgeFile  "UI\Widgets\Glues\GlueScreen-Scrollbar-BackdropBorder.blp",
+        BackdropBlendAll,
+    }
+
+    ScrollBarIncButtonFrame "StandardScrollBarIncButton",
+    Frame "BUTTON" "StandardScrollBarIncButton" {
+        Width 0.015,
+        Height 0.015,
+        ControlBackdrop "StandardScrollBarIncButtonBackdrop",
+        Frame "BACKDROP" "StandardScrollBarIncButtonBackdrop" {
+            BackdropBackground  "UI\Widgets\Glues\GlueScreen-Scrollbar-UpArrow.blp",
+            BackdropBlendAll,
+        }
+    }
+
+    ScrollBarDecButtonFrame "StandardScrollBarDecButton",
+    Frame "BUTTON" "StandardScrollBarDecButton" {
+        Width 0.015,
+        Height 0.015,
+        ControlBackdrop "StandardScrollBarDecButtonBackdrop",
+        Frame "BACKDROP" "StandardScrollBarDecButtonBackdrop" {
+            BackdropBackground  "UI\Widgets\Glues\GlueScreen-Scrollbar-DownArrow.blp",
+            BackdropBlendAll,
+        }
+    }
+
+    SliderThumbButtonFrame "StandardThumbButton",
+    Frame "BUTTON" "StandardThumbButton" {
+        Width 0.01,
+        Height 0.01,
+        ControlBackdrop "StandardThumbButtonBackdrop",
+        Frame "BACKDROP" "StandardThumbButtonBackdrop" {
+            BackdropBackground  "UI\Widgets\Glues\SinglePlayerSkirmish-ScrollBarKnob.blp",
+            BackdropBlendAll,
+        }
+    }
+}
+
+Frame "TEXT" "StandardSmallTextTemplate" {
+    DecorateFileNames,
+    FrameFont "MasterFont", 0.011, "",
+    FontJustificationH JUSTIFYLEFT,
+    FontJustificationV JUSTIFYMIDDLE,
+    FontFlags "FIXEDSIZE",
+    FontColor 0.99 0.827 0.0705 1.0,
+    FontHighlightColor 1.0 1.0 1.0 1.0,
+    FontDisabledColor 0.2 0.2 0.2 1.0,
+	FontShadowColor 0.0 0.0 0.0 0.9,
+    FontShadowOffset 0.001 -0.001,
+}
+
+
+Frame "BACKDROP" "StandardBorderedButtonBackdropTemplate" {
+    BackdropTileBackground,
+    BackdropBackground  "UI\Widgets\Glues\GlueScreen-Button1-BackdropBackground.blp",
+    BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R",
+    BackdropCornerSize  0.016,
+    BackdropBackgroundSize  0.032,
+    BackdropBackgroundInsets 0.004 0.004 0.004 0.004,
+    BackdropEdgeFile  "UI\Widgets\Glues\GlueScreen-Button1-BorderedBackdropBorder.blp",
+}
+
+Frame "TEXTBUTTON" "StandardPopupMenuTitleTemplate" {
+    DecorateFileNames,
+    FrameFont "MasterFont",0.011,"",
+    ButtonText "StandardPopupMenuTitleTextTemplate",
+    Frame "TEXT" "StandardPopupMenuTitleTextTemplate" {
+        FontJustificationOffset 0.01 0.0,
+        FontFlags "FIXEDSIZE",
+    }
+}
+
+Frame "BUTTON" "StandardPopupMenuArrowTemplate" {
+    Height 0.011,
+    Width 0.011,
+    ControlBackdrop "StandardPopupMenuArrowBackdropTemplate",
+    Frame "BACKDROP" "StandardPopupMenuArrowBackdropTemplate" {
+        BackdropBlendAll,
+        BackdropBackground "UI\Widgets\Glues\GlueScreen-Pulldown-Arrow.blp",
+    }
+}
+
+Frame "MENU" "StandardPopupMenuMenuTemplate" {
+    Height 0.06,
+    DecorateFileNames,
+    FrameFont "MasterFont",0.011,"",
+    MenuTextHighlightColor 0.99 0.827 0.0705 1.0,
+    MenuItemHeight 0.014,
+    MenuBorder 0.009,
+
+    ControlBackdrop "StandardPopupMenuMenuBackdropTemplate",
+    Frame "BACKDROP" "StandardPopupMenuMenuBackdropTemplate" INHERITS "StandardBorderedButtonBackdropTemplate" {
+    }
+}
