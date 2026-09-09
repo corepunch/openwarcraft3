@@ -259,7 +259,8 @@ void UI_LoadHudMenu(void) {
     UI_SetOnClick(hud.menu.PreviousButton, "menu");
     UI_SetOnClick(hud.menu.RestartButton,
         UI_WINDOW_CLOSE_COMMAND_PREFIX "menu_restart");
-    UI_SetOnClick(hud.menu.QuitButton, UI_WINDOW_DISCONNECT_ACTION);
+    UI_SetOnClick(hud.menu.QuitButton,
+        UI_WINDOW_CLOSE_COMMAND_PREFIX "menu_quit_game");
     UI_SetOnClick(hud.menu.ExitButton, "menu_confirm_exit");
     UI_SetOnClick(hud.menu.ConfirmQuitCancelButton, "menu_endgame");
     UI_SetOnClick(hud.menu.ConfirmQuitQuitButton, UI_WINDOW_QUIT_ACTION);

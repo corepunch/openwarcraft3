@@ -742,6 +742,24 @@ void G_RequestEndGame(BOOL do_score_screen) {
     gi.MenuAction("menu", "menu_main");
 }
 
+static BOOL G_IsCampaignMapPath(LPCSTR path) {
+    return path && (!strncasecmp(path, "Maps\\Campaign\\", 14) ||
+                    !strncasecmp(path, "Maps/Campaign/", 14) ||
+                    !strncasecmp(path, "Maps\\FrozenThrone\\Campaign\\", 26) ||
+                    !strncasecmp(path, "Maps/FrozenThrone/Campaign/", 26));
+}
+
+void G_RequestQuitGame(void) {
+    LPCSTR map = level.map_path[0] ? level.map_path : gi.CvarString("map", "");
+    LPCSTR target = G_IsSinglePlayer() && G_IsCampaignMapPath(map)
+        ? "menu_single_player_campaign"
+        : "menu_main";
+
+    G_GameResultDebug("request QuitGame map=%s single_player=%u target=%s",
+        map ? map : "(null)", (unsigned)G_IsSinglePlayer(), target);
+    gi.MenuAction("menu", target);
+}
+
 void G_RequestChangeLevel(LPCSTR map, BOOL do_score_screen) {
     G_GameResultDebug("request ChangeLevel map=%s score_screen=%u", map ? map : "(null)", (unsigned)do_score_screen);
     if (map && *map) gi.MenuAction("map", map);
