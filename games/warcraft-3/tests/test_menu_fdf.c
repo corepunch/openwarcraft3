@@ -11,6 +11,7 @@
 #include "../menu/menu_dialog.h"
 #include "../menu/menu_screen.h"
 #include "../common/minimap.h"
+#include "../common/campaign_progress.h"
 #include "../../../common/mpq.h"
 #include "../../../common/video_modes.h"
 
@@ -43,8 +44,8 @@ static HANDLE test_mpq_archive;
 static BOOL hide_expansion_campaign_file;
 static BOOL test_fs_expansion;
 static int test_vid_native = -1;
-static LPCSTR test_campaign_mission_visibility;
-static int test_campaign_played_mission = -1;
+static LPCSTR test_campaign_visibility;
+static PATHSTR test_campaign_progress_path = "campaign-progress-menu-test.orcp";
 static VECTOR2 test_mouse_pos;
 static LPCSTR test_map = "";
 static DWORD map_reads, texture_releases;
@@ -336,12 +337,8 @@ static LPCSTR test_cvar_string(LPCSTR name, LPCSTR fallback) {
     if (name && !strcmp(name, "vid_native") && test_vid_native >= 0) {
         return test_vid_native ? "1" : "0";
     }
-    if (name && !strcmp(name, "wc3_campaign_mission_visibility") && test_campaign_mission_visibility) {
-        return test_campaign_mission_visibility;
-    }
-    if (name && !strncmp(name, "wc3_campaign_played_human_", 26)) {
-        int mission = atoi(name + 26);
-        return mission == test_campaign_played_mission ? "1" : "0";
+    if (name && !strcmp(name, "wc3_campaign_visibility") && test_campaign_visibility) {
+        return test_campaign_visibility;
     }
     return fallback;
 }
@@ -350,6 +347,12 @@ static void test_cvar_set(LPCSTR name, LPCSTR value) {
     snprintf(captured_cvar_name, sizeof(captured_cvar_name), "%s", name ? name : "");
     snprintf(captured_cvar_value, sizeof(captured_cvar_value), "%s", value ? value : "");
     if (name && !strcmp(name, "fs_expansion")) test_fs_expansion = value && atoi(value) != 0;
+}
+
+static void test_user_path(LPCSTR rel, LPSTR out, DWORD out_size) {
+    (void)rel;
+    if (!out || !out_size) return;
+    snprintf(out, out_size, "%s", test_campaign_progress_path);
 }
 
 static void load_ui_files(LPCSTR const *file_names, size_t count) {
@@ -2310,6 +2313,7 @@ static void test_glue_setup(void) {
     mi.FS_FreeFile = test_fs_free_file;
     mi.Cvar_String = test_cvar_string;
     mi.Cmd_ExecuteText = test_cmd_execute_text;
+    mi.UserPath = test_user_path;
     UI_ResetGlueSceneModels();
 }
 
@@ -2916,8 +2920,8 @@ static void test_single_player_campaign_profile(BOOL tft) {
 
     hide_expansion_campaign_file = false;
     test_fs_expansion = tft;
-    test_campaign_mission_visibility = NULL;
-    test_campaign_played_mission = -1;
+    test_campaign_visibility = NULL;
+    remove(test_campaign_progress_path);
     load_ui_files(files, sizeof(files) / sizeof(files[0]));
 
     memset(&mi, 0, sizeof(mi));
@@ -2932,7 +2936,7 @@ static void test_single_player_campaign_profile(BOOL tft) {
     mi.MemAlloc = test_ui_mem_alloc;
     mi.MemFree = test_ui_mem_free;
     mi.PlayMovie = test_play_movie;
-
+    mi.UserPath = test_user_path;
 
     if (!singlePlayerMenuScreen.load()) {
         T_ASSERT(false);
@@ -3076,11 +3080,31 @@ static void test_single_player_campaign_profile(BOOL tft) {
         T_STREQ(difficulty_title->Text, UI_GetString("HARD"));
     }
 
-    test_campaign_mission_visibility = "played";
-    test_campaign_played_mission = 1;
-    Cmd_ExecuteString(tft ? "menu_single_player_campaign_select 1" : "menu_single_player_campaign_select 0");
+    {
+        wc3CampaignProgress_t progress;
+        DWORD const edition = tft ? WC3_CAMPAIGN_EDITION_TFT : WC3_CAMPAIGN_EDITION_ROC;
+        wc3CampaignProgressKey_t const undead = MAKE(wc3CampaignProgressKey_t,
+                                                      .edition = edition,
+                                                      .campaign = 2);
+        wc3CampaignProgressKey_t const human02 = MAKE(wc3CampaignProgressKey_t,
+                                                       .edition = edition,
+                                                       .campaign = 1,
+                                                       .mission = 1);
+
+        wc3_campaign_progress_init(&progress);
+        T_ASSERT(wc3_campaign_progress_set_campaign(&progress, undead, true));
+        T_ASSERT(wc3_campaign_progress_set_mission(&progress, human02, true));
+        T_ASSERT(wc3_campaign_progress_save(test_campaign_progress_path, &progress));
+    }
+    test_campaign_visibility = "unlocked";
+    SinglePlayerMenu_ShowCampaign();
+    T_EQ((int)campaign_list_box->MapListControl.State->count, 2);
+    T_STREQ(campaign_list_box->MapListControl.State->items[0].path, "Human");
+    T_STREQ(campaign_list_box->MapListControl.State->items[1].path, "Undead");
+
+    Cmd_ExecuteString("menu_single_player_campaign_select 0");
 #ifdef BZ_FFMPEG
-    T_EQ((int)mission_list_box->MapListControl.State->count, 4);
+    T_EQ((int)mission_list_box->MapListControl.State->count, 5);
     T_STREQ(mission_list_box->MapListControl.State->items[0].name,
             tft
                 ? "Cinematic: Introduction: Alliance Introduction"
@@ -3089,17 +3113,23 @@ static void test_single_player_campaign_profile(BOOL tft) {
             tft
                 ? "Cinematic: Cinematic: Alliance Opening"
                 : "Cinematic: Cinematic: Human Opening");
-    T_EQ((int)mission_list_box->MapListControl.State->items[2].flags, 1);
+    T_EQ((int)mission_list_box->MapListControl.State->items[2].flags, 0);
     T_STREQ(mission_list_box->MapListControl.State->items[2].name,
-            tft ? "Chapter Two: A Dark Covenant" : "Blackrock & Roll");
+            tft ? "Chapter One: Misconceptions" : "The Defense of Strahnbrad");
+    T_EQ((int)mission_list_box->MapListControl.State->items[3].flags, 1);
     T_STREQ(mission_list_box->MapListControl.State->items[3].name,
+            tft ? "Chapter Two: A Dark Covenant" : "Blackrock & Roll");
+    T_STREQ(mission_list_box->MapListControl.State->items[4].name,
             tft
                 ? "Cinematic: Cinematic: Alliance Ending"
                 : "Cinematic: Cinematic: Human Ending");
 #else
-    T_EQ((int)mission_list_box->MapListControl.State->count, 1);
-    T_EQ((int)mission_list_box->MapListControl.State->items[0].flags, 1);
+    T_EQ((int)mission_list_box->MapListControl.State->count, 2);
+    T_EQ((int)mission_list_box->MapListControl.State->items[0].flags, 0);
     T_STREQ(mission_list_box->MapListControl.State->items[0].name,
+            tft ? "Chapter One: Misconceptions" : "The Defense of Strahnbrad");
+    T_EQ((int)mission_list_box->MapListControl.State->items[1].flags, 1);
+    T_STREQ(mission_list_box->MapListControl.State->items[1].name,
             tft ? "Chapter Two: A Dark Covenant" : "Blackrock & Roll");
 #endif
 
@@ -3107,21 +3137,21 @@ static void test_single_player_campaign_profile(BOOL tft) {
     captured_cvar_name[0] = '\0';
     captured_cvar_value[0] = '\0';
 #ifdef BZ_FFMPEG
-    Cmd_ExecuteString("menu_single_player_mission_select 2");
+    Cmd_ExecuteString("menu_single_player_mission_select 3");
 #else
-    Cmd_ExecuteString("menu_single_player_mission_select 0");
+    Cmd_ExecuteString("menu_single_player_mission_select 1");
 #endif
-    T_STREQ(captured_cvar_name, "wc3_campaign_played_human_1");
-    T_STREQ(captured_cvar_value, "1");
+    T_STREQ(captured_cvar_name, "");
+    T_STREQ(captured_cvar_value, "");
     T_STREQ(captured_command,
-                  tft
-                      ? "map \"Maps\\FrozenThrone\\Campaign\\HumanX02.w3x\""
-                      : "map \"Maps\\Campaign\\Human02.w3m\"");
+            tft
+                ? "map \"Maps\\FrozenThrone\\Campaign\\HumanX02.w3x\""
+                : "map \"Maps\\Campaign\\Human02.w3m\"");
 
+    remove(test_campaign_progress_path);
     hide_expansion_campaign_file = false;
     test_fs_expansion = false;
-    test_campaign_mission_visibility = NULL;
-    test_campaign_played_mission = -1;
+    test_campaign_visibility = NULL;
     mi = saved;
 }
 

@@ -114,6 +114,7 @@ typedef struct {
     void (*FS_FreeFile)(void *buf);
     int (*FS_GetFileList)(LPCSTR path, LPCSTR extension, char *listbuf, int bufsize);
     void (*FS_WriteFile)(LPCSTR path, const void *data, int size); /* Write to local disk */
+    void (*UserPath)(LPCSTR rel, LPSTR out, DWORD out_size); /* Resolve writable per-user game data */
     
     /* Memory allocation */
     HANDLE (*MemAlloc)(long size);

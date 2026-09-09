@@ -538,8 +538,6 @@ void Cvar_Init(void) {
     Cvar_GetD("g_module",         "game",              CVAR_ARCHIVE, "game logic shared library name");
     Cvar_GetD("ui_game_setup_map","",                  0,            "map pre-selected in game setup UI");
 #ifdef WC3
-    Cvar_GetD("wc3_campaign_mission_visibility", "all", CVAR_ARCHIVE,
-              "campaign mission list visibility: all or played");
     Cvar_GetD("wc3_cheat_starting_resources", "0", 0,
               "cheat: add 5000 gold and 5000 lumber to each human player's map-authored starting resources");
     Cvar_GetD("wc3_cheat_timeofday_scale", "1", 0,

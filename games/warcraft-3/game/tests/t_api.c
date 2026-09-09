@@ -19,6 +19,7 @@
 #include "test.h"
 #include "../g_local.h"
 #include "common/ui_constants.h"
+#include "common/campaign_progress.h"
 
 /* Helpers defined in t_utils.c */
 LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y);
@@ -211,6 +212,18 @@ static LPCSTR gamecache_disabled_cvar(LPCSTR name, LPCSTR fallback) {
 
 static LPCSTR gamecache_memory_cvar(LPCSTR name, LPCSTR fallback) {
     return !strcmp(name, "wc3_gamecache_mode") ? "memory" : fallback;
+}
+
+static LPCSTR campaign_progress_roc_cvar(LPCSTR name, LPCSTR fallback) {
+    return !strcmp(name, "fs_expansion") ? "0" : fallback;
+}
+
+static char campaign_progress_test_path[] = "campaign-progress-native-test.orcp";
+
+static void campaign_progress_test_user_path(LPCSTR rel, LPSTR out, DWORD out_size) {
+    (void)rel;
+    if (!out || !out_size) return;
+    snprintf(out, out_size, "%s", campaign_progress_test_path);
 }
 
 static int ui_sound_calls;
@@ -2825,6 +2838,82 @@ TEST(wc3_api, player_structure_count_survives_nonstructure_death) {
     jass_callbyname(level.vm, "verifyDeath", true);
     jass_runevents(level.vm);
     T_ASSERT(!jass_rterror_pending(level.vm));
+}
+
+/* =========================================================================
+ * Campaign availability progress
+ * ========================================================================= */
+
+TEST(wc3_api, campaign_progress_natives_persist_stock_bj_unlocks) {
+    void (*old_user_path)(LPCSTR, LPSTR, DWORD) = gi.UserPath;
+    LPCSTR (*old_cvar)(LPCSTR, LPCSTR) = gi.CvarString;
+    wc3CampaignProgress_t progress;
+    wc3CampaignProgressKey_t campaign_key;
+    wc3CampaignProgressKey_t mission_key;
+
+    remove(campaign_progress_test_path);
+    remove("campaign-progress-native-test.orcp.tmp");
+    remove("campaign-progress-native-test.orcp.bak");
+    gi.UserPath = campaign_progress_test_user_path;
+    gi.CvarString = campaign_progress_roc_cvar;
+    level.campaign_select_on_end = false;
+    G_CampaignProgressResetRuntime();
+
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  call SetCampaignAvailableBJ(true, bj_CAMPAIGN_INDEX_H)\n"
+        "  call SetMissionAvailableBJ(true, bj_MISSION_INDEX_H00)\n"
+        "endfunction\n"));
+
+    campaign_key = MAKE(wc3CampaignProgressKey_t,
+                        .edition = WC3_CAMPAIGN_EDITION_ROC,
+                        .campaign = 1);
+    mission_key = MAKE(wc3CampaignProgressKey_t,
+                       .edition = WC3_CAMPAIGN_EDITION_ROC,
+                       .campaign = 1,
+                       .mission = 0);
+    T_ASSERT(wc3_campaign_progress_load(campaign_progress_test_path, &progress));
+    T_ASSERT(progress.tutorial_known[WC3_CAMPAIGN_EDITION_ROC]);
+    T_ASSERT(progress.tutorial_cleared[WC3_CAMPAIGN_EDITION_ROC]);
+    T_ASSERT(wc3_campaign_progress_campaign_available(&progress, campaign_key));
+    T_ASSERT(wc3_campaign_progress_mission_available(&progress, mission_key));
+    T_ASSERT(level.campaign_select_on_end);
+
+    level.campaign_select_on_end = false;
+    G_CampaignProgressResetRuntime();
+    gi.CvarString = old_cvar;
+    gi.UserPath = old_user_path;
+    remove(campaign_progress_test_path);
+}
+
+TEST(wc3_api, campaign_progress_round_trip_preserves_explicit_false) {
+    wc3CampaignProgress_t written;
+    wc3CampaignProgress_t loaded;
+    wc3CampaignProgressKey_t key = MAKE(wc3CampaignProgressKey_t,
+                                        .edition = WC3_CAMPAIGN_EDITION_TFT,
+                                        .campaign = 2,
+                                        .mission = 7);
+
+    remove(campaign_progress_test_path);
+    wc3_campaign_progress_init(&written);
+    T_ASSERT(wc3_campaign_progress_set_campaign(&written, key, false));
+    T_ASSERT(wc3_campaign_progress_set_mission(&written, key, false));
+    T_ASSERT(wc3_campaign_progress_save(campaign_progress_test_path, &written));
+    T_ASSERT(wc3_campaign_progress_load(campaign_progress_test_path, &loaded));
+    T_ASSERT(wc3_campaign_progress_has_campaign(&loaded, key));
+    T_ASSERT(!wc3_campaign_progress_campaign_available(&loaded, key));
+    T_ASSERT(wc3_campaign_progress_has_mission(&loaded, key));
+    T_ASSERT(!wc3_campaign_progress_mission_available(&loaded, key));
+    remove(campaign_progress_test_path);
+}
+
+TEST(wc3_api, campaign_progress_campaign_keys_match_blizzard_offsets) {
+    T_EQ((int)wc3_campaign_progress_campaign_index(WC3_CAMPAIGN_EDITION_ROC, "Tutorial"), 0);
+    T_EQ((int)wc3_campaign_progress_campaign_index(WC3_CAMPAIGN_EDITION_ROC, "Human"), 1);
+    T_EQ((int)wc3_campaign_progress_campaign_index(WC3_CAMPAIGN_EDITION_ROC, "NightElf"), 4);
+    T_EQ((int)wc3_campaign_progress_campaign_index(WC3_CAMPAIGN_EDITION_TFT, "NightElf"), 0);
+    T_EQ((int)wc3_campaign_progress_campaign_index(WC3_CAMPAIGN_EDITION_TFT, "Human"), 1);
+    T_EQ((int)wc3_campaign_progress_campaign_index(WC3_CAMPAIGN_EDITION_TFT, "Orc"), 3);
 }
 
 /* =========================================================================

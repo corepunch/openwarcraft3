@@ -2,6 +2,7 @@
 CampaignList="Human","Undead","Orc","NightElf"
 
 [Human]
+DefaultOpen=1
 Header="Human Campaign"
 Name="The Scourge of Lordaeron"
 Background="HumanBackdrop"
