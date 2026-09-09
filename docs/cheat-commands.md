@@ -17,6 +17,8 @@ The Quake 2 reference implementation supports `give all`, health, weapons, ammo,
 
 ## Warcraft III
 
+All `sv_cheats 1` Warcraft III cheat commands print their result to the issuing player's in-game console. This includes successful state changes as well as disabled-cheat, usage, and validation feedback. The same text is retained on stderr for terminal/debug logs; console delivery is presentation-only and is skipped for disconnected test/reserved clients.
+
 For map-start resource testing, `wc3_cheat_starting_resources` is a session-only CVar. Set it before loading the map:
 
 ```
