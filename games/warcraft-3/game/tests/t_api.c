@@ -3084,4 +3084,22 @@ TEST(wc3_api, weather_effect_handle_round_trips_through_save_codec) {
  * Test suite entry point
  * ========================================================================= */
 
+TEST(wc3_api, controller_input_preserves_scripted_ownership) {
+    LPGAMECLIENT gc = &game.clients[0];
+    INPUTCMD cmd = { .action = BZ_INPUT_VIEW, .view = {{-40, 0, 25}, 1200} };
+    BOOL old_ctrl = gc->no_control;
+    FLOAT dist = gc->camera.state.target_distance;
+    gc->no_control = true;
+    globals.ClientInput(&g_edicts[0], &cmd);
+    T_FEQ(gc->camera.state.target_distance, dist, 0.001f);
+    gc->no_control = false;
+    globals.ClientInput(&g_edicts[0], &cmd);
+    T_FEQ(gc->camera.state.viewangles.x, -40, 0.001f);
+    T_FEQ(gc->camera.state.viewangles.z, 25, 0.001f);
+    T_FEQ(gc->camera.state.target_distance, 1200, 0.001f);
+    T_FEQ(gc->camera.old_state.target_distance, 1200, 0.001f);
+    T_EQ(gc->camera.start_time, gc->camera.end_time);
+    gc->no_control = old_ctrl;
+}
+
 #endif /* BZ_TESTS */

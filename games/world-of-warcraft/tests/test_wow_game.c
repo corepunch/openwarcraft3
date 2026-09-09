@@ -1193,6 +1193,7 @@ TEST(wow_game, wow_load_map_initializes_player_state) {
     assert_player_spawned(player);
     T_FEQ(player->client->ps.vieworigin.x, player->s.origin.x, 0.001f);
     T_FEQ(player->client->ps.vieworigin.y, player->s.origin.y, 0.001f);
+    T_FEQ(player->client->ps.vieworigin.z, player->s.origin.z + WOW_CAMERA_EYE_HEIGHT, 0.001f);
     T_EQ((int)player->client->ps.client_ui_state, CLIENT_UI_LOADING);
     T_STREQ(player->client->ps.name, "Thrall");
     T_EQ((int)player->client->ps.stats[WOW_STAT_HEALTH], 100);
@@ -2173,4 +2174,34 @@ TEST(wow_game, target_selection_reconciles_client_groups) {
     game->ClientCommand(&wow_edicts[0], 2, args);
     T_EQ(test_selection_size, 2); T_EQ(test_selection_buf[1], 0);
     game->Shutdown();
+}
+
+TEST(wow_game, controller_orbits_authoritative_actor_focus) {
+    struct game_export *game = init_game();
+    T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
+    LPEDICT player = &wow_edicts[0];
+    game->ClientBegin(player);
+    FLOAT ground = player->s.origin.z;
+    player->s.origin.z = 42;
+    game->ClientInput(player, &(INPUTCMD){ .action = BZ_INPUT_VIEW, .view = {{18, 0, 90}, 8} });
+    T_FEQ(player->client->ps.vieworigin.z, 42 + WOW_CAMERA_EYE_HEIGHT, 0.001f);
+    T_FEQ(player->client->ps.viewangles.x, 18, 0.001f);
+    T_FEQ(player->client->ps.viewangles.z, 90, 0.001f);
+    T_FEQ(player->client->ps.distance, 8, 0.001f);
+    VECTOR3 focus = player->client->ps.vieworigin;
+    game->ClientInput(player, &(INPUTCMD){ .action = BZ_INPUT_FOCUS, .focus = {999, 999} });
+    T_FEQ(player->client->ps.vieworigin.x, focus.x, 0.001f);
+    T_FEQ(player->client->ps.vieworigin.y, focus.y, 0.001f);
+    player->s.origin.z = ground;
+    game->ClientInput(player, &(INPUTCMD){ .action = BZ_INPUT_MOVE, .move = {BZ_MOVE_FORWARD, 16} });
+    game->RunFrame();
+    T_ASSERT(player->s.origin.y != focus.y);
+    VECTOR3 stopped = player->s.origin;
+    game->ClientInput(player, &(INPUTCMD){ .action = BZ_INPUT_MOVE });
+    game->RunFrame();
+    T_FEQ(player->s.origin.x, stopped.x, 0.001f);
+    T_FEQ(player->s.origin.y, stopped.y, 0.001f);
+    game->ClientInput(player, &(INPUTCMD){ .action = BZ_INPUT_VIEW, .view = {{-90, 0, 0}, 1000} });
+    T_FEQ(player->client->ps.distance, WOW_CAMERA_MAX_DISTANCE, 0.001f);
+    T_FEQ(player->client->ps.viewangles.x, 360 - WOW_CAMERA_MAX_PITCH, 0.001f);
 }

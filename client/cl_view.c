@@ -161,10 +161,6 @@ void Matrix4_getCameraMatrix(LPMATRIX4 output) {
     FLOAT znear = LerpNumber(a->znear, b->znear, cl.viewDef.lerpfrac);
     FLOAT zfar = LerpNumber(a->zfar, b->zfar, cl.viewDef.lerpfrac);
     
-#ifdef WOW
-    /* Look-at Z comes from the player entity, not the camera sample. */
-    origin.z = LerpNumber(cl.ents[0].prev.origin.z, cl.ents[0].current.origin.z, cl.viewDef.lerpfrac) + WOW_CAMERA_EYE_HEIGHT;
-#endif
     Matrix4_perspective(&proj, fov, aspect, znear, zfar);
     Matrix4_fromViewQuat(&origin, &quat, distance, &view);
     Matrix4_multiply(&proj, &view, output);

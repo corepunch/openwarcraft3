@@ -466,7 +466,7 @@ void CL_SetLoadingProgress(FLOAT progress) {
 void CL_BeginLoadingMap(LPCSTR mapName) {
     /* Per-map input conveniences must never retain entity numbers into the
      * next world, where those numbers may refer to unrelated entities. */
-    CL_InputModeResetMap();
+    CL_ResetInput();
     CL_ControlGroupsReset();
     /* Publish the resolved map before freezing the plaque; menu launches have no startup map cvar. */
     Cvar_Set("map", mapName);

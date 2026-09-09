@@ -1263,7 +1263,7 @@ static void Wow_UpdateCamera(LPEDICT ent) {
     gameCamera_t cam;
     if (!ent || !ent->client) return;
     CL_GameDefaultCamera(&cam);
-    ent->client->ps.vieworigin = (VECTOR3){ ent->s.origin.x, ent->s.origin.y, 0 };
+    ent->client->ps.vieworigin = (VECTOR3){ ent->s.origin.x, ent->s.origin.y, ent->s.origin.z + WOW_CAMERA_EYE_HEIGHT };
     ent->client->ps.viewangles = (VECTOR3){ Wow_ViewPitch(wow_move.pitch), 0.0f, wow_move.yaw };
     ent->client->ps.distance = wow_move.distance;
     player_set_lens(&ent->client->ps, &cam);
@@ -1563,7 +1563,7 @@ static void Wow_InitPlayer(LPEDICT ent, VECTOR2 spawn_origin, LONG spawn_locatio
     {
         gameCamera_t cam;
         CL_GameDefaultCamera(&cam);
-        ps->vieworigin = (VECTOR3){ spawn_origin.x, spawn_origin.y, 0 };
+        ps->vieworigin = (VECTOR3){ spawn_origin.x, spawn_origin.y, height + WOW_CAMERA_EYE_HEIGHT };
         ps->viewangles = (VECTOR3){ Wow_ViewPitch(wow_move.pitch), 0.0f, wow_move.yaw };
         ps->distance = wow_move.distance;
         player_set_lens(ps, &cam);
@@ -1794,6 +1794,7 @@ static bool Wow_SpawnEntities(void) {
         p->s.origin.z = wow_pending_teleport.z;
         p->s.angle    = wow_pending_teleport.orientation;
         wow_pending_teleport.pending = false;
+        Wow_UpdateCamera(p);
     }
     globals.num_edicts = MAX_CLIENTS;
     Wow_SpawnAmbientCreatures(&spawn_origin);
@@ -2465,12 +2466,16 @@ static void Wow_CustomizeEntity(DWORD player, LPCEDICT ent, LPENTITYSTATE state)
     }
 }
 
-static void Wow_ClientSetCameraPosition(LPEDICT ent, LPCVECTOR2 position) {
-    if (!ent || !ent->client || !position) {
-        return;
+/* Actor movement owns focus; camera input changes only the orbit around that actor. */
+static void Wow_ClientInput(LPEDICT ent, LPCINPUTCMD cmd) {
+    if (cmd->action == BZ_INPUT_MOVE) {
+        wow_move.flags = cmd->move.buttons;
+    } else if (cmd->action == BZ_INPUT_VIEW && ent->client->ps.client_ui_state == CLIENT_UI_GAME) {
+        wow_move.yaw = cmd->view.angles.z;
+        wow_move.pitch = Wow_Clamp(360.0f - cmd->view.angles.x, WOW_CAMERA_MIN_PITCH, WOW_CAMERA_MAX_PITCH);
+        wow_move.distance = Wow_Clamp(cmd->view.distance, WOW_CAMERA_MIN_DISTANCE, WOW_CAMERA_MAX_DISTANCE);
+        Wow_UpdateCamera(ent);
     }
-    ent->client->ps.vieworigin.x = position->x;
-    ent->client->ps.vieworigin.y = position->y;
 }
 
 static void Wow_ClientBegin(LPEDICT ent) {
@@ -2496,7 +2501,7 @@ struct game_export *GetGameAPI(struct game_import *import) {
     globals.RunFrame = Wow_RunFrame;
     globals.GetThemeValue = Wow_GetThemeValue;
     globals.ClientCommand = Wow_ClientCommand;
-    globals.ClientSetCameraPosition = Wow_ClientSetCameraPosition;
+    globals.ClientInput = Wow_ClientInput;
     globals.ClientLoading = Wow_ClientLoading;
     globals.ClientBegin = Wow_ClientBegin;
     globals.CanSeeEntity = NULL;

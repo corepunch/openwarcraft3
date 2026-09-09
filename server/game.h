@@ -134,7 +134,7 @@ struct game_export {
     void (*RunFrame)(void);
     LPCSTR (*GetThemeValue)(LPCSTR filename);
     void (*ClientCommand)(LPEDICT ent, DWORD argc, LPCSTR argv[]);
-    void (*ClientSetCameraPosition)(LPEDICT ent, LPCVECTOR2 position);
+    void (*ClientInput)(LPEDICT ent, LPCINPUTCMD cmd);
     void (*ClientLoading)(LPEDICT ent);
     void (*ClientBegin)(LPEDICT ent);
     BOOL (*CanSeeEntity)(DWORD player, LPCEDICT ent);
@@ -155,5 +155,15 @@ struct game_export {
 };
 
 struct game_export *GetGameAPI(struct game_import *game_import);
+
+/* Invisible controllers use the same movement axes as actors, with a game-owned focus speed. */
+static inline VECTOR2 input_move_focus(LPCINPUTCMD cmd, LPCPLAYER ps, FLOAT speed) {
+    DWORD bits = cmd->move.buttons;
+    VECTOR3 dir = { !!(bits & BZ_MOVE_FORWARD) - !!(bits & BZ_MOVE_BACK),
+        !!(bits & BZ_MOVE_LEFT) - !!(bits & BZ_MOVE_RIGHT), 0 };
+    dir = Vector3_rotateAroundAxis(&dir, &(VECTOR3){0, 0, 1}, DEG2RAD(ps->viewangles.z));
+    VECTOR3 pos = Vector3_mad(&ps->vieworigin, speed * cmd->move.msec / 1000.0f, &dir);
+    return (VECTOR2){ pos.x, pos.y };
+}
 
 #endif

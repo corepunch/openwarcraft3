@@ -242,7 +242,7 @@ SC2 currently has no dynamic walkable-surface state. The shared router cannot re
 
 ## See Also
 
-- [Shared input profiles](shared-input.md) — RTS/orbit modes, camera defaults, cvar aliases, and startup menus
+- [Shared input](shared-input.md) — one orbit camera, independent control options, cvar aliases, and startup menus
 
 - [Client Architecture](client.md) — client main loop, input, and scene rendering
 - [Network Architecture](network.md) — loopback/UDP transport and connection handshake

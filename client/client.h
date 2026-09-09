@@ -87,6 +87,10 @@ struct client_state {
     struct {
         BOOL active;
         VECTOR2 origin;
+        BOOL view;
+        VECTOR3 angles;
+        FLOAT distance;
+        DWORD focus_ms, view_ms;
     } camera_prediction;
     struct {
         DWORD width;

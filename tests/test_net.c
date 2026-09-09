@@ -2892,3 +2892,77 @@ TEST(net, order_marker_configstring_precache_replace_and_clear) {
     }
     T_NULL(cl.moveConfirmation);
 }
+
+/* Input payloads must remain framed for the next command and reject partial/invalid operations. */
+TEST(net, typed_controller_input_roundtrip_and_validation) {
+    BYTE data[128];
+    sizeBuf_t msg;
+    INPUTCMD out, cmds[] = {
+        { .action = BZ_INPUT_FOCUS, .focus = {12.5f, -34.25f} },
+        { .action = BZ_INPUT_VIEW, .view = {{18, 0, -90}, 8.5f} },
+        { .action = BZ_INPUT_MOVE, .move = {BZ_MOVE_FORWARD | BZ_MOVE_LEFT, 16} },
+    };
+    SZ_Init(&msg, data, sizeof(data));
+    FOR_LOOP(i, 3) MSG_WriteInput(&msg, &cmds[i]);
+    T_EQ(msg.cursize, 30);
+    T_ASSERT(MSG_ReadInput(&msg, &out)); T_EQ(out.action, BZ_INPUT_FOCUS);
+    T_FEQ(out.focus.x, 12.5f, 0.001f); T_FEQ(out.focus.y, -34.25f, 0.001f);
+    T_ASSERT(MSG_ReadInput(&msg, &out)); T_EQ(out.action, BZ_INPUT_VIEW);
+    T_FEQ(out.view.angles.x, 18, 0.001f); T_FEQ(out.view.angles.z, -90, 0.001f);
+    T_FEQ(out.view.distance, 8.5f, 0.001f);
+    T_ASSERT(MSG_ReadInput(&msg, &out)); T_EQ(out.action, BZ_INPUT_MOVE);
+    T_EQ(out.move.buttons, BZ_MOVE_FORWARD | BZ_MOVE_LEFT); T_EQ(out.move.msec, 16);
+    T_EQ(msg.readcount, msg.cursize); T_ASSERT(!MSG_ReadInput(&msg, &out));
+    FOR_LOOP(i, 3) {
+        SZ_Clear(&msg); msg.readcount = 0; MSG_WriteInput(&msg, &cmds[i]);
+        DWORD size = msg.cursize;
+        FOR_LOOP(n, size) {
+            msg.readcount = 0; msg.cursize = n;
+            T_ASSERT(!MSG_ReadInput(&msg, &out));
+        }
+    }
+    cmds[0].focus.x = NAN;
+    cmds[1].view.distance = -1;
+    cmds[2].move.buttons = 128;
+    FOR_LOOP(i, 3) {
+        SZ_Clear(&msg); msg.readcount = 0; MSG_WriteInput(&msg, &cmds[i]);
+        T_ASSERT(!MSG_ReadInput(&msg, &out));
+    }
+    SZ_Clear(&msg); msg.readcount = 0; MSG_WriteByte(&msg, 255); T_ASSERT(!MSG_ReadInput(&msg, &out));
+    SZ_Clear(&msg); msg.readcount = 0; cmds[2].move.buttons = 0; cmds[2].move.msec = BZ_INPUT_MAX_MSEC + 1;
+    MSG_WriteInput(&msg, &cmds[2]); T_ASSERT(!MSG_ReadInput(&msg, &out));
+}
+
+/* Predict presentation while preserving the delta baseline, then yield to rejected input and cinematics. */
+TEST(net, orbit_prediction_expires_and_yields_to_scripted_camera) {
+    BYTE data[256];
+    sizeBuf_t msg = make_msg_buf(data, sizeof(data));
+    PLAYER from = {0}, to = { .number = 1, .client_ui_state = CLIENT_UI_GAME, .viewangles = {18, 0, 0},
+        .vieworigin = {10, 20, 40}, .distance = 8, .fov = 45, .znear = 0.1f, .zfar = 1000 };
+    test_client_stubs_init();
+    cl.time = 100;
+    cl.camera_prediction.view = true;
+    cl.camera_prediction.view_ms = cl.time;
+    cl.camera_prediction.angles = (VECTOR3){25, 0, 90};
+    cl.camera_prediction.distance = 12;
+    MSG_WriteByte(&msg, svc_playerinfo); MSG_WriteDeltaPlayerState(&msg, &from, &to);
+    CL_ParseServerMessage(&msg);
+    T_FEQ(cl.playerstate.viewangles.z, 0, 0.001f); T_FEQ(cl.playerstate.distance, 8, 0.001f);
+    T_FEQ(cl.viewDef.camerastate[0].viewangles.z, 90, 0.001f);
+    T_FEQ(cl.viewDef.camerastate[0].distance, 12, 0.001f);
+    T_FEQ(cl.viewDef.camerastate[0].origin.z, 40, 0.001f);
+    cl.time += BZ_INPUT_MAX_MSEC + 1;
+    from = to;
+    SZ_Clear(&msg); msg.readcount = 0;
+    MSG_WriteByte(&msg, svc_playerinfo); MSG_WriteDeltaPlayerState(&msg, &from, &to);
+    CL_ParseServerMessage(&msg);
+    T_ASSERT(!cl.camera_prediction.view);
+    T_FEQ(cl.viewDef.camerastate[0].distance, 8, 0.001f);
+    cl.camera_prediction.view = true; cl.camera_prediction.view_ms = cl.time;
+    to.client_ui_state = CLIENT_UI_CINEMATIC; to.distance = 20;
+    SZ_Clear(&msg); msg.readcount = 0;
+    MSG_WriteByte(&msg, svc_playerinfo); MSG_WriteDeltaPlayerState(&msg, &from, &to);
+    CL_ParseServerMessage(&msg);
+    T_ASSERT(!cl.camera_prediction.view);
+    T_FEQ(cl.viewDef.camerastate[0].distance, 20, 0.001f);
+}

@@ -572,6 +572,23 @@ static void G_UpdateCameraTarget(LPGAMECLIENT client) {
     client->camera.end_time = client->camera.start_time;
 }
 
+/* The player controller has no model; its focus and orbit still belong to the game. */
+static void G_ClientInput(LPEDICT ent, LPCINPUTCMD cmd) {
+    LPGAMECLIENT client = ent->client;
+    if (client->no_control) return;
+    if (cmd->action == BZ_INPUT_MOVE && (!cmd->move.buttons || !cmd->move.msec)) return;
+    if (cmd->action == BZ_INPUT_VIEW) {
+        client->camera.state.viewangles = cmd->view.angles;
+        client->camera.state.target_distance = cmd->view.distance;
+        client->camera.old_state = client->camera.state;
+        client->camera.start_time = client->camera.end_time = G_Time();
+    } else {
+        VECTOR2 pos = cmd->action == BZ_INPUT_FOCUS ? cmd->focus
+            : input_move_focus(cmd, &client->ps, atof(gi.CvarString("cl_camera_scroll_speed", "1400")));
+        G_ClientSetCameraPosition(ent, &pos);
+    }
+}
+
 static void G_RunClients(void) {
     FLOAT cinefade = G_Cinefade();
     FOR_LOOP(i, game.max_clients) {
@@ -607,6 +624,7 @@ static void G_RunClients(void) {
                 .znear = client->camera.state.near_z,
                 .zfar = client->camera.state.far_z });
         }
+        if (client_ent) client_ent->s.origin = client->ps.vieworigin;
         /* Transmission scene and voice lifetimes are independent. Blizzard.j
          * keeps the portrait scene alive past the voice, so Portrait Talk must
          * fall back to Portrait before the entire transmission disappears. */
@@ -1133,7 +1151,7 @@ struct game_export *GetGameAPI(struct game_import *import) {
     globals.Shutdown = G_ShutdownGame;
     globals.RunFrame = G_RunFrame;
     globals.ClientCommand = G_ClientCommand;
-    globals.ClientSetCameraPosition = G_ClientSetCameraPosition;
+    globals.ClientInput = G_ClientInput;
     globals.ClientLoading = G_ClientLoading;
     globals.ClientBegin = G_ClientBegin;
     globals.CanSeeEntity = G_FowPlayerCanSeeEntity;

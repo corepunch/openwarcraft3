@@ -18,12 +18,12 @@ Strokes match exactly in ctrl, alt, shift order (see [modifier key binds](../../
 
 ## Implementation
 
-### Orbit targets
+### Single-target groups
 
-The orbit profile uses the same group commands with a one-target capacity. Assign replaces the target; add fills an
-empty group and retains an existing target; recall selects without double-tap camera panning. WoW selection clicks,
+With `cl_selection_limit 1`, the same group commands have a one-target capacity. Assign replaces the target; add fills an
+empty group and retains an existing target; `cl_group_focus 0` disables double-tap camera panning. WoW selection clicks,
 recalls, and server target changes share `cl.selection` through `svc_set_selection`. Number keys remain action-bar
-bindings unless the user opts in. See [shared input profiles](../../architecture/shared-input.md).
+bindings unless the user opts in. See [shared input](../../architecture/shared-input.md).
 
 ### Storage
 

@@ -7,6 +7,392 @@
 
 mouseEvent_t mouse;
 static keyCode_t mouse_button_keys[8];
+static struct {
+    BOOL active;
+    VECTOR3 anchor;
+} camera_drag;
+
+static BOOL smart_click_active;
+static BOOL cam_left, cam_right, cam_north, cam_south;
+
+static void CL_ScrollFrame(void);
+
+static struct {
+    DWORD buttons, sent, last_ms;
+    BOOL select, look, focus;
+    VECTOR2 down, travel;
+    SDL_Cursor *arrow, *cross, *hand;
+} input = { .focus = true };
+
+/* Commands share a typed controller contract; each game decides how its player can move. */
+static void CL_SendInput(LPCINPUTCMD cmd) {
+    MSG_WriteByte(&cls.netchan.message, clc_input);
+    MSG_WriteInput(&cls.netchan.message, cmd);
+}
+
+/* Keep immediate orbit feedback separate from the authoritative delta-compressed player state. */
+static void CL_SendView(VECTOR3 angles, FLOAT dist) {
+    cl.camera_prediction.view = true;
+    cl.camera_prediction.angles = angles;
+    cl.camera_prediction.distance = dist;
+    cl.camera_prediction.view_ms = cl.time;
+    FOR_LOOP(i, 2) {
+        cl.viewDef.camerastate[i].viewangles = angles;
+        cl.viewDef.camerastate[i].distance = dist;
+    }
+    CL_SendInput(&(INPUTCMD){ .action = BZ_INPUT_VIEW, .view = { angles, dist } });
+}
+
+/* Relative travel distinguishes a context click from a drag even while SDL locks the pointer. */
+static void CL_LookMotion(SDL_MouseMotionEvent const *motion) {
+    if (!input.look || !CL_GameplayInputReady()) return;
+    FLOAT speed = Cvar_Value("cl_mouse_speed", 0.18f);
+    FLOAT lo = Cvar_Value("cl_camera_min_pitch", -85), hi = Cvar_Value("cl_camera_max_pitch", 85);
+    VECTOR3 angles = cl.viewDef.camerastate[0].viewangles;
+    input.travel.x += motion->xrel; input.travel.y += motion->yrel;
+    angles.x = remainderf(angles.x, 360.0f);
+    angles.z = remainderf(angles.z - motion->xrel * speed, 360.0f);
+    angles.x = MAX(lo, MIN(hi, angles.x + motion->yrel * speed));
+    CL_SendView(angles, cl.viewDef.camerastate[0].distance);
+}
+
+/* Native context cursors are an independent presentation option, unrelated to camera or selection. */
+static void CL_UpdateCursor(void) {
+    if (!Cvar_Integer("cl_context_cursor", 0)) return;
+    if (!input.arrow) {
+        input.arrow = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_ARROW);
+        input.cross = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_CROSSHAIR);
+        input.hand = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_HAND);
+        if (!input.arrow || !input.cross || !input.hand)
+            Com_Error(ERR_FATAL, "Input cursor creation failed: %s", SDL_GetError());
+    }
+    BOOL hostile = false;
+    FOR_LOOP(i, cl.viewDef.num_entities)
+        if (cl.viewDef.entities[i].number == cl.hover_entity) hostile = cl.viewDef.entities[i].flags & RF_HOSTILE;
+    SDL_SetCursor(!cl.hover_entity ? input.arrow : hostile ? input.cross : input.hand);
+}
+
+static BOOL CL_ClickTravel(VECTOR2 delta) {
+    FLOAT limit = Cvar_Value("cl_click_threshold", 10);
+    return delta.x * delta.x + delta.y * delta.y <= limit * limit;
+}
+
+static void IN_LookDown(void) {
+    if (!CL_GameplayInputReady() || CL_MouseOverGameplayUI()) return;
+    input.look = true; input.travel = (VECTOR2){0};
+    SDL_SetRelativeMouseMode(SDL_TRUE);
+}
+
+/* Config can attach a game command to a look-button click without coupling the camera to that game. */
+static void IN_LookUp(void) {
+    BOOL click = input.look && CL_ClickTravel(input.travel);
+    input.look = false;
+    SDL_SetRelativeMouseMode(SDL_FALSE);
+    LPCSTR cmd = Cvar_String("cl_look_command", "");
+    if (!click || !*cmd || !CL_GameplayInputReady() || CL_MouseOverGameplayUI()) return;
+    DWORD entnum;
+    if (!re.TraceEntity(&cl.viewDef, mouse.origin.x, mouse.origin.y, &entnum)) {
+        if (!cl.selection.num_selected) return;
+        entnum = cl.selection.entity_nums[0];
+    }
+    MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
+    SZ_Printf(&cls.netchan.message, "%s %u", cmd, entnum);
+}
+
+/* Optional click-to-attack binding uses the same click threshold as selection and look. */
+static void IN_AttackDown(void) {
+    input.select = CL_GameplayInputReady() && !CL_MouseOverGameplayUI();
+    input.down = mouse.origin;
+}
+
+static void IN_AttackUp(void) {
+    BOOL held = input.select;
+    input.select = false;
+    if (!held || !CL_GameplayInputReady() || CL_MouseOverGameplayUI()) return;
+    VECTOR2 delta = {mouse.origin.x - input.down.x, mouse.origin.y - input.down.y};
+    DWORD entnum;
+    if (!CL_ClickTravel(delta) || !re.TraceEntity(&cl.viewDef, mouse.origin.x, mouse.origin.y, &entnum)) return;
+    MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
+    SZ_Printf(&cls.netchan.message, "attack %u", entnum);
+}
+
+static void IN_ForwardDown(void) { input.buttons |= BZ_MOVE_FORWARD; }
+static void IN_ForwardUp(void) { input.buttons &= ~BZ_MOVE_FORWARD; }
+static void IN_BackDown(void) { input.buttons |= BZ_MOVE_BACK; }
+static void IN_BackUp(void) { input.buttons &= ~BZ_MOVE_BACK; }
+static void IN_MoveLeftDown(void) { input.buttons |= BZ_MOVE_LEFT; }
+static void IN_MoveLeftUp(void) { input.buttons &= ~BZ_MOVE_LEFT; }
+static void IN_MoveRightDown(void) { input.buttons |= BZ_MOVE_RIGHT; }
+static void IN_MoveRightUp(void) { input.buttons &= ~BZ_MOVE_RIGHT; }
+
+/* Cancel held controls at ownership transitions, including a stop for a previously moving actor. */
+void CL_ResetInput(void) {
+    if (input.sent && cls.state == ca_active)
+        CL_SendInput(&(INPUTCMD){ .action = BZ_INPUT_MOVE });
+    input.buttons = input.sent = 0;
+    cl.camera_prediction.active = cl.camera_prediction.view = false;
+    input.select = input.look = camera_drag.active = smart_click_active = false;
+    cam_left = cam_right = cam_north = cam_south = false;
+    cl.selection.in_progress = false;
+    cl.hover_entity = 0;
+    CL_EndMinimapDrag();
+    if (SDL_GetRelativeMouseMode()) SDL_SetRelativeMouseMode(SDL_FALSE);
+}
+
+/* All controls run together. Bindings and individual options determine which controls are active. */
+static void CL_InputFrame(void) {
+    DWORD now = SDL_GetTicks(), msec = input.last_ms ? MIN(now - input.last_ms, BZ_INPUT_MAX_MSEC) : 0;
+    input.last_ms = now;
+    if (!CL_GameplayInputReady()) { CL_ResetInput(); return; }
+    DWORD bits = input.buttons;
+    if (Cvar_Integer("cl_move_mouse", 0) && input.select && input.look) bits |= BZ_MOVE_FORWARD;
+    if (bits || input.sent) CL_SendInput(&(INPUTCMD){ .action = BZ_INPUT_MOVE, .move = { bits, msec } });
+    input.sent = bits;
+    CL_ScrollFrame();
+}
+
+static BOOL CL_OrderQueueModifierDown(void) {
+    return (SDL_GetModState() & (KMOD_LSHIFT | KMOD_RSHIFT)) != 0;
+}
+
+static BOOL CL_TracePan(float x, float y, LPVECTOR3 point) {
+    return Cvar_Integer("cl_camera_pan_plane", 0)
+        ? re.TraceCameraPlane(&cl.viewDef, x, y, point) : re.TraceLocation(&cl.viewDef, x, y, point);
+}
+
+
+static void CL_BeginPan(float x, float y) {
+    if (!CL_GameplayInputReady()) {
+        camera_drag.active = false;
+        return;
+    }
+    camera_drag.active = CL_TracePan(x, y, &camera_drag.anchor);
+}
+
+static void CL_UpdatePan(float x, float y) {
+    VECTOR3 point;
+    VECTOR2 position;
+
+    if (!CL_GameplayInputReady()) {
+        camera_drag.active = false;
+        return;
+    }
+    if (!camera_drag.active) {
+        CL_BeginPan(x, y);
+        return;
+    }
+    if (!CL_TracePan(x, y, &point)) {
+        return;
+    }
+
+    position.x = cl.viewDef.camerastate[0].origin.x + camera_drag.anchor.x - point.x;
+    position.y = cl.viewDef.camerastate[0].origin.y + camera_drag.anchor.y - point.y;
+    CL_SetCameraPosition(position);
+}
+
+static void CL_EndPan(void) {
+    camera_drag.active = false;
+}
+
+static void CL_SendSmartCommand(float x, float y) {
+    DWORD entnum;
+    VECTOR3 point;
+
+    if (!CL_GameplayInputReady()) {
+        return;
+    }
+    if (CL_MouseOverGameplayUI()) {
+        return;
+    }
+    if (re.TraceEntity(&cl.viewDef, x, y, &entnum)) {
+        MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
+        SZ_Printf(&cls.netchan.message, CL_OrderQueueModifierDown()
+            ? "smart %d queue" : "smart %d", entnum);
+    } else if (re.TraceLocation(&cl.viewDef, x, y, &point)) {
+        MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
+        SZ_Printf(&cls.netchan.message, CL_OrderQueueModifierDown()
+            ? "smartpoint %d %d queue" : "smartpoint %d %d",
+            (int)point.x, (int)point.y);
+    }
+
+    if (cl.selection.num_selected) {
+        CL_RequestUnitUI(cl.selection.num_selected, cl.selection.entity_nums);
+    }
+}
+
+static void IN_PanDown(void) {
+    if (camera_drag.active)
+        return;
+    CL_BeginPan(mouse.origin.x, mouse.origin.y);
+}
+
+static void IN_PanUp(void) {
+    CL_EndPan();
+}
+
+static void IN_SmartDown(void) {
+    if (!CL_GameplayInputReady()) {
+        smart_click_active = false;
+        return;
+    }
+    smart_click_active = true;
+}
+
+static void IN_SmartUp(void) {
+    if (!CL_GameplayInputReady()) {
+        smart_click_active = false;
+        return;
+    }
+    if (!smart_click_active) {
+        return;
+    }
+    smart_click_active = false;
+    CL_SendSmartCommand(mouse.origin.x, mouse.origin.y);
+}
+
+static void IN_CamLeftDown(void) { cam_left = true; }
+static void IN_CamLeftUp(void) { cam_left = false; }
+static void IN_CamRightDown(void) { cam_right = true; }
+static void IN_CamRightUp(void) { cam_right = false; }
+static void IN_CamNorthDown(void) { cam_north = true; }
+static void IN_CamNorthUp(void) { cam_north = false; }
+static void IN_CamSouthDown(void) { cam_south = true; }
+static void IN_CamSouthUp(void) { cam_south = false; }
+
+/* `camera edge` is client-local input state. Other camera subcommands belong
+ * to the game module, so forward them through the normal server command
+ * path rather than duplicating camera simulation state in the client. */
+static void CL_Camera_f(void) {
+    if (Cmd_Argc() >= 2 && !strcasecmp(Cmd_Argv(1), "edge")) {
+        if (Cmd_Argc() != 3 || (strcmp(Cmd_Argv(2), "0") && strcmp(Cmd_Argv(2), "1"))) {
+            fprintf(stderr, "usage: camera edge <0|1>\n");
+            return;
+        }
+        Cvar_Set("cl_camera_edge_scroll", Cmd_Argv(2));
+        return;
+    }
+    if (Cmd_Argc() >= 2 && (!strcasecmp(Cmd_Argv(1), "move") ||
+                            !strcasecmp(Cmd_Argv(1), "selected"))) {
+        Cmd_ForwardToServer(Cmd_ArgsFrom(0));
+        return;
+    }
+    fprintf(stderr, "usage: camera <move <x> <y>|edge <0|1>|selected>\n");
+}
+
+static void CL_RegisterCameraControls(void) {
+    Cmd_AddCommand("+pan", IN_PanDown);
+    Cmd_AddCommand("-pan", IN_PanUp);
+    Cmd_AddCommand("+smart", IN_SmartDown);
+    Cmd_AddCommand("-smart", IN_SmartUp);
+    Cmd_AddCommand("+camleft", IN_CamLeftDown);
+    Cmd_AddCommand("-camleft", IN_CamLeftUp);
+    Cmd_AddCommand("+camright", IN_CamRightDown);
+    Cmd_AddCommand("-camright", IN_CamRightUp);
+    Cmd_AddCommand("+camnorth", IN_CamNorthDown);
+    Cmd_AddCommand("-camnorth", IN_CamNorthUp);
+    Cmd_AddCommand("+camsouth", IN_CamSouthDown);
+    Cmd_AddCommand("-camsouth", IN_CamSouthUp);
+    Cmd_AddCommand("camera", CL_Camera_f);
+    Cvar_Get("cl_camera_edge_scroll", "0", CVAR_ARCHIVE);
+    Cvar_Get("cl_camera_scroll_speed", "0", CVAR_ARCHIVE);
+    Cvar_Get("cl_camera_edge_margin", "6", CVAR_ARCHIVE);
+    Cvar_Get("cl_camera_pan_plane", "0", 0);
+}
+
+static BOOL CL_CanHoverHealthEntity(DWORD entnum) {
+    if (!entnum || entnum >= MAX_CLIENT_ENTITIES) {
+        return false;
+    }
+    LPCENTITYSTATE const state = &cl.ents[entnum].current;
+    return state->model &&
+           state->stats[ENT_HEALTH] > 0 &&
+           (state->flags & EF_HOVER_HEALTH) &&
+           !(state->flags & EF_NOT_SELECTABLE);
+}
+
+static void CL_MouseMotion(SDL_MouseMotionEvent const *motion) {
+    DWORD entnum = 0;
+    BOOL trace_hit = false;
+
+    CL_LookMotion(motion);
+    if (!CL_GameplayInputReady()) {
+        camera_drag.active = false;
+        CL_EndMinimapDrag();
+        cl.selection.in_progress = false;
+        cl.hover_entity = 0;
+        return;
+    }
+    if (!CL_MouseOverGameplayUI())
+        trace_hit = re.TraceEntity(&cl.viewDef, (float)motion->x, (float)motion->y, &entnum);
+    if (trace_hit && (!Cvar_Integer("cl_hover_health_only", 1) || CL_CanHoverHealthEntity(entnum))) {
+        cl.hover_entity = entnum;
+    } else {
+        cl.hover_entity = 0;
+    }
+    CL_UpdateCursor();
+    if (camera_drag.active) {
+        CL_UpdatePan(motion->x, motion->y);
+    }
+    CL_UpdateMinimapDrag(motion->x, motion->y);
+    if (cl.selection.in_progress && CL_SelectionLimit() > 1) {
+        cl.selection.rect.w = motion->x - cl.selection.rect.x;
+        cl.selection.rect.h = motion->y - cl.selection.rect.y;
+        SCR_LayoutClampSelectionRect(&cl.selection.rect);
+    }
+}
+
+/* Arrow and edge input follow the orbit yaw, so scrolling stays screen-relative after rotation. */
+static void CL_ScrollFrame(void) {
+    static DWORD last_ms = 0;
+    DWORD now = SDL_GetTicks();
+    float dt = (last_ms && now > last_ms) ? (now - last_ms) / 1000.0f : 0.0f;
+    last_ms = now;
+    if (dt > 0.1f) dt = 0.1f; /* clamp after a stall */
+
+    /* A server-authored modal owns input completely; terminate any world drag
+     * that began before the modal arrived. */
+    if (!CL_GameplayInputReady()) {
+        camera_drag.active = false;
+        CL_EndMinimapDrag();
+        cl.selection.in_progress = false;
+        cl.hover_entity = 0;
+        return;
+    }
+    /* Drag-pan takes over; don't fight it. */
+    if (input.look || camera_drag.active || dt <= 0.0f) {
+        return;
+    }
+
+    float dx = 0.0f, dy = 0.0f;
+    if (cam_left)  dx -= 1.0f;
+    if (cam_right) dx += 1.0f;
+    if (cam_north) dy += 1.0f;
+    if (cam_south) dy -= 1.0f;
+
+    /* Screen-edge scrolling (only while the cursor is inside the window). */
+    size2_t win = re.GetWindowSize();
+    float mx = mouse.origin.x, my = mouse.origin.y, margin = Cvar_Value("cl_camera_edge_margin", 6);
+    if (Cvar_Value("cl_camera_edge_scroll", 0.0f) != 0.0f && win.width > 0 && win.height > 0 &&
+        mx >= 0 && my >= 0 && mx < win.width && my < win.height) {
+        if (mx <= margin)               dx -= 1.0f;
+        if (mx >= (float)win.width - 1 - margin)  dx += 1.0f;
+        if (my <= margin)               dy += 1.0f; /* top of screen = north */
+        if (my >= (float)win.height - 1 - margin) dy -= 1.0f;
+    }
+
+    if (dx == 0.0f && dy == 0.0f) {
+        return;
+    }
+
+    VECTOR2 position;
+    float step = Cvar_Value("cl_camera_scroll_speed", 0) * dt;
+    VECTOR3 dir = Vector3_rotateAroundAxis(&(VECTOR3){dx, dy, 0}, &(VECTOR3){0, 0, 1}, DEG2RAD(cl.viewDef.camerastate[0].viewangles.z));
+    position.x = cl.viewDef.camerastate[0].origin.x + dir.x * step;
+    position.y = cl.viewDef.camerastate[0].origin.y + dir.y * step;
+    CL_SetCameraPosition(position);
+}
+
+
 
 /* SDL2 function/arrow keys are 0x40000000+ and don't fit in keyCode_t. */
 static keyCode_t CL_SDLKeyToKeyCode(int sym) {
@@ -40,6 +426,13 @@ static BOOL CL_WindowEvent(SDL_WindowEvent const *event) {
         return true;
     }
     switch (event->event) {
+        case SDL_WINDOWEVENT_FOCUS_GAINED:
+            input.focus = true;
+            break;
+        case SDL_WINDOWEVENT_FOCUS_LOST:
+            input.focus = false;
+            CL_ResetInput();
+            break;
         case SDL_WINDOWEVENT_MOVED:
         case SDL_WINDOWEVENT_RESIZED:
         case SDL_WINDOWEVENT_SIZE_CHANGED:
@@ -69,11 +462,11 @@ BOOL CL_MouseOverGameplayUI(void) {
 }
 
 BOOL CL_GameplayInputReady(void) {
-    if (cls.key_dest != key_game || cls.state != ca_active ||
+    if (!input.focus || cls.key_dest != key_game || cls.state != ca_active ||
         cl.playerstate.client_ui_state != CLIENT_UI_GAME) {
         return false;
     }
-    if (SCR_LayoutModalActive()) return false;
+    if (SCR_LayoutModalActive() || CL_WindowModalActive()) return false;
     return true;
 }
 
@@ -120,7 +513,7 @@ void CL_Input(void) {
                 break;
             case SDL_MOUSEBUTTONUP:
                 {
-                    keyCode_t mousevt = event.button.button < sizeof(mouse_button_keys)
+                    keyCode_t mousevt = event.button.button < sizeof(mouse_button_keys) / sizeof(*mouse_button_keys)
                                       ? mouse_button_keys[event.button.button]
                                       : 0;
                     mouse.origin.x = event.button.x;
@@ -239,7 +632,7 @@ void CL_Input(void) {
                 if (cls.key_dest == key_menu) {
                     break;
                 }
-                CL_InputModeMouseMotion(&event.motion);
+                CL_MouseMotion(&event.motion);
                 break;
             case SDL_MOUSEWHEEL:
                 {
@@ -266,7 +659,7 @@ void CL_Input(void) {
                 break;
         }
     }
-    CL_InputModeFrame();
+    CL_InputFrame();
 }
 
 static void CL_SetSDLTextInput(BOOL enabled) {
@@ -307,12 +700,15 @@ void CL_SetGameplayBindings(void) {
 }
 
 void IN_SelectDown(void) {
-    if (CL_InputModeSelectDown())
-        return;
+    input.select = false;
+    input.down = mouse.origin;
     if (!CL_GameplayInputReady()) {
         cl.selection.in_progress = false;
         return;
     }
+    if (CL_MouseOverGameplayUI()) return;
+    input.select = true;
+    if (CL_SelectionLimit() == 1) return;
     /* A left-click on the minimap recenters the camera instead of selecting. */
     if (CL_TryMinimapClick(mouse.origin.x, mouse.origin.y)) {
         cl.selection.in_progress = false;
@@ -330,8 +726,17 @@ void IN_SelectDown(void) {
 }
 
 void IN_SelectUp(void) {
-    if (CL_InputModeSelectUp())
+    BOOL held = input.select;
+    input.select = false;
+    if (CL_SelectionLimit() == 1) {
+        if (!held || !CL_GameplayInputReady() || CL_MouseOverGameplayUI()) return;
+        VECTOR2 delta = { mouse.origin.x - input.down.x, mouse.origin.y - input.down.y };
+        if (!CL_ClickTravel(delta) || (input.look && !CL_ClickTravel(input.travel))) return;
+        DWORD entnum = 0;
+        BOOL hit = re.TraceEntity(&cl.viewDef, mouse.origin.x, mouse.origin.y, &entnum);
+        CL_ApplySelection(&entnum, hit ? 1 : 0);
         return;
+    }
     CL_EndMinimapDrag();
     if (!CL_GameplayInputReady()) {
         cl.selection.in_progress = false;
@@ -365,12 +770,11 @@ void IN_SelectUp(void) {
         }
     } else {
         DWORD selected[MAX_SELECTED_ENTITIES] = { 0 };
-        DWORD num = re.EntitiesInRect(&cl.viewDef, &cl.selection.rect, MAX_SELECTED_ENTITIES, selected);
-        char buffer[1024] = { 0 };
+        DWORD num = re.EntitiesInRect(&cl.viewDef, &cl.selection.rect, CL_SelectionLimit(), selected);
         if (num == 0)
             return;
-        if (num > MAX_SELECTED_ENTITIES) {
-            num = MAX_SELECTED_ENTITIES;
+        if (num > CL_SelectionLimit()) {
+            num = CL_SelectionLimit();
         }
         /* Shift+drag adds to the existing selection (deduped) instead of
          * replacing it, matching WC3. */
@@ -378,30 +782,19 @@ void IN_SelectUp(void) {
             DWORD merged[MAX_SELECTED_ENTITIES];
             DWORD mn = 0;
             FOR_LOOP(i, cl.selection.num_selected) {
-                if (mn < MAX_SELECTED_ENTITIES)
+                if (mn < CL_SelectionLimit())
                     merged[mn++] = cl.selection.entity_nums[i];
             }
             FOR_LOOP(i, num) {
                 BOOL dup = false;
                 FOR_LOOP(j, mn) if (merged[j] == selected[i]) { dup = true; break; }
-                if (!dup && mn < MAX_SELECTED_ENTITIES)
+                if (!dup && mn < CL_SelectionLimit())
                     merged[mn++] = selected[i];
             }
             num = mn;
             memcpy(selected, merged, sizeof(DWORD) * mn);
         }
-        strlcpy(buffer, "select", sizeof(buffer));
-        FOR_LOOP(i, num) {
-            size_t used = strlen(buffer);
-            snprintf(buffer + used, sizeof(buffer) - used, " %d", selected[i]);
-        }
-        MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
-        SZ_Printf(&cls.netchan.message, "%s", buffer);
-        
-        /* Store selected entities and request UI data (Phase 8.6) */
-        cl.selection.num_selected = num;
-        memcpy(cl.selection.entity_nums, selected, sizeof(DWORD) * num);
-        CL_RequestUnitUI(num, cl.selection.entity_nums);
+        CL_ApplySelection(selected, num);
     }
 }
 
@@ -412,13 +805,12 @@ static void CL_Zoom_f(void) {
     FLOAT speed = Cvar_Value("zoom_speed", 1.0f);
     FLOAT min_dist = Cvar_Value("camera_min_distance", 0.0f);
     FLOAT max_dist = Cvar_Value("camera_max_distance", 0.0f);
-    FLOAT dist = cl.playerstate.distance - steps * speed;
+    FLOAT dist = cl.viewDef.camerastate[0].distance - steps * speed;
+    if (!CL_GameplayInputReady() || CL_MouseOverGameplayUI()) return;
 
     if (max_dist > min_dist)
         dist = MAX(min_dist, MIN(max_dist, dist));
-    cl.playerstate.distance = dist;
-    cl.viewDef.camerastate[0].distance = dist;
-    cl.viewDef.camerastate[1].distance = dist;
+    CL_SendView(cl.viewDef.camerastate[0].viewangles, MAX(0, dist));
 }
 
 void CL_ForwardToServer_f(void) {
@@ -438,5 +830,83 @@ void CL_InitInput(void) {
     Cmd_AddCommand("zoom", CL_Zoom_f);
     Cvar_Get("zoom_speed", "1.0", CVAR_ARCHIVE);
     CL_ControlGroupsInit();
-    CL_InputModeInit();
+    CL_RegisterCameraControls();
+    Cmd_AddCommand("+attack", IN_AttackDown); Cmd_AddCommand("-attack", IN_AttackUp);
+    Cmd_AddCommand("+look", IN_LookDown); Cmd_AddCommand("-look", IN_LookUp);
+    Cmd_AddCommand("+forward", IN_ForwardDown); Cmd_AddCommand("-forward", IN_ForwardUp);
+    Cmd_AddCommand("+back", IN_BackDown); Cmd_AddCommand("-back", IN_BackUp);
+    Cmd_AddCommand("+moveleft", IN_MoveLeftDown); Cmd_AddCommand("-moveleft", IN_MoveLeftUp);
+    Cmd_AddCommand("+moveright", IN_MoveRightDown); Cmd_AddCommand("-moveright", IN_MoveRightUp);
+    Cvar_Get("cl_selection_limit", "64", 0);
+    Cvar_Get("cl_group_focus", "1", 0);
+    Cvar_Get("cl_hover_health_only", "1", 0);
+    Cvar_Get("cl_context_cursor", "0", 0);
+    Cvar_Get("cl_look_command", "", 0);
+    Cvar_Get("cl_move_mouse", "0", 0);
+    Cvar_Get("cl_mouse_speed", "0.18", CVAR_ARCHIVE);
+    Cvar_Get("cl_camera_min_pitch", "-85", 0);
+    Cvar_Get("cl_camera_max_pitch", "85", 0);
+    Cvar_Get("cl_click_threshold", "10", 0);
+    /* Old configs store pitch as wrapped negative degrees; convert the interval once at startup. */
+    FLOAT lo = Cvar_Value("cl_camera_min_pitch", -85), hi = Cvar_Value("cl_camera_max_pitch", 85);
+    if (lo > 180 || hi > 180) {
+        if (lo > 180) lo = 360 - lo;
+        if (hi > 180) hi = 360 - hi;
+        Cvar_SetValue("cl_camera_min_pitch", MIN(lo, hi));
+        Cvar_SetValue("cl_camera_max_pitch", MAX(lo, hi));
+        fprintf(stderr, "Input: converted legacy wrapped camera pitch limits to Euler degrees\n");
+    }
 }
+
+#ifdef BZ_TESTS
+#include "shared/test.h"
+static DWORD pan_terrain, pan_plane;
+static bool CL_TestTerrain(viewDef_t const *view, float x, float y, LPVECTOR3 point) {
+    (void)view; (void)x; (void)y;
+    pan_terrain++; *point = (VECTOR3){ 1, 2, 3 }; return true;
+}
+static bool CL_TestPlane(viewDef_t const *view, float x, float y, LPVECTOR3 point) {
+    (void)view; (void)x; (void)y;
+    pan_plane++; *point = (VECTOR3){ 4, 5, 6 }; return true;
+}
+TEST(client_input, pan_uses_configured_surface) {
+    refExport_t saved = re;
+    FLOAT old = Cvar_Value("cl_camera_pan_plane", 0);
+    VECTOR3 point;
+    re.TraceLocation = CL_TestTerrain;
+    re.TraceCameraPlane = CL_TestPlane;
+    pan_terrain = pan_plane = 0;
+    Cvar_Set("cl_camera_pan_plane", "0");
+    T_ASSERT(CL_TracePan(0, 0, &point));
+    T_EQ(pan_terrain, 1); T_EQ(pan_plane, 0); T_FEQ(point.z, 3, 0.001f);
+    Cvar_Set("cl_camera_pan_plane", "1");
+    T_ASSERT(CL_TracePan(0, 0, &point));
+    T_EQ(pan_terrain, 1); T_EQ(pan_plane, 1); T_FEQ(point.z, 6, 0.001f);
+    Cvar_SetValue("cl_camera_pan_plane", old);
+    re = saved;
+}
+#endif
+
+#ifdef BZ_TESTS
+/* Losing gameplay ownership sends a release once and terminates every held control. */
+TEST(client_input, modal_releases_movement_and_drags) {
+    BYTE data[64];
+    sizeBuf_t old_msg = cls.netchan.message;
+    int old_state = cls.state, old_dest = cls.key_dest;
+    INPUTCMD cmd;
+    SZ_Init(&cls.netchan.message, data, sizeof(data));
+    cls.state = ca_active; cls.key_dest = key_menu;
+    input.buttons = input.sent = BZ_MOVE_FORWARD;
+    input.select = input.look = camera_drag.active = smart_click_active = true;
+    cl.selection.in_progress = true; cam_left = true;
+    CL_InputFrame();
+    T_EQ(MSG_ReadByte(&cls.netchan.message), clc_input);
+    T_ASSERT(MSG_ReadInput(&cls.netchan.message, &cmd));
+    T_EQ(cmd.action, BZ_INPUT_MOVE); T_EQ(cmd.move.buttons, 0);
+    T_ASSERT(!input.look && !input.select && !camera_drag.active && !smart_click_active && !cam_left);
+    T_ASSERT(!cl.selection.in_progress);
+    DWORD size = cls.netchan.message.cursize;
+    CL_InputFrame(); T_EQ(cls.netchan.message.cursize, size);
+    cls.netchan.message = old_msg; cls.state = old_state; cls.key_dest = old_dest;
+}
+#endif
