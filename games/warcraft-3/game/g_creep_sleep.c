@@ -46,8 +46,11 @@ static void add_creep_sleep_overlay(LPEDICT unit) {
         effect = G_SpawnModelEffect(CREEP_SLEEP_TARGET_ART, NULL, unit,
                                     "overhead", false);
     }
-    if (effect)
-        effect->owner = unit;
+    if (!effect) {
+        fprintf(stderr, "WC3 CreepSleep: failed to spawn ACsp overlay for unit %u\n", unit->s.number);
+        return;
+    }
+    effect->owner = unit;
 }
 
 /* Restrict automatic sleep to authored neutral-creep candidates. */
