@@ -30,16 +30,18 @@ void SV_SetConfigString(DWORD index, LPCSTR value, DWORD len) {
         value = "";
         len = 1;
     }
-    if (len > sizeof(sv.configstrings[index]) - 1) len = sizeof(sv.configstrings[index]) - 1;
+    /* Reserving a C-string terminator would discard the last compressed byte of each binary loading slot. */
+    DWORD max = sizeof(sv.configstrings[index]) - (index != CS_LOADINGSCREEN1 && index != CS_LOADINGSCREEN2);
+    if (len > max) len = max;
     memset(sv.configstrings[index], 0, sizeof(sv.configstrings[index]));
     memcpy(sv.configstrings[index], value, len);
     /* Connected clients otherwise retain the old value because true means that slot was already sent. */
     sv.syncstrings[index] = false;
 }
 
-/* Use the same decorated string length for batch bounds and exact loading-cache allocation. */
+/* Batch bounds must account for fixed binary slots as well as theme-decorated strings. */
 DWORD SV_ConfigStringWireSize(DWORD index) {
-    if (index == CS_STATUSBAR) {
+    if (index == CS_STATUSBAR || index == CS_LOADINGSCREEN1 || index == CS_LOADINGSCREEN2) {
         return 1 + 2 + sizeof(*sv.configstrings);
     }
     return 1 + 2 + (DWORD)strlen(ge->GetThemeValue(sv.configstrings[index])) + 1;
@@ -48,7 +50,7 @@ DWORD SV_ConfigStringWireSize(DWORD index) {
 void SV_WriteConfigString(LPSIZEBUF msg, DWORD i) {
     MSG_WriteByte(msg, svc_configstring);
     MSG_WriteShort(msg, i);
-    if (i == CS_STATUSBAR) {
+    if (i == CS_STATUSBAR || i == CS_LOADINGSCREEN1 || i == CS_LOADINGSCREEN2) {
         MSG_Write(msg, sv.configstrings[i], sizeof(*sv.configstrings));
     } else {
         MSG_WriteString(msg, ge->GetThemeValue(sv.configstrings[i]));

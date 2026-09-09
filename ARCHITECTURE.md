@@ -117,10 +117,8 @@ All communication uses discrete message opcodes defined in [common/common.h](com
 | `svc_packetentities` | Delta-compressed `entityState_t[]` | Visible entity snapshot (positions, rotations, models, animations, effects). |
 | `svc_layout` | `BYTE layer`, `uiFrame_t[]`, optional compact payloads | Server-authored UI frame tree for a specific HUD layer. |
 | `svc_unit_ui` | `num_units`, entity IDs, buttons, inventory, queues | RTS / WoW unit abilities, quick-bar inventory items, and construction queue state. |
-| `svc_configstring` | `SHORT index`, `STRING value` | Pre-cached media registry (model paths, sound paths, texture paths, font names). |
+| `svc_configstring` | `SHORT index`, string or fixed binary slot | Media registry; `CS_LOADINGSCREEN1/2` store a 512-byte compressed loading frame tree. |
 | `svc_serverdata` | Protocol version, map name, player slot | Initial connection handshake and map setup. |
-| `svc_loading` | No payload; terminates loading configstrings/layout | Register and present loading media before bulk map work. |
-| `svc_precache` | No payload; terminates full configstrings | Allow full client world/media registration. |
 | `svc_spawnbaseline` | `entityState_t` | Baseline delta state for newly spawned entity numbers. |
 | `svc_stufftext` | `STRING command` | Server-instructed client command execution. |
 

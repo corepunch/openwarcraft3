@@ -98,7 +98,7 @@ extern struct server {
     DWORD next_frame_msec; /* real-time deadline for the next simulation frame */
     DWORD pause_msec; /* wall-clock accumulator used only for paused keepalive snapshots */
     LPENTITYSTATE baselines;
-    ARRAY(BYTE, loading); /* immutable loading configstrings/layout, sent before the full media table */
+    WORD loading_end[3]; /* first gameplay index in each loading media pool: models, images, fonts */
     sizeBuf_t multicast;
     BYTE multicast_buf[MAX_MSGLEN];
 } sv;
@@ -127,8 +127,8 @@ DWORD SV_PlayerCreateMap(void);
 #endif
 void SV_ClientConnect(void);
 void SV_InitGame(void);
-BOOL SV_BuildLoadingMessage(void);
-void SV_SendLoadingMessage(LPCLIENT cl);
+BOOL SV_BuildLoadingConfigstrings(void);
+void SV_SendLoadingConfigstrings(LPCLIENT cl);
 LPCLIENT SV_FindClientByAddr(const netadr_t *from);
 void SV_DirectConnect(const netadr_t *from, LPCSTR userinfo);
 void SV_ConnectionlessPacket(const netadr_t *from, LPSIZEBUF msg);

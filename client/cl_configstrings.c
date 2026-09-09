@@ -90,7 +90,7 @@ void CL_UpdateConfigString(DWORD index, LPCSTR olds) {
     else if (index > CS_FONTS && index < CS_FONTS + MAX_FONTSTYLES) CL_RegisterFontConfigString(index, true, olds);
 }
 
-/* Only the loading batch is present here: register its media and swap before the bulk table/world arrives. */
+/* CS_LOADINGSCREEN2 commits the screen after its dependencies; present before the bulk table/world arrives. */
 void CL_PrepLoading(void) {
     if (cl.refresh_prepped) return;
     if (!cl.layout[LAYER_LOADING] || !*cl.configstrings[CS_WORLD]) {

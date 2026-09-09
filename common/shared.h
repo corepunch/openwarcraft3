@@ -263,6 +263,8 @@ enum {
     CS_ENTITY_LIGHT_MODEL = 10, // decimal CS_MODELS index; optional entity environment light model
     CS_ORDER_MARKER = 11, // model path; server-authored point-order confirmation
     CS_ASSET_SCOPE = 12, // archive/directory scope for map-owned media, available before world registration
+    CS_LOADINGSCREEN1 = 13, // first 256 bytes of the compressed loading frame tree
+    CS_LOADINGSCREEN2 = 14, // final 256 bytes; sent after loading media to commit the screen
     CS_MAXCLIENTS = 30,
     CS_MAPCHECKSUM = 31,        // for catching cheater maps
     CS_MODELS = 32,
@@ -274,6 +276,9 @@ enum {
     CS_GENERAL = (CS_PLAYERSKINS+MAX_CLIENTS),
     MAX_CONFIGSTRINGS = (CS_GENERAL+MAX_GENERAL),
 };
+
+#define BZ_LOADING_SCREEN_SLOTS 2 // configstrings; two fixed binary slots bound loading layout and text storage
+#define BZ_LOADING_SCREEN_SIZE (BZ_LOADING_SCREEN_SLOTS * MAX_PATHLEN) // bytes; 512-byte compressed loading layout budget
 
 #define ID_MDLX MAKEFOURCC('M','D','L','X')
 #define ID_43DM MAKEFOURCC('4','3','D','M')

@@ -1,3 +1,4 @@
+#include <zlib.h>
 /*
  * test_net.c — Unit tests for the network layer (net.c / msg.c).
  *
@@ -3025,18 +3026,46 @@ TEST(net, loading_batch_registers_media_before_full_precache) {
     snprintf(cl.configstrings[CS_ASSET_SCOPE], sizeof(PATHSTR), "Test.w3m");
     MSG_WriteByte(&msg, svc_configstring); MSG_WriteShort(&msg, CS_MODELS + 1); MSG_WriteString(&msg, "Loading.mdx");
     MSG_WriteByte(&msg, svc_configstring); MSG_WriteShort(&msg, CS_IMAGES + 1); MSG_WriteString(&msg, "Loading.blp");
-    MSG_WriteByte(&msg, svc_layout); MSG_WriteByte(&msg, LAYER_LOADING);
-    MSG_WriteDeltaUIFrame(&msg, &empty, &frame, true); MSG_WriteByte(&msg, 0);
-    MSG_WriteLong(&msg, 0); MSG_WriteShort(&msg, 0);
-    MSG_WriteByte(&msg, svc_loading);
+    BYTE packed[BZ_LOADING_SCREEN_SIZE] = { 0 }, layout[256];
+    sizeBuf_t screen = make_msg_buf(layout, sizeof(layout));
+    MSG_WriteByte(&screen, LAYER_LOADING);
+    MSG_WriteDeltaUIFrame(&screen, &empty, &frame, true); MSG_WriteByte(&screen, 0);
+    MSG_WriteLong(&screen, 0); MSG_WriteShort(&screen, 0);
+    uLongf size = sizeof(packed);
+    T_EQ(compress2(packed, &size, layout, screen.cursize, Z_BEST_COMPRESSION), Z_OK);
+    MSG_WriteByte(&msg, svc_configstring); MSG_WriteShort(&msg, CS_LOADINGSCREEN1);
+    MSG_Write(&msg, packed, MAX_PATHLEN);
+    CL_ParseServerMessage(&msg);
+    T_NULL(cl.layout[LAYER_LOADING]); T_EQ(test_model_loads, 0); T_EQ(test_tex_loads, 0);
+    SZ_Clear(&msg); msg.readcount = 0;
+    MSG_WriteByte(&msg, svc_configstring); MSG_WriteShort(&msg, CS_LOADINGSCREEN2);
+    MSG_Write(&msg, packed + MAX_PATHLEN, MAX_PATHLEN);
     CL_ParseServerMessage(&msg);
     T_EQ(test_model_loads, 1); T_EQ(test_tex_loads, 1);
     T_NOT_NULL(cl.models[1]); T_NOT_NULL(cl.pics[1]); T_ASSERT(!cl.precache_ready);
     SZ_Clear(&msg); msg.readcount = 0;
     MSG_WriteByte(&msg, svc_configstring); MSG_WriteShort(&msg, CS_MODELS + 2); MSG_WriteString(&msg, "World.mdx");
-    MSG_WriteByte(&msg, svc_precache);
+    MSG_WriteByte(&msg, svc_mirror); MSG_WriteString(&msg, "baselines");
     CL_ParseServerMessage(&msg);
     T_ASSERT(cl.precache_ready); T_NULL(cl.models[2]); T_EQ(test_model_loads, 1);
     MemFree(cl.layout[LAYER_LOADING]); cl.layout[LAYER_LOADING] = NULL;
     SCR_ClearLayoutLayer(LAYER_LOADING); scr_initialized = old_init;
+}
+
+/* Neither corrupt compressed data nor a partial second slot can publish a loading screen. */
+TEST(net, loading_configstrings_reject_corrupt_and_partial_payloads) {
+    BYTE buf[1024], packed[BZ_LOADING_SCREEN_SIZE] = { 0 };
+    sizeBuf_t msg = make_msg_buf(buf, sizeof(buf));
+    test_client_stubs_init();
+    MSG_WriteByte(&msg, svc_configstring); MSG_WriteShort(&msg, CS_LOADINGSCREEN1);
+    MSG_Write(&msg, packed, MAX_PATHLEN);
+    MSG_WriteByte(&msg, svc_configstring); MSG_WriteShort(&msg, CS_LOADINGSCREEN2);
+    MSG_Write(&msg, packed + MAX_PATHLEN, MAX_PATHLEN);
+    CL_ParseServerMessage(&msg);
+    T_NULL(cl.layout[LAYER_LOADING]); T_ASSERT(!cl.precache_ready);
+    SZ_Clear(&msg); msg.readcount = 0;
+    MSG_WriteByte(&msg, svc_configstring); MSG_WriteShort(&msg, CS_LOADINGSCREEN2);
+    MSG_Write(&msg, packed, MAX_PATHLEN - 1);
+    CL_ParseServerMessage(&msg);
+    T_NULL(cl.layout[LAYER_LOADING]); T_ASSERT(!cl.precache_ready);
 }

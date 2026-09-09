@@ -18,22 +18,37 @@ decorated `LoadingMeleeBackground` skin entry.
 The initial transport order is:
 
 1. Loading-phase configstrings: destination, asset scope, models, images, and fonts.
-2. The complete `svc_layout` for `LAYER_LOADING`.
-3. `svc_loading`: register the received media and present the loading screen immediately.
-4. Full configstrings and `svc_precache`: permit normal world/model/image/sound registration.
-5. Baselines/player info/`begin`, then the first usable frame activates gameplay.
+2. `CS_LOADINGSCREEN1`, then `CS_LOADINGSCREEN2`: receiving the second slot decodes the frame tree, registers
+   the preceding media, and repaints immediately.
+3. Full configstrings (excluding the already-sent loading slots), then the existing `svc_mirror "baselines"`
+   handshake transition: permit normal world/model/image/sound registration.
+4. Baselines/player info/`begin`, then the first usable frame activates gameplay.
 
-`SV_BuildLoadingMessage` snapshots the loading-phase configstrings and layout before gameplay adds resources.
-The buffer is sized and validated before writing. Existing media indices remain stable as `LoadMap` extends
-the pools. The batch includes inherited Loading.fdf template media declarations; it does not include the later
-world/gameplay media. `SV_New_f` sends the saved batch before the full table to remote clients too. This sends
-**references**, not asset file contents. WC3's background/bar are models, so moving only images earlier is insufficient.
+`SV_BuildLoadingConfigstrings` stores the presentation in two consecutive 256-byte **binary** configstrings,
+using the same fixed-size transport convention as `CS_STATUSBAR`. All 512 bytes survive, including embedded NULs
+and the last byte of each slot; these slots never pass through theme lookup or C-string length functions.
+Concatenating the slots yields one zlib stream padded with zeros. Its decoded payload is the existing layer byte,
+delta-encoded UI frames (including their text and type-specific buffers), and frame terminator. There is no new
+layout grammar, game-specific client layout, or loading-specific packet opcode. Decode is bounded by `MAX_MSGLEN`
+and accepts only `LAYER_LOADING`, not a nested server-message stream.
 
-For a listen server, `SV_Map` establishes the connection and sends this batch before `ge->LoadMap`, then calls
-`CL_LoadingFrame`. This limited packet pump invokes no command buffer, client tick, server tick, or gameplay
-callback. The client parser handles `svc_loading` with `CL_PrepLoading`; `cl.precache_ready` prevents the early
-layout/`CS_WORLD` from accidentally starting bulk registration before `svc_precache` arrives. Dedicated servers
-skip the presentation pump. The cached packet is released on map replacement, lobby replacement, and shutdown.
+The server first tries the complete authored text. If it exceeds the compressed 512-byte budget, it retries with
+per-display-string byte caps of 255, 127, 63, 31, 15, 7, 3, and 1, stopping at the first fit. UTF-8 characters are
+not split; `#` animation directives and frame geometry remain intact. Shortening emits a warning. If even that
+layout cannot fit, map startup fails with a diagnostic rather than dropping frames or inventing replacement art.
+The fixed limit applies to **layout plus text**; referenced model/image/font asset files remain in their normal
+resource tables and do not count toward the 512 bytes.
+
+Only three resource-pool endpoints are retained in `sv.loading_end` before gameplay adds resources. Media indices
+remain stable as `LoadMap` extends the pools. `SV_New_f` reconstructs the early transmission from the authoritative
+configstrings using those endpoints; there is no cached loading packet or duplicate layout allocation on the server.
+The batch includes inherited Loading.fdf template media declarations, but excludes later world/gameplay media.
+WC3's background/bar are models, so moving only images earlier is insufficient.
+
+For a listen server, `SV_Map` establishes the connection and sends these configstrings before `ge->LoadMap`, then
+calls `CL_LoadingFrame`. This limited packet pump invokes no command buffer, client tick, server tick, or gameplay
+callback. `cl.precache_ready` prevents the early layout/`CS_WORLD` from starting bulk registration until the full
+configstring handshake advances to baselines. Dedicated servers skip the presentation pump.
 
 `CS_ASSET_SCOPE` and `re.SetAssetScope` establish map-import resolution before renderer world registration.
 This matters for custom loading MDX models whose companion textures live inside the destination archive.
@@ -71,7 +86,7 @@ build/bin/openwow -data data/world-of-warcraft +screenshot 2 +map 0 +vid_hidden 
 ```
 
 `run-map` does not forward `ARGS`, so use the binary for bounded diagnostics. To measure, temporarily probe
-`SV_BuildLoadingMessage`, `CL_PrepLoading` after its swap, `ge->LoadMap` entry/return, and `SCR_EndLoadingPlaque`
+`SV_BuildLoadingConfigstrings`, `CL_PrepLoading` after its swap, `ge->LoadMap` entry/return, and `SCR_EndLoadingPlaque`
 with `SDL_GetTicks()` / `fprintf(stderr, ...)`; remove the probes afterward. Hidden-window rendering still needs
 the Mac display server; a sandbox without displays fails before map loading and gives no useful timing.
 
@@ -214,7 +229,7 @@ For the menu regression, launch without `+map`, then select Single Player → Ca
 registers `menu_single_player_campaign`, but `menu_single_player_campaign_human` is a UI-handler command,
 not a console command. Campaign selection now enters `MissionSelectFrame`; the selected mission's
 `menu_single_player_mission_select N` handler is what issues the map command. A diagnostic replay can temporarily
-invoke those handlers after showing the campaign screen; remove the hook afterward. Queue `screenshot 1` before
+invoke those handlers after showing the campaign screen; remove the hook afterward. Queue `screenshot 2` before
 the mission handler to capture the frozen loading plaque.
 Use `+com_frame_limit 100` for bounded runs; engine screenshots appear under `screenshots/`.
 
@@ -234,11 +249,19 @@ TFT row schemas, custom-model precedence, and default skin decoration. Restoring
 `hud_loading.c` makes this test fail. The client drawing tests additionally check progress 0/0.5/1 and collisions
 between model and image indices.
 
-The shared `net.loading_batch_registers_media_before_full_precache` test verifies that initial model/image handles
-are available at `svc_loading`, later world resources remain deferred, and `svc_precache` opens the full-table gate.
-`server_net.loading_batch_precedes_world_and_retains_resource_indices` checks the cached packet order, loading
-model/image/font references, and exclusion of media introduced by `LoadMap`. The WoW game test verifies that
-`PrepareMap` resolves and writes loading art before clearing/spawning the world, then follows the normal map lifecycle.
+The shared `net.loading_batch_registers_media_before_full_precache` test verifies that the first binary slot alone
+cannot publish the screen, initial model/image handles become available after the second slot, later world media
+remains deferred, and the existing baselines handshake opens the full-table gate. Corrupt compressed data and partial
+binary slots are rejected. `server_net.loading_batch_precedes_world_and_retains_resource_indices` exercises a later
+connection against the retained resource endpoints. Additional server tests verify all 512 binary bytes survive and
+oversized display text shrinks without changing geometry, texture coordinates, or animation directives.
+The WoW game test verifies that `PrepareMap` resolves and writes loading art before clearing/spawning the world.
+
+The September 9 configstring refactor was checked with `make test` (2,855 tests), builds of all three game
+binaries, bounded Human01/Human02 runs, Human02 → Human02 → Human01 reloads, and WoW Azeroth map entry. The Human02
+source layout measured 560 bytes (including its original opcode), and compressed to 303 bytes before removing that
+opcode. Both chapters retained their complete text and native artwork in early engine screenshots. Neither needed
+text shortening. The prior opcode-based transport is superseded by the two-slot contract above.
 
 A bounded console-script run also exercised Human02 → Human02 → Human01, with 100 `wait` commands between map
 commands. All three reached `G_ClientBegin`, and early screenshots showed the correct chapter/sequence at zero

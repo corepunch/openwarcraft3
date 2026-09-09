@@ -10,10 +10,13 @@
  * config strings and temporary effects each have their own message types.
  */
 #include <stdlib.h>
+#include <zlib.h>
 
 #include "client.h"
 #include "sound/s_local.h"
 #include "ui_layout.h"
+
+static void CL_ParseLoadingScreen(void);
 
 /* Keep predicted camera targets inside the loaded map. Scripted WC3 camera
  * rectangles stay server-side; the client does not get a per-player copy. */
@@ -193,12 +196,16 @@ static void CL_ParseConfigString(LPSIZEBUF msg) {
         return;
     }
     olds[0] = '\0';
-    if (index == CS_STATUSBAR) {
-        MSG_Read(msg, cl.configstrings[index], sizeof(*cl.configstrings));
+    if (index == CS_STATUSBAR || index == CS_LOADINGSCREEN1 || index == CS_LOADINGSCREEN2) {
+        if (!MSG_Read(msg, cl.configstrings[index], sizeof(*cl.configstrings))) {
+            Com_Error(ERR_DROP, "Truncated binary configstring %d", index);
+            return;
+        }
     } else {
         snprintf(olds, sizeof(olds), "%s", cl.configstrings[index]);
         MSG_ReadString(msg, cl.configstrings[index]);
     }
+    if (index == CS_LOADINGSCREEN2 && !cl.refresh_prepped) CL_ParseLoadingScreen();
     if (index >= CS_GENERAL && index < CS_GENERAL + CS_MAX_NAMES / ENT_NAMES_PER_CS)
         entity_name_pool_decode(cl.configstrings[index]);
     if (cl.refresh_prepped)
@@ -637,12 +644,32 @@ static BOOL CL_ParseFogOfWar(LPSIZEBUF msg) {
     return true;
 }
 
+/* Decode only a loading layer, never an arbitrary server message stream from persistent configstrings. */
+static void CL_ParseLoadingScreen(void) {
+    BYTE data[BZ_LOADING_SCREEN_SIZE], buf[MAX_MSGLEN];
+    uLongf size = sizeof(buf);
+    memcpy(data, cl.configstrings + CS_LOADINGSCREEN1, sizeof(data));
+    if (uncompress(buf, &size, data, sizeof(data)) != Z_OK || size < 7 || buf[0] != LAYER_LOADING) {
+        Com_Error(ERR_DROP, "Invalid loading screen configstrings");
+        return;
+    }
+    sizeBuf_t msg = { .data = buf, .cursize = size, .maxsize = sizeof(buf) };
+    CL_ParseLayout(&msg);
+    if (!cl.layout[LAYER_LOADING] || msg.readcount != msg.cursize) {
+        Com_Error(ERR_DROP, "Incomplete loading screen layout");
+        return;
+    }
+    CL_PrepLoading();
+}
+
 void CL_MirrorMessage(LPSIZEBUF msg) {
     char buf[256] = { 0 };
     MSG_ReadString(msg, buf);
     if (!strcmp(buf, "begin")) {
         return;
     }
+    /* The existing spawn handshake advances only after the full configstring table has arrived. */
+    if (!strcmp(buf, "baselines")) cl.precache_ready = true;
     MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
     MSG_WriteString(&cls.netchan.message, buf);
 }
@@ -948,12 +975,6 @@ void CL_ParseServerMessage(LPSIZEBUF msg) {
                 break;
             case svc_frame:
                 CL_ParseFrame(msg);
-                break;
-            case svc_loading:
-                CL_PrepLoading();
-                break;
-            case svc_precache:
-                cl.precache_ready = true;
                 break;
             case svc_layout:
                 CL_ParseLayout(msg);

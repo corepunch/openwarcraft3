@@ -1,3 +1,4 @@
+#include <zlib.h>
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -136,7 +137,7 @@ static bool test_prepare_map(LPCSTR filename) {
 }
 
 static bool test_load_map(LPCSTR mapFilename) {
-    T_ASSERT(!IS_ARRAY_EMPTY(sv.loading));
+    T_ASSERT(*sv.configstrings[CS_LOADINGSCREEN1]);
     SV_ModelIndex("World.mdx");
     if (!CM_LoadMap(mapFilename)) {
         return false;
@@ -967,30 +968,87 @@ TEST(server_net, lobby_chat_broadcasts_to_connected_clients) {
 /* Early and late clients receive the same loading resources, before any world-only configstrings. */
 TEST(server_net, loading_batch_precedes_world_and_retains_resource_indices) {
     MAPINFO info = { 0 };
-    BOOL model = false, image = false, font = false, layout = false, ready = false;
+    BOOL model = false, image = false, font = false;
+    BYTE buf[MAX_MSGLEN], packed[BZ_LOADING_SCREEN_SIZE] = { 0 }, layout[256];
+    sizeBuf_t msg = { .data = buf, .maxsize = sizeof(buf) };
+    netadr_t from;
     NET_Shutdown(); reset_server_state(1); test_mapinfo = &info;
     SV_Map("Test.w3m");
-    sizeBuf_t msg = { .data = sv.loading, .cursize = ARRAY_COUNT(sv.loading), .maxsize = ARRAY_COUNT(sv.loading) };
+    drain_client_packets();
+    /* A connection after world loading must still receive only the original loading dependencies. */
+    SV_SendLoadingConfigstrings(&svs.clients[0]);
+    T_ASSERT(NET_GetPacket(NS_CLIENT, &from, &msg));
+    DWORD slots = 0;
     while (msg.readcount < msg.cursize) {
-        int op = MSG_ReadByte(&msg);
-        if (op == svc_configstring) {
-            int index = MSG_ReadShort(&msg);
+        T_EQ(MSG_ReadByte(&msg), svc_configstring);
+        int index = MSG_ReadShort(&msg);
+        if (index == CS_LOADINGSCREEN1 || index == CS_LOADINGSCREEN2) {
+            T_ASSERT(model && image && font);
+            T_EQ(index, CS_LOADINGSCREEN1 + slots++);
+            MSG_Read(&msg, packed + (index - CS_LOADINGSCREEN1) * MAX_PATHLEN, MAX_PATHLEN);
+        } else {
             LPCSTR name = MSG_ReadString2(&msg);
-            T_ASSERT(!layout);
+            T_EQ(slots, 0);
             if (index == CS_MODELS + 1) { T_STREQ(name, "Loading.mdx"); model = true; }
             if (index == CS_IMAGES + 1) { T_STREQ(name, "Loading.blp"); image = true; }
             if (index == CS_FONTS + 1) { T_STREQ(name, "Loading.ttf,18"); font = true; }
             T_ASSERT(index != CS_MODELS + 2);
-        } else if (op == svc_layout) {
-            T_ASSERT(model && image && font);
-            T_EQ(MSG_ReadByte(&msg), LAYER_LOADING);
-            T_EQ(MSG_ReadLong(&msg), 0); T_EQ(MSG_ReadShort(&msg), 0);
-            layout = true;
-        } else {
-            T_EQ(op, svc_loading); T_ASSERT(layout); ready = true;
         }
     }
-    T_ASSERT(ready);
+    T_EQ(slots, BZ_LOADING_SCREEN_SLOTS);
+    uLongf size = sizeof(layout);
+    T_EQ(uncompress(layout, &size, packed, sizeof(packed)), Z_OK);
+    T_EQ(size, 7); T_EQ(layout[0], LAYER_LOADING);
+    T_EQ(memcmp(packed, sv.configstrings + CS_LOADINGSCREEN1, sizeof(packed)), 0);
     T_STREQ(sv.configstrings[CS_MODELS + 2], "World.mdx");
     SV_Shutdown(); test_mapinfo = NULL;
+}
+
+/* Binary slots preserve embedded NULs and the final byte; ordinary paths remain terminated. */
+TEST(server_net, loading_configstrings_preserve_all_512_bytes) {
+    BYTE data[BZ_LOADING_SCREEN_SIZE];
+    FOR_LOOP(i, sizeof(data)) data[i] = (BYTE)i;
+    reset_server_state(1);
+    FOR_LOOP(i, BZ_LOADING_SCREEN_SLOTS) {
+        SV_SetConfigString(CS_LOADINGSCREEN1 + i, (LPCSTR)data + i * MAX_PATHLEN, MAX_PATHLEN);
+        T_EQ(SV_ConfigStringWireSize(CS_LOADINGSCREEN1 + i), MAX_PATHLEN + 3);
+    }
+    T_EQ(memcmp(data, sv.configstrings + CS_LOADINGSCREEN1, sizeof(data)), 0);
+}
+
+/* Excess presentation text can shrink, but frame geometry and sprite animation directives survive. */
+TEST(server_net, loading_configstrings_bound_text_without_changing_geometry) {
+    BYTE raw[MAX_MSGLEN], packed[BZ_LOADING_SCREEN_SIZE];
+    char text[4096];
+    DWORD seed = 1;
+    UIFRAME empty = { .tex.coord = { 0, 255, 0, 255 } };
+    UIFRAME frame = { .number = 1, .flags.type = FT_STRING, .size = { .width = 321, .height = 123 }, .tex.coord = { 0, 255, 0, 255 } };
+    reset_server_state(1);
+    FOR_LOOP(i, sizeof(text) - 1) {
+        seed = seed * 1664525u + 1013904223u;
+        text[i] = ' ' + (seed >> 24) % 95;
+    }
+    text[sizeof(text) - 1] = 0; frame.text = text;
+    SZ_Init(&sv.multicast, sv.multicast_buf, sizeof(sv.multicast_buf));
+    MSG_WriteByte(&sv.multicast, svc_layout); MSG_WriteByte(&sv.multicast, LAYER_LOADING);
+    MSG_WriteDeltaUIFrame(&sv.multicast, &empty, &frame, true); MSG_WriteByte(&sv.multicast, 0);
+    frame.number = 2; frame.flags.type = FT_SPRITE; frame.text = "#!123";
+    MSG_WriteDeltaUIFrame(&sv.multicast, &empty, &frame, true); MSG_WriteByte(&sv.multicast, 0);
+    MSG_WriteLong(&sv.multicast, 0); MSG_WriteShort(&sv.multicast, 0);
+    T_ASSERT(SV_BuildLoadingConfigstrings());
+    memcpy(packed, sv.configstrings + CS_LOADINGSCREEN1, sizeof(packed));
+    uLongf size = sizeof(raw);
+    T_EQ(uncompress(raw, &size, packed, sizeof(packed)), Z_OK);
+    sizeBuf_t msg = { .data = raw, .cursize = size, .maxsize = sizeof(raw) };
+    T_EQ(MSG_ReadByte(&msg), LAYER_LOADING);
+    DWORD bits, number = MSG_ReadEntityBits(&msg, &bits);
+    frame = empty;
+    MSG_ReadDeltaUIFrame(&msg, &frame, number, bits);
+    T_EQ(frame.tex.coord[1], 255); T_EQ(frame.tex.coord[3], 255);
+    T_ASSERT(strlen(frame.text) < strlen(text)); T_EQ(strncmp(frame.text, text, strlen(frame.text)), 0);
+    T_FEQ(frame.size.width, 321, 0.001f); T_FEQ(frame.size.height, 123, 0.001f);
+    T_EQ(MSG_ReadByte(&msg), 0);
+    number = MSG_ReadEntityBits(&msg, &bits);
+    MSG_ReadDeltaUIFrame(&msg, &frame, number, bits);
+    T_EQ(frame.flags.type, FT_SPRITE); T_STREQ(frame.text, "#!123");
 }

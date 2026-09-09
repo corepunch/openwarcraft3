@@ -27,7 +27,7 @@ void SV_Configstrings_f(LPCLIENT cl, int argc, LPCSTR *argv) {
 
     if (!cl->edict) cl->edict = EDICT_NUM(SV_ClientPlayerNumber(cl));
     FOR_LOOP(i, MAX_CONFIGSTRINGS) {
-        if (!*sv.configstrings[i])
+        if (i == CS_LOADINGSCREEN1 || i == CS_LOADINGSCREEN2 || !*sv.configstrings[i])
             continue;
         if (cl->netchan.message.cursize + SV_ConfigStringWireSize(i) + 16 >= cl->netchan.message.maxsize) {
             SV_FlushSpawnMessage(cl, "Configstrings", batch_count);
@@ -41,7 +41,6 @@ void SV_Configstrings_f(LPCLIENT cl, int argc, LPCSTR *argv) {
     }
     MSG_WriteByte(&cl->netchan.message, svc_mirror);
     MSG_WriteString(&cl->netchan.message, "baselines");
-    MSG_WriteByte(&cl->netchan.message, svc_precache);
     Netchan_Transmit(NS_SERVER, &cl->netchan);
 }
 
@@ -112,7 +111,7 @@ void SV_New_f(LPCLIENT cl, int argc, LPCSTR *argv) {
         Netchan_Transmit(NS_SERVER, &cl->netchan);
         return;
     }
-    SV_SendLoadingMessage(cl);
+    SV_SendLoadingConfigstrings(cl);
     MSG_WriteByte(&cl->netchan.message, svc_mirror);
     MSG_WriteString(&cl->netchan.message, "configstrings");
     Netchan_Transmit(NS_SERVER, &cl->netchan);
