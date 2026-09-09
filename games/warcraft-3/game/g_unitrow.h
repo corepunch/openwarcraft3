@@ -226,6 +226,7 @@ typedef struct {
     LPCSTR attackType, rangeTest, damageUpgrade, damageModifier, weaponType, weaponSound;
     LONG damageDice, damageSides, damageBase, damageUpgradeAmount;
     LONG areaTargets, maxTargets, targetsAllowed;
+    LPCSTR targetsAllowedText; /* UnitWeapons.slk targsN is a comma-separated target list */
     FLOAT damagePoint, backswingPoint, cooldown;
     FLOAT minCooldown, minDamage, averageDamage, maxDamage, damagePerSecond;
     FLOAT damageLossFactor, range, rangeBuffer;

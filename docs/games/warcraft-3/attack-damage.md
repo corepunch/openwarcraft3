@@ -141,6 +141,26 @@ These affect existing owned units and newly spawned units that inherit already-r
 
 `AIde` changes both `temporary_armor_bonus` and the current `armor_value`, so later Hero Agility recomputation preserves the item armor modifier.
 
+## Destructable Attack Targeting
+
+Destructables use their `targType`/Targeted As category together with the
+attacking unit's `targs1` target list. Warcraft stores `UnitWeapons.slk`
+`targs1`/`targs2` as comma-separated names such as
+`ground,structure,debris,item,ward`; OpenRealm decodes those names to the
+`targetflag` mask (`tree=64`, `wall=128`, `debris=256`, `decoration=512`,
+`bridge=1024`) before copying Attack 1 into runtime state. Map object-data
+`ua1g`/`ua2g` overrides remain numeric masks.
+
+Smart/right-click turns ordinary `debris` into an implicit attack, which keeps
+breakable crates convenient. Trees keep worker harvesting precedence and do
+not Smart-attack, but the explicit Attack command may attack a live tree even
+when the standard weapon target list omits `tree` (as retail UnitWeapons data
+commonly does). Wall/bridge/decoration classes still require explicit Attack
+and the corresponding weapon target bit. This prevents right-click from
+attacking every selectable destructable merely because it has life.
+
+Relevant coverage is in `games/warcraft-3/game/tests/t_destructable.c`.
+
 ## Known Gaps
 
 The current implementation intentionally does not invent the larger Warsmash combat-listener architecture. Remaining work includes:
@@ -151,12 +171,11 @@ The current implementation intentionally does not invent the larger Warsmash com
 - generic distinction between attack type and damage type / numeric-armor bypass;
 - `MSPLASH`, `ARTILLERY`, `MBOUNCE`, `MLINE`/`ALINE` damage behavior;
 - combat selection between Attack 1 and Attack 2;
-- weapon target-mask enforcement (`UnitWeapons.targs1` / `targs2`). The fields
-  are parsed into `UnitWeapon_t.targetsAllowed`, but `order_attack()` and
-  automatic acquisition do not yet reject targets from those masks. Do not
-  equate a hostile PASSIVE-alliance relationship with guaranteed attackability;
-  the target-mask layer still needs a dedicated implementation before adding
-  air/ground/structure/etc. selection logic;
+- full unit weapon target-mask enforcement (`UnitWeapons.targs1` / `targs2`)
+  for ordinary unit-vs-unit combat. Destructable target classes are now checked
+  against Attack 1's runtime `targetsAllowed` mask before Smart or explicit
+  Attack can start, but air/ground/structure/etc. unit selection and Attack 2
+  combat selection still need the broader target-mask implementation;
 - separate Hero base-vs-bonus attributes for Warsmash-exact green primary-stat damage;
 - seeded combat RNG independent from unrelated `rand()` consumers;
 - non-Agility attack-speed buffs/debuffs.

@@ -100,12 +100,12 @@ static BOOL can_attack(LPCEDICT ent) {
     return false;
 }
 
-static BOOL attack_target_is_valid(LPCEDICT target) {
+static BOOL attack_target_is_valid(LPCEDICT attacker, LPCEDICT target) {
     if (!target || !target->inuse) {
         return false;
     }
     if (target->destructable.initialized) {
-        return G_DestructableIsAttackable(target);
+        return G_DestructableCanBeAttackedBy(attacker, target);
     }
     return !M_IsDead((LPEDICT)target);
 }
@@ -126,7 +126,7 @@ static void attack_finish_after_combat(LPEDICT attacker) {
 }
 
 static BOOL attack_stop_if_target_invalid(LPEDICT attacker) {
-    if (attack_target_is_valid(attacker ? attacker->goalentity : NULL)) {
+    if (attack_target_is_valid(attacker, attacker ? attacker->goalentity : NULL)) {
         return false;
     }
     if (attacker) {
@@ -394,7 +394,7 @@ void attack_walk(LPEDICT self) {
 
 /* Set the attack target and start walking toward attack range. */
 void order_attack(LPEDICT self, LPEDICT target) {
-    if (!self || S_GoldMineWorkerIsInside(self) || !attack_target_is_valid(target)) {
+    if (!self || S_GoldMineWorkerIsInside(self) || !attack_target_is_valid(self, target)) {
         return;
     }
     unit_entercombat(self, target);

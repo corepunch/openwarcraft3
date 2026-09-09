@@ -232,9 +232,11 @@ The following are deliberately not inferred by the current implementation:
 Combat reaction remains a separate gap from relationship classification:
 OpenRealm does not yet apply Warsmash's PEON suppression/`canFlee` civilian
 reaction policy when a non-combat unit is damaged. Likewise, a hostile
-relationship does not yet imply correct per-weapon attackability because
-`UnitWeapons.targs1`/`targs2` are not enforced by ordinary Attack; see
-[Warcraft III Attack Damage](attack-damage.md#known-gaps).
+relationship does not yet imply correct per-weapon attackability for ordinary
+units. Destructables now decode `UnitWeapons.targs1` target-name lists, use debris for
+Smart/right-click breakables, permit explicit Attack on trees even though stock
+weapon lists commonly omit `tree`, and enforce the mask for the remaining
+destructable classes; broader unit target-mask coverage remains incomplete. See [Warcraft III Attack Damage](attack-damage.md).
 
 Do not bypass these gaps by weakening `G_UnitCanControl` or by restoring owner checks inside selection itself. Selection and command authority must remain separate.
 

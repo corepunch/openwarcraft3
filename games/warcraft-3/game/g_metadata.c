@@ -367,7 +367,7 @@ static slkField_t const weapons_schema[] = {
     { "spillRadius1",  offsetof(UnitWeapons_t, attack1.spillRadius), STB_SLK_FLOAT },
     { "splashTargs1",  offsetof(UnitWeapons_t, attack1.areaTargets), STB_SLK_INT   },
     { "targCount1",    offsetof(UnitWeapons_t, attack1.maxTargets), STB_SLK_INT   },
-    { "targs1",        offsetof(UnitWeapons_t, attack1.targetsAllowed), STB_SLK_INT   },
+    { "targs1",        offsetof(UnitWeapons_t, attack1.targetsAllowedText), STB_SLK_STR   },
     { "weapTp1",       offsetof(UnitWeapons_t, attack1.weaponType), STB_SLK_STR   },
     { "weapType1",     offsetof(UnitWeapons_t, attack1.weaponSound), STB_SLK_STR   },
     { "showUI1",       offsetof(UnitWeapons_t, attack1.showUI), STB_SLK_BOOL  }, /* TFT */
@@ -396,7 +396,7 @@ static slkField_t const weapons_schema[] = {
     { "spillRadius2",  offsetof(UnitWeapons_t, attack2.spillRadius), STB_SLK_FLOAT },
     { "splashTargs2",  offsetof(UnitWeapons_t, attack2.areaTargets), STB_SLK_INT   },
     { "targCount2",    offsetof(UnitWeapons_t, attack2.maxTargets), STB_SLK_INT   },
-    { "targs2",        offsetof(UnitWeapons_t, attack2.targetsAllowed), STB_SLK_INT   },
+    { "targs2",        offsetof(UnitWeapons_t, attack2.targetsAllowedText), STB_SLK_STR   },
     { "weapTp2",       offsetof(UnitWeapons_t, attack2.weaponType), STB_SLK_STR   },
     { "weapType2",     offsetof(UnitWeapons_t, attack2.weaponSound), STB_SLK_STR   },
     { "showUI2",       offsetof(UnitWeapons_t, attack2.showUI), STB_SLK_BOOL  }, /* TFT */
@@ -766,6 +766,51 @@ static slkField_t const upgrade_schema[] = {
     { NULL, 0, 0 }
 };
 
+
+static DWORD ParseWeaponTargetMask(LPCSTR text) {
+    DWORD mask = 0;
+    LPCSTR p = text;
+    char *end = NULL;
+
+    while (p && (*p == ' ' || *p == '\t')) p++;
+    if (p && *p >= '0' && *p <= '9') {
+        unsigned long numeric = strtoul(p, &end, 0);
+        while (end && (*end == ' ' || *end == '\t')) end++;
+        if (end && !*end) return (DWORD)numeric;
+    }
+
+    while (p && *p) {
+        char token[32];
+        size_t len = 0;
+        while (*p == ' ' || *p == '\t' || *p == ',') p++;
+        while (*p && *p != ',' && len + 1 < sizeof(token)) token[len++] = *p++;
+        while (len && (token[len - 1] == ' ' || token[len - 1] == '\t')) len--;
+        token[len] = '\0';
+        if (!strcasecmp(token, "none"))            mask |= 1u;
+        else if (!strcasecmp(token, "ground"))     mask |= 2u;
+        else if (!strcasecmp(token, "air"))        mask |= 4u;
+        else if (!strcasecmp(token, "structure"))  mask |= 8u;
+        else if (!strcasecmp(token, "ward"))       mask |= 16u;
+        else if (!strcasecmp(token, "item"))       mask |= 32u;
+        else if (!strcasecmp(token, "tree"))       mask |= 64u;
+        else if (!strcasecmp(token, "wall"))       mask |= 128u;
+        else if (!strcasecmp(token, "debris"))     mask |= 256u;
+        else if (!strcasecmp(token, "decoration")) mask |= 512u;
+        else if (!strcasecmp(token, "bridge"))     mask |= 1024u;
+        while (*p && *p != ',') p++;
+        if (*p == ',') p++;
+    }
+    return mask;
+}
+
+static void NormalizeWeaponTargetMasks(UnitWeapons_t *rows, DWORD count) {
+    if (!rows) return;
+    FOR_LOOP(i, count) {
+        rows[i].attack1.targetsAllowed = (LONG)ParseWeaponTargetMask(rows[i].attack1.targetsAllowedText);
+        rows[i].attack2.targetsAllowed = (LONG)ParseWeaponTargetMask(rows[i].attack2.targetsAllowedText);
+    }
+}
+
 /* =========================================================================
  * Decoded row arrays and lookup indexes (allocated at InitUnitData time).
  * =========================================================================*/
@@ -845,6 +890,8 @@ slkTestData_t *G_SetSLKRows(LPCSTR slk, slkTestData_t *data) {
             }
             FS_SLKFreeIndex(store->idx);
             *store->rows = data->rows; *store->count = data->count;
+            if (!strcmp(store->name, "UnitWeapons"))
+                NormalizeWeaponTargetMasks(g_UnitWeapons, g_UnitWeaponsCount);
             if (store->idx) FS_SLKBuildIndex(store->idx, *store->rows, *store->count, store->row_size);
             data->rows = NULL; data->count = 0;
             return old;
@@ -1535,6 +1582,8 @@ void InitUnitData(void) {
         slkStore_t *store = slk_stores + i;
         *store->count = Stb_SlkLoad(store->path, store->schema, store->rows, store->row_size);
         if (!*store->count) fprintf(stderr, "SLK: failed to load '%s'\n", store->path);
+        if (!strcmp(store->name, "UnitWeapons"))
+            NormalizeWeaponTargetMasks(g_UnitWeapons, g_UnitWeaponsCount);
         if (store->idx) FS_SLKBuildIndex(store->idx, *store->rows, *store->count, store->row_size);
     }
 }

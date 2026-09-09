@@ -612,6 +612,7 @@ void SP_SpawnUnit(LPEDICT self) {
     self->attack1.cooldown = w->attack1.cooldown;
     self->attack1.damagePoint = w->attack1.damagePoint;
     self->attack1.range = w->attack1.range;
+    self->attack1.targetsAllowed = (DWORD)w->attack1.targetsAllowed;
     self->attack1.areaFull = w->attack1.areaFull;
     self->attack1.areaMedium = w->attack1.areaMedium;
     self->attack1.areaSmall = w->attack1.areaSmall;
@@ -631,6 +632,7 @@ void SP_SpawnUnit(LPEDICT self) {
     self->attack2.cooldown = w->attack2.cooldown;
     self->attack2.damagePoint = w->attack2.damagePoint;
     self->attack2.range = w->attack2.range;
+    self->attack2.targetsAllowed = (DWORD)w->attack2.targetsAllowed;
     self->attack2.areaFull = w->attack2.areaFull;
     self->attack2.areaMedium = w->attack2.areaMedium;
     self->attack2.areaSmall = w->attack2.areaSmall;

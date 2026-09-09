@@ -61,6 +61,8 @@ static LPEDICT make_destructable_test_attacker(FLOAT x, FLOAT y) {
     ent->health.value = 100.0f;
     ent->health.max_value = 100.0f;
     ent->svflags |= SVF_MONSTER;
+    ent->attack1.type = ATK_NORMAL;
+    ent->attack1.targetsAllowed = 256u; /* TARGET_FLAG_DEBRIS */
     return ent;
 }
 
@@ -171,6 +173,54 @@ TEST(wc3_destructable, smart_order_attacks_neutral_destructable) {
     T_ASSERT(unit_issuetargetorder(attacker, "smart", dest));
     T_ASSERT(attacker->goalentity == dest);
     T_ASSERT(attacker->combatentity == dest);
+}
+
+TEST(wc3_destructable, smart_order_requires_destructable_target_mask) {
+    LPEDICT attacker = make_destructable_test_attacker(0.0f, 0.0f);
+    LPEDICT dest = make_test_destructable(50.0f, 32.0f, 0.0f);
+
+    attacker->attack1.targetsAllowed = 64u; /* TARGET_FLAG_TREE only */
+
+    T_ASSERT(!unit_issuetargetorder(attacker, "smart", dest));
+    T_ASSERT(attacker->goalentity == NULL);
+}
+
+TEST(wc3_destructable, tree_requires_explicit_attack) {
+    LPEDICT attacker = make_destructable_test_attacker(0.0f, 0.0f);
+    LPEDICT dest = make_test_destructable(50.0f, 32.0f, 0.0f);
+
+    dest->targtype = TARG_TREE;
+    /* Standard melee targs1 commonly contains debris but not tree. Retail
+     * still lets explicit Attack cut a tree down. */
+    attacker->attack1.targetsAllowed = 256u; /* TARGET_FLAG_DEBRIS */
+
+    T_ASSERT(!unit_issuetargetorder(attacker, "smart", dest));
+    T_ASSERT(unit_issuetargetorder(attacker, "attack", dest));
+    T_ASSERT(attacker->goalentity == dest);
+}
+
+TEST(wc3_destructable, explicit_attack_rejects_disallowed_destructable_class) {
+    LPEDICT attacker = make_destructable_test_attacker(0.0f, 0.0f);
+    LPEDICT dest = make_test_destructable(50.0f, 32.0f, 0.0f);
+
+    dest->targtype = TARG_BRIDGE;
+    attacker->attack1.targetsAllowed = 256u; /* TARGET_FLAG_DEBRIS only */
+
+    T_ASSERT(!unit_issuetargetorder(attacker, "smart", dest));
+    T_ASSERT(!unit_issuetargetorder(attacker, "attack", dest));
+    T_ASSERT(attacker->goalentity == NULL);
+}
+
+TEST(wc3_destructable, explicit_attack_accepts_allowed_bridge) {
+    LPEDICT attacker = make_destructable_test_attacker(0.0f, 0.0f);
+    LPEDICT dest = make_test_destructable(50.0f, 32.0f, 0.0f);
+
+    dest->targtype = TARG_BRIDGE;
+    attacker->attack1.targetsAllowed = 1024u; /* TARGET_FLAG_BRIDGE */
+
+    T_ASSERT(!unit_issuetargetorder(attacker, "smart", dest));
+    T_ASSERT(unit_issuetargetorder(attacker, "attack", dest));
+    T_ASSERT(attacker->goalentity == dest);
 }
 
 TEST(wc3_destructable, dead_remains_reject_attack_orders) {

@@ -393,10 +393,11 @@ static BOOL unit_issuetargetorder_now(LPEDICT self, LPCSTR order, LPEDICT target
             if (self->harvested_gold > 0 && harvest_gold_return_to(self, target))
                 return true;
         }
-        /* Neutral crates are not enemy units, but they are valid normal-attack
-         * targets.  Trees keep the harvest behavior above for workers. */
+        /* Smart/right-click only force-attacks ordinary breakable debris.
+         * Other destructable classes require the explicit Attack command, and
+         * every destructable must be allowed by the unit weapon target mask. */
         if (G_IsDestructable(target)) {
-            if (!G_DestructableIsAttackable(target)) {
+            if (!G_DestructableAcceptsSmartAttack(self, target)) {
                 return false;
             }
             order_attack(self, target);
@@ -425,7 +426,7 @@ static BOOL unit_issuetargetorder_now(LPEDICT self, LPCSTR order, LPEDICT target
         return self->movement.follow_target == target;
     }
     if (!strcmp(order, "attack")) {
-        if (G_IsDestructable(target) && !G_DestructableIsAttackable(target)) {
+        if (G_IsDestructable(target) && !G_DestructableCanBeAttackedBy(self, target)) {
             return false;
         }
         order_attack(self, target);

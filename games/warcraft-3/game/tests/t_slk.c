@@ -667,6 +667,27 @@ TEST(wc3_slk, destructable_texture_preserves_extension_and_absent_sentinel) {
     gi.ImageIndex = old_index;
 }
 
+TEST(wc3_slk, unit_weapon_target_lists_decode_to_targetflag_mask) {
+    LPCSTR slk =
+        "ID;PWXL;N;E\n"
+        "C;Y1;X1;K\"unitWeapID\"\n"
+        "C;Y1;X2;K\"targs1\"\n"
+        "C;Y1;X3;K\"targs2\"\n"
+        "C;Y2;X1;K\"hfoo\"\n"
+        "C;Y2;X2;K\"ground,structure,debris,item,ward\"\n"
+        "C;Y2;X3;K\"air,bridge\"\n"
+        "E\n";
+    slkTestData_t *rows = parse_slk_string(slk);
+    slkTestData_t *saved = G_SetSLKRows("UnitWeapons", rows);
+
+    T_EQ(g_UnitWeaponsCount, 1);
+    T_EQ(g_UnitWeapons[0].attack1.targetsAllowed, 2u | 8u | 16u | 32u | 256u);
+    T_EQ(g_UnitWeapons[0].attack2.targetsAllowed, 4u | 1024u);
+
+    G_SetSLKRows("UnitWeapons", saved);
+    free_slk_rows(rows);
+}
+
 TEST(wc3_slk, doodad_fields_use_typed_row) {
     LPCSTR slk =
         "ID;PWXL;N;E\n"
