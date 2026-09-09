@@ -127,7 +127,8 @@ void CL_LayoutDrawMinimap(LPCUIFRAME frame, LPCRECT screen) {
 /* Left-click (or click-drag) on the minimap recenters the camera there. */
 BOOL CL_TryMinimapClick(float x, float y) {
     VECTOR2 world;
-    if (!CL_GameplayInputReady() || !re.TraceMinimap || !re.TraceMinimap(x, y, &world)) return false;
+    /* TraceMinimap is mandatory; its result reports whether a minimap was hit. */
+    if (!CL_GameplayInputReady() || !re.TraceMinimap(x, y, &world)) return false;
     minimap_drag_active = true;
     CL_SetCameraPosition(world);
     return true;
@@ -135,7 +136,7 @@ BOOL CL_TryMinimapClick(float x, float y) {
 
 void CL_UpdateMinimapDrag(float x, float y) {
     VECTOR2 world;
-    if (!minimap_drag_active || !re.TraceMinimap || !re.TraceMinimap(x, y, &world)) return;
+    if (!minimap_drag_active || !re.TraceMinimap(x, y, &world)) return;
     CL_SetCameraPosition(world);
 }
 

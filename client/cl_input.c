@@ -205,8 +205,7 @@ static void CL_SendSmartCommand(float x, float y) {
     if (CL_MouseOverGameplayUI()) {
         return;
     }
-    /* Preserve the clicked ground point with an entity hit so walkable bridge
-     * entities can fall back to their ground-move semantics on the server. */
+    /* Send both trace results; the game owns entity-versus-point order semantics. */
     have_point = re.TraceLocation(&cl.viewDef, x, y, &point);
     if (re.TraceEntity(&cl.viewDef, x, y, &entnum)) {
         MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
@@ -714,7 +713,7 @@ void IN_SelectDown(void) {
         cl.selection.in_progress = false;
         return;
     }
-    /* A left-click on the minimap recenters the camera instead of selecting. */
+    /* Minimap focus precedes world selection and its HUD blocker, regardless of selection capacity. */
     if (CL_TryMinimapClick(mouse.origin.x, mouse.origin.y)) {
         cl.selection.in_progress = false;
         return;
@@ -736,6 +735,7 @@ void IN_SelectDown(void) {
 void IN_SelectUp(void) {
     BOOL held = input.select;
     input.select = false;
+    /* Release the shared drag before either selection path can return. */
     CL_EndMinimapDrag();
     if (CL_SelectionLimit() == 1) {
         if (!held || !CL_GameplayInputReady() || CL_MouseOverGameplayUI()) return;
@@ -746,7 +746,6 @@ void IN_SelectUp(void) {
         CL_ApplySelection(&entnum, hit ? 1 : 0);
         return;
     }
-    CL_EndMinimapDrag();
     if (!CL_GameplayInputReady()) {
         cl.selection.in_progress = false;
         return;
@@ -888,67 +887,100 @@ static bool CL_TestNoLocation(viewDef_t const *view, float x, float y, LPVECTOR3
     (void)view; (void)x; (void)y; (void)point; return false;
 }
 static bool CL_TestMinimap(float x, float y, LPVECTOR2 point) {
-    (void)x; (void)y; *point = (VECTOR2){ 300, 400 }; return true;
+    (void)y; *point = (VECTOR2){ 300, 400 }; return x >= 0;
 }
 static size2_t CL_TestWindowSize(void) { return (size2_t){ 1024, 768 }; }
-static void CL_TestUnitUI(DWORD count, menuUnitData_t *units) { (void)count; (void)units; }
 
+/* Exercise the wire command without letting transient input state leak into later suites. */
 TEST(client_input, smart_entity_click_preserves_ground_point) {
     BYTE data[256];
-    BYTE old_sel[sizeof(cl.selection)];
+    __typeof__(cl.selection) old_sel = cl.selection;
     sizeBuf_t old_msg = cls.netchan.message;
     refExport_t saved = re;
-    menuExport_t old_menu = menu;
-    int old_state = cls.state, old_dest = cls.key_dest;
+    int old_state = cls.state, old_dest = cls.key_dest, old_ui = cl.playerstate.client_ui_state;
     BOOL old_focus = input.focus;
+    SDL_Keymod old_mod = SDL_GetModState();
     char command[128];
 
     re.TraceEntity = CL_TestSmartEntity; re.TraceLocation = CL_TestSmartLocation;
     re.GetWindowSize = CL_TestWindowSize;
-    menu.UpdateUnitUI = CL_TestUnitUI;
     cls.state = ca_active; cls.key_dest = key_game; cl.playerstate.client_ui_state = CLIENT_UI_GAME;
-    memcpy(old_sel, &cl.selection, sizeof(old_sel));
     input.focus = true; cl.selection.num_selected = 0;
-    SZ_Init(&cls.netchan.message, data, sizeof(data));
-    CL_SendSmartCommand(10, 20);
-    T_EQ(MSG_ReadByte(&cls.netchan.message), clc_stringcmd);
-    MSG_ReadString(&cls.netchan.message, command);
-    T_STREQ(command, "smart 42 123 456");
+    FOR_LOOP(i, 2) {
+        SDL_SetModState(i ? KMOD_LSHIFT : KMOD_NONE);
+        SZ_Init(&cls.netchan.message, data, sizeof(data));
+        CL_SendSmartCommand(10, 20);
+        T_EQ(MSG_ReadByte(&cls.netchan.message), clc_stringcmd);
+        MSG_ReadString(&cls.netchan.message, command);
+        T_STREQ(command, i ? "smart 42 123 456 queue" : "smart 42 123 456");
+        T_EQ(cls.netchan.message.readcount, cls.netchan.message.cursize);
+    }
+    SDL_SetModState(KMOD_NONE);
     SZ_Init(&cls.netchan.message, data, sizeof(data)); re.TraceLocation = CL_TestNoLocation;
     CL_SendSmartCommand(10, 20);
     T_EQ(MSG_ReadByte(&cls.netchan.message), clc_stringcmd);
     MSG_ReadString(&cls.netchan.message, command);
     T_STREQ(command, "smart 42");
-    memcpy(&cl.selection, old_sel, sizeof(old_sel));
-    menu = old_menu; re = saved; cls.netchan.message = old_msg;
+    cl.selection = old_sel; re = saved; cls.netchan.message = old_msg;
     cls.state = old_state; cls.key_dest = old_dest; input.focus = old_focus;
+    cl.playerstate.client_ui_state = old_ui; SDL_SetModState(old_mod);
 }
 
-TEST(client_input, minimap_click_precedes_single_selection_ui_block) {
+/* Minimap focus is shared input: selection capacity cannot change its packet or drag lifecycle. */
+TEST(client_input, minimap_focus_and_release_are_selection_independent) {
     BYTE data[256];
-    BYTE old_sel[sizeof(cl.selection)];
+    __typeof__(cl.selection) old_sel = cl.selection;
+    __typeof__(cl.camera_prediction) old_pred = cl.camera_prediction;
+    __typeof__(input) old_input = input;
+    viewDef_t old_view = cl.viewDef;
+    mouseEvent_t old_mouse = mouse;
     sizeBuf_t old_msg = cls.netchan.message;
     refExport_t saved = re;
-    int old_state = cls.state, old_dest = cls.key_dest, old_limit = Cvar_Integer("cl_selection_limit", 64);
-    BOOL old_focus = input.focus;
-    VECTOR3 old_origin = cl.viewDef.camerastate[0].origin;
+    int old_state = cls.state, old_dest = cls.key_dest, old_ui = cl.playerstate.client_ui_state;
+    int old_limit = Cvar_Integer("cl_selection_limit", 64);
     VECTOR2 expected = CL_ClampCameraPosition((VECTOR2){ 300, 400 });
-    memcpy(old_sel, &cl.selection, sizeof(old_sel));
+    INPUTCMD cmd;
+
     re.TraceMinimap = CL_TestMinimap; re.GetWindowSize = CL_TestWindowSize;
     cls.state = ca_active; cls.key_dest = key_game; cl.playerstate.client_ui_state = CLIENT_UI_GAME;
     input.focus = true; input.select = false; cl.selection.in_progress = false;
-    Cvar_Set("cl_selection_limit", "1");
-    SZ_Init(&cls.netchan.message, data, sizeof(data));
     mouse.origin = (VECTOR2){ 10, 20 };
-    IN_SelectDown(); IN_SelectUp();
-    T_FEQ(cl.viewDef.camerastate[0].origin.x, expected.x, 0.001f);
-    T_FEQ(cl.viewDef.camerastate[0].origin.y, expected.y, 0.001f);
-    T_ASSERT(!cl.selection.in_progress);
-    T_EQ(cls.netchan.message.cursize > 0, true);
-    cl.viewDef.camerastate[0].origin = old_origin; cl.viewDef.camerastate[1].origin = old_origin;
-    memcpy(&cl.selection, old_sel, sizeof(old_sel));
+    FOR_LOOP(i, 2) {
+        Cvar_SetValue("cl_selection_limit", i ? 64 : 1);
+        SZ_Init(&cls.netchan.message, data, sizeof(data));
+        IN_SelectDown();
+        T_ASSERT(!input.select && !cl.selection.in_progress);
+        T_EQ(MSG_ReadByte(&cls.netchan.message), clc_input);
+        T_ASSERT(MSG_ReadInput(&cls.netchan.message, &cmd));
+        T_EQ(cmd.action, BZ_INPUT_FOCUS);
+        T_FEQ(cmd.focus.x, expected.x, 0.001f); T_FEQ(cmd.focus.y, expected.y, 0.001f);
+        T_EQ(cls.netchan.message.readcount, cls.netchan.message.cursize);
+        FOR_LOOP(j, 2) {
+            T_FEQ(cl.viewDef.camerastate[j].origin.x, expected.x, 0.001f);
+            T_FEQ(cl.viewDef.camerastate[j].origin.y, expected.y, 0.001f);
+        }
+        SZ_Init(&cls.netchan.message, data, sizeof(data));
+        CL_UpdateMinimapDrag(30, 40);
+        T_EQ(MSG_ReadByte(&cls.netchan.message), clc_input);
+        T_ASSERT(MSG_ReadInput(&cls.netchan.message, &cmd));
+        T_EQ(cmd.action, BZ_INPUT_FOCUS);
+        IN_SelectUp();
+        SZ_Init(&cls.netchan.message, data, sizeof(data));
+        CL_UpdateMinimapDrag(50, 60);
+        T_EQ(cls.netchan.message.cursize, 0);
+        T_ASSERT(!CL_TryMinimapClick(-1, 20));
+        CL_UpdateMinimapDrag(50, 60);
+        T_EQ(cls.netchan.message.cursize, 0);
+        cls.key_dest = key_menu;
+        IN_SelectDown(); IN_SelectUp();
+        T_EQ(cls.netchan.message.cursize, 0);
+        cls.key_dest = key_game;
+    }
+    cl.selection = old_sel; cl.camera_prediction = old_pred; cl.viewDef = old_view;
+    input = old_input; mouse = old_mouse;
     Cvar_SetValue("cl_selection_limit", old_limit);
-    re = saved; cls.netchan.message = old_msg; cls.state = old_state; cls.key_dest = old_dest; input.focus = old_focus;
+    re = saved; cls.netchan.message = old_msg; cls.state = old_state; cls.key_dest = old_dest;
+    cl.playerstate.client_ui_state = old_ui;
 }
 
 TEST(client_input, pan_uses_configured_surface) {

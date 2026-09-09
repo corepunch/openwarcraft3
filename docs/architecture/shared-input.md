@@ -107,6 +107,31 @@ Clicks and group recalls share `cl.selection`. `Wow_SelectEntity` emits the exis
 cycling, interaction, and rejected selections reconcile that cache. Game rules remain authoritative. Group membership
 resets at map boundaries and is not pruned merely because a snapshot cannot currently see a member.
 
+## Minimap and context-click routing
+
+Minimap interaction is shared by every client build, independently of `cl_selection_limit`. `IN_SelectDown`
+checks the minimap before the world-selection HUD blocker; otherwise an authored texture behind the minimap
+can swallow the click. `IN_SelectUp` ends the minimap drag before either single- or multi-selection returns.
+Gameplay/menu/modal ownership still gates entry, and `CL_ResetInput` cancels drags when ownership changes.
+
+`client/cl_minimap.c` calls the mandatory `re.TraceMinimap` export. A false trace result means no minimap hit;
+an absent function pointer is an incomplete renderer API, not an optional feature. The renderer owns screen/world
+conversion and the drawn minimap bounds; the client does not duplicate game layout geometry or inspect game names.
+`CL_SetCameraPosition` predicts focus and writes `clc_input` with `BZ_INPUT_FOCUS`. Server transport delivers that
+typed input to `game_export.ClientInput`. WC3 and SC2 resolve controller focus there; WoW deliberately ignores free
+focus because its camera follows its actor. Availability of a shared minimap does not override that game policy.
+
+Smart entity clicks preserve both available renderer results in the existing `clc_stringcmd` command:
+`smart <entity> <x> <y> [queue]`. Without a point hit the command remains `smart <entity> [queue]`.
+The shared client does not classify bridges/destructables or choose attack versus movement. WC3 resolves its SLK
+walkability and attack rules on the server and uses its existing queued-order/formation path for point movement;
+see [order queues](../games/warcraft-3/order-queue.md). No new game-specific callback or snapshot field is required.
+
+The `client_input` tests decode the focus packet, exercise selection capacities 1 and 64, drag/release, a missed
+minimap trace, menu ownership, and Smart commands with/without traced points and Shift. A bounded diagnostic run
+with `+test 'client_input.*' +com_frame_limit 100` confirmed the focus channel before the old optional-callback
+guards and duplicate release were removed. Investigative logs are not retained in source.
+
 ## Order-marker media
 
 `CS_ORDER_MARKER` (slot 11) carries the server-authored point-order model path. WC3 resolves `TargetPointConfirm`
