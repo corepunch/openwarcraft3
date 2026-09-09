@@ -2,7 +2,7 @@ name: JUnit Test Report
 
 on:
   workflow_run:
-    workflows: ["C/C++ CI"]
+    workflows: ["CI"]
     types: [completed]
 
 permissions:
