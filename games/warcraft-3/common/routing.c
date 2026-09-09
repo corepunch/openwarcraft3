@@ -378,11 +378,6 @@ static DWORD collision_radius_cells(FLOAT collision) {
     return MAX(1, (DWORD)ceilf(collision / pathmap_cell_world_size()));
 }
 
-static BOOL entity_is_live_walkable_surface(edict_t const *ent) {
-    return ent && ent->destructable.initialized && !ent->destructable.dead &&
-        ent->destructable.placement_solid && ent->pathtex &&
-        ent->data.DestructableData && ent->data.DestructableData->walkable;
-}
 
 static BOOL pathtex_pixel_blocks_walk(pathTex_t const *pt, int x, int y) {
     if (!pt || x < 0 || y < 0 || x >= (int)pt->width || y >= (int)pt->height)

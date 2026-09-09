@@ -236,7 +236,9 @@ The cvars `menu_module` and `g_module` currently document the configured module 
 
 ### Game-Owned World Composition
 
-Entity-aware flow-field routing is composed by each game world wrapper from `games/warcraft-3/common/routing.c`. It is excluded from the shared game-common unity scans because it consumes `edict_t`, `ge`, and `EDICT_NUM`; the algorithm is shared by the current game wrappers, but its dependency boundary is game-owned. Startup code in `common/main.c` uses the neutral declarations in `common/server_api.h`, including `SV_IsActive`, instead of importing server state structs.
+Entity-aware flow-field routing is composed by each game world wrapper from `games/warcraft-3/common/routing.c`. It is excluded from the shared game-common unity scans because it consumes `edict_t`, `ge`, and `EDICT_NUM`; the algorithm is shared by the current game wrappers, but its dependency boundary is game-owned.
+The wrappers also supply `entity_is_live_walkable_surface`: WC3 resolves live bridge/destructable state, while
+SC2 currently has no dynamic walkable-surface state. The shared router cannot read WC3-only edict fields. Startup code in `common/main.c` uses the neutral declarations in `common/server_api.h`, including `SV_IsActive`, instead of importing server state structs.
 
 ## See Also
 

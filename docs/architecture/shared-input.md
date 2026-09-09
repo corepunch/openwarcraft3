@@ -93,6 +93,11 @@ build/bin/openwarcraft3-tests -data build/tests +dedicated 1 +test 'client_input
 build/bin/openwarcraft3 -data 'data/Warcraft III' +set vid_hidden 1 +map 'Maps/Campaign/Human02.w3m' +com_frame_limit 5
 ```
 
+Rebasing onto bridge changes in c309b5b0 exposed an SC2 compile failure: shared routing read WC3-only `destructable`
+and `data.DestructableData` fields. The predicate now lives in each game-owned `g_world.c` wrapper; WC3 retains the
+same bridge logic, and SC2 explicitly reports no dynamic walkable surfaces under its current edict contract.
+Compiler diagnostics established this boundary failure; no runtime reproduction was possible for the failing build.
+
 This is shared input source, not runtime game-module switching. Game-dependent view/render structs, native game
 camera translation in `cl_view.c`, server-to-local-client session callbacks, legacy menu HUD data, and bindable
 queue-modifier work remain separate changes. The existing Shift queue behavior is preserved.
