@@ -2,7 +2,7 @@
 
 ## Point confirmation
 
-Warcraft point-order acknowledgement uses `UI\Feedback\Confirmation\Confirmation.mdx` as a transient client-local effect. The server emits only the accepted world point and whether the accepted command is an attack-point command; the client reuses the loaded model, grounds it to terrain, advances the authored animation by elapsed time, and drops it after the existing one-second confirmation lifetime.
+Warcraft point-order acknowledgement uses `UI\Feedback\Confirmation\Confirmation.mdx` as a transient client-local effect. The server emits only the accepted world point and whether the accepted command is an attack-point command; the client reuses the loaded model, grounds it to the WC3 support surface at that point, advances the authored animation by elapsed time, and drops it after the existing one-second confirmation lifetime. Ordinary terrain uses the heightmap; live walkable destructables such as bridges reuse the renderer's `RF_GROUND_CONFORM` path so authored MDX deck geometry can raise the marker above the terrain below it.
 
 - ordinary Move/SmartPoint, Rally point, Patrol, and successful point-target spells use green `(0,255,0)` tint;
 - explicit Attack-to-point / attack-move uses red `(255,0,0)` tint;
