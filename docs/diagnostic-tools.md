@@ -12,6 +12,54 @@
 - Normalize slashes as needed; both `\` and `/` are accepted.
 - Default to this tool whenever you need to discover MPQ contents, inspect text assets, or extract raw file bytes for analysis.
 
+## WC3 Loading Text and Configstring Budget (loadingtool)
+
+`loadingtool` runs the production `PrepareMap` and loading configstring packer without opening a window, loading
+terrain, connecting clients, or executing simulation frames. `FS_ListMaps` batches loose maps and maps nested in
+MPQs with the engine's normal lookup precedence. It loads shipped WC3 defaults for ROC/TFT archive visibility;
+user config/autoexec files are not executed. Optional filtering is a case-sensitive substring of the virtual path.
+
+```sh
+make loadingtool
+build/bin/loadingtool -data 'data/Warcraft III' -roc > loading-roc.jsonl
+build/bin/loadingtool -data 'data/Warcraft III' -tft > loading-tft.jsonl
+build/bin/loadingtool -data 'data/Warcraft III' -roc Campaign
+make test-loadingtool
+```
+
+Each JSON line contains the map path, `layout_bytes` (complete uncompressed loading-layer payload),
+`compressed_bytes` (full text, before shortening), `slots_without_shortening` (ceil(compressed bytes / 256)),
+`sent_compressed_bytes`, and `shortened`. `original_texts` lists the actual serialized text frames before the
+512-byte policy; `shown_texts` lists them after decoding the final configstrings. Frame numbers, UTF-8 byte lengths
+(excluding NUL), and text are included. Animation directives are excluded. Layout bytes include serialization
+terminators and type-specific buffers. These are production-resolved texts, including WTS handling and its existing
+`MAX_TRIGSTR_LENGTH` bound, not a separate raw WTS parser.
+
+The last line contains summary counts. Diagnostics go to stderr. Preparation/packing errors produce a per-map error
+record, contribute to `failed`, and cause a nonzero exit; zero matching maps also fails. Text shortening is reported
+without treating the accepted presentation policy as an error.
+
+```sh
+# Print only what the current client receives, preserving multiline text.
+jq -r 'select(.map) | .map, (.shown_texts[]?.text), ""' loading-roc.jsonl
+# Maps which cannot fit a single configstring with complete text.
+jq 'select(.slots_without_shortening > 1) | {map, compressed_bytes}' loading-roc.jsonl
+```
+
+September 9 local archive audit: 89 `.w3m` maps under ROC yielded 44 one-slot screens and 45 two-slot screens;
+none required shortening. Human01 uses 436 compressed bytes, Human02 302, and NightElf01 503. Thus a single
+256-byte configstring cannot retain the complete stock loading presentation. With TFT enabled, all 283 discovered
+maps yielded 180 one-slot screens, 102 two-slot screens, and one requiring three slots without shortening:
+`Maps\FrozenThrone\Campaign\NightElfX01.w3x` uses 569 bytes. The current 512-byte policy reduces its 527-byte body
+to 255 bytes, yielding a 410-byte compressed screen. The report exposes both versions.
+
+ROC hides expansion MPQs but still discovers loose `.w3x` files; filter by extension when assessing ROC-only `.w3m`
+coverage. Counts describe the locally installed archives and loose maps, not every custom map or localization.
+Fixture verification uses native `war3map.w3i`/`war3map.wts` inside a generated map MPQ and the existing `tests.mpq`
+FDF resources; it checks WTS resolution, map-name title fallback, escaping, and actual text shortening.
+
+See [loading lifecycle and binary slot contract](games/warcraft-3/loading-and-assets.md).
+
 ## MDX Inspection (mdxtool)
 
 - Use `build/bin/mdxtool` to validate MDX assets and detect data problems before debugging render code.

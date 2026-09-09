@@ -244,6 +244,24 @@ build/bin/m2tool -mpq "data/world-of-warcraft/model.MPQ" -model "Character\\Orc\
 make m2tool-wow-orcmale-player
 ```
 
+## `loadingtool`
+
+Headless batch audit of the production WC3 loading frame tree and displayed text, including W3I/WTS resolution.
+Reads loose and MPQ-contained maps; writes JSON Lines to stdout and diagnostics to stderr.
+
+```sh
+make loadingtool
+build/bin/loadingtool -data "data/Warcraft III" -roc > loading-roc.jsonl
+build/bin/loadingtool -data "data/Warcraft III" -tft Campaign > loading-campaigns.jsonl
+jq -r 'select(.map) | .map, (.shown_texts[]?.text), ""' loading-roc.jsonl
+make test-loadingtool
+```
+
+Reports full and transmitted compressed sizes, required 256-byte slots, original and shown text frames, and
+shortening. The optional final argument is a case-sensitive map-path substring. No renderer initialization,
+terrain loading, network connection, or user configuration execution is needed.
+See [diagnostic fields and measured slot requirements](../docs/diagnostic-tools.md#wc3-loading-text-and-configstring-budget-loadingtool).
+
 ## `maptool`
 
 Map viewer for Warcraft III world maps.

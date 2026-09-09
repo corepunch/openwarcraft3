@@ -164,7 +164,7 @@ TEST_JOBS ?= 16
 		$(RPATH) $(LDFLAGS) -lsheet -lshared -lm -lz
 	@TEST_JUNIT="$(TEST_JUNIT_DIR)/test-core.xml" TEST_JUNIT_SUITE="test-core" $(BIN_DIR)/test_openwarcraft3$(EXE_EXT)
 	@# Run independent suites concurrently while preserving recursive-make failure propagation.
-	@$(MAKE) -j$(TEST_JOBS) test-commands test-jass-build test-galaxy test-server-net \
+	@$(MAKE) -j$(TEST_JOBS) test-commands test-loadingtool test-jass-build test-galaxy test-server-net \
 		test-renderer-model test-renderer-view test-renderer-shadows test-sc2 test-wow-appearance \
 		test-wow-engine test-wow-game test-wow-entities test-wow-abilities test-wow-menu \
 		test-wow-wmo test-menu test-wc3-engine
@@ -264,3 +264,13 @@ $(ZIP_FILE):
 WC3_PHONY := wc3-build jass-tool jass sheet renderer game menu openwarcraft3 run run-demo run-map test \
 	test-commands test-server-net test-renderer-model test-renderer-view test-renderer-shadows test-galaxy test-menu test-mpq-compat test-assets test-render-golden \
 	update-render-golden openwarcraft3-tests test-wc3-engine download
+
+# Headless loading audit uses the exact server, filesystem, and frame serializer without the engine main loop.
+$(BIN_DIR)/loadingtool$(EXE_EXT): tools/loadingtool.c $(APP_SRCS) $(CLIENT_HEADERS) $(COMMON_HEADERS) $(GAME_LIB) $(MENU_LIB) $(RENDERER_LIB) $(SHARED_LIB) $(SHEET_LIB) $(JASS_LIB) | $(BIN_DIR) install-share
+	@echo "[loadingtool]"
+	@$(call UNITY,client server common sound,! -name 'main.c' ! -name 'stb_vorbis.c') | \
+		$(CC) $(WC3_FDF_CFLAGS) -include tools/loadingtool.c -x c -o $@ - $(RPATH) $(LDFLAGS) -lsheet -lshared -ljass -lgame -lrenderer -lmenu $(LIBS) $(WC3_FFMPEG_LIBS) -lz
+
+.PHONY: test-loadingtool
+test-loadingtool: test-assets $(BIN_DIR)/loadingtool$(EXE_EXT) $(BIN_DIR)/mpqtool$(EXE_EXT)
+	@python3 games/warcraft-3/tests/test_loadingtool.py

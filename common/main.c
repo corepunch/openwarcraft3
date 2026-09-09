@@ -192,24 +192,6 @@ static void Sys_ShowStartupError(LPCSTR message) {
 }
 #endif
 
-/* Anchor the read-only share/ tree at the executable's location so the binary
- * finds its configs regardless of the working directory. Probes three layouts:
- * flat portable (share/ beside the exe), the FHS build tree (share/ beside
- * bin/), and the in-tree CWD fallback. */
-static void Sys_ResolveShareDirectory(void) {
-    LPSTR base = SDL_GetBasePath();
-
-    if (base) {
-        PATHSTR share;
-        snprintf(share, sizeof(share), "%sshare", base);
-        FS_SetShareDirectory(share);
-        snprintf(share, sizeof(share), "%s../share", base);
-        FS_SetShareDirectory(share);
-        SDL_free(base);
-    }
-    FS_SetShareDirectory("share");
-}
-
 /* Resolve writable per-user game data: XDG_DATA_HOME (or ~/.local/share)
  * on Unix, APPDATA on Windows. Only adopted if creatable and writable. */
 static void Sys_ResolveHomeDirectory(void) {
@@ -310,7 +292,9 @@ int main(int argc, LPSTR argv[]) {
             BZ_ARCH,
             BZ_BYTE_ORDER);
 
-    Sys_ResolveShareDirectory();
+    LPSTR basepath = SDL_GetBasePath();
+    FS_ResolveShareDirectory(basepath);
+    SDL_free(basepath);
     Sys_ResolveHomeDirectory();
     Com_Init(argc, (LPCSTR *)argv);
 

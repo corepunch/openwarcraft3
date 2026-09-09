@@ -174,6 +174,7 @@ bool Com_ResolveMapArgument(LPCSTR arg, LPSTR out, DWORD out_size);
 
 void FS_Init(void);
 void FS_SetShareDirectory(LPCSTR dir);
+void FS_ResolveShareDirectory(LPCSTR executable_directory);
 void FS_SetHomeDirectory(LPCSTR dir);
 LPCSTR FS_BasePath(void);
 LPCSTR FS_HomePath(void);

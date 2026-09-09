@@ -212,6 +212,18 @@ The [Warsmash terrain loader](https://github.com/Retera/WarsmashModEngine/blob/m
 is a useful secondary reference for separating transition edges from regular cliff cells; local archive
 contents and logged vertex metadata establish this case.
 
+## Batch loading-text audit
+
+Use `make loadingtool`, then `build/bin/loadingtool -data 'data/Warcraft III' -roc` (or `-tft`) to output all
+production-resolved loading text and full/compressed layout sizes as JSON Lines. An optional path substring filters
+maps. Both `original_texts` and `shown_texts` are emitted so shortening is visible. See
+[tool usage, fields, and measured coverage](../../diagnostic-tools.md#wc3-loading-text-and-configstring-budget-loadingtool).
+
+The local September 9 scan found that 45 of 89 `.w3m` screens exceed 256 compressed bytes (maximum 503), so the
+second slot is needed for complete stock text. In TFT, NightElfX01 requires 569 bytes without shortening and uses
+410 bytes under the current 512-byte policy, shortening its body from 527 to 255 bytes. This confirms the need to
+report text loss even for stock maps; the two-slot budget is not sufficient for every full TFT screen.
+
 ## Diagnostics and verification
 
 ```sh

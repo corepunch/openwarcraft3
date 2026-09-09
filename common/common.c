@@ -366,6 +366,18 @@ void FS_SetShareDirectory(LPCSTR dir) {
     snprintf(fs_share_dir, sizeof(fs_share_dir), "%s", dir);
 }
 
+/* Engine and headless tools use the same flat, FHS, and source-tree share-directory precedence. */
+void FS_ResolveShareDirectory(LPCSTR base) {
+    if (base) {
+        PATHSTR share;
+        snprintf(share, sizeof(share), "%sshare", base);
+        FS_SetShareDirectory(share);
+        snprintf(share, sizeof(share), "%s../share", base);
+        FS_SetShareDirectory(share);
+    }
+    FS_SetShareDirectory("share");
+}
+
 /* Create and adopt the per-user directory only if it ends up writable, so a
  * read-only $HOME (handheld/SD-card deploy) transparently falls back to the
  * base share dir instead of failing every config write. */
