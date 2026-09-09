@@ -1504,6 +1504,42 @@ TEST(wc3_api, jass_sound_runtime_tracks_one_shot_volume_and_attachment_safely) {
     G_JassSoundRuntimeReset();
 }
 
+TEST(wc3_api, jass_start_sound_skips_disconnected_local_player) {
+    LPGAMECLIENT gc = &game.clients[0];
+    LPEDICT recipient = &g_edicts[0];
+    void (*old_sound)(LPEDICT, int, int, FLOAT, FLOAT, FLOAT) = gi.Sound;
+    int (*old_soundindex)(LPCSTR) = gi.SoundIndex;
+
+    recipient->client = gc;
+    gc->ps.number = 0;
+    currentplayer = &gc->ps;
+    ui_sound_calls = 0;
+    ui_sound_value = 0;
+    gi.Sound = capture_ui_sound;
+    gi.SoundIndex = capture_ui_sound_index;
+
+    gc->connected = false;
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  local sound s = CreateSound(\"test.wav\", false, false, false, 0, 0, \"\")\n"
+        "  call StartSound(s)\n"
+        "endfunction\n"));
+    T_EQ(ui_sound_calls, 0);
+
+    gc->connected = true;
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  local sound s = CreateSound(\"test.wav\", false, false, false, 0, 0, \"\")\n"
+        "  call StartSound(s)\n"
+        "endfunction\n"));
+    T_EQ(ui_sound_calls, 1);
+    T_EQ(ui_sound_value, 77);
+
+    gi.SoundIndex = old_soundindex;
+    gi.Sound = old_sound;
+    currentplayer = NULL;
+}
+
 TEST(wc3_api, ui_sound_transport_waits_for_connected_client) {
     GAMECLIENT client = { 0 };
     edict_t ent = { .client = &client };
