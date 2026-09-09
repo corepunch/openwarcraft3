@@ -187,9 +187,16 @@ interaction such as Repair, Smart uses a persistent unit-target Move/follow
 order rather than copying the target's current coordinates. `movement.follow_target`
 remains the authoritative default movement goal. Follow stopping distance comes
 from `Misc.FollowRange` for units and `Misc.StructureFollowRange` for targets
-carrying `EF_BUILDING`, with the two collision radii as a hard lower bound. These
-values are loaded through the normal `Units\MiscData.txt` / `war3mapMisc.txt`
-chain and are deliberately independent of the follower's attack `AcquireRange`.
+carrying `EF_BUILDING`. Buildings with an authored `pathTex` measure that range
+from the blocked pathing-footprint edge, with the follower collision radius as
+the hard no-overlap lower bound; buildings without a usable footprint retain the
+legacy centre-distance check with both collision radii. This also preserves the
+Warcraft/Warsmash default rally contract: a producer may remain its own rally
+target at the model centre, because a trained unit nudged outside the producer
+will satisfy follow range at the authored footprint instead of walking back into
+the blocked centre. These values are loaded through the normal
+`Units\MiscData.txt` / `war3mapMisc.txt` chain and are deliberately independent
+of the follower's attack `AcquireRange`.
 The follower may still auto-acquire nearby enemies using `AcquireRange`, and resumes
 following after that combat ends. Point Move, Attack-Move, Patrol, Stop, and
 Hold Position replace this persistent follow goal. Explicit target Attack is a

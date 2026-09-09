@@ -63,6 +63,68 @@ TEST(wc3_rally, default_target_is_producer_itself) {
     T_FEQ(point.y, 96.0f, 0.01f);
 }
 
+TEST(wc3_rally, default_orc_barracks_rally_stops_trained_unit_outside_footprint) {
+    enum { W = 8, H = 8 };
+    FLOAT const old_structure = game.constants.structureFollowRange;
+    size_t const pathtex_size = sizeof(pathTex_t) + W * H * sizeof(COLOR32);
+    pathTex_t *pathtex;
+    LPEDICT producer;
+    LPEDICT trained;
+    VECTOR2 exit;
+    FLOAT angle;
+
+    reset_entities();
+    setup_test_world();
+    producer = rally_unit(MAKEFOURCC('o','b','a','r'), 0.0f, 0.0f);
+    trained = rally_unit(MAKEFOURCC('o','g','r','u'), 0.0f, 0.0f);
+    producer->data.UnitProfile = &rally_train_profile;
+    producer->s.player = trained->s.player = 0;
+    producer->s.flags |= EF_BUILDING;
+    producer->movetype = MOVETYPE_NONE;
+    producer->collision = 128.0f;
+    trained->collision = 16.0f;
+    trained->stand = unit_stand;
+    game.constants.structureFollowRange = 100.0f;
+
+    pathtex = gi.MemAlloc(pathtex_size);
+    T_NOT_NULL(pathtex);
+    memset(pathtex, 0, pathtex_size);
+    pathtex->width = W;
+    pathtex->height = H;
+    FOR_LOOP(i, W * H) pathtex->map[i].b = 0xff;
+    producer->pathtex = pathtex;
+    CM_BakeStaticObstacles();
+
+    /* Training exit placement first finds a legal radius-safe point outside
+     * the producer.  The untouched rally target is still the Barracks entity
+     * at its centre, matching Warsmash. */
+    T_ASSERT(SP_FindUnitExitPosition(producer, trained, &exit, &angle));
+    trained->s.origin2 = exit;
+    trained->s.origin.x = exit.x;
+    trained->s.origin.y = exit.y;
+    T_ASSERT(CM_PointIsPathableForRadius(&exit, trained->collision));
+    T_ASSERT(CM_DistanceToPathingFootprint(producer, &exit) <
+             game.constants.structureFollowRange);
+    T_ASSERT(Vector2_distance(&producer->s.origin2, &exit) >
+             G_FollowStopRange(trained, producer));
+
+    T_ASSERT(G_ApplyRallyOrder(producer, trained));
+    T_ASSERT(trained->movement.follow_target == producer);
+    T_ASSERT(trained->goalentity == producer);
+    trained->currentmove->think(trained);
+
+    /* The default Smart-to-producer order remains active, but the trained unit
+     * recognizes that its legal exit is already close enough to the authored
+     * footprint instead of walking back toward the blocked building centre. */
+    T_ASSERT(trained->movement.follow_target == producer);
+    T_ASSERT(G_AnimationHasPrimary(trained->animation, "stand"));
+
+    producer->pathtex = NULL;
+    gi.MemFree(pathtex);
+    CM_BakeStaticObstacles();
+    game.constants.structureFollowRange = old_structure;
+}
+
 TEST(wc3_rally, setrally_and_smart_store_point_and_widget_targets) {
     LPEDICT producer;
     LPEDICT target;
