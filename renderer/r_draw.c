@@ -15,18 +15,25 @@ RECT R_UISceneRect(void) {
     return MAKE(RECT, 0, 0, R_UI_BASE_WIDTH, R_UI_BASE_HEIGHT);
 }
 
-void R_DrawString(int x, int y, LPCSTR text) {
+void R_DrawStringScaled(float x, float y, LPCSTR text, float scale) {
     VERTEX simp[6 * 128];
     DWORD count = 0;
     size2_t window = R_GetWindowSize();
     MATRIX4 ui_matrix;
+    float char_width;
+    float char_height;
 
-    if (!text || y <= -SYSFONT_DRAW_HEIGHT) return;
+    if (!text || scale <= 0.0f) return;
+
+    char_width = SYSFONT_DRAW_WIDTH * scale;
+    char_height = SYSFONT_DRAW_HEIGHT * scale;
+    if (y <= -char_height) return;
+
     for (DWORD i = 0; text[i] && i < 128; i++) {
         DWORD ch = (BYTE)text[i];
         float fx = ch & 15, fy = ch >> 4;
         if ((ch & 127) == 32) continue;
-        R_AddQuad(simp + count, &(RECT){ x + i * SYSFONT_DRAW_WIDTH, y, SYSFONT_DRAW_WIDTH, SYSFONT_DRAW_HEIGHT }, &(RECT){ fx / SYSFONT_COLS, fy / SYSFONT_ROWS, 1.f / SYSFONT_COLS, 1.f / SYSFONT_ROWS }, COLOR32_WHITE, 0);
+        R_AddQuad(simp + count, &(RECT){ x + i * char_width, y, char_width, char_height }, &(RECT){ fx / SYSFONT_COLS, fy / SYSFONT_ROWS, 1.f / SYSFONT_COLS, 1.f / SYSFONT_ROWS }, COLOR32_WHITE, 0);
         count += 6;
     }
     if (!count) return;
@@ -48,7 +55,18 @@ void R_DrawString(int x, int y, LPCSTR text) {
     R_Call(glDrawArrays, GL_TRIANGLES, 0, count);
 }
 
-void R_DrawChar(int x, int y, int c) { char text[2] = { (char)c, 0 }; R_DrawString(x, y, text); }
+void R_DrawString(int x, int y, LPCSTR text) {
+    R_DrawStringScaled((float)x, (float)y, text, 1.0f);
+}
+
+void R_DrawCharScaled(float x, float y, int c, float scale) {
+    char text[2] = { (char)c, 0 };
+    R_DrawStringScaled(x, y, text, scale);
+}
+
+void R_DrawChar(int x, int y, int c) {
+    R_DrawCharScaled((float)x, (float)y, c, 1.0f);
+}
 
 void R_DrawFill(LPCRECT rect, COLOR32 color) {
     VERTEX simp[6];
