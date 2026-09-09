@@ -5,6 +5,7 @@
 
 #define CLIENTCOMMAND(NAME) void CMD_##NAME(LPEDICT clent, DWORD argc, LPCSTR argv[])
 #define WC3_SELECTION_LIMIT 12
+#define WC3_ENEMIES_CLEAR_RADIUS 768.0f
 
 typedef struct {
     LPCSTR name;
@@ -1726,6 +1727,18 @@ CLIENTCOMMAND(Objective) {
     G_CheatFireTrigger(clent, index, use_selected, "completing objective via");
 }
 
+/* Short alias for the common campaign progression action:
+ *   objc <trigger-index> [selected]
+ * is exactly `objective complete <trigger-index> [selected]`. */
+CLIENTCOMMAND(Objc) {
+    LPCSTR objective_argv[4] = { "objective", "complete", NULL, NULL };
+    DWORD objective_argc = MIN(argc + 1, (DWORD)4);
+
+    if (argc >= 2) objective_argv[2] = argv[1];
+    if (argc >= 3) objective_argv[3] = argv[2];
+    CMD_Objective(clent, objective_argc, objective_argv);
+}
+
 CLIENTCOMMAND(Cinematic) {
     DWORD index;
     BOOL use_selected = false;
@@ -1841,6 +1854,89 @@ static void CMD_PortraitCameraUp(LPEDICT clent, DWORD argc, LPCSTR argv[]) {
     G_ClearCameraTarget(clent->client, "CMD_PortraitCameraUp");
 }
 
+/* Camera diagnostics use one command family so the in-game console stays
+ * compact: `camera move <x> <y>` and `camera selected`.  The client owns
+ * `camera edge <0|1>` because edge scrolling is local input state. */
+CLIENTCOMMAND(Camera) {
+    LPGAMECLIENT client = clent ? clent->client : NULL;
+
+    if (!client || argc < 2) {
+        fprintf(stderr, "usage: camera <move <x> <y>|selected>\n");
+        return;
+    }
+    if (!strcasecmp(argv[1], "move")) {
+        VECTOR2 point;
+        if (argc != 4 || !G_DebugIsNumber(argv[2]) || !G_DebugIsNumber(argv[3])) {
+            fprintf(stderr, "usage: camera move <x> <y>\n");
+            return;
+        }
+        point = (VECTOR2){ (FLOAT)atoi(argv[2]), (FLOAT)atoi(argv[3]) };
+        G_ClientSetCameraPosition(clent, &point);
+        return;
+    }
+    if (!strcasecmp(argv[1], "selected")) {
+        LPEDICT target;
+        if (argc != 2 || client->no_control || !(target = G_GetMainSelectedUnit(client))) {
+            return;
+        }
+        G_ClientSetCameraPosition(clent, &target->s.origin2);
+        client->camera.target_controller = target;
+        client->camera.target_offset = (VECTOR2){ 0, 0 };
+        return;
+    }
+    fprintf(stderr, "usage: camera <move <x> <y>|selected>\n");
+}
+
+/* Remove nearby non-building enemy units around the selected friendly unit so
+ * deterministic movement tests are not changed by campaign combat/crowding. */
+CLIENTCOMMAND(EnemiesClear) {
+    LPGAMECLIENT client = clent ? clent->client : NULL;
+    LPEDICT center;
+    VECTOR2 origin;
+    FLOAT radius = WC3_ENEMIES_CLEAR_RADIUS;
+    FLOAT radius_sq;
+    DWORD removed = 0;
+
+    if (!G_CheatsEnabled()) {
+        G_CheatPrintf(clent, "WC3: cheats are disabled; set sv_cheats 1");
+        return;
+    }
+    if (argc > 2 || (argc == 2 && (!G_DebugIsNumber(argv[1]) || argv[1][0] == '-'))) {
+        G_CheatPrintf(clent, "WC3: usage: enemiesclear [radius]");
+        return;
+    }
+    if (argc == 2) radius = (FLOAT)atof(argv[1]);
+    if (radius <= 0.0f) {
+        G_CheatPrintf(clent, "WC3: enemiesclear radius must be positive");
+        return;
+    }
+    center = client ? G_GetMainSelectedUnit(client) : NULL;
+    if (!center || !G_UnitCanControl(client, center)) {
+        G_CheatPrintf(clent, "WC3: enemiesclear requires a selected friendly unit");
+        return;
+    }
+
+    origin = center->s.origin2;
+    radius_sq = radius * radius;
+    FOR_LOOP(i, globals.num_edicts) {
+        LPEDICT ent = &globals.edicts[i];
+        FLOAT dx, dy;
+
+        if (!ent->inuse || ent == center || !(ent->svflags & SVF_MONSTER) || !ent->data.UnitData ||
+            G_UnitIsBuilding(ent->class_id) ||
+            G_SelectionRelation(client->ps.number, ent) != SELECT_RELATION_ENEMY)
+            continue;
+        dx = ent->s.origin2.x - origin.x;
+        dy = ent->s.origin2.y - origin.y;
+        if (dx * dx + dy * dy > radius_sq) continue;
+        G_FreeEdict(ent);
+        removed++;
+    }
+    G_CheatPrintf(clent, "WC3: enemiesclear removed %u enemy unit%s around selected unit %u within %.0f",
+                  (unsigned)removed, removed == 1 ? "" : "s",
+                  (unsigned)(center - globals.edicts), radius);
+}
+
 CLIENTCOMMAND(DebugSpawn) {
     LPGAMECLIENT client = clent->client;
     DWORD class_id;
@@ -1925,6 +2021,7 @@ clientCommand_t clientCommands[] = {
     { "quest", CMD_Quest },
     { "trigger", CMD_Trigger },
     { "objective", CMD_Objective },
+    { "objc", CMD_Objc },
     { "cinematic", CMD_Cinematic },
     { "jass", CMD_Jass },
     { "log", CMD_Log },
@@ -1933,6 +2030,9 @@ clientCommand_t clientCommands[] = {
     { "gameresult_load", CMD_GameResultLoad },
     { "gameresult_quit", CMD_GameResultQuit },
     { "debugspawn", CMD_DebugSpawn },
+    { "enemiesclear", CMD_EnemiesClear },
+    { "eclear", CMD_EnemiesClear },
+    { "camera", CMD_Camera },
     { "menu", CMD_Menu },
     { "menu_endgame", CMD_MenuEndGame },
     { "menu_restart", CMD_MenuRestart },

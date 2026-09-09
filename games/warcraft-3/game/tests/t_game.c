@@ -206,6 +206,77 @@ TEST(wc3_game, instant_build_cheat_is_per_player_and_toggleable) {
     gi.CvarString = old_cvar;
 }
 
+
+TEST(wc3_game, enemiesclear_and_eclear_remove_nearby_enemy_units_only) {
+    LPCSTR (*old_cvar)(LPCSTR, LPCSTR) = gi.CvarString;
+    LPGAMECLIENT client = &game.clients[0];
+    LPEDICT clent = &g_edicts[0];
+    LPEDICT center, near_enemy, far_enemy, friendly;
+    LPCSTR enemiesclear[] = { "enemiesclear", "128" };
+    LPCSTR eclear[] = { "eclear", "128" };
+
+    setup_test_world();
+    gi.CvarString = give_resources_cheat_cvar;
+    client->connected = true;
+    client->ps.number = 0;
+
+    center = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0.0f, 0.0f);
+    center->s.player = 0;
+    center->svflags |= SVF_MONSTER;
+    G_SelectEntity(client, center);
+
+    near_enemy = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 64.0f, 0.0f);
+    near_enemy->s.player = 1;
+    near_enemy->svflags |= SVF_MONSTER;
+    far_enemy = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 256.0f, 0.0f);
+    far_enemy->s.player = 1;
+    far_enemy->svflags |= SVF_MONSTER;
+    friendly = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 32.0f, 0.0f);
+    friendly->s.player = 0;
+    friendly->svflags |= SVF_MONSTER;
+
+    G_ClientCommand(clent, 2, enemiesclear);
+    T_ASSERT(!near_enemy->inuse);
+    T_ASSERT(far_enemy->inuse);
+    T_ASSERT(friendly->inuse);
+
+    far_enemy->s.origin2 = (VECTOR2){ 64.0f, 0.0f };
+    far_enemy->s.origin.x = 64.0f;
+    far_enemy->s.origin.y = 0.0f;
+    G_ClientCommand(clent, 2, eclear);
+    T_ASSERT(!far_enemy->inuse);
+
+    gi.CvarString = old_cvar;
+}
+
+TEST(wc3_game, camera_move_and_selected_share_camera_command_family) {
+    LPGAMECLIENT client = &game.clients[0];
+    LPEDICT clent = &g_edicts[0];
+    LPEDICT selected;
+    LPCSTR move[] = { "camera", "move", "320", "-96" };
+    LPCSTR focus[] = { "camera", "selected" };
+
+    setup_test_world();
+    client->connected = true;
+    client->ps.number = 0;
+    level.camera_bounds = (BOX2){ .min = { -512.0f, -512.0f }, .max = { 512.0f, 512.0f } };
+
+    G_ClientCommand(clent, 4, move);
+    T_FEQ(client->camera.state.position.x, 320.0f, 0.001f);
+    T_FEQ(client->camera.state.position.y, -96.0f, 0.001f);
+    T_NULL(client->camera.target_controller);
+
+    selected = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 144.0f, 208.0f);
+    selected->s.player = 0;
+    selected->svflags |= SVF_MONSTER;
+    G_SelectEntity(client, selected);
+    G_ClientCommand(clent, 2, focus);
+
+    T_ASSERT(client->camera.target_controller == selected);
+    T_FEQ(client->camera.state.position.x, 144.0f, 0.001f);
+    T_FEQ(client->camera.state.position.y, 208.0f, 0.001f);
+}
+
 TEST(wc3_game, day_and_night_cheats_use_authored_phase_midpoints) {
     LPCSTR (*old_cvar)(LPCSTR, LPCSTR) = gi.CvarString;
     LPEDICT clent = &g_edicts[0];

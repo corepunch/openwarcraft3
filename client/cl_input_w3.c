@@ -124,6 +124,26 @@ static void IN_CamNorthUp(void) { cam_north = false; }
 static void IN_CamSouthDown(void) { cam_south = true; }
 static void IN_CamSouthUp(void) { cam_south = false; }
 
+/* `camera edge` is client-local input state. Other camera subcommands belong
+ * to the WC3 game module, so forward them through the normal server command
+ * path rather than duplicating camera simulation state in the client. */
+static void CL_Camera_f(void) {
+    if (Cmd_Argc() >= 2 && !strcasecmp(Cmd_Argv(1), "edge")) {
+        if (Cmd_Argc() != 3 || (strcmp(Cmd_Argv(2), "0") && strcmp(Cmd_Argv(2), "1"))) {
+            fprintf(stderr, "usage: camera edge <0|1>\n");
+            return;
+        }
+        Cvar_Set("wc3_camera_edge_scroll", Cmd_Argv(2));
+        return;
+    }
+    if (Cmd_Argc() >= 2 && (!strcasecmp(Cmd_Argv(1), "move") ||
+                            !strcasecmp(Cmd_Argv(1), "selected"))) {
+        Cmd_ForwardToServer(Cmd_ArgsFrom(0));
+        return;
+    }
+    fprintf(stderr, "usage: camera <move <x> <y>|edge <0|1>|selected>\n");
+}
+
 void CL_InputModeInit(void) {
     Cmd_AddCommand("+pan", IN_PanDown);
     Cmd_AddCommand("-pan", IN_PanUp);
@@ -137,6 +157,8 @@ void CL_InputModeInit(void) {
     Cmd_AddCommand("-camnorth", IN_CamNorthUp);
     Cmd_AddCommand("+camsouth", IN_CamSouthDown);
     Cmd_AddCommand("-camsouth", IN_CamSouthUp);
+    Cmd_AddCommand("camera", CL_Camera_f);
+    Cvar_Get("wc3_camera_edge_scroll", "1", 0);
 }
 
 void CL_InputModeSetGameplay(void) {
@@ -242,7 +264,7 @@ void CL_InputModeFrame(void) {
 #ifndef SC2
     size2_t win = re.GetWindowSize();
     float mx = mouse.origin.x, my = mouse.origin.y;
-    if (win.width > 0 && win.height > 0 &&
+    if (Cvar_Value("wc3_camera_edge_scroll", 1.0f) != 0.0f && win.width > 0 && win.height > 0 &&
         mx >= 0 && my >= 0 && mx < win.width && my < win.height) {
         if (mx <= CL_CAMERA_EDGE_MARGIN)               dx -= 1.0f;
         if (mx >= (float)win.width - 1 - CL_CAMERA_EDGE_MARGIN)  dx += 1.0f;
