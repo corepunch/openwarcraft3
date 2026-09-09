@@ -18,6 +18,12 @@ corresponding Ogre MDX models contain a looping `Sleep` sequence.  The runtime
 therefore requests the model's authored `Sleep` animation instead of treating
 natural sleep as stun or freezing a `Stand` frame.
 
+Warcraft also authors the yellow sleeping `Zzz` as the hidden `Creep Sleep`
+ability (`ACsp`) TARGET effect. Retail/modding references identify its model as
+`Abilities\Spells\Other\CreepSleep\CreepSleepTarget.mdl` and attach it to
+the sleeping unit's `overhead` point. OpenRealm resolves `ACsp` through the
+existing ability-effect data path rather than hard-coding that asset path.
+
 ## Runtime contract
 
 Natural automatic sleep currently applies only to `PLAYER_NEUTRAL_AGGRESSIVE`.
@@ -35,6 +41,9 @@ The existing authoritative time-of-day clock owns the night decision through
 While naturally sleeping:
 
 - the unit's active move requests the `Sleep` model sequence;
+- one persistent `ACsp` TARGET effect is attached at `overhead`; the existing
+  target-effect edict follows the unit, remains non-selectable, and owns its
+  own model animation/lifetime;
 - ordinary automatic enemy acquisition ignores it, so player units do not
   auto-attack a camp merely because it is in acquisition range;
 - a direct attack order remains valid;
@@ -44,8 +53,9 @@ While naturally sleeping:
 - `UnitAddSleep(unit, false)` disables future natural sleep and wakes it now.
 
 Any other runtime behavior that replaces the special creep-sleep move also
-clears the natural sleeping flag.  This prevents an ordered/moving unit from
-remaining logically asleep after leaving the sleep animation.
+leaves natural sleep through the same cleanup path. This clears the sleeping
+flag and destroys the `ACsp` overlay, preventing an ordered/moving unit from
+remaining logically asleep or retaining an orphaned `Zzz` effect.
 
 ## JASS natives
 
@@ -97,7 +107,7 @@ The patch does **not** guess the following retail details:
 - the exact guard/camp association and radius used for propagation;
 - wake behavior caused by nearby building construction;
 - wake behavior caused by using a guarded neutral building;
-- `ACsp`-owned visual/audio details such as any sleep effect or sound;
+- `ACsp`-owned audio details such as the exact snore/loop sound lifecycle;
 - `Sleep Always` (`Asla`) state transitions and `UnitAddSleepPerm`.
 
 Those should be implemented only after the corresponding retail data or
@@ -117,11 +127,13 @@ build/bin/openwarcraft3-tests -data tests +dedicated 1 +test 'wc3_save.*'
 
 For a retail-data manual check, use a map with one of the Ogre rows above,
 advance the authoritative clock across dusk/dawn, and verify that the model
-enters/leaves its `Sleep` sequence and that direct damage wakes it.
+enters/leaves its `Sleep` sequence, the `ACsp` `Zzz` TARGET effect appears over
+the sleeper and disappears on wake, and direct damage wakes it.
 
 ## See also
 
 - [Time of Day](time-of-day.md)
 - [JASS Native Coverage](jass-native-coverage.md)
 - [Attack and Damage](attack-damage.md)
+- [Ability, Buff, And Item Presentation Effects](ability-and-item-effects.md)
 - [Save / Load](save-load.md)

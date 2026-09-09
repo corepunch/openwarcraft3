@@ -66,6 +66,9 @@ The following existing abilities now use the common resolver rather than owning 
 - Holy Light: `WC3_EFFECT_TARGET` on the affected unit.
 - Blink: `WC3_EFFECT_SPECIAL` before relocation and `WC3_EFFECT_AREA_EFFECT` after relocation.
 - Devotion Aura: persistent `WC3_EFFECT_TARGET` on the caster.
+- Natural Neutral Hostile creep sleep: persistent hidden `ACsp` `WC3_EFFECT_TARGET`
+  attached at `overhead`; wake/behavior replacement destroys the effect through
+  the same independent-effect lifecycle.  See [Neutral Creep Sleep](creep-sleep.md).
 - Thunder Bolt / Fire Bolt: `WC3_EFFECT_MISSILE` supplies the existing projectile edict's model; projectile speed, tracking, damage, stun, and impact lifecycle remain in `s_thunderbolt.c`.
 - supported immediate item abilities in `s_item.c`: `WC3_EFFECT_TARGET` after a successful gameplay effect.
 - Scroll of Protection (`spro` / `AIda`): the item ability applies its authored
@@ -134,7 +137,8 @@ as Holy Light (`AHhb`) fail or succeed depending on unrelated stack contents.
 The following are deliberately outside this implementation slice:
 
 - arbitrary MDX attachment-token resolution and team-coloured spell-effect attachment;
-- generic binding of buff lifetime to persistent world-art ownership and non-stacking FX;
+- generic binding of buff lifetime to persistent world-art ownership and non-stacking FX
+  beyond explicitly owned lifecycles such as natural creep sleep;
 - ability/buff `EffectSound` and `EffectSoundLooped`;
 - Warcraft lightning effects;
 - item `cooldownID` / `ignoreCD` shared cooldown behavior;

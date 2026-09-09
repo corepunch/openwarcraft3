@@ -1501,6 +1501,7 @@ BOOL G_IsNight(void);
 BOOL G_UnitCanSleep(LPCEDICT);
 BOOL G_UnitIsSleeping(LPCEDICT);
 void G_UnitSetCanSleep(LPEDICT, BOOL);
+void G_UnitLeaveCreepSleep(LPEDICT);
 void G_UnitWakeUp(LPEDICT);
 BOOL G_TryEnterCreepSleep(LPEDICT);
 BOOL G_IsCreepSleepMove(umove_t const *);
