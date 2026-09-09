@@ -2458,7 +2458,7 @@ TEST(menu_fdf, console_screen_commands_and_campaign_shortcuts) {
     mi = saved;
 }
 
-/* Exercise real screen commands and both render/input gates at the handoff edges. */
+/* Exercise real screen commands, moving contents and input locks at the handoff edges. */
 TEST(menu_fdf, glue_options_tabs_keep_right_controls_and_defer_left_content) {
     menuImport_t saved = mi;
     test_glue_setup();
@@ -2468,27 +2468,33 @@ TEST(menu_fdf, glue_options_tabs_keep_right_controls_and_defer_left_content) {
     LPFRAMEDEF button = UI_FindFrame("VideoButton"), edit = UI_FindFrame("GamePortEditBox");
     T_NOT_NULL(old); T_NOT_NULL(next); T_NOT_NULL(button); T_NOT_NULL(edit);
     T_ASSERT(!old->hidden && next->hidden);
-    T_ASSERT(UI_ScreenFrameVisible(old));
-    T_ASSERT(UI_ScreenFrameVisible(button));
+    T_FEQ(UI_ScreenFrameOffset(old), 0, 0.00001f);
+    T_FEQ(UI_ScreenFrameOffset(button), 0, 0.00001f);
     Cmd_ExecuteString("menu_video");
     test_glue_tick(0);
     T_STREQ(captured_sprite_anim[0], "Options Morph Alternate@0.0000");
     T_STREQ(captured_sprite_anim[1], "Options Stand");
     T_ASSERT(!old->hidden && next->hidden); // Selection still belongs to the outgoing tab.
-    T_ASSERT(!UI_ScreenFrameVisible(old));
-    T_ASSERT(!UI_ScreenFrameVisible(edit));
-    T_ASSERT(UI_ScreenFrameVisible(button));
+    T_FEQ(UI_ScreenFrameOffset(old), 0, 0.00001f);
+    T_FEQ(UI_ScreenFrameOffset(edit), UI_ScreenFrameOffset(old), 0.00001f);
+    T_FEQ(UI_ScreenFrameOffset(button), 0, 0.00001f);
     T_ASSERT(M_IsTransitioning());
-    test_glue_tick(666);
+    test_glue_tick(400);
+    T_ASSERT(UI_ScreenFrameOffset(old) < -0.07f);
+    T_FEQ(UI_ScreenFrameOffset(button), 0, 0.00001f);
+    test_glue_tick(266);
     T_ASSERT(!old->hidden && next->hidden);
     test_glue_tick(1);
     T_ASSERT(old->hidden && !next->hidden);
     T_STREQ(captured_sprite_anim[0], "Options Morph@0.0000");
-    T_ASSERT(!UI_ScreenFrameVisible(next));
-    test_glue_tick(999);
-    T_ASSERT(!UI_ScreenFrameVisible(next));
+    T_ASSERT(UI_ScreenFrameOffset(next) < -0.59f);
+    test_glue_tick(700);
+    T_ASSERT(UI_ScreenFrameOffset(next) > 0.015f); // Native landing overshoot.
+    T_FEQ(UI_ScreenFrameOffset(button), 0, 0.00001f);
+    test_glue_tick(299);
+    T_FEQ(UI_ScreenFrameOffset(next), 0, 0.001f);
     test_glue_tick(1);
-    T_ASSERT(UI_ScreenFrameVisible(next));
+    T_FEQ(UI_ScreenFrameOffset(next), 0, 0.00001f);
     T_ASSERT(!M_IsTransitioning());
     Cmd_ExecuteString("menu_video"); // Reselecting the same page must not animate.
     T_ASSERT(!M_IsTransitioning());
@@ -2514,30 +2520,70 @@ TEST(menu_fdf, glue_lan_content_never_draws_on_outgoing_main_panels) {
     T_ASSERT(UI_GetCurrentScreen() == &mainMenuScreen);
     captured_text_draws = 0;
     test_glue_tick(0);
-    T_EQ(captured_text_draws, 0);
+    T_FEQ(UI_ScreenFrameOffset(UI_FindFrame("OptionsButton")), 0, 0.00001f);
     T_STREQ(captured_sprite_anim[0], "MainMenu Death@0.0000");
     test_glue_tick(666);
     T_ASSERT(UI_GetCurrentScreen() == &mainMenuScreen);
     captured_text_draws = 0;
     test_glue_tick(1);
     T_ASSERT(UI_GetCurrentScreen() == &lanJoinScreen);
-    T_EQ(captured_text_draws, 0);
-    T_ASSERT(!UI_ScreenFrameVisible(UI_FindFrame("GameListPanel")));
-    T_ASSERT(!UI_ScreenFrameVisible(UI_FindFrame("JoinButton")));
+    T_ASSERT(captured_text_draws > 0);
+    T_ASSERT(UI_ScreenFrameOffset(UI_FindFrame("GameListPanel")) < -0.59f);
+    T_ASSERT(UI_ScreenFrameOffset(UI_FindFrame("JoinButton")) < -0.59f);
     test_glue_tick(999);
-    T_EQ(captured_text_draws, 0);
+    T_ASSERT(captured_text_draws > 0);
     test_glue_tick(1);
     T_ASSERT(captured_text_draws > 0);
-    T_ASSERT(UI_ScreenFrameVisible(UI_FindFrame("GameListPanel")));
-    T_ASSERT(UI_ScreenFrameVisible(UI_FindFrame("JoinButton")));
+    T_FEQ(UI_ScreenFrameOffset(UI_FindFrame("GameListPanel")), 0, 0.00001f);
+    T_FEQ(UI_ScreenFrameOffset(UI_FindFrame("JoinButton")), 0, 0.00001f);
     Cmd_ExecuteString("menu_startserver");
-    T_ASSERT(!UI_ScreenFrameVisible(UI_FindFrame("GameListPanel")));
+    T_ASSERT(UI_ScreenFrameOffset(UI_FindFrame("GameListPanel")) < -0.59f);
     T_ASSERT(UI_GlueSideReady(UI_GLUE_RIGHT));
-    T_ASSERT(!UI_ScreenFrameVisible(UI_FindFrame("CreateButton")));
+    T_ASSERT(UI_ScreenFrameOffset(UI_FindFrame("CreateButton")) < -0.59f);
     test_glue_tick(1000);
     T_STREQ(captured_sprite_anim[0], "BattlenetCustomCreate Stand");
     Cmd_ExecuteString("menu_ingame");
     T_ASSERT(!M_IsTransitioning());
+    mi = saved;
+}
+
+/* Cross-side anchors remain in FDF space; nested content receives motion once. */
+TEST(menu_fdf, glue_motion_translates_draw_rects_without_changing_anchors) {
+    menuImport_t saved = mi;
+    test_glue_setup();
+    Cmd_ExecuteString("menu_options");
+    test_glue_tick(1000);
+    parse_fdf("motion.fdf",
+        "Frame \"FRAME\" \"MotionRoot\" { Width 0.8, Height 0.6,"
+        " Frame \"TEXT\" \"FixedLabel\" { Width 0.1, Height 0.02,"
+        "  SetPoint TOPLEFT, \"MotionRoot\", TOPLEFT, 0.6, -0.4,"
+        "  FrameFont \"MasterFont\", 0.013, \"\", Text \"Fixed\", }"
+        " Frame \"FRAME\" \"GameplayPanel\" { Width 0.3, Height 0.4,"
+        "  SetPoint TOPLEFT, \"FixedLabel\", TOPLEFT, -0.5, 0,"
+        "  Frame \"TEXT\" \"MovingLabel\" { Width 0.1, Height 0.02,"
+        "   SetPoint TOPLEFT, \"GameplayPanel\", TOPLEFT, 0, 0,"
+        "   FrameFont \"MasterFont\", 0.013, \"\", Text \"Moving\", }"
+        "  Frame \"TEXT\" \"SiblingLabel\" { Width 0.1, Height 0.02,"
+        "   SetPoint TOPLEFT, \"MovingLabel\", BOTTOMLEFT, 0, -0.01,"
+        "   FrameFont \"MasterFont\", 0.013, \"\", Text \"Sibling\", }"
+        " } }");
+    LPFRAMEDEF root = UI_FindFrame("MotionRoot");
+    T_NOT_NULL(root);
+    Cmd_ExecuteString("menu_video");
+    test_glue_tick(400);
+    captured_text_draws = 0;
+    UI_DrawFrame(root);
+    T_EQ(captured_text_draws, 3);
+    FLOAT offset = UI_GlueSideOffset(UI_GLUE_LEFT);
+    T_ASSERT(offset < -0.07f);
+    T_FEQ(captured_text_rects[0].y, 0.4f, 0.00001f);
+    T_FEQ(captured_text_rects[1].y, 0.4f + offset, 0.00001f);
+    T_FEQ(captured_text_rects[2].y, 0.43f + offset, 0.00001f);
+    RECT scene = {0, 0, .8f, .6f};
+    captured_text_draws = 0;
+    UI_DrawFrameInScene(root, &scene);
+    T_FEQ(captured_text_rects[1].y, 0.4f, 0.00001f);
+    Cmd_ExecuteString("menu_ingame");
     mi = saved;
 }
 

@@ -9,6 +9,9 @@
 #include <setjmp.h>
 
 static char shader_src[16384];
+static RECT backdrop_uv;
+static BOOL backdrop_repeat;
+static size2_t backdrop_size = {256, 64};
 
 /* Capture the real shader source submission without requiring a window in the unit suite. */
 static void BZ_TestShaderSource(GLuint shader, GLsizei count, const GLchar *const *strings, const GLint *lengths) {
@@ -1328,4 +1331,38 @@ TEST(renderer_buffer, instanced_array_range_uses_first_count_and_instances) {
     T_EQ(draw_test.calls, 1); T_EQ(draw_test.first, 23); T_EQ(draw_test.count, 18); T_EQ(draw_test.instances, 9);
     T_EQ(draw_test.stats_count, 18); T_EQ(draw_test.stats_instances, 9);
     instances.count = 0; R_DrawBufferRangeInstanced(&buffer, &draw, &instances); T_EQ(draw_test.calls, 1);
+}
+
+/* Capture backdrop UV generation before GPU submission, including mirrored repeat. */
+static size2_t test_backdrop_size(LPCTEXTURE tex) { (void)tex; return backdrop_size; }
+static VERTEX *test_backdrop_quad(VERTEX *buf, LPCRECT rect, LPCRECT uv, COLOR32 color, float z) {
+    (void)rect; (void)color; (void)z; backdrop_uv = *uv; return buf + 6;
+}
+static void test_backdrop_batch(LPCTEXTURE tex, SHADERTYPE shader, BLEND_MODE blend, FLOAT glow, BOOL hasclip, LPCRECT clip, LPCVERTEX verts, DWORD count, BOOL repeat) {
+    (void)tex; (void)shader; (void)blend; (void)glow; (void)hasclip; (void)clip; (void)verts;
+    T_EQ(count, 6); backdrop_repeat = repeat;
+}
+#define R_GetTextureSize test_backdrop_size
+#define R_AddQuad test_backdrop_quad
+#define R_DrawImageBatch test_backdrop_batch
+#include "renderer/r_backdrop.c"
+#undef R_GetTextureSize
+#undef R_AddQuad
+#undef R_DrawImageBatch
+
+TEST(renderer_backdrop, mirrored_background_is_independent_of_tiling) {
+    drawBackdrop_t draw = { .screen = {0, 0, .512f, .032f}, .bg.texture = (LPCTEXTURE)1 };
+    const struct { DWORD flags; FLOAT x, w; BOOL repeat; } cases[] = {
+        {0, 0, 1, false},
+        {DRAW_MIRRORED, 1, -1, false},
+        {DRAW_TILE, 0, 2, true},
+        {DRAW_TILE | DRAW_MIRRORED, 2, -2, true},
+    };
+    FOR_LOOP(i, sizeof(cases) / sizeof(cases[0])) {
+        draw.flags = cases[i].flags;
+        R_DrawBackdrop(&draw);
+        T_FEQ(backdrop_uv.x, cases[i].x, 0.00001f);
+        T_FEQ(backdrop_uv.w, cases[i].w, 0.00001f);
+        T_EQ(backdrop_repeat, cases[i].repeat);
+    }
 }

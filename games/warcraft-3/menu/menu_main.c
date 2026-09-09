@@ -413,14 +413,13 @@ BOOL M_IsTransitioning(void) {
 
 /* Left subtree declarations split native FDF without changing its layout. All
  * remaining controls belong to the right side, including screen-level dialogs. */
-BOOL UI_ScreenFrameVisible(LPCFRAMEDEF frame) {
+FLOAT UI_ScreenFrameOffset(LPCFRAMEDEF frame) {
     uiScreen_t *screen = UI_GetCurrentScreen();
-    if (!screen) return true;
-    if (ui_state.transition_screen && ui_state.transition_screen != screen) return false;
+    if (!screen) return 0;
     for (LPCFRAMEDEF cur = frame; cur; cur = cur->Parent)
         for (LPCSTR const *name = screen->left; name && *name; name++)
-            if (!strcmp(cur->Name, *name)) return UI_GlueSideReady(UI_GLUE_LEFT);
-    return UI_GlueSideReady(UI_GLUE_RIGHT);
+            if (!strcmp(cur->Name, *name)) return UI_GlueSideOffset(UI_GLUE_LEFT);
+    return UI_GlueSideOffset(UI_GLUE_RIGHT);
 }
 
 void M_Refresh(DWORD time) {

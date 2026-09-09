@@ -97,19 +97,20 @@ void R_DrawBackdrop(LPCDRAWBACKDROP db) {
         if ((db->flags & DRAW_TILE) && backSize.width > 0 && backSize.height > 0) {
             bg_uv.w = background.w / (backSize.width / 1000.f);
             bg_uv.h = background.h / (backSize.height / 1000.f);
-            if (db->flags & DRAW_MIRRORED) {
-                bg_uv.x = bg_uv.w;
-                bg_uv.w = -bg_uv.w;
-            }
         }
 
+        /* FDF mirroring is independent of tiling; untiled button art also uses it. */
+        if (db->flags & DRAW_MIRRORED) {
+            bg_uv.x = bg_uv.w;
+            bg_uv.w = -bg_uv.w;
+        }
         num_vertices = 0;
         R_AddQuad(vertices + num_vertices, &background, &bg_uv, db->bg.color, 0);
         num_vertices += 6;
 
         R_DrawImageBatch(db->bg.texture, SHADER_UI, BLEND_MODE_BLEND,
                          0, false, NULL, vertices, num_vertices,
-                         (db->flags & DRAW_TILE) && (bg_uv.w > 1 || bg_uv.h > 1));
+                         (db->flags & DRAW_TILE) && (fabsf(bg_uv.w) > 1 || bg_uv.h > 1));
     }
 
     /* --- edge/corner quads (batched into one drawcall) --- */

@@ -127,12 +127,37 @@ boundary. The final callback releases the pending request after both layers sett
 and clear ownership explicitly through `UI_ClearScreen`; they do not navigate to another menu.
 
 Screens declare their left-side native FDF subtree names in `uiScreen_t.left`; remaining frames belong to the right side.
-`UI_ScreenFrameVisible` walks that ancestry and uses the corresponding layer's readiness. `UI_DrawFramesInScene` filters
-controls, model sprites, highlights, and modal dimming centrally, and `UI_HitTest` applies the same visibility gate. FDF's
-own hidden flags still choose content, but cannot reveal it before its layer finishes entering. The old whole-screen offset
-curve is gone: controls appear at their authored positions after the model animation. Main, Single Player, Options, LAN,
-and Game Setup therefore share presentation timing instead of selecting immediate versus animated installation paths.
-Mouse, key, and text input remain locked while a transition is pending, including initial entry and tab-only transitions.
+`UI_ScreenFrameOffset` walks that ancestry and samples the corresponding layer's phase clock. Outgoing contents stay
+installed and drawable through exit; the central boundary callback installs/configures the incoming contents before entry.
+`UI_LayoutBase` solves all native anchors without animation, and `UI_LayoutRect` translates the result exactly once for
+drawing. This preserves nested and cross-side anchors. Explicit scene rectangles bypass glue motion. FDF hidden flags
+still select the content. Main, Single Player, Options, LAN, and Game Setup share this presentation path; mouse, key,
+and text input remain locked until transitions finish.
+
+`menu_glue_motion.h` stores 51 samples per entrance and departure, at uniform 2% sequence intervals, extracted through
+`mdxtool --info --dump-all` using the production MDX node decoder and track interpolator. The previous 21-point guessed
+curve missed the landing bounce; reversing entry also missed the native departure anticipation. Samples are FDF Y-down
+translations relative to the first departure key (open pose), with the final entry sample pinned to zero to avoid a
+subpixel end jump. The endpoint is sampled at interval-end minus 1 ms, matching the renderer's exclusive sequence end.
+The sampled RoC/TFT translation outputs are identical even though their left model geometry differs. Each partition moves
+rigidly with its principal panel plane; decorative gears, chains and smaller secondary planes retain their own MDX motion.
+Logo/profile contents without a moving left mesh deliberately share navigation travel. `motion[][][]` declares the mapping.
+
+For example, TopLeftPanel node 12 (`Plane91`) travels from Y=0 to about -0.59787 in `Options Morph`, overshooting to
+-0.616743 at 700 ms. Node 13 (`Plane117`) supplies LAN/Create travel; TopRightPanel node 16 (`Plane22`) supplies Options
+navigation. To reproduce the samples without a graphics window:
+
+```sh
+build/bin/mdxtool -mpq 'data/Warcraft III/War3.mpq' -model 'UI\Glues\SpriteLayers\TopLeftPanel.mdx' --info --dump-all --anim 'Options Morph'
+build/bin/mdxtool -mpq 'data/Warcraft III/Frozen Throne/War3x.mpq' -model 'UI\Glues\SpriteLayers\TopRightPanel.mdx' --info --dump-all --anim 'Options Birth'
+```
+
+The September 9 rendering regression was independent of FDF layout. Runtime logs showed LAN `LoadBackdrop` and
+`CreateBackdrop` with `Mirrored=1`, `TileBackground=0`, but renderer UV=(0,0,1,1). `b6349c392` had placed mirroring inside
+the tiling branch of `R_DrawBackdrop`. Native overlapping rectangles intentionally contain transparent padding; changing
+anchors would mask the problem. Mirroring now applies to tiled and untiled backgrounds, and repeat detection uses absolute
+UV width. This fixes both LAN button surrounds and the Options popup surrounds. Temporary diagnostics also confirmed the
+outgoing screen was explicitly filtered during MainMenu Death by `583f1674`; removing that gate restores moving contents.
 
 The right layer uses the panel's Birth/Stand/Death family. The left uses its selected tab's explicit enter/stand/leave
 sequences during full-screen transitions as well as tab changes. Options therefore enters with `Options Morph`, rests at
@@ -157,12 +182,14 @@ model transition. `git blame` traced the immediate command path to the earlier m
 from presentation ownership removes that exception. `mdxtool --info` verified the animation inventory directly in War3.mpq;
 RoC and TFT rendered captures checked Options entry, tab exit/re-entry, stable Video, and Main-to-LAN exit/entry.
 
-`make test-menu` covers deferred LAN text rendering, exact entry/exit visibility boundaries, nested left-control ownership,
+`make test-menu` covers deferred LAN ownership, moving outgoing/incoming content, nested and cross-side anchors,
 right-side preservation, Options page reselection/retargeting, Credits/Main and Skirmish/Cancel completion, LAN mode changes,
 startup overrides, full navigation during a morph, authored sequence names, and close callback replacement. Sequence checks
 read the original RoC TopLeftPanel MDLX header and SEQS chunk from `build/tests/tests.mpq`. FDF fixtures are packed under
-the native Blizzard paths; Options includes native Gameplay/Video button subtrees to exercise the right-side control gate.
-No standalone menu test requires installed Warcraft archives.
+the native Blizzard paths; Options includes native Gameplay/Video button subtrees to exercise stationary right-side controls.
+No standalone menu test requires installed Warcraft archives. `make test-renderer-model` covers mirrored/ordinary backgrounds
+with and without tiling, including negative-width repeat detection. Bounded RoC/TFT captures verify all three Options pages,
+LAN, and moving entry/exit frames; WoW/SC2 builds and smoke runs exercise the shared renderer.
 
 Build with `WC3_DEBUG_GLUE=1` to log each glue phase boundary and any missing MDX sequence that falls back to sequence zero.
 The diagnostics are transition-scoped rather than frame-scoped. Rebuild when toggling the flag, then reproduce Options directly:
