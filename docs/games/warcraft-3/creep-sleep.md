@@ -28,6 +28,10 @@ hidden ability through the loaded `*AbilityFunc.txt` metadata; when that lookup
 is empty, natural creep sleep falls back specifically to the canonical retail
 `Abilities\Spells\Other\CreepSleep\CreepSleepTarget.mdx` model.
 
+TODO: The current overlay animation renders blue, but the retail `Zzz` sleep
+presentation should render yellow. Trace the authoritative material/team-colour
+data before changing the effect asset or renderer path.
+
 ## Runtime contract
 
 Natural automatic sleep currently applies only to `PLAYER_NEUTRAL_AGGRESSIVE`.
