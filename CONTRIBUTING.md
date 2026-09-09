@@ -105,5 +105,12 @@ Key points:
 
 ## Build and Linking
 
+The Linux CI build and test jobs share `.github/scripts/install-linux-deps.sh`. Both APT update and install use only the runner's
+`/etc/apt/sources.list.d/ubuntu.sources`, with additional source parts disabled for those commands. All required packages come from
+Ubuntu. This prevents unrelated preinstalled repositories from blocking CI: run `34385738390` failed before compilation because
+Google Chrome's package index returned a hash mismatch on all five retries, while Windows built successfully. Missing Ubuntu
+sources remain a hard error, and package signature/hash verification stays enabled. To inspect dependency failures, use
+`gh run view <run-id> -R corepunch/open-realm --log-failed`.
+
 - Never add `DYLIB_LOOKUP := -Wl,-undefined,dynamic_lookup` or otherwise rely on `-Wl,-undefined,dynamic_lookup` in this repository.
 - If a target has unresolved symbols, fix the dependency graph or shared implementation instead of weakening the linker contract.
