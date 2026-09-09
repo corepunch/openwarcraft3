@@ -43,6 +43,24 @@ The WoW target reads files through the engine filesystem/archive layer. Keep tes
 
 ## Map Entry
 
+`Wow_PrepareMap` resolves the destination's Map.dbc/LoadingScreens.dbc background and title and writes the initial
+loading layout before WDT/ADT loading or entity spawning. The shared server caches its image/font configstrings,
+then the layout, then `svc_loading`; the client registers those resources and presents immediately. Only a later
+`svc_precache` after the full configstring table permits world registration. `UIWow_DrawLoadingScreenC` remains
+an unused legacy menu helper. See the [shared loading lifecycle and WC3 investigation](../warcraft-3/loading-and-assets.md).
+
+The September 9 visual check also found two defects introduced with the initial-layout move (`df68693c1`):
+`UI_SetFrameRect` received pixel dimensions 1024×768 although it stores normalized dimensions. A bounded
+`SCR_LayoutDrawTexture` probe confirmed a valid image handle drawn into a 1024×768 normalized rectangle,
+showing only a magnified dark corner. The background now uses 1×1. The classic archive's bar texture is
+`Interface/Glues/LoadingBar/Loading-BarFill.blp`; `Loading-Bar.blp` was missing and displayed the error texture.
+Verify the authoritative asset with:
+
+```sh
+build/bin/mpqtool -mpq data/world-of-warcraft/interface.MPQ ls Interface/Glues/LoadingBar
+build/bin/mpqtool -mpq data/world-of-warcraft/interface.MPQ imginfo Interface/Glues/LoadingBar/Loading-BarFill.blp
+```
+
 The map command accepts a WDT path:
 
 ```text
@@ -113,4 +131,3 @@ build/bin/m2tool \
   -model "Character\\Orc\\Male\\OrcMale.m2" \
   --wow-player-config-only
 ```
-

@@ -89,3 +89,22 @@ void CL_UpdateConfigString(DWORD index, LPCSTR olds) {
     else if (index > CS_SOUNDS && index < CS_SOUNDS + MAX_SOUNDS && *cl.configstrings[index]) S_RegisterSound(cl.configstrings[index]);
     else if (index > CS_FONTS && index < CS_FONTS + MAX_FONTSTYLES) CL_RegisterFontConfigString(index, true, olds);
 }
+
+/* Only the loading batch is present here: register its media and swap before the bulk table/world arrives. */
+void CL_PrepLoading(void) {
+    if (cl.refresh_prepped) return;
+    if (!cl.layout[LAYER_LOADING] || !*cl.configstrings[CS_WORLD]) {
+        Com_Error(ERR_DROP, "Incomplete loading presentation");
+        return;
+    }
+    if (cl.playerstate.client_ui_state != CLIENT_UI_LOADING)
+        CL_BeginLoadingMap(cl.configstrings[CS_WORLD]);
+    re.SetAssetScope(cl.configstrings[CS_ASSET_SCOPE]);
+    for (DWORD i = 1; i < MAX_MODELS; i++)
+        if (*cl.configstrings[CS_MODELS + i]) CL_RegisterConfigString(CS_MODELS + i);
+    for (DWORD i = 1; i < MAX_IMAGES; i++)
+        if (*cl.configstrings[CS_IMAGES + i]) CL_RegisterConfigString(CS_IMAGES + i);
+    for (DWORD i = 1; i < MAX_FONTSTYLES; i++)
+        if (*cl.configstrings[CS_FONTS + i]) CL_RegisterConfigString(CS_FONTS + i);
+    SCR_UpdateLoadingPlaque();
+}

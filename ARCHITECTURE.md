@@ -119,6 +119,8 @@ All communication uses discrete message opcodes defined in [common/common.h](com
 | `svc_unit_ui` | `num_units`, entity IDs, buttons, inventory, queues | RTS / WoW unit abilities, quick-bar inventory items, and construction queue state. |
 | `svc_configstring` | `SHORT index`, `STRING value` | Pre-cached media registry (model paths, sound paths, texture paths, font names). |
 | `svc_serverdata` | Protocol version, map name, player slot | Initial connection handshake and map setup. |
+| `svc_loading` | No payload; terminates loading configstrings/layout | Register and present loading media before bulk map work. |
+| `svc_precache` | No payload; terminates full configstrings | Allow full client world/media registration. |
 | `svc_spawnbaseline` | `entityState_t` | Baseline delta state for newly spawned entity numbers. |
 | `svc_stufftext` | `STRING command` | Server-instructed client command execution. |
 

@@ -1178,6 +1178,17 @@ TEST(wow_game, wow_load_map_initializes_player_state) {
     LPEDICT player;
     wowEntityLocal_t *local;
 
+    T_NOT_NULL(game->PrepareMap);
+    T_ASSERT(game->PrepareMap("World/Maps/Azeroth/Azeroth.wdt"));
+    T_EQ(test_clear_world_calls, 0);
+    T_EQ(test_unicast_calls, 0);
+    T_ASSERT(test_layout_seen[LAYER_LOADING]);
+    T_EQ(test_num_images, 2);
+    T_FEQ(test_ui_frames[0].w, 1.0f, 0.0001f);
+    T_FEQ(test_ui_frames[0].h, 1.0f, 0.0001f);
+    T_STREQ(test_images[1].name, "Interface\\Glues\\LoadingBar\\Loading-BarFill.blp");
+    /* SV_BuildLoadingMessage caches and consumes this initial multicast before LoadMap. */
+    test_multicast_size = 0;
     T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
     player = &wow_edicts[0];
     local = Wow_EntityLocal(player);
@@ -1200,7 +1211,7 @@ TEST(wow_game, wow_load_map_initializes_player_state) {
     T_EQ((int)player->client->ps.stats[WOW_STAT_HEALTH_MAX], 100);
     T_EQ((int)player->client->ps.stats[WOW_STAT_POWER], 100);
     T_EQ((int)player->client->ps.stats[WOW_STAT_SELECTED_ACTION], 255);
-    T_EQ((int)test_num_images, 0);
+    T_EQ((int)test_num_images, 2);
     T_EQ((int)test_unicast_calls, 0);
     T_NOT_NULL(game->ClientBegin);
     game->ClientBegin(player);

@@ -503,20 +503,21 @@ void UI_WriteLoadingLayout(LPEDICT ent) {
     uiFrame_t frame = { 0 };
     uiTextureUV_t uv = { .l = 0, .r = 1, .t = 0, .b = 1, .color = COLOR32_WHITE, .alphamode = BLEND_MODE_ALPHAKEY };
 
-    if (!ent) return;
     UI_WriteStart(LAYER_LOADING);
     frame.flags.type = FT_TEXTURE; frame.color = COLOR32_WHITE; frame.tex.index = gi.ImageIndex(wow_loading_texture);
-    UI_SetFrameRect(&frame, 0, 0, VW, VH); UI_WriteProxyFrame(&frame, &uv, sizeof(uv));
+    /* Layout sizes are normalized; pixel dimensions magnified the background into a solid corner. */
+    UI_SetFrameRect(&frame, 0, 0, 1, 1); UI_WriteProxyFrame(&frame, &uv, sizeof(uv));
     UI_WriteTextFrame(PX(164), PY(590), PW(696), PH(42), wow_loading_title,
                       MAKE(COLOR32, 255, 215, 120, 255), FONT_JUSTIFYCENTER);
     UI_WriteColorRect(PX(164), PY(650), PW(696), PH(12), MAKE(COLOR32, 12, 10, 8, 220));
     memset(&frame, 0, sizeof(frame));
     frame.flags.type = FT_LOADING_BAR;
-    frame.tex.index = gi.ImageIndex("Interface\\Glues\\LoadingBar\\Loading-Bar.blp");
+    /* Classic archives provide Loading-BarFill; Loading-Bar.blp never resolved. */
+    frame.tex.index = gi.ImageIndex("Interface\\Glues\\LoadingBar\\Loading-BarFill.blp");
     frame.color = MAKE(COLOR32, 220, 180, 60, 255);
     UI_SetFrameRect(&frame, PX(166), PY(652), PW(692), PH(8)); UI_WriteProxyFrame(&frame, NULL, 0);
     UI_WriteEnd();
-    gi.unicast(ent);
+    if (ent) gi.unicast(ent);
 }
 
 /* Solid health/mana bar drawn as two color rects (dark background + colored fill) */

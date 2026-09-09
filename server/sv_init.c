@@ -237,6 +237,38 @@ void SV_DirectConnect(const netadr_t *from, LPCSTR userinfo) {
     SV_LobbyBroadcastSetup();
 }
 
+/* Freeze the loading-only media table before LoadMap adds world/gameplay resources to those same pools. */
+BOOL SV_BuildLoadingMessage(void) {
+    sizeBuf_t msg;
+    DWORD size = sv.multicast.cursize + 1;
+    FOR_LOOP(i, MAX_CONFIGSTRINGS)
+        if (*sv.configstrings[i]) size += SV_ConfigStringWireSize(i);
+    if (!sv.multicast.cursize || sv.multicast.overflowed || size > MAX_MSGLEN) {
+        fprintf(stderr, "SV_BuildLoadingMessage: invalid loading presentation (%u bytes)\n", size);
+        return false;
+    }
+    sv.loading = MemAlloc(size);
+    ARRAY_COUNT(sv.loading) = size;
+    SZ_Init(&msg, sv.loading, size);
+    FOR_LOOP(i, MAX_CONFIGSTRINGS)
+        if (*sv.configstrings[i]) SV_WriteConfigString(&msg, i);
+    MSG_Write(&msg, sv.multicast.data, sv.multicast.cursize);
+    MSG_WriteByte(&msg, svc_loading);
+    SZ_Clear(&sv.multicast);
+    return true;
+}
+
+/* The cached packet is identical for loopback startup and a later remote connection. */
+void SV_SendLoadingMessage(LPCLIENT cl) {
+    if (IS_ARRAY_EMPTY(sv.loading)) {
+        Com_Error(ERR_DROP, "Missing initial loading presentation");
+        return;
+    }
+    if (cl->netchan.message.cursize) Netchan_Transmit(NS_SERVER, &cl->netchan);
+    MSG_Write(&cl->netchan.message, sv.loading, ARRAY_COUNT(sv.loading));
+    Netchan_Transmit(NS_SERVER, &cl->netchan);
+}
+
 void SV_Map(LPCSTR mapFilename) {
     savedLobbyClient_t lobby_clients[MAX_CLIENTS];
     DWORD num_lobby_clients;
@@ -247,14 +279,28 @@ void SV_Map(LPCSTR mapFilename) {
     num_lobby_clients = SV_SaveLobbyClients(lobby_clients, MAX_CLIENTS);
     SV_ClearLobbyClients();
     SV_InitGame();
+    SAFE_DELETE(sv.loading, MemFree);
+    SAFE_DELETE(sv.baselines, MemFree);
     memset(&sv, 0, sizeof(struct server));
     sv.state = ss_loading;
     strlcpy(sv.configstrings[CS_WORLD], mapFilename, sizeof(sv.configstrings[CS_WORLD]));
     SZ_Init(&sv.multicast, sv.multicast_buf, MAX_MSGLEN);
     SV_SetConfigString(CS_MAXCLIENTS, "", 1);
+    SV_RestoreLobbyClients(lobby_clients, num_lobby_clients);
+    /* Loading resources must be indexed and presented before synchronous world loading, not after it. */
+    if (!ge->PrepareMap(mapFilename)) {
+        fprintf(stderr, "SV_Map: loading presentation failed for %s\n", mapFilename);
+        SV_Shutdown();
+        CL_LoadingFrame();
+        return;
+    }
+    if (!SV_BuildLoadingMessage()) { SV_Shutdown(); CL_LoadingFrame(); return; }
+    FOR_LOOP(i, svs.num_clients) SV_SendLoadingMessage(&svs.clients[i]);
+    CL_LoadingFrame();
     if (!ge->LoadMap(mapFilename)) {
         fprintf(stderr, "SV_Map: map load failed\n");
-        sv.state = ss_dead;
+        SV_Shutdown();
+        CL_LoadingFrame();
         return;
     }
     SV_SetMapConfigStrings();
@@ -265,8 +311,7 @@ void SV_Map(LPCSTR mapFilename) {
 //    SV_LoadModels(); // model animation data is loaded lazily by game modules now
     sv.next_frame_msec = svs.realtime;
     sv.state = ss_game;
-    // Keep lobby clients connected through the immediate game start.
-    SV_RestoreLobbyClients(lobby_clients, num_lobby_clients);
+    // Clients retain the loading-media indices established before LoadMap.
     fprintf(stderr, "Server initialized.\n\n");
 }
 
@@ -288,6 +333,7 @@ void SV_StartLobby(LPCSTR mapFilename) {
         }
     }
     SAFE_DELETE(sv.baselines, MemFree);
+    SAFE_DELETE(sv.loading, MemFree);
     SV_ClearLobbyClients();
     memset(&sv, 0, sizeof(struct server));
     sv.state = ss_lobby;
@@ -350,6 +396,9 @@ void SV_Shutdown(void) {
         Netchan_Transmit(NS_SERVER, &client->netchan);
     }
     SAFE_DELETE(sv.baselines, MemFree);
+    SAFE_DELETE(sv.loading, MemFree);
+    ARRAY_COUNT(sv.loading) = 0;
+    sv.state = ss_dead;
     SAFE_DELETE(svs.client_entities, MemFree);
     svs.num_clients = 0;
     memset(&svs.lobby, 0, sizeof(svs.lobby));

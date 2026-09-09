@@ -949,6 +949,12 @@ void CL_ParseServerMessage(LPSIZEBUF msg) {
             case svc_frame:
                 CL_ParseFrame(msg);
                 break;
+            case svc_loading:
+                CL_PrepLoading();
+                break;
+            case svc_precache:
+                cl.precache_ready = true;
+                break;
             case svc_layout:
                 CL_ParseLayout(msg);
                 break;

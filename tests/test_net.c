@@ -3007,3 +3007,36 @@ TEST(net, orbit_prediction_expires_and_yields_to_scripted_camera) {
     T_ASSERT(!cl.camera_prediction.view);
     T_FEQ(cl.viewDef.camerastate[0].distance, 20, 0.001f);
 }
+
+static void capture_asset_scope(LPCSTR scope) { T_STREQ(scope, "Test.w3m"); }
+
+/* Loading dependencies become usable at the first batch boundary; later world resources still defer. */
+TEST(net, loading_batch_registers_media_before_full_precache) {
+    BYTE buf[1024];
+    sizeBuf_t msg = make_msg_buf(buf, sizeof(buf));
+    UIFRAME frame = { .number = 1, .flags.type = FT_TEXTURE, .tex.index = 1 };
+    UIFRAME empty = { 0 };
+    BOOL old_init = scr_initialized;
+    test_client_stubs_init(); scr_initialized = false;
+    test_model_loads = test_tex_loads = 0;
+    re.SetAssetScope = capture_asset_scope;
+    re.LoadModel = capture_load_model; re.LoadTexture = capture_load_texture;
+    snprintf(cl.configstrings[CS_WORLD], sizeof(PATHSTR), "Test.w3m");
+    snprintf(cl.configstrings[CS_ASSET_SCOPE], sizeof(PATHSTR), "Test.w3m");
+    MSG_WriteByte(&msg, svc_configstring); MSG_WriteShort(&msg, CS_MODELS + 1); MSG_WriteString(&msg, "Loading.mdx");
+    MSG_WriteByte(&msg, svc_configstring); MSG_WriteShort(&msg, CS_IMAGES + 1); MSG_WriteString(&msg, "Loading.blp");
+    MSG_WriteByte(&msg, svc_layout); MSG_WriteByte(&msg, LAYER_LOADING);
+    MSG_WriteDeltaUIFrame(&msg, &empty, &frame, true); MSG_WriteByte(&msg, 0);
+    MSG_WriteLong(&msg, 0); MSG_WriteShort(&msg, 0);
+    MSG_WriteByte(&msg, svc_loading);
+    CL_ParseServerMessage(&msg);
+    T_EQ(test_model_loads, 1); T_EQ(test_tex_loads, 1);
+    T_NOT_NULL(cl.models[1]); T_NOT_NULL(cl.pics[1]); T_ASSERT(!cl.precache_ready);
+    SZ_Clear(&msg); msg.readcount = 0;
+    MSG_WriteByte(&msg, svc_configstring); MSG_WriteShort(&msg, CS_MODELS + 2); MSG_WriteString(&msg, "World.mdx");
+    MSG_WriteByte(&msg, svc_precache);
+    CL_ParseServerMessage(&msg);
+    T_ASSERT(cl.precache_ready); T_NULL(cl.models[2]); T_EQ(test_model_loads, 1);
+    MemFree(cl.layout[LAYER_LOADING]); cl.layout[LAYER_LOADING] = NULL;
+    SCR_ClearLayoutLayer(LAYER_LOADING); scr_initialized = old_init;
+}

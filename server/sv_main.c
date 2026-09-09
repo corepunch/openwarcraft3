@@ -37,6 +37,14 @@ void SV_SetConfigString(DWORD index, LPCSTR value, DWORD len) {
     sv.syncstrings[index] = false;
 }
 
+/* Use the same decorated string length for batch bounds and exact loading-cache allocation. */
+DWORD SV_ConfigStringWireSize(DWORD index) {
+    if (index == CS_STATUSBAR) {
+        return 1 + 2 + sizeof(*sv.configstrings);
+    }
+    return 1 + 2 + (DWORD)strlen(ge->GetThemeValue(sv.configstrings[index])) + 1;
+}
+
 void SV_WriteConfigString(LPSIZEBUF msg, DWORD i) {
     MSG_WriteByte(msg, svc_configstring);
     MSG_WriteShort(msg, i);

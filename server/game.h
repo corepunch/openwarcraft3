@@ -135,7 +135,8 @@ struct game_export {
     LPCSTR (*GetThemeValue)(LPCSTR filename);
     void (*ClientCommand)(LPEDICT ent, DWORD argc, LPCSTR argv[]);
     void (*ClientInput)(LPEDICT ent, LPCINPUTCMD cmd);
-    void (*ClientLoading)(LPEDICT ent);
+    /* Read destination metadata and write the loading layout into the multicast buffer, before LoadMap. */
+    bool (*PrepareMap)(LPCSTR mapFilename);
     void (*ClientBegin)(LPEDICT ent);
     BOOL (*CanSeeEntity)(DWORD player, LPCEDICT ent);
     void (*CustomizeEntity)(DWORD player, LPCEDICT ent, LPENTITYSTATE state);

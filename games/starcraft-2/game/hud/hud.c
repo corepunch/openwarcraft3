@@ -370,7 +370,7 @@ void SC2_HUD_WriteStart(DWORD layer) {
 void SC2_HUD_WriteEnd(LPEDICT ent) {
     gi.Write(PF_LONG,  &(LONG){ 0 });  /* bits=0  — frame terminator */
     gi.Write(PF_SHORT, &(LONG){ 0 });  /* number=0 */
-    gi.unicast(ent);
+    if (ent) gi.unicast(ent);
 }
 
 void SC2_HUD_WriteLayout(LPEDICT ent, LPCSC2BASEFRAME frames, DWORD count,

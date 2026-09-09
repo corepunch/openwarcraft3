@@ -272,7 +272,11 @@ Game-mode mouse behavior lives in per-game `cl_input_<game>.c` files. Never crea
 
 ## Loading Screen
 
-The loading screen is a server-authored `svc_layout` sent before the initial configstrings and drawn by the client while `playerState_t.client_ui_state == CLIENT_UI_LOADING`. It:
+`ge->PrepareMap` authors this presentation before `ge->LoadMap`. The first batch ends with `svc_loading`, which
+registers its media and presents immediately. `svc_precache` ends the later full configstring table;
+`cl.precache_ready` keeps world registration behind that boundary. See [WC3 loading lifecycle](../games/warcraft-3/loading-and-assets.md).
+
+The loading screen is a server-authored `svc_layout` sent after its loading-phase configstrings and before bulk precache. The client draws it while `playerState_t.client_ui_state == CLIENT_UI_LOADING`. It:
 
 1. Serializes the authoritative `Loading.fdf` frame tree before `begin`
 2. Includes map-authored title, subtitle, description, and background model

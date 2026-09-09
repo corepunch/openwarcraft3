@@ -20,6 +20,7 @@ struct game_import gi;
 
 /* External symbols referenced by sv_init.c but unused in these tests. */
 void SV_InitGameProgs(void) {}
+void CL_LoadingFrame(void) {}
 void SV_ClearWorld(void) {}
 bool CM_LoadMap(LPCSTR mapFilename) { (void)mapFilename; return true; }
 DWORD CM_GetMapChecksum(void) { return 0x1234; }
@@ -123,7 +124,20 @@ static void test_set_camera(LPEDICT ent, LPCINPUTCMD cmd) {
 
 static void test_spawn_entities(void);
 
+static bool test_prepare_map(LPCSTR filename) {
+    (void)filename;
+    SV_ModelIndex("Loading.mdx");
+    SV_ImageIndex("Loading.blp");
+    SV_FontIndex("Loading.ttf", 18);
+    MSG_WriteByte(&sv.multicast, svc_layout);
+    MSG_WriteByte(&sv.multicast, LAYER_LOADING);
+    MSG_WriteLong(&sv.multicast, 0); MSG_WriteShort(&sv.multicast, 0);
+    return true;
+}
+
 static bool test_load_map(LPCSTR mapFilename) {
+    T_ASSERT(!IS_ARRAY_EMPTY(sv.loading));
+    SV_ModelIndex("World.mdx");
     if (!CM_LoadMap(mapFilename)) {
         return false;
     }
@@ -167,6 +181,7 @@ static void reset_server_state(int max_players) {
     test_ge.RunFrame = test_run_frame;
     test_ge.ClientInput = test_set_camera;
     test_ge.GetThemeValue = test_theme_value;
+    test_ge.PrepareMap = test_prepare_map;
     test_ge.LoadMap = test_load_map;
     test_ge.GetWorldBounds = CM_GetWorldBounds;
     test_ge.Shutdown = test_game_shutdown;
@@ -947,4 +962,35 @@ TEST(server_net, lobby_chat_broadcasts_to_connected_clients) {
         MSG_ReadString(&msg, text);
         T_STREQ(text, "Host: hello team");
     }
+}
+
+/* Early and late clients receive the same loading resources, before any world-only configstrings. */
+TEST(server_net, loading_batch_precedes_world_and_retains_resource_indices) {
+    MAPINFO info = { 0 };
+    BOOL model = false, image = false, font = false, layout = false, ready = false;
+    NET_Shutdown(); reset_server_state(1); test_mapinfo = &info;
+    SV_Map("Test.w3m");
+    sizeBuf_t msg = { .data = sv.loading, .cursize = ARRAY_COUNT(sv.loading), .maxsize = ARRAY_COUNT(sv.loading) };
+    while (msg.readcount < msg.cursize) {
+        int op = MSG_ReadByte(&msg);
+        if (op == svc_configstring) {
+            int index = MSG_ReadShort(&msg);
+            LPCSTR name = MSG_ReadString2(&msg);
+            T_ASSERT(!layout);
+            if (index == CS_MODELS + 1) { T_STREQ(name, "Loading.mdx"); model = true; }
+            if (index == CS_IMAGES + 1) { T_STREQ(name, "Loading.blp"); image = true; }
+            if (index == CS_FONTS + 1) { T_STREQ(name, "Loading.ttf,18"); font = true; }
+            T_ASSERT(index != CS_MODELS + 2);
+        } else if (op == svc_layout) {
+            T_ASSERT(model && image && font);
+            T_EQ(MSG_ReadByte(&msg), LAYER_LOADING);
+            T_EQ(MSG_ReadLong(&msg), 0); T_EQ(MSG_ReadShort(&msg), 0);
+            layout = true;
+        } else {
+            T_EQ(op, svc_loading); T_ASSERT(layout); ready = true;
+        }
+    }
+    T_ASSERT(ready);
+    T_STREQ(sv.configstrings[CS_MODELS + 2], "World.mdx");
+    SV_Shutdown(); test_mapinfo = NULL;
 }

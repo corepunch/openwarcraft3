@@ -102,7 +102,7 @@ DWORD UI_LiveFont(DWORD font);
 void UI_ResetHud(void);
 void UI_LoadHud(void);
 void UI_LoadHudLoading(void);
-void UI_WriteLoadingLayout(LPEDICT ent);
+void UI_WriteLoadingLayout(LPEDICT ent, LPCMAPINFO info);
 void UI_LoadHudConsole(void);
 void UI_LoadHudInfoPanel(void);
 void UI_LoadHudQuests(void);

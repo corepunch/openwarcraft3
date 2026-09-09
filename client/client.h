@@ -67,6 +67,7 @@ struct frame {
 struct client_state {
     BOOL refresh_prepped;
     FLOAT loading_progress;   /* client-owned normalized loading progress [0,1] */
+    BOOL precache_ready;       /* complete media table received after the loading-only batch */
     LPMODEL models[MAX_MODELS];
     LPMODEL portraits[MAX_MODELS];
     LPMODEL minimap_model;
@@ -143,6 +144,7 @@ void CL_SetMenuBindings(void);
 void CL_SetGameplayInput(void);
 void CL_SetGameplayBindings(void);
 void CL_BeginLoadingMap(LPCSTR mapName);
+void CL_PrepLoading(void);
 void CL_SetLoadingProgress(FLOAT progress);
 
 /* Long-form client music presentation (client/cl_music.c). */

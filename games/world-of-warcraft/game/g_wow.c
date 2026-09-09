@@ -1601,7 +1601,6 @@ static bool Wow_LoadMap(LPCSTR mapFilename) {
         gi.ClearWorld();
         gi.configstring(CS_PLAYERSKINS,
             "\\race\\Human\\sex\\Male\\class\\2\\appearance\\0");
-        Wow_SelectLoadingScreen("preview");
         Wow_InitPlayer(&wow_edicts[0], (VECTOR2){0, 0}, -1);
         return true;
     }
@@ -1713,7 +1712,6 @@ static DWORD Wow_AnySpawnIndexForMap(DWORD map_id) {
 }
 
 static bool Wow_SpawnEntities(void) {
-    LPCMAPINFO mapinfo = CM_GetMapInfo();
     char race[64], sex[64];
     DWORD class_id, appearance, spawn_index;
     LONG spawn_location = -1;
@@ -1768,7 +1766,6 @@ static bool Wow_SpawnEntities(void) {
             }
         }
     }
-    Wow_SelectLoadingScreen(mapinfo ? mapinfo->mapName : NULL);
     {
         char preview[MAX_PATHLEN];
         snprintf(preview, sizeof(preview), "%s", wow_loading_texture);
@@ -2490,7 +2487,12 @@ static void Wow_ClientBegin(LPEDICT ent) {
     UI_WriteWelcomeWindow(ent);
 }
 
-static void Wow_ClientLoading(LPEDICT ent) { UI_WriteLoadingLayout(ent); }
+/* Map.dbc/LoadingScreens.dbc identify loading art without loading WDT/ADT terrain or spawning entities. */
+static bool Wow_PrepareMap(LPCSTR filename) {
+    Wow_SelectLoadingScreen(filename);
+    UI_WriteLoadingLayout(NULL);
+    return true;
+}
 
 struct game_export *GetGameAPI(struct game_import *import) {
     gi = *import;
@@ -2502,7 +2504,7 @@ struct game_export *GetGameAPI(struct game_import *import) {
     globals.GetThemeValue = Wow_GetThemeValue;
     globals.ClientCommand = Wow_ClientCommand;
     globals.ClientInput = Wow_ClientInput;
-    globals.ClientLoading = Wow_ClientLoading;
+    globals.PrepareMap = Wow_PrepareMap;
     globals.ClientBegin = Wow_ClientBegin;
     globals.CanSeeEntity = NULL;
     globals.CustomizeEntity = Wow_CustomizeEntity;

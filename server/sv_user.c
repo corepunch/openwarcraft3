@@ -1,12 +1,5 @@
 #include "server.h"
 
-static DWORD SV_ConfigStringWireSize(DWORD index) {
-    if (index == CS_STATUSBAR) {
-        return 1 + 2 + sizeof(*sv.configstrings);
-    }
-    return 1 + 2 + (DWORD)strlen(ge->GetThemeValue(sv.configstrings[index])) + 1;
-}
-
 static DWORD SV_ClientPlayerNumber(LPCLIENT cl) {
     return cl->playernum < MAX_PLAYERS ? cl->playernum : 0;
 }
@@ -33,7 +26,6 @@ void SV_Configstrings_f(LPCLIENT cl, int argc, LPCSTR *argv) {
     (void)argv;
 
     if (!cl->edict) cl->edict = EDICT_NUM(SV_ClientPlayerNumber(cl));
-    ge->ClientLoading(cl->edict);
     FOR_LOOP(i, MAX_CONFIGSTRINGS) {
         if (!*sv.configstrings[i])
             continue;
@@ -49,6 +41,7 @@ void SV_Configstrings_f(LPCLIENT cl, int argc, LPCSTR *argv) {
     }
     MSG_WriteByte(&cl->netchan.message, svc_mirror);
     MSG_WriteString(&cl->netchan.message, "baselines");
+    MSG_WriteByte(&cl->netchan.message, svc_precache);
     Netchan_Transmit(NS_SERVER, &cl->netchan);
 }
 
@@ -119,6 +112,7 @@ void SV_New_f(LPCLIENT cl, int argc, LPCSTR *argv) {
         Netchan_Transmit(NS_SERVER, &cl->netchan);
         return;
     }
+    SV_SendLoadingMessage(cl);
     MSG_WriteByte(&cl->netchan.message, svc_mirror);
     MSG_WriteString(&cl->netchan.message, "configstrings");
     Netchan_Transmit(NS_SERVER, &cl->netchan);

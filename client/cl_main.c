@@ -474,6 +474,7 @@ void CL_BeginLoadingMap(LPCSTR mapName) {
      * so PrepRefresh sends it again and CL_ParseFrame can end the plaque. */
     CL_RestartRefresh();
     cl.loading_progress = 0.0f;
+    cl.precache_ready = false;
     cl.playerstate.client_ui_state = CLIENT_UI_LOADING;
     cls.state = ca_connected;
     CL_MenuCommand("menu_ingame");
@@ -937,6 +938,12 @@ void CL_ReadPackets(void) {
     while ((r = NET_GetPacket(NS_CLIENT, &from, &net_message)) != 0) {
         CL_ReadPacketMessage(&from, &net_message, r);
     }
+}
+
+/* A synchronous listen-server load may pump presentation packets, but never commands or game frames. */
+void CL_LoadingFrame(void) {
+    if (!scr_initialized || Cvar_Integer("dedicated", 0)) return;
+    CL_ReadPackets();
 }
 
 void CL_SendCmd(void) {

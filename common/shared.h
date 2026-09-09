@@ -262,6 +262,7 @@ enum {
     CS_TERRAIN_LIGHT_MODEL = 9, // decimal CS_MODELS index; optional world/terrain environment light model
     CS_ENTITY_LIGHT_MODEL = 10, // decimal CS_MODELS index; optional entity environment light model
     CS_ORDER_MARKER = 11, // model path; server-authored point-order confirmation
+    CS_ASSET_SCOPE = 12, // archive/directory scope for map-owned media, available before world registration
     CS_MAXCLIENTS = 30,
     CS_MAPCHECKSUM = 31,        // for catching cheater maps
     CS_MODELS = 32,

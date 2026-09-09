@@ -16,20 +16,21 @@ void UI_LoadHudLoading(void) {
     }
 }
 
-/* Resolve W3I presentation before SV_Configstrings_f publishes the initial media table. */
-void UI_WriteLoadingLayout(LPEDICT ent) {
-    LPCMAPINFO info = level.mapinfo;
+static LPCSTR loading_text(LPCMAPINFO info, LPCSTR text) { return text && *text ? G_MapString(info, text) : " "; }
+
+/* Resolve W3I presentation before the server publishes the loading-only media table. */
+void UI_WriteLoadingLayout(LPEDICT ent, LPCMAPINFO info) {
     LPCSTR title = info && info->loadingScreenTitle && *info->loadingScreenTitle ? info->loadingScreenTitle :
                    info ? info->mapName : NULL;
     DWORD model = 0, seq = 0;
 
-    if (!ent || !hud.loading.Loading) return;
+    if (!hud.loading.Loading) return;
     if (hud.loading.LoadingTitleText)
-        UI_SetText(hud.loading.LoadingTitleText, "%s", UI_LevelStringSafe(title));
+        UI_SetText(hud.loading.LoadingTitleText, "%s", loading_text(info, title));
     if (hud.loading.LoadingSubtitleText)
-        UI_SetText(hud.loading.LoadingSubtitleText, "%s", UI_LevelStringSafe(info ? info->loadingScreenSubtitle : NULL));
+        UI_SetText(hud.loading.LoadingSubtitleText, "%s", loading_text(info, info ? info->loadingScreenSubtitle : NULL));
     if (hud.loading.LoadingText)
-        UI_SetText(hud.loading.LoadingText, "%s", UI_LevelStringSafe(info ? info->loadingScreenText : NULL));
+        UI_SetText(hud.loading.LoadingText, "%s", loading_text(info, info ? info->loadingScreenText : NULL));
     /* Loading.fdf authors screen-space sprites; portrait conversion discarded their native geometry. */
     if (info && info->loadingScreenModel && *info->loadingScreenModel) {
         model = UI_LoadModel(info->loadingScreenModel, false);

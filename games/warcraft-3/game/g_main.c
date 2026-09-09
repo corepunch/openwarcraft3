@@ -924,22 +924,25 @@ void G_PublishMessage(LPEDICT actor, GAMEMSGTYPE type, LPEDICT target) {
     }
 }
 
-LPCSTR G_LevelString(LPCSTR name) {
+/* Loading metadata resolves WTS before the gameplay level exists; gameplay uses the same lookup. */
+LPCSTR G_MapString(LPCMAPINFO info, LPCSTR name) {
     unsigned int string_id;
     char trailing;
 
     if (!name || strncmp(name, "TRIGSTR_", 8) ||
         sscanf(name, "TRIGSTR_%u%c", &string_id, &trailing) != 1 ||
-        !level.mapinfo) {
+        !info) {
         return name;
     }
-    FOR_EACH_LIST(mapTrigStr_t, trigstr, level.mapinfo->strings) {
+    FOR_EACH_LIST(mapTrigStr_t, trigstr, info->strings) {
         if (trigstr->id == (DWORD)string_id) {
             return trigstr->text;
         }
     }
     return name;
 }
+
+LPCSTR G_LevelString(LPCSTR name) { return G_MapString(level.mapinfo, name); }
 
 static void G_RefreshPauseState(void) { gi.SetPaused(level.script_paused || level.modal_paused); }
 
@@ -1079,7 +1082,17 @@ static void G_ClientBegin(LPEDICT edict) {
 }
 
 /* Send this before begin; it presents server-authored map data while the client registers media. */
-static void G_ClientLoading(LPEDICT edict) { UI_WriteLoadingLayout(edict); }
+/* Publish only loading media before synchronous world/entity loading can block presentation. */
+static bool G_PrepareMap(LPCSTR filename) {
+    MAPINFO info;
+    if (!CM_ReadMapInfo(filename, &info)) return false;
+    UI_ResetHud();
+    UI_LoadHudLoading();
+    gi.configstring(CS_ASSET_SCOPE, filename);
+    UI_WriteLoadingLayout(NULL, &info);
+    CM_FreeMapInfo(&info);
+    return true;
+}
 
 /* Look up or register a display name in the packed CS_GENERAL configstring pool.
  * Each configstring stores ENT_NAMES_PER_CS names of ENT_NAME_SLOT_SIZE bytes each.
@@ -1152,7 +1165,7 @@ struct game_export *GetGameAPI(struct game_import *import) {
     globals.RunFrame = G_RunFrame;
     globals.ClientCommand = G_ClientCommand;
     globals.ClientInput = G_ClientInput;
-    globals.ClientLoading = G_ClientLoading;
+    globals.PrepareMap = G_PrepareMap;
     globals.ClientBegin = G_ClientBegin;
     globals.CanSeeEntity = G_FowPlayerCanSeeEntity;
     globals.CustomizeEntity = G_CustomizeEntity;

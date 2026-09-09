@@ -225,6 +225,7 @@ typedef struct {
     void (*Init)(DWORD width, DWORD height);
     void (*Shutdown)(void);
     void (*RegisterMap)(LPCSTR mapFileName);
+    void (*SetAssetScope)(LPCSTR scope);
     void (*RenderFrame)(viewDef_t const *viewdef);
     LPTEXTURE (*LoadTexture)(LPCSTR fileName);
     /* NULL releases the renderer-owned cinematic texture. */

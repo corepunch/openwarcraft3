@@ -396,7 +396,8 @@ void UI_WriteStart(DWORD layer) {
 void UI_WriteEnd(LPEDICT ent) {
     gi.Write(PF_LONG, &(LONG){0});   /* bits=0 */
     gi.Write(PF_SHORT, &(LONG){0});  /* number=0  — MSG_ReadEntityBits reads LONG+SHORT */
-    gi.unicast(ent);
+    /* A NULL recipient leaves the initial loading layout for the server signon buffer. */
+    if (ent) gi.unicast(ent);
 }
 
 DWORD UI_WindowTextOffset(LPCSTR text) {

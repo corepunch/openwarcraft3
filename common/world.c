@@ -252,7 +252,7 @@ static void __attribute__((unused)) CM_ReadInfo(HANDLE archive) {
     CM_ReadInfoInto(archive, &world.info, false);
 }
 
-static void MapInfo_Release(LPMAPINFO mapInfo) {
+void CM_FreeMapInfo(LPMAPINFO mapInfo) {
     mapTrigStr_t *string = mapInfo ? mapInfo->strings : NULL;
 
     if (!mapInfo) {
@@ -917,6 +917,28 @@ static void CM_ReadStringsInto(HANDLE archive, LPMAPINFO info) {
     MemFree(buffer);
 }
 
+/* Loading presentation needs only map metadata and trigger strings, before terrain or entity parsing. */
+BOOL CM_ReadMapInfo(LPCSTR filename, LPMAPINFO info) {
+    HANDLE archive, data;
+    DWORD size = 0;
+    BOOL valid;
+
+    memset(info, 0, sizeof(*info));
+    data = FS_ReadFile(filename, &size);
+    if (!data || !SFileOpenArchiveFromMemory(data, size, 0, &archive)) {
+        fprintf(stderr, "CM_ReadMapInfo: cannot open %s\n", filename);
+        if (data) FS_FreeFile(data);
+        return false;
+    }
+    valid = CM_ReadInfoInto(archive, info, true);
+    if (valid) CM_ReadStringsInto(archive, info);
+    else fprintf(stderr, "CM_ReadMapInfo: missing map info in %s\n", filename);
+    SFileCloseArchive(archive);
+    FS_FreeFile(data);
+    if (!valid) CM_FreeMapInfo(info);
+    return valid;
+}
+
 void CM_ReadStrings(HANDLE archive) {
     CM_ReadStringsInto(archive, &world.info);
 }
@@ -977,5 +999,5 @@ LPCMAPINFO CM_GetMapInfo(void) {
 }
 
 void CM_ReleaseModel(void) {
-    MapInfo_Release(&world.info);
+    CM_FreeMapInfo(&world.info);
 }

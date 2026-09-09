@@ -84,6 +84,8 @@ enum svc_ops {
     svc_lobby_chat,              // [byte own] [string text]
     svc_set_selection,           // [byte count] [count * long entity]
     svc_console_print,           // [string text] server/game command feedback for the local console
+    svc_loading,                 // loading configstrings/layout complete; register and present before bulk precache
+    svc_precache,                // full configstring table complete; world registration may begin
 };
 
 // client to server
@@ -237,6 +239,7 @@ void CL_Connect(LPCSTR host, unsigned short port);
 void CL_SetMenuBindings(void);
 void CL_SetGameplayBindings(void);
 void CL_BeginLoadingMap(LPCSTR mapName);
+void CL_LoadingFrame(void);
 
 void SV_Init(void);
 void SV_Frame(DWORD msec);

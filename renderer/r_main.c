@@ -1072,6 +1072,7 @@ refExport_t R_GetAPI(refImport_t imp) {
     return (refExport_t) {
         .Init = R_InitRenderer,
         .RegisterMap = R_RegisterMapAssets,
+        .SetAssetScope = R_SetMapAssetScope,
         .LoadTexture = R_LoadTexture,
         .DrawCinematicFrame = R_DrawCinematicFrame,
         .LoadModel = R_LoadRegisteredModel,

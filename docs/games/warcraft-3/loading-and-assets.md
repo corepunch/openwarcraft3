@@ -8,11 +8,36 @@ For measured menu/loading resource residency and reclamation priorities, see [WC
 The client remains `ca_connected` while registering assets; the first usable server frame activates it once
 `CL_PrepRefresh` has completed. `SCR_DrawCursor` hides both the native and authored cursors during loading.
 
-The game binds native `UI/FrameDef/Glue/Loading.fdf` in `UI_LoadHudLoading`. During the initial handshake,
-`SV_Configstrings_f` calls `ClientLoading` before sending the media table. `UI_WriteLoadingLayout` reads
-`level.mapinfo` and resolves WTS text through `UI_LevelStringSafe`. A custom W3I loading model takes precedence;
-otherwise the campaign background number selects a model and sequence from `UI/WorldEditData.txt`'s
-`LoadingScreens` section. Maps without either use the decorated `LoadingMeleeBackground` skin entry.
+`SV_Map` calls the mandatory game export `PrepareMap` before `LoadMap`. WC3's `G_PrepareMap` reads only W3I/WTS
+through `CM_ReadMapInfo`, binds native `UI/FrameDef/Glue/Loading.fdf`, and serializes `UI_WriteLoadingLayout`
+against that temporary metadata. `G_MapString` is shared with gameplay's `G_LevelString` so early chapter text
+uses the same WTS rules. A custom W3I loading model takes precedence; otherwise the campaign background number
+selects a model and sequence from `UI/WorldEditData.txt`'s `LoadingScreens` section. Maps without either use the
+decorated `LoadingMeleeBackground` skin entry.
+
+The initial transport order is:
+
+1. Loading-phase configstrings: destination, asset scope, models, images, and fonts.
+2. The complete `svc_layout` for `LAYER_LOADING`.
+3. `svc_loading`: register the received media and present the loading screen immediately.
+4. Full configstrings and `svc_precache`: permit normal world/model/image/sound registration.
+5. Baselines/player info/`begin`, then the first usable frame activates gameplay.
+
+`SV_BuildLoadingMessage` snapshots the loading-phase configstrings and layout before gameplay adds resources.
+The buffer is sized and validated before writing. Existing media indices remain stable as `LoadMap` extends
+the pools. The batch includes inherited Loading.fdf template media declarations; it does not include the later
+world/gameplay media. `SV_New_f` sends the saved batch before the full table to remote clients too. This sends
+**references**, not asset file contents. WC3's background/bar are models, so moving only images earlier is insufficient.
+
+For a listen server, `SV_Map` establishes the connection and sends this batch before `ge->LoadMap`, then calls
+`CL_LoadingFrame`. This limited packet pump invokes no command buffer, client tick, server tick, or gameplay
+callback. The client parser handles `svc_loading` with `CL_PrepLoading`; `cl.precache_ready` prevents the early
+layout/`CS_WORLD` from accidentally starting bulk registration before `svc_precache` arrives. Dedicated servers
+skip the presentation pump. The cached packet is released on map replacement, lobby replacement, and shutdown.
+
+`CS_ASSET_SCOPE` and `re.SetAssetScope` establish map-import resolution before renderer world registration.
+This matters for custom loading MDX models whose companion textures live inside the destination archive.
+The normal registration pass retains those loaded handles; reconnect clears them at the existing client boundary.
 
 Both background and progress bar retain the FDF's `FT_SPRITE` type. The background uses `#!sequence` for native
 screen-space geometry. The zero-size bar uses `#0` plus `UI_STAT_LOADING_PROGRESS`, a client-local normalized
@@ -27,9 +52,35 @@ was registered as nonexistent `LoadingMeleeBackground.mdx`, while the bar's port
 Once images registered, the same model index (`1`) selected an unrelated image. Restoring native sprite types,
 the ROC/TFT row parser, and an explicit progress binding fixes all three without changing FDF geometry.
 
-The server-layout lifecycle still publishes the screen only after synchronous `SV_Map` finishes, and its resources
-become available during client registration. It cannot display destination artwork during the earlier server-load
-phase; providing that requires a separate earlier publication lifecycle. Do not fabricate progress for that phase.
+### September 9 direct-launch timing investigation
+
+Before the early batch, a bounded macOS Human02 trace showed the initial loading draw had no layout. The layout
+arrived at 4.82 s, but background/bar model handles were still NULL at progress 0.10 and 0.40. World registration
+preceded the entire model pass, so the first artwork was presented at 7.81 s and gameplay began at 8.63 s: only
+about 0.8 s of loading artwork. Menu FDF initialization took about 61 ms. Earlier swaps were real but lacked content.
+History identifies `aa5f89f73` (`wc3: move loading UI into initial layout`) as the late-publication boundary.
+
+After the fix, a local Human02 run presented loading art at 4.61 s, immediately before entering bulk server loading
+at 4.61 s; that work finished at 6.05 s. Its initial batch was 4405 bytes. WoW Azeroth follows the same early
+batch path; its separate artwork defects and visual verification are covered in [WoW data loading](../world-of-warcraft/data-loading.md). These are individual hidden-window observations, not timing
+guarantees: renderer/game initialization and loading-presentation metadata/assets still take startup time.
+
+```sh
+build/bin/openwarcraft3 -data 'data/Warcraft III' +screenshot 2 +map 'Maps/Campaign/Human02.w3m' +vid_hidden 1 +com_frame_limit 100
+build/bin/openwow -data data/world-of-warcraft +screenshot 2 +map 0 +vid_hidden 1 +com_frame_limit 100
+```
+
+`run-map` does not forward `ARGS`, so use the binary for bounded diagnostics. To measure, temporarily probe
+`SV_BuildLoadingMessage`, `CL_PrepLoading` after its swap, `ge->LoadMap` entry/return, and `SCR_EndLoadingPlaque`
+with `SDL_GetTicks()` / `fprintf(stderr, ...)`; remove the probes afterward. Hidden-window rendering still needs
+the Mac display server; a sandbox without displays fails before map loading and gives no useful timing.
+
+Quake III's analogous principle is client registration of presentation before expensive loading:
+[`CG_DrawInformation`](https://github.com/id-Software/Quake-III-Arena/blob/master/code/cgame/cg_info.c) obtains the
+map name from server info and registers `levelshots/<map>.tga`, while `CG_LoadingString` repaints through
+`trap_UpdateScreen`. Its [download path](https://github.com/id-Software/Quake-III-Arena/blob/master/code/client/cl_main.c)
+handles referenced PK3 downloads before cgame initialization; it does not stream a rendered loading screen.
+Our server-authored layout uses the existing media configstrings instead of Quake III's levelshot naming convention.
 
 ### June 28 regression
 
@@ -97,7 +148,7 @@ do not infer those capabilities from the renderer's map-import lookup.
 Loading progress is client-owned and intentionally coarse. `CL_BeginLoadingMap` resets `cl.loading_progress` to
 zero. `CL_PrepRefresh` advances it monotonically at existing registration boundaries and
 `SCR_UpdateLoadingPlaque` explicitly repaints the otherwise frozen Quake-style loading plaque after each advance.
-The initial server payload carries the `Loading.fdf` tree as `svc_layout`; its `FT_SPRITE` bar binds
+The initial loading batch carries the `Loading.fdf` tree as `svc_layout`; its `FT_SPRITE` bar binds
 `UI_STAT_LOADING_PROGRESS` to the `LoadingProgressBar` MDX sequence using `#0@ratio`. No player-state/network field is involved.
 
 Current phase values are:
@@ -116,7 +167,7 @@ Current phase values are:
 
 These are **phase milestones, not byte percentages or time estimates**. In particular, local `SV_Map()` /
 `ge->LoadMap()` remains synchronous and publishes only its completed boundary, not progress from inside its
-server/game loading work, so the bar can remain at its initial position during a long map load. Do not manufacture sub-percentages for that work;
+server/game loading work, so the already-visible bar remains at its initial position during a long map load. Do not manufacture sub-percentages for that work;
 add progress only when an owned lifecycle can report a real boundary. The plaque stays visible at 100% until the
 first usable server frame promotes the client to `ca_active` and `SCR_EndLoadingPlaque` runs.
 
@@ -182,3 +233,14 @@ emitted sprites, model configstrings, title/subtitle/body, sequence and progress
 TFT row schemas, custom-model precedence, and default skin decoration. Restoring the pre-fix
 `hud_loading.c` makes this test fail. The client drawing tests additionally check progress 0/0.5/1 and collisions
 between model and image indices.
+
+The shared `net.loading_batch_registers_media_before_full_precache` test verifies that initial model/image handles
+are available at `svc_loading`, later world resources remain deferred, and `svc_precache` opens the full-table gate.
+`server_net.loading_batch_precedes_world_and_retains_resource_indices` checks the cached packet order, loading
+model/image/font references, and exclusion of media introduced by `LoadMap`. The WoW game test verifies that
+`PrepareMap` resolves and writes loading art before clearing/spawning the world, then follows the normal map lifecycle.
+
+A bounded console-script run also exercised Human02 → Human02 → Human01, with 100 `wait` commands between map
+commands. All three reached `G_ClientBegin`, and early screenshots showed the correct chapter/sequence at zero
+progress, including the same-map reload. Use actual `map` commands in an `exec` config for this check: repeated
+startup `+map` arguments are cvar assignments, so the last value wins instead of scheduling multiple transitions.

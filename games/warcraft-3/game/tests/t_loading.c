@@ -64,7 +64,7 @@ TEST(wc3_loading, initial_layout_resolves_campaign_custom_and_melee_art) {
         /* Empty title must resolve the authored map name; custom art must override the campaign row. */
         info.loadingScreenTitle = i == 3 ? "" : "Chapter";
         memset(&loadcap, 0, sizeof(loadcap));
-        UI_WriteLoadingLayout(g_edicts);
+        UI_WriteLoadingLayout(g_edicts, &info);
         T_EQ(loadcap.opcode, svc_layout); T_EQ(loadcap.layer, LAYER_LOADING); T_EQ(loadcap.sent, 1);
         T_EQ(loadcap.sprites, 2); T_NE(loadcap.bar, 0); T_NE(loadcap.back, 0); T_EQ(loadcap.texts, 7);
         T_STREQ(gi.GetConfigstring(CS_MODELS + loadcap.back), cases[i].model);
