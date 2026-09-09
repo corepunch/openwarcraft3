@@ -12,7 +12,7 @@
 #define PORT_SERVER 27910
 #endif
 #define PORT_SERVER_STRING BZ_XSTR(PORT_SERVER)
-#define BZ_PROTOCOL_VERSION 1
+#define BZ_PROTOCOL_VERSION 2 // version; typed controller input requires matching clients and servers
 
 typedef void const *LPCVOID;
 typedef struct sizeBuf_s *LPSIZEBUF;
@@ -90,6 +90,8 @@ void MSG_WriteDeltaUIWindowFrame(LPSIZEBUF msg, LPCUIFRAME from, LPCUIFRAME to, 
 void MSG_WriteDeltaPlayerState(LPSIZEBUF msg, LPCPLAYER from, LPCPLAYER to);
 void MSG_WriteEntityBits(LPSIZEBUF buf, DWORD bits, DWORD number);
 void MSG_WritePlayerBits(LPSIZEBUF buf, DWORD bits, DWORD number);
+void MSG_WriteInput(LPSIZEBUF buf, LPCINPUTCMD cmd);
+BOOL MSG_ReadInput(LPSIZEBUF buf, LPINPUTCMD cmd);
 void MSG_WritePos(LPSIZEBUF buf, LPCVECTOR3 pos);
 void MSG_WriteDir(LPSIZEBUF buf, LPCVECTOR3 dir);
 void MSG_WriteAngle(LPSIZEBUF buf, float f);

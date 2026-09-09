@@ -4,7 +4,7 @@
 /* Numbered control groups stored on cl.groups. Config binds `group N`. */
 #define BZ_GROUP_TAP_MS 500 // milliseconds; deliberate double-tap window; controls group camera recenter
 
-static DWORD CL_SelectionLimit(void) { return CL_InputOrbit() ? 1 : MAX_SELECTED_ENTITIES; }
+DWORD CL_SelectionLimit(void) { return MAX(1, MIN(MAX_SELECTED_ENTITIES, Cvar_Integer("cl_selection_limit", MAX_SELECTED_ENTITIES))); }
 
 static void CL_ResetGroupTap(void) {
     cl.group_last = MAX_CONTROL_GROUPS;
@@ -34,7 +34,7 @@ static BOOL CL_GroupCenter(DWORD const *ids, DWORD n, LPVECTOR2 center) {
     return true;
 }
 
-/* Orbit profiles recall one target; the server reconciles legality through svc_set_selection. */
+/* The configured capacity bounds local hints; the server reconciles legality through svc_set_selection. */
 void CL_ApplySelection(DWORD const *ids, DWORD n) {
     char buffer[1024];
     n = MIN(n, CL_SelectionLimit());
@@ -47,7 +47,7 @@ void CL_ApplySelection(DWORD const *ids, DWORD n) {
     SZ_Printf(&cls.netchan.message, "%s", buffer);
     cl.selection.num_selected = n;
     memcpy(cl.selection.entity_nums, ids, sizeof(DWORD) * n);
-    if (!CL_InputOrbit()) CL_RequestUnitUI(n, cl.selection.entity_nums);
+    CL_RequestUnitUI(n, cl.selection.entity_nums);
 }
 
 static void CL_GroupAssign(DWORD g) {
@@ -80,7 +80,7 @@ static void CL_GroupRecall(DWORD g) {
     center_on_group = cl.group_last == g &&
         (DWORD)(now - cl.group_last_ms) <= BZ_GROUP_TAP_MS;
     CL_ApplySelection(cl.groups[g].entity_nums, cl.groups[g].num_selected);
-    if (!CL_InputOrbit() && center_on_group && CL_GroupCenter(cl.groups[g].entity_nums, cl.groups[g].num_selected, &center))
+    if (Cvar_Integer("cl_group_focus", 1) && center_on_group && CL_GroupCenter(cl.groups[g].entity_nums, cl.groups[g].num_selected, &center))
         CL_SetCameraPosition(center);
     cl.group_last = g;
     cl.group_last_ms = now;
@@ -124,16 +124,20 @@ void CL_ControlGroupsInit(void) {
 
 #ifdef BZ_TESTS
 #include "shared/test.h"
-TEST(client_input, orbit_groups_recall_one_target_without_moving_camera) {
+static DWORD test_ui_calls;
+static void CL_TestSelectionUI(DWORD count, menuUnitData_t *units) { (void)count; (void)units; test_ui_calls++; }
+TEST(client_input, single_selection_groups_recall_one_target_without_moving_camera) {
     BYTE old_sel[sizeof(cl.selection)], old_group[sizeof(cl.groups[0])], data[256];
     sizeBuf_t old_msg = cls.netchan.message;
+    menuExport_t old_menu = menu;
+    menu.UpdateUnitUI = CL_TestSelectionUI; test_ui_calls = 0;
     DWORD old_last = cl.group_last, old_ms = cl.group_last_ms, ids[] = { 7, 8 };
-    char mode[32], command[64];
-    snprintf(mode, sizeof(mode), "%s", Cvar_String("cl_input_mode", "rts"));
+    char command[64];
+    int limit = Cvar_Integer("cl_selection_limit", 64), focus = Cvar_Integer("cl_group_focus", 1);
     memcpy(old_sel, &cl.selection, sizeof(old_sel));
     memcpy(old_group, &cl.groups[0], sizeof(old_group));
-    Cvar_Set("cl_input_mode", "orbit");
-    CL_InputModeInit();
+    Cvar_Set("cl_selection_limit", "1");
+    Cvar_Set("cl_group_focus", "0");
     SZ_Init(&cls.netchan.message, data, sizeof(data));
     CL_ApplySelection(ids, 2);
     T_EQ(cl.selection.num_selected, 1); T_EQ(cl.selection.entity_nums[0], 7);
@@ -151,8 +155,10 @@ TEST(client_input, orbit_groups_recall_one_target_without_moving_camera) {
         T_STREQ(command, "select 7");
     }
     T_EQ(cls.netchan.message.readcount, cls.netchan.message.cursize);
-    Cvar_Set("cl_input_mode", mode);
-    CL_InputModeInit();
+    Cvar_SetValue("cl_selection_limit", limit);
+    Cvar_SetValue("cl_group_focus", focus);
+    T_EQ(test_ui_calls, 4);
+    menu = old_menu;
     cls.netchan.message = old_msg;
     memcpy(&cl.selection, old_sel, sizeof(old_sel));
     memcpy(&cl.groups[0], old_group, sizeof(old_group));

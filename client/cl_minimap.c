@@ -27,9 +27,9 @@ void CL_SetCameraPosition(VECTOR2 position) {
     cl.viewDef.camerastate[1].origin.y = position.y;
     cl.camera_prediction.active = true;
     cl.camera_prediction.origin = position;
-    MSG_WriteByte(&cls.netchan.message, clc_camera_position);
-    MSG_WriteFloat(&cls.netchan.message, position.x);
-    MSG_WriteFloat(&cls.netchan.message, position.y);
+    cl.camera_prediction.focus_ms = cl.time;
+    MSG_WriteByte(&cls.netchan.message, clc_input);
+    MSG_WriteInput(&cls.netchan.message, &(INPUTCMD){ .action = BZ_INPUT_FOCUS, .focus = position });
 }
 
 void CL_ClearMinimap(void) {

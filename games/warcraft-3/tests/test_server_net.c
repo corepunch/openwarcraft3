@@ -117,8 +117,8 @@ static DWORD test_camera_calls;
 static LPEDICT test_camera_ent;
 static VECTOR2 test_camera_pos;
 
-static void test_set_camera(LPEDICT ent, LPCVECTOR2 position) {
-    test_camera_calls++; test_camera_ent = ent; test_camera_pos = *position;
+static void test_set_camera(LPEDICT ent, LPCINPUTCMD cmd) {
+    test_camera_calls++; test_camera_ent = ent; test_camera_pos = cmd->focus;
 }
 
 static void test_spawn_entities(void);
@@ -165,7 +165,7 @@ static void reset_server_state(int max_players) {
     test_ge.edicts = test_edicts;
     test_ge.num_edicts = max_players;
     test_ge.RunFrame = test_run_frame;
-    test_ge.ClientSetCameraPosition = test_set_camera;
+    test_ge.ClientInput = test_set_camera;
     test_ge.GetThemeValue = test_theme_value;
     test_ge.LoadMap = test_load_map;
     test_ge.GetWorldBounds = CM_GetWorldBounds;
@@ -222,6 +222,25 @@ TEST(server_net, camera_packet_waits_for_spawned_client_edict) {
     SV_ParseClientMessage(&msg, client);
     T_EQ(test_camera_calls, 1); T_ASSERT(test_camera_ent == &test_edicts[0]);
     T_FEQ(test_camera_pos.x, 12.0f, 0.001f); T_FEQ(test_camera_pos.y, -34.0f, 0.001f);
+}
+
+TEST(server_net, typed_input_rejects_truncation_and_waits_for_spawn) {
+    BYTE data[32];
+    sizeBuf_t msg;
+    INPUTCMD cmd = { .action = BZ_INPUT_FOCUS, .focus = {12, -34} };
+    reset_server_state(1);
+    LPCLIENT client = &svs.clients[0];
+    client->state = cs_connected;
+    test_camera_calls = 0;
+    SZ_Init(&msg, data, sizeof(data));
+    MSG_WriteByte(&msg, clc_input); MSG_WriteInput(&msg, &cmd);
+    SV_ParseClientMessage(&msg, client); T_EQ(test_camera_calls, 0);
+    client->state = cs_spawned; client->edict = &test_edicts[0];
+    msg.readcount = 0;
+    SV_ParseClientMessage(&msg, client); T_EQ(test_camera_calls, 1);
+    T_FEQ(test_camera_pos.x, 12, 0.001f); T_FEQ(test_camera_pos.y, -34, 0.001f);
+    msg.readcount = 0; msg.cursize--;
+    SV_ParseClientMessage(&msg, client); T_EQ(test_camera_calls, 1);
 }
 
 static int open_client_socket(void) {

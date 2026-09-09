@@ -51,27 +51,18 @@ Drains the loopback or UDP receive buffer and dispatches each message by its `sv
 
 ### 2. CL_Input
 
-`CL_Input` (in `cl_input.c`) reads the current SDL2 keyboard and mouse state and fills a `usercmd_t` struct:
-
-```c
-typedef struct {
-    DWORD  msec;
-    DWORD  buttons;   // bitmask of pressed buttons
-    SHORT  forwardmove;
-    SHORT  sidemove;
-    float  angles[3]; // camera Euler angles
-} usercmd_t;
-```
-
-Camera rotation is applied to the stored `cl.viewangles` every frame. Mouse button events are translated to `BUTTON_*` bitmask bits. Keyboard events produce `CL_KeyEvent` calls which feed the console and keyboard bindings.
+`CL_Input` pumps SDL events through key bindings and shared pan/look/zoom/selection controls. All game builds
+use this one implementation. Bindings and independent config options select behavior; there is no RTS/orbit mode.
+Controller changes are typed `INPUTCMD` operations: focus XY, orbit Euler/distance, or movement bits/milliseconds.
+Game commands such as selection and abilities continue through `clc_stringcmd`.
 
 SDL window events remain client-owned. Events that can change the OpenGL drawable (`MOVED`, `RESIZED`, `SIZE_CHANGED`, and `DISPLAY_CHANGED` on SDL versions that provide it) call the mandatory renderer `WindowChanged` export. The renderer only marks drawable state dirty at that point; the next `R_BeginFrame` re-queries the drawable once after event pumping has completed. This preserves the client/renderer boundary and avoids steady-state drawable polling.
 
 ### 3. CL_SendCommand
 
-Serialises the current `usercmd_t` as a `clc_move` message and writes it to the loopback send buffer for the server to read on its next `SV_ReadPackets` call.
-
-For higher-level actions (right-click, ability use, unit selection), the input code sends dedicated `clc_*` messages that the selected game's command dispatcher handles. In the Warcraft III build this is `games/warcraft-3/game/g_commands.c`.
+Input writes `clc_input` to the netchannel message buffer. `CL_SendCommand` flushes queued commands through
+loopback or UDP; `SV_ParseClientMessage` validates input and invokes the mandatory game `ClientInput` export on
+the client's assigned player edict. The game owns movement and camera constraints. See [shared input](shared-input.md).
 
 ### 4. CL_PrepRefresh
 
@@ -94,7 +85,7 @@ Calls into the renderer API:
 
 `playerState.viewangles` is the only view orientation on the wire: Euler degrees in `ROTATE_ZYX` order `{pitch, roll, yaw}`. Do not send a parallel quaternion — Euler→quat is lossless, quat→Euler is not.
 
-`CL_ParsePlayerInfo` copies `vieworigin`, `viewangles`, `distance`, `fov`, `znear`, and `zfar` onto `viewDef.camerastate[]`. Clip planes are required camera samples, same as `fov`: every game must author them on `playerState` through `player_set_lens` so FOV and clip cannot be written apart. Zero is a real value, not a keep-previous sentinel. Gameplay defaults live in `CL_GameDefaultCamera` (`WC3_CAMERA_DEFAULT_*`, `WOW_CAMERA_FOV` plus `WOW_WORLD_*_CLIP`, SC2 map camera); `CL_InputModeSetGameplay` does not invent clip. `Matrix4_getCameraMatrix` converts both snapshots with `Quaternion_fromEuler`, slerps, and builds the orbit view with `Matrix4_fromViewQuat`. Games that previously packed a non-Euler value into a component (SC2 camera height on `z`) must put a real Euler on the snapshot; height belongs in `vieworigin.z`.
+`CL_ParsePlayerInfo` copies `vieworigin`, `viewangles`, `distance`, `fov`, `znear`, and `zfar` onto `viewDef.camerastate[]`. Clip planes are required camera samples, same as `fov`: every game must author them on `playerState` through `player_set_lens` so FOV and clip cannot be written apart. Zero is a real value, not a keep-previous sentinel. Gameplay defaults live in `CL_GameDefaultCamera` (`WC3_CAMERA_DEFAULT_*`, `WOW_CAMERA_FOV` plus `WOW_WORLD_*_CLIP`, SC2 map camera); Input controls do not invent clip. Every game supplies full focus XYZ, including actor eye height where needed. `Matrix4_getCameraMatrix` converts both snapshots with `Quaternion_fromEuler`, slerps, and builds the orbit view with `Matrix4_fromViewQuat`. Games that previously packed a non-Euler value into a component (SC2 camera height on `z`) must put a real Euler on the snapshot; height belongs in `vieworigin.z`.
 
 WoW still replaces look-at Z from the local player entity (`WOW_CAMERA_EYE_HEIGHT`); that is not an orientation sample.
 

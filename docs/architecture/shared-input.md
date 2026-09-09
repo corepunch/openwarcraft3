@@ -1,22 +1,58 @@
-# Shared client input profiles
+# Shared client input and orbit camera
 
-## Contract
+## Ownership and data flow
 
-Every game build includes `client/cl_input_rts.c` and `client/cl_input_orbit.c`. `CL_InputModeInit` selects the
-interaction profile from `cl_input_mode` after shipped config, user config, autoexec, and command-line overrides
-have loaded. The profile is fixed until process restart; editing the cvar during play does not switch live input state.
-There are no game-name conditionals in either implementation or the mode dispatcher.
+Every game builds the same `client/cl_input.c`. There is no input-mode selector or per-game input source.
+Pan, edge scrolling, relative mouse look, zoom, movement buttons, hover, and selection are available together.
+`cl_selection.c` owns numbered groups and selection hints; `cl_control_groups.c` owns their append/reset helpers.
+Game configs choose bindings and independent limits rather than an RTS/orbit mode.
 
-The client owns interaction mechanisms, transient input state, selection hints, and numbered groups. The game
-server owns selection legality, unit orders, movement, and scripted cameras. No import/export callbacks were added.
-The orbit profile retains the existing `move flags yaw pitch distance` command contract; choosing a profile does
-not add that command's gameplay implementation to a server which does not support it.
+```mermaid
+flowchart LR
+    Config[Game and user config] --> Input[cl_input.c]
+    Input -->|clc_input: focus / view / move| Server[Server transport]
+    Server -->|ClientInput on player edict| Game[Authoritative game]
+    Game -->|playerState: focus XYZ, Euler, distance, lens| Client[Client snapshot interpolation]
+    Client --> Camera[One orbit view matrix]
+```
 
-`cl_input.c` dispatches SDL events and shared commands; `cl_selection.c` owns selection/group commands;
-`cl_control_groups.c` retains the separately testable append helper and reset. The RTS profile supplies pan,
-smart-click, scrolling, and hover-health behavior. The orbit profile supplies click targeting, relative mouse look,
-movement-button state, and native context cursors. The generic gameplay-ready check honors server-authored modals
-for every game. A menu library does not own these gameplay features.
+The RTS player is an existing invisible controller edict. WC3/SC2 mirror the resolved focus into that controller's
+origin, without adding a model, collision, or an extra network entity. WoW uses its visible player edict and publishes
+its complete focus at the actor origin plus game-owned eye height. Camera sampling needs no target entity ID or
+special client entity: `playerState.vieworigin` already communicates the resolved world-space point.
+
+The client interpolates both complete focus samples, slerps their Euler-derived quaternions, and builds one
+`Matrix4_fromViewQuat` camera. The WoW-only height override in `Matrix4_getCameraMatrix` is gone. Scripts, terrain
+height, actor movement, camera target tracking, and lens defaults remain game-owned. WoW's legacy wrapped pitch
+is converted inside its game module; the client speaks canonical Euler degrees only.
+
+## Controller API and protocol
+
+`game_export.ClientInput(edict, INPUTCMD)` replaces `ClientSetCameraPosition`, keeping the export count unchanged.
+The tagged command carries only one operation. Transport accepts input only for a spawned client's assigned edict.
+Malformed or truncated commands are diagnosed and terminate parsing of that packet.
+
+| Action | Payload after action byte | Ownership |
+|---|---|---|
+| `BZ_INPUT_FOCUS` | 2 float coordinates | RTS changes/clamps its focus; an actor-follow game ignores free panning |
+| `BZ_INPUT_VIEW` | 3 float Euler degrees, float distance | Game applies orbit angles/distance and its limits |
+| `BZ_INPUT_MOVE` | byte direction bits, unsigned short milliseconds | Game moves its controller or actor |
+
+`clc_input` is opcode 4. `BZ_PROTOCOL_VERSION` is 2: clients and servers must be upgraded together. The old
+`clc_camera_position` opcode remains readable and maps to the focus operation. Existing game commands such as
+`select`, `smart`, `cast`, and WoW's legacy text `move` remain game commands. This is not a new arbitrary-command
+import/export callback.
+
+Movement samples are capped at 250 ms. WoW retains its existing server-tick movement integration and consumes
+button state; RTS can integrate an invisible controller from a movement sample. Arrow/edge panning still predicts
+absolute focus. Look/zoom predict presentation samples without modifying the authoritative delta baseline. Prediction
+ends on a matching snapshot, after 250 ms without input, or when gameplay ownership is lost, so rejected commands
+cannot indefinitely hide server state. Menus, modals, map loads, and window focus loss cancel held controls and send
+one stop for an actor that was moving. Scripted camera UI ownership takes priority.
+
+SC2's existing Galaxy camera state is shared across its client slots. Manual input now updates that same state,
+including preserved height offset; it cannot be overwritten by the next ordinary camera publication. Per-player
+Galaxy camera state remains separate future work.
 
 ## Configuration
 
@@ -24,22 +60,26 @@ Defaults live in `games/<game>/share/config.cfg`, installed with `make install-s
 
 | Setting | WC3 | SC2 | WoW |
 |---|---|---|---|
-| `cl_input_mode` | `rts` | `rts` | `orbit` |
 | `cl_start_menu` | `menu_main` | `menu_main` | `menu_login` |
-| `cl_camera_scroll_speed` | 1400 world units/s | 350 world units/s | Not used by orbit |
-| `cl_camera_edge_scroll` | 1 | 0 | Not used by orbit |
-| `cl_camera_pan_plane` | 0: terrain trace | 1: camera-plane trace | Not used by orbit |
-| `cl_camera_pitch` / `cl_camera_distance` | Not used by RTS | Not used by RTS | 342 degrees / 8 world units |
-| `cl_camera_min_pitch` / `cl_camera_max_pitch` | Not used by RTS | Not used by RTS | 305 / 355 degrees |
-| `cl_mouse_speed` | Not used by RTS | Not used by RTS | 0.18 degrees/pixel |
-| `cl_click_threshold` | Not used by RTS | Not used by RTS | 10 pixels |
+| `cl_selection_limit` | 64 | 64 | 1 |
+| `cl_group_focus` | 1 | 1 | 0 |
+| `cl_camera_scroll_speed` | 1400 world units/s | 350 world units/s | 0 |
+| `cl_camera_edge_scroll` | 1 | 0 | 0 |
+| `cl_camera_pan_plane` | 0: terrain | 1: camera plane | 0 |
+| `cl_camera_min_pitch` / `cl_camera_max_pitch` | -85 / -5 | -85 / -5 | 5 / 55 |
+| `cl_hover_health_only` | 1 | 1 | 0 |
+| `cl_context_cursor` | 0 | 0 | 1 |
+| `cl_move_mouse` (both buttons forward) | 0 | 0 | 1 |
+| `cl_look_command` (look-button click) | empty | empty | `interact` |
 
-`cl_camera_edge_margin` defaults to 6 pixels. `camera edge 0|1` writes `cl_camera_edge_scroll`; other supported
-camera subcommands still go to the server. Existing `camera_min_distance`, `camera_max_distance`, and `zoom_speed`
-remain unchanged. Native game layouts and server camera limits remain authoritative.
+All builds register `+select`, `+attack`, `+smart`, `+pan`, `+look`, `+forward`, `+back`, `+moveleft`, `+moveright`,
+`+camleft`, `+camright`, `+camnorth`, `+camsouth`, `zoom`, and `group`. Edge/arrow panning follows camera yaw.
+Mouse sensitivity defaults to `cl_mouse_speed 0.18` degrees/pixel, click threshold to 10 pixels, and edge margin to
+6 pixels. Existing `zoom_speed`, `camera_min_distance`, and `camera_max_distance` still apply. Server-authored
+snapshot defaults determine initial angles/distance. To enable orbit drag in WC3, for example, bind an unused key
+or mouse button to `+look`; its pan, groups, and edge settings continue working at the same time.
 
-SC2's `menu_main` setting preserves its previous startup command; its current menu stub does not implement that
-command. This change does not add an SC2 main menu.
+SC2's existing menu stub does not implement its configured `menu_main`; this change does not add that menu.
 
 ### Saved-setting compatibility
 
@@ -54,21 +94,18 @@ retire an old cvar allocation, so it must precede modules retaining cvar pointer
 and writable during gameplay. Repeating an identical declaration is harmless; retargeting or declaring a new alias
 after startup is rejected with a diagnostic. Alias declarations belong in shipped defaults, not generated user config.
 
+Old saved wrapped pitch limits (values above 180) are converted once at startup to signed Euler limits,
+with a diagnostic. WoW compatibility aliases swap minimum/maximum because negating pitch reverses the interval. No game-name lookup is needed for that mathematical conversion. `cl_input_mode` is obsolete.
+
 ## Groups and target reconciliation
 
-RTS profiles retain assign/add/recall and double-tap camera focus. Orbit profiles store one target per group:
-assign replaces it, add fills an empty group while retaining an existing target, and recall selects it. Orbit recall
-does not pan the character-follow camera. WoW keeps its action-bar number bindings; users can opt into group bindings:
+Group capacity follows `cl_selection_limit`; double-tap focus is independently controlled by `cl_group_focus`.
+With capacity one, add fills an empty group and recall selects its target. WoW keeps its action-bar number binds;
+users can opt into `bind CTRL+1 "group assign 1"` and `bind ALT+1 "group 1"` without changing the camera controls.
 
-```cfg
-bind CTRL+1 "group assign 1"
-bind ALT+1 "group 1"
-```
-
-Orbit clicks and recalls use `CL_ApplySelection` and the common `cl.selection` hint. `Wow_SelectEntity` emits the
-existing `svc_set_selection` message, so explicit selection, target cycling, interaction, and rejected selections
-reconcile the same cache. No new selection opcode or multi-unit WoW behavior was introduced. Group memberships
-still reset at map boundaries and are not pruned merely because a snapshot cannot currently see a member.
+Clicks and group recalls share `cl.selection`. `Wow_SelectEntity` emits the existing `svc_set_selection`, so target
+cycling, interaction, and rejected selections reconcile that cache. Game rules remain authoritative. Group membership
+resets at map boundaries and is not pruned merely because a snapshot cannot currently see a member.
 
 ## Order-marker media
 
@@ -80,27 +117,27 @@ load is diagnosed; the client does not substitute a hardcoded game asset. WC3 te
 This adds meaning to a previously unused configstring slot without changing message framing; old clients do not
 consume this new slot, so overriding marker art requires an updated client.
 
-## Verification and remaining boundaries
+## Evidence and verification
 
-Coverage includes config alias precedence/migration/lifecycle, order-marker precache/replacement/clear through
-`svc_configstring`, both input profiles in one build, pan surface dispatch, single-target group recall without camera
-messages, and WoW authoritative target reconciliation. Existing group/key/network tests retain RTS coverage.
+A bounded WoW run showed actor Z 38.718 while `Wow_UpdateCamera` published focus Z 0. The client compensated
+using entity 0 plus 1.6 units. Publishing full XYZ from the game removes that implicit entity dependency and preserves
+the same visual focus. Spawn and pending-teleport paths publish the same contract.
+
+Coverage includes typed input round trips, every truncated payload length, invalid values, spawned-client gating,
+WoW actor focus/movement/orbit limits, pan surface selection, single-target groups, and modal movement release.
+Existing suites cover scripted cameras, native angle conversions, selection reconciliation, cvar alias lifecycle, and
+order-marker resource replacement. Dedicated tests install mandatory UI callbacks explicitly.
 
 ```sh
 make -j4 openwarcraft3 openwow opensc2 install-share
 make -j4 test TEST_JOBS=4
 build/bin/openwarcraft3-tests -data build/tests +dedicated 1 +test 'client_input.*'
-build/bin/openwarcraft3 -data 'data/Warcraft III' +set vid_hidden 1 +map 'Maps/Campaign/Human02.w3m' +com_frame_limit 5
+build/bin/openwow -data data/world-of-warcraft +set vid_hidden 1 +map 1 +com_frame_limit 80
 ```
 
-Rebasing onto bridge changes in c309b5b0 exposed an SC2 compile failure: shared routing read WC3-only `destructable`
-and `data.DestructableData` fields. The predicate now lives in each game-owned `g_world.c` wrapper; WC3 retains the
-same bridge logic, and SC2 explicitly reports no dynamic walkable surfaces under its current edict contract.
-Compiler diagnostics established this boundary failure; no runtime reproduction was possible for the failing build.
+This provides shared input source across game builds. Runtime game-module switching still requires broader ABI,
+filesystem, renderer, and session work. The [architecture review](multi-game-review.md) records the original API
+assessment; remaining menu/session/renderer coupling is outside this input change.
 
-This is shared input source, not runtime game-module switching. Game-dependent view/render structs, native game
-camera translation in `cl_view.c`, server-to-local-client session callbacks, legacy menu HUD data, and bindable
-queue-modifier work remain separate changes. The existing Shift queue behavior is preserved.
-
-See also: [architecture review](multi-game-review.md), [runtime config](runtime.md), and
+See also: [client camera](client.md), [runtime config](runtime.md), and
 [control groups](../games/warcraft-3/control-groups.md).

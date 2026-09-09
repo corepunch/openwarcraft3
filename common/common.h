@@ -94,7 +94,8 @@ enum clc_ops {
 //    clc_userinfo,            // [[userinfo string]
     clc_stringcmd,           // [string] message
 
-    clc_request_unit_ui      // [byte num_selected] [num_selected * short entity_nums]
+    clc_request_unit_ui = 3, // [byte num_selected] [num_selected * short entity_nums]
+    clc_input = 4,           // typed focus/view/movement input; see MSG_ReadInput
 };
 
 typedef enum t_attrib_id {

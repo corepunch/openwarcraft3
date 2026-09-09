@@ -291,6 +291,22 @@ void CL_ParsePlayerInfo(LPSIZEBUF msg) {
     cl.viewDef.camerastate[0].znear = cl.playerstate.znear;
     cl.viewDef.camerastate[0].zfar = cl.playerstate.zfar;
 
+    /* Prediction expires if a game rejects/clamps input, and yields immediately to scripted UI ownership. */
+    if (cl.playerstate.client_ui_state != CLIENT_UI_GAME)
+        cl.camera_prediction.active = cl.camera_prediction.view = false;
+    if (cl.time - cl.camera_prediction.focus_ms > BZ_INPUT_MAX_MSEC) cl.camera_prediction.active = false;
+    if (cl.time - cl.camera_prediction.view_ms > BZ_INPUT_MAX_MSEC) cl.camera_prediction.view = false;
+    if (cl.camera_prediction.view) {
+        if (!memcmp(&cl.playerstate.viewangles, &cl.camera_prediction.angles, sizeof(VECTOR3)) &&
+            cl.playerstate.distance == cl.camera_prediction.distance) {
+            cl.camera_prediction.view = false;
+        } else {
+            FOR_LOOP(i, 2) {
+                cl.viewDef.camerastate[i].viewangles = cl.camera_prediction.angles;
+                cl.viewDef.camerastate[i].distance = cl.camera_prediction.distance;
+            }
+        }
+    }
     if (cl.camera_prediction.active) {
         cl.camera_prediction.origin = CL_ClampCameraPosition(cl.camera_prediction.origin);
         if (cl.playerstate.vieworigin.x == cl.camera_prediction.origin.x &&

@@ -563,3 +563,40 @@ int MSG_ReadPlayerBits(LPSIZEBUF buf, DWORD *bits) {
     *bits = MSG_ReadLong(buf);
     return MSG_ReadShort(buf);
 }
+
+/* Each controller operation carries only its typed payload; no native struct padding goes on the wire. */
+void MSG_WriteInput(LPSIZEBUF buf, LPCINPUTCMD cmd) {
+    MSG_WriteByte(buf, cmd->action);
+    switch (cmd->action) {
+    case BZ_INPUT_FOCUS:
+        MSG_WriteFloat(buf, cmd->focus.x); MSG_WriteFloat(buf, cmd->focus.y);
+        break;
+    case BZ_INPUT_VIEW:
+        MSG_WriteDir(buf, &cmd->view.angles); MSG_WriteFloat(buf, cmd->view.distance);
+        break;
+    case BZ_INPUT_MOVE:
+        MSG_WriteByte(buf, cmd->move.buttons); MSG_WriteShort(buf, cmd->move.msec);
+        break;
+    }
+}
+
+/* Validate the complete operation before the server passes it to an authoritative player edict. */
+BOOL MSG_ReadInput(LPSIZEBUF buf, LPINPUTCMD cmd) {
+    static DWORD const sizes[] = { 8, 16, 3 };
+    if (buf->readcount >= buf->cursize) return false;
+    *cmd = (INPUTCMD){ .action = MSG_ReadByte(buf) };
+    if (cmd->action > BZ_INPUT_MOVE || sizes[cmd->action] > buf->cursize - buf->readcount) return false;
+    switch (cmd->action) {
+    case BZ_INPUT_FOCUS:
+        cmd->focus = (VECTOR2){ MSG_ReadFloat(buf), MSG_ReadFloat(buf) };
+        return isfinite(cmd->focus.x) && isfinite(cmd->focus.y);
+    case BZ_INPUT_VIEW:
+        MSG_ReadDir(buf, &cmd->view.angles); cmd->view.distance = MSG_ReadFloat(buf);
+        return isfinite(cmd->view.angles.x) && isfinite(cmd->view.angles.y) && isfinite(cmd->view.angles.z) &&
+            isfinite(cmd->view.distance) && cmd->view.distance >= 0;
+    case BZ_INPUT_MOVE:
+        cmd->move.buttons = MSG_ReadByte(buf); cmd->move.msec = (USHORT)MSG_ReadShort(buf);
+        return !(cmd->move.buttons & ~BZ_INPUT_MOVE_MASK) && cmd->move.msec <= BZ_INPUT_MAX_MSEC;
+    }
+    return false;
+}

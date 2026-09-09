@@ -1,9 +1,7 @@
 # OpenWarcraft Architecture
 
-For the source-verified boundary/API assessment and proposed shared input/config direction, see the
-[multi-game architecture review](docs/architecture/multi-game-review.md). That review distinguishes current
-implementation from intended architecture; in particular, the `clc_move` examples below are not implemented by
-the current server parser.
+See the [multi-game architecture review](docs/architecture/multi-game-review.md) for the API assessment and
+[shared client input](docs/architecture/shared-input.md) for the implemented controller and orbit-camera contract.
 
 OpenWarcraft is an id-Tech (Quake 2 / Quake 3) inspired engine designed to run Warcraft III, World of Warcraft, and StarCraft II assets and game modes. The architecture strictly separates authoritative server simulation, client presentation, network protocols, client-side UI, and low-level rendering.
 
@@ -48,7 +46,7 @@ flowchart TB
     Loopback -->|"Dispatches svc_* opcodes"| CL_Parse
     CL_Parse -->|"Stores entity snapshots & playerState_t"| SCR
     CL_Parse -->|"Unpacks uiFrame_t layers"| CL_Layout
-    CL_Input -->|"clc_move (usercmd_t / movement)\nclc_stringcmd ('loot', 'cast 1', 'use 0', etc.)"| Loopback
+    CL_Input -->|"clc_input (focus / view / move)\nclc_stringcmd ('loot', 'cast 1', 'use 0', etc.)"| Loopback
 
     SCR -->|"In-game HUD: Draw parsed layout layers"| CL_Layout
     SCR -->|"Menu/Glue UI: Draw active screen"| UI_Lib
@@ -127,7 +125,7 @@ All communication uses discrete message opcodes defined in [common/common.h](com
 ### Client to Server Packets (`clc_*`)
 | Opcode | Payload / Structure | Purpose |
 |---|---|---|
-| `clc_move` | `usercmd_t` (msec, buttons, movement, view angles) | Player movement and camera rotation updates every frame. |
+| `clc_input` | Tagged `INPUTCMD`: focus XY, orbit Euler/distance, or movement bits/msec | Shared controls; game-owned controller/actor movement and camera limits. |
 | `clc_stringcmd` | `STRING command` (e.g., `"loot"`, `"loot_take 0"`, `"cast 2"`, `"use 0"`) | Game actions, UI button interactions, inventory usage, chat, and console commands. |
 | `clc_connect` | Userinfo key-value string | Requesting client slot on server connection. |
 
@@ -213,7 +211,7 @@ For in-depth details on specific engine subsystems, consult the following dedica
 ### Core Engine & Architecture
 | Topic | Document |
 |---|---|
-| Shared input profiles, config compatibility, and target groups | [docs/architecture/shared-input.md](docs/architecture/shared-input.md) |
+| Shared input, orbit camera, config compatibility, and target groups | [docs/architecture/shared-input.md](docs/architecture/shared-input.md) |
 | Multi-game client boundaries, API audit, and input/config migration | [docs/architecture/multi-game-review.md](docs/architecture/multi-game-review.md) |
 | Server-Authored UI Payloads & Limits | [docs/architecture/ui-payloads.md](docs/architecture/ui-payloads.md) |
 | UI System Architecture & Screen Flow | [docs/architecture/ui-system.md](docs/architecture/ui-system.md) |

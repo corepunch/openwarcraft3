@@ -543,6 +543,28 @@ _Static_assert(UI_PLAYERSTAT_ENV_PHASE != UI_PLAYERSTAT_CINEMATIC_PORTRAIT_COLOR
 _Static_assert(UI_PLAYERSTAT_ENV_VARIANT < MAX_STATS,
                "environment presentation stats must fit playerState.stats[]");
 
+/* Controller input is independent of whether the player edict has a visible model. */
+#define BZ_INPUT_MAX_MSEC 250 // milliseconds; bounds one controller movement sample after stalls
+#define BZ_INPUT_MOVE_MASK 15u // bits; four directional buttons accepted on the wire
+
+typedef enum { BZ_INPUT_FOCUS, BZ_INPUT_VIEW, BZ_INPUT_MOVE } INPUTACTION;
+enum {
+    BZ_MOVE_FORWARD = 1 << 0,
+    BZ_MOVE_BACK = 1 << 1,
+    BZ_MOVE_LEFT = 1 << 2,
+    BZ_MOVE_RIGHT = 1 << 3,
+};
+typedef struct INPUTCMD {
+    INPUTACTION action;
+    union {
+        VECTOR2 focus;
+        struct { VECTOR3 angles; FLOAT distance; } view;
+        struct { DWORD buttons, msec; } move;
+    };
+} INPUTCMD;
+typedef INPUTCMD *LPINPUTCMD;
+typedef INPUTCMD const *LPCINPUTCMD;
+
 struct playerState_s {
     DWORD number;                   // client slot index
     VECTOR3 viewangles;             // Euler degrees, ROTATE_ZYX {pitch, roll, yaw}; client converts to quat and slerps

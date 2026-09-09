@@ -304,6 +304,7 @@ static void SC2_WriteCamera(LPCVECTOR2 origin, LPCVECTOR3 angles, FLOAT distance
         sc2_clients[i].ps.vieworigin = (VECTOR3){
             origin->x, origin->y, SC2_MapCameraHeightAtPoint(origin->x, origin->y) + angles->z
         };
+        sc2_edicts[i].s.origin = sc2_clients[i].ps.vieworigin;
         sc2_clients[i].ps.viewangles = SC2_ViewAngles(angles);
         sc2_clients[i].ps.distance = distance;
         player_set_lens(&sc2_clients[i].ps, &defaults);
@@ -817,15 +818,21 @@ static void SC2_ClientCommand(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
     }
 }
 
-static void SC2_ClientSetCameraPosition(LPEDICT ent, LPCVECTOR2 position) {
-    if (!ent || !ent->client || !position) {
-        return;
+/* Commit manual input to the same camera state that Galaxy publishes each tick. */
+static void SC2_ClientInput(LPEDICT ent, LPCINPUTCMD cmd) {
+    LPSC2CAMERA cam = &sc2_level.camera.state;
+    if (ent->client->ps.client_ui_state != CLIENT_UI_GAME) return;
+    if (cmd->action == BZ_INPUT_MOVE && (!cmd->move.buttons || !cmd->move.msec)) return;
+    if (cmd->action == BZ_INPUT_VIEW) {
+        cam->angles = SC2_CameraFromEuler(&cmd->view.angles, cam->angles.z);
+        cam->distance = cmd->view.distance;
+    } else {
+        cam->origin = cmd->action == BZ_INPUT_FOCUS ? cmd->focus
+            : input_move_focus(cmd, &ent->client->ps, atof(gi.CvarString("cl_camera_scroll_speed", "350")));
     }
-    FLOAT height = ent->client->ps.vieworigin.z - SC2_MapCameraHeightAtPoint(ent->client->ps.vieworigin.x, ent->client->ps.vieworigin.y);
-    ent->client->ps.vieworigin = (VECTOR3){
-        position->x, position->y,
-        SC2_MapCameraHeightAtPoint(position->x, position->y) + height
-    };
+    sc2_level.camera.old = *cam;
+    sc2_level.camera.start_time = sc2_level.camera.end_time = gi.GetTime();
+    SC2_UpdateCamera();
 }
 
 static BOOL SC2_CanSeeEntity(DWORD player, LPCEDICT ent) {
@@ -852,7 +859,7 @@ struct game_export *GetGameAPI(struct game_import *import) {
     globals.ClientBegin           = SC2_ClientBegin;
     globals.ClientLoading         = SC2_ClientLoading;
     globals.ClientCommand         = SC2_ClientCommand;
-    globals.ClientSetCameraPosition = SC2_ClientSetCameraPosition;
+    globals.ClientInput = SC2_ClientInput;
     globals.CanSeeEntity          = SC2_CanSeeEntity;
     globals.CustomizeEntity       = SC2_CustomizeEntity;
     globals.WriteClientDatagram    = G_WriteClientDatagram;
