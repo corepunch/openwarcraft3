@@ -123,15 +123,4 @@ static void Key_FormatName(keyCode_t key, DWORD mods, LPSTR dst, DWORD dst_size)
              name);
 }
 
-#ifdef BZ_TESTS
-/* Explicit modified binds win. Mouse buttons alone inherit their plain bind so
- * gameplay code can interpret held Shift/Ctrl itself; keyboard strokes remain exact. */
-static inline DWORD Key_SelectSlot(keyCode_t key, DWORD mods, DWORD occupied) {
-    DWORD const slot = mods & KEY_MOD_MASK;
-    if (occupied & (1u << slot)) return slot;
-    if (slot && key >= K_MOUSE1 && key <= K_MOUSE3 && (occupied & 1u)) return 0;
-    return KEY_MOD_COUNT;
-}
-#endif
-
 #endif

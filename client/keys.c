@@ -35,6 +35,10 @@ static LPCSTR Key_FindBinding(keyCode_t key, DWORD mods) {
     return NULL;
 }
 
+#ifdef BZ_TESTS
+LPCSTR Key_FindBindingForTest(keyCode_t key, DWORD mods) { return Key_FindBinding(key, mods); }
+#endif
+
 static void Key_Bind_f(void) {
     keyCode_t keynum;
     DWORD mods;

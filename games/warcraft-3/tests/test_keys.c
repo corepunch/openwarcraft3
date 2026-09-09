@@ -105,17 +105,17 @@ TEST(keys, format_canonical_modifier_order) {
     T_STREQ(name, "CTRL+SHIFT+1");
 }
 
-TEST(keys, select_slot_prefers_exact_and_mouse_falls_back_to_plain) {
-    DWORD shift_and_plain = (1u << KEY_MOD_SHIFT) | 1u;
-    DWORD ctrl_only = 1u << KEY_MOD_CTRL;
+TEST(keys, modified_mouse_binding_falls_back_to_plain) {
+    Key_SetBinding((keyCode_t)'1', 0, "group 1");
+    Key_SetBinding((keyCode_t)'1', KEY_MOD_SHIFT, "group add 1");
+    Key_SetBinding(K_MOUSE1, 0, "+select");
+    Key_SetBinding(K_MOUSE2, 0, "+smart");
+    Key_SetBinding(K_MOUSE1, KEY_MOD_ALT, "+pan");
 
-    T_EQ(Key_SelectSlot((keyCode_t)'1', 0, shift_and_plain), 0u);
-    T_EQ(Key_SelectSlot((keyCode_t)'1', KEY_MOD_SHIFT, shift_and_plain), KEY_MOD_SHIFT);
-    T_EQ(Key_SelectSlot((keyCode_t)'1', KEY_MOD_CTRL, shift_and_plain), KEY_MOD_COUNT);
-    T_EQ(Key_SelectSlot((keyCode_t)'1', KEY_MOD_CTRL | KEY_MOD_SHIFT, ctrl_only), KEY_MOD_COUNT);
-    T_EQ(Key_SelectSlot((keyCode_t)'1', KEY_MOD_SHIFT, 1u), KEY_MOD_COUNT);
-
-    T_EQ(Key_SelectSlot(K_MOUSE2, KEY_MOD_SHIFT, 1u), 0u);
-    T_EQ(Key_SelectSlot(K_MOUSE1, KEY_MOD_ALT, shift_and_plain), 0u);
-    T_EQ(Key_SelectSlot(K_MOUSE1, KEY_MOD_SHIFT, shift_and_plain), KEY_MOD_SHIFT);
+    T_STREQ(Key_FindBindingForTest((keyCode_t)'1', KEY_MOD_SHIFT), "group add 1");
+    T_ASSERT(Key_FindBindingForTest((keyCode_t)'1', KEY_MOD_ALT) == NULL);
+    T_STREQ(Key_FindBindingForTest(K_MOUSE1, KEY_MOD_SHIFT), "+select");
+    T_STREQ(Key_FindBindingForTest(K_MOUSE2, KEY_MOD_CTRL | KEY_MOD_SHIFT), "+smart");
+    T_STREQ(Key_FindBindingForTest(K_MOUSE1, KEY_MOD_ALT), "+pan");
+    T_ASSERT(Key_FindBindingForTest(K_MOUSE3, KEY_MOD_SHIFT) == NULL);
 }

@@ -75,6 +75,7 @@ void CON_printf(LPCSTR fmt, ...) {
     va_end(args);
 }
 BOOL CL_GameplayInputReady(void) { return false; }
+BOOL CL_MovieKeyEvent(keyCode_t key, bool down) { (void)key; (void)down; return false; }
 /* Transient-window tests exercise focus without owning a real SDL text-input session. */
 void CL_SetTransientTextInput(BOOL enabled) { (void)enabled; }
 
@@ -113,6 +114,10 @@ void S_PlaySoundPacket(LPCSTR path, LPCVECTOR3 origin, BOOL positioned, int chan
     (void)path; (void)origin; (void)positioned; (void)channel; (void)volume; (void)attenuation; (void)timeofs;
 }
 void Cbuf_AddText(LPCSTR text) { (void)text; }
+int Cmd_Argc(void) { return 0; }
+LPCSTR Cmd_Argv(int arg) { (void)arg; return ""; }
+LPCSTR Cmd_ArgsFrom(int arg) { (void)arg; return ""; }
+void Cmd_AddCommand(LPCSTR name, xcommand_t function) { (void)name; (void)function; }
 void MenuAction(LPCSTR action, LPCSTR arg) {
     snprintf(test_menu_action, sizeof(test_menu_action), "%s", action ? action : "");
     snprintf(test_menu_action_arg, sizeof(test_menu_action_arg), "%s", arg ? arg : "");

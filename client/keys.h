@@ -33,5 +33,8 @@ void Key_SetBinding(keyCode_t key, DWORD mods, LPCSTR binding);
 LPCSTR Key_GetBinding(keyCode_t key, DWORD mods);
 void Key_Event(keyCode_t key, DWORD mods, bool down, DWORD time);
 void Key_WriteBindings(FILE *file);
+#ifdef BZ_TESTS
+LPCSTR Key_FindBindingForTest(keyCode_t key, DWORD mods);
+#endif
 
 #endif
