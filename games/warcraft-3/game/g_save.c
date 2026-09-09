@@ -373,6 +373,12 @@ static field_t const client_camera_fields[] = {
     { NULL, 0, 0, 0, 0, 0 }
 };
 
+static field_t const sleep_fields[] = {
+    F(edictSleep_s, can_sleep, F_INT),
+    F(edictSleep_s, sleeping, F_INT),
+    { NULL, 0, 0, 0, 0, 0 }
+};
+
 /* Every persistent and process-owned edict field crossing the save boundary is represented here. */
 field_t edict_fields[] = {
     F(edict_s, class_id, F_INT),
@@ -408,6 +414,7 @@ field_t edict_fields[] = {
     F(edict_s, destructable, F_STRUCT, 1, destructable_fields),
     F(edict_s, abilities, F_STRUCT, 1, abilities_fields),
     F(edict_s, avatar, F_STRUCT, 1, avatar_fields),
+    F(edict_s, sleep, F_STRUCT, 1, sleep_fields),
     F(edict_s, temporary_health_bonus, F_FLOAT),
     F(edict_s, animation, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, currentmove, F_MMOVE),
