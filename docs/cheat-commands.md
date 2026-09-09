@@ -115,9 +115,19 @@ instantbuild off
 warpten               # Warcraft-style alias; same toggle
 ```
 
-When enabled, structures owned by that player complete on the next construction work tick and ordinary trained units complete on the next producer tick. The cheat deliberately preserves the normal command path: the worker still travels to a valid site, placement and resource/food checks still run, the structure/unit is still created through the ordinary queue, and normal completion events, UI invalidation, sounds, rally orders, and exit-placement checks remain authoritative. Turning the cheat on also affects construction/training already in progress on their next tick. A blocked producer exit still keeps a completed trained unit queued until a legal exit position exists. Research and Hero revival timers are not changed by this command.
+When enabled, structures owned by that player complete on the next construction work tick, ordinary trained units complete on the next producer tick, and active research completes on the next research tick. The cheat deliberately preserves the normal command path: the worker still travels to a valid site, placement and resource/food checks still run, research costs and requirements are still checked, the structure/unit/research is still created through the ordinary queue, and normal completion events, UI invalidation, sounds, rally orders, and exit-placement checks remain authoritative. Turning the cheat on also affects construction, training, and research already in progress on their next tick. A blocked producer exit still keeps a completed trained unit queued until a legal exit position exists. Hero revival timers are not changed by this command.
 
 The state is per player rather than global, so enabling it for a human player does not accelerate computer opponents. Like the other runtime cheats it stays active until explicitly toggled off or the player state is replaced by a fresh map/client lifecycle.
+
+Instant kill is also an issuing-player cheat and requires `sv_cheats 1`:
+
+```
+instantkill          # toggle
+instantkill on
+instantkill off
+```
+
+When enabled, any normal damage dealt by that player's units or buildings is made lethal to unit/building targets on the same damage-resolution call. It preserves the ordinary death path, so death callbacks, combat cleanup, kill credit, and attack completion still run normally. Invulnerable targets remain immune, and destructables such as trees and crates are intentionally not affected by this cheat. The state is per player, so other human or computer players retain normal damage unless they enable their own cheat state.
 
 Time-of-day phase cheats set the authoritative Warcraft clock directly and require `sv_cheats 1`:
 

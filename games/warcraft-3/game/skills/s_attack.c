@@ -187,10 +187,16 @@ int G_AttackDamage(LPEDICT attacker, LPEDICT target, int base) {
  * attacker returns to its stand (idle) state.  Otherwise, if the target is
  * able to attack back it issues an automatic counter-attack order. */
 void T_Damage(LPEDICT target, LPEDICT attacker, int damage) {
+    BOOL instant_kill;
+
     if (!target || target->invulnerable) {
         return;
     }
+    instant_kill = attacker && (attacker->svflags & SVF_MONSTER) &&
+                   (target->svflags & SVF_MONSTER) &&
+                   G_PlayerInstantKill(attacker->s.player);
     damage = S_ManaShieldDamage(target, damage);
+    if (instant_kill) damage = MAX(damage, (int)ceilf(target->health.value));
     if (damage <= 0) return;
     if (G_IsDestructable(target)) {
         if (G_DestructableApplyDamage(target, attacker, (FLOAT)damage)) {

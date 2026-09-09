@@ -325,6 +325,41 @@ TEST(wc3_building, queued_research_charges_locks_and_cancel_refunds) {
     building_restore_upgrade_data(old, rows);
 }
 
+TEST(wc3_building, instant_build_cheat_completes_research_on_next_tick) {
+    LPGAMECLIENT client = &game.clients[0];
+    LPEDICT producer;
+    UnitProfile_t profile = { .researches = "Rhme" };
+    slkTestData_t *rows = NULL;
+    slkTestData_t *old;
+    DWORD const upgrade = MAKEFOURCC('R','h','m','e');
+
+    setup_test_world();
+    producer = alloc_test_unit(MAKEFOURCC('h','b','l','a'), 0, 0);
+    old = building_install_upgrade_data(&rows);
+    memset(client->tech, 0, sizeof(client->tech));
+    producer->data.UnitProfile = &profile;
+    producer->s.player = client->ps.number;
+    producer->stand = building_test_stand;
+    client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 1000;
+    client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 1000;
+    client->connected = false;
+    client->cheat_instant_build = true;
+
+    T_ASSERT(G_QueueResearch(producer, upgrade));
+    T_NOT_NULL(producer->build);
+    T_ASSERT(producer->build->research.duration > 0.0f);
+    T_NOT_NULL(producer->currentmove);
+    T_NOT_NULL(producer->currentmove->think);
+
+    producer->currentmove->think(producer);
+
+    T_NULL(producer->build);
+    T_EQ(G_GetPlayerTechInProgress(client, upgrade), 0);
+    T_EQ(G_GetPlayerTechResearchedLevel(client, upgrade), 1);
+
+    building_restore_upgrade_data(old, rows);
+}
+
 TEST(wc3_building, research_events_publish_producer_and_rawcode_context) {
     LPGAMECLIENT client = &game.clients[0];
     LPEDICT producer;
